@@ -5038,6 +5038,14 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       if (adocClarityDocumentKind) plan.documentKind = adocClarityDocumentKind;
       adocClarityDocumentKind = null;
 
+      // Correction rang 1 — documentKind (choix explicite sur l'écran d'accueil) devient
+      // l'AUTORITÉ DE ROUTAGE prioritaire ci-dessous, pas seulement une influence de texte en
+      // aval (cf. rapport séparé — le classificateur automatique intent ne décide plus la route
+      // que lorsqu'aucun type n'a été explicitement cliqué). _hasExplicitKind gate chacune des
+      // conditions de routage existantes (images seules, document long, fiche structurée) :
+      // absent → comportement STRICTEMENT inchangé (intent arbitre comme avant ce correctif).
+      const _hasExplicitKind = !!plan?.documentKind;
+
       const systemPrompt = adocBuildSystemPrompt(ragCtx, docCtx, plan, clarityNote);
 
       // Auto-résumé si session longue (async, non bloquant)
@@ -5061,7 +5069,17 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       // photos, sans texte" est classée intent=document avec max_tokens>=4000 comme
       // n'importe quel autre document — sans cette priorité, elle retomberait quand même
       // dans le moteur de chapitres malgré images_only=true.
-      const _isVisualOnly = plan?.images_only === true
+      // Correction rang 1 — articulation avec documentKind explicite (investigation, point 3) :
+      // un type cliqué sur l'écran d'accueil devient prioritaire sur ce chemin dérivé du texte
+      // libre. Raisonnement : une fois _isLongDoc lui-même bloqué par _hasExplicitKind (plus
+      // bas), le moteur de chapitres — seule cause du bug qu'images_only corrigeait — ne peut
+      // plus jamais être atteint pour un type explicite ; le texte "sans texte" continue
+      // d'atteindre le modèle tel quel via le prompt inchangé, déjà lu directement par lui, et
+      // la structure imposée par le type choisi (carrousel/tableau/script/liens, déjà injectée
+      // au système) reste seule maîtresse du rendu — jamais le gabarit générique image-seule,
+      // sans rapport avec un tableau ou un script. Sans type explicite : comportement
+      // STRICTEMENT inchangé (images_only reste prioritaire, exactement comme le LOT 30).
+      const _isVisualOnly = !_hasExplicitKind && plan?.images_only === true
         && !['pdf','docx','pptx','xlsx'].includes(plan?.output_format);
 
       if (_isVisualOnly && typeof adocVisualOnlyDoc === 'function') {
@@ -5088,9 +5106,15 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       // Critère : intent=cours|document ET max_tokens planifiés >= 4000
       // FIX-ISLONGDOC-FORMAT : pdf/docx/pptx/xlsx ont leur propre route Worker — pas de long doc
       // LOT 30 : jamais pour une demande visuelle pure, déjà traitée (ou dont l'échec a déjà
-      // été acté) par le bloc _isVisualOnly ci-dessus — ce garde-fou est la seule modification
-      // apportée à cette condition, le reste de son comportement est strictement inchangé.
-      const _isLongDoc = !_isVisualOnly && ['cours','document'].includes(plan?.intent)
+      // été acté) par le bloc _isVisualOnly ci-dessus.
+      // Correction rang 1 : jamais non plus quand un type a été explicitement choisi — aucune
+      // des 5 valeurs de documentKind (fiche/carrousel/tableau/script/liens) ne correspond au
+      // concept "cours"/"document" du classificateur automatique (qui n'existe que côté
+      // classification libre, sans carte cliquée) ; un "Carrousel" ou un "Tableau" ne doit
+      // jamais devenir un document de plusieurs chapitres en prose de 800-1500 mots chacun,
+      // même si l'intent a par ailleurs été classifié "document" par erreur — cf. rapport.
+      // Sans type explicite : comportement STRICTEMENT inchangé.
+      const _isLongDoc = !_isVisualOnly && !_hasExplicitKind && ['cours','document'].includes(plan?.intent)
         && (plan?.max_tokens || 0) >= 4000
         && !['pdf','docx','pptx','xlsx'].includes(plan?.output_format);
 
@@ -5137,8 +5161,17 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       // `_struct` serait hors de portée dans le catch (ReferenceError, pas juste undefined),
       // puisque try/catch sont deux blocs distincts. Aucun changement de comportement : la valeur
       // affectée et le moment où elle l'est restent identiques, seule sa visibilité s'élargit.
+      // Correction rang 1 — quand un type a été explicitement choisi, LUI SEUL décide s'il faut
+      // tenter le moteur structuré : documentKind==='fiche' force la tentative même si l'intent
+      // classifié automatiquement était différent (ex. "document") ; toute AUTRE valeur explicite
+      // (carrousel/tableau/script/liens) l'EMPÊCHE explicitement, même si l'intent classifié
+      // était par erreur "fiche" — dans les deux cas, intent n'arbitre plus. Sans type explicite :
+      // comportement STRICTEMENT inchangé (intent seul décide, comme avant ce correctif).
+      const _shouldAttemptStructuredFiche = _hasExplicitKind
+        ? plan.documentKind === 'fiche'
+        : plan?.intent === 'fiche';
       let _struct;
-      if (window.adocStructuredFicheEnabled && plan?.intent === 'fiche' && !_isLongDoc
+      if (window.adocStructuredFicheEnabled && _shouldAttemptStructuredFiche && !_isLongDoc
           && adocGetRendererMode('fiche') === 'structured') {
         try {
           adocUpdateTypingLabel(typingId, 'icon-structure', 'Génération structurée (Fiche synthèse)…');
