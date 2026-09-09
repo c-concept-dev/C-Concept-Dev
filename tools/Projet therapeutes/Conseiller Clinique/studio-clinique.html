@@ -1727,6 +1727,16 @@
       font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
       color: var(--muted); display: flex; align-items: center; gap: 6px; margin: 0 0 10px;
     }
+    /* LOT 11 (complément palette) — variante cliquable de la même étiquette de section, pour
+       une entrée de palette qui déclenche un geste (jamais une simple étiquette passive comme
+       "Documents joints"/"Sources utilisées" ci-dessous) : même apparence de base, affordance
+       d'interaction ajoutée (curseur, survol) plutôt qu'un style entièrement différent. */
+    .cc-ws-panel-action-btn {
+      width: 100%; border: 0; background: none; padding: 4px 0; cursor: pointer;
+      border-radius: 6px; transition: color 150ms ease;
+    }
+    .cc-ws-panel-action-btn:hover, .cc-ws-panel-action-btn:focus-visible { color: var(--terracotta-700); }
+    .cc-ws-panel-action-btn:focus-visible { outline: none; box-shadow: var(--focus); }
     .cc-ws-source-item { padding: 8px 10px; border-radius: 8px; background: var(--ivory); margin-bottom: 6px; }
     .cc-ws-source-book { font-weight: 600; font-size: 12px; color: var(--ink); }
     .cc-ws-source-count { font-size: 10px; color: var(--muted); margin-top: 2px; }
@@ -8986,6 +8996,98 @@ ${recent}`;
     return { ok: true, html: adocApplyLegacyRootVars(html, palette) };
   }
 
+  // ═══════════════════════════════════════════════════════════════════════
+  // LOT 11 — Changement de police d'un document legacy, en un clic (même geste que le
+  // reteintage de couleurs ci-dessus). Investigation préalable (LOT 11, rapport séparé) :
+  // contrairement au bloc :root des couleurs (un GABARIT EXACT donné au modèle, valeurs en
+  // dur à recopier), l'instruction de police est une DIRECTIVE EN PROSE ("Police principale :
+  // IBM Plex Sans… titres en Source Serif 4") — le modèle est libre de la traduire en CSS de
+  // façons différentes d'une génération à l'autre (sélecteurs groupés h1,h2,h3{...}, :is(),
+  // indirection par variable CSS…). Un détecteur cherchant une STRUCTURE CSS précise
+  // (body{font-family}/h1{font-family} isolés) manque donc une part significative des
+  // documents pourtant parfaitement conformes au prompt — vérifié sur 5 variantes construites,
+  // 3 manquées. En revanche, les deux NOMS DE POLICE LITTÉRAUX ("IBM Plex Sans", "Source
+  // Serif 4") apparaissent, eux, toujours en toutes lettres quelque part dans le <style> —
+  // vérifié sur les 5 mêmes variantes, y compris l'indirection par variable. D'où : un
+  // remplacement par RECHERCHE LITTÉRALE DU TEXTE, jamais par structure CSS.
+  // ═══════════════════════════════════════════════════════════════════════
+
+  const ADOC_LEGACY_DEFAULT_BODY_FONT = 'IBM Plex Sans';
+  const ADOC_LEGACY_DEFAULT_HEADING_FONT = 'Source Serif 4';
+
+  // Liste curatée — aucune liste de polices n'existait déjà dans ce fichier pour un choix
+  // utilisateur (vérifié explicitement lors de l'investigation ; adocBrandKitImport extrait une
+  // police depuis un PDF importé, ce n'est pas un menu de choix). Sélection sobre, cohérente
+  // avec l'identité pétrole/terracotta déjà établie : une police de titre serif éditoriale +
+  // une police de corps sans-serif humaniste, jamais l'inverse. 'keep' n'applique aucun
+  // remplacement (la police du document reste exactement ce qu'elle était).
+  const ADOC_LEGACY_FONT_PAIRS = [
+    { id: 'keep', label: 'Ne pas changer la police', bodyFont: null, headingFont: null, googleFontsHref: null },
+    { id: 'default', label: 'Police par défaut du Studio — IBM Plex Sans / Source Serif 4', bodyFont: 'IBM Plex Sans', headingFont: 'Source Serif 4',
+      googleFontsHref: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,600&display=swap' },
+    { id: 'inter-lora', label: 'Inter / Lora — clair et structuré', bodyFont: 'Inter', headingFont: 'Lora',
+      googleFontsHref: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:wght@500;600;700&display=swap' },
+    { id: 'public-merriweather', label: 'Public Sans / Merriweather — chaleureux et lisible', bodyFont: 'Public Sans', headingFont: 'Merriweather',
+      googleFontsHref: 'https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=Merriweather:wght@400;700&display=swap' },
+    { id: 'work-crimson', label: 'Work Sans / Crimson Pro — académique sobre', bodyFont: 'Work Sans', headingFont: 'Crimson Pro',
+      googleFontsHref: 'https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600;700&family=Crimson+Pro:wght@500;600;700&display=swap' },
+    { id: 'mulish-baskerville', label: 'Mulish / Libre Baskerville — doux et éditorial', bodyFont: 'Mulish', headingFont: 'Libre Baskerville',
+      googleFontsHref: 'https://fonts.googleapis.com/css2?family=Mulish:wght@400;500;600;700&family=Libre+Baskerville:wght@400;700&display=swap' },
+    { id: 'karla-playfair', label: 'Karla / Playfair Display — élégant contemporain', bodyFont: 'Karla', headingFont: 'Playfair Display',
+      googleFontsHref: 'https://fonts.googleapis.com/css2?family=Karla:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap' },
+  ];
+
+  // Vérifie que les DEUX noms de police imposés au modèle apparaissent, en toutes lettres,
+  // quelque part À L'INTÉRIEUR d'un bloc <style> — jamais un remplacement partiel si l'un des
+  // deux manque, même principe de refus explicite que adocParseLegacyRootVars ci-dessus.
+  function adocParseLegacyFontNames(html) {
+    const styleBlocks = [...String(html || '').matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)].map(function (m) { return m[1]; });
+    if (!styleBlocks.length) return null;
+    const combined = styleBlocks.join('\n');
+    const hasBody = combined.indexOf(ADOC_LEGACY_DEFAULT_BODY_FONT) !== -1;
+    const hasHeading = combined.indexOf(ADOC_LEGACY_DEFAULT_HEADING_FONT) !== -1;
+    return (hasBody && hasHeading) ? { found: true } : null;
+  }
+
+  // Remplace UNIQUEMENT à l'intérieur du/des bloc(s) <style> — jamais dans le <body> affiché.
+  // Risque examiné explicitement (LOT 11) : un nom de police pourrait en théorie apparaître
+  // dans du contenu clinique affiché (citation, commentaire) sans rapport avec une déclaration
+  // de police — peu réaliste vu le domaine de ces documents, mais borner au <style> élimine ce
+  // risque par construction, sans complexité supplémentaire.
+  function adocApplyLegacyFontNames(html, fontPair) {
+    return String(html || '').replace(/(<style[^>]*>)([\s\S]*?)(<\/style>)/gi, function (full, openTag, css, closeTag) {
+      let newCss = css.split(ADOC_LEGACY_DEFAULT_BODY_FONT).join(fontPair.bodyFont);
+      newCss = newCss.split(ADOC_LEGACY_DEFAULT_HEADING_FONT).join(fontPair.headingFont);
+      return openTag + newCss + closeTag;
+    });
+  }
+
+  // Remplace ou injecte la balise <link> Google Fonts — jamais dépendant de ce que le modèle
+  // avait chargé à l'origine. Un remplacement littéral du NOM de police ne mettrait jamais à
+  // jour cette balise correctement (son URL encode les espaces en "+", ex. "IBM+Plex+Sans" —
+  // un remplacement texte sur "IBM Plex Sans" avec espace ne la toucherait jamais) : traitée
+  // ici séparément, de façon déterministe.
+  function adocApplyLegacyGoogleFontsLink(html, fontPair) {
+    const linkTag = '<link href="' + fontPair.googleFontsHref + '" rel="stylesheet">';
+    const existingLinkRe = /<link[^>]+fonts\.googleapis\.com[^>]*>/i;
+    if (existingLinkRe.test(html)) return html.replace(existingLinkRe, linkTag);
+    if (/<\/head>/i.test(html)) return html.replace(/<\/head>/i, linkTag + '</head>');
+    if (/<style/i.test(html)) return html.replace(/<style/i, linkTag + '<style');
+    return html; // HTML sans <head> ni <style> repérable — ne devrait jamais arriver pour un document déjà validé par adocParseLegacyFontNames.
+  }
+
+  // Orchestrateur — même contrat que adocRethemeLegacyHtml : { ok:false } sans rien modifier si
+  // le motif attendu n'est pas retrouvé. fontPairId==='keep' ne modifie rien (toujours ok:true).
+  function adocRethemeLegacyFonts(html, fontPairId) {
+    const fontPair = ADOC_LEGACY_FONT_PAIRS.find(function (f) { return f.id === fontPairId; }) || ADOC_LEGACY_FONT_PAIRS[0];
+    if (fontPair.id === 'keep') return { ok: true, html: html, applied: false };
+    const fontInfo = adocParseLegacyFontNames(html);
+    if (!fontInfo) return { ok: false, html: html, applied: false };
+    let newHtml = adocApplyLegacyFontNames(html, fontPair);
+    newHtml = adocApplyLegacyGoogleFontsLink(newHtml, fontPair);
+    return { ok: true, html: newHtml, applied: true };
+  }
+
   window._adocLegacyReThemeCandidate = null;
 
   window.adocCloseLegacyReThemePanel = function () {
@@ -9011,7 +9113,14 @@ ${recent}`;
       return;
     }
     body.innerHTML =
-      '<div style="font-size:11px;color:var(--muted);margin-bottom:8px;">Choisissez une charte à appliquer — un aperçu vous sera montré avant toute confirmation. Seules les couleurs changent, jamais le contenu.</div>' +
+      '<div style="font-size:11px;color:var(--muted);margin-bottom:8px;">Choisissez une charte à appliquer — un aperçu vous sera montré avant toute confirmation. Seuls les couleurs et, si vous le souhaitez, la police changent, jamais le contenu.</div>' +
+      // LOT 11 — choix de police ajouté à ce même panneau (jamais un second mécanisme). Lu au
+      // moment du clic sur une charte ci-dessous (adocPreviewLegacyRetheme), pas ici : un seul
+      // geste (clic sur la charte) déclenche l'aperçu combiné couleurs+police.
+      '<label for="cc-legacy-retheme-font-select" style="display:block;font-size:11px;font-weight:600;color:var(--ink);margin-bottom:4px;">Police (optionnel)</label>' +
+      '<select id="cc-legacy-retheme-font-select" class="cc-landing-brandkit-select" style="width:100%;margin-bottom:12px;">' +
+      ADOC_LEGACY_FONT_PAIRS.map(function (f) { return '<option value="' + f.id + '">' + adocEsc(f.label) + '</option>'; }).join('') +
+      '</select>' +
       '<div style="display:flex;flex-direction:column;gap:6px;">' +
       kits.map(function (k) {
         return '<button type="button" class="cc-clarity-reply-btn" style="justify-content:flex-start;text-align:left;width:100%;" onclick="window.adocPreviewLegacyRetheme(\'' + k.id + '\')">' + adocEsc(k.name || 'Charte') + '</button>';
@@ -9026,20 +9135,40 @@ ${recent}`;
     const storeKey = modal && modal.dataset.storeKey;
     const art = storeKey && window._adocArtifacts?.[storeKey];
     if (!art || !body) return;
+    // LOT 11 — lu AVANT de reconstruire body.innerHTML ci-dessous (qui remplace le <select>).
+    const fontPairId = document.getElementById('cc-legacy-retheme-font-select')?.value || 'keep';
     body.innerHTML = '<div style="padding:8px 0;color:var(--muted);font-size:12px;">Préparation de l\'aperçu…</div>';
     try {
       const brandKit = await adocGetBrandKitById(brandKitId);
       if (!brandKit || !brandKit.id) throw new Error('Charte introuvable');
-      const result = adocRethemeLegacyHtml(art.html, brandKit);
-      if (!result.ok) {
+      const colorResult = adocRethemeLegacyHtml(art.html, brandKit);
+      if (!colorResult.ok) {
         body.innerHTML = '<div style="padding:8px 0;color:var(--terracotta-700);font-size:12px;">Ce document ne peut pas être re-thématisé automatiquement : sa palette de couleurs n\'a pas été retrouvée sous la forme attendue. Rien n\'a été modifié.</div>'
           + '<div style="margin-top:10px;"><button type="button" class="cc-clarity-other-btn" onclick="window.adocCloseLegacyReThemePanel()">Fermer</button></div>';
         return;
       }
-      window._adocLegacyReThemeCandidate = { storeKey: storeKey, html: result.html, brandKitId: brandKit.id, brandKitName: brandKit.name || null };
-      const previewBlobUrl = URL.createObjectURL(new Blob([result.html], { type: 'text/html;charset=utf-8' }));
+      // LOT 11 — police appliquée EN PLUS des couleurs, jamais à la place : un échec de
+      // détection du motif de police (fontResult.ok===false) n'empêche jamais l'application
+      // des couleurs, qui reste un mécanisme entièrement indépendant et déjà vérifié.
+      const fontPair = ADOC_LEGACY_FONT_PAIRS.find(function (f) { return f.id === fontPairId; }) || ADOC_LEGACY_FONT_PAIRS[0];
+      const fontResult = adocRethemeLegacyFonts(colorResult.html, fontPairId);
+      const finalHtml = fontResult.ok ? fontResult.html : colorResult.html;
+      const fontRefused = fontPairId !== 'keep' && !fontResult.ok;
+
+      window._adocLegacyReThemeCandidate = {
+        storeKey: storeKey, html: finalHtml, brandKitId: brandKit.id, brandKitName: brandKit.name || null,
+        fontPairId: fontResult.applied ? fontPairId : null, fontLabel: fontResult.applied ? fontPair.label : null,
+      };
+      const previewBlobUrl = URL.createObjectURL(new Blob([finalHtml], { type: 'text/html;charset=utf-8' }));
+      const fontNote = fontRefused
+        ? '<div style="margin:8px 0;padding:8px 10px;background:var(--terracotta-100);color:var(--terracotta-700);border-radius:6px;font-size:11px;">La police n\'a pas pu être changée pour ce document précis (les noms de police attendus n\'ont pas été retrouvés dans son style) — seules les couleurs seront appliquées.</div>'
+        : '';
+      const previewNote = 'Aperçu avec « ' + adocEsc(brandKit.name || 'cette charte') + ' »'
+        + (fontResult.applied ? ' et la police « ' + adocEsc(fontPair.label) + ' »' : '')
+        + ' — contenu, structure et scripts inchangés.';
       body.innerHTML =
-        '<div style="font-size:11px;color:var(--muted);margin-bottom:6px;">Aperçu avec « ' + adocEsc(brandKit.name || 'cette charte') + ' » — contenu, structure et scripts inchangés, seules les couleurs changent.</div>' +
+        '<div style="font-size:11px;color:var(--muted);margin-bottom:6px;">' + previewNote + '</div>' +
+        fontNote +
         '<iframe src="' + previewBlobUrl + '" style="width:100%;height:320px;border:1px solid var(--stone-200);border-radius:8px;" sandbox="allow-scripts"></iframe>' +
         '<div style="margin-top:10px;display:flex;gap:8px;">' +
           '<button type="button" class="cc-clarity-reply-btn" onclick="window.adocConfirmLegacyRetheme()">Confirmer</button>' +
@@ -9060,6 +9189,9 @@ ${recent}`;
     art.html = candidate.html;
     art.blobUrl = URL.createObjectURL(new Blob([art.html], { type: 'text/html;charset=utf-8' }));
     art._adocBrandKitName = candidate.brandKitName;
+    // LOT 11 — traçabilité de la police appliquée, même patron que _adocBrandKitName ci-dessus.
+    // Reste null si l'utilisatrice a choisi "keep" ou si le motif de police n'a pas été retrouvé.
+    if (candidate.fontLabel) art._adocFontLabel = candidate.fontLabel;
     // Promotion tardive des capacités — un document legacy "normal" (jamais un repli depuis le
     // moteur structuré) n'a jamais reçu cette enveloppe à la génération (cf. adocFinalizeGeneration,
     // réservée au cas de repli) : l'utilisatrice demandant explicitement une action qui en
@@ -9093,6 +9225,27 @@ ${recent}`;
     if (!art || !btn) return;
     if (!art._adocStructuredDoc) btn.hidden = false;
   }
+
+  // LOT 11 (complément palette) — deuxième point d'accès au même panneau que le bouton
+  // "Reteinter" de la carte (adocOpenLegacyReThemePanel, INCHANGÉ, appelé ici tel quel — jamais
+  // un second mécanisme). Agit sur le document actuellement ouvert dans l'espace de travail
+  // (window._adocWsState.storeKey, même source de vérité que adocWsSave/adocOpenWorkspace) :
+  // en pratique le panneau #cc-ws-panel (donc cette entrée) n'est visible que lorsqu'un document
+  // EST déjà ouvert (il vit à l'intérieur de #cc-workspace, jamais affiché seul) — le message
+  // "aucun document ouvert" ci-dessous reste un garde-fou défensif, jamais supposé inatteignable.
+  window.adocOpenLegacyFontPanelFromPalette = function () {
+    const storeKey = window._adocWsState && window._adocWsState.storeKey;
+    const art = storeKey && window._adocArtifacts?.[storeKey];
+    if (!art) {
+      alert('Ouvrez ou générez d\'abord un document pour pouvoir changer sa police.');
+      return;
+    }
+    if (art._adocStructuredDoc) {
+      alert('Le changement de police ne s\'applique qu\'aux documents de l\'ancien moteur — pas à une Fiche synthèse structurée.');
+      return;
+    }
+    window.adocOpenLegacyReThemePanel(storeKey);
+  };
 
   // ═══════════════════════════════════════════════════════════════════════
   // UX-8B Lot 3 — import réel de charte PDF (extraction texte + interprétation par Claude,
@@ -11631,6 +11784,16 @@ ${recent}`;
           Documents joints
         </p>
         <div id="cc-ws-docs-list"></div>
+      </div>
+      <div>
+        <!-- LOT 11 (complément palette) — deuxième chemin vers le même geste que le bouton
+             "Reteinter" déjà existant sur la carte de conversation (inchangé, conservé) : celui-ci
+             reste visible en permanence dans la colonne (jamais caché derrière un sous-menu),
+             agit sur le document actuellement ouvert dans l'espace de travail. -->
+        <button type="button" class="cc-ws-panel-section-title cc-ws-panel-action-btn" id="cc-ws-font-entry" onclick="window.adocOpenLegacyFontPanelFromPalette()">
+          <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-writing"></use></svg>
+          Police
+        </button>
       </div>
       <div>
         <p class="cc-ws-panel-section-title">
