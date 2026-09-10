@@ -3548,9 +3548,22 @@
       needs_rag: true,
       max_tokens: Math.max(...plans.map(p => p.max_tokens||4000), 8000),
       // LOT 30 — images_only n'est jamais garanti porté par `dominant` (le plan le plus
-      // "riche" par format, cf. ci-dessus) : une seule sous-question true suffit à qualifier
-      // toute la demande (ex. Q1 texte + Q2 "que des photos, sans texte" en multi-question).
-      images_only: plans.some(p => p.images_only === true),
+      // "riche" par format, cf. ci-dessus).
+      // Correction rang 2 — `.some()` faisait basculer TOUTE la demande fusionnée sur le
+      // chemin images seules dès qu'UNE SEULE sous-question était visuelle (ex. Q1 texte réel +
+      // Q2 "que des photos, sans texte" en multi-question) : la partie textuelle disparaissait
+      // silencieusement, régression née de la composition FIX-MULTI-PLAN + LOT 30, voulue par
+      // aucun des deux. `.every()` n'active désormais le chemin léger QUE si TOUTES les
+      // sous-questions sont visuelles (cas a) ; un mélange (cas c) retombe sur le traitement
+      // standard — le texte demandé est alors bien produit, la sous-question visuelle restant
+      // traitée du mieux possible par la génération standard (jamais le gabarit image-seule,
+      // structurellement incompatible avec du texte réel). `.every()` sur un tableau vide
+      // vaudrait `true` par défaut en JavaScript, mais ce cas n'est pas atteignable ici :
+      // `plans` provient de `adocSplitQuestions(text)`, qui renvoie toujours au moins `[text]`
+      // (jamais un tableau vide) pour un `text` lui-même déjà garanti non vide par le garde-fou
+      // `if (!text || adocThinking) return;` de adocSend — aucune neutralisation défensive
+      // ajoutée en conséquence.
+      images_only: plans.every(p => p.images_only === true),
       _multiPlan: questions.length > 1,
       _subPlans: plans,
     };
