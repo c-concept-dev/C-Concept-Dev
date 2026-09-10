@@ -3485,35 +3485,70 @@
     return meaningful.length > 1 ? meaningful : [text];
   }
 
+  // Correction rang 3 — repli de classification local unique, partagé par adocMultiPlan
+  // (un appel par sous-question, quand adocPlanQuery(q) échoue pour CETTE sous-question) et par
+  // le garde FIX-EMPTY-PLAN de adocSend (un appel sur le texte entier, quand adocMultiPlan
+  // échoue intégralement ou renvoie un plan sans intent). Ces deux points d'entrée reconstruisaient
+  // chacun, séparément, une logique quasi identique — divergente sur 4 points (max_tokens,
+  // détection du mot-clé "conf", traitement des accents, règle d'extraction du mot-clé de
+  // recherche), avec pour conséquence qu'une même demande pouvait recevoir un plan de secours
+  // différent selon le point exact où l'échec se déclenchait. Investigation (rapport séparé) :
+  // aucune des deux occurrences ne sert un scénario réellement distinct de l'autre — les deux ne
+  // sont qu'une dérivation heuristique "texte → plan minimal" appliquée à un texte d'entrée
+  // (sous-question ou message entier, aucune différence de traitement requise) ; les commentaires
+  // "Audit systémique (Priorité 8.1)" et "LOT 30" présents à l'identique dans les deux anciens
+  // blocs prouvent qu'elles étaient déjà comprises comme des copies à synchroniser à la main —
+  // preuve d'une dérive accidentelle, jamais d'une divergence de conception voulue. D'où une
+  // fonction UNIQUE, sans paramètre de scénario (aucune différence de ce type n'existe à capturer) :
+  //   - max_tokens=8000 (valeur de l'ancien repli adocSend) : dans le chemin adocMultiPlan, la
+  //     valeur individuelle d'un sous-plan est de toute façon écrasée par le plancher
+  //     `Math.max(...plans.map(p=>p.max_tokens||4000), 8000)` du plan fusionné (LOT 30, inchangé
+  //     ce lot) — 8000 partout ne change donc RIEN à ce chemin et aligne le chemin adocSend
+  //     (où la valeur survit telle quelle, sans fusion) sur ce même plancher déjà établi ailleurs.
+  //   - 'conf' conservé comme déclencheur de l'intent 'document' (liste la plus complète des
+  //     deux anciens repli) : rien n'indique une exclusion volontaire côté adocSend, seulement
+  //     un oubli de synchronisation — l'inclure élargit la reconnaissance sans jamais réduire un
+  //     cas déjà couvert.
+  //   - accents PRÉSERVÉS (plage Unicode À-ɏ, reprise de l'ancien repli adocSend) plutôt
+  //     que supprimés (ancien comportement adocMultiPlan) : un mot-clé ou un résumé de secours
+  //     dégradé par la perte de ses accents ("thérapie" → "thrapie") est une régression réelle
+  //     pour une application clinique francophone — appliqué de façon cohérente à CHAQUE étape de
+  //     nettoyage de caractères de cette fonction (résumé _tw ET mot-clé _w0), pas seulement à
+  //     l'endroit où l'audit l'a repéré en premier.
+  //   - sélection du mot-clé de recherche (_w0) : règle de l'ancien repli adocMultiPlan conservée
+  //     (premier mot de plus de 4 caractères, repli sur 'therapie') — un terme de recherche RAG a
+  //     besoin d'un mot porteur de sens, jamais un mot vide ("un", "je", "la") comme le permettait
+  //     sans condition l'ancien repli adocSend.
+  function adocBuildFallbackPlan(text) {
+    const ql = text.toLowerCase();
+    const _iT = (ql.includes('excel') || ql.includes('comparatif') || ql.includes('tableau')) ? 'tableau'
+      : (ql.includes('support visuel') || ql.includes('conf') || ql.includes('page web')) ? 'document'
+      : (ql.includes('cours') || ql.includes('formation')) ? 'cours'
+      // Audit systémique (Priorité 8.1) — 'carrousel' est une intention distincte reconnue par
+      // le planner (cf. plannerSystem ci-dessus) : ce repli local la transformait silencieusement
+      // en 'fiche' HTML dès qu'elle était explicitement demandée, alors même que la demande la
+      // nommait. Vérifiée en premier pour ne pas être masquée par le test 'fiche' générique.
+      : ql.includes('carrousel') ? 'carrousel'
+      : ql.includes('fiche') ? 'fiche'
+      : 'chat';
+    const _fT = {tableau:'xlsx',document:'html-visual',cours:'html-visual',fiche:'html',carrousel:'html',chat:'chat'}[_iT]||'chat';
+    const _tw = text.replace(/[^a-z0-9À-ɏ\s]/gi,'').trim().split(/\s+/).slice(0,4).join(' ');
+    const _w0 = (text.split(/\s+/).find(w => w.length > 4) || 'therapie').replace(/[^a-zÀ-ɏ]/gi,'');
+    // LOT 30 — demande visuelle pure : orthogonal à _iT ci-dessus, jamais un remplacement.
+    // Muet auparavant sur ce cas (aucune branche ci-dessus ne le teste) → retombait sur
+    // 'chat' sans jamais signaler images_only, d'où le routage erroné vers le document long.
+    const _imagesOnly = /\b(images?|photos?|visuels?)\b/.test(ql)
+      && /(sans texte|pas de texte|aucun texte|uniquement (du|le) visuel|que des (images|photos))/.test(ql);
+    // Phase B0.3 : plus de SQL construit côté client — intention structurée simple.
+    return { intent:_iT, output_format:_fT, needs_rag:true, approach_filter:null,
+      searches:[{ terms:[_w0], term_match:'any', limit:15 }], vector_angles:[_tw], topic_summary:_tw.slice(0,30),
+      max_tokens:8000, clinical_intent:(_iT==='chat'?'chat':'production'), images_only:_imagesOnly };
+  }
+  window.adocBuildFallbackPlan = adocBuildFallbackPlan;
+
   async function adocMultiPlan(text) {
     const questions = adocSplitQuestions(text);
     console.log('[FIX-MULTI-PLAN] ' + questions.length + ' sous-question(s)');
-
-    const _fallback = (q) => {
-      const ql = q.toLowerCase();
-      const _iT = (ql.includes('excel') || ql.includes('comparatif') || ql.includes('tableau')) ? 'tableau'
-        : (ql.includes('support visuel') || ql.includes('conf') || ql.includes('page web')) ? 'document'
-        : (ql.includes('cours') || ql.includes('formation')) ? 'cours'
-        // Audit systémique (Priorité 8.1) — 'carrousel' est une intention distincte reconnue par
-        // le planner (cf. plannerSystem ci-dessus) : ce repli local la transformait silencieusement
-        // en 'fiche' HTML dès qu'elle était explicitement demandée, alors même que la demande la
-        // nommait. Vérifiée en premier pour ne pas être masquée par le test 'fiche' générique.
-        : ql.includes('carrousel') ? 'carrousel'
-        : ql.includes('fiche') ? 'fiche'
-        : 'chat';
-      const _fT = {tableau:'xlsx',document:'html-visual',cours:'html-visual',fiche:'html',carrousel:'html',chat:'chat'}[_iT]||'chat';
-      const _tw = q.replace(/[^a-z0-9\s]/gi,'').trim().split(/\s+/).slice(0,4).join(' ');
-      const _w0 = (q.split(/\s+/).find(w => w.length > 4) || 'therapie').replace(/[^a-z]/gi,'');
-      // LOT 30 — demande visuelle pure : orthogonal à _iT ci-dessus, jamais un remplacement.
-      // Muet auparavant sur ce cas (aucune branche ci-dessus ne le teste) → retombait sur
-      // 'chat' sans jamais signaler images_only, d'où le routage erroné vers le document long.
-      const _imagesOnly = /\b(images?|photos?|visuels?)\b/.test(ql)
-        && /(sans texte|pas de texte|aucun texte|uniquement (du|le) visuel|que des (images|photos))/.test(ql);
-      // Phase B0.3 : plus de SQL construit côté client — intention structurée simple.
-      return { intent:_iT, output_format:_fT, needs_rag:true, approach_filter:null,
-        searches:[{ terms:[_w0], term_match:'any', limit:15 }], vector_angles:[_tw], topic_summary:_tw.slice(0,30),
-        max_tokens:4000, clinical_intent:(_iT==='chat'?'chat':'production'), images_only:_imagesOnly };
-    };
 
     // Plans en parallele (max 3 simultanement)
     const CONC = 3;
@@ -3521,7 +3556,7 @@
     for (let i = 0; i < questions.length; i += CONC) {
       const batch = questions.slice(i, i + CONC);
       const res = await Promise.all(batch.map(q => adocPlanQuery(q).catch(() => null)));
-      res.forEach((p, j) => plans.push((p && p.intent) ? p : _fallback(questions[i+j])));
+      res.forEach((p, j) => plans.push((p && p.intent) ? p : adocBuildFallbackPlan(questions[i+j])));
     }
 
     // Plan dominant = format le plus riche
@@ -4888,28 +4923,8 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       console.log('[Planner]', plan ? JSON.stringify({intent:plan.intent,fmt:plan.output_format,multi:plan._multiPlan}) : 'NULL');
       // FIX-PLAN-FALLBACK + FIX-EMPTY-PLAN legacy guard
       if (!plan || !plan.intent) {  // FIX-EMPTY-PLAN
-        const _q = text.toLowerCase();
-        const _iT = (_q.includes('excel') || _q.includes('comparatif') || _q.includes('tableau')) ? 'tableau'
-          : (_q.includes('support visuel') || _q.includes('page web')) ? 'document'
-          : (_q.includes('cours') || _q.includes('formation')) ? 'cours'
-          // Audit systémique (Priorité 8.1) — même correctif que adocMultiPlan ci-dessus :
-          // 'carrousel' préservé comme intention distincte, jamais silencieusement transformé
-          // en 'fiche' HTML.
-          : _q.includes('carrousel') ? 'carrousel'
-          : _q.includes('fiche') ? 'fiche'
-          : 'chat';
-        const _fT = {tableau:'xlsx',document:'html-visual',cours:'html-visual',fiche:'html',carrousel:'html',chat:'chat'}[_iT]||'chat';
-        const _tw = text.replace(/[^a-z0-9\u00C0-\u024F\s]/gi,'').trim().split(/\s+/).slice(0,4).join(' ');
-        const _w0 = text.split(/\s+/)[0] || 'therapie';
-        // LOT 30 — même correctif que _fallback ci-dessus (adocMultiPlan) : orthogonal à _iT,
-        // muet auparavant sur ce cas.
-        const _imagesOnly = /\b(images?|photos?|visuels?)\b/.test(_q)
-          && /(sans texte|pas de texte|aucun texte|uniquement (du|le) visuel|que des (images|photos))/.test(_q);
-        // Phase B0.3 : plus de SQL construit côté client — intention structurée simple.
-        plan = { intent:_iT, output_format:_fT, needs_rag:true, approach_filter:null,
-          searches:[{ terms:[_w0], term_match:'any', limit:15 }], vector_angles:[_tw], topic_summary:_tw.slice(0,30),
-          max_tokens:8000, clinical_intent:(_iT==='chat'?'chat':'production'), images_only:_imagesOnly };
-        console.warn('[FIX-MULTI-PLAN] fallback plan:', _iT, _fT);
+        plan = adocBuildFallbackPlan(text);
+        console.warn('[FIX-MULTI-PLAN] fallback plan:', plan.intent, plan.output_format);
       }
 
       // ── M1 : Enrichissement des recherches en parallèle — Unlimited Token System ──
