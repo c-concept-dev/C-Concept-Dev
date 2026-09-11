@@ -10778,6 +10778,21 @@ ${recent}`;
         // fragment input_json_delta reçu, pour calculer l'intervalle avec le suivant. Redéclaré
         // à chaque tentative (portée de la fonction englobante, comme _m2 lui-même).
         let _lastFragmentAtMs = null;
+        // Investigation ciblée (message_stop vs fermeture transport) — jusqu'ici, `message_stop`
+        // ne faisait qu'armer `_m2.receivedMessageStop`, sans jamais arrêter la lecture : la
+        // boucle `while (true)` plus bas n'interrompt la lecture QUE sur `done` (fermeture réelle
+        // du transport HTTP) ou sur l'expiration d'une des deux minuteries (45s transport / 120s
+        // sémantique). Si le flux reste ouvert après `message_stop` (comportement réseau normal,
+        // par ex. connexion maintenue par un proxy), un document déjà complet et valide attendait
+        // ainsi une fermeture de transport qui pouvait ne jamais survenir avant l'abandon — un
+        // faux échec sur un contenu déjà entièrement livré. `_genEarlyComplete` objective la
+        // condition de succès dès `message_stop` : `stop_reason` valide (`tool_use`, déjà connu
+        // à ce stade via `message_delta`, toujours reçu avant `message_stop` dans le flux
+        // Anthropic) ET JSON accumulé réellement validable (jamais supposé complet sur la seule
+        // foi de `message_stop` — un flux qui ne respecterait pas cet ordre attendu, JSON encore
+        // invalide, continue normalement d'attendre comme avant, aucun comportement nouveau dans
+        // ce cas).
+        let _genEarlyComplete = false;
         function _processGenLine(_gl) {
           if (!_gl.startsWith('data: ')) return;
           const _gd = _gl.slice(6).trim();
@@ -10829,8 +10844,21 @@ ${recent}`;
             // événement de clôture attendu ensuite ne serait jamais arrivé — distinct d'un flux
             // coupé en plein milieu d'un fragment.
             if (_ge.type === 'content_block_stop') _m2.receivedContentBlockStop = true;
-            if (_ge.type === 'message_stop') _m2.receivedMessageStop = true;
             if (_ge.type === 'message_delta' && _ge.delta && _ge.delta.stop_reason) _genStopReason = _ge.delta.stop_reason;
+            if (_ge.type === 'message_stop') {
+              _m2.receivedMessageStop = true;
+              // Investigation ciblée — `message_delta` (qui porte `stop_reason`) précède toujours
+              // `message_stop` dans le flux Anthropic : `_genStopReason` est donc déjà connu ici.
+              // Un JSON encore invalide/incomplet malgré `message_stop` ne déclenche PAS la
+              // sortie anticipée (try/catch ci-dessous) — dans ce cas la lecture continue
+              // normalement comme avant ce correctif, aucune régression sur un flux non conforme.
+              if (_genStopReason === 'tool_use' && _genToolInputJson) {
+                try {
+                  JSON.parse(_genToolInputJson);
+                  _genEarlyComplete = true;
+                } catch (_earlyJsonErr) { /* JSON pas encore validable — attendre la suite, comportement inchangé */ }
+              }
+            }
           } catch (_parseErr) {
             if (_parseErr && _parseErr.name === 'AdocSSEStreamError') throw _parseErr;
             /* SSE malformée — ignorer, cohérent avec le moteur legacy */
@@ -10856,6 +10884,18 @@ ${recent}`;
             const _genLines = _genSseBuffer.split('\n');
             _genSseBuffer = _genLines.pop();
             for (const _gl of _genLines) _processGenLine(_gl);
+            // Investigation ciblée (message_stop vs fermeture transport) — dès que le flux a
+            // objectivement fini de produire un document structuré valide (cf. _genEarlyComplete,
+            // posé dans _processGenLine sur `message_stop` + stop_reason 'tool_use' + JSON
+            // validable), la tentative est déjà un succès : on cesse de lire, sans attendre que
+            // le transport se ferme de lui-même (ce qui pouvait ne jamais survenir avant les 45s/
+            // 120s de minuterie, provoquant un abandon sur un contenu pourtant déjà complet).
+            // reader.cancel() signale explicitement au navigateur qu'on n'attend plus rien de ce
+            // flux, pour ne pas laisser la connexion sous-jacente ouverte inutilement.
+            if (_genEarlyComplete) {
+              try { await _genReader.cancel(); } catch (_genCancelErr) { /* déjà fermé/sans effet — sans conséquence ici */ }
+              break;
+            }
           }
           // Partie A, point 5 — dernier fragment jamais perdu si le flux se ferme sans saut de
           // ligne terminal.
