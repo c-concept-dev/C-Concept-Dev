@@ -4822,8 +4822,25 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
   // condition affichait "undefined" pour toute entrée dont failedCall serait un jour 1 (metrics1
   // jamais consulté dans ce cas). Point de lecture UNIQUE, pour ne pas dupliquer cette règle à
   // chaque champ affiché ni risquer de l'oublier sur l'un d'eux.
+  // Correction rang 4 — metrics1/metrics2 sont désormais un TABLEAU de tentatives (une par essai
+  // réellement effectué), plus un objet unique réécrit à chaque tentative (cf. rapport séparé).
+  // Le résumé ci-dessous continue de refléter la DERNIÈRE tentative (celle qui a déterminé
+  // l'issue finale) — non-régression exacte des champs déjà affichés par ce point de lecture.
+  // Une entrée enregistrée AVANT ce lot stocke encore un objet unique (jamais un tableau à
+  // l'époque) : traitée ici comme une tentative unique implicite, jamais cassée par ce correctif.
   function _adocMetricsForEntry(entry) {
-    return entry.failedCall === 1 ? entry.metrics1 : entry.metrics2;
+    const raw = entry.failedCall === 1 ? entry.metrics1 : entry.metrics2;
+    if (!raw) return raw;
+    return Array.isArray(raw) ? raw[raw.length - 1] : raw;
+  }
+  // Correction rang 4 — accès à L'ENSEMBLE des tentatives (pas seulement la dernière), pour
+  // l'affichage enrichi de adocDumpFallbackTrace() ci-dessous. Même règle de compatibilité
+  // ascendante que _adocMetricsForEntry : un objet unique (ancien format) est traité comme un
+  // tableau à une seule tentative.
+  function _adocAttemptsForEntry(entry) {
+    const raw = entry.failedCall === 1 ? entry.metrics1 : entry.metrics2;
+    if (!raw) return [];
+    return Array.isArray(raw) ? raw : [raw];
   }
 
   window.adocDumpFallbackTrace = function () {
@@ -4834,6 +4851,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     }
     console.table(list.map(function (e) {
       const m = _adocMetricsForEntry(e);
+      const attempts = _adocAttemptsForEntry(e);
       return {
         timestamp: e.timestamp,
         hourOfDay: e.hourOfDay,
@@ -4847,6 +4865,18 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
         // Lot request-id — identifiant technique Anthropic (corrélation support), présent
         // uniquement pour un repli lié à l'appel 2 (seul appel qui le capture pour l'instant).
         anthropicRequestId: m ? (m.anthropicRequestId || null) : null,
+        // Correction rang 4 — chaque tentative réellement effectuée pour l'appel en échec,
+        // désormais individuellement consultable (jamais seulement la dernière) : numéro, durée
+        // réelle et issue de chacune, dans l'ordre chronologique (ex. cas réel du 06/09 : "#1
+        // 138s (semantic-timeout) → #2 1104s (semantic-timeout)"). null pour une entrée sans
+        // aucune tentative journalisée (ne devrait pas arriver en pratique, filet honnête).
+        attempts: attempts.length
+          ? attempts.map(function (a) {
+              return '#' + (a.attemptNumber != null ? a.attemptNumber : '?') + ' '
+                + (a.durationMs != null ? Math.round(a.durationMs / 1000) + 's' : '?')
+                + ' (' + (a.finalState || '?') + ')';
+            }).join(' → ')
+          : null,
         errorMessage: e.errorMessage,
       };
     }));
@@ -10243,9 +10273,14 @@ ${recent}`;
     // d'atteindre le catch englobant dans window.adocSend (autre fonction) où le repli est
     // constaté. Ce holder partagé, réinitialisé à chaque appel de adocGenerateStructuredFiche et
     // mis à jour juste après chaque _adocLogCallMetrics déjà existant (jamais une nouvelle
-    // mesure), permet à ce catch de relire tel quel l'objet de métriques de la DERNIÈRE tentative
-    // de chaque appel — simple relais de lecture, sans effet sur la logique de repli elle-même.
-    window._adocLastStructAttemptMetrics = { metrics1: null, metrics2: null };
+    // mesure), permet à ce catch de relire tel quel les métriques de CHAQUE tentative de chaque
+    // appel — simple relais de lecture, sans effet sur la logique de repli elle-même.
+    // Correction rang 4 — metrics1/metrics2 étaient un objet UNIQUE réécrit à chaque tentative :
+    // avec jusqu'à 2 tentatives autorisées par appel, la 2e effaçait silencieusement la durée et
+    // l'issue de la 1re avant même d'atteindre le traceur persistant (cas réel observé : 138s puis
+    // 1104s sur l'appel 2, seule la 2e valeur survivait). Désormais un TABLEAU, une entrée par
+    // tentative réellement effectuée (jamais un remplacement) — cf. rapport séparé.
+    window._adocLastStructAttemptMetrics = { metrics1: [], metrics2: [] };
     // ── Instrumentation (ENQUÊTE latence, lot investigation) — chronométrage explicite de
     // chaque étape des deux appels, pour mesurer AVANT de corriger. Retiré/désactivable
     // facilement (window.adocStructuredFicheTimingLog = false) une fois la cause confirmée.
@@ -10398,6 +10433,7 @@ ${recent}`;
     const ADOC_CALL1_MAX_ATTEMPTS = 2;
     for (let _attempt1 = 1; _attempt1 <= ADOC_CALL1_MAX_ATTEMPTS; _attempt1++) {
       const _m1 = _adocNewCallMetrics();
+      _m1.attemptNumber = _attempt1; // Correction rang 4 — identifie cette tentative précise, jamais devinable a posteriori sinon
       let _progressedPastHttp200_1 = false;
       let _abortReason1 = null;
       const _tCall1Start = performance.now();
@@ -10447,7 +10483,8 @@ ${recent}`;
           console.warn('[UX-8A.2] Premier appel (décision web_search) HTTP ' + searchResp.status + ' — on continue sans recherche web.');
           _m1.finalState = 'http-error';
           _adocLogCallMetrics('appel 1, tentative ' + _attempt1, _m1);
-        window._adocLastStructAttemptMetrics.metrics1 = _m1; // traceur persistant — relais tel quel, cf. commentaire en tête de fonction
+        _m1.durationMs = Math.round(performance.now() - _tCall1Start); // Correction rang 4 — durée propre à CETTE tentative
+        window._adocLastStructAttemptMetrics.metrics1.push(_m1); // traceur persistant — une entrée par tentative, jamais un remplacement (cf. commentaire en tête de fonction)
           if (_adocIsTransientHttpStatus(searchResp.status) && _attempt1 < ADOC_CALL1_MAX_ATTEMPTS) {
             console.log('[UX-8A.2] Appel 1 — HTTP ' + searchResp.status + ' (transitoire), nouvelle tentative avant abandon.');
             continue;
@@ -10526,7 +10563,8 @@ ${recent}`;
         }
         _m1.finalState = 'completed';
         _adocLogCallMetrics('appel 1, tentative ' + _attempt1, _m1);
-        window._adocLastStructAttemptMetrics.metrics1 = _m1; // traceur persistant — relais tel quel, cf. commentaire en tête de fonction
+        _m1.durationMs = Math.round(performance.now() - _tCall1Start); // Correction rang 4 — durée propre à CETTE tentative
+        window._adocLastStructAttemptMetrics.metrics1.push(_m1); // traceur persistant — une entrée par tentative, jamais un remplacement (cf. commentaire en tête de fonction)
         break; // succès (avec ou sans web_search) — jamais de 2e tentative après un flux entamé.
       } catch (_searchErr) {
         _logTiming('appel 1 en échec/timeout (' + (_searchErr && _searchErr.name) + ')');
@@ -10534,7 +10572,8 @@ ${recent}`;
           : _searchErr && _searchErr.name === 'AbortError' ? (_abortReason1 || 'transport-timeout')
           : 'network-error';
         _adocLogCallMetrics('appel 1, tentative ' + _attempt1, _m1);
-        window._adocLastStructAttemptMetrics.metrics1 = _m1; // traceur persistant — relais tel quel, cf. commentaire en tête de fonction
+        _m1.durationMs = Math.round(performance.now() - _tCall1Start); // Correction rang 4 — durée propre à CETTE tentative
+        window._adocLastStructAttemptMetrics.metrics1.push(_m1); // traceur persistant — une entrée par tentative, jamais un remplacement (cf. commentaire en tête de fonction)
         console.warn('[UX-8A.2] Premier appel (décision web_search) en échec, on continue sans recherche web:', _searchErr && _searchErr.name, _searchErr && _searchErr.message);
         // Partie A, point 7 — jamais de 2e tentative après un flux entamé (HTTP 200 déjà reçu).
         if (_progressedPastHttp200_1 || _attempt1 >= ADOC_CALL1_MAX_ATTEMPTS) break;
@@ -10593,6 +10632,7 @@ ${recent}`;
     let _genStopReason = null;
     for (let _attempt2 = 1; _attempt2 <= ADOC_CALL2_MAX_ATTEMPTS; _attempt2++) {
       const _m2 = _adocNewCallMetrics();
+      _m2.attemptNumber = _attempt2; // Correction rang 4 — identifie cette tentative précise, jamais devinable a posteriori sinon
       let _progressedPastHttp200_2 = false;
       let _abortReason2 = null;
       let _genReceivedChars = 0;
@@ -10745,7 +10785,8 @@ ${recent}`;
         _logTiming('flux terminé (stop_reason=' + _genStopReason + '), JSON tool_use accumulé: ' + _genToolInputJson.length + ' caractères');
         _m2.finalState = 'completed';
         _adocLogCallMetrics('appel 2, tentative ' + _attempt2, _m2);
-        window._adocLastStructAttemptMetrics.metrics2 = _m2; // traceur persistant — relais tel quel, cf. commentaire en tête de fonction
+        _m2.durationMs = Math.round(performance.now() - _tCall2Start); // Correction rang 4 — durée propre à CETTE tentative
+        window._adocLastStructAttemptMetrics.metrics2.push(_m2); // traceur persistant — une entrée par tentative, jamais un remplacement (cf. commentaire en tête de fonction)
         break; // flux mené à son terme (avec ou sans JSON exploitable) — validation après la boucle.
       } catch (_genErr) {
         // Partie A, point 5 — même niveau de détail chronométrique sur un abandon PENDANT la
@@ -10761,7 +10802,8 @@ ${recent}`;
         // honnêtement tel quel, jamais deviné, pour les cas où il serait déjà connu).
         _m2.stopReasonAtAbandon = _genStopReason;
         _adocLogCallMetrics('appel 2, tentative ' + _attempt2, _m2);
-        window._adocLastStructAttemptMetrics.metrics2 = _m2; // traceur persistant — relais tel quel, cf. commentaire en tête de fonction
+        _m2.durationMs = Math.round(performance.now() - _tCall2Start); // Correction rang 4 — durée propre à CETTE tentative
+        window._adocLastStructAttemptMetrics.metrics2.push(_m2); // traceur persistant — une entrée par tentative, jamais un remplacement (cf. commentaire en tête de fonction)
 
         const _isTransient = !_progressedPastHttp200_2 && (
           (_genErr && _genErr.httpStatus && _adocIsTransientHttpStatus(_genErr.httpStatus)) ||
