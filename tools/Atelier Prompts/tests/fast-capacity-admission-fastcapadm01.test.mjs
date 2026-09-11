@@ -282,7 +282,7 @@ test('T-FASTCAPADM-12 : le HTML canonique est inchangé', () => {
      qu'un refus de sortie fournisseur cesse d'être compté comme un défaut de notre code. Aucune
      règle, aucun prompt, aucun schéma, aucun comportement d'interface. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    '2ee0bc6ac29c758615ff302d1cc775f2ffe85d128565165fc7f5bf6b24f7c82e', 'CANONICAL_HTML_CHANGED = NO');
+    '201c20be777da89c49174da3a1a52bdce0c370cce49e313e6544b28ba1599feb', 'CANONICAL_HTML_CHANGED = NO');
   /* Et rien du mécanisme n'a fui vers le navigateur. */
   const html = lire('atelier-prompts-v11.5-lot10g-decision-provider.html');
   for (const interdit of ['admissionRapide', 'REFROIDISSEMENT_RAPIDE', FAST_CAPACITY_UNAVAILABLE_CODE,

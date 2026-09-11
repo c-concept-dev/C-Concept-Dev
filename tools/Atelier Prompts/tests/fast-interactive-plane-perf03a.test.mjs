@@ -325,10 +325,16 @@ test('T-P03A-23 une confirmation est posée en Rapide comme en Architecte', () =
   assert.equal(projectInteractionForMode(interaction, 'atelier').type, 'ORIENT_ARCHITECTE');
 });
 
-test('T-P03A-24 un accusé de réception reste tel quel dans les deux modes', () => {
+/* 01D-G — le contrat a changé : un accusé de réception ne se montre plus. Ce test disait
+   l'inverse ; il dit maintenant la règle en vigueur, et la provenance reste tracée. */
+test('T-P03A-24 un accusé de réception retombe sur le silence dans les deux modes', () => {
   const interaction = validateFastInteraction(fastOk('ACKNOWLEDGE', 'Demande reçue.'), snapshot()).interaction;
-  assert.equal(projectInteractionForMode(interaction, 'rapide').type, 'ACKNOWLEDGE');
-  assert.equal(projectInteractionForMode(interaction, 'architecte').type, 'ACKNOWLEDGE');
+  for (const mode of ['rapide', 'architecte']) {
+    const projete = projectInteractionForMode(interaction, mode);
+    assert.equal(projete.type, 'WAIT_FOR_DEEP_VALIDATION', `${mode} ne montre plus un accusé de réception`);
+    assert.equal(projete.projected_from, 'ACKNOWLEDGE', 'et la projection reste tracée, jamais silencieuse');
+    assert.equal(projete.authority, 'candidate', 'retirer un affichage ne donne aucune autorité');
+  }
 });
 
 test('T-P03A-25 aucune exécution ne peut reposer sur le seul plan rapide', () => {

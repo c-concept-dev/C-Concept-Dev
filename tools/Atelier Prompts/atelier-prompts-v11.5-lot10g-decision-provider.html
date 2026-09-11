@@ -10614,7 +10614,7 @@ function v11RequireDemand(){
   return '';
 }
 /* GENERATED — LOT 10G.3B.3F.2
- * source-sha256: a118512c74615ac83c99f634aa3b660f2aa91ff00fe1fff212256130b5fd4aa8
+ * source-sha256: 1ac2f71dd83fd909e0af02ab4588888e1a09452e84cbbd2fb62472bf5e8fd21f
  * Ne pas modifier manuellement. Régénérer avec tools/build-adn-browser-runtime.mjs
  */
 (function(global){
@@ -20305,7 +20305,27 @@ const CONVERSATIONAL_MODES = Object.freeze(["architecte", "rapide"]);
 
 function projectInteractionForMode(interaction, mode) {
   if (!isObject(interaction)) return null;
-  if (CONVERSATIONAL_MODES.includes(String(mode))) return interaction;
+  if (CONVERSATIONAL_MODES.includes(String(mode))) {
+    /* 01D-G — UN ACCUSÉ DE RÉCEPTION N'EST PLUS UNE RÉPONSE UTILE.
+     *
+     * Le bandeau d'analyse est déjà affiché quand le tour commence, avant même que le
+     * plan rapide existe. Un ACKNOWLEDGE ne pouvait donc rien apporter de plus : il
+     * remplaçait une phrase générique par une phrase écrite par le modèle, sous le
+     * même titre. La mesure a dit ce que coûtait cet échange — la phrase générique ne
+     * promet rien, celle du modèle peut promettre un travail sur un matériau qui
+     * n'existe pas.
+     *
+     * On retire donc la capacité, pas la sortie : le fournisseur continue de produire
+     * son ACKNOWLEDGE, la validation continue de le contrôler, la télémétrie continue
+     * de le voir. Il cesse seulement d'être montré, et retombe sur la primitive de
+     * silence qui existait déjà. Ce n'est pas un jugement sur CE qu'il dit — aucune
+     * analyse n'est faite ici, aucun mot n'est lu : c'est une projection de type à
+     * type, de la même nature que celle qui suit. */
+    if (interaction.type === "ACKNOWLEDGE") {
+      return deepFreeze({ ...interaction, type: "WAIT_FOR_DEEP_VALIDATION", projected_from: interaction.type });
+    }
+    return interaction;
+  }
   if (interaction.type === "ASK_CLARIFICATION" || interaction.type === "ASK_CONFIRMATION") {
     return deepFreeze({ ...interaction, type: "ORIENT_ARCHITECTE", projected_from: interaction.type });
   }
@@ -20739,7 +20759,7 @@ function createAdapterAuditView(envelope) {
 
 return {ENGINE_ADAPTERS_VERSION,buildExecutionEnvelope,projectToRapide,projectToArchitecte,projectToAtelier,validateLegacyLockMapping,createAdapterAuditView};
 })({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON});
-global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...ORCORE,...ROLEDEG,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'a118512c74615ac83c99f634aa3b660f2aa91ff00fe1fff212256130b5fd4aa8'});
+global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...ORCORE,...ROLEDEG,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'1ac2f71dd83fd909e0af02ab4588888e1a09452e84cbbd2fb62472bf5e8fd21f'});
 })(window);
 
 

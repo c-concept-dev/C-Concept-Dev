@@ -273,7 +273,7 @@ test('T-PERFNOMINAL01-11 : le HTML canonique est inchangé', () => {
      qu'un refus de sortie fournisseur cesse d'être compté comme un défaut de notre code. Aucune
      règle, aucun prompt, aucun schéma, aucun comportement d'interface. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    '2ee0bc6ac29c758615ff302d1cc775f2ffe85d128565165fc7f5bf6b24f7c82e', 'CANONICAL_HTML_CHANGED = NO');
+    '201c20be777da89c49174da3a1a52bdce0c370cce49e313e6544b28ba1599feb', 'CANONICAL_HTML_CHANGED = NO');
   assert.equal(R.invariants.canonical_html_changed, false);
 });
 

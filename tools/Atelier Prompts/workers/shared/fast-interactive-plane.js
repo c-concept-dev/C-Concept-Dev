@@ -176,7 +176,27 @@ export const CONVERSATIONAL_MODES = Object.freeze(["architecte", "rapide"]);
 
 export function projectInteractionForMode(interaction, mode) {
   if (!isObject(interaction)) return null;
-  if (CONVERSATIONAL_MODES.includes(String(mode))) return interaction;
+  if (CONVERSATIONAL_MODES.includes(String(mode))) {
+    /* 01D-G — UN ACCUSÉ DE RÉCEPTION N'EST PLUS UNE RÉPONSE UTILE.
+     *
+     * Le bandeau d'analyse est déjà affiché quand le tour commence, avant même que le
+     * plan rapide existe. Un ACKNOWLEDGE ne pouvait donc rien apporter de plus : il
+     * remplaçait une phrase générique par une phrase écrite par le modèle, sous le
+     * même titre. La mesure a dit ce que coûtait cet échange — la phrase générique ne
+     * promet rien, celle du modèle peut promettre un travail sur un matériau qui
+     * n'existe pas.
+     *
+     * On retire donc la capacité, pas la sortie : le fournisseur continue de produire
+     * son ACKNOWLEDGE, la validation continue de le contrôler, la télémétrie continue
+     * de le voir. Il cesse seulement d'être montré, et retombe sur la primitive de
+     * silence qui existait déjà. Ce n'est pas un jugement sur CE qu'il dit — aucune
+     * analyse n'est faite ici, aucun mot n'est lu : c'est une projection de type à
+     * type, de la même nature que celle qui suit. */
+    if (interaction.type === "ACKNOWLEDGE") {
+      return deepFreeze({ ...interaction, type: "WAIT_FOR_DEEP_VALIDATION", projected_from: interaction.type });
+    }
+    return interaction;
+  }
   if (interaction.type === "ASK_CLARIFICATION" || interaction.type === "ASK_CONFIRMATION") {
     return deepFreeze({ ...interaction, type: "ORIENT_ARCHITECTE", projected_from: interaction.type });
   }
