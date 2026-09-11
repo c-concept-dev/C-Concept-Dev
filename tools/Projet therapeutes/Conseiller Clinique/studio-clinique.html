@@ -5334,6 +5334,17 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
         } catch (_structErr) {
           console.warn('[UX-8A.1] Génération structurée Fiche en échec (ou QC bloquant), repli automatique sur l\'ancien moteur:', _structErr && _structErr.name, _structErr && _structErr.message);
           _structFellBack = true;
+          // Correction rang 6 — légende mise à jour ICI, AU MOMENT PRÉCIS où le repli se
+          // déclenche (jamais après, une fois la nouvelle requête réseau déjà en vol : le fetch
+          // vers le moteur legacy ci-dessous peut prendre un temps notable avant sa première
+          // réponse, pendant lequel l'ancienne légende "Génération structurée…" resterait
+          // affichée à tort si on attendait ce point pour la changer). "Document composé"
+          // (dernier des 3 repères) reste actif tout le reste de la génération legacy qui suit
+          // — jamais réinitialisé à "Réflexion en cours…", jamais un retour en arrière sur
+          // "Demande comprise"/"Références consultées" déjà franchis. La carte elle-même
+          // (typingId) n'est PAS détruite ici — cf. plus bas, juste avant la boucle de lecture
+          // du flux, où streamMsgId est raccordé au même élément.
+          adocUpdateTypingLabel(typingId, 'icon-writing', 'Passage à la génération standard…', 2);
           // Traceur persistant des replis (diagnostic uniquement, cf. commentaire complet plus
           // haut) — une entrée UNIQUEMENT ici, jamais pour un appel réussi.
           // Correction rang 5 — failedCall n'est plus jamais figé à 2 : _adocClassifyFallbackOrigin
@@ -5403,8 +5414,32 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       const decoder = new TextDecoder();
       let sseBuffer = '';
 
-      adocRemoveTyping(typingId);
-      streamMsgId = adocAddMsg('assistant', '', [], true);
+      // Correction rang 6 — cause déjà confirmée en code (rapport séparé) : un repli depuis la
+      // Fiche structurée détruisait purement et simplement la carte riche de progression
+      // (icône animée, suivi en trois étapes) puis en recréait une toute nouvelle, séparée,
+      // vide — perdant toute trace visuelle de la tentative précédente aux yeux de la
+      // thérapeute (observé à répétition en conditions réelles). Corrigé en transformant LA
+      // MÊME carte plutôt que de la détruire : _structFellBack (déjà déclaré plus haut, jamais
+      // vrai pour une demande directe — tableau/carrousel/script/liens/cours n'ont jamais
+      // tenté le moteur structuré) distingue ce cas précis ; sa légende a déjà été mise à jour
+      // plus haut, dans le catch, au moment précis où le repli s'est déclenché (jamais ici,
+      // après coup — cf. commentaire complet là-bas). streamMsgId réutilise alors typingId tel
+      // quel (même élément DOM, même position, même avatar) — adocUpdateStreamMsg ci-dessous ne
+      // cherche qu'un .adoc-bubble à l'intérieur, déjà présent dans la carte de progression (cf.
+      // adocShowTyping) : le premier fragment de texte réel la remplace exactement comme il
+      // remplacerait une bulle vide fraîchement créée, aucune différence de comportement à
+      // partir de cet instant. La transition finale (disparition de la carte, apparition du
+      // document) reste donc IDENTIQUE à une génération legacy directe : adocFinalizeGeneration
+      // retire l'élément par son id de façon générique, sans jamais supposer son origine. Une
+      // demande directe (jamais passée par le structuré, _structFellBack toujours false) garde
+      // EXACTEMENT le comportement d'avant ce correctif — destruction puis recréation
+      // inchangées, non-régression totale.
+      if (_structFellBack) {
+        streamMsgId = typingId;
+      } else {
+        adocRemoveTyping(typingId);
+        streamMsgId = adocAddMsg('assistant', '', [], true);
+      }
 
       while (true) {
         const { done, value } = await reader.read();
