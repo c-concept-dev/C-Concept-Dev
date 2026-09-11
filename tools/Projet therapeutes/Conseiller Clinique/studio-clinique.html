@@ -4782,6 +4782,45 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
   const ADOC_FALLBACK_TRACE_KEY = 'adocFallbackTrace';
   const ADOC_FALLBACK_TRACE_MAX_ENTRIES = 100;
 
+  // Correction rang 5 — failedCall était toujours enregistré comme 2, sans distinction, alors
+  // que le catch englobant du chemin structuré peut recevoir des exceptions d'origines réellement
+  // différentes. Investigation exhaustive (rapport séparé) des origines possibles à l'intérieur
+  // de ce try (cf. adocSend, bloc "Fiche synthèse UNIQUEMENT") :
+  //   1. adocBuildSystemPrompt(...) échouant AVANT même l'appel à adocGenerateStructuredFiche —
+  //      ni l'appel 1 ni l'appel 2 n'ont alors été tentés.
+  //   2. Le garde interne de adocGenerateStructuredFiche ("Aucun passage RAG disponible pour
+  //      sourcer une fiche structurée") — lève AVANT que la boucle de l'appel 1 ne démarre.
+  //   3. Un échec réel de l'appel 2 (réseau/HTTP/flux SSE, épuisement des tentatives) —
+  //      seule origine qui mérite honnêtement l'étiquette "échec fournisseur, appel 2".
+  //   4. Un échec APRÈS un appel 2 pourtant réussi : résolution de charte graphique
+  //      (adocResolveBrandKitForGeneration), rendu du document (adocRenderClinicalDocument),
+  //      contrôle qualité bloquant (throw explicite), livraison de l'artefact
+  //      (adocDeliverStructuredFicheArtifact) — les 3 exemples cités par l'audit, plus la
+  //      livraison, trouvée en complément lors de cette investigation.
+  //   L'appel 1 lui-même (décision web_search) ne relance JAMAIS d'exception hors de sa propre
+  //   boucle (retenter ou `break`, jamais `throw`) — un échec de l'appel 1 seul ne peut donc
+  //   structurellement jamais, à lui seul, être la cause d'une exception atteignant ce catch
+  //   aujourd'hui ; la branche `1` ci-dessous n'existe que pour rester honnête si un futur
+  //   correctif changeait un jour ce comportement (aucune donnée aujourd'hui ne peut la produire).
+  // Ces 4 origines se distinguent déjà, sans réécriture de la capture d'exception elle-même,
+  // grâce au tableau de tentatives introduit par la correction rang 4 :
+  //   - (1)+(2) ni metrics1 ni metrics2 ne contiennent la moindre tentative → aucun des deux
+  //     appels n'a jamais été atteint → 'pre-generation' (jamais confondu avec un échec appel 2).
+  //   - (4) la DERNIÈRE tentative de metrics2 affiche finalState==='completed' → l'appel 2 a
+  //     réellement réussi, l'échec est nécessairement survenu après → 'post-generation' (jamais
+  //     étiqueté comme un échec de l'appel 2, qui fausserait toute lecture statistique future).
+  //   - (3) metrics2 contient au moins une tentative dont la dernière n'est PAS 'completed' →
+  //     échec réel de l'appel 2 → 2 (comportement inchangé pour ce cas, non-régression).
+  function _adocClassifyFallbackOrigin(fbMetrics) {
+    const m1 = Array.isArray(fbMetrics.metrics1) ? fbMetrics.metrics1 : [];
+    const m2 = Array.isArray(fbMetrics.metrics2) ? fbMetrics.metrics2 : [];
+    if (!m1.length && !m2.length) return 'pre-generation';
+    const lastM2 = m2.length ? m2[m2.length - 1] : null;
+    if (lastM2 && lastM2.finalState === 'completed') return 'post-generation';
+    if (m2.length) return 2;
+    return 1; // filet honnête, non atteignable aujourd'hui (cf. commentaire ci-dessus) — jamais deviné, seulement déduit si les données le montraient un jour.
+  }
+
   // Observateur passif pur : une erreur ici ne doit JAMAIS remonter ni interrompre le repli ou la
   // génération elle-même — échec silencieux (juste un console.warn discret), conformément à la
   // consigne. Toute la logique de repli/minuteries/persistance UX-10A reste strictement inchangée
@@ -4885,6 +4924,13 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     const call1Count = list.filter(function (e) { return e.failedCall === 1; }).length;
     const call2Entries = list.filter(function (e) { return e.failedCall === 2; });
     const call2Count = call2Entries.length;
+    // Correction rang 5 — deux catégories honnêtes en plus, jamais mélangées avec un échec réel
+    // de l'appel 2 : 'pre-generation' (ni appel 1 ni appel 2 jamais atteint) et 'post-generation'
+    // (l'appel 2 a réussi, l'échec est survenu après — charte/rendu/QC/livraison). Comptées ici à
+    // part pour que la répartition affichée reste honnête, jamais silencieusement absorbées dans
+    // le total sans explication ni faussement comptées comme des échecs appel 2.
+    const preGenCount = list.filter(function (e) { return e.failedCall === 'pre-generation'; }).length;
+    const postGenCount = list.filter(function (e) { return e.failedCall === 'post-generation'; }).length;
     function avg(arr) { return arr.length ? (arr.reduce(function (a, b) { return a + b; }, 0) / arr.length) : null; }
     const avgSourceCountCall2 = avg(call2Entries.map(function (e) { return e.sourceCount; }).filter(function (v) { return typeof v === 'number'; }));
     const avgPayloadBytesCall2 = avg(call2Entries.map(function (e) { return _adocMetricsForEntry(e) && _adocMetricsForEntry(e).payloadBytes; }).filter(function (v) { return typeof v === 'number'; }));
@@ -4900,7 +4946,11 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     console.log('=== Résumé traceur de replis ===');
     console.log('Total d\'entrées enregistrées :', total);
     console.log('Répartition par appel en échec — appel 1 :', call1Count, '(' + (total ? Math.round(call1Count / total * 100) : 0) + '%)',
-      '| appel 2 :', call2Count, '(' + (total ? Math.round(call2Count / total * 100) : 0) + '%)');
+      '| appel 2 :', call2Count, '(' + (total ? Math.round(call2Count / total * 100) : 0) + '%)',
+      // Correction rang 5 — affichées séparément, jamais fondues dans le décompte "appel 2" :
+      // un échec post-génération (appel 2 réussi) n'a rien à voir avec la fiabilité fournisseur.
+      '| pré-génération :', preGenCount, '(' + (total ? Math.round(preGenCount / total * 100) : 0) + '%)',
+      '| post-génération :', postGenCount, '(' + (total ? Math.round(postGenCount / total * 100) : 0) + '%)');
     console.log('Moyenne sourceCount (replis appel 2 uniquement) :', avgSourceCountCall2);
     console.log('Moyenne payloadBytes de metrics2 (replis appel 2 uniquement) :', avgPayloadBytesCall2);
     console.log('Répartition par tranche de 3h (hourOfDay) :', byHourBucket);
@@ -5286,20 +5336,17 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
           _structFellBack = true;
           // Traceur persistant des replis (diagnostic uniquement, cf. commentaire complet plus
           // haut) — une entrée UNIQUEMENT ici, jamais pour un appel réussi.
-          // failedCall — déduit du code, jamais deviné : la boucle de l'appel 1 (décision
-          // web_search) ne relance JAMAIS d'exception hors d'elle-même (son propre catch interne
-          // se contente toujours de retenter ou de `break`, cf. adocGenerateStructuredFiche) —
-          // donc TOUTE exception atteignant CE catch provient soit de l'appel 2 (réseau/flux/
-          // validation du JSON structuré), soit du contrôle qualité qui suit son succès (QC
-          // bloquant, throw juste au-dessus) — dans les deux cas, c'est la sortie de l'appel 2 qui
-          // est en cause, jamais l'appel 1. D'où failedCall=2 dans ce lot ; si un futur correctif
-          // faisait un jour remonter une exception depuis l'appel 1 lui-même, cette valeur devra
-          // être réexaminée en conséquence (elle ne serait alors plus toujours exacte telle quelle).
+          // Correction rang 5 — failedCall n'est plus jamais figé à 2 : _adocClassifyFallbackOrigin
+          // (définie plus haut, cf. son commentaire pour le détail des 4 origines distinguées)
+          // lit metrics1/metrics2 (tableaux de tentatives depuis la correction rang 4) pour
+          // distinguer honnêtement un échec réel de l'appel 2 d'un échec post-génération (charte/
+          // rendu/QC/livraison) survenu APRÈS un appel 2 pourtant réussi — jamais mélangés sous
+          // la même étiquette, qui aurait autrement faussé toute lecture statistique future.
           const _fbMetrics = window._adocLastStructAttemptMetrics || {};
           adocRecordFallbackTrace({
             timestamp: new Date().toISOString(),
             hourOfDay: new Date().getHours(),
-            failedCall: 2,
+            failedCall: _adocClassifyFallbackOrigin(_fbMetrics),
             // sourceCount : sourceSnapshot est construit tout au début de
             // adocGenerateStructuredFiche, avant tout appel réseau — donc déjà disponible via le
             // holder partagé pour toute tentative de repli. Recours à ragResult.chunks.length
