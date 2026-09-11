@@ -1783,6 +1783,18 @@
        null, ces styles n'ont alors jamais d'incidence fonctionnelle mais restent inoffensifs). */
     .cc-ws-doc-card.cc-ws-block-editable .adoc-sc-block { cursor: pointer; }
     .cc-ws-doc-card .adoc-sc-block.is-selected { outline: 2px solid var(--terracotta-700); outline-offset: 4px; }
+    /* Phase 1 (monobloc) — correction de bloc pour un document de l'ancien moteur (HTML libre,
+       sans schéma JSON) : mécanisme ADDITIF et distinct de .adoc-sc-block ci-dessus (jamais posé
+       sur les mêmes éléments — un document est soit structuré, soit legacy, jamais les deux),
+       mêmes règles visuelles reproduites à l'identique sous un nom de classe séparé pour ne
+       jamais dépendre de .cc-ws-block-editable (déjà utilisée par le moteur structuré). */
+    .cc-ws-doc-card [data-cc-legacy-block-id] {
+      outline: 1px solid transparent; outline-offset: 4px; border-radius: 4px; transition: outline-color .1s;
+    }
+    .cc-ws-doc-card [data-cc-legacy-block-id]:hover { outline-color: var(--petrol-100); }
+    .cc-ws-doc-card.cc-ws-legacy-block-editable [data-cc-legacy-block-id] { cursor: pointer; }
+    .cc-ws-doc-card [data-cc-legacy-block-id].is-selected { outline: 2px solid var(--terracotta-700); outline-offset: 4px; }
+    .cc-legacy-citation-flag { font-size: 10px; color: var(--terracotta-700); cursor: help; margin-left: 2px; }
     .cc-block-edit-panel { margin: 10px 0 18px; }
     .cc-block-edit-diff { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
     .cc-block-edit-label {
@@ -1943,6 +1955,39 @@
       0%,100% { box-shadow: 0 0 0 0 var(--terracotta-100); }
       50% { box-shadow: 0 0 0 5px var(--terracotta-100); }
     }
+    /* Design enrichi carte de progression (référence UX/UI state-c-generation) — mécanisme
+       UNIQUE et partagé (adocShowTyping/adocUpdateTypingLabel/adocRenderProgressSteps,
+       inchangés dans leur rôle), jamais une seconde version pour un des deux moteurs. Tous ces
+       éléments existent déjà dans le gabarit (adocShowTyping) mais restent display:none tant
+       qu'adocRenderProgressSteps ne les révèle pas explicitement — jamais pour l'état B
+       (vérification de clarification), qui n'atteint jamais cette fonction : son apparence
+       reste donc strictement celle d'avant ce lot. */
+    .sc-gen-header { margin: 2px 0 4px; }
+    .sc-gen-title {
+      margin: 0 0 4px; font-family: 'Source Serif 4', Georgia, serif;
+      font-size: 17px; font-weight: 600; color: var(--ink);
+    }
+    .sc-gen-subtitle { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.5; }
+    .sc-gen-current-step {
+      margin: 12px 0 2px; padding: 10px 12px;
+      background: var(--ivory); border-left: 3px solid var(--terracotta-700); border-radius: 4px;
+    }
+    .sc-gen-current-step-eyebrow {
+      font-size: 9px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+      color: var(--terracotta-700); margin-bottom: 3px;
+    }
+    .sc-gen-current-step-text { font-size: 12px; font-weight: 600; color: var(--ink); }
+    .sc-gen-step-keywords { margin-top: 3px; font-size: 11px; color: var(--muted); }
+    .sc-gen-request-box {
+      margin-top: 10px; padding: 10px 12px;
+      background: var(--paper); border: 1px solid var(--stone-200); border-radius: 8px;
+    }
+    .sc-gen-request-eyebrow {
+      font-size: 9px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 3px;
+    }
+    .sc-gen-request-text { font-size: 12px; color: var(--ink); line-height: 1.5; }
+    .sc-gen-request-note { margin-top: 4px; font-size: 10px; color: var(--muted); font-style: italic; }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after {
         scroll-behavior: auto !important;
@@ -4627,7 +4672,11 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
           // de re-rendu/QC pour ce moteur, cf. commentaire Partie B point 12 plus bas) : les
           // points d'export (carte/barre latérale) se fient désormais à ce booléen plutôt qu'à
           // un test binaire direct sur _adocStructuredDoc.
-          _adocCapabilities: { workspace: true, persist: true, fineCitations: false, blockEditing: false, transform: false, export: true, qualityControlledExport: false },
+          // Phase 1 (monobloc) — legacyBlockEditing distinct de blockEditing (réservé au moteur
+          // structuré, cf. adocWsSetupBlockEditing qui exige curArt._adocStructuredDoc) : jamais
+          // réutilisé tel quel, un document legacy n'a pas de schéma JSON à valider de la même
+          // façon (cf. rapport, point investigation 2).
+          _adocCapabilities: { workspace: true, persist: true, fineCitations: false, blockEditing: false, legacyBlockEditing: true, transform: false, export: true, qualityControlledExport: false },
         });
       } catch (_snapErr) {
         console.warn('[Audit Partie B] SourceSnapshot de repli non construit, document non étiqueté legacy-html:', _snapErr && _snapErr.message);
@@ -4739,8 +4788,10 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       adocAddMsg('assistant', `Erreur : ${e.message}`, []);
     } finally {
       state.busy = false;
-      adocThinking = false;
-      if (sendBtn) sendBtn.disabled = false;
+      // Phase 2 (monobloc) — réutilise _adocResetSendState() au lieu de recopier ces deux lignes
+      // (déjà fonctionnellement identique, jamais un comportement différent) : un seul point à
+      // faire évoluer si ce nettoyage commun change un jour, cf. investigation du lot.
+      _adocResetSendState();
     }
   };
 
@@ -4762,8 +4813,8 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       console.warn('[KeepAsIs] Exception pendant la finalisation, interface déverrouillée malgré tout:', e && e.message);
       adocAddMsg('assistant', `Erreur : ${e.message}`, []);
     } finally {
-      adocThinking = false;
-      if (sendBtn) sendBtn.disabled = false;
+      // Phase 2 (monobloc) — même réutilisation que adocContinueGeneration ci-dessus.
+      _adocResetSendState();
     }
   };
 
@@ -4985,9 +5036,12 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     adocConversations.push({ role: 'user', content: text });
 
     const typingId = adocShowTyping();
+    // Design enrichi — la question déjà connue dès l'envoi (avant même la planification),
+    // jamais une nouvelle donnée : cf. adocUpdateGenerationRequest.
+    adocUpdateGenerationRequest(typingId, text);
 
     try {
-    
+
       const workerUrl = adocGetWorkerUrl();
 
   // ── Passe 1 : Planning (modèle rapide) ──
@@ -5073,6 +5127,11 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
           }
         }
         ragResult = ragResult;
+        // Design enrichi — auteurs/approches réellement consultés (encadré "Étape en cours",
+        // sous-ligne dynamique) : posé ICI, une fois ragResult connu, pendant que l'étape
+        // "Références consultées" est encore active (le passage à l'étape suivante n'intervient
+        // que plus bas, une fois cette consultation terminée) — jamais après coup.
+        adocUpdateGenerationStepKeywords(typingId, ragResult);
 
         // ── Passe 2.5 : Re-ranking Haiku (P1-2) ──
         // Uniquement pour intents exhaustifs (cours/document/comparatif/fiche/tableau)
@@ -5145,6 +5204,11 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       // dans adocBuildSystemPrompt) — seulement la structure imposée, lue par le système.
       if (adocClarityDocumentKind) plan.documentKind = adocClarityDocumentKind;
       adocClarityDocumentKind = null;
+      // Design enrichi — type de document réellement en cours, connu seulement maintenant que
+      // documentKind est définitivement résolu (jamais avant, jamais deviné) : cf.
+      // adocUpdateGenerationTitle. Reste "document" (générique) si aucun type explicite n'a été
+      // cliqué — jamais un type inventé à partir du seul intent classifié automatiquement.
+      adocUpdateGenerationTitle(typingId, plan.documentKind);
 
       // Correction rang 1 — documentKind (choix explicite sur l'écran d'accueil) devient
       // l'AUTORITÉ DE ROUTAGE prioritaire ci-dessous, pas seulement une influence de texte en
@@ -5603,6 +5667,15 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     if (!lbl) return;
     lbl.textContent = label;
     if (iconId) lbl.innerHTML = adocIconSvg(iconId) + '<span>' + adocEsc(label) + '</span>';
+    // Design enrichi (carte de progression, référence UX/UI state-c-generation) — l'encadré
+    // "Étape en cours" reprend TOUJOURS le même texte que ce label existant (jamais un doublon
+    // divergent, jamais une nouvelle donnée) : mis à jour à CHAQUE appel de cette fonction, pas
+    // seulement ceux qui font aussi progresser le suivi en trois étapes (ex. "Consultation
+    // exhaustive de la bibliothèque…", qui ne porte pas de stepIndex, doit rester synchronisé).
+    // Reste sans effet visuel tant qu'adocRenderProgressSteps n'a pas révélé l'encadré (état B/
+    // vérification de clarification : jamais révélé, jamais atteint).
+    const stepText = el.querySelector('.sc-gen-current-step-text');
+    if (stepText) stepText.textContent = label;
     if (typeof stepIndex === 'number') adocRenderProgressSteps(id, stepIndex);
   }
 
@@ -6906,7 +6979,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     div.className = 'adoc-msg assistant';
     const id = 'adoc-typing-' + Date.now();
     div.id = id;
-    div.innerHTML = `<div class="adoc-avatar"><img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAAAAAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAoACgDASIAAhEBAxEB/8QAGgAAAgMBAQAAAAAAAAAAAAAAAAYDBAUHCP/EADEQAAIBAwEFBQYHAAAAAAAAAAECAwAEEQUGEiFBUQcTIjFxMjNCYYGhFiNScpGxwf/EABgBAQEBAQEAAAAAAAAAAAAAAAECAwAE/8QAGhEBAQADAQEAAAAAAAAAAAAAAAECESExYf/aAAwDAQACEQMRAD8A9R6jdPPIePClzbDWLXQdnbzUrqeOHcjYRb7Y35MHdUdSTyraNKXa1oMevbE3MTFlktHW7iI/UmTj6jIrzRpfCP2GDZnGUvIGv7mR8hgQWcHxDJ82+XnTh2o6NE+jR61ZIqajpUy3EEy+0uD4l9GGVI+dJGt2WnN+HNLkt7aV5rhbm/lhiKyqi5KglTxDMAMgU22uzDd5pbi6mijxmeISAiXGODYGWXgT4iSCafonmjpZ3TwurAkA4OKKjkFFQpcjEsmdxCR15Ui9scu0Z2YtY9n5O5kl1SGGZs8JIiGJGeQLBQfU10hcywqpyN4eLHKsvWNKupxDHazoLdU3WhkHDI4q4PUED71cmgR9ktNhv7S0a+0iRmhLqXbB7vqufMjJ8qZtOggs7VVhhWKFXdIwPh48R/P9VZWO8ZJLPTYVjkLYe5ZfBHniSo+M9OXWptNhSHSY9Jls3t+7bcwz75cb3vN7mTkk88k0a45FvhhRUVzbTWYWQnfgc+F+nTNFSTVNbmK+nRMlBhvTPL7GqWqyvDYzNH7wgJH+5jgfc0UVrZqidixEgiiWNfZRQo+lUdSUi9tn44yVJA8uB40UUFo2OnreWXdzr+W64xzA5f5RRRV44yzqLa//2Q==" style="width:100%;height:100%;border-radius:50%;object-fit:cover;"></div><div><div class="adoc-bubble"><div class="adoc-typing"><div class="adoc-dot"></div><div class="adoc-dot"></div><div class="adoc-dot"></div></div><div class="adoc-typing-label" role="status" aria-live="polite" style="font-size:10px;color:var(--muted);margin-top:5px;font-style:italic;">Réflexion en cours…</div><ul class="sc-progress-steps" style="display:none;" aria-hidden="true"></ul></div></div>`;
+    div.innerHTML = `<div class="adoc-avatar"><img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAAAAAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAoACgDASIAAhEBAxEB/8QAGgAAAgMBAQAAAAAAAAAAAAAAAAYDBAUHCP/EADEQAAIBAwEFBQYHAAAAAAAAAAECAwAEEQUGEiFBUQcTIjFxMjNCYYGhFiNScpGxwf/EABgBAQEBAQEAAAAAAAAAAAAAAAECAwAE/8QAGhEBAQADAQEAAAAAAAAAAAAAAAECESExYf/aAAwDAQACEQMRAD8A9R6jdPPIePClzbDWLXQdnbzUrqeOHcjYRb7Y35MHdUdSTyraNKXa1oMevbE3MTFlktHW7iI/UmTj6jIrzRpfCP2GDZnGUvIGv7mR8hgQWcHxDJ82+XnTh2o6NE+jR61ZIqajpUy3EEy+0uD4l9GGVI+dJGt2WnN+HNLkt7aV5rhbm/lhiKyqi5KglTxDMAMgU22uzDd5pbi6mijxmeISAiXGODYGWXgT4iSCafonmjpZ3TwurAkA4OKKjkFFQpcjEsmdxCR15Ui9scu0Z2YtY9n5O5kl1SGGZs8JIiGJGeQLBQfU10hcywqpyN4eLHKsvWNKupxDHazoLdU3WhkHDI4q4PUED71cmgR9ktNhv7S0a+0iRmhLqXbB7vqufMjJ8qZtOggs7VVhhWKFXdIwPh48R/P9VZWO8ZJLPTYVjkLYe5ZfBHniSo+M9OXWptNhSHSY9Jls3t+7bcwz75cb3vN7mTkk88k0a45FvhhRUVzbTWYWQnfgc+F+nTNFSTVNbmK+nRMlBhvTPL7GqWqyvDYzNH7wgJH+5jgfc0UVrZqidixEgiiWNfZRQo+lUdSUi9tn44yVJA8uB40UUFo2OnreWXdzr+W64xzA5f5RRRV44yzqLa//2Q==" style="width:100%;height:100%;border-radius:50%;object-fit:cover;"></div><div><div class="adoc-bubble"><div class="adoc-typing"><div class="adoc-dot"></div><div class="adoc-dot"></div><div class="adoc-dot"></div></div><div class="adoc-typing-label" role="status" aria-live="polite" style="font-size:10px;color:var(--muted);margin-top:5px;font-style:italic;">Réflexion en cours…</div><div class="sc-gen-header" style="display:none;"><h3 class="sc-gen-title">Création de votre document</h3><p class="sc-gen-subtitle">La consultation peut prendre une à deux minutes. L'écran reste disponible.</p></div><ul class="sc-progress-steps" style="display:none;" aria-hidden="true"></ul><div class="sc-gen-current-step" style="display:none;"><div class="sc-gen-current-step-eyebrow">Étape en cours</div><div class="sc-gen-current-step-text"></div><div class="sc-gen-step-keywords" style="display:none;"></div></div><div class="sc-gen-request-box" style="display:none;"><div class="sc-gen-request-eyebrow">Demande en cours</div><div class="sc-gen-request-text"></div><div class="sc-gen-request-note">Le message reste visible ; aucun pourcentage artificiel n'est affiché.</div></div></div></div>`;
     area.appendChild(div); area.scrollTop = area.scrollHeight;
     return id;
   }
@@ -6936,6 +7009,61 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       return '<li class="sc-progress-step' + (cls ? ' ' + cls : '') + '">' + adocEsc(label) + '</li>';
     }).join('');
     ul.style.display = '';
+    // Design enrichi — révélé UNE FOIS, au même instant que le suivi en trois étapes lui-même
+    // (jamais pour l'état B/vérification de clarification, qui n'appelle jamais cette fonction) :
+    // titre contextuel + sous-titre rassurant + encadré "Étape en cours", partagés par les deux
+    // moteurs puisque ce point d'entrée l'est déjà (cf. investigation, point 1 du rapport).
+    const header = el.querySelector('.sc-gen-header');
+    if (header) header.style.display = '';
+    const stepBox = el.querySelector('.sc-gen-current-step');
+    if (stepBox) stepBox.style.display = '';
+  }
+
+  // Design enrichi — titre contextuel "Création de votre [type]" : mis à jour dès que le type de
+  // document réellement en cours est connu (plan résolu), jamais avant, jamais inventé. Reprend
+  // le vocabulaire déjà utilisé ailleurs pour documentKind (cf. adocOpenWorkspace) — étendu ici
+  // aux 3 types qui n'y figuraient pas encore (tableau/script/liens), même esprit.
+  var ADOC_GENERATION_KIND_LABELS = { fiche: 'fiche synthèse', carrousel: 'carrousel', tableau: 'tableau', script: 'script', liens: 'liens transversaux' };
+  function adocUpdateGenerationTitle(id, documentKind) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const titleEl = el.querySelector('.sc-gen-title');
+    if (!titleEl) return;
+    titleEl.textContent = 'Création de votre ' + (ADOC_GENERATION_KIND_LABELS[documentKind] || 'document');
+  }
+
+  // Design enrichi — encadré "Demande en cours" : la question originale telle que tapée (ou
+  // reformulée après clarification — `text` est déjà cette version finale à ce stade du
+  // pipeline, cf. adocClarityOriginalMessage/displayMessage dans adocRunClarityGate). Jamais une
+  // nouvelle donnée, jamais un nouvel appel — révélé indépendamment du suivi en trois étapes
+  // (connu dès l'envoi, avant même la planification).
+  function adocUpdateGenerationRequest(id, text) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const box = el.querySelector('.sc-gen-request-box');
+    const textEl = el.querySelector('.sc-gen-request-text');
+    if (!box || !textEl) return;
+    textEl.textContent = text;
+    box.style.display = '';
+  }
+
+  // Design enrichi — sous-ligne de l'encadré "Étape en cours" pour "Références consultées" :
+  // auteurs/approches RÉELLEMENT utilisés par cette recherche RAG précise (ragResult.chunks,
+  // déjà résolu par le pipeline existant) — jamais un nouvel appel réseau, jamais une donnée
+  // inventée. Reste masquée si aucun passage n'a été consulté (rien à afficher honnêtement).
+  function adocUpdateGenerationStepKeywords(id, ragResult) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const box = el.querySelector('.sc-gen-step-keywords');
+    if (!box) return;
+    const chunks = (ragResult && ragResult.chunks) || [];
+    if (!chunks.length) { box.style.display = 'none'; box.textContent = ''; return; }
+    const authors = [...new Set(chunks.map(function (c) { return c.author; }).filter(Boolean))];
+    const approaches = [...new Set(chunks.map(function (c) { return c.approach; }).filter(Boolean))];
+    const picks = authors.concat(approaches).slice(0, 4);
+    if (!picks.length) { box.style.display = 'none'; box.textContent = ''; return; }
+    box.textContent = picks.join(' · ');
+    box.style.display = '';
   }
 
   function adocRemoveTyping(id) { document.getElementById(id)?.remove(); }
@@ -8734,8 +8862,8 @@ ${recent}`;
       adocClarityLastQuestion = judgment.question || '';
       adocRemoveTyping(typingId);
       adocRenderClarityCard(judgment);
-      adocThinking = false;
-      if (sendBtn) sendBtn.disabled = false;
+      // Phase 2 (monobloc) — même réutilisation que adocContinueGeneration/adocKeepAsIs.
+      _adocResetSendState();
       adocClarityAwaitingAnswer = true;
       setTimeout(function () { document.getElementById('adoc-input')?.focus(); }, 50);
       return;
@@ -9372,7 +9500,7 @@ ${recent}`;
     // silencieusement — cohérent avec "toute demande doit être réellement exécutée".
     if (!art._adocCapabilities) {
       art._adocGenerationEngine = art._adocGenerationEngine || 'legacy-html';
-      art._adocCapabilities = { workspace: true, persist: true, fineCitations: false, blockEditing: false, transform: false, export: true, qualityControlledExport: false };
+      art._adocCapabilities = { workspace: true, persist: true, fineCitations: false, blockEditing: false, legacyBlockEditing: true, transform: false, export: true, qualityControlledExport: false };
     }
     const storeKey = candidate.storeKey;
     window.adocCloseLegacyReThemePanel();
@@ -11136,6 +11264,7 @@ ${recent}`;
 
     document.getElementById('cc-ws-doc-card').innerHTML = renderedHtml;
     adocWsSetupBlockEditing(art); // UX-11 — sélection/correction ciblée d'un bloc, uniquement si blockEditing est vrai
+    adocWsSetupLegacyBlockEditing(art); // Phase 1 (monobloc) — équivalent pour un document HTML libre de l'ancien moteur, uniquement si legacyBlockEditing est vrai
     adocWsRenderSources(snapshot);
     adocRenderDocs(); // Documents joints — même rendu partagé que le reste de l'app (aucune divergence)
     document.getElementById('cc-ws-search-input').value = '';
@@ -11683,6 +11812,309 @@ ${recent}`;
       if (label) label.textContent = saved ? 'Enregistrer une nouvelle version' : 'Enregistrer';
     }
   }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // Phase 1 (monobloc) — correction ciblée d'un passage pour un document de
+  // l'ancien moteur (HTML libre, sans schéma JSON). Mécanisme ADDITIF, distinct
+  // et parallèle à adocWsSetupBlockEditing/ADOC_BLOCK_EDIT_* ci-dessus (jamais
+  // modifiés — aucune modification du moteur structuré, de son panneau ou de
+  // son schéma) — réutilise ce qui est déjà générique : ADOC_BLOCK_EDIT_INTENTS
+  // (libellés/instructions format-agnostiques), ADOC_BLOCK_CORRECTION_TOOL +
+  // adocCallBlockCorrectionModel (appel ciblé, déjà fragment-seul/sans RAG),
+  // adocTextSimilarityRatio, adocStripEmoji, adocEsc/adocIconSvg. Jamais le
+  // document entier envoyé au modèle, jamais un nouvel appel RAG.
+  //
+  // Investigation point 1 (structure DOM) — confirmé EMPIRIQUEMENT (sonde
+  // Playwright dédiée, pas une supposition) : cc-ws-doc-card.innerHTML =
+  // art.html (un document HTML COMPLET, <!DOCTYPE html><html>…<body>…</body>
+  // </html>) fait disparaître les balises <html>/<head>/<body> elles-mêmes
+  // (jamais présentes comme éléments dans le DOM résultant, attributs de
+  // <body> perdus) — le contenu utile se retrouve en enfants de #cc-ws-doc-card
+  // dans le MÊME ORDRE que dans le document source : à PLAT pour les éléments
+  // de premier niveau du <body> d'origine, mais avec les regroupements
+  // imbriqués strictement conservés partout où le document en contenait déjà
+  // (ex. <div class="card"><h2>…</h2><p>…</p></div>). Les deux structures
+  // citées par la demande coexistent donc réellement, jamais l'une à
+  // l'exclusion de l'autre — aucune balise/schéma n'étant imposé au LLM pour
+  // ce format (cf. adocBuildSystemPrompt, seule contrainte : "Layout editorial
+  // professionnel"), cette coexistence est structurelle, pas un cas limite.
+  //
+  // Point 2 (identifiant stable) — aucun id natif fiable (le LLM n'en pose
+  // jamais). data-cc-legacy-block-id="lb-N" est injecté EN MÉMOIRE sur chaque
+  // élément retenu par adocWsCollectLegacyBlocks, à CHAQUE ouverture de
+  // l'espace de travail (adocWsSetupLegacyBlockEditing, appelé juste après
+  // renderedHtml → cc-ws-doc-card.innerHTML dans adocOpenWorkspace) — jamais
+  // persisté, jamais posé côté Worker. Comme adocOpenWorkspace réaffiche
+  // TOUJOURS le document entier depuis art.html (chaîne canonique, changée
+  // uniquement par une confirmation explicite), la même position produit le
+  // même id à la prochaine ouverture — aucune persistance nécessaire.
+  //
+  // Point 4 (périmètre) — titres (h1-h6), paragraphes (p), listes ENTIÈRES
+  // (ul/ol, jamais un <li> isolé), cellules de tableau (td/th) ; images/
+  // figures hors périmètre (jamais dans ADOC_LEGACY_BLOCK_SELECTOR).
+  var ADOC_LEGACY_BLOCK_SELECTOR = 'h1,h2,h3,h4,h5,h6,p,ul,ol,td,th';
+
+  // Ne retient que l'élément le plus englobant : un <p> ou une <ul> imbriqué
+  // dans un <td>/<th> ou dans une autre <ul>/<ol> déjà retenue n'est PAS
+  // sélectionnable séparément (la cellule ou la liste entière est déjà l'unité
+  // corrigeable). Un <h2>/<p> imbriqué dans un simple <div>/<section> de mise
+  // en forme reste, lui, sélectionnable indépendamment (cas "carte" ci-dessus).
+  function adocWsCollectLegacyBlocks(root) {
+    if (!root) return [];
+    return Array.prototype.filter.call(root.querySelectorAll(ADOC_LEGACY_BLOCK_SELECTOR), function (el) {
+      return !(el.parentElement && el.parentElement.closest(ADOC_LEGACY_BLOCK_SELECTOR));
+    });
+  }
+
+  function adocLegacyBlockKind(el) {
+    const tag = el.tagName.toLowerCase();
+    if (/^h[1-6]$/.test(tag)) return 'heading';
+    if (tag === 'ul' || tag === 'ol') return 'list';
+    if (tag === 'td' || tag === 'th') return 'cell';
+    return 'paragraph';
+  }
+
+  // Retire les citations <sup title="…">n</sup> d'un fragment HTML avant de
+  // l'envoyer au modèle (jamais une citation modifiée directement — même
+  // principe que le moteur structuré) — renvoie le texte nettoyé ET les
+  // balises retirées, dans l'ordre, pour décision ultérieure (point 3).
+  function adocStripCitationSups(html) {
+    const sups = [];
+    const plain = (html || '').replace(/<sup\b[^>]*>[\s\S]*?<\/sup>/gi, function (m) { sups.push(m); return ''; });
+    const div = document.createElement('div');
+    div.innerHTML = plain;
+    return { text: (div.textContent || '').replace(/\s+/g, ' ').trim(), sups: sups };
+  }
+
+  window._adocLegacyBlockEditState = { storeKey: null, blockKey: null, panelEl: null, el: null, kind: null, pendingHtml: null, pendingDropsCitations: false };
+
+  function adocWsClearLegacyBlockSelection() {
+    const st = window._adocLegacyBlockEditState;
+    if (st.panelEl && st.panelEl.parentNode) st.panelEl.parentNode.removeChild(st.panelEl);
+    const docCard = document.getElementById('cc-ws-doc-card');
+    if (docCard) {
+      const sel = docCard.querySelector('[data-cc-legacy-block-id].is-selected');
+      if (sel) sel.classList.remove('is-selected');
+    }
+    window._adocLegacyBlockEditState = { storeKey: null, blockKey: null, panelEl: null, el: null, kind: null, pendingHtml: null, pendingDropsCitations: false };
+  }
+
+  // Panneau visuellement IDENTIQUE à adocBuildBlockEditPanelHTML (mêmes classes
+  // cc-clarity-card/cc-block-edit-panel/cc-clarity-reply-btn/cc-clarity-other-btn,
+  // même disposition boutons + champ libre) — jamais l'insertion de bloc avant/
+  // après (hors périmètre de cette phase), jamais une apparence réinventée.
+  function adocBuildLegacyBlockEditPanelHTML() {
+    const btn = function (key) {
+      return '<button type="button" class="cc-clarity-reply-btn" onclick="window.adocRequestLegacyBlockCorrectionByIntent(\'' + key + '\')">' +
+        adocEsc(ADOC_BLOCK_EDIT_INTENTS[key].label) + '</button>';
+    };
+    return '<div class="cc-clarity-question sc-icon-label">' + adocIconSvg('icon-clarify') + '<span>Corriger ce passage</span></div>' +
+      '<div class="cc-block-edit-controls" style="display:flex;flex-wrap:wrap;align-items:flex-start;gap:8px;">' +
+        btn('rewrite') + btn('shorten') + btn('expand') + btn('verifySources') +
+        '<div style="display:flex;gap:6px;flex:1 1 240px;min-width:240px;">' +
+          '<textarea class="cc-block-edit-freetext adoc-textarea" style="flex:1;min-height:34px;max-height:120px;" ' +
+            'placeholder="Ou décrivez la correction souhaitée…" rows="1" ' +
+            'onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();window.adocRequestLegacyBlockCorrectionFreeText(this);}"></textarea>' +
+          '<button type="button" class="cc-clarity-other-btn" onclick="window.adocRequestLegacyBlockCorrectionFreeText(this.previousElementSibling)">Envoyer</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="cc-block-edit-result" hidden></div>';
+  }
+
+  // Délégation de clic sur le conteneur du document — même patron que
+  // adocWsSetupBlockEditing (jamais un écouteur par bloc), fonction ENTIÈREMENT
+  // SÉPARÉE. Assigne les data-cc-legacy-block-id EN MÉMOIRE à chaque ouverture
+  // (point 2), sur les éléments retenus par adocWsCollectLegacyBlocks (point 1).
+  function adocWsSetupLegacyBlockEditing(art) {
+    const docCard = document.getElementById('cc-ws-doc-card');
+    if (!docCard) return;
+    const isLegacy = art && art._adocGenerationEngine === 'legacy-html';
+    const enabled = isLegacy && !!(art._adocCapabilities && art._adocCapabilities.legacyBlockEditing);
+    docCard.classList.toggle('cc-ws-legacy-block-editable', enabled);
+    // Ne JAMAIS écraser docCard.onclick quand ce mécanisme ne s'applique pas (document
+    // structuré) : adocWsSetupBlockEditing vient de le poser juste avant dans adocOpenWorkspace
+    // — un `docCard.onclick = null` inconditionnel ici l'effacerait à chaque ouverture d'un
+    // document structuré (régression réelle trouvée en testant, corrigée ici).
+    if (!enabled) return;
+    const blocks = adocWsCollectLegacyBlocks(docCard);
+    blocks.forEach(function (el, i) { el.setAttribute('data-cc-legacy-block-id', 'lb-' + i); });
+    docCard.onclick = function (e) {
+      if (e.target.closest('.cc-block-edit-panel')) return;
+      if (e.target.closest('sup')) return; // note de bas de page — laisse naviguer normalement, jamais réinterprétée comme une sélection
+      const blockEl = e.target.closest('[data-cc-legacy-block-id]');
+      const current = window._adocLegacyBlockEditState;
+      if (!blockEl) { if (current.storeKey) adocWsClearLegacyBlockSelection(); return; }
+      const storeKey = window._adocWsState.storeKey;
+      const curArt = window._adocArtifacts && window._adocArtifacts[storeKey];
+      if (!curArt || curArt._adocGenerationEngine !== 'legacy-html') return;
+      const blockKey = blockEl.getAttribute('data-cc-legacy-block-id');
+      if (current.blockKey === blockKey) { adocWsClearLegacyBlockSelection(); return; } // reclic — désélectionne
+      adocWsClearLegacyBlockSelection();
+      blockEl.classList.add('is-selected');
+      const panel = document.createElement('div');
+      panel.className = 'cc-clarity-card cc-block-edit-panel';
+      panel.setAttribute('role', 'group');
+      panel.setAttribute('aria-label', 'Corriger ce passage sélectionné');
+      panel.innerHTML = adocBuildLegacyBlockEditPanelHTML();
+      blockEl.insertAdjacentElement('afterend', panel);
+      window._adocLegacyBlockEditState = {
+        storeKey: storeKey, blockKey: blockKey, panelEl: panel, el: blockEl,
+        kind: adocLegacyBlockKind(blockEl), pendingHtml: null, pendingDropsCitations: false,
+      };
+      const ta = panel.querySelector('.cc-block-edit-freetext');
+      if (ta) ta.focus();
+    };
+  }
+
+  window.adocRequestLegacyBlockCorrectionFreeText = function (textareaEl) {
+    const text = (textareaEl && textareaEl.value || '').trim();
+    if (!text) return;
+    window.adocRequestLegacyBlockCorrection('Demande libre', text);
+  };
+  window.adocRequestLegacyBlockCorrectionByIntent = function (key) {
+    const intent = ADOC_BLOCK_EDIT_INTENTS[key];
+    if (!intent) return;
+    window.adocRequestLegacyBlockCorrection(intent.label, intent.instruction);
+  };
+
+  // Décrit le contenu ACTUEL du passage pour le message envoyé au modèle —
+  // jamais le document entier, jamais un nouvel appel RAG (même principe que
+  // adocDescribeBlockContent, adapté à un élément DOM). Les <sup> sont retirés
+  // AVANT description (jamais envoyés au modèle).
+  function adocDescribeLegacyBlockContent(el, kind) {
+    if (kind === 'list') {
+      const items = Array.prototype.map.call(el.querySelectorAll(':scope > li'), function (li) {
+        return adocStripCitationSups(li.innerHTML).text;
+      });
+      return (el.tagName.toLowerCase() === 'ol' ? 'Liste numérotée' : 'Liste à puces') + ' :\n' +
+        items.map(function (it, i) { return (i + 1) + '. ' + it; }).join('\n');
+    }
+    const label = kind === 'heading' ? 'Titre' : kind === 'cell' ? 'Cellule de tableau' : 'Paragraphe';
+    return label + ' : ' + adocStripCitationSups(el.innerHTML).text;
+  }
+
+  window.adocRequestLegacyBlockCorrection = async function (intentLabel, intentInstruction) {
+    const st = window._adocLegacyBlockEditState;
+    if (!st.storeKey || !st.panelEl || !st.el) return;
+    const controlsEl = st.panelEl.querySelector('.cc-block-edit-controls');
+    const resultEl = st.panelEl.querySelector('.cc-block-edit-result');
+    if (controlsEl) controlsEl.hidden = true;
+    if (resultEl) { resultEl.hidden = false; resultEl.innerHTML = adocIconSvg('icon-progress') + ' Correction en cours…'; }
+    try {
+      const kind = st.kind;
+      const userContent = adocDescribeLegacyBlockContent(st.el, kind);
+      const systemPrompt = "Tu es un assistant clinique qui corrige UN SEUL passage d'un document clinique déjà rédigé (format HTML libre), " +
+        "sans jamais changer sa nature (un titre reste un titre, une liste reste une liste), sans réécrire le reste du document, " +
+        "et sans jamais inventer de nouvelle source ou référence.\n\n" +
+        'DEMANDE DE CORRECTION POUR CE PASSAGE PRÉCIS UNIQUEMENT :\n' + intentInstruction + '\n\n' +
+        "Réponds EXCLUSIVEMENT via l'outil emit_block_correction. Ne mentionne, n'ajoute ni ne retire " +
+        'aucune référence bibliographique dans le texte : les citations de ce passage sont gérées ' +
+        'séparément et ne doivent jamais être modifiées ici.';
+      const raw = await adocCallBlockCorrectionModel(systemPrompt, userContent);
+
+      // Reconstruit le HTML corrigé + décide du sort des citations d'origine — point 3 de
+      // l'investigation : préservées (réinsérées) si le sens reste proche, retirées + signalées
+      // sinon. Jamais un flag JSON structuré recopié tel quel (citationReviewRequired) — ce
+      // document n'en a pas ; un badge visuel discret directement dans le document en tient lieu
+      // (cf. .cc-legacy-citation-flag), inspiré du principe sans le recopier aveuglément.
+      let newPlainForCompare, newHtmlBody, originalSups, originalPlainForCompare;
+      if (kind === 'list') {
+        const items = (raw.items || []).filter(Boolean);
+        const liOriginals = Array.prototype.map.call(st.el.querySelectorAll(':scope > li'), function (li) { return adocStripCitationSups(li.innerHTML); });
+        originalSups = [].concat.apply([], liOriginals.map(function (o) { return o.sups; }));
+        originalPlainForCompare = liOriginals.map(function (o) { return o.text; }).join(' ');
+        newPlainForCompare = items.join(' ');
+        newHtmlBody = items.map(function (it) { return '<li>' + adocEsc(it) + '</li>'; }).join('');
+      } else {
+        const text = adocStripEmoji(raw.text || '');
+        const orig = adocStripCitationSups(st.el.innerHTML);
+        originalSups = orig.sups;
+        originalPlainForCompare = orig.text;
+        newPlainForCompare = text;
+        newHtmlBody = adocEsc(text);
+      }
+      const similarity = adocTextSimilarityRatio(originalPlainForCompare, newPlainForCompare);
+      const forceReview = intentLabel === ADOC_BLOCK_EDIT_INTENTS.verifySources.label;
+      const substantial = forceReview || similarity < ADOC_BLOCK_EDIT_SIMILARITY_THRESHOLD;
+      const hasCitations = originalSups.length > 0;
+      let citationNote = '';
+      if (hasCitations && !substantial) {
+        // Sens jugé proche — citations d'origine réinsérées telles quelles (jamais modifiées
+        // elles-mêmes), regroupées à la fin du passage corrigé : leur position exacte dans la
+        // phrase d'origine n'est pas reconstituable avec confiance après réécriture — les faire
+        // disparaître silencieusement serait pire que cette simplification assumée.
+        if (kind === 'list') {
+          const lis = newHtmlBody.match(/<li>[\s\S]*?<\/li>/g) || [];
+          if (lis.length) lis[lis.length - 1] = lis[lis.length - 1].replace('</li>', ' ' + originalSups.join(' ') + '</li>');
+          newHtmlBody = lis.join('');
+        } else {
+          newHtmlBody += ' ' + originalSups.join(' ');
+        }
+      } else if (hasCitations && substantial) {
+        citationNote = '<div class="cc-block-edit-flag">' + adocIconSvg('icon-warning') +
+          " Correction importante — les " + originalSups.length + " citation(s) d'origine de ce passage ne sont pas reconduites : le lien avec leurs sources n'est plus garanti avec confiance. Un repère visuel sera ajouté sur le passage corrigé.</div>";
+      }
+      st.pendingHtml = newHtmlBody;
+      st.pendingDropsCitations = hasCitations && substantial;
+      resultEl.innerHTML =
+        '<div class="cc-block-edit-diff">' +
+          '<div class="cc-block-edit-before"><div class="cc-block-edit-label">Avant</div><div class="cc-block-edit-text">' + adocEsc(originalPlainForCompare) + '</div></div>' +
+          '<div class="cc-block-edit-after"><div class="cc-block-edit-label">Après</div><div class="cc-block-edit-text">' + adocEsc(newPlainForCompare) + '</div></div>' +
+          citationNote +
+        '</div>' +
+        '<div class="cc-block-edit-actions" style="display:flex;gap:8px;margin-top:10px;">' +
+          '<button type="button" class="cc-clarity-reply-btn" onclick="window.adocConfirmLegacyBlockCorrection()">Confirmer</button>' +
+          '<button type="button" class="cc-clarity-other-btn" onclick="window.adocCancelLegacyBlockCorrection()">Annuler</button>' +
+        '</div>';
+    } catch (e) {
+      resultEl.innerHTML = adocIconSvg('icon-error') + ' Correction impossible : ' + adocEsc(e && e.message || 'erreur inconnue') + '.' +
+        '<div style="margin-top:8px;"><button type="button" class="cc-clarity-other-btn" onclick="window.adocCancelLegacyBlockCorrection()">Fermer</button></div>';
+    }
+  };
+
+  window.adocCancelLegacyBlockCorrection = function () {
+    adocWsClearLegacyBlockSelection(); // aucune mutation — le document reste strictement identique
+  };
+
+  // Applique la correction confirmée DIRECTEMENT dans art.html (source de vérité pour un document
+  // legacy, cf. adocBuildClinicalDocumentContent) via un DOMParser complet (jamais la version déjà
+  // aplatie de cc-ws-doc-card, qui a perdu <html>/<body> — cf. investigation point 1) : la même
+  // sélection (adocWsCollectLegacyBlocks) appliquée au document RÉELLEMENT parsé retrouve le même
+  // élément, dans le même ordre, puisque l'aplatissement ne change jamais l'ordre relatif du
+  // contenu de <body>. Réutilise ensuite EXACTEMENT le rendu/la sauvegarde déjà existants (aucune
+  // logique dupliquée) — comportement demandé, identique au mécanisme structuré.
+  window.adocConfirmLegacyBlockCorrection = async function () {
+    const st = window._adocLegacyBlockEditState;
+    if (!st.storeKey || st.pendingHtml == null) return;
+    const art = window._adocArtifacts && window._adocArtifacts[st.storeKey];
+    if (!art || art._adocGenerationEngine !== 'legacy-html') { adocWsClearLegacyBlockSelection(); return; }
+    const idx = parseInt(st.blockKey.slice(3), 10);
+    try {
+      const parsed = new DOMParser().parseFromString(art.html || '', 'text/html');
+      if (!parsed || !parsed.body) throw new Error('document illisible');
+      const blocks = adocWsCollectLegacyBlocks(parsed.body);
+      const target = blocks[idx];
+      if (!target) throw new Error('passage introuvable (document modifié entre-temps)');
+      target.innerHTML = st.pendingHtml;
+      if (st.pendingDropsCitations) {
+        const flag = parsed.createElement('span');
+        flag.className = 'cc-legacy-citation-flag';
+        flag.title = "Passage corrigé en profondeur — citations d'origine non reconduites, à sourcer à nouveau si besoin.";
+        flag.textContent = '⚠';
+        target.appendChild(flag);
+      }
+      art.html = '<!DOCTYPE html>\n' + parsed.documentElement.outerHTML;
+      if (art.blobUrl) { URL.revokeObjectURL(art.blobUrl); art.blobUrl = URL.createObjectURL(new Blob([art.html], { type: 'text/html;charset=utf-8' })); }
+    } catch (e) {
+      adocWsClearLegacyBlockSelection();
+      alert('Impossible d’appliquer cette correction : ' + (e && e.message || 'erreur inconnue') + '.');
+      return;
+    }
+    const storeKey = st.storeKey;
+    adocWsClearLegacyBlockSelection();
+    await window.adocOpenWorkspace(storeKey);
+    await window.adocWsSave();
+  };
 
   window.adocWsSave = async function () {
     const storeKey = window._adocWsState.storeKey;
