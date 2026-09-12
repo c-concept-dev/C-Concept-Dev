@@ -2318,13 +2318,17 @@
         // l'application hôte retombe alors sur la charte par défaut, jamais un blocage.
         const brandKitSelect = document.querySelector('#cc-brandkit-select');
         const brandKitId = brandKitSelect ? brandKitSelect.value : '';
+        // Parité 0F (monobloc) — champ additif, jamais lu par le moteur structuré (qui ne
+        // consulte que brandKitId ci-dessus, inchangé) : distingue un choix réellement explicite
+        // d'une simple présélection mécanique du sélecteur (cf. window.cc_brandKitSelectionIsExplicit).
+        const explicitBrandKit = !!window.cc_brandKitSelectionIsExplicit;
 
         // Point de raccord avec l’application hôte. documentKind (fiche|carrousel|tableau|
         // script|liens|null) continue de voyager dans detail.format pour ne pas rompre le
         // contrat de l'événement — mais désormais SANS aucun préfixe caché : voir le
         // listener 'conseiller-clinique:start' plus bas, qui ne concatène plus rien au texte.
         window.dispatchEvent(new CustomEvent('conseiller-clinique:start', {
-          detail: { prompt, format: documentKind, brandKitId }
+          detail: { prompt, format: documentKind, brandKitId, explicitBrandKit }
         }));
       });
 
@@ -2335,18 +2339,32 @@
       // type de document avant le Kit v2.4 — non concernée par ce lot, elle ne présélectionne
       // jamais rien au chargement de l'écran, contrairement à ce que faisait ce dernier).
       const ADOC_PREFERRED_BRANDKIT_KEY = 'adocPreferredBrandKitId';
+      // Parité 0F (monobloc) — le sélecteur présélectionne TOUJOURS une valeur non vide dès
+      // qu'au moins une charte existe (brandKits[0].id à défaut d'une préférence sauvegardée,
+      // ligne ci-dessous), malgré le commentaire d'origine qui affirmait le contraire : ce
+      // n'est PAS un choix explicite de la thérapeute, seulement la présélection mécanique du
+      // premier élément d'une liste HTML <select>. `window.cc_brandKitSelectionIsExplicit`
+      // distingue les deux cas pour l'application automatique de la charte à l'ancien moteur
+      // (seul consommateur de ce booléen — le moteur structuré continue de lire uniquement
+      // brandKitId/adocActiveBrandKitId, comportement strictement inchangé) : vrai seulement si
+      // la valeur reflète une préférence réellement sauvegardée (choix passé confirmé) OU un
+      // changement manuel du sélecteur (ci-dessous) — jamais la simple présélection mécanique.
+      window.cc_brandKitSelectionIsExplicit = false;
       window.setConseillerCliniqueBrandKits = (brandKits) => {
         const select = document.querySelector('#cc-brandkit-select');
         if (!select || !Array.isArray(brandKits) || !brandKits.length) return;
         let savedId = null;
         try { savedId = localStorage.getItem(ADOC_PREFERRED_BRANDKIT_KEY); } catch (e) {}
         const validIds = brandKits.map((k) => k.id);
-        const defaultId = validIds.includes(savedId) ? savedId : brandKits[0].id;
+        const hasSavedPreference = validIds.includes(savedId);
+        const defaultId = hasSavedPreference ? savedId : brandKits[0].id;
+        window.cc_brandKitSelectionIsExplicit = hasSavedPreference;
         select.innerHTML = brandKits.map((k) =>
           `<option value="${k.id}"${k.id === defaultId ? ' selected' : ''}>${(k.name || 'Charte').replace(/</g, '&lt;')}</option>`
         ).join('');
         select.addEventListener('change', () => {
           try { localStorage.setItem(ADOC_PREFERRED_BRANDKIT_KEY, select.value); } catch (e) {}
+          window.cc_brandKitSelectionIsExplicit = true;
         });
       };
 
@@ -4660,6 +4678,37 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
   // (encore disponible dans ce scope) — jamais un ClinicalDocument fabriqué à partir du HTML.
   async function adocFinalizeGeneration(streamMsgId, reply, plan, ragResult, fellBackFromStructured) {
     const _storeKey = await adocHandleReply(reply, plan, ragResult?.chunks || []);
+    // Parité 0F (monobloc) — charte explicitement choisie (adocActiveBrandKitId, même mécanisme
+    // que adocClarityDocumentKind/window.adocPendingDocumentKind : capturée UNE FOIS par requête
+    // depuis #cc-brandkit-select via l'événement conseiller-clinique:start) appliquée
+    // AUTOMATIQUEMENT à TOUT document produit par l'ancien moteur — repli structuré→legacy
+    // (tagué juste en dessous) OU génération directe (carrousel/tableau/script/liens, qui
+    // n'atteint jamais ce tagage puisque fellBackFromStructured y est toujours false). Jamais
+    // pour un document du moteur structuré : cette fonction n'est JAMAIS appelée sur ce chemin
+    // (la réussite structurée se livre directement via adocDeliverStructuredFicheArtifact, cf.
+    // investigation du lot) — fmt==='html' identifie donc sans ambiguïté ICI un document
+    // produit par l'ancien moteur, même s'il est réutilisé ailleurs pour l'aperçu structuré.
+    // Sans charte explicitement choisie (adocActiveBrandKitId vide) : comportement strictement
+    // inchangé, aucun appel. Réutilise adocRethemeLegacyHtml TEL QUEL (jamais une nouvelle
+    // logique de teinte dupliquée) — jamais la police (adocRethemeLegacyFonts), qui n'a pas
+    // d'équivalent "choix explicite" à la génération (seule la couleur partage le même
+    // sélecteur que la charte) ; le panneau manuel reste l'unique façon de changer la police.
+    // adocActiveBrandKitExplicit obligatoire EN PLUS de adocActiveBrandKitId non vide — investigation
+    // (régression détectée par verify-legacy-retheme.js) : #cc-brandkit-select présélectionne
+    // TOUJOURS la première charte dès qu'au moins une existe (aucune préférence sauvegardée ⇒
+    // brandKits[0].id, cf. window.setConseillerCliniqueBrandKits), donc adocActiveBrandKitId
+    // n'est PAS à lui seul un signal de choix explicite — il vaut cette valeur mécanique par
+    // défaut même quand la thérapeute n'a jamais touché le sélecteur, ce qui aurait fait
+    // ressortir TOUT document legacy déjà teinté malgré elle (violant le panneau manuel
+    // opt-in existant). adocActiveBrandKitExplicit distingue les deux cas sans jamais toucher au
+    // moteur structuré, qui continue de lire adocActiveBrandKitId seul, inchangé.
+    if (_storeKey && window._adocArtifacts?.[_storeKey] && window._adocArtifacts[_storeKey].fmt === 'html' && adocActiveBrandKitId && adocActiveBrandKitExplicit) {
+      try {
+        await adocApplyBrandKitToLegacyArtifact(_storeKey, adocActiveBrandKitId);
+      } catch (_brandErr) {
+        console.warn('[UX-8B parité] Application automatique de la charte impossible, document livré sans reteinte automatique:', _brandErr && _brandErr.message);
+      }
+    }
     if (fellBackFromStructured && _storeKey && window._adocArtifacts?.[_storeKey] && window._adocArtifacts[_storeKey].fmt === 'html') {
       try {
         const _legacySnapshot = await adocBuildSourceSnapshotFromRAG(ragResult || { chunks: [] });
@@ -8499,6 +8548,10 @@ ${recent}`;
     // UX-8B Lot 2 — charte choisie pour CETTE demande précise (jamais un réglage global figé).
     // '' ou absente ⇒ adocResolveBrandKitForGeneration retombe sur la charte par défaut.
     adocActiveBrandKitId = detail.brandKitId || '';
+    // Parité 0F (monobloc) — capturé UNE FOIS par requête, même patron que adocActiveBrandKitId
+    // ci-dessus : jamais lu par le moteur structuré (adocResolveBrandKitForGeneration), qui
+    // continue d'utiliser adocActiveBrandKitId seul, comportement strictement inchangé.
+    adocActiveBrandKitExplicit = !!detail.explicitBrandKit;
 
     const landing = document.getElementById('cc-landing');
     if (landing) landing.style.display = 'none';
@@ -9189,6 +9242,13 @@ ${recent}`;
   // Charte choisie pour la demande EN COURS (capturée par le listener conseiller-clinique:start
   // ci-dessous) — jamais un réglage global : remise à '' n'importe quand par une nouvelle demande.
   let adocActiveBrandKitId = '';
+  // Parité 0F (monobloc) — capturé au même endroit, même cycle de vie que adocActiveBrandKitId
+  // ci-dessus, mais consommé UNIQUEMENT par l'application automatique de la charte à l'ancien
+  // moteur (adocFinalizeGeneration) : true seulement si la valeur ci-dessus reflète un vrai
+  // geste de la thérapeute (changement manuel du sélecteur, ou préférence sauvegardée d'un choix
+  // passé) — jamais la présélection mécanique du premier élément d'une liste par défaut (cf.
+  // window.cc_brandKitSelectionIsExplicit). Le moteur structuré n'y touche jamais.
+  let adocActiveBrandKitExplicit = false;
   function adocFetchBrandKits() {
     const workerUrl = adocGetWorkerUrl();
     return fetch(workerUrl + '/brand-kits', { headers: { 'X-API-Key': adocGetApiKey() } })
@@ -9317,6 +9377,27 @@ ${recent}`;
     if (!rootInfo) return { ok: false, html: html };
     const palette = adocBuildLegacyPaletteFromBrandKit(brandKit);
     return { ok: true, html: adocApplyLegacyRootVars(html, palette) };
+  }
+
+  // Parité 0F (monobloc) — appelée depuis adocFinalizeGeneration (jamais un nouveau chemin de
+  // fin de génération : un simple appel de plus À L'INTÉRIEUR d'un point de sortie déjà couvert
+  // par _adocResetSendState() côté appelant). Réutilise adocRethemeLegacyHtml/adocGetBrandKitById
+  // TELS QUELS (jamais une nouvelle logique de teinte dupliquée) — même contrat que le panneau
+  // manuel (adocPreviewLegacyRetheme/adocConfirmLegacyRetheme) : { ok:false } sans rien modifier
+  // si le gabarit couleur n'est pas retrouvé, charte introuvable ⇒ document livré tel quel,
+  // jamais un blocage ni une exception qui remonterait à l'appelant (celui-ci l'attrape déjà,
+  // mais autant ne jamais en émettre).
+  async function adocApplyBrandKitToLegacyArtifact(storeKey, brandKitId) {
+    const art = window._adocArtifacts && window._adocArtifacts[storeKey];
+    if (!art || !art.html) return;
+    const brandKit = await adocGetBrandKitById(brandKitId);
+    if (!brandKit || !brandKit.id) return;
+    const colorResult = adocRethemeLegacyHtml(art.html, brandKit);
+    if (!colorResult.ok) return;
+    if (art.blobUrl) URL.revokeObjectURL(art.blobUrl);
+    art.html = colorResult.html;
+    art.blobUrl = URL.createObjectURL(new Blob([art.html], { type: 'text/html;charset=utf-8' }));
+    art._adocBrandKitName = brandKit.name || null;
   }
 
   // ═══════════════════════════════════════════════════════════════════════
