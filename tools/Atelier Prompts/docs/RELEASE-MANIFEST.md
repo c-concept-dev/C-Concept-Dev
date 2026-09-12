@@ -13,8 +13,8 @@
 | --- | --- |
 | Lot | HTML-FINAL-02 |
 | Artefact | Atelier de prompts — V11.5 LOT 10G Adaptive Decision Pipeline |
-| Commit local | `4e1c68c306aeb19e50c1e582026047b480b7f19a` |
-| Date du commit | 2026-09-12T11:30:36+02:00 |
+| Commit local | `c3edcf92ac504fddb1820b809083079a2327df46` |
+| Date du commit | 2026-09-12T14:06:42+02:00 |
 
 ## Artefact canonique
 
@@ -159,7 +159,7 @@ sa propre empreinte.
 
 | Classe | Fichiers | Raison |
 | --- | --- | --- |
-| REQUIRED_TEST_ONLY | 159 | preuves ; ne sont pas servies |
+| REQUIRED_TEST_ONLY | 160 | preuves ; ne sont pas servies |
 | EVALUATION_ONLY | 377 | bancs et campagnes, dont le worker `…-local-only` |
 | AUDIT_ONLY | 74 | relevés des lots passés |
 | PROVENANCE | 2 | trace de la dérivation de l'artefact courant |
@@ -185,7 +185,7 @@ par ce script.*
 | EXEC-PHASE-INSTRUMENT-01 | CLOSED |
 | FC01b FINAL | CLOSED |
 | HTML-FINAL-01 / 01A | CLOSED |
-| Tests au vert | 2996 |
+| Tests au vert | 3003 |
 
 ## Dette encore ouverte
 
