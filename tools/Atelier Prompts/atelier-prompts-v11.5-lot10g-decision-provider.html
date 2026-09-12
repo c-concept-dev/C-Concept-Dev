@@ -3781,18 +3781,32 @@ const SECTIONS = {
       l.push('- Le matériau à traiter est fourni dans ce prompt, entre les marqueurs de la section ' +
         'DONNÉES SOURCES. Travaillez dessus : n\u2019en vérifiez pas l\u2019accès, n\u2019en ' +
         'recherchez pas d\u2019autre copie, ne demandez pas confirmation avant de commencer.');
-    /* 02G (suite) — CETTE LIGNE ÉTAIT LA MIENNE, ET ELLE PRÉSUPPOSAIT ENCORE UN MATÉRIAU.
-       Écrite plus tôt dans ce même lot, elle disait « établi par la demande ou par le matériau » et
-       « jamais comme une donnée fournie » dans tous les cas — y compris sur la comparaison
-       train / avion, où aucun matériau n'existe. La discipline est la même, la formulation ne
-       suppose plus une source absente. */
+    /* 02G (suite) — AUCUN OBJET SOURCE FANTÔME.
+     *
+     * Deux itérations ont été nécessaires ici, et l'écart entre elles est le cœur du sujet.
+     * D'abord la ligne disait, sans condition, « établi par la demande ou par le matériau … jamais
+     * comme une donnée fournie » : elle affirmait un matériau. Je l'ai alors conditionnée, en
+     * écrivant pour le cas sans matériau « jamais comme un élément qui vous aurait été fourni » —
+     * ce qui n'affirmait plus rien, mais introduisait toujours un objet fourni dans un tour où
+     * aucun n'existe.
+     *
+     * La règle n'est donc pas « ne pas affirmer faussement une source », elle est plus stricte :
+     * sans objet source dans le tour, aucun langage qui en dépend. Ni l'affirmer, ni le nier, ni le
+     * qualifier, ni y faire référence. La discipline utile — distinguer ce que la demande établit
+     * de ce que le modèle apporte — se dit sans mentionner aucune source. */
     l.push(ctx.materiau
       ? '- Distinguez ce qui est établi par la demande ou par le matériau de ce que vous ' +
         'apportez vous-même : présentez le second comme tel, jamais comme une donnée fournie.'
       : '- Distinguez ce qui est établi par la demande de ce que vous apportez vous-même : ' +
-        'présentez le second comme tel, jamais comme un élément qui vous aurait été fourni.');
-    l.push('- Respectez les droits et restrictions explicitement fournis, sans en supposer d\u2019autres.');
-    return '## PROVENANCE ET USAGE DU MATÉRIAU\n' + l.join('\n');
+        'présentez le second comme tel, jamais comme un fait établi.');
+    /* Une restriction porte sur quelque chose : sans matériau ni droit déclaré, il n'y a rien sur
+       quoi une restriction pourrait porter, et la ligne deviendrait une référence de plus. */
+    if(ctx.materiau || ctx.droit)
+      l.push('- Respectez les droits et restrictions explicitement fournis, sans en supposer d\u2019autres.');
+    /* Le TITRE lui-même nommait le matériau. « PROVENANCE DES AFFIRMATIONS » est le titre que le
+       compilateur Architecte emploie déjà pour cette même idée : il n'est pas inventé ici. */
+    return (ctx.materiau ? '## PROVENANCE ET USAGE DU MATÉRIAU' : '## PROVENANCE DES AFFIRMATIONS')
+      + '\n' + l.join('\n');
   },
 
   /* 02G — AUCUNE AFFIRMATION SANS PROVENANCE.
@@ -4187,7 +4201,11 @@ function mesurerDemande(demande){
 const SIGNATURES = [
   ['role',      /^## RÔLE/m],
   ['donnees',   /^## DONNÉES SOURCES/m],
-  ['provenance',/^## PROVENANCE ET USAGE/m],
+  /* 02G — L'ANCRE NE DÉPEND PLUS DU MOT « MATÉRIAU ».
+     Le titre de la section de provenance suit désormais la présence réelle d'un matériau ; l'ancre
+     du verrou doit donc reconnaître les deux titres, sans quoi le bloc rendu ne serait plus
+     attribué au verrou qui l'a produit dans la trace de projection. */
+  ['provenance',/^## PROVENANCE/m],
   ['perimetre', /^## PÉRIMÈTRE DU LIVRABLE/m],
   ['format',    /^## FORMAT DE SORTIE/m],
   ['amorce',    /^## AMORCE ET CLÔTURE/m],

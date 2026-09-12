@@ -247,6 +247,99 @@ l'existante, pas un ajout.
 
 ---
 
+## D ter. Classe `GHOST_SOURCE_REFERENCE`
+
+```text
+GHOST_SOURCE_REFERENCE_CLASS = source-dependent language emitted while source absent
+```
+
+```text
+BEFORE         = « ou par le matériau »
+                 « jamais comme une donnée fournie »
+SOURCE_PRESENT = NO
+AFTER          = aucune référence source-dépendante
+```
+
+### D ter.1 — Pourquoi il a fallu trois itérations sur la même ligne
+
+C'est le point le plus instructif de tout 02G, et il porte sur mon propre texte.
+
+```text
+itération 1   « établi par la demande ou par le matériau … jamais comme une donnée fournie »
+              → AFFIRME un matériau qui n'existe pas.
+
+itération 2   « établi par la demande … jamais comme un élément qui vous aurait été fourni »
+              → n'affirme plus rien, mais INTRODUIT ENCORE un objet fourni dans un tour
+                où aucun n'existe.
+
+itération 3   « établi par la demande … jamais comme un fait établi »
+              → ne parle plus d'aucune source.
+```
+
+L'itération 2 satisfaisait la règle telle que je l'avais comprise — *ne pas affirmer faussement une
+source*. Elle ne satisfaisait pas la règle telle qu'elle doit être :
+
+```text
+NO SOURCE OBJECT  →  NO SOURCE-DEPENDENT LANGUAGE
+```
+
+Ni l'affirmer, ni le nier, ni le qualifier, ni y faire référence. La différence entre « ne pas
+mentir sur une source » et « ne pas convoquer une source » n'est pas rhétorique : dans la seconde
+formulation, le modèle qui lit le prompt apprend qu'un objet fourni fait partie du tour. C'est un
+fait faux, obtenu sans aucune phrase fausse.
+
+### D ter.2 — Le titre de la section était lui-même une référence fantôme
+
+```text
+AVANT   ## PROVENANCE ET USAGE DU MATÉRIAU     (sur S2, sans aucun matériau)
+APRÈS   ## PROVENANCE DES AFFIRMATIONS
+```
+
+`PROVENANCE DES AFFIRMATIONS` n'est pas un titre inventé pour ce lot : le compilateur Architecte
+l'emploie déjà (ligne 9185) pour exactement cette idée. `T-02G-19` fige le basculement dans les deux
+sens.
+
+L'ancre du verrou dépendait du mot retiré — `['provenance', /^## PROVENANCE ET USAGE/m]` — et a été
+élargie à `/^## PROVENANCE/m`, sans quoi le bloc rendu n'aurait plus été attribué au verrou qui l'a
+produit dans la trace de projection. Ligne 4190, hors plage gelée.
+
+### D ter.3 — Ce qui a été conservé, et pourquoi
+
+La ligne de droits — « Respectez les droits et restrictions explicitement fournis, sans en supposer
+d'autres » — est désormais conditionnée à `ctx.materiau || ctx.droit` : une restriction porte sur
+quelque chose, et sans objet ni droit déclaré elle serait une référence de plus.
+
+Le verrou n'est pas désactivé pour autant. Sur S2 il projette toujours sa discipline utile — c'est
+ce qui distingue une omission ciblée d'une mise hors service (§10) :
+
+```text
+## PROVENANCE DES AFFIRMATIONS
+- Distinguez ce qui est établi par la demande de ce que vous apportez vous-même :
+  présentez le second comme tel, jamais comme un fait établi.
+```
+
+Et c'est exactement la raison pour laquelle le verrou avait été sélectionné : l'Arbitre avait relevé
+quatre faits externes à rechercher.
+
+### D ter.4 — Un cas limite que je signale sans le trancher seul
+
+La section `INFORMATIONS MANQUANTES`, présente sur S1, S2 et S4, contient :
+
+```text
+— donnée chiffrée absente, source non fournie, dépendance technique inconnue — ne devinez pas.
+```
+
+« source non fournie » est la forme **négative** que le §3 met en garde de ne pas produire. Mon
+appréciation est que ce n'en est pas une : la phrase énumère des **catégories** de manque dans une
+section consacrée à l'information manquante, et n'affirme rien sur ce tour-ci. Elle ne convoque pas
+un objet source comme faisant partie du tour ; elle décrit les cas où il ne faut pas deviner. Elle
+appartient de plus au projecteur `hypotheses`, qu'aucun défaut observé n'implique.
+
+Je l'ai donc laissée, exclue explicitement du relevé par `T-02G-18`, et je vous le signale : c'est
+une ligne à retirer si vous jugez la règle applicable à la lettre. Réversible d'une condition.
+
+---
+
 ## E. Sources canoniques disponibles
 
 Relevées sur les contrats réels, pas sur la documentation :
@@ -438,7 +531,13 @@ contrainte existait ; corrigé avant conclusion).
 | `UNSUPPORTED_RIGHTS_ASSERTIONS` | **2** | 0 | **0** |
 | `UNSUPPORTED_SOURCE_COVERAGE_ASSERTIONS` | **1** | **2** | **0** |
 | espaces réservés (3 sondes json/code/html) | **2/3** | **2/3** | **0/3** |
+| `GHOST_SOURCE_REFERENCES` sur S1 · S2 · S4 | **3** | **3** | **0** |
 | **total assertions sans source** | **21** | **2** | **0** |
+
+`GHOST_SOURCE_REFERENCES` compte, dans les seuls tours **sans source réelle**, toute formulation qui
+convoque un objet source : le titre de section, « ou par le matériau », « donnée fournie »,
+« aurait été fourni ». Les trois états successifs de ce lot valent 3, 3 puis 0 : les deux premières
+itérations n'avaient pas touché cette classe.
 
 La colonne du milieu est la plus instructive : le premier passage de 02G avait ramené quatre
 familles à zéro **et fait monter la cinquième de 1 à 2**, en introduisant une formulation qui
@@ -512,6 +611,18 @@ FIDÉLITÉ               : « Exactement 7 idées » + les deux contraintes conf
 VERDICT                : PASS
 ```
 
+### Relevé `GHOST_SOURCE_REFERENCE` sur les quatre prompts finaux
+
+```text
+S1  SOURCE_ACTUALLY_PRESENT = NO   → 0 référence à une source     VERDICT = PASS
+S2  SOURCE_ACTUALLY_PRESENT = NO   → 0 référence à une source     VERDICT = PASS
+S4  SOURCE_ACTUALLY_PRESENT = NO   → 0 référence à une source     VERDICT = PASS
+S3  SOURCE_ACTUALLY_PRESENT = YES  → 5 références, toutes vraies  VERDICT = PASS
+    (279 octets réellement fournis, cités dans DONNÉES SOURCES)
+```
+
+`GHOST_SOURCE_REFERENCES = 0` · `UNSUPPORTED_ASSERTIONS = 0` · `SELF_CONTRADICTIONS = 0`.
+
 ### Relevé `SOURCE_COVERAGE` sur les quatre prompts finaux
 
 Recherche, dans chaque prompt livré, de toute formulation supposant une source
@@ -552,8 +663,15 @@ T-02G-14  sans matériau, AUCUNE instruction ne suppose de données sources  (4 
 T-02G-15  avec un matériau réel, la discipline de couverture peut rester, sans provenance inventée
 T-02G-16  tout projecteur reçoit le contexte — aucun d'arité 0
 T-02G-17  un format qui exige des données n'en fabrique pas pour autant  (3 demandes)
-T-02G-18  la discipline de provenance ne suppose un matériau que s'il y en a un
+T-02G-18  sans source dans le tour, le prompt n'en parle pas du tout  (4 demandes × 7 motifs)
+T-02G-19  le titre de la section de provenance suit la présence réelle d'une source
 ```
+
+**Correspondance avec les noms demandés** — le brief nommait `T-02G-15` le cas « no ghost reference »
+et `T-02G-16` le cas positif. Plutôt que de renuméroter une troisième fois des tests déjà commités
+et cités dans ce rapport, le rôle « no ghost » est tenu par `T-02G-18`, et le cas positif par
+`T-02G-15` et `T-02G-04`, conservés. La correspondance est notée dans l'en-tête de `T-02G-18` ;
+c'est un choix de lisibilité de l'historique, réversible.
 
 **Test transformé** — `T-RAPCHAR-15`, étiqueté `[CARACTÉRISATION — ANOMALIE ATTENDUE À ÉVOLUER]`,
 figeait l'émission de l'espace réservé. Il éprouve désormais le comportement corrigé, en conservant
@@ -567,7 +685,7 @@ contredisait.
 
 ## Q. Tests globaux
 
-**3057 / 3057 pass / 0 fail.**
+**3058 / 3058 pass / 0 fail.**
 
 Les 18 échecs du premier lancement étaient **tous** d'empreinte ou de manifeste
 (`CANONICAL_HTML_CHANGED = NO` × 15, `T-HTMLFINAL02-02/03/10`). `NEW_REGRESSION = 0`,
@@ -576,6 +694,11 @@ Les 18 échecs du premier lancement étaient **tous** d'empreinte ou de manifest
 Le complément `SOURCE_COVERAGE` a produit **un seul** échec comportemental : `T-RAPCHAR-15`,
 classé `HISTORICAL_IMPLEMENTATION_CONTRACT` — le test portait le nom de son échéance et devait
 échouer le jour de la correction. Transformé.
+
+Le complément `GHOST_SOURCE_REFERENCE` n'a produit **aucun** échec comportemental. Une attente de
+`T-RAPCHAR-LOCKS` semblait devoir changer avec le titre de section ; vérification faite, sa fixture
+alimente un matériau — le titre qui le nomme y est donc juste, et l'attente d'origine a été
+rétablie. Corrigé avant de conclure plutôt que modifié à tort.
 
 **Un fait qui mérite d'être dit** : aucun test existant n'a échoué sur le changement de contenu.
 Le texte qui affirmait du code, des barèmes et un titre d'accès n'était couvert par **aucune
@@ -624,15 +747,18 @@ projecteurs qui inventaient.
 
 **Créée** — aucune.
 
+**Signalée pour décision** — « source non fournie » dans `INFORMATIONS MANQUANTES` (§D ter.4) :
+énumération de catégories de manque, à mon sens non référentielle, laissée en place et exclue du
+relevé. À retirer si vous appliquez la règle à la lettre.
+
 **Constatée, non traitée**
 
 1. ~~**`FOLLOW_UP-02G-A`**~~ — **REFERMÉ dans ce même lot** (§D bis.3). L'espace réservé de
    `donnees` était joignable sur des demandes banales de format json ou code, et non seulement sur
    les quatre cas du smoke ; le §2 du complément l'interdit explicitement. Corrigé sans créer de
    sous-lot, comme demandé.
-2. **`FOLLOW_UP-02G-B`** — le titre `PROVENANCE ET USAGE DU MATÉRIAU` s'affiche même sans matériau
-   (S2). Le titre est l'ancre de `MARQUEURS` et de la trace de projection ; le renommer touche la
-   correspondance verrou → section.
+2. ~~**`FOLLOW_UP-02G-B`**~~ — **REFERMÉ dans ce même lot** (§D ter.2). Le titre suit désormais la
+   présence réelle d'une source, et l'ancre de `MARQUEURS` a été élargie pour reconnaître les deux.
 3. **`FOLLOW_UP-02G-C`** — le Prompt Contract Gate ne peut pas détecter l'invention sémantique :
    pour `scope` il compare `constraint_count` au nombre de `source_ids` du signal (1 ≥ 1), ce qui
    passe quel que soit le texte rendu. Constat, pas chantier : le §17 interdit d'en faire un moteur
@@ -676,6 +802,8 @@ UNSUPPORTED_PROVENANCE_ASSERTIONS    = 0   (3 avant)
 UNSUPPORTED_RIGHTS_ASSERTIONS        = 0   (2 avant)
 UNSUPPORTED_SOURCE_COVERAGE_ASSERTIONS = 0 (1 avant 02G · 2 après le 1ᵉʳ passage)
 SOURCE_COVERAGE_PROJECTOR_SOURCE_AWARE = YES
+GHOST_SOURCE_REFERENCES                = 0   (3 avant, sur S1/S2/S4)
+SOURCE_DEPENDENT_LANGUAGE_WITHOUT_SOURCE = NO
 SELF_CONTRADICTIONS_FOUND            = 0   (2 avant : S3, et l'espace réservé)
 
 EXPLICIT_PERIMETER_PRESERVED         = YES
@@ -698,8 +826,8 @@ SMOKE_S3                             = PASS
 SMOKE_S4                             = PASS
 SMOKE_FAILED_CASES                   = 0/4
 
-TARGETED_TESTS                       = 18/18 PASS
-GLOBAL_TESTS                         = 3057/3057 PASS
+TARGETED_TESTS                       = 19/19 PASS
+GLOBAL_TESTS                         = 3058/3058 PASS
 FROZEN                               = PASS
 
 DEBT_REMOVED                         = 21 assertions sans source → 0, sur cinq familles ;
@@ -707,7 +835,8 @@ DEBT_REMOVED                         = 21 assertions sans source → 0, sur cinq
                                        par le prompt lui-même (FOLLOW_UP-02G-A refermé) ;
                                        trou de couverture de tests sur le contenu des sections
 DEBT_CREATED                         = aucune
-                                       (constatées : 02G-B titre de section sans matériau ;
+                                       (02G-A et 02G-B refermés dans le lot ;
+                                        constatées : « source non fournie » signalée pour décision ;
                                         02G-C le gate ne détecte pas l'invention sémantique ;
                                         02F-A « sans remplissage mots » ;
                                         SMOKE-A fiabilité OPRIE)

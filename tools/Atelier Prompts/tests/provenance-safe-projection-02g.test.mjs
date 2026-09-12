@@ -305,26 +305,63 @@ test('T-02G-17 : un format qui exige des données n’en fabrique pas pour autan
   }
 });
 
-test('T-02G-18 : la discipline de provenance ne suppose un matériau que s’il y en a un', () => {
-  /* Le verrou provenance est levé par des faits externes à rechercher — c'est ce qui s'est passé
-     sur la comparaison train / avion : l'Arbitre réel en avait relevé quatre. On reproduit cette
-     condition, sinon le verrou n'est pas sélectionné et le test passerait par vacuité. */
+/* T-02G-18 — AUCUN OBJET SOURCE FANTÔME.
+ *
+ * La règle appliquée ici est plus stricte que « ne pas affirmer faussement une source ». Sans objet
+ * source dans le tour, le prompt ne doit pas en parler du tout : ni l'affirmer, ni le nier, ni le
+ * qualifier, ni y faire référence. Deux itérations de ce lot ont été nécessaires pour l'atteindre —
+ * « jamais comme une donnée fournie », puis « jamais comme un élément qui vous aurait été fourni »
+ * ne l'affirmaient plus, mais introduisaient encore un objet fourni.
+ *
+ * (Correspondance avec le brief : ce test tient le rôle de « T-02G-15 no ghost reference » ;
+ *  le cas positif demandé sous « T-02G-16 » est couvert par T-02G-15 et T-02G-04, conservés.) */
+const REFERENCE_FANTOME = [
+  /matériau/i, /données sources/i, /donnée fournie/i, /contenu fourni/i,
+  /fichier fourni/i, /aurait été fourni/i, /le matériau fourni/i
+];
+
+test('T-02G-18 : sans source dans le tour, le prompt n’en parle pas du tout', () => {
+  const casSansSource = [
+    [['5 séances exactement'], 'Fais-moi un plan de révision en 5 séances'],
+    [[], 'Compare le train et l’avion en tableau'],
+    [['Le nombre d’idées doit être exactement 7'], 'Donne exactement 7 idées de cadeaux'],
+    [[], 'Explique la photosynthèse simplement']
+  ];
+  for (const [contraintes, demande] of casSansSource) {
+    const prompt = jouer(contraintes, demande).promptFinal;
+    /* La section INFORMATIONS MANQUANTES énumère des CATÉGORIES de manque (« donnée chiffrée
+       absente, source non fournie, dépendance technique inconnue ») sans rien affirmer du tour :
+       elle est exclue du relevé, et ce choix est consigné dans le rapport. */
+    const corps = prompt.split('## INFORMATIONS MANQUANTES')[0];
+    for (const re of REFERENCE_FANTOME) {
+      assert.doesNotMatch(corps, re, `« ${demande} » — aucune source dans le tour`);
+    }
+  }
+});
+
+test('T-02G-19 : le titre de la section de provenance suit la présence réelle d’une source', () => {
+  /* Le titre nommait le matériau en toutes circonstances. « PROVENANCE DES AFFIRMATIONS » est le
+     titre que le compilateur Architecte emploie déjà pour cette idée : il n'est pas inventé ici. */
   const turn = oprieReadyTurn({ state: 'operational_request_ready' });
   turn.operational_request_candidate = {
     ...turn.operational_request_candidate,
     expected_deliverable: 'Un tableau comparatif.',
     external_facts_to_research: ['Durées de trajet typiques', 'Fourchettes de prix habituelles']
   };
-  const base = canonicalFrom(turn, { request_id: '02g-18', original_request: 'Compare le train et l’avion en tableau' });
-  const p = runRapidePipeline({
+  const base = canonicalFrom(turn, { request_id: '02g-19', original_request: 'Compare le train et l’avion en tableau' });
+  const sans = runRapidePipeline({
     demande: 'Compare le train et l’avion en tableau',
     orientation: { source: 'oprie', route: 'rapide', oprie: { state: base.executability.oprie_state },
       canonical: base, envelope: null, semantic: null, providerResult: null, action: null, decision: { state: 'ready' } }
-  });
-  const sans = provenance(p.promptFinal);
-  assert.notEqual(sans, '', 'prémisse : le verrou provenance est bien sélectionné');
-  const avec = provenance(jouer([], 'Corrige les fautes de ce texte', 'Un texte avec des faute.').promptFinal);
-  assert.match(sans, /Distinguez ce qui est établi par la demande de ce que vous apportez/);
-  assert.doesNotMatch(sans, /ou par le matériau/);
-  assert.match(avec, /Distinguez ce qui est établi par la demande ou par le matériau/);
+  }).promptFinal;
+  assert.ok(sectionTitles(sans).includes('PROVENANCE DES AFFIRMATIONS'),
+    'sans source : le titre ne nomme aucun matériau');
+  assert.equal(sectionTitles(sans).includes('PROVENANCE ET USAGE DU MATÉRIAU'), false);
+  /* Et la discipline utile est bien projetée : c'est ce qui distingue une omission d'une
+     désactivation du verrou. */
+  assert.match(sectionBody(sans, 'PROVENANCE DES AFFIRMATIONS'), /Distinguez ce qui est établi par la demande/);
+
+  const avec = jouer([], 'Corrige les fautes de ce texte', 'Un texte avec des faute.').promptFinal;
+  assert.ok(sectionTitles(avec).includes('PROVENANCE ET USAGE DU MATÉRIAU'),
+    'avec une source réelle : le titre la nomme, et c’est vrai');
 });

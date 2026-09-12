@@ -481,6 +481,8 @@ test('T-RAPCHAR-LOCKS [CARACTÉRISATION] les 13 verrous sont TOUS projetables pa
     role: 'RÔLE',
     destinataire: 'DESTINATAIRE ET REGISTRE',
     donnees: 'DONNÉES SOURCES',
+    /* 02G — le titre suit la présence réelle d'une source. Ce relevé alimente un matériau, il
+       obtient donc le titre qui le nomme — et c'est vrai. */
     provenance: 'PROVENANCE ET USAGE DU MATÉRIAU',
     perimetre: 'PÉRIMÈTRE DU LIVRABLE',
     gabarit: 'PLAN IMPOSÉ',
