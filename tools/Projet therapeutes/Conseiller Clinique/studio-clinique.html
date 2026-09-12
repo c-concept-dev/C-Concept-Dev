@@ -4709,13 +4709,35 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
         console.warn('[UX-8B parité] Application automatique de la charte impossible, document livré sans reteinte automatique:', _brandErr && _brandErr.message);
       }
     }
-    if (fellBackFromStructured && _storeKey && window._adocArtifacts?.[_storeKey] && window._adocArtifacts[_storeKey].fmt === 'html') {
+    // Item 48 (parité 0F) — retire la condition fellBackFromStructured qui limitait cette
+    // enveloppe (capacités + SourceSnapshot) au seul cas de repli structuré→legacy. Investigation
+    // préalable (voir rapport de lot) : (1) un document direct (carrousel/tableau/script/liens,
+    // ou une fiche directe sans jamais tenter le structuré) ne recevait NI SourceSnapshot NI
+    // _adocCapabilities — c'était la cause racine confirmée de "rien n'est fait" sur ces formats
+    // (adocOpenDocPopup retombait sur le popup iframe générique en lecture seule, faute de
+    // capabilities.workspace). (2) Le Worker (adocValidateClinicalDocumentPayload,
+    // Worker/index.js ~L55901-55904) EXIGE un document.sourceSnapshot non nul pour TOUT document
+    // generationEngine==='legacy-html' — accorder workspace/persist:true sans construire ce
+    // SourceSnapshot aurait laissé la sauvegarde échouer en 400 dès le clic sur "Enregistrer"
+    // (dépendance vérifiée, pas supposée). adocBuildSourceSnapshotFromRAG est générique (prend
+    // ragResult, disponible pour un document direct comme pour un repli) — réutilisée TELLE
+    // QUELLE, jamais dupliquée. isLegacy (adocOpenWorkspace, ~L11299) se base sur
+    // _adocGenerationEngine==='legacy-html', posé ici pour tout document html — sans quoi
+    // l'écran de travail tenterait le rendu structuré (art._adocStructuredDoc undefined) au lieu
+    // du rendu HTML figé attendu.
+    if (_storeKey && window._adocArtifacts?.[_storeKey] && window._adocArtifacts[_storeKey].fmt === 'html') {
       try {
         const _legacySnapshot = await adocBuildSourceSnapshotFromRAG(ragResult || { chunks: [] });
         Object.assign(window._adocArtifacts[_storeKey], {
           _adocGenerationEngine: 'legacy-html',
           _adocLegacySourceSnapshot: _legacySnapshot,
-          _adocDocumentKind: 'fiche',
+          // Reflète le vrai type produit (fiche/carrousel/tableau/script/liens) — jamais figé sur
+          // 'fiche' comme avant ce lot (n'était correct que pour le cas de repli, où seule une
+          // fiche peut tenter puis échouer sur le structuré ; faux pour tout document direct).
+          // plan.documentKind : choix explicite de l'écran d'accueil (même mécanisme que la
+          // charte). plan.intent : classification automatique du planificateur, utilisée à
+          // défaut de choix explicite. 'fiche' en tout dernier recours, jamais un type inventé.
+          _adocDocumentKind: plan?.documentKind || plan?.intent || 'fiche',
           // Audit systémique (Priorité 8.2) — export:true (un repli legacy-html s'exporte bien,
           // en téléchargement direct du HTML déjà figé) mais qualityControlledExport:false (pas
           // de re-rendu/QC pour ce moteur, cf. commentaire Partie B point 12 plus bas) : les
@@ -4728,7 +4750,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
           _adocCapabilities: { workspace: true, persist: true, fineCitations: false, blockEditing: false, legacyBlockEditing: true, transform: false, export: true, qualityControlledExport: false },
         });
       } catch (_snapErr) {
-        console.warn('[Audit Partie B] SourceSnapshot de repli non construit, document non étiqueté legacy-html:', _snapErr && _snapErr.message);
+        console.warn('[Audit Partie B] SourceSnapshot non construit, document non étiqueté legacy-html:', _snapErr && _snapErr.message);
       }
     }
     if (adocLastUsage) adocShowCost(streamMsgId, adocLastUsage);
