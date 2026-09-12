@@ -335,17 +335,22 @@ test('T-IA04-40 : la version canonique du tour est portée, jamais reconstruite'
 // =================================================================================================
 
 test('T-IA04-42 : une candidate rapide tardive n’entre pas dans un cycle engagé', async () => {
+  /* IA-04 — UNE CANDIDATE « TARDIVE » N'EXISTE PLUS, ET C'EST PLUS FORT QUE LE GARDE.
+     Ce test reposait sur fast_discarded_concluded : une candidate arrivant APRÈS la conclusion du
+     tour, écartée par le garde concludedTurn. Depuis que l'escalade ne part qu'après la réponse
+     rapide, le tour ne PEUT PAS conclure avant que la candidate existe. Le garde reste en place dans
+     le code, en défense ; ce qui est éprouvé ici est l'impossibilité elle-même. */
   const h = loadPilot({
-    fast: async () => { await delay(110); return { type: 'ASK_CLARIFICATION', text: 'Candidate tardive ?' }; },
+    fast: async () => { await delay(110); return { type: 'ORIENT_ARCHITECTE', text: 'Candidate lente.' }; },
     deep: async () => { await delay(20); return arbiterTurn('operational_request_ready'); }
   });
   await h.pilot.oprieRunTurn('architecte');
   const executions = h.spy.executed.length;
   await delay(130);
-  assert.equal(h.spy.executed.length, executions, 'la candidate tardive n’a rien relancé.');
-  assert.equal(h.ctx.$('#v11-question').textContent, '', 'et n’a rien affiché.');
-  const marques = h.pilot.oprieState.telemetry.map((m) => m.event);
-  assert.ok(marques.includes('fast_discarded_concluded'), 'son rejet est tracé, pas silencieux.');
+  assert.ok(h.spy.deepCalls[0].at >= 110, `l’escalade part APRÈS la candidate (${h.spy.deepCalls[0].at}ms).`);
+  assert.equal(h.spy.executed.length, executions, 'rien n’a été relancé après la conclusion du tour.');
+  assert.equal(h.ctx.$('#v11-question').textContent, '', 'et aucune question n’a été affichée.');
+  assert.equal(h.pilot.oprieState.fastInteraction, null, 'la candidate ne survit pas à l’état autoritaire.');
 });
 
 test('T-IA04-43/44 : un plan profond tardif d’un tour révolu ne relance aucun cycle', async () => {

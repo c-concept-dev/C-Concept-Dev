@@ -181,17 +181,21 @@ test('T-IA03-16 : un plan profond ancien, arrivé après une réponse, est écar
   assert.deepEqual(h.ctx.state.answers, [{ question: 'Q rapide ?', answer: 'R' }], 'la réponse survit intacte.');
 });
 
-test('T-IA03-17 : une candidate rapide arrivée après le plan profond ne réaffiche rien', async () => {
+/* IA-04 — UNE CANDIDATE TARDIVE N'EXISTE PLUS.
+ * Ce test éprouvait qu'une candidate rapide arrivant APRÈS le plan profond ne réaffichait rien. Cet
+ * ordre est devenu impossible : l'escalade ne part qu'après la réponse rapide. Ce qui est éprouvé
+ * désormais, c'est cette impossibilité — un plan rapide lent retarde l'escalade, il ne la double
+ * jamais. */
+test('T-IA03-17 : un plan rapide lent retarde l’escalade, il ne la double jamais', async () => {
   const h = loadPilot({
-    fast: async () => { await delay(120); return { type: 'ASK_CLARIFICATION', text: 'Candidate tardive ?' }; },
+    fast: async () => { await delay(120); return { type: 'ORIENT_ARCHITECTE', text: 'Candidate lente.' }; },
     deep: async () => { await delay(20); return arbiterTurn('operational_request_ready'); }
   });
   await h.pilot.oprieRunTurn('architecte');
-  const apresDeep = { question: questionShown(h.ctx), executions: h.spy.executed.length };
-  await delay(140);
-  assert.equal(questionShown(h.ctx), apresDeep.question, 'la candidate tardive n’a rien réaffiché.');
-  assert.equal(h.spy.executed.length, apresDeep.executions);
-  assert.equal(h.pilot.oprieState.fastInteraction, null);
+  assert.equal(h.spy.deepCalls.length, 1, 'une escalade, une seule.');
+  assert.ok(h.spy.deepCalls[0].at >= 120, `l’escalade part APRÈS la réponse rapide (${h.spy.deepCalls[0].at}ms).`);
+  await delay(60);
+  assert.equal(h.pilot.oprieState.fastInteraction, null, 'et la candidate ne survit pas à l’état autoritaire.');
 });
 
 test('T-IA03-18/19/20 : ni action, ni blocked, ni ready d’un tour révolu ne peuvent agir', () => {
@@ -480,9 +484,10 @@ test('T-IA03-PERF : sur plusieurs tours, le plan rapide rend toujours avant le p
   assert.ok(h.spy.firstInteractionAt !== null && h.spy.firstInteractionAt < 130,
     `interaction rendue à ${h.spy.firstInteractionAt}ms, avant le plan profond (130ms).`);
   await run;
+  /* IA-04 : le plan rapide parle, PUIS l'escalade est décidée. */
   const runSource = html.slice(html.indexOf('async function oprieRunTurn'), html.indexOf('const ADP_TECHNICAL_FAILURE_UI'));
-  assert.ok(runSource.indexOf('const deepPromise=oprieRequestTurn()') < runSource.indexOf('oprieStartFastPlane('),
-    'le plan profond part toujours en premier.');
+  assert.ok(runSource.indexOf('await oprieStartFastPlane(') < runSource.indexOf('oprieRequestTurn(seq)'),
+    'l’escalade est décidée après la réponse rapide.');
 });
 
 test('T-IA03-DETERMINISME : une même séquence structurée rend toujours les mêmes actions', () => {

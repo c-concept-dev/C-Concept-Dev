@@ -317,16 +317,21 @@ test('T-MODE01-39/40/41/42 : Fast et Deep suivent le contrat, mode par mode', as
   for (const mode of ['rapide', 'architecte']) {
     assert.equal(MODE_CONTRACTS[mode].usesFastPlane, true);
     assert.equal(MODE_CONTRACTS[mode].usesDeepPlane, true);
-    const h = loadPilot({
-      mode,
+    /* IA-04 : les deux plans restent utilisés par le mode — mais le profond est une ESCALADE.
+       Une question rapide n'escalade pas ; un silence rapide escalade. */
+    const ask = loadPilot({ mode,
       fast: async () => ({ type: 'ASK_CLARIFICATION', text: 'Q rapide ?' }),
-      deep: async () => { await delay(90); return clarificationTurn('Q profonde ?'); }
-    });
-    const run = h.pilot.oprieRunTurn(mode);
-    await delay(30);
-    assert.equal(h.spy.fastCalls.length, 1, `${mode} : le plan rapide est sollicité.`);
-    assert.equal(h.spy.deepCalls.length, 1, `${mode} : le plan profond aussi.`);
-    await run;
+      deep: async () => { await delay(90); return clarificationTurn('Q profonde ?'); } });
+    await ask.pilot.oprieRunTurn(mode);
+    assert.equal(ask.spy.fastCalls.length, 1, `${mode} : le plan rapide est sollicité.`);
+    assert.equal(ask.spy.deepCalls.length, 0, `${mode} : une question rapide n'escalade pas.`);
+
+    const escalade = loadPilot({ mode,
+      fast: async () => ({ type: 'WAIT_FOR_DEEP_VALIDATION', text: 'Rien à demander.' }),
+      deep: async () => clarificationTurn('Q profonde ?') });
+    await escalade.pilot.oprieRunTurn(mode);
+    assert.equal(escalade.spy.fastCalls.length, 1, `${mode} : le plan rapide est sollicité.`);
+    assert.equal(escalade.spy.deepCalls.length, 1, `${mode} : le plan profond escalade quand il le faut.`);
   }
   /* Atelier n'en utilise aucun — et son entrée ne les déclenche pas. */
   assert.equal(MODE_CONTRACTS.atelier.usesFastPlane, false);

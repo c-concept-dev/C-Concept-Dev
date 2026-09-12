@@ -106,7 +106,9 @@ export function loadPilot({ fast, deep, demande = 'Rédige une note de cadrage.'
   }
 
   const context = {
-    AbortController, fetch: fetchImpl, Date, setTimeout, performance: { now: () => Date.now() - t0 },
+    /* Le pilote borne son appel rapide avec setTimeout/clearTimeout : le contexte doit exposer les
+       DEUX, sinon le `finally` lève et l'échec est imputé au plan rapide au lieu du harnais. */
+    AbortController, fetch: fetchImpl, Date, setTimeout, clearTimeout, performance: { now: () => Date.now() - t0 },
     console: { warn() {}, error() {} },
     $: el,
     state: { answers, docs: [] },

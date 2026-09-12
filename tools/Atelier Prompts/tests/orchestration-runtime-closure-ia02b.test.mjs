@@ -91,15 +91,20 @@ test('T-IA02B-04 : un changement de mode ouvre un tour qui repasse par la politi
 });
 
 test('T-IA02B-05 : la réconciliation Fast/Deep passe par la politique, pas par une logique parallèle', async () => {
+  /* IA-04 : une candidate SOLLICITANTE arrête le tour — plus aucun plan profond ne vient derrière.
+     ORIENT_ARCHITECTE est désormais la seule forme qui affiche une candidate ET laisse l'escalade
+     partir : c'est elle qui garde ce scénario atteignable depuis le pilote. */
   const { pilot, spy } = loadPilot({
-    fast: async () => ({ type: 'ASK_CLARIFICATION', text: 'Pour quel public ?' }),
+    fast: async () => ({ type: 'ORIENT_ARCHITECTE', text: 'Le parcours guidé conviendrait mieux.' }),
     deep: async () => { await delay(60); return clarificationTurn('Quel public ?'); }
   });
   await pilot.oprieRunTurn('architecte');
-  assert.equal(pilot.oprieState.lastOrchestration.action, 'KEEP_CURRENT_INTERACTION');
-  assert.equal(pilot.oprieState.lastOrchestration.reason, 'DEEP_CONFIRMS_FAST_CLARIFICATION_REQUIRED');
+  assert.equal(pilot.oprieState.lastOrchestration.action, 'WAIT_FOR_USER');
+  assert.equal(pilot.oprieState.lastOrchestration.reason, 'OPRIE_CLARIFICATION_REQUIRED');
+  assert.equal(pilot.oprieState.lastReconciliation.outcome, 'DEEP_SUPERSEDES_FAST',
+    'la réconciliation passe bien par la politique, et OPRIE tranche.');
   const dialogues = spy.shown.filter((s) => s.id === '#v11-dialogue');
-  assert.equal(dialogues.length, 1, 'et la conservation est une DÉCISION, pas un effet de bord.');
+  assert.equal(dialogues.length, 1, 'et l’affichage est une DÉCISION, pas un effet de bord.');
 });
 
 test('T-IA02B-06 : tout résultat profond est appliqué via la politique', async () => {
@@ -350,8 +355,11 @@ test('T-IA02B-31 : plan rapide en échec, plan profond conclut — via la politi
 });
 
 test('T-IA02B-32 : plan rapide réussi, plan profond en échec — aucune promotion', async () => {
+  /* IA-04 : une candidate SOLLICITANTE arrête le tour — plus aucun plan profond ne vient derrière.
+     ORIENT_ARCHITECTE est désormais la seule forme qui affiche une candidate ET laisse l'escalade
+     partir : c'est elle qui garde ce scénario atteignable depuis le pilote. */
   const { pilot, spy } = loadPilot({
-    fast: async () => ({ type: 'ASK_CLARIFICATION', text: 'Q rapide ?' }),
+    fast: async () => ({ type: 'ORIENT_ARCHITECTE', text: 'Q rapide ?' }),
     deep: async () => { await delay(40); throw new Error('KO'); }
   });
   await pilot.oprieRunTurn('architecte');
@@ -511,9 +519,10 @@ test('T-IA02B-PERF : le plan rapide rend toujours avant le plan profond', async 
   await pilot.oprieRunTurn('architecte');
   assert.ok(spy.firstInteractionAt !== null && spy.firstInteractionAt < 150,
     `l’interaction est rendue à ${spy.firstInteractionAt}ms, avant le plan profond (150ms).`);
-  /* Et le plan profond part toujours avant que le plan rapide n'existe. */
+  /* IA-04 : et l'escalade est décidée APRÈS la réponse rapide, jamais avant. */
   const run = html.slice(html.indexOf('async function oprieRunTurn'), html.indexOf('const ADP_TECHNICAL_FAILURE_UI'));
-  assert.ok(run.indexOf('const deepPromise=oprieRequestTurn()') < run.indexOf('oprieStartFastPlane('));
+  assert.ok(run.indexOf('await oprieStartFastPlane(') < run.indexOf('oprieRequestTurn(seq)'));
+  assert.equal(spy.deepCalls.length, 0, 'une question rapide n’escalade pas.');
 });
 
 test('T-IA02B-NOCOPY : aucune copie de la politique dans le frontend', () => {

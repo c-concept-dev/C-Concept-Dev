@@ -259,7 +259,7 @@ test('T-HTMLFINAL01-13 : chaque contrôle d’aide dit réellement quelque chose
 
 test('T-HTMLFINAL01-14 : les actions principales répondent avant le fournisseur', () => {
   /* Le voyant d'attente est posé à l'entrée du tour, pas à sa sortie. */
-  const runTurn = sansProse(tranche('async function oprieRunTurn(', 'async function oprieRequestTurn()'));
+  const runTurn = sansProse(tranche('async function oprieRunTurn(', 'async function oprieRequestTurn('));
   assert.ok(runTurn.indexOf('oprieSetBusy(true)') < runTurn.indexOf('await'), 'la main est prise avant l’attente.');
   assert.match(runTurn, /finally\{if\(seq===oprieState\.seq\)\{oprieState\.running=false;oprieSetBusy\(false\)/);
   /* Et chaque action principale est désactivable et transitionnée. */

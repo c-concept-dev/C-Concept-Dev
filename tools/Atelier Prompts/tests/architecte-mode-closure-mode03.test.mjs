@@ -144,7 +144,9 @@ test('T-MODE03-14/15 : panne rapide → le profond conclut ; panne profonde → 
   const a = loadPilot({ mode: 'architecte', fast: async () => { throw new Error('KO'); }, deep: async () => clarificationTurn('Q ?') });
   await a.pilot.oprieRunTurn('architecte');
   assert.equal(a.pilot.oprieState.lastOrchestration.action, 'WAIT_FOR_USER');
-  const b = loadPilot({ mode: 'architecte', fast: async () => ({ type: 'ASK_CLARIFICATION', text: 'x' }),
+  /* IA-04 : une candidate AFFICHÉE mais non sollicitante est désormais la seule qui laisse partir
+     l'escalade — donc la seule qui permet d'éprouver « panne profonde → rien n'est promu ». */
+  const b = loadPilot({ mode: 'architecte', fast: async () => ({ type: 'ORIENT_ARCHITECTE', text: 'x' }),
                         deep: async () => { await delay(40); throw new Error('KO'); } });
   await b.pilot.oprieRunTurn('architecte');
   assert.equal(b.pilot.oprieState.fastInteraction, null);
@@ -153,13 +155,19 @@ test('T-MODE03-14/15 : panne rapide → le profond conclut ; panne profonde → 
 
 test('T-MODE03-16/17 : candidate tardive et profond dépassé n’écrivent rien', async () => {
   const h = loadPilot({ mode: 'architecte',
-    fast: async () => { await delay(110); return { type: 'ASK_CLARIFICATION', text: 'Tardive ?' }; },
+    fast: async () => { await delay(110); return { type: 'ORIENT_ARCHITECTE', text: 'Tardive ?' }; },
     deep: async () => { await delay(20); return arbiterTurn('operational_request_ready'); } });
   await h.pilot.oprieRunTurn('architecte');
   const execs = h.spy.executed.length;
   await delay(130);
+  /* IA-04 — UNE CANDIDATE « TARDIVE » N'EXISTE PLUS, ET C'EST PLUS FORT QUE LE GARDE.
+     Ce test reposait sur fast_discarded_concluded : une candidate arrivant APRÈS la conclusion du
+     tour, écartée par le garde concludedTurn. Depuis que l'escalade ne part qu'après la réponse
+     rapide, le tour ne PEUT PAS conclure avant que la candidate existe. Le garde reste en place dans
+     le code, en défense ; ce qui est éprouvé ici est l'impossibilité elle-même. */
+  assert.ok(h.spy.deepCalls[0].at >= 110, `l’escalade part APRÈS la candidate (${h.spy.deepCalls[0].at}ms).`);
   assert.equal(h.spy.executed.length, execs);
-  assert.ok(h.pilot.oprieState.telemetry.map((m) => m.event).includes('fast_discarded_concluded'));
+  assert.equal(h.pilot.oprieState.fastInteraction, null);
   /* Et un profond d'un tour révolu est écarté. */
   assert.equal(decideNextOrchestrationAction({ ...A({ deep: READY }), turn: { turn_id: 2, current_turn_id: 9, mode: 'architecte' } }).action, 'IGNORE_STALE');
 });

@@ -576,7 +576,7 @@ test('GATE-103 : un seul mode visible, et la demande comme les documents survive
 test('GATE-103 : le voyant d’attente ne colle pas, et le transport en vol est invalidé', async () => {
   /* Trois sorties du tour profond rendent la main : la garde de péremption, la
      clause finally, et l'abandon de bascule. BUSY_CAN_STICK = NO. */
-  const runTurn = sansProse(tranche('async function oprieRunTurn(', 'async function oprieRequestTurn()'));
+  const runTurn = sansProse(tranche('async function oprieRunTurn(', 'async function oprieRequestTurn('));
   assert.match(runTurn, /finally\{if\(seq===oprieState\.seq\)\{oprieState\.running=false;oprieSetBusy\(false\)/);
   const abandon = sansProse(tranche('function v11AbandonGovernedTurn()', 'function v11RequireDemand'));
   assert.match(abandon, /oprieState\.running=false;oprieSetBusy\(false\)/);
@@ -594,7 +594,7 @@ test('GATE-103 : aucun chemin où le dernier arrivé écrase le courant', () => 
   /* Les trois écritures asynchrones du produit portent chacune leur garde de tour. */
   const fast = sansProse(tranche('function oprieStartFastPlane(', 'function oprieReconcileFast'));
   assert.match(fast, /if\(seq!==oprieState\.seq\)\{oprieMark\('fast_discarded_stale'\);return null\}/);
-  const deep = sansProse(tranche('async function oprieRunTurn(', 'async function oprieRequestTurn()'));
+  const deep = sansProse(tranche('async function oprieRunTurn(', 'async function oprieRequestTurn('));
   assert.equal(compte('if\\(seq!==oprieState\\.seq', deep) >= 2, true, 'le tour profond se relit deux fois.');
   const api = sansProse(tranche('async function beginApiAnalysis()', 'function compositeDemand'));
   assert.equal(compte('if\\(contexteDemandeurPerdu\\(\\)\\)return false;', api), 2);

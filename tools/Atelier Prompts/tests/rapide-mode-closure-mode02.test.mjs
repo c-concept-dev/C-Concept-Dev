@@ -219,8 +219,14 @@ test('T-MODE02-29/30 : candidate tardive et profond dépassé n’écrivent rien
   await h.pilot.oprieRunTurn('rapide');
   const execs = h.spy.executed.length;
   await delay(130);
-  assert.equal(h.spy.executed.length, execs, 'la candidate tardive n’a rien relancé.');
-  assert.ok(h.pilot.oprieState.telemetry.map((m) => m.event).includes('fast_discarded_concluded'));
+  /* IA-04 — UNE CANDIDATE « TARDIVE » N'EXISTE PLUS, ET C'EST PLUS FORT QUE LE GARDE.
+     Ce test reposait sur fast_discarded_concluded : une candidate arrivant APRÈS la conclusion du
+     tour, écartée par le garde concludedTurn. Depuis que l'escalade ne part qu'après la réponse
+     rapide, le tour ne PEUT PAS conclure avant que la candidate existe. Le garde reste en place dans
+     le code, en défense ; ce qui est éprouvé ici est l'impossibilité elle-même. */
+  assert.ok(h.spy.deepCalls[0].at >= 110, `l’escalade part APRÈS la candidate (${h.spy.deepCalls[0].at}ms).`);
+  assert.equal(h.spy.executed.length, execs, 'rien n’a été relancé après la conclusion du tour.');
+  assert.equal(h.pilot.oprieState.fastInteraction, null);
 });
 
 // =================================================================================================

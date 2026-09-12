@@ -13,8 +13,8 @@
 | --- | --- |
 | Lot | HTML-FINAL-02 |
 | Artefact | Atelier de prompts — V11.5 LOT 10G Adaptive Decision Pipeline |
-| Commit local | `43a45172866d956c61c6bcdc6dd53e12eafd5bb3` |
-| Date du commit | 2026-09-11T22:08:50+02:00 |
+| Commit local | `4e1c68c306aeb19e50c1e582026047b480b7f19a` |
+| Date du commit | 2026-09-12T11:30:36+02:00 |
 
 ## Artefact canonique
 
@@ -24,8 +24,8 @@ aucune police et aucune image ne sont chargés depuis un tiers.
 | Champ | Valeur |
 | --- | --- |
 | Chemin | `atelier-prompts-v11.5-lot10g-decision-provider.html` |
-| Taille | 1364778 octets |
-| SHA-256 | `201c20be777da89c49174da3a1a52bdce0c370cce49e313e6544b28ba1599feb` |
+| Taille | 1368512 octets |
+| SHA-256 | `f5c15206d5aaee9b37cc032e16c1fc5375d5209961e705e0f579b3fe61bb0b67` |
 
 ## Runtime compilé
 
@@ -54,18 +54,18 @@ Le bloc embarqué dans la page et le fichier généré sont comparés octet pour
 
 ## Jeu de release
 
-82 fichiers. C'est ce qui doit exister pour **servir** la page,
+90 fichiers. C'est ce qui doit exister pour **servir** la page,
 **redéployer** les workers qui la soutiennent, et **reconstruire puis vérifier**
 l'artefact. Le manifeste lui-même en est exclu : un document ne peut pas contenir
 sa propre empreinte.
 
-| Empreinte du jeu | `80f7456951bccec339ce6bf8a8f93927ff01c6c38c65f9b64beb2fd3758dbdcd` |
+| Empreinte du jeu | `e798b83b6997d5529336ecd6bdb949bf8556e68386e7c51e7858306cfd926708` |
 | --- | --- |
 
 | Classe | Fichier | SHA-256 |
 | --- | --- | --- |
 | REQUIRED_BUILD | `anti-regression-baseline.json` | `7bd0fcca3f3ed226e3fdd30ee52dc204dae158dbde8842c08731054a1f58e7d6` |
-| REQUIRED_HTML | `atelier-prompts-v11.5-lot10g-decision-provider.html` | `201c20be777da89c49174da3a1a52bdce0c370cce49e313e6544b28ba1599feb` |
+| REQUIRED_HTML | `atelier-prompts-v11.5-lot10g-decision-provider.html` | `f5c15206d5aaee9b37cc032e16c1fc5375d5209961e705e0f579b3fe61bb0b67` |
 | REQUIRED_BUILD | `core/adn/adaptive-lock-selector.js` | `15d3154d639b761747a26215f2ec59eb6b121e6072187b6a2dd611eefe5b65ea` |
 | REQUIRED_BUILD | `core/adn/adn-state.js` | `323c60c3b224193bf957fba38d5668fa2a881a06c8bf301161b1751f1d6bb2e0` |
 | REQUIRED_BUILD | `core/adn/arch-canonical-enrichment.js` | `ee87dff7cd6c822b8aaba63edd05eff0614749ec6044fe0bacd22531b1ab8fc0` |
@@ -85,10 +85,18 @@ sa propre empreinte.
 | REQUIRED_BUILD | `core/adn/rapide-canonical-enrichment.js` | `b856015972aeb206b1af337c4a50cfa09c95098d8ba29e9a04e93ce9685ea06a` |
 | REQUIRED_BUILD | `core/adn/routing-engine.js` | `529a73614a5ebf8262367bb1b2facc3fcedd40df73bd6c4ed16048a825a9930c` |
 | REQUIRED_DOC | `docs/ANTHROPIC-DEEP-CAPACITY-01.md` | `a6c063c7f49ce9fe2883b4cc1eb5811ddf38b8ddfe28342c6f430596e2319b9f` |
+| REQUIRED_DOC | `docs/ATELIER-CRITIC-PREDISPLAY-BUDGET-AUDIT-01.md` | `ed2a26d516d3409a4b3a5fd17ab7bcfa179847e646801b5f474a287356cd384b` |
+| REQUIRED_DOC | `docs/ATELIER-DEEP-CRITICAL-PATH-ROLE-AUDIT-01.md` | `8436440361a0f880fbd16098a755e7d5776950ceaecfe4a640e5d08d2ef99212` |
 | REQUIRED_DOC | `docs/ATELIER-DEEP-ECONOMICS-CHAIN-01.md` | `3b61dd8e5e030c234db2d635b54e72c951f916a9684f6532e573e260782fead5` |
 | REQUIRED_DOC | `docs/ATELIER-DEEP-EFFICIENCY-ECONOMICS-01.md` | `ff57fc3985e5bd98979807d4abd362e18b5e4fec1cbe73788617ead018bfa3ad` |
+| REQUIRED_DOC | `docs/ATELIER-DEEP-OUTPUT-MINIMIZATION-AUDIT-01.md` | `771725362b1eaf8b0576d289d28565ec621896dfa513f133d4e844c9c41621e0` |
+| REQUIRED_DOC | `docs/ATELIER-DEEP-PROVIDER-THROUGHPUT-AUDIT-01.md` | `87f55eaf6858d7ecfd84939559f6352e84923d554b7408fcf77873e769494d23` |
 | REQUIRED_DOC | `docs/ATELIER-DEEP-TURN-AMORTIZATION-01.md` | `af690a6a16634b32162d73b2946c7266ee8c5a3a39e44c196a20d7c66fd61b88` |
+| REQUIRED_DOC | `docs/ATELIER-EARLY-CLARIFICATION-AUDIT-01.md` | `b29e2f9286e1c0b2b55bc9bb5e90bc6e7967cabe881e1cdf451e850d0ca6b5c2` |
+| REQUIRED_DOC | `docs/ATELIER-FAST-DEEP-TRIGGER-CONFORMANCE-01.md` | `3db9a862bc0f00b4cf33a285e8c788c266a7482eaa4c657bbcaf894ce0cf6325` |
+| REQUIRED_DOC | `docs/ATELIER-FAST-DEEP-TRIGGER-FIX-01.md` | `54e1be2cdf78e8510345bdeb8f3446305703a93a51aab775ff7fc8e2dcd4bd73` |
 | REQUIRED_DOC | `docs/ATELIER-FINAL-HTML-CONSOLIDATION-01.md` | `d0ee18ef20804980157a6019ba680ca386e8f89fd03da4ef00620d4c0dba532d` |
+| REQUIRED_DOC | `docs/ATELIER-INTERACTION-LATENCY-CONTRACT-01.md` | `56261a7f572388ac80050f9c26d08ee07ef71e39e1a07bb773ebe060da48eb87` |
 | REQUIRED_DOC | `docs/ATELIER-INTERMEDIATE-DEEP-VALUE-01.md` | `db714aa5c81a762e543ce363bfb9427247fbbbc669c59e5040d597ae9036f1ed` |
 | REQUIRED_DOC | `docs/ATELIER-LLM-ARCHITECTURE-SURGEON-01.md` | `98f8400e4f4b58442c39ca2aab8f65477e0864328834b916b7fe1374c1da7429` |
 | REQUIRED_DOC | `docs/ATELIER-RELEASE-GATE-01.md` | `57494ccb8d0db93960230d98354056e73ecb05f464dd676f5b1ab231fc1866ad` |
@@ -151,7 +159,7 @@ sa propre empreinte.
 
 | Classe | Fichiers | Raison |
 | --- | --- | --- |
-| REQUIRED_TEST_ONLY | 158 | preuves ; ne sont pas servies |
+| REQUIRED_TEST_ONLY | 159 | preuves ; ne sont pas servies |
 | EVALUATION_ONLY | 377 | bancs et campagnes, dont le worker `…-local-only` |
 | AUDIT_ONLY | 74 | relevés des lots passés |
 | PROVENANCE | 2 | trace de la dérivation de l'artefact courant |
@@ -177,7 +185,7 @@ par ce script.*
 | EXEC-PHASE-INSTRUMENT-01 | CLOSED |
 | FC01b FINAL | CLOSED |
 | HTML-FINAL-01 / 01A | CLOSED |
-| Tests au vert | 2985 |
+| Tests au vert | 2996 |
 
 ## Dette encore ouverte
 

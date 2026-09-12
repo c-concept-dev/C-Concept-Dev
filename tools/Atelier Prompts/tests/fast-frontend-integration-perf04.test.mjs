@@ -31,6 +31,10 @@ const APPLY_TURN = html.slice(html.indexOf('function oprieApplyTurn'), html.inde
 
 const askClarification = (text = 'Pour quel public ?') => ({ type: 'ASK_CLARIFICATION', text });
 const acknowledge = (text = 'Bien reçu, j’examine votre demande.') => ({ type: 'ACKNOWLEDGE', text });
+/* IA-04 : une candidate affichée SANS solliciter. Depuis que ASK_ONE_QUESTION arrête le tour,
+   c'est la seule forme qui met une candidate à l'écran ET laisse le plan profond partir — donc la
+   seule qui permet encore d'éprouver la réconciliation depuis le pilote. */
+const orientArchitecte = (text = 'Le parcours guidé conviendrait mieux.') => ({ type: 'ORIENT_ARCHITECTE', text });
 
 // =================================================================================================
 // §65 — LE CŒUR : DEUX PLANS, UN TOUR, UNE SEULE AUTORITÉ
@@ -52,7 +56,7 @@ test('T-P04-01 : soumettre déclenche le plan profond', async () => {
 });
 
 test('T-P04-02 : soumettre déclenche le plan rapide, sur le même tour', async () => {
-  const { pilot, spy } = loadPilot({ fast: async () => askClarification(), deep: async () => clarificationTurn() });
+  const { pilot, spy } = loadPilot({ fast: async () => acknowledge(), deep: async () => clarificationTurn() });
   await pilot.oprieRunTurn('architecte');
   assert.equal(spy.fastCalls.length, 1);
   assert.equal(spy.fastCalls[0].body.turn_id, spy.deepCalls.length && pilot.oprieState.seq,
@@ -89,7 +93,7 @@ test('T-P04-04 : un échec du plan rapide n’empêche jamais le plan profond', 
 
 test('T-P04-05 : un échec du plan profond ne promeut JAMAIS la candidate rapide', async () => {
   const { pilot, spy, ctx } = loadPilot({
-    fast: async () => askClarification(),
+    fast: async () => orientArchitecte(),
     deep: async () => { await delay(30); throw new Error('panne profonde'); }
   });
   await pilot.oprieRunTurn('architecte');
@@ -118,11 +122,11 @@ test('T-P04-06 : la candidate rapide ne porte aucune autorité', async () => {
 
 test('T-P04-07 : l’exécution finale reste conditionnée à operational_request_ready', async () => {
   for (const state of ['clarification_required', 'confirmation_required', 'blocked', 'degraded_state']) {
-    const { pilot, spy } = loadPilot({ fast: async () => askClarification(), deep: async () => arbiterTurn(state, { next_question: { text: 'Q ?' }, confirmation_reason: 'R', blocked_reason: 'B' }) });
+    const { pilot, spy } = loadPilot({ fast: async () => orientArchitecte(), deep: async () => arbiterTurn(state, { next_question: { text: 'Q ?' }, confirmation_reason: 'R', blocked_reason: 'B' }) });
     await pilot.oprieRunTurn('architecte');
     assert.deepEqual(spy.executed, [], `${state} n’exécute jamais, même avec une candidate rapide affichée.`);
   }
-  const { pilot, spy } = loadPilot({ fast: async () => askClarification(), deep: async () => arbiterTurn('operational_request_ready') });
+  const { pilot, spy } = loadPilot({ fast: async () => orientArchitecte(), deep: async () => arbiterTurn('operational_request_ready') });
   await pilot.oprieRunTurn('architecte');
   assert.equal(spy.executed.length, 1, 'seul operational_request_ready ouvre l’exécution.');
   assert.equal(spy.executed[0].orientation.source, 'oprie', 'et l’orientation vient d’OPRIE, jamais du plan rapide.');
@@ -167,21 +171,29 @@ test('T-P04-10 : aucun double état de chargement n’est présenté', async () 
 // §66 — RÉCONCILIATION
 // =================================================================================================
 
-test('T-P04-11 : quand le plan profond confirme la catégorie, la question n’est pas réaffichée', async () => {
+/* IA-04 — CE TEST GARDAIT UNE ABSENCE DE CLIGNOTEMENT ; IL GARDE MAINTENANT SA CAUSE.
+ *
+ * Il éprouvait DEEP_CONFIRMS_FAST : le plan profond arrivait sur une question rapide déjà lue, et la
+ * politique refusait de la réafficher. Depuis IA-04, une question rapide arrête le tour : aucun plan
+ * profond n'arrive derrière, et le clignotement est impossible pour une raison plus forte qu'une
+ * politique — il n'y a rien qui puisse arriver. DEEP_CONFIRMS_FAST reste éprouvé là où il vit, sur
+ * le noyau (fast-interactive-plane-perf03a : reconcileFastWithDeep et runInteractiveTurn). */
+test('T-P04-11 : une question rapide est affichée UNE fois, et rien ne peut la réafficher', async () => {
   const { pilot, spy, ctx } = loadPilot({
     fast: async () => askClarification('Pour quel public ?'),
     deep: async () => { await delay(60); return clarificationTurn('Quel est le public visé ?'); }
   });
   await pilot.oprieRunTurn('architecte');
-  assert.equal(pilot.oprieState.lastReconciliation.outcome, 'DEEP_CONFIRMS_FAST');
+  assert.equal(spy.deepCalls.length, 0, 'aucune escalade : la question rapide suffisait.');
   const dialogues = spy.shown.filter((s) => s.id === '#v11-dialogue');
   assert.equal(dialogues.length, 1, 'la modale n’est ouverte qu’UNE fois : aucun clignotement.');
   assert.equal(questionShown(ctx), 'Pour quel public ?', 'la question déjà lue reste celle affichée.');
+  assert.equal(pilot.oprieState.lastReconciliation, null, 'rien à réconcilier : le plan profond n’a pas parlé.');
 });
 
 test('T-P04-12 : quand le plan profond diverge, la candidate est invalidée et OPRIE est rendu', async () => {
   const { pilot, spy, ctx } = loadPilot({
-    fast: async () => askClarification('Pour quel public ?'),
+    fast: async () => orientArchitecte(),
     deep: async () => { await delay(50); return confirmationTurn('Deux contraintes ont été arbitrées.'); }
   });
   await pilot.oprieRunTurn('architecte');
@@ -192,7 +204,7 @@ test('T-P04-12 : quand le plan profond diverge, la candidate est invalidée et O
 
 test('T-P04-13 : blocked remplace la candidate rapide', async () => {
   const { pilot, spy } = loadPilot({
-    fast: async () => askClarification(),
+    fast: async () => orientArchitecte(),
     deep: async () => { await delay(40); return arbiterTurn('blocked', { blocked_reason: 'Information non substituable manquante.' }); }
   });
   await pilot.oprieRunTurn('architecte');
@@ -204,14 +216,14 @@ test('T-P04-13 : blocked remplace la candidate rapide', async () => {
 
 test('T-P04-14 : operational_request_ready remplace une question rapide en attente', async () => {
   const { pilot, spy, ctx } = loadPilot({
-    fast: async () => askClarification(),
+    fast: async () => orientArchitecte(),
     deep: async () => { await delay(60); return arbiterTurn('operational_request_ready'); }
   });
   const run = pilot.oprieRunTurn('architecte');
   await delay(25);
-  assert.equal(ctx.adpState.pendingQuestion, true, 'une question rapide est bien en attente.');
+  assert.equal(pilot.oprieState.fastInteraction !== null, true, 'une candidate rapide est bien affichée.');
   await run;
-  assert.equal(ctx.adpState.pendingQuestion, false, 'elle est levée par l’état autoritaire.');
+  assert.equal(pilot.oprieState.fastInteraction, null, 'elle cesse d’exister sous l’état autoritaire.');
   assert.equal(spy.executed.length, 1, 'et l’exécution s’ouvre sur l’état d’OPRIE.');
 });
 
@@ -310,7 +322,7 @@ test('T-P04-21 : l’orientation ne touche ni la demande ni l’historique', asy
   const answers = [{ question: 'Q1 ?', answer: 'R1' }];
   const { pilot, spy, ctx } = loadPilot({
     mode: 'rapide', answers,
-    fast: async () => askClarification(),
+    fast: async () => acknowledge(),
     deep: async () => { await delay(50); return arbiterTurn('operational_request_ready'); }
   });
   await pilot.oprieRunTurn('rapide');
@@ -399,14 +411,16 @@ test('T-P04-27 : jamais deux questions successives dans un même tour', async ()
 });
 
 test('T-P04-28 : la réconciliation est toujours tranchée par OPRIE', async () => {
+  /* IA-04 : une candidate SOLLICITANTE arrête le tour — aucun plan profond ne vient donc la
+     réconcilier depuis le pilote, et DEEP_CONFIRMS_FAST n'y est plus atteignable. Il reste éprouvé
+     sur le noyau (perf03a). Ce qui reste vrai ICI, et que ce test garde : quel que soit l'état,
+     l'état qui fait foi est TOUJOURS celui d'OPRIE, et la candidate cesse d'exister. */
   const cas = [
-    ['clarification_required', 'ASK_CLARIFICATION', 'DEEP_CONFIRMS_FAST'],
-    ['confirmation_required', 'ASK_CONFIRMATION', 'DEEP_CONFIRMS_FAST'],
-    ['clarification_required', 'ASK_CONFIRMATION', 'DEEP_SUPERSEDES_FAST'],
-    ['confirmation_required', 'ASK_CLARIFICATION', 'DEEP_SUPERSEDES_FAST'],
-    ['operational_request_ready', 'ASK_CLARIFICATION', 'DEEP_SUPERSEDES_FAST'],
-    ['blocked', 'ASK_CLARIFICATION', 'DEEP_SUPERSEDES_FAST'],
-    ['degraded_state', 'ASK_CLARIFICATION', 'DEEP_SUPERSEDES_FAST']
+    ['clarification_required', 'ORIENT_ARCHITECTE', 'DEEP_SUPERSEDES_FAST'],
+    ['confirmation_required', 'ORIENT_ARCHITECTE', 'DEEP_SUPERSEDES_FAST'],
+    ['operational_request_ready', 'ORIENT_ARCHITECTE', 'DEEP_SUPERSEDES_FAST'],
+    ['blocked', 'ORIENT_ARCHITECTE', 'DEEP_SUPERSEDES_FAST'],
+    ['degraded_state', 'ORIENT_ARCHITECTE', 'DEEP_SUPERSEDES_FAST']
   ];
   for (const [state, fastType, attendu] of cas) {
     const { pilot } = loadPilot({
@@ -546,14 +560,14 @@ test('T-P04-42 : schéma rapide invalide — refus, jamais réparation', async (
 
 test('T-P04-43 : panne profonde APRÈS affichage rapide — la politique fail-closed s’applique', async () => {
   const { pilot, spy, ctx } = loadPilot({
-    fast: async () => askClarification(),
+    fast: async () => orientArchitecte(),
     deep: async () => { await delay(60); throw new Error('panne'); }
   });
   const run = pilot.oprieRunTurn('architecte');
   await delay(25);
-  assert.equal(ctx.adpState.pendingQuestion, true, 'la question rapide était bien affichée.');
+  assert.equal(pilot.oprieState.fastInteraction !== null, true, 'la candidate rapide était bien affichée.');
   await run;
-  assert.equal(ctx.adpState.pendingQuestion, false, 'elle est levée : rien ne reste en attente sur une panne.');
+  assert.equal(pilot.oprieState.fastInteraction, null, 'elle est retirée : rien ne survit à une panne.');
   assert.equal(spy.gate[spy.gate.length - 1].decision.state, 'technical');
   assert.deepEqual(spy.executed, []);
 });
@@ -729,11 +743,47 @@ test('T-P04-NOHARDCODE : aucun hardcoding métier, aucun appariement flou introd
   }
 });
 
-test('T-P04-ORDER : le plan profond est lancé AVANT que le plan rapide n’existe', () => {
-  const deep = RUN_TURN.indexOf('const deepPromise=oprieRequestTurn()');
-  const fast = RUN_TURN.indexOf('oprieStartFastPlane(');
-  assert.ok(deep > -1 && fast > -1, 'les deux départs sont dans le pilote.');
-  assert.ok(deep < fast, 'le plan profond part le premier, dans le source lui-même.');
-  assert.doesNotMatch(RUN_TURN.slice(0, fast), /await\s+oprieStartFastPlane|await\s+fastPromise/,
-    'le plan profond n’attend JAMAIS le plan rapide.');
+/* IA-04 — LE VERROU HISTORIQUE EST REMPLACÉ PAR LE CONTRAT QU'IL CONTREDISAIT.
+ *
+ * Ce test affirmait « le plan profond part le premier, dans le source lui-même ». C'était un contrat
+ * d'implémentation, pas un invariant produit : aucun document de gouvernance ne l'énonce, et IA-04
+ * dit l'inverse — le plan profond est une escalade, déclenchée par CONTINUE_WITH_DEEP_VALIDATION.
+ * La couverture n'est pas retirée : elle passe du TEXTE au COMPORTEMENT, et devient les trois
+ * invariants de déclenchement, mesurés en nombre d'appels. */
+test('T-P04-TRIGGER-1 : une question rapide est affichée, et n’escalade pas', async () => {
+  const { pilot, spy, ctx } = loadPilot({
+    fast: async () => askClarification('Pour quel public ?'),
+    deep: async () => clarificationTurn()
+  });
+  await pilot.oprieRunTurn('architecte');
+  assert.equal(spy.fastCalls.length, 1, 'un appel rapide.');
+  assert.equal(spy.deepCalls.length, 0, 'ZÉRO appel profond : l’escalade n’était pas méritée.');
+  assert.equal(questionShown(ctx), 'Pour quel public ?', 'et la question est bien posée.');
+});
+
+test('T-P04-TRIGGER-2 : quand le plan rapide n’a rien à demander, le plan profond escalade', async () => {
+  const { pilot, spy } = loadPilot({
+    fast: async () => ({ type: 'WAIT_FOR_DEEP_VALIDATION', text: 'Rien à demander.' }),
+    deep: async () => clarificationTurn()
+  });
+  await pilot.oprieRunTurn('architecte');
+  assert.equal(spy.fastCalls.length, 1);
+  assert.equal(spy.deepCalls.length, 1, 'UN appel profond : ni zéro, ni deux.');
+});
+
+test('T-P04-TRIGGER-3 : un échec technique du plan rapide escalade, fail-closed', async () => {
+  for (const panne of [async () => { throw new Error('réseau'); },
+                       async () => new Response('{}', { status: 502 }),
+                       async () => ({ type: 'PAS_UN_TYPE', text: 'x' })]) {
+    const { pilot, spy } = loadPilot({ fast: panne, deep: async () => clarificationTurn() });
+    await pilot.oprieRunTurn('architecte');
+    assert.equal(spy.deepCalls.length, 1, 'le plan profond reprend la main sur tout échec rapide.');
+  }
+});
+
+test('T-P04-TRIGGER-4 : le pilote n’attend JAMAIS le plan profond pour afficher', () => {
+  assert.doesNotMatch(RUN_TURN.slice(0, RUN_TURN.indexOf('oprieStartFastPlane(')),
+    /await\s+deepPromise/, 'aucune attente du plan profond avant que le plan rapide ait parlé.');
+  assert.ok(RUN_TURN.indexOf('await oprieStartFastPlane(') < RUN_TURN.indexOf('oprieRequestTurn(seq)'),
+    'le plan rapide parle, PUIS l’escalade est décidée.');
 });

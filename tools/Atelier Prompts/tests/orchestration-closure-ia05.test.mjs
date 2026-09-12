@@ -116,16 +116,20 @@ test('T-IA05-06 : clarification → clarification → confirmation → READY, en
   assert.equal(h.spy.executed.length, 1, 'une seule entrée en exécution, au dernier tour.');
 });
 
-test('T-IA05-07 : candidate rapide visible, plan profond autoritaire, réconciliation correcte', async () => {
+/* IA-04 : KEEP_CURRENT_INTERACTION servait à ne pas réafficher une question rapide lorsque le plan
+ * profond confirmait la même catégorie. Cette collision n'existe plus : une question rapide arrête le
+ * tour. L'absence de clignotement reste éprouvée, désormais par sa cause. La politique, elle, reste
+ * éprouvée sur le noyau (perf03a) et sur le cas ORIENT_ARCHITECTE ci-dessous. */
+test('T-IA05-07 : candidate rapide visible, et aucune escalade pour la contredire', async () => {
   const h = loadPilot({
     fast: async () => ({ type: 'ASK_CLARIFICATION', text: 'Pour quel public ?' }),
     deep: async () => { await delay(90); return clarificationTurn('Quel public ?'); }
   });
   const run = h.pilot.oprieRunTurn('architecte');
   await delay(30);
-  assert.equal(questionShown(h.ctx), 'Pour quel public ?', 'la candidate est visible avant le plan profond.');
+  assert.equal(questionShown(h.ctx), 'Pour quel public ?', 'la candidate est visible.');
   await run;
-  assert.equal(h.pilot.oprieState.lastOrchestration.action, 'KEEP_CURRENT_INTERACTION');
+  assert.equal(h.spy.deepCalls.length, 0, 'aucune escalade : la question rapide suffisait.');
   assert.equal(h.spy.shown.filter((s) => s.id === '#v11-dialogue').length, 1, 'aucun clignotement.');
 });
 
@@ -137,8 +141,11 @@ test('T-IA05-08 : le plan rapide échoue, le plan profond conclut quand même', 
 });
 
 test('T-IA05-09 : le plan profond échoue, la candidate n’est jamais promue', async () => {
+  /* IA-04 : une candidate SOLLICITANTE arrête le tour — plus aucun plan profond ne vient derrière.
+     ORIENT_ARCHITECTE est désormais la seule forme qui affiche une candidate ET laisse l'escalade
+     partir : c'est elle qui garde ce scénario atteignable depuis le pilote. */
   const h = loadPilot({
-    fast: async () => ({ type: 'ASK_CLARIFICATION', text: 'Candidate ?' }),
+    fast: async () => ({ type: 'ORIENT_ARCHITECTE', text: 'Candidate ?' }),
     deep: async () => { await delay(40); throw new Error('KO'); }
   });
   await h.pilot.oprieRunTurn('architecte');
@@ -473,9 +480,11 @@ test('T-IA05-PERF : le plan rapide peut toujours rendre avant le plan profond', 
   await h.pilot.oprieRunTurn('architecte');
   assert.ok(h.spy.firstInteractionAt !== null && h.spy.firstInteractionAt < 160,
     `interaction à ${h.spy.firstInteractionAt}ms, avant le plan profond (160ms).`);
+  /* IA-04 : le plan rapide parle le premier, et l'escalade est décidée ensuite. */
   const run = html.slice(html.indexOf('async function oprieRunTurn'), html.indexOf('const ADP_TECHNICAL_FAILURE_UI'));
-  assert.ok(run.indexOf('const deepPromise=oprieRequestTurn()') < run.indexOf('oprieStartFastPlane('),
-    'et le plan profond part toujours en premier.');
+  assert.ok(run.indexOf('await oprieStartFastPlane(') < run.indexOf('oprieRequestTurn(seq)'),
+    'et l’escalade est décidée APRÈS la réponse rapide.');
+  assert.equal(h.spy.deepCalls.length, 0, 'une question rapide n’escalade pas.');
 });
 
 test('T-IA05-NOTEXT : aucune décision d’orchestration ne lit du texte, un score ou un domaine', () => {

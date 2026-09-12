@@ -21290,9 +21290,23 @@ function oprieClarificationHistory(){
 
 /* Adaptateur : un appel = un tour. Une requête active au maximum ; toute réponse dont le numéro de
    séquence n'est plus le courant est ignorée (jamais appliquée par-dessus un état plus récent). */
-async function oprieRequestTurn(){
-  if(!OPRIE_ENDPOINT)throw oprieTechnicalFailure();
+/* IA-04 — OUVRIR UN TOUR N'EST PAS LANCER LE PLAN PROFOND.
+ *
+ * Le numéro de tour était alloué par oprieRequestTurn : ouvrir un tour et escalader étaient donc la
+ * même instruction, et c'est ce qui rendait l'escalade inévitable. Les deux sont désormais séparées.
+ * Ouvrir un tour n'appelle aucun fournisseur : cela donne son numéro au tour, et met fin au tour
+ * précédent — sans quoi un plan profond abandonné continuerait de courir pendant que le nouveau tour
+ * dialogue. */
+function oprieOpenTurn(){
   const seq=++oprieState.seq;
+  if(oprieState.controller){oprieState.controller.abort();oprieState.controller=null}
+  return seq;
+}
+async function oprieRequestTurn(seqOuvert){
+  if(!OPRIE_ENDPOINT)throw oprieTechnicalFailure();
+  /* Sans argument, l'allocation reste EXACTEMENT celle d'avant : un appelant direct conserve son
+     contrat. Avec un tour déjà ouvert, l'escalade s'y raccroche au lieu d'en ouvrir un second. */
+  const seq=Number.isInteger(seqOuvert)?seqOuvert:++oprieState.seq;
   if(oprieState.controller)oprieState.controller.abort();
   const controller=new AbortController();oprieState.controller=controller;
   const body=oprieBuildBody();
@@ -21336,6 +21350,10 @@ async function oprieRequestTurn(){
 const FAST_ENDPOINT=(document.querySelector('meta[name="atelier-fast-interaction"]')||{}).content||'';
 /* Les deux seuls types qui SOLLICITENT une réponse. Les autres s'affichent sans rien demander. */
 const FAST_SOLICITING_TYPES=Object.freeze(['ASK_CLARIFICATION','ASK_CONFIRMATION']);
+/* Le seuil d'échec du contrat rapide, tel qu'il a été gelé avant la première mesure réelle
+   (evaluation/perf-real-01/results-01b.json, seuils.echec_contrat_ms). Il n'est pas redéfini ici :
+   il est cité. Au-delà, le plan rapide est considéré en échec, et l'escalade reprend la main. */
+const FAST_CONTRACT_FAILURE_MS=10000;
 const FAST_QUESTION_INTRO='Votre réponse sera ajoutée à l’historique de clarification, sans modifier votre demande initiale.';
 const OPRIE_TELEMETRY_MAX=50;
 
@@ -21376,13 +21394,24 @@ function oprieFastSnapshot(runtime,seq){
 /* Même discipline de transport que le plan profond : une requête par tour, annulable, et toute
    réponse dont le numéro de tour n'est plus le courant est abandonnée avant d'être lue. */
 async function oprieRequestFastInteraction(seq,snapshot,controller){
-  const response=await fetch(FAST_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({turn_id:snapshot.turn_id,original_request:snapshot.original_request,
-      clarification_history:snapshot.clarification_history,current_answer:snapshot.current_answer,
-      canonical_version:snapshot.canonical_version}),
-    signal:controller.signal,credentials:'omit',cache:'no-store',referrerPolicy:'no-referrer'});
-  if(seq!==oprieState.seq||!response.ok)return null;
-  return await response.json();
+  /* IA-04 — CE QUI REND LE FAIL-CLOSED ATTEIGNABLE.
+   *
+   * Tant que le plan profond partait d'office, un plan rapide qui ne répondait jamais était sans
+   * conséquence : personne ne l'attendait. Maintenant que l'escalade dépend de sa réponse, une
+   * absence de réponse retiendrait le tour sans fin. Cette borne n'ajoute aucun comportement : elle
+   * fait entrer ce silence dans le chemin d'échec qui existait déjà — abort, puis `fast_failure`,
+   * puis le plan profond part. La valeur n'est pas choisie ici : c'est le seuil d'échec du contrat
+   * rapide lui-même, gelé avant la première mesure (PERF-REAL-01B, echec_contrat_ms). */
+  const minuteur=setTimeout(()=>controller.abort(),FAST_CONTRACT_FAILURE_MS);
+  try{
+    const response=await fetch(FAST_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({turn_id:snapshot.turn_id,original_request:snapshot.original_request,
+        clarification_history:snapshot.clarification_history,current_answer:snapshot.current_answer,
+        canonical_version:snapshot.canonical_version}),
+      signal:controller.signal,credentials:'omit',cache:'no-store',referrerPolicy:'no-referrer'});
+    if(seq!==oprieState.seq||!response.ok)return null;
+    return await response.json();
+  }finally{clearTimeout(minuteur)}
 }
 /* Une question rapide affichée doit pouvoir être répondue TOUT DE SUITE : le plan profond continue
    derrière, mais il ne verrouille pas la saisie. Sans cette libération, la réponse de l'utilisateur
@@ -21439,8 +21468,10 @@ function oprieStartFastPlane(seq,requestedMode){
     let projected=null;
     try{projected=runtime.projectInteractionForMode(verdict.interaction,requestedMode)}catch(error){projected=null}
     if(!projected)return null;
-    oprieRenderFastInteraction(projected,seq);
-    return projected;
+    /* IA-04 : ce que le plan rapide REND est ce qui a été réellement montré. Une candidate écartée
+       — tour périmé, tour déjà tranché, question déjà ouverte — n'est pas une interaction : le tour
+       doit alors escalader, jamais se taire en croyant avoir parlé. */
+    return oprieRenderFastInteraction(projected,seq)?projected:null;
   })();
 }
 /* RÉCONCILIATION — le plan profond ne « l'emporte » pas : il n'a jamais eu de rival. */
@@ -21745,14 +21776,35 @@ async function oprieRunTurn(requestedMode){
   oprieState.running=true;oprieState.requestedMode=requestedMode;adpState.requestedMode=requestedMode;
   oprieSetBusy(true);oprieShowAnalysing();
   oprieState.fastInteraction=null;oprieState.lastReconciliation=null;
-  /* PERF-04 : LE PLAN PROFOND PART D'ABORD. L'appel est lancé — pas attendu — avant que le plan
-     rapide n'existe : c'est ce qui retire le plan rapide du chemin de la décision, et le plan
-     profond du chemin de l'affichage. Le numéro de tour est celui que ce premier appel vient
-     d'allouer : les deux plans travaillent donc sur le MÊME tour, jamais sur deux. */
-  const deepPromise=oprieRequestTurn();
-  const seq=oprieState.seq;
+  /* IA-04 — LE PLAN PROFOND EST UNE ESCALADE, PAS UN CHEMIN RÉFLEXE.
+   *
+   * Il partait d'office, une ligne avant que le plan rapide n'existe. L'intention était juste — ne
+   * jamais attendre le plan profond pour afficher quelque chose — mais elle avait fusionné deux
+   * propriétés séparables : ne pas l'ATTENDRE, et le LANCER toujours. La seconde n'était demandée
+   * par aucun contrat, et elle faisait tourner trois rôles pour poser une question que le plan
+   * rapide savait poser en un demi-tour.
+   *
+   * Le tour s'ouvre d'abord, puis le plan rapide parle. S'il pose une vraie question, le tour
+   * s'arrête là : la personne répond, et c'est le tour SUIVANT qui décidera s'il faut escalader.
+   * S'il n'a rien à demander, s'il échoue, ou si ce qu'il proposait n'a pas pu être montré, le plan
+   * profond part — inchangé, avec la même autorité, sur le même numéro de tour.
+   *
+   * CE QUI N'A PAS BOUGÉ : le plan rapide ne décide toujours rien. Il ne peut porter aucun état
+   * OPRIE, son schéma à deux champs le lui interdit, et la readiness reste celle de l'Arbitre seul.
+   * Ne pas escalader n'est pas une décision sémantique — c'est l'absence d'escalade. */
+  const seq=oprieOpenTurn();
+  let projected=null;
+  try{projected=await oprieStartFastPlane(seq,requestedMode)}catch(error){projected=null}
+  /* Un tour dépassé pendant l'attente rapide ne rend rien et ne réactive rien. */
+  if(seq!==oprieState.seq)return false;
+  if(projected&&FAST_SOLICITING_TYPES.indexOf(projected.type)!==-1){
+    /* La saisie a déjà été déverrouillée par oprieReleaseForFastQuestion : la personne peut
+       répondre immédiatement, sans qu'aucun fournisseur profond n'ait été appelé. */
+    oprieMark('deep_not_started',{reason:'FAST_ASK_ONE_QUESTION',type:projected.type});
+    return true;
+  }
+  const deepPromise=oprieRequestTurn(seq);
   oprieMark('deep_start');
-  oprieStartFastPlane(seq,requestedMode);
   let turn=null;
   try{turn=await deepPromise}
   /* La candidate n'existe QUE pendant le tour. Sur panne, l'écran cesse de l'afficher : l'état doit
