@@ -13,8 +13,8 @@
 | --- | --- |
 | Lot | HTML-FINAL-02 |
 | Artefact | Atelier de prompts — V11.5 LOT 10G Adaptive Decision Pipeline |
-| Commit local | `1a1e28505784a4e3e841e1fdb8d45603ffd1aa24` |
-| Date du commit | 2026-09-12T16:02:37+02:00 |
+| Commit local | `76968cf5f8cc6a9f793d9601e71119abf0b1160e` |
+| Date du commit | 2026-09-12T16:30:36+02:00 |
 
 ## Artefact canonique
 
@@ -54,12 +54,12 @@ Le bloc embarqué dans la page et le fichier généré sont comparés octet pour
 
 ## Jeu de release
 
-97 fichiers. C'est ce qui doit exister pour **servir** la page,
+98 fichiers. C'est ce qui doit exister pour **servir** la page,
 **redéployer** les workers qui la soutiennent, et **reconstruire puis vérifier**
 l'artefact. Le manifeste lui-même en est exclu : un document ne peut pas contenir
 sa propre empreinte.
 
-| Empreinte du jeu | `8728e1b388e3258c82a7574dba3f1067f104587de872e8e891a841474bdd305e` |
+| Empreinte du jeu | `1d0c09cf70e3bfbc42a691dbfefa3f38a712d4fa65ad83c5a9fda3a1bf4233dd` |
 | --- | --- |
 
 | Classe | Fichier | SHA-256 |
@@ -101,6 +101,7 @@ sa propre empreinte.
 | REQUIRED_DOC | `docs/ATELIER-INTERACTION-LATENCY-CONTRACT-01.md` | `56261a7f572388ac80050f9c26d08ee07ef71e39e1a07bb773ebe060da48eb87` |
 | REQUIRED_DOC | `docs/ATELIER-INTERMEDIATE-DEEP-VALUE-01.md` | `db714aa5c81a762e543ce363bfb9427247fbbbc669c59e5040d597ae9036f1ed` |
 | REQUIRED_DOC | `docs/ATELIER-LLM-ARCHITECTURE-SURGEON-01.md` | `98f8400e4f4b58442c39ca2aab8f65477e0864328834b916b7fe1374c1da7429` |
+| REQUIRED_DOC | `docs/ATELIER-PRODUCT-SMOKE-02F-BIS.md` | `01bc26d09cf9e2b391e23481a41fb6662c0d795c7576d3a1501f9f35a6ff2332` |
 | REQUIRED_DOC | `docs/ATELIER-PROMPT-PRODUCT-E2E-CONFORMANCE-02A.md` | `0fa7a06275f32abff5ae987094664b819e70c1ef31f4f9435167ecbdaf4407a9` |
 | REQUIRED_DOC | `docs/ATELIER-QUANTITY-PROJECTION-FIX-02F.md` | `96f8676d529af9b40823ebc3e54e30203d5db300c247d88cc49c42c058a2aef9` |
 | REQUIRED_DOC | `docs/ATELIER-QUANTITY-TRACE-ARBITER-TO-PROMPT-02D.md` | `6821d06169c2aeb8e332a93a61dbf2d790cc96a34771e9d1f04eaf606d0ee993` |

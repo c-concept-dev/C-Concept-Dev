@@ -176,7 +176,136 @@ en cours. Je la signale parce qu'un essai libre la rencontre immédiatement.
 
 ---
 
-## G. Verdict
+## H. ESSAIS LIBRES — ET CORRECTION DE MON PROPRE VERDICT
+
+Le §G ci-dessous conclut `PASS sur le prompt`. **Cette conclusion était fausse, et je la corrige
+ici.** Elle reposait sur des critères structurels — sections non vides, aucun espace réservé,
+quantité préservée, demande reprise. Tous étaient vérifiés. Aucun ne lit ce que le prompt *dit*.
+
+Quatre essais libres, choisis comme un utilisateur les choisirait, ont suffi.
+
+### H.1 — `PÉRIMÈTRE DU LIVRABLE` décrit un logiciel, quelle que soit la demande
+
+Prompt livré pour **« Fais-moi un plan de révision en 5 séances pour un examen de droit
+constitutionnel dans 3 semaines »** :
+
+```text
+## PÉRIMÈTRE DU LIVRABLE
+- Ce qui est demandé : la structure. Code, logique de calcul, interface, navigation,
+  mise en forme, export. Cette structure est une production originale.
+- Ce qui n'est pas demandé : le contenu source. Ne recopiez dans le livrable aucun
+  libellé d'item, aucun extrait d'article, aucun barème publié, aucune illustration.
+- Le contenu protégé est fourni séparément par l'utilisateur, à l'exécution, depuis un
+  fichier local qu'il maîtrise. Prévoyez le point d'entrée correspondant…
+```
+
+La cause est explicite dans le code (ligne 3759) :
+
+```js
+perimetre: () => '## PÉRIMÈTRE DU LIVRABLE\n' + …
+```
+
+**Le projecteur ne prend aucun argument.** C'est une constante. Dès que le verrou `perimetre` est
+sélectionné, ce texte part tel quel — pour un plan de révision, pour des idées de cadeaux, pour
+n'importe quoi.
+
+**Et il était déjà dans 3 des 4 prompts du smoke formel** (C1, C2, C3). « Donne exactement 7 idées
+de cadeaux pour un enfant de 8 ans » reçoit un prompt qui parle de code, de navigation, d'export et
+de barèmes publiés. Je ne l'ai pas vu parce que je ne l'ai pas lu — j'ai compté des sections.
+
+### H.2 — `PROVENANCE` affirme des faits que personne n'a fournis
+
+Prompt livré pour **« Compare les avantages et inconvénients du train et de l'avion pour
+Paris-Marseille, sous forme de tableau »** — sans aucun matériau :
+
+```text
+## PROVENANCE ET USAGE DU MATÉRIAU
+- Titre d'accès : accès professionnel régulier.
+- Origine : matériau professionnel dont l'utilisateur dispose régulièrement.
+  Le matériau nécessaire est fourni dans ce prompt…
+- Usage du livrable : usage professionnel interne.
+```
+
+Trois affirmations inventées, dont une matériellement fausse : **aucun matériau n'a été fourni.**
+Ce sont les valeurs de repli du projecteur (ligne 3744) quand `ctx.droit`, `ctx.provenance` et
+`ctx.usage` sont vides. L'ADN interdit précisément cela : *« une information absente ne peut jamais
+être décrite comme fournie, communiquée, confirmée, observée ou vérifiée »*.
+
+### H.3 — Un prompt qui se contredit et rend la tâche infaisable
+
+**« Corrige les fautes d'orthographe et de grammaire de ce texte »**, avec le texte fourni. Le
+prompt livré contient à la fois :
+
+```text
+## DONNÉES SOURCES
+<<<DONNEES
+Le télétravail c'est developpé tres vite depuis 2020. …
+DONNEES>>>
+
+## PROVENANCE ET USAGE DU MATÉRIAU
+- Nature de la tâche : transformation du matériau… Il ne s'agit pas de reproduire la
+  source. Ne restituez pas de passage étendu de l'original ; appuyez-vous dessus.
+
+## PÉRIMÈTRE DU LIVRABLE
+- Ce qui est demandé : la structure. Code, logique de calcul, interface…
+- Ce qui n'est pas demandé : le contenu source. Ne recopiez dans le livrable aucun
+  libellé d'item, aucun extrait d'article…
+```
+
+Corriger un texte **exige** de le restituer. Le prompt l'interdit deux fois, et réclame du code.
+Un modèle qui suit ce prompte à la lettre ne peut pas faire le travail demandé.
+
+### H.4 — Une quantité inventée dans la vérification
+
+Toujours sur le tableau train/avion, sans qu'aucune quantité n'ait été demandée :
+
+```text
+2. Le nombre de lignes est-il au moins 3 ?
+```
+
+Le seuil vient du profil de format. Sur un format énumérable, il est projeté dans la vérification
+alors que la section `CONTRAINTES QUANTIFIÉES` n'en dit rien — le prompt contrôle donc une
+contrainte qu'il n'énonce pas. C'est le symétrique du cas que 02F a gardé protégé sur les formats
+non énumérables.
+
+### H.5 — Deux observations d'usage
+
+- **Latence** : 130 s puis 171 s sur deux essais libres, dont un `degraded_state` intermédiaire.
+  Au-delà de ce que l'arc 1D avait mesuré.
+- **Corps de requête** : mon harnais d'essai envoyait `{original_request, clarification_history}`
+  sans `material_context`, que la production envoie toujours (`oprieBuildBody`). L'endpoint
+  l'accepte, mais OPRIE n'était donc pas informé de l'absence de matériau, au lieu de l'être
+  explicitement. Corrigé dans l'outil d'essai ; les mesures des §C et §E s'entendent sous cette
+  réserve.
+
+### H.6 — Verdict corrigé
+
+```text
+CHAÎNE QUANTITÉ (02E + 02F + 02F-bis)   = PASS
+  valeur · modalité · cible · accents · élision · contrôlée   3/3 corpus, 3/3 smoke
+
+PROMPT LIVRÉ DANS SON ENSEMBLE           = FAIL
+  PÉRIMÈTRE hors sujet                   3/4 prompts du smoke formel + 2/4 essais libres
+  PROVENANCE inventée                     2/4 essais libres
+  contradiction rendant la tâche infaisable   1/4 essais libres
+  quantité inventée dans la vérification      1/4 essais libres
+
+SMOKE_PRODUIT                            = FAIL sur le contenu
+BETA_ESSAYABLE                           = NON — pas en l'état
+```
+
+Les deux projecteurs en cause (`perimetre` ligne 3759, `provenance` ligne 3744) **ne sont dans
+aucune plage gelée** : ils sont accessibles. Mais ce qu'il faut corriger n'est pas un mécanisme,
+c'est ce que le produit *dit* — quand le verrou `perimetre` doit être sélectionné, et ce qu'une
+section de périmètre doit énoncer pour une demande qui n'est pas un logiciel. C'est une décision de
+produit, et elle vous appartient.
+
+Ce que 02E, 02F et 02F-bis ont réparé tient. Ce n'est simplement pas ce qui empêche aujourd'hui
+d'ouvrir une bêta.
+
+---
+
+## G. Verdict (structurel — voir §H pour la correction)
 
 ```text
 SMOKE = ATELIER_PRODUCT_SMOKE_02F_BIS
