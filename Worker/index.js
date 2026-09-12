@@ -56437,6 +56437,34 @@ function d1SearchNormalize(s) {
 }
 __name(d1SearchNormalize, "d1SearchNormalize");
 
+// Phase 3 (monobloc) — motif LIKE de repli jugé "trop complexe" par SQLite (preuve réelle,
+// journaux du Worker : "[D1_SEARCH] FTS5 failed, falling back to LIKE: D1_ERROR: LIKE or GLOB
+// pattern too complex"). Investigation : chaque terme/auteur/titre était injecté DIRECTEMENT
+// entre les deux '%' du motif ("%" + valeur + "%"), sans jamais échapper les caractères qui sont
+// EUX-MÊMES des jokers LIKE ('%' et '_') ni jamais borner sa longueur — un terme de recherche
+// réel contenant déjà un '%' ou plusieurs '_' (vocabulaire clinique en snake_case, pourcentage
+// dans une question, etc.) multiplie donc le nombre de jokers réellement interprétés par SQLite
+// bien au-delà de ce que le motif visible laisse penser, jusqu'à dépasser la limite de
+// complexité de SQLite — ou, avec un terme anormalement long (jamais borné avant ce lot), la
+// limite de longueur de motif. Corrigé en échappant explicitement '\', '%' et '_' (ESCAPE '\')
+// et en bornant chaque valeur à une longueur raisonnable AVANT construction du motif — un motif
+// ainsi construit reste toujours interprété comme voulu (les caractères spéciaux de la valeur
+// d'origine restent des caractères littéraux à chercher, jamais des jokers), donc toujours valide
+// quelle que soit la requête, plutôt qu'une simple tentative de contourner un cas précis.
+const D1_SEARCH_LIKE_MAX_VALUE_LENGTH = 100;
+function d1SearchLikeParam(s) {
+  const truncated = String(s).slice(0, D1_SEARCH_LIKE_MAX_VALUE_LENGTH);
+  const escaped = truncated.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
+  return "%" + escaped + "%";
+}
+__name(d1SearchLikeParam, "d1SearchLikeParam");
+function d1SearchLikePrefixParam(s) {
+  const truncated = String(s).slice(0, D1_SEARCH_LIKE_MAX_VALUE_LENGTH);
+  const escaped = truncated.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
+  return escaped + "%";
+}
+__name(d1SearchLikePrefixParam, "d1SearchLikePrefixParam");
+
 async function handleD1Query(request2, env2) {
   let body;
   try {
@@ -56483,9 +56511,9 @@ async function handleD1Query(request2, env2) {
       const ftsExpr = terms.map((t) => '"' + t.replace(/"/g, "") + '"').join(termMatch === "all" ? " AND " : " OR ");
       const clauses = ["chunks_fts MATCH ?"];
       const params = [ftsExpr];
-      if (authors.length) { clauses.push("(" + authors.map(() => "lower(c.author) LIKE ?").join(" OR ") + ")"); authors.forEach((a) => params.push("%" + a + "%")); }
+      if (authors.length) { clauses.push("(" + authors.map(() => "lower(c.author) LIKE ? ESCAPE '\\'").join(" OR ") + ")"); authors.forEach((a) => params.push(d1SearchLikeParam(a))); }
       if (approaches.length) { clauses.push("(" + approaches.map(() => "lower(c.approach) = ?").join(" OR ") + ")"); approaches.forEach((a) => params.push(a)); }
-      if (bookTitle) { clauses.push("lower(c.book_title) LIKE ?"); params.push(bookTitle + "%"); }
+      if (bookTitle) { clauses.push("lower(c.book_title) LIKE ? ESCAPE '\\'"); params.push(d1SearchLikePrefixParam(bookTitle)); }
       params.push(overFetch);
       const sql = `SELECT c.id, c.book_id, c.book_title, c.author, c.chapter, c.page_number, c.chunk_index, c.content, c.approach
         FROM chunks_fts JOIN chunks c ON c.rowid = chunks_fts.rowid
@@ -56499,24 +56527,33 @@ async function handleD1Query(request2, env2) {
         // (rare une fois nettoyé) — repli sur le gabarit B (LIKE) avec les mêmes termes,
         // jamais un 500 qui bloquerait tout le RAG.
         console.warn("[D1_SEARCH] FTS5 failed, falling back to LIKE:", ftsErr.message);
-        const likeClauses = ["(" + terms.map(() => "lower(content) LIKE ?").join(termMatch === "all" ? " AND " : " OR ") + ")"];
-        const likeParams = terms.map((t) => "%" + t + "%");
-        if (authors.length) { likeClauses.push("(" + authors.map(() => "lower(author) LIKE ?").join(" OR ") + ")"); authors.forEach((a) => likeParams.push("%" + a + "%")); }
+        const likeClauses = ["(" + terms.map(() => "lower(content) LIKE ? ESCAPE '\\'").join(termMatch === "all" ? " AND " : " OR ") + ")"];
+        const likeParams = terms.map((t) => d1SearchLikeParam(t));
+        if (authors.length) { likeClauses.push("(" + authors.map(() => "lower(author) LIKE ? ESCAPE '\\'").join(" OR ") + ")"); authors.forEach((a) => likeParams.push(d1SearchLikeParam(a))); }
         if (approaches.length) { likeClauses.push("(" + approaches.map(() => "lower(approach) = ?").join(" OR ") + ")"); approaches.forEach((a) => likeParams.push(a)); }
-        if (bookTitle) { likeClauses.push("lower(book_title) LIKE ?"); likeParams.push(bookTitle + "%"); }
+        if (bookTitle) { likeClauses.push("lower(book_title) LIKE ? ESCAPE '\\'"); likeParams.push(d1SearchLikePrefixParam(bookTitle)); }
         likeParams.push(overFetch);
         const likeSql = `SELECT id, book_id, book_title, author, chapter, page_number, chunk_index, content, approach
           FROM chunks WHERE ${likeClauses.join(" AND ")} LIMIT ?`;
-        result = await env2.DB.prepare(likeSql).bind(...likeParams).all();
+        // Point 3 (demande) — même après échappement/troncature, si SQLite rejette encore ce
+        // motif précis (cas limite non anticipé), jamais laisser remonter l'erreur SQLite brute
+        // jusqu'à l'appelant : un message clair et actionnable la remplace ici, avant le catch
+        // englobant plus bas qui, lui, renverrait err2.message tel quel.
+        try {
+          result = await env2.DB.prepare(likeSql).bind(...likeParams).all();
+        } catch (likeErr) {
+          console.error("[D1_SEARCH] LIKE fallback also failed despite escaping/troncature:", likeErr.message);
+          throw new Error("Recherche trop complexe pour ces termes — essayez une formulation plus simple ou plus courte.");
+        }
       }
     } else {
       // Gabarit B — pas de terme : filtre par auteur/approche/livre uniquement,
       // ordre naturel du livre (utile pour un balayage bibliographique par ouvrage).
       const clauses = [];
       const params = [];
-      if (authors.length) { clauses.push("(" + authors.map(() => "lower(author) LIKE ?").join(" OR ") + ")"); authors.forEach((a) => params.push("%" + a + "%")); }
+      if (authors.length) { clauses.push("(" + authors.map(() => "lower(author) LIKE ? ESCAPE '\\'").join(" OR ") + ")"); authors.forEach((a) => params.push(d1SearchLikeParam(a))); }
       if (approaches.length) { clauses.push("(" + approaches.map(() => "lower(approach) = ?").join(" OR ") + ")"); approaches.forEach((a) => params.push(a)); }
-      if (bookTitle) { clauses.push("lower(book_title) LIKE ?"); params.push(bookTitle + "%"); }
+      if (bookTitle) { clauses.push("lower(book_title) LIKE ? ESCAPE '\\'"); params.push(d1SearchLikePrefixParam(bookTitle)); }
       params.push(overFetch);
       const sql = `SELECT id, book_id, book_title, author, chapter, page_number, chunk_index, content, approach
         FROM chunks WHERE ${clauses.join(" AND ")} ORDER BY chunk_index ASC LIMIT ?`;
