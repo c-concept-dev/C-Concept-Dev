@@ -3582,6 +3582,14 @@
   //     (premier mot de plus de 4 caractères, repli sur 'therapie') — un terme de recherche RAG a
   //     besoin d'un mot porteur de sens, jamais un mot vide ("un", "je", "la") comme le permettait
   //     sans condition l'ancien repli adocSend.
+  // Item 53 (parité 0F / §0.1 du CDC) — Tableau produit le rendu magazine HTML/PDF par défaut ;
+  // le fichier Excel n'est produit QUE si la demande le nomme explicitement. Détection unique sur
+  // le texte brut (jamais un mécanisme séparé par site) : réutilisée telle quelle partout où
+  // output_format doit décider entre 'html' et 'xlsx' pour l'intent 'tableau' (adocBuildFallbackPlan
+  // ci-dessous, adocMultiPlan pour le chemin planificateur LLM). comparatif reste hors périmètre
+  // (inchangé, toujours xlsx) : décision de Christophe limitée au documentKind/intent 'tableau'.
+  const ADOC_XLSX_EXPLICIT_RE = /\b(excel|xlsx|xls|tableur)\b/i;
+
   function adocBuildFallbackPlan(text) {
     const ql = text.toLowerCase();
     const _iT = (ql.includes('excel') || ql.includes('comparatif') || ql.includes('tableau')) ? 'tableau'
@@ -3594,7 +3602,11 @@
       : ql.includes('carrousel') ? 'carrousel'
       : ql.includes('fiche') ? 'fiche'
       : 'chat';
-    const _fT = {tableau:'xlsx',document:'html-visual',cours:'html-visual',fiche:'html',carrousel:'html',chat:'chat'}[_iT]||'chat';
+    // Item 53 — 'tableau' ne force plus xlsx par défaut : seul un mot-clé Excel explicite le fait.
+    const _explicitXlsxRequested = ADOC_XLSX_EXPLICIT_RE.test(text);
+    const _fT = _iT === 'tableau'
+      ? (_explicitXlsxRequested ? 'xlsx' : 'html')
+      : ({document:'html-visual',cours:'html-visual',fiche:'html',carrousel:'html',chat:'chat'}[_iT]||'chat');
     const _tw = text.replace(/[^a-z0-9À-ɏ\s]/gi,'').trim().split(/\s+/).slice(0,4).join(' ');
     const _w0 = (text.split(/\s+/).find(w => w.length > 4) || 'therapie').replace(/[^a-zÀ-ɏ]/gi,'');
     // LOT 30 — demande visuelle pure : orthogonal à _iT ci-dessus, jamais un remplacement.
@@ -3605,7 +3617,8 @@
     // Phase B0.3 : plus de SQL construit côté client — intention structurée simple.
     return { intent:_iT, output_format:_fT, needs_rag:true, approach_filter:null,
       searches:[{ terms:[_w0], term_match:'any', limit:15 }], vector_angles:[_tw], topic_summary:_tw.slice(0,30),
-      max_tokens:8000, clinical_intent:(_iT==='chat'?'chat':'production'), images_only:_imagesOnly };
+      max_tokens:8000, clinical_intent:(_iT==='chat'?'chat':'production'), images_only:_imagesOnly,
+      _explicitXlsxRequested };
   }
   window.adocBuildFallbackPlan = adocBuildFallbackPlan;
 
@@ -3662,6 +3675,10 @@
       // `if (!text || adocThinking) return;` de adocSend — aucune neutralisation défensive
       // ajoutée en conséquence.
       images_only: plans.every(p => p.images_only === true),
+      // Item 53 — recalculé sur le texte COMPLET (jamais seulement `dominant`, qui peut être un
+      // plan LLM sans ce champ, ou un sous-plan ne portant pas lui-même le mot-clé Excel présent
+      // ailleurs dans une demande multi-questions).
+      _explicitXlsxRequested: ADOC_XLSX_EXPLICIT_RE.test(text),
       _multiPlan: questions.length > 1,
       _subPlans: plans,
     };
@@ -4359,16 +4376,23 @@ RÈGLES ABSOLUES :
     // CC comprend son contexte d'execution et adapte sa sortie naturellement.
     // MODE CHAT    : sortie texte/Markdown  → app hote gere rendu, citations, CSS
     // MODE ARTEFACT: sortie HTML autonome   → fichier seul dans navigateur, self-contained
-    // FIX-XLSX-INTENT : intent tableau/comparatif force xlsx
+    // FIX-XLSX-INTENT : intent comparatif force xlsx (inchangé, hors périmètre item 53)
+    // Item 53 — intent tableau produit désormais 'html' (rendu magazine) par défaut ; 'xlsx'
+    // uniquement si plan._explicitXlsxRequested est vrai (mot-clé Excel/xls/xlsx/tableur détecté
+    // sur le texte brut par adocBuildFallbackPlan/adocMultiPlan, cf. ADOC_XLSX_EXPLICIT_RE) —
+    // décision indépendante de plan.output_format (qui peut rester 'xlsx' côté planner LLM, cf.
+    // §5 du plannerSystem, jamais corrigé ici : cette branche prime toujours pour l'intent tableau).
     const _fmtFromIntent = {
-      tableau: 'xlsx', comparatif: 'xlsx',
+      comparatif: 'xlsx',
       cours: 'html-visual', document: 'html-visual',
       fiche: 'html', bibliographie: 'html',
       supervision: 'chat', analyse_cas: 'chat',
       intervention: 'chat', conceptualisation: 'chat', chat: 'chat'
     };
-    const _intentOverridesXlsx = ['tableau', 'comparatif'].includes(plan?.intent);
-    const fmt = _intentOverridesXlsx
+    const _intentOverridesXlsx = plan?.intent === 'comparatif';
+    const fmt = plan?.intent === 'tableau'
+      ? (plan?._explicitXlsxRequested ? 'xlsx' : 'html')
+      : _intentOverridesXlsx
       ? 'xlsx'
       : (plan?.output_format || _fmtFromIntent[plan?.intent] || 'chat');
 
@@ -5844,10 +5868,18 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     // Ne jamais écraser un format explicite du planner (pdf/docx/pptx/xlsx/zip/html-visual)
     const _EXPLICIT_FORMATS = ['pdf','docx','pptx','xlsx','zip','html-visual'];
     const _INTENT_FMT_OVERRIDE = {
-      tableau: 'xlsx', comparatif: 'xlsx',
+      comparatif: 'xlsx',
       cours: 'html-visual', document: 'html-visual'
     };
-    const fmt = _EXPLICIT_FORMATS.includes(_fmtNorm)
+    // Item 53 — intent tableau décide TOUJOURS lui-même entre 'html' et 'xlsx' via
+    // plan._explicitXlsxRequested (même détection texte brut qu'en Site 2, adocBuildSystemPrompt) :
+    // prioritaire sur _fmtNorm, qui peut encore valoir 'xlsx' côté planner LLM (§5 plannerSystem,
+    // jamais corrigé ce lot) même sans mot-clé Excel réellement présent dans la demande — sans
+    // cette priorité, ce format LLM serait à tort traité comme "explicite" ci-dessous et le
+    // contenu HTML magazine réellement généré (cf. Site 2) serait livré via le mauvais pipeline.
+    const fmt = plan?.intent === 'tableau'
+      ? (plan?._explicitXlsxRequested ? 'xlsx' : 'html')
+      : _EXPLICIT_FORMATS.includes(_fmtNorm)
       ? _fmtNorm  // format explicite → respecter tel quel
       : (_INTENT_FMT_OVERRIDE[plan?.intent] || _fmtNorm); // format implicite → intent override
     const topic = plan?.topic_summary || 'Document';
