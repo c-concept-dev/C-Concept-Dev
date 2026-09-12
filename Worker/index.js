@@ -55503,7 +55503,7 @@ var Worker_default = {
     // adocGenerateStructuredFiche/adocPlanQuery/etc.) — tout autre chemin POST inconnu reçoit
     // désormais un 404 clair, jamais un appel LLM implicite.
     if (p === "/" && request2.method === "POST")
-      return handleAnthropicProxy(request2, env2);
+      return handleAnthropicProxy(request2, env2, ctx);
     return jsonErr("Not found", 404);
   }
 };
@@ -56148,7 +56148,18 @@ async function handleBrandAssetUpload(request2, env2) {
 }
 __name(handleBrandAssetUpload, "handleBrandAssetUpload");
 
-async function handleAnthropicProxy(request2, env2) {
+async function handleAnthropicProxy(request2, env2, ctx2) {
+  // Item 24 — journalisation permanente, en parallèle du console.log existant (jamais un
+  // remplacement), corrélée par anthropicRequestId. "appel 2" (génération structurée forcée,
+  // cf. ADOC_CALL2_TRANSPORT_TIMEOUT_MS/ADOC_CALL2_SEMANTIC_TIMEOUT_MS_EXPERIMENTAL côté client)
+  // passe par ce point d'appel : le client poste toujours à la racine, sans suffixe de chemin
+  // (cf. le commentaire de routage juste au-dessus de l'appel à cette fonction), et c'est bien
+  // ICI, jamais dans handleLLMProxy (route /llm-proxy distincte, utilisée pour le provider
+  // openai et par d'autres appels internes), que le fetch réel vers api.anthropic.com a lieu.
+  // Une seule ligne INSERT par appel, écrite une fois tous les timestamps connus (succès ou
+  // erreur) — jamais de ligne à moitié écrite. ctx2.waitUntil (même convention que
+  // logWebConsult) : le client n'attend jamais cette écriture, aucune latence ajoutée.
+  const _pcReceivedAt = new Date().toISOString();
   let body;
   try {
     body = await request2.json();
@@ -56187,16 +56198,27 @@ async function handleAnthropicProxy(request2, env2) {
     ab.tool_choice = tool_choice;
   if (stream)
     ab.stream = stream;
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "x-api-key": env2.ANTHROPIC_API_KEY,
-      "anthropic-version": "2023-06-01",
-      "anthropic-beta": "prompt-caching-2024-07-31",
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(ab)
-  });
+  const _pcSentAt = new Date().toISOString();
+  let res;
+  try {
+    res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": env2.ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+        "anthropic-beta": "prompt-caching-2024-07-31",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(ab)
+    });
+  } catch (fetchErr) {
+    // Appel interrompu avant même une réponse (échec réseau) — comportement inchangé (l'erreur
+    // est relancée telle quelle), uniquement une ligne de journal en plus, jamais bloquante.
+    const _pcFailPromise = logProxyCall(env2, { anthropicRequestId: null, receivedAt: _pcReceivedAt, sentAt: _pcSentAt, headersReceivedAt: null, closedAt: new Date().toISOString(), httpStatus: null });
+    if (ctx2 && typeof ctx2.waitUntil === "function") ctx2.waitUntil(_pcFailPromise);
+    throw fetchErr;
+  }
+  const _pcHeadersReceivedAt = new Date().toISOString();
   // Lot request-id — Headers.get() est insensible à la casse (spec Fetch), donc pas besoin de
   // deviner la casse exacte renvoyée par Anthropic. Uniquement l'identifiant technique lui-même
   // dans ce log : jamais le prompt, les passages RAG, la clé API ni aucune donnée clinique.
@@ -56206,7 +56228,18 @@ async function handleAnthropicProxy(request2, env2) {
   // Sans .text() pour éviter de bloquer le Worker jusqu'à fin de génération (timeout 502).
   // En cas d'erreur Anthropic (!res.ok), on bascule sur .text() pour transmettre le message JSON.
   if (stream && res.ok && res.body) {
-    return new Response(res.body, {
+    // TransformStream identité : les octets traversent tels quels (aucun changement de
+    // comportement/latence), mais pipeTo() nous donne le vrai moment de fermeture du flux
+    // (succès ou erreur), y compris longtemps après que cette fonction a déjà retourné sa
+    // Response — d'où ctx2.waitUntil, indispensable ici (sans lui, cette écriture pourrait être
+    // silencieusement abandonnée si le Worker se termine avant qu'elle ne se finalise).
+    const { readable, writable } = new TransformStream();
+    const _pcPipePromise = res.body.pipeTo(writable).then(
+      () => logProxyCall(env2, { anthropicRequestId, receivedAt: _pcReceivedAt, sentAt: _pcSentAt, headersReceivedAt: _pcHeadersReceivedAt, closedAt: new Date().toISOString(), httpStatus: res.status }),
+      () => logProxyCall(env2, { anthropicRequestId, receivedAt: _pcReceivedAt, sentAt: _pcSentAt, headersReceivedAt: _pcHeadersReceivedAt, closedAt: new Date().toISOString(), httpStatus: res.status })
+    );
+    if (ctx2 && typeof ctx2.waitUntil === "function") ctx2.waitUntil(_pcPipePromise);
+    return new Response(readable, {
       status: res.status,
       headers: {
         ...CORS,
@@ -56218,7 +56251,10 @@ async function handleAnthropicProxy(request2, env2) {
       }
     });
   }
-  return new Response(await res.text(), {
+  const _pcBodyText = await res.text();
+  const _pcLogPromise = logProxyCall(env2, { anthropicRequestId, receivedAt: _pcReceivedAt, sentAt: _pcSentAt, headersReceivedAt: _pcHeadersReceivedAt, closedAt: new Date().toISOString(), httpStatus: res.status });
+  if (ctx2 && typeof ctx2.waitUntil === "function") ctx2.waitUntil(_pcLogPromise);
+  return new Response(_pcBodyText, {
     status: res.status,
     headers: {
       ...CORS,
@@ -56228,6 +56264,22 @@ async function handleAnthropicProxy(request2, env2) {
   });
 }
 __name(handleAnthropicProxy, "handleAnthropicProxy");
+async function logProxyCall(env2, fields) {
+  if (!env2.DB) return;
+  try {
+    await env2.DB.prepare(
+      "INSERT INTO proxy_call_log (anthropic_request_id, received_at, sent_at, headers_received_at, closed_at, http_status) VALUES (?, ?, ?, ?, ?, ?)"
+    ).bind(
+      fields.anthropicRequestId || null,
+      fields.receivedAt || null,
+      fields.sentAt || null,
+      fields.headersReceivedAt || null,
+      fields.closedAt || null,
+      fields.httpStatus ?? null
+    ).run();
+  } catch (_) { /* journalisation best-effort — ne doit jamais faire échouer l'appel réel */ }
+}
+__name(logProxyCall, "logProxyCall");
 async function handleLibrarySearch(request2, env2) {
   let body;
   try {
