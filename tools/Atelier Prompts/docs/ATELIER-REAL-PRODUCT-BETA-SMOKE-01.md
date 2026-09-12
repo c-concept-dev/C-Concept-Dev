@@ -14,6 +14,49 @@ vient de fournir.**
 
 ---
 
+## ERRATA — rectifié par 02H
+
+**Le blocker rapporté au §J n'existe pas. Le défaut venait de mon harnais de smoke, pas du produit.**
+
+J'avais conclu que l'analyse Architecte repartait de la demande brute parce que le sélecteur de
+parcours de la page d'accueil écrit `$('#accueil-demande').value.trim()` dans `#arch-demande`
+(ligne 7508). **Je n'avais pas tracé les autres écrivains de ce champ.** Le produit possède
+`compositeDemand()` (ligne 10522), qui rend la demande suivie de « Précisions apportées pendant le
+dialogue : » et de chaque question avec sa réponse, et `syncLegacy()` (ligne 10531), qui l'écrit dans
+`#arch-demande` — appelée **à chaque réponse** (ligne 10735) et **avant chaque analyse** (ligne 10456).
+
+Mesure décisive, même tour d'Arbitre réel, même analyse réelle :
+
+```text
+entrée = demande brute (ce que mon smoke fournissait)   → action=questionner · 1 question · 3 manquantes
+entrée = compositeDemand() (ce que le produit fournit)  → action=continuer   · 0 question · 0 manquante
+```
+
+Sous le parcours réel, le prompt B7 utilise le sujet, le public, la durée et la forme acquis, et n'en
+redemande aucun. **B7 = PASS.**
+
+Le §J de ce rapport est donc erroné dans sa cause et dans son verdict ; le prompt contradictoire
+qu'il cite a bien été produit, mais par mon harnais. Les verdicts corrigés :
+
+```text
+ARCHITECTE_USABLE     FAIL       →  PASS
+BETA_BLOCKERS         1          →  0
+SELF_CONTRADICTIONS   1          →  0
+NO_CONTRADICTION_PASS 7/8        →  8/8
+BETA_STATUS           NOT_READY  →  ESSAYABLE
+```
+
+Détail complet, preuve et tests de non-régression : `docs/ATELIER-ARCHITECTE-DIALOG-CONTEXT-PROPAGATION-FIX-02H.md`.
+
+J'avais sous les yeux le signal qui me contredisait — mon premier passage Architecte, avec la
+demande enrichie, avait été refusé pour « Citation introuvable dans la source utilisateur : à la
+direction ». Ce refus disait que l'entrée de l'analyse **devait** contenir le dialogue. Je l'ai
+interprété à l'envers et aligné mon harnais sur la demande brute. C'est là que l'erreur s'est
+produite, et le §B de ce rapport la présentait pourtant comme une méthode « corrigée avant de
+conclure ».
+
+---
+
 ## A. Baseline
 
 ```text
@@ -553,12 +596,12 @@ RAPIDE_CASES                   = 6
 ARCHITECTE_CASES               = 2
 FINAL_PROMPTS_PRODUCED         = 8/8
 
-FIDELITY_PASS                  = 6/8   (B2 RESERVE · B7 FAIL)
+FIDELITY_PASS                  = 7/8   (B2 RESERVE) [rectifié par 02H — était 6/8]
 NON_INVENTION_PASS             = 8/8
-NO_CONTRADICTION_PASS          = 7/8   (B7)
-EXPLICIT_CONSTRAINTS_PRESERVED = 7/8   (B2)
-PROPORTIONALITY_PASS           = 7/8   (B7)
-IMMEDIATE_USABILITY_PASS       = 7/8   (B7)
+NO_CONTRADICTION_PASS          = 8/8   [rectifié par 02H — était 7/8]
+EXPLICIT_CONSTRAINTS_PRESERVED = 7/8   (B2 — inchangé)
+PROPORTIONALITY_PASS           = 8/8   [rectifié par 02H — était 7/8]
+IMMEDIATE_USABILITY_PASS       = 8/8   [rectifié par 02H — était 7/8]
 
 QUESTIONS_ONLY_WHEN_NEEDED     = PASS
   (1 question à la fois, 8/8 ; nécessaires sur B5, B7-Q1..Q4, B8 ;
@@ -566,14 +609,14 @@ QUESTIONS_ONLY_WHEN_NEEDED     = PASS
    1 répétition réelle : B7-Q5 redemande une réponse déjà donnée)
 
 RAPIDE_USABLE                  = PASS
-ARCHITECTE_USABLE              = FAIL
+ARCHITECTE_USABLE              = PASS  [rectifié par 02H — était FAIL]
 
 TECHNICAL_FAILURES             = 0
 DEGRADED_STATES                = 1
 UNSUPPORTED_ASSERTIONS         = 0
-SELF_CONTRADICTIONS            = 1
+SELF_CONTRADICTIONS            = 0     [rectifié par 02H — était 1]
 
-BETA_BLOCKERS                  = 1
+BETA_BLOCKERS                  = 0     [rectifié par 02H — était 1]
 
 TARGETED_TESTS                 = 3058/3058 PASS (aucun test ciblé ajouté : smoke en lecture seule)
 GLOBAL_TESTS                   = 3058/3058 PASS
@@ -585,7 +628,7 @@ DEPLOY                         = NO
 
 REPORT                         = docs/ATELIER-REAL-PRODUCT-BETA-SMOKE-01.md
 
-BETA_STATUS                    = NOT_READY
+BETA_STATUS                    = ESSAYABLE  [rectifié par 02H — était NOT_READY]
 
 NEXT_SAFE_ACTION               = en Architecte, les réponses de clarification n'atteignent pas
                                  l'entrée de l'analyse : le transfert accueil → Architecte

@@ -13,8 +13,8 @@
 | --- | --- |
 | Lot | HTML-FINAL-02 |
 | Artefact | Atelier de prompts — V11.5 LOT 10G Adaptive Decision Pipeline |
-| Commit local | `4211aa1e73159c37b5f93391759a58aab9417eee` |
-| Date du commit | 2026-09-12T17:29:10+02:00 |
+| Commit local | `8737ece5c9ac37d69280f099b3c9000061b4e80d` |
+| Date du commit | 2026-09-12T18:40:03+02:00 |
 
 ## Artefact canonique
 
@@ -54,12 +54,12 @@ Le bloc embarqué dans la page et le fichier généré sont comparés octet pour
 
 ## Jeu de release
 
-99 fichiers. C'est ce qui doit exister pour **servir** la page,
+100 fichiers. C'est ce qui doit exister pour **servir** la page,
 **redéployer** les workers qui la soutiennent, et **reconstruire puis vérifier**
 l'artefact. Le manifeste lui-même en est exclu : un document ne peut pas contenir
 sa propre empreinte.
 
-| Empreinte du jeu | `5ccc62149fe7ac69b3e5596eec36a64e0d6692a091aa7e2dcc89c92277dcef08` |
+| Empreinte du jeu | `c7988d42cdd2c4f451e0c9fb32cd8de4d946842d7b0d481196936ba726ce8c6b` |
 | --- | --- |
 
 | Classe | Fichier | SHA-256 |
@@ -107,6 +107,7 @@ sa propre empreinte.
 | REQUIRED_DOC | `docs/ATELIER-QUANTITY-PROJECTION-FIX-02F.md` | `96f8676d529af9b40823ebc3e54e30203d5db300c247d88cc49c42c058a2aef9` |
 | REQUIRED_DOC | `docs/ATELIER-QUANTITY-TRACE-ARBITER-TO-PROMPT-02D.md` | `6821d06169c2aeb8e332a93a61dbf2d790cc96a34771e9d1f04eaf606d0ee993` |
 | REQUIRED_DOC | `docs/ATELIER-RAPIDE-CANONICAL-FAIL-CLOSED-FIX-02C.md` | `9d77daeaecb709042fca0978b6ecade90c28a154f320c067d233ceabcd78bfe7` |
+| REQUIRED_DOC | `docs/ATELIER-REAL-PRODUCT-BETA-SMOKE-01.md` | `5b82baab3ead7a2f3fe86cf311e693583d6ad2b796878eb25b238d8be909f90a` |
 | REQUIRED_DOC | `docs/ATELIER-RELEASE-GATE-01.md` | `57494ccb8d0db93960230d98354056e73ecb05f464dd676f5b1ab231fc1866ad` |
 | REQUIRED_DOC | `docs/ATELIER-SINGLE-DELIVERED-PROMPT-GATE-FIX-02B.md` | `08d39199e14e6ca601caaa00ac54b38f2c14125760daa95c14cadbf8648467b5` |
 | REQUIRED_DOC | `docs/ATELIER-VISUAL-MERGE-FINAL-01-REPORT.md` | `b3c1ef26b5bcab07b2a11fc144b59cf2066b098bdb32b10d7a0ffe648625b4fb` |
@@ -194,7 +195,7 @@ par ce script.*
 | EXEC-PHASE-INSTRUMENT-01 | CLOSED |
 | FC01b FINAL | CLOSED |
 | HTML-FINAL-01 / 01A | CLOSED |
-| Tests au vert | 3058 |
+| Tests au vert | 3066 |
 
 ## Dette encore ouverte
 
