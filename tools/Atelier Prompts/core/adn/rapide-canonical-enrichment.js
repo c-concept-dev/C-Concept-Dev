@@ -78,31 +78,72 @@ export function normalizeRequestText(value) {
  * canonique interdit — exact et bornes y sont mutuellement exclusifs.
  * ---------------------------------------------------------------------- */
 
-export function deriveQuantityFromRequest(request, { counting_units = '' } = {}) {
+/* 02E — UN NOMBRE PEUT S'ÉCRIRE EN CHIFFRES OU EN MOTS, ET C'EST TOUT.
+ *
+ * Les motifs ci-dessous n'acceptaient que `\d{1,4}`. « exactement 5 paragraphes » produisait donc une
+ * contrainte, et « exactement cinq paragraphes » n'en produisait aucune — deux formulations que
+ * l'Arbitre comprend identiquement. Le vocabulaire des nombres est INJECTÉ, exactement comme
+ * `counting_units` : cette fonction ne connaît aucun mot, elle connaît une position. Un nombre écrit
+ * n'est pas un mot de domaine — c'est un inventaire grammatical clos, qui ne grandit pas avec le
+ * produit.
+ *
+ * LA CIBLE EST LUE, PLUS SUPPOSÉE. Le mot qui suit le nombre est rendu tel quel dans `target`.
+ * C'est ce qui empêche « exactement 120 BPM » de devenir « 120 éléments » : la cible reste celle que
+ * la contrainte nomme, et aucune liste n'a besoin de savoir ce qu'est un BPM. */
+function quantityNumberPattern(number_words) {
+  const mots = Object.keys(number_words || {})
+    .map((w) => String(w).trim()).filter(Boolean)
+    .sort((a, b) => b.length - a.length)
+    .map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  return mots.length ? `(?:\\d{1,4}|${mots.join('|')})` : '\\d{1,4}';
+}
+
+function resolveQuantityNumber(token, number_words) {
+  const brut = String(token == null ? '' : token).trim();
+  if (/^\d{1,4}$/.test(brut)) return Number.parseInt(brut, 10);
+  const valeur = (number_words || {})[brut];
+  return Number.isInteger(valeur) ? valeur : null;
+}
+
+/* La cible est le premier groupe nominal qui suit le nombre. Aucun lexique : une position. */
+const QUANTITY_TARGET = "(?:\\s+([a-z'’-]+(?:\\s+(?:de|d'|du|des|par)\\s+[a-z'’-]+)?))?";
+
+export function deriveQuantityFromRequest(request, { counting_units = '', number_words = null } = {}) {
   const n = normalizeRequestText(request);
   if (!n) return null;
-  const num = (v) => Number.parseInt(v, 10);
+  const N = quantityNumberPattern(number_words);
+  const num = (v) => resolveQuantityNumber(v, number_words);
+  const cible = (v) => (text(v) || null);
   let m;
 
-  if ((m = n.match(/\bexactement\s+(\d{1,4})/))) {
-    return { exact: num(m[1]), min: null, max: null, rule: 'exact_explicit' };
+  if ((m = n.match(new RegExp(`\\bexactement\\s+(${N})${QUANTITY_TARGET}`)))) {
+    const v = num(m[1]);
+    if (v !== null) return { exact: v, min: null, max: null, target: cible(m[2]), rule: 'exact_explicit' };
   }
-  if ((m = n.match(/entre\s+(\d{1,4})\s+et\s+(\d{1,4})/))) {
+  if ((m = n.match(new RegExp(`entre\\s+(${N})\\s+et\\s+(${N})${QUANTITY_TARGET}`)))) {
     const a = num(m[1]); const b = num(m[2]);
-    return a <= b ? { exact: null, min: a, max: b, rule: 'range' } : { exact: null, min: b, max: a, rule: 'range_reversed' };
+    if (a !== null && b !== null) {
+      return a <= b
+        ? { exact: null, min: a, max: b, target: cible(m[3]), rule: 'range' }
+        : { exact: null, min: b, max: a, target: cible(m[3]), rule: 'range_reversed' };
+    }
   }
-  if ((m = n.match(/(?:au moins|au minimum|minimum|mini|pas moins de)\s+(\d{1,4})/))) {
-    return { exact: null, min: num(m[1]), max: null, rule: 'lower_bound' };
+  if ((m = n.match(new RegExp(`(?:au moins|au minimum|minimum|mini|pas moins de)\\s+(${N})${QUANTITY_TARGET}`)))) {
+    const v = num(m[1]);
+    if (v !== null) return { exact: null, min: v, max: null, target: cible(m[2]), rule: 'lower_bound' };
   }
-  if ((m = n.match(/(\d{1,4})\s+(?:au\s+)?minimum\b/))) {
-    return { exact: null, min: num(m[1]), max: null, rule: 'lower_bound_suffix' };
+  if ((m = n.match(new RegExp(`(${N})\\s+(?:au\\s+)?minimum\\b`)))) {
+    const v = num(m[1]);
+    if (v !== null) return { exact: null, min: v, max: null, target: null, rule: 'lower_bound_suffix' };
   }
-  if ((m = n.match(/(?:au plus|au maximum|maximum|max|pas plus de)\s+(\d{1,4})/))) {
-    return { exact: null, min: null, max: num(m[1]), rule: 'upper_bound' };
+  if ((m = n.match(new RegExp(`(?:au plus|au maximum|maximum|max|pas plus de|moins de)\\s+(${N})${QUANTITY_TARGET}`)))) {
+    const v = num(m[1]);
+    if (v !== null) return { exact: null, min: null, max: v, target: cible(m[2]), rule: 'upper_bound' };
   }
   const units = text(counting_units);
-  if (units && (m = n.match(new RegExp(`(\\d{1,4})\\s+(?:${units})\\b`)))) {
-    return { exact: null, min: num(m[1]), max: null, rule: 'counted_unit' };
+  if (units && (m = n.match(new RegExp(`(${N})\\s+(${units})\\b`)))) {
+    const v = num(m[1]);
+    if (v !== null) return { exact: null, min: v, max: null, target: cible(m[2]), rule: 'counted_unit' };
   }
   return null;
 }
@@ -193,11 +234,11 @@ function addLockSignal(existing, id, reason, sourceIds) {
 
 /**
  * @param {object} canonicalBase  Canonical Base Contract (jamais muté)
- * @param {object} options        { original_request, material, format_vocabulary, counting_units }
+ * @param {object} options        { original_request, material, format_vocabulary, counting_units, number_words }
  * @returns {{contract: object, signals: object[], derivation_trace: object[]}}
  */
 export function enrichRapidCanonicalContract(canonicalBase, {
-  material = '', format_vocabulary = [], counting_units = ''
+  material = '', format_vocabulary = [], counting_units = '', number_words = null
 } = {}) {
   if (!canonicalBase || typeof canonicalBase !== 'object' || Array.isArray(canonicalBase)) {
     throw new TypeError('ADN-RAPIDE-ENRICH-00 : Canonical Base Contract requis.');
@@ -221,15 +262,47 @@ export function enrichRapidCanonicalContract(canonicalBase, {
   const output = plain(contract.output);
   const lockSignals = new Map(list(plain(contract.semantic_lock_signals).signals).map((s) => [s.id, s]));
 
-  /* ---- QUANTITÉS ---------------------------------------------------- */
-  const quantity = deriveQuantityFromRequest(request, { counting_units });
+  /* ---- QUANTITÉS ----------------------------------------------------
+   *
+   * 02E — LA CONTRAINTE CANONIQUE D'ABORD, LA DEMANDE BRUTE ENSUITE.
+   *
+   * La dérivation lisait `original_request` : une quantité que l'Arbitre avait déjà comprise et
+   * posée en contrainte était donc RE-DÉCOUVERTE depuis le texte de la personne, avec deux
+   * conséquences mesurées. D'abord une perte de modalité — l'Arbitre écrivait « exactement 20
+   * points », la demande disait « checklist de 20 points », et la règle `counted_unit` rendait
+   * `min: 20`, soit « au moins 20 ». Ensuite une dépendance à la forme lexicale : « 5 paragraphes »
+   * produisait une contrainte, « cinq paragraphes » non.
+   *
+   * On lit donc d'abord `intent.explicit_constraints[].text`, qui est déjà canonique et déjà
+   * confirmé. La demande brute reste un REPLI, pour le cas où aucune contrainte confirmée ne porte
+   * de quantité — elle ne redevient jamais nécessaire pour retrouver ce que le contrat sait déjà.
+   *
+   * L'autorité n'est pas dupliquée : `quantities` déjà rempli en amont (USER, ou ARCH) l'emporte
+   * sur toute dérivation, comme avant ce lot. Aucune fusion, aucune moyenne. */
+  const contraintesCanoniques = list(plain(contract.intent).explicit_constraints)
+    .map((item, i) => ({ text: text(item?.text), index: i }))
+    .filter((item) => item.text);
+  let quantity = null;
+  let quantitySource = null;
+  for (const item of contraintesCanoniques) {
+    const derive = deriveQuantityFromRequest(item.text, { counting_units, number_words });
+    if (derive) {
+      quantity = derive;
+      quantitySource = `intent.explicit_constraints[${item.index}]`;
+      break;
+    }
+  }
+  if (!quantity) {
+    quantity = deriveQuantityFromRequest(request, { counting_units, number_words });
+    if (quantity) quantitySource = 'original_request';
+  }
   if (quantity && !list(contract.quantities).length) {
     contract.quantities = [{
-      target: 'éléments', unit: null,
+      target: text(quantity.target) || 'éléments', unit: null,
       exact: quantity.exact, min: quantity.min, max: quantity.max,
       source: 'derived_deterministic'
     }];
-    derivation_trace.push(trace('quantities', 'original_request', quantity.rule));
+    derivation_trace.push(trace('quantities', quantitySource, quantity.rule));
   }
 
   /* ---- FORMAT ------------------------------------------------------- */

@@ -137,8 +137,10 @@ test('T-REN-05 l’enrichisseur ne choisit aucune route et n’appelle aucun rep
 
 test('T-REN-06 « exactement 7 » produit une quantité EXACTE, jamais min = max', () => {
   const { contract, derivation_trace } = enrichir('Donne exactement 7 idées.');
+  /* 02E : la cible n'est plus supposée « éléments » — elle est LUE dans la contrainte. C'est ce qui
+     empêche « exactement 120 BPM » de devenir « 120 éléments ». */
   assert.deepEqual(clone(contract.quantities), [{
-    target: 'éléments', unit: null, exact: 7, min: null, max: null, source: 'derived_deterministic'
+    target: 'idees', unit: null, exact: 7, min: null, max: null, source: 'derived_deterministic'
   }]);
   assert.ok(derivation_trace.some((t) => t.target_field === 'quantities' && t.rule === 'exact_explicit'));
   assert.equal(validateRapidCanonicalEnrichment(baseFor('Donne exactement 7 idées.'), contract).ok, true,
@@ -146,20 +148,29 @@ test('T-REN-06 « exactement 7 » produit une quantité EXACTE, jamais min = max
 });
 
 test('T-REN-07 les bornes basses sont dérivées, et seulement quand elles sont dites', () => {
-  assert.deepEqual(deriveQuantityFromRequest('Donne au moins 3 idées.'), { exact: null, min: 3, max: null, rule: 'lower_bound' });
-  assert.deepEqual(deriveQuantityFromRequest('Donne 3 minimum.'), { exact: null, min: 3, max: null, rule: 'lower_bound_suffix' });
-  assert.deepEqual(deriveQuantityFromRequest('Donne 5 idées.', { counting_units: UNITES }), { exact: null, min: 5, max: null, rule: 'counted_unit' });
+  /* 02E : la forme rend désormais aussi `target`, lu dans le texte. Les valeurs et les règles
+     sont inchangées — seule la cible s'ajoute. */
+  assert.deepEqual(deriveQuantityFromRequest('Donne au moins 3 idées.'), { exact: null, min: 3, max: null, target: 'idees', rule: 'lower_bound' });
+  assert.deepEqual(deriveQuantityFromRequest('Donne 3 minimum.'), { exact: null, min: 3, max: null, target: null, rule: 'lower_bound_suffix' });
+  assert.deepEqual(deriveQuantityFromRequest('Donne 5 idées.', { counting_units: UNITES }), { exact: null, min: 5, max: null, target: 'idees', rule: 'counted_unit' });
   assert.equal(deriveQuantityFromRequest('Donne des idées.', { counting_units: UNITES }), null, 'aucune quantité inventée');
   assert.equal(deriveQuantityFromRequest('Donne 5 idées.'), null, 'sans unités injectées, la règle reste inerte');
 });
 
 test('T-REN-08 les bornes hautes et les fourchettes sont dérivées fidèlement', () => {
-  assert.deepEqual(deriveQuantityFromRequest('Donne au plus 9 idées.'), { exact: null, min: null, max: 9, rule: 'upper_bound' });
-  assert.deepEqual(deriveQuantityFromRequest('Donne entre 3 et 5 idées.'), { exact: null, min: 3, max: 5, rule: 'range' });
-  assert.deepEqual(deriveQuantityFromRequest('Donne entre 5 et 3 idées.'), { exact: null, min: 3, max: 5, rule: 'range_reversed' });
-  /* QUANTITY_WORDS_GAP reste hors périmètre, et le test le fige. */
+  assert.deepEqual(deriveQuantityFromRequest('Donne au plus 9 idées.'), { exact: null, min: null, max: 9, target: 'idees', rule: 'upper_bound' });
+  assert.deepEqual(deriveQuantityFromRequest('Donne entre 3 et 5 idées.'), { exact: null, min: 3, max: 5, target: 'idees', rule: 'range' });
+  assert.deepEqual(deriveQuantityFromRequest('Donne entre 5 et 3 idées.'), { exact: null, min: 3, max: 5, target: 'idees', rule: 'range_reversed' });
+  /* 02E : les nombres écrits en lettres ne sont plus hors périmètre — mais ils ne sont JAMAIS
+     devinés. La dérivation ne lit que le vocabulaire qu'on lui passe : sans `number_words`, elle
+     reste muette ; avec, elle répond exactement comme au chiffre. C'est l'absence de liste interne
+     qui est éprouvée ici, pas l'absence de la capacité. */
   assert.equal(deriveQuantityFromRequest('Donne sept idées.', { counting_units: UNITES }), null,
-    'les nombres écrits en lettres restent hors périmètre (QUANTITY_WORDS_GAP)');
+    'sans vocabulaire de nombres fourni, aucune quantité n’est inventée');
+  assert.deepEqual(
+    deriveQuantityFromRequest('Donne sept idées.', { counting_units: UNITES, number_words: { sept: 7 } }),
+    deriveQuantityFromRequest('Donne 7 idées.', { counting_units: UNITES }),
+    '« sept idées » et « 7 idées » portent la même contrainte dès que le vocabulaire est fourni');
 });
 
 /* ==========================================================================

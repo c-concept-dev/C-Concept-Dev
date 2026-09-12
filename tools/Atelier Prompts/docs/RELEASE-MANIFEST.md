@@ -13,7 +13,7 @@
 | --- | --- |
 | Lot | HTML-FINAL-02 |
 | Artefact | Atelier de prompts — V11.5 LOT 10G Adaptive Decision Pipeline |
-| Commit local | `827494cbdd6ddbc8d2be17aa63113b55fe0d796e` |
+| Commit local | `0b78458ab9b42d3dbf6e406f2622a777ad19df17` |
 | Date du commit | 2026-09-12T14:17:48+02:00 |
 
 ## Artefact canonique
@@ -24,8 +24,8 @@ aucune police et aucune image ne sont chargés depuis un tiers.
 | Champ | Valeur |
 | --- | --- |
 | Chemin | `atelier-prompts-v11.5-lot10g-decision-provider.html` |
-| Taille | 1369698 octets |
-| SHA-256 | `d7c9e4a7ab22fc74307d741c741b1045400da2e71dea1e34994b7aaf21217486` |
+| Taille | 1375025 octets |
+| SHA-256 | `5ed464dcd45d6ddb0f2dec9db32fdbbcca830dc5b17a9372036a1ec99241c028` |
 
 ## Runtime compilé
 
@@ -34,11 +34,11 @@ Le bloc embarqué dans la page et le fichier généré sont comparés octet pour
 | Champ | Valeur |
 | --- | --- |
 | Fichier | `core/adn/browser-runtime.generated.js` |
-| SHA-256 du fichier | `0f224d263aa33f19760d33028cef11e6f827fc710b2fd2fc9996839f27e5ec97` |
-| SHA-256 du bloc embarqué | `0f224d263aa33f19760d33028cef11e6f827fc710b2fd2fc9996839f27e5ec97` |
+| SHA-256 du fichier | `40b0fc6bf224226381a64a3bc2aa07e543002e5ba3a41d0c27899a9313d2a073` |
+| SHA-256 du bloc embarqué | `40b0fc6bf224226381a64a3bc2aa07e543002e5ba3a41d0c27899a9313d2a073` |
 | Identiques | oui |
 | Blocs de runtime dans la page | 1 |
-| Empreinte des sources compilées | `1ac2f71dd83fd909e0af02ab4588888e1a09452e84cbbd2fb62472bf5e8fd21f` |
+| Empreinte des sources compilées | `ce888bb4ea8e8361608a9fd73b0a156179ec02cebb1b6648b800fe182a9bb9b4` |
 
 ## Plages gelées
 
@@ -59,17 +59,17 @@ Le bloc embarqué dans la page et le fichier généré sont comparés octet pour
 l'artefact. Le manifeste lui-même en est exclu : un document ne peut pas contenir
 sa propre empreinte.
 
-| Empreinte du jeu | `16fdc81bf6f2f530375a9f266ad33bef7c85174d8df54a235ddc610110851e4a` |
+| Empreinte du jeu | `b74910ddc3544dc284dc78b416cdcae689285b621ba4208baa49efb545176be9` |
 | --- | --- |
 
 | Classe | Fichier | SHA-256 |
 | --- | --- | --- |
 | REQUIRED_BUILD | `anti-regression-baseline.json` | `7bd0fcca3f3ed226e3fdd30ee52dc204dae158dbde8842c08731054a1f58e7d6` |
-| REQUIRED_HTML | `atelier-prompts-v11.5-lot10g-decision-provider.html` | `d7c9e4a7ab22fc74307d741c741b1045400da2e71dea1e34994b7aaf21217486` |
+| REQUIRED_HTML | `atelier-prompts-v11.5-lot10g-decision-provider.html` | `5ed464dcd45d6ddb0f2dec9db32fdbbcca830dc5b17a9372036a1ec99241c028` |
 | REQUIRED_BUILD | `core/adn/adaptive-lock-selector.js` | `15d3154d639b761747a26215f2ec59eb6b121e6072187b6a2dd611eefe5b65ea` |
 | REQUIRED_BUILD | `core/adn/adn-state.js` | `323c60c3b224193bf957fba38d5668fa2a881a06c8bf301161b1751f1d6bb2e0` |
 | REQUIRED_BUILD | `core/adn/arch-canonical-enrichment.js` | `ee87dff7cd6c822b8aaba63edd05eff0614749ec6044fe0bacd22531b1ab8fc0` |
-| REQUIRED_BUILD | `core/adn/browser-runtime.generated.js` | `0f224d263aa33f19760d33028cef11e6f827fc710b2fd2fc9996839f27e5ec97` |
+| REQUIRED_BUILD | `core/adn/browser-runtime.generated.js` | `40b0fc6bf224226381a64a3bc2aa07e543002e5ba3a41d0c27899a9313d2a073` |
 | REQUIRED_BUILD | `core/adn/engine-adapters.js` | `81e206b5bb1705c404a494dd136fea1fd17bb7cd502aca2855b6bf6f9b161255` |
 | REQUIRED_BUILD | `core/adn/execution-lifecycle.js` | `accdee01c6c294f33e28be321024501c152e2fdd6e53298575c2450adebf8ec7` |
 | REQUIRED_BUILD | `core/adn/execution-readiness.js` | `5276f0f8cfafd9b1fdae72b4f26193ab6f7639196bee15d80c048844545bfb18` |
@@ -82,7 +82,7 @@ sa propre empreinte.
 | REQUIRED_BUILD | `core/adn/orchestration-policy.js` | `53007469046156d821085862cc1264d18c196681206a0cb0ee92041de5340dc1` |
 | REQUIRED_BUILD | `core/adn/output-compliance-gate.js` | `182ec76d44014121dbfba67d3442131fc4c525ce9989eb4948cb5f82c16466e2` |
 | REQUIRED_BUILD | `core/adn/prompt-contract-gate.js` | `49a31369b431ab8d93007a6ddc4a9acd0d9923145bf4c076b1cb3d179a56d1b8` |
-| REQUIRED_BUILD | `core/adn/rapide-canonical-enrichment.js` | `b856015972aeb206b1af337c4a50cfa09c95098d8ba29e9a04e93ce9685ea06a` |
+| REQUIRED_BUILD | `core/adn/rapide-canonical-enrichment.js` | `28a4db6c368704be94f738ea4c77399a5bf869148c42421a5672585ff9f54072` |
 | REQUIRED_BUILD | `core/adn/routing-engine.js` | `529a73614a5ebf8262367bb1b2facc3fcedd40df73bd6c4ed16048a825a9930c` |
 | REQUIRED_DOC | `docs/ANTHROPIC-DEEP-CAPACITY-01.md` | `a6c063c7f49ce9fe2883b4cc1eb5811ddf38b8ddfe28342c6f430596e2319b9f` |
 | REQUIRED_DOC | `docs/ATELIER-CRITIC-PREDISPLAY-BUDGET-AUDIT-01.md` | `ed2a26d516d3409a4b3a5fd17ab7bcfa179847e646801b5f474a287356cd384b` |
@@ -185,7 +185,7 @@ par ce script.*
 | EXEC-PHASE-INSTRUMENT-01 | CLOSED |
 | FC01b FINAL | CLOSED |
 | HTML-FINAL-01 / 01A | CLOSED |
-| Tests au vert | 3012 |
+| Tests au vert | 3024 |
 
 ## Dette encore ouverte
 

@@ -90,8 +90,10 @@ test('T-RAPCHAR01-05 [EXPECTED_CANONICAL_FIX] une quantité exacte est rendue «
 
 test('T-RAPCHAR01-06 [CARACTÉRISATION] une fourchette reste une fourchette', () => {
   const p = canonique('Donne entre 3 et 5 idées.');
+  /* 02E : la cible n'est plus supposée « éléments » — elle est LUE dans la contrainte. C'est ce qui
+     empêche « exactement 120 BPM » de devenir « 120 éléments ». */
   assert.deepEqual(clone(p.r.canonical.contract.quantities[0]),
-    { target: 'éléments', unit: null, exact: null, min: 3, max: 5, source: 'derived_deterministic' });
+    { target: 'idees', unit: null, exact: null, min: 3, max: 5, source: 'derived_deterministic' });
   assert.match(sectionBody(p.promptFinal, 'CONTRAINTES QUANTIFIÉES'), /Entre 3 et 5/);
 });
 
@@ -146,11 +148,25 @@ test('T-RAPCHAR01-12 [EXPECTED_CANONICAL_FIX] le destinataire disparaît : ADN-R
   assert.equal(hasSection(avec.promptFinal, 'DESTINATAIRE'), false);
 });
 
-test('T-RAPCHAR01-13 [EXPECTED_CANONICAL_FIX] une quantité écrite en lettres n’est pas retenue : QUANTITY_WORDS_GAP', () => {
-  const avec = canonique('Compare trois options dans un tableau.');
-  assert.deepEqual(clone(avec.r.canonical.contract.quantities), [], 'aucune quantité dérivée de « trois »');
-  assert.equal(avec.mergedLocks.includes('volume'), false);
-  /* Le même écart existe déjà côté legacy : il n'est pas introduit ici. */
+/* 02E — QUANTITY_WORDS_GAP EST REFERMÉ.
+ *
+ * Ce test portait le nom de sa propre échéance : [EXPECTED_CANONICAL_FIX]. Il caractérisait le fait
+ * qu'une quantité écrite en lettres n'était pas retenue par la voie canonique, et il devait échouer
+ * le jour où elle le serait. Ce jour est celui de 02E. Ce qui est éprouvé désormais est l'équivalence
+ * elle-même : « trois options » et « 3 options » portent la même contrainte.
+ *
+ * La voie LEGACY, elle, ne voit toujours pas « trois » — et ce n'est plus un problème : elle n'est
+ * plus nécessaire pour retrouver ce que le contrat sait déjà. Cet écart reste consigné ici. */
+test('T-RAPCHAR01-13 une quantité écrite en lettres est retenue comme une quantité chiffrée', () => {
+  const lettres = canonique('Compare trois options dans un tableau.');
+  const chiffres = canonique('Compare 3 options dans un tableau.');
+  const qL = clone(lettres.r.canonical.contract.quantities[0]);
+  const qC = clone(chiffres.r.canonical.contract.quantities[0]);
+  assert.ok(qL, '« trois » produit désormais une quantité canonique');
+  assert.deepEqual(qL, qC, '« trois options » et « 3 options » portent la MÊME contrainte');
+  assert.equal(lettres.mergedLocks.includes('volume'), chiffres.mergedLocks.includes('volume'),
+    'et sélectionnent le même verrou');
+  /* La voie legacy reste sourde aux lettres : consigné, et sans effet sur le résultat canonique. */
   assert.equal(legacy('Compare trois options dans un tableau.').ctx.quantiteExplicite, false);
 });
 
