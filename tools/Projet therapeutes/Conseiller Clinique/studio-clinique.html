@@ -8660,6 +8660,11 @@ ${recent}`;
     "avec 2 à 4 suggestions de réponse rapide. Si la demande (complétée le cas échéant par les " +
     "échanges de clarification déjà faits) est suffisante, réponds \"ready\" sans poser de " +
     "question.\n\n" +
+    "Si le message utilisateur précise qu'un TYPE DE DOCUMENT est déjà définitivement choisi " +
+    "(section \"TYPE DE DOCUMENT DÉJÀ CHOISI\" ci-dessous, le cas échéant), ce choix est " +
+    "irrévocable et ne doit JAMAIS faire l'objet d'une question ni d'une suggestion de ta " +
+    "part — évalue uniquement les autres éléments (public visé, contexte clinique, portée) " +
+    "qui pourraient encore manquer pour ce type précis.\n\n" +
     "Enregistre systématiquement ton jugement via l'outil evaluate_clarity.";
 
   // Schéma exact demandé par le CDC UX-2bis — tool avec strict:true, forcé via
@@ -8694,6 +8699,16 @@ ${recent}`;
         .map(function (p) { return 'Question posée : ' + p.question + '\nRéponse du thérapeute : ' + p.answer; })
         .join('\n\n');
       userContent += '\n\nÉCHANGES DE CLARIFICATION DÉJÀ FAITS :\n' + qaText;
+    }
+    // Bug confirmé — un type de document cliqué explicitement sur l'écran d'accueil
+    // (window.adocPendingDocumentKind, cf. adocClarityDocumentKind) doit être connu de
+    // l'évaluateur : sans cette section, rien ne l'empêchait de redemander un type déjà résolu.
+    // Réutilise le même vocabulaire déjà affiché ailleurs pour ce choix (ADOC_GENERATION_KIND_LABELS,
+    // cf. adocUpdateGenerationTitle) — jamais un libellé inventé séparément. Absent/null : aucun
+    // changement, l'évaluateur juge librement comme avant (point 3 de la demande).
+    if (context.explicitDocumentKind) {
+      const kindLabel = ADOC_GENERATION_KIND_LABELS[context.explicitDocumentKind] || context.explicitDocumentKind;
+      userContent += '\n\nTYPE DE DOCUMENT DÉJÀ CHOISI (irrévocable, ne jamais questionner) : ' + kindLabel + '.';
     }
 
     const resp = await fetch(workerUrl.replace(/\/+$/, ''), {
@@ -8849,7 +8864,14 @@ ${recent}`;
     try {
       judgment = await adocEvaluateClarity({
         originalMessage: adocClarityOriginalMessage,
-        qaPairs: adocClarityQAPairs
+        qaPairs: adocClarityQAPairs,
+        // Bug confirmé — adocClarityDocumentKind (capturé plus haut depuis
+        // window.adocPendingDocumentKind, cf. commentaire à sa déclaration) n'était jusqu'ici
+        // JAMAIS transmis à l'évaluateur de clarté : un type déjà cliqué explicitement sur
+        // l'écran d'accueil ne l'empêchait donc pas de redemander "Quel type de document
+        // souhaitez-vous produire ?". Simple passage d'information, jamais une nouvelle donnée
+        // (déjà capturée et déjà utilisée plus tard par adocSendOriginal).
+        explicitDocumentKind: adocClarityDocumentKind,
       });
     } catch (e) {
       // Fail-open : si l'évaluateur échoue (Worker HS, réseau, etc.), on ne bloque
