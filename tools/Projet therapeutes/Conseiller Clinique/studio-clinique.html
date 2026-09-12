@@ -11345,6 +11345,50 @@ ${recent}`;
   // ═══════════════════════════════════════════════════════════════════════
   window._adocWsState = { storeKey: null, memoryHome: null, memoryNextSibling: null, lastFocus: null };
 
+  // Audit Codex A7 — assainit le HTML de l'ancien moteur juste avant son insertion dans le DOM
+  // hôte (cc-ws-doc-card), qui partage fenêtre/cookies/privilèges avec l'application elle-même.
+  // Investigation préalable (voir rapport de lot) : un <script> inséré via `.innerHTML =`
+  // n'exécute JAMAIS (comportement standard des navigateurs, vérifié empiriquement) — le script
+  // de zoom d'image du prompt système (adocBuildSystemPrompt, bloc _execContext) n'a donc jamais
+  // fonctionné ICI, et n'a pas besoin de l'être : ce zoom est déjà assuré, et fonctionne, via le
+  // popup DÉJÀ sandboxé (adocOpenDocPopup, <iframe sandbox="allow-scripts">, seul endroit prévu
+  // pour ce comportement). Le vecteur réel, confirmé par reproduction avant correctif : les
+  // attributs gestionnaires d'événements inline (onerror, onload, onclick…), qui s'exécutent
+  // bien via innerHTML dès que l'élément est inséré ou que l'événement survient. Une isolation
+  // complète par iframe casserait Phase 1/2 (correction/insertion de bloc legacy, cf.
+  // investigation — accès direct au DOM du document requis pour sélectionner un bloc et y
+  // insérer le panneau de correction) : assainissement retenu à la place, décision explicite de
+  // Christophe après présentation des options. Ne modifie jamais art.html lui-même (source de
+  // vérité pour l'export, la charte automatique item 44, et le re-parsing de
+  // adocConfirmLegacyBlockCorrection/Insert, tous inchangés) — seulement la copie affichée.
+  // Le retrait de <script>/attributs onXxx ne touche jamais les éléments sélectionnables
+  // (ADOC_LEGACY_BLOCK_SELECTOR : h1-h6,p,ul,ol,td,th) : l'indexation lb-N reste identique entre
+  // le DOM affiché (assaini) et art.html (inchangé, relu par index par ces deux fonctions).
+  function adocSanitizeLegacyHtmlForWorkspace(html) {
+    try {
+      const parsed = new DOMParser().parseFromString(html || '', 'text/html');
+      parsed.querySelectorAll('script').forEach(function (el) { el.remove(); });
+      parsed.querySelectorAll('*').forEach(function (el) {
+        Array.prototype.slice.call(el.attributes).forEach(function (attr) {
+          const name = attr.name.toLowerCase();
+          if (name.indexOf('on') === 0) { el.removeAttribute(attr.name); return; }
+          if ((name === 'href' || name === 'src' || name === 'action' || name === 'formaction')
+            && /^\s*javascript:/i.test(attr.value || '')) { el.removeAttribute(attr.name); }
+        });
+      });
+      // Reproduit le comportement déjà existant de `cc-ws-doc-card.innerHTML = art.html`
+      // (investigation Phase 1, cf. commentaire d'adocWsCollectLegacyBlocks ci-dessous) : assigner
+      // un document COMPLET à .innerHTML aplatit <head> et <body> en une seule liste d'enfants,
+      // dans l'ordre du document — la charte CSS (<style> dans <head>, cf. _execContext) survit
+      // ainsi comme avant ce lot, jamais perdue par le passage via DOMParser (qui, lui, sépare
+      // réellement head/body en deux arbres distincts).
+      return (parsed.head ? parsed.head.innerHTML : '') + (parsed.body ? parsed.body.innerHTML : '');
+    } catch (e) {
+      console.warn('[A7] Assainissement du HTML legacy impossible, document non affiché:', e && e.message);
+      return '';
+    }
+  }
+
   // Audit Codex A14 — retourne désormais un booléen (true = rendu affiché avec succès, false =
   // ouverture annulée, quelle que soit la raison) là où la fonction ne retournait jamais rien
   // auparavant. Aucun appelant existant ne dépendait d'une valeur de retour (tous en `await
@@ -11363,9 +11407,11 @@ ${recent}`;
     const snapshot = isLegacy ? art._adocLegacySourceSnapshot : art._adocStructuredSnapshot;
     let renderedHtml, qcBlockingCount;
     if (isLegacy) {
-      // Le HTML est déjà figé (sanitisé/réparé par adocHandleReply au moment de la génération) —
-      // jamais de re-rendu canonique, qui exigerait un ClinicalDocument qui n'existe pas ici.
-      renderedHtml = art.html || '';
+      // Le HTML est déjà figé (réparé par adocHandleReply au moment de la génération) — jamais
+      // de re-rendu canonique, qui exigerait un ClinicalDocument qui n'existe pas ici. Audit
+      // Codex A7 — assaini ICI, juste avant affichage (jamais art.html lui-même, cf. commentaire
+      // d'adocSanitizeLegacyHtmlForWorkspace ci-dessus).
+      renderedHtml = adocSanitizeLegacyHtmlForWorkspace(art.html || '');
       qcBlockingCount = 0; // pas de concept de QC bloquant pour ce moteur — jamais un état inventé
     } else {
       try {
