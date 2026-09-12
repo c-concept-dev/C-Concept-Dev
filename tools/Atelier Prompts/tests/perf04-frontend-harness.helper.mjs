@@ -15,6 +15,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 import * as fastPlane from '../workers/shared/fast-interactive-plane.js';
+import * as canonicalMapping from '../core/adn/oprie-canonical-mapping.js';
 import * as orchestrationPolicy from '../core/adn/orchestration-policy.js';
 import * as modeContracts from '../core/adn/mode-contracts.js';
 
@@ -28,7 +29,11 @@ export const FAST_ENDPOINT = 'https://atelier-decision-groq.11drumboy11.workers.
 export function arbiterTurn(state, extra = {}) {
   return {
     state,
-    operational_request_candidate: { objective: 'O.' },
+    /* 02C : un tour PRÊT dont le contrat canonique serait refusé est une contradiction. Le candidat
+       porte donc aussi expected_deliverable, sans quoi validateCanonicalContract refuse à juste
+       titre (« intent.deliverable vide sur une demande prête ») et la fixture décrirait un tour
+       impossible. Les autres états n'en ont pas besoin, et l'ajouter ne change rien pour eux. */
+    operational_request_candidate: { objective: 'O.', expected_deliverable: 'Une note de cadrage.' },
     issues: [], next_question: null, confirmation_reason: null, blocked_reason: null,
     intent_preservation: { objective_preserved: true, priorities_preserved: true, semantic_equivalence: true, concerns: [] },
     reason: 'Motif.', ...extra
@@ -52,7 +57,8 @@ const jsonResponse = (payload, status = 200) =>
  *   noRuntime      : rend le noyau PERF-03A indisponible.
  */
 export function loadPilot({ fast, deep, demande = 'Rédige une note de cadrage.', answers = [], mode = 'architecte',
-                            noFastEndpoint = false, noRuntime = false, partialPolicy = null } = {}) {
+                            noFastEndpoint = false, noRuntime = false, partialPolicy = null,
+                            canonicalRejected = false } = {}) {
   const start = html.indexOf('const OPRIE_STATES=');
   const end = html.indexOf('function v11SwitchToArchitecteFromRapid');
   if (start < 0 || end < 0) throw new Error('PERF-04 : bloc pilote introuvable dans le HTML.');
@@ -82,7 +88,17 @@ export function loadPilot({ fast, deep, demande = 'Rédige une note de cadrage.'
     decideNextOrchestrationAction: orchestrationPolicy.decideNextOrchestrationAction,
     isKnownOrchestrationAction: orchestrationPolicy.isKnownOrchestrationAction,
     /* MODE-01 : la destination d'exécution vient du contrat de mode réel. */
-    executionTargetFor: modeContracts.executionTargetFor
+    executionTargetFor: modeContracts.executionTargetFor,
+    /* 02C — LE CONTRAT CANONIQUE FAIT PARTIE DU RUNTIME QUE LE PILOTE APPELLE.
+       Le harnais ne l'exposait pas : oprieBuildCanonicalContract rendait donc TOUJOURS null, et
+       oprieEnterExecution poursuivait sur une voie non canonique — c'est exactement le fail-open
+       que 02C corrige, et le harnais le rendait indiscernable d'un comportement normal. Les deux
+       fonctions RÉELLES sont câblées ici. `canonicalRejected` ne remplace pas la validation : il
+       force son verdict à refuser, pour éprouver la branche de REFUS sans toucher la production. */
+    mapOprieToCanonicalContract: canonicalMapping.mapOprieToCanonicalContract,
+    validateCanonicalContract: canonicalRejected
+      ? () => ({ ok: false, problems: ['refus forcé par le harnais (02C)'] })
+      : canonicalMapping.validateCanonicalContract
   };
   for (const nom of absents) delete runtime[nom];
 

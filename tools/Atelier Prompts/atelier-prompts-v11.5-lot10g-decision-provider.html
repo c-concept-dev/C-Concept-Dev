@@ -21560,6 +21560,20 @@ function oprieEnterExecution(turn,requestedMode){
      même contrat de base pour Rapide et pour Architecte. */
   const canonical=oprieBuildCanonicalContract(turn);
   oprieState.canonicalContract=canonical;
+  /* 02C — UN CONTRAT CANONIQUE REFUSÉ N'EST PAS UNE PERMISSION DE CONTINUER MOINS GOUVERNÉ.
+   *
+   * oprieBuildCanonicalContract rend null dans trois cas, et AUCUN n'est une absence légitime :
+   * runtime indisponible, verdict de validation refusé, exception. La seule voie qui travaille
+   * légitimement sans contrat canonique est la vue Rapide directe, qui ne passe jamais ici.
+   * Poursuivre avec null revenait donc à livrer un prompt dont aucun contrat ne répond — et la
+   * garde posée en aval, dans le moteur, testait `rapideContratCanonique`, c'est-à-dire la valeur
+   * qu'on venait précisément d'annuler : elle ne pouvait pas se déclencher.
+   *
+   * Aucune primitive nouvelle : le refus emprunte celle que cette fonction utilise déjà trois
+   * lignes plus haut pour une destination d'exécution inconnue. L'Architecte refusait déjà le même
+   * cas de son côté (buildArchitecteContractFromTurn -> refuse('technical', …)) ; les deux modes
+   * partagent désormais l'invariant, sans partager de code. */
+  if(!canonical){oprieMark('canonical_contract_refused',{mode:requestedMode,state:turn&&turn.state||null});return oprieShowNetworkFailure()}
   /* IA-04 : le cycle d'exécution s'ouvre ICI, et nulle part ailleurs — au seul endroit du produit
      qui pose le contrat canonique. Son identifiant est technique ; il ne porte aucune sémantique. */
   oprieBeginExecutionCycle(oprieState.seq,canonical&&canonical.version||null);

@@ -6,6 +6,7 @@ import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 import * as orchestrationPolicy from '../core/adn/orchestration-policy.js';
 import * as modeContracts from '../core/adn/mode-contracts.js';
+import * as canonicalMapping from '../core/adn/oprie-canonical-mapping.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const html = fs.readFileSync(path.join(root, 'atelier-prompts-v11.5-lot10g-decision-provider.html'), 'utf8');
@@ -28,7 +29,10 @@ const ENDPOINT = 'https://atelier-decision-groq.11drumboy11.workers.dev/operatio
 function arbiterTurn(state, extra = {}) {
   return {
     state,
-    operational_request_candidate: { objective: 'O.' },
+    /* 02C : un tour PRÊT dont le contrat canonique serait refusé est une contradiction. Sans
+       expected_deliverable, validateCanonicalContract refuse à juste titre et la fixture
+       décrirait un tour impossible. */
+    operational_request_candidate: { objective: 'O.', expected_deliverable: 'Une note de cadrage.' },
     issues: [], next_question: null, confirmation_reason: null, blocked_reason: null,
     intent_preservation: { objective_preserved: true, priorities_preserved: true, semantic_equivalence: true, concerns: [] },
     reason: 'Motif.', ...extra
@@ -58,7 +62,11 @@ function loadPilot({ fetchImpl, demande = 'Rédige une note.', answers = [] } = 
     adnRuntime: () => ({
       decideNextOrchestrationAction: orchestrationPolicy.decideNextOrchestrationAction,
       isKnownOrchestrationAction: orchestrationPolicy.isKnownOrchestrationAction,
-      executionTargetFor: modeContracts.executionTargetFor
+      executionTargetFor: modeContracts.executionTargetFor,
+      /* 02C : le pilote appelle aussi le mapper canonique. Ne pas l'exposer faisait rendre null à
+         oprieBuildCanonicalContract, donc mesurait le fail-open au lieu du comportement réel. */
+      mapOprieToCanonicalContract: canonicalMapping.mapOprieToCanonicalContract,
+      validateCanonicalContract: canonicalMapping.validateCanonicalContract
     }),
     state: { answers, docs: [] },
     adpState: { pendingQuestion: false, clarifications: 0, requestedMode: 'rapide', returnFocus: null },

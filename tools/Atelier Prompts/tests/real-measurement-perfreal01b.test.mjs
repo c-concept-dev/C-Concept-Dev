@@ -293,7 +293,7 @@ test('T-PERFREAL01B-17 : l’artefact frontend n’a pas bougé', () => {
      qu'un refus de sortie fournisseur cesse d'être compté comme un défaut de notre code. Aucune
      règle, aucun prompt, aucun schéma, aucun comportement d'interface. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    'f5c15206d5aaee9b37cc032e16c1fc5375d5209961e705e0f579b3fe61bb0b67', 'CANONICAL_HTML_CHANGED = NO');
+    'd7c9e4a7ab22fc74307d741c741b1045400da2e71dea1e34994b7aaf21217486', 'CANONICAL_HTML_CHANGED = NO');
   /* Et aucune mesure navigateur n’a été inventée à la place de celle qu’on ne peut pas prendre. */
   assert.equal(M.navigateur.statut, 'NOT_AVAILABLE');
   assert.match(M.navigateur.raison, /n admet que https:\/\/c-concept-dev\.github\.io/);
