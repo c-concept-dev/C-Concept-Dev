@@ -526,17 +526,32 @@ test('T-RAPCHAR-LOCKS-b [CARACTÉRISATION — ANOMALIE ATTENDUE À ÉVOLUER] deu
  * T-RAPCHAR-15 / 16 — DÉFAUTS CONNUS AUDIT-ADN-01
  * ======================================================================= */
 
-test('T-RAPCHAR-15 [CARACTÉRISATION — ANOMALIE ATTENDUE À ÉVOLUER] un placeholder est émis alors que le prompt l’interdit et demande de le traquer', () => {
+/* 02G — L'ANOMALIE A ÉVOLUÉ, COMME SON NOM L'ANNONÇAIT.
+ *
+ * Ce test caractérisait une contradiction de l'artefact : sans matériau, la section DONNÉES SOURCES
+ * était remplie de « [coller ici le matériau à traiter, ou supprimer cette section] » — un espace
+ * réservé que le même prompt interdit et demande de traquer, et qui s'adressait à l'utilisateur de
+ * l'atelier au milieu d'un texte destiné au modèle. Il était étiqueté ANOMALIE ATTENDUE À ÉVOLUER
+ * et devait échouer le jour où elle le serait. Ce jour est celui de 02G.
+ *
+ * Ce qui est éprouvé désormais : une section de données n'existe que s'il y a des données, et
+ * l'absence d'un matériau requis par le format n'est pas passée sous silence pour autant — elle
+ * reste traitée par le contrat produit existant, qui nomme le cas « source non fournie ». Les deux
+ * interdictions d'espace réservé restent vérifiées : c'est avec elles que l'artefact se contredisait. */
+test('T-RAPCHAR-15 sans matériau, aucune section de données n’est fabriquée, et l’artefact ne se contredit plus', () => {
   const r = runRapidePipeline({ demande: 'Produis un JSON valide avec les champs nom, objectif, risques.' });
 
-  const donnees = sectionBody(r.promptFinal, 'DONNÉES SOURCES');
-  assert.match(donnees, /\[coller ici le matériau à traiter, ou supprimer cette section\]/,
-    'CURRENT_BEHAVIOR : sans matériau, la section est remplie d’un espace réservé');
+  assert.equal(sectionTitles(r.promptFinal).includes('DONNÉES SOURCES'), false,
+    'aucune donnée fournie : la section n’a pas lieu d’être');
+  assert.doesNotMatch(r.promptFinal, /\[coller ici le matériau à traiter, ou supprimer cette section\]/,
+    'et plus aucun espace réservé n’est émis');
 
   assert.match(sectionBody(r.promptFinal, 'INTERDICTIONS'), /Pas d’espace réservé/,
-    'le même prompt interdit explicitement les espaces réservés');
+    'le prompt interdit toujours explicitement les espaces réservés');
   assert.match(sectionBody(r.promptFinal, 'VÉRIFICATION AVANT ENVOI'), /Reste-t-il un espace réservé/,
-    'et demande d’en vérifier l’absence : l’artefact se contredit lui-même');
+    'et demande toujours d’en vérifier l’absence — sans plus se contredire lui-même');
+  /* L'absence d'un matériau exigé par le format reste énoncée, là où le produit le fait déjà. */
+  assert.match(sectionBody(r.promptFinal, 'INFORMATIONS MANQUANTES'), /source non fournie/);
 });
 
 test('T-RAPCHAR-16 [CARACTÉRISATION — ANOMALIE ATTENDUE À ÉVOLUER] les champs JSON demandés sont écrasés par un schéma générique imposé', () => {

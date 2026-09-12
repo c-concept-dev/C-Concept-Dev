@@ -190,7 +190,7 @@ test('T-02G-10 : une demande banale ne contient aucune assertion de domaine hér
   }
 });
 
-test('T-02G-15 : tout projecteur reçoit le contexte — aucun ne peut plus parler sans source', () => {
+test('T-02G-16 : tout projecteur reçoit le contexte — aucun ne peut plus parler sans source', () => {
   /* La cause racine était mesurable ainsi : `perimetre` était d'arité 0, seul parmi les treize.
      Un projecteur qui ne reçoit rien ne peut rien sourcer. */
   const h = createRapideHarness({ demande: 'x' });
@@ -234,12 +234,97 @@ test('T-02G-13 : smoke S3 — correction d’un texte fourni', () => {
 });
 
 /* ==========================================================================
- * T-02G-14 — LA COUVERTURE N'AFFIRME PAS DE DONNÉES SOURCES INEXISTANTES
+ * T-02G-14 / 15 / 17 / 18 — SOURCE_COVERAGE_WITHOUT_SOURCE
+ *
+ * « Une règle qui dépend de données sources ne peut exister dans le prompt que si ces données
+ * sources existent réellement. » La manifestation signalée — « Couverture : 100 % des éléments
+ * présents dans les données sources » sans matériau — appartient à la famille déjà traitée dans ce
+ * lot. Le balayage des formulations ÉQUIVALENTES en a révélé deux autres, dont une écrite par ce
+ * lot lui-même.
  * ======================================================================= */
 
-test('T-02G-14 : la ligne de couverture ne parle de données sources que s’il en existe', () => {
-  const sans = jouer(['Le nombre d’idées doit être exactement 7'], 'Donne exactement 7 idées de cadeaux');
-  assert.doesNotMatch(quantifiees(sans.promptFinal), /données sources/,
-    'aucun matériau : la couverture porte sur ce qui est demandé');
-  assert.match(quantifiees(sans.promptFinal), /Traitez la totalité de ce qui est demandé/);
+/* Toute formulation du prompt qui suppose l'existence d'une source. */
+const SUPPOSE_UNE_SOURCE = [
+  /100 % des éléments présents dans les données sources/,
+  /couvrir toutes les données sources/i,
+  /le matériau fourni/i,
+  /les données fournies/i,
+  /ou par le matériau/,
+  /comme une donnée fournie/,
+  /du matériau à traiter/,
+  /\[coller ici le matériau/
+];
+
+test('T-02G-14 : sans matériau, aucune instruction ne suppose de données sources', () => {
+  for (const [contraintes, demande] of [
+    [['Le nombre d’idées doit être exactement 7'], 'Donne exactement 7 idées de cadeaux'],
+    [[], 'Compare le train et l’avion en tableau'],
+    [['5 séances exactement'], 'Fais-moi un plan de révision en 5 séances'],
+    [[], 'Explique la photosynthèse simplement']
+  ]) {
+    const prompt = jouer(contraintes, demande).promptFinal;
+    for (const re of SUPPOSE_UNE_SOURCE) {
+      assert.doesNotMatch(prompt, re, `« ${demande} » — aucun matériau, donc aucune source supposée`);
+    }
+    assert.match(quantifiees(prompt) + sectionBody(prompt, 'INTERDICTIONS'),
+      /Traitez la totalité de ce qui est demandé|Pas de résumé/,
+      'l’exigence d’exhaustivité subsiste, portée sur ce qui est demandé');
+  }
+});
+
+test('T-02G-15 : avec un matériau réel, la discipline de couverture peut rester', () => {
+  const p = jouer(['Le nombre de sections doit être exactement 3'],
+    'Résume ce texte en 3 sections', 'Le télétravail s’est développé très vite depuis 2020.');
+  const prompt = p.promptFinal;
+  assert.ok(sectionTitles(prompt).includes('DONNÉES SOURCES'), 'prémisse : le matériau est là');
+  /* La couverture porte alors sur des données qui existent — et aucune provenance n’est inventée
+     pour autant : ni titre d’accès, ni origine, ni usage. */
+  const prov = provenance(prompt);
+  assert.equal(prov.includes('Titre d’accès'), false);
+  assert.equal(prov.includes('Origine :'), false);
+  assert.equal(prov.includes('Usage du livrable :'), false);
+  assert.match(prov, /est fourni dans ce prompt/, 'le matériau réel peut être déclaré fourni');
+});
+
+test('T-02G-17 : un format qui exige des données n’en fabrique pas pour autant', () => {
+  /* `T-RAPCHAR-15` avait nommé ce défaut « ANOMALIE ATTENDUE À ÉVOLUER » : sans matériau, la
+     section était remplie d’un espace réservé que le même prompt interdit et demande de traquer,
+     et qui s’adressait à l’utilisateur de l’atelier, pas au modèle. */
+  for (const demande of [
+    'Donne-moi un objet JSON décrivant une fiche produit',
+    'Écris une fonction JavaScript qui valide une adresse e-mail',
+    'Produis un JSON valide avec les champs nom, objectif, risques.'
+  ]) {
+    const prompt = runRapidePipeline({ demande }).promptFinal;
+    assert.equal(sectionTitles(prompt).includes('DONNÉES SOURCES'), false,
+      `« ${demande} » : aucune donnée fournie, donc aucune section de données`);
+    assert.doesNotMatch(prompt, /\[coller ici le matériau/);
+    /* L’absence n’est pas passée sous silence : le contrat produit existant s’en charge. */
+    assert.match(sectionBody(prompt, 'INFORMATIONS MANQUANTES'), /source non fournie/,
+      'la section INFORMATIONS MANQUANTES nomme déjà le cas');
+  }
+});
+
+test('T-02G-18 : la discipline de provenance ne suppose un matériau que s’il y en a un', () => {
+  /* Le verrou provenance est levé par des faits externes à rechercher — c'est ce qui s'est passé
+     sur la comparaison train / avion : l'Arbitre réel en avait relevé quatre. On reproduit cette
+     condition, sinon le verrou n'est pas sélectionné et le test passerait par vacuité. */
+  const turn = oprieReadyTurn({ state: 'operational_request_ready' });
+  turn.operational_request_candidate = {
+    ...turn.operational_request_candidate,
+    expected_deliverable: 'Un tableau comparatif.',
+    external_facts_to_research: ['Durées de trajet typiques', 'Fourchettes de prix habituelles']
+  };
+  const base = canonicalFrom(turn, { request_id: '02g-18', original_request: 'Compare le train et l’avion en tableau' });
+  const p = runRapidePipeline({
+    demande: 'Compare le train et l’avion en tableau',
+    orientation: { source: 'oprie', route: 'rapide', oprie: { state: base.executability.oprie_state },
+      canonical: base, envelope: null, semantic: null, providerResult: null, action: null, decision: { state: 'ready' } }
+  });
+  const sans = provenance(p.promptFinal);
+  assert.notEqual(sans, '', 'prémisse : le verrou provenance est bien sélectionné');
+  const avec = provenance(jouer([], 'Corrige les fautes de ce texte', 'Un texte avec des faute.').promptFinal);
+  assert.match(sans, /Distinguez ce qui est établi par la demande de ce que vous apportez/);
+  assert.doesNotMatch(sans, /ou par le matériau/);
+  assert.match(avec, /Distinguez ce qui est établi par la demande ou par le matériau/);
 });

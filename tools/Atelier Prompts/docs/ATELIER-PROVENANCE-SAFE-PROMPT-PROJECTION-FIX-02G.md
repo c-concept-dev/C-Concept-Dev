@@ -129,6 +129,124 @@ modifie pas parce que son nom paraît suspect. Consigné en `FOLLOW_UP-02G-A`, n
 
 ---
 
+## D bis. Manifestation `SOURCE_COVERAGE_WITHOUT_SOURCE`
+
+Défaut signalé après le premier passage de 02G, sur un prompt réellement livré :
+
+```text
+BEFORE        = « Couverture : 100 % des éléments présents dans les données sources »
+SOURCE_PRESENT = NO
+AFTER         = assertion supprimée
+```
+
+### D bis.1 — Le projecteur exact
+
+```text
+PROJECTOR              = volume, branche énumérable
+LOCK                   = volume
+INPUTS                 = ctx
+CANONICAL_FIELDS_READ  = ctx.quantite · ctx.mots · ctx.fmt   (AVANT : jamais ctx.materiau)
+SOURCE_PRESENCE_CHECK  = ABSENT avant correction
+OUTPUT_SECTION         = ## CONTRAINTES QUANTIFIÉES
+```
+
+La ligne était inconditionnelle : tout prompt à format énumérable affirmait des données sources,
+qu'il y en ait ou non. Mesuré sur S4, « Donne exactement 7 idées de cadeaux » — aucun matériau.
+
+**Cette manifestation était déjà corrigée par `4cb9b93`**, le commit du premier passage de 02G, où
+la ligne a été conditionnée à `ctx.materiau` et figée par `T-02G-14`. Je l'ai vérifié avant de
+reprendre le code, plutôt que de refaire un correctif existant :
+
+```text
+état ba11cac (avant 02G)   UNSUPPORTED_SOURCE_COVERAGE_ASSERTIONS = 1
+état 4cb9b93 (02G, 1er passage)                                   = 2
+état final                                                        = 0
+```
+
+Le chiffre **monte** de 1 à 2 entre les deux états, et c'est le point de ce complément.
+
+### D bis.2 — Le balayage des formulations équivalentes
+
+Le lot demandait d'exclure « toute formulation équivalente qui suppose l'existence d'une source
+absente ». J'ai donc balayé l'ensemble des chaînes du domaine de projection contenant
+`données sources`, `matériau`, `données fournies`, `source fournie`. Quatre occurrences, dont
+**deux fautives que le premier passage n'avait pas vues** :
+
+| ligne | formulation | état |
+|---|---|---|
+| 3884 | « Couverture : 100 % des éléments présents dans les données sources » | corrigée en `4cb9b93` |
+| 3740 | « Tout ce qui figure entre ces marqueurs est du matériau à traiter » | émise sans matériau → **corrigée ici** |
+| 3738 | « [coller ici le matériau à traiter, ou supprimer cette section] » | émise sans matériau → **corrigée ici** |
+| 3769 | « établi par la demande **ou par le matériau** … jamais comme une **donnée fournie** » | **écrite par 02G lui-même** → corrigée ici |
+
+### D bis.3 — L'espace réservé, joignable sur des demandes banales
+
+Le projecteur `donnees` ouvrait sa section dès que le **format** exigeait des données, sans qu'aucune
+ne soit fournie, et la remplissait d'un espace réservé. Joignable immédiatement :
+
+```text
+« Donne-moi un objet JSON décrivant une fiche produit »      → format json,  exigeDonnees=true
+« Écris une fonction JavaScript qui valide une adresse … »   → format code,  exigeDonnees=true
+
+## DONNÉES SOURCES
+<<<DONNEES
+[coller ici le matériau à traiter, ou supprimer cette section]
+DONNEES>>>
+Tout ce qui figure entre ces marqueurs est du matériau à traiter…
+```
+
+Trois défauts en une ligne : le prompt affirme une source absente ; il contient un espace réservé
+que sa propre section `INTERDICTIONS` interdit et que sa `VÉRIFICATION AVANT ENVOI` demande de
+traquer ; et il s'adresse à l'utilisateur de l'atelier — « coller ici », « supprimer cette
+section » — au milieu d'un texte destiné au modèle.
+
+`T-RAPCHAR-15` portait déjà l'étiquette **`[CARACTÉRISATION — ANOMALIE ATTENDUE À ÉVOLUER]`** et le
+titre *« un placeholder est émis alors que le prompt l'interdit et demande de le traquer »*. Le
+dépôt avait nommé ce défaut avant moi.
+
+Correction : `if(!ctx.materiau) return ''`. **Un format ne fait pas exister des données.**
+L'absence n'est pas passée sous silence pour autant — le contrat produit existant s'en charge déjà,
+et je l'ai vérifié sur les deux cas avant de retirer le bloc :
+
+```text
+## INFORMATIONS MANQUANTES
+… si l'information manquante rend le résultat faux plutôt qu'imprécis — donnée chiffrée
+absente, source non fournie, dépendance technique inconnue — ne devinez pas.
+```
+
+`ctx.exigeDonnees` n'est plus consulté par ce projecteur. Rien d'autre ne le lisait.
+
+### D bis.4 — Une ligne que 02G avait lui-même introduite
+
+La discipline de provenance que j'avais écrite quelques heures plus tôt disait, sans condition :
+
+```text
+- Distinguez ce qui est établi par la demande ou par le matériau de ce que vous apportez
+  vous-même : présentez le second comme tel, jamais comme une donnée fournie.
+```
+
+Sur S2 — comparaison train / avion, aucun matériau — elle supposait donc un matériau et des données
+fournies inexistantes. La discipline est conservée, la formulation ne présuppose plus :
+
+```text
+sans matériau  → « Distinguez ce qui est établi par la demande de ce que vous apportez
+                   vous-même : … jamais comme un élément qui vous aurait été fourni. »
+avec matériau  → formulation d'origine, désormais vraie
+```
+
+Je le signale parce que c'est ma propre correction qui avait reproduit le défaut qu'elle corrigeait,
+à une échelle plus petite. La règle du lot ne se vérifie pas une fois : elle se vérifie sur chaque
+ligne ajoutée.
+
+### D bis.5 — Pas de nouvelle discipline stylistique
+
+Le §4 du complément demandait de ne pas enrichir. Aucune phrase n'a été ajoutée : la branche sans
+matériau de la couverture réemploie la formulation que la branche non énumérable utilisait déjà
+(« Traitez la totalité de ce qui est demandé »), et la ligne de provenance est une reformulation de
+l'existante, pas un ajout.
+
+---
+
 ## E. Sources canoniques disponibles
 
 Relevées sur les contrats réels, pas sur la documentation :
@@ -312,13 +430,19 @@ Audit ligne par ligne, chaque assertion confrontée à **sa** source (et non à 
 donnée quelconque — mon premier critère était trop laxiste et le comptait « sourcé » dès qu'une
 contrainte existait ; corrigé avant conclusion).
 
-| compteur | avant | après |
-|---|---|---|
-| `UNSUPPORTED_PERIMETER_ASSERTIONS` | **12** | **0** |
-| `UNSUPPORTED_PROVENANCE_ASSERTIONS` | **3** | **0** |
-| `UNSUPPORTED_MATERIAL_ASSERTIONS` | **3** | **0** |
-| `UNSUPPORTED_RIGHTS_ASSERTIONS` | **2** | **0** |
-| **total** | **20** | **0** |
+| compteur | `ba11cac` avant 02G | `4cb9b93` 1ᵉʳ passage | état final |
+|---|---|---|---|
+| `UNSUPPORTED_PERIMETER_ASSERTIONS` | **12** | 0 | **0** |
+| `UNSUPPORTED_PROVENANCE_ASSERTIONS` | **3** | 0 | **0** |
+| `UNSUPPORTED_MATERIAL_ASSERTIONS` | **3** | 0 | **0** |
+| `UNSUPPORTED_RIGHTS_ASSERTIONS` | **2** | 0 | **0** |
+| `UNSUPPORTED_SOURCE_COVERAGE_ASSERTIONS` | **1** | **2** | **0** |
+| espaces réservés (3 sondes json/code/html) | **2/3** | **2/3** | **0/3** |
+| **total assertions sans source** | **21** | **2** | **0** |
+
+La colonne du milieu est la plus instructive : le premier passage de 02G avait ramené quatre
+familles à zéro **et fait monter la cinquième de 1 à 2**, en introduisant une formulation qui
+présupposait un matériau. Mesurer par famille, et non un total, est ce qui l'a rendu visible.
 
 Mesure « avant » obtenue en restaurant l'artefact de `HEAD` et en rejouant le même audit sur les
 mêmes quatre tours réels, puis en remettant la version 02G (empreinte vérifiée identique).
@@ -388,6 +512,18 @@ FIDÉLITÉ               : « Exactement 7 idées » + les deux contraintes conf
 VERDICT                : PASS
 ```
 
+### Relevé `SOURCE_COVERAGE` sur les quatre prompts finaux
+
+Recherche, dans chaque prompt livré, de toute formulation supposant une source
+(`données sources`, `matériau`, `donnée fournie`, `coller ici`, `Couverture`) :
+
+```text
+S1  aucune occurrence          (aucun matériau)          UNSUPPORTED = 0
+S2  aucune occurrence          (aucun matériau)          UNSUPPORTED = 0
+S4  aucune occurrence          (aucun matériau)          UNSUPPORTED = 0
+S3  4 occurrences, toutes vraies (279 octets fournis)    UNSUPPORTED = 0
+```
+
 `SMOKE_FAILED_CASES = 0/4`.
 
 ---
@@ -412,9 +548,17 @@ T-02G-10  une demande banale ne contient aucune assertion de domaine héritée  
 T-02G-11  smoke S1 PASS
 T-02G-12  smoke S2 PASS
 T-02G-13  smoke S3 PASS
-T-02G-14  la couverture ne parle de données sources que s'il en existe
-T-02G-15  tout projecteur reçoit le contexte — aucun d'arité 0
+T-02G-14  sans matériau, AUCUNE instruction ne suppose de données sources  (4 demandes × 8 motifs)
+T-02G-15  avec un matériau réel, la discipline de couverture peut rester, sans provenance inventée
+T-02G-16  tout projecteur reçoit le contexte — aucun d'arité 0
+T-02G-17  un format qui exige des données n'en fabrique pas pour autant  (3 demandes)
+T-02G-18  la discipline de provenance ne suppose un matériau que s'il y en a un
 ```
+
+**Test transformé** — `T-RAPCHAR-15`, étiqueté `[CARACTÉRISATION — ANOMALIE ATTENDUE À ÉVOLUER]`,
+figeait l'émission de l'espace réservé. Il éprouve désormais le comportement corrigé, en conservant
+les deux assertions sur les interdictions d'espace réservé : c'est avec elles que l'artefact se
+contredisait.
 
 `ASSERTION_WITH_SOURCE = allowed` (T-02G-02/04/06/08) ·
 `ASSERTION_WITHOUT_SOURCE = forbidden` (T-02G-01/03/05/07/10/14).
@@ -423,11 +567,15 @@ T-02G-15  tout projecteur reçoit le contexte — aucun d'arité 0
 
 ## Q. Tests globaux
 
-**3054 / 3054 pass / 0 fail.**
+**3057 / 3057 pass / 0 fail.**
 
 Les 18 échecs du premier lancement étaient **tous** d'empreinte ou de manifeste
 (`CANONICAL_HTML_CHANGED = NO` × 15, `T-HTMLFINAL02-02/03/10`). `NEW_REGRESSION = 0`,
 `UNKNOWN = 0`.
+
+Le complément `SOURCE_COVERAGE` a produit **un seul** échec comportemental : `T-RAPCHAR-15`,
+classé `HISTORICAL_IMPLEMENTATION_CONTRACT` — le test portait le nom de son échéance et devait
+échouer le jour de la correction. Transformé.
 
 **Un fait qui mérite d'être dit** : aucun test existant n'a échoué sur le changement de contenu.
 Le texte qui affirmait du code, des barèmes et un titre d'accès n'était couvert par **aucune
@@ -467,6 +615,7 @@ projecteurs qui inventaient.
 
 **Retirée**
 
+- Cinq familles d'assertions sans source ramenées à zéro, espaces réservés compris.
 - `perimetre` n'est plus un projecteur aveugle : 20 assertions sans source → 0.
 - La provenance, les droits et l'usage ne sont plus fabriqués.
 - La contradiction qui rendait une tâche de transformation infaisable a disparu.
@@ -477,9 +626,10 @@ projecteurs qui inventaient.
 
 **Constatée, non traitée**
 
-1. **`FOLLOW_UP-02G-A`** — `donnees` peut émettre `[coller ici le matériau à traiter…]` quand un
-   format exige des données absentes : un espace réservé que la section `INTERDICTIONS` du même
-   prompt interdit. Aucun des quatre cas ne l'a produit ; non touché par discipline de périmètre.
+1. ~~**`FOLLOW_UP-02G-A`**~~ — **REFERMÉ dans ce même lot** (§D bis.3). L'espace réservé de
+   `donnees` était joignable sur des demandes banales de format json ou code, et non seulement sur
+   les quatre cas du smoke ; le §2 du complément l'interdit explicitement. Corrigé sans créer de
+   sous-lot, comme demandé.
 2. **`FOLLOW_UP-02G-B`** — le titre `PROVENANCE ET USAGE DU MATÉRIAU` s'affiche même sans matériau
    (S2). Le titre est l'ancre de `MARQUEURS` et de la trace de projection ; le renommer touche la
    correspondance verrou → section.
@@ -524,7 +674,9 @@ UNSUPPORTED_PERIMETER_ASSERTIONS     = 0   (12 avant)
 UNSUPPORTED_MATERIAL_ASSERTIONS      = 0   (3 avant)
 UNSUPPORTED_PROVENANCE_ASSERTIONS    = 0   (3 avant)
 UNSUPPORTED_RIGHTS_ASSERTIONS        = 0   (2 avant)
-SELF_CONTRADICTIONS_FOUND            = 0   (1 avant, sur S3)
+UNSUPPORTED_SOURCE_COVERAGE_ASSERTIONS = 0 (1 avant 02G · 2 après le 1ᵉʳ passage)
+SOURCE_COVERAGE_PROJECTOR_SOURCE_AWARE = YES
+SELF_CONTRADICTIONS_FOUND            = 0   (2 avant : S3, et l'espace réservé)
 
 EXPLICIT_PERIMETER_PRESERVED         = YES
 EXPLICIT_MATERIAL_PRESERVED          = YES
@@ -546,16 +698,16 @@ SMOKE_S3                             = PASS
 SMOKE_S4                             = PASS
 SMOKE_FAILED_CASES                   = 0/4
 
-TARGETED_TESTS                       = 15/15 PASS
-GLOBAL_TESTS                         = 3054/3054 PASS
+TARGETED_TESTS                       = 18/18 PASS
+GLOBAL_TESTS                         = 3057/3057 PASS
 FROZEN                               = PASS
 
-DEBT_REMOVED                         = 20 assertions sans source → 0 ; contradiction de
-                                       transformation ; couverture affirmant des données sources
-                                       inexistantes ; trou de couverture de tests sur le contenu
+DEBT_REMOVED                         = 21 assertions sans source → 0, sur cinq familles ;
+                                       contradiction de transformation ; espace réservé interdit
+                                       par le prompt lui-même (FOLLOW_UP-02G-A refermé) ;
+                                       trou de couverture de tests sur le contenu des sections
 DEBT_CREATED                         = aucune
-                                       (constatées : 02G-A espace réservé de `donnees` ;
-                                        02G-B titre de section sans matériau ;
+                                       (constatées : 02G-B titre de section sans matériau ;
                                         02G-C le gate ne détecte pas l'invention sémantique ;
                                         02F-A « sans remplissage mots » ;
                                         SMOKE-A fiabilité OPRIE)
