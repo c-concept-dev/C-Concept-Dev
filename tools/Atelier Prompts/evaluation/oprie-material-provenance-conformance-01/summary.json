@@ -1,0 +1,121 @@
+{
+ "lot": "OPRIE-MATERIAL-PROVENANCE-CONFORMANCE-01",
+ "objet": "mesurer la conformite reelle de l Analyste a contrat et code constants",
+ "mesure_le": "2026-09-05",
+ "configuration_figee": {
+  "provider": "anthropic (epingle via DEEP_BENCH_PROVIDER, retire apres la mesure)",
+  "model": "claude-sonnet-4-6",
+  "temperature": 0,
+  "role_max_output_units": 2048,
+  "timeout_ms": 60000,
+  "worker_version": "fe798162-ede5-4448-9982-64d80bf4f8af",
+  "cadence_ms_entre_tours": 15000,
+  "code_produit_modifie": "instrumentation metadata-only uniquement — aucune modification comportementale",
+  "artefact_sha256_avant_et_apres": "5260458b — identique, aucune mutation pendant la mesure"
+ },
+ "cas_synthetique": {
+  "original_request": "Extrais le numero de dossier du materiau disponible et donne-le tel quel.",
+  "material_context": {
+   "present": true,
+   "deep_content_available": true
+  },
+  "material_content": [
+   "Fiche de suivi / NUMERO_DOSSIER = ZX-4821 / Statut : en cours"
+  ],
+  "identique_a_chaque_tour": true
+ },
+ "populations": {
+  "total": 30,
+  "semantiquement_evaluables": 30,
+  "techniquement_degrades": 0
+ },
+ "taux": {
+  "fact_extraction": {
+   "count": 16,
+   "n": 30,
+   "rate_pct": 53.3
+  },
+  "fact_in_candidate_cote_analyste": {
+   "count": 16,
+   "n": 30,
+   "rate_pct": 53.3,
+   "note": "un enregistrement de provenance n existe que pour une valeur inscrite dans le candidat ; l Arbitre, lui, ne conserve la valeur dans AUCUN des 30 tours"
+  },
+  "correct_provenance": {
+   "count": 16,
+   "n": 30,
+   "rate_pct": 53.3
+  },
+  "critic_acceptance": {
+   "count": 0,
+   "n": 30,
+   "rate_pct": 0.0
+  },
+  "final_success": {
+   "count": 0,
+   "n": 30,
+   "rate_pct": 0.0
+  },
+  "technical_degraded": {
+   "count": 0,
+   "n": 30,
+   "rate_pct": 0.0
+  }
+ },
+ "taux_conditionnels": {
+  "P_provenance_correcte_sachant_fait_dans_candidat": {
+   "count": 16,
+   "n": 16,
+   "rate_pct": 100.0,
+   "lecture": "emission et lecture coincident EXACTEMENT : 16 tours lisent et 16 tours emettent, sans une seule exception dans un sens ou dans l autre"
+  },
+  "P_critique_accepte_sachant_provenance_correcte": {
+   "count": 0,
+   "n": 16,
+   "rate_pct": 0.0
+  },
+  "P_succes_final_sachant_critique_accepte": {
+   "count": 0,
+   "n": 0,
+   "rate_pct": null
+  }
+ },
+ "taxonomie_echecs": {
+  "A_material_reading_failure": 14,
+  "B_fact_candidate_write_failure": 0,
+  "C_provenance_emission_failure": 0,
+  "D_critic_acceptance_failure": 16,
+  "E_arbiter_failure": 0,
+  "F_other_semantic": 0
+ },
+ "familles_de_veto": {
+  "ancienne_regle_deux_sources": 2,
+  "materiau_declare_absent": 15,
+  "disponibilite_non_confirmee": 5,
+  "autre": 7,
+  "objection_de_phase_legitime": 1
+ },
+ "familles_parmi_les_16_conformes": {
+  "ancienne_regle_deux_sources": 2,
+  "disponibilite_non_confirmee": 3,
+  "autre": 5,
+  "materiau_declare_absent": 5,
+  "objection_de_phase_legitime": 1
+ },
+ "etats_finaux": {
+  "blocked": 18,
+  "clarification_required": 10,
+  "confirmation_required": 2,
+  "operational_request_ready": 0
+ },
+ "stabilite_de_la_valeur": {
+  "exacte": 16,
+  "extraites": 16,
+  "verdict": "PASS — aucune variante, aucune reformulation"
+ },
+ "provider_purete": {
+  "tours_entierement_anthropic": 30,
+  "n": 30
+ },
+ "correction_du_lot_precedent": "OPRIE-MATERIAL-PROVENANCE-02 concluait a une emission de provenance non fiable, sur trois tours. Sur trente, l emission est parfaitement fiable CONDITIONNELLEMENT a la lecture (16/16). L instabilite porte sur la LECTURE du materiau, pas sur l ecriture de la provenance. Le succes final 1/3 observe alors n a pas ete reproduit : 0/30."
+}

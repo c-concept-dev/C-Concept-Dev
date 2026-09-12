@@ -1,0 +1,97 @@
+{
+  "started_at": "2026-08-28T07:24:51.676Z",
+  "completed_at": "2026-08-28T07:24:56.909Z",
+  "html_sha256": "757ad74d70ffeaff8c3c9e2a09d8c3aa9bbbcbcc52d0cae9923f54e7a28f2a06",
+  "latency_total_ms": 5233.232,
+  "time_to_first_useful_result_ms": 5233.241,
+  "route_finale": "rapide",
+  "moteur_final": "rapide",
+  "decision_source": "groq",
+  "decision": {
+    "etat_demande": "exploitable",
+    "route": "rapide",
+    "confiance": "haute",
+    "raison_interne": "La demande est exploitable et peut être exécutée directement sans arbitrage structurel préalable.",
+    "question": null
+  },
+  "decision_provider_calls": [
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:24:52.233Z",
+      "latency_ms": 195.589,
+      "status_http": 502,
+      "request": {
+        "demande": "Rédige un courriel poli de 120 mots maximum pour demander à un fournisseur de confirmer une date de livraison annoncée pour le 15 septembre.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "error": "provider_failure",
+        "message": "Le fournisseur de décision n’est pas disponible."
+      },
+      "error": null
+    },
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:24:52.429Z",
+      "latency_ms": 565.598,
+      "status_http": 200,
+      "request": {
+        "demande": "Rédige un courriel poli de 120 mots maximum pour demander à un fournisseur de confirmer une date de livraison annoncée pour le 15 septembre.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "etat_demande": "exploitable",
+        "route": "rapide",
+        "confiance": "haute",
+        "raison_interne": "La demande est exploitable et peut être exécutée directement sans arbitrage structurel préalable.",
+        "question": null
+      },
+      "error": null
+    }
+  ],
+  "decision_provider_latency_ms": 761.187,
+  "clarifications": [],
+  "nombre_reanalyses": 0,
+  "engine": {
+    "engine": "rapide",
+    "latency_ms": 23.612,
+    "format": "email",
+    "niveau": "minimal",
+    "prompt": "## RÔLE\nVous produisez un livrable de type : courriel professionnel.\nVous êtes évalué sur la conformité au format et sur la justesse du registre, non sur la qualité de la conversation.\n\n## TÂCHE\nRédige un courriel poli de 120 mots maximum pour demander à un fournisseur de confirmer une date de livraison annoncée pour le 15 septembre.\n\n## FORMAT DE SORTIE\n- Livrable : courriel professionnel\n- Validité : Vouvoiement, registre professionnel, aucune mention de brouillon.\n- Aucun contenu en dehors du livrable.\n\n## AMORCE ET CLÔTURE\n- Premier caractère de votre réponse : Objet :\n- Dernier élément de votre réponse : la formule de politesse\n- Rien avant, rien après.\n\n## INTERDICTIONS\n- Pas de préambule, pas de reformulation de la demande, pas d’accusé de réception.\n- Aucune adresse à l’utilisateur de l’atelier : le message s’adresse uniquement à son destinataire final. Une formule de politesse ou une question de relance restent légitimes si le format les appelle.\n- Pas de commentaire sur votre propre production ni sur vos limites.\n- Pas d’espace réservé : ni « … », ni « etc. », ni « à compléter », ni « et ainsi de suite ».\n- Pas de résumé en lieu et place du contenu demandé.\n\n## VÉRIFICATION AVANT ENVOI\nContrôlez silencieusement, puis corrigez avant d’écrire. N’affichez pas cette vérification.\n1. La réponse commence-t-elle par Objet : ?\n2. Le volume tient-il dans la fourchette indiquée (150 à 300 mots) sans remplissage ?\n3. Subsiste-t-il un préambule ou une conclusion hors sujet ? Le cas échéant, supprimez-les.\n4. Le format est-il valide ? Vouvoiement, registre professionnel, aucune mention de brouillon.\n5. Reste-t-il un espace réservé ou une abréviation de contenu ?"
+  },
+  "final_call": {
+    "timestamp": "2026-08-28T07:24:56.900Z",
+    "endpoint": "/v1/responses",
+    "status_http": 200,
+    "latency_ms": 3880.189,
+    "response_id": "resp_0b39802c2b5fd3ea006a9137c520e487d291254f989deaad21",
+    "response_status": "completed",
+    "model_requested": "gpt-5.6-sol",
+    "model_returned": "gpt-5.6-sol",
+    "usage": {
+      "input_tokens": 442,
+      "output_tokens": 158,
+      "total_tokens": 600,
+      "reasoning_tokens": 59
+    },
+    "estimated_cost_usd": 0.004928,
+    "incomplete_details": null,
+    "error": null,
+    "output": "Objet : Confirmation de la date de livraison du 15 septembre\n\nMadame, Monsieur,\n\nNous vous contactons afin de confirmer la date de livraison annoncée pour le 15 septembre concernant notre commande en cours.\n\nPourriez-vous nous indiquer si cette échéance est toujours maintenue et nous communiquer, le cas échéant, les informations relatives à l’expédition et au suivi de la livraison ?\n\nNous vous remercions par avance pour votre confirmation.\n\nCordialement,"
+  },
+  "output": "Objet : Confirmation de la date de livraison du 15 septembre\n\nMadame, Monsieur,\n\nNous vous contactons afin de confirmer la date de livraison annoncée pour le 15 septembre concernant notre commande en cours.\n\nPourriez-vous nous indiquer si cette échéance est toujours maintenue et nous communiquer, le cas échéant, les informations relatives à l’expédition et au suivi de la livraison ?\n\nNous vous remercions par avance pour votre confirmation.\n\nCordialement,",
+  "total_llm_calls": 3,
+  "gpt_usage": {
+    "input_tokens": 442,
+    "output_tokens": 158,
+    "total_tokens": 600,
+    "estimated_cost_usd": 0.004928
+  },
+  "fallback": true,
+  "retries": 0,
+  "error": null
+}

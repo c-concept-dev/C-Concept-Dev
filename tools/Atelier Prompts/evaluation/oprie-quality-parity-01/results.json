@@ -1,0 +1,772 @@
+{
+ "lot": "OPRIE-QUALITY-PARITY-01",
+ "objet": "comparaison de qualite du plan profond, Groq vs Anthropic, a parite de corpus, de roles et de contrats",
+ "mesure_le": "2026-09-05",
+ "worker": "atelier-decision-groq",
+ "deploiements": {
+  "support_epinglage": "11aa5ee7-8b47-42ef-bc0f-6395e055360a",
+  "run_groq": "2bf4c147-d8ba-4579-ab41-e4a14c67c1a7",
+  "run_anthropic": "e03b72b0-f60e-48d5-bcfb-802c7b85d241"
+ },
+ "methode": {
+  "similarite_textuelle_utilisee": false,
+  "embeddings_utilises": false,
+  "juge_llm_utilise": false,
+  "seuil_semantique_arbitraire_count": 0,
+  "principe": "comparaison STRUCTURELLE et deterministe du comportement gouverne : etat OPRIE, presence de question, issues et leurs traitements, preservation d intention, validite de schema, fiabilite. Jamais la formulation.",
+  "verite_terrain": "le corpus porte un oracle {route, question_required}. Seul question_required est utilise, et uniquement pour la dimension a laquelle il correspond : une question doit-elle etre posee a ce tour. Aucune verite terrain n existe pour ready / confirmation / blocked.",
+  "limite_de_l_oracle": "cet oracle a ete ecrit pour le contrat /decision (route rapide vs architecte), non pour les etats OPRIE. Son usage est donc restreint a la seule dimension ou la correspondance est directe."
+ },
+ "corpus": {
+  "id": "evaluation/corpus-lot10g2a.json",
+  "fixtures": 12,
+  "categories": 5,
+  "oracles": {
+   "rapide_sans_question": 5,
+   "architecte_sans_question": 3,
+   "architecte_avec_question": 4
+  }
+ },
+ "configuration": {
+  "groq_model": "openai/gpt-oss-20b",
+  "anthropic_model": "claude-sonnet-4-6",
+  "max_output_tokens": "identique — plafonds de role inchanges",
+  "schemas": "identiques — memes contrats de role",
+  "prompts": "identiques — aucun prompt modifie",
+  "espacement_ms": 90000,
+  "asymetrie_assumee": "les politiques de reprise different par construction : Groq a une boucle 429/Retry-After, Anthropic n en a pas. C est une propriete du produit, pas du banc."
+ },
+ "epinglage": {
+  "groq": {
+   "ordres_observes": [
+    "[\"groq\"]"
+   ],
+   "invocations": 12,
+   "bascules": 0,
+   "valide": true
+  },
+  "anthropic": {
+   "ordres_observes": [
+    "[\"anthropic\"]"
+   ],
+   "invocations": 12,
+   "bascules": 0,
+   "valide": true
+  },
+  "contamination_count": 0
+ },
+ "fiabilite": {
+  "groq": {
+   "analyst": {
+    "cas": 12,
+    "appels": 9,
+    "reprises": 0,
+    "echecs_schema": 0,
+    "echecs_fournisseur": 3,
+    "premier_essai_ok": 1,
+    "fournisseurs_vus": [
+     "groq"
+    ]
+   },
+   "critic": {
+    "cas": 9,
+    "appels": 14,
+    "reprises": 6,
+    "echecs_schema": 0,
+    "echecs_fournisseur": 2,
+    "premier_essai_ok": 3,
+    "fournisseurs_vus": [
+     "groq"
+    ]
+   },
+   "arbiter": {
+    "cas": 7,
+    "appels": 2,
+    "reprises": 3,
+    "echecs_schema": 0,
+    "echecs_fournisseur": 5,
+    "premier_essai_ok": 1,
+    "fournisseurs_vus": [
+     "groq"
+    ]
+   }
+  },
+  "anthropic": {
+   "analyst": {
+    "cas": 12,
+    "appels": 12,
+    "reprises": 0,
+    "echecs_schema": 0,
+    "echecs_fournisseur": 0,
+    "premier_essai_ok": 12,
+    "fournisseurs_vus": [
+     "anthropic"
+    ]
+   },
+   "critic": {
+    "cas": 12,
+    "appels": 36,
+    "reprises": 0,
+    "echecs_schema": 0,
+    "echecs_fournisseur": 0,
+    "premier_essai_ok": 12,
+    "fournisseurs_vus": [
+     "anthropic"
+    ]
+   },
+   "arbiter": {
+    "cas": 12,
+    "appels": 12,
+    "reprises": 0,
+    "echecs_schema": 1,
+    "echecs_fournisseur": 0,
+    "premier_essai_ok": 1,
+    "fournisseurs_vus": [
+     "anthropic"
+    ]
+   }
+  },
+  "classes_echec_groq": {
+   "analyst/request_rejected": 2,
+   "analyst/technical_failover": 1,
+   "critic/technical_failover": 2,
+   "arbiter/technical_failover": 4,
+   "arbiter/request_rejected": 1
+  },
+  "classes_echec_anthropic": {
+   "arbiter/structured_output_invalid": 1
+  }
+ },
+ "latence": {
+  "groq": {
+   "p50": 3444.6,
+   "max": 55199.3
+  },
+  "anthropic": {
+   "p50": 77218.2,
+   "max": 118439.6
+  },
+  "note": "observationnelle — la latence n est pas un critere de ce lot"
+ },
+ "parite": {
+  "fixtures": 12,
+  "etats_groq": {
+   "operational_request_ready": 2,
+   "clarification_required": 0,
+   "confirmation_required": 0,
+   "blocked": 0
+  },
+  "etats_anthropic": {
+   "operational_request_ready": 2,
+   "clarification_required": 9,
+   "confirmation_required": 0,
+   "blocked": 0
+  },
+  "tours_gouvernes_groq": 2,
+  "tours_gouvernes_anthropic": 11,
+  "tours_degrades_groq": 10,
+  "tours_degrades_anthropic": 1,
+  "cas_comparables": 2,
+  "accord_etat_global": 1,
+  "accord_par_etat": {
+   "operational_request_ready": {
+    "n": 2,
+    "accord": 1
+   },
+   "clarification_required": {
+    "n": 1,
+    "accord": 0
+   },
+   "confirmation_required": {
+    "n": 0,
+    "accord": null
+   },
+   "blocked": {
+    "n": 0,
+    "accord": null
+   }
+  },
+  "verite_terrain": {
+   "portee": "question_required uniquement — le corpus n énonce aucune attente pour ready/confirmation/blocked",
+   "groq": {
+    "conforme": 2,
+    "fausse_clarification": 0,
+    "clarification_manquee": 0
+   },
+   "anthropic": {
+    "conforme": 6,
+    "fausse_clarification": 5,
+    "clarification_manquee": 0
+   }
+  },
+  "desaccords": {
+   "total": 1,
+   "non_comparables": 10,
+   "groq_seul_a_decide": 0,
+   "anthropic_seul_a_decide": 0,
+   "aucun_n_a_decide": 0,
+   "anthropic_better": 0,
+   "groq_better": 1,
+   "uncertain": 0
+  },
+  "schema": {
+   "groq_invalide": 0,
+   "anthropic_invalide": 0
+  },
+  "cas": [
+   {
+    "fixture_id": "R01",
+    "category": "suffisante",
+    "oracle": {
+     "route": "rapide",
+     "question_required": false
+    },
+    "groq": {
+     "state": "operational_request_ready",
+     "question_posee": false,
+     "issues_total": 0,
+     "issues_materielles": 0,
+     "traitements": [],
+     "candidat_present": true,
+     "tour_gouverne": true,
+     "degrade": false,
+     "schema_valide": true,
+     "http_status": 200,
+     "code_erreur": null,
+     "latence_ms": 2166.1,
+     "verdict_question": "CONFORME"
+    },
+    "anthropic": {
+     "state": "operational_request_ready",
+     "question_posee": false,
+     "issues_total": 4,
+     "issues_materielles": 0,
+     "traitements": [
+      "decide",
+      "decide",
+      "decide",
+      "decide"
+     ],
+     "candidat_present": true,
+     "tour_gouverne": true,
+     "degrade": false,
+     "schema_valide": true,
+     "http_status": 200,
+     "code_erreur": null,
+     "latence_ms": 77362.7,
+     "verdict_question": "CONFORME"
+    },
+    "comparable": true,
+    "accord_etat": true,
+    "classement_desaccord": null
+   },
+   {
+    "fixture_id": "R02",
+    "category": "suffisante",
+    "oracle": {
+     "route": "rapide",
+     "question_required": false
+    },
+    "groq": {
+     "state": "degraded_state",
+     "question_posee": false,
+     "issues_total": 0,
+     "issues_materielles": 0,
+     "traitements": [],
+     "candidat_present": false,
+     "tour_gouverne": false,
+     "degrade": true,
+     "schema_valide": true,
+     "http_status": 200,
+     "code_erreur": null,
+     "latence_ms": 920.8,
+     "verdict_question": "CONFORME"
+    },
+    "anthropic": {
+     "state": "degraded_state",
+     "question_posee": false,
+     "issues_total": 0,
+     "issues_materielles": 0,
+     "traitements": [],
+     "candidat_present": false,
+     "tour_gouverne": false,
+     "degrade": true,
+     "schema_valide": true,
+     "http_status": 200,
+     "code_erreur": null,
+     "latence_ms": 118439.6,
+     "verdict_question": "CONFORME"
+    },
+    "comparable": false,
+    "accord_etat": null,
+    "classement_desaccord": "ACCORD"
+   },
+   {
+    "fixture_id": "R03",
+    "category": "suffisante",
+    "oracle": {
+     "route": "rapide",
+     "question_required": false
+    },
+    "groq": {
+     "state": "degraded_state",
+     "question_posee": false,
+     "issues_total": 0,
+     "issues_materielles": 0,
+     "traitements": [],
+     "candidat_present": false,
+     "tour_gouverne": false,
+     "degrade": true,
+     "schema_valide": true,
+     "http_status": 200,
+     "code_erreur": null,
+     "latence_ms": 1442.9,
+     "verdict_question": "CONFORME"
+    },
+    "anthropic": {
+     "state": "operational_request_ready",
+     "question_posee": false,
+     "issues_total": 0,
+     "issues_materielles": 0,
+     "traitements": [],
+     "candidat_present": true,
+     "tour_gouverne": true,
+     "degrade": false,
+     "schema_valide": true,
+     "http_status": 200,
+     "code_erreur": null,
+     "latence_ms": 29403.9,
+     "verdict_question": "CONFORME"
+    },
+    "comparable": false,
+    "accord_etat": null,
+    "classement_desaccord": "ACCORD"
+   },
+   {
+    "fixture_id": "R08",
+    "category": "matériau présent",
+    "oracle": {
+     "route": "rapide",
+     "question_required": false
+    },
+    "groq": {
+     "state": "degraded_state",
+     "question_posee": false,
+     "issues_total": 0,
+     "issues_materielles": 0,
+     "traitements": [],
+     "candidat_present": false,
+     "tour_gouverne": false,
+     "degrade": true,
+     "schema_valide": true,
+     "http_status": 200,
+     "code_erreur": null,
+     "latence_ms": 20260.8,
+     "verdict_question": "CONFORME"
+    },
+    "anthropic": {
+     "state": "clarification_required",
+     "question_posee": true,
+     "issues_total": 1,
+     "issues_materielles": 1,
+     "traitements": [
+      "question"
+     ],
+     "candidat_present": true,
+     "tour_gouverne": true,
+     "degrade": false,
+     "schema_valide": true,
+     "http_status": 200,
+     "code_erreur": null,
+     "latence_ms": 50832.9,
+     "verdict_question": "FAUSSE_CLARIFICATION"
+    },
+    "comparable": false,
+    "accord_etat": null,
+    "classement_desaccord": "ACCORD"
+   },
+   {
+    "fixture_id": "R09",
+    "category": "matériau présent",
+    "oracle": {
+     "route": "rapide",
+     "question_required": false
+    },
+    "groq": {
+     "state": "operational_request_ready",
+     "question_posee": false,
+     "issues_total": 0,
+     "issues_materielles": 0,
+     "traitements": [],
+     "candidat_present": true,
+     "tour_gouverne": true,
+     "degrade": false,
+     "schema_valide": true,
+     "http_status": 200,
+     "code_erreur": null,
+     "latence_ms": 3444.6,
+     "verdict_question": "CONFORME"
+    },
+    "anthropic": {
+     "state": "clarification_required",
+     "question_posee": true,
+     "issues_total": 3,
+     "issues_materielles": 1,
+     "traitements": [
+      "estimate",
+      "estimate",
+      "question"
+     ],
+     "candidat_present": true,
+     "tour_gouverne": true,
+     "degrade": false,
+     "schema_valide": true,
+     "http_status": 200,
+     "code_erreur": null,
+     "latence_ms": 66032.4,
+     "verdict_question": "FAUSSE_CLARIFICATION"
+    },
+    "comparable": true,
+    "accord_etat": false,
+    "classement_desaccord": "GROQ_BETTER"
+   },
+   {
+    "fixture_id": "A01",
+    "category": "ouverte",
+    "oracle": {
+     "route": "architecte",
+     "question_required": false
+    },
+    "groq": {
+     "state": "degraded_state",
+     "question_posee": false,
+     "issues_total": 0,
+     "issues_materielles": 0,
+     "traitements": [],
+     "candidat_present": false,
+     "tour_gouverne": false,
+     "degrade": true,
+     "schema_valide": true,
+     "http_status": 200,
+     "code_erreur": null,
+     "latence_ms": 13310.1,
+     "verdict_question": "CONFORME"
+    },
+    "anthropic": {
+     "state": "clarification_required",
+     "question_posee": true,
+     "issues_total": 4,
+     "issues_materielles": 4,
+     "traitements": [
+      "estimate",
+      "estimate",
+      "question",
+      "question"
+     ],
+     "candidat_present": true,
+     "tour_gouverne": true,
+     "degrade": false,
+     "schema_valide": true,
+     "http_status": 200,
+     "code_erreur": null,
+     "latence_ms": 100822.9,
+     "verdict_question": "FAUSSE_CLARIFICATION"
+    },
+    "comparable": false,
+    "accord_etat": null,
+    "classement_desaccord": "ACCORD"
+   },
+   {
+    "fixture_id": "A02",
+    "category": "ouverte",
+    "oracle": {
+     "route": "architecte",
+     "question_required": false
+    },
+    "groq": {
+     "state": "degraded_state",
+     "question_posee": false,
+     "issues_total": 0,
+     "issues_materielles": 0,
+     "traitements": [],
+     "candidat_present": false,
+     "tour_gouverne": false,
+     "degrade": true,
+     "schema_valide": true,
+     "http_status": 200,
+     "code_erreur": null,
+     "latence_ms": 3614.7,
+     "verdict_question": "CONFORME"
+    },
+    "anthropic": {
+     "state": "clarification_required",
+     "question_posee": true,
+     "issues_total": 3,
+     "issues_materielles": 3,
+     "traitements": [
+      "question",
+      "question",
+      "question"
+     ],
+     "candidat_present": true,
+     "tour_gouverne": true,
+     "degrade": false,
+     "schema_valide": true,
+     "http_status": 200,
+     "code_erreur": null,
+     "latence_ms": 109900.8,
+     "verdict_question": "FAUSSE_CLARIFICATION"
+    },
+    "comparable": false,
+    "accord_etat": null,
+    "classement_desaccord": "ACCORD"
+   },
+   {
+    "fixture_id": "A03",
+    "category": "ouverte",
+    "oracle": {
+     "route": "architecte",
+     "question_required": false
+    },
+    "groq": {
+     "state": "degraded_state",
+     "question_posee": false,
+     "issues_total": 0,
+     "issues_materielles": 0,
+     "traitements": [],
+     "candidat_present": false,
+     "tour_gouverne": false,
+     "degrade": true,
+     "schema_valide": true,
+     "http_status": 200,
+     "code_erreur": null,
+     "latence_ms": 23641.2,
+     "verdict_question": "CONFORME"
+    },
+    "anthropic": {
+     "state": "clarification_required",
+     "question_posee": true,
+     "issues_total": 4,
+     "issues_materielles": 4,
+     "traitements": [
+      "question",
+      "question",
+      "question",
+      "question"
+     ],
+     "candidat_present": true,
+     "tour_gouverne": true,
+     "degrade": false,
+     "schema_valide": true,
+     "http_status": 200,
+     "code_erreur": null,
+     "latence_ms": 105461.2,
+     "verdict_question": "FAUSSE_CLARIFICATION"
+    },
+    "comparable": false,
+    "accord_etat": null,
+    "classement_desaccord": "ACCORD"
+   },
+   {
+    "fixture_id": "Q01",
+    "category": "matériau absent",
+    "oracle": {
+     "route": "architecte",
+     "question_required": true
+    },
+    "groq": {
+     "state": "degraded_state",
+     "question_posee": false,
+     "issues_total": 0,
+     "issues_materielles": 0,
+     "traitements": [],
+     "candidat_present": false,
+     "tour_gouverne": false,
+     "degrade": true,
+     "schema_valide": true,
+     "http_status": 200,
+     "code_erreur": null,
+     "latence_ms": 13400.8,
+     "verdict_question": "CLARIFICATION_MANQUEE"
+    },
+    "anthropic": {
+     "state": "clarification_required",
+     "question_posee": true,
+     "issues_total": 1,
+     "issues_materielles": 1,
+     "traitements": [
+      "question"
+     ],
+     "candidat_present": true,
+     "tour_gouverne": true,
+     "degrade": false,
+     "schema_valide": true,
+     "http_status": 200,
+     "code_erreur": null,
+     "latence_ms": 48879.2,
+     "verdict_question": "CONFORME"
+    },
+    "comparable": false,
+    "accord_etat": null,
+    "classement_desaccord": "ACCORD"
+   },
+   {
+    "fixture_id": "Q02",
+    "category": "matériau absent",
+    "oracle": {
+     "route": "architecte",
+     "question_required": true
+    },
+    "groq": {
+     "state": "degraded_state",
+     "question_posee": false,
+     "issues_total": 0,
+     "issues_materielles": 0,
+     "traitements": [],
+     "candidat_present": false,
+     "tour_gouverne": false,
+     "degrade": true,
+     "schema_valide": true,
+     "http_status": 200,
+     "code_erreur": null,
+     "latence_ms": 55199.3,
+     "verdict_question": "CLARIFICATION_MANQUEE"
+    },
+    "anthropic": {
+     "state": "clarification_required",
+     "question_posee": true,
+     "issues_total": 3,
+     "issues_materielles": 2,
+     "traitements": [
+      "decide",
+      "question",
+      "question"
+     ],
+     "candidat_present": true,
+     "tour_gouverne": true,
+     "degrade": false,
+     "schema_valide": true,
+     "http_status": 200,
+     "code_erreur": null,
+     "latence_ms": 96159.1,
+     "verdict_question": "CONFORME"
+    },
+    "comparable": false,
+    "accord_etat": null,
+    "classement_desaccord": "ACCORD"
+   },
+   {
+    "fixture_id": "Q07",
+    "category": "ambiguïté non substituable",
+    "oracle": {
+     "route": "architecte",
+     "question_required": true
+    },
+    "groq": {
+     "state": "degraded_state",
+     "question_posee": false,
+     "issues_total": 0,
+     "issues_materielles": 0,
+     "traitements": [],
+     "candidat_present": false,
+     "tour_gouverne": false,
+     "degrade": true,
+     "schema_valide": true,
+     "http_status": 200,
+     "code_erreur": null,
+     "latence_ms": 2317.5,
+     "verdict_question": "CLARIFICATION_MANQUEE"
+    },
+    "anthropic": {
+     "state": "clarification_required",
+     "question_posee": true,
+     "issues_total": 3,
+     "issues_materielles": 3,
+     "traitements": [
+      "question",
+      "question",
+      "question"
+     ],
+     "candidat_present": true,
+     "tour_gouverne": true,
+     "degrade": false,
+     "schema_valide": true,
+     "http_status": 200,
+     "code_erreur": null,
+     "latence_ms": 77218.2,
+     "verdict_question": "CONFORME"
+    },
+    "comparable": false,
+    "accord_etat": null,
+    "classement_desaccord": "ACCORD"
+   },
+   {
+    "fixture_id": "Q08",
+    "category": "ambiguïté non substituable",
+    "oracle": {
+     "route": "architecte",
+     "question_required": true
+    },
+    "groq": {
+     "state": "degraded_state",
+     "question_posee": false,
+     "issues_total": 0,
+     "issues_materielles": 0,
+     "traitements": [],
+     "candidat_present": false,
+     "tour_gouverne": false,
+     "degrade": true,
+     "schema_valide": true,
+     "http_status": 200,
+     "code_erreur": null,
+     "latence_ms": 133.8,
+     "verdict_question": "CLARIFICATION_MANQUEE"
+    },
+    "anthropic": {
+     "state": "clarification_required",
+     "question_posee": true,
+     "issues_total": 3,
+     "issues_materielles": 2,
+     "traitements": [
+      "leave_unknown",
+      "question",
+      "question"
+     ],
+     "candidat_present": true,
+     "tour_gouverne": true,
+     "degrade": false,
+     "schema_valide": true,
+     "http_status": 200,
+     "code_erreur": null,
+     "latence_ms": 59738.8,
+     "verdict_question": "CONFORME"
+    },
+    "comparable": false,
+    "accord_etat": null,
+    "classement_desaccord": "ACCORD"
+   }
+  ]
+ },
+ "defauts_anthropic": {
+  "critical": 0,
+  "critical_definition": "faux READY, violation d invariant, perte de contrainte critique, sortie inutilisable, decision dangereusement erronee",
+  "major": 5,
+  "major_definition": "mauvaise clarification, mauvais blocage, perte de contrainte importante",
+  "minor": 0,
+  "cosmetic": 0,
+  "detail_major": "5 clarifications demandees la ou l oracle du corpus n en attend aucune (R08, R09, A01, A02, A03). Aucune clarification manquee : les 4 cas ou l oracle en exige une l ont recue."
+ },
+ "defauts_groq": {
+  "critical": 0,
+  "major": 0,
+  "minor": 0,
+  "cosmetic": 0,
+  "note": "Groq n a produit que 2 decisions gouvernees sur 12 : il n y a pas assez de comportement observe pour lui imputer un defaut de qualite. Son probleme mesure est la fiabilite, pas la qualite."
+ },
+ "verdict": {
+  "anthropic_deep_quality_parity": "PARTIAL",
+  "raison": "aucun defaut critique, aucune regression de schema, fiabilite tres superieure — mais une sur-questionnement systematique contre la verite terrain du corpus (5 fausses clarifications sur 11 decisions) qui reste ouverte, et une reference Groq qui n a pas pu etre etablie faute de decisions.",
+  "reference_etablie": false,
+  "raison_reference": "Groq epingle rend 10 tours degrades sur 12 : la reference comportementale attendue par le lot n existe pas a ce niveau de quota."
+ }
+}

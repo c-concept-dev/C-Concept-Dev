@@ -1,0 +1,105 @@
+{
+  "lot": "DEEP-OUTPUT-MINIMALITY-01",
+  "duplicates": [
+    {
+      "rank": 1,
+      "concept": "candidate",
+      "locations": [
+        "Analyst operational_request_candidate",
+        "Arbiter operational_request_candidate",
+        "canonical intent/executability"
+      ],
+      "verdict": "material duplication; compact by references/deltas"
+    },
+    {
+      "rank": 2,
+      "concept": "issues",
+      "locations": [
+        "Analyst issues",
+        "Critic review targets/missed issues/veto ids",
+        "Arbiter issues then canonical issue lists"
+      ],
+      "verdict": "material duplication; compact by references/deltas"
+    },
+    {
+      "rank": 3,
+      "concept": "candidate value",
+      "locations": [
+        "candidate[field][i]",
+        "provenance_records[].value",
+        "Critic provenance review"
+      ],
+      "verdict": "material duplication; compact by references/deltas"
+    },
+    {
+      "rank": 4,
+      "concept": "question",
+      "locations": [
+        "issues[].description/recommended_treatment",
+        "question_candidates[].text/expected_progress",
+        "Arbiter next_question"
+      ],
+      "verdict": "material duplication; compact by references/deltas"
+    },
+    {
+      "rank": 5,
+      "concept": "substitution verdict",
+      "locations": [
+        "five batch booleans + justification",
+        "reasonably_available + available_alternative",
+        "question_is_last_resort + illegitimate_question_found"
+      ],
+      "verdict": "material duplication; compact by references/deltas"
+    },
+    {
+      "rank": 6,
+      "concept": "readiness rationale",
+      "locations": [
+        "candidate/issues/critic findings",
+        "intent_preservation",
+        "Arbiter reason"
+      ],
+      "verdict": "material duplication; compact by references/deltas"
+    },
+    {
+      "rank": 7,
+      "concept": "material availability",
+      "locations": [
+        "material_context",
+        "candidate.available_inputs + provenance",
+        "Arbiter rewritten available_inputs"
+      ],
+      "verdict": "conditional or explanation duplication"
+    },
+    {
+      "rank": 8,
+      "concept": "semantic drift",
+      "locations": [
+        "semantic_drift_detected",
+        "semantic_drift_notes",
+        "Arbiter concerns/reason"
+      ],
+      "verdict": "conditional or explanation duplication"
+    },
+    {
+      "rank": 9,
+      "concept": "stakes/confirmation",
+      "locations": [
+        "five Analyst booleans + Critic significant_stakes",
+        "significant_stakes_reason",
+        "Arbiter confirmation_reason"
+      ],
+      "verdict": "conditional or explanation duplication"
+    },
+    {
+      "rank": 10,
+      "concept": "veto semantics",
+      "locations": [
+        "missed issue or Analyst issue",
+        "veto issue_id + three explanations",
+        "Arbiter issues/reason"
+      ],
+      "verdict": "conditional or explanation duplication"
+    }
+  ]
+}

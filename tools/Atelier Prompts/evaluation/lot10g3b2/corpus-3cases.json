@@ -1,0 +1,35 @@
+{
+  "version": "LOT 10G.3B.2",
+  "frozen_at": "2026-08-28T00:00:00+02:00",
+  "cases": [
+    {
+      "id": "B3-01",
+      "category": "floue",
+      "domain": "voyage",
+      "demande": "Je veux préparer mon voyage en Italie.",
+      "materiau_present": false,
+      "clarification_answers": [
+        "Je veux préparer un itinéraire jour par jour pour un séjour de 12 jours, avec un rythme équilibré entre visites et temps libre."
+      ],
+      "expected_atelier": {"initial_state": "clarification_necessaire", "final_route": ["rapide", "architecte"]}
+    },
+    {
+      "id": "B3-02",
+      "category": "simple",
+      "domain": "voyage",
+      "demande": "Fais-moi une checklist de 20 points pour préparer un voyage de 12 jours en Italie, classée par ordre chronologique, de deux mois avant le départ jusqu'au jour du départ.",
+      "materiau_present": false,
+      "clarification_answers": [],
+      "expected_atelier": {"initial_state": "exploitable", "final_route": "rapide"}
+    },
+    {
+      "id": "B3-03",
+      "category": "complexe",
+      "domain": "décision d’entreprise",
+      "demande": "Je dirige une petite entreprise de 12 personnes.\nNous devons remplacer notre logiciel de gestion de projet.\nCompare trois stratégies possibles : conserver l'outil actuel, migrer vers une solution SaaS standard ou développer une solution interne.\n\nJe veux une analyse structurée comprenant les avantages, les risques, les coûts, les conséquences organisationnelles, les critères de décision et une recommandation finale argumentée.",
+      "materiau_present": false,
+      "clarification_answers": [],
+      "expected_atelier": {"initial_state": "exploitable", "final_route": "architecte"}
+    }
+  ]
+}

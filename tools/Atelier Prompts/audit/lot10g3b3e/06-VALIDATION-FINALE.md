@@ -1,0 +1,22 @@
+# Validation finale — LOT 10G.3B.3E
+
+## Résultats
+- `npm test` : **77/77 PASS**
+- `npm run guard` : **PASS**
+- `git diff --check` : non exécutable au sens dépôt, car le ZIP source ne contient pas `.git`.
+- Équivalent `git diff --no-index --check` entre l'état post-3D et post-3E : **aucune erreur de whitespace signalée**.
+- Fichiers historiques gelés : **inchangés**.
+- Fichier existant modifié : `core/adn/index.js` uniquement, pour exporter le nouveau module.
+- Aucun fichier supprimé.
+- Aucun appel réseau.
+- Aucun déploiement.
+- HTML produit inchangé.
+
+## Hashes gelés
+- Rapide : `7825950d5d6d880bae3e176dc2946d7266b2b3219d8c1cf3c4f7496d1a83e0bb`
+- Architecte : `1e36eaef49fe3517448cb2c9565ab1cca42ce3d75089b0a27a43f214a2ac7433`
+- Atelier : `8c3511538a96d4be3953270c4a5463da6b8d4807187a0b7d4b1c31c0e4589802`
+- FORMATS : `f4c9f1da5a14ecbe28d3cd0853871aa621909360ab6475bebeb76bc2191e141b`
+- VERROUS : `0019d7e26efab37164b435667d89494135cc4ae7f9f8206e95472435d1dd63ff`
+- ARCH_SYSTEM : `7fc7b736f6b80049c42a39d74a0fae76eee26d9e2af8249c7761de1ec3236317`
+- ARCH_SCHEMA : `a976687cf6412be80f74eac88762f8c4a4115fe30697bdefd0ea5e6e318fd84`

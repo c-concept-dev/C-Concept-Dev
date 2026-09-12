@@ -1,0 +1,7 @@
+{
+  "lot": "DEEP-OUTPUT-MINIMALITY-01 — EXPERIMENT A",
+  "CASES_RUN": 0,
+  "raison": "STOP au §13 — le coût estimé de toute expérience concluante dépasse le plafond absolu de 0,30 USD, la baseline devant être rejouée sur Sonnet (voir baseline.json).",
+  "resultats": [],
+  "etat_du_code": "la modification est implémentée, complète et vérifiée par la suite déterministe (2965/2965 ×3). Seule la mesure live manque."
+}

@@ -1,0 +1,97 @@
+{
+  "started_at": "2026-08-28T07:08:52.972Z",
+  "completed_at": "2026-08-28T07:09:07.131Z",
+  "html_sha256": "757ad74d70ffeaff8c3c9e2a09d8c3aa9bbbcbcc52d0cae9923f54e7a28f2a06",
+  "latency_total_ms": 14159.07,
+  "time_to_first_useful_result_ms": 14159.077,
+  "route_finale": "rapide",
+  "moteur_final": "rapide",
+  "decision_source": "groq",
+  "decision": {
+    "etat_demande": "exploitable",
+    "route": "rapide",
+    "confiance": "haute",
+    "raison_interne": "La demande est exploitable et peut être exécutée directement sans arbitrage structurel préalable.",
+    "question": null
+  },
+  "decision_provider_calls": [
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:08:53.519Z",
+      "latency_ms": 132.861,
+      "status_http": 502,
+      "request": {
+        "demande": "Fais-moi une checklist de 20 points pour préparer un voyage de 12 jours en Italie, classée par ordre chronologique, de deux mois avant le départ jusqu'au jour du départ.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "error": "provider_failure",
+        "message": "Le fournisseur de décision n’est pas disponible."
+      },
+      "error": null
+    },
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:08:53.652Z",
+      "latency_ms": 525.141,
+      "status_http": 200,
+      "request": {
+        "demande": "Fais-moi une checklist de 20 points pour préparer un voyage de 12 jours en Italie, classée par ordre chronologique, de deux mois avant le départ jusqu'au jour du départ.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "etat_demande": "exploitable",
+        "route": "rapide",
+        "confiance": "haute",
+        "raison_interne": "La demande est exploitable et peut être exécutée directement sans arbitrage structurel préalable.",
+        "question": null
+      },
+      "error": null
+    }
+  ],
+  "decision_provider_latency_ms": 658.002,
+  "clarifications": [],
+  "nombre_reanalyses": 0,
+  "engine": {
+    "engine": "rapide",
+    "latency_ms": 23.012,
+    "format": "list",
+    "niveau": "minimal",
+    "prompt": "## RÔLE\nVous produisez un livrable de type : liste ou checklist.\nVous êtes évalué sur la conformité au format et sur l’exhaustivité, non sur la qualité de la conversation.\n\n## TÂCHE\nFais-moi une checklist de 20 points pour préparer un voyage de 12 jours en Italie, classée par ordre chronologique, de deux mois avant le départ jusqu'au jour du départ.\n\n## FORMAT DE SORTIE\n- Livrable : liste ou checklist\n- Validité : Un élément par ligne, aucune ligne d’introduction.\n- Aucun contenu en dehors du livrable.\n\n## AMORCE ET CLÔTURE\n- Premier caractère de votre réponse : - ou 1.\n- Dernier élément de votre réponse : le dernier élément de liste\n- Rien avant, rien après.\n\n## CONTRAINTES QUANTIFIÉES\n- Minimum 20 éléments, sans doublon.\n- Volume attendu : 150 à 300 mots.\n- Couverture : 100 % des éléments présents dans les données sources. Une omission constitue un échec, même si le résultat paraît complet.\n\n## INTERDICTIONS\n- Pas de préambule, pas de reformulation de la demande, pas d’accusé de réception.\n- Pas de conclusion, pas de proposition d’aide complémentaire, pas de question finale.\n- Pas de commentaire sur votre propre production ni sur vos limites.\n- Pas d’espace réservé : ni « … », ni « etc. », ni « à compléter », ni « et ainsi de suite ».\n- Pas de résumé en lieu et place du contenu demandé.\n\n## VÉRIFICATION AVANT ENVOI\nContrôlez silencieusement, puis corrigez avant d’écrire. N’affichez pas cette vérification.\n1. La réponse commence-t-elle par - ou 1. ?\n2. Le nombre de éléments est-il au moins 20 ?\n3. Subsiste-t-il un préambule ou une conclusion hors sujet ? Le cas échéant, supprimez-les.\n4. Le format est-il valide ? Un élément par ligne, aucune ligne d’introduction.\n5. Reste-t-il un espace réservé ou une abréviation de contenu ?"
+  },
+  "final_call": {
+    "timestamp": "2026-08-28T07:09:07.125Z",
+    "endpoint": "/v1/responses",
+    "status_http": 200,
+    "latency_ms": 12884.314,
+    "response_id": "resp_0a39202fbd9b52ea006a913406529c87d2bd9c0015a1e7ca88",
+    "response_status": "completed",
+    "model_requested": "gpt-5.6-sol",
+    "model_returned": "gpt-5.6-sol",
+    "usage": {
+      "input_tokens": 475,
+      "output_tokens": 592,
+      "total_tokens": 1067,
+      "reasoning_tokens": 135
+    },
+    "estimated_cost_usd": 0.01374,
+    "incomplete_details": null,
+    "error": null,
+    "output": "- Deux mois avant : vérifier la validité des passeports ou cartes d’identité de tous les voyageurs.\n- Deux mois avant : définir l’itinéraire des 12 jours, les villes visitées et la durée des étapes.\n- Deux mois avant : établir un budget couvrant transports, hébergements, repas, visites, achats et imprévus.\n- Sept semaines avant : réserver les vols ou trains internationaux et vérifier les conditions des bagages.\n- Sept semaines avant : réserver les hébergements, en privilégiant des emplacements proches des transports publics.\n- Six semaines avant : réserver les trains italiens, voitures de location ou transferts entre chaque étape.\n- Six semaines avant : contrôler les restrictions de circulation, péages, stationnement et zones ZTL prévues.\n- Cinq semaines avant : réserver les visites très demandées, notamment musées, monuments et sites archéologiques.\n- Un mois avant : souscrire une assurance voyage couvrant annulation, soins médicaux, assistance et rapatriement.\n- Un mois avant : demander la carte européenne d’assurance maladie et vérifier les recommandations sanitaires.\n- Trois semaines avant : contrôler les moyens de paiement, plafonds bancaires et éventuels frais appliqués en Italie.\n- Trois semaines avant : organiser l’accès à Internet avec itinérance, forfait européen ou carte SIM locale.\n- Deux semaines avant : préparer une liste de vêtements adaptée aux régions, activités et prévisions saisonnières.\n- Deux semaines avant : acheter les adaptateurs, médicaments personnels, protections solaires et accessoires manquants.\n- Dix jours avant : télécharger cartes hors ligne, applications ferroviaires, traducteur et billets numériques.\n- Une semaine avant : confirmer vols, hébergements, transports, horaires d’arrivée et modalités d’enregistrement.\n- Cinq jours avant : transmettre l’itinéraire à un proche et sécuriser des copies numériques des documents.\n- Trois jours avant : vérifier la météo, ajuster les bagages et préparer une petite trousse médicale.\n- La veille : enregistrer les voyageurs, charger les appareils et préparer documents, billets et moyens de paiement.\n- Jour du départ : fermer le domicile, vérifier les bagages et partir suffisamment tôt vers l’aéroport ou la gare."
+  },
+  "output": "- Deux mois avant : vérifier la validité des passeports ou cartes d’identité de tous les voyageurs.\n- Deux mois avant : définir l’itinéraire des 12 jours, les villes visitées et la durée des étapes.\n- Deux mois avant : établir un budget couvrant transports, hébergements, repas, visites, achats et imprévus.\n- Sept semaines avant : réserver les vols ou trains internationaux et vérifier les conditions des bagages.\n- Sept semaines avant : réserver les hébergements, en privilégiant des emplacements proches des transports publics.\n- Six semaines avant : réserver les trains italiens, voitures de location ou transferts entre chaque étape.\n- Six semaines avant : contrôler les restrictions de circulation, péages, stationnement et zones ZTL prévues.\n- Cinq semaines avant : réserver les visites très demandées, notamment musées, monuments et sites archéologiques.\n- Un mois avant : souscrire une assurance voyage couvrant annulation, soins médicaux, assistance et rapatriement.\n- Un mois avant : demander la carte européenne d’assurance maladie et vérifier les recommandations sanitaires.\n- Trois semaines avant : contrôler les moyens de paiement, plafonds bancaires et éventuels frais appliqués en Italie.\n- Trois semaines avant : organiser l’accès à Internet avec itinérance, forfait européen ou carte SIM locale.\n- Deux semaines avant : préparer une liste de vêtements adaptée aux régions, activités et prévisions saisonnières.\n- Deux semaines avant : acheter les adaptateurs, médicaments personnels, protections solaires et accessoires manquants.\n- Dix jours avant : télécharger cartes hors ligne, applications ferroviaires, traducteur et billets numériques.\n- Une semaine avant : confirmer vols, hébergements, transports, horaires d’arrivée et modalités d’enregistrement.\n- Cinq jours avant : transmettre l’itinéraire à un proche et sécuriser des copies numériques des documents.\n- Trois jours avant : vérifier la météo, ajuster les bagages et préparer une petite trousse médicale.\n- La veille : enregistrer les voyageurs, charger les appareils et préparer documents, billets et moyens de paiement.\n- Jour du départ : fermer le domicile, vérifier les bagages et partir suffisamment tôt vers l’aéroport ou la gare.",
+  "total_llm_calls": 3,
+  "gpt_usage": {
+    "input_tokens": 475,
+    "output_tokens": 592,
+    "total_tokens": 1067,
+    "estimated_cost_usd": 0.01374
+  },
+  "fallback": true,
+  "retries": 0,
+  "error": null
+}

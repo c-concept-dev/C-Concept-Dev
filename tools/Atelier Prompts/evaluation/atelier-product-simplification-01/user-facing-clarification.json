@@ -1,0 +1,24 @@
+{
+  "lot": "ATELIER-PRODUCT-SIMPLIFICATION-01",
+  "USER_FACING_CLARIFICATION_CONTRACT": "FAIL",
+  "constat": "les deux formulations que le §6 interdit ne viennent PAS du modèle. Ce sont deux éléments STATIQUES du HTML canonique.",
+  "elements_fautifs": [
+    { "selecteur": "#v11-dialogue-title", "classe": "v11-eyebrow ui-eyebrow", "texte": "Une précision est nécessaire",
+      "nature": "titre technique statique, rendu au-dessus de la question", "verdict": "REMOVE" },
+    { "selecteur": "#v11-dialogue-intro", "classe": "v11-clarification-intro", "texte": "Pour bien préparer votre demande, j’ai besoin d’un détail.",
+      "nature": "justification redondante statique, rendue sous la question", "verdict": "REMOVE" }
+  ],
+  "ou_va_la_question_du_modele": "#v11-question — l'UI enveloppe donc une bonne question entre un titre technique et une justification redondante",
+  "preuve_que_la_question_elle_meme_est_deja_correcte": {
+    "mesure": "sonnet-A01-candidate, HEAD 93992e9",
+    "question_produite": "Qu'attendez-vous concrètement comme résultat : un itinéraire jour par jour, une checklist de choses à préparer avant le départ, des recommandations de lieux et activités, ou autre chose ?",
+    "cible_du_proprietaire": "Vous voulez surtout un itinéraire, une checklist, des conseils pratiques, ou un peu de tout ?",
+    "lecture": "une seule question, une seule phrase, formulation naturelle, aucun vocabulaire interne. Le CONTENU tient déjà le contrat du §6 ; c'est l'EMBALLAGE qui le viole."
+  },
+  "intro_du_plan_rapide": {
+    "constante": "FAST_QUESTION_INTRO",
+    "texte": "Votre réponse sera ajoutée à l’historique de clarification, sans modifier votre demande initiale.",
+    "verdict": "NEEDS_EVIDENCE — utile la première fois (elle dit que la demande n'est pas réécrite), bruyante à chaque tour. À trancher par le propriétaire, pas par l'audit."
+  },
+  "indice_de_diagnostic_majeur": "le texte rapporté par le propriétaire est celui de l'écran DEEP, pas celui du plan rapide (dont l'intro est différente). L'utilisateur a donc bien attendu le plan profond : le plan rapide N'A PAS SOLLICITÉ sur ce tour."
+}

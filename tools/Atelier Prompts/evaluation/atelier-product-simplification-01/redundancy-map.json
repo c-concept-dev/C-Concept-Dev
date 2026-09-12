@@ -1,0 +1,17 @@
+{
+  "lot": "ATELIER-PRODUCT-SIMPLIFICATION-01",
+  "redondances_prouvees": [
+    { "quoi": "formulation de la prochaine question", "producteurs": ["analyst.question_candidates (classées par valeur informationnelle décroissante)", "arbiter.next_question"],
+      "cout_mesure_italie": "1 184 + 1 656 = 2 840 jetons, 19 851 + 27 893 = 47 744 ms",
+      "verdict": "DUPLICATED — la première est explicitement décrite comme « celle qu'un rôle ultérieur retiendra en priorité ». La seconde la réécrit.",
+      "nuance_honnete": "sur le cas Italie, la reformulation de l'Arbitre est MEILLEURE que le candidat brut. La redondance a une valeur de qualité, pas seulement un coût." },
+    { "quoi": "preuve de dernier recours au-delà de la première cible survivante", "producteur": "critic batches 2..N",
+      "verdict": "DÉJÀ SUPPRIMÉ par l'arrêt anticipé (93992e9)" },
+    { "quoi": "champs dérivables demandés au modèle", "exemples": ["question_is_last_resort", "agreement", "illegitimate_question_found"],
+      "verdict": "DÉJÀ DÉRIVÉS — le levier D de X2-B les a retirés du contrat de sortie ; deriveCriticConsequences les calcule" },
+    { "quoi": "candidate_action", "verdict": "DÉJÀ SUPPRIMÉ (c680e9d) — 6 chaînes libres par issue, zéro lecteur" },
+    { "quoi": "état du tour sur un chemin de clarification", "producteur": "arbiter.state",
+      "verdict": "DÉRIVABLE — dès qu'une issue matérielle survit au Substitution Gate comme non substituable, clarification_required est la seule sortie légale. C'est la redondance la plus coûteuse encore en place." }
+  ],
+  "lecture": "l'essentiel du gras a déjà été retiré par les trois lots précédents. Ce qui reste n'est pas de la graisse : c'est une DUPLICATION DE JUGEMENT entre l'Analyste et l'Arbitre, et elle a une valeur de qualité qu'il faut mesurer avant de la sacrifier."
+}

@@ -1,0 +1,82 @@
+{
+ "lot": "DEEP-RESIDUAL-502-ATTRIBUTION-02",
+ "phase": "C — campagne d'attribution sur le runtime rebaseliné",
+ "protocole": {
+  "tours": 20,
+  "population": "14 × cas sans matériau (celui du 502 résiduel) + 6 × cas matériau",
+  "provider": "anthropic",
+  "model": "claude-sonnet-4-6",
+  "epinglage": null,
+  "concurrence": 1,
+  "capture": "une session de journal courte par tour, corrélée par invocation_id"
+ },
+ "RUN_COUNT_COMPLETED": 20,
+ "ATTRIBUTION_EVALUABLE_RUNS": 20,
+ "FULLY_CORRELATED_RUNS": 20,
+ "CORRELATION_COMPLETENESS_RATE": 1.0,
+ "HTTP_502_COUNT": 0,
+ "HTTP_502_ATTRIBUTED_COUNT": 0,
+ "HTTP_502_UNATTRIBUTED_COUNT": 0,
+ "PROGRAMMING_ERROR_COUNT": 0,
+ "UNHANDLED_EXCEPTION_COUNT": 0,
+ "WORKER_ERROR_COUNT": 0,
+ "PROVIDER_TRANSPORT_ERROR_COUNT": 2,
+ "HARNESS_ERROR_COUNT": 0,
+ "STRUCTURED_OUTPUT_INVALID_COUNT": 0,
+ "TECHNICAL_FAILOVER_COUNT": 2,
+ "B01B_VIOLATION_COUNT": 0,
+ "DEGRADED_STATE_COUNT": 2,
+ "FALSE_READY_COUNT": 0,
+ "DEEP_GROQ_CALL_COUNT": 0,
+ "DEEP_OPENAI_CALL_COUNT": 0,
+ "ordres_observes": [
+  "[\"anthropic\"]"
+ ],
+ "etats_finaux": {
+  "clarification_required": 17,
+  "degraded_state": 2,
+  "confirmation_required": 1
+ },
+ "degradations_attribuees": [
+  {
+   "tour": 13,
+   "cas": "B",
+   "role": "critic",
+   "phase": "critic",
+   "provider": "anthropic",
+   "model": "claude-sonnet-4-6",
+   "classification": "PROVIDER_TRANSPORT_ERROR",
+   "http": 200,
+   "etat": "degraded_state",
+   "repli": "aucun",
+   "ready_fabrique": false,
+   "conforme": "oui — panne de transport du fournisseur, chaîne épuisée (un seul fournisseur), fermeture en état OPRIE canonique"
+  },
+  {
+   "tour": 20,
+   "cas": "T",
+   "role": "critic",
+   "phase": "critic",
+   "provider": "anthropic",
+   "model": "claude-sonnet-4-6",
+   "classification": "PROVIDER_TRANSPORT_ERROR",
+   "http": 200,
+   "etat": "degraded_state",
+   "repli": "aucun",
+   "ready_fabrique": false,
+   "conforme": "oui — panne de transport du fournisseur, chaîne épuisée (un seul fournisseur), fermeture en état OPRIE canonique"
+  }
+ ],
+ "limite_de_couverture_de_la_cle": {
+  "evenements_sans_invocation_id": [
+   "isolate_observation",
+   "anthropic_usage_observation",
+   "anthropic_transport_error"
+  ],
+  "lecture": "ces événements sont émis par la couche transport du Worker via console.log direct, hors du log estampillé de l'orchestrateur. Ils ne portent donc pas la clé.",
+  "impact_sur_l_attribution": "aucun pour ce que le lot exige : réponse client, requête serveur, événements de rôle et classification finale sont tous joints par la même clé sur 20/20 tours. La couverture n'est cependant pas totale, et c'est dit plutôt que sous-entendu.",
+  "consequence_pratique": "un anthropic_transport_error n'est rattaché à son tour que par la fenêtre de capture, pas par la clé — ici sans ambiguïté puisqu'un tour = une session"
+ },
+ "OUTCOME": "NO_502_REPRODUCED",
+ "lecture": "52 tours réels depuis la fermeture de B-01B (32 aux lots précédents + 20 ici) : un seul 502, jamais reproduit, et désormais structurellement attribuable s'il revenait."
+}

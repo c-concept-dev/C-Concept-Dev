@@ -1,0 +1,501 @@
+{
+  "started_at": "2026-08-28T07:48:28.261Z",
+  "completed_at": "2026-08-28T07:50:45.635Z",
+  "html_sha256": "757ad74d70ffeaff8c3c9e2a09d8c3aa9bbbcbcc52d0cae9923f54e7a28f2a06",
+  "latency_total_ms": 137372.471,
+  "time_to_first_useful_result_ms": 137372.477,
+  "route_finale": "architecte",
+  "moteur_final": "architecte",
+  "decision_source": "local-prudent",
+  "decision": {
+    "etat_demande": "exploitable",
+    "route": "architecte",
+    "confiance": "moyenne",
+    "raison_interne": "La demande est exploitable mais nécessite une structuration ou des arbitrages préalables.",
+    "question": null
+  },
+  "decision_provider_calls": [
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:48:28.780Z",
+      "latency_ms": 351.279,
+      "status_http": 502,
+      "request": {
+        "demande": "Conçois une stratégie éditoriale de six mois pour une association culturelle locale qui publie sur un site, une newsletter mensuelle et deux réseaux sociaux. Définis les publics, piliers de contenu, calendrier, responsabilités, règles de réutilisation, indicateurs, risques et méthode d'ajustement.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "error": "provider_failure",
+        "message": "Le fournisseur de décision n’est pas disponible."
+      },
+      "error": null
+    },
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:48:29.132Z",
+      "latency_ms": 208.694,
+      "status_http": 502,
+      "request": {
+        "demande": "Conçois une stratégie éditoriale de six mois pour une association culturelle locale qui publie sur un site, une newsletter mensuelle et deux réseaux sociaux. Définis les publics, piliers de contenu, calendrier, responsabilités, règles de réutilisation, indicateurs, risques et méthode d'ajustement.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "error": "provider_failure",
+        "message": "Le fournisseur de décision n’est pas disponible."
+      },
+      "error": null
+    }
+  ],
+  "decision_provider_latency_ms": 559.973,
+  "clarifications": [],
+  "nombre_reanalyses": 0,
+  "engine": {
+    "engine": "architecte",
+    "latency_ms": 98843.597,
+    "context": {
+      "demande": "Conçois une stratégie éditoriale de six mois pour une association culturelle locale qui publie sur un site, une newsletter mensuelle et deux réseaux sociaux. Définis les publics, piliers de contenu, calendrier, responsabilités, règles de réutilisation, indicateurs, risques et méthode d'ajustement.",
+      "materiau": null,
+      "preferences_confirmees": [],
+      "reglages_manuels": {
+        "destinataire": null,
+        "profondeur": "auto",
+        "structure": "auto",
+        "volume": null
+      },
+      "proportion": {
+        "version": 1,
+        "profondeur_analyse": {
+          "valeur": "minimal",
+          "source": "manuel"
+        },
+        "densite_prompt": {
+          "valeur": "equilibree",
+          "source": "automatique"
+        },
+        "longueur_livrable": {
+          "valeur": "automatique",
+          "source": "automatique"
+        },
+        "plafond_technique": {
+          "valeur": 4000,
+          "source": "manuel"
+        },
+        "structure": {
+          "mode": "libre",
+          "nombre": null,
+          "source": "automatique",
+          "source_mode": "automatique",
+          "source_nombre": "automatique"
+        }
+      }
+    },
+    "analysis": {
+      "version": "3.4",
+      "comprehension": {
+        "intention_principale": "Concevoir une stratégie éditoriale opérationnelle couvrant six mois pour une association culturelle locale et ses quatre canaux de publication.",
+        "intentions_secondaires": [
+          "Structurer la production, la validation, la publication et la réutilisation des contenus.",
+          "Fournir un cadre de mesure et d'ajustement continu.",
+          "Anticiper les principaux risques éditoriaux et organisationnels."
+        ],
+        "declarations": [
+          {
+            "contenu": "Le demandeur souhaite une stratégie éditoriale sur six mois.",
+            "statut": "declaration_utilisateur",
+            "source": "demande",
+            "preuve": {
+              "citation": "Conçois une stratégie éditoriale de six mois",
+              "contexte_avant": null,
+              "contexte_apres": null
+            }
+          },
+          {
+            "contenu": "L'organisation concernée est une association culturelle locale.",
+            "statut": "declaration_utilisateur",
+            "source": "demande",
+            "preuve": {
+              "citation": "une association culturelle locale",
+              "contexte_avant": null,
+              "contexte_apres": null
+            }
+          }
+        ],
+        "contraintes": [
+          {
+            "contenu": "La stratégie doit articuler un site, une newsletter mensuelle et deux réseaux sociaux.",
+            "statut": "declaration_utilisateur",
+            "source": "demande",
+            "preuve": {
+              "citation": "qui publie sur un site, une newsletter mensuelle et deux réseaux sociaux",
+              "contexte_avant": null,
+              "contexte_apres": null
+            }
+          },
+          {
+            "contenu": "Le livrable doit traiter les publics, les piliers, le calendrier, les responsabilités, la réutilisation, les indicateurs, les risques et l'ajustement.",
+            "statut": "declaration_utilisateur",
+            "source": "demande",
+            "preuve": {
+              "citation": "Définis les publics, piliers de contenu, calendrier, responsabilités, règles de réutilisation, indicateurs, risques et méthode d'ajustement.",
+              "contexte_avant": null,
+              "contexte_apres": null
+            }
+          },
+          {
+            "contenu": "La newsletter doit conserver une fréquence mensuelle.",
+            "statut": "declaration_utilisateur",
+            "source": "demande",
+            "preuve": {
+              "citation": "une newsletter mensuelle",
+              "contexte_avant": null,
+              "contexte_apres": null
+            }
+          }
+        ],
+        "ambiguites": [
+          "Les deux réseaux sociaux ne sont pas nommés.",
+          "Les objectifs prioritaires de l'association, son territoire précis et sa programmation ne sont pas indiqués.",
+          "La taille de l'équipe et les moyens disponibles ne sont pas précisés."
+        ],
+        "informations_manquantes": [
+          {
+            "information": "Identité et caractéristiques des deux réseaux sociaux",
+            "bloquant": false,
+            "justification": "Les plateformes influencent les formats et les usages, mais une stratégie fiable peut employer les libellés Réseau 1 et Réseau 2 et rester indépendante de leurs fonctionnalités."
+          },
+          {
+            "information": "Mission détaillée, programmation des six prochains mois et priorités de communication",
+            "bloquant": false,
+            "justification": "Ces éléments permettraient de personnaliser les publics, thèmes et temps forts, mais un calendrier-cadre adaptable peut être fourni immédiatement."
+          },
+          {
+            "information": "Composition de l'équipe, temps disponible et circuit de validation existant",
+            "bloquant": false,
+            "justification": "Ces données déterminent la cadence réellement soutenable, mais les responsabilités peuvent être définies par fonctions et les cadences présentées comme propositions à calibrer."
+          },
+          {
+            "information": "Données actuelles d'audience et de performance par canal",
+            "bloquant": false,
+            "justification": "Elles seraient nécessaires pour fixer des objectifs chiffrés crédibles, mais une méthode fondée sur une mesure initiale et des cibles directionnelles reste exploitable."
+          }
+        ]
+      },
+      "evaluation": {
+        "niveau_risque": "faible",
+        "justification_risque": "La demande porte sur une planification éditoriale réversible et ajustable. Les principaux risques concernent surtout la charge de travail, la cohérence publique et l'usage de contenus ou de données.",
+        "connaissance_externe_necessaire": true,
+        "actualite_requise": false,
+        "justification_connaissance": "La conception mobilise des méthodes générales de stratégie éditoriale, de gouvernance et de mesure qui ne figurent pas dans la demande. Des faits actuels propres aux plateformes ne sont pas indispensables si la réponse reste indépendante de leurs fonctionnalités changeantes.",
+        "calcul_requis": false,
+        "livrable_complet_possible": true,
+        "reponse_partielle_possible": true,
+        "action_recommandee": "continuer",
+        "questions_a_poser": [],
+        "parties_realisables_immediatement": []
+      },
+      "strategie": {
+        "capacites_necessaires": [
+          "Segmentation de publics culturels locaux",
+          "Architecture éditoriale multicanale",
+          "Planification sur six mois",
+          "Organisation des responsabilités et des flux de validation",
+          "Définition d'indicateurs et de boucles d'ajustement",
+          "Analyse qualitative des risques"
+        ],
+        "hypotheses_autorisees": [
+          "Désigner provisoirement les plateformes non précisées par Réseau 1 et Réseau 2.",
+          "Présenter les cadences hors newsletter comme des points de départ à adapter aux ressources.",
+          "Définir les responsabilités par fonctions plutôt que par personnes nommées.",
+          "Utiliser des emplacements à compléter pour les événements et temps forts non communiqués."
+        ],
+        "hypotheses_interdites": [
+          "Inventer la programmation, le budget, les effectifs ou les données d'audience de l'association.",
+          "Attribuer aux deux réseaux sociaux des fonctionnalités ou des publics spécifiques sans connaître leur identité.",
+          "Présenter une cadence, un objectif chiffré ou un résultat attendu comme validé par des données absentes.",
+          "Modifier silencieusement la fréquence mensuelle demandée pour la newsletter."
+        ],
+        "role_adaptatif": {
+          "intitule": "Stratège éditorial pour structure culturelle locale",
+          "mission": "Transformer la demande en plan éditorial multicanal de six mois, cohérent, mesurable et adaptable aux moyens réels de l'association.",
+          "competences": [
+            "Stratégie de contenu",
+            "Communication culturelle locale",
+            "Planification multicanale",
+            "Gouvernance éditoriale",
+            "Mesure de performance"
+          ],
+          "limites": [
+            "Ne pas prétendre connaître les plateformes, ressources, publics actuels ou événements non précisés.",
+            "Étiqueter comme propositions les cadences et cibles sans données de référence.",
+            "Ne pas présenter de règle juridique ou de fonctionnalité changeante comme vérifiée sans recherche appropriée."
+          ]
+        },
+        "niveau_architecture": "minimal",
+        "justification_niveau": "Le réglage manuel impose une analyse minimale. La réponse peut rester concise tout en couvrant les huit dimensions demandées au moyen de tableaux et de principes directement opérationnels.",
+        "pilotage_incertitude": {
+          "decisions_autonomes": [
+            "Structurer la stratégie autour de publics, piliers, rôles des canaux, calendrier, gouvernance, mesure et risques.",
+            "Employer Réseau 1 et Réseau 2 comme libellés provisoires.",
+            "Proposer une méthode de déclinaison mensuelle et une boucle régulière d'amélioration.",
+            "Présenter des segments et des piliers en nombre limité pour préserver l'exploitabilité."
+          ],
+          "estimations_a_etiqueter": [
+            "Cadences de publication proposées pour le site et les réseaux sociaux.",
+            "Charge de production associée au calendrier.",
+            "Cibles quantitatives éventuelles avant établissement d'une mesure initiale."
+          ],
+          "inconnues_non_devineables": [
+            "Identité des deux réseaux sociaux",
+            "Programmation culturelle réelle des six mois",
+            "Ressources humaines et budget disponibles",
+            "Données initiales d'audience, d'engagement et de conversion",
+            "Priorités stratégiques exactes de l'association"
+          ]
+        }
+      },
+      "livrable": {
+        "nature": "Stratégie éditoriale opérationnelle de six mois comprenant cadres de décision, calendrier et outils de pilotage",
+        "format_technique": "markdown",
+        "quantites": {
+          "min": 6,
+          "max": 6,
+          "unite": "mois couverts"
+        },
+        "ton": "Professionnel, concret, accessible et adapté à un contexte associatif, sans jargon superflu",
+        "longueur_indicative": "Environ 1 800 à 2 400 mots, avec des tableaux compacts pour le calendrier, les responsabilités, les indicateurs et les risques."
+      },
+      "compilation": {
+        "composants_retenus": [
+          {
+            "type": "instruction",
+            "titre": "Publics, objectifs et piliers",
+            "contenu": "Définir de trois à cinq publics prioritaires sous forme de segments opérationnels. Pour chacun, préciser le besoin, la relation recherchée avec l'association, les messages utiles, les contenus susceptibles de l'intéresser et l'appel à l'action principal. Construire ensuite quatre à six piliers de contenu clairement distincts et relier chaque pilier aux publics servis, à un objectif éditorial et à des exemples de sujets. Présenter ces segments et piliers comme un cadre à valider lorsque les données propres à l'association manquent.",
+            "justification": "Cette architecture relie les publics demandés aux contenus et évite une liste de sujets sans finalité.",
+            "fondements": [
+              {
+                "nature": "utilisateur",
+                "citation": "Définis les publics, piliers de contenu",
+                "usage": "Établit explicitement les deux dimensions à concevoir."
+              },
+              {
+                "nature": "deduction",
+                "citation": null,
+                "usage": "La limitation du nombre de segments et de piliers est un choix de travail destiné à conserver une stratégie exploitable."
+              }
+            ]
+          },
+          {
+            "type": "instruction",
+            "titre": "Rôles des canaux et réutilisation",
+            "contenu": "Attribuer une fonction distincte au site, à la newsletter mensuelle, au Réseau 1 et au Réseau 2 dans le parcours du public. Définir pour chaque canal ses formats, son type d'appel à l'action et son articulation avec les autres canaux, sans supposer de fonctionnalité propre aux réseaux non identifiés. Fournir une matrice de réutilisation indiquant le contenu source, ses déclinaisons, les adaptations nécessaires de longueur, d'angle, de visuel et d'appel à l'action, ainsi que les contrôles de droits, de consentement, d'accessibilité et d'actualité avant republication.",
+            "justification": "La stratégie doit coordonner quatre canaux et transformer la réutilisation en processus explicite plutôt qu'en duplication automatique.",
+            "fondements": [
+              {
+                "nature": "utilisateur",
+                "citation": "un site, une newsletter mensuelle et deux réseaux sociaux",
+                "usage": "Établit les quatre canaux à articuler."
+              },
+              {
+                "nature": "utilisateur",
+                "citation": "règles de réutilisation",
+                "usage": "Établit la nécessité de règles explicites de déclinaison."
+              },
+              {
+                "nature": "deduction",
+                "citation": null,
+                "usage": "Le recours à des libellés neutres évite d'inventer l'identité ou les fonctionnalités des plateformes."
+              }
+            ]
+          },
+          {
+            "type": "instruction",
+            "titre": "Calendrier éditorial sur six mois",
+            "contenu": "Construire un calendrier de M1 à M6. Pour chaque mois, indiquer l'objectif dominant, le thème ou temps fort, les publics prioritaires, les piliers mobilisés, le contenu principal, ses déclinaisons sur les quatre canaux, l'appel à l'action et le jalon de mesure. Prévoir exactement une newsletter par mois. Pour le site et les réseaux sociaux, proposer des cadences sous forme de points de départ ajustables, jamais comme des capacités confirmées. Utiliser des emplacements clairement identifiés pour les événements réels qui n'ont pas été fournis.",
+            "justification": "Un calendrier multicanal concret est nécessaire pour rendre la stratégie exécutable pendant tout l'horizon demandé.",
+            "fondements": [
+              {
+                "nature": "utilisateur",
+                "citation": "stratégie éditoriale de six mois",
+                "usage": "Fixe l'horizon temporel du calendrier."
+              },
+              {
+                "nature": "utilisateur",
+                "citation": "une newsletter mensuelle",
+                "usage": "Fixe la fréquence impérative de la newsletter."
+              },
+              {
+                "nature": "deduction",
+                "citation": null,
+                "usage": "Les cadences des autres canaux doivent rester ajustables puisque les ressources ne sont pas indiquées."
+              }
+            ]
+          },
+          {
+            "type": "instruction",
+            "titre": "Responsabilités et flux de production",
+            "contenu": "Présenter une matrice simple de responsabilités par fonctions, sans inventer de personnes : pilotage éditorial, liaison avec la programmation, création, collecte des visuels et autorisations, validation, publication, modération et analyse. Pour chaque étape, distinguer qui réalise, qui valide et qui doit être consulté. Décrire un cycle mensuel léger couvrant planification, production, validation, programmation, diffusion, modération et bilan, avec une solution de remplacement en cas d'indisponibilité.",
+            "justification": "La répartition des responsabilités conditionne la régularité et la soutenabilité du calendrier.",
+            "fondements": [
+              {
+                "nature": "utilisateur",
+                "citation": "responsabilités",
+                "usage": "Établit la demande d'une gouvernance éditoriale explicite."
+              },
+              {
+                "nature": "deduction",
+                "citation": null,
+                "usage": "Une répartition par fonctions est adaptée lorsque la composition réelle de l'équipe est inconnue."
+              }
+            ]
+          },
+          {
+            "type": "instruction",
+            "titre": "Indicateurs et méthode d'ajustement",
+            "contenu": "Définir un nombre limité d'indicateurs reliés aux objectifs et couvrant au minimum la portée utile, l'engagement, le trafic vers le site, l'inscription ou la fidélisation, la participation aux activités et l'efficacité de production. Pour chaque indicateur, préciser sa définition, son canal, sa fréquence de suivi et la décision qu'il peut déclencher. En l'absence de données initiales, commencer par établir une référence plutôt que d'inventer une cible. Prévoir un bilan mensuel court, une revue approfondie à mi-parcours et une décision documentée consistant à poursuivre, modifier, tester ou arrêter chaque action significative.",
+            "justification": "Les indicateurs ne deviennent utiles que s'ils sont reliés à des décisions et intégrés à une boucle d'amélioration.",
+            "fondements": [
+              {
+                "nature": "utilisateur",
+                "citation": "indicateurs, risques et méthode d'ajustement",
+                "usage": "Établit la nécessité d'indicateurs et d'une méthode d'ajustement."
+              },
+              {
+                "nature": "deduction",
+                "citation": null,
+                "usage": "L'établissement préalable d'une référence évite de présenter des objectifs numériques sans base empirique."
+              }
+            ]
+          },
+          {
+            "type": "instruction",
+            "titre": "Registre des risques et parades",
+            "contenu": "Fournir un registre compact des risques comprenant au minimum la surcharge de l'équipe, l'irrégularité de publication, la dispersion entre canaux, la faible pertinence pour les publics, les erreurs ou informations périmées, les droits sur les contenus, le consentement des personnes représentées, l'accessibilité, la modération et l'usage des données. Pour chaque risque, indiquer le signal précoce, l'impact qualitatif, la mesure préventive, la réponse corrective et le rôle responsable. Ne pas transformer ces précautions en affirmations juridiques précises sans fondement actuel consultable.",
+            "justification": "Un registre actionnable permet de protéger la faisabilité, la cohérence et la réputation de la communication.",
+            "fondements": [
+              {
+                "nature": "utilisateur",
+                "citation": "risques",
+                "usage": "Établit explicitement la nécessité d'analyser les risques."
+              },
+              {
+                "nature": "deduction",
+                "citation": null,
+                "usage": "Les catégories et le format du registre constituent une méthode de structuration adaptée à une activité éditoriale."
+              }
+            ]
+          }
+        ],
+        "composants_ecartes": []
+      },
+      "verification": {
+        "criteres_bloquants": [
+          "Le livrable couvre exactement six mois et prévoit une newsletter pour chacun des six mois.",
+          "Les publics, piliers, calendrier, responsabilités, règles de réutilisation, indicateurs, risques et méthode d'ajustement sont tous traités.",
+          "Le site, la newsletter et les deux réseaux sociaux ont des rôles identifiables.",
+          "Aucune donnée propre à l'association, à son équipe, à son agenda ou à ses performances n'est inventée.",
+          "Les propositions conditionnées par les ressources ou les données initiales sont explicitement présentées comme telles."
+        ],
+        "criteres_qualitatifs": [
+          "Les piliers répondent aux besoins des publics et alimentent réellement le calendrier.",
+          "Chaque contenu principal peut être décliné sans duplication mécanique sur les quatre canaux.",
+          "Les responsabilités couvrent tout le flux, de la planification au bilan.",
+          "Chaque indicateur peut conduire à une décision concrète.",
+          "La charge éditoriale proposée reste adaptable à une équipe associative.",
+          "Les risques comportent des mesures préventives et correctives exploitables."
+        ],
+        "elements_non_verifiables": [
+          "Adéquation exacte des segments avec l'audience réelle de l'association",
+          "Faisabilité des cadences sans données sur les ressources",
+          "Pertinence des formats pour les deux réseaux sociaux non identifiés",
+          "Valeurs initiales et cibles des indicateurs",
+          "Correspondance du calendrier avec la programmation culturelle réelle"
+        ],
+        "controle_provenance": [
+          {
+            "affirmation": "La stratégie doit couvrir six mois, un site, une newsletter mensuelle et deux réseaux sociaux.",
+            "statut": "soutenue",
+            "justification": "Ces éléments figurent explicitement dans la demande."
+          },
+          {
+            "affirmation": "Les deux réseaux sociaux ne sont pas identifiés.",
+            "statut": "information_manquante",
+            "justification": "La demande en indique le nombre, mais pas les plateformes."
+          },
+          {
+            "affirmation": "Les cadences hors newsletter et les cibles quantitatives sont des propositions à calibrer.",
+            "statut": "hypothese",
+            "justification": "Les ressources et données de référence nécessaires à leur validation ne sont pas fournies."
+          },
+          {
+            "affirmation": "Les méthodes de segmentation, de gouvernance, de réutilisation et de mesure relèvent de pratiques générales de stratégie éditoriale.",
+            "statut": "connaissance_externe_non_verifiee",
+            "justification": "Ces méthodes ne proviennent pas de la demande ni d'un matériau fourni."
+          }
+        ]
+      },
+      "apprentissage": {
+        "preferences_applicables": [],
+        "preference_proposable": null
+      }
+    },
+    "analysis_call": {
+      "timestamp": "2026-08-28T07:50:08.155Z",
+      "endpoint": "/v1/responses",
+      "status_http": 200,
+      "latency_ms": 98543.935,
+      "response_id": "resp_02e3a3399614fbfa006a913d4d804487d2a5bd2ebec6491511",
+      "response_status": "completed",
+      "model_requested": "gpt-5.6-sol",
+      "model_returned": "gpt-5.6-sol",
+      "usage": {
+        "input_tokens": 9671,
+        "output_tokens": 7990,
+        "total_tokens": 17661,
+        "reasoning_tokens": 3606
+      },
+      "estimated_cost_usd": 0.198484,
+      "incomplete_details": null,
+      "error": null,
+      "output": "{\n  \"version\": \"3.4\",\n  \"comprehension\": {\n    \"intention_principale\": \"Concevoir une stratégie éditoriale opérationnelle couvrant six mois pour une association culturelle locale et ses quatre canaux de publication.\",\n    \"intentions_secondaires\": [\n      \"Structurer la production, la validation, la publication et la réutilisation des contenus.\",\n      \"Fournir un cadre de mesure et d'ajustement continu.\",\n      \"Anticiper les principaux risques éditoriaux et organisationnels.\"\n    ],\n    \"declarations\": [\n      {\n        \"contenu\": \"Le demandeur souhaite une stratégie éditoriale sur six mois.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"Conçois une stratégie éditoriale de six mois\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      },\n      {\n        \"contenu\": \"L'organisation concernée est une association culturelle locale.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"une association culturelle locale\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      }\n    ],\n    \"contraintes\": [\n      {\n        \"contenu\": \"La stratégie doit articuler un site, une newsletter mensuelle et deux réseaux sociaux.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"qui publie sur un site, une newsletter mensuelle et deux réseaux sociaux\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      },\n      {\n        \"contenu\": \"Le livrable doit traiter les publics, les piliers, le calendrier, les responsabilités, la réutilisation, les indicateurs, les risques et l'ajustement.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"Définis les publics, piliers de contenu, calendrier, responsabilités, règles de réutilisation, indicateurs, risques et méthode d'ajustement.\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      },\n      {\n        \"contenu\": \"La newsletter doit conserver une fréquence mensuelle.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"une newsletter mensuelle\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      }\n    ],\n    \"ambiguites\": [\n      \"Les deux réseaux sociaux ne sont pas nommés.\",\n      \"Les objectifs prioritaires de l'association, son territoire précis et sa programmation ne sont pas indiqués.\",\n      \"La taille de l'équipe et les moyens disponibles ne sont pas précisés.\"\n    ],\n    \"informations_manquantes\": [\n      {\n        \"information\": \"Identité et caractéristiques des deux réseaux sociaux\",\n        \"bloquant\": false,\n        \"justification\": \"Les plateformes influencent les formats et les usages, mais une stratégie fiable peut employer les libellés Réseau 1 et Réseau 2 et rester indépendante de leurs fonctionnalités.\"\n      },\n      {\n        \"information\": \"Mission détaillée, programmation des six prochains mois et priorités de communication\",\n        \"bloquant\": false,\n        \"justification\": \"Ces éléments permettraient de personnaliser les publics, thèmes et temps forts, mais un calendrier-cadre adaptable peut être fourni immédiatement.\"\n      },\n      {\n        \"information\": \"Composition de l'équipe, temps disponible et circuit de validation existant\",\n        \"bloquant\": false,\n        \"justification\": \"Ces données déterminent la cadence réellement soutenable, mais les responsabilités peuvent être définies par fonctions et les cadences présentées comme propositions à calibrer.\"\n      },\n      {\n        \"information\": \"Données actuelles d'audience et de performance par canal\",\n        \"bloquant\": false,\n        \"justification\": \"Elles seraient nécessaires pour fixer des objectifs chiffrés crédibles, mais une méthode fondée sur une mesure initiale et des cibles directionnelles reste exploitable.\"\n      }\n    ]\n  },\n  \"evaluation\": {\n    \"niveau_risque\": \"faible\",\n    \"justification_risque\": \"La demande porte sur une planification éditoriale réversible et ajustable. Les principaux risques concernent surtout la charge de travail, la cohérence publique et l'usage de contenus ou de données.\",\n    \"connaissance_externe_necessaire\": true,\n    \"actualite_requise\": false,\n    \"justification_connaissance\": \"La conception mobilise des méthodes générales de stratégie éditoriale, de gouvernance et de mesure qui ne figurent pas dans la demande. Des faits actuels propres aux plateformes ne sont pas indispensables si la réponse reste indépendante de leurs fonctionnalités changeantes.\",\n    \"calcul_requis\": false,\n    \"livrable_complet_possible\": true,\n    \"reponse_partielle_possible\": true,\n    \"action_recommandee\": \"continuer\",\n    \"questions_a_poser\": [],\n    \"parties_realisables_immediatement\": []\n  },\n  \"strategie\": {\n    \"capacites_necessaires\": [\n      \"Segmentation de publics culturels locaux\",\n      \"Architecture éditoriale multicanale\",\n      \"Planification sur six mois\",\n      \"Organisation des responsabilités et des flux de validation\",\n      \"Définition d'indicateurs et de boucles d'ajustement\",\n      \"Analyse qualitative des risques\"\n    ],\n    \"hypotheses_autorisees\": [\n      \"Désigner provisoirement les plateformes non précisées par Réseau 1 et Réseau 2.\",\n      \"Présenter les cadences hors newsletter comme des points de départ à adapter aux ressources.\",\n      \"Définir les responsabilités par fonctions plutôt que par personnes nommées.\",\n      \"Utiliser des emplacements à compléter pour les événements et temps forts non communiqués.\"\n    ],\n    \"hypotheses_interdites\": [\n      \"Inventer la programmation, le budget, les effectifs ou les données d'audience de l'association.\",\n      \"Attribuer aux deux réseaux sociaux des fonctionnalités ou des publics spécifiques sans connaître leur identité.\",\n      \"Présenter une cadence, un objectif chiffré ou un résultat attendu comme validé par des données absentes.\",\n      \"Modifier silencieusement la fréquence mensuelle demandée pour la newsletter.\"\n    ],\n    \"role_adaptatif\": {\n      \"intitule\": \"Stratège éditorial pour structure culturelle locale\",\n      \"mission\": \"Transformer la demande en plan éditorial multicanal de six mois, cohérent, mesurable et adaptable aux moyens réels de l'association.\",\n      \"competences\": [\n        \"Stratégie de contenu\",\n        \"Communication culturelle locale\",\n        \"Planification multicanale\",\n        \"Gouvernance éditoriale\",\n        \"Mesure de performance\"\n      ],\n      \"limites\": [\n        \"Ne pas prétendre connaître les plateformes, ressources, publics actuels ou événements non précisés.\",\n        \"Étiqueter comme propositions les cadences et cibles sans données de référence.\",\n        \"Ne pas présenter de règle juridique ou de fonctionnalité changeante comme vérifiée sans recherche appropriée.\"\n      ]\n    },\n    \"niveau_architecture\": \"minimal\",\n    \"justification_niveau\": \"Le réglage manuel impose une analyse minimale. La réponse peut rester concise tout en couvrant les huit dimensions demandées au moyen de tableaux et de principes directement opérationnels.\",\n    \"pilotage_incertitude\": {\n      \"decisions_autonomes\": [\n        \"Structurer la stratégie autour de publics, piliers, rôles des canaux, calendrier, gouvernance, mesure et risques.\",\n        \"Employer Réseau 1 et Réseau 2 comme libellés provisoires.\",\n        \"Proposer une méthode de déclinaison mensuelle et une boucle régulière d'amélioration.\",\n        \"Présenter des segments et des piliers en nombre limité pour préserver l'exploitabilité.\"\n      ],\n      \"estimations_a_etiqueter\": [\n        \"Cadences de publication proposées pour le site et les réseaux sociaux.\",\n        \"Charge de production associée au calendrier.\",\n        \"Cibles quantitatives éventuelles avant établissement d'une mesure initiale.\"\n      ],\n      \"inconnues_non_devineables\": [\n        \"Identité des deux réseaux sociaux\",\n        \"Programmation culturelle réelle des six mois\",\n        \"Ressources humaines et budget disponibles\",\n        \"Données initiales d'audience, d'engagement et de conversion\",\n        \"Priorités stratégiques exactes de l'association\"\n      ]\n    }\n  },\n  \"livrable\": {\n    \"nature\": \"Stratégie éditoriale opérationnelle de six mois comprenant cadres de décision, calendrier et outils de pilotage\",\n    \"format_technique\": \"markdown\",\n    \"quantites\": {\n      \"min\": 6,\n      \"max\": 6,\n      \"unite\": \"mois couverts\"\n    },\n    \"ton\": \"Professionnel, concret, accessible et adapté à un contexte associatif, sans jargon superflu\",\n    \"longueur_indicative\": \"Environ 1 800 à 2 400 mots, avec des tableaux compacts pour le calendrier, les responsabilités, les indicateurs et les risques.\"\n  },\n  \"compilation\": {\n    \"composants_retenus\": [\n      {\n        \"type\": \"instruction\",\n        \"titre\": \"Publics, objectifs et piliers\",\n        \"contenu\": \"Définir de trois à cinq publics prioritaires sous forme de segments opérationnels. Pour chacun, préciser le besoin, la relation recherchée avec l'association, les messages utiles, les contenus susceptibles de l'intéresser et l'appel à l'action principal. Construire ensuite quatre à six piliers de contenu clairement distincts et relier chaque pilier aux publics servis, à un objectif éditorial et à des exemples de sujets. Présenter ces segments et piliers comme un cadre à valider lorsque les données propres à l'association manquent.\",\n        \"justification\": \"Cette architecture relie les publics demandés aux contenus et évite une liste de sujets sans finalité.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"Définis les publics, piliers de contenu\",\n            \"usage\": \"Établit explicitement les deux dimensions à concevoir.\"\n          },\n          {\n            \"nature\": \"deduction\",\n            \"citation\": null,\n            \"usage\": \"La limitation du nombre de segments et de piliers est un choix de travail destiné à conserver une stratégie exploitable.\"\n          }\n        ]\n      },\n      {\n        \"type\": \"instruction\",\n        \"titre\": \"Rôles des canaux et réutilisation\",\n        \"contenu\": \"Attribuer une fonction distincte au site, à la newsletter mensuelle, au Réseau 1 et au Réseau 2 dans le parcours du public. Définir pour chaque canal ses formats, son type d'appel à l'action et son articulation avec les autres canaux, sans supposer de fonctionnalité propre aux réseaux non identifiés. Fournir une matrice de réutilisation indiquant le contenu source, ses déclinaisons, les adaptations nécessaires de longueur, d'angle, de visuel et d'appel à l'action, ainsi que les contrôles de droits, de consentement, d'accessibilité et d'actualité avant republication.\",\n        \"justification\": \"La stratégie doit coordonner quatre canaux et transformer la réutilisation en processus explicite plutôt qu'en duplication automatique.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"un site, une newsletter mensuelle et deux réseaux sociaux\",\n            \"usage\": \"Établit les quatre canaux à articuler.\"\n          },\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"règles de réutilisation\",\n            \"usage\": \"Établit la nécessité de règles explicites de déclinaison.\"\n          },\n          {\n            \"nature\": \"deduction\",\n            \"citation\": null,\n            \"usage\": \"Le recours à des libellés neutres évite d'inventer l'identité ou les fonctionnalités des plateformes.\"\n          }\n        ]\n      },\n      {\n        \"type\": \"instruction\",\n        \"titre\": \"Calendrier éditorial sur six mois\",\n        \"contenu\": \"Construire un calendrier de M1 à M6. Pour chaque mois, indiquer l'objectif dominant, le thème ou temps fort, les publics prioritaires, les piliers mobilisés, le contenu principal, ses déclinaisons sur les quatre canaux, l'appel à l'action et le jalon de mesure. Prévoir exactement une newsletter par mois. Pour le site et les réseaux sociaux, proposer des cadences sous forme de points de départ ajustables, jamais comme des capacités confirmées. Utiliser des emplacements clairement identifiés pour les événements réels qui n'ont pas été fournis.\",\n        \"justification\": \"Un calendrier multicanal concret est nécessaire pour rendre la stratégie exécutable pendant tout l'horizon demandé.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"stratégie éditoriale de six mois\",\n            \"usage\": \"Fixe l'horizon temporel du calendrier.\"\n          },\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"une newsletter mensuelle\",\n            \"usage\": \"Fixe la fréquence impérative de la newsletter.\"\n          },\n          {\n            \"nature\": \"deduction\",\n            \"citation\": null,\n            \"usage\": \"Les cadences des autres canaux doivent rester ajustables puisque les ressources ne sont pas indiquées.\"\n          }\n        ]\n      },\n      {\n        \"type\": \"instruction\",\n        \"titre\": \"Responsabilités et flux de production\",\n        \"contenu\": \"Présenter une matrice simple de responsabilités par fonctions, sans inventer de personnes : pilotage éditorial, liaison avec la programmation, création, collecte des visuels et autorisations, validation, publication, modération et analyse. Pour chaque étape, distinguer qui réalise, qui valide et qui doit être consulté. Décrire un cycle mensuel léger couvrant planification, production, validation, programmation, diffusion, modération et bilan, avec une solution de remplacement en cas d'indisponibilité.\",\n        \"justification\": \"La répartition des responsabilités conditionne la régularité et la soutenabilité du calendrier.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"responsabilités\",\n            \"usage\": \"Établit la demande d'une gouvernance éditoriale explicite.\"\n          },\n          {\n            \"nature\": \"deduction\",\n            \"citation\": null,\n            \"usage\": \"Une répartition par fonctions est adaptée lorsque la composition réelle de l'équipe est inconnue.\"\n          }\n        ]\n      },\n      {\n        \"type\": \"instruction\",\n        \"titre\": \"Indicateurs et méthode d'ajustement\",\n        \"contenu\": \"Définir un nombre limité d'indicateurs reliés aux objectifs et couvrant au minimum la portée utile, l'engagement, le trafic vers le site, l'inscription ou la fidélisation, la participation aux activités et l'efficacité de production. Pour chaque indicateur, préciser sa définition, son canal, sa fréquence de suivi et la décision qu'il peut déclencher. En l'absence de données initiales, commencer par établir une référence plutôt que d'inventer une cible. Prévoir un bilan mensuel court, une revue approfondie à mi-parcours et une décision documentée consistant à poursuivre, modifier, tester ou arrêter chaque action significative.\",\n        \"justification\": \"Les indicateurs ne deviennent utiles que s'ils sont reliés à des décisions et intégrés à une boucle d'amélioration.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"indicateurs, risques et méthode d'ajustement\",\n            \"usage\": \"Établit la nécessité d'indicateurs et d'une méthode d'ajustement.\"\n          },\n          {\n            \"nature\": \"deduction\",\n            \"citation\": null,\n            \"usage\": \"L'établissement préalable d'une référence évite de présenter des objectifs numériques sans base empirique.\"\n          }\n        ]\n      },\n      {\n        \"type\": \"instruction\",\n        \"titre\": \"Registre des risques et parades\",\n        \"contenu\": \"Fournir un registre compact des risques comprenant au minimum la surcharge de l'équipe, l'irrégularité de publication, la dispersion entre canaux, la faible pertinence pour les publics, les erreurs ou informations périmées, les droits sur les contenus, le consentement des personnes représentées, l'accessibilité, la modération et l'usage des données. Pour chaque risque, indiquer le signal précoce, l'impact qualitatif, la mesure préventive, la réponse corrective et le rôle responsable. Ne pas transformer ces précautions en affirmations juridiques précises sans fondement actuel consultable.\",\n        \"justification\": \"Un registre actionnable permet de protéger la faisabilité, la cohérence et la réputation de la communication.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"risques\",\n            \"usage\": \"Établit explicitement la nécessité d'analyser les risques.\"\n          },\n          {\n            \"nature\": \"deduction\",\n            \"citation\": null,\n            \"usage\": \"Les catégories et le format du registre constituent une méthode de structuration adaptée à une activité éditoriale.\"\n          }\n        ]\n      }\n    ],\n    \"composants_ecartes\": []\n  },\n  \"verification\": {\n    \"criteres_bloquants\": [\n      \"Le livrable couvre exactement six mois et prévoit une newsletter pour chacun des six mois.\",\n      \"Les publics, piliers, calendrier, responsabilités, règles de réutilisation, indicateurs, risques et méthode d'ajustement sont tous traités.\",\n      \"Le site, la newsletter et les deux réseaux sociaux ont des rôles identifiables.\",\n      \"Aucune donnée propre à l'association, à son équipe, à son agenda ou à ses performances n'est inventée.\",\n      \"Les propositions conditionnées par les ressources ou les données initiales sont explicitement présentées comme telles.\"\n    ],\n    \"criteres_qualitatifs\": [\n      \"Les piliers répondent aux besoins des publics et alimentent réellement le calendrier.\",\n      \"Chaque contenu principal peut être décliné sans duplication mécanique sur les quatre canaux.\",\n      \"Les responsabilités couvrent tout le flux, de la planification au bilan.\",\n      \"Chaque indicateur peut conduire à une décision concrète.\",\n      \"La charge éditoriale proposée reste adaptable à une équipe associative.\",\n      \"Les risques comportent des mesures préventives et correctives exploitables.\"\n    ],\n    \"elements_non_verifiables\": [\n      \"Adéquation exacte des segments avec l'audience réelle de l'association\",\n      \"Faisabilité des cadences sans données sur les ressources\",\n      \"Pertinence des formats pour les deux réseaux sociaux non identifiés\",\n      \"Valeurs initiales et cibles des indicateurs\",\n      \"Correspondance du calendrier avec la programmation culturelle réelle\"\n    ],\n    \"controle_provenance\": [\n      {\n        \"affirmation\": \"La stratégie doit couvrir six mois, un site, une newsletter mensuelle et deux réseaux sociaux.\",\n        \"statut\": \"soutenue\",\n        \"justification\": \"Ces éléments figurent explicitement dans la demande.\"\n      },\n      {\n        \"affirmation\": \"Les deux réseaux sociaux ne sont pas identifiés.\",\n        \"statut\": \"information_manquante\",\n        \"justification\": \"La demande en indique le nombre, mais pas les plateformes.\"\n      },\n      {\n        \"affirmation\": \"Les cadences hors newsletter et les cibles quantitatives sont des propositions à calibrer.\",\n        \"statut\": \"hypothese\",\n        \"justification\": \"Les ressources et données de référence nécessaires à leur validation ne sont pas fournies.\"\n      },\n      {\n        \"affirmation\": \"Les méthodes de segmentation, de gouvernance, de réutilisation et de mesure relèvent de pratiques générales de stratégie éditoriale.\",\n        \"statut\": \"connaissance_externe_non_verifiee\",\n        \"justification\": \"Ces méthodes ne proviennent pas de la demande ni d'un matériau fourni.\"\n      }\n    ]\n  },\n  \"apprentissage\": {\n    \"preferences_applicables\": [],\n    \"preference_proposable\": null\n  }\n}"
+    },
+    "validation": [],
+    "prompt": "## RÔLE\nVous intervenez comme Stratège éditorial pour structure culturelle locale.\nTransformer la demande en plan éditorial multicanal de six mois, cohérent, mesurable et adaptable aux moyens réels de l'association.\nCompétences à mobiliser : Stratégie de contenu ; Communication culturelle locale ; Planification multicanale ; Gouvernance éditoriale ; Mesure de performance.\nLimites à respecter : Ne pas prétendre connaître les plateformes, ressources, publics actuels ou événements non précisés ; Étiqueter comme propositions les cadences et cibles sans données de référence ; Ne pas présenter de règle juridique ou de fonctionnalité changeante comme vérifiée sans recherche appropriée.\n\n## OBJECTIF\nConcevoir une stratégie éditoriale opérationnelle couvrant six mois pour une association culturelle locale et ses quatre canaux de publication.\n\n## DEMANDE ORIGINALE\nConçois une stratégie éditoriale de six mois pour une association culturelle locale qui publie sur un site, une newsletter mensuelle et deux réseaux sociaux. Définis les publics, piliers de contenu, calendrier, responsabilités, règles de réutilisation, indicateurs, risques et méthode d'ajustement.\n\n## FORMAT DE SORTIE\n- Livrable : Stratégie éditoriale opérationnelle de six mois comprenant cadres de décision, calendrier et outils de pilotage\n- Format technique : markdown\n- Ton : Professionnel, concret, accessible et adapté à un contexte associatif, sans jargon superflu\n- Longueur indicative : Environ 1 800 à 2 400 mots, avec des tableaux compacts pour le calendrier, les responsabilités, les indicateurs et les risques.\n- Quantité : minimum 6 ; maximum 6 mois couverts\n- Structure : plan imposé (6 éléments)\n\n## DÉCISIONS, ESTIMATIONS ET INCERTITUDES\nRègle centrale : traitez chaque inconnue par le moyen le plus utile et honnête — décision raisonnable, estimation étiquetée, recherche, scénario, condition ou inconnue locale. Une décision reste un choix, jamais un fait vérifié. La précision doit être proportionnée aux preuves. Hiérarchisez les critères selon l’objectif réel, les contraintes, leur impact cumulé et les conséquences d’une erreur, sans modifier silencieusement une contrainte explicite.\n\nDécisions à prendre de façon autonome :\n- Structurer la stratégie autour de publics, piliers, rôles des canaux, calendrier, gouvernance, mesure et risques.\n- Employer Réseau 1 et Réseau 2 comme libellés provisoires.\n- Proposer une méthode de déclinaison mensuelle et une boucle régulière d'amélioration.\n- Présenter des segments et des piliers en nombre limité pour préserver l'exploitabilité.\n\nEstimations autorisées, à étiqueter clairement :\n- Cadences de publication proposées pour le site et les réseaux sociaux.\n- Charge de production associée au calendrier.\n- Cibles quantitatives éventuelles avant établissement d'une mesure initiale.\n\nPour chacune : utilisez explicitement « estimation », « environ », « fourchette », « ordre de grandeur » ou « à confirmer ». Ne donnez jamais à une approximation la forme d’une mesure vérifiée.\n\nIncertitudes à signaler localement sans bloquer le reste :\n- Identité des deux réseaux sociaux\n- Programmation culturelle réelle des six mois\n- Ressources humaines et budget disponibles\n- Données initiales d'audience, d'engagement et de conversion\n- Priorités stratégiques exactes de l'association\n\n## INFORMATIONS MANQUANTES ET PILOTAGE\n- Non bloquante : Identité et caractéristiques des deux réseaux sociaux — Les plateformes influencent les formats et les usages, mais une stratégie fiable peut employer les libellés Réseau 1 et Réseau 2 et rester indépendante de leurs fonctionnalités.\n- Non bloquante : Mission détaillée, programmation des six prochains mois et priorités de communication — Ces éléments permettraient de personnaliser les publics, thèmes et temps forts, mais un calendrier-cadre adaptable peut être fourni immédiatement.\n- Non bloquante : Composition de l'équipe, temps disponible et circuit de validation existant — Ces données déterminent la cadence réellement soutenable, mais les responsabilités peuvent être définies par fonctions et les cadences présentées comme propositions à calibrer.\n- Non bloquante : Données actuelles d'audience et de performance par canal — Elles seraient nécessaires pour fixer des objectifs chiffrés crédibles, mais une méthode fondée sur une mesure initiale et des cibles directionnelles reste exploitable.\n\nNe présentez jamais une information inconnue comme confirmée. Mais ne bloquez pas une réponse utile pour une donnée que vous pouvez décider, estimer, rechercher ou laisser explicitement à confirmer.\n\n## RECHERCHE, ACTUALITÉ ET QUALITÉ DES PREUVES\nUne connaissance extérieure à la demande est nécessaire. Citez les sources directement consultées et leur date de consultation. Sans recherche réelle, distinguez explicitement ce qui est établi dans la demande de ce qui reste non vérifié. Pour chaque affirmation importante, choisissez la source selon son autorité sur cette affirmation, sa proximité avec la donnée, sa spécificité et sa fraîcheur ; ne suivez pas une hiérarchie rigide indépendante du contexte. En cas de contradiction, cherchez une preuve plus directement compétente et tranchez seulement si elle résout réellement le conflit. Recherchez également les changements futurs déjà établis lorsqu’ils se situent dans l’horizon pertinent et peuvent modifier la décision.\n\n## HYPOTHÈSES AUTORISÉES\n- Désigner provisoirement les plateformes non précisées par Réseau 1 et Réseau 2.\n- Présenter les cadences hors newsletter comme des points de départ à adapter aux ressources.\n- Définir les responsabilités par fonctions plutôt que par personnes nommées.\n- Utiliser des emplacements à compléter pour les événements et temps forts non communiqués.\n\n## HYPOTHÈSES INTERDITES\n- Inventer la programmation, le budget, les effectifs ou les données d'audience de l'association.\n- Attribuer aux deux réseaux sociaux des fonctionnalités ou des publics spécifiques sans connaître leur identité.\n- Présenter une cadence, un objectif chiffré ou un résultat attendu comme validé par des données absentes.\n- Modifier silencieusement la fréquence mensuelle demandée pour la newsletter.\n\n## PRINCIPES DE RAISONNEMENT\n- Distinguez faits établis, décisions, estimations, hypothèses et inconnues.\n- Vérifiez que les comparaisons portent sur des périmètres réellement comparables.\n- Adaptez la précision numérique au niveau de preuve disponible ; n’inventez pas une probabilité ou une date pour satisfaire une demande de précision.\n- Pondérez les critères selon l’objectif réel, les contraintes, l’impact cumulé et les conséquences d’une erreur.\n- Résolvez les contradictions avec la preuve la plus compétente pour l’affirmation, sans hiérarchie mécanique de sources.\n- Pour l’avenir, distinguez changements déjà établis et prévisions ; utilisez une sensibilité ou des scénarios quand le moment exact est inconnu.\n\n## Publics, objectifs et piliers\nDéfinir de trois à cinq publics prioritaires sous forme de segments opérationnels. Pour chacun, préciser le besoin, la relation recherchée avec l'association, les messages utiles, les contenus susceptibles de l'intéresser et l'appel à l'action principal. Construire ensuite quatre à six piliers de contenu clairement distincts et relier chaque pilier aux publics servis, à un objectif éditorial et à des exemples de sujets. Présenter ces segments et piliers comme un cadre à valider lorsque les données propres à l'association manquent.\n\n## Rôles des canaux et réutilisation\nAttribuer une fonction distincte au site, à la newsletter mensuelle, au Réseau 1 et au Réseau 2 dans le parcours du public. Définir pour chaque canal ses formats, son type d'appel à l'action et son articulation avec les autres canaux, sans supposer de fonctionnalité propre aux réseaux non identifiés. Fournir une matrice de réutilisation indiquant le contenu source, ses déclinaisons, les adaptations nécessaires de longueur, d'angle, de visuel et d'appel à l'action, ainsi que les contrôles de droits, de consentement, d'accessibilité et d'actualité avant republication.\n\n## Calendrier éditorial sur six mois\nConstruire un calendrier de M1 à M6. Pour chaque mois, indiquer l'objectif dominant, le thème ou temps fort, les publics prioritaires, les piliers mobilisés, le contenu principal, ses déclinaisons sur les quatre canaux, l'appel à l'action et le jalon de mesure. Prévoir exactement une newsletter par mois. Pour le site et les réseaux sociaux, proposer des cadences sous forme de points de départ ajustables, jamais comme des capacités confirmées. Utiliser des emplacements clairement identifiés pour les événements réels qui n'ont pas été fournis.\n\n## Responsabilités et flux de production\nPrésenter une matrice simple de responsabilités par fonctions, sans inventer de personnes : pilotage éditorial, liaison avec la programmation, création, collecte des visuels et autorisations, validation, publication, modération et analyse. Pour chaque étape, distinguer qui réalise, qui valide et qui doit être consulté. Décrire un cycle mensuel léger couvrant planification, production, validation, programmation, diffusion, modération et bilan, avec une solution de remplacement en cas d'indisponibilité.\n\n## Indicateurs et méthode d'ajustement\nDéfinir un nombre limité d'indicateurs reliés aux objectifs et couvrant au minimum la portée utile, l'engagement, le trafic vers le site, l'inscription ou la fidélisation, la participation aux activités et l'efficacité de production. Pour chaque indicateur, préciser sa définition, son canal, sa fréquence de suivi et la décision qu'il peut déclencher. En l'absence de données initiales, commencer par établir une référence plutôt que d'inventer une cible. Prévoir un bilan mensuel court, une revue approfondie à mi-parcours et une décision documentée consistant à poursuivre, modifier, tester ou arrêter chaque action significative.\n\n## Registre des risques et parades\nFournir un registre compact des risques comprenant au minimum la surcharge de l'équipe, l'irrégularité de publication, la dispersion entre canaux, la faible pertinence pour les publics, les erreurs ou informations périmées, les droits sur les contenus, le consentement des personnes représentées, l'accessibilité, la modération et l'usage des données. Pour chaque risque, indiquer le signal précoce, l'impact qualitatif, la mesure préventive, la réponse corrective et le rôle responsable. Ne pas transformer ces précautions en affirmations juridiques précises sans fondement actuel consultable.\n\n## VÉRIFICATION AVANT ENVOI\nContrôlez silencieusement la réponse et corrigez-la avant de l’envoyer :\n- Le livrable couvre exactement six mois et prévoit une newsletter pour chacun des six mois.\n- Les publics, piliers, calendrier, responsabilités, règles de réutilisation, indicateurs, risques et méthode d'ajustement sont tous traités.\n- Le site, la newsletter et les deux réseaux sociaux ont des rôles identifiables.\n- Aucune donnée propre à l'association, à son équipe, à son agenda ou à ses performances n'est inventée.\n- Les propositions conditionnées par les ressources ou les données initiales sont explicitement présentées comme telles.\n- Les piliers répondent aux besoins des publics et alimentent réellement le calendrier.\n- Chaque contenu principal peut être décliné sans duplication mécanique sur les quatre canaux.\n- Les responsabilités couvrent tout le flux, de la planification au bilan.\n- Chaque indicateur peut conduire à une décision concrète.\n- La charge éditoriale proposée reste adaptable à une équipe associative.\n- Les risques comportent des mesures préventives et correctives exploitables.\n- Toute décision autonome doit rester identifiable comme un choix fondé sur des critères, jamais comme un fait vérifié sans preuve.\n- Toute estimation ou quantification doit avoir une précision proportionnée à sa base ; sans fondement empirique ou calcul identifiable, préférer qualification, fourchette, provision ou sensibilité à un nombre artificiel.\n- Avant toute comparaison ou calcul important, vérifier que les options et données couvrent des périmètres comparables ; expliciter les composantes ou hypothèses susceptibles de changer la décision.\n- En cas de contradiction matérielle, sélectionner la preuve selon son autorité sur l’affirmation, sa proximité, sa spécificité et sa fraîcheur ; trancher uniquement si le conflit est réellement résolu.\n- Pour une décision temporelle, distinguer état actuel, changement futur déjà établi et prévision ; intégrer les changements futurs seulement s’ils sont pertinents pour l’horizon de décision.\n- Quand la date d’un événement futur est inconnue, préférer scénarios, sensibilité, provision ou condition à une date arbitraire.\n- Hiérarchiser les critères selon l’objectif réel, les contraintes et leur impact cumulé, tout en confrontant les effets récurrents aux risques rares mais à conséquences majeures.\n- Ne jamais modifier silencieusement une contrainte explicite ; tout arbitrage qui la sacrifie doit être rendu visible.\n- Nettoyer le livrable final : aucune hésitation, autocorrection, ancien calcul remplacé, doublon, contradiction résiduelle ou trace de brouillon ne doit rester visible."
+  },
+  "final_call": {
+    "timestamp": "2026-08-28T07:50:45.627Z",
+    "endpoint": "/v1/responses",
+    "status_http": 200,
+    "latency_ms": 37400.519,
+    "response_id": "resp_03fe6369b27cc3a6006a913db04de487d2adc30ae5eed4e969",
+    "response_status": "incomplete",
+    "model_requested": "gpt-5.6-sol",
+    "model_returned": "gpt-5.6-sol",
+    "usage": {
+      "input_tokens": 2847,
+      "output_tokens": 2500,
+      "total_tokens": 5347,
+      "reasoning_tokens": 413
+    },
+    "estimated_cost_usd": 0.061388,
+    "incomplete_details": {
+      "reason": "max_output_tokens"
+    },
+    "error": null,
+    "output": "# Stratégie éditoriale opérationnelle — six mois\n\n## 1. Cadre de décision, objectifs et hypothèses de travail\n\n### Finalité\n\nCette stratégie vise à rendre la communication de l’association :\n\n1. **utile aux publics locaux** ;\n2. **régulière sans surcharger l’équipe** ;\n3. **cohérente entre les quatre canaux** ;\n4. **orientée vers des actions mesurables** : consulter, s’inscrire, participer, revenir ou contribuer.\n\n### Statut des informations\n\n- **Établi par la demande** : présence d’un site, d’une newsletter mensuelle et de deux réseaux sociaux.\n- **Décisions proposées** : quatre publics prioritaires, cinq piliers éditoriaux, rôle de chaque canal et organisation du cycle mensuel.\n- **Inconnues à confirmer** : identité des réseaux, mission détaillée, programmation réelle, territoire couvert, ressources humaines, budget, données d’audience et priorités exactes.\n- **Estimations à calibrer** :\n  - site : **environ 1 à 2 publications ou mises à jour substantielles par mois** ;\n  - Réseau 1 : **environ 2 publications par semaine** ;\n  - Réseau 2 : **environ 1 à 2 publications par semaine** ;\n  - charge totale : **ordre de grandeur de 20 à 35 heures par mois**, hors couverture importante d’événements, production vidéo élaborée ou gestion de crise.\n\nCes cadences sont des **points de départ**, et non des capacités confirmées. Si l’équipe dispose de moins de temps, la priorité sera : informations fiables sur le site, une newsletter mensuelle, puis une déclinaison minimale sur chaque réseau.\n\n### Objectifs éditoriaux proposés\n\n1. Faire connaître la mission et l’offre culturelle.\n2. Transformer l’attention en inscriptions ou en participation.\n3. Fidéliser les participants et abonnés.\n4. Valoriser les artistes, bénévoles et partenaires locaux.\n5. Construire une communication soutenable et mesurable.\n\n### Principe de programmation\n\nChaque mois repose sur un **contenu principal**, généralement publié ou consolidé sur le site. Il est ensuite adapté, et non copié mécaniquement, dans la newsletter et sur les deux réseaux. Un événement réel peut remplacer le thème-cadre dès qu’il est confirmé.\n\n### Sources et niveau de vérification\n\nAucune recherche externe en temps réel ni consultation directe de source n’a été réalisée pour ce livrable. **Date de consultation : aucune.** Les recommandations relèvent donc d’un cadre professionnel générique à valider localement. Avant mise en œuvre, l’association devra consulter les sources officielles pertinentes concernant notamment les données personnelles, les droits d’auteur, le droit à l’image, l’accessibilité et les règles de modération des plateformes effectivement utilisées. Aucune règle juridique ou fonctionnalité de plateforme n’est ici présentée comme vérifiée ou à jour.\n\n---\n\n## 2. Publics prioritaires et piliers de contenu\n\n### Segments opérationnels proposés\n\nCe cadre limité à quatre segments doit être validé à partir des inscriptions, échanges de terrain et données disponibles.\n\n| Public prioritaire | Besoin principal | Relation recherchée | Messages et contenus utiles | Appel à l’action principal |\n|---|---|---|---|---|\n| Habitants curieux du territoire | Comprendre rapidement ce qui est proposé, où, quand et pour qui | Première découverte puis participation | Agenda lisible, présentation accessible, informations pratiques, aperçu d’ambiance | Découvrir le programme / participer |\n| Participants actuels et abonnés | Anticiper, approfondir et maintenir le lien | Fidélisation et recommandation | Prochains rendez-vous, coulisses, bilans, contenus complémentaires | S’inscrire / revenir / transmettre |\n| Artistes, intervenants et acteurs culturels locaux | Identifier les possibilités de collaboration et la qualité du projet | Contribution, coopération ou relais | Portraits, méthode de programmation, appels à participation, retours d’expérience | Proposer une collaboration / relayer |\n| Bénévoles, partenaires et soutiens potentiels | Comprendre l’utilité locale et les besoins de l’association | Engagement durable | Impact concret, besoins, témoignages, missions bénévoles, projets à soutenir | Devenir bénévole / partenaire / soutien |\n\n### Cinq piliers éditoriaux\n\n| Pilier | Publics servis | Objectif | Exemples de sujets |\n|---|---|---|---|\n| **1. Programme et informations pratiques** | Habitants, participants | Faciliter le passage à l’action | `[ÉVÉNEMENT À CONFIRMER]`, horaires, accès, tarifs éventuels, réservation, public concerné |\n| **2. Médiation et découverte culturelle** | Habitants, participants | Donner envie et rendre les propositions accessibles | Repères sur une œuvre, un thème, une discipline ; sélection commentée ; entretien court |\n| **3. Coulisses et visages du projet** | Tous | Humaniser l’association et créer de la confiance | Portrait d’artiste ou de bénévole, montage d’un projet, journal de préparation |\n| **4. Ancrage local et coopérations** | Habitants, acteurs culturels, partenaires | Montrer l’utilité territoriale et développer les relais | Projet commun, lieu partenaire, initiative locale, retour sur une action collective |\n| **5. Participation et vie associative** | Participants, bénévoles, soutiens | Fidéliser et mobiliser | Appel à bénévoles, consultation, assemblée ou rencontre, bilan accessible, besoins matériels |\n\n### Règle d’équilibre\n\nSur un mois, le contenu ne doit pas se limiter à la promotion. **Proposition de répartition**, à confirmer après observation :\n\n- environ 35 à 45 % : programme et informations pratiques ;\n- environ 20 à 30 % : médiation ;\n- environ 15 à 25 % : coulisses et visages ;\n- environ 10 à 20 % : ancrage local et vie associative.\n\nLa répartition peut basculer vers le programme à l’approche d’un temps fort, sans faire disparaître les contenus de relation et de preuve.\n\n---\n\n## 3. Rôle des canaux et règles de réutilisation\n\n### Fonction de chaque canal\n\n| Canal | Rôle dans le parcours | Formats privilégiés | Appels à l’action | Articulation |\n|---|---|---|---|---|\n| **Site** | Référence durable et fiable | Pages pratiques, agenda, articles, portraits, bilans | Lire, consulter, s’inscrire, contacter | Destination principale des contenus nécessitant contexte ou mise à jour |\n| **Newsletter mensuelle** | Sélection, fidélisation et rendez-vous régulier | Édito bref, 3 à 5 informations hiérarchisées, agenda, appel prioritaire | Réserver, participer, répondre, transférer | Oriente vers les pages utiles du site ; ne reproduit pas tout |\n| **Réseau 1** | Découverte, rappel et interaction | Publications courtes, séries visuelles, extraits, questions | En savoir plus, réagir, partager | Amorce un sujet puis dirige vers le site ou l’action prioritaire |\n| **Réseau 2** | Complément éditorial et répétition adaptée | Angle alternatif, citation, coulisse, rappel, retour après action | Commenter, relayer, consulter, participer | Évite la duplication en choisissant un autre angle ou moment |\n\nLes formats précis devront être adaptés après identification des plateformes, sans présumer de leurs fonctionnalités.\n\n### Matrice de réutilisation\n\n| Contenu source | Site | Newsletter | Réseau 1 | Réseau 2 | Adaptations et contrôles |\n|---|---|---|---|---|---|\n| Fiche d’un événement confirmé | Page complète et actualisable | Résumé pratique + bénéfice public | Accroche visuelle + information clé | Angle coulisse, intervenant ou rappel | Vérifier date, lieu, accès, lien, droits du visuel et lisibilité |\n| Portrait ou entretien | Version développée | Citation + lien | Extrait centré sur la personne | Extrait centré sur le territoire ou le projet | Accord de publication, orthographe du nom, crédit, texte alternatif si applicable |\n| Article de médiation | Contenu de référence | Trois idées à retenir | Question ou fait introductif | Citation ou recommandation | Adapter le vocabulaire ; éviter de tronquer au point de déformer |\n| Bilan d’action | Synthèse contextualisée | Résultat marquant + remerciement | Moment fort | Témoignage ou enseignement | Ne publier que des chiffres vérifiés ; vérifier consentements et actualité |\n| Appel à bénévoles ou partenaires | Besoin, mission, contact | Appel principal du mois | Mission concrète | Témoignage ou rappel | Préciser durée et attentes sans inventer ; retirer dès clôture |\n\n### Contrôle avant republication\n\nAvant chaque adaptation :\n\n1. **Actualité** : date, lieu, disponibilité et lien encore valides.\n2. **Angle** : valeur propre au canal, sans copier-coller systématique.\n3. **Longueur** : information essentielle visible rapidement.\n4. **Visuel** : source, crédit et autorisation documentés.\n5. **Personnes représentées** : consentement ou base appropriée à vérifier selon le contexte.\n6. **Accessibilité** : contraste, sous-titrage ou transcription si nécessaire, description utile des images lorsque le canal le permet, langage compréhensible.\n7. **Appel à l’action** : un appel principal, cohérent avec l’étape du parcours.\n8. **Traçabilité** : lien ou code de suivi distinct lorsque les outils disponibles le permettent.\n\n---\n\n## 4. Calendrier éditorial de M1 à M6\n\n### Cadence-cadre proposée\n\nChaque mois comprend **exactement une newsletter**. Point de départ ajustable : 1 à 2"
+  },
+  "output": "# Stratégie éditoriale opérationnelle — six mois\n\n## 1. Cadre de décision, objectifs et hypothèses de travail\n\n### Finalité\n\nCette stratégie vise à rendre la communication de l’association :\n\n1. **utile aux publics locaux** ;\n2. **régulière sans surcharger l’équipe** ;\n3. **cohérente entre les quatre canaux** ;\n4. **orientée vers des actions mesurables** : consulter, s’inscrire, participer, revenir ou contribuer.\n\n### Statut des informations\n\n- **Établi par la demande** : présence d’un site, d’une newsletter mensuelle et de deux réseaux sociaux.\n- **Décisions proposées** : quatre publics prioritaires, cinq piliers éditoriaux, rôle de chaque canal et organisation du cycle mensuel.\n- **Inconnues à confirmer** : identité des réseaux, mission détaillée, programmation réelle, territoire couvert, ressources humaines, budget, données d’audience et priorités exactes.\n- **Estimations à calibrer** :\n  - site : **environ 1 à 2 publications ou mises à jour substantielles par mois** ;\n  - Réseau 1 : **environ 2 publications par semaine** ;\n  - Réseau 2 : **environ 1 à 2 publications par semaine** ;\n  - charge totale : **ordre de grandeur de 20 à 35 heures par mois**, hors couverture importante d’événements, production vidéo élaborée ou gestion de crise.\n\nCes cadences sont des **points de départ**, et non des capacités confirmées. Si l’équipe dispose de moins de temps, la priorité sera : informations fiables sur le site, une newsletter mensuelle, puis une déclinaison minimale sur chaque réseau.\n\n### Objectifs éditoriaux proposés\n\n1. Faire connaître la mission et l’offre culturelle.\n2. Transformer l’attention en inscriptions ou en participation.\n3. Fidéliser les participants et abonnés.\n4. Valoriser les artistes, bénévoles et partenaires locaux.\n5. Construire une communication soutenable et mesurable.\n\n### Principe de programmation\n\nChaque mois repose sur un **contenu principal**, généralement publié ou consolidé sur le site. Il est ensuite adapté, et non copié mécaniquement, dans la newsletter et sur les deux réseaux. Un événement réel peut remplacer le thème-cadre dès qu’il est confirmé.\n\n### Sources et niveau de vérification\n\nAucune recherche externe en temps réel ni consultation directe de source n’a été réalisée pour ce livrable. **Date de consultation : aucune.** Les recommandations relèvent donc d’un cadre professionnel générique à valider localement. Avant mise en œuvre, l’association devra consulter les sources officielles pertinentes concernant notamment les données personnelles, les droits d’auteur, le droit à l’image, l’accessibilité et les règles de modération des plateformes effectivement utilisées. Aucune règle juridique ou fonctionnalité de plateforme n’est ici présentée comme vérifiée ou à jour.\n\n---\n\n## 2. Publics prioritaires et piliers de contenu\n\n### Segments opérationnels proposés\n\nCe cadre limité à quatre segments doit être validé à partir des inscriptions, échanges de terrain et données disponibles.\n\n| Public prioritaire | Besoin principal | Relation recherchée | Messages et contenus utiles | Appel à l’action principal |\n|---|---|---|---|---|\n| Habitants curieux du territoire | Comprendre rapidement ce qui est proposé, où, quand et pour qui | Première découverte puis participation | Agenda lisible, présentation accessible, informations pratiques, aperçu d’ambiance | Découvrir le programme / participer |\n| Participants actuels et abonnés | Anticiper, approfondir et maintenir le lien | Fidélisation et recommandation | Prochains rendez-vous, coulisses, bilans, contenus complémentaires | S’inscrire / revenir / transmettre |\n| Artistes, intervenants et acteurs culturels locaux | Identifier les possibilités de collaboration et la qualité du projet | Contribution, coopération ou relais | Portraits, méthode de programmation, appels à participation, retours d’expérience | Proposer une collaboration / relayer |\n| Bénévoles, partenaires et soutiens potentiels | Comprendre l’utilité locale et les besoins de l’association | Engagement durable | Impact concret, besoins, témoignages, missions bénévoles, projets à soutenir | Devenir bénévole / partenaire / soutien |\n\n### Cinq piliers éditoriaux\n\n| Pilier | Publics servis | Objectif | Exemples de sujets |\n|---|---|---|---|\n| **1. Programme et informations pratiques** | Habitants, participants | Faciliter le passage à l’action | `[ÉVÉNEMENT À CONFIRMER]`, horaires, accès, tarifs éventuels, réservation, public concerné |\n| **2. Médiation et découverte culturelle** | Habitants, participants | Donner envie et rendre les propositions accessibles | Repères sur une œuvre, un thème, une discipline ; sélection commentée ; entretien court |\n| **3. Coulisses et visages du projet** | Tous | Humaniser l’association et créer de la confiance | Portrait d’artiste ou de bénévole, montage d’un projet, journal de préparation |\n| **4. Ancrage local et coopérations** | Habitants, acteurs culturels, partenaires | Montrer l’utilité territoriale et développer les relais | Projet commun, lieu partenaire, initiative locale, retour sur une action collective |\n| **5. Participation et vie associative** | Participants, bénévoles, soutiens | Fidéliser et mobiliser | Appel à bénévoles, consultation, assemblée ou rencontre, bilan accessible, besoins matériels |\n\n### Règle d’équilibre\n\nSur un mois, le contenu ne doit pas se limiter à la promotion. **Proposition de répartition**, à confirmer après observation :\n\n- environ 35 à 45 % : programme et informations pratiques ;\n- environ 20 à 30 % : médiation ;\n- environ 15 à 25 % : coulisses et visages ;\n- environ 10 à 20 % : ancrage local et vie associative.\n\nLa répartition peut basculer vers le programme à l’approche d’un temps fort, sans faire disparaître les contenus de relation et de preuve.\n\n---\n\n## 3. Rôle des canaux et règles de réutilisation\n\n### Fonction de chaque canal\n\n| Canal | Rôle dans le parcours | Formats privilégiés | Appels à l’action | Articulation |\n|---|---|---|---|---|\n| **Site** | Référence durable et fiable | Pages pratiques, agenda, articles, portraits, bilans | Lire, consulter, s’inscrire, contacter | Destination principale des contenus nécessitant contexte ou mise à jour |\n| **Newsletter mensuelle** | Sélection, fidélisation et rendez-vous régulier | Édito bref, 3 à 5 informations hiérarchisées, agenda, appel prioritaire | Réserver, participer, répondre, transférer | Oriente vers les pages utiles du site ; ne reproduit pas tout |\n| **Réseau 1** | Découverte, rappel et interaction | Publications courtes, séries visuelles, extraits, questions | En savoir plus, réagir, partager | Amorce un sujet puis dirige vers le site ou l’action prioritaire |\n| **Réseau 2** | Complément éditorial et répétition adaptée | Angle alternatif, citation, coulisse, rappel, retour après action | Commenter, relayer, consulter, participer | Évite la duplication en choisissant un autre angle ou moment |\n\nLes formats précis devront être adaptés après identification des plateformes, sans présumer de leurs fonctionnalités.\n\n### Matrice de réutilisation\n\n| Contenu source | Site | Newsletter | Réseau 1 | Réseau 2 | Adaptations et contrôles |\n|---|---|---|---|---|---|\n| Fiche d’un événement confirmé | Page complète et actualisable | Résumé pratique + bénéfice public | Accroche visuelle + information clé | Angle coulisse, intervenant ou rappel | Vérifier date, lieu, accès, lien, droits du visuel et lisibilité |\n| Portrait ou entretien | Version développée | Citation + lien | Extrait centré sur la personne | Extrait centré sur le territoire ou le projet | Accord de publication, orthographe du nom, crédit, texte alternatif si applicable |\n| Article de médiation | Contenu de référence | Trois idées à retenir | Question ou fait introductif | Citation ou recommandation | Adapter le vocabulaire ; éviter de tronquer au point de déformer |\n| Bilan d’action | Synthèse contextualisée | Résultat marquant + remerciement | Moment fort | Témoignage ou enseignement | Ne publier que des chiffres vérifiés ; vérifier consentements et actualité |\n| Appel à bénévoles ou partenaires | Besoin, mission, contact | Appel principal du mois | Mission concrète | Témoignage ou rappel | Préciser durée et attentes sans inventer ; retirer dès clôture |\n\n### Contrôle avant republication\n\nAvant chaque adaptation :\n\n1. **Actualité** : date, lieu, disponibilité et lien encore valides.\n2. **Angle** : valeur propre au canal, sans copier-coller systématique.\n3. **Longueur** : information essentielle visible rapidement.\n4. **Visuel** : source, crédit et autorisation documentés.\n5. **Personnes représentées** : consentement ou base appropriée à vérifier selon le contexte.\n6. **Accessibilité** : contraste, sous-titrage ou transcription si nécessaire, description utile des images lorsque le canal le permet, langage compréhensible.\n7. **Appel à l’action** : un appel principal, cohérent avec l’étape du parcours.\n8. **Traçabilité** : lien ou code de suivi distinct lorsque les outils disponibles le permettent.\n\n---\n\n## 4. Calendrier éditorial de M1 à M6\n\n### Cadence-cadre proposée\n\nChaque mois comprend **exactement une newsletter**. Point de départ ajustable : 1 à 2",
+  "total_llm_calls": 4,
+  "gpt_usage": {
+    "input_tokens": 12518,
+    "output_tokens": 10490,
+    "total_tokens": 23008,
+    "estimated_cost_usd": 0.259872
+  },
+  "fallback": true,
+  "retries": 0,
+  "error": null
+}

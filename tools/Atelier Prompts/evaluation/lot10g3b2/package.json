@@ -1,0 +1,13 @@
+{
+  "name": "atelier-prompts-lot10g3b2-benchmark",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "jsdom": "26.1.0"
+  },
+  "scripts": {
+    "run:3": "node run-benchmark.mjs --corpus=corpus-3cases.json --output=benchmark-3cases.json",
+    "run:30": "node run-benchmark.mjs --corpus=corpus-30cases.json --output=benchmark-30cases.json",
+    "summarize": "node summarize.mjs"
+  }
+}

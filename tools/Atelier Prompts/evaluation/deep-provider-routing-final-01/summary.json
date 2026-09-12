@@ -1,0 +1,95 @@
+{
+ "lot": "DEEP-PROVIDER-ROUTING-FINAL-01",
+ "objet": "appliquer au runtime la décision FAST = GROQ ONLY / DEEP = ANTHROPIC ONLY, sans changement sémantique",
+ "routage": {
+  "FAST_PROVIDER_ORDER": [
+   "groq"
+  ],
+  "ROLE_PROVIDER_ORDER": [
+   "anthropic"
+  ],
+  "DECISION_PROVIDER_ORDER_inchange": [
+   "groq",
+   "anthropic",
+   "openai"
+  ],
+  "DEEP_GROQ_IN_ORDER": "NO",
+  "DEEP_OPENAI_IN_ORDER": "NO"
+ },
+ "epinglage": {
+  "RESIDUAL_BENCH_PIN": 0,
+  "wrangler_DEEP_BENCH_PROVIDER": "ha",
+  "pins_refuses": [
+   "groq",
+   "openai"
+  ]
+ },
+ "runtime_sans_pin": {
+  "tours_protocole": 10,
+  "tours_observes_dans_la_fenetre": 11,
+  "ordre_observe_a_chaque_tentative": [
+   "[\"anthropic\"]"
+  ],
+  "ANALYST_ANTHROPIC": "11/11",
+  "CRITIC_ANTHROPIC": "11/11",
+  "ARBITER_ANTHROPIC": "11/11",
+  "DEEP_GROQ_CALLS": 0,
+  "DEEP_OPENAI_CALLS": 0,
+  "etats_finaux": {
+   "clarification_required": 5,
+   "degraded_state": 4,
+   "operational_request_ready": 1
+  },
+  "latence_ms": {
+   "min": 87404,
+   "p50": 93047,
+   "max": 132014
+  },
+  "cas_avec_materiau": 5,
+  "cas_sans_materiau": 5
+ },
+ "controle_de_panne": {
+  "fallback_groq": "NO",
+  "fallback_openai": "NO",
+  "ready_fabrique": "NO",
+  "verdict_fabrique": "NO",
+  "fail_closed": "OUI"
+ },
+ "observation_non_corrigee": {
+  "defaut": "structured_output_invalid sur le rôle arbiter",
+  "occurrences": {
+   "structured_output_invalid": 4
+  },
+  "cause_deja_etablie": "plafond ROLE_MAX_OUTPUT_UNITS = 2048, mesuré par ANTHROPIC-DEEP-CAPACITY-01",
+  "corrige_dans_ce_lot": false,
+  "raison": "le lot interdit explicitement de corriger ce plafond ; il est documenté, pas touché",
+  "consequence_du_routage": "sans second fournisseur, l'échec ne bascule plus : il dégrade. Le défaut n'est pas nouveau, sa visibilité l'est.",
+  "statut": "OWNER_DECISION_PENDING"
+ },
+ "invariants": {
+  "DOMAIN_HARDCODING_COUNT": 0,
+  "SCENARIO_HARDCODING_COUNT": 0,
+  "CASE_ID_RUNTIME_LOGIC_COUNT": 0,
+  "PROVIDER_SPECIFIC_SEMANTIC_RULE_COUNT": 0,
+  "RAW_MATERIAL_LOGGING_COUNT": 0,
+  "PROMPTS_MODIFIES": false,
+  "DEEP_LATENCY_OPTIMISED": false,
+  "DEAD_CODE_CLEANUP_PERFORMED": false,
+  "FRONTEND_DEPLOY": "NO",
+  "PUSH_PERFORMED": "NO"
+ },
+ "verifications": {
+  "GLOBAL_x3": [
+   "2889/2889",
+   "2889/2889",
+   "2889/2889"
+  ],
+  "FROZEN": "OK — 7 empreintes inchangées",
+  "BROWSER_RUNTIME": "reconstruit, idempotent, HTML canonique inchangé",
+  "SECRET_SCAN": "aucune valeur de secret ; seuls des noms de binding"
+ },
+ "empreintes": {
+  "workers/groq/src/index.js": "cd5c96f70f8853a3d9e03b12b8bae808cc5e3ac3b1d766e16fd04716bd6bfadf",
+  "html_canonique": "4ade8759eb9912935965e784e31cdf899eaceca5fda150e02a24b81ef60e2c59"
+ }
+}

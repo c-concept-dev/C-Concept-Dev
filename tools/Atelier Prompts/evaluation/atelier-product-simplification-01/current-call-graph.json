@@ -1,0 +1,32 @@
+{
+  "lot": "ATELIER-PRODUCT-SIMPLIFICATION-01",
+  "base_d_audit": "Atelier-Prompts-VISUAL-FINAL.zip — 82 fichiers, jeu de livraison sans tests ni evaluation",
+  "conformite_du_snapshot": "les 4 fichiers décisifs (HTML canonique, browser-runtime.generated.js, operational-request-core.js, workers/groq/src/index.js) sont BYTE-IDENTIQUES au dépôt local. L'audit porte donc sur le système réel.",
+  "DEUX_PLANS_EXISTENT_DEJA": {
+    "constat_central": "l'architecture n'est PAS mono-plan. workers/shared/fast-interactive-plane.js implémente déjà exactement ce que le §11 de la mission demande.",
+    "runInteractiveTurn": "lance executeDeep(snapshot) AVANT d'attendre le rapide — les deux plans partent à la même milliseconde ; le profond est hors du chemin d'AFFICHAGE, jamais hors du chemin de DÉCISION",
+    "garanties_du_plan_rapide": [
+      "FAST_INTERACTION_JSON_SCHEMA ne comporte AUCUN champ d'autorité",
+      "FAST_FORBIDDEN_AUTHORITY_FIELDS interdit explicitement state, blocked, degraded_state, route, readiness",
+      "toute sortie validée porte authority = \"candidate\", en dur",
+      "ONE_NEXT_INTERACTION_MAX = 1 — jamais un questionnaire",
+      "un échec rapide ne FABRIQUE jamais d'interaction : on attend le profond",
+      "createTurnCoordinator empêche une réponse rapide tardive d'écraser une question plus récente"
+    ],
+    "reconciliation": "reconcileFastWithDeep — DEEP_CONFIRMS_FAST si le type d'interaction correspond à l'état OPRIE, sinon DEEP_SUPERSEDES_FAST. L'état qui fait foi est toujours celui d'OPRIE.",
+    "cablage_front": "oprieRunTurn lance deepPromise puis oprieStartFastPlane ; oprieRenderFastInteraction appelle oprieAsk() et oprieReleaseForFastQuestion() dès qu'une interaction sollicitante arrive — soit ~0,5 s (Fast Groq p50 = 467 ms, p95 = 1617 ms)."
+  },
+  "chemin_profond": {
+    "endpoint": "POST /operational-request",
+    "sequence": "OPERATIONAL_REQUEST_ROLE_SEQUENCE = [analyst, critic, arbiter] — INCONDITIONNELLE",
+    "phases": "[validate, analyst, critic, arbiter, state_check]",
+    "critic_interne": "1 appel global + 1 batch par issue material+question (maxAnswerableTargetsPerBatch = 1), par vagues bornées à concurrency (max_inflight = 2), avec arrêt anticipé depuis 93992e9",
+    "autorite_de_l_etat": "`const turn = outputs.arbiter` — l'état du tour EST la sortie de l'Arbitre, validée contre la machine d'états gelée par isLegalTransition",
+    "providers": { "fast": "groq seul", "deep": "anthropic seul", "modele_deep": "claude-sonnet-4-6" }
+  },
+  "projection_par_mode": {
+    "CONVERSATIONAL_MODES": ["architecte"],
+    "consequence": "en Rapide et en Atelier, une ASK_CLARIFICATION rapide est projetée en ORIENT_ARCHITECTE : aucune question n'est posée, seule une orientation s'affiche. Le dialogue n'existe qu'en Architecte.",
+    "mode_par_defaut": "architecte (option selected du #ui-mode-select)"
+  }
+}

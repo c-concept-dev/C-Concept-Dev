@@ -1,0 +1,811 @@
+{
+ "CORRELATION_PROOF_RUNS": 20,
+ "CORRELATION_PROOF_SUCCESS": 20,
+ "tours": [
+  {
+   "n": 1,
+   "cas": "B",
+   "status_client": 200,
+   "final_state_client": "clarification_required",
+   "id_client_entete": "a373ecaf6830294f",
+   "id_client_corps": null,
+   "evenements_du_tour": 18,
+   "identifiants_distincts_vus": {
+    "a373ecaf6830294f": 18
+   },
+   "evenements_sans_identifiant": [
+    "isolate_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation"
+   ],
+   "roles_joints": [
+    "analyst",
+    "critic",
+    "arbiter"
+   ],
+   "fournisseurs_joints": [
+    "anthropic"
+   ],
+   "enregistrement_terminal": {
+    "present": true,
+    "http_status": 200,
+    "semantic_state": "clarification_required",
+    "phase": "state_check",
+    "role": "arbiter",
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-6",
+    "error_class": null,
+    "untagged_exception": false,
+    "journal_complete": true
+   },
+   "JOINTURE_1_1": true
+  },
+  {
+   "n": 2,
+   "cas": "B",
+   "status_client": 200,
+   "final_state_client": "clarification_required",
+   "id_client_entete": "a373ef33da38154c",
+   "id_client_corps": null,
+   "evenements_du_tour": 18,
+   "identifiants_distincts_vus": {
+    "a373ef33da38154c": 18
+   },
+   "evenements_sans_identifiant": [
+    "isolate_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation"
+   ],
+   "roles_joints": [
+    "analyst",
+    "critic",
+    "arbiter"
+   ],
+   "fournisseurs_joints": [
+    "anthropic"
+   ],
+   "enregistrement_terminal": {
+    "present": true,
+    "http_status": 200,
+    "semantic_state": "clarification_required",
+    "phase": "state_check",
+    "role": "arbiter",
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-6",
+    "error_class": null,
+    "untagged_exception": false,
+    "journal_complete": true
+   },
+   "JOINTURE_1_1": true
+  },
+  {
+   "n": 3,
+   "cas": "B",
+   "status_client": 200,
+   "final_state_client": "clarification_required",
+   "id_client_entete": "a373f15db99d53c5",
+   "id_client_corps": null,
+   "evenements_du_tour": 18,
+   "identifiants_distincts_vus": {
+    "a373f15db99d53c5": 18
+   },
+   "evenements_sans_identifiant": [
+    "isolate_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation"
+   ],
+   "roles_joints": [
+    "analyst",
+    "critic",
+    "arbiter"
+   ],
+   "fournisseurs_joints": [
+    "anthropic"
+   ],
+   "enregistrement_terminal": {
+    "present": true,
+    "http_status": 200,
+    "semantic_state": "clarification_required",
+    "phase": "state_check",
+    "role": "arbiter",
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-6",
+    "error_class": null,
+    "untagged_exception": false,
+    "journal_complete": true
+   },
+   "JOINTURE_1_1": true
+  },
+  {
+   "n": 4,
+   "cas": "B",
+   "status_client": 200,
+   "final_state_client": "clarification_required",
+   "id_client_entete": "a373f3c21fe09ec9",
+   "id_client_corps": null,
+   "evenements_du_tour": 18,
+   "identifiants_distincts_vus": {
+    "a373f3c21fe09ec9": 18
+   },
+   "evenements_sans_identifiant": [
+    "isolate_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation"
+   ],
+   "roles_joints": [
+    "analyst",
+    "critic",
+    "arbiter"
+   ],
+   "fournisseurs_joints": [
+    "anthropic"
+   ],
+   "enregistrement_terminal": {
+    "present": true,
+    "http_status": 200,
+    "semantic_state": "clarification_required",
+    "phase": "state_check",
+    "role": "arbiter",
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-6",
+    "error_class": null,
+    "untagged_exception": false,
+    "journal_complete": true
+   },
+   "JOINTURE_1_1": true
+  },
+  {
+   "n": 5,
+   "cas": "B",
+   "status_client": 200,
+   "final_state_client": "clarification_required",
+   "id_client_entete": "a373f619eb877ad7",
+   "id_client_corps": null,
+   "evenements_du_tour": 18,
+   "identifiants_distincts_vus": {
+    "a373f619eb877ad7": 18
+   },
+   "evenements_sans_identifiant": [
+    "isolate_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation"
+   ],
+   "roles_joints": [
+    "analyst",
+    "critic",
+    "arbiter"
+   ],
+   "fournisseurs_joints": [
+    "anthropic"
+   ],
+   "enregistrement_terminal": {
+    "present": true,
+    "http_status": 200,
+    "semantic_state": "clarification_required",
+    "phase": "state_check",
+    "role": "arbiter",
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-6",
+    "error_class": null,
+    "untagged_exception": false,
+    "journal_complete": true
+   },
+   "JOINTURE_1_1": true
+  },
+  {
+   "n": 6,
+   "cas": "B",
+   "status_client": 200,
+   "final_state_client": "clarification_required",
+   "id_client_entete": "a373f8a44cbd8ce7",
+   "id_client_corps": null,
+   "evenements_du_tour": 18,
+   "identifiants_distincts_vus": {
+    "a373f8a44cbd8ce7": 18
+   },
+   "evenements_sans_identifiant": [
+    "isolate_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation"
+   ],
+   "roles_joints": [
+    "analyst",
+    "critic",
+    "arbiter"
+   ],
+   "fournisseurs_joints": [
+    "anthropic"
+   ],
+   "enregistrement_terminal": {
+    "present": true,
+    "http_status": 200,
+    "semantic_state": "clarification_required",
+    "phase": "state_check",
+    "role": "arbiter",
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-6",
+    "error_class": null,
+    "untagged_exception": false,
+    "journal_complete": true
+   },
+   "JOINTURE_1_1": true
+  },
+  {
+   "n": 7,
+   "cas": "B",
+   "status_client": 200,
+   "final_state_client": "clarification_required",
+   "id_client_entete": "a373fb0c09a3018e",
+   "id_client_corps": null,
+   "evenements_du_tour": 18,
+   "identifiants_distincts_vus": {
+    "a373fb0c09a3018e": 18
+   },
+   "evenements_sans_identifiant": [
+    "isolate_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation"
+   ],
+   "roles_joints": [
+    "analyst",
+    "critic",
+    "arbiter"
+   ],
+   "fournisseurs_joints": [
+    "anthropic"
+   ],
+   "enregistrement_terminal": {
+    "present": true,
+    "http_status": 200,
+    "semantic_state": "clarification_required",
+    "phase": "state_check",
+    "role": "arbiter",
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-6",
+    "error_class": null,
+    "untagged_exception": false,
+    "journal_complete": true
+   },
+   "JOINTURE_1_1": true
+  },
+  {
+   "n": 8,
+   "cas": "B",
+   "status_client": 200,
+   "final_state_client": "clarification_required",
+   "id_client_entete": "a373fd49af736ef9",
+   "id_client_corps": null,
+   "evenements_du_tour": 18,
+   "identifiants_distincts_vus": {
+    "a373fd49af736ef9": 18
+   },
+   "evenements_sans_identifiant": [
+    "isolate_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation"
+   ],
+   "roles_joints": [
+    "analyst",
+    "critic",
+    "arbiter"
+   ],
+   "fournisseurs_joints": [
+    "anthropic"
+   ],
+   "enregistrement_terminal": {
+    "present": true,
+    "http_status": 200,
+    "semantic_state": "clarification_required",
+    "phase": "state_check",
+    "role": "arbiter",
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-6",
+    "error_class": null,
+    "untagged_exception": false,
+    "journal_complete": true
+   },
+   "JOINTURE_1_1": true
+  },
+  {
+   "n": 9,
+   "cas": "B",
+   "status_client": 200,
+   "final_state_client": "clarification_required",
+   "id_client_entete": "a373ffd75a9a7030",
+   "id_client_corps": null,
+   "evenements_du_tour": 18,
+   "identifiants_distincts_vus": {
+    "a373ffd75a9a7030": 18
+   },
+   "evenements_sans_identifiant": [
+    "isolate_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation"
+   ],
+   "roles_joints": [
+    "analyst",
+    "critic",
+    "arbiter"
+   ],
+   "fournisseurs_joints": [
+    "anthropic"
+   ],
+   "enregistrement_terminal": {
+    "present": true,
+    "http_status": 200,
+    "semantic_state": "clarification_required",
+    "phase": "state_check",
+    "role": "arbiter",
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-6",
+    "error_class": null,
+    "untagged_exception": false,
+    "journal_complete": true
+   },
+   "JOINTURE_1_1": true
+  },
+  {
+   "n": 10,
+   "cas": "B",
+   "status_client": 200,
+   "final_state_client": "clarification_required",
+   "id_client_entete": "a374022cde6cd0a4",
+   "id_client_corps": null,
+   "evenements_du_tour": 18,
+   "identifiants_distincts_vus": {
+    "a374022cde6cd0a4": 18
+   },
+   "evenements_sans_identifiant": [
+    "isolate_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation"
+   ],
+   "roles_joints": [
+    "analyst",
+    "critic",
+    "arbiter"
+   ],
+   "fournisseurs_joints": [
+    "anthropic"
+   ],
+   "enregistrement_terminal": {
+    "present": true,
+    "http_status": 200,
+    "semantic_state": "clarification_required",
+    "phase": "state_check",
+    "role": "arbiter",
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-6",
+    "error_class": null,
+    "untagged_exception": false,
+    "journal_complete": true
+   },
+   "JOINTURE_1_1": true
+  },
+  {
+   "n": 11,
+   "cas": "B",
+   "status_client": 200,
+   "final_state_client": "clarification_required",
+   "id_client_entete": "a37404a1bfbaf184",
+   "id_client_corps": null,
+   "evenements_du_tour": 18,
+   "identifiants_distincts_vus": {
+    "a37404a1bfbaf184": 18
+   },
+   "evenements_sans_identifiant": [
+    "isolate_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation"
+   ],
+   "roles_joints": [
+    "analyst",
+    "critic",
+    "arbiter"
+   ],
+   "fournisseurs_joints": [
+    "anthropic"
+   ],
+   "enregistrement_terminal": {
+    "present": true,
+    "http_status": 200,
+    "semantic_state": "clarification_required",
+    "phase": "state_check",
+    "role": "arbiter",
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-6",
+    "error_class": null,
+    "untagged_exception": false,
+    "journal_complete": true
+   },
+   "JOINTURE_1_1": true
+  },
+  {
+   "n": 12,
+   "cas": "B",
+   "status_client": 200,
+   "final_state_client": "clarification_required",
+   "id_client_entete": "a37406e25a9e13f4",
+   "id_client_corps": null,
+   "evenements_du_tour": 18,
+   "identifiants_distincts_vus": {
+    "a37406e25a9e13f4": 18
+   },
+   "evenements_sans_identifiant": [
+    "isolate_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation"
+   ],
+   "roles_joints": [
+    "analyst",
+    "critic",
+    "arbiter"
+   ],
+   "fournisseurs_joints": [
+    "anthropic"
+   ],
+   "enregistrement_terminal": {
+    "present": true,
+    "http_status": 200,
+    "semantic_state": "clarification_required",
+    "phase": "state_check",
+    "role": "arbiter",
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-6",
+    "error_class": null,
+    "untagged_exception": false,
+    "journal_complete": true
+   },
+   "JOINTURE_1_1": true
+  },
+  {
+   "n": 13,
+   "cas": "B",
+   "status_client": 200,
+   "final_state_client": "degraded_state",
+   "id_client_entete": "a37409c3da61d13d",
+   "id_client_corps": null,
+   "evenements_du_tour": 13,
+   "identifiants_distincts_vus": {
+    "a37409c3da61d13d": 13
+   },
+   "evenements_sans_identifiant": [
+    "isolate_observation",
+    "anthropic_usage_observation",
+    "anthropic_transport_error"
+   ],
+   "roles_joints": [
+    "analyst",
+    "critic"
+   ],
+   "fournisseurs_joints": [
+    "anthropic"
+   ],
+   "enregistrement_terminal": {
+    "present": true,
+    "http_status": 200,
+    "semantic_state": "degraded_state",
+    "phase": "critic",
+    "role": "critic",
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-6",
+    "error_class": null,
+    "untagged_exception": false,
+    "journal_complete": true
+   },
+   "JOINTURE_1_1": true
+  },
+  {
+   "n": 14,
+   "cas": "B",
+   "status_client": 200,
+   "final_state_client": "clarification_required",
+   "id_client_entete": "a3740c144b606eed",
+   "id_client_corps": null,
+   "evenements_du_tour": 18,
+   "identifiants_distincts_vus": {
+    "a3740c144b606eed": 18
+   },
+   "evenements_sans_identifiant": [
+    "isolate_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation"
+   ],
+   "roles_joints": [
+    "analyst",
+    "critic",
+    "arbiter"
+   ],
+   "fournisseurs_joints": [
+    "anthropic"
+   ],
+   "enregistrement_terminal": {
+    "present": true,
+    "http_status": 200,
+    "semantic_state": "clarification_required",
+    "phase": "state_check",
+    "role": "arbiter",
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-6",
+    "error_class": null,
+    "untagged_exception": false,
+    "journal_complete": true
+   },
+   "JOINTURE_1_1": true
+  },
+  {
+   "n": 15,
+   "cas": "T",
+   "status_client": 200,
+   "final_state_client": "clarification_required",
+   "id_client_entete": "a3740ebd0a71ca0d",
+   "id_client_corps": null,
+   "evenements_du_tour": 18,
+   "identifiants_distincts_vus": {
+    "a3740ebd0a71ca0d": 18
+   },
+   "evenements_sans_identifiant": [
+    "isolate_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation"
+   ],
+   "roles_joints": [
+    "analyst",
+    "critic",
+    "arbiter"
+   ],
+   "fournisseurs_joints": [
+    "anthropic"
+   ],
+   "enregistrement_terminal": {
+    "present": true,
+    "http_status": 200,
+    "semantic_state": "clarification_required",
+    "phase": "state_check",
+    "role": "arbiter",
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-6",
+    "error_class": null,
+    "untagged_exception": false,
+    "journal_complete": true
+   },
+   "JOINTURE_1_1": true
+  },
+  {
+   "n": 16,
+   "cas": "T",
+   "status_client": 200,
+   "final_state_client": "confirmation_required",
+   "id_client_entete": "a37410951d446fba",
+   "id_client_corps": null,
+   "evenements_du_tour": 18,
+   "identifiants_distincts_vus": {
+    "a37410951d446fba": 18
+   },
+   "evenements_sans_identifiant": [
+    "isolate_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation"
+   ],
+   "roles_joints": [
+    "analyst",
+    "critic",
+    "arbiter"
+   ],
+   "fournisseurs_joints": [
+    "anthropic"
+   ],
+   "enregistrement_terminal": {
+    "present": true,
+    "http_status": 200,
+    "semantic_state": "confirmation_required",
+    "phase": "state_check",
+    "role": "arbiter",
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-6",
+    "error_class": null,
+    "untagged_exception": false,
+    "journal_complete": true
+   },
+   "JOINTURE_1_1": true
+  },
+  {
+   "n": 17,
+   "cas": "T",
+   "status_client": 200,
+   "final_state_client": "clarification_required",
+   "id_client_entete": "a37412cddda3c653",
+   "id_client_corps": null,
+   "evenements_du_tour": 18,
+   "identifiants_distincts_vus": {
+    "a37412cddda3c653": 18
+   },
+   "evenements_sans_identifiant": [
+    "isolate_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation"
+   ],
+   "roles_joints": [
+    "analyst",
+    "critic",
+    "arbiter"
+   ],
+   "fournisseurs_joints": [
+    "anthropic"
+   ],
+   "enregistrement_terminal": {
+    "present": true,
+    "http_status": 200,
+    "semantic_state": "clarification_required",
+    "phase": "state_check",
+    "role": "arbiter",
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-6",
+    "error_class": null,
+    "untagged_exception": false,
+    "journal_complete": true
+   },
+   "JOINTURE_1_1": true
+  },
+  {
+   "n": 18,
+   "cas": "T",
+   "status_client": 200,
+   "final_state_client": "clarification_required",
+   "id_client_entete": "a37415fe6d752a28",
+   "id_client_corps": null,
+   "evenements_du_tour": 18,
+   "identifiants_distincts_vus": {
+    "a37415fe6d752a28": 18
+   },
+   "evenements_sans_identifiant": [
+    "isolate_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation"
+   ],
+   "roles_joints": [
+    "analyst",
+    "critic",
+    "arbiter"
+   ],
+   "fournisseurs_joints": [
+    "anthropic"
+   ],
+   "enregistrement_terminal": {
+    "present": true,
+    "http_status": 200,
+    "semantic_state": "clarification_required",
+    "phase": "state_check",
+    "role": "arbiter",
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-6",
+    "error_class": null,
+    "untagged_exception": false,
+    "journal_complete": true
+   },
+   "JOINTURE_1_1": true
+  },
+  {
+   "n": 19,
+   "cas": "T",
+   "status_client": 200,
+   "final_state_client": "clarification_required",
+   "id_client_entete": "a37418a18a5574e1",
+   "id_client_corps": null,
+   "evenements_du_tour": 18,
+   "identifiants_distincts_vus": {
+    "a37418a18a5574e1": 18
+   },
+   "evenements_sans_identifiant": [
+    "isolate_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation",
+    "anthropic_usage_observation"
+   ],
+   "roles_joints": [
+    "analyst",
+    "critic",
+    "arbiter"
+   ],
+   "fournisseurs_joints": [
+    "anthropic"
+   ],
+   "enregistrement_terminal": {
+    "present": true,
+    "http_status": 200,
+    "semantic_state": "clarification_required",
+    "phase": "state_check",
+    "role": "arbiter",
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-6",
+    "error_class": null,
+    "untagged_exception": false,
+    "journal_complete": true
+   },
+   "JOINTURE_1_1": true
+  },
+  {
+   "n": 20,
+   "cas": "T",
+   "status_client": 200,
+   "final_state_client": "degraded_state",
+   "id_client_entete": "a3741b7c88c1d886",
+   "id_client_corps": null,
+   "evenements_du_tour": 13,
+   "identifiants_distincts_vus": {
+    "a3741b7c88c1d886": 13
+   },
+   "evenements_sans_identifiant": [
+    "isolate_observation",
+    "anthropic_usage_observation",
+    "anthropic_transport_error"
+   ],
+   "roles_joints": [
+    "analyst",
+    "critic"
+   ],
+   "fournisseurs_joints": [
+    "anthropic"
+   ],
+   "enregistrement_terminal": {
+    "present": true,
+    "http_status": 200,
+    "semantic_state": "degraded_state",
+    "phase": "critic",
+    "role": "critic",
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-6",
+    "error_class": null,
+    "untagged_exception": false,
+    "journal_complete": true
+   },
+   "JOINTURE_1_1": true
+  }
+ ]
+}

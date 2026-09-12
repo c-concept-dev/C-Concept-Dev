@@ -1,0 +1,114 @@
+{
+ "lot": "DEEP-PRODUCTION-BLOCKERS-01",
+ "objet": "calibration du plafond de sortie des rôles génériques, par mesure",
+ "plafond_avant": 2048,
+ "plafond_apres": 4096,
+ "portee": "constante unique ROLE_MAX_OUTPUT_UNITS, consommée par runRoleWithAnthropic et runRoleWithOpenAI (analyste + arbitre)",
+ "critic_ceiling_changed": false,
+ "analyst_prompt_changed": false,
+ "critic_prompt_changed": false,
+ "arbiter_prompt_changed": false,
+ "preuve_du_defaut": {
+  "campagne": "DEEP-PROVIDER-ROUTING-FINAL-01, runtime final, plafond 2048",
+  "tours": 11,
+  "degrades": 4,
+  "role": "arbiter",
+  "classe": "structured_output_invalid",
+  "stop_reason": "max_tokens",
+  "jetons_sortie_des_quatre": [
+   2048,
+   2048,
+   2048,
+   2048
+  ],
+  "distribution_arbitre_sous_2048": [
+   1720,
+   1750,
+   1775,
+   1834,
+   1936,
+   1985,
+   1989,
+   2048,
+   2048,
+   2048,
+   2048
+  ],
+  "lecture": "sortie EXACTEMENT égale au plafond : troncature au plafond configuré"
+ },
+ "campagne_de_calibration": {
+  "plafond_temporaire": 8192,
+  "tours": 8,
+  "troncatures": 0,
+  "degrades": 0,
+  "arbiter_sorties": [
+   1632,
+   1661,
+   1797,
+   1810,
+   1992,
+   2004,
+   2006,
+   2332
+  ],
+  "analyst_sorties": [
+   1288,
+   1322,
+   1336,
+   1373,
+   1396,
+   1572,
+   1723,
+   1852
+  ],
+  "lecture": "les deux cas qui tronquaient aboutissent, plafond non contraignant"
+ },
+ "campagne_de_controle": {
+  "plafond": 4096,
+  "tours": 26,
+  "appels_fournisseur": 106,
+  "finish_reason": {
+   "tool_use": 106
+  },
+  "troncatures": 0,
+  "degrades": 0,
+  "plafonds_demandes": {
+   "4096": 51,
+   "2048": 26,
+   "1600": 29
+  }
+ },
+ "sorties_mesurees": {
+  "analyst": {
+   "n": 34,
+   "min": 415,
+   "p50": 1338.0,
+   "max": 1852
+  },
+  "critic": {
+   "n": 55,
+   "min": 216,
+   "p50": 1048,
+   "max": 1410,
+   "note": "global à 2048 et batches à 1600 ; aucun proche de son plafond"
+  },
+  "arbiter": {
+   "n": 33,
+   "min": 469,
+   "p50": 1684,
+   "max": 2805
+  }
+ },
+ "choix_de_la_marge": {
+  "maximum_observe_arbitre": 2805,
+  "maximum_connu_au_moment_du_choix": 2332,
+  "etendue_relative_observee": 0.4289,
+  "marge_a_3072_sur_maximum_final": 0.0952,
+  "marge_a_4096_sur_maximum_final": 0.4602,
+  "regle": "la marge doit dépasser l'étendue de la distribution observée : calibrer au plus juste sur un petit échantillon, c'est calibrer sur l'échantillon et non sur la population",
+  "verification_a_posteriori": "la campagne de contrôle a produit un Arbitre à 2805 jetons, au-dessus du maximum connu au moment du choix. 3072 n'aurait laissé que 9.5% de marge ; 4096 en laisse 46.0%.",
+  "retenu": 4096,
+  "pas": "un seul doublement"
+ },
+ "html_canonique_sha256": "4ade8759eb9912935965e784e31cdf899eaceca5fda150e02a24b81ef60e2c59"
+}

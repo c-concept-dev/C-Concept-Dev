@@ -1,0 +1,2028 @@
+[
+ {
+  "ts": 1788717239306,
+  "wallTime": 80893,
+  "outcome": "ok",
+  "total_journal": 80893,
+  "analyst": 18444,
+  "critic": 34418,
+  "arbiter": 28031,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5539,
+    "sortie": 1229,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 10408,
+    "sortie": 1796,
+    "appels": 2
+   },
+   "arbiter": {
+    "entree": 5497,
+    "sortie": 1607,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788717328564,
+  "wallTime": 27086,
+  "outcome": "ok",
+  "total_journal": 27085,
+  "analyst": null,
+  "critic": null,
+  "arbiter": null,
+  "overhead": 27085,
+  "fournisseurs": {
+   "analyst": null
+  },
+  "echecs": {
+   "analyst": [
+    "anthropic:structured_output_invalid"
+   ]
+  },
+  "usage": {
+   "analyst": {
+    "entree": 5539,
+    "sortie": 2048,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788717363859,
+  "wallTime": 80817,
+  "outcome": "ok",
+  "total_journal": 80816,
+  "analyst": 19495,
+  "critic": 36251,
+  "arbiter": 25070,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5539,
+    "sortie": 1347,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 10582,
+    "sortie": 1721,
+    "appels": 2
+   },
+   "arbiter": {
+    "entree": 5570,
+    "sortie": 1589,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788717452798,
+  "wallTime": 64698,
+  "outcome": "ok",
+  "total_journal": 64696,
+  "analyst": 27916,
+  "critic": 9169,
+  "arbiter": 27611,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5539,
+    "sortie": 1984,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 4809,
+    "sortie": 428,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 5187,
+    "sortie": 1550,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788717525634,
+  "wallTime": 62877,
+  "outcome": "ok",
+  "total_journal": 62875,
+  "analyst": 27565,
+  "critic": 9310,
+  "arbiter": 26000,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5539,
+    "sortie": 2006,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 4803,
+    "sortie": 448,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 5201,
+    "sortie": 1647,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788717596694,
+  "wallTime": 120009,
+  "outcome": "ok",
+  "total_journal": 120008,
+  "analyst": 23743,
+  "critic": 60544,
+  "arbiter": null,
+  "overhead": 35721,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": null
+  },
+  "echecs": {
+   "arbiter": [
+    "anthropic:structured_output_invalid"
+   ]
+  },
+  "usage": {
+   "analyst": {
+    "entree": 5539,
+    "sortie": 1664,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 30826,
+    "sortie": 5940,
+    "appels": 5
+   },
+   "arbiter": {
+    "entree": 8368,
+    "sortie": 2048,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788717724874,
+  "wallTime": 83490,
+  "outcome": "ok",
+  "total_journal": 83490,
+  "analyst": 23490,
+  "critic": null,
+  "arbiter": null,
+  "overhead": 60000,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": null
+  },
+  "echecs": {
+   "critic": [
+    "anthropic:technical_failover"
+   ]
+  },
+  "usage": {
+   "analyst": {
+    "entree": 5539,
+    "sortie": 1571,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788717816549,
+  "wallTime": 75162,
+  "outcome": "ok",
+  "total_journal": 75161,
+  "analyst": 26277,
+  "critic": 11724,
+  "arbiter": 37160,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5539,
+    "sortie": 1884,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 4716,
+    "sortie": 574,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 5211,
+    "sortie": 1914,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788717899872,
+  "wallTime": 25916,
+  "outcome": "ok",
+  "total_journal": 25915,
+  "analyst": 8790,
+  "critic": 7165,
+  "arbiter": 9960,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 461,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3666,
+    "sortie": 306,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3939,
+    "sortie": 568,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788717933961,
+  "wallTime": 21570,
+  "outcome": "ok",
+  "total_journal": 21569,
+  "analyst": 8532,
+  "critic": 4503,
+  "arbiter": 8534,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 448,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3653,
+    "sortie": 222,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3834,
+    "sortie": 527,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788717963702,
+  "wallTime": 37171,
+  "outcome": "ok",
+  "total_journal": 37169,
+  "analyst": 11905,
+  "critic": 8301,
+  "arbiter": 16963,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 629,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3824,
+    "sortie": 373,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 4164,
+    "sortie": 852,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788718008994,
+  "wallTime": 21591,
+  "outcome": "ok",
+  "total_journal": 21591,
+  "analyst": 7667,
+  "critic": 4436,
+  "arbiter": 9488,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 448,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3653,
+    "sortie": 220,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3840,
+    "sortie": 520,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788718038684,
+  "wallTime": 20830,
+  "outcome": "ok",
+  "total_journal": 20830,
+  "analyst": 7703,
+  "critic": 4706,
+  "arbiter": 8421,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 448,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3653,
+    "sortie": 235,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3855,
+    "sortie": 521,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788718067656,
+  "wallTime": 20229,
+  "outcome": "ok",
+  "total_journal": 20229,
+  "analyst": 7532,
+  "critic": 4809,
+  "arbiter": 7888,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 448,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3653,
+    "sortie": 235,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3855,
+    "sortie": 491,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788718096013,
+  "wallTime": 68017,
+  "outcome": "ok",
+  "total_journal": 68017,
+  "analyst": 8017,
+  "critic": null,
+  "arbiter": null,
+  "overhead": 60000,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": null
+  },
+  "echecs": {
+   "critic": [
+    "anthropic:technical_failover"
+   ]
+  },
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 468,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788718172143,
+  "wallTime": 21227,
+  "outcome": "ok",
+  "total_journal": 21227,
+  "analyst": 8121,
+  "critic": 4747,
+  "arbiter": 8359,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 448,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3653,
+    "sortie": 223,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3843,
+    "sortie": 518,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788718201490,
+  "wallTime": 20946,
+  "outcome": "ok",
+  "total_journal": 20946,
+  "analyst": 7795,
+  "critic": 4737,
+  "arbiter": 8414,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 448,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3653,
+    "sortie": 235,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3855,
+    "sortie": 519,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788718230577,
+  "wallTime": 20966,
+  "outcome": "ok",
+  "total_journal": 20966,
+  "analyst": 7928,
+  "critic": 4402,
+  "arbiter": 8636,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 448,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3653,
+    "sortie": 209,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3829,
+    "sortie": 529,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788718259731,
+  "wallTime": 20215,
+  "outcome": "ok",
+  "total_journal": 20214,
+  "analyst": 7745,
+  "critic": 4755,
+  "arbiter": 7714,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 448,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3653,
+    "sortie": 233,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3853,
+    "sortie": 494,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788718288184,
+  "wallTime": 24017,
+  "outcome": "ok",
+  "total_journal": 24017,
+  "analyst": 8262,
+  "critic": 5760,
+  "arbiter": 9995,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 461,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3666,
+    "sortie": 273,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3906,
+    "sortie": 590,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788718320357,
+  "wallTime": 20014,
+  "outcome": "ok",
+  "total_journal": 20015,
+  "analyst": 7944,
+  "critic": 4397,
+  "arbiter": 7674,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 468,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3677,
+    "sortie": 225,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3869,
+    "sortie": 500,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788718348512,
+  "wallTime": 19935,
+  "outcome": "ok",
+  "total_journal": 19935,
+  "analyst": 7739,
+  "critic": 4247,
+  "arbiter": 7949,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 448,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3653,
+    "sortie": 214,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3834,
+    "sortie": 511,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788718376559,
+  "wallTime": 20013,
+  "outcome": "ok",
+  "total_journal": 20013,
+  "analyst": 7615,
+  "critic": 4123,
+  "arbiter": 8275,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 448,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3653,
+    "sortie": 214,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3834,
+    "sortie": 518,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788718404765,
+  "wallTime": 20777,
+  "outcome": "ok",
+  "total_journal": 20776,
+  "analyst": 8354,
+  "critic": 4735,
+  "arbiter": 7687,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 466,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3671,
+    "sortie": 227,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3865,
+    "sortie": 505,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788718433667,
+  "wallTime": 21288,
+  "outcome": "ok",
+  "total_journal": 21288,
+  "analyst": 8011,
+  "critic": 5066,
+  "arbiter": 8211,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 464,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3669,
+    "sortie": 238,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3874,
+    "sortie": 527,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788718463081,
+  "wallTime": 20052,
+  "outcome": "ok",
+  "total_journal": 20052,
+  "analyst": 7668,
+  "critic": 4436,
+  "arbiter": 7948,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 448,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3653,
+    "sortie": 218,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3838,
+    "sortie": 500,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788718491278,
+  "wallTime": 20436,
+  "outcome": "ok",
+  "total_journal": 20436,
+  "analyst": 7693,
+  "critic": 4399,
+  "arbiter": 8344,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 448,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3653,
+    "sortie": 222,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3834,
+    "sortie": 526,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788718519887,
+  "wallTime": 27029,
+  "outcome": "ok",
+  "total_journal": 27029,
+  "analyst": 8977,
+  "critic": 7812,
+  "arbiter": 10240,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 510,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3719,
+    "sortie": 380,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 4053,
+    "sortie": 613,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788718555064,
+  "wallTime": 19689,
+  "outcome": "ok",
+  "total_journal": 19688,
+  "analyst": 7823,
+  "critic": 4390,
+  "arbiter": 7475,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 448,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3653,
+    "sortie": 216,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3836,
+    "sortie": 499,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788718582868,
+  "wallTime": 20476,
+  "outcome": "ok",
+  "total_journal": 20475,
+  "analyst": 7852,
+  "critic": 4438,
+  "arbiter": 8185,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 448,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3653,
+    "sortie": 222,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3834,
+    "sortie": 518,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788718611510,
+  "wallTime": 21959,
+  "outcome": "ok",
+  "total_journal": 21959,
+  "analyst": 8453,
+  "critic": 4789,
+  "arbiter": 8717,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 448,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3653,
+    "sortie": 220,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3840,
+    "sortie": 535,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788718641593,
+  "wallTime": 20246,
+  "outcome": "ok",
+  "total_journal": 20245,
+  "analyst": 8209,
+  "critic": 4351,
+  "arbiter": 7685,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 474,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3679,
+    "sortie": 211,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3857,
+    "sortie": 501,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788718670057,
+  "wallTime": 20405,
+  "outcome": "ok",
+  "total_journal": 20404,
+  "analyst": 7683,
+  "critic": 4255,
+  "arbiter": 8466,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 456,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3661,
+    "sortie": 219,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3847,
+    "sortie": 518,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788718698673,
+  "wallTime": 24886,
+  "outcome": "ok",
+  "total_journal": 24884,
+  "analyst": 8070,
+  "critic": 6008,
+  "arbiter": 10806,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 461,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3666,
+    "sortie": 285,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3918,
+    "sortie": 592,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788718731749,
+  "wallTime": 27090,
+  "outcome": "ok",
+  "total_journal": 27089,
+  "analyst": 8017,
+  "critic": 6686,
+  "arbiter": 12386,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 461,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3666,
+    "sortie": 328,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3961,
+    "sortie": 730,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788718767050,
+  "wallTime": 19982,
+  "outcome": "ok",
+  "total_journal": 19982,
+  "analyst": 7730,
+  "critic": 4631,
+  "arbiter": 7621,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 448,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3653,
+    "sortie": 230,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3850,
+    "sortie": 498,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788718795207,
+  "wallTime": 21225,
+  "outcome": "ok",
+  "total_journal": 21225,
+  "analyst": 7524,
+  "critic": 6350,
+  "arbiter": 7351,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 446,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3651,
+    "sortie": 206,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3824,
+    "sortie": 494,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788718824549,
+  "wallTime": 22561,
+  "outcome": "ok",
+  "total_journal": 22561,
+  "analyst": 7910,
+  "critic": 4551,
+  "arbiter": 10100,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 448,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3653,
+    "sortie": 221,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3841,
+    "sortie": 582,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788718855231,
+  "wallTime": 45410,
+  "outcome": "ok",
+  "total_journal": 45410,
+  "analyst": 22357,
+  "critic": 5509,
+  "arbiter": 17544,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5532,
+    "sortie": 1464,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 4411,
+    "sortie": 236,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 4614,
+    "sortie": 1189,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788718908953,
+  "wallTime": 28307,
+  "outcome": "ok",
+  "total_journal": 28306,
+  "analyst": 13234,
+  "critic": 4518,
+  "arbiter": 10554,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5533,
+    "sortie": 891,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 4001,
+    "sortie": 219,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 4187,
+    "sortie": 635,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788718945377,
+  "wallTime": 37073,
+  "outcome": "ok",
+  "total_journal": 37073,
+  "analyst": 14819,
+  "critic": 5012,
+  "arbiter": 17242,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5530,
+    "sortie": 924,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3980,
+    "sortie": 238,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 4185,
+    "sortie": 1131,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788718990578,
+  "wallTime": 35128,
+  "outcome": "ok",
+  "total_journal": 35128,
+  "analyst": 9787,
+  "critic": 7991,
+  "arbiter": 17350,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5905,
+    "sortie": 670,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3759,
+    "sortie": 389,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 4099,
+    "sortie": 978,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788719033892,
+  "wallTime": 33746,
+  "outcome": "ok",
+  "total_journal": 33747,
+  "analyst": 13389,
+  "critic": 8487,
+  "arbiter": 11871,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5759,
+    "sortie": 937,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3969,
+    "sortie": 372,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 4308,
+    "sortie": 712,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788719075850,
+  "wallTime": 65883,
+  "outcome": "ok",
+  "total_journal": 65882,
+  "analyst": 24002,
+  "critic": null,
+  "arbiter": null,
+  "overhead": 41880,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": null
+  },
+  "echecs": {
+   "critic": [
+    "anthropic:technical_failover"
+   ]
+  },
+  "usage": {
+   "analyst": {
+    "entree": 5531,
+    "sortie": 1599,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 11050,
+    "sortie": 2141,
+    "appels": 2
+   }
+  }
+ },
+ {
+  "ts": 1788719149868,
+  "wallTime": 51717,
+  "outcome": "ok",
+  "total_journal": 51716,
+  "analyst": 11394,
+  "critic": 25052,
+  "arbiter": 15270,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5521,
+    "sortie": 607,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 9582,
+    "sortie": 1295,
+    "appels": 2
+   },
+   "arbiter": {
+    "entree": 4804,
+    "sortie": 815,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788719209903,
+  "wallTime": 80295,
+  "outcome": "ok",
+  "total_journal": 80294,
+  "analyst": 16848,
+  "critic": 39251,
+  "arbiter": 24195,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5515,
+    "sortie": 853,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 16080,
+    "sortie": 2430,
+    "appels": 3
+   },
+   "arbiter": {
+    "entree": 5643,
+    "sortie": 1261,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788719323098,
+  "wallTime": 27884,
+  "outcome": "ok",
+  "total_journal": 27883,
+  "analyst": 8906,
+  "critic": 6138,
+  "arbiter": 12839,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 461,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3666,
+    "sortie": 268,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3901,
+    "sortie": 750,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788719323103,
+  "wallTime": 20719,
+  "outcome": "ok",
+  "total_journal": 20718,
+  "analyst": 8146,
+  "critic": 4250,
+  "arbiter": 8322,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 448,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3653,
+    "sortie": 211,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3831,
+    "sortie": 500,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788719361119,
+  "wallTime": 27121,
+  "outcome": "ok",
+  "total_journal": 27120,
+  "analyst": 8299,
+  "critic": 6986,
+  "arbiter": 11835,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 461,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3666,
+    "sortie": 341,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3974,
+    "sortie": 688,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788719361127,
+  "wallTime": 20338,
+  "outcome": "ok",
+  "total_journal": 20337,
+  "analyst": 8170,
+  "critic": 4328,
+  "arbiter": 7839,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 464,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3669,
+    "sortie": 228,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3864,
+    "sortie": 500,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788719398347,
+  "wallTime": 22030,
+  "outcome": "ok",
+  "total_journal": 22029,
+  "analyst": 7737,
+  "critic": 5199,
+  "arbiter": 9093,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 448,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3653,
+    "sortie": 230,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3850,
+    "sortie": 504,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788719398364,
+  "wallTime": 20359,
+  "outcome": "ok",
+  "total_journal": 20358,
+  "analyst": 7738,
+  "critic": 4329,
+  "arbiter": 8291,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 448,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3653,
+    "sortie": 214,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3834,
+    "sortie": 500,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788719430590,
+  "wallTime": 20511,
+  "outcome": "ok",
+  "total_journal": 20511,
+  "analyst": 8001,
+  "critic": 4408,
+  "arbiter": 8102,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 448,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3653,
+    "sortie": 214,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3834,
+    "sortie": 515,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788719430609,
+  "wallTime": 20646,
+  "outcome": "ok",
+  "total_journal": 20646,
+  "analyst": 7904,
+  "critic": 4287,
+  "arbiter": 8455,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 448,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3653,
+    "sortie": 212,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3832,
+    "sortie": 531,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788719461469,
+  "wallTime": 20348,
+  "outcome": "ok",
+  "total_journal": 20348,
+  "analyst": 7778,
+  "critic": 4929,
+  "arbiter": 7641,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 448,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3653,
+    "sortie": 214,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3834,
+    "sortie": 501,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788719461471,
+  "wallTime": 19992,
+  "outcome": "ok",
+  "total_journal": 19992,
+  "analyst": 7705,
+  "critic": 4231,
+  "arbiter": 8056,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 448,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3653,
+    "sortie": 214,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3834,
+    "sortie": 505,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788719461476,
+  "wallTime": 20703,
+  "outcome": "ok",
+  "total_journal": 20703,
+  "analyst": 7712,
+  "critic": 4530,
+  "arbiter": 8461,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 448,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3653,
+    "sortie": 217,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3837,
+    "sortie": 527,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788719461486,
+  "wallTime": 21359,
+  "outcome": "ok",
+  "total_journal": 21358,
+  "analyst": 7728,
+  "critic": 4224,
+  "arbiter": 9406,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 448,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3653,
+    "sortie": 213,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3833,
+    "sortie": 518,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788719493123,
+  "wallTime": 20523,
+  "outcome": "ok",
+  "total_journal": 20522,
+  "analyst": 7851,
+  "critic": 4793,
+  "arbiter": 7878,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 448,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3653,
+    "sortie": 230,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3850,
+    "sortie": 508,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788719493128,
+  "wallTime": 19588,
+  "outcome": "ok",
+  "total_journal": 19587,
+  "analyst": 7676,
+  "critic": 4338,
+  "arbiter": 7573,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 448,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3653,
+    "sortie": 214,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3834,
+    "sortie": 496,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788719493129,
+  "wallTime": 19906,
+  "outcome": "ok",
+  "total_journal": 19904,
+  "analyst": 7719,
+  "critic": 4432,
+  "arbiter": 7753,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 448,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3653,
+    "sortie": 213,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3833,
+    "sortie": 493,
+    "appels": 1
+   }
+  }
+ },
+ {
+  "ts": 1788719493131,
+  "wallTime": 19728,
+  "outcome": "ok",
+  "total_journal": 19727,
+  "analyst": 7661,
+  "critic": 4455,
+  "arbiter": 7611,
+  "overhead": 0,
+  "fournisseurs": {
+   "analyst": "anthropic",
+   "critic": "anthropic",
+   "arbiter": "anthropic"
+  },
+  "echecs": {},
+  "usage": {
+   "analyst": {
+    "entree": 5573,
+    "sortie": 448,
+    "appels": 1
+   },
+   "critic": {
+    "entree": 3653,
+    "sortie": 214,
+    "appels": 1
+   },
+   "arbiter": {
+    "entree": 3834,
+    "sortie": 498,
+    "appels": 1
+   }
+  }
+ }
+]

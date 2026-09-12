@@ -1,0 +1,1048 @@
+{
+  "version": "10G.2A",
+  "generated_at": "2026-08-27T13:22:27.373Z",
+  "endpoint": "http://127.0.0.1:8791/evaluate",
+  "provider": "workers-ai",
+  "repetitions": 3,
+  "corpus_cases": 30,
+  "corpus_sha256": "bd1329970dc5ed2b50cf1cf839ba2b3ad662d1a9b1cad80ac56b35b7e4e85894",
+  "prompt_sha256": "9eac0c81a38c73643331852907b8a1611889f748d89dd8462ad19da7f88b5b41",
+  "models": [
+    "@cf/meta/llama-3.1-8b-instruct-fast"
+  ],
+  "scores": [
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "calls": 90,
+      "accuracy_pct": 20,
+      "valid_output_pct": 25.6,
+      "invalid_pct": 74.4,
+      "route_stability_pct": 100,
+      "fully_stable_cases_pct": 100,
+      "stability_case_coverage_pct": 26.7,
+      "low_confidence_pct": 0,
+      "excessive_question_pct": 10,
+      "missed_required_question_pct": 100,
+      "latency_mean_ms": 736,
+      "latency_p50_ms": 711,
+      "latency_p95_ms": 1226
+    }
+  ],
+  "results": [
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "R01",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 1318,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 1282
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "R01",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 946,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 941
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "R01",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 1346,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 1340
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "R02",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 842,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 835
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "R02",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 1487,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 1482
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "R02",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 1138,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 1133
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "R03",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 722,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 715
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "R03",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 826,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 820
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "R03",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 856,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 837
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "R04",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 663,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Une information non substituable empêche de déterminer le livrable.",
+        "question_indispensable": "Fournissez le tableau de nombres à trier"
+      },
+      "latency_ms": 656
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "R04",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 643,
+      "valid": true,
+      "decision": {
+        "route": "architecte",
+        "confiance": "haute",
+        "raison": "Une information non substituable empêche de déterminer le livrable.",
+        "question_indispensable": "Fournissez le tableau de nombres à trier"
+      },
+      "latency_ms": 637
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "R04",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 788,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 781
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "R05",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 1070,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 1064
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "R05",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 673,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 665
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "R05",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 668,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 660
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "R06",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 922,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 915
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "R06",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 726,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 721
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "R06",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 820,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 814
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "R07",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 723,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 718
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "R07",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 717,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 713
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "R07",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 651,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 644
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "R08",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 674,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "moyenne",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 668
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "R08",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 639,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "moyenne",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 632
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "R08",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 818,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "moyenne",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 811
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "R09",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 622,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 615
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "R09",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 479,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "moyenne",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 473
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "R09",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 417,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "haute",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 412
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "R10",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 577,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "moyenne",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 573
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "R10",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 468,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "moyenne",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 464
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "R10",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 529,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "moyenne",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 526
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "R11",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 520,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "moyenne",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 516
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "R11",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 534,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "moyenne",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 530
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "R11",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 597,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "moyenne",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 592
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "R12",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 514,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "moyenne",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 508
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "R12",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 518,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "moyenne",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 514
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "R12",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 516,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "moyenne",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 511
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "R13",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 516,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "moyenne",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 509
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "R13",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 486,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "moyenne",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 483
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "R13",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 516,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "moyenne",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 513
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "R14",
+      "run": 1,
+      "oracle": "rapide",
+      "elapsed_ms": 803,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 797
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "R14",
+      "run": 2,
+      "oracle": "rapide",
+      "elapsed_ms": 799,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 795
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "R14",
+      "run": 3,
+      "oracle": "rapide",
+      "elapsed_ms": 793,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 789
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "A01",
+      "run": 1,
+      "oracle": "architecte",
+      "elapsed_ms": 734,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 731
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "A01",
+      "run": 2,
+      "oracle": "architecte",
+      "elapsed_ms": 548,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 545
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "A01",
+      "run": 3,
+      "oracle": "architecte",
+      "elapsed_ms": 618,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 612
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "A02",
+      "run": 1,
+      "oracle": "architecte",
+      "elapsed_ms": 512,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 508
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "A02",
+      "run": 2,
+      "oracle": "architecte",
+      "elapsed_ms": 546,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 543
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "A02",
+      "run": 3,
+      "oracle": "architecte",
+      "elapsed_ms": 649,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 646
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "A03",
+      "run": 1,
+      "oracle": "architecte",
+      "elapsed_ms": 509,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 505
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "A03",
+      "run": 2,
+      "oracle": "architecte",
+      "elapsed_ms": 568,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 563
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "A03",
+      "run": 3,
+      "oracle": "architecte",
+      "elapsed_ms": 678,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 673
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "A04",
+      "run": 1,
+      "oracle": "architecte",
+      "elapsed_ms": 925,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 922
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "A04",
+      "run": 2,
+      "oracle": "architecte",
+      "elapsed_ms": 824,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 821
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "A04",
+      "run": 3,
+      "oracle": "architecte",
+      "elapsed_ms": 825,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 821
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "A05",
+      "run": 1,
+      "oracle": "architecte",
+      "elapsed_ms": 847,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 843
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "A05",
+      "run": 2,
+      "oracle": "architecte",
+      "elapsed_ms": 1420,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 1417
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "A05",
+      "run": 3,
+      "oracle": "architecte",
+      "elapsed_ms": 614,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 611
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "A06",
+      "run": 1,
+      "oracle": "architecte",
+      "elapsed_ms": 938,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 933
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "A06",
+      "run": 2,
+      "oracle": "architecte",
+      "elapsed_ms": 1231,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 1226
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "A06",
+      "run": 3,
+      "oracle": "architecte",
+      "elapsed_ms": 722,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 719
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "A07",
+      "run": 1,
+      "oracle": "architecte",
+      "elapsed_ms": 1008,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 1005
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "A07",
+      "run": 2,
+      "oracle": "architecte",
+      "elapsed_ms": 1056,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 1052
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "A07",
+      "run": 3,
+      "oracle": "architecte",
+      "elapsed_ms": 821,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 814
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "A08",
+      "run": 1,
+      "oracle": "architecte",
+      "elapsed_ms": 934,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 928
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "A08",
+      "run": 2,
+      "oracle": "architecte",
+      "elapsed_ms": 822,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 816
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "A08",
+      "run": 3,
+      "oracle": "architecte",
+      "elapsed_ms": 900,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 893
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "Q01",
+      "run": 1,
+      "oracle": "architecte_question",
+      "elapsed_ms": 666,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 662
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "Q01",
+      "run": 2,
+      "oracle": "architecte_question",
+      "elapsed_ms": 515,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 509
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "Q01",
+      "run": 3,
+      "oracle": "architecte_question",
+      "elapsed_ms": 755,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 748
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "Q02",
+      "run": 1,
+      "oracle": "architecte_question",
+      "elapsed_ms": 1079,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 1073
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "Q02",
+      "run": 2,
+      "oracle": "architecte_question",
+      "elapsed_ms": 693,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 688
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "Q02",
+      "run": 3,
+      "oracle": "architecte_question",
+      "elapsed_ms": 755,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 751
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "Q03",
+      "run": 1,
+      "oracle": "architecte_question",
+      "elapsed_ms": 719,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 713
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "Q03",
+      "run": 2,
+      "oracle": "architecte_question",
+      "elapsed_ms": 824,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 819
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "Q03",
+      "run": 3,
+      "oracle": "architecte_question",
+      "elapsed_ms": 722,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 717
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "Q04",
+      "run": 1,
+      "oracle": "architecte_question",
+      "elapsed_ms": 516,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 511
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "Q04",
+      "run": 2,
+      "oracle": "architecte_question",
+      "elapsed_ms": 991,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 987
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "Q04",
+      "run": 3,
+      "oracle": "architecte_question",
+      "elapsed_ms": 635,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 625
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "Q05",
+      "run": 1,
+      "oracle": "architecte_question",
+      "elapsed_ms": 786,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 782
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "Q05",
+      "run": 2,
+      "oracle": "architecte_question",
+      "elapsed_ms": 662,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 657
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "Q05",
+      "run": 3,
+      "oracle": "architecte_question",
+      "elapsed_ms": 634,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 631
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "Q06",
+      "run": 1,
+      "oracle": "architecte_question",
+      "elapsed_ms": 557,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 552
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "Q06",
+      "run": 2,
+      "oracle": "architecte_question",
+      "elapsed_ms": 576,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 573
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "Q06",
+      "run": 3,
+      "oracle": "architecte_question",
+      "elapsed_ms": 464,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 460
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "Q07",
+      "run": 1,
+      "oracle": "architecte_question",
+      "elapsed_ms": 674,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "moyenne",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 669
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "Q07",
+      "run": 2,
+      "oracle": "architecte_question",
+      "elapsed_ms": 592,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "moyenne",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 587
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "Q07",
+      "run": 3,
+      "oracle": "architecte_question",
+      "elapsed_ms": 851,
+      "valid": true,
+      "decision": {
+        "route": "rapide",
+        "confiance": "moyenne",
+        "raison": "Intention et livrable suffisamment identifiables ; les inconnues restantes sont substituables.",
+        "question_indispensable": null
+      },
+      "latency_ms": 847
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "Q08",
+      "run": 1,
+      "oracle": "architecte_question",
+      "elapsed_ms": 726,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 722
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "Q08",
+      "run": 2,
+      "oracle": "architecte_question",
+      "elapsed_ms": 717,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 711
+    },
+    {
+      "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "case_id": "Q08",
+      "run": 3,
+      "oracle": "architecte_question",
+      "elapsed_ms": 505,
+      "valid": false,
+      "error": "Une question indispensable exige route=architecte et confiance=haute.",
+      "latency_ms": 501
+    }
+  ]
+}

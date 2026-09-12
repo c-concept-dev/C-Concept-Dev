@@ -1,0 +1,32 @@
+{
+  "started_at": "2026-08-28T07:02:21.381Z",
+  "completed_at": "2026-08-28T07:02:27.001Z",
+  "latency_total_ms": 5619.667,
+  "calls": [
+    {
+      "timestamp": "2026-08-28T07:02:27.001Z",
+      "endpoint": "/v1/responses",
+      "status_http": 200,
+      "latency_ms": 5616.511,
+      "response_id": "resp_06dfaeba5f7df796006a91327d804887d2ad45b28688736f99",
+      "response_status": "completed",
+      "model_requested": "gpt-5.6-sol",
+      "model_returned": "gpt-5.6-sol",
+      "usage": {
+        "input_tokens": 14,
+        "output_tokens": 219,
+        "total_tokens": 233,
+        "reasoning_tokens": 0
+      },
+      "estimated_cost_usd": 0.004436,
+      "incomplete_details": null,
+      "error": null,
+      "output": "Avec plaisir ! Pour préparer votre voyage en Italie, j’aurais besoin de quelques précisions :\n\n- **Dates et durée** du séjour  \n- **Ville de départ** et moyen de transport envisagé  \n- **Nombre de voyageurs** et présence éventuelle d’enfants  \n- **Budget approximatif**  \n- Vos envies : **art et histoire, gastronomie, plages, nature, randonnée, vie nocturne…**  \n- Votre rythme préféré : **tranquille** ou **plusieurs étapes**  \n- Les régions ou villes qui vous attirent déjà : Rome, Florence, Venise, Naples, Toscane, Sicile, Pouilles, etc.\n\nÀ titre indicatif, pour un premier voyage de **7 à 10 jours**, un excellent itinéraire est :  \n**Rome (3 jours) → Florence (2 à 3 jours) → Venise (2 jours)**, avec des trajets en train.\n\nDonnez-moi ces informations et je pourrai vous proposer un itinéraire jour par jour, un budget estimatif et des conseils pratiques."
+    }
+  ],
+  "turns": [],
+  "output": "Avec plaisir ! Pour préparer votre voyage en Italie, j’aurais besoin de quelques précisions :\n\n- **Dates et durée** du séjour  \n- **Ville de départ** et moyen de transport envisagé  \n- **Nombre de voyageurs** et présence éventuelle d’enfants  \n- **Budget approximatif**  \n- Vos envies : **art et histoire, gastronomie, plages, nature, randonnée, vie nocturne…**  \n- Votre rythme préféré : **tranquille** ou **plusieurs étapes**  \n- Les régions ou villes qui vous attirent déjà : Rome, Florence, Venise, Naples, Toscane, Sicile, Pouilles, etc.\n\nÀ titre indicatif, pour un premier voyage de **7 à 10 jours**, un excellent itinéraire est :  \n**Rome (3 jours) → Florence (2 à 3 jours) → Venise (2 jours)**, avec des trajets en train.\n\nDonnez-moi ces informations et je pourrai vous proposer un itinéraire jour par jour, un budget estimatif et des conseils pratiques.",
+  "error": null,
+  "initial_request_exact": "Je veux préparer mon voyage en Italie.",
+  "clarification_detection": "heuristique documentée"
+}

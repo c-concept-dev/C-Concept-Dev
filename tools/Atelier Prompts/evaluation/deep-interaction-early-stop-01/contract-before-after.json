@@ -1,0 +1,19 @@
+{
+  "lot": "DEEP-INTERACTION-EARLY-STOP-01",
+  "contrat_de_couverture": {
+    "avant": "une revue valide POUR CHAQUE cible material+question — assembleSubstitutionReviews refuse toute cible non couverte ; le validateur exige « ni plus ni moins »",
+    "apres_propose": "une revue valide pour chaque cible RÉELLEMENT EXAMINÉE ; couverture partielle admise uniquement si un arrêt anticipé déterministe a rendu le tour irréversiblement fail-closed",
+    "qui_derive_la_couverture": "le RUNTIME — la liste des cibles examinées est celle des batches que nous avons émis, dans l'ordre de priorité fixé par l'Analyste. Le modèle ne choisit rien."
+  },
+  "geometrie_du_pipeline": {
+    "avant": "tous les batches planifiés d'avance, exécutés via runBounded(concurrency), puis dépouillés",
+    "apres_propose": "exécution par VAGUES de taille `concurrency` ; arrêt évalué entre deux vagues ; gaspillage maximal = une vague entamée",
+    "pourquoi_pas_la_serie_stricte": "elle donnerait l'arrêt le plus précoce mais détruirait M-02/M-03 : la production borne les appels simultanés à max_inflight = 2 chez Anthropic, et les tours qui ne s'arrêtent PAS auraient doublé de durée"
+  },
+  "telemetrie_runtime_proposee": {
+    "reviewed_targets": "ids examinés", "remaining_targets": "ids non examinés",
+    "coverage_complete": "booléen dérivé", "early_stop": "booléen dérivé",
+    "early_stop_reason": "FIRST_PRIORITY_LAST_RESORT_CONFIRMED", "early_stop_issue_id": "cible gagnante",
+    "note": "objet injecté par l'appelant, hors du CriticOutput — aucun champ ajouté au contrat de sortie, exactKeys inchangé"
+  }
+}

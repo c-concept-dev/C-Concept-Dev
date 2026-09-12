@@ -1,0 +1,32 @@
+{
+  "started_at": "2026-08-28T07:28:26.382Z",
+  "completed_at": "2026-08-28T07:28:30.357Z",
+  "latency_total_ms": 3975.145,
+  "calls": [
+    {
+      "timestamp": "2026-08-28T07:28:30.357Z",
+      "endpoint": "/v1/responses",
+      "status_http": 200,
+      "latency_ms": 3974.21,
+      "response_id": "resp_09ab83901d3264b9006a91389a7e8487d2894a7d4aed296a6e",
+      "response_status": "completed",
+      "model_requested": "gpt-5.6-sol",
+      "model_returned": "gpt-5.6-sol",
+      "usage": {
+        "input_tokens": 44,
+        "output_tokens": 243,
+        "total_tokens": 287,
+        "reasoning_tokens": 53
+      },
+      "estimated_cost_usd": 0.005036,
+      "incomplete_details": null,
+      "error": null,
+      "output": "## Ordre du jour — Réunion hebdomadaire (45 min)\n\n1. **Suivi des ventes — 10 min**  \n   - Résultats par rapport aux objectifs  \n   - Opportunités en cours et prévisions  \n\n2. **Retours clients — 8 min**  \n   - Retours positifs et irritants récurrents  \n   - Actions correctives à envisager  \n\n3. **Blocages — 8 min**  \n   - Difficultés rencontrées  \n   - Soutien ou arbitrages nécessaires  \n\n4. **Priorités de la semaine — 12 min**  \n   - Définition des objectifs principaux  \n   - Répartition des responsabilités et échéances  \n\n5. **Décisions finales — 7 min**  \n   - Validation des décisions prises  \n   - Récapitulatif des actions, responsables et délais  \n\n**Durée totale : 45 minutes**"
+    }
+  ],
+  "turns": [],
+  "output": "## Ordre du jour — Réunion hebdomadaire (45 min)\n\n1. **Suivi des ventes — 10 min**  \n   - Résultats par rapport aux objectifs  \n   - Opportunités en cours et prévisions  \n\n2. **Retours clients — 8 min**  \n   - Retours positifs et irritants récurrents  \n   - Actions correctives à envisager  \n\n3. **Blocages — 8 min**  \n   - Difficultés rencontrées  \n   - Soutien ou arbitrages nécessaires  \n\n4. **Priorités de la semaine — 12 min**  \n   - Définition des objectifs principaux  \n   - Répartition des responsabilités et échéances  \n\n5. **Décisions finales — 7 min**  \n   - Validation des décisions prises  \n   - Récapitulatif des actions, responsables et délais  \n\n**Durée totale : 45 minutes**",
+  "error": null,
+  "initial_request_exact": "Prépare l'ordre du jour d'une réunion de 45 minutes avec 5 points : suivi des ventes, retours clients, blocages, priorités de la semaine et décisions finales.",
+  "clarification_detection": "heuristique documentée"
+}

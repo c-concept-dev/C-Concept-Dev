@@ -1,0 +1,18 @@
+{
+  "timestamp": null,
+  "timestamp_note": "non capturé lors du smoke test initial",
+  "proxy": "https://openai-proxy.11drumboy11.workers.dev/",
+  "endpoint": "/v1/responses",
+  "status_http": 200,
+  "latency_ms": 2909.121,
+  "model_requested": "gpt-5.6-sol",
+  "model_returned": "gpt-5.6-sol",
+  "response_status": "completed",
+  "usage": {
+    "input_tokens": 13,
+    "output_tokens": 5,
+    "total_tokens": 18,
+    "reasoning_tokens": 0
+  },
+  "secret_exposed": false
+}

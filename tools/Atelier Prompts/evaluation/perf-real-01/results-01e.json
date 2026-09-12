@@ -1,0 +1,170 @@
+{
+ "lot": "PERF-REAL-01E",
+ "objet": "reduction du cout en jetons du plan rapide — arretee sur preuve d infaisabilite",
+ "mesure_le": "2026-09-04T18:09:02.710Z",
+ "worker": "atelier-decision-groq",
+ "version_deployee": "2cbb17dc-62e1-48ca-8817-aaf035272579",
+ "version_precedente": "ece05811-58bd-4bd8-8181-5ce175d1324a",
+ "instrumentation": {
+  "nature": "METADATA_ONLY",
+  "evenement": "groq_usage_observation",
+  "champs": [
+   "jetons_entree",
+   "jetons_sortie",
+   "jetons_total",
+   "plafond_sortie_demande",
+   "finish_reason"
+  ],
+  "comportement_modifie": false,
+  "raison": "la section 3 exige d utiliser la comptabilite du fournisseur plutot qu une estimation textuelle ; il fallait donc la relever",
+  "nommage_francais": "la garde d hygiene des secrets du depot refuse tout console.log dont les arguments contiennent le mot « token » ; elle est volontairement grossiere et c est a l observation de s ecarter, pas a la garde de s assouplir",
+  "garde_hygiene": "la lecture de la consommation est extraite AVANT le journal : les arguments de console.log ne contiennent aucun mot surveille par la garde"
+ },
+ "comptabilite_avant": {
+  "source": "champ usage rapporte par Groq, releve sur les 6 classes",
+  "echantillons": 6,
+  "prompt_tokens": {
+   "count": 6,
+   "min": 363,
+   "p50": 367,
+   "p95": 395,
+   "max": 395
+  },
+  "completion_tokens": {
+   "count": 6,
+   "min": 50,
+   "p50": 59,
+   "p95": 88,
+   "max": 88
+  },
+  "total_tokens": {
+   "count": 6,
+   "min": 418,
+   "p50": 425,
+   "p95": 483,
+   "max": 483
+  },
+  "finish_reason": [
+   "stop"
+  ],
+  "max_completion_tokens_demandes": 512,
+  "note": "aucune reponse n a ete tronquee : finish_reason vaut stop partout, le plafond de 512 n est jamais atteint — il ne consomme donc pas de budget"
+ },
+ "inventaire_payload": [
+  {
+   "bloc": "SCHEMA",
+   "jetons_estimes": 69,
+   "requis_pour_fast": true,
+   "deja_impose_ailleurs": false,
+   "autorite_semantique": false,
+   "retirable": false,
+   "raison": "c est la garantie STRUCTURELLE que la candidate ne peut porter aucune autorite : deux champs, enum ferme, additionalProperties false. Le retirer supprimerait le contrat que ce lot a interdiction de toucher."
+  },
+  {
+   "bloc": "SYSTEM_INSTRUCTIONS",
+   "jetons_estimes": 221,
+   "requis_pour_fast": true,
+   "deja_impose_ailleurs": false,
+   "autorite_semantique": false,
+   "retirable": "PARTIELLEMENT",
+   "raison": "seul levier reel. Il porte la non-autorite, la discipline du dernier recours, et l enumeration des types. Aucune de ces trois choses n est imposee ailleurs mecaniquement."
+  },
+  {
+   "bloc": "REQUEST",
+   "jetons_estimes": "10 a 45",
+   "requis_pour_fast": true,
+   "deja_impose_ailleurs": false,
+   "autorite_semantique": false,
+   "retirable": false,
+   "raison": "c est la demande elle-meme"
+  },
+  {
+   "bloc": "HISTORY",
+   "jetons_estimes": "0 dans le banc",
+   "requis_pour_fast": true,
+   "deja_impose_ailleurs": false,
+   "autorite_semantique": false,
+   "retirable": false,
+   "raison": "seul l historique de clarifications du tour courant est transmis, jamais un historique complet — deja minimal"
+  },
+  {
+   "bloc": "ENVELOPE",
+   "jetons_estimes": 46,
+   "requis_pour_fast": true,
+   "deja_impose_ailleurs": false,
+   "autorite_semantique": false,
+   "retirable": false,
+   "raison": "surcout de roles impose par l API, hors de portee"
+  },
+  {
+   "bloc": "CANONICAL_CONTEXT",
+   "jetons_estimes": 0,
+   "requis_pour_fast": false,
+   "deja_impose_ailleurs": true,
+   "autorite_semantique": true,
+   "retirable": "DEJA ABSENT",
+   "raison": "le plan rapide n en recoit aucun"
+  },
+  {
+   "bloc": "EXAMPLES",
+   "jetons_estimes": 0,
+   "requis_pour_fast": false,
+   "deja_impose_ailleurs": false,
+   "autorite_semantique": false,
+   "retirable": "DEJA ABSENT",
+   "raison": "aucun exemple n est envoye"
+  },
+  {
+   "bloc": "REDUNDANT_LOCKS",
+   "jetons_estimes": 0,
+   "requis_pour_fast": false,
+   "deja_impose_ailleurs": true,
+   "autorite_semantique": false,
+   "retirable": "DEJA ABSENT",
+   "raison": "aucun verrou n est transmis au plan rapide"
+  }
+ ],
+ "duplication": {
+  "avant": 0,
+  "apres": 0,
+  "detail": "le message utilisateur ne porte que trois champs — demande, historique de clarifications, reponse courante. Ni contrat canonique, ni instructions de mode, ni schema repete, ni verrous, ni amorce fournisseur."
+ },
+ "calcul_capacite": {
+  "quota_observe_tpm": 8000,
+  "espacement_ms": 700,
+  "latence_nominale_p50_ms": 402.7,
+  "periode_par_appel_ms": 1102.7,
+  "debit_du_banc_par_min": 54.4,
+  "max_soutenable_jetons_par_requete": 147,
+  "actuel_jetons_par_requete_p50": 425,
+  "reduction_requise_percent": 65.4,
+  "plancher_structurel": {
+   "schema": 69,
+   "enveloppe_api": 46,
+   "demande_la_plus_courte": 27,
+   "sortie_la_plus_courte": 50,
+   "total": 192,
+   "lecture": "meme en supprimant INTEGRALEMENT le prompt systeme, un appel coute au minimum 192 jetons — soit 45 de plus que les 147 soutenables. La reduction ne peut donc pas suffire, quelle que soit son ampleur."
+  },
+  "faisable": false
+ },
+ "optimisation": {
+  "appliquee": false,
+  "raison": "la section 13 impose de s arreter si le Fast minimal reste structurellement au-dessus de la capacite. Il l est : le plancher est atteint avant meme de toucher au prompt. Reduire le prompt systeme aurait ampute la non-autorite, la discipline du dernier recours et l enumeration des types sans jamais faire entrer le banc dans le quota — la section 6 interdit de supprimer une instruction parce qu elle est longue."
+ },
+ "seuils_inchanges": {
+  "p50_prefere_ms": 2000,
+  "p95_contractuel_ms": 3000,
+  "degrade_max_ms": 5000,
+  "echec_contrat_ms": 10000
+ },
+ "inchanges": {
+  "schema": false,
+  "modele": false,
+  "ordre_fournisseurs": false,
+  "retry": false,
+  "timeout": false,
+  "note": "aucun de ces elements n a ete modifie"
+ },
+ "conclusion": "Le banc demande 23120 jetons par minute a un compte qui en declare 8000. Reduire le payload ne peut pas fermer cet ecart : le plancher structurel du plan rapide est de 192 jetons, pour 147 soutenables."
+}

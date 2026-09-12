@@ -1,0 +1,493 @@
+{
+  "started_at": "2026-08-28T07:32:59.109Z",
+  "completed_at": "2026-08-28T07:35:11.214Z",
+  "html_sha256": "757ad74d70ffeaff8c3c9e2a09d8c3aa9bbbcbcc52d0cae9923f54e7a28f2a06",
+  "latency_total_ms": 132104.588,
+  "time_to_first_useful_result_ms": 132104.595,
+  "route_finale": "architecte",
+  "moteur_final": "architecte",
+  "decision_source": "groq",
+  "decision": {
+    "etat_demande": "exploitable",
+    "route": "architecte",
+    "confiance": "haute",
+    "raison_interne": "La demande est exploitable mais nécessite une structuration ou des arbitrages préalables.",
+    "question": null
+  },
+  "decision_provider_calls": [
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:32:59.623Z",
+      "latency_ms": 461.073,
+      "status_http": 502,
+      "request": {
+        "demande": "Conçois un plan de déploiement sur six mois d'un programme de mentorat pour 120 salariés répartis sur trois sites. Compare un lancement simultané et un pilote progressif, précise les rôles, risques, critères de sélection, indicateurs de réussite et mécanismes de retour d'expérience, puis recommande une approche.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "error": "provider_failure",
+        "message": "Le fournisseur de décision n’est pas disponible."
+      },
+      "error": null
+    },
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:33:00.084Z",
+      "latency_ms": 712.053,
+      "status_http": 200,
+      "request": {
+        "demande": "Conçois un plan de déploiement sur six mois d'un programme de mentorat pour 120 salariés répartis sur trois sites. Compare un lancement simultané et un pilote progressif, précise les rôles, risques, critères de sélection, indicateurs de réussite et mécanismes de retour d'expérience, puis recommande une approche.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "etat_demande": "exploitable",
+        "route": "architecte",
+        "confiance": "haute",
+        "raison_interne": "La demande est exploitable mais nécessite une structuration ou des arbitrages préalables.",
+        "question": null
+      },
+      "error": null
+    }
+  ],
+  "decision_provider_latency_ms": 1173.126,
+  "clarifications": [],
+  "nombre_reanalyses": 0,
+  "engine": {
+    "engine": "architecte",
+    "latency_ms": 93559.655,
+    "context": {
+      "demande": "Conçois un plan de déploiement sur six mois d'un programme de mentorat pour 120 salariés répartis sur trois sites. Compare un lancement simultané et un pilote progressif, précise les rôles, risques, critères de sélection, indicateurs de réussite et mécanismes de retour d'expérience, puis recommande une approche.",
+      "materiau": null,
+      "preferences_confirmees": [],
+      "reglages_manuels": {
+        "destinataire": null,
+        "profondeur": "auto",
+        "structure": "auto",
+        "volume": null
+      },
+      "proportion": {
+        "version": 1,
+        "profondeur_analyse": {
+          "valeur": "minimal",
+          "source": "manuel"
+        },
+        "densite_prompt": {
+          "valeur": "equilibree",
+          "source": "automatique"
+        },
+        "longueur_livrable": {
+          "valeur": "automatique",
+          "source": "automatique"
+        },
+        "plafond_technique": {
+          "valeur": 4000,
+          "source": "manuel"
+        },
+        "structure": {
+          "mode": "libre",
+          "nombre": null,
+          "source": "automatique",
+          "source_mode": "automatique",
+          "source_nombre": "automatique"
+        }
+      }
+    },
+    "analysis": {
+      "version": "3.4",
+      "comprehension": {
+        "intention_principale": "Élaborer un plan opérationnel de déploiement sur six mois d’un programme de mentorat multisite, comparer deux stratégies de lancement et recommander l’approche la plus appropriée.",
+        "intentions_secondaires": [
+          "Définir les rôles et responsabilités nécessaires.",
+          "Préciser les critères de sélection et d’appariement.",
+          "Recenser les principaux risques et leurs mesures de maîtrise.",
+          "Définir des indicateurs de réussite et des boucles de retour d’expérience.",
+          "Fonder la recommandation sur une comparaison explicite des deux scénarios."
+        ],
+        "declarations": [
+          {
+            "contenu": "Le programme visé concerne 120 salariés répartis sur trois sites.",
+            "statut": "declaration_utilisateur",
+            "source": "demande",
+            "preuve": {
+              "citation": "pour 120 salariés répartis sur trois sites",
+              "contexte_avant": null,
+              "contexte_apres": null
+            }
+          }
+        ],
+        "contraintes": [
+          {
+            "contenu": "Le déploiement doit couvrir une période de six mois.",
+            "statut": "declaration_utilisateur",
+            "source": "demande",
+            "preuve": {
+              "citation": "sur six mois",
+              "contexte_avant": null,
+              "contexte_apres": null
+            }
+          },
+          {
+            "contenu": "Le lancement simultané et le pilote progressif doivent être comparés.",
+            "statut": "declaration_utilisateur",
+            "source": "demande",
+            "preuve": {
+              "citation": "Compare un lancement simultané et un pilote progressif",
+              "contexte_avant": null,
+              "contexte_apres": null
+            }
+          },
+          {
+            "contenu": "Le plan doit traiter les rôles, les risques, les critères de sélection, les indicateurs de réussite et les mécanismes de retour d’expérience.",
+            "statut": "declaration_utilisateur",
+            "source": "demande",
+            "preuve": {
+              "citation": "précise les rôles, risques, critères de sélection, indicateurs de réussite et mécanismes de retour d'expérience",
+              "contexte_avant": null,
+              "contexte_apres": null
+            }
+          },
+          {
+            "contenu": "Une approche doit être recommandée à l’issue de l’analyse.",
+            "statut": "declaration_utilisateur",
+            "source": "demande",
+            "preuve": {
+              "citation": "puis recommande une approche",
+              "contexte_avant": null,
+              "contexte_apres": null
+            }
+          }
+        ],
+        "ambiguites": [
+          "Les objectifs métier ou RH prioritaires du mentorat ne sont pas précisés.",
+          "La répartition des 120 salariés entre les trois sites et leur statut de mentors, mentorés ou population éligible ne sont pas précisés.",
+          "La capacité de mentorat, les possibilités d’appariement intersite et les contraintes de temps de travail ne sont pas connues.",
+          "Le budget, les outils, les règles internes et les contraintes de confidentialité ne sont pas précisés."
+        ],
+        "informations_manquantes": [
+          {
+            "information": "Objectifs prioritaires du programme et populations ciblées.",
+            "bloquant": false,
+            "justification": "Ces éléments influencent les critères de sélection et les indicateurs, mais un plan générique fiable peut les présenter comme paramètres à confirmer."
+          },
+          {
+            "information": "Répartition par site, nombre de mentors mobilisables et possibilité d’appariements intersites.",
+            "bloquant": false,
+            "justification": "Ces données modifieront le dimensionnement précis du pilote, sans empêcher de proposer une séquence conditionnelle et plusieurs règles d’allocation."
+          },
+          {
+            "information": "Budget, temps alloué, outils et exigences internes de confidentialité.",
+            "bloquant": false,
+            "justification": "Ces contraintes affecteront les modalités d’exécution, mais elles peuvent être intégrées sous forme de points de validation avant lancement."
+          }
+        ]
+      },
+      "evaluation": {
+        "niveau_risque": "modere",
+        "justification_risque": "Une conception inadéquate pourrait créer des déséquilibres entre sites, une surcharge des mentors, des appariements insatisfaisants ou des problèmes de confidentialité, mais la demande ne présente pas de risque immédiat élevé.",
+        "connaissance_externe_necessaire": true,
+        "actualite_requise": false,
+        "justification_connaissance": "La conception fiable du dispositif mobilise des principes généraux de gouvernance, de sélection, d’appariement, de gestion des risques et d’évaluation qui ne figurent pas dans la demande. Aucun fait changeant ou contexte d’actualité n’est indispensable au plan générique.",
+        "calcul_requis": false,
+        "livrable_complet_possible": true,
+        "reponse_partielle_possible": true,
+        "action_recommandee": "continuer",
+        "questions_a_poser": [],
+        "parties_realisables_immediatement": []
+      },
+      "strategie": {
+        "capacites_necessaires": [
+          "Conception de programmes RH multisites",
+          "Planification opérationnelle sur six mois",
+          "Analyse comparative et arbitrage",
+          "Définition d’une gouvernance et de responsabilités",
+          "Gestion des risques organisationnels",
+          "Conception d’indicateurs et de boucles d’apprentissage"
+        ],
+        "hypotheses_autorisees": [
+          "Traiter provisoirement les 120 salariés comme la population totale concernée, sans supposer une répartition égale entre les sites.",
+          "Exprimer le calendrier en mois relatifs M1 à M6.",
+          "Présenter les tailles de cohortes, ratios et seuils comme des propositions à ajuster après validation des capacités réelles.",
+          "Prévoir des fonctions de pilotage, de coordination et de relais locaux comme rôles à instaurer, sans affirmer qu’elles existent déjà."
+        ],
+        "hypotheses_interdites": [
+          "Supposer que chaque site compte exactement 40 salariés.",
+          "Inventer le nombre de mentors, le budget, les outils ou le temps de travail alloué.",
+          "Présenter une conformité juridique, sociale ou interne comme acquise.",
+          "Déclarer le pilote progressif ou le lancement simultané supérieur avant une comparaison sur un périmètre commun.",
+          "Inventer des taux de réussite, de participation ou de satisfaction."
+        ],
+        "role_adaptatif": {
+          "intitule": "Concepteur de programme de mentorat multisite",
+          "mission": "Transformer la demande en un plan de déploiement décisionnel, séquencé et mesurable, puis recommander un mode de lancement sur la base de critères explicites.",
+          "competences": [
+            "Architecture de programme RH",
+            "Planification multisite",
+            "Gouvernance et matrice de responsabilités",
+            "Sélection et appariement",
+            "Gestion des risques",
+            "Mesure de performance et amélioration continue"
+          ],
+          "limites": [
+            "Ne connaît pas les effectifs exacts par site ni la capacité réelle des mentors.",
+            "Ne peut pas valider les contraintes budgétaires, juridiques ou internes de l’organisation.",
+            "Doit étiqueter comme propositions les ratios, cohortes et seuils non fondés sur des données internes."
+          ]
+        },
+        "niveau_architecture": "minimal",
+        "justification_niveau": "Le réglage manuel impose une analyse minimale. Une architecture concise reste possible en regroupant les exigences connexes, tout en conservant la comparaison, le séquençage, la gouvernance, les risques et la mesure.",
+        "pilotage_incertitude": {
+          "decisions_autonomes": [
+            "Structurer le calendrier en six séquences mensuelles avec jalons et décisions.",
+            "Utiliser un périmètre et des critères communs pour comparer les deux scénarios.",
+            "Formuler une recommandation argumentée et conditionnelle à partir des priorités explicites.",
+            "Regrouper gouvernance, sélection, risques et mesure dans une structure opérationnelle concise."
+          ],
+          "estimations_a_etiqueter": [
+            "Taille éventuelle d’une cohorte pilote.",
+            "Ratios entre mentors et mentorés.",
+            "Seuils cibles des indicateurs.",
+            "Charge de coordination et durée des activités."
+          ],
+          "inconnues_non_devineables": [
+            "Répartition exacte des salariés entre les sites.",
+            "Nombre et profil des mentors mobilisables.",
+            "Objectifs métier ou RH prioritaires.",
+            "Budget, outils et temps de travail alloué.",
+            "Règles internes applicables aux échanges confidentiels et aux données collectées."
+          ]
+        }
+      },
+      "livrable": {
+        "nature": "Plan de déploiement opérationnel comparatif sur six mois avec recommandation",
+        "format_technique": "markdown",
+        "quantites": {
+          "min": 6,
+          "max": 6,
+          "unite": "séquences mensuelles"
+        },
+        "ton": "Professionnel, pragmatique, synthétique et orienté décision",
+        "longueur_indicative": "Environ 1 200 à 1 600 mots, avec tableaux concis pour le calendrier, la comparaison, les responsabilités et les indicateurs."
+      },
+      "compilation": {
+        "composants_retenus": [
+          {
+            "type": "instruction",
+            "titre": "Séquençage opérationnel de M1 à M6",
+            "contenu": "Organise le déploiement en six séquences mensuelles, de M1 à M6. Pour chaque mois, indique les activités principales, les responsables, les livrables ou jalons, les dépendances et les points de décision. Fais apparaître les différences de séquence entre le lancement simultané et le pilote progressif. Ne suppose pas que les effectifs sont répartis également entre les sites : emploie des règles d’allocation conditionnelles lorsque les données manquent.",
+            "justification": "La demande impose un horizon de six mois et un contexte multisite, ce qui nécessite un calendrier directement exécutable sans inventer la répartition locale.",
+            "fondements": [
+              {
+                "nature": "utilisateur",
+                "citation": "sur six mois",
+                "usage": "Établit l’horizon obligatoire du calendrier."
+              },
+              {
+                "nature": "utilisateur",
+                "citation": "pour 120 salariés répartis sur trois sites",
+                "usage": "Établit le périmètre humain et multisite."
+              },
+              {
+                "nature": "deduction",
+                "citation": null,
+                "usage": "L’absence de ventilation par site impose des règles conditionnelles plutôt qu’une répartition inventée."
+              }
+            ]
+          },
+          {
+            "type": "critere",
+            "titre": "Comparaison équitable et recommandation",
+            "contenu": "Compare les deux modes de lancement sur le même périmètre de 120 salariés, le même horizon de six mois et des hypothèses rendues visibles. Utilise une matrice couvrant au minimum la vitesse de couverture, la charge opérationnelle, l’équité entre sites, la qualité de l’apprentissage, la réversibilité, les principaux risques et les ressources nécessaires. Évite tout score numérique sans base explicite ; emploie sinon une appréciation qualitative. Termine par une recommandation nette, ses raisons, ses conditions de réussite et les circonstances qui feraient préférer l’autre scénario.",
+            "justification": "Une recommandation crédible doit découler d’une comparaison commune, transparente et sensible aux inconnues opérationnelles.",
+            "fondements": [
+              {
+                "nature": "utilisateur",
+                "citation": "Compare un lancement simultané et un pilote progressif",
+                "usage": "Impose la comparaison des deux scénarios."
+              },
+              {
+                "nature": "utilisateur",
+                "citation": "puis recommande une approche",
+                "usage": "Impose un arbitrage final."
+              },
+              {
+                "nature": "deduction",
+                "citation": null,
+                "usage": "Un périmètre commun et des critères explicites sont nécessaires pour éviter une comparaison trompeuse."
+              }
+            ]
+          },
+          {
+            "type": "section",
+            "titre": "Gouvernance et responsabilités",
+            "contenu": "Définis une gouvernance légère comprenant, selon les besoins, un sponsor, un responsable de programme, la fonction RH ou développement, des relais de site, les managers, les mentors et les mentorés. Pour chaque rôle, précise les responsabilités, les décisions détenues, les contributions attendues, les escalades et les moments d’intervention. Présente ces éléments sous forme de matrice de responsabilités concise et distingue clairement les rôles à créer de ceux qui restent à confirmer dans l’organisation.",
+            "justification": "Le caractère multisite exige des responsabilités centrales et locales explicites pour rendre le calendrier exécutable.",
+            "fondements": [
+              {
+                "nature": "utilisateur",
+                "citation": "précise les rôles",
+                "usage": "Établit l’exigence de définition des rôles."
+              },
+              {
+                "nature": "deduction",
+                "citation": null,
+                "usage": "Une matrice légère clarifie l’articulation entre pilotage central et exécution locale."
+              }
+            ]
+          },
+          {
+            "type": "instruction",
+            "titre": "Sélection, appariement et maîtrise des risques",
+            "contenu": "Définis séparément les critères d’éligibilité et de sélection des mentors et des mentorés, puis les critères d’appariement. Intègre la motivation, la capacité réelle à participer, les compétences recherchées, la complémentarité, les conflits d’intérêts, la représentation des sites et la possibilité de réappariement. Distingue les critères impératifs des paramètres configurables. Ajoute un registre synthétique des risques indiquant pour chaque risque sa cause, son impact, les signaux d’alerte, la mesure préventive, la réponse corrective et le responsable. Couvre notamment le manque de mentors, les abandons, les appariements inadéquats, les inégalités entre sites, la surcharge et les atteintes à la confidentialité.",
+            "justification": "La sélection, l’appariement et les risques sont interdépendants et déterminent directement la faisabilité du programme.",
+            "fondements": [
+              {
+                "nature": "utilisateur",
+                "citation": "risques, critères de sélection",
+                "usage": "Établit les deux dimensions obligatoires de cette partie."
+              },
+              {
+                "nature": "deduction",
+                "citation": null,
+                "usage": "Des responsables, signaux d’alerte et réponses correctives rendent les risques pilotables."
+              }
+            ]
+          },
+          {
+            "type": "section",
+            "titre": "Indicateurs et boucles d’apprentissage",
+            "contenu": "Construis un tableau de bord limité aux indicateurs réellement décisionnels : couverture, délai d’appariement, participation, assiduité, continuité des binômes, satisfaction, progression perçue, atteinte des objectifs individuels et équité entre sites. Pour chaque indicateur, précise la définition, le mode de calcul ou d’appréciation, la fréquence, le responsable et la décision qu’il peut déclencher. Présente les seuils éventuels comme des propositions à valider. Prévois des retours courts des participants, des points avec les relais de site, une revue intermédiaire permettant d’ajuster le dispositif et un bilan final transformant les enseignements en décisions pour la suite.",
+            "justification": "Les indicateurs doivent alimenter des décisions et des ajustements, et non constituer une simple liste de mesures.",
+            "fondements": [
+              {
+                "nature": "utilisateur",
+                "citation": "indicateurs de réussite et mécanismes de retour d'expérience",
+                "usage": "Établit les exigences de mesure et d’apprentissage."
+              },
+              {
+                "nature": "deduction",
+                "citation": null,
+                "usage": "Relier chaque mesure à une décision renforce l’utilité opérationnelle du suivi."
+              }
+            ]
+          }
+        ],
+        "composants_ecartes": []
+      },
+      "verification": {
+        "criteres_bloquants": [
+          "Le calendrier couvre explicitement les six mois.",
+          "Le plan conserve le périmètre de 120 salariés et trois sites sans inventer leur répartition.",
+          "Les deux modes de lancement sont comparés sur un périmètre et un horizon communs.",
+          "Les rôles, risques, critères de sélection, indicateurs et mécanismes de retour d’expérience sont tous traités.",
+          "Une recommandation explicite découle des critères de comparaison.",
+          "Les ratios, seuils et tailles de cohortes non établis sont signalés comme propositions ou hypothèses."
+        ],
+        "criteres_qualitatifs": [
+          "Le séquençage fait apparaître les dépendances et points de décision.",
+          "La recommandation respecte l’objectif principal plutôt qu’un critère secondaire isolé.",
+          "Les responsabilités centrales et locales sont distinctes.",
+          "Les critères de sélection sont transparents et applicables aux trois sites.",
+          "Les indicateurs sont définis et reliés à des décisions concrètes.",
+          "Les mécanismes de retour d’expérience peuvent réellement modifier la suite du déploiement."
+        ],
+        "elements_non_verifiables": [
+          "La capacité réelle de l’organisation à recruter suffisamment de mentors.",
+          "La répartition des participants et des compétences entre les trois sites.",
+          "La compatibilité du plan avec le budget, les outils et le temps de travail alloué.",
+          "La conformité aux politiques internes et exigences applicables à la confidentialité.",
+          "Les effets attendus du programme en l’absence de données de référence internes."
+        ],
+        "controle_provenance": [
+          {
+            "affirmation": "Le programme concerne 120 salariés répartis sur trois sites et doit être planifié sur six mois.",
+            "statut": "soutenue",
+            "justification": "Ces paramètres sont explicitement énoncés dans la demande."
+          },
+          {
+            "affirmation": "Une répartition de 40 salariés par site serait appropriée.",
+            "statut": "information_manquante",
+            "justification": "Aucune ventilation des 120 salariés entre les sites n’est donnée."
+          },
+          {
+            "affirmation": "Un scénario est intrinsèquement supérieur à l’autre.",
+            "statut": "hypothese",
+            "justification": "La supériorité dépend des capacités, objectifs et contraintes internes encore inconnus."
+          },
+          {
+            "affirmation": "Les tailles de cohortes, ratios et seuils proposés constituent des valeurs validées.",
+            "statut": "connaissance_externe_non_verifiee",
+            "justification": "Aucune donnée interne ni preuve empirique propre à l’organisation ne permet de les valider."
+          },
+          {
+            "affirmation": "Les rôles de sponsor, responsable de programme et relais de site existent déjà.",
+            "statut": "information_manquante",
+            "justification": "Ces fonctions peuvent être recommandées, mais leur existence actuelle n’est pas indiquée."
+          }
+        ]
+      },
+      "apprentissage": {
+        "preferences_applicables": [],
+        "preference_proposable": null
+      }
+    },
+    "analysis_call": {
+      "timestamp": "2026-08-28T07:34:34.324Z",
+      "endpoint": "/v1/responses",
+      "status_http": 200,
+      "latency_ms": 93383.159,
+      "response_id": "resp_08d1d200471343b8006a9139acf2dc87d2baeedb77d78b04bc",
+      "response_status": "completed",
+      "model_requested": "gpt-5.6-sol",
+      "model_returned": "gpt-5.6-sol",
+      "usage": {
+        "input_tokens": 9674,
+        "output_tokens": 7858,
+        "total_tokens": 17532,
+        "reasoning_tokens": 3624
+      },
+      "estimated_cost_usd": 0.195856,
+      "incomplete_details": null,
+      "error": null,
+      "output": "{\n  \"version\": \"3.4\",\n  \"comprehension\": {\n    \"intention_principale\": \"Élaborer un plan opérationnel de déploiement sur six mois d’un programme de mentorat multisite, comparer deux stratégies de lancement et recommander l’approche la plus appropriée.\",\n    \"intentions_secondaires\": [\n      \"Définir les rôles et responsabilités nécessaires.\",\n      \"Préciser les critères de sélection et d’appariement.\",\n      \"Recenser les principaux risques et leurs mesures de maîtrise.\",\n      \"Définir des indicateurs de réussite et des boucles de retour d’expérience.\",\n      \"Fonder la recommandation sur une comparaison explicite des deux scénarios.\"\n    ],\n    \"declarations\": [\n      {\n        \"contenu\": \"Le programme visé concerne 120 salariés répartis sur trois sites.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"pour 120 salariés répartis sur trois sites\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      }\n    ],\n    \"contraintes\": [\n      {\n        \"contenu\": \"Le déploiement doit couvrir une période de six mois.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"sur six mois\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      },\n      {\n        \"contenu\": \"Le lancement simultané et le pilote progressif doivent être comparés.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"Compare un lancement simultané et un pilote progressif\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      },\n      {\n        \"contenu\": \"Le plan doit traiter les rôles, les risques, les critères de sélection, les indicateurs de réussite et les mécanismes de retour d’expérience.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"précise les rôles, risques, critères de sélection, indicateurs de réussite et mécanismes de retour d'expérience\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      },\n      {\n        \"contenu\": \"Une approche doit être recommandée à l’issue de l’analyse.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"puis recommande une approche\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      }\n    ],\n    \"ambiguites\": [\n      \"Les objectifs métier ou RH prioritaires du mentorat ne sont pas précisés.\",\n      \"La répartition des 120 salariés entre les trois sites et leur statut de mentors, mentorés ou population éligible ne sont pas précisés.\",\n      \"La capacité de mentorat, les possibilités d’appariement intersite et les contraintes de temps de travail ne sont pas connues.\",\n      \"Le budget, les outils, les règles internes et les contraintes de confidentialité ne sont pas précisés.\"\n    ],\n    \"informations_manquantes\": [\n      {\n        \"information\": \"Objectifs prioritaires du programme et populations ciblées.\",\n        \"bloquant\": false,\n        \"justification\": \"Ces éléments influencent les critères de sélection et les indicateurs, mais un plan générique fiable peut les présenter comme paramètres à confirmer.\"\n      },\n      {\n        \"information\": \"Répartition par site, nombre de mentors mobilisables et possibilité d’appariements intersites.\",\n        \"bloquant\": false,\n        \"justification\": \"Ces données modifieront le dimensionnement précis du pilote, sans empêcher de proposer une séquence conditionnelle et plusieurs règles d’allocation.\"\n      },\n      {\n        \"information\": \"Budget, temps alloué, outils et exigences internes de confidentialité.\",\n        \"bloquant\": false,\n        \"justification\": \"Ces contraintes affecteront les modalités d’exécution, mais elles peuvent être intégrées sous forme de points de validation avant lancement.\"\n      }\n    ]\n  },\n  \"evaluation\": {\n    \"niveau_risque\": \"modere\",\n    \"justification_risque\": \"Une conception inadéquate pourrait créer des déséquilibres entre sites, une surcharge des mentors, des appariements insatisfaisants ou des problèmes de confidentialité, mais la demande ne présente pas de risque immédiat élevé.\",\n    \"connaissance_externe_necessaire\": true,\n    \"actualite_requise\": false,\n    \"justification_connaissance\": \"La conception fiable du dispositif mobilise des principes généraux de gouvernance, de sélection, d’appariement, de gestion des risques et d’évaluation qui ne figurent pas dans la demande. Aucun fait changeant ou contexte d’actualité n’est indispensable au plan générique.\",\n    \"calcul_requis\": false,\n    \"livrable_complet_possible\": true,\n    \"reponse_partielle_possible\": true,\n    \"action_recommandee\": \"continuer\",\n    \"questions_a_poser\": [],\n    \"parties_realisables_immediatement\": []\n  },\n  \"strategie\": {\n    \"capacites_necessaires\": [\n      \"Conception de programmes RH multisites\",\n      \"Planification opérationnelle sur six mois\",\n      \"Analyse comparative et arbitrage\",\n      \"Définition d’une gouvernance et de responsabilités\",\n      \"Gestion des risques organisationnels\",\n      \"Conception d’indicateurs et de boucles d’apprentissage\"\n    ],\n    \"hypotheses_autorisees\": [\n      \"Traiter provisoirement les 120 salariés comme la population totale concernée, sans supposer une répartition égale entre les sites.\",\n      \"Exprimer le calendrier en mois relatifs M1 à M6.\",\n      \"Présenter les tailles de cohortes, ratios et seuils comme des propositions à ajuster après validation des capacités réelles.\",\n      \"Prévoir des fonctions de pilotage, de coordination et de relais locaux comme rôles à instaurer, sans affirmer qu’elles existent déjà.\"\n    ],\n    \"hypotheses_interdites\": [\n      \"Supposer que chaque site compte exactement 40 salariés.\",\n      \"Inventer le nombre de mentors, le budget, les outils ou le temps de travail alloué.\",\n      \"Présenter une conformité juridique, sociale ou interne comme acquise.\",\n      \"Déclarer le pilote progressif ou le lancement simultané supérieur avant une comparaison sur un périmètre commun.\",\n      \"Inventer des taux de réussite, de participation ou de satisfaction.\"\n    ],\n    \"role_adaptatif\": {\n      \"intitule\": \"Concepteur de programme de mentorat multisite\",\n      \"mission\": \"Transformer la demande en un plan de déploiement décisionnel, séquencé et mesurable, puis recommander un mode de lancement sur la base de critères explicites.\",\n      \"competences\": [\n        \"Architecture de programme RH\",\n        \"Planification multisite\",\n        \"Gouvernance et matrice de responsabilités\",\n        \"Sélection et appariement\",\n        \"Gestion des risques\",\n        \"Mesure de performance et amélioration continue\"\n      ],\n      \"limites\": [\n        \"Ne connaît pas les effectifs exacts par site ni la capacité réelle des mentors.\",\n        \"Ne peut pas valider les contraintes budgétaires, juridiques ou internes de l’organisation.\",\n        \"Doit étiqueter comme propositions les ratios, cohortes et seuils non fondés sur des données internes.\"\n      ]\n    },\n    \"niveau_architecture\": \"minimal\",\n    \"justification_niveau\": \"Le réglage manuel impose une analyse minimale. Une architecture concise reste possible en regroupant les exigences connexes, tout en conservant la comparaison, le séquençage, la gouvernance, les risques et la mesure.\",\n    \"pilotage_incertitude\": {\n      \"decisions_autonomes\": [\n        \"Structurer le calendrier en six séquences mensuelles avec jalons et décisions.\",\n        \"Utiliser un périmètre et des critères communs pour comparer les deux scénarios.\",\n        \"Formuler une recommandation argumentée et conditionnelle à partir des priorités explicites.\",\n        \"Regrouper gouvernance, sélection, risques et mesure dans une structure opérationnelle concise.\"\n      ],\n      \"estimations_a_etiqueter\": [\n        \"Taille éventuelle d’une cohorte pilote.\",\n        \"Ratios entre mentors et mentorés.\",\n        \"Seuils cibles des indicateurs.\",\n        \"Charge de coordination et durée des activités.\"\n      ],\n      \"inconnues_non_devineables\": [\n        \"Répartition exacte des salariés entre les sites.\",\n        \"Nombre et profil des mentors mobilisables.\",\n        \"Objectifs métier ou RH prioritaires.\",\n        \"Budget, outils et temps de travail alloué.\",\n        \"Règles internes applicables aux échanges confidentiels et aux données collectées.\"\n      ]\n    }\n  },\n  \"livrable\": {\n    \"nature\": \"Plan de déploiement opérationnel comparatif sur six mois avec recommandation\",\n    \"format_technique\": \"markdown\",\n    \"quantites\": {\n      \"min\": 6,\n      \"max\": 6,\n      \"unite\": \"séquences mensuelles\"\n    },\n    \"ton\": \"Professionnel, pragmatique, synthétique et orienté décision\",\n    \"longueur_indicative\": \"Environ 1 200 à 1 600 mots, avec tableaux concis pour le calendrier, la comparaison, les responsabilités et les indicateurs.\"\n  },\n  \"compilation\": {\n    \"composants_retenus\": [\n      {\n        \"type\": \"instruction\",\n        \"titre\": \"Séquençage opérationnel de M1 à M6\",\n        \"contenu\": \"Organise le déploiement en six séquences mensuelles, de M1 à M6. Pour chaque mois, indique les activités principales, les responsables, les livrables ou jalons, les dépendances et les points de décision. Fais apparaître les différences de séquence entre le lancement simultané et le pilote progressif. Ne suppose pas que les effectifs sont répartis également entre les sites : emploie des règles d’allocation conditionnelles lorsque les données manquent.\",\n        \"justification\": \"La demande impose un horizon de six mois et un contexte multisite, ce qui nécessite un calendrier directement exécutable sans inventer la répartition locale.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"sur six mois\",\n            \"usage\": \"Établit l’horizon obligatoire du calendrier.\"\n          },\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"pour 120 salariés répartis sur trois sites\",\n            \"usage\": \"Établit le périmètre humain et multisite.\"\n          },\n          {\n            \"nature\": \"deduction\",\n            \"citation\": null,\n            \"usage\": \"L’absence de ventilation par site impose des règles conditionnelles plutôt qu’une répartition inventée.\"\n          }\n        ]\n      },\n      {\n        \"type\": \"critere\",\n        \"titre\": \"Comparaison équitable et recommandation\",\n        \"contenu\": \"Compare les deux modes de lancement sur le même périmètre de 120 salariés, le même horizon de six mois et des hypothèses rendues visibles. Utilise une matrice couvrant au minimum la vitesse de couverture, la charge opérationnelle, l’équité entre sites, la qualité de l’apprentissage, la réversibilité, les principaux risques et les ressources nécessaires. Évite tout score numérique sans base explicite ; emploie sinon une appréciation qualitative. Termine par une recommandation nette, ses raisons, ses conditions de réussite et les circonstances qui feraient préférer l’autre scénario.\",\n        \"justification\": \"Une recommandation crédible doit découler d’une comparaison commune, transparente et sensible aux inconnues opérationnelles.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"Compare un lancement simultané et un pilote progressif\",\n            \"usage\": \"Impose la comparaison des deux scénarios.\"\n          },\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"puis recommande une approche\",\n            \"usage\": \"Impose un arbitrage final.\"\n          },\n          {\n            \"nature\": \"deduction\",\n            \"citation\": null,\n            \"usage\": \"Un périmètre commun et des critères explicites sont nécessaires pour éviter une comparaison trompeuse.\"\n          }\n        ]\n      },\n      {\n        \"type\": \"section\",\n        \"titre\": \"Gouvernance et responsabilités\",\n        \"contenu\": \"Définis une gouvernance légère comprenant, selon les besoins, un sponsor, un responsable de programme, la fonction RH ou développement, des relais de site, les managers, les mentors et les mentorés. Pour chaque rôle, précise les responsabilités, les décisions détenues, les contributions attendues, les escalades et les moments d’intervention. Présente ces éléments sous forme de matrice de responsabilités concise et distingue clairement les rôles à créer de ceux qui restent à confirmer dans l’organisation.\",\n        \"justification\": \"Le caractère multisite exige des responsabilités centrales et locales explicites pour rendre le calendrier exécutable.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"précise les rôles\",\n            \"usage\": \"Établit l’exigence de définition des rôles.\"\n          },\n          {\n            \"nature\": \"deduction\",\n            \"citation\": null,\n            \"usage\": \"Une matrice légère clarifie l’articulation entre pilotage central et exécution locale.\"\n          }\n        ]\n      },\n      {\n        \"type\": \"instruction\",\n        \"titre\": \"Sélection, appariement et maîtrise des risques\",\n        \"contenu\": \"Définis séparément les critères d’éligibilité et de sélection des mentors et des mentorés, puis les critères d’appariement. Intègre la motivation, la capacité réelle à participer, les compétences recherchées, la complémentarité, les conflits d’intérêts, la représentation des sites et la possibilité de réappariement. Distingue les critères impératifs des paramètres configurables. Ajoute un registre synthétique des risques indiquant pour chaque risque sa cause, son impact, les signaux d’alerte, la mesure préventive, la réponse corrective et le responsable. Couvre notamment le manque de mentors, les abandons, les appariements inadéquats, les inégalités entre sites, la surcharge et les atteintes à la confidentialité.\",\n        \"justification\": \"La sélection, l’appariement et les risques sont interdépendants et déterminent directement la faisabilité du programme.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"risques, critères de sélection\",\n            \"usage\": \"Établit les deux dimensions obligatoires de cette partie.\"\n          },\n          {\n            \"nature\": \"deduction\",\n            \"citation\": null,\n            \"usage\": \"Des responsables, signaux d’alerte et réponses correctives rendent les risques pilotables.\"\n          }\n        ]\n      },\n      {\n        \"type\": \"section\",\n        \"titre\": \"Indicateurs et boucles d’apprentissage\",\n        \"contenu\": \"Construis un tableau de bord limité aux indicateurs réellement décisionnels : couverture, délai d’appariement, participation, assiduité, continuité des binômes, satisfaction, progression perçue, atteinte des objectifs individuels et équité entre sites. Pour chaque indicateur, précise la définition, le mode de calcul ou d’appréciation, la fréquence, le responsable et la décision qu’il peut déclencher. Présente les seuils éventuels comme des propositions à valider. Prévois des retours courts des participants, des points avec les relais de site, une revue intermédiaire permettant d’ajuster le dispositif et un bilan final transformant les enseignements en décisions pour la suite.\",\n        \"justification\": \"Les indicateurs doivent alimenter des décisions et des ajustements, et non constituer une simple liste de mesures.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"indicateurs de réussite et mécanismes de retour d'expérience\",\n            \"usage\": \"Établit les exigences de mesure et d’apprentissage.\"\n          },\n          {\n            \"nature\": \"deduction\",\n            \"citation\": null,\n            \"usage\": \"Relier chaque mesure à une décision renforce l’utilité opérationnelle du suivi.\"\n          }\n        ]\n      }\n    ],\n    \"composants_ecartes\": []\n  },\n  \"verification\": {\n    \"criteres_bloquants\": [\n      \"Le calendrier couvre explicitement les six mois.\",\n      \"Le plan conserve le périmètre de 120 salariés et trois sites sans inventer leur répartition.\",\n      \"Les deux modes de lancement sont comparés sur un périmètre et un horizon communs.\",\n      \"Les rôles, risques, critères de sélection, indicateurs et mécanismes de retour d’expérience sont tous traités.\",\n      \"Une recommandation explicite découle des critères de comparaison.\",\n      \"Les ratios, seuils et tailles de cohortes non établis sont signalés comme propositions ou hypothèses.\"\n    ],\n    \"criteres_qualitatifs\": [\n      \"Le séquençage fait apparaître les dépendances et points de décision.\",\n      \"La recommandation respecte l’objectif principal plutôt qu’un critère secondaire isolé.\",\n      \"Les responsabilités centrales et locales sont distinctes.\",\n      \"Les critères de sélection sont transparents et applicables aux trois sites.\",\n      \"Les indicateurs sont définis et reliés à des décisions concrètes.\",\n      \"Les mécanismes de retour d’expérience peuvent réellement modifier la suite du déploiement.\"\n    ],\n    \"elements_non_verifiables\": [\n      \"La capacité réelle de l’organisation à recruter suffisamment de mentors.\",\n      \"La répartition des participants et des compétences entre les trois sites.\",\n      \"La compatibilité du plan avec le budget, les outils et le temps de travail alloué.\",\n      \"La conformité aux politiques internes et exigences applicables à la confidentialité.\",\n      \"Les effets attendus du programme en l’absence de données de référence internes.\"\n    ],\n    \"controle_provenance\": [\n      {\n        \"affirmation\": \"Le programme concerne 120 salariés répartis sur trois sites et doit être planifié sur six mois.\",\n        \"statut\": \"soutenue\",\n        \"justification\": \"Ces paramètres sont explicitement énoncés dans la demande.\"\n      },\n      {\n        \"affirmation\": \"Une répartition de 40 salariés par site serait appropriée.\",\n        \"statut\": \"information_manquante\",\n        \"justification\": \"Aucune ventilation des 120 salariés entre les sites n’est donnée.\"\n      },\n      {\n        \"affirmation\": \"Un scénario est intrinsèquement supérieur à l’autre.\",\n        \"statut\": \"hypothese\",\n        \"justification\": \"La supériorité dépend des capacités, objectifs et contraintes internes encore inconnus.\"\n      },\n      {\n        \"affirmation\": \"Les tailles de cohortes, ratios et seuils proposés constituent des valeurs validées.\",\n        \"statut\": \"connaissance_externe_non_verifiee\",\n        \"justification\": \"Aucune donnée interne ni preuve empirique propre à l’organisation ne permet de les valider.\"\n      },\n      {\n        \"affirmation\": \"Les rôles de sponsor, responsable de programme et relais de site existent déjà.\",\n        \"statut\": \"information_manquante\",\n        \"justification\": \"Ces fonctions peuvent être recommandées, mais leur existence actuelle n’est pas indiquée.\"\n      }\n    ]\n  },\n  \"apprentissage\": {\n    \"preferences_applicables\": [],\n    \"preference_proposable\": null\n  }\n}"
+    },
+    "validation": [],
+    "prompt": "## RÔLE\nVous intervenez comme Concepteur de programme de mentorat multisite.\nTransformer la demande en un plan de déploiement décisionnel, séquencé et mesurable, puis recommander un mode de lancement sur la base de critères explicites.\nCompétences à mobiliser : Architecture de programme RH ; Planification multisite ; Gouvernance et matrice de responsabilités ; Sélection et appariement ; Gestion des risques ; Mesure de performance et amélioration continue.\nLimites à respecter : Ne connaît pas les effectifs exacts par site ni la capacité réelle des mentors ; Ne peut pas valider les contraintes budgétaires, juridiques ou internes de l’organisation ; Doit étiqueter comme propositions les ratios, cohortes et seuils non fondés sur des données internes.\n\n## OBJECTIF\nÉlaborer un plan opérationnel de déploiement sur six mois d’un programme de mentorat multisite, comparer deux stratégies de lancement et recommander l’approche la plus appropriée.\n\n## DEMANDE ORIGINALE\nConçois un plan de déploiement sur six mois d'un programme de mentorat pour 120 salariés répartis sur trois sites. Compare un lancement simultané et un pilote progressif, précise les rôles, risques, critères de sélection, indicateurs de réussite et mécanismes de retour d'expérience, puis recommande une approche.\n\n## FORMAT DE SORTIE\n- Livrable : Plan de déploiement opérationnel comparatif sur six mois avec recommandation\n- Format technique : markdown\n- Ton : Professionnel, pragmatique, synthétique et orienté décision\n- Longueur indicative : Environ 1 200 à 1 600 mots, avec tableaux concis pour le calendrier, la comparaison, les responsabilités et les indicateurs.\n- Quantité : minimum 6 ; maximum 6 séquences mensuelles\n- Structure : plan imposé (6 éléments)\n\n## DÉCISIONS, ESTIMATIONS ET INCERTITUDES\nRègle centrale : traitez chaque inconnue par le moyen le plus utile et honnête — décision raisonnable, estimation étiquetée, recherche, scénario, condition ou inconnue locale. Une décision reste un choix, jamais un fait vérifié. La précision doit être proportionnée aux preuves. Hiérarchisez les critères selon l’objectif réel, les contraintes, leur impact cumulé et les conséquences d’une erreur, sans modifier silencieusement une contrainte explicite.\n\nDécisions à prendre de façon autonome :\n- Structurer le calendrier en six séquences mensuelles avec jalons et décisions.\n- Utiliser un périmètre et des critères communs pour comparer les deux scénarios.\n- Formuler une recommandation argumentée et conditionnelle à partir des priorités explicites.\n- Regrouper gouvernance, sélection, risques et mesure dans une structure opérationnelle concise.\n\nEstimations autorisées, à étiqueter clairement :\n- Taille éventuelle d’une cohorte pilote.\n- Ratios entre mentors et mentorés.\n- Seuils cibles des indicateurs.\n- Charge de coordination et durée des activités.\n\nPour chacune : utilisez explicitement « estimation », « environ », « fourchette », « ordre de grandeur » ou « à confirmer ». Ne donnez jamais à une approximation la forme d’une mesure vérifiée.\n\nIncertitudes à signaler localement sans bloquer le reste :\n- Répartition exacte des salariés entre les sites.\n- Nombre et profil des mentors mobilisables.\n- Objectifs métier ou RH prioritaires.\n- Budget, outils et temps de travail alloué.\n- Règles internes applicables aux échanges confidentiels et aux données collectées.\n\n## INFORMATIONS MANQUANTES ET PILOTAGE\n- Non bloquante : Objectifs prioritaires du programme et populations ciblées. — Ces éléments influencent les critères de sélection et les indicateurs, mais un plan générique fiable peut les présenter comme paramètres à confirmer.\n- Non bloquante : Répartition par site, nombre de mentors mobilisables et possibilité d’appariements intersites. — Ces données modifieront le dimensionnement précis du pilote, sans empêcher de proposer une séquence conditionnelle et plusieurs règles d’allocation.\n- Non bloquante : Budget, temps alloué, outils et exigences internes de confidentialité. — Ces contraintes affecteront les modalités d’exécution, mais elles peuvent être intégrées sous forme de points de validation avant lancement.\n\nNe présentez jamais une information inconnue comme confirmée. Mais ne bloquez pas une réponse utile pour une donnée que vous pouvez décider, estimer, rechercher ou laisser explicitement à confirmer.\n\n## RECHERCHE, ACTUALITÉ ET QUALITÉ DES PREUVES\nUne connaissance extérieure à la demande est nécessaire. Citez les sources directement consultées et leur date de consultation. Sans recherche réelle, distinguez explicitement ce qui est établi dans la demande de ce qui reste non vérifié. Pour chaque affirmation importante, choisissez la source selon son autorité sur cette affirmation, sa proximité avec la donnée, sa spécificité et sa fraîcheur ; ne suivez pas une hiérarchie rigide indépendante du contexte. En cas de contradiction, cherchez une preuve plus directement compétente et tranchez seulement si elle résout réellement le conflit. Recherchez également les changements futurs déjà établis lorsqu’ils se situent dans l’horizon pertinent et peuvent modifier la décision.\n\n## HYPOTHÈSES AUTORISÉES\n- Traiter provisoirement les 120 salariés comme la population totale concernée, sans supposer une répartition égale entre les sites.\n- Exprimer le calendrier en mois relatifs M1 à M6.\n- Présenter les tailles de cohortes, ratios et seuils comme des propositions à ajuster après validation des capacités réelles.\n- Prévoir des fonctions de pilotage, de coordination et de relais locaux comme rôles à instaurer, sans affirmer qu’elles existent déjà.\n\n## HYPOTHÈSES INTERDITES\n- Supposer que chaque site compte exactement 40 salariés.\n- Inventer le nombre de mentors, le budget, les outils ou le temps de travail alloué.\n- Présenter une conformité juridique, sociale ou interne comme acquise.\n- Déclarer le pilote progressif ou le lancement simultané supérieur avant une comparaison sur un périmètre commun.\n- Inventer des taux de réussite, de participation ou de satisfaction.\n\n## PRINCIPES DE RAISONNEMENT\n- Distinguez faits établis, décisions, estimations, hypothèses et inconnues.\n- Vérifiez que les comparaisons portent sur des périmètres réellement comparables.\n- Adaptez la précision numérique au niveau de preuve disponible ; n’inventez pas une probabilité ou une date pour satisfaire une demande de précision.\n- Pondérez les critères selon l’objectif réel, les contraintes, l’impact cumulé et les conséquences d’une erreur.\n- Résolvez les contradictions avec la preuve la plus compétente pour l’affirmation, sans hiérarchie mécanique de sources.\n- Pour l’avenir, distinguez changements déjà établis et prévisions ; utilisez une sensibilité ou des scénarios quand le moment exact est inconnu.\n\n## Séquençage opérationnel de M1 à M6\nOrganise le déploiement en six séquences mensuelles, de M1 à M6. Pour chaque mois, indique les activités principales, les responsables, les livrables ou jalons, les dépendances et les points de décision. Fais apparaître les différences de séquence entre le lancement simultané et le pilote progressif. Ne suppose pas que les effectifs sont répartis également entre les sites : emploie des règles d’allocation conditionnelles lorsque les données manquent.\n\n## Comparaison équitable et recommandation\nCompare les deux modes de lancement sur le même périmètre de 120 salariés, le même horizon de six mois et des hypothèses rendues visibles. Utilise une matrice couvrant au minimum la vitesse de couverture, la charge opérationnelle, l’équité entre sites, la qualité de l’apprentissage, la réversibilité, les principaux risques et les ressources nécessaires. Évite tout score numérique sans base explicite ; emploie sinon une appréciation qualitative. Termine par une recommandation nette, ses raisons, ses conditions de réussite et les circonstances qui feraient préférer l’autre scénario.\n\n## Gouvernance et responsabilités\nDéfinis une gouvernance légère comprenant, selon les besoins, un sponsor, un responsable de programme, la fonction RH ou développement, des relais de site, les managers, les mentors et les mentorés. Pour chaque rôle, précise les responsabilités, les décisions détenues, les contributions attendues, les escalades et les moments d’intervention. Présente ces éléments sous forme de matrice de responsabilités concise et distingue clairement les rôles à créer de ceux qui restent à confirmer dans l’organisation.\n\n## Sélection, appariement et maîtrise des risques\nDéfinis séparément les critères d’éligibilité et de sélection des mentors et des mentorés, puis les critères d’appariement. Intègre la motivation, la capacité réelle à participer, les compétences recherchées, la complémentarité, les conflits d’intérêts, la représentation des sites et la possibilité de réappariement. Distingue les critères impératifs des paramètres configurables. Ajoute un registre synthétique des risques indiquant pour chaque risque sa cause, son impact, les signaux d’alerte, la mesure préventive, la réponse corrective et le responsable. Couvre notamment le manque de mentors, les abandons, les appariements inadéquats, les inégalités entre sites, la surcharge et les atteintes à la confidentialité.\n\n## Indicateurs et boucles d’apprentissage\nConstruis un tableau de bord limité aux indicateurs réellement décisionnels : couverture, délai d’appariement, participation, assiduité, continuité des binômes, satisfaction, progression perçue, atteinte des objectifs individuels et équité entre sites. Pour chaque indicateur, précise la définition, le mode de calcul ou d’appréciation, la fréquence, le responsable et la décision qu’il peut déclencher. Présente les seuils éventuels comme des propositions à valider. Prévois des retours courts des participants, des points avec les relais de site, une revue intermédiaire permettant d’ajuster le dispositif et un bilan final transformant les enseignements en décisions pour la suite.\n\n## VÉRIFICATION AVANT ENVOI\nContrôlez silencieusement la réponse et corrigez-la avant de l’envoyer :\n- Le calendrier couvre explicitement les six mois.\n- Le plan conserve le périmètre de 120 salariés et trois sites sans inventer leur répartition.\n- Les deux modes de lancement sont comparés sur un périmètre et un horizon communs.\n- Les rôles, risques, critères de sélection, indicateurs et mécanismes de retour d’expérience sont tous traités.\n- Une recommandation explicite découle des critères de comparaison.\n- Les ratios, seuils et tailles de cohortes non établis sont signalés comme propositions ou hypothèses.\n- Le séquençage fait apparaître les dépendances et points de décision.\n- La recommandation respecte l’objectif principal plutôt qu’un critère secondaire isolé.\n- Les responsabilités centrales et locales sont distinctes.\n- Les critères de sélection sont transparents et applicables aux trois sites.\n- Les indicateurs sont définis et reliés à des décisions concrètes.\n- Les mécanismes de retour d’expérience peuvent réellement modifier la suite du déploiement.\n- Toute décision autonome doit rester identifiable comme un choix fondé sur des critères, jamais comme un fait vérifié sans preuve.\n- Toute estimation ou quantification doit avoir une précision proportionnée à sa base ; sans fondement empirique ou calcul identifiable, préférer qualification, fourchette, provision ou sensibilité à un nombre artificiel.\n- Avant toute comparaison ou calcul important, vérifier que les options et données couvrent des périmètres comparables ; expliciter les composantes ou hypothèses susceptibles de changer la décision.\n- En cas de contradiction matérielle, sélectionner la preuve selon son autorité sur l’affirmation, sa proximité, sa spécificité et sa fraîcheur ; trancher uniquement si le conflit est réellement résolu.\n- Pour une décision temporelle, distinguer état actuel, changement futur déjà établi et prévision ; intégrer les changements futurs seulement s’ils sont pertinents pour l’horizon de décision.\n- Quand la date d’un événement futur est inconnue, préférer scénarios, sensibilité, provision ou condition à une date arbitraire.\n- Hiérarchiser les critères selon l’objectif réel, les contraintes et leur impact cumulé, tout en confrontant les effets récurrents aux risques rares mais à conséquences majeures.\n- Ne jamais modifier silencieusement une contrainte explicite ; tout arbitrage qui la sacrifie doit être rendu visible.\n- Nettoyer le livrable final : aucune hésitation, autocorrection, ancien calcul remplacé, doublon, contradiction résiduelle ou trace de brouillon ne doit rester visible."
+  },
+  "final_call": {
+    "timestamp": "2026-08-28T07:35:11.208Z",
+    "endpoint": "/v1/responses",
+    "status_http": 200,
+    "latency_ms": 36798.008,
+    "response_id": "resp_0ba2447d5914e266006a913a0a809087d2aa2969fad57e2b3f",
+    "response_status": "incomplete",
+    "model_requested": "gpt-5.6-sol",
+    "model_returned": "gpt-5.6-sol",
+    "usage": {
+      "input_tokens": 2721,
+      "output_tokens": 2500,
+      "total_tokens": 5221,
+      "reasoning_tokens": 797
+    },
+    "estimated_cost_usd": 0.060884,
+    "incomplete_details": {
+      "reason": "max_output_tokens"
+    },
+    "error": null,
+    "output": "# Plan opérationnel de déploiement d’un mentorat multisite — six mois\n\n## 1. Cadrage, hypothèses et critères de décision\n\n**Périmètre établi :** 120 salariés répartis sur trois sites, sur M1 à M6. La répartition par site, le nombre de mentors disponibles, les objectifs RH prioritaires, le budget, les outils, le temps alloué et les règles de confidentialité restent **à confirmer**.\n\nLes 120 salariés constituent la population concernée ou accessible au programme ; ils ne sont pas nécessairement tous mentors ou mentorés. La couverture sera donc mesurée à la fois par l’accès au dispositif et par le nombre de binômes effectivement constitués.\n\n**Décisions de conception proposées :**\n\n- Appariement individuel privilégié. Un mentor pourrait exceptionnellement accompagner deux mentorés si sa capacité est vérifiée : **ratio proposé de 1:1, au maximum 1:2, à confirmer**.\n- Un échange structuré d’**environ 60 à 90 minutes par mois**, plus préparation, constitue un **ordre de grandeur à valider** avec l’organisation.\n- Pour un pilote progressif : **estimation de 24 à 36 participants, soit environ 12 à 18 binômes**, sous réserve du vivier réel.\n- Allocation entre sites selon la demande éligible et la capacité disponible, et non selon une répartition arbitraire de 40 salariés par site. Règle proposée : représentation minimale de chaque site, puis allocation proportionnelle aux candidatures éligibles, avec appariements intersites si autorisés.\n- Hiérarchie de décision : 1) confidentialité et faisabilité ; 2) qualité et continuité des binômes ; 3) équité entre sites ; 4) vitesse de couverture ; 5) simplicité administrative.\n\n**Base documentaire :** aucune recherche web en temps réel n’a pu être effectuée dans cet échange ; il serait donc inexact d’indiquer des sources comme « directement consultées » avec une date. Les principes proposés sont cohérents avec les pratiques générales de mentorat décrites notamment par le *CIPD, Coaching and mentoring factsheet*, et par les ressources de l’*Association for Talent Development* ; leur version actuelle devra être consultée et datée par le responsable de programme en M1. Les exigences juridiques, sociales et internes restent à valider localement.\n\n---\n\n## 2. Séquençage opérationnel comparatif de M1 à M6\n\n| Mois | Socle commun et responsables | Lancement simultané | Pilote progressif | Jalons, dépendances et décision |\n|---|---|---|---|---|\n| **M1 — Cadrer** | Sponsor et responsable de programme : confirmer objectifs, populations, règles, ressources et gouvernance. RH : cartographier les effectifs et besoins par site. Relais locaux : sonder la demande et le vivier de mentors. | Préparer une capacité de traitement de toutes les candidatures sur les trois sites. | Définir la cohorte pilote et les règles de représentation des trois sites. | **Jalon : charte validée.** Dépend de la validation du temps, des données et de la confidentialité. Décision : lancement, réduction du périmètre ou report. |\n| **M2 — Recruter et sélectionner** | Communication commune ; candidatures structurées ; vérification de l’éligibilité, de la motivation et de la disponibilité. Formation initiale des mentors et briefing des mentorés. | Ouvrir simultanément les candidatures aux 120 salariés concernés ; dimensionner le support pour le pic de demandes. | Sélectionner la cohorte pilote selon des critères transparents ; placer les autres candidats dans un vivier, sans promesse d’appariement immédiat. | **Jalon : viviers qualifiés.** Décision : autoriser les appariements si la capacité est suffisante ; sinon recruter davantage de mentors ou prioriser. |\n| **M3 — Apparier et démarrer** | RH/programme propose les binômes ; participants vérifient l’absence de conflit ; signature d’une convention relationnelle ; fixation d’objectifs individuels. | Apparier tous les candidats compatibles et lancer les binômes sur les trois sites dans une fenêtre commune. | Lancer les **12 à 18 binômes estimés** ; conserver un petit vivier de remplacement. | **Jalon : binômes actifs.** Décision : réapparier immédiatement les incompatibilités signalées. |\n| **M4 — Stabiliser** | Retour court après les premiers échanges ; permanences du coordinateur ; points avec les relais de site et suivi des écarts. | Corriger en production : réappariements et soutien à volume potentiellement élevé. | Analyser les irritants du pilote ; ajuster formation, questionnaires, règles d’allocation et support avant extension. | **Jalon : revue de stabilité.** Déclencheurs proposés : faible assiduité, abandons, écart marqué entre sites ou incident de confidentialité. |\n| **M5 — Étendre ou consolider** | Revue intermédiaire par le comité de pilotage ; analyse des indicateurs et des retours qualitatifs. | Consolider l’ensemble des binômes ; cibler les groupes ou sites sous-représentés. | Décider d’une vague 2 couvrant les candidats restants si qualité, capacité et conformité sont jugées suffisantes ; sinon prolonger le pilote corrigé. | **Point de décision majeur :** extension, maintien limité ou suspension. Dépend de la capacité des mentors et des résultats M3-M4. |\n| **M6 — Évaluer et pérenniser** | Enquête finale, bilan des objectifs, entretiens ciblés, analyse par site et recommandations. Sponsor arbitre la suite. | Décider du renouvellement, de l’ajustement ou de l’arrêt du programme complet. | Évaluer conjointement pilote et vague 2 éventuelle ; formaliser un modèle industrialisable. | **Jalon : bilan décisionnel.** Décision : pérenniser, redimensionner, spécialiser par population ou arrêter. |\n\n**Charge indicative, à confirmer :** responsable de programme, **environ 0,2 à 0,4 ETP** pendant le recrutement et l’appariement ; relais locaux, **environ 2 à 4 heures par mois** ; charge supérieure en M2-M4 pour le lancement simultané.\n\n---\n\n## 3. Comparaison équitable et recommandation\n\nLes deux scénarios portent sur la même population accessible de 120 salariés, les mêmes trois sites et le même horizon de six mois.\n\n| Critère | Lancement simultané | Pilote progressif |\n|---|---|---|\n| Vitesse de couverture | Forte : accès et appariements ouverts en une vague. | Plus lente : accès initial limité, extension conditionnelle en M5. |\n| Charge opérationnelle | Pic élevé de communication, sélection, formation et support. | Charge étalée ; processus testés avant montée en volume. |\n| Équité entre sites | Visibilité immédiate, mais pénurie de mentors susceptible de créer des écarts difficiles à corriger. | Représentation minimale organisée ; risque de perception d’exclusion temporaire. |\n| Qualité de l’apprentissage | Retours nombreux, mais modifications difficiles une fois tous les binômes lancés. | Apprentissage plus exploitable avant extension. |\n| Réversibilité | Faible à moyenne : une correction affecte beaucoup de participants. | Forte : périmètre initial limité et règles ajustables. |\n| Risques dominants | Surcharge, appariements précipités, support insuffisant, incidents à grande échelle. | Frustration des non-sélectionnés, délai de couverture et pilote non représentatif. |\n| Ressources nécessaires | Capacité centrale et locale disponible dès M2. | Capacité initiale plus faible, mais coordination de deux vagues. |\n\n### Recommandation\n\n**Choisir un pilote progressif multisite**, avec une cohorte représentant chacun des trois sites, puis une décision d’extension en M5.\n\nCe choix"
+  },
+  "output": "# Plan opérationnel de déploiement d’un mentorat multisite — six mois\n\n## 1. Cadrage, hypothèses et critères de décision\n\n**Périmètre établi :** 120 salariés répartis sur trois sites, sur M1 à M6. La répartition par site, le nombre de mentors disponibles, les objectifs RH prioritaires, le budget, les outils, le temps alloué et les règles de confidentialité restent **à confirmer**.\n\nLes 120 salariés constituent la population concernée ou accessible au programme ; ils ne sont pas nécessairement tous mentors ou mentorés. La couverture sera donc mesurée à la fois par l’accès au dispositif et par le nombre de binômes effectivement constitués.\n\n**Décisions de conception proposées :**\n\n- Appariement individuel privilégié. Un mentor pourrait exceptionnellement accompagner deux mentorés si sa capacité est vérifiée : **ratio proposé de 1:1, au maximum 1:2, à confirmer**.\n- Un échange structuré d’**environ 60 à 90 minutes par mois**, plus préparation, constitue un **ordre de grandeur à valider** avec l’organisation.\n- Pour un pilote progressif : **estimation de 24 à 36 participants, soit environ 12 à 18 binômes**, sous réserve du vivier réel.\n- Allocation entre sites selon la demande éligible et la capacité disponible, et non selon une répartition arbitraire de 40 salariés par site. Règle proposée : représentation minimale de chaque site, puis allocation proportionnelle aux candidatures éligibles, avec appariements intersites si autorisés.\n- Hiérarchie de décision : 1) confidentialité et faisabilité ; 2) qualité et continuité des binômes ; 3) équité entre sites ; 4) vitesse de couverture ; 5) simplicité administrative.\n\n**Base documentaire :** aucune recherche web en temps réel n’a pu être effectuée dans cet échange ; il serait donc inexact d’indiquer des sources comme « directement consultées » avec une date. Les principes proposés sont cohérents avec les pratiques générales de mentorat décrites notamment par le *CIPD, Coaching and mentoring factsheet*, et par les ressources de l’*Association for Talent Development* ; leur version actuelle devra être consultée et datée par le responsable de programme en M1. Les exigences juridiques, sociales et internes restent à valider localement.\n\n---\n\n## 2. Séquençage opérationnel comparatif de M1 à M6\n\n| Mois | Socle commun et responsables | Lancement simultané | Pilote progressif | Jalons, dépendances et décision |\n|---|---|---|---|---|\n| **M1 — Cadrer** | Sponsor et responsable de programme : confirmer objectifs, populations, règles, ressources et gouvernance. RH : cartographier les effectifs et besoins par site. Relais locaux : sonder la demande et le vivier de mentors. | Préparer une capacité de traitement de toutes les candidatures sur les trois sites. | Définir la cohorte pilote et les règles de représentation des trois sites. | **Jalon : charte validée.** Dépend de la validation du temps, des données et de la confidentialité. Décision : lancement, réduction du périmètre ou report. |\n| **M2 — Recruter et sélectionner** | Communication commune ; candidatures structurées ; vérification de l’éligibilité, de la motivation et de la disponibilité. Formation initiale des mentors et briefing des mentorés. | Ouvrir simultanément les candidatures aux 120 salariés concernés ; dimensionner le support pour le pic de demandes. | Sélectionner la cohorte pilote selon des critères transparents ; placer les autres candidats dans un vivier, sans promesse d’appariement immédiat. | **Jalon : viviers qualifiés.** Décision : autoriser les appariements si la capacité est suffisante ; sinon recruter davantage de mentors ou prioriser. |\n| **M3 — Apparier et démarrer** | RH/programme propose les binômes ; participants vérifient l’absence de conflit ; signature d’une convention relationnelle ; fixation d’objectifs individuels. | Apparier tous les candidats compatibles et lancer les binômes sur les trois sites dans une fenêtre commune. | Lancer les **12 à 18 binômes estimés** ; conserver un petit vivier de remplacement. | **Jalon : binômes actifs.** Décision : réapparier immédiatement les incompatibilités signalées. |\n| **M4 — Stabiliser** | Retour court après les premiers échanges ; permanences du coordinateur ; points avec les relais de site et suivi des écarts. | Corriger en production : réappariements et soutien à volume potentiellement élevé. | Analyser les irritants du pilote ; ajuster formation, questionnaires, règles d’allocation et support avant extension. | **Jalon : revue de stabilité.** Déclencheurs proposés : faible assiduité, abandons, écart marqué entre sites ou incident de confidentialité. |\n| **M5 — Étendre ou consolider** | Revue intermédiaire par le comité de pilotage ; analyse des indicateurs et des retours qualitatifs. | Consolider l’ensemble des binômes ; cibler les groupes ou sites sous-représentés. | Décider d’une vague 2 couvrant les candidats restants si qualité, capacité et conformité sont jugées suffisantes ; sinon prolonger le pilote corrigé. | **Point de décision majeur :** extension, maintien limité ou suspension. Dépend de la capacité des mentors et des résultats M3-M4. |\n| **M6 — Évaluer et pérenniser** | Enquête finale, bilan des objectifs, entretiens ciblés, analyse par site et recommandations. Sponsor arbitre la suite. | Décider du renouvellement, de l’ajustement ou de l’arrêt du programme complet. | Évaluer conjointement pilote et vague 2 éventuelle ; formaliser un modèle industrialisable. | **Jalon : bilan décisionnel.** Décision : pérenniser, redimensionner, spécialiser par population ou arrêter. |\n\n**Charge indicative, à confirmer :** responsable de programme, **environ 0,2 à 0,4 ETP** pendant le recrutement et l’appariement ; relais locaux, **environ 2 à 4 heures par mois** ; charge supérieure en M2-M4 pour le lancement simultané.\n\n---\n\n## 3. Comparaison équitable et recommandation\n\nLes deux scénarios portent sur la même population accessible de 120 salariés, les mêmes trois sites et le même horizon de six mois.\n\n| Critère | Lancement simultané | Pilote progressif |\n|---|---|---|\n| Vitesse de couverture | Forte : accès et appariements ouverts en une vague. | Plus lente : accès initial limité, extension conditionnelle en M5. |\n| Charge opérationnelle | Pic élevé de communication, sélection, formation et support. | Charge étalée ; processus testés avant montée en volume. |\n| Équité entre sites | Visibilité immédiate, mais pénurie de mentors susceptible de créer des écarts difficiles à corriger. | Représentation minimale organisée ; risque de perception d’exclusion temporaire. |\n| Qualité de l’apprentissage | Retours nombreux, mais modifications difficiles une fois tous les binômes lancés. | Apprentissage plus exploitable avant extension. |\n| Réversibilité | Faible à moyenne : une correction affecte beaucoup de participants. | Forte : périmètre initial limité et règles ajustables. |\n| Risques dominants | Surcharge, appariements précipités, support insuffisant, incidents à grande échelle. | Frustration des non-sélectionnés, délai de couverture et pilote non représentatif. |\n| Ressources nécessaires | Capacité centrale et locale disponible dès M2. | Capacité initiale plus faible, mais coordination de deux vagues. |\n\n### Recommandation\n\n**Choisir un pilote progressif multisite**, avec une cohorte représentant chacun des trois sites, puis une décision d’extension en M5.\n\nCe choix",
+  "total_llm_calls": 4,
+  "gpt_usage": {
+    "input_tokens": 12395,
+    "output_tokens": 10358,
+    "total_tokens": 22753,
+    "estimated_cost_usd": 0.25674
+  },
+  "fallback": true,
+  "retries": 0,
+  "error": null
+}

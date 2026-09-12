@@ -1,0 +1,82 @@
+{
+ "case": "Q08",
+ "variant": "baseline",
+ "http_status": 200,
+ "exception": null,
+ "demande": "Prépare ça pour demain",
+ "materiau_present": false,
+ "appels": [
+  {
+   "call_index": 1,
+   "outil": "oprie_analyst",
+   "http_status": 200,
+   "input_tokens": 5517,
+   "output_tokens": 693,
+   "stop_reason": "tool_use",
+   "latency_ms": 13981,
+   "cost_usd": 0.026945999999999998
+  },
+  {
+   "call_index": 2,
+   "outil": "critic_global",
+   "http_status": 200,
+   "input_tokens": 3859,
+   "output_tokens": 249,
+   "stop_reason": "tool_use",
+   "latency_ms": 5315,
+   "cost_usd": 0.015312000000000001
+  },
+  {
+   "call_index": 3,
+   "outil": "substitution_review_batch",
+   "http_status": 200,
+   "input_tokens": 5874,
+   "output_tokens": 968,
+   "stop_reason": "tool_use",
+   "latency_ms": 18267,
+   "cost_usd": 0.032142
+  },
+  {
+   "call_index": 4,
+   "outil": "substitution_review_batch",
+   "http_status": 200,
+   "input_tokens": 5873,
+   "output_tokens": 1083,
+   "stop_reason": "tool_use",
+   "latency_ms": 19909,
+   "cost_usd": 0.033864
+  },
+  {
+   "call_index": 5,
+   "outil": "oprie_arbiter",
+   "http_status": 200,
+   "input_tokens": 5635,
+   "output_tokens": 1027,
+   "stop_reason": "tool_use",
+   "latency_ms": 20117,
+   "cost_usd": 0.03231
+  }
+ ],
+ "outils_non_classes": [],
+ "tour": {
+  "TOTAL_PROVIDER_CALLS": 5,
+  "ANALYST_CALLS": 1,
+  "CRITIC_GLOBAL_CALLS": 1,
+  "CRITIC_BATCH_CALLS": 2,
+  "ARBITER_CALLS": 1,
+  "ANALYST_OUTPUT_TOKENS": 693,
+  "CRITIC_GLOBAL_OUTPUT_TOKENS": 249,
+  "CRITIC_BATCH_OUTPUT_TOKENS": 2051,
+  "ARBITER_OUTPUT_TOKENS": 1027,
+  "TOTAL_OUTPUT_TOKENS": 4020,
+  "TOTAL_INPUT_TOKENS": 26758,
+  "ANALYST_LATENCY_MS": 13981,
+  "CRITIC_GLOBAL_LATENCY_MS": 5315,
+  "CRITIC_BATCH_LATENCY_MS": 38176,
+  "ARBITER_LATENCY_MS": 20117,
+  "TOTAL_LATENCY_MS": 59367,
+  "TOTAL_COST_USD": 0.140574,
+  "FINAL_OPRIE_STATE": "clarification_required",
+  "NEXT_QUESTION": "Que désigne « ça » — de quoi s'agit-il exactement, et quel type de résultat attendez-vous pour demain ?"
+ }
+}

@@ -1,0 +1,13 @@
+{
+  "lot": "DEEP-INTERACTION-LATENCY-01",
+  "ANTHROPIC_CAPACITY_CONTRIBUTION": "NONE",
+  "preuves": {
+    "refus_429_sur_les_12_tours": 0,
+    "429_dans_anthropic-deep-capacity-01": 0,
+    "troncatures_dans_paired-latency": "0 sur les populations A, B et T",
+    "reprises_observees": { "R01": 2, "R08": 1, "A01": 2, "A02": 2, "les_8_autres": 0 },
+    "lecture_des_reprises": "R01 porte 2 reprises et ne met que 9 009 ms : les reprises ne sont pas corrélées à la latence. Les deux tours les plus lents (A01, A02) en portent 2 chacun, soit autant que le plus rapide."
+  },
+  "RETRY_OR_REGENERATION_CONTRIBUTION": "LOW",
+  "conclusion": "§31 ne s'applique pas. La queue de latence ne vient pas de la capacité fournisseur : elle vient du volume que nous demandons au modèle d'écrire. Aucune modification de fournisseur n'est proposée, et aucune modification d'orchestration n'est présentée comme un remède à un problème fournisseur qui n'existe pas."
+}

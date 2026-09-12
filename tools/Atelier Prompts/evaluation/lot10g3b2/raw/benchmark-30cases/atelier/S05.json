@@ -1,0 +1,97 @@
+{
+  "started_at": "2026-08-28T07:25:34.513Z",
+  "completed_at": "2026-08-28T07:25:37.307Z",
+  "html_sha256": "757ad74d70ffeaff8c3c9e2a09d8c3aa9bbbcbcc52d0cae9923f54e7a28f2a06",
+  "latency_total_ms": 2793.63,
+  "time_to_first_useful_result_ms": 2793.641,
+  "route_finale": "rapide",
+  "moteur_final": "rapide",
+  "decision_source": "groq",
+  "decision": {
+    "etat_demande": "exploitable",
+    "route": "rapide",
+    "confiance": "haute",
+    "raison_interne": "La demande est exploitable et peut être exécutée directement sans arbitrage structurel préalable.",
+    "question": null
+  },
+  "decision_provider_calls": [
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:25:35.060Z",
+      "latency_ms": 286.157,
+      "status_http": 502,
+      "request": {
+        "demande": "Réécris cette phrase dans un style professionnel et direct : « On a pas mal avancé mais il reste encore plein de petits trucs à régler avant de pouvoir envoyer le dossier. »",
+        "materiau_present": true,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "error": "provider_failure",
+        "message": "Le fournisseur de décision n’est pas disponible."
+      },
+      "error": null
+    },
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:25:35.346Z",
+      "latency_ms": 441.202,
+      "status_http": 200,
+      "request": {
+        "demande": "Réécris cette phrase dans un style professionnel et direct : « On a pas mal avancé mais il reste encore plein de petits trucs à régler avant de pouvoir envoyer le dossier. »",
+        "materiau_present": true,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "etat_demande": "exploitable",
+        "route": "rapide",
+        "confiance": "haute",
+        "raison_interne": "La demande est exploitable et peut être exécutée directement sans arbitrage structurel préalable.",
+        "question": null
+      },
+      "error": null
+    }
+  ],
+  "decision_provider_latency_ms": 727.359,
+  "clarifications": [],
+  "nombre_reanalyses": 0,
+  "engine": {
+    "engine": "rapide",
+    "latency_ms": 17.424,
+    "format": "reponse_simple",
+    "niveau": "eclair",
+    "prompt": "## TÂCHE\nRéécris cette phrase dans un style professionnel et direct : « On a pas mal avancé mais il reste encore plein de petits trucs à régler avant de pouvoir envoyer le dossier. »\n\n## FORMAT DE SORTIE\n- Livrable : réponse directe à la question posée\n- Validité : Aucune reformulation de la question, aucune formule d’ouverture.\n- Aucun contenu en dehors du livrable.\n\n## INTERDICTIONS\n- Pas de préambule, pas de reformulation de la demande, pas d’accusé de réception.\n- Pas de conclusion, pas de proposition d’aide complémentaire, pas de question finale.\n- Pas de commentaire sur votre propre production ni sur vos limites.\n- Pas d’espace réservé : ni « … », ni « etc. », ni « à compléter », ni « et ainsi de suite ».\n- Pas de résumé en lieu et place du contenu demandé."
+  },
+  "final_call": {
+    "timestamp": "2026-08-28T07:25:37.298Z",
+    "endpoint": "/v1/responses",
+    "status_http": 200,
+    "latency_ms": 1492.395,
+    "response_id": "resp_05b4f3247344a947006a9137efeb7487d2a24fad5ac4beb731",
+    "response_status": "completed",
+    "model_requested": "gpt-5.6-sol",
+    "model_returned": "gpt-5.6-sol",
+    "usage": {
+      "input_tokens": 208,
+      "output_tokens": 23,
+      "total_tokens": 231,
+      "reasoning_tokens": 0
+    },
+    "estimated_cost_usd": 0.001292,
+    "incomplete_details": null,
+    "error": null,
+    "output": "Nous avons bien avancé, mais plusieurs ajustements restent nécessaires avant de pouvoir envoyer le dossier."
+  },
+  "output": "Nous avons bien avancé, mais plusieurs ajustements restent nécessaires avant de pouvoir envoyer le dossier.",
+  "total_llm_calls": 3,
+  "gpt_usage": {
+    "input_tokens": 208,
+    "output_tokens": 23,
+    "total_tokens": 231,
+    "estimated_cost_usd": 0.001292
+  },
+  "fallback": true,
+  "retries": 0,
+  "error": null
+}

@@ -1,0 +1,139 @@
+{
+  "started_at": "2026-08-28T07:21:03.483Z",
+  "completed_at": "2026-08-28T07:21:22.775Z",
+  "html_sha256": "757ad74d70ffeaff8c3c9e2a09d8c3aa9bbbcbcc52d0cae9923f54e7a28f2a06",
+  "latency_total_ms": 19291.697,
+  "time_to_first_useful_result_ms": 19291.703,
+  "route_finale": "rapide",
+  "moteur_final": "rapide",
+  "decision_source": "groq",
+  "decision": {
+    "etat_demande": "exploitable",
+    "route": "rapide",
+    "confiance": "haute",
+    "raison_interne": "La demande est exploitable et peut être exécutée directement sans arbitrage structurel préalable.",
+    "question": null
+  },
+  "decision_provider_calls": [
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:21:04.030Z",
+      "latency_ms": 676.846,
+      "status_http": 502,
+      "request": {
+        "demande": "Je veux améliorer nos réunions.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "error": "provider_failure",
+        "message": "Le fournisseur de décision n’est pas disponible."
+      },
+      "error": null
+    },
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:21:04.707Z",
+      "latency_ms": 611.373,
+      "status_http": 200,
+      "request": {
+        "demande": "Je veux améliorer nos réunions.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "etat_demande": "clarification_necessaire",
+        "route": null,
+        "confiance": "moyenne",
+        "raison_interne": "La demande n’est pas encore suffisamment exploitable ; une clarification à forte valeur d’information est nécessaire.",
+        "question": "Quel aspect des réunions souhaitez‑vous améliorer ?"
+      },
+      "error": null
+    },
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:21:05.320Z",
+      "latency_ms": 72.818,
+      "status_http": 502,
+      "request": {
+        "demande": "Je veux améliorer nos réunions.\n\nPrécisions apportées pendant le dialogue :\n- Quel aspect des réunions souhaitez‑vous améliorer ? — Réponse : Je veux réduire à 45 minutes la réunion hebdomadaire d'une équipe de huit personnes et en sortir avec des décisions et responsables clairement notés.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "error": "provider_failure",
+        "message": "Le fournisseur de décision n’est pas disponible."
+      },
+      "error": null
+    },
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:21:05.394Z",
+      "latency_ms": 538.861,
+      "status_http": 200,
+      "request": {
+        "demande": "Je veux améliorer nos réunions.\n\nPrécisions apportées pendant le dialogue :\n- Quel aspect des réunions souhaitez‑vous améliorer ? — Réponse : Je veux réduire à 45 minutes la réunion hebdomadaire d'une équipe de huit personnes et en sortir avec des décisions et responsables clairement notés.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "etat_demande": "exploitable",
+        "route": "rapide",
+        "confiance": "haute",
+        "raison_interne": "La demande est exploitable et peut être exécutée directement sans arbitrage structurel préalable.",
+        "question": null
+      },
+      "error": null
+    }
+  ],
+  "decision_provider_latency_ms": 1899.898,
+  "clarifications": [
+    {
+      "question": "Quel aspect des réunions souhaitez‑vous améliorer ?",
+      "answer": "Je veux réduire à 45 minutes la réunion hebdomadaire d'une équipe de huit personnes et en sortir avec des décisions et responsables clairement notés."
+    }
+  ],
+  "nombre_reanalyses": 1,
+  "engine": {
+    "engine": "rapide",
+    "latency_ms": 12.798,
+    "format": "reponse_simple",
+    "niveau": "eclair",
+    "prompt": "## TÂCHE\nJe veux améliorer nos réunions.\n\nPrécisions apportées pendant le dialogue :\n- Quel aspect des réunions souhaitez‑vous améliorer ? — Réponse : Je veux réduire à 45 minutes la réunion hebdomadaire d'une équipe de huit personnes et en sortir avec des décisions et responsables clairement notés.\n\n## FORMAT DE SORTIE\n- Livrable : réponse directe à la question posée\n- Validité : Aucune reformulation de la question, aucune formule d’ouverture.\n- Aucun contenu en dehors du livrable.\n\n## INTERDICTIONS\n- Pas de préambule, pas de reformulation de la demande, pas d’accusé de réception.\n- Pas de conclusion, pas de proposition d’aide complémentaire, pas de question finale.\n- Pas de commentaire sur votre propre production ni sur vos limites.\n- Pas d’espace réservé : ni « … », ni « etc. », ni « à compléter », ni « et ainsi de suite ».\n- Pas de résumé en lieu et place du contenu demandé."
+  },
+  "final_call": {
+    "timestamp": "2026-08-28T07:21:22.767Z",
+    "endpoint": "/v1/responses",
+    "status_http": 200,
+    "latency_ms": 16783.651,
+    "response_id": "resp_0ee7f98a25e8acbd006a9136e210d087d2be3746bcf0860cee",
+    "response_status": "completed",
+    "model_requested": "gpt-5.6-sol",
+    "model_returned": "gpt-5.6-sol",
+    "usage": {
+      "input_tokens": 230,
+      "output_tokens": 1063,
+      "total_tokens": 1293,
+      "reasoning_tokens": 39
+    },
+    "estimated_cost_usd": 0.02218,
+    "incomplete_details": null,
+    "error": null,
+    "output": "## Format de réunion hebdomadaire — 45 minutes\n\n### Préparation obligatoire, au plus tard 24 heures avant\n- Chaque participant met à jour ses indicateurs et sujets dans un document partagé.\n- Chaque sujet proposé précise :\n  - la décision attendue ;\n  - le responsable du sujet ;\n  - les informations nécessaires ;\n  - le temps demandé, limité à 10 minutes.\n- Les simples informations sont lues en amont et ne sont pas présentées oralement.\n- L’animateur sélectionne au maximum trois sujets de décision et diffuse l’ordre du jour.\n- Les sujets sans préparation suffisante sont reportés ou traités hors réunion.\n\n### Ordre du jour minuté\n\n| Temps | Séquence | Résultat attendu |\n|---|---:|---|\n| 0–3 min | Ouverture | Objectif, ordre du jour et rôles confirmés |\n| 3–8 min | Revue des actions précédentes | Actions closes, maintenues, réattribuées ou replanifiées |\n| 8–13 min | Indicateurs et alertes | Écarts nécessitant une décision identifiés |\n| 13–37 min | Décisions prioritaires | Deux à trois décisions prises et consignées |\n| 37–42 min | Relecture du registre | Décisions, responsables et échéances validés à voix haute |\n| 42–45 min | Évaluation rapide | Un point utile et un ajustement pour la prochaine réunion |\n\n### Rôles\n- **Animateur** : fait respecter l’ordre du jour, recentre les échanges et formule les décisions.\n- **Gardien du temps** : annonce le temps restant et arrête chaque séquence.\n- **Secrétaire** : consigne en direct les décisions et actions dans le document partagé.\n- **Responsable de sujet** : présente le contexte en une minute, formule la décision attendue et fournit sa recommandation.\n- **Participants** : contribuent à la décision sans répéter les informations déjà documentées.\n\nLes rôles d’animateur, de gardien du temps et de secrétaire peuvent tourner chaque semaine.\n\n### Méthode pour chaque sujet de décision\n1. **Contexte — 1 minute** : faits essentiels uniquement.\n2. **Décision attendue — 1 minute** : question formulée de manière tranchable.\n3. **Discussion — 4 à 6 minutes** : objections, risques et alternatives.\n4. **Arbitrage — 1 minute** : l’autorité désignée décide ou précise la méthode de décision.\n5. **Consignation — 1 minute** : décision, responsable, échéance et prochaine étape.\n\nSi aucune décision n’est possible dans le temps imparti, consigner :\n- l’information manquante ;\n- la personne chargée de l’obtenir ;\n- l’échéance ;\n- la date ou le canal du nouvel arbitrage.\n\n### Registre partagé\n\n| Type | Formulation | Responsable unique | Échéance | Statut |\n|---|---|---|---|---|\n| Décision | Ce qui a été décidé et à partir de quand | Personne garante de l’application | Date | Validée |\n| Action | Verbe d’action, résultat attendu et critère de réussite | Une seule personne | Date | À faire / En cours / Terminée / Bloquée |\n| Blocage | Obstacle précis et arbitrage nécessaire | Personne chargée de le lever | Date | Ouvert / Résolu |\n\n### Exemple de compte rendu\n**Décision D-12**  \nAdopter le nouvel outil de suivi à partir du 6 mai.  \nResponsable : Nadia.  \nValidation : prise en réunion le 22 avril.\n\n**Action A-31**  \nConfigurer les accès des huit membres et vérifier leur connexion.  \nResponsable : Marc.  \nÉchéance : 3 mai.  \nStatut : À faire.\n\n**Action A-32**  \nPublier le guide d’utilisation validé dans l’espace partagé.  \nResponsable : Inès.  \nÉchéance : 5 mai.  \nStatut : À faire.\n\n### Règles de fonctionnement\n- Commencer et terminer à l’heure.\n- Un sujet n’entre à l’ordre du jour que s’il requiert une décision collective ou un arbitrage.\n- Une action n’est valide qu’avec un responsable unique et une date précise.\n- Les discussions de résolution détaillée sont confiées à un sous-groupe hors réunion.\n- Les sujets hors ordre du jour sont placés dans un parking avec un responsable et un mode de traitement.\n- En cas de dépassement, l’animateur choisit entre décider immédiatement, déléguer ou reporter avec une échéance.\n- Le compte rendu est produit pendant la réunion, relu avant la fin et publié dans les 15 minutes suivantes.\n- La réunion est considérée comme réussie si toutes les décisions et actions annoncées oralement figurent dans le registre."
+  },
+  "output": "## Format de réunion hebdomadaire — 45 minutes\n\n### Préparation obligatoire, au plus tard 24 heures avant\n- Chaque participant met à jour ses indicateurs et sujets dans un document partagé.\n- Chaque sujet proposé précise :\n  - la décision attendue ;\n  - le responsable du sujet ;\n  - les informations nécessaires ;\n  - le temps demandé, limité à 10 minutes.\n- Les simples informations sont lues en amont et ne sont pas présentées oralement.\n- L’animateur sélectionne au maximum trois sujets de décision et diffuse l’ordre du jour.\n- Les sujets sans préparation suffisante sont reportés ou traités hors réunion.\n\n### Ordre du jour minuté\n\n| Temps | Séquence | Résultat attendu |\n|---|---:|---|\n| 0–3 min | Ouverture | Objectif, ordre du jour et rôles confirmés |\n| 3–8 min | Revue des actions précédentes | Actions closes, maintenues, réattribuées ou replanifiées |\n| 8–13 min | Indicateurs et alertes | Écarts nécessitant une décision identifiés |\n| 13–37 min | Décisions prioritaires | Deux à trois décisions prises et consignées |\n| 37–42 min | Relecture du registre | Décisions, responsables et échéances validés à voix haute |\n| 42–45 min | Évaluation rapide | Un point utile et un ajustement pour la prochaine réunion |\n\n### Rôles\n- **Animateur** : fait respecter l’ordre du jour, recentre les échanges et formule les décisions.\n- **Gardien du temps** : annonce le temps restant et arrête chaque séquence.\n- **Secrétaire** : consigne en direct les décisions et actions dans le document partagé.\n- **Responsable de sujet** : présente le contexte en une minute, formule la décision attendue et fournit sa recommandation.\n- **Participants** : contribuent à la décision sans répéter les informations déjà documentées.\n\nLes rôles d’animateur, de gardien du temps et de secrétaire peuvent tourner chaque semaine.\n\n### Méthode pour chaque sujet de décision\n1. **Contexte — 1 minute** : faits essentiels uniquement.\n2. **Décision attendue — 1 minute** : question formulée de manière tranchable.\n3. **Discussion — 4 à 6 minutes** : objections, risques et alternatives.\n4. **Arbitrage — 1 minute** : l’autorité désignée décide ou précise la méthode de décision.\n5. **Consignation — 1 minute** : décision, responsable, échéance et prochaine étape.\n\nSi aucune décision n’est possible dans le temps imparti, consigner :\n- l’information manquante ;\n- la personne chargée de l’obtenir ;\n- l’échéance ;\n- la date ou le canal du nouvel arbitrage.\n\n### Registre partagé\n\n| Type | Formulation | Responsable unique | Échéance | Statut |\n|---|---|---|---|---|\n| Décision | Ce qui a été décidé et à partir de quand | Personne garante de l’application | Date | Validée |\n| Action | Verbe d’action, résultat attendu et critère de réussite | Une seule personne | Date | À faire / En cours / Terminée / Bloquée |\n| Blocage | Obstacle précis et arbitrage nécessaire | Personne chargée de le lever | Date | Ouvert / Résolu |\n\n### Exemple de compte rendu\n**Décision D-12**  \nAdopter le nouvel outil de suivi à partir du 6 mai.  \nResponsable : Nadia.  \nValidation : prise en réunion le 22 avril.\n\n**Action A-31**  \nConfigurer les accès des huit membres et vérifier leur connexion.  \nResponsable : Marc.  \nÉchéance : 3 mai.  \nStatut : À faire.\n\n**Action A-32**  \nPublier le guide d’utilisation validé dans l’espace partagé.  \nResponsable : Inès.  \nÉchéance : 5 mai.  \nStatut : À faire.\n\n### Règles de fonctionnement\n- Commencer et terminer à l’heure.\n- Un sujet n’entre à l’ordre du jour que s’il requiert une décision collective ou un arbitrage.\n- Une action n’est valide qu’avec un responsable unique et une date précise.\n- Les discussions de résolution détaillée sont confiées à un sous-groupe hors réunion.\n- Les sujets hors ordre du jour sont placés dans un parking avec un responsable et un mode de traitement.\n- En cas de dépassement, l’animateur choisit entre décider immédiatement, déléguer ou reporter avec une échéance.\n- Le compte rendu est produit pendant la réunion, relu avant la fin et publié dans les 15 minutes suivantes.\n- La réunion est considérée comme réussie si toutes les décisions et actions annoncées oralement figurent dans le registre.",
+  "total_llm_calls": 5,
+  "gpt_usage": {
+    "input_tokens": 230,
+    "output_tokens": 1063,
+    "total_tokens": 1293,
+    "estimated_cost_usd": 0.02218
+  },
+  "fallback": true,
+  "retries": 0,
+  "error": null
+}

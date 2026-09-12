@@ -1,0 +1,64 @@
+{
+  "lot": "DEEP-OUTPUT-ROBUSTNESS-01",
+  "objet": "Deux questions : (A) une sortie structurée invalide peut-elle encore faire disparaître un tour ? (B) les échecs Haiku viennent-ils de plafonds trop bas ?",
+  "verdict": "PIPELINE_ROBUSTNESS_PASS_HAIKU_FAIL",
+  "en_une_phrase": "Le trou était réel et il est bouché ; les plafonds, eux, étaient innocents sur deux défauts sur trois, et Haiku échoue pour ce qu'il écrit, pas pour ce qu'on l'empêche d'écrire.",
+  "checkpoint": {
+    "attendu_par_le_lot": "18f9019",
+    "reel_au_demarrage": "466041c (contenu Atelier), HEAD dépôt eab308a",
+    "divergence": "l'historique a été réécrit hors de cette session entre les deux lots ; 18f9019 n'est plus un ancêtre de HEAD. Le lot a été ancré sur le contenu réel et la divergence documentée.",
+    "mutation_externe_pendant_le_lot": "aucune sur le subtree Atelier"
+  },
+  "QUESTION_A": {
+    "reponse": "OUI, désormais garanti sur le chemin mesuré.",
+    "defaut": "BUG_PIPELINE — le refus final de runCriticBatchedPipeline sortait sans marqueur de provenance, devenait programming_error, n'était donc éligible ni au repli ni à la dégradation, et remontait en HTTP 502 avec semantic_state = null.",
+    "asymetrie_corrigee": "Analyste et Arbitre passaient par parseRoleOutput, qui étiquette tout refus de validateur ; le Critique batché, non. La même faute de contrat produisait un état gouverné sur deux rôles et un trou noir sur le troisième.",
+    "correction": "6 lignes hors commentaire, un seul site, mécanisme déjà existant (output_contract_violation, lu par tagCriticPipelineFailure depuis UAF-02).",
+    "preuve": "T-DOR01-01 à 07. Les deux tests décisifs échouent avant correction et passent après (vérifié par retrait temporaire du correctif)."
+  },
+  "QUESTION_B": {
+    "reponse": "NON. OUTPUT_LIMIT_CAUSAL = PARTIAL — un défaut sur trois.",
+    "marqueur_decisif": "43 appels sur 45 se terminent en stop_reason = tool_use. 2 seulement en max_tokens.",
+    "D1_critic_global": "MODEL_BEHAVIOR — 7 sorties invalides sur 14, toutes entre 10 % et 47 % du plafond de 2048, aucune troncature.",
+    "D2_substitution_review": "LIMIT_OUTPUT — 2 batches sur 10 tronqués à 1600/1600 exactement, déterministe. Le seul plafond réellement causal.",
+    "arbiter_reason": "MODEL_BEHAVIOR — 2 sorties sur 7 sans `reason`, à 28 % et 44 % du plafond de 4096.",
+    "D3_available_inputs": "MODEL_SEMANTIC_ERROR — appel Analyste à 16 % de son plafond, stop_reason = tool_use.",
+    "ajustement_effectue": "AUCUN — élever le plafond de batch corrigerait D2 seul et laisserait Haiku échouer à l'identique. §24 tranche alors sans dépense."
+  },
+  "haiku": {
+    "HAIKU_FINAL_FIT": "FAIL",
+    "condition_du_§24_atteinte_sans_appel_api": "le Critique omet des champs sans troncature ; l'Arbitre casse son contrat sans troncature ; available_inputs reste sémantiquement faux sans troncature. Trois des quatre conditions, chacune établie sur la mesure déjà payée.",
+    "appels_api_de_ce_lot": 0,
+    "cout_de_ce_lot_usd": 0.0,
+    "sujet_clos": "Aucun hybride construit, aucun routeur ajouté, aucun prompt touché, aucun autre modèle testé."
+  },
+  "code_de_production": {
+    "modifie": true,
+    "fichiers": ["workers/shared/operational-request-core.js"],
+    "regeneres_mecaniquement": ["core/adn/browser-runtime.generated.js", "atelier-prompts-v11.5-lot10g-decision-provider.html", "docs/RELEASE-MANIFEST.md"],
+    "SCHEMA_RELAXED": false,
+    "VALIDATOR_RELAXED": false,
+    "PROMPTS_CHANGED": false,
+    "ROUTER_ADDED": false,
+    "HYBRID_MODEL_ADDED": false,
+    "CACHE_ADDED": false,
+    "OUTPUT_LIMITS_CHANGED": false
+  },
+  "point_d_attention_pour_le_proprietaire": {
+    "quoi": "Quatre tests de lots antérieurs ont été mis à jour parce qu'ils épinglaient délibérément la classification que ce lot change.",
+    "lesquels": ["T-UAF02-09", "T-CPT01-06", "CSR01-8", "ORCH01-19b"],
+    "pourquoi_ce_n_est_pas_un_relachement": "aucun n'assouplit un contrat : chacun continue de refuser exactement la même sortie, avec le même message, sans verdict fabriqué. Ce qui change est la question « de qui est la faute », et §3 QUESTION A du lot demandait explicitement de la retrancher.",
+    "detail": "voir regressions.json"
+  },
+  "verifications": {
+    "GLOBAL_RUN_1": "2965/2965",
+    "GLOBAL_RUN_2": "2965/2965",
+    "GLOBAL_RUN_3": "2965/2965",
+    "FROZEN": "OK — 7 empreintes inchangées",
+    "SECRET_SCAN": "OK — aucun secret",
+    "ROUTING_TESTS": "couverts par GLOBAL (deep-provider-routing-final-dprf01, roles-provider-ha02)",
+    "BROWSER_RUNTIME": "régénéré et embarqué ; empreinte HTML réalignée dans 15 fichiers de test, selon le rituel des lots antérieurs",
+    "T_HTMLFINAL02_10": "PREEXISTING_CONFIRMED puis résolu par régénération du manifeste"
+  },
+  "next_safe_action": "ATELIER-RELEASE-GATE-01 avec claude-sonnet-4-6 conservé comme modèle Deep"
+}

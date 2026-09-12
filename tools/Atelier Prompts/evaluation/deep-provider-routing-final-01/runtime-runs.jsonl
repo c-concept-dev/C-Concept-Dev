@@ -1,0 +1,10 @@
+{"id":"R01","materiau":true,"epinglage":null,"ts_debut":1788722202331,"ts_fin":1788722306642,"latence_ms":104311,"status":200,"final_state":"clarification_required","erreur":null}
+{"id":"R02","materiau":false,"epinglage":null,"ts_debut":1788722306643,"ts_fin":1788722399534,"latence_ms":92891,"status":200,"final_state":"clarification_required","erreur":null}
+{"id":"R03","materiau":true,"epinglage":null,"ts_debut":1788722399535,"ts_fin":1788722502126,"latence_ms":102591,"status":200,"final_state":"degraded_state","erreur":null}
+{"id":"R04","materiau":false,"epinglage":null,"ts_debut":1788722502128,"ts_fin":1788722590365,"latence_ms":88237,"status":200,"final_state":"clarification_required","erreur":null}
+{"id":"R05","materiau":true,"epinglage":null,"ts_debut":1788722590367,"ts_fin":1788722680407,"latence_ms":90040,"status":200,"final_state":"operational_request_ready","erreur":null}
+{"id":"R06","materiau":false,"epinglage":null,"ts_debut":1788722680409,"ts_fin":1788722771882,"latence_ms":91473,"status":200,"final_state":"degraded_state","erreur":null}
+{"id":"R07","materiau":true,"epinglage":null,"ts_debut":1788722771888,"ts_fin":1788722896327,"latence_ms":124439,"status":200,"final_state":"degraded_state","erreur":null}
+{"id":"R08","materiau":false,"epinglage":null,"ts_debut":1788722896328,"ts_fin":1788722983732,"latence_ms":87404,"status":200,"final_state":"clarification_required","erreur":null}
+{"id":"R09","materiau":true,"epinglage":null,"ts_debut":1788722983733,"ts_fin":1788723115747,"latence_ms":132014,"status":200,"final_state":"degraded_state","erreur":null}
+{"id":"R10","materiau":false,"epinglage":null,"ts_debut":1788723115748,"ts_fin":1788723208795,"latence_ms":93047,"status":200,"final_state":"clarification_required","erreur":null}

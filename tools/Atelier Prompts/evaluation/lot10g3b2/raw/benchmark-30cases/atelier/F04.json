@@ -1,0 +1,139 @@
+{
+  "started_at": "2026-08-28T07:16:16.351Z",
+  "completed_at": "2026-08-28T07:16:31.616Z",
+  "html_sha256": "757ad74d70ffeaff8c3c9e2a09d8c3aa9bbbcbcc52d0cae9923f54e7a28f2a06",
+  "latency_total_ms": 15264.799,
+  "time_to_first_useful_result_ms": 15264.804,
+  "route_finale": "rapide",
+  "moteur_final": "rapide",
+  "decision_source": "groq",
+  "decision": {
+    "etat_demande": "exploitable",
+    "route": "rapide",
+    "confiance": "haute",
+    "raison_interne": "La demande est exploitable et peut être exécutée directement sans arbitrage structurel préalable.",
+    "question": null
+  },
+  "decision_provider_calls": [
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:16:16.935Z",
+      "latency_ms": 414.084,
+      "status_http": 502,
+      "request": {
+        "demande": "Je veux écrire un discours.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "error": "provider_failure",
+        "message": "Le fournisseur de décision n’est pas disponible."
+      },
+      "error": null
+    },
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:16:17.350Z",
+      "latency_ms": 521.551,
+      "status_http": 200,
+      "request": {
+        "demande": "Je veux écrire un discours.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "etat_demande": "clarification_necessaire",
+        "route": null,
+        "confiance": "moyenne",
+        "raison_interne": "La demande n’est pas encore suffisamment exploitable ; une clarification à forte valeur d’information est nécessaire.",
+        "question": "Quel est le sujet du discours que vous souhaitez écrire?"
+      },
+      "error": null
+    },
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:16:17.872Z",
+      "latency_ms": 65.815,
+      "status_http": 502,
+      "request": {
+        "demande": "Je veux écrire un discours.\n\nPrécisions apportées pendant le dialogue :\n- Quel est le sujet du discours que vous souhaitez écrire? — Réponse : C'est un discours chaleureux de cinq minutes pour le mariage de ma sœur, destiné aux mariés et à leurs proches.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "error": "provider_failure",
+        "message": "Le fournisseur de décision n’est pas disponible."
+      },
+      "error": null
+    },
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:16:17.938Z",
+      "latency_ms": 515.217,
+      "status_http": 200,
+      "request": {
+        "demande": "Je veux écrire un discours.\n\nPrécisions apportées pendant le dialogue :\n- Quel est le sujet du discours que vous souhaitez écrire? — Réponse : C'est un discours chaleureux de cinq minutes pour le mariage de ma sœur, destiné aux mariés et à leurs proches.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "etat_demande": "exploitable",
+        "route": "rapide",
+        "confiance": "haute",
+        "raison_interne": "La demande est exploitable et peut être exécutée directement sans arbitrage structurel préalable.",
+        "question": null
+      },
+      "error": null
+    }
+  ],
+  "decision_provider_latency_ms": 1516.667,
+  "clarifications": [
+    {
+      "question": "Quel est le sujet du discours que vous souhaitez écrire?",
+      "answer": "C'est un discours chaleureux de cinq minutes pour le mariage de ma sœur, destiné aux mariés et à leurs proches."
+    }
+  ],
+  "nombre_reanalyses": 1,
+  "engine": {
+    "engine": "rapide",
+    "latency_ms": 19.855,
+    "format": "pedagogical_module",
+    "niveau": "minimal",
+    "prompt": "## RÔLE\nVous produisez un livrable de type : module pédagogique structuré.\nVous êtes évalué sur la conformité au format et sur l’exhaustivité, non sur la qualité de la conversation.\n\n## TÂCHE\nJe veux écrire un discours.\n\nPrécisions apportées pendant le dialogue :\n- Quel est le sujet du discours que vous souhaitez écrire? — Réponse : C'est un discours chaleureux de cinq minutes pour le mariage de ma sœur, destiné aux mariés et à leurs proches.\n\n## FORMAT DE SORTIE\n- Livrable : module pédagogique structuré\n- Validité : Objectifs pédagogiques explicites en ouverture.\n- Aucun contenu en dehors du livrable.\n\n## AMORCE ET CLÔTURE\n- Premier caractère de votre réponse : # suivi du titre du module\n- Dernier élément de votre réponse : la dernière activité\n- Rien avant, rien après.\n\n## CONTRAINTES QUANTIFIÉES\n- Minimum 3 activités, sans doublon.\n- Volume attendu : 150 à 300 mots.\n- Couverture : 100 % des éléments présents dans les données sources. Une omission constitue un échec, même si le résultat paraît complet.\n\n## INTERDICTIONS\n- Pas de préambule, pas de reformulation de la demande, pas d’accusé de réception.\n- Pas de conclusion, pas de proposition d’aide complémentaire, pas de question finale.\n- Pas de commentaire sur votre propre production ni sur vos limites.\n- Pas d’espace réservé : ni « … », ni « etc. », ni « à compléter », ni « et ainsi de suite ».\n- Pas de résumé en lieu et place du contenu demandé.\n\n## INFORMATIONS MANQUANTES\nNe posez aucune question de confort. Si une information vous manque, retenez l’hypothèse la plus plausible, poursuivez la tâche, et consignez-la dans une section finale intitulée HYPOTHÈSES.\n- Exception : si l’information manquante rend le résultat faux plutôt qu’imprécis — donnée chiffrée absente, source non fournie, dépendance technique inconnue — ne devinez pas. Produisez la partie du livrable qui ne dépend pas de cette information, puis énoncez en clair ce qu’il vous faut pour achever le reste.\n\n## LIMITE DE LONGUEUR\nSi vous approchez de la limite de réponse, ne compressez pas et ne résumez pas. Terminez le dernier élément commencé, puis écrivez en dernière ligne exactement : [SUITE_REQUISE : dernier élément traité = <identifiant>].\nN’interrompez jamais une structure au milieu : objet JSON, balise, tableau. Le livrable doit rester valide même incomplet.\n\n## VÉRIFICATION AVANT ENVOI\nContrôlez silencieusement, puis corrigez avant d’écrire. N’affichez pas cette vérification.\n1. La réponse commence-t-elle par # suivi du titre du module ?\n2. Le nombre de activités est-il au moins 3 ?\n3. Subsiste-t-il un préambule ou une conclusion hors sujet ? Le cas échéant, supprimez-les.\n4. Le format est-il valide ? Objectifs pédagogiques explicites en ouverture.\n5. Reste-t-il un espace réservé ou une abréviation de contenu ?"
+  },
+  "final_call": {
+    "timestamp": "2026-08-28T07:16:31.607Z",
+    "endpoint": "/v1/responses",
+    "status_http": 200,
+    "latency_ms": 13026.298,
+    "response_id": "resp_06a7ca4b0557cec7006a9135c29b6887d2a4f729b43fb1e856",
+    "response_status": "completed",
+    "model_requested": "gpt-5.6-sol",
+    "model_returned": "gpt-5.6-sol",
+    "usage": {
+      "input_tokens": 710,
+      "output_tokens": 736,
+      "total_tokens": 1446,
+      "reasoning_tokens": 289
+    },
+    "estimated_cost_usd": 0.01756,
+    "incomplete_details": null,
+    "error": null,
+    "output": "# Écrire un discours chaleureux pour le mariage de sa sœur\n\n## Objectifs pédagogiques\nÀ l’issue de ce module, vous saurez :\n- structurer un discours de cinq minutes destiné aux mariés et à leurs proches ;\n- associer souvenirs personnels, émotion et humour bienveillant ;\n- formuler des vœux chaleureux sans embarrasser les mariés ;\n- préparer une prise de parole naturelle et maîtrisée.\n\n## Activité 1 — Construire la trame\nRépartissez les cinq minutes ainsi : accueil des proches, 30 secondes ; portrait de votre sœur, 60 secondes ; souvenir révélateur, 90 secondes ; évocation du couple, 60 secondes ; vœux et toast, 60 secondes. Retenez un souvenir compréhensible par tous et illustrant une qualité réelle : générosité, courage, fidélité ou joie de vivre.\n\n## Activité 2 — Rédiger une ouverture\nUtilisez une entrée simple :  \n« Chers mariés, chère famille, chers amis, je suis très heureux de prendre la parole aujourd’hui. Voir ma sœur aussi rayonnante est une immense émotion. Depuis notre enfance, j’ai eu la chance de connaître sa force, sa tendresse et sa capacité à rendre les moments ordinaires précieux. »\n\n## Activité 3 — Développer et conclure\nReliez le souvenir au couple, puis terminez ainsi :  \n« En vous regardant aujourd’hui, je reconnais cette même joie, enrichie par la complicité que vous avez construite ensemble. Vous vous écoutez, vous vous soutenez et vous savez rire côte à côte. Je vous souhaite une vie remplie de confiance, de projets, de patience et de bonheurs partagés. Levons nos verres à votre amour et à votre avenir. »\n\n## HYPOTHÈSES\n\n## Activité 4 — Répéter\nLes prénoms, souvenirs précis et traits du conjoint n’étant pas fournis, personnalisez oralement la trame. Chronométrez-vous, parlez lentement, marquez trois pauses et regardez alternativement les mariés et leurs proches."
+  },
+  "output": "# Écrire un discours chaleureux pour le mariage de sa sœur\n\n## Objectifs pédagogiques\nÀ l’issue de ce module, vous saurez :\n- structurer un discours de cinq minutes destiné aux mariés et à leurs proches ;\n- associer souvenirs personnels, émotion et humour bienveillant ;\n- formuler des vœux chaleureux sans embarrasser les mariés ;\n- préparer une prise de parole naturelle et maîtrisée.\n\n## Activité 1 — Construire la trame\nRépartissez les cinq minutes ainsi : accueil des proches, 30 secondes ; portrait de votre sœur, 60 secondes ; souvenir révélateur, 90 secondes ; évocation du couple, 60 secondes ; vœux et toast, 60 secondes. Retenez un souvenir compréhensible par tous et illustrant une qualité réelle : générosité, courage, fidélité ou joie de vivre.\n\n## Activité 2 — Rédiger une ouverture\nUtilisez une entrée simple :  \n« Chers mariés, chère famille, chers amis, je suis très heureux de prendre la parole aujourd’hui. Voir ma sœur aussi rayonnante est une immense émotion. Depuis notre enfance, j’ai eu la chance de connaître sa force, sa tendresse et sa capacité à rendre les moments ordinaires précieux. »\n\n## Activité 3 — Développer et conclure\nReliez le souvenir au couple, puis terminez ainsi :  \n« En vous regardant aujourd’hui, je reconnais cette même joie, enrichie par la complicité que vous avez construite ensemble. Vous vous écoutez, vous vous soutenez et vous savez rire côte à côte. Je vous souhaite une vie remplie de confiance, de projets, de patience et de bonheurs partagés. Levons nos verres à votre amour et à votre avenir. »\n\n## HYPOTHÈSES\n\n## Activité 4 — Répéter\nLes prénoms, souvenirs précis et traits du conjoint n’étant pas fournis, personnalisez oralement la trame. Chronométrez-vous, parlez lentement, marquez trois pauses et regardez alternativement les mariés et leurs proches.",
+  "total_llm_calls": 5,
+  "gpt_usage": {
+    "input_tokens": 710,
+    "output_tokens": 736,
+    "total_tokens": 1446,
+    "estimated_cost_usd": 0.01756
+  },
+  "fallback": true,
+  "retries": 0,
+  "error": null
+}

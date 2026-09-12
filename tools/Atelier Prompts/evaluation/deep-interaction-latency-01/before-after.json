@@ -1,0 +1,96 @@
+{
+ "_EVIDENCE_CORRECTION": "INVALID_FOR_SONNET_ROLE_DISTRIBUTION",
+ "_corrige_le": "2026-09-07, par DEEP-OUTPUT-MINIMALITY-01 expérience A, sur décision propriétaire",
+ "_quoi": "Les chiffres PAR FIXTURE de ce fichier (R01…Q08, A01, A02) proviennent de evaluation/deep-cout-jetons-01, mesuré sur groq / openai/gpt-oss-20b — PAS sur le Deep de production (anthropic / claude-sonnet-4-6).",
+ "_preuve": "inventaire.{analyst,critic,arbiter}.modele_groq = openai/gpt-oss-20b ; tours[0].jetons_par_fournisseur = {groq: 8724, anthropic: 0, openai: 0}",
+ "_retire_comme_preuve_sonnet": [
+  "répartition par rôle",
+  "part du Critique dans la sortie",
+  "queue à 218 533 ms",
+  "13 appels de Critique",
+  "coûts par tour en USD",
+  "projections d'early-stop chiffrées",
+  "constante ~13 ms/jeton"
+ ],
+ "_reste_etabli": [
+  "appels Critique = 1 global + issues material+question (lu dans le code)",
+  "cardinalité de batch = 1 (dérivée du contrat)",
+  "early-stop logiquement sûr (preuve contractuelle)",
+  "latence Sonnet corrélée aux jetons de sortie (paired-latency, anthropic)",
+  "clarification ouverte Sonnet p50 = 91 694 ms"
+ ],
+ "_rien_n_a_ete_supprime": "les valeurs d'origine sont conservées telles quelles ci-dessous.",
+ "lot": "DEEP-INTERACTION-LATENCY-01",
+ "avertissement_central": "AUCUNE expérience n'a été exécutée. Il n'y a pas d'« après » mesuré. Ce fichier contient une PROJECTION dérivée de la loi mesurée, et elle est présentée comme telle.",
+ "EXPERIENCE_MENEE": "AUCUNE",
+ "raison": "l'early-stop, seule modification que le diagnostic justifie, exige de changer le contrat de cardinalité de la revue de substitution. Ce changement est hors de mon autorité.",
+ "projection_si_early_stop_etait_autorise": {
+  "hypothese": "conserver Analyste + Critique global + LA PREMIÈRE revue survivante + Arbitre ; abandonner les revues des cibles de priorité inférieure",
+  "tours_concernes": "ceux portant au moins 2 issues material+question",
+  "tableau": [
+   {
+    "fixture": "A02",
+    "avant_ms": 218533,
+    "projete_ms": 60498,
+    "reduction_pct": 72.3,
+    "appels_avant": 15,
+    "appels_projetes": 4
+   },
+   {
+    "fixture": "A01",
+    "avant_ms": 136744,
+    "projete_ms": 41568,
+    "reduction_pct": 69.6,
+    "appels_avant": 11,
+    "appels_projetes": 4
+   },
+   {
+    "fixture": "Q02",
+    "avant_ms": 89966,
+    "projete_ms": 54025,
+    "reduction_pct": 39.9,
+    "appels_avant": 7,
+    "appels_projetes": 4
+   },
+   {
+    "fixture": "Q07",
+    "avant_ms": 86195,
+    "projete_ms": 57893,
+    "reduction_pct": 32.8,
+    "appels_avant": 6,
+    "appels_projetes": 4
+   },
+   {
+    "fixture": "Q08",
+    "avant_ms": 79083,
+    "projete_ms": 53566,
+    "reduction_pct": 32.3,
+    "appels_avant": 6,
+    "appels_projetes": 4
+   },
+   {
+    "fixture": "Q01",
+    "avant_ms": 39412,
+    "projete_ms": 34780,
+    "reduction_pct": 11.8,
+    "appels_avant": 5,
+    "appels_projetes": 4
+   }
+  ],
+  "sans_effet_sur": [
+   "R01",
+   "R02",
+   "R03",
+   "R08",
+   "R09",
+   "A03"
+  ],
+  "raison_sans_effet": "ces tours ne portent aucune revue de substitution excédentaire — l'early-stop n'a rien à y arrêter"
+ },
+ "CE_QUE_LA_PROJECTION_NE_RESOUT_PAS": {
+  "objectif_du_§29": "clarification en quelques secondes",
+  "plancher_atteignable_par_early_stop_seul": "33 à 60 secondes",
+  "composition_de_ce_plancher": "Analyste 536–1 066 jetons + Critique global ~800 + une revue 333–1 250 + Arbitre 828–1 894, le tout en série à ~13 ms/jeton",
+  "verdict": "l'early-stop divise la queue par trois et réduit les clarifications ambiguës d'un tiers. Il ne fait PAS passer la clarification sous la barre des dix secondes. Aucune modification d'orchestration ne le peut : le plancher est ce que les trois rôles écrivent, et le réduire signifierait toucher aux prompts — ce que §17 et §22 interdisent ici."
+ }
+}

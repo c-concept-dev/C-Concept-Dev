@@ -1,0 +1,67 @@
+{
+ "lot": "OPRIE-ARBITER-MATERIAL-CONTEXT-DELIVERY-01",
+ "mesure_le": "2026-09-06",
+ "chemin_reel": "runRoleWithHaChain -> GENERIC_ROLE_ADAPTERS -> runRoleWithAnthropic('arbiter') -> makeArbiterUserMessage",
+ "gap": {
+  "orchestrateur_buildRoleInput": "material_context absent avant serialisation",
+  "makeArbiterUserMessage": "ne l acceptait ni ne l emettait",
+  "etages": 2
+ },
+ "correctif": {
+  "buildRoleInput": "transmet material_context au role arbitre",
+  "makeArbiterUserMessage": "emet material_context normalise",
+  "prompt_arbitre": "INCHANGE",
+  "observabilite": "arbiter_material_context_observation, metadata seule, dans l orchestrateur"
+ },
+ "preuve_de_livraison": {
+  "tours": 30,
+  "avec_trace": 30,
+  "dca_true": 30,
+  "available_inputs_present": 30,
+  "provenance_materiau_present": 30,
+  "tous_roles_anthropic": 30,
+  "contenu_brut": 0
+ },
+ "avant_apres": {
+  "blocked": {
+   "reference": 10,
+   "champ_seul": 16,
+   "apres": 0
+  },
+  "ready": {
+   "reference": 11,
+   "champ_seul": 13,
+   "apres": 30
+  },
+  "faux_ready": {
+   "champ_seul": 1,
+   "apres": 0
+  },
+  "wrong_material_unverifiable_veto": {
+   "avant": 16,
+   "apres": 0
+  },
+  "P_accept_evaluable": {
+   "avant": "0/16",
+   "apres": "29/29 = 100%"
+  }
+ },
+ "controle_negatif": {
+  "tours": 6,
+  "etats": {
+   "clarification_required": 5,
+   "blocked": 1
+  },
+  "ready": 0,
+  "valeur_inventee": 0,
+  "provenance_a_tort": 0,
+  "citation": "le materiau est signale comme present mais son contenu est inaccessible a ce tour (deep_content_available = false)",
+  "lecture": "l Arbitre se sert du champ pour REFUSER autant que pour accepter — ce n est pas un assouplissement"
+ },
+ "run_22": "FALSE_READY — tranchable desormais : les 30 tours prets declarent la disponibilite, le run 22 n en declarait aucune",
+ "raw_content": {
+  "vers_arbitre": 0,
+  "vers_critique": 0,
+  "journalise": 0
+ }
+}

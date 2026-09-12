@@ -1,0 +1,33 @@
+{
+  "status": "interrupted_cleanly",
+  "reason": "Codex usage limit approaching",
+  "provider": "groq/openai-gpt-oss-20b",
+  "corpus_cases": 30,
+  "repetitions_planned": 3,
+  "delay_ms": 12500,
+  "completed_calls": 15,
+  "completed_cases": 5,
+  "last_fully_completed_case": "R05",
+  "next_case": "R06",
+  "next_run": 1,
+  "errors_429_during_regulated_run": 0,
+  "full_provider_payloads_persisted": false,
+  "note": "Le script initial n'écrivait les résultats complets qu'en fin de campagne. Les observations terminal exactes sont conservées ci-dessous. Pour un rapport métrique complet et strict, reprendre une campagne fraîche avec le nouveau checkpoint automatique.",
+  "observations": [
+    { "case_id": "R01", "run": 1, "label": "rapide", "latency_ms": 1096 },
+    { "case_id": "R01", "run": 2, "label": "rapide", "latency_ms": 352 },
+    { "case_id": "R01", "run": 3, "label": "rapide", "latency_ms": 895 },
+    { "case_id": "R02", "run": 1, "label": "rapide", "latency_ms": 1214 },
+    { "case_id": "R02", "run": 2, "label": "rapide", "latency_ms": 501 },
+    { "case_id": "R02", "run": 3, "label": "rapide", "latency_ms": 728 },
+    { "case_id": "R03", "run": 1, "label": "rapide", "latency_ms": 518 },
+    { "case_id": "R03", "run": 2, "label": "rapide", "latency_ms": 403 },
+    { "case_id": "R03", "run": 3, "label": "rapide", "latency_ms": 1116 },
+    { "case_id": "R04", "run": 1, "label": "rapide", "latency_ms": 506 },
+    { "case_id": "R04", "run": 2, "label": "rapide", "latency_ms": 823 },
+    { "case_id": "R04", "run": 3, "label": "rapide", "latency_ms": 461 },
+    { "case_id": "R05", "run": 1, "label": "rapide", "latency_ms": 640 },
+    { "case_id": "R05", "run": 2, "label": "rapide", "latency_ms": 598 },
+    { "case_id": "R05", "run": 3, "label": "rapide", "latency_ms": 800 }
+  ]
+}

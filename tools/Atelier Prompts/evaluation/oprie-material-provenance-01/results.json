@@ -1,0 +1,158 @@
+{
+ "lot": "OPRIE-MATERIAL-PROVENANCE-01",
+ "objet": "auditer le contrat de provenance des faits extraits de material_content",
+ "mesure_le": "2026-09-05",
+ "type": "AUDIT — aucun code de production modifie",
+ "matrice_provenance": [
+  {
+   "valeur": "explicit_user_statement",
+   "definition_contractuelle_ecrite": "AUCUNE",
+   "ou_elle_est_definie": "nulle part — ni code, ni JSON schema (aucun champ description), ni documentation, ni test",
+   "qui_l_ecrit": "l Analyste (modele)",
+   "qui_la_consomme": "assessProvenance (ignore l etiquette), le Critique (jugement de modele), l Arbitre (passif)",
+   "gele": "vocabulaire garde par deux tests d invariant",
+   "ambigue": "OUI"
+  },
+  {
+   "valeur": "clarification_answer",
+   "definition_contractuelle_ecrite": "AUCUNE",
+   "ou_elle_est_definie": "nulle part — ni code, ni JSON schema (aucun champ description), ni documentation, ni test",
+   "qui_l_ecrit": "l Analyste (modele)",
+   "qui_la_consomme": "assessProvenance (ignore l etiquette), le Critique (jugement de modele), l Arbitre (passif)",
+   "gele": "vocabulaire garde par deux tests d invariant",
+   "ambigue": "OUI"
+  },
+  {
+   "valeur": "confirmed_preference",
+   "definition_contractuelle_ecrite": "AUCUNE",
+   "ou_elle_est_definie": "nulle part — ni code, ni JSON schema (aucun champ description), ni documentation, ni test",
+   "qui_l_ecrit": "l Analyste (modele)",
+   "qui_la_consomme": "assessProvenance (ignore l etiquette), le Critique (jugement de modele), l Arbitre (passif)",
+   "gele": "vocabulaire garde par deux tests d invariant",
+   "ambigue": "OUI"
+  },
+  {
+   "valeur": "safe_deduction",
+   "definition_contractuelle_ecrite": "AUCUNE",
+   "ou_elle_est_definie": "nulle part — ni code, ni JSON schema (aucun champ description), ni documentation, ni test",
+   "qui_l_ecrit": "l Analyste (modele)",
+   "qui_la_consomme": "assessProvenance (ignore l etiquette), le Critique (jugement de modele), l Arbitre (passif)",
+   "gele": "vocabulaire garde par deux tests d invariant",
+   "ambigue": "OUI"
+  },
+  {
+   "valeur": "delegated_decision",
+   "definition_contractuelle_ecrite": "AUCUNE",
+   "ou_elle_est_definie": "nulle part — ni code, ni JSON schema (aucun champ description), ni documentation, ni test",
+   "qui_l_ecrit": "l Analyste (modele)",
+   "qui_la_consomme": "assessProvenance (ignore l etiquette), le Critique (jugement de modele), l Arbitre (passif)",
+   "gele": "vocabulaire garde par deux tests d invariant",
+   "ambigue": "OUI"
+  },
+  {
+   "valeur": "external_fact_to_research",
+   "definition_contractuelle_ecrite": "AUCUNE",
+   "ou_elle_est_definie": "nulle part — ni code, ni JSON schema (aucun champ description), ni documentation, ni test",
+   "qui_l_ecrit": "l Analyste (modele)",
+   "qui_la_consomme": "assessProvenance (ignore l etiquette), le Critique (jugement de modele), l Arbitre (passif)",
+   "gele": "vocabulaire garde par deux tests d invariant",
+   "ambigue": "OUI"
+  },
+  {
+   "valeur": "labeled_estimate",
+   "definition_contractuelle_ecrite": "AUCUNE",
+   "ou_elle_est_definie": "nulle part — ni code, ni JSON schema (aucun champ description), ni documentation, ni test",
+   "qui_l_ecrit": "l Analyste (modele)",
+   "qui_la_consomme": "assessProvenance (ignore l etiquette), le Critique (jugement de modele), l Arbitre (passif)",
+   "gele": "vocabulaire garde par deux tests d invariant",
+   "ambigue": "OUI"
+  },
+  {
+   "valeur": "conditional_scenario",
+   "definition_contractuelle_ecrite": "AUCUNE",
+   "ou_elle_est_definie": "nulle part — ni code, ni JSON schema (aucun champ description), ni documentation, ni test",
+   "qui_l_ecrit": "l Analyste (modele)",
+   "qui_la_consomme": "assessProvenance (ignore l etiquette), le Critique (jugement de modele), l Arbitre (passif)",
+   "gele": "vocabulaire garde par deux tests d invariant",
+   "ambigue": "OUI"
+  }
+ ],
+ "matrice_consommateurs": [
+  {
+   "consommateur": "assessProvenance (core/adn/intent-preservation.js)",
+   "voit_la_provenance": true,
+   "ce_qu_il_verifie": "qu un enregistrement existe pour chaque valeur materielle du candidat, apparie sur field + value",
+   "lit_l_etiquette": false,
+   "preuve": "le code n inspecte jamais record.provenance ; il ne compare rien a original_request ni a clarification_history",
+   "gouverne": "unsupported_additions -> pass/fail de assessIntentPreservationDeterministic"
+  },
+  {
+   "consommateur": "Critique (prompt, MISSION 1)",
+   "voit_la_provenance": true,
+   "ce_qu_il_verifie": "que chaque element materiel du candidat est ancre dans original_request OU clarification_history via sa provenance declaree",
+   "lit_l_etiquette": true,
+   "citation": "Verifiez que chaque element materiel du candidat est reellement ancre dans original_request ou clarification_history via sa provenance declaree.",
+   "gouverne": "unsupported_additions_found -> veto qualifie si materiel"
+  },
+  {
+   "consommateur": "Critique (prompt, point 7)",
+   "voit_la_provenance": false,
+   "ce_qu_il_verifie": "la legitimite d une question de disponibilite, a partir de material_context seul",
+   "citation": "VOUS NE RECEVEZ PAS CE CONTENU : vous pouvez auditer si une question sur la DISPONIBILITE etait fondee, jamais si l Analyste a bien lu le materiau.",
+   "consequence": "il ne peut structurellement pas verifier une valeur issue du materiau"
+  },
+  {
+   "consommateur": "Arbitre",
+   "voit_la_provenance": true,
+   "ce_qu_il_verifie": "aucune regle d ancrage propre ; il retient le veto du Critique",
+   "note": "provenance_records lui parvient a l interieur de analyst_output"
+  },
+  {
+   "consommateur": "validateProvenanceRecord / validateProvenanceValue",
+   "voit_la_provenance": true,
+   "ce_qu_il_verifie": "appartenance a l enumeration, rien de plus"
+  }
+ ],
+ "statut_gele": {
+  "frozen_guard_sha256": "NON — PROVENANCE_VALUES, le prompt Critique et PROVENANCE_RECORD_JSON_SCHEMA sont hors des sept plages gelees (verifie par calcul d offsets)",
+  "invariant_par_test": "OUI — deux gardes explicites",
+  "garde_1": "tests/operational-request-state.test.mjs : « PROVENANCE_VALUES couvre exactement le vocabulaire du CDC »",
+  "garde_2": "tests/operational-request-analyst-provenance-value.test.mjs : « P1 : PROVENANCE_VALUES et CANDIDATE_FIELDS restent inchanges »",
+  "lecture": "le vocabulaire est trace au CDC et protege par un invariant dedie. L etendre exige de modifier ces gardes, c est-a-dire de casser volontairement l invariant qui existe pour l empecher."
+ },
+ "classification_du_fait_materiau": {
+  "fait": "une valeur lue dans material_content, transmis par l utilisateur avec sa demande",
+  "provenance_actuellement_declaree": "explicit_user_statement (instruction posee par OPRIE-MATERIAL-INTERPRETATION-01)",
+  "exacte": "AMBIGUE — aucune definition ecrite ne permet de trancher ; operationnellement fausse au regard de la regle d ancrage du Critique",
+  "provenance_correcte_existante": "AUCUNE des huit valeurs ne designe un materiau fourni par l utilisateur"
+ },
+ "options": [
+  {
+   "option": "A — utiliser une provenance existante correcte",
+   "verdict": "IMPOSSIBLE",
+   "raison": "aucune des huit ne couvre le cas"
+  },
+  {
+   "option": "B — prouver que explicit_user_statement englobe le materiau",
+   "verdict": "IMPOSSIBLE",
+   "raison": "la valeur n a aucune definition ecrite ; rien ne permet de le prouver ni de l infirmer par le contrat"
+  },
+  {
+   "option": "C — ajouter une provenance generique additive",
+   "verdict": "TECHNIQUEMENT POSSIBLE, CONTRACTUELLEMENT BLOQUE",
+   "raison": "hors plages gelees, mais protege par deux invariants de test traces au CDC ; et sans effet seul, car la regle d ancrage du Critique refuserait toujours la nouvelle valeur",
+   "valeur_proposee": "user_provided_material — generique, sans domaine, sans fournisseur, dans la famille semantique existante"
+  },
+  {
+   "option": "D — assouplir le Critique sans provenance vraie",
+   "verdict": "REFUSE",
+   "raison": "contournement explicitement interdit (§5, §46)"
+  }
+ ],
+ "cause_racine": {
+  "verdict": "WRONG_PROVENANCE et CRITIC_AWARENESS, indissociables",
+  "detail": "le vocabulaire de provenance ne comporte aucune valeur pour un fait porte par un materiau fourni par l utilisateur, et la regle d ancrage du Critique enumere deux sources la ou le contrat en compte trois depuis OPRIE-MATERIAL-CONTENT-02. Corriger l une sans l autre ne produit aucun effet : une provenance vraie mais inconnue du Critique serait refusee exactement comme la fausse."
+ },
+ "aucun_code_modifie": true,
+ "raison_de_l_arret": "l extension du vocabulaire exige de modifier un invariant trace au CDC — §17 « ne pas changer seul », §44 OUTCOME D « STOP, rapporter »."
+}

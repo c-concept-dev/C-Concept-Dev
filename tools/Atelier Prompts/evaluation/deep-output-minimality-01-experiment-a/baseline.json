@@ -1,0 +1,19 @@
+{
+  "lot": "DEEP-OUTPUT-MINIMALITY-01 — EXPERIMENT A",
+  "BASELINE_UTILISABLE": "NON — découverte bloquante de ce lot",
+  "ce_que_le_§11_prevoyait": "réutiliser les traces historiques de Q01, Q02, Q07, Q08, A01, A02 plutôt que de rejouer une baseline coûteuse.",
+  "ce_qui_a_ete_trouve": {
+    "source": "evaluation/deep-cout-jetons-01/results.json",
+    "fournisseur_reellement_mesure": "groq",
+    "modele": "openai/gpt-oss-20b",
+    "preuve": "inventaire.ordre_fournisseur_des_roles = [groq, anthropic, openai] ; jetons_par_fournisseur du premier tour = {groq: 8724, anthropic: 0, openai: 0} ; inventaire.{analyst,critic,arbiter}.modele_groq = openai/gpt-oss-20b",
+    "consequence": "ces 12 tours ne mesurent PAS le Deep de production (Anthropic, claude-sonnet-4-6). Les comparer à une exécution candidate sur Sonnet attribuerait à la suppression de candidate_action tout ce qui n'est en réalité qu'une différence de modèle. L'expérience serait fatalement confondue."
+  },
+  "baseline_sonnet_reellement_disponible": {
+    "source": "evaluation/deep-production-blockers-01/paired-latency.json — provider anthropic confirmé",
+    "granularite": "par POPULATION, jamais par fixture",
+    "population_B_clarification_ouverte": { "n": 10, "total_p50_ms": 91694, "jetons_sortie": { "analyst": 1340, "critic": 1066, "arbiter": 1774 } },
+    "pourquoi_insuffisante": "elle ne distingue pas, dans les 1 066 jetons du Critique, la part de l'appel global et celle des batches. Or c'est exactement la part des BATCHES que ce lot doit mesurer avant/après. Aucune trace Sonnet par fixture n'existe."
+  },
+  "consequence_operationnelle": "la baseline doit être REJOUÉE sur Sonnet, ce que le §11 espérait éviter. Le coût de l'expérience double."
+}

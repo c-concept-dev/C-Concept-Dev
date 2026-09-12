@@ -1,0 +1,94 @@
+{
+ "lot": "FAST-CAPACITY-ADMISSION-01",
+ "objet": "portee reelle des isolats Cloudflare, pour decider ou stocker le souvenir du delai annonce",
+ "mesure_le": "2026-09-04",
+ "worker": "atelier-decision-groq",
+ "version_deployee": "db0f1ab0-153b-48b1-b85d-ba5649a17241",
+ "protocole": {
+  "requetes": "corps invalide -> 400, la porte refuse AVANT tout appel fournisseur",
+  "appels_fournisseur": 0,
+  "jetons_consommes": 0,
+  "motif_A": "30 requetes a 1 s (rafale dense)",
+  "pause": "20 s",
+  "motif_B": "20 requetes a 5 s (cadence du pic declare : 12 req/min)",
+  "identite": "UUID tire une fois par isolat, initialisation paresseuse, aucune donnee de requete"
+ },
+ "portee_isolat": {
+  "invocations_tracees": 50,
+  "isolats_distincts": 4,
+  "appels_fournisseur": 0,
+  "invocations_max_par_isolat": 21,
+  "isolats_survivant_a_la_pause": 4,
+  "motifs": {
+   "rafale_dense": {
+    "invocations": 30,
+    "isolats_distincts": 4,
+    "repartition": [
+     {
+      "isolat": "a3d96eab",
+      "invocations": 16
+     },
+     {
+      "isolat": "80cdb49e",
+      "invocations": 8
+     },
+     {
+      "isolat": "9d2d5e09",
+      "invocations": 5
+     },
+     {
+      "isolat": "c1dbe57f",
+      "invocations": 1
+     }
+    ],
+    "invocations_sur_isolat_deja_vu": 26,
+    "part_isolat_deja_vu_percent": 87
+   },
+   "cadence_du_pic": {
+    "invocations": 20,
+    "isolats_distincts": 4,
+    "repartition": [
+     {
+      "isolat": "c1dbe57f",
+      "invocations": 7
+     },
+     {
+      "isolat": "a3d96eab",
+      "invocations": 5
+     },
+     {
+      "isolat": "80cdb49e",
+      "invocations": 4
+     },
+     {
+      "isolat": "9d2d5e09",
+      "invocations": 4
+     }
+    ],
+    "invocations_sur_isolat_deja_vu": 20,
+    "part_isolat_deja_vu_percent": 100
+   }
+  }
+ },
+ "stockage_retenu": "ISOLATE_MODULE_MEMORY",
+ "stockage_ecartes": {
+  "KV": "persistance distribuee non requise : la mesure montre qu une memoire de module est consultee par la quasi-totalite des requetes suivantes",
+  "DURABLE_OBJECT": "idem, et introduirait un point de serialisation sur le chemin le plus sensible a la latence du produit"
+ },
+ "limite_assumee": {
+  "classification": "BEST_EFFORT",
+  "raison": "un isolat qui n a pas encore vu de 429 l apprendra par le sien ; le cout de cette ignorance est borne a un refus par isolat",
+  "non_garantie": "aucune garantie publique de reutilisation d isolat n existe ; cette mesure decrit un comportement observe, pas un contrat"
+ },
+ "admission_de_capacite": {
+  "niveau_retenu": "LEVEL_1",
+  "niveau_2_ecarte": true,
+  "raisons_du_refus_du_niveau_2": [
+   "cout inconnu avant appel : aucun tokenizer embarque, aucune route de comptage cote Groq",
+   "seule borne exacte disponible = jetons <= octets : 794 + 16384 + 512 = 17690, soit 2,21 fois le quota d une minute entiere",
+   "substituer 426 ou 485 ferait d une statistique une autorite, ce que la section 9 interdit",
+   "capacite restante connue seulement APRES coup : les en-tetes de debit voyagent sur la reponse",
+   "observation locale, quota au perimetre du compte, plan profond consommant le meme budget : toute verification prealable est perimee et aveugle"
+  ]
+ }
+}

@@ -1,0 +1,19 @@
+{
+  "lot": "ATELIER-PRODUCT-SIMPLIFICATION-01",
+  "RECOMMENDED_OPTION": "A d'abord, B après mesure",
+  "architecture_cible": {
+    "chemin_affichage": "plan rapide seul — interaction candidate validée, sans autorité, ~0,5 s",
+    "chemin_decision": "plan profond, inchangé, jamais sauté, hors du chemin d'affichage",
+    "reconciliation": "reconcileFastWithDeep — l'état qui fait foi reste celui d'OPRIE",
+    "escalade": "aucune nouvelle. Le profond n'est pas conditionné : il est simplement cessé d'être attendu pour afficher."
+  },
+  "ce_qui_n_est_PAS_propose": ["nouveau routeur", "nouvel agent", "nouveau modèle", "nouveau cache", "nouvelle machine à états", "nouveau moteur", "hardcoding de domaine", "seuil sémantique", "keyword routing"],
+  "invariants_preserves": ["original request immutable", "provenance", "aucun fake filling", "false READY = 0", "routing après readiness réelle", "OPRIE seule autorité", "séparation clarification/confirmation/ready/degraded", "fail-closed", "le plan rapide n'acquiert AUCUNE autorité"],
+  "sequencement_propose": [
+    "1. lever l'inconnue : session navigateur sur le cas Italie, relever oprieMark. Coût 0 USD.",
+    "2. OPTION A : retirer les deux éléments statiques du HTML ; réaligner les empreintes. Aucun contrat sémantique touché.",
+    "3. remesurer TIME_TO_FIRST_USEFUL_RESPONSE sur les 6 scénarios.",
+    "4. si et seulement si le plancher profond reste un problème produit après 1–3 : instruire OPTION B, en commençant par mesurer sur population réelle si l'état forcé diverge jamais de l'état écrit par l'Arbitre."
+  ],
+  "raison_de_ne_pas_aller_a_C": "C donnerait au plan rapide le pouvoir de décider qu'aucune vérification profonde n'est nécessaire. Son schéma lui interdit tout champ d'autorité, et la protection contre le faux READY repose aujourd'hui sur le fait que le profond tourne toujours. Le gain visé par C est déjà obtenu par A, sans céder cette garantie."
+}

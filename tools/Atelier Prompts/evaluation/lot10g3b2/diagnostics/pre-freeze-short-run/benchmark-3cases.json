@@ -1,0 +1,505 @@
+{
+  "protocol": {
+    "lot": "10G.3B.2",
+    "corpus": "corpus-3cases.json",
+    "corpus_sha256": "f0b30b894d16a8d1126e9a8fc3827db0d934651ed33c95e000ceca66ad06e96f",
+    "corpus_frozen_at": "2026-08-28T00:00:00+02:00",
+    "started_at": "2026-08-28T07:04:55.929Z",
+    "completed_at": "2026-08-28T07:07:00.642Z",
+    "product_html": "atelier-prompts-v11.5-lot10g-decision-provider.html",
+    "product_html_sha256": "757ad74d70ffeaff8c3c9e2a09d8c3aa9bbbcbcc52d0cae9923f54e7a28f2a06",
+    "openai_proxy": "https://openai-proxy.11drumboy11.workers.dev/",
+    "openai_endpoint": "/v1/responses",
+    "model": "gpt-5.6-sol",
+    "model_pricing_usd_per_million_tokens": {
+      "input": 4,
+      "output": 20,
+      "as_of": "2026-08-28"
+    },
+    "initial_request_rule": "La demande initiale brute est strictement identique dans les deux branches.",
+    "retries": "Aucun retry sémantique.",
+    "pure_branch_prompting": "Aucune instruction spéciale; input initial égal à demande.",
+    "product_changes": "Aucune; instrumentation externe additive."
+  },
+  "cases": [
+    {
+      "id": "B3-01",
+      "category": "floue",
+      "domain": "voyage",
+      "demande": "Je veux préparer mon voyage en Italie.",
+      "materiau_present": false,
+      "expected_atelier": {
+        "initial_state": "clarification_necessaire",
+        "final_route": [
+          "rapide",
+          "architecte"
+        ]
+      },
+      "atelier": {
+        "started_at": "2026-08-28T07:04:55.932Z",
+        "completed_at": "2026-08-28T07:05:35.839Z",
+        "html_sha256": "757ad74d70ffeaff8c3c9e2a09d8c3aa9bbbcbcc52d0cae9923f54e7a28f2a06",
+        "latency_total_ms": 39907.132,
+        "time_to_first_useful_result_ms": 39907.163,
+        "route_finale": "rapide",
+        "moteur_final": "rapide",
+        "decision_source": "groq",
+        "decision": {
+          "etat_demande": "exploitable",
+          "route": "rapide",
+          "confiance": "haute",
+          "raison_interne": "La demande est exploitable et peut être exécutée directement sans arbitrage structurel préalable.",
+          "question": null
+        },
+        "decision_provider_calls": [
+          {
+            "kind": "decision_provider",
+            "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+            "started_at": "2026-08-28T07:04:56.532Z",
+            "latency_ms": 441.484,
+            "status_http": 502,
+            "request": {
+              "demande": "Je veux préparer mon voyage en Italie.",
+              "materiau_present": false,
+              "mode_demande": "rapide"
+            },
+            "response": {
+              "error": "provider_failure",
+              "message": "Le fournisseur de décision n’est pas disponible."
+            },
+            "error": null
+          },
+          {
+            "kind": "decision_provider",
+            "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+            "started_at": "2026-08-28T07:04:56.974Z",
+            "latency_ms": 504.065,
+            "status_http": 200,
+            "request": {
+              "demande": "Je veux préparer mon voyage en Italie.",
+              "materiau_present": false,
+              "mode_demande": "rapide"
+            },
+            "response": {
+              "etat_demande": "clarification_necessaire",
+              "route": null,
+              "confiance": "moyenne",
+              "raison_interne": "La demande n’est pas encore suffisamment exploitable ; une clarification à forte valeur d’information est nécessaire.",
+              "question": "Quel est le but principal de votre voyage en Italie ?"
+            },
+            "error": null
+          },
+          {
+            "kind": "decision_provider",
+            "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+            "started_at": "2026-08-28T07:04:57.481Z",
+            "latency_ms": 53.961,
+            "status_http": 502,
+            "request": {
+              "demande": "Je veux préparer mon voyage en Italie.\n\nPrécisions apportées pendant le dialogue :\n- Quel est le but principal de votre voyage en Italie ? — Réponse : Je veux préparer un itinéraire jour par jour pour un séjour de 12 jours, avec un rythme équilibré entre visites et temps libre.",
+              "materiau_present": false,
+              "mode_demande": "rapide"
+            },
+            "response": {
+              "error": "provider_failure",
+              "message": "Le fournisseur de décision n’est pas disponible."
+            },
+            "error": null
+          },
+          {
+            "kind": "decision_provider",
+            "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+            "started_at": "2026-08-28T07:04:57.537Z",
+            "latency_ms": 399.094,
+            "status_http": 200,
+            "request": {
+              "demande": "Je veux préparer mon voyage en Italie.\n\nPrécisions apportées pendant le dialogue :\n- Quel est le but principal de votre voyage en Italie ? — Réponse : Je veux préparer un itinéraire jour par jour pour un séjour de 12 jours, avec un rythme équilibré entre visites et temps libre.",
+              "materiau_present": false,
+              "mode_demande": "rapide"
+            },
+            "response": {
+              "etat_demande": "exploitable",
+              "route": "rapide",
+              "confiance": "haute",
+              "raison_interne": "La demande est exploitable et peut être exécutée directement sans arbitrage structurel préalable.",
+              "question": null
+            },
+            "error": null
+          }
+        ],
+        "decision_provider_latency_ms": 1398.604,
+        "clarifications": [
+          {
+            "question": "Quel est le but principal de votre voyage en Italie ?",
+            "answer": "Je veux préparer un itinéraire jour par jour pour un séjour de 12 jours, avec un rythme équilibré entre visites et temps libre."
+          }
+        ],
+        "nombre_reanalyses": 3,
+        "engine": {
+          "engine": "rapide",
+          "latency_ms": 26.903,
+          "format": "reponse_simple",
+          "niveau": "eclair",
+          "prompt": "## TÂCHE\nJe veux préparer mon voyage en Italie.\n\nPrécisions apportées pendant le dialogue :\n- Quel est le but principal de votre voyage en Italie ? — Réponse : Je veux préparer un itinéraire jour par jour pour un séjour de 12 jours, avec un rythme équilibré entre visites et temps libre.\n\n## FORMAT DE SORTIE\n- Livrable : réponse directe à la question posée\n- Validité : Aucune reformulation de la question, aucune formule d’ouverture.\n- Aucun contenu en dehors du livrable.\n\n## INTERDICTIONS\n- Pas de préambule, pas de reformulation de la demande, pas d’accusé de réception.\n- Pas de conclusion, pas de proposition d’aide complémentaire, pas de question finale.\n- Pas de commentaire sur votre propre production ni sur vos limites.\n- Pas d’espace réservé : ni « … », ni « etc. », ni « à compléter », ni « et ainsi de suite ».\n- Pas de résumé en lieu et place du contenu demandé."
+        },
+        "final_call": {
+          "timestamp": "2026-08-28T07:05:35.822Z",
+          "endpoint": "/v1/responses",
+          "status_http": 200,
+          "latency_ms": 37856.671,
+          "response_id": "resp_0d96dfb06586c06a006a91331a3b6887d2a4fe187695ac40c2",
+          "response_status": "completed",
+          "model_requested": "gpt-5.6-sol",
+          "model_returned": "gpt-5.6-sol",
+          "usage": {
+            "input_tokens": 232,
+            "output_tokens": 2167,
+            "total_tokens": 2399,
+            "reasoning_tokens": 263
+          },
+          "estimated_cost_usd": 0.044268,
+          "incomplete_details": null,
+          "error": null,
+          "output": "# Itinéraire de 12 jours en Italie — Rome, Florence, Toscane et Venise\n\n**Répartition :** 4 nuits à Rome, 4 nuits à Florence, 3 nuits à Venise.  \n**Transports :** trains à grande vitesse entre les villes, sans voiture.\n\n## Jour 1 — Arrivée à Rome et première découverte\n\n**Matin ou début d’après-midi**\n- Arrivée à Rome et installation dans un quartier central : Monti, Panthéon, Prati ou Trastevere.\n- Temps libre pour déjeuner et récupérer du trajet.\n\n**Fin d’après-midi**\n- Promenade sans réservation : place d’Espagne, fontaine de Trevi, piazza Colonna et Panthéon.\n- Pause dans un café autour de la piazza Navona.\n\n**Soirée**\n- Dîner dans le centre historique.\n- Courte promenade autour du Panthéon ou de la fontaine de Trevi illuminée.\n\n## Jour 2 — Rome antique\n\n**Matin**\n- Visite du Colisée, du Forum romain et du mont Palatin.\n- Prévoir environ 3 h 30 pour l’ensemble.\n- Réserver un billet avec horaire d’entrée au Colisée.\n\n**Déjeuner**\n- Déjeuner dans le quartier de Monti.\n\n**Après-midi**\n- Temps libre de deux heures.\n- Promenade vers le Capitole, la place de Venise et le quartier juif.\n- Découverte extérieure du théâtre de Marcellus et du portique d’Octavie.\n\n**Soirée**\n- Dîner dans le quartier juif ou à Monti.\n- Soirée libre.\n\n## Jour 3 — Vatican et Trastevere\n\n**Matin**\n- Musées du Vatican et chapelle Sixtine dès l’ouverture.\n- Visite de la basilique Saint-Pierre après les musées.\n- Réserver les musées plusieurs semaines à l’avance.\n\n**Déjeuner**\n- Déjeuner dans le quartier de Prati, généralement plus calme que les abords immédiats du Vatican.\n\n**Après-midi**\n- Retour à l’hôtel ou pause libre.\n- En fin d’après-midi, traversée du Tibre et promenade dans Trastevere.\n- Passage par la basilique Sainte-Marie-du-Trastevere.\n\n**Soirée**\n- Dîner à Trastevere.\n- Promenade possible jusqu’au belvédère du Janicule pour la vue sur Rome.\n\n## Jour 4 — Rome baroque et temps libre\n\n**Matin**\n- Visite de la galerie Borghèse, avec réservation obligatoire.\n- Promenade dans les jardins de la Villa Borghèse.\n\n**Après-midi**\n- Temps libre pour faire des achats, revoir un quartier préféré ou visiter une église.\n- Option culturelle légère : basilique Saint-Clément ou thermes de Caracalla.\n\n**Soirée**\n- Apéritif autour du Campo de’ Fiori ou de la piazza Navona.\n- Dernier dîner à Rome.\n\n## Jour 5 — Train pour Florence\n\n**Matin**\n- Train Rome-Termini–Florence-Santa Maria Novella.\n- Durée approximative : 1 h 30.\n- Installation près de Santa Maria Novella, du Duomo ou de Santa Croce.\n\n**Après-midi**\n- Déjeuner puis première promenade dans le centre historique.\n- Piazza del Duomo, baptistère, Via dei Calzaiuoli et Piazza della Signoria.\n- Traversée du Ponte Vecchio.\n\n**Fin d’après-midi**\n- Temps libre sur les quais de l’Arno ou à l’hôtel.\n\n**Soirée**\n- Dîner dans le quartier de Santo Spirito.\n\n## Jour 6 — Chefs-d’œuvre de Florence\n\n**Matin**\n- Galerie des Offices dès l’ouverture.\n- Prévoir environ trois heures.\n- Réserver un créneau horaire.\n\n**Déjeuner**\n- Déjeuner près de Santa Croce ou du marché de Sant’Ambrogio.\n\n**Après-midi**\n- Visite de la basilique Santa Croce.\n- Pause libre dans le centre.\n- Promenade jusqu’à la Piazza della Repubblica.\n\n**Soirée**\n- Montée à la Piazzale Michelangelo avant le coucher du soleil.\n- Dîner dans le quartier de San Niccolò.\n\n## Jour 7 — Duomo, marché et Oltrarno\n\n**Matin**\n- Visite du complexe du Duomo.\n- Choisir une montée : coupole de Brunelleschi ou campanile de Giotto.\n- Réserver la coupole à l’avance si vous la privilégiez.\n- Visite de la cathédrale, du baptistère et du musée de l’Œuvre du Duomo selon le billet choisi.\n\n**Déjeuner**\n- Déjeuner au Mercato Centrale ou dans le quartier de San Lorenzo.\n\n**Après-midi**\n- Temps libre de deux à trois heures.\n- Promenade dans l’Oltrarno : Santo Spirito, ateliers artisanaux et jardins de Boboli.\n- Pour un rythme plus léger, remplacer les jardins par une pause prolongée sur une terrasse.\n\n**Soirée**\n- Dîner libre dans l’Oltrarno.\n\n## Jour 8 — Excursion en Toscane : Sienne\n\n**Matin**\n- Bus direct Florence–Sienne, généralement plus pratique que le train pour rejoindre le centre.\n- Découverte de la Piazza del Campo.\n- Visite du Duomo de Sienne et de la bibliothèque Piccolomini.\n\n**Déjeuner**\n- Déjeuner dans le centre historique.\n\n**Après-midi**\n- Promenade dans les ruelles des contrade.\n- Temps libre pour une terrasse, quelques achats ou une visite du Palazzo Pubblico.\n- Retour à Florence en fin d’après-midi.\n\n**Soirée**\n- Dîner calme près de l’hébergement.\n- Préparation du départ pour Venise.\n\n## Jour 9 — Train pour Venise\n\n**Matin**\n- Train Florence-Santa Maria Novella–Venezia Santa Lucia.\n- Durée approximative : 2 h.\n- Installation à Cannaregio, San Polo, Dorsoduro ou près de Santa Lucia pour faciliter les déplacements.\n\n**Après-midi**\n- Première promenade à pied : Cannaregio, ghetto de Venise, Fondamenta della Misericordia et pont du Rialto.\n- Pause au bord d’un canal.\n\n**Soirée**\n- Parcours de bacari avec dégustation de cicchetti.\n- Promenade nocturne dans les quartiers de Cannaregio ou San Polo.\n\n## Jour 10 — Place Saint-Marc et Dorsoduro\n\n**Matin**\n- Basilique Saint-Marc dès l’ouverture.\n- Palais des Doges et pont des Soupirs.\n- Réserver des billets horodatés pour limiter l’attente.\n\n**Déjeuner**\n- S’éloigner de la place Saint-Marc pour déjeuner vers Castello ou San Polo.\n\n**Après-midi**\n- Temps libre après les visites.\n- Promenade vers le théâtre La Fenice, le pont de l’Accademia et les quais de Dorsoduro.\n- Visite facultative de la collection Peggy Guggenheim pour les amateurs d’art moderne.\n\n**Soirée**\n- Apéritif sur le Campo Santa Margherita.\n- Dîner à Dorsoduro.\n\n## Jour 11 — Lagune ou Venise secrète\n\n**Matin**\n- Vaporetto vers Murano.\n- Visite d’un atelier de verre avec démonstration sérieuse, de préférence sur réservation.\n- Poursuite vers Burano pour ses maisons colorées.\n\n**Déjeuner**\n- Déjeuner à Burano.\n\n**Après-midi**\n- Retour à Venise vers 16 h.\n- Temps libre pour une promenade sans itinéraire précis dans Castello ou Cannaregio.\n- Possibilité de remplacer Murano et Burano par une journée entièrement consacrée aux quartiers moins fréquentés de Venise si vous souhaitez limiter les transports.\n\n**Soirée**\n- Dernier dîner près d’un canal, loin de la place Saint-Marc.\n- Dernière promenade autour du Grand Canal.\n\n## Jour 12 — Dernières heures à Venise et départ\n\n**Matin**\n- Petit-déjeuner puis promenade au marché du Rialto si le jour d’ouverture coïncide avec votre séjour.\n- Temps libre pour quelques achats ou une dernière traversée du Grand Canal en vaporetto.\n\n**Départ**\n- Pour l’aéroport Marco-Polo : vaporetto Alilaguna ou bus depuis Piazzale Roma.\n- Pour l’aéroport de Trévise : navette depuis Piazzale Roma ou Mestre.\n- Prévoir une marge supplémentaire en cas de trajet en vaporetto.\n\n## Réservations prioritaires\n\n1. Billets de train Rome–Florence et Florence–Venise.\n2. Colisée, Forum romain et Palatin.\n3. Musées du Vatican.\n4. Galerie Borghèse.\n5. Galerie des Offices.\n6. Coupole du Duomo de Florence.\n7. Basilique Saint-Marc et palais des Doges.\n8. Hébergements centraux, idéalement proches d’une gare ou d’un arrêt de vaporetto."
+        },
+        "output": "# Itinéraire de 12 jours en Italie — Rome, Florence, Toscane et Venise\n\n**Répartition :** 4 nuits à Rome, 4 nuits à Florence, 3 nuits à Venise.  \n**Transports :** trains à grande vitesse entre les villes, sans voiture.\n\n## Jour 1 — Arrivée à Rome et première découverte\n\n**Matin ou début d’après-midi**\n- Arrivée à Rome et installation dans un quartier central : Monti, Panthéon, Prati ou Trastevere.\n- Temps libre pour déjeuner et récupérer du trajet.\n\n**Fin d’après-midi**\n- Promenade sans réservation : place d’Espagne, fontaine de Trevi, piazza Colonna et Panthéon.\n- Pause dans un café autour de la piazza Navona.\n\n**Soirée**\n- Dîner dans le centre historique.\n- Courte promenade autour du Panthéon ou de la fontaine de Trevi illuminée.\n\n## Jour 2 — Rome antique\n\n**Matin**\n- Visite du Colisée, du Forum romain et du mont Palatin.\n- Prévoir environ 3 h 30 pour l’ensemble.\n- Réserver un billet avec horaire d’entrée au Colisée.\n\n**Déjeuner**\n- Déjeuner dans le quartier de Monti.\n\n**Après-midi**\n- Temps libre de deux heures.\n- Promenade vers le Capitole, la place de Venise et le quartier juif.\n- Découverte extérieure du théâtre de Marcellus et du portique d’Octavie.\n\n**Soirée**\n- Dîner dans le quartier juif ou à Monti.\n- Soirée libre.\n\n## Jour 3 — Vatican et Trastevere\n\n**Matin**\n- Musées du Vatican et chapelle Sixtine dès l’ouverture.\n- Visite de la basilique Saint-Pierre après les musées.\n- Réserver les musées plusieurs semaines à l’avance.\n\n**Déjeuner**\n- Déjeuner dans le quartier de Prati, généralement plus calme que les abords immédiats du Vatican.\n\n**Après-midi**\n- Retour à l’hôtel ou pause libre.\n- En fin d’après-midi, traversée du Tibre et promenade dans Trastevere.\n- Passage par la basilique Sainte-Marie-du-Trastevere.\n\n**Soirée**\n- Dîner à Trastevere.\n- Promenade possible jusqu’au belvédère du Janicule pour la vue sur Rome.\n\n## Jour 4 — Rome baroque et temps libre\n\n**Matin**\n- Visite de la galerie Borghèse, avec réservation obligatoire.\n- Promenade dans les jardins de la Villa Borghèse.\n\n**Après-midi**\n- Temps libre pour faire des achats, revoir un quartier préféré ou visiter une église.\n- Option culturelle légère : basilique Saint-Clément ou thermes de Caracalla.\n\n**Soirée**\n- Apéritif autour du Campo de’ Fiori ou de la piazza Navona.\n- Dernier dîner à Rome.\n\n## Jour 5 — Train pour Florence\n\n**Matin**\n- Train Rome-Termini–Florence-Santa Maria Novella.\n- Durée approximative : 1 h 30.\n- Installation près de Santa Maria Novella, du Duomo ou de Santa Croce.\n\n**Après-midi**\n- Déjeuner puis première promenade dans le centre historique.\n- Piazza del Duomo, baptistère, Via dei Calzaiuoli et Piazza della Signoria.\n- Traversée du Ponte Vecchio.\n\n**Fin d’après-midi**\n- Temps libre sur les quais de l’Arno ou à l’hôtel.\n\n**Soirée**\n- Dîner dans le quartier de Santo Spirito.\n\n## Jour 6 — Chefs-d’œuvre de Florence\n\n**Matin**\n- Galerie des Offices dès l’ouverture.\n- Prévoir environ trois heures.\n- Réserver un créneau horaire.\n\n**Déjeuner**\n- Déjeuner près de Santa Croce ou du marché de Sant’Ambrogio.\n\n**Après-midi**\n- Visite de la basilique Santa Croce.\n- Pause libre dans le centre.\n- Promenade jusqu’à la Piazza della Repubblica.\n\n**Soirée**\n- Montée à la Piazzale Michelangelo avant le coucher du soleil.\n- Dîner dans le quartier de San Niccolò.\n\n## Jour 7 — Duomo, marché et Oltrarno\n\n**Matin**\n- Visite du complexe du Duomo.\n- Choisir une montée : coupole de Brunelleschi ou campanile de Giotto.\n- Réserver la coupole à l’avance si vous la privilégiez.\n- Visite de la cathédrale, du baptistère et du musée de l’Œuvre du Duomo selon le billet choisi.\n\n**Déjeuner**\n- Déjeuner au Mercato Centrale ou dans le quartier de San Lorenzo.\n\n**Après-midi**\n- Temps libre de deux à trois heures.\n- Promenade dans l’Oltrarno : Santo Spirito, ateliers artisanaux et jardins de Boboli.\n- Pour un rythme plus léger, remplacer les jardins par une pause prolongée sur une terrasse.\n\n**Soirée**\n- Dîner libre dans l’Oltrarno.\n\n## Jour 8 — Excursion en Toscane : Sienne\n\n**Matin**\n- Bus direct Florence–Sienne, généralement plus pratique que le train pour rejoindre le centre.\n- Découverte de la Piazza del Campo.\n- Visite du Duomo de Sienne et de la bibliothèque Piccolomini.\n\n**Déjeuner**\n- Déjeuner dans le centre historique.\n\n**Après-midi**\n- Promenade dans les ruelles des contrade.\n- Temps libre pour une terrasse, quelques achats ou une visite du Palazzo Pubblico.\n- Retour à Florence en fin d’après-midi.\n\n**Soirée**\n- Dîner calme près de l’hébergement.\n- Préparation du départ pour Venise.\n\n## Jour 9 — Train pour Venise\n\n**Matin**\n- Train Florence-Santa Maria Novella–Venezia Santa Lucia.\n- Durée approximative : 2 h.\n- Installation à Cannaregio, San Polo, Dorsoduro ou près de Santa Lucia pour faciliter les déplacements.\n\n**Après-midi**\n- Première promenade à pied : Cannaregio, ghetto de Venise, Fondamenta della Misericordia et pont du Rialto.\n- Pause au bord d’un canal.\n\n**Soirée**\n- Parcours de bacari avec dégustation de cicchetti.\n- Promenade nocturne dans les quartiers de Cannaregio ou San Polo.\n\n## Jour 10 — Place Saint-Marc et Dorsoduro\n\n**Matin**\n- Basilique Saint-Marc dès l’ouverture.\n- Palais des Doges et pont des Soupirs.\n- Réserver des billets horodatés pour limiter l’attente.\n\n**Déjeuner**\n- S’éloigner de la place Saint-Marc pour déjeuner vers Castello ou San Polo.\n\n**Après-midi**\n- Temps libre après les visites.\n- Promenade vers le théâtre La Fenice, le pont de l’Accademia et les quais de Dorsoduro.\n- Visite facultative de la collection Peggy Guggenheim pour les amateurs d’art moderne.\n\n**Soirée**\n- Apéritif sur le Campo Santa Margherita.\n- Dîner à Dorsoduro.\n\n## Jour 11 — Lagune ou Venise secrète\n\n**Matin**\n- Vaporetto vers Murano.\n- Visite d’un atelier de verre avec démonstration sérieuse, de préférence sur réservation.\n- Poursuite vers Burano pour ses maisons colorées.\n\n**Déjeuner**\n- Déjeuner à Burano.\n\n**Après-midi**\n- Retour à Venise vers 16 h.\n- Temps libre pour une promenade sans itinéraire précis dans Castello ou Cannaregio.\n- Possibilité de remplacer Murano et Burano par une journée entièrement consacrée aux quartiers moins fréquentés de Venise si vous souhaitez limiter les transports.\n\n**Soirée**\n- Dernier dîner près d’un canal, loin de la place Saint-Marc.\n- Dernière promenade autour du Grand Canal.\n\n## Jour 12 — Dernières heures à Venise et départ\n\n**Matin**\n- Petit-déjeuner puis promenade au marché du Rialto si le jour d’ouverture coïncide avec votre séjour.\n- Temps libre pour quelques achats ou une dernière traversée du Grand Canal en vaporetto.\n\n**Départ**\n- Pour l’aéroport Marco-Polo : vaporetto Alilaguna ou bus depuis Piazzale Roma.\n- Pour l’aéroport de Trévise : navette depuis Piazzale Roma ou Mestre.\n- Prévoir une marge supplémentaire en cas de trajet en vaporetto.\n\n## Réservations prioritaires\n\n1. Billets de train Rome–Florence et Florence–Venise.\n2. Colisée, Forum romain et Palatin.\n3. Musées du Vatican.\n4. Galerie Borghèse.\n5. Galerie des Offices.\n6. Coupole du Duomo de Florence.\n7. Basilique Saint-Marc et palais des Doges.\n8. Hébergements centraux, idéalement proches d’une gare ou d’un arrêt de vaporetto.",
+        "total_llm_calls": 5,
+        "gpt_usage": {
+          "input_tokens": 232,
+          "output_tokens": 2167,
+          "total_tokens": 2399,
+          "estimated_cost_usd": 0.044268
+        },
+        "fallback": true,
+        "retries": 0,
+        "error": null
+      },
+      "gpt56sol_pur": {
+        "started_at": "2026-08-28T07:05:35.842Z",
+        "completed_at": "2026-08-28T07:05:42.339Z",
+        "latency_total_ms": 6496.759,
+        "calls": [
+          {
+            "timestamp": "2026-08-28T07:05:42.338Z",
+            "endpoint": "/v1/responses",
+            "status_http": 200,
+            "latency_ms": 6495.29,
+            "response_id": "resp_0998237ec6c68682006a91333ff7b087d2bacdd6e1ff4e2e3b",
+            "response_status": "completed",
+            "model_requested": "gpt-5.6-sol",
+            "model_returned": "gpt-5.6-sol",
+            "usage": {
+              "input_tokens": 14,
+              "output_tokens": 305,
+              "total_tokens": 319,
+              "reasoning_tokens": 52
+            },
+            "estimated_cost_usd": 0.006156,
+            "incomplete_details": null,
+            "error": null,
+            "output": "Avec plaisir ! Pour préparer votre voyage en Italie, j’aurais besoin de quelques informations :\n\n- **Dates ou saison** du voyage  \n- **Durée** du séjour  \n- **Ville de départ** et moyen de transport envisagé  \n- **Nombre de voyageurs**  \n- **Budget approximatif**  \n- Vos envies : **art et histoire, gastronomie, plages, nature, randonnée, villages, vie nocturne…**\n- Votre rythme préféré : **tranquille** ou **plusieurs étapes**\n\nQuelques idées d’itinéraires :\n\n- **7 jours – première découverte** : Rome → Florence → Venise  \n- **10 jours – nord et culture** : Milan → lacs italiens → Vérone → Venise  \n- **10 à 14 jours – sud** : Naples → Pompéi → côte amalfitaine → Pouilles  \n- **Road trip nature et gastronomie** : Bologne → Toscane → Ombrie → Rome  \n- **Soleil et plages** : Sicile ou Sardaigne  \n\nDonnez-moi ces précisions et je pourrai vous proposer un **itinéraire jour par jour**, avec transports, hébergements, visites et estimation du budget."
+          }
+        ],
+        "turns": [],
+        "output": "Avec plaisir ! Pour préparer votre voyage en Italie, j’aurais besoin de quelques informations :\n\n- **Dates ou saison** du voyage  \n- **Durée** du séjour  \n- **Ville de départ** et moyen de transport envisagé  \n- **Nombre de voyageurs**  \n- **Budget approximatif**  \n- Vos envies : **art et histoire, gastronomie, plages, nature, randonnée, villages, vie nocturne…**\n- Votre rythme préféré : **tranquille** ou **plusieurs étapes**\n\nQuelques idées d’itinéraires :\n\n- **7 jours – première découverte** : Rome → Florence → Venise  \n- **10 jours – nord et culture** : Milan → lacs italiens → Vérone → Venise  \n- **10 à 14 jours – sud** : Naples → Pompéi → côte amalfitaine → Pouilles  \n- **Road trip nature et gastronomie** : Bologne → Toscane → Ombrie → Rome  \n- **Soleil et plages** : Sicile ou Sardaigne  \n\nDonnez-moi ces précisions et je pourrai vous proposer un **itinéraire jour par jour**, avec transports, hébergements, visites et estimation du budget.",
+        "error": null,
+        "initial_request_exact": "Je veux préparer mon voyage en Italie.",
+        "clarification_detection": "heuristique documentée"
+      },
+      "evaluation_humaine": {
+        "score_valeur_ajoutee": null,
+        "statut": "à valider humainement"
+      }
+    },
+    {
+      "id": "B3-02",
+      "category": "simple",
+      "domain": "voyage",
+      "demande": "Fais-moi une checklist de 20 points pour préparer un voyage de 12 jours en Italie, classée par ordre chronologique, de deux mois avant le départ jusqu'au jour du départ.",
+      "materiau_present": false,
+      "expected_atelier": {
+        "initial_state": "exploitable",
+        "final_route": "rapide"
+      },
+      "atelier": {
+        "started_at": "2026-08-28T07:05:42.342Z",
+        "completed_at": "2026-08-28T07:05:55.084Z",
+        "html_sha256": "757ad74d70ffeaff8c3c9e2a09d8c3aa9bbbcbcc52d0cae9923f54e7a28f2a06",
+        "latency_total_ms": 12742.501,
+        "time_to_first_useful_result_ms": 12742.513,
+        "route_finale": "rapide",
+        "moteur_final": "rapide",
+        "decision_source": "groq",
+        "decision": {
+          "etat_demande": "exploitable",
+          "route": "rapide",
+          "confiance": "haute",
+          "raison_interne": "La demande est exploitable et peut être exécutée directement sans arbitrage structurel préalable.",
+          "question": null
+        },
+        "decision_provider_calls": [
+          {
+            "kind": "decision_provider",
+            "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+            "started_at": "2026-08-28T07:05:42.891Z",
+            "latency_ms": 269.604,
+            "status_http": 502,
+            "request": {
+              "demande": "Fais-moi une checklist de 20 points pour préparer un voyage de 12 jours en Italie, classée par ordre chronologique, de deux mois avant le départ jusqu'au jour du départ.",
+              "materiau_present": false,
+              "mode_demande": "rapide"
+            },
+            "response": {
+              "error": "provider_failure",
+              "message": "Le fournisseur de décision n’est pas disponible."
+            },
+            "error": null
+          },
+          {
+            "kind": "decision_provider",
+            "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+            "started_at": "2026-08-28T07:05:43.160Z",
+            "latency_ms": 575.55,
+            "status_http": 200,
+            "request": {
+              "demande": "Fais-moi une checklist de 20 points pour préparer un voyage de 12 jours en Italie, classée par ordre chronologique, de deux mois avant le départ jusqu'au jour du départ.",
+              "materiau_present": false,
+              "mode_demande": "rapide"
+            },
+            "response": {
+              "etat_demande": "exploitable",
+              "route": "rapide",
+              "confiance": "haute",
+              "raison_interne": "La demande est exploitable et peut être exécutée directement sans arbitrage structurel préalable.",
+              "question": null
+            },
+            "error": null
+          }
+        ],
+        "decision_provider_latency_ms": 845.154,
+        "clarifications": [],
+        "nombre_reanalyses": 1,
+        "engine": {
+          "engine": "rapide",
+          "latency_ms": 22.636,
+          "format": "list",
+          "niveau": "minimal",
+          "prompt": "## RÔLE\nVous produisez un livrable de type : liste ou checklist.\nVous êtes évalué sur la conformité au format et sur l’exhaustivité, non sur la qualité de la conversation.\n\n## TÂCHE\nFais-moi une checklist de 20 points pour préparer un voyage de 12 jours en Italie, classée par ordre chronologique, de deux mois avant le départ jusqu'au jour du départ.\n\n## FORMAT DE SORTIE\n- Livrable : liste ou checklist\n- Validité : Un élément par ligne, aucune ligne d’introduction.\n- Aucun contenu en dehors du livrable.\n\n## AMORCE ET CLÔTURE\n- Premier caractère de votre réponse : - ou 1.\n- Dernier élément de votre réponse : le dernier élément de liste\n- Rien avant, rien après.\n\n## CONTRAINTES QUANTIFIÉES\n- Minimum 20 éléments, sans doublon.\n- Volume attendu : 150 à 300 mots.\n- Couverture : 100 % des éléments présents dans les données sources. Une omission constitue un échec, même si le résultat paraît complet.\n\n## INTERDICTIONS\n- Pas de préambule, pas de reformulation de la demande, pas d’accusé de réception.\n- Pas de conclusion, pas de proposition d’aide complémentaire, pas de question finale.\n- Pas de commentaire sur votre propre production ni sur vos limites.\n- Pas d’espace réservé : ni « … », ni « etc. », ni « à compléter », ni « et ainsi de suite ».\n- Pas de résumé en lieu et place du contenu demandé.\n\n## VÉRIFICATION AVANT ENVOI\nContrôlez silencieusement, puis corrigez avant d’écrire. N’affichez pas cette vérification.\n1. La réponse commence-t-elle par - ou 1. ?\n2. Le nombre de éléments est-il au moins 20 ?\n3. Subsiste-t-il un préambule ou une conclusion hors sujet ? Le cas échéant, supprimez-les.\n4. Le format est-il valide ? Un élément par ligne, aucune ligne d’introduction.\n5. Reste-t-il un espace réservé ou une abréviation de contenu ?"
+        },
+        "final_call": {
+          "timestamp": "2026-08-28T07:05:55.068Z",
+          "endpoint": "/v1/responses",
+          "status_http": 200,
+          "latency_ms": 11271.418,
+          "response_id": "resp_03e1a5e802736e0a006a913347e5d887d2862f3b42afa43b9a",
+          "response_status": "completed",
+          "model_requested": "gpt-5.6-sol",
+          "model_returned": "gpt-5.6-sol",
+          "usage": {
+            "input_tokens": 475,
+            "output_tokens": 548,
+            "total_tokens": 1023,
+            "reasoning_tokens": 66
+          },
+          "estimated_cost_usd": 0.01286,
+          "incomplete_details": null,
+          "error": null,
+          "output": "- Deux mois avant : vérifier la validité de la carte d’identité ou du passeport pour toute la durée du séjour.\n- Deux mois avant : définir le budget global couvrant transports, hébergements, repas, visites, achats et imprévus.\n- Deux mois avant : choisir les villes et régions à visiter selon le rythme souhaité et les distances.\n- Deux mois avant : construire un itinéraire réaliste sur 12 jours, incluant les temps de transfert.\n- Sept semaines avant : réserver les vols ou billets de train aller-retour et vérifier les conditions tarifaires.\n- Sept semaines avant : réserver les hébergements, en contrôlant leur emplacement, les horaires et les taxes de séjour.\n- Six semaines avant : réserver les trains intérieurs, voitures de location ou autres transports interurbains nécessaires.\n- Six semaines avant : souscrire une assurance voyage couvrant annulation, soins médicaux, bagages et assistance.\n- Un mois avant : demander la carte européenne d’assurance maladie et enregistrer les contacts d’urgence.\n- Un mois avant : réserver les visites très demandées, notamment musées, monuments, sites archéologiques et excursions.\n- Trois semaines avant : vérifier les règles relatives aux bagages, aux liquides et aux objets interdits.\n- Trois semaines avant : contrôler les moyens de paiement, plafonds bancaires, frais à l’étranger et disponibilité d’espèces.\n- Deux semaines avant : préparer les confirmations de transport, d’hébergement et d’activités dans un dossier accessible hors ligne.\n- Deux semaines avant : établir une liste de vêtements adaptée aux régions visitées, à la météo et aux activités.\n- Dix jours avant : vérifier les prévisions météorologiques et ajuster vêtements, chaussures, protection solaire et parapluie.\n- Une semaine avant : préparer les médicaments, ordonnances, lunettes, trousse de premiers soins et produits personnels.\n- Cinq jours avant : télécharger cartes hors ligne, applications de transport, traducteur et billets électroniques.\n- Trois jours avant : informer un proche de l’itinéraire et lui transmettre les coordonnées des hébergements.\n- La veille : faire les bagages, charger les appareils, préparer les adaptateurs et peser chaque valise.\n- Le jour du départ : prendre documents, billets, portefeuille, téléphone, chargeur, clés et arriver suffisamment tôt au terminal."
+        },
+        "output": "- Deux mois avant : vérifier la validité de la carte d’identité ou du passeport pour toute la durée du séjour.\n- Deux mois avant : définir le budget global couvrant transports, hébergements, repas, visites, achats et imprévus.\n- Deux mois avant : choisir les villes et régions à visiter selon le rythme souhaité et les distances.\n- Deux mois avant : construire un itinéraire réaliste sur 12 jours, incluant les temps de transfert.\n- Sept semaines avant : réserver les vols ou billets de train aller-retour et vérifier les conditions tarifaires.\n- Sept semaines avant : réserver les hébergements, en contrôlant leur emplacement, les horaires et les taxes de séjour.\n- Six semaines avant : réserver les trains intérieurs, voitures de location ou autres transports interurbains nécessaires.\n- Six semaines avant : souscrire une assurance voyage couvrant annulation, soins médicaux, bagages et assistance.\n- Un mois avant : demander la carte européenne d’assurance maladie et enregistrer les contacts d’urgence.\n- Un mois avant : réserver les visites très demandées, notamment musées, monuments, sites archéologiques et excursions.\n- Trois semaines avant : vérifier les règles relatives aux bagages, aux liquides et aux objets interdits.\n- Trois semaines avant : contrôler les moyens de paiement, plafonds bancaires, frais à l’étranger et disponibilité d’espèces.\n- Deux semaines avant : préparer les confirmations de transport, d’hébergement et d’activités dans un dossier accessible hors ligne.\n- Deux semaines avant : établir une liste de vêtements adaptée aux régions visitées, à la météo et aux activités.\n- Dix jours avant : vérifier les prévisions météorologiques et ajuster vêtements, chaussures, protection solaire et parapluie.\n- Une semaine avant : préparer les médicaments, ordonnances, lunettes, trousse de premiers soins et produits personnels.\n- Cinq jours avant : télécharger cartes hors ligne, applications de transport, traducteur et billets électroniques.\n- Trois jours avant : informer un proche de l’itinéraire et lui transmettre les coordonnées des hébergements.\n- La veille : faire les bagages, charger les appareils, préparer les adaptateurs et peser chaque valise.\n- Le jour du départ : prendre documents, billets, portefeuille, téléphone, chargeur, clés et arriver suffisamment tôt au terminal.",
+        "total_llm_calls": 3,
+        "gpt_usage": {
+          "input_tokens": 475,
+          "output_tokens": 548,
+          "total_tokens": 1023,
+          "estimated_cost_usd": 0.01286
+        },
+        "fallback": true,
+        "retries": 0,
+        "error": null
+      },
+      "gpt56sol_pur": {
+        "started_at": "2026-08-28T07:05:55.087Z",
+        "completed_at": "2026-08-28T07:06:10.235Z",
+        "latency_total_ms": 15147.917,
+        "calls": [
+          {
+            "timestamp": "2026-08-28T07:06:10.234Z",
+            "endpoint": "/v1/responses",
+            "status_http": 200,
+            "latency_ms": 15035.595,
+            "response_id": "resp_09dae87541baba57006a9133533b5c87d2980a5e05d607cf44",
+            "response_status": "completed",
+            "model_requested": "gpt-5.6-sol",
+            "model_returned": "gpt-5.6-sol",
+            "usage": {
+              "input_tokens": 45,
+              "output_tokens": 720,
+              "total_tokens": 765,
+              "reasoning_tokens": 63
+            },
+            "estimated_cost_usd": 0.01458,
+            "incomplete_details": null,
+            "error": null,
+            "output": "## Checklist chronologique — 12 jours en Italie\n\n### Deux mois avant le départ\n1. **J-60 : vérifier les documents d’identité** — carte nationale d’identité ou passeport valide pendant tout le séjour.\n2. **J-58 : définir l’itinéraire des 12 jours** — villes, nombre de nuits et temps de trajet réalistes.\n3. **J-56 : fixer le budget global** — transport, hébergement, repas, visites, achats et marge d’urgence.\n4. **J-54 : réserver les transports aller-retour** — avion, train, bus ou voiture.\n5. **J-50 : réserver les hébergements** — vérifier l’emplacement, les horaires d’arrivée et la taxe de séjour.\n\n### Six à quatre semaines avant\n6. **J-45 : organiser les déplacements en Italie** — trains à grande vitesse, voiture de location, ferries ou pass régionaux.\n7. **J-42 : contrôler les conditions de conduite** — permis, assurance, péages, stationnement et zones ZTL si vous louez une voiture.\n8. **J-40 : demander la Carte européenne d’assurance maladie** — et vérifier les garanties de votre assurance voyage.\n9. **J-35 : réserver les visites très demandées** — Colisée, musées du Vatican, Galerie des Offices, Cène de Léonard de Vinci, etc.\n10. **J-30 : établir un programme quotidien flexible** — activités prioritaires, temps libre et solutions en cas de pluie.\n\n### Trois à deux semaines avant\n11. **J-21 : vérifier les moyens de paiement** — plafonds bancaires, frais à l’étranger et petite réserve d’espèces.\n12. **J-18 : préparer la connexion mobile** — roaming européen, volume de données et téléchargement des cartes hors ligne.\n13. **J-16 : vérifier la météo et adapter la garde-robe** — prévoir notamment une tenue couvrant épaules et genoux pour certains édifices religieux.\n14. **J-14 : faire une liste de bagages** — vêtements, chaussures confortables, médicaments, adaptateur si nécessaire et petit sac de journée.\n\n### La semaine avant\n15. **J-7 : confirmer toutes les réservations** — noms, dates, horaires, adresses et conditions d’annulation.\n16. **J-6 : enregistrer les documents importants** — copies papier et numériques des pièces d’identité, billets, assurances et réservations.\n17. **J-5 : préparer les applications utiles** — compagnies ferroviaires, transports urbains, cartes, traduction et réservations.\n18. **J-3 : préparer la trousse de santé et les bagages** — ordonnances, médicaments personnels, protection solaire et liquides conformes aux règles aériennes.\n\n### La veille et le jour du départ\n19. **J-1 : effectuer les dernières vérifications** — enregistrement en ligne, horaires, terminal ou quai, météo, chargeurs et batteries.\n20. **Jour J : contrôler les indispensables avant de partir** — identité, téléphone, portefeuille, billets, clés, médicaments et arrivée suffisamment anticipée."
+          }
+        ],
+        "turns": [],
+        "output": "## Checklist chronologique — 12 jours en Italie\n\n### Deux mois avant le départ\n1. **J-60 : vérifier les documents d’identité** — carte nationale d’identité ou passeport valide pendant tout le séjour.\n2. **J-58 : définir l’itinéraire des 12 jours** — villes, nombre de nuits et temps de trajet réalistes.\n3. **J-56 : fixer le budget global** — transport, hébergement, repas, visites, achats et marge d’urgence.\n4. **J-54 : réserver les transports aller-retour** — avion, train, bus ou voiture.\n5. **J-50 : réserver les hébergements** — vérifier l’emplacement, les horaires d’arrivée et la taxe de séjour.\n\n### Six à quatre semaines avant\n6. **J-45 : organiser les déplacements en Italie** — trains à grande vitesse, voiture de location, ferries ou pass régionaux.\n7. **J-42 : contrôler les conditions de conduite** — permis, assurance, péages, stationnement et zones ZTL si vous louez une voiture.\n8. **J-40 : demander la Carte européenne d’assurance maladie** — et vérifier les garanties de votre assurance voyage.\n9. **J-35 : réserver les visites très demandées** — Colisée, musées du Vatican, Galerie des Offices, Cène de Léonard de Vinci, etc.\n10. **J-30 : établir un programme quotidien flexible** — activités prioritaires, temps libre et solutions en cas de pluie.\n\n### Trois à deux semaines avant\n11. **J-21 : vérifier les moyens de paiement** — plafonds bancaires, frais à l’étranger et petite réserve d’espèces.\n12. **J-18 : préparer la connexion mobile** — roaming européen, volume de données et téléchargement des cartes hors ligne.\n13. **J-16 : vérifier la météo et adapter la garde-robe** — prévoir notamment une tenue couvrant épaules et genoux pour certains édifices religieux.\n14. **J-14 : faire une liste de bagages** — vêtements, chaussures confortables, médicaments, adaptateur si nécessaire et petit sac de journée.\n\n### La semaine avant\n15. **J-7 : confirmer toutes les réservations** — noms, dates, horaires, adresses et conditions d’annulation.\n16. **J-6 : enregistrer les documents importants** — copies papier et numériques des pièces d’identité, billets, assurances et réservations.\n17. **J-5 : préparer les applications utiles** — compagnies ferroviaires, transports urbains, cartes, traduction et réservations.\n18. **J-3 : préparer la trousse de santé et les bagages** — ordonnances, médicaments personnels, protection solaire et liquides conformes aux règles aériennes.\n\n### La veille et le jour du départ\n19. **J-1 : effectuer les dernières vérifications** — enregistrement en ligne, horaires, terminal ou quai, météo, chargeurs et batteries.\n20. **Jour J : contrôler les indispensables avant de partir** — identité, téléphone, portefeuille, billets, clés, médicaments et arrivée suffisamment anticipée.",
+        "error": null,
+        "initial_request_exact": "Fais-moi une checklist de 20 points pour préparer un voyage de 12 jours en Italie, classée par ordre chronologique, de deux mois avant le départ jusqu'au jour du départ.",
+        "clarification_detection": "heuristique documentée"
+      },
+      "evaluation_humaine": {
+        "score_valeur_ajoutee": null,
+        "statut": "à valider humainement"
+      }
+    },
+    {
+      "id": "B3-03",
+      "category": "complexe",
+      "domain": "décision d’entreprise",
+      "demande": "Je dirige une petite entreprise de 12 personnes.\nNous devons remplacer notre logiciel de gestion de projet.\nCompare trois stratégies possibles : conserver l'outil actuel, migrer vers une solution SaaS standard ou développer une solution interne.\n\nJe veux une analyse structurée comprenant les avantages, les risques, les coûts, les conséquences organisationnelles, les critères de décision et une recommandation finale argumentée.",
+      "materiau_present": false,
+      "expected_atelier": {
+        "initial_state": "exploitable",
+        "final_route": "architecte"
+      },
+      "atelier": {
+        "started_at": "2026-08-28T07:06:10.237Z",
+        "completed_at": "2026-08-28T07:06:25.027Z",
+        "html_sha256": "757ad74d70ffeaff8c3c9e2a09d8c3aa9bbbcbcc52d0cae9923f54e7a28f2a06",
+        "latency_total_ms": 14790.516,
+        "time_to_first_useful_result_ms": 14790.524,
+        "route_finale": "rapide",
+        "moteur_final": "rapide",
+        "decision_source": "groq",
+        "decision": {
+          "etat_demande": "exploitable",
+          "route": "rapide",
+          "confiance": "haute",
+          "raison_interne": "La demande est exploitable et peut être exécutée directement sans arbitrage structurel préalable.",
+          "question": null
+        },
+        "decision_provider_calls": [
+          {
+            "kind": "decision_provider",
+            "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+            "started_at": "2026-08-28T07:06:10.772Z",
+            "latency_ms": 237.581,
+            "status_http": 502,
+            "request": {
+              "demande": "Je dirige une petite entreprise de 12 personnes.\nNous devons remplacer notre logiciel de gestion de projet.\nCompare trois stratégies possibles : conserver l'outil actuel, migrer vers une solution SaaS standard ou développer une solution interne.\n\nJe veux une analyse structurée comprenant les avantages, les risques, les coûts, les conséquences organisationnelles, les critères de décision et une recommandation finale argumentée.",
+              "materiau_present": false,
+              "mode_demande": "rapide"
+            },
+            "response": {
+              "error": "provider_failure",
+              "message": "Le fournisseur de décision n’est pas disponible."
+            },
+            "error": null
+          },
+          {
+            "kind": "decision_provider",
+            "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+            "started_at": "2026-08-28T07:06:11.010Z",
+            "latency_ms": 548.202,
+            "status_http": 200,
+            "request": {
+              "demande": "Je dirige une petite entreprise de 12 personnes.\nNous devons remplacer notre logiciel de gestion de projet.\nCompare trois stratégies possibles : conserver l'outil actuel, migrer vers une solution SaaS standard ou développer une solution interne.\n\nJe veux une analyse structurée comprenant les avantages, les risques, les coûts, les conséquences organisationnelles, les critères de décision et une recommandation finale argumentée.",
+              "materiau_present": false,
+              "mode_demande": "rapide"
+            },
+            "response": {
+              "etat_demande": "exploitable",
+              "route": "rapide",
+              "confiance": "haute",
+              "raison_interne": "La demande est exploitable et peut être exécutée directement sans arbitrage structurel préalable.",
+              "question": null
+            },
+            "error": null
+          }
+        ],
+        "decision_provider_latency_ms": 785.783,
+        "clarifications": [],
+        "nombre_reanalyses": 1,
+        "engine": {
+          "engine": "rapide",
+          "latency_ms": 25.638,
+          "format": "report",
+          "niveau": "minimal",
+          "prompt": "## RÔLE\nVous produisez un livrable de type : rapport structuré en Markdown.\nVous êtes évalué sur la conformité au format et sur l’exhaustivité, non sur la qualité de la conversation.\n\n## TÂCHE\nJe dirige une petite entreprise de 12 personnes.\nNous devons remplacer notre logiciel de gestion de projet.\nCompare trois stratégies possibles : conserver l'outil actuel, migrer vers une solution SaaS standard ou développer une solution interne.\n\nJe veux une analyse structurée comprenant les avantages, les risques, les coûts, les conséquences organisationnelles, les critères de décision et une recommandation finale argumentée.\n\n## FORMAT DE SORTIE\n- Livrable : rapport structuré en Markdown\n- Validité : Hiérarchie de titres cohérente, aucune section vide.\n- Aucun contenu en dehors du livrable.\n\n## AMORCE ET CLÔTURE\n- Premier caractère de votre réponse : # suivi du titre\n- Dernier élément de votre réponse : la dernière ligne de contenu\n- Rien avant, rien après.\n\n## CONTRAINTES QUANTIFIÉES\n- Minimum 3 sections, sans doublon.\n- Volume attendu : 150 à 300 mots.\n- Couverture : 100 % des éléments présents dans les données sources. Une omission constitue un échec, même si le résultat paraît complet.\n\n## INTERDICTIONS\n- Pas de préambule, pas de reformulation de la demande, pas d’accusé de réception.\n- Pas de conclusion, pas de proposition d’aide complémentaire, pas de question finale.\n- Pas de commentaire sur votre propre production ni sur vos limites.\n- Pas d’espace réservé : ni « … », ni « etc. », ni « à compléter », ni « et ainsi de suite ».\n- Pas de résumé en lieu et place du contenu demandé.\n\n## INFORMATIONS MANQUANTES\nNe posez aucune question de confort. Si une information vous manque, retenez l’hypothèse la plus plausible, poursuivez la tâche, et consignez-la dans une section finale intitulée HYPOTHÈSES.\n- Exception : si l’information manquante rend le résultat faux plutôt qu’imprécis — donnée chiffrée absente, source non fournie, dépendance technique inconnue — ne devinez pas. Produisez la partie du livrable qui ne dépend pas de cette information, puis énoncez en clair ce qu’il vous faut pour achever le reste.\n\n## LIMITE DE LONGUEUR\nSi vous approchez de la limite de réponse, ne compressez pas et ne résumez pas. Terminez le dernier élément commencé, puis écrivez en dernière ligne exactement : [SUITE_REQUISE : dernier élément traité = <identifiant>].\nN’interrompez jamais une structure au milieu : objet JSON, balise, tableau. Le livrable doit rester valide même incomplet.\n\n## VÉRIFICATION AVANT ENVOI\nContrôlez silencieusement, puis corrigez avant d’écrire. N’affichez pas cette vérification.\n1. La réponse commence-t-elle par # suivi du titre ?\n2. Le nombre de sections est-il au moins 3 ?\n3. Subsiste-t-il un préambule ou une conclusion hors sujet ? Le cas échéant, supprimez-les.\n4. Le format est-il valide ? Hiérarchie de titres cohérente, aucune section vide.\n5. Reste-t-il un espace réservé ou une abréviation de contenu ?"
+        },
+        "final_call": {
+          "timestamp": "2026-08-28T07:06:25.016Z",
+          "endpoint": "/v1/responses",
+          "status_http": 200,
+          "latency_ms": 13386.424,
+          "response_id": "resp_0fd552d9b8d48c3e006a913363bb6487d28356973c3555c1ba",
+          "response_status": "completed",
+          "model_requested": "gpt-5.6-sol",
+          "model_returned": "gpt-5.6-sol",
+          "usage": {
+            "input_tokens": 741,
+            "output_tokens": 639,
+            "total_tokens": 1380,
+            "reasoning_tokens": 66
+          },
+          "estimated_cost_usd": 0.015744,
+          "incomplete_details": null,
+          "error": null,
+          "output": "# Comparaison des stratégies de gestion de projet\n\n## Options étudiées\n\n### 1. Conserver l’outil actuel\n- **Avantages :** absence de migration, continuité immédiate, maîtrise par les équipes, maintien des processus existants.\n- **Risques :** inadéquation durable aux besoins, dette technique, support potentiellement limité, perte de productivité et contournements manuels.\n- **Coûts :** licences, maintenance, assistance et coût indirect des inefficacités.\n- **Conséquences organisationnelles :** changement minimal, mais persistance des irritants et faible amélioration des pratiques.\n\n### 2. Migrer vers une solution SaaS standard\n- **Avantages :** déploiement rapide, maintenance externalisée, mises à jour régulières, accès distant, intégrations et fonctionnalités éprouvées.\n- **Risques :** dépendance au fournisseur, hausse tarifaire, sécurité et localisation des données, personnalisation limitée, effort de migration.\n- **Coûts :** abonnements pour 12 utilisateurs, paramétrage, transfert des données, formation et éventuelles intégrations.\n- **Conséquences organisationnelles :** harmonisation des méthodes, désignation d’un administrateur, formation courte et adaptation des habitudes.\n\n### 3. Développer une solution interne\n- **Avantages :** adéquation précise aux processus, contrôle des données, évolutions personnalisées et absence de dépendance fonctionnelle à un éditeur.\n- **Risques :** délais, dépassements budgétaires, défauts de sécurité, dépendance aux développeurs, maintenance permanente et obsolescence.\n- **Coûts :** conception, développement, hébergement, tests, documentation, support et évolutions.\n- **Conséquences organisationnelles :** mobilisation importante, gouvernance produit nécessaire et responsabilité technique durable.\n\n## Critères de décision\n\nÉvaluer le coût total sur trois ans, la couverture fonctionnelle, l’ergonomie, la sécurité, la réversibilité, les intégrations, la qualité du support, le délai de déploiement, l’évolutivité et l’adhésion des utilisateurs.\n\n## Recommandation finale\n\nPour une entreprise de 12 personnes, privilégier un **SaaS standard** : il offre le meilleur équilibre entre rapidité, maîtrise des risques, fonctionnalités et charge interne. Organiser un pilote, valider l’export des données et négocier les conditions tarifaires et de réversibilité. Conserver l’outil actuel seulement comme transition; réserver le développement interne à un besoin réellement différenciant.\n\n## HYPOTHÈSES\n\nL’outil actuel présente des limites motivant son remplacement, les besoins restent standards et aucune contrainte réglementaire ou technique particulière n’est connue."
+        },
+        "output": "# Comparaison des stratégies de gestion de projet\n\n## Options étudiées\n\n### 1. Conserver l’outil actuel\n- **Avantages :** absence de migration, continuité immédiate, maîtrise par les équipes, maintien des processus existants.\n- **Risques :** inadéquation durable aux besoins, dette technique, support potentiellement limité, perte de productivité et contournements manuels.\n- **Coûts :** licences, maintenance, assistance et coût indirect des inefficacités.\n- **Conséquences organisationnelles :** changement minimal, mais persistance des irritants et faible amélioration des pratiques.\n\n### 2. Migrer vers une solution SaaS standard\n- **Avantages :** déploiement rapide, maintenance externalisée, mises à jour régulières, accès distant, intégrations et fonctionnalités éprouvées.\n- **Risques :** dépendance au fournisseur, hausse tarifaire, sécurité et localisation des données, personnalisation limitée, effort de migration.\n- **Coûts :** abonnements pour 12 utilisateurs, paramétrage, transfert des données, formation et éventuelles intégrations.\n- **Conséquences organisationnelles :** harmonisation des méthodes, désignation d’un administrateur, formation courte et adaptation des habitudes.\n\n### 3. Développer une solution interne\n- **Avantages :** adéquation précise aux processus, contrôle des données, évolutions personnalisées et absence de dépendance fonctionnelle à un éditeur.\n- **Risques :** délais, dépassements budgétaires, défauts de sécurité, dépendance aux développeurs, maintenance permanente et obsolescence.\n- **Coûts :** conception, développement, hébergement, tests, documentation, support et évolutions.\n- **Conséquences organisationnelles :** mobilisation importante, gouvernance produit nécessaire et responsabilité technique durable.\n\n## Critères de décision\n\nÉvaluer le coût total sur trois ans, la couverture fonctionnelle, l’ergonomie, la sécurité, la réversibilité, les intégrations, la qualité du support, le délai de déploiement, l’évolutivité et l’adhésion des utilisateurs.\n\n## Recommandation finale\n\nPour une entreprise de 12 personnes, privilégier un **SaaS standard** : il offre le meilleur équilibre entre rapidité, maîtrise des risques, fonctionnalités et charge interne. Organiser un pilote, valider l’export des données et négocier les conditions tarifaires et de réversibilité. Conserver l’outil actuel seulement comme transition; réserver le développement interne à un besoin réellement différenciant.\n\n## HYPOTHÈSES\n\nL’outil actuel présente des limites motivant son remplacement, les besoins restent standards et aucune contrainte réglementaire ou technique particulière n’est connue.",
+        "total_llm_calls": 3,
+        "gpt_usage": {
+          "input_tokens": 741,
+          "output_tokens": 639,
+          "total_tokens": 1380,
+          "estimated_cost_usd": 0.015744
+        },
+        "fallback": true,
+        "retries": 0,
+        "error": null
+      },
+      "gpt56sol_pur": {
+        "started_at": "2026-08-28T07:06:25.030Z",
+        "completed_at": "2026-08-28T07:07:00.636Z",
+        "latency_total_ms": 35605.581,
+        "calls": [
+          {
+            "timestamp": "2026-08-28T07:07:00.636Z",
+            "endpoint": "/v1/responses",
+            "status_http": 200,
+            "latency_ms": 35580.156,
+            "response_id": "resp_0a969f36454afd6f006a9133712b4887d2a5638ce6ec1cbe53",
+            "response_status": "incomplete",
+            "model_requested": "gpt-5.6-sol",
+            "model_returned": "gpt-5.6-sol",
+            "usage": {
+              "input_tokens": 84,
+              "output_tokens": 2500,
+              "total_tokens": 2584,
+              "reasoning_tokens": 84
+            },
+            "estimated_cost_usd": 0.050336,
+            "incomplete_details": {
+              "reason": "max_output_tokens"
+            },
+            "error": null,
+            "output": "## Synthèse\n\nPour une entreprise de 12 personnes, la **migration vers une solution SaaS standard** est généralement le meilleur compromis entre fonctionnalités, coût, rapidité de déploiement et risque opérationnel.\n\n- **Conserver l’outil actuel** peut être pertinent à court terme si les difficultés restent mineures ou si l’entreprise traverse une période sensible.\n- **Développer une solution interne** ne se justifie que si la gestion de projet constitue un avantage concurrentiel réel et repose sur des processus très spécifiques qu’aucun outil standard ne peut couvrir.\n\n---\n\n# 1. Conserver l’outil actuel\n\n## Avantages\n\n- Aucun projet de migration immédiat.\n- Pas ou peu de formation supplémentaire.\n- Continuité des habitudes et des processus.\n- Absence de risque de perte de données lors d’un transfert.\n- Coût initial faible.\n- Pas de baisse temporaire de productivité liée au changement.\n\n## Risques et limites\n\n- Les problèmes ayant motivé le remplacement restent présents :\n  - ergonomie insuffisante ;\n  - manque d’automatisation ;\n  - reporting limité ;\n  - mauvaises intégrations ;\n  - difficultés de collaboration.\n- Accumulation de contournements : fichiers Excel, e-mails, doubles saisies.\n- Risque d’obsolescence technique ou d’arrêt du support.\n- Difficulté à accompagner la croissance de l’entreprise.\n- Coûts cachés liés au temps perdu et aux erreurs.\n- Démotivation des utilisateurs si leurs difficultés sont connues mais non traitées.\n\n## Coûts\n\n### Coûts directs\n- Licences et maintenance existantes.\n- Éventuels modules complémentaires.\n- Prestations ponctuelles de paramétrage ou de support.\n\n### Coûts indirects\n- Temps passé aux doubles saisies.\n- Manque de visibilité sur les délais et la charge.\n- Erreurs de coordination.\n- Reporting manuel.\n- Opportunités perdues faute de données fiables.\n\nLe maintien paraît souvent moins cher, mais son **coût total de possession** peut être élevé si chaque salarié perd régulièrement du temps.\n\n## Conséquences organisationnelles\n\n- Très faible perturbation immédiate.\n- Maintien des pratiques existantes, y compris les moins efficaces.\n- Pas de dynamique d’amélioration structurante.\n- Possibilité de repousser le problème sans le résoudre.\n\n## Quand cette stratégie est pertinente\n\n- Les irritants sont limités et réparables.\n- L’outil est encore maintenu et sécurisé.\n- Le coût d’une migration immédiate est disproportionné.\n- L’entreprise connaît une période critique pendant laquelle un changement serait trop risqué.\n- Une évolution de l’activité est attendue prochainement et rendrait prématuré le choix d’un nouvel outil.\n\n---\n\n# 2. Migrer vers une solution SaaS standard\n\n## Avantages\n\n- Déploiement généralement rapide.\n- Investissement initial limité.\n- Maintenance, hébergement et mises à jour pris en charge par l’éditeur.\n- Fonctionnalités éprouvées :\n  - gestion des tâches et des jalons ;\n  - tableaux Kanban ou diagrammes de Gantt ;\n  - suivi de la charge ;\n  - automatisations ;\n  - tableaux de bord ;\n  - collaboration et notifications ;\n  - accès mobile.\n- Intégrations avec les outils courants : messagerie, calendrier, stockage documentaire, CRM ou comptabilité.\n- Capacité à ajouter ou retirer des utilisateurs facilement.\n- Amélioration continue du produit par l’éditeur.\n- Sécurité souvent supérieure à celle qu’une petite entreprise pourrait mettre en œuvre seule.\n\n## Risques et limites\n\n- Dépendance à l’éditeur :\n  - évolution des tarifs ;\n  - suppression de fonctionnalités ;\n  - changement de conditions contractuelles ;\n  - arrêt éventuel du service.\n- Personnalisation limitée par rapport à une solution interne.\n- Risque de choisir un outil trop complexe ou surdimensionné.\n- Hébergement des données chez un tiers.\n- Nécessité de vérifier :\n  - la conformité RGPD ;\n  - la localisation des données ;\n  - les sauvegardes ;\n  - la réversibilité ;\n  - les possibilités d’export ;\n  - la gestion des droits d’accès.\n- Coût récurrent qui augmente avec le nombre d’utilisateurs et les options.\n- Risque d’adoption insuffisante si l’outil est imposé sans revoir les pratiques.\n\n## Coûts\n\nPour 12 personnes, les ordres de grandeur varient fortement selon le produit et le niveau de service.\n\n### Coûts directs indicatifs\n- Licences : environ **1 500 à 6 000 € par an** pour 12 utilisateurs, parfois davantage pour des fonctions avancées.\n- Paramétrage et intégrations : **1 000 à 8 000 €**.\n- Migration des données : **1 000 à 5 000 €** selon leur volume et leur qualité.\n- Formation et accompagnement : **500 à 3 000 €**.\n\n### Coûts indirects\n- Temps consacré à la sélection.\n- Nettoyage et reprise des données.\n- Formation des utilisateurs.\n- Baisse temporaire de productivité pendant quelques semaines.\n- Formalisation ou adaptation des processus internes.\n\nCes montants sont à considérer comme des fourchettes de cadrage, à confirmer par des devis.\n\n## Conséquences organisationnelles\n\n- Nécessité de définir un fonctionnement commun :\n  - statuts des projets ;\n  - règles de création des tâches ;\n  - responsabilités ;\n  - niveaux de priorité ;\n  - fréquence des mises à jour ;\n  - indicateurs.\n- Réduction possible des pratiques dispersées entre e-mails, tableurs et documents.\n- Meilleure visibilité collective sur les projets et les charges.\n- Besoin de désigner un responsable interne de l’outil.\n- Formation légère mais indispensable.\n- Arbitrage à faire entre adaptation de l’outil et adaptation des processus.\n\nLe principal enjeu n’est généralement pas technique, mais humain : **un SaaS bien choisi échoue si les règles d’usage ne sont pas claires**.\n\n## Quand cette stratégie est pertinente\n\n- Les besoins sont relativement standards.\n- L’entreprise veut une solution opérationnelle rapidement.\n- Elle ne souhaite pas entretenir une équipe technique dédiée.\n- Les intégrations nécessaires existent.\n- Les données peuvent être hébergées chez un prestataire répondant aux exigences contractuelles et réglementaires.\n- L’organisation accepte d’adapter certains processus aux bonnes pratiques proposées par le produit.\n\n---\n\n# 3. Développer une solution interne\n\n## Avantages\n\n- Adéquation maximale avec les processus de l’entreprise.\n- Maîtrise de la feuille de route fonctionnelle.\n- Possibilité d’intégrer précisément les outils internes.\n- Contrôle accru sur les données et les règles métier.\n- Absence de paiement de licences par utilisateur, même si d’autres coûts persistent.\n- Potentiel avantage concurrentiel si la solution formalise un savoir-faire réellement différenciant.\n\n## Risques et limites\n\n- Coût initial élevé.\n- Délais de réalisation importants.\n- Risque de dépassement de budget et de périmètre.\n- Sous-estimation fréquente des fonctions « secondaires » :\n  - droits d’accès ;\n  - historique ;\n  - recherche ;\n  - notifications ;\n  - exports ;\n  - sécurité ;\n  - sauvegardes ;\n  - audit ;\n  - interface mobile ;\n  - administration.\n- Maintenance permanente après le lancement.\n- Dépendance à un développeur, un prestataire ou une petite équipe.\n- Difficulté à atteindre le niveau d’ergonomie et de fiabilité d’un produit SaaS mature.\n- Dette technique et obsolescence.\n- Coût d’opportunité : les ressources mobilisées ne travaillent pas sur le cœur de métier.\n- Risque que les besoins évoluent avant même la fin du développement.\n\n## Coûts\n\n### Coûts directs indicatifs\n- Conception et prototype : **5 000 à 20 000 €**.\n- Première version exploitable : souvent **30 000 à 100 000 €**, voire davantage.\n- Hébergement, supervision et sécurité : plusieurs milliers d’euros par an.\n- Maintenance corrective et évolutive : typiquement **15 à 30 % du coût initial par an**.\n\n### Coûts indirects\n- Temps des salariés pour exprimer et tester les besoins.\n- Pilotage du projet.\n- Documentation.\n- Formation.\n- Gestion des incidents.\n- Continuité de service en cas de départ du développeur ou du prestataire.\n\nMême en utilisant des plateformes low-code ou no-code, la maintenance, la gouvernance et la dépendance technique ne disparaissent pas.\n\n## Conséquences organisationnelles\n\n- Nécessité de nommer un responsable produit.\n- Mobilisation régulière des utilisateurs pour définir les besoins et tester.\n- Mise en place d’une gouvernance des évolutions.\n- Responsabilité directe de l’entreprise en matière de sécurité, de disponibilité et de sauvegarde.\n- Création d’une activité logicielle interne qui doit être assumée durablement.\n- Risque de tensions entre demandes fonctionnelles et budget disponible.\n\n## Quand cette stratégie est pertinente\n\nElle peut être justifiée si plusieurs conditions sont réunies :\n\n- Les processus sont véritablement spécifiques.\n- Ces processus créent un avantage concurrentiel mesurable.\n- Les solutions SaaS couvrent mal les besoins, même avec des intégrations.\n- L’entreprise dispose d’une compétence technique durable.\n- Le budget et le temps nécessaires sont disponibles.\n- La solution est susceptible d’être réutilisée, valorisée commercialement ou amortie sur un volume bien supérieur à 12 utilisateurs.\n\n---\n\n# 4. Comparaison synthétique\n\n| Critère | Conserver l’outil | SaaS standard | Solution interne |\n|---|---:|---:|---:|\n| Investissement initial | Faible | Faible à moyen | Élevé |\n| Coût récurrent | Faible à moyen, parfois caché | Prévisible mais évolutif | Maintenance élevée |\n| Délai de mise en œuvre | Immédiat | Quelques semaines à quelques mois | Plusieurs mois ou plus |\n| Perturbation initiale | Faible | Moyenne | Forte |\n| Personnalisation | Faible à moyenne | Moyenne | Très élevée |\n| Maintenance technique | Selon l’outil | Assurée par l’éditeur | À la charge de l’entreprise |\n| Risque projet | Faible à court terme | Modéré | Élevé |\n| Évolutivité | Souvent limitée | Bonne | Dépend des ressources internes |\n| Dépendance externe | Outil actuel | Éditeur SaaS | Développeurs ou prestataire |\n| Adaptation à une structure de 12 personnes | Possible à court terme | Très bonne | Généralement faible |\n| Temps de retour sur investissement | Incertain | Souvent rapide | Long et incertain |\n\n---\n\n# 5. Critères de décision\n\nLa décision devrait reposer sur des critères pondérés plutôt que sur la seule comparaison des licences.\n\n## A. Adéquation fonctionnelle\n\nIdentifier les besoins réellement indispensables :\n\n- planification ;\n- gestion des tâches ;\n- suivi des temps ;\n- gestion de la charge ;\n- budget et rentabilité ;\n- collaboration avec les clients ;\n- gestion documentaire ;\n- automatisation ;\n- reporting ;\n- accès mobile ;\n- intégrations.\n\nIl est utile de distinguer :\n\n- les fonctions **indispensables** ;\n- les fonctions **souhaitables** ;\n- les fonctions de confort.\n\n## B. Coût total sur trois ans\n\nInclure :\n\n- licences ;\n- paramétrage ;\n- migration ;\n- formation ;\n- intégrations ;\n- maintenance ;\n- administration ;\n- temps perdu ;\n- coût d’une interruption de service ;\n- coût"
+          }
+        ],
+        "turns": [],
+        "output": "## Synthèse\n\nPour une entreprise de 12 personnes, la **migration vers une solution SaaS standard** est généralement le meilleur compromis entre fonctionnalités, coût, rapidité de déploiement et risque opérationnel.\n\n- **Conserver l’outil actuel** peut être pertinent à court terme si les difficultés restent mineures ou si l’entreprise traverse une période sensible.\n- **Développer une solution interne** ne se justifie que si la gestion de projet constitue un avantage concurrentiel réel et repose sur des processus très spécifiques qu’aucun outil standard ne peut couvrir.\n\n---\n\n# 1. Conserver l’outil actuel\n\n## Avantages\n\n- Aucun projet de migration immédiat.\n- Pas ou peu de formation supplémentaire.\n- Continuité des habitudes et des processus.\n- Absence de risque de perte de données lors d’un transfert.\n- Coût initial faible.\n- Pas de baisse temporaire de productivité liée au changement.\n\n## Risques et limites\n\n- Les problèmes ayant motivé le remplacement restent présents :\n  - ergonomie insuffisante ;\n  - manque d’automatisation ;\n  - reporting limité ;\n  - mauvaises intégrations ;\n  - difficultés de collaboration.\n- Accumulation de contournements : fichiers Excel, e-mails, doubles saisies.\n- Risque d’obsolescence technique ou d’arrêt du support.\n- Difficulté à accompagner la croissance de l’entreprise.\n- Coûts cachés liés au temps perdu et aux erreurs.\n- Démotivation des utilisateurs si leurs difficultés sont connues mais non traitées.\n\n## Coûts\n\n### Coûts directs\n- Licences et maintenance existantes.\n- Éventuels modules complémentaires.\n- Prestations ponctuelles de paramétrage ou de support.\n\n### Coûts indirects\n- Temps passé aux doubles saisies.\n- Manque de visibilité sur les délais et la charge.\n- Erreurs de coordination.\n- Reporting manuel.\n- Opportunités perdues faute de données fiables.\n\nLe maintien paraît souvent moins cher, mais son **coût total de possession** peut être élevé si chaque salarié perd régulièrement du temps.\n\n## Conséquences organisationnelles\n\n- Très faible perturbation immédiate.\n- Maintien des pratiques existantes, y compris les moins efficaces.\n- Pas de dynamique d’amélioration structurante.\n- Possibilité de repousser le problème sans le résoudre.\n\n## Quand cette stratégie est pertinente\n\n- Les irritants sont limités et réparables.\n- L’outil est encore maintenu et sécurisé.\n- Le coût d’une migration immédiate est disproportionné.\n- L’entreprise connaît une période critique pendant laquelle un changement serait trop risqué.\n- Une évolution de l’activité est attendue prochainement et rendrait prématuré le choix d’un nouvel outil.\n\n---\n\n# 2. Migrer vers une solution SaaS standard\n\n## Avantages\n\n- Déploiement généralement rapide.\n- Investissement initial limité.\n- Maintenance, hébergement et mises à jour pris en charge par l’éditeur.\n- Fonctionnalités éprouvées :\n  - gestion des tâches et des jalons ;\n  - tableaux Kanban ou diagrammes de Gantt ;\n  - suivi de la charge ;\n  - automatisations ;\n  - tableaux de bord ;\n  - collaboration et notifications ;\n  - accès mobile.\n- Intégrations avec les outils courants : messagerie, calendrier, stockage documentaire, CRM ou comptabilité.\n- Capacité à ajouter ou retirer des utilisateurs facilement.\n- Amélioration continue du produit par l’éditeur.\n- Sécurité souvent supérieure à celle qu’une petite entreprise pourrait mettre en œuvre seule.\n\n## Risques et limites\n\n- Dépendance à l’éditeur :\n  - évolution des tarifs ;\n  - suppression de fonctionnalités ;\n  - changement de conditions contractuelles ;\n  - arrêt éventuel du service.\n- Personnalisation limitée par rapport à une solution interne.\n- Risque de choisir un outil trop complexe ou surdimensionné.\n- Hébergement des données chez un tiers.\n- Nécessité de vérifier :\n  - la conformité RGPD ;\n  - la localisation des données ;\n  - les sauvegardes ;\n  - la réversibilité ;\n  - les possibilités d’export ;\n  - la gestion des droits d’accès.\n- Coût récurrent qui augmente avec le nombre d’utilisateurs et les options.\n- Risque d’adoption insuffisante si l’outil est imposé sans revoir les pratiques.\n\n## Coûts\n\nPour 12 personnes, les ordres de grandeur varient fortement selon le produit et le niveau de service.\n\n### Coûts directs indicatifs\n- Licences : environ **1 500 à 6 000 € par an** pour 12 utilisateurs, parfois davantage pour des fonctions avancées.\n- Paramétrage et intégrations : **1 000 à 8 000 €**.\n- Migration des données : **1 000 à 5 000 €** selon leur volume et leur qualité.\n- Formation et accompagnement : **500 à 3 000 €**.\n\n### Coûts indirects\n- Temps consacré à la sélection.\n- Nettoyage et reprise des données.\n- Formation des utilisateurs.\n- Baisse temporaire de productivité pendant quelques semaines.\n- Formalisation ou adaptation des processus internes.\n\nCes montants sont à considérer comme des fourchettes de cadrage, à confirmer par des devis.\n\n## Conséquences organisationnelles\n\n- Nécessité de définir un fonctionnement commun :\n  - statuts des projets ;\n  - règles de création des tâches ;\n  - responsabilités ;\n  - niveaux de priorité ;\n  - fréquence des mises à jour ;\n  - indicateurs.\n- Réduction possible des pratiques dispersées entre e-mails, tableurs et documents.\n- Meilleure visibilité collective sur les projets et les charges.\n- Besoin de désigner un responsable interne de l’outil.\n- Formation légère mais indispensable.\n- Arbitrage à faire entre adaptation de l’outil et adaptation des processus.\n\nLe principal enjeu n’est généralement pas technique, mais humain : **un SaaS bien choisi échoue si les règles d’usage ne sont pas claires**.\n\n## Quand cette stratégie est pertinente\n\n- Les besoins sont relativement standards.\n- L’entreprise veut une solution opérationnelle rapidement.\n- Elle ne souhaite pas entretenir une équipe technique dédiée.\n- Les intégrations nécessaires existent.\n- Les données peuvent être hébergées chez un prestataire répondant aux exigences contractuelles et réglementaires.\n- L’organisation accepte d’adapter certains processus aux bonnes pratiques proposées par le produit.\n\n---\n\n# 3. Développer une solution interne\n\n## Avantages\n\n- Adéquation maximale avec les processus de l’entreprise.\n- Maîtrise de la feuille de route fonctionnelle.\n- Possibilité d’intégrer précisément les outils internes.\n- Contrôle accru sur les données et les règles métier.\n- Absence de paiement de licences par utilisateur, même si d’autres coûts persistent.\n- Potentiel avantage concurrentiel si la solution formalise un savoir-faire réellement différenciant.\n\n## Risques et limites\n\n- Coût initial élevé.\n- Délais de réalisation importants.\n- Risque de dépassement de budget et de périmètre.\n- Sous-estimation fréquente des fonctions « secondaires » :\n  - droits d’accès ;\n  - historique ;\n  - recherche ;\n  - notifications ;\n  - exports ;\n  - sécurité ;\n  - sauvegardes ;\n  - audit ;\n  - interface mobile ;\n  - administration.\n- Maintenance permanente après le lancement.\n- Dépendance à un développeur, un prestataire ou une petite équipe.\n- Difficulté à atteindre le niveau d’ergonomie et de fiabilité d’un produit SaaS mature.\n- Dette technique et obsolescence.\n- Coût d’opportunité : les ressources mobilisées ne travaillent pas sur le cœur de métier.\n- Risque que les besoins évoluent avant même la fin du développement.\n\n## Coûts\n\n### Coûts directs indicatifs\n- Conception et prototype : **5 000 à 20 000 €**.\n- Première version exploitable : souvent **30 000 à 100 000 €**, voire davantage.\n- Hébergement, supervision et sécurité : plusieurs milliers d’euros par an.\n- Maintenance corrective et évolutive : typiquement **15 à 30 % du coût initial par an**.\n\n### Coûts indirects\n- Temps des salariés pour exprimer et tester les besoins.\n- Pilotage du projet.\n- Documentation.\n- Formation.\n- Gestion des incidents.\n- Continuité de service en cas de départ du développeur ou du prestataire.\n\nMême en utilisant des plateformes low-code ou no-code, la maintenance, la gouvernance et la dépendance technique ne disparaissent pas.\n\n## Conséquences organisationnelles\n\n- Nécessité de nommer un responsable produit.\n- Mobilisation régulière des utilisateurs pour définir les besoins et tester.\n- Mise en place d’une gouvernance des évolutions.\n- Responsabilité directe de l’entreprise en matière de sécurité, de disponibilité et de sauvegarde.\n- Création d’une activité logicielle interne qui doit être assumée durablement.\n- Risque de tensions entre demandes fonctionnelles et budget disponible.\n\n## Quand cette stratégie est pertinente\n\nElle peut être justifiée si plusieurs conditions sont réunies :\n\n- Les processus sont véritablement spécifiques.\n- Ces processus créent un avantage concurrentiel mesurable.\n- Les solutions SaaS couvrent mal les besoins, même avec des intégrations.\n- L’entreprise dispose d’une compétence technique durable.\n- Le budget et le temps nécessaires sont disponibles.\n- La solution est susceptible d’être réutilisée, valorisée commercialement ou amortie sur un volume bien supérieur à 12 utilisateurs.\n\n---\n\n# 4. Comparaison synthétique\n\n| Critère | Conserver l’outil | SaaS standard | Solution interne |\n|---|---:|---:|---:|\n| Investissement initial | Faible | Faible à moyen | Élevé |\n| Coût récurrent | Faible à moyen, parfois caché | Prévisible mais évolutif | Maintenance élevée |\n| Délai de mise en œuvre | Immédiat | Quelques semaines à quelques mois | Plusieurs mois ou plus |\n| Perturbation initiale | Faible | Moyenne | Forte |\n| Personnalisation | Faible à moyenne | Moyenne | Très élevée |\n| Maintenance technique | Selon l’outil | Assurée par l’éditeur | À la charge de l’entreprise |\n| Risque projet | Faible à court terme | Modéré | Élevé |\n| Évolutivité | Souvent limitée | Bonne | Dépend des ressources internes |\n| Dépendance externe | Outil actuel | Éditeur SaaS | Développeurs ou prestataire |\n| Adaptation à une structure de 12 personnes | Possible à court terme | Très bonne | Généralement faible |\n| Temps de retour sur investissement | Incertain | Souvent rapide | Long et incertain |\n\n---\n\n# 5. Critères de décision\n\nLa décision devrait reposer sur des critères pondérés plutôt que sur la seule comparaison des licences.\n\n## A. Adéquation fonctionnelle\n\nIdentifier les besoins réellement indispensables :\n\n- planification ;\n- gestion des tâches ;\n- suivi des temps ;\n- gestion de la charge ;\n- budget et rentabilité ;\n- collaboration avec les clients ;\n- gestion documentaire ;\n- automatisation ;\n- reporting ;\n- accès mobile ;\n- intégrations.\n\nIl est utile de distinguer :\n\n- les fonctions **indispensables** ;\n- les fonctions **souhaitables** ;\n- les fonctions de confort.\n\n## B. Coût total sur trois ans\n\nInclure :\n\n- licences ;\n- paramétrage ;\n- migration ;\n- formation ;\n- intégrations ;\n- maintenance ;\n- administration ;\n- temps perdu ;\n- coût d’une interruption de service ;\n- coût",
+        "error": null,
+        "initial_request_exact": "Je dirige une petite entreprise de 12 personnes.\nNous devons remplacer notre logiciel de gestion de projet.\nCompare trois stratégies possibles : conserver l'outil actuel, migrer vers une solution SaaS standard ou développer une solution interne.\n\nJe veux une analyse structurée comprenant les avantages, les risques, les coûts, les conséquences organisationnelles, les critères de décision et une recommandation finale argumentée.",
+        "clarification_detection": "heuristique documentée"
+      },
+      "evaluation_humaine": {
+        "score_valeur_ajoutee": null,
+        "statut": "à valider humainement"
+      }
+    }
+  ]
+}

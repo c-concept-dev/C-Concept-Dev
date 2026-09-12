@@ -1,0 +1,16 @@
+{
+  "version": "10G.3B",
+  "description": "Cas de référence universels du pipeline adaptatif. Ils testent l'exploitabilité avant le choix Rapide ou Architecte.",
+  "cases": [
+    {"id":"R01","domain":"voyage","demande":"Fais-moi une checklist de 20 points pour préparer un voyage en Italie","materiau_present":false,"oracle":{"etat_demande":"exploitable","route":"rapide"}},
+    {"id":"Q01","domain":"voyage","demande":"Je veux préparer mon voyage en Italie","materiau_present":false,"oracle":{"etat_demande":"clarification_necessaire","route":null}},
+    {"id":"Q02","domain":"organisation","demande":"Aide-moi à mieux gérer mon travail","materiau_present":false,"oracle":{"etat_demande":"clarification_necessaire","route":null}},
+    {"id":"Q03","domain":"analyse","demande":"Résume le rapport que je viens de t’envoyer en 10 points","materiau_present":false,"oracle":{"etat_demande":"clarification_necessaire","route":null}},
+    {"id":"R02","domain":"analyse","demande":"Résume le rapport que je viens de t’envoyer en 10 points","materiau_present":true,"oracle":{"etat_demande":"exploitable","route":"rapide"}},
+    {"id":"Q04","domain":"code","demande":"Corrige ce code et explique l’erreur","materiau_present":false,"oracle":{"etat_demande":"clarification_necessaire","route":null}},
+    {"id":"R03","domain":"comparaison","demande":"Compare le télétravail et le travail au bureau sous forme de tableau sur 6 critères","materiau_present":false,"oracle":{"etat_demande":"exploitable","route":"rapide"}},
+    {"id":"Q05","domain":"création","demande":"Je veux écrire un livre","materiau_present":false,"oracle":{"etat_demande":"clarification_necessaire","route":null}},
+    {"id":"A01","domain":"organisation","demande":"Élabore une stratégie de fusion de deux équipes de 20 personnes sur trois mois, avec scénarios, risques, critères de décision et plan de transition","materiau_present":false,"oracle":{"etat_demande":"exploitable","route":"architecte"}},
+    {"id":"R04","domain":"traduction","demande":"Traduis en anglais : Bonjour à tous","materiau_present":false,"oracle":{"etat_demande":"exploitable","route":"rapide"}}
+  ]
+}
