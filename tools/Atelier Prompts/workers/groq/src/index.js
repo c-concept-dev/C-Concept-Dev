@@ -1176,15 +1176,50 @@ export async function decideWithOpenAI(input, env, { contract = DECISION_CONTRAC
  * mise en scénario, conditionnée, ou laissée explicitement inconnue — demander
  * reste le dernier recours, jamais le premier.
  */
+/* 03B — DEMANDER SEULEMENT QUAND C'EST NÉCESSAIRE, MAIS ALORS LE DEMANDER.
+ *
+ * La consigne précédente disait « demander une précision est le dernier recours, jamais le
+ * premier », et proposait ACKNOWLEDGE en tête. Mesuré au lot 03A sur six demandes, dont quatre
+ * délibérément incomplètes : ACKNOWLEDGE 6/6, sollicitation 0/6. Comme le court-circuit du tour ne
+ * s'arme que sur une sollicitation, 100 % des tours partaient dans le plan profond — 116 à 123 s —
+ * pour finir, sur la demande réelle mesurée, par poser une question de clarification. La personne
+ * attendait deux minutes pour qu'on lui demande combien de jours durait son séjour.
+ *
+ * Les deux règles en conflit étaient justes : ne pas questionner par réflexe, et ne pas faire
+ * attendre. Ce qui manquait n'était pas une permission, c'était un CRITÈRE. La consigne énonce
+ * désormais une procédure de décision ordonnée — exploitable ? déterminant ? sinon rien — plutôt
+ * qu'une préférence. Aucun seuil, aucun mot de domaine : seul le protocole est décrit.
+ *
+ * Ce qui n'a pas bougé : une seule interaction par tour, le schéma à deux champs qui interdit
+ * physiquement de porter un état, et l'absence totale d'autorité sémantique. Le plan rapide ne
+ * décide toujours rien ; il parle plus tôt quand il a quelque chose d'utile à demander. */
 export const FAST_INTERACTION_SYSTEM_PROMPT = [
   "Vous proposez UNE interaction utilisateur, et une seule, pour le tour en cours.",
   "Vous ne décidez rien : ni que la demande est prête, ni quelle route suivre, ni aucun état.",
   "Une information manquante n'appelle pas automatiquement une question : elle peut être recherchée,",
   "décidée, estimée, traitée par scénario, conditionnée, ou laissée explicitement inconnue.",
   "Demander une précision est le dernier recours, jamais le premier : ne le faites que si aucune de ces voies n'est sûre.",
-  "Types possibles : ACKNOWLEDGE (accuser réception), ASK_CLARIFICATION (une seule question),",
-  "ASK_CONFIRMATION (une seule confirmation), ORIENT_ARCHITECTE (orienter vers le parcours guidé),",
-  "WAIT_FOR_DEEP_VALIDATION (rien à demander pour l'instant).",
+  "Pour savoir si ce recours est atteint, appliquez ce test, et lui seul. Prenez les deux lectures",
+  "raisonnables les plus éloignées de la demande, telle qu'elle est, augmentée des réponses déjà",
+  "obtenues. Conduiraient-elles à produire deux choses SUBSTANTIELLEMENT DIFFÉRENTES — de nature,",
+  "d'étendue ou de structure — ou la même chose autrement colorée ?",
+  "Substantiellement différentes : l'information qui les sépare est déterminante, aucune des voies",
+  "ci-dessus ne la remplace, et le recours est atteint. Posez UNE seule question, celle qui sépare",
+  "ces deux lectures. Répondez ASK_CLARIFICATION, ou ASK_CONFIRMATION s'il ne reste qu'un choix à",
+  "confirmer.",
+  "La même chose autrement colorée : ne demandez rien. Répondez WAIT_FOR_DEEP_VALIDATION, et laissez",
+  "les voies ci-dessus traiter ce qui manque.",
+  "N'est jamais déterminant ce qui ne fait que colorer ce qui est déjà nommé : une préférence, un",
+  "profil, un budget, un ton, un contexte d'usage, un cas particulier, un enrichissement, une",
+  "personnalisation, un cadrage plus fin. Si la demande nomme déjà ce qu'il faut produire et sa",
+  "forme, elle est exploitable : ne demandez rien.",
+  "Tenez pour acquises les réponses déjà présentes dans l'historique : ne redemandez jamais ce qui y",
+  "figure, ni une variante de ce qui y figure. Dès qu'une réponse a été obtenue, l'exigence monte :",
+  "ne reposez une question que si le résultat attendu reste RÉELLEMENT impossible à construire, et",
+  "jamais plus d'une.",
+  "Types possibles : ACKNOWLEDGE (accuser réception, sans rien demander ni rien promettre),",
+  "ASK_CLARIFICATION (une seule question), ASK_CONFIRMATION (une seule confirmation),",
+  "ORIENT_ARCHITECTE (orienter vers le parcours guidé), WAIT_FOR_DEEP_VALIDATION (rien à demander).",
   "Répondez exactement au schéma fourni : un type, un texte. Rien d'autre."
 ].join(" ");
 

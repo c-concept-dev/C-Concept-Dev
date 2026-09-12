@@ -159,9 +159,18 @@ test('T-PERFREAL01E-15 : aucune réduction n’a été appliquée, et le planche
   assert.ok(p.total > E.calcul_capacite.max_soutenable_jetons_par_requete,
     `${p.total} jetons de plancher pour ${E.calcul_capacite.max_soutenable_jetons_par_requete} soutenables`);
   assert.equal(E.calcul_capacite.faisable, false, 'TOKEN_OPTIMIZATION_CAPACITY_FEASIBLE = NO');
-  /* TOKEN_REDUCTION_PERCENT = 0 : le prompt est intact, mot pour mot. */
+  /* TOKEN_REDUCTION_PERCENT = 0 : aucune réduction n'a jamais été appliquée, et c'est toujours vrai.
+   *
+   * 03B — LA CONSIGNE A ALLONGÉ, ET CE RELEVÉ DIT CE QUE CELA COÛTE.
+   * Le lot 03B lui a ajouté le critère qui lui manquait pour savoir quand demander : 794 → 2243
+   * caractères. Mesuré sur l'API : 506 → 954 jetons d'entrée par appel rapide, soit +88,5 %. Or
+   * ce lot-ci avait établi que la capacité soutenable était de 147 jetons par requête pour 425
+   * consommés — déjà infaisable. L'allongement aggrave donc un budget déjà dépassé, et le relevé
+   * l'enregistre au lieu de le masquer. Ce n'est pas une réduction inversée : c'est une dépense
+   * assumée pour supprimer une escalade de 116 s, arbitrée par le propriétaire (option A du 03A). */
   assert.equal(E.optimisation.appliquee, false);
-  assert.equal(FAST_INTERACTION_SYSTEM_PROMPT.length, 794, 'la consigne n’a pas été raccourcie');
+  assert.equal(FAST_INTERACTION_SYSTEM_PROMPT.length, 2243,
+    'la consigne n’a pas été raccourcie — elle a été allongée par 03B, à coût mesuré');
   assert.equal(FAST_INTERACTION_SYSTEM_PROMPT.split(' ').length > 100, true);
   assert.match(E.optimisation.raison, /la section 6 interdit de supprimer une instruction parce qu elle est longue/);
 });

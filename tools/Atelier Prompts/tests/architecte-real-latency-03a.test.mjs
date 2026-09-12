@@ -49,17 +49,25 @@ test('T-03A-01 : le court-circuit ne s’arme que sur une sollicitation', () => 
     'et marquer explicitement que le plan profond n’a pas démarré');
 });
 
-test('T-03A-02 [CARACTÉRISATION — ANOMALIE ATTENDUE À ÉVOLUER] le plan rapide est instruit de ne pas demander', () => {
-  /* C'est la cause mesurée : on demande au plan rapide d'éviter la question, alors que la question
-     est la SEULE chose qui évite deux minutes de plan profond. Les deux artefacts se contredisent. */
+/* 03B — L'ANOMALIE A ÉVOLUÉ, ET CE TEST DIT COMMENT.
+ *
+ * Il caractérisait la contradiction : on demandait au plan rapide d'éviter la question, alors que la
+ * question est la seule chose qui évite deux minutes de plan profond. Il devait échouer le jour où
+ * la consigne changerait. Le lot 03B l'a changée — sans retirer la retenue, en lui ajoutant le
+ * critère qui lui manquait. Les deux phrases de prudence sont conservées, et deviennent
+ * applicables : « dernier recours » veut désormais dire « après ce test », non « presque jamais ». */
+test('T-03A-02 la retenue du plan rapide est conservée, et elle est devenue applicable', () => {
   assert.match(FAST_INTERACTION_SYSTEM_PROMPT, /dernier recours, jamais le premier/,
-    'CURRENT_BEHAVIOR : la consigne décourage explicitement la question');
+    'la retenue reste énoncée — elle n’a pas été remplacée par une permission');
   assert.match(FAST_INTERACTION_SYSTEM_PROMPT, /n'appelle pas automatiquement une question/,
-    'CURRENT_BEHAVIOR : et rappelle six voies alternatives avant elle');
-  /* Mesuré : ACKNOWLEDGE 6/6, donc escalade 6/6. Ce test échouera le jour où la consigne changera,
-     et c'est le signal attendu. */
+    'et les six voies alternatives restent nommées');
+  /* Ce qui a été ajouté : un test qui rend le recours décidable, au lieu d'une préférence. */
+  assert.match(FAST_INTERACTION_SYSTEM_PROMPT, /Pour savoir si ce recours est atteint/,
+    '03B : le recours est désormais décidable');
+  assert.match(FAST_INTERACTION_SYSTEM_PROMPT, /SUBSTANTIELLEMENT DIFFÉRENTES/,
+    'et le critère est nommé');
   assert.equal(SOLLICITANTS.includes('ACKNOWLEDGE'), false,
-    'ACKNOWLEDGE n’arrête pas le tour : la consigne et le court-circuit sont incompatibles');
+    'ACKNOWLEDGE n’arrête toujours pas le tour : seule une sollicitation l’arrête');
 });
 
 test('T-03A-03 : le plan rapide peut proposer des types que le contrat ne connaît pas', () => {
