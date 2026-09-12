@@ -13,8 +13,8 @@
 | --- | --- |
 | Lot | HTML-FINAL-02 |
 | Artefact | Atelier de prompts — V11.5 LOT 10G Adaptive Decision Pipeline |
-| Commit local | `893c292519a83774af176ff238e0838e015254e9` |
-| Date du commit | 2026-09-12T20:23:36+02:00 |
+| Commit local | `169a74ab23d45589d1a6e89a411d23da019ae167` |
+| Date du commit | 2026-09-12T21:07:42+02:00 |
 
 ## Artefact canonique
 
@@ -54,12 +54,12 @@ Le bloc embarqué dans la page et le fichier généré sont comparés octet pour
 
 ## Jeu de release
 
-102 fichiers. C'est ce qui doit exister pour **servir** la page,
+104 fichiers. C'est ce qui doit exister pour **servir** la page,
 **redéployer** les workers qui la soutiennent, et **reconstruire puis vérifier**
 l'artefact. Le manifeste lui-même en est exclu : un document ne peut pas contenir
 sa propre empreinte.
 
-| Empreinte du jeu | `b593eb7bb183cd0a8b7413feaa15627a60500e35782af365de98ab9925adbc94` |
+| Empreinte du jeu | `71109481ac920a6ba8f12846adb62e98ee127403e298ef259de005f42ce57d4a` |
 | --- | --- |
 
 | Classe | Fichier | SHA-256 |
@@ -88,6 +88,7 @@ sa propre empreinte.
 | REQUIRED_DOC | `docs/ATELIER-ARCHITECTE-DIALOG-CONTEXT-PROPAGATION-FIX-02H.md` | `0619433b6e72a3dfc44cddca8085ba237817624f25836d3511735e6cd618a0ca` |
 | REQUIRED_DOC | `docs/ATELIER-ARCHITECTE-REAL-LATENCY-FIX-03A.md` | `9ef11059db23791d61c2f0911c9547f70e340f077df7611e9b4206b1f1b03cc2` |
 | REQUIRED_DOC | `docs/ATELIER-CANONICAL-QUANTITY-TO-ADN-FIX-02E.md` | `d6cfd6a164d4b3d4fc4770cb859a3f4f80056b3137b977bfe977580a8afa1ab5` |
+| REQUIRED_DOC | `docs/ATELIER-CODEX-INDEPENDENT-RUNTIME-AUDIT.md` | `b562b3c0ded7849b3eaafb9cdd336959aa46b05d980add0d1d3f3d5c428f609c` |
 | REQUIRED_DOC | `docs/ATELIER-CRITIC-PREDISPLAY-BUDGET-AUDIT-01.md` | `ed2a26d516d3409a4b3a5fd17ab7bcfa179847e646801b5f474a287356cd384b` |
 | REQUIRED_DOC | `docs/ATELIER-DEEP-CRITICAL-PATH-ROLE-AUDIT-01.md` | `8436440361a0f880fbd16098a755e7d5776950ceaecfe4a640e5d08d2ef99212` |
 | REQUIRED_DOC | `docs/ATELIER-DEEP-ECONOMICS-CHAIN-01.md` | `3b61dd8e5e030c234db2d635b54e72c951f916a9684f6532e573e260782fead5` |
@@ -99,6 +100,7 @@ sa propre empreinte.
 | REQUIRED_DOC | `docs/ATELIER-FAST-DEEP-TRIGGER-CONFORMANCE-01.md` | `3db9a862bc0f00b4cf33a285e8c788c266a7482eaa4c657bbcaf894ce0cf6325` |
 | REQUIRED_DOC | `docs/ATELIER-FAST-DEEP-TRIGGER-FIX-01.md` | `54e1be2cdf78e8510345bdeb8f3446305703a93a51aab775ff7fc8e2dcd4bd73` |
 | REQUIRED_DOC | `docs/ATELIER-FAST-DEEP-TRIGGER-REAL-SMOKE-01.md` | `34a57a708add28dbda5ee28aef3b7c7822484a767fb60a0803cbb4d0fe64068c` |
+| REQUIRED_DOC | `docs/ATELIER-FAST-NECESSARY-QUESTION-FIX-03B.md` | `b73c4dd55729a2ced93d100d4cbfec9b96cc73a3e37e070f9df3acb2d02a9e95` |
 | REQUIRED_DOC | `docs/ATELIER-FINAL-HTML-CONSOLIDATION-01.md` | `d0ee18ef20804980157a6019ba680ca386e8f89fd03da4ef00620d4c0dba532d` |
 | REQUIRED_DOC | `docs/ATELIER-INTERACTION-LATENCY-CONTRACT-01.md` | `56261a7f572388ac80050f9c26d08ee07ef71e39e1a07bb773ebe060da48eb87` |
 | REQUIRED_DOC | `docs/ATELIER-INTERMEDIATE-DEEP-VALUE-01.md` | `db714aa5c81a762e543ce363bfb9427247fbbbc669c59e5040d597ae9036f1ed` |
@@ -171,7 +173,7 @@ sa propre empreinte.
 
 | Classe | Fichiers | Raison |
 | --- | --- | --- |
-| REQUIRED_TEST_ONLY | 166 | preuves ; ne sont pas servies |
+| REQUIRED_TEST_ONLY | 167 | preuves ; ne sont pas servies |
 | EVALUATION_ONLY | 375 | bancs et campagnes, dont le worker `…-local-only` |
 | AUDIT_ONLY | 74 | relevés des lots passés |
 | PROVENANCE | 2 | trace de la dérivation de l'artefact courant |

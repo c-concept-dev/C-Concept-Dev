@@ -1,0 +1,56 @@
+{
+  "lot": "ATELIER_WORKER_RELEASE_ALIGNMENT_03D",
+  "service": "atelier-decision-groq",
+  "bundler": { "outil": "wrangler", "version": "4.131.1", "commande": "wrangler deploy --dry-run --outdir <dir> --config workers/groq/wrangler.jsonc" },
+  "reproductibilite": { "verifiee": true, "methode": "deux builds successifs du meme commit", "identiques": true },
+  "runtime_actif": {
+    "version_cloudflare": "9a4d536a-12ba-4bff-bc6d-eeba86cffb91",
+    "numero_de_version": 115,
+    "date": "2026-09-07",
+    "trafic": "100%",
+    "source_commit": null,
+    "source_commit_note": "non etablissable sans lecture du bundle deploye ; comparer son SHA-256 a etat_presume_deploye.bundle_sha256",
+    "early_stop_present": false,
+    "etabli_par": "ATELIER-CODEX-INDEPENDENT-RUNTIME-AUDIT, lecture read-only du code deploye"
+  },
+  "etat_presume_deploye": {
+    "commit": "93992e9~1",
+    "bundle_sha256": "926dbd75eb4df65303e9539c3ac8f24d922d45beef68940f0765931550ca14f9",
+    "bundle_octets": 253611,
+    "early_stop_present": false,
+    "waveStart_occurrences": 0
+  },
+  "candidat_A_alignement_seul": {
+    "commit": "893c292",
+    "bundle_sha256": "ce1235917973ceb4e93850eb918d29d541546468e4bf2c63fcaace96e4c94ec4",
+    "bundle_octets": 257477,
+    "fast_prompt_sha256": "9a88899127b09d194ea73bc3ca91f8d2111945f204d7d2cf3b884b6a8472c4c4",
+    "fast_prompt_octets": 794,
+    "critic_pipeline_sha256": "8856f09e4aef1b5cf2f61082620cc3c516f077763ddec39bd9111dc52de39325",
+    "early_stop_present": true,
+    "contient_03B": false
+  },
+  "candidat_B_head": {
+    "commit": "169a74a",
+    "bundle_sha256": "3624b0f0a69c15caaf4ba7873724a68737166f635038088d275b310a978c5763",
+    "bundle_octets": 259143,
+    "fast_prompt_sha256": "c4560c254896994c9a48dcd2ac382fba4f502edf5095a0a48cc8b08fd98bdd73",
+    "fast_prompt_octets": 2243,
+    "critic_pipeline_sha256": "8856f09e4aef1b5cf2f61082620cc3c516f077763ddec39bd9111dc52de39325",
+    "early_stop_present": true,
+    "contient_03B": true
+  },
+  "delta_fonctionnel_presume_deploye_vers_candidat_A": {
+    "fichiers": ["workers/shared/fast-interactive-plane.js", "workers/shared/operational-request-core.js"],
+    "lignes": { "insertions": 183, "suppressions": 40 },
+    "commits_fonctionnels": [
+      { "commit": "93992e9", "date": "2026-09-07", "objet": "DEEP-INTERACTION-EARLY-STOP-01 : arret des batches Critic apres preuve d'une question de dernier recours" },
+      { "commit": "a960a89", "date": "2026-09-08", "objet": "ATELIER-RAPIDE-CONVERSATIONAL-FIX-01 : Rapide pose la question au lieu de renvoyer ailleurs" },
+      { "commit": "874a6bc", "date": "2026-09-11", "objet": "ATELIER-CONVERSATIONAL-CLOSURE-01D-G : le plan rapide ne parle plus que pour demander" }
+    ],
+    "commits_sans_effet_net": [
+      { "commits": ["03cdebb", "7e2b53c"], "objet": "suppression puis restauration de 6845 lignes : net nul" }
+    ]
+  },
+  "deploiement": { "effectue": false, "autorise": false, "raison": "validation proprietaire requise ; PUSH = NO, DEPLOY = NO" }
+}
