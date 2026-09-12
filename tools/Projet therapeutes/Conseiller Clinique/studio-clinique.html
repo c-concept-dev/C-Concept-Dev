@@ -11923,16 +11923,28 @@ ${recent}`;
 
   // Panneau visuellement IDENTIQUE à adocBuildBlockEditPanelHTML (mêmes classes
   // cc-clarity-card/cc-block-edit-panel/cc-clarity-reply-btn/cc-clarity-other-btn,
-  // même disposition boutons + champ libre) — jamais l'insertion de bloc avant/
-  // après (hors périmètre de cette phase), jamais une apparence réinventée.
-  function adocBuildLegacyBlockEditPanelHTML() {
+  // même disposition boutons + champ libre) — jamais un second panneau, jamais une
+  // apparence réinventée.
+  // Phase 2 (monobloc) — insertion de bloc portée à l'ancien moteur (principe 0F). Les boutons
+  // "Insérer avant/après" rejoignent ici les intentions déjà là, EXACTEMENT comme pour le moteur
+  // structuré (adocBuildBlockEditPanelHTML) — sauf quand kind==='cell' : une cellule de tableau
+  // isolée n'a jamais de position "avant/après" sensée pour un bloc indépendant (l'insérer y
+  // casserait la structure <tr>/<table> — jamais de correction de tableau ENTIER non plus dans
+  // Phase 1, ce n'est donc pas une régression de périmètre mais sa continuité).
+  function adocBuildLegacyBlockEditPanelHTML(kind) {
     const btn = function (key) {
       return '<button type="button" class="cc-clarity-reply-btn" onclick="window.adocRequestLegacyBlockCorrectionByIntent(\'' + key + '\')">' +
         adocEsc(ADOC_BLOCK_EDIT_INTENTS[key].label) + '</button>';
     };
+    const insertBtn = function (direction, label) {
+      return '<button type="button" class="cc-clarity-reply-btn" onclick="event.stopPropagation();window.adocRequestLegacyBlockInsert(\'' + direction + '\')">' + label + '</button>';
+    };
+    const insertHTML = kind === 'cell' ? '' :
+      '<div style="width:1px;align-self:stretch;background:var(--stone-300);"></div>' +
+      insertBtn('before', 'Insérer un bloc avant') + insertBtn('after', 'Insérer un bloc après');
     return '<div class="cc-clarity-question sc-icon-label">' + adocIconSvg('icon-clarify') + '<span>Corriger ce passage</span></div>' +
       '<div class="cc-block-edit-controls" style="display:flex;flex-wrap:wrap;align-items:flex-start;gap:8px;">' +
-        btn('rewrite') + btn('shorten') + btn('expand') + btn('verifySources') +
+        btn('rewrite') + btn('shorten') + btn('expand') + btn('verifySources') + insertHTML +
         '<div style="display:flex;gap:6px;flex:1 1 240px;min-width:240px;">' +
           '<textarea class="cc-block-edit-freetext adoc-textarea" style="flex:1;min-height:34px;max-height:120px;" ' +
             'placeholder="Ou décrivez la correction souhaitée…" rows="1" ' +
@@ -11973,15 +11985,16 @@ ${recent}`;
       if (current.blockKey === blockKey) { adocWsClearLegacyBlockSelection(); return; } // reclic — désélectionne
       adocWsClearLegacyBlockSelection();
       blockEl.classList.add('is-selected');
+      const kind = adocLegacyBlockKind(blockEl);
       const panel = document.createElement('div');
       panel.className = 'cc-clarity-card cc-block-edit-panel';
       panel.setAttribute('role', 'group');
       panel.setAttribute('aria-label', 'Corriger ce passage sélectionné');
-      panel.innerHTML = adocBuildLegacyBlockEditPanelHTML();
+      panel.innerHTML = adocBuildLegacyBlockEditPanelHTML(kind);
       blockEl.insertAdjacentElement('afterend', panel);
       window._adocLegacyBlockEditState = {
         storeKey: storeKey, blockKey: blockKey, panelEl: panel, el: blockEl,
-        kind: adocLegacyBlockKind(blockEl), pendingHtml: null, pendingDropsCitations: false,
+        kind: kind, pendingHtml: null, pendingDropsCitations: false,
       };
       const ta = panel.querySelector('.cc-block-edit-freetext');
       if (ta) ta.focus();
@@ -12136,6 +12149,114 @@ ${recent}`;
     adocWsClearLegacyBlockSelection();
     await window.adocOpenWorkspace(storeKey);
     await window.adocWsSave();
+  };
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // Phase 2 (monobloc) — insertion de bloc portée à l'ancien moteur (principe 0F : parité des
+  // deux moteurs). Investigation préalable : réutilise EXACTEMENT le patron déjà établi côté
+  // structuré (adocRequestBlockInsert/adocChooseBlockInsertType/adocConfirmBlockInsert) — un
+  // bloc "placeholder" est créé et inséré immédiatement (jamais de génération avant insertion),
+  // puis le MÊME panneau de correction déjà existant (Phase 1) se rouvre dessus pour que
+  // l'utilisatrice décrive le contenu réel voulu, via le MÊME mécanisme de génération déjà
+  // utilisé pour corriger un bloc (adocCallBlockCorrectionModel/ADOC_BLOCK_CORRECTION_TOOL,
+  // jamais un contrat dupliqué). La sauvegarde effective n'intervient qu'à la confirmation de
+  // CETTE correction (adocConfirmLegacyBlockCorrection, déjà existant, inchangé) — exactement
+  // comme côté structuré, où adocConfirmBlockInsert lui-même n'enregistre jamais rien non plus.
+  //
+  // Périmètre : 5 types demandés (Titre/Paragraphe/Encadré/Liste/Tableau) — ni citation ni image,
+  // hors périmètre ici comme pour la correction de bloc legacy (Phase 1 ne les détecte/corrige
+  // jamais non plus). "Encadré" et "Tableau" réutilisent tels quels les classes CSS déjà
+  // existantes du moteur structuré (.adoc-sc-callout/.adoc-sc-callout-info, .adoc-sc-table-el) —
+  // jamais une apparence réinventée — tout en restant sélectionnables via le sélecteur Phase 1
+  // déjà existant (ADOC_LEGACY_BLOCK_SELECTOR) sans lui ajouter la moindre entrée : un encadré
+  // est un <p> stylé (kind 'paragraph'), un tableau expose ses cellules <td>/<th> comme n'importe
+  // quel autre tableau déjà généré (kind 'cell').
+  //
+  // Ancrage : jamais avant/après une simple cellule isolée (kind==='cell') — un bloc indépendant
+  // n'a pas de position "avant/après" sensée à côté d'un <td>/<th> unique sans casser <tr>/
+  // <table>, et Phase 1 n'a jamais permis de corriger un tableau ENTIER non plus (seulement ses
+  // cellules) : ce n'est donc pas un rétrécissement de périmètre, seulement sa continuité directe.
+  var ADOC_LEGACY_BLOCK_INSERT_TYPES = ADOC_BLOCK_INSERT_TYPES.filter(function (t) {
+    return t.type !== 'quote' && t.type !== 'image';
+  });
+
+  // Contenu HTML minimal par défaut — même esprit que adocDefaultBlockContent (texte de
+  // remplacement discret, jamais un champ vide qui casserait le rendu ; table accepte, elle,
+  // des cellules réellement vides, cf. commentaire d'origine sur adocDefaultBlockContent).
+  function adocDefaultLegacyBlockHTML(type) {
+    switch (type) {
+      case 'heading': return '<h2>Nouveau titre</h2>';
+      case 'paragraph': return '<p>Nouveau paragraphe.</p>';
+      case 'callout': return '<p class="adoc-sc-callout adoc-sc-callout-info">Nouvel encadré.</p>';
+      case 'list': return '<ul><li>Nouvel élément</li></ul>';
+      case 'table': return '<table class="adoc-sc-table-el"><thead><tr><th></th><th></th></tr></thead><tbody><tr><td></td><td></td></tr><tr><td></td><td></td></tr></tbody></table>';
+      default: return '';
+    }
+  }
+
+  // Étape 1 : choix du type — même patron que adocBuildBlockInsertTypePickerHTML (structuré),
+  // ciblant ADOC_LEGACY_BLOCK_INSERT_TYPES et le gestionnaire legacy correspondant.
+  function adocBuildLegacyBlockInsertTypePickerHTML(direction) {
+    const positionLabel = direction === 'before' ? 'avant' : 'après';
+    return '<div class="cc-block-edit-label">Type de bloc à insérer ' + positionLabel + '</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;">' +
+        ADOC_LEGACY_BLOCK_INSERT_TYPES.map(function (t) {
+          return '<button type="button" class="cc-clarity-reply-btn" onclick="event.stopPropagation();window.adocConfirmLegacyBlockInsert(\'' + direction + '\',\'' + t.type + '\')">' + adocEsc(t.label) + '</button>';
+        }).join('') +
+      '</div>' +
+      '<div style="margin-top:8px;"><button type="button" class="cc-clarity-other-btn" onclick="event.stopPropagation();window.adocCancelLegacyBlockCorrection()">Annuler</button></div>';
+  }
+
+  window.adocRequestLegacyBlockInsert = function (direction) {
+    const st = window._adocLegacyBlockEditState;
+    if (!st.storeKey || !st.panelEl || st.kind === 'cell') return;
+    const controlsEl = st.panelEl.querySelector('.cc-block-edit-controls');
+    const resultEl = st.panelEl.querySelector('.cc-block-edit-result');
+    if (controlsEl) controlsEl.hidden = true;
+    if (resultEl) { resultEl.hidden = false; resultEl.innerHTML = adocBuildLegacyBlockInsertTypePickerHTML(direction); }
+  };
+
+  // Étape 2 : insertion réelle — applique DIRECTEMENT dans art.html (source de vérité, même
+  // principe que adocConfirmLegacyBlockCorrection ci-dessus), via le même DOMParser complet et
+  // la même resélection stable par position (adocWsCollectLegacyBlocks sur le document
+  // RÉELLEMENT parsé, jamais la version aplatie de cc-ws-doc-card). insertAdjacentHTML avant/
+  // après l'élément ciblé, jamais une réécriture du reste du document.
+  window.adocConfirmLegacyBlockInsert = async function (direction, type) {
+    const st = window._adocLegacyBlockEditState;
+    if (!st.storeKey || !st.blockKey || st.kind === 'cell') return;
+    const art = window._adocArtifacts && window._adocArtifacts[st.storeKey];
+    if (!art || art._adocGenerationEngine !== 'legacy-html') { adocWsClearLegacyBlockSelection(); return; }
+    const idx = parseInt(st.blockKey.slice(3), 10);
+    const html = adocDefaultLegacyBlockHTML(type);
+    let newIdx;
+    try {
+      const parsed = new DOMParser().parseFromString(art.html || '', 'text/html');
+      if (!parsed || !parsed.body) throw new Error('document illisible');
+      const blocks = adocWsCollectLegacyBlocks(parsed.body);
+      const target = blocks[idx];
+      if (!target) throw new Error('passage introuvable (document modifié entre-temps)');
+      target.insertAdjacentHTML(direction === 'before' ? 'beforebegin' : 'afterend', html);
+      art.html = '<!DOCTYPE html>\n' + parsed.documentElement.outerHTML;
+      if (art.blobUrl) { URL.revokeObjectURL(art.blobUrl); art.blobUrl = URL.createObjectURL(new Blob([art.html], { type: 'text/html;charset=utf-8' })); }
+      newIdx = direction === 'before' ? idx : idx + 1;
+    } catch (e) {
+      adocWsClearLegacyBlockSelection();
+      alert('Impossible d’insérer ce bloc : ' + (e && e.message || 'erreur inconnue') + '.');
+      return;
+    }
+    const storeKey = st.storeKey;
+    adocWsClearLegacyBlockSelection();
+    await window.adocOpenWorkspace(storeKey);
+    // Rouvre immédiatement le panneau de correction sur le nouveau bloc — même geste que le
+    // moteur structuré (adocConfirmBlockInsert simule un clic sur le bloc fraîchement créé),
+    // pour que la description du contenu réel voulu se fasse sans aucun code spécifique à un
+    // bloc "tout juste créé". Un tableau n'a, lui, jamais de correction "bloc entier" (Phase 1 :
+    // seules ses cellules le sont) : rien à sélectionner automatiquement pour lui.
+    if (type !== 'table') {
+      const docCard = document.getElementById('cc-ws-doc-card');
+      const el = docCard && docCard.querySelector('[data-cc-legacy-block-id="lb-' + newIdx + '"]');
+      if (el) el.click();
+    }
   };
 
   window.adocWsSave = async function () {
