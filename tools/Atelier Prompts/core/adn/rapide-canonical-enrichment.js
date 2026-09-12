@@ -298,6 +298,12 @@ export function enrichRapidCanonicalContract(canonicalBase, {
   }
   if (quantity && !list(contract.quantities).length) {
     contract.quantities = [{
+      /* 02F — LE REPLI 'éléments' EST GARDÉ, ET CE N'EST PAS UN OUBLI.
+         J'ai tenté de le retirer, pour que le contrat n'affirme pas une cible qu'il ne connaît pas.
+         `adn-state.js` l'interdit : « Une quantité doit avoir une unité ou une cible. » Un nombre
+         qui ne compte rien n'est pas une quantité exploitable, et cette règle est antérieure à ce
+         lot. Le repli reste donc ici, et la distinction dont le rendu a besoin — la personne a-t-elle
+         dénombré quelque chose — est portée par `ctx.quantiteExplicite`, que le moteur tient déjà. */
       target: text(quantity.target) || 'éléments', unit: null,
       exact: quantity.exact, min: quantity.min, max: quantity.max,
       source: 'derived_deterministic'

@@ -6,6 +6,24 @@
 **Aucun secret, aucune clé, aucun identifiant ne figure dans ce document.**
 **`PUSH = NO` · `DEPLOY = NO`**
 
+## ERRATA — corrigé pendant 02F
+
+**Ce rapport affirmait à tort que la garde de projection `!ctx.fmt.enumerable` se trouve dans la
+plage gelée `moteur Rapide`.** C'est faux. Elle est à la ligne ~3808 de l'artefact ; les plages
+gelées `moteur Rapide` couvrent les lignes 7975–8004 et 8031–8074. Aucune plage gelée ne la
+contient — `tools/frozen-guard.mjs` l'a confirmé en restant `PASS` après sa modification en 02F.
+
+Trois passages de ce rapport sont donc erronés et rectifiés ici : §R (« la ligne de rendu de la
+quantité vit dans le moteur Rapide gelé »), §S (`FOLLOW_UP-02E-A` et `-B`, « plage gelée », « même
+plage gelée »), et §T. L'erreur avait une conséquence concrète : le `NEXT_SAFE_ACTION` que j'ai
+remis concluait qu'il fallait « ouvrir la plage gelée `moteur Rapide` ». Aucune ouverture n'était
+nécessaire, et 02F a été exécuté sans en toucher une seule.
+
+Les mesures de ce rapport ne sont pas affectées : elles portaient sur le comportement, pas sur la
+localisation. Seule la conclusion d'accessibilité l'était.
+
+---
+
 > Principe appliqué, énoncé par le propriétaire produit :
 > *« Une quantité déjà comprise comme contrainte utilisateur ne doit jamais être redécouverte
 > depuis le texte brut pour devenir effective. »*
@@ -469,8 +487,10 @@ ARCH_SYSTEM      7fc7b736f6b80049c42a39d74a0fae76eee26d9e2af8249c7761de1ec323631
 ARCH_SCHEMA      a976687cf6412be80f74eac88762f8c4a4115fe30697bdefd0ea5e6e318fd84b
 ```
 
-Aucune plage gelée n'a été touchée. C'est aussi ce qui explique §J : la ligne de rendu de la quantité
-vit dans le moteur Rapide gelé, et la garde `!ctx.fmt.enumerable` avec elle.
+Aucune plage gelée n'a été touchée. ~~C'est aussi ce qui explique §J : la ligne de rendu de la
+quantité vit dans le moteur Rapide gelé, et la garde `!ctx.fmt.enumerable` avec elle.~~
+**[ERRATA 02F]** Cette phrase est fausse : la garde n'est dans aucune plage gelée (voir l'errata en
+tête). Ce qui explique §J est la frontière du lot, pas un gel.
 
 **Rituel d'empreinte exécuté :**
 
@@ -500,12 +520,13 @@ vit dans le moteur Rapide gelé, et la garde `!ctx.fmt.enumerable` avec elle.
    C'est la rupture résiduelle 2/3 de §J : sur un format non énumérable, la section
    `CONTRAINTES QUANTIFIÉES` retourne avant d'écrire la quantité, même exacte, même exigée par le
    gate. C'est ce qui fait que « exactement cinq paragraphes » n'atteint toujours pas le prompt.
-   *Politique de projection + plage gelée `moteur Rapide` → décision propriétaire requise.*
+   *Politique de projection → décision propriétaire requise.* **[ERRATA 02F]** ce point mentionnait
+   à tort une plage gelée ; il n'y en a pas. **Corrigé en 02F.**
 
 2. **`FOLLOW_UP-02E-B` — la ligne projetée affiche l'unité du format, pas la cible canonique.**
    R01 rend « Exactement 20 éléments » alors que le contrat porte `target: "points"`.
    `ctx.fmt.unite || 'éléments'` ignore `quantities[0].target`, désormais fiable.
-   *Même plage gelée, même nature de décision.*
+   *Même nature de décision.* **[ERRATA 02F]** aucune plage gelée ici non plus. **Corrigé en 02F.**
 
 3. **`FOLLOW_UP-02E-C` — `detecterQuantite` / `adnQuantitiesFromRapid` restent branchés.**
    La voie legacy n'est plus la source sur le chemin canonique, mais elle subsiste. §18 du brief
@@ -526,8 +547,12 @@ redécouverte depuis le texte brut pour devenir effective. Elle est **lue là o�
 elle arme le contrôle du gate — 3/3 sur les trois cas réels.
 
 Elle n'atteint le prompt final que sur 1 cas sur 3. La rupture s'est déplacée vers une garde de rendu
-antérieure, située dans une plage gelée et explicitement hors frontière du lot. Je ne l'ai pas
+antérieure, ~~située dans une plage gelée et~~ explicitement hors frontière du lot. Je ne l'ai pas
 franchie, et je ne présente pas la chaîne comme refermée.
+
+**[ERRATA 02F]** La garde n'est pas dans une plage gelée — voir l'errata en tête. Elle était hors
+frontière de 02E, ce qui reste vrai, mais parfaitement accessible. 02F l'a corrigée et la chaîne est
+refermée 3/3 : voir `docs/ATELIER-QUANTITY-PROJECTION-FIX-02F.md`.
 
 Un point de méthode, énoncé sans détour : une régression réelle a été introduite pendant ce lot
 (`un`/`une` comptés comme cardinaux), trouvée par la suite existante, et corrigée par une règle de
@@ -576,6 +601,11 @@ LOT_GATE                             = NON_GELABLE
 
 `LOT_GATE = NON_GELABLE` est prononcé sur un seul critère du §CRITÈRE DE PASS :
 `FINAL_PROMPT_PRESERVES_QUANTITY` exige `PASS` et vaut 1/3. Les dix autres critères sont `PASS`.
-La cause du manquant est `FOLLOW_UP-02E-A` — une garde de rendu située dans la plage gelée
-`moteur Rapide`, que le §FRONTIÈRE de ce lot interdit de toucher. Le correctif est complet dans sa
-frontière ; le gel dépend d'une décision qui appartient au propriétaire produit.
+La cause du manquant est `FOLLOW_UP-02E-A` — une garde de rendu que le §FRONTIÈRE de ce lot interdit
+de toucher. Le correctif est complet dans sa frontière ; le gel dépend d'une décision qui appartient
+au propriétaire produit.
+
+**[ERRATA 02F]** J'avais écrit ici que cette garde était « située dans la plage gelée
+`moteur Rapide` ». C'est faux, et cela rendait ma recommandation trompeuse. 02F l'a corrigée sans
+toucher aucune plage gelée : `FINAL_PROMPT_PRESERVES_QUANTITY` vaut désormais 3/3, et les onze
+critères de gel de 02E sont satisfaits.

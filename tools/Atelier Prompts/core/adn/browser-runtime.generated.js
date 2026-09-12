@@ -1,5 +1,5 @@
 /* GENERATED — LOT 10G.3B.3F.2
- * source-sha256: ce888bb4ea8e8361608a9fd73b0a156179ec02cebb1b6648b800fe182a9bb9b4
+ * source-sha256: b3a3d65992cf0f7799c41b6cdcbe80a451d44da6f1c49b71ae828a7a83f7576d
  * Ne pas modifier manuellement. Régénérer avec tools/build-adn-browser-runtime.mjs
  */
 (function(global){
@@ -7073,6 +7073,12 @@ function enrichRapidCanonicalContract(canonicalBase, {
   }
   if (quantity && !list(contract.quantities).length) {
     contract.quantities = [{
+      /* 02F — LE REPLI 'éléments' EST GARDÉ, ET CE N'EST PAS UN OUBLI.
+         J'ai tenté de le retirer, pour que le contrat n'affirme pas une cible qu'il ne connaît pas.
+         `adn-state.js` l'interdit : « Une quantité doit avoir une unité ou une cible. » Un nombre
+         qui ne compte rien n'est pas une quantité exploitable, et cette règle est antérieure à ce
+         lot. Le repli reste donc ici, et la distinction dont le rendu a besoin — la personne a-t-elle
+         dénombré quelque chose — est portée par `ctx.quantiteExplicite`, que le moteur tient déjà. */
       target: text(quantity.target) || 'éléments', unit: null,
       exact: quantity.exact, min: quantity.min, max: quantity.max,
       source: 'derived_deterministic'
@@ -10217,5 +10223,5 @@ function createAdapterAuditView(envelope) {
 
 return {ENGINE_ADAPTERS_VERSION,buildExecutionEnvelope,projectToRapide,projectToArchitecte,projectToAtelier,validateLegacyLockMapping,createAdapterAuditView};
 })({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON});
-global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...ORCORE,...ROLEDEG,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'ce888bb4ea8e8361608a9fd73b0a156179ec02cebb1b6648b800fe182a9bb9b4'});
+global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...ORCORE,...ROLEDEG,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'b3a3d65992cf0f7799c41b6cdcbe80a451d44da6f1c49b71ae828a7a83f7576d'});
 })(window);

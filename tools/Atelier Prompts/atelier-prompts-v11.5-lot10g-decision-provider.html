@@ -3805,26 +3805,46 @@ const SECTIONS = {
        énumérables, la quantité peut porter une borne haute, une borne basse,
        ou les deux : les traiter séparément évite de transformer une
        fourchette en un seuil unique. */
+    /* 02F — CE QUE LA PERSONNE A NOMMÉ SE PROJETTE, QUEL QUE SOIT LE FORMAT.
+     *
+     * La garde ci-dessus avait raison sur son cas, et il est réel : un profil de rédaction longue
+     * porte le verrou Volume par défaut, `ctx.quantite` vaut alors le seuil du profil, et écrire
+     * « Minimum 800 éléments » dans un article serait un contresens. Elle avait tort sur un autre :
+     * quand la personne écrit elle-même « exactement cinq paragraphes », taire la contrainte la
+     * fait disparaître du livrable — mesuré 2/3 en 02E sur les trois cas réels du corpus 02D.
+     *
+     * Ce qui décide n'est donc pas le format, et surtout pas une liste de formats écrite ici : c'est
+     * l'ORIGINE de la quantité. `ctx.quantiteExplicite` distingue déjà les deux — c'est le même
+     * drapeau qui fait ajouter le verrou Volume dans `actifsAdaptes()`. Une quantité demandée se
+     * projette partout ; un seuil de profil reste réservé aux formats énumérables, comme avant. */
     const t = '## CONTRAINTES QUANTIFIÉES\n';
-    if(!ctx.fmt.enumerable)
-      return t + '- Volume attendu : ' + ctx.mots + ' mots.\n' +
-        '- Traitez la totalité de ce qui est demandé. Une omission constitue un échec, ' +
-        'même si le résultat paraît complet.';
     const q = ctx.quantite || {};
-    let ligne;
+    /* La cible vient du contrat canonique, qui l'a lue dans la contrainte confirmée (02E). Elle
+       l'emporte sur l'unité du format : « points » n'est pas « éléments ». */
+    const unite = (typeof q.cible === 'string' && q.cible.trim()) ? q.cible.trim() : (ctx.fmt.unite || 'éléments');
     /* ADN-RAPIDE-01 — le contrat canonique distingue une quantité EXACTE de
        bornes min/max, mutuellement exclusives. Le rendu suit cette distinction ;
        la branche min===max reste pour les entrées historiques sans `exact`. */
-    if(q.exact != null)
-      ligne = 'Exactement ' + q.exact + ' ' + (ctx.fmt.unite || 'éléments') + ', sans doublon.';
-    else if(q.min != null && q.max != null && q.min !== q.max)
-      ligne = 'Entre ' + q.min + ' et ' + q.max + ' ' + (ctx.fmt.unite || 'éléments') + ', sans doublon.';
-    else if(q.min != null && q.max != null)
-      ligne = 'Exactement ' + q.min + ' ' + (ctx.fmt.unite || 'éléments') + ', sans doublon.';
-    else if(q.max != null)
-      ligne = 'Au maximum ' + q.max + ' ' + (ctx.fmt.unite || 'éléments') + ', sans en sacrifier la qualité.';
-    else
-      ligne = 'Minimum ' + q.min + ' ' + (ctx.fmt.unite || 'éléments') + ', sans doublon.';
+    const ligneQuantite = () => {
+      if(q.exact != null)
+        return 'Exactement ' + q.exact + ' ' + unite + ', sans doublon.';
+      if(q.min != null && q.max != null && q.min !== q.max)
+        return 'Entre ' + q.min + ' et ' + q.max + ' ' + unite + ', sans doublon.';
+      if(q.min != null && q.max != null)
+        return 'Exactement ' + q.min + ' ' + unite + ', sans doublon.';
+      if(q.max != null)
+        return 'Au maximum ' + q.max + ' ' + unite + ', sans en sacrifier la qualité.';
+      return 'Minimum ' + q.min + ' ' + unite + ', sans doublon.';
+    };
+    if(!ctx.fmt.enumerable){
+      const demandee = !!(ctx.quantiteExplicite
+        && (q.exact != null || q.min != null || q.max != null));
+      return t + (demandee ? '- ' + ligneQuantite() + '\n' : '') +
+        '- Volume attendu : ' + ctx.mots + ' mots.\n' +
+        '- Traitez la totalité de ce qui est demandé. Une omission constitue un échec, ' +
+        'même si le résultat paraît complet.';
+    }
+    const ligne = ligneQuantite();
     return t + '- ' + ligne + '\n' +
       '- Volume attendu : ' + ctx.mots + ' mots.\n' +
       '- Couverture : 100 % des éléments présents dans les données sources. ' +
@@ -3889,7 +3909,14 @@ const SECTIONS = {
 
   controle: ctx => {
     const points = ['La réponse commence-t-elle par ' + ctx.fmt.debut + ' ?'];
-    if(ctx.fmt.enumerable){
+    const qc = ctx.quantite || {};
+    /* 02F — UNE CONTRAINTE ÉNONCÉE DOIT ÊTRE CONTRÔLABLE.
+       Le projecteur `volume` projette désormais une quantité demandée sur tout format. Si la
+       vérification restait réservée aux formats énumérables, le prompt énoncerait une contrainte
+       que sa propre liste de contrôle ignore. La condition est donc la même des deux côtés. */
+    const qDemandee = !!(ctx.quantiteExplicite
+      && (qc.exact != null || qc.min != null || qc.max != null));
+    if(ctx.fmt.enumerable || qDemandee){
       const q = ctx.quantite || {};
       /* ADN-RAPIDE-01 — le contrôle final dit ce que le CONTRAT dit. Une
          quantité canonique EXACTE se contrôle exactement : demander « au moins
@@ -3901,7 +3928,10 @@ const SECTIONS = {
         : (q.min != null && q.max != null && q.min !== q.max) ? 'entre ' + q.min + ' et ' + q.max
         : (q.max != null && q.min == null) ? 'au maximum ' + q.max
         : 'au moins ' + (q.min != null ? q.min : ctx.seuil);
-      points.push('Le nombre de ' + (ctx.fmt.unite || 'éléments') + ' est-il ' + critere + ' ?');
+      const uniteControle = (typeof q.cible === 'string' && q.cible.trim()) ? q.cible.trim() : (ctx.fmt.unite || 'éléments');
+      points.push('Le nombre de ' + uniteControle + ' est-il ' + critere + ' ?');
+      if(!ctx.fmt.enumerable)
+        points.push('Le volume tient-il dans la fourchette indiquée (' + ctx.mots + ' mots) sans remplissage ?');
     } else {
       points.push('Le volume tient-il dans la fourchette indiquée (' + ctx.mots + ' mots) sans remplissage ?');
     }
@@ -7962,7 +7992,12 @@ function rapideTraceNative(blocs,p){
 function rapideAppliquerCanoniqueAuContexte(ctx,p){
   const q=p.quantite;
   if(q){
-    ctx.quantite={exact:q.exact!=null?q.exact:null,min:q.min!=null?q.min:null,max:q.max!=null?q.max:null};
+    /* 02F — LA CIBLE VOYAGE AVEC LE NOMBRE.
+       02E avait fait lire la cible dans la contrainte confirmée (« points », « paragraphes »,
+       « slogans ») ; elle s'arrêtait au contrat. Sans elle, la projection retombait sur l'unité du
+       format et rendait « 20 éléments » là où la personne avait écrit « 20 points ». */
+    ctx.quantite={exact:q.exact!=null?q.exact:null,min:q.min!=null?q.min:null,max:q.max!=null?q.max:null,
+      cible:typeof q.target==='string'&&q.target.trim()?q.target.trim():null};
     ctx.quantiteExplicite=true;
     ctx.seuil=q.exact!=null?q.exact:(q.min!=null?q.min:ctx.seuil);
   }
@@ -10631,7 +10666,7 @@ function v11RequireDemand(){
   return '';
 }
 /* GENERATED — LOT 10G.3B.3F.2
- * source-sha256: ce888bb4ea8e8361608a9fd73b0a156179ec02cebb1b6648b800fe182a9bb9b4
+ * source-sha256: b3a3d65992cf0f7799c41b6cdcbe80a451d44da6f1c49b71ae828a7a83f7576d
  * Ne pas modifier manuellement. Régénérer avec tools/build-adn-browser-runtime.mjs
  */
 (function(global){
@@ -17705,6 +17740,12 @@ function enrichRapidCanonicalContract(canonicalBase, {
   }
   if (quantity && !list(contract.quantities).length) {
     contract.quantities = [{
+      /* 02F — LE REPLI 'éléments' EST GARDÉ, ET CE N'EST PAS UN OUBLI.
+         J'ai tenté de le retirer, pour que le contrat n'affirme pas une cible qu'il ne connaît pas.
+         `adn-state.js` l'interdit : « Une quantité doit avoir une unité ou une cible. » Un nombre
+         qui ne compte rien n'est pas une quantité exploitable, et cette règle est antérieure à ce
+         lot. Le repli reste donc ici, et la distinction dont le rendu a besoin — la personne a-t-elle
+         dénombré quelque chose — est portée par `ctx.quantiteExplicite`, que le moteur tient déjà. */
       target: text(quantity.target) || 'éléments', unit: null,
       exact: quantity.exact, min: quantity.min, max: quantity.max,
       source: 'derived_deterministic'
@@ -20849,7 +20890,7 @@ function createAdapterAuditView(envelope) {
 
 return {ENGINE_ADAPTERS_VERSION,buildExecutionEnvelope,projectToRapide,projectToArchitecte,projectToAtelier,validateLegacyLockMapping,createAdapterAuditView};
 })({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON});
-global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...ORCORE,...ROLEDEG,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'ce888bb4ea8e8361608a9fd73b0a156179ec02cebb1b6648b800fe182a9bb9b4'});
+global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...ORCORE,...ROLEDEG,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'b3a3d65992cf0f7799c41b6cdcbe80a451d44da6f1c49b71ae828a7a83f7576d'});
 })(window);
 
 
