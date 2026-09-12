@@ -55503,7 +55503,7 @@ var Worker_default = {
     // adocGenerateStructuredFiche/adocPlanQuery/etc.) — tout autre chemin POST inconnu reçoit
     // désormais un 404 clair, jamais un appel LLM implicite.
     if (p === "/" && request2.method === "POST")
-      return handleAnthropicProxy(request2, env2, ctx);
+      return handleAnthropicProxy(request2, env2);
     return jsonErr("Not found", 404);
   }
 };
@@ -56148,18 +56148,7 @@ async function handleBrandAssetUpload(request2, env2) {
 }
 __name(handleBrandAssetUpload, "handleBrandAssetUpload");
 
-async function handleAnthropicProxy(request2, env2, ctx2) {
-  // Item 24 — journalisation permanente, en parallèle du console.log existant (jamais un
-  // remplacement), corrélée par anthropicRequestId. "appel 2" (génération structurée forcée,
-  // cf. ADOC_CALL2_TRANSPORT_TIMEOUT_MS/ADOC_CALL2_SEMANTIC_TIMEOUT_MS_EXPERIMENTAL côté client)
-  // passe par ce point d'appel : le client poste toujours à la racine, sans suffixe de chemin
-  // (cf. le commentaire de routage juste au-dessus de l'appel à cette fonction), et c'est bien
-  // ICI, jamais dans handleLLMProxy (route /llm-proxy distincte, utilisée pour le provider
-  // openai et par d'autres appels internes), que le fetch réel vers api.anthropic.com a lieu.
-  // Une seule ligne INSERT par appel, écrite une fois tous les timestamps connus (succès ou
-  // erreur) — jamais de ligne à moitié écrite. ctx2.waitUntil (même convention que
-  // logWebConsult) : le client n'attend jamais cette écriture, aucune latence ajoutée.
-  const _pcReceivedAt = new Date().toISOString();
+async function handleAnthropicProxy(request2, env2) {
   let body;
   try {
     body = await request2.json();
@@ -56198,27 +56187,16 @@ async function handleAnthropicProxy(request2, env2, ctx2) {
     ab.tool_choice = tool_choice;
   if (stream)
     ab.stream = stream;
-  const _pcSentAt = new Date().toISOString();
-  let res;
-  try {
-    res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": env2.ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "anthropic-beta": "prompt-caching-2024-07-31",
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(ab)
-    });
-  } catch (fetchErr) {
-    // Appel interrompu avant même une réponse (échec réseau) — comportement inchangé (l'erreur
-    // est relancée telle quelle), uniquement une ligne de journal en plus, jamais bloquante.
-    const _pcFailPromise = logProxyCall(env2, { anthropicRequestId: null, receivedAt: _pcReceivedAt, sentAt: _pcSentAt, headersReceivedAt: null, closedAt: new Date().toISOString(), httpStatus: null });
-    if (ctx2 && typeof ctx2.waitUntil === "function") ctx2.waitUntil(_pcFailPromise);
-    throw fetchErr;
-  }
-  const _pcHeadersReceivedAt = new Date().toISOString();
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "x-api-key": env2.ANTHROPIC_API_KEY,
+      "anthropic-version": "2023-06-01",
+      "anthropic-beta": "prompt-caching-2024-07-31",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(ab)
+  });
   // Lot request-id — Headers.get() est insensible à la casse (spec Fetch), donc pas besoin de
   // deviner la casse exacte renvoyée par Anthropic. Uniquement l'identifiant technique lui-même
   // dans ce log : jamais le prompt, les passages RAG, la clé API ni aucune donnée clinique.
@@ -56228,18 +56206,7 @@ async function handleAnthropicProxy(request2, env2, ctx2) {
   // Sans .text() pour éviter de bloquer le Worker jusqu'à fin de génération (timeout 502).
   // En cas d'erreur Anthropic (!res.ok), on bascule sur .text() pour transmettre le message JSON.
   if (stream && res.ok && res.body) {
-    // TransformStream identité : les octets traversent tels quels (aucun changement de
-    // comportement/latence), mais pipeTo() nous donne le vrai moment de fermeture du flux
-    // (succès ou erreur), y compris longtemps après que cette fonction a déjà retourné sa
-    // Response — d'où ctx2.waitUntil, indispensable ici (sans lui, cette écriture pourrait être
-    // silencieusement abandonnée si le Worker se termine avant qu'elle ne se finalise).
-    const { readable, writable } = new TransformStream();
-    const _pcPipePromise = res.body.pipeTo(writable).then(
-      () => logProxyCall(env2, { anthropicRequestId, receivedAt: _pcReceivedAt, sentAt: _pcSentAt, headersReceivedAt: _pcHeadersReceivedAt, closedAt: new Date().toISOString(), httpStatus: res.status }),
-      () => logProxyCall(env2, { anthropicRequestId, receivedAt: _pcReceivedAt, sentAt: _pcSentAt, headersReceivedAt: _pcHeadersReceivedAt, closedAt: new Date().toISOString(), httpStatus: res.status })
-    );
-    if (ctx2 && typeof ctx2.waitUntil === "function") ctx2.waitUntil(_pcPipePromise);
-    return new Response(readable, {
+    return new Response(res.body, {
       status: res.status,
       headers: {
         ...CORS,
@@ -56251,10 +56218,7 @@ async function handleAnthropicProxy(request2, env2, ctx2) {
       }
     });
   }
-  const _pcBodyText = await res.text();
-  const _pcLogPromise = logProxyCall(env2, { anthropicRequestId, receivedAt: _pcReceivedAt, sentAt: _pcSentAt, headersReceivedAt: _pcHeadersReceivedAt, closedAt: new Date().toISOString(), httpStatus: res.status });
-  if (ctx2 && typeof ctx2.waitUntil === "function") ctx2.waitUntil(_pcLogPromise);
-  return new Response(_pcBodyText, {
+  return new Response(await res.text(), {
     status: res.status,
     headers: {
       ...CORS,
@@ -56264,22 +56228,6 @@ async function handleAnthropicProxy(request2, env2, ctx2) {
   });
 }
 __name(handleAnthropicProxy, "handleAnthropicProxy");
-async function logProxyCall(env2, fields) {
-  if (!env2.DB) return;
-  try {
-    await env2.DB.prepare(
-      "INSERT INTO proxy_call_log (anthropic_request_id, received_at, sent_at, headers_received_at, closed_at, http_status) VALUES (?, ?, ?, ?, ?, ?)"
-    ).bind(
-      fields.anthropicRequestId || null,
-      fields.receivedAt || null,
-      fields.sentAt || null,
-      fields.headersReceivedAt || null,
-      fields.closedAt || null,
-      fields.httpStatus ?? null
-    ).run();
-  } catch (_) { /* journalisation best-effort — ne doit jamais faire échouer l'appel réel */ }
-}
-__name(logProxyCall, "logProxyCall");
 async function handleLibrarySearch(request2, env2) {
   let body;
   try {
@@ -56746,8 +56694,18 @@ async function handleGeneratePDF(request2, env2) {
   const cleanedContent = (() => {
     let h = htmlWithImages;
 
-    // 1. Supprimer les numéros de page parasites (<p>1</p>, <p> 2 </p>, etc.)
-    h = h.replace(/<p[^>]*>\s*\d{1,3}\s*<\/p>/gi, '');
+    // A12 (audit Codex, P1) — l'ancien prétraitement supprimait ICI tout <p>N</p> de 1-3 chiffres
+    // par un simple regex sur la chaîne brute — sans discernement du sens clinique (un score
+    // PHQ-9 "12" ou une durée "45" en minutes disparaissaient silencieusement). Investigation
+    // complète (rapport de lot) : aucune pagination native n'est jamais demandée à Cloudflare
+    // Browser Rendering pour cette route (aucun displayHeaderFooter/headerTemplate/footerTemplate
+    // dans l'appel fetch plus bas, aucune règle @page dans le CSS injecté), et aucune marque
+    // structurelle fiable (classe dédiée, conteneur de pied de page) n'existe dans le HTML généré
+    // pour distinguer un éventuel numéro de page d'un contenu clinique court. Une détection par
+    // position/séquence a été testée et rejetée : un contenu clinique isolé entre deux marqueurs
+    // hypothétiques casse toute suite consécutive, la rendant peu fiable. Ce prétraitement est
+    // retiré ici — voir le script DOM ci-dessous pour le retrait symétrique du second mécanisme,
+    // jamais une suppression parallèle sur un critère différent (cf. point 3 du prompt de lot).
 
     // 2. Injecter un script DOM qui s'exécute avant le rendu PDF
     //    Chromium headless exécute le JS synchrone avant la capture PDF
@@ -56767,13 +56725,22 @@ async function handleGeneratePDF(request2, env2) {
       all[i].style.breakInside = 'avoid';
     }
   }
-  // Supprimer les éléments qui ne contiennent que 1-3 chiffres
-  var ps = document.querySelectorAll('p,div,span');
-  for(var j=0;j<ps.length;j++){
-    if(/^\s*\d{1,3}\s*$/.test(ps[j].textContent) && ps[j].children.length === 0){
-      ps[j].style.display = 'none';
-    }
-  }
+  // A12 (audit Codex, P1) — l'ancien mécanisme masquait tout élément feuille (p/div/span) dont
+  // le texte tenait sur 1-3 chiffres, en le prenant pour un numéro de page parasite. Investigation
+  // (rapport de lot complet) : (1) aucune pagination native n'est jamais demandée à Cloudflare
+  // Browser Rendering pour cette route (aucun displayHeaderFooter/headerTemplate/footerTemplate
+  // dans l'appel fetch, aucune règle @page dans le CSS injecté) — un vrai numéro de page ne
+  // pourrait donc exister que s'il avait été écrit tel quel dans le HTML produit par le moteur, ce
+  // qu'aucune instruction du prompt système ne demande jamais ; (2) aucune marque structurelle
+  // fiable (classe dédiée, conteneur de pied de page) n'existe dans le HTML généré pour distinguer
+  // un tel élément d'un contenu clinique court légitime (score, durée) — confirmé par recherche
+  // exhaustive, absent du système de génération ; (3) une détection par position/séquence a été
+  // testée et rejetée : un score ou une durée clinique isolé(e) apparaissant ENTRE deux marqueurs
+  // hypothétiques casse toute suite consécutive, rendant une telle heuristique à la fois peu fiable
+  // ET risquée. Décision (confirmée explicitement) : supprimer ce mécanisme plutôt que de risquer
+  // ne serait-ce qu'un seul faux positif sur un contenu clinique réel — l'ajout éventuel d'un
+  // signal structurel fiable nécessiterait une modification du moteur de génération (studio-clinique.html),
+  // explicitement hors périmètre de ce lot Worker seul.
   // Limiter la hauteur des images pour éviter les coupures
   var imgs = document.querySelectorAll('img');
   for(var k=0;k<imgs.length;k++){
