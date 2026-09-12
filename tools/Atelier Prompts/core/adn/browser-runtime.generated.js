@@ -1,5 +1,5 @@
 /* GENERATED — LOT 10G.3B.3F.2
- * source-sha256: b3a3d65992cf0f7799c41b6cdcbe80a451d44da6f1c49b71ae828a7a83f7576d
+ * source-sha256: 0dd8de7f47e39e642150789ae6cc7bc9fc56cc8ac10aea3835fb9d9dc9b4b20e
  * Ne pas modifier manuellement. Régénérer avec tools/build-adn-browser-runtime.mjs
  */
 (function(global){
@@ -6883,42 +6883,69 @@ function resolveQuantityNumber(token, number_words) {
 /* La cible est le premier groupe nominal qui suit le nombre. Aucun lexique : une position. */
 const QUANTITY_TARGET = "(?:\\s+([a-z'’-]+(?:\\s+(?:de|d'|du|des|par)\\s+[a-z'’-]+)?))?";
 
+/* 02F-bis — LA CIBLE PEUT PRÉCÉDER LE NOMBRE, ET C'EST LA TOURNURE HABITUELLE DE L'ARBITRE.
+ *
+ * Découvert par le smoke produit, sur des sorties d'Arbitre réelles : interrogé sur « exactement 7
+ * idées de cadeaux », l'Arbitre confirme « Le nombre d'idées doit être exactement 7 » — le nom AVANT
+ * le nombre. `QUANTITY_TARGET` ne lisant qu'après, la cible retombait sur « éléments » et le prompt
+ * livré disait « Exactement 7 éléments » là où la personne avait écrit « idées ». Deux cas sur trois
+ * étaient touchés, et cette tournure est celle que l'Arbitre produit le plus souvent.
+ *
+ * « nombre de X » nomme explicitement ce qui est compté : c'est une position de plus, pas une règle
+ * par cas, et aucun mot de domaine n'est ajouté. */
+const QUANTITY_COUNTED_NOUN = /\bnombre\s+(?:d'|de\s+|des\s+|du\s+)([a-z'’-]+)/d;
+
 function deriveQuantityFromRequest(request, { counting_units = '', number_words = null } = {}) {
+  const brut = String(request == null ? '' : request);
   const n = normalizeRequestText(request);
   if (!n) return null;
   const N = quantityNumberPattern(number_words);
   const num = (v) => resolveQuantityNumber(v, number_words);
-  const cible = (v) => (text(v) || null);
+  /* 02F-bis — LA CIBLE EST RENDUE À LA PERSONNE : ELLE GARDE SES ACCENTS.
+     Les motifs travaillent sur le texte normalisé, sans accents, pour ne pas avoir à les connaître.
+     Mais la cible, elle, est écrite dans le prompt livré : « Exactement 7 idees » serait une faute
+     visible, mesurée par le smoke produit. Le mot est donc relu dans le texte d'origine, aux mêmes
+     positions — ce qui n'est licite que si la normalisation n'a pas déplacé les caractères. On le
+     vérifie plutôt que de le supposer, et à défaut on retombe sur la forme normalisée. */
+  const aligne = brut.length === n.length;
+  const motOrigine = (bornes) => {
+    if (!bornes) return null;
+    return aligne ? brut.slice(bornes[0], bornes[1]) : n.slice(bornes[0], bornes[1]);
+  };
+  const nomMatch = n.match(QUANTITY_COUNTED_NOUN);
+  const nomCompte = nomMatch && nomMatch.indices ? motOrigine(nomMatch.indices[1]) : null;
+  /* Ce qui suit le nombre d'abord ; à défaut, ce que « nombre de … » nomme. */
+  const cible = (m, k) => (text(motOrigine(m.indices && m.indices[k])) || text(nomCompte) || null);
   let m;
 
-  if ((m = n.match(new RegExp(`\\bexactement\\s+(${N})${QUANTITY_TARGET}`)))) {
+  if ((m = n.match(new RegExp(`\\bexactement\\s+(${N})${QUANTITY_TARGET}`, 'd')))) {
     const v = num(m[1]);
-    if (v !== null) return { exact: v, min: null, max: null, target: cible(m[2]), rule: 'exact_explicit' };
+    if (v !== null) return { exact: v, min: null, max: null, target: cible(m, 2), rule: 'exact_explicit' };
   }
-  if ((m = n.match(new RegExp(`entre\\s+(${N})\\s+et\\s+(${N})${QUANTITY_TARGET}`)))) {
+  if ((m = n.match(new RegExp(`entre\\s+(${N})\\s+et\\s+(${N})${QUANTITY_TARGET}`, 'd')))) {
     const a = num(m[1]); const b = num(m[2]);
     if (a !== null && b !== null) {
       return a <= b
-        ? { exact: null, min: a, max: b, target: cible(m[3]), rule: 'range' }
-        : { exact: null, min: b, max: a, target: cible(m[3]), rule: 'range_reversed' };
+        ? { exact: null, min: a, max: b, target: cible(m, 3), rule: 'range' }
+        : { exact: null, min: b, max: a, target: cible(m, 3), rule: 'range_reversed' };
     }
   }
-  if ((m = n.match(new RegExp(`(?:au moins|au minimum|minimum|mini|pas moins de)\\s+(${N})${QUANTITY_TARGET}`)))) {
+  if ((m = n.match(new RegExp(`(?:au moins|au minimum|minimum|mini|pas moins de)\\s+(${N})${QUANTITY_TARGET}`, 'd')))) {
     const v = num(m[1]);
-    if (v !== null) return { exact: null, min: v, max: null, target: cible(m[2]), rule: 'lower_bound' };
+    if (v !== null) return { exact: null, min: v, max: null, target: cible(m, 2), rule: 'lower_bound' };
   }
-  if ((m = n.match(new RegExp(`(${N})\\s+(?:au\\s+)?minimum\\b`)))) {
+  if ((m = n.match(new RegExp(`(${N})\\s+(?:au\\s+)?minimum\\b`, 'd')))) {
     const v = num(m[1]);
     if (v !== null) return { exact: null, min: v, max: null, target: null, rule: 'lower_bound_suffix' };
   }
-  if ((m = n.match(new RegExp(`(?:au plus|au maximum|maximum|max|pas plus de|moins de)\\s+(${N})${QUANTITY_TARGET}`)))) {
+  if ((m = n.match(new RegExp(`(?:au plus|au maximum|maximum|max|pas plus de|moins de)\\s+(${N})${QUANTITY_TARGET}`, 'd')))) {
     const v = num(m[1]);
-    if (v !== null) return { exact: null, min: null, max: v, target: cible(m[2]), rule: 'upper_bound' };
+    if (v !== null) return { exact: null, min: null, max: v, target: cible(m, 2), rule: 'upper_bound' };
   }
   const units = text(counting_units);
-  if (units && (m = n.match(new RegExp(`(${N})\\s+(${units})\\b`)))) {
+  if (units && (m = n.match(new RegExp(`(${N})\\s+(${units})\\b`, 'd')))) {
     const v = num(m[1]);
-    if (v !== null) return { exact: null, min: v, max: null, target: cible(m[2]), rule: 'counted_unit' };
+    if (v !== null) return { exact: null, min: v, max: null, target: cible(m, 2), rule: 'counted_unit' };
   }
   return null;
 }
@@ -10223,5 +10250,5 @@ function createAdapterAuditView(envelope) {
 
 return {ENGINE_ADAPTERS_VERSION,buildExecutionEnvelope,projectToRapide,projectToArchitecte,projectToAtelier,validateLegacyLockMapping,createAdapterAuditView};
 })({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON});
-global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...ORCORE,...ROLEDEG,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'b3a3d65992cf0f7799c41b6cdcbe80a451d44da6f1c49b71ae828a7a83f7576d'});
+global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...ORCORE,...ROLEDEG,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'0dd8de7f47e39e642150789ae6cc7bc9fc56cc8ac10aea3835fb9d9dc9b4b20e'});
 })(window);

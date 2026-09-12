@@ -93,7 +93,7 @@ test('T-RAPCHAR01-06 [CARACTÉRISATION] une fourchette reste une fourchette', ()
   /* 02E : la cible n'est plus supposée « éléments » — elle est LUE dans la contrainte. C'est ce qui
      empêche « exactement 120 BPM » de devenir « 120 éléments ». */
   assert.deepEqual(clone(p.r.canonical.contract.quantities[0]),
-    { target: 'idees', unit: null, exact: null, min: 3, max: 5, source: 'derived_deterministic' });
+    { target: 'idées', unit: null, exact: null, min: 3, max: 5, source: 'derived_deterministic' });
   assert.match(sectionBody(p.promptFinal, 'CONTRAINTES QUANTIFIÉES'), /Entre 3 et 5/);
 });
 

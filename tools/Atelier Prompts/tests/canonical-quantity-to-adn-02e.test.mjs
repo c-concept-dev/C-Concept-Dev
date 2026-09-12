@@ -136,7 +136,7 @@ test('T-02E-08 : un nombre métier n’est pas pris pour une quantité de livrab
   /* Et quand une modalité de dénombrement EST présente, la cible reste celle que la contrainte
      nomme : c'est ce qui empêche « 120 BPM » de devenir « 120 éléments ». */
   const q = quantiteDe(['Exactement 120 BPM']);
-  assert.equal(q.target, 'bpm', 'la cible est celle du texte, jamais « éléments » par défaut');
+  assert.equal(q.target, 'BPM', 'la cible est celle du texte, jamais « éléments » par défaut');
 });
 
 test('T-02E-09 : aucun mot de domaine n’a été ajouté au lexique d’unités', () => {
@@ -170,7 +170,7 @@ test('T-02E-11 : une quantité inconnue du correctif fonctionne sans ajout', () 
   const q = quantiteDe(['Produis exactement sept éléments']);
   assert.ok(q, 'une formulation jamais utilisée dans le correctif est dérivée');
   assert.equal(q.exact, 7);
-  assert.equal(q.target, 'elements');
+  assert.equal(q.target, 'éléments', 'la cible garde ses accents : elle est rendue à la personne');
 });
 
 test('T-02E-12 : la dérivation ne lit plus la demande brute quand le contrat porte la contrainte', () => {

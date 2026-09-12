@@ -142,7 +142,7 @@ test('T-RAP01R-08 une quantité exacte traverse le contrat jusqu’au prompt', (
   const p = jouer('Donne exactement 7 idées.');
   /* 02E : la cible n'est plus supposée « éléments » — elle est lue dans la contrainte. */
   assert.deepEqual(clone(p.r.canonical.contract.quantities[0]), {
-    target: 'idees', unit: null, exact: 7, min: null, max: null, source: 'derived_deterministic'
+    target: 'idées', unit: null, exact: 7, min: null, max: null, source: 'derived_deterministic'
   });
   assert.ok(p.mergedLocks.includes('volume'));
   const volume = sectionBody(p.promptFinal, 'CONTRAINTES QUANTIFIÉES');

@@ -158,3 +158,37 @@ test('T-02F-12 : une cible jamais vue par le correctif se projette sans ajout de
   assert.match(quantifiees(p.promptFinal), /Exactement 7 strophes/,
     'ni « strophes » ni ce format n’apparaissent dans le correctif');
 });
+
+/* ==========================================================================
+ * T-02F-13 … 15 — 02F-bis : CE QUE LE SMOKE PRODUIT A TROUVÉ
+ *
+ * Les deux défauts ci-dessous n'ont pas été trouvés en lisant le code : ils ont été trouvés en
+ * lisant des prompts réellement livrés, sur des sorties d'Arbitre réelles. Les formulations citées
+ * sont celles que l'Arbitre a produites, mot pour mot.
+ * ======================================================================= */
+
+test('T-02F-13 : la cible nommée AVANT le nombre est lue — tournure habituelle de l’Arbitre', () => {
+  /* Interrogé sur « exactement 7 idées de cadeaux », l'Arbitre confirme « Le nombre d'idées doit
+     être exactement 7 ». Le nom précède le nombre : la cible retombait sur « éléments ». */
+  const p = jouer(["Le nombre d'idées doit être exactement 7"],
+    'Donne exactement 7 idées de cadeaux pour un enfant de 8 ans');
+  assert.match(quantifiees(p.promptFinal), /Exactement 7 idées/);
+  assert.doesNotMatch(quantifiees(p.promptFinal), /7 éléments/);
+});
+
+test('T-02F-14 : une fourchette nommée avant le nombre est lue aussi', () => {
+  const p = jouer(['Le nombre de titres proposés doit être compris entre trois et cinq (inclus)'],
+    "Propose entre trois et cinq titres d'articles sur le vélo en ville");
+  assert.match(quantifiees(p.promptFinal), /Entre 3 et 5 titres/);
+});
+
+test('T-02F-15 : la cible garde ses accents dans le prompt livré', () => {
+  /* Les motifs travaillent sur un texte sans accents ; la cible, elle, est écrite à la personne.
+     « Exactement 7 idees » était une faute visible, mesurée sur un prompt réel. */
+  const p = jouer(["Le nombre d'idées doit être exactement 7"], 'Donne exactement 7 idées de cadeaux');
+  assert.match(quantifiees(p.promptFinal), /idées/, 'accentué');
+  assert.doesNotMatch(quantifiees(p.promptFinal), /\bidees\b/, 'jamais la forme normalisée');
+  /* Et l'élision est faite : « Le nombre de idées » était fautif, comme « Le nombre de éléments »
+     l'était déjà avant ces lots. */
+  assert.match(verification(p.promptFinal), /Le nombre d’idées est-il exactement 7 \?/);
+});
