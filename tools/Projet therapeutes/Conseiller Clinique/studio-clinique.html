@@ -11345,11 +11345,19 @@ ${recent}`;
   // ═══════════════════════════════════════════════════════════════════════
   window._adocWsState = { storeKey: null, memoryHome: null, memoryNextSibling: null, lastFocus: null };
 
+  // Audit Codex A14 — retourne désormais un booléen (true = rendu affiché avec succès, false =
+  // ouverture annulée, quelle que soit la raison) là où la fonction ne retournait jamais rien
+  // auparavant. Aucun appelant existant ne dépendait d'une valeur de retour (tous en `await
+  // window.adocOpenWorkspace(...)` sans jamais lire le résultat, cf. grep) : un ajout strictement
+  // additif, jamais un changement de comportement pour les appelants qui l'ignorent. Le SEUL
+  // signal fiable, aujourd'hui, pour distinguer un rendu réussi d'un rendu en échec — nécessaire
+  // à adocConfirmBlockCorrection pour ne jamais sauvegarder une correction dont le rendu vient
+  // d'échouer (cf. investigation du lot).
   window.adocOpenWorkspace = async function (storeKey) {
     const art = window._adocArtifacts?.[storeKey];
     // Audit correctif, Partie B point 10 — l'écran de travail s'ouvre pour TOUT artefact dont les
     // capacités l'autorisent (structuré OU repli legacy-html), plus seulement le moteur structuré.
-    if (!art || !art._adocCapabilities || !art._adocCapabilities.workspace) return;
+    if (!art || !art._adocCapabilities || !art._adocCapabilities.workspace) return false;
     const isLegacy = art._adocGenerationEngine === 'legacy-html';
     const doc = art._adocStructuredDoc; // undefined pour un repli legacy-html — jamais utilisé alors
     const snapshot = isLegacy ? art._adocLegacySourceSnapshot : art._adocStructuredSnapshot;
@@ -11374,7 +11382,7 @@ ${recent}`;
         // clic sans effet apparent, sans que l'utilisatrice sache pourquoi. Message visible
         // désormais, avec la raison quand elle est disponible.
         alert('Impossible d\'afficher ce document' + (e && e.message ? ' : ' + e.message : ' — cause inconnue') + '.');
-        return;
+        return false;
       }
     }
 
@@ -11431,6 +11439,7 @@ ${recent}`;
     document.getElementById('cc-workspace').classList.add('open');
     document.body.style.overflow = 'hidden';
     document.getElementById('cc-ws-close-btn').focus();
+    return true;
   };
 
   window.adocCloseWorkspace = function () {
@@ -11855,12 +11864,25 @@ ${recent}`;
     const doc = art._adocStructuredDoc;
     const idx = (doc.blocks || []).findIndex(function (b) { return b.id === st.blockId; });
     if (idx === -1) { adocWsClearBlockSelection(); return; }
+    // Audit Codex A14 — conservé pour pouvoir annuler cette mutation précise si le rendu ci-dessous
+    // échoue (cf. investigation du lot : la mutation intervenait auparavant avant toute vérification
+    // que le rendu réussisse, et la sauvegarde suivait ensuite inconditionnellement).
+    const originalBlock = doc.blocks[idx];
     doc.blocks[idx] = st.pendingBlock; // remplace CE bloc précis, tous les autres restent strictement identiques
     const storeKey = st.storeKey;
     adocWsClearBlockSelection();
     // Réutilise EXACTEMENT le rendu/l'ouverture de l'espace de travail déjà existants (aucune
     // logique de rendu dupliquée) pour refléter immédiatement le bloc corrigé à l'écran.
-    await window.adocOpenWorkspace(storeKey);
+    // Audit Codex A14 — adocOpenWorkspace signale maintenant si le rendu a réellement réussi
+    // (true) ou échoué (false ; message déjà affiché à l'utilisatrice par sa propre gestion
+    // d'erreur existante, cf. son alert()). Sur échec, la mutation ci-dessus est annulée et
+    // AUCUNE sauvegarde n'a lieu — jamais une correction dont le rendu a échoué persistée
+    // silencieusement côté serveur.
+    const renderOk = await window.adocOpenWorkspace(storeKey);
+    if (!renderOk) {
+      doc.blocks[idx] = originalBlock;
+      return;
+    }
     // Réutilise EXACTEMENT le mécanisme de sauvegarde déjà existant et déjà testé (UX-10A) —
     // nouvelle version créée, l'ancienne reste accessible via l'historique déjà existant.
     await window.adocWsSave();
