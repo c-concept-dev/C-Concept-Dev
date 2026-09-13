@@ -9650,11 +9650,18 @@ ${recent}`;
     // LOT 11 — traçabilité de la police appliquée, même patron que _adocBrandKitName ci-dessus.
     // Reste null si l'utilisatrice a choisi "keep" ou si le motif de police n'a pas été retrouvé.
     if (candidate.fontLabel) art._adocFontLabel = candidate.fontLabel;
-    // Promotion tardive des capacités — un document legacy "normal" (jamais un repli depuis le
-    // moteur structuré) n'a jamais reçu cette enveloppe à la génération (cf. adocFinalizeGeneration,
-    // réservée au cas de repli) : l'utilisatrice demandant explicitement une action qui en
-    // dépend (persistance de la nouvelle version), on la lui accorde ici plutôt que d'échouer
-    // silencieusement — cohérent avec "toute demande doit être réellement exécutée".
+    // Audit Codex A2 — commentaire mis à jour (dérive relevée lors de l'audit item 48) : ce
+    // filet de sécurité décrivait à l'origine le cas NORMAL d'un document legacy direct, qui
+    // n'avait alors jamais reçu _adocCapabilities à la génération (seul le repli structuré→legacy
+    // le recevait). Depuis item 48 (condition fellBackFromStructured retirée dans
+    // adocFinalizeGeneration), TOUT document fmt==='html' reçoit _adocCapabilities ET un vrai
+    // _adocLegacySourceSnapshot dès sa génération, direct ou repli confondus — vérifié par
+    // reproduction réelle (verify-a2-retheme-sourcesnapshot.js) : un document legacy direct
+    // arrive déjà ici avec les deux déjà posés. Ce bloc ne s'applique donc plus qu'à un artefact
+    // antérieur à item 48 encore en mémoire (session non rechargée) — un filet de sécurité
+    // devenu défensif, plus le chemin normal. Conservé tel quel (n'échoue jamais silencieusement
+    // si ce cas résiduel survenait), mais ne construit toujours pas de SourceSnapshot ici : sans
+    // objet pour le cas visé désormais, puisque tout document normalement généré l'a déjà.
     if (!art._adocCapabilities) {
       art._adocGenerationEngine = art._adocGenerationEngine || 'legacy-html';
       art._adocCapabilities = { workspace: true, persist: true, fineCitations: false, blockEditing: false, legacyBlockEditing: true, transform: false, export: true, qualityControlledExport: false };
