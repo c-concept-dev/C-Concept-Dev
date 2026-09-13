@@ -12363,9 +12363,27 @@ ${recent}`;
   // même id à la prochaine ouverture — aucune persistance nécessaire.
   //
   // Point 4 (périmètre) — titres (h1-h6), paragraphes (p), listes ENTIÈRES
-  // (ul/ol, jamais un <li> isolé), cellules de tableau (td/th) ; images/
-  // figures hors périmètre (jamais dans ADOC_LEGACY_BLOCK_SELECTOR).
-  var ADOC_LEGACY_BLOCK_SELECTOR = 'h1,h2,h3,h4,h5,h6,p,ul,ol,td,th';
+  // (ul/ol, jamais un <li> isolé), cellules de tableau (td/th), citations en
+  // bloc (blockquote) et encadrés (.adoc-sc-callout, cf. items 57b/57 ci-dessous) ;
+  // images/figures hors périmètre (jamais dans ADOC_LEGACY_BLOCK_SELECTOR).
+  //
+  // Items 57b (correction) + 57 volet quote (insertion) — investigation préalable :
+  // le prompt système de génération legacy demande des "callouts, citations en bloc"
+  // (cf. adocBuildSystemPrompt) mais n'impose AUCUNE balise/classe déterministe pour
+  // les produire — un modèle est libre de rendre un encadré en <div> stylé à sa guise.
+  // <blockquote> reste néanmoins le choix sémantique naturel et le seul fiable pour
+  // "citation en bloc" (élément HTML5 dédié à cet usage) : ajouté tel quel au
+  // sélecteur, classé 'quote'. Un encadré, lui, n'a pas d'équivalent sémantique
+  // unique — mais Phase 2 (insertion) en produit déjà un de façon déterministe :
+  // <p class="adoc-sc-callout adoc-sc-callout-info"> (jusqu'ici classé 'paragraph'
+  // par défaut, cf. commentaire historique de ADOC_LEGACY_BLOCK_INSERT_TYPES
+  // ci-dessous). Cibler la classe .adoc-sc-callout (plutôt qu'un tag) couvre donc
+  // correctement tout encadré INSÉRÉ via ce panneau — LIMITE HONNÊTE, documentée
+  // plutôt que masquée : un encadré produit par génération libre du modèle
+  // n'est PAS détecté (aucune classe déterministe ne lui est aujourd'hui imposée) ;
+  // étendre le prompt système de génération pour l'imposer serait un chantier séparé,
+  // hors périmètre de ce lot (0D — un seul sujet : étendre le sélecteur existant).
+  var ADOC_LEGACY_BLOCK_SELECTOR = 'h1,h2,h3,h4,h5,h6,p,ul,ol,td,th,blockquote,.adoc-sc-callout';
 
   // Ne retient que l'élément le plus englobant : un <p> ou une <ul> imbriqué
   // dans un <td>/<th> ou dans une autre <ul>/<ol> déjà retenue n'est PAS
@@ -12379,9 +12397,15 @@ ${recent}`;
     });
   }
 
+  // Items 57b/57 — le test de classe (encadré) précède le test de tag : un encadré
+  // inséré est un <p class="adoc-sc-callout ...">, qui matcherait sinon la branche
+  // 'paragraph' par défaut (comportement historique de Phase 2, changé ici pour lui
+  // donner enfin sa vraie étiquette, cf. adocDescribeLegacyBlockContent).
   function adocLegacyBlockKind(el) {
+    if (el.classList && el.classList.contains('adoc-sc-callout')) return 'callout';
     const tag = el.tagName.toLowerCase();
     if (/^h[1-6]$/.test(tag)) return 'heading';
+    if (tag === 'blockquote') return 'quote';
     if (tag === 'ul' || tag === 'ol') return 'list';
     if (tag === 'td' || tag === 'th') return 'cell';
     return 'paragraph';
@@ -12606,7 +12630,8 @@ ${recent}`;
       return (el.tagName.toLowerCase() === 'ol' ? 'Liste numérotée' : 'Liste à puces') + ' :\n' +
         items.map(function (it, i) { return (i + 1) + '. ' + it; }).join('\n');
     }
-    const label = kind === 'heading' ? 'Titre' : kind === 'cell' ? 'Cellule de tableau' : 'Paragraphe';
+    const label = kind === 'heading' ? 'Titre' : kind === 'cell' ? 'Cellule de tableau'
+      : kind === 'callout' ? 'Encadré' : kind === 'quote' ? 'Citation' : 'Paragraphe';
     return label + ' : ' + adocStripCitationSups(el.innerHTML).text;
   }
 
@@ -12751,21 +12776,21 @@ ${recent}`;
   // CETTE correction (adocConfirmLegacyBlockCorrection, déjà existant, inchangé) — exactement
   // comme côté structuré, où adocConfirmBlockInsert lui-même n'enregistre jamais rien non plus.
   //
-  // Périmètre : 5 types demandés (Titre/Paragraphe/Encadré/Liste/Tableau) — ni citation ni image,
-  // hors périmètre ici comme pour la correction de bloc legacy (Phase 1 ne les détecte/corrige
-  // jamais non plus). "Encadré" et "Tableau" réutilisent tels quels les classes CSS déjà
-  // existantes du moteur structuré (.adoc-sc-callout/.adoc-sc-callout-info, .adoc-sc-table-el) —
-  // jamais une apparence réinventée — tout en restant sélectionnables via le sélecteur Phase 1
-  // déjà existant (ADOC_LEGACY_BLOCK_SELECTOR) sans lui ajouter la moindre entrée : un encadré
-  // est un <p> stylé (kind 'paragraph'), un tableau expose ses cellules <td>/<th> comme n'importe
-  // quel autre tableau déjà généré (kind 'cell').
+  // Périmètre : 6 types désormais insérables (Titre/Paragraphe/Encadré/Liste/Tableau/Citation) —
+  // seule l'image reste exclue (décision de Christophe, item 57 : "sans l'image, c'est plus
+  // simple"). "Encadré" et "Tableau" réutilisent tels quels les classes CSS déjà existantes du
+  // moteur structuré (.adoc-sc-callout/.adoc-sc-callout-info, .adoc-sc-table-el) — jamais une
+  // apparence réinventée. Items 57b/57 (volet quote) : "Citation" rejoint cette liste, produite en
+  // <blockquote class="adoc-sc-quote"> — même logique de réutilisation, cf. adocLegacyBlockKind.
+  // Un tableau expose ses cellules <td>/<th> comme n'importe quel autre tableau déjà généré
+  // (kind 'cell').
   //
   // Ancrage : jamais avant/après une simple cellule isolée (kind==='cell') — un bloc indépendant
   // n'a pas de position "avant/après" sensée à côté d'un <td>/<th> unique sans casser <tr>/
   // <table>, et Phase 1 n'a jamais permis de corriger un tableau ENTIER non plus (seulement ses
   // cellules) : ce n'est donc pas un rétrécissement de périmètre, seulement sa continuité directe.
   var ADOC_LEGACY_BLOCK_INSERT_TYPES = ADOC_BLOCK_INSERT_TYPES.filter(function (t) {
-    return t.type !== 'quote' && t.type !== 'image';
+    return t.type !== 'image';
   });
 
   // Contenu HTML minimal par défaut — même esprit que adocDefaultBlockContent (texte de
@@ -12778,6 +12803,9 @@ ${recent}`;
       case 'callout': return '<p class="adoc-sc-callout adoc-sc-callout-info">Nouvel encadré.</p>';
       case 'list': return '<ul><li>Nouvel élément</li></ul>';
       case 'table': return '<table class="adoc-sc-table-el"><thead><tr><th></th><th></th></tr></thead><tbody><tr><td></td><td></td></tr><tr><td></td><td></td></tr></tbody></table>';
+      // Items 57b/57 — réutilise .adoc-sc-quote (même classe/apparence que le moteur structuré,
+      // cf. adocRenderBlockHTML case 'quote'), jamais une apparence réinventée pour l'ancien moteur.
+      case 'quote': return '<blockquote class="adoc-sc-quote">Nouvelle citation.</blockquote>';
       default: return '';
     }
   }
