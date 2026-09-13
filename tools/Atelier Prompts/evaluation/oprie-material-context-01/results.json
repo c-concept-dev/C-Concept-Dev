@@ -1,0 +1,99 @@
+{
+ "lot": "OPRIE-MATERIAL-CONTEXT-01",
+ "objet": "audit du contrat d entree du plan profond : le contexte materiau connu ailleurs lui parvient-il ?",
+ "audite_le": "2026-09-05",
+ "appels_fournisseur": 0,
+ "code_produit_modifie": false,
+ "deploiement": false,
+ "contrats_actuels": {
+  "decision": {
+   "route": "/decision",
+   "cles_acceptees": [
+    "demande",
+    "materiau_present",
+    "mode_demande"
+   ],
+   "materiau": "materiau_present, booleen STRICTEMENT requis, valide par typeof",
+   "statut_dans_le_prompt": "« materiau_present est un fait fiable : ne pretendez jamais qu un materiau est present lorsque sa valeur est false »"
+  },
+  "deep": {
+   "route": "/operational-request",
+   "cles_acceptees": [
+    "original_request",
+    "clarification_history"
+   ],
+   "materiau": "AUCUN CHAMP",
+   "validation": "requireExactKeys — toute cle supplementaire est refusee en 400"
+  },
+  "roles": {
+   "analyst": "{original_request, clarification_history}",
+   "critic": "{original_request, clarification_history, analyst_output, previous_vetoes}",
+   "arbiter": "{original_request, clarification_history, analyst_output, critic_output}",
+   "note": "buildRoleInput diffuse `base` aux trois roles : un champ ajoute a base les atteindrait tous les trois, ce qui n est pas necessairement souhaitable."
+  }
+ },
+ "source_de_verite": {
+  "ou": "state.docs, cote navigateur",
+  "forme": "{name, type, size, text, external}",
+  "alimente_par": "#v11-files (multiple, .txt .md .json .csv .html .htm .pdf .docx image/*) et le glisser-deposer",
+  "extraction": "le texte n est extrait que pour txt/md/json/csv/html/htm et text/* ; les autres sont marques external:true, SANS contenu exploitable",
+  "consequence": "le produit distingue DEJA, de fait, un materiau present d un materiau exploitable — la distinction n a pas a etre inventee, elle existe."
+ },
+ "chemin_reel": {
+  "appelant": "oprieRequestTurn()",
+  "corps_envoye": "{original_request: oprieOriginalRequest(), clarification_history: oprieClarificationHistory()}",
+  "original_request": "String(#v11-demande) — la seule zone de saisie de la demande",
+  "materiau_transmis": false,
+  "lecture": "state.docs n entre dans AUCUN des deux champs. Le plan profond, devenu depuis la migration OPRIE la SEULE autorite de readiness du produit, ignore donc entierement les documents joints par la personne."
+ },
+ "gap": {
+  "reel": true,
+  "nature": "le produit possede un canal de materiau (UI + stockage) et une autorite de readiness (le plan profond) ; les deux ne communiquent pas.",
+  "portee": "le defaut ne se voit que lorsqu une demande PRESUPPOSE un intrant. Une demande autoportante n est pas concernee.",
+  "ce_qui_manque_exactement": "non pas le contenu du materiau, mais le FAIT qu un materiau requis par la demande soit disponible, et s il est exploitable."
+ },
+ "cas_oracle_affectes": {
+  "affectes": [
+   "R08",
+   "R09",
+   "R10",
+   "R11",
+   "R12",
+   "R13"
+  ],
+  "affectes_raison": "le corpus les etiquette « materiau present » : leur clarification actuelle tient a l absence de CANAL, pas a une absence reelle de matiere.",
+  "non_affectes_materiau_reellement_absent": [
+   "Q01",
+   "Q02",
+   "Q03",
+   "Q04",
+   "Q05",
+   "Q06",
+   "Q07",
+   "Q08"
+  ],
+  "non_affectes_autre_probleme": [
+   "A01",
+   "A02",
+   "A03",
+   "A04",
+   "A05",
+   "A06",
+   "A07",
+   "A08",
+   "R01",
+   "R02",
+   "R03",
+   "R04",
+   "R05",
+   "R06",
+   "R07",
+   "R14"
+  ],
+  "total_oracle": 30
+ },
+ "oracle_non_modifie": {
+  "modifie": false,
+  "raison": "les attentes de l oracle sont correctes POUR LE CONTRAT ACTUEL, ou aucun canal de materiau n existe. Elles changeraient si le canal etait ajoute — cela se documente, cela ne se reecrit pas en silence."
+ }
+}

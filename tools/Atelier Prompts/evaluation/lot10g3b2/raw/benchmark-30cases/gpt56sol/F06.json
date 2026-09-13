@@ -1,0 +1,57 @@
+{
+  "started_at": "2026-08-28T07:17:56.286Z",
+  "completed_at": "2026-08-28T07:18:18.526Z",
+  "latency_total_ms": 22239.728,
+  "calls": [
+    {
+      "timestamp": "2026-08-28T07:18:00.445Z",
+      "endpoint": "/v1/responses",
+      "status_http": 200,
+      "latency_ms": 4115.392,
+      "response_id": "resp_07b808b1c5c3c8be006a9136246a6087d29564b37348423062",
+      "response_status": "completed",
+      "model_requested": "gpt-5.6-sol",
+      "model_returned": "gpt-5.6-sol",
+      "usage": {
+        "input_tokens": 13,
+        "output_tokens": 185,
+        "total_tokens": 198,
+        "reasoning_tokens": 25
+      },
+      "estimated_cost_usd": 0.003752,
+      "incomplete_details": null,
+      "error": null,
+      "output": "Bien sûr. Pour vous conseiller précisément, j’ai besoin de quelques informations :\n\n1. **Budget total** : boîtier seul ou avec objectif(s) ?\n2. **Usage principal** : voyage, famille, portrait, sport, animaux, paysage, vidéo, création de contenu…\n3. **Niveau** : débutant, amateur ou expérimenté ?\n4. **Priorités** : compacité, qualité d’image, autofocus, vidéo, autonomie, résistance ?\n5. **Neuf ou occasion** ?\n6. Avez-vous déjà des **objectifs** ou une marque préférée ?\n\nVous pouvez répondre simplement, par exemple :  \n**« 1 200 €, photo de voyage et famille, débutant, léger, neuf, avec objectif. »**"
+    },
+    {
+      "timestamp": "2026-08-28T07:18:18.526Z",
+      "endpoint": "/v1/responses",
+      "status_http": 200,
+      "latency_ms": 18006.532,
+      "response_id": "resp_07b808b1c5c3c8be006a913628fcd887d2a0d92d1c2a1df71f",
+      "response_status": "completed",
+      "model_requested": "gpt-5.6-sol",
+      "model_returned": "gpt-5.6-sol",
+      "usage": {
+        "input_tokens": 228,
+        "output_tokens": 976,
+        "total_tokens": 1204,
+        "reasoning_tokens": 471
+      },
+      "estimated_cost_usd": 0.020432,
+      "incomplete_details": null,
+      "error": null,
+      "output": "Pour débuter en voyage avec **1 200 € maximum, objectif compris**, je privilégierais un **hybride léger avec un zoom polyvalent**.\n\n## Mon premier choix : Canon EOS R50 + RF-S 18-150 mm\n\n**Pourquoi :**\n- Très bon autofocus, simple à utiliser\n- Léger et compact\n- Excellente qualité photo\n- Le 18-150 mm couvre presque tout : paysages, rue, portraits et sujets éloignés\n- Évite de changer d’objectif en voyage\n\nLe zoom correspond environ à un **29-240 mm** en plein format. Essayez de trouver l’ensemble autour de **1 000 à 1 100 €**, afin de garder environ 100 € pour une carte SD, une batterie supplémentaire et une petite housse.\n\n**Limites :**\n- Pas de stabilisation dans le boîtier, mais l’objectif est stabilisé\n- Moins adapté aux photos nocturnes qu’un objectif lumineux\n- Viseur et commandes assez simples\n\n## Deux bonnes alternatives\n\n### Nikon Z50 ou Z50 II + 16-50 mm\nTrès compact, agréable en main et bon en photo. Le 16-50 mm est idéal pour les paysages, les villes et les photos quotidiennes, mais son zoom est moins polyvalent. Un kit comprenant aussi le **50-250 mm** peut être intéressant s’il reste sous votre budget.\n\n### Sony A6400 + 18-135 mm\nExcellent autofocus, bonne qualité d’image et zoom très pratique en voyage. Le boîtier est toutefois plus ancien et ses menus sont moins intuitifs pour débuter. C’est un très bon achat en promotion ou d’occasion.\n\n## Recommandation simple\n\n- **Un seul objectif polyvalent et facilité d’utilisation : Canon R50 + 18-150 mm**\n- **Kit très compact : Nikon Z50 + 16-50 mm**\n- **Bon choix en occasion et vaste gamme d’objectifs : Sony A6400 + 18-135 mm**\n\nÉvitez de consacrer les 1 200 € uniquement au boîtier et à l’objectif : prévoyez au minimum une **carte SD UHS-I de 64 ou 128 Go**, une **batterie supplémentaire** et une petite protection. Les prix variant beaucoup, le **Canon R50 avec 18-150 mm sous 1 100 €** serait mon choix principal."
+    }
+  ],
+  "turns": [
+    {
+      "question": "Bien sûr. Pour vous conseiller précisément, j’ai besoin de quelques informations :\n\n1. **Budget total** : boîtier seul ou avec objectif(s) ?\n2. **Usage principal** : voyage, famille, portrait, sport, animaux, paysage, vidéo, création de contenu…\n3. **Niveau** : débutant, amateur ou expérimenté ?\n4. **Priorités** : compacité, qualité d’image, autofocus, vidéo, autonomie, résistance ?\n5. **Neuf ou occasion** ?\n6. Avez-vous déjà des **objectifs** ou une marque préférée ?\n\nVous pouvez répondre simplement, par exemple :  \n**« 1 200 €, photo de voyage et famille, débutant, léger, neuf, avec objectif. »**",
+      "answer": "Je débute, je photographie surtout en voyage et mon budget total avec objectif est de 1 200 euros maximum."
+    }
+  ],
+  "output": "Pour débuter en voyage avec **1 200 € maximum, objectif compris**, je privilégierais un **hybride léger avec un zoom polyvalent**.\n\n## Mon premier choix : Canon EOS R50 + RF-S 18-150 mm\n\n**Pourquoi :**\n- Très bon autofocus, simple à utiliser\n- Léger et compact\n- Excellente qualité photo\n- Le 18-150 mm couvre presque tout : paysages, rue, portraits et sujets éloignés\n- Évite de changer d’objectif en voyage\n\nLe zoom correspond environ à un **29-240 mm** en plein format. Essayez de trouver l’ensemble autour de **1 000 à 1 100 €**, afin de garder environ 100 € pour une carte SD, une batterie supplémentaire et une petite housse.\n\n**Limites :**\n- Pas de stabilisation dans le boîtier, mais l’objectif est stabilisé\n- Moins adapté aux photos nocturnes qu’un objectif lumineux\n- Viseur et commandes assez simples\n\n## Deux bonnes alternatives\n\n### Nikon Z50 ou Z50 II + 16-50 mm\nTrès compact, agréable en main et bon en photo. Le 16-50 mm est idéal pour les paysages, les villes et les photos quotidiennes, mais son zoom est moins polyvalent. Un kit comprenant aussi le **50-250 mm** peut être intéressant s’il reste sous votre budget.\n\n### Sony A6400 + 18-135 mm\nExcellent autofocus, bonne qualité d’image et zoom très pratique en voyage. Le boîtier est toutefois plus ancien et ses menus sont moins intuitifs pour débuter. C’est un très bon achat en promotion ou d’occasion.\n\n## Recommandation simple\n\n- **Un seul objectif polyvalent et facilité d’utilisation : Canon R50 + 18-150 mm**\n- **Kit très compact : Nikon Z50 + 16-50 mm**\n- **Bon choix en occasion et vaste gamme d’objectifs : Sony A6400 + 18-135 mm**\n\nÉvitez de consacrer les 1 200 € uniquement au boîtier et à l’objectif : prévoyez au minimum une **carte SD UHS-I de 64 ou 128 Go**, une **batterie supplémentaire** et une petite protection. Les prix variant beaucoup, le **Canon R50 avec 18-150 mm sous 1 100 €** serait mon choix principal.",
+  "error": null,
+  "initial_request_exact": "Je veux choisir un appareil photo.",
+  "clarification_detection": "heuristique documentée"
+}

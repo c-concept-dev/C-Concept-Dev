@@ -1,0 +1,32 @@
+{
+  "started_at": "2026-08-28T07:29:59.574Z",
+  "completed_at": "2026-08-28T07:30:10.407Z",
+  "latency_total_ms": 10832.899,
+  "calls": [
+    {
+      "timestamp": "2026-08-28T07:30:10.407Z",
+      "endpoint": "/v1/responses",
+      "status_http": 200,
+      "latency_ms": 10714.313,
+      "response_id": "resp_03e458165eed2124006a9138f7e00487d294e9aaec5e54bf69",
+      "response_status": "completed",
+      "model_requested": "gpt-5.6-sol",
+      "model_returned": "gpt-5.6-sol",
+      "usage": {
+        "input_tokens": 35,
+        "output_tokens": 635,
+        "total_tokens": 670,
+        "reasoning_tokens": 240
+      },
+      "estimated_cost_usd": 0.01284,
+      "incomplete_details": null,
+      "error": null,
+      "output": "## Menu végétarien simple pour 4 personnes\n\n### Entrée — Tartines de chèvre chaud et salade\nGarnir 8 tranches de pain de chèvre et d’un filet de miel. Enfourner 8 à 10 minutes à 200 °C. Servir avec une salade assaisonnée.\n\n### Plat — Curry de pois chiches et épinards, riz\nFaire revenir 1 oignon et 2 gousses d’ail. Ajouter le curry, les tomates concassées, les pois chiches et le lait de coco. Laisser mijoter 15 minutes, puis incorporer les épinards pendant 5 minutes. Servir avec le riz.\n\n### Dessert — Crumble aux pommes\nCouper les pommes et les placer dans un plat. Mélanger du bout des doigts la farine, le sucre, le beurre et un peu de cannelle. Répartir sur les pommes, puis cuire environ 30 minutes à 180 °C.\n\n## Liste de courses regroupée\n\n### Fruits et légumes\n- 1 salade verte\n- 1 oignon\n- 2 gousses d’ail\n- 300 g d’épinards frais ou surgelés\n- 6 pommes\n\n### Épicerie\n- 1 baguette ou 8 grandes tranches de pain\n- 300 g de riz\n- 2 boîtes de pois chiches de 400 g\n- 1 boîte de tomates concassées de 400 g\n- 1 boîte de lait de coco de 400 ml\n- 120 g de farine\n- 80 g de sucre\n- Miel\n- Curry en poudre\n- Cannelle\n- Huile d’olive\n- Vinaigre\n- Sel et poivre\n\n### Produits frais\n- 200 g de fromage de chèvre\n- 100 g de beurre"
+    }
+  ],
+  "turns": [],
+  "output": "## Menu végétarien simple pour 4 personnes\n\n### Entrée — Tartines de chèvre chaud et salade\nGarnir 8 tranches de pain de chèvre et d’un filet de miel. Enfourner 8 à 10 minutes à 200 °C. Servir avec une salade assaisonnée.\n\n### Plat — Curry de pois chiches et épinards, riz\nFaire revenir 1 oignon et 2 gousses d’ail. Ajouter le curry, les tomates concassées, les pois chiches et le lait de coco. Laisser mijoter 15 minutes, puis incorporer les épinards pendant 5 minutes. Servir avec le riz.\n\n### Dessert — Crumble aux pommes\nCouper les pommes et les placer dans un plat. Mélanger du bout des doigts la farine, le sucre, le beurre et un peu de cannelle. Répartir sur les pommes, puis cuire environ 30 minutes à 180 °C.\n\n## Liste de courses regroupée\n\n### Fruits et légumes\n- 1 salade verte\n- 1 oignon\n- 2 gousses d’ail\n- 300 g d’épinards frais ou surgelés\n- 6 pommes\n\n### Épicerie\n- 1 baguette ou 8 grandes tranches de pain\n- 300 g de riz\n- 2 boîtes de pois chiches de 400 g\n- 1 boîte de tomates concassées de 400 g\n- 1 boîte de lait de coco de 400 ml\n- 120 g de farine\n- 80 g de sucre\n- Miel\n- Curry en poudre\n- Cannelle\n- Huile d’olive\n- Vinaigre\n- Sel et poivre\n\n### Produits frais\n- 200 g de fromage de chèvre\n- 100 g de beurre",
+  "error": null,
+  "initial_request_exact": "Propose un menu végétarien simple pour quatre personnes comprenant une entrée, un plat et un dessert, avec une liste de courses regroupée.",
+  "clarification_detection": "heuristique documentée"
+}

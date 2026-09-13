@@ -1,0 +1,12 @@
+{
+  "lot": "DEEP-OUTPUT-MINIMALITY-01 — EXPERIMENT A",
+  "MESURE": "AUCUNE — aucune exécution live",
+  "baseline_sonnet_de_reference": {
+    "source": "evaluation/deep-production-blockers-01/paired-latency.json (provider anthropic)",
+    "population_A_materiau_READY": { "n": 11, "p50_ms": 20679 },
+    "population_B_clarification_ouverte": { "n": 10, "p50_ms": 91694 },
+    "repartition_de_la_sortie_sur_B": { "analyst": "32,1 %", "critic": "25,5 %", "arbiter": "42,4 %" }
+  },
+  "attente_raisonnable_non_verifiee": "la latence suivant le volume de sortie, un gain sur les seuls batches du Critique ne peut porter que sur une fraction des 25,5 % que le Critique représente — et seulement sur les tours qui portent des batches.",
+  "correction_importante": "les chiffres de latence par fixture cités par les lots précédents (218 s, 13 appels Critique, 52–86 % de part Critique) proviennent de deep-cout-jetons-01, mesuré sur Groq/gpt-oss-20b. Ils ne décrivent pas le Deep de production."
+}

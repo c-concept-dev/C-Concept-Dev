@@ -1,0 +1,95 @@
+{
+  "started_at": "2026-08-28T07:40:43.464Z",
+  "completed_at": "2026-08-28T07:42:28.388Z",
+  "html_sha256": "757ad74d70ffeaff8c3c9e2a09d8c3aa9bbbcbcc52d0cae9923f54e7a28f2a06",
+  "latency_total_ms": 104923.354,
+  "time_to_first_useful_result_ms": null,
+  "route_finale": "architecte",
+  "moteur_final": null,
+  "decision_source": "local-prudent",
+  "decision": {
+    "etat_demande": "exploitable",
+    "route": "architecte",
+    "confiance": "moyenne",
+    "raison_interne": "La demande est exploitable mais nécessite une structuration ou des arbitrages préalables.",
+    "question": null
+  },
+  "decision_provider_calls": [
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:40:44.026Z",
+      "latency_ms": 129.085,
+      "status_http": 502,
+      "request": {
+        "demande": "Prépare le plan opérationnel d'un forum professionnel de 300 participants dans quatre mois avec 20 intervenants et deux salles parallèles. Inclue gouvernance, rétroplanning, budget par grandes catégories, gestion des inscriptions, risques, plan de communication et procédure de décision en cas d'imprévu.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "error": "provider_failure",
+        "message": "Le fournisseur de décision n’est pas disponible."
+      },
+      "error": null
+    },
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:40:44.155Z",
+      "latency_ms": 204.668,
+      "status_http": 502,
+      "request": {
+        "demande": "Prépare le plan opérationnel d'un forum professionnel de 300 participants dans quatre mois avec 20 intervenants et deux salles parallèles. Inclue gouvernance, rétroplanning, budget par grandes catégories, gestion des inscriptions, risques, plan de communication et procédure de décision en cas d'imprévu.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "error": "provider_failure",
+        "message": "Le fournisseur de décision n’est pas disponible."
+      },
+      "error": null
+    }
+  ],
+  "decision_provider_latency_ms": 333.753,
+  "clarifications": [],
+  "nombre_reanalyses": 0,
+  "final_call": null,
+  "output": "",
+  "total_llm_calls": 3,
+  "gpt_usage": {
+    "input_tokens": 9669,
+    "output_tokens": 8000,
+    "total_tokens": 17669,
+    "estimated_cost_usd": 0.198676
+  },
+  "fallback": true,
+  "retries": 0,
+  "error": {
+    "name": "Error",
+    "message": "Analyse Architecte non exploitable: 8 objet(s) JSON valide(s) trouvé(s)",
+    "stage": "architecte_analyse",
+    "call": {
+      "timestamp": "2026-08-28T07:42:28.379Z",
+      "endpoint": "/v1/responses",
+      "status_http": 200,
+      "latency_ms": 103944.024,
+      "response_id": "resp_0d4e59819628b0cf006a913b7c7df887d29c6c455ebc2d8874",
+      "response_status": "incomplete",
+      "model_requested": "gpt-5.6-sol",
+      "model_returned": "gpt-5.6-sol",
+      "usage": {
+        "input_tokens": 9669,
+        "output_tokens": 8000,
+        "total_tokens": 17669,
+        "reasoning_tokens": 4870
+      },
+      "estimated_cost_usd": 0.198676,
+      "incomplete_details": {
+        "reason": "max_output_tokens"
+      },
+      "error": null,
+      "output": "{\n  \"version\": \"3.4\",\n  \"comprehension\": {\n    \"intention_principale\": \"Obtenir un plan opérationnel directement exploitable pour organiser un forum professionnel dans un délai de quatre mois.\",\n    \"intentions_secondaires\": [\n      \"Structurer la gouvernance et les responsabilités.\",\n      \"Planifier les travaux et jalons jusqu'à l'événement.\",\n      \"Construire un budget par grandes catégories.\",\n      \"Organiser les inscriptions, les intervenants et les deux salles.\",\n      \"Préparer la communication, la gestion des risques et les décisions en situation imprévue.\"\n    ],\n    \"declarations\": [\n      {\n        \"contenu\": \"L'utilisateur demande la préparation d'un plan opérationnel pour un forum professionnel.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"Prépare le plan opérationnel d'un forum professionnel\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      }\n    ],\n    \"contraintes\": [\n      {\n        \"contenu\": \"Le forum est prévu dans quatre mois pour 300 participants, avec 20 intervenants et deux salles parallèles.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"un forum professionnel de 300 participants dans quatre mois avec 20 intervenants et deux salles parallèles\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      },\n      {\n        \"contenu\": \"Le plan doit couvrir la gouvernance, le rétroplanning, le budget, les inscriptions, les risques, la communication et la décision en cas d'imprévu.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"Inclue gouvernance, rétroplanning, budget par grandes catégories, gestion des inscriptions, risques, plan de communication et procédure de décision en cas d'imprévu.\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      }\n    ],\n    \"ambiguites\": [\n      \"La date calendaire exacte, la ville et le statut de réservation du lieu ne sont pas précisés.\",\n      \"La durée du forum et son éventuelle composante hybride ne sont pas indiquées.\",\n      \"L'enveloppe budgétaire, la devise et les contraintes financières ne sont pas précisées.\",\n      \"Le caractère gratuit ou payant des inscriptions et l'outil d'inscription ne sont pas indiqués.\"\n    ],\n    \"informations_manquantes\": [\n      {\n        \"information\": \"Enveloppe budgétaire totale et devise\",\n        \"bloquant\": false,\n        \"justification\": \"Elles sont nécessaires pour calculer des montants définitifs, mais un budget complet peut être présenté en catégories, pourcentages, formules et montants à renseigner.\"\n      },\n      {\n        \"information\": \"Date exacte, lieu et état d'avancement de la réservation\",\n        \"bloquant\": false,\n        \"justification\": \"Ces éléments modifieront les échéances calendaires et certaines tâches, mais un rétroplanning relatif et des branches conditionnelles restent fiables.\"\n      },\n      {\n        \"information\": \"Durée, format et politique d'inscription du forum\",\n        \"bloquant\": false,\n        \"justification\": \"Ces paramètres influencent les volumes de restauration, le programme et le parcours d'inscription, qui peuvent néanmoins être décrits sous forme de processus adaptables.\"\n      }\n    ]\n  },\n  \"evaluation\": {\n    \"niveau_risque\": \"modere\",\n    \"justification_risque\": \"Le délai, le volume de participants, les intervenants et les salles parallèles créent des dépendances logistiques, budgétaires et décisionnelles, sans constituer une demande intrinsèquement à haut risque.\",\n    \"connaissance_externe_necessaire\": true,\n    \"actualite_requise\": false,\n    \"justification_connaissance\": \"La réponse mobilise des méthodes générales de gestion de projet événementiel, de budgétisation, d'inscription et de maîtrise des risques absentes de la demande. Des données actuelles ne sont pas indispensables si les coûts et exigences locales restent explicitement indicatifs ou à confirmer.\",\n    \"calcul_requis\": true,\n    \"livrable_complet_possible\": true,\n    \"reponse_partielle_possible\": true,\n    \"action_recommandee\": \"continuer\",\n    \"questions_a_poser\": [],\n    \"parties_realisables_immediatement\": []\n  },\n  \"strategie\": {\n    \"capacites_necessaires\": [\n      \"Gestion de projet événementiel\",\n      \"Construction de rétroplanning et gestion des dépendances\",\n      \"Budgétisation par postes et scénarios\",\n      \"Organisation logistique de participants et d'intervenants\",\n      \"Analyse des risques et communication opérationnelle\"\n    ],\n    \"hypotheses_autorisees\": [\n      \"Utiliser une chronologie relative allant de M-4 au suivi post-événement.\",\n      \"Présenter le budget en pourcentages, formules et montants à compléter.\",\n      \"Définir des rôles génériques que l'organisateur pourra affecter à des personnes nommées.\",\n      \"Traiter la durée, le lieu et la tarification comme des variables ou des conditions.\"\n    ],\n    \"hypotheses_interdites\": [\n      \"Inventer une enveloppe budgétaire, une devise ou des prix fournisseurs.\",\n      \"Inventer une date exacte, un lieu, des prestataires ou un outil d'inscription déjà choisi.\",\n      \"Présumer que le forum est gratuit, payant, présentiel uniquement ou organisé sur une seule journée.\",\n      \"Présenter comme acquises des obligations juridiques ou techniques dépendant du lieu.\"\n    ],\n    \"role_adaptatif\": {\n      \"intitule\": \"Chef de projet événementiel opérationnel\",\n      \"mission\": \"Transformer les paramètres fournis en plan compact, séquencé et pilotable, avec responsabilités, jalons, budget, risques et règles de décision.\",\n      \"competences\": [\n        \"Pilotage d'événements professionnels\",\n        \"Planification multi-lots\",\n        \"Budget et logistique\",\n        \"Gestion des risques\",\n        \"Coordination des parties prenantes\"\n      ],\n      \"limites\": [\n        \"Ne pas attribuer de montants définitifs sans enveloppe et contexte local.\",\n        \"Ne pas considérer comme confirmés le lieu, les prestataires, les outils ou les règles locales.\",\n        \"Distinguer les choix de méthode des faits fournis par l'utilisateur.\"\n      ]\n    },\n    \"niveau_architecture\": \"minimal\",\n    \"justification_niveau\": \"Le réglage manuel impose une analyse minimale ; cinq instructions compactes suffisent à couvrir les axes demandés sans retirer les contrôles indispensables.\",\n    \"pilotage_incertitude\": {\n      \"decisions_autonomes\": [\n        \"Organiser le plan par lots de travail, jalons, responsables et livrables.\",\n        \"Employer un rétroplanning relatif plutôt que des dates inventées.\",\n        \"Utiliser une matrice de responsabilités simplifiée et des niveaux d'escalade.\",\n        \"Présenter un scénario budgétaire paramétrable plutôt que des montants fictifs.\"\n      ],\n      \"estimations_a_etiqueter\": [\n        \"Fourchettes de répartition du budget par catégorie.\",\n        \"Réserve pour imprévus.\",\n        \"Besoins indicatifs en personnel, matériel et capacité opérationnelle.\"\n      ],\n      \"inconnues_non_devineables\": [\n        \"Budget total et devise\",\n        \"Date et lieu exacts\",\n        \"Durée et format définitifs\",\n        \"Tarification des inscriptions\",\n        \"Prestataires, contrats et outils déjà retenus\"\n      ]\n    }\n  },\n  \"livrable\": {\n    \"nature\": \"Plan opérationnel de forum professionnel comprenant tableaux de pilotage, procédures et points de décision\",\n    \"format_technique\": \"markdown\",\n    \"quantites\": null,\n    \"ton\": \"Professionnel, synthétique, concret et orienté exécution\",\n    \"longueur_indicative\": \"Environ 1 500 à 2 200 mots, avec priorité aux tableaux, listes d'actions et règles de décision.\"\n  },\n  \"compilation\": {\n    \"composants_retenus\": [\n      {\n        \"type\": \"instruction\",\n        \"titre\": \"Gouvernance et responsabilités\",\n        \"contenu\": \"Définis une gouvernance directement exploitable : commanditaire, chef de projet et responsables des lots programme-intervenants, lieu-logistique, inscriptions, communication, technique et finances. Fournis une matrice de responsabilités simplifiée, la cadence des réunions, les livrables attendus, les décisions réservées à chaque niveau et les seuils d'escalade. Les rôles restent génériques tant que les personnes ne sont pas nommées.\",\n        \"justification\": \"Une gouvernance explicite évite les responsabilités diffuses et rend le plan pilotable.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"gouvernance\",\n            \"usage\": \"Établit explicitement la nécessité d'un dispositif de gouvernance.\"\n          },\n          {\n            \"nature\": \"deduction\",\n            \"citation\": null,\n            \"usage\": \"La matrice de responsabilités et les seuils d'escalade sont des choix de structuration opérationnelle.\"\n          }\n        ]\n      },\n      {\n        \"type\": \"instruction\",\n        \"titre\": \"Rétroplanning relatif et jalons\",\n        \"contenu\": \"Construis un rétroplanning de M-4 à J+7, avec jalons mensuels puis hebdomadaires à partir de S-8. Pour chaque période, indique actions, responsable, livrable, dépendances et point de validation. Couvre au minimum le cadrage, le lieu, le budget, le programme, les intervenants, les inscriptions, les prestataires, la communication, les tests techniques, les confirmations finales, le déroulé du jour J et le bilan.\",\n        \"justification\": \"Le calendrier relatif permet une exécution immédiate malgré l'absence de date calendaire exacte.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"dans quatre mois\",\n            \"usage\": \"Fixe l'horizon temporel du plan.\"\n          },\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"rétroplanning\",\n            \"usage\": \"Demande explicitement une planification à rebours.\"\n          },\n          {\n            \"nature\": \"deduction\",\n            \"citation\": null,\n            \"usage\": \"Les colonnes de pilotage et les jalons sont une méthode proposée pour rendre le calendrier exécutable.\"\n          }\n        ]\n      },\n      {\n        \"type\": \"instruction\",\n        \"titre\": \"Budget paramétrable par catégories\",\n        \"contenu\": \"Présente un tableau budgétaire distinguant coûts fixes, coûts variables par participant ou par journée, fourchette indicative, pourcentage retenu, formule de calcul, montant à compléter et responsable. Regroupe les dépenses en grandes catégories pertinentes : lieu et aménagement, audiovisuel, restauration, intervenants, production et signalétique, personnel et accueil, inscriptions et outils, communication, assurances et administration, réserve pour imprévus. Propose un scénario d'allocation dont les pourcentages retenus totalisent 100 %, sans inventer de prix.\",\n        \"justification\": \"Cette méthode fournit un budget exploitable même sans enveloppe totale ni devise.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"budget par grandes catégories\",\n            \"usage\": \"Établit le besoin d'une ventilation budgétaire synthétique.\"\n          },\n          {\n            \"nature\": \"deduction\",\n            \"citation\": null,\n            \"usage\": \"Les formules, fourchettes et distinctions entre coûts fixes et variables compensent l'absence de montants réels.\"\n          }\n        ]\n      },\n      {\n        \"type\": \"instruction\",\n        \"titre\": \"Inscriptions, intervenants et salles\",\n        \"contenu\": \"Décris le parcours complet d'inscription : ouverture, collecte minimale des informations, confirmation, relances, modifications, annulations, liste d'attente, badges, accueil, contrôle d'accès et suivi de fréquentation. Ajoute le processus d'accompagnement des intervenants : invitation, collecte des biographies et supports, consentements à confirmer, brief, répétition et accueil. Pour les deux salles, prévois programmation, capacités, conflits de sessions, audiovisuel, signalétique, personnel, transitions et feuille de route du jour J. Signale les exigences locales et de protection des données comme points à confirmer plutôt que comme faits acquis.\",\n        \"justification\": \"Le volume annoncé et les sessions parallèles nécessitent des processus coordonnés pour les participants, les intervenants et les salles.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"gestion des inscriptions\",\n            \"usage\": \"Établit la nécessité du processus d'inscription.\"\n          },\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"300 participants\",\n            \"usage\": \"Fixe le volume de participants à prendre en charge.\"\n          },\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"20 intervenants et deux salles parallèles\",\n            \"usage\": \"Fixe les contraintes de coordination du programme et des espaces.\"\n          },\n          {\n            \"nature\": \"deduction\",\n            \"citation\": null,\n            \"usage\": \"Le parcours détaillé et la coordination des salles sont des modalités opérationnelles proposées.\"\n          }\n        ]\n      },\n      {\n        \"type\": \"instruction\",\n        \"titre\": \"Risques, communication et décision en cas d'imprévu\",\n        \"contenu\": \"Établis un registre priorisé indiquant risque, cause, probabilité qualitative, impact, propriétaire, prévention, signal déclencheur, réponse et solution de repli. Couvre notamment les absences d'intervenants, incidents audiovisuels, affluence déséquilibrée, interruption des inscriptions, dérive budgétaire, retard fournisseur, incident de sûreté et communication sensible. Présente ensuite un plan de communication par public, objectif, message, canal, calendrier et responsable. Termine par une procédure d'imprévu : détecter, qualifier, sécuriser, réunir les options, identifier l'autorité compétente, décider selon des seuils explicites, communiquer puis consigner le retour d'expérience. Prévois une délégation si le décideur principal est injoignable.\",\n        \"justification\": \"Ces mécanismes relient prévention, communication et décision rapide sous contrainte.\",\n       "
+    },
+    "validation": null
+  }
+}

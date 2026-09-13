@@ -1,0 +1,82 @@
+{
+ "lot": "DEEP-PROVIDER-ROUTING-FINAL-01",
+ "nature": "harnais contrôlé — aucun incident réel provoqué chez le fournisseur",
+ "ordre_deep_resolu": [
+  "anthropic"
+ ],
+ "scenarios": [
+  {
+   "id": "FC1",
+   "libelle": "transport Anthropic injoignable",
+   "hotes_contactes": [
+    "api.anthropic.com"
+   ],
+   "appels_groq": 0,
+   "appels_openai": 0,
+   "ordre_observe": [
+    "anthropic"
+   ],
+   "etat_rendu": "degraded_state",
+   "role_degrade": "analyst",
+   "cles_rendues": [
+    "reason",
+    "role",
+    "state"
+   ],
+   "ready_fabrique": false,
+   "verdict_fabrique": false,
+   "exception_remontee": null
+  },
+  {
+   "id": "FC2",
+   "libelle": "Anthropic 500",
+   "hotes_contactes": [
+    "api.anthropic.com"
+   ],
+   "appels_groq": 0,
+   "appels_openai": 0,
+   "ordre_observe": [
+    "anthropic"
+   ],
+   "etat_rendu": "degraded_state",
+   "role_degrade": "analyst",
+   "cles_rendues": [
+    "reason",
+    "role",
+    "state"
+   ],
+   "ready_fabrique": false,
+   "verdict_fabrique": false,
+   "exception_remontee": null
+  },
+  {
+   "id": "FC3",
+   "libelle": "Anthropic 429",
+   "hotes_contactes": [
+    "api.anthropic.com"
+   ],
+   "appels_groq": 0,
+   "appels_openai": 0,
+   "ordre_observe": [
+    "anthropic"
+   ],
+   "etat_rendu": "degraded_state",
+   "role_degrade": "analyst",
+   "cles_rendues": [
+    "reason",
+    "role",
+    "state"
+   ],
+   "ready_fabrique": false,
+   "verdict_fabrique": false,
+   "exception_remontee": null
+  }
+ ],
+ "synthese": {
+  "fallback_groq": "NO",
+  "fallback_openai": "NO",
+  "ready_fabrique": "NO",
+  "verdict_fabrique": "NO",
+  "fail_closed": "OUI"
+ }
+}

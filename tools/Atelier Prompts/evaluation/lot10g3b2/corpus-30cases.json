@@ -1,0 +1,169 @@
+{
+  "version": "LOT 10G.3B.2",
+  "frozen_at": "2026-08-28T00:00:00+02:00",
+  "composition": {"floue": 10, "simple": 10, "complexe": 10},
+  "cases": [
+    {
+      "id": "F01", "category": "floue", "domain": "voyage",
+      "demande": "Je veux préparer mon voyage en Italie.", "materiau_present": false,
+      "clarification_answers": ["Je veux un itinéraire jour par jour pour 12 jours, avec un rythme équilibré entre visites culturelles et temps libre."],
+      "expected_atelier": {"initial_state": "clarification_necessaire", "final_route": ["rapide", "architecte"]}
+    },
+    {
+      "id": "F02", "category": "floue", "domain": "déménagement",
+      "demande": "Je veux organiser mon déménagement.", "materiau_present": false,
+      "clarification_answers": ["Je veux une checklist chronologique pour déménager un appartement de 60 m² dans la même ville pendant un week-end, dans six semaines."],
+      "expected_atelier": {"initial_state": "clarification_necessaire", "final_route": ["rapide", "architecte"]}
+    },
+    {
+      "id": "F03", "category": "floue", "domain": "apprentissage",
+      "demande": "Je veux apprendre l'espagnol.", "materiau_present": false,
+      "clarification_answers": ["Je débute et je veux un programme de huit semaines, 30 minutes par jour, pour tenir une conversation simple en voyage."],
+      "expected_atelier": {"initial_state": "clarification_necessaire", "final_route": ["rapide", "architecte"]}
+    },
+    {
+      "id": "F04", "category": "floue", "domain": "écriture",
+      "demande": "Je veux écrire un discours.", "materiau_present": false,
+      "clarification_answers": ["C'est un discours chaleureux de cinq minutes pour le mariage de ma sœur, destiné aux mariés et à leurs proches."],
+      "expected_atelier": {"initial_state": "clarification_necessaire", "final_route": ["rapide", "architecte"]}
+    },
+    {
+      "id": "F05", "category": "floue", "domain": "administratif",
+      "demande": "Je dois préparer un dossier administratif.", "materiau_present": false,
+      "clarification_answers": ["Je veux une checklist des pièces et des étapes pour constituer un dossier de location d'appartement en France comme salarié en CDI."],
+      "expected_atelier": {"initial_state": "clarification_necessaire", "final_route": ["rapide", "architecte"]}
+    },
+    {
+      "id": "F06", "category": "floue", "domain": "achat",
+      "demande": "Je veux choisir un appareil photo.", "materiau_present": false,
+      "clarification_answers": ["Je débute, je photographie surtout en voyage et mon budget total avec objectif est de 1 200 euros maximum."],
+      "expected_atelier": {"initial_state": "clarification_necessaire", "final_route": ["rapide", "architecte"]}
+    },
+    {
+      "id": "F07", "category": "floue", "domain": "projet personnel",
+      "demande": "Je veux lancer un podcast.", "materiau_present": false,
+      "clarification_answers": ["Je veux préparer une première saison de huit entretiens de 30 minutes avec des artisans locaux, publiés toutes les deux semaines."],
+      "expected_atelier": {"initial_state": "clarification_necessaire", "final_route": ["rapide", "architecte"]}
+    },
+    {
+      "id": "F08", "category": "floue", "domain": "enseignement",
+      "demande": "Je veux préparer un cours.", "materiau_present": false,
+      "clarification_answers": ["Je veux une séance de 50 minutes sur la photosynthèse pour une classe de seconde, avec activité d'ouverture et vérification des acquis."],
+      "expected_atelier": {"initial_state": "clarification_necessaire", "final_route": ["rapide", "architecte"]}
+    },
+    {
+      "id": "F09", "category": "floue", "domain": "organisation du travail",
+      "demande": "Je veux améliorer nos réunions.", "materiau_present": false,
+      "clarification_answers": ["Je veux réduire à 45 minutes la réunion hebdomadaire d'une équipe de huit personnes et en sortir avec des décisions et responsables clairement notés."],
+      "expected_atelier": {"initial_state": "clarification_necessaire", "final_route": ["rapide", "architecte"]}
+    },
+    {
+      "id": "F10", "category": "floue", "domain": "données",
+      "demande": "Je veux mieux utiliser mes données.", "materiau_present": false,
+      "clarification_answers": ["Je veux un plan d'analyse d'un fichier CSV de réponses à une enquête clients pour identifier les trois irritants principaux et les différences par segment."],
+      "expected_atelier": {"initial_state": "clarification_necessaire", "final_route": ["rapide", "architecte"]}
+    },
+
+    {
+      "id": "S01", "category": "simple", "domain": "traduction",
+      "demande": "Traduis en anglais naturel : « La réunion est reportée à mardi prochain à 14 heures. Merci de confirmer votre disponibilité. »", "materiau_present": true,
+      "clarification_answers": [], "expected_atelier": {"initial_state": "exploitable", "final_route": "rapide"}
+    },
+    {
+      "id": "S02", "category": "simple", "domain": "voyage",
+      "demande": "Fais-moi une checklist de 20 points pour préparer un voyage de 12 jours en Italie, classée par ordre chronologique, de deux mois avant le départ jusqu'au jour du départ.", "materiau_present": false,
+      "clarification_answers": [], "expected_atelier": {"initial_state": "exploitable", "final_route": "rapide"}
+    },
+    {
+      "id": "S03", "category": "simple", "domain": "communication",
+      "demande": "Rédige un courriel poli de 120 mots maximum pour demander à un fournisseur de confirmer une date de livraison annoncée pour le 15 septembre.", "materiau_present": false,
+      "clarification_answers": [], "expected_atelier": {"initial_state": "exploitable", "final_route": "rapide"}
+    },
+    {
+      "id": "S04", "category": "simple", "domain": "comparaison",
+      "demande": "Compare le télétravail complet et le travail hybride dans un tableau de 6 critères, puis résume les principaux compromis en trois phrases.", "materiau_present": false,
+      "clarification_answers": [], "expected_atelier": {"initial_state": "exploitable", "final_route": "rapide"}
+    },
+    {
+      "id": "S05", "category": "simple", "domain": "réécriture",
+      "demande": "Réécris cette phrase dans un style professionnel et direct : « On a pas mal avancé mais il reste encore plein de petits trucs à régler avant de pouvoir envoyer le dossier. »", "materiau_present": true,
+      "clarification_answers": [], "expected_atelier": {"initial_state": "exploitable", "final_route": "rapide"}
+    },
+    {
+      "id": "S06", "category": "simple", "domain": "apprentissage",
+      "demande": "Crée 10 questions de quiz avec leurs réponses sur le système solaire, niveau collège, sans questions pièges.", "materiau_present": false,
+      "clarification_answers": [], "expected_atelier": {"initial_state": "exploitable", "final_route": "rapide"}
+    },
+    {
+      "id": "S07", "category": "simple", "domain": "code",
+      "demande": "Écris une fonction JavaScript `uniqueSorted(numbers)` qui retourne les nombres uniques triés par ordre croissant, avec trois exemples d'utilisation.", "materiau_present": false,
+      "clarification_answers": [], "expected_atelier": {"initial_state": "exploitable", "final_route": "rapide"}
+    },
+    {
+      "id": "S08", "category": "simple", "domain": "planification",
+      "demande": "Prépare l'ordre du jour d'une réunion de 45 minutes avec 5 points : suivi des ventes, retours clients, blocages, priorités de la semaine et décisions finales.", "materiau_present": false,
+      "clarification_answers": [], "expected_atelier": {"initial_state": "exploitable", "final_route": "rapide"}
+    },
+    {
+      "id": "S09", "category": "simple", "domain": "cuisine",
+      "demande": "Propose un menu végétarien simple pour quatre personnes comprenant une entrée, un plat et un dessert, avec une liste de courses regroupée.", "materiau_present": false,
+      "clarification_answers": [], "expected_atelier": {"initial_state": "exploitable", "final_route": "rapide"}
+    },
+    {
+      "id": "S10", "category": "simple", "domain": "synthèse",
+      "demande": "Résume en 5 puces ce texte : « Notre association compte 85 adhérents. Les inscriptions ont augmenté de 18 % cette année. Les ateliers du samedi sont complets, mais ceux du mercredi ne remplissent que la moitié des places. Le budget communication est stable. Le conseil propose de tester deux nouveaux horaires en soirée. »", "materiau_present": true,
+      "clarification_answers": [], "expected_atelier": {"initial_state": "exploitable", "final_route": "rapide"}
+    },
+
+    {
+      "id": "C01", "category": "complexe", "domain": "décision d’entreprise",
+      "demande": "Je dirige une petite entreprise de 12 personnes.\nNous devons remplacer notre logiciel de gestion de projet.\nCompare trois stratégies possibles : conserver l'outil actuel, migrer vers une solution SaaS standard ou développer une solution interne.\n\nJe veux une analyse structurée comprenant les avantages, les risques, les coûts, les conséquences organisationnelles, les critères de décision et une recommandation finale argumentée.", "materiau_present": false,
+      "clarification_answers": [], "expected_atelier": {"initial_state": "exploitable", "final_route": "architecte"}
+    },
+    {
+      "id": "C02", "category": "complexe", "domain": "formation",
+      "demande": "Conçois un plan de déploiement sur six mois d'un programme de mentorat pour 120 salariés répartis sur trois sites. Compare un lancement simultané et un pilote progressif, précise les rôles, risques, critères de sélection, indicateurs de réussite et mécanismes de retour d'expérience, puis recommande une approche.", "materiau_present": false,
+      "clarification_answers": [], "expected_atelier": {"initial_state": "exploitable", "final_route": "architecte"}
+    },
+    {
+      "id": "C03", "category": "complexe", "domain": "logistique",
+      "demande": "Élabore une stratégie pour réduire de 15 % les retards de livraison d'un réseau de 4 entrepôts en neuf mois. Structure l'analyse autour des causes possibles, des données à collecter, de trois scénarios d'intervention, des dépendances, des risques opérationnels et d'un plan de suivi mensuel.", "materiau_present": false,
+      "clarification_answers": [], "expected_atelier": {"initial_state": "exploitable", "final_route": "architecte"}
+    },
+    {
+      "id": "C04", "category": "complexe", "domain": "enseignement",
+      "demande": "Construis une séquence pédagogique de quatre semaines pour initier 28 élèves de première à l'argumentation écrite. Prévois une progression, des activités différenciées, deux évaluations formatives, une évaluation finale, des critères de notation et des solutions pour les élèves en difficulté.", "materiau_present": false,
+      "clarification_answers": [], "expected_atelier": {"initial_state": "exploitable", "final_route": "architecte"}
+    },
+    {
+      "id": "C05", "category": "complexe", "domain": "événement",
+      "demande": "Prépare le plan opérationnel d'un forum professionnel de 300 participants dans quatre mois avec 20 intervenants et deux salles parallèles. Inclue gouvernance, rétroplanning, budget par grandes catégories, gestion des inscriptions, risques, plan de communication et procédure de décision en cas d'imprévu.", "materiau_present": false,
+      "clarification_answers": [], "expected_atelier": {"initial_state": "exploitable", "final_route": "architecte"}
+    },
+    {
+      "id": "C06", "category": "complexe", "domain": "produit",
+      "demande": "Élabore une stratégie de lancement sur douze semaines pour une application mobile de gestion du temps destinée aux indépendants. Compare lancement public immédiat, bêta fermée et déploiement par cohortes ; analyse acquisition, support, mesure de l'activation, risques, critères de passage entre étapes et recommandation finale.", "materiau_present": false,
+      "clarification_answers": [], "expected_atelier": {"initial_state": "exploitable", "final_route": "architecte"}
+    },
+    {
+      "id": "C07", "category": "complexe", "domain": "données",
+      "demande": "Définis un plan de migration de 2 millions de lignes depuis trois fichiers historiques vers une nouvelle base clients, avec contrôle des doublons, règles de qualité, stratégie de reprise, tests, responsabilités, critères d'acceptation et scénario de retour arrière. Présente les phases et dépendances.", "materiau_present": false,
+      "clarification_answers": [], "expected_atelier": {"initial_state": "exploitable", "final_route": "architecte"}
+    },
+    {
+      "id": "C08", "category": "complexe", "domain": "communication",
+      "demande": "Conçois une stratégie éditoriale de six mois pour une association culturelle locale qui publie sur un site, une newsletter mensuelle et deux réseaux sociaux. Définis les publics, piliers de contenu, calendrier, responsabilités, règles de réutilisation, indicateurs, risques et méthode d'ajustement.", "materiau_present": false,
+      "clarification_answers": [], "expected_atelier": {"initial_state": "exploitable", "final_route": "architecte"}
+    },
+    {
+      "id": "C09", "category": "complexe", "domain": "organisation",
+      "demande": "Propose un plan de fusion de deux services de 15 personnes sur cinq mois sans interruption de service. Compare trois modèles d'organisation cible, traite la gouvernance, les compétences, la communication, les risques humains, les jalons, les critères de choix et le suivi après fusion.", "materiau_present": false,
+      "clarification_answers": [], "expected_atelier": {"initial_state": "exploitable", "final_route": "architecte"}
+    },
+    {
+      "id": "C10", "category": "complexe", "domain": "projet personnel",
+      "demande": "Élabore un plan de rénovation progressive d'une maison occupée sur dix-huit mois, en coordonnant toiture, isolation, chauffage et pièces intérieures. Compare deux ordres de travaux, explicite dépendances, risques, arbitrages coût-confort, critères de décision et points de contrôle avant chaque phase.", "materiau_present": false,
+      "clarification_answers": [], "expected_atelier": {"initial_state": "exploitable", "final_route": "architecte"}
+    }
+  ]
+}

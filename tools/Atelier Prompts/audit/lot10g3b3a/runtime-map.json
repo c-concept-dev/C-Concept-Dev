@@ -1,0 +1,16 @@
+{
+  "audit": "LOT 10G.3B.3A",
+  "commit": "9482c65224f411424b10758424f6ad64bc9c0816",
+  "html_sha256": "757ad74d70ffeaff8c3c9e2a09d8c3aa9bbbcbcc52d0cae9923f54e7a28f2a06",
+  "layers": [
+    {"id":"decision-provider","inputs":["demande","materiau_present","mode_demande"],"outputs":["etat_demande","route","confiance","raison_interne","question"]},
+    {"id":"rapide","inputs":["demande","materiau"],"outputs":["prompt","contrat_partiel"]},
+    {"id":"architecte","inputs":["demande","materiau","preferences","reglages"],"outputs":["analyse_3_4","prompt"]},
+    {"id":"atelier","inputs":["demande","champs","materiau"],"outputs":["prompt","contrat_partiel"]},
+    {"id":"control","inputs":["livrable","contrat_partiel"],"outputs":["resultats","conformite"]}
+  ],
+  "canonical_state_present": false,
+  "execution_contract_present": false,
+  "frozen_engines_modified": false
+}
+

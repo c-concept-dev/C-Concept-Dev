@@ -1,0 +1,93 @@
+{
+ "lot": "OBSERVABILITY-COMPLETENESS-01",
+ "portee": "OBSERVABILITE UNIQUEMENT — aucun comportement, aucun statut, aucune forme de reponse en succes",
+ "defaut": {
+  "resume": "un 502 definitivement inattribuable",
+  "cause_1_capture": "wrangler tail (flux vivant) a livre 11/20 invocations ; second incident deja documente : session expiree pendant un banc",
+  "cause_2_jointure": "AUCUN invocation_id n'existait : meme a 100% de capture, une reponse client n'etait joignable a aucun enregistrement serveur",
+  "cause_3_catch_all": "handleOperationalRequest n'ecrivait que {event, message} : ni phase, ni role, ni fournisseur, ni classe d'echec",
+  "constat": "observability.enabled=true / head_sampling_rate=1 etait pose sur les trois Workers depuis le 2026-08-27 : la durabilite plateforme n'a jamais ete le manque"
+ },
+ "correctif": {
+  "invocation_id": "cf-ray si present, sinon crypto.randomUUID() ; minte une seule fois a l'entree, diffuse partout",
+  "cle_de_jointure_client": "en-tete X-Invocation-Id sur TOUTES les reponses + champ invocation_id dans les corps d'ERREUR uniquement",
+  "trace": "objet MUTABLE survivant a toute levee, etiquetee ou non — le cas exact qui avait mis l'enquete en echec",
+  "enregistrement_terminal": "exactement UN par invocation, sur les trois chemins terminaux",
+  "journal_complete": "CALCULE sur TERMINAL_RECORD_REQUIRED_FIELDS — un enregistrement incomplet se denonce lui-meme",
+  "correlation_fournisseur": "le meme log estampille descend jusqu'a runProviderChain ; provider-ha.js n'est PAS instrumente",
+  "empreinte_erreur": "error.name + SHA-256(message) + NOMBRE de cadres — error.message BRUT n'est plus emis (reduction nette d'exposition)"
+ },
+ "champs_obligatoires": [
+  "invocation_id",
+  "terminal_event",
+  "phase",
+  "role",
+  "provider",
+  "model",
+  "provider_attempt_index",
+  "http_status",
+  "semantic_state",
+  "error_class",
+  "untagged_exception",
+  "fallback_path",
+  "phases",
+  "safe_error_fingerprint",
+  "journal_complete",
+  "total_duration_ms"
+ ],
+ "phases": [
+  "validate",
+  "analyst",
+  "critic",
+  "arbiter",
+  "state_check"
+ ],
+ "tests": {
+  "OBS01": "25/25",
+  "B01B_CB01": "8/8 (inchange)",
+  "GLOBAL": "2930/2930",
+  "reseau_reel": 0,
+  "appels_fournisseur": 0,
+  "secrets": 0
+ },
+ "fichiers_modifies_a_la_main": [
+  "workers/shared/operational-request-orchestrator.js",
+  "workers/groq/src/index.js"
+ ],
+ "fichiers_regeneres": [
+  "core/adn/browser-runtime.generated.js",
+  "atelier-prompts-v11.5-lot10g-decision-provider.html",
+  "docs/RELEASE-MANIFEST.md"
+ ],
+ "fichiers_autorises_mais_NON_touches": {
+  "workers/shared/provider-ha.js": "inutile : l'estampillage passe par le log threade, aucune instrumentation requise",
+  "workers/workers-ai/src/index.js": "inutile : ce Worker ne sert pas /operational-request"
+ },
+ "garde_recadree": {
+  "test": "T-HTMLFINAL02-08",
+  "avant": "scan new Date()|Date.now()|Math.random()|process.hrtime sur l'outil de build ET le bundle compile",
+  "apres": "outil de build : portee et motifs INCHANGES. Bundle compile : new Date(), Math.random(), process.hrtime toujours interdits ; Date.now() admis car mesurer une duree a l'EXECUTION n'est pas une non-reproductibilite de FABRICATION",
+  "compensation": "l'en-tete du bundle est verifie sans date de fabrication ; la reproductibilite reelle reste prouvee empiriquement par T-HTMLFINAL02-05"
+ },
+ "immutabilite": {
+  "analyst_prompt_sha256": "d815ea1b13c31843ad4dc4278f1b712dfd07de768de625c1642c410b5cb1ffb8",
+  "critic_global_prompt_sha256": "8915d9bad81965ceca062fc1d509291a91e3fbedd894514c8e9d60c5e2030100",
+  "arbiter_prompt_sha256": "3120f05368961356e73485be9f467237644c5eb0bff5d9173e73aae7e2a094c1",
+  "prompts_deplaces": false,
+  "FAILURE_CLASSES": "reutilisee sans extension",
+  "note": "les empreintes de prompt sont identiques a celles enregistrees par le lot B-01B ; la preuve historique de ce lot n'a PAS ete reecrite"
+ },
+ "artefacts": {
+  "runtime_sha256": "f765ff5b0f43d7cd262be27a63558d32d94dbb9d7d708a72fe425eca4a271044",
+  "html_canonique_sha256": "000f1ce8572659b6b769e3f781ba0d4068146e4df355db80ab2aad46fdac5f34",
+  "runtime_regeneration": "idempotente (deux regenerations consecutives, empreintes identiques)"
+ },
+ "critere_de_release_propose": "une panne injectee a chaque phase produit UN enregistrement terminal complet, durable et correle, joignable a la reponse client et aux enregistrements de tentative fournisseur par invocation_id, sans stocker de contenu de demande interdit",
+ "hors_perimetre": {
+  "historique_502": "PERMANENTLY_UNATTRIBUTABLE_DUE_TO_EVIDENCE_LOSS_AT_CAPTURE — non rouvert",
+  "B-01B": "CLOSED — non rouvert",
+  "push": false,
+  "deploy": false,
+  "campagne_reelle": false
+ }
+}

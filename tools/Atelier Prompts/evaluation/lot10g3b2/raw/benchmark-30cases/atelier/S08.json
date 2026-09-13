@@ -1,0 +1,363 @@
+{
+  "started_at": "2026-08-28T07:27:15.670Z",
+  "completed_at": "2026-08-28T07:28:26.381Z",
+  "html_sha256": "757ad74d70ffeaff8c3c9e2a09d8c3aa9bbbcbcc52d0cae9923f54e7a28f2a06",
+  "latency_total_ms": 70710.783,
+  "time_to_first_useful_result_ms": 70710.787,
+  "route_finale": "architecte",
+  "moteur_final": "architecte",
+  "decision_source": "local-prudent",
+  "decision": {
+    "etat_demande": "exploitable",
+    "route": "architecte",
+    "confiance": "moyenne",
+    "raison_interne": "La demande est exploitable mais nécessite une structuration ou des arbitrages préalables.",
+    "question": null
+  },
+  "decision_provider_calls": [
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:27:16.158Z",
+      "latency_ms": 573.297,
+      "status_http": 502,
+      "request": {
+        "demande": "Prépare l'ordre du jour d'une réunion de 45 minutes avec 5 points : suivi des ventes, retours clients, blocages, priorités de la semaine et décisions finales.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "error": "provider_failure",
+        "message": "Le fournisseur de décision n’est pas disponible."
+      },
+      "error": null
+    },
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:27:16.732Z",
+      "latency_ms": 360.43,
+      "status_http": 502,
+      "request": {
+        "demande": "Prépare l'ordre du jour d'une réunion de 45 minutes avec 5 points : suivi des ventes, retours clients, blocages, priorités de la semaine et décisions finales.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "error": "provider_failure",
+        "message": "Le fournisseur de décision n’est pas disponible."
+      },
+      "error": null
+    }
+  ],
+  "decision_provider_latency_ms": 933.727,
+  "clarifications": [],
+  "nombre_reanalyses": 0,
+  "engine": {
+    "engine": "architecte",
+    "latency_ms": 66032.971,
+    "context": {
+      "demande": "Prépare l'ordre du jour d'une réunion de 45 minutes avec 5 points : suivi des ventes, retours clients, blocages, priorités de la semaine et décisions finales.",
+      "materiau": null,
+      "preferences_confirmees": [],
+      "reglages_manuels": {
+        "destinataire": null,
+        "profondeur": "auto",
+        "structure": "auto",
+        "volume": null
+      },
+      "proportion": {
+        "version": 1,
+        "profondeur_analyse": {
+          "valeur": "minimal",
+          "source": "manuel"
+        },
+        "densite_prompt": {
+          "valeur": "equilibree",
+          "source": "automatique"
+        },
+        "longueur_livrable": {
+          "valeur": "automatique",
+          "source": "automatique"
+        },
+        "plafond_technique": {
+          "valeur": 4000,
+          "source": "manuel"
+        },
+        "structure": {
+          "mode": "imposee",
+          "nombre": 5,
+          "source": "demande",
+          "source_mode": "demande",
+          "source_nombre": "demande"
+        }
+      }
+    },
+    "analysis": {
+      "version": "3.4",
+      "comprehension": {
+        "intention_principale": "Produire un ordre du jour directement utilisable pour une réunion de 45 minutes.",
+        "intentions_secondaires": [
+          "Répartir le temps entre les cinq thèmes demandés.",
+          "Faire aboutir la réunion à des priorités et à des décisions explicites."
+        ],
+        "declarations": [
+          {
+            "contenu": "L'utilisateur demande la préparation d'un ordre du jour.",
+            "statut": "declaration_utilisateur",
+            "source": "demande",
+            "preuve": {
+              "citation": "Prépare l'ordre du jour",
+              "contexte_avant": null,
+              "contexte_apres": null
+            }
+          }
+        ],
+        "contraintes": [
+          {
+            "contenu": "La réunion doit durer 45 minutes.",
+            "statut": "declaration_utilisateur",
+            "source": "demande",
+            "preuve": {
+              "citation": "réunion de 45 minutes",
+              "contexte_avant": null,
+              "contexte_apres": null
+            }
+          },
+          {
+            "contenu": "L'ordre du jour doit comporter cinq points consacrés au suivi des ventes, aux retours clients, aux blocages, aux priorités de la semaine et aux décisions finales.",
+            "statut": "declaration_utilisateur",
+            "source": "demande",
+            "preuve": {
+              "citation": "5 points : suivi des ventes, retours clients, blocages, priorités de la semaine et décisions finales",
+              "contexte_avant": null,
+              "contexte_apres": null
+            }
+          }
+        ],
+        "ambiguites": [],
+        "informations_manquantes": []
+      },
+      "evaluation": {
+        "niveau_risque": "faible",
+        "justification_risque": "La demande est simple, organisationnelle et sans conséquence sensible identifiable.",
+        "connaissance_externe_necessaire": false,
+        "actualite_requise": false,
+        "justification_connaissance": "Les thèmes, la durée et le nombre de points sont fournis ; seule une structuration pratique est nécessaire.",
+        "calcul_requis": true,
+        "livrable_complet_possible": true,
+        "reponse_partielle_possible": true,
+        "action_recommandee": "continuer",
+        "questions_a_poser": [],
+        "parties_realisables_immediatement": []
+      },
+      "strategie": {
+        "capacites_necessaires": [
+          "Structuration d'une réunion",
+          "Répartition cohérente du temps",
+          "Formulation concise et orientée vers l'action"
+        ],
+        "hypotheses_autorisees": [],
+        "hypotheses_interdites": [
+          "Inventer des chiffres de ventes, des retours clients, des blocages, des priorités, des décisions, des responsables ou des échéances."
+        ],
+        "role_adaptatif": {
+          "intitule": "Facilitateur de réunion",
+          "mission": "Transformer les cinq thèmes demandés en un ordre du jour minuté, concis et immédiatement exploitable.",
+          "competences": [
+            "Conception d'ordres du jour",
+            "Gestion du temps",
+            "Clarification des résultats attendus"
+          ],
+          "limites": [
+            "Ne dispose pas du contenu métier réel des cinq thèmes.",
+            "Ne doit pas attribuer de décisions ou de responsabilités non communiquées."
+          ]
+        },
+        "niveau_architecture": "minimal",
+        "justification_niveau": "Le réglage manuel impose une analyse minimale et la demande présente une seule intention, une structure explicite et un risque faible.",
+        "pilotage_incertitude": {
+          "decisions_autonomes": [
+            "Conserver l'ordre des thèmes énumérés.",
+            "Choisir une répartition des 45 minutes entre les cinq points.",
+            "Associer à chaque point un objectif ou un résultat attendu."
+          ],
+          "estimations_a_etiqueter": [],
+          "inconnues_non_devineables": [
+            "Les données et constats métier à examiner pendant la réunion.",
+            "Les responsables et échéances qui découleront des décisions."
+          ]
+        }
+      },
+      "livrable": {
+        "nature": "Ordre du jour minuté de réunion",
+        "format_technique": "markdown",
+        "quantites": {
+          "min": 5,
+          "max": 5,
+          "unite": "points"
+        },
+        "ton": "Professionnel, concis et orienté vers l'action",
+        "longueur_indicative": "Un titre suivi de cinq lignes ou puces minutées, avec un objectif ou un résultat attendu pour chaque point."
+      },
+      "compilation": {
+        "composants_retenus": [
+          {
+            "type": "contrainte",
+            "titre": "Cinq rubriques distinctes",
+            "contenu": "Conserve les cinq thèmes comme rubriques principales distinctes, dans l'ordre indiqué, sans les fusionner et sans ajouter de sixième point.",
+            "justification": "Cette contrainte préserve exactement la structure et les thèmes demandés.",
+            "fondements": [
+              {
+                "nature": "utilisateur",
+                "citation": "5 points : suivi des ventes, retours clients, blocages, priorités de la semaine et décisions finales",
+                "usage": "Établit le nombre de rubriques et les cinq thèmes à conserver."
+              }
+            ]
+          },
+          {
+            "type": "instruction",
+            "titre": "Répartition temporelle proposée",
+            "contenu": "Utilise la répartition suivante : 10 minutes pour le suivi des ventes, 8 minutes pour les retours clients, 8 minutes pour les blocages, 10 minutes pour les priorités de la semaine et 9 minutes pour les décisions finales.",
+            "justification": "Une répartition explicite dont le total atteint 45 minutes rend l'ordre du jour immédiatement utilisable.",
+            "fondements": [
+              {
+                "nature": "utilisateur",
+                "citation": "réunion de 45 minutes",
+                "usage": "Fixe la durée totale à répartir."
+              },
+              {
+                "nature": "deduction",
+                "citation": null,
+                "usage": "Fonde le choix autonome d'une répartition équilibrée entre les cinq thèmes."
+              }
+            ]
+          },
+          {
+            "type": "instruction",
+            "titre": "Résultat attendu par point",
+            "contenu": "Pour chaque rubrique, indique la durée et formule en une phrase courte l'objectif de discussion ou le résultat attendu. Pour les décisions finales, prévois une synthèse des décisions, des responsables et des échéances sous forme de champs à compléter lorsque ces éléments ne sont pas connus.",
+            "justification": "Cette formulation rend chaque séquence actionnable sans inventer le contenu de la réunion.",
+            "fondements": [
+              {
+                "nature": "deduction",
+                "citation": null,
+                "usage": "Ajoute le niveau minimal de précision nécessaire à un ordre du jour opérationnel."
+              }
+            ]
+          },
+          {
+            "type": "interdiction",
+            "titre": "Absence d'invention métier",
+            "contenu": "N'invente aucun chiffre de ventes, retour client, blocage, priorité, décision, responsable ou échéance. Emploie des formulations génériques ou des champs à compléter.",
+            "justification": "La demande fournit les thèmes mais aucun contenu métier concret à insérer.",
+            "fondements": [
+              {
+                "nature": "deduction",
+                "citation": null,
+                "usage": "Empêche de transformer des informations absentes en faits prétendument établis."
+              }
+            ]
+          }
+        ],
+        "composants_ecartes": []
+      },
+      "verification": {
+        "criteres_bloquants": [
+          "L'ordre du jour comporte exactement cinq points.",
+          "Les cinq thèmes demandés sont tous présents.",
+          "La somme des durées est exactement de 45 minutes."
+        ],
+        "criteres_qualitatifs": [
+          "Chaque point possède une durée clairement visible.",
+          "Chaque point indique brièvement son objectif ou son résultat attendu.",
+          "La rubrique consacrée aux décisions finales facilite l'identification des suites à donner.",
+          "Aucune donnée métier absente de la demande n'est inventée."
+        ],
+        "elements_non_verifiables": [
+          "Le contenu réel des ventes, des retours clients, des blocages et des priorités.",
+          "Les décisions, responsables et échéances qui seront établis pendant la réunion."
+        ],
+        "controle_provenance": [
+          {
+            "affirmation": "La réunion dure 45 minutes.",
+            "statut": "soutenue",
+            "justification": "Cette durée est explicitement indiquée dans la demande."
+          },
+          {
+            "affirmation": "L'ordre du jour comporte cinq thèmes déterminés.",
+            "statut": "soutenue",
+            "justification": "Les cinq thèmes sont explicitement énumérés par l'utilisateur."
+          },
+          {
+            "affirmation": "La répartition 10, 8, 8, 10 et 9 minutes convient à la réunion.",
+            "statut": "hypothese",
+            "justification": "Il s'agit d'un choix de structuration proposé, et non de durées imposées par l'utilisateur."
+          },
+          {
+            "affirmation": "Les données métier, responsables et échéances sont connus.",
+            "statut": "information_manquante",
+            "justification": "Ces éléments ne figurent pas dans la demande et ne doivent donc pas être inventés."
+          }
+        ]
+      },
+      "apprentissage": {
+        "preferences_applicables": [],
+        "preference_proposable": null
+      }
+    },
+    "analysis_call": {
+      "timestamp": "2026-08-28T07:28:23.075Z",
+      "endpoint": "/v1/responses",
+      "status_http": 200,
+      "latency_ms": 65863.441,
+      "response_id": "resp_0c319ea60c1d19dd006a9138554bb887d288a1cd13d7c54a42",
+      "response_status": "completed",
+      "model_requested": "gpt-5.6-sol",
+      "model_returned": "gpt-5.6-sol",
+      "usage": {
+        "input_tokens": 9648,
+        "output_tokens": 5577,
+        "total_tokens": 15225,
+        "reasoning_tokens": 3451
+      },
+      "estimated_cost_usd": 0.150132,
+      "incomplete_details": null,
+      "error": null,
+      "output": "{\n  \"version\": \"3.4\",\n  \"comprehension\": {\n    \"intention_principale\": \"Produire un ordre du jour directement utilisable pour une réunion de 45 minutes.\",\n    \"intentions_secondaires\": [\n      \"Répartir le temps entre les cinq thèmes demandés.\",\n      \"Faire aboutir la réunion à des priorités et à des décisions explicites.\"\n    ],\n    \"declarations\": [\n      {\n        \"contenu\": \"L'utilisateur demande la préparation d'un ordre du jour.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"Prépare l'ordre du jour\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      }\n    ],\n    \"contraintes\": [\n      {\n        \"contenu\": \"La réunion doit durer 45 minutes.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"réunion de 45 minutes\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      },\n      {\n        \"contenu\": \"L'ordre du jour doit comporter cinq points consacrés au suivi des ventes, aux retours clients, aux blocages, aux priorités de la semaine et aux décisions finales.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"5 points : suivi des ventes, retours clients, blocages, priorités de la semaine et décisions finales\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      }\n    ],\n    \"ambiguites\": [],\n    \"informations_manquantes\": []\n  },\n  \"evaluation\": {\n    \"niveau_risque\": \"faible\",\n    \"justification_risque\": \"La demande est simple, organisationnelle et sans conséquence sensible identifiable.\",\n    \"connaissance_externe_necessaire\": false,\n    \"actualite_requise\": false,\n    \"justification_connaissance\": \"Les thèmes, la durée et le nombre de points sont fournis ; seule une structuration pratique est nécessaire.\",\n    \"calcul_requis\": true,\n    \"livrable_complet_possible\": true,\n    \"reponse_partielle_possible\": true,\n    \"action_recommandee\": \"continuer\",\n    \"questions_a_poser\": [],\n    \"parties_realisables_immediatement\": []\n  },\n  \"strategie\": {\n    \"capacites_necessaires\": [\n      \"Structuration d'une réunion\",\n      \"Répartition cohérente du temps\",\n      \"Formulation concise et orientée vers l'action\"\n    ],\n    \"hypotheses_autorisees\": [],\n    \"hypotheses_interdites\": [\n      \"Inventer des chiffres de ventes, des retours clients, des blocages, des priorités, des décisions, des responsables ou des échéances.\"\n    ],\n    \"role_adaptatif\": {\n      \"intitule\": \"Facilitateur de réunion\",\n      \"mission\": \"Transformer les cinq thèmes demandés en un ordre du jour minuté, concis et immédiatement exploitable.\",\n      \"competences\": [\n        \"Conception d'ordres du jour\",\n        \"Gestion du temps\",\n        \"Clarification des résultats attendus\"\n      ],\n      \"limites\": [\n        \"Ne dispose pas du contenu métier réel des cinq thèmes.\",\n        \"Ne doit pas attribuer de décisions ou de responsabilités non communiquées.\"\n      ]\n    },\n    \"niveau_architecture\": \"minimal\",\n    \"justification_niveau\": \"Le réglage manuel impose une analyse minimale et la demande présente une seule intention, une structure explicite et un risque faible.\",\n    \"pilotage_incertitude\": {\n      \"decisions_autonomes\": [\n        \"Conserver l'ordre des thèmes énumérés.\",\n        \"Choisir une répartition des 45 minutes entre les cinq points.\",\n        \"Associer à chaque point un objectif ou un résultat attendu.\"\n      ],\n      \"estimations_a_etiqueter\": [],\n      \"inconnues_non_devineables\": [\n        \"Les données et constats métier à examiner pendant la réunion.\",\n        \"Les responsables et échéances qui découleront des décisions.\"\n      ]\n    }\n  },\n  \"livrable\": {\n    \"nature\": \"Ordre du jour minuté de réunion\",\n    \"format_technique\": \"markdown\",\n    \"quantites\": {\n      \"min\": 5,\n      \"max\": 5,\n      \"unite\": \"points\"\n    },\n    \"ton\": \"Professionnel, concis et orienté vers l'action\",\n    \"longueur_indicative\": \"Un titre suivi de cinq lignes ou puces minutées, avec un objectif ou un résultat attendu pour chaque point.\"\n  },\n  \"compilation\": {\n    \"composants_retenus\": [\n      {\n        \"type\": \"contrainte\",\n        \"titre\": \"Cinq rubriques distinctes\",\n        \"contenu\": \"Conserve les cinq thèmes comme rubriques principales distinctes, dans l'ordre indiqué, sans les fusionner et sans ajouter de sixième point.\",\n        \"justification\": \"Cette contrainte préserve exactement la structure et les thèmes demandés.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"5 points : suivi des ventes, retours clients, blocages, priorités de la semaine et décisions finales\",\n            \"usage\": \"Établit le nombre de rubriques et les cinq thèmes à conserver.\"\n          }\n        ]\n      },\n      {\n        \"type\": \"instruction\",\n        \"titre\": \"Répartition temporelle proposée\",\n        \"contenu\": \"Utilise la répartition suivante : 10 minutes pour le suivi des ventes, 8 minutes pour les retours clients, 8 minutes pour les blocages, 10 minutes pour les priorités de la semaine et 9 minutes pour les décisions finales.\",\n        \"justification\": \"Une répartition explicite dont le total atteint 45 minutes rend l'ordre du jour immédiatement utilisable.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"réunion de 45 minutes\",\n            \"usage\": \"Fixe la durée totale à répartir.\"\n          },\n          {\n            \"nature\": \"deduction\",\n            \"citation\": null,\n            \"usage\": \"Fonde le choix autonome d'une répartition équilibrée entre les cinq thèmes.\"\n          }\n        ]\n      },\n      {\n        \"type\": \"instruction\",\n        \"titre\": \"Résultat attendu par point\",\n        \"contenu\": \"Pour chaque rubrique, indique la durée et formule en une phrase courte l'objectif de discussion ou le résultat attendu. Pour les décisions finales, prévois une synthèse des décisions, des responsables et des échéances sous forme de champs à compléter lorsque ces éléments ne sont pas connus.\",\n        \"justification\": \"Cette formulation rend chaque séquence actionnable sans inventer le contenu de la réunion.\",\n        \"fondements\": [\n          {\n            \"nature\": \"deduction\",\n            \"citation\": null,\n            \"usage\": \"Ajoute le niveau minimal de précision nécessaire à un ordre du jour opérationnel.\"\n          }\n        ]\n      },\n      {\n        \"type\": \"interdiction\",\n        \"titre\": \"Absence d'invention métier\",\n        \"contenu\": \"N'invente aucun chiffre de ventes, retour client, blocage, priorité, décision, responsable ou échéance. Emploie des formulations génériques ou des champs à compléter.\",\n        \"justification\": \"La demande fournit les thèmes mais aucun contenu métier concret à insérer.\",\n        \"fondements\": [\n          {\n            \"nature\": \"deduction\",\n            \"citation\": null,\n            \"usage\": \"Empêche de transformer des informations absentes en faits prétendument établis.\"\n          }\n        ]\n      }\n    ],\n    \"composants_ecartes\": []\n  },\n  \"verification\": {\n    \"criteres_bloquants\": [\n      \"L'ordre du jour comporte exactement cinq points.\",\n      \"Les cinq thèmes demandés sont tous présents.\",\n      \"La somme des durées est exactement de 45 minutes.\"\n    ],\n    \"criteres_qualitatifs\": [\n      \"Chaque point possède une durée clairement visible.\",\n      \"Chaque point indique brièvement son objectif ou son résultat attendu.\",\n      \"La rubrique consacrée aux décisions finales facilite l'identification des suites à donner.\",\n      \"Aucune donnée métier absente de la demande n'est inventée.\"\n    ],\n    \"elements_non_verifiables\": [\n      \"Le contenu réel des ventes, des retours clients, des blocages et des priorités.\",\n      \"Les décisions, responsables et échéances qui seront établis pendant la réunion.\"\n    ],\n    \"controle_provenance\": [\n      {\n        \"affirmation\": \"La réunion dure 45 minutes.\",\n        \"statut\": \"soutenue\",\n        \"justification\": \"Cette durée est explicitement indiquée dans la demande.\"\n      },\n      {\n        \"affirmation\": \"L'ordre du jour comporte cinq thèmes déterminés.\",\n        \"statut\": \"soutenue\",\n        \"justification\": \"Les cinq thèmes sont explicitement énumérés par l'utilisateur.\"\n      },\n      {\n        \"affirmation\": \"La répartition 10, 8, 8, 10 et 9 minutes convient à la réunion.\",\n        \"statut\": \"hypothese\",\n        \"justification\": \"Il s'agit d'un choix de structuration proposé, et non de durées imposées par l'utilisateur.\"\n      },\n      {\n        \"affirmation\": \"Les données métier, responsables et échéances sont connus.\",\n        \"statut\": \"information_manquante\",\n        \"justification\": \"Ces éléments ne figurent pas dans la demande et ne doivent donc pas être inventés.\"\n      }\n    ]\n  },\n  \"apprentissage\": {\n    \"preferences_applicables\": [],\n    \"preference_proposable\": null\n  }\n}"
+    },
+    "validation": [],
+    "prompt": "## RÔLE\nVous intervenez comme Facilitateur de réunion.\nTransformer les cinq thèmes demandés en un ordre du jour minuté, concis et immédiatement exploitable.\nCompétences à mobiliser : Conception d'ordres du jour ; Gestion du temps ; Clarification des résultats attendus.\nLimites à respecter : Ne dispose pas du contenu métier réel des cinq thèmes ; Ne doit pas attribuer de décisions ou de responsabilités non communiquées.\n\n## OBJECTIF\nProduire un ordre du jour directement utilisable pour une réunion de 45 minutes.\n\n## DEMANDE ORIGINALE\nPrépare l'ordre du jour d'une réunion de 45 minutes avec 5 points : suivi des ventes, retours clients, blocages, priorités de la semaine et décisions finales.\n\n## FORMAT DE SORTIE\n- Livrable : Ordre du jour minuté de réunion\n- Format technique : markdown\n- Ton : Professionnel, concis et orienté vers l'action\n- Longueur indicative : Un titre suivi de cinq lignes ou puces minutées, avec un objectif ou un résultat attendu pour chaque point.\n- Quantité : minimum 5 ; maximum 5 points\n- Structure : plan imposé (5 éléments)\n\n## DÉCISIONS, ESTIMATIONS ET INCERTITUDES\nRègle centrale : traitez chaque inconnue par le moyen le plus utile et honnête — décision raisonnable, estimation étiquetée, recherche, scénario, condition ou inconnue locale. Une décision reste un choix, jamais un fait vérifié. La précision doit être proportionnée aux preuves. Hiérarchisez les critères selon l’objectif réel, les contraintes, leur impact cumulé et les conséquences d’une erreur, sans modifier silencieusement une contrainte explicite.\n\nDécisions à prendre de façon autonome :\n- Conserver l'ordre des thèmes énumérés.\n- Choisir une répartition des 45 minutes entre les cinq points.\n- Associer à chaque point un objectif ou un résultat attendu.\n\nIncertitudes à signaler localement sans bloquer le reste :\n- Les données et constats métier à examiner pendant la réunion.\n- Les responsables et échéances qui découleront des décisions.\n\n## HYPOTHÈSES INTERDITES\n- Inventer des chiffres de ventes, des retours clients, des blocages, des priorités, des décisions, des responsables ou des échéances.\n\n## PRINCIPES DE RAISONNEMENT\n- Distinguez faits établis, décisions, estimations, hypothèses et inconnues.\n- Vérifiez que les comparaisons portent sur des périmètres réellement comparables.\n- Adaptez la précision numérique au niveau de preuve disponible ; n’inventez pas une probabilité ou une date pour satisfaire une demande de précision.\n- Pondérez les critères selon l’objectif réel, les contraintes, l’impact cumulé et les conséquences d’une erreur.\n- Résolvez les contradictions avec la preuve la plus compétente pour l’affirmation, sans hiérarchie mécanique de sources.\n- Pour l’avenir, distinguez changements déjà établis et prévisions ; utilisez une sensibilité ou des scénarios quand le moment exact est inconnu.\n\n## Cinq rubriques distinctes\nConserve les cinq thèmes comme rubriques principales distinctes, dans l'ordre indiqué, sans les fusionner et sans ajouter de sixième point.\n\n## Répartition temporelle proposée\nUtilise la répartition suivante : 10 minutes pour le suivi des ventes, 8 minutes pour les retours clients, 8 minutes pour les blocages, 10 minutes pour les priorités de la semaine et 9 minutes pour les décisions finales.\n\n## Résultat attendu par point\nPour chaque rubrique, indique la durée et formule en une phrase courte l'objectif de discussion ou le résultat attendu. Pour les décisions finales, prévois une synthèse des décisions, des responsables et des échéances sous forme de champs à compléter lorsque ces éléments ne sont pas connus.\n\n## Absence d'invention métier\nN'invente aucun chiffre de ventes, retour client, blocage, priorité, décision, responsable ou échéance. Emploie des formulations génériques ou des champs à compléter.\n\n## VÉRIFICATION AVANT ENVOI\nContrôlez silencieusement la réponse et corrigez-la avant de l’envoyer :\n- L'ordre du jour comporte exactement cinq points.\n- Les cinq thèmes demandés sont tous présents.\n- La somme des durées est exactement de 45 minutes.\n- Chaque point possède une durée clairement visible.\n- Chaque point indique brièvement son objectif ou son résultat attendu.\n- La rubrique consacrée aux décisions finales facilite l'identification des suites à donner.\n- Aucune donnée métier absente de la demande n'est inventée.\n- Toute décision autonome doit rester identifiable comme un choix fondé sur des critères, jamais comme un fait vérifié sans preuve.\n- Toute estimation ou quantification doit avoir une précision proportionnée à sa base ; sans fondement empirique ou calcul identifiable, préférer qualification, fourchette, provision ou sensibilité à un nombre artificiel.\n- Avant toute comparaison ou calcul important, vérifier que les options et données couvrent des périmètres comparables ; expliciter les composantes ou hypothèses susceptibles de changer la décision.\n- En cas de contradiction matérielle, sélectionner la preuve selon son autorité sur l’affirmation, sa proximité, sa spécificité et sa fraîcheur ; trancher uniquement si le conflit est réellement résolu.\n- Pour une décision temporelle, distinguer état actuel, changement futur déjà établi et prévision ; intégrer les changements futurs seulement s’ils sont pertinents pour l’horizon de décision.\n- Quand la date d’un événement futur est inconnue, préférer scénarios, sensibilité, provision ou condition à une date arbitraire.\n- Hiérarchiser les critères selon l’objectif réel, les contraintes et leur impact cumulé, tout en confrontant les effets récurrents aux risques rares mais à conséquences majeures.\n- Ne jamais modifier silencieusement une contrainte explicite ; tout arbitrage qui la sacrifie doit être rendu visible.\n- Nettoyer le livrable final : aucune hésitation, autocorrection, ancien calcul remplacé, doublon, contradiction résiduelle ou trace de brouillon ne doit rester visible."
+  },
+  "final_call": {
+    "timestamp": "2026-08-28T07:28:26.367Z",
+    "endpoint": "/v1/responses",
+    "status_http": 200,
+    "latency_ms": 3239.096,
+    "response_id": "resp_0e41aed9201c88f1006a913897459087d299ca7817749642ff",
+    "response_status": "completed",
+    "model_requested": "gpt-5.6-sol",
+    "model_returned": "gpt-5.6-sol",
+    "usage": {
+      "input_tokens": 1314,
+      "output_tokens": 185,
+      "total_tokens": 1499,
+      "reasoning_tokens": 0
+    },
+    "estimated_cost_usd": 0.008956,
+    "incomplete_details": null,
+    "error": null,
+    "output": "# Ordre du jour — Réunion de 45 minutes\n\n1. **Suivi des ventes — 10 min** : examiner les données disponibles, identifier les évolutions significatives et les points nécessitant un approfondissement.\n2. **Retours clients — 8 min** : synthétiser les retours recueillis et dégager les sujets à traiter en priorité.\n3. **Blocages — 8 min** : recenser les obstacles en cours et déterminer les actions nécessaires à leur résolution.\n4. **Priorités de la semaine — 10 min** : définir et ordonner les priorités à retenir pour la semaine.\n5. **Décisions finales — 9 min** : récapituler les suites convenues et compléter les champs suivants : **Décision : [à compléter] — Responsable : [à compléter] — Échéance : [à compléter]**."
+  },
+  "output": "# Ordre du jour — Réunion de 45 minutes\n\n1. **Suivi des ventes — 10 min** : examiner les données disponibles, identifier les évolutions significatives et les points nécessitant un approfondissement.\n2. **Retours clients — 8 min** : synthétiser les retours recueillis et dégager les sujets à traiter en priorité.\n3. **Blocages — 8 min** : recenser les obstacles en cours et déterminer les actions nécessaires à leur résolution.\n4. **Priorités de la semaine — 10 min** : définir et ordonner les priorités à retenir pour la semaine.\n5. **Décisions finales — 9 min** : récapituler les suites convenues et compléter les champs suivants : **Décision : [à compléter] — Responsable : [à compléter] — Échéance : [à compléter]**.",
+  "total_llm_calls": 4,
+  "gpt_usage": {
+    "input_tokens": 10962,
+    "output_tokens": 5762,
+    "total_tokens": 16724,
+    "estimated_cost_usd": 0.159088
+  },
+  "fallback": true,
+  "retries": 0,
+  "error": null
+}

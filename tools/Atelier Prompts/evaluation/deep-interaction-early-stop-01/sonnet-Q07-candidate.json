@@ -1,0 +1,82 @@
+{
+ "case": "Q07",
+ "variant": "candidate",
+ "http_status": 200,
+ "exception": null,
+ "demande": "Adapte ce contenu pour le public visé",
+ "materiau_present": true,
+ "appels": [
+  {
+   "call_index": 1,
+   "outil": "oprie_analyst",
+   "http_status": 200,
+   "input_tokens": 5519,
+   "output_tokens": 862,
+   "stop_reason": "tool_use",
+   "latency_ms": 16763,
+   "cost_usd": 0.029487
+  },
+  {
+   "call_index": 2,
+   "outil": "critic_global",
+   "http_status": 200,
+   "input_tokens": 4021,
+   "output_tokens": 495,
+   "stop_reason": "tool_use",
+   "latency_ms": 9609,
+   "cost_usd": 0.019488000000000002
+  },
+  {
+   "call_index": 3,
+   "outil": "substitution_review_batch",
+   "http_status": 200,
+   "input_tokens": 5829,
+   "output_tokens": 849,
+   "stop_reason": "tool_use",
+   "latency_ms": 16922,
+   "cost_usd": 0.030222
+  },
+  {
+   "call_index": 4,
+   "outil": "substitution_review_batch",
+   "http_status": 200,
+   "input_tokens": 5829,
+   "output_tokens": 985,
+   "stop_reason": "tool_use",
+   "latency_ms": 19245,
+   "cost_usd": 0.032262
+  },
+  {
+   "call_index": 5,
+   "outil": "oprie_arbiter",
+   "http_status": 200,
+   "input_tokens": 5087,
+   "output_tokens": 1600,
+   "stop_reason": "tool_use",
+   "latency_ms": 29293,
+   "cost_usd": 0.039261000000000004
+  }
+ ],
+ "outils_non_classes": [],
+ "tour": {
+  "TOTAL_PROVIDER_CALLS": 5,
+  "ANALYST_CALLS": 1,
+  "CRITIC_GLOBAL_CALLS": 1,
+  "CRITIC_BATCH_CALLS": 2,
+  "ARBITER_CALLS": 1,
+  "ANALYST_OUTPUT_TOKENS": 862,
+  "CRITIC_GLOBAL_OUTPUT_TOKENS": 495,
+  "CRITIC_BATCH_OUTPUT_TOKENS": 1834,
+  "ARBITER_OUTPUT_TOKENS": 1600,
+  "TOTAL_OUTPUT_TOKENS": 4791,
+  "TOTAL_INPUT_TOKENS": 26285,
+  "ANALYST_LATENCY_MS": 16763,
+  "CRITIC_GLOBAL_LATENCY_MS": 9609,
+  "CRITIC_BATCH_LATENCY_MS": 36167,
+  "ARBITER_LATENCY_MS": 29293,
+  "TOTAL_LATENCY_MS": 74949,
+  "TOTAL_COST_USD": 0.15072000000000002,
+  "FINAL_OPRIE_STATE": "clarification_required",
+  "NEXT_QUESTION": "Pouvez-vous partager le contenu à adapter ? (texte, document, extrait, ou tout autre forme disponible)"
+ }
+}

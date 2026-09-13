@@ -1,0 +1,547 @@
+{
+  "started_at": "2026-08-28T07:18:18.529Z",
+  "completed_at": "2026-08-28T07:20:22.815Z",
+  "html_sha256": "757ad74d70ffeaff8c3c9e2a09d8c3aa9bbbcbcc52d0cae9923f54e7a28f2a06",
+  "latency_total_ms": 124285.3,
+  "time_to_first_useful_result_ms": 124285.31,
+  "route_finale": "architecte",
+  "moteur_final": "architecte",
+  "decision_source": "groq",
+  "decision": {
+    "etat_demande": "exploitable",
+    "route": "architecte",
+    "confiance": "haute",
+    "raison_interne": "La demande est exploitable mais nécessite une structuration ou des arbitrages préalables.",
+    "question": null
+  },
+  "decision_provider_calls": [
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:18:19.065Z",
+      "latency_ms": 220.459,
+      "status_http": 502,
+      "request": {
+        "demande": "Je veux lancer un podcast.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "error": "provider_failure",
+        "message": "Le fournisseur de décision n’est pas disponible."
+      },
+      "error": null
+    },
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:18:19.286Z",
+      "latency_ms": 772.129,
+      "status_http": 200,
+      "request": {
+        "demande": "Je veux lancer un podcast.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "etat_demande": "clarification_necessaire",
+        "route": null,
+        "confiance": "moyenne",
+        "raison_interne": "La demande n’est pas encore suffisamment exploitable ; une clarification à forte valeur d’information est nécessaire.",
+        "question": "Quel est le sujet principal ou le thème que vous souhaitez aborder dans votre podcast?"
+      },
+      "error": null
+    },
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:18:20.060Z",
+      "latency_ms": 75.013,
+      "status_http": 502,
+      "request": {
+        "demande": "Je veux lancer un podcast.\n\nPrécisions apportées pendant le dialogue :\n- Quel est le sujet principal ou le thème que vous souhaitez aborder dans votre podcast? — Réponse : Je veux préparer une première saison de huit entretiens de 30 minutes avec des artisans locaux, publiés toutes les deux semaines.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "error": "provider_failure",
+        "message": "Le fournisseur de décision n’est pas disponible."
+      },
+      "error": null
+    },
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:18:20.135Z",
+      "latency_ms": 410.067,
+      "status_http": 200,
+      "request": {
+        "demande": "Je veux lancer un podcast.\n\nPrécisions apportées pendant le dialogue :\n- Quel est le sujet principal ou le thème que vous souhaitez aborder dans votre podcast? — Réponse : Je veux préparer une première saison de huit entretiens de 30 minutes avec des artisans locaux, publiés toutes les deux semaines.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "etat_demande": "exploitable",
+        "route": "architecte",
+        "confiance": "haute",
+        "raison_interne": "La demande est exploitable mais nécessite une structuration ou des arbitrages préalables.",
+        "question": null
+      },
+      "error": null
+    }
+  ],
+  "decision_provider_latency_ms": 1477.668,
+  "clarifications": [
+    {
+      "question": "Quel est le sujet principal ou le thème que vous souhaitez aborder dans votre podcast?",
+      "answer": "Je veux préparer une première saison de huit entretiens de 30 minutes avec des artisans locaux, publiés toutes les deux semaines."
+    }
+  ],
+  "nombre_reanalyses": 1,
+  "engine": {
+    "engine": "architecte",
+    "latency_ms": 83246.824,
+    "context": {
+      "demande": "Je veux lancer un podcast.\n\nPrécisions apportées pendant le dialogue :\n- Quel est le sujet principal ou le thème que vous souhaitez aborder dans votre podcast? — Réponse : Je veux préparer une première saison de huit entretiens de 30 minutes avec des artisans locaux, publiés toutes les deux semaines.",
+      "materiau": null,
+      "preferences_confirmees": [],
+      "reglages_manuels": {
+        "destinataire": null,
+        "profondeur": "auto",
+        "structure": "auto",
+        "volume": null
+      },
+      "proportion": {
+        "version": 1,
+        "profondeur_analyse": {
+          "valeur": "minimal",
+          "source": "manuel"
+        },
+        "densite_prompt": {
+          "valeur": "equilibree",
+          "source": "automatique"
+        },
+        "longueur_livrable": {
+          "valeur": "automatique",
+          "source": "automatique"
+        },
+        "plafond_technique": {
+          "valeur": 4000,
+          "source": "manuel"
+        },
+        "structure": {
+          "mode": "libre",
+          "nombre": null,
+          "source": "automatique",
+          "source_mode": "automatique",
+          "source_nombre": "automatique"
+        }
+      }
+    },
+    "analysis": {
+      "version": "3.4",
+      "comprehension": {
+        "intention_principale": "Obtenir un plan concret et exploitable pour lancer une première saison de podcast consacrée à des entretiens avec des artisans locaux.",
+        "intentions_secondaires": [
+          "Structurer les huit épisodes de la saison.",
+          "Préparer un format d'entretien compatible avec une durée de 30 minutes.",
+          "Organiser une production et une publication toutes les deux semaines."
+        ],
+        "declarations": [
+          {
+            "contenu": "L'utilisateur souhaite lancer un podcast.",
+            "statut": "declaration_utilisateur",
+            "source": "demande",
+            "preuve": {
+              "citation": "Je veux lancer un podcast.",
+              "contexte_avant": null,
+              "contexte_apres": null
+            }
+          },
+          {
+            "contenu": "Le projet porte sur une première saison d'entretiens avec des artisans locaux.",
+            "statut": "declaration_utilisateur",
+            "source": "demande",
+            "preuve": {
+              "citation": "Je veux préparer une première saison de huit entretiens de 30 minutes avec des artisans locaux, publiés toutes les deux semaines.",
+              "contexte_avant": null,
+              "contexte_apres": null
+            }
+          }
+        ],
+        "contraintes": [
+          {
+            "contenu": "La première saison doit comprendre huit entretiens.",
+            "statut": "declaration_utilisateur",
+            "source": "demande",
+            "preuve": {
+              "citation": "une première saison de huit entretiens",
+              "contexte_avant": null,
+              "contexte_apres": null
+            }
+          },
+          {
+            "contenu": "Chaque entretien doit durer 30 minutes.",
+            "statut": "declaration_utilisateur",
+            "source": "demande",
+            "preuve": {
+              "citation": "de 30 minutes",
+              "contexte_avant": null,
+              "contexte_apres": null
+            }
+          },
+          {
+            "contenu": "Les personnes interrogées doivent être des artisans locaux.",
+            "statut": "declaration_utilisateur",
+            "source": "demande",
+            "preuve": {
+              "citation": "avec des artisans locaux",
+              "contexte_avant": null,
+              "contexte_apres": null
+            }
+          },
+          {
+            "contenu": "Les épisodes doivent être publiés toutes les deux semaines.",
+            "statut": "declaration_utilisateur",
+            "source": "demande",
+            "preuve": {
+              "citation": "publiés toutes les deux semaines",
+              "contexte_avant": null,
+              "contexte_apres": null
+            }
+          }
+        ],
+        "ambiguites": [
+          "Le public cible et la promesse éditoriale précise ne sont pas définis.",
+          "Le territoire couvert par le terme « local » n'est pas précisé.",
+          "La date de lancement et les moyens humains, techniques et financiers sont inconnus."
+        ],
+        "informations_manquantes": [
+          {
+            "information": "Public cible et bénéfice principal promis aux auditeurs.",
+            "bloquant": false,
+            "justification": "Ces éléments permettraient d'affiner le positionnement et les questions, mais une proposition éditoriale provisoire clairement signalée peut être fournie immédiatement."
+          },
+          {
+            "information": "Territoire concerné et artisans déjà identifiés.",
+            "bloquant": false,
+            "justification": "Ils sont nécessaires pour sélectionner les invités réels, mais pas pour proposer une architecture de saison fondée sur des profils d'artisans génériques."
+          },
+          {
+            "information": "Date de lancement, budget, matériel disponible et taille de l'équipe.",
+            "bloquant": false,
+            "justification": "Ces données modifieraient le calendrier et les choix opérationnels, mais un plan progressif et adaptable reste fiable sans elles."
+          }
+        ]
+      },
+      "evaluation": {
+        "niveau_risque": "faible",
+        "justification_risque": "La demande concerne la conception et l'organisation d'un projet éditorial sans enjeu médical, juridique, financier majeur ou de sécurité immédiate.",
+        "connaissance_externe_necessaire": true,
+        "actualite_requise": false,
+        "justification_connaissance": "Un plan utile mobilise des connaissances générales de conception éditoriale, de conduite d'entretien, de production audio et de diffusion qui ne figurent pas dans la demande. Aucune comparaison de prix, de prestataires ou de fonctionnalités actuelles n'est indispensable.",
+        "calcul_requis": true,
+        "livrable_complet_possible": true,
+        "reponse_partielle_possible": true,
+        "action_recommandee": "continuer",
+        "questions_a_poser": [],
+        "parties_realisables_immediatement": [
+          "Positionnement éditorial provisoire.",
+          "Architecture des huit épisodes.",
+          "Conducteur d'entretien totalisant 30 minutes.",
+          "Organisation de la production bimensuelle.",
+          "Plan de lancement priorisé."
+        ]
+      },
+      "strategie": {
+        "capacites_necessaires": [
+          "Cadrage éditorial d'un podcast d'entretiens.",
+          "Conception d'une saison cohérente.",
+          "Élaboration d'un conducteur minuté.",
+          "Planification légère de production et de publication.",
+          "Priorisation d'actions concrètes."
+        ],
+        "hypotheses_autorisees": [
+          "Adopter provisoirement un public composé de personnes curieuses des métiers, des savoir-faire et de la vie locale.",
+          "Proposer des profils d'invités et des angles éditoriaux génériques plutôt que des personnes réelles.",
+          "Construire un processus sobre pouvant être adapté ensuite au budget, au matériel et à l'équipe.",
+          "Présenter le calendrier relativement au lancement plutôt qu'avec des dates inventées."
+        ],
+        "hypotheses_interdites": [
+          "Inventer des noms, coordonnées, disponibilités ou accords d'artisans.",
+          "Supposer un territoire précis, un budget, du matériel ou une équipe non indiqués.",
+          "Présenter des performances d'audience ou des coûts comme prévisibles sans base identifiable.",
+          "Affirmer des exigences actuelles propres à une plateforme sans vérification appropriée."
+        ],
+        "role_adaptatif": {
+          "intitule": "Concepteur éditorial et organisateur de podcast",
+          "mission": "Transformer le concept fourni en un plan de première saison simple, cohérent et immédiatement actionnable.",
+          "competences": [
+            "Positionnement éditorial",
+            "Conduite d'entretien",
+            "Architecture de saison",
+            "Organisation de production",
+            "Planification de lancement"
+          ],
+          "limites": [
+            "Ne connaît ni les artisans réellement accessibles ni leur disponibilité.",
+            "Ne connaît pas le public, le territoire, le budget, le matériel ou la date de lancement.",
+            "Ne doit pas présenter comme vérifiés des détails actuels sur des services de diffusion."
+          ]
+        },
+        "niveau_architecture": "minimal",
+        "justification_niveau": "La demande comporte une intention principale, des contraintes claires et un faible niveau de risque ; le réglage manuel impose en outre une analyse minimale.",
+        "pilotage_incertitude": {
+          "decisions_autonomes": [
+            "Organiser la réponse autour du cadrage éditorial, des huit épisodes, du conducteur, du rythme de production et du lancement.",
+            "Utiliser des profils d'artisans provisoires pour illustrer la diversité possible de la saison.",
+            "Proposer un calendrier relatif et adaptable plutôt que demander immédiatement une date."
+          ],
+          "estimations_a_etiqueter": [
+            "Toute charge de préparation ou de production proposée.",
+            "Toute fourchette budgétaire éventuellement mentionnée.",
+            "Tout objectif d'audience ou de progression."
+          ],
+          "inconnues_non_devineables": [
+            "Territoire exact couvert par le podcast.",
+            "Identité et disponibilité des artisans.",
+            "Public cible définitif.",
+            "Budget, matériel et équipe disponibles.",
+            "Date effective du lancement."
+          ]
+        }
+      },
+      "livrable": {
+        "nature": "Plan de lancement opérationnel pour une première saison de podcast, comprenant un cadrage éditorial, huit propositions d'épisodes, un conducteur d'entretien et une organisation de production.",
+        "format_technique": "markdown",
+        "quantites": {
+          "min": 8,
+          "max": 8,
+          "unite": "propositions d'épisodes"
+        },
+        "ton": "Pragmatique, encourageant, clair et orienté vers l'action.",
+        "longueur_indicative": "Environ 900 à 1 300 mots, avec des listes et tableaux compacts."
+      },
+      "compilation": {
+        "composants_retenus": [
+          {
+            "type": "section",
+            "titre": "Cadrage éditorial provisoire",
+            "contenu": "Formule une proposition de valeur simple pour le podcast : public provisoire, promesse faite à l'auditeur, fil rouge de la saison et trois principes éditoriaux. Signale explicitement que le public et le territoire sont des choix provisoires à confirmer. Centre le cadrage sur les parcours, les gestes, les contraintes et la transmission des savoir-faire, sans réduire les invités à une présentation promotionnelle.",
+            "justification": "Un fil rouge est nécessaire pour donner de la cohérence aux huit entretiens malgré l'absence de positionnement détaillé.",
+            "fondements": [
+              {
+                "nature": "utilisateur",
+                "citation": "avec des artisans locaux",
+                "usage": "Détermine le sujet humain et territorial du cadrage."
+              },
+              {
+                "nature": "deduction",
+                "citation": null,
+                "usage": "Une saison d'entretiens gagne en cohérence lorsqu'elle repose sur une promesse éditoriale commune."
+              }
+            ]
+          },
+          {
+            "type": "section",
+            "titre": "Architecture des huit épisodes",
+            "contenu": "Propose exactement huit épisodes sous forme compacte. Pour chacun, indique un profil ou métier artisanal provisoire, un angle distinct, la question centrale et ce que l'auditeur doit en retirer. Varie les matières, les parcours et les enjeux lorsque cela est raisonnable. N'invente aucun artisan réel et présente ces profils comme des pistes de sélection.",
+            "justification": "L'utilisateur a fixé le nombre d'entretiens, mais pas encore les invités ni les angles de chaque épisode.",
+            "fondements": [
+              {
+                "nature": "utilisateur",
+                "citation": "une première saison de huit entretiens",
+                "usage": "Fixe le nombre exact de propositions à produire."
+              },
+              {
+                "nature": "utilisateur",
+                "citation": "avec des artisans locaux",
+                "usage": "Délimite le type de profils à envisager."
+              }
+            ]
+          },
+          {
+            "type": "instruction",
+            "titre": "Conducteur réutilisable de 30 minutes",
+            "contenu": "Crée un conducteur réutilisable dont les séquences totalisent exactement 30 minutes. Inclue une ouverture courte, le parcours de l'invité, le métier et ses gestes, un enjeu ou une difficulté concrète, la transmission ou l'avenir du savoir-faire, puis une conclusion. Ajoute huit à dix questions ouvertes prioritaires et quelques relances brèves. Précise quelles questions peuvent être supprimées si les réponses sont longues.",
+            "justification": "Un minutage et des questions hiérarchisées sont indispensables pour respecter la durée annoncée sans rendre l'échange rigide.",
+            "fondements": [
+              {
+                "nature": "utilisateur",
+                "citation": "de 30 minutes",
+                "usage": "Impose la durée totale du conducteur."
+              },
+              {
+                "nature": "deduction",
+                "citation": null,
+                "usage": "Des questions prioritaires et facultatives facilitent le respect d'une durée limitée."
+              }
+            ]
+          },
+          {
+            "type": "instruction",
+            "titre": "Organisation de la production bimensuelle",
+            "contenu": "Décris un cycle reproductible pour chaque épisode : sélection et invitation, préparation, enregistrement, montage, validation, mise en ligne et promotion. Organise ce cycle relativement à la date de publication, sans inventer de date de départ. Prévois une petite avance avant le lancement et indique les tâches qui peuvent être regroupées, tout en signalant comme estimations les charges de travail non fondées sur des informations fournies.",
+            "justification": "La régularité toutes les deux semaines nécessite un processus récurrent qui reste adaptable aux moyens inconnus.",
+            "fondements": [
+              {
+                "nature": "utilisateur",
+                "citation": "publiés toutes les deux semaines",
+                "usage": "Établit la cadence à soutenir."
+              },
+              {
+                "nature": "hypothese",
+                "citation": null,
+                "usage": "Un calendrier relatif permet de planifier sans supposer une date de lancement."
+              }
+            ]
+          },
+          {
+            "type": "section",
+            "titre": "Priorités de lancement",
+            "contenu": "Termine par un plan d'action hiérarchisé distinguant l'indispensable de l'optionnel. Couvre au minimum la sélection des invités, le test du format, la qualité sonore intelligible, les autorisations utiles, la préparation de quelques épisodes avant publication, la présentation du podcast et un dispositif simple de retour des auditeurs. Donne ensuite cinq premières actions réalisables, dans l'ordre, sans conditionner le démarrage à des choix de confort.",
+            "justification": "La demande porte sur le lancement ; elle doit donc déboucher sur des prochaines étapes concrètes plutôt que sur une simple liste d'idées.",
+            "fondements": [
+              {
+                "nature": "utilisateur",
+                "citation": "Je veux lancer un podcast.",
+                "usage": "Justifie une conclusion orientée vers l'exécution."
+              },
+              {
+                "nature": "deduction",
+                "citation": null,
+                "usage": "La distinction entre indispensable et optionnel réduit le risque de bloquer inutilement le projet."
+              }
+            ]
+          }
+        ],
+        "composants_ecartes": [
+          {
+            "type": "section",
+            "titre": "Comparatif détaillé des plateformes",
+            "raison": "La demande ne sollicite pas ce comparatif et des fonctionnalités ou tarifs précis exigeraient des informations actuelles susceptibles de détourner du plan éditorial prioritaire."
+          },
+          {
+            "type": "donnee",
+            "titre": "Budget chiffré complet",
+            "raison": "Aucun budget, équipement, niveau de qualité ou mode de production n'est indiqué ; un chiffrage précis serait artificiel."
+          },
+          {
+            "type": "section",
+            "titre": "Identité de marque complète",
+            "raison": "Un nom, une identité graphique et une stratégie de marque détaillée ne sont pas nécessaires pour fournir immédiatement le plan de saison demandé."
+          }
+        ]
+      },
+      "verification": {
+        "criteres_bloquants": [
+          "Le livrable comporte exactement huit propositions d'épisodes.",
+          "Le conducteur minuté totalise exactement 30 minutes.",
+          "La cadence retenue est une publication toutes les deux semaines.",
+          "Les invités proposés restent des profils d'artisans locaux et non des personnes prétendument identifiées.",
+          "Aucune donnée absente sur le territoire, le budget, le matériel, l'équipe ou la date de lancement n'est présentée comme acquise."
+        ],
+        "criteres_qualitatifs": [
+          "Les huit angles sont suffisamment distincts tout en partageant un fil rouge.",
+          "Le conducteur privilégie des questions ouvertes et peut être raccourci pendant l'entretien.",
+          "Le processus de production est réaliste pour une petite structure et adaptable.",
+          "Les actions finales sont hiérarchisées et directement exécutables.",
+          "Les choix provisoires et les estimations sont clairement identifiables."
+        ],
+        "elements_non_verifiables": [
+          "Disponibilité et intérêt réel des artisans locaux.",
+          "Adéquation définitive du positionnement au public visé.",
+          "Charge de travail réelle sans information sur l'équipe et le niveau de montage.",
+          "Coûts et exigences propres aux services de diffusion.",
+          "Résultats futurs en matière d'audience."
+        ],
+        "controle_provenance": [
+          {
+            "affirmation": "La saison comprend huit entretiens de 30 minutes avec des artisans locaux, publiés toutes les deux semaines.",
+            "statut": "soutenue",
+            "justification": "Ces quatre caractéristiques sont explicitement indiquées dans la demande."
+          },
+          {
+            "affirmation": "Le public cible peut provisoirement être composé de personnes intéressées par les métiers et les savoir-faire locaux.",
+            "statut": "hypothese",
+            "justification": "Le public n'est pas défini ; ce ciblage ne peut être présenté que comme une proposition de travail."
+          },
+          {
+            "affirmation": "Les profils d'artisans proposés correspondent à des invités réellement disponibles.",
+            "statut": "information_manquante",
+            "justification": "Aucune identité, prise de contact ou disponibilité d'invité n'est fournie."
+          },
+          {
+            "affirmation": "Les pratiques de production et de diffusion recommandées constituent des repères généraux.",
+            "statut": "connaissance_externe_non_verifiee",
+            "justification": "Elles relèvent d'un savoir extérieur à la demande et ne doivent pas être assimilées à des faits actuels vérifiés."
+          },
+          {
+            "affirmation": "Un calendrier précis peut être fixé.",
+            "statut": "information_manquante",
+            "justification": "La date de lancement, les disponibilités et les moyens de production ne sont pas connus."
+          }
+        ]
+      },
+      "apprentissage": {
+        "preferences_applicables": [],
+        "preference_proposable": null
+      }
+    },
+    "analysis_call": {
+      "timestamp": "2026-08-28T07:19:43.745Z",
+      "endpoint": "/v1/responses",
+      "status_http": 200,
+      "latency_ms": 83108.331,
+      "response_id": "resp_03df17b20fc6525b006a91363ccafc87d280c78729c4c23198",
+      "response_status": "completed",
+      "model_requested": "gpt-5.6-sol",
+      "model_returned": "gpt-5.6-sol",
+      "usage": {
+        "input_tokens": 9675,
+        "output_tokens": 6713,
+        "total_tokens": 16388,
+        "reasoning_tokens": 2811
+      },
+      "estimated_cost_usd": 0.17296,
+      "incomplete_details": null,
+      "error": null,
+      "output": "{\n  \"version\": \"3.4\",\n  \"comprehension\": {\n    \"intention_principale\": \"Obtenir un plan concret et exploitable pour lancer une première saison de podcast consacrée à des entretiens avec des artisans locaux.\",\n    \"intentions_secondaires\": [\n      \"Structurer les huit épisodes de la saison.\",\n      \"Préparer un format d'entretien compatible avec une durée de 30 minutes.\",\n      \"Organiser une production et une publication toutes les deux semaines.\"\n    ],\n    \"declarations\": [\n      {\n        \"contenu\": \"L'utilisateur souhaite lancer un podcast.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"Je veux lancer un podcast.\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      },\n      {\n        \"contenu\": \"Le projet porte sur une première saison d'entretiens avec des artisans locaux.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"Je veux préparer une première saison de huit entretiens de 30 minutes avec des artisans locaux, publiés toutes les deux semaines.\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      }\n    ],\n    \"contraintes\": [\n      {\n        \"contenu\": \"La première saison doit comprendre huit entretiens.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"une première saison de huit entretiens\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      },\n      {\n        \"contenu\": \"Chaque entretien doit durer 30 minutes.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"de 30 minutes\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      },\n      {\n        \"contenu\": \"Les personnes interrogées doivent être des artisans locaux.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"avec des artisans locaux\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      },\n      {\n        \"contenu\": \"Les épisodes doivent être publiés toutes les deux semaines.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"publiés toutes les deux semaines\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      }\n    ],\n    \"ambiguites\": [\n      \"Le public cible et la promesse éditoriale précise ne sont pas définis.\",\n      \"Le territoire couvert par le terme « local » n'est pas précisé.\",\n      \"La date de lancement et les moyens humains, techniques et financiers sont inconnus.\"\n    ],\n    \"informations_manquantes\": [\n      {\n        \"information\": \"Public cible et bénéfice principal promis aux auditeurs.\",\n        \"bloquant\": false,\n        \"justification\": \"Ces éléments permettraient d'affiner le positionnement et les questions, mais une proposition éditoriale provisoire clairement signalée peut être fournie immédiatement.\"\n      },\n      {\n        \"information\": \"Territoire concerné et artisans déjà identifiés.\",\n        \"bloquant\": false,\n        \"justification\": \"Ils sont nécessaires pour sélectionner les invités réels, mais pas pour proposer une architecture de saison fondée sur des profils d'artisans génériques.\"\n      },\n      {\n        \"information\": \"Date de lancement, budget, matériel disponible et taille de l'équipe.\",\n        \"bloquant\": false,\n        \"justification\": \"Ces données modifieraient le calendrier et les choix opérationnels, mais un plan progressif et adaptable reste fiable sans elles.\"\n      }\n    ]\n  },\n  \"evaluation\": {\n    \"niveau_risque\": \"faible\",\n    \"justification_risque\": \"La demande concerne la conception et l'organisation d'un projet éditorial sans enjeu médical, juridique, financier majeur ou de sécurité immédiate.\",\n    \"connaissance_externe_necessaire\": true,\n    \"actualite_requise\": false,\n    \"justification_connaissance\": \"Un plan utile mobilise des connaissances générales de conception éditoriale, de conduite d'entretien, de production audio et de diffusion qui ne figurent pas dans la demande. Aucune comparaison de prix, de prestataires ou de fonctionnalités actuelles n'est indispensable.\",\n    \"calcul_requis\": true,\n    \"livrable_complet_possible\": true,\n    \"reponse_partielle_possible\": true,\n    \"action_recommandee\": \"continuer\",\n    \"questions_a_poser\": [],\n    \"parties_realisables_immediatement\": [\n      \"Positionnement éditorial provisoire.\",\n      \"Architecture des huit épisodes.\",\n      \"Conducteur d'entretien totalisant 30 minutes.\",\n      \"Organisation de la production bimensuelle.\",\n      \"Plan de lancement priorisé.\"\n    ]\n  },\n  \"strategie\": {\n    \"capacites_necessaires\": [\n      \"Cadrage éditorial d'un podcast d'entretiens.\",\n      \"Conception d'une saison cohérente.\",\n      \"Élaboration d'un conducteur minuté.\",\n      \"Planification légère de production et de publication.\",\n      \"Priorisation d'actions concrètes.\"\n    ],\n    \"hypotheses_autorisees\": [\n      \"Adopter provisoirement un public composé de personnes curieuses des métiers, des savoir-faire et de la vie locale.\",\n      \"Proposer des profils d'invités et des angles éditoriaux génériques plutôt que des personnes réelles.\",\n      \"Construire un processus sobre pouvant être adapté ensuite au budget, au matériel et à l'équipe.\",\n      \"Présenter le calendrier relativement au lancement plutôt qu'avec des dates inventées.\"\n    ],\n    \"hypotheses_interdites\": [\n      \"Inventer des noms, coordonnées, disponibilités ou accords d'artisans.\",\n      \"Supposer un territoire précis, un budget, du matériel ou une équipe non indiqués.\",\n      \"Présenter des performances d'audience ou des coûts comme prévisibles sans base identifiable.\",\n      \"Affirmer des exigences actuelles propres à une plateforme sans vérification appropriée.\"\n    ],\n    \"role_adaptatif\": {\n      \"intitule\": \"Concepteur éditorial et organisateur de podcast\",\n      \"mission\": \"Transformer le concept fourni en un plan de première saison simple, cohérent et immédiatement actionnable.\",\n      \"competences\": [\n        \"Positionnement éditorial\",\n        \"Conduite d'entretien\",\n        \"Architecture de saison\",\n        \"Organisation de production\",\n        \"Planification de lancement\"\n      ],\n      \"limites\": [\n        \"Ne connaît ni les artisans réellement accessibles ni leur disponibilité.\",\n        \"Ne connaît pas le public, le territoire, le budget, le matériel ou la date de lancement.\",\n        \"Ne doit pas présenter comme vérifiés des détails actuels sur des services de diffusion.\"\n      ]\n    },\n    \"niveau_architecture\": \"minimal\",\n    \"justification_niveau\": \"La demande comporte une intention principale, des contraintes claires et un faible niveau de risque ; le réglage manuel impose en outre une analyse minimale.\",\n    \"pilotage_incertitude\": {\n      \"decisions_autonomes\": [\n        \"Organiser la réponse autour du cadrage éditorial, des huit épisodes, du conducteur, du rythme de production et du lancement.\",\n        \"Utiliser des profils d'artisans provisoires pour illustrer la diversité possible de la saison.\",\n        \"Proposer un calendrier relatif et adaptable plutôt que demander immédiatement une date.\"\n      ],\n      \"estimations_a_etiqueter\": [\n        \"Toute charge de préparation ou de production proposée.\",\n        \"Toute fourchette budgétaire éventuellement mentionnée.\",\n        \"Tout objectif d'audience ou de progression.\"\n      ],\n      \"inconnues_non_devineables\": [\n        \"Territoire exact couvert par le podcast.\",\n        \"Identité et disponibilité des artisans.\",\n        \"Public cible définitif.\",\n        \"Budget, matériel et équipe disponibles.\",\n        \"Date effective du lancement.\"\n      ]\n    }\n  },\n  \"livrable\": {\n    \"nature\": \"Plan de lancement opérationnel pour une première saison de podcast, comprenant un cadrage éditorial, huit propositions d'épisodes, un conducteur d'entretien et une organisation de production.\",\n    \"format_technique\": \"markdown\",\n    \"quantites\": {\n      \"min\": 8,\n      \"max\": 8,\n      \"unite\": \"propositions d'épisodes\"\n    },\n    \"ton\": \"Pragmatique, encourageant, clair et orienté vers l'action.\",\n    \"longueur_indicative\": \"Environ 900 à 1 300 mots, avec des listes et tableaux compacts.\"\n  },\n  \"compilation\": {\n    \"composants_retenus\": [\n      {\n        \"type\": \"section\",\n        \"titre\": \"Cadrage éditorial provisoire\",\n        \"contenu\": \"Formule une proposition de valeur simple pour le podcast : public provisoire, promesse faite à l'auditeur, fil rouge de la saison et trois principes éditoriaux. Signale explicitement que le public et le territoire sont des choix provisoires à confirmer. Centre le cadrage sur les parcours, les gestes, les contraintes et la transmission des savoir-faire, sans réduire les invités à une présentation promotionnelle.\",\n        \"justification\": \"Un fil rouge est nécessaire pour donner de la cohérence aux huit entretiens malgré l'absence de positionnement détaillé.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"avec des artisans locaux\",\n            \"usage\": \"Détermine le sujet humain et territorial du cadrage.\"\n          },\n          {\n            \"nature\": \"deduction\",\n            \"citation\": null,\n            \"usage\": \"Une saison d'entretiens gagne en cohérence lorsqu'elle repose sur une promesse éditoriale commune.\"\n          }\n        ]\n      },\n      {\n        \"type\": \"section\",\n        \"titre\": \"Architecture des huit épisodes\",\n        \"contenu\": \"Propose exactement huit épisodes sous forme compacte. Pour chacun, indique un profil ou métier artisanal provisoire, un angle distinct, la question centrale et ce que l'auditeur doit en retirer. Varie les matières, les parcours et les enjeux lorsque cela est raisonnable. N'invente aucun artisan réel et présente ces profils comme des pistes de sélection.\",\n        \"justification\": \"L'utilisateur a fixé le nombre d'entretiens, mais pas encore les invités ni les angles de chaque épisode.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"une première saison de huit entretiens\",\n            \"usage\": \"Fixe le nombre exact de propositions à produire.\"\n          },\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"avec des artisans locaux\",\n            \"usage\": \"Délimite le type de profils à envisager.\"\n          }\n        ]\n      },\n      {\n        \"type\": \"instruction\",\n        \"titre\": \"Conducteur réutilisable de 30 minutes\",\n        \"contenu\": \"Crée un conducteur réutilisable dont les séquences totalisent exactement 30 minutes. Inclue une ouverture courte, le parcours de l'invité, le métier et ses gestes, un enjeu ou une difficulté concrète, la transmission ou l'avenir du savoir-faire, puis une conclusion. Ajoute huit à dix questions ouvertes prioritaires et quelques relances brèves. Précise quelles questions peuvent être supprimées si les réponses sont longues.\",\n        \"justification\": \"Un minutage et des questions hiérarchisées sont indispensables pour respecter la durée annoncée sans rendre l'échange rigide.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"de 30 minutes\",\n            \"usage\": \"Impose la durée totale du conducteur.\"\n          },\n          {\n            \"nature\": \"deduction\",\n            \"citation\": null,\n            \"usage\": \"Des questions prioritaires et facultatives facilitent le respect d'une durée limitée.\"\n          }\n        ]\n      },\n      {\n        \"type\": \"instruction\",\n        \"titre\": \"Organisation de la production bimensuelle\",\n        \"contenu\": \"Décris un cycle reproductible pour chaque épisode : sélection et invitation, préparation, enregistrement, montage, validation, mise en ligne et promotion. Organise ce cycle relativement à la date de publication, sans inventer de date de départ. Prévois une petite avance avant le lancement et indique les tâches qui peuvent être regroupées, tout en signalant comme estimations les charges de travail non fondées sur des informations fournies.\",\n        \"justification\": \"La régularité toutes les deux semaines nécessite un processus récurrent qui reste adaptable aux moyens inconnus.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"publiés toutes les deux semaines\",\n            \"usage\": \"Établit la cadence à soutenir.\"\n          },\n          {\n            \"nature\": \"hypothese\",\n            \"citation\": null,\n            \"usage\": \"Un calendrier relatif permet de planifier sans supposer une date de lancement.\"\n          }\n        ]\n      },\n      {\n        \"type\": \"section\",\n        \"titre\": \"Priorités de lancement\",\n        \"contenu\": \"Termine par un plan d'action hiérarchisé distinguant l'indispensable de l'optionnel. Couvre au minimum la sélection des invités, le test du format, la qualité sonore intelligible, les autorisations utiles, la préparation de quelques épisodes avant publication, la présentation du podcast et un dispositif simple de retour des auditeurs. Donne ensuite cinq premières actions réalisables, dans l'ordre, sans conditionner le démarrage à des choix de confort.\",\n        \"justification\": \"La demande porte sur le lancement ; elle doit donc déboucher sur des prochaines étapes concrètes plutôt que sur une simple liste d'idées.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"Je veux lancer un podcast.\",\n            \"usage\": \"Justifie une conclusion orientée vers l'exécution.\"\n          },\n          {\n            \"nature\": \"deduction\",\n            \"citation\": null,\n            \"usage\": \"La distinction entre indispensable et optionnel réduit le risque de bloquer inutilement le projet.\"\n          }\n        ]\n      }\n    ],\n    \"composants_ecartes\": [\n      {\n        \"type\": \"section\",\n        \"titre\": \"Comparatif détaillé des plateformes\",\n        \"raison\": \"La demande ne sollicite pas ce comparatif et des fonctionnalités ou tarifs précis exigeraient des informations actuelles susceptibles de détourner du plan éditorial prioritaire.\"\n      },\n      {\n        \"type\": \"donnee\",\n        \"titre\": \"Budget chiffré complet\",\n        \"raison\": \"Aucun budget, équipement, niveau de qualité ou mode de production n'est indiqué ; un chiffrage précis serait artificiel.\"\n      },\n      {\n        \"type\": \"section\",\n        \"titre\": \"Identité de marque complète\",\n        \"raison\": \"Un nom, une identité graphique et une stratégie de marque détaillée ne sont pas nécessaires pour fournir immédiatement le plan de saison demandé.\"\n      }\n    ]\n  },\n  \"verification\": {\n    \"criteres_bloquants\": [\n      \"Le livrable comporte exactement huit propositions d'épisodes.\",\n      \"Le conducteur minuté totalise exactement 30 minutes.\",\n      \"La cadence retenue est une publication toutes les deux semaines.\",\n      \"Les invités proposés restent des profils d'artisans locaux et non des personnes prétendument identifiées.\",\n      \"Aucune donnée absente sur le territoire, le budget, le matériel, l'équipe ou la date de lancement n'est présentée comme acquise.\"\n    ],\n    \"criteres_qualitatifs\": [\n      \"Les huit angles sont suffisamment distincts tout en partageant un fil rouge.\",\n      \"Le conducteur privilégie des questions ouvertes et peut être raccourci pendant l'entretien.\",\n      \"Le processus de production est réaliste pour une petite structure et adaptable.\",\n      \"Les actions finales sont hiérarchisées et directement exécutables.\",\n      \"Les choix provisoires et les estimations sont clairement identifiables.\"\n    ],\n    \"elements_non_verifiables\": [\n      \"Disponibilité et intérêt réel des artisans locaux.\",\n      \"Adéquation définitive du positionnement au public visé.\",\n      \"Charge de travail réelle sans information sur l'équipe et le niveau de montage.\",\n      \"Coûts et exigences propres aux services de diffusion.\",\n      \"Résultats futurs en matière d'audience.\"\n    ],\n    \"controle_provenance\": [\n      {\n        \"affirmation\": \"La saison comprend huit entretiens de 30 minutes avec des artisans locaux, publiés toutes les deux semaines.\",\n        \"statut\": \"soutenue\",\n        \"justification\": \"Ces quatre caractéristiques sont explicitement indiquées dans la demande.\"\n      },\n      {\n        \"affirmation\": \"Le public cible peut provisoirement être composé de personnes intéressées par les métiers et les savoir-faire locaux.\",\n        \"statut\": \"hypothese\",\n        \"justification\": \"Le public n'est pas défini ; ce ciblage ne peut être présenté que comme une proposition de travail.\"\n      },\n      {\n        \"affirmation\": \"Les profils d'artisans proposés correspondent à des invités réellement disponibles.\",\n        \"statut\": \"information_manquante\",\n        \"justification\": \"Aucune identité, prise de contact ou disponibilité d'invité n'est fournie.\"\n      },\n      {\n        \"affirmation\": \"Les pratiques de production et de diffusion recommandées constituent des repères généraux.\",\n        \"statut\": \"connaissance_externe_non_verifiee\",\n        \"justification\": \"Elles relèvent d'un savoir extérieur à la demande et ne doivent pas être assimilées à des faits actuels vérifiés.\"\n      },\n      {\n        \"affirmation\": \"Un calendrier précis peut être fixé.\",\n        \"statut\": \"information_manquante\",\n        \"justification\": \"La date de lancement, les disponibilités et les moyens de production ne sont pas connus.\"\n      }\n    ]\n  },\n  \"apprentissage\": {\n    \"preferences_applicables\": [],\n    \"preference_proposable\": null\n  }\n}"
+    },
+    "validation": [],
+    "prompt": "## RÔLE\nVous intervenez comme Concepteur éditorial et organisateur de podcast.\nTransformer le concept fourni en un plan de première saison simple, cohérent et immédiatement actionnable.\nCompétences à mobiliser : Positionnement éditorial ; Conduite d'entretien ; Architecture de saison ; Organisation de production ; Planification de lancement.\nLimites à respecter : Ne connaît ni les artisans réellement accessibles ni leur disponibilité ; Ne connaît pas le public, le territoire, le budget, le matériel ou la date de lancement ; Ne doit pas présenter comme vérifiés des détails actuels sur des services de diffusion.\n\n## OBJECTIF\nObtenir un plan concret et exploitable pour lancer une première saison de podcast consacrée à des entretiens avec des artisans locaux.\n\n## DEMANDE ORIGINALE\nJe veux lancer un podcast.\n\nPrécisions apportées pendant le dialogue :\n- Quel est le sujet principal ou le thème que vous souhaitez aborder dans votre podcast? — Réponse : Je veux préparer une première saison de huit entretiens de 30 minutes avec des artisans locaux, publiés toutes les deux semaines.\n\n## FORMAT DE SORTIE\n- Livrable : Plan de lancement opérationnel pour une première saison de podcast, comprenant un cadrage éditorial, huit propositions d'épisodes, un conducteur d'entretien et une organisation de production.\n- Format technique : markdown\n- Ton : Pragmatique, encourageant, clair et orienté vers l'action.\n- Longueur indicative : Environ 900 à 1 300 mots, avec des listes et tableaux compacts.\n- Quantité : minimum 8 ; maximum 8 propositions d'épisodes\n- Structure : plan imposé (8 éléments)\n\n## DÉCISIONS, ESTIMATIONS ET INCERTITUDES\nRègle centrale : traitez chaque inconnue par le moyen le plus utile et honnête — décision raisonnable, estimation étiquetée, recherche, scénario, condition ou inconnue locale. Une décision reste un choix, jamais un fait vérifié. La précision doit être proportionnée aux preuves. Hiérarchisez les critères selon l’objectif réel, les contraintes, leur impact cumulé et les conséquences d’une erreur, sans modifier silencieusement une contrainte explicite.\n\nDécisions à prendre de façon autonome :\n- Organiser la réponse autour du cadrage éditorial, des huit épisodes, du conducteur, du rythme de production et du lancement.\n- Utiliser des profils d'artisans provisoires pour illustrer la diversité possible de la saison.\n- Proposer un calendrier relatif et adaptable plutôt que demander immédiatement une date.\n\nEstimations autorisées, à étiqueter clairement :\n- Toute charge de préparation ou de production proposée.\n- Toute fourchette budgétaire éventuellement mentionnée.\n- Tout objectif d'audience ou de progression.\n\nPour chacune : utilisez explicitement « estimation », « environ », « fourchette », « ordre de grandeur » ou « à confirmer ». Ne donnez jamais à une approximation la forme d’une mesure vérifiée.\n\nIncertitudes à signaler localement sans bloquer le reste :\n- Territoire exact couvert par le podcast.\n- Identité et disponibilité des artisans.\n- Public cible définitif.\n- Budget, matériel et équipe disponibles.\n- Date effective du lancement.\n\n## INFORMATIONS MANQUANTES ET PILOTAGE\n- Non bloquante : Public cible et bénéfice principal promis aux auditeurs. — Ces éléments permettraient d'affiner le positionnement et les questions, mais une proposition éditoriale provisoire clairement signalée peut être fournie immédiatement.\n- Non bloquante : Territoire concerné et artisans déjà identifiés. — Ils sont nécessaires pour sélectionner les invités réels, mais pas pour proposer une architecture de saison fondée sur des profils d'artisans génériques.\n- Non bloquante : Date de lancement, budget, matériel disponible et taille de l'équipe. — Ces données modifieraient le calendrier et les choix opérationnels, mais un plan progressif et adaptable reste fiable sans elles.\n\nNe présentez jamais une information inconnue comme confirmée. Mais ne bloquez pas une réponse utile pour une donnée que vous pouvez décider, estimer, rechercher ou laisser explicitement à confirmer.\n\n## RECHERCHE, ACTUALITÉ ET QUALITÉ DES PREUVES\nUne connaissance extérieure à la demande est nécessaire. Citez les sources directement consultées et leur date de consultation. Sans recherche réelle, distinguez explicitement ce qui est établi dans la demande de ce qui reste non vérifié. Pour chaque affirmation importante, choisissez la source selon son autorité sur cette affirmation, sa proximité avec la donnée, sa spécificité et sa fraîcheur ; ne suivez pas une hiérarchie rigide indépendante du contexte. En cas de contradiction, cherchez une preuve plus directement compétente et tranchez seulement si elle résout réellement le conflit. Recherchez également les changements futurs déjà établis lorsqu’ils se situent dans l’horizon pertinent et peuvent modifier la décision.\n\n## HYPOTHÈSES AUTORISÉES\n- Adopter provisoirement un public composé de personnes curieuses des métiers, des savoir-faire et de la vie locale.\n- Proposer des profils d'invités et des angles éditoriaux génériques plutôt que des personnes réelles.\n- Construire un processus sobre pouvant être adapté ensuite au budget, au matériel et à l'équipe.\n- Présenter le calendrier relativement au lancement plutôt qu'avec des dates inventées.\n\n## HYPOTHÈSES INTERDITES\n- Inventer des noms, coordonnées, disponibilités ou accords d'artisans.\n- Supposer un territoire précis, un budget, du matériel ou une équipe non indiqués.\n- Présenter des performances d'audience ou des coûts comme prévisibles sans base identifiable.\n- Affirmer des exigences actuelles propres à une plateforme sans vérification appropriée.\n\n## PRINCIPES DE RAISONNEMENT\n- Distinguez faits établis, décisions, estimations, hypothèses et inconnues.\n- Vérifiez que les comparaisons portent sur des périmètres réellement comparables.\n- Adaptez la précision numérique au niveau de preuve disponible ; n’inventez pas une probabilité ou une date pour satisfaire une demande de précision.\n- Pondérez les critères selon l’objectif réel, les contraintes, l’impact cumulé et les conséquences d’une erreur.\n- Résolvez les contradictions avec la preuve la plus compétente pour l’affirmation, sans hiérarchie mécanique de sources.\n- Pour l’avenir, distinguez changements déjà établis et prévisions ; utilisez une sensibilité ou des scénarios quand le moment exact est inconnu.\n\n## Cadrage éditorial provisoire\nFormule une proposition de valeur simple pour le podcast : public provisoire, promesse faite à l'auditeur, fil rouge de la saison et trois principes éditoriaux. Signale explicitement que le public et le territoire sont des choix provisoires à confirmer. Centre le cadrage sur les parcours, les gestes, les contraintes et la transmission des savoir-faire, sans réduire les invités à une présentation promotionnelle.\n\n## Architecture des huit épisodes\nPropose exactement huit épisodes sous forme compacte. Pour chacun, indique un profil ou métier artisanal provisoire, un angle distinct, la question centrale et ce que l'auditeur doit en retirer. Varie les matières, les parcours et les enjeux lorsque cela est raisonnable. N'invente aucun artisan réel et présente ces profils comme des pistes de sélection.\n\n## Conducteur réutilisable de 30 minutes\nCrée un conducteur réutilisable dont les séquences totalisent exactement 30 minutes. Inclue une ouverture courte, le parcours de l'invité, le métier et ses gestes, un enjeu ou une difficulté concrète, la transmission ou l'avenir du savoir-faire, puis une conclusion. Ajoute huit à dix questions ouvertes prioritaires et quelques relances brèves. Précise quelles questions peuvent être supprimées si les réponses sont longues.\n\n## Organisation de la production bimensuelle\nDécris un cycle reproductible pour chaque épisode : sélection et invitation, préparation, enregistrement, montage, validation, mise en ligne et promotion. Organise ce cycle relativement à la date de publication, sans inventer de date de départ. Prévois une petite avance avant le lancement et indique les tâches qui peuvent être regroupées, tout en signalant comme estimations les charges de travail non fondées sur des informations fournies.\n\n## Priorités de lancement\nTermine par un plan d'action hiérarchisé distinguant l'indispensable de l'optionnel. Couvre au minimum la sélection des invités, le test du format, la qualité sonore intelligible, les autorisations utiles, la préparation de quelques épisodes avant publication, la présentation du podcast et un dispositif simple de retour des auditeurs. Donne ensuite cinq premières actions réalisables, dans l'ordre, sans conditionner le démarrage à des choix de confort.\n\n## VÉRIFICATION AVANT ENVOI\nContrôlez silencieusement la réponse et corrigez-la avant de l’envoyer :\n- Le livrable comporte exactement huit propositions d'épisodes.\n- Le conducteur minuté totalise exactement 30 minutes.\n- La cadence retenue est une publication toutes les deux semaines.\n- Les invités proposés restent des profils d'artisans locaux et non des personnes prétendument identifiées.\n- Aucune donnée absente sur le territoire, le budget, le matériel, l'équipe ou la date de lancement n'est présentée comme acquise.\n- Les huit angles sont suffisamment distincts tout en partageant un fil rouge.\n- Le conducteur privilégie des questions ouvertes et peut être raccourci pendant l'entretien.\n- Le processus de production est réaliste pour une petite structure et adaptable.\n- Les actions finales sont hiérarchisées et directement exécutables.\n- Les choix provisoires et les estimations sont clairement identifiables.\n- Toute décision autonome doit rester identifiable comme un choix fondé sur des critères, jamais comme un fait vérifié sans preuve.\n- Toute estimation ou quantification doit avoir une précision proportionnée à sa base ; sans fondement empirique ou calcul identifiable, préférer qualification, fourchette, provision ou sensibilité à un nombre artificiel.\n- Avant toute comparaison ou calcul important, vérifier que les options et données couvrent des périmètres comparables ; expliciter les composantes ou hypothèses susceptibles de changer la décision.\n- En cas de contradiction matérielle, sélectionner la preuve selon son autorité sur l’affirmation, sa proximité, sa spécificité et sa fraîcheur ; trancher uniquement si le conflit est réellement résolu.\n- Pour une décision temporelle, distinguer état actuel, changement futur déjà établi et prévision ; intégrer les changements futurs seulement s’ils sont pertinents pour l’horizon de décision.\n- Quand la date d’un événement futur est inconnue, préférer scénarios, sensibilité, provision ou condition à une date arbitraire.\n- Hiérarchiser les critères selon l’objectif réel, les contraintes et leur impact cumulé, tout en confrontant les effets récurrents aux risques rares mais à conséquences majeures.\n- Ne jamais modifier silencieusement une contrainte explicite ; tout arbitrage qui la sacrifie doit être rendu visible.\n- Nettoyer le livrable final : aucune hésitation, autocorrection, ancien calcul remplacé, doublon, contradiction résiduelle ou trace de brouillon ne doit rester visible."
+  },
+  "final_call": {
+    "timestamp": "2026-08-28T07:20:22.802Z",
+    "endpoint": "/v1/responses",
+    "status_http": 200,
+    "latency_ms": 38956.961,
+    "response_id": "resp_04f6095591d62ac1006a91368ff05c87d2959921e352712f3e",
+    "response_status": "incomplete",
+    "model_requested": "gpt-5.6-sol",
+    "model_returned": "gpt-5.6-sol",
+    "usage": {
+      "input_tokens": 2362,
+      "output_tokens": 2500,
+      "total_tokens": 4862,
+      "reasoning_tokens": 659
+    },
+    "estimated_cost_usd": 0.059448,
+    "incomplete_details": {
+      "reason": "max_output_tokens"
+    },
+    "error": null,
+    "output": "# 1. Périmètre de la première saison\n\n**Éléments établis par la demande :**\n\n- une saison de **huit entretiens** ;\n- des invités issus de l’**artisanat local** ;\n- une durée publiée de **30 minutes par entretien** ;\n- une publication **toutes les deux semaines**, soit une saison diffusée sur environ quatorze semaines entre le premier et le dernier entretien.\n\n**Décisions proposées :**\n\n- adopter un format sobre, centré sur la parole et les sons du métier ;\n- enregistrer plusieurs entretiens avant le lancement afin de sécuriser la cadence ;\n- utiliser une structure identique pour les huit entretiens, tout en donnant à chacun un angle propre.\n\n**À confirmer ultérieurement :** territoire couvert, public définitif, identité et disponibilité des artisans, date de lancement, budget, matériel et taille de l’équipe.\n\nAucune recherche web en temps réel n’a été effectuée pour ce plan. Les recommandations relèvent donc de principes éditoriaux et organisationnels généraux. Les conditions techniques des hébergeurs, annuaires et plateformes, ainsi que les autorisations juridiques applicables, devront être vérifiées auprès de leurs sources officielles au moment du lancement.\n\n# 2. Cadrage éditorial provisoire\n\n### Proposition de valeur\n\n> Tous les quinze jours, un artisan raconte son parcours, les gestes qui définissent son métier, les contraintes du quotidien et la manière dont son savoir-faire peut se transmettre.\n\n- **Public provisoire, à confirmer :** personnes curieuses des métiers, des savoir-faire, des objets bien faits et de la vie locale.\n- **Territoire provisoire, à confirmer :** zone cohérente avec vos possibilités de déplacement et l’identité que vous souhaitez donner au podcast.\n- **Promesse :** faire comprendre un métier de l’intérieur plutôt que réaliser un portrait promotionnel.\n- **Fil rouge :** comment un savoir-faire s’acquiert, s’exerce sous contraintes et se transforme sans perdre son sens.\n\n### Trois principes éditoriaux\n\n1. **Partir du concret :** matières, outils, gestes, bruit, durée et étapes de fabrication.\n2. **Montrer la réalité du travail :** apprentissage, erreurs, contraintes économiques, physiques ou environnementales.\n3. **Donner une place à la transmission :** formation, reprise d’atelier, évolution des techniques et avenir du métier.\n\n**Titre de travail, à remplacer si nécessaire :** *Gestes d’ici*.  \n**Sous-titre possible :** *Les artisans racontent leur métier de l’intérieur.*\n\n# 3. Architecture des huit entretiens\n\nCes profils sont uniquement des **pistes de sélection** : aucun artisan réel ni aucune disponibilité ne sont supposés.\n\n| Nº | Profil artisanal provisoire | Angle distinct | Question centrale | Ce que l’auditeur doit en retirer |\n|---:|---|---|---|---|\n| 1 | Boulanger ou boulangère | Le temps long derrière un produit quotidien | Comment organise-t-on son travail quand la matière vivante impose son rythme ? | Comprendre le rôle du temps, de la répétition et de la régularité. |\n| 2 | Céramiste | Apprendre par l’échec | Que révèlent les pièces ratées sur la maîtrise d’un geste ? | Voir l’erreur comme une étape structurante de l’apprentissage. |\n| 3 | Ébéniste ou menuisier | Lire et respecter la matière | Jusqu’où l’artisan décide-t-il, et jusqu’où le bois commande-t-il ? | Découvrir l’attention portée aux propriétés et aux défauts d’un matériau. |\n| 4 | Couturier, tailleur ou créatrice textile | Réparer plutôt que remplacer | Comment la réparation modifie-t-elle notre rapport aux vêtements ? | Saisir la valeur technique, économique et symbolique de la réparation. |\n| 5 | Forgeron, ferronnier ou coutelier | Corps, chaleur et sécurité | Comment maintenir la précision dans un métier physiquement exigeant ? | Comprendre l’interaction entre effort, maîtrise technique et prévention. |\n| 6 | Artisan du bâtiment patrimonial | Restaurer sans effacer | Comment intervenir sur l’existant tout en respectant son histoire ? | Découvrir les arbitrages entre conservation, usage et techniques actuelles. |\n| 7 | Savonnier, maroquinier ou artisan ayant changé de carrière | La reconversion professionnelle | Comment passe-t-on de l’envie de faire à une activité artisanale durable ? | Identifier les apprentissages et les réalités d’un changement de voie. |\n| 8 | Artisan transmettant ou préparant une succession | Faire vivre le savoir-faire | Qu’est-ce qui peut réellement être enseigné, documenté ou repris ? | Refermer la saison sur la transmission et l’avenir des métiers. |\n\n# 4. Sélection et approche des invités\n\nConstruisez une liste d’environ **16 à 24 profils — ordre de grandeur conseillé**, afin de disposer d’alternatives en cas de refus ou d’indisponibilité.\n\n### Critères prioritaires\n\n- diversité des matières, des parcours et des générations ;\n- capacité à expliquer des gestes à un non-spécialiste ;\n- existence d’un enjeu concret au-delà de la présentation de l’activité ;\n- conditions d’enregistrement permettant une parole intelligible ;\n- accord clair sur le format, la durée et l’usage de l’enregistrement.\n\nPréparez une invitation courte : concept, durée à prévoir, angle proposé, lieu envisagé, calendrier indicatif et modalités de validation. Précisez qu’il ne s’agit ni d’une publicité ni d’un entretien destiné à piéger l’invité.\n\nLors d’un échange préparatoire d’**environ 20 à 30 minutes — estimation**, vérifiez le parcours, le vocabulaire technique, les sujets sensibles, la prononciation des noms et la possibilité de recueillir quelques sons d’atelier. Ne promettez pas automatiquement un droit de réécriture intégrale : convenez plutôt d’une validation factuelle ou des modalités adaptées à votre contexte.\n\n# 5. Conducteur réutilisable de 30 minutes\n\n| Séquence | Durée | Contenu |\n|---|---:|---|\n| Ouverture | 1 min | Présentation de l’invité, du métier et de la question centrale |\n| Parcours | 5 min | Découverte du métier, formation, déclic |\n| Métier et gestes | 9 min | Matière, outils, étapes, sons et critères de qualité |\n| Enjeu concret | 6 min | Difficulté, erreur, contrainte ou arbitrage |\n| Transmission et avenir | 6 min | Apprentissage, évolution et continuité du savoir-faire |\n| Conclusion | 3 min | Idée à retenir, conseil, clôture |\n| **Total** | **30 min** | |\n\n### Questions ouvertes prioritaires\n\n1. Comment êtes-vous arrivé à ce métier ?\n2. Quel moment a confirmé que vous vouliez en faire votre activité ?\n3. Si vous deviez décrire votre travail par un geste, lequel choisiriez-vous ?\n4. Que remarquez-vous dans la matière qu’un novice ne voit pas ?\n5. Pouvez-vous nous faire suivre les étapes d’une réalisation typique ?\n6. Quel geste vous a demandé le plus de temps à maîtriser ?\n7. Racontez une difficulté ou une erreur qui a changé votre manière de travailler.\n8. Quelle contrainte influence le plus votre quotidien aujourd’hui ?\n9. Qu’est-ce qui peut être enseigné, et qu’est-ce qui s’acquiert surtout par la pratique ?\n10. Qu’aimeriez-vous que l’auditeur regarde autrement après cet entretien ?\n\nSi les réponses sont longues, supprimez en priorité les questions **2, 6 et 8**, déjà susceptibles d’être couvertes ailleurs.\n\n**Relances brèves :** « Pouvez-vous donner un exemple ? », « Que faites-vous à ce moment précis ? », « Comment le sentez-vous ? », « Qu’est-ce qui a changé ? », « Pourquoi est-ce difficile ? »\n\n# 6. Cycle de production bimensuel\n\nLa lettre **P** désigne le jour de publication.\n\n| Échéance relative | Travail |\n|---|---|\n| P−6 à P−5 semaines | Sélection, invitation et solution de remplacement |\n| P−4 semaines | Pré-entretien, choix de l’angle, autorisations utiles |\n| P−3 semaines | Recherche ciblée, conducteur personnalisé, vérification technique |\n| P−2 semaines | Enregistrement et sauvegarde immédiate sur deux supports |\n| P−10 à P−6 jours | Dérushage, montage et contrôle de l’intelligibilité |\n| P−5 à P−3 jours | Validation factuelle convenue et corrections |\n|"
+  },
+  "output": "# 1. Périmètre de la première saison\n\n**Éléments établis par la demande :**\n\n- une saison de **huit entretiens** ;\n- des invités issus de l’**artisanat local** ;\n- une durée publiée de **30 minutes par entretien** ;\n- une publication **toutes les deux semaines**, soit une saison diffusée sur environ quatorze semaines entre le premier et le dernier entretien.\n\n**Décisions proposées :**\n\n- adopter un format sobre, centré sur la parole et les sons du métier ;\n- enregistrer plusieurs entretiens avant le lancement afin de sécuriser la cadence ;\n- utiliser une structure identique pour les huit entretiens, tout en donnant à chacun un angle propre.\n\n**À confirmer ultérieurement :** territoire couvert, public définitif, identité et disponibilité des artisans, date de lancement, budget, matériel et taille de l’équipe.\n\nAucune recherche web en temps réel n’a été effectuée pour ce plan. Les recommandations relèvent donc de principes éditoriaux et organisationnels généraux. Les conditions techniques des hébergeurs, annuaires et plateformes, ainsi que les autorisations juridiques applicables, devront être vérifiées auprès de leurs sources officielles au moment du lancement.\n\n# 2. Cadrage éditorial provisoire\n\n### Proposition de valeur\n\n> Tous les quinze jours, un artisan raconte son parcours, les gestes qui définissent son métier, les contraintes du quotidien et la manière dont son savoir-faire peut se transmettre.\n\n- **Public provisoire, à confirmer :** personnes curieuses des métiers, des savoir-faire, des objets bien faits et de la vie locale.\n- **Territoire provisoire, à confirmer :** zone cohérente avec vos possibilités de déplacement et l’identité que vous souhaitez donner au podcast.\n- **Promesse :** faire comprendre un métier de l’intérieur plutôt que réaliser un portrait promotionnel.\n- **Fil rouge :** comment un savoir-faire s’acquiert, s’exerce sous contraintes et se transforme sans perdre son sens.\n\n### Trois principes éditoriaux\n\n1. **Partir du concret :** matières, outils, gestes, bruit, durée et étapes de fabrication.\n2. **Montrer la réalité du travail :** apprentissage, erreurs, contraintes économiques, physiques ou environnementales.\n3. **Donner une place à la transmission :** formation, reprise d’atelier, évolution des techniques et avenir du métier.\n\n**Titre de travail, à remplacer si nécessaire :** *Gestes d’ici*.  \n**Sous-titre possible :** *Les artisans racontent leur métier de l’intérieur.*\n\n# 3. Architecture des huit entretiens\n\nCes profils sont uniquement des **pistes de sélection** : aucun artisan réel ni aucune disponibilité ne sont supposés.\n\n| Nº | Profil artisanal provisoire | Angle distinct | Question centrale | Ce que l’auditeur doit en retirer |\n|---:|---|---|---|---|\n| 1 | Boulanger ou boulangère | Le temps long derrière un produit quotidien | Comment organise-t-on son travail quand la matière vivante impose son rythme ? | Comprendre le rôle du temps, de la répétition et de la régularité. |\n| 2 | Céramiste | Apprendre par l’échec | Que révèlent les pièces ratées sur la maîtrise d’un geste ? | Voir l’erreur comme une étape structurante de l’apprentissage. |\n| 3 | Ébéniste ou menuisier | Lire et respecter la matière | Jusqu’où l’artisan décide-t-il, et jusqu’où le bois commande-t-il ? | Découvrir l’attention portée aux propriétés et aux défauts d’un matériau. |\n| 4 | Couturier, tailleur ou créatrice textile | Réparer plutôt que remplacer | Comment la réparation modifie-t-elle notre rapport aux vêtements ? | Saisir la valeur technique, économique et symbolique de la réparation. |\n| 5 | Forgeron, ferronnier ou coutelier | Corps, chaleur et sécurité | Comment maintenir la précision dans un métier physiquement exigeant ? | Comprendre l’interaction entre effort, maîtrise technique et prévention. |\n| 6 | Artisan du bâtiment patrimonial | Restaurer sans effacer | Comment intervenir sur l’existant tout en respectant son histoire ? | Découvrir les arbitrages entre conservation, usage et techniques actuelles. |\n| 7 | Savonnier, maroquinier ou artisan ayant changé de carrière | La reconversion professionnelle | Comment passe-t-on de l’envie de faire à une activité artisanale durable ? | Identifier les apprentissages et les réalités d’un changement de voie. |\n| 8 | Artisan transmettant ou préparant une succession | Faire vivre le savoir-faire | Qu’est-ce qui peut réellement être enseigné, documenté ou repris ? | Refermer la saison sur la transmission et l’avenir des métiers. |\n\n# 4. Sélection et approche des invités\n\nConstruisez une liste d’environ **16 à 24 profils — ordre de grandeur conseillé**, afin de disposer d’alternatives en cas de refus ou d’indisponibilité.\n\n### Critères prioritaires\n\n- diversité des matières, des parcours et des générations ;\n- capacité à expliquer des gestes à un non-spécialiste ;\n- existence d’un enjeu concret au-delà de la présentation de l’activité ;\n- conditions d’enregistrement permettant une parole intelligible ;\n- accord clair sur le format, la durée et l’usage de l’enregistrement.\n\nPréparez une invitation courte : concept, durée à prévoir, angle proposé, lieu envisagé, calendrier indicatif et modalités de validation. Précisez qu’il ne s’agit ni d’une publicité ni d’un entretien destiné à piéger l’invité.\n\nLors d’un échange préparatoire d’**environ 20 à 30 minutes — estimation**, vérifiez le parcours, le vocabulaire technique, les sujets sensibles, la prononciation des noms et la possibilité de recueillir quelques sons d’atelier. Ne promettez pas automatiquement un droit de réécriture intégrale : convenez plutôt d’une validation factuelle ou des modalités adaptées à votre contexte.\n\n# 5. Conducteur réutilisable de 30 minutes\n\n| Séquence | Durée | Contenu |\n|---|---:|---|\n| Ouverture | 1 min | Présentation de l’invité, du métier et de la question centrale |\n| Parcours | 5 min | Découverte du métier, formation, déclic |\n| Métier et gestes | 9 min | Matière, outils, étapes, sons et critères de qualité |\n| Enjeu concret | 6 min | Difficulté, erreur, contrainte ou arbitrage |\n| Transmission et avenir | 6 min | Apprentissage, évolution et continuité du savoir-faire |\n| Conclusion | 3 min | Idée à retenir, conseil, clôture |\n| **Total** | **30 min** | |\n\n### Questions ouvertes prioritaires\n\n1. Comment êtes-vous arrivé à ce métier ?\n2. Quel moment a confirmé que vous vouliez en faire votre activité ?\n3. Si vous deviez décrire votre travail par un geste, lequel choisiriez-vous ?\n4. Que remarquez-vous dans la matière qu’un novice ne voit pas ?\n5. Pouvez-vous nous faire suivre les étapes d’une réalisation typique ?\n6. Quel geste vous a demandé le plus de temps à maîtriser ?\n7. Racontez une difficulté ou une erreur qui a changé votre manière de travailler.\n8. Quelle contrainte influence le plus votre quotidien aujourd’hui ?\n9. Qu’est-ce qui peut être enseigné, et qu’est-ce qui s’acquiert surtout par la pratique ?\n10. Qu’aimeriez-vous que l’auditeur regarde autrement après cet entretien ?\n\nSi les réponses sont longues, supprimez en priorité les questions **2, 6 et 8**, déjà susceptibles d’être couvertes ailleurs.\n\n**Relances brèves :** « Pouvez-vous donner un exemple ? », « Que faites-vous à ce moment précis ? », « Comment le sentez-vous ? », « Qu’est-ce qui a changé ? », « Pourquoi est-ce difficile ? »\n\n# 6. Cycle de production bimensuel\n\nLa lettre **P** désigne le jour de publication.\n\n| Échéance relative | Travail |\n|---|---|\n| P−6 à P−5 semaines | Sélection, invitation et solution de remplacement |\n| P−4 semaines | Pré-entretien, choix de l’angle, autorisations utiles |\n| P−3 semaines | Recherche ciblée, conducteur personnalisé, vérification technique |\n| P−2 semaines | Enregistrement et sauvegarde immédiate sur deux supports |\n| P−10 à P−6 jours | Dérushage, montage et contrôle de l’intelligibilité |\n| P−5 à P−3 jours | Validation factuelle convenue et corrections |\n|",
+  "total_llm_calls": 6,
+  "gpt_usage": {
+    "input_tokens": 12037,
+    "output_tokens": 9213,
+    "total_tokens": 21250,
+    "estimated_cost_usd": 0.232408
+  },
+  "fallback": true,
+  "retries": 0,
+  "error": null
+}

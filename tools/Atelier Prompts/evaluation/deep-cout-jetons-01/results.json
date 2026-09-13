@@ -1,0 +1,969 @@
+{
+  "lot": "DEEP-TOKEN-COST-01",
+  "objet": "cout reel en jetons d un tour profond complet, compteurs fournisseur, sans modification produit",
+  "mesure_le": "2026-09-04",
+  "worker": "atelier-decision-groq",
+  "version_deployee": "4da62e5b-aac7-4932-bddb-ac23d2cac924",
+  "code_produit_modifie": false,
+  "deploiement_effectue": false,
+  "inventaire": {
+    "route": "/operational-request",
+    "sequence_des_roles": [
+      "analyst",
+      "critic",
+      "arbiter"
+    ],
+    "sequence_toujours_complete": true,
+    "ordre_fournisseur_des_roles": [
+      "groq",
+      "anthropic",
+      "openai"
+    ],
+    "analyst": {
+      "chemin": "mono-appel",
+      "provider_primaire": "groq",
+      "modele_groq": "openai/gpt-oss-20b"
+    },
+    "critic": {
+      "chemin": "pipeline batche (1 appel global + N appels de lot)",
+      "provider_primaire": "groq",
+      "modele_groq": "openai/gpt-oss-20b"
+    },
+    "arbiter": {
+      "chemin": "mono-appel",
+      "provider_primaire": "groq",
+      "modele_groq": "openai/gpt-oss-20b"
+    },
+    "modele_anthropic": "claude-sonnet-4-6",
+    "modele_openai": "gpt-5.6-sol",
+    "oprie_appel_fournisseur_separe": false,
+    "oprie_note": "OPRIE EST la sequence des trois roles (OPRIE_ROLES = analyst, critic, arbiter). Il n existe aucun quatrieme appel fournisseur : DEEP_FULL_AUTHORITY_TURN = DEEP_CORE_TURN."
+  },
+  "protocole": {
+    "corpus": "evaluation/corpus-lot10g2a.json (corpus de regression existant, 30 cas)",
+    "sous_ensemble": 12,
+    "categories": [
+      "suffisante",
+      "materiau present",
+      "ouverte",
+      "materiau absent",
+      "ambiguite non substituable"
+    ],
+    "espacement_entre_tours_ms": 120000,
+    "justification_espacement": "un tour depasse le budget d une minute ; 120 s laissent la fenetre se reconstituer entierement entre deux tours",
+    "source_des_jetons": "compteurs usage du fournisseur, releves en metadata seule",
+    "aucune_estimation": true,
+    "aucune_conversion_caracteres": true
+  },
+  "couverture": {
+    "tours_traces": 12,
+    "tours_complets": 12,
+    "tours_incomplets": 0,
+    "reprises_totales": 7,
+    "refus_429_observes": 0,
+    "bascules_totales": 19
+  },
+  "par_role": {
+    "analyst": {
+      "tours_observes": 12,
+      "appels_par_tour": {
+        "n": 12,
+        "min": 1,
+        "p50": 1,
+        "p95": 1,
+        "max": 1,
+        "mean": 1
+      },
+      "entree": {
+        "n": 12,
+        "min": 2728,
+        "p50": 2738,
+        "p95": 4199,
+        "max": 4199,
+        "mean": 3338.5
+      },
+      "sortie": {
+        "n": 12,
+        "min": 322,
+        "p50": 685,
+        "p95": 1066,
+        "max": 1066,
+        "mean": 713.5
+      },
+      "total": {
+        "n": 12,
+        "min": 3062,
+        "p50": 3641,
+        "p95": 5022,
+        "max": 5022,
+        "mean": 4052
+      },
+      "jetons_par_fournisseur": {
+        "groq": 24178,
+        "anthropic": 24446
+      }
+    },
+    "critic": {
+      "tours_observes": 12,
+      "appels_par_tour": {
+        "n": 12,
+        "min": 1,
+        "p50": 2,
+        "p95": 13,
+        "max": 13,
+        "mean": 3.8
+      },
+      "entree": {
+        "n": 12,
+        "min": 2088,
+        "p50": 6047,
+        "p95": 70479,
+        "max": 70479,
+        "mean": 17490.4
+      },
+      "sortie": {
+        "n": 12,
+        "min": 119,
+        "p50": 939,
+        "p95": 14852,
+        "max": 14852,
+        "mean": 3365.2
+      },
+      "total": {
+        "n": 12,
+        "min": 2209,
+        "p50": 6986,
+        "p95": 85331,
+        "max": 85331,
+        "mean": 20855.6
+      },
+      "jetons_par_fournisseur": {
+        "groq": 40185,
+        "anthropic": 210082
+      }
+    },
+    "arbiter": {
+      "tours_observes": 12,
+      "appels_par_tour": {
+        "n": 12,
+        "min": 1,
+        "p50": 1,
+        "p95": 2,
+        "max": 2,
+        "mean": 1.1
+      },
+      "entree": {
+        "n": 12,
+        "min": 2341,
+        "p50": 4380,
+        "p95": 12872,
+        "max": 12872,
+        "mean": 5470.9
+      },
+      "sortie": {
+        "n": 12,
+        "min": 208,
+        "p50": 915,
+        "p95": 1894,
+        "max": 1894,
+        "mean": 1017.9
+      },
+      "total": {
+        "n": 12,
+        "min": 2549,
+        "p50": 5781,
+        "p95": 14766,
+        "max": 14766,
+        "mean": 6488.8
+      },
+      "jetons_par_fournisseur": {
+        "groq": 19507,
+        "anthropic": 58359
+      }
+    }
+  },
+  "deep_core_turn": {
+    "n": 12,
+    "entree": {
+      "n": 12,
+      "min": 7169,
+      "p50": 13408,
+      "p95": 86082,
+      "max": 86082,
+      "mean": 26299.8
+    },
+    "sortie": {
+      "n": 12,
+      "min": 651,
+      "p50": 2829,
+      "p95": 17812,
+      "max": 17812,
+      "mean": 5096.6
+    },
+    "total": {
+      "n": 12,
+      "min": 7820,
+      "p50": 16015,
+      "p95": 103894,
+      "max": 103894,
+      "mean": 31396.4
+    },
+    "appels_fournisseur_par_tour": {
+      "n": 12,
+      "min": 3,
+      "p50": 4,
+      "p95": 15,
+      "max": 15,
+      "mean": 5.8
+    },
+    "latence_ms": {
+      "n": 12,
+      "min": 1559,
+      "p50": 32568,
+      "p95": 218533,
+      "max": 218533,
+      "mean": 64088.4
+    }
+  },
+  "deep_full_authority_turn": {
+    "identique_au_core": true,
+    "raison": "aucun appel fournisseur supplementaire : OPRIE est la sequence elle-meme"
+  },
+  "attribution_fournisseur": {
+    "jetons_totaux": 376757,
+    "par_fournisseur": {
+      "groq": 83870,
+      "anthropic": 292887,
+      "openai": 0
+    },
+    "part_groq_percent": 22.26,
+    "part_anthropic_percent": 77.74,
+    "part_openai_percent": 0,
+    "lecture": "le plan profond ne tient DEJA PAS sur Groq : il bascule vers Anthropic en fonctionnement nominal, non par panne mais par epuisement du budget en cours de tour."
+  },
+  "contexte_fast": {
+    "fast_p50_jetons": 426,
+    "deep_p50_sur_fast_p50": 37.59,
+    "deep_p95_sur_fast_p50": 243.88
+  },
+  "capacite_theorique_groq": {
+    "quota_reference_tpm": 8000,
+    "note": "ordres de grandeur, uniquement si Groq etait reserve au plan profond. Aucune regle produit.",
+    "tours_par_minute_au_p50": 0.5,
+    "tours_par_minute_au_p95": 0.08,
+    "un_tour_depasse_le_quota_au_p50": true,
+    "un_tour_depasse_le_quota_au_p95": true
+  },
+  "tours": [
+    {
+      "fixture_id": "R01",
+      "category": "suffisante",
+      "http_status": 200,
+      "complet": true,
+      "latence_worker_ms": 9009,
+      "appels_fournisseur": 3,
+      "reprises": 2,
+      "refus_429": 0,
+      "bascules": [],
+      "total_entree": 7323,
+      "total_sortie": 1401,
+      "total_jetons": 8724,
+      "jetons_par_fournisseur": {
+        "groq": 8724,
+        "anthropic": 0,
+        "openai": 0
+      },
+      "par_role": {
+        "analyst": {
+          "appels": 1,
+          "entree": 2738,
+          "sortie": 903,
+          "total": 3641,
+          "par_fournisseur": {
+            "groq": 3641
+          }
+        },
+        "critic": {
+          "appels": 1,
+          "entree": 2143,
+          "sortie": 170,
+          "total": 2313,
+          "par_fournisseur": {
+            "groq": 2313
+          }
+        },
+        "arbiter": {
+          "appels": 1,
+          "entree": 2442,
+          "sortie": 328,
+          "total": 2770,
+          "par_fournisseur": {
+            "groq": 2770
+          }
+        }
+      }
+    },
+    {
+      "fixture_id": "R02",
+      "category": "suffisante",
+      "http_status": 200,
+      "complet": true,
+      "latence_worker_ms": 32568,
+      "appels_fournisseur": 4,
+      "reprises": 0,
+      "refus_429": 0,
+      "bascules": [
+        {
+          "role": "analyst",
+          "de": "groq",
+          "vers": "anthropic"
+        },
+        {
+          "role": "arbiter",
+          "de": "groq",
+          "vers": "anthropic"
+        }
+      ],
+      "total_entree": 13408,
+      "total_sortie": 2607,
+      "total_jetons": 16015,
+      "jetons_par_fournisseur": {
+        "groq": 5857,
+        "anthropic": 10158,
+        "openai": 0
+      },
+      "par_role": {
+        "analyst": {
+          "appels": 1,
+          "entree": 4199,
+          "sortie": 823,
+          "total": 5022,
+          "par_fournisseur": {
+            "anthropic": 5022
+          }
+        },
+        "critic": {
+          "appels": 1,
+          "entree": 2440,
+          "sortie": 134,
+          "total": 2574,
+          "par_fournisseur": {
+            "groq": 2574
+          }
+        },
+        "arbiter": {
+          "appels": 2,
+          "entree": 6769,
+          "sortie": 1650,
+          "total": 8419,
+          "par_fournisseur": {
+            "groq": 3283,
+            "anthropic": 5136
+          }
+        }
+      }
+    },
+    {
+      "fixture_id": "R03",
+      "category": "suffisante",
+      "http_status": 200,
+      "complet": true,
+      "latence_worker_ms": 11454,
+      "appels_fournisseur": 3,
+      "reprises": 0,
+      "refus_429": 0,
+      "bascules": [
+        {
+          "role": "analyst",
+          "de": "groq",
+          "vers": "anthropic"
+        }
+      ],
+      "total_entree": 8915,
+      "total_sortie": 900,
+      "total_jetons": 9815,
+      "jetons_par_fournisseur": {
+        "groq": 5079,
+        "anthropic": 4736,
+        "openai": 0
+      },
+      "par_role": {
+        "analyst": {
+          "appels": 1,
+          "entree": 4194,
+          "sortie": 542,
+          "total": 4736,
+          "par_fournisseur": {
+            "anthropic": 4736
+          }
+        },
+        "critic": {
+          "appels": 1,
+          "entree": 2234,
+          "sortie": 119,
+          "total": 2353,
+          "par_fournisseur": {
+            "groq": 2353
+          }
+        },
+        "arbiter": {
+          "appels": 1,
+          "entree": 2487,
+          "sortie": 239,
+          "total": 2726,
+          "par_fournisseur": {
+            "groq": 2726
+          }
+        }
+      }
+    },
+    {
+      "fixture_id": "R08",
+      "category": "matériau présent",
+      "http_status": 200,
+      "complet": true,
+      "latence_worker_ms": 32467,
+      "appels_fournisseur": 4,
+      "reprises": 1,
+      "refus_429": 0,
+      "bascules": [
+        {
+          "role": "arbiter",
+          "de": "groq",
+          "vers": "anthropic"
+        }
+      ],
+      "total_entree": 12736,
+      "total_sortie": 2273,
+      "total_jetons": 15009,
+      "jetons_par_fournisseur": {
+        "groq": 10207,
+        "anthropic": 4802,
+        "openai": 0
+      },
+      "par_role": {
+        "analyst": {
+          "appels": 1,
+          "entree": 2734,
+          "sortie": 487,
+          "total": 3221,
+          "par_fournisseur": {
+            "groq": 3221
+          }
+        },
+        "critic": {
+          "appels": 2,
+          "entree": 6047,
+          "sortie": 939,
+          "total": 6986,
+          "par_fournisseur": {
+            "groq": 6986
+          }
+        },
+        "arbiter": {
+          "appels": 1,
+          "entree": 3955,
+          "sortie": 847,
+          "total": 4802,
+          "par_fournisseur": {
+            "anthropic": 4802
+          }
+        }
+      }
+    },
+    {
+      "fixture_id": "R09",
+      "category": "matériau présent",
+      "http_status": 200,
+      "complet": true,
+      "latence_worker_ms": 1559,
+      "appels_fournisseur": 3,
+      "reprises": 0,
+      "refus_429": 0,
+      "bascules": [],
+      "total_entree": 7169,
+      "total_sortie": 651,
+      "total_jetons": 7820,
+      "jetons_par_fournisseur": {
+        "groq": 7820,
+        "anthropic": 0,
+        "openai": 0
+      },
+      "par_role": {
+        "analyst": {
+          "appels": 1,
+          "entree": 2740,
+          "sortie": 322,
+          "total": 3062,
+          "par_fournisseur": {
+            "groq": 3062
+          }
+        },
+        "critic": {
+          "appels": 1,
+          "entree": 2088,
+          "sortie": 121,
+          "total": 2209,
+          "par_fournisseur": {
+            "groq": 2209
+          }
+        },
+        "arbiter": {
+          "appels": 1,
+          "entree": 2341,
+          "sortie": 208,
+          "total": 2549,
+          "par_fournisseur": {
+            "groq": 2549
+          }
+        }
+      }
+    },
+    {
+      "fixture_id": "A01",
+      "category": "ouverte",
+      "http_status": 200,
+      "complet": true,
+      "latence_worker_ms": 136744,
+      "appels_fournisseur": 11,
+      "reprises": 2,
+      "refus_429": 0,
+      "bascules": [
+        {
+          "role": "critic",
+          "de": "groq",
+          "vers": "anthropic"
+        }
+      ],
+      "total_entree": 54590,
+      "total_sortie": 12569,
+      "total_jetons": 67159,
+      "jetons_par_fournisseur": {
+        "groq": 19088,
+        "anthropic": 48071,
+        "openai": 0
+      },
+      "par_role": {
+        "analyst": {
+          "appels": 1,
+          "entree": 2730,
+          "sortie": 856,
+          "total": 3586,
+          "par_fournisseur": {
+            "groq": 3586
+          }
+        },
+        "critic": {
+          "appels": 9,
+          "entree": 44596,
+          "sortie": 10798,
+          "total": 55394,
+          "par_fournisseur": {
+            "groq": 7323,
+            "anthropic": 48071
+          }
+        },
+        "arbiter": {
+          "appels": 1,
+          "entree": 7264,
+          "sortie": 915,
+          "total": 8179,
+          "par_fournisseur": {
+            "groq": 8179
+          }
+        }
+      }
+    },
+    {
+      "fixture_id": "A02",
+      "category": "ouverte",
+      "http_status": 200,
+      "complet": true,
+      "latence_worker_ms": 218533,
+      "appels_fournisseur": 15,
+      "reprises": 2,
+      "refus_429": 0,
+      "bascules": [
+        {
+          "role": "critic",
+          "de": "groq",
+          "vers": "anthropic"
+        },
+        {
+          "role": "arbiter",
+          "de": "groq",
+          "vers": "anthropic"
+        }
+      ],
+      "total_entree": 86082,
+      "total_sortie": 17812,
+      "total_jetons": 103894,
+      "jetons_par_fournisseur": {
+        "groq": 11547,
+        "anthropic": 92347,
+        "openai": 0
+      },
+      "par_role": {
+        "analyst": {
+          "appels": 1,
+          "entree": 2731,
+          "sortie": 1066,
+          "total": 3797,
+          "par_fournisseur": {
+            "groq": 3797
+          }
+        },
+        "critic": {
+          "appels": 13,
+          "entree": 70479,
+          "sortie": 14852,
+          "total": 85331,
+          "par_fournisseur": {
+            "groq": 7750,
+            "anthropic": 77581
+          }
+        },
+        "arbiter": {
+          "appels": 1,
+          "entree": 12872,
+          "sortie": 1894,
+          "total": 14766,
+          "par_fournisseur": {
+            "anthropic": 14766
+          }
+        }
+      }
+    },
+    {
+      "fixture_id": "A03",
+      "category": "ouverte",
+      "http_status": 200,
+      "complet": true,
+      "latence_worker_ms": 32071,
+      "appels_fournisseur": 3,
+      "reprises": 0,
+      "refus_429": 0,
+      "bascules": [
+        {
+          "role": "arbiter",
+          "de": "groq",
+          "vers": "anthropic"
+        }
+      ],
+      "total_entree": 9475,
+      "total_sortie": 3110,
+      "total_jetons": 12585,
+      "jetons_par_fournisseur": {
+        "groq": 6804,
+        "anthropic": 5781,
+        "openai": 0
+      },
+      "par_role": {
+        "analyst": {
+          "appels": 1,
+          "entree": 2728,
+          "sortie": 877,
+          "total": 3605,
+          "par_fournisseur": {
+            "groq": 3605
+          }
+        },
+        "critic": {
+          "appels": 1,
+          "entree": 2392,
+          "sortie": 807,
+          "total": 3199,
+          "par_fournisseur": {
+            "groq": 3199
+          }
+        },
+        "arbiter": {
+          "appels": 1,
+          "entree": 4355,
+          "sortie": 1426,
+          "total": 5781,
+          "par_fournisseur": {
+            "anthropic": 5781
+          }
+        }
+      }
+    },
+    {
+      "fixture_id": "Q01",
+      "category": "matériau absent",
+      "http_status": 200,
+      "complet": true,
+      "latence_worker_ms": 39412,
+      "appels_fournisseur": 5,
+      "reprises": 0,
+      "refus_429": 0,
+      "bascules": [
+        {
+          "role": "critic",
+          "de": "groq",
+          "vers": "anthropic"
+        },
+        {
+          "role": "arbiter",
+          "de": "groq",
+          "vers": "anthropic"
+        }
+      ],
+      "total_entree": 18219,
+      "total_sortie": 2829,
+      "total_jetons": 21048,
+      "jetons_par_fournisseur": {
+        "groq": 5771,
+        "anthropic": 15277,
+        "openai": 0
+      },
+      "par_role": {
+        "analyst": {
+          "appels": 1,
+          "entree": 2730,
+          "sortie": 536,
+          "total": 3266,
+          "par_fournisseur": {
+            "groq": 3266
+          }
+        },
+        "critic": {
+          "appels": 3,
+          "entree": 11109,
+          "sortie": 1465,
+          "total": 12574,
+          "par_fournisseur": {
+            "groq": 2505,
+            "anthropic": 10069
+          }
+        },
+        "arbiter": {
+          "appels": 1,
+          "entree": 4380,
+          "sortie": 828,
+          "total": 5208,
+          "par_fournisseur": {
+            "anthropic": 5208
+          }
+        }
+      }
+    },
+    {
+      "fixture_id": "Q02",
+      "category": "matériau absent",
+      "http_status": 200,
+      "complet": true,
+      "latence_worker_ms": 89966,
+      "appels_fournisseur": 7,
+      "reprises": 0,
+      "refus_429": 0,
+      "bascules": [
+        {
+          "role": "analyst",
+          "de": "groq",
+          "vers": "anthropic"
+        },
+        {
+          "role": "critic",
+          "de": "groq",
+          "vers": "anthropic"
+        },
+        {
+          "role": "arbiter",
+          "de": "groq",
+          "vers": "anthropic"
+        }
+      ],
+      "total_entree": 33805,
+      "total_sortie": 6109,
+      "total_jetons": 39914,
+      "jetons_par_fournisseur": {
+        "groq": 2973,
+        "anthropic": 36941,
+        "openai": 0
+      },
+      "par_role": {
+        "analyst": {
+          "appels": 1,
+          "entree": 4180,
+          "sortie": 685,
+          "total": 4865,
+          "par_fournisseur": {
+            "anthropic": 4865
+          }
+        },
+        "critic": {
+          "appels": 5,
+          "entree": 23567,
+          "sortie": 4054,
+          "total": 27621,
+          "par_fournisseur": {
+            "groq": 2973,
+            "anthropic": 24648
+          }
+        },
+        "arbiter": {
+          "appels": 1,
+          "entree": 6058,
+          "sortie": 1370,
+          "total": 7428,
+          "par_fournisseur": {
+            "anthropic": 7428
+          }
+        }
+      }
+    },
+    {
+      "fixture_id": "Q07",
+      "category": "ambiguïté non substituable",
+      "http_status": 200,
+      "complet": true,
+      "latence_worker_ms": 86195,
+      "appels_fournisseur": 6,
+      "reprises": 0,
+      "refus_429": 0,
+      "bascules": [
+        {
+          "role": "analyst",
+          "de": "groq",
+          "vers": "anthropic"
+        },
+        {
+          "role": "critic",
+          "de": "groq",
+          "vers": "anthropic"
+        },
+        {
+          "role": "arbiter",
+          "de": "groq",
+          "vers": "anthropic"
+        }
+      ],
+      "total_entree": 32433,
+      "total_sortie": 5681,
+      "total_jetons": 38114,
+      "jetons_par_fournisseur": {
+        "groq": 0,
+        "anthropic": 38114,
+        "openai": 0
+      },
+      "par_role": {
+        "analyst": {
+          "appels": 1,
+          "entree": 4180,
+          "sortie": 835,
+          "total": 5015,
+          "par_fournisseur": {
+            "anthropic": 5015
+          }
+        },
+        "critic": {
+          "appels": 4,
+          "entree": 21787,
+          "sortie": 3598,
+          "total": 25385,
+          "par_fournisseur": {
+            "anthropic": 25385
+          }
+        },
+        "arbiter": {
+          "appels": 1,
+          "entree": 6466,
+          "sortie": 1248,
+          "total": 7714,
+          "par_fournisseur": {
+            "anthropic": 7714
+          }
+        }
+      }
+    },
+    {
+      "fixture_id": "Q08",
+      "category": "ambiguïté non substituable",
+      "http_status": 200,
+      "complet": true,
+      "latence_worker_ms": 79083,
+      "appels_fournisseur": 6,
+      "reprises": 0,
+      "refus_429": 0,
+      "bascules": [
+        {
+          "role": "analyst",
+          "de": "groq",
+          "vers": "anthropic"
+        },
+        {
+          "role": "critic",
+          "de": "groq",
+          "vers": "anthropic"
+        },
+        {
+          "role": "arbiter",
+          "de": "groq",
+          "vers": "anthropic"
+        }
+      ],
+      "total_entree": 31443,
+      "total_sortie": 5217,
+      "total_jetons": 36660,
+      "jetons_par_fournisseur": {
+        "groq": 0,
+        "anthropic": 36660,
+        "openai": 0
+      },
+      "par_role": {
+        "analyst": {
+          "appels": 1,
+          "entree": 4178,
+          "sortie": 630,
+          "total": 4808,
+          "par_fournisseur": {
+            "anthropic": 4808
+          }
+        },
+        "critic": {
+          "appels": 4,
+          "entree": 21003,
+          "sortie": 3325,
+          "total": 24328,
+          "par_fournisseur": {
+            "anthropic": 24328
+          }
+        },
+        "arbiter": {
+          "appels": 1,
+          "entree": 6262,
+          "sortie": 1262,
+          "total": 7524,
+          "par_fournisseur": {
+            "anthropic": 7524
+          }
+        }
+      }
+    }
+  ],
+  "attribution_des_echecs": {
+    "classes_par_role_et_fournisseur": {
+      "arbiter/groq/technical_failover": 7,
+      "critic/groq/technical_failover": 6,
+      "analyst/groq/technical_failover": 3,
+      "analyst/groq/request_rejected": 2,
+      "arbiter/groq/structured_output_invalid": 1
+    },
+    "erreurs_api_groq_journalisees": {
+      "400 json_validate_failed": 2,
+      "413 rate_limit_exceeded": 1
+    },
+    "lecture_413": "Groq rend 413 avec le code rate_limit_exceeded lorsqu une requete UNIQUE depasse a elle seule la limite de jetons par minute. C est la confirmation directe, par le fournisseur lui-meme, qu un appel du plan profond peut excoder le budget d une minute entiere.",
+    "limite_d_observabilite": "16 echecs sont classes technical_failover mais seules 3 erreurs d API sont journalisees. Le chemin d epuisement 429 de fetchGroqWithRetry leve son erreur AVANT toute journalisation d erreur d API : la repartition exacte entre epuisement 429 et autres causes techniques n est donc PAS observable avec l instrumentation actuelle. Ce lot le constate sans le combler, conformement a son perimetre.",
+    "aucune_saturation_artificielle": "les tours sont espaces de 120 s, soit largement de quoi reconstituer une fenetre qui se remplit en 3 a 28 s. La saturation observee est intrinseque au cout d un tour, pas a la cadence du banc."
+  },
+  "classification": {
+    "regle": "la classification est derivee du QUOTA lui-meme, jamais d un seuil invente : DOMINANT si un seul tour depasse le budget d une minute entiere.",
+    "quota_reference_tpm": 8000,
+    "cout_p50": 16015,
+    "rapport_p50_sur_quota": 2,
+    "rapport_p95_sur_quota": 12.99,
+    "verdict": "DEEP_COST_DOMINANT"
+  }
+}

@@ -1,0 +1,56 @@
+{
+ "lot": "DEEP-PROVIDER-ROUTING-FINAL-01",
+ "source": "wrangler tail --format=json — événements provider_ha_* déjà émis par le Worker, aucune instrumentation ajoutée",
+ "epinglage": null,
+ "wrangler_deep_bench_provider": "ha",
+ "fenetre": {
+  "debut": 1788722202331,
+  "fin": 1788723213795
+ },
+ "tours_observes": 11,
+ "ordres_observes": {
+  "[\"anthropic\"]": 33
+ },
+ "par_role": {
+  "analyst": {
+   "tentatives": 11,
+   "anthropic": 11,
+   "groq": 0,
+   "openai": 0,
+   "succes_anthropic": 11,
+   "echecs": {}
+  },
+  "critic": {
+   "tentatives": 11,
+   "anthropic": 11,
+   "groq": 0,
+   "openai": 0,
+   "succes_anthropic": 11,
+   "echecs": {}
+  },
+  "arbiter": {
+   "tentatives": 11,
+   "anthropic": 11,
+   "groq": 0,
+   "openai": 0,
+   "succes_anthropic": 7,
+   "echecs": {
+    "structured_output_invalid": 4
+   }
+  }
+ },
+ "deep_groq_calls": 0,
+ "deep_openai_calls": 0,
+ "etats_finaux": {
+  "clarification_required": 5,
+  "degraded_state": 4,
+  "operational_request_ready": 1
+ },
+ "latence_ms": {
+  "min": 87404,
+  "p50": 93047,
+  "max": 132014
+ },
+ "runs_avec_materiau": 5,
+ "runs_sans_materiau": 5
+}

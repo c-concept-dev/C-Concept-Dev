@@ -1,0 +1,32 @@
+{
+  "started_at": "2026-08-28T07:09:07.133Z",
+  "completed_at": "2026-08-28T07:09:22.151Z",
+  "latency_total_ms": 15018.047,
+  "calls": [
+    {
+      "timestamp": "2026-08-28T07:09:22.151Z",
+      "endpoint": "/v1/responses",
+      "status_http": 200,
+      "latency_ms": 14991.904,
+      "response_id": "resp_0e0ecbc5da9512df006a9134147b2487d29da3dbdc15dfdb52",
+      "response_status": "completed",
+      "model_requested": "gpt-5.6-sol",
+      "model_returned": "gpt-5.6-sol",
+      "usage": {
+        "input_tokens": 45,
+        "output_tokens": 687,
+        "total_tokens": 732,
+        "reasoning_tokens": 77
+      },
+      "estimated_cost_usd": 0.01392,
+      "incomplete_details": null,
+      "error": null,
+      "output": "## Checklist chronologique — 12 jours en Italie 🇮🇹\n\n### Deux mois avant le départ\n1. **Vérifier les documents d’identité** : carte nationale d’identité ou passeport valide, selon votre nationalité.  \n2. **Définir l’itinéraire** : villes visitées, nombre de nuits et temps de trajet entre chaque étape.  \n3. **Fixer le budget global** : transports, hébergements, repas, visites, achats et marge pour les imprévus.  \n4. **Réserver les vols ou trains internationaux**, ainsi que les principaux trajets intérieurs.  \n5. **Réserver les hébergements** en vérifiant leur emplacement, les horaires d’arrivée et les conditions d’annulation.\n\n### Six à quatre semaines avant\n6. **Souscrire ou vérifier l’assurance voyage** : annulation, assistance, frais médicaux, bagages et responsabilité civile.  \n7. **Demander la carte européenne d’assurance maladie** si vous êtes assuré dans un pays de l’UE/EEE ou en Suisse.  \n8. **Réserver les visites très demandées** : Colisée, musées du Vatican, Galerie des Offices, Cène de Léonard de Vinci, etc.  \n9. **Organiser les déplacements locaux** : trains à grande vitesse, location de voiture, transferts et transports urbains.  \n10. **Vérifier les règles de circulation** si vous conduisez : ZTL, péages, stationnement et permis requis.\n\n### Trois à deux semaines avant\n11. **Établir un programme quotidien souple**, avec les horaires d’ouverture et les jours de fermeture des sites.  \n12. **Contrôler les moyens de paiement** : plafonds bancaires, frais à l’étranger et disponibilité d’une seconde carte.  \n13. **Préparer le téléphone** : forfait utilisable en Italie, eSIM éventuelle et applications utiles.  \n14. **Télécharger les documents et cartes hors ligne** : billets, réservations, itinéraires et coordonnées des hébergements.  \n15. **Vérifier les besoins de santé** : ordonnances, médicaments en quantité suffisante et petite trousse de secours.\n\n### Une semaine avant\n16. **Consulter la météo** des différentes étapes et adapter les vêtements et chaussures.  \n17. **Préparer les bagages** : tenues confortables, tenue couvrante pour les lieux religieux, adaptateur si nécessaire et sac léger pour la journée.  \n18. **Faire des copies des documents importants** et les conserver séparément, avec une version numérique sécurisée.\n\n### La veille\n19. **Effectuer l’enregistrement**, confirmer les horaires et éventuels changements, charger les appareils et préparer les dernières affaires.\n\n### Jour du départ\n20. **Faire le contrôle final** : identité, billets, portefeuille, téléphone, médicaments, clés et fermeture du domicile ; partir avec une marge suffisante."
+    }
+  ],
+  "turns": [],
+  "output": "## Checklist chronologique — 12 jours en Italie 🇮🇹\n\n### Deux mois avant le départ\n1. **Vérifier les documents d’identité** : carte nationale d’identité ou passeport valide, selon votre nationalité.  \n2. **Définir l’itinéraire** : villes visitées, nombre de nuits et temps de trajet entre chaque étape.  \n3. **Fixer le budget global** : transports, hébergements, repas, visites, achats et marge pour les imprévus.  \n4. **Réserver les vols ou trains internationaux**, ainsi que les principaux trajets intérieurs.  \n5. **Réserver les hébergements** en vérifiant leur emplacement, les horaires d’arrivée et les conditions d’annulation.\n\n### Six à quatre semaines avant\n6. **Souscrire ou vérifier l’assurance voyage** : annulation, assistance, frais médicaux, bagages et responsabilité civile.  \n7. **Demander la carte européenne d’assurance maladie** si vous êtes assuré dans un pays de l’UE/EEE ou en Suisse.  \n8. **Réserver les visites très demandées** : Colisée, musées du Vatican, Galerie des Offices, Cène de Léonard de Vinci, etc.  \n9. **Organiser les déplacements locaux** : trains à grande vitesse, location de voiture, transferts et transports urbains.  \n10. **Vérifier les règles de circulation** si vous conduisez : ZTL, péages, stationnement et permis requis.\n\n### Trois à deux semaines avant\n11. **Établir un programme quotidien souple**, avec les horaires d’ouverture et les jours de fermeture des sites.  \n12. **Contrôler les moyens de paiement** : plafonds bancaires, frais à l’étranger et disponibilité d’une seconde carte.  \n13. **Préparer le téléphone** : forfait utilisable en Italie, eSIM éventuelle et applications utiles.  \n14. **Télécharger les documents et cartes hors ligne** : billets, réservations, itinéraires et coordonnées des hébergements.  \n15. **Vérifier les besoins de santé** : ordonnances, médicaments en quantité suffisante et petite trousse de secours.\n\n### Une semaine avant\n16. **Consulter la météo** des différentes étapes et adapter les vêtements et chaussures.  \n17. **Préparer les bagages** : tenues confortables, tenue couvrante pour les lieux religieux, adaptateur si nécessaire et sac léger pour la journée.  \n18. **Faire des copies des documents importants** et les conserver séparément, avec une version numérique sécurisée.\n\n### La veille\n19. **Effectuer l’enregistrement**, confirmer les horaires et éventuels changements, charger les appareils et préparer les dernières affaires.\n\n### Jour du départ\n20. **Faire le contrôle final** : identité, billets, portefeuille, téléphone, médicaments, clés et fermeture du domicile ; partir avec une marge suffisante.",
+  "error": null,
+  "initial_request_exact": "Fais-moi une checklist de 20 points pour préparer un voyage de 12 jours en Italie, classée par ordre chronologique, de deux mois avant le départ jusqu'au jour du départ.",
+  "clarification_detection": "heuristique documentée"
+}

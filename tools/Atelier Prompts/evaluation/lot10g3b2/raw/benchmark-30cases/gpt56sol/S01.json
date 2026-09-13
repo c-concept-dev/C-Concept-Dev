@@ -1,0 +1,32 @@
+{
+  "started_at": "2026-08-28T07:24:26.924Z",
+  "completed_at": "2026-08-28T07:24:28.425Z",
+  "latency_total_ms": 1501.579,
+  "calls": [
+    {
+      "timestamp": "2026-08-28T07:24:28.425Z",
+      "endpoint": "/v1/responses",
+      "status_http": 200,
+      "latency_ms": 1447.827,
+      "response_id": "resp_0f13b660ffe9ce7e006a9137ab1e0087d28261475e36e6bb17",
+      "response_status": "completed",
+      "model_requested": "gpt-5.6-sol",
+      "model_returned": "gpt-5.6-sol",
+      "usage": {
+        "input_tokens": 33,
+        "output_tokens": 26,
+        "total_tokens": 59,
+        "reasoning_tokens": 0
+      },
+      "estimated_cost_usd": 0.000652,
+      "incomplete_details": null,
+      "error": null,
+      "output": "“The meeting has been rescheduled for next Tuesday at 2:00 p.m. Please confirm your availability.”"
+    }
+  ],
+  "turns": [],
+  "output": "“The meeting has been rescheduled for next Tuesday at 2:00 p.m. Please confirm your availability.”",
+  "error": null,
+  "initial_request_exact": "Traduis en anglais naturel : « La réunion est reportée à mardi prochain à 14 heures. Merci de confirmer votre disponibilité. »",
+  "clarification_detection": "heuristique documentée"
+}
