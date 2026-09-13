@@ -8942,7 +8942,19 @@ ${recent}`;
     // `if (adocClarityCardEl) ...` laissait donc passer exactement la carte fantôme orpheline
     // du bug (celle d'un échange déjà complété), qui n'a alors plus aucune référence JS du tout.
     // Interroger le DOM directement garantit l'invariant réel : au plus une carte à la fois.
-    document.querySelectorAll('.cc-clarity-card').forEach(function (el) { el.remove(); });
+    // Item 62 — portée restreinte à #adoc-messages (investigation confirmée : la vraie carte de
+    // clarification y est TOUJOURS ajoutée par adocRenderClarityCard, jamais ailleurs). Avant ce
+    // correctif, `document.querySelectorAll` sans restriction balayait tout le document et
+    // détruisait aussi le contenu de #cc-legacy-retheme-modal (markup statique du bouton "Charte",
+    // en fin de <body>) qui réutilise volontairement la même classe .cc-clarity-card pour son
+    // style visuel — jamais un vrai composant de clarification. Une fois détruit (markup statique,
+    // jamais recréé), #cc-legacy-retheme-body disparaissait en permanence dès la première porte de
+    // clarté de la session, rendant le bouton "Charte" silencieusement inopérant (reproduit et
+    // confirmé, cf. rapport de lot). Les panneaux de correction/insertion de bloc (#cc-ws-doc-card)
+    // partagent aussi cette classe pour le même motif de style, mais vivent hors #adoc-messages
+    // eux aussi et sont de toute façon recréés à chaque clic — non affectés dans les deux cas.
+    const _clarityContainer = document.getElementById('adoc-messages');
+    (_clarityContainer || document).querySelectorAll('.cc-clarity-card').forEach(function (el) { el.remove(); });
     adocClarityCardEl = null;
   }
 
