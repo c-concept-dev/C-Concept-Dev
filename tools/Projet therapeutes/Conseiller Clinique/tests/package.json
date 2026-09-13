@@ -1,0 +1,10 @@
+{
+  "name": "studio-clinique-editor-tests",
+  "private": true,
+  "scripts": {
+    "test": "node edition-directe-57f.cjs"
+  },
+  "devDependencies": {
+    "playwright": "1.55.1"
+  }
+}

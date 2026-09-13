@@ -2003,7 +2003,24 @@
         transition-duration: .01ms !important;
       }
     }
-    </style>
+
+    /* 57f: tools are outside every editing host, including table/list cells. */
+    [data-cc-editor-leaf] { white-space: pre-wrap; }
+    [data-cc-editor-leaf][contenteditable="true"] { display:inline-block; min-width:1ch; min-height:1em; cursor:text; outline:none; }
+    [data-cc-editor-leaf][contenteditable="true"]:focus { outline:1px dashed var(--petrol-800); outline-offset:3px; }
+    .cc-editor-tools { display:grid;gap:10px;padding-top:12px;margin-top:12px;border-top:1px solid var(--stone-200);font:13px/1.4 system-ui;color:var(--ink); }
+    .cc-editor-row { display:flex;flex-wrap:wrap;gap:8px;align-items:end; }
+    .cc-editor-tools label { display:grid;gap:3px;font-size:12px; }
+    .cc-editor-tools input,.cc-editor-tools select { font:inherit;padding:5px;border:1px solid var(--stone-300);border-radius:5px;background:var(--paper,#fff);color:var(--ink); }
+    .cc-editor-tools input[type=number] { width:76px; }
+    .cc-editor-tools input[type=color] { width:40px;height:31px;padding:2px; }
+    .cc-editor-tools [hidden] { display:none!important; }
+    .cc-editor-swatches { display:flex;flex-wrap:wrap;gap:5px;max-width:360px; }
+    .cc-editor-swatches button { width:25px;height:25px;border:1px solid #888;border-radius:50%;cursor:pointer; }
+    .adoc-sc-table-el { font:inherit; color:inherit; }
+    .adoc-sc-table[style*="color:"] th { color:inherit; }
+    .cc-editor-message { margin:0;min-height:1em; }
+  </style>
 </head>
 <body>
 <!-- ═══════════════════════════════════════════════════════════════ -->
@@ -2670,7 +2687,7 @@
      ici tels quels pour être compilés par ajv au chargement, sans dépendre d'un fetch()
      réseau de fichiers sibling (fragile en file:// ; fonctionne partout, y compris en local). -->
 <script type="application/json" id="adoc-sc-schemas">
-{"clinical-document.schema.json":{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"clinical-document.schema.json","$comment":"UX-8A — source de vérité pour tout document généré. `documentKind` (type clinique) et `exportTarget` (format de fichier exporté) sont deux concepts distincts : exportTarget n'apparaît PAS sur ce document — c'est un paramètre d'export (UX-1/UX-2B), jamais un champ persisté sur ClinicalDocument. Ne référence le rendu que par renderManifestId (jamais template/brandKit/rendererVersion dupliqués ici, cf. render-manifest.schema.json). Pour schemaVersion:1, un champ inconnu est rejeté (additionalProperties:false partout), jamais silencieusement ignoré.","$defs":{"derivedFrom":{"$comment":"null pour une génération initiale ou une simple édition (nouvelle version du même document). Renseigné uniquement par une transformation UX-8D (Magic Switch), qui crée un document dérivé — jamais par une édition (UX-9A) ni par un export (UX-1/UX-2B).","type":["object","null"],"required":["documentId","versionId","operation"],"additionalProperties":false,"properties":{"documentId":{"type":"string","minLength":1},"versionId":{"type":"string","minLength":1},"operation":{"const":"document-kind-change"}}},"qcStatus":{"$comment":"Vocabulaire réutilisé de claimSupport (block.schema.json) pour les quatre dimensions de contrôle qualité automatique : pending (pas encore vérifié), pass, needs-review.","enum":["pending","pass","needs-review"]},"validation":{"type":"object","required":["sourceIntegrity","contentCompleteness","layout","accessibility","humanClinicalReview"],"additionalProperties":false,"properties":{"sourceIntegrity":{"$ref":"#/$defs/qcStatus"},"contentCompleteness":{"$ref":"#/$defs/qcStatus"},"layout":{"$ref":"#/$defs/qcStatus"},"accessibility":{"$ref":"#/$defs/qcStatus"},"humanClinicalReview":{"const":"required","$comment":"Reste toujours présent, à 'required' par défaut — la certification clinique reste à la charge de la clinicienne, un contrôle automatique ne peut jamais la remplacer. Un mécanisme de transition (ex. 'reviewed') appartient à une phase ultérieure, hors périmètre UX-8A."}}}},"type":"object","required":["schemaVersion","documentId","versionId","previousVersionId","requestId","sourceSnapshotId","createdAt","language","status","title","purpose","audience","documentKind","renderManifestId","derivedFrom","blocks","citations","validation"],"additionalProperties":false,"properties":{"schemaVersion":{"const":1},"documentId":{"type":"string","minLength":1},"versionId":{"type":"string","minLength":1},"previousVersionId":{"type":["string","null"],"$comment":"null pour la première version d'un document. Renseigné par une édition (UX-9A) — jamais par une transformation (voir derivedFrom) ni par un export."},"requestId":{"type":"string","minLength":1},"sourceSnapshotId":{"type":"string","minLength":1},"createdAt":{"type":"string","format":"date-time"},"language":{"type":"string","minLength":2,"maxLength":5},"status":{"type":"string","minLength":1},"title":{"type":"string","minLength":1},"purpose":{"type":"string","minLength":1},"audience":{"type":"string","minLength":1},"documentKind":{"enum":["fiche","carrousel","tableau","script","liens"]},"renderManifestId":{"type":"string","minLength":1},"derivedFrom":{"$ref":"#/$defs/derivedFrom"},"blocks":{"type":"array","$comment":"Type d'élément affiné par documentKind via les règles allOf/if/then ci-dessous : editorialBlock pour 'fiche', cardOnlyBlock (uniquement des `card`) pour 'carrousel'. tableau/script/liens ne sont pas encore migrés (UX-8M) — leurs blocs restent un union générique non contrainte à ce stade, aucun modèle de bloc n'étant encore défini pour eux."},"citations":{"type":"array","items":{"$ref":"citation.schema.json"}},"validation":{"$ref":"#/$defs/validation"}},"allOf":[{"if":{"properties":{"documentKind":{"const":"fiche"}},"required":["documentKind"]},"then":{"properties":{"blocks":{"type":"array","minItems":1,"items":{"$ref":"block.schema.json#/$defs/editorialBlock"}}}}},{"if":{"properties":{"documentKind":{"const":"carrousel"}},"required":["documentKind"]},"then":{"properties":{"blocks":{"type":"array","minItems":1,"items":{"$ref":"block.schema.json#/$defs/cardOnlyBlock"},"$comment":"Un document carrousel n'a QUE des blocs `card` au niveau racine — jamais un bloc éditorial orphelin. Chaque carte porte ses propres blocs enfants dans content.blocks[]."}}}}]},"render-manifest.schema.json":{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"render-manifest.schema.json","$comment":"UX-8A — source de vérité unique pour tout ce qui touche au rendu d'un ClinicalDocument. `template`/`brandKit`/`rendererVersion` ne sont JAMAIS dupliqués dans ClinicalDocument, qui ne référence que renderManifestId. Immuable une fois créé : toute modification produit un nouvel id + un nouveau manifestChecksum, jamais une mutation sur place.","$defs":{"templateRef":{"type":"object","required":["id","version"],"additionalProperties":false,"properties":{"id":{"type":"string","minLength":1},"version":{"type":"integer","minimum":1}}},"brandKitRef":{"type":"object","required":["id","version"],"additionalProperties":false,"properties":{"id":{"type":"string","minLength":1,"default":"studio-clinique-default"},"version":{"type":"integer","minimum":1}}}},"type":"object","required":["id","schemaVersion","rendererVersion","templateRef","brandKitRef","tokensSnapshotId","assetsSnapshotId","createdAt","manifestChecksum"],"additionalProperties":false,"properties":{"id":{"type":"string","minLength":1},"schemaVersion":{"const":1},"rendererVersion":{"type":"string","pattern":"^\\d+\\.\\d+\\.\\d+$"},"templateRef":{"$ref":"#/$defs/templateRef"},"brandKitRef":{"$ref":"#/$defs/brandKitRef"},"tokensSnapshotId":{"type":"string","minLength":1,"$comment":"Obligatoire dès UX-8A (pas nullable) — pointe vers les jetons déjà résolus de studio-clinique-default. Ne devient nullable/optionnel qu'en UX-8B pour une charte externe non encore résolue, ce qui n'est pas le cas ici."},"assetsSnapshotId":{"type":["string","null"],"$comment":"Réservé, reste null jusqu'à UX-8B (actifs binaires d'une charte importée : logos/polices/images). La charte par défaut n'en a pas besoin."},"createdAt":{"type":"string","format":"date-time"},"manifestChecksum":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$","$comment":"SHA-256 de la sérialisation JSON canonique du manifeste (clés triées, sans espace superflu), ce champ lui-même exclu du calcul."}}},"source-snapshot.schema.json":{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"source-snapshot.schema.json","$comment":"UX-8A — instantané des passages RAG utilisés au moment de la génération. `exactText` est le champ indispensable pour un document de session : sans le texte exact conservé, la source disparaît à la fermeture de la session et le document devient invérifiable.","$defs":{"locator":{"type":"object","required":["page","section"],"additionalProperties":false,"properties":{"page":{"type":["integer","null"],"minimum":1},"section":{"type":["string","null"]}}},"sourceSnapshotEntry":{"type":"object","required":["sourceSnapshotEntryId","sourceType","sourceId","passageId","exactText","contentChecksum","book","author","locator","retrievedAt"],"additionalProperties":false,"properties":{"sourceSnapshotEntryId":{"type":"string","minLength":1},"sourceType":{"enum":["library","session"]},"sourceId":{"type":"string","minLength":1},"passageId":{"type":"string","minLength":1},"exactText":{"type":"string","minLength":1},"contentChecksum":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"},"book":{"type":"string","minLength":1},"author":{"type":"string","minLength":1},"locator":{"$ref":"#/$defs/locator"},"retrievedAt":{"type":"string","format":"date-time"},"relevanceScore":{"type":["number","null"],"minimum":0,"maximum":1}}}},"type":"object","required":["sourceSnapshotId","entries"],"additionalProperties":false,"properties":{"sourceSnapshotId":{"type":"string","minLength":1},"entries":{"type":"array","items":{"$ref":"#/$defs/sourceSnapshotEntry"}}}},"citation.schema.json":{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"citation.schema.json","$comment":"UX-8A — référence stable et minimale vers une entrée de SourceSnapshot. Volontairement minimal : ne duplique jamais le texte exact ni la localisation (ceux-là vivent dans SourceSnapshot). Réutilisable par plusieurs block.validation.citationLinks[] sans duplication.","type":"object","required":["citationId","sourceSnapshotEntryId","displayLabel"],"additionalProperties":false,"properties":{"citationId":{"type":"string","minLength":1},"sourceSnapshotEntryId":{"type":"string","minLength":1},"displayLabel":{"type":"string","minLength":1}}},"block.schema.json":{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"block.schema.json","$comment":"UX-8A — union discriminée des blocs de ClinicalDocument, par `type` (const). Pas de `content` libre : chaque type a un schéma de contenu propre, additionalProperties:false à tous les niveaux. `card` est réservé au niveau racine d'un Carrousel (voir $defs/cardOnlyRootBlocks dans clinical-document.schema.json) ; les blocs imbriqués dans `card.content.blocks[]` utilisent $defs/nestedBlock (tous les types sauf `card` et `table`, cf. §UX-8A du CDC).","$defs":{"citationLink":{"type":"object","required":["citationId","claimText","claimSupport"],"additionalProperties":false,"properties":{"citationId":{"type":"string","minLength":1},"claimText":{"type":"string","minLength":1},"claimSupport":{"enum":["pass","needs-review","pending"]}}},"blockValidation":{"type":"object","additionalProperties":false,"properties":{"citationLinks":{"type":"array","items":{"$ref":"#/$defs/citationLink"}},"citationReviewRequired":{"type":"boolean","$comment":"UX-11 (correction ciblée d'un bloc) — vrai si une correction substantielle du texte ne permet plus de garantir le lien avec les citationLinks d'origine avec confiance. Jamais utilisé pour modifier une citation elle-même, uniquement pour signaler qu'elle mérite une relecture humaine."}}},"citationIds":{"type":"array","items":{"type":"string","minLength":1}},"blockStyle":{"$comment":"Item 57c Lot 2 — style manuel PAR BLOC (heading/paragraph uniquement), à côté de la charte globale du document (render-manifest.schema.json) — jamais un remplacement de celle-ci, un raffinement optionnel sur un bloc précis. Tous les champs optionnels ; fontPairId référence ADOC_LEGACY_FONT_PAIRS (code client, jamais une seconde liste de polices) donc laissé en chaîne libre non-vide plutôt qu'un enum dupliqué ici — sa validité réelle est garantie par construction : seul un <select> aux options fixes en écrit la valeur, jamais une saisie libre. color est produit exclusivement par <input type=color>, qui ne peut produire qu'un hex 7 caractères en minuscules — le pattern ne fait que documenter cette garantie déjà assurée côté UI, pas la seule ligne de défense.","type":"object","additionalProperties":false,"properties":{"fontPairId":{"type":"string","minLength":1},"color":{"type":"string","pattern":"^#[0-9a-f]{6}$"},"fontSize":{"enum":["small","normal","large","xlarge"]}}},"headingContent":{"type":"object","required":["text","level"],"additionalProperties":false,"properties":{"text":{"type":"string","minLength":1},"level":{"enum":[1,2,3]}}},"paragraphContent":{"type":"object","required":["text"],"additionalProperties":false,"properties":{"text":{"type":"string","minLength":1}}},"calloutContent":{"type":"object","required":["text","visualRole"],"additionalProperties":false,"properties":{"text":{"type":"string","minLength":1},"visualRole":{"enum":["info","warning","critical","success"]}}},"listContent":{"type":"object","required":["items","ordered"],"additionalProperties":false,"properties":{"items":{"type":"array","minItems":1,"items":{"type":"string","minLength":1}},"ordered":{"type":"boolean"}}},"tableContent":{"type":"object","required":["headers","rows"],"additionalProperties":false,"properties":{"headers":{"type":"array","minItems":1,"items":{"type":"string"}},"rows":{"type":"array","items":{"type":"array","items":{"type":"string"}}}}},"quoteContent":{"type":"object","required":["text"],"additionalProperties":false,"properties":{"text":{"type":"string","minLength":1}}},"imageContent":{"$comment":"UX-8A.2 — bloc d'illustration autonome (pas une image de couverture de card). `query` est la requête de recherche Pexels résolue par le mécanisme existant et éprouvé (app hôte, adocResolveImages, via data-pexels=) — jamais une URL en dur. `alt` est toujours requis et non vide.","type":"object","required":["query","alt"],"additionalProperties":false,"properties":{"query":{"type":"string","minLength":1},"alt":{"type":"string","minLength":1}}},"cardContent":{"$comment":"imageAlt : requis (non vide) dès que imageRef est renseigné — le contrat de contrôle qualité UX-8A traite un texte alternatif absent sur une image informative comme bloquant. Reste optionnel/null quand imageRef est null (pas d'image, rien à décrire).","type":"object","required":["title","imageRef","imageAlt","blocks"],"additionalProperties":false,"properties":{"title":{"type":"string","minLength":1},"imageRef":{"type":["string","null"]},"imageAlt":{"type":["string","null"]},"blocks":{"type":"array","items":{"$ref":"#/$defs/nestedBlock"}}},"if":{"properties":{"imageRef":{"type":"string"}},"required":["imageRef"]},"then":{"properties":{"imageAlt":{"type":"string","minLength":1}}}},"headingBlock":{"type":"object","required":["id","type","content"],"additionalProperties":false,"properties":{"id":{"type":"string","minLength":1},"type":{"const":"heading"},"content":{"$ref":"#/$defs/headingContent"},"citationIds":{"$ref":"#/$defs/citationIds"},"validation":{"$ref":"#/$defs/blockValidation"},"style":{"$ref":"#/$defs/blockStyle"}}},"paragraphBlock":{"type":"object","required":["id","type","content"],"additionalProperties":false,"properties":{"id":{"type":"string","minLength":1},"type":{"const":"paragraph"},"content":{"$ref":"#/$defs/paragraphContent"},"citationIds":{"$ref":"#/$defs/citationIds"},"validation":{"$ref":"#/$defs/blockValidation"},"style":{"$ref":"#/$defs/blockStyle"}}},"calloutBlock":{"type":"object","required":["id","type","content"],"additionalProperties":false,"properties":{"id":{"type":"string","minLength":1},"type":{"const":"callout"},"content":{"$ref":"#/$defs/calloutContent"},"citationIds":{"$ref":"#/$defs/citationIds"},"validation":{"$ref":"#/$defs/blockValidation"}}},"listBlock":{"type":"object","required":["id","type","content"],"additionalProperties":false,"properties":{"id":{"type":"string","minLength":1},"type":{"const":"list"},"content":{"$ref":"#/$defs/listContent"},"citationIds":{"$ref":"#/$defs/citationIds"},"validation":{"$ref":"#/$defs/blockValidation"}}},"tableBlock":{"type":"object","required":["id","type","content"],"additionalProperties":false,"properties":{"id":{"type":"string","minLength":1},"type":{"const":"table"},"content":{"$ref":"#/$defs/tableContent"},"citationIds":{"$ref":"#/$defs/citationIds"},"validation":{"$ref":"#/$defs/blockValidation"}}},"quoteBlock":{"type":"object","required":["id","type","content"],"additionalProperties":false,"properties":{"id":{"type":"string","minLength":1},"type":{"const":"quote"},"content":{"$ref":"#/$defs/quoteContent"},"citationIds":{"$ref":"#/$defs/citationIds"},"validation":{"$ref":"#/$defs/blockValidation"}}},"cardBlock":{"type":"object","required":["id","type","content"],"additionalProperties":false,"properties":{"id":{"type":"string","minLength":1},"type":{"const":"card"},"content":{"$ref":"#/$defs/cardContent"},"citationIds":{"$ref":"#/$defs/citationIds"},"validation":{"$ref":"#/$defs/blockValidation"}}},"imageBlock":{"type":"object","required":["id","type","content"],"additionalProperties":false,"properties":{"id":{"type":"string","minLength":1},"type":{"const":"image"},"content":{"$ref":"#/$defs/imageContent"},"citationIds":{"$ref":"#/$defs/citationIds"},"validation":{"$ref":"#/$defs/blockValidation"}}},"editorialBlock":{"$comment":"Blocs éditoriaux autorisés au niveau racine d'une Fiche synthèse (documentKind:'fiche') : tous les types sauf `card`.","oneOf":[{"$ref":"#/$defs/headingBlock"},{"$ref":"#/$defs/paragraphBlock"},{"$ref":"#/$defs/calloutBlock"},{"$ref":"#/$defs/listBlock"},{"$ref":"#/$defs/tableBlock"},{"$ref":"#/$defs/quoteBlock"},{"$ref":"#/$defs/imageBlock"}]},"nestedBlock":{"$comment":"Blocs autorisés dans card.content.blocks[] (imbriqué) : mêmes types que l'ensemble éditorial, sauf `table` (non imbriquée) et `card` (jamais imbriquée dans une autre carte).","oneOf":[{"$ref":"#/$defs/headingBlock"},{"$ref":"#/$defs/paragraphBlock"},{"$ref":"#/$defs/calloutBlock"},{"$ref":"#/$defs/listBlock"},{"$ref":"#/$defs/quoteBlock"},{"$ref":"#/$defs/imageBlock"}]},"cardOnlyBlock":{"$comment":"Bloc autorisé au niveau racine d'un Carrousel (documentKind:'carrousel') : exclusivement `card`.","oneOf":[{"$ref":"#/$defs/cardBlock"}]}},"oneOf":[{"$ref":"#/$defs/headingBlock"},{"$ref":"#/$defs/paragraphBlock"},{"$ref":"#/$defs/calloutBlock"},{"$ref":"#/$defs/listBlock"},{"$ref":"#/$defs/tableBlock"},{"$ref":"#/$defs/quoteBlock"},{"$ref":"#/$defs/cardBlock"},{"$ref":"#/$defs/imageBlock"}]}}
+{"clinical-document.schema.json":{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"clinical-document.schema.json","$comment":"UX-8A — source de vérité pour tout document généré. `documentKind` (type clinique) et `exportTarget` (format de fichier exporté) sont deux concepts distincts : exportTarget n'apparaît PAS sur ce document — c'est un paramètre d'export (UX-1/UX-2B), jamais un champ persisté sur ClinicalDocument. Ne référence le rendu que par renderManifestId (jamais template/brandKit/rendererVersion dupliqués ici, cf. render-manifest.schema.json). Pour schemaVersion:1, un champ inconnu est rejeté (additionalProperties:false partout), jamais silencieusement ignoré.","$defs":{"derivedFrom":{"$comment":"null pour une génération initiale ou une simple édition (nouvelle version du même document). Renseigné uniquement par une transformation UX-8D (Magic Switch), qui crée un document dérivé — jamais par une édition (UX-9A) ni par un export (UX-1/UX-2B).","type":["object","null"],"required":["documentId","versionId","operation"],"additionalProperties":false,"properties":{"documentId":{"type":"string","minLength":1},"versionId":{"type":"string","minLength":1},"operation":{"const":"document-kind-change"}}},"qcStatus":{"$comment":"Vocabulaire réutilisé de claimSupport (block.schema.json) pour les quatre dimensions de contrôle qualité automatique : pending (pas encore vérifié), pass, needs-review.","enum":["pending","pass","needs-review"]},"validation":{"type":"object","required":["sourceIntegrity","contentCompleteness","layout","accessibility","humanClinicalReview"],"additionalProperties":false,"properties":{"sourceIntegrity":{"$ref":"#/$defs/qcStatus"},"contentCompleteness":{"$ref":"#/$defs/qcStatus"},"layout":{"$ref":"#/$defs/qcStatus"},"accessibility":{"$ref":"#/$defs/qcStatus"},"humanClinicalReview":{"const":"required","$comment":"Reste toujours présent, à 'required' par défaut — la certification clinique reste à la charge de la clinicienne, un contrôle automatique ne peut jamais la remplacer. Un mécanisme de transition (ex. 'reviewed') appartient à une phase ultérieure, hors périmètre UX-8A."}}}},"type":"object","required":["schemaVersion","documentId","versionId","previousVersionId","requestId","sourceSnapshotId","createdAt","language","status","title","purpose","audience","documentKind","renderManifestId","derivedFrom","blocks","citations","validation"],"additionalProperties":false,"properties":{"schemaVersion":{"const":1},"documentId":{"type":"string","minLength":1},"versionId":{"type":"string","minLength":1},"previousVersionId":{"type":["string","null"],"$comment":"null pour la première version d'un document. Renseigné par une édition (UX-9A) — jamais par une transformation (voir derivedFrom) ni par un export."},"requestId":{"type":"string","minLength":1},"sourceSnapshotId":{"type":"string","minLength":1},"createdAt":{"type":"string","format":"date-time"},"language":{"type":"string","minLength":2,"maxLength":5},"status":{"type":"string","minLength":1},"title":{"type":"string","minLength":1},"purpose":{"type":"string","minLength":1},"audience":{"type":"string","minLength":1},"documentKind":{"enum":["fiche","carrousel","tableau","script","liens"]},"renderManifestId":{"type":"string","minLength":1},"derivedFrom":{"$ref":"#/$defs/derivedFrom"},"blocks":{"type":"array","$comment":"Type d'élément affiné par documentKind via les règles allOf/if/then ci-dessous : editorialBlock pour 'fiche', cardOnlyBlock (uniquement des `card`) pour 'carrousel'. tableau/script/liens ne sont pas encore migrés (UX-8M) — leurs blocs restent un union générique non contrainte à ce stade, aucun modèle de bloc n'étant encore défini pour eux."},"citations":{"type":"array","items":{"$ref":"citation.schema.json"}},"validation":{"$ref":"#/$defs/validation"}},"allOf":[{"if":{"properties":{"documentKind":{"const":"fiche"}},"required":["documentKind"]},"then":{"properties":{"blocks":{"type":"array","minItems":1,"items":{"$ref":"block.schema.json#/$defs/editorialBlock"}}}}},{"if":{"properties":{"documentKind":{"const":"carrousel"}},"required":["documentKind"]},"then":{"properties":{"blocks":{"type":"array","minItems":1,"items":{"$ref":"block.schema.json#/$defs/cardOnlyBlock"},"$comment":"Un document carrousel n'a QUE des blocs `card` au niveau racine — jamais un bloc éditorial orphelin. Chaque carte porte ses propres blocs enfants dans content.blocks[]."}}}}]},"render-manifest.schema.json":{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"render-manifest.schema.json","$comment":"UX-8A — source de vérité unique pour tout ce qui touche au rendu d'un ClinicalDocument. `template`/`brandKit`/`rendererVersion` ne sont JAMAIS dupliqués dans ClinicalDocument, qui ne référence que renderManifestId. Immuable une fois créé : toute modification produit un nouvel id + un nouveau manifestChecksum, jamais une mutation sur place.","$defs":{"templateRef":{"type":"object","required":["id","version"],"additionalProperties":false,"properties":{"id":{"type":"string","minLength":1},"version":{"type":"integer","minimum":1}}},"brandKitRef":{"type":"object","required":["id","version"],"additionalProperties":false,"properties":{"id":{"type":"string","minLength":1,"default":"studio-clinique-default"},"version":{"type":"integer","minimum":1}}}},"type":"object","required":["id","schemaVersion","rendererVersion","templateRef","brandKitRef","tokensSnapshotId","assetsSnapshotId","createdAt","manifestChecksum"],"additionalProperties":false,"properties":{"id":{"type":"string","minLength":1},"schemaVersion":{"const":1},"rendererVersion":{"type":"string","pattern":"^\\d+\\.\\d+\\.\\d+$"},"templateRef":{"$ref":"#/$defs/templateRef"},"brandKitRef":{"$ref":"#/$defs/brandKitRef"},"tokensSnapshotId":{"type":"string","minLength":1,"$comment":"Obligatoire dès UX-8A (pas nullable) — pointe vers les jetons déjà résolus de studio-clinique-default. Ne devient nullable/optionnel qu'en UX-8B pour une charte externe non encore résolue, ce qui n'est pas le cas ici."},"assetsSnapshotId":{"type":["string","null"],"$comment":"Réservé, reste null jusqu'à UX-8B (actifs binaires d'une charte importée : logos/polices/images). La charte par défaut n'en a pas besoin."},"createdAt":{"type":"string","format":"date-time"},"manifestChecksum":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$","$comment":"SHA-256 de la sérialisation JSON canonique du manifeste (clés triées, sans espace superflu), ce champ lui-même exclu du calcul."}}},"source-snapshot.schema.json":{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"source-snapshot.schema.json","$comment":"UX-8A — instantané des passages RAG utilisés au moment de la génération. `exactText` est le champ indispensable pour un document de session : sans le texte exact conservé, la source disparaît à la fermeture de la session et le document devient invérifiable.","$defs":{"locator":{"type":"object","required":["page","section"],"additionalProperties":false,"properties":{"page":{"type":["integer","null"],"minimum":1},"section":{"type":["string","null"]}}},"sourceSnapshotEntry":{"type":"object","required":["sourceSnapshotEntryId","sourceType","sourceId","passageId","exactText","contentChecksum","book","author","locator","retrievedAt"],"additionalProperties":false,"properties":{"sourceSnapshotEntryId":{"type":"string","minLength":1},"sourceType":{"enum":["library","session"]},"sourceId":{"type":"string","minLength":1},"passageId":{"type":"string","minLength":1},"exactText":{"type":"string","minLength":1},"contentChecksum":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"},"book":{"type":"string","minLength":1},"author":{"type":"string","minLength":1},"locator":{"$ref":"#/$defs/locator"},"retrievedAt":{"type":"string","format":"date-time"},"relevanceScore":{"type":["number","null"],"minimum":0,"maximum":1}}}},"type":"object","required":["sourceSnapshotId","entries"],"additionalProperties":false,"properties":{"sourceSnapshotId":{"type":"string","minLength":1},"entries":{"type":"array","items":{"$ref":"#/$defs/sourceSnapshotEntry"}}}},"citation.schema.json":{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"citation.schema.json","$comment":"UX-8A — référence stable et minimale vers une entrée de SourceSnapshot. Volontairement minimal : ne duplique jamais le texte exact ni la localisation (ceux-là vivent dans SourceSnapshot). Réutilisable par plusieurs block.validation.citationLinks[] sans duplication.","type":"object","required":["citationId","sourceSnapshotEntryId","displayLabel"],"additionalProperties":false,"properties":{"citationId":{"type":"string","minLength":1},"sourceSnapshotEntryId":{"type":"string","minLength":1},"displayLabel":{"type":"string","minLength":1}}},"block.schema.json":{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"block.schema.json","$comment":"UX-8A — union discriminée des blocs de ClinicalDocument, par `type` (const). Pas de `content` libre : chaque type a un schéma de contenu propre, additionalProperties:false à tous les niveaux. `card` est réservé au niveau racine d'un Carrousel (voir $defs/cardOnlyRootBlocks dans clinical-document.schema.json) ; les blocs imbriqués dans `card.content.blocks[]` utilisent $defs/nestedBlock (tous les types sauf `card` et `table`, cf. §UX-8A du CDC).","$defs":{"citationLink":{"type":"object","required":["citationId","claimText","claimSupport"],"additionalProperties":false,"properties":{"citationId":{"type":"string","minLength":1},"claimText":{"type":"string","minLength":1},"claimSupport":{"enum":["pass","needs-review","pending"]}}},"blockValidation":{"type":"object","additionalProperties":false,"properties":{"citationLinks":{"type":"array","items":{"$ref":"#/$defs/citationLink"}},"citationReviewRequired":{"type":"boolean","$comment":"UX-11 (correction ciblée d'un bloc) — vrai si une correction substantielle du texte ne permet plus de garantir le lien avec les citationLinks d'origine avec confiance. Jamais utilisé pour modifier une citation elle-même, uniquement pour signaler qu'elle mérite une relecture humaine."}}},"citationIds":{"type":"array","items":{"type":"string","minLength":1}},"blockStyle":{"$comment":"Item 57c Lot 2 — style manuel PAR BLOC (heading/paragraph uniquement), à côté de la charte globale du document (render-manifest.schema.json) — jamais un remplacement de celle-ci, un raffinement optionnel sur un bloc précis. Tous les champs optionnels ; fontPairId référence ADOC_LEGACY_FONT_PAIRS (code client, jamais une seconde liste de polices) donc laissé en chaîne libre non-vide plutôt qu'un enum dupliqué ici — sa validité réelle est garantie par construction : seul un <select> aux options fixes en écrit la valeur, jamais une saisie libre. color est produit exclusivement par <input type=color>, qui ne peut produire qu'un hex 7 caractères en minuscules — le pattern ne fait que documenter cette garantie déjà assurée côté UI, pas la seule ligne de défense.","type":"object","additionalProperties":false,"properties":{"fontPairId":{"type":"string","minLength":1},"color":{"type":"string","maxLength":200},"fontSize":{"enum":["small","normal","large","xlarge"]},"fontFamily":{"type":"string","maxLength":200},"backgroundColor":{"type":"string","maxLength":200},"fontWeight":{"type":"string","maxLength":200},"fontStyle":{"type":"string","maxLength":200},"textDecoration":{"type":"string","maxLength":200},"textAlign":{"type":"string","maxLength":200},"textTransform":{"type":"string","maxLength":200},"borderColor":{"type":"string","maxLength":200},"fontSizePt":{"type":"number","minimum":6,"maximum":144},"lineHeight":{"type":"number","minimum":0.5,"maximum":4},"letterSpacing":{"type":"number","minimum":-2,"maximum":20},"marginTop":{"type":"number","minimum":0,"maximum":160},"marginBottom":{"type":"number","minimum":0,"maximum":160},"textIndent":{"type":"number","minimum":0,"maximum":160},"borderWidth":{"type":"number","minimum":0,"maximum":12}}},"headingContent":{"type":"object","required":["text","level"],"additionalProperties":false,"properties":{"text":{"type":"string"},"level":{"enum":[1,2,3]}}},"paragraphContent":{"type":"object","required":["text"],"additionalProperties":false,"properties":{"text":{"type":"string"}}},"calloutContent":{"type":"object","required":["text","visualRole"],"additionalProperties":false,"properties":{"text":{"type":"string"},"visualRole":{"enum":["info","warning","critical","success"]}}},"listContent":{"type":"object","required":["items","ordered"],"additionalProperties":false,"properties":{"items":{"type":"array","minItems":1,"items":{"type":"string"}},"ordered":{"type":"boolean"}}},"tableContent":{"type":"object","required":["headers","rows"],"additionalProperties":false,"properties":{"headers":{"type":"array","minItems":1,"items":{"type":"string"}},"rows":{"type":"array","items":{"type":"array","items":{"type":"string"}}}}},"quoteContent":{"type":"object","required":["text"],"additionalProperties":false,"properties":{"text":{"type":"string"}}},"imageContent":{"$comment":"UX-8A.2 — bloc d'illustration autonome (pas une image de couverture de card). `query` est la requête de recherche Pexels résolue par le mécanisme existant et éprouvé (app hôte, adocResolveImages, via data-pexels=) — jamais une URL en dur. `alt` est toujours requis et non vide.","type":"object","required":["query","alt"],"additionalProperties":false,"properties":{"query":{"type":"string","minLength":1},"alt":{"type":"string","minLength":1}}},"cardContent":{"$comment":"imageAlt : requis (non vide) dès que imageRef est renseigné — le contrat de contrôle qualité UX-8A traite un texte alternatif absent sur une image informative comme bloquant. Reste optionnel/null quand imageRef est null (pas d'image, rien à décrire).","type":"object","required":["title","imageRef","imageAlt","blocks"],"additionalProperties":false,"properties":{"title":{"type":"string","minLength":1},"imageRef":{"type":["string","null"]},"imageAlt":{"type":["string","null"]},"blocks":{"type":"array","items":{"$ref":"#/$defs/nestedBlock"}}},"if":{"properties":{"imageRef":{"type":"string"}},"required":["imageRef"]},"then":{"properties":{"imageAlt":{"type":"string","minLength":1}}}},"headingBlock":{"type":"object","required":["id","type","content"],"additionalProperties":false,"properties":{"id":{"type":"string","minLength":1},"type":{"const":"heading"},"content":{"$ref":"#/$defs/headingContent"},"citationIds":{"$ref":"#/$defs/citationIds"},"validation":{"$ref":"#/$defs/blockValidation"},"style":{"$ref":"#/$defs/blockStyle"},"editor":{"$ref":"#/$defs/editorPresentation"}}},"paragraphBlock":{"type":"object","required":["id","type","content"],"additionalProperties":false,"properties":{"id":{"type":"string","minLength":1},"type":{"const":"paragraph"},"content":{"$ref":"#/$defs/paragraphContent"},"citationIds":{"$ref":"#/$defs/citationIds"},"validation":{"$ref":"#/$defs/blockValidation"},"style":{"$ref":"#/$defs/blockStyle"},"editor":{"$ref":"#/$defs/editorPresentation"}}},"calloutBlock":{"type":"object","required":["id","type","content"],"additionalProperties":false,"properties":{"id":{"type":"string","minLength":1},"type":{"const":"callout"},"content":{"$ref":"#/$defs/calloutContent"},"citationIds":{"$ref":"#/$defs/citationIds"},"validation":{"$ref":"#/$defs/blockValidation"},"style":{"$ref":"#/$defs/blockStyle"},"editor":{"$ref":"#/$defs/editorPresentation"}}},"listBlock":{"type":"object","required":["id","type","content"],"additionalProperties":false,"properties":{"id":{"type":"string","minLength":1},"type":{"const":"list"},"content":{"$ref":"#/$defs/listContent"},"citationIds":{"$ref":"#/$defs/citationIds"},"validation":{"$ref":"#/$defs/blockValidation"},"style":{"$ref":"#/$defs/blockStyle"},"editor":{"$ref":"#/$defs/editorPresentation"}}},"tableBlock":{"type":"object","required":["id","type","content"],"additionalProperties":false,"properties":{"id":{"type":"string","minLength":1},"type":{"const":"table"},"content":{"$ref":"#/$defs/tableContent"},"citationIds":{"$ref":"#/$defs/citationIds"},"validation":{"$ref":"#/$defs/blockValidation"},"style":{"$ref":"#/$defs/blockStyle"},"editor":{"$ref":"#/$defs/editorPresentation"}}},"quoteBlock":{"type":"object","required":["id","type","content"],"additionalProperties":false,"properties":{"id":{"type":"string","minLength":1},"type":{"const":"quote"},"content":{"$ref":"#/$defs/quoteContent"},"citationIds":{"$ref":"#/$defs/citationIds"},"validation":{"$ref":"#/$defs/blockValidation"},"style":{"$ref":"#/$defs/blockStyle"},"editor":{"$ref":"#/$defs/editorPresentation"}}},"cardBlock":{"type":"object","required":["id","type","content"],"additionalProperties":false,"properties":{"id":{"type":"string","minLength":1},"type":{"const":"card"},"content":{"$ref":"#/$defs/cardContent"},"citationIds":{"$ref":"#/$defs/citationIds"},"validation":{"$ref":"#/$defs/blockValidation"}}},"imageBlock":{"type":"object","required":["id","type","content"],"additionalProperties":false,"properties":{"id":{"type":"string","minLength":1},"type":{"const":"image"},"content":{"$ref":"#/$defs/imageContent"},"citationIds":{"$ref":"#/$defs/citationIds"},"validation":{"$ref":"#/$defs/blockValidation"}}},"editorialBlock":{"$comment":"Blocs éditoriaux autorisés au niveau racine d'une Fiche synthèse (documentKind:'fiche') : tous les types sauf `card`.","oneOf":[{"$ref":"#/$defs/headingBlock"},{"$ref":"#/$defs/paragraphBlock"},{"$ref":"#/$defs/calloutBlock"},{"$ref":"#/$defs/listBlock"},{"$ref":"#/$defs/tableBlock"},{"$ref":"#/$defs/quoteBlock"},{"$ref":"#/$defs/imageBlock"}]},"nestedBlock":{"$comment":"Blocs autorisés dans card.content.blocks[] (imbriqué) : mêmes types que l'ensemble éditorial, sauf `table` (non imbriquée) et `card` (jamais imbriquée dans une autre carte).","oneOf":[{"$ref":"#/$defs/headingBlock"},{"$ref":"#/$defs/paragraphBlock"},{"$ref":"#/$defs/calloutBlock"},{"$ref":"#/$defs/listBlock"},{"$ref":"#/$defs/quoteBlock"},{"$ref":"#/$defs/imageBlock"}]},"cardOnlyBlock":{"$comment":"Bloc autorisé au niveau racine d'un Carrousel (documentKind:'carrousel') : exclusivement `card`.","oneOf":[{"$ref":"#/$defs/cardBlock"}]},"editorPresentation":{"type":"object","additionalProperties":false,"properties":{"html":{"type":"object","additionalProperties":{"type":"string"}},"rules":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["column","op","value","color"],"properties":{"column":{"type":"integer","minimum":0},"op":{"enum":["gt","lt","eq"]},"value":{"type":"number"},"color":{"type":"string","pattern":"^#[0-9a-fA-F]{6}$"}}}},"levels":{"type":"array","items":{"type":"integer","minimum":0,"maximum":8}},"cells":{"type":"object","additionalProperties":{"type":"object","additionalProperties":false,"properties":{"rowSpan":{"type":"integer","minimum":1},"colSpan":{"type":"integer","minimum":1},"style":{"$ref":"#/$defs/blockStyle"}}}}}}},"oneOf":[{"$ref":"#/$defs/headingBlock"},{"$ref":"#/$defs/paragraphBlock"},{"$ref":"#/$defs/calloutBlock"},{"$ref":"#/$defs/listBlock"},{"$ref":"#/$defs/tableBlock"},{"$ref":"#/$defs/quoteBlock"},{"$ref":"#/$defs/cardBlock"},{"$ref":"#/$defs/imageBlock"}]}}
 </script>
 
 <!-- Phase UX-8A.1 — RenderManifest et jetons de studio-clinique-default embarqués (mêmes
@@ -5999,7 +6016,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
         while ((_dtm = _dtRe.exec(_replyFull)) !== null) {
           const _blk = _dtm[0].trim();
           // Vérifier que ce bloc n'est pas déjà capturé par les backticks
-          const _alreadyCaptured = _allHtmlBlocks.some(b => 
+          const _alreadyCaptured = _allHtmlBlocks.some(b =>
             _dtm.index >= b.start && _dtm.index < b.end
           );
           if (!_alreadyCaptured && _blk.length > 200) {
@@ -9549,6 +9566,578 @@ ${recent}`;
       googleFontsHref: 'https://fonts.googleapis.com/css2?family=Karla:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap' },
   ];
 
+  // 57f — Shared editing gestures; structured JSON and legacy HTML keep separate persistence.
+  var ADOC_DIRECT_TYPES = ['heading', 'paragraph', 'quote', 'callout', 'list', 'table'];
+  var ADOC_DIRECT_STYLE_FIELDS = {
+    fontFamily: 'font-family', color: 'color', backgroundColor: 'background-color',
+    fontSizePt: 'font-size', fontWeight: 'font-weight', fontStyle: 'font-style',
+    textDecoration: 'text-decoration', textAlign: 'text-align', lineHeight: 'line-height',
+    letterSpacing: 'letter-spacing', marginTop: 'margin-top', marginBottom: 'margin-bottom',
+    textIndent: 'text-indent', textTransform: 'text-transform', borderColor: 'border-color', borderWidth: 'border-width'
+  };
+  function adocFindEditableBlock(doc, id) {
+    function walk(blocks) { for (const b of blocks || []) { if (b.id === id) return b; const child = walk(b.content && b.content.blocks); if (child) return child; } }
+    return walk(doc && doc.blocks);
+  }
+  function adocEditorArt() { return window._adocArtifacts && window._adocArtifacts[window._adocWsState && window._adocWsState.storeKey]; }
+  function adocEditorContext() {
+    const art = adocEditorArt();
+    if (!art) return null;
+    const legacy = art._adocGenerationEngine === 'legacy-html';
+    const st = legacy ? window._adocLegacyBlockEditState : window._adocBlockEditState;
+    const el = legacy ? st.el : document.getElementById(st.blockId);
+    if (!el || !el.isConnected) return null;
+    return {art: art, legacy: legacy, st: st, el: el, block: legacy ? null : adocFindEditableBlock(art._adocStructuredDoc, st.blockId)};
+  }
+  function adocEditorMessage(message) {
+    const panel = document.querySelector('#cc-ws-doc-card .cc-block-edit-panel');
+    const out = panel && panel.querySelector('.cc-editor-message');
+    if (out) out.textContent = message;
+  }
+  function adocEditorStyleCSS(style, kind) {
+    const el = document.createElement('span');
+    style = style || {};
+    const family = style.fontFamily || adocResolveBlockFontFamily(kind, style.fontPairId);
+    if (family) el.style.fontFamily = '"' + String(family).replace(/["\\\n\r]/g, '') + '"';
+    const preset = ADOC_BLOCK_FONT_SIZES.find(function (s) { return s.id === style.fontSize; });
+    if (preset && preset.cssValue) el.style.fontSize = preset.cssValue;
+    Object.keys(ADOC_DIRECT_STYLE_FIELDS).forEach(function (key) {
+      if (key === 'fontFamily' || style[key] == null || style[key] === '') return;
+      let value = String(style[key]);
+      if (key === 'fontSizePt') value = Math.max(6, Math.min(144, Number(value))) + 'pt';
+      if (['letterSpacing', 'marginTop', 'marginBottom', 'textIndent', 'borderWidth'].includes(key)) value = Number(value) + 'px';
+      if (/url\s*\(|[{}<>;]/i.test(value)) return;
+      el.style.setProperty(ADOC_DIRECT_STYLE_FIELDS[key], value);
+    });
+    if (style.borderWidth) el.style.borderStyle = 'solid';
+    return el.style.cssText;
+  }
+  function adocEditorReadStyle(el) {
+    const style = {};
+    Object.keys(ADOC_DIRECT_STYLE_FIELDS).forEach(function (key) {
+      const value = el.style.getPropertyValue(ADOC_DIRECT_STYLE_FIELDS[key]);
+      if (!value) return;
+      if (key === 'fontFamily') style[key] = value.replace(/^['"]|['"]$/g, '');
+      else if (key === 'fontSizePt') { if (value.endsWith('pt')) style[key] = parseFloat(value); else if(value.endsWith('px')) style[key]=parseFloat(value)*0.75; else {const preset=ADOC_BLOCK_FONT_SIZES.find(s=>s.cssValue===value);if(preset)style.fontSize=preset.id;} }
+      else if (['letterSpacing','marginTop','marginBottom','textIndent','borderWidth','lineHeight'].includes(key)) { if (Number.isFinite(parseFloat(value))) style[key] = parseFloat(value); }
+      else style[key] = value;
+    });
+    return style;
+  }
+  // Rich text is an allowlisted presentation of the plain content, never executable HTML.
+  function adocEditorCleanHTML(html) {
+    const source = document.createElement('template'); source.innerHTML = html || '';
+    const out = document.createElement('div');
+    function walk(node, parent) {
+      if (node.nodeType === 3) { parent.appendChild(document.createTextNode(node.data)); return; }
+      if (node.nodeType !== 1 || /^(SCRIPT|STYLE|IFRAME|OBJECT|SVG|MATH|FORM|INPUT|BUTTON|TEXTAREA)$/.test(node.tagName)) return;
+      const tag = node.tagName.toLowerCase();
+      if (tag === 'br') { parent.appendChild(document.createElement('br')); return; }
+      const allowed = ['b','strong','i','em','u','s','strike','sub','sup','span','mark'];
+      const dest = document.createElement(allowed.includes(tag) ? tag : 'span');
+      const style = adocEditorReadStyle(node);
+      // Inline ranges cannot acquire block geometry from pasted documents.
+      ['marginTop','marginBottom','textIndent','borderWidth','borderColor'].forEach(function (k) { delete style[k]; });
+      dest.style.cssText = adocEditorStyleCSS(style, 'paragraph');
+      Array.from(node.childNodes).forEach(function (n) { walk(n, dest); });
+      parent.appendChild(dest);
+      if (['p','div','li','tr'].includes(tag) && node.nextSibling) parent.appendChild(document.createElement('br'));
+    }
+    Array.from(source.content.childNodes).forEach(function (n) { walk(n, out); });
+    return out.innerHTML;
+  }
+  function adocEditorPlain(html) {
+    const el = document.createElement('div'); el.innerHTML = html;
+    el.querySelectorAll('br').forEach(function (br) { br.replaceWith(document.createTextNode('\n')); });
+    return (el.textContent || '').replace(/\u00a0/g, '');
+  }
+  function adocEditorTextHTML(b, path, text) {
+    const rich = b.editor && b.editor.html && b.editor.html[path];
+    const clean = rich == null ? null : adocEditorCleanHTML(rich);
+    const html = clean != null && adocEditorPlain(clean) === text ? clean : adocEsc(text).replace(/\n/g, '<br>');
+    return '<span class="adoc-sc-block-text" data-cc-editor-leaf="' + path + '">' + html + '</span>';
+  }
+  function adocEditorRenderList(b) {
+    const root = document.createElement(b.content.ordered ? 'ol' : 'ul'); root.className = 'adoc-sc-list-el';
+    const levels = b.editor && b.editor.levels || [];
+    let stack = [root];
+    b.content.items.forEach(function (text, i) {
+      const level = Math.min(8, Math.max(0, levels[i] || 0), stack.length);
+      while (stack.length > level + 1) stack.pop();
+      while (stack.length <= level && stack[stack.length - 1].lastElementChild) {
+        const nested = document.createElement(root.tagName); stack[stack.length - 1].lastElementChild.appendChild(nested); stack.push(nested);
+      }
+      const li = document.createElement('li'); li.innerHTML = adocEditorTextHTML(b, 'item-' + i, text); stack[stack.length - 1].appendChild(li);
+    });
+    return root.outerHTML;
+  }
+  function adocEditorRenderTable(b) {
+    const table = document.createElement('table'); table.className = 'adoc-sc-table-el';
+    if(b.editor && b.editor.rules) table.dataset.ccTableRules=JSON.stringify(b.editor.rules);
+    const occupied = new Set(); const matrix = [b.content.headers].concat(b.content.rows);
+    const head = table.createTHead(); const body = table.createTBody();
+    matrix.forEach(function (row, r) {
+      const tr = (r === 0 ? head : body).insertRow();
+      row.forEach(function (text, c) {
+        if (occupied.has(r + ':' + c)) return;
+        const cell = document.createElement(r === 0 ? 'th' : 'td'); const key = r + ':' + c;
+        const meta = b.editor && b.editor.cells && b.editor.cells[key] || {};
+        const rs = Math.min(meta.rowSpan || 1, r === 0 ? 1 : matrix.length - r), cs = Math.min(meta.colSpan || 1, row.length - c);
+        cell.rowSpan = rs; cell.colSpan = cs;
+        for (let y = r; y < r + rs; y++) for (let x = c; x < c + cs; x++) occupied.add(y + ':' + x);
+        cell.style.cssText = adocEditorStyleCSS(meta.style, 'paragraph');
+        cell.innerHTML = adocEditorTextHTML(b, 'cell-' + key, text); tr.appendChild(cell);
+      });
+    });
+    adocEditorApplyRules(table);
+    return table.outerHTML;
+  }
+  function adocEditorTableGrid(table) {
+    const rows = Array.from(table.rows), grid = [];
+    rows.forEach(function (row, r) {
+      grid[r] = grid[r] || []; let c = 0;
+      Array.from(row.cells).forEach(function (cell) {
+        while (grid[r][c]) c++;
+        const rs = Math.min(cell.rowSpan || 1, rows.length - r), cs = cell.colSpan || 1;
+        for (let y = r; y < r + rs; y++) { grid[y] = grid[y] || []; for (let x = c; x < c + cs; x++) grid[y][x] = {cell: cell, row:r, col:c}; }
+        c += cs;
+      });
+    });
+    return grid;
+  }
+  function adocEditorSyncStructured(art) {
+    if (!art || !art._adocStructuredDoc) return;
+    const root = document.getElementById('cc-ws-doc-card'); if (!root) return;
+    root.querySelectorAll('.adoc-sc-block').forEach(function (el) {
+      const b = adocFindEditableBlock(art._adocStructuredDoc, el.id);
+      if (!b || !ADOC_DIRECT_TYPES.includes(b.type)) return;
+      const editor = {html: {}};
+      function read(leaf, path) { const html = adocEditorCleanHTML(leaf ? leaf.innerHTML : ''); editor.html[path] = html; return adocEditorPlain(html); }
+      if (b.type === 'list') {
+        const list = el.querySelector('.adoc-sc-list-el'); if (!list) return;
+        b.content.items = []; editor.levels = [];
+        list.querySelectorAll('li').forEach(function (li, i) {
+          const leaf = Array.from(li.children).find(function (n) { return n.hasAttribute('data-cc-editor-leaf'); });
+          b.content.items.push(read(leaf, 'item-' + i));
+          let level = 0, p = li.parentElement; while (p && p !== list) { if (/^(UL|OL)$/.test(p.tagName)) level++; p = p.parentElement; }
+          editor.levels.push(level);
+        });
+        if (!b.content.items.length) b.content.items = [''];
+        b.content.ordered = list.tagName === 'OL';
+      } else if (b.type === 'table') {
+        const table = el.querySelector('table'); if (!table) return;
+        adocEditorApplyRules(table);
+        const grid = adocEditorTableGrid(table); editor.cells = {}; editor.rules=adocEditorRules(table);
+        const width = Math.max(1, ...grid.map(function (row) { return row.length; }));
+        const matrix = grid.map(function (row, r) { return Array.from({length: width}, function (_, c) {
+          const slot = row[c]; if (!slot || slot.row !== r || slot.col !== c) return '';
+          const cell = slot.cell, path = r + ':' + c;
+          const value = read(cell.querySelector('[data-cc-editor-leaf]'), 'cell-' + path);
+          const cellStyle=adocEditorReadStyle(cell);if(cell.dataset.ccRuleBase!=null){if(cell.dataset.ccRuleBase)cellStyle.backgroundColor=cell.dataset.ccRuleBase;else delete cellStyle.backgroundColor;}
+          editor.cells[path] = {rowSpan: cell.rowSpan || 1, colSpan: cell.colSpan || 1, style: cellStyle};
+          return value;
+        }); });
+        b.content.headers = matrix[0] || ['']; b.content.rows = matrix.slice(1);
+      } else b.content.text = read(el.querySelector('[data-cc-editor-leaf]'), 'text');
+      b.editor = editor;
+    });
+  }
+  function adocEditorStripRuntime(root) {
+    root.querySelectorAll('.cc-block-edit-panel').forEach(function (n) { n.remove(); });
+    [root].concat(Array.from(root.querySelectorAll('*'))).forEach(function (n) {
+      n.removeAttribute('contenteditable'); n.removeAttribute('data-cc-legacy-block-id'); n.removeAttribute('data-cc-editor-leaf');
+      n.classList.remove('is-selected');
+    });
+    root.querySelectorAll('.cc-legacy-edit-text').forEach(function (n) { n.classList.remove('cc-legacy-edit-text');n.classList.add('cc-text-run');n.style.whiteSpace='pre-wrap'; });
+  }
+  function adocEditorSyncLegacy(art) {
+    if (!art || art._adocGenerationEngine !== 'legacy-html') return;
+    const root = document.getElementById('cc-ws-doc-card'); if (!root) return;
+    root.querySelectorAll('table[data-cc-table-rules]').forEach(adocEditorApplyRules);
+    const live = adocWsCollectLegacyBlocks(root);
+    if (!live.some(function (n) { return n.hasAttribute('data-cc-legacy-block-id'); })) return;
+    const parsed = new DOMParser().parseFromString(art.html || '', 'text/html');
+    const targets = adocWsCollectLegacyBlocks(parsed.body);
+    // Use the id assigned before editing; descendants and contextual controls never shift it.
+    live.forEach(function (el) {
+      const index = Number((el.getAttribute('data-cc-legacy-block-id') || '').replace('lb-', ''));
+      if (!el.hasAttribute('data-cc-legacy-block-id') || !targets[index]) return;
+      const clone = el.cloneNode(true); adocEditorStripRuntime(clone); targets[index].replaceWith(clone);
+    });
+    art.html = '<!DOCTYPE html>\n' + parsed.documentElement.outerHTML;
+    if (art.blobUrl) { URL.revokeObjectURL(art.blobUrl); art.blobUrl = URL.createObjectURL(new Blob([art.html], {type:'text/html;charset=utf-8'})); }
+  }
+  function adocEditorSync() { const art = adocEditorArt(); if (!art) return; if (art._adocStructuredDoc) adocEditorSyncStructured(art); else adocEditorSyncLegacy(art); }
+  function adocEditorPrepare(root, legacy) {
+    if (legacy) adocWsCollectLegacyBlocks(root).forEach(function (el) {
+      function wrap(container) {
+        const saved=Array.from(container.children).find(n=>n.classList.contains('cc-text-run'));
+        if(saved){saved.classList.replace('cc-text-run','cc-legacy-edit-text');saved.dataset.ccEditorLeaf='text';return;}
+        if (Array.from(container.children).some(function (n) { return n.classList.contains('cc-legacy-edit-text'); })) return;
+        const span = document.createElement('span'); span.className = 'cc-legacy-edit-text'; span.dataset.ccEditorLeaf = 'text';
+        const children = Array.from(container.childNodes).filter(function (n) { return n.nodeType !== 1 || !/^(UL|OL|TABLE)$/.test(n.tagName); });
+        if (children.length) container.insertBefore(span, children[0]); else container.insertBefore(span, container.firstChild);
+        children.forEach(function (n) { span.appendChild(n); });
+      }
+      el.removeAttribute('contenteditable');
+      if (/^(UL|OL)$/.test(el.tagName)) el.querySelectorAll('li').forEach(wrap);
+      else if (el.tagName === 'TABLE') Array.from(el.rows).forEach(function (r) { Array.from(r.cells).forEach(wrap); });
+      else wrap(el);
+    });
+    root.querySelectorAll('table[data-cc-table-rules]').forEach(adocEditorApplyRules);
+    root.querySelectorAll('[data-cc-editor-leaf]').forEach(function (leaf) {
+      leaf.setAttribute('contenteditable','true'); leaf.setAttribute('spellcheck','true');
+    });
+  }
+  function adocEditorPalette() {
+    const art = adocEditorArt(); if (!art) return [];
+    let colors = {};
+    if (art._adocStructuredDoc) {
+      try { colors = adocResolveTokens(adocResolveRenderManifest(art._adocStructuredDoc, art._adocRenderManifestOverride || null)).colors || {}; } catch (_) {}
+    } else {
+      const parsed = adocParseLegacyRootVars(art.html || '');
+      colors = parsed && typeof parsed === 'object' ? Object.assign({},parsed.vars || parsed.palette || parsed) : {};
+      // Extract every color in the document's own root, not the host application's theme.
+      const css = (art.html || '').match(/:root\s*\{([^}]*)\}/);
+      if (css) Array.from(css[1].matchAll(/--([\w-]+)\s*:\s*(#[0-9a-f]{3,8})\b/gi)).forEach(function (m) { colors[m[1]] = m[2]; });
+    }
+    return Object.entries(colors).filter(function (p) { return typeof p[1] === 'string' && /^#[\da-f]{3,8}$/i.test(p[1]); });
+  }
+  var _adocEditorLocalFonts = [];
+  window.adocEditorLoadLocalFonts = async function () {
+    if (!window.queryLocalFonts) { adocEditorMessage('Ce navigateur ne peut pas lister les polices locales. Saisissez leur nom, ou utilisez Chrome/Edge sur ordinateur pour les charger.'); return; }
+    try {
+      const fonts = await window.queryLocalFonts();
+      _adocEditorLocalFonts = Array.from(new Set(fonts.map(function (f) { return f.family; }))).sort(function (a,b) {return a.localeCompare(b);});
+      adocEditorRefreshControls(); adocEditorMessage(_adocEditorLocalFonts.length + ' familles de polices disponibles sur cet ordinateur.');
+    } catch (_) { adocEditorMessage('Accès aux polices non accordé. Vous pouvez réessayer ou saisir le nom de la police.'); }
+  };
+  function adocEditorControlsHTML() {
+    function button(action, label) { return '<button type="button" class="cc-clarity-other-btn" data-editor-action="' + action + '">' + label + '</button>'; }
+    function number(field, label, min, max, step) { return '<label>' + label + '<input type="number" data-editor-style="' + field + '" min="' + min + '" max="' + max + '" step="' + (step || 1) + '"></label>'; }
+    return '<div class="cc-block-style-controls cc-editor-tools" role="group" aria-label="Édition et mise en forme">' +
+      '<strong>Texte et mise en forme</strong><div class="cc-editor-row">' + button('undo','Annuler') + button('redo','Rétablir') +
+      '<label>Appliquer à<select data-editor-scope><option value="block">Tout le bloc</option><option value="selection">Texte sélectionné</option><option value="cell">Cellule active</option></select></label></div>' +
+      '<div class="cc-editor-row"><label>Police<input data-editor-style="fontFamily" list="cc-editor-fonts" placeholder="Police de la charte"></label><datalist id="cc-editor-fonts"></datalist>' + button('local-fonts','Polices de cet ordinateur') + number('fontSizePt','Taille (pt)',6,144) + '</div>' +
+      '<div class="cc-editor-row">' + button('bold','Gras') + button('italic','Italique') + button('underline','Souligné') + button('strike','Barré') +
+      '<label>Alignement<select data-editor-style="textAlign"><option value="">Charte</option><option value="left">Gauche</option><option value="center">Centré</option><option value="right">Droite</option><option value="justify">Justifié</option></select></label>' +
+      '<label>Casse<select data-editor-style="textTransform"><option value="none">Originale</option><option value="uppercase">MAJUSCULES</option><option value="lowercase">minuscules</option><option value="capitalize">Initiales</option></select></label></div>' +
+      '<div class="cc-editor-row"><label>Texte<input type="color" data-editor-style="color"></label><label>Surlignage / fond<input type="color" data-editor-style="backgroundColor"></label><div class="cc-editor-swatches" aria-label="Couleurs de la charte active"></div></div>' +
+      '<details><summary>Espacements et bordures</summary><div class="cc-editor-row">' + number('lineHeight','Interligne',0.5,4,0.1) + number('letterSpacing','Caractères (px)',-2,20,0.1) + number('marginTop','Avant (px)',0,160) + number('marginBottom','Après (px)',0,160) + number('textIndent','Retrait (px)',0,160) +
+      '<label>Bordure<input type="color" data-editor-style="borderColor"></label>' + number('borderWidth','Épaisseur (px)',0,12) + '</div></details>' +
+      '<div class="cc-editor-list-tools cc-editor-row">' + button('list-add','Ajouter un élément') + button('list-remove','Retirer l’élément') + button('indent','Augmenter le niveau') + button('outdent','Réduire le niveau') + button('bullets','Puces') + button('numbered','Numéros') + '</div>' +
+      '<div class="cc-editor-table-tools"><strong>Tableau — cellule active</strong><div class="cc-editor-row">' + button('row-before','Ligne avant') + button('row-after','Ligne après') + button('row-delete','Supprimer la ligne') + button('col-before','Colonne avant') + button('col-after','Colonne après') + button('col-delete','Supprimer la colonne') + button('merge-right','Fusionner à droite') + button('merge-down','Fusionner en dessous') + button('split','Dissocier') + button('sort-asc','Trier A → Z') + button('sort-desc','Trier Z → A') + '</div><details><summary>Mise en forme conditionnelle de la colonne active</summary><div class="cc-editor-row"><select aria-label="Condition" data-rule-op><option value="gt">Supérieur à</option><option value="lt">Inférieur à</option><option value="eq">Égal à</option></select><input type="number" aria-label="Seuil" data-rule-value value="0"><input type="color" aria-label="Couleur conditionnelle" data-rule-color value="#fff1b8">' + button('rule-add','Appliquer la règle') + button('rule-clear','Retirer les règles') + '</div></details></div>' +
+      '<div class="cc-editor-row">' + button('reset','Réinitialiser le style') + '</div><p class="cc-editor-message" role="status" aria-live="polite"></p></div>';
+  }
+  var _adocEditorRange = null, _adocEditorLeaf = null;
+  function adocEditorRememberSelection() {
+    const sel = window.getSelection(); if (!sel || !sel.rangeCount) return;
+    const range = sel.getRangeAt(0), node = range.commonAncestorContainer;
+    const leaf = (node.nodeType === 1 ? node : node.parentElement).closest('[data-cc-editor-leaf][contenteditable="true"]');
+    if (leaf && leaf.closest('#cc-ws-doc-card')) { _adocEditorRange = range.cloneRange(); _adocEditorLeaf = leaf; }
+  }
+  function adocEditorRefreshControls() {
+    const ctx = adocEditorContext(); if (!ctx) return;
+    const panel = ctx.st.panelEl, tools = panel && panel.querySelector('.cc-editor-tools'); if (!tools) return;
+    const type = ctx.legacy ? adocLegacyBlockKind(ctx.el) : ctx.block.type;
+    tools.querySelector('.cc-editor-list-tools').hidden = type !== 'list';
+    tools.querySelector('.cc-editor-table-tools').hidden = type !== 'table';
+    tools.querySelector('[data-editor-scope] option[value="cell"]').disabled = type !== 'table';
+    const scope = tools.querySelector('[data-editor-scope]').value;
+    const cell = _adocEditorLeaf && ctx.el.contains(_adocEditorLeaf) && _adocEditorLeaf.closest('td,th');
+    const style = scope === 'cell' && cell ? adocEditorReadStyle(cell) : ctx.block ? ctx.block.style || {} : adocEditorReadStyle(ctx.el);
+    tools.querySelectorAll('[data-editor-style]').forEach(function (input) {
+      const field = input.dataset.editorStyle;
+      if (document.activeElement === input) return;
+      input.value = style[field] == null ? (input.type === 'color' ? (field === 'color' ? '#273331' : '#ffffff') : field === 'textTransform' ? 'none' : '') : style[field];
+    });
+    const families = new Set(_adocEditorLocalFonts);
+    ADOC_LEGACY_FONT_PAIRS.forEach(function (p) { if (p.bodyFont) families.add(p.bodyFont); if(p.headingFont) families.add(p.headingFont); });
+    tools.querySelector('datalist').innerHTML = Array.from(families).map(function (f) { return '<option value="' + adocEsc(f) + '"></option>'; }).join('');
+    tools.querySelector('.cc-editor-swatches').innerHTML = adocEditorPalette().map(function (p) {
+      return '<button type="button" title="' + adocEsc(p[0] + ' ' + p[1]) + '" aria-label="Couleur ' + adocEsc(p[0]) + '" data-editor-color="' + adocEsc(p[1]) + '" style="background:' + p[1] + '"></button>';
+    }).join('');
+  }
+  function adocEditorFocus(leaf, end) {
+    if (!leaf) return; leaf.focus(); const range = document.createRange(); range.selectNodeContents(leaf); range.collapse(!end);
+    const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range); adocEditorRememberSelection();
+  }
+  function adocEditorSnapshot() {
+    const ctx = adocEditorContext(); if (!ctx) return null;
+    adocEditorSync();
+    const clone = document.getElementById('cc-ws-doc-card').cloneNode(true); clone.querySelectorAll('.cc-block-edit-panel').forEach(function (p) {p.remove();});
+    return {html:clone.innerHTML, doc:ctx.art._adocStructuredDoc ? JSON.parse(JSON.stringify(ctx.art._adocStructuredDoc)) : null, source:ctx.art.html, id:ctx.legacy ? ctx.el.getAttribute('data-cc-legacy-block-id') : ctx.el.id};
+  }
+  function adocEditorCheckpoint() {
+    const ctx = adocEditorContext(); if (!ctx) return;
+    const snap = adocEditorSnapshot(); const h = ctx.art._ccEditorHistory || (ctx.art._ccEditorHistory = {undo:[],redo:[]});
+    if (!h.undo.length || h.undo[h.undo.length-1].html !== snap.html) { h.undo.push(snap); if(h.undo.length > 50) h.undo.shift(); }
+    h.redo = [];
+    adocEditorMarkDirty();
+  }
+  function adocEditorHistory(redo) {
+    const ctx = adocEditorContext(); if (!ctx) return; const h = ctx.art._ccEditorHistory; if (!h) return;
+    const from = redo ? h.redo : h.undo, to = redo ? h.undo : h.redo; if (!from.length) return;
+    to.push(adocEditorSnapshot()); const snap = from.pop();
+    if (snap.doc) ctx.art._adocStructuredDoc = snap.doc; else ctx.art.html = snap.source;
+    adocWsClearBlockSelection(); adocWsClearLegacyBlockSelection();
+    const root = document.getElementById('cc-ws-doc-card'); root.innerHTML = snap.html;
+    adocWsSetupBlockEditing(ctx.art); adocWsSetupLegacyBlockEditing(ctx.art);
+    const el = snap.doc ? document.getElementById(snap.id) : root.querySelector('[data-cc-legacy-block-id="' + snap.id + '"]');
+    if (el) { el.click(); adocEditorFocus(el.querySelector('[data-cc-editor-leaf]'), true); }
+    adocEditorSync(); adocEditorMarkDirty();
+  }
+  function adocEditorApplyStyle(field, value) {
+    const ctx = adocEditorContext(); if (!ctx) return;
+    const scope = ctx.st.panelEl.querySelector('[data-editor-scope]').value;
+    if (field !== 'reset' && !ADOC_DIRECT_STYLE_FIELDS[field]) return;
+    if(scope==='selection' && ['textAlign','marginTop','marginBottom','textIndent','borderColor','borderWidth'].includes(field)){adocEditorMessage('Ce réglage s’applique à tout le bloc ou à la cellule active.');return;}
+    if (scope === 'selection' && (!_adocEditorRange || _adocEditorRange.collapsed || !_adocEditorLeaf || !ctx.el.contains(_adocEditorLeaf))) { adocEditorMessage('Sélectionnez le texte à mettre en forme.'); return; }
+    if (scope === 'cell' && (!_adocEditorLeaf || !ctx.el.contains(_adocEditorLeaf) || !_adocEditorLeaf.closest('td,th'))) { adocEditorMessage('Cliquez dans une cellule du tableau.'); return; }
+    adocEditorCheckpoint();
+    if (field === 'fontFamily') {
+      const pair = ADOC_LEGACY_FONT_PAIRS.find(function (p) { return p.bodyFont === value || p.headingFont === value; });
+      if (pair) { adocEnsurePageGoogleFontLoaded(pair.id); if(ctx.legacy) ctx.art.html = adocEnsureLegacyBlockFontLoaded(ctx.art.html, pair.id); }
+    }
+    if (scope === 'selection') {
+      const range = _adocEditorRange; const fragment = range.extractContents(); const span = document.createElement('span');
+      if (field === 'reset') { span.textContent = fragment.textContent; } else { const s = {}; s[field] = value; span.style.cssText = adocEditorStyleCSS(s,'paragraph'); span.appendChild(fragment); }
+      range.insertNode(span); range.selectNodeContents(span); const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range); _adocEditorRange = range.cloneRange();
+    } else {
+      const target = scope === 'cell' ? _adocEditorLeaf.closest('td,th') : ctx.el;
+      let style = scope === 'block' && ctx.block ? Object.assign({},ctx.block.style) : adocEditorReadStyle(target);
+      if (field === 'reset') style = {}; else { if(value === '') delete style[field]; else style[field] = value; if (field === 'fontFamily') delete style.fontPairId; if (field === 'fontSizePt') delete style.fontSize; }
+      if (scope === 'block' && ctx.block) ctx.block.style = style;
+      if(scope==='cell' && field==='backgroundColor' && target.dataset.ccRuleBase!=null)target.dataset.ccRuleBase=value;
+      if((ctx.legacy || scope==='cell') && field!=='reset') {
+        const change={};change[field]=value;const parsed=document.createElement('span');parsed.style.cssText=adocEditorStyleCSS(change,'paragraph');
+        target.style.setProperty(ADOC_DIRECT_STYLE_FIELDS[field],parsed.style.getPropertyValue(ADOC_DIRECT_STYLE_FIELDS[field]));
+        if(field==='borderWidth')target.style.borderStyle=value?'solid':'';
+      } else adocApplyBlockStyleToElement(target, style, ctx.block ? ctx.block.type : adocLegacyBlockKind(ctx.el));
+    }
+    adocEditorSync(); adocEditorRefreshControls(); adocEditorMessage('Modification appliquée.');
+  }
+  function adocEditorLeafInContext(ctx) {
+    return _adocEditorLeaf && ctx.el.contains(_adocEditorLeaf) ? _adocEditorLeaf : ctx.el.querySelector('[data-cc-editor-leaf]');
+  }
+  function adocEditorNewLeaf(text) {
+    const span = document.createElement('span'); span.dataset.ccEditorLeaf='text'; span.className=adocEditorArt() && adocEditorArt()._adocGenerationEngine === 'legacy-html' ? 'cc-legacy-edit-text' : 'adoc-sc-block-text'; span.contentEditable='true'; span.textContent=text || ''; return span;
+  }
+  function adocEditorListAction(action, ctx, splitRange) {
+    const leaf = adocEditorLeafInContext(ctx), li = leaf && leaf.closest('li'); if (!li) return;
+    const list = li.parentElement, root = ctx.el.matches('ul,ol') ? ctx.el : ctx.el.querySelector('ul,ol');
+    if (action === 'list-add') {
+      const next = document.createElement('li'), text = adocEditorNewLeaf(''); next.appendChild(text);
+      if (splitRange && leaf.contains(splitRange.startContainer)) { const tail = splitRange.cloneRange(); tail.setEnd(leaf,leaf.childNodes.length); text.appendChild(tail.extractContents()); }
+      li.after(next); adocEditorFocus(text,false);
+    } else if (action === 'indent') {
+      let depth = 0, ancestor = list; while(ancestor && ancestor !== root){if(/^(UL|OL)$/.test(ancestor.tagName))depth++;ancestor=ancestor.parentElement;}
+      if(depth >= 8){adocEditorMessage('Huit niveaux de liste maximum.');return;}
+      const previous = li.previousElementSibling; if (!previous) { adocEditorMessage('Le premier élément ne peut pas être indenté.'); return; }
+      let nested = Array.from(previous.children).reverse().find(function(n){return /^(UL|OL)$/.test(n.tagName);});
+      if (!nested) { nested=document.createElement(list.tagName); previous.appendChild(nested); }
+      nested.appendChild(li); adocEditorFocus(leaf,true);
+    } else if (action === 'outdent') {
+      if (list === root) return;
+      const parentLi = list.parentElement;
+      if (li.nextElementSibling) { const tail = document.createElement(list.tagName); while(li.nextElementSibling)tail.appendChild(li.nextElementSibling); li.appendChild(tail); }
+      parentLi.after(li);
+      if (!list.children.length) list.remove(); adocEditorFocus(leaf,true);
+    } else if (action === 'list-remove') {
+      if (root.querySelectorAll('li').length === 1) { leaf.textContent=''; return; }
+      const next = li.nextElementSibling || li.previousElementSibling || list.closest('li');
+      const nested = Array.from(li.children).filter(function(n){return /^(UL|OL)$/.test(n.tagName);});
+      nested.forEach(function(n){while(n.firstElementChild) li.before(n.firstElementChild);});
+      li.remove(); if (list!==root && !list.children.length) list.remove(); adocEditorFocus(next && next.querySelector('[data-cc-editor-leaf]'),true);
+    } else if (action === 'bullets' || action === 'numbered') {
+      const tag = action === 'numbered' ? 'ol' : 'ul';
+      [root].concat(Array.from(root.querySelectorAll('ul,ol'))).reverse().forEach(function(n){const replacement=document.createElement(tag); Array.from(n.attributes).forEach(function(a){replacement.setAttribute(a.name,a.value);}); replacement.style.listStyleType=tag==='ol'?'decimal':'disc';replacement.style.paddingInlineStart='1.5em';while(n.firstChild)replacement.appendChild(n.firstChild);n.replaceWith(replacement); if(n===ctx.el){ctx.st.el=replacement;ctx.el=replacement;}});
+    }
+  }
+  function adocEditorTableAction(action, ctx) {
+    const leaf = adocEditorLeafInContext(ctx), cell = leaf && leaf.closest('td,th'), table = cell && cell.closest('table');
+    if (!cell || !table) return;
+    const grid = adocEditorTableGrid(table); let slot;
+    grid.forEach(function(row){row.forEach(function(s){if(s.cell===cell)slot=s;});});
+    if (!slot) return;
+    const r=slot.row,c=slot.col,row=cell.parentElement;
+    const spans=Array.from(table.querySelectorAll('td,th')).some(function(n){return n.colSpan>1||n.rowSpan>1;});
+    function empty(tag) { const n=document.createElement(tag||'td');n.appendChild(adocEditorNewLeaf(''));return n; }
+    if(action==='rule-add'||action==='rule-clear'){
+      const panel=ctx.st.panelEl;const value=Number(panel.querySelector('[data-rule-value]').value);
+      if(!Number.isFinite(value)){adocEditorMessage('Indiquez un seuil numérique.');return;}
+      let rules=action==='rule-clear'?[]:adocEditorRules(table).filter(rule=>rule.column!==c);
+      if(action==='rule-add')rules.push({column:c,op:panel.querySelector('[data-rule-op]').value,value:value,color:panel.querySelector('[data-rule-color]').value});
+      table.dataset.ccTableRules=JSON.stringify(rules);adocEditorApplyRules(table);return;
+    }
+    if (/^(row-|col-|sort-)/.test(action) && spans) { adocEditorMessage('Dissociez les cellules fusionnées avant de modifier ou trier les lignes et colonnes.'); return; }
+    if (action==='row-before'||action==='row-after') {
+      const tr=document.createElement('tr'); for(let i=0;i<grid[0].length;i++)tr.appendChild(empty('td'));
+      if(r===0) { const body=table.tBodies[0]||table.createTBody();body.prepend(tr); } else if(action==='row-before')row.before(tr);else row.after(tr);
+      adocEditorFocus(tr.querySelector('[data-cc-editor-leaf]'),false);
+    } else if(action==='row-delete') {
+      if(r===0){adocEditorMessage('La ligne d’en-tête reste en place ; son texte peut être effacé.');return;}
+      row.remove(); adocEditorFocus(table.querySelector('[data-cc-editor-leaf]'),false);
+    } else if(action==='col-before'||action==='col-after') {
+      const at=c+(action==='col-after'?1:0);table.dataset.ccTableRules=JSON.stringify(adocEditorRules(table).map(rule=>Object.assign({},rule,{column:rule.column>=at?rule.column+1:rule.column})));
+      Array.from(table.rows).forEach(function(tr){const n=empty(tr.rowIndex===0?'th':'td');const anchor=tr.cells[c];if(action==='col-before')anchor.before(n);else anchor.after(n);});
+    } else if(action==='col-delete') {
+      if(grid[0].length===1){adocEditorMessage('Le tableau conserve au moins une colonne.');return;}
+      table.dataset.ccTableRules=JSON.stringify(adocEditorRules(table).filter(rule=>rule.column!==c).map(rule=>Object.assign({},rule,{column:rule.column>c?rule.column-1:rule.column})));
+      Array.from(table.rows).forEach(function(tr){tr.cells[c].remove();}); adocEditorFocus(table.querySelector('[data-cc-editor-leaf]'),false);
+    } else if(action==='merge-right'||action==='merge-down') {
+      const other = action==='merge-right' ? grid[r][c+cell.colSpan] : grid[r+cell.rowSpan] && grid[r+cell.rowSpan][c];
+      if(!other || other.cell===cell || (action==='merge-right' ? other.row!==r||other.cell.rowSpan!==cell.rowSpan : r===0||other.col!==c||other.cell.colSpan!==cell.colSpan)) {adocEditorMessage('Choisissez des cellules voisines de dimensions compatibles.');return;}
+      const source=other.cell.querySelector('[data-cc-editor-leaf]'); if(source && source.textContent){leaf.appendChild(document.createElement('br'));while(source.firstChild)leaf.appendChild(source.firstChild);}
+      if(action==='merge-right')cell.colSpan+=other.cell.colSpan;else cell.rowSpan+=other.cell.rowSpan;other.cell.remove();
+    } else if(action==='split') {
+      const rs=cell.rowSpan,cs=cell.colSpan; cell.rowSpan=1;cell.colSpan=1;
+      for(let y=r;y<r+rs;y++)for(let x=c;x<c+cs;x++){
+        if(y===r&&x===c)continue;const tr=table.rows[y],n=empty(y===0?'th':'td');
+        const anchor=Array.from(tr.cells).find(function(candidate){const s=grid[y].find(function(t){return t.cell===candidate;});return s&&s.col>x;});tr.insertBefore(n,anchor||null);
+      }
+    } else if(action==='sort-asc'||action==='sort-desc') {
+      const body=table.tBodies[0]; if(!body)return;
+      Array.from(body.rows).sort(function(a,b){return a.cells[c].textContent.localeCompare(b.cells[c].textContent,'fr',{numeric:true})*(action==='sort-desc'?-1:1);}).forEach(function(tr){body.appendChild(tr);});
+    }
+  }
+  function adocEditorAction(action) {
+    if(action==='local-fonts'){window.adocEditorLoadLocalFonts();return;}
+    if(action==='undo'||action==='redo'){adocEditorHistory(action==='redo');return;}
+    const ctx=adocEditorContext();if(!ctx)return;
+    const formats={bold:['fontWeight','700','400'],italic:['fontStyle','italic','normal'],underline:['textDecoration','underline','none'],strike:['textDecoration','line-through','none']};
+    if(formats[action]) {
+      const f=formats[action],scope=ctx.st.panelEl.querySelector('[data-editor-scope]').value;
+      let target=scope==='block'?ctx.el:adocEditorLeafInContext(ctx)||ctx.el;
+      if(scope==='selection'&&_adocEditorRange){const n=_adocEditorRange.commonAncestorContainer;target=n.nodeType===1?n:n.parentElement;}
+      const computed=getComputedStyle(target);
+      if(f[0]==='textDecoration'){const parts=computed.textDecorationLine.split(' ').filter(p=>p!=='none'&&p!==f[1]);if(!computed.textDecorationLine.includes(f[1]))parts.push(f[1]);adocEditorApplyStyle(f[0],parts.join(' ')||'none');}
+      else adocEditorApplyStyle(f[0],computed[f[0]]===f[1]?f[2]:f[1]);return;
+    }
+    if(action==='reset'){adocEditorApplyStyle('reset',null);return;}
+    adocEditorCheckpoint();
+    if(['list-add','list-remove','indent','outdent','bullets','numbered'].includes(action))adocEditorListAction(action,ctx);
+    else adocEditorTableAction(action,ctx);
+    adocEditorPrepare(ctx.el,ctx.legacy);adocEditorSync();
+  }
+  function adocEditorInstall(root, legacy) {
+    adocEditorPrepare(root,legacy);
+    if(root.dataset.ccEditorBound)return;root.dataset.ccEditorBound='1';
+    document.addEventListener('selectionchange',adocEditorRememberSelection);
+    root.addEventListener('pointerdown',function(e){root._ccPointerSelecting=true;if(e.target.closest('.cc-editor-tools button'))e.preventDefault();else if(!e.target.closest('.cc-block-edit-panel'))adocEditorRememberSelection();});
+    root.addEventListener('pointerup',function(){setTimeout(function(){root._ccPointerSelecting=false;},0);});
+    root.addEventListener('click',function(e){
+      const action=e.target.closest('[data-editor-action]'),color=e.target.closest('[data-editor-color]');
+      if(action)adocEditorAction(action.dataset.editorAction);if(color)adocEditorApplyStyle('color',color.dataset.editorColor);
+    });
+    root.addEventListener('change',function(e){if(e.target.matches('[data-editor-scope]'))adocEditorRefreshControls();
+      if(e.target.matches('[data-editor-style]')){
+      if(e.target.type==='number'&&!e.target.checkValidity()){adocEditorMessage('Valeur hors limites.');return;}
+      const value=e.target.type==='number'?(e.target.value===''?'':Number(e.target.value)):e.target.value;
+      adocEditorApplyStyle(e.target.dataset.editorStyle,value);
+    }});
+    root.addEventListener('focusin',function(e){const leaf=e.target.closest('[data-cc-editor-leaf]');if(leaf){_adocEditorLeaf=leaf;const el=leaf.closest('.adoc-sc-block,[data-cc-legacy-block-id]');if(el&&!root._ccPointerSelecting&&!el.classList.contains('is-selected'))el.click();}});
+    root.addEventListener('beforeinput',function(e){
+      const leaf=e.target.closest('[data-cc-editor-leaf]');if(!leaf)return;
+      if(e.inputType==='historyUndo'||e.inputType==='historyRedo'){e.preventDefault();adocEditorHistory(e.inputType==='historyRedo');return;}
+      if(e.inputType==='insertParagraph'||e.inputType==='insertLineBreak'){
+        e.preventDefault();adocEditorCheckpoint();const ctx=adocEditorContext();
+        if(leaf.closest('li')&&e.inputType==='insertParagraph')adocEditorListAction('list-add',ctx,window.getSelection().rangeCount?window.getSelection().getRangeAt(0):null);
+        else {const sel=window.getSelection();if(sel.rangeCount){const r=sel.getRangeAt(0);r.deleteContents();const br=document.createElement('br');r.insertNode(br);r.setStartAfter(br);r.collapse(true);sel.removeAllRanges();sel.addRange(r);}}
+        adocEditorSync();return;
+      }
+      adocEditorCheckpoint();
+    });
+    root.addEventListener('input',function(e){if(e.target.closest('[data-cc-editor-leaf]')&&!e.isComposing){adocEditorSync();adocEditorMarkDirty();}});
+    root.addEventListener('compositionend',function(e){if(e.target.closest('[data-cc-editor-leaf]')){adocEditorSync();adocEditorMarkDirty();}});
+    root.addEventListener('keydown',function(e){
+      const leaf=e.target.closest('[data-cc-editor-leaf]');if(!leaf||e.isComposing)return;
+      if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();adocEditorHistory(e.shiftKey);return;}
+      if(e.key==='Tab'){
+        const ctx=adocEditorContext();if(leaf.closest('li')){e.preventDefault();adocEditorAction(e.shiftKey?'outdent':'indent');}
+        else if(leaf.closest('td,th')){e.preventDefault();const leaves=Array.from(ctx.el.querySelectorAll('[data-cc-editor-leaf]')),i=leaves.indexOf(leaf)+(e.shiftKey?-1:1);if(leaves[i])adocEditorFocus(leaves[i],false);else if(!e.shiftKey)adocEditorAction('row-after');}
+      }
+      if((e.ctrlKey||e.metaKey)&&['b','i','u'].includes(e.key.toLowerCase())){e.preventDefault();adocEditorAction({b:'bold',i:'italic',u:'underline'}[e.key.toLowerCase()]);return;}
+      if(e.key==='Backspace'||e.key==='Delete'){
+        const sel=window.getSelection();if(!sel.rangeCount||!sel.isCollapsed)return;const range=sel.getRangeAt(0).cloneRange();range.selectNodeContents(leaf);
+        if(e.key==='Backspace')range.setEnd(sel.anchorNode,sel.anchorOffset);else range.setStart(sel.anchorNode,sel.anchorOffset);
+        if(!range.toString()) {
+          e.preventDefault();
+          const li=leaf.closest('li');if(!li)return;
+          const neighbor=e.key==='Backspace'?li.previousElementSibling:li.nextElementSibling;
+          adocEditorCheckpoint();
+          if(neighbor){
+            const first=e.key==='Backspace'?neighbor:li,last=e.key==='Backspace'?li:neighbor;
+            const a=Array.from(first.children).find(n=>n.hasAttribute('data-cc-editor-leaf')),b=Array.from(last.children).find(n=>n.hasAttribute('data-cc-editor-leaf'));
+            if(a&&b){while(b.firstChild)a.appendChild(b.firstChild);Array.from(last.children).filter(n=>/^(UL|OL)$/.test(n.tagName)).forEach(n=>first.appendChild(n));last.remove();adocEditorFocus(a,true);}
+          }else if(e.key==='Backspace')adocEditorListAction('outdent',adocEditorContext());
+          adocEditorSync();
+        }
+      }
+    });
+    root.addEventListener('paste',function(e){
+      const leaf=e.target.closest('[data-cc-editor-leaf]');if(!leaf)return;e.preventDefault();adocEditorCheckpoint();
+      const sel=window.getSelection();if(!sel.rangeCount)return;const range=sel.getRangeAt(0);if(!leaf.contains(range.commonAncestorContainer))return;
+      // Preserve rich inline text; block/list/table structures cannot escape the active host.
+      const html=e.clipboardData.getData('text/html'),text=e.clipboardData.getData('text/plain');
+      const cell=leaf.closest('td,th');
+      if(cell && text.includes('\t')) {
+        const table=cell.closest('table'),grid=adocEditorTableGrid(table);
+        if(Array.from(table.querySelectorAll('td,th')).some(n=>n.rowSpan>1||n.colSpan>1)){adocEditorMessage('Dissociez les cellules avant de coller une plage.');return;}
+        const startRow=cell.parentElement.rowIndex,startCol=cell.cellIndex,values=text.replace(/\r/g,'').replace(/\n$/,'').split('\n').map(line=>line.split('\t'));
+        const width=Math.max(grid[0].length,startCol+Math.max(...values.map(row=>row.length)));
+        while(table.rows.length<startRow+values.length)(table.tBodies[0]||table.createTBody()).insertRow();
+        Array.from(table.rows).forEach((tr,r)=>{while(tr.cells.length<width){const n=document.createElement(r===0?'th':'td');n.appendChild(adocEditorNewLeaf(''));tr.appendChild(n);}});
+        values.forEach((row,r)=>row.forEach((value,c)=>{table.rows[startRow+r].cells[startCol+c].querySelector('[data-cc-editor-leaf]').textContent=value;}));adocEditorSync();return;
+      }
+      const clean=html?adocEditorCleanHTML(html):adocEsc(text).replace(/\r?\n/g,'<br>');
+      const fragment=range.createContextualFragment(clean),last=fragment.lastChild;range.deleteContents();range.insertNode(fragment);
+      if(last){range.setStartAfter(last);range.collapse(true);sel.removeAllRanges();sel.addRange(range);}adocEditorSync();
+    });
+    root.addEventListener('drop',function(e){if(e.target.closest('[data-cc-editor-leaf]')){e.preventDefault();adocEditorMessage('Utilisez le copier-coller pour insérer du texte dans ce passage.');}});
+  }
+
+  function adocEditorExportFonts(doc) {
+    const names = new Set(), pairs = new Set();
+    function walk(blocks) { (blocks || []).forEach(function(b) {
+      if(b.style) { if(b.style.fontPairId)pairs.add(b.style.fontPairId); if(b.style.fontFamily)names.add(b.style.fontFamily); }
+      if(b.editor && b.editor.html) Object.values(b.editor.html).forEach(function(html){ const el=document.createElement('div');el.innerHTML=adocEditorCleanHTML(html);el.querySelectorAll('[style]').forEach(function(n){if(n.style.fontFamily)names.add(n.style.fontFamily.replace(/^['"]|['"]$/g,''));}); });
+      if(b.content && b.content.blocks)walk(b.content.blocks);
+    }); } walk(doc.blocks);
+    return ADOC_LEGACY_FONT_PAIRS.filter(function(p){return p.googleFontsHref && (pairs.has(p.id)||names.has(p.bodyFont)||names.has(p.headingFont));}).map(adocGoogleFontLinkTag).join('');
+  }
+
+  function adocEditorRules(table) {
+    try { const rules=JSON.parse(table.dataset.ccTableRules || '[]'); return Array.isArray(rules)?rules.filter(r=>Number.isInteger(r.column)&&r.column>=0&&['gt','lt','eq'].includes(r.op)&&Number.isFinite(r.value)&&/^#[0-9a-f]{6}$/i.test(r.color)):[]; } catch(_){return [];}
+  }
+  function adocEditorApplyRules(table) {
+    const rules=adocEditorRules(table),grid=adocEditorTableGrid(table);
+    Array.from(table.querySelectorAll('[data-cc-rule-base]')).forEach(cell=>{cell.style.backgroundColor=cell.dataset.ccRuleBase;delete cell.dataset.ccRuleBase;});
+    rules.forEach(rule=>grid.slice(1).forEach(row=>{
+      const slot=row[rule.column];if(!slot)return;const cell=slot.cell,text=cell.textContent.trim().replace(',', '.');if(!text)return;
+      const value=Number(text);if(!Number.isFinite(value))return;
+      if(rule.op==='gt'?value>rule.value:rule.op==='lt'?value<rule.value:value===rule.value){if(cell.dataset.ccRuleBase==null)cell.dataset.ccRuleBase=cell.style.backgroundColor;cell.style.backgroundColor=rule.color;}
+    }));
+  }
+  function adocEditorBlockContainer(doc, id) {
+    function walk(blocks) { if((blocks||[]).some(b=>b.id===id))return blocks;for(const b of blocks||[]){const found=walk(b.content&&b.content.blocks);if(found)return found;} }
+    return walk(doc && doc.blocks);
+  }
+  function adocEditorMarkDirty() {
+    const art=adocEditorArt();if(!art)return;
+    art._ccEditorDirty=true;art._ccEditorRevision=(art._ccEditorRevision||0)+1;
+    adocUpdateSaveStatusUI(art);
+  }
+  function adocEditorStyleCompat(field,value) {
+    const ctx=adocEditorContext();if(!ctx)return;
+    if(field==='fontPairId'){adocEditorApplyStyle('fontFamily',adocResolveBlockFontFamily(ctx.block?ctx.block.type:ctx.st.kind,value)||'');return;}
+    if(field==='fontSize'){
+      const preset=ADOC_BLOCK_FONT_SIZES.find(s=>s.id===value);
+      adocEditorApplyStyle('fontSizePt',preset&&preset.cssValue?parseFloat(getComputedStyle(ctx.el.parentElement).fontSize)*parseFloat(preset.cssValue)*0.75:'');return;
+    }
+    adocEditorApplyStyle(field,value);
+  }
+
   // ═══════════════════════════════════════════════════════════════════════
   // Item 57c Lot 2 — police/couleur/taille PAR BLOC (heading/paragraph), en plus de Lot 1.
   // Échelle relative, jamais des points absolus — cohérente avec les niveaux 1-3 déjà relatifs
@@ -9574,16 +10163,7 @@ ${recent}`;
   // Calcule le texte CSS d'un style de bloc — fonction UNIQUE partagée par le rendu (chaîne HTML,
   // structuré) et l'application live (DOM, les deux moteurs) : jamais deux logiques de calcul
   // pouvant diverger entre l'aperçu et la sauvegarde.
-  function adocBlockStyleToCSSText(style, blockKind) {
-    if (!style) return '';
-    const parts = [];
-    const fam = adocResolveBlockFontFamily(blockKind, style.fontPairId);
-    if (fam) parts.push("font-family:'" + fam + "'");
-    if (style.color) parts.push('color:' + style.color);
-    const sizeDef = ADOC_BLOCK_FONT_SIZES.find(function (s) { return s.id === style.fontSize; });
-    if (sizeDef && sizeDef.cssValue) parts.push('font-size:' + sizeDef.cssValue);
-    return parts.length ? parts.join(';') + ';' : '';
-  }
+  function adocBlockStyleToCSSText(style, blockKind) { return adocEditorStyleCSS(style, blockKind); }
 
   // Applique un style de bloc directement sur l'élément affiché (retour visuel immédiat, jamais
   // via un re-rendu complet qui effacerait une frappe en cours, même principe que le texte du
@@ -9592,11 +10172,10 @@ ${recent}`;
   // choix.
   function adocApplyBlockStyleToElement(el, style, blockKind) {
     if (!el) return;
-    const fam = style && adocResolveBlockFontFamily(blockKind, style.fontPairId);
-    el.style.fontFamily = fam ? "'" + fam + "'" : '';
-    el.style.color = (style && style.color) || '';
-    const sizeDef = style && ADOC_BLOCK_FONT_SIZES.find(function (s) { return s.id === style.fontSize; });
-    el.style.fontSize = (sizeDef && sizeDef.cssValue) || '';
+    Object.values(ADOC_DIRECT_STYLE_FIELDS).forEach(function (p) { el.style.removeProperty(p); });
+    el.style.removeProperty('border-style');
+    const parsed = document.createElement('span'); parsed.style.cssText = adocEditorStyleCSS(style, blockKind);
+    Array.from(parsed.style).forEach(function (p) { el.style.setProperty(p, parsed.style.getPropertyValue(p)); });
   }
 
   function adocGoogleFontLinkTag(pair) {
@@ -9634,24 +10213,7 @@ ${recent}`;
   // appelée au changement diffère (état de sélection distinct par moteur depuis le Lot 1, jamais
   // fusionné, cf. adocWsSetupBlockEditing / adocWsSetupLegacyBlockEditing). "Réinitialiser" retire
   // tout le style en un geste, jamais un champ par champ à rétablir un par un.
-  function adocBuildBlockStyleControlsHTML(applyFn) {
-    const fontOptions = ADOC_LEGACY_FONT_PAIRS.map(function (f) {
-      return '<option value="' + f.id + '"' + (f.id === 'keep' ? ' selected' : '') + '>' + adocEsc(f.label) + '</option>';
-    }).join('');
-    const sizeOptions = ADOC_BLOCK_FONT_SIZES.map(function (s) {
-      return '<option value="' + s.id + '"' + (s.id === 'normal' ? ' selected' : '') + '>' + adocEsc(s.label) + '</option>';
-    }).join('');
-    return '<div class="cc-block-style-controls" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid var(--stone-200);width:100%;">' +
-      '<span class="cc-block-edit-label" style="width:100%;">Style de ce bloc (police, couleur, taille)</span>' +
-      '<select class="adoc-textarea" style="flex:1 1 170px;min-width:150px;padding:6px 8px;" ' +
-        'onclick="event.stopPropagation();" onchange="event.stopPropagation();window.' + applyFn + "('fontPairId', this.value);" + '">' + fontOptions + '</select>' +
-      '<input type="color" value="#273331" title="Couleur du texte" style="width:36px;height:30px;padding:2px;border:1px solid var(--stone-200);border-radius:6px;cursor:pointer;" ' +
-        'onclick="event.stopPropagation();" onchange="event.stopPropagation();window.' + applyFn + "('color', this.value);" + '">' +
-      '<select class="adoc-textarea" style="flex:1 1 110px;min-width:100px;padding:6px 8px;" ' +
-        'onclick="event.stopPropagation();" onchange="event.stopPropagation();window.' + applyFn + "('fontSize', this.value);" + '">' + sizeOptions + '</select>' +
-      '<button type="button" class="cc-clarity-other-btn" onclick="event.stopPropagation();window.' + applyFn + "('reset', null);" + '">Réinitialiser</button>' +
-    '</div>';
-  }
+  function adocBuildBlockStyleControlsHTML() { return adocEditorControlsHTML(); }
 
   // Vérifie que les DEUX noms de police imposés au modèle apparaissent, en toutes lettres,
   // quelque part À L'INTÉRIEUR d'un bloc <style> — jamais un remplacement partiel si l'un des
@@ -9713,6 +10275,7 @@ ${recent}`;
   };
 
   window.adocOpenLegacyReThemePanel = async function (storeKey) {
+    if (window._adocWsState.storeKey === storeKey) adocEditorSync();
     const art = window._adocArtifacts?.[storeKey];
     if (!art || art._adocStructuredDoc) return; // jamais pour un document du moteur structuré
     const modal = document.getElementById('cc-legacy-retheme-modal');
@@ -10452,6 +11015,11 @@ ${recent}`;
     const statusClass = b._status === 'needs-review' ? ' adoc-sc-needs-review' : '';
     const links = (b.validation && b.validation.citationLinks) || [];
     const cites = adocCiteFootnoteHTML(links);
+    if (b.style && b.style.fontPairId) adocEnsurePageGoogleFontLoaded(b.style.fontPairId);
+    const linksToLoad = document.createElement('div'); linksToLoad.innerHTML = adocEditorExportFonts({blocks:[b]});
+    linksToLoad.querySelectorAll('link').forEach(function(link) { if(!Array.from(document.head.querySelectorAll('link')).some(function(existing){return existing.href===link.href;}))document.head.appendChild(link); });
+    const extraCSS = adocBlockStyleToCSSText(b.style, b.type);
+    const extraStyle = extraCSS ? ' style="' + adocEsc(extraCSS) + '"' : '';
     switch (b.type) {
       case 'heading': {
         const lvl = Math.min(Math.max(b.content.level, 1), 3);
@@ -10469,32 +11037,28 @@ ${recent}`;
         if (b.style && b.style.fontPairId) adocEnsurePageGoogleFontLoaded(b.style.fontPairId);
         const headingStyleCSS = adocBlockStyleToCSSText(b.style, 'heading');
         const headingStyleAttr = headingStyleCSS ? ' style="' + adocEsc(headingStyleCSS) + '"' : '';
-        return '<h' + lvl + ' class="adoc-sc-block adoc-sc-heading' + statusClass + '" id="' + adocEsc(b.id) + '"' + headingStyleAttr + '><span class="adoc-sc-block-text">' + adocEsc(b.content.text) + '</span>' + cites + '</h' + lvl + '>';
+        return '<h' + lvl + ' class="adoc-sc-block adoc-sc-heading' + statusClass + '" id="' + adocEsc(b.id) + '"' + headingStyleAttr + '>' + adocEditorTextHTML(b, 'text', b.content.text) + cites + '</h' + lvl + '>';
       }
       case 'paragraph': {
         if (b.style && b.style.fontPairId) adocEnsurePageGoogleFontLoaded(b.style.fontPairId);
         const paragraphStyleCSS = adocBlockStyleToCSSText(b.style, 'paragraph');
         const paragraphStyleAttr = paragraphStyleCSS ? ' style="' + adocEsc(paragraphStyleCSS) + '"' : '';
-        return '<p class="adoc-sc-block adoc-sc-paragraph' + statusClass + '" id="' + adocEsc(b.id) + '"' + paragraphStyleAttr + '><span class="adoc-sc-block-text">' + adocEsc(b.content.text) + '</span>' + cites + '</p>';
+        return '<p class="adoc-sc-block adoc-sc-paragraph' + statusClass + '" id="' + adocEsc(b.id) + '"' + paragraphStyleAttr + '>' + adocEditorTextHTML(b, 'text', b.content.text) + cites + '</p>';
       }
       case 'callout':
-        return '<div class="adoc-sc-block adoc-sc-callout adoc-sc-callout-' + adocEsc(b.content.visualRole) + statusClass + '" id="' + adocEsc(b.id) + '" role="note">' + adocEsc(b.content.text) + cites + '</div>';
+        return '<div class="adoc-sc-block adoc-sc-callout adoc-sc-callout-' + adocEsc(b.content.visualRole) + statusClass + '" id="' + adocEsc(b.id) + '"' + extraStyle + ' role="note">' + adocEditorTextHTML(b, 'text', b.content.text) + cites + '</div>';
       case 'list': {
-        const tag = b.content.ordered ? 'ol' : 'ul';
-        const list = '<' + tag + ' class="adoc-sc-list-el">' +
-          b.content.items.map(function(it) { return '<li>' + adocEsc(it) + '</li>'; }).join('') + '</' + tag + '>';
+        const list = adocEditorRenderList(b);
         const note = cites ? '<div class="adoc-sc-cite-note">Sources :' + cites + '</div>' : '';
-        return '<div class="adoc-sc-block adoc-sc-list' + statusClass + '" id="' + adocEsc(b.id) + '">' + list + note + '</div>';
+        return '<div class="adoc-sc-block adoc-sc-list' + statusClass + '" id="' + adocEsc(b.id) + '"' + extraStyle + '>' + list + note + '</div>';
       }
       case 'table': {
-        const head = '<tr>' + b.content.headers.map(function(h) { return '<th>' + adocEsc(h) + '</th>'; }).join('') + '</tr>';
-        const rows = b.content.rows.map(function(r) { return '<tr>' + r.map(function(c) { return '<td>' + adocEsc(c) + '</td>'; }).join('') + '</tr>'; }).join('');
-        const table = '<table class="adoc-sc-table-el"><thead>' + head + '</thead><tbody>' + rows + '</tbody></table>';
+        const table = adocEditorRenderTable(b);
         const note = cites ? '<div class="adoc-sc-cite-note">Sources :' + cites + '</div>' : '';
-        return '<div class="adoc-sc-block adoc-sc-table' + statusClass + '" id="' + adocEsc(b.id) + '">' + table + note + '</div>';
+        return '<div class="adoc-sc-block adoc-sc-table' + statusClass + '" id="' + adocEsc(b.id) + '"' + extraStyle + '>' + table + note + '</div>';
       }
       case 'quote':
-        return '<blockquote class="adoc-sc-block adoc-sc-quote' + statusClass + '" id="' + adocEsc(b.id) + '">' + adocEsc(b.content.text) + cites + '</blockquote>';
+        return '<blockquote class="adoc-sc-block adoc-sc-quote' + statusClass + '" id="' + adocEsc(b.id) + '"' + extraStyle + '>' + adocEditorTextHTML(b, 'text', b.content.text) + cites + '</blockquote>';
       case 'image': {
         // data-pexels résolu ensuite par adocResolveImages (mécanisme existant et éprouvé,
         // cf. adocHandleReply) — jamais une URL en dur ici, jamais un nouveau mécanisme.
@@ -10625,8 +11189,8 @@ ${recent}`;
   function adocClinicalDocumentWrapHTML(doc, bodyHtml, tokens) {
     const cssVars = adocTokensToCSSVars(tokens);
     return '<!DOCTYPE html><html lang="' + adocEsc(doc.language || 'fr') + '"><head><meta charset="UTF-8">' +
-      '<title>' + adocEsc(doc.title) + ' — Studio Clinique</title>' +
-      '<style>:root{' + cssVars + '}' +
+      adocEditorExportFonts(doc) + '<title>' + adocEsc(doc.title) + ' — Studio Clinique</title>' +
+      '<style>:root{' + cssVars + '}' + '[data-cc-editor-leaf]{white-space:pre-wrap}.adoc-sc-table-el{font:inherit;color:inherit}.adoc-sc-table[style*="color:"] th{color:inherit}' +
       'body{max-width:760px;margin:40px auto;padding:0 20px;background:#fffdf9;}' +
       '.adoc-sc-doc{font-family:var(--adoc-sc-body-font,Georgia,serif);color:var(--adoc-sc-body-color,#2a2a28);line-height:1.65;}' +
       '.adoc-sc-heading{color:var(--adoc-sc-heading-color,#102f31);font-family:var(--adoc-sc-heading-font,Georgia,serif);}' +
@@ -11656,6 +12220,8 @@ ${recent}`;
       statusEl.className = 'cc-ws-status ready';
     }
 
+    adocWsClearBlockSelection(); adocWsClearLegacyBlockSelection();
+    _adocEditorRange = null; _adocEditorLeaf = null;
     document.getElementById('cc-ws-doc-card').innerHTML = renderedHtml;
     adocWsSetupBlockEditing(art); // UX-11 — sélection/correction ciblée d'un bloc, uniquement si blockEditing est vrai
     adocWsSetupLegacyBlockEditing(art); // Phase 1 (monobloc) — équivalent pour un document HTML libre de l'ancien moteur, uniquement si legacyBlockEditing est vrai
@@ -11689,6 +12255,7 @@ ${recent}`;
   });
 
   window.adocWsExport = async function () {
+    adocEditorSync();
     const storeKey = window._adocWsState.storeKey;
     const art = window._adocArtifacts?.[storeKey];
     if (!art || !art._adocCapabilities || !art._adocCapabilities.workspace) return;
@@ -11786,14 +12353,7 @@ ${recent}`;
     { type: 'image', label: 'Image' },
   ];
 
-  // Contenu initial minimal — investigation obligatoire de ce lot : le schéma existant impose
-  // déjà minLength:1 sur heading/paragraph/callout/quote.content.text et minItems:1 (+ items
-  // non vides) sur list.content.items ("contenu minimal vide" y est donc IMPOSSIBLE — un texte
-  // de remplacement discret, seconde option offerte par la demande, est la seule conforme au
-  // schéma existant, jamais un champ ou une contrainte inventée pour contourner ça). table
-  // accepte en revanche des cellules vides ('') : structure minimale réellement vide comme
-  // demandé (2 colonnes, 2 lignes). image : query/alt viennent de la description demandée à
-  // l'utilisatrice, jamais vides non plus (même contrainte de schéma).
+  // New blocks retain descriptive placeholders; 57f also accepts empty text while editing.
   function adocDefaultBlockContent(type, imageDescription) {
     switch (type) {
       case 'heading': return { text: 'Nouveau titre', level: 2 };
@@ -11814,12 +12374,12 @@ ${recent}`;
   // partir du maximum déjà utilisé dans le document ENTIER (numérotation globale, jamais par
   // type) — jamais de collision possible, même après plusieurs insertions successives.
   function adocNextBlockId(doc, type) {
-    let maxSeq = 0;
-    (doc.blocks || []).forEach(function (b) {
-      const m = /-(\d+)$/.exec(b.id || '');
-      if (m) { const n = parseInt(m[1], 10); if (n > maxSeq) maxSeq = n; }
-    });
-    return type + '-' + String(maxSeq + 1).padStart(2, '0');
+    const ids = new Set();
+    function walk(blocks) { (blocks || []).forEach(function(b){ids.add(b.id);if(b.content && b.content.blocks)walk(b.content.blocks);}); }
+    walk(doc.blocks);
+    let seq = 1; ids.forEach(function(id){const m=/-(\d+)$/.exec(id||'');if(m)seq=Math.max(seq,Number(m[1])+1);});
+    let id; do { id=type+'-'+String(seq++).padStart(2,'0'); } while(ids.has(id));
+    return id;
   }
 
   // Même vocabulaire de champs que ADOC_STRUCTURED_FICHE_TOOL (jamais un champ inventé) —
@@ -11968,10 +12528,8 @@ ${recent}`;
           '<button type="button" class="cc-clarity-other-btn" onclick="window.adocRequestBlockCorrectionFreeText(this.previousElementSibling)">Envoyer</button>' +
         '</div>' +
       '</div>' +
-      // Item 57c Lot 2 — heading/paragraph uniquement (même périmètre que l'édition directe du
-      // texte, Lot 1) : callout/list/table/quote n'ont ni span de texte dédié ni contentEditable,
-      // jamais concernés par ce lot.
-      (blockType === 'heading' || blockType === 'paragraph' ? adocBuildBlockStyleControlsHTML('adocApplyBlockStyle') : '') +
+      // 57f — the same controls apply to every directly editable block.
+      (ADOC_DIRECT_TYPES.includes(blockType) ? adocBuildBlockStyleControlsHTML('adocApplyBlockStyle') : '') +
       '<div class="cc-block-edit-result" hidden></div>';
   }
 
@@ -11979,28 +12537,8 @@ ${recent}`;
   // est réaffiché entièrement à chaque correction confirmée via adocOpenWorkspace, cf.
   // adocConfirmBlockCorrection, donc un écouteur par bloc serait de toute façon reperdu/refait
   // à chaque fois — la délégation évite simplement de le refaire manuellement à chaque bloc).
-  // Item 57c Lot 1 — synchronise le texte réellement affiché/édité (.adoc-sc-block-text) vers
-  // doc.blocks[i].content.text, appelée juste avant toute sauvegarde (jamais via adocOpenWorkspace,
-  // qui régénérerait le DOM et effacerait la frappe en cours). Le DOM contentEditable porte déjà
-  // la vérité de la frappe en temps réel — aucun écouteur input n'est nécessaire pour la
-  // "capturer" : lire son contenu au moment voulu suffit. Texte vidé : jamais écrit (le schéma
-  // JSON exige minLength:1 pour heading/paragraph, cf. rapport) — l'ancien texte est restauré
-  // dans le DOM à la place, comportement choisi et documenté (pas de blocage de sauvegarde avec
-  // message d'erreur, moins clair pour l'utilisatrice qu'une simple restauration silencieuse).
-  function adocSyncEditedStructuredBlocksToDoc(art) {
-    if (!art || !art._adocStructuredDoc) return;
-    const docCard = document.getElementById('cc-ws-doc-card');
-    if (!docCard) return;
-    docCard.querySelectorAll('.adoc-sc-block-text[contenteditable="true"]').forEach(function (span) {
-      const blockEl = span.closest('.adoc-sc-block');
-      if (!blockEl) return;
-      const block = (art._adocStructuredDoc.blocks || []).filter(function (b) { return b.id === blockEl.id; })[0];
-      if (!block) return;
-      const newText = (span.textContent || '').replace(/\s+/g, ' ').trim();
-      if (!newText) { span.textContent = block.content.text; return; }
-      block.content.text = newText;
-    });
-  }
+  // 57f — synchronize editable leaves, list levels and table geometry before persistence.
+  function adocSyncEditedStructuredBlocksToDoc(art) { adocEditorSyncStructured(art); }
 
   function adocWsSetupBlockEditing(art) {
     const docCard = document.getElementById('cc-ws-doc-card');
@@ -12008,15 +12546,7 @@ ${recent}`;
     const enabled = !!(art._adocCapabilities && art._adocCapabilities.blockEditing);
     docCard.classList.toggle('cc-ws-block-editable', enabled);
     if (!enabled) { docCard.onclick = null; return; } // ex. legacy-html — aucune interaction de sélection, comportement inchangé
-    // Item 57c Lot 1 — édition directe du texte, heading/paragraph uniquement (list/table/quote/
-    // callout hors périmètre de ce lot). Posé sur le span interne .adoc-sc-block-text (ajouté par
-    // adocRenderBlockHTML), jamais l'élément de bloc entier : les citations (cites) restent hors
-    // de la zone éditable — la séparation existe déjà dans le JSON (content.text vs
-    // validation.citationLinks, confirmé par l'investigation), il ne manquait que son exposition
-    // au DOM. Callout/list/table/quote ne sont jamais concernés ici (pas de span ajouté pour eux).
-    docCard.querySelectorAll('.adoc-sc-heading > .adoc-sc-block-text, .adoc-sc-paragraph > .adoc-sc-block-text').forEach(function (span) {
-      span.setAttribute('contenteditable', 'true');
-    });
+    // 57f — each textual leaf is prepared after the delegated click handler.
     docCard.onclick = function (e) {
       if (e.target.closest('.cc-block-edit-panel')) return; // clic dans le panneau — jamais réinterprété comme une (dé)sélection
       if (e.target.closest('.adoc-sc-cite')) return; // note de bas de page — laisse naviguer normalement
@@ -12027,9 +12557,9 @@ ${recent}`;
       const curArt = window._adocArtifacts && window._adocArtifacts[storeKey];
       if (!curArt || !curArt._adocStructuredDoc) return;
       const blockId = blockEl.id;
-      const block = (curArt._adocStructuredDoc.blocks || []).filter(function (b) { return b.id === blockId; })[0];
+      const block = adocFindEditableBlock(curArt._adocStructuredDoc, blockId);
       if (!block || ADOC_BLOCK_EDIT_TYPES.indexOf(block.type) === -1) return; // type non pris en charge dans ce lot (ex. image) — inerte
-      const isDirectlyEditable = block.type === 'heading' || block.type === 'paragraph';
+      const isDirectlyEditable = ADOC_DIRECT_TYPES.includes(block.type);
       if (current.blockId === blockId) {
         // Item 57c Lot 1 — un bloc directement éditable reste sélectionné au reclic : repositionner
         // le curseur dans le texte ne doit jamais faire disparaître le panneau "Corriger ce
@@ -12045,73 +12575,22 @@ ${recent}`;
       panel.setAttribute('role', 'group');
       panel.setAttribute('aria-label', 'Corriger ce passage sélectionné');
       panel.innerHTML = adocBuildBlockEditPanelHTML(block.type);
-      blockEl.insertAdjacentElement('afterend', panel);
+      (blockEl.matches('td,th') ? blockEl.closest('table') : blockEl).insertAdjacentElement('afterend', panel);
       window._adocBlockEditState = { storeKey: storeKey, blockId: blockId, panelEl: panel, pendingBlock: null, originalBlock: block };
       // Item 57c Lot 1 — ne vole plus le focus vers le champ libre pour un bloc directement
       // éditable : sinon le clic qui sélectionne le bloc empêcherait de facto d'y taper (le focus
       // partirait aussitôt dans le textarea de correction IA, à côté). Comportement inchangé pour
       // les autres types (callout/list/table/quote), jamais éditables directement dans ce lot.
+      adocEditorRefreshControls();
       const ta = panel.querySelector('.cc-block-edit-freetext');
       if (ta && !isDirectlyEditable) ta.focus();
     };
-    // Item 57c Lot 1 — jamais de saut de ligne dans un heading/paragraph édité directement : un
-    // bloc de ce type représente UN SEUL passage dans le schéma (une chaîne, pas un tableau de
-    // lignes) — Entrée est ignorée plutôt que de laisser le navigateur insérer un <div>/<br> que
-    // rien ne saurait re-sérialiser fidèlement dans ce champ texte.
-    docCard.onkeydown = function (e) {
-      if (e.key === 'Enter' && e.target.closest && e.target.closest('.adoc-sc-block-text[contenteditable="true"]')) e.preventDefault();
-    };
-    // Item 57c Lot 1 — restauration immédiate (pas seulement à la sauvegarde) si un bloc est
-    // vidé puis quitté : focusout (contrairement à blur) remonte par délégation jusqu'à docCard.
-    // adocSyncEditedStructuredBlocksToDoc (appelée avant toute sauvegarde) reste l'autorité
-    // finale — ce gestionnaire n'est qu'un retour visuel immédiat, pas un second mécanisme.
-    // IMPORTANT : `onfocusout` n'est PAS un attribut reconnu de GlobalEventHandlers (contrairement
-    // à onclick/onkeydown) — une simple affectation par propriété est inerte (aucune erreur, mais
-    // l'événement réel ne déclenche jamais rien, confirmé par test). addEventListener est
-    // obligatoire ici ; posé UNE SEULE FOIS pour la durée de vie de #cc-ws-doc-card (jamais
-    // réattaché à chaque ouverture, qui l'empilerait) — le gestionnaire résout storeKey/art à
-    // chaque appel, jamais capturé une fois pour toutes, donc valide pour tout document futur.
-    if (!docCard.dataset.adocFocusoutBound) {
-      docCard.dataset.adocFocusoutBound = '1';
-      docCard.addEventListener('focusout', function (e) {
-        const span = e.target.closest && e.target.closest('.adoc-sc-block-text[contenteditable="true"]');
-        if (!span) return;
-        const blockEl = span.closest('.adoc-sc-block');
-        const storeKey = window._adocWsState && window._adocWsState.storeKey;
-        const curArt = storeKey && window._adocArtifacts && window._adocArtifacts[storeKey];
-        if (!blockEl || !curArt || !curArt._adocStructuredDoc) return;
-        const block = (curArt._adocStructuredDoc.blocks || []).filter(function (b) { return b.id === blockEl.id; })[0];
-        if (!block) return;
-        const newText = (span.textContent || '').replace(/\s+/g, ' ').trim();
-        if (!newText) { span.textContent = block.content.text; return; }
-        block.content.text = newText;
-      });
-    }
+    docCard.onkeydown = null;
+    adocEditorInstall(docCard, false);
   }
 
-  // Item 57c Lot 2 — écrit DIRECTEMENT dans le même objet en mémoire que lit tout rendu ultérieur
-  // (_adocStructuredDoc.blocks[i].style), exactement le même principe que la synchronisation de
-  // texte du Lot 1 : jamais besoin d'un adocOpenWorkspace intercalé (qui effacerait une frappe de
-  // texte en cours dans ce même panneau). Le retour visuel est appliqué directement sur l'élément
-  // déjà affiché, sans re-rendu complet.
-  window.adocApplyBlockStyle = function (field, value) {
-    const st = window._adocBlockEditState;
-    if (!st.storeKey || !st.blockId) return;
-    const art = window._adocArtifacts && window._adocArtifacts[st.storeKey];
-    if (!art || !art._adocStructuredDoc) return;
-    const block = (art._adocStructuredDoc.blocks || []).filter(function (b) { return b.id === st.blockId; })[0];
-    if (!block || (block.type !== 'heading' && block.type !== 'paragraph')) return;
-    if (field === 'reset') {
-      delete block.style;
-    } else {
-      block.style = block.style || {};
-      if (field === 'fontPairId' && value === 'keep') delete block.style.fontPairId;
-      else block.style[field] = value;
-      if (!Object.keys(block.style).length) delete block.style;
-    }
-    if (field === 'fontPairId' && value && value !== 'keep') adocEnsurePageGoogleFontLoaded(value);
-    adocApplyBlockStyleToElement(document.getElementById(block.id), block.style, block.type);
-  };
+  // Compatibility entry point for the shared block style controls.
+  window.adocApplyBlockStyle = adocEditorStyleCompat;
 
   window.adocRequestBlockCorrectionFreeText = function (textareaEl) {
     const text = (textareaEl && textareaEl.value || '').trim();
@@ -12127,6 +12606,7 @@ ${recent}`;
   // Appel ciblé + aperçu avant/après — RIEN ne change dans le document tant que "Confirmer"
   // n'a pas été cliqué (cf. adocConfirmBlockCorrection), quelle que soit l'issue de cet appel.
   window.adocRequestBlockCorrection = async function (intentLabel, intentInstruction) {
+    adocEditorSync();
     const st = window._adocBlockEditState;
     if (!st.storeKey || !st.panelEl) return;
     const art = window._adocArtifacts && window._adocArtifacts[st.storeKey];
@@ -12168,6 +12648,7 @@ ${recent}`;
         ? Object.assign({}, block.validation || {}, { citationReviewRequired: true })
         : (block.validation || {});
       const newBlock = { id: block.id, type: block.type, content: newContent, citationIds: block.citationIds || [], validation: newValidation };
+      if (block.style) newBlock.style = Object.assign({}, block.style); // Manual block styling survives IA; obsolete rich text does not.
       st.pendingBlock = newBlock;
       resultEl.innerHTML =
         '<div class="cc-block-edit-diff">' +
@@ -12196,13 +12677,14 @@ ${recent}`;
     const art = window._adocArtifacts && window._adocArtifacts[st.storeKey];
     if (!art || !art._adocStructuredDoc) return;
     const doc = art._adocStructuredDoc;
-    const idx = (doc.blocks || []).findIndex(function (b) { return b.id === st.blockId; });
+    const siblings = adocEditorBlockContainer(doc, st.blockId) || [];
+    const idx = siblings.findIndex(function (b) { return b.id === st.blockId; });
     if (idx === -1) { adocWsClearBlockSelection(); return; }
     // Audit Codex A14 — conservé pour pouvoir annuler cette mutation précise si le rendu ci-dessous
     // échoue (cf. investigation du lot : la mutation intervenait auparavant avant toute vérification
     // que le rendu réussisse, et la sauvegarde suivait ensuite inconditionnellement).
-    const originalBlock = doc.blocks[idx];
-    doc.blocks[idx] = st.pendingBlock; // remplace CE bloc précis, tous les autres restent strictement identiques
+    const originalBlock = siblings[idx];
+    siblings[idx] = st.pendingBlock; // remplace CE bloc précis, tous les autres restent strictement identiques
     const storeKey = st.storeKey;
     adocWsClearBlockSelection();
     // Réutilise EXACTEMENT le rendu/l'ouverture de l'espace de travail déjà existants (aucune
@@ -12214,7 +12696,7 @@ ${recent}`;
     // silencieusement côté serveur.
     const renderOk = await window.adocOpenWorkspace(storeKey);
     if (!renderOk) {
-      doc.blocks[idx] = originalBlock;
+      siblings[idx] = originalBlock;
       return;
     }
     // Réutilise EXACTEMENT le mécanisme de sauvegarde déjà existant et déjà testé (UX-10A) —
@@ -12288,7 +12770,8 @@ ${recent}`;
     const art = window._adocArtifacts && window._adocArtifacts[st.storeKey];
     if (!art || !art._adocStructuredDoc) return;
     const doc = art._adocStructuredDoc;
-    const idx = (doc.blocks || []).findIndex(function (b) { return b.id === st.blockId; });
+    const siblings = adocEditorBlockContainer(doc, st.blockId) || [];
+    const idx = siblings.findIndex(function (b) { return b.id === st.blockId; });
     if (idx === -1) { adocWsClearBlockSelection(); return; }
     const newBlock = {
       id: adocNextBlockId(doc, type),
@@ -12298,11 +12781,11 @@ ${recent}`;
       validation: {},
     };
     const insertIdx = direction === 'before' ? idx : idx + 1;
-    doc.blocks.splice(insertIdx, 0, newBlock);
+    siblings.splice(insertIdx, 0, newBlock);
     const storeKey = st.storeKey;
     const newId = newBlock.id;
     adocWsClearBlockSelection();
-    await window.adocOpenWorkspace(storeKey);
+    if (!await window.adocOpenWorkspace(storeKey)) { siblings.splice(insertIdx, 1); return; }
     if (ADOC_BLOCK_EDIT_TYPES.indexOf(type) !== -1) {
       const el = document.getElementById(newId);
       if (el) el.click(); // même sélection que si l'utilisatrice venait de cliquer ce bloc
@@ -12317,8 +12800,8 @@ ${recent}`;
     const saveBtn = document.getElementById('cc-ws-save-btn');
     if (!statusEl) return;
     const saved = !!(art && art._adocClinicalDocumentId);
-    statusEl.textContent = saved ? 'Enregistré' : 'Non enregistré';
-    statusEl.className = 'cc-ws-save-status ' + (saved ? 'saved' : 'unsaved');
+    statusEl.textContent = art && art._ccEditorDirty ? 'Modifications non enregistrées' : saved ? 'Enregistré' : 'Non enregistré';
+    statusEl.className = 'cc-ws-save-status ' + (saved && !art._ccEditorDirty ? 'saved' : 'unsaved');
     if (deleteBtn) deleteBtn.hidden = !saved;
     if (saveBtn) {
       const label = saveBtn.querySelector('span');
@@ -12383,7 +12866,7 @@ ${recent}`;
   // n'est PAS détecté (aucune classe déterministe ne lui est aujourd'hui imposée) ;
   // étendre le prompt système de génération pour l'imposer serait un chantier séparé,
   // hors périmètre de ce lot (0D — un seul sujet : étendre le sélecteur existant).
-  var ADOC_LEGACY_BLOCK_SELECTOR = 'h1,h2,h3,h4,h5,h6,p,ul,ol,td,th,blockquote,.adoc-sc-callout';
+  var ADOC_LEGACY_BLOCK_SELECTOR = 'h1,h2,h3,h4,h5,h6,p,ul,ol,table,blockquote,[role="note"],.callout,.encadre,.adoc-sc-callout,td,th';
 
   // Ne retient que l'élément le plus englobant : un <p> ou une <ul> imbriqué
   // dans un <td>/<th> ou dans une autre <ul>/<ol> déjà retenue n'est PAS
@@ -12393,7 +12876,7 @@ ${recent}`;
   function adocWsCollectLegacyBlocks(root) {
     if (!root) return [];
     return Array.prototype.filter.call(root.querySelectorAll(ADOC_LEGACY_BLOCK_SELECTOR), function (el) {
-      return !(el.parentElement && el.parentElement.closest(ADOC_LEGACY_BLOCK_SELECTOR));
+      return !el.closest('.cc-block-edit-panel') && !(el.parentElement && el.parentElement.closest(ADOC_LEGACY_BLOCK_SELECTOR));
     });
   }
 
@@ -12407,6 +12890,8 @@ ${recent}`;
     if (/^h[1-6]$/.test(tag)) return 'heading';
     if (tag === 'blockquote') return 'quote';
     if (tag === 'ul' || tag === 'ol') return 'list';
+    if (tag === 'table') return 'table';
+    if (el.matches('[role="note"],.callout,.encadre')) return 'callout';
     if (tag === 'td' || tag === 'th') return 'cell';
     return 'paragraph';
   }
@@ -12467,9 +12952,8 @@ ${recent}`;
           '<button type="button" class="cc-clarity-other-btn" onclick="window.adocRequestLegacyBlockCorrectionFreeText(this.previousElementSibling)">Envoyer</button>' +
         '</div>' +
       '</div>' +
-      // Item 57c Lot 2 — heading/paragraph uniquement, même périmètre que l'édition directe du
-      // texte (Lot 1) : list/cell n'ont jamais été rendus contentEditable, jamais concernés ici.
-      (kind === 'heading' || kind === 'paragraph' ? adocBuildBlockStyleControlsHTML('adocApplyLegacyBlockStyle') : '') +
+      // 57f — shared direct editing controls, with legacy HTML persistence.
+      (['heading','paragraph','quote','callout','list','table','cell'].includes(kind) ? adocBuildBlockStyleControlsHTML('adocApplyLegacyBlockStyle') : '') +
       '<div class="cc-block-edit-result" hidden></div>';
   }
 
@@ -12477,42 +12961,8 @@ ${recent}`;
   // adocWsSetupBlockEditing (jamais un écouteur par bloc), fonction ENTIÈREMENT
   // SÉPARÉE. Assigne les data-cc-legacy-block-id EN MÉMOIRE à chaque ouverture
   // (point 2), sur les éléments retenus par adocWsCollectLegacyBlocks (point 1).
-  // Item 57c Lot 1 — re-sérialisation legacy : réutilise EXACTEMENT le patron déjà établi par
-  // adocConfirmLegacyBlockCorrection (re-parser art.html à froid, jamais lire le DOM affiché
-  // comme un document complet — celui-ci a perdu <html>/<head>/<body> par aplatissement du
-  // fragment, cf. investigation Phase 1) : les blocs éditables du DOM VIVANT (qui portent la
-  // frappe réelle) et ceux du re-parsing de art.html (encore l'ancien texte) se correspondent un
-  // à un par position (même structure, même ordre — une édition de texte ne change jamais le
-  // nombre ni l'ordre des éléments), jamais par un identifiant fragile lb-N réinventé à froid.
-  function adocSyncEditedLegacyBlocksToHtml(art) {
-    if (!art || art._adocGenerationEngine !== 'legacy-html') return;
-    const docCard = document.getElementById('cc-ws-doc-card');
-    if (!docCard) return;
-    const liveBlocks = adocWsCollectLegacyBlocks(docCard);
-    if (!liveBlocks.some(function (el) { return el.getAttribute('contenteditable') === 'true'; })) return;
-    try {
-      const parsed = new DOMParser().parseFromString(art.html || '', 'text/html');
-      if (!parsed || !parsed.body) return;
-      const parsedBlocks = adocWsCollectLegacyBlocks(parsed.body);
-      liveBlocks.forEach(function (el, i) {
-        if (el.getAttribute('contenteditable') !== 'true') return;
-        const target = parsedBlocks[i];
-        if (!target) return;
-        target.innerHTML = el.innerHTML;
-        // Item 57c Lot 2 — l'attribut style= (police/couleur/taille de bloc) vit sur l'ÉLÉMENT
-        // lui-même, jamais dans son innerHTML : la ligne ci-dessus ne le reporterait jamais seule.
-        // Obstacle prioritaire confirmé par investigation avant ce lot : sans cette ligne, tout
-        // style de bloc appliqué en direct serait silencieusement perdu à la toute première
-        // sauvegarde qui suit (même risque que le texte au Lot 1, jamais corrigé pour le style).
-        const liveStyle = el.getAttribute('style');
-        if (liveStyle) target.setAttribute('style', liveStyle); else target.removeAttribute('style');
-      });
-      art.html = '<!DOCTYPE html>\n' + parsed.documentElement.outerHTML;
-      if (art.blobUrl) { URL.revokeObjectURL(art.blobUrl); art.blobUrl = URL.createObjectURL(new Blob([art.html], { type: 'text/html;charset=utf-8' })); }
-    } catch (e) {
-      console.warn('[Édition directe legacy] Re-sérialisation impossible, texte édité non synchronisé:', e && e.message);
-    }
-  }
+  // 57f — copy edited blocks to canonical HTML using their pre-edit positional keys.
+  function adocSyncEditedLegacyBlocksToHtml(art) { adocEditorSyncLegacy(art); }
 
   function adocWsSetupLegacyBlockEditing(art) {
     const docCard = document.getElementById('cc-ws-doc-card');
@@ -12526,16 +12976,7 @@ ${recent}`;
     // document structuré (régression réelle trouvée en testant, corrigée ici).
     if (!enabled) return;
     const blocks = adocWsCollectLegacyBlocks(docCard);
-    blocks.forEach(function (el, i) {
-      el.setAttribute('data-cc-legacy-block-id', 'lb-' + i);
-      // Item 57c Lot 1 — édition directe, heading/paragraph uniquement (jamais list/table/cell —
-      // hors périmètre de ce lot). Les citations <sup> vivent DANS le même élément ici
-      // (contrairement au structuré) : la perte du garde-fou de similarité si elles sont
-      // modifiées à la frappe est un risque ACCEPTÉ explicitement par Christophe, aucune
-      // protection supplémentaire construite (cf. rapport d'investigation).
-      const kind = adocLegacyBlockKind(el);
-      if (kind === 'heading' || kind === 'paragraph') el.setAttribute('contenteditable', 'true');
-    });
+    blocks.forEach(function(el,i){el.setAttribute('data-cc-legacy-block-id','lb-'+i);});
     docCard.onclick = function (e) {
       if (e.target.closest('.cc-block-edit-panel')) return;
       if (e.target.closest('sup')) return; // note de bas de page — laisse naviguer normalement, jamais réinterprétée comme une sélection
@@ -12547,7 +12988,7 @@ ${recent}`;
       if (!curArt || curArt._adocGenerationEngine !== 'legacy-html') return;
       const blockKey = blockEl.getAttribute('data-cc-legacy-block-id');
       const kind = adocLegacyBlockKind(blockEl);
-      const isDirectlyEditable = kind === 'heading' || kind === 'paragraph';
+      const isDirectlyEditable = true;
       if (current.blockKey === blockKey) {
         // Item 57c Lot 1 — même correctif de conflit de clic que le moteur structuré : un bloc
         // directement éditable reste sélectionné au reclic, jamais désélectionné par une simple
@@ -12562,50 +13003,23 @@ ${recent}`;
       panel.setAttribute('role', 'group');
       panel.setAttribute('aria-label', 'Corriger ce passage sélectionné');
       panel.innerHTML = adocBuildLegacyBlockEditPanelHTML(kind);
-      blockEl.insertAdjacentElement('afterend', panel);
+      (blockEl.matches('td,th') ? blockEl.closest('table') : blockEl).insertAdjacentElement('afterend', panel);
       window._adocLegacyBlockEditState = {
         storeKey: storeKey, blockKey: blockKey, panelEl: panel, el: blockEl,
         kind: kind, pendingHtml: null, pendingDropsCitations: false, styleDraft: {},
       };
       // Item 57c Lot 1 — ne vole plus le focus pour un bloc directement éditable (même motif que
       // le moteur structuré) : sinon la sélection empêcherait de facto de taper dans le texte.
+      adocEditorRefreshControls();
       const ta = panel.querySelector('.cc-block-edit-freetext');
       if (ta && !isDirectlyEditable) ta.focus();
     };
-    // Item 57c Lot 1 — même garde-fou "un seul passage, jamais de saut de ligne" que le moteur
-    // structuré, pour rester cohérent entre les deux (0F) : Entrée est ignorée dans un
-    // heading/paragraph édité directement.
-    docCard.onkeydown = function (e) {
-      if (e.key === 'Enter' && e.target.closest && e.target.closest('[data-cc-legacy-block-id][contenteditable="true"]')) e.preventDefault();
-    };
+    docCard.onkeydown = null;
+    adocEditorInstall(docCard, true);
   }
 
-  // Item 57c Lot 2 — applique IMMÉDIATEMENT sur l'élément DOM vivant (retour visuel instantané,
-  // même geste que la frappe directe du Lot 1). art.html (chaîne figée, source de vérité legacy)
-  // n'est JAMAIS touché ici — la re-sérialisation déjà construite au Lot 1
-  // (adocSyncEditedLegacyBlocksToHtml, étendue pour ce lot) reporte cet attribut style= dans
-  // art.html à la sauvegarde, jamais avant (même règle que le texte : aucun reparsing pendant la
-  // frappe/le choix en cours, qui l'effacerait). st.styleDraft accumule les choix de CE panneau
-  // (police/couleur/taille peuvent être changés séparément, dans n'importe quel ordre) — jamais
-  // une lecture fragile en sens inverse depuis le style déjà appliqué sur l'élément.
-  window.adocApplyLegacyBlockStyle = function (field, value) {
-    const st = window._adocLegacyBlockEditState;
-    if (!st.storeKey || !st.el || (st.kind !== 'heading' && st.kind !== 'paragraph')) return;
-    const art = window._adocArtifacts && window._adocArtifacts[st.storeKey];
-    if (!art || art._adocGenerationEngine !== 'legacy-html') return;
-    if (field === 'reset') {
-      st.styleDraft = {};
-    } else if (field === 'fontPairId' && value === 'keep') {
-      delete st.styleDraft.fontPairId;
-    } else {
-      st.styleDraft[field] = value;
-    }
-    if (field === 'fontPairId' && value && value !== 'keep') {
-      art.html = adocEnsureLegacyBlockFontLoaded(art.html, value); // persistance (art.html reconstruit tel quel à la réouverture)
-      adocEnsurePageGoogleFontLoaded(value); // aperçu immédiat dans la page hôte, sans attendre la sauvegarde
-    }
-    adocApplyBlockStyleToElement(st.el, st.styleDraft, st.kind);
-  };
+  // Compatibility entry point for the shared block style controls.
+  window.adocApplyLegacyBlockStyle = adocEditorStyleCompat;
 
   window.adocRequestLegacyBlockCorrectionFreeText = function (textareaEl) {
     const text = (textareaEl && textareaEl.value || '').trim();
@@ -12623,6 +13037,7 @@ ${recent}`;
   // adocDescribeBlockContent, adapté à un élément DOM). Les <sup> sont retirés
   // AVANT description (jamais envoyés au modèle).
   function adocDescribeLegacyBlockContent(el, kind) {
+    if (kind === 'table') return 'Tableau :\n' + Array.from(el.rows).map(function (r) { return Array.from(r.cells).map(function (c) { return adocStripCitationSups(c.innerHTML).text; }).join(' | '); }).join('\n');
     if (kind === 'list') {
       const items = Array.prototype.map.call(el.querySelectorAll(':scope > li'), function (li) {
         return adocStripCitationSups(li.innerHTML).text;
@@ -12636,6 +13051,7 @@ ${recent}`;
   }
 
   window.adocRequestLegacyBlockCorrection = async function (intentLabel, intentInstruction) {
+    adocEditorSync();
     const st = window._adocLegacyBlockEditState;
     if (!st.storeKey || !st.panelEl || !st.el) return;
     const controlsEl = st.panelEl.querySelector('.cc-block-edit-controls');
@@ -12660,7 +13076,12 @@ ${recent}`;
       // document n'en a pas ; un badge visuel discret directement dans le document en tient lieu
       // (cf. .cc-legacy-citation-flag), inspiré du principe sans le recopier aveuglément.
       let newPlainForCompare, newHtmlBody, originalSups, originalPlainForCompare;
-      if (kind === 'list') {
+      if (kind === 'table') {
+        const orig = adocStripCitationSups(st.el.innerHTML); originalSups = orig.sups; originalPlainForCompare = orig.text;
+        const headers = raw.headers || [], rows = raw.rows || [];
+        newPlainForCompare = headers.concat(...rows).join(' ');
+        newHtmlBody = '<thead><tr>' + headers.map(function (t) { return '<th>' + adocEsc(t) + '</th>'; }).join('') + '</tr></thead><tbody>' + rows.map(function (r) { return '<tr>' + r.map(function (t) {return '<td>' + adocEsc(t) + '</td>';}).join('') + '</tr>'; }).join('') + '</tbody>';
+      } else if (kind === 'list') {
         const items = (raw.items || []).filter(Boolean);
         const liOriginals = Array.prototype.map.call(st.el.querySelectorAll(':scope > li'), function (li) { return adocStripCitationSups(li.innerHTML); });
         originalSups = [].concat.apply([], liOriginals.map(function (o) { return o.sups; }));
@@ -12685,7 +13106,9 @@ ${recent}`;
         // elles-mêmes), regroupées à la fin du passage corrigé : leur position exacte dans la
         // phrase d'origine n'est pas reconstituable avec confiance après réécriture — les faire
         // disparaître silencieusement serait pire que cette simplification assumée.
-        if (kind === 'list') {
+        if (kind === 'table') {
+          newHtmlBody = newHtmlBody.replace(/(<\/(?:td|th)>)(?![\s\S]*<\/(?:td|th)>)/, ' ' + originalSups.join(' ') + '$1');
+        } else if (kind === 'list') {
           const lis = newHtmlBody.match(/<li>[\s\S]*?<\/li>/g) || [];
           if (lis.length) lis[lis.length - 1] = lis[lis.length - 1].replace('</li>', ' ' + originalSups.join(' ') + '</li>');
           newHtmlBody = lis.join('');
@@ -12749,7 +13172,7 @@ ${recent}`;
         flag.className = 'cc-legacy-citation-flag';
         flag.title = "Passage corrigé en profondeur — citations d'origine non reconduites, à sourcer à nouveau si besoin.";
         flag.textContent = '⚠';
-        target.appendChild(flag);
+        (target.tagName === 'TABLE' ? target.caption || target.createCaption() : target).appendChild(flag);
       }
       art.html = '<!DOCTYPE html>\n' + parsed.documentElement.outerHTML;
       if (art.blobUrl) { URL.revokeObjectURL(art.blobUrl); art.blobUrl = URL.createObjectURL(new Blob([art.html], { type: 'text/html;charset=utf-8' })); }
@@ -12895,6 +13318,7 @@ ${recent}`;
     try {
       const workerUrl = adocGetWorkerUrl();
       const apiKey = adocGetApiKey();
+      const revision = art._ccEditorRevision || 0;
       const content = adocBuildClinicalDocumentContent(art);
       // Audit correctif, Partie B point 12 — même mécanisme UX-10A Étape 2 pour les deux moteurs
       // (POST création puis POST .../versions en re-sauvegarde), jamais dupliqué : seuls le
@@ -12923,6 +13347,7 @@ ${recent}`;
         const data = await r.json();
         art._adocClinicalVersionId = data.version_id;
       }
+      if ((art._ccEditorRevision || 0) === revision) art._ccEditorDirty = false;
       adocUpdateSaveStatusUI(art);
     } catch (e) {
       alert('Impossible d’enregistrer ce document pour le moment : ' + (e && e.message || 'erreur inconnue') + '. Rien n’a été perdu, vous pouvez réessayer.');
@@ -13200,7 +13625,7 @@ ${recent}`;
        honnêtement ce qui ne l'est pas pour CE document précis. -->
   <div class="cc-ws-legacy-banner" id="cc-ws-legacy-banner" role="status" hidden>
     <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-info"></use></svg>
-    <span>Ce document a été généré par le moteur de secours (HTML) suite à une indisponibilité du moteur structuré. Vous pouvez l'enregistrer et l'exporter normalement, mais les citations fines et l'édition par bloc ne sont pas disponibles pour ce document.</span>
+    <span>Document HTML : l’édition directe, la correction IA, l’enregistrement et l’export sont disponibles. Les citations ne disposent pas du contrôle fin du moteur structuré.</span>
   </div>
   <div class="cc-ws-body">
     <aside class="cc-ws-panel" id="cc-ws-panel">
