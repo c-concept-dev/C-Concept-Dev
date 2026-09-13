@@ -57942,7 +57942,21 @@ FORMAT JSON (strictement, pas de backticks) :
       const errText = await pptxRes.text();
       return jsonErr("PPTX generation failed: " + errText.substring(0, 300), 500);
     }
-    const pptxBuf = await pptxRes.arrayBuffer();
+    // Audit Codex A11 — handleGeneratePPTX ne retourne JAMAIS les octets bruts du fichier : comme
+    // TOUTES les routes de génération de fichier (storeAndReturn, déjà utilisé à l'identique par
+    // /generate-xlsx, /generate-pdf, etc., ET par le client réel via /generate-pptx directement —
+    // studio-clinique.html ~L6265/6770), il retourne un POINTEUR JSON {id, url, ...} vers le
+    // fichier stocké dans CLONE_KV, jamais le fichier lui-même. Lire pptxRes comme si c'étaient
+    // les octets produisait un ".pptx" qui n'était en réalité que ce JSON — confirmé par
+    // reproduction avant ce correctif. Contrat corrigé ICI SEULEMENT (jamais dans
+    // handleGeneratePPTX/storeAndReturn, dont le contrat existant reste utilisé et correct
+    // ailleurs) : va chercher le VRAI contenu binaire via le même mécanisme déjà utilisé par
+    // handleGetFile pour cette même route de stockage — jamais une nouvelle logique dupliquée.
+    const pptxMeta = await pptxRes.json();
+    const pptxBuf = await env2.CLONE_KV.get("file:" + pptxMeta.id, { type: "arrayBuffer" });
+    if (!pptxBuf) {
+      return jsonErr("PPTX generation failed: fichier introuvable apr\xE8s stockage (id=" + pptxMeta.id + ")", 500);
+    }
     if (return_json) {
       return json({
         ok: true,
