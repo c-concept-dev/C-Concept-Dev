@@ -3610,15 +3610,16 @@
       : 'chat';
     // Item 53 — 'tableau' ne force plus xlsx par défaut : seul un mot-clé Excel explicite le fait.
     const _explicitXlsxRequested = ADOC_XLSX_EXPLICIT_RE.test(text);
-    // Item 56 Étape 1 — document/cours restent 'html-visual' ici (document/cours NE sont PAS
-    // dans ce lot : adocLongDoc, chapitrage, reporté à item 56bis, cf. rapport). script/liens
-    // rejoignent 'html' — même mécanisme que tableau (déterministe, jamais laissé au hasard de
-    // plan.output_format côté planner LLM).
+    // Item 56 Étape 1 élargie (13 septembre) — AUCUNE EXCEPTION : document/cours rejoignent
+    // désormais 'html' directement (jamais 'html-visual', qui n'obtient jamais _adocCapabilities
+    // — le gate d'adocFinalizeGeneration est fmt==='html' strict, cf. rapport). script/liens/
+    // carrousel restent 'html' — même mécanisme déterministe que tableau, jamais laissé au
+    // hasard de plan.output_format côté planner LLM.
     const _fT = _iT === 'tableau'
       ? (_explicitXlsxRequested ? 'xlsx' : 'html')
-      : ['script','liens'].includes(_iT)
+      : ['script','liens','document','cours','carrousel','fiche'].includes(_iT)
       ? 'html'
-      : ({document:'html-visual',cours:'html-visual',fiche:'html',carrousel:'html',chat:'chat'}[_iT]||'chat');
+      : 'chat';
     const _tw = text.replace(/[^a-z0-9À-ɏ\s]/gi,'').trim().split(/\s+/).slice(0,4).join(' ');
     const _w0 = (text.split(/\s+/).find(w => w.length > 4) || 'therapie').replace(/[^a-zÀ-ɏ]/gi,'');
     // LOT 30 — demande visuelle pure : orthogonal à _iT ci-dessus, jamais un remplacement.
@@ -4388,31 +4389,43 @@ RÈGLES ABSOLUES :
     // CC comprend son contexte d'execution et adapte sa sortie naturellement.
     // MODE CHAT    : sortie texte/Markdown  → app hote gere rendu, citations, CSS
     // MODE ARTEFACT: sortie HTML autonome   → fichier seul dans navigateur, self-contained
-    // FIX-XLSX-INTENT : intent comparatif force xlsx (inchangé, hors périmètre item 53)
     // Item 53 — intent tableau produit désormais 'html' (rendu magazine) par défaut ; 'xlsx'
     // uniquement si plan._explicitXlsxRequested est vrai (mot-clé Excel/xls/xlsx/tableur détecté
     // sur le texte brut par adocBuildFallbackPlan/adocMultiPlan, cf. ADOC_XLSX_EXPLICIT_RE) —
     // décision indépendante de plan.output_format (qui peut rester 'xlsx' côté planner LLM, cf.
     // §5 du plannerSystem, jamais corrigé ici : cette branche prime toujours pour l'intent tableau).
-    // Item 56 Étape 1 — 'script'/'liens' rejoignent le même override déterministe que 'tableau'
-    // (fmt='html' garanti, jamais laissé au hasard de plan.output_format côté planner LLM —
-    // reproduction avant correctif : un script/liens dont le LLM jugeait lui-même
-    // output_format='chat' ne produisait AUCUN artefact, aucune personnalisation possible).
-    // document/cours restent 'html-visual' ici : hors périmètre de ce lot (adocLongDoc, chapitrage
-    // par continuation, incompatible avec le modèle d'artefact unique — reporté à item 56bis).
+    // Item 56 Étape 1 — 'script'/'liens' rejoignent le même override déterministe que 'tableau'.
+    // Item 56 Étape 1 élargie (13 septembre, décision Christophe SANS AMBIGUÏTÉ, "AUCUNE
+    // EXCEPTION") — comparatif/cours/document/carrousel rejoignent à leur tour ce même override :
+    // - comparatif : ne force plus xlsx (ancien _intentOverridesXlsx, supprimé) — rejoint tableau
+    //   dans l'exception _explicitXlsxRequested (même détection texte brut). xlsx redevient un
+    //   choix d'export après coup (étape 2, pas ce lot), jamais le format de génération.
+    // - cours/document : fmt='html' DIRECT, jamais 'html-visual' (l'ancien choix, hors périmètre
+    //   du lot précédent) — investigation de CE lot : 'html-visual' est livré comme fmt:'zip'
+    //   (cf. adocHandleReply, branche "html-visual → ZIP"), qui ne satisfait JAMAIS le gate
+    //   fmt==='html' strict d'adocFinalizeGeneration (~L4771) : _adocCapabilities n'était donc
+    //   JAMAIS posé pour ces deux intents, même hors bug. 'html' direct corrige les deux à la
+    //   fois. Root cause du bug du 13 septembre (cours→pptx avec badges emoji, contenu divergent
+    //   de l'aperçu — cf. rapport) : _isLongDoc exclut déjà pdf/docx/pptx/xlsx de son propre
+    //   périmètre (~L5393), donc un output_format='pptx' deviné librement par le planner LLM
+    //   retombait sur ce pipeline standard SANS override — jamais une génération autonome
+    //   séparée (aucune deuxième recherche RAG dans ce code), mais une même génération dont deux
+    //   dérivations divergent radicalement (aperçu html riche vs .pptx aplati par
+    //   adocParsePptxSlides, sans jamais passer par adocStripEmoji contrairement au chemin
+    //   HTML-first) — mécanisme supprimé ici, pas patché.
+    // - carrousel : faille latente identique à cours, confirmée par reproduction (jamais observée
+    //   en usage réel, mais output_format='pptx' deviné par le planner pour une demande de
+    //   carrousel — mots-clés "présentation slides"/"deck" du plannerSystem — aurait déclenché
+    //   le même mécanisme). Refermée préventivement, même correctif.
     const _fmtFromIntent = {
-      comparatif: 'xlsx',
-      cours: 'html-visual', document: 'html-visual',
       fiche: 'html', bibliographie: 'html',
       supervision: 'chat', analyse_cas: 'chat',
       intervention: 'chat', conceptualisation: 'chat', chat: 'chat'
     };
-    const _intentOverridesXlsx = plan?.intent === 'comparatif';
-    const _ADOC_HTML_FORCED_INTENTS = ['tableau', 'script', 'liens'];
+    const _ADOC_HTML_FORCED_INTENTS = ['tableau', 'script', 'liens', 'comparatif', 'cours', 'document', 'carrousel'];
+    const _ADOC_XLSX_ELIGIBLE_INTENTS = ['tableau', 'comparatif'];
     const fmt = _ADOC_HTML_FORCED_INTENTS.includes(plan?.intent)
-      ? (plan?.intent === 'tableau' && plan?._explicitXlsxRequested ? 'xlsx' : 'html')
-      : _intentOverridesXlsx
-      ? 'xlsx'
+      ? (_ADOC_XLSX_ELIGIBLE_INTENTS.includes(plan?.intent) && plan?._explicitXlsxRequested ? 'xlsx' : 'html')
       : (plan?.output_format || _fmtFromIntent[plan?.intent] || 'chat');
 
     const _photoCtx = 'PHOTOS — systeme de resolution automatique :\n'
@@ -5883,29 +5896,27 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     const _FMT_PRIORITY = ['xlsx','pptx','docx','pdf','zip','html-visual','html','txt','chat'];
     const _fmtNorm = _fmtRaw.split(/[|,;]/).map(s => s.trim())
       .find(v => _FMT_PRIORITY.includes(v)) || 'chat';
-    // FIX-INTENT-FMT-OVERRIDE : override uniquement si format implicite (chat/html)
-    // Ne jamais écraser un format explicite du planner (pdf/docx/pptx/xlsx/zip/html-visual)
-    const _EXPLICIT_FORMATS = ['pdf','docx','pptx','xlsx','zip','html-visual'];
-    const _INTENT_FMT_OVERRIDE = {
-      comparatif: 'xlsx',
-      cours: 'html-visual', document: 'html-visual'
-    };
     // Item 53 — intent tableau décide TOUJOURS lui-même entre 'html' et 'xlsx' via
     // plan._explicitXlsxRequested (même détection texte brut qu'en Site 2, adocBuildSystemPrompt) :
     // prioritaire sur _fmtNorm, qui peut encore valoir 'xlsx' côté planner LLM (§5 plannerSystem,
     // jamais corrigé ce lot) même sans mot-clé Excel réellement présent dans la demande — sans
     // cette priorité, ce format LLM serait à tort traité comme "explicite" ci-dessous et le
     // contenu HTML magazine réellement généré (cf. Site 2) serait livré via le mauvais pipeline.
-    // Item 56 Étape 1 — 'script'/'liens' rejoignent ce même override déterministe : sans lui, un
-    // output_format LLM 'chat' (reproduit avant correctif) serait traité comme définitif ici
-    // (absent de _EXPLICIT_FORMATS, mais _INTENT_FMT_OVERRIDE n'avait aucune entrée non plus) et
-    // ne livrerait jamais l'artefact HTML pourtant déjà généré côté Site 2.
-    const _ADOC_HTML_FORCED_INTENTS = ['tableau', 'script', 'liens'];
+    // Item 56 Étape 1 — 'script'/'liens' rejoignent ce même override déterministe.
+    // Item 56 Étape 1 élargie (13 septembre) — comparatif/cours/document/carrousel rejoignent à
+    // leur tour ce même override DUR (prioritaire même sur un format "explicite" du planner LLM,
+    // contrairement à l'ancien _INTENT_FMT_OVERRIDE qui ne s'appliquait qu'en format implicite —
+    // supprimé, désormais entièrement superflu) : plus aucun output_format deviné librement par
+    // le planner (pptx/docx/xlsx/pdf) ne peut faire dévier ces intents du HTML personnalisable —
+    // c'est exactement la cause racine du bug du 13 septembre (cf. Site 2 pour le détail complet
+    // du mécanisme). comparatif rejoint l'exception _explicitXlsxRequested de tableau (xlsx reste
+    // un choix d'export, jamais le format de génération, sauf mention explicite Excel/xlsx dans
+    // la demande) ; cours/document/carrousel n'ont aucune exception, jamais laissés au hasard.
+    const _ADOC_HTML_FORCED_INTENTS = ['tableau', 'script', 'liens', 'comparatif', 'cours', 'document', 'carrousel'];
+    const _ADOC_XLSX_ELIGIBLE_INTENTS = ['tableau', 'comparatif'];
     const fmt = _ADOC_HTML_FORCED_INTENTS.includes(plan?.intent)
-      ? (plan?.intent === 'tableau' && plan?._explicitXlsxRequested ? 'xlsx' : 'html')
-      : _EXPLICIT_FORMATS.includes(_fmtNorm)
-      ? _fmtNorm  // format explicite → respecter tel quel
-      : (_INTENT_FMT_OVERRIDE[plan?.intent] || _fmtNorm); // format implicite → intent override
+      ? (_ADOC_XLSX_ELIGIBLE_INTENTS.includes(plan?.intent) && plan?._explicitXlsxRequested ? 'xlsx' : 'html')
+      : _fmtNorm;
     const topic = plan?.topic_summary || 'Document';
 
     // ── Court-circuit data URI — LLM a produit directement le fichier binaire ──
