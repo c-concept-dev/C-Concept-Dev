@@ -1,0 +1,139 @@
+{
+  "started_at": "2026-08-28T07:04:55.932Z",
+  "completed_at": "2026-08-28T07:05:35.839Z",
+  "html_sha256": "757ad74d70ffeaff8c3c9e2a09d8c3aa9bbbcbcc52d0cae9923f54e7a28f2a06",
+  "latency_total_ms": 39907.132,
+  "time_to_first_useful_result_ms": 39907.163,
+  "route_finale": "rapide",
+  "moteur_final": "rapide",
+  "decision_source": "groq",
+  "decision": {
+    "etat_demande": "exploitable",
+    "route": "rapide",
+    "confiance": "haute",
+    "raison_interne": "La demande est exploitable et peut être exécutée directement sans arbitrage structurel préalable.",
+    "question": null
+  },
+  "decision_provider_calls": [
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:04:56.532Z",
+      "latency_ms": 441.484,
+      "status_http": 502,
+      "request": {
+        "demande": "Je veux préparer mon voyage en Italie.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "error": "provider_failure",
+        "message": "Le fournisseur de décision n’est pas disponible."
+      },
+      "error": null
+    },
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:04:56.974Z",
+      "latency_ms": 504.065,
+      "status_http": 200,
+      "request": {
+        "demande": "Je veux préparer mon voyage en Italie.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "etat_demande": "clarification_necessaire",
+        "route": null,
+        "confiance": "moyenne",
+        "raison_interne": "La demande n’est pas encore suffisamment exploitable ; une clarification à forte valeur d’information est nécessaire.",
+        "question": "Quel est le but principal de votre voyage en Italie ?"
+      },
+      "error": null
+    },
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:04:57.481Z",
+      "latency_ms": 53.961,
+      "status_http": 502,
+      "request": {
+        "demande": "Je veux préparer mon voyage en Italie.\n\nPrécisions apportées pendant le dialogue :\n- Quel est le but principal de votre voyage en Italie ? — Réponse : Je veux préparer un itinéraire jour par jour pour un séjour de 12 jours, avec un rythme équilibré entre visites et temps libre.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "error": "provider_failure",
+        "message": "Le fournisseur de décision n’est pas disponible."
+      },
+      "error": null
+    },
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:04:57.537Z",
+      "latency_ms": 399.094,
+      "status_http": 200,
+      "request": {
+        "demande": "Je veux préparer mon voyage en Italie.\n\nPrécisions apportées pendant le dialogue :\n- Quel est le but principal de votre voyage en Italie ? — Réponse : Je veux préparer un itinéraire jour par jour pour un séjour de 12 jours, avec un rythme équilibré entre visites et temps libre.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "etat_demande": "exploitable",
+        "route": "rapide",
+        "confiance": "haute",
+        "raison_interne": "La demande est exploitable et peut être exécutée directement sans arbitrage structurel préalable.",
+        "question": null
+      },
+      "error": null
+    }
+  ],
+  "decision_provider_latency_ms": 1398.604,
+  "clarifications": [
+    {
+      "question": "Quel est le but principal de votre voyage en Italie ?",
+      "answer": "Je veux préparer un itinéraire jour par jour pour un séjour de 12 jours, avec un rythme équilibré entre visites et temps libre."
+    }
+  ],
+  "nombre_reanalyses": 3,
+  "engine": {
+    "engine": "rapide",
+    "latency_ms": 26.903,
+    "format": "reponse_simple",
+    "niveau": "eclair",
+    "prompt": "## TÂCHE\nJe veux préparer mon voyage en Italie.\n\nPrécisions apportées pendant le dialogue :\n- Quel est le but principal de votre voyage en Italie ? — Réponse : Je veux préparer un itinéraire jour par jour pour un séjour de 12 jours, avec un rythme équilibré entre visites et temps libre.\n\n## FORMAT DE SORTIE\n- Livrable : réponse directe à la question posée\n- Validité : Aucune reformulation de la question, aucune formule d’ouverture.\n- Aucun contenu en dehors du livrable.\n\n## INTERDICTIONS\n- Pas de préambule, pas de reformulation de la demande, pas d’accusé de réception.\n- Pas de conclusion, pas de proposition d’aide complémentaire, pas de question finale.\n- Pas de commentaire sur votre propre production ni sur vos limites.\n- Pas d’espace réservé : ni « … », ni « etc. », ni « à compléter », ni « et ainsi de suite ».\n- Pas de résumé en lieu et place du contenu demandé."
+  },
+  "final_call": {
+    "timestamp": "2026-08-28T07:05:35.822Z",
+    "endpoint": "/v1/responses",
+    "status_http": 200,
+    "latency_ms": 37856.671,
+    "response_id": "resp_0d96dfb06586c06a006a91331a3b6887d2a4fe187695ac40c2",
+    "response_status": "completed",
+    "model_requested": "gpt-5.6-sol",
+    "model_returned": "gpt-5.6-sol",
+    "usage": {
+      "input_tokens": 232,
+      "output_tokens": 2167,
+      "total_tokens": 2399,
+      "reasoning_tokens": 263
+    },
+    "estimated_cost_usd": 0.044268,
+    "incomplete_details": null,
+    "error": null,
+    "output": "# Itinéraire de 12 jours en Italie — Rome, Florence, Toscane et Venise\n\n**Répartition :** 4 nuits à Rome, 4 nuits à Florence, 3 nuits à Venise.  \n**Transports :** trains à grande vitesse entre les villes, sans voiture.\n\n## Jour 1 — Arrivée à Rome et première découverte\n\n**Matin ou début d’après-midi**\n- Arrivée à Rome et installation dans un quartier central : Monti, Panthéon, Prati ou Trastevere.\n- Temps libre pour déjeuner et récupérer du trajet.\n\n**Fin d’après-midi**\n- Promenade sans réservation : place d’Espagne, fontaine de Trevi, piazza Colonna et Panthéon.\n- Pause dans un café autour de la piazza Navona.\n\n**Soirée**\n- Dîner dans le centre historique.\n- Courte promenade autour du Panthéon ou de la fontaine de Trevi illuminée.\n\n## Jour 2 — Rome antique\n\n**Matin**\n- Visite du Colisée, du Forum romain et du mont Palatin.\n- Prévoir environ 3 h 30 pour l’ensemble.\n- Réserver un billet avec horaire d’entrée au Colisée.\n\n**Déjeuner**\n- Déjeuner dans le quartier de Monti.\n\n**Après-midi**\n- Temps libre de deux heures.\n- Promenade vers le Capitole, la place de Venise et le quartier juif.\n- Découverte extérieure du théâtre de Marcellus et du portique d’Octavie.\n\n**Soirée**\n- Dîner dans le quartier juif ou à Monti.\n- Soirée libre.\n\n## Jour 3 — Vatican et Trastevere\n\n**Matin**\n- Musées du Vatican et chapelle Sixtine dès l’ouverture.\n- Visite de la basilique Saint-Pierre après les musées.\n- Réserver les musées plusieurs semaines à l’avance.\n\n**Déjeuner**\n- Déjeuner dans le quartier de Prati, généralement plus calme que les abords immédiats du Vatican.\n\n**Après-midi**\n- Retour à l’hôtel ou pause libre.\n- En fin d’après-midi, traversée du Tibre et promenade dans Trastevere.\n- Passage par la basilique Sainte-Marie-du-Trastevere.\n\n**Soirée**\n- Dîner à Trastevere.\n- Promenade possible jusqu’au belvédère du Janicule pour la vue sur Rome.\n\n## Jour 4 — Rome baroque et temps libre\n\n**Matin**\n- Visite de la galerie Borghèse, avec réservation obligatoire.\n- Promenade dans les jardins de la Villa Borghèse.\n\n**Après-midi**\n- Temps libre pour faire des achats, revoir un quartier préféré ou visiter une église.\n- Option culturelle légère : basilique Saint-Clément ou thermes de Caracalla.\n\n**Soirée**\n- Apéritif autour du Campo de’ Fiori ou de la piazza Navona.\n- Dernier dîner à Rome.\n\n## Jour 5 — Train pour Florence\n\n**Matin**\n- Train Rome-Termini–Florence-Santa Maria Novella.\n- Durée approximative : 1 h 30.\n- Installation près de Santa Maria Novella, du Duomo ou de Santa Croce.\n\n**Après-midi**\n- Déjeuner puis première promenade dans le centre historique.\n- Piazza del Duomo, baptistère, Via dei Calzaiuoli et Piazza della Signoria.\n- Traversée du Ponte Vecchio.\n\n**Fin d’après-midi**\n- Temps libre sur les quais de l’Arno ou à l’hôtel.\n\n**Soirée**\n- Dîner dans le quartier de Santo Spirito.\n\n## Jour 6 — Chefs-d’œuvre de Florence\n\n**Matin**\n- Galerie des Offices dès l’ouverture.\n- Prévoir environ trois heures.\n- Réserver un créneau horaire.\n\n**Déjeuner**\n- Déjeuner près de Santa Croce ou du marché de Sant’Ambrogio.\n\n**Après-midi**\n- Visite de la basilique Santa Croce.\n- Pause libre dans le centre.\n- Promenade jusqu’à la Piazza della Repubblica.\n\n**Soirée**\n- Montée à la Piazzale Michelangelo avant le coucher du soleil.\n- Dîner dans le quartier de San Niccolò.\n\n## Jour 7 — Duomo, marché et Oltrarno\n\n**Matin**\n- Visite du complexe du Duomo.\n- Choisir une montée : coupole de Brunelleschi ou campanile de Giotto.\n- Réserver la coupole à l’avance si vous la privilégiez.\n- Visite de la cathédrale, du baptistère et du musée de l’Œuvre du Duomo selon le billet choisi.\n\n**Déjeuner**\n- Déjeuner au Mercato Centrale ou dans le quartier de San Lorenzo.\n\n**Après-midi**\n- Temps libre de deux à trois heures.\n- Promenade dans l’Oltrarno : Santo Spirito, ateliers artisanaux et jardins de Boboli.\n- Pour un rythme plus léger, remplacer les jardins par une pause prolongée sur une terrasse.\n\n**Soirée**\n- Dîner libre dans l’Oltrarno.\n\n## Jour 8 — Excursion en Toscane : Sienne\n\n**Matin**\n- Bus direct Florence–Sienne, généralement plus pratique que le train pour rejoindre le centre.\n- Découverte de la Piazza del Campo.\n- Visite du Duomo de Sienne et de la bibliothèque Piccolomini.\n\n**Déjeuner**\n- Déjeuner dans le centre historique.\n\n**Après-midi**\n- Promenade dans les ruelles des contrade.\n- Temps libre pour une terrasse, quelques achats ou une visite du Palazzo Pubblico.\n- Retour à Florence en fin d’après-midi.\n\n**Soirée**\n- Dîner calme près de l’hébergement.\n- Préparation du départ pour Venise.\n\n## Jour 9 — Train pour Venise\n\n**Matin**\n- Train Florence-Santa Maria Novella–Venezia Santa Lucia.\n- Durée approximative : 2 h.\n- Installation à Cannaregio, San Polo, Dorsoduro ou près de Santa Lucia pour faciliter les déplacements.\n\n**Après-midi**\n- Première promenade à pied : Cannaregio, ghetto de Venise, Fondamenta della Misericordia et pont du Rialto.\n- Pause au bord d’un canal.\n\n**Soirée**\n- Parcours de bacari avec dégustation de cicchetti.\n- Promenade nocturne dans les quartiers de Cannaregio ou San Polo.\n\n## Jour 10 — Place Saint-Marc et Dorsoduro\n\n**Matin**\n- Basilique Saint-Marc dès l’ouverture.\n- Palais des Doges et pont des Soupirs.\n- Réserver des billets horodatés pour limiter l’attente.\n\n**Déjeuner**\n- S’éloigner de la place Saint-Marc pour déjeuner vers Castello ou San Polo.\n\n**Après-midi**\n- Temps libre après les visites.\n- Promenade vers le théâtre La Fenice, le pont de l’Accademia et les quais de Dorsoduro.\n- Visite facultative de la collection Peggy Guggenheim pour les amateurs d’art moderne.\n\n**Soirée**\n- Apéritif sur le Campo Santa Margherita.\n- Dîner à Dorsoduro.\n\n## Jour 11 — Lagune ou Venise secrète\n\n**Matin**\n- Vaporetto vers Murano.\n- Visite d’un atelier de verre avec démonstration sérieuse, de préférence sur réservation.\n- Poursuite vers Burano pour ses maisons colorées.\n\n**Déjeuner**\n- Déjeuner à Burano.\n\n**Après-midi**\n- Retour à Venise vers 16 h.\n- Temps libre pour une promenade sans itinéraire précis dans Castello ou Cannaregio.\n- Possibilité de remplacer Murano et Burano par une journée entièrement consacrée aux quartiers moins fréquentés de Venise si vous souhaitez limiter les transports.\n\n**Soirée**\n- Dernier dîner près d’un canal, loin de la place Saint-Marc.\n- Dernière promenade autour du Grand Canal.\n\n## Jour 12 — Dernières heures à Venise et départ\n\n**Matin**\n- Petit-déjeuner puis promenade au marché du Rialto si le jour d’ouverture coïncide avec votre séjour.\n- Temps libre pour quelques achats ou une dernière traversée du Grand Canal en vaporetto.\n\n**Départ**\n- Pour l’aéroport Marco-Polo : vaporetto Alilaguna ou bus depuis Piazzale Roma.\n- Pour l’aéroport de Trévise : navette depuis Piazzale Roma ou Mestre.\n- Prévoir une marge supplémentaire en cas de trajet en vaporetto.\n\n## Réservations prioritaires\n\n1. Billets de train Rome–Florence et Florence–Venise.\n2. Colisée, Forum romain et Palatin.\n3. Musées du Vatican.\n4. Galerie Borghèse.\n5. Galerie des Offices.\n6. Coupole du Duomo de Florence.\n7. Basilique Saint-Marc et palais des Doges.\n8. Hébergements centraux, idéalement proches d’une gare ou d’un arrêt de vaporetto."
+  },
+  "output": "# Itinéraire de 12 jours en Italie — Rome, Florence, Toscane et Venise\n\n**Répartition :** 4 nuits à Rome, 4 nuits à Florence, 3 nuits à Venise.  \n**Transports :** trains à grande vitesse entre les villes, sans voiture.\n\n## Jour 1 — Arrivée à Rome et première découverte\n\n**Matin ou début d’après-midi**\n- Arrivée à Rome et installation dans un quartier central : Monti, Panthéon, Prati ou Trastevere.\n- Temps libre pour déjeuner et récupérer du trajet.\n\n**Fin d’après-midi**\n- Promenade sans réservation : place d’Espagne, fontaine de Trevi, piazza Colonna et Panthéon.\n- Pause dans un café autour de la piazza Navona.\n\n**Soirée**\n- Dîner dans le centre historique.\n- Courte promenade autour du Panthéon ou de la fontaine de Trevi illuminée.\n\n## Jour 2 — Rome antique\n\n**Matin**\n- Visite du Colisée, du Forum romain et du mont Palatin.\n- Prévoir environ 3 h 30 pour l’ensemble.\n- Réserver un billet avec horaire d’entrée au Colisée.\n\n**Déjeuner**\n- Déjeuner dans le quartier de Monti.\n\n**Après-midi**\n- Temps libre de deux heures.\n- Promenade vers le Capitole, la place de Venise et le quartier juif.\n- Découverte extérieure du théâtre de Marcellus et du portique d’Octavie.\n\n**Soirée**\n- Dîner dans le quartier juif ou à Monti.\n- Soirée libre.\n\n## Jour 3 — Vatican et Trastevere\n\n**Matin**\n- Musées du Vatican et chapelle Sixtine dès l’ouverture.\n- Visite de la basilique Saint-Pierre après les musées.\n- Réserver les musées plusieurs semaines à l’avance.\n\n**Déjeuner**\n- Déjeuner dans le quartier de Prati, généralement plus calme que les abords immédiats du Vatican.\n\n**Après-midi**\n- Retour à l’hôtel ou pause libre.\n- En fin d’après-midi, traversée du Tibre et promenade dans Trastevere.\n- Passage par la basilique Sainte-Marie-du-Trastevere.\n\n**Soirée**\n- Dîner à Trastevere.\n- Promenade possible jusqu’au belvédère du Janicule pour la vue sur Rome.\n\n## Jour 4 — Rome baroque et temps libre\n\n**Matin**\n- Visite de la galerie Borghèse, avec réservation obligatoire.\n- Promenade dans les jardins de la Villa Borghèse.\n\n**Après-midi**\n- Temps libre pour faire des achats, revoir un quartier préféré ou visiter une église.\n- Option culturelle légère : basilique Saint-Clément ou thermes de Caracalla.\n\n**Soirée**\n- Apéritif autour du Campo de’ Fiori ou de la piazza Navona.\n- Dernier dîner à Rome.\n\n## Jour 5 — Train pour Florence\n\n**Matin**\n- Train Rome-Termini–Florence-Santa Maria Novella.\n- Durée approximative : 1 h 30.\n- Installation près de Santa Maria Novella, du Duomo ou de Santa Croce.\n\n**Après-midi**\n- Déjeuner puis première promenade dans le centre historique.\n- Piazza del Duomo, baptistère, Via dei Calzaiuoli et Piazza della Signoria.\n- Traversée du Ponte Vecchio.\n\n**Fin d’après-midi**\n- Temps libre sur les quais de l’Arno ou à l’hôtel.\n\n**Soirée**\n- Dîner dans le quartier de Santo Spirito.\n\n## Jour 6 — Chefs-d’œuvre de Florence\n\n**Matin**\n- Galerie des Offices dès l’ouverture.\n- Prévoir environ trois heures.\n- Réserver un créneau horaire.\n\n**Déjeuner**\n- Déjeuner près de Santa Croce ou du marché de Sant’Ambrogio.\n\n**Après-midi**\n- Visite de la basilique Santa Croce.\n- Pause libre dans le centre.\n- Promenade jusqu’à la Piazza della Repubblica.\n\n**Soirée**\n- Montée à la Piazzale Michelangelo avant le coucher du soleil.\n- Dîner dans le quartier de San Niccolò.\n\n## Jour 7 — Duomo, marché et Oltrarno\n\n**Matin**\n- Visite du complexe du Duomo.\n- Choisir une montée : coupole de Brunelleschi ou campanile de Giotto.\n- Réserver la coupole à l’avance si vous la privilégiez.\n- Visite de la cathédrale, du baptistère et du musée de l’Œuvre du Duomo selon le billet choisi.\n\n**Déjeuner**\n- Déjeuner au Mercato Centrale ou dans le quartier de San Lorenzo.\n\n**Après-midi**\n- Temps libre de deux à trois heures.\n- Promenade dans l’Oltrarno : Santo Spirito, ateliers artisanaux et jardins de Boboli.\n- Pour un rythme plus léger, remplacer les jardins par une pause prolongée sur une terrasse.\n\n**Soirée**\n- Dîner libre dans l’Oltrarno.\n\n## Jour 8 — Excursion en Toscane : Sienne\n\n**Matin**\n- Bus direct Florence–Sienne, généralement plus pratique que le train pour rejoindre le centre.\n- Découverte de la Piazza del Campo.\n- Visite du Duomo de Sienne et de la bibliothèque Piccolomini.\n\n**Déjeuner**\n- Déjeuner dans le centre historique.\n\n**Après-midi**\n- Promenade dans les ruelles des contrade.\n- Temps libre pour une terrasse, quelques achats ou une visite du Palazzo Pubblico.\n- Retour à Florence en fin d’après-midi.\n\n**Soirée**\n- Dîner calme près de l’hébergement.\n- Préparation du départ pour Venise.\n\n## Jour 9 — Train pour Venise\n\n**Matin**\n- Train Florence-Santa Maria Novella–Venezia Santa Lucia.\n- Durée approximative : 2 h.\n- Installation à Cannaregio, San Polo, Dorsoduro ou près de Santa Lucia pour faciliter les déplacements.\n\n**Après-midi**\n- Première promenade à pied : Cannaregio, ghetto de Venise, Fondamenta della Misericordia et pont du Rialto.\n- Pause au bord d’un canal.\n\n**Soirée**\n- Parcours de bacari avec dégustation de cicchetti.\n- Promenade nocturne dans les quartiers de Cannaregio ou San Polo.\n\n## Jour 10 — Place Saint-Marc et Dorsoduro\n\n**Matin**\n- Basilique Saint-Marc dès l’ouverture.\n- Palais des Doges et pont des Soupirs.\n- Réserver des billets horodatés pour limiter l’attente.\n\n**Déjeuner**\n- S’éloigner de la place Saint-Marc pour déjeuner vers Castello ou San Polo.\n\n**Après-midi**\n- Temps libre après les visites.\n- Promenade vers le théâtre La Fenice, le pont de l’Accademia et les quais de Dorsoduro.\n- Visite facultative de la collection Peggy Guggenheim pour les amateurs d’art moderne.\n\n**Soirée**\n- Apéritif sur le Campo Santa Margherita.\n- Dîner à Dorsoduro.\n\n## Jour 11 — Lagune ou Venise secrète\n\n**Matin**\n- Vaporetto vers Murano.\n- Visite d’un atelier de verre avec démonstration sérieuse, de préférence sur réservation.\n- Poursuite vers Burano pour ses maisons colorées.\n\n**Déjeuner**\n- Déjeuner à Burano.\n\n**Après-midi**\n- Retour à Venise vers 16 h.\n- Temps libre pour une promenade sans itinéraire précis dans Castello ou Cannaregio.\n- Possibilité de remplacer Murano et Burano par une journée entièrement consacrée aux quartiers moins fréquentés de Venise si vous souhaitez limiter les transports.\n\n**Soirée**\n- Dernier dîner près d’un canal, loin de la place Saint-Marc.\n- Dernière promenade autour du Grand Canal.\n\n## Jour 12 — Dernières heures à Venise et départ\n\n**Matin**\n- Petit-déjeuner puis promenade au marché du Rialto si le jour d’ouverture coïncide avec votre séjour.\n- Temps libre pour quelques achats ou une dernière traversée du Grand Canal en vaporetto.\n\n**Départ**\n- Pour l’aéroport Marco-Polo : vaporetto Alilaguna ou bus depuis Piazzale Roma.\n- Pour l’aéroport de Trévise : navette depuis Piazzale Roma ou Mestre.\n- Prévoir une marge supplémentaire en cas de trajet en vaporetto.\n\n## Réservations prioritaires\n\n1. Billets de train Rome–Florence et Florence–Venise.\n2. Colisée, Forum romain et Palatin.\n3. Musées du Vatican.\n4. Galerie Borghèse.\n5. Galerie des Offices.\n6. Coupole du Duomo de Florence.\n7. Basilique Saint-Marc et palais des Doges.\n8. Hébergements centraux, idéalement proches d’une gare ou d’un arrêt de vaporetto.",
+  "total_llm_calls": 5,
+  "gpt_usage": {
+    "input_tokens": 232,
+    "output_tokens": 2167,
+    "total_tokens": 2399,
+    "estimated_cost_usd": 0.044268
+  },
+  "fallback": true,
+  "retries": 0,
+  "error": null
+}

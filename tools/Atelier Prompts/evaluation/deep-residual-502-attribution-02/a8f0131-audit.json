@@ -1,0 +1,357 @@
+{
+ "lot": "DEEP-RESIDUAL-502-ATTRIBUTION-02",
+ "phase_A": {
+  "question": "a8f0131 (repris en f220099) est-il strictement une évolution d'observabilité ?",
+  "methode": "comparaison byte-à-byte du sous-arbre bbf8b52 -> HEAD, puis hachage de la surface sémantique aux deux révisions",
+  "matrice": [
+   {
+    "fichier": "atelier-prompts-v11.5-lot10g-decision-provider.html",
+    "ajouts": 283,
+    "suppressions": 9,
+    "categorie": "GÉNÉRÉ",
+    "impact_runtime": "non — reflet du noyau embarqué",
+    "impact_semantique": "aucun",
+    "impact_routage": "aucun",
+    "impact_prompt": "aucun"
+   },
+   {
+    "fichier": "core/adn/browser-runtime.generated.js",
+    "ajouts": 283,
+    "suppressions": 9,
+    "categorie": "GÉNÉRÉ",
+    "impact_runtime": "non — reflet du noyau embarqué",
+    "impact_semantique": "aucun",
+    "impact_routage": "aucun",
+    "impact_prompt": "aucun"
+   },
+   {
+    "fichier": "docs/RELEASE-MANIFEST.md",
+    "ajouts": 17,
+    "suppressions": 16,
+    "categorie": "DOC",
+    "impact_runtime": "non",
+    "impact_semantique": "aucun",
+    "impact_routage": "aucun",
+    "impact_prompt": "aucun"
+   },
+   {
+    "fichier": "evaluation/observability-completeness-01/README.md",
+    "ajouts": 11,
+    "suppressions": 0,
+    "categorie": "PREUVE",
+    "impact_runtime": "non",
+    "impact_semantique": "aucun",
+    "impact_routage": "aucun",
+    "impact_prompt": "aucun"
+   },
+   {
+    "fichier": "evaluation/observability-completeness-01/contract.json",
+    "ajouts": 93,
+    "suppressions": 0,
+    "categorie": "PREUVE",
+    "impact_runtime": "non",
+    "impact_semantique": "aucun",
+    "impact_routage": "aucun",
+    "impact_prompt": "aucun"
+   },
+   {
+    "fichier": "tests/capacity-failover-perfreal01f.test.mjs",
+    "ajouts": 1,
+    "suppressions": 1,
+    "categorie": "TEST",
+    "impact_runtime": "non",
+    "impact_semantique": "aucun",
+    "impact_routage": "aucun",
+    "impact_prompt": "aucun"
+   },
+   {
+    "fichier": "tests/deep-cout-jetons-deeptok01.test.mjs",
+    "ajouts": 1,
+    "suppressions": 1,
+    "categorie": "TEST",
+    "impact_runtime": "non",
+    "impact_semantique": "aucun",
+    "impact_routage": "aucun",
+    "impact_prompt": "aucun"
+   },
+   {
+    "fichier": "tests/fast-capacity-admission-fastcapadm01.test.mjs",
+    "ajouts": 1,
+    "suppressions": 1,
+    "categorie": "TEST",
+    "impact_runtime": "non",
+    "impact_semantique": "aucun",
+    "impact_routage": "aucun",
+    "impact_prompt": "aucun"
+   },
+   {
+    "fichier": "tests/fast-interaction-endpoint-perf04.test.mjs",
+    "ajouts": 9,
+    "suppressions": 1,
+    "categorie": "TEST",
+    "impact_runtime": "non",
+    "impact_semantique": "aucun",
+    "impact_routage": "aucun",
+    "impact_prompt": "aucun"
+   },
+   {
+    "fichier": "tests/fast-jeton-budget-perfreal01e.test.mjs",
+    "ajouts": 1,
+    "suppressions": 1,
+    "categorie": "TEST",
+    "impact_runtime": "non",
+    "impact_semantique": "aucun",
+    "impact_routage": "aucun",
+    "impact_prompt": "aucun"
+   },
+   {
+    "fichier": "tests/fast-provider-chain-contract-perfreal01a.test.mjs",
+    "ajouts": 1,
+    "suppressions": 1,
+    "categorie": "TEST",
+    "impact_runtime": "non",
+    "impact_semantique": "aucun",
+    "impact_routage": "aucun",
+    "impact_prompt": "aucun"
+   },
+   {
+    "fichier": "tests/fast-rate-control-perfreal01d.test.mjs",
+    "ajouts": 1,
+    "suppressions": 1,
+    "categorie": "TEST",
+    "impact_runtime": "non",
+    "impact_semantique": "aucun",
+    "impact_routage": "aucun",
+    "impact_prompt": "aucun"
+   },
+   {
+    "fichier": "tests/latency-tail-diagnosis-perfreal01c.test.mjs",
+    "ajouts": 1,
+    "suppressions": 1,
+    "categorie": "TEST",
+    "impact_runtime": "non",
+    "impact_semantique": "aucun",
+    "impact_routage": "aucun",
+    "impact_prompt": "aucun"
+   },
+   {
+    "fichier": "tests/material-content-mcnt01.test.mjs",
+    "ajouts": 1,
+    "suppressions": 1,
+    "categorie": "TEST",
+    "impact_runtime": "non",
+    "impact_semantique": "aucun",
+    "impact_routage": "aucun",
+    "impact_prompt": "aucun"
+   },
+   {
+    "fichier": "tests/nominal-provider-latency-perfnominal01.test.mjs",
+    "ajouts": 1,
+    "suppressions": 1,
+    "categorie": "TEST",
+    "impact_runtime": "non",
+    "impact_semantique": "aucun",
+    "impact_routage": "aucun",
+    "impact_prompt": "aucun"
+   },
+   {
+    "fichier": "tests/observability-completeness-obs01.test.mjs",
+    "ajouts": 474,
+    "suppressions": 0,
+    "categorie": "TEST",
+    "impact_runtime": "non",
+    "impact_semantique": "aucun",
+    "impact_routage": "aucun",
+    "impact_prompt": "aucun"
+   },
+   {
+    "fichier": "tests/oprie-material-context-opmat01.test.mjs",
+    "ajouts": 1,
+    "suppressions": 1,
+    "categorie": "TEST",
+    "impact_runtime": "non",
+    "impact_semantique": "aucun",
+    "impact_routage": "aucun",
+    "impact_prompt": "aucun"
+   },
+   {
+    "fichier": "tests/oprie-quality-parity-opqp01.test.mjs",
+    "ajouts": 1,
+    "suppressions": 1,
+    "categorie": "TEST",
+    "impact_runtime": "non",
+    "impact_semantique": "aucun",
+    "impact_routage": "aucun",
+    "impact_prompt": "aucun"
+   },
+   {
+    "fichier": "tests/oprie-reference-oracle-oporac01.test.mjs",
+    "ajouts": 1,
+    "suppressions": 1,
+    "categorie": "TEST",
+    "impact_runtime": "non",
+    "impact_semantique": "aucun",
+    "impact_routage": "aucun",
+    "impact_prompt": "aucun"
+   },
+   {
+    "fichier": "tests/real-measurement-perfreal01b.test.mjs",
+    "ajouts": 1,
+    "suppressions": 1,
+    "categorie": "TEST",
+    "impact_runtime": "non",
+    "impact_semantique": "aucun",
+    "impact_routage": "aucun",
+    "impact_prompt": "aucun"
+   },
+   {
+    "fichier": "tests/real-provider-performance-perfreal01.test.mjs",
+    "ajouts": 1,
+    "suppressions": 1,
+    "categorie": "TEST",
+    "impact_runtime": "non",
+    "impact_semantique": "aucun",
+    "impact_routage": "aucun",
+    "impact_prompt": "aucun"
+   },
+   {
+    "fichier": "tests/release-artifact-packaging-htmlfinal02.test.mjs",
+    "ajouts": 16,
+    "suppressions": 4,
+    "categorie": "TEST",
+    "impact_runtime": "non",
+    "impact_semantique": "aucun",
+    "impact_routage": "aucun",
+    "impact_prompt": "aucun"
+   },
+   {
+    "fichier": "tests/retry-threshold-calibration-perfreal01g.test.mjs",
+    "ajouts": 1,
+    "suppressions": 1,
+    "categorie": "TEST",
+    "impact_runtime": "non",
+    "impact_semantique": "aucun",
+    "impact_routage": "aucun",
+    "impact_prompt": "aucun"
+   },
+   {
+    "fichier": "workers/groq/src/index.js",
+    "ajouts": 28,
+    "suppressions": 1,
+    "categorie": "RUNTIME",
+    "impact_runtime": "observabilité seule",
+    "impact_semantique": "aucun",
+    "impact_routage": "aucun",
+    "impact_prompt": "aucun"
+   },
+   {
+    "fichier": "workers/shared/operational-request-orchestrator.js",
+    "ajouts": 281,
+    "suppressions": 7,
+    "categorie": "RUNTIME",
+    "impact_runtime": "observabilité seule",
+    "impact_semantique": "aucun",
+    "impact_routage": "aucun",
+    "impact_prompt": "aucun"
+   }
+  ],
+  "surface_semantique_identique": {
+   "fichiers_non_touches": [
+    "workers/shared/operational-request-core.js",
+    "core/adn/operational-request-state.js",
+    "core/adn/index.js",
+    "workers/shared/provider-ha.js"
+   ],
+   "empreintes_identiques": {
+    "ANALYST_SYSTEM_PROMPT": "d815ea1b13c31843",
+    "CRITIC_GLOBAL_SYSTEM_PROMPT": "8915d9bad81965ce",
+    "ARBITER_SYSTEM_PROMPT": "3120f05368961356",
+    "ANALYST_JSON_SCHEMA": "dda0c764a79f58d5",
+    "ARBITER_JSON_SCHEMA": "475a64d3b8da7e03",
+    "CRITIC_GLOBAL_JSON_SCHEMA": "024ce5705eea731f",
+    "ROLE_DEFINITIONS": "d1a6abae1f49bc71",
+    "PROVENANCE_VALUES": "fc7f52184b26d442",
+    "CANDIDATE_FIELDS": "b7b47024cf656edf"
+   },
+   "routage": {
+    "ROLE_PROVIDER_ORDER": [
+     "anthropic"
+    ],
+    "FAST_PROVIDER_ORDER": [
+     "groq"
+    ],
+    "DECISION_PROVIDER_ORDER": [
+     "groq",
+     "anthropic",
+     "openai"
+    ],
+    "ANTHROPIC_MODEL": "claude-sonnet-4-6"
+   }
+  },
+  "code_runtime_ajoute": {
+   "operational-request-orchestrator.js": "resolveInvocationId, safeErrorFingerprint, createExecutionTrace, buildTerminalRecord, OPERATIONAL_REQUEST_PHASES ; handleOperationalRequest estampille et émet un enregistrement terminal ; runOperationalRequestTurn passe {log} à executeRole",
+   "workers/groq/src/index.js": "resolveRoleProviderModel (relit les constantes de modèle existantes, ne choisit rien, rend null pour un fournisseur inconnu) ; la route transmet le log estampillé et le résolveur",
+   "flux_de_controle": "inchangé — mêmes conditions de 200/4xx/502, même séquence de rôles, même dégradation"
+  },
+  "changements_de_forme_de_reponse": {
+   "succes_200": "INCHANGÉ (corps identique)",
+   "erreurs": "additif : invocation_id ajouté au corps des réponses DecisionHttpError et 502",
+   "entetes": "additif : X-Invocation-Id et Access-Control-Expose-Headers sur toutes les réponses de la route"
+  },
+  "html_canonique": {
+   "raison": "le bundle navigateur embarque le noyau ; le delta HTML (+178 lignes) est EXACTEMENT le delta du runtime généré (+178)",
+   "changement_ux_ou_markup": "aucun"
+  },
+  "gardes": {
+   "auditees": 15,
+   "vidées_de_leur_sens": 0,
+   "affaiblies": 0,
+   "restreintes_avec_justification": 1,
+   "detail_restriction": {
+    "garde": "T-HTMLFINAL02 — scan de non-déterminisme",
+    "avant": "new Date()|Date.now()|Math.random()|process.hrtime interdits dans l'outil de build ET dans le bundle compilé",
+    "apres": "les quatre restent interdits dans l'outil de build ; dans le bundle compilé, seul Date.now() est admis",
+    "motif": "mesurer la durée d'une phase à l'exécution n'est pas un non-déterminisme de FABRICATION — l'horloge est lue quand l'utilisateur exécute",
+    "compensations": [
+     "aucun en-tête de date de fabrication dans le bundle (assertion ajoutée)",
+     "T-HTMLFINAL02-05 prouve empiriquement que le runtime embarqué EST le build courant, octet pour octet"
+    ],
+    "verifie": "les 4 occurrences de Date.now() dans le bundle sont toutes dans createExecutionTrace/buildTerminalRecord"
+   },
+   "renforcee": {
+    "garde": "T-P04-EP10",
+    "avant": "1 assertion sur le littéral executeRole",
+    "apres": "2 assertions : ordre toujours issu de resolveRoleProviderOrder(env), plus le résolveur de modèle"
+   }
+  },
+  "test_nouveau": {
+   "fichier": "tests/observability-completeness-obs01.test.mjs",
+   "tests": 25,
+   "chemin_reel": "OBS01-18 traverse le vrai Worker (groqWorker.fetch) ; OBS01-9/10/11 couvrent les phases réelles",
+   "anti_fuite": "OBS01-19 (aucun texte de demande, prompt ni secret), OBS01-20 (error.message brut jamais émis)",
+   "anti_decoratif": "OBS01-22 : journal_complete est CALCULÉ sur la liste des champs obligatoires"
+  },
+  "VERDICT": "OBSERVABILITY_ONLY — confirmé"
+ },
+ "phase_A_secret_scan": "aucune valeur de secret dans le delta ; safeErrorFingerprint ne rend que {error_name, message_sha256, frame_count}",
+ "join_key": {
+  "nom": "invocation_id",
+  "source": "en-tête cf-ray de Cloudflare quand il existe, sinon crypto.randomUUID()",
+  "exposition_client": "en-tête X-Invocation-Id sur toutes les réponses, plus invocation_id dans le corps des réponses d'erreur",
+  "propagation_serveur": "estampillé sur chaque événement passé au log de l'orchestrateur, y compris les provider_ha_* via le log transmis à runRoleWithHaChain",
+  "ne_depend_pas_de": [
+   "contenu utilisateur",
+   "matériau brut",
+   "sortie brute du fournisseur"
+  ]
+ },
+ "durable_logs": {
+  "declare": "workers/groq/wrangler.jsonc : observability.enabled = true, head_sampling_rate = 1",
+  "depuis": "commit 92e566f (création du wrangler.jsonc)",
+  "couvre_le_worker": "oui — atelier-decision-groq",
+  "accessible_depuis_cet_environnement": false,
+  "limite_constatee": "l'API /workers/observability/telemetry/query répond 'Authentication error' (code 10000) avec le jeton OAuth de wrangler : la portée de lecture d'observabilité n'y figure pas. Aucune sous-commande wrangler 4.75 n'interroge le magasin durable (seul `tail`, qui est un flux vivant).",
+  "consequence": "la capture de ce lot passe par wrangler tail, MAIS la corrélation ne dépend plus de la complétude du flux : chaque tour est joint par son identifiant, et un tour non capturé est identifiable plutôt que silencieux",
+  "retention_verifiee": false
+ }
+}

@@ -1,0 +1,17 @@
+{
+  "version": "10G.3B.1",
+  "description": "Recette de clarification conversationnelle. Les domaines restent confinés au corpus et n'apparaissent jamais dans la logique applicative.",
+  "forbidden_question_terms": ["résultat concret", "avancement utile", "livrable", "objectif opérationnel", "information structurante", "élément déterminant", "critère de réussite", "niveau d’exigence", "périmètre fonctionnel", "besoin métier"],
+  "cases": [
+    {"id":"C01","domain":"voyage","demande":"Je veux préparer mon voyage en Italie","materiau_present":false,"oracle":{"etat_demande":"clarification_necessaire","route":null,"question":"naturelle_contextualisee_atomique"}},
+    {"id":"C02","domain":"voyage","demande":"Je veux préparer mon voyage en Italie\n\nPrécisions apportées pendant le dialogue :\n- Combien de jours prévoyez-vous de partir en Italie ? — Réponse : 12 jours","materiau_present":false,"oracle":{"etat_demande":["clarification_necessaire","exploitable"],"route":[null,"rapide","architecte"],"question":"si_presente_differente_et_atomique"}},
+    {"id":"C03","domain":"voyage","demande":"Je veux préparer mon voyage en Italie\n\nPrécisions apportées pendant le dialogue :\n- Combien de jours prévoyez-vous de partir en Italie ? — Réponse : 12 jours\n- Qu’aimeriez-vous organiser en priorité pendant ces 12 jours ? — Réponse : Un itinéraire jour par jour","materiau_present":false,"oracle":{"etat_demande":"exploitable","route":["rapide","architecte"],"question":null}},
+    {"id":"C04","domain":"achat","demande":"Je veux acheter un ordinateur","materiau_present":false,"oracle":{"etat_demande":"clarification_necessaire","route":null,"question":"naturelle_contextualisee_atomique"}},
+    {"id":"C05","domain":"carrière","demande":"Je veux refaire mon CV","materiau_present":false,"oracle":{"etat_demande":"clarification_necessaire","route":null,"question":"naturelle_contextualisee_atomique"}},
+    {"id":"C06","domain":"événement","demande":"Je veux organiser un anniversaire","materiau_present":false,"oracle":{"etat_demande":"clarification_necessaire","route":null,"question":"naturelle_contextualisee_atomique"}},
+    {"id":"C07","domain":"code","demande":"Aide-moi avec ce code","materiau_present":false,"oracle":{"etat_demande":"clarification_necessaire","route":null,"question":"demander_le_materiau"}},
+    {"id":"C08","domain":"voyage","demande":"Fais-moi une checklist de 20 points pour préparer un voyage en Italie","materiau_present":false,"oracle":{"etat_demande":"exploitable","route":"rapide","question":null}},
+    {"id":"C09","domain":"comparaison","demande":"Compare A et B dans un tableau sur 6 critères","materiau_present":false,"oracle":{"etat_demande":"exploitable","route":"rapide","question":null}},
+    {"id":"C10","domain":"organisation","demande":"Élabore une stratégie de fusion de deux équipes de 20 personnes sur trois mois, avec scénarios, risques, critères de décision et plan de transition","materiau_present":false,"oracle":{"etat_demande":"exploitable","route":"architecte","question":null}}
+  ]
+}

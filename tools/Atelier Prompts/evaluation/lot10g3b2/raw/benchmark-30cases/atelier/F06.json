@@ -1,0 +1,139 @@
+{
+  "started_at": "2026-08-28T07:17:36.155Z",
+  "completed_at": "2026-08-28T07:17:56.285Z",
+  "html_sha256": "757ad74d70ffeaff8c3c9e2a09d8c3aa9bbbcbcc52d0cae9923f54e7a28f2a06",
+  "latency_total_ms": 20129.789,
+  "time_to_first_useful_result_ms": 20129.801,
+  "route_finale": "rapide",
+  "moteur_final": "rapide",
+  "decision_source": "groq",
+  "decision": {
+    "etat_demande": "exploitable",
+    "route": "rapide",
+    "confiance": "haute",
+    "raison_interne": "La demande est exploitable et peut être exécutée directement sans arbitrage structurel préalable.",
+    "question": null
+  },
+  "decision_provider_calls": [
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:17:36.715Z",
+      "latency_ms": 396.526,
+      "status_http": 502,
+      "request": {
+        "demande": "Je veux choisir un appareil photo.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "error": "provider_failure",
+        "message": "Le fournisseur de décision n’est pas disponible."
+      },
+      "error": null
+    },
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:17:37.112Z",
+      "latency_ms": 645.604,
+      "status_http": 200,
+      "request": {
+        "demande": "Je veux choisir un appareil photo.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "etat_demande": "clarification_necessaire",
+        "route": null,
+        "confiance": "moyenne",
+        "raison_interne": "La demande n’est pas encore suffisamment exploitable ; une clarification à forte valeur d’information est nécessaire.",
+        "question": "Quel type d’appareil photo recherchez‑vous ?"
+      },
+      "error": null
+    },
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:17:37.760Z",
+      "latency_ms": 58.855,
+      "status_http": 502,
+      "request": {
+        "demande": "Je veux choisir un appareil photo.\n\nPrécisions apportées pendant le dialogue :\n- Quel type d’appareil photo recherchez‑vous ? — Réponse : Je débute, je photographie surtout en voyage et mon budget total avec objectif est de 1 200 euros maximum.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "error": "provider_failure",
+        "message": "Le fournisseur de décision n’est pas disponible."
+      },
+      "error": null
+    },
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:17:37.819Z",
+      "latency_ms": 1309.379,
+      "status_http": 200,
+      "request": {
+        "demande": "Je veux choisir un appareil photo.\n\nPrécisions apportées pendant le dialogue :\n- Quel type d’appareil photo recherchez‑vous ? — Réponse : Je débute, je photographie surtout en voyage et mon budget total avec objectif est de 1 200 euros maximum.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "etat_demande": "exploitable",
+        "route": "rapide",
+        "confiance": "haute",
+        "raison_interne": "La demande est exploitable et peut être exécutée directement sans arbitrage structurel préalable.",
+        "question": null
+      },
+      "error": null
+    }
+  ],
+  "decision_provider_latency_ms": 2410.364,
+  "clarifications": [
+    {
+      "question": "Quel type d’appareil photo recherchez‑vous ?",
+      "answer": "Je débute, je photographie surtout en voyage et mon budget total avec objectif est de 1 200 euros maximum."
+    }
+  ],
+  "nombre_reanalyses": 1,
+  "engine": {
+    "engine": "rapide",
+    "latency_ms": 23.248,
+    "format": "reponse_simple",
+    "niveau": "eclair",
+    "prompt": "## TÂCHE\nJe veux choisir un appareil photo.\n\nPrécisions apportées pendant le dialogue :\n- Quel type d’appareil photo recherchez‑vous ? — Réponse : Je débute, je photographie surtout en voyage et mon budget total avec objectif est de 1 200 euros maximum.\n\n## FORMAT DE SORTIE\n- Livrable : réponse directe à la question posée\n- Validité : Aucune reformulation de la question, aucune formule d’ouverture.\n- Aucun contenu en dehors du livrable.\n\n## INTERDICTIONS\n- Pas de préambule, pas de reformulation de la demande, pas d’accusé de réception.\n- Pas de conclusion, pas de proposition d’aide complémentaire, pas de question finale.\n- Pas de commentaire sur votre propre production ni sur vos limites.\n- Pas d’espace réservé : ni « … », ni « etc. », ni « à compléter », ni « et ainsi de suite ».\n- Pas de résumé en lieu et place du contenu demandé."
+  },
+  "final_call": {
+    "timestamp": "2026-08-28T07:17:56.274Z",
+    "endpoint": "/v1/responses",
+    "status_http": 200,
+    "latency_ms": 17072.324,
+    "response_id": "resp_0ee89c1e311783c2006a913613438887d29421fa8e2a7d54ff",
+    "response_status": "completed",
+    "model_requested": "gpt-5.6-sol",
+    "model_returned": "gpt-5.6-sol",
+    "usage": {
+      "input_tokens": 226,
+      "output_tokens": 960,
+      "total_tokens": 1186,
+      "reasoning_tokens": 302
+    },
+    "estimated_cost_usd": 0.020104,
+    "incomplete_details": null,
+    "error": null,
+    "output": "### Choix recommandé : Canon EOS R10 + RF-S 18-150 mm f/3,5-6,3 IS STM\n\n**À acheter si le kit est proposé à 1 200 € maximum.**\n\n- Très bon autofocus, simple et fiable pour débuter\n- Objectif polyvalent couvrant paysages, rues, portraits et sujets éloignés\n- Ensemble relativement léger : environ 740 g avec batterie et objectif\n- Bonne qualité d’image grâce au capteur APS-C de 24 Mpx\n- Rafale rapide, utile pour animaux et scènes d’action\n- Vidéo 4K de bonne qualité\n- Écran orientable et viseur électronique\n- Stabilisation intégrée à l’objectif\n\n**Limites :**\n- Pas de stabilisation mécanique dans le boîtier\n- Objectif peu lumineux, surtout en intérieur et le soir\n- Boîtier non tropicalisé\n- Autonomie moyenne : une batterie supplémentaire est recommandée\n\n### Alternative offrant souvent le meilleur rapport équipement/prix : Sony A6400 + 18-135 mm f/3,5-5,6 OSS\n\n**Prix cible : 1 000 à 1 150 € en kit.**\n\n- Objectif de voyage compact et très polyvalent\n- Excellent autofocus\n- Bonne qualité d’image APS-C de 24 Mpx\n- Parc d’objectifs Sony et compatibles particulièrement vaste\n- Plus de marge budgétaire pour une carte mémoire et une batterie\n\n**Limites :**\n- Ergonomie et menus moins accessibles que ceux du Canon\n- Écran seulement basculant\n- Pas de stabilisation dans le boîtier\n- Recharge par ancien connecteur micro-USB\n\n### Option la plus compacte : OM System OM-D E-M10 IV + M.Zuiko 14-150 mm II\n\n**Prix cible : 800 à 1 000 €.**\n\n- Très léger et peu encombrant\n- Plage focale équivalente à 28-300 mm, idéale en voyage\n- Stabilisation directement dans le boîtier\n- Bonne autonomie relative et commandes accessibles\n- Budget restant pour accessoires ou second objectif lumineux\n\n**Limites :**\n- Autofocus moins performant sur les sujets rapides\n- Qualité d’image nocturne inférieure aux modèles APS-C\n- Prise en main plus petite\n- Boîtier non tropicalisé, même si l’objectif résiste aux intempéries\n\n### Répartition conseillée du budget\n\n- Appareil et objectif : **1 000 à 1 120 €**\n- Carte SD UHS-I V30 de 128 Go : **20 à 30 €**\n- Batterie supplémentaire : **40 à 70 €**\n- Petite housse ou sac : **25 à 50 €**\n\n**Priorité d’achat :**\n1. **Canon EOS R10 + RF-S 18-150 mm** si trouvé sous 1 200 €\n2. **Sony A6400 + 18-135 mm OSS** pour rester plus facilement sous le plafond\n3. **OM-D E-M10 IV + 14-150 mm II** si la compacité et la stabilisation priment"
+  },
+  "output": "### Choix recommandé : Canon EOS R10 + RF-S 18-150 mm f/3,5-6,3 IS STM\n\n**À acheter si le kit est proposé à 1 200 € maximum.**\n\n- Très bon autofocus, simple et fiable pour débuter\n- Objectif polyvalent couvrant paysages, rues, portraits et sujets éloignés\n- Ensemble relativement léger : environ 740 g avec batterie et objectif\n- Bonne qualité d’image grâce au capteur APS-C de 24 Mpx\n- Rafale rapide, utile pour animaux et scènes d’action\n- Vidéo 4K de bonne qualité\n- Écran orientable et viseur électronique\n- Stabilisation intégrée à l’objectif\n\n**Limites :**\n- Pas de stabilisation mécanique dans le boîtier\n- Objectif peu lumineux, surtout en intérieur et le soir\n- Boîtier non tropicalisé\n- Autonomie moyenne : une batterie supplémentaire est recommandée\n\n### Alternative offrant souvent le meilleur rapport équipement/prix : Sony A6400 + 18-135 mm f/3,5-5,6 OSS\n\n**Prix cible : 1 000 à 1 150 € en kit.**\n\n- Objectif de voyage compact et très polyvalent\n- Excellent autofocus\n- Bonne qualité d’image APS-C de 24 Mpx\n- Parc d’objectifs Sony et compatibles particulièrement vaste\n- Plus de marge budgétaire pour une carte mémoire et une batterie\n\n**Limites :**\n- Ergonomie et menus moins accessibles que ceux du Canon\n- Écran seulement basculant\n- Pas de stabilisation dans le boîtier\n- Recharge par ancien connecteur micro-USB\n\n### Option la plus compacte : OM System OM-D E-M10 IV + M.Zuiko 14-150 mm II\n\n**Prix cible : 800 à 1 000 €.**\n\n- Très léger et peu encombrant\n- Plage focale équivalente à 28-300 mm, idéale en voyage\n- Stabilisation directement dans le boîtier\n- Bonne autonomie relative et commandes accessibles\n- Budget restant pour accessoires ou second objectif lumineux\n\n**Limites :**\n- Autofocus moins performant sur les sujets rapides\n- Qualité d’image nocturne inférieure aux modèles APS-C\n- Prise en main plus petite\n- Boîtier non tropicalisé, même si l’objectif résiste aux intempéries\n\n### Répartition conseillée du budget\n\n- Appareil et objectif : **1 000 à 1 120 €**\n- Carte SD UHS-I V30 de 128 Go : **20 à 30 €**\n- Batterie supplémentaire : **40 à 70 €**\n- Petite housse ou sac : **25 à 50 €**\n\n**Priorité d’achat :**\n1. **Canon EOS R10 + RF-S 18-150 mm** si trouvé sous 1 200 €\n2. **Sony A6400 + 18-135 mm OSS** pour rester plus facilement sous le plafond\n3. **OM-D E-M10 IV + 14-150 mm II** si la compacité et la stabilisation priment",
+  "total_llm_calls": 5,
+  "gpt_usage": {
+    "input_tokens": 226,
+    "output_tokens": 960,
+    "total_tokens": 1186,
+    "estimated_cost_usd": 0.020104
+  },
+  "fallback": true,
+  "retries": 0,
+  "error": null
+}

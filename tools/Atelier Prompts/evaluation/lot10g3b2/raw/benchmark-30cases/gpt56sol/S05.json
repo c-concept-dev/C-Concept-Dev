@@ -1,0 +1,32 @@
+{
+  "started_at": "2026-08-28T07:25:37.309Z",
+  "completed_at": "2026-08-28T07:25:39.357Z",
+  "latency_total_ms": 2048.226,
+  "calls": [
+    {
+      "timestamp": "2026-08-28T07:25:39.357Z",
+      "endpoint": "/v1/responses",
+      "status_http": 200,
+      "latency_ms": 1956.852,
+      "response_id": "resp_044e69c7513326c9006a9137f16c1087d299b555c02d881697",
+      "response_status": "completed",
+      "model_requested": "gpt-5.6-sol",
+      "model_returned": "gpt-5.6-sol",
+      "usage": {
+        "input_tokens": 43,
+        "output_tokens": 24,
+        "total_tokens": 67,
+        "reasoning_tokens": 0
+      },
+      "estimated_cost_usd": 0.000652,
+      "incomplete_details": null,
+      "error": null,
+      "output": "Nous avons bien avancé, mais plusieurs points restent à finaliser avant l’envoi du dossier."
+    }
+  ],
+  "turns": [],
+  "output": "Nous avons bien avancé, mais plusieurs points restent à finaliser avant l’envoi du dossier.",
+  "error": null,
+  "initial_request_exact": "Réécris cette phrase dans un style professionnel et direct : « On a pas mal avancé mais il reste encore plein de petits trucs à régler avant de pouvoir envoyer le dossier. »",
+  "clarification_detection": "heuristique documentée"
+}

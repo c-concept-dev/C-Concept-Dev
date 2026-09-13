@@ -1,0 +1,62 @@
+{
+ "lot": "OPRIE-CRITIC-MATERIAL-AWARENESS-01",
+ "objet": "auditer pourquoi le Critique refuse 16/16 faits materiau correctement portes",
+ "mesure_le": "2026-09-05",
+ "type": "AUDIT — aucun code de production modifie",
+ "constat_decisif": {
+  "chemin_critique_en_production": "runRoleWithHaChain -> CRITIC_PIPELINES -> runCriticWithAnthropic -> pipeline BATCHE",
+  "le_chemin_simple_n_est_pas_utilise": "runRoleWithAnthropic('critic', ...) existe mais /operational-request ne l emprunte jamais",
+  "cles_du_message_critique_reel": [
+   "original_request",
+   "clarification_history",
+   "analyst_output",
+   "previous_vetoes"
+  ],
+  "material_context_present": false,
+  "deep_content_available_visible": false,
+  "user_provided_material_visible": true,
+  "contenu_brut_present": false,
+  "consequence": "le Critique voit une provenance qui affirme qu un fait vient d un materiau, et n a AUCUN moyen de savoir qu un materiau a ete transmis. Son veto « aucun materiau n a ete transmis » est litteralement vrai de son entree."
+ },
+ "regle_inerte": {
+  "posee_par": "OPRIE-MATERIAL-PROVENANCE-02",
+  "texte": "Un element portant la provenance user_provided_material est ancre dans ce materiau : son absence de original_request et de clarification_history n est donc pas en soi un defaut lorsque material_context.deep_content_available vaut true.",
+  "probleme": "la condition porte sur un champ que le Critique de production ne recoit jamais — la regle ne peut donc jamais s appliquer",
+  "divergence_de_code": "makeCriticUserMessage accepte et emet material_context ; makeCriticGlobalUserMessage, utilise en production, ne l accepte ni ne l emet"
+ },
+ "lacune_de_test": "T-MPROV02-10 verifiait la presence de material_context via makeCriticUserMessage — le chemin SIMPLE, que la production n emprunte pas. Le chemin batche n etait couvert par aucun test sur ce point.",
+ "matrice_champ_candidat": {
+  "tours_conformes": 16,
+  "valeur_nommee_dans_expected_deliverable": 11,
+  "champ_non_nomme_dans_la_raison": 5,
+  "champs_porteurs_de_provenance": {
+   "objective+expected_deliverable+confirmed_constraints": 9,
+   "objective+expected_deliverable": 7
+  }
+ },
+ "taxonomie_veto_sur_les_16_conformes": {
+  "phase_preparation_execution": 5,
+  "materiau_declare_absent": 4,
+  "autre_variante_absence": 3,
+  "ancienne_regle_deux_sources": 2,
+  "disponibilite_non_confirmee": 2
+ },
+ "expected_deliverable": {
+  "definition_dans_core_adn": "aucune — simple nom dans CANDIDATE_SCALAR_FIELDS",
+  "description_dans_le_schema_json": "aucune",
+  "definition_dans_le_prompt_analyste": "aucune",
+  "definition_dans_les_prompts_critique": "aucune",
+  "seul_ancrage_semantique": "la regle de role « Vous ne redigez jamais le livrable final » (Analyste) et « Vous ne redigez jamais le livrable » (Critique)",
+  "verdict": "AMBIGU — le champ n est defini nulle part ; le placement de la valeur y est contestable mais ne peut etre prouve faux faute de definition"
+ },
+ "hypotheses": {
+  "A_material_awareness": "CONFIRMEE, mais pas au sens attendu : le Critique n IGNORE pas material_context, il ne le RECOIT PAS",
+  "B_phase_semantics": "REELLE ET SECONDAIRE — 5 vetos sur 16, fondes sur une regle de role existante, portant sur un champ non defini"
+ },
+ "raison_de_l_arret": "le correctif exige d ajouter material_context au message du Critique batche, c est-a-dire de modifier son contrat d entree. Le §60 n autorise que les prompts, l observabilite metadata et les tests.",
+ "contenu_brut": {
+  "vers_le_critique": 0,
+  "vers_l_arbitre": 0,
+  "journalise": 0
+ }
+}

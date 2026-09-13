@@ -1,0 +1,62 @@
+{
+ "lot": "DEEP-PROVIDER-ROUTING-FINAL-01",
+ "genere_le": "2026-09-06T19:16:56.795Z",
+ "plans": {
+  "fast": {
+   "constante": "FAST_PROVIDER_ORDER",
+   "ordre": [
+    "groq"
+   ],
+   "resolveur": "resolveFastProviderOrder",
+   "pin": "FAST_BENCH_PROVIDER"
+  },
+  "deep": {
+   "constante": "ROLE_PROVIDER_ORDER",
+   "ordre": [
+    "anthropic"
+   ],
+   "resolveur": "resolveRoleProviderOrder",
+   "pin": "DEEP_BENCH_PROVIDER"
+  },
+  "decision": {
+   "constante": "DECISION_PROVIDER_ORDER",
+   "ordre": [
+    "groq",
+    "anthropic",
+    "openai"
+   ],
+   "hors_perimetre": true
+  }
+ },
+ "resolution_sans_pin": {
+  "env_vide": [
+   "anthropic"
+  ],
+  "pin_ha": [
+   "anthropic"
+  ],
+  "pin_anthropic": [
+   "anthropic"
+  ]
+ },
+ "pins_refuses": [
+  {
+   "pin": "groq",
+   "refuse": true,
+   "classe": "contract_error"
+  },
+  {
+   "pin": "openai",
+   "refuse": true,
+   "classe": "contract_error"
+  }
+ ],
+ "deep_groq_dans_ordre": false,
+ "deep_openai_dans_ordre": false,
+ "modele_anthropic": "claude-sonnet-4-6",
+ "wrangler_deep_bench_provider": "ha",
+ "empreintes": {
+  "workers/groq/src/index.js": "cd5c96f70f8853a3d9e03b12b8bae808cc5e3ac3b1d766e16fd04716bd6bfadf",
+  "html_canonique": "4ade8759eb9912935965e784e31cdf899eaceca5fda150e02a24b81ef60e2c59"
+ }
+}

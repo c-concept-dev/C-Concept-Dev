@@ -1,0 +1,17 @@
+{
+  "audit": "LOT 10G.3B.3A",
+  "verdict": "CONDITIONAL_PASS",
+  "items": [
+    {"id":"ADN-001","priority":"P1","title":"Absence de contrat commun"},
+    {"id":"ADN-002","priority":"P1","title":"Technique 9 non garantie"},
+    {"id":"ADN-003","priority":"P1","title":"Contrôle final Architecte absent"},
+    {"id":"ADN-004","priority":"P1","title":"Fallback prudent sur-architecturant"},
+    {"id":"ADN-005","priority":"P1","title":"Échecs d'analyse Architecte sur 4 cas complexes sur 10"},
+    {"id":"ADN-006","priority":"P1","title":"Coût fixe Architecte élevé"},
+    {"id":"ADN-007","priority":"P2","title":"Sélection de verrous non explicable"},
+    {"id":"ADN-008","priority":"P2","title":"Obligations non canoniques"},
+    {"id":"ADN-009","priority":"P2","title":"Analyse d'intention dupliquée"},
+    {"id":"ADN-010","priority":"P2","title":"Contrôles non unifiés"}
+  ]
+}
+

@@ -1,0 +1,49 @@
+{
+ "lot": "DEEP-PRODUCTION-BLOCKERS-01",
+ "nature": "défaut OBSERVÉ pendant la campagne de contrôle, SANS rapport avec le plafond de sortie",
+ "pas_corrige_ici": true,
+ "raison": "hors des deux blockers nommés par le lot ; le corriger exigerait de toucher soit la classification d'échec, soit le prompt du Critique — l'un et l'autre interdits ici",
+ "occurrences": 1,
+ "sur_tours": 26,
+ "cas": [
+  "T"
+ ],
+ "symptome_client": {
+  "status": 502,
+  "corps": "operational_request_failure",
+  "etat_semantique": null
+ },
+ "chaine_observee": [
+  {
+   "event": "provider_ha_failure",
+   "role": "critic",
+   "provider": "anthropic",
+   "failure_class": "programming_error"
+  },
+  {
+   "event": "provider_ha_fail_closed",
+   "role": "critic",
+   "failure_class": "programming_error",
+   "remaining_providers": []
+  },
+  {
+   "event": "operational_request_error",
+   "message": "recommended_treatment=\"question\" exige impact=\"material\" (B-01B) : l'issue \"M-01\" est non matérielle et ne peut jamais être traitée par question."
+  }
+ ],
+ "analyse": {
+  "regle_violee": "B-01B — normalizeRoleIssues, workers/shared/operational-request-core.js",
+  "qui_produit": "le Critique, dans missed_material_issues : une issue portant recommended_treatment=\"question\" avec impact != \"material\"",
+  "classement": "programming_error",
+  "consequence": "fail-closed immédiat, sans bascule (règle CSR-01 : ne jamais masquer notre propre bug par un autre modèle), donc 502 technique et non degraded_state",
+  "discussion": "le classement mérite d'être rejugé : une sortie de modèle qui viole le contrat est un défaut de CE modèle sur CET appel (structured_output_invalid), pas nécessairement un bug de notre code. Ce jugement appartient au propriétaire, pas à ce lot."
+ },
+ "independance_du_plafond": {
+  "plafond_critique_modifie": false,
+  "plafond_critique": 2048,
+  "sortie_critique_max_mesuree": 1410,
+  "troncature_sur_ce_tour": false,
+  "lecture": "le Critique n'a jamais approché son plafond, et son plafond n'a pas été touché par ce lot. Ce défaut ne peut pas être un effet du relèvement."
+ },
+ "statut": "BLOCKING_DEFECT — remonté au propriétaire, non corrigé"
+}

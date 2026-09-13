@@ -1,0 +1,58 @@
+{
+  "lot": "ATELIER-PRODUCT-SIMPLIFICATION-01",
+  "principe_commun": "aucune des trois options n'ajoute de routeur, d'agent, de modèle, de cache ni de machine à états. Toutes réutilisent des composants qui existent déjà dans le snapshot.",
+  "OPTION_A": {
+    "nom": "MINIMAL CHANGE — rendre au plan rapide la parole qu'il a déjà",
+    "flux": "inchangé. On corrige la présentation et on instrumente le silence du plan rapide.",
+    "changements": [
+      "supprimer #v11-dialogue-title (« Une précision est nécessaire ») et #v11-dialogue-intro (« Pour bien préparer votre demande… ») — deux éléments statiques du HTML",
+      "diagnostiquer pourquoi le plan rapide n'a pas sollicité sur le cas Italie : la télémétrie existe déjà (oprieMark émet fast_rejected, fast_failure, fast_discarded_stale/pending/concluded, fast_render). Une session navigateur suffit à trancher.",
+      "aucune modification du pipeline, des rôles, des contrats ni des prompts"
+    ],
+    "appels": "inchangés (6 → 5 depuis l'early-stop déjà livré)",
+    "gain": "le contrat de clarification user-facing du §6 passe de FAIL à PASS immédiatement. Si le plan rapide parlait, le TIME_TO_FIRST_USEFUL_RESPONSE tombe déjà à ~0,5 s sans toucher au Deep.",
+    "risques": "aucun risque sémantique. Risque résiduel : si le plan rapide échoue pour une cause structurelle (endpoint non déployé, sortie Groq invalide), A ne résout rien seul — d'où l'instrumentation.",
+    "contrats_touches": "aucun",
+    "tests_a_modifier": "les empreintes HTML (rituel connu, 15 fichiers) ; aucun test sémantique",
+    "compatibilite": "totale"
+  },
+  "OPTION_B": {
+    "nom": "BALANCED — le profond devient une escalade sur le chemin de clarification",
+    "flux": "INPUT → plan rapide (candidate) + plan profond lancés ensemble → la question rapide s'affiche si elle est validée → le profond confirme ou remplace. Sur un tour dont la preuve de clarification est acquise, le profond s'arrête à l'Arbitre au lieu de l'appeler.",
+    "changements": [
+      "A dans son intégralité",
+      "rendre l'Arbitre CONDITIONNEL sur le chemin de clarification : quand une issue matérielle a survécu au Substitution Gate comme non substituable, l'état clarification_required est logiquement forcé et la question retenue est la question_candidate de rang le plus élevé de l'Analyste. L'état reste écrit par un producteur déterministe, pas par l'interface.",
+      "étendre la projection conversationnelle : décider si Rapide doit pouvoir poser une question courte plutôt que de renvoyer vers Architecte (CONVERSATIONAL_MODES)"
+    ],
+    "appels_cas_italie": "5 → 4 (Analyste, Critique global, 1 batch, plus d'Arbitre sur ce chemin)",
+    "gain_estime": "−27 893 ms et −1 656 jetons sur le tour Italie, soit environ −37 % de latence profonde et −32 % de sortie. Le plan rapide reste ce qui tient le contrat interactif.",
+    "risques": [
+      "l'Arbitre corrige aujourd'hui des formulations : sur Italie, sa question est meilleure que la simple reprise du candidat de l'Analyste. Supprimer sa formulation dégrade potentiellement la QUALITÉ de la question, pas sa légitimité.",
+      "il faut prouver, sur une population réelle, que l'état forcé ne diverge jamais de l'état que l'Arbitre aurait écrit — c'est mesurable et non mesuré à ce jour"
+    ],
+    "contrats_touches": "OPERATIONAL_REQUEST_ROLE_SEQUENCE cesse d'être inconditionnelle ; `const turn = outputs.arbiter` doit accepter un second producteur déterministe",
+    "tests_a_modifier": "tous ceux qui présument trois rôles systématiques — à recenser avant décision",
+    "compatibilite": "bonne, mais c'est un changement de contrat d'orchestration, pas un réglage"
+  },
+  "OPTION_C": {
+    "nom": "AGGRESSIVE — le profond ne s'exécute que s'il peut changer la décision",
+    "flux": "INPUT → lecture sémantique légère (plan rapide) → NEXT-ACTION GATE. Si le gate produit une interaction validée ET qu'aucun signal de risque n'existe (matériau, enjeux significatifs, historique de clarification contradictoire), le profond n'est PAS lancé du tout. Sinon, profond complet.",
+    "changements": [
+      "B dans son intégralité",
+      "rendre le lancement du plan profond CONDITIONNEL au lieu de systématique",
+      "définir le jeu fermé de signaux de risque qui forcent l'escalade"
+    ],
+    "appels_cas_italie": "1 (plan rapide seul)",
+    "gain_estime": "TIME_TO_FIRST_USEFUL_RESPONSE ≈ 0,5 s, coût du tour divisé par ~40",
+    "risques": [
+      "RISQUE MAJEUR — le plan rapide n'a aujourd'hui AUCUNE autorité, par construction et par test. Lui laisser décider qu'aucune vérification profonde n'est nécessaire, c'est lui donner une autorité de non-escalade. C'est exactement ce que FAST_FORBIDDEN_AUTHORITY_FIELDS interdit.",
+      "le jeu de signaux de risque devient un seuil sémantique déguisé — ce que le §7 et le §10 interdisent",
+      "la protection false READY repose aujourd'hui sur le fait que le profond tourne TOUJOURS. La rendre conditionnelle demande une preuve de non-régression que ce lot n'a pas."
+    ],
+    "contrats_touches": "l'invariant « le plan profond n'est jamais sauté » (runInteractiveTurn : `deep_executed: true` en dur)",
+    "tests_a_modifier": "l'essentiel du corpus de gouvernance",
+    "compatibilite": "faible"
+  },
+  "RECOMMENDED_OPTION": "A d'abord, puis B après mesure",
+  "justification": "A rend le contrat user-facing conforme immédiatement, sans toucher une seule ligne de sémantique, et l'instrumentation existe déjà pour dire pourquoi le plan rapide s'est tu. Tant que cette réponse n'est pas connue, B optimiserait un pipeline qui n'aurait jamais dû être sur le chemin d'affichage, et C sacrifierait la garantie qui protège du faux READY pour un gain que A obtient déjà."
+}

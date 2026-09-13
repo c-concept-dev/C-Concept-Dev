@@ -1,0 +1,89 @@
+{
+ "lot": "DEEP-ANTHROPIC-ACCEPTANCE-01",
+ "mesure_le": "2026-09-06",
+ "checkpoint": "2a27fb07f6fe3ed8a439b0ccf99b81548d6e4fd1",
+ "artefact_sha": "4ade8759",
+ "config": {
+  "provider": "anthropic seul, epingle, aucun repli",
+  "model": "claude-sonnet-4-6",
+  "temperature": 0,
+  "cadence_ms": 12000,
+  "tours": 68,
+  "modification_pendant_mesure": false
+ },
+ "phase_A_synthetique": {
+  "n": 30,
+  "etats": {
+   "operational_request_ready": 30
+  },
+  "valeur_recopiee_dans_candidat": 0,
+  "faux_ready": 0,
+  "degradations": 0,
+  "latence_p50_ms": 20792
+ },
+ "prise_en_compte_materiau": {
+  "avant": "16/30 = 53,3 %",
+  "maintenant": "30/30 = 100 %",
+  "definition": "provenance user_provided_material emise + available_inputs pertinent + aucune affirmation d absence ; la valeur n a plus a etre recopiee (contrat de phase)"
+ },
+ "controles": {
+  "materiau_absent": "3/3 clarification, 0 valeur inventee, 0 provenance materiau",
+  "present_mais_indisponible": "3/3 clarification, 0 valeur inventee, 0 provenance materiau",
+  "explicit_user_statement": "3/3 sans provenance materiau",
+  "clarification_answer": {
+   "valides": 3,
+   "valeur_portee": 3,
+   "techniques": 1,
+   "note": "la premiere fixture omettait la cle `turn` requise ; refusee en 400 par le transport, corrigee, rejouee"
+  }
+ },
+ "oracle": {
+  "total": 30,
+  "resolus": 26,
+  "owner_pending": 4,
+  "concordance_directe": 18,
+  "perimes_par_le_canal_materiau": [
+   "R08",
+   "R10",
+   "R13"
+  ],
+  "techniques": [
+   "A03",
+   "R09",
+   "R11",
+   "R12"
+  ],
+  "divergence_semantique": [
+   "R05"
+  ],
+  "concordance_sur_evaluables": "18/19 = 94,7 %",
+  "oracle_modifie": false,
+  "preuve_de_peremption": "le rationale de R08/R10/R13 conditionne explicitement l attente a « un intrant que le tour ne recoit pas : le contrat de transport d OPRIE ne porte que original_request »"
+ },
+ "faux": {
+  "ready": 0,
+  "blocked": 0,
+  "clarification_averee": 0,
+  "confirmation": "non mesurable — aucun cas confirmation_required resolu dans l oracle"
+ },
+ "technique": {
+  "degraded_state": 4,
+  "sur": 68,
+  "classe": "technical_failover",
+  "limite_sortie": 0,
+  "timeout": 0,
+  "quota": 0,
+  "schema": 0,
+  "note": "artefact de l epinglage sans repli exige par le protocole ; la chaine HA rattraperait ces cas en production"
+ },
+ "observe": {
+  "latence_p50_ms": 26926,
+  "latence_p95_ms": 96197,
+  "analyste_jetons_entree_p50": 5573,
+  "analyste_jetons_entree_p95": 5573,
+  "note": "releve pour information — aucune qualification de capacite (§35)"
+ },
+ "classement": "ACCEPTED_WITH_NON_BLOCKING_ISSUES",
+ "defauts_bloquants": [],
+ "raw_material_logging": 0
+}

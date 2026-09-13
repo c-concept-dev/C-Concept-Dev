@@ -1,0 +1,95 @@
+{
+  "started_at": "2026-08-28T07:51:21.612Z",
+  "completed_at": "2026-08-28T07:53:05.165Z",
+  "html_sha256": "757ad74d70ffeaff8c3c9e2a09d8c3aa9bbbcbcc52d0cae9923f54e7a28f2a06",
+  "latency_total_ms": 103551.868,
+  "time_to_first_useful_result_ms": null,
+  "route_finale": "architecte",
+  "moteur_final": null,
+  "decision_source": "local-prudent",
+  "decision": {
+    "etat_demande": "exploitable",
+    "route": "architecte",
+    "confiance": "moyenne",
+    "raison_interne": "La demande est exploitable mais nécessite une structuration ou des arbitrages préalables.",
+    "question": null
+  },
+  "decision_provider_calls": [
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:51:22.110Z",
+      "latency_ms": 279.756,
+      "status_http": 502,
+      "request": {
+        "demande": "Propose un plan de fusion de deux services de 15 personnes sur cinq mois sans interruption de service. Compare trois modèles d'organisation cible, traite la gouvernance, les compétences, la communication, les risques humains, les jalons, les critères de choix et le suivi après fusion.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "error": "provider_failure",
+        "message": "Le fournisseur de décision n’est pas disponible."
+      },
+      "error": null
+    },
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:51:22.390Z",
+      "latency_ms": 162.123,
+      "status_http": 502,
+      "request": {
+        "demande": "Propose un plan de fusion de deux services de 15 personnes sur cinq mois sans interruption de service. Compare trois modèles d'organisation cible, traite la gouvernance, les compétences, la communication, les risques humains, les jalons, les critères de choix et le suivi après fusion.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "error": "provider_failure",
+        "message": "Le fournisseur de décision n’est pas disponible."
+      },
+      "error": null
+    }
+  ],
+  "decision_provider_latency_ms": 441.879,
+  "clarifications": [],
+  "nombre_reanalyses": 0,
+  "final_call": null,
+  "output": "",
+  "total_llm_calls": 3,
+  "gpt_usage": {
+    "input_tokens": 9665,
+    "output_tokens": 8000,
+    "total_tokens": 17665,
+    "estimated_cost_usd": 0.19866
+  },
+  "fallback": true,
+  "retries": 0,
+  "error": {
+    "name": "Error",
+    "message": "Analyse Architecte non exploitable: 8 objet(s) JSON valide(s) trouvé(s)",
+    "stage": "architecte_analyse",
+    "call": {
+      "timestamp": "2026-08-28T07:53:05.149Z",
+      "endpoint": "/v1/responses",
+      "status_http": 200,
+      "latency_ms": 102580.894,
+      "response_id": "resp_0ee767d1e40b1749006a913dfaaff087d29c3b604220ffd77c",
+      "response_status": "incomplete",
+      "model_requested": "gpt-5.6-sol",
+      "model_returned": "gpt-5.6-sol",
+      "usage": {
+        "input_tokens": 9665,
+        "output_tokens": 8000,
+        "total_tokens": 17665,
+        "reasoning_tokens": 4792
+      },
+      "estimated_cost_usd": 0.19866,
+      "incomplete_details": {
+        "reason": "max_output_tokens"
+      },
+      "error": null,
+      "output": "{\n  \"version\": \"3.4\",\n  \"comprehension\": {\n    \"intention_principale\": \"Obtenir un plan opérationnel de fusion de deux services, structuré sur cinq mois et conçu pour préserver la continuité de service.\",\n    \"intentions_secondaires\": [\n      \"Comparer trois modèles d'organisation cible selon un périmètre commun.\",\n      \"Définir la gouvernance et les mécanismes de décision de la transition.\",\n      \"Organiser les compétences, la communication et la gestion des risques humains.\",\n      \"Établir des jalons, des critères de choix et un dispositif de suivi après la fusion.\"\n    ],\n    \"declarations\": [\n      {\n        \"contenu\": \"Le périmètre annoncé comprend deux services de 15 personnes.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"deux services de 15 personnes\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      }\n    ],\n    \"contraintes\": [\n      {\n        \"contenu\": \"Le plan doit couvrir une période de cinq mois.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"sur cinq mois\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      },\n      {\n        \"contenu\": \"La transition doit viser l'absence d'interruption de service.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"sans interruption de service\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      },\n      {\n        \"contenu\": \"La proposition doit comparer exactement trois modèles d'organisation cible.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"Compare trois modèles d'organisation cible\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      },\n      {\n        \"contenu\": \"Le livrable doit traiter la gouvernance, les compétences, la communication, les risques humains, les jalons, les critères de choix et le suivi après fusion.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"traite la gouvernance, les compétences, la communication, les risques humains, les jalons, les critères de choix et le suivi après fusion.\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      }\n    ],\n    \"ambiguites\": [\n      \"Il n'est pas précisé si les cinq mois doivent inclure toute la période de stabilisation après la fusion.\",\n      \"L'expression « sans interruption » ne précise pas les niveaux de service minimaux, les indicateurs ni les tolérances opérationnelles à préserver.\",\n      \"La nature des services et leur degré d'interdépendance ne sont pas indiqués.\"\n    ],\n    \"informations_manquantes\": [\n      {\n        \"information\": \"Nature des activités, engagements de service, volumes de travail, périodes critiques et dépendances opérationnelles.\",\n        \"bloquant\": false,\n        \"justification\": \"Ces données sont nécessaires pour valider la faisabilité détaillée de la continuité de service, mais un plan cadre peut immédiatement proposer des contrôles conditionnels et des points de validation.\"\n      },\n      {\n        \"information\": \"Organisation actuelle, rôles, compétences, connaissances critiques et éventuels postes sans relais.\",\n        \"bloquant\": false,\n        \"justification\": \"Le contenu précis du plan de compétences dépend de cet état des lieux, mais une méthode d'inventaire, de transfert et de réduction des écarts peut être fournie sans l'inventer.\"\n      },\n      {\n        \"information\": \"Autorités de décision, contraintes sociales ou RH et parties prenantes à associer.\",\n        \"bloquant\": false,\n        \"justification\": \"Ces éléments influencent les responsabilités et le calendrier de consultation, mais une gouvernance générique avec responsabilités à confirmer reste exploitable.\"\n      }\n    ]\n  },\n  \"evaluation\": {\n    \"niveau_risque\": \"modere\",\n    \"justification_risque\": \"Une erreur de séquencement peut dégrader le service et une fusion mal conduite peut provoquer surcharge, ambiguïté des rôles, conflits ou départs. Le risque reste maîtrisable par des hypothèses explicites, des transitions progressives et des critères de passage.\",\n    \"connaissance_externe_necessaire\": true,\n    \"actualite_requise\": false,\n    \"justification_connaissance\": \"La réponse mobilise des méthodes générales de conception organisationnelle, de conduite du changement, de transfert de compétences et de continuité opérationnelle. Aucun fait actuel propre à une organisation ou à une réglementation précise n'est indispensable pour produire le plan cadre demandé.\",\n    \"calcul_requis\": false,\n    \"livrable_complet_possible\": true,\n    \"reponse_partielle_possible\": true,\n    \"action_recommandee\": \"continuer\",\n    \"questions_a_poser\": [],\n    \"parties_realisables_immediatement\": []\n  },\n  \"strategie\": {\n    \"capacites_necessaires\": [\n      \"Conception d'organisations et comparaison multicritère\",\n      \"Planification de transition opérationnelle\",\n      \"Gouvernance et clarification des responsabilités\",\n      \"Gestion des compétences et transfert des connaissances\",\n      \"Conduite du changement et prévention des risques humains\",\n      \"Définition d'indicateurs et de critères de passage\"\n    ],\n    \"hypotheses_autorisees\": [\n      \"Interpréter les effectifs comme 15 personnes dans chacun des deux services.\",\n      \"Construire un plan sectoriellement neutre, à adapter aux engagements de service réels.\",\n      \"Proposer une fusion opérationnelle au cours du quatrième mois afin de réserver le cinquième à la stabilisation, en présentant ce calendrier comme une base de travail.\",\n      \"Choisir trois archétypes organisationnels comparables sans prétendre qu'ils constituent les seules options possibles.\"\n    ],\n    \"hypotheses_interdites\": [\n      \"Inventer les métiers, les compétences, les niveaux de service, les outils ou les dépendances actuelles.\",\n      \"Présenter l'absence d'interruption comme garantie plutôt que comme objectif assorti de contrôles.\",\n      \"Supposer des suppressions de postes, des départs ou une adhésion des équipes.\",\n      \"Attribuer des scores ou des pondérations prétendument objectifs sans données internes.\",\n      \"Affirmer des obligations sociales, RH ou juridiques propres à une juridiction non précisée.\"\n    ],\n    \"role_adaptatif\": {\n      \"intitule\": \"Architecte de transition organisationnelle\",\n      \"mission\": \"Concevoir un plan de fusion pragmatique qui compare les organisations cibles, protège la continuité opérationnelle et traite explicitement les dimensions humaines.\",\n      \"competences\": [\n        \"Design organisationnel\",\n        \"Continuité opérationnelle\",\n        \"Planification de transformation\",\n        \"Gouvernance\",\n        \"Conduite du changement\"\n      ],\n      \"limites\": [\n        \"Ne peut pas valider la faisabilité locale sans données sur les activités et les engagements de service.\",\n        \"Ne peut pas diagnostiquer les compétences ou le climat social sans informations internes.\",\n        \"Ne fournit pas d'interprétation juridique ou sociale propre à une juridiction non précisée.\",\n        \"Ne peut pas garantir une transition sans incident.\"\n      ]\n    },\n    \"niveau_architecture\": \"minimal\",\n    \"justification_niveau\": \"Le réglage manuel minimal est respecté avec une architecture compacte, tout en conservant les précautions indispensables liées à la continuité de service et aux risques humains.\",\n    \"pilotage_incertitude\": {\n      \"decisions_autonomes\": [\n        \"Retenir comme archétypes de travail un regroupement fonctionnel, des équipes intégrées par flux de service et un modèle hybride.\",\n        \"Structurer les cinq mois en diagnostic, conception, préparation, transition et stabilisation.\",\n        \"Présenter une recommandation conditionnelle plutôt qu'un modèle universellement optimal.\"\n      ],\n      \"estimations_a_etiqueter\": [\n        \"Répartition proposée des travaux entre les cinq mois.\",\n        \"Niveaux d'effort de transition associés aux trois modèles.\",\n        \"Réserves de capacité, cadences ou seuils chiffrés éventuellement proposés.\"\n      ],\n      \"inconnues_non_devineables\": [\n        \"Engagements de service et capacité opérationnelle réelle\",\n        \"Compétences, rôles et connaissances critiques actuels\",\n        \"Climat social et perception de la fusion\",\n        \"Contraintes RH, sociales ou juridiques applicables\",\n        \"Autorité réelle des instances de gouvernance\",\n        \"Valeurs de référence des indicateurs opérationnels\"\n      ]\n    }\n  },\n  \"livrable\": {\n    \"nature\": \"Plan cadre opérationnel et comparatif de fusion organisationnelle\",\n    \"format_technique\": \"markdown\",\n    \"quantites\": {\n      \"min\": 3,\n      \"max\": 3,\n      \"unite\": \"modèles d'organisation cible\"\n    },\n    \"ton\": \"Pragmatique, structuré, décisionnel et explicite sur les hypothèses\",\n    \"longueur_indicative\": \"Environ 1 500 à 2 000 mots, avec tableaux synthétiques pour la comparaison, les jalons et les risques.\"\n  },\n  \"compilation\": {\n    \"composants_retenus\": [\n      {\n        \"type\": \"section\",\n        \"titre\": \"Comparaison des trois organisations cibles\",\n        \"contenu\": \"Utilise comme archétypes de travail : 1) un service unifié à structure fonctionnelle, 2) des équipes intégrées organisées par flux de service ou population servie, 3) un modèle hybride combinant pôles d'expertise et équipes transversales. Compare-les sur un périmètre identique : structure, responsabilités, gouvernance, avantages, limites, continuité de service, résilience, risques humains, besoins en compétences, effort de transition et conditions de réussite. Présente une matrice synthétique et n'affirme pas qu'un modèle est intrinsèquement supérieur.\",\n        \"justification\": \"Des archétypes communs et un périmètre comparable sont nécessaires pour produire la comparaison demandée sans attribuer artificiellement une supériorité à une option.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"Compare trois modèles d'organisation cible\",\n            \"usage\": \"Établit le nombre exact d'options à comparer.\"\n          },\n          {\n            \"nature\": \"deduction\",\n            \"citation\": null,\n            \"usage\": \"Détermine trois archétypes de travail suffisamment distincts pour éclairer une décision.\"\n          }\n        ]\n      },\n      {\n        \"type\": \"instruction\",\n        \"titre\": \"Feuille de route sur cinq mois\",\n        \"contenu\": \"Construis une feuille de route mensuelle proposée : mois 1, diagnostic et référence de continuité ; mois 2, conception cible et décisions ; mois 3, préparation, transferts de connaissances et pilote ; mois 4, transition progressive ou bascule conditionnée par la préparation ; mois 5, stabilisation et premier suivi après fusion. Pour chaque mois, indique les résultats attendus, actions, responsabilités, dépendances, livrables, jalons, critères de passage et protections de continuité. Prévois une variante conditionnelle si l'activité ne peut pas être migrée par vagues.\",\n        \"justification\": \"Cette séquence rend le calendrier exploitable et ménage une période de stabilisation sans présenter le mois de bascule comme un fait établi.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"sur cinq mois sans interruption de service\",\n            \"usage\": \"Fixe l'horizon et la contrainte opérationnelle de la feuille de route.\"\n          },\n          {\n            \"nature\": \"deduction\",\n            \"citation\": null,\n            \"usage\": \"Propose une séquence de transition qui réserve du temps à la stabilisation.\"\n          }\n        ]\n      },\n      {\n        \"type\": \"contrainte\",\n        \"titre\": \"Gouvernance et protection de la continuité\",\n        \"contenu\": \"Définis une gouvernance cible et transitoire comprenant sponsor, comité de pilotage, responsable de transition, responsables de service, managers et fonction RH, avec droits de décision, responsabilités, cadence, escalade et gestion des incidents. Propose comme contrôles à adapter : capacité réservée à l'exploitation, relais sur les activités critiques, documentation, binômage, transfert de connaissances, pilote, transition par vagues, critères de passage, procédure de repli et surveillance des indicateurs de service. Présente ces mesures comme des protections proposées, jamais comme une garantie d'absence d'incident.\",\n        \"justification\": \"La gouvernance et les protections opérationnelles conditionnent la coordination de la fusion et l'honnêteté de l'engagement de continuité.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"sans interruption de service\",\n            \"usage\": \"Établit l'objectif impératif de continuité.\"\n          },\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"traite la gouvernance\",\n            \"usage\": \"Exige le traitement explicite des responsabilités et décisions.\"\n          },\n          {\n            \"nature\": \"deduction\",\n            \"citation\": null,\n            \"usage\": \"Détermine des mécanismes génériques de maîtrise de la transition.\"\n          }\n        ]\n      },\n      {\n        \"type\": \"section\",\n        \"titre\": \"Compétences, communication et risques humains\",\n        \"contenu\": \"Inclue une matrice rôles-compétences, une cartographie des connaissances critiques, une analyse des écarts et un plan de transfert, formation ou binômage. Structure la communication par public, message, moment, canal, responsable et boucle de retour. Établis un registre concis des risques humains couvrant notamment surcharge, ambiguïté des rôles, perte de sens, iniquité perçue, conflits et départs, avec signaux d'alerte, prévention, réponse et responsable. N'infère ni le climat social réel ni des changements d'effectif non annoncés.\",\n        \"justification\": \"Ces trois dimensions sont explicitement demandées et doivent être reliées à des actions observables plutôt que traitées comme des considérations générales.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"les compétences, la communication, les risques humains\",\n            \"usage\": \"Établit les trois dimensions humaines à intégrer au plan.\"\n          },\n          {\n            \"nature\": \"deduction\",\n            \"citation\": null,\n            \"usage\": \"Traduit ces dimensions en outils et actions opérationnels.\"\n          }\n        ]\n      },\n      {\n        \"type"
+    },
+    "validation": null
+  }
+}

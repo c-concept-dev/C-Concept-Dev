@@ -1,0 +1,74 @@
+{
+ "lot": "OPRIE-INPUT-AVAILABILITY-FIELD-01",
+ "mesure_le": "2026-09-06",
+ "gap": {
+  "champs_audites": 10,
+  "champ_existant_convenable": false,
+  "provenance_seule_suffisante": false,
+  "preuve_provenance": "validateProvenanceRecord exige un field de CANDIDATE_FIELDS ET une value non vide : la provenance est une annotation de lignage SUR une valeur du candidat, elle ne peut pas exister seule"
+ },
+ "champ": {
+  "nom": "available_inputs",
+  "type": "array of string",
+  "optionnel_cote_validateur": true,
+  "requis_cote_schema_fournisseur": true,
+  "retrocompatible": true,
+  "definition": "Intrant que l Analyste juge necessaire a l execution et dont la disponibilite est etablie a ce tour. Decrit l intrant, jamais son contenu, jamais le resultat qu il permettra de produire. Disponible ne signifie ni suffisant, ni correct, ni pertinent, et ne rend jamais une demande prete."
+ },
+ "propagation_automatique": [
+  "schema JSON du candidat",
+  "enum du champ de provenance",
+  "createEmptyCandidate",
+  "validateOperationalRequestCandidate",
+  "assessProvenance / diffCandidates"
+ ],
+ "consommateurs_amendes": {
+  "analyste": true,
+  "critique": false,
+  "arbitre": false,
+  "oprie": false
+ },
+ "mesure_30_tours": {
+  "reference": {
+   "blocked": 10,
+   "ready": 11,
+   "vetos_phase": 4,
+   "provenance": 16,
+   "valeur_recopiee": 8
+  },
+  "correctif_seul": {
+   "blocked": 23,
+   "ready": 5,
+   "vetos_phase": 0,
+   "provenance": 0,
+   "valeur_recopiee": 0
+  },
+  "avec_available_inputs": {
+   "blocked": 16,
+   "ready": 13,
+   "vetos_phase": 0,
+   "provenance": 30,
+   "valeur_recopiee": 1,
+   "available_inputs_renseigne": 29,
+   "degradations_techniques": 0
+  }
+ },
+ "cause_residuelle": {
+  "role": "ARBITRE",
+  "citation": "L Analyste et le Critique s accordent […] Le champ available_inputs mentionne « le numero de dossier, present dans le materiau transmis », or aucun materiau n a ete effectivement fourni",
+  "mecanisme": "l Arbitre ne recoit pas material_context et ne peut donc pas verifier l affirmation de disponibilite",
+  "hors_perimetre": "ce lot ne modifie pas l Arbitre (§15)"
+ },
+ "faux_ready": {
+  "ready": 13,
+  "avec_disponibilite_declaree": 12,
+  "faux": 1,
+  "reference": 1
+ },
+ "run_22": "FALSE_READY — ne recopie pas la valeur, mais ne declare pas non plus la disponibilite",
+ "raw_content": {
+  "vers_critique": 0,
+  "vers_arbitre": 0,
+  "journalise": 0
+ }
+}
