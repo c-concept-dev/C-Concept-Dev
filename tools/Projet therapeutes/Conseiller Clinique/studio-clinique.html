@@ -1795,6 +1795,13 @@
     .cc-ws-doc-card.cc-ws-legacy-block-editable [data-cc-legacy-block-id] { cursor: pointer; }
     .cc-ws-doc-card [data-cc-legacy-block-id].is-selected { outline: 2px solid var(--terracotta-700); outline-offset: 4px; }
     .cc-legacy-citation-flag { font-size: 10px; color: var(--terracotta-700); cursor: help; margin-left: 2px; }
+    /* Item 57c Lot 1 — édition directe du texte (heading/paragraph). Affordance distincte de
+       .is-selected (contour terracotta) : un focus dashed indique qu'on est EN TRAIN de taper,
+       jamais confondu avec la simple sélection du bloc (les deux peuvent coexister). */
+    .adoc-sc-block-text[contenteditable="true"],
+    .cc-ws-doc-card [data-cc-legacy-block-id][contenteditable="true"] { cursor: text; }
+    .adoc-sc-block-text[contenteditable="true"]:focus,
+    .cc-ws-doc-card [data-cc-legacy-block-id][contenteditable="true"]:focus { outline: 2px dashed var(--petrol-800); outline-offset: 2px; }
     .cc-block-edit-panel { margin: 10px 0 18px; }
     .cc-block-edit-diff { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
     .cc-block-edit-label {
@@ -10344,10 +10351,16 @@ ${recent}`;
     switch (b.type) {
       case 'heading': {
         const lvl = Math.min(Math.max(b.content.level, 1), 3);
-        return '<h' + lvl + ' class="adoc-sc-block adoc-sc-heading' + statusClass + '" id="' + adocEsc(b.id) + '">' + adocEsc(b.content.text) + cites + '</h' + lvl + '>';
+        // Item 57c Lot 1 — le texte vit dans un span interne dédié (.adoc-sc-block-text), jamais
+        // l'élément de bloc entier : les citations (cites) restent hors de la zone rendue
+        // éditable, exactement comme le JSON les sépare déjà (content.text vs
+        // validation.citationLinks, cf. rapport d'investigation) — contentEditable posé plus
+        // tard, dynamiquement, par adocWsSetupBlockEditing, jamais ici (ce rendu sert aussi
+        // l'aperçu et l'export, où rien ne doit être éditable).
+        return '<h' + lvl + ' class="adoc-sc-block adoc-sc-heading' + statusClass + '" id="' + adocEsc(b.id) + '"><span class="adoc-sc-block-text">' + adocEsc(b.content.text) + '</span>' + cites + '</h' + lvl + '>';
       }
       case 'paragraph':
-        return '<p class="adoc-sc-block adoc-sc-paragraph' + statusClass + '" id="' + adocEsc(b.id) + '">' + adocEsc(b.content.text) + cites + '</p>';
+        return '<p class="adoc-sc-block adoc-sc-paragraph' + statusClass + '" id="' + adocEsc(b.id) + '"><span class="adoc-sc-block-text">' + adocEsc(b.content.text) + '</span>' + cites + '</p>';
       case 'callout':
         return '<div class="adoc-sc-block adoc-sc-callout adoc-sc-callout-' + adocEsc(b.content.visualRole) + statusClass + '" id="' + adocEsc(b.id) + '" role="note">' + adocEsc(b.content.text) + cites + '</div>';
       case 'list': {
@@ -11846,12 +11859,44 @@ ${recent}`;
   // est réaffiché entièrement à chaque correction confirmée via adocOpenWorkspace, cf.
   // adocConfirmBlockCorrection, donc un écouteur par bloc serait de toute façon reperdu/refait
   // à chaque fois — la délégation évite simplement de le refaire manuellement à chaque bloc).
+  // Item 57c Lot 1 — synchronise le texte réellement affiché/édité (.adoc-sc-block-text) vers
+  // doc.blocks[i].content.text, appelée juste avant toute sauvegarde (jamais via adocOpenWorkspace,
+  // qui régénérerait le DOM et effacerait la frappe en cours). Le DOM contentEditable porte déjà
+  // la vérité de la frappe en temps réel — aucun écouteur input n'est nécessaire pour la
+  // "capturer" : lire son contenu au moment voulu suffit. Texte vidé : jamais écrit (le schéma
+  // JSON exige minLength:1 pour heading/paragraph, cf. rapport) — l'ancien texte est restauré
+  // dans le DOM à la place, comportement choisi et documenté (pas de blocage de sauvegarde avec
+  // message d'erreur, moins clair pour l'utilisatrice qu'une simple restauration silencieuse).
+  function adocSyncEditedStructuredBlocksToDoc(art) {
+    if (!art || !art._adocStructuredDoc) return;
+    const docCard = document.getElementById('cc-ws-doc-card');
+    if (!docCard) return;
+    docCard.querySelectorAll('.adoc-sc-block-text[contenteditable="true"]').forEach(function (span) {
+      const blockEl = span.closest('.adoc-sc-block');
+      if (!blockEl) return;
+      const block = (art._adocStructuredDoc.blocks || []).filter(function (b) { return b.id === blockEl.id; })[0];
+      if (!block) return;
+      const newText = (span.textContent || '').replace(/\s+/g, ' ').trim();
+      if (!newText) { span.textContent = block.content.text; return; }
+      block.content.text = newText;
+    });
+  }
+
   function adocWsSetupBlockEditing(art) {
     const docCard = document.getElementById('cc-ws-doc-card');
     if (!docCard) return;
     const enabled = !!(art._adocCapabilities && art._adocCapabilities.blockEditing);
     docCard.classList.toggle('cc-ws-block-editable', enabled);
     if (!enabled) { docCard.onclick = null; return; } // ex. legacy-html — aucune interaction de sélection, comportement inchangé
+    // Item 57c Lot 1 — édition directe du texte, heading/paragraph uniquement (list/table/quote/
+    // callout hors périmètre de ce lot). Posé sur le span interne .adoc-sc-block-text (ajouté par
+    // adocRenderBlockHTML), jamais l'élément de bloc entier : les citations (cites) restent hors
+    // de la zone éditable — la séparation existe déjà dans le JSON (content.text vs
+    // validation.citationLinks, confirmé par l'investigation), il ne manquait que son exposition
+    // au DOM. Callout/list/table/quote ne sont jamais concernés ici (pas de span ajouté pour eux).
+    docCard.querySelectorAll('.adoc-sc-heading > .adoc-sc-block-text, .adoc-sc-paragraph > .adoc-sc-block-text').forEach(function (span) {
+      span.setAttribute('contenteditable', 'true');
+    });
     docCard.onclick = function (e) {
       if (e.target.closest('.cc-block-edit-panel')) return; // clic dans le panneau — jamais réinterprété comme une (dé)sélection
       if (e.target.closest('.adoc-sc-cite')) return; // note de bas de page — laisse naviguer normalement
@@ -11864,7 +11909,15 @@ ${recent}`;
       const blockId = blockEl.id;
       const block = (curArt._adocStructuredDoc.blocks || []).filter(function (b) { return b.id === blockId; })[0];
       if (!block || ADOC_BLOCK_EDIT_TYPES.indexOf(block.type) === -1) return; // type non pris en charge dans ce lot (ex. image) — inerte
-      if (current.blockId === blockId) { adocWsClearBlockSelection(); return; } // reclic sur le même bloc — désélectionne
+      const isDirectlyEditable = block.type === 'heading' || block.type === 'paragraph';
+      if (current.blockId === blockId) {
+        // Item 57c Lot 1 — un bloc directement éditable reste sélectionné au reclic : repositionner
+        // le curseur dans le texte ne doit jamais faire disparaître le panneau "Corriger ce
+        // passage" (conflit de clic identifié par l'investigation) — les autres types gardent le
+        // comportement de désélection déjà existant, strictement inchangé.
+        if (!isDirectlyEditable) adocWsClearBlockSelection();
+        return;
+      }
       adocWsClearBlockSelection();
       blockEl.classList.add('is-selected');
       const panel = document.createElement('div');
@@ -11874,9 +11927,46 @@ ${recent}`;
       panel.innerHTML = adocBuildBlockEditPanelHTML();
       blockEl.insertAdjacentElement('afterend', panel);
       window._adocBlockEditState = { storeKey: storeKey, blockId: blockId, panelEl: panel, pendingBlock: null, originalBlock: block };
+      // Item 57c Lot 1 — ne vole plus le focus vers le champ libre pour un bloc directement
+      // éditable : sinon le clic qui sélectionne le bloc empêcherait de facto d'y taper (le focus
+      // partirait aussitôt dans le textarea de correction IA, à côté). Comportement inchangé pour
+      // les autres types (callout/list/table/quote), jamais éditables directement dans ce lot.
       const ta = panel.querySelector('.cc-block-edit-freetext');
-      if (ta) ta.focus();
+      if (ta && !isDirectlyEditable) ta.focus();
     };
+    // Item 57c Lot 1 — jamais de saut de ligne dans un heading/paragraph édité directement : un
+    // bloc de ce type représente UN SEUL passage dans le schéma (une chaîne, pas un tableau de
+    // lignes) — Entrée est ignorée plutôt que de laisser le navigateur insérer un <div>/<br> que
+    // rien ne saurait re-sérialiser fidèlement dans ce champ texte.
+    docCard.onkeydown = function (e) {
+      if (e.key === 'Enter' && e.target.closest && e.target.closest('.adoc-sc-block-text[contenteditable="true"]')) e.preventDefault();
+    };
+    // Item 57c Lot 1 — restauration immédiate (pas seulement à la sauvegarde) si un bloc est
+    // vidé puis quitté : focusout (contrairement à blur) remonte par délégation jusqu'à docCard.
+    // adocSyncEditedStructuredBlocksToDoc (appelée avant toute sauvegarde) reste l'autorité
+    // finale — ce gestionnaire n'est qu'un retour visuel immédiat, pas un second mécanisme.
+    // IMPORTANT : `onfocusout` n'est PAS un attribut reconnu de GlobalEventHandlers (contrairement
+    // à onclick/onkeydown) — une simple affectation par propriété est inerte (aucune erreur, mais
+    // l'événement réel ne déclenche jamais rien, confirmé par test). addEventListener est
+    // obligatoire ici ; posé UNE SEULE FOIS pour la durée de vie de #cc-ws-doc-card (jamais
+    // réattaché à chaque ouverture, qui l'empilerait) — le gestionnaire résout storeKey/art à
+    // chaque appel, jamais capturé une fois pour toutes, donc valide pour tout document futur.
+    if (!docCard.dataset.adocFocusoutBound) {
+      docCard.dataset.adocFocusoutBound = '1';
+      docCard.addEventListener('focusout', function (e) {
+        const span = e.target.closest && e.target.closest('.adoc-sc-block-text[contenteditable="true"]');
+        if (!span) return;
+        const blockEl = span.closest('.adoc-sc-block');
+        const storeKey = window._adocWsState && window._adocWsState.storeKey;
+        const curArt = storeKey && window._adocArtifacts && window._adocArtifacts[storeKey];
+        if (!blockEl || !curArt || !curArt._adocStructuredDoc) return;
+        const block = (curArt._adocStructuredDoc.blocks || []).filter(function (b) { return b.id === blockEl.id; })[0];
+        if (!block) return;
+        const newText = (span.textContent || '').replace(/\s+/g, ' ').trim();
+        if (!newText) { span.textContent = block.content.text; return; }
+        block.content.text = newText;
+      });
+    }
   }
 
   window.adocRequestBlockCorrectionFreeText = function (textareaEl) {
@@ -12216,6 +12306,35 @@ ${recent}`;
   // adocWsSetupBlockEditing (jamais un écouteur par bloc), fonction ENTIÈREMENT
   // SÉPARÉE. Assigne les data-cc-legacy-block-id EN MÉMOIRE à chaque ouverture
   // (point 2), sur les éléments retenus par adocWsCollectLegacyBlocks (point 1).
+  // Item 57c Lot 1 — re-sérialisation legacy : réutilise EXACTEMENT le patron déjà établi par
+  // adocConfirmLegacyBlockCorrection (re-parser art.html à froid, jamais lire le DOM affiché
+  // comme un document complet — celui-ci a perdu <html>/<head>/<body> par aplatissement du
+  // fragment, cf. investigation Phase 1) : les blocs éditables du DOM VIVANT (qui portent la
+  // frappe réelle) et ceux du re-parsing de art.html (encore l'ancien texte) se correspondent un
+  // à un par position (même structure, même ordre — une édition de texte ne change jamais le
+  // nombre ni l'ordre des éléments), jamais par un identifiant fragile lb-N réinventé à froid.
+  function adocSyncEditedLegacyBlocksToHtml(art) {
+    if (!art || art._adocGenerationEngine !== 'legacy-html') return;
+    const docCard = document.getElementById('cc-ws-doc-card');
+    if (!docCard) return;
+    const liveBlocks = adocWsCollectLegacyBlocks(docCard);
+    if (!liveBlocks.some(function (el) { return el.getAttribute('contenteditable') === 'true'; })) return;
+    try {
+      const parsed = new DOMParser().parseFromString(art.html || '', 'text/html');
+      if (!parsed || !parsed.body) return;
+      const parsedBlocks = adocWsCollectLegacyBlocks(parsed.body);
+      liveBlocks.forEach(function (el, i) {
+        if (el.getAttribute('contenteditable') !== 'true') return;
+        const target = parsedBlocks[i];
+        if (target) target.innerHTML = el.innerHTML;
+      });
+      art.html = '<!DOCTYPE html>\n' + parsed.documentElement.outerHTML;
+      if (art.blobUrl) { URL.revokeObjectURL(art.blobUrl); art.blobUrl = URL.createObjectURL(new Blob([art.html], { type: 'text/html;charset=utf-8' })); }
+    } catch (e) {
+      console.warn('[Édition directe legacy] Re-sérialisation impossible, texte édité non synchronisé:', e && e.message);
+    }
+  }
+
   function adocWsSetupLegacyBlockEditing(art) {
     const docCard = document.getElementById('cc-ws-doc-card');
     if (!docCard) return;
@@ -12228,7 +12347,16 @@ ${recent}`;
     // document structuré (régression réelle trouvée en testant, corrigée ici).
     if (!enabled) return;
     const blocks = adocWsCollectLegacyBlocks(docCard);
-    blocks.forEach(function (el, i) { el.setAttribute('data-cc-legacy-block-id', 'lb-' + i); });
+    blocks.forEach(function (el, i) {
+      el.setAttribute('data-cc-legacy-block-id', 'lb-' + i);
+      // Item 57c Lot 1 — édition directe, heading/paragraph uniquement (jamais list/table/cell —
+      // hors périmètre de ce lot). Les citations <sup> vivent DANS le même élément ici
+      // (contrairement au structuré) : la perte du garde-fou de similarité si elles sont
+      // modifiées à la frappe est un risque ACCEPTÉ explicitement par Christophe, aucune
+      // protection supplémentaire construite (cf. rapport d'investigation).
+      const kind = adocLegacyBlockKind(el);
+      if (kind === 'heading' || kind === 'paragraph') el.setAttribute('contenteditable', 'true');
+    });
     docCard.onclick = function (e) {
       if (e.target.closest('.cc-block-edit-panel')) return;
       if (e.target.closest('sup')) return; // note de bas de page — laisse naviguer normalement, jamais réinterprétée comme une sélection
@@ -12239,10 +12367,17 @@ ${recent}`;
       const curArt = window._adocArtifacts && window._adocArtifacts[storeKey];
       if (!curArt || curArt._adocGenerationEngine !== 'legacy-html') return;
       const blockKey = blockEl.getAttribute('data-cc-legacy-block-id');
-      if (current.blockKey === blockKey) { adocWsClearLegacyBlockSelection(); return; } // reclic — désélectionne
+      const kind = adocLegacyBlockKind(blockEl);
+      const isDirectlyEditable = kind === 'heading' || kind === 'paragraph';
+      if (current.blockKey === blockKey) {
+        // Item 57c Lot 1 — même correctif de conflit de clic que le moteur structuré : un bloc
+        // directement éditable reste sélectionné au reclic, jamais désélectionné par une simple
+        // reposition du curseur dans le texte. Autres types : comportement inchangé.
+        if (!isDirectlyEditable) adocWsClearLegacyBlockSelection();
+        return;
+      }
       adocWsClearLegacyBlockSelection();
       blockEl.classList.add('is-selected');
-      const kind = adocLegacyBlockKind(blockEl);
       const panel = document.createElement('div');
       panel.className = 'cc-clarity-card cc-block-edit-panel';
       panel.setAttribute('role', 'group');
@@ -12253,8 +12388,16 @@ ${recent}`;
         storeKey: storeKey, blockKey: blockKey, panelEl: panel, el: blockEl,
         kind: kind, pendingHtml: null, pendingDropsCitations: false,
       };
+      // Item 57c Lot 1 — ne vole plus le focus pour un bloc directement éditable (même motif que
+      // le moteur structuré) : sinon la sélection empêcherait de facto de taper dans le texte.
       const ta = panel.querySelector('.cc-block-edit-freetext');
-      if (ta) ta.focus();
+      if (ta && !isDirectlyEditable) ta.focus();
+    };
+    // Item 57c Lot 1 — même garde-fou "un seul passage, jamais de saut de ligne" que le moteur
+    // structuré, pour rester cohérent entre les deux (0F) : Entrée est ignorée dans un
+    // heading/paragraph édité directement.
+    docCard.onkeydown = function (e) {
+      if (e.key === 'Enter' && e.target.closest && e.target.closest('[data-cc-legacy-block-id][contenteditable="true"]')) e.preventDefault();
     };
   }
 
@@ -12380,6 +12523,12 @@ ${recent}`;
     if (!st.storeKey || st.pendingHtml == null) return;
     const art = window._adocArtifacts && window._adocArtifacts[st.storeKey];
     if (!art || art._adocGenerationEngine !== 'legacy-html') { adocWsClearLegacyBlockSelection(); return; }
+    // Item 57c Lot 1 — un autre bloc (heading/paragraph) peut porter une édition directe non
+    // encore sauvegardée, vivant uniquement dans le DOM affiché : art.html ne la contient pas
+    // encore (seul adocWsSave() la re-sérialise normalement). Sans cette ligne, le reparsing de
+    // art.html juste en dessous, suivi de l'adocOpenWorkspace ci-dessous qui réaffiche depuis ce
+    // même art.html, effacerait silencieusement cette édition en attente.
+    adocSyncEditedLegacyBlocksToHtml(art);
     const idx = parseInt(st.blockKey.slice(3), 10);
     try {
       const parsed = new DOMParser().parseFromString(art.html || '', 'text/html');
@@ -12483,6 +12632,10 @@ ${recent}`;
     if (!st.storeKey || !st.blockKey || st.kind === 'cell') return;
     const art = window._adocArtifacts && window._adocArtifacts[st.storeKey];
     if (!art || art._adocGenerationEngine !== 'legacy-html') { adocWsClearLegacyBlockSelection(); return; }
+    // Item 57c Lot 1 — même raison que adocConfirmLegacyBlockCorrection ci-dessus : préserver une
+    // édition directe en attente sur un autre bloc avant que ce reparsing d'art.html + le
+    // adocOpenWorkspace ci-dessous ne l'efface silencieusement.
+    adocSyncEditedLegacyBlocksToHtml(art);
     const idx = parseInt(st.blockKey.slice(3), 10);
     const html = adocDefaultLegacyBlockHTML(type);
     let newIdx;
@@ -12521,6 +12674,12 @@ ${recent}`;
     const art = window._adocArtifacts?.[storeKey];
     if (!art || !art._adocCapabilities || !art._adocCapabilities.persist) return;
     const isLegacy = art._adocGenerationEngine === 'legacy-html';
+    // Item 57c Lot 1 — re-sérialisation AVANT toute construction du contenu à sauvegarder : sans
+    // ça, un texte tapé directement dans le DOM se perdrait silencieusement (les deux moteurs
+    // sauvegardent leur source figée — art.html / doc.blocks — jamais le DOM affiché lui-même,
+    // confirmé par investigation). Aucun appel à adocOpenWorkspace ici : la frappe en cours
+    // n'est jamais perdue par un re-rendu.
+    if (isLegacy) adocSyncEditedLegacyBlocksToHtml(art); else adocSyncEditedStructuredBlocksToDoc(art);
     const btn = document.getElementById('cc-ws-save-btn');
     if (btn) btn.disabled = true;
     try {
