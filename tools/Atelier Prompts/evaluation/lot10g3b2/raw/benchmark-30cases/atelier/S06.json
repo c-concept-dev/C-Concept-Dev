@@ -1,0 +1,97 @@
+{
+  "started_at": "2026-08-28T07:25:39.364Z",
+  "completed_at": "2026-08-28T07:26:05.826Z",
+  "html_sha256": "757ad74d70ffeaff8c3c9e2a09d8c3aa9bbbcbcc52d0cae9923f54e7a28f2a06",
+  "latency_total_ms": 26461.155,
+  "time_to_first_useful_result_ms": 26461.164,
+  "route_finale": "rapide",
+  "moteur_final": "rapide",
+  "decision_source": "groq",
+  "decision": {
+    "etat_demande": "exploitable",
+    "route": "rapide",
+    "confiance": "haute",
+    "raison_interne": "La demande est exploitable et peut être exécutée directement sans arbitrage structurel préalable.",
+    "question": null
+  },
+  "decision_provider_calls": [
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:25:39.870Z",
+      "latency_ms": 119.954,
+      "status_http": 502,
+      "request": {
+        "demande": "Crée 10 questions de quiz avec leurs réponses sur le système solaire, niveau collège, sans questions pièges.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "error": "provider_failure",
+        "message": "Le fournisseur de décision n’est pas disponible."
+      },
+      "error": null
+    },
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:25:39.990Z",
+      "latency_ms": 585.118,
+      "status_http": 200,
+      "request": {
+        "demande": "Crée 10 questions de quiz avec leurs réponses sur le système solaire, niveau collège, sans questions pièges.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "etat_demande": "exploitable",
+        "route": "rapide",
+        "confiance": "haute",
+        "raison_interne": "La demande est exploitable et peut être exécutée directement sans arbitrage structurel préalable.",
+        "question": null
+      },
+      "error": null
+    }
+  ],
+  "decision_provider_latency_ms": 705.072,
+  "clarifications": [],
+  "nombre_reanalyses": 0,
+  "engine": {
+    "engine": "rapide",
+    "latency_ms": 18.651,
+    "format": "interactive_doc",
+    "niveau": "minimal",
+    "prompt": "## RÔLE\nVous produisez un livrable de type : document HTML interactif, quiz et interactions inclus.\nVous êtes évalué sur la conformité au format et sur l’exhaustivité, non sur la qualité de la conversation.\n\n## TÂCHE\nCrée 10 questions de quiz avec leurs réponses sur le système solaire, niveau collège, sans questions pièges.\n\n## FORMAT DE SORTIE\n- Livrable : document HTML interactif, quiz et interactions inclus\n- Validité : Chaque interaction doit fonctionner hors ligne.\n- Aucun contenu en dehors du livrable.\n\n## AMORCE ET CLÔTURE\n- Premier caractère de votre réponse : <!DOCTYPE html>\n- Dernier élément de votre réponse : </html>\n- Rien avant, rien après.\n\n## CONTRAINTES QUANTIFIÉES\n- Minimum 10 sections, sans doublon.\n- Volume attendu : 150 à 300 mots.\n- Couverture : 100 % des éléments présents dans les données sources. Une omission constitue un échec, même si le résultat paraît complet.\n\n## INTERDICTIONS\n- Pas de préambule, pas de reformulation de la demande, pas d’accusé de réception.\n- Pas de conclusion, pas de proposition d’aide complémentaire, pas de question finale.\n- Pas de commentaire sur votre propre production ni sur vos limites.\n- Pas d’espace réservé : ni « … », ni « etc. », ni « à compléter », ni « et ainsi de suite ».\n- Pas de résumé en lieu et place du contenu demandé.\n\n## LIMITE DE LONGUEUR\nSi vous approchez de la limite de réponse, ne compressez pas et ne résumez pas. Terminez le dernier élément commencé, puis insérez juste avant </body> le commentaire <!-- SUITE_REQUISE : <identifiant du dernier élément traité> --> et fermez toutes les balises ouvertes.\nN’interrompez jamais une structure au milieu : objet JSON, balise, tableau. Le livrable doit rester valide même incomplet.\n\n## VÉRIFICATION AVANT ENVOI\nContrôlez silencieusement, puis corrigez avant d’écrire. N’affichez pas cette vérification.\n1. La réponse commence-t-elle par <!DOCTYPE html> ?\n2. Le nombre de sections est-il au moins 10 ?\n3. Subsiste-t-il un préambule ou une conclusion hors sujet ? Le cas échéant, supprimez-les.\n4. Le format est-il valide ? Chaque interaction doit fonctionner hors ligne.\n5. Reste-t-il un espace réservé ou une abréviation de contenu ?"
+  },
+  "final_call": {
+    "timestamp": "2026-08-28T07:26:05.818Z",
+    "endpoint": "/v1/responses",
+    "status_http": 200,
+    "latency_ms": 25171.495,
+    "response_id": "resp_02eb9bd722e203ce006a9137f4b54487d29ec45c4ff2a9da92",
+    "response_status": "completed",
+    "model_requested": "gpt-5.6-sol",
+    "model_returned": "gpt-5.6-sol",
+    "usage": {
+      "input_tokens": 559,
+      "output_tokens": 2241,
+      "total_tokens": 2800,
+      "reasoning_tokens": 516
+    },
+    "estimated_cost_usd": 0.047056,
+    "incomplete_details": null,
+    "error": null,
+    "output": "<!DOCTYPE html>\n<html lang=\"fr\">\n<head>\n<meta charset=\"UTF-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n<title>Quiz sur le système solaire</title>\n<style>\nbody{font-family:Arial,sans-serif;max-width:850px;margin:auto;padding:20px;background:#eef3fa;color:#16213e}\nh1{text-align:center}\nsection{background:white;margin:14px 0;padding:16px;border-radius:10px;box-shadow:0 2px 6px #bbc}\nh2{font-size:1.05rem}\nlabel{display:block;margin:7px 0;cursor:pointer}\n.feedback{font-weight:bold;margin-top:10px}\n.correct{color:#087830}.incorrect{color:#b42318}\n.controls{text-align:center;margin:20px}\nbutton{padding:10px 18px;margin:5px;border:0;border-radius:6px;background:#244a9b;color:white;cursor:pointer}\nbutton:hover,button:focus{background:#173572}\n#score{text-align:center;font-size:1.2rem;font-weight:bold}\n</style>\n</head>\n<body>\n<h1>Quiz : le système solaire</h1>\n<p>Choisis une réponse par question, puis affiche la correction et ton score.</p>\n\n<form id=\"quiz\">\n<section data-answer=\"etoile\" data-text=\"Le Soleil est une étoile.\">\n<h2>1. Quelle est la nature du Soleil ?</h2>\n<label><input type=\"radio\" name=\"q1\" value=\"planete\"> Une planète</label>\n<label><input type=\"radio\" name=\"q1\" value=\"etoile\"> Une étoile</label>\n<label><input type=\"radio\" name=\"q1\" value=\"satellite\"> Un satellite</label>\n<div class=\"feedback\"></div>\n</section>\n\n<section data-answer=\"mercure\" data-text=\"Mercure est la planète la plus proche du Soleil.\">\n<h2>2. Quelle planète est la plus proche du Soleil ?</h2>\n<label><input type=\"radio\" name=\"q2\" value=\"venus\"> Vénus</label>\n<label><input type=\"radio\" name=\"q2\" value=\"mercure\"> Mercure</label>\n<label><input type=\"radio\" name=\"q2\" value=\"mars\"> Mars</label>\n<div class=\"feedback\"></div>\n</section>\n\n<section data-answer=\"huit\" data-text=\"Le système solaire compte huit planètes.\">\n<h2>3. Combien de planètes compte le système solaire ?</h2>\n<label><input type=\"radio\" name=\"q3\" value=\"sept\"> Sept</label>\n<label><input type=\"radio\" name=\"q3\" value=\"huit\"> Huit</label>\n<label><input type=\"radio\" name=\"q3\" value=\"neuf\"> Neuf</label>\n<div class=\"feedback\"></div>\n</section>\n\n<section data-answer=\"terre\" data-text=\"La Terre possède de vastes océans d’eau liquide.\">\n<h2>4. Sur quelle planète vivons-nous ?</h2>\n<label><input type=\"radio\" name=\"q4\" value=\"terre\"> La Terre</label>\n<label><input type=\"radio\" name=\"q4\" value=\"jupiter\"> Jupiter</label>\n<label><input type=\"radio\" name=\"q4\" value=\"neptune\"> Neptune</label>\n<div class=\"feedback\"></div>\n</section>\n\n<section data-answer=\"jupiter\" data-text=\"Jupiter est la plus grande planète du système solaire.\">\n<h2>5. Quelle est la plus grande planète ?</h2>\n<label><input type=\"radio\" name=\"q5\" value=\"saturne\"> Saturne</label>\n<label><input type=\"radio\" name=\"q5\" value=\"jupiter\"> Jupiter</label>\n<label><input type=\"radio\" name=\"q5\" value=\"uranus\"> Uranus</label>\n<div class=\"feedback\"></div>\n</section>\n\n<section data-answer=\"mars\" data-text=\"Mars paraît rouge à cause des oxydes de fer.\">\n<h2>6. Quelle planète est surnommée la planète rouge ?</h2>\n<label><input type=\"radio\" name=\"q6\" value=\"venus\"> Vénus</label>\n<label><input type=\"radio\" name=\"q6\" value=\"mars\"> Mars</label>\n<label><input type=\"radio\" name=\"q6\" value=\"mercure\"> Mercure</label>\n<div class=\"feedback\"></div>\n</section>\n\n<section data-answer=\"saturne\" data-text=\"Saturne est célèbre pour ses anneaux visibles.\">\n<h2>7. Quelle planète possède les anneaux les plus visibles ?</h2>\n<label><input type=\"radio\" name=\"q7\" value=\"saturne\"> Saturne</label>\n<label><input type=\"radio\" name=\"q7\" value=\"terre\"> La Terre</label>\n<label><input type=\"radio\" name=\"q7\" value=\"mars\"> Mars</label>\n<div class=\"feedback\"></div>\n</section>\n\n<section data-answer=\"lune\" data-text=\"La Lune est le satellite naturel de la Terre.\">\n<h2>8. Quel est le satellite naturel de la Terre ?</h2>\n<label><input type=\"radio\" name=\"q8\" value=\"soleil\"> Le Soleil</label>\n<label><input type=\"radio\" name=\"q8\" value=\"lune\"> La Lune</label>\n<label><input type=\"radio\" name=\"q8\" value=\"phobos\"> Phobos</label>\n<div class=\"feedback\"></div>\n</section>\n\n<section data-answer=\"neptune\" data-text=\"Neptune est la planète la plus éloignée du Soleil.\">\n<h2>9. Quelle planète est la plus éloignée du Soleil ?</h2>\n<label><input type=\"radio\" name=\"q9\" value=\"uranus\"> Uranus</label>\n<label><input type=\"radio\" name=\"q9\" value=\"saturne\"> Saturne</label>\n<label><input type=\"radio\" name=\"q9\" value=\"neptune\"> Neptune</label>\n<div class=\"feedback\"></div>\n</section>\n\n<section data-answer=\"orbite\" data-text=\"Les planètes tournent autour du Soleil sur des orbites.\">\n<h2>10. Quel mouvement les planètes effectuent-elles ?</h2>\n<label><input type=\"radio\" name=\"q10\" value=\"orbite\"> Elles tournent autour du Soleil</label>\n<label><input type=\"radio\" name=\"q10\" value=\"immobiles\"> Elles restent immobiles</label>\n<label><input type=\"radio\" name=\"q10\" value=\"terre\"> Elles tournent autour de la Terre</label>\n<div class=\"feedback\"></div>\n</section>\n\n<div class=\"controls\">\n<button type=\"button\" id=\"check\">Corriger</button>\n<button type=\"reset\" id=\"reset\">Recommencer</button>\n</div>\n<p id=\"score\" aria-live=\"polite\"></p>\n</form>\n\n<script>\nconst quiz=document.getElementById(\"quiz\");\nconst sections=[...quiz.querySelectorAll(\"section\")];\ndocument.getElementById(\"check\").addEventListener(\"click\",()=>{\n let score=0;\n sections.forEach((section,index)=>{\n  const choice=section.querySelector(`input[name=\"q${index+1}\"]:checked`);\n  const feedback=section.querySelector(\".feedback\");\n  if(choice&&choice.value===section.dataset.answer){\n   score++;\n   feedback.textContent=\"Correct. \"+section.dataset.text;\n   feedback.className=\"feedback correct\";\n  }else{\n   feedback.textContent=\"Réponse incorrecte. \"+section.dataset.text;\n   feedback.className=\"feedback incorrect\";\n  }\n });\n document.getElementById(\"score\").textContent=`Score : ${score} sur ${sections.length}`;\n});\ndocument.getElementById(\"reset\").addEventListener(\"click\",()=>{\n sections.forEach(section=>{\n  const feedback=section.querySelector(\".feedback\");\n  feedback.textContent=\"\";\n  feedback.className=\"feedback\";\n });\n document.getElementById(\"score\").textContent=\"\";\n});\n</script>\n</body>\n</html>"
+  },
+  "output": "<!DOCTYPE html>\n<html lang=\"fr\">\n<head>\n<meta charset=\"UTF-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n<title>Quiz sur le système solaire</title>\n<style>\nbody{font-family:Arial,sans-serif;max-width:850px;margin:auto;padding:20px;background:#eef3fa;color:#16213e}\nh1{text-align:center}\nsection{background:white;margin:14px 0;padding:16px;border-radius:10px;box-shadow:0 2px 6px #bbc}\nh2{font-size:1.05rem}\nlabel{display:block;margin:7px 0;cursor:pointer}\n.feedback{font-weight:bold;margin-top:10px}\n.correct{color:#087830}.incorrect{color:#b42318}\n.controls{text-align:center;margin:20px}\nbutton{padding:10px 18px;margin:5px;border:0;border-radius:6px;background:#244a9b;color:white;cursor:pointer}\nbutton:hover,button:focus{background:#173572}\n#score{text-align:center;font-size:1.2rem;font-weight:bold}\n</style>\n</head>\n<body>\n<h1>Quiz : le système solaire</h1>\n<p>Choisis une réponse par question, puis affiche la correction et ton score.</p>\n\n<form id=\"quiz\">\n<section data-answer=\"etoile\" data-text=\"Le Soleil est une étoile.\">\n<h2>1. Quelle est la nature du Soleil ?</h2>\n<label><input type=\"radio\" name=\"q1\" value=\"planete\"> Une planète</label>\n<label><input type=\"radio\" name=\"q1\" value=\"etoile\"> Une étoile</label>\n<label><input type=\"radio\" name=\"q1\" value=\"satellite\"> Un satellite</label>\n<div class=\"feedback\"></div>\n</section>\n\n<section data-answer=\"mercure\" data-text=\"Mercure est la planète la plus proche du Soleil.\">\n<h2>2. Quelle planète est la plus proche du Soleil ?</h2>\n<label><input type=\"radio\" name=\"q2\" value=\"venus\"> Vénus</label>\n<label><input type=\"radio\" name=\"q2\" value=\"mercure\"> Mercure</label>\n<label><input type=\"radio\" name=\"q2\" value=\"mars\"> Mars</label>\n<div class=\"feedback\"></div>\n</section>\n\n<section data-answer=\"huit\" data-text=\"Le système solaire compte huit planètes.\">\n<h2>3. Combien de planètes compte le système solaire ?</h2>\n<label><input type=\"radio\" name=\"q3\" value=\"sept\"> Sept</label>\n<label><input type=\"radio\" name=\"q3\" value=\"huit\"> Huit</label>\n<label><input type=\"radio\" name=\"q3\" value=\"neuf\"> Neuf</label>\n<div class=\"feedback\"></div>\n</section>\n\n<section data-answer=\"terre\" data-text=\"La Terre possède de vastes océans d’eau liquide.\">\n<h2>4. Sur quelle planète vivons-nous ?</h2>\n<label><input type=\"radio\" name=\"q4\" value=\"terre\"> La Terre</label>\n<label><input type=\"radio\" name=\"q4\" value=\"jupiter\"> Jupiter</label>\n<label><input type=\"radio\" name=\"q4\" value=\"neptune\"> Neptune</label>\n<div class=\"feedback\"></div>\n</section>\n\n<section data-answer=\"jupiter\" data-text=\"Jupiter est la plus grande planète du système solaire.\">\n<h2>5. Quelle est la plus grande planète ?</h2>\n<label><input type=\"radio\" name=\"q5\" value=\"saturne\"> Saturne</label>\n<label><input type=\"radio\" name=\"q5\" value=\"jupiter\"> Jupiter</label>\n<label><input type=\"radio\" name=\"q5\" value=\"uranus\"> Uranus</label>\n<div class=\"feedback\"></div>\n</section>\n\n<section data-answer=\"mars\" data-text=\"Mars paraît rouge à cause des oxydes de fer.\">\n<h2>6. Quelle planète est surnommée la planète rouge ?</h2>\n<label><input type=\"radio\" name=\"q6\" value=\"venus\"> Vénus</label>\n<label><input type=\"radio\" name=\"q6\" value=\"mars\"> Mars</label>\n<label><input type=\"radio\" name=\"q6\" value=\"mercure\"> Mercure</label>\n<div class=\"feedback\"></div>\n</section>\n\n<section data-answer=\"saturne\" data-text=\"Saturne est célèbre pour ses anneaux visibles.\">\n<h2>7. Quelle planète possède les anneaux les plus visibles ?</h2>\n<label><input type=\"radio\" name=\"q7\" value=\"saturne\"> Saturne</label>\n<label><input type=\"radio\" name=\"q7\" value=\"terre\"> La Terre</label>\n<label><input type=\"radio\" name=\"q7\" value=\"mars\"> Mars</label>\n<div class=\"feedback\"></div>\n</section>\n\n<section data-answer=\"lune\" data-text=\"La Lune est le satellite naturel de la Terre.\">\n<h2>8. Quel est le satellite naturel de la Terre ?</h2>\n<label><input type=\"radio\" name=\"q8\" value=\"soleil\"> Le Soleil</label>\n<label><input type=\"radio\" name=\"q8\" value=\"lune\"> La Lune</label>\n<label><input type=\"radio\" name=\"q8\" value=\"phobos\"> Phobos</label>\n<div class=\"feedback\"></div>\n</section>\n\n<section data-answer=\"neptune\" data-text=\"Neptune est la planète la plus éloignée du Soleil.\">\n<h2>9. Quelle planète est la plus éloignée du Soleil ?</h2>\n<label><input type=\"radio\" name=\"q9\" value=\"uranus\"> Uranus</label>\n<label><input type=\"radio\" name=\"q9\" value=\"saturne\"> Saturne</label>\n<label><input type=\"radio\" name=\"q9\" value=\"neptune\"> Neptune</label>\n<div class=\"feedback\"></div>\n</section>\n\n<section data-answer=\"orbite\" data-text=\"Les planètes tournent autour du Soleil sur des orbites.\">\n<h2>10. Quel mouvement les planètes effectuent-elles ?</h2>\n<label><input type=\"radio\" name=\"q10\" value=\"orbite\"> Elles tournent autour du Soleil</label>\n<label><input type=\"radio\" name=\"q10\" value=\"immobiles\"> Elles restent immobiles</label>\n<label><input type=\"radio\" name=\"q10\" value=\"terre\"> Elles tournent autour de la Terre</label>\n<div class=\"feedback\"></div>\n</section>\n\n<div class=\"controls\">\n<button type=\"button\" id=\"check\">Corriger</button>\n<button type=\"reset\" id=\"reset\">Recommencer</button>\n</div>\n<p id=\"score\" aria-live=\"polite\"></p>\n</form>\n\n<script>\nconst quiz=document.getElementById(\"quiz\");\nconst sections=[...quiz.querySelectorAll(\"section\")];\ndocument.getElementById(\"check\").addEventListener(\"click\",()=>{\n let score=0;\n sections.forEach((section,index)=>{\n  const choice=section.querySelector(`input[name=\"q${index+1}\"]:checked`);\n  const feedback=section.querySelector(\".feedback\");\n  if(choice&&choice.value===section.dataset.answer){\n   score++;\n   feedback.textContent=\"Correct. \"+section.dataset.text;\n   feedback.className=\"feedback correct\";\n  }else{\n   feedback.textContent=\"Réponse incorrecte. \"+section.dataset.text;\n   feedback.className=\"feedback incorrect\";\n  }\n });\n document.getElementById(\"score\").textContent=`Score : ${score} sur ${sections.length}`;\n});\ndocument.getElementById(\"reset\").addEventListener(\"click\",()=>{\n sections.forEach(section=>{\n  const feedback=section.querySelector(\".feedback\");\n  feedback.textContent=\"\";\n  feedback.className=\"feedback\";\n });\n document.getElementById(\"score\").textContent=\"\";\n});\n</script>\n</body>\n</html>",
+  "total_llm_calls": 3,
+  "gpt_usage": {
+    "input_tokens": 559,
+    "output_tokens": 2241,
+    "total_tokens": 2800,
+    "estimated_cost_usd": 0.047056
+  },
+  "fallback": true,
+  "retries": 0,
+  "error": null
+}

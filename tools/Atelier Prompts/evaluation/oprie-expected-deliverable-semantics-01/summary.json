@@ -1,0 +1,86 @@
+{
+ "lot": "OPRIE-EXPECTED-DELIVERABLE-SEMANTICS-01",
+ "objet": "definir la semantique de expected_deliverable et trancher le placement d un fait materiau",
+ "mesure_le": "2026-09-06",
+ "champ": {
+  "declare_dans": "CANDIDATE_SCALAR_FIELDS (core/adn/operational-request-state.js)",
+  "type": "string",
+  "description_dans_le_schema": null,
+  "reference": "CDC §5.3 en commentaire — aucun fichier CDC dans le depot",
+  "definition_ecrite_avant_ce_lot": false
+ },
+ "usage_historique": {
+  "valeurs_relevees": [
+   "Compte rendu structure en trois sections : decisions, actions, points en suspens.",
+   "Liste de 10 conseils.",
+   "Document d une page avec les trois indicateurs cles.",
+   "Plan de voyage detaille (itineraire, hebergement, transport, budget)",
+   "Un message court de suivi client.",
+   "Compte rendu structure."
+  ],
+  "classement": "FORME et STRUCTURE exclusivement — parametres structurels parfois, contenu jamais",
+  "contient_un_fait": 0
+ },
+ "champs_voisins": {
+  "objective": "l intention — « Rediger 10 conseils generiques pour bien dormir. »",
+  "confirmed_constraints": "une exigence sur le resultat — « Ton formel obligatoire. »"
+ },
+ "definition_normative_ecrite": {
+  "objective": "Ce que la demande vise a obtenir, formule comme une intention. Jamais le resultat lui-meme.",
+  "expected_deliverable": "La forme du resultat attendu et ses caracteristiques structurelles — nature, structure, volume, sections. Jamais le contenu final, jamais une valeur qui constituerait a elle seule le resultat demande."
+ },
+ "placement_du_fait_materiau": {
+  "s_il_specifie_la_demande": "dans le candidat (objective / confirmed_constraints) AVEC sa provenance user_provided_material",
+  "s_il_est_le_resultat_demande": "aucun champ — le candidat prepare, l execution produit",
+  "nouveau_champ_requis": false
+ },
+ "veto_de_phase_du_critique": "CONTRACTUELLEMENT VALIDE — l usage historique lui donne raison",
+ "correctif_essaye_puis_retire": {
+  "texte": "une phrase ajoutee a MISSION 1 de l Analyste",
+  "mesure": "30 tours, meme cas, meme modele, temperature 0",
+  "resultat": {
+   "vetos_de_phase": {
+    "avant": 4,
+    "apres": 0
+   },
+   "user_provided_material_emis": {
+    "avant": 16,
+    "apres": 0
+   },
+   "valeur_presente_dans_la_reponse": {
+    "avant": 16,
+    "apres": 0
+   },
+   "operational_request_ready": {
+    "avant": 11,
+    "apres": 5
+   },
+   "blocked": {
+    "avant": 10,
+    "apres": 23
+   }
+  },
+  "mecanisme": "l Analyste a retenu « il n a sa place dans aucun champ » et abandonne « constatez qu il est disponible » : plus rien n enregistrait que le materiau avait ete lu, et l Arbitre a conclu a son absence",
+  "decision": "RETIRE — la production est revenue a l etat mesure par le lot precedent"
+ },
+ "verification_du_retrait": {
+  "tours": 8,
+  "etats": {
+   "operational_request_ready": 8
+  },
+  "comparable_a_la_reference": false,
+  "raison": "l epinglage ayant ete retire avant ce deploiement, ces tours ont ete servis par la chaine HA — Analyste et Critique sur GROQ — alors que la reference 11/30 etait epinglee sur Anthropic",
+  "preuve_du_retour_en_arriere": "au niveau du CODE : texte du prompt byte-identique a celui mesure, verifie par assertion sur la source empaquetee",
+  "observation_hors_perimetre": "Groq a emis user_provided_material 8/8, contre 16/30 pour Anthropic — la conformite de lecture pourrait dependre du fournisseur ; releve de OPRIE-MATERIAL-READING-CONFORMANCE-01"
+ },
+ "trou_de_contrat": {
+  "constat": "aucun des dix champs du candidat ne consigne « l intrant requis existe et il est disponible »",
+  "remaining_unknowns": "les inconnues — or l intrant n est pas inconnu",
+  "assumptions_allowed": "les hypotheses — or ce n est pas une hypothese",
+  "confirmed_constraints": "les exigences — or ce n est pas une exigence",
+  "external_facts_to_research": "ce qu il faut aller chercher — or il est deja la",
+  "mecanisme_actuel": "un EFFET DE BORD : la valeur inscrite dans expected_deliverable avec la provenance materiau"
+ },
+ "run_22": "INDETERMINATE — bonne forme de candidat, privee du signal qui la rend defendable",
+ "code_produit_conserve": "definition normative uniquement ; aucun changement de comportement"
+}

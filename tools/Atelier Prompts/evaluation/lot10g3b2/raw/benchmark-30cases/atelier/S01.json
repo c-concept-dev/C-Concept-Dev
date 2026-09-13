@@ -1,0 +1,97 @@
+{
+  "started_at": "2026-08-28T07:24:23.102Z",
+  "completed_at": "2026-08-28T07:24:26.923Z",
+  "html_sha256": "757ad74d70ffeaff8c3c9e2a09d8c3aa9bbbcbcc52d0cae9923f54e7a28f2a06",
+  "latency_total_ms": 3821.153,
+  "time_to_first_useful_result_ms": 3821.159,
+  "route_finale": "rapide",
+  "moteur_final": "rapide",
+  "decision_source": "groq",
+  "decision": {
+    "etat_demande": "exploitable",
+    "route": "rapide",
+    "confiance": "haute",
+    "raison_interne": "La demande est exploitable et peut être exécutée directement sans arbitrage structurel préalable.",
+    "question": null
+  },
+  "decision_provider_calls": [
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:24:23.683Z",
+      "latency_ms": 505.659,
+      "status_http": 502,
+      "request": {
+        "demande": "Traduis en anglais naturel : « La réunion est reportée à mardi prochain à 14 heures. Merci de confirmer votre disponibilité. »",
+        "materiau_present": true,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "error": "provider_failure",
+        "message": "Le fournisseur de décision n’est pas disponible."
+      },
+      "error": null
+    },
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:24:24.189Z",
+      "latency_ms": 498.516,
+      "status_http": 200,
+      "request": {
+        "demande": "Traduis en anglais naturel : « La réunion est reportée à mardi prochain à 14 heures. Merci de confirmer votre disponibilité. »",
+        "materiau_present": true,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "etat_demande": "exploitable",
+        "route": "rapide",
+        "confiance": "haute",
+        "raison_interne": "La demande est exploitable et peut être exécutée directement sans arbitrage structurel préalable.",
+        "question": null
+      },
+      "error": null
+    }
+  ],
+  "decision_provider_latency_ms": 1004.175,
+  "clarifications": [],
+  "nombre_reanalyses": 0,
+  "engine": {
+    "engine": "rapide",
+    "latency_ms": 17.863,
+    "format": "traduction",
+    "niveau": "eclair",
+    "prompt": "## TÂCHE\nTraduis en anglais naturel : « La réunion est reportée à mardi prochain à 14 heures. Merci de confirmer votre disponibilité. »\n\n## FORMAT DE SORTIE\n- Livrable : texte traduit\n- Validité : Aucune phrase omise, aucun ajout de contenu absent de l’original.\n- Aucun contenu en dehors du livrable.\n\n## INTERDICTIONS\n- Pas de préambule, pas de reformulation de la demande, pas d’accusé de réception.\n- Pas de conclusion, pas de proposition d’aide complémentaire, pas de question finale.\n- Pas de commentaire sur votre propre production ni sur vos limites.\n- Pas d’espace réservé : ni « … », ni « etc. », ni « à compléter », ni « et ainsi de suite ».\n- Pas de résumé en lieu et place du contenu demandé."
+  },
+  "final_call": {
+    "timestamp": "2026-08-28T07:24:26.918Z",
+    "endpoint": "/v1/responses",
+    "status_http": 200,
+    "latency_ms": 2159.729,
+    "response_id": "resp_0e4d0356859317de006a9137a8d2e887d2943125fa544454cf",
+    "response_status": "completed",
+    "model_requested": "gpt-5.6-sol",
+    "model_returned": "gpt-5.6-sol",
+    "usage": {
+      "input_tokens": 196,
+      "output_tokens": 25,
+      "total_tokens": 221,
+      "reasoning_tokens": 0
+    },
+    "estimated_cost_usd": 0.001284,
+    "incomplete_details": null,
+    "error": null,
+    "output": "The meeting has been postponed until next Tuesday at 2:00 p.m. Please confirm your availability."
+  },
+  "output": "The meeting has been postponed until next Tuesday at 2:00 p.m. Please confirm your availability.",
+  "total_llm_calls": 3,
+  "gpt_usage": {
+    "input_tokens": 196,
+    "output_tokens": 25,
+    "total_tokens": 221,
+    "estimated_cost_usd": 0.001284
+  },
+  "fallback": true,
+  "retries": 0,
+  "error": null
+}

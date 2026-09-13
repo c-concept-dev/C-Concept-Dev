@@ -1,0 +1,151 @@
+{
+ "A": {
+  "n": 11,
+  "total_ms": {
+   "min": 19100,
+   "p50": 20679,
+   "p95": 27808,
+   "max": 29979
+  },
+  "etages_ms": {
+   "analyst": {
+    "p50": 7882,
+    "p95": 16355,
+    "max": 21667
+   },
+   "critic": {
+    "p50": 4612,
+    "p95": 18486,
+    "max": 30835
+   },
+   "arbiter": {
+    "p50": 8954,
+    "p95": 28712,
+    "max": 44777
+   }
+  },
+  "jetons_sortie": {
+   "analyst": {
+    "max": 1380,
+    "p50": 422
+   },
+   "critic": {
+    "max": 1193,
+    "p50": 233
+   },
+   "arbiter": {
+    "max": 2137,
+    "p50": 480
+   }
+  },
+  "troncatures": 0,
+  "etats": {
+   "operational_request_ready": 11
+  },
+  "plafonds_demandes": [
+   1600,
+   2048,
+   4096
+  ]
+ },
+ "B": {
+  "n": 10,
+  "total_ms": {
+   "min": 77756,
+   "p50": 91694,
+   "p95": 110446,
+   "max": 121185
+  },
+  "etages_ms": {
+   "analyst": {
+    "p50": 21436,
+    "p95": 23009,
+    "max": 23325
+   },
+   "critic": {
+    "p50": 32073,
+    "p95": 54532,
+    "max": 69368
+   },
+   "arbiter": {
+    "p50": 32563,
+    "p95": 39137,
+    "max": 39256
+   }
+  },
+  "jetons_sortie": {
+   "analyst": {
+    "max": 1430,
+    "p50": 1340
+   },
+   "critic": {
+    "max": 1410,
+    "p50": 1066
+   },
+   "arbiter": {
+    "max": 2192,
+    "p50": 1774
+   }
+  },
+  "troncatures": 0,
+  "etats": {
+   "clarification_required": 10
+  },
+  "plafonds_demandes": [
+   1600,
+   2048,
+   4096
+  ]
+ },
+ "T": {
+  "n": 5,
+  "total_ms": {
+   "min": 53284,
+   "p50": 97421,
+   "p95": 136244,
+   "max": 141958
+  },
+  "etages_ms": {
+   "analyst": {
+    "p50": 21724,
+    "p95": 25479,
+    "max": 25537
+   },
+   "critic": {
+    "p50": 47672,
+    "p95": 63905,
+    "max": 66550
+   },
+   "arbiter": {
+    "p50": 38968,
+    "p95": 48401,
+    "max": 49588
+   }
+  },
+  "jetons_sortie": {
+   "analyst": {
+    "max": 1708,
+    "p50": 1409
+   },
+   "critic": {
+    "max": 1369,
+    "p50": 1196
+   },
+   "arbiter": {
+    "max": 2805,
+    "p50": 2182
+   }
+  },
+  "troncatures": 0,
+  "etats": {
+   "operational_request_ready": 1,
+   "clarification_required": 3,
+   "null": 1
+  },
+  "plafonds_demandes": [
+   1600,
+   2048,
+   4096
+  ]
+ }
+}

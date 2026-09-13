@@ -1,0 +1,57 @@
+{
+  "started_at": "2026-08-28T07:21:22.776Z",
+  "completed_at": "2026-08-28T07:21:37.883Z",
+  "latency_total_ms": 15106.713,
+  "calls": [
+    {
+      "timestamp": "2026-08-28T07:21:26.753Z",
+      "endpoint": "/v1/responses",
+      "status_http": 200,
+      "latency_ms": 3944.38,
+      "response_id": "resp_0577aa8ac9f3bdd9006a9136f2e55c87d29ca8786ee2baf527",
+      "response_status": "completed",
+      "model_requested": "gpt-5.6-sol",
+      "model_returned": "gpt-5.6-sol",
+      "usage": {
+        "input_tokens": 12,
+        "output_tokens": 277,
+        "total_tokens": 289,
+        "reasoning_tokens": 30
+      },
+      "estimated_cost_usd": 0.005588,
+      "incomplete_details": null,
+      "error": null,
+      "output": "Bien sûr. Pour améliorer vos réunions, commencez par ces leviers simples :\n\n1. **Définir un objectif clair**  \n   Exemple : « Décider du calendrier de lancement », plutôt que « Parler du projet ».\n\n2. **Préparer un ordre du jour court**  \n   Indiquez les sujets, le temps prévu et le responsable de chaque point. Envoyez-le à l’avance.\n\n3. **Inviter uniquement les personnes nécessaires**  \n   Les autres peuvent recevoir un compte rendu.\n\n4. **Limiter la durée**  \n   Essayez 25 ou 45 minutes au lieu de 30 ou 60.\n\n5. **Attribuer des rôles**  \n   Un animateur, un gardien du temps et une personne chargée des notes.\n\n6. **Terminer par des actions précises**  \n   Pour chaque action : **qui fait quoi, pour quand**.\n\n7. **Faire un compte rendu très court**  \n   Décisions, actions, responsables et échéances — rien de plus.\n\nPour vous conseiller plus précisément : quel est votre principal problème actuellement — réunions trop longues, peu de décisions, trop de participants, manque de préparation ou faible engagement ?"
+    },
+    {
+      "timestamp": "2026-08-28T07:21:37.883Z",
+      "endpoint": "/v1/responses",
+      "status_http": 200,
+      "latency_ms": 11128.76,
+      "response_id": "resp_0577aa8ac9f3bdd9006a9136f6e7b887d2a04db4b0d0350aa2",
+      "response_status": "completed",
+      "model_requested": "gpt-5.6-sol",
+      "model_returned": "gpt-5.6-sol",
+      "usage": {
+        "input_tokens": 325,
+        "output_tokens": 722,
+        "total_tokens": 1047,
+        "reasoning_tokens": 57
+      },
+      "estimated_cost_usd": 0.01574,
+      "incomplete_details": null,
+      "error": null,
+      "output": "Voici un format prêt à l’emploi pour une réunion hebdomadaire de **45 minutes à 8 personnes**.\n\n## Avant la réunion\n\n- Envoyer l’ordre du jour au moins **24 h avant**.\n- Chaque sujet doit préciser :\n  - le résultat attendu : **information, discussion ou décision** ;\n  - le responsable du sujet ;\n  - le temps demandé.\n- Les mises à jour purement informatives sont partagées par écrit.\n- Désigner :\n  - un **animateur** ;\n  - un **gardien du temps** ;\n  - un **scribe** chargé de noter décisions et actions.\n\n## Ordre du jour — 45 minutes\n\n| Durée | Séquence | Résultat attendu |\n|---:|---|---|\n| 0–3 min | Ouverture | Objectif et ordre du jour confirmés |\n| 3–8 min | Revue des actions précédentes | Actions closes, reportées ou bloquées |\n| 8–13 min | Tour des alertes | Uniquement blocages et changements importants |\n| 13–35 min | Deux sujets prioritaires | Décisions prises ou prochaines étapes définies |\n| 35–41 min | Points rapides | Sujets traitables en moins de 2 minutes |\n| 41–45 min | Synthèse | Décisions, responsables et échéances relus à voix haute |\n\nPour le tour des alertes, accordez environ **30 secondes par personne**. Évitez les comptes rendus détaillés.\n\n## Règles d’animation\n\n1. **Pas de sujet sans résultat attendu.**\n2. Un point dépassant son temps est :\n   - tranché ;\n   - confié à un petit groupe ;\n   - ou placé dans un « parking » pour une autre séance.\n3. Une décision doit être formulée explicitement :  \n   **« Nous décidons de… »**\n4. Une action n’est valide que si elle comporte :\n   - un livrable concret ;\n   - un seul responsable ;\n   - une échéance.\n5. Les débats annexes et résolutions opérationnelles détaillées se font hors réunion.\n\n## Modèle de prise de notes\n\n### Décisions\n\n| N° | Décision | Date |\n|---|---|---|\n| D1 | Nous décidons de lancer le pilote le 15 mai. | 10 avril |\n\n### Actions\n\n| N° | Action/livrable | Responsable | Échéance | Statut |\n|---|---|---|---|---|\n| A1 | Finaliser la liste des participants au pilote | Léa | 17 avril | À faire |\n| A2 | Envoyer le budget révisé | Karim | 19 avril | À faire |\n\n### Parking\n\n- Revoir le processus d’intégration.\n- Étudier un nouvel outil de suivi.\n\n## Formulation utile en clôture\n\n> « Je relis les décisions et les actions. D1 : … A1 : Léa livre … pour le … Est-ce que chacun confirme ses engagements ? »\n\nLe compte rendu peut ensuite être envoyé immédiatement : **une page maximum**, composée uniquement des décisions, actions, responsables, échéances et points en suspens."
+    }
+  ],
+  "turns": [
+    {
+      "question": "Bien sûr. Pour améliorer vos réunions, commencez par ces leviers simples :\n\n1. **Définir un objectif clair**  \n   Exemple : « Décider du calendrier de lancement », plutôt que « Parler du projet ».\n\n2. **Préparer un ordre du jour court**  \n   Indiquez les sujets, le temps prévu et le responsable de chaque point. Envoyez-le à l’avance.\n\n3. **Inviter uniquement les personnes nécessaires**  \n   Les autres peuvent recevoir un compte rendu.\n\n4. **Limiter la durée**  \n   Essayez 25 ou 45 minutes au lieu de 30 ou 60.\n\n5. **Attribuer des rôles**  \n   Un animateur, un gardien du temps et une personne chargée des notes.\n\n6. **Terminer par des actions précises**  \n   Pour chaque action : **qui fait quoi, pour quand**.\n\n7. **Faire un compte rendu très court**  \n   Décisions, actions, responsables et échéances — rien de plus.\n\nPour vous conseiller plus précisément : quel est votre principal problème actuellement — réunions trop longues, peu de décisions, trop de participants, manque de préparation ou faible engagement ?",
+      "answer": "Je veux réduire à 45 minutes la réunion hebdomadaire d'une équipe de huit personnes et en sortir avec des décisions et responsables clairement notés."
+    }
+  ],
+  "output": "Voici un format prêt à l’emploi pour une réunion hebdomadaire de **45 minutes à 8 personnes**.\n\n## Avant la réunion\n\n- Envoyer l’ordre du jour au moins **24 h avant**.\n- Chaque sujet doit préciser :\n  - le résultat attendu : **information, discussion ou décision** ;\n  - le responsable du sujet ;\n  - le temps demandé.\n- Les mises à jour purement informatives sont partagées par écrit.\n- Désigner :\n  - un **animateur** ;\n  - un **gardien du temps** ;\n  - un **scribe** chargé de noter décisions et actions.\n\n## Ordre du jour — 45 minutes\n\n| Durée | Séquence | Résultat attendu |\n|---:|---|---|\n| 0–3 min | Ouverture | Objectif et ordre du jour confirmés |\n| 3–8 min | Revue des actions précédentes | Actions closes, reportées ou bloquées |\n| 8–13 min | Tour des alertes | Uniquement blocages et changements importants |\n| 13–35 min | Deux sujets prioritaires | Décisions prises ou prochaines étapes définies |\n| 35–41 min | Points rapides | Sujets traitables en moins de 2 minutes |\n| 41–45 min | Synthèse | Décisions, responsables et échéances relus à voix haute |\n\nPour le tour des alertes, accordez environ **30 secondes par personne**. Évitez les comptes rendus détaillés.\n\n## Règles d’animation\n\n1. **Pas de sujet sans résultat attendu.**\n2. Un point dépassant son temps est :\n   - tranché ;\n   - confié à un petit groupe ;\n   - ou placé dans un « parking » pour une autre séance.\n3. Une décision doit être formulée explicitement :  \n   **« Nous décidons de… »**\n4. Une action n’est valide que si elle comporte :\n   - un livrable concret ;\n   - un seul responsable ;\n   - une échéance.\n5. Les débats annexes et résolutions opérationnelles détaillées se font hors réunion.\n\n## Modèle de prise de notes\n\n### Décisions\n\n| N° | Décision | Date |\n|---|---|---|\n| D1 | Nous décidons de lancer le pilote le 15 mai. | 10 avril |\n\n### Actions\n\n| N° | Action/livrable | Responsable | Échéance | Statut |\n|---|---|---|---|---|\n| A1 | Finaliser la liste des participants au pilote | Léa | 17 avril | À faire |\n| A2 | Envoyer le budget révisé | Karim | 19 avril | À faire |\n\n### Parking\n\n- Revoir le processus d’intégration.\n- Étudier un nouvel outil de suivi.\n\n## Formulation utile en clôture\n\n> « Je relis les décisions et les actions. D1 : … A1 : Léa livre … pour le … Est-ce que chacun confirme ses engagements ? »\n\nLe compte rendu peut ensuite être envoyé immédiatement : **une page maximum**, composée uniquement des décisions, actions, responsables, échéances et points en suspens.",
+  "error": null,
+  "initial_request_exact": "Je veux améliorer nos réunions.",
+  "clarification_detection": "heuristique documentée"
+}

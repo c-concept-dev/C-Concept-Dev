@@ -1,0 +1,57 @@
+{
+  "started_at": "2026-08-28T07:26:05.827Z",
+  "completed_at": "2026-08-28T07:26:13.862Z",
+  "latency_total_ms": 8035.564,
+  "calls": [
+    {
+      "timestamp": "2026-08-28T07:26:10.293Z",
+      "endpoint": "/v1/responses",
+      "status_http": 200,
+      "latency_ms": 4465.798,
+      "response_id": "resp_000efbb303a8012e006a91380def3887d2af790d71a613afdf",
+      "response_status": "completed",
+      "model_requested": "gpt-5.6-sol",
+      "model_returned": "gpt-5.6-sol",
+      "usage": {
+        "input_tokens": 29,
+        "output_tokens": 304,
+        "total_tokens": 333,
+        "reasoning_tokens": 30
+      },
+      "estimated_cost_usd": 0.006196,
+      "incomplete_details": null,
+      "error": null,
+      "output": "1. **Quelle étoile se trouve au centre du système solaire ?**  \n   **Réponse :** Le Soleil.\n\n2. **Combien de planètes composent le système solaire ?**  \n   **Réponse :** Huit planètes.\n\n3. **Quelle planète est la plus proche du Soleil ?**  \n   **Réponse :** Mercure.\n\n4. **Quelle est la plus grande planète du système solaire ?**  \n   **Réponse :** Jupiter.\n\n5. **Sur quelle planète vivons-nous ?**  \n   **Réponse :** La Terre.\n\n6. **Quelle planète est surnommée « la planète rouge » ?**  \n   **Réponse :** Mars.\n\n7. **Quelle planète est célèbre pour ses anneaux très visibles ?**  \n   **Réponse :** Saturne.\n\n8. **Comment s’appelle le satellite naturel de la Terre ?**  \n   **Réponse :** La Lune.\n\n9. **Quelles sont les quatre planètes rocheuses du système solaire ?**  \n   **Réponse :** Mercure, Vénus, la Terre et Mars.\n\n10. **Pourquoi les planètes tournent-elles autour du Soleil ?**  \n    **Réponse :** Parce qu’elles sont attirées par la force de gravitation du Soleil."
+    },
+    {
+      "timestamp": "2026-08-28T07:26:13.862Z",
+      "endpoint": "/v1/responses",
+      "status_http": 200,
+      "latency_ms": 3567.681,
+      "response_id": "resp_000efbb303a8012e006a9138126b3087d2a43b51f023677ed5",
+      "response_status": "completed",
+      "model_requested": "gpt-5.6-sol",
+      "model_returned": "gpt-5.6-sol",
+      "usage": {
+        "input_tokens": 356,
+        "output_tokens": 218,
+        "total_tokens": 574,
+        "reasoning_tokens": 109
+      },
+      "estimated_cost_usd": 0.005784,
+      "incomplete_details": null,
+      "error": null,
+      "output": "### Hypothèses retenues\n\n- **Niveau collège** : connaissances générales adaptées aux élèves de 11 à 15 ans.\n- **Programme de référence** : enseignement scientifique général en France.\n- **Format** : questions courtes avec réponses directes.\n- **Difficulté** : facile à intermédiaire, sans formulation ambiguë.\n- **Classification astronomique actuelle** : le système solaire compte **huit planètes** ; Pluton est classée comme **planète naine**."
+    }
+  ],
+  "turns": [
+    {
+      "question": "1. **Quelle étoile se trouve au centre du système solaire ?**  \n   **Réponse :** Le Soleil.\n\n2. **Combien de planètes composent le système solaire ?**  \n   **Réponse :** Huit planètes.\n\n3. **Quelle planète est la plus proche du Soleil ?**  \n   **Réponse :** Mercure.\n\n4. **Quelle est la plus grande planète du système solaire ?**  \n   **Réponse :** Jupiter.\n\n5. **Sur quelle planète vivons-nous ?**  \n   **Réponse :** La Terre.\n\n6. **Quelle planète est surnommée « la planète rouge » ?**  \n   **Réponse :** Mars.\n\n7. **Quelle planète est célèbre pour ses anneaux très visibles ?**  \n   **Réponse :** Saturne.\n\n8. **Comment s’appelle le satellite naturel de la Terre ?**  \n   **Réponse :** La Lune.\n\n9. **Quelles sont les quatre planètes rocheuses du système solaire ?**  \n   **Réponse :** Mercure, Vénus, la Terre et Mars.\n\n10. **Pourquoi les planètes tournent-elles autour du Soleil ?**  \n    **Réponse :** Parce qu’elles sont attirées par la force de gravitation du Soleil.",
+      "answer": "Je ne sais pas ; utilisez des hypothèses raisonnables et signalez-les clairement."
+    }
+  ],
+  "output": "### Hypothèses retenues\n\n- **Niveau collège** : connaissances générales adaptées aux élèves de 11 à 15 ans.\n- **Programme de référence** : enseignement scientifique général en France.\n- **Format** : questions courtes avec réponses directes.\n- **Difficulté** : facile à intermédiaire, sans formulation ambiguë.\n- **Classification astronomique actuelle** : le système solaire compte **huit planètes** ; Pluton est classée comme **planète naine**.",
+  "error": null,
+  "initial_request_exact": "Crée 10 questions de quiz avec leurs réponses sur le système solaire, niveau collège, sans questions pièges.",
+  "clarification_detection": "heuristique documentée"
+}

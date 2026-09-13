@@ -1,0 +1,97 @@
+{
+  "started_at": "2026-08-28T07:30:10.418Z",
+  "completed_at": "2026-08-28T07:30:15.571Z",
+  "html_sha256": "757ad74d70ffeaff8c3c9e2a09d8c3aa9bbbcbcc52d0cae9923f54e7a28f2a06",
+  "latency_total_ms": 5153.027,
+  "time_to_first_useful_result_ms": 5153.076,
+  "route_finale": "rapide",
+  "moteur_final": "rapide",
+  "decision_source": "groq",
+  "decision": {
+    "etat_demande": "exploitable",
+    "route": "rapide",
+    "confiance": "haute",
+    "raison_interne": "La demande est exploitable et peut être exécutée directement sans arbitrage structurel préalable.",
+    "question": null
+  },
+  "decision_provider_calls": [
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:30:10.901Z",
+      "latency_ms": 604.09,
+      "status_http": 502,
+      "request": {
+        "demande": "Résume en 5 puces ce texte : « Notre association compte 85 adhérents. Les inscriptions ont augmenté de 18 % cette année. Les ateliers du samedi sont complets, mais ceux du mercredi ne remplissent que la moitié des places. Le budget communication est stable. Le conseil propose de tester deux nouveaux horaires en soirée. »",
+        "materiau_present": true,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "error": "provider_failure",
+        "message": "Le fournisseur de décision n’est pas disponible."
+      },
+      "error": null
+    },
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:30:11.505Z",
+      "latency_ms": 475.913,
+      "status_http": 200,
+      "request": {
+        "demande": "Résume en 5 puces ce texte : « Notre association compte 85 adhérents. Les inscriptions ont augmenté de 18 % cette année. Les ateliers du samedi sont complets, mais ceux du mercredi ne remplissent que la moitié des places. Le budget communication est stable. Le conseil propose de tester deux nouveaux horaires en soirée. »",
+        "materiau_present": true,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "etat_demande": "exploitable",
+        "route": "rapide",
+        "confiance": "haute",
+        "raison_interne": "La demande est exploitable et peut être exécutée directement sans arbitrage structurel préalable.",
+        "question": null
+      },
+      "error": null
+    }
+  ],
+  "decision_provider_latency_ms": 1080.003,
+  "clarifications": [],
+  "nombre_reanalyses": 0,
+  "engine": {
+    "engine": "rapide",
+    "latency_ms": 22.483,
+    "format": "resume",
+    "niveau": "eclair",
+    "prompt": "## TÂCHE\nRésume en 5 puces ce texte : « Notre association compte 85 adhérents. Les inscriptions ont augmenté de 18 % cette année. Les ateliers du samedi sont complets, mais ceux du mercredi ne remplissent que la moitié des places. Le budget communication est stable. Le conseil propose de tester deux nouveaux horaires en soirée. »\n\n## FORMAT DE SORTIE\n- Livrable : résumé du texte fourni\n- Validité : Ne contient aucune information absente du texte source.\n- Aucun contenu en dehors du livrable.\n\n## INTERDICTIONS\n- Pas de préambule, pas de reformulation de la demande, pas d’accusé de réception.\n- Pas de conclusion, pas de proposition d’aide complémentaire, pas de question finale.\n- Pas de commentaire sur votre propre production ni sur vos limites.\n- Pas d’espace réservé : ni « … », ni « etc. », ni « à compléter », ni « et ainsi de suite ».\n- Pas de résumé en lieu et place du contenu demandé."
+  },
+  "final_call": {
+    "timestamp": "2026-08-28T07:30:15.561Z",
+    "endpoint": "/v1/responses",
+    "status_http": 200,
+    "latency_ms": 3497.062,
+    "response_id": "resp_0f02b8aeb914ad51006a91390422f887d289c3f48e29346166",
+    "response_status": "completed",
+    "model_requested": "gpt-5.6-sol",
+    "model_returned": "gpt-5.6-sol",
+    "usage": {
+      "input_tokens": 234,
+      "output_tokens": 66,
+      "total_tokens": 300,
+      "reasoning_tokens": 0
+    },
+    "estimated_cost_usd": 0.002256,
+    "incomplete_details": null,
+    "error": null,
+    "output": "- L’association compte 85 adhérents.\n- Les inscriptions ont augmenté de 18 % cette année.\n- Les ateliers du samedi sont complets.\n- Les ateliers du mercredi ne remplissent que la moitié des places.\n- Le budget communication est stable et le conseil propose de tester deux nouveaux horaires en soirée."
+  },
+  "output": "- L’association compte 85 adhérents.\n- Les inscriptions ont augmenté de 18 % cette année.\n- Les ateliers du samedi sont complets.\n- Les ateliers du mercredi ne remplissent que la moitié des places.\n- Le budget communication est stable et le conseil propose de tester deux nouveaux horaires en soirée.",
+  "total_llm_calls": 3,
+  "gpt_usage": {
+    "input_tokens": 234,
+    "output_tokens": 66,
+    "total_tokens": 300,
+    "estimated_cost_usd": 0.002256
+  },
+  "fallback": true,
+  "retries": 0,
+  "error": null
+}

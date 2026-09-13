@@ -1,0 +1,480 @@
+{
+  "started_at": "2026-08-28T07:37:57.252Z",
+  "completed_at": "2026-08-28T07:40:10.183Z",
+  "html_sha256": "757ad74d70ffeaff8c3c9e2a09d8c3aa9bbbcbcc52d0cae9923f54e7a28f2a06",
+  "latency_total_ms": 132930.707,
+  "time_to_first_useful_result_ms": 132930.716,
+  "route_finale": "architecte",
+  "moteur_final": "architecte",
+  "decision_source": "local-prudent",
+  "decision": {
+    "etat_demande": "exploitable",
+    "route": "architecte",
+    "confiance": "moyenne",
+    "raison_interne": "La demande est exploitable mais nécessite une structuration ou des arbitrages préalables.",
+    "question": null
+  },
+  "decision_provider_calls": [
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:37:57.758Z",
+      "latency_ms": 449.29,
+      "status_http": 502,
+      "request": {
+        "demande": "Construis une séquence pédagogique de quatre semaines pour initier 28 élèves de première à l'argumentation écrite. Prévois une progression, des activités différenciées, deux évaluations formatives, une évaluation finale, des critères de notation et des solutions pour les élèves en difficulté.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "error": "provider_failure",
+        "message": "Le fournisseur de décision n’est pas disponible."
+      },
+      "error": null
+    },
+    {
+      "kind": "decision_provider",
+      "endpoint": "https://atelier-decision-groq.11drumboy11.workers.dev/decision",
+      "started_at": "2026-08-28T07:37:58.208Z",
+      "latency_ms": 131.152,
+      "status_http": 502,
+      "request": {
+        "demande": "Construis une séquence pédagogique de quatre semaines pour initier 28 élèves de première à l'argumentation écrite. Prévois une progression, des activités différenciées, deux évaluations formatives, une évaluation finale, des critères de notation et des solutions pour les élèves en difficulté.",
+        "materiau_present": false,
+        "mode_demande": "rapide"
+      },
+      "response": {
+        "error": "provider_failure",
+        "message": "Le fournisseur de décision n’est pas disponible."
+      },
+      "error": null
+    }
+  ],
+  "decision_provider_latency_ms": 580.442,
+  "clarifications": [],
+  "nombre_reanalyses": 0,
+  "engine": {
+    "engine": "architecte",
+    "latency_ms": 94537.725,
+    "context": {
+      "demande": "Construis une séquence pédagogique de quatre semaines pour initier 28 élèves de première à l'argumentation écrite. Prévois une progression, des activités différenciées, deux évaluations formatives, une évaluation finale, des critères de notation et des solutions pour les élèves en difficulté.",
+      "materiau": null,
+      "preferences_confirmees": [],
+      "reglages_manuels": {
+        "destinataire": null,
+        "profondeur": "auto",
+        "structure": "auto",
+        "volume": null
+      },
+      "proportion": {
+        "version": 1,
+        "profondeur_analyse": {
+          "valeur": "minimal",
+          "source": "manuel"
+        },
+        "densite_prompt": {
+          "valeur": "equilibree",
+          "source": "automatique"
+        },
+        "longueur_livrable": {
+          "valeur": "automatique",
+          "source": "automatique"
+        },
+        "plafond_technique": {
+          "valeur": 4000,
+          "source": "manuel"
+        },
+        "structure": {
+          "mode": "libre",
+          "nombre": null,
+          "source": "automatique",
+          "source_mode": "automatique",
+          "source_nombre": "automatique"
+        }
+      }
+    },
+    "analysis": {
+      "version": "3.4",
+      "comprehension": {
+        "intention_principale": "Produire une séquence pédagogique opérationnelle de quatre semaines pour initier une classe de première à l'argumentation écrite.",
+        "intentions_secondaires": [
+          "Organiser une progression des apprentissages sur quatre semaines.",
+          "Prévoir des activités différenciées et des aides pour les élèves en difficulté.",
+          "Intégrer deux évaluations formatives, une évaluation finale et des critères de notation explicites."
+        ],
+        "declarations": [
+          {
+            "contenu": "Le public est une classe de 28 élèves de première.",
+            "statut": "declaration_utilisateur",
+            "source": "demande",
+            "preuve": {
+              "citation": "28 élèves de première",
+              "contexte_avant": null,
+              "contexte_apres": null
+            }
+          },
+          {
+            "contenu": "La compétence ciblée est l'argumentation écrite.",
+            "statut": "declaration_utilisateur",
+            "source": "demande",
+            "preuve": {
+              "citation": "à l'argumentation écrite",
+              "contexte_avant": null,
+              "contexte_apres": null
+            }
+          }
+        ],
+        "contraintes": [
+          {
+            "contenu": "La séquence doit couvrir quatre semaines.",
+            "statut": "declaration_utilisateur",
+            "source": "demande",
+            "preuve": {
+              "citation": "une séquence pédagogique de quatre semaines",
+              "contexte_avant": null,
+              "contexte_apres": null
+            }
+          },
+          {
+            "contenu": "La séquence doit inclure des activités différenciées et des solutions pour les élèves en difficulté.",
+            "statut": "declaration_utilisateur",
+            "source": "demande",
+            "preuve": {
+              "citation": "des activités différenciées, deux évaluations formatives, une évaluation finale, des critères de notation et des solutions pour les élèves en difficulté",
+              "contexte_avant": null,
+              "contexte_apres": null
+            }
+          },
+          {
+            "contenu": "Le dispositif d'évaluation doit comporter exactement deux évaluations formatives et une évaluation finale.",
+            "statut": "declaration_utilisateur",
+            "source": "demande",
+            "preuve": {
+              "citation": "deux évaluations formatives, une évaluation finale",
+              "contexte_avant": null,
+              "contexte_apres": null
+            }
+          },
+          {
+            "contenu": "Des critères de notation doivent être fournis.",
+            "statut": "declaration_utilisateur",
+            "source": "demande",
+            "preuve": {
+              "citation": "des critères de notation",
+              "contexte_avant": null,
+              "contexte_apres": null
+            }
+          }
+        ],
+        "ambiguites": [
+          "La discipline, le corpus ou le thème auquel rattacher l'argumentation ne sont pas précisés.",
+          "Le nombre de séances par semaine et leur durée ne sont pas indiqués.",
+          "Les acquis initiaux, les besoins particuliers et les ressources de la classe ne sont pas détaillés."
+        ],
+        "informations_manquantes": [
+          {
+            "information": "Nombre de séances hebdomadaires et durée habituelle d'une séance.",
+            "bloquant": false,
+            "justification": "Ces données influencent le minutage précis, mais une progression hebdomadaire adaptable peut être produite sans elles."
+          },
+          {
+            "information": "Discipline, corpus ou thème servant de support aux écrits argumentatifs.",
+            "bloquant": false,
+            "justification": "Cette précision permettrait de contextualiser les sujets, mais une séquence générique et transposable reste fiable et utile."
+          },
+          {
+            "information": "Niveau initial et difficultés particulières des élèves.",
+            "bloquant": false,
+            "justification": "Ces informations affineraient la différenciation, mais plusieurs niveaux d'étayage peuvent être proposés sans inventer de profils individuels."
+          }
+        ]
+      },
+      "evaluation": {
+        "niveau_risque": "faible",
+        "justification_risque": "La demande porte sur une planification pédagogique sans enjeu immédiat de sécurité, de droit ou de décision irréversible.",
+        "connaissance_externe_necessaire": true,
+        "actualite_requise": false,
+        "justification_connaissance": "La conception mobilise des connaissances générales en didactique de l'écriture, différenciation et évaluation qui ne figurent pas dans la demande. Aucun alignement à un programme officiel actuel n'est explicitement demandé.",
+        "calcul_requis": false,
+        "livrable_complet_possible": true,
+        "reponse_partielle_possible": true,
+        "action_recommandee": "continuer",
+        "questions_a_poser": [],
+        "parties_realisables_immediatement": []
+      },
+      "strategie": {
+        "capacites_necessaires": [
+          "Concevoir une progression pédagogique cohérente.",
+          "Différencier les activités et les formes d'étayage.",
+          "Aligner objectifs, activités, évaluations et critères de notation.",
+          "Présenter une organisation directement exploitable par un enseignant."
+        ],
+        "hypotheses_autorisees": [
+          "Concevoir une séquence transposable tant que la discipline et le corpus ne sont pas précisés.",
+          "Choisir une organisation hebdomadaire adaptable et signaler les durées proposées comme estimatives.",
+          "Proposer des modalités de regroupement compatibles avec 28 élèves comme choix d'organisation.",
+          "Définir un barème explicite comme décision de conception, en le présentant comme adaptable."
+        ],
+        "hypotheses_interdites": [
+          "Inventer le niveau initial ou les besoins particuliers d'élèves précis.",
+          "Supposer que tous les élèves disposent des mêmes ressources ou présentent les mêmes difficultés.",
+          "Présenter un minutage comme imposé alors que l'emploi du temps n'est pas connu.",
+          "Revendiquer un alignement à un programme officiel actuel sans fondement externe approprié."
+        ],
+        "role_adaptatif": {
+          "intitule": "Concepteur pédagogique en argumentation écrite au lycée",
+          "mission": "Élaborer une séquence de quatre semaines progressive, différenciée, évaluée et immédiatement adaptable à une classe de 28 élèves de première.",
+          "competences": [
+            "Didactique de l'écriture argumentative",
+            "Différenciation pédagogique",
+            "Évaluation formative et sommative",
+            "Conception de grilles critériées"
+          ],
+          "limites": [
+            "Ne pas inventer l'emploi du temps, le corpus ou le profil des élèves.",
+            "Présenter les choix de progression et de barème comme des propositions adaptables.",
+            "Ne pas affirmer un alignement réglementaire actuel sans appui externe."
+          ]
+        },
+        "niveau_architecture": "minimal",
+        "justification_niveau": "Le réglage manuel impose une analyse minimale ; la demande reste de faible risque et peut être traitée avec cinq composants spécifiques bien structurés.",
+        "pilotage_incertitude": {
+          "decisions_autonomes": [
+            "Choisir l'ordre des apprentissages sur les quatre semaines.",
+            "Sélectionner des modalités d'activité individuelle, en binômes et en groupes.",
+            "Définir les tâches des trois évaluations et une pondération cohérente des critères."
+          ],
+          "estimations_a_etiqueter": [
+            "Durée des activités et des évaluations.",
+            "Charge de travail réalisable au cours d'une semaine."
+          ],
+          "inconnues_non_devineables": [
+            "Nombre et durée réels des séances.",
+            "Discipline, corpus et supports disponibles.",
+            "Acquis initiaux et besoins particuliers des élèves.",
+            "Aménagements institutionnels éventuellement applicables."
+          ]
+        }
+      },
+      "livrable": {
+        "nature": "Séquence pédagogique complète comprenant une progression hebdomadaire, des activités différenciées, trois évaluations, une grille de notation et des dispositifs de soutien.",
+        "format_technique": "markdown",
+        "quantites": {
+          "min": 4,
+          "max": 4,
+          "unite": "semaines"
+        },
+        "ton": "Professionnel, concret, clair et directement exploitable par un enseignant.",
+        "longueur_indicative": "Environ 1 400 à 1 900 mots, avec un tableau central synthétique et une grille critériée concise."
+      },
+      "compilation": {
+        "composants_retenus": [
+          {
+            "type": "instruction",
+            "titre": "Organisation opérationnelle par semaine",
+            "contenu": "Présente un tableau central couvrant exactement quatre semaines. Pour chaque semaine, indique les objectifs d'apprentissage, les notions ou compétences travaillées, les activités principales, les modalités de travail, les productions attendues et les traces permettant de suivre les progrès. Si des durées sont proposées, qualifie-les d'estimatives et adaptables au nombre réel de séances.",
+            "justification": "Cette structure rend la progression lisible sans inventer l'emploi du temps de la classe.",
+            "fondements": [
+              {
+                "nature": "utilisateur",
+                "citation": "une séquence pédagogique de quatre semaines",
+                "usage": "Établit la durée et la nature du livrable."
+              },
+              {
+                "nature": "hypothese",
+                "citation": null,
+                "usage": "Le rythme exact des séances étant inconnu, les durées doivent rester adaptables."
+              }
+            ]
+          },
+          {
+            "type": "instruction",
+            "titre": "Progression des apprentissages argumentatifs",
+            "contenu": "Adopte explicitement comme choix de conception une progression allant des composantes de base vers un écrit complet : repérage et formulation d'une thèse, distinction entre argument et exemple, développement et organisation des paragraphes, enchaînement logique, prise en compte d'un point de vue opposé, puis planification, rédaction et révision d'un texte argumentatif. Répartis ces étapes de manière cohérente sur les quatre semaines.",
+            "justification": "Une progression explicite est nécessaire pour transformer l'objectif général en apprentissages successifs.",
+            "fondements": [
+              {
+                "nature": "utilisateur",
+                "citation": "initier 28 élèves de première à l'argumentation écrite",
+                "usage": "Établit la compétence cible et le niveau du public."
+              },
+              {
+                "nature": "deduction",
+                "citation": null,
+                "usage": "L'ordre proposé constitue un choix pédagogique raisonnable, non une donnée fournie."
+              }
+            ]
+          },
+          {
+            "type": "instruction",
+            "titre": "Différenciation et soutien aux élèves",
+            "contenu": "Pour les activités majeures, propose au moins trois voies : une tâche commune, un parcours étayé et un prolongement d'approfondissement. Intègre des aides concrètes telles qu'un modèle annoté, une banque de connecteurs, des amorces de phrases, un organisateur graphique, une rédaction découpée en étapes, un retour ciblé et une reprise en petit groupe. Prévois des modalités compatibles avec 28 élèves, par exemple les binômes ou sept groupes de quatre lorsque cela est pertinent, sans inventer de besoins individuels.",
+            "justification": "La différenciation doit être visible dans les tâches et accompagnée de solutions directement applicables.",
+            "fondements": [
+              {
+                "nature": "utilisateur",
+                "citation": "des activités différenciées",
+                "usage": "Impose plusieurs modalités d'accès aux apprentissages."
+              },
+              {
+                "nature": "utilisateur",
+                "citation": "des solutions pour les élèves en difficulté",
+                "usage": "Impose des dispositifs d'aide explicites."
+              },
+              {
+                "nature": "utilisateur",
+                "citation": "28 élèves de première",
+                "usage": "Permet d'adapter les propositions de regroupement à l'effectif."
+              }
+            ]
+          },
+          {
+            "type": "instruction",
+            "titre": "Dispositif des trois évaluations",
+            "contenu": "Inclue exactement deux évaluations formatives et une évaluation finale. Pour chacune, précise le moment dans la séquence, la consigne ou la production attendue, les compétences observées, les critères utilisés et la modalité de retour. Après chaque évaluation formative, prévois une action de régulation ou de remédiation. L'évaluation finale doit demander une production argumentative complète et mobiliser les apprentissages réellement travaillés.",
+            "justification": "Le nombre d'évaluations est fixé et leur fonction doit être articulée à la progression.",
+            "fondements": [
+              {
+                "nature": "utilisateur",
+                "citation": "deux évaluations formatives, une évaluation finale",
+                "usage": "Fixe exactement le nombre et la nature des évaluations."
+              },
+              {
+                "nature": "deduction",
+                "citation": null,
+                "usage": "La régulation après les évaluations formatives est un choix de conception cohérent avec leur fonction."
+              }
+            ]
+          },
+          {
+            "type": "critere",
+            "titre": "Grille de notation et alignement",
+            "contenu": "Fournis une grille de notation utilisable pour l'évaluation finale, avec un barème explicite et adaptable. Les critères doivent porter sur la clarté de la thèse, la pertinence et le développement des arguments, l'utilisation des exemples, l'organisation et la cohésion, la prise en compte éventuelle d'un point de vue opposé, ainsi que la maîtrise de la langue. Vérifie que la somme des points est cohérente et que chaque critère correspond à un apprentissage effectivement enseigné et exercé dans la séquence.",
+            "justification": "Une grille alignée rend la notation transparente et évite d'évaluer des compétences non travaillées.",
+            "fondements": [
+              {
+                "nature": "utilisateur",
+                "citation": "des critères de notation",
+                "usage": "Impose la présence de critères explicites."
+              },
+              {
+                "nature": "deduction",
+                "citation": null,
+                "usage": "L'alignement entre enseignement et notation est un critère de cohérence du livrable."
+              }
+            ]
+          }
+        ],
+        "composants_ecartes": []
+      },
+      "verification": {
+        "criteres_bloquants": [
+          "La séquence couvre exactement quatre semaines.",
+          "Le dispositif comprend exactement deux évaluations formatives et une évaluation finale.",
+          "Des activités différenciées, des solutions pour les élèves en difficulté et des critères de notation sont présents.",
+          "Les propositions tiennent compte d'une classe de 28 élèves de première.",
+          "Les durées ou rythmes non fournis ne sont pas présentés comme des faits établis."
+        ],
+        "criteres_qualitatifs": [
+          "La progression conduit graduellement des composantes de l'argumentation à une production complète.",
+          "Les objectifs, activités, évaluations et critères de notation sont alignés.",
+          "Les aides proposées sont concrètes et intégrées aux activités.",
+          "La charge de travail reste plausible et adaptable.",
+          "La grille finale est lisible et son barème est cohérent."
+        ],
+        "elements_non_verifiables": [
+          "Adéquation exacte du minutage à l'emploi du temps réel.",
+          "Adaptation précise aux acquis et besoins particuliers de chaque élève.",
+          "Disponibilité des supports ou équipements suggérés.",
+          "Alignement à un programme disciplinaire officiel actuel non précisé."
+        ],
+        "controle_provenance": [
+          {
+            "affirmation": "La classe comprend 28 élèves de première et la séquence dure quatre semaines.",
+            "statut": "soutenue",
+            "justification": "Ces éléments sont explicitement indiqués dans la demande."
+          },
+          {
+            "affirmation": "L'ordre proposé pour les apprentissages est la progression à adopter.",
+            "statut": "hypothese",
+            "justification": "Il s'agit d'un choix autonome de conception pédagogique, qui doit rester adaptable."
+          },
+          {
+            "affirmation": "Le nombre et la durée des séances sont déterminés.",
+            "statut": "information_manquante",
+            "justification": "La demande fixe quatre semaines, mais ne fournit aucun rythme de séances."
+          },
+          {
+            "affirmation": "Les difficultés précises des élèves sont connues.",
+            "statut": "information_manquante",
+            "justification": "Aucun diagnostic individuel ou collectif n'est fourni."
+          },
+          {
+            "affirmation": "Les dispositifs pédagogiques proposés seront efficaces pour chaque élève.",
+            "statut": "connaissance_externe_non_verifiee",
+            "justification": "Les aides reposent sur des principes pédagogiques généraux, sans preuve propre à cette classe."
+          }
+        ]
+      },
+      "apprentissage": {
+        "preferences_applicables": [],
+        "preference_proposable": null
+      }
+    },
+    "analysis_call": {
+      "timestamp": "2026-08-28T07:39:32.823Z",
+      "endpoint": "/v1/responses",
+      "status_http": 200,
+      "latency_ms": 94449.578,
+      "response_id": "resp_023165447a2d19d1006a913ad679c887d2b72c8acbd37a8b8f",
+      "response_status": "completed",
+      "model_requested": "gpt-5.6-sol",
+      "model_returned": "gpt-5.6-sol",
+      "usage": {
+        "input_tokens": 9669,
+        "output_tokens": 7938,
+        "total_tokens": 17607,
+        "reasoning_tokens": 4199
+      },
+      "estimated_cost_usd": 0.197436,
+      "incomplete_details": null,
+      "error": null,
+      "output": "{\n  \"version\": \"3.4\",\n  \"comprehension\": {\n    \"intention_principale\": \"Produire une séquence pédagogique opérationnelle de quatre semaines pour initier une classe de première à l'argumentation écrite.\",\n    \"intentions_secondaires\": [\n      \"Organiser une progression des apprentissages sur quatre semaines.\",\n      \"Prévoir des activités différenciées et des aides pour les élèves en difficulté.\",\n      \"Intégrer deux évaluations formatives, une évaluation finale et des critères de notation explicites.\"\n    ],\n    \"declarations\": [\n      {\n        \"contenu\": \"Le public est une classe de 28 élèves de première.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"28 élèves de première\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      },\n      {\n        \"contenu\": \"La compétence ciblée est l'argumentation écrite.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"à l'argumentation écrite\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      }\n    ],\n    \"contraintes\": [\n      {\n        \"contenu\": \"La séquence doit couvrir quatre semaines.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"une séquence pédagogique de quatre semaines\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      },\n      {\n        \"contenu\": \"La séquence doit inclure des activités différenciées et des solutions pour les élèves en difficulté.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"des activités différenciées, deux évaluations formatives, une évaluation finale, des critères de notation et des solutions pour les élèves en difficulté\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      },\n      {\n        \"contenu\": \"Le dispositif d'évaluation doit comporter exactement deux évaluations formatives et une évaluation finale.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"deux évaluations formatives, une évaluation finale\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      },\n      {\n        \"contenu\": \"Des critères de notation doivent être fournis.\",\n        \"statut\": \"declaration_utilisateur\",\n        \"source\": \"demande\",\n        \"preuve\": {\n          \"citation\": \"des critères de notation\",\n          \"contexte_avant\": null,\n          \"contexte_apres\": null\n        }\n      }\n    ],\n    \"ambiguites\": [\n      \"La discipline, le corpus ou le thème auquel rattacher l'argumentation ne sont pas précisés.\",\n      \"Le nombre de séances par semaine et leur durée ne sont pas indiqués.\",\n      \"Les acquis initiaux, les besoins particuliers et les ressources de la classe ne sont pas détaillés.\"\n    ],\n    \"informations_manquantes\": [\n      {\n        \"information\": \"Nombre de séances hebdomadaires et durée habituelle d'une séance.\",\n        \"bloquant\": false,\n        \"justification\": \"Ces données influencent le minutage précis, mais une progression hebdomadaire adaptable peut être produite sans elles.\"\n      },\n      {\n        \"information\": \"Discipline, corpus ou thème servant de support aux écrits argumentatifs.\",\n        \"bloquant\": false,\n        \"justification\": \"Cette précision permettrait de contextualiser les sujets, mais une séquence générique et transposable reste fiable et utile.\"\n      },\n      {\n        \"information\": \"Niveau initial et difficultés particulières des élèves.\",\n        \"bloquant\": false,\n        \"justification\": \"Ces informations affineraient la différenciation, mais plusieurs niveaux d'étayage peuvent être proposés sans inventer de profils individuels.\"\n      }\n    ]\n  },\n  \"evaluation\": {\n    \"niveau_risque\": \"faible\",\n    \"justification_risque\": \"La demande porte sur une planification pédagogique sans enjeu immédiat de sécurité, de droit ou de décision irréversible.\",\n    \"connaissance_externe_necessaire\": true,\n    \"actualite_requise\": false,\n    \"justification_connaissance\": \"La conception mobilise des connaissances générales en didactique de l'écriture, différenciation et évaluation qui ne figurent pas dans la demande. Aucun alignement à un programme officiel actuel n'est explicitement demandé.\",\n    \"calcul_requis\": false,\n    \"livrable_complet_possible\": true,\n    \"reponse_partielle_possible\": true,\n    \"action_recommandee\": \"continuer\",\n    \"questions_a_poser\": [],\n    \"parties_realisables_immediatement\": []\n  },\n  \"strategie\": {\n    \"capacites_necessaires\": [\n      \"Concevoir une progression pédagogique cohérente.\",\n      \"Différencier les activités et les formes d'étayage.\",\n      \"Aligner objectifs, activités, évaluations et critères de notation.\",\n      \"Présenter une organisation directement exploitable par un enseignant.\"\n    ],\n    \"hypotheses_autorisees\": [\n      \"Concevoir une séquence transposable tant que la discipline et le corpus ne sont pas précisés.\",\n      \"Choisir une organisation hebdomadaire adaptable et signaler les durées proposées comme estimatives.\",\n      \"Proposer des modalités de regroupement compatibles avec 28 élèves comme choix d'organisation.\",\n      \"Définir un barème explicite comme décision de conception, en le présentant comme adaptable.\"\n    ],\n    \"hypotheses_interdites\": [\n      \"Inventer le niveau initial ou les besoins particuliers d'élèves précis.\",\n      \"Supposer que tous les élèves disposent des mêmes ressources ou présentent les mêmes difficultés.\",\n      \"Présenter un minutage comme imposé alors que l'emploi du temps n'est pas connu.\",\n      \"Revendiquer un alignement à un programme officiel actuel sans fondement externe approprié.\"\n    ],\n    \"role_adaptatif\": {\n      \"intitule\": \"Concepteur pédagogique en argumentation écrite au lycée\",\n      \"mission\": \"Élaborer une séquence de quatre semaines progressive, différenciée, évaluée et immédiatement adaptable à une classe de 28 élèves de première.\",\n      \"competences\": [\n        \"Didactique de l'écriture argumentative\",\n        \"Différenciation pédagogique\",\n        \"Évaluation formative et sommative\",\n        \"Conception de grilles critériées\"\n      ],\n      \"limites\": [\n        \"Ne pas inventer l'emploi du temps, le corpus ou le profil des élèves.\",\n        \"Présenter les choix de progression et de barème comme des propositions adaptables.\",\n        \"Ne pas affirmer un alignement réglementaire actuel sans appui externe.\"\n      ]\n    },\n    \"niveau_architecture\": \"minimal\",\n    \"justification_niveau\": \"Le réglage manuel impose une analyse minimale ; la demande reste de faible risque et peut être traitée avec cinq composants spécifiques bien structurés.\",\n    \"pilotage_incertitude\": {\n      \"decisions_autonomes\": [\n        \"Choisir l'ordre des apprentissages sur les quatre semaines.\",\n        \"Sélectionner des modalités d'activité individuelle, en binômes et en groupes.\",\n        \"Définir les tâches des trois évaluations et une pondération cohérente des critères.\"\n      ],\n      \"estimations_a_etiqueter\": [\n        \"Durée des activités et des évaluations.\",\n        \"Charge de travail réalisable au cours d'une semaine.\"\n      ],\n      \"inconnues_non_devineables\": [\n        \"Nombre et durée réels des séances.\",\n        \"Discipline, corpus et supports disponibles.\",\n        \"Acquis initiaux et besoins particuliers des élèves.\",\n        \"Aménagements institutionnels éventuellement applicables.\"\n      ]\n    }\n  },\n  \"livrable\": {\n    \"nature\": \"Séquence pédagogique complète comprenant une progression hebdomadaire, des activités différenciées, trois évaluations, une grille de notation et des dispositifs de soutien.\",\n    \"format_technique\": \"markdown\",\n    \"quantites\": {\n      \"min\": 4,\n      \"max\": 4,\n      \"unite\": \"semaines\"\n    },\n    \"ton\": \"Professionnel, concret, clair et directement exploitable par un enseignant.\",\n    \"longueur_indicative\": \"Environ 1 400 à 1 900 mots, avec un tableau central synthétique et une grille critériée concise.\"\n  },\n  \"compilation\": {\n    \"composants_retenus\": [\n      {\n        \"type\": \"instruction\",\n        \"titre\": \"Organisation opérationnelle par semaine\",\n        \"contenu\": \"Présente un tableau central couvrant exactement quatre semaines. Pour chaque semaine, indique les objectifs d'apprentissage, les notions ou compétences travaillées, les activités principales, les modalités de travail, les productions attendues et les traces permettant de suivre les progrès. Si des durées sont proposées, qualifie-les d'estimatives et adaptables au nombre réel de séances.\",\n        \"justification\": \"Cette structure rend la progression lisible sans inventer l'emploi du temps de la classe.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"une séquence pédagogique de quatre semaines\",\n            \"usage\": \"Établit la durée et la nature du livrable.\"\n          },\n          {\n            \"nature\": \"hypothese\",\n            \"citation\": null,\n            \"usage\": \"Le rythme exact des séances étant inconnu, les durées doivent rester adaptables.\"\n          }\n        ]\n      },\n      {\n        \"type\": \"instruction\",\n        \"titre\": \"Progression des apprentissages argumentatifs\",\n        \"contenu\": \"Adopte explicitement comme choix de conception une progression allant des composantes de base vers un écrit complet : repérage et formulation d'une thèse, distinction entre argument et exemple, développement et organisation des paragraphes, enchaînement logique, prise en compte d'un point de vue opposé, puis planification, rédaction et révision d'un texte argumentatif. Répartis ces étapes de manière cohérente sur les quatre semaines.\",\n        \"justification\": \"Une progression explicite est nécessaire pour transformer l'objectif général en apprentissages successifs.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"initier 28 élèves de première à l'argumentation écrite\",\n            \"usage\": \"Établit la compétence cible et le niveau du public.\"\n          },\n          {\n            \"nature\": \"deduction\",\n            \"citation\": null,\n            \"usage\": \"L'ordre proposé constitue un choix pédagogique raisonnable, non une donnée fournie.\"\n          }\n        ]\n      },\n      {\n        \"type\": \"instruction\",\n        \"titre\": \"Différenciation et soutien aux élèves\",\n        \"contenu\": \"Pour les activités majeures, propose au moins trois voies : une tâche commune, un parcours étayé et un prolongement d'approfondissement. Intègre des aides concrètes telles qu'un modèle annoté, une banque de connecteurs, des amorces de phrases, un organisateur graphique, une rédaction découpée en étapes, un retour ciblé et une reprise en petit groupe. Prévois des modalités compatibles avec 28 élèves, par exemple les binômes ou sept groupes de quatre lorsque cela est pertinent, sans inventer de besoins individuels.\",\n        \"justification\": \"La différenciation doit être visible dans les tâches et accompagnée de solutions directement applicables.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"des activités différenciées\",\n            \"usage\": \"Impose plusieurs modalités d'accès aux apprentissages.\"\n          },\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"des solutions pour les élèves en difficulté\",\n            \"usage\": \"Impose des dispositifs d'aide explicites.\"\n          },\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"28 élèves de première\",\n            \"usage\": \"Permet d'adapter les propositions de regroupement à l'effectif.\"\n          }\n        ]\n      },\n      {\n        \"type\": \"instruction\",\n        \"titre\": \"Dispositif des trois évaluations\",\n        \"contenu\": \"Inclue exactement deux évaluations formatives et une évaluation finale. Pour chacune, précise le moment dans la séquence, la consigne ou la production attendue, les compétences observées, les critères utilisés et la modalité de retour. Après chaque évaluation formative, prévois une action de régulation ou de remédiation. L'évaluation finale doit demander une production argumentative complète et mobiliser les apprentissages réellement travaillés.\",\n        \"justification\": \"Le nombre d'évaluations est fixé et leur fonction doit être articulée à la progression.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"deux évaluations formatives, une évaluation finale\",\n            \"usage\": \"Fixe exactement le nombre et la nature des évaluations.\"\n          },\n          {\n            \"nature\": \"deduction\",\n            \"citation\": null,\n            \"usage\": \"La régulation après les évaluations formatives est un choix de conception cohérent avec leur fonction.\"\n          }\n        ]\n      },\n      {\n        \"type\": \"critere\",\n        \"titre\": \"Grille de notation et alignement\",\n        \"contenu\": \"Fournis une grille de notation utilisable pour l'évaluation finale, avec un barème explicite et adaptable. Les critères doivent porter sur la clarté de la thèse, la pertinence et le développement des arguments, l'utilisation des exemples, l'organisation et la cohésion, la prise en compte éventuelle d'un point de vue opposé, ainsi que la maîtrise de la langue. Vérifie que la somme des points est cohérente et que chaque critère correspond à un apprentissage effectivement enseigné et exercé dans la séquence.\",\n        \"justification\": \"Une grille alignée rend la notation transparente et évite d'évaluer des compétences non travaillées.\",\n        \"fondements\": [\n          {\n            \"nature\": \"utilisateur\",\n            \"citation\": \"des critères de notation\",\n            \"usage\": \"Impose la présence de critères explicites.\"\n          },\n          {\n            \"nature\": \"deduction\",\n            \"citation\": null,\n            \"usage\": \"L'alignement entre enseignement et notation est un critère de cohérence du livrable.\"\n          }\n        ]\n      }\n    ],\n    \"composants_ecartes\": []\n  },\n  \"verification\": {\n    \"criteres_bloquants\": [\n      \"La séquence couvre exactement quatre semaines.\",\n      \"Le dispositif comprend exactement deux évaluations formatives et une évaluation finale.\",\n      \"Des activités différenciées, des solutions pour les élèves en difficulté et des critères de notation sont présents.\",\n      \"Les propositions tiennent compte d'une classe de 28 élèves de première.\",\n      \"Les durées ou rythmes non fournis ne sont pas présentés comme des faits établis.\"\n    ],\n    \"criteres_qualitatifs\": [\n      \"La progression conduit graduellement des composantes de l'argumentation à une production complète.\",\n      \"Les objectifs, activités, évaluations et critères de notation sont alignés.\",\n      \"Les aides proposées sont concrètes et intégrées aux activités.\",\n      \"La charge de travail reste plausible et adaptable.\",\n      \"La grille finale est lisible et son barème est cohérent.\"\n    ],\n    \"elements_non_verifiables\": [\n      \"Adéquation exacte du minutage à l'emploi du temps réel.\",\n      \"Adaptation précise aux acquis et besoins particuliers de chaque élève.\",\n      \"Disponibilité des supports ou équipements suggérés.\",\n      \"Alignement à un programme disciplinaire officiel actuel non précisé.\"\n    ],\n    \"controle_provenance\": [\n      {\n        \"affirmation\": \"La classe comprend 28 élèves de première et la séquence dure quatre semaines.\",\n        \"statut\": \"soutenue\",\n        \"justification\": \"Ces éléments sont explicitement indiqués dans la demande.\"\n      },\n      {\n        \"affirmation\": \"L'ordre proposé pour les apprentissages est la progression à adopter.\",\n        \"statut\": \"hypothese\",\n        \"justification\": \"Il s'agit d'un choix autonome de conception pédagogique, qui doit rester adaptable.\"\n      },\n      {\n        \"affirmation\": \"Le nombre et la durée des séances sont déterminés.\",\n        \"statut\": \"information_manquante\",\n        \"justification\": \"La demande fixe quatre semaines, mais ne fournit aucun rythme de séances.\"\n      },\n      {\n        \"affirmation\": \"Les difficultés précises des élèves sont connues.\",\n        \"statut\": \"information_manquante\",\n        \"justification\": \"Aucun diagnostic individuel ou collectif n'est fourni.\"\n      },\n      {\n        \"affirmation\": \"Les dispositifs pédagogiques proposés seront efficaces pour chaque élève.\",\n        \"statut\": \"connaissance_externe_non_verifiee\",\n        \"justification\": \"Les aides reposent sur des principes pédagogiques généraux, sans preuve propre à cette classe.\"\n      }\n    ]\n  },\n  \"apprentissage\": {\n    \"preferences_applicables\": [],\n    \"preference_proposable\": null\n  }\n}"
+    },
+    "validation": [],
+    "prompt": "## RÔLE\nVous intervenez comme Concepteur pédagogique en argumentation écrite au lycée.\nÉlaborer une séquence de quatre semaines progressive, différenciée, évaluée et immédiatement adaptable à une classe de 28 élèves de première.\nCompétences à mobiliser : Didactique de l'écriture argumentative ; Différenciation pédagogique ; Évaluation formative et sommative ; Conception de grilles critériées.\nLimites à respecter : Ne pas inventer l'emploi du temps, le corpus ou le profil des élèves ; Présenter les choix de progression et de barème comme des propositions adaptables ; Ne pas affirmer un alignement réglementaire actuel sans appui externe.\n\n## OBJECTIF\nProduire une séquence pédagogique opérationnelle de quatre semaines pour initier une classe de première à l'argumentation écrite.\n\n## DEMANDE ORIGINALE\nConstruis une séquence pédagogique de quatre semaines pour initier 28 élèves de première à l'argumentation écrite. Prévois une progression, des activités différenciées, deux évaluations formatives, une évaluation finale, des critères de notation et des solutions pour les élèves en difficulté.\n\n## FORMAT DE SORTIE\n- Livrable : Séquence pédagogique complète comprenant une progression hebdomadaire, des activités différenciées, trois évaluations, une grille de notation et des dispositifs de soutien.\n- Format technique : markdown\n- Ton : Professionnel, concret, clair et directement exploitable par un enseignant.\n- Longueur indicative : Environ 1 400 à 1 900 mots, avec un tableau central synthétique et une grille critériée concise.\n- Quantité : minimum 4 ; maximum 4 semaines\n- Structure : plan imposé (4 éléments)\n\n## DÉCISIONS, ESTIMATIONS ET INCERTITUDES\nRègle centrale : traitez chaque inconnue par le moyen le plus utile et honnête — décision raisonnable, estimation étiquetée, recherche, scénario, condition ou inconnue locale. Une décision reste un choix, jamais un fait vérifié. La précision doit être proportionnée aux preuves. Hiérarchisez les critères selon l’objectif réel, les contraintes, leur impact cumulé et les conséquences d’une erreur, sans modifier silencieusement une contrainte explicite.\n\nDécisions à prendre de façon autonome :\n- Choisir l'ordre des apprentissages sur les quatre semaines.\n- Sélectionner des modalités d'activité individuelle, en binômes et en groupes.\n- Définir les tâches des trois évaluations et une pondération cohérente des critères.\n\nEstimations autorisées, à étiqueter clairement :\n- Durée des activités et des évaluations.\n- Charge de travail réalisable au cours d'une semaine.\n\nPour chacune : utilisez explicitement « estimation », « environ », « fourchette », « ordre de grandeur » ou « à confirmer ». Ne donnez jamais à une approximation la forme d’une mesure vérifiée.\n\nIncertitudes à signaler localement sans bloquer le reste :\n- Nombre et durée réels des séances.\n- Discipline, corpus et supports disponibles.\n- Acquis initiaux et besoins particuliers des élèves.\n- Aménagements institutionnels éventuellement applicables.\n\n## INFORMATIONS MANQUANTES ET PILOTAGE\n- Non bloquante : Nombre de séances hebdomadaires et durée habituelle d'une séance. — Ces données influencent le minutage précis, mais une progression hebdomadaire adaptable peut être produite sans elles.\n- Non bloquante : Discipline, corpus ou thème servant de support aux écrits argumentatifs. — Cette précision permettrait de contextualiser les sujets, mais une séquence générique et transposable reste fiable et utile.\n- Non bloquante : Niveau initial et difficultés particulières des élèves. — Ces informations affineraient la différenciation, mais plusieurs niveaux d'étayage peuvent être proposés sans inventer de profils individuels.\n\nNe présentez jamais une information inconnue comme confirmée. Mais ne bloquez pas une réponse utile pour une donnée que vous pouvez décider, estimer, rechercher ou laisser explicitement à confirmer.\n\n## RECHERCHE, ACTUALITÉ ET QUALITÉ DES PREUVES\nUne connaissance extérieure à la demande est nécessaire. Citez les sources directement consultées et leur date de consultation. Sans recherche réelle, distinguez explicitement ce qui est établi dans la demande de ce qui reste non vérifié. Pour chaque affirmation importante, choisissez la source selon son autorité sur cette affirmation, sa proximité avec la donnée, sa spécificité et sa fraîcheur ; ne suivez pas une hiérarchie rigide indépendante du contexte. En cas de contradiction, cherchez une preuve plus directement compétente et tranchez seulement si elle résout réellement le conflit. Recherchez également les changements futurs déjà établis lorsqu’ils se situent dans l’horizon pertinent et peuvent modifier la décision.\n\n## HYPOTHÈSES AUTORISÉES\n- Concevoir une séquence transposable tant que la discipline et le corpus ne sont pas précisés.\n- Choisir une organisation hebdomadaire adaptable et signaler les durées proposées comme estimatives.\n- Proposer des modalités de regroupement compatibles avec 28 élèves comme choix d'organisation.\n- Définir un barème explicite comme décision de conception, en le présentant comme adaptable.\n\n## HYPOTHÈSES INTERDITES\n- Inventer le niveau initial ou les besoins particuliers d'élèves précis.\n- Supposer que tous les élèves disposent des mêmes ressources ou présentent les mêmes difficultés.\n- Présenter un minutage comme imposé alors que l'emploi du temps n'est pas connu.\n- Revendiquer un alignement à un programme officiel actuel sans fondement externe approprié.\n\n## PRINCIPES DE RAISONNEMENT\n- Distinguez faits établis, décisions, estimations, hypothèses et inconnues.\n- Vérifiez que les comparaisons portent sur des périmètres réellement comparables.\n- Adaptez la précision numérique au niveau de preuve disponible ; n’inventez pas une probabilité ou une date pour satisfaire une demande de précision.\n- Pondérez les critères selon l’objectif réel, les contraintes, l’impact cumulé et les conséquences d’une erreur.\n- Résolvez les contradictions avec la preuve la plus compétente pour l’affirmation, sans hiérarchie mécanique de sources.\n- Pour l’avenir, distinguez changements déjà établis et prévisions ; utilisez une sensibilité ou des scénarios quand le moment exact est inconnu.\n\n## Organisation opérationnelle par semaine\nPrésente un tableau central couvrant exactement quatre semaines. Pour chaque semaine, indique les objectifs d'apprentissage, les notions ou compétences travaillées, les activités principales, les modalités de travail, les productions attendues et les traces permettant de suivre les progrès. Si des durées sont proposées, qualifie-les d'estimatives et adaptables au nombre réel de séances.\n\n## Progression des apprentissages argumentatifs\nAdopte explicitement comme choix de conception une progression allant des composantes de base vers un écrit complet : repérage et formulation d'une thèse, distinction entre argument et exemple, développement et organisation des paragraphes, enchaînement logique, prise en compte d'un point de vue opposé, puis planification, rédaction et révision d'un texte argumentatif. Répartis ces étapes de manière cohérente sur les quatre semaines.\n\n## Différenciation et soutien aux élèves\nPour les activités majeures, propose au moins trois voies : une tâche commune, un parcours étayé et un prolongement d'approfondissement. Intègre des aides concrètes telles qu'un modèle annoté, une banque de connecteurs, des amorces de phrases, un organisateur graphique, une rédaction découpée en étapes, un retour ciblé et une reprise en petit groupe. Prévois des modalités compatibles avec 28 élèves, par exemple les binômes ou sept groupes de quatre lorsque cela est pertinent, sans inventer de besoins individuels.\n\n## Dispositif des trois évaluations\nInclue exactement deux évaluations formatives et une évaluation finale. Pour chacune, précise le moment dans la séquence, la consigne ou la production attendue, les compétences observées, les critères utilisés et la modalité de retour. Après chaque évaluation formative, prévois une action de régulation ou de remédiation. L'évaluation finale doit demander une production argumentative complète et mobiliser les apprentissages réellement travaillés.\n\n## Grille de notation et alignement\nFournis une grille de notation utilisable pour l'évaluation finale, avec un barème explicite et adaptable. Les critères doivent porter sur la clarté de la thèse, la pertinence et le développement des arguments, l'utilisation des exemples, l'organisation et la cohésion, la prise en compte éventuelle d'un point de vue opposé, ainsi que la maîtrise de la langue. Vérifie que la somme des points est cohérente et que chaque critère correspond à un apprentissage effectivement enseigné et exercé dans la séquence.\n\n## VÉRIFICATION AVANT ENVOI\nContrôlez silencieusement la réponse et corrigez-la avant de l’envoyer :\n- La séquence couvre exactement quatre semaines.\n- Le dispositif comprend exactement deux évaluations formatives et une évaluation finale.\n- Des activités différenciées, des solutions pour les élèves en difficulté et des critères de notation sont présents.\n- Les propositions tiennent compte d'une classe de 28 élèves de première.\n- Les durées ou rythmes non fournis ne sont pas présentés comme des faits établis.\n- La progression conduit graduellement des composantes de l'argumentation à une production complète.\n- Les objectifs, activités, évaluations et critères de notation sont alignés.\n- Les aides proposées sont concrètes et intégrées aux activités.\n- La charge de travail reste plausible et adaptable.\n- La grille finale est lisible et son barème est cohérent.\n- Toute décision autonome doit rester identifiable comme un choix fondé sur des critères, jamais comme un fait vérifié sans preuve.\n- Toute estimation ou quantification doit avoir une précision proportionnée à sa base ; sans fondement empirique ou calcul identifiable, préférer qualification, fourchette, provision ou sensibilité à un nombre artificiel.\n- Avant toute comparaison ou calcul important, vérifier que les options et données couvrent des périmètres comparables ; expliciter les composantes ou hypothèses susceptibles de changer la décision.\n- En cas de contradiction matérielle, sélectionner la preuve selon son autorité sur l’affirmation, sa proximité, sa spécificité et sa fraîcheur ; trancher uniquement si le conflit est réellement résolu.\n- Pour une décision temporelle, distinguer état actuel, changement futur déjà établi et prévision ; intégrer les changements futurs seulement s’ils sont pertinents pour l’horizon de décision.\n- Quand la date d’un événement futur est inconnue, préférer scénarios, sensibilité, provision ou condition à une date arbitraire.\n- Hiérarchiser les critères selon l’objectif réel, les contraintes et leur impact cumulé, tout en confrontant les effets récurrents aux risques rares mais à conséquences majeures.\n- Ne jamais modifier silencieusement une contrainte explicite ; tout arbitrage qui la sacrifie doit être rendu visible.\n- Nettoyer le livrable final : aucune hésitation, autocorrection, ancien calcul remplacé, doublon, contradiction résiduelle ou trace de brouillon ne doit rester visible."
+  },
+  "final_call": {
+    "timestamp": "2026-08-28T07:40:10.172Z",
+    "endpoint": "/v1/responses",
+    "status_http": 200,
+    "latency_ms": 37226.006,
+    "response_id": "resp_01fabd11f997932e006a913b3510d887d2b88a5d02cd32a9fc",
+    "response_status": "incomplete",
+    "model_requested": "gpt-5.6-sol",
+    "model_returned": "gpt-5.6-sol",
+    "usage": {
+      "input_tokens": 2390,
+      "output_tokens": 2500,
+      "total_tokens": 4890,
+      "reasoning_tokens": 750
+    },
+    "estimated_cost_usd": 0.05956,
+    "incomplete_details": {
+      "reason": "max_output_tokens"
+    },
+    "error": null,
+    "output": "# 1. Cadre de conception et choix pédagogiques\n\n**Public établi par la demande :** 28 élèves de première.  \n**Inconnues locales :** discipline précise, corpus, durée et nombre des séances, acquis initiaux, besoins particuliers, ressources disponibles et aménagements institutionnels. La séquence est donc conçue comme un **cadre transposable**, à contextualiser avec les textes et thèmes retenus par l’enseignant.\n\n### Choix de progression\n\nLa progression retenue constitue une **décision de conception adaptable** : aller des unités élémentaires de l’argumentation vers un texte complet.\n\n1. Repérer puis formuler une thèse.\n2. Distinguer argument et exemple.\n3. Développer un paragraphe argumentatif.\n4. Organiser et relier plusieurs paragraphes.\n5. Prendre en compte une objection ou un point de vue opposé.\n6. Planifier, rédiger et réviser une production complète.\n\nCe choix vise à limiter la surcharge cognitive : chaque composante est d’abord isolée, exercée, puis intégrée aux suivantes. La révision est enseignée comme une étape de l’écriture, et non comme une simple correction finale.\n\n### Cadre temporel proposé\n\nLe nombre réel de séances étant inconnu, la charge proposée est une **estimation adaptable d’environ 2 à 4 heures par semaine**, éventuellement réparties en plusieurs séances. Les durées indiquées dans les activités sont des **ordres de grandeur**, à confirmer selon l’emploi du temps. Le travail personnel peut rester limité à la recherche d’un exemple, à l’achèvement d’un paragraphe ou à une révision ciblée.\n\n### Organisation de la classe\n\n- travail individuel pour la planification et la rédaction ;\n- binômes pour verbaliser les choix et relire ;\n- **sept groupes de quatre**, choix pratique pour une classe de 28 élèves, lors des tris, classements et ateliers ;\n- groupes temporaires de besoin après les évaluations formatives, sans présumer du profil des élèves.\n\n### Statut des références\n\nAucune consultation documentaire ou recherche web en temps réel n’a été effectuée pour cette réponse. Les principes mobilisés — enseignement explicite des composantes de l’écrit, écriture par étapes, critères partagés, rétroaction et réécriture — relèvent de connaissances didactiques générales. **Aucun alignement avec un programme officiel actuellement en vigueur n’est donc revendiqué.** L’enseignant devra vérifier localement les textes institutionnels applicables. Références indicatives connues mais non reconsultées : Groupe EVA, *Évaluer les écrits à l’école primaire* ; Dolz, Noverraz et Schneuwly, *S’exprimer en français : séquences didactiques pour l’oral et pour l’écrit* ; travaux de Black et Wiliam sur l’évaluation formative. **Date de consultation : non applicable.**\n\n# 2. Progression opérationnelle sur exactement quatre semaines\n\n| Semaine | Objectifs d’apprentissage | Notions et compétences | Activités principales | Modalités et durées estimatives | Productions attendues | Traces de progrès |\n|---|---|---|---|---|---|---|\n| **1 — Construire les bases** | Identifier une question débattue ; distinguer thème, question et thèse ; formuler une position claire ; différencier argument et exemple. | Thèse explicite ou implicite ; argument ; exemple ; pertinence ; reformulation. | Classement de cartes « thèses/arguments/exemples » ; annotation d’un court modèle choisi dans le corpus disponible ; reformulation de thèses trop vagues ; construction collective d’un schéma « thèse → argument → exemple ». **Évaluation formative 1** en fin de semaine. | Environ 2 à 4 h : individuel, binômes, puis sept groupes de quatre. | Une thèse reformulée ; deux couples argument-exemple ; une fiche de synthèse. | Organisateur graphique conservé dans un dossier d’écriture ; code couleur commun ; liste individuelle de deux réussites et d’un point à reprendre. |\n| **2 — Développer et relier** | Rédiger un paragraphe argumentatif développé ; expliquer le lien entre argument et exemple ; employer des connecteurs avec précision. | Phrase directrice ; justification ; illustration ; explicitation ; connecteurs logiques ; cohésion et progression. | Démontage puis remontage d’un paragraphe modèle ; rédaction guidée à partir d’un canevas ; enrichissement d’un paragraphe trop court ; relecture en binôme avec trois critères. | Environ 2 à 4 h. Travail collectif bref, individuel, puis binômes. | Un paragraphe structuré d’environ 8 à 12 lignes, **ordre de grandeur adaptable** au support d’écriture. | Versions 1 et 2 du paragraphe ; fiche de relecture ; retour ciblé de l’enseignant sur un seul axe prioritaire. |\n| **3 — Organiser une argumentation et dialoguer avec l’opposition** | Articuler plusieurs arguments ; hiérarchiser les idées ; introduire une objection, une concession ou une réfutation ; élaborer un plan. | Plan ; ordre des arguments ; transitions ; objection ; concession ; réfutation ; nuance. | Comparaison de deux plans ; puzzle de paragraphes ; rédaction d’une objection et de sa réponse ; planification d’un texte à l’aide d’un organisateur graphique. **Évaluation formative 2** en fin de semaine. | Environ 2 à 4 h. Sept groupes de quatre pour les plans, puis travail individuel. | Un plan détaillé comprenant thèse, deux arguments développables, exemples et point de vue opposé. | Plan annoté ; liste de connecteurs sélectionnés ; fiche de régulation indiquant la priorité de révision. |\n| **4 — Rédiger, réviser et finaliser** | Produire une argumentation complète ; réviser le fond, l’organisation et la langue ; justifier ses choix d’écriture. | Introduction fonctionnelle ; paragraphes développés ; cohésion ; conclusion ; révision ; correction. | Rédaction découpée : analyse du sujet, plan, première version, relecture critériée, amélioration ; atelier ciblé selon les besoins révélés en semaine 3 ; **évaluation finale**. | Environ 3 à 4 h, estimation à adapter aux conditions réelles de passation. Individuel pour la production finale. | Un texte argumentatif complet répondant au sujet proposé et intégrant une objection ou une nuance. | Plan préparatoire, copie finale, grille critériée et court bilan réflexif après restitution. |\n\nLes fiches, plans et versions intermédiaires constituent des **traces de suivi**, mais ne sont pas ajoutés comme évaluations distinctes : le dispositif comprend bien deux évaluations formatives et une évaluation finale.\n\n# 3. Différenciation et dispositifs de soutien\n\nPour chaque activité majeure, trois voies sont proposées. Elles peuvent être attribuées par l’enseignant, choisies par l’élève ou utilisées successivement. Elles ne supposent pas l’existence de profils prédéterminés.\n\n| Activité majeure | Tâche commune | Parcours étayé | Prolongement d’approfondissement |\n|---|---|---|---|\n| **Identifier thèse, arguments et exemples** | Classer et justifier des énoncés issus du support retenu. | Nombre d’énoncés réduit ; code couleur ; définitions illustrées ; modèle annoté ; échanges avec un binôme. | Repérer un argument implicite, discuter la pertinence d’un exemple ou proposer un contre-exemple. |\n| **Rédiger un paragraphe** | Produire un paragraphe comportant idée directrice, justification, exemple et explicitation. | Canevas : « Je soutiens que… / En effet… / Par exemple… / Cet exemple montre que… » ; banque de connecteurs ; rédaction phrase par phrase avec validation intermédiaire. | Varier les connecteurs, intégrer une nuance, choisir entre plusieurs exemples et justifier le plus probant. |\n| **Construire un plan et traiter l’opposition** | Élaborer un plan cohérent et intégrer une objection suivie d’une réponse."
+  },
+  "output": "# 1. Cadre de conception et choix pédagogiques\n\n**Public établi par la demande :** 28 élèves de première.  \n**Inconnues locales :** discipline précise, corpus, durée et nombre des séances, acquis initiaux, besoins particuliers, ressources disponibles et aménagements institutionnels. La séquence est donc conçue comme un **cadre transposable**, à contextualiser avec les textes et thèmes retenus par l’enseignant.\n\n### Choix de progression\n\nLa progression retenue constitue une **décision de conception adaptable** : aller des unités élémentaires de l’argumentation vers un texte complet.\n\n1. Repérer puis formuler une thèse.\n2. Distinguer argument et exemple.\n3. Développer un paragraphe argumentatif.\n4. Organiser et relier plusieurs paragraphes.\n5. Prendre en compte une objection ou un point de vue opposé.\n6. Planifier, rédiger et réviser une production complète.\n\nCe choix vise à limiter la surcharge cognitive : chaque composante est d’abord isolée, exercée, puis intégrée aux suivantes. La révision est enseignée comme une étape de l’écriture, et non comme une simple correction finale.\n\n### Cadre temporel proposé\n\nLe nombre réel de séances étant inconnu, la charge proposée est une **estimation adaptable d’environ 2 à 4 heures par semaine**, éventuellement réparties en plusieurs séances. Les durées indiquées dans les activités sont des **ordres de grandeur**, à confirmer selon l’emploi du temps. Le travail personnel peut rester limité à la recherche d’un exemple, à l’achèvement d’un paragraphe ou à une révision ciblée.\n\n### Organisation de la classe\n\n- travail individuel pour la planification et la rédaction ;\n- binômes pour verbaliser les choix et relire ;\n- **sept groupes de quatre**, choix pratique pour une classe de 28 élèves, lors des tris, classements et ateliers ;\n- groupes temporaires de besoin après les évaluations formatives, sans présumer du profil des élèves.\n\n### Statut des références\n\nAucune consultation documentaire ou recherche web en temps réel n’a été effectuée pour cette réponse. Les principes mobilisés — enseignement explicite des composantes de l’écrit, écriture par étapes, critères partagés, rétroaction et réécriture — relèvent de connaissances didactiques générales. **Aucun alignement avec un programme officiel actuellement en vigueur n’est donc revendiqué.** L’enseignant devra vérifier localement les textes institutionnels applicables. Références indicatives connues mais non reconsultées : Groupe EVA, *Évaluer les écrits à l’école primaire* ; Dolz, Noverraz et Schneuwly, *S’exprimer en français : séquences didactiques pour l’oral et pour l’écrit* ; travaux de Black et Wiliam sur l’évaluation formative. **Date de consultation : non applicable.**\n\n# 2. Progression opérationnelle sur exactement quatre semaines\n\n| Semaine | Objectifs d’apprentissage | Notions et compétences | Activités principales | Modalités et durées estimatives | Productions attendues | Traces de progrès |\n|---|---|---|---|---|---|---|\n| **1 — Construire les bases** | Identifier une question débattue ; distinguer thème, question et thèse ; formuler une position claire ; différencier argument et exemple. | Thèse explicite ou implicite ; argument ; exemple ; pertinence ; reformulation. | Classement de cartes « thèses/arguments/exemples » ; annotation d’un court modèle choisi dans le corpus disponible ; reformulation de thèses trop vagues ; construction collective d’un schéma « thèse → argument → exemple ». **Évaluation formative 1** en fin de semaine. | Environ 2 à 4 h : individuel, binômes, puis sept groupes de quatre. | Une thèse reformulée ; deux couples argument-exemple ; une fiche de synthèse. | Organisateur graphique conservé dans un dossier d’écriture ; code couleur commun ; liste individuelle de deux réussites et d’un point à reprendre. |\n| **2 — Développer et relier** | Rédiger un paragraphe argumentatif développé ; expliquer le lien entre argument et exemple ; employer des connecteurs avec précision. | Phrase directrice ; justification ; illustration ; explicitation ; connecteurs logiques ; cohésion et progression. | Démontage puis remontage d’un paragraphe modèle ; rédaction guidée à partir d’un canevas ; enrichissement d’un paragraphe trop court ; relecture en binôme avec trois critères. | Environ 2 à 4 h. Travail collectif bref, individuel, puis binômes. | Un paragraphe structuré d’environ 8 à 12 lignes, **ordre de grandeur adaptable** au support d’écriture. | Versions 1 et 2 du paragraphe ; fiche de relecture ; retour ciblé de l’enseignant sur un seul axe prioritaire. |\n| **3 — Organiser une argumentation et dialoguer avec l’opposition** | Articuler plusieurs arguments ; hiérarchiser les idées ; introduire une objection, une concession ou une réfutation ; élaborer un plan. | Plan ; ordre des arguments ; transitions ; objection ; concession ; réfutation ; nuance. | Comparaison de deux plans ; puzzle de paragraphes ; rédaction d’une objection et de sa réponse ; planification d’un texte à l’aide d’un organisateur graphique. **Évaluation formative 2** en fin de semaine. | Environ 2 à 4 h. Sept groupes de quatre pour les plans, puis travail individuel. | Un plan détaillé comprenant thèse, deux arguments développables, exemples et point de vue opposé. | Plan annoté ; liste de connecteurs sélectionnés ; fiche de régulation indiquant la priorité de révision. |\n| **4 — Rédiger, réviser et finaliser** | Produire une argumentation complète ; réviser le fond, l’organisation et la langue ; justifier ses choix d’écriture. | Introduction fonctionnelle ; paragraphes développés ; cohésion ; conclusion ; révision ; correction. | Rédaction découpée : analyse du sujet, plan, première version, relecture critériée, amélioration ; atelier ciblé selon les besoins révélés en semaine 3 ; **évaluation finale**. | Environ 3 à 4 h, estimation à adapter aux conditions réelles de passation. Individuel pour la production finale. | Un texte argumentatif complet répondant au sujet proposé et intégrant une objection ou une nuance. | Plan préparatoire, copie finale, grille critériée et court bilan réflexif après restitution. |\n\nLes fiches, plans et versions intermédiaires constituent des **traces de suivi**, mais ne sont pas ajoutés comme évaluations distinctes : le dispositif comprend bien deux évaluations formatives et une évaluation finale.\n\n# 3. Différenciation et dispositifs de soutien\n\nPour chaque activité majeure, trois voies sont proposées. Elles peuvent être attribuées par l’enseignant, choisies par l’élève ou utilisées successivement. Elles ne supposent pas l’existence de profils prédéterminés.\n\n| Activité majeure | Tâche commune | Parcours étayé | Prolongement d’approfondissement |\n|---|---|---|---|\n| **Identifier thèse, arguments et exemples** | Classer et justifier des énoncés issus du support retenu. | Nombre d’énoncés réduit ; code couleur ; définitions illustrées ; modèle annoté ; échanges avec un binôme. | Repérer un argument implicite, discuter la pertinence d’un exemple ou proposer un contre-exemple. |\n| **Rédiger un paragraphe** | Produire un paragraphe comportant idée directrice, justification, exemple et explicitation. | Canevas : « Je soutiens que… / En effet… / Par exemple… / Cet exemple montre que… » ; banque de connecteurs ; rédaction phrase par phrase avec validation intermédiaire. | Varier les connecteurs, intégrer une nuance, choisir entre plusieurs exemples et justifier le plus probant. |\n| **Construire un plan et traiter l’opposition** | Élaborer un plan cohérent et intégrer une objection suivie d’une réponse.",
+  "total_llm_calls": 4,
+  "gpt_usage": {
+    "input_tokens": 12059,
+    "output_tokens": 10438,
+    "total_tokens": 22497,
+    "estimated_cost_usd": 0.256996
+  },
+  "fallback": true,
+  "retries": 0,
+  "error": null
+}

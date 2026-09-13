@@ -1,0 +1,72 @@
+{
+ "case": "Q08",
+ "variant": "baseline",
+ "http_status": 200,
+ "exception": null,
+ "demande": "Prépare ça pour demain",
+ "materiau_present": false,
+ "appels": [
+  {
+   "call_index": 1,
+   "outil": "oprie_analyst",
+   "http_status": 200,
+   "input_tokens": 5517,
+   "output_tokens": 637,
+   "stop_reason": "tool_use",
+   "latency_ms": 14545,
+   "cost_usd": 0.026106
+  },
+  {
+   "call_index": 2,
+   "outil": "critic_global",
+   "http_status": 200,
+   "input_tokens": 3809,
+   "output_tokens": 224,
+   "stop_reason": "tool_use",
+   "latency_ms": 4441,
+   "cost_usd": 0.014787
+  },
+  {
+   "call_index": 3,
+   "outil": "substitution_review_batch",
+   "http_status": 200,
+   "input_tokens": 5618,
+   "output_tokens": 907,
+   "stop_reason": "tool_use",
+   "latency_ms": 18128,
+   "cost_usd": 0.030459
+  },
+  {
+   "call_index": 4,
+   "outil": "oprie_arbiter",
+   "http_status": 200,
+   "input_tokens": 4701,
+   "output_tokens": 1081,
+   "stop_reason": "tool_use",
+   "latency_ms": 19825,
+   "cost_usd": 0.030318
+  }
+ ],
+ "outils_non_classes": [],
+ "tour": {
+  "TOTAL_PROVIDER_CALLS": 4,
+  "ANALYST_CALLS": 1,
+  "CRITIC_GLOBAL_CALLS": 1,
+  "CRITIC_BATCH_CALLS": 1,
+  "ARBITER_CALLS": 1,
+  "ANALYST_OUTPUT_TOKENS": 637,
+  "CRITIC_GLOBAL_OUTPUT_TOKENS": 224,
+  "CRITIC_BATCH_OUTPUT_TOKENS": 907,
+  "ARBITER_OUTPUT_TOKENS": 1081,
+  "TOTAL_OUTPUT_TOKENS": 2849,
+  "TOTAL_INPUT_TOKENS": 19645,
+  "ANALYST_LATENCY_MS": 14545,
+  "CRITIC_GLOBAL_LATENCY_MS": 4441,
+  "CRITIC_BATCH_LATENCY_MS": 18128,
+  "ARBITER_LATENCY_MS": 19825,
+  "TOTAL_LATENCY_MS": 56979,
+  "TOTAL_COST_USD": 0.10167,
+  "FINAL_OPRIE_STATE": "clarification_required",
+  "NEXT_QUESTION": "Que désigne « ça » — de quoi s'agit-il exactement, et sous quelle forme souhaitez-vous que ce soit préparé ?"
+ }
+}

@@ -1,0 +1,356 @@
+{
+  "source": "full HTML, real listeners, mocked network",
+  "scenario": "failure",
+  "results": [
+    {
+      "action": "click",
+      "first_interaction_ms": 60,
+      "before": {
+        "answers": [],
+        "request": "je veux préparer un voyage à Malaga fin novembre",
+        "history": [],
+        "pending": true,
+        "mode": "architecte",
+        "seq": 1,
+        "running": false,
+        "telemetry": [
+          {
+            "event": "fast_start",
+            "at": 612,
+            "turn_id": 1,
+            "mode": "architecte"
+          },
+          {
+            "event": "fast_end",
+            "at": 625,
+            "turn_id": 1,
+            "mode": "architecte"
+          },
+          {
+            "event": "fast_render",
+            "at": 625,
+            "turn_id": 1,
+            "mode": "architecte",
+            "type": "ASK_CLARIFICATION",
+            "soliciting": true
+          },
+          {
+            "event": "deep_not_started",
+            "at": 625,
+            "turn_id": 1,
+            "mode": "architecte",
+            "reason": "FAST_ASK_ONE_QUESTION",
+            "type": "ASK_CLARIFICATION"
+          }
+        ]
+      },
+      "after": {
+        "answers": [
+          {
+            "question": "Combien de jours dure votre séjour ?",
+            "answer": "Cinq jours."
+          }
+        ],
+        "request": "je veux préparer un voyage à Malaga fin novembre",
+        "history": [
+          {
+            "turn": 1,
+            "question": "Combien de jours dure votre séjour ?",
+            "answer": "Cinq jours.",
+            "provenance": "user"
+          }
+        ],
+        "pending": false,
+        "mode": "architecte",
+        "seq": 2,
+        "running": false,
+        "telemetry": [
+          {
+            "event": "fast_start",
+            "at": 612,
+            "turn_id": 1,
+            "mode": "architecte"
+          },
+          {
+            "event": "fast_end",
+            "at": 625,
+            "turn_id": 1,
+            "mode": "architecte"
+          },
+          {
+            "event": "fast_render",
+            "at": 625,
+            "turn_id": 1,
+            "mode": "architecte",
+            "type": "ASK_CLARIFICATION",
+            "soliciting": true
+          },
+          {
+            "event": "deep_not_started",
+            "at": 625,
+            "turn_id": 1,
+            "mode": "architecte",
+            "reason": "FAST_ASK_ONE_QUESTION",
+            "type": "ASK_CLARIFICATION"
+          },
+          {
+            "event": "fast_start",
+            "at": 694,
+            "turn_id": 2,
+            "mode": "architecte"
+          },
+          {
+            "event": "fast_end",
+            "at": 707,
+            "turn_id": 2,
+            "mode": "architecte"
+          },
+          {
+            "event": "fast_silent",
+            "at": 707,
+            "turn_id": 2,
+            "mode": "architecte",
+            "type": "WAIT_FOR_DEEP_VALIDATION"
+          },
+          {
+            "event": "deep_start",
+            "at": 707,
+            "turn_id": 2,
+            "mode": "architecte"
+          },
+          {
+            "event": "deep_end",
+            "at": 710,
+            "turn_id": 2,
+            "mode": "architecte"
+          }
+        ]
+      },
+      "dialogue_visible": true,
+      "question": "Combien de jours dure votre séjour ?",
+      "calls": [
+        {
+          "kind": "fast",
+          "input": {
+            "turn_id": 1,
+            "original_request": "je veux préparer un voyage à Malaga fin novembre",
+            "clarification_history": [],
+            "current_answer": null,
+            "canonical_version": 0
+          }
+        },
+        {
+          "kind": "fast",
+          "input": {
+            "turn_id": 2,
+            "original_request": "je veux préparer un voyage à Malaga fin novembre",
+            "clarification_history": [
+              {
+                "turn": 1,
+                "question": "Combien de jours dure votre séjour ?",
+                "answer": "Cinq jours.",
+                "provenance": "user"
+              }
+            ],
+            "current_answer": null,
+            "canonical_version": 0
+          }
+        },
+        {
+          "kind": "deep",
+          "input": {
+            "original_request": "je veux préparer un voyage à Malaga fin novembre",
+            "clarification_history": [
+              {
+                "turn": 1,
+                "question": "Combien de jours dure votre séjour ?",
+                "answer": "Cinq jours.",
+                "provenance": "user"
+              }
+            ],
+            "material_context": {
+              "present": false,
+              "deep_content_available": false
+            }
+          }
+        }
+      ],
+      "errors": []
+    },
+    {
+      "action": "Enter",
+      "first_interaction_ms": 77,
+      "before": {
+        "answers": [],
+        "request": "je veux préparer un voyage à Malaga fin novembre",
+        "history": [],
+        "pending": true,
+        "mode": "architecte",
+        "seq": 1,
+        "running": false,
+        "telemetry": [
+          {
+            "event": "fast_start",
+            "at": 519,
+            "turn_id": 1,
+            "mode": "architecte"
+          },
+          {
+            "event": "fast_end",
+            "at": 531,
+            "turn_id": 1,
+            "mode": "architecte"
+          },
+          {
+            "event": "fast_render",
+            "at": 532,
+            "turn_id": 1,
+            "mode": "architecte",
+            "type": "ASK_CLARIFICATION",
+            "soliciting": true
+          },
+          {
+            "event": "deep_not_started",
+            "at": 532,
+            "turn_id": 1,
+            "mode": "architecte",
+            "reason": "FAST_ASK_ONE_QUESTION",
+            "type": "ASK_CLARIFICATION"
+          }
+        ]
+      },
+      "after": {
+        "answers": [
+          {
+            "question": "Combien de jours dure votre séjour ?",
+            "answer": "Cinq jours."
+          }
+        ],
+        "request": "je veux préparer un voyage à Malaga fin novembre",
+        "history": [
+          {
+            "turn": 1,
+            "question": "Combien de jours dure votre séjour ?",
+            "answer": "Cinq jours.",
+            "provenance": "user"
+          }
+        ],
+        "pending": false,
+        "mode": "architecte",
+        "seq": 2,
+        "running": false,
+        "telemetry": [
+          {
+            "event": "fast_start",
+            "at": 519,
+            "turn_id": 1,
+            "mode": "architecte"
+          },
+          {
+            "event": "fast_end",
+            "at": 531,
+            "turn_id": 1,
+            "mode": "architecte"
+          },
+          {
+            "event": "fast_render",
+            "at": 532,
+            "turn_id": 1,
+            "mode": "architecte",
+            "type": "ASK_CLARIFICATION",
+            "soliciting": true
+          },
+          {
+            "event": "deep_not_started",
+            "at": 532,
+            "turn_id": 1,
+            "mode": "architecte",
+            "reason": "FAST_ASK_ONE_QUESTION",
+            "type": "ASK_CLARIFICATION"
+          },
+          {
+            "event": "fast_start",
+            "at": 562,
+            "turn_id": 2,
+            "mode": "architecte"
+          },
+          {
+            "event": "fast_end",
+            "at": 565,
+            "turn_id": 2,
+            "mode": "architecte"
+          },
+          {
+            "event": "fast_silent",
+            "at": 565,
+            "turn_id": 2,
+            "mode": "architecte",
+            "type": "WAIT_FOR_DEEP_VALIDATION"
+          },
+          {
+            "event": "deep_start",
+            "at": 565,
+            "turn_id": 2,
+            "mode": "architecte"
+          },
+          {
+            "event": "deep_end",
+            "at": 568,
+            "turn_id": 2,
+            "mode": "architecte"
+          }
+        ]
+      },
+      "dialogue_visible": true,
+      "question": "Combien de jours dure votre séjour ?",
+      "calls": [
+        {
+          "kind": "fast",
+          "input": {
+            "turn_id": 1,
+            "original_request": "je veux préparer un voyage à Malaga fin novembre",
+            "clarification_history": [],
+            "current_answer": null,
+            "canonical_version": 0
+          }
+        },
+        {
+          "kind": "fast",
+          "input": {
+            "turn_id": 2,
+            "original_request": "je veux préparer un voyage à Malaga fin novembre",
+            "clarification_history": [
+              {
+                "turn": 1,
+                "question": "Combien de jours dure votre séjour ?",
+                "answer": "Cinq jours.",
+                "provenance": "user"
+              }
+            ],
+            "current_answer": null,
+            "canonical_version": 0
+          }
+        },
+        {
+          "kind": "deep",
+          "input": {
+            "original_request": "je veux préparer un voyage à Malaga fin novembre",
+            "clarification_history": [
+              {
+                "turn": 1,
+                "question": "Combien de jours dure votre séjour ?",
+                "answer": "Cinq jours.",
+                "provenance": "user"
+              }
+            ],
+            "material_context": {
+              "present": false,
+              "deep_content_available": false
+            }
+          }
+        }
+      ],
+      "errors": []
+    }
+  ]
+}

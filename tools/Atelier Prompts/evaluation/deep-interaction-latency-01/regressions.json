@@ -1,0 +1,16 @@
+{
+  "lot": "DEEP-INTERACTION-LATENCY-01",
+  "PRODUCTION_CODE_CHANGED": false,
+  "GLOBAL": { "run_1": "2965/2965", "run_2": "2965/2965", "run_3": "2965/2965" },
+  "FROZEN": "OK — 7 empreintes inchangées",
+  "BROWSER_RUNTIME": "non régénéré — aucun code source touché",
+  "SECRET_SCAN": "aucun secret dans les artefacts de ce lot",
+  "ROUTING_TESTS": "couverts par GLOBAL",
+  "nouvelles_regressions": 0,
+  "signalement_hors_perimetre": {
+    "quoi": "le commit e329ea3 versionne un jeton d'accès Worker en clair dans tools/Projet therapeutes/Conseiller Clinique/studio-clinique.html",
+    "perimetre": "HORS subtree Atelier — sans effet sur ce lot ni sur le Release Gate d'Atelier",
+    "nature": "décision explicite du propriétaire, documentée dans le commit lui-même, qui reconnaît la faille et prévoit son retrait",
+    "action_prise": "aucune — hors périmètre. Signalé une fois."
+  }
+}

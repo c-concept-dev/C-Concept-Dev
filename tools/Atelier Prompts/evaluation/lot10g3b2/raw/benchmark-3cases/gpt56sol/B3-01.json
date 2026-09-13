@@ -1,0 +1,32 @@
+{
+  "started_at": "2026-08-28T07:08:48.102Z",
+  "completed_at": "2026-08-28T07:08:52.968Z",
+  "latency_total_ms": 4865.927,
+  "calls": [
+    {
+      "timestamp": "2026-08-28T07:08:52.968Z",
+      "endpoint": "/v1/responses",
+      "status_http": 200,
+      "latency_ms": 4837.648,
+      "response_id": "resp_0f6b6b4a00a20bfd006a9134003e6887d2b4c7fb1c636b3e08",
+      "response_status": "completed",
+      "model_requested": "gpt-5.6-sol",
+      "model_returned": "gpt-5.6-sol",
+      "usage": {
+        "input_tokens": 14,
+        "output_tokens": 164,
+        "total_tokens": 178,
+        "reasoning_tokens": 22
+      },
+      "estimated_cost_usd": 0.003336,
+      "incomplete_details": null,
+      "error": null,
+      "output": "Avec plaisir ! Pour préparer votre voyage en Italie, j’aurais besoin de quelques précisions :\n\n- **Dates et durée**\n- **Ville ou région d’arrivée**\n- **Lieux envisagés** : Rome, Florence, Venise, Naples, Toscane, Sicile, Pouilles…\n- **Budget approximatif**\n- **Style de voyage** : culture, gastronomie, plages, nature, détente\n- **Moyen de transport préféré** : train, voiture, avion\n- **Nombre de voyageurs**\n\nAvec ces informations, je peux vous proposer un **itinéraire jour par jour**, un budget, des conseils de transport et des recommandations d’hébergement."
+    }
+  ],
+  "turns": [],
+  "output": "Avec plaisir ! Pour préparer votre voyage en Italie, j’aurais besoin de quelques précisions :\n\n- **Dates et durée**\n- **Ville ou région d’arrivée**\n- **Lieux envisagés** : Rome, Florence, Venise, Naples, Toscane, Sicile, Pouilles…\n- **Budget approximatif**\n- **Style de voyage** : culture, gastronomie, plages, nature, détente\n- **Moyen de transport préféré** : train, voiture, avion\n- **Nombre de voyageurs**\n\nAvec ces informations, je peux vous proposer un **itinéraire jour par jour**, un budget, des conseils de transport et des recommandations d’hébergement.",
+  "error": null,
+  "initial_request_exact": "Je veux préparer mon voyage en Italie.",
+  "clarification_detection": "heuristique documentée"
+}

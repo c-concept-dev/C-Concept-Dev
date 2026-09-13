@@ -1,0 +1,42 @@
+{
+  "analyst": [
+    "exact five root keys",
+    "candidate exact shape/types",
+    "provenance closed field/source and non-empty value",
+    "issue taxonomy + question=>material",
+    "question joins existing issue",
+    "five booleans"
+  ],
+  "critic_global": [
+    "six LLM root keys, then three deterministic roots added",
+    "missed issues normalized",
+    "veto four non-empty strings",
+    "drift boolean implies notes",
+    "stakes boolean implies reason",
+    "derived agreement iff no veto/drift/missed/illegitimate finding"
+  ],
+  "critic_batch": [
+    "exact issue-id coverage in schema and assembler",
+    "exact six families",
+    "exact seven candidate fields",
+    "gate uses applicable, justification non-empty, four contract booleans; never candidate_action",
+    "materializer collapses to reasonably_available+reason",
+    "assembler rejects collision/unknown/missing issue",
+    "question_is_last_resort and illegitimate finding derived"
+  ],
+  "arbiter": [
+    "exact eight root keys",
+    "state enum excludes degraded",
+    "candidate/issues normalized",
+    "next_question all-null or all-present",
+    "state-specific exclusivity",
+    "READY requires all preservation booleans true and concerns empty",
+    "reason non-empty"
+  ],
+  "compaction_constraints": [
+    "Frozen tests assert exact keys and cardinality",
+    "Anthropic tool input is revalidated after provider because API strictness is insufficient",
+    "removing fields requires synchronized prompt/schema/validator/tests",
+    "changing normalized public shapes affects canonical mapping/front-end compatibility"
+  ]
+}

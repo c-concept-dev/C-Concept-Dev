@@ -1,0 +1,24 @@
+{
+  "lot": "DEEP-INTERACTION-EARLY-STOP-01",
+  "EARLY_STOP_TRIGGER": "VALID_REVIEW + SUBSTITUTION_GATE_APPLIED + question_is_last_resort",
+  "EARLY_STOP_TRIGGER_TYPE": "DETERMINISTIC_CONTRACTUAL",
+  "definition_implementee": [
+    "1. la revue de la cible est structurellement valide — materializeSubstitutionReviewFromCandidates ne lève pas",
+    "2. le Substitution Gate déterministe est appliqué à cette revue seule",
+    "3. après passage du Gate, aucune des six familles de la ladder n'est reasonably_available",
+    "→ READY est logiquement impossible pour ce tour, et la prochaine question est déterminée"
+  ],
+  "AMBIGUITE_DU_BRIEF_TRANCHEE_ET_SIGNALEE": {
+    "texte": "§3 et §10 demandent « SUBSTITUTION_GATE_PASS = true ET question_is_last_resort = true »",
+    "probleme": "evaluateSubstitutionGate n'ACCEPTE une alternative que lorsque la question n'est PAS dernier recours. Exiger littéralement gate.accepted === true ET question_is_last_resort === true décrit un état impossible : les deux conditions s'excluent.",
+    "lecture_retenue": "« gate_pass » = le Gate a été APPLIQUÉ à une revue valide, et son verdict laisse la question comme dernier recours. C'est la seule lecture cohérente, et c'est celle qui exprime « READY est impossible ».",
+    "consequence": "une revue dont le Gate ACCEPTE une alternative n'arrête jamais rien : elle prouve au contraire que la question était substituable, donc que la collecte doit continuer."
+  },
+  "trois_refus_d_arreter": [
+    "batch en échec technique (429 épuisé, réseau, HTTP non-2xx)",
+    "sortie structurellement invalide, troncature, max_tokens, champ requis manquant",
+    "matérialisation ou fusion de groupes qui lève"
+  ],
+  "origine_de_ces_refus": "Q02, mesuré en réel : une revue répondue mais rejetée par le pipeline avait produit degraded_state. On ne s'arrête jamais sur une absence de preuve.",
+  "ce_que_le_trigger_n_est_pas": ["seuil", "score", "compteur de batches", "délai", "nombre d'issues", "mot-clé", "domaine", "case_id", "similarité sémantique"]
+}

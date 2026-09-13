@@ -1,0 +1,99 @@
+{
+ "lot": "OPRIE-CRITIC-MATERIAL-CONTEXT-DELIVERY-01",
+ "objet": "livrer material_context au chemin Critique reellement utilise par /operational-request",
+ "mesure_le": "2026-09-05",
+ "chemin_reel": "runRoleWithHaChain -> CRITIC_PIPELINES -> runCriticWithAnthropic -> runCriticBatchedPipeline -> makeCriticGlobalUserMessage",
+ "correctif": {
+  "makeCriticGlobalUserMessage": "accepte et emet material_context, normalise",
+  "runCriticBatchedPipeline": "transmet material_context a executeGlobal SEULEMENT",
+  "review_de_substitution": "inchangee — aucune de ses regles n emploierait le champ",
+  "regle_d_ancrage": "INCHANGEE — sa condition est devenue evaluable",
+  "observabilite": "trace metadata dans l ORCHESTRATEUR (le core aurait cree un 3e journal worker embarque, refuse par T-CLEAN03-10)"
+ },
+ "configuration": {
+  "provider": "anthropic epingle puis retire",
+  "model": "claude-sonnet-4-6",
+  "temperature": 0,
+  "max_output": 2048,
+  "timeout_ms": 60000,
+  "runs": 30,
+  "cadence_ms": 15000
+ },
+ "preuve_de_livraison": {
+  "tours_avec_trace": 30,
+  "tours_total": 30,
+  "deep_content_available_true": 30,
+  "tous_roles_anthropic": 30,
+  "contenu_brut": 0
+ },
+ "avant_apres": {
+  "analyst_conformant_runs": {
+   "avant": 16,
+   "apres": 16
+  },
+  "critic_accept_sur_conformes": {
+   "avant": 0,
+   "apres": 10,
+   "taux_apres_pct": 62.5
+  },
+  "wrong_material_absence_veto": {
+   "avant": 11,
+   "apres": 0
+  },
+  "operational_request_ready": {
+   "avant": 0,
+   "apres": 11
+  },
+  "fait_dans_candidat_final_arbitre": {
+   "avant": 0,
+   "apres": 8
+  },
+  "lecture_analyste": {
+   "avant": "16/30",
+   "apres": "16/30",
+   "note": "non traitee par ce lot"
+  }
+ },
+ "classement_critique_sur_16_conformes": {
+  "ACCEPT": 10,
+  "PHASE_SEMANTICS": 4,
+  "OTHER_SEMANTIC": 2
+ },
+ "faux_ready": {
+  "ready_total": 11,
+  "ready_avec_valeur_exacte_et_provenance": 10,
+  "cas_suspendu": 1,
+  "detail": "run 22 — materiau non lu, rien de fabrique ; sa legitimite depend de la definition de expected_deliverable, que ce lot ne tranche pas",
+  "fabrique": 0
+ },
+ "controles": {
+  "deep_content_available_true": "les 30 tours du banc — le faux veto d absence disparait",
+  "deep_content_available_false": [
+   {
+    "n": 1,
+    "final_state": "clarification_required",
+    "valeur_inventee": false,
+    "provenance_materiau_emise": false
+   },
+   {
+    "n": 2,
+    "final_state": "clarification_required",
+    "valeur_inventee": false,
+    "provenance_materiau_emise": false
+   },
+   {
+    "n": 3,
+    "final_state": "clarification_required",
+    "valeur_inventee": false,
+    "provenance_materiau_emise": false
+   }
+  ],
+  "false_provenance": "NON CONSTRUCTIBLE de bout en bout — l Analyste n emet jamais user_provided_material sans contenu (0 sur 6 controles au lot precedent) ; la regle d incoherence est verifiee au niveau du contrat"
+ },
+ "degradations_techniques": 1,
+ "raw_content": {
+  "vers_critique": 0,
+  "vers_arbitre": 0,
+  "journalise": 0
+ }
+}
