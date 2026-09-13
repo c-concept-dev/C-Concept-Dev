@@ -3601,11 +3601,23 @@
       // nommait. Vérifiée en premier pour ne pas être masquée par le test 'fiche' générique.
       : ql.includes('carrousel') ? 'carrousel'
       : ql.includes('fiche') ? 'fiche'
+      // Item 56 Étape 1 — 'liens' et 'script' n'avaient ICI aucune branche dédiée (confirmé par
+      // reproduction avant correctif : un texte "liens transversaux" retombait sur 'chat', sans
+      // jamais produire le moindre artefact). Même patron que carrousel/fiche ci-dessus : mot-clé
+      // du documentKind lui-même, jamais un synonyme ambigu.
+      : ql.includes('liens') ? 'liens'
+      : ql.includes('script') ? 'script'
       : 'chat';
     // Item 53 — 'tableau' ne force plus xlsx par défaut : seul un mot-clé Excel explicite le fait.
     const _explicitXlsxRequested = ADOC_XLSX_EXPLICIT_RE.test(text);
+    // Item 56 Étape 1 — document/cours restent 'html-visual' ici (document/cours NE sont PAS
+    // dans ce lot : adocLongDoc, chapitrage, reporté à item 56bis, cf. rapport). script/liens
+    // rejoignent 'html' — même mécanisme que tableau (déterministe, jamais laissé au hasard de
+    // plan.output_format côté planner LLM).
     const _fT = _iT === 'tableau'
       ? (_explicitXlsxRequested ? 'xlsx' : 'html')
+      : ['script','liens'].includes(_iT)
+      ? 'html'
       : ({document:'html-visual',cours:'html-visual',fiche:'html',carrousel:'html',chat:'chat'}[_iT]||'chat');
     const _tw = text.replace(/[^a-z0-9À-ɏ\s]/gi,'').trim().split(/\s+/).slice(0,4).join(' ');
     const _w0 = (text.split(/\s+/).find(w => w.length > 4) || 'therapie').replace(/[^a-zÀ-ɏ]/gi,'');
@@ -3740,7 +3752,7 @@ TÂCHE — Analyser la demande et produire UNIQUEMENT un JSON valide (sans markd
   ],
   "vector_angles": ["formulation sémantique 1", "formulation sémantique 2"],
   "approach_filter": "valeur exacte issue de la bibliothèque ci-dessus, ou null",
-  "intent": "cours|conseil|document|analyse|chat|comparatif|script|carrousel|tableau|fiche",
+  "intent": "cours|conseil|document|analyse|chat|comparatif|script|carrousel|tableau|fiche|liens",
   "clinical_intent": "supervision|analyse_cas|intervention|conceptualisation|bibliographie|production|chat",
   "output_format": "html|html-visual|pdf|docx|pptx|xlsx|zip|txt|chat",
   "audience_type": "praticien|etudiant_m2|grand_public|congres|patient",
@@ -4382,6 +4394,12 @@ RÈGLES ABSOLUES :
     // sur le texte brut par adocBuildFallbackPlan/adocMultiPlan, cf. ADOC_XLSX_EXPLICIT_RE) —
     // décision indépendante de plan.output_format (qui peut rester 'xlsx' côté planner LLM, cf.
     // §5 du plannerSystem, jamais corrigé ici : cette branche prime toujours pour l'intent tableau).
+    // Item 56 Étape 1 — 'script'/'liens' rejoignent le même override déterministe que 'tableau'
+    // (fmt='html' garanti, jamais laissé au hasard de plan.output_format côté planner LLM —
+    // reproduction avant correctif : un script/liens dont le LLM jugeait lui-même
+    // output_format='chat' ne produisait AUCUN artefact, aucune personnalisation possible).
+    // document/cours restent 'html-visual' ici : hors périmètre de ce lot (adocLongDoc, chapitrage
+    // par continuation, incompatible avec le modèle d'artefact unique — reporté à item 56bis).
     const _fmtFromIntent = {
       comparatif: 'xlsx',
       cours: 'html-visual', document: 'html-visual',
@@ -4390,8 +4408,9 @@ RÈGLES ABSOLUES :
       intervention: 'chat', conceptualisation: 'chat', chat: 'chat'
     };
     const _intentOverridesXlsx = plan?.intent === 'comparatif';
-    const fmt = plan?.intent === 'tableau'
-      ? (plan?._explicitXlsxRequested ? 'xlsx' : 'html')
+    const _ADOC_HTML_FORCED_INTENTS = ['tableau', 'script', 'liens'];
+    const fmt = _ADOC_HTML_FORCED_INTENTS.includes(plan?.intent)
+      ? (plan?.intent === 'tableau' && plan?._explicitXlsxRequested ? 'xlsx' : 'html')
       : _intentOverridesXlsx
       ? 'xlsx'
       : (plan?.output_format || _fmtFromIntent[plan?.intent] || 'chat');
@@ -5877,8 +5896,13 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     // jamais corrigé ce lot) même sans mot-clé Excel réellement présent dans la demande — sans
     // cette priorité, ce format LLM serait à tort traité comme "explicite" ci-dessous et le
     // contenu HTML magazine réellement généré (cf. Site 2) serait livré via le mauvais pipeline.
-    const fmt = plan?.intent === 'tableau'
-      ? (plan?._explicitXlsxRequested ? 'xlsx' : 'html')
+    // Item 56 Étape 1 — 'script'/'liens' rejoignent ce même override déterministe : sans lui, un
+    // output_format LLM 'chat' (reproduit avant correctif) serait traité comme définitif ici
+    // (absent de _EXPLICIT_FORMATS, mais _INTENT_FMT_OVERRIDE n'avait aucune entrée non plus) et
+    // ne livrerait jamais l'artefact HTML pourtant déjà généré côté Site 2.
+    const _ADOC_HTML_FORCED_INTENTS = ['tableau', 'script', 'liens'];
+    const fmt = _ADOC_HTML_FORCED_INTENTS.includes(plan?.intent)
+      ? (plan?.intent === 'tableau' && plan?._explicitXlsxRequested ? 'xlsx' : 'html')
       : _EXPLICIT_FORMATS.includes(_fmtNorm)
       ? _fmtNorm  // format explicite → respecter tel quel
       : (_INTENT_FMT_OVERRIDE[plan?.intent] || _fmtNorm); // format implicite → intent override
