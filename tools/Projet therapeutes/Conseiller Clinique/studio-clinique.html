@@ -6494,7 +6494,12 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       if (act === 'preview-html' || act === 'preview') {
         window.adocOpenDocPopup(key);
       } else if (act === 'retheme-html') {
-        window.adocOpenLegacyReThemePanel(key);
+        // Item 61 — même bouton pour les deux moteurs (Option A de Christophe), flux interne
+        // différent selon art._adocStructuredDoc : jamais de second bouton, jamais de routage
+        // d'un document structuré vers adocOpenLegacyReThemePanel (qui refuse déjà ce cas via
+        // son propre garde-fou, inchangé).
+        if (art._adocStructuredDoc) window.adocOpenStructuredReThemePanel(key);
+        else window.adocOpenLegacyReThemePanel(key);
       } else if (act === 'download') {
         const a = document.createElement('a');
         a.href = art.url; a.download = art.name + '.' + art.fmt;
@@ -10400,16 +10405,140 @@ ${recent}`;
     await window.adocWsSave();
   };
 
-  // Révèle le bouton "Charte" seulement si ELIGIBLE (fmt html du moteur legacy, jamais
-  // structuré) — vérifié en différé (setTimeout 0) car adocShowArtifactCard s'exécute AVANT que
-  // _adocStructuredDoc soit posé sur l'artefact par son appelant (adocDeliverStructuredFicheArtifact),
-  // pour les deux moteurs indifféremment ; un setTimeout(0) est garanti s'exécuter après la fin
-  // de la pile synchrone en cours, donc après ce marquage, quel que soit le moteur.
+  // ═══════════════════════════════════════════════════════════════════════
+  // Item 61 — charte persistante après génération pour le moteur STRUCTURÉ (parité avec
+  // l'ancien moteur ci-dessus). Flux INTERNE volontairement séparé (jamais un routage vers
+  // adocOpenLegacyReThemePanel, qui refuse ce cas et doit rester intact) : le moteur structuré
+  // n'a ni HTML brut à re-colorer par motif de texte (adocRethemeLegacyHtml) ni blob iframe —
+  // il a déjà un mécanisme de rendu canonique par RenderManifest (adocRenderClinicalDocument),
+  // réutilisé ici tel quel, jamais réinventé (investigation préalable du lot). Réutilise le
+  // même conteneur visuel (#cc-legacy-retheme-modal/-body, Option A de Christophe — même
+  // bouton/apparence) : un seul flux à la fois peut être ouvert, jamais les deux en même temps,
+  // donc aucun conflit sur ce DOM partagé.
+  // ═══════════════════════════════════════════════════════════════════════
+  window._adocStructuredReThemeCandidate = null;
+
+  window.adocCloseStructuredReThemePanel = function () {
+    const modal = document.getElementById('cc-legacy-retheme-modal');
+    if (modal) { modal.classList.remove('open'); delete modal.dataset.storeKey; }
+    window._adocStructuredReThemeCandidate = null;
+  };
+
+  window.adocOpenStructuredReThemePanel = async function (storeKey) {
+    if (window._adocWsState.storeKey === storeKey) adocEditorSync();
+    const art = window._adocArtifacts?.[storeKey];
+    if (!art || !art._adocStructuredDoc) return; // jamais pour un document de l'ancien moteur
+    const modal = document.getElementById('cc-legacy-retheme-modal');
+    const body = document.getElementById('cc-legacy-retheme-body');
+    if (!modal || !body) return;
+    modal.dataset.storeKey = storeKey;
+    modal.classList.add('open');
+    body.innerHTML = '<div style="padding:8px 0;color:var(--muted);font-size:12px;">Chargement des chartes…</div>';
+    let kits = window._adocBrandKits;
+    if (!kits || !kits.length) kits = await adocFetchBrandKits();
+    // Décision 2 de Christophe (item 61) — seules les chartes internes/auditées sont proposées
+    // ici, jamais une charte importée (PDF, source_type:'pdf' à la création — cf. adocBrandKitImportSave).
+    // adocIsDefaultBrandKitId(id) distingue déjà exactement ce cas (réutilisé tel quel, même
+    // fonction que celle qui masque le bouton "Retirer" sur ces deux mêmes chartes) : aucun
+    // nouveau champ à inventer. Neutralise le risque de contraste non audité identifié par
+    // l'investigation (QC hardcodé UX-8B assumant une charte par défaut déjà vérifiée AA).
+    const eligibleKits = (kits || []).filter(function (k) { return adocIsDefaultBrandKitId(k.id); });
+    if (!eligibleKits.length) {
+      body.innerHTML = '<div style="padding:8px 0;color:var(--terracotta-700);font-size:12px;">Aucune charte interne disponible pour le moment.</div>'
+        + '<div style="margin-top:10px;"><button type="button" class="cc-clarity-other-btn" onclick="window.adocCloseStructuredReThemePanel()">Fermer</button></div>';
+      return;
+    }
+    body.innerHTML =
+      '<div style="font-size:11px;color:var(--muted);margin-bottom:8px;">Choisissez une charte à appliquer — un aperçu réel vous sera montré avant toute confirmation. Seule l’apparence (couleurs, police, jetons visuels) change, jamais le contenu ni les citations.</div>' +
+      '<div style="display:flex;flex-direction:column;gap:6px;">' +
+      eligibleKits.map(function (k) {
+        return '<button type="button" class="cc-clarity-reply-btn" style="justify-content:flex-start;text-align:left;width:100%;" onclick="window.adocPreviewStructuredRetheme(\'' + k.id + '\')">' + adocEsc(k.name || 'Charte') + '</button>';
+      }).join('') +
+      '</div>' +
+      '<div style="margin-top:10px;"><button type="button" class="cc-clarity-other-btn" onclick="window.adocCloseStructuredReThemePanel()">Annuler</button></div>';
+  };
+
+  window.adocPreviewStructuredRetheme = async function (brandKitId) {
+    const modal = document.getElementById('cc-legacy-retheme-modal');
+    const body = document.getElementById('cc-legacy-retheme-body');
+    const storeKey = modal && modal.dataset.storeKey;
+    const art = storeKey && window._adocArtifacts?.[storeKey];
+    if (!art || !art._adocStructuredDoc || !body) return;
+    body.innerHTML = '<div style="padding:8px 0;color:var(--muted);font-size:12px;">Préparation de l’aperçu…</div>';
+    try {
+      const brandKit = await adocGetBrandKitById(brandKitId);
+      if (!brandKit || !brandKit.id) throw new Error('Charte introuvable');
+      // Réutilise EXACTEMENT adocBuildRenderManifestForBrandKit — même fonction que celle
+      // appelée à la génération par adocResolveBrandKitForGeneration, jamais dupliquée. Reçoit
+      // art._adocStructuredDoc (pas un `doc` de génération, qui n'existe plus à ce stade) :
+      // seule différence avec l'appel de génération, confirmée par l'investigation préalable
+      // (adocBuildRenderManifestForBrandKit ne lit que doc.renderManifestId, identique ici).
+      const renderManifestOverride = await adocBuildRenderManifestForBrandKit(art._adocStructuredDoc, brandKit);
+      // Aperçu RÉEL (jamais un blob iframe, qui n'existe pas pour ce moteur — cf. investigation,
+      // point 4) : même fonction de rendu canonique que l'ouverture de l'espace de travail
+      // (adocOpenWorkspace) et l'export (adocWsExport), appliquée ici au seul candidat, sans
+      // toucher à art._adocRenderManifestOverride avant confirmation explicite.
+      const rendered = await window.adocRenderClinicalDocument(art._adocStructuredDoc, art._adocStructuredSnapshot, renderManifestOverride);
+      window._adocStructuredReThemeCandidate = { storeKey: storeKey, renderManifestOverride: renderManifestOverride, brandKitName: brandKit.name || null };
+      const previewNote = 'Aperçu avec « ' + adocEsc(brandKit.name || 'cette charte') + ' » — contenu, structure et citations inchangés.';
+      body.innerHTML =
+        '<div style="font-size:11px;color:var(--muted);margin-bottom:6px;">' + previewNote + '</div>' +
+        '<div style="border:1px solid var(--stone-200);border-radius:8px;max-height:320px;overflow:auto;padding:12px;">' + rendered.html + '</div>' +
+        '<div style="margin-top:10px;display:flex;gap:8px;">' +
+          '<button type="button" class="cc-clarity-reply-btn" onclick="window.adocConfirmStructuredRetheme()">Confirmer</button>' +
+          '<button type="button" class="cc-clarity-other-btn" onclick="window.adocCloseStructuredReThemePanel()">Annuler</button>' +
+        '</div>';
+    } catch (e) {
+      body.innerHTML = '<div style="padding:8px 0;color:var(--terracotta-700);font-size:12px;">Impossible de préparer l’aperçu : ' + adocEsc(e && e.message || 'erreur inconnue') + '.</div>'
+        + '<div style="margin-top:10px;"><button type="button" class="cc-clarity-other-btn" onclick="window.adocCloseStructuredReThemePanel()">Fermer</button></div>';
+    }
+  };
+
+  window.adocConfirmStructuredRetheme = async function () {
+    const candidate = window._adocStructuredReThemeCandidate;
+    if (!candidate) return;
+    const art = window._adocArtifacts?.[candidate.storeKey];
+    if (!art) { window.adocCloseStructuredReThemePanel(); return; }
+    const previousOverride = art._adocRenderManifestOverride || null;
+    const previousBrandKitName = art._adocBrandKitName || null;
+    art._adocRenderManifestOverride = candidate.renderManifestOverride;
+    if (candidate.brandKitName) art._adocBrandKitName = candidate.brandKitName;
+    const storeKey = candidate.storeKey;
+    window.adocCloseStructuredReThemePanel();
+    // Réutilise EXACTEMENT le mécanisme déjà existant (même patron que adocConfirmLegacyRetheme
+    // ci-dessus) : ouvre l'espace de travail sur CE document (re-rend RÉELLEMENT avec le nouvel
+    // override, via adocOpenWorkspace lui-même inchangé — cf. son test déjà en place sur
+    // art._adocRenderManifestOverride) puis sauvegarde une nouvelle version — aucune logique de
+    // rendu ni de sauvegarde dupliquée. adocWsSave() décide déjà, sans changement nécessaire ici,
+    // entre création (POST /clinical-documents) et nouvelle version (POST .../versions) selon
+    // art._adocClinicalDocumentId — cf. investigation point 1, vérifié par test dédié.
+    const opened = await window.adocOpenWorkspace(storeKey);
+    if (!opened) {
+      // adocOpenWorkspace a déjà informé l'utilisatrice de l'échec (son propre message) — ici,
+      // seulement annuler proprement le changement plutôt que de laisser l'artefact avec un
+      // override cassé pour les prochaines ouvertures.
+      art._adocRenderManifestOverride = previousOverride;
+      art._adocBrandKitName = previousBrandKitName;
+      return;
+    }
+    await window.adocWsSave();
+  };
+
+  // Révèle le bouton "Charte" pour tout artefact fmt html éligible — vérifié en différé
+  // (setTimeout 0) car adocShowArtifactCard s'exécute AVANT que _adocStructuredDoc soit posé sur
+  // l'artefact par son appelant (adocDeliverStructuredFicheArtifact), pour les deux moteurs
+  // indifféremment ; un setTimeout(0) est garanti s'exécuter après la fin de la pile synchrone
+  // en cours, donc après ce marquage, quel que soit le moteur.
+  // Item 61 — jusqu'ici réservé au seul ancien moteur (`if (!art._adocStructuredDoc)`) : révélé
+  // désormais pour les DEUX moteurs, chacun avec son propre flux interne derrière le même bouton
+  // (Option A de Christophe — même bouton/apparence). Le routage vers le bon flux se fait au
+  // moment du clic (art._adocStructuredDoc), jamais ici — cf. le gestionnaire data-action
+  // "retheme-html" plus haut.
   function adocRevealRethemeButtonIfEligible(storeKey) {
     const art = window._adocArtifacts?.[storeKey];
     const btn = document.getElementById('retheme-btn-' + storeKey);
     if (!art || !btn) return;
-    if (!art._adocStructuredDoc) btn.hidden = false;
+    btn.hidden = false;
   }
 
   // LOT 11 (complément palette) — deuxième point d'accès au même panneau que le bouton
