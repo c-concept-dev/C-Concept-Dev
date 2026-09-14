@@ -56214,7 +56214,7 @@ async function handleAnthropicProxy(request2, env2, ctx2) {
   } catch (fetchErr) {
     // Appel interrompu avant même une réponse (échec réseau) — comportement inchangé (l'erreur
     // est relancée telle quelle), uniquement une ligne de journal en plus, jamais bloquante.
-    const _pcFailPromise = logProxyCall(env2, { anthropicRequestId: null, receivedAt: _pcReceivedAt, sentAt: _pcSentAt, headersReceivedAt: null, closedAt: new Date().toISOString(), httpStatus: null });
+    const _pcFailPromise = logProxyCall(env2, { anthropicRequestId: null, receivedAt: _pcReceivedAt, sentAt: _pcSentAt, headersReceivedAt: null, closedAt: new Date().toISOString(), httpStatus: null, outcome: "error", terminationReason: "fetch_error" });
     if (ctx2 && typeof ctx2.waitUntil === "function") ctx2.waitUntil(_pcFailPromise);
     throw fetchErr;
   }
@@ -56228,17 +56228,47 @@ async function handleAnthropicProxy(request2, env2, ctx2) {
   // Sans .text() pour éviter de bloquer le Worker jusqu'à fin de génération (timeout 502).
   // En cas d'erreur Anthropic (!res.ok), on bascule sur .text() pour transmettre le message JSON.
   if (stream && res.ok && res.body) {
-    // TransformStream identité : les octets traversent tels quels (aucun changement de
-    // comportement/latence), mais pipeTo() nous donne le vrai moment de fermeture du flux
-    // (succès ou erreur), y compris longtemps après que cette fonction a déjà retourné sa
-    // Response — d'où ctx2.waitUntil, indispensable ici (sans lui, cette écriture pourrait être
-    // silencieusement abandonnée si le Worker se termine avant qu'elle ne se finalise).
-    const { readable, writable } = new TransformStream();
-    const _pcPipePromise = res.body.pipeTo(writable).then(
-      () => logProxyCall(env2, { anthropicRequestId, receivedAt: _pcReceivedAt, sentAt: _pcSentAt, headersReceivedAt: _pcHeadersReceivedAt, closedAt: new Date().toISOString(), httpStatus: res.status }),
-      () => logProxyCall(env2, { anthropicRequestId, receivedAt: _pcReceivedAt, sentAt: _pcSentAt, headersReceivedAt: _pcHeadersReceivedAt, closedAt: new Date().toISOString(), httpStatus: res.status })
-    );
-    if (ctx2 && typeof ctx2.waitUntil === "function") ctx2.waitUntil(_pcPipePromise);
+    // Item 21 : observer séparément read() (amont) et cancel() (aval).
+    // Un rejet de pipeTo seul ne distingue pas ces deux causes.
+    const reader = res.body.getReader();
+    let terminal = false;
+    let resolveFinished;
+    const finished = new Promise(resolve => { resolveFinished = resolve; });
+    if (ctx2 && typeof ctx2.waitUntil === "function") ctx2.waitUntil(finished);
+    function finish(outcome, terminationReason) {
+      if (terminal) return; // première terminaison observée, une seule ligne même en course
+      terminal = true;
+      resolveFinished(logProxyCall(env2, {
+        anthropicRequestId, receivedAt: _pcReceivedAt, sentAt: _pcSentAt,
+        headersReceivedAt: _pcHeadersReceivedAt, closedAt: new Date().toISOString(),
+        httpStatus: res.status, outcome, terminationReason
+      }));
+    }
+    const readable = new ReadableStream({
+      async pull(controller) {
+        try {
+          const { done, value } = await reader.read();
+          if (terminal) return; // cancel() a pu intervenir pendant read()
+          if (done) {
+            controller.close();
+            reader.releaseLock();
+            finish("success", "upstream_eof");
+          } else {
+            controller.enqueue(value); // octets intacts, lecture pilotée par la demande aval
+          }
+        } catch (streamErr) {
+          if (terminal) return;
+          finish("error", "upstream_read_error");
+          reader.releaseLock();
+          controller.error(streamErr); // erreur propagée intacte, jamais inscrite dans D1
+        }
+      },
+      async cancel(reason) {
+        finish("interruption", "downstream_cancel");
+        try { await reader.cancel(reason); }
+        finally { reader.releaseLock(); }
+      }
+    });
     return new Response(readable, {
       status: res.status,
       headers: {
@@ -56251,8 +56281,15 @@ async function handleAnthropicProxy(request2, env2, ctx2) {
       }
     });
   }
-  const _pcBodyText = await res.text();
-  const _pcLogPromise = logProxyCall(env2, { anthropicRequestId, receivedAt: _pcReceivedAt, sentAt: _pcSentAt, headersReceivedAt: _pcHeadersReceivedAt, closedAt: new Date().toISOString(), httpStatus: res.status });
+  let _pcBodyText;
+  try {
+    _pcBodyText = await res.text();
+  } catch (bodyErr) {
+    const failed = logProxyCall(env2, { anthropicRequestId, receivedAt: _pcReceivedAt, sentAt: _pcSentAt, headersReceivedAt: _pcHeadersReceivedAt, closedAt: new Date().toISOString(), httpStatus: res.status, outcome: "error", terminationReason: "upstream_body_error" });
+    if (ctx2 && typeof ctx2.waitUntil === "function") ctx2.waitUntil(failed);
+    throw bodyErr;
+  }
+  const _pcLogPromise = logProxyCall(env2, { anthropicRequestId, receivedAt: _pcReceivedAt, sentAt: _pcSentAt, headersReceivedAt: _pcHeadersReceivedAt, closedAt: new Date().toISOString(), httpStatus: res.status, outcome: res.ok ? "success" : "error", terminationReason: res.ok ? "http_body_complete" : "http_error" });
   if (ctx2 && typeof ctx2.waitUntil === "function") ctx2.waitUntil(_pcLogPromise);
   return new Response(_pcBodyText, {
     status: res.status,
@@ -56268,14 +56305,16 @@ async function logProxyCall(env2, fields) {
   if (!env2.DB) return;
   try {
     await env2.DB.prepare(
-      "INSERT INTO proxy_call_log (anthropic_request_id, received_at, sent_at, headers_received_at, closed_at, http_status) VALUES (?, ?, ?, ?, ?, ?)"
+      "INSERT INTO proxy_call_log (anthropic_request_id, received_at, sent_at, headers_received_at, closed_at, http_status, outcome, termination_reason) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
     ).bind(
       fields.anthropicRequestId || null,
       fields.receivedAt || null,
       fields.sentAt || null,
       fields.headersReceivedAt || null,
       fields.closedAt || null,
-      fields.httpStatus ?? null
+      fields.httpStatus ?? null,
+      fields.outcome,
+      fields.terminationReason
     ).run();
   } catch (_) {
     // Item 21 : un journal devenu muet doit être observable, sans contenu ni secret.
