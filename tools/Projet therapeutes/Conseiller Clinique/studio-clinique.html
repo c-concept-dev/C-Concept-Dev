@@ -11173,9 +11173,17 @@ ${recent}`;
       blocking.push('Référence non vérifiée : ' + orphanCitationIds.length + ' citationIds déclaré(s) sans entrée validée dans validation.citationLinks (' + orphanCitationIds.join(', ') + ').');
     }
 
+    // Item 21 Partie C — un délimiteur fermant final ()/]/}) n'est jamais lui-même une
+    // ponctuation terminale : "(La séance est terminée.)" se termine par ')', pas par '.', ce
+    // qui faisait déclarer tronqué un texte parfaitement complet. On retire ces délimiteurs
+    // fermants finaux AVANT de chercher la ponctuation terminale, jamais après (l'ordre importe :
+    // chercher la ponctuation dans le texte SANS ses parenthèses/crochets englobants, pas les
+    // considérer comme une ponctuation valide à leur place).
     function looksTruncated(text) {
       const t = (text || '').trim();
-      return !!t && !/[.!?…»"”]$/.test(t);
+      if (!t) return false;
+      const withoutTrailingClosers = t.replace(/[)\]}]+$/, '');
+      return !/[.!?…»"”]$/.test(withoutTrailingClosers);
     }
 
     function walk(blocks) {
@@ -11573,6 +11581,14 @@ ${recent}`;
     name: 'emit_fiche_document',
     description: "Produit le contenu d'une fiche synthèse clinique structurée en blocs typés, sourcée exclusivement par les passages numérotés fournis dans le prompt système.",
     strict: true,
+    // Item 21 Partie B — réglage officiel Anthropic qui élimine la mise en tampon interne de la
+    // valeur d'un paramètre avant son émission en input_json_delta (chaque fragment reçu réarme
+    // déjà le watchdog sémantique, cf. adocGenerateStructuredFiche : ce réglage change seulement
+    // LA FRÉQUENCE de ces fragments, jamais leur traitement). N'affecte ni le seuil de 120s, ni
+    // le Worker (transmet `tools` tel quel, vérifié : `if (tools) ab.tools = tools;`). Expérimental
+    // — pas de statut "résolu" tant que le test de clôture (3 générations réelles corrélées à
+    // proxy_call_log) n'a pas eu lieu.
+    eager_input_streaming: true,
     input_schema: {
       type: 'object',
       properties: {
