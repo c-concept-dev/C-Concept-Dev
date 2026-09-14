@@ -1654,6 +1654,17 @@
       margin: 0 0 10px; font-size: 1.1rem;
     }
     .adoc-sc-card-img { width: 100%; border-radius: 8px; margin-bottom: 10px; display: block; }
+    /* Item 68 — affordance discrète (curseur texte + soulignement pointillé au survol),
+       jamais un panneau de style (Option A) : réutilise .cc-ws-block-editable, déjà posée
+       par adocWsSetupBlockEditing, plutôt qu'une nouvelle classe d'activation. */
+    .cc-ws-doc-card.cc-ws-block-editable .adoc-sc-cover-title,
+    .cc-ws-doc-card.cc-ws-block-editable .adoc-sc-cover-category,
+    .cc-ws-doc-card.cc-ws-block-editable .adoc-sc-cover-audience,
+    .cc-ws-doc-card.cc-ws-block-editable .adoc-sc-card-title { cursor: text; }
+    .cc-ws-doc-card.cc-ws-block-editable .adoc-sc-cover-title:hover,
+    .cc-ws-doc-card.cc-ws-block-editable .adoc-sc-cover-category:hover,
+    .cc-ws-doc-card.cc-ws-block-editable .adoc-sc-cover-audience:hover,
+    .cc-ws-doc-card.cc-ws-block-editable .adoc-sc-card-title:hover { outline: 1px dashed currentColor; outline-offset: 3px; }
     /* ── UX-8W — coquille de l'écran de travail. Chrome pétrole/terracotta/ivoire
        STRICTEMENT séparé de la charte du document rendu à l'intérieur (garde-fou kit #1/#5).
        Activation progressive : seuls Sources, Bibliothèque, Mémoire patient et Export sont
@@ -9843,7 +9854,11 @@ ${recent}`;
     art.html = '<!DOCTYPE html>\n' + parsed.documentElement.outerHTML;
     if (art.blobUrl) { URL.revokeObjectURL(art.blobUrl); art.blobUrl = URL.createObjectURL(new Blob([art.html], {type:'text/html;charset=utf-8'})); }
   }
-  function adocEditorSync() { const art = adocEditorArt(); if (!art) return; if (art._adocStructuredDoc) adocEditorSyncStructured(art); else adocEditorSyncLegacy(art); }
+  // Item 68 — adocSyncEditedRootFieldsToDoc tourne systématiquement à côté de
+  // adocEditorSyncStructured (jamais à sa place) : les deux visitent des éléments disjoints
+  // (.adoc-sc-block vs bannière/titre de carte), un seul point d'appel reste la garantie que
+  // toute frappe (input/compositionend, cf. adocEditorInstall) synchronise TOUT vers le doc.
+  function adocEditorSync() { const art = adocEditorArt(); if (!art) return; if (art._adocStructuredDoc) { adocEditorSyncStructured(art); adocSyncEditedRootFieldsToDoc(art); } else adocEditorSyncLegacy(art); }
   function adocEditorPrepare(root, legacy) {
     if (legacy) adocWsCollectLegacyBlocks(root).forEach(function (el) {
       function wrap(container) {
@@ -10125,6 +10140,25 @@ ${recent}`;
       adocEditorCheckpoint();
     });
     root.addEventListener('input',function(e){if(e.target.closest('[data-cc-editor-leaf]')&&!e.isComposing){adocEditorSync();adocEditorMarkDirty();}});
+    // Item 68 — la frappe reste toujours libre (jamais bloquée, jamais interceptée) même à zéro
+    // caractère : adocSyncEditedRootFieldsToDoc ne fait déjà qu'ignorer le vide (garde la dernière
+    // valeur valide dans le doc, cf. ci-dessus). En quittant le champ, un DOM resté vide serait
+    // trompeur (il semblerait que la donnée ait disparu, alors que le doc a conservé l'ancienne
+    // valeur) : on réaffiche cette valeur conservée, jamais un message ni un blocage nouveaux.
+    // Ne concerne jamais un bloc normal (.adoc-sc-block) — son contenu n'a aucun minLength.
+    root.addEventListener('focusout',function(e){
+      const leaf=e.target.closest('[data-cc-editor-leaf]'); if(!leaf||leaf.closest('.adoc-sc-block'))return;
+      if((leaf.textContent||'').trim())return;
+      const art=adocEditorArt(); const doc=art&&art._adocStructuredDoc; if(!doc)return;
+      if(leaf.classList.contains('adoc-sc-cover-title'))leaf.textContent=doc.title;
+      else if(leaf.classList.contains('adoc-sc-cover-category'))leaf.textContent=doc.purpose;
+      else if(leaf.classList.contains('adoc-sc-cover-audience'))leaf.textContent=doc.audience;
+      else if(leaf.classList.contains('adoc-sc-card-title')){
+        const cardEl=leaf.closest('.adoc-sc-card');
+        const card=cardEl&&(doc.blocks||[]).find(function(c){return c.id===cardEl.id;});
+        if(card)leaf.textContent=card.content.title;
+      }
+    });
     root.addEventListener('compositionend',function(e){if(e.target.closest('[data-cc-editor-leaf]')){adocEditorSync();adocEditorMarkDirty();}});
     root.addEventListener('keydown',function(e){
       const leaf=e.target.closest('[data-cc-editor-leaf]');if(!leaf||e.isComposing)return;
@@ -11288,16 +11322,22 @@ ${recent}`;
       coverBlock = blocks[0];
       bodyBlocks = blocks.slice(1);
     }
-    const category = adocEsc((doc.purpose || 'Fiche synthèse').toUpperCase());
-    const subtitleParts = ['Studio Clinique'];
-    if (doc.audience) subtitleParts.push(doc.audience);
-    const subtitle = adocEsc(subtitleParts.join(' · '));
+    // Item 68 — catégorie affichée en MAJUSCULES par CSS (.adoc-sc-cover-category est déjà
+    // text-transform:uppercase, host ET export, cf. :1639/:11413) — jamais par une transformation
+    // JS qui écraserait irréversiblement la casse réelle de doc.purpose une fois ce champ rendu
+    // directement éditable (une frappe utilisatrice serait sinon systématiquement re-capitalisée).
+    const category = adocEsc(doc.purpose || 'Fiche synthèse');
+    // Item 68 — convention retenue pour le sous-titre composé (cf. rapport construction) : seule
+    // la partie variable (doc.audience) est éditable ; "Studio Clinique" et le séparateur restent
+    // un texte fixe, jamais reparsé depuis le texte affiché (un reparsing du sous-titre entier
+    // serait ambigu dès que doc.audience contiendrait lui-même " · ") — l'option la plus sûre.
+    const audienceHTML = '<span class="adoc-sc-cover-audience" data-cc-editor-leaf="doc-audience">' + adocEsc(doc.audience || '') + '</span>';
     const coverAttrs = coverBlock ? ' data-pexels="' + adocEsc(coverBlock.content.query) + '"' : '';
     const cover = '<div class="adoc-sc-cover"' + coverAttrs + '>' +
       '<div class="adoc-sc-cover-content">' +
-      '<p class="adoc-sc-cover-category">' + category + '</p>' +
-      '<h1 class="adoc-sc-cover-title">' + adocEsc(doc.title) + '</h1>' +
-      '<p class="adoc-sc-cover-meta">' + subtitle + '</p>' +
+      '<p class="adoc-sc-cover-category" data-cc-editor-leaf="doc-purpose">' + category + '</p>' +
+      '<h1 class="adoc-sc-cover-title" data-cc-editor-leaf="doc-title">' + adocEsc(doc.title) + '</h1>' +
+      '<p class="adoc-sc-cover-meta">Studio Clinique · ' + audienceHTML + '</p>' +
       '</div></div>';
     const body = bodyBlocks.map(adocRenderBlockHTML).join('\n');
     // Correctif (découvert en UX-8B Lot 2, préexistant à ce lot — affecte déjà la charte par
@@ -11317,7 +11357,10 @@ ${recent}`;
       ? '<img class="adoc-sc-card-img" src="' + adocEsc(card.content.imageRef) + '" alt="' + adocEsc(card.content.imageAlt || '') + '">'
       : '';
     return '<section class="adoc-sc-card" id="' + adocEsc(card.id) + '" role="group" aria-label="Carte ' + (index + 1) + ' sur ' + total + ' : ' + adocEsc(card.content.title) + '">' +
-      img + '<h2 class="adoc-sc-card-title">' + adocEsc(card.content.title) + '</h2>' + nested + '</section>';
+      // Item 68 — même mécanisme d'édition directe que la bannière Fiche (data-cc-editor-leaf
+      // générique, jamais .adoc-sc-block : un titre de carte reste une DÉCORATION de card.content,
+      // synchronisé par adocSyncEditedRootFieldsToDoc, jamais par adocEditorSyncStructured).
+      img + '<h2 class="adoc-sc-card-title" data-cc-editor-leaf="card-title">' + adocEsc(card.content.title) + '</h2>' + nested + '</section>';
   }
   function adocRenderCarrouselHTML(doc, tokens) {
     const cards = (doc.blocks || []).map(function(c, i) { return adocRenderCardHTML(c, i, doc.blocks.length); }).join('\n');
@@ -12740,6 +12783,43 @@ ${recent}`;
   // 57f — synchronize editable leaves, list levels and table geometry before persistence.
   function adocSyncEditedStructuredBlocksToDoc(art) { adocEditorSyncStructured(art); }
 
+  // Item 68 — sœur de adocEditorSyncStructured/adocSyncEditedStructuredBlocksToDoc ci-dessus,
+  // MAIS pour les champs racine directement éditables qui vivent HORS doc.blocks[] : bannière
+  // de couverture Fiche (doc.title/doc.purpose/doc.audience, cf. adocRenderFicheHTML) et titre
+  // de carte Carrousel (card.content.title, cf. adocRenderCardHTML). adocFindEditableBlock ne
+  // sait chercher que dans doc.blocks[] (et card.content.blocks[] imbriqué) — ces champs n'y
+  // vivent pas, d'où ce mécanisme parallèle dédié plutôt qu'une extension de la boucle
+  // .adoc-sc-block existante (qui les exclut structurellement, cf. investigation item 68).
+  // Garde anti-vide : doc.title/doc.purpose/doc.audience et card.content.title portent tous un
+  // minLength:1 RÉEL dans clinical-document.schema.json/block.schema.json, vérifié par ajv à
+  // chaque rendu (adocValidateSchema, via adocRenderClinicalDocument) — une chaîne vide écrite
+  // ici ferait échouer AdocSchemaValidationError au prochain aperçu/réouverture/export. Même
+  // principe déjà en place pour la liste vide (adocEditorSyncStructured : `if
+  // (!b.content.items.length) b.content.items = [''];`) — transposé ici en "ne jamais écraser
+  // par une chaîne vide, garder la dernière valeur valide" plutôt qu'en repli de valeur, puisque
+  // contrairement à un item de liste, une chaîne vide n'est elle-même jamais valide pour ces
+  // champs (minLength:1, pas juste minItems:1 sur le tableau qui les contient).
+  function adocSyncEditedRootFieldsToDoc(art) {
+    const doc = art && art._adocStructuredDoc; if (!doc) return;
+    const root = document.getElementById('cc-ws-doc-card'); if (!root) return;
+    function plain(el) { return el ? adocEditorPlain(el.innerHTML).replace(/\s+/g, ' ').trim() : ''; }
+    function keep(value, current) { return value ? value : current; }
+    if (doc.documentKind === 'fiche') {
+      const titleEl = root.querySelector('.adoc-sc-cover-title');
+      if (titleEl) doc.title = keep(plain(titleEl), doc.title);
+      const purposeEl = root.querySelector('.adoc-sc-cover-category');
+      if (purposeEl) doc.purpose = keep(plain(purposeEl), doc.purpose);
+      const audienceEl = root.querySelector('.adoc-sc-cover-audience');
+      if (audienceEl) doc.audience = keep(plain(audienceEl), doc.audience);
+    } else if (doc.documentKind === 'carrousel') {
+      root.querySelectorAll('.adoc-sc-card').forEach(function (cardEl) {
+        const card = (doc.blocks || []).find(function (c) { return c.id === cardEl.id; });
+        const titleEl = cardEl.querySelector('.adoc-sc-card-title');
+        if (card && titleEl) card.content.title = keep(plain(titleEl), card.content.title);
+      });
+    }
+  }
+
   function adocWsSetupBlockEditing(art) {
     const docCard = document.getElementById('cc-ws-doc-card');
     if (!docCard) return;
@@ -13512,7 +13592,12 @@ ${recent}`;
     // sauvegardent leur source figée — art.html / doc.blocks — jamais le DOM affiché lui-même,
     // confirmé par investigation). Aucun appel à adocOpenWorkspace ici : la frappe en cours
     // n'est jamais perdue par un re-rendu.
-    if (isLegacy) adocSyncEditedLegacyBlocksToHtml(art); else adocSyncEditedStructuredBlocksToDoc(art);
+    // Item 68 — adocSyncEditedRootFieldsToDoc rejoint ici adocSyncEditedStructuredBlocksToDoc :
+    // la frappe en cours (input/compositionend) synchronise déjà les deux en continu, mais cette
+    // resync explicite avant sauvegarde reste la garantie de dernier recours (même motif que le
+    // commentaire ci-dessus pour les blocs) — jamais l'un sans l'autre, sous peine de perdre en
+    // silence une édition de bannière/titre de carte non encore retombée dans le doc en mémoire.
+    if (isLegacy) adocSyncEditedLegacyBlocksToHtml(art); else { adocSyncEditedStructuredBlocksToDoc(art); adocSyncEditedRootFieldsToDoc(art); }
     const btn = document.getElementById('cc-ws-save-btn');
     if (btn) btn.disabled = true;
     try {
