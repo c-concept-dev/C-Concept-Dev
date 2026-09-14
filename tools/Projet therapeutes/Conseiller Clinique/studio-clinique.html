@@ -4497,10 +4497,11 @@ RÈGLES ABSOLUES :
         + '{"headers":["Col A","Col B","Col C"],"rows":[["val1","val2","val3"],["val4","val5","val6"]],'
         + '"sections":[{"title":"01 — TITRE DE SECTION","startRow":0}],'
         + '"columnSummaries":[{"header":"Col B","tagline":"Accroche courte","description":"1-2 phrases : pour quoi, atout, limite."}],'
-        + '"legend":[{"symbol":"●","label":"Indication forte / point fort"},{"symbol":"◐","label":"Indication partielle / à adapter"},{"symbol":"○","label":"Limite / contre-indication relative"}]}'
+        + '"legend":[{"symbol":"●","label":"Indication forte / point fort"},{"symbol":"◐","label":"Indication partielle / à adapter"},{"symbol":"○","label":"Limite / contre-indication relative"}],'
+        + '"notes":[{"title":"Point de vigilance","text":"1-3 phrases : avertissement, contre-indication ou recommandation en prose."}]}'
         + "<\/script>\n"
         + "headers = tableau de strings (noms colonnes). rows = tableau de tableaux (une ligne = un sous-tableau).\n"
-        + "sections, columnSummaries, legend sont OPTIONNELS — inclus-les UNIQUEMENT si le tableau les justifie, "
+        + "sections, columnSummaries, legend, notes sont OPTIONNELS — inclus-les UNIQUEMENT si le tableau les justifie, "
         + "et reprends-y les MÊMES informations que celles que tu integrerais de toute facon dans le rendu visuel "
         + "(ne les laisse jamais UNIQUEMENT dans le HTML, elles doivent aussi être structurées ici pour l'export xlsx) :\n"
         + "-> sections : si les lignes se regroupent naturellement en blocs thematiques, un objet par bloc avec "
@@ -4515,7 +4516,14 @@ RÈGLES ABSOLUES :
         + "-> legend : UNIQUEMENT si le tableau utilise un code de lecture rapide (indication forte, partielle, "
         + "limite, etc.) — decris chaque repere utilise, et utilise alors ce MEME symbole texte (ex. ●/◐/○) "
         + "DIRECTEMENT dans les cellules de 'rows' concernees, jamais une couleur seule qui ne survivrait pas en xlsx.\n"
-        + "INTERDIT : Markdown, tableau ASCII, texte libre HORS de ce JSON. UNIQUEMENT ce JSON dans ce script."
+        + "-> notes : UNIQUEMENT pour un avertissement, une mise en garde clinique ou une recommandation en prose "
+        + "qui NE RENTRE DANS AUCUNE grille (jamais un doublon de ce qui est deja dans headers/rows/sections/"
+        + "columnSummaries/legend) — un objet par avertissement/recommandation distinct. Si le rendu visuel contient "
+        + "un encadre de vigilance ou une section de recommandations en texte libre, son contenu DOIT aussi exister "
+        + "ici, sous peine de disparaitre entierement du fichier xlsx.\n"
+        + "INTERDIT : Markdown, tableau ASCII, texte libre HORS de ce JSON. UNIQUEMENT ce JSON dans ce script — "
+        + "tout contenu narratif du rendu visuel qui n'a sa place dans aucun autre champ va dans 'notes', jamais "
+        + "laisse seulement dans le HTML."
       : fmt === 'pptx'
       ? "\nPPTX — STRUCTURE OBLIGATOIRE dans <head> :\n"
         + "<scr" + "ipt id=\"pptx-data\" type=\"application/json\">\n"
@@ -6336,13 +6344,17 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       } else if (fmt === 'xlsx') {
         workerUrl = ADOC_WORKER + '/generate-xlsx';
         // Priorité 1 : JSON structuré embarqué dans le HTML
-        let headers, rows, sections, columnSummaries, legend;
+        let headers, rows, sections, columnSummaries, legend, notes;
         const xlsxJson = adocExtractEmbeddedJson(html, 'xlsx-data');
         if (xlsxJson?.headers?.length) {
           ({ headers, rows } = xlsxJson);
           sections = Array.isArray(xlsxJson.sections) ? xlsxJson.sections : null;
           columnSummaries = Array.isArray(xlsxJson.columnSummaries) ? xlsxJson.columnSummaries : null;
           legend = Array.isArray(xlsxJson.legend) ? xlsxJson.legend : null;
+          // Item 67 Partie A — contenu narratif (avertissements, recommandations en prose) qui
+          // ne rentre dans aucune grille : jusqu'ici structurellement exclu de l'export (cf.
+          // rapport d'investigation), le modèle n'ayant nulle part où le mettre dans ce JSON.
+          notes = Array.isArray(xlsxJson.notes) ? xlsxJson.notes : null;
         } else {
           ({ headers, rows } = adocParseXlsxTable(markdown));
         }
@@ -6373,8 +6385,29 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
             rows: legend.map(l => [l.symbol || '', l.label || '']),
           });
         }
+        // Item 67 Partie A — même patron que "Résumé des approches"/"Légende" ci-dessus : une
+        // feuille dédiée, jamais un nouveau mécanisme de rendu (handleGenerateXLSX construit déjà
+        // n'importe quelle feuille headers/rows générique, aucun changement Worker nécessaire).
+        if (notes?.length) {
+          sheets.push({
+            name: 'Notes cliniques',
+            headers: ['Titre', 'Contenu'],
+            rows: notes.map(n => [n.title || '', n.text || '']),
+          });
+        }
+        // Item 67 Partie B — filet de sécurité : couvre ce que la Partie A pourrait quand même
+        // rater (modèle qui omet de dupliquer un encadré dans `notes`). Jamais un blocage de
+        // l'export (Option C explicitement écartée par Christophe) — un simple signal honnête,
+        // en première feuille pour être vu immédiatement à l'ouverture du fichier.
+        if (adocDetectXlsxNarrativeGap(html, { legend, columnSummaries, sections, notes })) {
+          sheets.unshift({
+            name: '⚠ Avertissement',
+            headers: ['Avertissement'],
+            rows: [['Ce fichier peut ne pas contenir tout le contenu de l’aperçu — consultez la version HTML/PDF pour les éléments narratifs éventuels (avertissements, recommandations en prose non représentables dans un tableau).']],
+          });
+        }
         body = { content: { sheets }, filename: safeName };
-        window._adocArtifacts[storeKey].xlsxData = { headers, rows: rows.slice(0, 6), sections, columnSummaries, legend };
+        window._adocArtifacts[storeKey].xlsxData = { headers, rows: rows.slice(0, 6), sections, columnSummaries, legend, notes };
 
       } else if (fmt === 'docx') {
         workerUrl = ADOC_WORKER + '/generate-docx';
@@ -6663,6 +6696,44 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     if (cur) slides.push(cur);
     if (!slides.length) slides.push({ title, bullets: md.split('\n').filter(l => l.trim()).slice(0, 8) });
     return slides;
+  }
+
+  // Item 67 Partie B — filet de sécurité contre toute perte silencieuse résiduelle à l'export
+  // xlsx, même après l'ajout du champ `notes` (Partie A) : une comparaison de COUVERTURE (longueur
+  // de texte), jamais un jugement clinique par IA — exactement le périmètre demandé. Retire du
+  // <body> ce qui est déjà structurellement couvert par ailleurs (tableau → headers/rows, titres
+  // → structure, script/style → jamais du contenu) ; ce qui reste est comparé, en longueur
+  // seulement, à tout le texte déjà destiné à l'export (legend/columnSummaries/sections/notes).
+  // Un écart significatif (seuil choisi pour ignorer les légendes/notes de bas de page
+  // négligeables déjà couvertes par `legend`) déclenche un avertissement, jamais un blocage.
+  const ADOC_XLSX_NARRATIVE_GAP_THRESHOLD = 200; // caractères
+  function adocDetectXlsxNarrativeGap(html, covered) {
+    try {
+      const parsed = new DOMParser().parseFromString(html || '', 'text/html');
+      const body = parsed.body;
+      if (!body) return false;
+      body.querySelectorAll('script, style, table, h1, h2, h3, h4, h5, h6').forEach((el) => el.remove());
+      let narrativeText = (body.textContent || '').replace(/\s+/g, ' ').trim();
+      const coveredStrings = [];
+      (covered.legend || []).forEach((l) => { coveredStrings.push(l.symbol || ''); coveredStrings.push(l.label || ''); });
+      (covered.columnSummaries || []).forEach((c) => { coveredStrings.push(c.header || ''); coveredStrings.push(c.tagline || ''); coveredStrings.push(c.description || ''); });
+      (covered.sections || []).forEach((s) => coveredStrings.push(s.title || ''));
+      (covered.notes || []).forEach((n) => { coveredStrings.push(n.title || ''); coveredStrings.push(n.text || ''); });
+      // Retire du candidat narratif tout ce qui apparaît LITTÉRALEMENT (containment, jamais un
+      // jugement sémantique) dans un champ déjà destiné à l'export — une légende ou une tagline
+      // répétée dans le rendu visuel ne doit jamais compter comme un trou ; seule une simple
+      // soustraction de longueur globale confondrait à tort un contenu déjà couvert ailleurs
+      // (ex. columnSummaries) avec une véritable absence. Seuil de 10 caractères pour ignorer
+      // les symboles seuls (●, ○) qui pourraient matcher n'importe où par coïncidence.
+      coveredStrings
+        .map((s) => (s || '').replace(/\s+/g, ' ').trim())
+        .filter((s) => s.length > 10)
+        .forEach((s) => { narrativeText = narrativeText.split(s).join(''); });
+      narrativeText = narrativeText.replace(/\s+/g, ' ').trim();
+      return narrativeText.length > ADOC_XLSX_NARRATIVE_GAP_THRESHOLD;
+    } catch (e) {
+      return false; // jamais bloquant — un filet de sécurité qui échoue ne doit jamais devenir une nouvelle cause d'échec de l'export
+    }
   }
 
   function adocParseXlsxTable(md) {
