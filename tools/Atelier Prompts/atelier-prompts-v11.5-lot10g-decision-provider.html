@@ -2223,6 +2223,7 @@ pre,.sortie,#ui-rapid-output{overflow-wrap:anywhere;word-break:break-word}
             <div class="champ">
               <label class="etiquette" for="droit">Droit d’utilisation</label>
               <select id="droit">
+                <option value="" selected>Non précisé</option>
                 <option value="abonnement institutionnel en cours">Abonnement institutionnel</option>
                 <option value="exemplaire acquis par le cabinet">Exemplaire acquis</option>
                 <option value="licence d'utilisation professionnelle">Licence professionnelle</option>
@@ -2236,6 +2237,7 @@ pre,.sortie,#ui-rapid-output{overflow-wrap:anywhere;word-break:break-word}
           <div class="champ atelier-source-usage">
             <label class="etiquette" for="usage">Utilisation prévue</label>
             <select id="usage">
+              <option value="" selected>Non précisé</option>
               <option value="analyse et synthèse pour usage professionnel interne">Analyse et synthèse</option>
               <option value="extraction de données structurées">Extraction de données</option>
               <option value="cotation et interprétation d'un instrument">Cotation et interprétation</option>
@@ -5176,6 +5178,26 @@ async function compterTokensExact(){
  * 9. PERSISTANCE : brouillon, récents, versions, suivi
  * ---------------------------------------------------------------------- */
 
+/* Les anciens premiers choix HTML pouvaient être sauvegardés sans choix humain.
+   Les conserver comme suggestions, jamais comme déclarations confirmées. */
+function restaurerMetadonneesSource(record){
+  const anciensDefauts={droit:'abonnement institutionnel en cours',usage:'analyse et synthèse pour usage professionnel interne'};
+  ['droit','usage'].forEach(id=>{
+    const el=$('#'+id), valeur=record[id]||'';
+    const ambigu=record.sourceMetadataVersion!==1 && valeur===anciensDefauts[id];
+    const attente=ambigu?valeur:((record.sourceMetadataPending||{})[id]||'');
+    el.value=ambigu?'':valeur;
+    el.dataset.pendingLegacyValue=attente;
+    const aide=el.parentElement.querySelector('.aide');
+    if(aide){
+      if(!aide.dataset.originalText)aide.dataset.originalText=aide.textContent;
+      aide.textContent=aide.dataset.originalText+(attente?' Ancien choix à confirmer : '+attente+'. Il n’est pas utilisé tant que vous ne le sélectionnez pas.':'');
+    }
+  });
+}
+function metadonneesSourceEnAttente(){
+  return Object.fromEntries(['droit','usage'].map(id=>[id,$('#'+id).dataset.pendingLegacyValue||'']));
+}
 function sauverBrouillon(){
   const ok = ecrire('atelier.brouillon', {
     demande: $('#demande').value,
@@ -5184,6 +5206,8 @@ function sauverBrouillon(){
     verrous: verrousActifs(),
     provenance: $('#provenance').value,
     droit: $('#droit').value,
+    sourceMetadataVersion: 1,
+    sourceMetadataPending: metadonneesSourceEnAttente(),
     materiau: $('#materiau').value,
     langage: $('#langage').value,
     usage: $('#usage').value,
@@ -5208,10 +5232,9 @@ function chargerBrouillon(){
   if(b.format && FORMATS[b.format]) $('#format').value = b.format;
   if(b.niveau) $('#niveau').value = b.niveau;
   if(b.provenance) $('#provenance').value = b.provenance;
-  if(b.droit) $('#droit').value = b.droit;
+  restaurerMetadonneesSource(b);
   if(b.materiau) $('#materiau').value = b.materiau;
   if(b.langage) $('#langage').value = b.langage;
-  if(b.usage) $('#usage').value = b.usage;
   if(b.destinataire) $('#destinataire').value = b.destinataire;
   if(b.registre) $('#registre').value = b.registre;
   if(b.gabarit) $('#gabarit').value = b.gabarit;
@@ -5230,6 +5253,8 @@ function memoriserRecent(demande, prompt, note, meta){
     niveau: meta.niveau || $('#niveau').value,
     verrous: meta.verrous || verrousActifs(),
     provenance: meta.provenance !== undefined ? meta.provenance : $('#provenance').value,
+    sourceMetadataVersion: 1,
+    sourceMetadataPending: metadonneesSourceEnAttente(),
     droit: meta.droit !== undefined ? meta.droit : $('#droit').value,
     usage: meta.usage !== undefined ? meta.usage : $('#usage').value
   });
@@ -7408,6 +7433,12 @@ function brancher(){
     sauverBrouillon();
   });
   $('#langage').addEventListener('change', sauverBrouillon);
+  ['droit','usage'].forEach(id=>$('#'+id).addEventListener('change',()=>{
+    const el=$('#'+id);el.dataset.pendingLegacyValue='';
+    const aide=el.parentElement.querySelector('.aide');
+    if(aide&&aide.dataset.originalText)aide.textContent=aide.dataset.originalText;
+    sauverBrouillon();
+  }));
   $('#format').addEventListener('change', () => {
     const f = FORMATS[$('#format').value];
     $('#format-glose').textContent = f ? 'Format précis : ' + f.nom + '. L’Atelier adaptera automatiquement la structure et les règles utiles.' : '';
@@ -7782,8 +7813,7 @@ function brancher(){
     if(r.format && FORMATS[r.format]) $('#format').value = r.format;
     if(r.niveau) $('#niveau').value = r.niveau;
     if(r.provenance !== undefined) $('#provenance').value = r.provenance;
-    if(r.droit) $('#droit').value = r.droit;
-    if(r.usage) $('#usage').value = r.usage;
+    restaurerMetadonneesSource(r);
     if(Array.isArray(r.verrous))
       VERROUS.forEach(v => { $('#v-' + v.id).checked = r.verrous.indexOf(v.id) > -1; });
     $('#editeur').value = r.prompt;
@@ -10747,8 +10777,10 @@ function useAnalysis(obj){
 }
 function answerQuestion(answer){
   if(oprieState.retryTurn&&!oprieState.running){
+    /* V2.1.3 — « Réessayer l'analyse » rejoue le plan profond, jamais la clarification. La réponse de
+       la personne est déjà dans l'historique : la redemander serait lui faire refaire son travail. */
     oprieState.retryTurn=false;
-    return oprieRunTurn(adpState.requestedMode||'rapide');
+    return oprieRunTurn(adpState.requestedMode||'rapide',{coreOnly:true});
   }
   answer=String(answer||'').trim();if(!answer){toast('Répondez avec vos mots, ou choisissez « Je ne sais pas ».');return}
   /* IA-03 : un second clic pendant que le tour né du premier démarre encore n'est pas une seconde
@@ -10792,7 +10824,7 @@ function v11RequireDemand(){
   return '';
 }
 /* GENERATED — LOT 10G.3B.3F.2
- * source-sha256: c178d9b4cc216745cc5a069d18d3e2c3b4e25ace3f3a0df3781bc015fee5324d
+ * source-sha256: 4e33f71c2e57a7228e4d2e344163561d51a75c37115601efdcf866c350c03322
  * Ne pas modifier manuellement. Régénérer avec tools/build-adn-browser-runtime.mjs
  */
 (function(global){
@@ -10878,11 +10910,52 @@ function simpleHash(input) {
   return (hash >>> 0).toString(16).padStart(8, "0");
 }
 
+/* V2.1.5.2 — LA PROVENANCE NE S'INVENTE PAS, ELLE SE TRANSPORTE.
+ *
+ * MESURÉ chez le propriétaire : la personne avait dit « 4 jours ». L'ADN a présenté « Durée du
+ * séjour : 4 jours (4 nuits) » avec `source = user` et `mandatory = true`. Personne n'avait
+ * prononcé « 4 nuits ».
+ *
+ * Audit indépendant : la trace owner du 2026-09-13T15:36:29.593Z montre déjà « 4 jours (4 nuits) »
+ * dans confirmed_constraints du Core. Le fichier demande-pour-ia-8RKZK6.json en conserve l'obligation
+ * user. Ce cas ne prouve donc PAS une naissance dans l'enrichisseur Architecte.
+ * Un AUTRE chemin dangereux existait bien ici : les obligations arch_analysis ou
+ * derived_deterministic devenaient user par défaut. Le correctif ferme ce chemin, mais ne peut
+ * prouver à lui seul la fidélité sémantique des confirmed_constraints produites en amont.
+ *
+ * LA RÈGLE, ET ELLE EST GÉNÉRIQUE : on ne peut revendiquer `user` que si le producteur l'a dit.
+ * Aucun vocabulaire nouveau n'est créé — les trois valeurs de l'énumération existante suffisent, et
+ * tout ce qui n'est pas une déclaration de la personne est une production du système.
+ *
+ * CE QUI RESTE `user`, ET POURQUOI. La signature historique accepte des CHAÎNES de contraintes
+ * utilisateur. Un OBJET sans source ne bénéficie pas de ce contrat : sa provenance est inconnue.
+ * Les contraintes marquées `oprie` viennent de `confirmed_constraints`, le
+ * champ que le contrat Core réserve à ce que la personne a réellement dit — les dérivations, lui,
+ * les met dans `assumptions_allowed`, et la consigne Core l'énonce désormais explicitement. */
+const SOURCES_DECLARATION_PERSONNE = Object.freeze(["user", "oprie"]);
+const SOURCE_PRODUCTION_SYSTEME = "system";
+
+/** La source d'un élément, jamais promue : `user` seulement si elle est réellement revendiquée. */
+function resolveItemSource(source) {
+  const valeur = text(source);
+  if (SOURCES_DECLARATION_PERSONNE.includes(valeur)) return "user";
+  if (valeur === "material") return "material";
+  return SOURCE_PRODUCTION_SYSTEME;
+}
+
 function normalizeConstraints(items) {
+  /* La branche historique de chaînes déclare des contraintes utilisateur. Les objets transportent
+     leur propre provenance : son absence n'est jamais assimilée à cette signature historique. */
+  const origines = list(items).map((item) => (typeof item === "string" ? "user" : item?.source));
+  const textes = new Map();
+  list(items).forEach((item, i) => {
+    const valeur = text(typeof item === "string" ? item : item?.text || item?.contenu || item?.information);
+    if (valeur && !textes.has(valeur)) textes.set(valeur, origines[i]);
+  });
   return uniqueStrings(items).map((value, index) => ({
     id: numbered("REQ", index),
     text: value,
-    source: "user"
+    source: resolveItemSource(textes.get(value))
   }));
 }
 
@@ -10921,7 +10994,9 @@ function normalizeAssumptions(items) {
 
 function normalizeObligations(items, constraints) {
   const candidates = [
-    ...constraints.map((constraint) => ({ text: constraint.text, source: "user", mandatory: true, verifiable: true, constraint_id: constraint.id })),
+    /* L'obligation promue depuis une contrainte HÉRITE de la source de cette contrainte : elle ne la
+       requalifie pas. Une contrainte dérivée promue reste dérivée. */
+    ...constraints.map((constraint) => ({ text: constraint.text, source: constraint.source, mandatory: true, verifiable: true, constraint_id: constraint.id })),
     ...list(items)
   ];
   const seen = new Set();
@@ -10929,7 +11004,9 @@ function normalizeObligations(items, constraints) {
   for (const item of candidates) {
     const value = typeof item === "string" ? { text: item } : item || {};
     const body = text(value.text || value.contenu);
-    const source = ["user", "material", "system"].includes(value.source) ? value.source : "user";
+    /* Le repli n'est plus « user » : une obligation dont la provenance n'est pas une déclaration de
+       la personne est une production du système, et le dire coûte moins qu'un contrat inventé. */
+    const source = resolveItemSource(value.source);
     const key = `${source}|${body}`;
     if (!body || seen.has(key)) continue;
     seen.add(key);
@@ -11867,35 +11944,24 @@ function list(value) {
   return Array.isArray(value) ? value : [];
 }
 
-function words(value) {
-  const stop = new Set([
-    "avec","avez","cette","dans","des","elle","est","etes","les","pour","que",
-    "quel","quelle","quelles","quels","qui","souhaitez","une","vous","votre","vos"
-  ]);
-  return new Set(
-    text(value)
-      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase().replace(/[’']/g, " ").replace(/[^a-z0-9\s]/g, " ")
-      .split(/\s+/).filter((item) => item.length > 2 && !stop.has(item))
-  );
-}
-
-function questionsSimilar(left, right) {
-  const a = words(left);
-  const b = words(right);
-  if (!a.size || !b.size) return text(left).toLowerCase() === text(right).toLowerCase();
-  let common = 0;
-  for (const item of a) if (b.has(item)) common += 1;
-  return common / Math.min(a.size, b.size) >= 0.7;
-}
-
-function novelQuestions(questions, previousQuestions) {
-  const previous = list(previousQuestions).map(text).filter(Boolean);
-  return list(questions)
-    .map(text)
-    .filter(Boolean)
-    .filter((question) => !previous.some((old) => questionsSimilar(question, old)));
-}
+/* V2.2.1-E3 — L'ESTIMATEUR DE RESSEMBLANCE A ÉTÉ RETIRÉ D'ICI, ET LUI SEUL.
+ *
+ * Trois fonctions vivaient à cet endroit : `words()` et sa liste de mots vides français,
+ * `questionsSimilar()` qui comparait deux questions par un ratio de mots communs au seuil de 0,7,
+ * et `novelQuestions()` qui s'en servait pour écarter une question jugée trop proche d'une
+ * précédente.
+ *
+ * L'INVARIANT ÉTAIT JUSTE ; L'ESTIMATEUR NE L'ÉTAIT PAS. Un ratio comparé à un seuil est un
+ * jugement de SENS rendu localement, et 0,7 n'y devient pas conforme parce qu'il serait
+ * transversal. Cette responsabilité — ne pas reposer une clarification déjà posée — appartient au
+ * plan canonique, où elle est tenue SANS flou : `isRepeatedSolicitation` compare une IDENTITÉ
+ * normalisée, pas une ressemblance, et rend le verdict ALREADY_ANSWERED.
+ *
+ * CE QUI N'A PAS ÉTÉ TOUCHÉ, ET POURQUOI. Ce module déclare une autorité — la porte de readiness
+ * Architecte — que des tests sentinelles comptent nommément (« six autorités, six sources
+ * uniques »). L'audit de ce lot a établi qu'elle n'a plus d'appelant produit, mais la retirer
+ * serait un acte d'architecture, pas une correction d'estimateur. Elle reste donc en place, et
+ * cette dette est nommée dans le rapport V2.2.1-E3 plutôt que payée en passant. */
 
 function assertAnalysis(analysis) {
   if (!analysis || typeof analysis !== "object" || Array.isArray(analysis)) {
@@ -11937,12 +12003,14 @@ function contractForContractualization(contract) {
  * Évalue uniquement des primitives universelles déjà produites par Architecte.
  * Aucun domaine, mot-clé métier ni quantité arbitraire n'est utilisé.
  */
-function assessAnalysisReadiness(analysis, { previous_questions = [] } = {}) {
+function assessAnalysisReadiness(analysis) {
   assertAnalysis(analysis);
   const ev = analysis.evaluation || {};
   const missing = list(analysis.comprehension?.informations_manquantes);
   const blockingMissing = missing.filter((item) => item && item.bloquant === true);
-  const candidates = novelQuestions(ev.questions_a_poser, previous_questions);
+  /* Les questions proposées, telles que l'analyse les donne. Le dédoublonnage avec les
+     clarifications déjà posées appartient au plan canonique, qui le fait par identité. */
+  const candidates = list(ev.questions_a_poser).map(text).filter(Boolean);
   const complete = ev.livrable_complet_possible === true;
   const action = text(ev.action_recommandee);
 
@@ -12552,7 +12620,8 @@ function isCanonicalBaseContract(value) {
 /**
  * Projette un Canonical Base Contract vers les entrées attendues par
  * buildExecutionEnvelope(). Les normaliseurs du moteur ADN attendent des
- * chaînes : la projection les extrait des structures tracées de la base.
+ * chaînes pour certaines collections ; les contraintes gardent leurs objets tracés,
+ * désormais acceptés par le normaliseur ADN. Aplatir ici effacerait leur provenance.
  * La base reste la source de vérité ; l'enveloppe en est une lecture.
  */
 function canonicalBaseToEnvelopeInput(base) {
@@ -12565,7 +12634,7 @@ function canonicalBaseToEnvelopeInput(base) {
       objective: base.intent.objective || "",
       deliverable: base.intent.deliverable || null,
       recipient: base.intent.recipient || null,
-      explicit_constraints: items(base.intent.explicit_constraints)
+      explicit_constraints: clone(list(base.intent.explicit_constraints))
     },
     evidence: clone(base.evidence) || {},
     executability: {
@@ -13626,6 +13695,43 @@ const ISSUE_TYPES = Object.freeze([
   "multi_objective_disorder"
 ]);
 
+/* V2.2.1-D2F1 — CE QUE LA QUESTION INTERROGE, DIT PAR CELUI QUI L'ÉCRIT.
+ *
+ * Un garde d'affichage devait savoir si une clarification demande à la personne une donnée de SA
+ * situation, ou si elle lui demande de définir ce que NOUS devons produire. Il le devinait en
+ * cherchant des mots dans la question. Mesuré en D2A : deux questions de légitimité opposée peuvent
+ * viser la même inconnue canonique — l'état décrit l'INCONNUE, jamais ce que la question INTERROGE.
+ * Aucun champ ne portait donc ce fait, et le lexique le remplaçait.
+ *
+ * Il est désormais déclaré par l'auteur de la question, des deux côtés : le plan profond pour
+ * `next_question`, le plan rapide pour la sienne. Un garde n'a plus à le deviner — et ne le peut
+ * plus, puisqu'il ne reçoit plus le texte pour en juger.
+ *
+ * `other` n'est ni un échec ni un repli : beaucoup de questions ne relèvent ni de l'une ni de
+ * l'autre, et le dire est la réponse juste. Une question sans fait déclaré n'exempte rien et
+ * n'accuse rien — on échoue fermé. */
+const QUESTION_FOCUS_VALUES = Object.freeze([
+  "problem_or_user_context",
+  "output_specification",
+  "other"
+]);
+
+/* V2.2.1-D2F2 — CE SUR QUOI PORTE LA DEMANDE, DIT PAR L'AUTORITÉ.
+ *
+ * Dernier fait que le garde devinait encore. Une exemption existe pour un cas juste : quand la
+ * personne demande elle-même sous quelle forme rendre la chose, lui répondre par une question sur
+ * la forme est le sujet, pas une dérobade. Ce cas se reconnaissait à des tournures interrogatives
+ * cherchées dans le texte de la demande.
+ *
+ * `objective_nature` ne pouvait pas le remplacer, et c'est mesuré : sur trois demandes qui
+ * interrogent littéralement la production, il vaut « other » les trois fois. Produire et mettre en
+ * forme sont une chose ; porter SUR la forme en est une autre. */
+const REQUEST_FOCUS_VALUES = Object.freeze([
+  "output_form_or_specification",
+  "user_problem_or_goal",
+  "other"
+]);
+
 const CONFLICT_KINDS = Object.freeze([
   "logical_contradiction",
   "constraint_tension",
@@ -13908,7 +14014,7 @@ function isLegalTransition(from, to) {
   return allowed.includes(to);
 }
 
-return {OPERATIONAL_REQUEST_STATE_VERSION,OPERATIONAL_REQUEST_STATES,CANDIDATE_FIELDS,CANDIDATE_SCALAR_FIELDS,CANDIDATE_LIST_FIELDS,ISSUE_TYPES,CONFLICT_KINDS,PROVENANCE_VALUES,createEmptyCandidate,normalizeCandidate,normalizeIssues,normalizeProvenanceRecords,validateOriginalRequestRecord,isLegalTransition};
+return {OPERATIONAL_REQUEST_STATE_VERSION,OPERATIONAL_REQUEST_STATES,CANDIDATE_FIELDS,CANDIDATE_SCALAR_FIELDS,CANDIDATE_LIST_FIELDS,ISSUE_TYPES,QUESTION_FOCUS_VALUES,REQUEST_FOCUS_VALUES,CONFLICT_KINDS,PROVENANCE_VALUES,createEmptyCandidate,normalizeCandidate,normalizeIssues,normalizeProvenanceRecords,validateOriginalRequestRecord,isLegalTransition};
 })();
 const DECISIONCORE=(()=>{
 const DECISION_REASONS = Object.freeze({
@@ -14039,7 +14145,6 @@ function questionHasMultipleRequests(question) {
 }
 
 const QUESTION_INTERNAL_LANGUAGE = /\b(?:resultat concret|avancement utile|livrable|objectif operationnel|information structurante|element determinant|critere de reussite|niveau d exigence|perimetre fonctionnel|besoin metier)\b/;
-const QUESTION_STOP_WORDS = new Set(["avec", "avez", "cette", "dans", "de", "des", "du", "elle", "est", "etes", "le", "les", "pour", "que", "quel", "quelle", "quelles", "quels", "qui", "souhaitez", "sur", "une", "vous", "votre", "vos"]);
 
 function normalizedQuestionText(value) {
   return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[’']/g, " ").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
@@ -14049,22 +14154,27 @@ function questionUsesInternalLanguage(question) {
   return QUESTION_INTERNAL_LANGUAGE.test(normalizedQuestionText(question));
 }
 
-function questionKeywords(question) {
-  return new Set(normalizedQuestionText(question).split(" ").filter((word) => word.length > 2 && !QUESTION_STOP_WORDS.has(word)));
-}
-
-function questionsAreTooSimilar(left, right) {
-  const a = questionKeywords(left);
-  const b = questionKeywords(right);
-  if (!a.size || !b.size) return normalizedQuestionText(left) === normalizedQuestionText(right);
-  let common = 0;
-  for (const word of a) if (b.has(word)) common += 1;
-  return common / Math.min(a.size, b.size) >= 0.7;
-}
-
-function previousQuestions(demand) {
-  return [...String(demand || "").matchAll(/^-\s*(.+?)\s+—\s+Réponse\s*:/gmi)].map((match) => match[1].trim());
-}
+/* V2.2.1-E3 — L'APPARIEMENT FLOU A QUITTÉ CE VALIDATEUR.
+ *
+ * Trois fonctions vivaient ici : `questionKeywords` (découpe en mots, avec sa liste de mots vides),
+ * `questionsAreTooSimilar` (ratio de mots communs comparé à un seuil de 0,7) et `previousQuestions`.
+ * Ensemble, elles refusaient une sortie du modèle dont la question répétait une clarification déjà
+ * posée.
+ *
+ * L'INVARIANT ÉTAIT JUSTE ; L'ESTIMATEUR NE L'ÉTAIT PAS. Un ratio comparé à un seuil est un
+ * jugement de SENS rendu localement, ce que la Directive Maître interdit — et 0,7 n'y devient pas
+ * conforme parce qu'il serait transversal. Cette responsabilité appartient d'ailleurs au plan
+ * canonique depuis longtemps, où elle est tenue SANS flou : `isRepeatedSolicitation` compare une
+ * IDENTITÉ normalisée, pas une ressemblance, et rend le verdict ALREADY_ANSWERED.
+ *
+ * POURQUOI SUPPRIMER PLUTÔT QUE DÉLÉGUER. L'ordre de la Directive place SUPPRIMER avant RÉUTILISER,
+ * et déléguer aurait demandé de réécrire ce validateur — ce que la gouvernance du lot interdit
+ * explicitement pour un chemin dont la responsabilité a déjà changé de propriétaire. La route
+ * `/decision` n'a plus aucun client produit depuis V2.2.1-E2, qui en a retiré l'unique appelant.
+ *
+ * Ce qui reste ici valide la FORME : jeu de clés exact, vocabulaires clos, longueurs, une seule
+ * demande par question, absence de vocabulaire interne, cohérence état/route. Aucun de ces
+ * contrôles ne juge du sens. */
 
 function validateDecisionInput(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -14102,7 +14212,6 @@ function validateDecision(value, demand = "") {
   const question = value.question === null ? null : normalizeSingleQuestion(value.question);
   if (question !== null && (!question || question.length > 180 || questionHasMultipleRequests(question))) throw new Error("Une clarification doit contenir une seule demande.");
   if (question !== null && questionUsesInternalLanguage(question)) throw new Error("La question expose le vocabulaire interne du pipeline.");
-  if (question !== null && previousQuestions(demand).some((previous) => questionsAreTooSimilar(previous, question))) throw new Error("La question répète une clarification déjà posée.");
   if (value.etat_demande === "clarification_necessaire") {
     if (value.route !== null || question === null) throw new Error("Une clarification exige route=null et une question.");
   } else if (!ROUTES.has(value.route) || value.question !== null) {
@@ -14526,8 +14635,112 @@ async function runProviderChain({ role, providers, preflight, log = defaultLog }
 
 return {FAILURE_CLASSES};
 })();
+const BOUNDED=(()=>{
+/* M-02 — EXÉCUTEUR À CONCURRENCE BORNÉE
+ * ============================================================================
+ *
+ * Une brique unique, générique et pure : exécuter N tâches indépendantes avec
+ * au plus L en vol, et rendre leurs résultats DANS L'ORDRE D'ENTRÉE.
+ *
+ * Ce qu'elle garantit — et pourquoi chacun compte :
+ *
+ *   ORDRE D'ENTRÉE PRÉSERVÉ. L'ordre d'arrivée réseau ne doit jamais devenir
+ *   l'ordre sémantique d'un résultat. Chaque tâche écrit à SON index, jamais
+ *   par `push` : c'est ce qui rend impossible qu'une réponse rapide double une
+ *   réponse lente dans l'agrégat final.
+ *
+ *   TOUTES LES TÂCHES SONT TENTÉES. On rend un tableau de verdicts, jamais une
+ *   promesse qui rejette à la première erreur. La raison n'est pas stylistique :
+ *   le pipeline appelant, aujourd'hui, exécute TOUS ses appels puis échoue si
+ *   l'un a échoué. Rejeter tôt annulerait des appels qui ont lieu actuellement,
+ *   donc changerait la politique d'échec — ce que ce lot s'interdit.
+ *
+ *   BORNE RESPECTÉE. La limite est une contrainte TECHNIQUE — capacité d'un
+ *   fournisseur, budget de débit — jamais une propriété du contenu traité.
+ *   Elle est donc toujours INJECTÉE par l'appelant, jamais décidée ici.
+ *
+ *   AUCUNE STARVATION. Chaque tâche admissible finit ou échoue explicitement.
+ *
+ * Ce module n'a aucune dépendance, ne connaît aucun fournisseur, aucun rôle,
+ * aucun schéma. Il ne sait pas ce qu'il exécute — et c'est précisément ce qui
+ * lui permet d'être utilisé sans introduire d'autorité nouvelle.
+ * ========================================================================= */
+
+/**
+ * Valeur par défaut DÉLIBÉRÉMENT séquentielle.
+ *
+ * Un défaut supérieur à 1 changerait le comportement de tout appelant qui n'a
+ * pas explicitement demandé la concurrence — y compris ceux dont le fournisseur
+ * protège son débit par un stimulateur partagé. Le défaut ne peut donc pas être
+ * un réglage de performance : il doit être le comportement d'avant.
+ */
+const DEFAULT_CONCURRENCY = 1;
+
+/** Une limite est un entier ≥ 1. Rien d'autre n'est une limite. */
+function normalizeConcurrency(value) {
+  if (value === undefined || value === null) return DEFAULT_CONCURRENCY;
+  if (!Number.isInteger(value) || value < 1) {
+    throw new TypeError(`M-02 : la limite de concurrence doit être un entier ≥ 1 (reçu : ${String(value)}).`);
+  }
+  return value;
+}
+
+/**
+ * Exécute `tasks` avec au plus `concurrency` tâches en vol.
+ *
+ * @param {ReadonlyArray<() => Promise<unknown>>} tasks fonctions sans argument.
+ * @param {{concurrency?: number, signal?: {aborted: boolean, reason?: unknown}}} [options]
+ * @returns {Promise<Array<{status: "fulfilled", value: unknown} | {status: "rejected", reason: unknown}>>}
+ *          un verdict PAR TÂCHE, au MÊME index que dans `tasks`.
+ */
+async function runBounded(tasks, { concurrency, signal } = {}) {
+  if (!Array.isArray(tasks)) throw new TypeError("M-02 : runBounded attend une liste de tâches.");
+  const limit = normalizeConcurrency(concurrency);
+  for (const task of tasks) {
+    if (typeof task !== "function") throw new TypeError("M-02 : chaque tâche doit être une fonction sans argument.");
+  }
+  if (tasks.length === 0) return [];
+
+  /* Tableau pré-dimensionné : chaque tâche écrit à SON index. Aucune écriture
+     concurrente ne peut se retrouver à la place d'une autre, et le dernier à
+     répondre n'écrase jamais le premier. */
+  const results = new Array(tasks.length);
+  let next = 0;
+
+  /* Un ouvrier consomme les indices restants un par un. Le nombre d'ouvriers EST
+     la borne : il n'existe aucun autre endroit où une tâche pourrait démarrer. */
+  async function worker() {
+    for (;;) {
+      const index = next;
+      if (index >= tasks.length) return;
+      next += 1;
+      if (signal && signal.aborted) {
+        /* L'annulation du parent arrête la PRISE de nouvelles tâches. Elle
+           n'invente aucune politique : les tâches déjà lancées suivent celle de
+           leur propre appel, et celles jamais lancées portent la raison. */
+        results[index] = { status: "rejected", reason: signal.reason ?? new Error("M-02 : exécution annulée.") };
+        continue;
+      }
+      try {
+        results[index] = { status: "fulfilled", value: await tasks[index]() };
+      } catch (reason) {
+        /* Une tâche qui échoue n'annule pas ses voisines : ce serait décider à
+           la place de l'appelant, dont la politique d'échec lui appartient. */
+        results[index] = { status: "rejected", reason };
+      }
+    }
+  }
+
+  const workers = [];
+  for (let i = 0; i < Math.min(limit, tasks.length); i += 1) workers.push(worker());
+  await Promise.all(workers);
+  return results;
+}
+
+return {runBounded};
+})();
 const ORCORE=((deps)=>{
-const {CANDIDATE_FIELDS,CANDIDATE_SCALAR_FIELDS,ISSUE_TYPES,CONFLICT_KINDS,PROVENANCE_VALUES,OPERATIONAL_REQUEST_STATE_VERSION,normalizeCandidate,normalizeIssues,normalizeProvenanceRecords,validateOriginalRequestRecord,DecisionHttpError,TRANSPORT_LIMITS,corsHeaders,jsonResponse,readJsonBody,runBounded}=deps;
+const {CANDIDATE_FIELDS,CANDIDATE_SCALAR_FIELDS,ISSUE_TYPES,CONFLICT_KINDS,PROVENANCE_VALUES,OPERATIONAL_REQUEST_STATE_VERSION,normalizeCandidate,normalizeIssues,QUESTION_FOCUS_VALUES,REQUEST_FOCUS_VALUES,normalizeProvenanceRecords,validateOriginalRequestRecord,DecisionHttpError,TRANSPORT_LIMITS,corsHeaders,jsonResponse,readJsonBody,runBounded}=deps;
 
 
 
@@ -14538,10 +14751,25 @@ const {CANDIDATE_FIELDS,CANDIDATE_SCALAR_FIELDS,ISSUE_TYPES,CONFLICT_KINDS,PROVE
 // DecisionHttpError/TRANSPORT_LIMITS sont réutilisés tels quels depuis decision-core.js (utilitaires
 // HTTP génériques, non spécifiques au Decision Provider legacy) : ce fichier ne les modifie jamais.
 
+
 const OPERATIONAL_REQUEST_CORE_VERSION = "1.0";
 
 const OPRIE_ROLES = Object.freeze(["analyst", "critic", "arbiter"]);
 
+/* V2.2.1-D2D — LA NATURE DE L'OBJECTIF, DITE PAR L'AUTORITÉ PLUTÔT QUE DEVINÉE PAR UN GARDE.
+ *
+ * Un garde d'affichage devait savoir si la personne demande qu'on FASSE EXISTER un résultat, ou
+ * qu'on REPRENNE un contenu qui existe déjà pour le disposer autrement. Il le déduisait de la
+ * présence de mots de production dans la demande — donc « j'ai besoin d'un document » et « convertis
+ * ce texte » recevaient la même réponse, alors que ce sont deux objectifs opposés.
+ *
+ * Le fait porte sur l'OBJECTIF, jamais sur l'existence d'un intrant : disposer d'une entrée n'a
+ * jamais fait d'un objectif une transformation. C'est précisément ce qui manque à available_inputs
+ * et à material_context, qui constatent qu'une entrée existe et rien de plus.
+ *
+ * `other` n'est ni un échec ni un repli : la plupart des demandes ne se rangent dans aucune des deux
+ * catégories, et le dire est la réponse juste. */
+const OBJECTIVE_NATURES = Object.freeze(["production", "transformation", "other"]);
 // Vocabulaire universel de traitement des inconnues (CDC §9). QUESTIONNER est le dernier recours.
 const TREATMENT_VALUES = Object.freeze([
   "research",
@@ -14674,12 +14902,28 @@ function normalizeRoleIssues(issues) {
   return normalized;
 }
 
+/* Les trois champs historiques, plus le fait de D2F1 quand il est là. Même contrat que
+   available_inputs et objective_nature : requis du MODÈLE par le schéma, toléré absent du
+   VALIDATEUR pour que rien de ce qui a été écrit avant ne devienne invalide. */
+function champsDeQuestion(question) {
+  const base = ["text", "targets_issue_id", "expected_progress"];
+  return Object.prototype.hasOwnProperty.call(question || {}, "question_focus")
+    ? [...base, "question_focus"] : base;
+}
+
+function normaliseQuestionFocus(brut) {
+  const focus = brut === undefined || brut === null ? null : brut;
+  assert(focus === null || QUESTION_FOCUS_VALUES.includes(focus), "QuestionCandidate.question_focus invalide.");
+  return focus;
+}
+
 function validateQuestionCandidate(question) {
-  exactKeys(question, ["text", "targets_issue_id", "expected_progress"], "QuestionCandidate");
+  exactKeys(question, champsDeQuestion(question), "QuestionCandidate");
   const value = {
     text: text(question.text),
     targets_issue_id: text(question.targets_issue_id),
-    expected_progress: text(question.expected_progress)
+    expected_progress: text(question.expected_progress),
+    question_focus: normaliseQuestionFocus(question && question.question_focus)
   };
   assert(value.text, "QuestionCandidate.text est obligatoire.");
   assert(value.targets_issue_id, "QuestionCandidate.targets_issue_id est obligatoire.");
@@ -15102,6 +15346,45 @@ function filterQualifiedVetoes(vetoes, previousVetoes = []) {
 // RÔLE ARBITRE (CDC §20) — appel conditionnel, jamais systématique
 // ---------------------------------------------------------------------------
 
+/* ==========================================================================
+ * V2.2 — LA DOCTRINE DE CLARIFICATION, ÉCRITE UNE FOIS, CHEZ SON PROPRIÉTAIRE.
+ *
+ * CE QUE LA MESURE A MONTRÉ. La même doctrine — échelle de substitution, matérialité, priorité —
+ * était écrite dans TROIS modules : la consigne rapide, la consigne Core, et les consignes du trio
+ * historique. Trois rédactions, trois occasions de divergence, et aucun propriétaire identifiable.
+ * C'est la cacophonie décisionnelle, à sa source : non pas deux composants qui se contredisent, mais
+ * une même règle recopiée que personne ne possède.
+ *
+ * OPRIE EN EST LE PROPRIÉTAIRE, et ce module est OPRIE. La doctrine vit donc ici, une fois. Les deux
+ * plans vivants l'INCLUENT : le plan rapide l'applique vite, le plan profond l'applique à fond. Ce
+ * n'est pas une autorité nouvelle — c'est la suppression de deux copies.
+ *
+ * CE QUI N'EST PAS TOUCHÉ, ET POURQUOI. Les consignes du trio historique gardent leur propre texte :
+ * elles ne sont plus sur le chemin nominal depuis V2 CORE FIRST, elles sont protégées par des tests
+ * de caractérisation, et les unifier n'apporterait aucun bénéfice à l'utilisateur. La dette est
+ * NOMMÉE ici plutôt que traitée à l'aveugle.
+ * ========================================================================= */
+const OPRIE_CLARIFICATION_DOCTRINE = `AVANT DE QUESTIONNER — LA SUBSTITUTION
+Une information manquante n'appelle pas automatiquement une question, et ne devient pas déterminante par le seul fait de manquer : elle peut être recherchée, décidée, estimée, traitée par scénario, conditionnée, ou laissée explicitement inconnue ; appliquez ce test, et lui seul. Pour chaque inconnue, choisissez une stratégie, dans cet ordre de préférence : rechercher (fait externe vérifiable), décider (choix délégué ou équivalent), estimer (approximation étiquetée), scénariser (traiter plusieurs valeurs proprement), conditionner (énoncer une condition explicite), laisser localement inconnue (cela n'empêche pas de produire), et SEULEMENT en dernier recours questionner. Une inconnue ne justifie une question que si elle change matériellement le résultat, appartient à la personne ou à son contexte, n'est pas déjà connue ni déjà résolue, et ne peut être ni décidée, ni estimée honnêtement, ni scénarisée, ni conditionnée sans perte matérielle. Demander une précision est le dernier recours, jamais le premier : ne le faites que si aucune de ces voies n'est sûre. RECHERCHER ne s'applique qu'à un fait externe vérifiable : une préférence, une décision personnelle, un montant alloué, une échéance choisie ou un arbitrage qui appartient à la personne n'est jamais recherchable au seul motif qu'il manque.
+
+Pour savoir si ce recours est atteint, prenez les deux lectures raisonnables les plus éloignées de la demande, telle qu'elle est, augmentée des réponses déjà obtenues. Conduiraient-elles à produire deux choses SUBSTANTIELLEMENT DIFFÉRENTES — de nature, d'étendue ou de structure — ou la même chose autrement colorée ? SUBSTANTIELLEMENT DIFFÉRENTES : le recours est atteint. Posez UNE seule question : celle qui sépare ces deux lectures. LA MÊME CHOSE AUTREMENT COLORÉE : ne demandez rien.
+
+TEST DE MATÉRIALITÉ — c'est lui qui décide, et rien d'autre. Prenez les réponses plausibles à la question envisagée. Si elles étaient différentes, ce qui sera produit changerait-il SIGNIFICATIVEMENT — sa nature, son niveau, son étendue, sa structure, ses contraintes, ou une décision importante qu'il porte ? Si oui, la question est matérielle. Si non, ne la posez pas, même si l'information manque.
+Ne jugez JAMAIS par catégorie. Une même sorte d'information peut être décisive dans une demande et négligeable dans une autre : c'est l'IMPACT qui tranche, jamais l'étiquette. Un public qui découvre un sujet et un public qui le maîtrise ne reçoivent pas la même chose ; deux préférences de goût, elles, donnent la même chose autrement colorée. Que la demande nomme déjà ce qu'il faut produire ne rend pas exploitable tout le reste : une production nommée peut encore dépendre d'une variable qui en change le niveau ou l'étendue.
+
+Une demande longue, dense, chargée de contraintes ou de détails n'est PAS une demande ambiguë : la longueur n'est pas de l'ambiguïté, et le nombre de contraintes n'appelle aucune analyse préalable.
+
+PLUSIEURS MANQUES, UNE SEULE QUESTION : choisissez celui dont les valeurs plausibles écarteraient le plus le résultat — son coût, sa faisabilité, sa structure, sa validité, ou la recommandation finale. Jamais selon l'ordre d'apparition, ni selon l'habitude. Et si la personne a posé une exigence dont le respect DÉPEND d'une variable qu'elle n'a pas donnée, cette variable est matérielle : sans elle, on ne peut pas savoir si son exigence tient.
+
+CE QUI A DÉJÀ ÉTÉ RÉPONDU EST ACQUIS. Dès qu'une réponse a été obtenue, l'exigence monte : ne reposez une question que si le résultat attendu reste RÉELLEMENT impossible à construire. Si la personne a répondu qu'elle ne sait pas, ou qu'elle vous laisse choisir, cette information est TRAITÉE : il est interdit de reposer la même question ou une question portant sur le même choix — décidez, estimez, scénarisez, conditionnez, ou laissez localement inconnu, et ne revenez jamais dessus — ni telle quelle, ni reformulée.`;
+
+/* La part de la doctrine qui gouverne le CANDIDAT, et elle seule. Le plan rapide ne produit aucun
+ * candidat : la lui donner l'alourdirait sans rien lui permettre — et sa réserve de jetons est
+ * mesurée. Un propriétaire, deux audiences, aucune copie. */
+const OPRIE_ASSUMPTION_DOCTRINE = `UNE HYPOTHÈSE MATÉRIELLE NE SE FIGE PAS
+Étiqueter honnêtement une hypothèse ne suffit pas à en faire un paramètre d'exécution. Avant qu'une hypothèse serve de valeur à une recherche, une comparaison, un coût ou un calcul, demandez-vous si des valeurs plausibles DIFFÉRENTES changeraient le coût, la faisabilité, la structure de ce qui sera produit, sa validité ou la recommandation finale. Si oui, ne choisissez pas une valeur unique pour atteindre un état prêt : traitez-la par scénarios, conditionnez ce qui en dépend, ou laissez-la explicitement inconnue en le disant. Une inconnue matérielle traitée ainsi n'empêche pas un état prêt ; une inconnue matérielle remplacée en silence par une valeur arbitraire, elle, fabrique une readiness que rien ne soutient.`;
+
+
 const ARBITER_SYSTEM_PROMPT = `RÔLE
 Vous êtes l'Arbitre au sein de l'OPRIE. Vous n'êtes appelé que lorsque l'Analyste et le Critique sont en désaccord, qu'un veto qualifié existe, qu'une ambiguïté ou un conflit matériel subsiste, que la fidélité sémantique est incertaine, ou que l'enjeu est significatif. Votre verdict est final pour ce tour : personne d'autre ne le renverse.
 
@@ -15130,6 +15413,8 @@ Répondez uniquement avec l'objet JSON demandé, conforme au schéma.`;
 const ARBITER_OUTPUT_FIELDS = Object.freeze([
   "state",
   "operational_request_candidate",
+  "objective_nature",
+  "request_focus",
   "issues",
   "next_question",
   "confirmation_reason",
@@ -15155,7 +15440,7 @@ function makeArbiterUserMessage({ original_request, clarification_history = [], 
  * l'objet validé sinon — seul le contrat de transport a changé, pas le sens.
  */
 function validateNullableQuestionCandidate(value) {
-  exactKeys(value, ["text", "targets_issue_id", "expected_progress"], "QuestionCandidate");
+  exactKeys(value, champsDeQuestion(value), "QuestionCandidate");
   const allNull = value.text === null && value.targets_issue_id === null && value.expected_progress === null;
   if (allNull) return null;
   assert(
@@ -15180,10 +15465,40 @@ function validateIntentPreservationSemantic(value) {
 }
 
 function validateArbiterOutput(value) {
-  exactKeys(value, ARBITER_OUTPUT_FIELDS, "ArbiterOutput");
+  /* V2.2.1-D2D — LECTURE TOLÉRANTE, ÉCRITURE STRICTE.
+   *
+   * `objective_nature` est REQUIS du producteur : le schéma d'outil le déclare, et un modèle ne peut
+   * pas l'omettre. Le lecteur, lui, accepte son absence et la traite comme « non dit ». Ce n'est pas
+   * une indulgence, c'est la contrepartie du dessin : tout le dispositif échoue FERMÉ quand le fait
+   * manque — aucune exemption, au pire un silence. Rejeter le tour entier reviendrait à rendre FATAL
+   * un fait dont l'absence est par construction inoffensive, et à détruire un tour de travail pour
+   * une métadonnée que la personne ne voit jamais. C'est le raisonnement déjà retenu en V2.1.2 pour
+   * la cohérence question/inconnue, et il vaut ici mot pour mot.
+   *
+   * Une valeur PRÉSENTE mais hors vocabulaire reste refusée : c'est une violation du contrat, pas
+   * un silence.
+   *
+   * CE CONTRAT N'EST PAS INVENTÉ ICI. `normalizeCandidate` l'a établi mot pour mot pour
+   * available_inputs — « requis du MODÈLE, toléré absent du VALIDATEUR » — parce qu'ajouter un champ
+   * à un schéma dont `required` égale `properties` invaliderait sinon, d'un coup, tout ce qui a été
+   * écrit avant. Même problème, même réponse, et une seule exception nommée plutôt qu'un contrat
+   * ouvert. */
+  const optionnels = ["objective_nature", "request_focus"];
+  const champsAttendus = ARBITER_OUTPUT_FIELDS.filter((champ) => (
+    !optionnels.includes(champ) || Object.prototype.hasOwnProperty.call(value || {}, champ)
+  ));
+  exactKeys(value, champsAttendus, "ArbiterOutput");
   assert(ARBITER_STATES.includes(value.state), "ArbiterOutput.state invalide (degraded_state ne peut jamais être auto-déclaré).");
 
   const operational_request_candidate = normalizeCandidate(value.operational_request_candidate);
+  const objective_nature = value.objective_nature === undefined || value.objective_nature === null
+    ? null : value.objective_nature;
+  assert(objective_nature === null || OBJECTIVE_NATURES.includes(objective_nature),
+    "ArbiterOutput.objective_nature invalide.");
+  const request_focus = value.request_focus === undefined || value.request_focus === null
+    ? null : value.request_focus;
+  assert(request_focus === null || REQUEST_FOCUS_VALUES.includes(request_focus),
+    "ArbiterOutput.request_focus invalide.");
   const issues = normalizeRoleIssues(value.issues);
   const next_question = validateNullableQuestionCandidate(value.next_question);
   const confirmation_reason = value.confirmation_reason === null ? null : (text(value.confirmation_reason) || null);
@@ -15194,6 +15509,16 @@ function validateArbiterOutput(value) {
 
   if (value.state === "clarification_required") {
     assert(next_question, "clarification_required exige next_question.");
+    /* V2.1.2 — LA COHÉRENCE QUESTION → INCONNUE EST OBSERVÉE, PAS FERMÉE ICI.
+     *
+     * Première version de ce lot : une assertion, ici même, refusant le tour quand
+     * `targets_issue_id` ne désignait aucune inconnue déclarée. Deux tests l'ont refusée, et ils
+     * avaient raison — dont un qui s'est mis à attendre soixante secondes. La raison est de fond :
+     * une incohérence de métadonnée que la personne ne voit JAMAIS ne justifie pas de perdre un tour
+     * entier de travail. Fermer ici rendait le produit moins disponible pour un défaut invisible.
+     *
+     * Le contrôle vit donc à la frontière d'affichage, où il journalise sans rien détruire. Voir
+     * `applyDisplayGuardToTurn`. */
     assert(confirmation_reason === null, "clarification_required exige confirmation_reason=null.");
     assert(blocked_reason === null, "clarification_required exige blocked_reason=null.");
   } else if (value.state === "confirmation_required") {
@@ -15215,7 +15540,7 @@ function validateArbiterOutput(value) {
     assert(intent_preservation.concerns.length === 0, "operational_request_ready exige une liste concerns vide.");
   }
 
-  return clone({ state: value.state, operational_request_candidate, issues, next_question, confirmation_reason, blocked_reason, intent_preservation, reason });
+  return clone({ state: value.state, operational_request_candidate, objective_nature, request_focus, issues, next_question, confirmation_reason, blocked_reason, intent_preservation, reason });
 }
 
 // ---------------------------------------------------------------------------
@@ -15234,8 +15559,14 @@ function isConfirmationRecommended({ confirmation_signals, significant_stakes = 
 // Dégradation technique (CDC §22) — produite par le code appelant, jamais par un rôle LLM.
 // ---------------------------------------------------------------------------
 
+/* Les rôles qui peuvent RENDRE un état dégradé. OPRIE_ROLES reste ce qu'il est — la séquence
+   historique, et les routes publiques qu'elle expose. V2 ajoute ses trois rôles ici seulement :
+   une panne de fournisseur doit dégrader proprement quel que soit le plan qui tournait, sinon le
+   client reçoit un 502 muet là où il recevait un état. */
+const DEGRADABLE_ROLES = Object.freeze([...OPRIE_ROLES, "core", "core_critic", "core_arbiter"]);
+
 function createDegradedRoleResult(role, reason) {
-  assert(OPRIE_ROLES.includes(role), "Rôle OPRIE inconnu.");
+  assert(DEGRADABLE_ROLES.includes(role), "Rôle OPRIE inconnu.");
   const value = text(reason);
   assert(value, "Un motif de dégradation est obligatoire.");
   return Object.freeze({ role, state: "degraded_state", reason: value });
@@ -15243,7 +15574,7 @@ function createDegradedRoleResult(role, reason) {
 
 function validateDegradedRoleResult(result) {
   exactKeys(result, ["role", "state", "reason"], "DegradedRoleResult");
-  assert(OPRIE_ROLES.includes(result.role), "Rôle OPRIE inconnu.");
+  assert(DEGRADABLE_ROLES.includes(result.role), "Rôle OPRIE inconnu.");
   assert(result.state === "degraded_state", "DegradedRoleResult.state doit être degraded_state.");
   assert(text(result.reason), "DegradedRoleResult.reason est obligatoire.");
   return clone(result);
@@ -15420,8 +15751,11 @@ const ISSUE_JSON_SCHEMA = Object.freeze({
 const QUESTION_CANDIDATE_JSON_SCHEMA = Object.freeze({
   type: "object",
   additionalProperties: false,
-  required: ["text", "targets_issue_id", "expected_progress"],
-  properties: { text: { type: "string" }, targets_issue_id: { type: "string" }, expected_progress: { type: "string" } }
+  required: ["text", "targets_issue_id", "expected_progress", "question_focus"],
+  properties: {
+    text: { type: "string" }, targets_issue_id: { type: "string" }, expected_progress: { type: "string" },
+    question_focus: { type: "string", enum: [...QUESTION_FOCUS_VALUES] }
+  }
 });
 
 // 3F.3.3-P1 : "value" était déjà dans required (la CLÉ est déjà garantie présente par le mode strict
@@ -16702,6 +17036,8 @@ const ARBITER_JSON_SCHEMA = Object.freeze({
   properties: {
     state: { type: "string", enum: [...ARBITER_STATES] },
     operational_request_candidate: CANDIDATE_JSON_SCHEMA,
+    objective_nature: { type: "string", enum: [...OBJECTIVE_NATURES] },
+    request_focus: { type: "string", enum: [...REQUEST_FOCUS_VALUES] },
     issues: { type: "array", items: ISSUE_JSON_SCHEMA },
     // next_question est toujours un objet structurellement présent (jamais null au premier niveau,
     // pour la même raison que kind ci-dessus : un objet nullable imbriqué est un cas moins éprouvé
@@ -16710,11 +17046,12 @@ const ARBITER_JSON_SCHEMA = Object.freeze({
     next_question: {
       type: "object",
       additionalProperties: false,
-      required: ["text", "targets_issue_id", "expected_progress"],
+      required: ["text", "targets_issue_id", "expected_progress", "question_focus"],
       properties: {
         text: { type: ["string", "null"] },
         targets_issue_id: { type: ["string", "null"] },
-        expected_progress: { type: ["string", "null"] }
+        expected_progress: { type: ["string", "null"] },
+        question_focus: { type: ["string", "null"], enum: [...QUESTION_FOCUS_VALUES, null] }
       }
     },
     confirmation_reason: { type: ["string", "null"] },
@@ -16878,10 +17215,65 @@ function validateOriginalRequestAndHistory(value) {
   }
 }
 
+/* ==========================================================================
+ * V2.2.1-B — LE VERROU DE DÉCISION CANONIQUE.
+ *
+ * CE QUE LA MESURE A ÉTABLI. La décision sémantique était prise DEUX FOIS : une fois par le plan
+ * rapide, qui applique la doctrine et conclut, puis une seconde fois par le plan profond, qui
+ * réévaluait l'état avant de produire le candidat. Mesuré en usage réel : le plan rapide avait
+ * accusé réception — donc conclu que la demande était exploitable — et le plan profond a rendu
+ * `clarification_required` avec huit inconnues. Deux readiness, deux réponses, un seul utilisateur.
+ *
+ * CE QUE CE VERROU EST, ET CE QU'IL N'EST PAS. Ce n'est ni une autorité nouvelle, ni un schéma
+ * parallèle : le vocabulaire de décision existe déjà dans les types du plan rapide. ASK_CLARIFICATION
+ * et ASK_CONFIRMATION disent ASK_ONE ; ACKNOWLEDGE dit READY ; WAIT_FOR_DEEP_VALIDATION dit
+ * ESCALATE_DEEP. Il manquait le VERROU, pas les mots.
+ *
+ * POURQUOI IL VIT ICI. Seule l'autorité connaît le vocabulaire des états — l'orchestrateur n'a pas le
+ * droit de les nommer (ORCH01-21b). Le verrou est donc validé par celui qui le possède, et
+ * l'orchestrateur ne fait que le transporter.
+ *
+ * CE QUI ARRIVE SI LE PLAN PROFOND DÉSOBÉIT. Il ne l'emporte pas en silence : la sortie est refusée
+ * comme contractuellement inutilisable, exactement comme une sortie mal formée. La chaîne de haute
+ * disponibilité fait alors ce qu'elle sait faire — une tentative sur le second fournisseur — et si
+ * les deux désobéissent, l'état dégradé est prononcé. Aucune boucle : une tentative par fournisseur.
+ * ========================================================================= */
+/* V2.2.1-E1 — LE VERROU DE DÉCISION CANONIQUE A ÉTÉ RETIRÉ, ET VOICI POURQUOI.
+ *
+ * V2.2.1-B avait posé un verrou pour fermer la « double readiness » : le plan rapide traduisait son
+ * ACKNOWLEDGE en décision canonique READY, et le contractualisateur n'avait plus le droit d'en
+ * décider autrement. D1 a ensuite réparé le câblage navigateur de ce verrou, et j'ai rapporté P0
+ * comme fermé.
+ *
+ * LE RÉAUDIT INDÉPENDANT A MONTRÉ QUE C'ÉTAIT LE REMÈDE INVERSE. Le verrou fonctionnait, mais il
+ * verrouillait une autorité que la gouvernance interdit. Les deux textes normatifs sont explicites
+ * et concordants :
+ *   GARDE-FOU §9 — « Fast … Il ne doit pas : fabriquer READY » ; invariant « Fast candidate-only ».
+ *   DIRECTIVE §5 — « OPRIE = autorité sémantique de la demande ET DE LA READINESS » ; à proscrire :
+ *                  « double readiness », « seconde représentation canonique inutile ».
+ *   DIRECTIVE §6 — le plan rapide « ne devient jamais une seconde autorité ».
+ *
+ * La double readiness ne se ferme donc pas en donnant le dernier mot au plan rapide : elle se ferme
+ * en lui retirant le premier. ACKNOWLEDGE ne dit pas « la demande est prête » ; il dit « aucune
+ * interaction rapide n'est nécessaire ». Ce qui suit appartient à l'autorité, et à elle seule.
+ *
+ * CE QUI A DISPARU AVEC LUI. Le verrou n'engageait un état que pour READY — ASK_ONE n'atteignait
+ * jamais le contractualisateur, et ESCALATE_DEEP lui demandait précisément de décider. Privé de
+ * READY, l'objet entier n'avait plus un seul champ utile : `decision` ne pouvait plus rien
+ * verrouiller, `source` ne nommait plus qu'un producteur interdit, et `selected_unknown` comme
+ * `semantic_reason` n'étaient que ses traces d'audit. Aucun producteur `OPRIE_DEEP` n'a jamais
+ * existé. L'objet est donc supprimé, et non conservé vide.
+ *
+ * Le conflit de contractualisation disparaît par voie de conséquence : il ne pouvait naître que
+ * d'un verrou que le contractualisateur ne servait pas. Ce n'est pas une correction du défaut P2 —
+ * c'est la disparition du mécanisme qui le produisait. */
+
 function validateAnalystInput(value) {
   /* OPRIE-MATERIAL-CONTENT-02 — DEUX CLÉS OPTIONNELLES, NOMMÉES, ET RIEN DE PLUS.
      requireExactKeys reste la règle : on ne relâche pas le contrat, on énumère les
      seules clés supplémentaires admises. Toute autre clé est refusée comme avant. */
+  /* V2.2.1-B ajoute UNE clé optionnelle, nommée, et rien de plus : la décision canonique déjà prise.
+     Son absence laisse le contrat d'entrée exactement tel qu'il était. */
   requireKeysWithOptional(value, ["original_request", "clarification_history"],
     ["material_context", "material_content"], "AnalystInput");
   const material_context = normalizeMaterialContext(value.material_context);
@@ -16995,7 +17387,7 @@ async function handleRoleRequest(request, env, { role, execute }) {
 }
 
 return {OPRIE_ROLES,ARBITER_STATES,ROLE_DEFINITIONS,ANALYST_SYSTEM_PROMPT,CRITIC_SYSTEM_PROMPT,ARBITER_SYSTEM_PROMPT,ANALYST_JSON_SCHEMA,CRITIC_JSON_SCHEMA,ARBITER_JSON_SCHEMA,makeAnalystUserMessage,makeCriticUserMessage,makeArbiterUserMessage,parseAnalystOutput,parseCriticOutput,parseArbiterOutput,validateAnalystOutput,validateCriticOutput,validateArbiterOutput,validateDegradedRoleResult,createDegradedRoleResult,buildCriticJsonSchema,buildQuestionReviewTargets,validateAnalystInput};
-})({...ORSTATE,...DECISIONCORE});
+})({...ORSTATE,...DECISIONCORE,...BOUNDED});
 const ROLEDEG=((deps)=>{
 const {createDegradedRoleResult,FAILURE_CLASSES}=deps;
 
@@ -17077,8 +17469,8 @@ const SOLICITING_TYPES = Object.freeze(['ASK_CLARIFICATION', 'ASK_CONFIRMATION']
 
 /** Ce que le garde peut conclure. Fermé, et sans aucun état OPRIE. */
 const SOLICITATION_VERDICTS = Object.freeze([
-  'ALLOW', 'MULTIPLE_QUESTIONS', 'CATALOGUE', 'ALREADY_ANSWERED', 'ALREADY_SOLICITED',
-  'MATERIAL_PRESENT', 'EMPTY'
+  'ALLOW', 'MULTIPLE_QUESTIONS', 'CATALOGUE', 'ALREADY_ANSWERED', 'MATERIAL_PRESENT',
+  'META_OUTPUT_QUESTION', 'EMPTY'
 ]);
 
 /**
@@ -17097,25 +17489,146 @@ const SOLICITATION_VERDICTS = Object.freeze([
  * l'obéissance d'un modèle.
  */
 
-/**
- * UNE sollicitation rapide par conversation, et pas deux.
+/* V2.1 — LE BUDGET D'UNE SEULE SOLLICITATION PAR CONVERSATION A ÉTÉ RETIRÉ, ET VOICI POURQUOI.
  *
- * Le plan rapide existe pour acheter la PREMIÈRE interaction à bas prix. Une fois qu'une réponse a
- * été obtenue, juger si la demande est devenue exploitable n'est plus de son ressort : c'est
- * exactement l'autorité d'OPRIE. Mesuré sur un modèle de la classe réellement déployée, sans cette
- * borne, il reposait une question sur un tour où le plan profond construisait déjà le prompt.
+ * Il avait été introduit au lot BETA-04 contre un sur-questionnement réel : à l'époque, une question
+ * du plan rapide N'ARRÊTAIT PAS le plan profond, si bien qu'une seconde question pouvait s'afficher
+ * pendant que le prompt se construisait déjà. La borne traitait ce symptôme.
  *
- * Ce n'est donc pas un quota de confort : c'est la frontière d'autorité rendue exécutoire. Si un
- * manque déterminant subsiste après la première réponse, le plan profond le verra et le demandera —
- * avec l'autorité pour le faire.
- */
-const FAST_MAX_SOLICITATIONS_PER_CONVERSATION = 1;
+ * Depuis, la doctrine a changé deux fois : le court-circuit IA-04 fait qu'une question du plan rapide
+ * arrête le tour, et V2 a fait du plan rapide LA boucle de clarification. La borne s'est alors
+ * retournée contre le produit : mesuré sur le dialogue réel du propriétaire, elle faisait taire le
+ * plan rapide dès la première réponse obtenue, et TOUTES les questions suivantes étaient produites
+ * par le plan profond — environ vingt-cinq secondes chacune, pour demander une date ou un budget.
+ *
+ * Ce qui borne le questionnement n'est donc plus un quota, ce sont quatre choses qui, elles, restent
+ * vraies : UNE question par tour (le schéma ne peut en porter qu'une), aucune répétition, aucune
+ * question quand le matériau est là, et le critère de nécessité lui-même. Un quota ne savait pas
+ * distinguer une question utile d'une question de confort ; il refusait les deux. */
 
-/** Combien de sollicitations rapides ont déjà été posées ET répondues dans cette conversation. */
-function countAnsweredSolicitations(history = []) {
-  return (Array.isArray(history) ? history : [])
-    .filter((entree) => String((entree && entree.question) || '').trim()
-                     && String((entree && entree.answer) || '').trim()).length;
+/* ==========================================================================
+ * LA QUESTION MÉTA — CE QUI DEMANDE À LA PERSONNE DE CONCEVOIR NOTRE SORTIE
+ *
+ * Mesuré en bêta réelle : après « Pour quel nombre de jours prévoyez-vous votre séjour ? », la
+ * question suivante a été « Quel résultat principal souhaitez-vous obtenir ? ». Elle est atomique,
+ * concrète en apparence, et pourtant fausse : elle demande à la personne de définir ce que nous
+ * sommes chargés de concevoir. Le défaut n'est donc pas une phrase, c'est une CLASSE.
+ *
+ * CE QUI EST MESURÉ ICI, ET COMMENT. Pas une liste de mots interdits — une liste de mots serait
+ * contournée par la première paraphrase et n'expliquerait rien. Deux signaux INDÉPENDANTS sont
+ * croisés, et c'est leur conjonction qui décide :
+ *
+ *   A — la question INTERROGE SUR NOTRE SORTIE. Son objet grammatical est la production elle-même
+ *       ou sa forme, ou son verbe est un verbe d'obtention sans objet du monde de la personne.
+ *   B — la question DEMANDE UNE VARIABLE DU PROBLÈME. Une quantité, une durée, une date, un
+ *       destinataire, un lieu, une échéance, une finalité, un moyen — quelque chose que la personne
+ *       possède déjà et n'a qu'à dire.
+ *
+ * Une question est méta quand A est vrai ET B est faux. Si B est vrai, la question porte sur le
+ * problème même lorsqu'elle emploie un mot de production : « Combien de pages doit faire le
+ * document ? » demande une quantité, et passe. Si A est faux, il n'y a rien à refuser.
+ *
+ * L'EXCEPTION, ET ELLE COMPTE. Quand la demande elle-même porte sur la forme — elle nomme une
+ * production, un format, une structure — alors interroger cette forme n'est plus méta : c'est le
+ * sujet. Le même vocabulaire sert les deux directions, ce qui évite deux listes qui divergeraient.
+ *
+ * AUCUN DOMAINE. Les familles employées sont des mots de discours — production, obtention, quantité,
+ * temps, personne, lieu, finalité. Elles traitent un voyage, un contrat ou un programme sans les
+ * connaître, et aucune ne nomme un métier.
+ * ======================================================================== */
+
+/* A — le vocabulaire de NOTRE sortie. Générique : ce sont les mots par lesquels n'importe quel
+ * domaine désigne « la chose produite », jamais un domaine particulier. */
+
+/* A — les verbes par lesquels on demande à quelqu'un de décrire ce qu'il veut RECEVOIR. */
+
+/* A — les tournures interrogatives qui portent sur la nature de la chose produite. */
+
+/* B — ce qui fait qu'une question porte sur le problème de la personne. Uniquement des marqueurs
+ * INTERROGATIFS de catégorie — quantité, temps, personne, lieu — et les chiffres. Aucune liste de
+ * noms de situation : une première version en portait une, et ces mots-là, tout génériques qu'ils
+ * soient, restent du vocabulaire de situation — le garde d'atomicité l'a refusée, à juste titre.
+ * B n'en a pas besoin : il ne sert qu'à RATTRAPER une question qui nomme une production tout en
+ * demandant une variable, et un interrogatif de catégorie suffit à le voir. */
+/* La borne de gauche est une anti-lettre, pas `\b` : en JavaScript, `\b` est ASCII, et il ne se
+ * déclenche donc pas devant « à » ou « où ». La forme ci-dessous traite les accents comme des
+ * lettres, ce qu'ils sont.
+ *
+ * V2.2.1-D2B — « OU » N'EST PAS « OÙ », ET LE CONFONDRE ÉTEIGNAIT LE GARDE.
+ *
+ * Les formes non accentuées sont tolérées partout ailleurs ici — « a qui », « a quelle date » —
+ * parce qu'un second mot lève l'ambiguïté. Pour ce jeton-ci, il n'y a pas de second mot, et la
+ * forme non accentuée est une AUTRE unité de la langue : la conjonction. Mesuré : `« ceci ou
+ * cela »` déclenchait ce signal, donc toute énumération finissant par « … ou autre chose ? »
+ * rattrapait la question et annulait le verdict méta. Sur huit sorties profondes réelles, le garde
+ * ne marquait plus rien. La tolérance est donc retirée POUR CE JETON, et pour lui seul. */
+
+/**
+ * A — LA QUESTION INTERROGE-T-ELLE NOTRE PROPRE SORTIE ?
+ *
+ * Ce prédicat cherchait la réponse dans les MOTS de la question : trois motifs de vocabulaire
+ * croisés. Ils marchaient — D2B a mesuré qu'ils attrapaient trois défauts que rien d'autre
+ * n'attrape — mais ils DEVINAIENT un sens que personne ne disait. Depuis V2.2.1-D2F1, l'auteur de
+ * la question le déclare, et ce garde se contente de le lire.
+ *
+ * Il ne reçoit même plus le texte : il ne peut donc plus en juger, ni régresser vers un lexique.
+ */
+function questionTargetsOwnOutput(questionFocus = null) {
+  return questionFocus === 'output_specification';
+}
+
+/**
+ * B — LA QUESTION PORTE-T-ELLE SUR LA SITUATION DE LA PERSONNE ?
+ *
+ * Même histoire, même remède. Ce prédicat servait à RATTRAPER une question qui nomme une production
+ * tout en demandant une donnée réelle — « Combien de documents devez-vous fournir ? ». Le fait
+ * déclaré rend ce rattrapage explicite au lieu de l'approcher par des marqueurs interrogatifs.
+ */
+function questionAsksConcreteVariable(questionFocus = null) {
+  return questionFocus === 'problem_or_user_context';
+}
+
+/**
+ * LA DEMANDE PORTE-T-ELLE ELLE-MÊME SUR LA FORME DE CE QUI SERA PRODUIT ?
+ *
+ * Dernier prédicat de ce module à avoir deviné un sens. Il cherchait des tournures interrogatives
+ * dans le texte de la demande — « quel type de… », « sous quelle forme… ». V2.2.1-D2D lui avait
+ * déjà retiré la moitié du travail en lui donnant la nature de l'objectif ; V2.2.1-D2F2 lui donne
+ * l'autre moitié, et le texte cesse de l'atteindre.
+ *
+ * Deux faits, deux raisons distinctes, mesurées distinctes : quand l'objectif EST de reprendre un
+ * contenu pour le disposer autrement, la forme est le sujet ; quand la personne demande elle-même
+ * comment présenter le résultat, elle l'est aussi. Sur trois demandes qui interrogent littéralement
+ * la production, `objective_nature` vaut « other » les trois fois — c'est pourquoi il en fallait
+ * deux, et non un.
+ *
+ * Sans fait, aucune exemption : on échoue fermé.
+ */
+function requestIsAboutItsOwnForm({ objectiveNature = null, requestFocus = null } = {}) {
+  return objectiveNature === 'transformation' || requestFocus === 'output_form_or_specification';
+}
+
+/**
+ * Une question est-elle méta — c'est-à-dire demande-t-elle à la personne de concevoir notre sortie
+ * alors qu'une variable de son problème pouvait être demandée à la place ?
+ *
+ * `demande` sert l'exception : quand la demande porte sur la forme, la question sur la forme est le
+ * sujet, pas une dérobade.
+ */
+function isMetaOutputQuestion(texte, faits = {}) {
+  const t = String(texte || '').trim();
+  if (!t) return false;
+  const { questionFocus = null } = faits;
+  /* Sans fait déclaré, on échoue FERMÉ : rien n'est accusé. Un garde qui accuserait sur un fait
+     absent redeviendrait un juge du sens, ce que ce lot lui retire. */
+  if (!questionTargetsOwnOutput(questionFocus)) return false;
+  /* A et B sont désormais deux valeurs du MÊME champ : ce contrôle ne peut plus être vrai ici. Il
+     est conservé parce qu'il dit l'invariant — une question qui porte sur la situation de la
+     personne n'est jamais méta — et parce qu'un vocabulaire qui s'élargirait un jour devra le
+     respecter encore. */
+  if (questionAsksConcreteVariable(questionFocus)) return false;
+  if (requestIsAboutItsOwnForm(faits)) return false;
+  return true;
 }
 
 /** Interaction rendue quand la candidate est refusée : le silence, jamais une question réécrite. */
@@ -17125,7 +17638,7 @@ const SILENT_INTERACTION = Object.freeze({
 });
 
 /* Normalisation pour la comparaison d'identité seulement : casse et ponctuation, JAMAIS les
-   accents — « où » et « ou » ne doivent pas se confondre dans l'analyse grammaticale. */
+ * accents — « où » et « ou » ne doivent pas se confondre dans l'analyse grammaticale. */
 const identite = (valeur) => String(valeur || '')
   .normalize('NFKC').toLocaleLowerCase('fr')
   .replace(/[\p{P}\p{Z}\s]+/gu, ' ').trim();
@@ -17142,7 +17655,7 @@ function isRepeatedSolicitation(question, history = []) {
 }
 
 /* Interrogatifs français. Grammaire, pas domaine. `où` garde son accent : sans lui, il deviendrait
-   la conjonction `ou` et tout choix binaire serait compté comme une seconde question.
+ * la conjonction `ou` et tout choix binaire serait compté comme une seconde question.
  *
  * `que`, `qui` et `quoi` sont ABSENTS, et c'est mesuré : « Quel texte souhaitez-vous QUE je
  * corrige ? » était refusée comme portant deux interrogations. Ces trois mots sont aussi des
@@ -17151,23 +17664,23 @@ function isRepeatedSolicitation(question, history = []) {
 const INTERROGATIFS = /\b(?:quel|quelle|quels|quelles|combien|comment|où|quand|pourquoi|lequel|laquelle|lesquels|lesquelles)\b/gu;
 
 /* Ce qui ouvre une SECONDE proposition : coordination ou ponctuation. Une interrogation séparée de
-   la précédente par l'un de ces marqueurs est une question de plus ; à l'intérieur de la même
-   proposition, c'est de la grammaire ordinaire. On lit l'intervalle entre deux interrogations, et
-   non le seul mot qui précède : « Quel format, ET POUR quel public ? » coordonne deux besoins même
-   si la coordination n'est pas collée au second interrogatif. */
+ * la précédente par l'un de ces marqueurs est une question de plus ; à l'intérieur de la même
+ * proposition, c'est de la grammaire ordinaire. On lit l'intervalle entre deux interrogations, et
+ * non le seul mot qui précède : « Quel format, ET POUR quel public ? » coordonne deux besoins même
+ * si la coordination n'est pas collée au second interrogatif. */
 const COORDINATION = /[,;:]|\bet\b|\bou\b|\bpuis\b|\bainsi que\b/u;
 
 /* Verbe inversé : ce qui ouvre une interrogation sans mot interrogatif — « avez-vous », « faut-il »,
-   « souhaitez-vous ». Les pronoms sont clos ; aucun mot de domaine n'entre ici. */
+ * « souhaitez-vous ». Les pronoms sont clos ; aucun mot de domaine n'entre ici. */
 const VERBE_INVERSE = /\b[a-zà-ÿ]+-(?:vous|tu|il|elle|on|ils|elles|je|nous)\b/gu;
 
 /* Ce qui AJOUTE un besoin plutôt que d'offrir une branche du même : « ou » en est exclu. */
 const AJOUTE_UN_BESOIN = /(?:[,;]|\bet\b|\bpuis\b|\bainsi que\b)(?:(?!\bou\b)[^,;])*$/u;
 
 /* Déterminants français en tête de segment : ce qui signale un groupe nominal, donc un livrable
-   nommé plutôt qu'une valeur d'une même dimension. Une préposition peut introduire le groupe sans
-   en changer la nature — « par les jeux, par le sport, ou par les arts » énumère trois groupes
-   nominaux exactement comme la même liste sans préposition. */
+ * nommé plutôt qu'une valeur d'une même dimension. Une préposition peut introduire le groupe sans
+ * en changer la nature — « par les jeux, par le sport, ou par les arts » énumère trois groupes
+ * nominaux exactement comme la même liste sans préposition. */
 const PREPOSITION = '(?:par|pour|sur|sous|avec|sans|dans|vers|chez|en|à|au|aux|de|d[\'’])\\s+';
 const DETERMINANT = new RegExp(
   `^(?:${PREPOSITION})?(?:un|une|des|du|de la|de l['’]|le|la|les|l['’])\\s+\\S`, 'u');
@@ -17190,13 +17703,13 @@ function countInterrogations(texte) {
     finPrecedente = m.index + m[0].length;
   }
   /* UNE PROPOSITION INTERROGATIVE N'A PAS BESOIN D'UN MOT INTERROGATIF.
-     « Quel est le délai prévu ET AVEZ-VOUS déjà identifié un logement ? » porte deux besoins, et le
-     comptage ci-dessus n'en voyait qu'un : la seconde proposition est à verbe inversé. Mesuré sur le
-     runtime déployé, cette question est passée.
-
-     « ou » est traité à part, et volontairement : il offre le plus souvent les deux branches d'UNE
-     décision — « Disposez-vous déjà du contenu, OU faut-il le structurer ? » est un seul besoin.
-     « et », une virgule ou un point-virgule, eux, ajoutent un besoin. */
+   * « Quel est le délai prévu ET AVEZ-VOUS déjà identifié un logement ? » porte deux besoins, et le
+   * comptage ci-dessus n'en voyait qu'un : la seconde proposition est à verbe inversé. Mesuré sur le
+   * runtime déployé, cette question est passée.
+*
+   * « ou » est traité à part, et volontairement : il offre le plus souvent les deux branches d'UNE
+   * décision — « Disposez-vous déjà du contenu, OU faut-il le structurer ? » est un seul besoin.
+   * « et », une virgule ou un point-virgule, eux, ajoutent un besoin. */
   if (compte < 2) {
     for (const m of t.matchAll(VERBE_INVERSE)) {
       if (m.index === 0) continue;
@@ -17226,12 +17739,12 @@ function countNamedAlternatives(texte) {
  * deux restent un choix sur une même dimension, ce qu'une question atomique peut légitimement
  * proposer.
  */
-function assessSolicitation(candidate, history = [], materialPresent = false) {
+function assessSolicitation(candidate, history = [], materialPresent = false, faits = {}) {
   const texte = String((candidate && candidate.text) || '').trim();
   if (!texte) return 'EMPTY';
   if (materialPresent === true) return 'MATERIAL_PRESENT';
+  if (isMetaOutputQuestion(texte, { ...faits, questionFocus: candidate && candidate.question_focus })) return 'META_OUTPUT_QUESTION';
   if (isRepeatedSolicitation(texte, history)) return 'ALREADY_ANSWERED';
-  if (countAnsweredSolicitations(history) >= FAST_MAX_SOLICITATIONS_PER_CONVERSATION) return 'ALREADY_SOLICITED';
   if (countInterrogations(texte) >= 2) return 'MULTIPLE_QUESTIONS';
   if (countNamedAlternatives(texte) >= 3) return 'CATALOGUE';
   return 'ALLOW';
@@ -17258,6 +17771,8 @@ function guardFastSolicitation(candidate, snapshot = {}) {
     if (!String(candidate.text || '').trim()) return SILENT_INTERACTION;
     return candidate;
   }
+  /* V2.2.1-D2F2 — le plan rapide ne porte ni la nature de l'objectif ni ce sur quoi porte la
+     demande : aucun fait, donc aucune exemption. Au pire un silence, donc une escalade. */
   const verdict = assessSolicitation(candidate, snapshot.clarification_history, snapshot.material_present);
   return verdict === 'ALLOW' ? candidate : SILENT_INTERACTION;
 }
@@ -17284,21 +17799,35 @@ function guardFastSolicitation(candidate, snapshot = {}) {
  *   ALLOW        la question est atomique — elle passe, à l'octet près ;
  *   REPLACED     une autre candidate du même tour est atomique — on l'affiche ;
  *   REDUCED      la question porte sa propre forme atomique en tête — on coupe le catalogue ;
- *   FALLBACK_SAFE plus rien n'est récupérable — on pose la question la plus générale qui soit.
+ *   NOT_DISPLAYABLE plus rien n'est récupérable — la frontière le CONSTATE, et n'écrit rien.
  *
  * Ce garde ne touche ni l'état, ni la readiness, ni le contrat canonique : OPRIE reste seule
  * autorité sur ce qu'il faut demander. Il contraint la FORME de ce qui est affiché, et rien d'autre.
  * ======================================================================== */
 
 /** Ce que la frontière peut conclure. Fermé. */
-const DISPLAY_VERDICTS = Object.freeze(['ALLOW', 'REPLACED', 'REDUCED', 'FALLBACK_SAFE']);
+const DISPLAY_VERDICTS = Object.freeze(['ALLOW', 'REPLACED', 'REDUCED', 'NOT_DISPLAYABLE']);
 
-/**
- * La question la plus générale qui reste une question : elle demande ce qu'il faut produire, sans
- * proposer aucune production. Employée seulement quand rien d'atomique n'est récupérable — mieux
- * qu'un catalogue, et mieux qu'un silence là où OPRIE a établi qu'une clarification est nécessaire.
+/*
+ * IL N'Y A PLUS DE QUESTION DE REPLI, ET C'EST LE POINT D'ARRIVÉE DE TOUT CE TRAVAIL.
+ *
+ * Une constante vivait ici : « Qu'est-ce qui est le plus important pour vous ici ? ». Quand plus
+ * rien n'était récupérable, la frontière l'affichait. Un garde de FORME devenait alors l'auteur de
+ * ce qui était DEMANDÉ à la personne — exactement ce que la Directive Maître interdit.
+ *
+ * V2.2.1-D2 avait déjà tenté de la retirer et avait dû reculer : sur le plan profond, l'état
+ * `clarification_required` exige un texte de question, et le supprimer laissait passer à l'écran la
+ * mauvaise question que l'on venait de refuser. Le lot n'a pu aboutir qu'une fois D2B et D2D passés,
+ * et parce que le chemin de sortie existait DÉJÀ, sans qu'il faille l'inventer : le client teste
+ * `if(!question)` et bascule sur son repli technique, dont le type d'erreur est littéralement
+ * `transport_or_contract`. Une question non affichable EST une défaillance de contrat, et elle est
+ * rejouable.
+ *
+ * Mesuré avant de livrer : sur six tours profonds réels, cet échelon tombe UNE fois. Le prix est
+ * donc réel et il est nommé — sur ce tour-là, la personne verra un échec rejouable au lieu d'une
+ * question fabriquée. C'est le choix du propriétaire produit, et il est le bon : une absence de
+ * question vaut mieux qu'une question dont personne n'est l'auteur.
  */
-const SAFE_FALLBACK_QUESTION = 'Quel résultat principal souhaitez-vous obtenir ?';
 
 /**
  * Une énumération de choix n'a pas besoin de déterminants pour être un catalogue.
@@ -17320,9 +17849,9 @@ function countEnumeratedSegments(texte) {
 }
 
 /* Une parenthèse qui énumère offre plusieurs dimensions dans la même question, même quand la tête
-   interrogative est parfaite. Mesuré sur le runtime déployé : « Quel type de X souhaitez-vous
-   produire (format, contenu, objectif…) ? ». Une parenthèse sans virgule, elle, précise ; elle
-   n'énumère pas. */
+ * interrogative est parfaite. Mesuré sur le runtime déployé : « Quel type de X souhaitez-vous
+ * produire (format, contenu, objectif…) ? ». Une parenthèse sans virgule, elle, précise ; elle
+ * n'énumère pas. */
 const PARENTHESE_ENUMERANTE = /\([^)]*,[^)]*\)/u;
 
 /** Une question est-elle d'une forme affichable ? Quatre mesures, toutes grammaticales. */
@@ -17348,7 +17877,7 @@ function reduceQuestionDeterministically(texte) {
   if (!t) return null;
   const essais = [];
   /* Première coupe, la moins destructrice : retirer la parenthèse qui énumère. La question garde
-     tous ses mots utiles, et perd seulement les dimensions qu'elle proposait. */
+   * tous ses mots utiles, et perd seulement les dimensions qu'elle proposait. */
   if (PARENTHESE_ENUMERANTE.test(t)) {
     essais.push(t.replace(/\s*\([^)]*,[^)]*\)/gu, '').replace(/\s{2,}/gu, ' '));
   }
@@ -17356,6 +17885,21 @@ function reduceQuestionDeterministically(texte) {
   if (deuxPoints > 0) essais.push(t.slice(0, deuxPoints));
   const coupe = t.search(/(?:,\s*(?:et|ou)\b|\s+et\b|\s+—\s+par exemple)/u);
   if (coupe > 0) essais.push(t.slice(0, coupe));
+  /* V2.1.5.3 — DEUX PHRASES SONT DÉJÀ DEUX QUESTIONS, ET LA PREMIÈRE EST ENTIÈRE.
+   *
+   * MESURÉ sur le runtime déployé, trois fois sur trois au premier tour : le plan rapide propose deux
+   * phrases interrogatives, le verdict dit MULTIPLE_QUESTIONS, et la frontière n'avait ici aucune
+   * coupe applicable — ni parenthèse, ni deux-points, ni coordination. Elle tombait donc sur son repli
+   * générique, que le plan rapide refuse depuis V2.1.5, et le tour partait au plan profond : dix-huit
+   * à vingt-cinq secondes pour obtenir une question dont la première phrase était déjà la bonne forme.
+   *
+   * Cette coupe-là est la MOINS destructrice de toutes : elle ne réécrit rien, ne concatène rien, ne
+   * retire aucun point d'interrogation à l'intérieur d'une phrase — elle garde une phrase entière,
+   * telle qu'elle a été écrite. Le choix de la première n'est pas un jugement de matérialité : c'est
+   * le dernier recours, APRÈS que la reprise a demandé au modèle de choisir lui-même la question qui
+   * réduit le plus l'incertitude. Le jugement reste donc chez lui ; seule la forme est réparée ici. */
+  const phrases = t.split(/(?<=\?)\s+/u).map((x) => x.trim()).filter(Boolean);
+  if (phrases.length > 1) essais.push(phrases[0]);
   for (const essai of essais) {
     const tete = `${essai.replace(/[\s,;:—?-]+$/u, '')} ?`;
     /* Une tête trop courte n'est plus une question, c'est un fragment. */
@@ -17363,7 +17907,7 @@ function reduceQuestionDeterministically(texte) {
     /* Un deux-points survivant annonce encore une énumération : la coupe a manqué son objet. */
     if (tete.includes(':')) continue;
     /* Et couper le « ou » final d'une énumération n'en retire que le marqueur, jamais l'énumération
-       elle-même. Deux virgules suffisent à la reconnaître, sans rien connaître du sujet. */
+     * elle-même. Deux virgules suffisent à la reconnaître, sans rien connaître du sujet. */
     if ((tete.match(/,/gu) || []).length >= 2) continue;
     if (isAtomicQuestion(tete)) return tete;
   }
@@ -17377,22 +17921,80 @@ function reduceQuestionDeterministically(texte) {
  * `candidates` sont les autres questions que le MÊME tour a produites. Les employer n'invente rien :
  * ce sont des questions que le système jugeait déjà pertinentes.
  */
-function guardDisplayedQuestion(texte, { candidates = [] } = {}) {
-  const t = String(texte || '').trim();
-  if (isAtomicQuestion(t)) return { verdict: 'ALLOW', text: t };
-  for (const candidate of Array.isArray(candidates) ? candidates : []) {
-    const autre = String((candidate && candidate.text) || candidate || '').trim();
-    if (autre && autre !== t && isAtomicQuestion(autre)) return { verdict: 'REPLACED', text: autre };
-  }
-  const reduite = reduceQuestionDeterministically(t);
-  if (reduite) return { verdict: 'REDUCED', text: reduite };
-  return { verdict: 'FALLBACK_SAFE', text: SAFE_FALLBACK_QUESTION };
+/* ==========================================================================
+ * V2.1.5 — LE PLAN RAPIDE RÉDUIT CE QU'IL SAIT RÉDUIRE, AU LIEU DE SE TAIRE.
+ *
+ * CE QUE LA MESURE A ÉTABLI, ET ELLE RENVERSE UNE HYPOTHÈSE. Sur les trois demandes du propriétaire,
+ * le relevé `fast_decision` ne montre JAMAIS `MODEL_RETURNED_WAIT` : le modèle propose une question à
+ * chaque fois. C'est le verdict `MULTIPLE_QUESTIONS` qui la fait taire, et le tour part alors vers le
+ * plan profond — vingt à soixante secondes pour obtenir une question que le plan rapide avait déjà
+ * formulée, à un besoin près.
+ *
+ * L'ASYMÉTRIE QUI EN ÉTAIT LA CAUSE. La frontière d'affichage sait depuis BETA-04 COUPER une question
+ * qui porte deux besoins — elle garde la tête interrogative et abandonne le reste, sans rien inventer,
+ * chaque mot venant du texte d'origine. Le plan rapide, lui, ne savait que refuser. Deux mesures de
+ * l'atomicité coexistaient donc, et la plus pauvre décidait la plus coûteuse.
+ *
+ * CE QUI EST COMPOSÉ ICI, ET DANS QUEL ORDRE. D'abord les verdicts SÉMANTIQUES — un matériau déjà
+ * fourni, une question déjà répondue, une question qui demande à la personne de concevoir notre
+ * sortie : ceux-là ne se réparent pas, ils se taisent. Ensuite, et seulement pour les défauts de
+ * FORME, la réduction. Le repli générique de la frontière n'est JAMAIS employé ici : fabriquer une
+ * question sur le chemin rapide serait inventer un besoin.
+ *
+ * `guardFastSolicitation` n'est pas modifiée : elle reste la fonction de verdict, et les tests qui la
+ * protègent restent vrais. Ce qui change est la COMPOSITION, au niveau du plan.
+ * ======================================================================== */
+
+/** Ce qui ne se répare pas : un besoin déjà satisfait, ou une question qui n'est pas la nôtre à poser. */
+const VERDICTS_SANS_REMEDE = Object.freeze([
+  'EMPTY', 'MATERIAL_PRESENT', 'ALREADY_ANSWERED', 'META_OUTPUT_QUESTION'
+]);
+
+function guardFastInteraction(candidate, snapshot = {}) {
+  if (!candidate) return candidate;
+  if (!SOLICITING_TYPES.includes(candidate.type)) return guardFastSolicitation(candidate, snapshot);
+  const verdict = assessSolicitation(candidate, snapshot.clarification_history,
+    snapshot.material_present, snapshot.original_request);
+  if (VERDICTS_SANS_REMEDE.includes(verdict)) return SILENT_INTERACTION;
+  /* TOUTE question rapide passe ensuite par la frontière d'affichage — y compris celle que les
+   * verdicts ont laissée passer. Deux raisons, et la seconde a été trouvée en validant : cette
+   * question EST affichée, donc elle relève de la frontière ; et la frontière mesure des défauts que
+   * les verdicts ne mesurent pas — une énumération sans déterminants, une parenthèse qui énumère.
+   * Sans ce passage, un catalogue traversait le plan rapide alors que le plan profond le refusait.
+   * Une seule définition de l'atomicité, appliquée partout. */
+  const garde = guardDisplayedQuestion(String(candidate.text || ''), { questionFocus: candidate.question_focus });
+  if (garde.verdict === 'ALLOW') return candidate;
+  /* La réduction COUPE, elle ne rédige pas : chaque mot du résultat vient de la question d'origine.
+   * Le repli générique de la frontière, lui, n'est jamais employé ici — fabriquer une question sur le
+   * chemin rapide serait inventer un besoin. */
+  if (garde.verdict === 'REDUCED') return { type: candidate.type, text: garde.text };
+  return SILENT_INTERACTION;
 }
 
-return {SOLICITING_TYPES,SOLICITATION_VERDICTS,FAST_MAX_SOLICITATIONS_PER_CONVERSATION,SILENT_INTERACTION,countAnsweredSolicitations,countInterrogations,countNamedAlternatives,countEnumeratedSegments,isRepeatedSolicitation,assessSolicitation,guardFastSolicitation,DISPLAY_VERDICTS,SAFE_FALLBACK_QUESTION,isAtomicQuestion,reduceQuestionDeterministically,guardDisplayedQuestion};
+function guardDisplayedQuestion(texte, { candidates = [], objectiveNature = null, requestFocus = null, questionFocus = null } = {}) {
+  const affichable = (q, focus) => isAtomicQuestion(q)
+    && !isMetaOutputQuestion(q, { objectiveNature, requestFocus, questionFocus: focus });
+  const t = String(texte || '').trim();
+  if (affichable(t, questionFocus)) return { verdict: 'ALLOW', text: t };
+  /* Chaque candidate porte SON propre fait : on ne lui applique jamais celui d'une autre question. */
+  for (const candidate of Array.isArray(candidates) ? candidates : []) {
+    const autre = String((candidate && candidate.text) || candidate || '').trim();
+    const focusAutre = candidate && typeof candidate === 'object' ? candidate.question_focus : null;
+    if (autre && autre !== t && affichable(autre, focusAutre)) return { verdict: 'REPLACED', text: autre };
+  }
+  /* Une réduction n'est acceptée que si elle est AFFICHABLE : couper un catalogue pour obtenir une
+   * question méta ne répare rien — c'est le défaut mesuré en bêta, déplacé d'un cran. */
+  const reduite = reduceQuestionDeterministically(t);
+  if (reduite && affichable(reduite, questionFocus)) return { verdict: 'REDUCED', text: reduite };
+  /* Rien d'affichable, et rien d'inventé : `text` vaut null, et chaque appelant a déjà son
+     issue — le silence sur le plan rapide, le repli de contrat sur le plan profond. */
+  return { verdict: 'NOT_DISPLAYABLE', text: null };
+}
+
+return {SOLICITING_TYPES,SOLICITATION_VERDICTS,SILENT_INTERACTION,countInterrogations,countNamedAlternatives,countEnumeratedSegments,isRepeatedSolicitation,assessSolicitation,guardFastSolicitation,DISPLAY_VERDICTS,isAtomicQuestion,reduceQuestionDeterministically,guardDisplayedQuestion};
 })();
 const COREPLANE=((deps)=>{
-const {ARBITER_JSON_SCHEMA,ANALYST_JSON_SCHEMA,ISSUE_TAXONOMY_GUIDE,validateArbiterOutput,validateAnalystInput,validateQuestionCandidate,makeAnalystUserMessage,parseJsonMaybeFenced}=deps;
+const {ARBITER_JSON_SCHEMA,ANALYST_JSON_SCHEMA,ISSUE_TAXONOMY_GUIDE,validateArbiterOutput,validateAnalystInput,validateQuestionCandidate,makeAnalystUserMessage,parseJsonMaybeFenced,createDegradedRoleResult,validateDegradedRoleResult,OPRIE_CLARIFICATION_DOCTRINE,OPRIE_ASSUMPTION_DOCTRINE}=deps;
 /* ATELIER PROMPTS V2 — CORE FIRST, ESCALATE ONLY WHEN JUSTIFIED.
  * ===========================================================================
  *
@@ -17464,13 +18066,19 @@ CE QUE VOUS PRODUISEZ
 1. operational_request_candidate, reconstruit entièrement à partir de la totalité des sources de ce tour — jamais comme un correctif du tour précédent. Le candidat PRÉPARE la demande, il ne l'exécute pas : expected_deliverable décrit la FORME du résultat — nature, structure, volume, sections — jamais son contenu ; objective énonce l'intention, jamais le résultat. Un fait lu dans le matériau n'entre comme VALEUR que s'il SPÉCIFIE la demande. S'il EST le résultat demandé, ne le recopiez nulle part : consignez dans available_inputs l'intrant dont l'exécution aura besoin, DÉCRIT et jamais recopié. Chaque champ est adaptatif : un champ vide est parfaitement valide, ne remplissez jamais une catégorie parce qu'elle existe dans le schéma.
 2. issues : uniquement ce qui change réellement le résultat. Une information, une ambiguïté, un conflit, un livrable flou, une dépendance ou une surcharge n'est matériel que si des valeurs raisonnablement différentes modifieraient l'objectif, le périmètre, une contrainte importante, la structure du livrable, son contenu décisionnel, son format ou son utilité. Matériel ne veut pas dire intéressant, utile à connaître, ou habituel. Pour toute contradiction ou tension, employez la primitive unifiée {type:"conflict", kind:"logical_contradiction"|"constraint_tension"|"priority_conflict"} ; kind vaut null pour tout autre type, et n'est jamais omis.
 3. state, parmi exactement quatre valeurs — voir DÉCIDER L'ÉTAT.
-4. next_question : un objet à trois champs (text, targets_issue_id, expected_progress), renseignés pour clarification_required, et à null pour tout autre état. L'objet est toujours présent, jamais omis.
+4. next_question : un objet à quatre champs (text, targets_issue_id, expected_progress, question_focus), renseignés pour clarification_required, et à null pour tout autre état. L'objet est toujours présent, jamais omis. question_focus dit ce que la question INTERROGE : problem_or_user_context quand elle porte sur la situation de la personne — une donnée, une décision ou une information qu'elle seule détient ; output_specification quand elle lui demande de définir ce que nous devons produire ; other quand ni l'un ni l'autre ne s'applique, ce qui est une réponse légitime. Jugez ce que la question demande, jamais l'inconnue qu'elle vise : deux questions peuvent viser la même inconnue et interroger des choses opposées. Renseignez le même champ pour chaque entrée de question_candidates.
 5. question_candidates : les questions réellement non substituables, classées par valeur informationnelle décroissante, ou aucune. Ce n'est pas un quota : n'y mettez jamais la conversion mécanique d'un issue en question.
-6. intent_preservation et reason, honnêtement renseignés ; confirmation_reason et blocked_reason selon l'état.
+6. intent_preservation et reason, honnêtement renseignés ; confirmation_reason et blocked_reason selon l'état. concerns recense les réserves qui subsistent sur la préservation de l'intention, et le contrat lie les deux : operational_request_ready exige que les trois booléens soient vrais ET que concerns soit vide. Une réserve réelle vous interdit donc operational_request_ready : prononcez l'état qui lui correspond, jamais un ready accompagné de réserves. Inversement, n'inscrivez pas dans concerns une remarque sans portée, car elle vous ferait manquer un ready légitime.
 7. escalation : voir ESCALADER.
+8. objective_nature, parmi exactement trois valeurs. « transformation » lorsque l'objectif porte sur un contenu qui existe déjà et consiste à en changer la forme, la disposition ou l'organisation — ce qui sortira est ce même contenu, autrement disposé. « production » lorsque l'objectif est de faire exister un résultat qui n'existe pas encore. « other » lorsque la distinction ne s'applique pas clairement ; cette valeur est parfaitement légitime et n'est ni un échec ni un défaut. Jugez l'OBJECTIF tel qu'il est exprimé, jamais la présence d'un intrant, d'un matériau ou d'un fichier : disposer d'une entrée n'a jamais fait d'un objectif une transformation.
+9. request_focus dit ce sur quoi porte LA DEMANDE elle-même, parmi exactement trois valeurs. output_form_or_specification lorsque la personne demande elle-même comment le résultat doit se présenter — sa forme, sa structure, sa nature. user_problem_or_goal lorsqu'elle expose une situation, un besoin ou un but à atteindre. other lorsque ni l'un ni l'autre ne s'applique, ce qui est une réponse légitime. Ne confondez pas ce champ avec objective_nature : reprendre un contenu existant pour le disposer autrement n'est pas la même chose que DEMANDER comment le disposer.
 
-AVANT DE QUESTIONNER — LA SUBSTITUTION
-Pour chaque inconnue, choisissez une stratégie, dans cet ordre de préférence : rechercher (fait externe vérifiable), décider (choix délégué ou équivalent), estimer (approximation étiquetée), scénariser (traiter plusieurs valeurs proprement), conditionner (énoncer une condition explicite), laisser localement inconnue (cela n'empêche pas le livrable), et SEULEMENT en dernier recours questionner. Une inconnue ne justifie une question que si elle change matériellement le résultat, appartient à la personne ou à son contexte, n'est pas déjà connue ni déjà résolue, n'est pas recherchable, ne peut être ni décidée, ni estimée honnêtement, ni scénarisée, ni conditionnée sans perte matérielle. RECHERCHER ne s'applique qu'à un fait externe vérifiable : une préférence, une décision personnelle, un montant alloué, une échéance choisie ou un arbitrage qui appartient à la personne n'est jamais recherchable au seul motif qu'il manque. Après une réponse équivalente à « je ne sais pas » ou à une délégation explicite, il est interdit de reposer la même question ou une question portant sur le même choix : décidez, estimez, scénarisez, conditionnez, ou laissez localement inconnu.
+FIDÉLITÉ DE CE QUI EST ATTRIBUÉ À LA PERSONNE
+Une entrée de confirmed_constraints, confirmed_priorities ou confirmed_preferences ne porte JAMAIS plus d'information que ce que la personne a dit. Sont permis : la reformulation fidèle, la normalisation d'une unité ou d'une graphie, et le regroupement de plusieurs de ses déclarations sans rien y ajouter. Est interdit dans ces champs tout ajout de quantité, de date, de durée, de portée, d'inclusion, d'exclusion, d'obligation, de fréquence ou de relation qu'elle n'a pas énoncée : cette information-là va dans assumptions_allowed, external_facts_to_research, delegated_decisions ou remaining_unknowns, selon ce qu'elle est. Une dérivation ne devient pas une déclaration de la personne parce qu'elle est probable, utile ou conventionnelle. Si une dérivation vous est nécessaire pour préparer le livrable, produisez-la — mais à sa place, et sous son nom.
+
+${OPRIE_CLARIFICATION_DOCTRINE}
+
+${OPRIE_ASSUMPTION_DOCTRINE}
 
 LA FORME D'UNE QUESTION
 UNE interaction, UN besoin d'information. La question tient en une seule phrase interrogative, avec un seul point d'interrogation. Elle porte sur une VARIABLE RÉELLE du problème que la personne décrit — une durée, une date, une origine, un destinataire, un objectif, une contrainte. Elle est concrète et naturelle : celle qu'un professionnel compétent poserait à voix haute.
@@ -17478,6 +18086,23 @@ Ne demandez JAMAIS à la personne de concevoir ce que vous êtes chargé de pré
 
 UNE CHAISE À LA FOIS
 Une demande dense ne se résout pas d'un coup, et n'est pas pour autant inexploitable. Comprenez l'ensemble, identifiez la variable la plus déterminante, traitez celle-là, et laissez le tour suivant réévaluer. Une demande peut être longue, dense, comporter de nombreux paramètres et rester parfaitement exploitable : dans ce cas, ne posez AUCUNE question et produisez le candidat. Complexité n'est pas ambiguïté.
+
+UNE DÉCISION TRANSMISE FAIT AUTORITÉ
+Lorsque l'entrée porte une decision_canonique, cette décision a DÉJÀ été prise par l'autorité sémantique, avant vous, et elle n'est pas rediscutable. Votre travail est alors de produire le candidat opérationnel qui la SERT : structurer, extraire, formuler l'objectif et la forme attendue, recenser les contraintes réellement énoncées, nommer vos hypothèses, lister les faits externes à vérifier. Vous ne rouvrez pas la question de savoir s'il fallait demander quelque chose. Vous ne choisissez pas une autre inconnue. Vous ne transformez pas une demande déclarée exploitable en demande à clarifier.
+Si — et ce cas doit rester exceptionnel — la contractualisation fidèle vous paraît réellement impossible sous cette décision, ne la contournez pas en silence : dites-le dans reason, en nommant précisément l'obstacle. C'est la seule issue honnête, et elle sera traitée comme un conflit, non comme un nouvel avis.
+
+VOTRE PLACE DANS LE PARCOURS, ET CE QU'ELLE IMPLIQUE
+Vous êtes appelé pour CONTRACTUALISER, après une phase de clarification menée par une couche légère
+qui a déjà posé à la personne les questions qu'il fallait, et obtenu ses réponses. Quand vous êtes
+appelé, cette phase est terminée.
+Relancer une question ordinaire ici coûte à la personne plusieurs dizaines de secondes d'attente pour
+un manque qu'une phrase aurait comblé un tour plus tôt — et cela a été mesuré en usage réel. Ce n'est
+donc pas votre rôle. Devant une information qui manque encore : décidez-la, estimez-la en l'étiquetant,
+traitez-la par scénario, conditionnez-la, ou laissez-la explicitement inconnue, puis CONTRACTUALISEZ.
+clarification_required reste possible, mais il est EXCEPTIONNEL et il se justifie : un matériau
+volumineux dont le contenu change tout, une contradiction que rien ne permet de trancher, une
+dépendance structurelle qu'aucune hypothèse honnête ne couvre. Une information simplement absente
+n'en est pas un cas.
 
 DÉCIDER L'ÉTAT
 - operational_request_ready : le livrable attendu peut être préparé sans ambiguïté matérielle non résolue, sans contradiction non arbitrée, sans information non substituable manquante, sans arbitrage silencieux, sans glissement de sens. C'est l'état NORMAL d'une demande exploitable, y compris complexe.
@@ -17535,8 +18160,15 @@ const CORE_JSON_SCHEMA = Object.freeze((() => {
   return schema;
 })());
 
-/** Le Core reçoit exactement ce que recevait l'Analyste : la demande, l'historique, le matériau. */
-const makeCoreUserMessage = makeAnalystUserMessage;
+/** Le Core reçoit exactement ce que recevait l'Analyste : la demande, l'historique, le matériau.
+ *
+ * V2.2.1-E1 — ET RIEN D'AUTRE. Il recevait aussi, depuis V2.2.1-B, une décision canonique posée
+ * par le plan rapide, qu'il n'avait plus le droit de rediscuter. La gouvernance réserve la
+ * readiness à l'autorité sémantique : ce message ne transporte donc plus aucune décision, et le
+ * Core décide à nouveau sur les seules sources du tour. */
+function makeCoreUserMessage(input = {}) {
+  return makeAnalystUserMessage(input);
+}
 const validateCoreInput = validateAnalystInput;
 
 /**
@@ -17739,6 +18371,10 @@ const CORE_ROLE_DEFINITIONS = Object.freeze({
  * L'ORCHESTRATION V2 — UN APPEL, PUIS PLUS RIEN SAUF PREUVE
  * ======================================================================== */
 
+/* Motif rendu au client quand plus aucun fournisseur ne répond : neutre par construction — il ne
+   nomme ni fournisseur, ni statut HTTP, ni cause supposée. */
+const DEGRADATION_REASON = "Le traitement n'a pu être exécuté par aucun fournisseur disponible ; aucune analyse n'a pu être produite pour ce tour.";
+
 /** Ce que le tour V2 a réellement dépensé. Des compteurs, jamais un contenu. */
 function nouveauRelevé() {
   return { core: 0, core_critic: 0, core_arbiter: 0, analyst: 0, critic: 0, arbiter: 0 };
@@ -17760,7 +18396,26 @@ async function runCoreFirstTurn(input, { executeRole, log = () => {} } = {}) {
   const appels = nouveauRelevé();
   const debut = Date.now();
 
-  const brut = await executeRole("core", base, { log });
+  /* UNE PANNE DE FOURNISSEUR DÉGRADE, ELLE NE DISPARAÎT PAS.
+     C'est un invariant acquis du chemin historique, et il vaut ici mot pour mot : quand plus aucun
+     fournisseur ne répond, le client reçoit un ÉTAT — degraded_state, qui est public et légitime —
+     et jamais un 502 muet. Seule une chaîne épuisée donne cela ; toute autre erreur remonte, parce
+     qu'un défaut de notre code ne doit jamais se déguiser en état produit. */
+  let brut;
+  try {
+    brut = await executeRole("core", base, { log });
+  } catch (error) {
+    if (error?.all_providers_failed !== true) throw error;
+    log({ event: "v2_degraded", role: "core", attempts: error.attempts ?? [] });
+    log({ event: "v2_turn_cost", plane: "core", provider_calls: 1, core_calls: 1,
+          critic_calls: 0, arbiter_calls: 0, analyst_calls: 0, legacy_critic_calls: 0,
+          legacy_arbiter_calls: 0, duration_ms: Date.now() - debut, state: "degraded_state" });
+    return {
+      turn: validateDegradedRoleResult(createDegradedRoleResult("core", DEGRADATION_REASON)),
+      question_candidates: [], provider_calls: 1, calls: { ...appels, core: 1 },
+      escalation_verdict: "NO_ESCALATION"
+    };
+  }
   appels.core += 1;
   const sortie = brut && brut.turn ? brut : validateCoreOutput(brut);
   let turn = sortie.turn;
@@ -18289,11 +18944,54 @@ async function runOperationalRequestTurn(input, { executeRole, log = defaultLog,
 async function runCoreFirstTurnForRequest(input, { executeRole, log, trace }) {
   if (trace) trace.enterPhase("core", "core");
   const resultat = await runCoreFirstTurn(input, { executeRole, log });
+  /* Un tour dégradé est un aboutissement, pas un tour : il ne porte ni candidat, ni question, et sa
+     légalité vient de son propre validateur, déjà passé. Le contrôle de transition ne s'applique
+     qu'aux quatre états de tour — exactement comme sur le chemin historique. */
+  if (resultat.turn && resultat.turn.state === "degraded_state") {
+    log({ event: "operational_request_turn_ok", state: resultat.turn.state });
+    return resultat.turn;
+  }
   if (trace) trace.enterPhase("state_check", "core");
   if (!isLegalTransition(OPERATIONAL_REQUEST_TURN_ORIGIN_STATE, resultat.turn.state)) {
     throw new TypeError(`État de tour OPRIE illégal depuis "${OPERATIONAL_REQUEST_TURN_ORIGIN_STATE}" : ${resultat.turn.state}.`);
   }
   log({ event: "operational_request_turn_ok", state: resultat.turn.state });
+  /* V2.1.5 — LE PLAN PROFOND N'EST PLUS UN MOTEUR DE CLARIFICATION, ET ON LE MESURE.
+   *
+   * Mesuré en usage réel : après que la couche légère avait déclaré la demande prête, le plan profond
+   * a rouvert une clarification DEUX fois — vingt-deux puis soixante secondes — pour des manques
+   * qu'une question rapide aurait comblés. La consigne du Core le lui interdit désormais hors cas
+   * exceptionnel ; ce relevé dit si la règle tient, au lieu de le supposer. Il porte un état et un
+   * compte, jamais le texte de la question.
+   *
+   * Le relevé NE NOMME AUCUN ÉTAT : il rapporte celui que l'autorité a prononcé, et la lecture conclut.
+   * Un booléen « réouvert » aurait obligé l'orchestrateur à connaître le vocabulaire de l'Arbitre, ce
+   * qu'ORCH01-21b lui interdit — et l'état rapporté porte déjà l'information. */
+  log({
+    event: "core_clarification_after_ready",
+    clarification_history_length: Array.isArray(input && input.clarification_history)
+      ? input.clarification_history.length : 0,
+    state: resultat.turn.state
+  });
+  /* V2.2.1-E1 — UNE SEULE AUTORITÉ DE READINESS, ET ELLE EST OBSERVÉE ICI.
+   *
+   * Cette zone transportait une décision canonique posée par le plan rapide et l'imposait au
+   * contractualisateur. Le réaudit indépendant a établi que ce verrou, bien que techniquement
+   * correct, verrouillait une autorité que la gouvernance interdit — « Fast candidate-only »,
+   * « OPRIE = autorité de la readiness ». Le transport a donc été retiré, et avec lui le conflit
+   * de contractualisation, qui ne pouvait naître que de ce verrou.
+   *
+   * Le relevé subsiste, parce qu'il MESURE ce que le lot restaure : la readiness a un producteur,
+   * et un seul. */
+  log({
+    event: "readiness_authority",
+    semantic_authority: "OPRIE",
+    ready_decision_source: "OPRIE_DEEP",
+    question_decision_source: "OPRIE_DEEP",
+    candidate_producer: "CORE_CONTRACTUALIZER",
+    semantic_deep_calls: 1,
+    contractualization_calls: 1
+  });
   return applyDisplayGuardToTurn(resultat.turn, { question_candidates: resultat.question_candidates }, log);
 }
 
@@ -18317,10 +19015,44 @@ function applyDisplayGuardToTurn(turn, analystOutput, log = () => {}) {
   if (!texte.trim()) return turn;
   const candidates = analystOutput && Array.isArray(analystOutput.question_candidates)
     ? analystOutput.question_candidates : [];
-  const garde = guardDisplayedQuestion(texte, { candidates });
+  /* V2.1.2 — LA QUESTION ET L'INCONNUE QU'ELLE DÉSIGNE DOIVENT PARLER DE LA MÊME CHOSE.
+   *
+   * Observé en bêta : une question portant sur le niveau de connaissance d'un public, un
+   * `targets_issue_id` désignant une inconnue qui parlait de l'angle, et une progression attendue qui
+   * parlait de l'angle elle aussi. Rien ne le voyait.
+   *
+   * Ce relevé est une OBSERVATION, et c'est délibéré : la personne ne voit jamais cette métadonnée,
+   * et refuser le tour pour elle coûterait un tour entier de travail pour un défaut invisible. Ce qui
+   * est vérifié est structurel — l'identifiant désigne-t-il une inconnue déclarée ? Une incohérence de
+   * SENS sur un identifiant qui existe reste hors de portée d'un contrôle structurel, et le dire vaut
+   * mieux que de l'ignorer. */
+  const idsConnus = (turn && Array.isArray(turn.issues) ? turn.issues : []).map((issue) => issue && issue.id);
+  log({
+    event: "question_issue_coherence",
+    targets_declared_issue: idsConnus.includes(question.targets_issue_id),
+    issue_count: idsConnus.length
+  });
+  /* V2.2.1-D2D — la nature de l'objectif vient du tour, donc de l'autorité, et traverse la
+     frontière telle quelle. Le garde ne la calcule pas ; il la lit. */
+  /* V2.2.1-D2F2 — trois faits, tous portés par le tour : la nature de l'objectif, ce sur quoi porte
+     la demande, et ce que la question interroge. Le texte de la demande n'atteint plus ce garde. */
+  const garde = guardDisplayedQuestion(texte, { candidates,
+    objectiveNature: turn && turn.objective_nature,
+    requestFocus: turn && turn.request_focus,
+    questionFocus: question && question.question_focus });
   /* Le verdict est journalisé, jamais le texte : la question porte des mots de la personne. */
   log({ event: "displayed_question_guard", verdict: garde.verdict,
         candidates_available: candidates.length, changed: garde.text !== texte });
+  if (garde.verdict === "NOT_DISPLAYABLE") {
+    /* V2.2.1-D2 FINAL — RIEN D'AFFICHABLE SE DIT, NE SE REMPLACE PAS.
+     *
+     * La frontière ne fabrique aucune question, et elle n'affiche pas davantage celle qu'elle vient
+     * de refuser. Elle rend donc le tour SANS question — les trois champs à null, ce que le contrat
+     * définit déjà comme « aucune question » (validateNullableQuestionCandidate). L'état décidé par
+     * OPRIE n'est pas touché : la readiness reste la sienne. Côté client, le chemin existe depuis
+     * toujours — `if(!question)` bascule sur le repli technique, rejouable. */
+    return { ...turn, next_question: { text: null, targets_issue_id: null, expected_progress: null } };
+  }
   if (garde.text === texte) return turn;
   return { ...turn, next_question: { ...question, text: garde.text } };
 }
@@ -21282,7 +22014,8 @@ function createOrchestrationAuditView(context, decision) {
 
 return {ORCHESTRATION_POLICY_VERSION,ORCHESTRATION_ACTIONS,DIALOG_MODES,USER_SOLICITING_ACTIONS,decideNextOrchestrationAction,isKnownOrchestrationAction,oprieActionIsModeIndependent,createOrchestrationAuditView};
 })();
-const FASTPLANE=(()=>{
+const FASTPLANE=((deps)=>{
+const {QUESTION_FOCUS_VALUES}=deps;
 /* PERF-03A — PLAN INTERACTIF RAPIDE, DISTINCT DU PLAN DE VALIDATION PROFONDE
  * ============================================================================
  *
@@ -21317,6 +22050,7 @@ const FASTPLANE=(()=>{
  * ========================================================================= */
 
 /** Ce que le plan rapide a le droit de proposer. Énumération fermée. */
+
 const FAST_INTERACTION_TYPES = Object.freeze([
   "ACKNOWLEDGE",
   "ASK_CLARIFICATION",
@@ -21352,10 +22086,13 @@ const FAST_FORBIDDEN_AUTHORITY_FIELDS = Object.freeze([
 const FAST_INTERACTION_JSON_SCHEMA = Object.freeze({
   type: "object",
   additionalProperties: false,
-  required: ["type", "text"],
+  required: ["type", "text", "question_focus"],
   properties: {
     type: { type: "string", enum: [...FAST_INTERACTION_TYPES] },
-    text: { type: "string" }
+    text: { type: "string" },
+    /* V2.2.1-D2F1 — ce que la question INTERROGE, dit par celui qui l'écrit. null quand il n'y a
+       pas de question : ce plan accuse aussi réception et se tait, et rien n'est alors interrogé. */
+    question_focus: { type: ["string", "null"], enum: [...QUESTION_FOCUS_VALUES, null] }
   }
 });
 
@@ -21414,9 +22151,19 @@ function validateFastInteraction(candidate, snapshot) {
   }
   /* Clés exactes : ni manquantes, ni surnuméraires. Un champ d'autorité glissé
      dans la réponse échoue ici, avant d'avoir pu être lu par qui que ce soit. */
+  /* Deux clés historiques, plus le fait de D2F1 quand il est là — et rien d'autre. La tolérance
+     porte sur la seule clé ajoutée : un champ d'autorité glissé dans la réponse échoue toujours
+     ici, avant d'avoir pu être lu par qui que ce soit. */
   const cles = Object.keys(candidate).sort();
-  if (cles.length !== 2 || cles[0] !== "text" || cles[1] !== "type") {
+  const attendues = cles.includes("question_focus")
+    ? ["question_focus", "text", "type"] : ["text", "type"];
+  if (cles.length !== attendues.length || cles.some((c, i) => c !== attendues[i])) {
     return { ok: false, reason: "FAST_SCHEMA_ERROR", detail: `clés inattendues : ${cles.join(", ") || "aucune"}` };
+  }
+  const focus = candidate.question_focus === undefined || candidate.question_focus === null
+    ? null : candidate.question_focus;
+  if (focus !== null && !QUESTION_FOCUS_VALUES.includes(focus)) {
+    return { ok: false, reason: "FAST_SCHEMA_ERROR", detail: `question_focus inconnu : ${String(focus)}` };
   }
   if (!FAST_INTERACTION_TYPES.includes(candidate.type)) {
     return { ok: false, reason: "FAST_SCHEMA_ERROR", detail: `type d'interaction inconnu : ${String(candidate.type)}` };
@@ -21430,6 +22177,7 @@ function validateFastInteraction(candidate, snapshot) {
       interaction_id: `fast-${snapshot.turn_id}`,
       type: candidate.type,
       text: candidate.text.trim(),
+      question_focus: focus,
       source: "fast_plane",
       /* Le mot compte : ce résultat est un CANDIDAT. Rien dans le système ne
          doit le lire comme un état. */
@@ -21619,7 +22367,7 @@ async function runInteractiveTurn({ snapshot, mode = "architecte", executeFast, 
 }
 
 return {FAST_INTERACTION_TYPES,ONE_NEXT_INTERACTION_MAX,FAST_FORBIDDEN_AUTHORITY_FIELDS,FAST_INTERACTION_JSON_SCHEMA,createTurnSnapshot,validateFastInteraction,CONVERSATIONAL_MODES,projectInteractionForMode,createTurnCoordinator,RECONCILIATION_OUTCOMES,reconcileFastWithDeep,runInteractiveTurn};
-})();
+})({...ORSTATE});
 const ADAPTERS=((deps)=>{
 const {buildAdnState,adnStateToExecutionContractSnapshot,canonicalBaseToEnvelopeInput,assertCanonicalReadinessInvariant,selectAdaptiveLocks,validateAdaptiveLockSelection,routeExecution,validateRoutingDecision,contractForContractualization}=deps;
 
@@ -21923,7 +22671,7 @@ function createAdapterAuditView(envelope) {
 
 return {ENGINE_ADAPTERS_VERSION,buildExecutionEnvelope,projectToRapide,projectToArchitecte,projectToAtelier,validateLegacyLockMapping,createAdapterAuditView};
 })({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON});
-global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...ORCORE,...ROLEDEG,...SOLICIT,...COREPLANE,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'c178d9b4cc216745cc5a069d18d3e2c3b4e25ace3f3a0df3781bc015fee5324d'});
+global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...BOUNDED,...ORCORE,...ROLEDEG,...SOLICIT,...COREPLANE,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'4e33f71c2e57a7228e4d2e344163561d51a75c37115601efdcf866c350c03322'});
 })(window);
 
 
@@ -21932,14 +22680,6 @@ global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READ
  * Middleware d'orchestration EXTERNE aux trois moteurs.
  * Aucun moteur Rapide / Architecte / Atelier n'est réécrit ici.
  * ---------------------------------------------------------------------- */
-const ADP10G=Object.freeze({
-  version:'10G.3B.1',
-  endpoints:Object.freeze({
-    workersAI:(document.querySelector('meta[name="atelier-decision-workers-ai"]')||{}).content||'',
-    groq:(document.querySelector('meta[name="atelier-decision-groq"]')||{}).content||''
-  })
-});
-const ADP_REASONS=Object.freeze({clarification:'La demande n’est pas encore suffisamment exploitable ; une clarification à forte valeur d’information est nécessaire.',rapide:'La demande est exploitable et peut être exécutée directement sans arbitrage structurel préalable.',architecte:'La demande est exploitable mais nécessite une structuration ou des arbitrages préalables.'});
 /* CLEAN-02 — CET ÉTAT NE PORTE PLUS QUE CE QUE QUELQU'UN LIT.
    Trois champs en sont retirés : `lastProjection` (six écritures, zéro lecture — la projection
    était calculée puis jetée), `running` (le verrou de tour vit dans oprieState, celui-ci n'était
@@ -21947,7 +22687,6 @@ const ADP_REASONS=Object.freeze({clarification:'La demande n’est pas encore su
    n'aurait plus jamais rendu que null). Un champ qu'on écrit sans jamais le lire finit par être
    lu un jour, et il ment alors depuis longtemps. */
 const adpState={pendingQuestion:false,clarifications:0,lastEnvelope:null,requestedMode:'rapide',returnFocus:null};
-const ADP_ADN_RUNTIME_VERSION='10G.3B.3F';
 function adnRuntime(){
   const runtime=window.__ATELIER_ADN_RUNTIME__;
   if(!runtime||typeof runtime.buildExecutionEnvelope!=='function')throw new Error('Le runtime ADN n’est pas disponible.');
@@ -22230,79 +22969,6 @@ function adnAppendFinalExecutionDirective(prompt){
   const base=String(prompt||'').trim();if(!base)return base;
   try{const runtime=adnRuntime();const directive=runtime&&typeof runtime.buildFinalExecutionDirective==='function'?runtime.buildFinalExecutionDirective():'';return directive?base+'\n\n'+directive:base}catch(error){return base}
 }
-function adpEndpointValide(value){
-  const url=String(value||'').trim();
-  return /^https:\/\//i.test(url)&&!url.includes('REMPLACER')?url:'';
-}
-function adpNormaliserQuestion(value){
-  let text=String(value||'').trim();
-  text=text.replace(/\s*\([^)]*\)\s*/g,' ');
-  text=text.replace(/\b(?:et|ainsi que)\s+(?=(?:quel(?:le)?s?|qui|quand|où|ou|comment|combien|pourquoi)\b)[^?]*\?$/i,' ?');
-  text=text.replace(/\b(?:et|ainsi que)\s+(?=(?:la|le|les|l[’']|votre|vos|un|une|des)\b)[^?]*\?$/i,' ?');
-  text=text.replace(/:\s*[^?]*[,;][^?]*\?$/g,' ?');
-  text=text.replace(/[,;]\s*(?:et\s+|avec\s+)?(?=(?:quel(?:le)?s?|qui|quand|où|ou|comment|combien|pourquoi)\b)[^?]*\?$/i,' ?');
-  const first=text.indexOf('?');if(first>=0)text=text.slice(0,first+1);
-  return text.replace(/\s+/g,' ').trim();
-}
-function adpTexteQuestion(value){return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[’']/g,' ').replace(/[^a-z0-9\s]/g,' ').replace(/\s+/g,' ').trim()}
-function adpMotsQuestion(value){
-  const stop=new Set(['avec','avez','cette','dans','de','des','du','elle','est','etes','le','les','pour','que','quel','quelle','quelles','quels','qui','souhaitez','sur','une','vous','votre','vos']);
-  return new Set(adpTexteQuestion(value).split(' ').filter(word=>word.length>2&&!stop.has(word)));
-}
-function adpQuestionsSimilaires(left,right){
-  const a=adpMotsQuestion(left),b=adpMotsQuestion(right);if(!a.size||!b.size)return adpTexteQuestion(left)===adpTexteQuestion(right);
-  let common=0;a.forEach(word=>{if(b.has(word))common+=1});return common/Math.min(a.size,b.size)>=.7;
-}
-function adpQuestionsPrecedentes(demande){return [...String(demande||'').matchAll(/^-\s*(.+?)\s+—\s+Réponse\s*:/gmi)].map(match=>match[1].trim())}
-function adpDecisionValide(value,demande=''){
-  if(!value||typeof value!=='object'||Array.isArray(value))throw new Error('Décision absente.');
-  const keys=Object.keys(value).sort(),expected=['confiance','etat_demande','question','raison_interne','route'];
-  if(keys.length!==expected.length||keys.some((key,index)=>key!==expected[index]))throw new Error('Format de décision invalide.');
-  if(!['exploitable','clarification_necessaire'].includes(value.etat_demande)||!['haute','moyenne'].includes(value.confiance))throw new Error('État ou confiance invalide.');
-  if(typeof value.raison_interne!=='string'||value.raison_interne.length>240)throw new Error('Raison interne invalide.');
-  if(value.question!==null&&(typeof value.question!=='string'||!value.question.trim()||value.question.length>180))throw new Error('Question invalide.');
-  const question=value.question===null?null:adpNormaliserQuestion(value.question);
-  if(question!==null&&(!question||question.length>180||((question.match(/\?/g)||[]).length>1)||/\b(?:et|ainsi que)\s+(?:quel(?:le)?s?|qui|quand|où|ou|comment|combien|pourquoi)\b/i.test(question.normalize('NFD').replace(/[\u0300-\u036f]/g,''))||/\b(?:et|ainsi que)\s+(?:la|le|les|l[’']|votre|vos|un|une|des)\b/i.test(question)||/\([^)]*\)/.test(question)||/:\s*[^?]*[,;][^?]*\?/.test(question)||/[,;]\s*(?:et\s+|avec\s+)?(?:quel(?:le)?s?|qui|quand|où|ou|comment|combien|pourquoi)\b/i.test(question)))throw new Error('La clarification contient plusieurs demandes.');
-  if(question!==null&&/\b(?:resultat concret|avancement utile|livrable|objectif operationnel|information structurante|element determinant|critere de reussite|niveau d exigence|perimetre fonctionnel|besoin metier)\b/.test(adpTexteQuestion(question)))throw new Error('La question expose le vocabulaire interne du pipeline.');
-  if(question!==null&&adpQuestionsPrecedentes(demande).some(previous=>adpQuestionsSimilaires(previous,question)))throw new Error('La question répète une clarification déjà posée.');
-  if(value.etat_demande==='clarification_necessaire'){
-    if(value.route!==null||question===null)throw new Error('Clarification incohérente.');
-  }else if(!['rapide','architecte'].includes(value.route)||value.question!==null)throw new Error('Décision exploitable incohérente.');
-  const canonique=value.etat_demande==='clarification_necessaire'?ADP_REASONS.clarification:value.route==='rapide'?ADP_REASONS.rapide:ADP_REASONS.architecte;
-  if(value.raison_interne!==canonique)throw new Error('La raison interne ne correspond pas à la décision.');
-  return {etat_demande:value.etat_demande,route:value.route,confiance:value.confiance,raison_interne:canonique,question};
-}
-async function adpAskEndpoint(endpoint,input){
-  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),6500);
-  try{
-    const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(input),signal:controller.signal,credentials:'omit',cache:'no-store',referrerPolicy:'no-referrer'});
-    if(!response.ok)throw new Error('Decision Provider indisponible ('+response.status+').');
-    return adpDecisionValide(await response.json(),input.demande);
-  }finally{clearTimeout(timer)}
-}
-/* FC-01a : adpFallbackLocal() a ete SUPPRIMEE. Elle fabriquait localement, lorsque les deux
-   fournisseurs Decision echouaient, une decision {etat_demande:'exploitable', route:'architecte'} —
-   c'est-a-dire qu'une panne technique se transformait en autorisation d'executer. C'etait un
-   fail-open : le navigateur declarait exploitable une demande qu'aucun fournisseur n'avait analysee.
-   Une indisponibilite technique n'est pas un jugement sur la demande, et le frontend n'a aucune
-   autorite pour en produire un. Il n'existe donc plus AUCUN chemin par lequel le navigateur puisse
-   fabriquer un etat_demande, une route ou une execution. */
-function adpDecisionTechnicalFailure(){
-  return Object.assign(new Error('DECISION_TECHNICAL_FAILURE'),{decision_technical_failure:true});
-}
-async function askDecisionProvider(input){
-  const minimal={demande:String(input&&input.demande||'').trim(),materiau_present:!!(input&&input.materiau_present),mode_demande:input&&input.mode_demande==='architecte'?'architecte':'rapide'};
-  if(!minimal.demande)throw adpDecisionTechnicalFailure();
-  const providers=[
-    ['workers-ai',adpEndpointValide(ADP10G.endpoints.workersAI)],
-    ['groq',adpEndpointValide(ADP10G.endpoints.groq)]
-  ];
-  for(const [source,endpoint] of providers){
-    if(!endpoint)continue;
-    try{return {decision:await adpAskEndpoint(endpoint,minimal),source}}catch(error){console.warn('Decision Provider '+source+' indisponible.',error)}
-  }
-  throw adpDecisionTechnicalFailure();
-}
 function v11ShowRapidGate(decision){
   const box=$('#ui-rapid-gate'),title=$('#ui-rapid-gate-title'),txt=$('#ui-rapid-gate-text');
   if(!box)return;
@@ -22408,6 +23074,16 @@ function oprieUtf8Bytes(valeur){
 }
 /* Construit le corps final. Le contenu n'y entre que s'il est intégralement
    disponible ET que le corps sérialisé tient dans la limite contractuelle. */
+/* V2.2.1-E1 — IL N'Y A PLUS DE DÉCISION CANONIQUE CÔTÉ CLIENT.
+ *
+ * Une fonction vivait ici : elle traduisait le type rapide en décision canonique et la joignait à la
+ * requête, si bien qu'un accusé de réception devenait une conclusion que le contractualisateur ne
+ * pouvait plus rediscuter. Le réaudit indépendant a établi que cela faisait du plan rapide une
+ * autorité de conclusion, ce que les deux textes normatifs interdisent — « Fast candidate-only »
+ * (garde-fou §9), « OPRIE = autorité sémantique de la demande et de sa maturité » (directive §5).
+ *
+ * Le client ne décide donc plus rien : il affiche, il transmet, et il attend la décision de
+ * l'autorité. */
 function oprieBuildBody(){
   const base={original_request:oprieOriginalRequest(),clarification_history:oprieClarificationHistory()};
   const docs=oprieMaterialDocs();
@@ -22473,6 +23149,8 @@ async function oprieRequestTurn(seqOuvert){
   const seq=Number.isInteger(seqOuvert)?seqOuvert:++oprieState.seq;
   if(oprieState.controller)oprieState.controller.abort();
   const controller=new AbortController();oprieState.controller=controller;
+  /* V2.2.1-E1 — le corps de la requête ne porte plus aucune décision. Le plan rapide propose une
+     interaction ; il ne prononce pas la readiness. Le constructeur retrouve son contrat d'origine. */
   const body=oprieBuildBody();
   let response;
   try{
@@ -22526,6 +23204,40 @@ function oprieNow(){
 }
 /* Télémétrie : identifiants de tour, mode, horodatages, types d'interaction. Jamais un secret,
    jamais le texte de la demande, jamais un nom de fournisseur. */
+/* V2.1.3 — CE QUE LE CLIENT SAIT D'UNE TENTATIVE PROFONDE, ET RIEN DE PLUS.
+ *
+ * Un compteur et trois constats, dérivés de ce que le client OBSERVE lui-même : la durée qu'il a
+ * mesurée, la nature de ce qu'il a reçu, et s'il propose une reprise. Le FOURNISSEUR reste
+ * volontairement inconnu de lui : le message de dégradation n'en nomme aucun, et le lui faire savoir
+ * exigerait d'élargir le contrat de réponse pour un gain nul côté personne. Le champ existe donc, et
+ * il vaut null — c'est un fait, pas un oubli.
+ *
+ * L'empreinte de l'historique sert une seule chose : prouver qu'une reprise technique ne le modifie
+ * pas. Elle ne transporte aucun texte. */
+function oprieHistoryHash(){
+  const tours=(typeof state!=='undefined'&&Array.isArray(state.answers))?state.answers:[];
+  let h=2166136261;
+  for(const t of tours){
+    const brut=String((t&&t.question)||'')+'\u0000'+String((t&&t.answer)||'')+'\u0001';
+    for(let i=0;i<brut.length;i+=1){h^=brut.charCodeAt(i);h=Math.imul(h,16777619)}
+  }
+  return `${tours.length}:${(h>>>0).toString(16)}`;
+}
+function oprieCoreTelemetry(extra){
+  const t=oprieState.coreTelemetry||(oprieState.coreTelemetry={});
+  return Object.assign({
+    core_attempt_count:oprieState.coreAttempts||0,
+    core_retry_count:Math.max((oprieState.coreAttempts||0)-1,0),
+    core_last_error_type:t.error_type||null,
+    /* Le client ne connaît pas le fournisseur, et n'a pas à le connaître. */
+    core_last_provider:null,
+    core_last_duration_ms:Number.isFinite(t.duration_ms)?t.duration_ms:null,
+    core_retryable:t.retryable===true,
+    core_snapshot_reused:t.snapshot_reused===true,
+    fast_reinvoked_after_ready:t.fast_reinvoked_after_ready===true,
+    clarification_history_hash:oprieHistoryHash()
+  },extra||{});
+}
 function oprieMark(event,detail){
   const marks=oprieState.telemetry;
   marks.push(Object.assign({event:String(event),at:oprieNow(),turn_id:oprieState.seq,mode:oprieState.requestedMode},detail||{}));
@@ -22593,6 +23305,14 @@ function oprieRenderFastInteraction(interaction,seq){
   /* UNE seule sollicitation à la fois : si une question est déjà ouverte, la candidate ne s'y
      superpose pas. C'est ce qui rend une double question structurellement impossible. */
   if(adpState.pendingQuestion){oprieMark('fast_discarded_pending');return false}
+  /* V2.2.1-E1 — LE PLAN RAPIDE NE DÉCIDE PLUS RIEN, DONC IL N'Y A PLUS DE DÉCISION À SAUVER.
+   *
+   * V2.2.1-D1 enregistrait ici le type CANONIQUE d'avant projection, pour qu'un ACKNOWLEDGE survive
+   * à son affichage et verrouille le contractualisateur. Le réaudit indépendant a montré que ce
+   * sauvetage servait une autorité que la gouvernance interdit.
+   *
+   * Il ne reste donc qu'une notion, et elle ne concerne que l'affichage : `fastInteraction` est ce
+   * qui a été MONTRÉ. Ce qui est DÉCIDÉ appartient à l'autorité, et ne transite plus par ici. */
   if(interaction.type==='WAIT_FOR_DEEP_VALIDATION'){oprieMark('fast_silent',{type:interaction.type});return false}
   oprieState.fastInteraction=interaction;
   if(FAST_SOLICITING_TYPES.indexOf(interaction.type)!==-1){
@@ -22682,12 +23402,20 @@ function oprieShowBlocked(turn){
    frontend n'en sait rien et n'a pas à en savoir. */
 function oprieShowDegraded(){
   adpState.pendingQuestion=false;if(!oprieKeepFailedDialogue())show(null);
+  oprieState.coreTelemetry=Object.assign(oprieState.coreTelemetry||{},
+    {error_type:'degraded_state',retryable:true});
+  oprieMark('core_attempt_failed',oprieCoreTelemetry());
   v11ShowRapidGate({state:'degraded',title:'Analyse temporairement indisponible',text:'L’analyse de votre demande est temporairement indisponible. Votre demande est conservée. Vous pouvez réessayer.'});
   return false;
 }
 function oprieShowNetworkFailure(){
   adpState.pendingQuestion=false;if(!oprieKeepFailedDialogue())show(null);
   v11ShowRapidGate(ADP_TECHNICAL_FAILURE_UI);
+  /* Le relevé vient APRÈS la séquence d'affichage, et c'est volontaire : il n'observe que ce qui
+     vient de se produire, et la séquence elle-même est un invariant épinglé depuis le lot FC-01a. */
+  oprieState.coreTelemetry=Object.assign(oprieState.coreTelemetry||{},
+    {error_type:'transport_or_contract',retryable:true});
+  oprieMark('core_attempt_failed',oprieCoreTelemetry());
   return false;
 }
 /* Clarification et confirmation réutilisent la même modale que le parcours historique : une seule
@@ -22969,7 +23697,8 @@ function oprieApplyTurn(turn,requestedMode){
 }
 /* Un clic = un tour. oprieState.running interdit toute requête concurrente ; les boutons sont
    désactivés pendant l'appel. Aucun timeout arbitraire : le pipeline serveur peut durer. */
-async function oprieRunTurn(requestedMode){
+async function oprieRunTurn(requestedMode,options){
+  const coreOnly=!!(options&&options.coreOnly);
   if(oprieState.running)return false;
   state.dialogueRequest=oprieOriginalRequest();
   oprieState.retryTurn=false;
@@ -22994,7 +23723,28 @@ async function oprieRunTurn(requestedMode){
    * Ne pas escalader n'est pas une décision sémantique — c'est l'absence d'escalade. */
   const seq=oprieOpenTurn();
   let projected=null;
-  try{projected=await oprieStartFastPlane(seq,requestedMode)}catch(error){projected=null}
+  /* V2.1.3 — UNE REPRISE TECHNIQUE NE REJOUE PAS LA CLARIFICATION.
+   *
+   * Mesuré en bêta réelle : le plan rapide avait conclu que la demande était prête, le plan profond
+   * a échoué techniquement, et le bouton « Réessayer » repartait d'ici — donc par le plan rapide.
+   * La trace observée était FAST prêt → CORE échoue → FAST prêt → CORE échoue → FAST prêt → CORE
+   * réussit. Chaque reprise payait un appel rapide pour reposer une question à laquelle la personne
+   * avait déjà répondu, et rejouait une readiness déjà acquise.
+   *
+   * Une reprise technique ne relance donc que le plan profond. Elle ne consomme aucun appel rapide,
+   * n'ajoute aucune entrée d'historique, et ne réinterprète aucune readiness. Le payload profond est
+   * reconstruit à l'identique parce qu'il est DÉRIVÉ de l'état existant — la demande, l'historique et
+   * le matériau — et non d'une copie parallèle qu'il faudrait entretenir. */
+  if(coreOnly){
+    oprieState.coreAttempts=(oprieState.coreAttempts||0)+1;
+    oprieState.coreTelemetry=Object.assign(oprieState.coreTelemetry||{},
+      {snapshot_reused:true,fast_reinvoked_after_ready:false});
+    oprieMark('fast_skipped_core_only',oprieCoreTelemetry());
+  }else{
+    oprieState.coreAttempts=0;
+    oprieState.coreTelemetry={};
+    try{projected=await oprieStartFastPlane(seq,requestedMode)}catch(error){projected=null}
+  }
   /* Un tour dépassé pendant l'attente rapide ne rend rien et ne réactive rien. */
   if(seq!==oprieState.seq)return false;
   if(projected&&FAST_SOLICITING_TYPES.indexOf(projected.type)!==-1){
@@ -23004,6 +23754,7 @@ async function oprieRunTurn(requestedMode){
     return true;
   }
   const deepPromise=oprieRequestTurn(seq);
+  const deepDebut=oprieNow();
   oprieMark('deep_start');
   let turn=null;
   try{turn=await deepPromise}
@@ -23017,7 +23768,11 @@ async function oprieRunTurn(requestedMode){
   }
   /* Le garde de tour vaut aussi pour la fin du tour : un tour dépassé ne réactive pas les boutons
      d'un tour plus récent, et ne rend rien du tout. */
-  finally{if(seq===oprieState.seq){oprieState.running=false;oprieSetBusy(false);oprieMark('deep_end')}}
+  /* La DURÉE est mesurée par le client lui-même : c'est la seule qu'il connaisse honnêtement, et
+     c'est celle que la personne a réellement attendue. */
+  finally{if(seq===oprieState.seq){oprieState.running=false;oprieSetBusy(false);
+    oprieState.coreTelemetry=Object.assign(oprieState.coreTelemetry||{},{duration_ms:oprieNow()-deepDebut});
+    oprieMark('deep_end',{core_last_duration_ms:oprieNow()-deepDebut})}}
   if(seq!==oprieState.seq||turn===null)return false;
   return oprieApplyTurn(turn,requestedMode);
 }
@@ -23133,20 +23888,12 @@ function v11StartAtelier(){
   if(ad)ad.focus();
   return true;
 }
-window.askDecisionProvider=askDecisionProvider;
-/* CLEAN-01 — FAÇADE DE COMPATIBILITÉ, ET RIEN DE PLUS.
-   Ce handle exposait l'ancien décideur (`decide`), sa dernière décision et son
-   journal d'audit. L'ancien décideur est retiré ; sa décision et son journal
-   n'auraient donc plus jamais rendu autre chose que null et []. Annoncer une
-   trace toujours vide est pire que ne rien annoncer.
-   Ce qui reste a un consommateur réel : askDecisionProvider est la couche de
-   transport du Decision Provider, exécutée par le banc d'évaluation
-   (evaluation/lot10g3b2/run-benchmark.mjs) et par les preuves fail-closed. */
-window.__ADAPTIVE_DECISION_PIPELINE_10G__=Object.freeze({
-  version:ADP10G.version,
-  adnRuntimeVersion:ADP_ADN_RUNTIME_VERSION,
-  askDecisionProvider
-});
+/* V2.2.1-E2 — LE DÉCIDEUR HISTORIQUE A ÉTÉ RETIRÉ DE L'ARTEFACT, ET NON SEULEMENT DÉBRANCHÉ.
+   Il n'avait plus aucun appelant dans le produit : sa seule voie d'accès était ces deux expositions
+   globales, consommées par un banc d'évaluation. Sa dernière responsabilité — refuser une question
+   qui répète une clarification déjà posée — appartient depuis longtemps au plan canonique
+   (`isRepeatedSolicitation`, verdict ALREADY_ANSWERED). Le laisser exporté, c'était livrer une
+   surface publique capable de décider sur des mots. */
 
 window.__V11_ROUTER__=Object.freeze({
   start(mode){
