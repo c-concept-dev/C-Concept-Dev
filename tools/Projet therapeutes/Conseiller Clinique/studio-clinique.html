@@ -11200,11 +11200,30 @@ ${recent}`;
     // fermants finaux AVANT de chercher la ponctuation terminale, jamais après (l'ordre importe :
     // chercher la ponctuation dans le texte SANS ses parenthèses/crochets englobants, pas les
     // considérer comme une ponctuation valide à leur place).
+    // Item 71 construction (Option B, décision Christophe) — assoupli pour paragraph/quote/callout
+    // (les 3 seuls types soumis à ce contrôle, cf. `walk` ci-dessous), après reproduction réelle
+    // ayant confirmé 3 faux positifs (investigation item 71) :
+    //  1. Apostrophe courbe fermante (’) — absente de la classe de ponctuation terminale, ajoutée.
+    //  2. Attribution par tiret + auteur/œuvre (ex. "... — Sénèque", "... — Auteur, Titre") — une
+    //     citation authentique n'a pas à finir par un point ; ce motif est le plus fréquent et le
+    //     plus fiable disponible pour distinguer une attribution d'une vraie coupure, sans accès à
+    //     un signal de production plus direct (Option D de l'investigation, non retenue ce lot).
+    //  3. Aphorisme/citation courte sans ponctuation terminale, PAR CONVENTION ÉDITORIALE, SANS
+    //     tiret d'attribution : décision explicite de Christophe de NE PAS créer d'exception ici —
+    //     un texte qui s'arrête simplement, sans rien, reste indiscernable d'une vraie troncature
+    //     en cours de phrase. Continue donc, à raison, d'être signalé — limite assumée, pas cachée.
     function looksTruncated(text) {
       const t = (text || '').trim();
       if (!t) return false;
       const withoutTrailingClosers = t.replace(/[)\]}]+$/, '');
-      return !/[.!?…»"”]$/.test(withoutTrailingClosers);
+      if (/[.!?…»"”’]$/.test(withoutTrailingClosers)) return false;
+      // Compromis assumé (investigation item 71, point 2) : un texte réellement tronqué qui
+      // s'arrêterait, par coïncidence, juste après un tiret précédé d'une espace suivi d'un mot
+      // capitalisé (ex. un prénom en cours de phrase) échapperait à tort à cette détection — motif
+      // jugé rare face au bénéfice (citations réelles avec attribution, désormais acceptées),
+      // jamais éliminé avec certitude absolue par une règle purement lexicale.
+      if (/\s[—–-]\s*[A-ZÀ-Ý].*$/.test(withoutTrailingClosers)) return false;
+      return true;
     }
 
     function walk(blocks) {
