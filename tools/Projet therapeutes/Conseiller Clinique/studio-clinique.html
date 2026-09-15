@@ -4457,6 +4457,17 @@ RÈGLES ABSOLUES :
       supervision: 'chat', analyse_cas: 'chat',
       intervention: 'chat', conceptualisation: 'chat', chat: 'chat'
     };
+    // Item 69 construction — VÉRIFIÉ, PAS RETIRÉ : 'carrousel' reste dans cette liste, contrairement
+    // à l'intention initiale de l'investigation (qui supposait, à tort, que ceci gate la tentative
+    // structurée). Ce `fmt` ne pilote QUE le contrat de sortie du moteur LEGACY (systemPrompt HTML
+    // direct) — la tentative structurée passe par un system prompt totalement séparé
+    // (structuredSystemPrompt, opts.forStructuredTool) et n'a jamais lu ce `fmt`. Retirer 'carrousel'
+    // ici casserait au contraire le repli automatique vers legacy en cas d'échec structuré : sans
+    // ce forçage, un carrousel retombé en legacy relirait plan.output_format (deviné librement
+    // par le planner LLM, ex. 'pptx') au lieu de 'html' — recréerait exactement le bug déjà refermé
+    // par item 56. Correction faite EN CONSTRUCTION, avant tout code, par vérification directe —
+    // jamais appliquée aveuglément malgré l'instruction initiale (régression #6 : vérifier
+    // jusqu'au bout avant de conclure, dans les deux sens).
     const _ADOC_HTML_FORCED_INTENTS = ['tableau', 'script', 'liens', 'comparatif', 'cours', 'document', 'carrousel'];
     const _ADOC_XLSX_ELIGIBLE_INTENTS = ['tableau', 'comparatif'];
     const fmt = _ADOC_HTML_FORCED_INTENTS.includes(plan?.intent)
@@ -5493,40 +5504,47 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       // pour les 2 suites en attente de confirmation) pour savoir si l'artefact HTML produit par
       // le moteur legacy ci-dessous doit être étiqueté generationEngine='legacy-html'.
       let _structFellBack = false;
-      // ── Phase UX-8A.1, point 10 — Fiche synthèse UNIQUEMENT, bascule explicite ──
-      // window.adocStructuredFicheEnabled : un seul point de vérité pour couper ce chemin.
-      // Repli automatique (catch ci-dessous) vers le moteur legacy inchangé en cas d'échec
-      // — jamais d'interruption du parcours utilisateur. Carrousel n'est pas branché ici.
+      // ── Phase UX-8A.1 → item 69 construction — plus "Fiche synthèse UNIQUEMENT" : le type visé
+      // (explicite ou déduit de l'intent, MÊME priorité que rang 1 ci-dessous, jamais changée)
+      // décide s'il tente le structuré via window.adocStructuredGenerationWiredByDocumentKind,
+      // le seul point de vérité pour savoir quels types y sont câblés (fiche ET carrousel
+      // désormais — tableau/script/liens restent à false, non touchés ce lot).
+      // window.adocStructuredFicheEnabled reste le coupe-circuit global unique des types câblés
+      // (nom historique conservé tel quel, jamais renommé — couper la génération structurée dans
+      // son ensemble reste un seul réglage, comme avant ce lot).
+      // Repli automatique (catch ci-dessous) vers le moteur legacy inchangé en cas d'échec —
+      // jamais d'interruption du parcours utilisateur.
       // Traceur persistant des replis — hissé hors du try (jamais réassigné, juste rendu visible
       // au catch ci-dessous) pour pouvoir retrouver le VRAI sourceSnapshot déjà produit quand la
       // fonction a réussi mais que la suite (QC bloquant) échoue ensuite — sans ce hissage,
       // `_struct` serait hors de portée dans le catch (ReferenceError, pas juste undefined),
       // puisque try/catch sont deux blocs distincts. Aucun changement de comportement : la valeur
       // affectée et le moment où elle l'est restent identiques, seule sa visibilité s'élargit.
-      // Correction rang 1 — quand un type a été explicitement choisi, LUI SEUL décide s'il faut
-      // tenter le moteur structuré : documentKind==='fiche' force la tentative même si l'intent
-      // classifié automatiquement était différent (ex. "document") ; toute AUTRE valeur explicite
-      // (carrousel/tableau/script/liens) l'EMPÊCHE explicitement, même si l'intent classifié
-      // était par erreur "fiche" — dans les deux cas, intent n'arbitre plus. Sans type explicite :
-      // comportement STRICTEMENT inchangé (intent seul décide, comme avant ce correctif).
-      const _shouldAttemptStructuredFiche = _hasExplicitKind
-        ? plan.documentKind === 'fiche'
-        : plan?.intent === 'fiche';
+      // Correction rang 1 (comportement STRICTEMENT conservé) — quand un type a été explicitement
+      // choisi, LUI SEUL décide s'il faut tenter le moteur structuré : un type explicite câblé
+      // force la tentative même si l'intent classifié automatiquement était différent ; tout AUTRE
+      // type explicite (câblé ou non) l'EMPÊCHE explicitement, même si l'intent classifié aurait
+      // été câblé — dans les deux cas, intent n'arbitre plus. Sans type explicite : comportement
+      // STRICTEMENT inchangé (intent seul décide, comme avant ce correctif).
+      const _structuredAttemptKind = _hasExplicitKind ? plan.documentKind : plan?.intent;
+      const _shouldAttemptStructured = !!_structuredAttemptKind
+        && window.adocStructuredGenerationWiredByDocumentKind[_structuredAttemptKind] === true;
       let _struct;
-      if (window.adocStructuredFicheEnabled && _shouldAttemptStructuredFiche && !_isLongDoc
-          && adocGetRendererMode('fiche') === 'structured') {
+      if (window.adocStructuredFicheEnabled && _shouldAttemptStructured && !_isLongDoc
+          && adocGetRendererMode(_structuredAttemptKind) === 'structured') {
         try {
-          adocUpdateTypingLabel(typingId, 'icon-structure', 'Génération structurée (Fiche synthèse)…');
+          const _structuredKindLabel = ADOC_GENERATION_KIND_LABELS[_structuredAttemptKind] || _structuredAttemptKind;
+          adocUpdateTypingLabel(typingId, 'icon-structure', 'Génération structurée (' + _structuredKindLabel + ')…');
           // Correctif contradiction de prompt (audit Codex confirmé dans le code) — `systemPrompt`
-          // ci-dessus est construit pour un fichier HTML autonome (plan.intent==='fiche' → fmt
-          // 'html' → _execContext/_photoCtx/charte CSS en dur/script plein écran), alors que
-          // cet appel force une sortie JSON via l'outil emit_fiche_document : deux contrats de
-          // sortie incompatibles envoyés dans le même prompt système. Reconstruit ici à partir des
-          // MÊMES ragCtx/docCtx/plan/clarityNote (aucune divergence de contenu clinique/RAG avec
-          // `systemPrompt`), avec opts.forStructuredTool qui retire uniquement les instructions de
-          // format HTML — jamais utilisé pour le moteur legacy, qui garde `systemPrompt` inchangé.
+          // ci-dessus est construit pour un fichier HTML autonome (fmt 'html' → _execContext/
+          // _photoCtx/charte CSS en dur/script plein écran), alors que cet appel force une sortie
+          // JSON via l'outil structuré du type visé : deux contrats de sortie incompatibles
+          // envoyés dans le même prompt système. Reconstruit ici à partir des MÊMES ragCtx/docCtx/
+          // plan/clarityNote (aucune divergence de contenu clinique/RAG avec `systemPrompt`), avec
+          // opts.forStructuredTool qui retire uniquement les instructions de format HTML — jamais
+          // utilisé pour le moteur legacy, qui garde `systemPrompt` inchangé.
           const structuredSystemPrompt = adocBuildSystemPrompt(ragCtx, docCtx, plan, clarityNote, { forStructuredTool: true });
-          _struct = await adocGenerateStructuredFiche(text, plan, ragResult, structuredSystemPrompt, workerUrl, typingId);
+          _struct = await adocGenerateStructuredDocument(_structuredAttemptKind, text, plan, ragResult, structuredSystemPrompt, workerUrl, typingId);
           // UX-8B Lot 2 — charte choisie pour CETTE demande : uniquement un choix de RENDU,
           // appliqué après coup sur le _struct.doc déjà produit ci-dessus. Ne relit ni ne
           // relance jamais ragResult/sourceSnapshot — donc jamais de nouvelle recherche RAG.
@@ -5553,10 +5571,10 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
           // échouer la RE-validation déclenchée par un futur clic sur "Exporter"
           // (adocExportClinicalDocumentHTML re-rend depuis le doc stocké).
           const _storeKey = await adocDeliverStructuredFicheArtifact(_struct.doc, _struct.sourceSnapshot, _rendered, _brandKitResolved.brandKitName);
-          adocConversations.push({ role: 'assistant', content: '[Fiche synthèse structurée générée : "' + _struct.doc.title + '"]' });
+          adocConversations.push({ role: 'assistant', content: '[Document structuré généré (' + _structuredKindLabel + ') : "' + _struct.doc.title + '"]' });
           adocExchangeCount++;
           window._adocLastStructuredDoc = { doc: _rendered.validatedDoc, qc: _rendered.qc, storeKey: _storeKey };
-          console.log('[UX-8A.1] Fiche structurée rendue avec succès — QC bloquant:', _rendered.qc.blocking.length);
+          console.log('[UX-8A.1] Document structuré (' + _structuredKindLabel + ') rendu avec succès — QC bloquant:', _rendered.qc.blocking.length);
           if (adocExchangeCount % 4 === 0) adocAccumulateSessionContext(plan, _struct.doc.title).catch(()=>{});
           // Correctif BUG 1 : un `return` nu ici sautait le nettoyage commun en bas de
           // fonction (drapeau adocThinking, bouton d'envoi, focus) — le bouton restait
@@ -5955,6 +5973,11 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     // du mécanisme). comparatif rejoint l'exception _explicitXlsxRequested de tableau (xlsx reste
     // un choix d'export, jamais le format de génération, sauf mention explicite Excel/xlsx dans
     // la demande) ; cours/document/carrousel n'ont aucune exception, jamais laissés au hasard.
+    // Item 69 construction — 'carrousel' délibérément CONSERVÉ ici (même vérification qu'au premier
+    // exemplaire de cette liste, cf. commentaire détaillé là-bas) : ce fmt gouverne le contrat de
+    // sortie du texte legacy DÉJÀ PRODUIT (adocHandleReply, post-génération), y compris pour le
+    // repli automatique après un échec de la tentative structurée — jamais la tentative structurée
+    // elle-même. Le retirer romprait ce repli, pas l'améliorerait.
     const _ADOC_HTML_FORCED_INTENTS = ['tableau', 'script', 'liens', 'comparatif', 'cours', 'document', 'carrousel'];
     const _ADOC_XLSX_ELIGIBLE_INTENTS = ['tableau', 'comparatif'];
     const fmt = _ADOC_HTML_FORCED_INTENTS.includes(plan?.intent)
@@ -9254,15 +9277,13 @@ ${recent}`;
   function adocGetRendererMode(documentKind) {
     return (window.rendererModeByDocumentKind && window.rendererModeByDocumentKind[documentKind]) || 'legacy';
   }
-  // Audit systémique (Priorité 8.3) — CONSTAT DISTINCT du précédent : le registre ci-dessus ne
-  // dit rien sur la GÉNÉRATION automatique (adocSend), qui elle ne déclenche le moteur structuré
-  // QUE pour plan.intent==='fiche' — carrousel n'a jamais été câblé à cette génération malgré une
-  // lecture rapide de rendererModeByDocumentKind qui pourrait le laisser croire. Registre séparé
-  // et honnête pour cette question précise, sans toucher au registre de rendu ci-dessus (qui,
-  // lui, décrit une capacité réelle et non concernée par cette confusion). Ne câble PAS carrousel
-  // à la génération structurée dans ce lot — changement de fond hors périmètre, à traiter
-  // séparément si un jour souhaité.
-  window.adocStructuredGenerationWiredByDocumentKind = { fiche: true, carrousel: false, tableau: false, script: false, liens: false };
+  // Audit systémique (Priorité 8.3) — registre séparé et honnête de rendererModeByDocumentKind
+  // ci-dessus (qui décrit une capacité de RENDU réelle, jamais concernée par cette question) :
+  // celui-ci dit quels types la GÉNÉRATION automatique (adocSend) tente réellement via le moteur
+  // structuré. Item 69 construction — carrousel rejoint fiche (orchestrateur générique
+  // adocGenerateStructuredDocument, cf. ADOC_STRUCTURED_PROFILES) ; tableau/script/liens restent
+  // à false, non touchés ce lot (0D — chantiers séparés, aucun schéma de bloc structuré pour eux).
+  window.adocStructuredGenerationWiredByDocumentKind = { fiche: true, carrousel: true, tableau: false, script: false, liens: false };
 
   // ── Validation JSON Schema réelle (ajv, vendorisé localement — vendor/ajv2020.min.js) ──
   let _adocAjvValidators = null;
@@ -11622,6 +11643,61 @@ ${recent}`;
     },
   };
 
+  // Item 69 construction — même patron APLATI que ADOC_STRUCTURED_FICHE_TOOL, un niveau
+  // d'imbrication de plus (cards[].blocks[]) pour refléter cardOnlyBlock/cardContent
+  // (block.schema.json) : un carrousel n'a QUE des cartes au niveau racine, chacune portant ses
+  // propres blocs. Vocabulaire de bloc de carte = nestedBlock (block.schema.json), donc SANS
+  // 'table' ni 'card' (jamais de tableau ni de carte imbriqués dans une carte). L'image de
+  // couverture de carte (cardContent.imageRef) reste hors périmètre de ce lot (item 63d) — non
+  // exposée ici, jamais renseignée par ce chemin (cf. adocConvertRawCardsToBlocks).
+  // eager_input_streaming dès la conception (jamais ajouté après coup comme pour Fiche, item 21).
+  const ADOC_STRUCTURED_CARROUSEL_TOOL = {
+    name: 'emit_carrousel_document',
+    description: "Produit le contenu d'un carrousel clinique structuré en cartes (diapositives), chacune composée de blocs typés, sourcé exclusivement par les passages numérotés fournis dans le prompt système.",
+    strict: true,
+    eager_input_streaming: true,
+    input_schema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string' },
+        purpose: { type: 'string' },
+        audience: { type: 'string' },
+        cards: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              title: { type: 'string', description: 'Titre court de la carte (diapositive) — une idée claire par carte.' },
+              blocks: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    type: { type: 'string', enum: ['heading', 'paragraph', 'callout', 'list', 'quote', 'image'] },
+                    text: { type: 'string', description: 'Texte pour heading/paragraph/callout/quote ; chaîne vide sinon.' },
+                    level: { type: 'integer', enum: [1, 2, 3], description: 'Niveau de titre (heading uniquement) ; 2 sinon.' },
+                    visualRole: { type: 'string', enum: ['info', 'warning', 'critical', 'success'], description: 'callout uniquement ; "info" sinon.' },
+                    items: { type: 'array', items: { type: 'string' }, description: 'list uniquement ; liste vide sinon.' },
+                    ordered: { type: 'boolean', description: 'list uniquement ; false sinon.' },
+                    imageQuery: { type: 'string', description: "image uniquement — requête de recherche Pexels concrète et spécifique, en anglais, jamais générique ou caricaturale ; chaîne vide sinon." },
+                    imageAlt: { type: 'string', description: 'image uniquement — texte alternatif descriptif, non vide dès que type=image ; chaîne vide sinon.' },
+                    citationEntryIds: { type: 'array', items: { type: 'string' }, description: "sourceSnapshotEntryId (ex. 'entry-3') des passages fournis qui soutiennent ce bloc — choisis EXACTEMENT parmi les identifiants listés dans le prompt, jamais inventés ; liste vide si aucune affirmation sourcée dans ce bloc." },
+                  },
+                  required: ['type', 'text', 'level', 'visualRole', 'items', 'ordered', 'imageQuery', 'imageAlt', 'citationEntryIds'],
+                  additionalProperties: false,
+                },
+              },
+            },
+            required: ['title', 'blocks'],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ['title', 'purpose', 'audience', 'cards'],
+      additionalProperties: false,
+    },
+  };
+
   // Correctif BUG 3 (lot correctifs urgents) : vérification post-génération — ne pas se
   // reposer uniquement sur la consigne du prompt système, qui peut être ignorée par le
   // modèle. Retire tout emoji/pictogramme/symbole décoratif Unicode d'un texte produit
@@ -11639,7 +11715,95 @@ ${recent}`;
     return s.replace(ADOC_EMOJI_RE, '').replace(/ {2,}/g, ' ').trim();
   }
 
-  async function adocGenerateStructuredFiche(text, plan, ragResult, systemPrompt, workerUrl, typingId) {
+  // Item 69 construction — un profil par documentKind câblé au structuré : SEULS les 4 points
+  // identifiés par l'investigation varient (outil/nom d'outil, suffixe de prompt système,
+  // conversion raw→blocks) ; tout le reste (orchestration réseau, minuteries, parsing SSE,
+  // retries, réconciliation des citations, squelette du document) reste un corps de fonction
+  // UNIQUE (adocGenerateStructuredDocument ci-dessous), jamais dupliqué (régression #6 — c'est
+  // précisément le risque que l'audit architecture demandait d'éviter).
+  const ADOC_STRUCTURED_PROFILES = {
+    fiche: {
+      tool: ADOC_STRUCTURED_FICHE_TOOL,
+      toolName: 'emit_fiche_document',
+      defaultTitle: 'Fiche synthèse',
+      // Texte IDENTIQUE à celui qui existait en dur avant ce lot — extraction pure, aucune
+      // reformulation (cf. exigence "aucune réécriture" de la construction).
+      buildPromptSuffix: function(passagesListing) {
+        return '\n\n---\nGÉNÉRATION STRUCTURÉE (Phase UX-8A.1, pilote Fiche synthèse)\n' +
+          "Réponds exclusivement via l'outil emit_fiche_document. Chaque affirmation clinique " +
+          'significative doit citer un ou plusieurs passages ci-dessous par leur identifiant ' +
+          'exact (sourceSnapshotEntryId, ex. "entry-3") — jamais un identifiant inventé, jamais ' +
+          'une citation sans passage correspondant dans la liste. Passages disponibles :\n\n' + passagesListing +
+          '\n\n── ILLUSTRATION (bloc type="image") ──\n' +
+          'Un bloc type="image" est disponible. Ne l\'utilise QUE si une image apporte une valeur ' +
+          "clinique ou pédagogique réelle au propos — jamais par défaut, jamais pour \"décorer\". " +
+          "Jamais de photo générique ou caricaturale de stock (ex. poignée de main souriante, couple " +
+          'anonyme qui se dispute face caméra) : imageQuery doit être une requête Pexels concrète et ' +
+          "spécifique, en anglais. imageAlt est obligatoire et non vide dès que type=\"image\".\n\n" +
+          '── TEXTE (lot correctifs urgents) ──\n' +
+          "Aucun emoji, aucun caractère Unicode décoratif (cercles ou carrés de couleur, symboles, " +
+          "pictogrammes, flèches décoratives) nulle part dans le texte produit — texte propre " +
+          'uniquement, y compris dans les tableaux (pas de rond de couleur comme indicateur : utilise un mot).';
+      },
+      // raw.blocks est déjà la forme À PLAT attendue par convertBlock — aucune restructuration.
+      convertRawToBlocks: function(raw, convertBlock) {
+        return (raw.blocks || []).map(convertBlock).filter(Boolean);
+      },
+    },
+    carrousel: {
+      tool: ADOC_STRUCTURED_CARROUSEL_TOOL,
+      toolName: 'emit_carrousel_document',
+      defaultTitle: 'Carrousel',
+      buildPromptSuffix: function(passagesListing) {
+        return '\n\n---\nGÉNÉRATION STRUCTURÉE (Carrousel)\n' +
+          "Réponds exclusivement via l'outil emit_carrousel_document. Découpe le contenu en " +
+          'cartes (diapositives) : chaque carte porte un titre court et ses propres blocs de ' +
+          'contenu — une idée claire par carte, jamais un pavé continu réparti arbitrairement. ' +
+          'Chaque affirmation clinique significative doit citer un ou plusieurs passages ci-dessous ' +
+          'par leur identifiant exact (sourceSnapshotEntryId, ex. "entry-3") — jamais un identifiant ' +
+          'inventé, jamais une citation sans passage correspondant dans la liste. Passages ' +
+          'disponibles :\n\n' + passagesListing +
+          '\n\n── ILLUSTRATION (bloc type="image", à l\'intérieur d\'une carte) ──\n' +
+          'Un bloc type="image" est disponible à l\'intérieur des blocs d\'une carte. Ne l\'utilise ' +
+          "QUE si une image apporte une valeur clinique ou pédagogique réelle au propos — jamais " +
+          "par défaut, jamais pour \"décorer\". Jamais de photo générique ou caricaturale de stock " +
+          '(ex. poignée de main souriante, couple anonyme qui se dispute face caméra) : imageQuery ' +
+          'doit être une requête Pexels concrète et spécifique, en anglais. imageAlt est obligatoire ' +
+          "et non vide dès que type=\"image\".\n\n" +
+          '── TEXTE (lot correctifs urgents) ──\n' +
+          "Aucun emoji, aucun caractère Unicode décoratif (cercles ou carrés de couleur, symboles, " +
+          "pictogrammes, flèches décoratives) nulle part dans le texte produit — texte propre uniquement.";
+      },
+      // raw.cards est imbriqué (cardOnlyBlock/cardContent, block.schema.json) — une carte par
+      // entrée, ses propres blocs convertis par LA MÊME fonction convertBlock que Fiche (jamais
+      // une seconde logique de conversion par type). L'image de couverture de carte
+      // (cardContent.imageRef/imageAlt) reste hors périmètre de ce lot (item 63d) : toujours
+      // null ici, jamais renseignée par ce chemin.
+      convertRawToBlocks: function(raw, convertBlock) {
+        let cardSeq = 0;
+        return (raw.cards || []).map(function(card) {
+          cardSeq++;
+          const cardBlocks = (card.blocks || []).map(convertBlock).filter(Boolean);
+          if (!cardBlocks.length) return null; // carte sans contenu exploitable — jamais une carte vide
+          return {
+            id: 'card-' + String(cardSeq).padStart(2, '0'),
+            type: 'card',
+            content: {
+              title: adocStripEmoji((card.title || '').trim()) || ('Diapositive ' + cardSeq),
+              imageRef: null, imageAlt: null,
+              blocks: cardBlocks,
+            },
+            citationIds: [], validation: {},
+          };
+        }).filter(Boolean);
+      },
+    },
+  };
+
+  async function adocGenerateStructuredDocument(kind, text, plan, ragResult, systemPrompt, workerUrl, typingId) {
+    const profile = ADOC_STRUCTURED_PROFILES[kind];
+    if (!profile) throw new Error('adocGenerateStructuredDocument: aucun profil structuré pour documentKind "' + kind + '".');
+    const kindLabel = ADOC_GENERATION_KIND_LABELS[kind] || kind;
     _adocEmojiStrippedCount = 0;
     // Traceur persistant des replis (diagnostic uniquement, aucun changement de comportement) —
     // _m1/_m2 (métriques par tentative) sont scopées à cette fonction et disparaissent avant
@@ -11662,10 +11826,10 @@ ${recent}`;
       if (window.adocStructuredFicheTimingLog === false) return;
       console.log('[UX-8A.2][timing] ' + label + ' — t+' + (performance.now() - _t0).toFixed(0) + 'ms');
     }
-    _logTiming('entrée adocGenerateStructuredFiche');
+    _logTiming('entrée adocGenerateStructuredDocument (' + kind + ')');
     const sourceSnapshot = await adocBuildSourceSnapshotFromRAG(ragResult);
     if (!sourceSnapshot.entries.length) {
-      throw new Error('Aucun passage RAG disponible pour sourcer une fiche structurée.');
+      throw new Error('Aucun passage RAG disponible pour sourcer un document structuré (' + kindLabel + ').');
     }
     // Traceur persistant — sourceSnapshot est construit ICI, avant tout appel réseau, donc déjà
     // disponible pour TOUTE tentative de repli qui pourrait survenir plus loin (appel 1 ou 2).
@@ -11677,22 +11841,10 @@ ${recent}`;
         (e.locator.page ? ', p.' + e.locator.page : '') + ' : ' + e.exactText.slice(0, 500);
     }).join('\n\n');
 
-    const baseStructuredSystemPrompt = systemPrompt +
-      '\n\n---\nGÉNÉRATION STRUCTURÉE (Phase UX-8A.1, pilote Fiche synthèse)\n' +
-      "Réponds exclusivement via l'outil emit_fiche_document. Chaque affirmation clinique " +
-      'significative doit citer un ou plusieurs passages ci-dessous par leur identifiant ' +
-      'exact (sourceSnapshotEntryId, ex. "entry-3") — jamais un identifiant inventé, jamais ' +
-      'une citation sans passage correspondant dans la liste. Passages disponibles :\n\n' + passagesListing +
-      '\n\n── ILLUSTRATION (bloc type="image") ──\n' +
-      'Un bloc type="image" est disponible. Ne l\'utilise QUE si une image apporte une valeur ' +
-      "clinique ou pédagogique réelle au propos — jamais par défaut, jamais pour \"décorer\". " +
-      "Jamais de photo générique ou caricaturale de stock (ex. poignée de main souriante, couple " +
-      'anonyme qui se dispute face caméra) : imageQuery doit être une requête Pexels concrète et ' +
-      "spécifique, en anglais. imageAlt est obligatoire et non vide dès que type=\"image\".\n\n" +
-      '── TEXTE (lot correctifs urgents) ──\n' +
-      "Aucun emoji, aucun caractère Unicode décoratif (cercles ou carrés de couleur, symboles, " +
-      "pictogrammes, flèches décoratives) nulle part dans le texte produit — texte propre " +
-      'uniquement, y compris dans les tableaux (pas de rond de couleur comme indicateur : utilise un mot).';
+    // Item 69 construction — le suffixe spécifique au type (nom d'outil, structure attendue)
+    // vient désormais du profil ; systemPrompt/passagesListing restent construits ici, à
+    // l'identique, pour les deux types (extraction pure, cf. profile.buildPromptSuffix).
+    const baseStructuredSystemPrompt = systemPrompt + profile.buildPromptSuffix(passagesListing);
 
     // ── Premier appel — web_search en libre décision (récupère le trio bibliothèque + web + IA) ──
     // Même patron que le moteur legacy (tool_choice:'auto', cf. adocRunContinuationRound /
@@ -11953,7 +12105,7 @@ ${recent}`;
         console.log('[UX-8A.2] Appel 1 (décision web_search) — nouvelle tentative avant abandon (échec avant tout HTTP 200).');
       }
     }
-    console.log('[UX-8A.2] web_search', usedWebSearch ? 'utilisé pour la Fiche structurée' : 'non utilisé (bibliothèque jugée suffisante par CC ou appel indisponible)');
+    console.log('[UX-8A.2] web_search', usedWebSearch ? 'utilisé pour la génération structurée (' + kindLabel + ')' : 'non utilisé (bibliothèque jugée suffisante par CC ou appel indisponible)');
     window._adocLastStructAttemptMetrics.usedWebSearch = usedWebSearch; // traceur persistant — valeur figée ici, jamais modifiée après ce point
 
     // ── Second appel — sortie structurée forcée, enrichie du complément web s'il existe ──
@@ -12032,12 +12184,12 @@ ${recent}`;
         stream: true,
         system: structuredSystemPrompt,
         messages: [{ role: 'user', content: text }],
-        tools: [ADOC_STRUCTURED_FICHE_TOOL],
-        tool_choice: { type: 'tool', name: 'emit_fiche_document' },
+        tools: [profile.tool],
+        tool_choice: { type: 'tool', name: profile.toolName },
       };
       _m2.payloadBytes = JSON.stringify(_payload2).length;
       _logTiming('avant envoi appel 2 (génération structurée forcée, streamée)' + (_attempt2 > 1 ? ' — nouvelle tentative' : ''));
-      if (_attempt2 > 1 && typingId) adocUpdateTypingLabel(typingId, 'icon-structure', 'Génération structurée (Fiche synthèse)… nouvelle tentative');
+      if (_attempt2 > 1 && typingId) adocUpdateTypingLabel(typingId, 'icon-structure', 'Génération structurée (' + kindLabel + ')… nouvelle tentative');
       let _fetchOrHttpErr = null;
       try {
         try {
@@ -12127,7 +12279,7 @@ ${recent}`;
                 _m2.usefulContentFragmentCount++;
                 _resetGenSemanticTimeout();
                 // Progression réelle à l'écran pendant le flux — jamais un texte figé.
-                if (typingId) adocUpdateTypingLabel(typingId, 'icon-structure', 'Génération structurée (Fiche synthèse)… ' + _genReceivedChars + ' caractères reçus');
+                if (typingId) adocUpdateTypingLabel(typingId, 'icon-structure', 'Génération structurée (' + kindLabel + ')… ' + _genReceivedChars + ' caractères reçus');
               }
             }
             // Axe 2 — content_block_stop/message_stop reçus AVANT un abandon éventuel indiquent
@@ -12240,8 +12392,8 @@ ${recent}`;
       }
     }
 
-    if (_genToolName !== 'emit_fiche_document' || !_genToolInputJson) {
-      throw new Error('Réponse sans bloc tool_use structuré (emit_fiche_document) après streaming.');
+    if (_genToolName !== profile.toolName || !_genToolInputJson) {
+      throw new Error('Réponse sans bloc tool_use structuré (' + profile.toolName + ') après streaming.');
     }
     if (_genStopReason === 'max_tokens') {
       throw new Error('Génération structurée tronquée (max_tokens atteint pendant le flux).');
@@ -12267,8 +12419,12 @@ ${recent}`;
       return citationsById[entryId];
     }
 
+    // Item 69 construction — extrait de l'ancien .map() inline (jamais réécrit), désormais une
+    // fonction partagée : appelée directement sur raw.blocks à plat pour Fiche, une fois par
+    // carte sur card.blocks pour Carrousel (profile.convertRawToBlocks) — LA MÊME logique de
+    // conversion par type de bloc, jamais une seconde copie (régression #6).
     let blockSeq = 0;
-    const blocks = (raw.blocks || []).map(function(b) {
+    function convertBlock(b) {
       blockSeq++;
       const id = (b.type || 'block') + '-' + String(blockSeq).padStart(2, '0');
       let content;
@@ -12302,7 +12458,9 @@ ${recent}`;
         return { citationId: cid, claimText: (b.text || (b.items && b.items[0]) || 'Affirmation du bloc.').slice(0, 200), claimSupport: 'needs-review' };
       }) : [];
       return { id: id, type: b.type, content: content, citationIds: citationIds, validation: citationLinks.length ? { citationLinks: citationLinks } : {} };
-    }).filter(Boolean);
+    }
+
+    const blocks = profile.convertRawToBlocks(raw, convertBlock);
 
     if (!blocks.length) throw new Error('Le modèle a produit un document structuré sans bloc exploitable.');
     if (_adocEmojiStrippedCount) console.log('[UX-8A.2] emoji(s)/pictogramme(s) retiré(s) du texte produit — ' + _adocEmojiStrippedCount + ' champ(s) concerné(s).');
@@ -12320,13 +12478,21 @@ ${recent}`;
       schemaVersion: 1, documentId: documentId, versionId: documentId + '-v1', previousVersionId: null,
       requestId: 'request-' + adocUUID(), sourceSnapshotId: sourceSnapshot.sourceSnapshotId,
       createdAt: now, language: 'fr', status: 'draft',
-      title: raw.title || 'Fiche synthèse', purpose: raw.purpose || '', audience: raw.audience || 'clinicien',
-      documentKind: 'fiche', renderManifestId: 'manifest-default-001', derivedFrom: null,
+      title: raw.title || profile.defaultTitle, purpose: raw.purpose || '', audience: raw.audience || 'clinicien',
+      documentKind: kind, renderManifestId: 'manifest-default-001', derivedFrom: null,
       blocks: blocks, citations: citations,
       validation: { sourceIntegrity: 'pending', contentCompleteness: 'pending', layout: 'pending', accessibility: 'pending', humanClinicalReview: 'required' },
     };
     return { doc: doc, sourceSnapshot: sourceSnapshot };
   }
+  window.adocGenerateStructuredDocument = adocGenerateStructuredDocument;
+  // Compatibilité — délégation réelle, jamais une seconde copie de logique (même famille que le
+  // décorateur déjà jugé légitime pour window.adocSend, cf. document de vigilance) : l'ancien nom
+  // continue de fonctionner à l'identique pour tout appelant externe (tests notamment) qui s'y
+  // référencerait encore, sans jamais dupliquer le corps de la fonction.
+  window.adocGenerateStructuredFiche = function(text, plan, ragResult, systemPrompt, workerUrl, typingId) {
+    return adocGenerateStructuredDocument('fiche', text, plan, ragResult, systemPrompt, workerUrl, typingId);
+  };
 
   // Injecte le HTML déjà rendu/assaini du moteur canonique tel quel dans une nouvelle bulle
   // assistant, sans repasser par adocFormatMd (markdown) qui casserait la structure.
@@ -13820,7 +13986,8 @@ ${recent}`;
   };
 
   // Exposés pour test/vérification (Playwright) et pour l'inspection en mode développeur.
-  window.adocGenerateStructuredFiche = adocGenerateStructuredFiche;
+  // (window.adocGenerateStructuredFiche / window.adocGenerateStructuredDocument déjà exposées
+  // juste après leur définition, cf. item 69 construction — jamais réexportées ici en double.)
   window.adocBuildSourceSnapshotFromRAG = adocBuildSourceSnapshotFromRAG;
   window.adocAppendStructuredDocMsg = adocAppendStructuredDocMsg;
 
