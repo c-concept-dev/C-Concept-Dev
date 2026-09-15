@@ -9912,7 +9912,18 @@ ${recent}`;
       n.removeAttribute('contenteditable'); n.removeAttribute('data-cc-legacy-block-id'); n.removeAttribute('data-cc-editor-leaf');
       n.classList.remove('is-selected');
     });
-    root.querySelectorAll('.cc-legacy-edit-text').forEach(function (n) { n.classList.remove('cc-legacy-edit-text');n.classList.add('cc-text-run');n.style.whiteSpace='pre-wrap'; });
+    // Item 66 — ce span n'existe que pour porter l'édition directe en direct dans l'espace de
+    // travail (adocEditorPrepare) ; il n'a jamais eu vocation à survivre dans art.html (cf.
+    // commentaire de Phase 1 : art.html n'est "jamais" modifié par ce mécanisme). Le renommer en
+    // 'cc-text-run' au lieu de le retirer le laissait pourtant dans le HTML persisté/exporté —
+    // corrigé en le désenveloppant réellement (ne touche que ce clone, jamais le DOM affiché en
+    // direct dans #cc-ws-doc-card, qui garde ses propres nœuds .cc-legacy-edit-text intacts pour
+    // que l'édition continue de fonctionner sans interruption).
+    root.querySelectorAll('.cc-legacy-edit-text').forEach(function (n) {
+      const parent = n.parentNode; if (!parent) return;
+      while (n.firstChild) parent.insertBefore(n.firstChild, n);
+      parent.removeChild(n);
+    });
   }
   function adocEditorSyncLegacy(art) {
     if (!art || art._adocGenerationEngine !== 'legacy-html') return;
