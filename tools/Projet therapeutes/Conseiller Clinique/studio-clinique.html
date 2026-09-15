@@ -1646,6 +1646,11 @@
        uniquement — aucune nouvelle règle de mise en page. */
     .adoc-sc-script .adoc-sc-cover { background-color: var(--terracotta-700, #8a3f29); }
     .adoc-sc-script .adoc-sc-cover::before { background: linear-gradient(180deg, rgba(138,63,41,0.35), rgba(138,63,41,0.88)); }
+    /* Item 73 construction — identité visuelle Tableau comparatif : bannière ardoise, troisième
+       couleur distincte de pétrole (Fiche) et terracotta (Script). Même patron exact (une seule
+       couleur de base à deux opacités), couleur différente uniquement. */
+    .adoc-sc-tableau .adoc-sc-cover { background-color: #3d5266; }
+    .adoc-sc-tableau .adoc-sc-cover::before { background: linear-gradient(180deg, rgba(61,82,102,0.35), rgba(61,82,102,0.88)); }
     .adoc-sc-carrousel {
       display: flex; gap: 16px; overflow-x: auto; padding: 8px 4px 16px;
       scroll-snap-type: x proximity;
@@ -5533,9 +5538,27 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       // type explicite (câblé ou non) l'EMPÊCHE explicitement, même si l'intent classifié aurait
       // été câblé — dans les deux cas, intent n'arbitre plus. Sans type explicite : comportement
       // STRICTEMENT inchangé (intent seul décide, comme avant ce correctif).
-      const _structuredAttemptKind = _hasExplicitKind ? plan.documentKind : plan?.intent;
+      // Item 73 construction — investigation item 73 : 'comparatif' ne devient JAMAIS
+      // littéralement documentKind='tableau' ailleurs dans le pipeline (plan.documentKind n'est
+      // posé QUE par le choix explicite sur l'écran d'accueil) — il partage seulement le même
+      // contrat de sortie legacy que 'tableau' via _ADOC_HTML_FORCED_INTENTS/
+      // _ADOC_XLSX_ELIGIBLE_INTENTS. Normalisé ICI, au seul point de décision structuré, en une
+      // ligne — jamais une duplication des registres wired/renderer/profiles pour une clé
+      // 'comparatif' séparée (régression #6).
+      const _rawAttemptKind = _hasExplicitKind ? plan.documentKind : plan?.intent;
+      const _structuredAttemptKind = _rawAttemptKind === 'comparatif' ? 'tableau' : _rawAttemptKind;
       const _shouldAttemptStructured = !!_structuredAttemptKind
-        && window.adocStructuredGenerationWiredByDocumentKind[_structuredAttemptKind] === true;
+        && window.adocStructuredGenerationWiredByDocumentKind[_structuredAttemptKind] === true
+        // Item 73 construction — DÉCISION CRITIQUE (investigation item 73, point 2) : le
+        // mécanisme d'export xlsx (item 67) ne sait lire que le HTML brut legacy (script
+        // id="xlsx-data" embarqué par le LLM), jamais un ClinicalDocument — une demande Excel
+        // explicite pour un Tableau ne doit JAMAIS tenter le structuré, sous peine de produire un
+        // document structuré valide qui ne générerait pourtant jamais le fichier .xlsx demandé
+        // (régression silencieuse contre item 67, pire que le repli d'item 72 : ici la tentative
+        // RÉUSSIRAIT, juste avec le mauvais type de livrable). Scopé à 'tableau' uniquement —
+        // jamais un blocage général sur les autres types (une Fiche qui mentionne incidemment
+        // "Excel" dans son texte ne doit pas perdre l'accès au structuré pour autant).
+        && !(_structuredAttemptKind === 'tableau' && plan?._explicitXlsxRequested);
       let _struct;
       if (window.adocStructuredFicheEnabled && _shouldAttemptStructured && !_isLongDoc
           && adocGetRendererMode(_structuredAttemptKind) === 'structured') {
@@ -9283,7 +9306,12 @@ ${recent}`;
   // exact aussi : adocRenderScriptHTML existe et est branché dans adocRenderClinicalDocument
   // (vérifié avant ce flip, jamais l'inverse — piège nommé par l'investigation item 72 point 5 :
   // activer la génération sans le rendu produit un échec silencieux, repli systématique invisible).
-  window.rendererModeByDocumentKind = { fiche: 'structured', carrousel: 'structured', tableau: 'legacy', script: 'structured', liens: 'legacy' };
+  // Item 73 construction — 'structured' pour tableau est désormais exact aussi :
+  // adocRenderTableauHTML existe et est branché (même vigilance que Script — vérifié avant ce
+  // flip). L'export xlsx (item 67) reste hors de ce périmètre : exclu explicitement au site
+  // d'appel de la tentative structurée (cf. `!(_structuredAttemptKind === 'tableau' &&
+  // plan?._explicitXlsxRequested)`), jamais concerné par ce registre de RENDU.
+  window.rendererModeByDocumentKind = { fiche: 'structured', carrousel: 'structured', tableau: 'structured', script: 'structured', liens: 'legacy' };
   function adocGetRendererMode(documentKind) {
     return (window.rendererModeByDocumentKind && window.rendererModeByDocumentKind[documentKind]) || 'legacy';
   }
@@ -9291,12 +9319,15 @@ ${recent}`;
   // ci-dessus (qui décrit une capacité de RENDU réelle, jamais concernée par cette question) :
   // celui-ci dit quels types la GÉNÉRATION automatique (adocSend) tente réellement via le moteur
   // structuré. Item 69 construction — carrousel rejoint fiche (orchestrateur générique
-  // adocGenerateStructuredDocument, cf. ADOC_STRUCTURED_PROFILES) ; tableau/liens restent à false,
-  // non touchés ce lot (0D — chantiers séparés, aucun schéma de bloc structuré pour eux). Item 72
+  // adocGenerateStructuredDocument, cf. ADOC_STRUCTURED_PROFILES) ; liens reste à false,
+  // non touché ce lot (0D — chantier séparé, aucun schéma de bloc structuré pour lui). Item 72
   // construction — script rejoint fiche/carrousel (ADOC_STRUCTURED_PROFILES.script), ACTIVÉ EN
   // MÊME TEMPS que rendererModeByDocumentKind.script ci-dessus, jamais l'un sans l'autre (piège
-  // nommé par l'investigation item 72 point 5).
-  window.adocStructuredGenerationWiredByDocumentKind = { fiche: true, carrousel: true, tableau: false, script: true, liens: false };
+  // nommé par l'investigation item 72 point 5). Item 73 construction — tableau rejoint à son tour
+  // (ADOC_STRUCTURED_PROFILES.tableau), ACTIVÉ EN MÊME TEMPS que rendererModeByDocumentKind.tableau
+  // ci-dessus — l'exclusion xlsx (site d'appel) reste le seul garde-fou supplémentaire propre à
+  // ce type, absent pour Script.
+  window.adocStructuredGenerationWiredByDocumentKind = { fiche: true, carrousel: true, tableau: true, script: true, liens: false };
 
   // ── Validation JSON Schema réelle (ajv, vendorisé localement — vendor/ajv2020.min.js) ──
   let _adocAjvValidators = null;
@@ -11470,6 +11501,34 @@ ${recent}`;
     return '<article class="adoc-sc-doc adoc-sc-script" data-document-id="' + adocEsc(doc.documentId) + "\" style='" + adocTokensToCSSVars(tokens) + "'>" + cover + body + '</article>';
   }
 
+  // ── Pilote 4 : Tableau comparatif (item 73 construction) — même patron dérivé que Script
+  // (item 72) : rendu dédié, sa propre identité visuelle (classe CSS racine adoc-sc-tableau,
+  // bannière ardoise — cf. règles CSS dédiées ci-dessous, distincte de pétrole/Fiche et
+  // terracotta/Script), jamais un recyclage d'adocRenderFicheHTML/adocRenderScriptHTML malgré une
+  // structure de blocs identique (editorialBlock, aucun conteneur imbriqué comme Carrousel).
+  // Réutilise adocRenderBlockHTML TEL QUEL pour le corps (déjà générique, gère le type `table` —
+  // jamais recopiée, régression #6).
+  function adocRenderTableauHTML(doc, tokens) {
+    const blocks = doc.blocks || [];
+    let coverBlock = null;
+    let bodyBlocks = blocks;
+    if (blocks.length && blocks[0].type === 'image') {
+      coverBlock = blocks[0];
+      bodyBlocks = blocks.slice(1);
+    }
+    const category = adocEsc(doc.purpose || 'Tableau comparatif');
+    const audienceHTML = '<span class="adoc-sc-cover-audience" data-cc-editor-leaf="doc-audience">' + adocEsc(doc.audience || '') + '</span>';
+    const coverAttrs = coverBlock ? ' data-pexels="' + adocEsc(coverBlock.content.query) + '"' : '';
+    const cover = '<div class="adoc-sc-cover"' + coverAttrs + '>' +
+      '<div class="adoc-sc-cover-content">' +
+      '<p class="adoc-sc-cover-category" data-cc-editor-leaf="doc-purpose">' + category + '</p>' +
+      '<h1 class="adoc-sc-cover-title" data-cc-editor-leaf="doc-title">' + adocEsc(doc.title) + '</h1>' +
+      '<p class="adoc-sc-cover-meta">Studio Clinique · ' + audienceHTML + '</p>' +
+      '</div></div>';
+    const body = bodyBlocks.map(adocRenderBlockHTML).join('\n');
+    return '<article class="adoc-sc-doc adoc-sc-tableau" data-document-id="' + adocEsc(doc.documentId) + "\" style='" + adocTokensToCSSVars(tokens) + "'>" + cover + body + '</article>';
+  }
+
   // ── Point d'entrée du moteur canonique ──
   // Point 4 : doc/manifest/snapshot sont validés contre les VRAIS schémas JSON Schema
   // AVANT tout rendu — un document malformé est rejeté (AdocSchemaValidationError), jamais
@@ -11502,6 +11561,7 @@ ${recent}`;
     if (doc.documentKind === 'fiche') html = adocRenderFicheHTML(validated.doc, tokens);
     else if (doc.documentKind === 'carrousel') html = adocRenderCarrouselHTML(validated.doc, tokens);
     else if (doc.documentKind === 'script') html = adocRenderScriptHTML(validated.doc, tokens);
+    else if (doc.documentKind === 'tableau') html = adocRenderTableauHTML(validated.doc, tokens);
     else throw new Error('adocRenderClinicalDocument: aucun modèle de rendu pour documentKind "' + doc.documentKind + '" (prévu en UX-8M).');
 
     // ── Notes de bas de document (correctif BUG 2, lot correctifs urgents) — sibling après
@@ -11560,6 +11620,8 @@ ${recent}`;
       '.adoc-sc-cover-meta{font-size:12px;opacity:0.85;margin:0;}' +
       '.adoc-sc-script .adoc-sc-cover{background-color:var(--terracotta-700,#8a3f29);}' +
       '.adoc-sc-script .adoc-sc-cover::before{background:linear-gradient(180deg,rgba(138,63,41,0.35),rgba(138,63,41,0.88));}' +
+      '.adoc-sc-tableau .adoc-sc-cover{background-color:#3d5266;}' +
+      '.adoc-sc-tableau .adoc-sc-cover::before{background:linear-gradient(180deg,rgba(61,82,102,0.35),rgba(61,82,102,0.88));}' +
       '</style></head><body>' + bodyHtml + '</body></html>';
   }
 
@@ -11817,6 +11879,49 @@ ${recent}`;
     },
   };
 
+  // Item 73 construction — même patron APLATI que ADOC_STRUCTURED_SCRIPT_TOOL/FICHE_TOOL :
+  // investigation item 73 (point 1) a confirmé, DÉCISION Christophe, que le bloc `table` minimal
+  // existant (headers/rows) suffit pour ce lot — AUCUN nouveau type de bloc étendu
+  // (columnSummaries/legend/notes, Option B de l'investigation, explicitement écartée ce lot).
+  // eager_input_streaming dès la conception (jamais ajouté après coup comme pour Fiche, item 21).
+  const ADOC_STRUCTURED_TABLEAU_TOOL = {
+    name: 'emit_tableau_document',
+    description: "Produit le contenu d'un tableau comparatif clinique structuré en blocs typés (au moins un bloc type=\"table\"), sourcé exclusivement par les passages numérotés fournis dans le prompt système.",
+    strict: true,
+    eager_input_streaming: true,
+    input_schema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string' },
+        purpose: { type: 'string' },
+        audience: { type: 'string' },
+        blocks: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              type: { type: 'string', enum: ['heading', 'paragraph', 'callout', 'list', 'table', 'quote', 'image'] },
+              text: { type: 'string', description: 'Texte pour heading/paragraph/callout/quote ; chaîne vide sinon.' },
+              level: { type: 'integer', enum: [1, 2, 3], description: 'Niveau de titre (heading uniquement) ; 2 sinon.' },
+              visualRole: { type: 'string', enum: ['info', 'warning', 'critical', 'success'], description: 'callout uniquement ; "info" sinon.' },
+              items: { type: 'array', items: { type: 'string' }, description: 'list uniquement ; liste vide sinon.' },
+              ordered: { type: 'boolean', description: 'list uniquement ; false sinon.' },
+              headers: { type: 'array', items: { type: 'string' }, description: 'table uniquement ; liste vide sinon.' },
+              rows: { type: 'array', items: { type: 'array', items: { type: 'string' } }, description: 'table uniquement ; liste vide sinon.' },
+              imageQuery: { type: 'string', description: "image uniquement — requête de recherche Pexels concrète et spécifique, en anglais, jamais générique ou caricaturale ; chaîne vide sinon." },
+              imageAlt: { type: 'string', description: 'image uniquement — texte alternatif descriptif, non vide dès que type=image ; chaîne vide sinon.' },
+              citationEntryIds: { type: 'array', items: { type: 'string' }, description: "sourceSnapshotEntryId (ex. 'entry-3') des passages fournis qui soutiennent ce bloc — choisis EXACTEMENT parmi les identifiants listés dans le prompt, jamais inventés ; liste vide si aucune affirmation sourcée dans ce bloc." },
+            },
+            required: ['type', 'text', 'level', 'visualRole', 'items', 'ordered', 'headers', 'rows', 'imageQuery', 'imageAlt', 'citationEntryIds'],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ['title', 'purpose', 'audience', 'blocks'],
+      additionalProperties: false,
+    },
+  };
+
   // Correctif BUG 3 (lot correctifs urgents) : vérification post-génération — ne pas se
   // reposer uniquement sur la consigne du prompt système, qui peut être ignorée par le
   // modèle. Retire tout emoji/pictogramme/symbole décoratif Unicode d'un texte produit
@@ -11952,6 +12057,41 @@ ${recent}`;
       },
       // Structure À PLAT identique à Fiche (aucun conteneur imbriqué) — MÊME fonction convertBlock
       // que Fiche/Carrousel, jamais une seconde logique de conversion (régression #6).
+      convertRawToBlocks: function(raw, convertBlock) {
+        return (raw.blocks || []).map(convertBlock).filter(Boolean);
+      },
+    },
+    tableau: {
+      tool: ADOC_STRUCTURED_TABLEAU_TOOL,
+      toolName: 'emit_tableau_document',
+      defaultTitle: 'Tableau comparatif',
+      // Item 73 construction — DÉCISION : bloc `table` minimal (headers/rows), aucun champ étendu
+      // (columnSummaries/legend/notes, Option B de l'investigation, écartée ce lot). Le prompt
+      // reprend la consigne legacy (ligne ~4417) : un vrai tableau, jamais un texte narratif à la
+      // place.
+      buildPromptSuffix: function(passagesListing) {
+        return '\n\n---\nGÉNÉRATION STRUCTURÉE (Tableau comparatif)\n' +
+          "Réponds exclusivement via l'outil emit_tableau_document. Présente le contenu sous forme " +
+          'de tableau (au moins un bloc type="table", headers/rows) — jamais un texte narratif à la ' +
+          "place du tableau. Si la demande évoque plusieurs pages ou plusieurs axes de comparaison, " +
+          "répartis le contenu sur plusieurs blocs type=\"table\" successifs, chacun précédé d'un " +
+          'bloc type="heading" nommant l\'axe comparé. Chaque affirmation clinique significative doit ' +
+          'citer un ou plusieurs passages ci-dessous par leur identifiant exact (sourceSnapshotEntryId, ' +
+          'ex. "entry-3") — jamais un identifiant inventé, jamais une citation sans passage ' +
+          'correspondant dans la liste. Passages disponibles :\n\n' + passagesListing +
+          '\n\n── ILLUSTRATION (bloc type="image") ──\n' +
+          'Un bloc type="image" est disponible. Ne l\'utilise QUE si une image apporte une valeur ' +
+          "clinique ou pédagogique réelle au propos — jamais par défaut, jamais pour \"décorer\". " +
+          "Jamais de photo générique ou caricaturale de stock (ex. poignée de main souriante, couple " +
+          'anonyme qui se dispute face caméra) : imageQuery doit être une requête Pexels concrète et ' +
+          "spécifique, en anglais. imageAlt est obligatoire et non vide dès que type=\"image\".\n\n" +
+          '── TEXTE (lot correctifs urgents) ──\n' +
+          "Aucun emoji, aucun caractère Unicode décoratif (cercles ou carrés de couleur, symboles, " +
+          "pictogrammes, flèches décoratives) nulle part dans le texte produit, y compris dans les " +
+          'tableaux (pas de rond de couleur comme indicateur : utilise un mot).';
+      },
+      // Structure À PLAT identique à Fiche/Script — MÊME fonction convertBlock, jamais une
+      // seconde logique de conversion (régression #6).
       convertRawToBlocks: function(raw, convertBlock) {
         return (raw.blocks || []).map(convertBlock).filter(Boolean);
       },
@@ -13144,12 +13284,13 @@ ${recent}`;
     const root = document.getElementById('cc-ws-doc-card'); if (!root) return;
     function plain(el) { return el ? adocEditorPlain(el.innerHTML).replace(/\s+/g, ' ').trim() : ''; }
     function keep(value, current) { return value ? value : current; }
-    if (doc.documentKind === 'fiche' || doc.documentKind === 'script') {
+    if (doc.documentKind === 'fiche' || doc.documentKind === 'script' || doc.documentKind === 'tableau') {
       // Item 72 construction — même patron EXACT que 'fiche' (investigation item 72, point 6) :
-      // adocRenderScriptHTML réutilise les mêmes attributs data-cc-editor-leaf pour la bannière,
-      // les champs racine restants (title/purpose/audience) sont identiques quel que soit le
-      // documentKind — aucune raison de traitement différent, jamais une seconde copie de ces
-      // 3 lignes (régression #6 : une seule branche, deux documentKind qui la partagent).
+      // adocRenderScriptHTML/adocRenderTableauHTML (item 73) réutilisent les mêmes attributs
+      // data-cc-editor-leaf pour la bannière, les champs racine restants (title/purpose/audience)
+      // sont identiques quel que soit le documentKind — aucune raison de traitement différent,
+      // jamais une seconde copie de ces 3 lignes (régression #6 : une seule branche, trois
+      // documentKind qui la partagent).
       const titleEl = root.querySelector('.adoc-sc-cover-title');
       if (titleEl) doc.title = keep(plain(titleEl), doc.title);
       const purposeEl = root.querySelector('.adoc-sc-cover-category');
