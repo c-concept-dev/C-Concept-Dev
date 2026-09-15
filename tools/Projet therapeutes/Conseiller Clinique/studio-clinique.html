@@ -1639,6 +1639,13 @@
     .adoc-sc-cover-category { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.85; margin: 0 0 8px; }
     .adoc-sc-cover-title { font-family: var(--adoc-sc-heading-font, "Source Serif 4", Georgia, serif); font-size: 26px; line-height: 1.15; margin: 0 0 8px; color: #fff; }
     .adoc-sc-cover-meta { font-size: 12px; opacity: 0.85; margin: 0; }
+    /* Item 72 construction — identité visuelle Script verbatim, DÉCISION CHRISTOPHE EXPLICITE :
+       bannière terracotta plutôt que pétrole (défaut ci-dessus, utilisé par Fiche), jamais un
+       recyclage visuel malgré une structure de blocs identique. Même patron exact que la bannière
+       pétrole par défaut (une seule couleur de base à deux opacités), couleur différente
+       uniquement — aucune nouvelle règle de mise en page. */
+    .adoc-sc-script .adoc-sc-cover { background-color: var(--terracotta-700, #8a3f29); }
+    .adoc-sc-script .adoc-sc-cover::before { background: linear-gradient(180deg, rgba(138,63,41,0.35), rgba(138,63,41,0.88)); }
     .adoc-sc-carrousel {
       display: flex; gap: 16px; overflow-x: auto; padding: 8px 4px 16px;
       scroll-snap-type: x proximity;
@@ -9272,8 +9279,11 @@ ${recent}`;
   // RENDU (adocRenderClinicalDocument, appelé directement avec un ClinicalDocument déjà en main)
   // sait produire. 'structured' pour carrousel est exact ici — adocRenderCarrouselHTML existe et
   // fonctionne (couvert depuis le lot fondateur UX-8A) — retirer cette valeur casserait ce rendu
-  // déjà validé, jamais souhaité.
-  window.rendererModeByDocumentKind = { fiche: 'structured', carrousel: 'structured', tableau: 'legacy', script: 'legacy', liens: 'legacy' };
+  // déjà validé, jamais souhaité. Item 72 construction — 'structured' pour script est désormais
+  // exact aussi : adocRenderScriptHTML existe et est branché dans adocRenderClinicalDocument
+  // (vérifié avant ce flip, jamais l'inverse — piège nommé par l'investigation item 72 point 5 :
+  // activer la génération sans le rendu produit un échec silencieux, repli systématique invisible).
+  window.rendererModeByDocumentKind = { fiche: 'structured', carrousel: 'structured', tableau: 'legacy', script: 'structured', liens: 'legacy' };
   function adocGetRendererMode(documentKind) {
     return (window.rendererModeByDocumentKind && window.rendererModeByDocumentKind[documentKind]) || 'legacy';
   }
@@ -9281,9 +9291,12 @@ ${recent}`;
   // ci-dessus (qui décrit une capacité de RENDU réelle, jamais concernée par cette question) :
   // celui-ci dit quels types la GÉNÉRATION automatique (adocSend) tente réellement via le moteur
   // structuré. Item 69 construction — carrousel rejoint fiche (orchestrateur générique
-  // adocGenerateStructuredDocument, cf. ADOC_STRUCTURED_PROFILES) ; tableau/script/liens restent
-  // à false, non touchés ce lot (0D — chantiers séparés, aucun schéma de bloc structuré pour eux).
-  window.adocStructuredGenerationWiredByDocumentKind = { fiche: true, carrousel: true, tableau: false, script: false, liens: false };
+  // adocGenerateStructuredDocument, cf. ADOC_STRUCTURED_PROFILES) ; tableau/liens restent à false,
+  // non touchés ce lot (0D — chantiers séparés, aucun schéma de bloc structuré pour eux). Item 72
+  // construction — script rejoint fiche/carrousel (ADOC_STRUCTURED_PROFILES.script), ACTIVÉ EN
+  // MÊME TEMPS que rendererModeByDocumentKind.script ci-dessus, jamais l'un sans l'autre (piège
+  // nommé par l'investigation item 72 point 5).
+  window.adocStructuredGenerationWiredByDocumentKind = { fiche: true, carrousel: true, tableau: false, script: true, liens: false };
 
   // ── Validation JSON Schema réelle (ajv, vendorisé localement — vendor/ajv2020.min.js) ──
   let _adocAjvValidators = null;
@@ -11212,11 +11225,22 @@ ${recent}`;
     //     tiret d'attribution : décision explicite de Christophe de NE PAS créer d'exception ici —
     //     un texte qui s'arrête simplement, sans rien, reste indiscernable d'une vraie troncature
     //     en cours de phrase. Continue donc, à raison, d'être signalé — limite assumée, pas cachée.
+    // Item 72 construction (item 71-bis, décision Christophe) — ajout du deux-points (':') à la
+    // classe de ponctuation terminale reconnue, motif NOUVEAU identifié par l'investigation item
+    // 72 (point 4) : une phrase d'introduction d'exercice/consigne se terminant par un deux-points
+    // (ex. "Essayons cet exercice ensemble :") est une formulation suspensive légitime, propre au
+    // format Script verbatim (l'un des 3 types de phrases explicitement cité par le prompt legacy,
+    // "introductions d'exercice"), jamais une troncature. Compromis assumé, même esprit que
+    // l'attribution par tiret (item 71, point 2 ci-dessous) : un texte réellement tronqué qui
+    // s'arrêterait, par coïncidence, juste après un deux-points en cours de phrase normale (rare —
+    // le deux-points introduit presque toujours ce qui suit, jamais une coupure interne à une
+    // clause) échapperait à tort à cette détection. Motif jugé rare face au bénéfice, jamais
+    // éliminé avec certitude absolue par une règle purement lexicale.
     function looksTruncated(text) {
       const t = (text || '').trim();
       if (!t) return false;
       const withoutTrailingClosers = t.replace(/[)\]}]+$/, '');
-      if (/[.!?…»"”’]$/.test(withoutTrailingClosers)) return false;
+      if (/[.!?…»"”’:]$/.test(withoutTrailingClosers)) return false;
       // Compromis assumé (investigation item 71, point 2) : un texte réellement tronqué qui
       // s'arrêterait, par coïncidence, juste après un tiret précédé d'une espace suivi d'un mot
       // capitalisé (ex. un prénom en cours de phrase) échapperait à tort à cette détection — motif
@@ -11417,6 +11441,35 @@ ${recent}`;
     return '<div class="adoc-sc-doc adoc-sc-carrousel" data-document-id="' + adocEsc(doc.documentId) + "\" role=\"region\" aria-label=\"Carrousel\" style='" + adocTokensToCSSVars(tokens) + "'>" + cards + '</div>';
   }
 
+  // ── Pilote 3 : Script verbatim (item 72 construction) — DÉCISION CHRISTOPHE EXPLICITE : rendu
+  // dédié avec sa propre identité visuelle (classe CSS racine adoc-sc-script, bannière terracotta
+  // — cf. règles CSS dédiées ci-dessous), PAS un recyclage d'adocRenderFicheHTML malgré une
+  // structure de blocs identique (editorialBlock, aucun conteneur imbriqué comme Carrousel).
+  // Dérivée d'adocRenderFicheHTML pour la bannière (même patron data-cc-editor-leaf, pour que
+  // l'édition directe item 68 fonctionne à l'identique) mais réutilise adocRenderBlockHTML TEL
+  // QUEL pour le corps — cette fonction n'est jamais recopiée (régression #6, vérifié par grep :
+  // une seule déclaration de adocRenderBlockHTML dans tout le fichier).
+  function adocRenderScriptHTML(doc, tokens) {
+    const blocks = doc.blocks || [];
+    let coverBlock = null;
+    let bodyBlocks = blocks;
+    if (blocks.length && blocks[0].type === 'image') {
+      coverBlock = blocks[0];
+      bodyBlocks = blocks.slice(1);
+    }
+    const category = adocEsc(doc.purpose || 'Script verbatim');
+    const audienceHTML = '<span class="adoc-sc-cover-audience" data-cc-editor-leaf="doc-audience">' + adocEsc(doc.audience || '') + '</span>';
+    const coverAttrs = coverBlock ? ' data-pexels="' + adocEsc(coverBlock.content.query) + '"' : '';
+    const cover = '<div class="adoc-sc-cover"' + coverAttrs + '>' +
+      '<div class="adoc-sc-cover-content">' +
+      '<p class="adoc-sc-cover-category" data-cc-editor-leaf="doc-purpose">' + category + '</p>' +
+      '<h1 class="adoc-sc-cover-title" data-cc-editor-leaf="doc-title">' + adocEsc(doc.title) + '</h1>' +
+      '<p class="adoc-sc-cover-meta">Studio Clinique · ' + audienceHTML + '</p>' +
+      '</div></div>';
+    const body = bodyBlocks.map(adocRenderBlockHTML).join('\n');
+    return '<article class="adoc-sc-doc adoc-sc-script" data-document-id="' + adocEsc(doc.documentId) + "\" style='" + adocTokensToCSSVars(tokens) + "'>" + cover + body + '</article>';
+  }
+
   // ── Point d'entrée du moteur canonique ──
   // Point 4 : doc/manifest/snapshot sont validés contre les VRAIS schémas JSON Schema
   // AVANT tout rendu — un document malformé est rejeté (AdocSchemaValidationError), jamais
@@ -11448,6 +11501,7 @@ ${recent}`;
     let html;
     if (doc.documentKind === 'fiche') html = adocRenderFicheHTML(validated.doc, tokens);
     else if (doc.documentKind === 'carrousel') html = adocRenderCarrouselHTML(validated.doc, tokens);
+    else if (doc.documentKind === 'script') html = adocRenderScriptHTML(validated.doc, tokens);
     else throw new Error('adocRenderClinicalDocument: aucun modèle de rendu pour documentKind "' + doc.documentKind + '" (prévu en UX-8M).');
 
     // ── Notes de bas de document (correctif BUG 2, lot correctifs urgents) — sibling après
@@ -11504,6 +11558,8 @@ ${recent}`;
       '.adoc-sc-cover-category{font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;opacity:0.85;margin:0 0 8px;}' +
       '.adoc-sc-cover-title{font-family:var(--adoc-sc-heading-font,Georgia,serif);font-size:26px;line-height:1.15;margin:0 0 8px;color:#fff;}' +
       '.adoc-sc-cover-meta{font-size:12px;opacity:0.85;margin:0;}' +
+      '.adoc-sc-script .adoc-sc-cover{background-color:var(--terracotta-700,#8a3f29);}' +
+      '.adoc-sc-script .adoc-sc-cover::before{background:linear-gradient(180deg,rgba(138,63,41,0.35),rgba(138,63,41,0.88));}' +
       '</style></head><body>' + bodyHtml + '</body></html>';
   }
 
@@ -11717,6 +11773,50 @@ ${recent}`;
     },
   };
 
+  // Item 72 construction — même patron APLATI que ADOC_STRUCTURED_FICHE_TOOL : investigation
+  // item 72 (point 1) a confirmé qu'un Script verbatim ne nécessite AUCUN nouveau type de bloc,
+  // les 7 types editorialBlock déjà utilisés par Fiche (heading/paragraph/callout/list/table/
+  // quote/image) suffisent intégralement — structure identique à Fiche, pas de conteneur imbriqué
+  // comme Carrousel. eager_input_streaming dès la conception (jamais ajouté après coup comme pour
+  // Fiche, item 21).
+  const ADOC_STRUCTURED_SCRIPT_TOOL = {
+    name: 'emit_script_document',
+    description: "Produit le contenu d'un script verbatim clinique structuré en blocs typés — des phrases entièrement prêtes à être dites telles quelles (questions, reformulations, introductions d'exercice), sourcées exclusivement par les passages numérotés fournis dans le prompt système.",
+    strict: true,
+    eager_input_streaming: true,
+    input_schema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string' },
+        purpose: { type: 'string' },
+        audience: { type: 'string' },
+        blocks: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              type: { type: 'string', enum: ['heading', 'paragraph', 'callout', 'list', 'table', 'quote', 'image'] },
+              text: { type: 'string', description: 'Texte pour heading/paragraph/callout/quote ; chaîne vide sinon.' },
+              level: { type: 'integer', enum: [1, 2, 3], description: 'Niveau de titre (heading uniquement) ; 2 sinon.' },
+              visualRole: { type: 'string', enum: ['info', 'warning', 'critical', 'success'], description: 'callout uniquement ; "info" sinon.' },
+              items: { type: 'array', items: { type: 'string' }, description: 'list uniquement ; liste vide sinon.' },
+              ordered: { type: 'boolean', description: 'list uniquement ; false sinon.' },
+              headers: { type: 'array', items: { type: 'string' }, description: 'table uniquement ; liste vide sinon.' },
+              rows: { type: 'array', items: { type: 'array', items: { type: 'string' } }, description: 'table uniquement ; liste vide sinon.' },
+              imageQuery: { type: 'string', description: "image uniquement — requête de recherche Pexels concrète et spécifique, en anglais, jamais générique ou caricaturale ; chaîne vide sinon." },
+              imageAlt: { type: 'string', description: 'image uniquement — texte alternatif descriptif, non vide dès que type=image ; chaîne vide sinon.' },
+              citationEntryIds: { type: 'array', items: { type: 'string' }, description: "sourceSnapshotEntryId (ex. 'entry-3') des passages fournis qui soutiennent ce bloc — choisis EXACTEMENT parmi les identifiants listés dans le prompt, jamais inventés ; liste vide si aucune affirmation sourcée dans ce bloc." },
+            },
+            required: ['type', 'text', 'level', 'visualRole', 'items', 'ordered', 'headers', 'rows', 'imageQuery', 'imageAlt', 'citationEntryIds'],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ['title', 'purpose', 'audience', 'blocks'],
+      additionalProperties: false,
+    },
+  };
+
   // Correctif BUG 3 (lot correctifs urgents) : vérification post-génération — ne pas se
   // reposer uniquement sur la consigne du prompt système, qui peut être ignorée par le
   // modèle. Retire tout emoji/pictogramme/symbole décoratif Unicode d'un texte produit
@@ -11815,6 +11915,45 @@ ${recent}`;
             citationIds: [], validation: {},
           };
         }).filter(Boolean);
+      },
+    },
+    script: {
+      tool: ADOC_STRUCTURED_SCRIPT_TOOL,
+      toolName: 'emit_script_document',
+      defaultTitle: 'Script verbatim',
+      // Reprend explicitement la consigne legacy (investigation item 72, point 1) : les blocs
+      // type="list" restent disponibles dans le schéma (ex. énumérer des alternatives de
+      // formulation) mais ne doivent jamais se substituer à la prose verbatim elle-même — la
+      // contrainte du prompt legacy ("jamais un plan ni une liste à puces") est portée ici au
+      // niveau du CONTENU (consigne au modèle), jamais au niveau du SCHÉMA (list reste un type
+      // valide, retiré uniquement s'il s'avérait mal utilisé en usage réel — hors périmètre ici).
+      buildPromptSuffix: function(passagesListing) {
+        return '\n\n---\nGÉNÉRATION STRUCTURÉE (Script verbatim)\n' +
+          "Réponds exclusivement via l'outil emit_script_document. Rédige des phrases entièrement " +
+          "prêtes à être dites telles quelles (questions, reformulations, introductions d'exercice) " +
+          '— un texte continu à lire mot pour mot, jamais un plan. Les formulations à dire vont dans ' +
+          'des blocs type="paragraph" ou type="quote" (jamais présentées comme une liste à puces) ; ' +
+          'type="list" reste disponible mais réservé à un usage secondaire (ex. énumérer plusieurs ' +
+          "variantes d'une même question), jamais comme substitut de la prose verbatim elle-même. " +
+          'Chaque affirmation clinique significative doit citer un ou plusieurs passages ci-dessous ' +
+          'par leur identifiant exact (sourceSnapshotEntryId, ex. "entry-3") — jamais un identifiant ' +
+          'inventé, jamais une citation sans passage correspondant dans la liste. Passages ' +
+          'disponibles :\n\n' + passagesListing +
+          '\n\n── ILLUSTRATION (bloc type="image") ──\n' +
+          'Un bloc type="image" est disponible. Ne l\'utilise QUE si une image apporte une valeur ' +
+          "clinique ou pédagogique réelle au propos — jamais par défaut, jamais pour \"décorer\". " +
+          "Jamais de photo générique ou caricaturale de stock (ex. poignée de main souriante, couple " +
+          'anonyme qui se dispute face caméra) : imageQuery doit être une requête Pexels concrète et ' +
+          "spécifique, en anglais. imageAlt est obligatoire et non vide dès que type=\"image\".\n\n" +
+          '── TEXTE (lot correctifs urgents) ──\n' +
+          "Aucun emoji, aucun caractère Unicode décoratif (cercles ou carrés de couleur, symboles, " +
+          "pictogrammes, flèches décoratives) nulle part dans le texte produit — texte propre " +
+          'uniquement, y compris dans les tableaux (pas de rond de couleur comme indicateur : utilise un mot).';
+      },
+      // Structure À PLAT identique à Fiche (aucun conteneur imbriqué) — MÊME fonction convertBlock
+      // que Fiche/Carrousel, jamais une seconde logique de conversion (régression #6).
+      convertRawToBlocks: function(raw, convertBlock) {
+        return (raw.blocks || []).map(convertBlock).filter(Boolean);
       },
     },
   };
@@ -13005,7 +13144,12 @@ ${recent}`;
     const root = document.getElementById('cc-ws-doc-card'); if (!root) return;
     function plain(el) { return el ? adocEditorPlain(el.innerHTML).replace(/\s+/g, ' ').trim() : ''; }
     function keep(value, current) { return value ? value : current; }
-    if (doc.documentKind === 'fiche') {
+    if (doc.documentKind === 'fiche' || doc.documentKind === 'script') {
+      // Item 72 construction — même patron EXACT que 'fiche' (investigation item 72, point 6) :
+      // adocRenderScriptHTML réutilise les mêmes attributs data-cc-editor-leaf pour la bannière,
+      // les champs racine restants (title/purpose/audience) sont identiques quel que soit le
+      // documentKind — aucune raison de traitement différent, jamais une seconde copie de ces
+      // 3 lignes (régression #6 : une seule branche, deux documentKind qui la partagent).
       const titleEl = root.querySelector('.adoc-sc-cover-title');
       if (titleEl) doc.title = keep(plain(titleEl), doc.title);
       const purposeEl = root.querySelector('.adoc-sc-cover-category');
