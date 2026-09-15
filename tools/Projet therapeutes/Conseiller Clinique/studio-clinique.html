@@ -1651,6 +1651,11 @@
        couleur de base à deux opacités), couleur différente uniquement. */
     .adoc-sc-tableau .adoc-sc-cover { background-color: #3d5266; }
     .adoc-sc-tableau .adoc-sc-cover::before { background: linear-gradient(180deg, rgba(61,82,102,0.35), rgba(61,82,102,0.88)); }
+    /* Item 74 construction — identité visuelle Liens transversaux : bannière forêt, cinquième
+       couleur distincte de pétrole (Fiche), terracotta (Script) et ardoise (Tableau). Même patron
+       exact (une seule couleur de base à deux opacités), couleur différente uniquement. */
+    .adoc-sc-liens .adoc-sc-cover { background-color: #3d5c47; }
+    .adoc-sc-liens .adoc-sc-cover::before { background: linear-gradient(180deg, rgba(61,92,71,0.35), rgba(61,92,71,0.88)); }
     .adoc-sc-carrousel {
       display: flex; gap: 16px; overflow-x: auto; padding: 8px 4px 16px;
       scroll-snap-type: x proximity;
@@ -9311,7 +9316,11 @@ ${recent}`;
   // flip). L'export xlsx (item 67) reste hors de ce périmètre : exclu explicitement au site
   // d'appel de la tentative structurée (cf. `!(_structuredAttemptKind === 'tableau' &&
   // plan?._explicitXlsxRequested)`), jamais concerné par ce registre de RENDU.
-  window.rendererModeByDocumentKind = { fiche: 'structured', carrousel: 'structured', tableau: 'structured', script: 'structured', liens: 'legacy' };
+  // Item 74 construction — DERNIER TYPE DU CATALOGUE. 'structured' pour liens est désormais exact
+  // aussi : adocRenderLiensHTML existe et est branché (même vigilance que Script/Tableau —
+  // vérifié avant ce flip). Aucun mécanisme d'export concurrent à exclure ici (contrairement à
+  // Tableau/xlsx, confirmé par l'investigation item 74 point 4) — câblage aussi simple que Script.
+  window.rendererModeByDocumentKind = { fiche: 'structured', carrousel: 'structured', tableau: 'structured', script: 'structured', liens: 'structured' };
   function adocGetRendererMode(documentKind) {
     return (window.rendererModeByDocumentKind && window.rendererModeByDocumentKind[documentKind]) || 'legacy';
   }
@@ -9326,8 +9335,11 @@ ${recent}`;
   // nommé par l'investigation item 72 point 5). Item 73 construction — tableau rejoint à son tour
   // (ADOC_STRUCTURED_PROFILES.tableau), ACTIVÉ EN MÊME TEMPS que rendererModeByDocumentKind.tableau
   // ci-dessus — l'exclusion xlsx (site d'appel) reste le seul garde-fou supplémentaire propre à
-  // ce type, absent pour Script.
-  window.adocStructuredGenerationWiredByDocumentKind = { fiche: true, carrousel: true, tableau: true, script: true, liens: false };
+  // ce type, absent pour Script. Item 74 construction — liens rejoint à son tour et clôt le
+  // catalogue (ADOC_STRUCTURED_PROFILES.liens, adocRenderLiensHTML), ACTIVÉ EN MÊME TEMPS que
+  // rendererModeByDocumentKind.liens ci-dessus — aucun garde-fou supplémentaire type xlsx requis
+  // ici (confirmé par l'investigation item 74 point 4), câblage aussi direct que Script.
+  window.adocStructuredGenerationWiredByDocumentKind = { fiche: true, carrousel: true, tableau: true, script: true, liens: true };
 
   // ── Validation JSON Schema réelle (ajv, vendorisé localement — vendor/ajv2020.min.js) ──
   let _adocAjvValidators = null;
@@ -11529,6 +11541,34 @@ ${recent}`;
     return '<article class="adoc-sc-doc adoc-sc-tableau" data-document-id="' + adocEsc(doc.documentId) + "\" style='" + adocTokensToCSSVars(tokens) + "'>" + cover + body + '</article>';
   }
 
+  // ── Pilote 5 : Liens transversaux (item 74 construction) — DERNIER TYPE DU CATALOGUE. Même
+  // patron dérivé que Script/Tableau : rendu dédié, sa propre identité visuelle (classe CSS
+  // racine adoc-sc-liens, bannière forêt — cf. règles CSS dédiées ci-dessous, distincte de
+  // pétrole/Fiche, terracotta/Script et ardoise/Tableau), jamais un recyclage des rendus
+  // précédents malgré une structure de blocs identique (editorialBlock, aucun conteneur imbriqué
+  // comme Carrousel — investigation item 74, Option A : aucun nouveau type de bloc). Réutilise
+  // adocRenderBlockHTML TEL QUEL pour le corps — jamais recopiée (régression #6).
+  function adocRenderLiensHTML(doc, tokens) {
+    const blocks = doc.blocks || [];
+    let coverBlock = null;
+    let bodyBlocks = blocks;
+    if (blocks.length && blocks[0].type === 'image') {
+      coverBlock = blocks[0];
+      bodyBlocks = blocks.slice(1);
+    }
+    const category = adocEsc(doc.purpose || 'Liens transversaux');
+    const audienceHTML = '<span class="adoc-sc-cover-audience" data-cc-editor-leaf="doc-audience">' + adocEsc(doc.audience || '') + '</span>';
+    const coverAttrs = coverBlock ? ' data-pexels="' + adocEsc(coverBlock.content.query) + '"' : '';
+    const cover = '<div class="adoc-sc-cover"' + coverAttrs + '>' +
+      '<div class="adoc-sc-cover-content">' +
+      '<p class="adoc-sc-cover-category" data-cc-editor-leaf="doc-purpose">' + category + '</p>' +
+      '<h1 class="adoc-sc-cover-title" data-cc-editor-leaf="doc-title">' + adocEsc(doc.title) + '</h1>' +
+      '<p class="adoc-sc-cover-meta">Studio Clinique · ' + audienceHTML + '</p>' +
+      '</div></div>';
+    const body = bodyBlocks.map(adocRenderBlockHTML).join('\n');
+    return '<article class="adoc-sc-doc adoc-sc-liens" data-document-id="' + adocEsc(doc.documentId) + "\" style='" + adocTokensToCSSVars(tokens) + "'>" + cover + body + '</article>';
+  }
+
   // ── Point d'entrée du moteur canonique ──
   // Point 4 : doc/manifest/snapshot sont validés contre les VRAIS schémas JSON Schema
   // AVANT tout rendu — un document malformé est rejeté (AdocSchemaValidationError), jamais
@@ -11562,6 +11602,7 @@ ${recent}`;
     else if (doc.documentKind === 'carrousel') html = adocRenderCarrouselHTML(validated.doc, tokens);
     else if (doc.documentKind === 'script') html = adocRenderScriptHTML(validated.doc, tokens);
     else if (doc.documentKind === 'tableau') html = adocRenderTableauHTML(validated.doc, tokens);
+    else if (doc.documentKind === 'liens') html = adocRenderLiensHTML(validated.doc, tokens);
     else throw new Error('adocRenderClinicalDocument: aucun modèle de rendu pour documentKind "' + doc.documentKind + '" (prévu en UX-8M).');
 
     // ── Notes de bas de document (correctif BUG 2, lot correctifs urgents) — sibling après
@@ -11622,6 +11663,8 @@ ${recent}`;
       '.adoc-sc-script .adoc-sc-cover::before{background:linear-gradient(180deg,rgba(138,63,41,0.35),rgba(138,63,41,0.88));}' +
       '.adoc-sc-tableau .adoc-sc-cover{background-color:#3d5266;}' +
       '.adoc-sc-tableau .adoc-sc-cover::before{background:linear-gradient(180deg,rgba(61,82,102,0.35),rgba(61,82,102,0.88));}' +
+      '.adoc-sc-liens .adoc-sc-cover{background-color:#3d5c47;}' +
+      '.adoc-sc-liens .adoc-sc-cover::before{background:linear-gradient(180deg,rgba(61,92,71,0.35),rgba(61,92,71,0.88));}' +
       '</style></head><body>' + bodyHtml + '</body></html>';
   }
 
@@ -11922,6 +11965,51 @@ ${recent}`;
     },
   };
 
+  // Item 74 construction — DERNIER TYPE DU CATALOGUE. Même patron APLATI que
+  // ADOC_STRUCTURED_TABLEAU_TOOL/SCRIPT_TOOL/FICHE_TOOL : investigation item 74 (points 1-3) a
+  // confirmé, DÉCISION Christophe (Option A), que Liens transversaux produit une prose structurée
+  // mettant en relation plusieurs notions/auteurs — JAMAIS un schéma dessiné — donc les 7 types
+  // editorialBlock déjà utilisés par Fiche/Script/Tableau suffisent intégralement. AUCUN nouveau
+  // type de bloc (ex. connectionMap, Option B de l'investigation, explicitement écartée ce lot).
+  // eager_input_streaming dès la conception (jamais ajouté après coup comme pour Fiche, item 21).
+  const ADOC_STRUCTURED_LIENS_TOOL = {
+    name: 'emit_liens_document',
+    description: "Produit le contenu d'une carte de liens transversaux clinique structurée en blocs typés, montrant explicitement les connexions, rapprochements et distinctions entre plusieurs notions/auteurs/approches, sourcée exclusivement par les passages numérotés fournis dans le prompt système.",
+    strict: true,
+    eager_input_streaming: true,
+    input_schema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string' },
+        purpose: { type: 'string' },
+        audience: { type: 'string' },
+        blocks: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              type: { type: 'string', enum: ['heading', 'paragraph', 'callout', 'list', 'table', 'quote', 'image'] },
+              text: { type: 'string', description: 'Texte pour heading/paragraph/callout/quote ; chaîne vide sinon.' },
+              level: { type: 'integer', enum: [1, 2, 3], description: 'Niveau de titre (heading uniquement) ; 2 sinon.' },
+              visualRole: { type: 'string', enum: ['info', 'warning', 'critical', 'success'], description: 'callout uniquement ; "info" sinon.' },
+              items: { type: 'array', items: { type: 'string' }, description: 'list uniquement ; liste vide sinon.' },
+              ordered: { type: 'boolean', description: 'list uniquement ; false sinon.' },
+              headers: { type: 'array', items: { type: 'string' }, description: 'table uniquement ; liste vide sinon.' },
+              rows: { type: 'array', items: { type: 'array', items: { type: 'string' } }, description: 'table uniquement ; liste vide sinon.' },
+              imageQuery: { type: 'string', description: "image uniquement — requête de recherche Pexels concrète et spécifique, en anglais, jamais générique ou caricaturale ; chaîne vide sinon." },
+              imageAlt: { type: 'string', description: 'image uniquement — texte alternatif descriptif, non vide dès que type=image ; chaîne vide sinon.' },
+              citationEntryIds: { type: 'array', items: { type: 'string' }, description: "sourceSnapshotEntryId (ex. 'entry-3') des passages fournis qui soutiennent ce bloc — choisis EXACTEMENT parmi les identifiants listés dans le prompt, jamais inventés ; liste vide si aucune affirmation sourcée dans ce bloc." },
+            },
+            required: ['type', 'text', 'level', 'visualRole', 'items', 'ordered', 'headers', 'rows', 'imageQuery', 'imageAlt', 'citationEntryIds'],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ['title', 'purpose', 'audience', 'blocks'],
+      additionalProperties: false,
+    },
+  };
+
   // Correctif BUG 3 (lot correctifs urgents) : vérification post-génération — ne pas se
   // reposer uniquement sur la consigne du prompt système, qui peut être ignorée par le
   // modèle. Retire tout emoji/pictogramme/symbole décoratif Unicode d'un texte produit
@@ -12092,6 +12180,43 @@ ${recent}`;
       },
       // Structure À PLAT identique à Fiche/Script — MÊME fonction convertBlock, jamais une
       // seconde logique de conversion (régression #6).
+      convertRawToBlocks: function(raw, convertBlock) {
+        return (raw.blocks || []).map(convertBlock).filter(Boolean);
+      },
+    },
+    liens: {
+      tool: ADOC_STRUCTURED_LIENS_TOOL,
+      toolName: 'emit_liens_document',
+      defaultTitle: 'Liens transversaux',
+      // Item 74 construction — DERNIER TYPE DU CATALOGUE. Reprend la consigne legacy EXACTE
+      // (ligne ~4424 de _documentKindInstructions), aucune reformulation. Structure À PLAT
+      // identique à Fiche/Script/Tableau (Option A de l'investigation — aucun nouveau type de
+      // bloc, un heading+paragraph répété par paire de notions mises en relation suffit).
+      buildPromptSuffix: function(passagesListing) {
+        return '\n\n---\nGÉNÉRATION STRUCTURÉE (Liens transversaux)\n' +
+          "Réponds exclusivement via l'outil emit_liens_document. Montre explicitement les " +
+          'connexions, rapprochements et distinctions entre plusieurs notions, auteurs ou ' +
+          'approches — jamais un exposé linéaire sur un seul concept isolé. Structure typique : ' +
+          'un bloc type="heading" nommant la paire ou le groupe de notions mises en relation ' +
+          '(ex. "TCC ↔ Attachement"), suivi d\'un ou plusieurs blocs type="paragraph" explicitant ' +
+          'le rapprochement ou la distinction — répète ce patron pour chaque relation abordée. ' +
+          'Un bloc type="callout" peut souligner une nuance ou une distinction importante. Chaque ' +
+          'affirmation clinique significative doit citer un ou plusieurs passages ci-dessous par ' +
+          'leur identifiant exact (sourceSnapshotEntryId, ex. "entry-3") — jamais un identifiant ' +
+          'inventé, jamais une citation sans passage correspondant dans la liste. Passages ' +
+          'disponibles :\n\n' + passagesListing +
+          '\n\n── ILLUSTRATION (bloc type="image") ──\n' +
+          'Un bloc type="image" est disponible. Ne l\'utilise QUE si une image apporte une valeur ' +
+          "clinique ou pédagogique réelle au propos — jamais par défaut, jamais pour \"décorer\". " +
+          "Jamais de photo générique ou caricaturale de stock (ex. poignée de main souriante, couple " +
+          'anonyme qui se dispute face caméra) : imageQuery doit être une requête Pexels concrète et ' +
+          "spécifique, en anglais. imageAlt est obligatoire et non vide dès que type=\"image\".\n\n" +
+          '── TEXTE (lot correctifs urgents) ──\n' +
+          "Aucun emoji, aucun caractère Unicode décoratif (cercles ou carrés de couleur, symboles, " +
+          "pictogrammes, flèches décoratives) nulle part dans le texte produit — texte propre uniquement.";
+      },
+      // Structure À PLAT identique à Fiche/Script/Tableau — MÊME fonction convertBlock, jamais
+      // une seconde logique de conversion (régression #6).
       convertRawToBlocks: function(raw, convertBlock) {
         return (raw.blocks || []).map(convertBlock).filter(Boolean);
       },
@@ -13284,13 +13409,13 @@ ${recent}`;
     const root = document.getElementById('cc-ws-doc-card'); if (!root) return;
     function plain(el) { return el ? adocEditorPlain(el.innerHTML).replace(/\s+/g, ' ').trim() : ''; }
     function keep(value, current) { return value ? value : current; }
-    if (doc.documentKind === 'fiche' || doc.documentKind === 'script' || doc.documentKind === 'tableau') {
+    if (doc.documentKind === 'fiche' || doc.documentKind === 'script' || doc.documentKind === 'tableau' || doc.documentKind === 'liens') {
       // Item 72 construction — même patron EXACT que 'fiche' (investigation item 72, point 6) :
-      // adocRenderScriptHTML/adocRenderTableauHTML (item 73) réutilisent les mêmes attributs
-      // data-cc-editor-leaf pour la bannière, les champs racine restants (title/purpose/audience)
-      // sont identiques quel que soit le documentKind — aucune raison de traitement différent,
-      // jamais une seconde copie de ces 3 lignes (régression #6 : une seule branche, trois
-      // documentKind qui la partagent).
+      // adocRenderScriptHTML/adocRenderTableauHTML/adocRenderLiensHTML (item 74) réutilisent les
+      // mêmes attributs data-cc-editor-leaf pour la bannière, les champs racine restants
+      // (title/purpose/audience) sont identiques quel que soit le documentKind — aucune raison de
+      // traitement différent, jamais une seconde copie de ces 3 lignes (régression #6 : une seule
+      // branche, quatre documentKind qui la partagent).
       const titleEl = root.querySelector('.adoc-sc-cover-title');
       if (titleEl) doc.title = keep(plain(titleEl), doc.title);
       const purposeEl = root.querySelector('.adoc-sc-cover-category');
