@@ -3813,7 +3813,8 @@ TÂCHE — Analyser la demande et produire UNIQUEMENT un JSON valide (sans markd
   "topic_summary": "résumé du sujet en 5 mots max",
   "deep_scan": true/false,
   "max_tokens": 2000,
-  "images_only": true/false
+  "images_only": true/false,
+  "duree_minutes": null
 }
 ────────────────────────────────────────────────
 
@@ -3908,6 +3909,13 @@ RAISONNEMENT ATTENDU — tu penses comme un clinicien chercheur :
    RÈGLE : pour clinical_intent = bibliographie | supervision | conceptualisation,
    générer TOUJOURS ≥ 2 objets "searches" sur les concepts clés détectés.
    needs_rag=false est INTERDIT pour ces trois intents.
+
+9. EXTRAIRE duree_minutes (item 60 — Option A, extraction par toi-même, jamais une regex)
+   Si la demande mentionne une durée cible pour le document (minutes, heures, "une demi-heure",
+   "2h30", "45 min", etc.), extrais-la et convertis-la en NOMBRE ENTIER DE MINUTES dans
+   "duree_minutes". Sinon, "duree_minutes": null — ne jamais inventer une durée absente de la
+   demande. Ce champ n'influence QUE le nombre de chapitres d'un document long (cours/document) ;
+   il n'a aucun effet sur max_tokens ni sur les autres champs.
 
 RÈGLES ABSOLUES :
 - needs_rag=false UNIQUEMENT si la question est purement conversationnelle, sans contenu clinique à rechercher.
@@ -8710,11 +8718,26 @@ ${recent}`;
     const msgEl = document.getElementById(streamMsgId);
 
     // ── Plan de chapitres via Haiku ──
+    // Item 60 construction — calibration de l'intervalle de chapitres sur la durée demandée
+    // (plan.duree_minutes, Option A : extraite par le planificateur lui-même, jamais une regex
+    // locale — cf. investigation item 60). Règle simple, documentée : ~1 chapitre par 10 à 15
+    // minutes de contenu oral estimé, plancher 2, plafond 10. Sans durée connue (null, valeur la
+    // plus fréquente aujourd'hui), comportement STRICTEMENT inchangé ("4 à 8", intervalle fixe
+    // historique) — jamais de calibration inventée à partir d'une absence d'information.
+    let chapterRangeInstruction = 'Génère 4 à 8 chapitres.';
+    if (typeof plan?.duree_minutes === 'number' && plan.duree_minutes > 0) {
+      const minChapters = Math.min(10, Math.max(2, Math.floor(plan.duree_minutes / 15)));
+      const maxChapters = Math.min(10, Math.max(minChapters, Math.ceil(plan.duree_minutes / 10)));
+      chapterRangeInstruction = 'Durée cible : ' + plan.duree_minutes + ' minutes.\n'
+        + 'Génère ' + (minChapters === maxChapters ? minChapters + ' chapitres' : minChapters + ' à ' + maxChapters + ' chapitres') + ' (calibré sur la durée cible ci-dessus).';
+    } else {
+      chapterRangeInstruction = 'Durée cible : non précisée.\nGénère 4 à 8 chapitres.';
+    }
     let chapters = [];
     try {
       const chapPrompt = 'Planifie un document long sur : "' + plan.topic_summary + '".\n'
         + 'Intent : ' + plan.intent + '. Audience : ' + (plan.audience_type || 'praticien') + '.\n'
-        + 'Génère 4 à 8 chapitres. Réponds UNIQUEMENT avec :\n'
+        + chapterRangeInstruction + ' Réponds UNIQUEMENT avec :\n'
         + '[{"titre":"Chapitre 1 : ...","instructions":"contenu attendu en 2-3 phrases"},...]';
       const cr = await fetch(workerUrl, {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
