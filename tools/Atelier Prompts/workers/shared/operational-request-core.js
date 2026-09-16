@@ -1048,13 +1048,25 @@ const ISSUE_JSON_SCHEMA = Object.freeze({
   }
 });
 
+/* TARGETED-FIX-B1-ONLY — UNE CANDIDATE DOIT POUVOIR DIRE CE QU'ELLE VISE.
+ *
+ * `additionalProperties: false` interdisait à l'autorité d'attacher `missing_determinant_id` à une
+ * candidate — alors que `next_question` le porte, que la frontière d'affichage le LIT sur les
+ * candidates, et que depuis TARGETED-FIX-POST-CODEX-01 une candidate substituée décrit la question
+ * ENTIÈRE. Le champ était donc consommé et structurellement impossible à produire : toute question
+ * de remplacement repartait sans identité, et la protection contre la répétition retombait sur
+ * l'égalité de texte pour le reste du dialogue.
+ *
+ * C'est la même asymétrie que celle trouvée sur le plan rapide, au même endroit du contrat : un
+ * validateur tolérant, un schéma d'outil fermé. Elle est refermée ici. */
 const QUESTION_CANDIDATE_JSON_SCHEMA = Object.freeze({
   type: "object",
   additionalProperties: false,
-  required: ["text", "targets_issue_id", "expected_progress", "question_focus"],
+  required: ["text", "targets_issue_id", "expected_progress", "question_focus", "missing_determinant_id"],
   properties: {
     text: { type: "string" }, targets_issue_id: { type: "string" }, expected_progress: { type: "string" },
-    question_focus: { type: "string", enum: [...QUESTION_FOCUS_VALUES] }
+    question_focus: { type: "string", enum: [...QUESTION_FOCUS_VALUES] },
+    missing_determinant_id: { type: ["string", "null"] }
   }
 });
 

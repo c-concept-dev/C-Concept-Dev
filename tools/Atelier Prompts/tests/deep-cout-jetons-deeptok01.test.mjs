@@ -182,7 +182,7 @@ test('T-DEEPTOK01-09 : aucun contrat de production n’a été touché', () => {
      qu'un refus de sortie fournisseur cesse d'être compté comme un défaut de notre code. Aucune
      règle, aucun prompt, aucun schéma, aucun comportement d'interface. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    '61565d4dad80e10e3c5d9f2821ca3139884e356321f917d5f0f55af994454774', 'CANONICAL_HTML_CHANGED = NO');
+    'd2bde0d7dce0461ce396d27a65baa8b7529e164c87bad4f6484a1c9cf5d84974', 'CANONICAL_HTML_CHANGED = NO');
 });
 
 /* T-DEEPTOK01-10 — le rapport cite les chiffres mesurés, et la dette reste ouverte. */

@@ -3814,7 +3814,8 @@ TÂCHE — Analyser la demande et produire UNIQUEMENT un JSON valide (sans markd
   "deep_scan": true/false,
   "max_tokens": 2000,
   "images_only": true/false,
-  "duree_minutes": null
+  "duree_minutes": null,
+  "format_confidence": 1.0
 }
 ────────────────────────────────────────────────
 
@@ -3916,6 +3917,15 @@ RAISONNEMENT ATTENDU — tu penses comme un clinicien chercheur :
    "duree_minutes". Sinon, "duree_minutes": null — ne jamais inventer une durée absente de la
    demande. Ce champ n'influence QUE le nombre de chapitres d'un document long (cours/document) ;
    il n'a aucun effet sur max_tokens ni sur les autres champs.
+
+10. ÉVALUER format_confidence (item 70 Volet 2 — porte de clarté, palier FORMAT)
+    Indique ta confiance (0.0 à 1.0) que le type de document choisi (intent/documentKind) est le
+    bon pour cette demande. 1.0 si aucun doute raisonnable ; une valeur plus basse UNIQUEMENT si
+    la demande pourrait légitimement correspondre à plusieurs types différents (ex. "comparatif"
+    qui pourrait être un tableau ou une fiche, "présentation" qui pourrait être un carrousel ou un
+    export autonome). Ne jamais sous-évaluer par prudence excessive — une valeur artificiellement
+    basse déclencherait une question de clarification inutile. Ce champ n'a aucun effet sur les
+    autres champs ni sur needs_rag/max_tokens.
 
 RÈGLES ABSOLUES :
 - needs_rag=false UNIQUEMENT si la question est purement conversationnelle, sans contenu clinique à rechercher.
@@ -5267,6 +5277,143 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
         console.warn('[FIX-MULTI-PLAN] fallback plan:', plan.intent, plan.output_format);
       }
 
+      // Item 70 Volet 2 — refactor structurel préalable : tout ce qui suit (RAG → routage
+      // structuré/legacy → génération) vit désormais dans adocRunGenerationPipeline, appelée
+      // ICI directement — comportement strictement inchangé (seule la frontière de fonction
+      // change, jamais la séquence ni les valeurs). Nécessaire pour permettre au palier 2
+      // (clarté de FORMAT, ci-dessous) de suspendre l'exécution à ce point précis et de la
+      // reprendre plus tard sans jamais rappeler adocMultiPlan.
+      await adocRunGenerationPipeline(text, plan, typingId, workerUrl, _precomputedRag);
+
+    } catch(e) {
+      adocRemoveTyping(typingId);
+      adocAddMsg('assistant', `Erreur : ${e.message}`, []);
+    }
+
+    _adocResetSendState();
+    input.focus();
+  };
+
+  // Item 70 Volet 2 — état du palier 2 (clarté de FORMAT), même patron que
+  // window._adocPendingContinuations (:4959+, cas différent — suite coupée par max_tokens —
+  // mais structure identique : suspendre, stocker l'état, reprendre sans tout refaire).
+  // adocFormatClarityActiveId : au plus une carte de clarté de format active à la fois, même
+  // invariant que adocClarityCardEl (adocRemoveClarityCard) — nécessaire pour qu'un clic sur
+  // adocClarityQuickReply (carte réutilisée telle quelle, cf. plus bas) sache s'il doit résoudre
+  // CETTE carte-ci plutôt que suivre le chemin palier 1 habituel.
+  window._adocPendingFormatClarity = window._adocPendingFormatClarity || {};
+  let adocFormatClarityActiveId = null;
+
+  // Item 70 Volet 2 — détection d'ambiguïté de FORMAT (liste de motifs + format_confidence).
+  // Règles déterministes sur le texte/plan déjà disponibles, aucun appel réseau. Les 3 motifs de
+  // départ correspondent chacun à un incident réel déjà documenté (cf. investigation complémentaire) ;
+  // liste volontairement limitée à ces 3 cas — à enrichir avec l'usage réel, jamais inventée ici.
+  // candidates : 2-3 formats plausibles ; kind=null signifie "continuer sans type explicite"
+  // (laisse le routage automatique existant — intent classifié, _isLongDoc, etc. — décider comme
+  // si le palier 2 n'existait pas).
+  function _adocDetectFormatAmbiguity(rawText, basePlan) {
+    const ql = (rawText || '').toLowerCase();
+    if (ql.includes('comparatif') && !/(tableau|liste|colonnes?)/.test(ql)) {
+      return {
+        question: 'Souhaitez-vous un tableau comparatif, ou une fiche de synthèse ?',
+        candidates: [{ label: 'Tableau', kind: 'tableau' }, { label: 'Fiche', kind: 'fiche' }],
+      };
+    }
+    if (/pr[ée]sentation/.test(ql)) {
+      return {
+        question: 'Souhaitez-vous un carrousel de diapositives dans l’application, ou une fiche à exporter ?',
+        candidates: [{ label: 'Carrousel', kind: 'carrousel' }, { label: 'Fiche', kind: 'fiche' }],
+      };
+    }
+    const hasFormatKeyword = /(carrousel|diapo|tableau|script|liens?|fiche)/.test(ql);
+    if (ql.includes('cours') && basePlan?.duree_minutes == null && !hasFormatKeyword) {
+      return {
+        question: 'Souhaitez-vous un document long par chapitres, un carrousel de diapositives, ou un script oral ?',
+        candidates: [
+          { label: 'Document long', kind: null },
+          { label: 'Carrousel', kind: 'carrousel' },
+          { label: 'Script', kind: 'script' },
+        ],
+      };
+    }
+    if (typeof basePlan?.format_confidence === 'number' && basePlan.format_confidence < 0.6) {
+      return {
+        question: 'Quel format souhaitez-vous pour ce document ?',
+        candidates: [{ label: 'Fiche', kind: 'fiche' }, { label: 'Tableau', kind: 'tableau' }, { label: 'Carrousel', kind: 'carrousel' }],
+      };
+    }
+    return null;
+  }
+
+  // Item 70 Volet 2 — reprise du palier 2 : écrit le format choisi via adocClarityDocumentKind
+  // (JAMAIS plan.documentKind directement), pour que la ligne déjà existante plus bas dans cette
+  // même fonction (« if (adocClarityDocumentKind) plan.documentKind = ... », jamais dupliquée) le
+  // consomme exactement comme un type cliqué sur l'écran d'accueil — même chemin, aucune
+  // divergence. Rappelle adocRunGenerationPipeline DIRECTEMENT, jamais adocMultiPlan.
+  function _adocResolveFormatClarity(chosenLabel) {
+    const id = adocFormatClarityActiveId;
+    const state = id != null ? window._adocPendingFormatClarity[id] : null;
+    adocFormatClarityActiveId = null;
+    adocRemoveClarityCard();
+    if (!state) return; // état perdu (ex. session ré-ouverte) — rien à reprendre, filet de sécurité
+    delete window._adocPendingFormatClarity[id];
+    const chosen = (state.candidates || []).find(c => c.label === chosenLabel);
+    if (chosen && chosen.kind) adocClarityDocumentKind = chosen.kind;
+    // Le candidat "continuer sans type explicite" (kind:null, ex. "Document long") ne pose jamais
+    // adocClarityDocumentKind — _hasExplicitKindEarly resterait donc faux à la reprise, et le
+    // MÊME motif redéclencherait indéfiniment le palier 2 sur ce même plan. Marqueur dédié,
+    // jamais lu ailleurs (aucun effet sur _hasExplicitKind/routage/profils structurés, qui ne
+    // lisent que documentKind/intent) : une clarification de format n'est jamais posée deux fois
+    // pour la même demande, quelle que soit la réponse choisie.
+    state.plan._formatClarityResolved = true;
+    adocRunGenerationPipeline(state.text, state.plan, state.typingId, state.workerUrl, state._precomputedRag)
+      .catch((e) => {
+        adocRemoveTyping(state.typingId);
+        adocAddMsg('assistant', `Erreur : ${e.message}`, []);
+      })
+      .finally(() => {
+        _adocResetSendState();
+        document.getElementById('adoc-input')?.focus();
+      });
+  }
+
+  // Item 70 Volet 2 — extraite d'adocSendOriginal (refactor structurel préalable au palier 2 de
+  // clarté, format) : portion RAG → routage structuré/legacy → génération, inchangée à
+  // l'exception de la frontière de fonction elle-même. Reprise directement par le palier 2
+  // (résolution de clarification format) sans jamais repasser par adocMultiPlan — plan y arrive
+  // déjà complet, avec ou sans documentKind explicitement résolu.
+  async function adocRunGenerationPipeline(text, plan, typingId, workerUrl, _precomputedRag) {
+      // Item 70 Volet 2 — palier 2 (clarté de FORMAT), point d'ancrage unique confirmé par
+      // l'investigation : juste après plan finalisé, AVANT toute consultation RAG. _hasExplicitKind
+      // « officiel » (plus bas dans cette fonction) n'est pas encore calculable à ce stade précis
+      // (il dépend de plan.documentKind, affecté seulement après le RAG, ligne inchangée plus bas) —
+      // équivalent strict ici : un type explicite existe si plan.documentKind est déjà posé (cas
+      // d'une reprise palier 2, ci-dessous) OU si adocClarityDocumentKind (carte cliquée sur l'écran
+      // d'accueil, pas encore consommé) est renseigné. Comportement inchangé si l'un ou l'autre est
+      // vrai : aucune détection d'ambiguïté, flux identique à avant ce lot. plan._formatClarityResolved
+      // couvre le cas restant (réponse "continuer sans type explicite", kind:null) où ni l'un ni
+      // l'autre ne devient vrai — sans ce garde-fou, le même motif redéclencherait indéfiniment la
+      // même carte sur ce plan déjà résolu une fois.
+      const _hasExplicitKindEarly = !!(plan?.documentKind || adocClarityDocumentKind || plan?._formatClarityResolved);
+      if (!_hasExplicitKindEarly) {
+        const _formatAmbiguity = _adocDetectFormatAmbiguity(text, plan);
+        if (_formatAmbiguity) {
+          window._adocPendingFormatClarity[typingId] = { text, plan, typingId, workerUrl, _precomputedRag, candidates: _formatAmbiguity.candidates };
+          adocFormatClarityActiveId = typingId;
+          adocRemoveTyping(typingId);
+          adocRenderClarityCard({
+            understood_so_far: '',
+            question: _formatAmbiguity.question,
+            quick_replies: _formatAmbiguity.candidates.map((c) => c.label),
+            assumptions_if_proceeding: [],
+          });
+          // Item 70 Volet 2 — pas de _adocResetSendState() ici : cet appel est fait depuis
+          // adocSendOriginal, DANS son try, qui exécute déjà ce même nettoyage une seule fois
+          // après le retour (normal ou anticipé) de cet appel — l'appeler ici aussi le dupliquerait
+          // (même principe que les 3 autres retours anticipés de cette fonction, ci-dessous).
+          return;
+        }
+      }
       // ── M1 : Enrichissement des recherches en parallèle — Unlimited Token System ──
       // Second Haiku propose 3 recherches structurées supplémentaires (angles différents)
       // lancé EN MÊME TEMPS que adocExecutePlan via Promise.all — zéro latence.
@@ -5471,8 +5618,12 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
         }
         if (visualHtml) {
           await adocFinalizeGeneration(visualMsgId, visualHtml, plan, ragResult, false);
-          _adocResetSendState();
-          input.focus();
+          // Item 70 Volet 2 — le nettoyage commun (_adocResetSendState + input.focus()) est
+          // désormais effectué UNE SEULE FOIS par adocSendOriginal, après le retour (normal ou
+          // anticipé) de cet appel — jamais ici, où `input` n'est plus en portée depuis
+          // l'extraction de cette fonction. Comportement inchangé : avant ce refactor, ce même
+          // retour anticipé sautait déjà tout code suivant du corps de la fonction jusqu'à ce
+          // même nettoyage, exécuté exactement une fois.
           return;
         }
         // Échec total (réseau, etc.) — retirer la bulle vide et repartir sur le flux
@@ -5514,9 +5665,9 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
           // Audit systémique (Priorité 2.1) — ce `return` sautait le nettoyage commun de fin
           // de adocSend (drapeau adocThinking, bouton d'envoi) : un document long réussi
           // laissait le bouton d'envoi désactivé indéfiniment, exactement le même défaut déjà
-          // corrigé pour le chemin structuré ci-dessous.
-          _adocResetSendState();
-          input.focus();
+          // corrigé pour le chemin structuré ci-dessous. Item 70 Volet 2 — ce nettoyage vit
+          // désormais dans adocSendOriginal (une seule fois, après retour de cet appel) ; `input`
+          // n'est plus en portée ici depuis l'extraction, comportement inchangé par ailleurs.
           return;
         }
         // Si adocLongDoc échoue → fallback vers stream normal ci-dessous
@@ -5623,8 +5774,8 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
           // fonction (drapeau adocThinking, bouton d'envoi, focus) — le bouton restait
           // désactivé indéfiniment après une génération structurée réussie. Factorisé
           // (Priorité 2.1) dans _adocResetSendState(), réutilisée par le chemin document long.
-          _adocResetSendState();
-          input.focus();
+          // Item 70 Volet 2 — ce nettoyage vit désormais dans adocSendOriginal (une seule fois,
+          // après retour de cet appel) ; `input` n'est plus en portée ici depuis l'extraction.
           return;
         } catch (_structErr) {
           console.warn('[UX-8A.1] Génération structurée Fiche en échec (ou QC bloquant), repli automatique sur l\'ancien moteur:', _structErr && _structErr.name, _structErr && _structErr.message);
@@ -5876,15 +6027,12 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       } else {
         await adocFinalizeGeneration(streamMsgId, reply, plan, ragResult, _structFellBack);
       }
-
-    } catch(e) {
-      adocRemoveTyping(typingId);
-      adocAddMsg('assistant', `Erreur : ${e.message}`, []);
-    }
-
-    _adocResetSendState();
-    input.focus();
-  };
+  }
+  // Item 70 Volet 2 — fin adocRunGenerationPipeline. Le try/catch qui entourait auparavant
+  // tout ce corps (depuis adocSendOriginal) reste intact dans adocSendOriginal lui-même,
+  // englobant l'appel à cette fonction — toute exception levée ici (throw new Error(...),
+  // fetch en échec, etc.) remonte donc exactement au même bloc catch qu'avant ce refactor,
+  // sans aucune différence de comportement.
 
   // ── Helper : mettre à jour le label du typing indicator ──
   // iconId optionnel : décoratif uniquement, le texte du label (role=status aria-live=polite,
@@ -9194,6 +9342,16 @@ ${recent}`;
   }
 
   window.adocClarityQuickReply = function (text) {
+    // Item 70 Volet 2 — la carte de clarté de FORMAT (palier 2) réutilise adocRenderClarityCard
+    // tel quel (Option 1 actée), donc le MÊME bouton/gestionnaire — mais une réponse à CETTE
+    // carte-là ne doit jamais repasser par window.adocSend()/adocMultiPlan (le plan est déjà
+    // complet, seul le format manquait) : résolue à part, sans toucher au chemin ci-dessous
+    // (inchangé pour toute carte de clarté de CONTENU, palier 1 — comportement STRICTEMENT
+    // identique quand aucune clarté de format n'est en attente).
+    if (adocFormatClarityActiveId != null) {
+      _adocResolveFormatClarity(text);
+      return;
+    }
     const input = document.getElementById('adoc-input');
     if (!input) return;
     input.value = text;
