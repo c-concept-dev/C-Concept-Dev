@@ -11483,6 +11483,25 @@ ${recent}`;
       // jugé rare face au bénéfice (citations réelles avec attribution, désormais acceptées),
       // jamais éliminé avec certitude absolue par une règle purement lexicale.
       if (/\s[—–-]\s*[A-ZÀ-Ý].*$/.test(withoutTrailingClosers)) return false;
+      // Item 71-ter (décision Christophe, risque identifié par l'investigation item 74) — symboles
+      // de relation '→'/'↔' employés comme raccourci elliptique de mise en relation (ex.
+      // "Attachement précoce → régulation émotionnelle adulte"), caractéristique du format Liens
+      // transversaux. Reproduction réelle (avant ce correctif) : ce texte ne se termine PAS par le
+      // symbole lui-même (le dernier caractère reste le mot qui complète la relation, ex. "adulte")
+      // — un simple ajout de '→'/'↔' à la classe de ponctuation terminale ci-dessus (dernier
+      // caractère du texte) ne corrige donc PAS ce cas réel, vérifié empiriquement. Le correctif
+      // retenu suit donc le même principe que l'attribution par tiret ci-dessus : une RECHERCHE DE
+      // MOTIF (flèche suivie d'au moins un caractère non-blanc, jusqu'à la fin du texte), pas une
+      // simple classe de caractère terminal. Un texte qui s'arrête bien après une flèche AVEC UNE
+      // SUITE (même partielle) est considéré comme une relation elliptique complète ; un texte qui
+      // s'arrête juste après la flèche, SANS RIEN après, reste à raison signalé comme tronqué (cf.
+      // témoin dédié dans les tests) — c'est le cas le plus proche d'une vraie coupure en cours de
+      // mise en forme (légende de schéma interrompue avant d'atteindre le second terme).
+      // Compromis assumé, même esprit que l'attribution par tiret : un texte réellement tronqué qui
+      // s'arrêterait, par coïncidence, juste après une flèche suivie d'un début de mot partiel (ex.
+      // "trauma → régul" coupé en cours de mot) échapperait à tort à cette détection — motif jugé
+      // rare face au bénéfice, jamais éliminé avec certitude absolue par une règle purement lexicale.
+      if (/[→↔]\s*\S/.test(withoutTrailingClosers)) return false;
       return true;
     }
 
