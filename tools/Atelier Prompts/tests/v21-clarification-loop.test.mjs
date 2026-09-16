@@ -201,13 +201,18 @@ test('V21-09 : une question catalogue est refusée, d’où qu’elle vienne', (
   assert.notEqual(guardDisplayedQuestion(catalogue, {}).verdict, 'ALLOW');
 });
 
-test('V21-10 : une question multi-dimension est refusée ou réduite à une seule information', () => {
+test('V21-10 : une question multi-dimension est refusée, des deux côtés de la frontière', () => {
+  /* RECLASSIFICATION — HISTORICAL_IMPLEMENTATION_CONTRACT (FINAL-TARGETED-FIX).
+     Le titre disait « refusée OU réduite à une seule information », et l'assertion n'en gardait
+     qu'une : la réduction. Cette disjonction rendait l'invariant intestable — elle acceptait par
+     avance la coupure post-génération, aujourd'hui supprimée. Ce qui compte, et qui ne bouge pas,
+     est que deux besoins dans une phrase n'atteignent JAMAIS l'écran. */
   const deux = 'Quel est votre budget et combien de temps partez-vous ?';
   assert.equal(isAtomicQuestion(deux), false);
   assert.deepEqual(guardFastSolicitation(question(deux), snapshot(0)), SILENT_INTERACTION);
-  const reduite = guardDisplayedQuestion(deux, {});
-  assert.equal(reduite.verdict, 'REDUCED');
-  assert.equal(isAtomicQuestion(reduite.text), true);
+  const garde = guardDisplayedQuestion(deux, {});
+  assert.equal(garde.verdict, 'NOT_DISPLAYABLE');
+  assert.equal(garde.text, null);
 });
 
 test('V21-11 : une option suggérée en fin de question n’est pas une question atomique', () => {

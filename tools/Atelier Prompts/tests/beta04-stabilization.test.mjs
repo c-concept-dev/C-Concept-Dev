@@ -26,7 +26,7 @@ import vm from 'node:vm';
 import {
   guardFastSolicitation, assessSolicitation, isRepeatedSolicitation,
   countInterrogations, countNamedAlternatives,
-  guardDisplayedQuestion, isAtomicQuestion, reduceQuestionDeterministically,
+  guardDisplayedQuestion, isAtomicQuestion,
   DISPLAY_VERDICTS, SILENT_INTERACTION, SOLICITING_TYPES,
   SOLICITATION_VERDICTS
 } from '../workers/shared/solicitation-policy.js';
@@ -426,18 +426,35 @@ test('T04-22b : une candidate atomique du même tour est préférée à toute r�
   assert.equal(garde.text, 'Combien de jours prévoyez-vous de passer sur place ?');
 });
 
-test('T04-22c : la réduction coupe, elle ne rédige pas', () => {
-  const reduite = reduceQuestionDeterministically(OWNER_BETA_1);
-  assert.equal(reduite, 'Quel type de résultat vous serait le plus utile ?');
-  /* Chaque mot du résultat vient du texte d'origine : rien n'est ajouté sauf la ponctuation. */
-  for (const mot of reduite.replace(/\s*\?$/u, '').split(/\s+/u)) {
-    assert.ok(OWNER_BETA_1.includes(mot), `« ${mot} » vient de la question d’origine`);
-  }
-  /* Un fragment trop court n'est pas une question : la réduction renonce plutôt que de bafouiller. */
-  assert.equal(reduceQuestionDeterministically('Quoi : a, b, ou c ?'), null);
-  /* Un catalogue SANS déterminants est un catalogue : rien à couper. V2.2.1-D2 FINAL a retiré la
-     quatrième issue, qui FABRIQUAIT alors une question constante — un contrôle de forme devenait
-     l'auteur de ce qui est demandé. La frontière constate désormais, et n'écrit rien. */
+test('T04-22c : ce qu’une coupure produisait, la frontière le REFUSE désormais', () => {
+  /* RECLASSIFICATION — HISTORICAL_IMPLEMENTATION_CONTRACT (FINAL-TARGETED-FIX).
+   *
+   * CE QUE CE TEST GARDAIT. Il vérifiait que `reduceQuestionDeterministically` coupait sans rédiger :
+   * chaque mot du résultat venait du texte d'origine. L'argument était honnête et il était insuffisant.
+   * Un texte dont chaque mot est emprunté reste un texte que PERSONNE n'a écrit, et il repartait avec
+   * les métadonnées de la question ENTIÈRE — identité du manque, inconnue visée, progression annoncée
+   * décrivaient alors autre chose que ce que la personne lisait à l'écran.
+   *
+   * POURQUOI LA COUPURE NE POUVAIT PAS ÊTRE RENDUE CORRECTE. Recalculer les métadonnées sur le
+   * fragment demanderait de décider, après coup et hors autorité, quel manque le fragment interroge.
+   * Ce serait exactement la seconde autorité sémantique que l'architecture interdit. Il ne restait
+   * donc que deux issues honnêtes : afficher la question telle qu'elle a été écrite, ou ne pas
+   * l'afficher.
+   *
+   * CE QUI EST GARDÉ MAINTENANT, et qui est plus fort : le catalogue n'atteint pas l'écran, ET rien
+   * ne le remplace par un texte sans auteur. */
+  const garde = guardDisplayedQuestion(OWNER_BETA_1, {});
+  assert.equal(garde.verdict, 'NOT_DISPLAYABLE');
+  assert.equal(garde.text, null, 'aucun fragment fabriqué par la frontière');
+  /* Et la seule substitution encore permise reste une question COMPLÈTE du même tour. */
+  const remplacee = guardDisplayedQuestion(OWNER_BETA_1, {
+    candidates: [{ text: 'Combien de jours prévoyez-vous de passer sur place ?' }]
+  });
+  assert.equal(remplacee.verdict, 'REPLACED');
+  assert.equal(remplacee.text, 'Combien de jours prévoyez-vous de passer sur place ?');
+  /* Un catalogue SANS déterminants était déjà refusé sans texte de repli : V2.2.1-D2 FINAL avait
+     retiré la question constante que la frontière fabriquait. Ce lot supprime la dernière écriture
+     qui restait — la coupure — et les deux cas se rejoignent sur le même verdict. */
   assert.equal(isAtomicQuestion('Itinéraire, recommandations, checklist, ou autre chose ?'), false);
   const repli = guardDisplayedQuestion('Itinéraire, recommandations, checklist, ou autre chose ?', {});
   assert.equal(repli.verdict, 'NOT_DISPLAYABLE');
@@ -450,8 +467,11 @@ test('T04-22f : une parenthèse qui énumère est plusieurs dimensions dans une 
   const avecParenthese = 'Quel type de CV souhaitez-vous produire (format, contenu, objectif professionnel…) ?';
   assert.equal(isAtomicQuestion(avecParenthese), false);
   const garde = guardDisplayedQuestion(avecParenthese, {});
-  assert.equal(garde.verdict, 'REDUCED');
-  assert.equal(garde.text, 'Quel type de CV souhaitez-vous produire ?');
+  /* FINAL-TARGETED-FIX — ce test attendait la tête interrogative, coupée de sa parenthèse. Ce qui
+     est mesuré ici reste le DÉFAUT — une parenthèse qui énumère n'est pas une question atomique ;
+     seule la sanction change : la frontière refuse au lieu de couper. */
+  assert.equal(garde.verdict, 'NOT_DISPLAYABLE');
+  assert.equal(garde.text, null);
   /* Une parenthèse qui précise, sans énumérer, ne gêne personne : elle reste. */
   const precision = 'Combien de jours (environ) partez-vous ?';
   assert.equal(isAtomicQuestion(precision), true);

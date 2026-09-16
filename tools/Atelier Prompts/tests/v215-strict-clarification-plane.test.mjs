@@ -54,26 +54,40 @@ const PRESENTATION = 'Je veux préparer une présentation de 20 minutes sur l’
 const REUNION = 'Je veux organiser une réunion d’équipe pour améliorer la communication entre mes collaborateurs.';
 
 /* ==========================================================================
- * V215-01 / 03 — UNE QUESTION RÉDUCTIBLE EST RÉDUITE, PAS TUE
+ * V215-01 / 03 — CE QUI EST ATOMIQUE RESTE DANS LE PLAN RAPIDE ; LE RESTE SE TAIT
+ *
+ * RECLASSIFICATION — HISTORICAL_IMPLEMENTATION_CONTRACT (FINAL-TARGETED-FIX). Le titre d'origine
+ * était « UNE QUESTION RÉDUCTIBLE EST RÉDUITE, PAS TUE ». Le constat qui l'avait motivé reste exact
+ * et n'est pas contesté : le modèle propose bien une question à chaque tour, et c'est le verdict
+ * MULTIPLE_QUESTIONS qui la faisait taire, au prix d'un aller vers le plan profond.
+ *
+ * CE QUI A CHANGÉ EST LE REMÈDE, PAS LE DIAGNOSTIC. Couper la question rendait `{ type, text }` :
+ * le texte amputé repartait sans `question_focus` ni `missing_determinant_id`, donc sans le fait qui
+ * arme le garde méta ni celui qui empêche de resolliciter le même manque. La réduction achetait une
+ * seconde de dialogue en désarmant deux gardes — et le texte affiché n'avait plus d'auteur.
+ *
+ * LE PRIX EST ASSUMÉ, ET IL EST NOMMÉ ICI PLUTÔT QUE TU : une question à deux besoins renvoie de
+ * nouveau le tour au plan profond. La dépense revient ; l'intégrité de ce qui est affiché passe
+ * avant. Ce qui reste vérifié ci-dessous, et qui portait l'essentiel du gain, est intact :
+ * plusieurs tours ATOMIQUES d'affilée se règlent sans aucun appel profond.
  * ======================================================================= */
 
-test('V215-01 : une question à deux besoins devient UNE question, au lieu d’un silence', () => {
+test('V215-01 : une question à deux besoins se tait — aucun texte amputé ne sort du plan rapide', () => {
   /* C'est exactement ce que le modèle a produit sur les trois demandes réelles. */
   for (const demande of [LISBONNE, PRESENTATION, REUNION]) {
     const deuxBesoins = q('Quel est le budget approximatif et combien de temps cela doit-il durer ?');
-    /* L'ancienne mesure la refusait… */
     assert.equal(assessSolicitation(deuxBesoins, [], false, demande), 'MULTIPLE_QUESTIONS');
     assert.deepEqual(guardFastSolicitation(deuxBesoins, snap(demande)), SILENT_INTERACTION);
-    /* …la composition la RÉDUIT, et le tour reste dans le plan rapide. */
+    /* Et la composition ne rattrape plus rien : elle constate le même refus. */
     const rendu = guardFastInteraction(deuxBesoins, snap(demande));
-    assert.equal(rendu.type, 'ASK_CLARIFICATION', 'le plan rapide parle');
-    assert.notEqual(rendu.text, deuxBesoins.text, 'la question a été coupée');
-    assert.equal(isAtomicQuestion(rendu.text), true, 'et ce qui sort est atomique');
-    /* La réduction COUPE : chaque mot vient de la question d'origine. */
-    for (const mot of rendu.text.replace(/\s*\?$/u, '').split(/\s+/u)) {
-      assert.ok(deuxBesoins.text.includes(mot), `« ${mot} » vient de la proposition du modèle`);
-    }
+    assert.deepEqual(rendu, SILENT_INTERACTION, 'le plan rapide se tait plutôt que de couper');
   }
+  /* La garantie qui remplace la réduction : ce que le plan rapide LAISSE passer sort INTACT, avec
+     tous ses faits. Aucun chemin ne rend un objet plus pauvre que celui qui est entré. */
+  const atomique = { ...q('Combien de temps cela doit-il durer ?'),
+    question_focus: 'problem_or_user_context', missing_determinant_id: 'manque_duree' };
+  const passe = guardFastInteraction(atomique, snap(LISBONNE));
+  assert.deepEqual(passe, atomique, 'la candidate acceptée est rendue telle quelle, faits compris');
 });
 
 test('V215-03 : plusieurs tours de clarification restent dans le plan rapide', () => {
@@ -109,7 +123,11 @@ test('V215-04 : un manque qui n’est pas de forme n’est jamais « réparé »
     politique.indexOf('export function guardDisplayedQuestion'));
   assert.equal(/SAFE_FALLBACK_QUESTION/.test(composition), false,
     'fabriquer une question sur le chemin rapide serait inventer un besoin');
-  assert.match(composition, /if \(garde\.verdict === 'REDUCED'\)/);
+  /* FINAL-TARGETED-FIX — cette ligne épinglait la branche de réduction du chemin rapide. La branche
+     a été retirée : ce qui est gardé désormais est son ABSENCE, et le fait que le chemin rapide n'a
+     plus que deux issues — la candidate intacte, ou le silence. */
+  assert.equal(/REDUCED/.test(composition), false, 'aucune coupure ne subsiste sur le chemin rapide');
+  assert.match(composition, /return SILENT_INTERACTION;\n}/);
 });
 
 test('V215-09 / V215-10 / V215-11 : aucun domaine, aucun slot, aucune autorité nouvelle', () => {

@@ -195,13 +195,19 @@ test('T-B1-10 : aucun refus n’a été assoupli pour rendre B1 plus rare', () =
     tour(q(META, { focus: 'output_specification', id: 'manque_forme' })), { question_candidates: [] }),
     (e) => e.code === 'turn_contractually_unusable', 'refus maintenu : question méta');
 
-  /* UNE QUESTION MULTIPLE N'EST JAMAIS MONTRÉE TELLE QUELLE — mais elle n'est pas toujours refusée :
-     la réduction déterministe, antérieure à ces lots, en garde la tête interrogative et abandonne ce
-     qui l'encombre. Ce mécanisme n'a PAS été touché ici, et ce test dit ce qu'il fait vraiment
-     plutôt que ce qu'on aimerait qu'il fasse : ce qui est affiché ne porte qu'une dimension. */
-  const reduite = applyDisplayGuardToTurn(tour(q(MULTIPLE, { id: 'manque_a' })), { question_candidates: [] });
-  assert.notEqual(reduite.next_question.text, MULTIPLE, 'la question multiple n’est pas montrée telle quelle');
-  assert.equal(/\s+et\s+/.test(reduite.next_question.text), false, 'ce qui est montré ne porte qu’un manque');
+  /* UNE QUESTION MULTIPLE N'EST JAMAIS MONTRÉE TELLE QUELLE. Ce test disait, au lot précédent, que
+     la réduction déterministe en gardait la tête interrogative — il décrivait le mécanisme tel qu'il
+     était, sans l'approuver. FINAL-TARGETED-FIX a supprimé ce mécanisme : la question multiple n'est
+     plus coupée, elle est REFUSÉE quand aucune candidate complète ne peut la remplacer. Le refus se
+     durcit, il ne s'assouplit pas — c'est précisément ce que ce test garde. */
+  assert.throws(() => applyDisplayGuardToTurn(
+    tour(q(MULTIPLE, { id: 'manque_a' })), { question_candidates: [] }),
+    (e) => e.code === 'turn_contractually_unusable', 'refus maintenu : question multiple sans candidate');
+  /* Et la seule issue qui évite B1 reste une AUTRE question complète du même tour. */
+  const entiere = q('Quelle est la donnée manquante ?', { id: 'manque_b', issue: 'I2', progress: 'débloque I2' });
+  const remplacee = applyDisplayGuardToTurn(tour(q(MULTIPLE, { id: 'manque_a' })),
+    { question_candidates: [entiere] }, () => {});
+  assert.equal(remplacee.next_question.text, entiere.text, 'remplacée par une question entière, jamais par un fragment');
   const historique = [{ turn: 1, question: 'Déjà posée ?', answer: 'r', provenance: 'user', missing_determinant_id: 'manque_a' }];
   assert.throws(() => applyDisplayGuardToTurn(tour(q('Autrement formulée ?', { id: 'manque_a' })),
     { question_candidates: [] }, () => {}, historique),
