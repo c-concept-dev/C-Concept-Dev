@@ -211,7 +211,7 @@ test('T-OPQP01-10 : HTML canonique inchangé, dette ouverte', () => {
      qu'un refus de sortie fournisseur cesse d'être compté comme un défaut de notre code. Aucune
      règle, aucun prompt, aucun schéma, aucun comportement d'interface. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    'd2bde0d7dce0461ce396d27a65baa8b7529e164c87bad4f6484a1c9cf5d84974', 'CANONICAL_HTML_CHANGED = NO');
+    'a1b6693e726a4986e8572bc983f359ac49e7daef92b56c12572c423931ad863a', 'CANONICAL_HTML_CHANGED = NO');
   const registre = lire('docs/OPEN-DEBTS.md');
   const ouvertes = registre.slice(registre.indexOf('## Ouvertes'), registre.indexOf('## Fermées'));
   assert.deepEqual([...ouvertes.matchAll(/^### ([A-Z][A-Z-]+-\d{2})$/gm)].map((m) => m[1]), ['PERF-REAL-01']);

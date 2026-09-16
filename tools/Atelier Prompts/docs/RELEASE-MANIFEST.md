@@ -13,8 +13,8 @@
 | --- | --- |
 | Lot | HTML-FINAL-02 |
 | Artefact | Atelier de prompts — V11.5 LOT 10G Adaptive Decision Pipeline |
-| Commit local | `3148511ec5f1204ac4f3227c0bb5527f7a4281a5` |
-| Date du commit | 2026-09-16T10:22:27+02:00 |
+| Commit local | `59b02932d651b77aa50f131cbae30097805101ac` |
+| Date du commit | 2026-09-16T10:53:11+02:00 |
 
 ## Artefact canonique
 
@@ -24,8 +24,8 @@ aucune police et aucune image ne sont chargés depuis un tiers.
 | Champ | Valeur |
 | --- | --- |
 | Chemin | `atelier-prompts-v11.5-lot10g-decision-provider.html` |
-| Taille | 1533572 octets |
-| SHA-256 | `d2bde0d7dce0461ce396d27a65baa8b7529e164c87bad4f6484a1c9cf5d84974` |
+| Taille | 1533547 octets |
+| SHA-256 | `a1b6693e726a4986e8572bc983f359ac49e7daef92b56c12572c423931ad863a` |
 
 ## Runtime compilé
 
@@ -34,11 +34,11 @@ Le bloc embarqué dans la page et le fichier généré sont comparés octet pour
 | Champ | Valeur |
 | --- | --- |
 | Fichier | `core/adn/browser-runtime.generated.js` |
-| SHA-256 du fichier | `0853e4cb22b1c96d8da302629be0cd7647326207f71e27f51658d5a38ba6e6a0` |
-| SHA-256 du bloc embarqué | `0853e4cb22b1c96d8da302629be0cd7647326207f71e27f51658d5a38ba6e6a0` |
+| SHA-256 du fichier | `0a2455d292e6625b0d0bf8380ff5926564bebb5eb29d9faf5bf6524dff2068ff` |
+| SHA-256 du bloc embarqué | `0a2455d292e6625b0d0bf8380ff5926564bebb5eb29d9faf5bf6524dff2068ff` |
 | Identiques | oui |
 | Blocs de runtime dans la page | 1 |
-| Empreinte des sources compilées | `6ae74b8c8dcf961145569690b24debaa868778893161f7971cec46988d49c45f` |
+| Empreinte des sources compilées | `125f7ec7e78834c5d22b5c50cedc4d144df63b88f40b3bab9c37480c1ba408cc` |
 
 ## Plages gelées
 
@@ -59,17 +59,17 @@ Le bloc embarqué dans la page et le fichier généré sont comparés octet pour
 l'artefact. Le manifeste lui-même en est exclu : un document ne peut pas contenir
 sa propre empreinte.
 
-| Empreinte du jeu | `0b86fe4f4b03678c17510340d02b6ebde501c3df3086a7b4a6b9ebbaa8675980` |
+| Empreinte du jeu | `7009145aadc2c0875faa7e93153e01014bfdd32e8c49d2160976e91e8d1e7a4f` |
 | --- | --- |
 
 | Classe | Fichier | SHA-256 |
 | --- | --- | --- |
 | REQUIRED_BUILD | `anti-regression-baseline.json` | `7bd0fcca3f3ed226e3fdd30ee52dc204dae158dbde8842c08731054a1f58e7d6` |
-| REQUIRED_HTML | `atelier-prompts-v11.5-lot10g-decision-provider.html` | `d2bde0d7dce0461ce396d27a65baa8b7529e164c87bad4f6484a1c9cf5d84974` |
+| REQUIRED_HTML | `atelier-prompts-v11.5-lot10g-decision-provider.html` | `a1b6693e726a4986e8572bc983f359ac49e7daef92b56c12572c423931ad863a` |
 | REQUIRED_BUILD | `core/adn/adaptive-lock-selector.js` | `15d3154d639b761747a26215f2ec59eb6b121e6072187b6a2dd611eefe5b65ea` |
 | REQUIRED_BUILD | `core/adn/adn-state.js` | `814bbc8318cd2e20d1964c0930809e9997e00bf1cfe8f474aa8f3f39af767d8b` |
 | REQUIRED_BUILD | `core/adn/arch-canonical-enrichment.js` | `ee87dff7cd6c822b8aaba63edd05eff0614749ec6044fe0bacd22531b1ab8fc0` |
-| REQUIRED_BUILD | `core/adn/browser-runtime.generated.js` | `0853e4cb22b1c96d8da302629be0cd7647326207f71e27f51658d5a38ba6e6a0` |
+| REQUIRED_BUILD | `core/adn/browser-runtime.generated.js` | `0a2455d292e6625b0d0bf8380ff5926564bebb5eb29d9faf5bf6524dff2068ff` |
 | REQUIRED_BUILD | `core/adn/engine-adapters.js` | `81e206b5bb1705c404a494dd136fea1fd17bb7cd502aca2855b6bf6f9b161255` |
 | REQUIRED_BUILD | `core/adn/execution-lifecycle.js` | `accdee01c6c294f33e28be321024501c152e2fdd6e53298575c2450adebf8ec7` |
 | REQUIRED_BUILD | `core/adn/execution-readiness.js` | `c6aef9daf228e441ad96545ed036c45955d8a46a8fcaf8f387f4a3196132ffb6` |
@@ -157,7 +157,7 @@ sa propre empreinte.
 | REQUIRED_DOC | `docs/PERF-NOMINAL-PROVIDER-01.md` | `2bd66e87aedf0b0e29fe095db6177a503bb29d5928d222befa87012378eea0fd` |
 | REQUIRED_DOC | `docs/PERF-REAL-01-REPORT.md` | `4d3b16bf400738cffb21995deb9302788dc67dd8da25649cecc7592b345bd77e` |
 | REQUIRED_BUILD | `package.json` | `c89fdaa9b4ce892b8a75eac66b42ddc20868098b608c24fc6ed1d30c8e064693` |
-| BUILD_TOOL | `tools/build-adn-browser-runtime.mjs` | `645e4963997083ad266edbd6fe5c6a609b5f336c88bdb5d3eb201be4bbca0338` |
+| BUILD_TOOL | `tools/build-adn-browser-runtime.mjs` | `5b43a54d8c561dea23cdca4462af16c9ffd418487489c21d5b03cae97c1a2cf3` |
 | BUILD_TOOL | `tools/build-release-manifest.mjs` | `960bebd9ed050125cadf819af0b71373524d1d240431798a2579af5172064eb1` |
 | BUILD_TOOL | `tools/frozen-guard.mjs` | `fa1d9b3e323bf350157f623e49e4d91d40afabe12a0adf7415ac90343bfe038c` |
 | REQUIRED_RUNTIME | `workers/groq/src/index.js` | `eb8278477832deff438d7bdd70ea340be6d7a8251d77c549fdeb8447a0a763de` |
@@ -168,11 +168,11 @@ sa propre empreinte.
 | REQUIRED_RUNTIME | `workers/shared/fast-interaction-endpoint.js` | `e892442944f7f117b77f6899255e9bd6d2e3604cd9ab42e0ec3c45ffe9c1aa84` |
 | REQUIRED_RUNTIME | `workers/shared/fast-interactive-plane.js` | `bb8b00b8a6b01537f71cc5f3e127b71db60083515c83ef81771e078e1a17bedf` |
 | REQUIRED_RUNTIME | `workers/shared/operational-request-core.js` | `955290698df3397fe8b56aa50da90b7cabb6800a7a641a4c97fdd1e82a2615f7` |
-| REQUIRED_RUNTIME | `workers/shared/operational-request-orchestrator.js` | `d700462e3e1cb45712a1ebf3d429e7c646ed06b76d462543f89fed8830f15888` |
+| REQUIRED_RUNTIME | `workers/shared/operational-request-orchestrator.js` | `b048f2e7f0de196329edb09568ed4d25cfbc419654d91352eb46736799c59f93` |
 | REQUIRED_RUNTIME | `workers/shared/provider-ha.js` | `19ae3e7af098a875b30e59e9a8c0257a09b4709b810b2c8fe5fa2a4dbcabf1da` |
 | REQUIRED_RUNTIME | `workers/shared/provider-rate-control.js` | `38da9840452fa70e444108559d78b9423e733208cf05e0a23f350936e3a94abd` |
 | REQUIRED_RUNTIME | `workers/shared/role-degradation.js` | `2259190f7f3a2b2f224605fc1b3ae8c4d6552f88e4cf4d56e34875b61a6a9ab7` |
-| REQUIRED_RUNTIME | `workers/shared/solicitation-policy.js` | `1a267b0683d23f96512ada86ec68923981f8f14bcb9c7ba6849ad0859bfc6e88` |
+| REQUIRED_RUNTIME | `workers/shared/solicitation-policy.js` | `da33d00d7e79a3eee927447957238b31cba725a07653bc88b4fb0485d3b27867` |
 | REQUIRED_RUNTIME | `workers/workers-ai/src/index.js` | `a198c0f8e845122f42e57e1fae18ba21f50a4c822cfca45acea6ca8ee2167643` |
 | REQUIRED_RUNTIME | `workers/workers-ai/wrangler.jsonc` | `2bb01da47bbb8d869da3ab0b31d2cd7d40ed98c9008fcced69c3e94072a3be6f` |
 
@@ -180,7 +180,7 @@ sa propre empreinte.
 
 | Classe | Fichiers | Raison |
 | --- | --- | --- |
-| REQUIRED_TEST_ONLY | 197 | preuves ; ne sont pas servies |
+| REQUIRED_TEST_ONLY | 198 | preuves ; ne sont pas servies |
 | EVALUATION_ONLY | 378 | bancs et campagnes, dont le worker `…-local-only` |
 | AUDIT_ONLY | 76 | relevés des lots passés |
 | PROVENANCE | 2 | trace de la dérivation de l'artefact courant |
@@ -206,7 +206,7 @@ par ce script.*
 | EXEC-PHASE-INSTRUMENT-01 | CLOSED |
 | FC01b FINAL | CLOSED |
 | HTML-FINAL-01 / 01A | CLOSED |
-| Tests au vert | 3413 |
+| Tests au vert | 3420 |
 
 ## Dette encore ouverte
 
