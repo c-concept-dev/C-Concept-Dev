@@ -55407,6 +55407,8 @@ var Worker_default = {
       return handleGetFile(url, env2);
     if (p === "/generate-pdf" && request2.method === "POST")
       return handleGeneratePDF(request2, env2);
+    if (p === "/browser-rendering/screenshot-slide" && request2.method === "POST")
+      return handleScreenshotSlide(request2, env2);
     if (p === "/generate-docx" && request2.method === "POST")
       return handleGenerateDOCX(request2, env2);
     if (p === "/generate-pptx" && request2.method === "POST")
@@ -56993,6 +56995,55 @@ h1, h2, h3 { break-after: avoid; page-break-after: avoid; }
   }
 }
 __name(handleGeneratePDF, "handleGeneratePDF");
+
+// Item 58 — export JPEG par diapositive (Carrousel structuré). Réutilise l'API Cloudflare
+// Browser Rendering déjà configurée pour /generate-pdf (mêmes CF_ACCOUNT_ID/CF_API_TOKEN,
+// même mécanique fetch) — jamais un nouveau système de rendu. Reçoit un fragment HTML déjà
+// AUTONOME (une seule diapositive, déjà enveloppée avec sa propre charte CSS côté client via
+// adocClinicalDocumentWrapHTML — cette route ne construit ni n'injecte aucun style elle-même,
+// contrairement à handleGeneratePDF qui traite un document complet potentiellement non
+// autonome) et retourne directement les octets JPEG (jamais stocké via storeAndReturn/KV :
+// le client assemble plusieurs diapositives en une seule archive zip côté navigateur, il a
+// besoin des octets bruts de chaque image, pas d'une URL de téléchargement individuelle).
+async function handleScreenshotSlide(request2, env2) {
+  if (!env2.CF_ACCOUNT_ID || !env2.CF_API_TOKEN)
+    return jsonErr("CF_ACCOUNT_ID et CF_API_TOKEN requis pour Browser Rendering", 500);
+  let body;
+  try {
+    body = await request2.json();
+  } catch {
+    return jsonErr("Invalid JSON", 400);
+  }
+  const { html, width = 1024, height = 768, quality = 90 } = body;
+  if (!html)
+    return jsonErr("Missing html (fragment HTML autonome d'une diapositive)", 400);
+  try {
+    const shotRes = await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${env2.CF_ACCOUNT_ID}/browser-rendering/screenshot`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${env2.CF_API_TOKEN}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          html,
+          viewport: { width, height },
+          screenshotOptions: { type: "jpeg", quality, fullPage: true }
+        })
+      }
+    );
+    if (!shotRes.ok) {
+      const err2 = await shotRes.text();
+      return jsonErr(`Browser Rendering error: ${err2}`, 502);
+    }
+    const jpegBuffer = await shotRes.arrayBuffer();
+    return new Response(jpegBuffer, { status: 200, headers: { ...CORS, "Content-Type": "image/jpeg" } });
+  } catch (err2) {
+    return jsonErr("Screenshot generation failed: " + err2.message, 500);
+  }
+}
+__name(handleScreenshotSlide, "handleScreenshotSlide");
 async function handleGenerateDOCX(request2, env2) {
   let body;
   try {
