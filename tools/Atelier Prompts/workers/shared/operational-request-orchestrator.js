@@ -613,6 +613,14 @@ export function applyDisplayGuardToTurn(turn, analystOutput, log = () => {}, his
       "Le tour exige une clarification, et aucune des questions produites n'est affichable.");
   }
   if (garde.text === texte) return turn;
+  /* FINAL-TARGETED-FIX — il n'existe plus de troisième issue. Le garde rend ALLOW (même texte),
+     REPLACED (une autre question complète de l'autorité) ou lève. Un texte différent SANS candidate
+     signifiait autrefois « question réduite » : ce mécanisme a été retiré, et ce garde-fou refuse
+     désormais tout ce qui y ressemblerait plutôt que de recoller un texte sur un objet étranger. */
+  if (garde.verdict !== "REPLACED" || !garde.candidate || typeof garde.candidate !== "object") {
+    throw new DecisionHttpError(502, "turn_contractually_unusable",
+      "Le tour exige une clarification, et aucune des questions produites n'est affichable.");
+  }
   /* TARGETED-FIX-POST-CODEX-01 — LE TEXTE AFFICHÉ ET L'IDENTITÉ AFFICHÉE DÉCRIVENT LE MÊME MANQUE.
    *
    * Cette ligne recollait le texte retenu sur l'OBJET QUESTION D'ORIGINE. Quand le garde avait
@@ -626,9 +634,9 @@ export function applyDisplayGuardToTurn(turn, analystOutput, log = () => {}, his
    * identité de manque, l'inconnue qu'elle vise, la progression qu'elle promet, ce qu'elle
    * interroge. Les champs sont repris DE LA CANDIDATE, jamais recopiés de l'ancienne question.
    *
-   * La réduction déterministe, elle, ne change que la forme du même besoin : l'objet d'origine
-   * reste le bon, seul son texte est raccourci. */
-  if (garde.verdict === "REPLACED" && garde.candidate && typeof garde.candidate === "object") {
+   * FINAL-TARGETED-FIX — le dernier chemin qui recollait un texte sur un objet étranger a disparu
+   * avec la réduction déterministe. Il ne reste que la substitution complète. */
+  {
     const c = garde.candidate;
     return { ...turn, next_question: {
       text: garde.text,
@@ -638,7 +646,6 @@ export function applyDisplayGuardToTurn(turn, analystOutput, log = () => {}, his
       missing_determinant_id: c.missing_determinant_id === undefined ? null : c.missing_determinant_id
     } };
   }
-  return { ...turn, next_question: { ...question, text: garde.text } };
 }
 
 /**

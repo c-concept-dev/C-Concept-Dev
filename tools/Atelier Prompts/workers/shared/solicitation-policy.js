@@ -390,7 +390,14 @@ export function guardFastSolicitation(candidate, snapshot = {}) {
  * ======================================================================== */
 
 /** Ce que la frontière peut conclure. Fermé. */
-export const DISPLAY_VERDICTS = Object.freeze(['ALLOW', 'REPLACED', 'REDUCED', 'NOT_DISPLAYABLE']);
+/* FINAL-TARGETED-FIX — « REDUCED » a disparu, et c'est le sujet de ce lot.
+   Une question pouvait être COUPÉE après sa génération pour la rendre acceptable : le texte
+   affiché perdait une partie de ce que l'autorité avait écrit, tandis que les métadonnées — ce que
+   la question interroge, le manque qu'elle vise, la progression promise — restaient celles de la
+   question ENTIÈRE. On montrait donc une moitié de question sous l'identité de l'autre.
+   Une question est désormais acceptée, remplacée par une AUTRE question complète de l'autorité, ou
+   refusée. Jamais raccourcie. */
+export const DISPLAY_VERDICTS = Object.freeze(['ALLOW', 'REPLACED', 'NOT_DISPLAYABLE']);
 
 /*
  * IL N'Y A PLUS DE QUESTION DE REPLI, ET C'EST LE POINT D'ARRIVÉE DE TOUT CE TRAVAIL.
@@ -496,55 +503,24 @@ export function isAtomicQuestion(texte) {
       && !PARENTHESE_ENUMERANTE.test(t);
 }
 
-/**
- * Réduction DÉTERMINISTE : garder la tête interrogative, abandonner ce qui l'encombre.
+/* -------------------------------------------------------------------------
+ * LA RÉDUCTION DÉTERMINISTE A ÉTÉ RETIRÉE — FINAL-TARGETED-FIX
  *
- * Deux coupes, et rien de plus. Devant un deux-points, l'énumération vit après : on garde ce qui est
- * devant. Devant deux propositions coordonnées, on garde la première. Le résultat n'est accepté que
- * s'il est lui-même atomique et s'il reste une question — sinon la réduction échoue, et c'est le
- * repli qui parle. On ne recolle jamais des morceaux : on coupe, ou on renonce.
- */
-export function reduceQuestionDeterministically(texte) {
-  const t = String(texte || '').trim();
-  if (!t) return null;
-  const essais = [];
-  /* Première coupe, la moins destructrice : retirer la parenthèse qui énumère. La question garde
-   * tous ses mots utiles, et perd seulement les dimensions qu'elle proposait. */
-  if (PARENTHESE_ENUMERANTE.test(t)) {
-    essais.push(t.replace(/\s*\([^)]*,[^)]*\)/gu, '').replace(/\s{2,}/gu, ' '));
-  }
-  const deuxPoints = t.indexOf(':');
-  if (deuxPoints > 0) essais.push(t.slice(0, deuxPoints));
-  const coupe = t.search(/(?:,\s*(?:et|ou)\b|\s+et\b|\s+—\s+par exemple)/u);
-  if (coupe > 0) essais.push(t.slice(0, coupe));
-  /* V2.1.5.3 — DEUX PHRASES SONT DÉJÀ DEUX QUESTIONS, ET LA PREMIÈRE EST ENTIÈRE.
-   *
-   * MESURÉ sur le runtime déployé, trois fois sur trois au premier tour : le plan rapide propose deux
-   * phrases interrogatives, le verdict dit MULTIPLE_QUESTIONS, et la frontière n'avait ici aucune
-   * coupe applicable — ni parenthèse, ni deux-points, ni coordination. Elle tombait donc sur son repli
-   * générique, que le plan rapide refuse depuis V2.1.5, et le tour partait au plan profond : dix-huit
-   * à vingt-cinq secondes pour obtenir une question dont la première phrase était déjà la bonne forme.
-   *
-   * Cette coupe-là est la MOINS destructrice de toutes : elle ne réécrit rien, ne concatène rien, ne
-   * retire aucun point d'interrogation à l'intérieur d'une phrase — elle garde une phrase entière,
-   * telle qu'elle a été écrite. Le choix de la première n'est pas un jugement de matérialité : c'est
-   * le dernier recours, APRÈS que la reprise a demandé au modèle de choisir lui-même la question qui
-   * réduit le plus l'incertitude. Le jugement reste donc chez lui ; seule la forme est réparée ici. */
-  const phrases = t.split(/(?<=\?)\s+/u).map((x) => x.trim()).filter(Boolean);
-  if (phrases.length > 1) essais.push(phrases[0]);
-  for (const essai of essais) {
-    const tete = `${essai.replace(/[\s,;:—?-]+$/u, '')} ?`;
-    /* Une tête trop courte n'est plus une question, c'est un fragment. */
-    if (tete.split(/\s+/u).length < 4) continue;
-    /* Un deux-points survivant annonce encore une énumération : la coupe a manqué son objet. */
-    if (tete.includes(':')) continue;
-    /* Et couper le « ou » final d'une énumération n'en retire que le marqueur, jamais l'énumération
-     * elle-même. Deux virgules suffisent à la reconnaître, sans rien connaître du sujet. */
-    if ((tete.match(/,/gu) || []).length >= 2) continue;
-    if (isAtomicQuestion(tete)) return tete;
-  }
-  return null;
-}
+ * `reduceQuestionDeterministically` vivait ici. Elle coupait une question refusée pour en garder la
+ * tête interrogative : devant un deux-points, devant une coordination, devant une parenthèse qui
+ * énumère, ou à la fin de la première phrase interrogative. Chaque mot du résultat venait bien de
+ * la question d'origine — c'est ce qui la faisait paraître inoffensive.
+ *
+ * Elle ne l'était pas. Ce qu'elle produisait était une question que PERSONNE n'avait écrite, et
+ * elle repartait avec les métadonnées de la question entière : l'identité du manque, l'inconnue
+ * visée, la progression annoncée décrivaient alors autre chose que ce que la personne lisait. Sur
+ * le plan rapide, elle faisait pire — le texte coupé repartait sans aucune métadonnée du tout.
+ *
+ * Une question est désormais acceptée telle quelle, remplacée par une autre question COMPLÈTE de
+ * l'autorité, ou refusée. Rien ne la réécrit après sa génération. Le prix est assumé : quand aucune
+ * candidate ne vaut, le tour est déclaré inexploitable au lieu d'afficher une moitié de question.
+ * ---------------------------------------------------------------------- */
+
 
 /**
  * LA PORTE UNIQUE. Toute question affichée passe ici, quelle qu'en soit la source — plan rapide,
@@ -596,10 +572,15 @@ export function guardFastInteraction(candidate, snapshot = {}) {
    * Une seule définition de l'atomicité, appliquée partout. */
   const garde = guardDisplayedQuestion(String(candidate.text || ''), { questionFocus: candidate.question_focus });
   if (garde.verdict === 'ALLOW') return candidate;
-  /* La réduction COUPE, elle ne rédige pas : chaque mot du résultat vient de la question d'origine.
-   * Le repli générique de la frontière, lui, n'est jamais employé ici — fabriquer une question sur le
-   * chemin rapide serait inventer un besoin. */
-  if (garde.verdict === 'REDUCED') return { type: candidate.type, text: garde.text };
+  /* FINAL-TARGETED-FIX — LA BRANCHE RÉDUITE EST RETIRÉE, ET ELLE COÛTAIT PLUS QUE LE SENS.
+   *
+   * Elle rendait `{ type, text }` : le texte coupé repartait SANS `question_focus` ni
+   * `missing_determinant_id`. Les deux faits que le plan rapide venait d'apprendre à produire —
+   * ce que la question interroge, et le manque qu'elle vise — étaient perdus par ce seul chemin,
+   * et avec eux le garde méta et la protection contre la répétition. Un défaut refermé en amont
+   * rouvert en aval, sans que rien ne le voie.
+   *
+   * Le silence reste l'issue, et il est déjà traitée : le plan profond tranche. */
   return SILENT_INTERACTION;
 }
 
@@ -642,10 +623,16 @@ export function guardDisplayedQuestion(texte, { candidates = [], objectiveNature
         candidate: candidate && typeof candidate === 'object' ? candidate : null };
     }
   }
-  /* Une réduction n'est acceptée que si elle est AFFICHABLE : couper un catalogue pour obtenir une
-   * question méta ne répare rien — c'est le défaut mesuré en bêta, déplacé d'un cran. */
-  const reduite = reduceQuestionDeterministically(t);
-  if (reduite && affichable(reduite, questionFocus, missingDeterminantId)) return { verdict: 'REDUCED', text: reduite };
+  /* FINAL-TARGETED-FIX — PLUS AUCUNE RÉDUCTION ICI.
+   *
+   * Une troisième issue existait : couper la question pour la rendre affichable. Reproduit —
+   * « Quel est le premier paramètre et le second ? » devenait « Quel est le premier paramètre ? »,
+   * et repartait avec l'identité, l'inconnue visée et la progression de la question entière. Le
+   * texte montré et l'identité montrée ne décrivaient plus le même manque, ce que le lot précédent
+   * venait précisément d'interdire pour le remplacement.
+   *
+   * Couper n'est pas choisir : le résultat est une question que personne n'a écrite. Les seules
+   * issues sont donc celles qui viennent de l'autorité — sa question, ou l'une de ses candidates. */
   /* Rien d'affichable, et rien d'inventé : `text` vaut null, et chaque appelant a déjà son
      issue — le silence sur le plan rapide, le repli de contrat sur le plan profond. */
   return { verdict: 'NOT_DISPLAYABLE', text: null };

@@ -97,7 +97,7 @@ const modules = [
     dir: 'workers/shared',
     file: 'solicitation-policy.js',
     name: 'SOLICIT',
-    exports: ['SOLICITING_TYPES','SOLICITATION_VERDICTS','SILENT_INTERACTION','countInterrogations','countNamedAlternatives','countTargetedDimensions','isRepeatedSolicitation','assessSolicitation','guardFastSolicitation','DISPLAY_VERDICTS','isAtomicQuestion','reduceQuestionDeterministically','guardDisplayedQuestion']
+    exports: ['SOLICITING_TYPES','SOLICITATION_VERDICTS','SILENT_INTERACTION','countInterrogations','countNamedAlternatives','countTargetedDimensions','isRepeatedSolicitation','assessSolicitation','guardFastSolicitation','DISPLAY_VERDICTS','isAtomicQuestion','guardDisplayedQuestion']
   },
   /* V2 — le plan Core. L'orchestrateur l'importe ; il doit donc être embarqué, comme la politique
    * de sollicitation, sans quoi ses fonctions se résoudraient à `undefined` dans le navigateur. */
