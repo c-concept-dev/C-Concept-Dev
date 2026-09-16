@@ -1585,7 +1585,7 @@
        tokensSnapshotId, le rendu change visiblement (voir rapport). */
     .adoc-sc-doc {
       font-family: var(--adoc-sc-body-font, "IBM Plex Sans", sans-serif);
-      color: var(--adoc-sc-body-color, var(--ink)); line-height: 1.65; font-size: 15px;
+      color: var(--adoc-sc-body-color, var(--ink)); line-height: var(--adoc-sc-line-height, 1.65); font-size: 15px;
     }
     .adoc-sc-heading {
       color: var(--adoc-sc-heading-color, var(--petrol-950));
@@ -4531,8 +4531,8 @@ RÈGLES ABSOLUES :
         + "au lecteur du fichier autonome.\n"
         + "-> Charte C Concept&Dev OBLIGATOIRE : IBM Plex Sans (titres Source Serif 4) + :root { --mer:#1f5053; --deep:#102f31;\n"
         + "   --vert-sauge:#c9c3b8; --beige:#ddd7cc; --sable:#f6f2ea; --surf:#f6f2ea;\n"
-        + "   --text:#273331; --muted:#5d6966; --blanc:#FFFFFF } (valeurs en dur — le document vit seul)\n"
-        + "   body background: var(--sable). JAMAIS fond noir ni or ni violet.\n"
+        + "   --text:#273331; --muted:#5d6966; --blanc:#FFFFFF; --adoc-line-height:1.7 } (valeurs en dur — le document vit seul)\n"
+        + "   body background: var(--sable). body line-height: var(--adoc-line-height). JAMAIS fond noir ni or ni violet.\n"
         + "-> Layout editorial professionnel. JS self-contained.\n"
         + "-> Chaque <img> DOIT ouvrir en plein ecran au clic (le fichier vit seul, prevoir un script inline minimal : overlay position:fixed, image agrandie, fermeture au clic/Echap).\n"
         + "-> Fonctions app hote INEXISTANTES : openAssistDoc(), adocRenderCiteInline(), adocAddMsg()."
@@ -9597,6 +9597,13 @@ ${recent}`;
       '--adoc-sc-card-bg': c.paper,
       '--adoc-sc-heading-font': t.headingFontFamily,
       '--adoc-sc-body-font': t.bodyFontFamily,
+      // Item 63e construction — densité de texte (interligne), overlay optionnel posé par
+      // adocBuildRenderManifestForBrandKit (jamais un champ de adocBrandKitToTokensSnapshot :
+      // une densité de lecture n'est pas une propriété de charte). Absent (null) pour tout
+      // tokensSnapshot antérieur à ce lot ou n'ayant jamais reçu ce réglage → filtré par
+      // .filter() ci-dessous, jamais émis → la règle CSS .adoc-sc-doc garde son repli 1.65,
+      // rendu visuel strictement inchangé (rétrocompatibilité).
+      '--adoc-sc-line-height': t.lineHeight,
     };
     return Object.keys(pairs).filter(k => pairs[k] != null).map(k => k + ':' + pairs[k] + ';').join('');
   }
@@ -9683,11 +9690,21 @@ ${recent}`;
   // tokensSnapshotId et assetsSnapshotId changent, exactement ce que permet déjà
   // adocResolveRenderManifest(doc, renderManifestOverride) sans aucune modification du moteur
   // de rendu canonique.
-  async function adocBuildRenderManifestForBrandKit(doc, brandKit) {
+  async function adocBuildRenderManifestForBrandKit(doc, brandKit, densityId) {
     const baseManifest = window.adocRenderManifests && window.adocRenderManifests[doc.renderManifestId];
     const templateRef = (baseManifest && baseManifest.templateRef) || { id: 'fiche-editoriale', version: 1 };
     const rendererVersion = (baseManifest && baseManifest.rendererVersion) || '1.0.0';
     const tokens = adocBrandKitToTokensSnapshot(brandKit);
+    // Item 63e construction — densité de texte, overlay optionnel posé ICI (jamais dans
+    // adocBrandKitToTokensSnapshot : une densité de lecture n'est pas une propriété de charte,
+    // même raisonnement que le choix de police côté ancien moteur, non plus stocké dans le brand
+    // kit). 3ᵉ paramètre optionnel, rétrocompatible : l'appel existant depuis
+    // adocResolveBrandKitForGeneration (2 arguments, jamais modifié) continue de produire des
+    // tokens sans lineHeight, exactement comme avant ce lot.
+    const densityPreset = ADOC_DENSITY_PRESETS.find(function (p) { return p.id === densityId; });
+    if (densityPreset && densityPreset.id !== 'keep' && densityPreset.structuredLineHeight != null) {
+      tokens.typography = Object.assign({}, tokens.typography, { lineHeight: densityPreset.structuredLineHeight });
+    }
     window.adocTokensSnapshots = window.adocTokensSnapshots || {};
     window.adocTokensSnapshots[tokens.tokensSnapshotId] = tokens;
     const manifestBase = {
@@ -9910,6 +9927,35 @@ ${recent}`;
       googleFontsHref: 'https://fonts.googleapis.com/css2?family=Mulish:wght@400;500;600;700&family=Libre+Baskerville:wght@400;700&display=swap' },
     { id: 'karla-playfair', label: 'Karla / Playfair Display — élégant contemporain', bodyFont: 'Karla', headingFont: 'Playfair Display',
       googleFontsHref: 'https://fonts.googleapis.com/css2?family=Karla:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap' },
+  ];
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // Item 63e construction — densité de texte (interligne), 3ᵉ réglage du même geste "un clic"
+  // (couleurs + police déjà en place ci-dessus, jamais un troisième panneau séparé). Investigation
+  // préalable : contrairement aux couleurs (gabarit :root exact) et à la police (noms littéraux
+  // déjà mandatés par la charte), AUCUNE convention de mise en page n'était jusqu'ici imposée au
+  // modèle pour l'ancien moteur ("Layout editorial professionnel", instruction en prose, aucune
+  // valeur ni ancrage détectable) — vérifié par lecture complète de adocBuildSystemPrompt/
+  // _execContext. Un simple ajout de '--adoc-line-height' à la classe de ponctuation... pardon,
+  // à la liste ADOC_LEGACY_ROOT_VARS des couleurs aurait, à tort, transformé cette 10ᵉ variable en
+  // condition bloquante pour le reteintage COULEUR de tout document déjà généré avant ce lot (qui
+  // ne l'a jamais). Traité ici comme un mécanisme INDÉPENDANT, troisième et dernier, même schéma
+  // que la police (LOT 11) : un ancrage propre, ajouté au même gabarit :root que les couleurs
+  // (donc désormais mandaté à la génération, cf. adocBuildSystemPrompt), détecté/appliqué par ses
+  // propres fonctions dédiées, jamais mélangé aux 9 variables de couleur.
+  //
+  // Valeurs "normal" choisies pour préserver EXACTEMENT le rendu actuel de chaque moteur si la
+  // thérapeute choisit "Normal" (pas seulement "Ne pas changer") : 1.65 côté structuré (déjà la
+  // valeur codée en dur de .adoc-sc-doc), 1.7 côté legacy (nouvelle valeur mandatée à la
+  // génération, aucune valeur préexistante à préserver pour ce moteur — choix assumé, documenté
+  // dans le rapport de lot, pas une évidence). "Resserré"/"Aéré" sont des écarts modérés (±0.25 à
+  // ±0.3) valables pour les deux moteurs, jamais identiques en valeur absolue (chaque moteur garde
+  // sa propre base), toujours identiques dans leur INTENTION (même 4 choix proposés partout).
+  const ADOC_DENSITY_PRESETS = [
+    { id: 'keep', label: 'Ne pas changer la densité', legacyLineHeight: null, structuredLineHeight: null },
+    { id: 'compact', label: 'Resserré', legacyLineHeight: 1.45, structuredLineHeight: 1.4 },
+    { id: 'normal', label: 'Normal', legacyLineHeight: 1.7, structuredLineHeight: 1.65 },
+    { id: 'airy', label: 'Aéré', legacyLineHeight: 1.95, structuredLineHeight: 1.85 },
   ];
 
   // 57f — Shared editing gestures; structured JSON and legacy HTML keep separate persistence.
@@ -10646,6 +10692,31 @@ ${recent}`;
     return { ok: true, html: newHtml, applied: true };
   }
 
+  // Item 63e construction — densité de texte, ancrage dédié et indépendant de
+  // ADOC_LEGACY_ROOT_VARS (couleurs). '--adoc-line-height:' n'apparaît jamais ailleurs qu'à sa
+  // définition dans :root (un usage s'écrit "var(--adoc-line-height)", jamais "--adoc-line-height:"),
+  // même raisonnement de sûreté que adocApplyLegacyRootVars ci-dessus — pas besoin de borner au
+  // bloc <style> comme pour les noms de police (motif bien plus spécifique qu'un nom de police
+  // pouvant apparaître dans du contenu clinique affiché).
+  function adocParseLegacyLineHeight(html) {
+    return /--adoc-line-height\s*:\s*[\d.]+/i.test(String(html || ''));
+  }
+  function adocApplyLegacyLineHeight(html, value) {
+    return String(html || '').replace(/(--adoc-line-height\s*:\s*)[\d.]+/i, '$1' + value);
+  }
+
+  // Orchestrateur — même contrat que adocRethemeLegacyHtml/adocRethemeLegacyFonts : { ok:false }
+  // sans rien modifier si l'ancre attendue n'est pas retrouvée (document antérieur à ce lot, ou
+  // modèle n'ayant pas respecté la consigne cette fois-là) ; densityId==='keep' ne modifie rien
+  // (toujours ok:true) — jamais bloquant pour les couleurs ni pour la police, mécanisme entièrement
+  // à part.
+  function adocRethemeLegacyDensity(html, densityId) {
+    const preset = ADOC_DENSITY_PRESETS.find(function (p) { return p.id === densityId; }) || ADOC_DENSITY_PRESETS[0];
+    if (preset.id === 'keep' || preset.legacyLineHeight == null) return { ok: true, html: html, applied: false };
+    if (!adocParseLegacyLineHeight(html)) return { ok: false, html: html, applied: false };
+    return { ok: true, html: adocApplyLegacyLineHeight(html, preset.legacyLineHeight), applied: true };
+  }
+
   window._adocLegacyReThemeCandidate = null;
 
   window.adocCloseLegacyReThemePanel = function () {
@@ -10680,6 +10751,12 @@ ${recent}`;
       '<select id="cc-legacy-retheme-font-select" class="cc-landing-brandkit-select" style="width:100%;margin-bottom:12px;">' +
       ADOC_LEGACY_FONT_PAIRS.map(function (f) { return '<option value="' + f.id + '">' + adocEsc(f.label) + '</option>'; }).join('') +
       '</select>' +
+      // Item 63e construction — densité de texte ajoutée au même panneau, même geste (jamais un
+      // troisième mécanisme séparé), lue au même moment que la police ci-dessus.
+      '<label for="cc-legacy-retheme-density-select" style="display:block;font-size:11px;font-weight:600;color:var(--ink);margin-bottom:4px;">Densité du texte (optionnel)</label>' +
+      '<select id="cc-legacy-retheme-density-select" class="cc-landing-brandkit-select" style="width:100%;margin-bottom:12px;">' +
+      ADOC_DENSITY_PRESETS.map(function (d) { return '<option value="' + d.id + '">' + adocEsc(d.label) + '</option>'; }).join('') +
+      '</select>' +
       '<div style="display:flex;flex-direction:column;gap:6px;">' +
       kits.map(function (k) {
         return '<button type="button" class="cc-clarity-reply-btn" style="justify-content:flex-start;text-align:left;width:100%;" onclick="window.adocPreviewLegacyRetheme(\'' + k.id + '\')">' + adocEsc(k.name || 'Charte') + '</button>';
@@ -10696,6 +10773,8 @@ ${recent}`;
     if (!art || !body) return;
     // LOT 11 — lu AVANT de reconstruire body.innerHTML ci-dessous (qui remplace le <select>).
     const fontPairId = document.getElementById('cc-legacy-retheme-font-select')?.value || 'keep';
+    // Item 63e construction — même principe, lu au même moment que la police ci-dessus.
+    const densityId = document.getElementById('cc-legacy-retheme-density-select')?.value || 'keep';
     body.innerHTML = '<div style="padding:8px 0;color:var(--muted);font-size:12px;">Préparation de l\'aperçu…</div>';
     try {
       const brandKit = await adocGetBrandKitById(brandKitId);
@@ -10711,23 +10790,35 @@ ${recent}`;
       // des couleurs, qui reste un mécanisme entièrement indépendant et déjà vérifié.
       const fontPair = ADOC_LEGACY_FONT_PAIRS.find(function (f) { return f.id === fontPairId; }) || ADOC_LEGACY_FONT_PAIRS[0];
       const fontResult = adocRethemeLegacyFonts(colorResult.html, fontPairId);
-      const finalHtml = fontResult.ok ? fontResult.html : colorResult.html;
+      const afterFontHtml = fontResult.ok ? fontResult.html : colorResult.html;
       const fontRefused = fontPairId !== 'keep' && !fontResult.ok;
+
+      // Item 63e construction — densité appliquée EN PLUS des couleurs et de la police, jamais à
+      // la place : même indépendance que la police vis-à-vis des couleurs ci-dessus.
+      const densityPreset = ADOC_DENSITY_PRESETS.find(function (d) { return d.id === densityId; }) || ADOC_DENSITY_PRESETS[0];
+      const densityResult = adocRethemeLegacyDensity(afterFontHtml, densityId);
+      const finalHtml = densityResult.ok ? densityResult.html : afterFontHtml;
+      const densityRefused = densityId !== 'keep' && !densityResult.ok;
 
       window._adocLegacyReThemeCandidate = {
         storeKey: storeKey, html: finalHtml, brandKitId: brandKit.id, brandKitName: brandKit.name || null,
         fontPairId: fontResult.applied ? fontPairId : null, fontLabel: fontResult.applied ? fontPair.label : null,
+        densityId: densityResult.applied ? densityId : null, densityLabel: densityResult.applied ? densityPreset.label : null,
       };
       const previewBlobUrl = URL.createObjectURL(new Blob([finalHtml], { type: 'text/html;charset=utf-8' }));
       const fontNote = fontRefused
         ? '<div style="margin:8px 0;padding:8px 10px;background:var(--terracotta-100);color:var(--terracotta-700);border-radius:6px;font-size:11px;">La police n\'a pas pu être changée pour ce document précis (les noms de police attendus n\'ont pas été retrouvés dans son style) — seules les couleurs seront appliquées.</div>'
         : '';
+      const densityNote = densityRefused
+        ? '<div style="margin:8px 0;padding:8px 10px;background:var(--terracotta-100);color:var(--terracotta-700);border-radius:6px;font-size:11px;">La densité n\'a pas pu être changée pour ce document précis (généré avant ce réglage) — les autres changements restent appliqués.</div>'
+        : '';
       const previewNote = 'Aperçu avec « ' + adocEsc(brandKit.name || 'cette charte') + ' »'
         + (fontResult.applied ? ' et la police « ' + adocEsc(fontPair.label) + ' »' : '')
+        + (densityResult.applied ? ' et une densité « ' + adocEsc(densityPreset.label) + ' »' : '')
         + ' — contenu, structure et scripts inchangés.';
       body.innerHTML =
         '<div style="font-size:11px;color:var(--muted);margin-bottom:6px;">' + previewNote + '</div>' +
-        fontNote +
+        fontNote + densityNote +
         '<iframe src="' + previewBlobUrl + '" style="width:100%;height:320px;border:1px solid var(--stone-200);border-radius:8px;" sandbox="allow-scripts"></iframe>' +
         '<div style="margin-top:10px;display:flex;gap:8px;">' +
           '<button type="button" class="cc-clarity-reply-btn" onclick="window.adocConfirmLegacyRetheme()">Confirmer</button>' +
@@ -10751,6 +10842,8 @@ ${recent}`;
     // LOT 11 — traçabilité de la police appliquée, même patron que _adocBrandKitName ci-dessus.
     // Reste null si l'utilisatrice a choisi "keep" ou si le motif de police n'a pas été retrouvé.
     if (candidate.fontLabel) art._adocFontLabel = candidate.fontLabel;
+    // Item 63e construction — même patron de traçabilité pour la densité de texte.
+    if (candidate.densityLabel) art._adocDensityLabel = candidate.densityLabel;
     // Audit Codex A2 — commentaire mis à jour (dérive relevée lors de l'audit item 48) : ce
     // filet de sécurité décrivait à l'origine le cas NORMAL d'un document legacy direct, qui
     // n'avait alors jamais reçu _adocCapabilities à la génération (seul le repli structuré→legacy
@@ -10825,6 +10918,13 @@ ${recent}`;
     }
     body.innerHTML =
       '<div style="font-size:11px;color:var(--muted);margin-bottom:8px;">Choisissez une charte à appliquer — un aperçu réel vous sera montré avant toute confirmation. Seule l’apparence (couleurs, police, jetons visuels) change, jamais le contenu ni les citations.</div>' +
+      // Item 63e construction — densité de texte ajoutée au même panneau, même geste (jamais un
+      // second flux séparé), lue au même moment que la charte choisie ci-dessous (parité avec le
+      // panneau legacy ci-dessus, mêmes ids d'option ADOC_DENSITY_PRESETS).
+      '<label for="cc-structured-retheme-density-select" style="display:block;font-size:11px;font-weight:600;color:var(--ink);margin-bottom:4px;">Densité du texte (optionnel)</label>' +
+      '<select id="cc-structured-retheme-density-select" class="cc-landing-brandkit-select" style="width:100%;margin-bottom:12px;">' +
+      ADOC_DENSITY_PRESETS.map(function (d) { return '<option value="' + d.id + '">' + adocEsc(d.label) + '</option>'; }).join('') +
+      '</select>' +
       '<div style="display:flex;flex-direction:column;gap:6px;">' +
       eligibleKits.map(function (k) {
         return '<button type="button" class="cc-clarity-reply-btn" style="justify-content:flex-start;text-align:left;width:100%;" onclick="window.adocPreviewStructuredRetheme(\'' + k.id + '\')">' + adocEsc(k.name || 'Charte') + '</button>';
@@ -10839,6 +10939,10 @@ ${recent}`;
     const storeKey = modal && modal.dataset.storeKey;
     const art = storeKey && window._adocArtifacts?.[storeKey];
     if (!art || !art._adocStructuredDoc || !body) return;
+    // Item 63e construction — lu AVANT de reconstruire body.innerHTML ci-dessous (qui remplace
+    // le <select>), même précaution que côté legacy.
+    const densityId = document.getElementById('cc-structured-retheme-density-select')?.value || 'keep';
+    const densityPreset = ADOC_DENSITY_PRESETS.find(function (d) { return d.id === densityId; }) || ADOC_DENSITY_PRESETS[0];
     body.innerHTML = '<div style="padding:8px 0;color:var(--muted);font-size:12px;">Préparation de l’aperçu…</div>';
     try {
       const brandKit = await adocGetBrandKitById(brandKitId);
@@ -10848,14 +10952,23 @@ ${recent}`;
       // art._adocStructuredDoc (pas un `doc` de génération, qui n'existe plus à ce stade) :
       // seule différence avec l'appel de génération, confirmée par l'investigation préalable
       // (adocBuildRenderManifestForBrandKit ne lit que doc.renderManifestId, identique ici).
-      const renderManifestOverride = await adocBuildRenderManifestForBrandKit(art._adocStructuredDoc, brandKit);
+      // Item 63e construction — densityId passé en 3ᵉ argument (overlay optionnel, cf. la
+      // fonction elle-même) ; l'appel de génération (adocResolveBrandKitForGeneration) continue
+      // d'appeler avec 2 arguments seulement, jamais impacté.
+      const renderManifestOverride = await adocBuildRenderManifestForBrandKit(art._adocStructuredDoc, brandKit, densityId);
       // Aperçu RÉEL (jamais un blob iframe, qui n'existe pas pour ce moteur — cf. investigation,
       // point 4) : même fonction de rendu canonique que l'ouverture de l'espace de travail
       // (adocOpenWorkspace) et l'export (adocWsExport), appliquée ici au seul candidat, sans
       // toucher à art._adocRenderManifestOverride avant confirmation explicite.
       const rendered = await window.adocRenderClinicalDocument(art._adocStructuredDoc, art._adocStructuredSnapshot, renderManifestOverride);
-      window._adocStructuredReThemeCandidate = { storeKey: storeKey, renderManifestOverride: renderManifestOverride, brandKitName: brandKit.name || null };
-      const previewNote = 'Aperçu avec « ' + adocEsc(brandKit.name || 'cette charte') + ' » — contenu, structure et citations inchangés.';
+      const densityApplied = densityPreset.id !== 'keep' && densityPreset.structuredLineHeight != null;
+      window._adocStructuredReThemeCandidate = {
+        storeKey: storeKey, renderManifestOverride: renderManifestOverride, brandKitName: brandKit.name || null,
+        densityLabel: densityApplied ? densityPreset.label : null,
+      };
+      const previewNote = 'Aperçu avec « ' + adocEsc(brandKit.name || 'cette charte') + ' »'
+        + (densityApplied ? ' et une densité « ' + adocEsc(densityPreset.label) + ' »' : '')
+        + ' — contenu, structure et citations inchangés.';
       body.innerHTML =
         '<div style="font-size:11px;color:var(--muted);margin-bottom:6px;">' + previewNote + '</div>' +
         '<div style="border:1px solid var(--stone-200);border-radius:8px;max-height:320px;overflow:auto;padding:12px;">' + rendered.html + '</div>' +
@@ -10878,6 +10991,8 @@ ${recent}`;
     const previousBrandKitName = art._adocBrandKitName || null;
     art._adocRenderManifestOverride = candidate.renderManifestOverride;
     if (candidate.brandKitName) art._adocBrandKitName = candidate.brandKitName;
+    // Item 63e construction — même patron de traçabilité que côté legacy (adocConfirmLegacyRetheme).
+    if (candidate.densityLabel) art._adocDensityLabel = candidate.densityLabel;
     const storeKey = candidate.storeKey;
     window.adocCloseStructuredReThemePanel();
     // Réutilise EXACTEMENT le mécanisme déjà existant (même patron que adocConfirmLegacyRetheme
