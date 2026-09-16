@@ -22,8 +22,13 @@ import { hasSection, runRapidePipeline, sectionBody, sectionTitles } from './rap
 
 const clone = (v) => JSON.parse(JSON.stringify(v));
 
-function baseFor(demande, candidat = {}) {
+/* TRACER-REMEDIATION-02 · F1 — la forme du livrable est DÉCLARÉE par l'autorité. Ces fixtures de
+   caractérisation l'obtenaient en écrivant « sous forme de tableau » ou « un email » dans la
+   demande ; le mécanisme qui lisait ces mots a été retiré. Ce que ces tests caractérisent — le
+   delta entre le chemin legacy et le chemin canonique — est inchangé. */
+function baseFor(demande, candidat = {}, output_format = null) {
   return canonicalFrom(oprieReadyTurn({
+    ...(output_format ? { output_format } : {}),
     operational_request_candidate: {
       objective: 'Objectif validé.', expected_deliverable: 'Un livrable nommé.',
       secondary_objectives: [], confirmed_constraints: [], confirmed_priorities: [],
@@ -32,11 +37,11 @@ function baseFor(demande, candidat = {}) {
     }
   }), { request_id: 'rapchar01', original_request: demande });
 }
-const canonique = (demande, { materiau = '', candidat = {} } = {}) => runRapidePipeline({
+const canonique = (demande, { materiau = '', candidat = {}, format = null } = {}) => runRapidePipeline({
   demande, materiau,
   orientation: {
     source: 'oprie', route: 'rapide', oprie: { state: 'operational_request_ready' },
-    canonical: baseFor(demande, candidat), envelope: null, semantic: null,
+    canonical: baseFor(demande, candidat, format), envelope: null, semantic: null,
     providerResult: null, action: null, decision: { state: 'ready' }
   }
 });
@@ -72,7 +77,7 @@ test('T-RAPCHAR01-03 [CARACTÉRISATION] chaque section rendue correspond à un v
  * ======================================================================= */
 
 test('T-RAPCHAR01-04 [CARACTÉRISATION] le format rendu est celui du contrat', () => {
-  const p = canonique('Donne le résultat sous forme de tableau.');
+  const p = canonique('Donne le résultat.', { format: 'tableau_comparatif' });
   assert.equal(p.r.format, p.r.canonical.contract.output.format);
   assert.ok(hasSection(p.promptFinal, 'CONTRAT DE FORMAT') || p.mergedLocks.includes('format'));
 });
@@ -115,7 +120,10 @@ for (const [id, verrou, candidat] of [
 ]) {
   test(`T-RAPCHAR01-${id} [QUALITY_IMPROVEMENT] le verrou ${verrou} est gagné, le legacy ne l’activait pas`, () => {
     const demande = 'Explique la différence entre deux approches.';
-    const avec = canonique(demande, { candidat });
+    /* F1 — comparaison à forme ÉGALE : le chemin legacy devine `explication` dans les mots de la
+       demande, le chemin canonique la reçoit de l'autorité. Sans cette égalité, on mesurerait la
+       disparition de la devinette au lieu du gain du verrou. */
+    const avec = canonique(demande, { candidat, format: 'explication' });
     const sans = legacy(demande);
     assert.ok(avec.mergedLocks.includes(verrou), `${verrou} retenu depuis le contrat`);
     assert.equal(sans.mergedLocks.includes(verrou), false, 'le chemin legacy ne le retenait pas');
@@ -183,29 +191,33 @@ test('T-RAPCHAR01-14 [EXPECTED_CANONICAL_FIX] le verrou de données ne s’activ
 
 test('T-RAPCHAR01-15 [CARACTÉRISATION] mesure du delta sur douze cas : aucune régression', () => {
   const CAS = [
-    ['simple', 'Explique la différence entre deux approches.', '', {}],
-    ['liste', 'Donne 7 idées pour améliorer un processus.', '', {}],
-    ['tableau', 'Compare trois options dans un tableau.', '', {}],
-    ['email', 'Rédige un email de relance.', '', {}],
-    ['code', 'Écris une fonction qui trie une liste.', '', {}],
-    ['materiau', 'Résume ce texte.', 'Un texte à résumer.', {}],
-    ['exact', 'Donne exactement 7 idées.', '', {}],
-    ['range', 'Donne entre 3 et 5 idées.', '', {}],
-    ['assumptions', 'Explique la différence.', '', { assumptions_allowed: ['H.'] }],
-    ['provenance', 'Explique la différence.', '', { external_facts_to_research: ['F.'] }],
-    ['scope', 'Explique la différence.', '', { confirmed_constraints: ['C.'] }],
-    ['format', 'Donne le résultat sous forme de tableau.', '', {}]
+    ['simple', 'Explique la différence entre deux approches.', '', {}, null],
+    ['liste', 'Donne 7 idées pour améliorer un processus.', '', {}, 'list'],
+    ['tableau', 'Compare trois options.', '', {}, 'tableau_comparatif'],
+    ['email', 'Rédige une relance.', '', {}, 'email'],
+    ['code', 'Écris une fonction qui trie.', '', {}, 'code'],
+    ['materiau', 'Résume ce texte.', 'Un texte à résumer.', {}, 'resume'],
+    ['exact', 'Donne exactement 7 idées.', '', {}, null],
+    ['range', 'Donne entre 3 et 5 idées.', '', {}, null],
+    ['assumptions', 'Explique la différence.', '', { assumptions_allowed: ['H.'] }, null],
+    ['provenance', 'Explique la différence.', '', { external_facts_to_research: ['F.'] }, null],
+    ['scope', 'Explique la différence.', '', { confirmed_constraints: ['C.'] }, null],
+    ['format', 'Donne le résultat.', '', {}, 'tableau_comparatif']
   ];
   /* Toute disparition doit s'expliquer par l'absence d'une source canonique.
      Cette liste est la SEULE tolérée : elle correspond aux quatre écarts
      documentés (amorce/longueur sans source, destinataire, données sans
      matériau, quantité en lettres) et à ce que le profil legacy ajoutait. */
-  const EXPLIQUES = new Set(['amorce', 'longueur', 'destinataire', 'donnees', 'volume', 'hypotheses']);
+  /* TRACER-REMEDIATION-02 · F1 — `format` rejoint cette liste, et c'est le but du lot : quand
+     l'autorité sémantique ne nomme aucune forme, aucune n'est choisie à sa place. Le chemin legacy,
+     lui, en devinait toujours une à partir des mots du sujet — c'est exactement ce qui rangeait une
+     annexe contractuelle en JSON. Sa disparition est un gain, pas une régression. */
+  const EXPLIQUES = new Set(['amorce', 'longueur', 'destinataire', 'donnees', 'volume', 'hypotheses', 'format']);
   let allegés = 0;
 
-  for (const [nom, demande, materiau, candidat] of CAS) {
+  for (const [nom, demande, materiau, candidat, format] of CAS) {
     const avant = legacy(demande, materiau);
-    const apres = canonique(demande, { materiau, candidat });
+    const apres = canonique(demande, { materiau, candidat, format });
     const perdus = avant.mergedLocks.filter((id) => !apres.mergedLocks.includes(id));
     for (const id of perdus) assert.ok(EXPLIQUES.has(id), `${nom} : disparition non expliquée de ${id}`);
     if (apres.promptFinal.length < avant.promptFinal.length) allegés += 1;

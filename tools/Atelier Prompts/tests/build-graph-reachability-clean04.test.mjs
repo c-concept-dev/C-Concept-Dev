@@ -81,13 +81,17 @@ test('T-CLEAN04-01 : chaque module embarqué est atteignable depuis un chemin pr
      par l'orchestrateur : sans eux dans ce graphe, leurs fonctions se résolvaient à `undefined`
      dans le navigateur — c'est exactement le défaut que ce registre existe pour attraper, et il
      l'avait laissé passer pour `guardDisplayedQuestion`. */
-  assert.equal(MODULES.length, 23, 'le graphe compte vingt-trois modules.');
+  assert.equal(MODULES.length, 24, 'le graphe compte vingt-quatre modules.');
   /* OPRIE-MATERIAL-CONTENT-02 — DECISIONCORE EST PASSÉ D'INDIRECT À DIRECT, et c'est
      voulu : l'enveloppe navigateur lit maintenant TRANSPORT_LIMITS depuis le runtime
      plutôt que de recopier la limite en dur. Le graphe enregistre ce lien nouveau,
      et c'est précisément ce qu'on voulait qu'il enregistre. */
+  /* V2.2.1-B avait fait passer ORCORE d'indirect à DIRECT : le transport demandait à l'autorité si
+     une décision rapide verrouillait quelque chose. V2.2.1-E1 a retiré ce verrou — le plan rapide
+     ne décide plus rien — et ORCORE est donc REDEVENU indirect. Le graphe enregistre la
+     disparition du lien comme il en avait enregistré l'apparition. */
   assert.equal(DIRECTS.size, 13, 'treize ont un consommateur frontend direct…');
-  assert.equal(ATTEINTS.size - DIRECTS.size, 10, '…et dix sont atteints indirectement.');
+  assert.equal(ATTEINTS.size - DIRECTS.size, 11, '…et onze sont atteints indirectement.');
 });
 
 test('T-CLEAN04-02/04 : les neuf modules indirects ont chacun une chaîne nommée', () => {
@@ -97,11 +101,24 @@ test('T-CLEAN04-02/04 : les neuf modules indirects ont chacun une chaîne nommé
     /* OPRIE-MATERIAL-CONTENT-02 — DECISIONCORE a QUITTÉ cette liste : l enveloppe
        navigateur lit désormais TRANSPORT_LIMITS depuis le runtime, ce qui lui donne
        un consommateur frontend direct. Il n est plus atteint indirectement. */
-    ORSTATE: ['ORCORE', 'ORORCH'],
-    PROVIDERHA: ['ROLEDEG'], ORCORE: ['ROLEDEG', 'ORORCH', 'MANUAL', 'COREPLANE'],
+    /* V2.2.1-D2F1 — le plan rapide rejoint les porteurs d'ORSTATE. Il n'avait aucune dépendance,
+       et il en gagne une seule : `question_focus` est un vocabulaire canonique, et il ne peut pas
+       exister deux définitions de ce qu'une question interroge — le plan rapide en est l'un des
+       deux producteurs, le plan profond l'autre. */
+    ORSTATE: ['FASTPLANE', 'ORCORE', 'ORORCH'],
+    /* V2.2.1-E1 — ORCORE redevient indirect : son seul consommateur frontend direct était le
+       verrou de décision, supprimé avec la readiness du plan rapide. */
+    ORCORE: ['COREPLANE', 'MANUAL', 'ORORCH', 'ROLEDEG'],
+    /* V2.2.1-B — ORCORE a rejoint les directs : le transport frontend appelle
+       `canonicalDecisionLockFromFastType`, parce que le vocabulaire des décisions appartient à
+       l'autorité et ne doit pas être recopié dans la charge utile (T-MCNT02-14). */
+    PROVIDERHA: ['ROLEDEG'],
     ROLEDEG: ['ORORCH'], ORORCH: ['MANUAL'],
     /* V2 : l'orchestrateur est le seul consommateur de ces deux-là, et c'est suffisant. */
-    SOLICIT: ['ORORCH'], COREPLANE: ['ORORCH']
+    SOLICIT: ['ORORCH'], COREPLANE: ['ORORCH'],
+    /* V2.1 : la concurrence bornée, importée par le noyau. Elle manquait au graphe, et `runBounded`
+       valait donc `undefined` dans le navigateur — défaut antérieur, fermé par ce lot. */
+    BOUNDED: ['ORCORE']
   };
   const indirects = MODULES.filter((m) => ATTEINTS.has(m.name) && !DIRECTS.has(m.name)).map((m) => m.name);
   assert.deepEqual(indirects.sort(), Object.keys(attendu).sort());
@@ -122,8 +139,8 @@ test('T-CLEAN04-03 : le round-trip manuel possède un ensemble de modules explic
     for (const n of [...requis]) for (const d of PAR_NOM[n].deps || []) if (!requis.has(d)) { requis.add(d); bouge = true; }
   }
   assert.deepEqual([...requis].sort(),
-    ['ARCHENRICH', 'CANON', 'COREPLANE', 'DECISIONCORE', 'MANUAL', 'ORCORE', 'ORORCH', 'ORSTATE',
-     'PROVIDERHA', 'ROLEDEG', 'SOLICIT'].sort());
+    ['ARCHENRICH', 'BOUNDED', 'CANON', 'COREPLANE', 'DECISIONCORE', 'MANUAL', 'ORCORE', 'ORORCH',
+     'ORSTATE', 'PROVIDERHA', 'ROLEDEG', 'SOLICIT'].sort());
   /* Et le frontend appelle bien ce module — sinon la chaîne entière serait morte. */
   for (const entree of ['startManualOprieTurn', 'runOprieTurnWithExecutor',
                         'createProviderRoleExecutor', 'buildArchitecteContractFromTurn']) {

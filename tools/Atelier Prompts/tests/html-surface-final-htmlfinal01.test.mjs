@@ -206,7 +206,7 @@ test('T-HTMLFINAL01-10 : Atelier compose à la main, et le dit sans emprunter le
   for (const mot of ['READY', 'gouverné', 'exécution gouvernée', 'readiness']) {
     assert.equal(carte.includes(mot), false, `la carte Atelier n’emprunte pas « ${mot} »`);
   }
-  const atelier = sansProse(tranche('function v11StartAtelier()', 'window.askDecisionProvider'));
+  const atelier = sansProse(tranche('function v11StartAtelier()', 'window.__V11_ROUTER__'));
   for (const interdit of ['oprieRunTurn', 'appelFournisseur', 'archControleSortie']) {
     assert.equal(atelier.includes(interdit), false);
   }

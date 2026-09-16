@@ -32,7 +32,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { FAST_INTERACTION_TYPES, FAST_FORBIDDEN_AUTHORITY_FIELDS } from '../workers/shared/fast-interactive-plane.js';
+import { FAST_INTERACTION_TYPES, FAST_FORBIDDEN_AUTHORITY_FIELDS, FAST_INTERACTION_JSON_SCHEMA } from '../workers/shared/fast-interactive-plane.js';
+import { FAST_INTERACTION_PATHNAME, handleFastInteractionRequest } from '../workers/shared/fast-interaction-endpoint.js';
 import {
   resolveFastProviderOrder, FAST_BENCH_PROVIDER_BINDING, FAST_BENCH_CHAIN,
   DECISION_PROVIDER_ORDER, MODEL, ANTHROPIC_MODEL, OPENAI_MODEL
@@ -220,13 +221,29 @@ test('T-PERFNOMINAL01-08 : le schéma rapide est identique pour les trois fourni
 
 /* T-PERFNOMINAL01-09 — le plan rapide n'a rien écrit, chez aucun fournisseur.
  * Changer de fournisseur ne change pas la frontière d'autorité. */
-test('T-PERFNOMINAL01-09 : autorité du plan rapide nulle chez les trois', () => {
+test('T-PERFNOMINAL01-09 : autorité du plan rapide nulle chez les trois', async () => {
   assert.equal(R.invariants.fast_authority_writes, 0, 'FAST_AUTHORITY_WRITES = 0');
   assert.equal(R.invariants.programming_error_count, 0);
-  /* La porte ne rend jamais que deux champs : les champs d’autorité ne peuvent
-     pas sortir, et rien dans les échantillons n’en porte la trace. */
-  const porte = lire('workers/shared/fast-interaction-endpoint.js');
-  assert.match(porte, /return jsonResponse\(\{ type: verdict\.interaction\.type, text: verdict\.interaction\.text \}, 200, cors\)/);
+  /* La porte ne rend que les champs du contrat : les champs d’autorité ne peuvent
+     pas sortir, et rien dans les échantillons n’en porte la trace.
+
+     RUNTIME-01 : ce contrôle citait la ligne exacte de l’implémentation — « deux champs ». Le
+     contrat en compte trois depuis D2F1, et le fait ajouté n’est pas une autorité : il dit ce
+     qu’une question INTERROGE. L’invariant vérifié ici est donc celui qui compte, et il ne dépend
+     plus de la façon dont la réponse est écrite. */
+  const requete = new Request(`https://w.dev${FAST_INTERACTION_PATHNAME}`, {
+    method: 'POST', headers: { Origin: 'https://atelier.example', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ turn_id: 1, original_request: 'Rédige une note.', clarification_history: [],
+      current_answer: null, canonical_version: 0, material_present: false })
+  });
+  const reponse = await handleFastInteractionRequest(requete, { ALLOWED_ORIGINS: 'https://atelier.example' },
+    { executeFast: async () => ({ type: 'ACKNOWLEDGE', text: 'Je regarde.', question_focus: null }) });
+  const rendu = await reponse.json();
+  assert.deepEqual(Object.keys(rendu).sort(), [...FAST_INTERACTION_JSON_SCHEMA.required].sort(),
+    'ce qui sort est le contrat déclaré');
+  for (const champ of FAST_FORBIDDEN_AUTHORITY_FIELDS) {
+    assert.equal(champ in rendu, false, `${champ} ne sort pas de la porte`);
+  }
   assert.ok(FAST_FORBIDDEN_AUTHORITY_FIELDS.length > 0);
   for (const f of FOURNISSEURS) {
     for (const s of R[f].echantillons) {
@@ -273,7 +290,7 @@ test('T-PERFNOMINAL01-11 : le HTML canonique est inchangé', () => {
      qu'un refus de sortie fournisseur cesse d'être compté comme un défaut de notre code. Aucune
      règle, aucun prompt, aucun schéma, aucun comportement d'interface. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    '204bce3973ee8866a9940b3bb31052db317dbd581670bfcf13d971bbdc9e14ca', 'CANONICAL_HTML_CHANGED = NO');
+    '61565d4dad80e10e3c5d9f2821ca3139884e356321f917d5f0f55af994454774', 'CANONICAL_HTML_CHANGED = NO');
   assert.equal(R.invariants.canonical_html_changed, false);
 });
 

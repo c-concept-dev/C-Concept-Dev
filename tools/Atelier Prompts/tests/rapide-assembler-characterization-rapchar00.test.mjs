@@ -571,15 +571,29 @@ test('T-RAPCHAR-16 [CARACTÉRISATION — ANOMALIE ATTENDUE À ÉVOLUER] les cham
     'et le déclare opposable, ce qui contredit frontalement la demande');
 });
 
-test('T-RAPCHAR-19 [CARACTÉRISATION — ANOMALIE ATTENDUE À ÉVOLUER] gabarit malformé « sans remplissage mots » — reproduit, avec sa cause', () => {
+/* T-RAPCHAR-19 — L'ANOMALIE QU'IL CARACTÉRISAIT A ÉVOLUÉ : TRACER-REMEDIATION-02 · F7 + F8.
+ *
+ * ATTENDU ANCIEN : la phrase « … fourchette indiquée (aussi court que le sujet le permet, sans
+ * remplissage mots) sans remplissage ? ». Le test l'appelait lui-même ANOMALIE ATTENDUE À ÉVOLUER,
+ * et il en nommait la cause exacte : `ctx.mots` est une PHRASE pour ce niveau, interpolée comme un
+ * nombre suivi du mot « mots ».
+ *
+ * CLASSIFICATION : REAL_INVARIANT, et il a été TENU — c'est le cas rare où un test de
+ * caractérisation obtient ce qu'il demandait. La correction n'a pas reformulé la phrase : elle a
+ * retiré la provenance fautive. `ctx.mots` est une valeur de PROFIL DE FORMAT, jamais une quantité
+ * déclarée par la personne ; l'interpoler produisait aussi bien la coquille ici que « 150 à 300
+ * mots » opposés à quelqu'un qui avait écrit « une page maximum ». Les deux défauts avaient une
+ * seule cause, et une seule correction.
+ *
+ * NOUVEL INVARIANT : la vérification porte une discipline de volume, sans chiffre non déclaré et
+ * sans concaténation d'unité — donc sans coquille possible. */
+test('T-RAPCHAR-19 [RÉSOLU] la coquille « sans remplissage mots » ne peut plus se former', () => {
   const r = runRapidePipeline({ demande: DEMANDE });
-
-  assert.match(sectionBody(r.promptFinal, 'VÉRIFICATION AVANT ENVOI'),
-    /Le volume tient-il dans la fourchette indiquée \(aussi court que le sujet le permet, sans remplissage mots\) sans remplissage \?/,
-    'CURRENT_BEHAVIOR : la phrase produite est grammaticalement incohérente');
-
-  /* Cause : ctx.mots est une PHRASE pour ce niveau, alors que le gabarit
-     l'interpole comme un nombre suivi du mot « mots ». */
+  const v = sectionBody(r.promptFinal, 'VÉRIFICATION AVANT ENVOI');
+  assert.match(v, /Le volume est-il celui que le sujet exige, sans remplissage \?/);
+  assert.equal(/remplissage mots/.test(r.promptFinal), false, 'TYPO_FILLER = 0');
+  assert.equal(/fourchette indiquée/.test(r.promptFinal), false, 'aucune fourchette non déclarée');
+  /* La valeur de profil existe toujours — elle n'est simplement plus interpolée dans le prompt. */
   assert.equal(r.ctx.mots, 'aussi court que le sujet le permet, sans remplissage');
   assert.equal(r.harness.SEUILS[r.r.niveau].mots, r.ctx.mots, 'la valeur vient du SEUIL du niveau éclair');
 });
@@ -588,8 +602,10 @@ test('T-RAPCHAR-19b [CARACTÉRISATION] à un niveau où le seuil est numérique,
   const harness = createRapideHarness({ demande: 'x' });
   const ctx = ctxWith(harness, {}, { format: 'tableau_comparatif', niveau: 'minimal' });
   assert.equal(typeof ctx.mots, 'string');
-  assert.match(sectionBody(harness.assembler(ctx, ['volume']), 'CONTRAINTES QUANTIFIÉES'), /Volume attendu : /,
-    'le même champ mots sert aussi au bloc quantifié, sous une autre formulation');
+  /* F7 — le bloc quantifié ne reprend plus `ctx.mots` : il porte une discipline, pas une cible. */
+  const bloc = sectionBody(harness.assembler(ctx, ['volume']), 'CONTRAINTES QUANTIFIÉES');
+  assert.match(bloc, /Volume : celui que le sujet exige, sans remplissage\./);
+  assert.equal(/\d+\s*à\s*\d+\s*mots/.test(bloc), false, 'aucune fourchette non déclarée');
 });
 
 /* ==========================================================================

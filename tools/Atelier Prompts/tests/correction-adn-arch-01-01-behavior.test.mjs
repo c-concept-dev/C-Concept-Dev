@@ -235,12 +235,16 @@ test('§18/§23 aucun champ OPRIE n’est muté par les deux chemins', async () 
 
 test('§18–20 scopes, discovery et métriques de sources restent honnêtes', () => {
   assert.equal(ADN_CORE_FILES.length, 12);
-  assert.equal(ADN_CORE_FILES.reduce((n, f) => n + declaredTestCount(f), 0), 74);
+  /* V2.2.1-E3 — 74 → 73. Deux tests d'execution-readiness éprouvaient le dédoublonnage des
+     questions par ressemblance ; l'estimateur ayant été retiré, ils ont été REMPLACÉS par un
+     seul, qui vérifie le même invariant chez son propriétaire canonique. Une protection
+     déplacée, pas supprimée. */
+  assert.equal(ADN_CORE_FILES.reduce((n, f) => n + declaredTestCount(f), 0), 73);
   /* CLEAN-01 : le périmètre PERTINENT perd conversation-orchestrator.test.mjs — le module
-     qu'il éprouvait est retiré. Le périmètre NOYAU, lui, est intact : 12 fichiers, 74 tests.
+     qu'il éprouvait est retiré. Le périmètre NOYAU compte 12 fichiers ; son total est passé à 73 en V2.2.1-E3.
      La sélection historique 104, elle, est figée littéralement et ne bouge plus. */
   assert.equal(ADN_RELEVANT_FILES.length, 14);
-  assert.equal(ADN_RELEVANT_FILES.reduce((n, f) => n + declaredTestCount(f), 0), 102);
+  assert.equal(ADN_RELEVANT_FILES.reduce((n, f) => n + declaredTestCount(f), 0), 101);
   assert.ok(discoveredTestFiles().includes('correction-adn-arch-01-01-behavior.test.mjs'));
   const producers = fs.readdirSync(path.join(root, 'core/adn')).filter((f) => f.endsWith('.js') && !f.includes('generated')).filter((f) => /function enrichCanonicalContractFromArchAnalysis/.test(fs.readFileSync(path.join(root, 'core/adn', f), 'utf8')));
   assert.deepEqual(producers, ['arch-canonical-enrichment.js']);

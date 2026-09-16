@@ -10883,7 +10883,7 @@ function v11RequireDemand(){
   return '';
 }
 /* GENERATED — LOT 10G.3B.3F.2
- * source-sha256: 0f497b6a7a0ea25552fbf001ef54d92f170629c82adaaf84dcb08fdce8eb22b7
+ * source-sha256: af42d1bfbfd813da17b98dccd17cb44bcd90b63b03e27cc8b27919df7b01d10c
  * Ne pas modifier manuellement. Régénérer avec tools/build-adn-browser-runtime.mjs
  */
 (function(global){
@@ -15451,7 +15451,7 @@ Une information manquante n'appelle pas automatiquement une question, et ne devi
 
 Pour savoir si ce recours est atteint, prenez les deux lectures raisonnables les plus éloignées de la demande, telle qu'elle est, augmentée des réponses déjà obtenues. Conduiraient-elles à produire deux choses SUBSTANTIELLEMENT DIFFÉRENTES — de nature, d'étendue ou de structure — ou la même chose autrement colorée ? SUBSTANTIELLEMENT DIFFÉRENTES : le recours est atteint. Posez UNE seule question : celle qui sépare ces deux lectures. LA MÊME CHOSE AUTREMENT COLORÉE : ne demandez rien.
 
-TEST DE MATÉRIALITÉ — c'est lui qui décide, et rien d'autre. Prenez les réponses plausibles à la question envisagée. Si elles étaient différentes, ce qui sera produit changerait-il SIGNIFICATIVEMENT — sa nature, son niveau, son étendue, sa structure, ses contraintes, ou une décision importante qu'il porte ? Si oui, la question est matérielle. Si non, ne la posez pas, même si l'information manque.
+TEST DE MATÉRIALITÉ — il OUVRE la question, il ne la justifie pas. Être matériel et être non substituable sont deux choses distinctes, et la seconde ne découle jamais de la première : une inconnue peut changer réellement le résultat ET rester traitable par une décision raisonnable, une estimation étiquetée, un scénario, une condition explicite, ou un inconnu local assumé. Une question n'est due que si les TROIS conditions tiennent ensemble — l'information appartient à la personne ou à son contexte ; son absence change matériellement ce qui sera produit ; et aucune substitution honnête ne permet de le produire AU NIVEAU D'ENGAGEMENT DEMANDÉ. Ce niveau est décisif : préparer, cadrer, esquisser ou proposer n'engage pas la personne, et un résultat conditionnel y est complet — il énonce ses hypothèses au lieu de les réclamer. Un résultat qui ENGAGE, lui, ne se produit pas sur une préférence devinée : là où l'arbitrage appartient vraiment à la personne, ne l'inventez jamais. Si plusieurs inconnues restent matérielles mais toutes substituables, PRODUISEZ, et déclarez vos hypothèses : enchaîner les questions pour supprimer toute hypothèse est le défaut que cette doctrine interdit. Prenez les réponses plausibles à la question envisagée. Si elles étaient différentes, ce qui sera produit changerait-il SIGNIFICATIVEMENT — sa nature, son niveau, son étendue, sa structure, ses contraintes, ou une décision importante qu'il porte ? Si oui, la question est matérielle. Si non, ne la posez pas, même si l'information manque.
 Ne jugez JAMAIS par catégorie. Une même sorte d'information peut être décisive dans une demande et négligeable dans une autre : c'est l'IMPACT qui tranche, jamais l'étiquette. Un public qui découvre un sujet et un public qui le maîtrise ne reçoivent pas la même chose ; deux préférences de goût, elles, donnent la même chose autrement colorée. Que la demande nomme déjà ce qu'il faut produire ne rend pas exploitable tout le reste : une production nommée peut encore dépendre d'une variable qui en change le niveau ou l'étendue.
 
 Une demande longue, dense, chargée de contraintes ou de détails n'est PAS une demande ambiguë : la longueur n'est pas de l'ambiguïté, et le nombre de contraintes n'appelle aucune analyse préalable.
@@ -17843,6 +17843,12 @@ const AJOUTE_UN_BESOIN = /(?:[,;]|\bet\b|\bpuis\b|\bainsi que\b)(?:(?!\bou\b)[^,
  * en changer la nature — « par les jeux, par le sport, ou par les arts » énumère trois groupes
  * nominaux exactement comme la même liste sans préposition. */
 const PREPOSITION = '(?:par|pour|sur|sous|avec|sans|dans|vers|chez|en|à|au|aux|de|d[\'’])\\s+';
+/* Une tête interrogative nomme la dimension avant le deux-points. AUCUN vocabulaire n'est ajouté
+   ici : c'est la liste d'interrogatifs qui existe déjà. On la relit sans son drapeau global —
+   `test()` sur une expression globale est à état, et rendrait ce contrôle dépendant de l'appel
+   précédent — en la reconstruisant à partir de son motif, sans le recopier. */
+const INTERROGATIFS_TETE = new RegExp(String(INTERROGATIFS).replace(/^\/|\/[a-z]*$/g, ''), 'u');
+
 const DETERMINANT = new RegExp(
   `^(?:${PREPOSITION})?(?:un|une|des|du|de la|de l['’]|le|la|les|l['’])\\s+\\S`, 'u');
 
@@ -17992,45 +17998,70 @@ const DISPLAY_VERDICTS = Object.freeze(['ALLOW', 'REPLACED', 'REDUCED', 'NOT_DIS
  */
 
 /**
- * Une énumération de choix n'a pas besoin de déterminants pour être un catalogue.
+ * COMBIEN DE MANQUES DISTINCTS CETTE QUESTION VISE-T-ELLE ?
  *
- * Une énumération peut ne porter que des noms nus, et rester exactement le défaut visé. Ce qui le
- * signe est la conjonction de deux choses : un marqueur de choix offert — un deux-points, ou un
- * « ou » — ET trois segments au moins. Une virgule d'apposition sans marqueur de choix, elle, ne
- * compte pas : « Quel est le délai, en semaines, pour ce projet ? » est une seule question.
+ * TARGETED-FIX-POST-CODEX-01 — CE QUI EST COMPTÉ A CHANGÉ DE NATURE.
+ *
+ * On comptait des SEGMENTS — virgules, « et », « ou » — et l'on refusait à partir de trois. Le
+ * contre-audit a produit deux contre-exemples qui renversent ce compte dans les deux sens :
+ *
+ *   « Quel jour préférez-vous : lundi, mardi ou mercredi ? »   UNE dimension — refusée à tort
+ *   « Quel est votre budget et la durée du séjour ? »          DEUX dimensions — acceptée à tort
+ *
+ * Le nombre de virgules ne dit rien du nombre de manques. Ce qui le dit tient en deux distinctions
+ * grammaticales, et aucune n'est un lexique :
+ *
+ *   — « ou » OFFRE un choix À L'INTÉRIEUR d'une dimension ; « et » AJOUTE une dimension ;
+ *   — un groupe DÉTERMINÉ est une dimension ; un groupe nu est une apposition ou une valeur.
+ *
+ * La seconde distinction n'est pas inventée ici : `countNamedAlternatives` s'en sert déjà pour
+ * séparer un catalogue de livrables hétérogènes d'un simple choix. On l'applique à la conjonction.
+ *
+ * La borne devient 2, et elle cesse d'être un réglage de confort : deux manques, ce sont deux
+ * questions — c'est une définition, pas un seuil.
  */
-function countEnumeratedSegments(texte) {
+function countTargetedDimensions(texte) {
   const t = minuscule(texte);
-  /* TRACER-REMEDIATION-02 · F4 — UNE LISTE COORDONNÉE PAR « ET » EST AUSSI UNE ÉNUMÉRATION.
-   *
-   * Ce contrôle exigeait un deux-points ou un « ou » : un marqueur de CHOIX OFFERT. Il ne voyait donc
-   * pas la forme la plus courante d'une question qui en porte plusieurs — la liste coordonnée, où
-   * rien n'est proposé au choix et où tout est demandé en même temps. Mesuré en campagne produit :
-   *
-   *   « … le nom du candidat retenu, le nom du candidat non retenu, l'intitulé du poste
-   *      ET le nom de votre organisation ? »                                    -> quatre demandes
-   *   « Quels sont le prénom, le poste ET l'ancienneté de la personne … ? »     -> trois demandes
-   *
-   * Les deux passaient, et la personne devait tenir une liste en tête pour répondre.
-   *
-   * CE QUI DISTINGUE UNE LISTE D'UNE APPOSITION, ET CE N'EST PAS UN MOT DE DOMAINE. Une apposition
-   * n'est pas coordonnée : « Quel est le délai, en semaines, pour ce projet ? » n'a pas de « et »
-   * terminal. Une liste, si. C'est une propriété grammaticale, mesurée par une position — la même
-   * nature de contrôle que les trois qui l'entourent. Aucun lexique, aucun seuil nouveau : la borne
-   * reste celle qui existait déjà, trois segments. */
-  const listeCoordonnee = t.includes(',') && /,[^,]*\s(?:et|ou)\s/u.test(t);
-  /* Le tiret long introduit une énumération exactement comme le deux-points : « Quels sont les
-     éléments — jalons, points bloquants, risques, prochaines étapes ? ». Une incise, elle, ne porte
-     qu'un segment et reste sous la borne. */
+  /* (a) CONJONCTION. Un segment ne compte que s'il porte un DÉTERMINANT : c'est ce qui sépare une
+     dimension d'une apposition : un groupe introduit par une préposition sans article précise le
+     groupe de tête, il n'en ajoute pas un second ; deux groupes ARTICULÉS coordonnés, si. */
+  const conjoints = /\s+(?:et|ainsi que)\s+/u.test(t)
+    ? t.split(/\s+et\s+|\s+ainsi que\s+|,/u)
+        .map((segment) => segment.replace(/[?!.;:]/gu, '').trim())
+        .filter((segment) => DETERMINANT.test(segment))
+    : [];
+  /* `DETERMINANT` est ANCRÉ : il ne reconnaît un groupe que s'il COMMENCE par un article. Le groupe
+     de tête ne commence jamais ainsi — il commence par l'interrogatif, « quel est… », « quels
+     sont… » — et il porte pourtant la première dimension. Il est donc compté avec les autres, et
+     seulement quand une conjonction en a effectivement ajouté : sans second groupe déterminé, il
+     n'y a qu'un manque, et « et » ne coordonnait pas deux dimensions. */
+  const parConjonction = conjoints.length ? conjoints.length + 1 : 0;
+
+  /* (b) ÉNUMÉRATION INTRODUITE par un deux-points ou un tiret long. Elle ne compte que si elle
+     n'est PAS disjonctive : une liste reliée par « ou » propose plusieurs valeurs d'UNE dimension.
+     Sans « ou », la liste ajoute des besoins. */
   const tiret = t.search(/\s[—–]\s/u);
-  if (!t.includes(':') && tiret < 0 && !/\bou\b/u.test(t) && !listeCoordonnee) return 0;
-  const corps = t.includes(':') ? t.slice(t.indexOf(':') + 1)
-    : (tiret >= 0 ? t.slice(tiret + 1) : t);
-  return corps
-    .split(/,| ou | et /u)
-    .map((segment) => segment.replace(/[?!.;]/gu, '').trim())
-    .filter((segment) => segment.length > 0)
-    .length;
+  const introduit = t.includes(':') ? t.slice(t.indexOf(':') + 1) : (tiret >= 0 ? t.slice(tiret + 1) : '');
+  const segments = introduit && !/\bou\b/u.test(introduit)
+    ? introduit.split(/,|\s+et\s+/u).map((x) => x.replace(/[?!.;]/gu, '').trim()).filter(Boolean)
+    : [];
+  /* Deux segments NUS qui suivent un tiret précisent la dimension de tête au lieu d'en ajouter une.
+     À partir de trois, ce n'est plus une précision, c'est une liste de besoins. La conjonction
+     ARTICULÉE, elle, se juge dès deux : c'est le déterminant qui donne cette précision-là. */
+  const parEnumeration = segments.length >= 3 ? segments.length : 0;
+
+  /* (c) LISTE DISJONCTIVE SANS TÊTE. Une question qui EST la liste, au lieu de la proposer comme
+     valeurs d'une dimension qu'elle a nommée, est le catalogue mesuré en bêta. La différence est
+     une position : quand un deux-points sépare une TÊTE INTERROGATIVE de la liste, la tête nomme la
+     dimension et la liste en donne les valeurs — une seule question. Sans cette tête, la liste ne
+     précise rien : elle énumère des choses à produire, et la borne historique de trois s'applique. */
+  const teteInterrogative = t.includes(':') && INTERROGATIFS_TETE.test(t.slice(0, t.indexOf(':')));
+  const disjoints = !teteInterrogative && /\bou\b/u.test(t)
+    ? t.split(/,|\s+ou\s+/u).map((x) => x.replace(/[?!.;:]/gu, '').trim()).filter(Boolean)
+    : [];
+  const parCatalogue = disjoints.length >= 3 ? disjoints.length : 0;
+
+  return Math.max(parConjonction, parEnumeration, parCatalogue);
 }
 
 /* Une parenthèse qui énumère offre plusieurs dimensions dans la même question, même quand la tête
@@ -18045,7 +18076,7 @@ function isAtomicQuestion(texte) {
   if (!t) return false;
   return countInterrogations(t) < 2
       && countNamedAlternatives(t) < 3
-      && countEnumeratedSegments(t) < 3
+      && countTargetedDimensions(t) < 2
       && !PARENTHESE_ENUMERANTE.test(t);
 }
 
@@ -18166,10 +18197,19 @@ function guardDisplayedQuestion(texte, { candidates = [], objectiveNature = null
    * `identite_finalistes` à chaque fois. Le fait était là, personne ne le lisait.
    *
    * Il est lu ici, par la fonction qui existait déjà, et la comparaison reste une égalité stricte. */
-  const dejaSollicite = (focus, id) => isRepeatedSolicitation('', history, id);
+  /* TARGETED-FIX-POST-CODEX-01 — LE SECOURS TEXTUEL ÉTAIT DÉBRANCHÉ.
+   *
+   * Ce raccord passait une chaîne VIDE comme texte de question : `isRepeatedSolicitation('', …)`
+   * sort aussitôt sur `if (!cle) return false`. Le repli d'égalité textuelle — celui qui protège un
+   * historique sans identité, et qui reconnaît une question reposée mot pour mot — ne s'exécutait
+   * donc JAMAIS depuis la frontière profonde. Seule l'identité agissait, et une question sans
+   * identité passait même à l'identique.
+   *
+   * Le texte est transmis. Ce repli reste ce qu'il a toujours été : une ÉGALITÉ exacte, jamais une
+   * ressemblance — aucun seuil, aucune distance, aucun synonyme. */
   const affichable = (q, focus, id) => isAtomicQuestion(q)
     && !isMetaOutputQuestion(q, { objectiveNature, requestFocus, questionFocus: focus })
-    && !dejaSollicite(focus, id);
+    && !isRepeatedSolicitation(q, history, id);
   const t = String(texte || '').trim();
   if (affichable(t, questionFocus, missingDeterminantId)) return { verdict: 'ALLOW', text: t };
   /* Chaque candidate porte SON propre fait : on ne lui applique jamais celui d'une autre question. */
@@ -18177,7 +18217,14 @@ function guardDisplayedQuestion(texte, { candidates = [], objectiveNature = null
     const autre = String((candidate && candidate.text) || candidate || '').trim();
     const focusAutre = candidate && typeof candidate === 'object' ? candidate.question_focus : null;
     const idAutre = candidate && typeof candidate === 'object' ? candidate.missing_determinant_id : null;
-    if (autre && autre !== t && affichable(autre, focusAutre, idAutre)) return { verdict: 'REPLACED', text: autre };
+    /* TARGETED-FIX-POST-CODEX-01 — ON REMPLACE UNE QUESTION, PAS UN TEXTE.
+       Le garde ne rendait que `text`, et l'appelant recollait ce texte sur l'objet d'origine : la
+       question affichée interrogeait un manque pendant que son identité en désignait un autre. Le
+       verdict porte donc la CANDIDATE ENTIÈRE, et l'appelant la substitue telle quelle. */
+    if (autre && autre !== t && affichable(autre, focusAutre, idAutre)) {
+      return { verdict: 'REPLACED', text: autre,
+        candidate: candidate && typeof candidate === 'object' ? candidate : null };
+    }
   }
   /* Une réduction n'est acceptée que si elle est AFFICHABLE : couper un catalogue pour obtenir une
    * question méta ne répare rien — c'est le défaut mesuré en bêta, déplacé d'un cran. */
@@ -18188,7 +18235,7 @@ function guardDisplayedQuestion(texte, { candidates = [], objectiveNature = null
   return { verdict: 'NOT_DISPLAYABLE', text: null };
 }
 
-return {SOLICITING_TYPES,SOLICITATION_VERDICTS,SILENT_INTERACTION,countInterrogations,countNamedAlternatives,countEnumeratedSegments,isRepeatedSolicitation,assessSolicitation,guardFastSolicitation,DISPLAY_VERDICTS,isAtomicQuestion,reduceQuestionDeterministically,guardDisplayedQuestion};
+return {SOLICITING_TYPES,SOLICITATION_VERDICTS,SILENT_INTERACTION,countInterrogations,countNamedAlternatives,countTargetedDimensions,isRepeatedSolicitation,assessSolicitation,guardFastSolicitation,DISPLAY_VERDICTS,isAtomicQuestion,reduceQuestionDeterministically,guardDisplayedQuestion};
 })();
 const COREPLANE=((deps)=>{
 const {ARBITER_JSON_SCHEMA,ANALYST_JSON_SCHEMA,ISSUE_TAXONOMY_GUIDE,validateArbiterOutput,validateAnalystInput,validateQuestionCandidate,makeAnalystUserMessage,parseJsonMaybeFenced,createDegradedRoleResult,validateDegradedRoleResult,OPRIE_CLARIFICATION_DOCTRINE,OPRIE_ASSUMPTION_DOCTRINE}=deps;
@@ -19279,6 +19326,31 @@ function applyDisplayGuardToTurn(turn, analystOutput, log = () => {}, history = 
       "Le tour exige une clarification, et aucune des questions produites n'est affichable.");
   }
   if (garde.text === texte) return turn;
+  /* TARGETED-FIX-POST-CODEX-01 — LE TEXTE AFFICHÉ ET L'IDENTITÉ AFFICHÉE DÉCRIVENT LE MÊME MANQUE.
+   *
+   * Cette ligne recollait le texte retenu sur l'OBJET QUESTION D'ORIGINE. Quand le garde avait
+   * remplacé la question — parce que la première était méta, multiple ou déjà posée — le tour
+   * partait avec le texte de la candidate et les métadonnées de la question refusée : on affichait
+   * « quelle durée ? » sous l'identité « budget ». Tout ce qui dépend ensuite de cette identité —
+   * la non-répétition, l'issue visée, la progression annoncée — désignait alors autre chose que ce
+   * que la personne lisait.
+   *
+   * Quand une candidate est substituée, c'est la candidate qui décrit la question : son texte, son
+   * identité de manque, l'inconnue qu'elle vise, la progression qu'elle promet, ce qu'elle
+   * interroge. Les champs sont repris DE LA CANDIDATE, jamais recopiés de l'ancienne question.
+   *
+   * La réduction déterministe, elle, ne change que la forme du même besoin : l'objet d'origine
+   * reste le bon, seul son texte est raccourci. */
+  if (garde.verdict === "REPLACED" && garde.candidate && typeof garde.candidate === "object") {
+    const c = garde.candidate;
+    return { ...turn, next_question: {
+      text: garde.text,
+      targets_issue_id: c.targets_issue_id === undefined ? null : c.targets_issue_id,
+      expected_progress: c.expected_progress === undefined ? null : c.expected_progress,
+      question_focus: c.question_focus === undefined ? null : c.question_focus,
+      missing_determinant_id: c.missing_determinant_id === undefined ? null : c.missing_determinant_id
+    } };
+  }
   return { ...turn, next_question: { ...question, text: garde.text } };
 }
 
@@ -22314,13 +22386,25 @@ const FAST_FORBIDDEN_AUTHORITY_FIELDS = Object.freeze([
 const FAST_INTERACTION_JSON_SCHEMA = Object.freeze({
   type: "object",
   additionalProperties: false,
-  required: ["type", "text", "question_focus"],
+  required: ["type", "text", "question_focus", "missing_determinant_id"],
   properties: {
     type: { type: "string", enum: [...FAST_INTERACTION_TYPES] },
     text: { type: "string" },
     /* V2.2.1-D2F1 — ce que la question INTERROGE, dit par celui qui l'écrit. null quand il n'y a
        pas de question : ce plan accuse aussi réception et se tait, et rien n'est alors interrogé. */
-    question_focus: { type: ["string", "null"], enum: [...QUESTION_FOCUS_VALUES, null] }
+    question_focus: { type: ["string", "null"], enum: [...QUESTION_FOCUS_VALUES, null] },
+    /* TARGETED-FIX-POST-CODEX-01 — CE QUI MANQUE, NOMMÉ PAR CELUI QUI CHOISIT LA QUESTION.
+     *
+     * Le plan profond déclarait cette identité ; ce plan-ci, non. Mesuré sur un usage réel : cinq
+     * des six questions d'un tour venaient d'ici, et repartaient donc dans l'historique SANS
+     * identité. Une reformulation ultérieure du même manque par le plan profond n'était alors plus
+     * reconnue — la protection retombait sur l'égalité de texte, que la moindre reformulation
+     * défait.
+     *
+     * Ce n'est pas une seconde autorité : c'est la MÊME décision qui choisit la question, à qui
+     * l'on demande de nommer ce qu'elle cherche. Aucun identifiant n'est dérivé de mots-clés, aucun
+     * n'est fabriqué par l'interface, et null reste une réponse légitime. */
+    missing_determinant_id: { type: ["string", "null"] }
   }
 });
 
@@ -22382,9 +22466,13 @@ function validateFastInteraction(candidate, snapshot) {
   /* Deux clés historiques, plus le fait de D2F1 quand il est là — et rien d'autre. La tolérance
      porte sur la seule clé ajoutée : un champ d'autorité glissé dans la réponse échoue toujours
      ici, avant d'avoir pu être lu par qui que ce soit. */
+  /* Lecture tolérante, écriture stricte : les deux faits ajoutés après coup — ce que la question
+     interroge, et ce qu'il lui manque — sont exigés du modèle et tolérés absents du validateur. */
   const cles = Object.keys(candidate).sort();
-  const attendues = cles.includes("question_focus")
-    ? ["question_focus", "text", "type"] : ["text", "type"];
+  const attendues = ["text", "type"];
+  if (cles.includes("question_focus")) attendues.push("question_focus");
+  if (cles.includes("missing_determinant_id")) attendues.push("missing_determinant_id");
+  attendues.sort();
   if (cles.length !== attendues.length || cles.some((c, i) => c !== attendues[i])) {
     return { ok: false, reason: "FAST_SCHEMA_ERROR", detail: `clés inattendues : ${cles.join(", ") || "aucune"}` };
   }
@@ -22406,6 +22494,9 @@ function validateFastInteraction(candidate, snapshot) {
       type: candidate.type,
       text: candidate.text.trim(),
       question_focus: focus,
+      /* L'identité du manque, telle que le plan rapide l'a nommée. Jamais dérivée ici. */
+      missing_determinant_id: typeof candidate.missing_determinant_id === "string" && candidate.missing_determinant_id.trim()
+        ? candidate.missing_determinant_id.trim() : null,
       source: "fast_plane",
       /* Le mot compte : ce résultat est un CANDIDAT. Rien dans le système ne
          doit le lire comme un état. */
@@ -22899,7 +22990,7 @@ function createAdapterAuditView(envelope) {
 
 return {ENGINE_ADAPTERS_VERSION,buildExecutionEnvelope,projectToRapide,projectToArchitecte,projectToAtelier,validateLegacyLockMapping,createAdapterAuditView};
 })({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON});
-global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...BOUNDED,...ORCORE,...ROLEDEG,...SOLICIT,...COREPLANE,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'0f497b6a7a0ea25552fbf001ef54d92f170629c82adaaf84dcb08fdce8eb22b7'});
+global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...BOUNDED,...ORCORE,...ROLEDEG,...SOLICIT,...COREPLANE,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'af42d1bfbfd813da17b98dccd17cb44bcd90b63b03e27cc8b27919df7b01d10c'});
 })(window);
 
 

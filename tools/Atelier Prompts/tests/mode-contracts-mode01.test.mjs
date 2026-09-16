@@ -64,7 +64,7 @@ test('T-MODE01-03 : le contrat Atelier correspond au comportement mesuré — et
   const c = contractFor('atelier');
   assert.equal(c.modeClass, 'manual_composition');
   /* Ces six faits sont MESURÉS sur le code d'Atelier, pas déclarés. */
-  const atelier = bloc('function v11StartAtelier()', 'window.askDecisionProvider');
+  const atelier = bloc('function v11StartAtelier()', 'window.__V11_ROUTER__');
   const generer = sansProse(html.slice(html.indexOf('function generer(){'), html.indexOf('function generer(){') + 2600));
   const chemin = atelier + generer;
   for (const [absent, champ] of [['oprieRunTurn', 'usesGovernedPipeline'],
@@ -182,7 +182,7 @@ test('T-MODE01-ATELIER-ENVELOPPE : l’enveloppe locale d’Atelier n’est PAS 
      projection d'audit, et cette enveloppe porte un etat_demande fabriqué localement. Elle n'est
      jamais lue comme une readiness, et n'atteint aucune exécution — mais elle existe, et le contrat
      doit dire pourquoi elle ne compte pas. */
-  const atelier = bloc('function v11StartAtelier()', 'window.askDecisionProvider');
+  const atelier = bloc('function v11StartAtelier()', 'window.__V11_ROUTER__');
   assert.match(atelier, /adnManualEnvelope\(d,mat,'rapide'\)/, 'l’enveloppe locale existe bien.');
   /* CLEAN-02 : elle alimentait AUSSI une projection que personne ne lisait ; celle-ci est
      retirée. L'enveloppe, elle, demeure — et ce test dit toujours pourquoi elle ne compte pas. */
@@ -336,7 +336,7 @@ test('T-MODE01-39/40/41/42 : Fast et Deep suivent le contrat, mode par mode', as
   /* Atelier n'en utilise aucun — et son entrée ne les déclenche pas. */
   assert.equal(MODE_CONTRACTS.atelier.usesFastPlane, false);
   assert.equal(MODE_CONTRACTS.atelier.usesDeepPlane, false);
-  const atelier = bloc('function v11StartAtelier()', 'window.askDecisionProvider');
+  const atelier = bloc('function v11StartAtelier()', 'window.__V11_ROUTER__');
   assert.doesNotMatch(atelier, /oprieStartFastPlane|oprieRequestTurn/);
 });
 
@@ -350,7 +350,7 @@ test('T-MODE01-43/44 : l’ancien chemin ne définit aucune politique de mode ac
   assert.equal([...FRONT_CODE.matchAll(/adpDecideRapide/g)].length, 0, 'l’ancien décideur est retiré.');
   assert.equal([...FRONT_CODE.matchAll(/adnNextConversationAction/g)].length, 0);
   /* Et le handle de compatibilité n'expose aucun contrat de mode. */
-  const handle = bloc('window.__ADAPTIVE_DECISION_PIPELINE_10G__', 'window.__V11_ROUTER__');
+  const handle = bloc('window.__V11_ROUTER__', 'window.__V11_ROUTER__');
   assert.doesNotMatch(handle, /MODE_CONTRACTS|executionTargetFor|setMode/);
 });
 

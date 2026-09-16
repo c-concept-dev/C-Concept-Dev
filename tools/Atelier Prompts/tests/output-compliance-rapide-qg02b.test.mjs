@@ -44,10 +44,16 @@ const INTEGRATION = sansCommentaires(
   HTML.slice(HTML.indexOf('const QG_SORTIE_MESSAGES='), HTML.indexOf('async function envoyerApi(){'))
 );
 
-/** Publie réellement un prompt Rapide, contrat canonique appliqué. */
-async function publier({ demande, materiau = '', muter } = {}) {
+/** Publie réellement un prompt Rapide, contrat canonique appliqué.
+ *
+ * TRACER-REMEDIATION-02 · F1 — `format` est DÉCLARÉ par l'autorité, comme en production. Ces
+ * fixtures l'obtenaient jusqu'ici en écrivant « sous forme de liste » ou « json » dans la demande,
+ * parce qu'un score de mots-clés dérivait la forme du texte brut. Ce mécanisme a été retiré ; ce
+ * que ce fichier éprouve — le contrôle de sortie — est inchangé. */
+async function publier({ demande, materiau = '', muter, format = null } = {}) {
   const h = createRapideHarness({ demande, materiau });
-  const base = canonicalFrom(oprieReadyTurn({}), { request_id: 'qg02b', original_request: demande });
+  const base = canonicalFrom(oprieReadyTurn(format ? { output_format: format } : {}),
+    { request_id: 'qg02b', original_request: demande });
   if (muter) muter(base);
   h.context.rapideAppliquerContratCanonique(base);
   await h.evaluate('copierRapideAdaptatif')();
@@ -65,7 +71,7 @@ const codes = (v) => (v.violations || []).map((x) => x.code);
  * ======================================================================== */
 
 test('T-QG02B-01 le contrôle de sortie est actif sur le chemin Rapide', async () => {
-  const h = await publier({ demande: 'Rédige une note de synthèse.' });
+  const h = await publier({ demande: 'Rédige une note de synthèse.', format: 'report' });
   const runtime = h.evaluate('window.__ATELIER_ADN_RUNTIME__');
   assert.equal(typeof runtime.validateOutputAgainstCanonicalContract, 'function', 'le moteur est embarqué');
   assert.equal(typeof h.evaluate('rapideControleSortie'), 'function', 'RAPIDE_OUTPUT_QG_ACTIVE = YES');
@@ -111,7 +117,7 @@ test('T-QG02B-05 aucun second moteur de conformité de sortie n’existe', () =>
  * ======================================================================== */
 
 test('T-QG02B-06 la sortie n’est jamais modifiée par le contrôle', async () => {
-  const h = await publier({ demande: 'Donne exactement 7 exemples sous forme de liste.' });
+  const h = await publier({ demande: 'Donne exactement 7 exemples.', format: 'list' });
   const texte = 'Une sortie exacte au dernier octet — accents compris : é à ü.';
   const v = controler(h, texte);
   assert.equal(texte, 'Une sortie exacte au dernier octet — accents compris : é à ü.');
@@ -120,7 +126,7 @@ test('T-QG02B-06 la sortie n’est jamais modifiée par le contrôle', async () 
 });
 
 test('T-QG02B-07 le contrat canonique n’est jamais muté par le contrôle', async () => {
-  const h = await publier({ demande: 'Donne exactement 7 exemples sous forme de liste.' });
+  const h = await publier({ demande: 'Donne exactement 7 exemples.', format: 'list' });
   const avant = JSON.stringify(publication(h).contract);
   controler(h, '- a\n- b\n- c\n- d\n- e\n- f\n- g');
   assert.equal(JSON.stringify(publication(h).contract), avant, 'OUTPUT_QG_CANONICAL_MUTATIONS = 0');
@@ -178,7 +184,7 @@ test('T-QG02B-35 le contrôle n’appelle aucun fournisseur', async () => {
  * ======================================================================== */
 
 test('T-QG02B-08 une sortie conforme est exposée normalement', async () => {
-  const h = await publier({ demande: 'Produis un json avec 3 champs.' });
+  const h = await publier({ demande: 'Produis 3 champs.', format: 'json' });
   assert.equal(publication(h).contract.output.format, 'json');
   const v = controler(h, '{"a":1,"b":2,"c":3}');
   assert.equal(v.status, 'PASS', JSON.stringify(codes(v)));
@@ -186,7 +192,7 @@ test('T-QG02B-08 une sortie conforme est exposée normalement', async () => {
 });
 
 test('T-QG02B-09 des avertissements n’empêchent pas l’exposition', async () => {
-  const h = await publier({ demande: 'Produis un json avec 3 champs.' });
+  const h = await publier({ demande: 'Produis 3 champs.', format: 'json' });
   const contrat = publication(h).contract;
   const runtime = h.evaluate('window.__ATELIER_ADN_RUNTIME__');
   const v = runtime.validateOutputAgainstCanonicalContract({
@@ -199,7 +205,7 @@ test('T-QG02B-09 des avertissements n’empêchent pas l’exposition', async ()
 });
 
 test('T-QG02B-10 une vérification incomplète n’est jamais présentée comme conforme', async () => {
-  const h = await publier({ demande: 'Rédige une note de synthèse.' });
+  const h = await publier({ demande: 'Rédige une note de synthèse.', format: 'report' });
   const v = controler(h, 'Une note de synthèse parfaitement rédigée.');
   assert.equal(v.status, 'INCOMPLETE_VERIFICATION');
   assert.equal(h.evaluate('qgSortieCertifie')(v), false, 'REQUIRED_NON_VERIFIABLE_CAN_PASS = NO');
@@ -209,7 +215,7 @@ test('T-QG02B-10 une vérification incomplète n’est jamais présentée comme 
 });
 
 test('T-QG02B-11 une sortie non conforme n’est jamais présentée comme conforme', async () => {
-  const h = await publier({ demande: 'Donne exactement 7 exemples sous forme de liste.' });
+  const h = await publier({ demande: 'Donne exactement 7 exemples.', format: 'list' });
   const v = controler(h, '- a\n- b\n- c');
   assert.equal(v.status, 'FAIL');
   assert.ok(codes(v).includes('OUTPUT_QUANTITY_MISMATCH'));
@@ -258,7 +264,7 @@ test('T-QG02B-13 une erreur de transport reste une erreur d’exécution', () =>
 });
 
 test('T-QG02B-14 un verdict défavorable ne relance jamais le fournisseur', async () => {
-  const h = await publier({ demande: 'Donne exactement 7 exemples sous forme de liste.' });
+  const h = await publier({ demande: 'Donne exactement 7 exemples.', format: 'list' });
   const avant = h.network.length;
   const v = controler(h, '- a');
   assert.equal(v.status, 'FAIL');
@@ -273,7 +279,7 @@ test('T-QG02B-14 un verdict défavorable ne relance jamais le fournisseur', asyn
  * ======================================================================== */
 
 test('T-QG02B-15 la mesure de quantité est recopiée du contrat, jamais inventée', async () => {
-  const h = await publier({ demande: 'Donne exactement 7 exemples sous forme de liste.' });
+  const h = await publier({ demande: 'Donne exactement 7 exemples.', format: 'list' });
   const contrat = publication(h).contract;
   const check = contrat.checks.find((c) => c.id === 'rapide-check-quantity');
   assert.ok(check, 'le contrat porte bien un contrôle de quantité');
@@ -284,12 +290,12 @@ test('T-QG02B-15 la mesure de quantité est recopiée du contrat, jamais invent�
   );
   assert.equal(check.verifies, 'quantities[0]', 'le contrôle redit la vérification native sans la recompter');
   /* Sans quantité au contrat, aucun contrôle de quantité n’est fabriqué. */
-  const sans = await publier({ demande: 'Rédige une note de synthèse.' });
+  const sans = await publier({ demande: 'Rédige une note de synthèse.', format: 'report' });
   assert.equal(publication(sans).contract.checks.some((c) => c.id === 'rapide-check-quantity'), false);
 });
 
 test('T-QG02B-16 une quantité exacte respectée est vérifiée et tenue', async () => {
-  const h = await publier({ demande: 'Donne exactement 7 exemples sous forme de liste.' });
+  const h = await publier({ demande: 'Donne exactement 7 exemples.', format: 'list' });
   const v = controler(h, Array.from({ length: 7 }, (_, i) => `- élément ${i + 1}`).join('\n'));
   assert.equal(verif(v, 'output-quantity').status, 'PASS', 'QUANTITY_EXACT_PASS = YES');
   assert.equal(verif(v, 'output-quantity').verifiability, 'DETERMINISTIC');
@@ -301,21 +307,21 @@ test('T-QG02B-16 une quantité exacte respectée est vérifiée et tenue', async
 });
 
 test('T-QG02B-17 une quantité insuffisante échoue', async () => {
-  const h = await publier({ demande: 'Donne exactement 7 exemples sous forme de liste.' });
+  const h = await publier({ demande: 'Donne exactement 7 exemples.', format: 'list' });
   const v = controler(h, Array.from({ length: 6 }, (_, i) => `- élément ${i + 1}`).join('\n'));
   assert.equal(v.status, 'FAIL', 'QUANTITY_UNDER_FAIL = YES');
   assert.equal(verif(v, 'output-quantity').observed, '6');
 });
 
 test('T-QG02B-18 une quantité excédentaire échoue', async () => {
-  const h = await publier({ demande: 'Donne exactement 7 exemples sous forme de liste.' });
+  const h = await publier({ demande: 'Donne exactement 7 exemples.', format: 'list' });
   const v = controler(h, Array.from({ length: 8 }, (_, i) => `- élément ${i + 1}`).join('\n'));
   assert.equal(v.status, 'FAIL', 'QUANTITY_OVER_FAIL = YES');
   assert.equal(verif(v, 'output-quantity').observed, '8');
 });
 
 test('T-QG02B-19 la forme structurelle vient de la table gelée, jamais d’un identifiant', async () => {
-  const h = await publier({ demande: 'Produis un json avec 3 champs.' });
+  const h = await publier({ demande: 'Produis 3 champs.', format: 'json' });
   const vocab = h.evaluate('rapideVocabulaireStructurel')();
   const json = vocab.find((f) => f.id === 'json');
   assert.equal(json.structural_kind, 'json', 'JSON_MEASURE_EMITTED = YES');
@@ -328,14 +334,14 @@ test('T-QG02B-19 la forme structurelle vient de la table gelée, jamais d’un i
 });
 
 test('T-QG02B-20 un JSON valide satisfait une exigence de format JSON', async () => {
-  const h = await publier({ demande: 'Produis un json avec 3 champs.' });
+  const h = await publier({ demande: 'Produis 3 champs.', format: 'json' });
   const v = controler(h, '{"a":1,"b":2,"c":3}');
   assert.equal(verif(v, 'output-format').status, 'PASS', 'JSON_PASS = YES');
   assert.equal(v.status, 'PASS');
 });
 
 test('T-QG02B-21 un JSON invalide échoue', async () => {
-  const h = await publier({ demande: 'Produis un json avec 3 champs.' });
+  const h = await publier({ demande: 'Produis 3 champs.', format: 'json' });
   const v = controler(h, 'Voici votre réponse, mais ce n’est pas du JSON.');
   assert.equal(v.status, 'FAIL', 'JSON_FAIL = YES');
   assert.ok(codes(v).includes('OUTPUT_FORMAT_MISMATCH'));
@@ -431,7 +437,7 @@ test('T-QG02B-25 une obligation requise non vérifiable interdit la conformité'
 });
 
 test('T-QG02B-26 le contrôle historique ne peut plus déclarer un succès contradictoire', async () => {
-  const h = await publier({ demande: 'Rédige une note de synthèse.' });
+  const h = await publier({ demande: 'Rédige une note de synthèse.', format: 'report' });
   const v = controler(h, 'Une note.');
   assert.equal(v.status, 'INCOMPLETE_VERIFICATION');
 
@@ -460,7 +466,7 @@ test('T-QG02B-26 le contrôle historique ne peut plus déclarer un succès contr
  * ======================================================================== */
 
 test('T-QG02B-27 sentinelle code : aucune obligation n’est inventée', async () => {
-  const h = await publier({ demande: 'Écris une fonction de code.' });
+  const h = await publier({ demande: 'Écris une fonction.', format: 'code' });
   const contrat = publication(h).contract;
   assert.deepEqual(contrat.quantities, [], 'aucune quantité inventée');
   const v = controler(h, 'const f = () => 1;');
@@ -473,7 +479,7 @@ test('T-QG02B-27 sentinelle code : aucune obligation n’est inventée', async (
 });
 
 test('T-QG02B-28 sentinelle table : la forme non déclarée est dite, pas supposée', async () => {
-  const h = await publier({ demande: 'Construis un tableau comparatif.' });
+  const h = await publier({ demande: 'Construis une comparaison.', format: 'tableau_comparatif' });
   assert.equal(publication(h).contract.output.format, 'tableau_comparatif');
   const v = controler(h, '| a | b |\n|---|---|\n| 1 | 2 |');
   /* La table est présente dans la sortie, mais la table des formats gelée ne
@@ -485,7 +491,7 @@ test('T-QG02B-28 sentinelle table : la forme non déclarée est dite, pas suppos
 });
 
 test('T-QG02B-29 sentinelle simple : aucune obligation artificielle', async () => {
-  const h = await publier({ demande: 'Rédige une note de synthèse.' });
+  const h = await publier({ demande: 'Rédige une note de synthèse.', format: 'report' });
   const contrat = publication(h).contract;
   assert.deepEqual(contrat.quantities, []);
   assert.deepEqual(contrat.obligations, []);

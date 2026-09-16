@@ -32,6 +32,12 @@ import {
   createTurnSnapshot, validateFastInteraction
 } from '../workers/shared/fast-interactive-plane.js';
 import {
+
+/* TARGETED-FIX-POST-CODEX-01 — le contrat du plan rapide compte un QUATRIÈME champ nommé :
+   l'identité du manque. Le contre-audit a démontré qu'une question rapide répondue laissait
+   l'historique sans identité, si bien qu'une reformulation ultérieure du même manque par le plan
+   profond n'était plus reconnue. L'invariant gardé ici est inchangé — le schéma reste clos et
+   incapable de porter un état ; il s'allonge d'un fait produit par la même décision. */
   FAST_INTERACTION_SYSTEM_PROMPT, makeFastInteractionUserMessage, FAST_INTERACTION_ADAPTERS,
   DECISION_PROVIDER_ORDER, GROQ_PRODUCTION_RETRY_DEFAULTS, MODEL
 } from '../workers/groq/src/index.js';
@@ -81,7 +87,7 @@ test('T-PERFREAL01E-02 : le plan rapide ne porte que ses propres responsabilité
   /* Et ce qu'il porte est irréductible : trois obligations, aucune imposée ailleurs. */
   assert.match(p, /Types possibles : ACKNOWLEDGE/);
   assert.match(p, /Demander une précision est le dernier recours, jamais le premier/);
-  assert.match(p, /Répondez exactement au schéma fourni : un type, un texte\. Rien d'autre\./);
+  assert.match(p, /Répondez exactement au schéma fourni : un type, un texte, ce que la question interroge, et ce qui manque\. Rien d'autre\./);
 });
 
 test('T-PERFREAL01E-03 : aucune autorité OPRIE n’est recopiée dans le payload rapide', () => {
@@ -110,10 +116,14 @@ test('T-PERFREAL01E-03 : aucune autorité OPRIE n’est recopiée dans le payloa
 });
 
 test('T-PERFREAL01E-04 : le schéma est inchangé, et il est irréductible', () => {
-  assert.deepEqual(Object.keys(FAST_INTERACTION_JSON_SCHEMA.properties).sort(), ['text', 'type'],
-    'SCHEMA_CHANGED = NO');
+  /* V2.2.1-D2F1 — TROIS CHAMPS, ET L'INVARIANT EST LE MÊME.
+     Le plan rapide écrit ses propres questions ; il doit donc dire ce qu'elles interrogent, comme
+     le plan profond le fait pour les siennes. `question_focus` n'est PAS un champ d'autorité : il
+     ne prononce aucun état, n'ouvre aucune route, n'autorise aucune exécution — ce que les
+     assertions suivantes continuent de vérifier. */
+  assert.deepEqual(Object.keys(FAST_INTERACTION_JSON_SCHEMA.properties).sort(), ['missing_determinant_id', 'question_focus', 'text', 'type']);
   assert.equal(FAST_INTERACTION_JSON_SCHEMA.additionalProperties, false);
-  assert.deepEqual([...FAST_INTERACTION_JSON_SCHEMA.required].sort(), ['text', 'type']);
+  assert.deepEqual([...FAST_INTERACTION_JSON_SCHEMA.required].sort(), ['missing_determinant_id', 'question_focus', 'text', 'type']);
   assert.deepEqual(FAST_INTERACTION_JSON_SCHEMA.properties.type.enum, [...FAST_INTERACTION_TYPES]);
   /* C'est cet objet-là qui rend l'autorité impossible : le retirer pour gagner
      69 jetons supprimerait la garantie, pas seulement du texte. */
@@ -187,17 +197,88 @@ test('T-PERFREAL01E-15 : aucune réduction n’a été appliquée, et le planche
    * (+36,8 %) pour l'ensemble des ajouts de ce lot. Les chiffres de production ci-dessus viennent
    * d'un autre tokeniseur et ne s'additionnent pas à ceux-là : c'est le rapport qui se transpose.
    *
-   * Et la mesure de production elle-même, relevée sur le runtime déployé de ce lot
-   * (groq_usage_observation, version 9520d54e) : 933 et 942 jetons d'entrée pour deux demandes
-   * courtes, 68 à 113 jetons de sortie, 222 à 277 ms de latence fournisseur. Le plan rapide tient
-   * donc son contrat interactif avec cette consigne-là — c'est ce qui était en jeu.
+   * Et la mesure de production elle-même, relevée sur le runtime déployé (groq_usage_observation) :
+   * 933 et 942 jetons d'entrée pour deux demandes courtes, 68 à 113 jetons de sortie, 222 à 277 ms de
+   * latence fournisseur. Le plan rapide tient donc son contrat interactif avec cette consigne-là.
+   *
+   * V2.1.2 — CE QUE CET ALLONGEMENT COÛTE, DIT SANS DÉTOUR. 4 378 → 5 452 caractères, parce que le
+   * jugement par CATÉGORIE a été remplacé par un test d'impact : mesuré sur les essais réels, la
+   * catégorie interdisait au plan rapide de demander le niveau d'un public ou une modalité de
+   * participation, et le plan profond posait alors la question — de dix-sept à quarante-cinq secondes.
+   *
+   * Mais le budget du fournisseur rapide est de 8 000 jetons par minute, et un tour de dialogue avancé
+   * en coûtait déjà 1 802 : quatre tours l'épuisaient, le cinquième échouait, et le client escaladait
+   * vers le plan profond. Une consigne plus longue rapproche donc ce mur. Le compromis est assumé
+   * ici : une question posée en une demi-seconde vaut mieux qu'une question juste obtenue en vingt
+   * secondes, et le mur, lui, est désormais lisible dans les journaux (`fast_unavailable`). Réduire
+   * ce coût demande soit de raccourcir la consigne — au prix de règles que des tests protègent — soit
+   * un second fournisseur rapide : deux décisions qui appartiennent au propriétaire.
    *
    * Ce surcoût est le prix d'un garde qui ne coûte AUCUN appel fournisseur. La première version de
    * ce lot faisait relire chaque sollicitation par un modèle : un appel de plus, donc environ 500 à
    * 1 000 jetons ET quelques centaines de millisecondes sur le chemin de la première interaction.
-   * Cette consigne-là remplace cet appel, et le matériau signalé supprime une question entière. */
-  assert.equal(FAST_INTERACTION_SYSTEM_PROMPT.length, 3767,
-    'la consigne n’a pas été raccourcie — elle a été allongée par 03B puis BETA-04, à coût mesuré');
+   * Cette consigne-là remplace cet appel, et le matériau signalé supprime une question entière.
+   *
+   * V2.1.5 — 5 452 → 5 765 caractères, soit 313 de plus, et ce registre les compte. La clause ajoutée
+   * dit au plan rapide qu'il TERMINE la clarification au lieu de la déléguer. Mesure d'origine : sur
+   * les trois essais du propriétaire, le plan rapide renvoyait au plan profond une question qu'il
+   * avait lui-même les moyens de poser, et la personne attendait vingt-deux puis soixante secondes
+   * pour l'obtenir. 313 caractères valent environ 78 jetons par appel : un tour de dialogue avancé
+   * passe de 1 802 à environ 1 880 jetons, et le mur des 8 000 jetons par minute reste atteint au
+   * même endroit — au quatrième tour (7 520 jetons contre 7 208). L'échange est donc : un coût qui ne
+   * déplace pas le mur, contre des dizaines de secondes d'attente supprimées.
+   *
+   * La clause a été RÉDUITE avant d'être retenue — 447 caractères dans sa première rédaction, 313
+   * ici — en gardant la règle et la cause, et en supprimant la reformulation. Une consigne ne
+   * s'allonge pas parce que la règle est vraie : elle s'allonge du minimum qui la rend applicable.
+   *
+   * V2.1.5.3 — 5 765 → 6 211 caractères, soit 446 de plus, et voici ce qu'ils achètent. Mesure
+   * d'origine, tirée du parcours navigateur de l'audit indépendant : trois questions posées — budget,
+   * dates, durée — et JAMAIS la ville de départ, alors que le budget annoncé incluait les vols. La
+   * consigne savait juger si un manque est matériel ; elle ne savait pas classer deux manques entre
+   * eux, et rien n'y disait qu'une exigence dont le respect dépend d'une variable non donnée rend
+   * cette variable matérielle. Le résultat était une readiness prononcée sans la variable qui décide
+   * si l'exigence tient.
+   *
+   * 446 caractères valent environ 112 jetons par appel : un tour de dialogue avancé passe d'environ
+   * 1 880 à 1 992 jetons. Le mur des 8 000 jetons par minute se rapproche — quatre tours coûtent
+   * 7 968 jetons contre 7 520 — et il reste atteint au quatrième, mais de justesse. C'est le coût le
+   * plus proche du mur que ce registre ait enregistré, et il est assumé pour une raison mesurable :
+   * V2.1.5.3 SUPPRIME des appels, il n'en ajoute pas. Un refus de forme ne déclenche plus un Core de
+   * dix-huit à vingt-cinq secondes avant la readiness, et une question mieux choisie évite un tour
+   * entier. Le prochain allongement de cette consigne, lui, devra d'abord raccourcir ailleurs.
+   *
+   * V2.2 — 6 211 → 6 266 caractères, soit 55 de plus, et pour une fois la cause est une SUPPRESSION.
+   * La doctrine de clarification — échelle de substitution, matérialité, priorité — était écrite dans
+   * TROIS modules : cette consigne, celle du plan profond, et celles du trio historique. Elle est
+   * désormais écrite UNE fois, chez son propriétaire (`OPRIE_CLARIFICATION_DOCTRINE`), et les deux
+   * plans vivants l'incluent. Le texte reçu par le modèle rapide est donc presque identique en
+   * longueur, mais il n'en existe plus qu'une source : une règle corrigée l'est partout à la fois.
+   * La part qui gouverne le candidat est restée hors de cette consigne — le plan rapide n'en produit
+   * aucun, et son budget de jetons est mesuré.
+   *
+   * V2.2.1-C — 6 266 → 6 604 caractères, soit 338 de plus, pour une clause de six lignes. Mesure
+   * d'origine : sur une contradiction explicite — deux exigences qui s'excluent —, le plan rapide
+   * posait cinq questions d'affilée et n'escaladait JAMAIS, trois fois sur trois. La même consigne
+   * servie à un autre modèle escaladait correctement : la règle était donc écrite, mais elle arrivait
+   * après six mille caractères de doctrine et le petit modèle ne la rejoignait plus. Déplacée en
+   * PREMIER CONTRÔLE, elle agit : escalade 2/2 sur le modèle de production, sans sur-escalade
+   * observée sur les cinq autres catégories mesurées.
+   *
+   * 338 caractères valent environ 85 jetons par appel : un tour avancé passe d'environ 1 992 à
+   * 2 077 jetons, et le mur des 8 000 par minute se rapproche encore — trois tours coûtent 6 231
+   * jetons contre 5 976. C'est le coût le plus proche du mur enregistré ici, et il est assumé pour
+   * une raison mesurable : une contradiction escaladée coûte UN tour profond, là où cinq questions
+   * coûtaient cinq tours rapides et n'aboutissaient pas. */
+  /* V2.2.1-D2F1 — QUATRIÈME ALLONGEMENT, ET SON PRIX EST INSCRIT ICI COMME LES TROIS AUTRES.
+   *
+   * +478 caractères, soit environ +120 jetons par appel rapide. Ce que cela achète : le plan rapide
+   * DÉCLARE désormais ce que sa question interroge, au lieu qu'un garde aval le devine en cherchant
+   * des mots dans le texte. C'est ce qui a permis de retirer trois motifs de vocabulaire décisionnel
+   * du chemin de production. Le sens de ce test est intact : il interdit de RACCOURCIR la consigne
+   * pour gagner des jetons, jamais de l'allonger pour une raison mesurée. */
+  assert.equal(FAST_INTERACTION_SYSTEM_PROMPT.length, 8627,
+    'la consigne n’a pas été raccourcie — elle a été allongée par 03B, BETA-04, V2.1.5, V2.1.5.3, V2.2.1-D2F1 puis TARGETED-FIX-POST-CODEX-01, à coût mesuré');
   assert.equal(FAST_INTERACTION_SYSTEM_PROMPT.split(' ').length > 100, true);
   assert.match(E.optimisation.raison, /la section 6 interdit de supprimer une instruction parce qu elle est longue/);
 });
@@ -214,7 +295,13 @@ test('T-PERFREAL01E-06/07 : ni le modèle ni l’ordre des fournisseurs n’ont 
      seule source, aucune variante par fournisseur. */
   const bloc = WORKER.slice(WORKER.indexOf('export const FAST_INTERACTION_ADAPTERS'),
     WORKER.indexOf('export async function runFastInteractionWithHaChain'));
-  assert.equal([...bloc.matchAll(/systemPrompt: FAST_INTERACTION_SYSTEM_PROMPT/g)].length, 3);
+  /* V2.1.1 — le littéral est passé par un constructeur, et l'invariant en sort renforcé : les trois
+   * adaptateurs appellent le MÊME `consigneRapide`, qui rend la consigne de base et n'y ajoute que
+   * la correction bornée du rattrapage méta — identique pour les trois. Aucun adaptateur ne choisit
+   * sa propre consigne, et c'est cela qui était asservi. */
+  assert.equal([...bloc.matchAll(/systemPrompt: consigneRapide\(corrective\)/g)].length, 3);
+  assert.match(WORKER, /const consigneRapide = \(corrective\) => corrective\s*\?\s*`\$\{FAST_INTERACTION_SYSTEM_PROMPT\}/,
+    'et la base est bien la consigne rapide canonique, jamais une autre');
   assert.equal([...bloc.matchAll(/schema: FAST_INTERACTION_JSON_SCHEMA/g)].length, 3);
   assert.deepEqual(Object.keys(FAST_INTERACTION_ADAPTERS).sort(), ['anthropic', 'groq', 'openai']);
 });
@@ -290,7 +377,7 @@ test('T-PERFREAL01E-14 : l’artefact frontend n’a pas bougé, et l’observat
      qu'un refus de sortie fournisseur cesse d'être compté comme un défaut de notre code. Aucune
      règle, aucun prompt, aucun schéma, aucun comportement d'interface. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    '204bce3973ee8866a9940b3bb31052db317dbd581670bfcf13d971bbdc9e14ca', 'CANONICAL_HTML_CHANGED = NO');
+    '61565d4dad80e10e3c5d9f2821ca3139884e356321f917d5f0f55af994454774', 'CANONICAL_HTML_CHANGED = NO');
   /* La seule modification du worker est le relevé de usage : cinq champs, aucun branchement. */
   assert.match(WORKER, /event: "groq_usage_observation"/);
   for (const champ of ['jetons_entree', 'jetons_sortie', 'jetons_total',

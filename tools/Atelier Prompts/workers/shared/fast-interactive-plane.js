@@ -32,6 +32,8 @@
  * ========================================================================= */
 
 /** Ce que le plan rapide a le droit de proposer. Énumération fermée. */
+import { QUESTION_FOCUS_VALUES } from "../../core/adn/operational-request-state.js";
+
 export const FAST_INTERACTION_TYPES = Object.freeze([
   "ACKNOWLEDGE",
   "ASK_CLARIFICATION",
@@ -67,10 +69,25 @@ export const FAST_FORBIDDEN_AUTHORITY_FIELDS = Object.freeze([
 export const FAST_INTERACTION_JSON_SCHEMA = Object.freeze({
   type: "object",
   additionalProperties: false,
-  required: ["type", "text"],
+  required: ["type", "text", "question_focus", "missing_determinant_id"],
   properties: {
     type: { type: "string", enum: [...FAST_INTERACTION_TYPES] },
-    text: { type: "string" }
+    text: { type: "string" },
+    /* V2.2.1-D2F1 — ce que la question INTERROGE, dit par celui qui l'écrit. null quand il n'y a
+       pas de question : ce plan accuse aussi réception et se tait, et rien n'est alors interrogé. */
+    question_focus: { type: ["string", "null"], enum: [...QUESTION_FOCUS_VALUES, null] },
+    /* TARGETED-FIX-POST-CODEX-01 — CE QUI MANQUE, NOMMÉ PAR CELUI QUI CHOISIT LA QUESTION.
+     *
+     * Le plan profond déclarait cette identité ; ce plan-ci, non. Mesuré sur un usage réel : cinq
+     * des six questions d'un tour venaient d'ici, et repartaient donc dans l'historique SANS
+     * identité. Une reformulation ultérieure du même manque par le plan profond n'était alors plus
+     * reconnue — la protection retombait sur l'égalité de texte, que la moindre reformulation
+     * défait.
+     *
+     * Ce n'est pas une seconde autorité : c'est la MÊME décision qui choisit la question, à qui
+     * l'on demande de nommer ce qu'elle cherche. Aucun identifiant n'est dérivé de mots-clés, aucun
+     * n'est fabriqué par l'interface, et null reste une réponse légitime. */
+    missing_determinant_id: { type: ["string", "null"] }
   }
 });
 
@@ -129,9 +146,23 @@ export function validateFastInteraction(candidate, snapshot) {
   }
   /* Clés exactes : ni manquantes, ni surnuméraires. Un champ d'autorité glissé
      dans la réponse échoue ici, avant d'avoir pu être lu par qui que ce soit. */
+  /* Deux clés historiques, plus le fait de D2F1 quand il est là — et rien d'autre. La tolérance
+     porte sur la seule clé ajoutée : un champ d'autorité glissé dans la réponse échoue toujours
+     ici, avant d'avoir pu être lu par qui que ce soit. */
+  /* Lecture tolérante, écriture stricte : les deux faits ajoutés après coup — ce que la question
+     interroge, et ce qu'il lui manque — sont exigés du modèle et tolérés absents du validateur. */
   const cles = Object.keys(candidate).sort();
-  if (cles.length !== 2 || cles[0] !== "text" || cles[1] !== "type") {
+  const attendues = ["text", "type"];
+  if (cles.includes("question_focus")) attendues.push("question_focus");
+  if (cles.includes("missing_determinant_id")) attendues.push("missing_determinant_id");
+  attendues.sort();
+  if (cles.length !== attendues.length || cles.some((c, i) => c !== attendues[i])) {
     return { ok: false, reason: "FAST_SCHEMA_ERROR", detail: `clés inattendues : ${cles.join(", ") || "aucune"}` };
+  }
+  const focus = candidate.question_focus === undefined || candidate.question_focus === null
+    ? null : candidate.question_focus;
+  if (focus !== null && !QUESTION_FOCUS_VALUES.includes(focus)) {
+    return { ok: false, reason: "FAST_SCHEMA_ERROR", detail: `question_focus inconnu : ${String(focus)}` };
   }
   if (!FAST_INTERACTION_TYPES.includes(candidate.type)) {
     return { ok: false, reason: "FAST_SCHEMA_ERROR", detail: `type d'interaction inconnu : ${String(candidate.type)}` };
@@ -145,6 +176,10 @@ export function validateFastInteraction(candidate, snapshot) {
       interaction_id: `fast-${snapshot.turn_id}`,
       type: candidate.type,
       text: candidate.text.trim(),
+      question_focus: focus,
+      /* L'identité du manque, telle que le plan rapide l'a nommée. Jamais dérivée ici. */
+      missing_determinant_id: typeof candidate.missing_determinant_id === "string" && candidate.missing_determinant_id.trim()
+        ? candidate.missing_determinant_id.trim() : null,
       source: "fast_plane",
       /* Le mot compte : ce résultat est un CANDIDAT. Rien dans le système ne
          doit le lire comme un état. */

@@ -163,8 +163,17 @@ test('T-P03A-08 le plan rapide ne peut pas exécuter, ni appeler l’exécution 
 
 test('T-P03A-09 la sortie rapide est structurée et validée selon M-01', () => {
   assert.equal(FAST_INTERACTION_JSON_SCHEMA.additionalProperties, false, 'schéma strict');
-  assert.deepEqual([...FAST_INTERACTION_JSON_SCHEMA.required].sort(), ['text', 'type']);
-  assert.deepEqual(Object.keys(FAST_INTERACTION_JSON_SCHEMA.properties).sort(), ['text', 'type']);
+  /* V2.2.1-D2F1 — TROIS CHAMPS, ET L'INVARIANT EST LE MÊME.
+     Le plan rapide écrit ses propres questions ; il doit donc dire ce qu'elles interrogent, comme
+     le plan profond le fait pour les siennes. `question_focus` n'est PAS un champ d'autorité : il
+     ne prononce aucun état, n'ouvre aucune route, n'autorise aucune exécution — ce que les
+     assertions suivantes continuent de vérifier. */
+  assert.deepEqual([...FAST_INTERACTION_JSON_SCHEMA.required].sort(), ['missing_determinant_id', 'question_focus', 'text', 'type']);
+  /* TARGETED-FIX-POST-CODEX-01 — un quatrième champ, nommé : l'identité du manque. Le contre-audit
+     a démontré qu'une question rapide répondue laissait l'historique sans identité, si bien qu'une
+     reformulation par le plan profond n'était plus reconnue. Le contrat s'allonge d'un fait produit
+     par la même décision ; il ne s'ouvre à rien d'arbitraire. */
+  assert.deepEqual(Object.keys(FAST_INTERACTION_JSON_SCHEMA.properties).sort(), ['missing_determinant_id', 'question_focus', 'text', 'type']);
   /* Les trois adaptateurs passent le schéma nativement, avec le durcissement M-01. */
   const code = sansCommentaires(ADAPTERS_SRC);
   assert.equal((code.match(/schemaName: "fast_interaction"/g) || []).length, 3);
@@ -173,7 +182,7 @@ test('T-P03A-09 la sortie rapide est structurée et validée selon M-01', () => 
 test('T-P03A-10 la forme rendue au consommateur est indépendante du fournisseur', () => {
   const interaction = validateFastInteraction(fastOk(), snapshot()).interaction;
   assert.deepEqual(Object.keys(interaction).sort(),
-    ['authority', 'can_execute', 'can_mark_ready', 'can_route', 'canonical_version', 'interaction_id', 'source', 'text', 'turn_id', 'type']);
+    ['authority', 'can_execute', 'can_mark_ready', 'can_route', 'canonical_version', 'interaction_id', 'missing_determinant_id', 'question_focus', 'source', 'text', 'turn_id', 'type']);
   assert.equal(/groq|anthropic|openai/i.test(JSON.stringify(interaction)), false, 'aucun nom de fournisseur ne fuit');
 });
 

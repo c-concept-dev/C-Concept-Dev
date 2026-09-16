@@ -31,9 +31,12 @@ const HTML = fs.readFileSync(path.join(root, 'atelier-prompts-v11.5-lot10g-decis
 const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 const clone = (v) => JSON.parse(JSON.stringify(v));
 
-function baseFor(demande, candidat = {}, state = 'operational_request_ready') {
+/* TRACER-REMEDIATION-02 · F1 — `output_format` est déclaré par l'autorité ; il n'est plus dérivé
+   des mots de la demande. Les fixtures qui attendent une forme la nomment. */
+function baseFor(demande, candidat = {}, state = 'operational_request_ready', output_format = null) {
   return canonicalFrom(oprieReadyTurn({
     state,
+    ...(output_format ? { output_format } : {}),
     operational_request_candidate: {
       objective: 'Objectif validé.', expected_deliverable: 'Un livrable nommé.',
       secondary_objectives: [], confirmed_constraints: [], confirmed_priorities: [],
@@ -46,8 +49,8 @@ const orientationFor = (base) => ({
   source: 'oprie', route: 'rapide', oprie: { state: base.executability.oprie_state },
   canonical: base, envelope: null, semantic: null, providerResult: null, action: null, decision: { state: 'ready' }
 });
-const jouer = (demande, { materiau = '', candidat = {} } = {}) =>
-  runRapidePipeline({ demande, materiau, orientation: orientationFor(baseFor(demande, candidat)) });
+const jouer = (demande, { materiau = '', candidat = {}, format = null } = {}) =>
+  runRapidePipeline({ demande, materiau, orientation: orientationFor(baseFor(demande, candidat, 'operational_request_ready', format)) });
 
 /* ==========================================================================
  * T-RAP01R-01 … 05 — SOURCE ET AUTORITÉS
@@ -65,14 +68,16 @@ test('T-RAP01R-01 la sémantique canonique est active sur le chemin moderne', ()
 });
 
 test('T-RAP01R-02 RAPIDE_ACTIVE_SEMANTIC_SOURCE_COUNT = 1 — mesuré, pas déclaré', () => {
-  const demande = 'Donne exactement 7 idées sous forme de tableau.';
-  const reference = jouer(demande).promptFinal;
+  /* F1 — la demande ne nomme plus la forme : c'est l'autorité qui la déclare. L'empoisonnement des
+     détecteurs historiques n'en est que plus probant, puisqu'ils n'ont même plus de mot à lire. */
+  const demande = 'Donne exactement 7 idées.';
+  const reference = jouer(demande, { format: 'tableau_comparatif' }).promptFinal;
 
   /* Les détecteurs historiques sont EMPOISONNÉS : s'ils avaient la moindre
      autorité, le prompt changerait. Il ne change pas d'un octet. */
   const harness = createRapideHarness({ demande, materiau: '' });
-  harness.context.rapideAppliquerContratCanonique(baseFor(demande));
-  harness.context.detecterFormat = () => ({ format: 'reponse_simple', score: 99, second: null });
+  harness.context.rapideAppliquerContratCanonique(baseFor(demande, {}, 'operational_request_ready', 'tableau_comparatif'));
+  harness.context.detecterFormat = () => ({ format: 'json', score: 99, second: null });
   harness.context.detecterQuantite = () => ({ min: 999, max: 999 });
   const empoisonne = harness.assemblerRapideAdaptatif();
 
@@ -132,10 +137,16 @@ test('T-RAP01R-06 [SÉCURITÉ] le verrou de délimitation survit dès qu’un ma
 });
 
 test('T-RAP01R-07 le format projeté vient de output.format', () => {
-  const p = jouer('Donne le résultat sous forme de tableau.');
+  /* F1 — et sa PROVENANCE a changé de nature : elle n'est plus « dérivée » du texte, elle est
+     DÉCLARÉE par l'autorité sémantique. C'est le même invariant, sur une source honnête. */
+  const p = jouer('Donne le résultat.', { format: 'tableau_comparatif' });
   assert.equal(p.r.canonical.contract.output.format, p.r.format);
+  assert.equal(p.r.format, 'tableau_comparatif');
   assert.ok(p.mergedLocks.includes('format'));
-  assert.equal(p.r.canonical.contract.output.sources.format, 'derived_deterministic');
+  assert.equal(p.r.canonical.contract.output.sources.format, 'canonical_authority');
+  /* Et sans déclaration, aucune forme n'est choisie par les mots du sujet. */
+  const nu = jouer('Donne le résultat sous forme de tableau.');
+  assert.equal(nu.r.canonical.contract.output.format, null);
 });
 
 test('T-RAP01R-08 une quantité exacte traverse le contrat jusqu’au prompt', () => {
@@ -381,10 +392,10 @@ test('T-RAP01R-34 le prompt ne s’alourdit pas : delta mesuré par cas', () => 
 });
 
 test('T-RAP01R-35 les 13 verrous restent projetables ; une demande nue n’en force aucun', () => {
-  const demande = 'Donne exactement 7 idées sous forme de tableau.';
+  const demande = 'Donne exactement 7 idées.';
   const riche = clone(baseFor(demande, {
     confirmed_constraints: ['Contrainte.'], assumptions_allowed: ['Hypothèse.'], external_facts_to_research: ['Fait.']
-  }));
+  }, 'operational_request_ready', 'tableau_comparatif'));
   riche.intent.recipient = 'un lectorat défini';
   riche.output.structure = ['A', 'B'];
   riche.output.length_policy = 'courte';

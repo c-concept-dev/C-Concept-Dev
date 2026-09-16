@@ -31,10 +31,18 @@ const P = FAST_INTERACTION_SYSTEM_PROMPT;
 
 test('T-03B-01 : une demande exploitable ne déclenche aucune question', () => {
   /* La consigne doit dire, explicitement, quoi répondre quand rien de déterminant ne manque. */
-  assert.match(P, /ne demandez rien\. Répondez WAIT_FOR_DEEP_VALIDATION/,
-    'la sortie sans question doit être nommée, pas laissée à l’interprétation');
-  assert.match(P, /Si la demande nomme déjà ce qu'il faut produire et sa\s+forme, elle est exploitable : ne demandez rien/,
-    'et le cas « déjà exploitable » doit être tranché sans ambiguïté');
+  assert.match(P, /ne demandez rien/, 'la sortie sans question est nommée');
+  assert.match(P, /WAIT_FOR_DEEP_VALIDATION/, 'et le type qui la porte est nommé');
+  /* V2.1.2 — LA SECONDE ASSERTION A CHANGÉ DE CIBLE, SUR PREUVE. Elle épinglait « Si la demande nomme
+   * déjà ce qu'il faut produire et sa forme, elle est exploitable : ne demandez rien ». Mesuré sur les
+   * essais réels du propriétaire : pour « préparer une intervention de vingt minutes pour un groupe de
+   * collègues », cette phrase suffisait à faire taire le plan rapide — la production ÉTAIT nommée — et
+   * le plan profond posait ensuite, en vingt-deux secondes, la question qui manquait vraiment (le
+   * niveau du public). La règle épinglée produisait donc le défaut. Ce qui est asservi désormais est
+   * l'inverse exact, et c'est un test d'impact, pas une catégorie. */
+  assert.match(P, /Que la demande nomme déjà ce qu'il faut produire ne rend pas exploitable tout le reste/,
+    'nommer la production ne clôt pas la clarification');
+  assert.match(P, /TEST DE MATÉRIALITÉ/, 'et ce qui tranche est l’impact sur ce qui sera produit');
 });
 
 test('T-03B-02 : une inconnue déterminante autorise UNE question', () => {
@@ -67,12 +75,24 @@ test('T-03B-03 : le critère est la différence substantielle entre deux lecture
  * ======================================================================= */
 
 test('T-03B-04 : une information seulement utile ne déclenche pas de question', () => {
-  assert.match(P, /N'est jamais déterminant ce qui ne fait que colorer ce qui est déjà nommé/,
-    'la règle doit être énoncée comme une exclusion, non comme une nuance');
-  for (const confort of ['préférence', 'profil', 'budget', 'ton', "contexte d'usage",
-                         'cas particulier', 'enrichissement', 'personnalisation', 'cadrage plus fin']) {
-    assert.ok(P.includes(confort), `« ${confort} » doit figurer parmi les manques non déterminants`);
-  }
+  /* V2.1.2 — L'INVARIANT SURVIT, SA FORME A ÉTÉ INVALIDÉE PAR LA MESURE.
+   *
+   * Cette règle était énoncée comme une EXCLUSION PAR CATÉGORIE : « N'est jamais déterminant… une
+   * préférence, un profil, un budget, un ton, un contexte d'usage… ». Sur les essais réels du
+   * propriétaire, ces catégories couvraient exactement les variables qui changeaient le plus le
+   * résultat — le niveau de connaissance d'un public, la modalité de participation d'un groupe. Le
+   * plan rapide se taisait donc, et le plan profond posait la question dix-sept à quarante-cinq
+   * secondes plus tard. Une catégorie ne peut pas décider de la matérialité : seul l'impact peut.
+   *
+   * L'invariant — une information seulement utile ne déclenche pas de question — reste asservi ici,
+   * par le test qui l'exprime sans le fausser. */
+  assert.match(P, /Si non, ne la\s+posez pas, même si l'information manque/,
+    'une information ne se demande pas au seul motif qu’elle manque');
+  assert.match(P, /Ne jugez JAMAIS par catégorie/, 'et la catégorie ne décide plus');
+  assert.match(P, /deux préférences de goût, elles, donnent la même chose autrement colorée/,
+    'le contre-exemple reste énoncé : ce qui ne fait que colorer ne se demande pas');
+  assert.equal(/N'est jamais déterminant ce qui ne fait que colorer/.test(P), false,
+    'et l’ancienne exclusion par catégorie a disparu');
   /* Et les six voies alternatives restent nommées, mot pour mot : demander n'est pas le seul
      traitement d'une inconnue. C'est la même liste que T-P03A-21 protège depuis le lot PERF-03A. */
   for (const voie of ['recherchée', 'décidée', 'estimée', 'scénario', 'conditionnée', 'inconnue']) {
@@ -90,7 +110,15 @@ test('T-03B-05 : après une réponse, l’exigence monte et rien n’est redeman
   assert.match(P, /ne redemandez jamais ce qui y\s+figure, ni une variante de ce qui y figure|ni une variante de ce qui y figure/,
     'y compris sous une formulation voisine — c’est la répétition observée en bêta');
   assert.match(P, /l'exigence monte/, 'et le seuil se durcit après une réponse');
-  assert.match(P, /jamais plus d'une/, 'au plus une nouvelle question déterminante');
+  /* V2.1 — HISTORICAL_IMPLEMENTATION_CONTRACT. Cette ligne épinglait « jamais plus d'une », le
+     quota par conversation du lot BETA-04. Il protégeait une doctrine qui n'existe plus : à l'époque,
+     une question du plan rapide n'arrêtait PAS le plan profond. Depuis, le court-circuit IA-04
+     arrête le tour et le plan rapide EST la boucle de clarification ; mesuré sur le dialogue réel du
+     propriétaire, le quota faisait produire toutes les questions suivantes par le plan profond, en
+     ~25 s chacune. L'invariant réel — l'exigence monte, et rien d'acquis n'est redemandé — reste
+     asservi par les trois assertions ci-dessus et par celle qui suit. */
+  assert.match(P, /cette information est\s+TRAITÉE/,
+    'une réponse « je ne sais pas » ou une délégation ferme définitivement le point');
 });
 
 test('T-03B-08 : aucune fuite d’un dialogue antérieur vers le plan rapide', () => {
@@ -122,8 +150,17 @@ test('T-03B-06/07 : le mécanisme d’escalade reste celui que 1D-N a figé', ()
      T-DN01-A (question rapide → deepCalls = 0) et T-DN01-B (silence rapide → deepCalls = 1). */
   assert.equal(ONE_NEXT_INTERACTION_MAX, 1, 'jamais un questionnaire');
   assert.equal(FAST_INTERACTION_JSON_SCHEMA.additionalProperties, false);
-  assert.deepEqual(FAST_INTERACTION_JSON_SCHEMA.required, ['type', 'text'],
-    'deux champs : le plan rapide reste physiquement incapable de porter un état');
+  /* V2.2.1-D2F1 — TROIS CHAMPS, ET L'INVARIANT EST LE MÊME.
+     Le plan rapide écrit ses propres questions ; il doit donc dire ce qu'elles interrogent, comme
+     le plan profond le fait pour les siennes. `question_focus` n'est PAS un champ d'autorité : il
+     ne prononce aucun état, n'ouvre aucune route, n'autorise aucune exécution — ce que les
+     assertions suivantes continuent de vérifier. */
+  /* TARGETED-FIX-POST-CODEX-01 — un quatrième champ nommé, l'identité du manque. Le contre-audit a
+     démontré qu'une question rapide répondue laissait l'historique sans identité : une reformulation
+     ultérieure du même manque n'était alors plus reconnue. Le schéma reste clos et incapable de
+     porter un état — c'est ce que cette assertion garde, et cela n'a pas changé. */
+  assert.deepEqual(FAST_INTERACTION_JSON_SCHEMA.required, ['type', 'text', 'question_focus', 'missing_determinant_id'],
+    'le plan rapide reste physiquement incapable de porter un état');
   assert.deepEqual([...FAST_INTERACTION_JSON_SCHEMA.properties.type.enum], [...FAST_INTERACTION_TYPES],
     'l’énumération du schéma reste celle du plan, sans type libre');
 });
@@ -133,10 +170,16 @@ test('T-03B-06/07 : le mécanisme d’escalade reste celui que 1D-N a figé', ()
  * ======================================================================= */
 
 test('T-03B-09 : la consigne ne contient ni mot de domaine ni seuil chiffré', () => {
+  /* TEST_BUG corrigé en V2.1 : sans limite de mot, « train » matchait à l'intérieur de
+     « con-train-te » — un mot de CATÉGORIE, employé par toute la doctrine. Le test visait le moyen de
+     transport ; il refusait un mot du vocabulaire générique. Les limites rétablissent son intention,
+     et le contrôle reste strict : « le train et l'avion » serait toujours refusé. */
   for (const domaine of ['malaga', 'voyage', 'présentation', 'cadeau', 'repas', 'budget personnel',
                          'photosynthèse', 'train', 'avion', 'séjour', 'diapositive']) {
-    assert.equal(new RegExp(domaine, 'i').test(P), false, `« ${domaine} » n’a rien à faire dans le protocole`);
+    assert.equal(new RegExp(`\\b${domaine}\\b`, 'i').test(P), false, `« ${domaine} » n’a rien à faire dans le protocole`);
   }
+  /* Et la preuve que le contrôle mord encore. */
+  assert.equal(new RegExp('\\btrain\\b', 'i').test('comparer le train et l’avion'), true);
   assert.equal(/\b\d+\s*(jour|mot|élément|question|paragraphe|paragraphes)\b/i.test(P), false,
     'aucun seuil chiffré : seul le protocole est décrit');
   /* Le critère reste énoncé comme un test à appliquer, non comme une préférence. */

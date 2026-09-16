@@ -47,7 +47,12 @@ test('T-OPMAT01-01 : les deux contrats d’entrée sont lus, pas devinés', () =
      autre clé reste refusée. Ce que cette preuve garde change donc de nature — elle
      ne garde plus l'absence du canal, mais le fait que son ajout n'a pas ouvert le
      contrat à des champs arbitraires. */
-  assert.match(NOYAU, /requireKeysWithOptional\(value, \["original_request", "clarification_history"\],\s*\n?\s*\["material_context", "material_content"\], "AnalystInput"\)/);
+  /* V2.2.1-B — UNE TROISIÈME CLÉ OPTIONNELLE, NOMMÉE : la décision canonique déjà prise. Même
+     geste qu'OPRIE-MATERIAL-CONTEXT-02, et même preuve : le contrat ne s'ouvre pas aux champs
+     arbitraires, il énumère une clé de plus. */
+  /* V2.2.1-E1 — la clé canonical_decision a quitté ce contrat : le plan rapide ne transmet plus de
+     décision. Le contrat ne s'est pas OUVERT, il s'est refermé d'un cran. */
+  assert.match(NOYAU, /requireKeysWithOptional\(value, \["original_request", "clarification_history"\],\s*\n?\s*\["material_context", "material_content", "output_format_vocabulary"\], "AnalystInput"\)/);
   assert.match(NOYAU, /const inconnue = actual\.find\(\(key\) => !legales\.has\(key\)\);/,
     'toute clé non énumérée est toujours refusée');
   assert.equal(R.gap.reel, true);
@@ -214,7 +219,7 @@ test('T-OPMAT01-10 : HTML canonique inchangé, dette ouverte', () => {
      qu'un refus de sortie fournisseur cesse d'être compté comme un défaut de notre code. Aucune
      règle, aucun prompt, aucun schéma, aucun comportement d'interface. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    '204bce3973ee8866a9940b3bb31052db317dbd581670bfcf13d971bbdc9e14ca', 'CANONICAL_HTML_CHANGED = NO');
+    '61565d4dad80e10e3c5d9f2821ca3139884e356321f917d5f0f55af994454774', 'CANONICAL_HTML_CHANGED = NO');
   const registre = lire('docs/OPEN-DEBTS.md');
   const ouvertes = registre.slice(registre.indexOf('## Ouvertes'), registre.indexOf('## Fermées'));
   assert.deepEqual([...ouvertes.matchAll(/^### ([A-Z][A-Z-]+-\d{2})$/gm)].map((m) => m[1]), ['PERF-REAL-01']);

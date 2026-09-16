@@ -79,7 +79,7 @@ test('T-PERFREAL01A-02 : l’adaptateur rapide emploie le contrat canonique', ()
   /* Le contrat est canonique parce que TOUS les appelants l'emploient, pas parce
      qu'on l'a décrété : décision et rôles le faisaient déjà avant ce lot. */
   assert.equal((WORKER.match(/runProviderChain\(\{/g) || []).length, 3, 'trois appelants, une seule chaîne');
-  assert.match(WORKER, /return runProviderChain\(\{ role: "fast_interaction", providers/);
+  assert.match(WORKER, /const rendu = await runProviderChain\(\{ role: "fast_interaction", providers/);
   assert.match(WORKER, /execute: \(\) => DECISION_ADAPTERS\[name\]/, 'la décision emploie execute');
   assert.match(WORKER, /execute: isCritic/, 'les rôles emploient execute');
   assert.equal((WORKER.match(/^\s*execute:/gm) || []).length, 3, 'trois constructions, un seul nom de champ');
@@ -247,7 +247,7 @@ test('T-PERFREAL01A-12 : l’artefact frontend n’a pas bougé', () => {
      qu'un refus de sortie fournisseur cesse d'être compté comme un défaut de notre code. Aucune
      règle, aucun prompt, aucun schéma, aucun comportement d'interface. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    '204bce3973ee8866a9940b3bb31052db317dbd581670bfcf13d971bbdc9e14ca', 'CANONICAL_HTML_CHANGED = NO');
+    '61565d4dad80e10e3c5d9f2821ca3139884e356321f917d5f0f55af994454774', 'CANONICAL_HTML_CHANGED = NO');
 });
 
 test('T-PERFREAL01A-13 : le worker déployé est le candidat local, et il est traçable', () => {

@@ -27,11 +27,18 @@ const GATE = fs.readFileSync(path.join(root, 'core/adn/prompt-contract-gate.js')
 const RUNTIME = fs.readFileSync(path.join(root, 'core/adn/browser-runtime.generated.js'), 'utf8');
 const sansCommentaires = (src) => src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/.*$/gm, '$1 ');
 
-const DEMANDE = 'Donne exactement 7 exemples sous forme de liste.';
+const DEMANDE = 'Donne exactement 7 exemples.';
 
-/** Contrat canonique de base, produit par le mapper de production. */
-function contratBase(demande = DEMANDE, candidat = {}, requestId = 'qg-01') {
+/** Contrat canonique de base, produit par le mapper de production.
+ *
+ * TRACER-REMEDIATION-02 · F1 — LA FORME EST DÉCLARÉE, PLUS DEVINÉE. Ces fixtures obtenaient leur
+ * format en glissant le mot « liste » ou « tableau » dans la demande, parce que l'enrichisseur le
+ * dérivait d'un score de mots-clés. L'autorité sémantique le produit désormais ; les fixtures le
+ * déclarent donc, et la demande redevient ce qu'une personne écrirait. Ce que ce fichier éprouve —
+ * le contrat de bout en bout — n'a pas changé d'un iota. */
+function contratBase(demande = DEMANDE, candidat = {}, requestId = 'qg-01', output_format = 'list') {
   return canonicalFrom(oprieReadyTurn({
+    ...(output_format ? { output_format } : {}),
     operational_request_candidate: {
       objective: 'Objectif validé.', expected_deliverable: 'Un livrable nommé.',
       secondary_objectives: [], confirmed_constraints: [], confirmed_priorities: [],
@@ -42,9 +49,9 @@ function contratBase(demande = DEMANDE, candidat = {}, requestId = 'qg-01') {
 }
 
 /** Exécute le CHEMIN RAPIDE de production, contrat appliqué. */
-function rapide({ demande = DEMANDE, materiau = '', contrat, patch } = {}) {
+function rapide({ demande = DEMANDE, materiau = '', contrat, patch, format = 'list' } = {}) {
   const h = createRapideHarness({ demande, materiau });
-  h.context.rapideAppliquerContratCanonique(contrat === undefined ? contratBase(demande) : contrat);
+  h.context.rapideAppliquerContratCanonique(contrat === undefined ? contratBase(demande, {}, 'qg-01', format) : contrat);
   if (patch) h.evaluate(patch);
   return { harness: h, resultat: h.assemblerRapideAdaptatif() };
 }
@@ -265,16 +272,16 @@ test('T-QG01-18 un échec du gate ne pose aucune question', () => {
  * ======================================================================== */
 
 const SENTINELLES = [
-  { nom: 'simple', demande: 'Rédige une note de synthèse.' },
-  { nom: 'liste', demande: 'Donne une liste de 5 idees.' },
-  { nom: 'tableau', demande: 'Construis un tableau comparatif.' },
-  { nom: 'materiau', demande: 'Analyse le texte fourni.', materiau: 'Matériau utilisateur à traiter.' },
-  { nom: 'exact', demande: 'Donne exactement 7 exemples.' },
-  { nom: 'code', demande: 'json 3 champs' }
+  { nom: 'simple', demande: 'Rédige une note de synthèse.', format: null },
+  { nom: 'liste', demande: 'Donne 5 idees.', format: 'list' },
+  { nom: 'tableau', demande: 'Construis une comparaison.', format: 'tableau_comparatif' },
+  { nom: 'materiau', demande: 'Analyse le texte fourni.', materiau: 'Matériau utilisateur à traiter.', format: null },
+  { nom: 'exact', demande: 'Donne exactement 7 exemples.', format: null },
+  { nom: 'code', demande: 'Donne 3 champs.', format: 'json' }
 ];
 for (const [i, cas] of SENTINELLES.entries()) {
   test(`T-QG01-${19 + i} sentinelle Rapide « ${cas.nom} » : le contrat est respecté de bout en bout`, () => {
-    const { resultat } = rapide({ demande: cas.demande, materiau: cas.materiau || '' });
+    const { resultat } = rapide({ demande: cas.demande, materiau: cas.materiau || '', format: cas.format });
     assert.notEqual(resultat, null, `${cas.nom} : le prompt doit aboutir`);
     assert.equal(resultat.qg, 'PASS');
     assert.equal(resultat.trace.native_from_compiler, true);
@@ -286,7 +293,7 @@ for (const [i, cas] of SENTINELLES.entries()) {
 
 test('T-QG01-25 une projection perdue fait échouer le chemin Rapide', () => {
   const { resultat } = rapide({
-    demande: 'Construis un tableau comparatif.',
+    demande: 'Construis une comparaison.', format: 'tableau_comparatif',
     patch: 'rapideTraceNative=(function(o){return function(b,p){var t=o(b,p);return {version:t.version,request_id:t.request_id,native_from_compiler:true,lock_selection_observed:true,entries:t.entries.filter(function(e){return e.key!=="format"})}}})(rapideTraceNative)'
   });
   assert.equal(resultat, null);

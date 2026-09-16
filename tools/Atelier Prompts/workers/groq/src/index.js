@@ -19,6 +19,7 @@ import {
 } from "../../shared/operational-request-core.js";
 import {
   FAILURE_CLASSES,
+  FAILOVER_ELIGIBLE_CLASSES,
   failureClassOf,
   runProviderChain,
   tagFailure
@@ -29,8 +30,10 @@ import { FAST_INTERACTION_JSON_SCHEMA, FAST_INTERACTION_TYPES } from "../../shar
 import { FAST_INTERACTION_PATHNAME, handleFastInteractionRequest } from "../../shared/fast-interaction-endpoint.js";
 export { PROVIDER_TECHNICAL_CAPABILITIES, resolveProviderConcurrency } from "../../shared/provider-rate-control.js";
 import { handleOperationalRequest, resolveInvocationId } from "../../shared/operational-request-orchestrator.js";
+/* V2.2 — la doctrine de clarification vient de son PROPRIÉTAIRE, elle n'est pas recopiée ici. */
+import { OPRIE_CLARIFICATION_DOCTRINE } from "../../shared/operational-request-core.js";
 import { CORE_ROLE_DEFINITIONS } from "../../shared/core-first-plane.js";
-import { guardFastSolicitation } from "../../shared/solicitation-policy.js";
+import { guardFastSolicitation, guardFastInteraction, assessSolicitation, SILENT_INTERACTION, SOLICITING_TYPES } from "../../shared/solicitation-policy.js";
 
 const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 export const MODEL = "openai/gpt-oss-20b";
@@ -1195,51 +1198,58 @@ export async function decideWithOpenAI(input, env, { contract = DECISION_CONTRAC
  * Ce qui n'a pas bougé : une seule interaction par tour, le schéma à deux champs qui interdit
  * physiquement de porter un état, et l'absence totale d'autorité sémantique. Le plan rapide ne
  * décide toujours rien ; il parle plus tôt quand il a quelque chose d'utile à demander. */
+/* V2.2 — LE PLAN RAPIDE EST UN MUSICIEN, PAS LE CHEF.
+ *
+ * CE QU'IL DÉCIDAIT, ET QUI NE LUI APPARTENAIT PAS. Sa consigne portait sa PROPRE doctrine de
+ * matérialité, sa propre échelle de substitution, son propre classement des manques, ses propres
+ * critères d'escalade — tout ce qu'OPRIE possède déjà, réécrit ailleurs, dans d'autres mots. Deux
+ * rédactions d'une même règle sont deux occasions de divergence, et c'était la cacophonie.
+ *
+ * CE QU'IL GARDE, PARCE QUE C'EST SON MÉTIER. La forme d'une question — une seule, en une phrase,
+ * sur une variable du problème de la personne, jamais sur la conception de notre sortie —, l'hygiène
+ * de ce qui a déjà été répondu, la langue, le schéma. Et la vitesse, qui est sa raison d'être.
+ *
+ * CE QU'IL APPLIQUE SANS LE POSSÉDER : la doctrine d'OPRIE, incluse ci-dessous depuis le module qui
+ * en est le propriétaire. Le plan profond applique exactement la même, plus lentement et plus loin.
+ * Une seule direction sémantique, deux vitesses d'exécution. */
 export const FAST_INTERACTION_SYSTEM_PROMPT = [
   "Vous proposez UNE interaction utilisateur, et une seule, pour le tour en cours.",
   "Vous ne décidez rien : ni que la demande est prête, ni quelle route suivre, ni aucun état.",
-  "Votre travail est de décider s'il faut poser UNE question maintenant, ou ne rien demander ;",
-  "appliquez ce test, et lui seul.",
-  "PREMIER EXAMEN, et il tranche presque tout : la demande nomme-t-elle CE QU'IL FAUT PRODUIRE, ou",
-  "seulement une INTENTION ? Préparer, organiser, améliorer, gérer quelque chose n'est pas une",
-  "production : c'est un projet. Si rien ne dit ce qui doit sortir, posez UNE question sur le",
-  "résultat attendu, sans proposer aucune production. C'est le cas le plus fréquent où votre question",
-  "est réellement utile, et ne pas la poser fait attendre la personne pour rien.",
-  "Si la production est nommée, passez au test suivant. Pour savoir si ce recours est atteint, prenez les deux lectures",
-  "raisonnables les plus éloignées de la demande, telle qu'elle est, augmentée des réponses déjà",
-  "obtenues. Conduiraient-elles à produire deux choses SUBSTANTIELLEMENT DIFFÉRENTES — de nature,",
-  "d'étendue ou de structure — ou la même chose autrement colorée ?",
-  "SUBSTANTIELLEMENT DIFFÉRENTES : le recours est atteint, et poser la question est alors la réponse",
-  "ATTENDUE, pas une option. Posez UNE seule question : celle qui sépare ces deux lectures. Répondez",
-  "ASK_CLARIFICATION, ou ASK_CONFIRMATION s'il ne reste qu'un choix à confirmer. N'employez ni",
-  "ACKNOWLEDGE ni ORIENT_ARCHITECTE dans ce cas : ils n'apportent rien à la personne et lui font",
-  "attendre pour rien.",
-  "LA MÊME CHOSE AUTREMENT COLORÉE : ne demandez rien. Répondez WAIT_FOR_DEEP_VALIDATION.",
-  "Une information manquante n'appelle pas automatiquement une question, et ne devient pas",
-  "déterminante par le seul fait de manquer : elle peut être recherchée,",
-  "décidée, estimée, traitée par scénario, conditionnée, ou laissée explicitement inconnue.",
-  "Demander une précision est le dernier recours, jamais le premier : ne le faites que si aucune de ces voies n'est sûre.",
-  "N'est jamais déterminant ce qui ne fait que colorer ce qui est déjà nommé : une préférence, un",
-  "profil, un budget, un ton, un contexte d'usage, un cas particulier, un enrichissement, une",
-  "personnalisation, un cadrage plus fin. Si la demande nomme déjà ce qu'il faut produire et sa",
-  "forme, elle est exploitable : ne demandez rien. Deux contenus différents à l'intérieur de la MÊME",
-  "production ne sont pas deux choses substantiellement différentes : c'est la même chose autrement",
-  "colorée, et vous ne demandez rien.",
+  "La doctrine ci-dessous n'est pas la vôtre : elle est celle du système, et vous l'appliquez telle",
+  "quelle, vite. Votre apport est la FORME et la RAPIDITÉ, jamais un jugement qui lui serait propre.",
+  "PREMIER CONTRÔLE, AVANT TOUT LE RESTE : deux exigences explicites de la demande s'excluent-elles,",
+  "au point qu'aucune lecture ne puisse les satisfaire ensemble ? Si oui, répondez",
+  "WAIT_FOR_DEEP_VALIDATION en disant lesquelles : ce cas passe avant toute question, et aucune",
+  "question ne peut le résoudre. Si non, poursuivez avec la doctrine.",
+  OPRIE_CLARIFICATION_DOCTRINE,
+  "VOTRE PART DU TRAVAIL — LA FORME.",
+  "PORTEZ LA QUESTION SUR UNE VARIABLE RÉELLE du problème que la personne décrit : une durée, une",
+  "date, une quantité, un destinataire, un objectif, une contrainte, un moyen — ce qu'elle seule sait",
+  "et qui change ce qui sortira. Jamais sur la forme de ce qui sera produit : ce choix-là est notre",
+  "travail, pas le sien. Ne demandez donc ni quel résultat, ni quel type de contenu, ni quel format,",
+  "ni quelle structure la personne attend — sauf si la demande porte elle-même sur ce choix,",
+  "c'est-à-dire si ce choix est l'information non substituable qui change l'exécution.",
   "UNE interaction signifie UN besoin d'information atomique : ni un catalogue de productions",
   "hétérogènes, ni plusieurs décisions coordonnées dans la même phrase. Votre question doit tenir en",
   "UNE seule phrase interrogative, avec UN seul point d'interrogation, et ne pas énumérer des",
   "productions différentes comme des options. Ne coordonnez jamais deux besoins par « et » ou par",
-  "« ou » : gardez celui qui sépare réellement les deux lectures, et abandonnez l'autre.",
+  "« ou » : gardez celui que la doctrine désigne, et abandonnez l'autre.",
   "Si materiau_fourni vaut true, le contenu à traiter est déjà là : ne le redemandez jamais.",
   "Tenez pour acquises les réponses déjà présentes dans l'historique : ne redemandez jamais ce qui y",
-  "figure, ni une variante de ce qui y figure. Dès qu'une réponse a été obtenue, l'exigence monte :",
-  "ne reposez une question que si le résultat attendu reste RÉELLEMENT impossible à construire, et",
-  "jamais plus d'une.",
+  "figure, ni une variante de ce qui y figure.",
   "Types possibles : ACKNOWLEDGE (accuser réception, sans rien demander ni rien promettre),",
   "ASK_CLARIFICATION (une seule question), ASK_CONFIRMATION (une seule confirmation),",
   "ORIENT_ARCHITECTE (orienter vers le parcours guidé), WAIT_FOR_DEEP_VALIDATION (rien à demander).",
+  "WAIT_FOR_DEEP_VALIDATION est EXCEPTIONNEL, et ce n'est pas « je ne suis pas sûr ». Employez-le seulement",
+  "si la demande se contredit réellement, si deux exigences explicites s'excluent, ou si",
+  "aucune question sûre ne peut être choisie sans une compréhension plus profonde.",
   "Répondez toujours en français, quelle que soit la langue de votre raisonnement.",
-  "Répondez exactement au schéma fourni : un type, un texte. Rien d'autre."
+  "Quand vous posez une question ou une confirmation, dites aussi ce qu'elle INTERROGE :",
+  "question_focus vaut problem_or_user_context si elle porte sur la situation de la personne — une",
+  "donnée, une décision ou une information qu'elle seule détient ; output_specification si elle lui",
+  "demande de définir ce que nous devons produire ; other si ni l'un ni l'autre ne s'applique, ce qui",
+  "est une réponse légitime. Sans question, question_focus vaut null.",
+  "Dites aussi CE QUI MANQUE : missing_determinant_id nomme l'inconnue que la question cherche — un identifiant court, en minuscules, mots séparés par des tirets bas, décrivant la chose manquante elle-même et non sa formulation. Le même manque garde le même identifiant d'un tour à l'autre, même si vous reformulez la question ; une inconnue différente en reçoit un autre. Sans question, il vaut null. Répondez exactement au schéma fourni : un type, un texte, ce que la question interroge, et ce qui manque. Rien d'autre."
 ].join(" ");
 
 export function makeFastInteractionUserMessage(snapshot) {
@@ -1261,9 +1271,56 @@ export function makeFastInteractionUserMessage(snapshot) {
  * durcissement des sorties structurées, et le contrôle de débit de M-03. Seul
  * le schéma diffère — et il est délibérément incapable de porter une autorité.
  */
+/* V2.1.1 — LA CORRECTION ENVOYÉE AU SECOND ESSAI, quand le premier a produit une question qui
+   demandait à la personne de concevoir notre sortie. Elle ne nomme aucun domaine et ne propose
+   aucune question : elle rappelle la règle, et laisse le modèle trouver la variable. */
+export const FAST_META_CORRECTION = "Votre proposition précédente demandait à la personne de définir "
+  + "ce qui doit être produit, sa nature ou sa forme. C'est notre travail, pas le sien. Reprenez : "
+  + "posez UNE question sur une variable du problème qu'elle décrit — une quantité, une durée, une "
+  + "date, un destinataire, un objectif, une contrainte, un moyen — quelque chose qu'elle sait déjà "
+  + "et n'a qu'à dire. Si aucune variable de ce genre ne manque réellement, ne demandez rien.";
+
+/* V2.1.2 — LES CORRECTIONS DU RATTRAPAGE, UNE PAR MOTIF DE REFUS.
+ *
+ * Le rattrapage existait pour la seule question méta. Mesuré sur les essais du propriétaire, un
+ * refus de garde renvoyait sinon le tour au plan profond — et le plan profond posait la question,
+ * à vingt secondes le tour. Chaque motif de refus reçoit donc sa correction, et elle dit quoi faire
+ * plutôt que ce qu'il ne fallait pas faire. Aucune ne nomme de domaine, aucune ne propose de
+ * question : elles rappellent la règle et laissent le modèle chercher la variable.
+ *
+ * Ce rattrapage reste borné à UN appel, ne crée aucun état, et ne consulte jamais le plan profond. */
+/* V2.2 — LA REPRISE RÉPARE LA FORME, ELLE NE RECHOISIT PAS LE BESOIN.
+ *
+ * Sa rédaction précédente demandait de « garder le besoin qui change le plus ce qui sera produit » :
+ * c'est un jugement de matérialité, donc une décision d'OPRIE, prise dans la couche de réparation.
+ * Elle demande désormais de conserver le PREMIER besoin énoncé, inchangé, et de le reformuler
+ * proprement. Le choix du besoin reste en amont ; ici on ne corrige que la phrase. */
+const CORRECTION_UNE_SEULE_QUESTION = "Votre proposition précédente portait plusieurs besoins à la fois. "
+  + "Reprenez le PREMIER besoin que vous avez énoncé, sans en changer, et posez-le seul, en une seule "
+  + "phrase interrogative, avec un seul point d'interrogation. N'en substituez aucun autre.";
+
+const CORRECTION_PAS_DE_CATALOGUE = "Votre proposition précédente énumérait des options et demandait de "
+  + "choisir. Ce n'est pas une question, c'est un choix que nous devons faire. Reprenez : posez UNE "
+  + "question ouverte sur une variable du problème, sans proposer aucune réponse.";
+
+const CORRECTION_DEJA_REPONDU = "Votre proposition précédente redemandait une information déjà donnée. "
+  + "Reprenez : tenez cette information pour acquise, et posez UNE question sur une AUTRE variable qui "
+  + "change matériellement ce qui sera produit. S'il n'en reste aucune, ne demandez rien.";
+
+export const FAST_CORRECTIONS = Object.freeze({
+  META_OUTPUT_QUESTION: FAST_META_CORRECTION,
+  MULTIPLE_QUESTIONS: CORRECTION_UNE_SEULE_QUESTION,
+  CATALOGUE: CORRECTION_PAS_DE_CATALOGUE,
+  ALREADY_ANSWERED: CORRECTION_DEJA_REPONDU
+});
+
+const consigneRapide = (corrective) => corrective
+  ? `${FAST_INTERACTION_SYSTEM_PROMPT}\n${corrective}`
+  : FAST_INTERACTION_SYSTEM_PROMPT;
+
 export const FAST_INTERACTION_ADAPTERS = Object.freeze({
-  groq: (snapshot, env) => callGroqChatCompletion({
-    systemPrompt: FAST_INTERACTION_SYSTEM_PROMPT,
+  groq: (snapshot, env, { corrective } = {}) => callGroqChatCompletion({
+    systemPrompt: consigneRapide(corrective),
     userMessage: makeFastInteractionUserMessage(snapshot),
     schema: FAST_INTERACTION_JSON_SCHEMA,
     schemaName: "fast_interaction",
@@ -1272,16 +1329,16 @@ export const FAST_INTERACTION_ADAPTERS = Object.freeze({
     pacer: createGroqRateLimitPacer(),
     retryOverrides: fastGroqRetryPolicy(env)
   }),
-  anthropic: (snapshot, env) => callAnthropicMessages({
-    systemPrompt: FAST_INTERACTION_SYSTEM_PROMPT,
+  anthropic: (snapshot, env, { corrective } = {}) => callAnthropicMessages({
+    systemPrompt: consigneRapide(corrective),
     userMessage: makeFastInteractionUserMessage(snapshot),
     schema: FAST_INTERACTION_JSON_SCHEMA,
     schemaName: "fast_interaction",
     env,
     maxTokens: 512
   }),
-  openai: (snapshot, env) => callOpenAiChatCompletion({
-    systemPrompt: FAST_INTERACTION_SYSTEM_PROMPT,
+  openai: (snapshot, env, { corrective } = {}) => callOpenAiChatCompletion({
+    systemPrompt: consigneRapide(corrective),
     userMessage: makeFastInteractionUserMessage(snapshot),
     schema: FAST_INTERACTION_JSON_SCHEMA,
     schemaName: "fast_interaction",
@@ -1331,6 +1388,10 @@ export async function runFastInteractionWithHaChain(snapshot, env, { order = FAS
     throw new DecisionHttpError(503, FAST_CAPACITY_UNAVAILABLE_CODE,
       "Le fournisseur du plan rapide a annoncé un délai encore en cours ; aucune interaction candidate n'est produite pour ce tour.");
   }
+  /* Le relevé du tour : ce que le modèle a proposé, ce que le garde en a fait. Il ne porte aucun
+     texte — ni la demande, ni la réponse, ni la question produite — seulement des étiquettes, un
+     type et une longueur. La règle de journalisation l'emporte sur le confort de diagnostic. */
+  const refus = { raw_type: null, verdict: null, candidate_chars: null };
   const providers = order.map((name) => ({
     name,
     execute: async () => {
@@ -1342,7 +1403,21 @@ export async function runFastInteractionWithHaChain(snapshot, env, { order = FAS
            Une sollicitation qui porte plusieurs besoins, énumère un catalogue de livrables, ou
            reprend une question déjà répondue, devient le silence — et le plan profond tranche. */
         const candidate=typeof brut === "string" ? JSON.parse(brut) : brut;
-        return guardFastSolicitation(candidate,snapshot);
+        /* V2.1.2 — on ENREGISTRE ce que le garde a conclu, sans ajouter aucune condition ici : ce
+           chemin doit rester technique. Le rattrapage, lui, vit après la chaîne et lira ce relevé. */
+        refus.raw_type=candidate&&candidate.type;
+        refus.verdict=assessSolicitation(candidate,snapshot.clarification_history,
+          snapshot.material_present,snapshot.original_request);
+        refus.candidate_chars=String((candidate&&candidate.text)||"").length;
+        const garde=guardFastInteraction(candidate,snapshot);
+        /* V2.1.5.3 — LE REFUS DE FORME, ENREGISTRÉ QUELLE QUE SOIT LA GARDE QUI LE PRONONCE.
+         * `refus.verdict` ne porte que le verdict de sollicitation. Une question refusée par la
+         * FRONTIÈRE D'AFFICHAGE — le catalogue irréductible, cas le plus fréquent — y restait donc
+         * invisible : ni reprise, ni conversion. Ce drapeau dit la seule chose dont la suite a
+         * besoin : le modèle proposait une sollicitation, et aucune garde ne l'a laissée passer. */
+        refus.form_refusal=SOLICITING_TYPES.includes(candidate&&candidate.type)
+          &&garde&&garde.type===SILENT_INTERACTION.type;
+        return garde;
       } catch (error) {
         /* Le souvenir se prend ICI, au seul endroit où l'erreur d'origine existe
            encore : la chaîne, en s'épuisant, la remplace par la sienne. Seule une
@@ -1363,10 +1438,105 @@ export async function runFastInteractionWithHaChain(snapshot, env, { order = FAS
       }
     }
   }));
-  return runProviderChain({ role: "fast_interaction", providers, ...(log ? { log } : {}) });
+  const rendu = await runProviderChain({ role: "fast_interaction", providers, ...(log ? { log } : {}) });
+  const final = await rattraperQuestionRefusee(rendu, snapshot, env, order, log, refus);
+  journaliserDecisionRapide(log, refus, rendu, final);
+  return final;
 }
 
 export const DECISION_PROVIDER_ORDER = Object.freeze(["groq", "anthropic", "openai"]);
+
+/**
+ * V2.1.1 — UNE SEULE SECONDE CHANCE, ET SEULEMENT POUR LA QUESTION MÉTA.
+ *
+ * POURQUOI ICI, ET PAS DANS LA CHAÎNE. Le chemin fournisseur doit rester technique : aucune
+ * condition sémantique n'a le droit d'y entrer — c'est un invariant mesuré du lot PERF-REAL-01F, et
+ * ma première version le violait. Le rattrapage vit donc APRÈS, une fois la chaîne rendue.
+ *
+ * POURQUOI UN RATTRAPAGE. Rendre le silence renvoie le tour au plan profond : mesuré, environ quinze
+ * secondes pour obtenir une question. Un second appel rapide en coûte moins d'une. Ce rattrapage
+ * n'existe donc que pour le défaut qui le mérite — une question qui demandait à la personne de
+ * concevoir notre sortie — et il est borné à UN essai. Si le second échoue aussi, c'est le silence,
+ * comme avant : on ne fabrique jamais une question.
+ */
+/**
+ * V2.1.2 — POURQUOI CE TOUR A DÉCIDÉ CE QU'IL A DÉCIDÉ.
+ *
+ * Les essais du propriétaire montraient des tours rapides qui rendaient le silence, sans qu'aucun
+ * journal ne dise si le modèle n'avait rien proposé ou si un garde avait refusé sa proposition. Les
+ * deux se ressemblent vues de l'extérieur — même type rendu — et se corrigent à l'opposé. Ce relevé
+ * les sépare.
+ *
+ * Il ne porte AUCUN texte : ni la demande, ni la réponse, ni la question proposée. Des étiquettes,
+ * un type, une longueur. La règle de journalisation l'emporte sur le confort de diagnostic.
+ */
+function journaliserDecisionRapide(log, refus, rendu, final) {
+  if (typeof log !== "function") return;
+  const silence = final && final.type === SILENT_INTERACTION.type;
+  const refuse = (refus.verdict && refus.verdict !== "ALLOW") || refus.form_refusal === true;
+  log({
+    event: "fast_decision",
+    fast_raw_type: refus.raw_type,
+    fast_candidate_chars: refus.candidate_chars,
+    fast_guard_result: refus.verdict,
+    fast_rejection_reason: refuse ? (refus.verdict && refus.verdict !== "ALLOW" ? refus.verdict : "DISPLAY_FRONTIER") : null,
+    /* V2.1.5.3 — ce que la reprise a donné, et ce que le tour en a fait. La reprise s'ENREGISTRE
+       elle-même : le silence est un objet gelé partagé, et comparer les identités concluait toujours
+       « aucune reprise ». Sans ces deux champs, un accusé rendu après un refus de forme ressemblait
+       à un accusé ordinaire. */
+    fast_replacement_attempted: refus.replacement !== undefined && refus.replacement !== null,
+    fast_replacement_result: refus.replacement === undefined ? null : refus.replacement,
+    /* V2.2 — OBSERVABILITÉ SEULE, et elle nomme le chef. Ces champs ne décident rien : ils disent à
+       qui appartenait la décision que ce tour a appliquée. */
+    semantic_authority: "OPRIE",
+    question_decision_source: silence ? null : "OPRIE_DOCTRINE_APPLIED_BY_FAST",
+    ready_decision_source: null,
+    materiality_decision_source: "OPRIE_DOCTRINE",
+    assumption_decision_source: null,
+    deep_trigger_reason: silence ? (refuse ? "FAST_FORM_UNRECOVERABLE" : "MODEL_RETURNED_WAIT") : null,
+    fast_final_decision: final && final.type,
+    /* La question que cette instrumentation existe pour répondre : si ce tour part vers le plan
+       profond, est-ce parce qu'un garde a refusé, ou parce que le modèle n'a rien proposé ? */
+    /* V2.1.5.3 — cette branche GUARD n'est plus atteignable sur le chemin nominal : un refus de garde
+       devient un accusé de réception, donc `silence` est faux. Elle reste écrite parce qu'un silence
+       inattendu doit rester attribuable, et `fast_rejection_reason` nomme désormais la garde. */
+    core_escalation_reason: silence ? (refuse ? `GUARD_${refus.verdict}` : "MODEL_RETURNED_WAIT") : null,
+    core_calls: 0, critic_calls: 0, arbiter_calls: 0
+  });
+}
+
+async function rattraperQuestionRefusee(rendu, snapshot, env, order, log, refus) {
+  /* Un silence VENU DU MODÈLE n'est pas un refus de garde : il n'y a rien à rattraper. Seul un refus
+     enregistré au tour courant ouvre le second essai, et seulement s'il existe une correction. */
+  if (!rendu || rendu.type !== SILENT_INTERACTION.type) return rendu;
+  const verdict = refus && refus.verdict;
+  /* Un refus de FORME sans verdict de sollicitation — la frontière d'affichage a coupé — ouvre la
+     même seconde chance : c'est la même erreur du modèle, vue par l'autre garde. */
+  const correction = (verdict && FAST_CORRECTIONS[verdict])
+    || (refus && refus.form_refusal ? CORRECTION_UNE_SEULE_QUESTION : null);
+  if (!correction) return rendu;
+  const name = order[0];
+  if (!name || !FAST_INTERACTION_ADAPTERS[name]) return rendu;
+  if (typeof log === "function") log({ event: "fast_question_retry", verdict, provider: name });
+  try {
+    const second = await FAST_INTERACTION_ADAPTERS[name](snapshot, env, { corrective: correction });
+    const candidate = typeof second === "string" ? JSON.parse(second) : second;
+    const garde = guardFastInteraction(candidate, snapshot);
+    refus.replacement = garde.type === SILENT_INTERACTION.type ? "REFUSED_AGAIN" : "ACCEPTED";
+    if (typeof log === "function") {
+      log({
+        event: "fast_question_retry_result",
+        fast_replacement_result: refus.replacement,
+        fast_final_decision: garde.type
+      });
+    }
+    return garde;
+  } catch (error) {
+    /* Un second essai qui échoue ne dégrade rien : le silence du premier tour reste la réponse. */
+    if (typeof log === "function") log({ event: "fast_question_retry_failed" });
+    return rendu;
+  }
+}
 
 /**
  * FAST-CAPACITY-ADMISSION-01 — SOUVENIR MÉCANIQUE DU DÉLAI ANNONCÉ PAR LE FOURNISSEUR.
@@ -1928,6 +2098,49 @@ export async function runCriticWithAnthropic(input, env, { telemetry } = {}) {
 export const ROLE_PROVIDER_ORDER = Object.freeze(["anthropic"]);
 
 /**
+ * V2.1.4 — L'ORDRE DU PLAN CORE, DISTINCT DE CELUI DU TRIO HISTORIQUE.
+ *
+ * POURQUOI UN ORDRE PROPRE, ET PAS UN ÉLARGISSEMENT DE CELUI DES RÔLES. `ROLE_PROVIDER_ORDER` est
+ * partagé par l'Analyste, le Critique et l'Arbitre — le plan de repli, décidé et défendu au lot
+ * DEEP-PROVIDER-ROUTING-FINAL-01. L'élargir aurait changé ce plan-là sans que personne ne l'ait
+ * demandé, et une première version de ce lot l'a fait : trente-six assertions l'ont refusée, à juste
+ * titre. Le produit possède déjà un ordre PAR PLAN — `FAST_PROVIDER_ORDER`, `DECISION_PROVIDER_ORDER`.
+ * Le Core est un plan ; il a donc le sien, et rien n'est mutualisé qui ne doive l'être.
+ *
+ * POURQUOI DEUX FOURNISSEURS. Mesuré : un seul fournisseur, une seule tentative, aucun repli — le
+ * propriétaire a dû cliquer trois fois sur « Réessayer » avant d'obtenir une analyse. Sur huit
+ * familles de demandes jouées sur les deux fournisseurs, Anthropic a rendu 7 succès sur 8 (la demande
+ * de voyage est partie en état dégradé) et OpenAI 8 sur 8, avec des contrats plus riches — onze
+ * contraintes captées contre sept sur la demande dense, quatre contre zéro sur celle à connaissance
+ * externe — une cible d'issue cohérente, et une fidélité d'intention vraie partout.
+ *
+ * POURQUOI ANTHROPIC RESTE PREMIER. Une seule campagne ne renverse pas le fournisseur sur lequel le
+ * plan a été qualifié. OpenAI est SECOND : il ne part que sur panne du premier.
+ *
+ * POURQUOI GROQ N'Y EST PAS. Le lot OPRIE-QUALITY-PARITY-01 a mesuré deux décisions gouvernées sur
+ * douze, les dix autres dégradées. Un fournisseur de dialogue rapide n'est pas un fournisseur de
+ * contractualisation, et l'ajouter pour faire nombre serait exactement ce que le garde-fou interdit.
+ */
+export const CORE_PROVIDER_ORDER = Object.freeze(["anthropic", "openai"]);
+
+/** L'épinglage de mesure vaut pour le plan Core comme pour les autres : même discipline, même refus. */
+export function resolveCoreProviderOrder(env) {
+  const choisi = (env && env[DEEP_BENCH_PROVIDER_BINDING]) || FAST_BENCH_CHAIN;
+  if (choisi === FAST_BENCH_CHAIN) return CORE_PROVIDER_ORDER;
+  if (CORE_PROVIDER_ORDER.includes(choisi)) return Object.freeze([choisi]);
+  const permis = [FAST_BENCH_CHAIN, ...CORE_PROVIDER_ORDER].map((v) => `"${v}"`).join(", ");
+  throw tagFailure(
+    new Error(`${DEEP_BENCH_PROVIDER_BINDING} invalide pour le plan Core : "${choisi}" (valeurs autorisées : ${permis}).`),
+    FAILURE_CLASSES.CONTRACT_ERROR
+  );
+}
+
+/** L'ordre applicable à un rôle : le plan Core a le sien, le trio historique garde le sien. */
+export function resolveProviderOrderForRole(role, env) {
+  return role === "core" ? resolveCoreProviderOrder(env) : resolveRoleProviderOrder(env);
+}
+
+/**
  * OBSERVABILITY-COMPLETENESS-01 — QUEL MODÈLE A RÉPONDU.
  *
  * Les événements provider_ha_* nomment le fournisseur, jamais le modèle : une panne future pouvait
@@ -2233,7 +2446,7 @@ const GENERIC_ROLE_ADAPTERS = Object.freeze({
  */
 export async function runRoleWithHaChain(role, input, env, { order = ROLE_PROVIDER_ORDER, log, retryOverrides } = {}) {
   const isCritic = role === "critic";
-  return runProviderChain({
+  return avecReleveDeChaine(role, order, env, log, (observer) => runProviderChain({
     role,
     preflight: () => assertRoleContractUsable(role, input),
     providers: order.map((name) => ({
@@ -2272,9 +2485,113 @@ export async function runRoleWithHaChain(role, input, env, { order = ROLE_PROVID
           }
         : () => GENERIC_ROLE_ADAPTERS[name](role, input, env)
     })),
-    ...(log ? { log } : {})
-  });
+    log: observer
+  }));
 }
+
+/**
+ * V2.1.3-CORRECTION — LA REPRISE INTERNE EST RETIRÉE. UNE TENTATIVE, PUIS LA MAIN À LA PERSONNE.
+ *
+ * CE QUE J'AVAIS FAIT, ET POURQUOI C'ÉTAIT FAUX. La chaîne ne faisant qu'une tentative et l'ordre du
+ * plan profond ne comptant qu'un fournisseur, j'avais ajouté une reprise automatique pour tolérer les
+ * pannes passagères. Mesuré en bêta réelle : un échec rendu en 19 à 22 secondes est devenu un échec
+ * rendu en 44,6 secondes. Deux tentatives séquentielles sur le MÊME fournisseur ne doublent pas les
+ * chances — le fournisseur est indisponible ou ne l'est pas — mais elles doublent l'attente, et elles
+ * la doublent précisément au moment où la personne attend déjà pour rien.
+ *
+ * CE QUI RESTE, ET C'EST LE POINT. Une tentative, un échec rendu vite, et la reprise confiée à la
+ * PERSONNE par un bouton qui ne rejoue que le plan profond. Elle choisit quand réessayer ; nous ne lui
+ * imposons pas une seconde attente qu'elle n'a pas demandée.
+ *
+ * L'instrumentation par tentative, elle, est conservée : c'est elle qui rend un échec attribuable, et
+ * elle ne coûte rien.
+ */
+/**
+ * V2.1.4 — LA TÉLÉMÉTRIE DE LA CHAÎNE PROFONDE, TENTATIVE PAR TENTATIVE.
+ *
+ * POURQUOI ELLE EST DÉRIVÉE ET NON AJOUTÉE. La chaîne émet déjà `provider_ha_attempt`,
+ * `provider_ha_failure` et `provider_ha_success` — avec le rôle, le fournisseur, l'index de tentative
+ * et la classe d'échec. Les redoubler produirait deux sources pour un même fait. Ce relevé les
+ * OBSERVE au passage, y ajoute ce que seule cette couche connaît — le modèle, les durées, le
+ * caractère reprenable, la raison de bascule — et rend un résumé de chaîne à la fin.
+ *
+ * Aucun secret, aucun message d'erreur, aucun contenu utilisateur : des noms de fournisseurs, des
+ * classes issues d'une énumération fermée, des millisecondes.
+ */
+function releveDeChaineProfonde(role, order, env, log) {
+  const debutChaine = Date.now();
+  const tentatives = [];
+  let debutTentative = Date.now();
+  const emettre = (evenement) => { if (typeof log === "function") log(evenement); };
+  const observer = (evenement) => {
+    emettre(evenement);
+    if (!evenement || typeof evenement !== "object") return;
+    if (evenement.event === "provider_ha_attempt") {
+      debutTentative = Date.now();
+      tentatives.push({ provider: evenement.provider, attempt_index: evenement.attempt_index });
+      return;
+    }
+    const derniere = tentatives[tentatives.length - 1];
+    if (evenement.event === "provider_ha_failure") {
+      const reprenable = FAILOVER_ELIGIBLE_CLASSES.includes(evenement.failure_class);
+      if (derniere) Object.assign(derniere, { status: "error", failure_class: evenement.failure_class, retryable: reprenable });
+      emettre({
+        event: "core_attempt", role, attempt_index: evenement.attempt_index,
+        provider: evenement.provider, model: resolveRoleProviderModel(evenement.provider, env),
+        duration_ms: Date.now() - debutTentative, provider_status: "error",
+        error_class: evenement.failure_class, retryable: reprenable,
+        schema_valid: evenement.failure_class !== FAILURE_CLASSES.STRUCTURED_OUTPUT_INVALID,
+        contract_valid: false, selected: false, aborted: false,
+        failover_reason: reprenable ? evenement.failure_class : null
+      });
+      return;
+    }
+    if (evenement.event === "provider_ha_success") {
+      if (derniere) Object.assign(derniere, { status: "ok", selected: true });
+      emettre({
+        event: "core_attempt", role, attempt_index: evenement.attempt_index,
+        provider: evenement.provider, model: resolveRoleProviderModel(evenement.provider, env),
+        duration_ms: Date.now() - debutTentative, provider_status: "ok",
+        error_class: null, retryable: null, schema_valid: true, contract_valid: true,
+        selected: true, aborted: false, failover_reason: null
+      });
+    }
+  };
+  const resume = (etat) => {
+    const retenu = tentatives.find((t) => t.selected) || null;
+    emettre({
+      event: "core_chain_result", role,
+      core_provider_order: [...order],
+      core_primary_provider: order[0] || null,
+      core_selected_provider: retenu ? retenu.provider : null,
+      core_failover_used: !!retenu && retenu.attempt_index > 0,
+      core_total_duration_ms: Date.now() - debutChaine,
+      core_attempt_count: tentatives.length,
+      core_final_state: etat
+    });
+  };
+  return { observer, resume };
+}
+
+async function avecReleveDeChaine(role, order, env, log, executer) {
+  const { observer, resume } = releveDeChaineProfonde(role, order, env, log);
+  try {
+    const sortie = await executer(observer);
+    resume("provider_ok");
+    return sortie;
+  } catch (error) {
+    /* `degraded_state` n'est rendu que si TOUS les fournisseurs éligibles ont échoué ; toute autre
+       classe remonte, et le résumé dit laquelle. */
+    resume(error?.all_providers_failed === true ? "all_providers_failed" : failureClassOf(error));
+    throw error;
+  }
+}
+
+/**
+ * HA-02 : rôle OPRIE sur Anthropic. Strictement symétrique de runRoleWithGroq — mêmes systemPrompt,
+ * schéma, userMessage et parseOutput, issus du MÊME registre. callAnthropicMessages (R5.1) était déjà
+ * entièrement générique : aucune adaptation de transport supplémentaire n'était nécessaire.
+ */
 
 function roleFromPathname(pathname) {
   const role = pathname.replace(/^\//, "");
@@ -2289,7 +2606,7 @@ function roleFromPathname(pathname) {
 // d'être la seule. Le chemin nominal est donc strictement inchangé (Groq répond, son succès est
 // final) ; seul le chemin d'échec gagne deux fournisseurs de repli.
 function executeForRole(role) {
-  return (input, roleEnv) => runRoleWithHaChain(role, input, roleEnv, { order: resolveRoleProviderOrder(roleEnv) });
+  return (input, roleEnv) => runRoleWithHaChain(role, input, roleEnv, { order: resolveProviderOrderForRole(role, roleEnv) });
 }
 
 
@@ -2356,7 +2673,7 @@ export default {
            runProviderChain : les événements provider_ha_* portent donc le même invocation_id que
            l'enregistrement terminal. provider-ha.js n'est pas touché. */
         executeRole: (role, roleInput, options) => runRoleWithHaChain(role, roleInput, env, {
-          order: resolveRoleProviderOrder(env),
+          order: resolveProviderOrderForRole(role, env),
           ...(options && typeof options.log === "function" ? { log: options.log } : {})
         }),
         resolveModel: (provider) => resolveRoleProviderModel(provider, env)

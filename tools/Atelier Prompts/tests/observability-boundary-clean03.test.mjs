@@ -180,10 +180,11 @@ test('T-CLEAN03-EXPORTS : chaque symbole exposé globalement a une raison produi
   }
   /* Les quatre handles majuscules sont nommés, et la façade n'expose aucune trace. */
   const handles = exposes.filter((n) => n.startsWith('__'));
-  assert.deepEqual(handles.sort(), ['__ADAPTIVE_DECISION_PIPELINE_10G__', '__ARCHITECTE_V10__',
+  /* V2.2.1-E2 — un handle de moins : la façade du décideur historique a été supprimée avec lui. */
+  assert.deepEqual(handles.sort(), ['__ARCHITECTE_V10__',
                                     '__QUALITE_V10__', '__V11_ROUTER__']);
-  const facade = sansProse(tranche('window.__ADAPTIVE_DECISION_PIPELINE_10G__', 'window.__V11_ROUTER__'));
-  assert.doesNotMatch(facade, /telemetry|getAudit|lastTurn|lastOrchestration|executionId/);
+  /* Et la façade retirée n'a laissé aucune trace exposée. */
+  assert.equal(html.includes('__ADAPTIVE_DECISION_PIPELINE_10G__'), false);
 });
 
 // =================================================================================================

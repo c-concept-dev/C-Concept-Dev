@@ -46,9 +46,13 @@ const sansCommentaires = (src) => src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(
 const ENVOI = HTML.slice(HTML.indexOf('async function envoyerApi(){'), HTML.indexOf('async function envoyerApi(){') + 14000);
 
 /* ---- fixtures des deux chemins ------------------------------------------ */
-async function rapide({ demande = 'Donne exactement 7 exemples sous forme de liste.', materiau = '', muter } = {}) {
+/* TRACER-REMEDIATION-02 · F1 — la forme du livrable est déclarée par l'autorité, plus dérivée des
+   mots de la demande. Le défaut « liste » reproduit ce que ces fixtures obtenaient auparavant en
+   écrivant « sous forme de liste » dans le texte. */
+async function rapide({ demande = 'Donne exactement 7 exemples.', materiau = '', muter, format = 'list' } = {}) {
   const h = createRapideHarness({ demande, materiau });
-  const base = canonicalFrom(oprieReadyTurn({}), { request_id: 'qg02d', original_request: demande });
+  const base = canonicalFrom(oprieReadyTurn(format ? { output_format: format } : {}),
+    { request_id: 'qg02d', original_request: demande });
   if (muter) muter(base);
   h.context.rapideAppliquerContratCanonique(base);
   await h.evaluate('copierRapideAdaptatif')();
@@ -191,14 +195,14 @@ test('T-QG02D-11 le contrôle historique reste un fournisseur de DÉTAIL, jamais
  * ======================================================================== */
 
 test('T-QG02D-12 Rapide — une sortie conforme est déclarée conforme', async () => {
-  const h = await rapide({ demande: 'Produis un json avec 3 champs.' });
+  const h = await rapide({ demande: 'Produis 3 champs.', format: 'json' });
   const v = rControler(h, '{"a":1,"b":2,"c":3}');
   assert.equal(v.status, 'PASS', JSON.stringify(codes(v)));
   assert.equal(h.evaluate('qgSortieCertifie')(v), true);
 });
 
 test('T-QG02D-13 Rapide — des avertissements n’empêchent pas la conformité', async () => {
-  const h = await rapide({ demande: 'Produis un json avec 3 champs.' });
+  const h = await rapide({ demande: 'Produis 3 champs.', format: 'json' });
   const runtime = h.evaluate('window.__ATELIER_ADN_RUNTIME__');
   const v = runtime.validateOutputAgainstCanonicalContract({
     canonical_contract: h.evaluate('rapideDernierePublication').contract, output: '{"a":1}',

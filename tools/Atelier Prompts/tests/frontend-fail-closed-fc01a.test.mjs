@@ -1,3 +1,19 @@
+/* V2.2.1-E2 — DES TESTS ONT ÉTÉ RETIRÉS DE CE FICHIER, ET VOICI LEUR CLASSEMENT.
+ *
+ * Ils éprouvaient le DECISION PROVIDER HISTORIQUE : sa chaîne de fournisseurs, son comportement
+ * fail-closed, son entrée minimale, son validateur de sortie lexical. Le réaudit indépendant a
+ * relevé que ce décideur embarquait une stop-list, des règles lexicales et un seuil de similarité
+ * — du hardcoding décisionnel au sens de la Directive Maître.
+ *
+ * L'audit de reachability de E2 a établi qu'il n'avait plus AUCUN appelant dans le produit : sa
+ * seule voie d'accès était deux expositions `window`, consommées par un banc d'évaluation. Sa
+ * dernière responsabilité — refuser une question qui répète une clarification déjà posée —
+ * appartient depuis longtemps au plan canonique (`isRepeatedSolicitation`, ALREADY_ANSWERED).
+ *
+ * Ces tests sont donc classés HISTORICAL_IMPLEMENTATION_CONTRACT : ils protégeaient fidèlement un
+ * chemin qui n'existe plus. Ils ont été retirés AVEC lui, et non affaiblis pour survivre. Ce qui
+ * reste dans ce fichier éprouve des invariants toujours vivants.
+ */
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -35,127 +51,11 @@ const decision = (etat_demande, route, question = null) => ({
   question
 });
 
-/** Charge la couche Decision Provider réelle du HTML et exécute askDecisionProvider. */
-function loadProvider(fetchImpl) {
-  const start = html.indexOf('const ADP10G=');
-  const end = html.indexOf('function v11ShowRapidGate');
-  const context = {
-    AbortController, console: { warn() {} }, fetch: fetchImpl, setTimeout, clearTimeout,
-    document: { querySelector(selector) {
-      if (selector.includes('workers-ai')) return { content: 'https://workers-ai.example/decision' };
-      if (selector.includes('groq')) return { content: 'https://groq.example/decision' };
-      return null;
-    } }
-  };
-  vm.runInNewContext(html.slice(start, end) + '\n;globalThis.__provider={askDecisionProvider};', context);
-  return context.__provider;
-}
 const failNetwork = async () => { throw new TypeError('network'); };
 const ask = (provider, input = { demande: 'Rédige une note de synthèse.', materiau_present: false, mode_demande: 'rapide' }) =>
   provider.askDecisionProvider(input);
 
 // --- FC01A-1 / 2 : les chemins nominaux sont INCHANGÉS ---------------------------------------------
-
-test('FC01A-1 : le fournisseur primaire répond -> comportement existant strictement préservé', async () => {
-  const calls = [];
-  const provider = loadProvider(async (url) => { calls.push(String(url)); return Response.json(decision('exploitable', 'rapide')); });
-  const result = await ask(provider);
-  assert.equal(result.source, 'workers-ai');
-  assert.equal(result.decision.route, 'rapide');
-  assert.equal(calls.length, 1, 'une décision primaire valide arrête la chaîne, comme avant.');
-});
-
-test('FC01A-2 : le primaire échoue et le secondaire répond -> comportement existant strictement préservé', async () => {
-  const calls = [];
-  const provider = loadProvider(async (url) => {
-    calls.push(String(url));
-    if (String(url).includes('workers-ai')) throw new TypeError('network');
-    return Response.json(decision('exploitable', 'architecte'));
-  });
-  const result = await ask(provider);
-  assert.equal(result.source, 'groq');
-  assert.equal(result.decision.route, 'architecte');
-  assert.equal(calls.length, 2);
-});
-
-test('FC01A-2b : une clarification légitime reste une clarification, jamais un échec technique', async () => {
-  const provider = loadProvider(async () => Response.json(decision('clarification_necessaire', null, 'Quel est le destinataire ?')));
-  const result = await ask(provider);
-  assert.equal(result.decision.etat_demande, 'clarification_necessaire');
-  assert.equal(result.decision.route, null);
-});
-
-// --- FC01A-3 / 4 / 5 : le coeur du lot --------------------------------------------------------------
-
-test('FC01A-3 : double panne -> JAMAIS exploitable', async () => {
-  const provider = loadProvider(failNetwork);
-  // `instanceof Error` ne s'applique pas ici : l'erreur naît dans le contexte vm, donc dans un autre
-  // realm. On vérifie le marqueur explicite, qui est justement ce que le runtime teste lui aussi.
-  let threw = false;
-  const error = await ask(provider).then((r) => r, (e) => { threw = true; return e; });
-  assert.equal(threw, true, 'la double panne doit échouer, jamais retourner une décision.');
-  assert.equal(error.decision_technical_failure, true);
-  assert.equal(error.message, 'DECISION_TECHNICAL_FAILURE');
-  assert.equal(error.etat_demande, undefined);
-  assert.equal(error.decision, undefined);
-  assert.equal(error.source, undefined);
-});
-
-test('FC01A-4 : double panne -> JAMAIS route architecte (ni rapide)', async () => {
-  for (const mode of ['rapide', 'architecte']) {
-    const provider = loadProvider(failNetwork);
-    const error = await ask(provider, { demande: 'D.', materiau_present: false, mode_demande: mode }).then((r) => r, (e) => e);
-    assert.equal(error.decision_technical_failure, true, mode);
-    assert.equal(error.route, undefined, `aucune route ne doit être produite en mode ${mode}.`);
-    assert.ok(!JSON.stringify({ m: error.message }).includes('architecte'));
-  }
-});
-
-test('FC01A-5 : double panne -> aucune exécution possible, le point d’entrée ne rend aucune orientation', async () => {
-  const provider = loadProvider(failNetwork);
-  let orientation = null;
-  try { orientation = await ask(provider); } catch { /* attendu */ }
-  assert.equal(orientation, null, 'aucune orientation exploitable ne peut atteindre le moteur d’exécution.');
-});
-
-test('FC01A-5b : toutes les formes de panne échouent en technique (réseau, HTTP, sortie invalide, incohérente)', async () => {
-  const failures = {
-    reseau: async () => { throw new TypeError('network'); },
-    http: async () => Response.json({ error: 'ko' }, { status: 503 }),
-    invalide: async () => new Response('pas du json', { status: 200 }),
-    incoherente: async () => Response.json({ etat_demande: 'exploitable', route: null, confiance: 'haute', raison_interne: REASONS.rapide, question: null })
-  };
-  for (const [label, impl] of Object.entries(failures)) {
-    const provider = loadProvider(impl);
-    const error = await ask(provider).then((r) => r, (e) => e);
-    assert.equal(error.decision_technical_failure, true, label);
-  }
-});
-
-// --- FC01A-6 / 9 : demande conservée, relance possible ----------------------------------------------
-
-test('FC01A-6 : la demande utilisateur n’est jamais mutée par l’échec', async () => {
-  const input = { demande: 'Rédige une note de synthèse.', materiau_present: false, mode_demande: 'rapide' };
-  const snapshot = JSON.stringify(input);
-  const provider = loadProvider(failNetwork);
-  await ask(provider, input).catch(() => {});
-  assert.equal(JSON.stringify(input), snapshot, 'aucune mutation destructive de l’entrée.');
-});
-
-test('FC01A-9 : une relance après échec repart normalement et réussit si un fournisseur revient', async () => {
-  let down = true;
-  const provider = loadProvider(async () => {
-    if (down) throw new TypeError('network');
-    return Response.json(decision('exploitable', 'rapide'));
-  });
-  const first = await ask(provider).then((r) => r, (e) => e);
-  assert.equal(first.decision_technical_failure, true);
-  down = false;
-  const second = await ask(provider);
-  assert.equal(second.decision.route, 'rapide', 'la relance doit fonctionner sans état résiduel bloquant.');
-});
-
-// --- FC01A-7 / 8 : UI neutre --------------------------------------------------------------------------
 
 test('FC01A-7 : une erreur technique neutre est rendue, sans route et sans exécution', () => {
   assert.match(html, /const ADP_TECHNICAL_FAILURE_UI=Object\.freeze\(/);

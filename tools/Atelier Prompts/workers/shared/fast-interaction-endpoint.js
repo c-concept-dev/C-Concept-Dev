@@ -7,10 +7,12 @@
  *
  * Ce qu'il n'est pas, et ne doit jamais devenir :
  *
- *   UNE AUTORITÉ. La réponse rendue ici ne porte que deux champs — un type
- *   d'interaction et un texte. Elle ne peut pas transporter un état OPRIE, une
- *   route, une readiness : le schéma de PERF-03A les refuse par construction,
- *   et cette route ne l'élargit pas.
+ *   UNE AUTORITÉ. La réponse rendue ici ne porte que les champs du schéma — un
+ *   type d'interaction, un texte, et ce que la question INTERROGE depuis
+ *   V2.2.1-D2F1. Elle ne peut pas transporter un état OPRIE, une route, une
+ *   readiness : le schéma de PERF-03A les refuse par construction, et cette
+ *   route ne l'élargit pas. Dire ce qu'une question interroge n'est pas décider :
+ *   c'est le fait sans lequel le garde d'affichage échoue fermé, faute de savoir.
  *
  *   UN SECOND ORCHESTRATEUR. Elle n'appelle ni Analyste, ni Critique, ni
  *   Arbitre. Elle ne lit pas /operational-request, ne le double pas, ne le
@@ -86,8 +88,25 @@ export async function handleFastInteractionRequest(request, env, { executeFast, 
   }
   try {
     const snapshot = snapshotFromBody(await readJsonBody(request, TRANSPORT_LIMITS.analyst));
+    /* V2.1 — LE COÛT D'UN TOUR DE CLARIFICATION, MESURÉ LÀ OÙ IL EST PAYÉ.
+       Le contrat de fluidité vise 1 à 2 s par tour de dialogue ; il n'était mesurable que côté
+       profond. Ce relevé dit ce qu'un tour de clarification a réellement coûté : un appel rapide,
+       zéro appel profond, et la durée. Des compteurs et des millisecondes, jamais un contenu. */
+    const debutFast = Date.now();
     const brut = await executeFast(snapshot, env, ...(log ? [{ log }] : []));
     const verdict = validateFastInteraction(brut, snapshot);
+    if (typeof log === "function") {
+      log({
+        event: "clarification_turn_cost", plane: "fast",
+        fast_duration_ms: Date.now() - debutFast,
+        clarification_turn_duration_ms: Date.now() - debutFast,
+        core_duration_ms: 0, provider_calls: 1,
+        fast_calls: 1, core_calls: 0, critic_calls: 0, arbiter_calls: 0,
+        /* Le TYPE suffit : qui lit ce relevé sait quels types sollicitent. Importer la politique
+           d'atomicité ici ferait entrer une dépendance que cette porte n'a pas à connaître. */
+        interaction_type: verdict.ok ? verdict.interaction.type : null
+      });
+    }
     if (!verdict.ok) {
       /* Une sortie non conforme n'est jamais réparée, jamais approchée : elle
          est refusée. Le plan profond, lui, continue côté client.
@@ -102,11 +121,50 @@ export async function handleFastInteractionRequest(request, env, { executeFast, 
       }
       return jsonResponse({ error: verdict.reason, message: "L'interaction rapide n'est pas exploitable." }, 502, cors);
     }
-    /* Seuls les deux champs du schéma repartent. Les champs d'audit produits par
+    /* Seuls les champs du schéma repartent. Les champs d'audit produits par
        la validation (turn_id, authority, can_*) restent internes : les exposer
-       inviterait un client à les lire comme une permission. */
-    return jsonResponse({ type: verdict.interaction.type, text: verdict.interaction.text }, 200, cors);
+       inviterait un client à les lire comme une permission.
+
+       RUNTIME-01 — ILS ÉTAIENT DEUX, LE SCHÉMA EN COMPTE TROIS DEPUIS V2.2.1-D2F1.
+       Mesuré sur le Worker déployé : cinq ASK_CLARIFICATION réelles, zéro `question_focus` rendu.
+       Le fait était produit, validé, posé sur l'interaction — puis laissé ici. Le client le lit en
+       tolérant, recevait donc null, et `isMetaOutputQuestion` échoue FERMÉ sans fait déclaré : le
+       garde de D2F1 ne se trompait pas sur le plan rapide, il ne s'exécutait jamais.
+
+       Ce qui part ici est recopié, jamais recalculé : `question_focus` vaut ce que le plan rapide
+       a écrit, et null quand il n'a rien déclaré. Le champ reste PRÉSENT dans ce cas — le schéma
+       l'exige et l'autorise à null : une absence dite vaut mieux qu'une absence à deviner. */
+    return jsonResponse({
+      type: verdict.interaction.type,
+      text: verdict.interaction.text,
+      question_focus: verdict.interaction.question_focus,
+      /* TARGETED-FIX-POST-CODEX-01 — l'identité du manque repart avec la question. Sans elle,
+         l'historique perdait ce que la question cherchait, et une reformulation ultérieure du même
+         manque redevenait invisible. Recopiée, jamais recalculée. */
+      missing_determinant_id: verdict.interaction.missing_determinant_id
+    }, 200, cors);
   } catch (error) {
+    /* V2.1.1 — POURQUOI CE TOUR N'A PAS EU DE PLAN RAPIDE.
+       Mesuré : le budget de jetons du fournisseur rapide s'épuise après quelques tours de dialogue,
+       la chaîne s'épuise en ~150 ms, et le client escalade alors vers le plan profond — environ
+       quinze secondes pour obtenir une question. Le tour paraissait « lent » ; il était en réalité
+       SANS plan rapide. Ce relevé nomme la cause, avec ce que le fournisseur a réellement annoncé. */
+    if (typeof log === "function") {
+      log({
+        event: "fast_unavailable",
+        provider_attempts: Array.isArray(error?.attempts) ? error.attempts.length : null,
+        all_providers_failed: error?.all_providers_failed === true,
+        rate_limited: error?.rateLimited === true,
+        retry_count: Number.isFinite(error?.retries) ? error.retries : null,
+        retry_after_ms: Number.isFinite(error?.provider_announced_retry_after_ms)
+          ? error.provider_announced_retry_after_ms : null,
+        wait_too_long: error?.wait_too_long === true,
+        error_kind: typeof error?.error_kind === "string" ? error.error_kind : null,
+        fallback_provider: null,
+        core_calls: 0, critic_calls: 0, arbiter_calls: 0,
+        consequence: "LE CLIENT ESCALADE VERS LE PLAN PROFOND"
+      });
+    }
     if (error instanceof DecisionHttpError) return jsonResponse({ error: error.code, message: error.message }, error.status, cors);
     console.error(JSON.stringify({ event: "fast_interaction_error", message: error instanceof Error ? error.message : "unknown" }));
     return jsonResponse({ error: "fast_interaction_failure", message: "L'interaction rapide n'a pas pu être produite." }, 502, cors);

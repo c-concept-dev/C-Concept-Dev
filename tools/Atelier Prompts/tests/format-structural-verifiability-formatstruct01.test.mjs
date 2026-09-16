@@ -298,7 +298,7 @@ test('T-FORMATSTRUCT-20/21/22/23 : la conformité de sortie ne s’applique qu�
   const pro = sansProse(html.slice(html.indexOf('async function archConstruireExecuter()'), html.indexOf('const ARCH_SAUVEGARDE_VERSION=')));
   assert.match(pro, /archControleSortie\(/);
   /* Atelier reste une composition manuelle : aucune conformité gouvernée. */
-  const atelier = sansProse(html.slice(html.indexOf('function v11StartAtelier()'), html.indexOf('window.askDecisionProvider')));
+  const atelier = sansProse(html.slice(html.indexOf('function v11StartAtelier()'), html.indexOf('window.__V11_ROUTER__')));
   assert.doesNotMatch(atelier, /validateOutputAgainstCanonicalContract|archControleSortie/);
 });
 

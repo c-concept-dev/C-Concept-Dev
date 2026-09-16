@@ -7,6 +7,8 @@ import {
   OPERATIONAL_REQUEST_STATE_VERSION,
   normalizeCandidate,
   normalizeIssues,
+  QUESTION_FOCUS_VALUES,
+  REQUEST_FOCUS_VALUES,
   normalizeProvenanceRecords,
   validateOriginalRequestRecord
 } from "../../core/adn/operational-request-state.js";
@@ -21,10 +23,26 @@ import { runBounded } from "./bounded-concurrency.js";
 // DecisionHttpError/TRANSPORT_LIMITS sont réutilisés tels quels depuis decision-core.js (utilitaires
 // HTTP génériques, non spécifiques au Decision Provider legacy) : ce fichier ne les modifie jamais.
 
+export { QUESTION_FOCUS_VALUES, REQUEST_FOCUS_VALUES };
+
 export const OPERATIONAL_REQUEST_CORE_VERSION = "1.0";
 
 export const OPRIE_ROLES = Object.freeze(["analyst", "critic", "arbiter"]);
 
+/* V2.2.1-D2D — LA NATURE DE L'OBJECTIF, DITE PAR L'AUTORITÉ PLUTÔT QUE DEVINÉE PAR UN GARDE.
+ *
+ * Un garde d'affichage devait savoir si la personne demande qu'on FASSE EXISTER un résultat, ou
+ * qu'on REPRENNE un contenu qui existe déjà pour le disposer autrement. Il le déduisait de la
+ * présence de mots de production dans la demande — donc « j'ai besoin d'un document » et « convertis
+ * ce texte » recevaient la même réponse, alors que ce sont deux objectifs opposés.
+ *
+ * Le fait porte sur l'OBJECTIF, jamais sur l'existence d'un intrant : disposer d'une entrée n'a
+ * jamais fait d'un objectif une transformation. C'est précisément ce qui manque à available_inputs
+ * et à material_context, qui constatent qu'une entrée existe et rien de plus.
+ *
+ * `other` n'est ni un échec ni un repli : la plupart des demandes ne se rangent dans aucune des deux
+ * catégories, et le dire est la réponse juste. */
+export const OBJECTIVE_NATURES = Object.freeze(["production", "transformation", "other"]);
 // Vocabulaire universel de traitement des inconnues (CDC §9). QUESTIONNER est le dernier recours.
 export const TREATMENT_VALUES = Object.freeze([
   "research",
@@ -157,12 +175,33 @@ function normalizeRoleIssues(issues) {
   return normalized;
 }
 
+/* Les trois champs historiques, plus le fait de D2F1 quand il est là. Même contrat que
+   available_inputs et objective_nature : requis du MODÈLE par le schéma, toléré absent du
+   VALIDATEUR pour que rien de ce qui a été écrit avant ne devienne invalide. */
+function champsDeQuestion(question) {
+  const base = ["text", "targets_issue_id", "expected_progress"];
+  const avec = (champ, liste) => (Object.prototype.hasOwnProperty.call(question || {}, champ) ? [...liste, champ] : liste);
+  /* Deux champs tolérés absents, nommés, et rien d'autre : le fait de D2F1, et l'identité du manque
+     de TRACER-REMEDIATION-02 · F5. Même contrat que `normalizeCandidate` : requis du modèle,
+     toléré absent du validateur, pour ne pas invalider d'un coup tout ce qui a été écrit avant. */
+  return avec("missing_determinant_id", avec("question_focus", base));
+}
+
+function normaliseQuestionFocus(brut) {
+  const focus = brut === undefined || brut === null ? null : brut;
+  assert(focus === null || QUESTION_FOCUS_VALUES.includes(focus), "QuestionCandidate.question_focus invalide.");
+  return focus;
+}
+
 export function validateQuestionCandidate(question) {
-  exactKeys(question, ["text", "targets_issue_id", "expected_progress"], "QuestionCandidate");
+  exactKeys(question, champsDeQuestion(question), "QuestionCandidate");
   const value = {
     text: text(question.text),
     targets_issue_id: text(question.targets_issue_id),
-    expected_progress: text(question.expected_progress)
+    expected_progress: text(question.expected_progress),
+    question_focus: normaliseQuestionFocus(question && question.question_focus),
+    /* F5 — l'identité stable de ce qui manque. Son absence est tolérée ; sa présence engage. */
+    missing_determinant_id: text(question && question.missing_determinant_id) || null
   };
   assert(value.text, "QuestionCandidate.text est obligatoire.");
   assert(value.targets_issue_id, "QuestionCandidate.targets_issue_id est obligatoire.");
@@ -229,13 +268,15 @@ Répondez uniquement avec l'objet JSON demandé, conforme au schéma.`;
 
 export const ANALYST_OUTPUT_FIELDS = Object.freeze(["operational_request_candidate", "provenance_records", "issues", "question_candidates", "confirmation_signals"]);
 
-export function makeAnalystUserMessage({ original_request, clarification_history = [], material_context, material_content } = {}) {
+export function makeAnalystUserMessage({ original_request, clarification_history = [], material_context, material_content, output_format_vocabulary } = {}) {
   const contenu = normalizeMaterialContent(material_content);
+  const vocabulaire = normalizeOutputFormatVocabulary(output_format_vocabulary);
   return JSON.stringify({
     original_request: text(original_request),
     clarification_history: list(clarification_history),
     material_context: normalizeMaterialContext(material_context),
-    ...(contenu ? { material_content: contenu } : {})
+    ...(contenu ? { material_content: contenu } : {}),
+    ...(vocabulaire ? { output_format_vocabulary: vocabulaire } : {})
   });
 }
 
@@ -585,6 +626,45 @@ export function filterQualifiedVetoes(vetoes, previousVetoes = []) {
 // RÔLE ARBITRE (CDC §20) — appel conditionnel, jamais systématique
 // ---------------------------------------------------------------------------
 
+/* ==========================================================================
+ * V2.2 — LA DOCTRINE DE CLARIFICATION, ÉCRITE UNE FOIS, CHEZ SON PROPRIÉTAIRE.
+ *
+ * CE QUE LA MESURE A MONTRÉ. La même doctrine — échelle de substitution, matérialité, priorité —
+ * était écrite dans TROIS modules : la consigne rapide, la consigne Core, et les consignes du trio
+ * historique. Trois rédactions, trois occasions de divergence, et aucun propriétaire identifiable.
+ * C'est la cacophonie décisionnelle, à sa source : non pas deux composants qui se contredisent, mais
+ * une même règle recopiée que personne ne possède.
+ *
+ * OPRIE EN EST LE PROPRIÉTAIRE, et ce module est OPRIE. La doctrine vit donc ici, une fois. Les deux
+ * plans vivants l'INCLUENT : le plan rapide l'applique vite, le plan profond l'applique à fond. Ce
+ * n'est pas une autorité nouvelle — c'est la suppression de deux copies.
+ *
+ * CE QUI N'EST PAS TOUCHÉ, ET POURQUOI. Les consignes du trio historique gardent leur propre texte :
+ * elles ne sont plus sur le chemin nominal depuis V2 CORE FIRST, elles sont protégées par des tests
+ * de caractérisation, et les unifier n'apporterait aucun bénéfice à l'utilisateur. La dette est
+ * NOMMÉE ici plutôt que traitée à l'aveugle.
+ * ========================================================================= */
+export const OPRIE_CLARIFICATION_DOCTRINE = `AVANT DE QUESTIONNER — LA SUBSTITUTION
+Une information manquante n'appelle pas automatiquement une question, et ne devient pas déterminante par le seul fait de manquer : elle peut être recherchée, décidée, estimée, traitée par scénario, conditionnée, ou laissée explicitement inconnue ; appliquez ce test, et lui seul. Pour chaque inconnue, choisissez une stratégie, dans cet ordre de préférence : rechercher (fait externe vérifiable), décider (choix délégué ou équivalent), estimer (approximation étiquetée), scénariser (traiter plusieurs valeurs proprement), conditionner (énoncer une condition explicite), laisser localement inconnue (cela n'empêche pas de produire), et SEULEMENT en dernier recours questionner. Une inconnue ne justifie une question que si elle change matériellement le résultat, appartient à la personne ou à son contexte, n'est pas déjà connue ni déjà résolue, et ne peut être ni décidée, ni estimée honnêtement, ni scénarisée, ni conditionnée sans perte matérielle. Demander une précision est le dernier recours, jamais le premier : ne le faites que si aucune de ces voies n'est sûre. RECHERCHER ne s'applique qu'à un fait externe vérifiable : une préférence, une décision personnelle, un montant alloué, une échéance choisie ou un arbitrage qui appartient à la personne n'est jamais recherchable au seul motif qu'il manque.
+
+Pour savoir si ce recours est atteint, prenez les deux lectures raisonnables les plus éloignées de la demande, telle qu'elle est, augmentée des réponses déjà obtenues. Conduiraient-elles à produire deux choses SUBSTANTIELLEMENT DIFFÉRENTES — de nature, d'étendue ou de structure — ou la même chose autrement colorée ? SUBSTANTIELLEMENT DIFFÉRENTES : le recours est atteint. Posez UNE seule question : celle qui sépare ces deux lectures. LA MÊME CHOSE AUTREMENT COLORÉE : ne demandez rien.
+
+TEST DE MATÉRIALITÉ — il OUVRE la question, il ne la justifie pas. Être matériel et être non substituable sont deux choses distinctes, et la seconde ne découle jamais de la première : une inconnue peut changer réellement le résultat ET rester traitable par une décision raisonnable, une estimation étiquetée, un scénario, une condition explicite, ou un inconnu local assumé. Une question n'est due que si les TROIS conditions tiennent ensemble — l'information appartient à la personne ou à son contexte ; son absence change matériellement ce qui sera produit ; et aucune substitution honnête ne permet de le produire AU NIVEAU D'ENGAGEMENT DEMANDÉ. Ce niveau est décisif : préparer, cadrer, esquisser ou proposer n'engage pas la personne, et un résultat conditionnel y est complet — il énonce ses hypothèses au lieu de les réclamer. Un résultat qui ENGAGE, lui, ne se produit pas sur une préférence devinée : là où l'arbitrage appartient vraiment à la personne, ne l'inventez jamais. Si plusieurs inconnues restent matérielles mais toutes substituables, PRODUISEZ, et déclarez vos hypothèses : enchaîner les questions pour supprimer toute hypothèse est le défaut que cette doctrine interdit. Prenez les réponses plausibles à la question envisagée. Si elles étaient différentes, ce qui sera produit changerait-il SIGNIFICATIVEMENT — sa nature, son niveau, son étendue, sa structure, ses contraintes, ou une décision importante qu'il porte ? Si oui, la question est matérielle. Si non, ne la posez pas, même si l'information manque.
+Ne jugez JAMAIS par catégorie. Une même sorte d'information peut être décisive dans une demande et négligeable dans une autre : c'est l'IMPACT qui tranche, jamais l'étiquette. Un public qui découvre un sujet et un public qui le maîtrise ne reçoivent pas la même chose ; deux préférences de goût, elles, donnent la même chose autrement colorée. Que la demande nomme déjà ce qu'il faut produire ne rend pas exploitable tout le reste : une production nommée peut encore dépendre d'une variable qui en change le niveau ou l'étendue.
+
+Une demande longue, dense, chargée de contraintes ou de détails n'est PAS une demande ambiguë : la longueur n'est pas de l'ambiguïté, et le nombre de contraintes n'appelle aucune analyse préalable.
+
+PLUSIEURS MANQUES, UNE SEULE QUESTION : choisissez celui dont les valeurs plausibles écarteraient le plus le résultat — son coût, sa faisabilité, sa structure, sa validité, ou la recommandation finale. Jamais selon l'ordre d'apparition, ni selon l'habitude. Et si la personne a posé une exigence dont le respect DÉPEND d'une variable qu'elle n'a pas donnée, cette variable est matérielle : sans elle, on ne peut pas savoir si son exigence tient.
+
+CE QUI A DÉJÀ ÉTÉ RÉPONDU EST ACQUIS. Dès qu'une réponse a été obtenue, l'exigence monte : ne reposez une question que si le résultat attendu reste RÉELLEMENT impossible à construire. Si la personne a répondu qu'elle ne sait pas, ou qu'elle vous laisse choisir, cette information est TRAITÉE : il est interdit de reposer la même question ou une question portant sur le même choix — décidez, estimez, scénarisez, conditionnez, ou laissez localement inconnu, et ne revenez jamais dessus — ni telle quelle, ni reformulée.`;
+
+/* La part de la doctrine qui gouverne le CANDIDAT, et elle seule. Le plan rapide ne produit aucun
+ * candidat : la lui donner l'alourdirait sans rien lui permettre — et sa réserve de jetons est
+ * mesurée. Un propriétaire, deux audiences, aucune copie. */
+export const OPRIE_ASSUMPTION_DOCTRINE = `UNE HYPOTHÈSE MATÉRIELLE NE SE FIGE PAS
+Étiqueter honnêtement une hypothèse ne suffit pas à en faire un paramètre d'exécution. Avant qu'une hypothèse serve de valeur à une recherche, une comparaison, un coût ou un calcul, demandez-vous si des valeurs plausibles DIFFÉRENTES changeraient le coût, la faisabilité, la structure de ce qui sera produit, sa validité ou la recommandation finale. Si oui, ne choisissez pas une valeur unique pour atteindre un état prêt : traitez-la par scénarios, conditionnez ce qui en dépend, ou laissez-la explicitement inconnue en le disant. Une inconnue matérielle traitée ainsi n'empêche pas un état prêt ; une inconnue matérielle remplacée en silence par une valeur arbitraire, elle, fabrique une readiness que rien ne soutient.`;
+
+
 export const ARBITER_SYSTEM_PROMPT = `RÔLE
 Vous êtes l'Arbitre au sein de l'OPRIE. Vous n'êtes appelé que lorsque l'Analyste et le Critique sont en désaccord, qu'un veto qualifié existe, qu'une ambiguïté ou un conflit matériel subsiste, que la fidélité sémantique est incertaine, ou que l'enjeu est significatif. Votre verdict est final pour ce tour : personne d'autre ne le renverse.
 
@@ -613,6 +693,20 @@ Répondez uniquement avec l'objet JSON demandé, conforme au schéma.`;
 export const ARBITER_OUTPUT_FIELDS = Object.freeze([
   "state",
   "operational_request_candidate",
+  "objective_nature",
+  "request_focus",
+  /* TRACER-REMEDIATION-02 · F1 — LA FORME DU LIVRABLE EST UN FAIT, PAS UNE DEVINETTE.
+   *
+   * Elle était décidée en aval par un score de mots-clés sur la demande brute : « données » rangeait
+   * une annexe contractuelle en JSON, « discours » devenait un module pédagogique parce que le mot
+   * contient « cours », « finalistes » une checklist parce qu'il contient « liste ». Le champ
+   * `output.format` du contrat canonique existait déjà — personne ne le produisait.
+   *
+   * Il est produit ici, par l'autorité qui décide déjà de tout le reste du tour, et il ne peut
+   * valoir qu'un identifiant du vocabulaire que l'application lui transmet — ou null quand rien ne
+   * l'établit. Aucune taxonomie n'est créée : le vocabulaire reste la table gelée du produit, et
+   * elle demeure sa source unique. */
+  "output_format",
   "issues",
   "next_question",
   "confirmation_reason",
@@ -638,7 +732,7 @@ export function makeArbiterUserMessage({ original_request, clarification_history
  * l'objet validé sinon — seul le contrat de transport a changé, pas le sens.
  */
 function validateNullableQuestionCandidate(value) {
-  exactKeys(value, ["text", "targets_issue_id", "expected_progress"], "QuestionCandidate");
+  exactKeys(value, champsDeQuestion(value), "QuestionCandidate");
   const allNull = value.text === null && value.targets_issue_id === null && value.expected_progress === null;
   if (allNull) return null;
   assert(
@@ -663,10 +757,48 @@ function validateIntentPreservationSemantic(value) {
 }
 
 export function validateArbiterOutput(value) {
-  exactKeys(value, ARBITER_OUTPUT_FIELDS, "ArbiterOutput");
+  /* V2.2.1-D2D — LECTURE TOLÉRANTE, ÉCRITURE STRICTE.
+   *
+   * `objective_nature` est REQUIS du producteur : le schéma d'outil le déclare, et un modèle ne peut
+   * pas l'omettre. Le lecteur, lui, accepte son absence et la traite comme « non dit ». Ce n'est pas
+   * une indulgence, c'est la contrepartie du dessin : tout le dispositif échoue FERMÉ quand le fait
+   * manque — aucune exemption, au pire un silence. Rejeter le tour entier reviendrait à rendre FATAL
+   * un fait dont l'absence est par construction inoffensive, et à détruire un tour de travail pour
+   * une métadonnée que la personne ne voit jamais. C'est le raisonnement déjà retenu en V2.1.2 pour
+   * la cohérence question/inconnue, et il vaut ici mot pour mot.
+   *
+   * Une valeur PRÉSENTE mais hors vocabulaire reste refusée : c'est une violation du contrat, pas
+   * un silence.
+   *
+   * CE CONTRAT N'EST PAS INVENTÉ ICI. `normalizeCandidate` l'a établi mot pour mot pour
+   * available_inputs — « requis du MODÈLE, toléré absent du VALIDATEUR » — parce qu'ajouter un champ
+   * à un schéma dont `required` égale `properties` invaliderait sinon, d'un coup, tout ce qui a été
+   * écrit avant. Même problème, même réponse, et une seule exception nommée plutôt qu'un contrat
+   * ouvert. */
+  const optionnels = ["objective_nature", "request_focus", "output_format"];
+  const champsAttendus = ARBITER_OUTPUT_FIELDS.filter((champ) => (
+    !optionnels.includes(champ) || Object.prototype.hasOwnProperty.call(value || {}, champ)
+  ));
+  exactKeys(value, champsAttendus, "ArbiterOutput");
   assert(ARBITER_STATES.includes(value.state), "ArbiterOutput.state invalide (degraded_state ne peut jamais être auto-déclaré).");
 
   const operational_request_candidate = normalizeCandidate(value.operational_request_candidate);
+  const objective_nature = value.objective_nature === undefined || value.objective_nature === null
+    ? null : value.objective_nature;
+  assert(objective_nature === null || OBJECTIVE_NATURES.includes(objective_nature),
+    "ArbiterOutput.objective_nature invalide.");
+  const request_focus = value.request_focus === undefined || value.request_focus === null
+    ? null : value.request_focus;
+  assert(request_focus === null || REQUEST_FOCUS_VALUES.includes(request_focus),
+    "ArbiterOutput.request_focus invalide.");
+  /* F1 — LE VOCABULAIRE N'EST PAS ICI, ET IL NE DOIT PAS L'ÊTRE.
+     Ce validateur contrôle la FORME du fait : une chaîne non vide, ou rien. Son appartenance au
+     vocabulaire est contrôlée là où le vocabulaire existe — l'enrichissement canonique, qui le
+     reçoit de l'application. Recopier ici la liste des identifiants en ferait une seconde source. */
+  const output_format = value.output_format === undefined || value.output_format === null
+    ? null : value.output_format;
+  assert(output_format === null || (typeof output_format === "string" && output_format.trim() !== ""),
+    "ArbiterOutput.output_format doit être un identifiant non vide, ou null.");
   const issues = normalizeRoleIssues(value.issues);
   const next_question = validateNullableQuestionCandidate(value.next_question);
   const confirmation_reason = value.confirmation_reason === null ? null : (text(value.confirmation_reason) || null);
@@ -677,6 +809,16 @@ export function validateArbiterOutput(value) {
 
   if (value.state === "clarification_required") {
     assert(next_question, "clarification_required exige next_question.");
+    /* V2.1.2 — LA COHÉRENCE QUESTION → INCONNUE EST OBSERVÉE, PAS FERMÉE ICI.
+     *
+     * Première version de ce lot : une assertion, ici même, refusant le tour quand
+     * `targets_issue_id` ne désignait aucune inconnue déclarée. Deux tests l'ont refusée, et ils
+     * avaient raison — dont un qui s'est mis à attendre soixante secondes. La raison est de fond :
+     * une incohérence de métadonnée que la personne ne voit JAMAIS ne justifie pas de perdre un tour
+     * entier de travail. Fermer ici rendait le produit moins disponible pour un défaut invisible.
+     *
+     * Le contrôle vit donc à la frontière d'affichage, où il journalise sans rien détruire. Voir
+     * `applyDisplayGuardToTurn`. */
     assert(confirmation_reason === null, "clarification_required exige confirmation_reason=null.");
     assert(blocked_reason === null, "clarification_required exige blocked_reason=null.");
   } else if (value.state === "confirmation_required") {
@@ -698,7 +840,7 @@ export function validateArbiterOutput(value) {
     assert(intent_preservation.concerns.length === 0, "operational_request_ready exige une liste concerns vide.");
   }
 
-  return clone({ state: value.state, operational_request_candidate, issues, next_question, confirmation_reason, blocked_reason, intent_preservation, reason });
+  return clone({ state: value.state, operational_request_candidate, objective_nature, request_focus, output_format, issues, next_question, confirmation_reason, blocked_reason, intent_preservation, reason });
 }
 
 // ---------------------------------------------------------------------------
@@ -909,8 +1051,11 @@ const ISSUE_JSON_SCHEMA = Object.freeze({
 const QUESTION_CANDIDATE_JSON_SCHEMA = Object.freeze({
   type: "object",
   additionalProperties: false,
-  required: ["text", "targets_issue_id", "expected_progress"],
-  properties: { text: { type: "string" }, targets_issue_id: { type: "string" }, expected_progress: { type: "string" } }
+  required: ["text", "targets_issue_id", "expected_progress", "question_focus"],
+  properties: {
+    text: { type: "string" }, targets_issue_id: { type: "string" }, expected_progress: { type: "string" },
+    question_focus: { type: "string", enum: [...QUESTION_FOCUS_VALUES] }
+  }
 });
 
 // 3F.3.3-P1 : "value" était déjà dans required (la CLÉ est déjà garantie présente par le mode strict
@@ -2191,6 +2336,12 @@ export const ARBITER_JSON_SCHEMA = Object.freeze({
   properties: {
     state: { type: "string", enum: [...ARBITER_STATES] },
     operational_request_candidate: CANDIDATE_JSON_SCHEMA,
+    objective_nature: { type: "string", enum: [...OBJECTIVE_NATURES] },
+    request_focus: { type: "string", enum: [...REQUEST_FOCUS_VALUES] },
+    /* F1 — pas d'énumération ici : le vocabulaire est transmis à chaque tour par l'application, il
+       n'est pas gelé dans ce schéma. Un identifiant hors vocabulaire est ramené à « aucun format »
+       par l'enrichissement, qui est le seul endroit à connaître la liste. */
+    output_format: { type: ["string", "null"] },
     issues: { type: "array", items: ISSUE_JSON_SCHEMA },
     // next_question est toujours un objet structurellement présent (jamais null au premier niveau,
     // pour la même raison que kind ci-dessus : un objet nullable imbriqué est un cas moins éprouvé
@@ -2199,11 +2350,15 @@ export const ARBITER_JSON_SCHEMA = Object.freeze({
     next_question: {
       type: "object",
       additionalProperties: false,
-      required: ["text", "targets_issue_id", "expected_progress"],
+      required: ["text", "targets_issue_id", "expected_progress", "question_focus", "missing_determinant_id"],
       properties: {
         text: { type: ["string", "null"] },
         targets_issue_id: { type: ["string", "null"] },
-        expected_progress: { type: ["string", "null"] }
+        expected_progress: { type: ["string", "null"] },
+        question_focus: { type: ["string", "null"], enum: [...QUESTION_FOCUS_VALUES, null] },
+        /* F5 — pas d'énumération : l'identité décrit CE QUI manque, et cet ensemble n'est pas
+           énumérable d'avance. Ce qui est contraint est sa stabilité, dite dans la consigne. */
+        missing_determinant_id: { type: ["string", "null"] }
       }
     },
     confirmation_reason: { type: ["string", "null"] },
@@ -2367,20 +2522,112 @@ function validateOriginalRequestAndHistory(value) {
   }
 }
 
+/* ==========================================================================
+ * V2.2.1-B — LE VERROU DE DÉCISION CANONIQUE.
+ *
+ * CE QUE LA MESURE A ÉTABLI. La décision sémantique était prise DEUX FOIS : une fois par le plan
+ * rapide, qui applique la doctrine et conclut, puis une seconde fois par le plan profond, qui
+ * réévaluait l'état avant de produire le candidat. Mesuré en usage réel : le plan rapide avait
+ * accusé réception — donc conclu que la demande était exploitable — et le plan profond a rendu
+ * `clarification_required` avec huit inconnues. Deux readiness, deux réponses, un seul utilisateur.
+ *
+ * CE QUE CE VERROU EST, ET CE QU'IL N'EST PAS. Ce n'est ni une autorité nouvelle, ni un schéma
+ * parallèle : le vocabulaire de décision existe déjà dans les types du plan rapide. ASK_CLARIFICATION
+ * et ASK_CONFIRMATION disent ASK_ONE ; ACKNOWLEDGE dit READY ; WAIT_FOR_DEEP_VALIDATION dit
+ * ESCALATE_DEEP. Il manquait le VERROU, pas les mots.
+ *
+ * POURQUOI IL VIT ICI. Seule l'autorité connaît le vocabulaire des états — l'orchestrateur n'a pas le
+ * droit de les nommer (ORCH01-21b). Le verrou est donc validé par celui qui le possède, et
+ * l'orchestrateur ne fait que le transporter.
+ *
+ * CE QUI ARRIVE SI LE PLAN PROFOND DÉSOBÉIT. Il ne l'emporte pas en silence : la sortie est refusée
+ * comme contractuellement inutilisable, exactement comme une sortie mal formée. La chaîne de haute
+ * disponibilité fait alors ce qu'elle sait faire — une tentative sur le second fournisseur — et si
+ * les deux désobéissent, l'état dégradé est prononcé. Aucune boucle : une tentative par fournisseur.
+ * ========================================================================= */
+/* V2.2.1-E1 — LE VERROU DE DÉCISION CANONIQUE A ÉTÉ RETIRÉ, ET VOICI POURQUOI.
+ *
+ * V2.2.1-B avait posé un verrou pour fermer la « double readiness » : le plan rapide traduisait son
+ * ACKNOWLEDGE en décision canonique READY, et le contractualisateur n'avait plus le droit d'en
+ * décider autrement. D1 a ensuite réparé le câblage navigateur de ce verrou, et j'ai rapporté P0
+ * comme fermé.
+ *
+ * LE RÉAUDIT INDÉPENDANT A MONTRÉ QUE C'ÉTAIT LE REMÈDE INVERSE. Le verrou fonctionnait, mais il
+ * verrouillait une autorité que la gouvernance interdit. Les deux textes normatifs sont explicites
+ * et concordants :
+ *   GARDE-FOU §9 — « Fast … Il ne doit pas : fabriquer READY » ; invariant « Fast candidate-only ».
+ *   DIRECTIVE §5 — « OPRIE = autorité sémantique de la demande ET DE LA READINESS » ; à proscrire :
+ *                  « double readiness », « seconde représentation canonique inutile ».
+ *   DIRECTIVE §6 — le plan rapide « ne devient jamais une seconde autorité ».
+ *
+ * La double readiness ne se ferme donc pas en donnant le dernier mot au plan rapide : elle se ferme
+ * en lui retirant le premier. ACKNOWLEDGE ne dit pas « la demande est prête » ; il dit « aucune
+ * interaction rapide n'est nécessaire ». Ce qui suit appartient à l'autorité, et à elle seule.
+ *
+ * CE QUI A DISPARU AVEC LUI. Le verrou n'engageait un état que pour READY — ASK_ONE n'atteignait
+ * jamais le contractualisateur, et ESCALATE_DEEP lui demandait précisément de décider. Privé de
+ * READY, l'objet entier n'avait plus un seul champ utile : `decision` ne pouvait plus rien
+ * verrouiller, `source` ne nommait plus qu'un producteur interdit, et `selected_unknown` comme
+ * `semantic_reason` n'étaient que ses traces d'audit. Aucun producteur `OPRIE_DEEP` n'a jamais
+ * existé. L'objet est donc supprimé, et non conservé vide.
+ *
+ * Le conflit de contractualisation disparaît par voie de conséquence : il ne pouvait naître que
+ * d'un verrou que le contractualisateur ne servait pas. Ce n'est pas une correction du défaut P2 —
+ * c'est la disparition du mécanisme qui le produisait. */
+
 export function validateAnalystInput(value) {
   /* OPRIE-MATERIAL-CONTENT-02 — DEUX CLÉS OPTIONNELLES, NOMMÉES, ET RIEN DE PLUS.
      requireExactKeys reste la règle : on ne relâche pas le contrat, on énumère les
      seules clés supplémentaires admises. Toute autre clé est refusée comme avant. */
+  /* V2.2.1-B ajoute UNE clé optionnelle, nommée, et rien de plus : la décision canonique déjà prise.
+     Son absence laisse le contrat d'entrée exactement tel qu'il était. */
   requireKeysWithOptional(value, ["original_request", "clarification_history"],
-    ["material_context", "material_content"], "AnalystInput");
+    ["material_context", "material_content", "output_format_vocabulary"], "AnalystInput");
   const material_context = normalizeMaterialContext(value.material_context);
   const material_content = normalizeMaterialContent(value.material_content);
   assertMaterialInvariant(material_context, material_content);
+  const output_format_vocabulary = normalizeOutputFormatVocabulary(value.output_format_vocabulary);
   return {
     ...validateOriginalRequestAndHistory(value),
     material_context,
-    ...(material_content ? { material_content } : {})
+    ...(material_content ? { material_content } : {}),
+    ...(output_format_vocabulary ? { output_format_vocabulary } : {})
   };
+}
+
+/**
+ * Le vocabulaire de formats, transmis par l'application à chaque tour.
+ *
+ * TRACER-REMEDIATION-02 · F1 — POURQUOI IL ARRIVE PAR L'ENTRÉE ET N'EST PAS ÉCRIT ICI.
+ * Les identifiants de format appartiennent au produit livré, dans une table gelée dont le moteur
+ * est la source unique. Les recopier côté autorité en ferait une seconde, qui divergerait au premier
+ * lot. L'autorité reçoit donc la liste comme une donnée du tour — exactement comme elle reçoit le
+ * matériau — et choisit dedans. Rien n'est déduit d'un mot de la demande : la liste ne sert pas à
+ * chercher, elle sert à nommer.
+ *
+ * `livrable` est la description que la table associe déjà à l'identifiant. Elle est transmise parce
+ * que c'est elle qui permet de choisir sans deviner : sans elle, l'identifiant serait un code opaque.
+ */
+export function normalizeOutputFormatVocabulary(value) {
+  if (value === undefined || value === null) return null;
+  if (!Array.isArray(value)) {
+    throw new DecisionHttpError(400, "invalid_input", "output_format_vocabulary doit être un tableau.");
+  }
+  if (value.length === 0) return null;
+  const entrees = value.map((entree, index) => {
+    if (!entree || typeof entree !== "object" || Array.isArray(entree)) {
+      throw new DecisionHttpError(400, "invalid_input", `output_format_vocabulary[${index}] doit être un objet.`);
+    }
+    const id = text(entree.id);
+    if (!id) throw new DecisionHttpError(400, "invalid_input", `output_format_vocabulary[${index}].id est obligatoire.`);
+    return { id, deliverable: text(entree.deliverable) || text(entree.name) || id };
+  });
+  const vus = new Set();
+  for (const { id } of entrees) {
+    if (vus.has(id)) throw new DecisionHttpError(400, "invalid_input", `output_format_vocabulary : identifiant répété (${id}).`);
+    vus.add(id);
+  }
+  return entrees;
 }
 
 export function validateCriticInput(value) {

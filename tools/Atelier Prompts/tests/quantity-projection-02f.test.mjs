@@ -96,10 +96,24 @@ test('T-02F-04 : un seuil de profil n’est pas projeté comme une quantité sur
   assert.doesNotMatch(bloc, /éléments, sans doublon/, 'aucune unité générique imposée');
 });
 
-test('T-02F-05 : ce format garde exactement sa ligne de volume historique', () => {
+/* T-02F-05 — RÉÉCRIT PAR TRACER-REMEDIATION-02 · F7.
+ *
+ * ATTENDU ANCIEN : `^- Volume attendu : ` — « la section conserve sa forme historique quand rien
+ * n'est demandé ». CLASSIFICATION : HISTORICAL_IMPLEMENTATION_CONTRACT.
+ *
+ * POURQUOI. Cette ligne affichait « Volume attendu : 150 à 300 mots », et ces bornes ne venaient de
+ * personne : `ctx.mots` est une valeur de profil de format, choisie par le générateur. Mesuré en
+ * campagne produit, la personne avait écrit « une page maximum » et la vérification finale lui
+ * opposait « 150 à 300 mots ». Le test gardait fidèlement une contrainte quantitative inventée.
+ *
+ * NOUVEL INVARIANT : la section porte une discipline de volume, et aucun chiffre que la personne
+ * n'a pas donné. */
+test('T-02F-05 : la ligne de volume est une discipline, jamais une fourchette inventée', () => {
   const p = runRapidePipeline({ demande: DEMANDE_ARTICLE });
-  assert.match(quantifiees(p.promptFinal), /^- Volume attendu : /m,
-    'la section conserve sa forme historique quand rien n’est demandé');
+  const q = quantifiees(p.promptFinal);
+  assert.match(q, /^- Volume : celui que le sujet exige, sans remplissage\.$/m);
+  assert.equal(/\d+\s*à\s*\d+\s*mots/.test(q), false, 'aucune fourchette non déclarée');
+  assert.equal(/remplissage mots/.test(p.promptFinal), false, 'et plus aucune coquille de concaténation');
 });
 
 test('T-02F-06 : la vérification ne contrôle une quantité que si le prompt en énonce une', () => {
@@ -123,8 +137,11 @@ test('T-02F-08 : sur un format non énumérable, la quantité contrôlée n’é
     'Propose dix slogans chaleureux de moins de huit mots pour une boulangerie');
   const v = verification(p.promptFinal);
   assert.match(v, /Le nombre de slogans est-il exactement 10 \?/);
-  assert.match(v, /Le volume tient-il dans la fourchette indiquée/,
+  /* F7 — les deux contrôles coexistent toujours ; celui du volume ne cite plus de fourchette que
+     personne n'a demandée. */
+  assert.match(v, /Le volume est-il celui que le sujet exige, sans remplissage \?/,
     'les deux contrôles coexistent : la quantité ne remplace pas le volume');
+  assert.equal(/fourchette indiquée/.test(v), false, 'et aucune fourchette n’est plus citée');
 });
 
 /* ==========================================================================

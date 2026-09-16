@@ -453,7 +453,7 @@ export async function runOperationalRequestTurn(input, { executeRole, log = defa
           duration_ms: Date.now() - roleStartedAt, status: "ok" });
   }
 
-  const turn = applyDisplayGuardToTurn(outputs.arbiter, outputs.analyst, log);
+  const turn = applyDisplayGuardToTurn(outputs.arbiter, outputs.analyst, log, input && input.clarification_history);
   if (trace) trace.enterPhase("state_check", "arbiter");
   // La légalité de l'état vient de la machine d'état gelée, jamais d'une liste recopiée ici.
   if (!isLegalTransition(OPERATIONAL_REQUEST_TURN_ORIGIN_STATE, turn.state)) {
@@ -488,7 +488,43 @@ async function runCoreFirstTurnForRequest(input, { executeRole, log, trace }) {
     throw new TypeError(`État de tour OPRIE illégal depuis "${OPERATIONAL_REQUEST_TURN_ORIGIN_STATE}" : ${resultat.turn.state}.`);
   }
   log({ event: "operational_request_turn_ok", state: resultat.turn.state });
-  return applyDisplayGuardToTurn(resultat.turn, { question_candidates: resultat.question_candidates }, log);
+  /* V2.1.5 — LE PLAN PROFOND N'EST PLUS UN MOTEUR DE CLARIFICATION, ET ON LE MESURE.
+   *
+   * Mesuré en usage réel : après que la couche légère avait déclaré la demande prête, le plan profond
+   * a rouvert une clarification DEUX fois — vingt-deux puis soixante secondes — pour des manques
+   * qu'une question rapide aurait comblés. La consigne du Core le lui interdit désormais hors cas
+   * exceptionnel ; ce relevé dit si la règle tient, au lieu de le supposer. Il porte un état et un
+   * compte, jamais le texte de la question.
+   *
+   * Le relevé NE NOMME AUCUN ÉTAT : il rapporte celui que l'autorité a prononcé, et la lecture conclut.
+   * Un booléen « réouvert » aurait obligé l'orchestrateur à connaître le vocabulaire de l'Arbitre, ce
+   * qu'ORCH01-21b lui interdit — et l'état rapporté porte déjà l'information. */
+  log({
+    event: "core_clarification_after_ready",
+    clarification_history_length: Array.isArray(input && input.clarification_history)
+      ? input.clarification_history.length : 0,
+    state: resultat.turn.state
+  });
+  /* V2.2.1-E1 — UNE SEULE AUTORITÉ DE READINESS, ET ELLE EST OBSERVÉE ICI.
+   *
+   * Cette zone transportait une décision canonique posée par le plan rapide et l'imposait au
+   * contractualisateur. Le réaudit indépendant a établi que ce verrou, bien que techniquement
+   * correct, verrouillait une autorité que la gouvernance interdit — « Fast candidate-only »,
+   * « OPRIE = autorité de la readiness ». Le transport a donc été retiré, et avec lui le conflit
+   * de contractualisation, qui ne pouvait naître que de ce verrou.
+   *
+   * Le relevé subsiste, parce qu'il MESURE ce que le lot restaure : la readiness a un producteur,
+   * et un seul. */
+  log({
+    event: "readiness_authority",
+    semantic_authority: "OPRIE",
+    ready_decision_source: "OPRIE_DEEP",
+    question_decision_source: "OPRIE_DEEP",
+    candidate_producer: "CORE_CONTRACTUALIZER",
+    semantic_deep_calls: 1,
+    contractualization_calls: 1
+  });
+  return applyDisplayGuardToTurn(resultat.turn, { question_candidates: resultat.question_candidates }, log, input && input.clarification_history);
 }
 
 /**
@@ -505,17 +541,103 @@ async function runCoreFirstTurnForRequest(input, { executeRole, log, trace }) {
  * question est remplacée, elle l'est par une autre candidate du MÊME tour : le système avait déjà
  * produit la forme atomique, il affichait l'autre.
  */
-export function applyDisplayGuardToTurn(turn, analystOutput, log = () => {}) {
+export function applyDisplayGuardToTurn(turn, analystOutput, log = () => {}, history = []) {
   const question = turn && turn.next_question;
   const texte = question && typeof question.text === "string" ? question.text : "";
   if (!texte.trim()) return turn;
   const candidates = analystOutput && Array.isArray(analystOutput.question_candidates)
     ? analystOutput.question_candidates : [];
-  const garde = guardDisplayedQuestion(texte, { candidates });
+  /* V2.1.2 — LA QUESTION ET L'INCONNUE QU'ELLE DÉSIGNE DOIVENT PARLER DE LA MÊME CHOSE.
+   *
+   * Observé en bêta : une question portant sur le niveau de connaissance d'un public, un
+   * `targets_issue_id` désignant une inconnue qui parlait de l'angle, et une progression attendue qui
+   * parlait de l'angle elle aussi. Rien ne le voyait.
+   *
+   * Ce relevé est une OBSERVATION, et c'est délibéré : la personne ne voit jamais cette métadonnée,
+   * et refuser le tour pour elle coûterait un tour entier de travail pour un défaut invisible. Ce qui
+   * est vérifié est structurel — l'identifiant désigne-t-il une inconnue déclarée ? Une incohérence de
+   * SENS sur un identifiant qui existe reste hors de portée d'un contrôle structurel, et le dire vaut
+   * mieux que de l'ignorer. */
+  const idsConnus = (turn && Array.isArray(turn.issues) ? turn.issues : []).map((issue) => issue && issue.id);
+  log({
+    event: "question_issue_coherence",
+    targets_declared_issue: idsConnus.includes(question.targets_issue_id),
+    issue_count: idsConnus.length
+  });
+  /* V2.2.1-D2D — la nature de l'objectif vient du tour, donc de l'autorité, et traverse la
+     frontière telle quelle. Le garde ne la calcule pas ; il la lit. */
+  /* V2.2.1-D2F2 — trois faits, tous portés par le tour : la nature de l'objectif, ce sur quoi porte
+     la demande, et ce que la question interroge. Le texte de la demande n'atteint plus ce garde. */
+  const garde = guardDisplayedQuestion(texte, { candidates,
+    objectiveNature: turn && turn.objective_nature,
+    requestFocus: turn && turn.request_focus,
+    questionFocus: question && question.question_focus,
+    /* F5 — ce qui a DÉJÀ été sollicité, par identité de manque et non par texte. */
+    history: Array.isArray(history) ? history : [],
+    missingDeterminantId: question && question.missing_determinant_id });
   /* Le verdict est journalisé, jamais le texte : la question porte des mots de la personne. */
   log({ event: "displayed_question_guard", verdict: garde.verdict,
         candidates_available: candidates.length, changed: garde.text !== texte });
+  if (garde.verdict === "NOT_DISPLAYABLE") {
+    /* V2.2.1-D2 FINAL — RIEN D'AFFICHABLE SE DIT, NE SE REMPLACE PAS.
+     *
+     * La frontière ne fabrique aucune question, et elle n'affiche pas davantage celle qu'elle vient
+     * de refuser. Elle ne touche pas non plus à l'état : la readiness appartient à l'autorité.
+     *
+     * TRACER-REMEDIATION-02 · F2 — MAIS ELLE NE REND PLUS UN TOUR QUI SE CONTREDIT.
+     *
+     * Elle rendait le tour SANS question — les trois champs à null — en laissant `state` valoir
+     * clarification_required. Mesuré sur le produit déployé : une fois sur six sur une demande
+     * fortement déléguée, la personne recevait un état qui RÉCLAME une réponse et rien à quoi
+     * répondre. Le contrat du système interdit pourtant cette combinaison depuis toujours :
+     * `validateArbiterOutput` assère « clarification_required exige next_question ». La frontière
+     * produisait donc un tour que le validateur du système aurait refusé, et personne ne le
+     * revalidait après elle.
+     *
+     * Ce qui a été tenté avant d'en arriver là est tout ce que l'autorité a produit : la question
+     * principale, puis CHAQUE candidate du même tour dans l'ordre contractuel — elles sont classées
+     * par valeur informationnelle décroissante — puis la réduction déterministe. Aucune n'était
+     * affichable.
+     *
+     * La sortie est alors contractuellement inexploitable, et c'est ce qui est dit. Rien n'est
+     * inventé : ni question, ni état. Côté client, le chemin existe depuis toujours et il est
+     * rejouable — `if(!response.ok)` lève `oprieTechnicalFailure()`, le même échec nommé que pour
+     * toute panne de tour. */
+    log({
+      event: "turn_contractually_unusable",
+      reason: "CLARIFICATION_WITHOUT_DISPLAYABLE_QUESTION",
+      state: turn && turn.state,
+      candidates_available: candidates.length
+    });
+    throw new DecisionHttpError(502, "turn_contractually_unusable",
+      "Le tour exige une clarification, et aucune des questions produites n'est affichable.");
+  }
   if (garde.text === texte) return turn;
+  /* TARGETED-FIX-POST-CODEX-01 — LE TEXTE AFFICHÉ ET L'IDENTITÉ AFFICHÉE DÉCRIVENT LE MÊME MANQUE.
+   *
+   * Cette ligne recollait le texte retenu sur l'OBJET QUESTION D'ORIGINE. Quand le garde avait
+   * remplacé la question — parce que la première était méta, multiple ou déjà posée — le tour
+   * partait avec le texte de la candidate et les métadonnées de la question refusée : on affichait
+   * « quelle durée ? » sous l'identité « budget ». Tout ce qui dépend ensuite de cette identité —
+   * la non-répétition, l'issue visée, la progression annoncée — désignait alors autre chose que ce
+   * que la personne lisait.
+   *
+   * Quand une candidate est substituée, c'est la candidate qui décrit la question : son texte, son
+   * identité de manque, l'inconnue qu'elle vise, la progression qu'elle promet, ce qu'elle
+   * interroge. Les champs sont repris DE LA CANDIDATE, jamais recopiés de l'ancienne question.
+   *
+   * La réduction déterministe, elle, ne change que la forme du même besoin : l'objet d'origine
+   * reste le bon, seul son texte est raccourci. */
+  if (garde.verdict === "REPLACED" && garde.candidate && typeof garde.candidate === "object") {
+    const c = garde.candidate;
+    return { ...turn, next_question: {
+      text: garde.text,
+      targets_issue_id: c.targets_issue_id === undefined ? null : c.targets_issue_id,
+      expected_progress: c.expected_progress === undefined ? null : c.expected_progress,
+      question_focus: c.question_focus === undefined ? null : c.question_focus,
+      missing_determinant_id: c.missing_determinant_id === undefined ? null : c.missing_determinant_id
+    } };
+  }
   return { ...turn, next_question: { ...question, text: garde.text } };
 }
 

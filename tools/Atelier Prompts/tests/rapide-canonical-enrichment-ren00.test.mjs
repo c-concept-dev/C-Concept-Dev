@@ -4,8 +4,15 @@
  * L'enrichisseur dérive de la DEMANDE ELLE-MÊME ce qu'elle dit explicitement,
  * et rien d'autre. Il ne décide ni readiness, ni route, ni verrou ; il ne peut
  * écrire que dans des familles que OPRIE ne produit pas ; et il n'écrit aucun
- * vocabulaire — marqueurs de format et unités comptables lui sont INJECTÉS
+ * vocabulaire — unités comptables et vocabulaire de formats lui sont INJECTÉS
  * depuis les tables déjà gelées de l'application.
+ *
+ * TRACER-REMEDIATION-02 · F1 — LE FORMAT N'EST PLUS DÉRIVÉ, IL EST RECONNU.
+ * L'enrichisseur dérivait la forme du livrable d'un score de mots-clés cherchés en sous-chaîne dans
+ * la demande brute. Mesuré en campagne produit : « données » rangeait une annexe contractuelle en
+ * JSON, « discours » devenait un module pédagogique parce que le mot contient « cours ». La forme
+ * est désormais un fait de l'autorité sémantique ; ce module vérifie seulement que l'identifiant
+ * qu'elle nomme existe dans le vocabulaire injecté, et écarte celui qui n'y est pas.
  *
  * Ce lot NE BASCULE PAS la production : le prompt Rapide rendu reste inchangé.
  * Il produit la donnée qui manquait à ADN-RAPIDE-01.
@@ -20,7 +27,6 @@ import {
   RAPIDE_ENRICHABLE_PATHS,
   RAPIDE_SIGNAL_IDS,
   createRapidEnrichmentAuditView,
-  deriveFormatFromRequest,
   deriveQuantityFromRequest,
   enrichRapidCanonicalContract,
   validateRapidCanonicalEnrichment
@@ -55,6 +61,20 @@ function baseFor(original_request, candidat = {}) {
 
 const enrichir = (demande, options = {}, candidat = {}) => enrichRapidCanonicalContract(
   baseFor(demande, candidat),
+  { format_vocabulary: VOCABULAIRE, counting_units: UNITES, ...options }
+);
+
+/** Le même enrichissement, sur un contrat dont l'AUTORITÉ a nommé la forme du livrable. */
+const enrichirAvecFormat = (demande, output_format, options = {}) => enrichRapidCanonicalContract(
+  canonicalFrom(oprieReadyTurn({
+    output_format,
+    operational_request_candidate: {
+      objective: 'Objectif validé.', expected_deliverable: 'Un livrable nommé.',
+      secondary_objectives: [], confirmed_constraints: [], confirmed_priorities: [],
+      confirmed_preferences: [], delegated_decisions: [], external_facts_to_research: [],
+      assumptions_allowed: [], remaining_unknowns: []
+    }
+  }), { request_id: 'ren-00', original_request: demande }),
   { format_vocabulary: VOCABULAIRE, counting_units: UNITES, ...options }
 );
 
@@ -179,29 +199,76 @@ test('T-REN-08 les bornes hautes et les fourchettes sont dérivées fidèlement'
  * T-REN-09 … 12 — FORMAT
  * ======================================================================= */
 
-test('T-REN-09 un format de liste explicitement demandé est dérivé', () => {
-  const { contract, derivation_trace } = enrichir('Donne 5 idées sous forme de liste.');
+/* T-REN-09 … 12 ONT ÉTÉ RÉÉCRITS — TRACER-REMEDIATION-02 · F1.
+ *
+ * CE QU'ILS AFFIRMAIENT : « un format de liste explicitement demandé est dérivé », et la source
+ * `derived_deterministic`. L'invariant qu'ils croyaient tenir — la forme du livrable est établie
+ * sans rien inventer — était juste. CE QU'ILS PROTÉGEAIENT ne l'était plus : ils gelaient le
+ * MÉCANISME de dérivation, un score de mots-clés cherchés en sous-chaîne dans la demande brute.
+ *
+ * Le produit déployé a montré ce que ce mécanisme coûte : « … la politique de conservation des
+ * DONNÉES … » rendait `json` pour une annexe contractuelle ; « Prépare le disCOURS de départ »
+ * rendait un module pédagogique ; « aux deux candidats finaLISTEs » rendait une checklist. Aucun
+ * de ces tests ne pouvait le voir : leurs demandes nommaient toutes le format pour de bon.
+ *
+ * CLASSIFICATION : HISTORICAL_IMPLEMENTATION_CONTRACT. Ils sont remplacés par l'invariant réel —
+ * la forme vient de l'autorité, ce module la reconnaît ou l'écarte, et aucun mot du sujet ne
+ * l'établit.
+ */
+
+test('T-REN-09 la forme nommée par l’autorité est reconnue, et sa source le dit', () => {
+  const { contract, derivation_trace } = enrichirAvecFormat('Donne 5 idées.', 'liste');
   assert.equal(contract.output.format, 'liste');
-  assert.equal(contract.output.sources.format, 'derived_deterministic');
-  assert.ok(derivation_trace.some((t) => t.target_field === 'output.format'));
+  assert.equal(contract.output.sources.format, 'canonical_authority');
+  const t = derivation_trace.find((x) => x.target_field === 'output.format');
+  assert.ok(t, 'la dérivation est tracée');
+  assert.equal(t.rule, 'declared_by_semantic_authority');
+  assert.equal(t.source, 'output.format', 'la source est le fait, jamais la demande');
 });
 
-test('T-REN-10 un format de tableau explicitement demandé est dérivé', () => {
-  assert.equal(enrichir('Compare trois options dans un tableau.').contract.output.format, 'tableau');
+test('T-REN-10 un identifiant hors vocabulaire est ÉCARTÉ, jamais rapproché du plus ressemblant', () => {
+  /* « listes » n'est pas « liste ». Aucune tolérance : ce serait rouvrir l'appariement flou. */
+  const { contract, derivation_trace } = enrichirAvecFormat('Compare trois options.', 'listes');
+  assert.equal(contract.output.format, null);
+  assert.equal(derivation_trace.find((x) => x.target_field === 'output.format').rule,
+    'unknown_identifier_discarded');
 });
 
-test('T-REN-11 un format nommé par motif injecté est dérivé', () => {
-  assert.equal(enrichir('Rédige un email de relance.').contract.output.format, 'courriel');
-  assert.equal(enrichir('Rends le résultat en json.').contract.output.format, 'json');
+test('T-REN-11 les mots du SUJET ne choisissent plus aucune forme', () => {
+  /* Les trois paires mesurées en campagne. Le mot change, la forme ne bouge pas : elle n'a jamais
+     été lue dans la demande. */
+  for (const demande of [
+    'Rédige la politique de conservation des données de santé.',
+    'Rédige la politique de conservation des informations de santé.',
+    'Prépare le discours de départ à la retraite.',
+    'Prépare l’allocution de départ à la retraite.',
+    'Rédige la lettre destinée aux deux candidats finalistes.',
+    'Rédige la lettre destinée aux deux candidats retenus.',
+    'Rends le résultat en json.',
+    'Rédige un email de relance.'
+  ]) {
+    assert.equal(enrichir(demande).contract.output.format, null,
+      `aucune forme ne doit naître de : ${demande}`);
+  }
+  /* Et la même demande, selon ce que l'autorité déclare, prend l'une ou l'autre forme. */
+  assert.equal(enrichirAvecFormat('Rédige la politique de conservation des données.', 'json').contract.output.format, 'json');
+  assert.equal(enrichirAvecFormat('Rédige la politique de conservation des données.', 'tableau').contract.output.format, 'tableau');
 });
 
-test('T-REN-12 aucun format n’est inventé quand la demande n’en nomme aucun', () => {
+test('T-REN-12 aucun format n’est inventé quand l’autorité n’en nomme aucun', () => {
   const { contract } = enrichir('Explique la différence entre deux approches.');
   assert.equal(contract.output.format, null, 'aucun format par défaut');
   assert.deepEqual(clone(contract.output.structure), []);
   assert.equal(contract.output.tone, null, 'aucun ton inventé');
   assert.equal(contract.output.length_policy, null, 'aucune longueur inventée');
-  assert.equal(deriveFormatFromRequest('Explique la différence.', VOCABULAIRE), null);
+});
+
+test('T-REN-12b plus aucune dérivation lexicale du format n’existe dans le module', () => {
+  const source = fs.readFileSync(path.join(root, 'core/adn/rapide-canonical-enrichment.js'), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  assert.equal(source.includes('deriveFormatFromRequest'), false, 'la fonction ne revient pas');
+  assert.equal(/markers/.test(source), false, 'les marqueurs de format ne sont plus lus');
+  assert.equal(/explicit_format_marker/.test(source), false, 'sa règle non plus');
 });
 
 /* ==========================================================================
@@ -248,7 +315,10 @@ test('T-REN-15 [SÉCURITÉ] un matériau fourni produit toujours le signal de d�
 });
 
 test('T-REN-16 un format établi produit le signal format, et lui seul', () => {
-  assert.ok(signauxDe(enrichir('Donne le résultat sous forme de liste.')).includes('format'));
+  /* F1 — « établi » veut dire DÉCLARÉ PAR L'AUTORITÉ. La demande, elle, n'établit plus rien :
+     la première ligne nomme pourtant le mot « liste », et ne produit aucun signal. */
+  assert.ok(signauxDe(enrichirAvecFormat('Donne le résultat.', 'liste')).includes('format'));
+  assert.equal(signauxDe(enrichir('Donne le résultat sous forme de liste.')).includes('format'), false);
   assert.equal(signauxDe(enrichir('Explique la différence.')).includes('format'), false);
 });
 
@@ -298,7 +368,8 @@ test('T-REN-20 l’enrichisseur ne sélectionne aucun verrou', () => {
  * ======================================================================= */
 
 test('T-REN-21 les contrôles dérivés sont déterministes et mécaniquement vérifiables', () => {
-  const { contract } = enrichir('Donne exactement 7 idées sous forme de liste.');
+  /* F1 — la quantité vient toujours de la demande, la forme vient désormais de l'autorité. */
+  const { contract } = enrichirAvecFormat('Donne exactement 7 idées.', 'liste');
   const quantite = contract.checks.find((c) => c.rapide_source_field === 'quantities[0]');
   assert.ok(quantite);
   assert.equal(quantite.type, 'deterministic');
@@ -310,7 +381,7 @@ test('T-REN-21 les contrôles dérivés sont déterministes et mécaniquement v�
   assert.equal(format.type, 'deterministic');
 
   /* Un format NON vérifiable mécaniquement ne produit aucun contrôle. */
-  const courriel = enrichir('Rédige un email de relance.').contract.checks;
+  const courriel = enrichirAvecFormat('Rédige une relance.', 'courriel').contract.checks;
   assert.equal(courriel.some((c) => c.rapide_source_field === 'output.format'), false);
   /* Et aucun contrôle qualitatif n'est inventé. */
   assert.equal(contract.checks.every((c) => c.type === 'deterministic'), true);
@@ -372,8 +443,13 @@ test('T-REN-26 DOMAIN_HARDCODING_ADDED = NO : aucun vocabulaire n’est écrit d
     assert.equal(new RegExp(`\\b${marqueur}\\b`, 'i').test(source), false, `aucun marqueur de format (${marqueur})`);
   }
   assert.equal(/['"`]json['"`]/i.test(source), false, 'aucun identifiant de format json');
-  /* Les marqueurs viennent de l'appelant, et un vocabulaire vide n'invente rien. */
-  assert.equal(deriveFormatFromRequest('Donne un tableau et une liste en json.', []), null);
+  /* TRACER-REMEDIATION-02 · F1 — la preuve ne passe plus par la fonction retirée : un vocabulaire
+     vide ne peut RIEN reconnaître, et la demande a beau nommer trois formes, aucune n'apparaît. */
+  const sansVocabulaire = enrichRapidCanonicalContract(
+    baseFor('Donne un tableau et une liste en json.'),
+    { format_vocabulary: [], counting_units: UNITES }
+  );
+  assert.equal(sansVocabulaire.contract.output.format, null);
 });
 
 /* ==========================================================================
@@ -403,11 +479,18 @@ test('T-REN-27 … 30 aucun destinataire, ton, longueur, amorce ni clôture n’
 test('T-REN-31 [MATRICE] les 13 verrous deviennent projetables, sans forçage', () => {
   /* Contrat portant TOUT ce que la chaîne canonique peut légitimement porter :
      ce que Rapide dérive, plus ce que OPRIE ou un enrichissement amont fournit. */
-  const base = baseFor('Donne exactement 7 idées sous forme de tableau.', {
-    confirmed_constraints: ['Contrainte confirmée.'],
-    assumptions_allowed: ['Hypothèse autorisée.'],
-    external_facts_to_research: ['Fait externe.']
-  });
+  /* F1 — la forme est déclarée par l'autorité, comme en production ; la quantité reste dans la
+     demande, où la personne l'a écrite. */
+  const base = canonicalFrom(oprieReadyTurn({
+    output_format: 'tableau',
+    operational_request_candidate: {
+      objective: 'Objectif validé.', expected_deliverable: 'Un livrable nommé.',
+      secondary_objectives: [], confirmed_constraints: ['Contrainte confirmée.'],
+      confirmed_priorities: [], confirmed_preferences: [], delegated_decisions: [],
+      external_facts_to_research: ['Fait externe.'], assumptions_allowed: ['Hypothèse autorisée.'],
+      remaining_unknowns: []
+    }
+  }), { request_id: 'ren-00', original_request: 'Donne exactement 7 idées.' });
   const premier = enrichRapidCanonicalContract(base, { material: 'M.', format_vocabulary: VOCABULAIRE, counting_units: UNITES });
   const amont = clone(premier.contract);
   amont.intent.recipient = 'un lectorat défini';

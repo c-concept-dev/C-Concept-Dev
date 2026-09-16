@@ -69,20 +69,14 @@ test('T-CLEAN01-02 : plus aucun appariement flou hérité', () => {
   assert.equal(html.includes('conversationQuestionsSimilar'), false);
   assert.equal(BUNDLE.includes('conversationQuestionsSimilar'), false);
   assert.equal(BUNDLE.includes('>= 0.6'), false, 'son seuil part avec lui.');
-  /* Le seul appariement qui subsiste appartient au VALIDATEUR de sortie du
-     Decision Provider — il refuse une question qui répète une clarification
-     déjà posée. Il ne décide aucun état : il rejette une sortie non conforme. */
-  const validateur = sansProse(tranche('function adpQuestionsSimilaires(', 'async function askDecisionProvider('));
-  assert.match(validateur, /throw new Error\('La question répète une clarification déjà posée\.'\)/,
-    'il rejette, il ne promeut pas.');
-  /* Il LIT les valeurs du contrat de fil pour les valider — c'est son travail — mais il
-     n'en ÉCRIT aucune : un validateur qui promeut ne valide plus, il décide. */
-  for (const etat of ['operational_request_ready', 'execution_ready', 'exploitable', 'route']) {
-    assert.equal([...validateur.matchAll(new RegExp(`(?<![=!<>])\\b${etat}\\s*=(?![=>])`, 'g'))].length, 0,
-      `le validateur n’écrit pas ${etat}.`);
-  }
-  for (const moteur of ['oprieRunTurn', 'oprieEnterExecution', 'adpRunRapide', 'adpEnterArchitecte']) {
-    assert.equal(validateur.includes(moteur), false, `et n’atteint pas ${moteur}.`);
+  /* V2.2.1-E2 — L'INVARIANT EST DEVENU ABSOLU. Il subsistait UN appariement : le validateur de
+     sortie du décideur historique, qui refusait une question répétée sans promouvoir aucun état.
+     Le réaudit indépendant a relevé qu'il embarquait une stop-list et un seuil de similarité, et
+     l'audit de reachability a montré qu'il n'avait plus aucun appelant dans le produit. Il a été
+     retiré. Il n'existe donc plus AUCUN appariement flou dans l'artefact, et sa responsabilité est
+     tenue par le plan canonique (`isRepeatedSolicitation`, verdict ALREADY_ANSWERED). */
+  for (const disparu of ['adpQuestionsSimilaires', 'adpMotsQuestion', 'adpDecisionValide', 'askDecisionProvider']) {
+    assert.equal(BUNDLE.includes(disparu), false, `${disparu} a quitté l’artefact.`);
   }
 });
 
@@ -232,17 +226,13 @@ test('T-CLEAN01-FAILCLOSED : une panne technique ferme toujours, sans router', a
 
 test('T-CLEAN01-RIEN-AJOUTÉ : aucun seuil, aucun flou, aucun repli introduits par ce lot', () => {
   const busy = sansProse(tranche('function oprieSetBusy(', 'function oprieShowAnalysing'));
-  const facade = sansProse(tranche('window.__ADAPTIVE_DECISION_PIPELINE_10G__', 'window.__V11_ROUTER__'));
-  for (const source of [busy, facade]) {
-    for (const interdit of [/confidence/i, /\bscore\b/i, /threshold/i, /\bseuil\b/i,
-                            /fuzzy/i, /similar/i, /fallback/i, /repli/i, /0\.\d/]) {
-      assert.doesNotMatch(source, interdit, String(interdit));
-    }
+  /* V2.2.1-E2 — LA FAÇADE N'EXISTE PLUS. CLEAN-01 l'avait réduite au seul transport encore
+     consommé ; E2 a établi que ce consommateur était un banc d'évaluation, jamais le produit, et
+     que le décideur embarquait un vocabulaire décisionnel. Ne rien exposer est plus fort que
+     n'exposer que le strict nécessaire. */
+  for (const disparu of ['__ADAPTIVE_DECISION_PIPELINE_10G__', 'window.askDecisionProvider']) {
+    assert.equal(html.includes(disparu), false, `${disparu} n’est plus exposé.`);
   }
-  /* La façade est réduite à ce qui a un consommateur réel. */
-  assert.doesNotMatch(facade, /decide:|lastDecision|getAudit|adpState\.audit/);
-  assert.match(facade, /askDecisionProvider/);
-  assert.match(html, /window\.askDecisionProvider=askDecisionProvider/, 'le transport reste exposé.');
 });
 
 test('T-CLEAN01-BUILD : un bloc runtime, un bundle plus court, et rien d’orphelin', () => {

@@ -292,7 +292,7 @@ test('T-EXECPHASE-BORNES : seul le chemin Pro exécute ; les autres rendent un p
   assert.doesNotMatch(rapide, /appelFournisseur|archControleSortie|createExecutionLifecycle/);
   const api = sansProse(html.slice(html.indexOf('async function beginApiAnalysis()'), html.indexOf('function compositeDemand')));
   assert.doesNotMatch(api, /archControleSortie|archConstruireExecuter/);
-  const atelier = sansProse(html.slice(html.indexOf('function v11StartAtelier()'), html.indexOf('window.askDecisionProvider')));
+  const atelier = sansProse(html.slice(html.indexOf('function v11StartAtelier()'), html.indexOf('window.__V11_ROUTER__')));
   assert.doesNotMatch(atelier, /appelFournisseur|archControleSortie|createExecutionLifecycle|oprieBeginExecutionCycle/);
   /* Et le cycle ne s'ouvre qu'au seul endroit qui pose le contrat canonique. */
   assert.equal(compte('oprieState\\.canonicalContract\\s*='), 1);

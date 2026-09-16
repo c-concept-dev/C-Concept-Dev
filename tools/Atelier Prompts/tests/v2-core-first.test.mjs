@@ -167,8 +167,14 @@ test('V2-05 : une question catalogue ne peut pas sortir du tour V2', async () =>
     + 'recommandations, une liste de contrôle, ou autre chose ?';
   assert.equal(isAtomicQuestion(catalogue), false, 'le garde la reconnaît');
   /* Et le chemin V2 passe par la MÊME frontière que le chemin historique. */
-  assert.match(orchestrateur, /return applyDisplayGuardToTurn\(resultat\.turn, \{ question_candidates: resultat\.question_candidates \}, log\);/,
-    'la sortie V2 traverse la frontière d’atomicité, et elle y traverse avec ses candidates');
+  /* V2.2.1-D2F2 — même frontière, sans le texte de la demande : ce qui portait l'exception est
+     devenu un fait canonique du tour. */
+  /* TRACER-REMEDIATION-02 · F5 — un argument de plus, et il est nommé : l'historique de
+     clarification. La frontière y lit l'IDENTITÉ des manques déjà sollicités, pour ne pas afficher
+     une question qui redemande la même chose sous une autre formulation. Elle ne lit toujours pas le
+     texte de la demande, et ne décide toujours aucun état. */
+  assert.match(orchestrateur, /return applyDisplayGuardToTurn\(resultat\.turn, \{ question_candidates: resultat\.question_candidates \}, log, input && input\.clarification_history\);/,
+    'la sortie V2 traverse la frontière d’atomicité, avec ses candidates');
 });
 
 test('V2-06 : une question multi-dimension ne peut pas sortir du tour V2', () => {

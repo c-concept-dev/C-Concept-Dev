@@ -83,6 +83,43 @@ export const ISSUE_TYPES = Object.freeze([
   "multi_objective_disorder"
 ]);
 
+/* V2.2.1-D2F1 — CE QUE LA QUESTION INTERROGE, DIT PAR CELUI QUI L'ÉCRIT.
+ *
+ * Un garde d'affichage devait savoir si une clarification demande à la personne une donnée de SA
+ * situation, ou si elle lui demande de définir ce que NOUS devons produire. Il le devinait en
+ * cherchant des mots dans la question. Mesuré en D2A : deux questions de légitimité opposée peuvent
+ * viser la même inconnue canonique — l'état décrit l'INCONNUE, jamais ce que la question INTERROGE.
+ * Aucun champ ne portait donc ce fait, et le lexique le remplaçait.
+ *
+ * Il est désormais déclaré par l'auteur de la question, des deux côtés : le plan profond pour
+ * `next_question`, le plan rapide pour la sienne. Un garde n'a plus à le deviner — et ne le peut
+ * plus, puisqu'il ne reçoit plus le texte pour en juger.
+ *
+ * `other` n'est ni un échec ni un repli : beaucoup de questions ne relèvent ni de l'une ni de
+ * l'autre, et le dire est la réponse juste. Une question sans fait déclaré n'exempte rien et
+ * n'accuse rien — on échoue fermé. */
+export const QUESTION_FOCUS_VALUES = Object.freeze([
+  "problem_or_user_context",
+  "output_specification",
+  "other"
+]);
+
+/* V2.2.1-D2F2 — CE SUR QUOI PORTE LA DEMANDE, DIT PAR L'AUTORITÉ.
+ *
+ * Dernier fait que le garde devinait encore. Une exemption existe pour un cas juste : quand la
+ * personne demande elle-même sous quelle forme rendre la chose, lui répondre par une question sur
+ * la forme est le sujet, pas une dérobade. Ce cas se reconnaissait à des tournures interrogatives
+ * cherchées dans le texte de la demande.
+ *
+ * `objective_nature` ne pouvait pas le remplacer, et c'est mesuré : sur trois demandes qui
+ * interrogent littéralement la production, il vaut « other » les trois fois. Produire et mettre en
+ * forme sont une chose ; porter SUR la forme en est une autre. */
+export const REQUEST_FOCUS_VALUES = Object.freeze([
+  "output_form_or_specification",
+  "user_problem_or_goal",
+  "other"
+]);
+
 export const CONFLICT_KINDS = Object.freeze([
   "logical_contradiction",
   "constraint_tension",
@@ -194,7 +231,17 @@ export function validateOriginalRequestRecord(record) {
   assert(record.version === OPERATIONAL_REQUEST_STATE_VERSION, "Version OperationalRequestState incompatible.");
   assert(text(record.original_request), "original_request doit rester non vide.");
   list(record.clarification_history).forEach((turn, index) => {
-    exactKeys(turn, ["turn", "question", "answer", "provenance"], `clarification_history[${index}]`);
+    /* TRACER-REMEDIATION-02 · F5 — L'IDENTITÉ DU MANQUE VOYAGE AVEC LE TOUR, ET ELLE EST OPTIONNELLE.
+       Lecture tolérante, écriture stricte : les historiques écrits avant ce lot n'en portent pas, et
+       ils restent valides. Quand elle est là, c'est elle qui dit QUEL manque a été sollicité — jamais
+       le texte de la question, qui change de formulation d'un tour à l'autre. */
+    exactKeys(turn, Object.prototype.hasOwnProperty.call(turn || {}, "missing_determinant_id")
+      ? ["turn", "question", "answer", "provenance", "missing_determinant_id"]
+      : ["turn", "question", "answer", "provenance"], `clarification_history[${index}]`);
+    if (Object.prototype.hasOwnProperty.call(turn, "missing_determinant_id")) {
+      assert(turn.missing_determinant_id === null || text(turn.missing_determinant_id),
+        `clarification_history[${index}].missing_determinant_id doit être un identifiant non vide, ou null.`);
+    }
     assert(Number.isInteger(turn.turn) && turn.turn === index + 1, `clarification_history[${index}].turn doit être ${index + 1}.`);
     assert(text(turn.question), `clarification_history[${index}].question doit être non vide.`);
     assert(text(turn.answer), `clarification_history[${index}].answer doit être non vide.`);
@@ -207,7 +254,7 @@ export function validateOriginalRequestRecord(record) {
  * Ajoute un tour de clarification sans jamais muter l'enregistrement précédent ni réassigner
  * original_request. C'est la seule voie légitime de faire évoluer clarification_history.
  */
-export function appendClarificationTurn(record, { question, answer, provenance = "user" } = {}) {
+export function appendClarificationTurn(record, { question, answer, provenance = "user", missing_determinant_id = null } = {}) {
   validateOriginalRequestRecord(record);
   const q = text(question);
   const a = text(answer);
@@ -218,7 +265,9 @@ export function appendClarificationTurn(record, { question, answer, provenance =
     turn: record.clarification_history.length + 1,
     question: q,
     answer: a,
-    provenance
+    provenance,
+    /* F5 — ce que le manque EST, et non comment il a été formulé. */
+    ...(text(missing_determinant_id) ? { missing_determinant_id: text(missing_determinant_id) } : {})
   });
   const next = Object.freeze({
     version: record.version,

@@ -23,7 +23,7 @@ test("le runtime navigateur expose l'Execution Readiness Gate", () => {
 test("le contrat envoyé à Architecte est en contractualisation, pas en exécution", () => {
   const section = html.slice(
     html.indexOf("function adnCompactContractForArchitecte"),
-    html.indexOf("function adpEndpointValide")
+    html.indexOf("window.__V11_ROUTER__")
   );
   assert.match(section, /contractForContractualization/);
   assert.match(section, /can_execute:false/);

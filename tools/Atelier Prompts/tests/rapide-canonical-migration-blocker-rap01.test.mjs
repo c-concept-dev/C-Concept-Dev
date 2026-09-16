@@ -77,8 +77,13 @@ const CAS = [
 test('T-RAP01-BLOCK-01 la base canonique OPRIE est vide sur les familles dont Rapide a besoin', () => {
   const base = baseLaPlusRiche('Donne 7 idées pour améliorer un processus.');
 
-  /* Les familles que Rapide doit projeter pour tenir sa promesse. */
-  assert.equal(base.output.format, null, 'aucun format');
+  /* Les familles que Rapide doit projeter pour tenir sa promesse.
+     TRACER-REMEDIATION-02 · F1 — `output.format` a QUITTÉ cette liste : l'autorité sémantique le
+     produit désormais. Ce test gardait un constat vrai en son temps — « OPRIE ne produit ni sortie,
+     ni quantité » — devenu partiellement faux par décision de gouvernance, parce que laisser la
+     forme du livrable à un score de mots-clés en aval rendait le prompt faux. Ce qui reste vrai est
+     gardé ici ; la forme est gardée par T-REN-09 et par la suite F1. */
+  assert.equal(base.output.format, null, 'ce tour-ci ne déclare aucune forme');
   assert.equal(base.output.tone, null, 'aucun ton');
   assert.equal(base.output.length_policy, null, 'aucune politique de longueur');
   assert.deepEqual(base.output.structure, [], 'aucun plan');
@@ -87,9 +92,15 @@ test('T-RAP01-BLOCK-01 la base canonique OPRIE est vide sur les familles dont Ra
   assert.deepEqual(base.obligations, [], 'aucune obligation');
   assert.equal(base.intent.recipient, null, 'aucun destinataire');
 
-  /* Ce n'est pas un oubli : le mapper le déclare. */
+  /* Ce n'est pas un oubli : le mapper le déclare.
+     TRACER-REMEDIATION-02 · F1 — « ni sortie » a quitté cette déclaration. OPRIE produit désormais
+     UN champ de `output` : la forme du livrable. Le reste de la famille — structure, ton, volume,
+     amorce, clôture — lui demeure étranger, et c'est ce que cette preuve garde maintenant. */
   const mapper = fs.readFileSync(path.join(CORE_DIR, 'oprie-canonical-mapping.js'), 'utf8');
-  assert.match(mapper, /OPRIE ne produit ni obligation, ni quantité, ni sortie, ni contrôle/);
+  assert.match(mapper, /OPRIE ne produit ni obligation, ni quantité, ni contrôle/);
+  assert.equal(base.output.structure.length, 0);
+  assert.equal(base.output.opening, null);
+  assert.equal(base.output.closing, null);
 
   /* Et les deux seuls signaux de verrou disponibles. */
   assert.deepEqual(base.semantic_lock_signals.signals.map((s) => s.id).sort(), ['assumptions', 'provenance']);
@@ -141,14 +152,16 @@ test('T-RAP01-LIFT-02 [LEVÉE] enrichi, le même contrat justifie les treize ver
     id, name: FORMATS[id].nom, markers: FORMATS[id].indices || [], verifiable: FORMATS[id].strict === true
   }));
 
+  /* F1 — la forme du livrable est déclarée par l'autorité, comme en production. */
   const base = canonicalFrom(oprieReadyTurn({
+    output_format: 'tableau_comparatif',
     operational_request_candidate: {
       objective: 'Objectif validé.', expected_deliverable: 'Un livrable nommé.',
       secondary_objectives: [], confirmed_constraints: ['Contrainte confirmée.'], confirmed_priorities: [],
       confirmed_preferences: [], delegated_decisions: [], external_facts_to_research: ['Fait externe.'],
       assumptions_allowed: ['Hypothèse autorisée.'], remaining_unknowns: []
     }
-  }), { request_id: 'lift', original_request: 'Donne exactement 7 idées sous forme de tableau.' });
+  }), { request_id: 'lift', original_request: 'Donne exactement 7 idées.' });
 
   const options = { material: 'Un matériau.', format_vocabulary: vocabulaire, counting_units: 'items?|elements?|idees?|points?' };
   const premier = enrichRapidCanonicalContract(base, options);

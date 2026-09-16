@@ -19,35 +19,24 @@ function list(value) {
   return Array.isArray(value) ? value : [];
 }
 
-function words(value) {
-  const stop = new Set([
-    "avec","avez","cette","dans","des","elle","est","etes","les","pour","que",
-    "quel","quelle","quelles","quels","qui","souhaitez","une","vous","votre","vos"
-  ]);
-  return new Set(
-    text(value)
-      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase().replace(/[’']/g, " ").replace(/[^a-z0-9\s]/g, " ")
-      .split(/\s+/).filter((item) => item.length > 2 && !stop.has(item))
-  );
-}
-
-function questionsSimilar(left, right) {
-  const a = words(left);
-  const b = words(right);
-  if (!a.size || !b.size) return text(left).toLowerCase() === text(right).toLowerCase();
-  let common = 0;
-  for (const item of a) if (b.has(item)) common += 1;
-  return common / Math.min(a.size, b.size) >= 0.7;
-}
-
-function novelQuestions(questions, previousQuestions) {
-  const previous = list(previousQuestions).map(text).filter(Boolean);
-  return list(questions)
-    .map(text)
-    .filter(Boolean)
-    .filter((question) => !previous.some((old) => questionsSimilar(question, old)));
-}
+/* V2.2.1-E3 — L'ESTIMATEUR DE RESSEMBLANCE A ÉTÉ RETIRÉ D'ICI, ET LUI SEUL.
+ *
+ * Trois fonctions vivaient à cet endroit : `words()` et sa liste de mots vides français,
+ * `questionsSimilar()` qui comparait deux questions par un ratio de mots communs au seuil de 0,7,
+ * et `novelQuestions()` qui s'en servait pour écarter une question jugée trop proche d'une
+ * précédente.
+ *
+ * L'INVARIANT ÉTAIT JUSTE ; L'ESTIMATEUR NE L'ÉTAIT PAS. Un ratio comparé à un seuil est un
+ * jugement de SENS rendu localement, et 0,7 n'y devient pas conforme parce qu'il serait
+ * transversal. Cette responsabilité — ne pas reposer une clarification déjà posée — appartient au
+ * plan canonique, où elle est tenue SANS flou : `isRepeatedSolicitation` compare une IDENTITÉ
+ * normalisée, pas une ressemblance, et rend le verdict ALREADY_ANSWERED.
+ *
+ * CE QUI N'A PAS ÉTÉ TOUCHÉ, ET POURQUOI. Ce module déclare une autorité — la porte de readiness
+ * Architecte — que des tests sentinelles comptent nommément (« six autorités, six sources
+ * uniques »). L'audit de ce lot a établi qu'elle n'a plus d'appelant produit, mais la retirer
+ * serait un acte d'architecture, pas une correction d'estimateur. Elle reste donc en place, et
+ * cette dette est nommée dans le rapport V2.2.1-E3 plutôt que payée en passant. */
 
 function assertAnalysis(analysis) {
   if (!analysis || typeof analysis !== "object" || Array.isArray(analysis)) {
@@ -89,12 +78,14 @@ export function contractForContractualization(contract) {
  * Évalue uniquement des primitives universelles déjà produites par Architecte.
  * Aucun domaine, mot-clé métier ni quantité arbitraire n'est utilisé.
  */
-export function assessAnalysisReadiness(analysis, { previous_questions = [] } = {}) {
+export function assessAnalysisReadiness(analysis) {
   assertAnalysis(analysis);
   const ev = analysis.evaluation || {};
   const missing = list(analysis.comprehension?.informations_manquantes);
   const blockingMissing = missing.filter((item) => item && item.bloquant === true);
-  const candidates = novelQuestions(ev.questions_a_poser, previous_questions);
+  /* Les questions proposées, telles que l'analyse les donne. Le dédoublonnage avec les
+     clarifications déjà posées appartient au plan canonique, qui le fait par identité. */
+  const candidates = list(ev.questions_a_poser).map(text).filter(Boolean);
   const complete = ev.livrable_complet_possible === true;
   const action = text(ev.action_recommandee);
 

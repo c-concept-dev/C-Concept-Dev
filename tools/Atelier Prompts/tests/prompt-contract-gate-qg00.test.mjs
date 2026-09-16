@@ -55,8 +55,13 @@ const VOCABULAIRE = Object.freeze([
 ]);
 const UNITES = 'items?|elements?|idees?|points?|options?|exemples?|etapes?|champs?';
 
-function baseFor(original_request, candidat = {}) {
+/* TRACER-REMEDIATION-02 · F1 — la forme du livrable est un fait de l'autorité, plus une dérivation
+   des mots de la demande. Les fixtures la DÉCLARENT donc, au lieu de l'obtenir en glissant le mot
+   « liste » ou « tableau » dans la demande. Rien d'autre ne change dans ce fichier : ce qu'il
+   éprouve est le gate de contrat, pas la provenance du format. */
+function baseFor(original_request, candidat = {}, output_format = null) {
   return canonicalFrom(oprieReadyTurn({
+    ...(output_format ? { output_format } : {}),
     operational_request_candidate: {
       objective: 'Objectif validé.', expected_deliverable: 'Un livrable nommé.',
       secondary_objectives: [], confirmed_constraints: [], confirmed_priorities: [],
@@ -67,8 +72,8 @@ function baseFor(original_request, candidat = {}) {
 }
 
 /** Contrat Rapide RÉEL : mapper de production + enrichisseur de production. */
-const contratRapide = (demande, options = {}, candidat = {}) =>
-  enrichRapidCanonicalContract(baseFor(demande, candidat),
+const contratRapide = (demande, options = {}, candidat = {}, output_format = null) =>
+  enrichRapidCanonicalContract(baseFor(demande, candidat, output_format),
     { format_vocabulary: VOCABULAIRE, counting_units: UNITES, ...options }).contract;
 
 /** Valeur projetée FIDÈLE d'une exigence — la projection parfaite de référence.
@@ -142,7 +147,7 @@ const PROMPT_NEUTRE = 'Produis le livrable demandé en respectant le contrat ét
  * ======================================================================== */
 
 test('T-QG00-01 le gate est déterministe : 200 exécutions, un seul résultat', () => {
-  const contract = contratRapide('Donne exactement 7 exemples sous forme de liste.');
+  const contract = contratRapide('Donne exactement 7 exemples.', {}, {}, 'liste');
   const trace = traceFidele(contract);
   const locks = verrousFideles(contract);
   const reference = JSON.stringify(gate(contract, 'Donne exactement 7 exemples.', trace, locks));
@@ -176,7 +181,7 @@ test('T-QG00-03 aucun juge LLM, aucun fuzzy, aucun embedding, aucun seuil arbitr
 });
 
 test('T-QG00-04 le contrat canonique n’est jamais muté, même gelé en profondeur', () => {
-  const contract = deepFreeze(contratRapide('Fais un tableau comparatif de 4 options.'));
+  const contract = deepFreeze(contratRapide('Fais une comparaison de 4 options.', {}, {}, 'tableau'));
   const avant = JSON.stringify(contract);
   const resultat = gate(contract, PROMPT_NEUTRE);
   assert.equal(JSON.stringify(contract), avant, 'QG_CANONICAL_MUTATIONS doit valoir 0');
@@ -187,7 +192,7 @@ test('T-QG00-04 le contrat canonique n’est jamais muté, même gelé en profon
 });
 
 test('T-QG00-05 le prompt n’est jamais réécrit ni retourné modifié', () => {
-  const contract = contratRapide('Donne une liste de 5 idées.');
+  const contract = contratRapide('Donne 5 idées.', {}, {}, 'liste');
   const prompt = 'Un prompt strictement inchangé.';
   const resultat = gate(contract, prompt);
   assert.equal(prompt, 'Un prompt strictement inchangé.');
@@ -220,7 +225,7 @@ test('T-QG00-06 sentinelles Rapide : 6 cas réels projetés fidèlement passent'
 });
 
 test('T-QG00-07 une projection requise perdue fait échouer le gate', () => {
-  const contract = contratRapide('Construis un tableau comparatif de 4 options.');
+  const contract = contratRapide('Construis une comparaison de 4 options.', {}, {}, 'tableau');
   const complet = gate(contract, PROMPT_NEUTRE);
   assert.equal(complet.status, 'PASS', 'la projection fidèle doit passer avant toute injection');
   const ampute = gate(contract, PROMPT_NEUTRE, sansEntree(traceFidele(contract), 'format'));
@@ -251,7 +256,7 @@ test('T-QG00-09 une borne dans le prompt contredit une exigence d’exactitude',
 });
 
 test('T-QG00-10 le format est vérifié par la trace structurée, pas par le mot du prompt', () => {
-  const contract = contratRapide('Construis un tableau comparatif.');
+  const contract = contratRapide('Construis une comparaison.', {}, {}, 'tableau');
   /* Le mot « tableau » absent du prompt ne suffit pas à faire échouer : c'est la
      trace qui fait foi. Sans quoi le gate deviendrait un lecteur de texte. */
   const resultat = gate(contract, 'Produis le livrable convenu.');
@@ -262,7 +267,7 @@ test('T-QG00-10 le format est vérifié par la trace structurée, pas par le mot
 });
 
 test('T-QG00-11 un format projeté différent du contrat est détecté', () => {
-  const contract = contratRapide('Construis un tableau comparatif.');
+  const contract = contratRapide('Construis une comparaison.', {}, {}, 'tableau');
   const resultat = gate(contract, PROMPT_NEUTRE, avecValeur(traceFidele(contract), 'format', { format: 'liste' }));
   assert.equal(resultat.status, 'FAIL');
   assert.ok(codes(resultat).includes('FORMAT_MISMATCH'));
@@ -373,7 +378,7 @@ test('T-QG00-18 périmètre : sentinelle Architecte format + longueur + scope + 
 });
 
 test('T-QG00-19 contrôles : couverture exigée, exécution différée, non vérifiable jamais PASS', () => {
-  const contract = contratRapide('Donne exactement 7 exemples sous forme de liste.');
+  const contract = contratRapide('Donne exactement 7 exemples.', {}, {}, 'liste');
   const bloquants = contract.checks.filter((c) => c.blocking);
   assert.ok(bloquants.length > 0, 'le contrat Rapide porte au moins un contrôle bloquant');
   assert.equal(gate(contract, 'Donne exactement 7 exemples.').status, 'PASS');
@@ -424,7 +429,7 @@ test('T-QG00-20 une instruction sans appui canonique est signalée', () => {
 });
 
 test('T-QG00-21 doublons : identiques = avertissement, contradictoires = échec', () => {
-  const contract = contratRapide('Construis un tableau comparatif.');
+  const contract = contratRapide('Construis une comparaison.', {}, {}, 'tableau');
   const base = traceFidele(contract);
   const format = base.entries.find((e) => e.key === 'format');
 
@@ -478,7 +483,7 @@ test('T-QG00-23 un prompt court mais complet passe : aucun seuil de longueur', (
 });
 
 test('T-QG00-24 un prompt long mais incomplet échoue : la taille ne vaut pas couverture', () => {
-  const contract = contratRapide('Construis un tableau comparatif de 4 options.');
+  const contract = contratRapide('Construis une comparaison de 4 options.', {}, {}, 'tableau');
   const long = `${'Texte de remplissage abondant et parfaitement inutile. '.repeat(300)}`;
   assert.ok(long.length > 5000);
   const resultat = gate(contract, long, sansEntree(traceFidele(contract), 'format'));

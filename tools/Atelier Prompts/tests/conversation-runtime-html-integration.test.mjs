@@ -59,8 +59,12 @@ test("la façade de compatibilité n’expose ni trace, ni réponses, ni ancien 
      Celui-ci retiré, elle n'aurait plus jamais rendu qu'un tableau vide — annoncer une trace
      toujours vide est pire que ne rien annoncer. La façade est réduite à ce qui a un
      consommateur réel, et ce test vérifie qu'elle ne réapparaît pas. */
-  const exposure = html.slice(html.indexOf("window.__ADAPTIVE_DECISION_PIPELINE_10G__"), html.indexOf("window.__V11_ROUTER__"));
-  assert.doesNotMatch(exposure, /getAudit|adpState\.audit|decide:|lastDecision/);
-  assert.doesNotMatch(exposure, /state\.answers|original_request|demande/);
-  assert.match(exposure, /askDecisionProvider/, "le transport, lui, a un consommateur réel.");
+  /* V2.2.1-E2 — LA FAÇADE ELLE-MÊME A DISPARU. CLEAN-01 l'avait réduite à ce qui avait encore un
+     consommateur : le transport du décideur historique. E2 a établi que ce consommateur était un
+     banc d'évaluation, jamais le produit, et que le décideur embarquait du vocabulaire décisionnel.
+     Il n'y a donc plus de façade du tout — ce qui est plus fort que de la garder minimale. */
+  for (const disparu of ['__ADAPTIVE_DECISION_PIPELINE_10G__', 'askDecisionProvider',
+                         'getAudit', 'lastDecision']) {
+    assert.equal(html.includes(disparu), false, `${disparu} n’est plus exposé.`);
+  }
 });

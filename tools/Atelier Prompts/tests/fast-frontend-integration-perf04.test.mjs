@@ -376,8 +376,14 @@ test('T-P04-25 : l’utilisateur peut répondre avant le retour du plan profond'
   /* answerQuestion est le chemin réel de la réponse : il enregistre la question TELLE QU'AFFICHÉE
      — donc la question rapide si c'est elle qu'on a lue — et rouvre un tour OPRIE complet. */
   const answer = html.slice(html.indexOf('function answerQuestion(answer){'), html.indexOf('function resetAll()'));
-  assert.match(answer, /state\.answers\.push\(\{question:\$\('#v11-question'\)\.textContent,answer\}\)/,
+  /* TRACER-REMEDIATION-02 · F5 — l'invariant est intact, l'entrée porte un champ de plus. La
+     question enregistrée reste CELLE QUI A ÉTÉ AFFICHÉE ; s'y ajoute l'identité du manque qu'elle
+     visait, pour que l'autorité sache au tour suivant que ce manque a déjà été sollicité. Le texte
+     ne devient pas l'identité : ce sont deux champs distincts, et c'est tout l'objet du lot. */
+  assert.match(answer, /state\.answers\.push\(\{question:\$\('#v11-question'\)\.textContent,answer,/,
     'la question enregistrée est celle qui a été affichée : la provenance ne peut pas diverger.');
+  assert.match(answer, /missing_determinant_id:determinantRepondu/,
+    'et la réponse emporte l’identité du manque qu’elle comble.');
   assert.match(answer, /oprieRunTurn\(adpState\.requestedMode\|\|'rapide'\)/,
     'répondre rouvre un tour OPRIE complet — jamais une décision locale.');
 });

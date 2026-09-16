@@ -170,7 +170,7 @@ test('T-FC01BFINAL-15/16/17/18 : qui produit un prompt, qui produit un livrable'
 
   assert.equal(contractFor('atelier').modeClass, 'manual_composition');
   assert.equal(executionTargetFor('atelier'), null);
-  const atelier = sansProse(tranche('function v11StartAtelier()', 'window.askDecisionProvider'));
+  const atelier = sansProse(tranche('function v11StartAtelier()', 'window.__V11_ROUTER__'));
   for (const interdit of ['oprieRunTurn', 'assessAnalysisReadiness', 'guardPromptContract',
                           'archControleSortie', 'appelFournisseur', 'oprieBeginExecutionCycle']) {
     assert.equal(atelier.includes(interdit), false, `Atelier n’appelle pas ${interdit}.`);
@@ -323,9 +323,11 @@ test('T-FC01BFINAL-38/39/40 : pas de plafond de questions, pas de boucle sans la
       assert.equal(m.includes(interdit), false, `PERIODIC_ORCHESTRATION_PATHS : ${interdit} = 0`);
     }
   }
-  /* Et aucune valeur sémantique n'est fabriquée à la place d'une inconnue. */
-  const validateur = sansProse(tranche('function adpQuestionsSimilaires(', 'async function askDecisionProvider('));
-  assert.match(validateur, /throw new Error/, 'une sortie non conforme est refusée, pas complétée.');
+  /* V2.2.1-E2 — et il n'existe plus aucun validateur lexical pour en fabriquer : le décideur
+     historique a été retiré de l'artefact, faute d'appelant et sous la Directive Maître. */
+  for (const disparu of ['adpQuestionsSimilaires', 'adpDecisionValide', 'askDecisionProvider']) {
+    assert.equal(FRONTEND.includes(disparu), false, `${disparu} a quitté l’artefact.`);
+  }
 });
 
 // =================================================================================================
@@ -351,7 +353,7 @@ test('T-FC01BFINAL-43 : le graphe de build reste fermé', () => {
   // eslint-disable-next-line no-eval
   const modules = eval(BUILD.slice(BUILD.indexOf('[', a), b + 2));
   /* V2 — vingt-trois modules : voir tests/build-graph-reachability-clean04.test.mjs pour la chaîne. */
-  assert.equal(modules.length, 23);
+  assert.equal(modules.length, 24);
   const parNom = Object.fromEntries(modules.map((m) => [m.name, m]));
   const directs = new Set(modules.filter((m) => m.exports.some((e) => new RegExp(`\\b${e}\\b`).test(FRONT_CODE))).map((m) => m.name));
   const atteints = new Set(directs);
@@ -611,10 +613,11 @@ test('GATE-103 : aucun chemin où le dernier arrivé écrase le courant', () => 
 });
 
 test('GATE-103 : ni appariement flou, ni seuil sémantique, ni codage en dur du domaine sur la chaîne gouvernée', () => {
-  /* La chaîne gouvernée = tout sauf la façade de transport du Decision Provider,
-     caractérisée en CLEAN-01 comme n'ayant qu'un consommateur : le banc d'évaluation. */
-  const facade = tranche('function adpTexteQuestion(', 'window.__V11_ROUTER__=');
-  const gouvernee = FRONT_CODE.replace(sansProse(facade), '');
+  /* V2.2.1-E2 — IL N'Y A PLUS RIEN À EXCLURE, ET LE TEST Y GAGNE.
+     La chaîne gouvernée excluait la façade de transport du Decision Provider, seule région à
+     laquelle CLEAN-01 reconnaissait un consommateur hors produit. Ce décideur a été retiré de
+     l'artefact : la chaîne gouvernée, c'est désormais TOUT le code frontend. */
+  const gouvernee = FRONT_CODE;
   for (const motif of ['levenshtein', 'jaccard', 'cosine', 'embedding', 'similarity', 'fuzzy']) {
     assert.equal(compte(motif, gouvernee), 0, `ACTIVE_UNAPPROVED_FUZZY_PATH : ${motif} = 0`);
   }

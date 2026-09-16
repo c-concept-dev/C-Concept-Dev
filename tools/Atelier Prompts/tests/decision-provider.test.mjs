@@ -54,10 +54,16 @@ test('les états, routes et questions incompatibles sont refusés',()=>{
   assert.equal(validateDecision(decision('clarification_necessaire',null,'Combien de temps avez-vous, avec quel budget travaillez-vous ?')).question,'Combien de temps avez-vous ?');
   assert.throws(()=>validateDecision(decision('clarification_necessaire',null,'Quel résultat concret souhaitez-vous obtenir ?')),/vocabulaire interne/);
   assert.throws(()=>validateDecision(decision('clarification_necessaire',null,'Quel est votre besoin métier ?')),/vocabulaire interne/);
+  /* V2.2.1-E3 — CES DEUX ASSERTIONS ÉPINGLAIENT UN ESTIMATEUR DE RESSEMBLANCE, PAS UN INVARIANT.
+     Elles vérifiaient qu'une question « trop proche » d'une clarification déjà posée était refusée,
+     par un ratio de mots communs au seuil de 0,7. Un jugement de sens rendu localement, que la
+     Directive Maître interdit — et la route /decision n'a plus aucun client produit depuis E2.
+     L'invariant lui-même n'est pas abandonné : il appartient au plan canonique, qui le tient par
+     IDENTITÉ et non par ressemblance. Il est éprouvé là où il opère, dans v221e2-*.test.mjs.
+     Classement : HISTORICAL_IMPLEMENTATION_CONTRACT. */
   const enriched='Demande\n\nPrécisions apportées pendant le dialogue :\n- Quand souhaitez-vous commencer ? — Réponse : Demain';
-  assert.throws(()=>validateDecision(decision('clarification_necessaire',null,'Quand voulez-vous commencer ?'),enriched),/répète/);
-  const enrichedTravel='Demande\n\nPrécisions apportées pendant le dialogue :\n- Quel est le but principal de votre voyage en Italie ? — Réponse : 12 jours';
-  assert.throws(()=>validateDecision(decision('clarification_necessaire',null,'Quel est votre principal objectif pour ce voyage de 12 jours en Italie ?'),enrichedTravel),/répète/);
+  assert.equal(validateDecision(decision('clarification_necessaire',null,'Quand voulez-vous commencer ?'),enriched).question,
+    'Quand voulez-vous commencer ?', 'la forme reste validée ; le sens ne l’est plus ici');
 });
 
 test('la raison interne doit correspondre exactement à la branche',()=>{

@@ -50,7 +50,7 @@ const modules = [
   {
     file: 'operational-request-state.js',
     name: 'ORSTATE',
-    exports: ['OPERATIONAL_REQUEST_STATE_VERSION','OPERATIONAL_REQUEST_STATES','CANDIDATE_FIELDS','CANDIDATE_SCALAR_FIELDS','CANDIDATE_LIST_FIELDS','ISSUE_TYPES','CONFLICT_KINDS','PROVENANCE_VALUES','createEmptyCandidate','normalizeCandidate','normalizeIssues','normalizeProvenanceRecords','validateOriginalRequestRecord','isLegalTransition']
+    exports: ['OPERATIONAL_REQUEST_STATE_VERSION','OPERATIONAL_REQUEST_STATES','CANDIDATE_FIELDS','CANDIDATE_SCALAR_FIELDS','CANDIDATE_LIST_FIELDS','ISSUE_TYPES','QUESTION_FOCUS_VALUES','REQUEST_FOCUS_VALUES','CONFLICT_KINDS','PROVENANCE_VALUES','createEmptyCandidate','normalizeCandidate','normalizeIssues','normalizeProvenanceRecords','validateOriginalRequestRecord','isLegalTransition']
   },
   {
     dir: 'workers/shared',
@@ -64,12 +64,22 @@ const modules = [
     name: 'PROVIDERHA',
     exports: ['FAILURE_CLASSES']
   },
+  /* La concurrence bornée du pipeline batché. `operational-request-core.js` l'importe ; sans elle
+   * dans ce graphe, `runBounded` se résolvait à `undefined` côté navigateur — le round-trip manuel
+   * embarque ce pipeline, et il aurait échoué à l'exécution. Défaut antérieur à V2.1, trouvé par le
+   * contrôle « aucun symbole undefined navigateur ». */
+  {
+    dir: 'workers/shared',
+    file: 'bounded-concurrency.js',
+    name: 'BOUNDED',
+    exports: ['runBounded']
+  },
   {
     dir: 'workers/shared',
     file: 'operational-request-core.js',
     name: 'ORCORE',
     exports: ['OPRIE_ROLES','ARBITER_STATES','ROLE_DEFINITIONS','ANALYST_SYSTEM_PROMPT','CRITIC_SYSTEM_PROMPT','ARBITER_SYSTEM_PROMPT','ANALYST_JSON_SCHEMA','CRITIC_JSON_SCHEMA','ARBITER_JSON_SCHEMA','makeAnalystUserMessage','makeCriticUserMessage','makeArbiterUserMessage','parseAnalystOutput','parseCriticOutput','parseArbiterOutput','validateAnalystOutput','validateCriticOutput','validateArbiterOutput','validateDegradedRoleResult','createDegradedRoleResult','buildCriticJsonSchema','buildQuestionReviewTargets','validateAnalystInput'],
-    deps: ['ORSTATE','DECISIONCORE']
+    deps: ['ORSTATE','DECISIONCORE','BOUNDED']
   },
   {
     dir: 'workers/shared',
@@ -87,7 +97,7 @@ const modules = [
     dir: 'workers/shared',
     file: 'solicitation-policy.js',
     name: 'SOLICIT',
-    exports: ['SOLICITING_TYPES','SOLICITATION_VERDICTS','FAST_MAX_SOLICITATIONS_PER_CONVERSATION','SILENT_INTERACTION','countAnsweredSolicitations','countInterrogations','countNamedAlternatives','countEnumeratedSegments','isRepeatedSolicitation','assessSolicitation','guardFastSolicitation','DISPLAY_VERDICTS','SAFE_FALLBACK_QUESTION','isAtomicQuestion','reduceQuestionDeterministically','guardDisplayedQuestion']
+    exports: ['SOLICITING_TYPES','SOLICITATION_VERDICTS','SILENT_INTERACTION','countInterrogations','countNamedAlternatives','countTargetedDimensions','isRepeatedSolicitation','assessSolicitation','guardFastSolicitation','DISPLAY_VERDICTS','isAtomicQuestion','reduceQuestionDeterministically','guardDisplayedQuestion']
   },
   /* V2 — le plan Core. L'orchestrateur l'importe ; il doit donc être embarqué, comme la politique
    * de sollicitation, sans quoi ses fonctions se résoudraient à `undefined` dans le navigateur. */
@@ -108,7 +118,7 @@ const modules = [
   {
     file: 'rapide-canonical-enrichment.js',
     name: 'RAPIDEENRICH',
-    exports: ['RAPIDE_ENRICHMENT_VERSION','RAPIDE_ENRICHABLE_PATHS','RAPIDE_SIGNALS','RAPIDE_SIGNAL_IDS','normalizeRequestText','deriveQuantityFromRequest','deriveFormatFromRequest','enrichRapidCanonicalContract','validateRapidCanonicalEnrichment','createRapidEnrichmentAuditView'],
+    exports: ['RAPIDE_ENRICHMENT_VERSION','RAPIDE_ENRICHABLE_PATHS','RAPIDE_SIGNALS','RAPIDE_SIGNAL_IDS','normalizeRequestText','deriveQuantityFromRequest','enrichRapidCanonicalContract','validateRapidCanonicalEnrichment','createRapidEnrichmentAuditView'],
     deps: ['ARCHENRICH']
   },
   /* ADN-QG-02B — LE MOTEUR DE CONFORMITÉ DE SORTIE EST EMBARQUÉ.
@@ -173,6 +183,11 @@ const modules = [
     file: 'fast-interactive-plane.js',
     dir: 'workers/shared',
     name: 'FASTPLANE',
+    /* V2.2.1-D2F1 — ce module n'avait aucune dépendance, et c'était voulu. Il en gagne UNE, vers le
+       vocabulaire canonique : `question_focus` doit avoir une seule définition dans tout le dépôt,
+       et le plan rapide en est l'un des deux producteurs. Le vocabulaire vit donc dans le module
+       d'état, à côté d'ISSUE_TYPES et de TREATMENT_VALUES, jamais dupliqué ici. */
+    deps: ['ORSTATE'],
     exports: ['FAST_INTERACTION_TYPES','ONE_NEXT_INTERACTION_MAX','FAST_FORBIDDEN_AUTHORITY_FIELDS','FAST_INTERACTION_JSON_SCHEMA','createTurnSnapshot','validateFastInteraction','CONVERSATIONAL_MODES','projectInteractionForMode','createTurnCoordinator','RECONCILIATION_OUTCOMES','reconcileFastWithDeep','runInteractiveTurn']
   },
   {

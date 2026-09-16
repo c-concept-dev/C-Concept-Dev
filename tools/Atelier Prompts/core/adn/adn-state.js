@@ -78,11 +78,52 @@ function simpleHash(input) {
   return (hash >>> 0).toString(16).padStart(8, "0");
 }
 
+/* V2.1.5.2 — LA PROVENANCE NE S'INVENTE PAS, ELLE SE TRANSPORTE.
+ *
+ * MESURÉ chez le propriétaire : la personne avait dit « 4 jours ». L'ADN a présenté « Durée du
+ * séjour : 4 jours (4 nuits) » avec `source = user` et `mandatory = true`. Personne n'avait
+ * prononcé « 4 nuits ».
+ *
+ * Audit indépendant : la trace owner du 2026-09-13T15:36:29.593Z montre déjà « 4 jours (4 nuits) »
+ * dans confirmed_constraints du Core. Le fichier demande-pour-ia-8RKZK6.json en conserve l'obligation
+ * user. Ce cas ne prouve donc PAS une naissance dans l'enrichisseur Architecte.
+ * Un AUTRE chemin dangereux existait bien ici : les obligations arch_analysis ou
+ * derived_deterministic devenaient user par défaut. Le correctif ferme ce chemin, mais ne peut
+ * prouver à lui seul la fidélité sémantique des confirmed_constraints produites en amont.
+ *
+ * LA RÈGLE, ET ELLE EST GÉNÉRIQUE : on ne peut revendiquer `user` que si le producteur l'a dit.
+ * Aucun vocabulaire nouveau n'est créé — les trois valeurs de l'énumération existante suffisent, et
+ * tout ce qui n'est pas une déclaration de la personne est une production du système.
+ *
+ * CE QUI RESTE `user`, ET POURQUOI. La signature historique accepte des CHAÎNES de contraintes
+ * utilisateur. Un OBJET sans source ne bénéficie pas de ce contrat : sa provenance est inconnue.
+ * Les contraintes marquées `oprie` viennent de `confirmed_constraints`, le
+ * champ que le contrat Core réserve à ce que la personne a réellement dit — les dérivations, lui,
+ * les met dans `assumptions_allowed`, et la consigne Core l'énonce désormais explicitement. */
+const SOURCES_DECLARATION_PERSONNE = Object.freeze(["user", "oprie"]);
+const SOURCE_PRODUCTION_SYSTEME = "system";
+
+/** La source d'un élément, jamais promue : `user` seulement si elle est réellement revendiquée. */
+function resolveItemSource(source) {
+  const valeur = text(source);
+  if (SOURCES_DECLARATION_PERSONNE.includes(valeur)) return "user";
+  if (valeur === "material") return "material";
+  return SOURCE_PRODUCTION_SYSTEME;
+}
+
 function normalizeConstraints(items) {
+  /* La branche historique de chaînes déclare des contraintes utilisateur. Les objets transportent
+     leur propre provenance : son absence n'est jamais assimilée à cette signature historique. */
+  const origines = list(items).map((item) => (typeof item === "string" ? "user" : item?.source));
+  const textes = new Map();
+  list(items).forEach((item, i) => {
+    const valeur = text(typeof item === "string" ? item : item?.text || item?.contenu || item?.information);
+    if (valeur && !textes.has(valeur)) textes.set(valeur, origines[i]);
+  });
   return uniqueStrings(items).map((value, index) => ({
     id: numbered("REQ", index),
     text: value,
-    source: "user"
+    source: resolveItemSource(textes.get(value))
   }));
 }
 
@@ -121,7 +162,9 @@ function normalizeAssumptions(items) {
 
 function normalizeObligations(items, constraints) {
   const candidates = [
-    ...constraints.map((constraint) => ({ text: constraint.text, source: "user", mandatory: true, verifiable: true, constraint_id: constraint.id })),
+    /* L'obligation promue depuis une contrainte HÉRITE de la source de cette contrainte : elle ne la
+       requalifie pas. Une contrainte dérivée promue reste dérivée. */
+    ...constraints.map((constraint) => ({ text: constraint.text, source: constraint.source, mandatory: true, verifiable: true, constraint_id: constraint.id })),
     ...list(items)
   ];
   const seen = new Set();
@@ -129,7 +172,9 @@ function normalizeObligations(items, constraints) {
   for (const item of candidates) {
     const value = typeof item === "string" ? { text: item } : item || {};
     const body = text(value.text || value.contenu);
-    const source = ["user", "material", "system"].includes(value.source) ? value.source : "user";
+    /* Le repli n'est plus « user » : une obligation dont la provenance n'est pas une déclaration de
+       la personne est une production du système, et le dire coûte moins qu'un contrat inventé. */
+    const source = resolveItemSource(value.source);
     const key = `${source}|${body}`;
     if (!body || seen.has(key)) continue;
     seen.add(key);

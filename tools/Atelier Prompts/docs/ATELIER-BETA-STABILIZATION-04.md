@@ -390,3 +390,94 @@ question non atomique ne peut s'afficher, quelle qu'en soit la source.
 | Retour arrière | `npx wrangler rollback 99404bf3-c9ed-4ab9-bda7-2bf334695cb5 --config workers/groq/wrangler.jsonc` |
 
 Aucun ZIP produit à ce stade, conformément à la consigne.
+
+---
+
+# V2.1.2 — LA CLARIFICATION RESTE DANS FAST, LE CORE CONTRACTUALISE
+
+## Phase 0 — audit, avant toute modification
+
+Quatre scénarios réels du propriétaire. Trois d'entre eux montrent le même motif : le plan rapide
+rend le silence en 378 à 536 ms, puis le plan profond **pose la question** en 17 à 45 secondes.
+
+| Scénario | Fast | Core | Qui a posé la question |
+|---|---|---|---|
+| Présentation | 501 ms → silence | 22 515 ms | Core |
+| Présentation, tour 2 | 378 ms → silence | 18 551 ms | Core (readiness) |
+| Réunion | 521 ms → question | — | **Fast** |
+| Réunion, tour 2 | 639 ms → question | — | **Fast** |
+| Dense | 485 ms → silence | 45 352 ms | Core |
+| Dense, tour 2 | 536 ms → question | — | **Fast** |
+
+### Ce qui distingue les cas où Fast a parlé de ceux où il s'est tu
+
+Les questions que Fast a posées portaient sur une **durée** ou une **date**. Celles que le Core a
+posées portaient sur le **niveau d'un public** et sur la **modalité de participation**. Cette
+frontière n'est pas un hasard : elle est écrite dans la consigne rapide.
+
+Trois clauses, toutes écrites lors de lots antérieurs pour arrêter un sur-questionnement alors réel,
+se conjuguaient pour interdire exactement ces deux variables :
+
+1. « N'est jamais déterminant ce qui ne fait que colorer ce qui est déjà nommé : une préférence, un
+   **profil**, un budget, un ton, un **contexte d'usage**, un cas particulier… » — une interdiction
+   par CATÉGORIE, qui couvre le niveau du public et la modalité ;
+2. « Si la demande **nomme déjà ce qu'il faut produire** et sa forme, elle est exploitable : ne
+   demandez rien » — or « une présentation de 20 minutes sur l'IA » nomme la production ;
+3. « Deux contenus différents à l'intérieur de la MÊME production ne sont pas deux choses
+   substantiellement différentes » — ce qui range un public novice et un public expert dans le même
+   sac.
+
+**Réponse à la taxonomie demandée : cas A.** Fast n'a produit aucune question, parce que la consigne
+le lui interdisait. Corroboré par les latences : 378 à 536 ms sont des latences d'un SEUL appel, et
+un refus de garde sur une question méta aurait déclenché le rattrapage — donc un second appel et un
+événement `fast_meta_question_retry`, absents.
+
+| Champ demandé | Valeur établie |
+|---|---|
+| FAST_RAW_OUTPUT | `WAIT_FOR_DEEP_VALIDATION` (aucune question proposée) |
+| QUESTION_PROPOSED | aucune |
+| QUESTION_REJECTED | aucune — rien n'a été refusé |
+| REJECTION_STAGE | sans objet |
+| REJECTION_REASON | sans objet |
+| REPLACEMENT_ATTEMPTED | non (aucun refus à rattraper) |
+| WHY_WAIT_FOR_DEEP_VALIDATION | trois clauses de la consigne, citées ci-dessus |
+| CORE_NEEDED_SEMANTICALLY | **non** — la question posée ensuite par le Core était à la portée de Fast |
+| CORE_USED_ONLY_AS_RECOVERY | **oui** |
+
+## La correction : une règle retirée, pas une règle ajoutée
+
+Les trois clauses sont **supprimées** et remplacées par un seul test, générique, celui que le
+propriétaire a énoncé : *si les réponses plausibles différaient, ce qui sera produit changerait-il
+significativement ?* La matérialité se juge donc par l'**impact**, jamais par l'étiquette. La
+consigne le dit explicitement : « Ne jugez JAMAIS par catégorie. Un profil, un public, un contexte
+d'usage, une durée, un budget peuvent être décisifs dans une demande et négligeables dans une autre. »
+
+`WAIT_FOR_DEEP_VALIDATION` devient exceptionnel, et ses motifs sont nommés : contradiction réelle,
+exigences qui s'excluent, impossibilité de choisir une question sûre. La consigne ajoute ce que le
+garde-fou maître exige : « la longueur n'est pas de l'ambiguïté, et le nombre de contraintes
+n'appelle aucune analyse préalable. »
+
+Le **rattrapage** ne concerne plus la seule question méta : tout refus corrigible ouvre UN second
+appel rapide, avec une correction propre au motif (plusieurs besoins, catalogue, déjà répondu). Il
+reste borné à un appel, sans boucle, sans état, et ne consulte jamais le plan profond.
+
+## Le défaut §8, réel et local
+
+`validateAnalystOutput` vérifiait depuis toujours que chaque `question_candidate` désigne un issue
+existant. `validateArbiterOutput` ne le vérifiait **pas** pour `next_question` — la seule question
+réellement affichée. L'incohérence observée par le propriétaire (question sur le niveau du public,
+issue portant sur l'angle) passait donc sans contrôle. Le motif existant est repris tel quel.
+
+Ce que ce contrôle **ne** fait pas, et il faut le dire : il attrape un identifiant qui ne désigne
+aucune inconnue déclarée ; il ne peut pas juger une incohérence de SENS entre une question et un
+issue qui existe. Aucune vérification structurelle ne sait faire cela, et en fabriquer une coûterait
+un appel de modèle pour un gain incertain.
+
+## Le coût, assumé et mesuré
+
+La consigne rapide passe de 4 378 à 5 452 caractères. Or le budget du fournisseur rapide est de
+8 000 jetons par minute et un tour de dialogue avancé en coûtait déjà 1 802 : la consigne plus longue
+rapproche le mur établi au lot V2.1.1. Le compromis est assumé — une question posée en une
+demi-seconde vaut mieux qu'une question juste obtenue en vingt secondes — et le mur reste lisible
+dans les journaux (`fast_unavailable`). Le réduire demande soit de raccourcir la consigne au prix de
+règles que des tests protègent, soit un second fournisseur rapide : deux décisions du propriétaire.

@@ -1,3 +1,19 @@
+/* V2.2.1-E2 — DES TESTS ONT ÉTÉ RETIRÉS DE CE FICHIER, ET VOICI LEUR CLASSEMENT.
+ *
+ * Ils éprouvaient le DECISION PROVIDER HISTORIQUE : sa chaîne de fournisseurs, son comportement
+ * fail-closed, son entrée minimale, son validateur de sortie lexical. Le réaudit indépendant a
+ * relevé que ce décideur embarquait une stop-list, des règles lexicales et un seuil de similarité
+ * — du hardcoding décisionnel au sens de la Directive Maître.
+ *
+ * L'audit de reachability de E2 a établi qu'il n'avait plus AUCUN appelant dans le produit : sa
+ * seule voie d'accès était deux expositions `window`, consommées par un banc d'évaluation. Sa
+ * dernière responsabilité — refuser une question qui répète une clarification déjà posée —
+ * appartient depuis longtemps au plan canonique (`isRepeatedSolicitation`, ALREADY_ANSWERED).
+ *
+ * Ces tests sont donc classés HISTORICAL_IMPLEMENTATION_CONTRACT : ils protégeaient fidèlement un
+ * chemin qui n'existe plus. Ils ont été retirés AVEC lui, et non affaiblis pour survivre. Ce qui
+ * reste dans ce fichier éprouve des invariants toujours vivants.
+ */
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -15,86 +31,6 @@ const reasons={
 const rapide={etat_demande:'exploitable',route:'rapide',confiance:'haute',raison_interne:reasons.rapide,question:null};
 const architecte={etat_demande:'exploitable',route:'architecte',confiance:'haute',raison_interne:reasons.architecte,question:null};
 const clarification={etat_demande:'clarification_necessaire',route:null,confiance:'haute',raison_interne:reasons.clarification,question:'Quand souhaitez-vous commencer ?'};
-
-test('l’application expose la couche 10G.3B.1 extérieure aux moteurs',()=>{
-  assert.match(html,/version:'10G\.3B\.1'/);
-  assert.match(html,/async function askDecisionProvider\(input\)/);
-  assert.match(html,/window\.askDecisionProvider=askDecisionProvider/);
-  assert.match(html,/const r=assemblerRapideAdaptatif\(\)/);
-  assert.match(html,/return beginExchange\(\)/);
-});
-
-// FC-01a : l'ordre des deux fournisseurs Decision est INCHANGÉ. Ce qui change est la fin de chaîne :
-// la dernière assertion vérifiait la PRÉSENCE du repli local fabriquant {exploitable, architecte} —
-// c'est-à-dire qu'elle gelait le fail-open comme contrat. Elle vérifie désormais son ABSENCE.
-test('Workers AI est primaire, Groq fallback technique, et AUCUN repli local ne fabrique de décision',()=>{
-  const primary=html.indexOf("['workers-ai'"),fallback=html.indexOf("['groq'");
-  assert.ok(primary>0&&fallback>primary);
-  assert.match(html,/https:\/\/atelier-decision-workers-ai\.11drumboy11\.workers\.dev\/decision/);
-  assert.match(html,/https:\/\/atelier-decision-groq\.11drumboy11\.workers\.dev\/decision/);
-  assert.doesNotMatch(html,/etat_demande:'exploitable',route:'architecte',confiance:'moyenne'/,
-    "aucune décision exploitable ne doit plus être fabriquée localement sur panne de fournisseur.");
-  assert.doesNotMatch(html,/function adpFallbackLocal\(/,"adpFallbackLocal doit être supprimée du runtime.");
-});
-
-function loadProvider(fetchImpl){
-  const start=html.indexOf('const ADP10G='),end=html.indexOf('function v11ShowRapidGate');
-  const context={AbortController,console:{warn(){}},fetch:fetchImpl,setTimeout,clearTimeout,document:{querySelector(selector){
-    if(selector.includes('workers-ai'))return {content:'https://atelier-decision-workers-ai.11drumboy11.workers.dev/decision'};
-    if(selector.includes('groq'))return {content:'https://atelier-decision-groq.11drumboy11.workers.dev/decision'};
-    return null;
-  }}};
-  vm.runInNewContext(html.slice(start,end)+'\n;globalThis.__provider={askDecisionProvider};',context);
-  return context.__provider;
-}
-
-test('toute décision primaire valide, y compris clarification ou Architecte, arrête la chaîne',async()=>{
-  for(const semantic of [rapide,architecte,clarification]){
-    const calls=[];
-    const provider=loadProvider(async(url)=>{calls.push(url);return Response.json(semantic)});
-    const result=await provider.askDecisionProvider({demande:'Demande',materiau_present:false,mode_demande:'rapide'});
-    assert.equal(result.source,'workers-ai');
-    assert.equal(result.decision.etat_demande,semantic.etat_demande);
-    assert.equal(result.decision.route,semantic.route);
-    assert.equal(calls.length,1);
-  }
-});
-
-test('Groq prend le relais uniquement sur erreur technique ou réponse invalide',async()=>{
-  for(const primaryFailure of ['network','http','invalid','incoherent']){
-    const calls=[];
-    const provider=loadProvider(async(url)=>{
-      calls.push(url);
-      if(calls.length===1){
-        if(primaryFailure==='network')throw new TypeError('network');
-        if(primaryFailure==='http')return new Response('{}',{status:502});
-        if(primaryFailure==='incoherent')return Response.json({...rapide,question:'Question interdite ?'});
-        return Response.json({route:'inconnue'});
-      }
-      return Response.json(rapide);
-    });
-    const result=await provider.askDecisionProvider({demande:'Fais une checklist',materiau_present:false,mode_demande:'rapide'});
-    assert.equal(result.source,'groq');
-    assert.equal(result.decision.route,'rapide');
-    assert.equal(calls.length,2);
-  }
-});
-
-// FC-01a : ce test gelait précisément la régression. Une panne technique des deux fournisseurs
-// produisait une décision « exploitable + architecte » qu'aucun modèle n'avait prise, et le parcours
-// s'exécutait. L'invariant est désormais inversé : une indisponibilité technique reste une
-// indisponibilité technique, et n'autorise jamais l'exécution.
-test('la panne des deux providers échoue en technique — aucune décision fabriquée localement',async()=>{
-  const provider=loadProvider(async()=>{throw new TypeError('network')});
-  const error=await provider.askDecisionProvider({demande:'Demande',materiau_present:false,mode_demande:'rapide'})
-    .then(()=>null,(caught)=>caught);
-  assert.ok(error,'la double panne doit échouer, jamais retourner une décision.');
-  assert.equal(error.decision_technical_failure,true);
-  const serialized=JSON.stringify({message:error.message,...error});
-  for(const forbidden of ['exploitable','architecte','rapide','clarification_necessaire']){
-    assert.ok(!serialized.includes(forbidden),`l'échec technique ne doit porter aucune sémantique (${forbidden}).`);
-  }
-});
 
 test('la fenêtre de clarification est modale, responsive et non technique',()=>{
   assert.match(html,/role="dialog" aria-modal="true"/);
@@ -118,7 +54,7 @@ test('la clarification conserve demande, réponses et documents sans plafond arb
   // FC-01b : la clarification conserve toujours demande, réponses et documents, et reste sans plafond.
   // Les ancrages suivent le nouveau pilote : la réponse alimente clarification_history au lieu d'être
   // concaténée dans la demande, et c'est OPRIE qui décide de reposer une question.
-  assert.match(html,/state\.answers\.push\(\{question:\$\('#v11-question'\)\.textContent,answer\}\)/);
+  assert.match(html,/state\.answers\.push\(\{question:\$\('#v11-question'\)\.textContent,answer,/);
   assert.match(html,/oprieRunTurn\(adpState\.requestedMode\|\|'rapide'\)/);
   assert.doesNotMatch(section,/adpState\.clarifications\s*<\s*\d+/);
   assert.match(html,/adpState\.clarifications\+=1/);
@@ -138,16 +74,3 @@ test('après exploitabilité, seules les routes Rapide et Architecte sont automa
   assert.doesNotMatch(section,/route:'atelier'|sem\.route==='atelier'/);
 });
 
-test('le Decision Provider ne reçoit que l’entrée minimale',()=>{
-  const section=html.slice(html.indexOf('V11.5 LOT 10G — ADAPTIVE DECISION PIPELINE'),html.indexOf('window.__V11_ROUTER__'));
-  assert.match(section,/const minimal=\{demande:/);
-  assert.match(section,/body:JSON\.stringify\(input\)/);
-  assert.doesNotMatch(section,/appelFournisseur|api-cle|v11-api-key|maxTokens|systeme:|schema:/);
-});
-
-test('la logique adaptative ne contient aucun hardcoding des domaines de recette',()=>{
-  const section=html.slice(html.indexOf('const ADP10G='),html.indexOf('window.__V11_ROUTER__'));
-  assert.doesNotMatch(section,/voyage|ordinateur|anniversaire|\bcv\b|recette/i);
-  assert.match(section,/adpQuestionsPrecedentes/);
-  assert.match(section,/vocabulaire interne du pipeline/);
-});

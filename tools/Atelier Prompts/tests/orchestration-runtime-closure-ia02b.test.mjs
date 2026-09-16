@@ -216,10 +216,9 @@ test('T-IA02B-18 : le handle de compatibilité ne peut pas altérer le tour cour
   const { pilot, ctx } = loadPilot({ deep: async () => clarificationTurn('Q ?') });
   await pilot.oprieRunTurn('architecte');
   const avant = { orchestration: pilot.oprieState.lastOrchestration, tour: pilot.oprieState.lastTurn, seq: pilot.oprieState.seq };
-  /* Le handle est gelé et n'expose aucun moyen d'écrire dans oprieState. */
-  assert.match(FRONTEND, /window\.__ADAPTIVE_DECISION_PIPELINE_10G__=Object\.freeze\(\{/, 'le handle est gelé.');
-  const bloc = FRONTEND.slice(FRONTEND.indexOf('window.__ADAPTIVE_DECISION_PIPELINE_10G__'), FRONTEND.indexOf('window.__V11_ROUTER__'));
-  assert.doesNotMatch(bloc, /oprieState|oprieRunTurn|oprieApplyTurn/, 'il n’expose rien du tour.');
+  /* V2.2.1-E2 — le handle n'est plus seulement gelé : il n'existe plus. Un handle absent ne peut
+     rien altérer, ce que la comparaison d'état ci-dessous continue de vérifier en comportement. */
+  assert.equal(FRONTEND.includes('__ADAPTIVE_DECISION_PIPELINE_10G__'), false, 'le handle a disparu.');
   assert.deepEqual({ orchestration: pilot.oprieState.lastOrchestration, tour: pilot.oprieState.lastTurn, seq: pilot.oprieState.seq }, avant);
 });
 

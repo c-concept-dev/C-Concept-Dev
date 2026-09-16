@@ -80,26 +80,27 @@ test("la porte peut enchaîner un nombre non borné de cycles sans compteur arbi
   }
 });
 
-test("une question déjà posée est écartée au profit d'une nouvelle", () => {
-  const old = "Quelle contrainte principale souhaitez-vous retenir ?";
-  const fresh = "Quel résultat doit être prioritaire ?";
-  const r = assessAnalysisReadiness(analysis({
-    action: "questionner",
-    complete: false,
-    questions: [old, fresh]
-  }), { previous_questions: [old] });
-  assert.equal(r.question, fresh);
-});
-
-test("si toutes les questions se répètent, le système bloque au lieu de boucler", () => {
+/* V2.2.1-E3 — L'INVARIANT A CHANGÉ DE MAIN, ET ON LE VÉRIFIE CHEZ SON PROPRIÉTAIRE.
+ *
+ * Deux tests vivaient ici : « une question déjà posée est écartée au profit d'une nouvelle » et
+ * « si toutes les questions se répètent, le système bloque au lieu de boucler ». L'invariant est
+ * réel — ne pas reposer une question, ne pas boucler. Sa MISE EN ŒUVRE, elle, était un ratio de
+ * mots communs comparé à un seuil de 0,7 : un jugement de sens rendu localement, que la Directive
+ * Maître interdit. Cette porte n'a de surcroît aucun appelant produit.
+ *
+ * L'invariant est tenu par le plan canonique, SANS flou : `isRepeatedSolicitation` compare une
+ * identité normalisée et rend ALREADY_ANSWERED. On le vérifie donc ici, là où il opère — plutôt
+ * que de supprimer la protection ou de la maintenir à un endroit où elle ne s'applique plus. */
+test("ne pas reposer une clarification déjà répondue — chez son propriétaire canonique", async () => {
+  const { assessSolicitation } = await import('../workers/shared/solicitation-policy.js');
   const q = "Quelle contrainte principale souhaitez-vous retenir ?";
-  const r = assessAnalysisReadiness(analysis({
-    action: "questionner",
-    complete: false,
-    questions: [q]
-  }), { previous_questions: [q] });
-  assert.equal(r.state, "blocked");
-  assert.equal(r.question, null);
+  assert.equal(assessSolicitation({ type: 'ASK_CLARIFICATION', text: q }, [{ question: q, answer: 'Le délai' }]),
+    'ALREADY_ANSWERED', 'une question déjà répondue est écartée');
+  assert.equal(assessSolicitation({ type: 'ASK_CLARIFICATION', text: q }, []), 'ALLOW',
+    'et une question neuve passe');
+  /* La comparaison est une IDENTITÉ, pas une ressemblance : aucun seuil n'intervient. */
+  assert.equal(assessSolicitation({ type: 'ASK_CLARIFICATION', text: 'Quelle contrainte retenir ?' },
+    [{ question: q, answer: 'Le délai' }]), 'ALLOW', 'une formulation différente n’est pas « trop proche »');
 });
 
 test("livrable incomplet sans question nouvelle ne doit pas être compilé", () => {

@@ -77,12 +77,14 @@ test('T-CLEAN05-03/04 : ni flou hérité, ni repli sémantique hérité', () => 
   assert.equal((html.match(/source:\s*'local-prudent'/g) || []).length, 0);
   /* La garde consommatrice demeure : la valeur reste un mot légal du contrat de fil. */
   assert.match(html, /source !== 'local-prudent'/);
-  /* Le seul appariement restant est le VALIDATEUR de sortie du Decision Provider :
-     il refuse une question répétée, il ne promeut aucun état. */
-  const validateur = sansProse(tranche('function adpQuestionsSimilaires(', 'async function askDecisionProvider('));
-  assert.match(validateur, /throw new Error\('La question répète une clarification déjà posée\.'\)/);
-  for (const etat of ['operational_request_ready', 'execution_ready', 'exploitable']) {
-    assert.equal([...validateur.matchAll(new RegExp(`(?<![=!<>])\\b${etat}\\s*=(?![=>])`, 'g'))].length, 0);
+  /* V2.2.1-E2 — L'INVARIANT EST DEVENU ABSOLU. Il subsistait UN appariement : le validateur de
+     sortie du décideur historique, qui refusait une question répétée sans promouvoir aucun état.
+     Le réaudit indépendant a relevé qu'il embarquait une stop-list et un seuil de similarité, et
+     l'audit de reachability a montré qu'il n'avait plus aucun appelant dans le produit. Il a été
+     retiré. Il n'existe donc plus AUCUN appariement flou dans l'artefact, et sa responsabilité est
+     tenue par le plan canonique (`isRepeatedSolicitation`, verdict ALREADY_ANSWERED). */
+  for (const disparu of ['adpQuestionsSimilaires', 'adpMotsQuestion', 'adpDecisionValide', 'askDecisionProvider']) {
+    assert.equal(html.includes(disparu), false, `${disparu} a quitté l’artefact.`);
   }
 });
 
@@ -172,7 +174,7 @@ test('T-CLEAN05-10/14 : vingt-et-un modules, tous atteignables, aucun en double'
   const modules = eval(BUILD.slice(BUILD.indexOf('[', a), b + 2));
   /* V2 — vingt-trois : `SOLICIT` (définition unique de l'atomicité) et `COREPLANE` (chemin
      nominal V2) sont importés par l'orchestrateur, donc embarqués. */
-  assert.equal(modules.length, 23);
+  assert.equal(modules.length, 24);
   const parNom = Object.fromEntries(modules.map((m) => [m.name, m]));
   const directs = new Set(modules.filter((m) => m.exports.some((e) => new RegExp(`\\b${e}\\b`).test(FRONT_CODE))).map((m) => m.name));
   const atteints = new Set(directs);

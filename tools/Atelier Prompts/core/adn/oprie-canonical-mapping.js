@@ -288,13 +288,17 @@ export function mapOprieToCanonicalContract(arbiterOutput, { request_id, origina
       explicit: []
     },
 
-    /* OPRIE ne produit ni obligation, ni quantité, ni sortie, ni contrôle.
+    /* OPRIE ne produit ni obligation, ni quantité, ni contrôle.
        Une collection vide signifie « aucune donnée présente » — jamais
        « évaluée », « complète » ni « validée ». Aucun marqueur surnuméraire :
        le futur Quality Gate devra apporter ses propres preuves. */
     obligations: [],
     quantities: [],
-    output: { format: null, structure: [], opening: null, closing: null, length_policy: null, tone: null },
+    /* TRACER-REMEDIATION-02 · F1 — LA FORME DU LIVRABLE VIENT DE L'AUTORITÉ, DÉSORMAIS.
+       Ce champ naissait vide, et un score de mots-clés sur la demande brute le remplissait plus
+       bas. Il porte maintenant ce que l'autorité a nommé, ou rien. Les autres champs de `output`
+       restent hors de son périmètre : elle ne décide ni la structure, ni le volume, ni le ton. */
+    output: { format: text(arbiterOutput.output_format) || null, structure: [], opening: null, closing: null, length_policy: null, tone: null },
     checks: [],
 
     semantic_lock_signals: {
@@ -514,7 +518,8 @@ export function isCanonicalBaseContract(value) {
 /**
  * Projette un Canonical Base Contract vers les entrées attendues par
  * buildExecutionEnvelope(). Les normaliseurs du moteur ADN attendent des
- * chaînes : la projection les extrait des structures tracées de la base.
+ * chaînes pour certaines collections ; les contraintes gardent leurs objets tracés,
+ * désormais acceptés par le normaliseur ADN. Aplatir ici effacerait leur provenance.
  * La base reste la source de vérité ; l'enveloppe en est une lecture.
  */
 export function canonicalBaseToEnvelopeInput(base) {
@@ -527,7 +532,7 @@ export function canonicalBaseToEnvelopeInput(base) {
       objective: base.intent.objective || "",
       deliverable: base.intent.deliverable || null,
       recipient: base.intent.recipient || null,
-      explicit_constraints: items(base.intent.explicit_constraints)
+      explicit_constraints: clone(list(base.intent.explicit_constraints))
     },
     evidence: clone(base.evidence) || {},
     executability: {

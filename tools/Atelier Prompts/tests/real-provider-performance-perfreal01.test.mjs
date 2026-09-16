@@ -33,8 +33,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runProviderChain, FAILURE_CLASSES, failureClassOf, tagFailure } from '../workers/shared/provider-ha.js';
-import { FAST_INTERACTION_PATHNAME } from '../workers/shared/fast-interaction-endpoint.js';
-import { FAST_INTERACTION_TYPES, FAST_FORBIDDEN_AUTHORITY_FIELDS, createTurnSnapshot, validateFastInteraction }
+import { FAST_INTERACTION_PATHNAME, handleFastInteractionRequest } from '../workers/shared/fast-interaction-endpoint.js';
+import { FAST_INTERACTION_TYPES, FAST_FORBIDDEN_AUTHORITY_FIELDS, FAST_INTERACTION_JSON_SCHEMA, createTurnSnapshot, validateFastInteraction }
   from '../workers/shared/fast-interactive-plane.js';
 import {
   DECISION_PROVIDER_ORDER, FAST_INTERACTION_ADAPTERS, runFastInteractionWithHaChain
@@ -140,8 +140,17 @@ test('T-PERFREAL01-08 : le schéma rapide reste à deux champs, et refuse tout l
      ce que la candidate n'a pas le droit de faire. Ils restent internes : la porte
      réseau ne laisse repartir que les deux champs du schéma, et c'est là que se joue
      le contrat public. Les exposer inviterait un client à les lire comme une permission. */
+  /* V2.2.1-D2F1 — TROIS CHAMPS, ET L'INVARIANT EST LE MÊME.
+     Le plan rapide écrit ses propres questions ; il doit donc dire ce qu'elles interrogent, comme
+     le plan profond le fait pour les siennes. `question_focus` n'est PAS un champ d'autorité : il
+     ne prononce aucun état, n'ouvre aucune route, n'autorise aucune exécution — ce que les
+     assertions suivantes continuent de vérifier. */
+  /* TARGETED-FIX-POST-CODEX-01 — QUATRE CHAMPS, ET L'INVARIANT EST TOUJOURS LE MÊME.
+     Le plan rapide dit désormais aussi CE QUI MANQUE. Comme `question_focus`, ce champ ne prononce
+     aucun état, n'ouvre aucune route et n'autorise aucune exécution : les assertions qui suivent
+     continuent de le vérifier, et c'est elles qui portent l'invariant. */
   assert.deepEqual(Object.keys(verdict.interaction).sort(), ['authority', 'can_execute', 'can_mark_ready',
-    'can_route', 'canonical_version', 'interaction_id', 'source', 'text', 'turn_id', 'type']);
+    'can_route', 'canonical_version', 'interaction_id', 'missing_determinant_id', 'question_focus', 'source', 'text', 'turn_id', 'type']);
   assert.equal(verdict.interaction.authority, 'candidate');
   for (const pouvoir of ['can_execute', 'can_mark_ready', 'can_route']) {
     assert.equal(verdict.interaction[pouvoir], false, `FAST_CAN_${pouvoir.slice(4).toUpperCase()} = NO`);
@@ -156,15 +165,31 @@ test('T-PERFREAL01-08 : le schéma rapide reste à deux champs, et refuse tout l
     'ORIENT_ARCHITECTE', 'WAIT_FOR_DEEP_VALIDATION']);
 });
 
-test('T-PERFREAL01-09 : le plan rapide n’écrit aucune autorité', () => {
+test('T-PERFREAL01-09 : le plan rapide n’écrit aucune autorité', async () => {
   for (const champ of FAST_FORBIDDEN_AUTHORITY_FIELDS) {
     const instantane = createTurnSnapshot({ turn_id: 3, original_request: 'Rédige une note.' });
     const v = validateFastInteraction({ type: 'ACKNOWLEDGE', text: 'Je regarde.', [champ]: true }, instantane);
     assert.equal(v.ok, false, `FAST_AUTHORITY_WRITES : ${champ} = 0`);
   }
-  /* Et la porte réseau ne laisse repartir que les deux champs du schéma. */
+  /* Et la porte réseau ne laisse repartir que les champs du schéma.
+     RUNTIME-01 : cette ligne épinglait le TEXTE EXACT de l'implémentation — « deux champs » —
+     au lieu de la règle. Quand D2F1 a porté le contrat à trois champs, l'invariant n'a pas changé,
+     mais sa formulation empêchait de le tenir. Ce qui est vérifié maintenant est le comportement :
+     ce qui sort est le contrat déclaré, et rien qu'il n'autorise. */
+  const requete = new Request(`https://w.dev${FAST_INTERACTION_PATHNAME}`, {
+    method: 'POST', headers: { Origin: 'https://atelier.example', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ turn_id: 3, original_request: 'Rédige une note.', clarification_history: [],
+      current_answer: null, canonical_version: 0, material_present: false })
+  });
+  const reponse = await handleFastInteractionRequest(requete, { ALLOWED_ORIGINS: 'https://atelier.example' },
+    { executeFast: async () => ({ type: 'ACKNOWLEDGE', text: 'Je regarde.', question_focus: null }) });
+  const rendu = await reponse.json();
+  assert.deepEqual(Object.keys(rendu).sort(), [...FAST_INTERACTION_JSON_SCHEMA.required].sort(),
+    'ce qui sort est le contrat déclaré');
+  for (const champ of FAST_FORBIDDEN_AUTHORITY_FIELDS) {
+    assert.equal(champ in rendu, false, `${champ} ne sort pas de la porte`);
+  }
   const endpoint = lire('workers/shared/fast-interaction-endpoint.js');
-  assert.match(endpoint, /return jsonResponse\(\{ type: verdict\.interaction\.type, text: verdict\.interaction\.text \}, 200, cors\)/);
   assert.match(endpoint, /Les champs d'audit produits par\n\s+la validation \(turn_id, authority, can_\*\) restent internes/);
 });
 
@@ -231,7 +256,7 @@ test('T-PERFREAL01-15 : l’artefact frontend n’a pas bougé', () => {
   assert.ok(crypto, 'empreinte calculable');
   const octets = fs.readFileSync(path.join(racine, 'atelier-prompts-v11.5-lot10g-decision-provider.html'));
   const empreinte = require$sha(octets);
-  assert.equal(empreinte, '204bce3973ee8866a9940b3bb31052db317dbd581670bfcf13d971bbdc9e14ca',
+  assert.equal(empreinte, '61565d4dad80e10e3c5d9f2821ca3139884e356321f917d5f0f55af994454774',
     'CANONICAL_HTML_CHANGED = NO');
   /* Et les quatre points de terminaison qu'il déclare sont ceux de production. */
   const metas = [...HTML.matchAll(/<meta name="(atelier-[a-z-]+)" content="([^"]+)"/g)];

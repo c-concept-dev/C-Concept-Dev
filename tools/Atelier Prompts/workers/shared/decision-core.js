@@ -126,7 +126,6 @@ function questionHasMultipleRequests(question) {
 }
 
 const QUESTION_INTERNAL_LANGUAGE = /\b(?:resultat concret|avancement utile|livrable|objectif operationnel|information structurante|element determinant|critere de reussite|niveau d exigence|perimetre fonctionnel|besoin metier)\b/;
-const QUESTION_STOP_WORDS = new Set(["avec", "avez", "cette", "dans", "de", "des", "du", "elle", "est", "etes", "le", "les", "pour", "que", "quel", "quelle", "quelles", "quels", "qui", "souhaitez", "sur", "une", "vous", "votre", "vos"]);
 
 function normalizedQuestionText(value) {
   return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[’']/g, " ").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
@@ -136,22 +135,27 @@ function questionUsesInternalLanguage(question) {
   return QUESTION_INTERNAL_LANGUAGE.test(normalizedQuestionText(question));
 }
 
-function questionKeywords(question) {
-  return new Set(normalizedQuestionText(question).split(" ").filter((word) => word.length > 2 && !QUESTION_STOP_WORDS.has(word)));
-}
-
-function questionsAreTooSimilar(left, right) {
-  const a = questionKeywords(left);
-  const b = questionKeywords(right);
-  if (!a.size || !b.size) return normalizedQuestionText(left) === normalizedQuestionText(right);
-  let common = 0;
-  for (const word of a) if (b.has(word)) common += 1;
-  return common / Math.min(a.size, b.size) >= 0.7;
-}
-
-function previousQuestions(demand) {
-  return [...String(demand || "").matchAll(/^-\s*(.+?)\s+—\s+Réponse\s*:/gmi)].map((match) => match[1].trim());
-}
+/* V2.2.1-E3 — L'APPARIEMENT FLOU A QUITTÉ CE VALIDATEUR.
+ *
+ * Trois fonctions vivaient ici : `questionKeywords` (découpe en mots, avec sa liste de mots vides),
+ * `questionsAreTooSimilar` (ratio de mots communs comparé à un seuil de 0,7) et `previousQuestions`.
+ * Ensemble, elles refusaient une sortie du modèle dont la question répétait une clarification déjà
+ * posée.
+ *
+ * L'INVARIANT ÉTAIT JUSTE ; L'ESTIMATEUR NE L'ÉTAIT PAS. Un ratio comparé à un seuil est un
+ * jugement de SENS rendu localement, ce que la Directive Maître interdit — et 0,7 n'y devient pas
+ * conforme parce qu'il serait transversal. Cette responsabilité appartient d'ailleurs au plan
+ * canonique depuis longtemps, où elle est tenue SANS flou : `isRepeatedSolicitation` compare une
+ * IDENTITÉ normalisée, pas une ressemblance, et rend le verdict ALREADY_ANSWERED.
+ *
+ * POURQUOI SUPPRIMER PLUTÔT QUE DÉLÉGUER. L'ordre de la Directive place SUPPRIMER avant RÉUTILISER,
+ * et déléguer aurait demandé de réécrire ce validateur — ce que la gouvernance du lot interdit
+ * explicitement pour un chemin dont la responsabilité a déjà changé de propriétaire. La route
+ * `/decision` n'a plus aucun client produit depuis V2.2.1-E2, qui en a retiré l'unique appelant.
+ *
+ * Ce qui reste ici valide la FORME : jeu de clés exact, vocabulaires clos, longueurs, une seule
+ * demande par question, absence de vocabulaire interne, cohérence état/route. Aucun de ces
+ * contrôles ne juge du sens. */
 
 export function validateDecisionInput(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -189,7 +193,6 @@ export function validateDecision(value, demand = "") {
   const question = value.question === null ? null : normalizeSingleQuestion(value.question);
   if (question !== null && (!question || question.length > 180 || questionHasMultipleRequests(question))) throw new Error("Une clarification doit contenir une seule demande.");
   if (question !== null && questionUsesInternalLanguage(question)) throw new Error("La question expose le vocabulaire interne du pipeline.");
-  if (question !== null && previousQuestions(demand).some((previous) => questionsAreTooSimilar(previous, question))) throw new Error("La question répète une clarification déjà posée.");
   if (value.etat_demande === "clarification_necessaire") {
     if (value.route !== null || question === null) throw new Error("Une clarification exige route=null et une question.");
   } else if (!ROUTES.has(value.route) || value.question !== null) {

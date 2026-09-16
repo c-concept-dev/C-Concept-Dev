@@ -176,50 +176,27 @@ export function deriveQuantityFromRequest(request, { counting_units = '', number
 }
 
 /* -------------------------------------------------------------------------
- * DÉRIVATION DU FORMAT
+ * LA DÉRIVATION LEXICALE DU FORMAT A ÉTÉ RETIRÉE — TRACER-REMEDIATION-02 · F1
  *
- * Pilotée par une TABLE INJECTÉE. Aucun identifiant de format, aucun marqueur
- * et aucun motif n'est écrit ici : l'appelant fournit le vocabulaire déjà gelé
- * de l'application. Le barème est générique — présence, frontière de mot,
- * position finale, nomination explicite — et identique pour toutes les entrées.
+ * `deriveFormatFromRequest(request, vocabulary)` vivait ici : un score de mots-clés cherchés EN
+ * SOUS-CHAÎNE dans la demande brute, +3 par marqueur trouvé, +2 s'il formait un mot entier, +2 s'il
+ * apparaissait dans le dernier tiers, et le meilleur score emportait la forme du livrable.
+ *
+ * Son défaut n'était pas un réglage : c'était son principe. Il confondait le SUJET d'une demande
+ * avec la FORME de son résultat. Mesuré sur le produit déployé, en campagne réelle :
+ *
+ *   « … la politique de conservation des DONNÉES … »   -> json   (une annexe contractuelle)
+ *   « Prépare le disCOURS de départ … »                -> module pédagogique
+ *   « … aux deux candidats finaLISTEs … »              -> checklist
+ *
+ * Le vocabulaire lui était injecté, et le module s'en prévalait : « aucun marqueur n'est écrit
+ * ici ». C'était vrai et sans effet — la décision restait lexicale, et la trace qu'il rendait
+ * annonçait `explicit_format_marker` même quand aucun format n'avait été nommé.
+ *
+ * La forme du livrable est désormais un fait de l'autorité sémantique, porté par `output.format`.
+ * Ce module ne le dérive plus : il vérifie seulement que l'identifiant nommé existe. Rien ne
+ * remplace la fonction retirée, et c'est le but — il n'y a plus de second décideur.
  * ---------------------------------------------------------------------- */
-
-const escapeRegExp = (v) => String(v).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-export function deriveFormatFromRequest(request, vocabulary = []) {
-  const n = normalizeRequestText(request);
-  if (!n) return null;
-  const tail = n.slice(Math.floor(n.length * 0.6));
-  const scores = [];
-
-  for (const entry of list(vocabulary)) {
-    const id = text(entry?.id);
-    if (!id) continue;
-    let points = 0;
-    for (const marker of list(entry?.markers)) {
-      const t = normalizeRequestText(marker);
-      if (!t || !n.includes(t)) continue;
-      points += 3;
-      if (new RegExp(`\\b${escapeRegExp(t)}\\b`).test(n)) points += 2;
-      if (tail.includes(t)) points += 2;
-    }
-    /* Un format NOMMÉ explicitement emporte la décision. */
-    const named = normalizeRequestText(entry?.name).split(' ')[0];
-    if (named && new RegExp(`\\b(en|au format|sous forme de|format)\\s+${escapeRegExp(named)}`).test(n)) points += 8;
-    /* Motifs supplémentaires, eux aussi fournis par l'appelant. */
-    for (const extra of list(entry?.patterns)) {
-      const source = text(extra?.pattern);
-      const bonus = Number.isFinite(extra?.bonus) ? extra.bonus : 0;
-      if (!source || !bonus) continue;
-      try { if (new RegExp(source).test(n)) points += bonus; } catch { /* motif illisible : ignoré, jamais fatal */ }
-    }
-    if (points > 0) scores.push({ id, points, verifiable: entry?.verifiable === true });
-  }
-
-  if (!scores.length) return null;
-  scores.sort((a, b) => b.points - a.points || a.id.localeCompare(b.id));
-  return { format: scores[0].id, score: scores[0].points, verifiable: scores[0].verifiable, rule: 'explicit_format_marker' };
-}
 
 /* -------------------------------------------------------------------------
  * ENRICHISSEMENT
@@ -338,12 +315,38 @@ export function enrichRapidCanonicalContract(canonicalBase, {
     derivation_trace.push(trace('quantities', quantitySource, quantity.rule));
   }
 
-  /* ---- FORMAT ------------------------------------------------------- */
-  const format = deriveFormatFromRequest(request, format_vocabulary);
-  if (format && !text(output.format)) {
-    contract.output.format = format.format;
-    contract.output.sources = { ...plain(contract.output.sources), format: 'derived_deterministic' };
-    derivation_trace.push(trace('output.format', 'original_request', format.rule));
+  /* ---- FORMAT -------------------------------------------------------
+   *
+   * TRACER-REMEDIATION-02 · F1 — ON RECONNAÎT UN IDENTIFIANT, ON N'EN DEVINE PLUS AUCUN.
+   *
+   * Cette section appelait `deriveFormatFromRequest(request, format_vocabulary)` : un score de
+   * mots-clés, en SOUS-CHAÎNE, sur la demande brute. Mesuré sur le produit déployé — « données »
+   * rangeait une annexe contractuelle en JSON ; « discours » devenait un module pédagogique parce
+   * que le mot contient « cours » ; « finalistes » une checklist parce qu'il contient « liste ».
+   * Le vocabulaire était injecté, mais la DÉCISION restait lexicale : injecter une liste ne rend pas
+   * un classifieur non lexical.
+   *
+   * La forme du livrable est maintenant un fait produit par l'autorité sémantique, porté par
+   * `output.format`. Ici on ne fait plus qu'une chose : vérifier que l'identifiant qu'elle a nommé
+   * existe réellement dans le vocabulaire du produit. C'est le seul endroit qui connaît cette
+   * liste, et c'est donc le seul endroit où ce contrôle a un sens.
+   *
+   * Un identifiant inconnu n'est jamais rattrapé, jamais rapproché du plus ressemblant : il est
+   * écarté, et le contrat repart SANS forme. Le produit sait déjà se comporter ainsi — c'est l'état
+   * d'un contrat dont personne n'a établi la forme. */
+  const formatDeclare = text(output.format);
+  const entreeConnue = formatDeclare
+    ? list(format_vocabulary).find((entree) => text(entree?.id) === formatDeclare) || null
+    : null;
+  const format = entreeConnue
+    ? { format: formatDeclare, verifiable: entreeConnue.verifiable === true }
+    : null;
+  if (formatDeclare && entreeConnue) {
+    contract.output.sources = { ...plain(contract.output.sources), format: 'canonical_authority' };
+    derivation_trace.push(trace('output.format', 'output.format', 'declared_by_semantic_authority'));
+  } else if (formatDeclare) {
+    contract.output.format = null;
+    derivation_trace.push(trace('output.format', 'output.format', 'unknown_identifier_discarded'));
   }
 
   /* ---- OBLIGATIONS — uniquement depuis des contraintes DÉJÀ canoniques */

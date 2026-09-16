@@ -41,7 +41,7 @@ const tranche = (debut, fin) => { const a = html.indexOf(debut); return html.sli
 const FRONTEND = (() => { const i = html.indexOf('/* GENERATED'); const j = html.indexOf('})(window);', i); return html.slice(0, i) + html.slice(j); })();
 const FRONT_CODE = sansProse(FRONTEND);
 
-const ATELIER_ENTREE = sansProse(tranche('function v11StartAtelier()', 'window.askDecisionProvider'));
+const ATELIER_ENTREE = sansProse(tranche('function v11StartAtelier()', 'window.__V11_ROUTER__'));
 const ATELIER_GENERER = sansProse(tranche('function generer(){', 'function afficherDiagnostic('));
 const ATELIER_CHEMIN = ATELIER_ENTREE + '\n' + ATELIER_GENERER;
 const ATELIER_VUE = tranche('<section class="vue atelier-v115" id="vue-generation"', '<section class="vue legacy-v115" id="vue-dictee"');

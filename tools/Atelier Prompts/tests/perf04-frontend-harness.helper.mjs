@@ -18,6 +18,7 @@ import * as fastPlane from '../workers/shared/fast-interactive-plane.js';
 import * as canonicalMapping from '../core/adn/oprie-canonical-mapping.js';
 import * as orchestrationPolicy from '../core/adn/orchestration-policy.js';
 import * as modeContracts from '../core/adn/mode-contracts.js';
+import * as oprieAuthority from '../workers/shared/operational-request-core.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const html = fs.readFileSync(path.join(root, 'atelier-prompts-v11.5-lot10g-decision-provider.html'), 'utf8');
@@ -95,6 +96,11 @@ export function loadPilot({ fast, deep, demande = 'Rédige une note de cadrage.'
        que 02C corrige, et le harnais le rendait indiscernable d'un comportement normal. Les deux
        fonctions RÉELLES sont câblées ici. `canonicalRejected` ne remplace pas la validation : il
        force son verdict à refuser, pour éprouver la branche de REFUS sans toucher la production. */
+    /* V2.2.1-D1 — LE VERROU DE DÉCISION FAIT PARTIE DU RUNTIME QUE LE PILOTE APPELLE.
+       Le harnais ne l'exposait pas : `oprieCanonicalDecision()` rendait donc TOUJOURS null, et
+       aucun test ne pouvait voir que le verrou n'était jamais transmis. Même défaut de harnais que
+       celui corrigé en 02C pour le contrat canonique, et même remède : la fonction RÉELLE de
+       l'autorité est câblée ici, jamais une imitation. */
     mapOprieToCanonicalContract: canonicalMapping.mapOprieToCanonicalContract,
     validateCanonicalContract: canonicalRejected
       ? () => ({ ok: false, problems: ['refus forcé par le harnais (02C)'] })

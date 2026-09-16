@@ -25,20 +25,31 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import {
   guardFastSolicitation, assessSolicitation, isRepeatedSolicitation,
-  countInterrogations, countNamedAlternatives, countAnsweredSolicitations,
+  countInterrogations, countNamedAlternatives,
   guardDisplayedQuestion, isAtomicQuestion, reduceQuestionDeterministically,
-  DISPLAY_VERDICTS, SAFE_FALLBACK_QUESTION, SILENT_INTERACTION, SOLICITING_TYPES,
+  DISPLAY_VERDICTS, SILENT_INTERACTION, SOLICITING_TYPES,
   SOLICITATION_VERDICTS
 } from '../workers/shared/solicitation-policy.js';
 import { applyDisplayGuardToTurn } from '../workers/shared/operational-request-orchestrator.js';
 import { createTurnSnapshot, validateFastInteraction, FAST_INTERACTION_JSON_SCHEMA } from '../workers/shared/fast-interactive-plane.js';
+
+/* TARGETED-FIX-POST-CODEX-01 — le contrat du plan rapide compte un QUATRIÈME champ nommé :
+   l'identité du manque. Le contre-audit a démontré qu'une question rapide répondue laissait
+   l'historique sans identité, si bien qu'une reformulation ultérieure du même manque par le plan
+   profond n'était plus reconnue. L'invariant gardé ici est inchangé — le schéma reste clos et
+   incapable de porter un état ; il s'allonge d'un fait produit par la même décision. */
 
 const html = fs.readFileSync(new URL('../atelier-prompts-v11.5-lot10g-decision-provider.html', import.meta.url), 'utf8');
 const ctx = {};
 vm.runInNewContext(html.slice(html.indexOf('function schemaPourAnthropic('), html.indexOf('async function transportAnthropic(')) + ';this.adapt=schemaPourAnthropic', ctx);
 const clone = (x) => JSON.parse(JSON.stringify(x));
 const snapshot = createTurnSnapshot({ turn_id: 1, original_request: 'Demande abstraite.' });
-const question = { type: 'ASK_CLARIFICATION', text: 'Quel résultat principal souhaitez-vous obtenir ?' };
+/* V2.1.1 — CETTE FIXTURE A CHANGÉ, ET C'EST UNE DÉCISION PRODUIT. Elle valait « Quel résultat
+ * principal souhaitez-vous obtenir ? ». Mesuré en bêta réelle, cette question a été affichée à la
+ * personne et refusée par le propriétaire : elle lui demandait de concevoir ce que nous sommes
+ * chargés de concevoir. Elle est donc devenue un cas NÉGATIF (voir V211-02), et la fixture qui doit
+ * traverser le garde est désormais une question sur une variable du problème. */
+const question = { type: 'ASK_CLARIFICATION', text: 'Combien de jours cela doit-il couvrir ?' };
 
 /* La question exacte observée en bêta, conservée mot pour mot : c'est elle qu'il fallait refuser. */
 const CATALOGUE_REEL = "Qu'attendez-vous comme résultat concret : un itinéraire jour par jour, une "
@@ -59,7 +70,7 @@ test('T04-01 : une candidate non sollicitante traverse le garde inchangée', () 
 
 test('T04-02 : un besoin déterminant atomique passe intact', () => {
   for (const texte of ['Combien de jours dure votre séjour ?', 'Quel est votre budget total ?',
-                       'Quel résultat principal souhaitez-vous obtenir ?',
+                       'À quelle date cela doit-il être prêt ?',
                        'Souhaitez-vous partir en semaine ou le week-end ?',
                        'Où souhaitez-vous séjourner ?']) {
     const candidate = { type: 'ASK_CLARIFICATION', text: texte };
@@ -72,9 +83,18 @@ test('T04-02 : un besoin déterminant atomique passe intact', () => {
  * ======================================================================= */
 
 test('T04-03 : un catalogue de livrables est refusé, et rien n’est réécrit', () => {
-  const out = guardFastSolicitation({ type: 'ASK_CLARIFICATION', text: CATALOGUE_REEL }, snapshot);
+  /* V2.2.1-D2F1 — la candidate déclare ce qu'elle interroge ; le garde ne le devine plus. */
+  const out = guardFastSolicitation({ type: 'ASK_CLARIFICATION', text: CATALOGUE_REEL, question_focus: 'output_specification' }, snapshot);
   assert.deepEqual(out, SILENT_INTERACTION, 'le silence, jamais une question reformulée');
-  assert.equal(assessSolicitation({ text: CATALOGUE_REEL }, []), 'CATALOGUE');
+  /* V2.2.1-D2B — LE COMPORTEMENT N'A PAS BOUGÉ ; LE MOTIF DU REFUS EST DEVENU LE BON.
+   *
+   * Ce catalogue commence par « Qu'attendez-vous comme résultat concret : … » — c'est mot pour mot
+   * l'une des huit paraphrases que V211-03 déclare méta. `assessSolicitation` teste META AVANT
+   * CATALOGUE ; il rendait pourtant CATALOGUE, parce que le « ou » final de l'énumération
+   * déclenchait le signal de rattrapage destiné à l'interrogatif « où » et annulait le verdict méta.
+   * Le dépôt affirmait donc deux choses contraires sur la même phrase. La correction rend la
+   * précédence déclarée effective. Le refus, lui, est identique : le silence, et aucune réécriture. */
+  assert.equal(assessSolicitation({ text: CATALOGUE_REEL, question_focus: 'output_specification' }, []), 'META_OUTPUT_QUESTION');
   /* Le garde ne propose aucune variante : réécrire une question serait inventer un besoin. */
   assert.equal(out.text.includes('itinéraire'), false);
 });
@@ -116,9 +136,10 @@ test('T04-09 : une sollicitation refusée rend le silence, qui n’ouvre aucune 
 
 test('T04-10 : le plan rapide ne peut pas émettre READY, et le garde n’en fabrique pas', () => {
   assert.equal(validateFastInteraction({ type: 'operational_request_ready', text: 'Prêt' }, snapshot).ok, false);
-  assert.deepEqual(Object.keys(FAST_INTERACTION_JSON_SCHEMA.properties).sort(), ['text', 'type']);
+  /* V2.2.1-D2F1 — trois champs, aucun n'étant un état : l'incapacité vérifiée ici est intacte. */
+  assert.deepEqual(Object.keys(FAST_INTERACTION_JSON_SCHEMA.properties).sort(), ['missing_determinant_id', 'question_focus', 'text', 'type']);
   /* Et le verdict du garde ne voyage pas : il ne sort jamais de la fonction. */
-  const out = guardFastSolicitation({ type: 'ASK_CLARIFICATION', text: CATALOGUE_REEL }, snapshot);
+  const out = guardFastSolicitation({ type: 'ASK_CLARIFICATION', text: CATALOGUE_REEL, question_focus: 'output_specification' }, snapshot);
   assert.deepEqual(Object.keys(out).sort(), ['text', 'type']);
 });
 
@@ -128,7 +149,7 @@ test('T04-10 : le plan rapide ne peut pas émettre READY, et le garde n’en fab
 
 test('T04-19 : une question déjà répondue n’est pas reposée', () => {
   const history = [{ question: question.text, answer: 'Une synthèse.' }];
-  assert.ok(isRepeatedSolicitation('QUEL résultat principal souhaitez-vous obtenir?', history),
+  assert.ok(isRepeatedSolicitation('COMBIEN de jours cela doit-il couvrir?', history),
     'casse et ponctuation ne font pas une question différente');
   assert.deepEqual(guardFastSolicitation(question, { ...snapshot, clarification_history: history }), SILENT_INTERACTION);
   /* Une question posée mais restée SANS réponse peut être reposée : l'historique ne la clôt pas. */
@@ -142,10 +163,13 @@ test('T04-20 : le garde ne lit que l’historique du tour qui lui est passé', (
   assert.deepEqual(guardFastSolicitation(question, snapshot), question, 'second appel : rien n’a été retenu');
   assert.equal(isRepeatedSolicitation(question.text, undefined), false, 'aucun historique : rien à répéter');
   /* L’historique passé EST la conversation : le garde ne connaît pas de « conversation étrangère ».
-   * Une sollicitation déjà répondue y consomme le budget, quel qu’en soit le sujet. */
-  const deja = [{ question: 'Question d’un autre sujet ?', answer: 'Réponse obtenue' }];
+   * Ce qu’il y lit, c’est ce qui a DÉJÀ été demandé — et cela seul ferme une question. */
+  const deja = [{ question: question.text, answer: 'Réponse obtenue' }];
   assert.deepEqual(guardFastSolicitation(question, { ...snapshot, clarification_history: deja }),
-    SILENT_INTERACTION, 'une réponse déjà obtenue ferme le budget de sollicitation');
+    SILENT_INTERACTION, 'une question déjà répondue ne repart pas');
+  const autreSujet = [{ question: 'Question d’un autre sujet ?', answer: 'Réponse obtenue' }];
+  assert.deepEqual(guardFastSolicitation(question, { ...snapshot, clarification_history: autreSujet }),
+    question, 'une réponse sur un autre point ne ferme pas une question encore utile');
 });
 
 /* ==========================================================================
@@ -157,15 +181,22 @@ test('T04-20 : le garde ne lit que l’historique du tour qui lui est passé', (
  * faisait taire une question légitime et atomique.
  * ======================================================================= */
 
-test('T04-21 : après une réponse obtenue, aucune seconde sollicitation', () => {
+test('T04-21 : après une réponse obtenue, une nouvelle question déterminante reste possible', () => {
+  /* V2.1 — CE TEST A CHANGÉ DE CONTENU, ET LA RAISON EST MESURÉE. Il asservissait un quota d'UNE
+     sollicitation par conversation, posé au lot BETA-04 contre un sur-questionnement alors réel :
+     à l'époque, une question du plan rapide n'arrêtait pas le plan profond. Le court-circuit IA-04
+     l'arrête désormais, et le plan rapide EST la boucle de clarification. Sur le dialogue réel du
+     propriétaire — quatre tours — le quota faisait taire le plan rapide dès la première réponse, et
+     chaque question suivante venait du plan profond : environ vingt-cinq secondes pour demander une
+     durée ou un budget, contre un contrat de fluidité de une à deux secondes.
+     Ce qui borne le questionnement reste asservi ici : une question nouvelle doit être nouvelle, et
+     une question déjà répondue ne repart jamais. */
   const repondu = [{ question: 'Combien de jours dure votre séjour ?', answer: 'Quatre jours' }];
   assert.equal(assessSolicitation({ type: 'ASK_CLARIFICATION', text: 'Quel est votre budget total ?' },
-    repondu), 'ALREADY_SOLICITED', 'le budget est de UNE sollicitation par conversation');
-  const posee_sans_reponse = [{ question: 'Combien de jours dure votre séjour ?', answer: '' }];
-  assert.equal(assessSolicitation({ type: 'ASK_CLARIFICATION', text: 'Quel est votre budget total ?' },
-    posee_sans_reponse), 'ALLOW', 'une question restée sans réponse ne consomme pas le budget');
-  assert.equal(countAnsweredSolicitations(repondu), 1);
-  assert.equal(countAnsweredSolicitations(posee_sans_reponse), 0);
+    repondu), 'ALLOW', 'une information encore manquante peut être demandée au tour suivant');
+  assert.equal(assessSolicitation({ type: 'ASK_CLARIFICATION', text: 'Combien de jours dure votre séjour ?' },
+    repondu), 'ALREADY_ANSWERED', 'mais jamais celle qui a déjà reçu sa réponse');
+  assert.equal(SOLICITATION_VERDICTS.includes('ALREADY_SOLICITED'), false, 'le quota n’existe plus');
 });
 
 test('T04-21b : un subordonnant n’est pas une seconde interrogation', () => {
@@ -247,16 +278,19 @@ test('T04-18b : la famille des verdicts est fermée, et chacun est atteignable',
   /* Un verdict qu'on ne peut pas obtenir est une branche morte ; un verdict hors liste serait une
      décision non déclarée. Les deux sont vérifiés ici, sur la liste elle-même. */
   assert.deepEqual([...SOLICITATION_VERDICTS],
-    ['ALLOW', 'MULTIPLE_QUESTIONS', 'CATALOGUE', 'ALREADY_ANSWERED', 'ALREADY_SOLICITED',
-     'MATERIAL_PRESENT', 'EMPTY']);
+    ['ALLOW', 'MULTIPLE_QUESTIONS', 'CATALOGUE', 'ALREADY_ANSWERED', 'MATERIAL_PRESENT',
+     'META_OUTPUT_QUESTION', 'EMPTY']);
   const obtenus = new Set([
     assessSolicitation(question, []),
-    assessSolicitation({ type: 'ASK_CLARIFICATION', text: CATALOGUE_REEL }, []),
+    /* V2.2.1-D2B — le catalogue RÉEL est aussi une question méta, et il est désormais classé comme
+       tel (cf. T04-03). Le témoin de CATALOGUE est donc une énumération qui ne nomme PAS notre
+       production : c'est la seule façon d'atteindre ce verdict sans passer par le précédent. */
+    assessSolicitation({ type: 'ASK_CLARIFICATION', text: 'Souhaitez-vous convier : les partenaires, les fournisseurs, les élus, ou les riverains ?' }, []),
     assessSolicitation({ type: 'ASK_CLARIFICATION', text: 'Quel budget et combien de jours ?' }, []),
     assessSolicitation({ type: 'ASK_CLARIFICATION', text: '' }, []),
     assessSolicitation(question, [{ question: question.text, answer: 'déjà répondu' }]),
-    assessSolicitation(question, [{ question: 'Autre chose ?', answer: 'oui' }]),
-    assessSolicitation(question, [], true)
+    assessSolicitation(question, [], true),
+    assessSolicitation({ type: 'ASK_CLARIFICATION', text: 'Quel type de résultat attendez-vous ?', question_focus: 'output_specification' }, [])
   ]);
   for (const verdict of SOLICITATION_VERDICTS) {
     assert.ok(obtenus.has(verdict), `${verdict} est réellement atteignable`);
@@ -360,6 +394,18 @@ test('T04-22 : les deux questions owner-beta réelles ne peuvent pas être affic
     const garde = guardDisplayedQuestion(question, {});
     assert.notEqual(garde.verdict, 'ALLOW', 'elle ne passe jamais telle quelle');
     assert.ok(DISPLAY_VERDICTS.includes(garde.verdict));
+    /* V2.2.1-D2 FINAL — L'INVARIANT EST INCHANGÉ, IL EST SEULEMENT PLUS FORT.
+     *
+     * Ce test exigeait que « ce qui sort » soit atomique. Il pouvait l'exiger parce qu'il sortait
+     * TOUJOURS quelque chose : à défaut de mieux, une question constante fabriquée par la frontière.
+     * Cette question n'existe plus. Il y a donc deux façons pour ces trois-là de ne pas être
+     * affichées : sortir sous une forme atomique, ou ne pas sortir du tout — et la seconde est la
+     * plus forte des deux. Ce qui reste interdit, dans les deux cas, est qu'un catalogue atteigne
+     * l'écran. */
+    if (garde.text === null) {
+      assert.equal(garde.verdict, 'NOT_DISPLAYABLE', 'rien à afficher, et la frontière le dit');
+      continue;
+    }
     assert.equal(isAtomicQuestion(garde.text), true, 'ce qui sort est atomique');
     /* Et ce qui sort ne propose plus aucune production : c'est la définition du défaut. */
     assert.equal(/ou autre chose/i.test(garde.text), false);
@@ -389,12 +435,13 @@ test('T04-22c : la réduction coupe, elle ne rédige pas', () => {
   }
   /* Un fragment trop court n'est pas une question : la réduction renonce plutôt que de bafouiller. */
   assert.equal(reduceQuestionDeterministically('Quoi : a, b, ou c ?'), null);
-  /* Un catalogue SANS déterminants est un catalogue : rien à couper, donc repli. */
+  /* Un catalogue SANS déterminants est un catalogue : rien à couper. V2.2.1-D2 FINAL a retiré la
+     quatrième issue, qui FABRIQUAIT alors une question constante — un contrôle de forme devenait
+     l'auteur de ce qui est demandé. La frontière constate désormais, et n'écrit rien. */
   assert.equal(isAtomicQuestion('Itinéraire, recommandations, checklist, ou autre chose ?'), false);
   const repli = guardDisplayedQuestion('Itinéraire, recommandations, checklist, ou autre chose ?', {});
-  assert.equal(repli.verdict, 'FALLBACK_SAFE');
-  assert.equal(repli.text, SAFE_FALLBACK_QUESTION);
-  assert.equal(isAtomicQuestion(SAFE_FALLBACK_QUESTION), true);
+  assert.equal(repli.verdict, 'NOT_DISPLAYABLE');
+  assert.equal(repli.text, null, 'aucun texte fabriqué par la frontière');
 });
 
 test('T04-22f : une parenthèse qui énumère est plusieurs dimensions dans une question', () => {
@@ -419,13 +466,25 @@ test('T04-22d : la frontière protège la sortie du plan profond, sans toucher �
     issues: Object.freeze([]),
     reason: 'r'
   });
+  /* TARGETED-FIX-POST-CODEX-01 — CE TEST GARDAIT L'INCOHÉRENCE QU'IL CROYAIT INNOCENTE.
+   *
+   * Il affirmait qu'après un remplacement le texte venait de la candidate ET que les métadonnées
+   * restaient celles de la question REFUSÉE — « seule la FORME change ». Le contre-audit a montré
+   * ce que cela produit : on affiche une question qui interroge un manque, sous l'identité d'un
+   * autre. Tout ce qui dépend ensuite de cette identité — la non-répétition, l'inconnue visée, la
+   * progression annoncée — désigne alors autre chose que ce que la personne lit.
+   *
+   * CLASSIFICATION : HISTORICAL_IMPLEMENTATION_CONTRACT. L'invariant réel, celui que ce test voulait
+   * tenir, est conservé et renforcé : la frontière ne touche NI l'état, NI le candidat, NI la
+   * readiness. Ce qui change est qu'une question substituée est décrite ENTIÈREMENT par la
+   * candidate — ici sans métadonnées, donc sans métadonnées héritées. */
   const analyste = { question_candidates: [{ text: 'Combien de jours partez-vous ?' }] };
   const garde = applyDisplayGuardToTurn(tour, analyste);
   assert.equal(garde.next_question.text, 'Combien de jours partez-vous ?');
-  /* L'état, la readiness et le reste du tour sont intacts : seule la FORME de la question change. */
   assert.equal(garde.state, tour.state);
-  assert.equal(garde.next_question.targets_issue_id, 'I2');
-  assert.equal(garde.next_question.expected_progress, 'x');
+  assert.equal(garde.next_question.targets_issue_id, null,
+    'la candidate n’en déclare aucune : rien n’est hérité de la question refusée');
+  assert.equal(garde.next_question.expected_progress, null);
   assert.deepEqual(garde.operational_request_candidate, tour.operational_request_candidate);
   assert.equal(garde.reason, tour.reason);
   /* Une question déjà atomique traverse sans être recopiée ni reformulée. */
@@ -441,7 +500,13 @@ test('T04-22e : toute question affichée passe par la porte, quelle qu’en soit
      le garde au tour rendu, donc à la question affichée, d'où qu'elle vienne — Analyste, Critique,
      Arbitre, repli, mode dégradé ou reprise. */
   const source = fs.readFileSync(new URL('../workers/shared/operational-request-orchestrator.js', import.meta.url), 'utf8');
-  assert.match(source, /const turn = applyDisplayGuardToTurn\(outputs\.arbiter, outputs\.analyst, log\);/,
+  /* V2.2.1-D2F2 — le texte de la demande n'atteint plus ce garde : les trois faits qui portent
+     l'exception sont désormais canoniques et voyagent DANS le tour. */
+  /* TRACER-REMEDIATION-02 · F5 — un argument de plus, et il est nommé : l'historique de
+     clarification. La frontière y lit l'IDENTITÉ des manques déjà sollicités, pour ne pas afficher
+     une question qui redemande la même chose sous une autre formulation. Elle ne lit toujours pas le
+     texte de la demande, et ne décide toujours aucun état. */
+  assert.match(source, /const turn = applyDisplayGuardToTurn\(outputs\.arbiter, outputs\.analyst, log, input && input\.clarification_history\);/,
     'le tour rendu est gardé, et il l’est avant tout contrôle d’état');
   assert.match(source, /import \{ guardDisplayedQuestion \} from "\.\/solicitation-policy\.js"/,
     'le garde employé est celui du plan rapide : une seule définition de l’atomicité');
