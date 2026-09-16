@@ -13247,6 +13247,11 @@ ${recent}`;
     const legacyBanner = document.getElementById('cc-ws-legacy-banner');
     if (legacyBanner) legacyBanner.hidden = !isLegacy;
 
+    // Item 58 — visible uniquement pour un Carrousel du moteur structuré (jamais legacy,
+    // découpage par diapositive non fiable côté ancien moteur, cf. commentaire au bouton).
+    const exportJpegBtn = document.getElementById('cc-ws-export-jpeg-btn');
+    if (exportJpegBtn) exportJpegBtn.hidden = !(!isLegacy && docKind === 'carrousel');
+
     // Statut calculé UNIQUEMENT à partir de ce que le pipeline existant sait déjà dire
     // (qc.blocking) — pas d'état "Brouillon" inventé : rien dans le pipeline actuel ne
     // distingue aujourd'hui un brouillon d'un document prêt en dehors de ce contrôle qualité.
@@ -13321,6 +13326,54 @@ ${recent}`;
       // silencieuse, un message clair désormais.
       console.warn('[Export espace de travail] Échec du re-rendu:', exportErr && exportErr.message);
       alert('Impossible d\'exporter ce document : ' + (exportErr && exportErr.message || 'erreur inconnue') + '.');
+    }
+  };
+
+  // Item 58 — export JPEG par diapositive (Carrousel structuré uniquement, cf. bouton et
+  // adocOpenWorkspace : le découpage legacy n'a pas de sélecteur DOM fiable). Chaque diapositive
+  // est ré-enveloppée en document HTML autonome via adocClinicalDocumentWrapHTML — LA MÊME
+  // fonction déjà utilisée pour l'export HTML/l'aperçu (jamais une deuxième enveloppe CSS
+  // dupliquée, régression #6) — avant d'être envoyée à /browser-rendering/screenshot-slide
+  // (réutilise l'API Cloudflare Browser Rendering déjà configurée pour /generate-pdf, jamais un
+  // nouveau système de rendu). Les images JPEG obtenues sont assemblées en zip via JSZip, déjà
+  // présent dans le projet pour l'export DOCX.
+  window.adocWsExportJPEG = async function () {
+    adocEditorSync();
+    const storeKey = window._adocWsState.storeKey;
+    const art = window._adocArtifacts?.[storeKey];
+    if (!art || art._adocGenerationEngine === 'legacy-html') return;
+    const doc = art._adocStructuredDoc;
+    if (!doc || doc.documentKind !== 'carrousel' || !Array.isArray(doc.blocks) || !doc.blocks.length) return;
+    const btn = document.getElementById('cc-ws-export-jpeg-btn');
+    const btnLabel = btn?.querySelector('span');
+    const originalLabel = btnLabel?.textContent;
+    if (btn) btn.disabled = true;
+    if (btnLabel) btnLabel.textContent = 'Export en cours…';
+    try {
+      // Même charte que l'aperçu/export HTML (cohérence déjà exigée par UX-1) — re-rendu
+      // uniquement pour obtenir les tokens de charte, jamais pour reconstruire doc.blocks.
+      const rendered = await window.adocRenderClinicalDocument(doc, art._adocStructuredSnapshot, art._adocRenderManifestOverride || null);
+      const workerUrl = adocGetWorkerUrl().replace(/\/+$/, '');
+      const zip = new JSZip();
+      for (let i = 0; i < doc.blocks.length; i++) {
+        if (btnLabel) btnLabel.textContent = 'Diapositive ' + (i + 1) + '/' + doc.blocks.length + '…';
+        const cardHtml = adocRenderCardHTML(doc.blocks[i], i, doc.blocks.length);
+        const slideHtml = adocClinicalDocumentWrapHTML(doc, cardHtml, rendered.tokens);
+        const r = await fetch(workerUrl + '/browser-rendering/screenshot-slide', {
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
+          body: JSON.stringify({ html: slideHtml })
+        });
+        if (!r.ok) throw new Error('Échec de capture pour la diapositive ' + (i + 1));
+        zip.file('diapositive-' + String(i + 1).padStart(2, '0') + '.jpg', await r.arrayBuffer());
+      }
+      const blob = await zip.generateAsync({ type: 'blob', mimeType: 'application/zip' });
+      adocDownloadArtifact(blob, (art.name || doc.title || 'carrousel') + '-diapositives.zip');
+    } catch (exportErr) {
+      console.warn('[Export JPEG] échec:', exportErr && exportErr.message);
+      alert('Impossible d\'exporter en JPEG : ' + (exportErr && exportErr.message || 'erreur inconnue') + '.');
+    } finally {
+      if (btn) btn.disabled = false;
+      if (btnLabel && originalLabel) btnLabel.textContent = originalLabel;
     }
   };
 
@@ -14703,6 +14756,15 @@ ${recent}`;
     <button type="button" class="cc-ws-topbar-btn primary" id="cc-ws-export-btn" onclick="window.adocWsExport()" aria-label="Exporter le document">
       <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-export"></use></svg>
       <span>Exporter</span>
+    </button>
+    <!-- Item 58 — entrée d'export dédiée, à côté d'"Exporter" ci-dessus, jamais un remplacement.
+         Visible UNIQUEMENT pour un Carrousel du moteur structuré (cf. adocOpenWorkspace) : le
+         découpage par diapositive n'a pas de sélecteur DOM fiable côté ancien moteur (HTML libre,
+         aucune structure imposée) — investigation confirmée, hors périmètre tant que ce point
+         n'est pas réglé côté génération. -->
+    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-export-jpeg-btn" onclick="window.adocWsExportJPEG()" aria-label="Exporter en JPEG (une image par diapositive)" hidden>
+      <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-download"></use></svg>
+      <span>Exporter en JPEG</span>
     </button>
     <button type="button" class="cc-ws-close" id="cc-ws-close-btn" onclick="window.adocCloseWorkspace()"
       aria-label="Fermer l'espace de travail et revenir à la conversation">
