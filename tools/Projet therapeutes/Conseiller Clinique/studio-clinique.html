@@ -5729,12 +5729,14 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       // demande directe (jamais passée par le structuré, _structFellBack toujours false) garde
       // EXACTEMENT le comportement d'avant ce correctif — destruction puis recréation
       // inchangées, non-régression totale.
-      if (_structFellBack) {
-        streamMsgId = typingId;
-      } else {
-        adocRemoveTyping(typingId);
-        streamMsgId = adocAddMsg('assistant', '', [], true);
-      }
+      // Item 55 — le design enrichi doit désormais PERSISTER pour TOUTE génération legacy, pas
+      // seulement le cas de repli déjà corrigé au rang 6 : streamMsgId réutilise toujours
+      // typingId, plus jamais un adocAddMsg séparé + adocRemoveTyping qui détruisait la carte
+      // enrichie avant même le premier fragment de texte réel (confirmé par reproduction réelle
+      // — la carte enrichie n'était jamais atteinte par le streaming pour ce cas direct). La
+      // seule autre destruction restante (adocUpdateStreamMsg, corrigée séparément ci-dessous)
+      // est ce qui causait la disparition côté repli.
+      streamMsgId = typingId;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -7080,32 +7082,31 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     const trimmed = text.trimStart();
     const _hasHtmlBlock = /<!DOCTYPE\s+html|<html[\s>]/.test(trimmed);
     if (_hasHtmlBlock) {
-      // Séparer texte conversationnel et blocs HTML pour l'affichage streaming
+      // Séparer texte conversationnel et blocs HTML pour compter les documents en cours et
+      // recueillir tout texte conversationnel intercalé (cas multi-question).
       const _textParts = trimmed.split(/(?=<!DOCTYPE\s+html)/i);
-      const _displayParts = [];
       let _htmlCount = 0;
+      const _conversationalParts = [];
       for (const _part of _textParts) {
-        if (/^<!DOCTYPE\s+html/i.test(_part.trim())) {
-          _htmlCount++;
-          // Correctif régression (signalée production, document long multi-chapitres) — ce
-          // div hérite de word-break:break-word depuis .adoc-bubble (ligne ~395). Sans largeur
-          // plancher, un enfant flex (le wrapper anonyme entre .adoc-avatar et .adoc-bubble,
-          // lui-même dans .adoc-msg qui est display:flex) voit sa "taille minimale automatique"
-          // calculée à partir du min-content de son contenu — et avec break-word, ce min-content
-          // s'effondre à la largeur d'un seul caractère (n'importe quel point peut couper).
-          // Sous contrainte de largeur (fenêtre plus étroite que la largeur naturelle du
-          // message), flex-shrink compresse alors la boîte jusqu'à ce plancher quasi nul :
-          // le texte s'empile lettre par lettre. Un min-width explicite ici remonte ce
-          // plancher tout le long de la chaîne (div → .adoc-bubble → wrapper flex), sans toucher
-          // à aucune autre bulle de conversation (ce style reste strictement inline, localisé à
-          // ce seul placeholder). Non lié à l'écran d'accueil : aucune règle #cc-landing ne
-          // s'applique jamais en dehors de son propre sous-arbre.
-          _displayParts.push('<div style="margin:8px 0;padding:10px 14px;min-width:220px;box-sizing:border-box;background:var(--ivory);border-left:3px solid var(--petrol-800);border-radius:4px;font-size:11px;color:var(--petrol-950);">' + adocIconSvg('icon-progress') + ' Document ' + _htmlCount + ' en cours de génération…</div>');
-        } else if (_part.trim().length > 0) {
-          _displayParts.push(adocFormatMd(_part));
-        }
+        if (/^<!DOCTYPE\s+html/i.test(_part.trim())) _htmlCount++;
+        else if (_part.trim().length > 0) _conversationalParts.push(_part.trim());
       }
-      bubble.innerHTML = _displayParts.join('') + '<span class="adoc-stream-cursor">▋</span>';
+      const _label = 'Document ' + _htmlCount + ' en cours de génération…' + (_conversationalParts.length ? ' ' + _conversationalParts.join(' ') : '');
+      // Item 55 — le design enrichi (adocShowTyping) doit PERSISTER pendant la génération d'un
+      // document, jamais être remplacé par un encadré plat séparé qui l'efface (confirmé par
+      // reproduction réelle : bubble.innerHTML écrasé ici détruisait les points de saisie et
+      // l'en-tête enrichi que adocUpdateTypingLabel venait de préserver côté structuré). Toute
+      // génération legacy réutilise désormais systématiquement cette même carte (cf. streamMsgId
+      // ci-dessus) — on réutilise ici EXACTEMENT le même mécanisme de mise à jour que le moteur
+      // structuré (adocUpdateTypingLabel, jamais dupliqué) : l'information (nombre de documents
+      // en cours, texte intercalé éventuel) est réintégrée dans ce label, jamais perdue.
+      if (div.querySelector('.adoc-typing-label') && typeof adocUpdateTypingLabel === 'function') {
+        adocUpdateTypingLabel(msgId, 'icon-progress', _label);
+      } else {
+        // Filet de sécurité — comportement historique, pour tout appelant sans carte enrichie
+        // (ex. adocLongDoc, qui démarre sur une bulle simple, jamais adocShowTyping).
+        bubble.innerHTML = '<div style="margin:8px 0;padding:10px 14px;min-width:220px;box-sizing:border-box;background:var(--ivory);border-left:3px solid var(--petrol-800);border-radius:4px;font-size:11px;color:var(--petrol-950);">' + adocIconSvg('icon-progress') + ' ' + _label + '</div>' + '<span class="adoc-stream-cursor">▋</span>';
+      }
     } else {
       bubble.innerHTML = adocFormatMd(text) + '<span class="adoc-stream-cursor">▋</span>';
     }
