@@ -16,13 +16,14 @@ const P = require("./paths.js");
 const RS = require("./run-store.js");
 const { createLlm } = require("./llm.js");
 const SM = require("./stage-mission.js"), S1 = require("./stage-ef01.js"), SR = require("./stage-retrieval.js"), SP = require("./stage-professionals.js"), SRP = require("./stage-report.js");
+const RSTOP = require("./run-stop.js");
 const CL = require("./cost-ledger.js"), BG = require("./budget-guard.js"), CPR = require("./corpus-portfolio-review.js"), PE = require("./professionals-economics.js"), CV = require("./cost-view.js");
 const sha = (b) => crypto.createHash("sha256").update(b).digest("hex");
 const now = () => new Date().toISOString();
 /* reprenables : indisponibilites fournisseur ET sorties fournisseur invalides (un nouvel appel reel peut reussir) ; jamais une erreur de contrat */
 /* LEDGER_DUPLICATE_OR_INVALID : cause connue (doublons de candidats MONO-09 sur plusieurs disciplines), corrigee en v1.0.1 par
    deduplication a la reprise (dedupeDiscovery) ; la reprise rejoue l'etape PROFESSIONALS sur un nouveau run MONO-10 */
-const RESUMABLE = ["INTERRUPTED_BY_RESTART", "LEDGER_DUPLICATE_OR_INVALID", "AGGREGATION_CLASSIFICATION_ERROR", "CHECKPOINT_CORRUPT", "PROVIDER_CREDIT_EXHAUSTED", "PROVIDER_RATE_LIMITED", "NETWORK_UNAVAILABLE", "PROVIDER_TIMEOUT", "PROVIDER_UNAVAILABLE", "PROVIDER_NOT_CONFIGURED", "LLM_UNAVAILABLE", "PROVIDER_EMPTY_RESPONSE",
+const RESUMABLE = ["STOPPED_BY_USER", "INTERRUPTED_BY_RESTART", "LEDGER_DUPLICATE_OR_INVALID", "AGGREGATION_CLASSIFICATION_ERROR", "CHECKPOINT_CORRUPT", "PROVIDER_CREDIT_EXHAUSTED", "PROVIDER_RATE_LIMITED", "NETWORK_UNAVAILABLE", "PROVIDER_TIMEOUT", "PROVIDER_UNAVAILABLE", "PROVIDER_NOT_CONFIGURED", "LLM_UNAVAILABLE", "PROVIDER_EMPTY_RESPONSE",
   "LLM_PROVIDER_UNAVAILABLE", "LLM_RESPONSE_INVALID", "LLM_OUTPUT_SCHEMA_INVALID", "REFORMULATION_INVALID", "PLANNER_OUTPUT_INVALID", "RESOLVER_OUTPUT_INVALID",
   "BUDGET_LIMIT_REACHED", "PRICING_UNKNOWN_FOR_MODEL",
   "PROVIDER_PLACEHOLDER", "PROVIDER_URL_INVALID", "PROVIDER_DNS_ERROR", "PROVIDER_CONNECTION_REFUSED", "PROVIDER_TLS_ERROR", "PROVIDER_AUTH_ERROR", "PROVIDER_ROUTE_NOT_FOUND", "PROVIDER_CAPACITY", "PROVIDER_BAD_RESPONSE"];   /* v1.0.5 : pannes de configuration/transport distinguees, toutes reprenables une fois corrigees */   /* v1.0.5 : plafond de depense atteint / tarif inconnu = arret propre AVANT l'appel, reprenable apres decision humaine (budget) */
@@ -61,10 +62,12 @@ async function startRun(input) {
   intake.documents.forEach((d) => fs.writeFileSync(path.join(docsDir, d.documentId + ".txt"), Buffer.from(d.contentBase64, "base64")));
   const state = makeState(runId, q, intake.documents.map((d) => ({ documentId: d.documentId, name: d.name, bytes: d.bytes, sha256: d.sha256 })));
   state.documentsRejected = intake.rejected;
-  /* v1.0.5 : budget facultatif a la creation (plafond / alerte), persiste dans budget.json AVANT tout appel */
-  let budgetSet = null; if (input.budget && (input.budget.costBudgetUsd != null || input.budget.warningThresholdUsd != null)) { const n = BG.normalizeBudgetInput(input.budget); budgetSet = costFor(store, state).budget.set(n, "user"); }
+  /* RUN SAFETY — budget EXPLICITE a la creation : mode LIMITED (plafond > 0) ou UNLIMITED_CONFIRMED (confirmation explicite) ; budget.json est
+     ecrit AVANT state.json, donc avant tout appel ; un champ vide n'est jamais transforme en « sans plafond » ; l'absence de budget.json devient une anomalie */
+  const bm = BG.normalizeBudgetMode(input.budget);   /* leve BUDGET_REQUIRED / BUDGET_INVALID */
+  const budgetSet = costFor(store, state).budget.set(bm, "user", { mode: bm.mode, confirmedUnlimited: bm.confirmedUnlimited });
   store.write(state); store.event({ level: "user", message: "Run créé. " + intake.documents.length + " document(s) accepté(s)" + (intake.rejected.length ? ", " + intake.rejected.length + " refusé(s)." : ".") , _state: state });
-  return { runId, documents: state.mission.documents, rejected: intake.rejected, budget: budgetSet ? { costBudgetUsd: budgetSet.costBudgetUsd, warningThresholdUsd: budgetSet.warningThresholdUsd } : null };   /* v1.0.5 : ce qui est REELLEMENT enregistre */
+  return { runId, documents: state.mission.documents, rejected: intake.rejected, budget: { mode: budgetSet.mode, confirmedUnlimited: budgetSet.confirmedUnlimited === true, costBudgetUsd: budgetSet.costBudgetUsd, warningThresholdUsd: budgetSet.warningThresholdUsd } };   /* v1.0.5 : ce qui est REELLEMENT enregistre */
 }
 
 function loadDocuments(store, state) {
@@ -72,13 +75,17 @@ function loadDocuments(store, state) {
     return Object.assign({}, d, { content: bytes.toString("utf8"), contentBase64: bytes.toString("base64") }); });
 }
 
-function fail(store, state, e, llm, base) {
+function fail(store, state, e, llm, base, cost) {
   if (llm && base) { const c = llm.counts(); state.counters.llmReal = base.real + c.real; state.counters.llmReused = base.reused + c.reused; }   /* compteurs exacts meme en cas d'echec */
-  const code = e.code || "UNEXPECTED_ERROR"; const resumable = RESUMABLE.indexOf(code) !== -1;
+  const code = e.code || "UNEXPECTED_ERROR"; const resumable = RESUMABLE.indexOf(code) !== -1; const userStop = code === RSTOP.STOP_CODE;
   state.status = resumable ? "STOPPED" : "FAILED"; state.error = { code, message: String(e.message).slice(0, 2000), userMessage: e.userMessage || null, at: now(), stage: state.stage, resumable, details: e.details || null };
   state.userMessage = e.userMessage || (resumable ? "Le run est arrêté proprement ; il pourra reprendre." : "Le run s'est arrêté sur une erreur de contrat : aucun résultat partiel n'est présenté comme un résultat.");
   if (state.stages[state.stage] && state.stages[state.stage].status === "RUNNING") state.stages[state.stage].status = resumable ? "INTERRUPTED" : "FAILED";   /* une etape DONE n'est jamais degradee par un echec ulterieur (ex. preflight) */
-  store.write(state); store.event({ level: "user", actor: "system", message: state.userMessage, code, normalizedCause: e.transportFailure ? "TRANSPORT_FAILURE" : (resumable ? "PROVIDER_OR_TRANSIENT" : "CONTRACT"), resumable, previousState: "RUNNING", nextState: state.status, _state: state }); store.event({ level: "tech", actor: "system", message: e.stack ? String(e.stack).slice(0, 4000) : String(e.message), code, details: e.details || null, _state: state });
+  /* RUN SAFETY — arret utilisateur : cause distincte (USER_STOP), demande honoree, etat partiel persiste (jamais un checkpoint, jamais un verdict) */
+  if (userStop) { try { const req = RSTOP.honor(store.dir, { honoredStage: state.stage }); const t = cost ? cost.ledger.totals() : null; const b = cost ? cost.budget.read() : null;
+      const partial = []; if (e.panelPartialState) partial.push({ file: "professionals-sufficiency-partial.json", kind: "EvidenceForge.PanelSufficiencyPartialState" }); ["professionals-selection.json", "screening-evidence.json", "corpus-portfolio-review.json", "checkpoint-professionals.json"].forEach((f) => { if (fs.existsSync(path.join(store.dir, f))) partial.push({ file: f }); });
+      const ss = RSTOP.buildStopState({ runId: state.runId, state, ledgerTotals: t, budget: b, request: req, partialArtifacts: partial, checkpointRef: state.checkpoints || null }); store.saveJson(RSTOP.STATE_FILE, ss); state.stop = { requestedAt: req ? req.requestedAt : null, actor: req ? req.actor : null, honoredAt: req ? req.honoredAt : null, stateFile: RSTOP.STATE_FILE }; } catch (x) { /* la tracabilite n'ajoute jamais une panne */ } }
+  store.write(state); store.event({ level: "user", actor: userStop ? "user" : "system", event: userStop ? "run_stopped_by_user" : undefined, message: state.userMessage, code, normalizedCause: userStop ? "USER_STOP" : (e.transportFailure ? "TRANSPORT_FAILURE" : (resumable ? "PROVIDER_OR_TRANSIENT" : "CONTRACT")), resumable, previousState: "RUNNING", nextState: state.status, _state: state }); store.event({ level: "tech", actor: "system", message: e.stack ? String(e.stack).slice(0, 4000) : String(e.message), code, details: e.details || null, _state: state });
 }
 
 /** Moteur : avance depuis l'etat courant jusqu'a une porte, la fin, ou un arret. Reentrant-safe. */
@@ -95,11 +102,15 @@ function advance(runId) {
     const attemptRunId = runId + "-a" + state.attempts;
     /* v1.0.5 : ledger + garde de budget de ce run, actives dans le registre (sonde MONO-10 : transport non injecte) ; etape courante posee pour l'attribution */
     const cost = costFor(store, state); cost.ledger.setAttempt(state.attempts); cost.ledger.setStage(state.stage); cost.ledger.activate([runId, attemptRunId]);
-    const llm = createLlm({ runDir: store.dir, runId, sealHash, ledger: cost.ledger, budget: cost.budget, onTrace: (e) => store.event(Object.assign({ level: "tech", actor: "machine", _state: state }, e)) });
+    /* RUN SAFETY — advance() n'est appele que par un acte utilisateur (creation, porte, reprise) : une demande d'arret en attente est consommee ici, jamais ailleurs */
+    const pendingStop = RSTOP.pending(store.dir); if (pendingStop) { RSTOP.consume(store.dir, "user-resume"); store.event({ level: "user", actor: "user", event: "run_resumed_after_user_stop", message: "Reprise explicite après un arrêt à votre demande (" + pendingStop.requestedAt + ") : les résultats déjà produits sont réutilisés.", _state: state }); }
+    const stopCheck = () => RSTOP.pending(store.dir);
+    const llm = createLlm({ runDir: store.dir, runId, sealHash, ledger: cost.ledger, budget: cost.budget, stopCheck, onTrace: (e) => store.event(Object.assign({ level: "tech", actor: "machine", _state: state }, e)) });
     const base = { real: (state.counters && state.counters.llmReal) || 0, reused: (state.counters && state.counters.llmReused) || 0 };   // compteurs CUMULES sur les tentatives
     state.counters = Object.assign({ llmReal: 0, llmReused: 0, openAlexCalls: 0, kitRealCalls: 0 }, state.counters || {});
     const log = (e) => store.event(Object.assign({ level: "tech", actor: "machine", _state: state }, e));
-    const setStage = (s, msg) => { const prev = state.stages[s].status; state.stage = s; cost.ledger.setStage(s); state.stages[s].status = "RUNNING"; state.stages[s].startedAt = state.stages[s].startedAt || now(); store.write(state); store.event({ level: "user", actor: "machine", message: RS.STAGE_LABELS[s] + (msg ? " — " + msg : "") + "…", stage: s, previousState: prev, nextState: "RUNNING", _state: state }); };
+    const setStage = (s, msg) => { const sr = stopCheck(); if (sr) throw RSTOP.stopError(sr);   /* RUN SAFETY : jamais une transition vers une etape (payante) apres une demande d'arret */
+      const prev = state.stages[s].status; state.stage = s; cost.ledger.setStage(s); state.stages[s].status = "RUNNING"; state.stages[s].startedAt = state.stages[s].startedAt || now(); store.write(state); store.event({ level: "user", actor: "machine", message: RS.STAGE_LABELS[s] + (msg ? " — " + msg : "") + "…", stage: s, previousState: prev, nextState: "RUNNING", _state: state }); };
     const done = (s, extra) => { const ex = Object.assign({}, extra || {}); delete ex.status;   /* v1.0.2 : `status` reserve (v1.0.1 ecrasait DONE par le statut de qualification => reprise reentrante) */
       state.stages[s] = Object.assign(state.stages[s], ex, { status: "DONE", completedAt: now() }); const c = llm.counts(); state.counters.llmReal = base.real + c.real; state.counters.llmReused = base.reused + c.reused; state.counters.reuseRefused = (state.counters.reuseRefused || 0) + (c.reuseRefused || 0); store.write(state);
       store.event({ level: "user", actor: "machine", message: RS.STAGE_LABELS[s] + " : terminé.", stage: s, previousState: "RUNNING", nextState: "DONE", checkpointRef: (extra && extra.checkpoint) || null, durationMs: state.stages[s].startedAt ? Date.now() - Date.parse(state.stages[s].startedAt) : null, _state: state }); };
@@ -185,7 +196,7 @@ function advance(runId) {
         const onSelection = async (sel) => { const ref = store.saveCheckpoint("professionals-selection.json", sel); state.checkpoints = Object.assign({}, state.checkpoints || {}, { selection: ref }); store.write(state);
           store.event({ level: "user", actor: "machine", message: "Plafond d'évaluation : " + sel.selectedCount + " professionnel(s) retenu(s) sur " + sel.poolCount + " découvert(s) (" + (sel.capApplied ? "plafond " + sel.cap + " appliqué" : "sous le plafond") + "), sélection déterministe persistée avant tout appel payant.", checkpointRef: ref.contentHash, _state: state }); };
         /* v1.0.5 — suffisance du panel (early-stop deterministe) : transitions annoncees a l'utilisateur, decision persistee a part et dans le checkpoint */
-        const onSufficiency = (d) => store.event({ level: "user", actor: "machine", event: "panel_sufficiency", code: d.state, panel: d.panel, message: d.state === "EARLY_STOP_CONFIRMED" ? "Panel suffisant après " + d.evaluated + " évaluation(s) (politique " + d.rule + ") : " + d.statement : d.state === "EARLY_STOP_CANDIDATE" ? "Plateau observé après " + d.evaluated + " évaluation(s) : " + d.statement : "Évaluation des professionnels : reprise (" + d.statement + ")", _state: state });
+        const onSufficiency = (d) => store.event({ level: "user", actor: "machine", event: "panel_sufficiency", code: d.state, panel: d.panel, message: d.state === "EARLY_STOP_CONFIRMED" ? "Panel suffisant après " + d.evaluated + " évaluation(s) (politique " + d.rule + ") : " + d.statement : d.state === "EARLY_STOP_CANDIDATE" ? "Plateau observé après " + d.evaluated + " évaluation(s) : " + d.statement : "Plateau informatif terminé : l'évaluation continue, le panel n'étant pas encore suffisant (" + d.statement + ")", _state: state });
         let r; try { r = await SP.runPanel({ runDir: store.dir, runId, attemptId: state.attempts, attemptRunId, missionId, missionHash: state.mission.questionSha256, missionQuestion, runContract: disciplines.runContract, corpusSnapshot, discovery: disc.discovery, verification: disc.verification, llm, log, selection, onSelection, onSufficiency });
         } catch (e) {
           /* v1.0.5 — etat partiel persiste sur arret (plafond budget, panne, invariant) : artefact a part, jamais un checkpoint, jamais un verdict */
@@ -236,7 +247,7 @@ function advance(runId) {
       store.event({ level: "user", message: state.userMessage , _state: state });
       writeLineage(store, state);
       return store.publicState(state);
-    } catch (e) { fail(store, state, e, llm, base); return store.publicState(state); }
+    } catch (e) { fail(store, state, e, llm, base, cost); return store.publicState(state); }
     finally { cost.ledger.deactivate([runId, attemptRunId]); }
   })();
   running.set(runId, p); p.finally(() => running.delete(runId)); return p;
@@ -303,9 +314,26 @@ function writeLineage(store, state) {
 function updateBudget(runId, input) {
   const store = RS.createRunStore(runId); const state = store.read(); if (!state) throw Object.assign(new Error("RUN_NOT_FOUND"), { code: "RUN_NOT_FOUND" });
   if (state.kind === "IMPORTED_REPORT") { const e = new Error("BUDGET_INVALID: rapport importe"); e.code = "BUDGET_INVALID"; e.userMessage = "Un rapport importé n'a pas de budget."; throw e; }
-  const c = costFor(store, state); const b = c.budget.set(input, "user"); return { ok: true, budget: b, cost: CV.buildCostView(store) };
+  const bm = BG.normalizeBudgetMode(input);   /* RUN SAFETY : lever un plafond en cours de run exige la meme confirmation explicite qu'a la creation */
+  const c = costFor(store, state); const b = c.budget.set(bm, "user", { mode: bm.mode, confirmedUnlimited: bm.confirmedUnlimited }); return { ok: true, budget: b, cost: CV.buildCostView(store) };
+}
+
+/** RUN SAFETY — primitive unique d'arret utilisateur. Moteur actif : la demande est persistee et lue avant tout appel / toute etape ;
+ *  aucun moteur (CREATED, WAITING_USER, STOPPED, FAILED) : l'etat passe immediatement a STOPPED / STOPPED_BY_USER avec etat partiel. */
+function requestRunStop(runId, input) {
+  input = input || {}; const store = RS.createRunStore(runId); const state = store.read(); if (!state) throw Object.assign(new Error("RUN_NOT_FOUND"), { code: "RUN_NOT_FOUND" });
+  if (state.kind === "IMPORTED_REPORT" || state.status === "COMPLETED") { const e = new Error("RUN_NOT_ACTIVE"); e.code = "RUN_NOT_ACTIVE"; e.userMessage = "Ce run n'est pas actif : rien à arrêter."; throw e; }
+  const r = RSTOP.request(store.dir, { runId, actor: input.actor || "user" });
+  if (r.created) store.event({ level: "user", actor: "user", event: "run_stop_requested", message: "Arrêt demandé par l'utilisateur : aucun nouvel appel au service d'analyse ne sera lancé ; un appel déjà envoyé peut se terminer et être facturé.", _state: state });
+  const engineActive = running.has(runId) && state.status === "RUNNING";
+  if (!engineActive && (state.status === "CREATED" || state.status === "WAITING_USER" || (state.status === "RUNNING" && !running.has(runId)))) {
+    /* aucun moteur ne tourne (porte ouverte, ou RUNNING orphelin d'un processus precedent) : l'arret est immediat et persiste */
+    const e = RSTOP.stopError(r.request); const cost = costFor(store, state); const prevGate = state.gate; state.gate = null; fail(store, state, e, null, null, cost); if (prevGate) state.stoppedAtGate = prevGate.id; store.write(state);
+    return { ok: true, immediate: true, state: store.publicState(state) };
+  }
+  return { ok: true, immediate: false, pending: !!r.request, state: store.publicState(state) };
 }
 function costView(runId) { const store = RS.createRunStore(runId); return CV.buildCostView(store); }
 function economicsView(runId) { const store = RS.createRunStore(runId); if (!store.read()) return null; return PE.buildProfessionalsEconomics(store); }
 
-module.exports = { startRun, advance, confirmPlan, ratifySources, gateView, importReport, updateBudget, costView, economicsView, RESUMABLE, isResumable };
+module.exports = { startRun, advance, confirmPlan, ratifySources, gateView, importReport, updateBudget, costView, economicsView, requestRunStop, RESUMABLE, isResumable };

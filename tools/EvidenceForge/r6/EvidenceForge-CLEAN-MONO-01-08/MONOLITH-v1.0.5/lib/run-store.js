@@ -83,7 +83,7 @@ function createRunStore(runId) {
   }
   function publicState(state) {
     const resumable = state.status === "STOPPED" || (state.status === "FAILED" && !!(state.error && state.error.resumable));
-    return { runId: state.runId, status: state.status, stage: state.stage, stageLabel: STAGE_LABELS[state.stage] || state.stage, stages: state.stages, gate: state.gate || null, resumable: resumable,
+    return { runId: state.runId, status: state.status, stage: state.stage, stageLabel: STAGE_LABELS[state.stage] || state.stage, stages: state.stages, gate: state.gate || null, resumable: resumable, stop: state.stop || null,
       userMessage: state.userMessage || null, error: state.error || null, mission: state.mission ? { question: state.mission.question, reformulated: state.mission.reformulated, documents: (state.mission.documents || []).map((d) => ({ name: d.name, bytes: d.bytes, sha256: d.sha256 })) } : null,
       summary: state.summary || null, createdAt: state.createdAt, updatedAt: state.updatedAt, seal: state.seal || null, counters: state.counters || null, attempts: state.attempts || 0, kind: state.kind || "NATIVE", provider: state.provider || null, checkpoints: state.checkpoints || null, cost: costSummary(state) };
   }

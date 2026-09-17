@@ -106,7 +106,8 @@ function createLlm(opts) {
      jamais une panne en verdict documentaire. Le pipeline lit `transportFailure()` a la frontiere de l'etape et arrete (reprenable). */
   let LATCH = null;
   const TRANSPORT_CODES = ["NETWORK_UNAVAILABLE", "PROVIDER_TIMEOUT", "PROVIDER_CREDIT_EXHAUSTED", "PROVIDER_RATE_LIMITED", "PROVIDER_UNAVAILABLE", "PROVIDER_NOT_CONFIGURED", "PROVIDER_EMPTY_RESPONSE", "BUDGET_LIMIT_REACHED", "PRICING_UNKNOWN_FOR_MODEL",
-    "PROVIDER_PLACEHOLDER", "PROVIDER_URL_INVALID", "PROVIDER_DNS_ERROR", "PROVIDER_CONNECTION_REFUSED", "PROVIDER_TLS_ERROR", "PROVIDER_AUTH_ERROR", "PROVIDER_ROUTE_NOT_FOUND", "PROVIDER_CAPACITY", "PROVIDER_BAD_RESPONSE"];
+    "PROVIDER_PLACEHOLDER", "PROVIDER_URL_INVALID", "PROVIDER_DNS_ERROR", "PROVIDER_CONNECTION_REFUSED", "PROVIDER_TLS_ERROR", "PROVIDER_AUTH_ERROR", "PROVIDER_ROUTE_NOT_FOUND", "PROVIDER_CAPACITY", "PROVIDER_BAD_RESPONSE",
+    "STOPPED_BY_USER"];   /* RUN SAFETY : l'arret utilisateur est un verrou de transport (aucun appel apres, boucles gelees absorbent, frontiere d'etape arrete) */
   /* v1.0.5 — ledger de cout et garde de budget (optionnels : les tests unitaires du transport n'en ont pas besoin) */
   const LEDGER = opts.ledger || null, BUDGET = opts.budget || null;
   const ledgerRecord = (e) => { if (LEDGER) { try { LEDGER.record(e); } catch (x) { fs.appendFileSync(LOG, JSON.stringify({ kind: "COST_LEDGER_ERROR", runId: opts.runId, message: String(x.message).slice(0, 300), at: new Date().toISOString() }) + "\n"); } } };
@@ -118,7 +119,10 @@ function createLlm(opts) {
     if (LATCH) throw latchedError();
     try { return await llmCallInner(prompt, meta); } catch (e) { latch(e, (meta && meta.purpose) || null); throw e; }
   }
+  /* RUN SAFETY — demande d'arret utilisateur lue AVANT chaque appel, reel OU reutilise (stop = arreter le travail, pas seulement la depense) */
+  const stopCheck = () => { if (typeof opts.stopCheck !== "function") return; const req = opts.stopCheck(); if (req) { const e = new Error("STOPPED_BY_USER: arret demande par l'utilisateur" + (req.requestedAt ? " a " + req.requestedAt : "")); e.code = "STOPPED_BY_USER"; e.fatal = true; e.userStop = true; e.userMessage = "Run arrêté à votre demande : aucun nouvel appel au service d'analyse n'a été lancé après votre demande ; les résultats déjà produits sont conservés. Vous pourrez reprendre le run explicitement."; throw e; } };
   async function llmCallInner(prompt, meta) {
+    stopCheck();
     if (!configured()) { const cs = credentials(); const st = STATE_BY_CODE[cs.code] || PROVIDER_STATES.NOT_CONFIGURED; const e = new Error(st.code); e.code = st.code; e.userMessage = st.user; e.fatal = true; throw e; }
     let d = policy.decide(prompt);
     if (d.decision === policy.DECISION.REUSE_VALID) {

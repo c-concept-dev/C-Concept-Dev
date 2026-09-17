@@ -11195,6 +11195,16 @@ ${recent}`;
   // pousse le contenu suivant, exactement comme avant item 64. Même geste sur les deux moteurs
   // (régression #6).
   function adocMountContextualBlockEditPanel(panel, anchorEl) {
+    // LOT B — cas particulier vérifié (0E, capture réelle) : un ancrage à l'intérieur de la
+    // bannière de couverture (.adoc-sc-cover, fond pétrole/terracotta/ardoise/forêt selon le type
+    // de document — Fiche/Script/Tableau/Liens, même gabarit de bannière) étirerait ce conteneur
+    // de façon disgracieuse si le panneau y restait (utile dès que le titre de couverture sera
+    // connecté au panneau, Lot D). Sort donc du conteneur dans CE cas précis, jamais pour un bloc
+    // de corps normal (qui n'est structurellement jamais dans .adoc-sc-cover, vérifié) ni pour un
+    // bloc de carte Carrousel (.adoc-sc-card, vérifié visuellement sans effet disgracieux — la
+    // carte s'agrandit proprement, comportement conservé tel quel, jamais élargi sans raison).
+    const coverEl = anchorEl.closest('.adoc-sc-cover');
+    if (coverEl) { coverEl.insertAdjacentElement('afterend', panel); return; }
     (anchorEl.matches('td,th') ? anchorEl.closest('table') : anchorEl).insertAdjacentElement('afterend', panel);
   }
   function adocUnmountBlockEditPanel(panel) {

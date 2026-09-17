@@ -31,17 +31,38 @@ function normalizeBudgetInput(input) {
   return { costBudgetUsd: budget === null ? null : round2(budget), warningThresholdUsd: warning === null ? null : round2(warning) };
 }
 
+const MODES = Object.freeze(["LIMITED", "UNLIMITED_CONFIRMED"]);
+/**
+ * RUN SAFETY — budget EXPLICITE : { mode: LIMITED, costBudgetUsd > 0, warningThresholdUsd? < plafond } ou { mode: UNLIMITED_CONFIRMED, confirmedUnlimited: true }.
+ * Un champ vide n'est jamais interprete comme « sans plafond » : sans mode valide => BUDGET_REQUIRED. Compatibilite : un plafond > 0 sans mode vaut LIMITED.
+ */
+function normalizeBudgetMode(input) {
+  input = input || {}; const toNum = (v) => (v === null || v === undefined || v === "" ? null : Number(v));
+  let mode = typeof input.mode === "string" ? input.mode : null; const cap = toNum(input.costBudgetUsd), warn = toNum(input.warningThresholdUsd);
+  if (mode === null && cap !== null && Number.isFinite(cap) && cap > 0) mode = "LIMITED";
+  const req = (msg) => { const e = new Error("BUDGET_REQUIRED: " + msg); e.code = "BUDGET_REQUIRED"; e.userMessage = "Budget requis avant tout lancement : " + msg; throw e; };
+  if (MODES.indexOf(mode) === -1) req("choisissez un plafond de coût (USD) ou confirmez explicitement un run sans plafond.");
+  if (mode === "LIMITED") {
+    if (!(Number.isFinite(cap) && cap > 0)) req("le plafond de coût doit être un montant strictement positif (USD).");
+    if (warn !== null && !(Number.isFinite(warn) && warn >= 0 && warn < cap)) { const e = new Error("BUDGET_INVALID: alerte >= plafond"); e.code = "BUDGET_INVALID"; e.userMessage = "Le seuil d'alerte doit être strictement inférieur au plafond."; throw e; }
+    return { mode, costBudgetUsd: round2(cap), warningThresholdUsd: warn === null ? null : round2(warn), confirmedUnlimited: false };
+  }
+  if (input.confirmedUnlimited !== true) req("un run sans plafond exige une confirmation explicite (confirmedUnlimited: true).");
+  return { mode, costBudgetUsd: null, warningThresholdUsd: warn === null ? null : round2(warn), confirmedUnlimited: true };
+}
+
 function createBudgetGuard(opts) {
   opts = opts || {}; if (!opts.runDir || !opts.ledger) throw Object.assign(new Error("BUDGET_GUARD_INPUT_INVALID"), { code: "BUDGET_GUARD_INPUT_INVALID" });
   const file = path.join(opts.runDir, "budget.json");
   const emit = (ev) => { if (typeof opts.onEvent === "function") { try { opts.onEvent(ev); } catch (e) { /* observabilite */ } } };
   function read() { return readBudget(opts.runDir) || { schema: SCHEMA, runId: opts.runId || null, currency: "USD", costBudgetUsd: null, warningThresholdUsd: null, updatedAt: null, warningRaisedAt: null, limitReachedAt: null, history: [] }; }
-  function set(input, who) {
-    const n = normalizeBudgetInput(input); const cur = read(); const now = new Date().toISOString();
-    const next = Object.assign({}, cur, { schema: SCHEMA, runId: opts.runId || cur.runId || null, currency: "USD", costBudgetUsd: n.costBudgetUsd, warningThresholdUsd: n.warningThresholdUsd, updatedAt: now, setBy: who || "user",
+  function set(input, who, extra) {
+    const n = normalizeBudgetInput(input); const cur = read(); const now = new Date().toISOString(); extra = extra || {};
+    const mode = extra.mode || (n.costBudgetUsd !== null ? "LIMITED" : (extra.confirmedUnlimited === true ? "UNLIMITED_CONFIRMED" : (cur.mode || null)));
+    const next = Object.assign({}, cur, { schema: SCHEMA, runId: opts.runId || cur.runId || null, currency: "USD", mode, confirmedUnlimited: mode === "UNLIMITED_CONFIRMED" ? true : false, createdAt: cur.createdAt || now, costBudgetUsd: n.costBudgetUsd, warningThresholdUsd: n.warningThresholdUsd, updatedAt: now, setBy: who || "user",
       /* un seuil modifie redevient armable ; un plafond releve efface la marque d'arret (la reprise redevient possible sans faux arret immediat) */
       warningRaisedAt: n.warningThresholdUsd === cur.warningThresholdUsd ? cur.warningRaisedAt : null, limitReachedAt: n.costBudgetUsd === cur.costBudgetUsd ? cur.limitReachedAt : null,
-      history: (cur.history || []).concat([{ at: now, costBudgetUsd: n.costBudgetUsd, warningThresholdUsd: n.warningThresholdUsd, previous: { costBudgetUsd: cur.costBudgetUsd, warningThresholdUsd: cur.warningThresholdUsd }, setBy: who || "user" }]) });
+      history: (cur.history || []).concat([{ at: now, mode, costBudgetUsd: n.costBudgetUsd, warningThresholdUsd: n.warningThresholdUsd, previous: { mode: cur.mode || null, costBudgetUsd: cur.costBudgetUsd, warningThresholdUsd: cur.warningThresholdUsd }, setBy: who || "user" }]) });
     fs.mkdirSync(opts.runDir, { recursive: true }); writeAtomic(file, JSON.stringify(next, null, 2) + "\n");
     emit({ type: "budget_set", budget: next }); return next;
   }
@@ -75,4 +96,4 @@ function createBudgetGuard(opts) {
   return Object.freeze({ read, set, status, assertAllowed, file });
 }
 
-module.exports = { createBudgetGuard, readBudget, normalizeBudgetInput, SCHEMA };
+module.exports = { normalizeBudgetMode, MODES, createBudgetGuard, readBudget, normalizeBudgetInput, SCHEMA };
