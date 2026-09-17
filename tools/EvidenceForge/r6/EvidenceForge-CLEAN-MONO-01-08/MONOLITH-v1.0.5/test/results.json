@@ -1,9 +1,9 @@
 {
   "schema": "EvidenceForge.MonolithTestResults",
-  "ranAt": "2026-09-17T22:57:36.772Z",
+  "ranAt": "2026-09-17T23:03:25.979Z",
   "total": 198,
-  "passed": 194,
-  "failed": 4,
+  "passed": 198,
+  "failed": 0,
   "results": [
     {
       "id": "I1",
@@ -923,14 +923,12 @@
     {
       "id": "RUN-SAFETY-07",
       "name": "stop entre deux professionnels (pipeline) => aucun candidat suivant : la demande posee pendant l'etape fait refuser le 2e appel, l'etape s'arrete STOPPED / STOPPED_BY_USER avec etat partiel (run-stop-state + panelPartialState), PROFESSIONALS jamais DONE, aucun checkpoint",
-      "ok": false,
-      "error": "{\"schema\":\"EvidenceForge.RunStopState\",\"schemaVersion\":\"MONOLITH-v1.0.5\",\"notAVerdict\":true,\"notACheckpoint\":true,\"runId\":\"efm-20260917-15efe769\",\"stage\":\"PROFESSIONALS\",\"stageStatus\":\"INTERRUPTED\",\"reason\":\"STOPPED_BY_USER\",\"stoppedAt\":\"2026-09-17T22:57:36.086Z\",\"requestedAt\":\"2026-09-17T22:57:36.080Z\",\"actor\":\"Testeur\",\"attempts\":1,\"cost\":{\"totalUsd\":0.00006,\"currency\":\"USD\",\"byStage\":{\"PREFLIGHT\":0.00003,\"PROFESSIONALS\":0.00003},\"pricingVersion\":\"2026-09-17-r1\"},\"realCalls\":2,\"reuse\":0,\"lastCompletedUnit\":{\"purpose\":\"EF-02D2 relevance\",\"ref\":null,\"at\":\"2026-09-17T22:57:36.079Z\",\"usd\":null},\"nextUnit\":{\"stage\":\"PROFESSIONALS\",\"description\":\"prochain candidat sélectionné non évalué (ordre de sélection déterministe ; la reprise rejoue la boucle depuis la sélection, les réponses validées sont réutilisées)\",\"note\":\"la granularité de reprise est celle des checkpoints (étape) et de la réutilisation (réponse validée) ; aucun candidat/jumeau intermédiaire n'est un checkpoint\"},\"checkpointRef\":null,\"stagesDone\":[\"MISSION\",\"DISCIPLINES\",\"PLAN\",\"RETRIEVAL\",\"CORPUS\"],\"resumeAllowed\":true,\"resumeHow\":\"POST /api/runs/:id/resume (acte utilisateur explicite) : reprise depuis le dernier checkpoint, réponses validées réutilisées à coût 0, aucune reprise automatique\",\"budget\":{\"schema\":\"EvidenceForge.RunBudget\",\"runId\":\"efm-20260917-15efe769\",\"currency\":\"USD\",\"costBudgetUsd\":50,\"warningThresholdUsd\":null,\"updatedAt\":\"2026-09-17T22:57:36.062Z\",\"warningRaisedAt\":null,\"limitReachedAt\":null,\"history\":[{\"at\":\"2026-09-17T22:57:36.062Z\",\"mode\":\"LIMITED\",\"costBudgetUsd\":50,\"warningThresholdUsd\":null,\"previous\":{\"mode\":null,\"costBudgetUsd\":null,\"warningThresholdUsd\":null},\"setBy\":\"user\"}],\"mode\":\"LIMITED\",\"confirmedUnlimited\":false,\"createdAt\":\"2026-09-17T22:57:36.062Z\",\"setBy\":\"user\"},\"partialArtifacts\":[{\"file\":\"professionals-sufficiency-partial.json\",\"kind\":\"EvidenceForge.PanelSufficiencyPartialState\"}],\"inFlightCallNote\":\"un appel déjà envoyé au moment de la demande peut s'être terminé après celle-ci : il est facturé et sa réponse est persistée (réutilisable)\"}"
+      "ok": true
     },
     {
       "id": "RUN-SAFETY-08",
       "name": "stop entre deux jumeaux (aval depuis le checkpoint) => aucune revue suivante : 1 appel puis STOPPED / STOPPED_BY_USER, TWINS_REVIEWS interrompu, checkpoint professionnel conserve",
-      "ok": false,
-      "error": "{\"schema\":\"EvidenceForge.RunStopState\",\"schemaVersion\":\"MONOLITH-v1.0.5\",\"notAVerdict\":true,\"notACheckpoint\":true,\"runId\":\"efm-20260917-f1897c67\",\"stage\":\"TWINS_REVIEWS\",\"stageStatus\":\"INTERRUPTED\",\"reason\":\"STOPPED_BY_USER\",\"stoppedAt\":\"2026-09-17T22:57:36.193Z\",\"requestedAt\":\"2026-09-17T22:57:36.192Z\",\"actor\":\"Testeur\",\"attempts\":1,\"cost\":{\"totalUsd\":0.00006,\"currency\":\"USD\",\"byStage\":{\"PREFLIGHT\":0.00003,\"TWINS_REVIEWS\":0.00003},\"pricingVersion\":\"2026-09-17-r1\"},\"realCalls\":2,\"reuse\":0,\"lastCompletedUnit\":{\"purpose\":\"EF-03B review\",\"ref\":null,\"at\":\"2026-09-17T22:57:36.191Z\",\"usd\":null},\"nextUnit\":{\"stage\":\"TWINS_REVIEWS\",\"description\":\"prochaine évaluation de couverture ou revue non encore validée (la reprise rejoue l'aval depuis le checkpoint professionnel ; les réponses validées sont réutilisées)\",\"note\":\"la granularité de reprise est celle des checkpoints (étape) et de la réutilisation (réponse validée) ; aucun candidat/jumeau intermédiaire n'est un checkpoint\"},\"checkpointRef\":{\"professionals\":{\"path\":\"checkpoint-professionals.json\",\"contentHash\":\"eba5a63104431d0ccf3b4c7bc024d5f6177096915b91e06565d65514497631a8\",\"fileSha256\":\"b63537516b2606c65aeb8de05cd2115d80e086279c666e828e13b56dbb918cff\",\"committedAt\":\"2026-09-17T22:57:36.157Z\"}},\"stagesDone\":[\"MISSION\",\"DISCIPLINES\",\"PLAN\",\"RETRIEVAL\",\"CORPUS\",\"PROFESSIONALS\"],\"resumeAllowed\":true,\"resumeHow\":\"POST /api/runs/:id/resume (acte utilisateur explicite) : reprise depuis le dernier checkpoint, réponses validées réutilisées à coût 0, aucune reprise automatique\",\"budget\":{\"schema\":\"EvidenceForge.RunBudget\",\"runId\":\"efm-20260917-f1897c67\",\"currency\":\"USD\",\"costBudgetUsd\":50,\"warningThresholdUsd\":null,\"updatedAt\":\"2026-09-17T22:57:36.137Z\",\"warningRaisedAt\":null,\"limitReachedAt\":null,\"history\":[{\"at\":\"2026-09-17T22:57:36.137Z\",\"mode\":\"LIMITED\",\"costBudgetUsd\":50,\"warningThresholdUsd\":null,\"previous\":{\"mode\":null,\"costBudgetUsd\":null,\"warningThresholdUsd\":null},\"setBy\":\"user\"}],\"mode\":\"LIMITED\",\"confirmedUnlimited\":false,\"createdAt\":\"2026-09-17T22:57:36.137Z\",\"setBy\":\"user\"},\"partialArtifacts\":[{\"file\":\"checkpoint-professionals.json\"}],\"inFlightCallNote\":\"un appel déjà envoyé au moment de la demande peut s'être terminé après celle-ci : il est facturé et sa réponse est persistée (réutilisable)\"}"
+      "ok": true
     },
     {
       "id": "RUN-SAFETY-09",
@@ -955,14 +953,12 @@
     {
       "id": "RUN-SAFETY-13",
       "name": "aucune double facturation sur fixture de reprise : totaux ledger = 2 appels reels de revue (A, B) + sondes ; la reponse A reutilisee compte 0 USD, countsAsRealCall false",
-      "ok": false,
-      "error": "{\"real\":2,\"reuse\":1,\"realCall\":2,\"kit\":0,\"probe\":0,\"preflight\":0,\"unpriced\":0} {\"schema\":\"EvidenceForge.CostLedgerEntry\",\"seq\":2,\"at\":\"2026-09-17T22:57:36.597Z\",\"runId\":\"fx\",\"attemptId\":2,\"stage\":\"TWINS_REVIEWS\",\"kind\":\"REUSE\",\"purpose\":\"EF-03B review\",\"pass\":null,\"model\":\"claude-opus-4-8\",\"providerRequestId\":\"msg_1\",\"callId\":\"83e2f992a9c29369fa594369648e60bc938710477f4eda39a7b5cb9680ca2065\",\"localRequestId\":null,\"httpStatus\":null,\"reused\":true,\"usage\":null,\"cost\":{\"inputUsd\":0,\"outputUsd\":0,\"cacheWriteUsd\":0,\"cacheReadUsd\":0,\"totalUsd\":0},\"priced\":true,\"pricingVersion\":\"2026-09-17-r1\",\"pricingSnapshotHash\":\"f04a106290651ae51e50f22b5836454592d4326e63bcec4356abd2464c0d5fed\",\"pricedModel\":\"claude-opus-4-8\",\"candidateRef\":null,\"twinId\":\"tx\",\"targetId\":null,\"sourceRunId\":\"fx\"}"
+      "ok": true
     },
     {
       "id": "RUN-SAFETY-14",
       "name": "priorite du plafond : le budget atteint arrete AVANT le contenu (BUDGET_LIMIT_REACHED) meme sans demande d'arret ; avec les deux, la cause est celle rencontree en premier (verrou) et jamais fusionnee",
-      "ok": false,
-      "error": "BUDGET_LIMIT_REACHED: 0.00 >= 0.00 USD"
+      "ok": true
     },
     {
       "id": "RUN-SAFETY-15",

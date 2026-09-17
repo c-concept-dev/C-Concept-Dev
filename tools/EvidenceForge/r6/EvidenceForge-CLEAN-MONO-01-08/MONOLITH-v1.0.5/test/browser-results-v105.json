@@ -1,9 +1,9 @@
 {
   "schema": "EvidenceForge.MonolithBrowserTestResults",
   "version": "MONOLITH-v1.0.5",
-  "ranAt": "2026-09-17T20:03:14.959Z",
-  "total": 25,
-  "passed": 25,
+  "ranAt": "2026-09-17T23:01:08.177Z",
+  "total": 33,
+  "passed": 33,
   "failed": 0,
   "results": [
     {
@@ -44,7 +44,7 @@
     {
       "name": "mise à jour du budget depuis la page : budget.json = 25 / 20, historique conservé, marque d'arrêt effacée",
       "ok": true,
-      "info": "{\"schema\":\"EvidenceForge.RunBudget\",\"runId\":\"efm-20260917-ui105bud\",\"currency\":\"USD\",\"costBudgetUsd\":25,\"warningThresholdUsd\":20,\"updatedAt\":\"2026-09-17T20:03:00.348Z\",\"warningRaisedAt\":null,\"limitReachedAt\":null,\"history\":[{\"at\":\"2026-09-17T20:02:55.123Z\",\"costBudgetUsd\":1,\"warningThresholdUsd\":0.5,\"previous\":{\"costBudgetUsd\":null,\"warningThresholdUsd\":null},\"setBy\":\"user\"},{\"at\":\"2026-09-17T20:03:00.348Z\",\"costBudgetUsd\":25,\"warningThresholdUsd\":20,\"previous\":{\"costBudgetUsd\":1,\"warningThresholdUsd\":0.5},\"setBy\":\"user\"}],\"setBy\":\"user\",\"warningRaisedSpentUsd\":3.1,\"limitReachedSpentUsd\":3.1}"
+      "info": "{\"schema\":\"EvidenceForge.RunBudget\",\"runId\":\"efm-20260917-ui105bud\",\"currency\":\"USD\",\"costBudgetUsd\":25,\"warningThresholdUsd\":20,\"updatedAt\":\"2026-09-17T23:00:47.862Z\",\"warningRaisedAt\":null,\"limitReachedAt\":null,\"history\":[{\"at\":\"2026-09-17T23:00:42.799Z\",\"mode\":\"LIMITED\",\"costBudgetUsd\":1,\"warningThresholdUsd\":0.5,\"previous\":{\"mode\":null,\"costBudgetUsd\":null,\"warningThresholdUsd\":null},\"setBy\":\"user\"},{\"at\":\"2026-09-17T23:00:47.862Z\",\"mode\":\"LIMITED\",\"costBudgetUsd\":25,\"warningThresholdUsd\":20,\"previous\":{\"mode\":\"LIMITED\",\"costBudgetUsd\":1,\"warningThresholdUsd\":0.5},\"setBy\":\"user\"}],\"mode\":\"LIMITED\",\"confirmedUnlimited\":false,\"createdAt\":\"2026-09-17T23:00:42.799Z\",\"setBy\":\"user\",\"warningRaisedSpentUsd\":3.1,\"limitReachedSpentUsd\":3.1}"
     },
     {
       "name": "affichage : reste avant plafond 21.9x USD, plus de badge « plafond atteint »",
@@ -127,7 +127,47 @@
       "info": ""
     },
     {
+      "name": "RUN-SAFETY UI : panneau budget ouvert, mode « plafond » coché, aperçu « Plafond requis » tant que le champ est vide",
+      "ok": true,
+      "info": "Plafond requis : indiquez un montant strictement positif (USD). Le run ne sera pas lancé sans plafond ni confirmation explicite."
+    },
+    {
+      "name": "RUN-SAFETY UI : mode « sans plafond » => aperçu explicite « SANS PLAFOND … jusqu'à votre arrêt manuel », champ plafond désactivé",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "name": "RUN-SAFETY UI : lancement sans plafond => confirm() obligatoire ; refus => aucune requête POST /api/runs",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "name": "RUN-SAFETY UI : mode plafond avec champ vide => alerte, aucune requête POST /api/runs",
+      "ok": true,
+      "info": ""
+    },
+    {
       "name": "aucune exception console (accueil)",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "name": "RUN-SAFETY UI : run RUNNING => bouton « Arrêter le run » visible, « Reprendre » masqué",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "name": "RUN-SAFETY UI : clic Arrêter + confirmation => POST /stop, run STOPPED / STOPPED_BY_USER, libellé « arrêté à votre demande », bouton stop masqué, résumé avant reprise (dépensé, étape, budget)",
+      "ok": true,
+      "info": "arrêté à votre demande (reprenable) | Avant de reprendre · cause : arrêté à votre demande · déjà dépensé : 0.02 USD · étape : Découvrir et évaluer les professionnels (5/9 étapes terminées) · reste estimé : non projetable · budget : plafond 4.00 USD, reste avant plafond 3.98 USD."
+    },
+    {
+      "name": "RUN-SAFETY UI : artefacts d'arrêt persistés (stop-request.json honoré, run-stop-state.json notAVerdict, cause USER_STOP)",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "name": "aucune exception console (arrêt)",
       "ok": true,
       "info": ""
     }

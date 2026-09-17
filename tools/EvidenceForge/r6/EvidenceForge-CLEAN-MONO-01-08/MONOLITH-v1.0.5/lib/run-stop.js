@@ -37,12 +37,12 @@ function stopError(req) {
  * buildStopState({ runId, state, ledgerTotals, budget, partialArtifacts, request, checkpointRef })
  */
 function buildStopState(input) {
-  const st = input.state || {}; const t = input.ledgerTotals || {}; const last = t.lastCall || null;
+  const st = input.state || {}; const t = input.ledgerTotals || {}; const last = input.lastEntry || t.lastCall || null;
   const nextUnit = { PROFESSIONALS: "prochain candidat sélectionné non évalué (ordre de sélection déterministe ; la reprise rejoue la boucle depuis la sélection, les réponses validées sont réutilisées)", TWINS_REVIEWS: "prochaine évaluation de couverture ou revue non encore validée (la reprise rejoue l'aval depuis le checkpoint professionnel ; les réponses validées sont réutilisées)", RETRIEVAL: "prochain lot de screening / de revue de portefeuille (la reprise rejoue l'étape ; les réponses validées sont réutilisées)", MISSION: "reformulation", DISCIPLINES: "résolveur EF-01B", PLAN: "planificateur EF-01C1", CORPUS: "construction du corpus (aucun appel)", QUALIFICATION: "qualification depuis le checkpoint aval", REPORT: "rapport" };
   return { schema: "EvidenceForge.RunStopState", schemaVersion: "MONOLITH-v1.0.5", notAVerdict: true, notACheckpoint: true, runId: input.runId || st.runId || null, stage: st.stage || null, stageStatus: st.stages && st.stages[st.stage] ? st.stages[st.stage].status : null, reason: STOP_CODE, stoppedAt: now(),
     requestedAt: input.request ? input.request.requestedAt : null, actor: input.request ? input.request.actor : null, attempts: st.attempts || null,
     cost: { totalUsd: t.totalUsd != null ? t.totalUsd : null, currency: t.currency || "USD", byStage: t.byStage ? Object.fromEntries(Object.keys(t.byStage).map((k) => [k, t.byStage[k].totalUsd])) : null, pricingVersion: t.pricingVersion || null },
-    realCalls: t.calls ? t.calls.real : null, reuse: t.calls ? t.calls.reuse : null,
+    realCalls: t.calls ? (t.calls.realCall != null ? t.calls.realCall : t.calls.real) : null, callsIncludingProbesAndKits: t.calls ? t.calls.real : null, reuse: t.calls ? t.calls.reuse : null,
     lastCompletedUnit: last ? { purpose: last.purpose || null, ref: last.candidateRef || last.twinId || last.targetId || null, at: last.at || null, usd: last.cost ? last.cost.totalUsd : null } : null,
     nextUnit: { stage: st.stage || null, description: nextUnit[st.stage] || null, note: "la granularité de reprise est celle des checkpoints (étape) et de la réutilisation (réponse validée) ; aucun candidat/jumeau intermédiaire n'est un checkpoint" },
     checkpointRef: input.checkpointRef || (st.checkpoints || null), stagesDone: st.stages ? Object.keys(st.stages).filter((k) => st.stages[k].status === "DONE") : [],

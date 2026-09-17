@@ -4,7 +4,7 @@
     "name": "EvidenceForge",
     "version": "MONOLITH-v1.0.5"
   },
-  "generatedAt": "2026-09-17T20:04:51.323Z",
+  "generatedAt": "2026-09-17T23:02:40.593Z",
   "frozenLots": {
     "MONO-10": {
       "dir": "MONO-10/v0.19",
@@ -85,10 +85,10 @@
       }
     },
     "tests": {
-      "total": 177,
-      "passed": 177,
+      "total": 198,
+      "passed": 198,
       "failed": 0,
-      "ranAt": "2026-09-17T20:02:23.941Z"
+      "ranAt": "2026-09-17T22:58:42.463Z"
     },
     "professionals": {
       "maxCandidatesToEvaluate": 150,
@@ -147,8 +147,8 @@
     },
     {
       "path": "NON-REGRESSION.md",
-      "sha256": "2d51c402a1bb94bda4abbc5937441f3eaed48919c24cd524bf03ebc4dfa177be",
-      "bytes": 14388
+      "sha256": "c723c71076ae2c991961316cefe5373fbe09e4df719c11302b852ae368f7c05c",
+      "bytes": 15495
     },
     {
       "path": "PLAN-CORRECTIF-COST-SCREENING-v1.md",
@@ -197,8 +197,23 @@
     },
     {
       "path": "README.md",
-      "sha256": "a3cfe0dece7024c9fa9ac5dd25408cfe51dbaa7caba2c56524e32a39264a18dc",
-      "bytes": 24387
+      "sha256": "f5da0f455845cde5d61552cc5fa61df4c808870912c8285f61ee33ca59025f98",
+      "bytes": 25402
+    },
+    {
+      "path": "RUN-SAFETY-CONTROLS-AUDIT.md",
+      "sha256": "b246dd949e9869de57cff7210f810282196a0527bb5994be491563ecde078afa",
+      "bytes": 6334
+    },
+    {
+      "path": "RUN-SAFETY-CONTROLS-IMPLEMENTATION.md",
+      "sha256": "aabd9020d08e9489dd8791f95824181a0192a081c6e266588b1d50d568b9e7ab",
+      "bytes": 6094
+    },
+    {
+      "path": "RUN-SAFETY-CONTROLS-TEST-REPORT.md",
+      "sha256": "f17f8fb00accbc897c39f7620fb4b8b697ee9300a17e08087f20ddf21f2f5dcb",
+      "bytes": 4112
     },
     {
       "path": "SCREENING-COST-AUTOPSY.md",
@@ -247,8 +262,8 @@
     },
     {
       "path": "index.html",
-      "sha256": "34758f30fff95840e51ad96f25688d0d1754d13d0988d6b88d6c46005a84f1a0",
-      "bytes": 60747
+      "sha256": "a61d7613ab2ffe4758485b89aabab7c968a9455a3c161cdc564c5af9bf603940",
+      "bytes": 65700
     },
     {
       "path": "lib/batch-judge.js",
@@ -257,8 +272,8 @@
     },
     {
       "path": "lib/budget-guard.js",
-      "sha256": "059e71032a92b3636c8bf812afb10c87b605f81507a4e9c3fe9617bae43cabf8",
-      "bytes": 7790
+      "sha256": "c55049449c74ebedcb1b6b05015c5aa11a814573f2c0e130f4285ae86d2e3878",
+      "bytes": 10023
     },
     {
       "path": "lib/corpus-portfolio-review.js",
@@ -277,8 +292,8 @@
     },
     {
       "path": "lib/cost-view.js",
-      "sha256": "10554a8575cf4d6e369b0a0659e03adbe5354a5ec64d4162799b406833df3a62",
-      "bytes": 5873
+      "sha256": "4080c26ebf33efcc391a095c74b0f54fe0f18930418a9c5bd9c1f556fa934f10",
+      "bytes": 6134
     },
     {
       "path": "lib/llm-transport.js",
@@ -287,8 +302,8 @@
     },
     {
       "path": "lib/llm.js",
-      "sha256": "0f288d80241116bb60cdc965ea924d69ebfe8471d30f8ca0674385f3b98fd32a",
-      "bytes": 21221
+      "sha256": "9d543e7c37d0eb75a7a53230caa619cedd98ce4a606a36d5cf722af15d24519a",
+      "bytes": 22092
     },
     {
       "path": "lib/mono04-fence-adapter.js",
@@ -307,8 +322,8 @@
     },
     {
       "path": "lib/pipeline.js",
-      "sha256": "47ff4fba0f683626ddfb01b2cc739994e3f387d8b0d753af1c897096422cb1f7",
-      "bytes": 45375
+      "sha256": "e849283f3d99860a69c88679406e5c34ef14cf364b9445f1450c41dbd060c780",
+      "bytes": 50010
     },
     {
       "path": "lib/portfolio-balancing.js",
@@ -341,9 +356,14 @@
       "bytes": 10182
     },
     {
+      "path": "lib/run-stop.js",
+      "sha256": "2ca1c95e15cb1c648baae795754afb420942327713e0755ac16a7c4f489175ff",
+      "bytes": 6747
+    },
+    {
       "path": "lib/run-store.js",
-      "sha256": "6f958b84ab8b7cfab6679ecc1cc65288070ad2d86369f738bb91aef1cc92e0ae",
-      "bytes": 10915
+      "sha256": "5a2428b6fce6e2c2b98c8465e7170843e8d5b824ba89cc7d3e7f0c2715cbb22a",
+      "bytes": 10941
     },
     {
       "path": "lib/screening-evidence.js",
@@ -387,13 +407,13 @@
     },
     {
       "path": "server.js",
-      "sha256": "1207480d4ae3822c7e4f59b391736e7d0ff80b0c66e7ca0415f8e4bd1f302c43",
-      "bytes": 14720
+      "sha256": "311fac70085d8a5b91bd1bec2ddc5f0c8407edc636eaea7c3af92024df0e03c4",
+      "bytes": 15139
     },
     {
       "path": "test/browser-results-v105.json",
-      "sha256": "2e9fd8d0b7033e56102c509c2c4dfb4197a6b3506fa547cde2e4da1d5acce808",
-      "bytes": 6230
+      "sha256": "41fdc6f589e112ebed22432ea0e4ec0be4192c867145ea0366708a02e844e1e6",
+      "bytes": 8260
     },
     {
       "path": "test/fixtures/portfolio-incident.json",
@@ -402,13 +422,13 @@
     },
     {
       "path": "test/results.json",
-      "sha256": "9be3202a89218656f30528afcd76c2b5777da27c77fe5d2ea1c84a6b53dee263",
-      "bytes": 43057
+      "sha256": "420ac82b7d6705adc37792f59dc56dd8b02c642bdd49fa4c535fd82a40510913",
+      "bytes": 49042
     },
     {
       "path": "test/test-monolith.js",
-      "sha256": "69e77033f54b07b88013c1029bd28ed2c9edef48cd024e4b09f19c27a9c1f584",
-      "bytes": 112231
+      "sha256": "3b3bbbb113f72cdf597dedacf2c2841dd30177be5e84285b35551c1359d4dd4b",
+      "bytes": 112821
     },
     {
       "path": "test/test-panel.js",
@@ -419,6 +439,11 @@
       "path": "test/test-portfolio-balancing.js",
       "sha256": "c5090bf8cd0477327f9b180190f9e6654aae72180715bc7861eee4e9f94d9628",
       "bytes": 6254
+    },
+    {
+      "path": "test/test-run-safety.js",
+      "sha256": "998f388f9763cf60b3896858fe5359bf48134816cfe7b4b809de876210a20f26",
+      "bytes": 34700
     },
     {
       "path": "test/test-screening-cost.js",
@@ -447,8 +472,8 @@
     },
     {
       "path": "tools/browser-tests-v105.js",
-      "sha256": "d2ac24cc6f29c7b391a2e1b0bbbb81f37d719439b70036d706788f19bc6420d5",
-      "bytes": 17347
+      "sha256": "002826d9479aa4b4e7bb4967b4293a10e919b1cc8bac294813221bdbb54f5c22",
+      "bytes": 21901
     },
     {
       "path": "tools/browser-tests.js",
@@ -541,6 +566,6 @@
       "bytes": 1614
     }
   ],
-  "fileCount": 88,
-  "contentHash": "4055071b29f9f9825ea93dd1889e82064f2fe26cf9a47155d0dee716e5931100"
+  "fileCount": 93,
+  "contentHash": "230d2ba475afefd2f8dc3b2853b3acfd3bbd4c08290ed00d4dd0d0e311c02c72"
 }

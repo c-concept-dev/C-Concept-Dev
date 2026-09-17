@@ -91,3 +91,14 @@ Le monolithe **compose** ; il ne réécrit rien. Ce document liste, brique par b
 | Reprise | RETRY_ONLY_INVALID_ITEMS : items valides immuables (hash), recomposition ordonnée, lignée ; RETRY_FULL_BATCH disponible | SCREEN-COST-08/09/10/12 |
 | Revue de portefeuille | `notADecision`, énoncé, signaux déterministes inchangés ; périmètre LLM par défaut inchangé, périmètres restreints tracés | SCREEN-COST-13, SCREEN-PORTFOLIO-* |
 | Runs réels | lecture seule (`tools/screening-replay.js` n'écrit rien) | SCREEN-COST-17/18 |
+
+## v1.0.5 — Run Safety Controls (2026-09-18, `RUN-SAFETY-CONTROLS-IMPLEMENTATION.md`)
+
+| Élément | Statut | Preuve |
+|---|---|---|
+| Gates scientifiques, PANEL-SUFFICIENCY-v2, Screening Cost Optimizer, sélection, jumeaux, lots gelés | inchangés (`panel-sufficiency.js` byte-identique, config earlyStop inchangée, lots 0 divergence) | RUN-SAFETY-18/19 |
+| Budget | explicite et persisté avant tout appel ; garde `assertAllowed` inchangée ; absence de `budget.json` = anomalie | RUN-SAFETY-01…04, COST-* |
+| Arrêt utilisateur | `STOPPED_BY_USER` = code de transport (verrou) reprenable ; jamais FAILED, jamais PANEL_SUFFICIENT ; état partiel `run-stop-state.json` | RUN-SAFETY-05…10 |
+| Reprise | uniquement explicite ; checkpoints + réutilisation ; aucune double facturation | RUN-SAFETY-11…13, 21, X4, X7 |
+| Causes d'arrêt | STOPPED_BY_USER / INTERRUPTED_BY_RESTART / BUDGET_LIMIT_REACHED / transport distincts | RUN-SAFETY-14…16 |
+| Tests existants | budget explicite `TB = { mode: LIMITED, costBudgetUsd: 50 }` ajouté aux créations de run (aucune autre modification) | 198/198 |
