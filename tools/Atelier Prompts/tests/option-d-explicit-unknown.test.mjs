@@ -347,7 +347,12 @@ test('T-OPTD-17 : la comparaison du garde est désormais observable, et sans con
   const garde = orchestrateur.slice(orchestrateur.indexOf('event: "displayed_question_guard"'),
     orchestrateur.indexOf('event: "displayed_question_guard"') + 420);
   assert.match(garde, /missing_determinant_id/);
-  assert.equal(/texte|question\.text/.test(garde), false, 'le texte reste hors du relevé');
+  /* Aucune VALEUR textuelle n'est journalisée. `changed: garde.text !== texte` compare deux textes
+     et rend un booléen — la distinction compte : un relevé peut constater qu'un texte a changé sans
+     jamais le transporter. C'est ce que ce contrôle vérifie, et non la présence du mot. */
+  assert.match(garde, /changed: garde\.text !== texte/);
+  assert.equal(/\btext:|question\.text\b(?! !==)/.test(garde), false,
+    'aucun champ ne porte une valeur textuelle');
 });
 
 test('T-OPTD-08 : une granularité réellement différente n’est pas bloquée par parenté', () => {

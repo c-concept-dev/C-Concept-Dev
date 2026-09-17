@@ -13613,6 +13613,21 @@ ${recent}`;
   // laisser l'interface paraître figée pendant les ~10s d'attente (un Carrousel de 5 diapositives
   // prend ~50-55s rien que pour les captures — jamais silencieusement).
   async function adocFetchCarrouselSlideScreenshot(workerUrl, slideHtml, slideNumber, onWaiting) {
+    // Bug image cassée (18 septembre) — investigation confirmée par le code, pas une supposition :
+    // un bloc image de carte produit <img data-pexels="..."> (adocRenderBlockHTML, case 'image')
+    // — jamais un vrai `src` tant que adocResolveImages ne l'a pas résolu (fetch réel vers
+    // /fetch-image, une vraie URL Pexels). Le rendu complet (adocRenderClinicalDocument, aperçu/
+    // export) appelle bien adocResolveImages — mais le HTML par diapositive envoyé ici
+    // (adocRenderCardHTML + adocClinicalDocumentWrapHTML, construit SÉPARÉMENT du rendu complet
+    // par adocWsExportJPEG/adocBuildVideoScenesFromCarrousel) ne l'appelait jamais : l'<img> partait
+    // vers Cloudflare Browser Rendering SANS AUCUN src, d'où l'icône "image cassée" — pas un
+    // problème de timing (l'image n'a jamais eu d'URL à charger), ni de CORS/réseau côté
+    // Cloudflare (aucune requête vers Pexels n'était même tentée depuis ce pipeline). Correctif
+    // ICI, dans la fonction PARTAGÉE par item 58/78 (régression #6, jamais dupliqué) : résoudre
+    // AVANT la capture, comme le fait déjà adocRenderClinicalDocument pour l'aperçu/export.
+    if (slideHtml.indexOf('data-pexels=') !== -1 || slideHtml.indexOf('data-gen=') !== -1) {
+      slideHtml = await adocResolveImages(slideHtml);
+    }
     const wait = ADOC_SCREENSHOT_SLIDE_DELAY_MS - (Date.now() - _adocLastScreenshotSlideCallAt);
     if (wait > 0) {
       if (onWaiting) onWaiting(Math.ceil(wait / 1000));

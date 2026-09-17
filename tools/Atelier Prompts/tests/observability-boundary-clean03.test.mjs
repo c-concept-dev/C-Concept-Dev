@@ -121,8 +121,17 @@ test('T-CLEAN03-05 : aucune collection d’observation ne grandit sans fin', () 
   assert.match(FRONT_CODE, /const ORCHESTRATION_APPLIED_MAX=\d+/);
   /* Et aucune autre collection du frontend ne s'empile sans borne. */
   const empilements = [...FRONT_CODE.matchAll(/([A-Za-z_$][\w$.]*)\.push\(/g)].map((m) => m[1]);
+  /* OPTION D2 — `oprieState.turnExplicitUnknownIds` entre dans cette liste, et sa borne est PROUVÉE
+     deux lignes plus bas plutôt que déclarée ici. Elle n'est pas de même nature que les deux
+     précédentes : ce n'est pas un plafond glissant, c'est un cycle de vie — le registre est vidé
+     dès que le tour est consommé dans l'historique, et une seconde fois si le tour est abandonné.
+     Une exemption sans preuve serait un trou dans ce contrôle ; la preuve la referme. */
   const bornes = ['marks', 'oprieState.appliedActions', 'state.answers', 'state.docs', 'docs', 'turns',
-                  'merged', 'problems', 'signals', 'lignesPrealable', 'actions', 'out', 'parts'];
+                  'merged', 'problems', 'signals', 'lignesPrealable', 'actions', 'out', 'parts',
+                  'oprieState.turnExplicitUnknownIds'];
+  assert.equal((FRONT_CODE.match(/turnExplicitUnknownIds=\[\]/g) || []).length, 2,
+    'le registre de tour est vidé à la consommation ET à l’abandon — sa borne est son cycle de vie');
+  assert.match(FRONT_CODE, /indexOf\(identite\)===-1/, 'et il n’accumule jamais deux fois la même identité');
   const suspects = [...new Set(empilements)].filter((n) => !bornes.includes(n) && n.includes('State'));
   assert.deepEqual(suspects, [], 'aucun état global ne s’empile sans borne.');
 });
