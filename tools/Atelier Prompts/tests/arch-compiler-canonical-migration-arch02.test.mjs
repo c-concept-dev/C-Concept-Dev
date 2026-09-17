@@ -373,8 +373,13 @@ test('T-ARCH02-17 READINESS_AUTHORITY_REMAINS_OPRIE_ONLY : la compilation ne tou
 });
 
 test('T-ARCH02-18 les signaux bloquants arrêtent toujours la compilation sur les deux chemins', async () => {
+  /* ADN-ARCH-03b — déclencheur rearmé. Le CONTRACT_INCONSISTENT était obtenu par
+     `intentions_secondaires`, comparaison qui n'arrête plus rien depuis l'échange réel GASPPN. Le
+     SUJET de ce test est intact et il est essentiel : un signal bloquant, quel qu'il soit, empêche
+     TOUJOURS la compilation sur les deux chemins. Le déclencheur est `ambiguites`, qui conserve son
+     autorité. */
   const analyses = {
-    CONTRACT_INCONSISTENT: () => coherentAnalysis({ comprehension: { ...coherentAnalysis().comprehension, intentions_secondaires: ['Non validé.'] } }),
+    CONTRACT_INCONSISTENT: () => coherentAnalysis({ comprehension: { ...coherentAnalysis().comprehension, ambiguites: ['Ambiguïté hors contrat validé.'] } }),
     EXECUTION_UNSAFE: () => coherentAnalysis({ comprehension: { ...coherentAnalysis().comprehension, informations_manquantes: [{ information: 'Donnée déterminante.', bloquant: true, justification: 'Sans elle, exécuter serait non fiable.' }] } }),
     MISSING_PROJECTION_DATA: () => coherentAnalysis({ livrable: { ...coherentAnalysis().livrable, nature: '' } })
   };
@@ -385,6 +390,27 @@ test('T-ARCH02-18 les signaux bloquants arrêtent toujours la compilation sur le
       assert.deepEqual(h.calls.compiler, [], `${pathName}/${signal} : aucune compilation`);
       assert.equal(h.calls.stops, 1, `${pathName}/${signal} : un arrêt fail-closed`);
     }
+  }
+});
+
+test('T-ARCH02-18b ADN-ARCH-03b : un registre DÉSARMÉ laisse la compilation aboutir', async () => {
+  /* LA CONTREPARTIE DE T-ARCH02-18, ET LA PREUVE PRODUIT DU LOT. Le cas GASPPN, dans sa forme :
+     OPRIE ne confirme aucun objectif secondaire, l'analyse en nomme deux — et le prompt final EST
+     produit, sur les deux chemins. C'est ce que la personne attendait et ne recevait pas. */
+  for (const pathName of Object.keys(PATHS)) {
+    const analyse = coherentAnalysis({ comprehension: {
+      ...coherentAnalysis().comprehension,
+      intentions_secondaires: ['Maintenir une communication sereine.', 'Formuler sans ambiguïté.']
+    } });
+    const h = createPathHarness(pathName, analyse);
+    await h.run();
+    assert.equal(h.calls.compiler.length, 1, `${pathName} : le prompt final est compilé`);
+    assert.equal(h.calls.stops, 0, `${pathName} : aucun arrêt`);
+    /* Et ce que le compilateur reçoit porte toujours le registre d'OPRIE, pas celui de l'analyse. */
+    const recu = h.calls.compiler[0];
+    assert.deepEqual(recu.intent.secondary_objectives, [],
+      'le contrat compilé ne porte aucune intention ajoutée par l’analyse');
+    assert.equal(JSON.stringify(recu).includes('communication sereine'), false);
   }
 });
 
