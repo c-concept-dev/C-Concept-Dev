@@ -1,0 +1,379 @@
+{
+  "schema": "EvidenceForge.OrchestrationGraph",
+  "schemaVersion": "MONO-02-v1",
+  "generatedAt": "2026-08-29T00:00:00.000Z",
+  "generatedBy": "Claude (MONO-02 build pass)",
+  "sourceAuthorities": [
+    "dependencies/MONO-01/registry/mono-00-frozen-baseline-registry-v1.json",
+    "dependencies/MONO-01/registry/mono-01-port-registry-v1.json"
+  ],
+  "notes": "Chaque champ retryPolicy/resumePolicy cite sa source (resumeCapability du registre MONO-00, ou exemple explicite donné par le CDC MONO-02 section RETRY/RESUME) — aucune valeur n'est inventée.",
+  "nodes": [
+    {
+      "nodeId": "EF-ORCH-SUBSYSTEM",
+      "moduleId": "EF-ORCH",
+      "portId": "EFOrchExecutionPort",
+      "portMethod": "start+resume (via CorpusSnapshotPort.receive au succès)",
+      "requiredInputs": [
+        "runContract"
+      ],
+      "requiredUpstreamNodes": [],
+      "requiredDependencies": [],
+      "executionClass": "ASYNC_EXTERNAL",
+      "state": "NOT_STARTED",
+      "retryPolicy": "RESUME_CHECKPOINT",
+      "resumePolicy": "RESUME_CHECKPOINT",
+      "resumePolicySource": "MONO-00 registry: EF-ORCH resumeCapability=true (IndexedDB, reprise durable).",
+      "blockingConditions": [
+        "runContract absent ou d'integrite rompue (verifyRunContractIntegrity)",
+        "sous-systeme EF-ORCH en pause (gate manual_import_required) ou en attente d'artefacts de stage (AWAITING_DEPENDENCIES) sans resume() explicite",
+        "sous-systeme EF-ORCH en echec natif (failed) a un stage EF-01x",
+        "CorpusSnapshot produit rejete par CorpusSnapshotPort (schema/schemaVersion incorrects)"
+      ],
+      "successOutputContract": "EvidenceForge.CorpusSnapshot (valide par CorpusSnapshotPort avant d etre expose comme sortie du noeud)",
+      "subsystemNote": "EF-ORCH est traite comme un sous-systeme orchestre autonome gele (sa propre state machine interne, son propre durable stage runner, son propre mecanisme checkpoint/resume EF-01A->F, ses politiques restart_stage/resume_checkpoint) — MONO-02 ne pilote JAMAIS individuellement EF-01A/B/C1/C2/D/E/F et ne connait que l etat externe du sous-systeme (NOT_STARTED/READY/RUNNING/SUCCESS/FAILED/BLOCKED/PAUSED). Revision post-audit : le graphe commence desormais reellement avec RunContract, jamais un CorpusSnapshot externe."
+    },
+    {
+      "nodeId": "EF-PR-GEN-01",
+      "moduleId": "EF-PR-GEN-01",
+      "portId": "MissionPort",
+      "portMethod": "validateMissionDimensionSet+validateMissionDocumentMapping+validateHeuristicPolicy",
+      "requiredInputs": [
+        "missionDimensionSet",
+        "missionDocumentMapping",
+        "heuristicPolicy"
+      ],
+      "requiredUpstreamNodes": [
+        "EF-ORCH-SUBSYSTEM"
+      ],
+      "requiredDependencies": [],
+      "executionClass": "SYNC",
+      "state": "NOT_STARTED",
+      "retryPolicy": "RECOMPUTE_DETERMINISTIC",
+      "resumePolicy": "RECOMPUTE_DETERMINISTIC",
+      "resumePolicySource": "MONO-00 registry: EF-PR-GEN-01 resumeCapability=N/A (fondations pures, resume gere en aval) - validation pure et deterministe, recompute sans etat intermediaire.",
+      "blockingConditions": [
+        "un des 3 objets absent ou invalide selon son propre contrat gele"
+      ],
+      "successOutputContract": "EvidenceForge.MissionDimensionSet/EF-PR-GEN-v1 + EvidenceForge.MissionDocumentMapping + EvidenceForge.HeuristicPolicy (valides, passthrough)"
+    },
+    {
+      "nodeId": "EF-02A",
+      "moduleId": "EF-02A",
+      "portId": "ProfessionalPipelinePort",
+      "portMethod": "discoverProfessionals",
+      "requiredInputs": [
+        "corpusSnapshot",
+        "missionDimensionSet"
+      ],
+      "requiredUpstreamNodes": [
+        "EF-ORCH-SUBSYSTEM",
+        "EF-PR-GEN-01"
+      ],
+      "requiredDependencies": [
+        "externalStageAdapter.discoverProfessionals"
+      ],
+      "executionClass": "ASYNC_EXTERNAL",
+      "state": "NOT_STARTED",
+      "retryPolicy": "RESTART_STAGE",
+      "resumePolicy": "RESTART_STAGE",
+      "resumePolicySource": "MONO-00 registry: EF-02A resumeCapability=false - pas de reprise partielle, l'etape entiere (outil HTML manuel) doit etre rejouee.",
+      "blockingConditions": [
+        "CorpusSnapshot ou MissionDimensionSet absent/invalide",
+        "ExternalStageAdapter.discoverProfessionals absent"
+      ],
+      "successOutputContract": "EvidenceForge.ProfessionalDiscovery/EF-02A-v2"
+    },
+    {
+      "nodeId": "EF-02B",
+      "moduleId": "EF-02B",
+      "portId": "ProfessionalPipelinePort",
+      "portMethod": "verifyProfessionals",
+      "requiredInputs": [
+        "professionalDiscovery"
+      ],
+      "requiredUpstreamNodes": [
+        "EF-02A"
+      ],
+      "requiredDependencies": [
+        "externalStageAdapter.verifyProfessionals"
+      ],
+      "executionClass": "ASYNC_EXTERNAL",
+      "state": "NOT_STARTED",
+      "retryPolicy": "RESTART_STAGE",
+      "resumePolicy": "RESTART_STAGE",
+      "resumePolicySource": "MONO-00 registry: EF-02B resumeCapability=false.",
+      "blockingConditions": [
+        "ProfessionalDiscovery absent/invalide (schema EF-02A-v2)",
+        "ExternalStageAdapter.verifyProfessionals absent"
+      ],
+      "successOutputContract": "EvidenceForge.ProfessionalVerification/EF-02B-v2"
+    },
+    {
+      "nodeId": "EF-02C",
+      "moduleId": "EF-02C",
+      "portId": "ProfessionalPipelinePort",
+      "portMethod": "buildProfessionalCorpus",
+      "requiredInputs": [
+        "professionalVerification"
+      ],
+      "requiredUpstreamNodes": [
+        "EF-02B"
+      ],
+      "requiredDependencies": [
+        "externalStageAdapter.buildProfessionalCorpus"
+      ],
+      "executionClass": "ASYNC_EXTERNAL",
+      "state": "NOT_STARTED",
+      "retryPolicy": "RESUME_CHECKPOINT",
+      "resumePolicy": "RESUME_CHECKPOINT",
+      "resumePolicySource": "MONO-00 registry: EF-02C resumeCapability=true.",
+      "blockingConditions": [
+        "ProfessionalVerification absent/invalide (schema EF-02B-v2)",
+        "ExternalStageAdapter.buildProfessionalCorpus absent"
+      ],
+      "successOutputContract": "EvidenceForge.ProfessionalCorpusSet/EF-02C-v2"
+    },
+    {
+      "nodeId": "EF-02D",
+      "moduleId": "EF-02D",
+      "portId": "EligibilityPanelPort",
+      "portMethod": "buildEligibilityRelevanceSet+buildCoverageMatrix+selectPanel",
+      "requiredInputs": [
+        "professionalCorpusSet",
+        "missionDimensionSet",
+        "heuristicPolicy"
+      ],
+      "requiredUpstreamNodes": [
+        "EF-02C",
+        "EF-PR-GEN-01"
+      ],
+      "requiredDependencies": [
+        "llm"
+      ],
+      "executionClass": "ASYNC_EXTERNAL",
+      "state": "NOT_STARTED",
+      "retryPolicy": "RESUME_CHECKPOINT",
+      "resumePolicy": "RESUME_CHECKPOINT",
+      "resumePolicySource": "CDC MONO-02 (exemple explicite): EF-02D -> resume/fusion additive. Coherent avec MONO-00 registry: EF-02D resumeCapability=true.",
+      "blockingConditions": [
+        "ProfessionalCorpusSet/MissionDimensionSet/HeuristicPolicy absent ou de schema incorrect",
+        "llm indisponible"
+      ],
+      "successOutputContract": "EvidenceForge.DocumentaryEligibilityRelevanceSet/EF-02D-v2 + EvidenceForge.CoverageMatrix/EF-02D3-v4 + EvidenceForge.PanelSelection/EF-02D3-PANEL-v4"
+    },
+    {
+      "nodeId": "EF-02E",
+      "moduleId": "EF-02E",
+      "portId": "DocumentaryTwinPort",
+      "portMethod": "buildDocumentaryTwinSet",
+      "requiredInputs": [
+        "professionalCorpusSet",
+        "eligibilityRelevanceSet",
+        "coverageMatrix",
+        "panelSelection",
+        "missionDimensionSet",
+        "exclusionRegistry"
+      ],
+      "requiredUpstreamNodes": [
+        "EF-02D"
+      ],
+      "requiredDependencies": [],
+      "executionClass": "ASYNC",
+      "state": "NOT_STARTED",
+      "retryPolicy": "EXPLICIT_REBUILD_REQUIRED",
+      "resumePolicy": "EXPLICIT_REBUILD_REQUIRED",
+      "resumePolicySource": "CDC MONO-02 (exemple explicite): EF-02E -> reconstruction explicite. Coherent avec MONO-00 registry: EF-02E resumeCapability=N/A (construction deterministe complete a chaque appel, pas de reprise partielle).",
+      "blockingConditions": [
+        "un des 6 inputs requis absent ou de schema/schemaVersion incorrect (ExclusionRegistrySet requis meme vide, T01-14)"
+      ],
+      "successOutputContract": "EvidenceForge.DocumentaryTwinSet/EF-02E-v2"
+    },
+    {
+      "nodeId": "TARGET_DOCUMENT_SET",
+      "moduleId": "EF-03",
+      "portId": "TargetDocumentPort",
+      "portMethod": "buildTargetDocumentSet",
+      "requiredInputs": [
+        "documents"
+      ],
+      "requiredUpstreamNodes": [
+        "EF-PR-GEN-01"
+      ],
+      "requiredDependencies": [],
+      "executionClass": "ASYNC",
+      "state": "NOT_STARTED",
+      "retryPolicy": "RESUME_CHECKPOINT",
+      "resumePolicy": "RESUME_CHECKPOINT",
+      "resumePolicySource": "MONO-00 invariant #12 (START-HERE.md): reprise/resume generique integree nativement, preservation byte-for-byte des resultats deja valides. MONO-00 registry: EF-03 resumeCapability=true.",
+      "blockingConditions": [
+        "documents absent"
+      ],
+      "architecturalDependencyNote": "MissionDocumentMapping n'est jamais un parametre direct de buildTargetDocumentSet() (contrat gele inchange) mais intervient architecturalement en amont pour determiner quels documents/targetId fournir - dependance representee ici via requiredUpstreamNodes=[EF-PR-GEN-01], jamais comme un requiredInput invente (precision de la correction d'audit n1 de MONO-00, voir aussi MONO-01 T01-05).",
+      "successOutputContract": "EvidenceForge.TargetDocumentSet/EF-03-DOC-v1"
+    },
+    {
+      "nodeId": "EF-03A",
+      "moduleId": "EF-03",
+      "portId": "ReviewSchemaPort",
+      "portMethod": "buildReviewSchema",
+      "requiredInputs": [
+        "twinSet",
+        "dimensionSet",
+        "reviewTargets"
+      ],
+      "requiredUpstreamNodes": [
+        "EF-02E",
+        "EF-PR-GEN-01"
+      ],
+      "requiredDependencies": [],
+      "executionClass": "ASYNC",
+      "state": "NOT_STARTED",
+      "retryPolicy": "RECOMPUTE_DETERMINISTIC",
+      "resumePolicy": "RECOMPUTE_DETERMINISTIC",
+      "resumePolicySource": "MONO-00 invariant #3: ReviewSchema mission-owned, a mission/dimensions/targets identiques deux DocumentaryTwinSet differents produisent le meme schemaHash - recalcul deterministe, jamais un etat a preserver entre tentatives.",
+      "blockingConditions": [
+        "DocumentaryTwinSet/MissionDimensionSet/reviewTargets absent ou de schema incorrect"
+      ],
+      "successOutputContract": "EvidenceForge.ReviewSchema/EF-03A-v1"
+    },
+    {
+      "nodeId": "EF-03B",
+      "moduleId": "EF-03",
+      "portId": "DocumentaryReviewPort",
+      "portMethod": "buildDocumentaryReviewSet",
+      "requiredInputs": [
+        "reviewSchema",
+        "twinSet",
+        "targetDocumentSet"
+      ],
+      "requiredUpstreamNodes": [
+        "EF-03A",
+        "EF-02E",
+        "TARGET_DOCUMENT_SET",
+        "EF-PR-GEN-01"
+      ],
+      "requiredDependencies": [
+        "llm"
+      ],
+      "executionClass": "ASYNC_EXTERNAL",
+      "state": "NOT_STARTED",
+      "retryPolicy": "REPLAY_MISSING_ONLY",
+      "resumePolicy": "REPLAY_MISSING_ONLY",
+      "resumePolicySource": "CDC MONO-02 (exemple explicite): EF-03B -> replay reviews manquantes/invalides uniquement. Coherent avec MONO-00 registry: EF-03 resumeCapability=true et resumeDocumentaryReviewSet() du module gele.",
+      "blockingConditions": [
+        "ReviewSchema/DocumentaryTwinSet/TargetDocumentSet absent ou de schema incorrect",
+        "llm indisponible"
+      ],
+      "architecturalDependencyNote": "MissionDocumentMapping n'est jamais un parametre direct de buildDocumentaryReviewSet() (contrat gele inchange) - dependance architecturale representee via requiredUpstreamNodes=[EF-PR-GEN-01], en amont de TARGET_DOCUMENT_SET (correction d'audit n1 de MONO-00, MONO-01 T01-05).",
+      "successOutputContract": "EvidenceForge.DocumentaryReviewSet/EF-03B-v1"
+    },
+    {
+      "nodeId": "EF-03C",
+      "moduleId": "EF-03",
+      "portId": "AggregationPort",
+      "portMethod": "buildAggregatedDocumentaryReview",
+      "requiredInputs": [
+        "reviewSet"
+      ],
+      "requiredUpstreamNodes": [
+        "EF-03B"
+      ],
+      "requiredDependencies": [],
+      "executionClass": "ASYNC",
+      "state": "NOT_STARTED",
+      "retryPolicy": "RECOMPUTE_DETERMINISTIC",
+      "resumePolicy": "RECOMPUTE_DETERMINISTIC",
+      "resumePolicySource": "CDC MONO-02 (exemple explicite): EF-03C/D -> recalculables depuis inputs valides.",
+      "blockingConditions": [
+        "DocumentaryReviewSet absent ou de schema incorrect"
+      ],
+      "successOutputContract": "EvidenceForge.AggregatedDocumentaryReview/EF-03C-v1"
+    },
+    {
+      "nodeId": "EF-03D",
+      "moduleId": "EF-03",
+      "portId": "StabilityPort",
+      "portMethod": "buildStabilityContradictionAnalysis",
+      "requiredInputs": [
+        "reviewSet",
+        "aggregatedReview"
+      ],
+      "requiredUpstreamNodes": [
+        "EF-03B",
+        "EF-03C"
+      ],
+      "requiredDependencies": [],
+      "executionClass": "SYNC",
+      "state": "NOT_STARTED",
+      "retryPolicy": "RECOMPUTE_DETERMINISTIC",
+      "resumePolicy": "RECOMPUTE_DETERMINISTIC",
+      "resumePolicySource": "CDC MONO-02 (exemple explicite): EF-03C/D -> recalculables depuis inputs valides. Confirme SYNC dans le code gele reel (MONO-01 T01-11).",
+      "blockingConditions": [
+        "DocumentaryReviewSet/AggregatedDocumentaryReview absent ou de schema incorrect"
+      ],
+      "successOutputContract": "EvidenceForge.StabilityContradictionAnalysis/EF-03D-v1"
+    },
+    {
+      "nodeId": "EF-04-LINEAGE",
+      "moduleId": "EF-04",
+      "portId": "LineagePort",
+      "portMethod": "assertLineage",
+      "requiredInputs": [
+        "reviewSchema",
+        "targetDocumentSet",
+        "twinSet",
+        "reviewSet",
+        "aggregatedReview",
+        "stabilityAnalysis"
+      ],
+      "requiredUpstreamNodes": [
+        "EF-03A",
+        "TARGET_DOCUMENT_SET",
+        "EF-02E",
+        "EF-03B",
+        "EF-03C",
+        "EF-03D"
+      ],
+      "requiredDependencies": [],
+      "executionClass": "SYNC",
+      "state": "NOT_STARTED",
+      "retryPolicy": "NO_RETRY",
+      "resumePolicy": "NO_RETRY",
+      "resumePolicySource": "MONO-00 registry: EF-04 resumeCapability=N/A (FAIL-CLOSED, pas de mode degrade/reprise) - un echec de lineage se corrige en amont, jamais par une nouvelle tentative de la garde elle-meme.",
+      "blockingConditions": [
+        "un des 6 objets absent ou de schema incorrect",
+        "assertLineage() leve une violation de lignee (invariants du contrat gele EF-04)"
+      ],
+      "successOutputContract": "{ ok: true, reviewSchemaHash, missionId, lineageAssurance } (pas un contrat gele versionne - sortie interne d'assertLineage)"
+    },
+    {
+      "nodeId": "EF-04A",
+      "moduleId": "EF-04",
+      "portId": "ReportPort",
+      "portMethod": "buildUnifiedReportSummary",
+      "requiredInputs": [
+        "reviewSchema",
+        "targetDocumentSet",
+        "twinSet",
+        "reviewSet",
+        "aggregatedReview",
+        "stabilityAnalysis"
+      ],
+      "requiredUpstreamNodes": [
+        "EF-04-LINEAGE"
+      ],
+      "requiredDependencies": [],
+      "executionClass": "ASYNC",
+      "state": "NOT_STARTED",
+      "retryPolicy": "NO_RETRY",
+      "resumePolicy": "NO_RETRY",
+      "resumePolicySource": "MONO-00 registry: EF-04 resumeCapability=N/A (FAIL-CLOSED) - le rapport est deterministe une fois le PASS de lignee acquis; sans PASS, il n'y a rien a retenter au niveau de ce noeud, la correction se fait en amont.",
+      "blockingConditions": [
+        "noeud EF-04-LINEAGE non SUCCESS (Lineage Guard PASS requis, jamais un rapport produit autrement)"
+      ],
+      "lineageGateNote": "EF-04A n'est JAMAIS READY tant qu'EF-04-LINEAGE n'est pas SUCCESS - c'est un noeud de garde distinct, jamais fusionne avec EF-03D->EF-04A directement. Le mecanisme generique d'upstream-gating de l'OrchestrationEngine EST le lineage gate; ReportPort applique en plus, independamment, son propre gate interne (defense en profondeur, MONO-01 T01-15).",
+      "successOutputContract": "EvidenceForge.UnifiedReportSummary/EF-04A-v1"
+    }
+  ]
+}

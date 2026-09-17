@@ -1,0 +1,75 @@
+{
+  "lot": "EF-01C1-v0.2-r2",
+  "generatedAt": "2026-09-07T19:25:29.126Z",
+  "fileCount": 17,
+  "files": [
+    {
+      "file": "CHANGELOG.md",
+      "sha256": "b62d9550a66edebe1ea750c478fe60b94bbd330b400a039b67e5294f9893fc9f"
+    },
+    {
+      "file": "CONTRACT.md",
+      "sha256": "ccdd601d943cf544b8b0bfe64c41b7192d31a737a641c586274d8fdf572fa686"
+    },
+    {
+      "file": "DIFF-r1-to-r2.patch",
+      "sha256": "9c0df5f6f682cecd6c8eea310ae1e6a115c85c211c125103c4b992de5f068645"
+    },
+    {
+      "file": "FINDINGS-CLOSURE-EF-01C1-v0.2-r2.md",
+      "sha256": "07cdd17ab4b8ddef5615769bf20af6059a02f2c962d4cea48bb01e6ad3e4d85b"
+    },
+    {
+      "file": "IMPLEMENTATION-REPORT-EF-01C1-v0.2-r2.md",
+      "sha256": "9173c10279b300960c63105d21d87d06805d5ade7fbf511a1ba00b77d98c3d50"
+    },
+    {
+      "file": "NON-REGRESSION-EF-01C1-v0.2-r2.md",
+      "sha256": "64168884616e89cebea5d4a7dff734278bdc1e1e2e1424f1d8b5f25235a9df93"
+    },
+    {
+      "file": "PROMPT-REGISTRY.md",
+      "sha256": "958591b0e93046c5425e1b7a55e6a43922afc7193bac56ddf177cb5a5f34047a"
+    },
+    {
+      "file": "README.md",
+      "sha256": "a7446d9cab61d7ace050b23b277c78bbf5b16d0eb3429b16af18b5ec4c274fac"
+    },
+    {
+      "file": "lib/errors.js",
+      "sha256": "891314e1b129d6aa0e333e5f44b8ae50a214cf379b22ed43c6b6968f8b29ab90"
+    },
+    {
+      "file": "lib/evidence-writer.js",
+      "sha256": "6145f8830ffe84cd9efeef3fdcc119941438bdd4ddaeb6b02830ee754e936ce7"
+    },
+    {
+      "file": "lib/executor.js",
+      "sha256": "5971ba7d51c24a25e25e97efe97689bac080e5add96ac3bf2e25d000989a0eba"
+    },
+    {
+      "file": "lib/hash.js",
+      "sha256": "b3c5023595813e79a5e4d764c4be8cee725c6e7bb43b3de7db158c3073a6e771"
+    },
+    {
+      "file": "lib/parser.js",
+      "sha256": "ff9def243609740ef4fc9da9b83f9e0b35c0625b8420f5ace5aa486d7646c047"
+    },
+    {
+      "file": "lib/real-llm-call.js",
+      "sha256": "ab22f90053fa314083e1d543774e207a1e656debc4fc55d3174fde2ff6e3ee99"
+    },
+    {
+      "file": "prompts/ef01c1-planner-prompt-v0.2-r1.js",
+      "sha256": "a2ae165fca2f485998c0224781668ae07513fb0889e44460340345897d616251"
+    },
+    {
+      "file": "test/test-ef01c1-v0.2-r2-compat.js",
+      "sha256": "d55a48338d602661e12a547b6cd2fc1f885e35077a0ebb72133554b5274dd64f"
+    },
+    {
+      "file": "test/test-ef01c1-v0.2-r2.js",
+      "sha256": "cfad1c8d4317d63564dedf88f5a50cb878d19bf1669094d210094db1369480ae"
+    }
+  ]
+}

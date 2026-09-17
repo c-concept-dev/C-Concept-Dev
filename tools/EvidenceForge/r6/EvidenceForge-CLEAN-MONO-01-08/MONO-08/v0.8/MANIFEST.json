@@ -1,0 +1,64 @@
+{
+  "lot": "MONO-08-v0.8",
+  "revision": "v1 (remediation EF01C2_CHECKPOINT_LOG_CONTRACT_VIOLATION)",
+  "predecessor": "MONO-08-v0.7 (intouchable)",
+  "generatedAt": "2026-09-07T23:52:30.668Z",
+  "fileCount": 11,
+  "files": [
+    {
+      "file": "DIFF-v0.7-to-v0.8.patch",
+      "size": 3312,
+      "sha256": "7f8c53f51f3ac119f941495d7b0d64c65e6d811d3f8042a0d22bbc10d4f3fc34"
+    },
+    {
+      "file": "README-PREPARE-EXISTING-ARTIFACTS.md",
+      "size": 4360,
+      "sha256": "64972ad274fd9e2999ab1442cf9cea0de4ebe721bfe92988c2faa6b93d4f878e"
+    },
+    {
+      "file": "REBINDING-RULE.md",
+      "size": 1855,
+      "sha256": "e6cb29cf9d392c57316d50b474379da5b3068369a424785db4bef3616f9f0ebe"
+    },
+    {
+      "file": "REMEDIATION-v0.8.md",
+      "size": 3972,
+      "sha256": "82214e630cfe7829db330971c69f5d8ba6ad72bd72e310011b8069db4ff044fb"
+    },
+    {
+      "file": "lib/fair-query-coverage.js",
+      "size": 11563,
+      "sha256": "4fca402099d582f10f5ce4d0aad9446f68f3f1357ac0d8e9ce6e82096065eecd"
+    },
+    {
+      "file": "lib/prepare-existing-artifacts.js",
+      "size": 12593,
+      "sha256": "bda6d0f219fad52b50aaf1349c48409239451e4421a296f19c9f3ef83314e399"
+    },
+    {
+      "file": "lib/readiness-v2.js",
+      "size": 7997,
+      "sha256": "88fa2531b2759f5d1f8d05f44197d71217d3e952a9a9bdea422ce4d4401c76a4"
+    },
+    {
+      "file": "lib/readiness-v3.js",
+      "size": 5757,
+      "sha256": "f56ac2ab28e42f77f00c80e50fea7c34ee50095a1ca28d0f6f4b97b7e542ac2b"
+    },
+    {
+      "file": "test/test-mono08-v0.8-integration.js",
+      "size": 7012,
+      "sha256": "71ce86b113dc8aecec5e1632118f4204c194fe3a6bda511ffdf05bb31cadf6c9"
+    },
+    {
+      "file": "test/test-mono08-v0.8-log-contract.js",
+      "size": 12578,
+      "sha256": "25c7842bdb648c774f88991c06bd7ecbdfedc30f96d0afad8e5c43730df8c90d"
+    },
+    {
+      "file": "test/test-mono08-v0.8.js",
+      "size": 15378,
+      "sha256": "b4df37f36105dbea24cb294924959479a634a05df5341a1a6ee7874617aaf179"
+    }
+  ]
+}

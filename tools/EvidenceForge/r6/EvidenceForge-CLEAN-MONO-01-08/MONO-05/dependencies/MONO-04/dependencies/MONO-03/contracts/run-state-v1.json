@@ -1,0 +1,23 @@
+{
+  "schema": "EvidenceForge.RunState",
+  "schemaVersion": "MONO-03-v1",
+  "description": "Etat durable du run global du monolithe. Ne redefinit ni COMMENT appeler un module (MONO-01.x) ni QUAND un noeud est eligible (MONO-02) - il persiste seulement l'ETAT DURABLE constate.",
+  "requiredFields": {
+    "runId": "identifiant du run, cle primaire du RunStore",
+    "missionId": "identifiant de mission (jamais un champ metier au-dela de l'identifiant)",
+    "createdAt": "horodatage de creation",
+    "updatedAt": "horodatage de derniere ecriture reussie",
+    "graphVersion": "version du graphe MONO-02 utilise pour ce run",
+    "baselineVersion": "version de la baseline MONO-00 utilisee",
+    "integrationVersion": "version de MONO-01.x utilisee",
+    "status": "resume grossier du run (running|completed|failed|blocked) - jamais une nouvelle state machine par noeud",
+    "currentReadyNodes": "liste informative des noeuds READY au dernier calcul connu (fournie par l'appelant, MONO-03 ne la recalcule jamais)",
+    "nodeStates": "map nodeId -> NodeStateRecord (voir node-state-record-v1.json)",
+    "artifactRefs": "map nodeId -> artifactId (dernier artefact SUCCESS de ce noeud)",
+    "efOrchRunIdentity": "reference technique opaque vers un run EFOrchExecutionPort - jamais interpretee, jamais le contenu des checkpoints internes EF-ORCH",
+    "efOrchNativeStatus": "dernier statut natif EF-ORCH rapporte (idle|running|paused|failed|completed) - une copie d'observation, jamais une source de verite",
+    "lineageStatus": "{ status: PASS|FAIL, basedOnArtifactRefs, computedAt, ... } ou null - voir section 17",
+    "lastError": "dernier PersistenceError ou erreur d'orchestration rencontree au niveau du run, ou null"
+  },
+  "invariant": "Aucune donnee metier nouvelle n'est introduite ici - uniquement des references techniques (artifactId, efOrchRunIdentity) et des etats deja definis par MONO-02."
+}

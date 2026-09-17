@@ -1,0 +1,37 @@
+{
+  "schema": "EvidenceForge.ArtifactRecord",
+  "schemaVersion": "MONO-03-v1",
+  "description": "Enregistrement durable d'un artefact produit par un noeud. Le store ne modifie jamais le payload metier - clone defensif a l'ecriture et a la lecture.",
+  "requiredFields": {
+    "artifactId": "sha256(runId, nodeId, contract, schemaVersion, missionId, contentHash) - deux artefacts distincts ne peuvent jamais partager un artifactId",
+    "runId": "run auquel appartient cet artefact",
+    "nodeId": "noeud qui a produit cet artefact",
+    "contract": "nom du contrat gele (ex: EvidenceForge.CorpusSnapshot, EvidenceForge.DocumentaryTwinSet)",
+    "contractSchemaVersion": "schemaVersion du contrat gele (ex: EF-01F-v1, EF-02E-v2)",
+    "missionId": "identifiant de mission",
+    "contentHash": "sha256 canonique du payload - revérifié a chaque lecture (PERSISTED_ARTIFACT_MISMATCH si incoherent)",
+    "createdAt": "horodatage de creation",
+    "payload": "le contenu metier exact, jamais modifie, jamais reinterprete"
+  },
+  "supportedContracts": [
+    "EvidenceForge.CorpusSnapshot",
+    "EvidenceForge.MissionDimensionSet",
+    "EvidenceForge.MissionDocumentMapping",
+    "EvidenceForge.ProfessionalDiscovery",
+    "EvidenceForge.ProfessionalVerification",
+    "EvidenceForge.ProfessionalCorpusSet",
+    "EvidenceForge.DocumentaryEligibilityRelevanceSet",
+    "EvidenceForge.CoverageMatrix",
+    "EvidenceForge.PanelSelection",
+    "EvidenceForge.ExclusionRegistrySet",
+    "EvidenceForge.DocumentaryTwinSet",
+    "EvidenceForge.TargetDocumentSet",
+    "EvidenceForge.ReviewSchema",
+    "EvidenceForge.DocumentaryReviewSet",
+    "EvidenceForge.AggregatedDocumentaryReview",
+    "EvidenceForge.StabilityContradictionAnalysis",
+    "EvidenceForge.LineageResult",
+    "EvidenceForge.UnifiedReportSummary"
+  ],
+  "invariant": "putArtifact() est idempotent pour un contenu identique (meme artifactId, meme contentHash), et rejette explicitement (ARTIFACT_CONFLICT) toute tentative d'ecraser un artifactId existant avec un contenu different."
+}

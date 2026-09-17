@@ -1,0 +1,74 @@
+{
+ "id": "S1",
+ "kind": "success",
+ "sourceRun": "run-H1",
+ "sourceRunId": "run-ea96107f2179",
+ "targetId": "target-01",
+ "acceptedPassHistorical": 1,
+ "document": {
+  "targetId": "target-01",
+  "role": "review_target_not_evidence",
+  "content": "Une bibliothèque municipale veut remplacer ses ateliers d'initiation numérique en présentiel par des tutoriels vidéo en ligne. Dire ce qui est étayé, discuté ou non établi quant à l'efficacité de ce remplacement pour les usagers peu à l'aise avec le numérique."
+ },
+ "twin": {
+  "twinId": "twin-fixture-S1",
+  "professionalRef": "fixture-S1",
+  "referenceIdentity": {
+   "displayName": "fixture S1"
+  },
+  "documentaryBasis": {
+   "worksUsed": [
+    {
+     "workRef": "Educational Concepts of Digital Competence Development for Older Adults—A Scoping Review",
+     "citedForDimensions": [
+      "digital-literacy-studies",
+      "educational-sciences",
+      "instructional-design",
+      "gerontology-and-aging-studies",
+      "andragogy"
+     ]
+    },
+    {
+     "workRef": "Digitale Teilhabe mithilfe partizipativ entwickelter Informations- und Beratungskonzepte – eine qualitative Studie mit Senior:innen",
+     "citedForDimensions": [
+      "digital-literacy-studies",
+      "sociology-of-digital-divide",
+      "gerontology-and-aging-studies"
+     ]
+    },
+    {
+     "workRef": "Integrating social support into interventions among the elderly in nursing homes: a scoping review protocol",
+     "citedForDimensions": [
+      "gerontology-and-aging-studies"
+     ]
+    }
+   ]
+  }
+ },
+ "dimensions": [
+  "digital-literacy-studies",
+  "educational-sciences",
+  "instructional-design",
+  "cognitive-science",
+  "human-computer-interaction",
+  "library-information-science",
+  "sociology-of-digital-divide",
+  "gerontology-and-aging-studies",
+  "andragogy"
+ ],
+ "passes": [
+  {
+   "pass": 1,
+   "informed": false,
+   "valid": true,
+   "errors": [],
+   "responseText": "{\"findings\":[\n{\"dimensionId\":\"digital-literacy-studies\",\"disposition\":\"support\",\"epistemicStatus\":\"documented\",\"finding\":\"Le développement de compétences numériques chez des publics âgés peu à l'aise est un objet documenté par la base, ce qui permet d'appuyer partiellement la question de l'acquisition de compétences, mais sans établir spécifiquement l'efficacité du format vidéo en ligne.\",\"rationale\":\"Deux œuvres portent directement sur le développement de compétence numérique et la participation numérique des personnes âgées, documentant l'appropriation des outils par des publics peu à l'aise ; toutefois elles ne portent pas sur la substitution par tutoriels vidéo.\",\"targetEvidenceRefs\":[\"remplacer ses ateliers d'initiation numérique en présentiel par des tutoriels vidéo en ligne\"],\"twinBasisWorkRefs\":[\"Educational Concepts of Digital Competence Development for Older Adults—A Scoping Review\",\"Digitale Teilhabe mithilfe partizipativ entwickelter Informations- und Beratungskonzepte – eine qualitative Studie mit Senior:innen\"],\"confidenceQualitative\":\"medium\",\"limitations\":[\"La base ne documente pas le format vidéo en ligne comme modalité d'apprentissage\",\"Population centrée sur les personnes âgées, non tous les usagers peu à l'aise\"]},\n{\"dimensionId\":\"educational-sciences\",\"disposition\":\"gap\",\"epistemicStatus\":\"cautious_inference\",\"finding\":\"L'efficacité comparée du présentiel et de la modalité à distance pour ces publics n'est pas établie par la base : la comparaison des formats reste non documentée.\",\"rationale\":\"L'œuvre sur les concepts éducatifs touche la modalité pédagogique mais le corpus ne documente pas la comparaison entre présentiel et distanciel ni l'efficacité pédagogique comparée exigée par la question.\",\"targetEvidenceRefs\":[\"Dire ce qui est étayé, discuté ou non établi quant à l'efficacité de ce remplacement pour les usagers peu à l'aise avec le numérique.\"],\"twinBasisWorkRefs\":[\"Educational Concepts of Digital Competence Development for Older Adults—A Scoping Review\"],\"confidenceQualitative\":\"low\",\"limitations\":[\"Absence de travaux comparatifs présentiel/distanciel dans le corpus\",\"Lien indirect entre concepts éducatifs et efficacité comparée des formats\"]},\n{\"dimensionId\":\"instructional-design\",\"disposition\":\"not_determinable\",\"epistemicStatus\":\"not_determinable\",\"finding\":\"La substituabilité du présentiel par des tutoriels vidéo, en tant que question de conception de ressources d'auto-formation, n'est pas déterminable à partir de la base.\",\"rationale\":\"Rien dans les métadonnées n'atteste d'un travail spécifique sur la conception de tutoriels vidéo ou de dispositifs d'auto-formation médiatisés ; le lien reste indirect.\",\"targetEvidenceRefs\":[\"des tutoriels vidéo en ligne\"],\"twinBasisWorkRefs\":[],\"confidenceQualitative\":\"low\",\"limitations\":[\"Aucune œuvre sur la conception de dispositifs d'auto-formation médiatisés\",\"La scoping review ne cible pas explicitement le design instructionnel de tutoriels\"]},\n{\"dimensionId\":\"cognitive-science\",\"disposition\":\"gap\",\"epistemicStatus\":\"cautious_inference\",\"finding\":\"Les enjeux de charge cognitive, d'attention et de mémorisation propres au traitement de supports vidéo par des novices ne sont pas couverts par la base.\",\"rationale\":\"Aucune œuvre du corpus ne traite de charge cognitive, d'attention, de mémorisation ou du traitement de l'information multimédia.\",\"targetEvidenceRefs\":[\"des tutoriels vidéo en ligne\"],\"twinBasisWorkRefs\":[],\"confidenceQualitative\":\"low\",\"limitations\":[\"Absence totale de travaux en sciences cognitives dans le corpus\"]},\n{\"dimensionId\":\"human-computer-interaction\",\"disposition\":\"gap\",\"epistemicStatus\":\"cautious_inference\",\"finding\":\"L'obstacle que peut constituer la maîtrise des interfaces d'accès aux tutoriels en ligne n'est pas documenté par la base.\",\"rationale\":\"Le corpus ne documente ni l'utilisabilité, ni l'accessibilité d'interfaces, ni l'ergonomie des dispositifs numériques.\",\"targetEvidenceRefs\":[\"les usagers peu à l'aise avec le numérique\"],\"twinBasisWorkRefs\":[],\"confidenceQualitative\":\"low\",\"limitations\":[\"Aucune œuvre en IHM identifiable dans le corpus\"]},\n{\"dimensionId\":\"library-information-science\",\"disposition\":\"gap\",\"epistemicStatus\":\"cautious_inference\",\"finding\":\"Le rôle de médiation numérique de la bibliothèque et les modalités de service aux publics ne sont pas éclairés par la base.\",\"rationale\":\"Aucune œuvre ne porte sur les bibliothèques, la médiation documentaire ou les services d'information ; les travaux relèvent de la gérontologie et de la politique sociale.\",\"targetEvidenceRefs\":[\"Une bibliothèque municipale veut remplacer ses ateliers d'initiation numérique en présentiel\"],\"twinBasisWorkRefs\":[],\"confidenceQualitative\":\"low\",\"limitations\":[\"Aucune œuvre en science de l'information ou bibliothéconomie\"]},\n{\"dimensionId\":\"sociology-of-digital-divide\",\"disposition\":\"concern\",\"epistemicStatus\":\"cautious_inference\",\"finding\":\"La notion de participation numérique des seniors renvoie aux enjeux d'inclusion, ce qui suggère un risque d'exclusion en cas de dématérialisation, sans que la base analyse les mécanismes de la fracture numérique.\",\"rationale\":\"La digitale Teilhabe des seniors renvoie aux inégalités d'accès et d'usage, mais le corpus n'analyse pas explicitement les effets d'une dématérialisation des services ; lien indirect.\",\"targetEvidenceRefs\":[\"remplacer ses ateliers d'initiation numérique en présentiel par des tutoriels vidéo en ligne\"],\"twinBasisWorkRefs\":[\"Digitale Teilhabe mithilfe partizipativ entwickelter Informations- und Beratungskonzepte – eine qualitative Studie mit Senior:innen\"],\"confidenceQualitative\":\"low\",\"limitations\":[\"Pas d'analyse explicite des effets d'une dématérialisation sur les publics vulnérables\",\"epistemicStatus limité car l'œuvre ne porte pas sur la substitution de service\"]},\n{\"dimensionId\":\"gerontology-and-aging-studies\",\"disposition\":\"support\",\"epistemicStatus\":\"documented\",\"finding\":\"Les spécificités de l'apprentissage numérique et de l'autonomie technologique des personnes âgées sont solidement documentées par la base, dont plusieurs éléments soulignent l'importance du soutien social et d'accompagnements adaptés.\",\"rationale\":\"Plusieurs œuvres directes portent sur les personnes âgées : compétence numérique des older adults, participation numérique des Senior:innen, intégration du soutien social dans les interventions ; couverture forte et centrale.\",\"targetEvidenceRefs\":[\"les usagers peu à l'aise avec le numérique\"],\"twinBasisWorkRefs\":[\"Educational Concepts of Digital Competence Development for Older Adults—A Scoping Review\",\"Digitale Teilhabe mithilfe partizipativ entwickelter Informations- und Beratungskonzepte – eine qualitative Studie mit Senior:innen\",\"Integrating social support into interventions among the elderly in nursing homes: a scoping review protocol\"],\"confidenceQualitative\":\"high\",\"limitations\":[\"Les personnes âgées ne recouvrent qu'une partie des usagers peu à l'aise avec le numérique\",\"La base ne teste pas directement le format vidéo comme substitut au présentiel\"]},\n{\"dimensionId\":\"andragogy\",\"disposition\":\"concern\",\"epistemicStatus\":\"cautious_inference\",\"finding\":\"Les travaux portent sur l'apprentissage d'adultes âgés et suggèrent l'importance de l'accompagnement, ce qui interroge la pertinence d'un format purement auto-formatif, sans que les conditions andragogiques d'autonomie soient explicitement théorisées.\",\"rationale\":\"Les concepts éducatifs concernent des adultes âgés et touchent l'andragogie, mais le corpus ne documente pas explicitement les conditions d'apprentissage autonome ou accompagné en tant que théorie andragogique ; lien indirect.\",\"targetEvidenceRefs\":[\"ses ateliers d'initiation numérique en présentiel\"],\"twinBasisWorkRefs\":[\"Educational Concepts of Digital Competence Development for Older Adults—A Scoping Review\"],\"confidenceQualitative\":\"low\",\"limitations\":[\"Absence de cadre andragogique explicite dans le corpus\",\"Lien indirect entre concepts éducatifs et théorie de l'apprentissage adulte autonome\"]}\n]}",
+   "usage": {
+    "input_tokens": 6010,
+    "output_tokens": 3202
+   },
+   "purpose": "EF-03B review"
+  }
+ ],
+ "note": "artefacts reels ; identite du jumeau anonymisee ; reponses byte-exactes"
+}

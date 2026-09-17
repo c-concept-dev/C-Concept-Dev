@@ -1,0 +1,66 @@
+--- r6/EvidenceForge-CLEAN-MONO-01-08/MONO-08/v0.7/lib/fair-query-coverage.js	2026-09-07 23:25:34
++++ r6/EvidenceForge-CLEAN-MONO-01-08/MONO-08/v0.8/lib/fair-query-coverage.js	2026-09-08 01:46:27
+@@ -58,6 +58,11 @@
+   const runner = opts && opts.runner;
+   const protocol = opts && opts.protocol;
+   const connectorId = (opts && opts.connectorId) || CONNECTOR;
++  // HORLOGE RUNTIME, jamais une constante de fixture. Injectable uniquement
++  // pour que les tests puissent observer l'ordre chronologique reel ; le
++  // defaut est l'horloge systeme, exactement comme nowIso() du runner gele
++  // MONO-01/dependencies/ef-orch-ef01c2-runner-openalex-v0.1.js.
++  const nowIso = (opts && typeof opts.nowIso === "function") ? opts.nowIso : function () { return new Date().toISOString(); };
+   if (typeof runner !== "function") throw new Error("fairQueryCoverageRetrieval: runner (fonction) requis — jamais reimplemente ici.");
+   if (!protocol || typeof protocol !== "object") throw new Error("fairQueryCoverageRetrieval: protocol requis.");
+ 
+@@ -75,7 +80,16 @@
+   let requestsCount = 0;
+   let errorsAll = [];
+   let collected = 0;
++  // CONTRAT EF-01C2 (MONO-01/dependencies/ef-orch-ef01c2-checkpoint-contract-v0.1.js).
++  // Le runner gele initialise costUsd a 0 puis l'ACCUMULE depuis
++  // data.meta.cost_usd quand le fournisseur le renvoie. L'agregat FAIR
++  // reprend exactement cette semantique en sommant les sous-logs : jamais
++  // un 0 code en dur, qui masquerait un cout reellement facture.
++  let costUsd = 0;
++  const startedAt = nowIso();
++  let finishedAt = null;
+ 
++  try {
+   for (let i = 0; i < allQueries.length; i++) {
+     const q = allQueries[i];
+     const share = shares[i];
+@@ -106,6 +120,7 @@
+     entry.httpRequests = rlog.requestsCount || 0;
+     entry.stopReason = rlog.stopReason || null;
+     requestsCount += entry.httpRequests;
++    if (typeof rlog.costUsd === "number" && Number.isFinite(rlog.costUsd)) costUsd += rlog.costUsd;
+     if (Array.isArray(rlog.errors) && rlog.errors.length) {
+       errorsAll = errorsAll.concat(rlog.errors.map(function (e) { return { discipline: entry.discipline, error: e }; }));
+     }
+@@ -139,6 +154,12 @@
+     }
+     perQuery.push(entry);
+   }
++  } finally {
++    // finally, jamais catch — meme discipline que le runner gele : une
++    // exception logicielle inattendue continue de se propager, mais
++    // finishedAt est garanti pose sur le chemin normal.
++    finishedAt = nowIso();
++  }
+ 
+   const executed = perQuery.filter(function (e) { return e.executed; }).length;
+   const starved = perQuery.filter(function (e) { return !e.executed && !e.error; }).map(function (e) { return e.discipline; });
+@@ -150,7 +171,13 @@
+       orchestration: "FAIR_QUERY_COVERAGE",
+       requestsCount: requestsCount,
+       resultsCount: collected,
++      // Trois champs exiges par assertConnectorCheckpointOutputValid() pour
++      // un connecteur "automatic" et absents de v0.7 — cause exacte de
++      // l'INTEGRATION_CONTRACT_ERROR observee au premier RESUME reel.
++      costUsd: costUsd,
+       errors: errorsAll,
++      startedAt: startedAt,
++      finishedAt: finishedAt,
+       stopReason: collected >= globalBudget ? "budget global (" + globalBudget + ") atteint" : "toutes les requetes eligibles traitees",
+     },
+     coverage: {

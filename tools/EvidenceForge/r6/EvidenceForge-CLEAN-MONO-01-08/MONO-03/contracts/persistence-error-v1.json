@@ -1,0 +1,24 @@
+{
+  "schema": "EvidenceForge.PersistenceError",
+  "schemaVersion": "MONO-03-v1",
+  "description": "Taxonomie technique minimale des erreurs de persistance/coherence MONO-03. Aucune categorie metier n'est introduite.",
+  "codes": [
+    "RUN_NOT_FOUND",
+    "ARTIFACT_NOT_FOUND",
+    "PERSISTENCE_BACKEND_UNAVAILABLE",
+    "PERSISTENCE_WRITE_FAILED",
+    "PERSISTENCE_READ_FAILED",
+    "PERSISTED_ARTIFACT_MISMATCH",
+    "RUN_STATE_CONFLICT",
+    "RUN_LOCKED",
+    "RESUME_NOT_ALLOWED",
+    "RESUME_PLAN_INVALID",
+    "SUCCESS_WITHOUT_ARTIFACT",
+    "ARTIFACT_CONFLICT"
+  ],
+  "requiredFields": {
+    "code": "un des 12 codes ci-dessus, jamais un code invente a la volee",
+    "message": "message technique lisible, sans jugement metier",
+    "details": "objet libre avec le contexte utile au diagnostic"
+  }
+}

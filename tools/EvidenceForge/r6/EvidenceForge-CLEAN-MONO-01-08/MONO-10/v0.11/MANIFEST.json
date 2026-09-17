@@ -1,0 +1,422 @@
+{
+  "lot": "MONO-10-v0.11",
+  "title": "Bind LLM capability to probed subject & close validator omission gaps",
+  "principle": "A real decision is insufficient if it does not bind the exact subject being certified. Omitting a verifier or a context must never disable a security check.",
+  "status": "PROPOSE A L'AUDIT — NON GELE. Le statut GELABLE/NON_GELABLE n'appartient pas a ce lot (CHARTE §19).",
+  "additiveOver": [
+    "MONO-00..MONO-09",
+    "MONO-10 v0.1..v0.10 (historiques, non modifies)"
+  ],
+  "closesFindings": [
+    "B10-01-A",
+    "B10-01-B",
+    "B10-01-C",
+    "B10-01-D",
+    "B10-02",
+    "B10-03",
+    "B10-04"
+  ],
+  "newModules": [],
+  "renamedFields": {
+    "capability.probeDerivationRef": "capability.probeRef (reference de SONDE ; ne certifie rien seule)"
+  },
+  "newExports": [
+    "boundary LLM : certifyProbedArtifact, verifyProbedSubject, allowlistDenials",
+    "verifier.verifyLlmSubject({registry, artifactId})"
+  ],
+  "newRefusalCodes": [
+    "LLM_SUBJECT_MISMATCH",
+    "LLM_SUBJECT_OUT_OF_ALLOWLIST",
+    "LLM_PROBE_ALREADY_CONSUMED",
+    "READINESS_VERIFIER_REQUIRED"
+  ],
+  "llmDecisionSubject": [
+    "providerId",
+    "modelId",
+    "workerBindingId",
+    "requestId",
+    "runId",
+    "missionHash",
+    "artifactId",
+    "artifactHash",
+    "+ decisionSubjectHash, executionMode, operatorBoundaryId, configBindingHash, result"
+  ],
+  "probeUniqueness": "une sonde ne certifie qu'UN artefact (LLM_PROBE_ALREADY_CONSUMED) ; re-certification du meme artefact idempotente",
+  "measurements": {
+    "adversarialTests": "97 PASS / 0 FAIL / 0 SKIP",
+    "mutations": "40 / 40",
+    "offlineIntegration": "43 PASS / 0 FAIL / 0 SKIP",
+    "universalityDomains": "6 / 6",
+    "caseSpecificLeakCount": 0,
+    "domainHardcodingCount": 0,
+    "providerHardcodingCount": 0,
+    "providerRelabelAccepted": "NO",
+    "modelRelabelAccepted": "NO",
+    "workerRelabelAccepted": "NO",
+    "artifactRelabelAccepted": "NO",
+    "outOfAllowlistCapabilityUsable": "NO",
+    "emptyContextCapabilityUsable": "NO",
+    "readinessWithoutVerifierAccepted": "NO",
+    "callerAccessibleProductionSecurityIssuerCount": 0,
+    "internalHelpersExposed": 1,
+    "internalHelpersExposedNamed": [
+      "core/operator-trust-verifier.js::__build"
+    ],
+    "historicalLotsIdentical": "23 / 23",
+    "sealedReferenceDivergences": 0,
+    "fullHistoryByteIdentityConfirmed": "NO — 9 lots sur 23 ne portent aucun sceau independant",
+    "unverifiableHistoricalLots": 9,
+    "NETWORK_CALLS": 0,
+    "REAL_LLM_CALLS": 0,
+    "REAL_EF02_RUNS": 0,
+    "REAL_PROFESSIONAL_RUNS": 0,
+    "REAL_HUMAN_ACTS": 0
+  },
+  "declaredAssumptions": [
+    "Qui peut ecrire EVIDENCEFORGE_OPERATOR_TRUST_CONFIG ou les fichiers qu'il designe obtient une frontiere de PRODUCTION (TRUST-MODEL.md §7).",
+    "Deux fichiers de configuration REELLEMENT distincts sont deux racines de confiance ; deux alias du meme fichier sont la meme racine.",
+    "Un renommage de la configuration ouvre une NOUVELLE GENERATION : l'anti-rejeu ne la traverse pas (REPLAY-PROTECTION.md §15).",
+    "Le plafond de statut de preparation est une borne superieure ; l'appelant peut degrader, jamais ameliorer (READINESS.md §4).",
+    "La garde de contrats couvre des enumerations, pas la prose (CONTRACT-GUARD.md §6).",
+    "Le lot ne prouve pas qu'un LLM reel a repondu : aucun appel reseau n'a lieu. Il prouve que la capacite certifiee ne nomme que le sujet reellement sonde."
+  ],
+  "generatedAt": "2026-09-12T19:32:05.449824Z",
+  "fileCount": 67,
+  "files": [
+    {
+      "file": "ARCHITECTURE.md",
+      "size": 6376,
+      "sha256": "cd497bcceb586bfeee32b591e40409d2355c7127e8c2d73b5aaeae4a0a79be1c"
+    },
+    {
+      "file": "ARTIFACT-REGISTRY-TRUST.md",
+      "size": 6602,
+      "sha256": "b4fb4bea65ca9e834b5e6d39013d35448015b64f49068a0218e7060211c74b11"
+    },
+    {
+      "file": "AUDIT-REMEDIATION-MATRIX.md",
+      "size": 13988,
+      "sha256": "da6f0c3f6e9632a8d6204893d6185799b173ab3903587da5f500ec0ada82dbc3"
+    },
+    {
+      "file": "CAPABILITY-AUTHORITIES.md",
+      "size": 11059,
+      "sha256": "786fca8f1c7a6c11004f65319e4a1c0a0524fe93cad13cca48413fdfc47ac222"
+    },
+    {
+      "file": "CONTRACT-GUARD.md",
+      "size": 2876,
+      "sha256": "20dc78c5da8695940bd41886d6f68980f4687eae29de3678ddf2bf8692a0ba03"
+    },
+    {
+      "file": "CONTRACT-MAPPING.md",
+      "size": 5959,
+      "sha256": "aba307212d687c23b2890e7ded404dcb13efd4d0b20c86d11a5303b3685158c1"
+    },
+    {
+      "file": "HISTORICAL-INPUT-AUTHORITY.md",
+      "size": 3062,
+      "sha256": "631ecc0923bb499a589590716e2b55d3158e01998921d252a08c3949b3ec0b76"
+    },
+    {
+      "file": "HUMAN-ACT-AUTHENTICATION.md",
+      "size": 3035,
+      "sha256": "81965cd4b55473c0b89a95b6d152b251341e4022b793824255b1a4661fdb5343"
+    },
+    {
+      "file": "KEY-MANAGEMENT.md",
+      "size": 3497,
+      "sha256": "c64ab61b2bdf14443a23f3982484f955db992984d023183c7a785d5367db5a2c"
+    },
+    {
+      "file": "LINEAGE.md",
+      "size": 2926,
+      "sha256": "7d4027d0d851ce6c6a90083c52d35be906171e63e5a1737332ab33288070e1fd"
+    },
+    {
+      "file": "LLM-CAPABILITY-BOUNDARY.md",
+      "size": 4582,
+      "sha256": "000d7fdf417817db66757e919732cb9d6d33e4b4ff4bf50c470cad5f1f5a69cb"
+    },
+    {
+      "file": "MIGRATION-v0.10-v0.11.md",
+      "size": 4984,
+      "sha256": "a605393f17bd307015da04d01f6a120014c41a2b712e21abc96cedc1bb8e7bdb"
+    },
+    {
+      "file": "NON-REGRESSION.md",
+      "size": 4441,
+      "sha256": "09a1f0bf0d1936b3f255c23184a7263fbf49fac1dde2bb58ce424ddcd937e2c1"
+    },
+    {
+      "file": "READINESS.md",
+      "size": 6092,
+      "sha256": "4a1634e40a6920373ad1576db2c94ef8b622e457b5b2de0d96c5fe05cb340c92"
+    },
+    {
+      "file": "README.md",
+      "size": 5840,
+      "sha256": "93429200cbb6ee8f8797c12e72a925ff7df4c625bdee322e7b1a5c8665b6316e"
+    },
+    {
+      "file": "REPLAY-PROTECTION.md",
+      "size": 7705,
+      "sha256": "61bd0c85a9eafbf0af4978e0a59de9c7b212c3e361e946db43f206c1a489e0fb"
+    },
+    {
+      "file": "RUN-ORDER.md",
+      "size": 3798,
+      "sha256": "d1879dc2eaba7dd3063e0ccfac93a082faa066d4cdfda2a23dacbb981a48cf54"
+    },
+    {
+      "file": "THREAT-MODEL.md",
+      "size": 12575,
+      "sha256": "19535c134fcd603f3acc3f905ae31f9cde53a561c0981f21ff0d481db0f605ef"
+    },
+    {
+      "file": "TRUST-MODEL.md",
+      "size": 12431,
+      "sha256": "ef743c65af892475fe2c9dfcdaa214b196cd6e530738b410e6bf26be54200bfd"
+    },
+    {
+      "file": "UPSTREAM-EVIDENCE-BINDING.md",
+      "size": 3712,
+      "sha256": "42ce8e7f824fa018dbb0a672c67771ae5e5789b25cfebe2f696b1452dacb3940"
+    },
+    {
+      "file": "adapters/case-phase-adapter.js",
+      "size": 1314,
+      "sha256": "af6824a9fea176aa0aa22c98a35facc70654ffba24401671c153853f9d51be35"
+    },
+    {
+      "file": "adapters/upstream-evidence-binder.js",
+      "size": 16452,
+      "sha256": "e6041f23dd6d0d78a8720bde515c62fbbaf701280bcd349c6b655e8560d189ce"
+    },
+    {
+      "file": "contracts/canonical-contracts.json",
+      "size": 2616,
+      "sha256": "aab368eeb7e2e6e95fb06da6559ceb438b7f8006c89cb0ba5a77dcf3da67186e"
+    },
+    {
+      "file": "core/artifact-capabilities.js",
+      "size": 15564,
+      "sha256": "dab67d312fbd1d3686a6264c703b782728509042d0e03597467108bef57f9953"
+    },
+    {
+      "file": "core/authenticated-artifact-registry.js",
+      "size": 13434,
+      "sha256": "a7aef03e7e79ec80389b9e7f9e6543d686c822ad5b29615bf4455a6e233bfd04"
+    },
+    {
+      "file": "core/authority-descriptor.js",
+      "size": 5896,
+      "sha256": "58300933ac14b6164cf8b9ccd39be79de9af843225f5bffbe0e342a0258a86dd"
+    },
+    {
+      "file": "core/caller-assertion-guard.js",
+      "size": 4788,
+      "sha256": "7ab1c6c853067184fb2aa1e9f3ecb87a9aeeabca7bb7ab19305039f4cdb8416a"
+    },
+    {
+      "file": "core/candidate-assessment.js",
+      "size": 13906,
+      "sha256": "b5a19e06b47ed9fa4df4e3bc94a270fb2f1170e4a876ef06d3f28d92c4a28e17"
+    },
+    {
+      "file": "core/canonical-contracts.js",
+      "size": 5027,
+      "sha256": "9e61b7151840346a11573a57afdaba16d5b9e684e10813ea20e590c36dd9b5b8"
+    },
+    {
+      "file": "core/canonical.js",
+      "size": 1660,
+      "sha256": "40648df70c422754e9eb1b4d5b66be8389cd53a2c0e17792ab5de36dc9c07dd5"
+    },
+    {
+      "file": "core/downstream-authorization.js",
+      "size": 14933,
+      "sha256": "961830226c508ba9421b14a55656a2a8ece8560bb04516cdc4f6832dffe5af0f"
+    },
+    {
+      "file": "core/effective-eligibility.js",
+      "size": 8528,
+      "sha256": "f3366dd40bc0c5ed59caada3f5422ef7d9681c04b5580c1da280224e8397cba1"
+    },
+    {
+      "file": "core/evidence-source-provenance.js",
+      "size": 9326,
+      "sha256": "1cd75216562868a993b18afb295bb7ccc17196a1aa2294925b5e5863fa63cffd"
+    },
+    {
+      "file": "core/final-report-acceptance.js",
+      "size": 9828,
+      "sha256": "61b8ad0c63d2754d2753173dda676aa647633a0e8c817db69f4b26e5f654a1ac"
+    },
+    {
+      "file": "core/human-act-proof.js",
+      "size": 3487,
+      "sha256": "3f99a187a0afc8b6b5c8fe859d628028bbf464912249f5cd4fdeb83bb7b16ac2"
+    },
+    {
+      "file": "core/human-act.js",
+      "size": 4137,
+      "sha256": "4e4ee4bc7b8ffdef0479e15cebac7eeb20a72b8cd8f2d025614c1954933f7ac9"
+    },
+    {
+      "file": "core/identity-evidence.js",
+      "size": 10416,
+      "sha256": "bc415796aeabf781e3c24b7f016c98b7d831e6f71eecd9c8636b31d730d43694"
+    },
+    {
+      "file": "core/key-lifecycle.js",
+      "size": 5143,
+      "sha256": "3407a567b33adac1d90d43a438170f31d24c3c58d134f121f68edf5480e5caad"
+    },
+    {
+      "file": "core/lineage.js",
+      "size": 16044,
+      "sha256": "d34f2465f83758bdc04457e754909ad183a2be1a96642818b4b7c81fe6bce51c"
+    },
+    {
+      "file": "core/llm-capability.js",
+      "size": 25451,
+      "sha256": "3a2bcc1584ef7635440c57d16ae4ca0b442cf357885d3a9529583cb82f1f3a93"
+    },
+    {
+      "file": "core/operator-acceptance-boundary.js",
+      "size": 5250,
+      "sha256": "7063d46abe40f1aa2db9c54f863ca8084efaac69149e2513ff9e777081f2256a"
+    },
+    {
+      "file": "core/operator-historical-input-authority.js",
+      "size": 11107,
+      "sha256": "6e4730d0d3163e77a785395b777c8e02e5f59bec5811ece9a5714069820e19af"
+    },
+    {
+      "file": "core/operator-human-auth-boundary.js",
+      "size": 12760,
+      "sha256": "dfb6d2714fd045784dd38513de2e37063958fdd6b4ecf813ba57e015823220da"
+    },
+    {
+      "file": "core/operator-llm-capability-boundary.js",
+      "size": 18766,
+      "sha256": "ba4dc089d43a778496517422bca1262f46a36b4afa07024add9a1b94ce48b084"
+    },
+    {
+      "file": "core/operator-provenance-authority.js",
+      "size": 13935,
+      "sha256": "414020edec9f68b159fbc904fa21a741512bcc3b94a95b0a7ab5df596c26f21b"
+    },
+    {
+      "file": "core/operator-trust-boundary.js",
+      "size": 26928,
+      "sha256": "811eb5b42246af3150429769283661961a574573fc0b21652495fbe63dbd6a11"
+    },
+    {
+      "file": "core/operator-trust-verifier.js",
+      "size": 30157,
+      "sha256": "b69140ef01c7c31a907a6b3fb938635bccf21d4392891c0c6339427cef09904a"
+    },
+    {
+      "file": "core/panel-gate.js",
+      "size": 16339,
+      "sha256": "49c62226e4ee35b97b3715ee511396f442d5459af1c9a05c1722b9f8f398ab94"
+    },
+    {
+      "file": "core/panel-gated-adapter.js",
+      "size": 8565,
+      "sha256": "89508386cc71ea43ee93a36d0e218f199f68c7e10e7cc966e2f8cfd86ae403e2"
+    },
+    {
+      "file": "core/relevance.js",
+      "size": 4709,
+      "sha256": "7fd3a0d1f69207d5411031c137b9ac3741c22a745a1e2a986c34cf2b0a8d0c78"
+    },
+    {
+      "file": "core/replay-protection.js",
+      "size": 16083,
+      "sha256": "6d7c87e745516bc7506bc7a1809aab820026bb9b926528f95e49e71a48cc431f"
+    },
+    {
+      "file": "core/run-evidence-manifest.js",
+      "size": 11566,
+      "sha256": "7468e676c605b1f4b69c25bdcd2b8a8fcdceb35c48b028f94c357c634ac277fb"
+    },
+    {
+      "file": "core/runtime-attestation.js",
+      "size": 3464,
+      "sha256": "4f765ff07bfb4f629eb404718c50dfaef3065e5e37495892b9e10c696610a977"
+    },
+    {
+      "file": "core/scientific-qualification.js",
+      "size": 17346,
+      "sha256": "403a8881c065ff36c9faffb62612fff655b1e964b201d8db3fafa189d00e4ea7"
+    },
+    {
+      "file": "core/scientific-readiness.js",
+      "size": 32746,
+      "sha256": "670b99d24382bfda0207f651367b2e1527e405167231fad4be8190924f44aded"
+    },
+    {
+      "file": "core/scientific-unified-report.js",
+      "size": 10835,
+      "sha256": "fffafe9295f5d91c15da948171090995d21d472db8b6e26c4d0f539c7bf98fb8"
+    },
+    {
+      "file": "core/unknowns.js",
+      "size": 12722,
+      "sha256": "e993092503bb045c6ead26bdd1eea519ab5464eb31fe58a4c177f3c0e60012d9"
+    },
+    {
+      "file": "governance/EvidenceForge-CHARTE-IDENTITE-ADN-GOUVERNANCE.md",
+      "size": 24628,
+      "sha256": "b4c160d008c33dd338979afd247945fee8dab862c96e0d1f2841c9ad87596a85"
+    },
+    {
+      "file": "governance/README.md",
+      "size": 4709,
+      "sha256": "f852c340ab55f4440a70fbf10ed5910a10090348097fda25ad0132af4597ac65"
+    },
+    {
+      "file": "schemas/MONO-10-SCHEMAS-v0.11.json",
+      "size": 18407,
+      "sha256": "1bf46f231ebe8b9c6b357ac0c12680349355c370e219ad0d3f928fde5ec27f71"
+    },
+    {
+      "file": "test/fixture-chain.js",
+      "size": 18962,
+      "sha256": "f07db536ac775fa4cd046bb4456736abc1d1d20418e3f20adac0cc81c762759e"
+    },
+    {
+      "file": "test/test-mono10-v0.11-integration.js",
+      "size": 39449,
+      "sha256": "8b13f834c851eb3f100d460d67235dd58938b945cf53423a0a2b0ab8a520743f"
+    },
+    {
+      "file": "test/test-mono10-v0.11.js",
+      "size": 41500,
+      "sha256": "d607968136673f4005788bddfe823885c0300cd1bcd411fa637f0f967e3853b3"
+    },
+    {
+      "file": "tools/aggregate-hash.js",
+      "size": 1746,
+      "sha256": "f60ff7d96eb2bcd4889364d6c415d043f3b3aa5d666b55595ae903e02596a8e7"
+    },
+    {
+      "file": "tools/operator-provisioning.js",
+      "size": 5422,
+      "sha256": "8c65f016a87bde91627b5666c92c18f1788f0406cfe7b0b5bfe31e32384add94"
+    },
+    {
+      "file": "tools/reference-llm-transport.js",
+      "size": 1028,
+      "sha256": "6dfed592fe0ca0165cc9f8ec0a3538ee8000d176e905bfa393c948caa927a513"
+    },
+    {
+      "file": "validators/index.js",
+      "size": 6442,
+      "sha256": "41c7098d06110c5c81937d6b7c7fb465414d6bc7e7dd2006ac988f6877e9330e"
+    }
+  ]
+}

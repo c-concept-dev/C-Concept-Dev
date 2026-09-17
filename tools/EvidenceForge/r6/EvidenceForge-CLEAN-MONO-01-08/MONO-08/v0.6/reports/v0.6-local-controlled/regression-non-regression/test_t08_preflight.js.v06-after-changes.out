@@ -1,0 +1,12 @@
+PASS — T08-PREFLIGHT-01. OpenAlex payload valide (results[] present) -> READY
+PASS — T08-PREFLIGHT-02. OpenAlex HTTP 404 -> jamais READY
+PASS — T08-PREFLIGHT-03. Crossref payload valide (message-type=work-list) -> READY
+PASS — T08-PREFLIGHT-04. HTTP 405 -> jamais READY (regression du faux-READY corrigee)
+PASS — T08-PREFLIGHT-05. LLM credential absent -> AUTHENTICATION_BLOCKED
+PASS — T08-PREFLIGHT-06. LLM credential present + 401 -> AUTHENTICATION_BLOCKED, jamais READY
+PASS — T08-PREFLIGHT-07. LLM credential present + 405 -> INVALID_RESPONSE, jamais READY (defaut exact de l'audit)
+PASS — T08-PREFLIGHT-08. proxy x-deny-reason -> NETWORK_BLOCKED
+PASS — T08-PREFLIGHT-09. HTTP 429 -> RATE_LIMITED
+PASS — T08-PREFLIGHT-10. 200 HTML de proxy -> INVALID_RESPONSE, jamais READY
+
+TOUS LES TESTS PASSENT (10)

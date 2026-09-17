@@ -1,0 +1,7 @@
+0b399a6684b178e1a32a0c46b7a99d970823daaee56f760af20e9e46c25c4246  AUDIT-REMEDIATION-v1.1.md
+64972ad274fd9e2999ab1442cf9cea0de4ebe721bfe92988c2faa6b93d4f878e  README-PREPARE-EXISTING-ARTIFACTS.md
+b950f4e0442762f19a6da5baef825224341cf0a88ab4057a54813ac354cfe124  lib/fair-query-coverage.js
+bda6d0f219fad52b50aaf1349c48409239451e4421a296f19c9f3ef83314e399  lib/prepare-existing-artifacts.js
+88fa2531b2759f5d1f8d05f44197d71217d3e952a9a9bdea422ce4d4401c76a4  lib/readiness-v2.js
+afcb9f1e01d3327aaac04c9de5b22a78f7741d7057d3284a8db01b2bfb1aff3a  test/test-mono08-v0.7-integration.js
+1171162ac9806aeba79ba57a4f4b7c8562b5448d5939a71180b9549c9b633ff9  test/test-mono08-v0.7.js

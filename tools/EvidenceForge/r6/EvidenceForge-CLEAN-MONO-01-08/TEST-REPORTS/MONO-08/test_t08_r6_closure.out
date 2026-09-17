@@ -1,0 +1,28 @@
+PASS — R6-08. mission canonique incomplete : CODE_READINESS=READY
+PASS — R6-08. mission canonique incomplete : PREPARATION_READINESS=NOT_READY
+PASS — R6-08. mission canonique incomplete : PREPARE_NEXT=NOT_READY
+PASS — R6-09. fixture LOCAL_CONTROLLED complete : CODE_READINESS=READY
+PASS — R6-09. fixture LOCAL_CONTROLLED complete : PREPARATION_READINESS=READY
+PASS — R6-09. fixture LOCAL_CONTROLLED complete : PREPARE_NEXT=READY_FOR_INDEPENDENT_REAL_RUN
+PASS — R6-10. aucune combinaison READY/NOT_READY contradictoire sur 6 scenarios de readiness
+PASS — R6-ARGS-01. --phase invalide => echec explicite, jamais devine (exit 2)
+PASS — R6-ARGS-02. --phase resume sans --run-id => echec explicite (exit 2)
+PASS — R6-ARGS-03. --phase resume sans --snapshot-id => echec explicite (exit 2)
+PASS — R6-06a. --phase resume sans --audit-decisions => echec explicite (exit 2), jamais devine
+PASS — R6-08b. --phase prepare (sous-processus reel) sur la mission canonique incomplete => MISSION_NOT_READY (exit 2)
+PASS — R6-01. le sous-processus CLI PREPARE termine sur OPERATOR_INPUT_REQUIRED_AUDIT_DECISIONS (exit 4) — prepareRealScreening() reellement appele via runPreparePhase()
+PASS — R6-02a. PREPARE produit un snapshotId/snapshotHash/sourceCount/sourceIds reels (>=2 sources distinctes)
+PASS — R6-02b. PREPARE indique le chemin du template auditDecisions (jamais un identifiant sans support concret)
+PASS — R6-09b (preuve CLI reelle). readiness de la reponse PREPARE : CODE_READINESS=READY, PREPARATION_READINESS=READY
+PASS — R6-02c. le template genere ne pre-remplit AUCUNE decision (acteur/date/decision/justification tous null)
+PASS — R6-A01-fetch. compteur d'appels provider = 1 apres PREPARE (jamais 0, jamais >1)
+PASS — R6-03. le sous-processus CLI RESUME termine sur RESUME_COMPLETE (exit 0) — resumeRealScreening() reellement appele via runResumePhase()
+PASS — R6-04. RESUME n'effectue AUCUN retrieval supplementaire (compteur toujours a 1 apres RESUME)
+PASS — R6-09c (preuve CLI reelle). readiness de la reponse RESUME : RESUME_READINESS=READY, RESUME_NEXT=READY
+PASS — R6-05. RESUME avec un snapshotId inconnu (aucun snapshot persiste) => FAIL explicite (exit 2, SNAPSHOT_NOT_FOUND)
+PASS — R6-06b. RESUME avec un fichier auditDecisions structurellement vide/invalide => OPERATOR_INPUT_REQUIRED (exit 4), jamais accepte silencieusement
+PASS — R6-07. snapshot altere sur disque entre PREPARE et RESUME => FAIL explicite (exit 1, SNAPSHOT_INTEGRITY_ERROR), jamais accepte silencieusement
+
+TOUS LES TESTS PASSENT (24)
+
+R6_CLOSURE = PASS

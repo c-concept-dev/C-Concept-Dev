@@ -1,0 +1,99 @@
+{
+  "mode": "SYNTHETIC_EXAMPLE",
+  "_readme": [
+    "REMEDIATION R4 (mandat section 23). Ce fichier N'EST JAMAIS charge automatiquement",
+    "par le chemin REAL (aucun require()/readFileSync() de ce fichier n'existe dans",
+    "lib/ ou bin/ — verifie par lib/eforch-artifacts.js::validateRealEForchProvenance()",
+    "et test/test_t08_r4_closure.js::R4-F01-04). Il illustre UNIQUEMENT la forme",
+    "exacte attendue par mission.eForchProvenance en mode REAL — chaque valeur",
+    "ci-dessous est un PLACEHOLDER explicitement etiquete, jamais une valeur reelle.",
+    "",
+    "Pour preparer un run REAL, un operateur doit :",
+    "  1. Copier cette structure sous mission.eForchProvenance dans une copie de",
+    "     travail de la mission (jamais dans ce fichier example lui-meme) ;",
+    "  2. Remplacer CHAQUE valeur SYNTHETIC_EXAMPLE_PLACEHOLDER par une valeur",
+    "     reellement produite (appel LLM reellement effectue, decision humaine",
+    "     reellement prise, resultat de recuperation reellement obtenu) ;",
+    "  3. Ne JAMAIS inventer une valeur manquante pour satisfaire ce format —",
+    "     voir AUDIT-REMEDIATION/20-REAL-SMOKE-OPERATOR-CHECKLIST.md.",
+    "  4. Remettre mission.readyForExecution=true SEULEMENT une fois TOUTES les",
+    "     valeurs reellement fournies (validateRealEForchProvenance() le revalidera",
+    "     de toute facon avant tout appel provider — fail-closed si incomplet)."
+  ],
+  "eForchProvenanceExample": {
+    "resolverRuns": [
+      {
+        "_field": "un ResolverRun par dimension retenue de la mission, dans le meme ordre",
+        "provider": "SYNTHETIC_EXAMPLE_PLACEHOLDER (ex.: \"anthropic\")",
+        "model": "SYNTHETIC_EXAMPLE_PLACEHOLDER (ex.: \"claude-sonnet-5\")",
+        "promptVersion": "SYNTHETIC_EXAMPLE_PLACEHOLDER",
+        "date": "SYNTHETIC_EXAMPLE_PLACEHOLDER (ISO 8601, date reelle de l'appel)",
+        "inputHash": "SYNTHETIC_EXAMPLE_PLACEHOLDER (SHA-256 hex reel de l'entree envoyee au LLM)",
+        "rawResponseHash": "SYNTHETIC_EXAMPLE_PLACEHOLDER (SHA-256 hex reel de la reponse brute recue)",
+        "proposalCountRaw": "SYNTHETIC_EXAMPLE_PLACEHOLDER (nombre entier reel)",
+        "proposalCountStored": "SYNTHETIC_EXAMPLE_PLACEHOLDER (nombre entier reel)",
+        "technicalProposalLimit": "SYNTHETIC_EXAMPLE_PLACEHOLDER (nombre entier reel)",
+        "technicalLimitApplied": "SYNTHETIC_EXAMPLE_PLACEHOLDER (booleen reel)",
+        "targetContextReport": "SYNTHETIC_EXAMPLE_PLACEHOLDER (tableau reel, [] si aucun)"
+      }
+    ],
+    "plannerRun": {
+      "_field": "metadonnees de provenance de l'appel LLM planificateur (PAS son contenu — voir plannerOutput)",
+      "provider": "SYNTHETIC_EXAMPLE_PLACEHOLDER",
+      "model": "SYNTHETIC_EXAMPLE_PLACEHOLDER",
+      "promptVersion": "SYNTHETIC_EXAMPLE_PLACEHOLDER",
+      "date": "SYNTHETIC_EXAMPLE_PLACEHOLDER",
+      "inputHash": "SYNTHETIC_EXAMPLE_PLACEHOLDER",
+      "rawResponseHash": "SYNTHETIC_EXAMPLE_PLACEHOLDER"
+    },
+    "plannerOutput": {
+      "_field": "contenu CAUSAL reel du planificateur — voir 16-M02-CAUSAL-LINEAGE.md (R3). Deux plannerOutput distincts DOIVENT produire un SearchProtocol distinct.",
+      "sources": [
+        {
+          "connectorId": "SYNTHETIC_EXAMPLE_PLACEHOLDER (ex.: \"openalex\")",
+          "label": "SYNTHETIC_EXAMPLE_PLACEHOLDER (optionnel)",
+          "justification": "SYNTHETIC_EXAMPLE_PLACEHOLDER (justification reelle du choix de cette source)"
+        }
+      ],
+      "queries": [
+        {
+          "discipline": "SYNTHETIC_EXAMPLE_PLACEHOLDER (doit correspondre exactement a un id de mission.dimensions)",
+          "connectorId": "SYNTHETIC_EXAMPLE_PLACEHOLDER",
+          "requete": "SYNTHETIC_EXAMPLE_PLACEHOLDER (texte de requete reellement decide par le planner)",
+          "justification": "SYNTHETIC_EXAMPLE_PLACEHOLDER"
+        }
+      ],
+      "retrieval": [
+        {
+          "connectorId": "SYNTHETIC_EXAMPLE_PLACEHOLDER",
+          "sortMode": "SYNTHETIC_EXAMPLE_PLACEHOLDER",
+          "pageSize": "SYNTHETIC_EXAMPLE_PLACEHOLDER (nombre)",
+          "maxPages": "SYNTHETIC_EXAMPLE_PLACEHOLDER (nombre)",
+          "maxResults": "SYNTHETIC_EXAMPLE_PLACEHOLDER (nombre)",
+          "stopCondition": "SYNTHETIC_EXAMPLE_PLACEHOLDER",
+          "retryPolicy": "SYNTHETIC_EXAMPLE_PLACEHOLDER",
+          "rateLimitPolicy": "SYNTHETIC_EXAMPLE_PLACEHOLDER",
+          "budgetMax": "SYNTHETIC_EXAMPLE_PLACEHOLDER"
+        }
+      ],
+      "criteresInclusion": ["SYNTHETIC_EXAMPLE_PLACEHOLDER (au moins un critere reel)"],
+      "criteresExclusion": ["SYNTHETIC_EXAMPLE_PLACEHOLDER (au moins un critere reel)"],
+      "regleDedoublonnage": "SYNTHETIC_EXAMPLE_PLACEHOLDER",
+      "methodeQualification": "SYNTHETIC_EXAMPLE_PLACEHOLDER"
+    },
+    "humanValidation": {
+      "_field": "validation humaine reelle du SearchProtocol figé",
+      "validatedAt": "SYNTHETIC_EXAMPLE_PLACEHOLDER (ISO 8601)",
+      "commentaire": "SYNTHETIC_EXAMPLE_PLACEHOLDER (commentaire reellement redige par l'operateur, jamais 'Revu (MONO-08).')"
+    },
+    "auditDecisions": {
+      "_field": "objet keye par l'id de source REELLEMENT retrouve par la recuperation EF-01C2 — ces ids ne sont CONNUS qu'APRES un run reel (jamais previsible a l'avance, voir 21-SCREENING-LINEAGE.md). Exemple de FORME uniquement (id fictif ci-dessous).",
+      "SYNTHETIC_EXAMPLE_ID_PLACEHOLDER-1": {
+        "acteur": "human",
+        "date": "SYNTHETIC_EXAMPLE_PLACEHOLDER (ISO 8601)",
+        "decision": "SYNTHETIC_EXAMPLE_PLACEHOLDER (\"inclus\" | \"exclu\" | \"doublon\")",
+        "justification": "SYNTHETIC_EXAMPLE_PLACEHOLDER (justification humaine reelle)"
+      }
+    }
+  }
+}

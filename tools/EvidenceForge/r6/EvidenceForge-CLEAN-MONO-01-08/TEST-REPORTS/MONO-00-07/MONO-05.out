@@ -1,0 +1,178 @@
+
+=== unit/test_t05_static_search.js ===
+PASS — T05-36. aucune référence à un pilote/mission nommé en dur (JMJS, S01/S02, DIMS, d4/d5)
+PASS — T05-37. aucun vocabulaire épistémique erroné
+PASS — T05-35. aucune notion de smart repair/fuzzy matching
+PASS — T05-28s. aucune affectation innerHTML= dans le CODE de app/client (les mentions en commentaire, comme la règle XSS elle-même, sont ignorées)
+PASS — T05-19s/20s. aucune référence à localStorage/sessionStorage dans app/client
+PASS — T05-17s/18s. aucune référence à Authorization/Bearer/sk-.../apiKey/password dans app/server
+
+TOUS LES TESTS PASSENT (6)
+
+=== unit/test_t05_unit_core.js ===
+PASS — T05-05u. NODE_ORDER contient exactement les IDs du VRAI graphe MONO-02 gelé, dans le même ordre
+PASS — T05-34u. apiError() produit toujours {code, message, details} — jamais un texte seul qui masquerait le code machine
+
+TOUS LES TESTS PASSENT (2)
+
+=== integration/test_t05_41_44_nonregression.js ===
+PASS — T05-41. suite MONO-01.x imbriquée rejouée depuis MONO-05 : 172 tests, "AUCUNE REGRESSION" confirmé
+PASS — T05-42. suite MONO-02 imbriquée rejouée depuis MONO-05 : 334 tests, "AUCUNE REGRESSION" confirmé
+PASS — T05-43. suite MONO-03 imbriquée rejouée depuis MONO-05 : 64 tests, "AUCUNE REGRESSION" confirmé
+PASS — T05-44. suite MONO-04 imbriquée rejouée depuis MONO-05 : 69 tests, "AUCUNE REGRESSION" confirmé
+
+TOUS LES TESTS PASSENT (4)
+
+=== integration/test_t05_R2_cross_reg01_reg02.js ===
+PASS — CROSS-1. après redémarrage, EF-04-LINEAGE est réellement READY (REG-02 : chaîne de 12 nœuds correctement réhydratée)
+PASS — CROSS-2. EF-04-LINEAGE s'exécute réellement -> SUCCESS
+PASS — CROSS-3. lineageStatus synchronisé automatiquement à PASS (REG-01)
+PASS — CROSS-4. EF-04A s'exécute réellement -> SUCCESS
+PASS — CROSS-5. getReport() accessible immédiatement après (REG-01)
+PASS — CROSS-6. après un second redémarrage, le lineage PASS reste valide et getReport() reste accessible
+PASS — CROSS-7. variante stale : getReport() reste LINEAGE_BLOCKED après redémarrage/relecture, jamais accepté silencieusement
+
+TOUS LES TESTS PASSENT (7)
+
+=== integration/test_t05_R2_lineage_status_sync.js ===
+PASS — T05-R2-01a. EF-04-LINEAGE exécuté réellement via l'API -> SUCCESS
+PASS — T05-R2-01b. RunState.lineageStatus synchronisé automatiquement à PASS (jamais préparé manuellement dans ce test)
+PASS — T05-R2-01c. basedOnArtifactRefs contient les 6 références amont réelles (dérivées du graphe, jamais recopiées à la main)
+PASS — T05-R2-02. getLineage() accessible et cohérent (status PASS)
+PASS — T05-R2-03a. EF-04A exécuté réellement -> SUCCESS
+PASS — T05-R2-03b. getReport() accessible (200) après un vrai EF-04-LINEAGE PASS
+PASS — T05-R2-03c. le rapport est un vrai UnifiedReportSummary
+PASS — T05-R2-04a. EF-04-LINEAGE avec chaîne brisée -> non-SUCCESS
+PASS — T05-R2-04b. recordLineageFail réellement persisté (lineageStatus.status !== PASS)
+PASS — T05-R2-05. getReport() = LINEAGE_BLOCKED (423/409/4xx explicite)
+PASS — T05-R2-06. EF-04A reste NOT_STARTED/non-READY (jamais exécutable) selon le graphe réel
+PASS — T05-R2-07-precond. EF-04-LINEAGE réel -> SUCCESS sur le run d'origine (précondition du test de staleness)
+PASS — T05-R2-07-precond2. EF-04-LINEAGE réel -> SUCCESS sur le nouveau run
+PASS — T05-R2-07. isLineageStillValid() = false après un PASS référençant un artefact d'un autre run
+PASS — T05-R2-08. getReport() = LINEAGE_BLOCKED sur un PASS devenu stale (jamais accepté silencieusement)
+PASS — T05-R2-09. getLineage() ne présente JAMAIS ce PASS stale comme un PASS courant
+PASS — T05-R2-10a. resumeNode() sur EF-04-LINEAGE refusé (NO_RETRY réel, comportement gelé attendu)
+PASS — T05-R2-10b. runNode() direct sur EF-04-LINEAGE (seul chemin autorisé par sa politique) synchronise lineageStatus
+PASS — T05-R2-11a. retryNode() sur EF-04-LINEAGE refusé (NO_RETRY réel — la lignée FAIL-CLOSED ne peut jamais être relancée sur ce nœud, correction en amont uniquement)
+PASS — T05-R2-11b. lineageStatus reste FAIL après un retry refusé (jamais réinitialisé ni faussement PASS)
+PASS — T05-R2-12. une nouvelle instance OperatorApi (nouvelle Map d'engines) lit un lineage PASS cohérent depuis le seul backend MONO-03 durable
+
+TOUS LES TESTS PASSENT (21)
+
+=== integration/test_t05_R2_rehydration_fixpoint.js ===
+PASS — T05-R2-13. 1 nœud SUCCESS -> rehydrate = SUCCESS
+PASS — T05-R2-14. 2 nœuds chaînés SUCCESS -> les 2 restaurés SUCCESS
+PASS — T05-R2-15. 5 nœuds chaînés SUCCESS -> tous restaurés SUCCESS
+PASS — T05-R2-16. chaîne complète (12 nœuds) jusqu'à EF-03D SUCCESS -> tous restaurés SUCCESS
+PASS — T05-R2-16b. EF-04-LINEAGE devient réellement READY (précondition satisfaite)
+PASS — T05-R2-17. ordre de marquage SUCCESS non topologique -> résultat final identique (tous SUCCESS)
+PASS — T05-R2-18. branche parallèle (A→B, A→C, B,C→D) -> tous les nœuds restaurés SUCCESS
+PASS — T05-R2-19a. EF-ORCH-SUBSYSTEM SUCCESS
+PASS — T05-R2-19b. EF-PR-GEN-01 devient READY (éligible) mais jamais un faux SUCCESS
+PASS — T05-R2-19c. EF-02A reste NOT_STARTED (pas encore éligible, EF-PR-GEN-01 pas SUCCESS)
+PASS — T05-R2-20. état durable incompatible -> échec explicite (REHYDRATION_STATE_MISMATCH), jamais une reconstruction silencieuse partielle
+PASS — T05-R2-21. nouvelle instance (nouvelle Map d'engines) -> le prochain nœud (EF-02E) est réellement READY, reconstruit depuis le seul backend MONO-03 durable
+PASS — T05-R2-22. reprise réelle depuis un nouveau processus après interruption à 5 nœuds -> le nœud suivant (EF-02D) est réellement prêt à être exécuté
+
+TOUS LES TESTS PASSENT (13)
+
+=== integration/test_t05_R3_report_ui.js ===
+PASS — T05-R3-precond. EF-04-LINEAGE réel -> SUCCESS
+PASS — T05-R3-precond2. EF-04A réel -> SUCCESS (buildUnifiedReportSummary() exécuté)
+PASS — T05-R3-01a. le vrai rapport EF-04A a bien assuranceLevel imbriqué sous report.lineage.lineageAssurance (jamais à la racine)
+PASS — T05-R3-01b. la logique d'affichage (identique à renderReport()) retrouve l'assuranceLevel réel, jamais undefined
+PASS — T05-R3-02. targetDocumentsHashBoundFromEF03 = false (valeur réelle du contrat)
+PASS — T05-R3-03. documentaryTwinsHashBoundFromEF03 = false (valeur réelle du contrat)
+PASS — T05-R3-04. aucun "undefined" dans les valeurs affichées
+PASS — T05-R3-05. aucune surélévation d'assurance (jamais full/verified/scientific/high)
+
+TOUS LES TESTS PASSENT (8)
+
+=== integration/test_t05_integration_core.js ===
+PASS — T05-01. le serveur répond sur / et /app.js (200)
+PASS — T05-01b. les en-têtes de sécurité sont présents sur la page HTML
+PASS — T05-02. GET /api/runs -> 200, liste vide au départ
+PASS — T05-03. POST /api/runs avec un RunContract réel et valide -> 201, RunState créé
+PASS — T05-03b. POST /api/runs avec un RunContract invalide -> 400 INVALID_REQUEST
+PASS — T05-04. GET /api/runs/:runId -> 200, détail cohérent
+PASS — T05-05. GET .../graph renvoie EXACTEMENT les IDs du vrai graphe MONO-02
+PASS — T05-06. tous les nœuds démarrent dans un état parmi les 7 valides
+PASS — T05-07. EF-ORCH-SUBSYSTEM démarre READY
+PASS — T05-09. runNode() progresse réellement (vrais appels réseau OpenAlex observés)
+PASS — T05-08. un nœud non-READY refuse runNode() côté serveur (409), même via un appel HTTP direct
+PASS — T05-16. GET .../dependencies expose provider/dependencyType/configured/available, jamais un secret
+PASS — T05-14. le détail du nœud EF-ORCH-SUBSYSTEM est exposé (state/attemptCount/lastError)
+PASS — T05-15. AUCUN champ ne référence les structures internes des checkpoints EF-ORCH
+PASS — T05-21a. GET .../artifacts fonctionne (lecture)
+PASS — T05-21b. (ignoré, aucun artefact produit à ce stade)
+PASS — T05-22a. lineage NOT_RUN au départ
+PASS — T05-22b. GET .../report refusé par le SERVEUR (403 LINEAGE_BLOCKED) tant que lineage != PASS
+PASS — T05-12/34. une erreur conserve un errorCode ET un message lisible distincts
+
+TOUS LES TESTS PASSENT (19)
+
+=== integration/test_t05_lineage_pass.js ===
+PASS — T05-23a. lineage réellement PASS (via MONO-03.coordinator, jamais un contournement de l'API elle-même)
+PASS — T05-23b. GET .../report devient accessible (200) une fois lineage PASS
+PASS — T05-24. le rapport expose explicitement sa limite d'assurance, jamais masquée
+
+TOUS LES TESTS PASSENT (3)
+
+=== integration/test_t05_restart_concurrency.js ===
+PASS — T05-restart-a. avant redémarrage : run accessible, updatedAt renseigné
+PASS — T05-restart-b. après 'redémarrage' (nouvelle instance serveur complète, même backend MONO-03) -> RunState RETROUVÉ
+PASS — T05-39. deux requêtes CONCURRENTES sur le même nœud READY -> jamais deux exécutions logiques distinctes (au niveau HTTP)
+PASS — T05-39b. la requête rejetée porte un code d'erreur explicite de concurrence, jamais un succès silencieux masquant le conflit
+PASS — T05-39c. PREUVE DE FOND : un seul appel réseau OpenAlex réel a été observé côté serveur upstream, quel que soit le nombre de réponses HTTP 200 côté client (jamais une double exécution masquée)
+
+TOUS LES TESTS PASSENT (5)
+
+=== integration/test_t05_resume_retry_policies.js ===
+PASS — T05-13a. resumeNode() sur un nœud BLOCKED (pas PAUSED/FAILED) est refusé explicitement (RESUME_NOT_ALLOWED)
+PASS — T05-resume-b. retryNode() sur EF-04-LINEAGE (retryPolicy=NO_RETRY) est TOUJOURS refusé
+PASS — T05-resume-c. retryNode() sur EF-02E (retryPolicy=EXPLICIT_REBUILD_REQUIRED) est refusé
+PASS — T05-node-not-found. action sur un nodeId inconnu -> 404 NODE_NOT_FOUND explicite
+
+TOUS LES TESTS PASSENT (4)
+
+=== test/package-check.js ===
+PASS — playwright résolu et chromium.launch() réussit dans cet environnement.
+
+=== browser/test_t05_R3_browser_report.js ===
+PASS — T05-R3-browser-1. le vrai assuranceLevel est visible dans un vrai navigateur
+PASS — T05-R3-browser-2. targetDocumentsHashBoundFromEF03=false visible
+PASS — T05-R3-browser-3. documentaryTwinsHashBoundFromEF03=false visible
+PASS — T05-R3-browser-4. aucune occurrence de "undefined" dans la zone rapport
+PASS — T05-R3-browser-5. aucune erreur console inattendue
+
+TOUS LES TESTS PASSENT (5)
+
+=== browser/test_t05_browser_core.js ===
+PASS — T05-01b. le titre de la page se charge réellement dans un vrai navigateur
+PASS — T05-28a. window.__XSS n'est JAMAIS déclenché après affichage d'un missionId contenant un payload XSS
+PASS — T05-28b. le payload XSS apparaît comme TEXTE littéral dans la page
+PASS — T05-28c. aucune balise <img> réelle n'a été injectée dans le DOM
+PASS — T05-05b. le graphe rendu dans un VRAI navigateur affiche EXACTEMENT les 14 IDs du vrai graphe MONO-02, dans le même ordre
+PASS — T05-07b. dans un vrai navigateur, le bouton Run est ACTIVÉ exactement pour les nœuds READY
+PASS — T05-08b. dans un vrai navigateur, le bouton Run est DÉSACTIVÉ pour tout nœud non-READY
+PASS — T05-39d. double-clic RÉEL dans un vrai navigateur -> le serveur n'a traité qu'une seule exécution logique (attemptCount=1)
+PASS — T05-18. le secret synthétique n'apparaît jamais dans document.documentElement.outerHTML
+PASS — T05-19. le secret synthétique n'apparaît jamais dans localStorage
+PASS — T05-20. le secret synthétique n'apparaît jamais dans sessionStorage
+PASS — T05-17c. AUCUN message console ne contient le secret synthétique
+PASS — T05-38. après un VRAI rechargement de page, le statut affiché correspond exactement à celui du backend
+PASS — T05-29a. Tab déplace réellement le focus vers un élément interactif
+PASS — T05-29b. le bouton 'Nouveau run' est atteignable au clavier par tabulation successive
+PASS — T05-30. un élément focusé possède un style de focus visible (outline non 'none')
+PASS — T05-31. à 1440x900 (desktop), aucun débordement horizontal critique
+PASS — T05-31b. à 1440x900, au moins un bouton d'action reste visible/accessible
+PASS — T05-32. à 1024x768 (tablet), aucun débordement horizontal critique
+PASS — T05-32b. à 1024x768, au moins un bouton d'action reste visible/accessible
+PASS — T05-33. à 390x844 (mobile), aucun débordement horizontal critique
+PASS — T05-33b. à 390x844, au moins un bouton d'action reste visible/accessible
+
+TOUS LES TESTS PASSENT (22)
+
+============================================
+TOTAL CUMULE : 119 tests
+AUCUNE REGRESSION

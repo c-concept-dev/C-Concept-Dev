@@ -1,0 +1,19 @@
+{
+  "schema": "EvidenceForge.ProviderConfig",
+  "schemaVersion": "MONO-04-v1",
+  "description": "Configuration technique d'un provider externe. JAMAIS un secret. Immuable pendant une requete (Object.freeze).",
+  "requiredFields": {
+    "endpoint": "URL du provider (ex: Worker Cloudflare) - jamais un appel direct au fournisseur final depuis ce lot",
+    "timeoutMs": "nombre fini positif - jamais une attente infinie",
+    "method": "GET|POST, defaut POST",
+    "expectedContentType": "defaut application/json",
+    "requiredSecret": "nom du secret requis (resolu via SecretProvider), optionnel si aucun secret necessaire",
+    "retryPolicy": "{ maxAttempts, backoffMs } optionnel, maxAttempts plafonne a 5",
+    "maxResponseBytes": "garde-fou de taille, defaut 5 Mo",
+    "requiredResponseKeys": "liste de cles JSON minimales attendues, optionnel"
+  },
+  "knownProviders": {
+    "clone-proxy": "Worker LLM (Anthropic) reutilise tel quel - jamais reimplemente. Endpoint reel configure par l'appelant, jamais code en dur ici.",
+    "openalex-proxy": "Worker proxy OpenAlex/Crossref - meme principe. Confirme par EF-02ABC-SMOKE-REAL-KIT/INSTRUCTIONS.md : aucune requete ne part directement vers api.openalex.org depuis le navigateur."
+  }
+}

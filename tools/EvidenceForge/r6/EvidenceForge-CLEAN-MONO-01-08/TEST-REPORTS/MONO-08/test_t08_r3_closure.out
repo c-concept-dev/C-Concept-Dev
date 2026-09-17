@@ -1,0 +1,19 @@
+--- M-02 : 12 assertions executees jusqu'ici ---
+PASS — M02-01. plannerRun present mais plannerOutput (contenu causal) absent => OPERATOR_INPUT_REQUIRED ("planner causal output missing"), jamais un SearchProtocol construit par gabarit
+PASS — M02-02. SearchProtocol A produit reellement (maxResults=5, critere unique PLANNER-A)
+PASS — M02-03. SearchProtocol B substantiellement different (maxResults=10, DEUX criteres, methode Quantitative)
+PASS — M02-04. les champs differents entre A et B correspondent EXACTEMENT aux differences fournies par les deux plannerOutput (maxResults 5->10, regleDedoublonnage DOI->titre+annee, requete PLANNER-A->PLANNER-B)
+PASS — M02-05. criteresInclusion absent du plannerOutput => OPERATOR_INPUT_REQUIRED (jamais un repli sur ["Pertinence a la mission."]) ET buildSearchProtocolFromPlannerOutput() ne contient aucune constante substantive de repli ("Pertinence a la mission"/"Hors sujet"/"Qualitative."/"DOI." absents de son code)
+PASS — M02-06. modification du plannerOutput (maxResults 5->10 seul) change reellement causalLineage.plannerOutputHash
+PASS — M02-07. modification du contenu (A vs B) change reellement protocolHash
+PASS — M02-08. lineage plannerOutputHash -> protocolHash present et mecaniquement verifiable : protocolHash recalcule correspond EXACTEMENT avec le vrai plannerOutputHash et DIVERGE si ce dernier est altere
+PASS — M02-08b. causalLineage porte plannerRunRef/plannerInputHash/plannerRawResponseHash/plannerOutputHash/derivationMethod (structure complete, mandat section 10)
+PASS — M02-09. provenanceClassification = OPERATOR_ATTESTED_LLM_DERIVED UNIQUEMENT quand plannerOutput est reellement fourni et transforme (jamais sur la base de plannerRun seul, jamais 'VERIFIED_LLM_DERIVED' — MONO-08 n'a jamais verifie causalement l'appel provider)
+PASS — M02-10. aucun acteur humain automatique : humanValidation reelle exigee meme avec plannerOutput valide et complet (OPERATOR_INPUT_REQUIRED, jamais 'Revu (MONO-08).' fabrique)
+PASS — M02-GATE. validateRealEForchProvenance() (mission-gate) rejette AUSSI une provenance sans plannerOutput, AVANT tout builder (meme fonction de validation partagee que le builder, jamais deux logiques divergentes)
+PASS — B04-R3-01-SKIPPED. AUDIT-REMEDIATION/18-RUNTIME-PREREQUISITES.md non trouve depuis ce depot de developpement (jamais un FAIL trompeur — verifie directement sur le paquet assemble et zippe, voir rapport terminal de cette mission)
+PASS — B04-R3-04. lib/kit-root-adapter.js ne fait reference a AUCUN ancien layout HANDOFF nomme (EvidenceForge-MONO-05-v*.zip / EvidenceForge-MONO-XX-R*.zip exact) — construit uniquement depuis le contenu canonique du bundle lui-meme, jamais depuis un kit externe
+PASS — B04-R3-SKIPPED. verification dynamique BUNDLE_ARTIFACT_AUTONOMY non executee ici (ce depot de developpement, jamais le paquet assemble - voir AUDIT-REMEDIATION/17-B04-ARTIFACT-AUTONOMY.md et 12-R2-CLOSURE.md pour la verification directe sur le paquet zippe, deja effectuee separement par test_t08_r2_closure.js::B04-01..05)
+PASS — B04-R3-07. seuls des outils systeme EXPLICITEMENT documentes dans 18-RUNTIME-PREREQUISITES.md sont invoques via execFileSync depuis lib/ ou bin/ (verification statique — outils detectes : ["zip"])
+
+TOUS LES TESTS PASSENT (16)

@@ -1,0 +1,1350 @@
+{
+  "lot": "MONO-10-v0.17",
+  "title": "Origin truth & stale status cleanup before freeze",
+  "principle": "Un artefact candidat au gel ne doit pas porter comme verite une mesure, une promesse ou un invariant deja connus comme faux. Unknown remains unknown ; known false must not remain stated as true.",
+  "status": "PROPOSE A L'AUDIT FINAL DE GEL — NON GELE. Le statut GELABLE/NON_GELABLE n'appartient pas a ce lot (CHARTE §19).",
+  "natureOfLot": "STRICTEMENT DOCUMENTAIRE — aucune API, aucun comportement, aucune securite ajoutee, aucune reserve fermee, aucun run reel, P0.2 non implemente.",
+  "additiveOver": [
+    "MONO-00..MONO-09",
+    "MONO-10 v0.1..v0.16 (historiques, non modifies)"
+  ],
+  "closesFindings": [],
+  "correctsFalseStatementsOf": "MONO-10-v0.16",
+  "measurements": {
+    "runtimeByteIdenticalToV011": "YES (12 chemins, 0 difference)",
+    "runtimeByteIdenticalToV012": "YES (12 chemins, 0 difference)",
+    "runtimeByteIdenticalToV013": "YES (12 chemins, 0 difference)",
+    "runtimeByteIdenticalToV014": "YES (12 chemins, 0 difference)",
+    "runtimeByteIdenticalToV015": "YES (12 chemins, 0 difference)",
+    "runtimeByteIdenticalToV016": "YES (12 chemins, 0 difference)",
+    "runtimeIdentityComparisons": "72 comparaisons vides (12 chemins x 6 lots de reference), rejouees par DOC-13",
+    "charteByteIdentical": "YES",
+    "nonDocumentaryDeltaCount": 0,
+    "documentaryChecks": "26 / 26, chacun avec PASS_CLEAN / FAIL_SINGLE_TARGET_FAULT / PASS_AFTER_REVERT sur le document reel (102 temoins)",
+    "attestationOverclaimVariantsCaught": "ALL (21 / 21, dont les cinq phrases post-verbales manquees par l'audit final de v0.15)",
+    "documentaryScanRecursiveMdJson": "YES",
+    "v011ExecutionSuiteUnchanged": "97 PASS / 0 FAIL, 40/40 mutations, 6/6 domaines (suite heritee inchangee, re-executee sur v0.17)",
+    "v011IntegrationSuiteUnchanged": "43 PASS / 0 FAIL (suite heritee inchangee, re-executee sur v0.17)",
+    "sealedHistoricalLotsCount": "24 (cadre v0.11) / 25 (cadre v0.12) / 26 (cadre v0.13) / 27 (cadre v0.14) / 28 (cadre v0.15) / 29 (cadre v0.16) / 30 (cadre v0.17)",
+    "sealedReferencesCount": "1577 (cadre v0.11) / 1644 (cadre v0.12) / 1715 (cadre v0.13) / 1787 (cadre v0.14) / 1860 (cadre v0.15) / 1934 (cadre v0.16) / 2010 (cadre v0.17)",
+    "sealedDivergences": 9,
+    "unverifiableHistoricalLots": 0,
+    "allSealsFileCount": 41,
+    "allSealsReferenceCount": 3570,
+    "allSealsDivergences": 9,
+    "allSealsFrame": "arbre complet du paquet, v0.17 scelle inclus ; commande : node tools/seal-inventory.js <racine>",
+    "buildWindowOpened": 1789313214,
+    "buildWindowOpenedMethod": "DERIVE : min(files[].mtime) arrondi a la seconde paire superieure (NON-REGRESSION.md §7) ; rejoue par DOC-13, controle par DOC-20",
+    "fullHistoryByteIdentityConfirmed": "NO — 9 divergences preexistantes subsistent (MONO-07 x1, MONO-08/v0.6 x8)",
+    "mono10V11CausedRegression": "NO — soutenu sur 24 lots (cadre v0.11), pas 14",
+    "mono10V15CausedRegression": "NO",
+    "mono10V15ChangedAnyApi": "NO",
+    "mono10V15ChangedAnyBehaviour": "NO",
+    "openFindingsCount": 5,
+    "openFindingsResolvedByV017": 0,
+    "openFindingsFalsifiedAsResolved": "NO",
+    "knownFalseStatementsRemaining": 0,
+    "knownFalseStatementsRemainingMethod": "DERIVE apres execution de tous les detecteurs de test/test-mono10-v0.17-documentary.js sur le paquet livre (balayage recursif .md + .json) ; DOC-17 echoue si cette valeur differe de la mesure. Jamais pre-remplie : le champ vaut null tant que la mesure n'a pas eu lieu.",
+    "NETWORK_CALLS": 0,
+    "REAL_LLM_CALLS": 0,
+    "REAL_EF02_RUNS": 0,
+    "REAL_PROFESSIONAL_RUNS": 0,
+    "REAL_HUMAN_ACTS": 0,
+    "detectorSelfFailuresFound": "v0.16 declarait l'origine de deux documents en recopiant leur H1 (v0.7) au lieu de la mesurer : leur contenu date de v0.10. La provenance ne se croit pas, elle se mesure contre le lot nomme — c'est ce que fait desormais le constructeur (originTitledDocuments, documentHistory calcules sur les seize lots scelles) et ce que DOC-24 / DOC-27 / RT-08 re-mesurent. Aucune faussete nouvelle trouvee au-dela des residus releves par l'audit final de v0.16."
+  },
+  "declaredAssumptions": [
+    "Qui peut ecrire EVIDENCEFORGE_OPERATOR_TRUST_CONFIG ou les fichiers qu'il designe obtient une frontiere de PRODUCTION (TRUST-MODEL.md §7).",
+    "Deux fichiers de configuration reellement distincts sont deux racines ; deux alias du meme fichier sont la meme racine. Un renommage ouvre une NOUVELLE GENERATION (REPLAY-PROTECTION.md §15).",
+    "Le plafond de statut de preparation est une borne superieure, ET l'asymetrie « degrader seulement » n'est vraie que DE BOUT EN BOUT, pas a la couche d'assertion (READINESS.md).",
+    "La garde de contrats couvre des enumerations, pas la prose (CONTRACT-GUARD.md §6). C'est pourquoi les faussetes corrigees ici ont survecu plusieurs versions ; test/test-mono10-v0.17-documentary.js en couvre desormais vingt-six, recursivement, sur les .md et les .json.",
+    "Le lot ne prouve pas qu'un LLM reel a repondu : aucun appel reseau n'a lieu.",
+    "Une capacite certifiee n'est pas un artefact integralement prouve : la decision atteste le sujet et l'empreinte, pas les champs informatifs."
+  ],
+  "nonAttestedFields": [
+    "costUsd",
+    "configurationPresent",
+    "llmBoundaryId",
+    "callerVerifierIgnored",
+    "schemaVersion",
+    "probeTimestamp",
+    "capabilities",
+    "authMode",
+    "probeContract",
+    "failureReason",
+    "credentialPresenceProblem",
+    "callerTransportIgnored"
+  ],
+  "nonAttestedFieldsSource": "LLM-CAPABILITY-BOUNDARY.md, bloc CANONICAL:NON_ATTESTED_FIELDS — le nombre (12) est derive de cette enumeration par DOC-12 et COH-06, jamais recopie ; le schema non ferme est une propriete comptee a part.",
+  "generatedAt": "2026-09-13T15:41:58.422Z",
+  "fileCount": 77,
+  "files": [
+    {
+      "file": "ARCHITECTURE.md",
+      "size": 6376,
+      "sha256": "cd497bcceb586bfeee32b591e40409d2355c7127e8c2d73b5aaeae4a0a79be1c",
+      "mtime": 1789313214
+    },
+    {
+      "file": "ARTIFACT-REGISTRY-TRUST.md",
+      "size": 7993,
+      "sha256": "dd1372fcc08ef2de16d10253815109008ff3ec6c7c347a5cd74639ca39e8bc64",
+      "mtime": 1789313479
+    },
+    {
+      "file": "AUDIT-REMEDIATION-MATRIX.md",
+      "size": 24053,
+      "sha256": "77e639d3e2f57a658818d3c4211d75a84f00aaf1b4a334400d2d5d98cc80c298",
+      "mtime": 1789313479
+    },
+    {
+      "file": "AUDIT-VERDICTS.v0.12-v0.17.md",
+      "size": 2965,
+      "sha256": "04d43b92f92583a2583fa40f0fc2e373fa7aa5e60f9a838b27085f336ed12c77",
+      "mtime": 1789313653
+    },
+    {
+      "file": "CAPABILITY-AUTHORITIES.md",
+      "size": 11175,
+      "sha256": "8310465b73038f013c99b1cec629e4bef6daa4d2f2a359551c1b983f8d3e0a30",
+      "mtime": 1789313479
+    },
+    {
+      "file": "CONTRACT-GUARD.md",
+      "size": 2876,
+      "sha256": "20dc78c5da8695940bd41886d6f68980f4687eae29de3678ddf2bf8692a0ba03",
+      "mtime": 1789313214
+    },
+    {
+      "file": "CONTRACT-MAPPING.md",
+      "size": 5959,
+      "sha256": "aba307212d687c23b2890e7ded404dcb13efd4d0b20c86d11a5303b3685158c1",
+      "mtime": 1789313214
+    },
+    {
+      "file": "HISTORICAL-INPUT-AUTHORITY.md",
+      "size": 3062,
+      "sha256": "631ecc0923bb499a589590716e2b55d3158e01998921d252a08c3949b3ec0b76",
+      "mtime": 1789313214
+    },
+    {
+      "file": "HUMAN-ACT-AUTHENTICATION.md",
+      "size": 3035,
+      "sha256": "81965cd4b55473c0b89a95b6d152b251341e4022b793824255b1a4661fdb5343",
+      "mtime": 1789313214
+    },
+    {
+      "file": "KEY-MANAGEMENT.md",
+      "size": 3497,
+      "sha256": "c64ab61b2bdf14443a23f3982484f955db992984d023183c7a785d5367db5a2c",
+      "mtime": 1789313214
+    },
+    {
+      "file": "LINEAGE.md",
+      "size": 2926,
+      "sha256": "7d4027d0d851ce6c6a90083c52d35be906171e63e5a1737332ab33288070e1fd",
+      "mtime": 1789313214
+    },
+    {
+      "file": "LLM-CAPABILITY-BOUNDARY.md",
+      "size": 11087,
+      "sha256": "f3b22cdc63af47cacf8595d33663308e0763677398626b35c78503b0ab51d7e7",
+      "mtime": 1789313479
+    },
+    {
+      "file": "MIGRATION-v0.10-v0.11.md",
+      "size": 5739,
+      "sha256": "fa804081143438f0ed46487cae206d97a459e041543de577babc13a62ba95382",
+      "mtime": 1789313214
+    },
+    {
+      "file": "MIGRATION-v0.11-v0.12.md",
+      "size": 5278,
+      "sha256": "90722bacdadb99881385b49c273d2126758973947046d39fd7a706ad7e884d6e",
+      "mtime": 1789313214
+    },
+    {
+      "file": "MIGRATION-v0.12-v0.13.md",
+      "size": 6267,
+      "sha256": "08c6649b4ed48d5d38662a7c0a892197546d87a773cf519539cc6cb03d730341",
+      "mtime": 1789313214
+    },
+    {
+      "file": "MIGRATION-v0.13-v0.14.md",
+      "size": 9982,
+      "sha256": "176c4462b05fd256ebc092f0d73447c187ad9c7ee93e09e120b3af832345c990",
+      "mtime": 1789313479
+    },
+    {
+      "file": "MIGRATION-v0.14-v0.15.md",
+      "size": 8279,
+      "sha256": "56f635dc2446e870a56f87250e05f79931aeb1378d6b706e45d09574fb0f90e9",
+      "mtime": 1789313479
+    },
+    {
+      "file": "MIGRATION-v0.15-v0.16.md",
+      "size": 9222,
+      "sha256": "62ff2698dbd67bb6880890a1d384f2809a638ccef0a8b4985c622d9f257e08aa",
+      "mtime": 1789313919
+    },
+    {
+      "file": "MIGRATION-v0.16-v0.17.md",
+      "size": 8950,
+      "sha256": "f9fa572e23c4985a6c747974e99114fbc6e88496361570e2e9030f4dd4324654",
+      "mtime": 1789314010
+    },
+    {
+      "file": "NON-REGRESSION.md",
+      "size": 18229,
+      "sha256": "7ac0f561e9ecb5dea0a91f986baabf5c35bc06a4c86edc6eff5926777081da5e",
+      "mtime": 1789314010
+    },
+    {
+      "file": "OPEN-FINDINGS.md",
+      "size": 13903,
+      "sha256": "9cf0f3d16723604d9cc9ed8ea75ff0e5cf2f14d79477a952a1450ebb044e00fe",
+      "mtime": 1789313479
+    },
+    {
+      "file": "READINESS.md",
+      "size": 8614,
+      "sha256": "7407b5246579a9cad682eb956fc98330486942de115b8933fbc2ebd2ffeffe65",
+      "mtime": 1789313479
+    },
+    {
+      "file": "README.md",
+      "size": 19067,
+      "sha256": "68595706fe48203ec1dc1959850d0502875926ab9bccce8292a242d74cd53283",
+      "mtime": 1789314010
+    },
+    {
+      "file": "REPLAY-PROTECTION.md",
+      "size": 7726,
+      "sha256": "cbc612d245f3fa718bceca42926dcfc56271037775ccccae816b8e175acaf437",
+      "mtime": 1789313479
+    },
+    {
+      "file": "RUN-ORDER.md",
+      "size": 3798,
+      "sha256": "d1879dc2eaba7dd3063e0ccfac93a082faa066d4cdfda2a23dacbb981a48cf54",
+      "mtime": 1789313214
+    },
+    {
+      "file": "THREAT-MODEL.md",
+      "size": 15161,
+      "sha256": "4025d27ae4a43d86ab07ee37856f021478dfbbbe0bb46e819e20d7c3af49ea1a",
+      "mtime": 1789313479
+    },
+    {
+      "file": "TRUST-MODEL.md",
+      "size": 13556,
+      "sha256": "ae25e20a51e8b00acc782b274a52a4f7222459ee5e204d324b4acdb9201639a7",
+      "mtime": 1789313479
+    },
+    {
+      "file": "UPSTREAM-EVIDENCE-BINDING.md",
+      "size": 3712,
+      "sha256": "42ce8e7f824fa018dbb0a672c67771ae5e5789b25cfebe2f696b1452dacb3940",
+      "mtime": 1789313214
+    },
+    {
+      "file": "adapters/case-phase-adapter.js",
+      "size": 1314,
+      "sha256": "af6824a9fea176aa0aa22c98a35facc70654ffba24401671c153853f9d51be35",
+      "mtime": 1789313214
+    },
+    {
+      "file": "adapters/upstream-evidence-binder.js",
+      "size": 16452,
+      "sha256": "e6041f23dd6d0d78a8720bde515c62fbbaf701280bcd349c6b655e8560d189ce",
+      "mtime": 1789313214
+    },
+    {
+      "file": "contracts/canonical-contracts.json",
+      "size": 2616,
+      "sha256": "aab368eeb7e2e6e95fb06da6559ceb438b7f8006c89cb0ba5a77dcf3da67186e",
+      "mtime": 1789313214
+    },
+    {
+      "file": "core/artifact-capabilities.js",
+      "size": 15564,
+      "sha256": "dab67d312fbd1d3686a6264c703b782728509042d0e03597467108bef57f9953",
+      "mtime": 1789313214
+    },
+    {
+      "file": "core/authenticated-artifact-registry.js",
+      "size": 13434,
+      "sha256": "a7aef03e7e79ec80389b9e7f9e6543d686c822ad5b29615bf4455a6e233bfd04",
+      "mtime": 1789313214
+    },
+    {
+      "file": "core/authority-descriptor.js",
+      "size": 5896,
+      "sha256": "58300933ac14b6164cf8b9ccd39be79de9af843225f5bffbe0e342a0258a86dd",
+      "mtime": 1789313214
+    },
+    {
+      "file": "core/caller-assertion-guard.js",
+      "size": 4788,
+      "sha256": "7ab1c6c853067184fb2aa1e9f3ecb87a9aeeabca7bb7ab19305039f4cdb8416a",
+      "mtime": 1789313214
+    },
+    {
+      "file": "core/candidate-assessment.js",
+      "size": 13906,
+      "sha256": "b5a19e06b47ed9fa4df4e3bc94a270fb2f1170e4a876ef06d3f28d92c4a28e17",
+      "mtime": 1789313214
+    },
+    {
+      "file": "core/canonical-contracts.js",
+      "size": 5027,
+      "sha256": "9e61b7151840346a11573a57afdaba16d5b9e684e10813ea20e590c36dd9b5b8",
+      "mtime": 1789313214
+    },
+    {
+      "file": "core/canonical.js",
+      "size": 1660,
+      "sha256": "40648df70c422754e9eb1b4d5b66be8389cd53a2c0e17792ab5de36dc9c07dd5",
+      "mtime": 1789313214
+    },
+    {
+      "file": "core/downstream-authorization.js",
+      "size": 14933,
+      "sha256": "961830226c508ba9421b14a55656a2a8ece8560bb04516cdc4f6832dffe5af0f",
+      "mtime": 1789313214
+    },
+    {
+      "file": "core/effective-eligibility.js",
+      "size": 8528,
+      "sha256": "f3366dd40bc0c5ed59caada3f5422ef7d9681c04b5580c1da280224e8397cba1",
+      "mtime": 1789313214
+    },
+    {
+      "file": "core/evidence-source-provenance.js",
+      "size": 9326,
+      "sha256": "1cd75216562868a993b18afb295bb7ccc17196a1aa2294925b5e5863fa63cffd",
+      "mtime": 1789313214
+    },
+    {
+      "file": "core/final-report-acceptance.js",
+      "size": 9828,
+      "sha256": "61b8ad0c63d2754d2753173dda676aa647633a0e8c817db69f4b26e5f654a1ac",
+      "mtime": 1789313214
+    },
+    {
+      "file": "core/human-act-proof.js",
+      "size": 3487,
+      "sha256": "3f99a187a0afc8b6b5c8fe859d628028bbf464912249f5cd4fdeb83bb7b16ac2",
+      "mtime": 1789313214
+    },
+    {
+      "file": "core/human-act.js",
+      "size": 4137,
+      "sha256": "4e4ee4bc7b8ffdef0479e15cebac7eeb20a72b8cd8f2d025614c1954933f7ac9",
+      "mtime": 1789313214
+    },
+    {
+      "file": "core/identity-evidence.js",
+      "size": 10416,
+      "sha256": "bc415796aeabf781e3c24b7f016c98b7d831e6f71eecd9c8636b31d730d43694",
+      "mtime": 1789313214
+    },
+    {
+      "file": "core/key-lifecycle.js",
+      "size": 5143,
+      "sha256": "3407a567b33adac1d90d43a438170f31d24c3c58d134f121f68edf5480e5caad",
+      "mtime": 1789313214
+    },
+    {
+      "file": "core/lineage.js",
+      "size": 16044,
+      "sha256": "d34f2465f83758bdc04457e754909ad183a2be1a96642818b4b7c81fe6bce51c",
+      "mtime": 1789313214
+    },
+    {
+      "file": "core/llm-capability.js",
+      "size": 25451,
+      "sha256": "3a2bcc1584ef7635440c57d16ae4ca0b442cf357885d3a9529583cb82f1f3a93",
+      "mtime": 1789313214
+    },
+    {
+      "file": "core/operator-acceptance-boundary.js",
+      "size": 5250,
+      "sha256": "7063d46abe40f1aa2db9c54f863ca8084efaac69149e2513ff9e777081f2256a",
+      "mtime": 1789313214
+    },
+    {
+      "file": "core/operator-historical-input-authority.js",
+      "size": 11107,
+      "sha256": "6e4730d0d3163e77a785395b777c8e02e5f59bec5811ece9a5714069820e19af",
+      "mtime": 1789313214
+    },
+    {
+      "file": "core/operator-human-auth-boundary.js",
+      "size": 12760,
+      "sha256": "dfb6d2714fd045784dd38513de2e37063958fdd6b4ecf813ba57e015823220da",
+      "mtime": 1789313214
+    },
+    {
+      "file": "core/operator-llm-capability-boundary.js",
+      "size": 18766,
+      "sha256": "ba4dc089d43a778496517422bca1262f46a36b4afa07024add9a1b94ce48b084",
+      "mtime": 1789313214
+    },
+    {
+      "file": "core/operator-provenance-authority.js",
+      "size": 13935,
+      "sha256": "414020edec9f68b159fbc904fa21a741512bcc3b94a95b0a7ab5df596c26f21b",
+      "mtime": 1789313214
+    },
+    {
+      "file": "core/operator-trust-boundary.js",
+      "size": 26928,
+      "sha256": "811eb5b42246af3150429769283661961a574573fc0b21652495fbe63dbd6a11",
+      "mtime": 1789313214
+    },
+    {
+      "file": "core/operator-trust-verifier.js",
+      "size": 30157,
+      "sha256": "b69140ef01c7c31a907a6b3fb938635bccf21d4392891c0c6339427cef09904a",
+      "mtime": 1789313214
+    },
+    {
+      "file": "core/panel-gate.js",
+      "size": 16339,
+      "sha256": "49c62226e4ee35b97b3715ee511396f442d5459af1c9a05c1722b9f8f398ab94",
+      "mtime": 1789313214
+    },
+    {
+      "file": "core/panel-gated-adapter.js",
+      "size": 8565,
+      "sha256": "89508386cc71ea43ee93a36d0e218f199f68c7e10e7cc966e2f8cfd86ae403e2",
+      "mtime": 1789313214
+    },
+    {
+      "file": "core/relevance.js",
+      "size": 4709,
+      "sha256": "7fd3a0d1f69207d5411031c137b9ac3741c22a745a1e2a986c34cf2b0a8d0c78",
+      "mtime": 1789313214
+    },
+    {
+      "file": "core/replay-protection.js",
+      "size": 16083,
+      "sha256": "6d7c87e745516bc7506bc7a1809aab820026bb9b926528f95e49e71a48cc431f",
+      "mtime": 1789313214
+    },
+    {
+      "file": "core/run-evidence-manifest.js",
+      "size": 11566,
+      "sha256": "7468e676c605b1f4b69c25bdcd2b8a8fcdceb35c48b028f94c357c634ac277fb",
+      "mtime": 1789313214
+    },
+    {
+      "file": "core/runtime-attestation.js",
+      "size": 3464,
+      "sha256": "4f765ff07bfb4f629eb404718c50dfaef3065e5e37495892b9e10c696610a977",
+      "mtime": 1789313214
+    },
+    {
+      "file": "core/scientific-qualification.js",
+      "size": 17346,
+      "sha256": "403a8881c065ff36c9faffb62612fff655b1e964b201d8db3fafa189d00e4ea7",
+      "mtime": 1789313214
+    },
+    {
+      "file": "core/scientific-readiness.js",
+      "size": 32746,
+      "sha256": "670b99d24382bfda0207f651367b2e1527e405167231fad4be8190924f44aded",
+      "mtime": 1789313214
+    },
+    {
+      "file": "core/scientific-unified-report.js",
+      "size": 10835,
+      "sha256": "fffafe9295f5d91c15da948171090995d21d472db8b6e26c4d0f539c7bf98fb8",
+      "mtime": 1789313214
+    },
+    {
+      "file": "core/unknowns.js",
+      "size": 12722,
+      "sha256": "e993092503bb045c6ead26bdd1eea519ab5464eb31fe58a4c177f3c0e60012d9",
+      "mtime": 1789313214
+    },
+    {
+      "file": "governance/EvidenceForge-CHARTE-IDENTITE-ADN-GOUVERNANCE.md",
+      "size": 24628,
+      "sha256": "b4c160d008c33dd338979afd247945fee8dab862c96e0d1f2841c9ad87596a85",
+      "mtime": 1789313214
+    },
+    {
+      "file": "governance/README.md",
+      "size": 6176,
+      "sha256": "efa2421b6c26ae18e349b237c097fe58dce95bd5f5f2c54d7839c227160a0341",
+      "mtime": 1789313479
+    },
+    {
+      "file": "schemas/MONO-10-SCHEMAS-v0.11.json",
+      "size": 18407,
+      "sha256": "1bf46f231ebe8b9c6b357ac0c12680349355c370e219ad0d3f928fde5ec27f71",
+      "mtime": 1789313214
+    },
+    {
+      "file": "test/fixture-chain.js",
+      "size": 18962,
+      "sha256": "f07db536ac775fa4cd046bb4456736abc1d1d20418e3f20adac0cc81c762759e",
+      "mtime": 1789313214
+    },
+    {
+      "file": "test/test-mono10-v0.11-integration.js",
+      "size": 39449,
+      "sha256": "8b13f834c851eb3f100d460d67235dd58938b945cf53423a0a2b0ab8a520743f",
+      "mtime": 1789313214
+    },
+    {
+      "file": "test/test-mono10-v0.11.js",
+      "size": 41500,
+      "sha256": "d607968136673f4005788bddfe823885c0300cd1bcd411fa637f0f967e3853b3",
+      "mtime": 1789313214
+    },
+    {
+      "file": "test/test-mono10-v0.17-documentary.js",
+      "size": 110517,
+      "sha256": "ca927607026468e8b15f34e8808c6e63b86a2b83b66a568505ed9f44295b4ffb",
+      "mtime": 1789314103
+    },
+    {
+      "file": "tools/aggregate-hash.js",
+      "size": 1746,
+      "sha256": "f60ff7d96eb2bcd4889364d6c415d043f3b3aa5d666b55595ae903e02596a8e7",
+      "mtime": 1789313214
+    },
+    {
+      "file": "tools/operator-provisioning.js",
+      "size": 5422,
+      "sha256": "8c65f016a87bde91627b5666c92c18f1788f0406cfe7b0b5bfe31e32384add94",
+      "mtime": 1789313214
+    },
+    {
+      "file": "tools/reference-llm-transport.js",
+      "size": 1028,
+      "sha256": "6dfed592fe0ca0165cc9f8ec0a3538ee8000d176e905bfa393c948caa927a513",
+      "mtime": 1789313214
+    },
+    {
+      "file": "tools/seal-inventory.js",
+      "size": 8161,
+      "sha256": "ff81d15838f0487fe2c730f119a058ba7ea0c2316e1d4863cd1bab3fa725ef87",
+      "mtime": 1789313214
+    },
+    {
+      "file": "validators/index.js",
+      "size": 6442,
+      "sha256": "41c7098d06110c5c81937d6b7c7fb465414d6bc7e7dd2006ac988f6877e9330e",
+      "mtime": 1789313214
+    }
+  ],
+  "runtimeByteIdenticalTo": [
+    "MONO-10-v0.11",
+    "MONO-10-v0.12",
+    "MONO-10-v0.13",
+    "MONO-10-v0.14",
+    "MONO-10-v0.15",
+    "MONO-10-v0.16"
+  ],
+  "runtimeIdentityProof": {
+    "paths": [
+      "core/",
+      "adapters/",
+      "validators/",
+      "schemas/",
+      "contracts/",
+      "governance/EvidenceForge-CHARTE-IDENTITE-ADN-GOUVERNANCE.md",
+      "test/fixture-chain.js",
+      "test/test-mono10-v0.11.js",
+      "test/test-mono10-v0.11-integration.js",
+      "tools/aggregate-hash.js",
+      "tools/operator-provisioning.js",
+      "tools/reference-llm-transport.js"
+    ],
+    "result": "12/12 identiques octet pour octet, contre chacun des six lots de reference (72 comparaisons vides)",
+    "verifiableBy": "test/test-mono10-v0.17-documentary.js -> RT-01, RT-02, RT-03, RT-06, RT-07, RT-09 ; NON-REGRESSION.md §1 (commande rejouee par DOC-13)",
+    "note": "governance/ n'est PAS un chemin de ce perimetre : governance/README.md est un document, corrige a chaque lot documentaire depuis v0.13 (documentHistory), hors perimetre par decision de gouvernance (runtimePerimeterDecision). Seule la Charte y est. v0.13 listait governance/ entier ici, en contradiction avec sa propre decision (KF-6, corrige en v0.14). Les fichiers de test conservent volontairement leurs noms de v0.11 : les renommer aurait rompu l'identite du jeu de fichiers, donc la preuve."
+  },
+  "runtimePerimeterDecision": {
+    "decision": "governance/README.md est un DOCUMENT DE GOUVERNANCE, pas un composant runtime.",
+    "inPerimeter": [
+      "core/",
+      "adapters/",
+      "validators/",
+      "schemas/",
+      "contracts/",
+      "governance/EvidenceForge-CHARTE-IDENTITE-ADN-GOUVERNANCE.md",
+      "test/fixture-chain.js",
+      "test/test-mono10-v0.11.js",
+      "test/test-mono10-v0.11-integration.js",
+      "tools/aggregate-hash.js",
+      "tools/operator-provisioning.js",
+      "tools/reference-llm-transport.js"
+    ],
+    "outOfPerimeter": [
+      "governance/README.md",
+      "tous les autres .md",
+      "MANIFEST.json",
+      "SHA256SUMS.txt",
+      "tools/seal-inventory.js (ajout de v0.12, lecture seule, inchange depuis)",
+      "test/test-mono10-v0.17-documentary.js (ajout, lecture seule)"
+    ],
+    "condition": "la Charte reste byte-identique — condition de la decision, pas consequence",
+    "result": "72 comparaisons vides (12 chemins x 6 lots de reference)",
+    "verifiableBy": "test/test-mono10-v0.17-documentary.js -> RT-01, RT-02, RT-03, RT-06, RT-07, RT-09, RT-04 ; DOC-16 verifie que runtimeIdentityProof.paths egale inPerimeter"
+  },
+  "executableAdditions": [
+    {
+      "file": "tools/seal-inventory.js",
+      "role": "inventaire recursif des sceaux, LECTURE SEULE (ajout de v0.12, inchange)",
+      "writesAnything": false,
+      "participatesInSecurityDecision": false
+    },
+    {
+      "file": "test/test-mono10-v0.17-documentary.js",
+      "role": "controles de verite documentaire, LECTURE SEULE (mutations en memoire, aucune ecriture)",
+      "writesAnything": false,
+      "participatesInSecurityDecision": false
+    }
+  ],
+  "correctedStatements": [
+    {
+      "id": "B1",
+      "where": "HISTORICAL-INPUT-AUTHORITY.md:1, LINEAGE.md:1 ; MANIFEST.originTitledDocuments de v0.16",
+      "was": "titres « MONO-10 v0.7 » declares origine v0.7",
+      "reality": "contenu courant apparu en v0.10 (byte-identique de v0.10 a v0.17) ; RT-08 comparait a v0.11, DOC-24 croyait le H1",
+      "now": "origine conceptuelle (v0.7, le H1) distinguee de l'origine de contenu (v0.10), toutes deux MESUREES par le constructeur avec chemins, empreintes et verdict ; DOC-24 compare au lot nomme et re-mesure le premier lot identique ; fichiers non reecrits",
+      "verifiedBy": "DOC-24 RT-08"
+    },
+    {
+      "id": "B2",
+      "where": "MIGRATION-v0.13-v0.14.md:102 (et MIGRATION-v0.14-v0.15.md:86, MIGRATION-v0.15-v0.16.md:106)",
+      "was": "« NOT_FIXED_IN_V015 depuis » — ancien token presente comme courant ; DOC-19 tolerait tout bloc contenant « a l'epoque »",
+      "reality": "statut courant NOT_FIXED_IN_V017 (OPEN-FINDINGS.md)",
+      "now": "« a l'epoque de v0.NN : NOT_FIXED_IN_V0NN ; statut courant dans OPEN-FINDINGS.md » ; DOC-19 : ancien token tolere seulement dans la phrase « a l'epoque de v0.NN » (meme NN) ou cite, « depuis » refuse",
+      "verifiedBy": "DOC-19"
+    },
+    {
+      "id": "B3",
+      "where": "MANIFEST.originTitledDocuments, originTitledDocumentsNote",
+      "was": "{ fichier: version du H1 } recopie ; note « gardent le titre de la version qui les a ecrits » fausse pour deux documents",
+      "reality": "structure sans mesure",
+      "now": "entree par document : h1Version, conceptualOriginVersion, currentContentOriginVersion, originPath, currentSha256, originSha256, byteIdentical, note — calculee sur les lots scelles",
+      "verifiedBy": "DOC-24 RT-08 MAN-03"
+    },
+    {
+      "id": "N1",
+      "where": "H1 de TRUST-MODEL.md, ARTIFACT-REGISTRY-TRUST.md, LLM-CAPABILITY-BOUNDARY.md, READINESS.md, CAPABILITY-AUTHORITIES.md, REPLAY-PROTECTION.md",
+      "was": "parentheses « (contenu de vX, corrige en vY) » ecrites a la main ; fausses pour TRUST-MODEL et ARTIFACT-REGISTRY-TRUST (modifies aussi en v0.13)",
+      "reality": "historique reel : voir documentHistory (mesure)",
+      "now": "parentheses retirees ; MANIFEST.documentHistory mesure pour chaque .md, re-mesure par DOC-27",
+      "verifiedBy": "DOC-27"
+    },
+    {
+      "id": "N2",
+      "where": "test DOC-22",
+      "was": "borne de colonne substituee a la borne de heading",
+      "reality": "un heading faux etait masque par une colonne juste",
+      "now": "bornes verifiees separement",
+      "verifiedBy": "DOC-22"
+    },
+    {
+      "id": "N3",
+      "where": "test DOC-25, DOC-06",
+      "was": "mots-cles",
+      "reality": "retrait de artifactHash ou inversion « sont imputables » non detectes",
+      "now": "ensembles compares au code ; negation exigee",
+      "verifiedBy": "DOC-25 DOC-06"
+    }
+  ],
+  "detectorFixes": [
+    {
+      "id": "DOC-24",
+      "was": "H1 cru ; comparaison a v0.11 seulement (RT-08)",
+      "now": "origine conceptuelle / origine de contenu, empreintes, comparaison au lot NOMME, premier lot identique re-mesure ; temoins A, B, D + 4, cas C livre",
+      "expected": "ORIGIN_TITLE_BYTE_COMPARE_TARGETS_DECLARED_LOT = YES ; FALSE_ORIGIN_DECLARATION_CAUSAL = YES"
+    },
+    {
+      "id": "DOC-19",
+      "was": "ancien token tolere si « a l'epoque » figurait n'importe ou dans le bloc",
+      "now": "meme phrase, meme NN ; « depuis » refuse",
+      "expected": "STALE_STATUS_TOKEN_DETECTOR_CAUSAL = YES"
+    },
+    {
+      "id": "DOC-22",
+      "was": "borne de colonne masquant la borne de heading",
+      "now": "bornes independantes",
+      "expected": "DOC22_HEADING_AND_COLUMN_INDEPENDENT = YES"
+    },
+    {
+      "id": "DOC-25",
+      "was": "mots-cles",
+      "now": "enumerations comparees comme ensembles au code ; executionMode exige",
+      "expected": "DOC25_STRUCTURAL_SUBJECT_BINDING_CHECK = YES"
+    },
+    {
+      "id": "DOC-06",
+      "was": "mot-cle « imputables »",
+      "now": "negation exigee, affirmation refusee",
+      "expected": "DOC06_SEMANTIC_NOT_KEYWORD_ONLY = YES"
+    }
+  ],
+  "newDetectors": [
+    {
+      "id": "DOC-27",
+      "expected": "H1_VERSION_HISTORY_TRUTHFUL = YES (documentHistory mesure)"
+    }
+  ],
+  "originTitledDocuments": {
+    "ARCHITECTURE.md": {
+      "h1Version": "v0.11",
+      "conceptualOriginVersion": "v0.11",
+      "currentContentOriginVersion": "v0.11",
+      "originPath": "ARCHITECTURE.md",
+      "currentSha256": "cd497bcceb586bfeee32b591e40409d2355c7127e8c2d73b5aaeae4a0a79be1c",
+      "originSha256": "cd497bcceb586bfeee32b591e40409d2355c7127e8c2d73b5aaeae4a0a79be1c",
+      "byteIdentical": "YES"
+    },
+    "CONTRACT-GUARD.md": {
+      "h1Version": "v0.7",
+      "conceptualOriginVersion": "v0.7",
+      "currentContentOriginVersion": "v0.7",
+      "originPath": "CONTRACT-GUARD.md",
+      "currentSha256": "20dc78c5da8695940bd41886d6f68980f4687eae29de3678ddf2bf8692a0ba03",
+      "originSha256": "20dc78c5da8695940bd41886d6f68980f4687eae29de3678ddf2bf8692a0ba03",
+      "byteIdentical": "YES"
+    },
+    "CONTRACT-MAPPING.md": {
+      "h1Version": "v0.11",
+      "conceptualOriginVersion": "v0.11",
+      "currentContentOriginVersion": "v0.11",
+      "originPath": "CONTRACT-MAPPING.md",
+      "currentSha256": "aba307212d687c23b2890e7ded404dcb13efd4d0b20c86d11a5303b3685158c1",
+      "originSha256": "aba307212d687c23b2890e7ded404dcb13efd4d0b20c86d11a5303b3685158c1",
+      "byteIdentical": "YES"
+    },
+    "HISTORICAL-INPUT-AUTHORITY.md": {
+      "h1Version": "v0.7",
+      "conceptualOriginVersion": "v0.7",
+      "currentContentOriginVersion": "v0.10",
+      "originPath": "HISTORICAL-INPUT-AUTHORITY.md",
+      "currentSha256": "631ecc0923bb499a589590716e2b55d3158e01998921d252a08c3949b3ec0b76",
+      "originSha256": "631ecc0923bb499a589590716e2b55d3158e01998921d252a08c3949b3ec0b76",
+      "byteIdentical": "YES",
+      "note": "Origine CONCEPTUELLE v0.7 (le lot qui a concu le document, affichee par le H1) ≠ origine DE CONTENU v0.10 : le contenu courant est apparu en v0.10 et n'a pas change depuis ; v0.7 n'est pas l'origine du contenu."
+    },
+    "HUMAN-ACT-AUTHENTICATION.md": {
+      "h1Version": "v0.7",
+      "conceptualOriginVersion": "v0.7",
+      "currentContentOriginVersion": "v0.7",
+      "originPath": "HUMAN-ACT-AUTHENTICATION.md",
+      "currentSha256": "81965cd4b55473c0b89a95b6d152b251341e4022b793824255b1a4661fdb5343",
+      "originSha256": "81965cd4b55473c0b89a95b6d152b251341e4022b793824255b1a4661fdb5343",
+      "byteIdentical": "YES"
+    },
+    "KEY-MANAGEMENT.md": {
+      "h1Version": "v0.7",
+      "conceptualOriginVersion": "v0.7",
+      "currentContentOriginVersion": "v0.7",
+      "originPath": "KEY-MANAGEMENT.md",
+      "currentSha256": "c64ab61b2bdf14443a23f3982484f955db992984d023183c7a785d5367db5a2c",
+      "originSha256": "c64ab61b2bdf14443a23f3982484f955db992984d023183c7a785d5367db5a2c",
+      "byteIdentical": "YES"
+    },
+    "LINEAGE.md": {
+      "h1Version": "v0.7",
+      "conceptualOriginVersion": "v0.7",
+      "currentContentOriginVersion": "v0.10",
+      "originPath": "LINEAGE.md",
+      "currentSha256": "7d4027d0d851ce6c6a90083c52d35be906171e63e5a1737332ab33288070e1fd",
+      "originSha256": "7d4027d0d851ce6c6a90083c52d35be906171e63e5a1737332ab33288070e1fd",
+      "byteIdentical": "YES",
+      "note": "Origine CONCEPTUELLE v0.7 (le lot qui a concu le document, affichee par le H1) ≠ origine DE CONTENU v0.10 : le contenu courant est apparu en v0.10 et n'a pas change depuis ; v0.7 n'est pas l'origine du contenu."
+    },
+    "RUN-ORDER.md": {
+      "h1Version": "v0.7",
+      "conceptualOriginVersion": "v0.7",
+      "currentContentOriginVersion": "v0.7",
+      "originPath": "RUN-ORDER.md",
+      "currentSha256": "d1879dc2eaba7dd3063e0ccfac93a082faa066d4cdfda2a23dacbb981a48cf54",
+      "originSha256": "d1879dc2eaba7dd3063e0ccfac93a082faa066d4cdfda2a23dacbb981a48cf54",
+      "byteIdentical": "YES"
+    },
+    "UPSTREAM-EVIDENCE-BINDING.md": {
+      "h1Version": "v0.7",
+      "conceptualOriginVersion": "v0.7",
+      "currentContentOriginVersion": "v0.7",
+      "originPath": "UPSTREAM-EVIDENCE-BINDING.md",
+      "currentSha256": "42ce8e7f824fa018dbb0a672c67771ae5e5789b25cfebe2f696b1452dacb3940",
+      "originSha256": "42ce8e7f824fa018dbb0a672c67771ae5e5789b25cfebe2f696b1452dacb3940",
+      "byteIdentical": "YES"
+    }
+  },
+  "originTitledDocumentsNote": "Documents dont le H1 n'est pas la version courante. Chaque entree est MESUREE par le constructeur sur les lots scelles joignables : conceptualOriginVersion = version du H1 (le lot qui a concu le document) ; currentContentOriginVersion = PREMIER lot scelle ou le contenu courant apparait a l'identique ; originSha256 = empreinte du fichier dans ce lot ; byteIdentical = comparaison octet pour octet. Quand les deux versions different (HISTORICAL-INPUT-AUTHORITY.md, LINEAGE.md : concu en v0.7, contenu de v0.10), v0.7 est un ancetre CONCEPTUEL, pas l'origine du contenu. Controles : DOC-24, RT-08.",
+  "documentHistory": {
+    "ARCHITECTURE.md": {
+      "firstAppearedIn": "v0.1",
+      "changedIn": [
+        "v0.2",
+        "v0.3",
+        "v0.4",
+        "v0.5",
+        "v0.6",
+        "v0.7",
+        "v0.8",
+        "v0.9",
+        "v0.10",
+        "v0.11"
+      ]
+    },
+    "ARTIFACT-REGISTRY-TRUST.md": {
+      "firstAppearedIn": "v0.6",
+      "changedIn": [
+        "v0.7",
+        "v0.10",
+        "v0.11",
+        "v0.12",
+        "v0.13",
+        "v0.14",
+        "v0.15",
+        "v0.16",
+        "v0.17"
+      ]
+    },
+    "AUDIT-REMEDIATION-MATRIX.md": {
+      "firstAppearedIn": "v0.2",
+      "changedIn": [
+        "v0.3",
+        "v0.4",
+        "v0.5",
+        "v0.6",
+        "v0.7",
+        "v0.8",
+        "v0.9",
+        "v0.10",
+        "v0.11",
+        "v0.12",
+        "v0.13",
+        "v0.14",
+        "v0.15",
+        "v0.16",
+        "v0.17"
+      ]
+    },
+    "AUDIT-VERDICTS.v0.12-v0.17.md": {
+      "firstAppearedIn": "v0.17",
+      "changedIn": []
+    },
+    "CAPABILITY-AUTHORITIES.md": {
+      "firstAppearedIn": "v0.8",
+      "changedIn": [
+        "v0.10",
+        "v0.11",
+        "v0.13",
+        "v0.16",
+        "v0.17"
+      ]
+    },
+    "CONTRACT-GUARD.md": {
+      "firstAppearedIn": "v0.7",
+      "changedIn": []
+    },
+    "CONTRACT-MAPPING.md": {
+      "firstAppearedIn": "v0.1",
+      "changedIn": [
+        "v0.2",
+        "v0.3",
+        "v0.4",
+        "v0.5",
+        "v0.6",
+        "v0.7",
+        "v0.8",
+        "v0.9",
+        "v0.10",
+        "v0.11"
+      ]
+    },
+    "HISTORICAL-INPUT-AUTHORITY.md": {
+      "firstAppearedIn": "v0.7",
+      "changedIn": [
+        "v0.10"
+      ]
+    },
+    "HUMAN-ACT-AUTHENTICATION.md": {
+      "firstAppearedIn": "v0.6",
+      "changedIn": [
+        "v0.7"
+      ]
+    },
+    "KEY-MANAGEMENT.md": {
+      "firstAppearedIn": "v0.5",
+      "changedIn": [
+        "v0.6",
+        "v0.7"
+      ]
+    },
+    "LINEAGE.md": {
+      "firstAppearedIn": "v0.1",
+      "changedIn": [
+        "v0.2",
+        "v0.3",
+        "v0.4",
+        "v0.5",
+        "v0.6",
+        "v0.7",
+        "v0.10"
+      ]
+    },
+    "LLM-CAPABILITY-BOUNDARY.md": {
+      "firstAppearedIn": "v0.6",
+      "changedIn": [
+        "v0.7",
+        "v0.11",
+        "v0.12",
+        "v0.13",
+        "v0.14",
+        "v0.16",
+        "v0.17"
+      ]
+    },
+    "MIGRATION-v0.10-v0.11.md": {
+      "firstAppearedIn": "v0.11",
+      "changedIn": [
+        "v0.13",
+        "v0.14"
+      ]
+    },
+    "MIGRATION-v0.11-v0.12.md": {
+      "firstAppearedIn": "v0.12",
+      "changedIn": [
+        "v0.13",
+        "v0.14",
+        "v0.15"
+      ]
+    },
+    "MIGRATION-v0.12-v0.13.md": {
+      "firstAppearedIn": "v0.13",
+      "changedIn": [
+        "v0.14"
+      ]
+    },
+    "MIGRATION-v0.13-v0.14.md": {
+      "firstAppearedIn": "v0.14",
+      "changedIn": [
+        "v0.15",
+        "v0.17"
+      ]
+    },
+    "MIGRATION-v0.14-v0.15.md": {
+      "firstAppearedIn": "v0.15",
+      "changedIn": [
+        "v0.16",
+        "v0.17"
+      ]
+    },
+    "MIGRATION-v0.15-v0.16.md": {
+      "firstAppearedIn": "v0.16",
+      "changedIn": [
+        "v0.17"
+      ]
+    },
+    "MIGRATION-v0.16-v0.17.md": {
+      "firstAppearedIn": "v0.17",
+      "changedIn": []
+    },
+    "NON-REGRESSION.md": {
+      "firstAppearedIn": "v0.1",
+      "changedIn": [
+        "v0.2",
+        "v0.3",
+        "v0.4",
+        "v0.5",
+        "v0.6",
+        "v0.7",
+        "v0.8",
+        "v0.9",
+        "v0.10",
+        "v0.11",
+        "v0.12",
+        "v0.13",
+        "v0.14",
+        "v0.15",
+        "v0.16",
+        "v0.17"
+      ]
+    },
+    "OPEN-FINDINGS.md": {
+      "firstAppearedIn": "v0.13",
+      "changedIn": [
+        "v0.14",
+        "v0.15",
+        "v0.16",
+        "v0.17"
+      ]
+    },
+    "READINESS.md": {
+      "firstAppearedIn": "v0.8",
+      "changedIn": [
+        "v0.9",
+        "v0.10",
+        "v0.11",
+        "v0.12",
+        "v0.13",
+        "v0.16",
+        "v0.17"
+      ]
+    },
+    "README.md": {
+      "firstAppearedIn": "v0.3",
+      "changedIn": [
+        "v0.4",
+        "v0.5",
+        "v0.6",
+        "v0.7",
+        "v0.8",
+        "v0.9",
+        "v0.10",
+        "v0.11",
+        "v0.12",
+        "v0.13",
+        "v0.14",
+        "v0.15",
+        "v0.16",
+        "v0.17"
+      ]
+    },
+    "REPLAY-PROTECTION.md": {
+      "firstAppearedIn": "v0.5",
+      "changedIn": [
+        "v0.6",
+        "v0.7",
+        "v0.8",
+        "v0.9",
+        "v0.10",
+        "v0.11",
+        "v0.13",
+        "v0.16",
+        "v0.17"
+      ]
+    },
+    "RUN-ORDER.md": {
+      "firstAppearedIn": "v0.1",
+      "changedIn": [
+        "v0.2",
+        "v0.3",
+        "v0.4",
+        "v0.5",
+        "v0.6",
+        "v0.7"
+      ]
+    },
+    "THREAT-MODEL.md": {
+      "firstAppearedIn": "v0.4",
+      "changedIn": [
+        "v0.5",
+        "v0.6",
+        "v0.7",
+        "v0.8",
+        "v0.9",
+        "v0.10",
+        "v0.11",
+        "v0.12",
+        "v0.13",
+        "v0.14",
+        "v0.15",
+        "v0.16",
+        "v0.17"
+      ]
+    },
+    "TRUST-MODEL.md": {
+      "firstAppearedIn": "v0.4",
+      "changedIn": [
+        "v0.5",
+        "v0.6",
+        "v0.7",
+        "v0.8",
+        "v0.9",
+        "v0.10",
+        "v0.11",
+        "v0.12",
+        "v0.13",
+        "v0.14",
+        "v0.15",
+        "v0.16",
+        "v0.17"
+      ]
+    },
+    "UPSTREAM-EVIDENCE-BINDING.md": {
+      "firstAppearedIn": "v0.7",
+      "changedIn": []
+    },
+    "governance/README.md": {
+      "firstAppearedIn": "v0.4",
+      "changedIn": [
+        "v0.5",
+        "v0.6",
+        "v0.7",
+        "v0.8",
+        "v0.9",
+        "v0.10",
+        "v0.11",
+        "v0.13",
+        "v0.14",
+        "v0.15",
+        "v0.16",
+        "v0.17"
+      ]
+    }
+  },
+  "documentHistoryNote": "Pour chaque .md du lot : firstAppearedIn (premier lot scelle ou le fichier existe) et changedIn (chaque lot ou son contenu a change, v0.17 compris s'il change dans ce lot). Mesure par le constructeur sur v0.1..v0.16, re-mesure par DOC-27. Remplace les parentheses « (contenu de vX, corrige en vY) » des H1, ecrites a la main jusqu'en v0.16.",
+  "documentStructure": {
+    "THREAT-MODEL.md": {
+      "6. Ce que le lot ne prétend pas": 8,
+      "7. Ce que ce modèle de menace ne couvre PAS (corrections v0.12 à v0.17)": 0,
+      "Note sur les étiquettes de réserve": 2
+    },
+    "README.md": {
+      "Hypothèses déclarées": 6,
+      "Ce que ce lot NE garantit PAS": 5,
+      "Lecture": 0
+    },
+    "NON-REGRESSION.md": {
+      "5. Ce que v0.17 ne prétend pas": 3,
+      "6. Vérification permanente": 2
+    },
+    "OPEN-FINDINGS.md": {
+      "R4 — neuf divergences de sceau historiques, préexistantes": 2,
+      "R1 — le résultat de sonde déclaré n'est pas confronté à la certification": 2
+    }
+  },
+  "documentStructureNote": "Nombre d'items de liste de premier niveau attendu par section (cle : texte du heading). Declare par le constructeur, compare par DOC-14 : un deplacement de puces, meme separe par des lignes vides, change les comptes.",
+  "causalWitnessRule": "Pour chaque detecteur : PASS_CLEAN (paquet livre), FAIL_SINGLE_TARGET_FAULT (une faute cible dans un document reel, le harnais verifie qu'un seul fichier a change), PASS_AFTER_REVERT (ce seul document restaure). Mutations en memoire du contenu reel : aucune ecriture, nulle part.",
+  "knownOpenFindings": [
+    {
+      "id": "R1",
+      "title": "resultat de sonde declare non confronte",
+      "status": "OPEN",
+      "blocking": false,
+      "resolvedByV017": false,
+      "fixedIn": "NOT_FIXED_IN_V017",
+      "compensatingLayer": "assertCapabilityUsable, puis qualifyProcess, puis autorisation aval",
+      "reachesQualified": false,
+      "reachesAuthorized": false
+    },
+    {
+      "id": "R2",
+      "title": "assertion de preparation plus permissive que son consommateur critique",
+      "status": "OPEN",
+      "blocking": false,
+      "resolvedByV017": false,
+      "fixedIn": "NOT_FIXED_IN_V017",
+      "compensatingLayer": "qualifyProcess (recalcul depuis les sources), puis autorisation aval",
+      "reachesQualified": false,
+      "reachesAuthorized": false
+    },
+    {
+      "id": "R3",
+      "title": "douze champs informatifs non attestes ; schema non ferme",
+      "status": "OPEN",
+      "blocking": false,
+      "resolvedByV017": false,
+      "fixedIn": "NOT_FIXED_IN_V017",
+      "compensatingLayer": "aucune couche n'en a besoin : aucun consommateur critique ne les lit",
+      "fieldCountDerivedFrom": "nonAttestedFields"
+    },
+    {
+      "id": "R4",
+      "title": "9 divergences de sceau historiques preexistantes",
+      "status": "OPEN",
+      "blocking": false,
+      "resolvedByV017": false,
+      "fixedIn": "NOT_FIXED_IN_V017",
+      "compensatingLayer": "hors perimetre MONO-10 — decision du proprietaire sur MONO-07 et MONO-08/v0.6",
+      "attributableToV011": false,
+      "attributableToV012": false,
+      "attributableToV013": false,
+      "attributableToV014": false,
+      "attributableToV015": false,
+      "attributableToV016": false,
+      "attributableToV017": false
+    },
+    {
+      "id": "R5",
+      "title": "LLM_SUBJECT_OUT_OF_ALLOWLIST inatteignable",
+      "status": "OPEN",
+      "blocking": false,
+      "resolvedByV017": false,
+      "fixedIn": "NOT_FIXED_IN_V017",
+      "compensatingLayer": "garantie comportementale : refus de sujet (LLM_SUBJECT_MISMATCH) et probe() en amont",
+      "behaviouralGuaranteeHolds": true
+    }
+  ],
+  "sealInventory": {
+    "method": "recursif sur SHA256SUMS et SHA256SUMS.txt, y compris manifest/ ; aucune liste codee en dur ; chaque cadre nomme ses lots exclus ; chaque commande imprimee est rejouee (DOC-13)",
+    "tool": "tools/seal-inventory.js",
+    "frameV011": {
+      "excluded": [
+        "MONO-10/v0.11",
+        "MONO-10/v0.12",
+        "MONO-10/v0.13",
+        "MONO-10/v0.14",
+        "MONO-10/v0.15",
+        "MONO-10/v0.16",
+        "MONO-10/v0.17"
+      ],
+      "sealedHistoricalLots": 24,
+      "sealedReferences": 1577,
+      "sealedDivergences": 9,
+      "unverifiableHistoricalLots": 0
+    },
+    "frameV012": {
+      "excluded": [
+        "MONO-10/v0.12",
+        "MONO-10/v0.13",
+        "MONO-10/v0.14",
+        "MONO-10/v0.15",
+        "MONO-10/v0.16",
+        "MONO-10/v0.17"
+      ],
+      "sealedHistoricalLots": 25,
+      "sealedReferences": 1644,
+      "sealedDivergences": 9,
+      "unverifiableHistoricalLots": 0
+    },
+    "frameV013": {
+      "excluded": [
+        "MONO-10/v0.13",
+        "MONO-10/v0.14",
+        "MONO-10/v0.15",
+        "MONO-10/v0.16",
+        "MONO-10/v0.17"
+      ],
+      "sealedHistoricalLots": 26,
+      "sealedReferences": 1715,
+      "sealedDivergences": 9,
+      "unverifiableHistoricalLots": 0
+    },
+    "frameV014": {
+      "excluded": [
+        "MONO-10/v0.14",
+        "MONO-10/v0.15",
+        "MONO-10/v0.16",
+        "MONO-10/v0.17"
+      ],
+      "sealedHistoricalLots": 27,
+      "sealedReferences": 1787,
+      "sealedDivergences": 9,
+      "unverifiableHistoricalLots": 0
+    },
+    "frameV015": {
+      "excluded": [
+        "MONO-10/v0.15",
+        "MONO-10/v0.16",
+        "MONO-10/v0.17"
+      ],
+      "sealedHistoricalLots": 28,
+      "sealedReferences": 1860,
+      "sealedDivergences": 9,
+      "unverifiableHistoricalLots": 0
+    },
+    "frameV016": {
+      "excluded": [
+        "MONO-10/v0.16",
+        "MONO-10/v0.17"
+      ],
+      "sealedHistoricalLots": 29,
+      "sealedReferences": 1934,
+      "sealedDivergences": 9,
+      "unverifiableHistoricalLots": 0
+    },
+    "frameV017": {
+      "excluded": [
+        "MONO-10/v0.17"
+      ],
+      "sealedHistoricalLots": 30,
+      "sealedReferences": 2010,
+      "sealedDivergences": 9,
+      "unverifiableHistoricalLots": 0,
+      "measuredAfterSealing": true,
+      "command": "node tools/seal-inventory.js <racine> MONO-10/v0.17"
+    },
+    "allSeals": {
+      "frame": "arbre complet du paquet, v0.17 scelle inclus",
+      "command": "node tools/seal-inventory.js <racine>",
+      "files": 41,
+      "references": 3570,
+      "divergences": 9
+    },
+    "frameNote": "Sept cadres, sept jeux de chiffres, tous vrais et tous rejoues. Le cadre doit TOUJOURS etre nomme : citer « 24 lots » sans dire « cadre v0.11 » est deja une inexactitude (residu B1 de v0.14, desormais detecte par DOC-05). Le total « 35 / 3127 » publie par v0.12 et v0.13 etait celui de l'arbre de v0.12 (KF-3) ; il n'est plus publie comme courant.",
+    "divergences": {
+      "MONO-07": [
+        "package.json"
+      ],
+      "MONO-08/v0.6": [
+        "CDC-TRACE.md",
+        "bin/run-real-smoke.js",
+        "fixtures/mission-real-smoke-v1.json",
+        "lib/eforch-artifacts.js",
+        "lib/real-e2e-driver.js",
+        "lib/real-provider-configs.js",
+        "reports/mono-08-test-report-v1.json",
+        "test/test_t08_runner_orchestration.js"
+      ]
+    },
+    "divergencesPreexisting": true,
+    "divergencesMtimeRange": "2026-08-31T23:02 .. 2026-09-03T14:29 (heure locale)",
+    "buildWindowMethod": "buildWindowOpened = mtime UNIX minimal de tous les fichiers du lot, hors zip de livraison, arrondi a la seconde paire superieure (granularite du format zip). DERIVE de files[].mtime par le constructeur, jamais saisi ; commande publiee dans NON-REGRESSION.md §7, rejouee par DOC-13 ; controle causal DOC-20 (ecart d'une seconde = FAIL).",
+    "v011BuildWindowOpened": "2026-09-12T19:17:16Z (unix 1789240636) — tel que rapporte par v0.11",
+    "v012BuildWindowOpened": "2026-09-13T07:06:24Z (unix 1789283184) — tel que rapporte par v0.12",
+    "v013BuildWindowOpened": "2026-09-13T07:49:04Z (unix 1789285744) — tel que rapporte par v0.13",
+    "v014BuildWindowOpened": "2026-09-13T09:23:13Z (unix 1789291393) — tel que rapporte par v0.14 ; valeur SAISIE, non reproductible (residu B2 de v0.14) : le mtime minimal du lot v0.14 est 1789290199",
+    "v015BuildWindowOpened": "2026-09-13T10:26:26Z (unix 1789295186) — tel que rapporte par v0.15, derive par la methode canonique, reproduit par l'audit final de v0.15",
+    "v016BuildWindowOpened": "2026-09-13T13:34:20Z (unix 1789306460) — tel que rapporte par v0.16, derive par la methode canonique, reproduit par l'audit final de v0.16",
+    "v017BuildWindowOpened": 1789313214,
+    "v017BuildWindowOpenedIso": "2026-09-13T15:26:54.000Z"
+  },
+  "deltaClassification": {
+    "DOCUMENTATION": [
+      "README.md",
+      "governance/README.md",
+      "OPEN-FINDINGS.md",
+      "THREAT-MODEL.md",
+      "AUDIT-REMEDIATION-MATRIX.md",
+      "LLM-CAPABILITY-BOUNDARY.md",
+      "TRUST-MODEL.md",
+      "ARTIFACT-REGISTRY-TRUST.md",
+      "READINESS.md",
+      "CAPABILITY-AUTHORITIES.md",
+      "REPLAY-PROTECTION.md",
+      "MIGRATION-v0.13-v0.14.md",
+      "MIGRATION-v0.14-v0.15.md",
+      "MIGRATION-v0.15-v0.16.md",
+      "MIGRATION-v0.16-v0.17.md",
+      {
+        "file": "AUDIT-VERDICTS.v0.12-v0.17.md",
+        "replaces": "AUDIT-VERDICTS.v0.12-v0.16.md"
+      }
+    ],
+    "NON_REGRESSION": [
+      "NON-REGRESSION.md"
+    ],
+    "MANIFEST": [
+      "MANIFEST.json",
+      "SHA256SUMS.txt"
+    ],
+    "DOCUMENTARY_TEST": [
+      {
+        "file": "test/test-mono10-v0.17-documentary.js",
+        "replaces": "test/test-mono10-v0.16-documentary.js"
+      }
+    ],
+    "READ_ONLY_AUDIT_TOOL": [],
+    "RUNTIME": [],
+    "TEST_RUNTIME": [],
+    "OTHER": [],
+    "nonDocumentaryDeltaCount": 0
+  }
+}

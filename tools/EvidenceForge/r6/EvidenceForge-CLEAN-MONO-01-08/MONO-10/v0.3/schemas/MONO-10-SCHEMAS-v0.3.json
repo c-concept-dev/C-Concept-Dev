@@ -1,0 +1,163 @@
+{
+  "$comment": "MONO-10 v0.3 — schemas IMPLEMENTES. Noyau generique : aucun cas, domaine, fournisseur ni registre. Changement structurant : aucune valeur auto-declaree ne constitue une preuve.",
+  "schemaFamily": "EvidenceForge.MONO-10",
+  "schemaVersion": "MONO-10-v3",
+  "supersedes": "MONO-10-v2",
+  "frozenLotsUntouched": ["MONO-01..MONO-08", "MONO-09 v0.1", "MONO-09 v0.2", "MONO-10 v0.1", "MONO-10 v0.2"],
+  "genericCoreBoundary": {
+    "core": "core/ — noyau universel, y compris l'adaptateur a porte LIVRE",
+    "adapters": "adapters/ — traductions de cas et declarations d'autorite, optionnelles",
+    "rule": "aucun nom de cas, de domaine, de fournisseur ni de registre dans core/"
+  },
+  "breakingChanges": [
+    "ExecutionEvidenceClass n'a plus AUCUNE force probante : la provenance vient du RunEvidenceManifest et du runBinding croise.",
+    "IdentityEvidence.provider est remplace par sourceAuthorityId + sourceFamilyId : l'independance se declare, elle ne se deduit pas.",
+    "Unknown.status est DERIVE de transitions[] : un champ force est rejete (UNKNOWN_STATUS_FORGED).",
+    "ScientificReadiness porte requiredDimensions/assessedDimensions : la phase est definie par ce qui a ete evalue, pas par une etiquette.",
+    "ScientificQualification RECALCULE les deux preparations ; readinessPre/readinessFull presentes sont compares, jamais crus.",
+    "FinalReportAcceptance exige le rapport concret ; la reference seule ne vaut plus rien.",
+    "DownstreamUseAuthorization revalide toutes ses entrees ; policy.revalidationRequired vaut true par defaut."
+  ],
+  "commonTypes": {
+    "ArtifactRef": {
+      "artifactId": "string non vide",
+      "artifactType": "string|null — schema attendu",
+      "schemaVersion": "string|null",
+      "sha256": "64 hex, canonique, calcule hors runBinding",
+      "runId": "string|null",
+      "note": "une reference ne vaut que RESOLUE contre un registre d'artefacts disponibles (resolveLineage)"
+    },
+    "RunBinding": {
+      "runId": "string",
+      "manifestHash": "64 hex",
+      "artifactId": "string",
+      "artifactHash": "64 hex — empreinte de l'artefact hors runBinding",
+      "crossHash": "64 hex — sha256(manifestHash, runId, artifactId, artifactHash)",
+      "note": "un artefact ne peut pas se donner ce champ a lui-meme : le manifeste enregistre l'entree symetrique"
+    },
+    "HumanAct": {
+      "actorType": { "const": "human" },
+      "actorIdentity": "string non vide — jamais pre-remplie par le moteur",
+      "decidedAt": "ISO-8601 reel"
+    },
+    "IdentityEvidence": {
+      "evidenceType": "string opaque",
+      "sourceAuthorityId": "string|null — autorite emettrice DECLAREE ; null => independance inconnaissable",
+      "sourceFamilyId": "string|null — famille d'autorites DECLAREE",
+      "provenanceRoot": "string|null",
+      "identifier": "string|null",
+      "assertedValue": "string|null",
+      "subjectBinding": { "enum": ["CONFIRMED", "ASSERTED", "AMBIGUOUS", "UNKNOWN"] },
+      "verificationStatus": { "enum": ["VERIFIED", "UNVERIFIED", "CONFLICTING", "UNKNOWN"] },
+      "confidenceContribution": "number 0..1",
+      "note": "evidenceType = \"display-name\" ne contribue jamais : un nom n'est pas une identite resolue"
+    },
+    "Independence": {
+      "enum": ["INDEPENDENT", "SAME_AUTHORITY", "SAME_FAMILY", "INDEPENDENCE_UNKNOWN"],
+      "note": "seul INDEPENDENT compte ; UNKNOWN ne vaut jamais independance"
+    },
+    "Unknown": {
+      "unknownId": "string",
+      "genesisHash": "64 hex",
+      "originArtifact": "string",
+      "reason": "string non vide",
+      "blockingStatus": { "enum": ["BLOCKING", "NON_BLOCKING", "NOT_ASSESSED"] },
+      "evidenceRefs": "string[]",
+      "transitions": "UnknownTransition[]",
+      "status": "DERIVE de transitions[] — un champ incoherent est rejete"
+    },
+    "UnknownTransition": {
+      "transitionId": "64 hex — sha256 de l'evenement complet",
+      "fromStatus": "string",
+      "toStatus": { "enum": ["RESOLVED", "SUPERSEDED", "RECLASSIFIED"] },
+      "reason": "string non vide — OBLIGATOIRE",
+      "evidenceRefs": "string[] non vide — OBLIGATOIRE",
+      "decidedAt": "ISO-8601 reel",
+      "previousEventHash": "64 hex — chaine l'evenement precedent ; une divergence est un fork"
+    }
+  },
+  "artifacts": {
+    "RunEvidenceManifest": {
+      "produit_par": "le runtime, jamais un artefact",
+      "champs": ["runId", "executionMode(TEST|PRODUCTION)", "producers[]", "missionBinding", "createdAt", "artifacts[]", "manifestHash"],
+      "invariant": "aucun secret ; un manifeste TEST ne produit jamais de preuve de production"
+    },
+    "ProfessionalCandidateAssessment": {
+      "schemaVersion": "MONO-10-v3",
+      "champs": ["assessmentId", "missionId", "missionLabels[]", "assessesDiscoveryRef", "assessesVerificationRef", "assessments[]", "unknowns[]", "summary", "disclaimer"],
+      "assessmentStatus": { "enum": ["PRESENT_FOR_HUMAN_REVIEW", "INSUFFICIENT_DOCUMENTARY_BASIS", "IDENTITY_AMBIGUOUS", "OUT_OF_SCOPE_DOCUMENTARILY"] },
+      "invariant": "aucun etat ne vaut admission ; aucun etat ne juge la competence reelle d'une personne"
+    },
+    "ProfessionalPanelValidation": {
+      "schemaVersion": "MONO-10-v3",
+      "liaisons_recalculees": ["missionHash", "candidateAssessmentHash", "validatesAssessmentRef", "validatesDiscoveryRef", "validatesVerificationRef", "decisions[].evidenceRefsHash", "decisions[].candidateBindingHash"],
+      "decision": { "enum": ["APPROVE_FOR_DOCUMENTARY_PANEL", "REJECT", "DEFER"] },
+      "invariant": "exhaustivite sur tous les presentables ; APPROVE impossible sur une identite AMBIGUOUS ; DEFER est un etat legitime"
+    },
+    "EffectiveCorpusEligibility": {
+      "schemaVersion": "MONO-10-v3",
+      "champs": ["candidateId", "legacyVerificationStatus", "humanPanelDecision", "effectiveCorpusEligibility", "eligibilitySource", "eligibilityReason", "evidenceRefs", "policy"],
+      "effectiveCorpusEligibility": { "enum": ["ELIGIBLE_BY_HUMAN_PANEL_APPROVAL", "ELIGIBLE_BY_LEGACY_VERIFICATION", "NOT_ELIGIBLE", "DEFERRED"] },
+      "invariant": "legacyVerificationStatus est une COPIE immuable du constat amont ; il n'est jamais reecrit"
+    },
+    "LlmCapability": {
+      "schemaVersion": "MONO-10-v3",
+      "champs": ["providerId", "modelId", "workerBindingId", "authMode", "configurationPresent", "credentialPresenceAttested", "credentialProbeSkipped", "credentialProbeSkippedAttested", "probeExecuted", "probeStatus", "probeTimestamp", "requestId", "responseSchemaValidated", "capabilities[]", "costUsd", "probeContract", "status", "failureReason"],
+      "status": { "enum": ["DECLARED", "CONFIGURED", "PROBED", "AVAILABLE", "DEGRADED", "UNAVAILABLE"] },
+      "invariants": [
+        "credentialPresenceAttested est un BOOLEEN — jamais une cle, jamais un secret",
+        "credentialProbeSkipped doit valoir explicitement false ET etre atteste : l'absence est un rejet",
+        "la charge de sonde est refusee si une cle JSON est dupliquee",
+        "providerId, modelId ET workerBindingId sont compares a la configuration"
+      ]
+    },
+    "ScientificReadiness": {
+      "schemaVersion": "MONO-10-v3",
+      "champs": ["readinessId", "phase(PRE|FULL)", "requiredDimensions[]", "assessedDimensions[]", "status", "dimensions[]", "blockingDimensions[]", "reservations[]", "unknowns[]", "lineageResolved", "resolvedLineageRefs[]", "inputsBinding", "inputsBindingHash"],
+      "status": { "enum": ["READY", "PARTIAL", "NOT_READY"] },
+      "phaseDimensions": {
+        "PRE": ["candidateAssessment", "professionalPanelGate", "blockingAmbiguities", "llmCapability", "lineage", "unknowns"],
+        "FULL": ["... PRE ...", "professionalCorpus", "documentaryTwins", "reviewCoverage", "aggregation"]
+      },
+      "invariant": "la phase est definie par les dimensions REELLEMENT evaluees ; une PRE reetiquetee FULL est rejetee"
+    },
+    "ScientificQualification": {
+      "schemaVersion": "MONO-10-v3",
+      "champs": ["qualificationId", "qualificationStatus", "scope(PROCESS_ONLY)", "doesNotDecideVerdict", "verdictPermitted", "scientificallyActionableVerdict", "readinessRecomputed", "recomputedReadinessPre", "recomputedReadinessFull", "criteria[]", "reservations[]", "unknowns[]", "limitations[]"],
+      "qualificationStatus": { "enum": ["QUALIFIED", "QUALIFIED_WITH_RESERVATIONS", "NOT_QUALIFIED", "IMPOSSIBLE_TO_ASSESS"] },
+      "invariants": [
+        "les deux preparations sont RECALCULEES sur les artefacts sources",
+        "les inconnus proviennent des sources, jamais du tableau presente",
+        "NOT_QUALIFIED n'efface ni ne modifie aucun verdict anterieur : il en bloque l'usage aval",
+        "le nombre d'experts n'est jamais un critere"
+      ]
+    },
+    "ScientificUnifiedReport": {
+      "schemaVersion": "MONO-10-v3",
+      "champs": ["missionId", "runId", "priorReportReference", "priorScientificValidity", "priorTestMode", "priorHumanProfessionalValidation", "qualificationId", "qualificationHash", "qualificationStatusReported", "priorVerdict", "priorVerdictPreserved", "scientificallyActionableVerdict", "reservations[]", "unknowns[]", "lineage[]", "invariants[]"],
+      "invariant": "ADDITIF : ne reecrit jamais le rapport anterieur ; un seul run et une seule mission par rapport"
+    },
+    "FinalReportAcceptance": {
+      "schemaVersion": "MONO-10-v3",
+      "champs": ["reportRef", "reportRunId", "qualificationId", "presentedDigest", "reservationsPresented[]", "unknownsPresented[]", "decision", "reservationsAcknowledged[]", "actorType", "actorIdentity", "decidedAt"],
+      "decision": { "enum": ["ACCEPT_AS_REPORTED", "ACCEPT_WITH_RESERVATIONS", "REJECT_FOR_REVIEW"] },
+      "champsInterdits": ["finalVerdict", "verdict", "priorVerdict", "scientificallyActionableVerdict", "qualificationStatus", "downstreamUseAuthorized"],
+      "invariant": "le rapport concret est OBLIGATOIRE a la validation ; le contenu presente a l'humain doit etre celui du rapport"
+    },
+    "DownstreamUseAuthorization": {
+      "schemaVersion": "MONO-10-v3",
+      "champs": ["downstreamUseAuthorized", "authorization", "reasons[]", "policy", "revalidation", "qualificationRef", "reportRef", "rewritesVerdict"],
+      "authorization": { "enum": ["AUTHORIZED", "NOT_AUTHORIZED", "DEFERRED"] },
+      "invariant": "toutes les entrees sont revalidees ; rien n'est admis sur sa propre declaration ; aucun verdict n'est reecrit"
+    }
+  },
+  "caseAdapters": {
+    "CasePhaseAuthorization": {
+      "schemaVersion": "MONO-10-v3-adapter",
+      "note": "le nom de phase est une DONNEE de l'appelant ; le noyau ne le connait jamais"
+    },
+    "DeclaredAuthorityIdentityExtractor": {
+      "note": "fournit sourceAuthorityId/sourceFamilyId depuis une table injectee ; une cle absente => autorite nulle => independance INCONNUE"
+    }
+  }
+}

@@ -1,0 +1,152 @@
+{
+  "lot": "MONO-10-v0.2",
+  "title": "Scientific qualification — generic core",
+  "additiveOver": [
+    "MONO-01..MONO-08",
+    "MONO-09 v0.1",
+    "MONO-09 v0.2",
+    "MONO-10 v0.1"
+  ],
+  "closesFindings": [
+    "F-01",
+    "F-02",
+    "F-03",
+    "F-04",
+    "F-05",
+    "F-06",
+    "F-07",
+    "F-08"
+  ],
+  "documentsHonestly": [
+    "F-09"
+  ],
+  "generatedAt": "2026-09-11T20:36:32.748Z",
+  "fileCount": 25,
+  "files": [
+    {
+      "file": "ARCHITECTURE.md",
+      "size": 3601,
+      "sha256": "27450885484da62839d7fc6783f2f35e7b7f019add210de33eb6c93c6c55eaa4"
+    },
+    {
+      "file": "AUDIT-REMEDIATION-MATRIX.md",
+      "size": 3421,
+      "sha256": "a2fef665f1e5688c7d0e945a4a8cd96a4d9b274acaeaaa208de2926f10ccc723"
+    },
+    {
+      "file": "CONTRACT-MAPPING.md",
+      "size": 2155,
+      "sha256": "f7fa32c0bccfc4248cb2a5e93ec39353ab4aa1b2139d56439d7394b4a9682a59"
+    },
+    {
+      "file": "LINEAGE.md",
+      "size": 2030,
+      "sha256": "3b550ddb3ea5a4bfae1a20204c16e49667709dcf3e371f6c6de30b40887d7482"
+    },
+    {
+      "file": "MIGRATION-v0.1-v0.2.md",
+      "size": 2665,
+      "sha256": "a61c799943e71801b6a118dce6cf4bd6f9c1c7b538ae2e5d0b139477dc7cc091"
+    },
+    {
+      "file": "MONO-10-SCHEMAS-v0.2.json",
+      "size": 9653,
+      "sha256": "2dc9ed72cecdb59a5edcba8031c2e9f560df0ad9c7fa8aeb61ad9095319c391d"
+    },
+    {
+      "file": "NON-REGRESSION.md",
+      "size": 3671,
+      "sha256": "c3752c25db8ff14b75617cf80f73ac829aa9ad3f8c27ccb2eff0ff1799f772af"
+    },
+    {
+      "file": "RUN-ORDER.md",
+      "size": 2134,
+      "sha256": "b1908f95acbe3fcd28c08304335085155a0fed95e18942b5256159feb05d2287"
+    },
+    {
+      "file": "adapters/README.md",
+      "size": 453,
+      "sha256": "0cf58e4f148b1c99624cf53edde4414f70920973f7d3eafb461e16ea731db05e"
+    },
+    {
+      "file": "adapters/case-phase-adapter.js",
+      "size": 1461,
+      "sha256": "2b18610f8d29bcf14059992b3faa9bffe5f7b69c62fa338a6c43c29f67757fa0"
+    },
+    {
+      "file": "core/candidate-assessment.js",
+      "size": 10333,
+      "sha256": "86c47c9ac521498542a8a3a75e9f0d5c90b38a3e6886f9a19aa366ac96fe910e"
+    },
+    {
+      "file": "core/downstream-authorization.js",
+      "size": 4095,
+      "sha256": "0db950dae5599ffeb74fab5f292ba76663c4076bb1c9c19631865879bdb80e8d"
+    },
+    {
+      "file": "core/execution-evidence.js",
+      "size": 2497,
+      "sha256": "e68c7af73b99e8b1c0994ad1cecbae927f88ce573dcb8bd17f12f814f3af0a06"
+    },
+    {
+      "file": "core/final-report-acceptance.js",
+      "size": 3113,
+      "sha256": "c52e0fd4ea0f80474e7dec4b7e102759e1a255e26091f0da344d25ecc86e8905"
+    },
+    {
+      "file": "core/identity-evidence.js",
+      "size": 6055,
+      "sha256": "f837f0506e8e8ecf455a14540317f4816ee59f8dd946bd6366c8c253c6dc2d6f"
+    },
+    {
+      "file": "core/lineage.js",
+      "size": 3125,
+      "sha256": "3320959f39d3cf0370639ff6f545237e750f32f0c9d176c3fcd855f43a37e2fc"
+    },
+    {
+      "file": "core/llm-capability.js",
+      "size": 8641,
+      "sha256": "dd55e9005c273615acd324232cc46f5eb3f439842b9b521ee9b53c0c6a82878d"
+    },
+    {
+      "file": "core/panel-gate.js",
+      "size": 6940,
+      "sha256": "568789f9fba07ec1a0d38a547bbe5fcadad67e96193a613f52d1637e27831697"
+    },
+    {
+      "file": "core/relevance.js",
+      "size": 4653,
+      "sha256": "392b13aab0f1ca11f2764ce962df80994d53428183af5b73178ab69594b9aab0"
+    },
+    {
+      "file": "core/scientific-qualification.js",
+      "size": 8370,
+      "sha256": "6b48371a7c3086c9f459589da920782e42d6fbb91d15009c15f86c5523b26552"
+    },
+    {
+      "file": "core/scientific-readiness.js",
+      "size": 6569,
+      "sha256": "d0a2452413e1c94b0f6734dfee96ca819eb4a26bca6a27a903156b1186963616"
+    },
+    {
+      "file": "core/scientific-unified-report.js",
+      "size": 4057,
+      "sha256": "142e3b259dfb8cb524a4a01067f5b0f0c47e75e670c57ecbbb298782e904df26"
+    },
+    {
+      "file": "core/unknowns.js",
+      "size": 3511,
+      "sha256": "ef8bd9094e92902ed1462404ffd9931d1cc18a2e679d170ca2b7f11a8073fb6d"
+    },
+    {
+      "file": "test/test-mono10-v0.2-integration.js",
+      "size": 15942,
+      "sha256": "b6590ee08c429e2119aeb7b7aeab1625701ffce221f06e3bb51f5687639fb6e1"
+    },
+    {
+      "file": "test/test-mono10-v0.2.js",
+      "size": 27895,
+      "sha256": "e68c8696ff95ce2976e5db8064738568a9afe3e59e06f38554618eb94490f007"
+    }
+  ]
+}

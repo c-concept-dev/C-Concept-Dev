@@ -1,0 +1,10 @@
+{
+  "name": "evidenceforge-mono-04",
+  "version": "1.0.0",
+  "private": true,
+  "description": "EvidenceForge - MONO-04 - External Execution Gateway. Frontiere d'execution externe technique (LLM/Worker/OpenAlex/Crossref/PubMed/ExternalStageAdapter EF-02A/B/C). Aucune logique metier, aucun contournement de MONO-01.x/MONO-02/MONO-03.",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test/run-all.js"
+  }
+}

@@ -1,0 +1,12 @@
+PASS — T-NEW-04a. nodeId/state/attemptCount restitues tels quels
+PASS — T-NEW-04b. lastError complet conserve (jamais tronque)
+PASS — T-NEW-04c. errorCode extrait de lastError.code
+PASS — T-NEW-04d. nativeStatus extrait de lastError.details.efOrchNativeStatus quand present
+PASS — T-NEW-04e. awaitingStage extrait quand present
+PASS — T-NEW-04f. gate extrait quand present (objet complet, jamais resume)
+PASS — T-NEW-04g. currentStage/completedStages/lastResultKind absents du resultat quand absents de la source (jamais devines)
+PASS — T-NEW-04h. currentStage extrait de lastError.details.stageId (stage EF-ORCH natif, jamais invente)
+PASS — T-NEW-04i. errorCode = INTEGRATION_CONTRACT_ERROR pour un echec natif (distinct de DEPENDENCY_UNAVAILABLE)
+PASS — T-NEW-04j. errorCode=null (jamais une chaine inventee) quand lastError absent
+
+TOUS LES TESTS PASSENT (10)

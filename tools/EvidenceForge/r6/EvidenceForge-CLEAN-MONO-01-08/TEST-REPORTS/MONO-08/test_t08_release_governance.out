@@ -1,0 +1,6 @@
+PASS — T-NEW-10a. fixtures/mission-real-smoke-v1.json n'est plus classe 'non modifie depuis v0.5' (F-06)
+PASS — T-NEW-10b. la correction F-06 est presente et explicite dans le dossier de preuve
+PASS — T-NEW-10c. CDC-TRACE.md pointe vers la correction F-06 (jamais silencieuse)
+PASS — T-NEW-10d. le dossier de preuve reste lisible et non tronque (contenu substantiel)
+
+TOUS LES TESTS PASSENT (4)

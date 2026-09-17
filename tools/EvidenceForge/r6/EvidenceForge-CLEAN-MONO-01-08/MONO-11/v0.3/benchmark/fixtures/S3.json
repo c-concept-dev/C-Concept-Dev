@@ -1,0 +1,99 @@
+{
+ "id": "S3",
+ "kind": "success",
+ "sourceRun": "run-H1",
+ "sourceRunId": "run-ea96107f2179",
+ "targetId": "target-01",
+ "acceptedPassHistorical": 1,
+ "document": {
+  "targetId": "target-01",
+  "role": "review_target_not_evidence",
+  "content": "Une bibliothèque municipale veut remplacer ses ateliers d'initiation numérique en présentiel par des tutoriels vidéo en ligne. Dire ce qui est étayé, discuté ou non établi quant à l'efficacité de ce remplacement pour les usagers peu à l'aise avec le numérique."
+ },
+ "twin": {
+  "twinId": "twin-fixture-S3",
+  "professionalRef": "fixture-S3",
+  "referenceIdentity": {
+   "displayName": "fixture S3"
+  },
+  "documentaryBasis": {
+   "worksUsed": [
+    {
+     "workRef": "Learning by Doing or Doing Without Learning? The Potentials and Challenges of Activity-Based Learning",
+     "citedForDimensions": [
+      "educational-sciences",
+      "instructional-design"
+     ]
+    },
+    {
+     "workRef": "No Evidence for a Negative Effect of Realism When Learning About a Process Despite an Increase in Cognitive Load",
+     "citedForDimensions": [
+      "educational-sciences"
+     ]
+    },
+    {
+     "workRef": "The Effective Design of Tasks Involving Learning by Drawing: Current Trends and Methodological Progress in Research on Drawing to Learn",
+     "citedForDimensions": [
+      "instructional-design"
+     ]
+    },
+    {
+     "workRef": "Understanding Cognitive Load in Digital and Online Learning: a New Perspective on Extraneous Cognitive Load",
+     "citedForDimensions": [
+      "cognitive-science"
+     ]
+    },
+    {
+     "workRef": "Learners Emphasize Their Intrinsic Load if Asked About It First: Communicative Aspects of Cognitive Load Measurement",
+     "citedForDimensions": [
+      "cognitive-science"
+     ]
+    },
+    {
+     "workRef": "Visual cues as perceptual load: Cues can create additional cognitive demands in interactive visualizations despite being perceived as helpful",
+     "citedForDimensions": [
+      "cognitive-science"
+     ]
+    },
+    {
+     "workRef": "Subjective cognitive load surveys lead to divergent results for interactive learning media",
+     "citedForDimensions": [
+      "human-computer-interaction"
+     ]
+    },
+    {
+     "workRef": "The negative impact of saturation on website trustworthiness and appeal: A temporal model of aesthetic website perception",
+     "citedForDimensions": [
+      "human-computer-interaction"
+     ]
+    }
+   ]
+  }
+ },
+ "dimensions": [
+  "digital-literacy-studies",
+  "educational-sciences",
+  "instructional-design",
+  "cognitive-science",
+  "human-computer-interaction",
+  "library-information-science",
+  "sociology-of-digital-divide",
+  "gerontology-and-aging-studies",
+  "andragogy"
+ ],
+ "passes": [
+  {
+   "pass": 1,
+   "informed": false,
+   "valid": true,
+   "errors": [],
+   "responseText": "```json\n{\"findings\":[\n{\"dimensionId\":\"digital-literacy-studies\",\"disposition\":\"gap\",\"epistemicStatus\":\"not_determinable\",\"finding\":\"La base documentaire de ce professionnel ne permet pas d'étayer quoi que ce soit sur l'acquisition de compétences numériques de base par des usagers peu à l'aise avec le numérique ; cette dimension centrale de la mission reste hors de portée du corpus.\",\"rationale\":\"Aucune œuvre de la base ne traite de littératie numérique, de fracture numérique ou des processus d'appropriation d'outils par des publics peu à l'aise. En l'absence de toute référence mobilisable, aucun statut documenté ne peut être posé.\",\"targetEvidenceRefs\":[\"l'efficacité de ce remplacement pour les usagers peu à l'aise avec le numérique\"],\"twinBasisWorkRefs\":[],\"confidenceQualitative\":\"high\",\"limitations\":[\"Corpus centré sur charge cognitive et visualisations, sans travaux de littératie numérique.\"]},\n{\"dimensionId\":\"educational-sciences\",\"disposition\":\"concern\",\"epistemicStatus\":\"documented\",\"finding\":\"Le corpus documente une expertise en processus d'apprentissage (apprentissage actif, apprentissage par visualisation) mais ne compare pas les modalités présentiel vs distance ; l'efficacité du remplacement d'ateliers présentiels par des tutoriels reste donc non établie sous cet angle.\",\"rationale\":\"Les travaux relèvent des mécanismes d'apprentissage et interrogent le rendement réel de l'activité de l'apprenant, ce qui invite à la prudence quant à un format substitutif, mais aucune œuvre ne porte sur la comparaison des formats ni sur les publics nécessitant un accompagnement.\",\"targetEvidenceRefs\":[\"remplacer ses ateliers d'initiation numérique en présentiel par des tutoriels vidéo en ligne\"],\"twinBasisWorkRefs\":[\"Learning by Doing or Doing Without Learning? The Potentials and Challenges of Activity-Based Learning\",\"No Evidence for a Negative Effect of Realism When Learning About a Process Despite an Increase in Cognitive Load\"],\"confidenceQualitative\":\"medium\",\"limitations\":[\"Aucune comparaison directe présentiel/distance dans le corpus.\",\"Publics vulnérables non traités.\"]},\n{\"dimensionId\":\"instructional-design\",\"disposition\":\"concern\",\"epistemicStatus\":\"documented\",\"finding\":\"Le corpus documente une compétence en conception de tâches et de supports d'apprentissage médiatisé, utile pour juger de la conception de tutoriels, mais rien ne porte spécifiquement sur les tutoriels vidéo ni sur la substituabilité du présentiel.\",\"rationale\":\"Les travaux sur la conception de tâches (dessin, apprentissage actif) éclairent les conditions d'efficacité d'un support auto-formatif, en signalant notamment le risque d'activité sans apprentissage ; cela justifie une réserve sur un remplacement automatique, sans preuve directe sur le format visé.\",\"targetEvidenceRefs\":[\"des tutoriels vidéo en ligne\"],\"twinBasisWorkRefs\":[\"The Effective Design of Tasks Involving Learning by Drawing: Current Trends and Methodological Progress in Research on Drawing to Learn\",\"Learning by Doing or Doing Without Learning? The Potentials and Challenges of Activity-Based Learning\"],\"confidenceQualitative\":\"medium\",\"limitations\":[\"Aucune œuvre spécifique aux tutoriels vidéo.\",\"Substituabilité du présentiel non traitée.\"]},\n{\"dimensionId\":\"cognitive-science\",\"disposition\":\"concern\",\"epistemicStatus\":\"documented\",\"finding\":\"Le corpus, fortement ancré sur la charge cognitive en apprentissage numérique, permet de signaler que des tutoriels vidéo en ligne peuvent imposer une charge cognitive supplémentaire à des apprenants novices, ce qui conditionne l'efficacité du remplacement.\",\"rationale\":\"Les travaux montrent que des éléments perçus comme utiles (indices visuels) peuvent créer une charge additionnelle et que la mesure de charge est sensible au contexte ; pour des usagers peu à l'aise, ce risque est particulièrement pertinent, sans toutefois porter directement sur ce public.\",\"targetEvidenceRefs\":[\"l'efficacité de ce remplacement pour les usagers peu à l'aise avec le numérique\"],\"twinBasisWorkRefs\":[\"Understanding Cognitive Load in Digital and Online Learning: a New Perspective on Extraneous Cognitive Load\",\"Visual cues as perceptual load: Cues can create additional cognitive demands in interactive visualizations despite being perceived as helpful\",\"Learners Emphasize Their Intrinsic Load if Asked About It First: Communicative Aspects of Cognitive Load Measurement\"],\"confidenceQualitative\":\"medium\",\"limitations\":[\"Travaux non spécifiques aux publics peu à l'aise avec le numérique.\",\"Pas d'étude sur le format tutoriel vidéo en bibliothèque.\"]},\n{\"dimensionId\":\"human-computer-interaction\",\"disposition\":\"concern\",\"epistemicStatus\":\"cautious_inference\",\"finding\":\"Le corpus touche à l'utilisabilité perçue des médias interactifs et à la perception des sites web, suggérant que l'accès aux tutoriels en ligne suppose une interface qui peut freiner des usagers peu à l'aise, mais aucune œuvre ne traite de l'accessibilité pour ce public.\",\"rationale\":\"Les travaux sur les médias d'apprentissage interactifs et la perception des sites documentent un ancrage en IHM, mais l'inférence vers l'accessibilité pour usagers vulnérables dépasse ce qui est directement établi dans le corpus.\",\"targetEvidenceRefs\":[\"des tutoriels vidéo en ligne\"],\"twinBasisWorkRefs\":[\"Subjective cognitive load surveys lead to divergent results for interactive learning media\",\"The negative impact of saturation on website trustworthiness and appeal: A temporal model of aesthetic website perception\"],\"confidenceQualitative\":\"low\",\"limitations\":[\"Accessibilité pour publics peu à l'aise non traitée.\",\"Inférence au-delà de la portée directe des œuvres.\"]},\n{\"dimensionId\":\"library-information-science\",\"disposition\":\"gap\",\"epistemicStatus\":\"not_determinable\",\"finding\":\"La base documentaire ne permet aucune analyse du rôle de médiation numérique des bibliothèques ni des modalités de service aux publics, pourtant au cœur du contexte de la mission.\",\"rationale\":\"Aucune œuvre du corpus ne porte sur les bibliothèques, l'inclusion numérique institutionnelle ou les services aux publics ; aucun élément mobilisable n'existe.\",\"targetEvidenceRefs\":[\"Une bibliothèque municipale veut remplacer ses ateliers d'initiation numérique en présentiel\"],\"twinBasisWorkRefs\":[],\"confidenceQualitative\":\"high\",\"limitations\":[\"Absence totale de travaux en sciences de l'information et bibliothèques.\"]},\n{\"dimensionId\":\"sociology-of-digital-divide\",\"disposition\":\"gap\",\"epistemicStatus\":\"not_determinable\",\"finding\":\"Le corpus ne permet pas d'apprécier les effets d'une dématérialisation du service sur les publics vulnérables ni les inégalités d'accès et d'usage, dimension pourtant définitoire de la mission.\",\"rationale\":\"Aucune œuvre ne traite des fractures numériques ou des effets sociaux de la dématérialisation ; aucun statut documenté n'est possible.\",\"targetEvidenceRefs\":[\"les usagers peu à l'aise avec le numérique\"],\"twinBasisWorkRefs\":[],\"confidenceQualitative\":\"high\",\"limitations\":[\"Aucun travail sur les inégalités numériques dans le corpus.\"]},\n{\"dimensionId\":\"gerontology-and-aging-studies\",\"disposition\":\"gap\",\"epistemicStatus\":\"not_determinable\",\"finding\":\"La base documentaire n'offre aucun élément sur les spécificités de l'apprentissage numérique des personnes âgées, part importante des publics visés.\",\"rationale\":\"Aucune œuvre ne concerne le vieillissement ni l'autonomie technologique des seniors ; rien ne peut être étayé.\",\"targetEvidenceRefs\":[\"les usagers peu à l'aise avec le numérique\"],\"twinBasisWorkRefs\":[],\"confidenceQualitative\":\"high\",\"limitations\":[\"Absence de travaux gérontologiques dans le corpus.\"]},\n{\"dimensionId\":\"andragogy\",\"disposition\":\"gap\",\"epistemicStatus\":\"not_determinable\",\"finding\":\"Le corpus ne précise aucun cadre andragogique permettant d'apprécier les conditions d'auto-formation des adultes face à un format auto-formatif comme les tutoriels vidéo.\",\"rationale\":\"Les travaux sur l'apprentissage ne mobilisent pas de cadre spécifique à l'apprentissage adulte ni aux conditions d'accompagnement propres aux adultes ; aucune référence n'étaye cette dimension.\",\"targetEvidenceRefs\":[\"ateliers d'initiation numérique\"],\"twinBasisWorkRefs\":[],\"confidenceQualitative\":\"medium\",\"limitations\":[\"Aucun cadre andragogique explicite dans le corpus.\"]}\n]}\n```",
+   "usage": {
+    "input_tokens": 6265,
+    "output_tokens": 3300
+   },
+   "purpose": "EF-03B review"
+  }
+ ],
+ "note": "artefacts reels ; identite du jumeau anonymisee ; reponses byte-exactes"
+}

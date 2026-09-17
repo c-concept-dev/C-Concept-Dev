@@ -1,0 +1,599 @@
+{
+  "schema": "EvidenceForge.FrozenBaselineRegistry",
+  "schemaVersion": "MONO-00-v1",
+  "generatedAt": "2026-08-29T00:00:00.000Z",
+  "generatedBy": "Claude (MONO-00 inventory pass)",
+  "verificationMethod": "Extraction à froid de chaque paquet canonique dans un répertoire temporaire neuf (/tmp/mono00-verify/), sans dépendance à l'espace de travail antérieur ; sha256sum -c contre le manifeste quand présent ; npm ci && npm test (ou exécution individuelle des fichiers test_*.js pour EF-ORCH, qui n'a pas de package.json) ; comparaison des hashes de référence connus.",
+  "modules": [
+    {
+      "moduleId": "EF-ORCH",
+      "moduleName": "EF-ORCH v0.1 — Orchestrateur EF-01 (RunContract -> CorpusSnapshot)",
+      "freezeStatus": "FROZEN",
+      "verificationStatus": "VERIFIED_FROM_CANONICAL_PACKAGE",
+      "canonicalVersion": "v0.1",
+      "schemaVersionsProduced": [
+        "EF-01A-v1",
+        "EF-01B-v1",
+        "EF-01C1-v1",
+        "EF-01C2-v1",
+        "EF-01D-v1",
+        "EF-01E-v1",
+        "EF-01F-v1",
+        "EvidenceForge.CorpusSnapshot"
+      ],
+      "schemaVersionsConsumed": [
+        "EvidenceForge.RunContract"
+      ],
+      "canonicalPackage": "EF-ORCH-RELEASE-v0.1.zip",
+      "canonicalSourceFiles": [
+        "code/ef-orch-monolith-v0.1.js",
+        "code/ef-orch-hash-v0.1.js",
+        "code/build-monolith.js",
+        "code/ef-orch-*-v0.1.js (37 modules)"
+      ],
+      "manifestFile": "SHA256SUMS.txt",
+      "expectedHashes": {
+        "code/ef-orch-monolith-v0.1.js": "9d78c26a0c6063ff86a3d223c1f2e4a252c8c8cd1274c6998e15b5df42f00b2a",
+        "code/ef-orch-hash-v0.1.js": "8722ec43529d848d3f1a0bebfe75d12682ba2ac7963e94edf4c18c006d8032e4"
+      },
+      "computedHashes": {
+        "code/ef-orch-monolith-v0.1.js": "9d78c26a0c6063ff86a3d223c1f2e4a252c8c8cd1274c6998e15b5df42f00b2a",
+        "code/ef-orch-hash-v0.1.js": "8722ec43529d848d3f1a0bebfe75d12682ba2ac7963e94edf4c18c006d8032e4"
+      },
+      "testCommand": "node test_<nom>.js (pas de package.json/npm test — invocation individuelle de chaque fichier test_*.js)",
+      "expectedTestCount": 842,
+      "observedTestCount": 842,
+      "testResult": "PASS",
+      "runtimeClass": "node_pure_js_plus_indexeddb_shim",
+      "networkDependency": true,
+      "llmDependency": "INDIRECT_UPSTREAM — EF-01B et EF-01C1 consomment des artefacts (EF01BResolverTrace, SearchProtocol) produits par une planification LLM EXTÉRIEURE au stage orchestré (décision architecturale explicite, documentée dans le code : \"N'appelle JAMAIS le Worker/Anthropic pendant l'exécution\"). AUCUN appel LLM direct trouvé dans le code exécuteur gelé (confirmé par grep exhaustif : fetch/api.anthropic/workerCallFn/clone-proxy.workers -> 0 résultat hors tests).",
+      "workerDependency": "PARTIAL — aucun Worker Cloudflare direct dans EF-ORCH lui-même ; EF-01C2 appelle directement OpenAlex/Crossref/PubMed (runners dédiés, pas de Worker intermédiaire à ce stade).",
+      "persistenceExpectation": "IndexedDB (via fake-indexeddb en test), resume_checkpoint contractuel entre stages",
+      "resumeCapability": true,
+      "knownLimitations": [
+        "CORRIGÉ (audit indépendant, correction 3) : ce module était déclaré llm=false/networkDependency=false, ce qui était inexact. Voir llmDependency et externalDependencies pour la représentation précise (dépendance LLM indirecte/amont pour EF-01B/EF-01C1, jamais un appel direct dans le code exécuteur gelé ; dépendance réseau directe et réelle pour EF-01C2 vers OpenAlex/Crossref/PubMed).",
+        "Certains stages (EF-01C1/C2) sont externes/non déterministes par nature (connecteurs OpenAlex/Crossref/PubMed) — resume_checkpoint est une notion contractuelle réelle, pas un comportement à réinventer dans le monolithe futur.",
+        "scientificValidity: testMode ? false : true existe dans le code (ligne ~4826 du monolithe) comme reflet sémantique du champ testMode — jamais accepté comme true par le validateur EF-01E en aval (validateEF01EOutput rejette explicitement qs.scientificValidity===true). Classé CORE_GENERIC, pas REAL_HARDCODING."
+      ],
+      "sourceEvidence": "Extraction à froid de EF-ORCH-RELEASE-v0.1.zip dans /tmp/mono00-verify/EF-ORCH/ ; sha256sum -c SHA256SUMS.txt = succès ; 35 fichiers test_*.js exécutés individuellement = 842/842 PASS ; hash du monolithe et de la fondation de hash confirmés identiques aux valeurs de référence.",
+      "notes": "Niveau de preuve maximal atteint. Seul écart : manifeste non exhaustif au sens strict (docs + node_modules absents), sans impact sur l'intégrité du code canonique lui-même.",
+      "manifestScope": {
+        "manifestPresent": true,
+        "manifestFile": "SHA256SUMS.txt",
+        "scopeDescription": "code/*.js uniquement (fichiers sources et tests authored par le projet)",
+        "entryCount": 72,
+        "hashesVerified": "72/72 concordants (sha256sum -c: 0 échec)",
+        "canonicalFilesNotCovered": [
+          "README.md",
+          "RELEASE-NOTES.md",
+          "INDEXEDDB-SCHEMA.md",
+          "HASH-CONVENTIONS.md",
+          "INTEGRATION-JMMJS.md",
+          "OPEN-DEBTS.md",
+          "KNOWN-LIMITATIONS.md",
+          "MANIFEST.md"
+        ],
+        "thirdPartyDependenciesNotCovered": [
+          "code/node_modules/fake-indexeddb/** (dépendance npm tierce vendorisée, reconstructible, jamais un fichier canonique écrit par le projet)"
+        ]
+      },
+      "verificationStatusNote": "Statut maintenu car les 72 entrées EFFECTIVEMENT couvertes par le manifeste concordent à 100% et les tests sont rejoués avec succès depuis le paquet extrait à froid — mais le manifeste lui-même n'est PAS présenté comme une couverture exhaustive du paquet (voir manifestScope).",
+      "externalDependencies": [
+        "LLM (INDIRECT/AMONT — voir llmDependency)",
+        "OpenAlex (DIRECT — EF-01C2, ef-orch-ef01c2-runner-openalex-v0.1.js)",
+        "Crossref (DIRECT — EF-01C2, ef-orch-ef01c2-runner-crossref-v0.1.js)",
+        "PubMed (DIRECT — EF-01C2, ef-orch-ef01c2-runner-pubmed-v0.1.js)"
+      ]
+    },
+    {
+      "moduleId": "EF-PR-GEN-01",
+      "moduleName": "EF-PR-GEN-01 — MissionDimensionSet, MissionDocumentMapping, HeuristicPolicy",
+      "freezeStatus": "FROZEN",
+      "verificationStatus": "VERIFIED_FROM_CANONICAL_ARTIFACTS",
+      "canonicalVersion": "v1",
+      "schemaVersionsProduced": [
+        "EvidenceForge.MissionDimensionSet/EF-PR-GEN-v1",
+        "EvidenceForge.MissionDocumentMapping",
+        "EvidenceForge.HeuristicPolicy/EF-PR-GEN-v1"
+      ],
+      "schemaVersionsConsumed": [],
+      "canonicalPackage": "EF-PR-GEN-01-FINAL.zip",
+      "canonicalSourceFiles": [
+        "ef-pr-gen-mission-dimension-set-v1.js",
+        "ef-pr-gen-mission-document-mapping-v1.js",
+        "ef-pr-gen-heuristic-policy-v1.js"
+      ],
+      "manifestFile": null,
+      "expectedHashes": {
+        "ef-orch-hash-v0.1.js": "8722ec43529d848d3f1a0bebfe75d12682ba2ac7963e94edf4c18c006d8032e4",
+        "ef-pr-gen-mission-dimension-set-v1.js": "750cb892d674e402d6cf16980a41ca1174bd5bc3b66d22715d98d76dc79040de"
+      },
+      "computedHashes": {
+        "ef-orch-hash-v0.1.js": "8722ec43529d848d3f1a0bebfe75d12682ba2ac7963e94edf4c18c006d8032e4",
+        "ef-pr-gen-mission-dimension-set-v1.js": "750cb892d674e402d6cf16980a41ca1174bd5bc3b66d22715d98d76dc79040de"
+      },
+      "manifestExhaustive": null,
+      "manifestExhaustiveNote": "AUCUN manifeste interne n'existe pour ce lot — il précède la convention de manifeste établie à partir d'EF-02D. Impossible de faire une vérification manifeste-complet/hash pour l'ensemble du paquet ; seuls les deux hashes de référence explicitement connus ont pu être vérifiés.",
+      "testCommand": "npm ci && npm test",
+      "expectedTestCount": 105,
+      "observedTestCount": 105,
+      "testResult": "PASS",
+      "runtimeClass": "node_pure_js_modules",
+      "networkDependency": false,
+      "llmDependency": false,
+      "workerDependency": false,
+      "persistenceExpectation": "aucune",
+      "resumeCapability": "N/A (fondations pures, resume géré en aval par EF-02D3/EF-03B)",
+      "knownLimitations": [
+        "Deux ZIP distincts existent (EF-PR-GEN-01.zip et EF-PR-GEN-01-FINAL.zip) avec des hashes de ZIP externes différents et des comptes de fichiers différents (30 vs 26) — DIFFÉRENCE RÉSOLUE : diff -rq sur le contenu extrait des deux est vide (fichiers réels strictement identiques) ; l'écart de 4 entrées correspond uniquement aux entrées de répertoire vides incluses par une méthode de zip (zip -r) et absentes de l'autre. Pas un conflit de baseline.",
+        "Absence de manifeste interne empêche une vérification manifeste-complet/hash sur l'ensemble du paquet (voir verificationStatus)."
+      ],
+      "sourceEvidence": "Extraction à froid de EF-PR-GEN-01-FINAL.zip ; npm ci && npm test = 105/105 PASS ; les deux hashes de référence confirmés identiques ; comparaison diff -rq contre EF-PR-GEN-01.zip = contenu fichier identique.",
+      "notes": "Le cœur (3 fichiers .js top-level) est générique et vérifié : recherche statique confirme absence de DIMS/S01/S02 hors commentaires explicatifs d'en-tête. Les outils HTML dans tools/ restent des prototypes historiques pré-généralisation (JMJS visible), explicitement hors cœur.",
+      "manifestScope": {
+        "manifestPresent": false,
+        "manifestFile": null,
+        "scopeDescription": "N/A — aucun manifeste n'a jamais existé pour ce lot gelé, et aucun n'est ajouté ici (MONO-00 ne modifie ni ne complète les lots gelés).",
+        "entryCount": null,
+        "hashesVerified": "2/2 hashes de référence explicitement connus du CDC, recalculés et concordants",
+        "canonicalFilesNotCovered": "N/A (pas de manifeste de référence pour établir cette liste)",
+        "thirdPartyDependenciesNotCovered": "N/A"
+      },
+      "canonicalPackageNote": "Deux constructions ZIP trouvées (EF-PR-GEN-01.zip, EF-PR-GEN-01-FINAL.zip) — contenu fichier strictement identique (diff -rq vide). Classées variantes de packaging d'un même contenu canonique, PAS un conflit. Référence retenue : EF-PR-GEN-01-FINAL.zip, identifiée comme la forme historiquement canonique car ses horodatages sont normalisés (2026-01-01, convention de reproductibilité adoptée à partir de ce lot) et son nom porte explicitement la mention de finalisation, alors que EF-PR-GEN-01.zip porte des horodatages réels antérieurs cohérents avec une construction intermédiaire précédant la finalisation. Aucun fichier supprimé ; les deux archives restent disponibles."
+    },
+    {
+      "moduleId": "EF-02A",
+      "moduleName": "EF-02A — Professional Discovery",
+      "freezeStatus": "FROZEN",
+      "canonicalVersion": "v1",
+      "schemaVersionsProduced": [
+        "EvidenceForge.ProfessionalDiscovery/EF-02A-v2"
+      ],
+      "schemaVersionsConsumed": [
+        "EvidenceForge.MissionDimensionSet/EF-PR-GEN-v1"
+      ],
+      "canonicalPackage": "EF-02ABC-v1.zip (EF-02A/B/C empaquetés ensemble)",
+      "canonicalSourceFiles": [
+        "tools/EF-02A-Professional-Discovery-v1-WORKER-MISSIONDIMENSIONSET.html"
+      ],
+      "manifestFile": null,
+      "expectedHashes": {
+        "ef-pr-gen-mission-dimension-set-v1.js (dépendance embarquée)": "750cb892d674e402d6cf16980a41ca1174bd5bc3b66d22715d98d76dc79040de"
+      },
+      "computedHashes": {
+        "ef-pr-gen-mission-dimension-set-v1.js (dépendance embarquée)": "750cb892d674e402d6cf16980a41ca1174bd5bc3b66d22715d98d76dc79040de"
+      },
+      "manifestExhaustive": null,
+      "manifestExhaustiveNote": "Aucun manifeste interne. Outil HTML (pas un module JS pur) — architecture pré-EF-02D.",
+      "testCommand": "npm test (test/test_ef02a_integration.js, au sein du paquet EF-02ABC-v1)",
+      "expectedTestCount": 12,
+      "observedTestCount": 12,
+      "testResult": "PASS",
+      "runtimeClass": "browser_html_tool_jsdom_tested",
+      "networkDependency": true,
+      "llmDependency": true,
+      "workerDependency": true,
+      "persistenceExpectation": "aucune (outil de session, export JSON manuel)",
+      "resumeCapability": false,
+      "knownLimitations": [
+        "Reste un outil HTML avec dépôt de fichier manuel, jamais porté en module JS pur (contrairement à EF-02D/E/03/04). Le futur monolithe devra soit adapter cette interface, soit réimplémenter la logique en module pur — DÉCISION D'ARCHITECTURE À PRENDRE EN MONO-01, PAS ICI.",
+        "Smoke réel (235 candidats trouvés rapporté) confirmé uniquement par déclaration chat de l'opérateur — voir module 'EF-02ABC-SMOKE-REAL' distinct, statut HISTORICAL_FREEZE_CONFIRMED."
+      ],
+      "sourceEvidence": "Extraction à froid de EF-02ABC-v1.zip ; npm test (sous-suite test_ef02a_integration.js) = 12/12 PASS ; hash de la dépendance MissionDimensionSet embarquée confirmé identique à la référence.",
+      "notes": "Utilise le Worker clone-proxy (dette technique de nommage documentée dans EF-02E) pour les appels LLM et openalex-proxy pour la découverte.",
+      "packageVerification": "VERIFIED_FROM_CANONICAL_ARTIFACTS",
+      "realSmokeVerification": "HISTORICAL_FREEZE_CONFIRMED",
+      "realSmokeVerificationNote": "Preuve d'exécution réelle disponible UNIQUEMENT par déclaration chat de l'opérateur (voir module EF-02ABC-SMOKE-REAL pour le détail). Les chiffres ne sont JAMAIS reconstruits ici à partir du texte du chat comme s'ils constituaient un fichier vérifié — ils restent une sous-preuve distincte et de niveau inférieur, jamais fusionnée avec la vérification du code.",
+      "verificationStatusDeprecatedNote": "Ce module utilise désormais packageVerification / realSmokeVerification séparément plutôt qu'un verificationStatus unique — un seul champ masquerait la différence de niveau de preuve entre le code et l'exécution réelle."
+    },
+    {
+      "moduleId": "EF-02B",
+      "moduleName": "EF-02B — Professional Verification",
+      "freezeStatus": "FROZEN",
+      "canonicalVersion": "v1",
+      "schemaVersionsProduced": [
+        "EvidenceForge.ProfessionalVerification/EF-02B-v2"
+      ],
+      "schemaVersionsConsumed": [
+        "EvidenceForge.ProfessionalDiscovery/EF-02A-v2"
+      ],
+      "canonicalPackage": "EF-02ABC-v1.zip",
+      "canonicalSourceFiles": [
+        "tools/EF-02B-Professional-Verification-v1-WORKER.html"
+      ],
+      "manifestFile": null,
+      "expectedHashes": {},
+      "computedHashes": {},
+      "manifestExhaustive": null,
+      "manifestExhaustiveNote": "Aucun manifeste interne.",
+      "testCommand": "npm test (test/test_ef02b_integration.js)",
+      "expectedTestCount": 9,
+      "observedTestCount": 9,
+      "testResult": "PASS",
+      "runtimeClass": "browser_html_tool_jsdom_tested",
+      "networkDependency": true,
+      "llmDependency": false,
+      "workerDependency": true,
+      "persistenceExpectation": "aucune",
+      "resumeCapability": false,
+      "knownLimitations": [
+        "Règle d'identité gelée : nameMatch=true AND hasAnchor=true AND aucune contradiction ORCID -> verified. Cette règle seule NE rend PAS un professionnel éligible à un jumeau (rappel gouvernance EF-02E) — distinction à ne jamais perdre en MONO-01.",
+        "Smoke réel rapporté (targeted=50, verified=50, identityAmbiguous=0, insufficientEvidence=0, apiErrors=0) confirmé uniquement par déclaration chat — jamais reçu comme fichier de résultat physique. Voir 'EF-02ABC-SMOKE-REAL'."
+      ],
+      "sourceEvidence": "Extraction à froid de EF-02ABC-v1.zip ; npm test (sous-suite test_ef02b_integration.js) = 9/9 PASS.",
+      "notes": "Reste un outil HTML, jamais porté en module JS pur.",
+      "packageVerification": "VERIFIED_FROM_CANONICAL_ARTIFACTS",
+      "realSmokeVerification": "HISTORICAL_FREEZE_CONFIRMED",
+      "realSmokeVerificationNote": "Preuve d'exécution réelle disponible UNIQUEMENT par déclaration chat de l'opérateur (voir module EF-02ABC-SMOKE-REAL pour le détail). Les chiffres ne sont JAMAIS reconstruits ici à partir du texte du chat comme s'ils constituaient un fichier vérifié — ils restent une sous-preuve distincte et de niveau inférieur, jamais fusionnée avec la vérification du code.",
+      "verificationStatusDeprecatedNote": "Ce module utilise désormais packageVerification / realSmokeVerification séparément plutôt qu'un verificationStatus unique — un seul champ masquerait la différence de niveau de preuve entre le code et l'exécution réelle."
+    },
+    {
+      "moduleId": "EF-02C",
+      "moduleName": "EF-02C — Professional Corpus Builder",
+      "freezeStatus": "FROZEN",
+      "canonicalVersion": "v2",
+      "schemaVersionsProduced": [
+        "EvidenceForge.ProfessionalCorpusSet/EF-02C-v2"
+      ],
+      "schemaVersionsConsumed": [
+        "EvidenceForge.ProfessionalVerification/EF-02B-v2"
+      ],
+      "canonicalPackage": "EF-02ABC-v1.zip",
+      "canonicalSourceFiles": [
+        "tools/EF-02C-Professional-Corpus-Builder-v1.html"
+      ],
+      "manifestFile": null,
+      "expectedHashes": {},
+      "computedHashes": {},
+      "manifestExhaustive": null,
+      "manifestExhaustiveNote": "Aucun manifeste interne.",
+      "testCommand": "npm test (test/test_ef02c_integration.js)",
+      "expectedTestCount": 9,
+      "observedTestCount": 9,
+      "testResult": "PASS",
+      "runtimeClass": "browser_html_tool_jsdom_tested",
+      "networkDependency": true,
+      "llmDependency": false,
+      "workerDependency": true,
+      "persistenceExpectation": "aucune",
+      "resumeCapability": true,
+      "knownLimitations": [
+        "Confirmé dans le code réel (grep direct) : connector openalex_cloudflare_worker, apiKeyExposedToBrowser:false — jamais une clé API exposée au navigateur.",
+        "Reprise testée sans double collecte Worker (a1Calls=1 malgré arrêt+reprise) — capacité générique à préserver en MONO-01."
+      ],
+      "sourceEvidence": "Extraction à froid de EF-02ABC-v1.zip ; npm test (sous-suite test_ef02c_integration.js) = 9/9 PASS ; apiKeyExposedToBrowser:false confirmé par grep direct sur le code.",
+      "notes": "Dernier maillon avant EF-02D. Reste un outil HTML.",
+      "packageVerification": "VERIFIED_FROM_CANONICAL_ARTIFACTS",
+      "realSmokeVerification": "HISTORICAL_FREEZE_CONFIRMED",
+      "realSmokeVerificationNote": "Preuve d'exécution réelle disponible UNIQUEMENT par déclaration chat de l'opérateur (voir module EF-02ABC-SMOKE-REAL pour le détail). Les chiffres ne sont JAMAIS reconstruits ici à partir du texte du chat comme s'ils constituaient un fichier vérifié — ils restent une sous-preuve distincte et de niveau inférieur, jamais fusionnée avec la vérification du code.",
+      "verificationStatusDeprecatedNote": "Ce module utilise désormais packageVerification / realSmokeVerification séparément plutôt qu'un verificationStatus unique — un seul champ masquerait la différence de niveau de preuve entre le code et l'exécution réelle."
+    },
+    {
+      "moduleId": "EF-02ABC-SMOKE-REAL",
+      "moduleName": "Preuve de smoke réel EF-02A/B/C (235 candidats, 50 vérifiés, 50 corpus)",
+      "freezeStatus": "HISTORICAL",
+      "verificationStatus": "HISTORICAL_FREEZE_CONFIRMED",
+      "canonicalVersion": null,
+      "schemaVersionsProduced": [],
+      "schemaVersionsConsumed": [],
+      "canonicalPackage": null,
+      "canonicalSourceFiles": [],
+      "manifestFile": null,
+      "expectedHashes": {},
+      "computedHashes": {},
+      "manifestExhaustive": null,
+      "manifestExhaustiveNote": "N/A — aucun fichier de résultat physique retrouvé.",
+      "testCommand": null,
+      "expectedTestCount": null,
+      "observedTestCount": null,
+      "testResult": "NOT_APPLICABLE",
+      "runtimeClass": "N/A",
+      "networkDependency": null,
+      "llmDependency": null,
+      "workerDependency": null,
+      "persistenceExpectation": null,
+      "resumeCapability": null,
+      "knownLimitations": [
+        "Seul le KIT de smoke (fixtures d'entrée : EF-02ABC-SMOKE-REAL-KIT.zip) a été retrouvé sur disque — jamais les fichiers de résultat réels (ef02a-export.json, ef02b-export.json, ef02c-export.json, logs réseau).",
+        "Les chiffres (235 candidats trouvés, 50 vérifiés, 50 corpus construits, 0 erreur corpus, 2267 travaux récupérés, 2222 DOI) proviennent EXCLUSIVEMENT d'un message chat de l'opérateur, jamais d'un fichier inspectable.",
+        "Ce niveau de preuve est HISTORICAL_FREEZE_CONFIRMED, jamais VERIFIED_FROM_CANONICAL_PACKAGE ni _ARTIFACTS — ne pas confondre les deux niveaux, exactement l'avertissement du CDC section 1."
+      ],
+      "sourceEvidence": "Kit de smoke retrouvé : /tmp/EF-02ABC-SMOKE-REAL-KIT.zip (fixtures d'entrée uniquement). Résultats rapportés en texte de conversation, non vérifiables indépendamment dans ce lot.",
+      "notes": "Ce module est intentionnellement séparé d'EF-02A/B/C pour ne jamais laisser croire que le smoke réel est physiquement vérifié au même niveau que le code lui-même."
+    },
+    {
+      "moduleId": "EF-02D",
+      "moduleName": "EF-02D — Documentary Eligibility, Mission Relevance, Coverage & Panel Selection",
+      "freezeStatus": "FROZEN",
+      "verificationStatus": "VERIFIED_FROM_CANONICAL_PACKAGE",
+      "canonicalVersion": "v1",
+      "schemaVersionsProduced": [
+        "EvidenceForge.DocumentaryEligibilityRelevanceSet/EF-02D-v2",
+        "EvidenceForge.CoverageMatrix/EF-02D3-v4",
+        "EvidenceForge.PanelSelection/EF-02D3-PANEL-v4"
+      ],
+      "schemaVersionsConsumed": [
+        "EvidenceForge.ProfessionalCorpusSet/EF-02C-v2",
+        "EvidenceForge.MissionDimensionSet/EF-PR-GEN-v1",
+        "EvidenceForge.HeuristicPolicy/EF-PR-GEN-v1"
+      ],
+      "canonicalPackage": "EF-02D-v1.zip",
+      "canonicalSourceFiles": [
+        "src/ef-02d1-eligibility-v1.js",
+        "src/ef-02d2-mission-relevance-v1.js",
+        "src/ef-02d1d2-orchestrator-v1.js",
+        "src/ef-02d3-coverage-panel-v1.js"
+      ],
+      "manifestFile": "EF-02D-MANIFEST-SHA256.txt",
+      "expectedHashes": {
+        "dependencies/ef-orch-hash-v0.1.js": "8722ec43529d848d3f1a0bebfe75d12682ba2ac7963e94edf4c18c006d8032e4",
+        "dependencies/ef-pr-gen-mission-dimension-set-v1.js": "750cb892d674e402d6cf16980a41ca1174bd5bc3b66d22715d98d76dc79040de"
+      },
+      "computedHashes": {
+        "dependencies/ef-orch-hash-v0.1.js": "8722ec43529d848d3f1a0bebfe75d12682ba2ac7963e94edf4c18c006d8032e4",
+        "dependencies/ef-pr-gen-mission-dimension-set-v1.js": "750cb892d674e402d6cf16980a41ca1174bd5bc3b66d22715d98d76dc79040de"
+      },
+      "manifestExhaustive": true,
+      "manifestExhaustiveNote": "diff entre la liste réelle de fichiers et le manifeste = vide. Manifeste exhaustif confirmé.",
+      "testCommand": "npm ci && npm test",
+      "expectedTestCount": 49,
+      "observedTestCount": 49,
+      "testResult": "PASS",
+      "runtimeClass": "node_pure_js_modules",
+      "networkDependency": false,
+      "llmDependency": true,
+      "workerDependency": false,
+      "persistenceExpectation": "aucune",
+      "resumeCapability": true,
+      "knownLimitations": [
+        "resumeCoverageMatrix() est la capacité de reprise GÉNÉRIQUE retenue. Les outils historiques D3-Resume/D3-Adjudication-D4-D5/D3-Fusion (pilote JMJS) ne sont PAS portés comme composants génériques du monolithe — rattrapage spécifique au pilote, explicitement écarté (voir MIGRATION-HISTORIQUE.md du lot)."
+      ],
+      "sourceEvidence": "Extraction à froid de EF-02D-v1.zip ; sha256sum -c manifeste = succès total ; diff exhaustivité = vide ; npm ci && npm test = 49/49 PASS.",
+      "notes": "D1 pur/configuré, D2 LLM injecté corpus-grounded, D3 générique — conforme à l'architecture décrite dans le CDC."
+    },
+    {
+      "moduleId": "EF-02E",
+      "moduleName": "EF-02E — Documentary Twin Builder & Exclusion Registry",
+      "freezeStatus": "FROZEN",
+      "verificationStatus": "VERIFIED_FROM_CANONICAL_PACKAGE",
+      "canonicalVersion": "v1",
+      "schemaVersionsProduced": [
+        "EvidenceForge.DocumentaryTwinSet/EF-02E-v2",
+        "EvidenceForge.ExclusionRegistrySet/EF-GOV-REG-v1"
+      ],
+      "schemaVersionsConsumed": [
+        "EvidenceForge.ProfessionalCorpusSet/EF-02C-v2",
+        "EvidenceForge.DocumentaryEligibilityRelevanceSet/EF-02D-v2",
+        "EvidenceForge.CoverageMatrix/EF-02D3-v4",
+        "EvidenceForge.PanelSelection/EF-02D3-PANEL-v4",
+        "EvidenceForge.MissionDimensionSet/EF-PR-GEN-v1"
+      ],
+      "canonicalPackage": "EF-02E-v1.zip",
+      "canonicalSourceFiles": [
+        "src/ef-02e-exclusion-registry-v1.js",
+        "src/ef-02e-twin-builder-v1.js"
+      ],
+      "manifestFile": "EF-02E-MANIFEST-SHA256.txt",
+      "expectedHashes": {
+        "dependencies/ef-orch-hash-v0.1.js": "8722ec43529d848d3f1a0bebfe75d12682ba2ac7963e94edf4c18c006d8032e4",
+        "dependencies/ef-pr-gen-mission-dimension-set-v1.js": "750cb892d674e402d6cf16980a41ca1174bd5bc3b66d22715d98d76dc79040de"
+      },
+      "computedHashes": {
+        "dependencies/ef-orch-hash-v0.1.js": "8722ec43529d848d3f1a0bebfe75d12682ba2ac7963e94edf4c18c006d8032e4",
+        "dependencies/ef-pr-gen-mission-dimension-set-v1.js": "750cb892d674e402d6cf16980a41ca1174bd5bc3b66d22715d98d76dc79040de"
+      },
+      "manifestExhaustive": true,
+      "manifestExhaustiveNote": "diff vide, manifeste exhaustif confirmé.",
+      "testCommand": "npm ci && npm test",
+      "expectedTestCount": 60,
+      "observedTestCount": 60,
+      "testResult": "PASS",
+      "runtimeClass": "node_pure_js_modules_deterministic",
+      "networkDependency": false,
+      "llmDependency": false,
+      "workerDependency": false,
+      "persistenceExpectation": "aucune (registre d'exclusion fourni en entrée, jamais généré en interne)",
+      "resumeCapability": "N/A (construction déterministe complète à chaque appel, pas de reprise partielle)",
+      "knownLimitations": [
+        "Construction ENTIÈREMENT déterministe (aucun LLM) — reproductibilité directe.",
+        "Trois familles de hash de stabilité distinctes et jamais confondues : sourceCorpusHash (corpus source complet), documentarySubsetHash (preuves retenues), contentHash (contenu structurel du twin). Un changement de corpus qui ne touche aucune preuve utilisée NE change PAS contentHash — comportement voulu, pas un défaut.",
+        "Anti-hallucination renforcée par vérification d'attribution réelle (authorship) quand disponible — jamais une correspondance devinée."
+      ],
+      "sourceEvidence": "Extraction à froid de EF-02E-v1.zip ; manifeste exhaustif et concordant ; npm ci && npm test = 60/60 PASS.",
+      "notes": "Une identité bibliographique vérifiée seule NE suffit JAMAIS à rendre un professionnel éligible à un twin — gouvernance à préserver intégralement en MONO-01."
+    },
+    {
+      "moduleId": "EF-03",
+      "moduleName": "EF-03 — Documentary Review, Aggregation, Stability & Contradiction Analysis (EF-03A/TargetDocumentSet/EF-03B/EF-03C/EF-03D)",
+      "freezeStatus": "FROZEN",
+      "verificationStatus": "VERIFIED_FROM_CANONICAL_PACKAGE",
+      "canonicalVersion": "v1",
+      "schemaVersionsProduced": [
+        "EvidenceForge.ReviewSchema/EF-03A-v1",
+        "EvidenceForge.TargetDocumentSet/EF-03-DOC-v1",
+        "EvidenceForge.DocumentaryReviewSet/EF-03B-v1",
+        "EvidenceForge.AggregatedDocumentaryReview/EF-03C-v1",
+        "EvidenceForge.StabilityContradictionAnalysis/EF-03D-v1"
+      ],
+      "schemaVersionsConsumed": [
+        "EvidenceForge.DocumentaryTwinSet/EF-02E-v2",
+        "EvidenceForge.MissionDimensionSet/EF-PR-GEN-v1"
+      ],
+      "canonicalPackage": "EF-03-v1.zip",
+      "canonicalSourceFiles": [
+        "src/ef-03a-review-schema-v1.js",
+        "src/ef-03-target-document-set-v1.js",
+        "src/ef-03b-review-runner-v1.js",
+        "src/ef-03c-aggregation-v1.js",
+        "src/ef-03d-stability-contradiction-v1.js"
+      ],
+      "manifestFile": "EF-03-MANIFEST-SHA256.txt",
+      "expectedHashes": {
+        "dependencies/ef-orch-hash-v0.1.js": "8722ec43529d848d3f1a0bebfe75d12682ba2ac7963e94edf4c18c006d8032e4",
+        "dependencies/ef-pr-gen-mission-dimension-set-v1.js": "750cb892d674e402d6cf16980a41ca1174bd5bc3b66d22715d98d76dc79040de"
+      },
+      "computedHashes": {
+        "dependencies/ef-orch-hash-v0.1.js": "8722ec43529d848d3f1a0bebfe75d12682ba2ac7963e94edf4c18c006d8032e4",
+        "dependencies/ef-pr-gen-mission-dimension-set-v1.js": "750cb892d674e402d6cf16980a41ca1174bd5bc3b66d22715d98d76dc79040de"
+      },
+      "manifestExhaustive": true,
+      "manifestExhaustiveNote": "diff vide, manifeste exhaustif confirmé.",
+      "testCommand": "npm ci && npm test",
+      "expectedTestCount": 100,
+      "observedTestCount": 100,
+      "testResult": "PASS",
+      "runtimeClass": "node_pure_js_modules_mixed",
+      "networkDependency": false,
+      "llmDependency": "PARTIAL — EF-03B: obligatoire ; EF-03C: optionnel (classification convergence/divergence uniquement) ; EF-03A/EF-03D: aucun LLM",
+      "workerDependency": false,
+      "persistenceExpectation": "aucune",
+      "resumeCapability": true,
+      "knownLimitations": [
+        "ReviewSchema.schemaHash exclut délibérément missionId et la composition du panel (invariant mission-owned, testé explicitement : deux DocumentaryTwinSet de tailles différentes -> même schemaHash).",
+        "targetEvidenceRefs et twinBasisWorkRefs restent deux familles de preuves STRICTEMENT séparées dans tout le pipeline EF-03B/C/D — jamais fusionnées.",
+        "resumeDocumentaryReviewSet() ne rejoue que les (twin×target) manquants/invalides, préservation byte-for-byte prouvée par identité de référence d'objet.",
+        "EF-03C : aucun vote/majorité/prestige/score de vérité — anti-mono-twin appliqué PAR LE CODE, jamais laissé à la confiance du LLM de classification.",
+        "EF-03D entièrement déterministe — leave-one-twin-out RECALCULE réellement via les fonctions d'EF-03C, jamais une simulation algébrique."
+      ],
+      "sourceEvidence": "Extraction à froid de EF-03-v1.zip ; manifeste exhaustif et concordant ; npm ci && npm test = 100/100 PASS.",
+      "notes": "Ancien mapping target<->S01/S02 et ancienne constante DIMS confirmés absents du code exécutable (occurrences résiduelles uniquement en commentaires d'en-tête expliquant leur suppression)."
+    },
+    {
+      "moduleId": "EF-04",
+      "moduleName": "EF-04 — Lineage Guard & Unified Report Summary",
+      "freezeStatus": "FROZEN",
+      "verificationStatus": "VERIFIED_FROM_CANONICAL_PACKAGE",
+      "canonicalVersion": "v1",
+      "schemaVersionsProduced": [
+        "EvidenceForge.UnifiedReportSummary/EF-04A-v1"
+      ],
+      "schemaVersionsConsumed": [
+        "EvidenceForge.ReviewSchema/EF-03A-v1",
+        "EvidenceForge.TargetDocumentSet/EF-03-DOC-v1",
+        "EvidenceForge.DocumentaryTwinSet/EF-02E-v2",
+        "EvidenceForge.DocumentaryReviewSet/EF-03B-v1",
+        "EvidenceForge.AggregatedDocumentaryReview/EF-03C-v1",
+        "EvidenceForge.StabilityContradictionAnalysis/EF-03D-v1"
+      ],
+      "canonicalPackage": "EF-04-v1.zip",
+      "canonicalSourceFiles": [
+        "src/ef-04-lineage-guard-v1.js",
+        "src/ef-04a-unified-report-v1.js"
+      ],
+      "manifestFile": "EF-04-MANIFEST-SHA256.txt",
+      "expectedHashes": {
+        "dependencies/ef-orch-hash-v0.1.js": "8722ec43529d848d3f1a0bebfe75d12682ba2ac7963e94edf4c18c006d8032e4",
+        "dependencies/ef-pr-gen-mission-dimension-set-v1.js": "750cb892d674e402d6cf16980a41ca1174bd5bc3b66d22715d98d76dc79040de"
+      },
+      "computedHashes": {
+        "dependencies/ef-orch-hash-v0.1.js": "8722ec43529d848d3f1a0bebfe75d12682ba2ac7963e94edf4c18c006d8032e4",
+        "dependencies/ef-pr-gen-mission-dimension-set-v1.js": "750cb892d674e402d6cf16980a41ca1174bd5bc3b66d22715d98d76dc79040de"
+      },
+      "manifestExhaustive": true,
+      "manifestExhaustiveNote": "diff vide, manifeste exhaustif confirmé (52 entrées).",
+      "testCommand": "npm ci && npm test",
+      "expectedTestCount": 37,
+      "observedTestCount": 37,
+      "testResult": "PASS",
+      "runtimeClass": "node_pure_js_modules_deterministic",
+      "networkDependency": false,
+      "llmDependency": false,
+      "workerDependency": false,
+      "persistenceExpectation": "aucune",
+      "resumeCapability": "N/A (FAIL-CLOSED, pas de mode dégradé/reprise)",
+      "knownLimitations": [
+        "GEL EXPLICITE ET NON CORRIGÉ (par instruction) : targetDocumentsHashBoundFromEF03=false, documentaryTwinsHashBoundFromEF03=false, assuranceLevel=reference_revalidated_not_source_hash_bound. DocumentaryReviewSet (EF-03B-v1, gelé) ne propage aucun hash de document ni de twin — EF-04 revalide par citation littérale, preuve réelle mais non cryptographique complète.",
+        "FAIL-CLOSED strict : assertLineage() échoue -> AUCUN rapport produit, jamais un mode permissif. Comportement à préserver tel quel en MONO-01.",
+        "lineageFingerprint change après une reprise EF-03B légitime — jamais traité comme une corruption."
+      ],
+      "sourceEvidence": "Extraction à froid de EF-04-v1.zip ; manifeste exhaustif et concordant (52/52 entrées vérifiées) ; npm ci && npm test = 37/37 PASS.",
+      "notes": "Dernière couche fonctionnelle avant assemblage du monolithe. EF-04B (rapport final v0.1) reste un instantané historique, jamais porté en module."
+    }
+  ],
+  "globalVerification": {
+    "totalHistoricalTestCount": 1223,
+    "totalObservedTestCountThisPass": 1223,
+    "breakdown": {
+      "EF-ORCH": {
+        "expected": 842,
+        "observed": 842,
+        "level": "VERIFIED_FROM_CANONICAL_PACKAGE"
+      },
+      "EF-PR-GEN-01": {
+        "expected": 105,
+        "observed": 105,
+        "level": "VERIFIED_FROM_CANONICAL_ARTIFACTS"
+      },
+      "EF-02A": {
+        "expected": 12,
+        "observed": 12,
+        "level": "VERIFIED_FROM_CANONICAL_ARTIFACTS"
+      },
+      "EF-02B": {
+        "expected": 9,
+        "observed": 9,
+        "level": "VERIFIED_FROM_CANONICAL_ARTIFACTS"
+      },
+      "EF-02C": {
+        "expected": 9,
+        "observed": 9,
+        "level": "VERIFIED_FROM_CANONICAL_ARTIFACTS"
+      },
+      "EF-02D": {
+        "expected": 49,
+        "observed": 49,
+        "level": "VERIFIED_FROM_CANONICAL_PACKAGE"
+      },
+      "EF-02E": {
+        "expected": 60,
+        "observed": 60,
+        "level": "VERIFIED_FROM_CANONICAL_PACKAGE"
+      },
+      "EF-03": {
+        "expected": 100,
+        "observed": 100,
+        "level": "VERIFIED_FROM_CANONICAL_PACKAGE"
+      },
+      "EF-04": {
+        "expected": 37,
+        "observed": 37,
+        "level": "VERIFIED_FROM_CANONICAL_PACKAGE"
+      }
+    },
+    "note": "1223 est le total historique documenté (EF-ORCH 842 + EF-PR-GEN-01 105 + EF-02ABC 30 + EF-02D 49 + EF-02E 60 + EF-03 100 + EF-04 37). Le détail par module ci-dessus sépare EF-02A/B/C (12+9+9=30) pour la granularité — le total agrégé concorde exactement : 842+105+30+49+60+100+37 = 1223.",
+    "ef02abcSmokeReal": "NOT RE-RUN — HISTORICAL_FREEZE_CONFIRMED uniquement (voir module EF-02ABC-SMOKE-REAL). Chiffres rapportés en chat (235 candidats, 50 vérifiés, 50 corpus, 0 erreur, 2267 travaux, 2222 DOI), jamais reçus comme fichiers physiques inspectables dans ce lot.",
+    "ef0RCH_monolith_hash_reconfirmed": "9d78c26a0c6063ff86a3d223c1f2e4a252c8c8cd1274c6998e15b5df42f00b2a",
+    "coldExtractionMethod": "Chaque paquet extrait dans un répertoire temporaire neuf (/tmp/mono00-verify/<module>/), sans copier ni référencer l'espace de travail où le code a été initialement développé."
+  },
+  "conflicts": [
+    {
+      "artifactA": "EF-PR-GEN-01.zip",
+      "artifactB": "EF-PR-GEN-01-FINAL.zip",
+      "initialAppearance": "Hashes de ZIP externes différents (48833bd5... vs 1c9a0b6c...), comptes de fichiers différents (30 vs 26).",
+      "resolution": "NON UN CONFLIT — diff -rq sur le contenu extrait des deux est vide (fichiers réels strictement identiques, byte-for-byte). L'écart de 4 entrées correspond uniquement aux entrées de répertoire vides (EF-PR-GEN-01/, EF-PR-GEN-01/fixtures/, etc.) incluses par une construction zip (probablement zip -r) et absentes de l'autre (find -type f | zip -@). Le hash externe du ZIP n'a jamais fait autorité dans ce projet (principe établi dès EF-PR-GEN-01B) — seul le contenu interne compte, et il concorde.",
+      "canonicalChoice": "EF-PR-GEN-01-FINAL.zip retenu comme référence dans ce registre (construction sans entrées de répertoire superflues), mais les deux sont interchangeables en contenu.",
+      "status": "RESOLVED_NOT_A_CONFLICT"
+    }
+  ],
+  "missingArtifacts": [
+    {
+      "artifact": "Fichiers de résultat du smoke réel EF-02A/B/C (ef02a-export.json, ef02b-export.json, ef02c-export.json, logs réseau)",
+      "impact": "Empêche une vérification indépendante des chiffres du smoke réel (235 candidats, 50 vérifiés, etc.) au-delà de la déclaration chat de l'opérateur.",
+      "blocksMono01": false,
+      "reasoning": "Le CODE d'EF-02A/B/C est lui-même vérifié (VERIFIED_FROM_CANONICAL_ARTIFACTS, tests rejoués). Seule la PREUVE D'EXÉCUTION RÉELLE en environnement navigateur reste non physiquement vérifiable ici — ceci ne bloque pas l'intégration du code lui-même dans le monolithe, mais doit rester documenté comme limite de preuve, pas comme un défaut de code."
+    },
+    {
+      "artifact": "Manifeste interne SHA-256 pour EF-PR-GEN-01, EF-02A, EF-02B, EF-02C",
+      "impact": "Empêche une vérification manifeste-complet/hash exhaustive pour ces quatre lots (seuls les hashes de référence explicitement cités dans le CDC ont pu être vérifiés).",
+      "blocksMono01": false,
+      "reasoning": "Ces lots précèdent la convention de manifeste établie à partir d'EF-02D. Les tests ont été rejoués avec succès et les hashes de référence disponibles concordent — niveau VERIFIED_FROM_CANONICAL_ARTIFACTS, pas VERIFIED_FROM_CANONICAL_PACKAGE. Un manifeste pourrait être ajouté rétroactivement en amendement, décision hors périmètre de MONO-00."
+    }
+  ],
+  "knownLimitations": [
+    "EF-04 lineageAssurance : targetDocumentsHashBoundFromEF03=false, documentaryTwinsHashBoundFromEF03=false — limite gelée, non corrigée par instruction explicite du CDC MONO-00.",
+    "EF-ORCH SHA256SUMS.txt ne couvre pas les fichiers .md de documentation ni node_modules/fake-indexeddb (dépendance tierce vendorisée) — tous les hashes DÉCLARÉS concordent, seule l'exhaustivité stricte du manifeste est partielle.",
+    "EF-PR-GEN-01/EF-02A/EF-02B/EF-02C n'ont aucun manifeste interne — vérification limitée aux hashes de référence explicitement connus + rejeu de tests.",
+    "EF-02ABC-SMOKE-REAL : preuve d'exécution réelle disponible uniquement par déclaration chat, jamais par fichier physique inspectable.",
+    "Les outils historiques EF-02D3-Resume/Adjudication-D4-D5/Fusion et les outils HTML EF-03A/B/C/D pré-généralisation restent des prototypes historiques (JMJS visible), jamais portés comme composants génériques du monolithe futur — décision déjà actée dans les rapports de migration de chaque lot."
+  ]
+}

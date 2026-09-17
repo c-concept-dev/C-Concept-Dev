@@ -1,0 +1,15 @@
+PASS — T-NEW-09a. mode absent => LOCAL_CONTROLLED (comportement fixture inchange, mais fonctionnel)
+PASS — T-NEW-09b. ResolverTrace etiquete SYNTHETIC_FIXTURE en LOCAL_CONTROLLED
+PASS — T-NEW-09c. SearchProtocol.plannerRuns etiquete SYNTHETIC_FIXTURE en LOCAL_CONTROLLED
+PASS — T-NEW-09d. ScreeningArtifact.auditDecisions etiquete SYNTHETIC_FIXTURE en LOCAL_CONTROLLED
+PASS — T-NEW-06. mode REAL sans resolverRuns/plannerRun reels leve OPERATOR_INPUT_REQUIRED (jamais de hash '1'.repeat(64) fabrique)
+PASS — T-NEW-07. le message d'echec REAL identifie explicitement le stage manquant (ResolverTrace/SearchProtocol)
+PASS — T-NEW-05/T-NEW-08. mode REAL avec LLM reel mais sans decision humaine reelle leve OPERATOR_INPUT_REQUIRED (jamais acteur="human" invente)
+PASS — REAL-01. mode REAL avec provenance complete construit reellement ResolverTrace, etiquete OPERATOR_ATTESTED_LLM_CALL
+PASS — REAL-02. mode REAL avec provenance complete construit reellement SearchProtocol, etiquete OPERATOR_ATTESTED_LLM_CALL
+PASS — REAL-03. mode REAL avec provenance complete construit reellement ScreeningArtifact, etiquete OPERATOR_ATTESTED_HUMAN_ACTION, acteur="human" (reellement fourni, jamais invente)
+PASS — REAL-04. le ResolverTrace REAL transporte le provider/model/hash reellement fournis, jamais 'claude-sonnet-4-6'/'1'.repeat(64)
+
+TOUS LES TESTS PASSENT (11)
+
+(Rappel : ces resultats sont LOCAL_CONTROLLED - le mode REAL est exerce ici avec une provenance SIMULEE explicitement fournie par le test, jamais un appel LLM/humain reel.)

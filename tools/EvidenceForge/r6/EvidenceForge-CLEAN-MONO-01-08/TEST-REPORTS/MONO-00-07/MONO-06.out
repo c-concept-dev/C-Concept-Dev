@@ -1,0 +1,26 @@
+PASS — T06-HARNESS-01. kit propre (non mute) -> pas de FAIL en mode integrite seule
+PASS — T06-HARNESS-02. octet modifie dans dependance imbriquee -> FROZEN_FILE_MUTATION detectee (manifest ou nested)
+PASS — T06-HARNESS-02b. le statut global reflete l'anomalie (jamais un faux vert)
+PASS — T06-HARNESS-03. contrat JSON retire -> T06-12 detecte explicitement (countMismatch)
+PASS — T06-HARNESS-04. injection JMJS dans lib/ MONO-02 -> T06-13 detecte
+PASS — T06-HARNESS-05. secret reel injecte dans lib/ (MONO-04) -> T06-15 FAIL (fail-closed, aucune exclusion par dossier)
+PASS — T06-HARNESS-05b. (lib/) la chaine complete du secret est ABSENTE du rapport JSON (redaction verifiee)
+PASS — T06-HARNESS-05. secret reel injecte dans README.md (documentation) (MONO-04) -> T06-15 FAIL (fail-closed, aucune exclusion par dossier)
+PASS — T06-HARNESS-05b. (README.md (documentation)) la chaine complete du secret est ABSENTE du rapport JSON (redaction verifiee)
+PASS — T06-HARNESS-05. secret reel injecte dans test/ (test) (MONO-04) -> T06-15 FAIL (fail-closed, aucune exclusion par dossier)
+PASS — T06-HARNESS-05b. (test/ (test)) la chaine complete du secret est ABSENTE du rapport JSON (redaction verifiee)
+PASS — T06-HARNESS-05. secret reel injecte dans fixtures/ (fixture) (EF-04) -> T06-15 FAIL (fail-closed, aucune exclusion par dossier)
+PASS — T06-HARNESS-05b. (fixtures/ (fixture)) la chaine complete du secret est ABSENTE du rapport JSON (redaction verifiee)
+PASS — T06-HARNESS-05c. une valeur sk- NON allowlistee dans un fichier partiellement allowliste reste detectee (allowlist par hash exact, jamais par fichier entier)
+PASS — T06-HARNESS-07. MONO-05 est declare avec npmInstallMode='ci' dans le registre (protocole gele respecte)
+PASS — T06-HARNESS-08. EF-PR-GEN-01 declare une version jsdom figee et documentee (jamais 'latest')
+PASS — T06-HARNESS-08. EF-02ABC declare une version jsdom figee et documentee (jamais 'latest')
+PASS — T06-HARNESS-09a. un processus synthetique qui dort au-dela du timeout est marque timedOut=true
+PASS — T06-HARNESS-09b. le timeout est reellement applique (pas d'attente jusqu'a la fin naturelle du processus)
+PASS — T06-HARNESS-06. les ZIP canoniques du kit original restent bit-a-bit identiques apres un run complet
+PASS — T06-18. deux executions independantes du harnais produisent un rapport identique
+PASS — T06-PORTABILITY. aucun chemin de session code en dur dans lib/ ou bin/
+
+============================================
+TOTAL CUMULE : 22 tests
+AUCUNE REGRESSION

@@ -1,0 +1,18 @@
+{
+  "schema": "EvidenceForge.ExternalStageAdapter",
+  "schemaVersion": "MONO-01-v1",
+  "description": "Contrat d'un adaptateur externe injecté pour les frontières EF-02A/B/C. Décision d'architecture tranchée (correction post-audit MONO-01) : EF-02A/B/C restent des outils HTML gelés — MONO-01 ne les pilote jamais, ne les modifie jamais, et ne les réimplémente jamais silencieusement en module pur. ProfessionalPipelinePort délègue systématiquement à un objet ExternalStageAdapter fourni explicitement par l'appelant via `opts.adapter`.",
+  "bindingType": "EXTERNAL_STAGE_ADAPTER",
+  "requiredMethods": {
+    "discoverProfessionals": "(inputs: { corpusSnapshot: EvidenceForge.CorpusSnapshot, missionDimensionSet: EvidenceForge.MissionDimensionSet/EF-PR-GEN-v1 }) => Promise<EvidenceForge.ProfessionalDiscovery/EF-02A-v2> — LES DEUX entrées sont requises et validées individuellement, jamais une seule",
+    "verifyProfessionals": "(inputs: { professionalDiscovery }) => Promise<EvidenceForge.ProfessionalVerification/EF-02B-v2>",
+    "buildProfessionalCorpus": "(inputs: { professionalVerification }) => Promise<EvidenceForge.ProfessionalCorpusSet/EF-02C-v2>"
+  },
+  "invariants": [
+    "Chacune des 3 méthodes est vérifiée et appelée INDÉPENDAMMENT — ProfessionalPipelinePort ne fusionne jamais EF-02A/B/C en un seul appel opaque (CDC section 4.4).",
+    "discoverProfessionals (EF-02A) exige DEUX entrées gelées distinctes, chacune requise et validée séparément (schema/schemaVersion) — jamais une seule entrée acceptée en silence à la place de l'autre (bug réel trouvé et corrigé : MissionDimensionSet pouvait auparavant être omis sans être détecté).",
+    "MONO-01 ne sait rien de l'implémentation interne de l'adaptateur (automatisation navigateur, exécution manuelle assistée, tout autre mécanisme) — seule sa présence et la conformité de sa sortie (schema/schemaVersion) sont vérifiées, exactement comme pour tout autre port.",
+    "L'absence d'une méthode requise sur l'adaptateur pour l'étape appelée produit DEPENDENCY_UNAVAILABLE (dependency=\"externalStageAdapter\"), jamais un comportement par défaut inventé ni un appel silencieux à une autre implémentation.",
+    "Une sortie d'adaptateur dont le schema/schemaVersion ne correspond pas au contrat gelé attendu produit INVALID_MODULE_OUTPUT (status FAILED), jamais un rapprochement approximatif."
+  ]
+}

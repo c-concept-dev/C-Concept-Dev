@@ -1,0 +1,138 @@
+{
+ "id": "R5",
+ "kind": "multi",
+ "sourceRun": "run-H1-monolith-v1.0.1",
+ "sourceRunId": "run-c6b021d1681c",
+ "targetId": "target-01",
+ "acceptedPassHistorical": 2,
+ "document": {
+  "targetId": "target-01",
+  "role": "review_target_not_evidence",
+  "content": "Une bibliothèque municipale veut remplacer ses ateliers d'initiation numérique en présentiel par des tutoriels vidéo en ligne. Dire ce qui est étayé, discuté ou non établi quant à l'efficacité de ce remplacement pour les usagers peu à l'aise avec le numérique."
+ },
+ "twin": {
+  "twinId": "twin-fixture-R5",
+  "professionalRef": "fixture-R5",
+  "referenceIdentity": {
+   "displayName": "fixture R5"
+  },
+  "documentaryBasis": {
+   "worksUsed": [
+    {
+     "workRef": "https://doi.org/10.1186/s41235-016-0031-6",
+     "citedForDimensions": [
+      "sciences-education",
+      "sciences-cognitives"
+     ]
+    },
+    {
+     "workRef": "Many Ways to Think",
+     "citedForDimensions": [
+      "sciences-education",
+      "sciences-cognitives"
+     ]
+    },
+    {
+     "workRef": "Space to Act, Think, and Create",
+     "citedForDimensions": [
+      "sciences-cognitives"
+     ]
+    },
+    {
+     "workRef": "https://doi.org/10.1111/tops.12566",
+     "citedForDimensions": [
+      "sciences-cognitives"
+     ]
+    },
+    {
+     "workRef": "https://doi.org/10.1201/9781315281575-5",
+     "citedForDimensions": [
+      "sciences-information-communication"
+     ]
+    },
+    {
+     "workRef": "https://doi.org/10.1201/9781315281575-2",
+     "citedForDimensions": [
+      "sciences-information-communication"
+     ]
+    },
+    {
+     "workRef": "https://doi.org/10.1109/ismar-adjunct68609.2025.00247",
+     "citedForDimensions": [
+      "interaction-homme-machine"
+     ]
+    },
+    {
+     "workRef": "https://doi.org/10.1109/tvcg.2022.3203111",
+     "citedForDimensions": [
+      "interaction-homme-machine"
+     ]
+    },
+    {
+     "workRef": "https://doi.org/10.1145/2559206.2559220",
+     "citedForDimensions": [
+      "interaction-homme-machine"
+     ]
+    },
+    {
+     "workRef": "https://doi.org/10.1109/ismar55827.2022.00059",
+     "citedForDimensions": [
+      "interaction-homme-machine"
+     ]
+    }
+   ]
+  }
+ },
+ "dimensions": [
+  "sciences-education",
+  "litteratie-numerique",
+  "sciences-cognitives",
+  "sciences-information-communication",
+  "interaction-homme-machine",
+  "sociologie-des-usages",
+  "evaluation-politiques-publiques"
+ ],
+ "passes": [
+  {
+   "pass": 1,
+   "informed": false,
+   "valid": false,
+   "errors": [
+    {
+     "code": "DOCUMENTED_WITHOUT_TWIN_REF",
+     "detail": "documented exige au moins un twinBasisWorkRef",
+     "dimensionId": "litteratie-numerique"
+    },
+    {
+     "code": "DOCUMENTED_WITHOUT_TWIN_REF",
+     "detail": "documented exige au moins un twinBasisWorkRef",
+     "dimensionId": "sociologie-des-usages"
+    },
+    {
+     "code": "DOCUMENTED_WITHOUT_TWIN_REF",
+     "detail": "documented exige au moins un twinBasisWorkRef",
+     "dimensionId": "evaluation-politiques-publiques"
+    }
+   ],
+   "responseText": "```json\n{\"findings\":[\n{\"dimensionId\":\"sciences-education\",\"disposition\":\"support\",\"epistemicStatus\":\"documented\",\"finding\":\"La base documentaire du twin permet d'éclairer partiellement l'efficacité pédagogique comparée entre modalités, via des travaux sur l'apprentissage médiatisé par explications visuelles, mais ne documente pas directement la comparaison présentiel vs tutoriel vidéo pour ce public.\",\"rationale\":\"Le document cible pose une question d'efficacité pédagogique comparée ('remplacer ses ateliers d'initiation numérique en présentiel par des tutoriels vidéo en ligne'). Les travaux 'Creating visual explanations improves learning' et 'Many Ways to Think' établissent un lien entre supports visuels et apprentissage, transférable analogiquement à la conception de tutoriels, mais restent centrés sur l'explication visuelle plutôt que sur la substitution de modalité elle-même.\",\"targetEvidenceRefs\":[\"remplacer ses ateliers d'initiation numérique en présentiel par des tutoriels vidéo en ligne\"],\"twinBasisWorkRefs\":[\"https://doi.org/10.1186/s41235-016-0031-6\",\"Many Ways to Think\"],\"confidenceQualitative\":\"medium\",\"limitations\":[\"Aucun travail du corpus ne compare directement présentiel et auto-apprentissage vidéo\",\"Public 'peu à l'aise avec le numérique' non traité spécifiquement par ces travaux\"]},\n{\"dimensionId\":\"litteratie-numerique\",\"disposition\":\"gap\",\"epistemicStatus\":\"documented\",\"finding\":\"La base documentaire ne contient aucun élément permettant d'éclairer l'acquisition de compétences numériques ni les risques d'exclusion liés à la dématérialisation pour les usagers peu à l'aise avec le numérique.\",\"rationale\":\"Le document cible cible explicitement 'les usagers peu à l'aise avec le numérique', qui relèvent de la littératie et de l'inclusion numériques. Or aucune œuvre du corpus (cognition spatiale, gestes, RA/RV, guidage de tâches) n'aborde ces thématiques, ce qui constitue un angle mort documenté.\",\"targetEvidenceRefs\":[\"les usagers peu à l'aise avec le numérique\"],\"twinBasisWorkRefs\":[],\"confidenceQualitative\":\"high\",\"limitations\":[\"Absence totale de travaux sur la littératie numérique dans le corpus\"]},\n{\"dimensionId\":\"sciences-cognitives\",\"disposition\":\"support\",\"epistemicStatus\":\"documented\",\"finding\":\"La base documentaire permet d'éclairer solidement les mécanismes cognitifs (mémorisation, compréhension via supports visuels, charge cognitive) mobilisables pour apprécier l'efficacité cognitive d'un tutoriel vidéo pour un public non expert.\",\"rationale\":\"Le document cible interroge l'efficacité d'un tutoriel vidéo, dont la réception dépend de mécanismes cognitifs. Les travaux sur les explications visuelles, la cognition spatiale et les représentations externes ('Space to Act, Think, and Create', 'Many Ways to Think', tops.12566) documentent directement ces mécanismes, sans toutefois porter sur l'anxiété face à l'outil ni sur l'autorégulation en auto-apprentissage vidéo.\",\"targetEvidenceRefs\":[\"l'efficacité de ce remplacement pour les usagers peu à l'aise avec le numérique\"],\"twinBasisWorkRefs\":[\"https://doi.org/10.1186/s41235-016-0031-6\",\"Space to Act, Think, and Create\",\"Many Ways to Think\",\"https://doi.org/10.1111/tops.12566\"],\"confidenceQualitative\":\"medium\",\"limitations\":[\"Corpus centré sur les représentations visuelles générales, pas sur le public non expert en situation d'auto-apprentissage\",\"Anxiété et autorégulation non couvertes\"]},\n{\"dimensionId\":\"sciences-information-communication\",\"disposition\":\"gap\",\"epistemicStatus\":\"documented\",\"finding\":\"La base documentaire ne permet qu'un éclairage indirect et analogique sur la conception de contenus instructifs, sans aborder le contexte bibliothéconomique ni les usages des services documentaires publics.\",\"rationale\":\"Le document cible relève d'un service documentaire public (bibliothèque municipale). Les travaux sur le récit visuel et la narration de données touchent la conception/réception de contenus instructifs, mais relèvent de la visualisation cognitive plutôt que de l'étude des usages médiatiques ou des services documentaires publics ; aucune preuve sur le contexte bibliothéconomique.\",\"targetEvidenceRefs\":[\"Une bibliothèque municipale veut remplacer ses ateliers d'initiation numérique en présentiel par des tutoriels vidéo en ligne.\"],\"twinBasisWorkRefs\":[\"https://doi.org/10.1201/9781315281575-5\",\"https://doi.org/10.1201/9781315281575-2\"],\"confidenceQualitative\":\"low\",\"limitations\":[\"Lien uniquement analogique\",\"Aucun travail sur les services documentaires publics ou les usages médiatiques\"]},\n{\"dimensionId\":\"interaction-homme-machine\",\"disposition\":\"support\",\"epistemicStatus\":\"documented\",\"finding\":\"La base documentaire permet d'éclairer solidement l'ergonomie du guidage visuel et l'adéquation dispositif/utilisateur, transférable à la conception de tutoriels vidéo utilisables pour un public peu habile.\",\"rationale\":\"Le document cible interroge l'adéquation d'un dispositif technique (tutoriels vidéo en ligne) à des usagers peu à l'aise. Les travaux sur le guidage de tâches en RA/RV, les indices visuels adaptatifs et l'utilisabilité d'interfaces documentent l'ergonomie du guidage et l'adéquation dispositif/utilisateur, mais concernent des environnements immersifs plutôt que des tutoriels vidéo grand public.\",\"targetEvidenceRefs\":[\"des tutoriels vidéo en ligne\"],\"twinBasisWorkRefs\":[\"https://doi.org/10.1109/ismar-adjunct68609.2025.00247\",\"https://doi.org/10.1109/tvcg.2022.3203111\",\"https://doi.org/10.1145/2559206.2559220\",\"https://doi.org/10.1109/ismar55827.2022.00059\"],\"confidenceQualitative\":\"medium\",\"limitations\":[\"Corpus centré sur RA/RV et guidage immersif, transfert partiel vers la vidéo en ligne\",\"Public peu habile non testé directement dans ces travaux\"]},\n{\"dimensionId\":\"sociologie-des-usages\",\"disposition\":\"gap\",\"epistemicStatus\":\"documented\",\"finding\":\"La base documentaire ne contient aucun élément permettant d'apprécier les inégalités d'appropriation ou l'effet du remplacement du présentiel sur la fréquentation des publics vulnérables.\",\"rationale\":\"Le document cible implique un effet potentiel sur des publics vulnérables ('les usagers peu à l'aise avec le numérique'), relevant de la sociologie des usages et de la fracture numérique de second degré. Aucune œuvre du corpus, orienté cognition et IHM, n'aborde ces dimensions.\",\"targetEvidenceRefs\":[\"les usagers peu à l'aise avec le numérique\"],\"twinBasisWorkRefs\":[],\"confidenceQualitative\":\"high\",\"limitations\":[\"Absence totale de dimension sociologique des usages dans le corpus\"]},\n{\"dimensionId\":\"evaluation-politiques-publiques\",\"disposition\":\"gap\",\"epistemicStatus\":\"documented\",\"finding\":\"La base documentaire ne permet pas d'apprécier l'efficacité de la substitution de service ni ses effets non désirés selon les méthodes d'évaluation des interventions publiques.\",\"rationale\":\"Le document cible décrit une intervention publique (substitution d'un service par une bibliothèque municipale) dont l'efficacité et les effets non désirés relèvent de l'évaluation des politiques publiques. Aucune œuvre du corpus ne mobilise ces méthodes ni n'analyse une substitution de service public.\",\"targetEvidenceRefs\":[\"Dire ce qui est étayé, discuté ou non établi quant à l'efficacité de ce remplacement pour les usagers peu à l'aise avec le numérique.\"],\"twinBasisWorkRefs\":[],\"confidenceQualitative\":\"high\",\"limitations\":[\"Aucun travail d'évaluation de politiques ou services publics dans le corpus\"]}\n]}\n```",
+   "usage": {
+    "input_tokens": 5634,
+    "output_tokens": 2996
+   },
+   "purpose": "EF-03B review"
+  },
+  {
+   "pass": 2,
+   "informed": true,
+   "valid": true,
+   "errors": [],
+   "responseText": "```json\n{\"findings\":[\n{\"dimensionId\":\"sciences-education\",\"disposition\":\"support\",\"epistemicStatus\":\"documented\",\"finding\":\"La base documentaire du twin permet d'éclairer partiellement l'efficacité pédagogique comparée entre modalités, via des travaux sur l'apprentissage médiatisé par explications visuelles, mais ne documente pas directement la comparaison présentiel vs tutoriel vidéo pour ce public.\",\"rationale\":\"Le document cible pose une question d'efficacité pédagogique comparée ('remplacer ses ateliers d'initiation numérique en présentiel par des tutoriels vidéo en ligne'). Les travaux 'Creating visual explanations improves learning' et 'Many Ways to Think' établissent un lien entre supports visuels et apprentissage, transférable analogiquement à la conception de tutoriels, mais restent centrés sur l'explication visuelle plutôt que sur la substitution de modalité elle-même.\",\"targetEvidenceRefs\":[\"remplacer ses ateliers d'initiation numérique en présentiel par des tutoriels vidéo en ligne\"],\"twinBasisWorkRefs\":[\"https://doi.org/10.1186/s41235-016-0031-6\",\"Many Ways to Think\"],\"confidenceQualitative\":\"medium\",\"limitations\":[\"Aucun travail du corpus ne compare directement présentiel et auto-apprentissage vidéo\",\"Public 'peu à l'aise avec le numérique' non traité spécifiquement par ces travaux\"]},\n{\"dimensionId\":\"litteratie-numerique\",\"disposition\":\"gap\",\"epistemicStatus\":\"cautious_inference\",\"finding\":\"La base documentaire ne contient aucun élément permettant d'éclairer l'acquisition de compétences numériques ni les risques d'exclusion liés à la dématérialisation pour les usagers peu à l'aise avec le numérique.\",\"rationale\":\"Le document cible cible explicitement 'les usagers peu à l'aise avec le numérique', qui relèvent de la littératie et de l'inclusion numériques. Or aucune œuvre du corpus (cognition spatiale, gestes, RA/RV, guidage de tâches) n'aborde ces thématiques, ce qui constitue un angle mort de la base documentaire.\",\"targetEvidenceRefs\":[\"les usagers peu à l'aise avec le numérique\"],\"twinBasisWorkRefs\":[],\"confidenceQualitative\":\"high\",\"limitations\":[\"Absence totale de travaux sur la littératie numérique dans le corpus\"]},\n{\"dimensionId\":\"sciences-cognitives\",\"disposition\":\"support\",\"epistemicStatus\":\"documented\",\"finding\":\"La base documentaire permet d'éclairer solidement les mécanismes cognitifs (mémorisation, compréhension via supports visuels, charge cognitive) mobilisables pour apprécier l'efficacité cognitive d'un tutoriel vidéo pour un public non expert.\",\"rationale\":\"Le document cible interroge l'efficacité d'un tutoriel vidéo, dont la réception dépend de mécanismes cognitifs. Les travaux sur les explications visuelles, la cognition spatiale et les représentations externes ('Space to Act, Think, and Create', 'Many Ways to Think', tops.12566) documentent directement ces mécanismes, sans toutefois porter sur l'anxiété face à l'outil ni sur l'autorégulation en auto-apprentissage vidéo.\",\"targetEvidenceRefs\":[\"l'efficacité de ce remplacement pour les usagers peu à l'aise avec le numérique\"],\"twinBasisWorkRefs\":[\"https://doi.org/10.1186/s41235-016-0031-6\",\"Space to Act, Think, and Create\",\"Many Ways to Think\",\"https://doi.org/10.1111/tops.12566\"],\"confidenceQualitative\":\"medium\",\"limitations\":[\"Corpus centré sur les représentations visuelles générales, pas sur le public non expert en situation d'auto-apprentissage\",\"Anxiété et autorégulation non couvertes\"]},\n{\"dimensionId\":\"sciences-information-communication\",\"disposition\":\"gap\",\"epistemicStatus\":\"documented\",\"finding\":\"La base documentaire ne permet qu'un éclairage indirect et analogique sur la conception de contenus instructifs, sans aborder le contexte bibliothéconomique ni les usages des services documentaires publics.\",\"rationale\":\"Le document cible relève d'un service documentaire public (bibliothèque municipale). Les travaux sur le récit visuel et la narration de données touchent la conception/réception de contenus instructifs, mais relèvent de la visualisation cognitive plutôt que de l'étude des usages médiatiques ou des services documentaires publics ; aucune preuve sur le contexte bibliothéconomique.\",\"targetEvidenceRefs\":[\"Une bibliothèque municipale veut remplacer ses ateliers d'initiation numérique en présentiel par des tutoriels vidéo en ligne.\"],\"twinBasisWorkRefs\":[\"https://doi.org/10.1201/9781315281575-5\",\"https://doi.org/10.1201/9781315281575-2\"],\"confidenceQualitative\":\"low\",\"limitations\":[\"Lien uniquement analogique\",\"Aucun travail sur les services documentaires publics ou les usages médiatiques\"]},\n{\"dimensionId\":\"interaction-homme-machine\",\"disposition\":\"support\",\"epistemicStatus\":\"documented\",\"finding\":\"La base documentaire permet d'éclairer solidement l'ergonomie du guidage visuel et l'adéquation dispositif/utilisateur, transférable à la conception de tutoriels vidéo utilisables pour un public peu habile.\",\"rationale\":\"Le document cible interroge l'adéquation d'un dispositif technique (tutoriels vidéo en ligne) à des usagers peu à l'aise. Les travaux sur le guidage de tâches en RA/RV, les indices visuels adaptatifs et l'utilisabilité d'interfaces documentent l'ergonomie du guidage et l'adéquation dispositif/utilisateur, mais concernent des environnements immersifs plutôt que des tutoriels vidéo grand public.\",\"targetEvidenceRefs\":[\"des tutoriels vidéo en ligne\"],\"twinBasisWorkRefs\":[\"https://doi.org/10.1109/ismar-adjunct68609.2025.00247\",\"https://doi.org/10.1109/tvcg.2022.3203111\",\"https://doi.org/10.1145/2559206.2559220\",\"https://doi.org/10.1109/ismar55827.2022.00059\"],\"confidenceQualitative\":\"medium\",\"limitations\":[\"Corpus centré sur RA/RV et guidage immersif, transfert partiel vers la vidéo en ligne\",\"Public peu habile non testé directement dans ces travaux\"]},\n{\"dimensionId\":\"sociologie-des-usages\",\"disposition\":\"gap\",\"epistemicStatus\":\"cautious_inference\",\"finding\":\"La base documentaire ne contient aucun élément permettant d'apprécier les inégalités d'appropriation ou l'effet du remplacement du présentiel sur la fréquentation des publics vulnérables.\",\"rationale\":\"Le document cible implique un effet potentiel sur des publics vulnérables ('les usagers peu à l'aise avec le numérique'), relevant de la sociologie des usages et de la fracture numérique de second degré. Aucune œuvre du corpus, orienté cognition et IHM, n'aborde ces dimensions.\",\"targetEvidenceRefs\":[\"les usagers peu à l'aise avec le numérique\"],\"twinBasisWorkRefs\":[],\"confidenceQualitative\":\"high\",\"limitations\":[\"Absence totale de dimension sociologique des usages dans le corpus\"]},\n{\"dimensionId\":\"evaluation-politiques-publiques\",\"disposition\":\"gap\",\"epistemicStatus\":\"cautious_inference\",\"finding\":\"La base documentaire ne permet pas d'apprécier l'efficacité de la substitution de service ni ses effets non désirés selon les méthodes d'évaluation des interventions publiques.\",\"rationale\":\"Le document cible décrit une intervention publique (substitution d'un service par une bibliothèque municipale) dont l'efficacité et les effets non désirés relèvent de l'évaluation des politiques publiques. Aucune œuvre du corpus ne mobilise ces méthodes ni n'analyse une substitution de service public.\",\"targetEvidenceRefs\":[\"Dire ce qui est étayé, discuté ou non établi quant à l'efficacité de ce remplacement pour les usagers peu à l'aise avec le numérique.\"],\"twinBasisWorkRefs\":[],\"confidenceQualitative\":\"high\",\"limitations\":[\"Aucun travail d'évaluation de politiques ou services publics dans le corpus\"]}\n]}\n```",
+   "usage": {
+    "input_tokens": 4064,
+    "output_tokens": 3012
+   },
+   "purpose": "EF-03B review informed-retry"
+  }
+ ],
+ "note": "artefacts reels ; identite du jumeau anonymisee ; reponses byte-exactes"
+}

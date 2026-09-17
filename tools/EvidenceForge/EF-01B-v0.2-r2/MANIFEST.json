@@ -1,0 +1,55 @@
+{
+  "lot": "EF-01B-v0.2-r2",
+  "generatedAt": "2026-09-06T20:15:34.911Z",
+  "fileCount": 12,
+  "files": [
+    {
+      "file": "CHANGELOG.md",
+      "sha256": "bb628aac1fd69c73bba91623e695aefa6c29d860b7ae95af0f1e1c0eca832bfc"
+    },
+    {
+      "file": "CONTRACT.md",
+      "sha256": "ed61585cdcfee87109913e5af769a17380032708388a86c5f84d904e79e778a2"
+    },
+    {
+      "file": "PROMPT-REGISTRY.md",
+      "sha256": "74f9ffc3ec37779ae4ec5224e411d4daeb99e24b055a021fa7faf852be848da2"
+    },
+    {
+      "file": "README.md",
+      "sha256": "d2c41102681b43071054a1af9c05310bdc50b06a9d243d1bb32e7af3d393439e"
+    },
+    {
+      "file": "lib/errors.js",
+      "sha256": "d59919d7f22de488d1a7a4bead0b0b44e7ca076647c7513d4c8b7c6b663e8c0d"
+    },
+    {
+      "file": "lib/evidence-writer.js",
+      "sha256": "cca08c0f78fa0ea642721cb2ac212930f4ebde62f4ba540ae366eedf27109779"
+    },
+    {
+      "file": "lib/executor.js",
+      "sha256": "288d14bf4e9f45bd7981e9339971127d5c62c419aaec9d78aabf2a3728d1903b"
+    },
+    {
+      "file": "lib/hash.js",
+      "sha256": "8e07a1128e7c50e66b3c8b06601bfa92019607f5efba797600244edac4596ff4"
+    },
+    {
+      "file": "lib/parser.js",
+      "sha256": "7c083750fa8832e3147726b552849b428b03432ce6c7f2df9b0fdfa961299f8b"
+    },
+    {
+      "file": "lib/real-llm-call.js",
+      "sha256": "4442cf63d0fdc7337b170ba9a9fcc6dbbe5692cf43d3c5586ec33e1df415348a"
+    },
+    {
+      "file": "prompts/ef01b-resolver-prompt-v0.2-r1.js",
+      "sha256": "8fdd40a08e70884becea431b0c36a4c2ae4a1c8b3dc4e67e752c2867b4879eb1"
+    },
+    {
+      "file": "test/test-ef01b-v0.2-r2.js",
+      "sha256": "77d05893b9204c9f3e6703015fd66b39f7a766ad5e4d20c22a32d20329dbbdb9"
+    }
+  ]
+}

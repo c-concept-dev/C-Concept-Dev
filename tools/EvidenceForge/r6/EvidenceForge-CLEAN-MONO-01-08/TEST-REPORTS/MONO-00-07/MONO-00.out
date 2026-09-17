@@ -1,0 +1,36 @@
+T00-13 (module sans preuve) -> UNVERIFIED (attendu UNVERIFIED) PASS
+T00-14 (hashes concurrents incompatibles) -> CONFLICT (attendu CONFLICT) PASS
+---
+PASS — 1. build-registry.py s'exécute sans erreur depuis un chemin arbitraire
+PASS — 2. le fichier JSON de sortie est créé à l'emplacement --output demandé
+PASS — 3. le JSON généré est valide et contient le module fixture EF-02D
+PASS — 4. baselineRootUsed reflète l'emplacement arbitraire fourni, jamais un chemin de session
+PASS — 5. le hash du fichier fixture est correctement calculé et rapproché du manifeste
+PASS — 6. le JSON produit ne contient AUCUNE référence à /home/claude
+PASS — 7. le JSON produit ne contient AUCUNE référence à /tmp/mono00-verify
+PASS — 8. static-search.sh s'exécute sans erreur avec un chemin explicite arbitraire
+PASS — 8b. static-search.sh confirme utiliser la racine fournie (jamais un défaut de session)
+PASS — 9. static-search.sh sans argument ne référence jamais /tmp/mono00-verify ou /home/claude dans son échec
+
+TOUS LES TESTS PASSENT (10)
+---
+PASS — T00-15a: EF-ORCH contient une dépendance LLM (directe ou indirecte)
+PASS — T00-15b: EF-ORCH contient OpenAlex
+PASS — T00-15c: EF-ORCH contient Crossref
+PASS — T00-15d: EF-ORCH contient PubMed
+PASS — T00-15e: EF-02A contient LLM
+PASS — T00-15f: EF-02A contient Worker
+PASS — T00-15g: EF-02C contient Worker ou OpenAlex
+PASS — T00-15h: EF-02D contient LLM
+PASS — T00-15i: EF-03B contient LLM
+PASS — T00-15j: EF-03D a llm=False explicitement (aucune dépendance LLM)
+PASS — T00-15k: EF-04 (Lineage Guard) a llm=False explicitement (aucune dépendance LLM)
+PASS — T00-15l: EF-ORCH.llm n'est PLUS littéralement False (régression du bug corrigé)
+PASS — T00-15m: EF-ORCH possède un champ externalDependencies non vide
+
+TOUS LES TESTS PASSENT (13)
+---
+PASS — T00-11: mutation d'un fichier canonique -> sha256sum -c échoue
+PASS — T00-12: suppression d'un fichier -> détectée comme entrée manifeste sans fichier correspondant
+
+TOUS LES TESTS PASSENT (2)

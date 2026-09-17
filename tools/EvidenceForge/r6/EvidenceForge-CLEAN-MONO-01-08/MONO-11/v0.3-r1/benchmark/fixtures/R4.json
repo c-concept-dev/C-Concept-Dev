@@ -1,0 +1,128 @@
+{
+ "id": "R4",
+ "kind": "multi",
+ "sourceRun": "run-H1-monolith-v1.0.1",
+ "sourceRunId": "run-c6b021d1681c",
+ "targetId": "target-01",
+ "acceptedPassHistorical": null,
+ "document": {
+  "targetId": "target-01",
+  "role": "review_target_not_evidence",
+  "content": "Une bibliothèque municipale veut remplacer ses ateliers d'initiation numérique en présentiel par des tutoriels vidéo en ligne. Dire ce qui est étayé, discuté ou non établi quant à l'efficacité de ce remplacement pour les usagers peu à l'aise avec le numérique."
+ },
+ "twin": {
+  "twinId": "twin-fixture-R4",
+  "professionalRef": "fixture-R4",
+  "referenceIdentity": {
+   "displayName": "fixture R4"
+  },
+  "documentaryBasis": {
+   "worksUsed": [
+    {
+     "workRef": "Digital inclusion for social inclusion. Case study on digital literacy",
+     "citedForDimensions": [
+      "sciences-education",
+      "litteratie-numerique",
+      "sociologie-des-usages"
+     ]
+    },
+    {
+     "workRef": "Comunicación digital de los colegios de trabajo social en España en las redes sociales online ¿coalición, jerarquización o aislamiento?",
+     "citedForDimensions": [
+      "sciences-information-communication"
+     ]
+    },
+    {
+     "workRef": "Social Connectivity, Sentiment and Participation on Twitter during COVID-19",
+     "citedForDimensions": [
+      "sciences-information-communication"
+     ]
+    },
+    {
+     "workRef": "Digital social work practice through social networking sites. Case study with users of Social Services Community Centre from Malaga (Spain) on Facebook",
+     "citedForDimensions": [
+      "sociologie-des-usages"
+     ]
+    },
+    {
+     "workRef": "Qué funciona en la prevención comunitaria",
+     "citedForDimensions": [
+      "evaluation-politiques-publiques"
+     ]
+    },
+    {
+     "workRef": "Organizational Barriers to Access in Community Social Services: Fragmentation, Bureaucratization, Congestion and the Role of Triage",
+     "citedForDimensions": [
+      "evaluation-politiques-publiques"
+     ]
+    }
+   ]
+  }
+ },
+ "dimensions": [
+  "sciences-education",
+  "litteratie-numerique",
+  "sciences-cognitives",
+  "sciences-information-communication",
+  "interaction-homme-machine",
+  "sociologie-des-usages",
+  "evaluation-politiques-publiques"
+ ],
+ "passes": [
+  {
+   "pass": 1,
+   "informed": false,
+   "valid": false,
+   "errors": [
+    {
+     "code": "TARGET_REF_NOT_LITERAL",
+     "detail": "citation absente du document cible (doit etre un passage EXACT, caractere pour caractere) : \"tutoriels vidéo en ligne pour les usagers peu à l'aise avec le numérique\"",
+     "dimensionId": "interaction-homme-machine"
+    }
+   ],
+   "responseText": "{\"findings\":[\n{\"dimensionId\":\"sciences-education\",\"disposition\":\"gap\",\"epistemicStatus\":\"cautious_inference\",\"finding\":\"La question de l'efficacité pédagogique comparée entre atelier présentiel guidé et tutoriel vidéo auto-administré n'est pas étayée par la base documentaire de ce professionnel.\",\"rationale\":\"Aucune œuvre du corpus ne porte sur l'ingénierie pédagogique ni sur l'efficacité comparée des modalités d'apprentissage. L'étude de littératie numérique touche l'acquisition de compétences mais ne traite pas la comparaison présentiel/vidéo, ce qui interdit une position documentée sur cette dimension.\",\"targetEvidenceRefs\":[\"remplacer ses ateliers d'initiation numérique en présentiel par des tutoriels vidéo en ligne\"],\"twinBasisWorkRefs\":[],\"confidenceQualitative\":\"low\",\"limitations\":[\"Aucune œuvre ne traite la pédagogie comparée\",\"Lien seulement indirect via la littératie numérique\"]},\n{\"dimensionId\":\"litteratie-numerique\",\"disposition\":\"concern\",\"epistemicStatus\":\"documented\",\"finding\":\"Les travaux disponibles suggèrent que l'acquisition de compétences numériques par des publics fragiles relève de conditions d'inclusion sociale, ce qui invite à la prudence quant à un remplacement du présentiel pour des usagers peu à l'aise.\",\"rationale\":\"Une étude de cas explicitement consacrée à la littératie numérique comme levier d'inclusion sociale documente le cœur de cette dimension ; elle éclaire les conditions d'acquisition mais sans porter sur le format vidéo, d'où une préoccupation plutôt qu'un verdict.\",\"targetEvidenceRefs\":[\"les usagers peu à l'aise avec le numérique\"],\"twinBasisWorkRefs\":[\"Digital inclusion for social inclusion. Case study on digital literacy\"],\"confidenceQualitative\":\"medium\",\"limitations\":[\"Une seule œuvre pertinente\",\"Ne traite pas spécifiquement le remplacement par tutoriels vidéo\"]},\n{\"dimensionId\":\"sciences-cognitives\",\"disposition\":\"gap\",\"epistemicStatus\":\"not_determinable\",\"finding\":\"Les mécanismes cognitifs (charge cognitive, autorégulation, anxiété face à l'outil) conditionnant l'efficacité d'un tutoriel vidéo pour un public non expert ne peuvent être documentés à partir de cette base.\",\"rationale\":\"Aucune œuvre du corpus n'aborde la psychologie cognitive de l'apprentissage ; le corpus relève du travail social, des réseaux sociaux et de l'inclusion numérique, sans référence exploitable pour cette dimension.\",\"targetEvidenceRefs\":[\"des tutoriels vidéo en ligne\"],\"twinBasisWorkRefs\":[],\"confidenceQualitative\":\"low\",\"limitations\":[\"Absence totale d'œuvre en sciences cognitives\"]},\n{\"dimensionId\":\"sciences-information-communication\",\"disposition\":\"concern\",\"epistemicStatus\":\"documented\",\"finding\":\"La base documente les usages des médias sociaux et la communication numérique, mais pas la conception/réception de contenus vidéo instructifs ni les services documentaires, limitant l'appui sur cette dimension.\",\"rationale\":\"Des œuvres portent sur la communication institutionnelle et la participation en ligne, relevant des SIC via la branche 'usages des médias', mais leur objet (communication politique/institutionnelle sur réseaux) diffère nettement de la réception de tutoriels en bibliothèque.\",\"targetEvidenceRefs\":[\"des tutoriels vidéo en ligne\"],\"twinBasisWorkRefs\":[\"Comunicación digital de los colegios de trabajo social en España en las redes sociales online ¿coalición, jerarquización o aislamiento?\",\"Social Connectivity, Sentiment and Participation on Twitter during COVID-19\"],\"confidenceQualitative\":\"medium\",\"limitations\":[\"Objet centré sur réseaux sociaux, non sur contenus vidéo instructifs\",\"Pas d'œuvre sur les services documentaires publics\"]},\n{\"dimensionId\":\"interaction-homme-machine\",\"disposition\":\"gap\",\"epistemicStatus\":\"not_determinable\",\"finding\":\"L'utilisabilité et l'accessibilité des tutoriels vidéo pour des usagers peu habiles ne peuvent être appréciées à partir de cette base.\",\"rationale\":\"Aucune œuvre ne traite d'ergonomie des interfaces, d'utilisabilité ou d'accessibilité ; l'adéquation dispositif/capacités utilisateur au sens de l'IHM n'est pas couverte par le corpus.\",\"targetEvidenceRefs\":[\"tutoriels vidéo en ligne pour les usagers peu à l'aise avec le numérique\"],\"twinBasisWorkRefs\":[],\"confidenceQualitative\":\"low\",\"limitations\":[\"Aucune compétence IHM documentée dans le corpus\"]},\n{\"dimensionId\":\"sociologie-des-usages\",\"disposition\":\"concern\",\"epistemicStatus\":\"documented\",\"finding\":\"Les travaux sur l'appropriation numérique par des publics vulnérables signalent un risque d'inégalités d'accès et d'appropriation susceptible d'affecter les usagers fragiles en cas de dématérialisation de l'accompagnement.\",\"rationale\":\"Plusieurs œuvres analysent les usages différenciés de publics fragiles (usagers de centres sociaux, inclusion numérique), au cœur de la fracture numérique de second degré ; l'ancrage est réel mais appliqué au travail social, d'où une transposition nécessaire vers le contexte bibliothèque.\",\"targetEvidenceRefs\":[\"les usagers peu à l'aise avec le numérique\"],\"twinBasisWorkRefs\":[\"Digital inclusion for social inclusion. Case study on digital literacy\",\"Digital social work practice through social networking sites. Case study with users of Social Services Community Centre from Malaga (Spain) on Facebook\"],\"confidenceQualitative\":\"medium\",\"limitations\":[\"Contexte empirique du travail social, non bibliothéconomique\",\"Transposition au service documentaire nécessaire\"]},\n{\"dimensionId\":\"evaluation-politiques-publiques\",\"disposition\":\"concern\",\"epistemicStatus\":\"cautious_inference\",\"finding\":\"L'évaluation des effets et effets non désirés d'un remplacement de service public peut être esquissée par analogie, mais la base ne couvre pas la substitution numérique d'un dispositif ni ses effets d'exclusion.\",\"rationale\":\"Deux œuvres touchent à l'évaluation de dispositifs sociaux ('ce qui fonctionne', barrières organisationnelles d'accès), pertinentes pour penser l'accessibilité des services, mais elles ne portent pas sur le remplacement d'un service ni sur les effets d'une substitution : le lien est analogique et fragile.\",\"targetEvidenceRefs\":[\"Une bibliothèque municipale veut remplacer ses ateliers d'initiation numérique en présentiel par des tutoriels vidéo en ligne.\"],\"twinBasisWorkRefs\":[\"Qué funciona en la prevención comunitaria\",\"Organizational Barriers to Access in Community Social Services: Fragmentation, Bureaucratization, Congestion and the Role of Triage\"],\"confidenceQualitative\":\"low\",\"limitations\":[\"Aucune œuvre sur l'évaluation d'une substitution de service\",\"Lien analogique depuis le champ des services sociaux\"]}\n]}",
+   "usage": {
+    "input_tokens": 5419,
+    "output_tokens": 2640
+   },
+   "purpose": "EF-03B review"
+  },
+  {
+   "pass": 2,
+   "informed": true,
+   "valid": false,
+   "errors": [
+    {
+     "code": "TARGET_REF_NOT_LITERAL",
+     "detail": "citation absente du document cible (doit etre un passage EXACT, caractere pour caractere) : \"des tutoriels vidéo en ligne pour les usagers peu à l'aise avec le numérique\"",
+     "dimensionId": "interaction-homme-machine"
+    }
+   ],
+   "responseText": "{\"findings\":[\n{\"dimensionId\":\"sciences-education\",\"disposition\":\"gap\",\"epistemicStatus\":\"cautious_inference\",\"finding\":\"La question de l'efficacité pédagogique comparée entre atelier présentiel guidé et tutoriel vidéo auto-administré n'est pas étayée par la base documentaire de ce professionnel.\",\"rationale\":\"Aucune œuvre du corpus ne porte sur l'ingénierie pédagogique ni sur l'efficacité comparée des modalités d'apprentissage. L'étude de littératie numérique touche l'acquisition de compétences mais ne traite pas la comparaison présentiel/vidéo, ce qui interdit une position documentée sur cette dimension.\",\"targetEvidenceRefs\":[\"remplacer ses ateliers d'initiation numérique en présentiel par des tutoriels vidéo en ligne\"],\"twinBasisWorkRefs\":[],\"confidenceQualitative\":\"low\",\"limitations\":[\"Aucune œuvre ne traite la pédagogie comparée\",\"Lien seulement indirect via la littératie numérique\"]},\n{\"dimensionId\":\"litteratie-numerique\",\"disposition\":\"concern\",\"epistemicStatus\":\"documented\",\"finding\":\"Les travaux disponibles suggèrent que l'acquisition de compétences numériques par des publics fragiles relève de conditions d'inclusion sociale, ce qui invite à la prudence quant à un remplacement du présentiel pour des usagers peu à l'aise.\",\"rationale\":\"Une étude de cas explicitement consacrée à la littératie numérique comme levier d'inclusion sociale documente le cœur de cette dimension ; elle éclaire les conditions d'acquisition mais sans porter sur le format vidéo, d'où une préoccupation plutôt qu'un verdict.\",\"targetEvidenceRefs\":[\"les usagers peu à l'aise avec le numérique\"],\"twinBasisWorkRefs\":[\"Digital inclusion for social inclusion. Case study on digital literacy\"],\"confidenceQualitative\":\"medium\",\"limitations\":[\"Une seule œuvre pertinente\",\"Ne traite pas spécifiquement le remplacement par tutoriels vidéo\"]},\n{\"dimensionId\":\"sciences-cognitives\",\"disposition\":\"gap\",\"epistemicStatus\":\"not_determinable\",\"finding\":\"Les mécanismes cognitifs (charge cognitive, autorégulation, anxiété face à l'outil) conditionnant l'efficacité d'un tutoriel vidéo pour un public non expert ne peuvent être documentés à partir de cette base.\",\"rationale\":\"Aucune œuvre du corpus n'aborde la psychologie cognitive de l'apprentissage ; le corpus relève du travail social, des réseaux sociaux et de l'inclusion numérique, sans référence exploitable pour cette dimension.\",\"targetEvidenceRefs\":[\"des tutoriels vidéo en ligne\"],\"twinBasisWorkRefs\":[],\"confidenceQualitative\":\"low\",\"limitations\":[\"Absence totale d'œuvre en sciences cognitives\"]},\n{\"dimensionId\":\"sciences-information-communication\",\"disposition\":\"concern\",\"epistemicStatus\":\"documented\",\"finding\":\"La base documente les usages des médias sociaux et la communication numérique, mais pas la conception/réception de contenus vidéo instructifs ni les services documentaires, limitant l'appui sur cette dimension.\",\"rationale\":\"Des œuvres portent sur la communication institutionnelle et la participation en ligne, relevant des SIC via la branche 'usages des médias', mais leur objet (communication politique/institutionnelle sur réseaux) diffère nettement de la réception de tutoriels en bibliothèque.\",\"targetEvidenceRefs\":[\"des tutoriels vidéo en ligne\"],\"twinBasisWorkRefs\":[\"Comunicación digital de los colegios de trabajo social en España en las redes sociales online ¿coalición, jerarquización o aislamiento?\",\"Social Connectivity, Sentiment and Participation on Twitter during COVID-19\"],\"confidenceQualitative\":\"medium\",\"limitations\":[\"Objet centré sur réseaux sociaux, non sur contenus vidéo instructifs\",\"Pas d'œuvre sur les services documentaires publics\"]},\n{\"dimensionId\":\"interaction-homme-machine\",\"disposition\":\"gap\",\"epistemicStatus\":\"not_determinable\",\"finding\":\"L'utilisabilité et l'accessibilité des tutoriels vidéo pour des usagers peu habiles ne peuvent être appréciées à partir de cette base.\",\"rationale\":\"Aucune œuvre ne traite d'ergonomie des interfaces, d'utilisabilité ou d'accessibilité ; l'adéquation dispositif/capacités utilisateur au sens de l'IHM n'est pas couverte par le corpus.\",\"targetEvidenceRefs\":[\"des tutoriels vidéo en ligne pour les usagers peu à l'aise avec le numérique\"],\"twinBasisWorkRefs\":[],\"confidenceQualitative\":\"low\",\"limitations\":[\"Aucune compétence IHM documentée dans le corpus\"]},\n{\"dimensionId\":\"sociologie-des-usages\",\"disposition\":\"concern\",\"epistemicStatus\":\"documented\",\"finding\":\"Les travaux sur l'appropriation numérique par des publics vulnérables signalent un risque d'inégalités d'accès et d'appropriation susceptible d'affecter les usagers fragiles en cas de dématérialisation de l'accompagnement.\",\"rationale\":\"Plusieurs œuvres analysent les usages différenciés de publics fragiles (usagers de centres sociaux, inclusion numérique), au cœur de la fracture numérique de second degré ; l'ancrage est réel mais appliqué au travail social, d'où une transposition nécessaire vers le contexte bibliothèque.\",\"targetEvidenceRefs\":[\"les usagers peu à l'aise avec le numérique\"],\"twinBasisWorkRefs\":[\"Digital inclusion for social inclusion. Case study on digital literacy\",\"Digital social work practice through social networking sites. Case study with users of Social Services Community Centre from Malaga (Spain) on Facebook\"],\"confidenceQualitative\":\"medium\",\"limitations\":[\"Contexte empirique du travail social, non bibliothéconomique\",\"Transposition au service documentaire nécessaire\"]},\n{\"dimensionId\":\"evaluation-politiques-publiques\",\"disposition\":\"concern\",\"epistemicStatus\":\"cautious_inference\",\"finding\":\"L'évaluation des effets et effets non désirés d'un remplacement de service public peut être esquissée par analogie, mais la base ne couvre pas la substitution numérique d'un dispositif ni ses effets d'exclusion.\",\"rationale\":\"Deux œuvres touchent à l'évaluation de dispositifs sociaux ('ce qui fonctionne', barrières organisationnelles d'accès), pertinentes pour penser l'accessibilité des services, mais elles ne portent pas sur le remplacement d'un service ni sur les effets d'une substitution : le lien est analogique et fragile.\",\"targetEvidenceRefs\":[\"Une bibliothèque municipale veut remplacer ses ateliers d'initiation numérique en présentiel par des tutoriels vidéo en ligne.\"],\"twinBasisWorkRefs\":[\"Qué funciona en la prevención comunitaria\",\"Organizational Barriers to Access in Community Social Services: Fragmentation, Bureaucratization, Congestion and the Role of Triage\"],\"confidenceQualitative\":\"low\",\"limitations\":[\"Aucune œuvre sur l'évaluation d'une substitution de service\",\"Lien analogique depuis le champ des services sociaux\"]}\n]}",
+   "usage": {
+    "input_tokens": 3641,
+    "output_tokens": 2641
+   },
+   "purpose": "EF-03B review informed-retry"
+  },
+  {
+   "pass": 3,
+   "informed": true,
+   "valid": false,
+   "errors": [
+    {
+     "code": "TARGET_REF_NOT_LITERAL",
+     "detail": "citation absente du document cible (doit etre un passage EXACT, caractere pour caractere) : \"des tutoriels vidéo en ligne pour les usagers peu à l'aise avec le numérique\"",
+     "dimensionId": "interaction-homme-machine"
+    }
+   ],
+   "responseText": "{\"findings\":[\n{\"dimensionId\":\"sciences-education\",\"disposition\":\"gap\",\"epistemicStatus\":\"cautious_inference\",\"finding\":\"La question de l'efficacité pédagogique comparée entre atelier présentiel guidé et tutoriel vidéo auto-administré n'est pas étayée par la base documentaire de ce professionnel.\",\"rationale\":\"Aucune œuvre du corpus ne porte sur l'ingénierie pédagogique ni sur l'efficacité comparée des modalités d'apprentissage. L'étude de littératie numérique touche l'acquisition de compétences mais ne traite pas la comparaison présentiel/vidéo, ce qui interdit une position documentée sur cette dimension.\",\"targetEvidenceRefs\":[\"remplacer ses ateliers d'initiation numérique en présentiel par des tutoriels vidéo en ligne\"],\"twinBasisWorkRefs\":[],\"confidenceQualitative\":\"low\",\"limitations\":[\"Aucune œuvre ne traite la pédagogie comparée\",\"Lien seulement indirect via la littératie numérique\"]},\n{\"dimensionId\":\"litteratie-numerique\",\"disposition\":\"concern\",\"epistemicStatus\":\"documented\",\"finding\":\"Les travaux disponibles suggèrent que l'acquisition de compétences numériques par des publics fragiles relève de conditions d'inclusion sociale, ce qui invite à la prudence quant à un remplacement du présentiel pour des usagers peu à l'aise.\",\"rationale\":\"Une étude de cas explicitement consacrée à la littératie numérique comme levier d'inclusion sociale documente le cœur de cette dimension ; elle éclaire les conditions d'acquisition mais sans porter sur le format vidéo, d'où une préoccupation plutôt qu'un verdict.\",\"targetEvidenceRefs\":[\"les usagers peu à l'aise avec le numérique\"],\"twinBasisWorkRefs\":[\"Digital inclusion for social inclusion. Case study on digital literacy\"],\"confidenceQualitative\":\"medium\",\"limitations\":[\"Une seule œuvre pertinente\",\"Ne traite pas spécifiquement le remplacement par tutoriels vidéo\"]},\n{\"dimensionId\":\"sciences-cognitives\",\"disposition\":\"gap\",\"epistemicStatus\":\"not_determinable\",\"finding\":\"Les mécanismes cognitifs (charge cognitive, autorégulation, anxiété face à l'outil) conditionnant l'efficacité d'un tutoriel vidéo pour un public non expert ne peuvent être documentés à partir de cette base.\",\"rationale\":\"Aucune œuvre du corpus n'aborde la psychologie cognitive de l'apprentissage ; le corpus relève du travail social, des réseaux sociaux et de l'inclusion numérique, sans référence exploitable pour cette dimension.\",\"targetEvidenceRefs\":[\"des tutoriels vidéo en ligne\"],\"twinBasisWorkRefs\":[],\"confidenceQualitative\":\"low\",\"limitations\":[\"Absence totale d'œuvre en sciences cognitives\"]},\n{\"dimensionId\":\"sciences-information-communication\",\"disposition\":\"concern\",\"epistemicStatus\":\"documented\",\"finding\":\"La base documente les usages des médias sociaux et la communication numérique, mais pas la conception/réception de contenus vidéo instructifs ni les services documentaires, limitant l'appui sur cette dimension.\",\"rationale\":\"Des œuvres portent sur la communication institutionnelle et la participation en ligne, relevant des SIC via la branche 'usages des médias', mais leur objet (communication politique/institutionnelle sur réseaux) diffère nettement de la réception de tutoriels en bibliothèque.\",\"targetEvidenceRefs\":[\"des tutoriels vidéo en ligne\"],\"twinBasisWorkRefs\":[\"Comunicación digital de los colegios de trabajo social en España en las redes sociales online ¿coalición, jerarquización o aislamiento?\",\"Social Connectivity, Sentiment and Participation on Twitter during COVID-19\"],\"confidenceQualitative\":\"medium\",\"limitations\":[\"Objet centré sur réseaux sociaux, non sur contenus vidéo instructifs\",\"Pas d'œuvre sur les services documentaires publics\"]},\n{\"dimensionId\":\"interaction-homme-machine\",\"disposition\":\"gap\",\"epistemicStatus\":\"not_determinable\",\"finding\":\"L'utilisabilité et l'accessibilité des tutoriels vidéo pour des usagers peu habiles ne peuvent être appréciées à partir de cette base.\",\"rationale\":\"Aucune œuvre ne traite d'ergonomie des interfaces, d'utilisabilité ou d'accessibilité ; l'adéquation dispositif/capacités utilisateur au sens de l'IHM n'est pas couverte par le corpus.\",\"targetEvidenceRefs\":[\"des tutoriels vidéo en ligne pour les usagers peu à l'aise avec le numérique\"],\"twinBasisWorkRefs\":[],\"confidenceQualitative\":\"low\",\"limitations\":[\"Aucune compétence IHM documentée dans le corpus\"]},\n{\"dimensionId\":\"sociologie-des-usages\",\"disposition\":\"concern\",\"epistemicStatus\":\"documented\",\"finding\":\"Les travaux sur l'appropriation numérique par des publics vulnérables signalent un risque d'inégalités d'accès et d'appropriation susceptible d'affecter les usagers fragiles en cas de dématérialisation de l'accompagnement.\",\"rationale\":\"Plusieurs œuvres analysent les usages différenciés de publics fragiles (usagers de centres sociaux, inclusion numérique), au cœur de la fracture numérique de second degré ; l'ancrage est réel mais appliqué au travail social, d'où une transposition nécessaire vers le contexte bibliothèque.\",\"targetEvidenceRefs\":[\"les usagers peu à l'aise avec le numérique\"],\"twinBasisWorkRefs\":[\"Digital inclusion for social inclusion. Case study on digital literacy\",\"Digital social work practice through social networking sites. Case study with users of Social Services Community Centre from Malaga (Spain) on Facebook\"],\"confidenceQualitative\":\"medium\",\"limitations\":[\"Contexte empirique du travail social, non bibliothéconomique\",\"Transposition au service documentaire nécessaire\"]},\n{\"dimensionId\":\"evaluation-politiques-publiques\",\"disposition\":\"concern\",\"epistemicStatus\":\"cautious_inference\",\"finding\":\"L'évaluation des effets et effets non désirés d'un remplacement de service public peut être esquissée par analogie, mais la base ne couvre pas la substitution numérique d'un dispositif ni ses effets d'exclusion.\",\"rationale\":\"Deux œuvres touchent à l'évaluation de dispositifs sociaux ('ce qui fonctionne', barrières organisationnelles d'accès), pertinentes pour penser l'accessibilité des services, mais elles ne portent pas sur le remplacement d'un service ni sur les effets d'une substitution : le lien est analogique et fragile.\",\"targetEvidenceRefs\":[\"Une bibliothèque municipale veut remplacer ses ateliers d'initiation numérique en présentiel par des tutoriels vidéo en ligne.\"],\"twinBasisWorkRefs\":[\"Qué funciona en la prevención comunitaria\",\"Organizational Barriers to Access in Community Social Services: Fragmentation, Bureaucratization, Congestion and the Role of Triage\"],\"confidenceQualitative\":\"low\",\"limitations\":[\"Aucune œuvre sur l'évaluation d'une substitution de service\",\"Lien analogique depuis le champ des services sociaux\"]}\n]}",
+   "usage": {
+    "input_tokens": 3643,
+    "output_tokens": 2641
+   },
+   "purpose": "EF-03B review informed-retry"
+  }
+ ],
+ "note": "artefacts reels ; identite du jumeau anonymisee ; reponses byte-exactes"
+}

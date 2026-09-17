@@ -1,0 +1,59 @@
+{
+  "lot": "MONO-09-v0.2",
+  "title": "Professional pipeline real adapter (runtime-droppable)",
+  "predecessor": "MONO-09-v0.1 (inchange)",
+  "fixes": [
+    "A-04",
+    "A-04b",
+    "A-03"
+  ],
+  "generatedAt": "2026-09-08T01:05:04.065Z",
+  "fileCount": 9,
+  "files": [
+    {
+      "file": "ARCHITECTURE.md",
+      "size": 3388,
+      "sha256": "07a609fc88e3453bbb09b732fca20612fab172e308ca8351e7b0ccb6e1eb2720"
+    },
+    {
+      "file": "CONTRACT-MAPPING.md",
+      "size": 2261,
+      "sha256": "c83412e980a991ba69b0275aa20b7aa5d06a2d9b2f08172373066723ea0564ba"
+    },
+    {
+      "file": "NON-REGRESSION.md",
+      "size": 2393,
+      "sha256": "2e8e0e8de58ccb876f910ab8bbb983890193d4b5aaa8f30ac73804a629c11d7e"
+    },
+    {
+      "file": "lib/corpus-snapshot-normalizer.js",
+      "size": 4117,
+      "sha256": "ce6f7eefd7b4a08d85242b65594bcc63ef52e1541278d3a3f34e488e0652516f"
+    },
+    {
+      "file": "lib/identifier-policy.js",
+      "size": 4088,
+      "sha256": "e43b1bb7aab6588e6836c171055ef99bdcc3547f64a0e6e2dc60c09bd82de695"
+    },
+    {
+      "file": "lib/llm-readiness.js",
+      "size": 2730,
+      "sha256": "a60af9bf65e06981f62249b5a3584c6b6ac61f0ca4463f2fcd350e86e4dd9aec"
+    },
+    {
+      "file": "lib/professional-adapter.js",
+      "size": 11386,
+      "sha256": "087e732d31d525aac6bb2d267c8be558fe0d8544d90938acccddf2ff22e91183"
+    },
+    {
+      "file": "lib/scientific-readiness-gate.js",
+      "size": 6023,
+      "sha256": "be91f2f0f146bd243bf16b01432151450dd4be04e72b971549f77b39445b3eb9"
+    },
+    {
+      "file": "test/test-mono09-v0.2.js",
+      "size": 17524,
+      "sha256": "af37f20198bf35ac41537db951ba8fc7015728ece057da220d585efbdbe629b5"
+    }
+  ]
+}

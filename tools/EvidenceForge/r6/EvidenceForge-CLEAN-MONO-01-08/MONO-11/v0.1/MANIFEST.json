@@ -1,0 +1,89 @@
+{
+  "lot": "MONO-11",
+  "version": "v0.1",
+  "name": "Autonomous Panel Successor",
+  "builtAt": "2026-09-14T00:20:21.549Z",
+  "status": "IMPLEMENTE / TESTE — verdict technique propose, NON GELE (gel = decision ChatGPT/proprietaire apres audit independant)",
+  "charte": {
+    "version": "v2",
+    "file": "governance/EvidenceForge-CHARTE-IDENTITE-ADN-GOUVERNANCE-v2.md",
+    "sha256": "7404e43369c6fc82afc10109442f116f0bdb37d2695336f8bf1ac254d93b57a2",
+    "v1Historical": {
+      "file": "governance/EvidenceForge-CHARTE-IDENTITE-ADN-GOUVERNANCE-v1-HISTORIQUE.md",
+      "sha256": "b4c160d008c33dd338979afd247945fee8dab862c96e0d1f2841c9ad87596a85"
+    }
+  },
+  "composes": {
+    "MONO-10": "v0.19 (gele, intact)",
+    "MONO-09": "v0.2 (gele, intact)",
+    "MONO-01": "dependencies EF-02D1/D2/D3, EF-02E, EF-03A/B/C, EF-PR-GEN (gele, intact)"
+  },
+  "frozenIntegrity": {
+    "seals": {
+      "MONO10": {
+        "files": 79,
+        "divergences": 0
+      },
+      "MONO09": {
+        "files": 9,
+        "divergences": 0
+      },
+      "MONO01": {
+        "files": 106,
+        "divergences": 0
+      }
+    },
+    "mono10CanonicalZipSha256": "f5a4165414f4aacc32f48f50eb14d59c87a09e3f138e24f8bd14b956972c2e04",
+    "mono10Modified": "NO"
+  },
+  "measurements": {
+    "tests": {
+      "total": 32,
+      "pass": 32,
+      "fail": 0,
+      "skipped": 0,
+      "exitCode": 0
+    },
+    "antiHardcodingScan": {
+      "hits": 0,
+      "caseArtifactsDeclared": true,
+      "caseTokens": 348,
+      "FIXED_PROFESSION_LIST": "NO",
+      "FIXED_DISCIPLINE_LIST": "NO",
+      "FIXED_EXPERT_LIST": "NO",
+      "FIXED_PANEL_SIZE": "NO",
+      "CASE_SPECIFIC_LEAK_FOUND": "NO",
+      "DOMAIN_HARDCODING_FOUND": "NO"
+    },
+    "gateModuleSha256": "734ab97a062d92f51c42967bfcb56e3dc2a18a7a027a4283d3bba04b0ce31d06"
+  },
+  "contracts": "contracts/mono11-contracts.json",
+  "debts": [
+    {
+      "id": "D-M11-01",
+      "class": "CONTRACT_GAP",
+      "statement": "L'acte machine n'est pas signe par l'autorite de la frontiere ; son authenticite tient a la liaison au run atteste, a l'ancrage du ledger sur le registre MONO-10 et au hash du module de gate.",
+      "blocking": false
+    },
+    {
+      "id": "D-M11-02",
+      "class": "SCIENTIFIC_LIMITATION",
+      "statement": "La pertinence est jugee sur les METADONNEES des oeuvres attribuees (titres, DOI, annees, themes), pas sur leur texte integral.",
+      "blocking": false
+    },
+    {
+      "id": "D-M11-03",
+      "class": "TEST_GAP",
+      "statement": "corpusSufficiencyPolicy est test_unvalidated : garde-fou technique, sans validation methodologique separee.",
+      "blocking": false
+    },
+    {
+      "id": "D-M11-04",
+      "class": "INTEGRATION_GAP",
+      "statement": "Les artefacts de phase 1 sont reutilises par re-enregistrement a l'identique, non via l'autorite d'entree historique de MONO-10 (§7/§8).",
+      "blocking": false
+    }
+  ],
+  "technicalVerdict": "GELABLE_TECHNIQUEMENT",
+  "notFrozen": true
+}

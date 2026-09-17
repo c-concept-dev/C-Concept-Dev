@@ -1,0 +1,32 @@
+{
+  "schema": "EvidenceForge.OperatorApi",
+  "schemaVersion": "MONO-05-v1",
+  "description": "Frontiere HTTP unique entre le navigateur et MONO-01->04. Aucune logique metier ici - chaque operation delegue la decision reelle aux couches gelees.",
+  "operations": {
+    "listRuns()": "GET /api/runs -> [{ runId, missionId, status, createdAt, updatedAt, currentReadyNodes, lastError, lineageStatus }]",
+    "getRun(runId)": "GET /api/runs/:runId -> meme forme qu'un element de listRuns()",
+    "createRun({runId, missionId, missionQuestion, externalInputs, workerCallFnTemplate, efOrchConnectorProviders})": "POST /api/runs -> valide schema/schemaVersion/champs requis du RunContract fourni, cree le RunState MONO-03, ne reconstruit jamais le RunContract lui-meme",
+    "getGraph(runId)": "GET /api/runs/:runId/graph -> { runId, nodes: [{nodeId, state}] } - exactement les 14 noeuds du graphe MONO-02 gele, dans son ordre",
+    "getNode(runId, nodeId)": "GET /api/runs/:runId/nodes/:nodeId -> detail contractuel (section 6.D) - jamais le contenu interne d'un checkpoint",
+    "runNode(runId, nodeId)": "POST /api/runs/:runId/nodes/:nodeId/run -> revalide engine.canRun(nodeId) cote serveur AVANT tout appel, jamais une confiance dans le clic UI",
+    "resumeNode(runId, nodeId)": "POST /api/runs/:runId/nodes/:nodeId/resume -> autorise uniquement si retryPolicy in {RESUME_CHECKPOINT, REPLAY_MISSING_ONLY} et etat in {PAUSED, FAILED}",
+    "retryNode(runId, nodeId)": "POST /api/runs/:runId/nodes/:nodeId/retry -> refuse explicitement NO_RETRY et EXPLICIT_REBUILD_REQUIRED",
+    "listArtifacts(runId)": "GET /api/runs/:runId/artifacts -> lecture seule, jamais d'edition possible via cette API",
+    "getArtifact(runId, artifactId)": "GET /api/runs/:runId/artifacts/:artifactId -> payload tel quel, jamais altere",
+    "getDependencies(runId)": "GET /api/runs/:runId/dependencies -> provider/dependencyType/configured/available, jamais une valeur de secret",
+    "getLineage(runId)": "GET /api/runs/:runId/lineage -> PASS|FAIL|NOT_RUN",
+    "getReport(runId)": "GET /api/runs/:runId/report -> refuse (LINEAGE_BLOCKED, HTTP 403) si lineage != PASS, y compris pour un appel HTTP direct hors UI"
+  },
+  "errorShape": {
+    "errorCode": "code machine exact (ex: NODE_NOT_READY, LINEAGE_BLOCKED) - jamais remplace par un texte seul",
+    "message": "message lisible cote humain",
+    "details": "contexte technique additionnel"
+  },
+  "neverExposed": [
+    "valeur de secret (SecretProvider)",
+    "en-tetes Authorization/Bearer",
+    "contenu interne d'un checkpoint EF-ORCH (RunOutputStore/StateSnapshotStore/CheckpointIdentityStore)",
+    "acces direct au backend de persistance MONO-03",
+    "acces direct a un module metier gele"
+  ]
+}

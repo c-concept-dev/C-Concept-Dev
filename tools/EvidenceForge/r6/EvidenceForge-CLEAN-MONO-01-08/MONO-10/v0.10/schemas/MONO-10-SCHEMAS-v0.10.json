@@ -1,0 +1,463 @@
+{
+  "$comment": "MONO-10 v0.10 — schemas IMPLEMENTES. Changement structurant : une capacite de securite n'est digne de confiance que si sa DERIVATION est verifiable aupres de son emetteur. Le caller peut demander une operation ; il ne recoit pas l'emetteur.",
+  "schemaFamily": "EvidenceForge.MONO-10",
+  "schemaVersion": "MONO-10-v10",
+  "supersedes": "MONO-10-v9",
+  "historicalImmutableLots": [
+    "MONO-00..MONO-09",
+    "MONO-10 v0.1..v0.8 (tous NON_GELABLE, non modifies)",
+    "MONO-10 v0.9"
+  ],
+  "architecturalDecision": {
+    "principle": "Evidence carried in an artifact has effect only if its consumer verifies it.",
+    "preservedFromV08": "A security capability is trusted only if its issuer is derived from the already-provisioned operator trust boundary.",
+    "preservedFromV07": "Caller declaration is not authority.",
+    "boundaryIdentity": "composite : operatorTrustBoundaryId + configBindingHash + executionMode",
+    "replayAnchor": "identite PHYSIQUE du fichier de configuration (realpath + inode)"
+  },
+  "genericCoreBoundary": {
+    "noHardcoded": [
+      "metier",
+      "discipline",
+      "expert",
+      "panel",
+      "cas d'usage",
+      "taxonomie",
+      "fournisseur"
+    ],
+    "casePhaseNaming": "adapters/case-phase-adapter.js",
+    "upstreamContractBridging": "adapters/upstream-evidence-binder.js",
+    "verifiedBy": "scan anti-cablage sur core/, adapters/, validators/ avec temoin positif ; universalite eprouvee sur 6 domaines"
+  },
+  "breakingChanges": [
+    "operator-trust-boundary : les emetteurs (provenance, acte humain, capacite LLM, entree historique) ne sont plus des champs de l'objet frontiere ; ils sont detenus dans une WeakMap non exportee. `boundary.issuerInventory` declare leur presence.",
+    "operator-trust-verifier : `createOperatorTrustVerifier` retire. `OTB.verifierFor(boundary)` est la seule fabrique. Les getters d'emetteur sont remplaces par des operations : resolveProvenanceRoots, certifyProvenance, runLlmProbe, certifyLlmCapability, verifyHumanAct, certifyHumanAuthenticated, authorizeHistoricalInput, verifyIssuerDecision.",
+    "artifact-capabilities : `mintCapabilityGrant` verifie la derivation aupres du registre de decisions de l'emetteur — CAPABILITY_DERIVATION_UNVERIFIABLE, CAPABILITY_ISSUER_HAS_NO_LEDGER. La concession porte `decisionKind` et `decisionHash`.",
+    "artifact-capabilities : nouvelle API `capabilityVerifiedBy(entry, capability, verifier, attentes)` ; `hasCapability` reste un constat de presence et n'est plus suffisant pour un consommateur critique.",
+    "comparaison d'identite : faite contre le CONTEXTE ATTENDU (registre authentifie, manifeste), plus contre l'identite que le verificateur declare — PROVENANCE_VERIFIER_CONTEXT_MISMATCH. Un contexte attendu incomplet refuse.",
+    "llm-capability : la frontiere de capacite n'est injectee que par verifier.runLlmProbe. L'artefact porte `probeDerivationRef` et `callerVerifierIgnored`. `assertCapabilityUsable` deduit ce que la capacite PRETEND de l'artefact et du registre : un contexte insuffisant est un refus, pas une dispense.",
+    "identity-evidence : `minIndependentForStrong` et `strongThreshold` sont des PLANCHERS du lot (2 et 1.0) ; resserrement seulement. Le resultat porte `policyNarrowedOnly`.",
+    "candidate-assessment : `verifier` requis pour admettre une reference au corpus. Sans lui, zero reference admise, toutes consignees dans `unauthenticatedEvidenceRefs`.",
+    "scientific-readiness : identite composite comparee ; READINESS_VERIFIER_FORGED, READINESS_REGISTRY_MODE_INSUFFICIENT, READINESS_EXECUTION_MODE_MISDECLARED. Le plafond de statut utilise le mode d'execution AUTHENTIFIE.",
+    "lineage : `historicalInputAuthority` passee en argument est ignoree et signalee ; l'autorisation se demande au verificateur.",
+    "upstream-evidence-binder : `provenanceAuthority` remplacee par `verifier` ; l'autorite en argument est consignee comme ignoree."
+  ],
+  "commonTypes": {
+    "Sha256Hex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "Iso8601": {
+      "type": "string",
+      "description": "horodatage reel, jamais fabrique"
+    },
+    "ArtifactRef": {
+      "required": [
+        "artifactId",
+        "sha256",
+        "relation"
+      ],
+      "description": "reference de lignee TYPEE ; la relation determine le schema attendu de l'artefact vise"
+    },
+    "Unknown": {
+      "required": [
+        "unknownId",
+        "genesisHash",
+        "status",
+        "transitions"
+      ],
+      "description": "chaine d'evenements ; le statut est DERIVE de la chaine, jamais lu sur le champ"
+    },
+    "HumanActProof": {
+      "required": [
+        "actorId",
+        "actionType",
+        "decisionHash",
+        "runId",
+        "missionHash",
+        "issuedAt",
+        "mechanismRef",
+        "proofValue"
+      ],
+      "description": "HMAC emis par le mecanisme de l'exploitant ; lie a l'ACTE precis, pas a l'acteur"
+    },
+    "RegistryEvent": {
+      "required": [
+        "sequence",
+        "artifactId",
+        "relation",
+        "artifactType",
+        "artifactHash",
+        "previousEventHash",
+        "eventHash"
+      ],
+      "description": "journal append-only ; suppression, reordonnancement et reecriture sont detectes"
+    },
+    "EvidenceClass": {
+      "source": "contracts/canonical-contracts.json#evidenceClasses"
+    },
+    "KeyStatus": {
+      "source": "contracts/canonical-contracts.json#keyStatuses",
+      "note": "absence, null ou valeur inconnue => INVALIDE (§38)"
+    },
+    "ArtifactCapability": {
+      "source": "contracts/canonical-contracts.json#artifactCapabilities",
+      "orthogonal": true,
+      "note": "capacites TYPEES, non ordinales ; chacune emise par la capacite operateur competente et exigee par un sink nomme"
+    },
+    "CapabilityGrant": {
+      "required": [
+        "capability",
+        "artifactId",
+        "artifactHash",
+        "artifactSchema",
+        "runId",
+        "missionHash",
+        "operatorBoundaryId",
+        "issuerAuthorityId",
+        "issuerAuthorityKind",
+        "issuerDescriptorHash",
+        "derivationRef",
+        "grantHash",
+        "configBindingHash"
+      ],
+      "note": "§4 — porte ET fait comparer la liaison de configuration ; une concession venue d'une autre configuration est refusee des le registre, avant tout autre ecart"
+    },
+    "HistoricalInputAuthorization": {
+      "required": [
+        "sourceRunId",
+        "sourceMissionHash",
+        "artifactId",
+        "artifactHash",
+        "artifactType",
+        "relation",
+        "destinationRunId",
+        "destinationMissionHash",
+        "purpose",
+        "frozenIdentity"
+      ],
+      "note": "§8 — porte sur l'artefact EXACT, jamais sur une classe de relation"
+    },
+    "ReadinessDimensionEvidenceBinding": {
+      "required": [
+        "dimensionId",
+        "dimensionHash",
+        "evidenceArtifactId",
+        "evidenceHash",
+        "relation",
+        "bindingHash"
+      ],
+      "note": "§14 — la relation est lue SUR LE REGISTRE ; une preuve empruntee a une autre dimension n'etablit rien"
+    },
+    "ProvenanceStatus": {
+      "source": "contracts/canonical-contracts.json#provenanceStatuses",
+      "note": "§32 — une racine declaree par l'appelant n'est jamais AUTHENTICATED"
+    },
+    "UpstreamAssertion": {
+      "source": "contracts/canonical-contracts.json#upstreamAssertionStates",
+      "note": "§19 — sans preuve amont correspondante, un pont rend UNKNOWN et une contribution nulle"
+    },
+    "AuthorityDescriptor": {
+      "required": [
+        "operatorBoundaryId",
+        "authorityKind",
+        "authorityId",
+        "executionMode",
+        "provisionedFrom",
+        "configBindingHash",
+        "issuerGeneration",
+        "issuedAt",
+        "descriptorHash"
+      ],
+      "note": "§10 — immuable, conserve dans une WeakMap module-privee ; non portable, non recopiable"
+    },
+    "BoundaryIssuanceHandle": {
+      "exported": false,
+      "note": "§5/§6 — creee uniquement dans buildBoundary ; aucun export ne la produit ; seul isBoundaryIssuanceHandle est expose"
+    },
+    "BoundaryIdentity": {
+      "required": [
+        "operatorBoundaryId",
+        "configBindingHash"
+      ],
+      "optional": [
+        "executionMode"
+      ],
+      "note": "§3/§4 — identite COMPOSITE. operatorTrustBoundaryId est DECLARE dans la configuration : deux configurations distinctes peuvent porter le meme. Une chaine seule est refusee (AUTHORITY_BOUNDARY_EXPECTATION_INCOMPLETE)."
+    },
+    "RunEvidenceManifest": {
+      "required": [
+        "runId",
+        "executionMode",
+        "operatorTrustBoundaryId",
+        "configBindingHash",
+        "boundaryDescriptorHash",
+        "runtimeAttestationHash",
+        "missionHash",
+        "manifestBindingHash"
+      ],
+      "note": "§4 — configBindingHash est ENGAGE par manifestBindingHash et compare par assertManifestAuthentic"
+    }
+  },
+  "artifacts": {
+    "Mission": {
+      "schema": "EvidenceForge.Mission",
+      "lineageRelation": "MISSION",
+      "required": [
+        "schema",
+        "missionId",
+        "missionHash"
+      ],
+      "notes": "racine de la chaine ; aucun libelle metier impose"
+    },
+    "PriorUnifiedReport": {
+      "schema": "EvidenceForge.PriorUnifiedReport",
+      "lineageRelation": "PRIOR_REPORT",
+      "required": [
+        "schema",
+        "mission"
+      ],
+      "notes": "entree historique ; ne resout inter-runs que sous contrat authentifie par l'exploitant"
+    },
+    "DocumentaryEvidenceRecord": {
+      "schema": "EvidenceForge.DocumentaryEvidenceRecord",
+      "lineageRelation": "DOCUMENTARY_EVIDENCE",
+      "required": [
+        "schema",
+        "evidenceId",
+        "sourceRootId"
+      ],
+      "notes": "les racines d'autorite et de famille portees par l'artefact sont des DEMANDES : elles sont resolues par EvidenceProvenanceAuthority et la declaration est consignee sans effet"
+    },
+    "ProfessionalDiscovery": {
+      "schema": "EvidenceForge.ProfessionalDiscovery",
+      "lineageRelation": "DISCOVERY",
+      "required": [
+        "schema",
+        "candidates"
+      ],
+      "notes": "produit par un lot amont ; la variante DERIVEE produite par upstream-evidence-binder porte derivedFrom.upstreamDiscoveryRef et conserve upstreamEvidenceRefs"
+    },
+    "ProfessionalVerification": {
+      "schema": "EvidenceForge.ProfessionalVerification",
+      "lineageRelation": "VERIFICATION",
+      "required": [
+        "schema",
+        "verified"
+      ],
+      "notes": "statut de verification HISTORIQUE : jamais reecrit par MONO-10"
+    },
+    "ProfessionalCandidateAssessment": {
+      "schema": "EvidenceForge.ProfessionalCandidateAssessment",
+      "lineageRelation": "ASSESSMENT",
+      "required": [
+        "schema",
+        "assessments"
+      ],
+      "notes": "aucun statut n'evoque une admission ; seul PRESENT est presentable au panel"
+    },
+    "ProfessionalPanelValidation": {
+      "schema": "EvidenceForge.ProfessionalPanelValidation",
+      "lineageRelation": "PANEL_DECISION",
+      "required": [
+        "schema",
+        "decisions"
+      ],
+      "notes": "chaque decision porte decisionHash et, en PRODUCTION, humanActProof ; APPROVE/DEFER/REJECT"
+    },
+    "EffectiveCorpusEligibilitySet": {
+      "schema": "EvidenceForge.EffectiveCorpusEligibilitySet",
+      "lineageRelation": "EFFECTIVE_ELIGIBILITY",
+      "required": [
+        "schema",
+        "decisions"
+      ],
+      "notes": "un seul etat ouvre le corpus et il exige une approbation humaine AUTHENTIFIEE ; une decision de panel absente vaut NOT_ELIGIBLE ; aucune politique d'appelant ne cree une admission"
+    },
+    "ProfessionalCorpusSet": {
+      "schema": "EvidenceForge.ProfessionalCorpusSet",
+      "lineageRelation": "CORPUS",
+      "required": [
+        "schema",
+        "professionalCorpora"
+      ],
+      "notes": "produit par le consumer amont REEL ; DEFER et REJECT ne le franchissent jamais"
+    },
+    "DocumentaryTwinSet": {
+      "schema": "EvidenceForge.DocumentaryTwinSet",
+      "lineageRelation": "TWINS",
+      "required": [
+        "schema"
+      ],
+      "notes": "jumeaux documentaires"
+    },
+    "ReviewSet": {
+      "schema": "EvidenceForge.ReviewSet",
+      "lineageRelation": "REVIEWS",
+      "required": [
+        "schema"
+      ],
+      "notes": "revues"
+    },
+    "Aggregation": {
+      "schema": "EvidenceForge.Aggregation",
+      "lineageRelation": "AGGREGATION",
+      "required": [
+        "schema"
+      ],
+      "notes": "agregation"
+    },
+    "ScientificReadiness": {
+      "schema": "EvidenceForge.ScientificReadiness",
+      "lineageRelation": "READINESS_PRE | READINESS_FULL",
+      "required": [
+        "schema",
+        "phase",
+        "dimensions",
+        "dimensionsHash",
+        "dimensionBindings",
+        "dimensionBindingsHash",
+        "derivedPhase"
+      ],
+      "notes": "la phase est DERIVEE des liaisons ; le registre et dimensionBindingsHash sont OBLIGATOIRES ; le statut declare ne peut pas depasser le plafond derive de la preuve liee (borne superieure, pas reevaluation complete)"
+    },
+    "LlmCapability": {
+      "schema": "EvidenceForge.LlmCapability",
+      "lineageRelation": "CAPABILITY",
+      "required": [
+        "schema",
+        "status",
+        "transportOrigin"
+      ],
+      "notes": "transportOrigin vaut toujours ENVIRONMENT ; callerTransportIgnored consigne la tentative de l'appelant"
+    },
+    "ScientificQualification": {
+      "schema": "EvidenceForge.ScientificQualification",
+      "lineageRelation": "QUALIFICATION",
+      "required": [
+        "schema",
+        "qualificationStatus",
+        "evidenceClass"
+      ],
+      "notes": "QUALIFIED | QUALIFIED_WITH_RESERVATIONS | NOT_QUALIFIED | IMPOSSIBLE_TO_ASSESS ; QUALIFIED_WITH_RESERVATIONS est un resultat legitime"
+    },
+    "ScientificUnifiedReport": {
+      "schema": "EvidenceForge.ScientificUnifiedReport",
+      "lineageRelation": "REPORT",
+      "required": [
+        "schema",
+        "registryRootHash"
+      ],
+      "notes": "lie mission, qualification et racine de registre telle qu'a son propre enregistrement"
+    },
+    "FinalReportAcceptance": {
+      "schema": "EvidenceForge.FinalReportAcceptance",
+      "lineageRelation": "ACCEPTANCE",
+      "required": [
+        "schema",
+        "decision",
+        "decisionHash",
+        "reportRegistryRootHash"
+      ],
+      "notes": "validee par acceptanceBoundary() ; REJECT est bloquant en dur et aucune politique ne le convertit"
+    },
+    "DownstreamUseAuthorization": {
+      "schema": "EvidenceForge.DownstreamUseAuthorization",
+      "lineageRelation": "AUTHORIZATION",
+      "required": [
+        "schema",
+        "authorization",
+        "revalidation",
+        "refusedOverrides"
+      ],
+      "notes": "revalidation TOUJOURS executee ; refusedOverrides consigne chaque cle de politique retiree avec son motif"
+    }
+  },
+  "runtimeTypes": {
+    "RuntimeAttestation": {
+      "required": [
+        "runId",
+        "missionHash",
+        "executionMode",
+        "authorityId",
+        "keyId",
+        "nonce",
+        "signedAt",
+        "signature"
+      ],
+      "algorithm": "Ed25519 (crypto.sign/verify, algorithme null)",
+      "notes": "produite par l'AUTORITE DE L'EXPLOITANT ; le nonce est consomme a l'ouverture du run"
+    },
+    "RunEvidenceManifest": {
+      "required": [
+        "runId",
+        "executionMode",
+        "authorityId",
+        "keyId",
+        "operatorTrustBoundaryId",
+        "boundaryDescriptorHash",
+        "runtimeAttestationHash",
+        "runManifestRootHash",
+        "missionHash",
+        "manifestBindingHash"
+      ],
+      "notes": "la forme valide ne suffit pas : assertManifestAuthentic exige une frontiere et une attestation verifiees"
+    },
+    "OperatorTrustBoundaryDescriptor": {
+      "required": [
+        "operatorTrustBoundaryId",
+        "namespace",
+        "provisionedFrom",
+        "revocationModel"
+      ],
+      "provisionedFrom": "ENVIRONMENT",
+      "revocationModel": "LIVE_CONFIG_LOOKUP",
+      "notes": "obtenue par lecture de EVIDENCEFORGE_OPERATOR_TRUST_CONFIG ; jamais recue en argument"
+    }
+  },
+  "caseAdapters": {
+    "note": "un cas d'application nomme ses phases dans adapters/ ; le noyau n'en connait aucun. JMJS est un cas d'application et ne definit pas EvidenceForge."
+  },
+  "schemaFamilyNote": "Ces schemas decrivent ce qui est IMPLEMENTE. Les enumerations critiques sont REFERENCEES vers leur source canonique plutot que recopiees.",
+  "sinkRequirements": {
+    "panel-gate:evidence-presented-to-human": "AUTHENTICATED_PROVENANCE",
+    "panel-gated-adapter:corpus-sink": "HUMAN_AUTHENTICATED",
+    "llm-capability:production-use": "PRODUCTION_LLM_CAPABILITY"
+  },
+  "authorityGraph": {
+    "root": "OperatorTrustBoundary",
+    "issued": [
+      "EvidenceProvenanceAuthority",
+      "OperatorHistoricalInputAuthority",
+      "HumanActAuthority",
+      "LlmCapabilityAuthority"
+    ],
+    "replay": "reserve ancree a realpath(trustConfigPath) + inode ; emplacement non configurable",
+    "callerAccessibleProductionIssuers": 0,
+    "boundaryIdentity": "composite (operatorTrustBoundaryId + configBindingHash + executionMode)"
+  },
+  "EvidenceForge.IssuerDecision": {
+    "$comment": "Decision inscrite par un emetteur au moment ou il prend REELLEMENT la decision. Non exportee : lisible seulement par verifyDecision, en lecture seule.",
+    "schema": "EvidenceForge.IssuerDecision",
+    "schemaVersion": "MONO-10-v10",
+    "decisionKind": [
+      "PROVENANCE_ROOT_RESOLUTION",
+      "HUMAN_ACT_CERTIFICATION",
+      "LLM_PROBE_EXECUTION",
+      "HISTORICAL_INPUT_AUTHORIZATION"
+    ],
+    "issuerAuthorityId": "string",
+    "issuerAuthorityKind": "string",
+    "operatorBoundaryId": "string",
+    "configBindingHash": "sha256",
+    "executionMode": [
+      "PRODUCTION",
+      "TEST"
+    ],
+    "issuerGeneration": "string",
+    "subject": "objet gele — artefact, run, mission, et les elements propres a l'operation",
+    "result": "objet gele — statut de la decision ; une decision non authentifiante n'est jamais verifiable positivement",
+    "decidedAt": "ISO-8601",
+    "derivationRef": "decision:<genre en minuscules>:<40 hex de l'empreinte de la decision>"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "schema": "EvidenceForge.NodeStateRecord",
+  "schemaVersion": "MONO-03-v1",
+  "description": "Etat durable d'un noeud MONO-02 pour un run donne. Les valeurs de `state` sont EXACTEMENT les 7 etats de MONO-02 (NOT_STARTED, READY, RUNNING, SUCCESS, FAILED, BLOCKED, PAUSED) - MONO-03 n'invente jamais une deuxieme state machine.",
+  "requiredFields": {
+    "nodeId": "identifiant du noeud (identique au graphe MONO-02)",
+    "state": "un des 7 etats MONO-02, jamais une valeur inventee",
+    "attemptCount": "nombre de tentatives d'execution (incremente a chaque markNodeRunning)",
+    "startedAt": "horodatage du dernier passage a RUNNING, ou null",
+    "completedAt": "horodatage du dernier passage a un etat terminal (SUCCESS/FAILED), ou null",
+    "lastError": "dernier PersistenceError ou erreur d'orchestration pour ce noeud, ou null",
+    "inputArtifactRefs": "liste d'artifactId consommes en entree (informatif, jamais utilise pour rejouer un calcul)",
+    "outputArtifactRefs": "liste d'artifactId produits par ce noeud (exactement un pour un noeud SUCCESS dans cette version)",
+    "resumePolicy": "politique de reprise (voir resume-plan-v1.json), fournie par l'appelant depuis MONO-02",
+    "retryPolicy": "politique de nouvelle tentative, fournie par l'appelant depuis MONO-02"
+  },
+  "invariant": "Un noeud SUCCESS est immuable : RunStore refuse toute transition SUCCESS->autre etat, et refuse un re-enregistrement SUCCESS avec un artefact different (ARTIFACT_CONFLICT/RUN_STATE_CONFLICT)."
+}

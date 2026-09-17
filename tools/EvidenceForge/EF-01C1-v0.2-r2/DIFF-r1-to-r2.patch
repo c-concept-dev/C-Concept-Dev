@@ -1,0 +1,327 @@
+diff -u EF-01C1-v0.2-r1/lib/errors.js EF-01C1-v0.2-r2/lib/errors.js
+--- EF-01C1-v0.2-r1/lib/errors.js	2026-09-05 20:30:50
++++ EF-01C1-v0.2-r2/lib/errors.js	2026-09-07 21:20:40
+@@ -13,6 +13,9 @@
+   "PLANNER_OUTPUT_INVALID",
+   "MODEL_PROVENANCE_MISMATCH",
+   "TRANSPORT_PROVENANCE_MISMATCH",
++  // EF-01C1-v0.2-r2 / F-C1-R2-04 : un appel REEL ne peut jamais retomber
++  // silencieusement sur un modele par defaut. Ajout ADDITIF a la liste r1.
++  "REAL_MODEL_NOT_EXPLICIT",
+ ];
+ 
+ function ef01c1Error(code, message, details) {
+diff -u EF-01C1-v0.2-r1/lib/evidence-writer.js EF-01C1-v0.2-r2/lib/evidence-writer.js
+--- EF-01C1-v0.2-r1/lib/evidence-writer.js	2026-09-05 20:31:24
++++ EF-01C1-v0.2-r2/lib/evidence-writer.js	2026-09-07 21:21:15
+@@ -42,4 +42,35 @@
+   return dir;
+ }
+ 
+-module.exports = { writePlannerEvidence: writePlannerEvidence };
++/**
++ * writeRawProviderEvidence(evidenceRoot, evidence) — EF-01C1-v0.2-r2,
++ * F-C1-R2-03.
++ *
++ * ECRIT AVANT TOUT PARSING. Une reponse provider REELLEMENT RECUE doit
++ * laisser une trace meme si son parsing echoue ensuite : les deux appels
++ * planner reels perdus avant ce lot l'ont ete parce que l'ecriture n'avait
++ * lieu qu'apres un parsing reussi.
++ *
++ * FRONTIERE EXPLICITE ET NON NEGOCIABLE : l'artefact produit est classe
++ * `RAW_PROVIDER_EVIDENCE`. Ce N'EST PAS un plannerRun et il ne doit jamais
++ * etre lu comme tel. Un plannerRun n'existe QUE si le parsing ET la
++ * validation R6 ont reussi. Le contrat gele n'est pas modifie : cet
++ * artefact est ADDITIF et propre au successeur.
++ *
++ * Le fichier est reecrit une seconde fois apres le parsing pour porter
++ * `parsingStatus` (SUCCESS ou FAILED) : le premier passage garantit la
++ * survie de la preuve, le second en dit l'issue.
++ */
++function writeRawProviderEvidence(evidenceRoot, evidence) {
++  const dir = path.join(evidenceRoot, "planner");
++  fs.mkdirSync(dir, { recursive: true });
++  const name = "planner-provider-evidence.json";
++  const body = JSON.stringify(evidence, null, 2) + "\n";
++  fs.writeFileSync(path.join(dir, name), body);
++  return path.join(dir, name);
++}
++
++module.exports = {
++  writePlannerEvidence: writePlannerEvidence,
++  writeRawProviderEvidence: writeRawProviderEvidence,
++};
+diff -u EF-01C1-v0.2-r1/lib/executor.js EF-01C1-v0.2-r2/lib/executor.js
+--- EF-01C1-v0.2-r1/lib/executor.js	2026-09-05 20:31:54
++++ EF-01C1-v0.2-r2/lib/executor.js	2026-09-07 21:21:15
+@@ -21,7 +21,7 @@
+ const { buildPlannerPrompt, PROMPT_ID, PROMPT_VERSION, PROMPT_TEMPLATE, PROMPT_TEMPLATE_HASH } = require("../prompts/ef01c1-planner-prompt-v0.2-r1.js");
+ const { loadHashDeps, computeInputHash, computeRawResponseHash, computePromptTemplateHash } = require("./hash.js");
+ const { parsePlannerResponse } = require("./parser.js");
+-const { writePlannerEvidence } = require("./evidence-writer.js");
++const { writePlannerEvidence, writeRawProviderEvidence } = require("./evidence-writer.js");
+ const { ef01c1Error } = require("./errors.js");
+ const { callTracedRealLlm, resolveEffectiveTransport } = require("./real-llm-call.js");
+ 
+@@ -58,6 +58,18 @@
+     throw new Error("acquirePlannerRun: classification doit valoir \"PROVIDER_OBSERVED_CALL\" ou \"LOCAL_CONTROLLED_FIXTURE\".");
+   }
+ 
++  // F-C1-R2-04 — controle le PLUS TOT possible : avant toute construction
++  // couteuse (hashDeps, prompt, hash d'entree) et bien avant le reseau.
++  const envEarly = opts.env || process.env;
++  const isRealCall = opts.classification === "PROVIDER_OBSERVED_CALL";
++  if (isRealCall && !(typeof envEarly.LLM_REAL_MODEL === "string" && envEarly.LLM_REAL_MODEL.trim().length > 0)) {
++    throw ef01c1Error(
++      "REAL_MODEL_NOT_EXPLICIT",
++      "appel REEL refuse : LLM_REAL_MODEL n'est pas defini. Le modele reel doit etre choisi explicitement par le proprietaire — jamais herite d'un defaut, jamais code en dur. Aucune requete reseau n'a ete emise, aucun artefact n'a ete cree.",
++      { requiredEnvVar: "LLM_REAL_MODEL", classification: opts.classification, networkCallPerformed: false }
++    );
++  }
++
+   const hashDeps = loadHashDeps(opts.bundleRoot);
+   const eforchArtifacts = loadEForchArtifacts(opts.bundleRoot);
+   const env = opts.env || process.env;
+@@ -103,12 +115,60 @@
+     declaredTransport: opts.declaredTransport,
+     errorFactory: ef01c1Error,
+     localInvocationIdPrefix: "ef01c1-planner",
++    requireExplicitRealModel: isRealCall, // F-C1-R2-04, seconde barriere au plus pres du reseau
+   });
+   const completedAt = new Date().toISOString();
+   const rawResponseText = callResult.text;
+   const rawResponseHash = await computeRawResponseHash(hashDeps, rawResponseText);
+ 
+-  const plannerOutput = parsePlannerResponse(rawResponseText, disciplineIds, eforchArtifacts.validateRealPlannerOutputFields);
++  // ---------------------------------------------------------------------
++  // F-C1-R2-03 — L'EVIDENCE BRUTE EST PERSISTEE AVANT LE PARSING.
++  // "reponse provider recue" et "plannerOutput valide" sont deux faits
++  // distincts. Le premier est desormais prouve independamment du second.
++  // rawResponseHash porte sur le texte assistant ORIGINAL (fence comprise) :
++  // il est calcule ci-dessus, avant toute normalisation d'enveloppe.
++  // ---------------------------------------------------------------------
++  const rawProviderEvidence = {
++    evidenceType: "RAW_PROVIDER_EVIDENCE", // JAMAIS un plannerRun
++    evidenceVersion: "EF-01C1-v0.2-r2",
++    note: "Preuve d'un appel provider REELLEMENT effectue. Ce fichier n'est PAS un plannerRun et ne doit jamais etre lu comme tel : un plannerRun n'existe que si parsingStatus vaut SUCCESS et que la validation R6 a reussi.",
++    classification: opts.classification,
++    provider: "anthropic",
++    localInvocationId: callResult.localInvocationId,
++    providerRequestId: callResult.providerRequestId,
++    modelRequested: (opts.env || process.env).LLM_REAL_MODEL || null,
++    modelObserved: callResult.effectiveModel,
++    transport: callResult.effectiveTransport,
++    promptId: PROMPT_ID,
++    promptVersion: PROMPT_VERSION,
++    inputHash: inputHash,
++    assistantText: rawResponseText,
++    rawResponseHash: rawResponseHash,
++    rawResponseHashScope: "assistant_text",
++    startedAt: startedAt,
++    completedAt: completedAt,
++    parsingStatus: "PENDING",
++  };
++  writeRawProviderEvidence(opts.evidenceRoot, rawProviderEvidence);
++
++  let plannerOutput;
++  try {
++    plannerOutput = parsePlannerResponse(rawResponseText, disciplineIds, eforchArtifacts.validateRealPlannerOutputFields);
++  } catch (parseError) {
++    rawProviderEvidence.parsingStatus = "FAILED";
++    rawProviderEvidence.parsingFailure = {
++      code: parseError && parseError.code ? parseError.code : "UNKNOWN",
++      message: String(parseError && parseError.message ? parseError.message : parseError),
++      stage: "parsePlannerResponse",
++      failedAt: new Date().toISOString(),
++    };
++    // PLANNER_RUN_VALID = NO, PLANNER_OUTPUT_VALID = NO : rien d'autre n'est
++    // ecrit, et l'erreur typee remonte inchangee a l'appelant.
++    writeRawProviderEvidence(opts.evidenceRoot, rawProviderEvidence);
++    throw parseError;
++  }
++  rawProviderEvidence.parsingStatus = "SUCCESS";
++  writeRawProviderEvidence(opts.evidenceRoot, rawProviderEvidence);
+ 
+   const provenance = {
+     classification: opts.classification,
+diff -u EF-01C1-v0.2-r1/lib/parser.js EF-01C1-v0.2-r2/lib/parser.js
+--- EF-01C1-v0.2-r1/lib/parser.js	2026-09-05 20:31:24
++++ EF-01C1-v0.2-r2/lib/parser.js	2026-09-07 21:19:53
+@@ -11,6 +11,109 @@
+ 
+ const { ef01c1Error } = require("./errors.js");
+ 
++// =========================================================================
++// F-C1-R2-01 — TOLERANCE D'ENVELOPPE DE TRANSPORT, ET RIEN D'AUTRE.
++//
++// Incident reel a l'origine : 2 appels planner reels sur 2 ont renvoye le
++// JSON attendu encapsule dans une UNIQUE fence Markdown ```json ... ```.
++// JSON.parse() echouait sur le premier caractere "`" (LLM_RESPONSE_INVALID),
++// alors que le contenu JSON lui-meme etait exploitable.
++//
++// CE QUI EST TOLERE, exhaustivement : une enveloppe de TRANSPORT TEXTUELLE,
++// c'est-a-dire une unique fence Markdown entourant l'INTEGRALITE du JSON.
++//
++// CE QUI N'EST JAMAIS TOLERE : la moindre reparation du JSON. Le contrat
++// scientifique reste strictement inchange. Cette fonction ne cherche jamais
++// une accolade, n'extrait jamais du JSON depuis de la prose, ne supprime
++// aucun texte explicatif, ne corrige ni virgule ni guillemet, n'accepte ni
++// fence multiple ni fence non fermee, et ne modifie aucune valeur. Si le
++// contenu interieur n'est pas du JSON valide, le parsing echoue exactement
++// comme avant ce lot.
++//
++// INVARIANT DE PROVENANCE : cette normalisation intervient APRES le calcul
++// de rawResponseHash et APRES la persistance de l'evidence brute. Le hash
++// porte toujours sur le texte assistant ORIGINAL, fence comprise
++// (rawResponseHashScope = "assistant_text", F-05 inchange).
++// =========================================================================
++
++// Langages de fence acceptes. "json" est accepte SANS SENSIBILITE A LA CASSE
++// (choix explicite, teste : voir T09b du banc r2). Toute autre valeur est
++// refusee — une fence ```python autour de JSON n'est pas une enveloppe de
++// transport reconnue par ce lot.
++const FENCE_OPEN_RE = /^```([A-Za-z0-9_+-]*)[ \t]*\r?\n/;
++const FENCE_MARK = "```";
++
++function isAllowedFenceLanguage(lang) {
++  return lang === "" || /^json$/i.test(lang);
++}
++
++/**
++ * normalizeStrictJsonEnvelope(rawText) — retire UNE enveloppe de transport,
++ * jamais autre chose.
++ *
++ * Accepte exactement deux familles :
++ *   A. JSON brut          -> le texte est retourne INCHANGE (aucun nettoyage,
++ *                            pas meme un trim : JSON.parse tolere deja les
++ *                            blancs de bordure).
++ *   B. une UNIQUE fence Markdown contenant uniquement le JSON
++ *                         -> le contenu interieur est retourne tel quel.
++ *
++ * Leve LLM_RESPONSE_INVALID si le texte COMMENCE comme une fence mais ne
++ * constitue pas une enveloppe valide (fence non fermee, langage non
++ * autorise, fences multiples, texte hors fence). Ne leve jamais pour du
++ * JSON brut : ce cas est laisse au JSON.parse strict en aval.
++ *
++ * Retourne { text, envelopeRemoved }.
++ */
++function normalizeStrictJsonEnvelope(rawText) {
++  if (typeof rawText !== "string") {
++    return { text: rawText, envelopeRemoved: false };
++  }
++  const trimmed = rawText.trim();
++  if (trimmed.slice(0, FENCE_MARK.length) !== FENCE_MARK) {
++    // Famille A — aucune enveloppe detectee. Rien n'est touche : si le texte
++    // contient de la prose, JSON.parse echouera, et c'est le comportement
++    // voulu (regle 5/6 : rien hors enveloppe n'est jamais retire).
++    return { text: rawText, envelopeRemoved: false };
++  }
++
++  const open = FENCE_OPEN_RE.exec(trimmed);
++  if (!open) {
++    throw ef01c1Error(
++      "LLM_RESPONSE_INVALID",
++      "enveloppe de transport invalide : la reponse commence par une fence Markdown dont l'ouverture est malformee (attendu \"```\" ou \"```json\" suivi d'un retour a la ligne) — aucune extraction heuristique n'est tentee.",
++      { envelope: "malformed_open" }
++    );
++  }
++  if (!isAllowedFenceLanguage(open[1])) {
++    throw ef01c1Error(
++      "LLM_RESPONSE_INVALID",
++      "enveloppe de transport invalide : langage de fence \"" + open[1] + "\" non autorise (seuls \"\" et \"json\" le sont) — jamais un contenu extrait d'une fence d'un autre langage.",
++      { envelope: "disallowed_language", language: open[1] }
++    );
++  }
++
++  const afterOpen = trimmed.slice(open[0].length);
++  if (afterOpen.slice(-FENCE_MARK.length) !== FENCE_MARK) {
++    throw ef01c1Error(
++      "LLM_RESPONSE_INVALID",
++      "enveloppe de transport invalide : fence ouverte mais jamais refermee en fin de reponse, ou texte present apres la fence fermante — jamais tronquee ni completee ici.",
++      { envelope: "unterminated_or_trailing_text" }
++    );
++  }
++
++  const inner = afterOpen.slice(0, afterOpen.length - FENCE_MARK.length);
++  if (inner.indexOf(FENCE_MARK) !== -1) {
++    throw ef01c1Error(
++      "LLM_RESPONSE_INVALID",
++      "enveloppe de transport invalide : plusieurs fences detectees — une reponse ne peut porter qu'une seule enveloppe, et aucun bloc n'est jamais concatene.",
++      { envelope: "multiple_fences" }
++    );
++  }
++
++  return { text: inner, envelopeRemoved: true };
++}
++
+ const ALLOWED_KEYS = [
+   "sources", "queries", "retrieval",
+   "criteresInclusion", "criteresExclusion",
+@@ -35,9 +138,14 @@
+   if (typeof validateRealPlannerOutputFields !== "function") {
+     throw new Error("parsePlannerResponse: validateRealPlannerOutputFields requis (fonction figee R6, jamais une logique de validation dupliquee ici).");
+   }
++  // F-C1-R2-01 : l'enveloppe de transport est retiree AVANT le parsing
++  // strict. Le JSON lui-meme n'est jamais repare — normalizeStrictJson
++  // Envelope() ne fait que retirer une fence entourant l'integralite du
++  // contenu, ou echouer.
++  const normalized = normalizeStrictJsonEnvelope(rawResponseText);
+   let parsed;
+   try {
+-    parsed = JSON.parse(rawResponseText);
++    parsed = JSON.parse(normalized.text);
+   } catch (e) {
+     throw ef01c1Error("LLM_RESPONSE_INVALID", "reponse planner non-JSON ou JSON malformee : " + e.message, { rawResponseTextLength: (rawResponseText || "").length });
+   }
+@@ -94,4 +202,7 @@
+   return parsed;
+ }
+ 
+-module.exports = { parsePlannerResponse: parsePlannerResponse };
++module.exports = {
++  parsePlannerResponse: parsePlannerResponse,
++  normalizeStrictJsonEnvelope: normalizeStrictJsonEnvelope,
++};
+diff -u EF-01C1-v0.2-r1/lib/real-llm-call.js EF-01C1-v0.2-r2/lib/real-llm-call.js
+--- EF-01C1-v0.2-r1/lib/real-llm-call.js	2026-09-05 20:30:56
++++ EF-01C1-v0.2-r2/lib/real-llm-call.js	2026-09-07 21:20:40
+@@ -84,6 +84,8 @@
+  *                         leve TRANSPORT_PROVENANCE_MISMATCH (F-04)
+  *   errorFactory        - optionnel, (code, message, details) -> Error, pour rester dans la liste de codes du lot appelant
+  *   localInvocationIdPrefix - optionnel, prefixe lisible de l'id local genere
++ *   requireExplicitRealModel - optionnel (r2, F-C1-R2-04) : si vrai, exige env.LLM_REAL_MODEL non vide
++ *                         AVANT tout appel reseau, sinon leve REAL_MODEL_NOT_EXPLICIT
+  *
+  * Retourne { text, effectiveModel, effectiveTransport, localInvocationId, providerRequestId }.
+  * `providerRequestId` vaut null si le provider/la fixture n'a jamais retourne
+@@ -110,6 +112,19 @@
+     );
+   }
+ 
++  // F-C1-R2-04 — un appel REEL exige un modele EXPLICITE. Controle place
++  // AVANT gateway.executeRequest() : aucun octet ne part sur le reseau si
++  // LLM_REAL_MODEL est absente. Aucun modele n'est code en dur ici, et le
++  // defaut global n'est pas modifie — il cesse simplement d'etre atteignable
++  // en mode REEL. LOCAL_CONTROLLED n'est pas affecte.
++  if (opts.requireExplicitRealModel && !isNonEmptyStr(env.LLM_REAL_MODEL)) {
++    throw errorFactory(
++      "REAL_MODEL_NOT_EXPLICIT",
++      "appel REEL refuse : LLM_REAL_MODEL n'est pas defini. Le modele reel doit etre choisi explicitement par le proprietaire — jamais herite d'un defaut, jamais code en dur. Aucune requete reseau n'a ete emise.",
++      { requiredEnvVar: "LLM_REAL_MODEL", networkCallPerformed: false }
++    );
++  }
++
+   const resolvedModel = resolveRealLlmModel(env);
+   const localInvocationId = (opts.localInvocationIdPrefix || "local-invocation") + "-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
+ 
+@@ -122,7 +137,9 @@
+     dependencyType: "worker",
+     provider: "llm-worker",
+     operation: "call",
+-    payload: { model: resolvedModel, max_tokens: 1024, messages: [{ role: "user", content: opts.prompt }] },
++    // F-C1-R2-02 : 1024 -> 4096. Meme correctif, meme site et meme valeur
++    // que EF-01B-v0.2-r2 (F-P2-03), jamais porte jusqu'ici a EF-01C1.
++    payload: { model: resolvedModel, max_tokens: 4096, messages: [{ role: "user", content: opts.prompt }] },
+     timeoutPolicy: {},
+     retryPolicy: { maxAttempts: 2, backoffMs: 2000 },
+   });

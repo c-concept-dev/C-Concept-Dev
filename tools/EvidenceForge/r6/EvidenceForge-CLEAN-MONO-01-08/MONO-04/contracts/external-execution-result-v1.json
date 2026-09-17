@@ -1,0 +1,16 @@
+{
+  "schema": "EvidenceForge.ExternalExecutionResult",
+  "schemaVersion": "MONO-04-v1",
+  "description": "Resultat technique normalise d'une execution externe.",
+  "requiredFields": {
+    "requestId": "identique a la requete",
+    "status": "SUCCESS | FAILED - jamais une valeur intermediaire",
+    "provider": "provider utilise",
+    "operation": "operation demandee",
+    "startedAt": "horodatage de debut",
+    "completedAt": "horodatage de fin",
+    "attemptCount": "nombre de tentatives effectuees (>=1 si un appel a ete tente, 0 si echec avant tout appel reseau)",
+    "result": "contenu JSON technique brut si SUCCESS, sinon null",
+    "technicalDiagnostics": "{ httpStatus, error? } - error est un ExternalExecutionError si status=FAILED"
+  }
+}

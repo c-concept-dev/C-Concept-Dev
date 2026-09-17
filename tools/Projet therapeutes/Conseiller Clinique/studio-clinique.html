@@ -1132,6 +1132,14 @@
       background: rgba(16,47,49,0.45); align-items: center; justify-content: center; padding: 2rem 1rem;
     }
     #cc-legacy-retheme-modal.open { display: flex; }
+    /* Item 78 Phase A — panneau de réglages avant génération vidéo automatique (musique de
+       fond optionnelle + 1 volume), même patron d'overlay que #cc-legacy-retheme-modal
+       juste au-dessus (jamais un nouveau composant visuel inventé). */
+    #cc-video-settings-modal {
+      display: none; position: fixed; inset: 0; z-index: 8500;
+      background: rgba(16,47,49,0.45); align-items: center; justify-content: center; padding: 2rem 1rem;
+    }
+    #cc-video-settings-modal.open { display: flex; }
     .cc-brandkit-confirm-panel {
       background: var(--paper); border-radius: 1rem; max-width: 46rem; width: 100%;
       max-height: 90vh; display: flex; flex-direction: column; overflow: hidden;
@@ -13426,6 +13434,11 @@ ${recent}`;
     const exportJpegBtn = document.getElementById('cc-ws-export-jpeg-btn');
     if (exportJpegBtn) exportJpegBtn.hidden = !(!isLegacy && docKind === 'carrousel');
 
+    // Item 78 Phase A — même condition exacte que l'export JPEG ci-dessus (même dépendance au
+    // pipeline carte→image d'item 58, jamais dupliquée).
+    const videoBtn = document.getElementById('cc-ws-video-btn');
+    if (videoBtn) videoBtn.hidden = !(!isLegacy && docKind === 'carrousel');
+
     // Statut calculé UNIQUEMENT à partir de ce que le pipeline existant sait déjà dire
     // (qc.blocking) — pas d'état "Brouillon" inventé : rien dans le pipeline actuel ne
     // distingue aujourd'hui un brouillon d'un document prêt en dehors de ce contrôle qualité.
@@ -13550,6 +13563,210 @@ ${recent}`;
       if (btnLabel && originalLabel) btnLabel.textContent = originalLabel;
     }
   };
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // Item 78 Phase A — vidéo automatique depuis un Carrousel structuré (une scène par carte,
+  // fondu simple, musique de fond optionnelle). RÉUTILISE tel quel le pipeline carte→image
+  // d'item 58 juste au-dessus (adocRenderCardHTML + adocClinicalDocumentWrapHTML +
+  // /browser-rendering/screenshot-slide) — jamais dupliqué — et la même technique de graphe Web
+  // Audio API (AudioContext + GainNode + MediaStreamAudioDestinationNode) déjà construite et
+  // vérifiée pour l'ancien item 77 (retiré, cf. GOUVERNANCE-MODULE-VIDEO-ITEM78.md). Modèle de
+  // "projet vidéo" volontairement éphémère (jamais persisté, jamais un nouveau type de bloc dans
+  // le schéma ClinicalDocument — séparation actée par Christophe) : une simple liste JS en
+  // mémoire, détruite après l'export. Aucun des trois frameworks vidéo (Remotion/Twick/Revideo)
+  // — décision de framework explicitement repoussée à la Phase C.
+  // ═══════════════════════════════════════════════════════════════════════
+
+  const ADOC_VIDEO_SCENE_DURATION_S = 4;
+  const ADOC_VIDEO_FADE_MS = 500;
+
+  // Construit la liste ordonnée de scènes {imageDataUrl, texte, duree} — réutilise EXACTEMENT
+  // le pipeline d'adocWsExportJPEG ci-dessus (même re-rendu pour les tokens de charte, même
+  // enveloppe HTML, même route Worker), jamais une deuxième implémentation.
+  async function adocBuildVideoScenesFromCarrousel(storeKey, onProgress) {
+    const art = window._adocArtifacts?.[storeKey];
+    const doc = art && art._adocStructuredDoc;
+    if (!doc || doc.documentKind !== 'carrousel' || !Array.isArray(doc.blocks) || !doc.blocks.length) {
+      throw new Error('Ce document n\'est pas un Carrousel structuré exploitable.');
+    }
+    const rendered = await window.adocRenderClinicalDocument(doc, art._adocStructuredSnapshot, art._adocRenderManifestOverride || null);
+    const workerUrl = adocGetWorkerUrl().replace(/\/+$/, '');
+    const scenes = [];
+    for (let i = 0; i < doc.blocks.length; i++) {
+      if (onProgress) onProgress(i + 1, doc.blocks.length);
+      const cardHtml = adocRenderCardHTML(doc.blocks[i], i, doc.blocks.length);
+      const slideHtml = adocClinicalDocumentWrapHTML(doc, cardHtml, rendered.tokens);
+      const r = await fetch(workerUrl + '/browser-rendering/screenshot-slide', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
+        body: JSON.stringify({ html: slideHtml })
+      });
+      if (!r.ok) throw new Error('Échec de capture pour la diapositive ' + (i + 1));
+      const buf = await r.arrayBuffer();
+      const dataUrl = 'data:image/jpeg;base64,' + adocArrayBufferToBase64(buf);
+      scenes.push({ imageDataUrl: dataUrl, texte: doc.blocks[i].title || '', duree: ADOC_VIDEO_SCENE_DURATION_S });
+    }
+    return scenes;
+  }
+
+  // Conversion binaire→base64 par blocs (évite la limite d'arguments de String.fromCharCode sur
+  // un buffer volumineux) — utilitaire minimal, aucune dépendance externe.
+  function adocArrayBufferToBase64(buffer) {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+    }
+    return btoa(binary);
+  }
+
+  function adocLoadImage(src) {
+    return new Promise(function (resolve, reject) {
+      const img = new Image();
+      img.onload = function () { resolve(img); };
+      img.onerror = reject;
+      img.src = src;
+    });
+  }
+
+  window.adocCreateAutoVideo = async function () {
+    adocEditorSync();
+    const storeKey = window._adocWsState.storeKey;
+    const art = window._adocArtifacts?.[storeKey];
+    if (!art || art._adocGenerationEngine === 'legacy-html') return;
+    const doc = art._adocStructuredDoc;
+    if (!doc || doc.documentKind !== 'carrousel' || !Array.isArray(doc.blocks) || !doc.blocks.length) return;
+    window._adocVideoStoreKey = storeKey;
+    document.getElementById('cc-video-music-input').value = '';
+    document.getElementById('cc-video-music-volume').value = '0.7';
+    document.getElementById('cc-video-settings-modal').classList.add('open');
+  };
+
+  window.adocVideoCancelSettings = function () {
+    document.getElementById('cc-video-settings-modal').classList.remove('open');
+    window._adocVideoStoreKey = null;
+  };
+
+  window.adocVideoConfirmSettings = async function () {
+    const storeKey = window._adocVideoStoreKey;
+    document.getElementById('cc-video-settings-modal').classList.remove('open');
+    if (!storeKey) return;
+    const musicFile = document.getElementById('cc-video-music-input').files[0] || null;
+    const musicVolume = parseFloat(document.getElementById('cc-video-music-volume').value) || 0;
+    const btn = document.getElementById('cc-ws-video-btn');
+    const btnLabel = btn?.querySelector('span');
+    const originalLabel = btnLabel?.textContent;
+    if (btn) btn.disabled = true;
+    try {
+      if (btnLabel) btnLabel.textContent = 'Préparation des scènes…';
+      const scenes = await adocBuildVideoScenesFromCarrousel(storeKey, function (i, total) {
+        if (btnLabel) btnLabel.textContent = 'Diapositive ' + i + '/' + total + '…';
+      });
+      if (btnLabel) btnLabel.textContent = 'Assemblage de la vidéo…';
+      await adocRunVideoAssembly(scenes, musicFile, musicVolume);
+    } catch (videoErr) {
+      console.warn('[Vidéo automatique] échec:', videoErr && videoErr.message);
+      alert('Impossible de créer la vidéo : ' + (videoErr && videoErr.message || 'erreur inconnue') + '.');
+    } finally {
+      if (btn) btn.disabled = false;
+      if (btnLabel && originalLabel) btnLabel.textContent = originalLabel;
+    }
+  };
+
+  // Assemblage réel : dessine chaque scène sur le canvas caché pendant sa durée, avec un fondu
+  // simple de ADOC_VIDEO_FADE_MS entre deux scènes consécutives (jamais une bibliothèque de
+  // transition), capture le canvas en flux vidéo, fusionne avec l'audio optionnel (MÊME graphe
+  // Web Audio API — AudioContext + GainNode + MediaStreamAudioDestinationNode — déjà construit
+  // et vérifié pour l'ancien item 77), enregistre via MediaRecorder et télécharge le résultat.
+  // Démarrage/arrêt entièrement automatiques : aucun bouton "Arrêter" dans cette phase.
+  function adocRunVideoAssembly(scenes, musicFile, musicVolume) {
+    const canvas = document.getElementById('cc-video-canvas');
+    const ctx = canvas.getContext('2d');
+    return Promise.all(scenes.map(function (s) { return adocLoadImage(s.imageDataUrl); })).then(function (images) {
+      // Audio optionnel — SI aucune musique n'est choisie, aucun AudioContext n'est créé et le
+      // flux final n'a tout simplement pas de piste audio (jamais un silence artificiel).
+      let audioCtx = null, musicEl = null, audioDestination = null;
+      if (musicFile) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        audioDestination = audioCtx.createMediaStreamDestination();
+        musicEl = new Audio();
+        musicEl.src = URL.createObjectURL(musicFile);
+        musicEl.loop = true;
+        const musicSource = audioCtx.createMediaElementSource(musicEl);
+        const musicGain = audioCtx.createGain();
+        musicGain.gain.value = musicVolume;
+        musicSource.connect(musicGain).connect(audioDestination);
+      }
+
+      const videoStream = canvas.captureStream(30);
+      const combinedStream = new MediaStream(
+        videoStream.getVideoTracks().concat(audioDestination ? audioDestination.stream.getAudioTracks() : [])
+      );
+
+      // Format natif de CE navigateur, jamais codé en dur (même patron que l'ancien item 77).
+      const candidateTypes = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'];
+      const mimeType = candidateTypes.find(function (t) { return window.MediaRecorder && MediaRecorder.isTypeSupported(t); }) || '';
+      const recorder = mimeType ? new MediaRecorder(combinedStream, { mimeType: mimeType }) : new MediaRecorder(combinedStream);
+      const chunks = [];
+      recorder.addEventListener('dataavailable', function (e) { if (e.data && e.data.size) chunks.push(e.data); });
+
+      const stopped = new Promise(function (resolve) {
+        recorder.addEventListener('stop', function () {
+          const actualType = recorder.mimeType || mimeType || 'video/webm';
+          const ext = actualType.indexOf('mp4') !== -1 ? 'mp4' : 'webm';
+          const blob = new Blob(chunks, { type: actualType });
+          adocDownloadArtifact(blob, 'video-carrousel-' + Date.now() + '.' + ext);
+          if (musicEl) { musicEl.pause(); URL.revokeObjectURL(musicEl.src); }
+          if (audioCtx) audioCtx.close();
+          resolve();
+        });
+      });
+
+      const totalDurationMs = scenes.reduce(function (sum, s) { return sum + s.duree * 1000; }, 0);
+      const boundaries = []; // instant (ms depuis le début) où chaque scène commence
+      let acc = 0;
+      scenes.forEach(function (s) { boundaries.push(acc); acc += s.duree * 1000; });
+
+      function drawAt(elapsedMs) {
+        let i = boundaries.length - 1;
+        for (let k = 0; k < boundaries.length; k++) {
+          if (elapsedMs < boundaries[k] + scenes[k].duree * 1000) { i = k; break; }
+        }
+        const sceneStart = boundaries[i];
+        const sceneElapsed = elapsedMs - sceneStart;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(images[i], 0, 0, canvas.width, canvas.height);
+        // Fondu : pendant les ADOC_VIDEO_FADE_MS derniers ms d'une scène qui n'est pas la
+        // dernière, superposer la scène suivante avec une opacité croissante (jamais une
+        // bibliothèque de transition, juste l'alpha du canvas).
+        const sceneDurationMs = scenes[i].duree * 1000;
+        if (i < scenes.length - 1 && sceneElapsed > sceneDurationMs - ADOC_VIDEO_FADE_MS) {
+          const t = (sceneElapsed - (sceneDurationMs - ADOC_VIDEO_FADE_MS)) / ADOC_VIDEO_FADE_MS;
+          ctx.globalAlpha = Math.min(1, Math.max(0, t));
+          ctx.drawImage(images[i + 1], 0, 0, canvas.width, canvas.height);
+          ctx.globalAlpha = 1;
+        }
+      }
+
+      return new Promise(function (resolve, reject) {
+        recorder.start();
+        const startTime = performance.now();
+        if (musicEl) musicEl.play().catch(function () {});
+        function frame() {
+          const elapsed = performance.now() - startTime;
+          if (elapsed >= totalDurationMs) {
+            drawAt(Math.max(0, totalDurationMs - 1));
+            recorder.stop();
+            stopped.then(resolve).catch(reject);
+            return;
+          }
+          drawAt(elapsed);
+          requestAnimationFrame(frame);
+        }
+        requestAnimationFrame(frame);
+      });
+    });
+  }
 
   // ═══════════════════════════════════════════════════════════════════════
   // UX-10A Étape 2 — persistance réelle (CRUD /clinical-documents) : sauvegarde EXPLICITE
@@ -14908,6 +15125,7 @@ ${recent}`;
   <symbol id="icon-timer" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M9 3h6m-3 3v7l4 2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
   <symbol id="icon-skip" viewBox="0 0 24 24"><path d="m5 6 7 6-7 6V6Zm8 0 7 6-7 6V6Zm7 0v12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
   <symbol id="icon-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+  <symbol id="icon-video" viewBox="0 0 24 24"><rect x="3" y="6" width="14" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M17 10l4-2.2v8.4l-4-2.2z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
   <symbol id="icon-clarify" viewBox="0 0 24 24"><path d="M12 20a8 8 0 1 0-8-8c0 1.5.4 2.9 1.1 4.1L4 20l3.9-1.1A8 8 0 0 0 12 20Z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M9.7 9.2a2.5 2.5 0 1 1 3.3 2.4c-.7.3-1 .7-1 1.4m0 3v.1" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
   <symbol id="icon-select" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
   <symbol id="icon-web" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M3 12h18M12 3c3 3.3 3 14.7 0 18M12 3c-3 3.3-3 14.7 0 18" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
@@ -14957,6 +15175,13 @@ ${recent}`;
     <button type="button" class="cc-ws-topbar-btn" id="cc-ws-export-jpeg-btn" onclick="window.adocWsExportJPEG()" aria-label="Exporter en JPEG (une image par diapositive)" hidden>
       <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-download"></use></svg>
       <span>Exporter en JPEG</span>
+    </button>
+    <!-- Item 78 Phase A — vidéo automatique depuis un Carrousel structuré, MÊME condition de
+         visibilité que l'export JPEG ci-dessus (le pipeline carte→image sous-jacent, item 58,
+         est limité au structuré — choix assumé, pas un oubli de parité 0F, documenté au rapport). -->
+    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-video-btn" onclick="window.adocCreateAutoVideo()" aria-label="Créer une vidéo automatique" hidden>
+      <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-video"></use></svg>
+      <span>Créer une vidéo automatique</span>
     </button>
     <button type="button" class="cc-ws-close" id="cc-ws-close-btn" onclick="window.adocCloseWorkspace()"
       aria-label="Fermer l'espace de travail et revenir à la conversation">
@@ -15096,6 +15321,35 @@ ${recent}`;
       <span>Changer de charte</span>
     </div>
     <div id="cc-legacy-retheme-body"></div>
+  </div>
+</div>
+
+<!-- Item 78 Phase A — canvas caché servant à l'assemblage de la vidéo automatique (dessin des
+     scènes image par image, capturé via canvas.captureStream()) — jamais affiché à l'écran,
+     purement un tampon de composition. -->
+<canvas id="cc-video-canvas" width="1280" height="720" style="display:none;"></canvas>
+
+<!-- Item 78 Phase A — panneau de réglages avant génération vidéo automatique (musique de fond
+     optionnelle + 1 volume), même patron d'ouverture/fermeture et même style de carte que
+     #cc-legacy-retheme-modal juste au-dessus — jamais un nouveau composant visuel inventé. -->
+<div id="cc-video-settings-modal" role="dialog" aria-modal="true" aria-labelledby="cc-video-settings-title">
+  <div class="cc-clarity-card" style="max-width:28rem;width:100%;max-height:85vh;overflow:auto;">
+    <div class="cc-clarity-question sc-icon-label" id="cc-video-settings-title">
+      <svg class="sc-icon" aria-hidden="true" focusable="false"><use href="#icon-video"></use></svg>
+      <span>Créer une vidéo automatique</span>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">
+      Une scène par diapositive du Carrousel, avec un fondu simple entre chaque scène.
+      Aucun réordonnancement ni montage manuel dans cette version.
+    </div>
+    <label for="cc-video-music-input" style="display:block;font-size:11px;font-weight:600;color:var(--ink);margin-bottom:4px;">Musique de fond (optionnel)</label>
+    <input type="file" id="cc-video-music-input" accept="audio/*" style="width:100%;margin-bottom:14px;font-size:12px;">
+    <label for="cc-video-music-volume" style="display:block;font-size:11px;font-weight:600;color:var(--ink);margin-bottom:4px;">Volume musique</label>
+    <input type="range" id="cc-video-music-volume" min="0" max="1" step="0.05" value="0.7" style="width:100%;margin-bottom:14px;">
+    <div style="display:flex;gap:8px;">
+      <button type="button" class="cc-clarity-reply-btn" onclick="window.adocVideoConfirmSettings()">Créer la vidéo</button>
+      <button type="button" class="cc-clarity-other-btn" onclick="window.adocVideoCancelSettings()">Annuler</button>
+    </div>
   </div>
 </div>
 </body>

@@ -1,0 +1,56 @@
+{
+  "schema": "EvidenceForge.EFOrchExecutionPort",
+  "schemaVersion": "MONO-01-v1",
+  "description": "Frontiere minimale autour du sous-systeme orchestre autonome gele EF-ORCH v0.1 (RunContract -> EF-01A -> EF-01B -> EF-01C1 -> EF-01C2 -> EF-01D -> EF-01E -> EF-01F -> CorpusSnapshot). EF-ORCH conserve seul sa state machine interne, son durable stage runner, son mecanisme checkpoint/resume, son RunOutputStore, ses politiques restart_stage/resume_checkpoint, son ordre EF-01A->F, ses invariants geles. Ce port ne fait que composer les exports geles deja separes (jamais recopier leur logique).",
+  "bindingType": "FROZEN_SUBSYSTEM_COMPOSITION",
+  "methods": {
+    "start(runContract, executionDependencies)": {
+      "description": "Demarre un nouveau run EF-ORCH depuis un RunContract deja confirme. executionDependencies fournit les artefacts pre-calcules requis par chaque stage (resolverTrace pour EF-01B, searchProtocol pour EF-01C1, connectorRunners pour EF-01C2, screeningArtifact pour EF-01D, qualificationTestArtifact pour EF-01E, ef01aInjected/ef01fInjected pour EF-01A/EF-01F) — jamais fabriques par le port lui-meme.",
+      "returns": "IntegrationResult dont output = { efOrchRunIdentity, status, efOrchNativeStatus, awaitingStage, currentStage, completedStages, checkpointAvailable, lastError, gate, corpusSnapshot? }"
+    },
+    "resume(runIdentity, executionDependencies)": {
+      "description": "Reprend un run existant. Si le run est en pause (gate_required), executionDependencies.decision.gateId est obligatoire et doit correspondre exactement au gate en attente (delegue a EFOrchStateMachine.resumeRun, gele). Si le run est simplement en attente d'artefacts pour un stage suivant (AWAITING_DEPENDENCIES, un statut d'orchestration MONO-01, jamais un statut EF-ORCH natif), les artefacts manquants sont fournis via executionDependencies et l'execution continue. Un run au statut natif EF-ORCH \"failed\" ne peut PAS etre repris : la state machine gelee n'expose aucune transition failed->running (failRun est terminal)."
+    },
+    "getStatus(runIdentity)": {
+      "async": true,
+      "description": "Async (rehydratation depuis le backend durable injecte, jamais depuis un cache local). Lecture seule, aucune mutation. Retourne l'etat natif EF-ORCH exact (idle|running|paused|failed|completed) tel que persiste — NOT_AVAILABLE si le runIdentity est inconnu de CE backend."
+    },
+    "getResult(runIdentity)": {
+      "async": true,
+      "description": "Async (rehydratation depuis le backend durable injecte). Lecture seule. Retourne le resultat (CorpusSnapshot) uniquement si le run est completed, sinon un resume d'etat sans CorpusSnapshot. NOT_AVAILABLE si le runIdentity est inconnu de CE backend."
+    }
+  },
+  "executionDependenciesShape": {
+    "runId": "identifiant de run optionnel (sinon derive de runContractHash)",
+    "ef01aInjected": "{ metadata: { missionId, dateCreation, documents: { targetDocuments, suppliedEvidence } } } — requis pour EF-01A",
+    "resolverTrace": "EvidenceForge.EF01BResolverTrace (gele) — requis pour EF-01B",
+    "searchProtocol": "EvidenceForge.SearchProtocol (gele, protocolHash inclus) — requis pour EF-01C1",
+    "connectorRunners": "{ [connectorId]: async (connector, protocol) => { sourcesTrouvees, log } } — requis pour EF-01C2, un runner par connecteur automatique actif",
+    "protocolHash": "hash du SearchProtocol — requis pour l'identite de checkpoint EF-01C2",
+    "manualImportCheckpoints": "[{ connectorId, sourcesTrouvees, log }] — pour les connecteurs manual_required (ex. web_public), fournis a resume() via provideManualImportCheckpoint (gele)",
+    "decision": "{ gateId, decision, justification? } — requis par resume() quand le run est en pause",
+    "screeningArtifact": "EvidenceForge.ScreeningArtifact (structure attendue par assertScreeningArtifactComplete, gele) — requis pour EF-01D",
+    "qualificationTestArtifact": "EvidenceForge.QualificationTestArtifact (structure attendue par assertQualificationTestArtifactValid, gele) — requis pour EF-01E",
+    "ef01fInjected": "{ corpusId, dateGel, completedAt } — requis pour EF-01F",
+    "auditDecisions": "journal de decisions deja connues, pour la re-injection automatique sur un gate deja resolu (gele, ctx.auditDecisions de runStage)",
+    "durableBackend (constructeur du port, pas executionDependencies)": "options.durableBackend passe a createEFOrchExecutionPort(baselinePort, options) — OBLIGATOIRE pour toute operation reelle (aucun defaut implicite). Implementation du contrat abstrait get/put/has/keys assurant la durabilite reelle (IndexedDB ou equivalent) ; createInMemoryAsyncBackend() (gele) peut servir de backend de TEST mais doit etre injecte explicitement par l'appelant, jamais choisi silencieusement par le port. Accessible aussi via createMono01(registry, { efOrchDurableBackend }) (index.js), qui se contente de le transmettre tel quel sans jamais le construire ni en devenir proprietaire."
+  },
+  "observability": {
+    "currentStage": "stageId courant, ou null si le run est termine/jamais demarre",
+    "completedStages": "liste des stageId ayant un checkpoint reel etabli",
+    "checkpointAvailable": "booleen — au moins un checkpoint existe pour ce run",
+    "gate": "{ gateId, reason, stageId } si en pause, sinon null",
+    "lastError": "{ stageId, message, at } si le run natif EF-ORCH est failed, sinon null",
+    "notAvailableConvention": "toute information non exposable sans modifier le code gele est documentee NOT_AVAILABLE, jamais devinee ni simulee"
+  },
+  "invariants": [
+    "EF-ORCH conserve seul sa state machine interne — ce port ne mute jamais directement un champ de state, toute transition passe par EFOrchStateMachine.* (gele).",
+    "Le mecanisme de checkpoint/resume gele (RunOutputStore + CheckpointIdentityStore + StateSnapshotStore, composes sur un meme backend abstrait) n'est jamais reimplemente. Le port NE CONSTRUIT JAMAIS de backend lui-meme : options.durableBackend doit etre injecte explicitement par l'appelant (via createEFOrchExecutionPort directement, ou via createMono01(registry, { efOrchDurableBackend }) ). Sans backend injecte, le port existe mais REFUSE explicitement (fail-closed) toute operation reelle (start/resume/getStatus/getResult) — jamais un fallback silencieux vers createInMemoryAsyncBackend(). Cette derniere reste utilisable, mais uniquement si l'appelant l'injecte lui-meme explicitement, y compris pour des tests.",
+    "resume()/getStatus()/getResult() rehydratent systematiquement l'etat depuis stateSnapshotStore.getRunState(runId) (adosse au backend injecte) — jamais depuis une Map locale, qui ne subsiste que comme cache facultatif intra-processus pour les executeurs, jamais pour l'etat du run. Une seconde instance de port construite sur le meme backend retrouve l'etat exact sans aucun etat JS partage.",
+    "Aucune fonction metier EF-01A->F n'est redefinie dans ce port — seules les factories create*Executor deja gelees sont invoquees.",
+    "Un stage dont l'executeur n'est pas encore fourni produit AWAITING_DEPENDENCIES (etat d'orchestration MONO-01), jamais un FAILED EF-ORCH natif ni un SUCCESS invente.",
+    "resume() refuse explicitement un run au statut natif \"failed\" — la state machine gelee ne permet cette transition sous aucune forme.",
+    "Les classifications de dependances externes (EF-01B/EF-01C1 LLM=INDIRECT_UPSTREAM, EF-01C2 reseau=DIRECT_RUNTIME) restent exactement celles de MONO-00, jamais aplaties en booleen.",
+    "MONO-01/MONO-02 definissent la frontiere d'injection du backend durable — ils ne construisent JAMAIS l'implementation persistante de production (IndexedDB ou equivalent). Cette responsabilite appartient a un futur MONO-03. MONO-01 se limite a refuser explicitement de pretendre etre durable lorsqu'aucun backend n'a ete fourni."
+  ]
+}

@@ -1,0 +1,121 @@
+{
+  "overallStatus": "BLOCKED",
+  "allRequiredReady": false,
+  "authMode": "delegated",
+  "results": [
+    {
+      "providerId": "openalex",
+      "dependencyType": "corpus-search",
+      "baseUrl": "https://api.openalex.org",
+      "operationDescription": "GET /works?per_page=1 (operation reelle de recherche)",
+      "authMode": null,
+      "credentialRequired": false,
+      "credentialEnvVar": null,
+      "credentialPresent": null,
+      "stages": {
+        "hostReachable": true,
+        "authValid": null,
+        "operationValid": false,
+        "responseValid": false
+      },
+      "probe": {
+        "reached": true,
+        "statusCode": 403,
+        "latencyMs": 46,
+        "error": null,
+        "denyReason": "host_not_allowed",
+        "requestId": null
+      },
+      "rawClassification": "EGRESS_PROXY_BLOCK",
+      "status": "NETWORK_BLOCKED",
+      "reason": "Egress reseau explicitement refuse par le proxy de l'environnement d'execution (x-deny-reason: host_not_allowed).",
+      "realSmokeRequired": true
+    },
+    {
+      "providerId": "crossref",
+      "dependencyType": "corpus-search",
+      "baseUrl": "https://api.crossref.org",
+      "operationDescription": "GET /works?rows=1 (operation reelle de recherche)",
+      "authMode": null,
+      "credentialRequired": false,
+      "credentialEnvVar": null,
+      "credentialPresent": null,
+      "stages": {
+        "hostReachable": true,
+        "authValid": null,
+        "operationValid": false,
+        "responseValid": false
+      },
+      "probe": {
+        "reached": true,
+        "statusCode": 403,
+        "latencyMs": 9,
+        "error": null,
+        "denyReason": "host_not_allowed",
+        "requestId": null
+      },
+      "rawClassification": "EGRESS_PROXY_BLOCK",
+      "status": "NETWORK_BLOCKED",
+      "reason": "Egress reseau explicitement refuse par le proxy de l'environnement d'execution (x-deny-reason: host_not_allowed).",
+      "realSmokeRequired": true
+    },
+    {
+      "providerId": "pubmed",
+      "dependencyType": "corpus-search",
+      "baseUrl": "https://eutils.ncbi.nlm.nih.gov",
+      "operationDescription": "GET /entrez/eutils/esearch.fcgi?db=pubmed&term=accessibility&retmax=1&retmode=json",
+      "authMode": null,
+      "credentialRequired": false,
+      "credentialEnvVar": null,
+      "credentialPresent": null,
+      "stages": {
+        "hostReachable": true,
+        "authValid": null,
+        "operationValid": false,
+        "responseValid": false
+      },
+      "probe": {
+        "reached": true,
+        "statusCode": 403,
+        "latencyMs": 13,
+        "error": null,
+        "denyReason": "host_not_allowed",
+        "requestId": null
+      },
+      "rawClassification": "EGRESS_PROXY_BLOCK",
+      "status": "NETWORK_BLOCKED",
+      "reason": "Egress reseau explicitement refuse par le proxy de l'environnement d'execution (x-deny-reason: host_not_allowed).",
+      "realSmokeRequired": false
+    },
+    {
+      "providerId": "llm-worker",
+      "dependencyType": "worker",
+      "baseUrl": "https://api.anthropic.com",
+      "operationDescription": "POST /v1/messages via Worker delegue evidenceforge-llm-proxy (CDC section 7) — jamais GET",
+      "authMode": "delegated",
+      "credentialRequired": true,
+      "credentialEnvVar": "EVIDENCEFORGE_WORKER_API_KEY",
+      "credentialPresent": false,
+      "stages": {
+        "hostReachable": true,
+        "authValid": false,
+        "operationValid": false,
+        "responseValid": false
+      },
+      "probe": {
+        "reached": true,
+        "statusCode": 401,
+        "latencyMs": 205,
+        "error": null,
+        "denyReason": null,
+        "requestId": "preflight-691c763f1501c5fd"
+      },
+      "rawClassification": "NO_CREDENTIAL",
+      "status": "AUTHENTICATION_BLOCKED",
+      "reason": "Hote reellement atteint, mais aucun identifiant exploitable (EVIDENCEFORGE_WORKER_API_KEY absent) - aucun appel authentifie couteux tente.",
+      "realSmokeRequired": true
+    }
+  ],
+  "checkedAt": "2026-08-31T14:42:15.722Z"
+}
+exit_code=2

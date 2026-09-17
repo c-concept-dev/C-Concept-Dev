@@ -1,0 +1,214 @@
+{
+  "schema": "EvidenceForge.MonolithTestResults",
+  "ranAt": "2026-09-14T14:34:43.195Z",
+  "total": 41,
+  "passed": 41,
+  "failed": 0,
+  "results": [
+    {
+      "id": "I1",
+      "name": "verifyFrozenLots : les quatre lots geles sont intacts (sceaux + zips canoniques)",
+      "ok": true
+    },
+    {
+      "id": "I2",
+      "name": "verifySealFile detecte un fichier modifie et un fichier absent (copie temporaire, lot gele jamais touche)",
+      "ok": true
+    },
+    {
+      "id": "I3",
+      "name": "MONO-11 v0.2 : garde de sceau (assertSealedRuntime) accepte le lot et le zip canonique declares",
+      "ok": true
+    },
+    {
+      "id": "I4",
+      "name": "MONO-11 garde de sceau : un zip attendu different est refuse (RUN_ON_UNSEALED_CODE ou equivalent), sans toucher au lot",
+      "ok": true
+    },
+    {
+      "id": "I5",
+      "name": "Aucun fichier du paquet ne modifie un lot gele : le paquet vit hors des dossiers scelles",
+      "ok": true
+    },
+    {
+      "id": "M1",
+      "name": "intakeDocuments : accepte .txt/.md, refuse .pdf, vide, trop gros ; hash et identifiant derives du contenu",
+      "ok": true
+    },
+    {
+      "id": "M2",
+      "name": "reformulate : schema ferme accepte ; cle supplementaire refusee puis reprise informee acceptee ; deux refus => REFORMULATION_INVALID",
+      "ok": true
+    },
+    {
+      "id": "M3",
+      "name": "adversarial : un document contenant des instructions n'est pas execute (il est cite comme donnee dans le prompt, jamais interprete)",
+      "ok": true
+    },
+    {
+      "id": "S1",
+      "name": "detectDuplicates : DOI, identifiant fournisseur, titre normalise ; le premier est conserve",
+      "ok": true
+    },
+    {
+      "id": "S2",
+      "name": "validateBatch : refuse une evidence absente du titre/resume reel, un sourceId inconnu, une source oubliee, une cle non prevue",
+      "ok": true
+    },
+    {
+      "id": "S3",
+      "name": "buildScreeningEvidence : lots, reprise informee, lot en echec => aucune proposition (jamais une decision par defaut), doublons hors LLM",
+      "ok": true
+    },
+    {
+      "id": "R1",
+      "name": "buildAuditDecisions : acteur=human + identite saisie sur CHAQUE decision ; exhaustif ; source sans proposition => exclue (jamais incluse par defaut)",
+      "ok": true
+    },
+    {
+      "id": "R2",
+      "name": "buildAuditDecisions : renversement utilisateur applique et trace ; un doublon ne peut pas etre renverse ; identite absente => HUMAN_IDENTITY_REQUIRED",
+      "ok": true
+    },
+    {
+      "id": "R3",
+      "name": "POST_RETRIEVAL_GATE gele refuse des decisions synthetiques (acteur machine) ou un snapshotHash different",
+      "ok": true
+    },
+    {
+      "id": "R4",
+      "name": "abstractFromInverted reconstruit un resume OpenAlex ; fetch OpenAlex : URL expurgee des cles dans le journal",
+      "ok": true
+    },
+    {
+      "id": "E1",
+      "name": "confirmPlan exige une identite (HUMAN_IDENTITY_REQUIRED) — jamais un nom par defaut",
+      "ok": true
+    },
+    {
+      "id": "E3",
+      "name": "modele reel du kit EF-01 : LLM_REAL_MODEL pose depuis la configuration (choix explicite), modele observe different => MODEL_PROVENANCE_MISMATCH",
+      "ok": true
+    },
+    {
+      "id": "E2",
+      "name": "commentaire de confirmation automatique du RunContract = constante de provenance (aucune revue humaine affirmee)",
+      "ok": true
+    },
+    {
+      "id": "F1",
+      "name": "normalizeFence : retire ```json``` seulement si l'interieur est un JSON valide ; texte inchange sinon ; hashes et regle consignes",
+      "ok": true
+    },
+    {
+      "id": "F2",
+      "name": "wrapMono04 : gateway enveloppe, interface conservee, journal de normalisation ecrit, texte original conserve",
+      "ok": true
+    },
+    {
+      "id": "L1",
+      "name": "fournisseur non configure => PROVIDER_NOT_CONFIGURED (fail-closed) avant tout appel ; preflight le dit en langage utilisateur",
+      "ok": true
+    },
+    {
+      "id": "L2",
+      "name": "credit epuise (HTTP 400 credit balance) => PROVIDER_CREDIT_EXHAUSTED fatal, message utilisateur, aucun rejeu",
+      "ok": true
+    },
+    {
+      "id": "L3",
+      "name": "rate-limit 429 => attente bornee puis reprise ; la reponse reelle est journalisee avec ses tentatives",
+      "ok": true
+    },
+    {
+      "id": "L4",
+      "name": "reseau indisponible => NETWORK_UNAVAILABLE fatal ; erreur fournisseur 500 => PROVIDER_UNAVAILABLE",
+      "ok": true
+    },
+    {
+      "id": "L5",
+      "name": "reutilisation (politique gelee MONO-11 v0.2) : reponse validee => REUSE_VALID (reused:true, jamais compte comme reel) ; reponse invalidee => nouvel appel reel",
+      "ok": true
+    },
+    {
+      "id": "L6",
+      "name": "timeout fournisseur => PROVIDER_TIMEOUT (reprenable), message utilisateur, aucun faux succes",
+      "ok": true
+    },
+    {
+      "id": "P1",
+      "name": "SCIENTIFICALLY_USABLE calcule : QUALIFIED_WITH_RESERVATIONS => NO ; QUALIFIED avec reserve => NO ; QUALIFIED sans reserve sans validation humaine => NO ; sinon YES",
+      "ok": true
+    },
+    {
+      "id": "P2",
+      "name": "buildUserReport sur des artefacts synthetiques : classification etabli/convergent/divergent/provisoire/non etabli et lignee « pourquoi » complete",
+      "ok": true
+    },
+    {
+      "id": "P3",
+      "name": "buildUserReport : convergence a majorite d'inference prudente ou de recommandation => CONVERGENT, jamais ETABLI ; constat isole => PROVISOIRE",
+      "ok": true
+    },
+    {
+      "id": "Q1",
+      "name": "startRun : demande trop courte refusee ; documents stockes et haches ; etat CREATED, aucun secret dans state.json",
+      "ok": true
+    },
+    {
+      "id": "Q2",
+      "name": "portes fermees : confirmPlan / ratifySources hors porte => GATE_NOT_OPEN (aucun acte humain simule ni accepte hors contexte)",
+      "ok": true
+    },
+    {
+      "id": "Q3",
+      "name": "advance sans fournisseur configure : STOPPED (reprenable) avec PROVIDER_NOT_CONFIGURED, message utilisateur, aucune etape marquee terminee",
+      "ok": true
+    },
+    {
+      "id": "Q4",
+      "name": "RESUMABLE : les indisponibilites fournisseur sont reprenables ; une erreur de contrat ne l'est pas (FAILED)",
+      "ok": true
+    },
+    {
+      "id": "Q5",
+      "name": "run-store : libelles utilisateur sans code EF-* ; etat public sans contenu de document ; listRuns",
+      "ok": true
+    },
+    {
+      "id": "V1",
+      "name": "serveur local : / sert l'interface ; /api/config n'expose JAMAIS les valeurs des secrets (seulement leur presence) ; 404 ; 400 sur demande invalide",
+      "ok": true
+    },
+    {
+      "id": "U1",
+      "name": "index.html : mode simple sans code EF-*/MONO-*, sans JSON a reparer, sans gestion de checkpoint ; deux portes exigent un nom ; export JSON/PDF ; « Pourquoi EvidenceForge dit cela ? » ; viewport + print",
+      "ok": true
+    },
+    {
+      "id": "H1",
+      "name": "scan anti-hardcoding : aucun jeton de cas dans lib/, server.js, index.html, config, tools, test",
+      "ok": true
+    },
+    {
+      "id": "H2",
+      "name": "mutation : un fichier temporaire portant un identifiant de cas est detecte par le scanner",
+      "ok": true
+    },
+    {
+      "id": "H3",
+      "name": "aucune constante de profession, discipline, quota ou taille de panel dans lib/ (les dimensions viennent du RunContract emergent)",
+      "ok": true
+    },
+    {
+      "id": "K1",
+      "name": "scan de secrets : aucun motif de cle / URL worker / Bearer litteral dans le paquet ; les valeurs d'environnement reelles (si presentes) n'y figurent pas",
+      "ok": true
+    },
+    {
+      "id": "K2",
+      "name": "mutation : un fichier contenant une cle sk-ant-… ou une URL workers.dev est detecte",
+      "ok": true
+    }
+  ]
+}

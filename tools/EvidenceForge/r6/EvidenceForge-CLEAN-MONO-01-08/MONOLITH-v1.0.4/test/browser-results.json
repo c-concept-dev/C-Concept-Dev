@@ -1,0 +1,54 @@
+[
+  {
+    "name": "FAILED reprenable : bouton « Reprendre le run » visible",
+    "ok": true,
+    "info": ""
+  },
+  {
+    "name": "FAILED reprenable : statut affiche",
+    "ok": true
+  },
+  {
+    "name": "mode expert : bandeau de porte visible avec bouton",
+    "ok": true
+  },
+  {
+    "name": "mode expert : le bouton bascule en mode simple et affiche la carte de ratification",
+    "ok": true
+  },
+  {
+    "name": "source sans proposition : carte .noprop rendue avec « décision explicite requise »",
+    "ok": true
+  },
+  {
+    "name": "source sans proposition : clic « inclure » => choix enregistre et persiste (localStorage)",
+    "ok": true
+  },
+  {
+    "name": "source sans proposition : aucune exception console",
+    "ok": true,
+    "info": ""
+  },
+  {
+    "name": "ratification : compteur « incluse(s) » coherent (s1 + s3)",
+    "ok": true,
+    "info": "2 incluse(s) / 3"
+  },
+  {
+    "name": "reconnexion SSE : aucun doublon dans le journal (1 -> 1)",
+    "ok": true
+  },
+  {
+    "name": "rechargement de la page : le choix local de ratification est restaure",
+    "ok": true
+  },
+  {
+    "name": "echec GET porte : message d'erreur + bouton Reessayer affiches",
+    "ok": true
+  },
+  {
+    "name": "echec GET porte : Reessayer affiche la porte, sans mutation de l'etat (updatedAt inchange)",
+    "ok": true,
+    "info": "2026-09-15T17:45:34.003Z / 2026-09-15T17:45:34.003Z"
+  }
+]

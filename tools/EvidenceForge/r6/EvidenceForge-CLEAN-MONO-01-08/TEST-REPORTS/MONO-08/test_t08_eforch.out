@@ -1,0 +1,30 @@
+PASS — T08-EFORCH-01. [LOCAL_CONTROLLED] matrice de dependances EF-ORCH complete (voir CDC-TRACE.md) - la construction ci-dessous en est la preuve executable
+PASS — T08-EFORCH-02. [LOCAL_CONTROLLED] RunContract valide accepte (EF-ORCH-SUBSYSTEM n'echoue jamais sur SCHEMA_VERSION_MISMATCH)
+PASS — T08-EFORCH-03. [LOCAL_CONTROLLED] SearchProtocol valide (statut figé, cardinalite retrievalPolicies=sourcesActivees) accepte par EF-01C1
+PASS — T08-EFORCH-04. [LOCAL_CONTROLLED] connectorRunners.openalex injecte et reellement appele par EF-01C2 (createOpenAlexRunner, jamais un HTTP sauvage)
+PASS — T08-EFORCH-05. [LOCAL_CONTROLLED] EF-01A success (via EF-ORCH-SUBSYSTEM SUCCESS agrege)
+PASS — T08-EFORCH-06. [LOCAL_CONTROLLED] EF-01B success (RunContract confirme materialise sans appel LLM)
+PASS — T08-EFORCH-07. [LOCAL_CONTROLLED] EF-01C1 success (SearchProtocol figé verifie)
+PASS — T08-EFORCH-08. [LOCAL_CONTROLLED_FIXTURE] EF-01C2 success (connector runner appele avec un payload provider-shape)
+PASS — T08-EFORCH-09. [LOCAL_CONTROLLED] EF-01D success (ScreeningArtifact structurellement conforme)
+PASS — T08-EFORCH-10. [LOCAL_CONTROLLED] EF-01E success (qualification TEST explicitement non-scientifique)
+PASS — T08-EFORCH-11. [LOCAL_CONTROLLED] EF-01F success (gel/agregation locale)
+PASS — T08-EFORCH-12. [LOCAL_CONTROLLED] CorpusSnapshot valide et conforme (EvidenceForge.CorpusSnapshot / EF-01F-v1)
+PASS — T08-EFORCH-13. [LOCAL_CONTROLLED] checkpoints internes EF-01A-F restent dans le backend EF-ORCH, jamais dans MONO-03 directement
+PASS — T08-EFORCH-14. [LOCAL_CONTROLLED] MONO-03 (global) ne contient AUCUN artefact de checkpoint EF-01 individuel
+PASS — T08-EFORCH-SUCCESS. [LOCAL_CONTROLLED] EF-ORCH-SUBSYSTEM atteint SUCCESS (objectif de preuve n1)
+PASS — T08-RUNNER-READY-01. [LOCAL_CONTROLLED] full 14/14 (traversal complet du vrai moteur MONO-02-R1)
+PASS — T08-RUNNER-READY-01b. [LOCAL_CONTROLLED] lineage PASS
+PASS — T08-RUNNER-READY-01c. [LOCAL_CONTROLLED] rapport accessible, assuranceLevel correct, jamais surelevé
+PASS — T08-RUNNER-READY-02a. [LOCAL_CONTROLLED] readback depuis une nouvelle instance preserve fidelement l'etat
+PASS — T08-RUNNER-READY-02b. [LOCAL_CONTROLLED] 14/14 SUCCESS apres restart + poursuite complete
+PASS — T08-RUNNER-READY-04a. [LOCAL_CONTROLLED] le secret est reellement demande a SecretProvider ET transmis jusqu'a la requete HTTP (en-tete Authorization capture sur un serveur reellement distinct)
+PASS — T08-RUNNER-READY-03. [LOCAL_CONTROLLED] UI smoke reel (vrai serveur MONO-05-R3 + Playwright, 14/14, assuranceLevel visible, aucune erreur console)
+PASS — T08-RUNNER-READY-04b. [LOCAL_CONTROLLED] 0 fuite du secret reellement injecte dans RunState/ArtifactRecord/reponses OperatorApi/rapport/trace/DOM/localStorage/sessionStorage
+PASS — T08-RUNNER-READY-05. [LOCAL_CONTROLLED] frozen ZIP integrity reellement mesuree AVANT (avant tout run) et APRES (apres UI smoke inclus) - bit-a-bit identique
+PASS — T08-ADVERSARIAL-INTEGRITY. [LOCAL_CONTROLLED] le mecanisme detecte reellement une mutation volontaire sur une copie jetable (jamais le ZIP canonique)
+PASS — T08-ADVERSARIAL-INTEGRITY-b. [LOCAL_CONTROLLED] le ZIP canonique original n'a jamais ete touche par le test adversarial (uniquement une copie jetable)
+
+TOUS LES TESTS PASSENT (26)
+
+(Rappel : tous ces resultats sont LOCAL_CONTROLLED ou LOCAL_CONTROLLED_FIXTURE - jamais une preuve Real Smoke reelle.)

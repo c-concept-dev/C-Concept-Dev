@@ -1,0 +1,19 @@
+{
+  "schema": "EvidenceForge.IntegrationInvocation",
+  "schemaVersion": "MONO-01-v1",
+  "description": "Enveloppe commune représentant un appel à un module gelé via un port MONO-01. Transporte les contrats gelés, ne les remplace jamais.",
+  "requiredFields": {
+    "schema": "toujours \"EvidenceForge.IntegrationInvocation\"",
+    "schemaVersion": "toujours \"MONO-01-v1\"",
+    "runId": "identifiant de run fourni par l'appelant, ou null hors contexte de run",
+    "moduleId": "identifiant du module MONO-00 ciblé (ex: \"EF-03\")",
+    "moduleVersion": "canonicalVersion attendue, telle que déclarée par le port",
+    "inputs": "map nom d'entrée -> valeur (objets gelés, jamais transformés)",
+    "dependencies": "map nom de dépendance externe -> disponibilité déclarée",
+    "executionContext": "contexte d'exécution optionnel (ex: opts passés au module gelé)"
+  },
+  "notes": [
+    "Ce contrat est documentaire : la validation réelle vit dans lib/port-factory.js.",
+    "Aucun champ ici ne doit dupliquer une décision métier gelée."
+  ]
+}

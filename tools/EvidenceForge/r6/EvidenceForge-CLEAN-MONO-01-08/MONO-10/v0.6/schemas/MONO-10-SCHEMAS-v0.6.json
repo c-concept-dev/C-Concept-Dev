@@ -1,0 +1,338 @@
+{
+  "$comment": "MONO-10 v0.6 — schemas IMPLEMENTES. Changement structurant : une donnee qui produit un effet critique est soit RECALCULEE depuis des preuves authentifiees, soit validee par une capacite provisionnee par OperatorTrustBoundary. Aucune affirmation n'est crue au point d'effet.",
+  "schemaFamily": "EvidenceForge.MONO-10",
+  "schemaVersion": "MONO-10-v6",
+  "supersedes": "MONO-10-v5",
+  "historicalImmutableLots": [
+    "MONO-00..MONO-09",
+    "MONO-10 v0.1..v0.5 (tous NON_GELABLE, non modifies)"
+  ],
+  "architecturalDecision": {
+    "principle": "Do not trust a claim at the point of effect.",
+    "preservedFromV05": "EvidenceForge may choose what to verify. EvidenceForge may not choose whom to trust.",
+    "INTERNAL_CHAIN_CONSISTENCY": "les artefacts concordent entre eux — n'implique pas l'authenticite",
+    "AUTHENTICATED_PRODUCTION_EXECUTION": "une frontiere provisionnee par l'exploitant a authentifie l'execution",
+    "bothRequiredForProductionQualified": true
+  },
+  "genericCoreBoundary": {
+    "noHardcoded": [
+      "metier",
+      "discipline",
+      "expert",
+      "panel",
+      "cas d'usage",
+      "taxonomie",
+      "fournisseur"
+    ],
+    "casePhaseNaming": "adapters/case-phase-adapter.js",
+    "upstreamContractBridging": "adapters/upstream-evidence-binder.js",
+    "verifiedBy": "scan anti-cablage sur core/, adapters/, validators/ avec temoin positif ; universalite eprouvee sur 6 domaines"
+  },
+  "breakingChanges": [
+    "openAuthenticatedArtifactRegistry(manifest, ctx) remplace createAuthenticatedArtifactRegistry : leve si le manifeste n'est pas authentique",
+    "input.acceptanceValidator est IGNORE et consigne ; la validation vient de verifier.acceptanceBoundary()",
+    "isEligibleDecision(decision) remplace isEligible(objet) : seule une decision produite par le module compte",
+    "sanitizePolicy retire ET consigne toute cle appartenant a la frontiere ou de forme de contournement",
+    "final-report-acceptance n'exporte plus validateAcceptance ; il exporte acceptanceDecisionHash",
+    "un acte humain exige un HumanActProof lie a l'acte precis ; l'appartenance au registre ne suffit plus",
+    "runActiveProbe ignore input.transport ; le transport est charge par la frontiere de capacite",
+    "createFileReplayStore exige authorityScope",
+    "artifactRef(artifact, id, relation) leve LINEAGE_TYPE_RELATION_MISMATCH si le type ne correspond pas a la relation"
+  ],
+  "commonTypes": {
+    "Sha256Hex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "Iso8601": {
+      "type": "string",
+      "description": "horodatage reel, jamais fabrique"
+    },
+    "ArtifactRef": {
+      "required": [
+        "artifactId",
+        "sha256",
+        "relation"
+      ],
+      "description": "reference de lignee TYPEE ; la relation determine le schema attendu de l'artefact vise"
+    },
+    "TrustLevel": {
+      "enum": [
+        "REGISTERED",
+        "BOUND_TO_RUN",
+        "AUTHENTICATED_PROVENANCE",
+        "HUMAN_AUTHENTICATED",
+        "PRODUCTION_CAPABILITY_PROVED"
+      ],
+      "description": "ordonne strictement ; assertAtLeast refuse toute consommation sous le niveau requis"
+    },
+    "Unknown": {
+      "required": [
+        "unknownId",
+        "genesisHash",
+        "status",
+        "transitions"
+      ],
+      "description": "chaine d'evenements ; le statut est DERIVE de la chaine, jamais lu sur le champ"
+    },
+    "HumanActProof": {
+      "required": [
+        "actorId",
+        "actionType",
+        "decisionHash",
+        "runId",
+        "missionHash",
+        "issuedAt",
+        "mechanismRef",
+        "proofValue"
+      ],
+      "description": "HMAC emis par le mecanisme de l'exploitant ; lie a l'ACTE precis, pas a l'acteur"
+    },
+    "RegistryEvent": {
+      "required": [
+        "sequence",
+        "artifactId",
+        "relation",
+        "artifactType",
+        "artifactHash",
+        "previousEventHash",
+        "eventHash"
+      ],
+      "description": "journal append-only ; suppression, reordonnancement et reecriture sont detectes"
+    },
+    "EvidenceClass": {
+      "enum": [
+        "AUTHENTICATED_PRODUCTION_EXECUTION",
+        "AUTHENTICATED_TEST_EXECUTION",
+        "INTERNAL_CHAIN_CONSISTENCY_ONLY"
+      ],
+      "description": "INTERNAL_CHAIN_CONSISTENCY_ONLY : les artefacts concordent, aucune attestation verifiee — jamais suffisant pour QUALIFIED en PRODUCTION"
+    },
+    "KeyStatus": {
+      "enum": [
+        "ACTIVE",
+        "RETIRED",
+        "REVOKED"
+      ],
+      "description": "RETIRED preserve la verifiabilite de ce qui a ete signe pendant la validite ; REVOKED invalide y compris a posteriori ; tout autre statut leve KEY_STATUS_UNKNOWN"
+    }
+  },
+  "artifacts": {
+    "Mission": {
+      "schema": "EvidenceForge.Mission",
+      "lineageRelation": "MISSION",
+      "required": [
+        "schema",
+        "missionId",
+        "missionHash"
+      ],
+      "notes": "racine de la chaine ; aucun libelle metier impose"
+    },
+    "PriorUnifiedReport": {
+      "schema": "EvidenceForge.PriorUnifiedReport",
+      "lineageRelation": "PRIOR_REPORT",
+      "required": [
+        "schema",
+        "mission"
+      ],
+      "notes": "entree historique ; ne resout inter-runs que sous contrat authentifie par l'exploitant"
+    },
+    "DocumentaryEvidenceRecord": {
+      "schema": "EvidenceForge.DocumentaryEvidenceRecord",
+      "lineageRelation": "DOCUMENTARY_EVIDENCE",
+      "required": [
+        "schema",
+        "evidenceId",
+        "sourceRootId"
+      ],
+      "notes": "porte les racines de source, d'autorite et de famille ; contentHash est l'empreinte de l'enregistrement TEL QU'OBSERVE, pas du document"
+    },
+    "ProfessionalDiscovery": {
+      "schema": "EvidenceForge.ProfessionalDiscovery",
+      "lineageRelation": "DISCOVERY",
+      "required": [
+        "schema",
+        "candidates"
+      ],
+      "notes": "produit par un lot amont ; la variante DERIVEE produite par upstream-evidence-binder porte derivedFrom.upstreamDiscoveryRef et conserve upstreamEvidenceRefs"
+    },
+    "ProfessionalVerification": {
+      "schema": "EvidenceForge.ProfessionalVerification",
+      "lineageRelation": "VERIFICATION",
+      "required": [
+        "schema",
+        "verified"
+      ],
+      "notes": "statut de verification HISTORIQUE : jamais reecrit par MONO-10"
+    },
+    "ProfessionalCandidateAssessment": {
+      "schema": "EvidenceForge.ProfessionalCandidateAssessment",
+      "lineageRelation": "ASSESSMENT",
+      "required": [
+        "schema",
+        "assessments"
+      ],
+      "notes": "aucun statut n'evoque une admission ; seul PRESENT est presentable au panel"
+    },
+    "ProfessionalPanelValidation": {
+      "schema": "EvidenceForge.ProfessionalPanelValidation",
+      "lineageRelation": "PANEL_DECISION",
+      "required": [
+        "schema",
+        "decisions"
+      ],
+      "notes": "chaque decision porte decisionHash et, en PRODUCTION, humanActProof ; APPROVE/DEFER/REJECT"
+    },
+    "EffectiveCorpusEligibilitySet": {
+      "schema": "EvidenceForge.EffectiveCorpusEligibilitySet",
+      "lineageRelation": "EFFECTIVE_ELIGIBILITY",
+      "required": [
+        "schema",
+        "decisions"
+      ],
+      "notes": "l'eligibilite est RECALCULEE au sink ; la decision est marquee par un WeakSet module-prive et une copie JSON n'est plus une decision"
+    },
+    "ProfessionalCorpusSet": {
+      "schema": "EvidenceForge.ProfessionalCorpusSet",
+      "lineageRelation": "CORPUS",
+      "required": [
+        "schema",
+        "professionalCorpora"
+      ],
+      "notes": "produit par le consumer amont REEL ; DEFER et REJECT ne le franchissent jamais"
+    },
+    "DocumentaryTwinSet": {
+      "schema": "EvidenceForge.DocumentaryTwinSet",
+      "lineageRelation": "TWINS",
+      "required": [
+        "schema"
+      ],
+      "notes": "jumeaux documentaires"
+    },
+    "ReviewSet": {
+      "schema": "EvidenceForge.ReviewSet",
+      "lineageRelation": "REVIEWS",
+      "required": [
+        "schema"
+      ],
+      "notes": "revues"
+    },
+    "Aggregation": {
+      "schema": "EvidenceForge.Aggregation",
+      "lineageRelation": "AGGREGATION",
+      "required": [
+        "schema"
+      ],
+      "notes": "agregation"
+    },
+    "ScientificReadiness": {
+      "schema": "EvidenceForge.ScientificReadiness",
+      "lineageRelation": "READINESS_PRE | READINESS_FULL",
+      "required": [
+        "schema",
+        "phase",
+        "dimensions",
+        "dimensionsHash",
+        "assessedDimensions"
+      ],
+      "notes": "dimensionsHash derive des dimensions reelles ; NOT_ASSESSED exige une provenance ; assessedDimensions surdeclare leve READINESS_DIMENSIONS_FORGED"
+    },
+    "LlmCapability": {
+      "schema": "EvidenceForge.LlmCapability",
+      "lineageRelation": "CAPABILITY",
+      "required": [
+        "schema",
+        "status",
+        "transportOrigin"
+      ],
+      "notes": "transportOrigin vaut toujours ENVIRONMENT ; callerTransportIgnored consigne la tentative de l'appelant"
+    },
+    "ScientificQualification": {
+      "schema": "EvidenceForge.ScientificQualification",
+      "lineageRelation": "QUALIFICATION",
+      "required": [
+        "schema",
+        "qualificationStatus",
+        "evidenceClass"
+      ],
+      "notes": "QUALIFIED | QUALIFIED_WITH_RESERVATIONS | NOT_QUALIFIED | IMPOSSIBLE_TO_ASSESS ; QUALIFIED_WITH_RESERVATIONS est un resultat legitime"
+    },
+    "ScientificUnifiedReport": {
+      "schema": "EvidenceForge.ScientificUnifiedReport",
+      "lineageRelation": "REPORT",
+      "required": [
+        "schema",
+        "registryRootHash"
+      ],
+      "notes": "lie mission, qualification et racine de registre telle qu'a son propre enregistrement"
+    },
+    "FinalReportAcceptance": {
+      "schema": "EvidenceForge.FinalReportAcceptance",
+      "lineageRelation": "ACCEPTANCE",
+      "required": [
+        "schema",
+        "decision",
+        "decisionHash",
+        "reportRegistryRootHash"
+      ],
+      "notes": "validee par acceptanceBoundary() ; REJECT est bloquant en dur et aucune politique ne le convertit"
+    },
+    "DownstreamUseAuthorization": {
+      "schema": "EvidenceForge.DownstreamUseAuthorization",
+      "lineageRelation": "AUTHORIZATION",
+      "required": [
+        "schema",
+        "authorization",
+        "revalidation",
+        "refusedOverrides"
+      ],
+      "notes": "revalidation TOUJOURS executee ; refusedOverrides consigne chaque cle de politique retiree avec son motif"
+    }
+  },
+  "runtimeTypes": {
+    "RuntimeAttestation": {
+      "required": [
+        "runId",
+        "missionHash",
+        "executionMode",
+        "authorityId",
+        "keyId",
+        "nonce",
+        "signedAt",
+        "signature"
+      ],
+      "algorithm": "Ed25519 (crypto.sign/verify, algorithme null)",
+      "notes": "produite par l'AUTORITE DE L'EXPLOITANT ; le nonce est consomme a l'ouverture du run"
+    },
+    "RunEvidenceManifest": {
+      "required": [
+        "runId",
+        "executionMode",
+        "authorityId",
+        "keyId",
+        "operatorTrustBoundaryId",
+        "boundaryDescriptorHash",
+        "runtimeAttestationHash",
+        "runManifestRootHash",
+        "missionHash",
+        "manifestBindingHash"
+      ],
+      "notes": "la forme valide ne suffit pas : assertManifestAuthentic exige une frontiere et une attestation verifiees"
+    },
+    "OperatorTrustBoundaryDescriptor": {
+      "required": [
+        "operatorTrustBoundaryId",
+        "namespace",
+        "provisionedFrom",
+        "revocationModel"
+      ],
+      "provisionedFrom": "ENVIRONMENT",
+      "revocationModel": "LIVE_CONFIG_LOOKUP",
+      "notes": "obtenue par lecture de EVIDENCEFORGE_OPERATOR_TRUST_CONFIG ; jamais recue en argument"
+    }
+  },
+  "caseAdapters": {
+    "note": "un cas d'application nomme ses phases dans adapters/ ; le noyau n'en connait aucun. JMJS est un cas d'application et ne definit pas EvidenceForge."
+  },
+  "schemaFamilyNote": "Ces schemas decrivent ce qui est IMPLEMENTE dans ce lot, pas ce qui est souhaite. Un champ absent du code est absent d'ici."
+}

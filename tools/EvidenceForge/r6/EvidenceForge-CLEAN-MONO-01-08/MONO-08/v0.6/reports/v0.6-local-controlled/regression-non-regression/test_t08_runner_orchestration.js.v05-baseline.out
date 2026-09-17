@@ -1,0 +1,10 @@
+PASS — T08-RUNNER-01. runner refuse un endpoint localhost en mode REAL_SMOKE (fail-closed)
+PASS — T08-RUNNER-02. runner refuse un endpoint contenant synthetic en mode REAL_SMOKE
+PASS — T08-RUNNER-03. runner accepte les vrais endpoints par defaut
+FAIL — T08-RUNNER-04. la mission fournie est explicitement marquee incomplete (readyForExecution=false)  [null]
+FAIL — T08-RUNNER-05. au moins une reference reste explicitement OPERATOR_INPUT_REQUIRED  []
+PASS — T08-RUNNER-06. lib/frozen-zip-integrity.js ne depend d'aucun module reseau (http/https)
+
+ECHECS : 2
+
+(Rappel : ces resultats sont LOCAL_CONTROLLED - ils valident le RUNNER, jamais le Real Smoke lui-meme. Voir test_t08_eforch.js pour la preuve du happy path READY complet.)

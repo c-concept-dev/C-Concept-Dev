@@ -1,0 +1,112 @@
+
+=== test_t03_01_03_run_lifecycle.js ===
+PASS — T03-01. createRun() produit un RunState complet avec les 14 nœuds réels de MONO-02
+PASS — T03-01b. tous les nœuds démarrent NOT_STARTED
+PASS — T03-01c. createRun() refuse d'écraser un run existant (RUN_STATE_CONFLICT)
+PASS — T03-02. loadRun() retrouve exactement le RunState créé
+PASS — T03-03. loadRun() sur un run inconnu -> RUN_NOT_FOUND explicite
+
+TOUS LES TESTS PASSENT (5)
+
+=== test_t03_04_08_artifact_success_protocol.js ===
+PASS — T03-04. putArtifact() persiste et retourne un ArtifactRecord complet
+PASS — T03-05. getArtifact() revérifie le contentHash à la lecture (identique ici)
+PASS — T03-06. corruption du payload détectée à la lecture -> PERSISTED_ARTIFACT_MISMATCH, jamais une réparation heuristique
+PASS — T03-07. recordNodeSuccess() sans payload -> SUCCESS_WITHOUT_ARTIFACT, jamais un SUCCESS sans artefact
+PASS — T03-08a. échec d'écriture simulé de l'artefact -> l'exception se propage (PERSISTENCE_WRITE_FAILED)
+PASS — T03-08b. le nœud reste RUNNING (jamais un faux SUCCESS) après l'échec d'écriture
+
+TOUS LES TESTS PASSENT (6)
+
+=== test_t03_09_11_success_reuse_deterministic_plan.js ===
+PASS — T03-09. re-enregistrer le MÊME artefact SUCCESS est idempotent (aucune erreur, même artifactId)
+PASS — T03-10a. markNodeRunning() sur un nœud déjà SUCCESS -> refusé (RUN_STATE_CONFLICT), jamais rejoué
+PASS — T03-10b. re-enregistrer un artefact DIFFÉRENT sur un nœud déjà SUCCESS -> refusé, jamais un écrasement silencieux
+PASS — T03-11. computeResumePlan() est déterministe (même RunState + même ordre -> même plan)
+
+TOUS LES TESTS PASSENT (4)
+
+=== test_t03_12_17_retry_policies.js ===
+PASS — T03-12. EF-02A (retryPolicy=RESTART_STAGE) classé dans nodesToReplay
+PASS — T03-13. EF-ORCH-SUBSYSTEM (retryPolicy=RESUME_CHECKPOINT) classé dans nodesToResume
+PASS — T03-14. EF-03B (retryPolicy=REPLAY_MISSING_ONLY) classé dans nodesToResume
+PASS — T03-15. EF-03D (retryPolicy=RECOMPUTE_DETERMINISTIC) classé dans nodesToRecompute
+PASS — T03-16. EF-02E (retryPolicy=EXPLICIT_REBUILD_REQUIRED) classé dans nodesBlocked
+PASS — T03-17. EF-04-LINEAGE (retryPolicy=NO_RETRY) classé dans nodesBlocked
+
+TOUS LES TESTS PASSENT (6)
+
+=== test_t03_18_21_eforch_nested_resume.js ===
+PASS — T03-18. efOrchRunIdentity et efOrchNativeStatus persistés dans le RunState global
+PASS — T03-19. le run EF-ORCH démarré par mono01A est retrouvé par mono01B (process B) via l'efOrchRunIdentity persisté par MONO-03
+PASS — T03-20. aucun fichier lib/ de MONO-03 ne référence les structures/namespaces internes d'EF-ORCH
+PASS — T03-21. une seconde instance createMono03() (même backend) retrouve exactement le RunState laissé par la première
+
+TOUS LES TESTS PASSENT (4)
+
+=== test_t03_22_25_crash_recovery_locking.js ===
+PASS — T03-22. artefact écrit avant un crash simulé, mais l'état du nœud reste RUNNING (jamais un SUCCESS déduit de la seule présence de l'artefact)
+PASS — T03-22b. rejouer recordNodeSuccess() avec le même payload après le crash complète proprement le protocole (idempotent)
+PASS — T03-23. après un crash pendant RUNNING (aucun output produit), le nœud reste RUNNING dans le RunState retrouvé — jamais un état inventé
+PASS — T03-23b. le plan de reprise classe ce nœud RUNNING+RESTART_STAGE dans nodesToReplay (comportement natif attendu)
+PASS — T03-24. un second acquireRunLock() sur le même run déjà verrouillé -> RUN_LOCKED, jamais un double-verrou silencieux
+PASS — T03-24b. releaseRunLock() par un tiers non-propriétaire -> refusé, jamais une libération par un autre orchestrateur
+PASS — T03-25. releaseRunLock() par le bon propriétaire libère effectivement le verrou
+PASS — T03-25b. après libération, un autre orchestrateur peut acquérir le verrou normalement
+
+TOUS LES TESTS PASSENT (8)
+
+=== test_t03_26_31_mismatches_lineage.js ===
+PASS — T03-26. missionId attendu différent du missionId réel de l'artefact -> PERSISTED_ARTIFACT_MISMATCH
+PASS — T03-27. contract attendu différent du contract réel de l'artefact -> PERSISTED_ARTIFACT_MISMATCH
+PASS — T03-28. schemaVersion attendue différente de la schemaVersion réelle -> PERSISTED_ARTIFACT_MISMATCH
+PASS — T03-29. content hash mismatch -> déjà couvert de façon exhaustive par T03-06 (corruption directe du backend), pas de duplication ici
+PASS — T03-30a. les deux snapshots (ancien run / nouveau run) ont des artifactId distincts (jamais partagés)
+PASS — T03-30b. l'ancien run conserve EXACTEMENT son snapshot d'origine (1 entrée), jamais muté par le run plus récent
+PASS — T03-30c. le nouveau run utilise sa propre version (2 entrées), indépendamment de l'ancien
+PASS — T03-31a. juste après un PASS de lignée, isLineageStillValid() est vrai (aucun artefact amont n'a changé)
+PASS — T03-31b. si l'artefact amont référencé par un ancien PASS ne correspond plus à l'artefact réel du run -> isLineageStillValid() devient faux
+
+TOUS LES TESTS PASSENT (9)
+
+=== test_t03_32_34_serialization_backend_injection.js ===
+PASS — T03-32. le ResumePlan sérialise/désérialise sans perte (JSON.stringify -> JSON.parse identique)
+PASS — T03-32b. le ResumePlan porte schema/schemaVersion exacts
+PASS — T03-33. createInMemoryBackend() est bien étiqueté IN_MEMORY_TEST_ONLY (jamais présenté comme un backend de production)
+PASS — T03-33b. le backend explicitement injecté est bien celui utilisé (jamais silencieusement remplacé)
+PASS — T03-34a. createMono03({}) sans persistenceBackend -> échec IMMÉDIAT et explicite (fail-closed dès la construction)
+PASS — T03-34b. createMono03() sans aucun argument -> échec également
+
+TOUS LES TESTS PASSENT (6)
+
+=== test_t03_35_38_static_search_no_mutation.js ===
+PASS — T03-35. aucun fichier de lib/ ou index.js ne contient fuzzy/similarity/smartRepair/autoRepair
+PASS — T03-36. aucune référence à un pilote/mission nommé en dur (JMJS, S01/S02, DIMS, d4/d5)
+PASS — T03-37. aucune notion épistémique inventée (truthScore/majority/prestige/vote/consensus/expertScore/scientificValidity=true)
+PASS — T03-38. les 152 fichiers du manifeste MONO-02 imbriqué sont bytewise identiques à leur hash déclaré (aucune mutation de fichier gelé)
+
+TOUS LES TESTS PASSENT (4)
+
+=== test_t03_39_40_mono01_mono02_nonregression.js ===
+PASS — T03-39. suite MONO-01.x imbriquée rejouée depuis MONO-03 : 172 tests, "AUCUNE REGRESSION" confirmé
+PASS — T03-40. suite MONO-02 imbriquée rejouée depuis MONO-03 : 334 tests, "AUCUNE REGRESSION" confirmé
+
+TOUS LES TESTS PASSENT (2)
+
+=== test_t03_success_atomic_01_04.js ===
+PASS — T03-SUCCESS-ATOMIC-01a. panne injectée sur le commit RunState final -> recordNodeSuccess() échoue explicitement
+PASS — T03-SUCCESS-ATOMIC-01b. après la panne, le nœud reste dans son état précédent (RUNNING) — aucun RunState partiellement SUCCESS
+PASS — T03-SUCCESS-ATOMIC-01c. artifactRefs[nodeId] n'a jamais été écrit non plus (cohérence du couple)
+PASS — T03-SUCCESS-ATOMIC-01d. l'ArtifactRecord orphelin PEUT exister (écrit avant la panne du commit RunState) — comportement accepté, pas une fuite
+PASS — T03-SUCCESS-ATOMIC-02a. retry (nouvelle instance, même backend) avec le même payload -> SUCCESS complet
+PASS — T03-SUCCESS-ATOMIC-02b. outputArtifactRefs[0] === artifactRefs[nodeId]
+PASS — T03-SUCCESS-ATOMIC-02c. aucun doublon d'artefact (le retry a réutilisé l'ArtifactRecord orphelin, jamais recréé un second)
+PASS — T03-SUCCESS-ATOMIC-03a. invariant SUCCESS complet : exactement une outputArtifactRef, artifactRefs[nodeId] existe, les deux identiques
+PASS — T03-SUCCESS-ATOMIC-03b. ArtifactStore.getArtifact(id) réussit pour cette référence
+PASS — T03-SUCCESS-ATOMIC-04. un RunState historique/corrompu (SUCCESS avec artifactRefs incohérent) est rejeté fail-closed à loadRun(), jamais traité comme un SUCCESS réutilisable
+
+TOUS LES TESTS PASSENT (10)
+
+============================================
+TOTAL CUMULE : 64 tests
+AUCUNE REGRESSION

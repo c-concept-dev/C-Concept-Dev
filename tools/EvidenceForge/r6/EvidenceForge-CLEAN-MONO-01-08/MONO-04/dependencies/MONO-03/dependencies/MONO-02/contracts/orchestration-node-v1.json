@@ -1,0 +1,25 @@
+{
+  "schema": "EvidenceForge.OrchestrationNode",
+  "schemaVersion": "MONO-02-v1",
+  "description": "Forme d'une entree du graphe d'orchestration (graph/mono-02-orchestration-graph-v1.json). Chaque noeud represente UN appel a UNE methode d'UN port MONO-01 - jamais une reimplementation de ce que fait le port.",
+  "requiredFields": {
+    "nodeId": "identifiant unique du noeud dans le graphe",
+    "moduleId": "moduleId MONO-00 cible (autorite: registre MONO-00)",
+    "portId": "port MONO-01 utilise pour cet appel (autorite: registre MONO-01) - jamais un appel direct au module gele",
+    "portMethod": "methode exacte du port appelee (ou sequence de methodes pour un noeud composite comme EF-02D)",
+    "requiredInputs": "liste des entrees que l'orchestrateur doit fournir au port pour ce noeud",
+    "requiredUpstreamNodes": "noeuds devant etre SUCCESS avant que ce noeud puisse passer a READY",
+    "requiredDependencies": "dependances externes requises (memes noms que MONO-01: llm, externalStageAdapter.<methode>, etc.)",
+    "executionClass": "SYNC | ASYNC | ASYNC_EXTERNAL - repris tel quel du port MONO-01, jamais reinterprete",
+    "state": "etat technique courant (voir contracts/orchestration-state-v1.json)",
+    "retryPolicy": "un des 6 types definis dans le CDC MONO-02 (RESTART_STAGE, RESUME_CHECKPOINT, REPLAY_MISSING_ONLY, RECOMPUTE_DETERMINISTIC, EXPLICIT_REBUILD_REQUIRED, NO_RETRY)",
+    "resumePolicy": "meme enumeration que retryPolicy - peut differer de retryPolicy si un noeud a une politique de reprise plus fine que sa politique de nouvelle tentative simple (dans ce graphe, les deux coincident partout, mais le champ reste distinct par contrat)",
+    "resumePolicySource": "citation de la source (registre MONO-00 resumeCapability, ou exemple explicite du CDC MONO-02) - jamais une valeur inventee",
+    "blockingConditions": "conditions qui, si non satisfaites, maintiennent le noeud hors de READY ou le font passer a BLOCKED",
+    "successOutputContract": "contrat gele (schema/schemaVersion) attendu en sortie si le noeud atteint SUCCESS"
+  },
+  "optionalFields": {
+    "architecturalDependencyNote": "precision d'une dependance architecturale (jamais un parametre direct du module gele) - voir TARGET_DOCUMENT_SET et EF-03B",
+    "lineageGateNote": "precision du mecanisme de garde de lignee pour EF-04A"
+  }
+}

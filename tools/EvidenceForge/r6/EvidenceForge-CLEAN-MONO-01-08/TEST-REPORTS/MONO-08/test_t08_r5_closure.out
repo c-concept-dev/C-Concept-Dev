@@ -1,0 +1,45 @@
+PASS — R5-A01-01. mission pre-retrieval complete SANS auditDecisions => validatePreRetrievalProvenance PASS
+PASS — R5-A01-02. la MEME mission (sans auditDecisions) => describeMissionGateStatus (chemin nominal bin/run-real-smoke.js) ne bloque plus (status=PASS, jamais MISSION_NOT_READY)
+PASS — R5-A01-02b. validateRealEForchProvenance() (conservee, wrapper retro-compatible) continue elle EXIGE auditDecisions — comportement historique inchange, jamais supprime, seulement plus appelee par le mission-gate
+PASS — R5-A01-03. POST_RETRIEVAL_GATE sans auditDecisionsInput => invalid (OPERATOR_INPUT_REQUIRED_AUDIT_DECISIONS)
+PASS — R5-A01-04. auditDecisions soumises AVANT qu'aucun snapshot n'existe (snapshot absent/null) => refuse structurellement
+PASS — R5-A02-01. PREPARE_REAL_SCREENING execute le retrieval EXACTEMENT une fois
+PASS — R5-A02-04. PREPARE_REAL_SCREENING s'arrete explicitement sur OPERATOR_INPUT_REQUIRED_AUDIT_DECISIONS (jamais ne tente EF-01D)
+PASS — R5-A02-02. le RetrievalSnapshot est reellement PERSISTE (relu depuis le backend durable, pas seulement retourne en memoire)
+PASS — R5-A02-03. le snapshot contient des sourceId REELS et DISTINCTS (>= 2, jamais fabriques avant retrieval)
+PASS — R5-A01-05. aucun sourceId predictif/fictif : chaque source du snapshot porte des metadonnees derivees du retrieval reel (titre/auteur distincts pour chaque enregistrement)
+PASS — R5-A02-05. le template d'auditDecisions genere depuis le snapshot ne pre-remplit JAMAIS acteur/date/decision/justification (tous null)
+PASS — R5-A02-05b. le template pre-remplit uniquement sourceId/titre/reference (aide operateur), coherent avec le snapshot
+PASS — R5-A02-07. RESUME_REAL_SCREENING avec des decisions valides reprend correctement (missionId coherent avec le snapshot)
+PASS — R5-A02-08. RESUME_REAL_SCREENING n'effectue AUCUN retrieval supplementaire (compteur d'appels provider reste a 1 apres RESUME)
+PASS — R5-A02-07b. le graphe reel (EF-ORCH-SUBSYSTEM) atteint SUCCESS depuis les artefacts REJOUES du snapshot, sans second retrieval
+PASS — R5-A02-08b. AUCUN retrieval supplementaire meme apres avoir fait tourner le graphe (compteur toujours a 1)
+PASS — INTEGRITY-00. le snapshot NON altere reussit verifySnapshotIntegrity (pas de faux positif)
+PASS — INTEGRITY-01. alteration de "titre d'une source" => SNAPSHOT_INTEGRITY_ERROR (fail-closed reel)
+PASS — INTEGRITY-01. alteration de "sourceId d'une source" => SNAPSHOT_INTEGRITY_ERROR (fail-closed reel)
+PASS — INTEGRITY-01. alteration de "searchProtocolHash" => SNAPSHOT_INTEGRITY_ERROR (fail-closed reel)
+PASS — INTEGRITY-01. alteration de "runContractHash" => SNAPSHOT_INTEGRITY_ERROR (fail-closed reel)
+PASS — INTEGRITY-01. alteration de "plannerOutputHash" => SNAPSHOT_INTEGRITY_ERROR (fail-closed reel)
+PASS — INTEGRITY-01. alteration de "retrievalResultHash" => SNAPSHOT_INTEGRITY_ERROR (fail-closed reel)
+PASS — INTEGRITY-01. alteration de "snapshotHash lui-meme" => SNAPSHOT_INTEGRITY_ERROR (fail-closed reel)
+PASS — AUDIT-DEC-00. decisions valides, exhaustives, indexees par les vrais sourceId => PASS
+PASS — AUDIT-DEC-01. decision ciblant un sourceId inconnu du snapshot => FAIL
+PASS — AUDIT-DEC-02. snapshotId incoherent => FAIL
+PASS — AUDIT-DEC-03. snapshotHash incoherent => FAIL
+PASS — AUDIT-DEC-04. missionId incoherent => FAIL
+PASS — AUDIT-DEC-05. doublon CONTRADICTOIRE (deux decisions differentes sur le meme sourceId) => FAIL
+PASS — AUDIT-DEC-05b. doublon IDENTIQUE (meme decision repetee) reste accepte (pas une contradiction)
+PASS — AUDIT-DEC-06. decision manquante pour une source du snapshot (exhaustivite requise) => FAIL
+PASS — AUDIT-DEC-07. decision synthetique (acteur != "human") en mode REAL => FAIL (jamais une decision automatisee acceptee)
+PASS — CROSS-PROCESS-01. processus A (PREPARE_REAL_SCREENING, sous-processus reellement spawn) termine avec exit code 0
+PASS — CROSS-PROCESS-02. processus A atteint OPERATOR_INPUT_REQUIRED_AUDIT_DECISIONS avec >=2 sourceId reels et distincts
+PASS — CROSS-PROCESS-03. le template de decisions du processus A ne pre-remplit aucune decision
+PASS — CROSS-PROCESS-04. processus A a un pid distinct du processus de test courant
+PASS — CROSS-PROCESS-05. processus B (RESUME_REAL_SCREENING, lance APRES la sortie complete de A) termine avec exit code 0
+PASS — CROSS-PROCESS-06. processus B a un pid different de A ET du processus de test (deux OS process reellement distincts)
+PASS — CROSS-PROCESS-07. processus B a reussi a charger le snapshot PAR SON snapshotId depuis le disque (aucun objet JS partage avec A) et a fait progresser EF-ORCH-SUBSYSTEM a SUCCESS
+PASS — R5-A02-06. un NOUVEAU processus (B) peut relire le snapshot persiste par un AUTRE processus (A) et reprendre a partir de lui — aucun backend memoire partage
+
+TOUS LES TESTS PASSENT (41)
+
+R5_CLOSURE = PASS

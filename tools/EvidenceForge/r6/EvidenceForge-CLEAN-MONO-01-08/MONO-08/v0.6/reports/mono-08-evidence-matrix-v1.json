@@ -1,0 +1,149 @@
+{
+  "generatedAt": "2026-08-31T10:24:02.201Z",
+  "evidence": [
+    {
+      "requirement": "baseline evidence",
+      "evidenceType": "REAL",
+      "implementationStatus": "READY",
+      "source": "MONO-06-R3 gate",
+      "artifact": "reports/mono-08-test-report-v1.json (T08-01)",
+      "status": "PASS",
+      "notes": "785/785 MONO, 1223/1223 historiques"
+    },
+    {
+      "requirement": "preflight evidence",
+      "evidenceType": "REAL",
+      "implementationStatus": "READY",
+      "source": "requetes HTTPS reelles, operation exacte par fournisseur, validation structurelle",
+      "artifact": "reports/mono-08-preflight-v1.json",
+      "status": "BLOCKED",
+      "notes": "OpenAlex/Crossref/PubMed: NETWORK_BLOCKED ; LLM: AUTHENTICATION_BLOCKED"
+    },
+    {
+      "requirement": "EF-ORCH-SUBSYSTEM internal pipeline (EF-01A-F)",
+      "evidenceType": "LOCAL_CONTROLLED",
+      "implementationStatus": "READY",
+      "source": "test/test_t08_eforch.js (T08-EFORCH-01 a 14)",
+      "artifact": "reports/mono-08-test-report-v1.json",
+      "status": "PASS",
+      "notes": "EF-ORCH-SUBSYSTEM SUCCESS + CorpusSnapshot valide, confirme x2+"
+    },
+    {
+      "requirement": "full 14-node pipeline",
+      "evidenceType": "LOCAL_CONTROLLED",
+      "implementationStatus": "READY",
+      "source": "test/test_t08_eforch.js (T08-RUNNER-READY-01)",
+      "artifact": "reports/mono-08-test-report-v1.json",
+      "status": "PASS",
+      "notes": "14/14 SUCCESS, lineage PASS, assuranceLevel correct"
+    },
+    {
+      "requirement": "persistence restart",
+      "evidenceType": "LOCAL_CONTROLLED",
+      "implementationStatus": "READY",
+      "source": "lib/real-e2e-driver.js::rehydrateRealMissionRun + test/test_t08_eforch.js (T08-RUNNER-READY-02)",
+      "artifact": "reports/mono-08-test-report-v1.json",
+      "status": "PASS",
+      "notes": "etat fidelement preserve, poursuite jusqu-a 14/14"
+    },
+    {
+      "requirement": "real UI smoke",
+      "evidenceType": "LOCAL_CONTROLLED",
+      "implementationStatus": "READY",
+      "source": "test/test_t08_eforch.js (T08-RUNNER-READY-03, vrai serveur MONO-05-R3 + Playwright)",
+      "artifact": "reports/mono-08-test-report-v1.json",
+      "status": "PASS",
+      "notes": "14 noeuds, assuranceLevel visible, 0 erreur console"
+    },
+    {
+      "requirement": "real OpenAlex evidence",
+      "evidenceType": "NOT_RUN",
+      "implementationStatus": "READY",
+      "source": "lib/eforch-artifacts.js + lib/real-external-adapter.js",
+      "artifact": null,
+      "status": "NOT_RUN",
+      "notes": "preflight non READY dans cet environnement (NETWORK_BLOCKED)"
+    },
+    {
+      "requirement": "real Crossref evidence",
+      "evidenceType": "NOT_RUN",
+      "implementationStatus": "PARTIAL",
+      "source": null,
+      "artifact": null,
+      "status": "NOT_RUN",
+      "notes": "non cable (mission actuelle n-utilise que OpenAlex)"
+    },
+    {
+      "requirement": "real PubMed evidence",
+      "evidenceType": "NOT_RUN",
+      "implementationStatus": "PARTIAL",
+      "source": null,
+      "artifact": null,
+      "status": "NOT_RUN",
+      "notes": "optionnel selon mission, non cable"
+    },
+    {
+      "requirement": "real LLM evidence",
+      "evidenceType": "NOT_RUN",
+      "implementationStatus": "READY",
+      "source": "lib/real-external-adapter.js::buildRealLlmWorkerCallFn (extraction content[0].text reelle)",
+      "artifact": null,
+      "status": "NOT_RUN",
+      "notes": "AUTHENTICATION_BLOCKED - aucun identifiant disponible"
+    },
+    {
+      "requirement": "external failure fail-closed (reel)",
+      "evidenceType": "NOT_RUN",
+      "implementationStatus": "PARTIAL",
+      "source": null,
+      "artifact": null,
+      "status": "NOT_RUN",
+      "notes": "non specifiquement teste dans le contexte complet de la mission reelle"
+    },
+    {
+      "requirement": "secret injection + no-leak proof",
+      "evidenceType": "LOCAL_CONTROLLED",
+      "implementationStatus": "READY",
+      "source": "test/test_t08_eforch.js (T08-RUNNER-READY-04a/b) - secret reellement injecte via createStaticSecretProvider (voie gelee MONO-04/MONO-05), consommation prouvee (en-tete Authorization capture sur un serveur distinct), puis absence prouvee dans RunState/ArtifactRecord/OperatorApi/rapport/trace/DOM/localStorage/sessionStorage",
+      "artifact": "reports/mono-08-test-report-v1.json",
+      "status": "PASS",
+      "notes": "corrige le faux positif methodologique v0.4 (secret jamais injecte)"
+    },
+    {
+      "requirement": "frozen ZIP integrity (avant/apres, 8 ZIP incluant MONO-07)",
+      "evidenceType": "REAL+LOCAL_CONTROLLED",
+      "implementationStatus": "READY",
+      "source": "test/test_t08_eforch.js (T08-RUNNER-READY-05) - snapshot AVANT createRealMissionRun, snapshot APRES UI smoke inclus",
+      "artifact": "reports/mono-08-test-report-v1.json",
+      "status": "PASS",
+      "notes": "corrige le faux positif methodologique v0.4 (les deux snapshots etaient post-run) ; couvre desormais MONO-00 a MONO-07 (8 ZIP)"
+    },
+    {
+      "requirement": "adversarial mutation detection",
+      "evidenceType": "LOCAL_CONTROLLED",
+      "implementationStatus": "READY",
+      "source": "test/test_t08_eforch.js (T08-ADVERSARIAL-INTEGRITY, T08-ADVERSARIAL-INTEGRITY-b)",
+      "artifact": "reports/mono-08-test-report-v1.json",
+      "status": "PASS",
+      "notes": "mutation volontaire sur une copie jetable detectee (identical=false) ; ZIP canonique original jamais touche"
+    },
+    {
+      "requirement": "static check",
+      "evidenceType": "REAL",
+      "implementationStatus": "READY",
+      "source": "analyse reelle du code source MONO-08",
+      "artifact": "reports/mono-08-test-report-v1.json (T08-24)",
+      "status": "PASS",
+      "notes": "0 occurrence /home/claude, 0 motif interdit"
+    },
+    {
+      "requirement": "mission readiness",
+      "evidenceType": "REAL",
+      "implementationStatus": "PARTIALLY_READY",
+      "source": "fixtures/mission-real-smoke-v1.json",
+      "artifact": "MISSION.md",
+      "status": "OPERATOR_INPUT_REQUIRED",
+      "notes": "1 professionnel + 1 document verifies reellement (contenu texte reel ajoute pour target-01) ; 1 de chaque restent a confirmer"
+    }
+  ]
+}

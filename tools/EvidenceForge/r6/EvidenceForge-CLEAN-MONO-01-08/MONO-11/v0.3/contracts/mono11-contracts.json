@@ -1,0 +1,176 @@
+{
+  "$comment": "MONO-11 v0.1 — SOURCE CANONIQUE des contrats du gate autonome. Le code IMPORTE ce fichier. Aucune enumeration n'est ecrite deux fois. Aucun metier, aucune discipline, aucun expert, aucun cas d'usage n'y figure.",
+  "contractVersion": "MONO-11-v2",
+  "reviewCompletenessRule": {
+    "rule": "accepted_reviews == expected_reviews",
+    "expected": "jumeaux actifs x cibles resolues",
+    "tolerance": "NONE (100 %)",
+    "note": "jamais un nombre en dur, jamais un ratio ; une revue refusee par le validateur gele reste manquante"
+  },
+  "targetNormalization": {
+    "ruleSetId": "MONO11-TARGET-NORMALIZATION-v1",
+    "rules": [
+      "NFC",
+      "APOSTROPHE U+2018/U+2019/U+2032/U+02BC -> U+0027",
+      "DOUBLE_QUOTE U+201C/U+201D/U+201E/U+2033 -> U+0022",
+      "NBSP U+00A0/U+202F/U+2007 -> U+0020",
+      "LINE_ENDINGS CRLF/CR -> LF"
+    ],
+    "semanticChange": "NONE",
+    "note": "appliquee a l'ingestion du document cible, avant EF-03 ; original et normalise conserves et haches"
+  },
+  "informedRetry": {
+    "reviewMaxPassesDefault": 3,
+    "coverageMaxPassesDefault": 3,
+    "blindRetry": false,
+    "note": "v0.2 : toute passe >= 2 recoit erreurs structurees, artefact fautif, document cible, schema attendu, contraintes. v0.3 : voir retryPolicy."
+  },
+  "gateStates": {
+    "values": [
+      "AUTO_APPROVED_FOR_DOCUMENTARY_PANEL",
+      "AUTO_REJECTED",
+      "AUTO_DEFERRED",
+      "AMBIGUOUS",
+      "INSUFFICIENT_DOCUMENTARY_BASIS"
+    ],
+    "terminalWithoutHumanOverride": [
+      "AUTO_REJECTED",
+      "AUTO_DEFERRED",
+      "AMBIGUOUS",
+      "INSUFFICIENT_DOCUMENTARY_BASIS"
+    ],
+    "admitsToCorpus": [
+      "AUTO_APPROVED_FOR_DOCUMENTARY_PANEL"
+    ],
+    "note": "Charte v2 §8/§9 — AMBIGUOUS et INSUFFICIENT_DOCUMENTARY_BASIS ne sont jamais auto-promus ; AUTO_DEFERRED est terminal dans le run nominal. Aucun de ces etats n'est une decision humaine."
+  },
+  "actorTypes": {
+    "values": [
+      "machine",
+      "human"
+    ],
+    "note": "Un acte machine porte actorType \"machine\" et n'est JAMAIS presente sous actorType \"human\" (Charte v2 invariant). Le validateur gele de MONO-10 (human-act.js) refuse un acte machine : c'est voulu."
+  },
+  "gateCriteria": {
+    "values": [
+      "G1_IDENTITY_RESOLVED",
+      "G2_EVIDENCE_ATTRIBUTED",
+      "G3_REAL_RELEVANCE",
+      "G4_CORPUS_SUFFICIENT",
+      "G5_NO_BLOCKING_AMBIGUITY",
+      "G6_MISSION_COVERAGE",
+      "G7_VERDICT_INDEPENDENCE",
+      "G8_ANTI_CIRCULARITY",
+      "G9_EMERGENT_DIVERSITY",
+      "G10_DISAGREEMENT_PRESERVED",
+      "G11_PROVENANCE_COMPLETE"
+    ],
+    "note": "Repris de EVIDENCEFORGE-AUTONOMOUS-PANEL-GAP-ANALYSIS.md §9. Chaque critere est un predicat sur des artefacts lies au run ; non evaluable => UNKNOWN, jamais SATISFIED."
+  },
+  "criterionStates": {
+    "values": [
+      "SATISFIED",
+      "UNSATISFIED",
+      "UNKNOWN",
+      "RESERVATION"
+    ]
+  },
+  "reasonCodes": {
+    "values": [
+      "IDENTITY_AMBIGUOUS",
+      "IDENTITY_UNRESOLVED",
+      "IDENTITY_CONFIDENCE_BELOW_MINIMUM",
+      "NO_ATTRIBUTED_EVIDENCE",
+      "CORPUS_NOT_ATTRIBUTABLE",
+      "CORPUS_INSUFFICIENT",
+      "CORPUS_PROBE_ERROR",
+      "RELEVANCE_UNKNOWN",
+      "RELEVANCE_NOT_DETERMINABLE",
+      "RELEVANCE_PARTIAL_ONLY",
+      "RELEVANCE_SUPPORTED",
+      "RELEVANCE_OUT_OF_SCOPE",
+      "RELEVANCE_EVIDENCE_NOT_ATTRIBUTED",
+      "BLOCKING_UNKNOWN_PRESENT",
+      "SEED_ONLY_SUPPORT",
+      "SECONDARY_DISCOVERY",
+      "PROVENANCE_UNRESOLVED",
+      "DOWNSTREAM_ARTIFACT_PRESENTED",
+      "DIMENSION_UNCOVERED",
+      "DIVERSITY_NOT_OBSERVED"
+    ]
+  },
+  "relevanceEvidenceClasses": {
+    "values": [
+      "SUPPORTED",
+      "PARTIAL",
+      "NOT_DETERMINABLE",
+      "OUT_OF_SCOPE",
+      "UNKNOWN"
+    ],
+    "derivation": "SUPPORTED = au moins une dimension mission_relevant avec epistemicStatus documented ET supportingWorkRefs attribues au candidat ; PARTIAL = au moins une dimension partially_relevant ou mission_relevant sans preuve documented ; OUT_OF_SCOPE = TOUTES les dimensions mission_irrelevant (avis explicite sur chacune) ; NOT_DETERMINABLE = aucune dimension relevant/partial et au moins une not_determinable ; UNKNOWN = oracle absent ou en erreur"
+  },
+  "corpusSufficiencyPolicy": {
+    "schema": "EvidenceForge.HeuristicPolicy",
+    "schemaVersion": "EF-PR-GEN-v1",
+    "policyId": "MONO11-CORPUS-SUFFICIENCY-TECHNICAL-GUARD-v1",
+    "status": "test_unvalidated",
+    "values": {
+      "minWorks": 3,
+      "minDoi": 1,
+      "minYears": 2,
+      "minTopics": 2
+    },
+    "classification": "CONTRACTUAL_CONSTANT",
+    "justification": "Garde-fou TECHNIQUE, jamais une verite metier : un jumeau documentaire (EF-02E) cite des travaux par titre/DOI ; en dessous de trois travaux attribuables, dont un identifiable par DOI, sur au moins deux annees et deux themes, la base documentaire ne permet pas de distinguer DOCUMENTE / INFERE / NON DETERMINABLE. Valeurs lues par EF-02D1 (MONO-01, gele), qui refuse toute constante locale. Configurable par la frontiere operateur ; testees sur trois domaines synthetiques."
+  },
+  "coveragePolicy": {
+    "schema": "EvidenceForge.HeuristicPolicy",
+    "schemaVersion": "EF-PR-GEN-v1",
+    "policyId": "MONO11-COVERAGE-TECHNICAL-GUARD-v1",
+    "status": "test_unvalidated",
+    "values": {
+      "coverageThreshold": "moderate",
+      "maxPanel": 0,
+      "minMarginalGain": 0,
+      "redundancyPenalty": 0
+    },
+    "classification": "CONTRACTUAL_CONSTANT",
+    "justification": "Seule coverageThreshold est lue (EF-02D3 buildCoverageMatrix exige la politique complete). selectPanel d'EF-02D3 N'EST PAS APPELE : MONO-11 n'a ni plafond ni quota de panel (maxPanel=0 rend selectPanel vide par construction si un appelant l'invoquait)."
+  },
+  "identityPolicy": {
+    "minIdentityConfidence": "MODERATE",
+    "note": "Meme minimum que candidate-assessment.js (MONO-10 v0.19, SECURE). MONO-11 ne peut que resserrer."
+  },
+  "qualificationStates": {
+    "values": [
+      "QUALIFIED",
+      "QUALIFIED_WITH_RESERVATIONS",
+      "NOT_QUALIFIED",
+      "IMPOSSIBLE_TO_ASSESS"
+    ],
+    "note": "identiques a MONO-10 v0.19 canonical-contracts.json"
+  },
+  "mandatoryReservations": {
+    "values": [
+      "PANEL_ADMITTED_BY_MACHINE_EVIDENCE_GATE_WITHOUT_HUMAN_ACT"
+    ],
+    "note": "Charte v2 : une admission machine est toujours consignee comme reserve ; la qualification ne peut pas etre QUALIFIED sans reserve."
+  },
+  "retryPolicy": {
+    "version": "MONO-11-v0.3",
+    "scope": "core/review-enforcer.js uniquement",
+    "pass1": "inchangee (prompt EF-03B gele + preambule)",
+    "targetedRepair": {
+      "when": "toutes les erreurs de la passe precedente sont TARGET_REF_NOT_LITERAL et la reponse est de forme parsable",
+      "what": "seul le champ targetEvidenceRefs des dimensions fautives est redemande (schema ferme {repairs:[{dimensionId,targetEvidenceRefs}]}) ; recomposition locale sur la reponse precedente ; revalidation INTEGRALE par validateReviewCandidate (inchange) puis EF-03B gele",
+      "feedback": "citation rejetee + fragments contigus reellement presents dans le document (literalFragments, deterministe, minLen 12) signales comme NON contigus ; repli [] rappele ; reponse fautive non reinjectee integralement",
+      "forbidden": "aucune substitution automatique ; aucune paraphrase ; aucun fuzzy ; aucune decision semantique locale"
+    },
+    "strategyChange": "apres un echec cible (ou une repetition exacte) : TARGETED_REPAIR_STRATEGY_CHANGE — rejet signale, repetition signalee, citations deja rejetees interdites, nouvelle extraction, repli []",
+    "exactRepeat": "EXACT_RETRY_REPEAT = reponse byte-identique a la precedente avec les memes codes d erreur ; journalise ; aucune passe supplementaire avec une strategie identique a celle qui vient de se repeter (fail-closed)",
+    "otherErrorCodes": "comportement v0.2 conserve (informedRepairPrompt inchange) + garde anti-repetition",
+    "maxPasses": "inchange (defaut 3, parametre d exploitation) ; jamais augmente par le lot",
+    "validator": "validateReviewCandidate byte-identique a v0.2 ; contrat de litteralite inchange",
+    "lineage": "par passe : strategy, previousErrorCodes, previousResponseSha256, rawResponseSha256, responseSha256 (texte valide/recompose), exactRepeat, repeatedFaultyRef, targetedDimensions, proposedFragments, repair, valid, errors"
+  }
+}

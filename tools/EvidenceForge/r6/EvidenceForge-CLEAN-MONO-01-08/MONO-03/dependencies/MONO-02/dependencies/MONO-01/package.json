@@ -1,0 +1,10 @@
+{
+  "name": "evidenceforge-mono-01",
+  "version": "1.0.0",
+  "private": true,
+  "description": "EvidenceForge — MONO-01 — Integration Contracts & Ports. Couche d'intégration minimale (ports + contrats) préparant l'assemblage du monolithe orchestrateur à partir de la baseline gelée MONO-00. Aucun code orchestrateur, aucune UI finale, aucune persistance finale, aucun lot gelé modifié.",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test/run-all.js"
+  }
+}

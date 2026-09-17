@@ -166,3 +166,6 @@ Worker/presentation_attachment.pptx
 .dev.vars*
 !.dev.vars.example
 !.env.example
+
+# ═══ EvidenceForge : bundle des lots gelés + monolithes (rien n'est ignoré sous ce chemin ; aucun secret n'y entre — voir tools/EvidenceForge/README.md) ═══
+!tools/EvidenceForge/**

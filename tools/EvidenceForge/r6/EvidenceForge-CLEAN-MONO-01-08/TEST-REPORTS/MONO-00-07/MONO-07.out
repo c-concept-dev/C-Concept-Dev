@@ -1,0 +1,400 @@
+
+=== unit/test_t07_fixtures_regression.js (groupe: node-api) ===
+  tentative 1 - classification=PASS status=0 signal=null duree=38ms
+PASS — T07-FIX-01a. un prompt D2 (contient "dimensionId") produit bien une réponse au format D2 (judgments[])
+PASS — T07-FIX-01b. un prompt D3 contenant un RAPPEL du mot "relevanceStatus" (contexte D2 déjà établi) produit bien une réponse au format D3 (dimensions[]), jamais D2
+PASS — T07-FIX-02. les deux professionnels synthétiques ont une couverture DIFFÉRENCIÉE par dimension (jamais identique), condition nécessaire pour que l'algorithme réel de sélection de panel retienne les deux
+
+TOUS LES TESTS PASSENT (3)
+
+=== unit/test_t07_pkg_portability.js (groupe: node-api) ===
+  tentative 1 - classification=PASS status=0 signal=null duree=48ms
+PASS — T07-PKG-01. aucun kitRoot fourni -> KIT_ROOT_REQUIRED, jamais un chemin par défaut
+PASS — T07-PKG-01b. le message d'erreur ne contient jamais un chemin de session (/home/claude)
+PASS — T07-PKG-02a. argument CLI explicite résolu correctement
+PASS — T07-PKG-02b. variable d'environnement EVIDENCEFORGE_KIT_ROOT utilisée en l'absence d'argument CLI
+PASS — T07-PKG-02c. l'argument CLI est prioritaire sur la variable d'environnement
+PASS — T07-PKG-03. recherche statique du paquet complet (lib/test/fixtures, hors cet outil de recherche lui-même) -> zéro occurrence fonctionnelle d'un chemin de session
+
+TOUS LES TESTS PASSENT (6)
+
+=== unit/test_t07_runner_policy.js (groupe: node-api) ===
+  tentative 1 - classification=PASS status=0 signal=null duree=34ms
+PASS — T07-RUNNER-01a. echec fonctionnel execute exactement 1 fois (jamais de retry)
+PASS — T07-RUNNER-01b. resultat final FAIL
+PASS — T07-RUNNER-01c. classification correcte = FUNCTIONAL
+PASS — T07-RUNNER-02a. jamais de deuxieme tentative pour un echec classe fonctionnel
+PASS — T07-RUNNER-02b. resultat final reste FAIL (jamais masque)
+PASS — T07-RUNNER-03a. echec infrastructure (SIGKILL) declenche exactement 1 tentative supplementaire (2 au total)
+PASS — T07-RUNNER-03b. classification de la premiere tentative = INFRASTRUCTURE
+PASS — T07-RUNNER-04a. resultat final PASS apres recuperation infrastructure
+PASS — T07-RUNNER-04b. la tentative 1 (echouee) reste conservee dans le journal
+PASS — T07-RUNNER-05a. echec infrastructure repete -> exactement 2 tentatives, jamais 3
+PASS — T07-RUNNER-05b. resultat final FAIL definitif
+PASS — T07-RUNNER-06. le groupe node-api n'applique JAMAIS de retry, meme sur une infrastructure reconnue
+PASS — classifyOutcome priorise FUNCTIONAL si le fichier a atteint son resume ECHECS
+PASS — classifyOutcome traite un echec non reconnu comme FUNCTIONAL par defaut
+
+TOUS LES TESTS PASSENT (14)
+
+=== e2e/test_t07_determinism.js (groupe: node-api) ===
+  tentative 1 - classification=PASS status=0 signal=null duree=1251ms
+PASS — T07-35a. même ordre de nœuds entre les deux runs
+PASS — T07-35b. mêmes issues de nœuds (SUCCESS partout, identiques)
+PASS — T07-35c. artefacts sémantiques identiques (canonicalisés : runId/timestamps/artifactId retirés, jamais un champ métier)
+PASS — T07-35d. mêmes dispositions de findings (contradiction reproduite identiquement, jamais aléatoire)
+PASS — T07-35e. rapport final identique une fois canonicalisé
+PASS — T07-35f. assuranceLevel identique entre les deux runs
+
+TOUS LES TESTS PASSENT (6)
+
+=== e2e/test_t07_e2e_contradiction.js (groupe: node-api) ===
+  tentative 1 - classification=PASS status=0 signal=null duree=676ms
+PASS — T07-16a. au moins un accord documentaire réel (même disposition, plusieurs twins indépendants, même cible/dimension)
+PASS — T07-16b. au moins une contradiction documentaire réelle (dispositions différentes sur la même cible/dimension)
+PASS — T07-16c. les deux findings contradictoires restent référencés dans l'agrégat (allFindingIds), aucun n'est supprimé
+PASS — T07-16d. aucune trace de vote/majorité/prestige/truthScore dans l'agrégation (interdits structurels du module gelé)
+PASS — T07-17. structurallyStable/analyses présentes et jamais assimilées à une validation scientifique ou un consensus d'experts
+PASS — T07-16e. le rapport final ne contient aucune dérive épistémique (vote/majorité/prestige/truthScore/scientificValidity=true)
+
+TOUS LES TESTS PASSENT (6)
+
+=== e2e/test_t07_e2e_failure.js (groupe: node-api) ===
+  tentative 1 - classification=PASS status=0 signal=null duree=1080ms
+PASS — T07-27a. un vrai timeout MONO-04 se déclenche réellement (route qui ne répond jamais, jamais un throw simulé) — résultat structuré status=FAILED, code=EXTERNAL_TIMEOUT
+PASS — T07-27b. le timeout se déclenche dans le délai configuré, jamais un blocage indéfini
+PASS — T07-25a. EF-02B FAILED (échec technique réel, adapter défaillant)
+PASS — T07-25b. tous les nœuds downstream restent BLOCKED/NOT_STARTED (jamais exécutés)
+PASS — T07-25c. aucun rapport final accessible tant que le nœud échoué bloque la chaîne
+PASS — T07-25d. diagnostic technique conservé (lastError explicite, jamais silencieux)
+PASS — T07-26a. après restauration du provider nominal, retryNode() réussit réellement
+PASS — T07-26b. progression complète après recovery : 14/14 SUCCESS
+PASS — T07-26c. aucune duplication d'artefact après retry (exactement 1 ArtifactRecord pour EF-02B)
+
+TOUS LES TESTS PASSENT (9)
+
+=== e2e/test_t07_e2e_happy.js (groupe: node-api) ===
+  tentative 1 - classification=PASS status=0 signal=null duree=89772ms
+PASS — T07-01. le harnais MONO-07 démarre (fixtures, providers, driver chargés sans erreur)
+PASS — T07-02. MONO-06-R3 gate PASS avant tout run E2E (baseline 785/1223 confirmée)
+PASS — T07-03. EF-ORCH-SUBSYSTEM exécuté réellement (via EFOrchExecutionPort, jamais EF-01A-F reconstruits)
+PASS — 14/14 nodes SUCCESS (happy path complet)
+PASS — T07-21. état durable MONO-03 cohérent : 14/14 SUCCESS dans RunState (pas seulement en mémoire moteur)
+PASS — T07-21b. artifactRefs complets pour les 14 nœuds (aucun SUCCESS partiel/sans artefact)
+PASS — T07-05. CorpusSnapshot produit avec le bon schéma/version
+PASS — T07-06. MissionDimensionSet produit avec 2 dimensions synthétiques
+PASS — T07-07. ProfessionalDiscovery produit avec le bon schéma (EF-02A)
+PASS — T07-08. ProfessionalVerification produit avec le bon schéma (EF-02B)
+PASS — T07-09. ProfessionalCorpusSet produit avec le bon schéma (EF-02C)
+PASS — T07-10. EF-02D produit un DocumentaryEligibilityRelevanceSet avec au moins un usableRecord réel (jamais un tableau vide masquant la régression MONO02-CORPUS-BY-REF-MAP)
+PASS — T07-10b. CoverageMatrix produite, non vide
+PASS — T07-10c. PanelSelection produite avec un panel non vide
+PASS — T07-11. EF-02E produit un DocumentaryTwinSet avec au moins 2 twins (cardinalité minimale du CDC)
+PASS — T07-11b. chaque twin est distinct, tracable, jamais assimilé à une personne réelle (professionalRef SYNTHETIC_*)
+PASS — T07-12. TargetDocumentSet produit avec au moins 2 documents cibles synthétiques
+PASS — T07-13. ReviewSchema produit, générique (jamais une taxonomie JMJS)
+PASS — T07-14. matrice twin×target complète : 2 twins × 2 targets = au moins 4 DocumentaryReview
+PASS — T07-14b. aucun couple twin×target manquant ni dupliqué (4 couples uniques exacts pour 2×2)
+PASS — T07-14c. chaque finding respecte targetEvidenceRefs != twinBasisWorkRefs (jamais une preuve confondue avec la base documentaire du twin)
+PASS — T07-14d. chaque finding porte un epistemicStatus valide
+PASS — T07-15. EF-03C agrège réellement (AggregatedDocumentaryReview produit, findings sources tracés)
+PASS — T07-17b. StabilityContradictionAnalysis produite
+PASS — T07-18. EF-04-LINEAGE SUCCESS (lineage PASS réel, jamais un contournement)
+PASS — T07-18b. RunState.lineageStatus synchronisé à PASS via le vrai chemin (MONO05-R2-REG-01)
+PASS — T07-19. EF-04A produit un UnifiedReportSummary, OperatorApi.getReport() accessible
+PASS — T07-20. assuranceLevel exact, jamais surélevé
+PASS — T07-20b. aucune dérive épistémique dans le rapport final (jamais scientificValidity=true, jamais expertValidated)
+
+TOUS LES TESTS PASSENT (29)
+
+=== e2e/test_t07_e2e_lineage_negative.js (groupe: node-api) ===
+  tentative 1 - classification=PASS status=0 signal=null duree=1315ms
+PASS — T07-33a. 12/14 nœuds SUCCESS avant corruption (précondition)
+PASS — T07-33b. EF-04-LINEAGE FAILED (lignée rompue détectée réellement par assertLineage)
+PASS — T07-33c. lineageStatus synchronisé à FAIL (jamais laissé null, jamais un faux PASS)
+PASS — T07-33d. EF-04A non produit / non accessible (reste non-READY)
+PASS — T07-33e. getReport() = LINEAGE_BLOCKED
+PASS — T07-34a. run A complet (14/14) — précondition
+PASS — T07-34b. run B complet (14/14), lineage réellement PASS avant corruption — précondition
+PASS — T07-34c. getReport(B) accessible AVANT la simulation de staleness
+PASS — T07-34d. isLineageStillValid(B) = false après un PASS référençant un artefact d'un autre run
+PASS — T07-34e. getLineage(B).status = STALE (jamais présenté comme un PASS courant)
+PASS — T07-34f. getReport(B) = LINEAGE_BLOCKED après la staleness (jamais accepté silencieusement)
+
+TOUS LES TESTS PASSENT (11)
+
+=== e2e/test_t07_e2e_resume.js (groupe: node-api) ===
+  tentative 1 - classification=PASS status=0 signal=null duree=541ms
+PASS — T07-23a. instance A progresse réellement jusqu'à l'interruption simulée (8/14 SUCCESS attendu)
+PASS — T07-24a. instance B utilise une NOUVELLE Map d'engines (jamais celle de A)
+PASS — T07-24b. réhydratation correcte : les 8 nœuds déjà SUCCESS sont retrouvés SUCCESS dans le nouveau moteur (REG-02)
+PASS — T07-23b. la reprise progresse réellement (nouveaux nœuds exécutés depuis l'instance B)
+PASS — T07-23c. reprise complète : 14/14 SUCCESS après reprise depuis l'instance B
+PASS — T07-23d. rapport final accessible après reprise, identique fonctionnellement à un run direct (schéma correct)
+
+TOUS LES TESTS PASSENT (6)
+
+=== e2e/test_t07_e2e_secrets.js (groupe: node-api) ===
+  tentative 1 - classification=PASS status=0 signal=null duree=598ms
+PASS — T07-31a. le VRAI SecretProvider (mono04.createStaticSecretProvider) résout bien le secret configuré
+PASS — T07-31b. le Gateway MONO-04 réel envoie bien le secret en Authorization: Bearer <secret> (preuve d'usage réel, pas seulement de configuration)
+PASS — T07-31c. le secret n'apparaît jamais dans RunState (NodeStateRecord inclus)
+PASS — T07-32a. le secret n'apparaît dans aucun ArtifactRecord (14 artefacts inspectés)
+PASS — T07-32b. le secret n'apparaît jamais dans le rapport final (UnifiedReportSummary)
+PASS — T07-32c. le secret n'apparaît jamais dans la réponse getLineage()
+PASS — T07-32d. le secret n'apparaît jamais dans la réponse getGraph() (toutes les réponses OperatorApi inspectées)
+
+TOUS LES TESTS PASSENT (7)
+
+=== e2e/test_t07_idempotence_concurrency.js (groupe: node-api) ===
+  tentative 1 - classification=PASS status=0 signal=null duree=297ms
+PASS — T07-29. même requestId + même fingerprint -> une seule opération logique réelle (résultats identiques, jamais deux exécutions distinctes)
+PASS — T07-30. même requestId + fingerprint différent -> EXTERNAL_REQUEST_CONFLICT réel (vrai Gateway MONO-04-R2, jamais un mock)
+PASS — T07-28a. une seule exécution réelle aboutit en SUCCESS (l'autre est rejetée comme collision technique, jamais un second SUCCESS métier)
+PASS — T07-28b. aucun double artefact pour ce nœud (exactement 1 ArtifactRecord)
+PASS — T07-28c. attemptCount cohérent (pas de double comptage métier dû à la collision d'orchestration)
+
+TOUS LES TESTS PASSENT (5)
+
+=== e2e/test_t07_no_live_function_persisted.js (groupe: node-api) ===
+  tentative 1 - classification=PASS status=0 signal=null duree=532ms
+PASS — T07-22a. buildSerializableRunInputs() ne produit aucune fonction (adapter/workerCallFn/connectorRunners exclus par construction)
+PASS — T07-22a-bis. seuls des identifiants sérialisables sont présents
+PASS — T07-22b. un run réel complet persiste sans jamais lever DataCloneError (preuve exécutable qu'aucune fonction n'a transité par saveRunInputs)
+PASS — T07-22c. le bundle relu depuis le backend MONO-03 (après un aller-retour structuredClone réel) ne contient aucune fonction
+PASS — T07-22d. RunState complet (nodeStates, artifactRefs, lineageStatus) ne contient aucune fonction
+
+TOUS LES TESTS PASSENT (5)
+
+=== browser/test_t07_browser_e2e.js (groupe: browser) ===
+  tentative 1 - classification=PASS status=0 signal=null duree=3874ms
+PASS - T07-37a-1. graphe visible avec les 14 noeuds
+PASS - T07-37a-2. 14/14 SUCCESS visible et coherent dans la vraie UI
+PASS - T07-37a-3. section artefacts consultable, non vide
+PASS - T07-37a-4. lineage visible, SUCCESS/PASS coherent
+PASS - T07-37a-5. rapport ouvert, assuranceLevel reel visible
+PASS - T07-37a-6. targetDocumentsHashBoundFromEF03=false visible
+PASS - T07-37a-7. documentaryTwinsHashBoundFromEF03=false visible
+PASS - T07-37a-8. aucun "undefined" dans la zone rapport
+PASS - T07-37h-1 (happy). aucune erreur console/page/requete inattendue
+PASS - T07-37b-1. lineage FAILED visible et coherent dans la vraie UI
+PASS - T07-37b-2. le bouton Ouvrir le rapport n'est jamais propose (lineage non-PASS)
+PASS - T07-37b-3. OperatorApi.getReport() = LINEAGE_BLOCKED
+PASS - T07-37c-1. lineage STALE jamais presente comme un PASS courant valide dans la vraie UI
+PASS - T07-37c-2. OperatorApi.getReport() = LINEAGE_BLOCKED sur le PASS stale
+PASS - T07-37d-1. double-clic reel -> aucun double artefact (exactement 1 ArtifactRecord)
+PASS - T07-37d-2. attemptCount coherent (pas de double comptage metier)
+PASS - T07-37d-3. le noeud atteint SUCCESS malgre le double-clic (collision geree, jamais un echec metier)
+PASS - T07-37e. le secret n'apparait jamais dans le DOM
+PASS - T07-37f. le secret n'apparait jamais dans localStorage
+PASS - T07-37g. le secret n'apparait jamais dans sessionStorage
+
+TOUS LES TESTS PASSENT (20)
+
+============================================
+TESTS NODE/API : 107
+TESTS BROWSER  : 20
+TOTAL GLOBAL   : 127
+TOTAL CUMULE : 127 tests
+AUCUNE REGRESSION
+{
+  "nodeApi": [
+    {
+      "file": "unit/test_t07_fixtures_regression.js",
+      "tests": 3,
+      "status": "PASS",
+      "attempts": [
+        {
+          "attempt": 1,
+          "classification": "PASS",
+          "status": 0,
+          "signal": null,
+          "stderrExcerpt": "",
+          "durationMs": 38
+        }
+      ]
+    },
+    {
+      "file": "unit/test_t07_pkg_portability.js",
+      "tests": 6,
+      "status": "PASS",
+      "attempts": [
+        {
+          "attempt": 1,
+          "classification": "PASS",
+          "status": 0,
+          "signal": null,
+          "stderrExcerpt": "",
+          "durationMs": 48
+        }
+      ]
+    },
+    {
+      "file": "unit/test_t07_runner_policy.js",
+      "tests": 14,
+      "status": "PASS",
+      "attempts": [
+        {
+          "attempt": 1,
+          "classification": "PASS",
+          "status": 0,
+          "signal": null,
+          "stderrExcerpt": "",
+          "durationMs": 34
+        }
+      ]
+    },
+    {
+      "file": "e2e/test_t07_determinism.js",
+      "tests": 6,
+      "status": "PASS",
+      "attempts": [
+        {
+          "attempt": 1,
+          "classification": "PASS",
+          "status": 0,
+          "signal": null,
+          "stderrExcerpt": "",
+          "durationMs": 1251
+        }
+      ]
+    },
+    {
+      "file": "e2e/test_t07_e2e_contradiction.js",
+      "tests": 6,
+      "status": "PASS",
+      "attempts": [
+        {
+          "attempt": 1,
+          "classification": "PASS",
+          "status": 0,
+          "signal": null,
+          "stderrExcerpt": "",
+          "durationMs": 676
+        }
+      ]
+    },
+    {
+      "file": "e2e/test_t07_e2e_failure.js",
+      "tests": 9,
+      "status": "PASS",
+      "attempts": [
+        {
+          "attempt": 1,
+          "classification": "PASS",
+          "status": 0,
+          "signal": null,
+          "stderrExcerpt": "",
+          "durationMs": 1080
+        }
+      ]
+    },
+    {
+      "file": "e2e/test_t07_e2e_happy.js",
+      "tests": 29,
+      "status": "PASS",
+      "attempts": [
+        {
+          "attempt": 1,
+          "classification": "PASS",
+          "status": 0,
+          "signal": null,
+          "stderrExcerpt": "",
+          "durationMs": 89772
+        }
+      ]
+    },
+    {
+      "file": "e2e/test_t07_e2e_lineage_negative.js",
+      "tests": 11,
+      "status": "PASS",
+      "attempts": [
+        {
+          "attempt": 1,
+          "classification": "PASS",
+          "status": 0,
+          "signal": null,
+          "stderrExcerpt": "",
+          "durationMs": 1315
+        }
+      ]
+    },
+    {
+      "file": "e2e/test_t07_e2e_resume.js",
+      "tests": 6,
+      "status": "PASS",
+      "attempts": [
+        {
+          "attempt": 1,
+          "classification": "PASS",
+          "status": 0,
+          "signal": null,
+          "stderrExcerpt": "",
+          "durationMs": 541
+        }
+      ]
+    },
+    {
+      "file": "e2e/test_t07_e2e_secrets.js",
+      "tests": 7,
+      "status": "PASS",
+      "attempts": [
+        {
+          "attempt": 1,
+          "classification": "PASS",
+          "status": 0,
+          "signal": null,
+          "stderrExcerpt": "",
+          "durationMs": 598
+        }
+      ]
+    },
+    {
+      "file": "e2e/test_t07_idempotence_concurrency.js",
+      "tests": 5,
+      "status": "PASS",
+      "attempts": [
+        {
+          "attempt": 1,
+          "classification": "PASS",
+          "status": 0,
+          "signal": null,
+          "stderrExcerpt": "",
+          "durationMs": 297
+        }
+      ]
+    },
+    {
+      "file": "e2e/test_t07_no_live_function_persisted.js",
+      "tests": 5,
+      "status": "PASS",
+      "attempts": [
+        {
+          "attempt": 1,
+          "classification": "PASS",
+          "status": 0,
+          "signal": null,
+          "stderrExcerpt": "",
+          "durationMs": 532
+        }
+      ]
+    }
+  ],
+  "browser": [
+    {
+      "file": "browser/test_t07_browser_e2e.js",
+      "tests": 20,
+      "status": "PASS",
+      "attempts": [
+        {
+          "attempt": 1,
+          "classification": "PASS",
+          "status": 0,
+          "signal": null,
+          "stderrExcerpt": "",
+          "durationMs": 3874
+        }
+      ]
+    }
+  ]
+}

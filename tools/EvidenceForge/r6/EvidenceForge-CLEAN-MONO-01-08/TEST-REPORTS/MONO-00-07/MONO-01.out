@@ -1,0 +1,268 @@
+
+=== test_t01_01_baseline_required.js ===
+PASS — 1. schema de registre incorrect -> refus de démarrer
+PASS — 2. schemaVersion de registre incorrecte -> refus de démarrer
+PASS — 3. registre sans aucun module déclaré -> refus de démarrer
+PASS — 4. registre minimal valide -> démarrage accepté
+PASS — 5. registre MONO-00 réel du kit de migration -> chargé sans erreur
+
+TOUS LES TESTS PASSENT (5)
+
+=== test_t01_02_unknown_module.js ===
+PASS — 1. moduleId=EF-99 -> status BLOCKED
+PASS — 2. moduleId=EF-99 -> code MODULE_NOT_IN_BASELINE
+PASS — 3. moduleId=EF-99 -> le module gelé n'est jamais appelé (invoke non exécuté)
+
+TOUS LES TESTS PASSENT (3)
+
+=== test_t01_03_wrong_module_version.js ===
+PASS — 1. version canonique différente du registre -> FAIL (status BLOCKED)
+PASS — 2. code MODULE_VERSION_MISMATCH
+PASS — 3. les détails exposent la version attendue et la version trouvée
+PASS — 4. version canonique correcte -> pas de MODULE_VERSION_MISMATCH
+
+TOUS LES TESTS PASSENT (4)
+
+=== test_t01_04_missing_input.js ===
+PASS — setup. ReviewSchema construit avec succès
+PASS — 1. EF-03B sans TargetDocumentSet -> status BLOCKED
+PASS — 2. code MISSING_REQUIRED_INPUT
+PASS — 3. le champ manquant désigné est bien targetDocumentSet
+PASS — 4. aucune sortie produite (le module gelé n'a jamais été appelé)
+
+TOUS LES TESTS PASSENT (5)
+
+=== test_t01_05_mission_document_mapping_dependency.js ===
+PASS — 1. buildDocumentaryReviewSet ne prend jamais missionDocumentMapping en paramètre direct (contrat gelé inchangé)
+PASS — 2. TargetDocumentPort est bien déclaré dans le registre de ports MONO-01
+PASS — 3. DocumentaryReviewPort et TargetDocumentPort couvrent tous deux EF-03 (même moduleId, dépendance architecturale préservée par composition de ports)
+PASS — 4. un TargetDocumentSet mal formé reste rejeté par le contrat gelé lui-même (non-régression)
+
+TOUS LES TESTS PASSENT (4)
+
+=== test_t01_06_corpus_snapshot_boundary.js ===
+PASS — 1. CorpusSnapshot valide -> SUCCESS
+PASS — 2. la sortie est EXACTEMENT le même objet (passthrough strict, aucune extraction sémantique nouvelle)
+PASS — 3. schema incorrect -> BLOCKED / SCHEMA_VERSION_MISMATCH
+PASS — 4. CorpusSnapshot absent -> BLOCKED / MISSING_REQUIRED_INPUT
+PASS — 5. CorpusSnapshotPort déclaré dans le registre de ports, couvrant EF-ORCH
+
+TOUS LES TESTS PASSENT (5)
+
+=== test_t01_07_schema_mismatch.js ===
+PASS — 1. ProfessionalCorpusSet avec schemaVersion inconnue -> statut BLOCKED
+PASS — 2. code SCHEMA_VERSION_MISMATCH
+PASS — 3. les détails désignent bien schemaVersion EF-02C-v2 attendue vs EF-02C-v999 trouvée
+PASS — 4. jamais un rapprochement approximatif : 'ça ressemble à ProfessionalCorpusSet' n'est jamais accepté (CDC section 9)
+
+TOUS LES TESTS PASSENT (4)
+
+=== test_t01_08_mission_mismatch.js ===
+PASS — 1. missionId divergent entre callArgs et une entrée -> BLOCKED
+PASS — 2. code MISSION_ID_MISMATCH
+PASS — 3. les deux identifiants divergents apparaissent dans les détails
+PASS — 4. missionId cohérent -> pas de MISSION_ID_MISMATCH
+
+TOUS LES TESTS PASSENT (4)
+
+=== test_t01_09_dependency_unavailable.js ===
+PASS — 1. dependenciesAvailable={llm:false} -> BLOCKED / DEPENDENCY_UNAVAILABLE
+PASS — 2. dependenciesAvailable={} (llm ABSENTE, jamais déclarée) -> BLOCKED / DEPENDENCY_UNAVAILABLE (fail-closed strict, {} bloque autant que {llm:false})
+PASS — 2b. dependenciesAvailable NON FOURNI DU TOUT -> BLOCKED / DEPENDENCY_UNAVAILABLE (même fail-closed)
+PASS — 3. dependenciesAvailable={llm:true} -> invocation autorisée (module gelé réellement appelé)
+PASS — 4. DocumentaryReviewPort avec llm:false -> BLOCKED, module gelé jamais appelé
+PASS — 5. DocumentaryReviewPort SANS dependenciesAvailable du tout -> BLOCKED (fail-closed, pas de succès par défaut)
+PASS — 6. DocumentaryReviewPort avec llm:true -> SUCCESS, module gelé réellement appelé
+PASS — 7. discoverProfessionals SANS adapter -> BLOCKED / DEPENDENCY_UNAVAILABLE
+PASS — 7b. la dépendance désignée est bien 'externalStageAdapter'
+PASS — 8. discoverProfessionals AVEC adapter conforme -> SUCCESS, adapter réellement appelé
+PASS — 9. adapter présent mais schemaVersion de sortie incorrecte -> FAILED / INVALID_MODULE_OUTPUT
+PASS — 10. verifyProfessionals avec un adapter qui n'implémente que discoverProfessionals -> BLOCKED / DEPENDENCY_UNAVAILABLE (3 étapes jamais fusionnées)
+PASS — 11. verifyProfessionals avec un adapter complet -> SUCCESS
+PASS — 12. buildProfessionalCorpus avec un adapter complet -> SUCCESS (3e étape indépendante, elle aussi vérifiée séparément)
+PASS — 13. ProfessionalPipelinePort.bindingStatus === 'BOUND' (décision tranchée)
+PASS — 14. ProfessionalPipelinePort.bindingType === 'EXTERNAL_STAGE_ADAPTER'
+
+TOUS LES TESTS PASSENT (16)
+
+=== test_t01_09b_ef02a_required_inputs.js ===
+PASS — 1. CorpusSnapshot présent + MissionDimensionSet absent -> BLOCKED / MISSING_REQUIRED_INPUT
+PASS — 1b. ExternalStageAdapter jamais appelé (rejet avant tout appel externe)
+PASS — 2. MissionDimensionSet présent + CorpusSnapshot absent -> BLOCKED / MISSING_REQUIRED_INPUT
+PASS — 2b. ExternalStageAdapter jamais appelé
+PASS — 3. CorpusSnapshot + MissionDimensionSet valides -> invocation autorisée (SUCCESS)
+PASS — 4. MissionDimensionSet avec schemaVersion incorrecte -> BLOCKED / SCHEMA_VERSION_MISMATCH
+PASS — 4b. les détails désignent bien schemaVersion EF-PR-GEN-v1 attendue (version exacte de MONO-00, jamais inventée)
+PASS — 4c. ExternalStageAdapter jamais appelé
+PASS — 5. verifyProfessionals ne déclare qu'une seule entrée (professionalDiscovery) — aucune autre transmise sans être required
+PASS — 6. buildProfessionalCorpus ne déclare qu'une seule entrée (professionalVerification) — aucune autre transmise sans être required
+
+TOUS LES TESTS PASSENT (10)
+
+=== test_t01_10_llm_classification.js ===
+PASS — 1a. EF-ORCH/EF-01B/llm -> INDIRECT_UPSTREAM
+PASS — 1b. EF-ORCH/EF-01C1/llm -> INDIRECT_UPSTREAM
+PASS — 1c. EF-ORCH/EF-01C2/llm -> NONE (appels réseau directs, pas de LLM)
+PASS — 1d. EF-ORCH/llm SANS subModuleId -> refus de deviner une moyenne (SUBMODULE_REQUIRED)
+PASS — 2. EF-02D/llm -> DIRECT_RUNTIME
+PASS — 3. EF-03/EF-03B/llm -> DIRECT_RUNTIME
+PASS — 4. EF-03/EF-03D/llm -> NONE
+PASS — 5. EF-04/llm -> NONE (Lineage Guard entièrement déterministe)
+PASS — 6. EF-ORCH/EF-01C2/network -> DIRECT_RUNTIME
+PASS — 7. module absent du registre -> MODULE_NOT_IN_BASELINE, jamais une classification devinée
+
+TOUS LES TESTS PASSENT (10)
+
+=== test_t01_11_sync_async_correctness.js ===
+PASS — 1. port SYNC + invoke renvoie une Promise -> FAILED
+PASS — 1b. jamais une Promise brute acceptée comme output truthy sans await
+PASS — 2. port ASYNC + invoke renvoie une valeur synchrone -> FAILED
+PASS — 3. port SYNC + valeur synchrone -> pas d'erreur de mode d'appel
+PASS — 4. port ASYNC + Promise réellement attendue -> output = valeur résolue, jamais l'objet Promise
+PASS — 5. non-régression Stage Adapter : une Promise brute est truthy en JS mais ne doit jamais suffire comme validation de sortie
+
+TOUS LES TESTS PASSENT (6)
+
+=== test_t01_12_frozen_output_untouched.js ===
+PASS — 1. deepEqual(output du port, output direct du module gelé)
+PASS — 2. deepEqual pour StabilityPort (SYNC)
+PASS — 3. aucune clé ajoutée/retirée par le port (mêmes clés de premier niveau)
+PASS — 4. l'enveloppe IntegrationResult est gelée (Object.freeze) — une mutation est silencieusement ignorée ou lève en mode strict
+
+TOUS LES TESTS PASSENT (4)
+
+=== test_t01_13_no_smart_repair.js ===
+PASS — 1. référence citée absente du corpus réel -> le port NE renvoie JAMAIS status=SUCCESS
+PASS — 2. l'échec est propagé comme une erreur technique explicite, jamais avalé silencieusement
+PASS — 3. le message technique porte la trace du rejet gelé (« référence inconnue »), jamais reformulé en réparation
+PASS — 4. contre-épreuve : référence réelle et correctement attribuée -> SUCCESS
+PASS — 5. aucune logique de fuzzy/similarity/repair dans le code du port lui-même
+
+TOUS LES TESTS PASSENT (5)
+
+=== test_t01_14_governance_required.js ===
+PASS — 1. EF-02E sans ExclusionRegistrySet -> status BLOCKED
+PASS — 2. code MISSING_REQUIRED_INPUT désignant exclusionRegistry
+PASS — 3. registre d'exclusion VIDE mais explicitement fourni -> accepté (SUCCESS, panel vide)
+PASS — 4. panel vide -> DocumentaryTwinSet valide avec 0 twin, jamais un crash
+PASS — 5. GovernancePort.getCurrentRegistry() est null avant tout setRegistry() explicite
+PASS — 6. setRegistry([]) explicite -> SUCCESS et devient le registre courant
+
+TOUS LES TESTS PASSENT (6)
+
+=== test_t01_15_lineage_required.js ===
+PASS — 1. ReportPort sans lineageResult -> status BLOCKED
+PASS — 2. code LINEAGE_BLOCKED
+PASS — 3. aucun rapport produit
+PASS — 4. LineagePort.assertLineage avec une entrée brisée -> ne renvoie pas SUCCESS
+PASS — 4b. isLineagePass() sur un résultat non-SUCCESS -> false
+PASS — 5. ReportPort avec un lineageResult en échec -> LINEAGE_BLOCKED
+PASS — 6. LineagePort.assertLineage sur une chaîne valide -> SUCCESS
+PASS — 6b. isLineagePass() sur ce résultat -> true
+PASS — 7. ReportPort avec PASS explicite -> SUCCESS, rapport produit
+PASS — 8. la limitation de lignée gelée reste visible dans le résultat de LineagePort (jamais masquée)
+
+TOUS LES TESTS PASSENT (10)
+
+=== test_t01_16_no_pilot_hardcoding.js ===
+PASS — 1. aucun fichier du cœur MONO-01 (lib/, ports/, index.js) ne contient JMJS/S01/S02/DIMS/d4/d5
+PASS — 2. 20 fichiers examinés (au moins 15 attendus : 14 ports + lib + index)
+
+TOUS LES TESTS PASSENT (2)
+
+=== test_t01_17_no_epistemic_additions.js ===
+PASS — 1. toute occurrence de truthScore/majority/prestige/vote/consensus/expertScore/scientificValidity=true est classée « comment_prohibition », jamais du code fonctionnel
+PASS — 1b. 4 occurrence(s) au total trouvée(s) et classée(s) (attendu : commentaires d'interdiction uniquement)
+PASS — 2. AggregationPort documente explicitement l'interdiction (vote/majorité/prestige/truth score), en commentaire seulement
+
+TOUS LES TESTS PASSENT (3)
+
+=== test_t01_18_port_coverage.js ===
+PASS — 1. moduleCoverage existe dans le registre de ports
+PASS — 2. tout module de la baseline MONO-00 est soit coveredByPort, soit explicitlyNotApplicable — aucun absent silencieusement
+PASS — 3. 10 modules baseline recensés dans moduleCoverage (aucun oublié par simple absence de clé)
+PASS — 4. aucune référence de port fantôme dans moduleCoverage (tous les portId cités existent dans `ports`)
+PASS — 5. EF-02A est coveredByPort ET bindingStatus=BOUND (décision d'architecture tranchée : ExternalStageAdapter)
+PASS — 5. EF-02B est coveredByPort ET bindingStatus=BOUND (décision d'architecture tranchée : ExternalStageAdapter)
+PASS — 5. EF-02C est coveredByPort ET bindingStatus=BOUND (décision d'architecture tranchée : ExternalStageAdapter)
+PASS — 5b. le port ProfessionalPipelinePort lui-même est déclaré BOUND avec bindingType=EXTERNAL_STAGE_ADAPTER
+PASS — 6. EF-02ABC-SMOKE-REAL est explicitlyNotApplicable avec une raison documentée
+
+TOUS LES TESTS PASSENT (9)
+
+=== test_t01_19_select_usable_records.js ===
+PASS — 1. status SUCCESS
+PASS — 2. deepEqual(sortie du port, sortie directe du module gelé)
+PASS — 3. seuls p1 et p4 sont retenus (éligibles ET pertinents sur au moins une dimension)
+PASS — 4. p2 (non éligible) exclu
+PASS — 5. p3 (toutes dimensions non pertinentes) exclu
+PASS — 6. eligibilityRelevanceSet de mauvais schema -> BLOCKED / SCHEMA_VERSION_MISMATCH
+PASS — 7. le module gelé EF02D1D2Orchestrator.usableRecords() lui-même reste inchangé (comportement identique observé)
+
+TOUS LES TESTS PASSENT (7)
+
+=== test_t01_20_eforch_execution_port.js ===
+PASS - EF-ORCH-01. RunContract absent -> BLOCKED
+PASS - EF-ORCH-02a. RunContract de mauvais schema -> jamais SUCCESS
+PASS - EF-ORCH-02b. RunContract avec hash trafique (integrite rompue) -> FAILED, jamais SUCCESS
+PASS - EF-ORCH-03a. start() SUCCESS jusqu'a EF-01D puis attente d'artefacts E/F
+PASS - EF-ORCH-03b. resume() avec qualificationTestArtifact -> attente F
+PASS - EF-ORCH-03c. resume() avec ef01fInjected -> completed, CorpusSnapshot produit
+PASS - EF-ORCH-03d. CorpusSnapshot valide (schema/schemaVersion exacts)
+PASS - EF-ORCH-03e. CorpusSnapshot accepte tel quel par CorpusSnapshotPort (flux CDC section 7)
+PASS - EF-ORCH-04. tous les require() du port ciblent lib/port-factory ou dependencies/ef-orch-*
+PASS - EF-ORCH-05. les 29 fichiers ef-orch-*.js ont tous leur hash declare dans PROVENANCE.md
+PASS - EF-ORCH-06a. gate manual_import_required declenche sur web_public, OpenAlex appele une fois
+PASS - EF-ORCH-06b. resume() avec un gateId incorrect est rejete
+PASS - EF-ORCH-06c. resume() avec import manuel + bon gateId -> EF-01C2 termine, checkpoint OpenAlex REUTILISE (aucun second appel)
+PASS - EF-ORCH-07. run frais sans checkpoint preexistant -> comportement natif normal
+PASS - EF-ORCH-08. screeningArtifact référençant une source inexistante -> échec explicite d'EF-01D, jamais un SUCCESS masqué
+PASS - EF-ORCH-09. CorpusSnapshot de mauvais schema -> BLOCKED / SCHEMA_VERSION_MISMATCH
+PASS - EF-ORCH-09b. contre-epreuve : un CorpusSnapshot reellement produit passe la validation
+PASS - EF-ORCH-10. aucune fonction metier EF-01A->F redefinie dans le port
+PASS - EF-ORCH-11a. EF-01B LLM = INDIRECT_UPSTREAM (MONO-00, preserve)
+PASS - EF-ORCH-11b. EF-01C1 LLM = INDIRECT_UPSTREAM (MONO-00, preserve)
+PASS - EF-ORCH-11c. EF-01C2 LLM = NONE
+PASS - EF-ORCH-11d. EF-01C2 reseau = DIRECT_RUNTIME (MONO-00, preserve)
+PASS - EF-ORCH-11e. la classification gelee EF-01C2 n'a pas ete alteree
+PASS - EF-ORCH-12a. le port n'affecte jamais directement state.status
+PASS - EF-ORCH-12b. le port utilise les fonctions de EFOrchStateMachine pour toute transition
+PASS - EF-ORCH-12c. getStatus()/getResult() sont read-only
+
+TOUS LES TESTS PASSENT (26)
+
+=== test_t01_21_eforch_durable_cross_process.js ===
+PASS — EF-ORCH-DURABLE-01a. port1.start() progresse (AWAITING_DEPENDENCIES à EF-01E)
+PASS — EF-ORCH-DURABLE-01b. port2 (nouvelle instance, même backend) retrouve l'état exact via getStatus() SANS Map partagée
+PASS — EF-ORCH-DURABLE-02a. port1 : EF-01C2 checkpointé, OpenAlex appelé une fois
+PASS — EF-ORCH-DURABLE-02b. port2 (nouvelle instance) réutilise le checkpoint EF-01C2 durable — AUCUN second appel OpenAlex, même avec un connectorRunner différent fourni
+PASS — EF-ORCH-DURABLE-02c. port2 progresse bien au-delà d'EF-01C2 (EF-01D atteint)
+PASS — EF-ORCH-DURABLE-03. resume() sur un backend neuf sans run préexistant -> rejet explicite (FAILED), jamais un crash silencieux ni une reprise inventée
+PASS — EF-ORCH-DURABLE-03b. getStatus() sur un run inconnu -> NOT_AVAILABLE, jamais un état inventé
+PASS — EF-ORCH-DURABLE-04. checkpoint EF-01C2 corrompu (contenu modifié, hash devenu incohérent) -> rejet fail-closed, jamais une réparation silencieuse
+PASS — EF-ORCH-DURABLE-05a-0. sans durableBackend injecté, port.durableBackend est null (jamais un backend implicite créé)
+PASS — EF-ORCH-DURABLE-05a. start() sans durableBackend injecté -> REFUS FAIL-CLOSED explicite, jamais un backend mémoire créé silencieusement
+PASS — EF-ORCH-DURABLE-05a-2. getStatus() sans durableBackend injecté -> refus explicite également (pas seulement start())
+PASS — EF-ORCH-DURABLE-05b. un durableBackend mémoire explicitement injecté est accepté et utilisé (jamais silencieusement remplacé)
+PASS — EF-ORCH-DURABLE-05b-2. avec un backend explicite, start() fonctionne réellement (pas de refus)
+PASS — EF-ORCH-DURABLE-05c. backend partagé explicitement entre port1 et port2 -> réhydratation réussie sur une instance distincte
+
+TOUS LES TESTS PASSENT (14)
+
+=== test_t01_22_createmono01_integration_backend.js ===
+PASS — 1. createMono01() sans options -> efOrchExecutionPort existe (construction jamais refusée)
+PASS — 1b. createMono01() sans options -> efOrchExecutionPort.durableBackend est null
+PASS — 1c. les 15 autres ports restent pleinement construits et distincts (createMono01 sans backend ne casse rien d'autre)
+PASS — 2. createMono01(registry) sans backend -> ne peut PAS fournir un EFOrchExecutionPort exploitable durablement (start() refuse explicitement)
+PASS — 3. les autres ports (ex: MissionPort) fonctionnent normalement sur une instance createMono01() sans backend EF-ORCH
+PASS — 4. mono1 et mono2 sont deux instances createMono01() totalement distinctes
+PASS — 4b. mono1 et mono2 partagent explicitement le même backend EF-ORCH (injection réussie à travers createMono01)
+PASS — 5. mono1.efOrchExecutionPort.start() progresse réellement (via la vraie factory d'intégration)
+PASS — 6. mono2.efOrchExecutionPort.getStatus() (instance createMono01 DISTINCTE) retrouve l'état exact du run démarré par mono1
+PASS — 7. mono2.efOrchExecutionPort.resume() (instance distincte) continue réellement l'exécution jusqu'à EF-01D
+
+TOUS LES TESTS PASSENT (10)
+
+============================================
+TOTAL CUMULE : 172 tests
+AUCUNE REGRESSION

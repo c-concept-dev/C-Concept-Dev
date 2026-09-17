@@ -1,0 +1,239 @@
+{
+  "schema": "EvidenceForge.MonolithManifest",
+  "product": {
+    "name": "EvidenceForge",
+    "version": "MONOLITH-v1.0.2"
+  },
+  "generatedAt": "2026-09-15T17:48:25.303Z",
+  "frozenLots": {
+    "MONO-10": {
+      "dir": "MONO-10/v0.19",
+      "seal": "SHA256SUMS.txt",
+      "canonicalZip": "MONO-10/EvidenceForge-MONO10-SCIENTIFIC-QUALIFICATION-v0.19.zip",
+      "canonicalZipSha256": "f5a4165414f4aacc32f48f50eb14d59c87a09e3f138e24f8bd14b956972c2e04"
+    },
+    "MONO-11": {
+      "dir": "MONO-11/v0.2",
+      "seal": "SHA256SUMS.txt",
+      "canonicalZip": "MONO-11/EvidenceForge-MONO11-AUTONOMOUS-PANEL-v0.2.zip",
+      "canonicalZipSha256": "5c208cbbd13231e732fe20475347f9f7cbe6f890f3ce4823581093c7eba60005"
+    },
+    "MONO-09": {
+      "dir": "MONO-09/v0.2",
+      "seal": "SHA256SUMS.txt"
+    },
+    "MONO-01": {
+      "dir": "MONO-01",
+      "seal": "manifest/SHA256SUMS"
+    }
+  },
+  "files": [
+    {
+      "path": "FROZEN-INTEGRITY.md",
+      "sha256": "a788028102feec28625d1412eb1d46cbe8f3f560aeb8d227cd9543e81a2b077f",
+      "bytes": 3569
+    },
+    {
+      "path": "FUNCTIONAL-TEST-REPORT.md",
+      "sha256": "e9f53148c1afc3b28d6084d365f05c6fed02d05049bc236de85e1fa18136beea",
+      "bytes": 13767
+    },
+    {
+      "path": "NON-REGRESSION.md",
+      "sha256": "df42056925e347a0e1843d5f93726d1223ecd6b86fcf647ab10b5234859c3e1e",
+      "bytes": 7333
+    },
+    {
+      "path": "PRIVACY-SECRET-SCAN.md",
+      "sha256": "ffb1e923c3a12c440c1f575f9a3e6210503972e126b88836856645b6182f5f8d",
+      "bytes": 3046
+    },
+    {
+      "path": "README.md",
+      "sha256": "4630af839f80e005ddeac3574c232cf44e04304785f86c614dfdf87e4f900de6",
+      "bytes": 15545
+    },
+    {
+      "path": "UX-ACCEPTANCE.md",
+      "sha256": "f654f2741b5d4a33e2fb88786924b628477a3ec657f443e161f85b99d6845305",
+      "bytes": 6372
+    },
+    {
+      "path": "config/monolith.config.json",
+      "sha256": "a0fbb1525c7d912b983f620b4fa78ddaacfd6f239b5e1595cf7e4ef01893f4c4",
+      "bytes": 2325
+    },
+    {
+      "path": "governance/EvidenceForge-MONO11-v0.2-FREEZE-DECISION.md",
+      "sha256": "57ee19354e5f015f633da21fb17ec79abd7b0ea5d59ace491a38ee0956976ddf",
+      "bytes": 991
+    },
+    {
+      "path": "index.html",
+      "sha256": "df93be02835ebad29d9f9e9ab7f26298c7ed78ec1f5b951eaf4fcaaaaf53f0bd",
+      "bytes": 38024
+    },
+    {
+      "path": "lib/llm-transport.js",
+      "sha256": "09daed2d299c407728352817be745479b6b37701b99bf0bc71147487397b9fa0",
+      "bytes": 3692
+    },
+    {
+      "path": "lib/llm.js",
+      "sha256": "014137f275759e8dc447a4ac142becd32be8845c95576a3cd615252c6111bb7f",
+      "bytes": 15935
+    },
+    {
+      "path": "lib/mono04-fence-adapter.js",
+      "sha256": "01ef325b7649756ab2abc02044db0748d63203dd7a09a5426d7303b6575005a3",
+      "bytes": 3217
+    },
+    {
+      "path": "lib/paths.js",
+      "sha256": "56c2140d5ea0a2a0faf6750c7945890d7d1ad83640f74a5f90199285b565293a",
+      "bytes": 3388
+    },
+    {
+      "path": "lib/pipeline.js",
+      "sha256": "6d043af53cf29d9572b116b0b1a1677cdca521899e06a08fadc985a8e0804e7c",
+      "bytes": 33293
+    },
+    {
+      "path": "lib/run-store.js",
+      "sha256": "da1a6aa563b998dba33497f93789d2ac76f7da1f8543fc136c15f10fb72db4c4",
+      "bytes": 9393
+    },
+    {
+      "path": "lib/screening-evidence.js",
+      "sha256": "de6614f67fbe72aeba11a0462992c52b5da3e58934f057c09f768b123e3256ce",
+      "bytes": 8169
+    },
+    {
+      "path": "lib/stage-ef01.js",
+      "sha256": "533e05825591cecb304471648702d42637cc2ec6d50989d7df64b85da99d4aff",
+      "bytes": 16123
+    },
+    {
+      "path": "lib/stage-mission.js",
+      "sha256": "c62b8d9530775f33046759048b4e255921318ffdabe69c8fcad6db13dcdec7c1",
+      "bytes": 6852
+    },
+    {
+      "path": "lib/stage-professionals.js",
+      "sha256": "cc24f1a51b0dd0ffda77df6bc428cb6af4a6b7a06ad121029cb103f5d6c32a52",
+      "bytes": 30755
+    },
+    {
+      "path": "lib/stage-report.js",
+      "sha256": "0f1b64f25a248dcde64cb647560657933c83a54f98d9b6b7b752eb1385b5fb69",
+      "bytes": 13576
+    },
+    {
+      "path": "lib/stage-retrieval.js",
+      "sha256": "2e31fe849426b96a59699aff018e47210989e3f9cc82ac0d6d21e481f0f15caa",
+      "bytes": 16284
+    },
+    {
+      "path": "server.js",
+      "sha256": "cbd2debd2f463633ed9a40c51981c2cfaaece96f50a4b76b53d2a909fcf04f08",
+      "bytes": 7992
+    },
+    {
+      "path": "test/browser-results.json",
+      "sha256": "d77715a520050c448d8ceea2c76f856a9a22466536c8a01981e931099c2bced2",
+      "bytes": 1398
+    },
+    {
+      "path": "test/results.json",
+      "sha256": "b72991b54fdcc410a45fd7d65add2925183c6137cafbf4bf9d02947f333b3516",
+      "bytes": 13024
+    },
+    {
+      "path": "test/test-monolith.js",
+      "sha256": "d782a1159cf912bd9f127fea93ecd20538ae66bb13d8597d39c4d62ad74e3545",
+      "bytes": 72837
+    },
+    {
+      "path": "tools/anti-hardcoding-scan.js",
+      "sha256": "36543f2d53a41afb40884783214fdb8c6f5de49a546f9473024e206ca6b4a01e",
+      "bytes": 3013
+    },
+    {
+      "path": "tools/browser-tests.js",
+      "sha256": "329fab905c7ae31dc51fc8c3d3b00ee18d16817480a649f0ba8fe368b6f192e3",
+      "bytes": 7326
+    },
+    {
+      "path": "tools/build-manifest.js",
+      "sha256": "2ed760d7da09e6294c4e04ece7abe654495de7ee814461ba6a942b36909a769f",
+      "bytes": 2237
+    },
+    {
+      "path": "tools/import-sealed-run.js",
+      "sha256": "cfd23c547a68459d9fb0ba816fc2aabac633767bfa3c95208c9513e333fdc99c",
+      "bytes": 8329
+    },
+    {
+      "path": "tools/package.sh",
+      "sha256": "07af5cbecc34ce21d9a8e275a89448f0d2649f32976a5aa9cdf40c260014a4ce",
+      "bytes": 393
+    },
+    {
+      "path": "tools/secret-scan.js",
+      "sha256": "b6470e2efb5625ed07a6605faa9cca3b0ede80f7dde719541104d75cf65ed403",
+      "bytes": 2068
+    },
+    {
+      "path": "vendor/operator-kit-r1.3/README.md",
+      "sha256": "914e99cfbb3440bf0b4a726b018a74060b56b81654e71f30e45d71006f695a95",
+      "bytes": 497
+    },
+    {
+      "path": "vendor/operator-kit-r1.3/assert-runcontract-confirmed.js",
+      "sha256": "59e90767fd2270594e11d916e45397e3c36f00504c5ba75e0ebadad54f6e1655",
+      "bytes": 1239
+    },
+    {
+      "path": "vendor/operator-kit-r1.3/build-eforch-provenance.js",
+      "sha256": "c0305503c349eefe1157ff8424457083cdddf2a685a6ec9a1be3a77a396ea341",
+      "bytes": 3040
+    },
+    {
+      "path": "vendor/operator-kit-r1.3/build-real-mono04.js",
+      "sha256": "2e53cbe3ff91a703d3254b0df5b0931ee1ad45148ac94f7a33bd50a788947e7b",
+      "bytes": 1343
+    },
+    {
+      "path": "vendor/operator-kit-r1.3/build-runcontract-draft-core.js",
+      "sha256": "0c7a376753a4d214e2041d269222f8c5468804909b23459e70a8bcc77dbd23a6",
+      "bytes": 3841
+    },
+    {
+      "path": "vendor/operator-kit-r1.3/build-searchprotocol-core.js",
+      "sha256": "271b9d6483a8e8c82df730cfab3cf20a8371197123cceae81e63de52c14feaa1",
+      "bytes": 2155
+    },
+    {
+      "path": "vendor/operator-kit-r1.3/derive-auto-included-discipline-ids.js",
+      "sha256": "84060e0457395b6828a09b7ec6241d2ffb74c4ab229a84a1809972e6301ee69e",
+      "bytes": 2773
+    },
+    {
+      "path": "vendor/operator-kit-r1.3/filter-resolver-runs-by-runcontract.js",
+      "sha256": "d919f2e375e3452d2e43721c5d2cf5ae86b0ee84c9cec4d7aaa29c7ebb4b2c24",
+      "bytes": 3597
+    },
+    {
+      "path": "vendor/operator-kit-r1.3/run-planner-core.js",
+      "sha256": "c9ac749d9107052c869526a5bd0d31430b62a1678b03d5cf88401ac06a3c6d1a",
+      "bytes": 1283
+    },
+    {
+      "path": "vendor/operator-kit-r1.3/run-resolver-core.js",
+      "sha256": "3fed524343550469d4a520137226e3305c4a18b3fc038059697de828a0a1beb7",
+      "bytes": 1614
+    }
+  ],
+  "fileCount": 41,
+  "contentHash": "d334acb5692ab300791c6cb39cbe00fdf898ef10b5c278da956ba078b7a914ad"
+}

@@ -1,0 +1,10 @@
+{
+  "name": "evidenceforge-mono-03",
+  "version": "1.0.0",
+  "private": true,
+  "description": "EvidenceForge - MONO-03 - State / Persistence / Resume. Persistance globale du run, RunState/NodeStateRecord/ArtifactStore, plan de reprise deterministe. Ne redefinit ni COMMENT appeler un module (MONO-01.x) ni QUAND un noeud est eligible (MONO-02). EF-ORCH reste seul proprietaire de sa persistance interne - MONO-03 ne conserve qu'une reference technique (efOrchRunIdentity).",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test/run-all.js"
+  }
+}

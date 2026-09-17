@@ -1,0 +1,12 @@
+PASS — REAL-MODEL-1. LLM_REAL_MODEL absent -> fallback = DEFAULT_REAL_LLM_MODEL exporte
+PASS — REAL-MODEL-2. LLM_REAL_MODEL defini -> valeur utilisee telle que prevue
+PASS — C. LLM_REAL_MODEL='' (vide) -> fallback deterministe = DEFAULT_REAL_LLM_MODEL (coherent avec resolveLlmPreflightModel)
+PASS — REAL-MODEL-4. payload Worker (via gateway.executeRequest) contient exactement le modele configure
+PASS — REAL-MODEL-4bis. LLM_REAL_MODEL absent -> payload Worker utilise DEFAULT_REAL_LLM_MODEL, jamais l'ancien hardcode
+PASS — REAL-MODEL-3-extract. bloc buildRealLlmWorkerCallFn() extrait pour revue
+PASS — REAL-MODEL-3 (Phase 4-D). aucune reference CODE (hors commentaires) a ANTHROPIC_API_KEY dans buildRealLlmWorkerCallFn() (lib/real-external-adapter.js)
+PASS — E. lib/real-external-adapter.js ne contient aucune branche direct/delegated (routage auth entierement delegue a lib/real-provider-configs.js + MONO-04 Gateway, non touche par ce correctif) -> N/A, non modifie
+PASS — REAL-MODEL-5. aucune reference CODE (hors commentaires) a l'ancien claude-3-5-haiku-latest dans buildRealLlmWorkerCallFn()
+
+TOUS LES TESTS PASSENT (9)
+exit_code=0

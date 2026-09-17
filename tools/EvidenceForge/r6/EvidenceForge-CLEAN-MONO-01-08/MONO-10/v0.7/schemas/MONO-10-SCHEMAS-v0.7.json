@@ -1,0 +1,378 @@
+{
+  "$comment": "MONO-10 v0.7 — schemas IMPLEMENTES. Changement structurant : une decision critique est DERIVEE de preuves verifiees, jamais d'assertions fournies par l'appelant. Les enumerations critiques ne sont pas ecrites ici : elles vivent dans contracts/canonical-contracts.json, que le code importe et contre lequel la documentation est validee.",
+  "schemaFamily": "EvidenceForge.MONO-10",
+  "schemaVersion": "MONO-10-v7",
+  "supersedes": "MONO-10-v6",
+  "historicalImmutableLots": [
+    "MONO-00..MONO-09",
+    "MONO-10 v0.1..v0.6 (tous NON_GELABLE, non modifies)"
+  ],
+  "architecturalDecision": {
+    "principle": "Caller declaration is not authority. A critical decision must be derived from verified evidence.",
+    "preservedFromV06": "Do not trust a claim at the point of effect.",
+    "preservedFromV05": "EvidenceForge may choose what to verify. EvidenceForge may not choose whom to trust.",
+    "canonicalContractSource": "contracts/canonical-contracts.json"
+  },
+  "genericCoreBoundary": {
+    "noHardcoded": [
+      "metier",
+      "discipline",
+      "expert",
+      "panel",
+      "cas d'usage",
+      "taxonomie",
+      "fournisseur"
+    ],
+    "casePhaseNaming": "adapters/case-phase-adapter.js",
+    "upstreamContractBridging": "adapters/upstream-evidence-binder.js",
+    "verifiedBy": "scan anti-cablage sur core/, adapters/, validators/ avec temoin positif ; universalite eprouvee sur 6 domaines"
+  },
+  "breakingChanges": [
+    "artifact-trust-levels.js SUPPRIME : echelle ordinale decorative remplacee par artifact-capabilities.js",
+    "registry.elevate(id, niveau, hash) remplace par registry.grantCapability(id, grant) ; grant emis par mintCapabilityGrant",
+    "eligibilityPolicy.legacyVerificationGrantsEligibility SUPPRIME ; ELIGIBLE_BY_LEGACY_VERIFICATION SUPPRIME",
+    "historicalInputContract d'appelant IGNORE ; OperatorHistoricalInputAuthority requise (9 champs)",
+    "replayProtection.directory REFUSE ; replayRoot requis, repertoire derive de replayNamespaceId",
+    "makeKeyRecord exige un status valide : absence, null ou inconnu => KEY_STATUS_INVALID",
+    "PROVENANCE_STATUS.RESOLVED renomme AUTHENTICATED ; racines resolues par EvidenceProvenanceAuthority",
+    "sanitizePolicy passe en LISTE BLANCHE : trois cles metier, tout le reste refuse et consigne",
+    "le pont amont n'affirme plus CONFIRMED/VERIFIED et ne produit aucune reference pour un identifiant ambigu",
+    "assessCandidates ecarte les references de preuve dont la provenance n'est pas authentifiee"
+  ],
+  "commonTypes": {
+    "Sha256Hex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "Iso8601": {
+      "type": "string",
+      "description": "horodatage reel, jamais fabrique"
+    },
+    "ArtifactRef": {
+      "required": [
+        "artifactId",
+        "sha256",
+        "relation"
+      ],
+      "description": "reference de lignee TYPEE ; la relation determine le schema attendu de l'artefact vise"
+    },
+    "Unknown": {
+      "required": [
+        "unknownId",
+        "genesisHash",
+        "status",
+        "transitions"
+      ],
+      "description": "chaine d'evenements ; le statut est DERIVE de la chaine, jamais lu sur le champ"
+    },
+    "HumanActProof": {
+      "required": [
+        "actorId",
+        "actionType",
+        "decisionHash",
+        "runId",
+        "missionHash",
+        "issuedAt",
+        "mechanismRef",
+        "proofValue"
+      ],
+      "description": "HMAC emis par le mecanisme de l'exploitant ; lie a l'ACTE precis, pas a l'acteur"
+    },
+    "RegistryEvent": {
+      "required": [
+        "sequence",
+        "artifactId",
+        "relation",
+        "artifactType",
+        "artifactHash",
+        "previousEventHash",
+        "eventHash"
+      ],
+      "description": "journal append-only ; suppression, reordonnancement et reecriture sont detectes"
+    },
+    "EvidenceClass": {
+      "source": "contracts/canonical-contracts.json#evidenceClasses"
+    },
+    "KeyStatus": {
+      "source": "contracts/canonical-contracts.json#keyStatuses",
+      "note": "absence, null ou valeur inconnue => INVALIDE (§38)"
+    },
+    "ArtifactCapability": {
+      "source": "contracts/canonical-contracts.json#artifactCapabilities",
+      "orthogonal": true,
+      "note": "capacites TYPEES, non ordinales ; chacune emise par la capacite operateur competente et exigee par un sink nomme"
+    },
+    "CapabilityGrant": {
+      "required": [
+        "capability",
+        "artifactId",
+        "artifactHash",
+        "artifactSchema",
+        "runId",
+        "missionHash",
+        "derivationRef",
+        "grantHash"
+      ],
+      "note": "marque d'origine module-privee ; un hash ou un objet de forme compatible est refuse"
+    },
+    "HistoricalInputAuthorization": {
+      "required": [
+        "sourceRunId",
+        "sourceMissionHash",
+        "artifactId",
+        "artifactHash",
+        "artifactType",
+        "relation",
+        "destinationRunId",
+        "destinationMissionHash",
+        "purpose",
+        "frozenIdentity"
+      ],
+      "note": "§8 — porte sur l'artefact EXACT, jamais sur une classe de relation"
+    },
+    "ReadinessDimensionEvidenceBinding": {
+      "required": [
+        "dimensionId",
+        "dimensionHash",
+        "evidenceArtifactId",
+        "evidenceHash",
+        "relation",
+        "bindingHash"
+      ],
+      "note": "§14 — la relation est lue SUR LE REGISTRE ; une preuve empruntee a une autre dimension n'etablit rien"
+    },
+    "ProvenanceStatus": {
+      "source": "contracts/canonical-contracts.json#provenanceStatuses",
+      "note": "§32 — une racine declaree par l'appelant n'est jamais AUTHENTICATED"
+    },
+    "UpstreamAssertion": {
+      "source": "contracts/canonical-contracts.json#upstreamAssertionStates",
+      "note": "§19 — sans preuve amont correspondante, un pont rend UNKNOWN et une contribution nulle"
+    }
+  },
+  "artifacts": {
+    "Mission": {
+      "schema": "EvidenceForge.Mission",
+      "lineageRelation": "MISSION",
+      "required": [
+        "schema",
+        "missionId",
+        "missionHash"
+      ],
+      "notes": "racine de la chaine ; aucun libelle metier impose"
+    },
+    "PriorUnifiedReport": {
+      "schema": "EvidenceForge.PriorUnifiedReport",
+      "lineageRelation": "PRIOR_REPORT",
+      "required": [
+        "schema",
+        "mission"
+      ],
+      "notes": "entree historique ; ne resout inter-runs que sous contrat authentifie par l'exploitant"
+    },
+    "DocumentaryEvidenceRecord": {
+      "schema": "EvidenceForge.DocumentaryEvidenceRecord",
+      "lineageRelation": "DOCUMENTARY_EVIDENCE",
+      "required": [
+        "schema",
+        "evidenceId",
+        "sourceRootId"
+      ],
+      "notes": "les racines d'autorite et de famille portees par l'artefact sont des DEMANDES : elles sont resolues par EvidenceProvenanceAuthority et la declaration est consignee sans effet"
+    },
+    "ProfessionalDiscovery": {
+      "schema": "EvidenceForge.ProfessionalDiscovery",
+      "lineageRelation": "DISCOVERY",
+      "required": [
+        "schema",
+        "candidates"
+      ],
+      "notes": "produit par un lot amont ; la variante DERIVEE produite par upstream-evidence-binder porte derivedFrom.upstreamDiscoveryRef et conserve upstreamEvidenceRefs"
+    },
+    "ProfessionalVerification": {
+      "schema": "EvidenceForge.ProfessionalVerification",
+      "lineageRelation": "VERIFICATION",
+      "required": [
+        "schema",
+        "verified"
+      ],
+      "notes": "statut de verification HISTORIQUE : jamais reecrit par MONO-10"
+    },
+    "ProfessionalCandidateAssessment": {
+      "schema": "EvidenceForge.ProfessionalCandidateAssessment",
+      "lineageRelation": "ASSESSMENT",
+      "required": [
+        "schema",
+        "assessments"
+      ],
+      "notes": "aucun statut n'evoque une admission ; seul PRESENT est presentable au panel"
+    },
+    "ProfessionalPanelValidation": {
+      "schema": "EvidenceForge.ProfessionalPanelValidation",
+      "lineageRelation": "PANEL_DECISION",
+      "required": [
+        "schema",
+        "decisions"
+      ],
+      "notes": "chaque decision porte decisionHash et, en PRODUCTION, humanActProof ; APPROVE/DEFER/REJECT"
+    },
+    "EffectiveCorpusEligibilitySet": {
+      "schema": "EvidenceForge.EffectiveCorpusEligibilitySet",
+      "lineageRelation": "EFFECTIVE_ELIGIBILITY",
+      "required": [
+        "schema",
+        "decisions"
+      ],
+      "notes": "un seul etat ouvre le corpus et il exige une approbation humaine AUTHENTIFIEE ; une decision de panel absente vaut NOT_ELIGIBLE ; aucune politique d'appelant ne cree une admission"
+    },
+    "ProfessionalCorpusSet": {
+      "schema": "EvidenceForge.ProfessionalCorpusSet",
+      "lineageRelation": "CORPUS",
+      "required": [
+        "schema",
+        "professionalCorpora"
+      ],
+      "notes": "produit par le consumer amont REEL ; DEFER et REJECT ne le franchissent jamais"
+    },
+    "DocumentaryTwinSet": {
+      "schema": "EvidenceForge.DocumentaryTwinSet",
+      "lineageRelation": "TWINS",
+      "required": [
+        "schema"
+      ],
+      "notes": "jumeaux documentaires"
+    },
+    "ReviewSet": {
+      "schema": "EvidenceForge.ReviewSet",
+      "lineageRelation": "REVIEWS",
+      "required": [
+        "schema"
+      ],
+      "notes": "revues"
+    },
+    "Aggregation": {
+      "schema": "EvidenceForge.Aggregation",
+      "lineageRelation": "AGGREGATION",
+      "required": [
+        "schema"
+      ],
+      "notes": "agregation"
+    },
+    "ScientificReadiness": {
+      "schema": "EvidenceForge.ScientificReadiness",
+      "lineageRelation": "READINESS_PRE | READINESS_FULL",
+      "required": [
+        "schema",
+        "phase",
+        "dimensions",
+        "dimensionsHash",
+        "dimensionBindings",
+        "dimensionBindingsHash",
+        "derivedPhase"
+      ],
+      "notes": "la phase est DERIVEE des liaisons dimension/preuve valides ; ni l'etiquette, ni un digest coherent, ni des references empruntees ne la produisent"
+    },
+    "LlmCapability": {
+      "schema": "EvidenceForge.LlmCapability",
+      "lineageRelation": "CAPABILITY",
+      "required": [
+        "schema",
+        "status",
+        "transportOrigin"
+      ],
+      "notes": "transportOrigin vaut toujours ENVIRONMENT ; callerTransportIgnored consigne la tentative de l'appelant"
+    },
+    "ScientificQualification": {
+      "schema": "EvidenceForge.ScientificQualification",
+      "lineageRelation": "QUALIFICATION",
+      "required": [
+        "schema",
+        "qualificationStatus",
+        "evidenceClass"
+      ],
+      "notes": "QUALIFIED | QUALIFIED_WITH_RESERVATIONS | NOT_QUALIFIED | IMPOSSIBLE_TO_ASSESS ; QUALIFIED_WITH_RESERVATIONS est un resultat legitime"
+    },
+    "ScientificUnifiedReport": {
+      "schema": "EvidenceForge.ScientificUnifiedReport",
+      "lineageRelation": "REPORT",
+      "required": [
+        "schema",
+        "registryRootHash"
+      ],
+      "notes": "lie mission, qualification et racine de registre telle qu'a son propre enregistrement"
+    },
+    "FinalReportAcceptance": {
+      "schema": "EvidenceForge.FinalReportAcceptance",
+      "lineageRelation": "ACCEPTANCE",
+      "required": [
+        "schema",
+        "decision",
+        "decisionHash",
+        "reportRegistryRootHash"
+      ],
+      "notes": "validee par acceptanceBoundary() ; REJECT est bloquant en dur et aucune politique ne le convertit"
+    },
+    "DownstreamUseAuthorization": {
+      "schema": "EvidenceForge.DownstreamUseAuthorization",
+      "lineageRelation": "AUTHORIZATION",
+      "required": [
+        "schema",
+        "authorization",
+        "revalidation",
+        "refusedOverrides"
+      ],
+      "notes": "revalidation TOUJOURS executee ; refusedOverrides consigne chaque cle de politique retiree avec son motif"
+    }
+  },
+  "runtimeTypes": {
+    "RuntimeAttestation": {
+      "required": [
+        "runId",
+        "missionHash",
+        "executionMode",
+        "authorityId",
+        "keyId",
+        "nonce",
+        "signedAt",
+        "signature"
+      ],
+      "algorithm": "Ed25519 (crypto.sign/verify, algorithme null)",
+      "notes": "produite par l'AUTORITE DE L'EXPLOITANT ; le nonce est consomme a l'ouverture du run"
+    },
+    "RunEvidenceManifest": {
+      "required": [
+        "runId",
+        "executionMode",
+        "authorityId",
+        "keyId",
+        "operatorTrustBoundaryId",
+        "boundaryDescriptorHash",
+        "runtimeAttestationHash",
+        "runManifestRootHash",
+        "missionHash",
+        "manifestBindingHash"
+      ],
+      "notes": "la forme valide ne suffit pas : assertManifestAuthentic exige une frontiere et une attestation verifiees"
+    },
+    "OperatorTrustBoundaryDescriptor": {
+      "required": [
+        "operatorTrustBoundaryId",
+        "namespace",
+        "provisionedFrom",
+        "revocationModel"
+      ],
+      "provisionedFrom": "ENVIRONMENT",
+      "revocationModel": "LIVE_CONFIG_LOOKUP",
+      "notes": "obtenue par lecture de EVIDENCEFORGE_OPERATOR_TRUST_CONFIG ; jamais recue en argument"
+    }
+  },
+  "caseAdapters": {
+    "note": "un cas d'application nomme ses phases dans adapters/ ; le noyau n'en connait aucun. JMJS est un cas d'application et ne definit pas EvidenceForge."
+  },
+  "schemaFamilyNote": "Ces schemas decrivent ce qui est IMPLEMENTE dans ce lot. Les enumerations critiques y sont REFERENCEES vers leur source canonique plutot que recopiees : c'est la fermeture du defaut M8.",
+  "sinkRequirements": {
+    "panel-gate:evidence-presented-to-human": "AUTHENTICATED_PROVENANCE",
+    "panel-gated-adapter:corpus-sink": "HUMAN_AUTHENTICATED",
+    "llm-capability:production-use": "PRODUCTION_LLM_CAPABILITY"
+  }
+}

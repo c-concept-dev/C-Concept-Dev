@@ -1,0 +1,59 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "regression-harness-report-v1",
+  "description": "Schema du rapport produit par MONO-06 (lib/harness.js -> runHarness). Documente la forme du JSON, ne redefinit aucune logique metier EvidenceForge.",
+  "type": "object",
+  "required": ["generatedAt", "kitRoot", "presence", "perArtifact", "globalTotals", "overallStatus"],
+  "properties": {
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "kitRoot": { "type": "string" },
+    "presence": {
+      "type": "object",
+      "properties": {
+        "status": { "enum": ["PASS", "FAIL"] },
+        "results": { "type": "array" },
+        "missing": { "type": "array" }
+      }
+    },
+    "perArtifact": {
+      "type": "object",
+      "description": "Une entree par artefact canonique (13 attendues), cle = artifactId (ex: MONO-00, EF-ORCH).",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "group": { "enum": ["MONO", "HISTORIQUE"] },
+          "artifactStatus": { "enum": ["PASS", "FAIL"] },
+          "extraction": { "type": "object" },
+          "manifest": { "type": "object" },
+          "nested": { "type": "array" },
+          "provenanceChain": { "type": "object" },
+          "contracts": { "type": "object" },
+          "staticSearch": {
+            "type": "object",
+            "properties": {
+              "pilotHardcoding": { "type": "object" },
+              "epistemicDrift": { "type": "object" },
+              "realSecrets": { "type": "object" }
+            }
+          },
+          "execution": { "type": "object" }
+        }
+      }
+    },
+    "knownLimitations": { "type": "object" },
+    "globalTotals": {
+      "type": "object",
+      "properties": {
+        "monoObserved": { "type": "integer" },
+        "monoExpected": { "type": "integer" },
+        "monoMatch": { "type": "boolean" },
+        "historiqueObserved": { "type": "integer" },
+        "historiqueExpected": { "type": "integer" },
+        "historiqueMatch": { "type": "boolean" }
+      }
+    },
+    "overallStatus": { "enum": ["PASS", "FAIL", "PASS_WITHOUT_TEST_EXECUTION", "UNKNOWN"] },
+    "stopReason": { "type": "string" }
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "lot": "MONO-09-v0.1",
+  "title": "Professional pipeline real adapters",
+  "generatedAt": "2026-09-08T00:35:48.225Z",
+  "predecessorsUnchanged": [
+    "MONO-01",
+    "MONO-02",
+    "MONO-03",
+    "MONO-04",
+    "MONO-05",
+    "MONO-06",
+    "MONO-07",
+    "MONO-08/v0.6",
+    "MONO-08/v0.7",
+    "MONO-08/v0.8"
+  ],
+  "fileCount": 8,
+  "files": [
+    {
+      "file": "ARCHITECTURE.md",
+      "size": 4227,
+      "sha256": "3be6723390bd166343b55efd427be2b06823e53e85a36638b08e4f772ead7781"
+    },
+    {
+      "file": "BLOCKERS.md",
+      "size": 2262,
+      "sha256": "dd1fa4f24405b46d117ee46bf3c5fd23c357a28ae5bb784678ab623be1beb704"
+    },
+    {
+      "file": "CONTRACT-MAPPING.md",
+      "size": 2394,
+      "sha256": "9e83b025d8069d8437ea88747a810018f9d14b2c3089e64bd30b5d8f0b29010d"
+    },
+    {
+      "file": "lib/identifier-policy.js",
+      "size": 3591,
+      "sha256": "969560925130780c39a0b49d393c79abdea5ae50f111dd02cdc8dd9a9050df8f"
+    },
+    {
+      "file": "lib/llm-readiness.js",
+      "size": 2730,
+      "sha256": "a60af9bf65e06981f62249b5a3584c6b6ac61f0ca4463f2fcd350e86e4dd9aec"
+    },
+    {
+      "file": "lib/scientific-readiness-gate.js",
+      "size": 6023,
+      "sha256": "be91f2f0f146bd243bf16b01432151450dd4be04e72b971549f77b39445b3eb9"
+    },
+    {
+      "file": "lib/seed-discovery.js",
+      "size": 7948,
+      "sha256": "02ccc70025981d3e2c91f3230aca1465e79c9d82cbcfb3ef06736816596cf679"
+    },
+    {
+      "file": "test/test-mono09.js",
+      "size": 14502,
+      "sha256": "790579f1f7efe24d9159397399cafe9ffbbeddf4f2789531806fe7c3af2ba6fd"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "evidenceforge-mono-02",
+  "version": "1.0.0",
+  "private": true,
+  "description": "EvidenceForge - MONO-02 - Orchestration Graph and State Machine. Decide QUAND/QUOI/DANS QUEL ORDRE/SOUS QUELLES PRECONDITIONS appeler les ports MONO-01 - jamais COMMENT (deja MONO-01) ni le contenu metier (deja les lots geles). Aucun RunStore/ArtifactStore/CheckpointStore final, aucune UI, aucun pipeline E2E reel.",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test/run-all.js"
+  }
+}

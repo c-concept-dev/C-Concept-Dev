@@ -1,0 +1,404 @@
+{
+  "lot": "MONO-10-v0.8",
+  "title": "Bind capability issuers to the operator boundary",
+  "principle": "A security capability is trusted only if its issuer is derived from the already-provisioned operator trust boundary.",
+  "status": "PROPOSE A L'AUDIT — NON GELE. Le statut GELABLE/NON_GELABLE n'appartient pas a ce lot (CHARTE §19).",
+  "additiveOver": [
+    "MONO-00..MONO-09",
+    "MONO-10 v0.1..v0.7 (historiques, non modifies)"
+  ],
+  "closesFindings": [
+    "B01",
+    "B02",
+    "B03",
+    "B04",
+    "B05",
+    "M-04",
+    "M-05"
+  ],
+  "newModules": [
+    "core/authority-descriptor.js"
+  ],
+  "removedExports": [
+    "createOperatorProvenanceAuthority",
+    "createOperatorHistoricalInputAuthority",
+    "createOperatorActProofMechanism",
+    "createOperatorLlmCapabilityBoundary"
+  ],
+  "authorityGraph": {
+    "root": "OperatorTrustBoundary",
+    "issuanceHandle": "non exportee ; creee uniquement dans buildBoundary",
+    "issued": [
+      "EvidenceProvenanceAuthority",
+      "OperatorHistoricalInputAuthority",
+      "HumanActAuthority",
+      "LlmCapabilityAuthority"
+    ],
+    "callerAccessibleProductionIssuers": 0
+  },
+  "sinkRequirements": {
+    "panel-gate:evidence-presented-to-human": "AUTHENTICATED_PROVENANCE",
+    "panel-gated-adapter:corpus-sink": "HUMAN_AUTHENTICATED",
+    "llm-capability:production-use": "PRODUCTION_LLM_CAPABILITY"
+  },
+  "measurements": {
+    "adversarialTests": "120 PASS / 0 FAIL",
+    "mutations": "50 / 50",
+    "offlineIntegration": "31 PASS / 0 FAIL",
+    "universalityDomains": "6 / 6",
+    "callerAccessibleProductionSecurityIssuerCount": 0,
+    "historicalLotsIdentical": "20 / 20",
+    "sealedReferenceDivergences": 0,
+    "fullHistoryByteIdentityConfirmed": "NO — 9 lots sur 20 ne portent aucun sceau independant",
+    "NETWORK_CALLS": 0,
+    "REAL_LLM_CALLS": 0,
+    "REAL_EF02_RUNS": 0,
+    "REAL_PROFESSIONAL_RUNS": 0,
+    "REAL_HUMAN_ACTS": 0
+  },
+  "declaredAssumptions": [
+    "Qui peut ecrire EVIDENCEFORGE_OPERATOR_TRUST_CONFIG ou les fichiers qu'il designe obtient une frontiere de PRODUCTION (TRUST-MODEL.md §7).",
+    "Deux fichiers de configuration de confiance sont DEUX racines de confiance, pas deux reserves d'une meme racine (REPLAY-PROTECTION.md §8).",
+    "Le plafond de statut de preparation est une borne superieure tiree des artefacts enregistres (READINESS.md §4).",
+    "La garde de contrats couvre des enumerations, pas la prose (CONTRACT-GUARD.md §6)."
+  ],
+  "generatedAt": "2026-09-12T15:20:15.010395Z",
+  "fileCount": 67,
+  "files": [
+    {
+      "file": "ARCHITECTURE.md",
+      "size": 5797,
+      "sha256": "baa07437f65a9f43e070c495cd8d066f3e1e73737045fd63fca70eacf9c94b7b"
+    },
+    {
+      "file": "ARTIFACT-REGISTRY-TRUST.md",
+      "size": 4013,
+      "sha256": "c1e695e2778dd49c44139fc3a492feed54e1b72e06e0f3691716cad226f6a365"
+    },
+    {
+      "file": "AUDIT-REMEDIATION-MATRIX.md",
+      "size": 3141,
+      "sha256": "497b95a66f7de7a627e60ac47419f52f610cfcd8014eee05d437c501b88144cd"
+    },
+    {
+      "file": "CAPABILITY-AUTHORITIES.md",
+      "size": 5430,
+      "sha256": "e359db1f0a91c9508027441f0974ccc96b0fdfa48897f568571cbca1a9dbf0c7"
+    },
+    {
+      "file": "CONTRACT-GUARD.md",
+      "size": 2876,
+      "sha256": "20dc78c5da8695940bd41886d6f68980f4687eae29de3678ddf2bf8692a0ba03"
+    },
+    {
+      "file": "CONTRACT-MAPPING.md",
+      "size": 4040,
+      "sha256": "c3af3580ebdcdc61b5231638c7c13b148d5835226739b7b5b602f2c8f33b4d95"
+    },
+    {
+      "file": "HISTORICAL-INPUT-AUTHORITY.md",
+      "size": 3057,
+      "sha256": "38695d882aa1e8b9ee0706a4cde26edfe984f8df2651da87364bbe36994095c1"
+    },
+    {
+      "file": "HUMAN-ACT-AUTHENTICATION.md",
+      "size": 3035,
+      "sha256": "81965cd4b55473c0b89a95b6d152b251341e4022b793824255b1a4661fdb5343"
+    },
+    {
+      "file": "KEY-MANAGEMENT.md",
+      "size": 3497,
+      "sha256": "c64ab61b2bdf14443a23f3982484f955db992984d023183c7a785d5367db5a2c"
+    },
+    {
+      "file": "LINEAGE.md",
+      "size": 2826,
+      "sha256": "b298123ecdbdc33261cd24ca87ca5e47f92dfb7ad64d84ce060567bf90cd6882"
+    },
+    {
+      "file": "LLM-CAPABILITY-BOUNDARY.md",
+      "size": 2208,
+      "sha256": "abfddef46aba5661cf843f59792976161fc95066bb5387fa5e8bfce951bc56e2"
+    },
+    {
+      "file": "MIGRATION-v0.7-v0.8.md",
+      "size": 2690,
+      "sha256": "2d00d28237c6e51a73a2e8a1ce2e831d92e38eeba2c0b39f1ad8b8f6d78abe62"
+    },
+    {
+      "file": "NON-REGRESSION.md",
+      "size": 3305,
+      "sha256": "8207f6836fea1e1a4b427196cd7e4eef9e15f9655fe414dd16abaab8494c8ea6"
+    },
+    {
+      "file": "READINESS.md",
+      "size": 3260,
+      "sha256": "6af2ac805240b43771cb2fb238796ae7896aaa9531af8d878ccf98050c1273f2"
+    },
+    {
+      "file": "README.md",
+      "size": 4012,
+      "sha256": "851083ba06ad925f70f3ba5fc64cc6135b42850dea51d91dda6a4536bb79fdf2"
+    },
+    {
+      "file": "REPLAY-PROTECTION.md",
+      "size": 4682,
+      "sha256": "be26056d9f995c2f97ea1609522d4c9bb188b7bf43701a27f53b5b2bf0f9b518"
+    },
+    {
+      "file": "RUN-ORDER.md",
+      "size": 3798,
+      "sha256": "d1879dc2eaba7dd3063e0ccfac93a082faa066d4cdfda2a23dacbb981a48cf54"
+    },
+    {
+      "file": "THREAT-MODEL.md",
+      "size": 7044,
+      "sha256": "03d48ac110695a92868e996670f9851990990599b0ffed90d5669a3546fdfef9"
+    },
+    {
+      "file": "TRUST-MODEL.md",
+      "size": 7149,
+      "sha256": "25d05ed3ec3cf4a2e1b5dac9e4107e1936bd9b88be550b0349c516398482ef44"
+    },
+    {
+      "file": "UPSTREAM-EVIDENCE-BINDING.md",
+      "size": 3712,
+      "sha256": "42ce8e7f824fa018dbb0a672c67771ae5e5789b25cfebe2f696b1452dacb3940"
+    },
+    {
+      "file": "adapters/case-phase-adapter.js",
+      "size": 1314,
+      "sha256": "af6824a9fea176aa0aa22c98a35facc70654ffba24401671c153853f9d51be35"
+    },
+    {
+      "file": "adapters/upstream-evidence-binder.js",
+      "size": 16794,
+      "sha256": "9882e471fc5f93839ff626853a5a0c9a663efbfa40507a7a93e17f37561f6af5"
+    },
+    {
+      "file": "contracts/canonical-contracts.json",
+      "size": 2616,
+      "sha256": "aab368eeb7e2e6e95fb06da6559ceb438b7f8006c89cb0ba5a77dcf3da67186e"
+    },
+    {
+      "file": "core/artifact-capabilities.js",
+      "size": 9749,
+      "sha256": "c959082cb9e2c5dcac5fecbf136d37b4b31e06262307ab780e8a7a24263760bf"
+    },
+    {
+      "file": "core/authenticated-artifact-registry.js",
+      "size": 13052,
+      "sha256": "31a4f5978a39b22110a018230430a4bb0177f645b0a4d1cbc7f5f5ccde12bd19"
+    },
+    {
+      "file": "core/authority-descriptor.js",
+      "size": 3356,
+      "sha256": "4da5bc07634853f7e9a08592a3ddc2ede9b40b508360d0adc6a38417582aa59c"
+    },
+    {
+      "file": "core/caller-assertion-guard.js",
+      "size": 4788,
+      "sha256": "7ab1c6c853067184fb2aa1e9f3ecb87a9aeeabca7bb7ab19305039f4cdb8416a"
+    },
+    {
+      "file": "core/candidate-assessment.js",
+      "size": 11459,
+      "sha256": "6ee4181fcde1800d1ededc7974f1e72fe0f2b17eb03f201c0dd1cfb997ef289c"
+    },
+    {
+      "file": "core/canonical-contracts.js",
+      "size": 5027,
+      "sha256": "9e61b7151840346a11573a57afdaba16d5b9e684e10813ea20e590c36dd9b5b8"
+    },
+    {
+      "file": "core/canonical.js",
+      "size": 1660,
+      "sha256": "40648df70c422754e9eb1b4d5b66be8389cd53a2c0e17792ab5de36dc9c07dd5"
+    },
+    {
+      "file": "core/downstream-authorization.js",
+      "size": 14855,
+      "sha256": "cab6d329a27225d2dcba39af221374fcd2e0f80cafc1facb6e0c09340e5d94f5"
+    },
+    {
+      "file": "core/effective-eligibility.js",
+      "size": 8528,
+      "sha256": "f3366dd40bc0c5ed59caada3f5422ef7d9681c04b5580c1da280224e8397cba1"
+    },
+    {
+      "file": "core/evidence-source-provenance.js",
+      "size": 7150,
+      "sha256": "b9eff82665407018e9536efbcbc78ba774c32ef71ece2cafbea65e3a97b76ee3"
+    },
+    {
+      "file": "core/final-report-acceptance.js",
+      "size": 9828,
+      "sha256": "61b8ad0c63d2754d2753173dda676aa647633a0e8c817db69f4b26e5f654a1ac"
+    },
+    {
+      "file": "core/human-act-proof.js",
+      "size": 3487,
+      "sha256": "3f99a187a0afc8b6b5c8fe859d628028bbf464912249f5cd4fdeb83bb7b16ac2"
+    },
+    {
+      "file": "core/human-act.js",
+      "size": 4137,
+      "sha256": "4e4ee4bc7b8ffdef0479e15cebac7eeb20a72b8cd8f2d025614c1954933f7ac9"
+    },
+    {
+      "file": "core/identity-evidence.js",
+      "size": 9070,
+      "sha256": "efa60c6c7e033cfdf2ef8bdd010eeb706035240a753e0f69de55f1798f931ac0"
+    },
+    {
+      "file": "core/key-lifecycle.js",
+      "size": 5143,
+      "sha256": "3407a567b33adac1d90d43a438170f31d24c3c58d134f121f68edf5480e5caad"
+    },
+    {
+      "file": "core/lineage.js",
+      "size": 15189,
+      "sha256": "c531ee1ff098c4ce4dc75d03e6b33d996eb93db934eba67e029624949f5ffbce"
+    },
+    {
+      "file": "core/llm-capability.js",
+      "size": 16245,
+      "sha256": "793bea1f8b51d6e3c58217a39a1a5aa1c86e8d075724d7cebf91a1e48fb8f63b"
+    },
+    {
+      "file": "core/operator-acceptance-boundary.js",
+      "size": 4421,
+      "sha256": "fb1394df54c5a495e298e520f617cf50c687a96e2b70a76041c7a08364958fe9"
+    },
+    {
+      "file": "core/operator-historical-input-authority.js",
+      "size": 8698,
+      "sha256": "d6e3f24a17987e00943c48b1395d6813bd3dec3147f5b3e42709f921cfe9e280"
+    },
+    {
+      "file": "core/operator-human-auth-boundary.js",
+      "size": 8644,
+      "sha256": "194caebbb4e83665ef5d06dfe9f54e9dbe063a7fb7bbf57a4d8053516e8b0b61"
+    },
+    {
+      "file": "core/operator-llm-capability-boundary.js",
+      "size": 7071,
+      "sha256": "f5b9a96e848ecc89d306b0f38e67c6894c43ade978d8793254a017a0d7f0030b"
+    },
+    {
+      "file": "core/operator-provenance-authority.js",
+      "size": 9721,
+      "sha256": "08d1ae5ba1b8a62047404cbf0a0d6a9209c1f6b92fc3cf6d1dc8d522e44617d9"
+    },
+    {
+      "file": "core/operator-trust-boundary.js",
+      "size": 24382,
+      "sha256": "f5cb24207e2685ecf4de294f790fd3a76759b4f7febe4a49673cd4dfd67c84b0"
+    },
+    {
+      "file": "core/operator-trust-verifier.js",
+      "size": 11368,
+      "sha256": "b8e2457f2316edc7d7a8362203b72b6505e80c6ca959af2058b36a74e23d0df1"
+    },
+    {
+      "file": "core/panel-gate.js",
+      "size": 16220,
+      "sha256": "5034c8514dce4401cfb3901df569e22e9c2cb59361904e370f2721c4b2128733"
+    },
+    {
+      "file": "core/panel-gated-adapter.js",
+      "size": 8462,
+      "sha256": "fa9beb22e0dcb0aaabf7d7cbc4d6e1dd4e77dd5c1bf4051b4a7d5d5f256262a6"
+    },
+    {
+      "file": "core/relevance.js",
+      "size": 4709,
+      "sha256": "7fd3a0d1f69207d5411031c137b9ac3741c22a745a1e2a986c34cf2b0a8d0c78"
+    },
+    {
+      "file": "core/replay-protection.js",
+      "size": 12513,
+      "sha256": "1496972907df04e48c566adb8072a8e56118023d78f085c398b8423efaf7655d"
+    },
+    {
+      "file": "core/run-evidence-manifest.js",
+      "size": 10441,
+      "sha256": "0dbd3e94d314605e58e0f6bc23e1b7338e0ace2a822d657abac7ed752550e6c2"
+    },
+    {
+      "file": "core/runtime-attestation.js",
+      "size": 3464,
+      "sha256": "4f765ff07bfb4f629eb404718c50dfaef3065e5e37495892b9e10c696610a977"
+    },
+    {
+      "file": "core/scientific-qualification.js",
+      "size": 17046,
+      "sha256": "1ad5b3487fa07181a2bc8563834cfe4d0ca892ff97a4b84a7734cc8c0cb49387"
+    },
+    {
+      "file": "core/scientific-readiness.js",
+      "size": 27395,
+      "sha256": "791cd121575f5f6cf628955879902c5a3a80a36ab61d8c972941b81b964f459d"
+    },
+    {
+      "file": "core/scientific-unified-report.js",
+      "size": 10835,
+      "sha256": "fffafe9295f5d91c15da948171090995d21d472db8b6e26c4d0f539c7bf98fb8"
+    },
+    {
+      "file": "core/unknowns.js",
+      "size": 12722,
+      "sha256": "e993092503bb045c6ead26bdd1eea519ab5464eb31fe58a4c177f3c0e60012d9"
+    },
+    {
+      "file": "governance/EvidenceForge-CHARTE-IDENTITE-ADN-GOUVERNANCE.md",
+      "size": 24628,
+      "sha256": "b4c160d008c33dd338979afd247945fee8dab862c96e0d1f2841c9ad87596a85"
+    },
+    {
+      "file": "governance/README.md",
+      "size": 2875,
+      "sha256": "7326365363039e3640dc441bf9de028a6f7e795e074ecfbfb16f30426e119ceb"
+    },
+    {
+      "file": "schemas/MONO-10-SCHEMAS-v0.8.json",
+      "size": 14995,
+      "sha256": "d7f6d8d7208373da61b4b133d7d3677b28853d88d080af12161882d5986c6df3"
+    },
+    {
+      "file": "test/fixture-chain.js",
+      "size": 19816,
+      "sha256": "7d1b386bcd6327ba792149843b4b8a48ab5de1b204520dd79c83f0afb50acb7c"
+    },
+    {
+      "file": "test/test-mono10-v0.8-integration.js",
+      "size": 25300,
+      "sha256": "b77f530491bf6d97fff8ff001ba5da303a592bc94e75d197ce543f7c618ce135"
+    },
+    {
+      "file": "test/test-mono10-v0.8.js",
+      "size": 50532,
+      "sha256": "7097d046628b0d7fed17f1608cf8c116321757500374c688e5ebdf055f503592"
+    },
+    {
+      "file": "tools/aggregate-hash.js",
+      "size": 1746,
+      "sha256": "f60ff7d96eb2bcd4889364d6c415d043f3b3aa5d666b55595ae903e02596a8e7"
+    },
+    {
+      "file": "tools/operator-provisioning.js",
+      "size": 5422,
+      "sha256": "8c65f016a87bde91627b5666c92c18f1788f0406cfe7b0b5bfe31e32384add94"
+    },
+    {
+      "file": "tools/reference-llm-transport.js",
+      "size": 1028,
+      "sha256": "6dfed592fe0ca0165cc9f8ec0a3538ee8000d176e905bfa393c948caa927a513"
+    },
+    {
+      "file": "validators/index.js",
+      "size": 6442,
+      "sha256": "41c7098d06110c5c81937d6b7c7fb465414d6bc7e7dd2006ac988f6877e9330e"
+    }
+  ]
+}

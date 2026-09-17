@@ -1,0 +1,327 @@
+{
+  "$comment": "MONO-10 v0.2 — schemas APPROUVES et IMPLEMENTES. Noyau generique : aucun cas, domaine, fournisseur ni registre.",
+  "schemaFamily": "EvidenceForge.MONO-10",
+  "schemaVersion": "MONO-10-v2",
+  "status": "APPROVED_FOR_v0.2",
+  "implementationStarted": true,
+  "genericCoreBoundary": {
+    "core": "core/ — noyau universel",
+    "adapters": "adapters/ — traductions de cas, optionnelles",
+    "rule": "aucun nom de cas, de domaine, de fournisseur ni de registre dans core/"
+  },
+  "commonTypes": {
+    "ArtifactRef": {
+      "artifactId": "string",
+      "schema": "string",
+      "schemaVersion": "string",
+      "executionEvidenceClass": "string",
+      "sha256": "64 hex, canonique"
+    },
+    "ExecutionEvidenceClass": {
+      "enum": [
+        "TEST_FIXTURE",
+        "REAL_RUNTIME"
+      ],
+      "note": "obligatoire ; REAL_RUNTIME exige en production"
+    },
+    "HumanAct": {
+      "actorType": {
+        "const": "human"
+      },
+      "actorIdentity": "string non vide",
+      "decidedAt": "ISO-8601 reel"
+    },
+    "IdentityEvidence": {
+      "evidenceType": "string opaque",
+      "provider": "string|null",
+      "identifier": "string|null",
+      "assertedValue": "string|null",
+      "subjectBinding": {
+        "enum": [
+          "CONFIRMED",
+          "ASSERTED",
+          "AMBIGUOUS",
+          "UNKNOWN"
+        ]
+      },
+      "provenance": "object|null",
+      "verificationStatus": {
+        "enum": [
+          "VERIFIED",
+          "UNVERIFIED",
+          "CONFLICTING",
+          "UNKNOWN"
+        ]
+      },
+      "confidenceContribution": "0..1"
+    },
+    "Unknown": {
+      "unknownId": "string",
+      "originArtifact": "string",
+      "reason": "string non vide",
+      "blockingStatus": {
+        "enum": [
+          "BLOCKING",
+          "NON_BLOCKING",
+          "NOT_ASSESSED"
+        ]
+      },
+      "evidenceRefs": "string[]",
+      "status": {
+        "enum": [
+          "OPEN",
+          "RESOLVED",
+          "SUPERSEDED",
+          "RECLASSIFIED"
+        ]
+      },
+      "transitions": "[{from,to,reason,evidenceRefs,at}]"
+    }
+  },
+  "artifacts": {
+    "ProfessionalCandidateAssessment": {
+      "schema": "EvidenceForge.ProfessionalCandidateAssessment",
+      "schemaVersion": "MONO-10-v2",
+      "assessmentStatus": {
+        "enum": [
+          "PRESENT_FOR_HUMAN_REVIEW",
+          "INSUFFICIENT_DOCUMENTARY_BASIS",
+          "IDENTITY_AMBIGUOUS",
+          "OUT_OF_SCOPE_DOCUMENTARILY"
+        ]
+      },
+      "required": [
+        "missionId",
+        "missionLabels",
+        "assessesDiscoveryRef",
+        "assessesVerificationRef",
+        "assessments",
+        "unknowns"
+      ],
+      "perAssessment": [
+        "candidateId",
+        "professionalIdentity",
+        "identityEvidence",
+        "identityConfidence",
+        "missionEvidenceRefs",
+        "relevance",
+        "discoveryOrigin",
+        "assessmentStatus",
+        "assessmentReasons",
+        "lineageRefs"
+      ],
+      "invariants": [
+        "aucun statut ne vaut approbation au panel",
+        "aucun statut ne juge la competence reelle",
+        "INSUFFICIENT_DOCUMENTARY_BASIS est borne a CE RUN",
+        "lineageRefs obligatoires",
+        "chaque ecart produit un Unknown trace"
+      ]
+    },
+    "ProfessionalPanelValidation": {
+      "schema": "EvidenceForge.ProfessionalPanelValidation",
+      "schemaVersion": "MONO-10-v2",
+      "decision": {
+        "enum": [
+          "APPROVE_FOR_DOCUMENTARY_PANEL",
+          "REJECT",
+          "DEFER"
+        ]
+      },
+      "bindings": [
+        "validatesAssessmentRef (recalcule et compare)",
+        "missionBindingHash",
+        "candidateBindingHash par decision"
+      ],
+      "invariants": [
+        "exhaustivite sur les candidats presentables",
+        "APPROVE exige identityConfidence != AMBIGUOUS",
+        "APPROVE exige evidenceRefs non vides",
+        "DEFER jamais converti",
+        "aucun type de preuve d identite ne determine la decision",
+        "un changement d evaluation, de mission, de preuves ou de candidat invalide l approbation"
+      ]
+    },
+    "LlmCapability": {
+      "schema": "EvidenceForge.LlmCapability",
+      "schemaVersion": "MONO-10-v2",
+      "status": {
+        "enum": [
+          "DECLARED",
+          "CONFIGURED",
+          "PROBED",
+          "AVAILABLE",
+          "DEGRADED",
+          "UNAVAILABLE"
+        ]
+      },
+      "availableRequiresAll": [
+        "providerId",
+        "modelId",
+        "workerBindingId",
+        "requestId",
+        "probeTimestamp valide",
+        "credentialPresenceAttested === true",
+        "probeExecuted === true",
+        "probeStatus === SUCCESS",
+        "responseSchemaValidated === true",
+        "credentialProbeSkipped === false",
+        "executionEvidenceClass REAL_RUNTIME en production"
+      ],
+      "probeContract": {
+        "promptShape": "closed-json-echo",
+        "maxTokens": 64,
+        "schemaKeys": [
+          "ok",
+          "probe"
+        ],
+        "strict": "aucun texte avant ou apres, aucun champ supplementaire, aucun champ manquant, types exacts",
+        "usesMissionData": false,
+        "usesCaseData": false
+      },
+      "invariants": [
+        "une declaration booleenne amont ne vaut que DECLARED",
+        "aucun secret stocke"
+      ]
+    },
+    "ScientificReadiness": {
+      "schema": "EvidenceForge.ScientificReadiness",
+      "schemaVersion": "MONO-10-v2",
+      "phase": {
+        "enum": [
+          "PRE",
+          "FULL"
+        ]
+      },
+      "status": {
+        "enum": [
+          "READY",
+          "PARTIAL",
+          "NOT_READY"
+        ]
+      },
+      "dimensions": [
+        "candidateAssessment",
+        "professionalPanelGate",
+        "blockingAmbiguities",
+        "llmCapability",
+        "lineage",
+        "unknowns",
+        "professionalCorpus (FULL)",
+        "documentaryTwins (FULL)",
+        "reviewCoverage (FULL)",
+        "aggregation (FULL)"
+      ],
+      "invariants": [
+        "lignee vide => NOT_READY",
+        "unknown BLOCKING => NOT_READY",
+        "aucun quota disciplinaire",
+        "les artefacts sont VALIDES, jamais lus en surface"
+      ]
+    },
+    "ScientificQualification": {
+      "schema": "EvidenceForge.ScientificQualification",
+      "schemaVersion": "MONO-10-v2",
+      "qualificationStatus": {
+        "enum": [
+          "QUALIFIED",
+          "QUALIFIED_WITH_RESERVATIONS",
+          "NOT_QUALIFIED",
+          "IMPOSSIBLE_TO_ASSESS"
+        ],
+        "default": "IMPOSSIBLE_TO_ASSESS"
+      },
+      "invariants": [
+        "appelle les validateurs de production, jamais un statut de surface",
+        "ne decide JAMAIS le verdict de mission",
+        "le nombre de professionnels n est jamais un critere",
+        "un unknown BLOCKING interdit QUALIFIED",
+        "les unknowns amont sont propages sans perte",
+        "NOT_QUALIFIED n efface ni ne modifie aucun verdict anterieur"
+      ]
+    },
+    "ScientificUnifiedReport": {
+      "schema": "EvidenceForge.ScientificUnifiedReport",
+      "schemaVersion": "MONO-10-v2",
+      "required": [
+        "priorReportReference",
+        "priorScientificValidity",
+        "priorVerdict",
+        "priorVerdictPreserved",
+        "candidateAssessmentReference",
+        "professionalPanelValidationReference",
+        "llmCapabilityReference",
+        "readinessPreReference",
+        "readinessFullReference",
+        "scientificQualificationReference",
+        "scientificallyActionableVerdict",
+        "reservations",
+        "unknowns",
+        "lineage"
+      ],
+      "invariants": [
+        "ne reecrit JAMAIS le rapport anterieur",
+        "reproduit ses drapeaux a l identique",
+        "le verdict anterieur reste enregistre meme si son usage est bloque",
+        "aucun inconnu ouvert n est efface",
+        "aucun champ specifique a un cas"
+      ]
+    },
+    "FinalReportAcceptance": {
+      "schema": "EvidenceForge.FinalReportAcceptance",
+      "schemaVersion": "MONO-10-v2",
+      "decision": {
+        "enum": [
+          "ACCEPT_AS_REPORTED",
+          "ACCEPT_WITH_RESERVATIONS",
+          "REJECT_FOR_REVIEW"
+        ]
+      },
+      "forbiddenFields": [
+        "finalVerdict",
+        "verdict",
+        "priorVerdict",
+        "scientificallyActionableVerdict",
+        "qualificationStatus",
+        "downstreamUseAuthorized"
+      ],
+      "invariants": [
+        "ne modifie ni preuves, ni qualification, ni verdict",
+        "alimente uniquement l autorisation aval"
+      ]
+    },
+    "DownstreamUseAuthorization": {
+      "schema": "EvidenceForge.DownstreamUseAuthorization",
+      "schemaVersion": "MONO-10-v2",
+      "authorization": {
+        "enum": [
+          "AUTHORIZED",
+          "NOT_AUTHORIZED",
+          "DEFERRED"
+        ]
+      },
+      "genericField": "downstreamUseAuthorized",
+      "invariants": [
+        "aucun nom de phase metier",
+        "ne reecrit jamais le verdict",
+        "considere qualification, acceptation humaine si requise, reserves bloquantes, lignee et politique du run"
+      ]
+    }
+  },
+  "caseAdapters": {
+    "location": "adapters/ — HORS NOYAU",
+    "CasePhaseAuthorization": {
+      "schema": "EvidenceForge.CasePhaseAuthorization",
+      "schemaVersion": "MONO-10-v2-adapter",
+      "note": "le nom de la phase aval est une DONNEE d appel, jamais une constante du lot",
+      "derivedFromGenericField": "downstreamUseAuthorized"
+    }
+  },
+  "legacyCompatibility": {
+    "mono01ToMono09": "INCHANGES",
+    "mono10v01": "INCHANGE",
+    "priorScientificValidityMutated": false,
+    "priorHumanValidationMutated": false,
+    "priorVerdictPolicy": "TOUJOURS conserve ; seul son usage aval peut etre bloque"
+  }
+}

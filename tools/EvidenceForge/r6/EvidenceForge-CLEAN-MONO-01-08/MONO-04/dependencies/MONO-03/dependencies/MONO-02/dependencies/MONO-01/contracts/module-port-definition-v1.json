@@ -1,0 +1,14 @@
+{
+  "schema": "EvidenceForge.ModulePortDefinition",
+  "schemaVersion": "MONO-01-v1",
+  "description": "Forme d'une entrée du registre de ports MONO-01 (registry/mono-01-port-registry-v1.json) — répond machine-readable aux questions de la définition de done (CDC section 19).",
+  "requiredFields": {
+    "portId": "identifiant du port (ex: \"EligibilityPanelPort\")",
+    "moduleId": "moduleId MONO-00 dont ce port formalise la frontière",
+    "coversModuleIds": "liste des moduleId MONO-00 couverts par ce port (peut différer de moduleId pour les ports transversaux)",
+    "expectedCanonicalVersion": "version canonique attendue dans le registre MONO-00, ou null",
+    "callType": "SYNC | ASYNC | ASYNC_EXTERNAL, par méthode exposée",
+    "externalDependencies": "liste des dépendances externes requises par méthode",
+    "bindingStatus": "BOUND (invocation réelle câblée sur le module gelé) | PENDING_DECISION (frontière formalisée, invocation en attente d'une décision d'architecture ouverte)"
+  }
+}

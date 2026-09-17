@@ -1,0 +1,38 @@
+{
+  "schema": "EvidenceForge.IntegrationError",
+  "schemaVersion": "MONO-01-v1",
+  "description": "Taxonomie technique minimale des erreurs d'intégration MONO-01 (CDC section 7). Aucune nouvelle catégorie métier n'est introduite ici.",
+  "codes": [
+    "INTEGRATION_CONTRACT_ERROR",
+    "SCHEMA_VERSION_MISMATCH",
+    "MISSING_REQUIRED_INPUT",
+    "MISSION_ID_MISMATCH",
+    "DEPENDENCY_UNAVAILABLE",
+    "MODULE_NOT_IN_BASELINE",
+    "MODULE_VERSION_MISMATCH",
+    "INVALID_MODULE_OUTPUT",
+    "LINEAGE_BLOCKED"
+  ],
+  "statusMapping": {
+    "BLOCKED": [
+      "MODULE_NOT_IN_BASELINE",
+      "MODULE_VERSION_MISMATCH",
+      "MISSING_REQUIRED_INPUT",
+      "SCHEMA_VERSION_MISMATCH",
+      "MISSION_ID_MISMATCH",
+      "DEPENDENCY_UNAVAILABLE",
+      "LINEAGE_BLOCKED"
+    ],
+    "FAILED": [
+      "INTEGRATION_CONTRACT_ERROR",
+      "INVALID_MODULE_OUTPUT"
+    ]
+  },
+  "requiredFields": {
+    "schema": "toujours \"EvidenceForge.IntegrationError\"",
+    "schemaVersion": "toujours \"MONO-01-v1\"",
+    "code": "un des codes ci-dessus, jamais un code inventé à la volée",
+    "message": "message technique lisible, sans jugement métier",
+    "details": "objet libre avec le contexte utile au diagnostic (moduleId, entrée en cause, etc.)"
+  }
+}

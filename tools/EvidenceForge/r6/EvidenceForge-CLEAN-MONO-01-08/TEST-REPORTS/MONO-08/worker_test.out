@@ -1,0 +1,60 @@
+{"timestamp":"2026-09-03T14:36:22.652Z","requestId":"e46fe51b-df8c-4ea9-8990-47c711a7441c","event":"route_rejected","status":404,"latencyMs":1,"payloadBytes":null}
+{"timestamp":"2026-09-03T14:36:22.654Z","requestId":"a1986b17-2769-4d8c-ba98-d3dfbb784b09","event":"route_rejected","status":404,"latencyMs":0,"payloadBytes":null}
+{"timestamp":"2026-09-03T14:36:22.655Z","requestId":"35843885-243a-482e-9644-0f3adf53eb8f","event":"auth_rejected","status":401,"latencyMs":0,"payloadBytes":null}
+{"timestamp":"2026-09-03T14:36:22.656Z","requestId":"75dbf38d-d103-49ff-aadd-879b642b75c3","event":"auth_rejected","status":401,"latencyMs":1,"payloadBytes":null}
+{"timestamp":"2026-09-03T14:36:22.658Z","requestId":"90842f2d-9c6a-4520-902a-d5159e5d30bd","event":"rate_limited","status":429,"latencyMs":2,"payloadBytes":null}
+{"timestamp":"2026-09-03T14:36:22.661Z","requestId":"87b1fe63-88fa-4bea-b1f8-3b2524d3df9a","event":"invalid_json","status":400,"latencyMs":1,"payloadBytes":9}
+{"timestamp":"2026-09-03T14:36:22.662Z","requestId":"bd91f494-2ef2-4511-994c-62d1e1d6d9b3","event":"invalid_payload","status":400,"latencyMs":1,"payloadBytes":13}
+{"timestamp":"2026-09-03T14:36:22.663Z","requestId":"2a216723-6708-4711-a58f-d4593127c065","event":"upstream_relayed","status":200,"latencyMs":1,"payloadBytes":95}
+{"timestamp":"2026-09-03T14:36:22.665Z","requestId":"client-supplied-id-123","event":"upstream_relayed","status":200,"latencyMs":1,"payloadBytes":95}
+{"timestamp":"2026-09-03T14:36:22.666Z","requestId":"cba9f573-c951-4f71-8be8-e129398813bf","event":"upstream_relayed","status":529,"latencyMs":1,"payloadBytes":95}
+{"timestamp":"2026-09-03T14:36:22.667Z","requestId":"d471edd6-207a-42a0-b9f7-46725223f469","event":"upstream_timeout","status":504,"latencyMs":1,"payloadBytes":null}
+{"timestamp":"2026-09-03T14:36:22.667Z","requestId":"18f36940-935c-4fec-909e-e0700386331d","event":"upstream_network_error","status":502,"latencyMs":0,"payloadBytes":null}
+{"timestamp":"2026-09-03T14:36:22.668Z","requestId":"8e8283b6-eacb-4cb1-85af-d16c199cabc4","event":"upstream_misconfigured","status":500,"latencyMs":0,"payloadBytes":null}
+{"timestamp":"2026-09-03T14:36:22.669Z","requestId":"57e39d43-6ed1-4fce-aedc-3467efff405b","event":"upstream_relayed","status":200,"latencyMs":1,"payloadBytes":95}
+{"timestamp":"2026-09-03T14:36:22.670Z","requestId":"a34918ba-1837-42ed-963f-ddfb85c1cc93","event":"auth_rejected","status":401,"latencyMs":0,"payloadBytes":null}
+{"timestamp":"2026-09-03T14:36:22.670Z","requestId":"3a656f55-3192-46af-8b4a-e5cf07fa21eb","event":"rate_limiter_unavailable","status":503,"latencyMs":0,"payloadBytes":null}
+{"timestamp":"2026-09-03T14:36:22.670Z","requestId":"71e32f8e-ff79-484f-9e3c-2836e0cd9de7","event":"rate_limiter_unavailable","status":503,"latencyMs":0,"payloadBytes":null}
+{"timestamp":"2026-09-03T14:36:22.671Z","requestId":"1bb1400f-94e3-41a0-b751-b8dc58fadcb4","event":"rate_limiter_unavailable","status":503,"latencyMs":1,"payloadBytes":null}
+{"timestamp":"2026-09-03T14:36:22.671Z","requestId":"a3cf9d9a-a3e3-405a-86ef-3a0089a45659","event":"rate_limiter_unavailable","status":503,"latencyMs":0,"payloadBytes":null}
+{"timestamp":"2026-09-03T14:36:22.672Z","requestId":"02b9a233-4049-4fd6-ad22-d238b361e248","event":"rate_limited","status":429,"latencyMs":1,"payloadBytes":null}
+PASS — Worker-1. GET /v1/messages refuse -> 404, aucun appel upstream possible avant ce refus
+PASS — Worker-2. POST /other-route refuse -> 404
+PASS — Worker-D1. Authorization absent -> 401, aucun appel upstream tente
+PASS — Worker-D2 (cas D). credential Worker incorrect -> 401, aucun appel upstream tente
+PASS — Worker-K (cas K). seuil rate limit atteint -> 429, aucun appel upstream tente
+PASS — Worker-K-body. corps 429 non converti en succes
+PASS — Worker-3. JSON malforme -> 400, aucun appel upstream tente
+PASS — Worker-4. payload JSON valide mais non conforme (model/max_tokens/messages absents) -> 400, aucun appel upstream tente
+PASS — Worker-5. credential+payload valides -> appel upstream reellement invoque
+PASS — Worker-6. relai fidele du corps Anthropic (NIVEAU 1)
+PASS — Worker-7. header de correlation X-EvidenceForge-Proxy present
+PASS — Worker-8. header de correlation X-EvidenceForge-Upstream=anthropic present
+PASS — Worker-9. header de correlation X-EvidenceForge-Upstream-Status=200 present
+PASS — Worker-10. header de correlation X-EvidenceForge-Request-Id present (non secret)
+PASS — Worker-11. request-id fourni par le client est propage tel quel (correlation NIVEAU 2)
+PASS — Worker-12. erreur upstream (529) relayee telle quelle, jamais transformee en 200
+PASS — Worker-13. timeout upstream -> 504, jamais 200 de repli
+PASS — Worker-14. panne reseau upstream -> 502, jamais 200 de repli
+PASS — Worker-15. ANTHROPIC_API_KEY absente cote Worker -> 500, aucun appel upstream, jamais un faux succes
+PASS — Worker-16. ANTHROPIC_API_KEY jamais presente dans le corps de reponse
+PASS — Worker-17. ANTHROPIC_API_KEY jamais presente dans un header de reponse
+PASS — Worker-18. WORKER_API_KEY jamais presente dans un corps de reponse d'erreur 401
+PASS — Worker-19. isValidMessagesPayload() accepte un payload conforme
+PASS — Worker-20. isValidMessagesPayload() rejette un payload sans messages
+PASS — Worker-21. extractBearerToken() extrait le token
+PASS — Worker-22. extractBearerToken() retourne null sans header
+PASS — Worker-23. constantTimeEquals() compare correctement
+PASS — Worker-L (cas L). RATE_LIMITER absent -> 503, jamais 200, jamais 429
+PASS — Worker-L-upstream. RATE_LIMITER absent -> aucun appel upstream tente (fail-closed avant upstream)
+PASS — Worker-L-reason. corps 503 porte une cause explicite RATE_LIMITER_UNAVAILABLE
+PASS — Worker-M (cas M). RATE_LIMITER present mais .limit non fonctionnel -> 503, jamais 200
+PASS — Worker-M-upstream. binding invalide -> aucun appel upstream tente
+PASS — Worker-M-reason. corps 503 porte RATE_LIMITER_UNAVAILABLE
+PASS — Worker-M2. .limit() renvoie une forme inattendue (pas de success:boolean) -> 503, jamais 200
+PASS — Worker-N (cas N). .limit() leve une exception -> 503, jamais 200
+PASS — Worker-N-upstream. exception du limiteur -> aucun appel upstream tente
+PASS — Worker-N-reason. corps 503 porte RATE_LIMITER_RUNTIME_ERROR
+PASS — Worker-K-vs-L. binding valide + quota depasse -> 429 (jamais 503) : K et L restent bien distincts
+
+TOUS LES TESTS PASSENT (38)

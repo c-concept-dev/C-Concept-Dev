@@ -1,0 +1,15 @@
+{
+  "name": "evidenceforge-mono-08-real-smoke-kit",
+  "version": "0.6.0",
+  "private": true,
+  "description": "EvidenceForge - MONO-08 v0.6 - Delegated LLM Authentication. Derive de v0.5 (ENVIRONMENT_BLOCKED, voir reports/mono-08-preflight-v1.json), ajoute LLM_AUTH_MODE=direct|delegated (CDC MONO-08-v0.6-DELEGATED-LLM-AUTH-CDC.md). Statut de ce lot : IMPLEMENTATION READY FOR INDEPENDENT AUDIT - non GELABLE, non GELE. Aucun cas G (REAL delegated) execute ; le Worker evidenceforge-llm-proxy (worker/evidenceforge-llm-proxy/) n'est pas deploye. La MISSION (fixtures/mission-real-smoke-v1.json) reste readyForExecution=false : l'operateur doit completer/valider 1 professionnel et 1 document cible restants avant tout run reel.",
+  "main": "lib/preflight.js",
+  "scripts": {
+    "preflight": "node bin/run-preflight.js",
+    "real-smoke": "node bin/run-real-smoke.js",
+    "test": "node test/test_t08_matrix.js",
+    "test:preflight": "node test/test_t08_preflight.js",
+    "test:v06": "node test/test_t08_v06_delegated_auth.js",
+    "test:worker": "node worker/evidenceforge-llm-proxy/test/worker.test.js"
+  }
+}

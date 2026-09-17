@@ -1,0 +1,1 @@
+5d3e7fc5eeaa7d146d78da5a61c59c8c83e7708e13585a53074e21719f158e5f  src/sample-module.js

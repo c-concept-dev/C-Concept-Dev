@@ -1,0 +1,14 @@
+PASS — T08-RUNNER-01. runner refuse un endpoint localhost en mode REAL_SMOKE (fail-closed)
+PASS — T08-RUNNER-02. runner refuse un endpoint contenant synthetic en mode REAL_SMOKE
+PASS — T08-RUNNER-03. runner accepte les vrais endpoints par defaut
+PASS — T08-RUNNER-04. coherence readyForExecution vs references non resolues (jamais true avec une reference bloquee, jamais false sans motif documente)
+PASS — T08-RUNNER-05a. mission-gate (bin/run-real-smoke.js::missionGateStatus) bloque reellement une mission synthetique incomplete
+PASS — T08-RUNNER-05b. mission-gate reste MISSION_NOT_READY si readyForExecution=true mais eForchProvenance absent (jamais un PASS premature avant OPERATOR_INPUT_REQUIRED tardif)
+PASS — T08-RUNNER-05b2. mission-gate accepte une mission synthetique complete AVEC eForchProvenance structurellement valide
+PASS — T08-RUNNER-05c. extractDocumentPayloads refuse (fail-closed) un document VERIFIED sans contenu reel fourni, jamais un contenu invente
+PASS — T08-RUNNER-05d. extractDocumentPayloads ignore silencieusement (jamais ne fabrique) un document encore OPERATOR_INPUT_REQUIRED
+PASS — T08-RUNNER-06. lib/frozen-zip-integrity.js ne depend d'aucun module reseau (http/https)
+
+TOUS LES TESTS PASSENT (10)
+
+(Rappel : ces resultats sont LOCAL_CONTROLLED - ils valident le RUNNER, jamais le Real Smoke lui-meme. Voir test_t08_eforch.js pour la preuve du happy path READY complet.)

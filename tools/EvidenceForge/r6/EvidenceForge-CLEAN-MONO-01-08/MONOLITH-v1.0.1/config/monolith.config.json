@@ -1,0 +1,68 @@
+{
+  "$comment": "EvidenceForge MONOLITH v1.0 — configuration d'exploitation. AUCUN SECRET ICI : les identifiants viennent de l'environnement (EVIDENCEFORGE_WORKER_API_KEY, LLM_WORKER_BASE_URL, LLM_AUTH_MODE). Les chemins sont relatifs a la racine du bundle sauf indication.",
+  "product": {
+    "name": "EvidenceForge",
+    "version": "MONOLITH-v1.0.1"
+  },
+  "bundleRoot": "..",
+  "frozenLots": {
+    "MONO-10": {
+      "dir": "MONO-10/v0.19",
+      "seal": "SHA256SUMS.txt",
+      "canonicalZip": "MONO-10/EvidenceForge-MONO10-SCIENTIFIC-QUALIFICATION-v0.19.zip",
+      "canonicalZipSha256": "f5a4165414f4aacc32f48f50eb14d59c87a09e3f138e24f8bd14b956972c2e04"
+    },
+    "MONO-11": {
+      "dir": "MONO-11/v0.2",
+      "seal": "SHA256SUMS.txt",
+      "canonicalZip": "MONO-11/EvidenceForge-MONO11-AUTONOMOUS-PANEL-v0.2.zip",
+      "canonicalZipSha256": "5c208cbbd13231e732fe20475347f9f7cbe6f890f3ce4823581093c7eba60005"
+    },
+    "MONO-09": {
+      "dir": "MONO-09/v0.2",
+      "seal": "SHA256SUMS.txt"
+    },
+    "MONO-01": {
+      "dir": "MONO-01",
+      "seal": "manifest/SHA256SUMS"
+    }
+  },
+  "operatorKit": {
+    "ef01bRoot": "../../../EF-01B-v0.2-r2",
+    "ef01c1Root": "../../../EF-01C1-v0.2-r2",
+    "$comment": "EF-01B/EF-01C1 v0.2-r2 : resolveur de disciplines et planificateur de recherche (kit d'exploitation, hors bundle) ; les coeurs r1.3 sont vendored dans vendor/operator-kit-r1.3"
+  },
+  "runsRoot": "./runs",
+  "server": {
+    "host": "127.0.0.1",
+    "port": 8765
+  },
+  "llm": {
+    "model": "claude-opus-4-8",
+    "minSpacingMs": 1500,
+    "maxAttemptsOnCapacity": 8,
+    "reviewMaxPasses": 3,
+    "coverageMaxPasses": 3,
+    "timeoutMs": 180000,
+    "kitMaxAttempts": 3
+  },
+  "openalex": {
+    "userAgent": "EvidenceForge-MONOLITH-v1.0",
+    "perPage": 100,
+    "timeoutMs": 60000
+  },
+  "attestationValidityHours": 8,
+  "screening": {
+    "batchSize": 8,
+    "$comment": "screening machine par lots : preuve LLM structuree par source, ratifiee par l'utilisateur (contrat gele MONO-08 : acteur humain requis en REAL)",
+    "maxPasses": 3
+  },
+  "documents": {
+    "acceptedExtensions": [
+      ".txt",
+      ".md"
+    ],
+    "maxBytes": 2000000,
+    "$comment": "seuls les textes bruts sont lus tels quels ; aucun parseur PDF n'est embarque (limite declaree)"
+  }
+}

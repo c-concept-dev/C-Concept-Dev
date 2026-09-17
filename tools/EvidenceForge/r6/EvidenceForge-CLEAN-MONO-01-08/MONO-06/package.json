@@ -1,0 +1,11 @@
+{
+  "name": "evidenceforge-mono-06",
+  "version": "1.0.0",
+  "private": true,
+  "description": "EvidenceForge — MONO-06 — Frozen Regression Harness. Verifie automatiquement la coherence de MONO-00->05 + 7 lots historiques a partir des artefacts canoniques geles. Ne redefinit aucune logique metier, aucun contrat gele.",
+  "main": "lib/harness.js",
+  "scripts": {
+    "test": "node test/run-all.js",
+    "harness": "node bin/run-harness.js"
+  }
+}

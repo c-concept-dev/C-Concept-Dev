@@ -1,0 +1,117 @@
+
+=== test_t04_01_04_provider_secret_dependency.js ===
+PASS — T04-01a. createExternalExecutionGateway() sans providerRegistry -> échec immédiat
+PASS — T04-01b. createExternalExecutionGateway() sans secretProvider -> échec immédiat
+PASS — T04-01c. createMono04({}) sans providerConfigs -> échec immédiat
+PASS — T04-02. requête vers un provider non configuré -> PROVIDER_NOT_CONFIGURED, jamais un appel réseau tenté
+PASS — T04-03. secret requis absent -> SECRET_UNAVAILABLE, jamais un appel réseau tenté
+PASS — T04-04. createEnvSecretProvider() sur un environnement vide ne renvoie JAMAIS de secret par défaut (aucun fallback codé en dur)
+
+TOUS LES TESTS PASSENT (6)
+
+=== test_t04_05_11_http_server_scenarios.js ===
+PASS — T04-05. timeout appliqué (jamais une attente infinie), status EXTERNAL_TIMEOUT
+PASS — T04-06. échec réseau réel (port fermé) -> EXTERNAL_NETWORK_ERROR
+PASS — T04-07. HTTP 400 réel -> EXTERNAL_HTTP_ERROR, jamais un SUCCESS
+PASS — T04-07. HTTP 401 réel -> EXTERNAL_HTTP_ERROR, jamais un SUCCESS
+PASS — T04-07. HTTP 403 réel -> EXTERNAL_HTTP_ERROR, jamais un SUCCESS
+PASS — T04-07. HTTP 404 réel -> EXTERNAL_HTTP_ERROR, jamais un SUCCESS
+PASS — T04-07. HTTP 429 réel -> EXTERNAL_HTTP_ERROR, jamais un SUCCESS
+PASS — T04-07. HTTP 500 réel -> EXTERNAL_HTTP_ERROR, jamais un SUCCESS
+PASS — T04-08. page HTML retournée en 200 -> INVALID_EXTERNAL_RESPONSE, jamais un SUCCESS métier ou technique
+PASS — T04-09. JSON tronqué/malformé -> INVALID_EXTERNAL_RESPONSE
+PASS — T04-10. JSON valide 200 -> SUCCESS avec le contenu exact
+PASS — T04-11a. requiredResponseKeys satisfaites -> SUCCESS
+PASS — T04-11b. requiredResponseKeys non satisfaites -> INVALID_EXTERNAL_RESPONSE
+PASS — T04-11c. réponse dépassant maxResponseBytes -> INVALID_EXTERNAL_RESPONSE (garde de taille, T04-36)
+
+TOUS LES TESTS PASSENT (14)
+
+=== test_t04_12_14_retry.js ===
+PASS — T04-12. retryPolicy explicite respectée : le serveur (réellement en panne 2 fois) finit par réussir, résultat SUCCESS
+PASS — T04-13. exactement 3 tentatives réellement effectuées (jamais plus que maxAttempts), échec final EXTERNAL_RETRY_EXHAUSTED
+PASS — T04-14. maxAttempts=999999 demandé -> plafonné réellement à HARD_MAX_ATTEMPTS_CAP=5
+PASS — T04-14b. une erreur 400 (non transitoire) n'est jamais retentée, même avec maxAttempts=5
+
+TOUS LES TESTS PASSENT (4)
+
+=== test_t04_15_18_idempotence_redaction_payload.js ===
+PASS — T04-15a. deux appels CONCURRENTS avec le même requestId ne déclenchent qu'UN SEUL appel réseau réel
+PASS — T04-15b. un appel SÉQUENTIEL ultérieur avec le même requestId réutilise le résultat en cache (toujours un seul appel réseau)
+PASS — T04-15c. requestId manquant -> EXTERNAL_REQUEST_CONFLICT explicite
+PASS — T04-16. le secret réel n'apparaît JAMAIS en clair dans les logs techniques capturés
+PASS — T04-17. le header Authorization est explicitement redacté ([REDACTED]) dans le log de départ, jamais omis silencieusement
+PASS — T04-17b. le VRAI secret a bien été utilisé pour l'appel réel (le serveur l'a reçu), la redaction ne concerne QUE les logs
+PASS — T04-18a. le payload fourni par l'appelant n'est jamais modifié après l'appel (même référence, contenu identique)
+PASS — T04-18b. le serveur a bien reçu le payload EXACT, jamais réécrit en transit
+
+TOUS LES TESTS PASSENT (8)
+
+=== test_t04_19_23_ef02abc_adapter.js ===
+PASS — T04-19. l'adapter MONO-04 (technique, resultProvider injecté) fonctionne réellement à travers le VRAI ProfessionalPipelinePort
+PASS — T04-20. un adapter ne fournissant que discoverProfessionals ne rend JAMAIS verifyProfessionals disponible, les 3 étapes restent strictement séparées
+PASS — T04-21. sortie EF-02A non conforme (via un adapter MONO-04 réel) -> rejetée par MONO-01.x, jamais un SUCCESS
+PASS — T04-22. sortie EF-02B non conforme -> rejetée par MONO-01.x, jamais un SUCCESS
+PASS — T04-23. sortie EF-02C non conforme -> rejetée par MONO-01.x, jamais un SUCCESS
+
+TOUS LES TESTS PASSENT (5)
+
+=== test_t04_24_28_classification_no_bypass.js ===
+PASS — T04-24. EF-01B/EF-01C1 restent INDIRECT_UPSTREAM (jamais aplati en DIRECT_RUNTIME ni en booléen) — MONO-04 n'a rien reclassifié
+PASS — T04-25. EF-01C2 (OpenAlex/Crossref/PubMed) reste DIRECT_RUNTIME, exactement comme déjà gelé dans MONO-01.x
+PASS — T04-26. le module gelé EF-02D1D2Orchestrator expose bien le point d'injection workerCallFn déjà connu — MONO-04 s'y branche sans le modifier
+PASS — T04-26b. le workerCallFn technique MONO-04 retourne un texte exploitable tel quel par le module gelé (aucune interprétation ajoutée)
+PASS — T04-27. ef-03b-review-runner-v1.js (gelé) utilise bien workerCallFn(prompt) -> string comme point d'injection — MONO-04 ne fait que router vers ce point déjà existant, jamais un nouveau
+PASS — T04-28. aucun fichier lib/ de MONO-04 ne require() directement un module métier gelé ni un port MONO-01.x — seuls les fichiers internes de lib/ sont requis entre eux
+
+TOUS LES TESTS PASSENT (6)
+
+=== test_t04_29_31_static_search.js ===
+PASS — T04-29. aucun fichier de lib/ ou index.js ne contient fuzzy/similarity/smartRepair/autoRepair
+PASS — T04-30. aucune référence à un pilote/mission nommé en dur (JMJS, S01/S02, DIMS)
+PASS — T04-31. aucune notion épistémique inventée (truthScore/majority/prestige/vote/consensus/expertScore/scientificValidity=true)
+
+TOUS LES TESTS PASSENT (3)
+
+=== test_t04_32_38_persistence_diagnostics_secrets.js ===
+PASS — T04-32. aucun fichier lib/ de MONO-04 ne réimplémente ArtifactStore/RunStore/RunState (MONO-03 reste l'unique persistance métier)
+PASS — T04-33. un ExternalExecutionResult FAILED (avec erreur imbriquée EXTERNAL_RETRY_EXHAUSTED->lastError) reste entièrement sérialisable en JSON
+PASS — T04-34. deux requestId DIFFÉRENTS déclenchent bien deux appels réseau distincts (le cache d'idempotence ne sur-généralise jamais)
+PASS — T04-35. une config provider est gelée (Object.freeze) — toute tentative de mutation ne change JAMAIS la config réelle
+PASS — T04-36. une limite de taille par DÉFAUT existe et est appliquée même sans maxResponseBytes explicite (voir T04-11c pour le déclenchement réel)
+PASS — T04-37. le résultat sérialisé ne contient jamais la valeur d'un secret réel, seulement des noms/codes techniques
+PASS — T04-38. aucun secret ressemblant à une vraie clé (sk-..., AKIA..., clé privée PEM) dans lib/contracts/reports
+
+TOUS LES TESTS PASSENT (7)
+
+=== test_t04_39_41_nonregression.js ===
+PASS — T04-39. suite MONO-01.x imbriquée rejouée depuis MONO-04 : 172 tests, "AUCUNE REGRESSION" confirmé
+PASS — T04-40. suite MONO-02 imbriquée rejouée depuis MONO-04 : 334 tests, "AUCUNE REGRESSION" confirmé
+PASS — T04-41. suite MONO-03 imbriquée rejouée depuis MONO-04 : 64 tests, "AUCUNE REGRESSION" confirmé
+
+TOUS LES TESTS PASSENT (3)
+
+=== test_t04_cb_circuit_breaker.js ===
+PASS — T04-CB-01. 3 échecs consécutifs réellement observés par le serveur
+PASS — T04-CB-02. après le seuil, un nouvel appel échoue IMMÉDIATEMENT (EXTERNAL_DEPENDENCY_UNAVAILABLE) SANS toucher le réseau
+PASS — T04-CB-03. après le cool-down, le circuit se referme : un nouvel appel RÉEL est retenté (échec normal, pas EXTERNAL_DEPENDENCY_UNAVAILABLE immédiat)
+
+TOUS LES TESTS PASSENT (3)
+
+=== test_t04_idempotence_conflict_01_07.js ===
+PASS — T04-IDEMPOTENCE-CONFLICT-01. même requestId + même requête -> un seul appel réseau réel, résultat identique réutilisé
+PASS — T04-IDEMPOTENCE-CONFLICT-02. même requestId + payload DIFFÉRENT -> EXTERNAL_REQUEST_CONFLICT explicite, jamais une réutilisation silencieuse (bug rapporté)
+PASS — T04-IDEMPOTENCE-CONFLICT-03. même requestId + provider DIFFÉRENT -> conflit
+PASS — T04-IDEMPOTENCE-CONFLICT-04. même requestId + operation DIFFÉRENTE -> conflit
+PASS — T04-IDEMPOTENCE-CONFLICT-05. même requestId + runId/nodeId/moduleId différent (chacun testé isolément) -> conflit à chaque fois, jamais un second appel réseau
+PASS — T04-IDEMPOTENCE-CONFLICT-06. ordre différent des clés JSON, contenu sémantiquement identique -> même fingerprint, PAS de faux conflit
+PASS — T04-IDEMPOTENCE-CONFLICT-06b. computeRequestFingerprint() lui-même produit une empreinte identique indépendamment de l'ordre des clés
+PASS — T04-IDEMPOTENCE-CONFLICT-07a. le fingerprint calculé ne contient jamais la valeur du secret réel
+PASS — T04-IDEMPOTENCE-CONFLICT-07b. aucun log capturé ne contient le secret réel
+PASS — T04-IDEMPOTENCE-CONFLICT-07c. le payload de l'appelant n'est jamais modifié par le calcul du fingerprint
+
+TOUS LES TESTS PASSENT (10)
+
+============================================
+TOTAL CUMULE : 69 tests
+AUCUNE REGRESSION

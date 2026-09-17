@@ -1,0 +1,90 @@
+{
+  "schema": "MONO-07.E2ETrace",
+  "version": "v1",
+  "scenarioId": "T07-E2E-HAPPY",
+  "runId": "mono07-trace-happy-r3-001",
+  "baseline": "R3",
+  "nodeSequence": [
+    "EF-ORCH-SUBSYSTEM",
+    "EF-PR-GEN-01",
+    "EF-02A",
+    "TARGET_DOCUMENT_SET",
+    "EF-02B",
+    "EF-02C",
+    "EF-02D",
+    "EF-02E",
+    "EF-03A",
+    "EF-03B",
+    "EF-03C",
+    "EF-03D",
+    "EF-04-LINEAGE",
+    "EF-04A"
+  ],
+  "nodeStates": {
+    "EF-ORCH-SUBSYSTEM": "SUCCESS",
+    "EF-PR-GEN-01": "SUCCESS",
+    "EF-02A": "SUCCESS",
+    "EF-02B": "SUCCESS",
+    "EF-02C": "SUCCESS",
+    "EF-02D": "SUCCESS",
+    "EF-02E": "SUCCESS",
+    "TARGET_DOCUMENT_SET": "SUCCESS",
+    "EF-03A": "SUCCESS",
+    "EF-03B": "SUCCESS",
+    "EF-03C": "SUCCESS",
+    "EF-03D": "SUCCESS",
+    "EF-04-LINEAGE": "SUCCESS",
+    "EF-04A": "SUCCESS"
+  },
+  "attemptCounts": {
+    "EF-ORCH-SUBSYSTEM": 1,
+    "EF-PR-GEN-01": 1,
+    "EF-02A": 1,
+    "EF-02B": 1,
+    "EF-02C": 1,
+    "EF-02D": 1,
+    "EF-02E": 1,
+    "TARGET_DOCUMENT_SET": 1,
+    "EF-03A": 1,
+    "EF-03B": 1,
+    "EF-03C": 1,
+    "EF-03D": 1,
+    "EF-04-LINEAGE": 1,
+    "EF-04A": 1
+  },
+  "inputArtifactRefs": {},
+  "outputArtifactRefs": {
+    "EF-ORCH-SUBSYSTEM": "d4b4f9ae45d4fc508c55acdec1ce6ef82a96249531eccc1f407492d64a251141",
+    "EF-PR-GEN-01": "77a5a4a541ea813311cd2ccbab44f1853cc3080c69d08a497251067db8dd9999",
+    "EF-02A": "fd2e1846096bbb2a83ac39243d427481284bb325fa2265825b11925ba08afa83",
+    "TARGET_DOCUMENT_SET": "08e9cfd9ce400ad0e1826965864cb8dce64c835b40fc1f5439e73c86275e5cae",
+    "EF-02B": "df59466af9ebaa6c5cb7bfa29b31d2437531a2479e6f97a74f427fd20d61ff92",
+    "EF-02C": "a06dce0ceb2ed9c9e5bb2fe29081eb07bf01ef3244ea3f53954ba3cd6f027b30",
+    "EF-02D": "185140f78c9659f412ff911df720c3d025d745283b976bef754fb1fa389621dd",
+    "EF-02E": "85ca9c0149d0e6455e78d75318bebee805569e2a8400584728f234cea366e770",
+    "EF-03A": "0a139939d3030756c477da944db42156ffc30cd68107bba13d4b25ca7fa2f7ab",
+    "EF-03B": "7642fcdbaf265bd79f44f2e4481474488205133ceb6c895b08bbb48bd7b439da",
+    "EF-03C": "4147fdf454cbd415b34e2ae1d54a12f706b4ded4a3a869b1d3f7a62bbc75def3",
+    "EF-03D": "3e53126a9b91a72c68fab8bc2d51a58ee9ec6990b24a18c35170ca152aee6986",
+    "EF-04-LINEAGE": "0523401df8f9a4f2018775aa63aa3b899d22cdb2e157067ed31dd438efcd755e",
+    "EF-04A": "b498832bef1499d8d28b7e6ad0af75e514f6df5a26068e9d0dbbdc0dacd0c0fc"
+  },
+  "externalCalls": {
+    "openAlexProvider": "openalex-success",
+    "workerProvider": "worker-success"
+  },
+  "resumeEvents": [],
+  "failureEvents": [],
+  "lineageResult": {
+    "status": "PASS"
+  },
+  "finalReportRef": "b498832bef1499d8d28b7e6ad0af75e514f6df5a26068e9d0dbbdc0dacd0c0fc",
+  "browserScenarioResults": {
+    "T07-37a": "PASS (8/8 assertions happy browser)",
+    "T07-37b": "PASS (lineage FAIL browser)",
+    "T07-37c": "PASS (lineage STALE browser)",
+    "T07-37d": "PASS (double-clic, 1 seul artefact)",
+    "T07-37e_f_g": "PASS (0 fuite secret DOM/localStorage/sessionStorage)",
+    "T07-37h": "PASS (aucune erreur console/page/requete)"
+  }
+}

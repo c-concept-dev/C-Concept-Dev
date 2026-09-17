@@ -1,0 +1,20 @@
+PASS — BACKEND-01. get() depuis une seconde instance (meme dossier) restitue la valeur ecrite par la premiere
+PASS — BACKEND-02. has() vrai apres put(), faux pour une cle absente
+PASS — BACKEND-03. keys() retourne la cle reellement ecrite
+PASS — BACKEND-04. delete() reellement visible depuis l'autre instance (get() -> undefined)
+PASS — BACKEND-05. bindingType != IN_MEMORY_TEST_ONLY (backend de production nomme)
+PASS — T-NEW-01a. processus A (pid distinct, sous-processus reellement spawn) termine avec exit code 0
+PASS — T-NEW-01b. processus A a fait progresser EF-ORCH-SUBSYSTEM a SUCCESS et AUCUN autre noeud execute (etat partiel volontaire)
+PASS — T-NEW-01c. processus A a un pid different du processus de test courant
+PASS — T-NEW-01d. le dossier durable MONO-03 existe reellement sur disque apres la sortie du processus A
+PASS — T-NEW-01e. processus B (pid distinct de A ET du processus de test) termine avec exit code 0
+PASS — T-NEW-02a. processus B a un pid different de A (deux OS process reellement distincts, jamais simules)
+PASS — T-NEW-03. processus B a reellement rehydrate et termine le run a 14/14 SUCCESS, en lisant SEULEMENT le disque
+
+TOUS LES TESTS PASSENT (12)
+
+CROSS_PROCESS = PASS
+Support durable utilise : FILE_DURABLE (fichiers JSON individuels, ecriture atomique temp+rename) — lib/file-durable-backend.js, dossiers :
+  EF-ORCH : /tmp/mono08-cross-process-1788446177990-mwlj7n/durable-eforch
+  MONO-03 : /tmp/mono08-cross-process-1788446177990-mwlj7n/durable-mono03
+Processus A pid=2878 (exit 0) ; Processus B pid=2889 (exit 0).

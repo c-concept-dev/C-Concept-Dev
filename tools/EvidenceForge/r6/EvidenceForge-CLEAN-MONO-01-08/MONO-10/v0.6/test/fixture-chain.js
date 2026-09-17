@@ -1,0 +1,211 @@
+"use strict";
+/**
+ * MONO-10 v0.6 — test/fixture-chain.js
+ *
+ * Traverse le VRAI chemin : frontieres operateur (confiance, acceptation, acte
+ * humain, capacite LLM), registre append-only authentifie, adaptateur a porte
+ * livre, recalcul d'eligibilite au sink.
+ *
+ * Aucun reseau, aucun LLM reel, aucun run EF-02, aucun acte humain reel.
+ */
+const os = require("os"), fs = require("fs"), path = require("path"), crypto = require("crypto");
+const C = "../core/";
+const { sha256Of } = require(C + "canonical.js");
+const OTB = require(C + "operator-trust-boundary.js");
+const OTV = require(C + "operator-trust-verifier.js");
+const RA = require(C + "runtime-attestation.js");
+const RM = require(C + "run-evidence-manifest.js");
+const AAR = require(C + "authenticated-artifact-registry.js");
+const LIN = require(C + "lineage.js");
+const ESP = require(C + "evidence-source-provenance.js");
+const CA = require(C + "candidate-assessment.js");
+const PG = require(C + "panel-gate.js");
+const PGA = require(C + "panel-gated-adapter.js");
+const LC = require(C + "llm-capability.js");
+const SR = require(C + "scientific-readiness.js");
+const SQ = require(C + "scientific-qualification.js");
+const SUR = require(C + "scientific-unified-report.js");
+const FRA = require(C + "final-report-acceptance.js");
+const DA = require(C + "downstream-authorization.js");
+const HA = require(C + "human-act.js");
+const HAP = require(C + "human-act-proof.js");
+const HAB = require(C + "operator-human-auth-boundary.js");
+const OP = require("../tools/operator-provisioning.js");
+
+const R = LIN.RELATION;
+const now = () => new Date().toISOString();
+const TRANSPORT_REF = path.resolve(__dirname, "..", "tools", "reference-llm-transport.js");
+
+/** Geste d'EXPLOITATION : ecrire la configuration hors du processus appelant. */
+function provisionOperator(o) {
+  o = o || {};
+  const dir = o.dir || fs.mkdtempSync(path.join(os.tmpdir(), "ef6-operator-"));
+  const ns = o.namespace || "PRODUCTION";
+  const auth = o.authority || OP.mintOperatorAuthority({ authorityId: o.authorityId || ("AUT-" + ns + "-" + crypto.randomBytes(3).toString("hex")), namespace: ns });
+  const registryPath = path.join(dir, "actors.json");
+  const actProofSecret = o.actProofSecret || crypto.randomBytes(32).toString("hex");
+  OP.writeHumanActorRegistry(registryPath, o.actors || [{ actorIdentity: "auditeur-panel", status: "ACTIVE", actProofSecret: actProofSecret }]);
+  const cfg = {
+    operatorTrustBoundaryId: o.boundaryId || ("otb-" + ns.toLowerCase() + "-" + crypto.randomBytes(3).toString("hex")),
+    namespace: ns,
+    authorities: [{ authorityId: auth.authorityId, keys: o.keys || [auth.keyRecord()] }],
+    replayProtection: o.replayProtection || { kind: "FILE", directory: path.join(dir, "nonces"), authorityScope: [auth.authorityId] },
+    humanAuth: o.humanAuth || (ns === "PRODUCTION" ? { kind: "OPERATOR_ACT_PROOF", registryPath: registryPath } : { kind: "TEST_FIXTURE" }),
+    llmCapability: o.llmCapability || (ns === "PRODUCTION"
+      ? { kind: "OPERATOR_TRANSPORT", transportModuleRef: TRANSPORT_REF }
+      : { kind: "TEST_TRANSPORT", transportModuleRef: TRANSPORT_REF }),
+    acceptance: o.acceptance || {},
+  };
+  const cfgPath = path.join(dir, "trust.json");
+  OP.writeOperatorTrustConfig(cfgPath, cfg);
+  return { dir, cfgPath, authority: auth, namespace: ns, registryPath, actProofSecret, cfg };
+}
+
+function boundaryFor(op) {
+  if (op.namespace === "PRODUCTION") {
+    const prev = process.env[OTB.ENV_VAR];
+    process.env[OTB.ENV_VAR] = op.cfgPath;
+    try { return OTB.provisionProductionTrustBoundary(); }
+    finally { if (prev === undefined) delete process.env[OTB.ENV_VAR]; else process.env[OTB.ENV_VAR] = prev; }
+  }
+  return OTB.provisionTestTrustBoundary(op.cfg);
+}
+
+const docRecord = (id, root, authRoot, famRoot, content) => ESP.makeDocumentaryEvidenceRecord({
+  evidenceId: id, sourceRootId: root, authorityRootId: authRoot, familyRootId: famRoot,
+  retrievedAt: now(), locator: "opaque:" + id, contentHash: content || sha256Of({ id }) });
+
+const candidate = (ref, labels) => ({
+  candidateRef: ref, displayName: "Personne " + ref, disciplines: labels, dimensionRef: labels[0],
+  identifiers: [{ type: "seconde-source", value: "src2:" + ref, subjectBinding: "CONFIRMED",
+    verificationStatus: "VERIFIED", confidenceContribution: 0.6, provenanceRefKey: "doc-b:" + ref }],
+  affiliations: [], candidateStatus: "SEED_CANDIDATE", provenanceRefKey: "doc-a:" + ref,
+  evidenceRefKeys: ["doc-a:" + ref, "doc-b:" + ref], provenance: [{ origin: "SEED" }],
+});
+
+async function buildChain(o) {
+  o = o || {};
+  const op = o.operator || provisionOperator({ namespace: o.mode || "PRODUCTION" });
+  const boundary = o.boundary || boundaryFor(op);
+  const verifier = o.verifier || OTV.createOperatorTrustVerifier(boundary);
+  const mode = boundary.namespace;
+  const missionId = o.missionId || "mission-integration";
+  const missionBinding = { missionId: missionId };
+  const missionHash = sha256Of(missionBinding);
+  const runId = o.runId || ("run-" + mode.toLowerCase() + "-" + sha256Of({ missionId, n: o.runSalt || 0 }).slice(0, 8));
+  const intent = { runId, missionHash, producerId: "MONO-10", producerVersion: "v0.6", executionMode: mode, openedAt: now() };
+  const attestation = o.attestation || op.authority.attest(intent);
+  const manifest = RM.openRunEvidenceManifest({ verifier, attestation, runIntent: intent, missionBinding, missionHash });
+  const ctxBase = { manifest, verifier, attestation };
+  const registry = AAR.openAuthenticatedArtifactRegistry(manifest, ctxBase);
+  const ctx = Object.assign({}, ctxBase, { artifactRegistry: registry });
+
+  const bind = (id, rel, art) => { const b = RM.bindArtifact(manifest, art, id, art.schema || rel); registry.register({ artifactId: id, relation: rel, artifact: b }); return registry.get(id).artifact; };
+  const mkProof = (actionType, decisionHash) => {
+    if (mode === "TEST") return null;
+    return OP.issueHumanActProof({ actorId: o.actorIdentity || "auditeur-panel", actionType, decisionHash,
+      runId, missionHash, mechanismRef: boundary.humanAuthMechanism.mechanismId, actProofSecret: op.actProofSecret });
+  };
+  const authMode = mode === "TEST" ? HAB.AUTHENTICATION.TEST_FIXTURE : undefined;
+
+  const mission = bind("mission", R.MISSION, { schema: "EvidenceForge.Mission", missionId, missionHash });
+  const cands = o.candidates || [candidate("c-1", ["libelle-alpha"]), candidate("c-2", ["libelle-alpha"]), candidate("c-3", ["libelle-alpha"])];
+  const docRefs = new Map();
+  cands.forEach(function (c, i) {
+    const a = bind("doc-a:" + c.candidateRef, R.DOCUMENTARY_EVIDENCE, docRecord("doc-a:" + c.candidateRef, "SRC-ROOT-A-" + i, "AUTH-ROOT-A-" + i, "FAM-ROOT-A"));
+    const b = bind("doc-b:" + c.candidateRef, R.DOCUMENTARY_EVIDENCE, docRecord("doc-b:" + c.candidateRef, "SRC-ROOT-B-" + i, "AUTH-ROOT-B-" + i, "FAM-ROOT-B"));
+    docRefs.set("doc-a:" + c.candidateRef, LIN.artifactRef(a, "doc-a:" + c.candidateRef, R.DOCUMENTARY_EVIDENCE));
+    docRefs.set("doc-b:" + c.candidateRef, LIN.artifactRef(b, "doc-b:" + c.candidateRef, R.DOCUMENTARY_EVIDENCE));
+  });
+  const resolved = cands.map((c) => Object.assign({}, c, {
+    provenanceRef: docRefs.get(c.provenanceRefKey) || null,
+    identifiers: (c.identifiers || []).map((x) => Object.assign({}, x, { provenanceRef: docRefs.get(x.provenanceRefKey) || null })),
+    evidenceRefs: (c.evidenceRefKeys || []).map((k) => docRefs.get(k)).filter(Boolean) }));
+
+  const discovery = bind("professional-discovery", R.DISCOVERY, { schema: "EvidenceForge.ProfessionalDiscovery", schemaVersion: "EF-02A", missionId, candidates: resolved });
+  const verification = bind("professional-verification", R.VERIFICATION, { schema: "EvidenceForge.ProfessionalVerification", schemaVersion: "EF-02B", missionId,
+    verified: resolved.map((c, i) => ({ candidateRef: c.candidateRef, displayName: c.displayName, verificationStatus: i === 0 ? "UNVERIFIED" : "VERIFIED" })) });
+
+  const assessment = bind("candidate-assessment", R.ASSESSMENT, CA.assessCandidates({ discovery, verification,
+    missionLabels: o.missionLabels || ["libelle-alpha"], runId, missionHash,
+    attestationHash: manifest.runtimeAttestationHash, artifactRegistry: registry,
+    discoveryArtifactId: "professional-discovery", verificationArtifactId: "professional-verification" }));
+
+  const tpl = PG.buildPanelValidationTemplate(assessment);
+  const decisions = o.decisions || { "c-1": PG.DECISION.APPROVE, "c-2": PG.DECISION.APPROVE, "c-3": PG.DECISION.DEFER };
+  const assessById = new Map(); (assessment.assessments || []).forEach((a) => assessById.set(a.candidateId, a));
+  const validation = bind("panel-validation", R.PANEL_DECISION, Object.assign({}, tpl, {
+    decisions: tpl.decisions.map(function (d) {
+      const dec = decisions[d.candidateId];
+      const dh = PG.panelDecisionHash(assessment, assessById.get(d.candidateId), dec);
+      return Object.assign({}, d, { decision: dec, decisionReason: "motif consigne pour " + d.candidateId,
+        actorType: "human", actorIdentity: o.actorIdentity || "auditeur-panel", decidedAt: now(),
+        authenticationMode: authMode, decisionHash: dh,
+        humanActProof: mkProof(HAP.ACTION_TYPE.PANEL_DECISION, dh) });
+    }) }));
+
+  const baseAdapter = o.baseAdapter || {
+    async discoverProfessionals() { return discovery; },
+    async verifyProfessionals() { return Object.assign({}, verification, { summary: { total: verification.verified.length } }); },
+    async buildProfessionalCorpus(inputs) {
+      return { schema: "EvidenceForge.ProfessionalCorpusSet", missionId,
+        professionalCorpora: inputs.professionalVerification.verified.map((v) => ({ professionalRef: v.candidateRef, works: ["oeuvre-1"] })) };
+    },
+  };
+  const gated = PGA.createPanelGatedAdapter(baseAdapter, { panelValidation: validation, candidateAssessment: assessment, runContext: ctx });
+
+  return {
+    op, boundary, verifier, attestation, manifest, ctx, registry, intent, runId, missionId, missionHash, mode,
+    mission, discovery, verification, assessment, validation, gated, docRefs, bind, mkProof, authMode,
+    async complete() {
+      const verified = await gated.verifyProfessionals({}, {});
+      const eligibility = bind("effective-eligibility", R.EFFECTIVE_ELIGIBILITY, { schema: "EvidenceForge.EffectiveCorpusEligibilitySet", missionId,
+        entries: verified.verified.map((v) => ({ candidateId: v.candidateRef, effectiveCorpusEligibility: v.effectiveCorpusEligibility })) });
+      const corpus = bind("professional-corpus", R.CORPUS, await gated.buildProfessionalCorpus({ professionalVerification: verified }, {}));
+      const twinSet = bind("twin-set", R.TWINS, { schema: "EvidenceForge.DocumentaryTwinSet", twins: corpus.professionalCorpora.map((p) => ({ twinRef: "twin-" + p.professionalRef, professionalRef: p.professionalRef })) });
+      const reviewSet = bind("review-set", R.REVIEWS, { schema: "EvidenceForge.ReviewSet", reviews: twinSet.twins.map((t) => ({ reviewRef: "review-" + t.twinRef, twinRef: t.twinRef, reviewStatus: "complete" })), summary: { targets: 1 } });
+      const aggregation = bind("aggregation", R.AGGREGATION, { schema: "EvidenceForge.Aggregation", aggregates: [{ aggregateRef: "agg-1" }] });
+      const llmConfig = { providerId: "prov-fixture", modelId: "mod-fixture", workerBindingId: "bind-fixture", credentialPresent: true, runId: runId };
+      const capability = bind("llm-capability", R.CAPABILITY, await LC.runActiveProbe(llmConfig, ctx));
+
+      const refsOf = () => registry.entries().map((e) => LIN.artifactRef(registry.get(e.artifactId).artifact, e.artifactId, e.relation));
+      let lineageRefs = refsOf();
+      const sources = { runContext: ctx, candidateAssessment: assessment, panelValidation: validation,
+        llmCapability: capability, llmConfig, professionalCorpus: corpus, twinSet, reviewSet, aggregation,
+        lineageRefs, artifactRegistry: registry };
+      const pre = bind("readiness-pre", R.READINESS_PRE, SR.evaluateReadiness(Object.assign({ phase: "PRE" }, sources)));
+      const full = bind("readiness-full", R.READINESS_FULL, SR.evaluateReadiness(Object.assign({ phase: "FULL" }, sources)));
+      const lineageRefs2 = refsOf();
+      const sources2 = Object.assign({}, sources, { lineageRefs: lineageRefs2,
+        readinessLineageRefs: lineageRefs, readinessArtifactRegistry: registry, readinessPre: pre, readinessFull: full });
+
+      const qualification = bind("scientific-qualification", R.QUALIFICATION, SQ.qualifyProcess(sources2));
+      const priorReport = { schema: "EvidenceForge.PriorUnifiedReport", mission: { missionId },
+        testStatus: { scientificValidity: false, testMode: true, humanProfessionalValidation: false } };
+      const report = bind("scientific-unified-report", R.REPORT, SUR.buildScientificUnifiedReport(Object.assign({}, sources2,
+        { priorReport, qualification, priorVerdict: { verdictRef: "verdict-anterieur-1" } })));
+
+      const accTpl = FRA.buildAcceptanceTemplate(report);
+      const accDecision = o.acceptanceDecision || FRA.DECISION.ACCEPT;
+      const accHash = FRA.acceptanceDecisionHash(report, accDecision);
+      const acceptance = bind("final-report-acceptance", R.ACCEPTANCE, Object.assign({}, accTpl, {
+        decision: accDecision, actorType: "human", actorIdentity: o.actorIdentity || "auditeur-panel",
+        decidedAt: now(), authenticationMode: authMode, decisionHash: accHash,
+        humanActProof: mkProof(HAP.ACTION_TYPE.REPORT_ACCEPTANCE, accHash),
+        reservationsAcknowledged: accTpl.reservationsPresented.slice() }));
+
+      const authRefs = [LIN.artifactRef(qualification, "scientific-qualification", R.QUALIFICATION),
+        LIN.artifactRef(report, "scientific-unified-report", R.REPORT),
+        LIN.artifactRef(acceptance, "final-report-acceptance", R.ACCEPTANCE)];
+      const authorization = DA.resolveDownstreamUseAuthorization({ runContext: ctx, qualification,
+        qualificationSources: sources2, report, acceptance, lineageRefs: authRefs, artifactRegistry: registry, policy: o.policy });
+
+      return { mission, discovery, verification, assessment, validation, verified, eligibility, corpus, twinSet,
+        reviewSet, aggregation, capability, llmConfig, registry, lineageRefs: lineageRefs2, authRefs,
+        sources: sources2, pre, full, qualification, priorReport, report, acceptance, authorization,
+        ctx, manifest, attestation, verifier, boundary, op, bind, docRefs, mkProof, intent, runId, missionHash };
+    },
+  };
+}
+
+module.exports = { buildChain, provisionOperator, boundaryFor, candidate, docRecord, now, TRANSPORT_REF };

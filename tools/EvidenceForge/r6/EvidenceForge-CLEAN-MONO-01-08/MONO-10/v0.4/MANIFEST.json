@@ -1,0 +1,296 @@
+{
+  "lot": "MONO-10-v0.4",
+  "title": "Racine de confiance et authentification des preuves",
+  "status": "SUCCESSEUR — soumis a double audit independant",
+  "supersedes": "MONO-10 v0.3 (HISTORIQUE, NON_GELABLE)",
+  "historicalImmutableLots": [
+    "MONO-01..MONO-09",
+    "MONO-10 v0.1",
+    "MONO-10 v0.2",
+    "MONO-10 v0.3"
+  ],
+  "frozenLotsModified": [],
+  "architecturalDecision": "Une chaine coherente n est pas une preuve de production. La racine de confiance est EXTERIEURE a la chaine.",
+  "closesV03Blockers": [
+    "B-1",
+    "B-2",
+    "B-3",
+    "B-4",
+    "B-5",
+    "B-6",
+    "B-7",
+    "B-8"
+  ],
+  "closesMandateSections": [
+    "§0",
+    "§1",
+    "§2",
+    "§3",
+    "§4",
+    "§5",
+    "§6",
+    "§7",
+    "§8",
+    "§9",
+    "§10",
+    "§11",
+    "§12",
+    "§13",
+    "§14",
+    "§15",
+    "§16",
+    "§17",
+    "§18",
+    "§19",
+    "§20",
+    "§21",
+    "§22",
+    "§23",
+    "§24",
+    "§25",
+    "§26",
+    "§27",
+    "§28",
+    "§29",
+    "§30"
+  ],
+  "signingMaterialInPackage": false,
+  "productionTrustAnchorsInPackage": false,
+  "governanceDocumentIncluded": {
+    "file": "governance/EvidenceForge-CHARTE-IDENTITE-ADN-GOUVERNANCE.md",
+    "sha256": "b4c160d008c33dd338979afd247945fee8dab862c96e0d1f2841c9ad87596a85",
+    "note": "copie conforme fournie par le proprietaire ; jamais redigee ni completee par l implementeur"
+  },
+  "executionEvidence": {
+    "NETWORK_CALLS": 0,
+    "REAL_LLM_CALLS": 0,
+    "REAL_EF02_RUNS": 0,
+    "REAL_PROFESSIONAL_RUNS": 0,
+    "note": "Toutes les preuves sont des fixtures assumees. Les autorites de test sont ephemeres et generees en memoire."
+  },
+  "tests": {
+    "adversarial": {
+      "file": "test/test-mono10-v0.4.js",
+      "checks": 82,
+      "failures": 0,
+      "mutationsCaught": 24,
+      "mutationsTotal": 24
+    },
+    "integration": {
+      "file": "test/test-mono10-v0.4-integration.js",
+      "checks": 17,
+      "failures": 0
+    }
+  },
+  "knownLimitations": [
+    "compromission de la cle privee de production",
+    "hote entierement compromis",
+    "jeu d ancrages falsifie",
+    "registre d autorites d identite inexact",
+    "mecanisme d authentification humaine injecte defaillant"
+  ],
+  "generatedAt": "2026-09-12T07:49:13.094Z",
+  "fileCount": 40,
+  "files": [
+    {
+      "file": "ARCHITECTURE.md",
+      "size": 4822,
+      "sha256": "b0675f87d0eebccae06fea0b8ae8e6c471191eb0ba7832e56dbc459e29779072"
+    },
+    {
+      "file": "AUDIT-REMEDIATION-MATRIX.md",
+      "size": 5137,
+      "sha256": "08260c2c58004d3d10cd66d2091e1d2ee3c704c2367467eae8d443f987d2dc23"
+    },
+    {
+      "file": "CONTRACT-MAPPING.md",
+      "size": 3767,
+      "sha256": "b22e5629d324fb31ed8e208f0f78aa4fddc6e430fac8d13e125295978a921bdf"
+    },
+    {
+      "file": "LINEAGE.md",
+      "size": 3747,
+      "sha256": "7cc49da6f6b66a671437bcc57ee9896547b3dec303b34020181d5b1d8b85c819"
+    },
+    {
+      "file": "MIGRATION-v0.3-v0.4.md",
+      "size": 4226,
+      "sha256": "09404bdfa2817c3cbccb6f851865db0dc54f4768f343917bde8cfeb2abd024d9"
+    },
+    {
+      "file": "NON-REGRESSION.md",
+      "size": 5502,
+      "sha256": "5dc43dc9b79bdc0f269ae3fc02e6967a28c074fec59a1228ec79935ba69f88d6"
+    },
+    {
+      "file": "README.md",
+      "size": 1789,
+      "sha256": "0aefa16badc269f27ee50c67d74cd9ba2012ad332a1285d360b879534aa932c5"
+    },
+    {
+      "file": "RUN-ORDER.md",
+      "size": 4454,
+      "sha256": "67405db6273bf7b6c317b9a86759957f9039a5d02e1275e05eb7019f23005375"
+    },
+    {
+      "file": "THREAT-MODEL.md",
+      "size": 5601,
+      "sha256": "7066a161055d8b34c0d17394d91ceb9e46f59b6adf7fc61e643b85afec66bac3"
+    },
+    {
+      "file": "TRUST-MODEL.md",
+      "size": 5106,
+      "sha256": "00d4b66133c3faa3c9ccc473b728f047b8bb2d0d57298a03fd033e740587e5c8"
+    },
+    {
+      "file": "adapters/README.md",
+      "size": 952,
+      "sha256": "5723ad7b4c37a03a35a77416fbe7290e85a8787aade1514fb5d59a9300159a65"
+    },
+    {
+      "file": "adapters/case-phase-adapter.js",
+      "size": 1314,
+      "sha256": "5867a683ab75c0daa8f983c8316e1dbfd6ea88b5f923f02215d717f8d6878013"
+    },
+    {
+      "file": "adapters/declared-authority-identity-adapter.js",
+      "size": 3024,
+      "sha256": "ef5199898362c0e761aa376ac0e7ce08d0ec242df83b9008f5e5a8ff02f72eab"
+    },
+    {
+      "file": "core/candidate-assessment.js",
+      "size": 10088,
+      "sha256": "e2663953d3a0b2e7f3bd5231e4d597c9b0eb61e9e1844aecb537e907ee2eb0ff"
+    },
+    {
+      "file": "core/canonical.js",
+      "size": 1660,
+      "sha256": "627d28a5625366f12c27241271ea622bcaa0842f66c1dcf0bb8abd2ffa443bfc"
+    },
+    {
+      "file": "core/downstream-authorization.js",
+      "size": 10811,
+      "sha256": "2bdad915de9e75cf0f3ebb2e5130a30e30843fe7ab65d7d3b5a6fa66333f42a0"
+    },
+    {
+      "file": "core/effective-eligibility.js",
+      "size": 4379,
+      "sha256": "0842b623fd3cd1793f9bbc754f652126f62bfefb42727eef125e7852a160b820"
+    },
+    {
+      "file": "core/final-report-acceptance.js",
+      "size": 7286,
+      "sha256": "5885b43a3a2c68c47cca79655fcc3304d9b4ab7a95400d4bd439a73bd151793e"
+    },
+    {
+      "file": "core/human-act.js",
+      "size": 5591,
+      "sha256": "e94ee5779bd512bd439a2d31ca5bdf857db1f95f4092b2eadb29329fe2d85893"
+    },
+    {
+      "file": "core/identity-evidence.js",
+      "size": 10871,
+      "sha256": "20ebe4ceada0fb10578cb6b64fc41a5e9dfeb5b23aa42bbab973f306e94a41a9"
+    },
+    {
+      "file": "core/lineage.js",
+      "size": 9516,
+      "sha256": "f9451fa615c3bf20cc491ad88f6479fd16ea8f1ff6baec74e730b7b903813f19"
+    },
+    {
+      "file": "core/llm-capability.js",
+      "size": 12590,
+      "sha256": "17fe34c18895d6bc53596e60d95285e84a77be93c334689d96de3383dc43a87c"
+    },
+    {
+      "file": "core/panel-gate.js",
+      "size": 11156,
+      "sha256": "ade1dc6e34d55c59d5d21efc00af5095a034b3aa06303ffd4790ef41ed5b0ae1"
+    },
+    {
+      "file": "core/panel-gated-adapter.js",
+      "size": 4770,
+      "sha256": "119f00299856532be54a821f1910503cba5483f67ffe8c6426872eb3dbf0ab03"
+    },
+    {
+      "file": "core/relevance.js",
+      "size": 4694,
+      "sha256": "dcb23aadb405499d8c8c5961cb273c2a60b73726fa7d0aef9d413f80f3bdb1ec"
+    },
+    {
+      "file": "core/run-evidence-manifest.js",
+      "size": 9007,
+      "sha256": "4d8b7c5925bfa4995280b5ee6236dcac0f9e56fc1cffc188b574d959c9cb04de"
+    },
+    {
+      "file": "core/scientific-qualification.js",
+      "size": 16592,
+      "sha256": "7f2c2f38539ce2bfbc8f967071df89c700201d8d763c127cd242203277e51078"
+    },
+    {
+      "file": "core/scientific-readiness.js",
+      "size": 13690,
+      "sha256": "f383c39300dabbac8b32dea7f2acd3f111c39bca29ad645e6649e040ee5c41ec"
+    },
+    {
+      "file": "core/scientific-unified-report.js",
+      "size": 9113,
+      "sha256": "3d4387f5b46db34b056cc9f66c584a9d7d79d78d3a1a20d2d8620ff252c6466b"
+    },
+    {
+      "file": "core/trusted-runtime-authority.js",
+      "size": 8344,
+      "sha256": "e64930615545b387e1f0451d9a1b7f47c0d1989382dd0175a43a477b602e1730"
+    },
+    {
+      "file": "core/unknowns.js",
+      "size": 10729,
+      "sha256": "3bd1aca529b13e32d5da6665760643271291823c0904b3c2eaaf63e57c10d5fa"
+    },
+    {
+      "file": "governance/EvidenceForge-CHARTE-IDENTITE-ADN-GOUVERNANCE.md",
+      "size": 24628,
+      "sha256": "b4c160d008c33dd338979afd247945fee8dab862c96e0d1f2841c9ad87596a85"
+    },
+    {
+      "file": "governance/README.md",
+      "size": 1466,
+      "sha256": "79bcbac989161160b856b82bdccda675ce5db5539f71b6f76a692007263196e7"
+    },
+    {
+      "file": "schemas/MONO-10-SCHEMAS-v0.4.json",
+      "size": 10753,
+      "sha256": "b8f0cf0b3326c4e7b49a64d14641fb9ba775ed2fac08eeb7601a391062b119fb"
+    },
+    {
+      "file": "test/fixture-chain.js",
+      "size": 13457,
+      "sha256": "e71bc7fb5e8593158168167894662e31a0052ea1aeb8939b688dc81b8ec20f35"
+    },
+    {
+      "file": "test/test-mono10-v0.4-integration.js",
+      "size": 7466,
+      "sha256": "962f21a88a995ef9f7487cb01aeeba78a8c55e65d772c74e26a6468f2ecf5805"
+    },
+    {
+      "file": "test/test-mono10-v0.4.js",
+      "size": 42355,
+      "sha256": "a664fae1010ae593aff23ad1ad5db18faa2f38a00d1e3b287d8baebf97f24ddd"
+    },
+    {
+      "file": "tools/aggregate-hash.js",
+      "size": 1746,
+      "sha256": "348c734ee5662022a3811be7cb6de7f1eb04e49744896937d970a7338092602a"
+    },
+    {
+      "file": "tools/ephemeral-authority.js",
+      "size": 3044,
+      "sha256": "ed66ea09a4edaf885ceba10e0e7a5d02b362ade1c2c34f4cff7e8a82e6e8d4dc"
+    },
+    {
+      "file": "validators/index.js",
+      "size": 3295,
+      "sha256": "475e4235b452951d9d70fd408f8e11131fe083f9f58b93d035b73c572d2e6648"
+    }
+  ]
+}

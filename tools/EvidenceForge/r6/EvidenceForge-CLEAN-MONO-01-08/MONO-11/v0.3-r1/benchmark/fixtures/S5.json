@@ -1,0 +1,137 @@
+{
+ "id": "S5",
+ "kind": "success",
+ "sourceRun": "run-H1",
+ "sourceRunId": "run-ea96107f2179",
+ "targetId": "target-01",
+ "acceptedPassHistorical": 1,
+ "document": {
+  "targetId": "target-01",
+  "role": "review_target_not_evidence",
+  "content": "Une bibliothèque municipale veut remplacer ses ateliers d'initiation numérique en présentiel par des tutoriels vidéo en ligne. Dire ce qui est étayé, discuté ou non établi quant à l'efficacité de ce remplacement pour les usagers peu à l'aise avec le numérique."
+ },
+ "twin": {
+  "twinId": "twin-fixture-S5",
+  "professionalRef": "fixture-S5",
+  "referenceIdentity": {
+   "displayName": "fixture S5"
+  },
+  "documentaryBasis": {
+   "worksUsed": [
+    {
+     "workRef": "Use of Intelligent Voice Assistants by Older Adults with Low Technology Use",
+     "citedForDimensions": [
+      "digital-literacy-studies",
+      "human-computer-interaction",
+      "sociology-of-digital-divide"
+     ]
+    },
+    {
+     "workRef": "https://doi.org/10.1145/3373759",
+     "citedForDimensions": [
+      "digital-literacy-studies",
+      "sociology-of-digital-divide"
+     ]
+    },
+    {
+     "workRef": "Investigating the Potential of Artificial Intelligence Powered Interfaces to Support Different Types of Memory for People with Dementia",
+     "citedForDimensions": [
+      "cognitive-science"
+     ]
+    },
+    {
+     "workRef": "https://doi.org/10.1145/3491101.3519858",
+     "citedForDimensions": [
+      "cognitive-science"
+     ]
+    },
+    {
+     "workRef": "'No, not that voice again!': Engaging Older Adults in Design of Anthropomorphic Voice Assistants",
+     "citedForDimensions": [
+      "human-computer-interaction"
+     ]
+    },
+    {
+     "workRef": "https://doi.org/10.1145/3711039",
+     "citedForDimensions": [
+      "human-computer-interaction"
+     ]
+    },
+    {
+     "workRef": "\"Accessibility Came by Accident\"",
+     "citedForDimensions": [
+      "human-computer-interaction"
+     ]
+    },
+    {
+     "workRef": "https://doi.org/10.1145/3173574.3174033",
+     "citedForDimensions": [
+      "human-computer-interaction"
+     ]
+    },
+    {
+     "workRef": "Understanding entangled human-technology-world relations: use of intelligent voice assistants by older adults",
+     "citedForDimensions": [
+      "library-information-science"
+     ]
+    },
+    {
+     "workRef": "https://doi.org/10.47989/ir30iconf47119",
+     "citedForDimensions": [
+      "library-information-science"
+     ]
+    },
+    {
+     "workRef": "Towards Designing for (Dis)Trust in Technologies for Aging",
+     "citedForDimensions": [
+      "gerontology-and-aging-studies"
+     ]
+    },
+    {
+     "workRef": "Examining Age-Bias and Stereotypes of Aging in LLMs",
+     "citedForDimensions": [
+      "gerontology-and-aging-studies"
+     ]
+    },
+    {
+     "workRef": "Crafting Remembrance Beyond the Self: Older Adults’ Digital and Material Legacies",
+     "citedForDimensions": [
+      "gerontology-and-aging-studies"
+     ]
+    },
+    {
+     "workRef": "Taking Stock of the Present and Future of Smart Technologies for Older Adults and Caregivers",
+     "citedForDimensions": [
+      "gerontology-and-aging-studies"
+     ]
+    }
+   ]
+  }
+ },
+ "dimensions": [
+  "digital-literacy-studies",
+  "educational-sciences",
+  "instructional-design",
+  "cognitive-science",
+  "human-computer-interaction",
+  "library-information-science",
+  "sociology-of-digital-divide",
+  "gerontology-and-aging-studies",
+  "andragogy"
+ ],
+ "passes": [
+  {
+   "pass": 1,
+   "informed": false,
+   "valid": true,
+   "errors": [],
+   "responseText": "{\"findings\":[\n{\"dimensionId\":\"digital-literacy-studies\",\"disposition\":\"gap\",\"epistemicStatus\":\"cautious_inference\",\"finding\":\"Le document interroge l'acquisition de compétences numériques par des usagers peu à l'aise, mais la base du twin ne permet d'éclairer que l'usage effectif de technologies par des publics à faible usage, pas le processus d'apprentissage de la littératie numérique lui-même.\",\"rationale\":\"Les travaux sur les utilisateurs à faible usage technologique touchent indirectement à l'appropriation numérique, mais aucun ne théorise la littératie comme processus d'apprentissage ni n'évalue un format vidéo comme support d'acquisition ; le lien reste analogique.\",\"targetEvidenceRefs\":[\"l'efficacité de ce remplacement pour les usagers peu à l'aise avec le numérique\"],\"twinBasisWorkRefs\":[\"Use of Intelligent Voice Assistants by Older Adults with Low Technology Use\",\"https://doi.org/10.1145/3373759\"],\"confidenceQualitative\":\"low\",\"limitations\":[\"Absence de travaux sur la littératie numérique comme processus d'apprentissage\",\"Lien seulement analogique entre faible usage technologique et acquisition de compétences\"]},\n{\"dimensionId\":\"educational-sciences\",\"disposition\":\"gap\",\"epistemicStatus\":\"not_determinable\",\"finding\":\"La question de l'efficacité comparée du présentiel et du distanciel pour ce public ne peut être documentée à partir de la base du twin, qui ne contient aucun travail de sciences de l'éducation.\",\"rationale\":\"Aucune œuvre ne traite de l'efficacité comparée des modalités pédagogiques ; le twin ne dispose d'aucune base pour se prononcer sur cette dimension centrale de la mission.\",\"targetEvidenceRefs\":[\"remplacer ses ateliers d'initiation numérique en présentiel par des tutoriels vidéo en ligne\"],\"twinBasisWorkRefs\":[],\"confidenceQualitative\":\"low\",\"limitations\":[\"Aucune œuvre en sciences de l'éducation dans la base\",\"Dimension pourtant centrale pour la mission\"]},\n{\"dimensionId\":\"instructional-design\",\"disposition\":\"gap\",\"epistemicStatus\":\"not_determinable\",\"finding\":\"L'objet précis — un dispositif de tutoriels vidéo d'auto-formation — ne peut être analysé par le twin, dont la base ne comporte aucun travail de conception de ressources d'apprentissage médiatisé.\",\"rationale\":\"Aucune œuvre ne porte sur la conception de tutoriels, l'auto-formation ou les conditions d'efficacité de l'apprentissage médiatisé ; la substituabilité du présentiel ne peut être jugée sur cette base.\",\"targetEvidenceRefs\":[\"des tutoriels vidéo en ligne\"],\"twinBasisWorkRefs\":[],\"confidenceQualitative\":\"low\",\"limitations\":[\"Aucun travail de design pédagogique dans la base\",\"Impossible d'évaluer les conditions d'efficacité du format vidéo\"]},\n{\"dimensionId\":\"cognitive-science\",\"disposition\":\"gap\",\"epistemicStatus\":\"cautious_inference\",\"finding\":\"Le traitement cognitif de supports vidéo par des apprenants novices n'est pas éclairé par la base du twin, dont les travaux cognitifs portent sur la mémoire et les troubles cognitifs (démence), non sur la charge cognitive ou l'apprentissage multimédia.\",\"rationale\":\"Quelques travaux touchent à la mémoire et aux interfaces pour personnes atteintes de démence, ce qui recoupe partiellement des processus cognitifs, mais rien n'aborde la charge cognitive, l'attention ou l'apprentissage multimédia chez des novices.\",\"targetEvidenceRefs\":[\"l'efficacité de ce remplacement pour les usagers peu à l'aise avec le numérique\"],\"twinBasisWorkRefs\":[\"Investigating the Potential of Artificial Intelligence Powered Interfaces to Support Different Types of Memory for People with Dementia\",\"https://doi.org/10.1145/3491101.3519858\"],\"confidenceQualitative\":\"low\",\"limitations\":[\"Travaux cognitifs centrés sur la démence, non sur l'apprentissage multimédia\",\"Aucune donnée sur la charge cognitive des supports vidéo\"]},\n{\"dimensionId\":\"human-computer-interaction\",\"disposition\":\"concern\",\"epistemicStatus\":\"documented\",\"finding\":\"L'accès aux tutoriels en ligne suppose la maîtrise d'interfaces qui peut constituer un obstacle pour les usagers peu à l'aise ; la base du twin, solidement centrée sur l'utilisabilité et l'accessibilité pour publics vulnérables, permet de documenter ce risque d'obstacle d'accès.\",\"rationale\":\"Le corpus est massivement centré sur l'IHM (utilisabilité, accessibilité, interfaces pour publics vulnérables), ce qui étaie sérieusement l'idée que l'interface elle-même peut faire échouer le remplacement avant même l'apprentissage.\",\"targetEvidenceRefs\":[\"des tutoriels vidéo en ligne\"],\"twinBasisWorkRefs\":[\"\\\"Accessibility Came by Accident\\\"\",\"https://doi.org/10.1145/3173574.3174033\",\"Use of Intelligent Voice Assistants by Older Adults with Low Technology Use\"],\"confidenceQualitative\":\"medium\",\"limitations\":[\"Corpus centré sur interfaces vocales, pas spécifiquement sur les plateformes vidéo\",\"L'accessibilité d'une interface ne garantit pas l'efficacité pédagogique\"]},\n{\"dimensionId\":\"library-information-science\",\"disposition\":\"gap\",\"epistemicStatus\":\"cautious_inference\",\"finding\":\"Le rôle de la bibliothèque comme lieu de médiation numérique et les effets du service dématérialisé sur ses publics ne sont pas documentés par la base du twin, qui ne traite pas des services en bibliothèque.\",\"rationale\":\"Une publication paraît dans un contexte de sciences de l'information, mais son objet est l'usage de technologies vocales, non la médiation numérique en bibliothèque ; le lien est seulement disciplinaire.\",\"targetEvidenceRefs\":[\"Une bibliothèque municipale veut remplacer ses ateliers d'initiation numérique en présentiel\"],\"twinBasisWorkRefs\":[\"Understanding entangled human-technology-world relations: use of intelligent voice assistants by older adults\",\"https://doi.org/10.47989/ir30iconf47119\"],\"confidenceQualitative\":\"low\",\"limitations\":[\"Aucune œuvre sur le rôle des bibliothèques ou la médiation numérique\",\"Lien seulement disciplinaire, pas thématique\"]},\n{\"dimensionId\":\"sociology-of-digital-divide\",\"disposition\":\"concern\",\"epistemicStatus\":\"cautious_inference\",\"finding\":\"Le remplacement pourrait accentuer les inégalités d'usage pour les publics vulnérables ; la base du twin, qui aborde les utilisateurs à faible usage technologique, suggère prudemment ce risque sans l'établir comme objet sociologique.\",\"rationale\":\"Le thème des utilisateurs à faible usage technologique et de l'accessibilité recoupe les inégalités d'usage numérique, mais aucun travail n'analyse la fracture numérique comme objet sociologique ni les effets de la dématérialisation sur les publics vulnérables.\",\"targetEvidenceRefs\":[\"les usagers peu à l'aise avec le numérique\"],\"twinBasisWorkRefs\":[\"Use of Intelligent Voice Assistants by Older Adults with Low Technology Use\",\"https://doi.org/10.1145/3373759\"],\"confidenceQualitative\":\"low\",\"limitations\":[\"Aucune analyse sociologique de la fracture numérique\",\"Effets de la dématérialisation non documentés directement\"]},\n{\"dimensionId\":\"gerontology-and-aging-studies\",\"disposition\":\"concern\",\"epistemicStatus\":\"documented\",\"finding\":\"Une part importante des publics peu à l'aise étant des personnes âgées, la base du twin — abondamment consacrée au rapport des seniors aux technologies, à leur autonomie et à la (dé)confiance technologique — étaie des réserves sur l'autonomie technologique attendue d'un format auto-formatif.\",\"rationale\":\"Le corpus est très abondamment consacré aux personnes âgées et à leur rapport aux technologies (usage, autonomie, confiance), ce qui permet de documenter les spécificités de l'autonomie technologique des seniors face à un dispositif non accompagné.\",\"targetEvidenceRefs\":[\"les usagers peu à l'aise avec le numérique\"],\"twinBasisWorkRefs\":[\"Towards Designing for (Dis)Trust in Technologies for Aging\",\"Taking Stock of the Present and Future of Smart Technologies for Older Adults and Caregivers\",\"Crafting Remembrance Beyond the Self: Older Adults’ Digital and Material Legacies\"],\"confidenceQualitative\":\"medium\",\"limitations\":[\"Les travaux portent sur le design technologique, non sur l'apprentissage par tutoriel vidéo\",\"Le public de la bibliothèque n'est pas exclusivement âgé\"]},\n{\"dimensionId\":\"andragogy\",\"disposition\":\"gap\",\"epistemicStatus\":\"not_determinable\",\"finding\":\"Les conditions d'apprentissage autonome et accompagné propres aux adultes, décisives pour juger la pertinence d'un format auto-formatif, ne sont pas documentées par la base du twin.\",\"rationale\":\"Aucune œuvre ne traite des conditions d'apprentissage des adultes, de l'auto-formation ou de l'accompagnement pédagogique adulte ; les travaux sur adultes âgés portent sur le design technologique, non sur des processus andragogiques.\",\"targetEvidenceRefs\":[\"ses ateliers d'initiation numérique en présentiel\"],\"twinBasisWorkRefs\":[],\"confidenceQualitative\":\"low\",\"limitations\":[\"Aucun travail andragogique dans la base\",\"Impossible d'évaluer la pertinence pédagogique du format auto-formatif pour adultes\"]}\n]}",
+   "usage": {
+    "input_tokens": 6687,
+    "output_tokens": 3558
+   },
+   "purpose": "EF-03B review"
+  }
+ ],
+ "note": "artefacts reels ; identite du jumeau anonymisee ; reponses byte-exactes"
+}

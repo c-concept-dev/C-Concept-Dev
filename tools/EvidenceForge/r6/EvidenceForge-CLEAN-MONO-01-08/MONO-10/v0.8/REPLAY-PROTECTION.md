@@ -1,0 +1,94 @@
+# MONO-10 v0.8 — protection anti-rejeu
+
+## 1. Le défaut que v0.7 ferme (B3)
+
+L'audit indépendant de v0.6 a rejoué une attestation déjà consommée :
+
+```
+frontiere A (autorite X, cle K) consomme le nonce      -> valid
+frontiere B (autorite X, cle K), REPERTOIRE DISTINCT   -> valid AUSSI
+```
+
+v0.6 vérifiait seulement qu'une réserve couvrait les autorités de **sa**
+frontière. Le partage effectif reposait donc sur une **convention de
+configuration** : faire pointer deux fichiers vers le même répertoire.
+`authorityNamespaceHash` était calculé, publié… et jamais comparé.
+
+## 2. Ce que v0.7 laissait ouvert
+
+v0.7 dérivait bien le namespace, mais l'emplacement restait une **valeur de
+configuration** (`replayRoot`). L'audit A a montré que deux `replayRoot`
+déclarées par le même exploitant acceptaient le même nonce : la clé
+`ANTI_REPLAY_SHARED_AT_AUTHORITY_KEY_SCOPE = YES` était donc **surévaluée**.
+
+## 3. v0.8 — la réserve est ANCRÉE à la configuration de confiance (§21-§24)
+
+```
+replayNamespaceId = H( namespace , { authorityId -> keyIds } , ancre de configuration )
+réserve           = dirname(trustConfigPath)/.evidenceforge-replay/<replayNamespaceId>
+```
+
+`replayProtection.directory` **et** `replayProtection.replayRoot` sont refusés
+(`REPLAY_LOCATION_REFUSED`). L'emplacement n'est plus configurable du tout.
+
+**Conséquence exacte : pour une configuration de confiance donnée — c'est-à-dire
+pour une racine de confiance donnée — il existe exactement UNE réserve par
+autorité et par clé.** C'est l'option §24-A : plusieurs racines pour la même
+autorité/clé sont interdites, parce qu'aucune racine n'est déclarable.
+
+**Note de conception (§23).** `replayNamespaceId` n'inclut PAS
+`operatorBoundaryId` : deux frontières de la même autorité et de la même clé
+doivent **partager** la réserve, et inclure leur identifiant respectif
+détruirait précisément la propriété à garantir. Il inclut l'identité de la
+configuration de confiance, et il est engagé dans `boundaryDescriptorHash` avec
+l'ancre.
+
+## 4. Trois verrous complémentaires
+
+| Verrou | Ce qu'il ferme | Code d'échec |
+|---|---|---|
+| ancrage | l'emplacement ne peut pas être choisi | `REPLAY_LOCATION_REFUSED` |
+| marqueur `.replay-namespace` | une réserve étrangère ou substituée | `REPLAY_NAMESPACE_MARKER_MISMATCH` |
+| registre de processus | deux frontières de même autorité/clé sous deux namespaces | `REPLAY_NAMESPACE_CONFLICT` |
+
+## 5. Le namespace est engagé par le descripteur (§11, §23)
+
+`boundaryDescriptorHash` inclut `replayNamespaceId`. Le manifeste de run engage
+ce hash ; `assertManifestAuthentic` compare. Changer de réserve change donc le
+descripteur, donc le manifeste : la substitution est détectée en aval, pas
+seulement à l'ouverture.
+
+## 6. Consommation obligatoire
+
+Sous PRODUCTION, la consommation du nonce est **forcée**. `consumeNonce: false`,
+`0`, `null`, `undefined`, `""` et les formes imbriquées sont ignorés et
+consignés. Seule exception nommée : `readOnlyRevalidation: true`, réservée à la
+revérification d'un manifeste **déjà** authentifié — elle échoue si le nonce
+n'a jamais été consommé, et `openRunEvidenceManifest` ne la propage pas depuis
+l'appel.
+
+## 7. Propriétés vérifiées
+
+| Attaque | Résultat |
+|---|---|
+| rejeu sur la même frontière | refusé |
+| rejeu par un second vérificateur | refusé |
+| **rejeu par une seconde frontière de la même autorité** | **refusé** (T15) |
+| rejeu après réinitialisation du registre de processus | refusé (T16) |
+| **racine de réserve choisie (`replayRoot` ou `directory`)** | **`REPLAY_LOCATION_REFUSED` (T41)** |
+| **seconde réserve pour la même autorité sous la même racine de confiance** | **impossible : namespace et emplacement identiques (T42)** |
+| marqueur de namespace désapparié | `REPLAY_NAMESPACE_MARKER_MISMATCH` (T43) |
+| réserve en mémoire en PRODUCTION | `REPLAY_PROTECTION_INSUFFICIENT` |
+| aucune protection anti-rejeu | `REPLAY_PROTECTION_MISSING` |
+
+## 8. LIMITE DÉCLARÉE, réduite
+
+Il reste qu'un exploitant peut écrire **une seconde configuration de confiance**
+et l'exposer via `EVIDENCEFORGE_OPERATOR_TRUST_CONFIG`. Mais ce n'est plus
+« deux réserves d'une même racine » : **deux fichiers de configuration sont deux
+racines de confiance distinctes**, ce qui est exactement l'hypothèse déjà
+déclarée en `TRUST-MODEL.md` §7 — ni plus, ni moins.
+
+Ce qui est acquis : à racine de confiance donnée, le partage de la réserve n'est
+plus une convention de configuration que l'on peut oublier ou détourner. Il est
+structurel, parce que l'emplacement n'est plus un paramètre.

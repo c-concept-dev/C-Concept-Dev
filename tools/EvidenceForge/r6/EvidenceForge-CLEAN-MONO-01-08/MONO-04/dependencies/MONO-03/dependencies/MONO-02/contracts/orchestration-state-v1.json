@@ -1,0 +1,18 @@
+{
+  "schema": "EvidenceForge.OrchestrationState",
+  "schemaVersion": "MONO-02-v1",
+  "description": "State machine technique des noeuds du graphe MONO-02. Aucun etat metier (jamais 'scientifiquement valide', jamais 'expert confirme') - uniquement des etats d'execution.",
+  "states": ["NOT_STARTED", "READY", "RUNNING", "SUCCESS", "FAILED", "BLOCKED", "PAUSED"],
+  "transitions": [
+    { "from": "NOT_STARTED", "to": "READY", "condition": "toutes les preconditions (upstream SUCCESS, inputs presents, dependances disponibles) sont satisfaites" },
+    { "from": "READY", "to": "RUNNING", "condition": "runNode() invoque" },
+    { "from": "RUNNING", "to": "SUCCESS", "condition": "le port MONO-01 retourne status=SUCCESS" },
+    { "from": "RUNNING", "to": "FAILED", "condition": "le port MONO-01 retourne status=FAILED" },
+    { "from": "RUNNING", "to": "BLOCKED", "condition": "le port MONO-01 retourne status=BLOCKED, ou une precondition orchestration-level echoue avant meme l'appel au port" },
+    { "from": "FAILED", "to": "READY", "condition": "retry explicitement autorise par l'appelant (jamais automatique)" },
+    { "from": "BLOCKED", "to": "READY", "condition": "precondition corrigee ET re-verifiee explicitement par l'appelant" },
+    { "from": "RUNNING", "to": "PAUSED", "condition": "interruption controlee explicitement demandee par l'appelant" },
+    { "from": "PAUSED", "to": "READY", "condition": "reprise explicitement autorisee par l'appelant" }
+  ],
+  "invariant": "Aucune transition implicite. Toute paire (from, to) absente de la liste ci-dessus est rejetee avec INVALID_STATE_TRANSITION - y compris NOT_STARTED directement vers RUNNING/SUCCESS/FAILED/BLOCKED, et tout retour vers NOT_STARTED."
+}

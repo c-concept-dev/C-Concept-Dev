@@ -1,0 +1,198 @@
+{
+ "id": "R2",
+ "kind": "multi",
+ "sourceRun": "run-H1",
+ "sourceRunId": "run-ea96107f2179",
+ "targetId": "target-01",
+ "acceptedPassHistorical": 2,
+ "document": {
+  "targetId": "target-01",
+  "role": "review_target_not_evidence",
+  "content": "Une bibliothèque municipale veut remplacer ses ateliers d'initiation numérique en présentiel par des tutoriels vidéo en ligne. Dire ce qui est étayé, discuté ou non établi quant à l'efficacité de ce remplacement pour les usagers peu à l'aise avec le numérique."
+ },
+ "twin": {
+  "twinId": "twin-fixture-R2",
+  "professionalRef": "fixture-R2",
+  "referenceIdentity": {
+   "displayName": "fixture R2"
+  },
+  "documentaryBasis": {
+   "worksUsed": [
+    {
+     "workRef": "Beyond Clippy's Counsel: Word Processor Feature Underuse among the Digital Generation",
+     "citedForDimensions": [
+      "digital-literacy-studies"
+     ]
+    },
+    {
+     "workRef": "Houd het simpel. Schriftelijke informatie over beroepsrisico's voor laaggeletterden",
+     "citedForDimensions": [
+      "digital-literacy-studies",
+      "sociology-of-digital-divide"
+     ]
+    },
+    {
+     "workRef": "How to design work related information for low-literate employees?",
+     "citedForDimensions": [
+      "digital-literacy-studies",
+      "sociology-of-digital-divide"
+     ]
+    },
+    {
+     "workRef": "Validation of the Instructional Materials Motivation Survey ( IMMS ) in a self‐directed instructional setting aimed at working with technology",
+     "citedForDimensions": [
+      "educational-sciences",
+      "andragogy"
+     ]
+    },
+    {
+     "workRef": "Workshop: Optimal Feedback for Students: How to Implement Feedback Mechanisms in Education that Respond to Students’ Needs?",
+     "citedForDimensions": [
+      "educational-sciences"
+     ]
+    },
+    {
+     "workRef": "Reduced Instructional Materials Motivation Survey",
+     "citedForDimensions": [
+      "educational-sciences"
+     ]
+    },
+    {
+     "workRef": "Three Decades of Research and Professional Practice on Printed Software Tutorials for Novices",
+     "citedForDimensions": [
+      "instructional-design",
+      "andragogy"
+     ]
+    },
+    {
+     "workRef": "Comparing the Effects of Paper and Mobile Augmented Reality Instructions to Guide Assembly Tasks",
+     "citedForDimensions": [
+      "instructional-design"
+     ]
+    },
+    {
+     "workRef": "The Effects of Adding Motivational Elements to User Instructions",
+     "citedForDimensions": [
+      "instructional-design"
+     ]
+    },
+    {
+     "workRef": "Information types in instructive texts: What types can be distinguished and how do these types contribute to usability?",
+     "citedForDimensions": [
+      "instructional-design"
+     ]
+    },
+    {
+     "workRef": "Cultural differences and the structure of user instructions: Effects of Chinese and Western structuring principles on Chinese and Western users",
+     "citedForDimensions": [
+      "cognitive-science"
+     ]
+    },
+    {
+     "workRef": "Inductively Versus Deductively Structured Product Descriptions: Effects on Chinese and Western Readers",
+     "citedForDimensions": [
+      "cognitive-science"
+     ]
+    },
+    {
+     "workRef": "Users’ Personal Conceptions of Usability and User Experience of Electronic and Software Products",
+     "citedForDimensions": [
+      "human-computer-interaction"
+     ]
+    },
+    {
+     "workRef": "Accessible Website Content Guidelines for Users with Intellectual Disabilities",
+     "citedForDimensions": [
+      "human-computer-interaction",
+      "sociology-of-digital-divide"
+     ]
+    },
+    {
+     "workRef": "Watch out for the preview: The effects of a preview on the usability of a Content Management System and on the users’ confidence level",
+     "citedForDimensions": [
+      "human-computer-interaction"
+     ]
+    },
+    {
+     "workRef": "The Image of User Instructions: Comparing Users' Expectations of and Experiences with an Official and a Commercial Software Manual",
+     "citedForDimensions": [
+      "human-computer-interaction"
+     ]
+    },
+    {
+     "workRef": "Instructional Videos for Seniors over 75: The Effects of Addressing Potential Errors in User Instructions",
+     "citedForDimensions": [
+      "gerontology-and-aging-studies"
+     ]
+    },
+    {
+     "workRef": "Verification Steps and Personal Stories in an Instruction Manual for Seniors: Effects on Confidence, Motivation, and Usability",
+     "citedForDimensions": [
+      "gerontology-and-aging-studies"
+     ]
+    },
+    {
+     "workRef": "“There Is Something We Need to Tell You…”: Communicating Health-Screening Results to Older Adults via the Internet",
+     "citedForDimensions": [
+      "gerontology-and-aging-studies"
+     ]
+    },
+    {
+     "workRef": "Boosting seniors' confidence by enhancing user instructions",
+     "citedForDimensions": [
+      "gerontology-and-aging-studies"
+     ]
+    }
+   ]
+  }
+ },
+ "dimensions": [
+  "digital-literacy-studies",
+  "educational-sciences",
+  "instructional-design",
+  "cognitive-science",
+  "human-computer-interaction",
+  "library-information-science",
+  "sociology-of-digital-divide",
+  "gerontology-and-aging-studies",
+  "andragogy"
+ ],
+ "passes": [
+  {
+   "pass": 1,
+   "informed": false,
+   "valid": false,
+   "errors": [
+    {
+     "code": "TARGET_REF_NOT_LITERAL",
+     "detail": "citation absente du document cible (doit etre un passage EXACT, caractere pour caractere) : \"tutoriels vidéo en ligne pour les usagers peu à l'aise avec le numérique\"",
+     "dimensionId": "human-computer-interaction"
+    },
+    {
+     "code": "TARGET_REF_NOT_LITERAL",
+     "detail": "citation absente du document cible (doit etre un passage EXACT, caractere pour caractere) : \"tutoriels vidéo en ligne pour les usagers peu à l'aise avec le numérique\"",
+     "dimensionId": "gerontology-and-aging-studies"
+    }
+   ],
+   "responseText": "{\"findings\":[\n{\"dimensionId\":\"digital-literacy-studies\",\"disposition\":\"concern\",\"epistemicStatus\":\"cautious_inference\",\"finding\":\"L'existence d'un écart entre la simple mise à disposition d'outils/ressources numériques et la capacité effective des usagers peu à l'aise à se les approprier n'est pas prise en compte dans le projet de remplacement ; ce point mérite d'être documenté avant toute décision.\",\"rationale\":\"Les travaux du twin sur la sous-utilisation de fonctionnalités logicielles et sur l'information adaptée aux publics peu lettrés montrent que la disponibilité d'une ressource ne garantit pas son usage effectif ; par analogie, la disponibilité de tutoriels vidéo en ligne ne garantit pas l'acquisition de compétences par des usagers peu à l'aise. Le corpus ne porte cependant pas spécifiquement sur les tutoriels vidéo en bibliothèque.\",\"targetEvidenceRefs\":[\"remplacer ses ateliers d'initiation numérique en présentiel par des tutoriels vidéo en ligne\"],\"twinBasisWorkRefs\":[\"Beyond Clippy's Counsel: Word Processor Feature Underuse among the Digital Generation\",\"How to design work related information for low-literate employees?\"],\"confidenceQualitative\":\"medium\",\"limitations\":[\"Corpus centré sur l'écrit et le logiciel, pas sur la vidéo\",\"Pas de mesure directe de l'appropriation de tutoriels vidéo par des usagers de bibliothèque\"]},\n{\"dimensionId\":\"educational-sciences\",\"disposition\":\"gap\",\"epistemicStatus\":\"cautious_inference\",\"finding\":\"La comparaison d'efficacité entre modalité présentielle et modalité à distance pour des publics ayant besoin d'accompagnement n'est pas étayée par la base documentaire ; l'efficacité comparée du remplacement reste non établie du point de vue de ce professionnel.\",\"rationale\":\"Les travaux du twin portent sur la mesure de la motivation en apprentissage auto-dirigé et sur les mécanismes de feedback, mais ne traitent pas de la comparaison présentiel vs distance ni du rôle de l'accompagnement humain. Ils ne permettent donc pas de statuer sur l'efficacité du remplacement lui-même.\",\"targetEvidenceRefs\":[\"Dire ce qui est étayé, discuté ou non établi quant à l'efficacité de ce remplacement\"],\"twinBasisWorkRefs\":[\"Validation of the Instructional Materials Motivation Survey ( IMMS ) in a self‐directed instructional setting aimed at working with technology\",\"Workshop: Optimal Feedback for Students: How to Implement Feedback Mechanisms in Education that Respond to Students’ Needs?\"],\"confidenceQualitative\":\"medium\",\"limitations\":[\"Absence de travaux comparatifs présentiel/distance dans le corpus\",\"Focus sur la motivation et le feedback, non sur la substituabilité des modalités\"]},\n{\"dimensionId\":\"instructional-design\",\"disposition\":\"support\",\"epistemicStatus\":\"documented\",\"finding\":\"L'efficacité de tutoriels d'auto-formation pour débutants dépend de conditions de conception précises (type d'information, format, éléments motivationnels) : un simple transfert de contenu vers la vidéo ne suffit pas, la qualité de conception conditionne l'effet.\",\"rationale\":\"Le twin dispose de preuves substantielles sur la conception de tutoriels logiciels pour novices, la comparaison de formats d'instructions, l'ajout d'éléments motivationnels et la typologie des textes instructifs et leur usabilité. Ces travaux établissent que l'efficacité d'un dispositif d'auto-formation n'est pas garantie par le seul choix du format vidéo mais par ses caractéristiques de conception.\",\"targetEvidenceRefs\":[\"par des tutoriels vidéo en ligne\"],\"twinBasisWorkRefs\":[\"Three Decades of Research and Professional Practice on Printed Software Tutorials for Novices\",\"Comparing the Effects of Paper and Mobile Augmented Reality Instructions to Guide Assembly Tasks\",\"The Effects of Adding Motivational Elements to User Instructions\",\"Information types in instructive texts: What types can be distinguished and how do these types contribute to usability?\"],\"confidenceQualitative\":\"high\",\"limitations\":[\"Preuves majoritairement sur instructions papier/logicielles, extrapolation à la vidéo requise\",\"Ne statue pas sur la substituabilité totale du présentiel\"]},\n{\"dimensionId\":\"cognitive-science\",\"disposition\":\"not_determinable\",\"epistemicStatus\":\"cautious_inference\",\"finding\":\"L'effet de la charge cognitive, de l'attention et de la mémorisation propre au traitement de supports vidéo par des apprenants novices ne peut être établi à partir de la base documentaire.\",\"rationale\":\"Le corpus du twin aborde les effets de structuration textuelle (inductif/déductif, principes culturels) sur les lecteurs, mais aucun travail ne porte explicitement sur la charge cognitive ou le traitement de supports vidéo. Le lien avec l'objet de la mission reste analogique et ne fonde aucun finding solide.\",\"targetEvidenceRefs\":[\"tutoriels vidéo en ligne\"],\"twinBasisWorkRefs\":[],\"confidenceQualitative\":\"low\",\"limitations\":[\"Aucun travail sur la charge cognitive ou le multimédia dans le corpus\",\"Lien seulement indirect avec le traitement de l'information vidéo\"]},\n{\"dimensionId\":\"human-computer-interaction\",\"disposition\":\"concern\",\"epistemicStatus\":\"documented\",\"finding\":\"L'accès aux tutoriels en ligne suppose la maîtrise préalable d'interfaces (navigation, plateforme d'hébergement) qui peut constituer un obstacle pour les usagers peu à l'aise : l'utilisabilité et l'accessibilité du dispositif d'accès conditionnent l'efficacité du remplacement.\",\"rationale\":\"Le twin possède des preuves directes sur l'usabilité/UX de produits électroniques, l'accessibilité pour utilisateurs à déficience intellectuelle et les effets d'éléments d'interface (aperçu d'un CMS) sur la confiance des utilisateurs. Ces travaux étayent que l'interface même d'accès aux tutoriels peut faire barrière pour un public peu à l'aise.\",\"targetEvidenceRefs\":[\"tutoriels vidéo en ligne pour les usagers peu à l'aise avec le numérique\"],\"twinBasisWorkRefs\":[\"Users’ Personal Conceptions of Usability and User Experience of Electronic and Software Products\",\"Accessible Website Content Guidelines for Users with Intellectual Disabilities\",\"Watch out for the preview: The effects of a preview on the usability of a Content Management System and on the users’ confidence level\"],\"confidenceQualitative\":\"high\",\"limitations\":[\"Travaux non spécifiques aux plateformes vidéo\",\"Accessibilité étudiée pour déficience intellectuelle, transfert au public visé à préciser\"]},\n{\"dimensionId\":\"library-information-science\",\"disposition\":\"gap\",\"epistemicStatus\":\"not_determinable\",\"finding\":\"Le rôle spécifique de la bibliothèque municipale comme lieu de médiation numérique et les effets du retrait d'un service en présentiel sur cette mission ne peuvent être analysés à partir de la base documentaire du professionnel.\",\"rationale\":\"Aucun travail du corpus ne porte sur les bibliothèques, la médiation documentaire ou l'inclusion numérique par les institutions de lecture publique. Aucune preuve positive n'est mobilisable pour cette dimension.\",\"targetEvidenceRefs\":[\"Une bibliothèque municipale veut remplacer ses ateliers d'initiation numérique en présentiel\"],\"twinBasisWorkRefs\":[],\"confidenceQualitative\":\"low\",\"limitations\":[\"Aucune référence pertinente dans le corpus\",\"Dimension hors du domaine documenté du twin\"]},\n{\"dimensionId\":\"sociology-of-digital-divide\",\"disposition\":\"concern\",\"epistemicStatus\":\"cautious_inference\",\"finding\":\"La dématérialisation d'un service d'initiation vers un format en ligne comporte un risque d'exclusion pour les publics vulnérables ; le corpus alerte sur la nécessité d'adapter les supports, mais ne fournit pas d'analyse sociologique des effets de la dématérialisation elle-même.\",\"rationale\":\"Les travaux du twin sur les publics peu lettrés et à déficience intellectuelle montrent la nécessité d'adapter finement l'information à ces publics. Ils suggèrent qu'un simple transfert en ligne peut désavantager les usagers vulnérables, mais l'angle est celui de la conception de supports, non l'analyse des inégalités d'accès/usage ou des effets de dématérialisation de service.\",\"targetEvidenceRefs\":[\"les usagers peu à l'aise avec le numérique\"],\"twinBasisWorkRefs\":[\"Houd het simpel. Schriftelijke informatie over beroepsrisico's voor laaggeletterden\",\"How to design work related information for low-literate employees?\",\"Accessible Website Content Guidelines for Users with Intellectual Disabilities\"],\"confidenceQualitative\":\"medium\",\"limitations\":[\"Absence d'analyse sociologique de la fracture numérique dans le corpus\",\"Angle conception de supports plutôt que structures d'inégalité\"]},\n{\"dimensionId\":\"gerontology-and-aging-studies\",\"disposition\":\"support\",\"epistemicStatus\":\"documented\",\"finding\":\"Pour les seniors, qui composent une part importante des publics peu à l'aise, l'efficacité de vidéos ou d'instructions dépend de dispositifs spécifiques (anticipation des erreurs, étapes de vérification, éléments narratifs) renforçant confiance et motivation ; ces conditions doivent être remplies pour espérer un remplacement efficace.\",\"rationale\":\"Le twin dispose de preuves directes et proches de l'objet : un travail porte explicitement sur des vidéos instructives pour seniors de plus de 75 ans, d'autres sur l'effet d'étapes de vérification, d'histoires personnelles et d'améliorations d'instructions sur la confiance et l'usabilité des seniors. Ceci étaye que la vidéo peut fonctionner pour ce public sous conditions de conception ciblées.\",\"targetEvidenceRefs\":[\"tutoriels vidéo en ligne pour les usagers peu à l'aise avec le numérique\"],\"twinBasisWorkRefs\":[\"Instructional Videos for Seniors over 75: The Effects of Addressing Potential Errors in User Instructions\",\"Verification Steps and Personal Stories in an Instruction Manual for Seniors: Effects on Confidence, Motivation, and Usability\",\"Boosting seniors' confidence by enhancing user instructions\"],\"confidenceQualitative\":\"high\",\"limitations\":[\"Ne couvre pas tous les profils d'usagers peu à l'aise\",\"N'établit pas la supériorité de la vidéo sur le présentiel accompagné\"]},\n{\"dimensionId\":\"andragogy\",\"disposition\":\"support\",\"epistemicStatus\":\"documented\",\"finding\":\"L'apprentissage autonome d'adultes travaillant avec la technologie est documenté comme possible, mais suppose des conditions motivationnelles et des ressources adaptées aux débutants ; le format auto-formatif ne convient pas indistinctement à tous les apprenants adultes.\",\"rationale\":\"Le twin documente l'apprentissage auto-dirigé d'adultes en contexte technologique (validation d'un instrument de motivation en situation self-directed) et les tutoriels pour débutants adultes. Ces travaux soutiennent la pertinence potentielle d'un format auto-formatif tout en soulignant l'importance de la motivation et de l'adaptation aux novices.\",\"targetEvidenceRefs\":[\"ses ateliers d'initiation numérique en présentiel\"],\"twinBasisWorkRefs\":[\"Validation of the Instructional Materials Motivation Survey ( IMMS ) in a self‐directed instructional setting aimed at working with technology\",\"Three Decades of Research and Professional Practice on Printed Software Tutorials for Novices\"],\"confidenceQualitative\":\"medium\",\"limitations\":[\"Corpus ne théorise pas explicitement les principes andragogiques\",\"Contexte professionnel/technologique, transfert au public de bibliothèque à valider\"]}\n]}",
+   "usage": {
+    "input_tokens": 7948,
+    "output_tokens": 4354
+   },
+   "purpose": "EF-03B review"
+  },
+  {
+   "pass": 2,
+   "informed": true,
+   "valid": true,
+   "errors": [],
+   "responseText": "{\"findings\":[\n{\"dimensionId\":\"digital-literacy-studies\",\"disposition\":\"concern\",\"epistemicStatus\":\"cautious_inference\",\"finding\":\"L'existence d'un écart entre la simple mise à disposition d'outils/ressources numériques et la capacité effective des usagers peu à l'aise à se les approprier n'est pas prise en compte dans le projet de remplacement ; ce point mérite d'être documenté avant toute décision.\",\"rationale\":\"Les travaux du twin sur la sous-utilisation de fonctionnalités logicielles et sur l'information adaptée aux publics peu lettrés montrent que la disponibilité d'une ressource ne garantit pas son usage effectif ; par analogie, la disponibilité de tutoriels vidéo en ligne ne garantit pas l'acquisition de compétences par des usagers peu à l'aise. Le corpus ne porte cependant pas spécifiquement sur les tutoriels vidéo en bibliothèque.\",\"targetEvidenceRefs\":[\"remplacer ses ateliers d'initiation numérique en présentiel par des tutoriels vidéo en ligne\"],\"twinBasisWorkRefs\":[\"Beyond Clippy's Counsel: Word Processor Feature Underuse among the Digital Generation\",\"How to design work related information for low-literate employees?\"],\"confidenceQualitative\":\"medium\",\"limitations\":[\"Corpus centré sur l'écrit et le logiciel, pas sur la vidéo\",\"Pas de mesure directe de l'appropriation de tutoriels vidéo par des usagers de bibliothèque\"]},\n{\"dimensionId\":\"educational-sciences\",\"disposition\":\"gap\",\"epistemicStatus\":\"cautious_inference\",\"finding\":\"La comparaison d'efficacité entre modalité présentielle et modalité à distance pour des publics ayant besoin d'accompagnement n'est pas étayée par la base documentaire ; l'efficacité comparée du remplacement reste non établie du point de vue de ce professionnel.\",\"rationale\":\"Les travaux du twin portent sur la mesure de la motivation en apprentissage auto-dirigé et sur les mécanismes de feedback, mais ne traitent pas de la comparaison présentiel vs distance ni du rôle de l'accompagnement humain. Ils ne permettent donc pas de statuer sur l'efficacité du remplacement lui-même.\",\"targetEvidenceRefs\":[\"Dire ce qui est étayé, discuté ou non établi quant à l'efficacité de ce remplacement\"],\"twinBasisWorkRefs\":[\"Validation of the Instructional Materials Motivation Survey ( IMMS ) in a self‐directed instructional setting aimed at working with technology\",\"Workshop: Optimal Feedback for Students: How to Implement Feedback Mechanisms in Education that Respond to Students’ Needs?\"],\"confidenceQualitative\":\"medium\",\"limitations\":[\"Absence de travaux comparatifs présentiel/distance dans le corpus\",\"Focus sur la motivation et le feedback, non sur la substituabilité des modalités\"]},\n{\"dimensionId\":\"instructional-design\",\"disposition\":\"support\",\"epistemicStatus\":\"documented\",\"finding\":\"L'efficacité de tutoriels d'auto-formation pour débutants dépend de conditions de conception précises (type d'information, format, éléments motivationnels) : un simple transfert de contenu vers la vidéo ne suffit pas, la qualité de conception conditionne l'effet.\",\"rationale\":\"Le twin dispose de preuves substantielles sur la conception de tutoriels logiciels pour novices, la comparaison de formats d'instructions, l'ajout d'éléments motivationnels et la typologie des textes instructifs et leur usabilité. Ces travaux établissent que l'efficacité d'un dispositif d'auto-formation n'est pas garantie par le seul choix du format vidéo mais par ses caractéristiques de conception.\",\"targetEvidenceRefs\":[\"par des tutoriels vidéo en ligne\"],\"twinBasisWorkRefs\":[\"Three Decades of Research and Professional Practice on Printed Software Tutorials for Novices\",\"Comparing the Effects of Paper and Mobile Augmented Reality Instructions to Guide Assembly Tasks\",\"The Effects of Adding Motivational Elements to User Instructions\",\"Information types in instructive texts: What types can be distinguished and how do these types contribute to usability?\"],\"confidenceQualitative\":\"high\",\"limitations\":[\"Preuves majoritairement sur instructions papier/logicielles, extrapolation à la vidéo requise\",\"Ne statue pas sur la substituabilité totale du présentiel\"]},\n{\"dimensionId\":\"cognitive-science\",\"disposition\":\"not_determinable\",\"epistemicStatus\":\"cautious_inference\",\"finding\":\"L'effet de la charge cognitive, de l'attention et de la mémorisation propre au traitement de supports vidéo par des apprenants novices ne peut être établi à partir de la base documentaire.\",\"rationale\":\"Le corpus du twin aborde les effets de structuration textuelle (inductif/déductif, principes culturels) sur les lecteurs, mais aucun travail ne porte explicitement sur la charge cognitive ou le traitement de supports vidéo. Le lien avec l'objet de la mission reste analogique et ne fonde aucun finding solide.\",\"targetEvidenceRefs\":[\"par des tutoriels vidéo en ligne\"],\"twinBasisWorkRefs\":[],\"confidenceQualitative\":\"low\",\"limitations\":[\"Aucun travail sur la charge cognitive ou le multimédia dans le corpus\",\"Lien seulement indirect avec le traitement de l'information vidéo\"]},\n{\"dimensionId\":\"human-computer-interaction\",\"disposition\":\"concern\",\"epistemicStatus\":\"documented\",\"finding\":\"L'accès aux tutoriels en ligne suppose la maîtrise préalable d'interfaces (navigation, plateforme d'hébergement) qui peut constituer un obstacle pour les usagers peu à l'aise : l'utilisabilité et l'accessibilité du dispositif d'accès conditionnent l'efficacité du remplacement.\",\"rationale\":\"Le twin possède des preuves directes sur l'usabilité/UX de produits électroniques, l'accessibilité pour utilisateurs à déficience intellectuelle et les effets d'éléments d'interface (aperçu d'un CMS) sur la confiance des utilisateurs. Ces travaux étayent que l'interface même d'accès aux tutoriels peut faire barrière pour un public peu à l'aise.\",\"targetEvidenceRefs\":[\"des tutoriels vidéo en ligne\",\"les usagers peu à l'aise avec le numérique\"],\"twinBasisWorkRefs\":[\"Users’ Personal Conceptions of Usability and User Experience of Electronic and Software Products\",\"Accessible Website Content Guidelines for Users with Intellectual Disabilities\",\"Watch out for the preview: The effects of a preview on the usability of a Content Management System and on the users’ confidence level\"],\"confidenceQualitative\":\"high\",\"limitations\":[\"Travaux non spécifiques aux plateformes vidéo\",\"Accessibilité étudiée pour déficience intellectuelle, transfert au public visé à préciser\"]},\n{\"dimensionId\":\"library-information-science\",\"disposition\":\"gap\",\"epistemicStatus\":\"not_determinable\",\"finding\":\"Le rôle spécifique de la bibliothèque municipale comme lieu de médiation numérique et les effets du retrait d'un service en présentiel sur cette mission ne peuvent être analysés à partir de la base documentaire du professionnel.\",\"rationale\":\"Aucun travail du corpus ne porte sur les bibliothèques, la médiation documentaire ou l'inclusion numérique par les institutions de lecture publique. Aucune preuve positive n'est mobilisable pour cette dimension.\",\"targetEvidenceRefs\":[\"Une bibliothèque municipale veut remplacer ses ateliers d'initiation numérique en présentiel\"],\"twinBasisWorkRefs\":[],\"confidenceQualitative\":\"low\",\"limitations\":[\"Aucune référence pertinente dans le corpus\",\"Dimension hors du domaine documenté du twin\"]},\n{\"dimensionId\":\"sociology-of-digital-divide\",\"disposition\":\"concern\",\"epistemicStatus\":\"cautious_inference\",\"finding\":\"La dématérialisation d'un service d'initiation vers un format en ligne comporte un risque d'exclusion pour les publics vulnérables ; le corpus alerte sur la nécessité d'adapter les supports, mais ne fournit pas d'analyse sociologique des effets de la dématérialisation elle-même.\",\"rationale\":\"Les travaux du twin sur les publics peu lettrés et à déficience intellectuelle montrent la nécessité d'adapter finement l'information à ces publics. Ils suggèrent qu'un simple transfert en ligne peut désavantager les usagers vulnérables, mais l'angle est celui de la conception de supports, non l'analyse des inégalités d'accès/usage ou des effets de dématérialisation de service.\",\"targetEvidenceRefs\":[\"les usagers peu à l'aise avec le numérique\"],\"twinBasisWorkRefs\":[\"Houd het simpel. Schriftelijke informatie over beroepsrisico's voor laaggeletterden\",\"How to design work related information for low-literate employees?\",\"Accessible Website Content Guidelines for Users with Intellectual Disabilities\"],\"confidenceQualitative\":\"medium\",\"limitations\":[\"Absence d'analyse sociologique de la fracture numérique dans le corpus\",\"Angle conception de supports plutôt que structures d'inégalité\"]},\n{\"dimensionId\":\"gerontology-and-aging-studies\",\"disposition\":\"support\",\"epistemicStatus\":\"documented\",\"finding\":\"Pour les seniors, qui composent une part importante des publics peu à l'aise, l'efficacité de vidéos ou d'instructions dépend de dispositifs spécifiques (anticipation des erreurs, étapes de vérification, éléments narratifs) renforçant confiance et motivation ; ces conditions doivent être remplies pour espérer un remplacement efficace.\",\"rationale\":\"Le twin dispose de preuves directes et proches de l'objet : un travail porte explicitement sur des vidéos instructives pour seniors de plus de 75 ans, d'autres sur l'effet d'étapes de vérification, d'histoires personnelles et d'améliorations d'instructions sur la confiance et l'usabilité des seniors. Ceci étaye que la vidéo peut fonctionner pour ce public sous conditions de conception ciblées.\",\"targetEvidenceRefs\":[\"des tutoriels vidéo en ligne\",\"les usagers peu à l'aise avec le numérique\"],\"twinBasisWorkRefs\":[\"Instructional Videos for Seniors over 75: The Effects of Addressing Potential Errors in User Instructions\",\"Verification Steps and Personal Stories in an Instruction Manual for Seniors: Effects on Confidence, Motivation, and Usability\",\"Boosting seniors' confidence by enhancing user instructions\"],\"confidenceQualitative\":\"high\",\"limitations\":[\"Ne couvre pas tous les profils d'usagers peu à l'aise\",\"N'établit pas la supériorité de la vidéo sur le présentiel accompagné\"]},\n{\"dimensionId\":\"andragogy\",\"disposition\":\"support\",\"epistemicStatus\":\"documented\",\"finding\":\"L'apprentissage autonome d'adultes travaillant avec la technologie est documenté comme possible, mais suppose des conditions motivationnelles et des ressources adaptées aux débutants ; le format auto-formatif ne convient pas indistinctement à tous les apprenants adultes.\",\"rationale\":\"Le twin documente l'apprentissage auto-dirigé d'adultes en contexte technologique (validation d'un instrument de motivation en situation self-directed) et les tutoriels pour débutants adultes. Ces travaux soutiennent la pertinence potentielle d'un format auto-formatif tout en soulignant l'importance de la motivation et de l'adaptation aux novices.\",\"targetEvidenceRefs\":[\"ses ateliers d'initiation numérique en présentiel\"],\"twinBasisWorkRefs\":[\"Validation of the Instructional Materials Motivation Survey ( IMMS ) in a self‐directed instructional setting aimed at working with technology\",\"Three Decades of Research and Professional Practice on Printed Software Tutorials for Novices\"],\"confidenceQualitative\":\"medium\",\"limitations\":[\"Corpus ne théorise pas explicitement les principes andragogiques\",\"Contexte professionnel/technologique, transfert au public de bibliothèque à valider\"]}\n]}",
+   "usage": {
+    "input_tokens": 5950,
+    "output_tokens": 4356
+   },
+   "purpose": "EF-03B review informed-retry"
+  }
+ ],
+ "note": "artefacts reels ; identite du jumeau anonymisee ; reponses byte-exactes"
+}

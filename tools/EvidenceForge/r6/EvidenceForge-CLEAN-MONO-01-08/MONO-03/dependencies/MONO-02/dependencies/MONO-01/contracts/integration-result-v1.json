@@ -1,0 +1,19 @@
+{
+  "schema": "EvidenceForge.IntegrationResult",
+  "schemaVersion": "MONO-01-v1",
+  "description": "Enveloppe de sortie commune renvoyée par tout port MONO-01, quel que soit l'issue de l'appel.",
+  "requiredFields": {
+    "schema": "toujours \"EvidenceForge.IntegrationResult\"",
+    "schemaVersion": "toujours \"MONO-01-v1\"",
+    "runId": "même valeur que l'invocation correspondante, ou null",
+    "moduleId": "identifiant du module MONO-00 ciblé",
+    "status": "un des statuts techniques d'intégration (voir CDC section 6) : READY | RUNNING | SUCCESS | FAILED | BLOCKED | NOT_APPLICABLE",
+    "outputContract": "chaîne \"schema/schemaVersion\" du contrat gelé produit, ou null si non applicable",
+    "output": "la sortie EXACTE du module gelé (même référence, jamais clonée/mutée) si status=SUCCESS, sinon null",
+    "diagnostics": "objet libre ; contient diagnostics.error (EvidenceForge.IntegrationError) si status != SUCCESS"
+  },
+  "invariants": [
+    "output n'est jamais un objet reconstruit ou enrichi par le port.",
+    "Aucun champ scientifically_valid / expert_validated / trusted / true / false_consensus n'apparaît jamais ici (CDC section 6)."
+  ]
+}

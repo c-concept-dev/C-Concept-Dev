@@ -1,0 +1,17 @@
+{
+  "schema": "EvidenceForge.ExternalExecutionRequest",
+  "schemaVersion": "MONO-04-v1",
+  "description": "Demande d'execution externe technique - jamais un contenu metier interprete par MONO-04.",
+  "requiredFields": {
+    "requestId": "identifiant stable, unique par tentative rejouable (idempotence in-process, section 13)",
+    "runId": "run MONO-03 concerne (informatif, jamais interprete)",
+    "nodeId": "noeud MONO-02 concerne (informatif, jamais interprete)",
+    "moduleId": "module gele concerne (ex: EF-02D, EF-03B, EF-ORCH)",
+    "dependencyType": "DIRECT_RUNTIME | INDIRECT_UPSTREAM | EXTERNAL_STAGE_ADAPTER | NONE - jamais aplati en booleen",
+    "provider": "identifiant du provider configure dans ProviderRegistry",
+    "operation": "nom technique de l'operation (ex: llm-call, fetch)",
+    "payload": "contenu technique envoye tel quel, jamais modifie",
+    "timeoutPolicy": "{ timeoutMs } optionnel - sinon celui du provider",
+    "retryPolicy": "{ maxAttempts, backoffMs } optionnel - sinon celui du provider, plafonne a 5 tentatives (HARD_MAX_ATTEMPTS_CAP)"
+  }
+}

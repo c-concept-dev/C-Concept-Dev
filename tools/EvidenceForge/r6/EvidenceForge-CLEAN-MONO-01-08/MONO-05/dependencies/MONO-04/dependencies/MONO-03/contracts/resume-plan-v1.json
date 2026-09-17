@@ -1,0 +1,25 @@
+{
+  "schema": "EvidenceForge.ResumePlan",
+  "schemaVersion": "MONO-03-v1",
+  "description": "Sortie machine-readable de computeResumePlan() - classe chaque noeud connu du RunState dans un seau, a partir de son etat persiste et de sa politique deja connue. Aucun raisonnement metier, aucun recalcul d'eligibilite de graphe (reste MONO-02).",
+  "policies": ["RESTART_STAGE", "RESUME_CHECKPOINT", "REPLAY_MISSING_ONLY", "RECOMPUTE_DETERMINISTIC", "EXPLICIT_REBUILD_REQUIRED", "NO_RETRY"],
+  "requiredFields": {
+    "runId": "run concerne",
+    "resumeFromNode": "premier noeud non-SUCCESS dans l'ordre fourni - une INDICATION, jamais un calcul de dependances",
+    "nodesToReuse": "noeuds SUCCESS - output reutilise tel quel, jamais rejoue",
+    "nodesToResume": "noeuds RESUME_CHECKPOINT ou REPLAY_MISSING_ONLY (interrompus/en echec) - reprise via leur propre mecanisme natif",
+    "nodesToReplay": "noeuds RESTART_STAGE (interrompus/en echec) - rejeu complet de l'etape",
+    "nodesToRecompute": "noeuds RECOMPUTE_DETERMINISTIC (interrompus/en echec) - recalcul deterministe si inputs changes ou output absent/invalide",
+    "nodesNotStarted": "noeuds jamais executes",
+    "nodesBlocked": "noeuds deja BLOCKED, ou EXPLICIT_REBUILD_REQUIRED/NO_RETRY en echec - jamais une action automatique",
+    "reasoningCodes": "liste {nodeId, code, policy, state, note} - une justification par noeud, jamais une boite noire"
+  },
+  "policyMapping": {
+    "EF-ORCH-SUBSYSTEM": "RESUME_CHECKPOINT - reprise via EFOrchExecutionPort.resume() en utilisant efOrchRunIdentity, jamais une reconstruction des checkpoints EF-01",
+    "EF-02D": "RESUME_CHECKPOINT - resume/fusion additive",
+    "EF-02E": "EXPLICIT_REBUILD_REQUIRED - jamais une reconstruction automatique apres changement d'exclusion",
+    "EF-03B": "REPLAY_MISSING_ONLY - les reviews valides existantes sont conservees",
+    "EF-03C / EF-03D": "RECOMPUTE_DETERMINISTIC - uniquement si inputs changes ou output absent/invalide",
+    "EF-04-LINEAGE / EF-04A": "NO_RETRY - la correction se fait en amont, jamais par une relance de ces noeuds"
+  }
+}

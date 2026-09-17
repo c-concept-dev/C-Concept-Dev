@@ -1,0 +1,263 @@
+
+=== test_t02_01_graph_completeness.js ===
+
+TOUS LES TESTS PASSENT (175)
+
+=== test_t02_02_unknown_node_rejected.js ===
+PASS — 1. getNodeState('EF-99') -> null (nœud inconnu)
+PASS — 2. canRun('EF-99') -> ok:false, ORCHESTRATION_BLOCKED (nœud inconnu)
+PASS — 3. runNode('EF-99') -> ok:false, ORCHESTRATION_BLOCKED
+PASS — 4. transition('EF-99', 'READY') -> ok:false, ORCHESTRATION_BLOCKED
+PASS — 5. 'EF-99' n'apparaît jamais dans listNodeIds()
+
+TOUS LES TESTS PASSENT (5)
+
+=== test_t02_03_invalid_transition_rejected.js ===
+PASS — 1. NOT_STARTED -> RUNNING refusé
+PASS — 2. NOT_STARTED -> SUCCESS refusé
+PASS — 3. SUCCESS -> RUNNING refusé (pas de retour arrière depuis un succès)
+PASS — 4. READY -> BLOCKED refusé directement (doit passer par RUNNING)
+PASS — 5. FAILED -> RUNNING refusé (doit repasser par READY explicitement)
+PASS — 6. n'importe quel état -> NOT_STARTED toujours refusé
+PASS — 7. les 9 transitions déclarées sont bien acceptées
+PASS — 8. code d'erreur INVALID_STATE_TRANSITION sur un rejet
+PASS — 9. engine.transition('EF-ORCH','SUCCESS') depuis NOT_STARTED -> refusé
+PASS — 9b. l'état du nœud n'a pas changé après un rejet
+
+TOUS LES TESTS PASSENT (10)
+
+=== test_t02_04_upstream_gating.js ===
+PASS — 1. EF-02A n'est PAS READY tant qu'EF-ORCH/EF-PR-GEN-01 ne sont pas SUCCESS
+PASS — 2. runNode('EF-02A') avant que ses upstream soient SUCCESS -> NODE_NOT_READY
+PASS — 3. EF-ORCH SUCCESS
+PASS — 4. EF-02A toujours pas READY (EF-PR-GEN-01 encore NOT_STARTED)
+PASS — 5. EF-PR-GEN-01 SUCCESS
+PASS — 6. EF-02A devient READY une fois SES DEUX upstream SUCCESS
+PASS — 7. canRun('EF-03A') avant EF-02E SUCCESS -> UPSTREAM_NOT_SUCCESS
+
+TOUS LES TESTS PASSENT (7)
+
+=== test_t02_05_required_input_gating.js ===
+PASS — 1. EF-ORCH-SUBSYSTEM ne devient jamais READY sans runContract
+PASS — 2. canRun('EF-ORCH-SUBSYSTEM') sans runContract -> ORCHESTRATION_BLOCKED (entrée externe manquante)
+PASS — 3. une fois runContract fourni, EF-ORCH-SUBSYSTEM devient READY
+PASS — 4. TARGET_DOCUMENT_SET (upstream EF-PR-GEN-01 SUCCESS) reste bloqué sans 'documents'
+PASS — 5. canRun('TARGET_DOCUMENT_SET') sans documents -> ORCHESTRATION_BLOCKED (entrée externe manquante)
+
+TOUS LES TESTS PASSENT (5)
+
+=== test_t02_06_dependency_gating.js ===
+PASS — 1. EF-ORCH/EF-PR-GEN-01/EF-02A/EF-02B/EF-02C/TARGET_DOCUMENT_SET progressent normalement (aucune dépendance llm requise)
+PASS — 2. EF-02D (requiert llm) jamais READY quand llm=false
+PASS — 2b. canRun('EF-02D') -> ORCHESTRATION_BLOCKED (dépendance llm non confirmée)
+PASS — 3. dependenciesAvailable={} (llm absent) bloque EF-02D exactement comme llm:false (fail-closed strict)
+PASS — 4. EF-02A jamais READY sans ExternalStageAdapter (dependency='externalStageAdapter.discoverProfessionals')
+PASS — 4b. canRun('EF-02A') sans adapter -> ORCHESTRATION_BLOCKED (externalStageAdapter non disponible)
+
+TOUS LES TESTS PASSENT (6)
+
+=== test_t02_07_ef02a_requires_two_inputs.js ===
+PASS — 1. EF-02A pas READY tant qu'EF-PR-GEN-01 (source de MissionDimensionSet) n'a pas SUCCESS
+PASS — 2. EF-02A pas READY tant qu'EF-ORCH n'a pas SUCCESS
+PASS — 3. après EF-ORCH+EF-PR-GEN-01 SUCCESS, EF-02A devient READY puis SUCCESS
+PASS — 4. la sortie d'EF-02A est bien un ProfessionalDiscovery/EF-02A-v2 réel
+
+TOUS LES TESTS PASSENT (4)
+
+=== test_t02_08_ef02abc_requires_adapter.js ===
+PASS — 1. sans adapter, EF-02A/B/C ne progressent jamais jusqu'à SUCCESS
+PASS — 2. EF-ORCH/EF-PR-GEN-01/TARGET_DOCUMENT_SET progressent quand même (indépendants de l'adapter)
+PASS — 3. adapter partiel (discoverProfessionals seul) -> EF-02A SUCCESS
+PASS — 4. adapter partiel -> EF-02B jamais SUCCESS (verifyProfessionals non implémentée)
+PASS — 5. adapter complet -> EF-02A/B/C tous SUCCESS
+
+TOUS LES TESTS PASSENT (5)
+
+=== test_t02_09_ef02e_requires_exclusion_registry.js ===
+PASS — 1. sans exclusionRegistry, EF-02D SUCCESS mais EF-02E jamais SUCCESS
+PASS — 2. la chaîne en aval d'EF-02E (EF-03A...EF-04A) ne progresse jamais non plus
+PASS — 3. registre d'exclusion VIDE mais explicite -> EF-02E SUCCESS
+PASS — 4. la chaîne complète va jusqu'à EF-04A SUCCESS avec un registre vide explicite
+
+TOUS LES TESTS PASSENT (4)
+
+=== test_t02_10_ef03b_requires_mapping_and_targetdoc.js ===
+PASS — 1. EF-03B déclare EF-PR-GEN-01 et TARGET_DOCUMENT_SET dans requiredUpstreamNodes
+PASS — 2. la note architecturale précise que MissionDocumentMapping n'est jamais un paramètre direct (contrat gelé inchangé)
+PASS — 3. sans TARGET_DOCUMENT_SET SUCCESS, EF-03A peut réussir (upstream différent) mais EF-03B reste bloqué
+PASS — 4. chaîne complète -> EF-03B SUCCESS
+PASS — 5. la sortie d'EF-03B est un DocumentaryReviewSet/EF-03B-v1 réel
+
+TOUS LES TESTS PASSENT (5)
+
+=== test_t02_11_lineage_fail_blocks_report.js ===
+PASS — setup. la chaîne EF-02E..EF-03D est réellement non vide (reviews > 0)
+PASS — 1. EF-04-LINEAGE devient READY (tous ses upstream sont SUCCESS)
+PASS — 2. EF-04-LINEAGE échoue avec une chaîne de lignée rompue (documents vidés)
+PASS — 3. le nœud EF-04-LINEAGE n'est jamais SUCCESS dans ce cas
+PASS — 4. EF-04A ne devient JAMAIS READY tant qu'EF-04-LINEAGE n'est pas SUCCESS
+PASS — 5. tenter de lancer EF-04A directement -> NODE_NOT_READY (jamais un rapport produit sans lignée PASS)
+PASS — 6. aucun UnifiedReportSummary n'a jamais été produit dans ce scénario
+PASS — 7. contre-épreuve : chaîne intacte -> EF-04-LINEAGE SUCCESS
+
+TOUS LES TESTS PASSENT (8)
+
+=== test_t02_12_lineage_pass_unlocks_report.js ===
+PASS — 1. EF-04A n'est pas READY avant qu'EF-04-LINEAGE ait tourné
+PASS — 2. EF-04-LINEAGE SUCCESS avec la chaîne intacte
+PASS — 2b. le résultat de lignée porte ok:true et les limitations gelées visibles (jamais masquées)
+PASS — 3. EF-04A devient READY dès qu'EF-04-LINEAGE est SUCCESS
+PASS — 4. EF-04A SUCCESS — un vrai UnifiedReportSummary est produit
+PASS — 5. le rapport porte bien le missionId attendu
+
+TOUS LES TESTS PASSENT (6)
+
+=== test_t02_13_failed_node_no_downstream_unlock.js ===
+PASS — 1. EF-02B passe bien à FAILED (exception du module/adaptateur propagée comme échec technique)
+PASS — 2. EF-02C (upstream=EF-02B) ne devient JAMAIS SUCCESS ni même READY
+PASS — 3. toute la chaîne en aval (EF-02D, EF-02E, EF-03A..EF-04A) reste NOT_STARTED
+PASS — 4. TARGET_DOCUMENT_SET, indépendant de la branche EF-02, progresse normalement malgré l'échec ailleurs
+PASS — 5. FAILED->READY est autorisé UNIQUEMENT sur demande explicite (jamais déclenché seul par le moteur)
+PASS — 6. après re-transition explicite en READY, un nouvel appel peut réussir si l'adaptateur est réparé
+
+TOUS LES TESTS PASSENT (6)
+
+=== test_t02_14_retry_policy_respected.js ===
+PASS — 1. tous les nœuds déclarent une retryPolicy parmi les 6 valeurs autorisées, jamais une valeur inventée
+PASS — 2. EF-02D -> RESUME_CHECKPOINT (resume/fusion additive, exemple explicite du CDC)
+PASS — 3. EF-02E -> EXPLICIT_REBUILD_REQUIRED (reconstruction explicite, exemple explicite du CDC)
+PASS — 4. EF-03B -> REPLAY_MISSING_ONLY (replay reviews manquantes/invalides uniquement, exemple explicite du CDC)
+PASS — 5. EF-03C -> RECOMPUTE_DETERMINISTIC (recalculable depuis inputs valides, exemple explicite du CDC)
+PASS — 6. EF-03D -> RECOMPUTE_DETERMINISTIC (recalculable depuis inputs valides, exemple explicite du CDC)
+PASS — 7. chaque nœud documente resumePolicySource (traçabilité obligatoire, jamais une valeur non sourcée)
+PASS — 8. EF-02B FAILED
+PASS — 9. EF-02B reste FAILED après plusieurs computeReadyNodes() supplémentaires — aucun retry automatique
+
+TOUS LES TESTS PASSENT (9)
+
+=== test_t02_15_resume_policy_correct.js ===
+PASS — 1. EF-ORCH-SUBSYSTEM.resumePolicy === "RESUME_CHECKPOINT"
+PASS — 1. EF-PR-GEN-01.resumePolicy === "RECOMPUTE_DETERMINISTIC"
+PASS — 1. EF-02A.resumePolicy === "RESTART_STAGE"
+PASS — 1. EF-02B.resumePolicy === "RESTART_STAGE"
+PASS — 1. EF-02C.resumePolicy === "RESUME_CHECKPOINT"
+PASS — 1. EF-02D.resumePolicy === "RESUME_CHECKPOINT"
+PASS — 1. EF-02E.resumePolicy === "EXPLICIT_REBUILD_REQUIRED"
+PASS — 1. TARGET_DOCUMENT_SET.resumePolicy === "RESUME_CHECKPOINT"
+PASS — 1. EF-03A.resumePolicy === "RECOMPUTE_DETERMINISTIC"
+PASS — 1. EF-03B.resumePolicy === "REPLAY_MISSING_ONLY"
+PASS — 1. EF-03C.resumePolicy === "RECOMPUTE_DETERMINISTIC"
+PASS — 1. EF-03D.resumePolicy === "RECOMPUTE_DETERMINISTIC"
+PASS — 1. EF-04-LINEAGE.resumePolicy === "NO_RETRY"
+PASS — 1. EF-04A.resumePolicy === "NO_RETRY"
+PASS — 2. resumePolicy et retryPolicy coïncident partout dans ce graphe (documenté comme choix actuel, champs distincts par contrat)
+PASS — 3. EF-02A/EF-02B (resumeCapability=false dans MONO-00) -> RESTART_STAGE, jamais RESUME_CHECKPOINT
+PASS — 4. EF-04-LINEAGE et EF-04A (EF-04 FAIL-CLOSED, sans mode dégradé) -> NO_RETRY tous les deux
+
+TOUS LES TESTS PASSENT (17)
+
+=== test_t02_16_no_direct_frozen_invocation.js ===
+PASS — 0. au moins 4 fichiers examinés dans lib/
+PASS — 1. aucun fichier de lib/ ne require() directement dependencies/MONO-01/dependencies/ (code gelé interne à MONO-01)
+PASS — 2. lib/node-runners.js n'importe rien depuis dependencies/MONO-01/dependencies/ (seulement des méthodes reçues via mono01.<port>.*)
+PASS — 3. lib/orchestration-engine.js n'importe que des modules internes à MONO-02 (fs, ./state-machine, ./orchestration-errors, ./node-runners)
+
+TOUS LES TESTS PASSENT (4)
+
+=== test_t02_17_no_smart_repair.js ===
+PASS — 1. aucun fichier de lib/ ne contient fuzzy/similarity/smartRepair/autoRepair
+PASS — 2. un RunContract de mauvais schema n'est jamais 'réparé' silencieusement — le port MONO-01 le rejette
+PASS — 3. le nœud EF-ORCH-SUBSYSTEM n'est jamais SUCCESS avec un objet malformé
+
+TOUS LES TESTS PASSENT (3)
+
+=== test_t02_18_no_pilot_hardcoding.js ===
+PASS — 1. aucun fichier du cœur MONO-02 (lib/, graphe) ne contient JMJS/S01/S02/DIMS/d4/d5
+PASS — 2. 5 fichiers examinés
+
+TOUS LES TESTS PASSENT (2)
+
+=== test_t02_19_no_epistemic_additions.js ===
+PASS — 1. aucune occurrence fonctionnelle de truthScore/majority/prestige/vote/consensus/expertScore/scientificValidity=true dans lib/
+PASS — 2. les occurrences restantes (s'il y en a) sont toutes des commentaires d'interdiction explicite
+PASS — 3. les 7 états déclarés dans state-machine.js sont strictement techniques (aucun état métier)
+
+TOUS LES TESTS PASSENT (3)
+
+=== test_t02_20_port_only_invocation.js ===
+PASS — 1. un exécuteur existe pour le nœud "EF-ORCH-SUBSYSTEM"
+PASS — 1. un exécuteur existe pour le nœud "EF-PR-GEN-01"
+PASS — 1. un exécuteur existe pour le nœud "EF-02A"
+PASS — 1. un exécuteur existe pour le nœud "EF-02B"
+PASS — 1. un exécuteur existe pour le nœud "EF-02C"
+PASS — 1. un exécuteur existe pour le nœud "EF-02D"
+PASS — 1. un exécuteur existe pour le nœud "EF-02E"
+PASS — 1. un exécuteur existe pour le nœud "TARGET_DOCUMENT_SET"
+PASS — 1. un exécuteur existe pour le nœud "EF-03A"
+PASS — 1. un exécuteur existe pour le nœud "EF-03B"
+PASS — 1. un exécuteur existe pour le nœud "EF-03C"
+PASS — 1. un exécuteur existe pour le nœud "EF-03D"
+PASS — 1. un exécuteur existe pour le nœud "EF-04-LINEAGE"
+PASS — 1. un exécuteur existe pour le nœud "EF-04A"
+PASS — 2. lib/node-runners.js n'appelle que des méthodes de la forme mono01.<port>.<méthode>(...)
+PASS — 3. aucun appel direct à une fonction gelée nommée (buildX, assertX, evaluateX) en dehors des identifiants mono01.*
+PASS — 4. la chaîne complète réussit en n'appelant que des ports MONO-01 (aucun contournement nécessaire)
+
+TOUS LES TESTS PASSENT (17)
+
+=== test_t02_21_deterministic_ready_computation.js ===
+PASS — 1. computeReadyNodes() initial identique sur deux engines équivalents
+PASS — 2. computeReadyNodes() est idempotent (appel répété sans changement d'état -> même résultat)
+PASS — 3. listNodeIds() respecte strictement l'ordre déclaré dans le graphe JSON
+PASS — 4. computeReadyNodes() ne retourne que des nodeId dans l'ordre du graphe (jamais un ordre Map/objet arbitraire)
+PASS — 5. l'avancement d'engine1 n'affecte jamais engine2 (aucun état partagé caché)
+PASS — 6. engine1 progresse bien après EF-ORCH SUCCESS (au moins un nouveau nœud READY ou EF-ORCH disparaît de la liste READY)
+
+TOUS LES TESTS PASSENT (6)
+
+=== test_t02_22_graph_serialization_reload.js ===
+PASS — 1. round-trip JSON stringify/parse produit un graphe structurellement identique
+PASS — 2. même nombre de nœuds après rechargement
+PASS — 3. même ordre de nœuds après rechargement
+PASS — 4. les deux engines exposent la même liste de nœuds
+PASS — 5. les deux engines calculent le même computeReadyNodes() initial (aucune entrée fournie -> aucun nœud READY dans les deux cas)
+PASS — 6. un graphe rechargé avec un schema altéré est refusé au démarrage (fail-closed)
+
+TOUS LES TESTS PASSENT (6)
+
+=== test_t02_23_no_local_usable_records_duplication.js ===
+PASS — 1. aucune fonction locale selectUsableRecords()/usableRecords() définie dans lib/ (jamais une réimplémentation du prédicat gelé)
+PASS — 2. aucune ligne de code fonctionnel ne reproduit le prédicat éligible+pertinent inline (recherche multi-lignes ciblée)
+PASS — 3. lib/node-runners.js appelle mono01.eligibilityPanelPort.selectUsableRecords() (exactement une fois, dans le nœud EF-02D)
+PASS — 4. MONO-01/ports/eligibility-panel-port.js expose bien selectUsableRecords() et appelle directement EF02D1D2Orchestrator.usableRecords() (jamais une nouvelle logique)
+
+TOUS LES TESTS PASSENT (4)
+
+=== test_t02_24_explicit_eforch_backend_injection.js ===
+PASS — 1. createMono01(REGISTRY_PATH) nu -> efOrchExecutionPort.durableBackend est null
+PASS — 2. EF-ORCH-SUBSYSTEM sur un mono01 sans backend injecté -> échoue explicitement (jamais un faux SUCCESS, jamais un backend mémoire créé en douce)
+PASS — 3. createMono01(registry, { efOrchDurableBackend }) -> le port reçoit exactement ce backend (jamais un autre construit silencieusement)
+PASS — 4. EF-ORCH-SUBSYSTEM avec un backend explicitement injecté via createMono01 progresse réellement à travers l'OrchestrationEngine
+PASS — 5. deux instances createMono01() distinctes partageant explicitement le même backend EF-ORCH
+PASS — 6. engineA (mono01=monoA) exécute EF-ORCH-SUBSYSTEM
+PASS — 7. monoB (instance distincte, même backend partagé) retrouve le run démarré via engineA/monoA
+
+TOUS LES TESTS PASSENT (7)
+
+=== test_t02_25_r1_corpus_by_ref_map.js ===
+PASS — T02-R1-01. corpusByRefOf() retourne une instance de Map (jamais un Object simple)
+PASS — T02-R1-01b. Map.get() fonctionne (c'est exactement ce que ef-02d3-coverage-panel-v1.js appelle)
+PASS — T02-R1-02a. EF-02C SUCCESS (précondition du test)
+PASS — T02-R1-02b. EF-02D atteint SUCCESS (buildCoverageMatrix exécuté réellement, aucune exception corpusByRef.get)
+PASS — T02-R1-02c. Au moins un usableRecord réel a atteint buildCoverageMatrix (jamais un tableau vide qui masquerait le bug)
+PASS — T02-R1-02d. CoverageMatrix produite et non vide
+PASS — T02-R1-03a. EF-02D SUCCESS avec 2 professionnels usables
+PASS — T02-R1-03b. Les 2 professionnels (r1p1, r1p2) apparaissent chacun exactement une fois dans la CoverageMatrix (aucune collision Map)
+PASS — T02-R1-04. resumeCoverageMatrix() avec un record manquant ('b') utilise correctement corpusByRef.get() sans exception
+PASS — T02-R1-04b. Le professionnel manquant ('b') est bien évalué et ajouté
+
+TOUS LES TESTS PASSENT (10)
+
+============================================
+TOTAL CUMULE : 334 tests
+AUCUNE REGRESSION

@@ -1,0 +1,21 @@
+{
+  "schema": "EvidenceForge.ExternalExecutionError",
+  "schemaVersion": "MONO-04-v1",
+  "description": "Taxonomie technique minimale des erreurs d'execution externe. Aucune categorie metier.",
+  "codes": [
+    "EXTERNAL_DEPENDENCY_UNAVAILABLE",
+    "SECRET_UNAVAILABLE",
+    "PROVIDER_NOT_CONFIGURED",
+    "EXTERNAL_TIMEOUT",
+    "EXTERNAL_NETWORK_ERROR",
+    "EXTERNAL_HTTP_ERROR",
+    "INVALID_EXTERNAL_RESPONSE",
+    "EXTERNAL_RETRY_EXHAUSTED",
+    "EXTERNAL_REQUEST_CONFLICT"
+  ],
+  "requiredFields": {
+    "code": "un des 9 codes ci-dessus",
+    "message": "message technique lisible",
+    "details": "contexte de diagnostic"
+  }
+}

@@ -1,0 +1,64 @@
+PASS — B01-setup. run prealable conduit a 14/14 SUCCESS (LOCAL_CONTROLLED, prepare l'etat pour le worker REEL)
+PASS — B01-01. lib/cross-process-restart-worker.js (chemin REEL, processus separe) termine avec exit code 0
+PASS — B01-02. le worker REEL rapporte 14/14 SUCCESS apres rehydratation depuis le disque seul
+PASS — B01-03. pid du worker REEL distinct du processus de setup ET du processus de test
+PASS — B01-04. aucun appel reseau reel tente (le worker REEL termine rapidement — un appel reseau reel dans cet environnement sans acces internet aurait attendu jusqu'au timeout de connexion, largement > quelques secondes)
+PASS — B01-05. lib/cross-process-restart-worker.js echoue proprement (exit != 0, message explicite) si les arguments sont absents
+PASS — B01-06. bin/run-real-smoke.js nomme l'etape 'persistence-restart-cross-process' dans TOUS ses record(...) (jamais 'persistence-restart' seul, ambigu)
+PASS — B01-07. bin/run-real-smoke.js spawn reellement un processus separe pour le restart (child_process.spawn)
+PASS — B02-01. mode direct resout ANTHROPIC_API_KEY et SEULEMENT lui
+PASS — B02-02. mode direct ne scanne JAMAIS la valeur EVIDENCEFORGE_WORKER_API_KEY
+PASS — B02-03. mode delegated resout EVIDENCEFORGE_WORKER_API_KEY et SEULEMENT lui
+PASS — B02-04. mode delegated ne scanne JAMAIS la valeur ANTHROPIC_API_KEY (client jamais expose a la cle directe)
+PASS — B02-05. LLM_AUTH_MODE absent => mode direct par defaut (jamais delegated implicite)
+PASS — B02-06. LLM_AUTH_MODE invalide => aucun secret resolu (fail-closed, jamais un defaut silencieux)
+PASS — B02-NEG-RunState. une fuite volontairement injectee dans la surface 'RunState' est REELLEMENT detectee (jamais un faux PASS)
+PASS — B02-NEG-ArtifactRecord. une fuite volontairement injectee dans la surface 'ArtifactRecord' est REELLEMENT detectee (jamais un faux PASS)
+PASS — B02-NEG-OperatorApi-response. une fuite volontairement injectee dans la surface 'OperatorApi-response' est REELLEMENT detectee (jamais un faux PASS)
+PASS — B02-NEG-report. une fuite volontairement injectee dans la surface 'report' est REELLEMENT detectee (jamais un faux PASS)
+PASS — B02-NEG-stdout. une fuite volontairement injectee dans la surface 'stdout' est REELLEMENT detectee (jamais un faux PASS)
+PASS — B02-NEG-stderr. une fuite volontairement injectee dans la surface 'stderr' est REELLEMENT detectee (jamais un faux PASS)
+PASS — B02-NEG-trace. une fuite volontairement injectee dans la surface 'trace' est REELLEMENT detectee (jamais un faux PASS)
+PASS — B02-NEG-dom-bodyText. une fuite volontairement injectee dans la surface 'dom-bodyText' est REELLEMENT detectee (jamais un faux PASS)
+PASS — B02-NEG-dom-localStorage. une fuite volontairement injectee dans la surface 'dom-localStorage' est REELLEMENT detectee (jamais un faux PASS)
+PASS — B02-NEG-dom-sessionStorage. une fuite volontairement injectee dans la surface 'dom-sessionStorage' est REELLEMENT detectee (jamais un faux PASS)
+PASS — B02-07. surfaces propres => scan.clean === true (le scanner ne rapporte jamais un faux positif)
+PASS — B02-08. collectDurableBackendFileSurfaces() lit reellement le contenu persiste sur disque (retrouve le sentinel ecrit via put())
+PASS — B02-09. le scan sur les surfaces collectees depuis le disque detecte reellement la fuite
+PASS — B02-10. bin/run-real-smoke.js n'utilise plus [process.env.ANTHROPIC_API_KEY] seul comme unique source de secrets a scanner
+PASS — B02-11. bin/run-real-smoke.js utilise resolveActiveSecretNames/resolveActiveSecretValues (mode-aware, lib/secret-scan-surfaces.js)
+PASS — B02-12. bin/run-real-smoke.js scanne le contenu reellement persiste sur disque (collectDurableBackendFileSurfaces)
+PASS — B02-13. bin/run-real-smoke.js scanne stdout/stderr du processus de restart cross-process
+PASS — B02-14. bin/run-real-smoke.js scanne DOM/localStorage/sessionStorage (jamais NOT_APPLICABLE alors qu'ils sont produits a l'etape ui-smoke)
+PASS — B03-CAS1. readyForExecution=false => MISSION_NOT_READY, motif readyForExecution
+PASS — B03-CAS2. readyForExecution=true, eForchProvenance absent => MISSION_NOT_READY, motif eForchProvenance
+PASS — B03-CAS3. eForchProvenance incomplet (resolverRuns manquant) => MISSION_NOT_READY
+PASS — B03-CAS3. eForchProvenance incomplet (resolverRuns longueur incorrecte) => MISSION_NOT_READY
+PASS — B03-CAS3. eForchProvenance incomplet (plannerRun incomplet) => MISSION_NOT_READY
+PASS — B03-CAS3. eForchProvenance incomplet (humanValidation absent) => MISSION_NOT_READY
+PASS — B03-CAS3. eForchProvenance incomplet (plannerOutput absent (planner causal output missing)) => MISSION_NOT_READY
+PASS — B03-CAS3. eForchProvenance incomplet (plannerOutput incomplet (criteresInclusion manquant)) => MISSION_NOT_READY
+PASS — B03-CAS3b (R5-A01). eForchProvenance avec (auditDecisions vide) uniquement => PASS desormais (PRE_RETRIEVAL_GATE ne verifie plus auditDecisions, correction du BLOQUANT R4-A01)
+PASS — B03-CAS3b (R5-A01). eForchProvenance avec (auditDecisions acteur invalide) uniquement => PASS desormais (PRE_RETRIEVAL_GATE ne verifie plus auditDecisions, correction du BLOQUANT R4-A01)
+PASS — B03-CAS4. readyForExecution=true + eForchProvenance valide => PASS
+PASS — B03-CAS4b. missionGateStatus() (predicat simple, retro-compatible) reflete le meme resultat
+PASS — B03-CAS5. validateRealEForchProvenance() n'appelle AUCUN builder EF-ORCH ni ne require() de dependance MONO-01 (verification statique du code source)
+PASS — B03-CAS5b. describeMissionGateStatus() sur une mission invalide ne leve jamais d'exception (jamais atteint un builder/provider qui exigerait un contexte MONO-01 absent ici)
+PASS — B03-06. bin/run-real-smoke.js::main() utilise describeMissionGateStatus() (raison explicite) pour construire le detail de mission-gate
+PASS — B04-01. buildTemporaryKitRoot() echoue proprement (jamais un KIT_ROOT vide silencieux) sur une racine de paquet inexistante
+PASS — B04-SKIPPED. verification autonomie complete non executee ici (ce depot de developpement, jamais le paquet assemble - voir AUDIT-REMEDIATION/12-R2-CLOSURE.md pour la verification directe sur le paquet zippe)
+PASS — B04-05. lib/kit-root-adapter.js n'ecrit jamais dans un lot gele (aucun fs.writeFileSync/fs.copyFileSync vers un dossier MONO-XX, seulement une lecture pour zip via child_process)
+PASS — M02-01-R3. avec le MEME plannerOutput, seule la provenance (plannerRun) differant, le contenu substantiel de SearchProtocol reste IDENTIQUE (comportement CORRECT r3 — la provenance de l'appel ne doit jamais, a elle seule, changer le contenu ; voir test_t08_r3_closure.js pour la preuve que plannerOutput, lui, le fait reellement)
+PASS — M02-02. seul le champ plannerRuns[0] (provenance) differe reellement entre les deux appels
+PASS — M02-03. SearchProtocol REAL exige desormais une humanValidation reelle (OPERATOR_INPUT_REQUIRED si absente, jamais 'Revu (MONO-08).' fabrique)
+PASS — M02-04. SearchProtocol REAL avec humanValidation reelle transporte le commentaire REELLEMENT fourni, jamais 'Revu (MONO-08).'
+PASS — M02-05. SearchProtocol LOCAL_CONTROLLED (mode absent) conserve 'Revu (MONO-08).' MAIS etiquete SYNTHETIC_FIXTURE (jamais presente comme reel)
+PASS — M03-01. keys() retourne normalement les cles valides (comportement inchange pour le cas sain)
+PASS — M03-02. keys() ne leve JAMAIS pour un namespace dont la seule cle a ete supprimee (course/absence benigne)
+PASS — M03-03. keys() LEVE explicitement (jamais un tableau vide/tronque silencieux) quand une cle existante a un contenu JSON corrompu
+PASS — M03-04. le message d'erreur de corruption est distinct du cas 'course benigne' (jamais le meme message pour deux causes differentes)
+PASS — M03-05. lib/file-durable-backend.js::keys() distingue ENOENT (course benigne) des autres erreurs readFile (relancees)
+PASS — M01-01. lib/eforch-artifacts.js n'utilise plus 'REAL_LLM_CALL'/'REAL_HUMAN_ACTION' comme etiquette evidenceProvenance (terminologie surqualifiee, r1)
+PASS — M01-02. lib/eforch-artifacts.js utilise 'OPERATOR_ATTESTED_LLM_CALL'/'OPERATOR_ATTESTED_HUMAN_ACTION' (attestation de l'appelant, jamais une verification causale revendiquee)
+
+TOUS LES TESTS PASSENT (62)

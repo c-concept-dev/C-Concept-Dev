@@ -1,0 +1,187 @@
+{
+  "schema": "EvidenceForge.ModulePortRegistry",
+  "schemaVersion": "MONO-01-v1",
+  "generatedAt": "2026-08-29T00:00:00.000Z",
+  "generatedBy": "Claude (MONO-01 build pass)",
+  "baselineRegistry": "mono-00-frozen-baseline-registry-v1.json",
+  "ports": [
+    {
+      "portId": "BaselinePort",
+      "file": "ports/baseline-port.js",
+      "coversModuleIds": ["*"],
+      "bindingStatus": "BOUND",
+      "notes": "Autorité de compatibilité — charge et expose le registre MONO-00 tel quel."
+    },
+    {
+      "portId": "MissionPort",
+      "file": "ports/mission-port.js",
+      "coversModuleIds": ["EF-PR-GEN-01"],
+      "expectedCanonicalVersion": "v1",
+      "methods": {
+        "validateMissionDimensionSet": { "callType": "ASYNC", "externalDependencies": [] },
+        "validateMissionDocumentMapping": { "callType": "SYNC", "externalDependencies": [] },
+        "validateHeuristicPolicy": { "callType": "SYNC", "externalDependencies": [] },
+        "receiveRunContract": { "callType": "SYNC", "externalDependencies": [] }
+      },
+      "bindingStatus": "BOUND"
+    },
+    {
+      "portId": "CorpusSnapshotPort",
+      "file": "ports/corpus-snapshot-port.js",
+      "coversModuleIds": ["EF-ORCH"],
+      "expectedCanonicalVersion": "v0.1",
+      "methods": { "receive": { "callType": "SYNC", "externalDependencies": [] } },
+      "bindingStatus": "BOUND",
+      "notes": "Passthrough validé — reçoit le CorpusSnapshot produit par EFOrchExecutionPort (ou tout autre producteur), ne réexécute jamais EF-ORCH lui-même."
+    },
+    {
+      "portId": "EFOrchExecutionPort",
+      "file": "ports/ef-orch-execution-port.js",
+      "coversModuleIds": ["EF-ORCH"],
+      "expectedCanonicalVersion": "v0.1",
+      "methods": {
+        "start": { "callType": "ASYNC_EXTERNAL", "externalDependencies": [] },
+        "resume": { "callType": "ASYNC_EXTERNAL", "externalDependencies": [] },
+        "getStatus": { "callType": "ASYNC", "externalDependencies": [] },
+        "getResult": { "callType": "ASYNC", "externalDependencies": [] }
+      },
+      "bindingStatus": "BOUND",
+      "bindingType": "FROZEN_SUBSYSTEM_COMPOSITION",
+      "notes": "Révision MONO-01.x (correction post-audit, deux passes) : EF-ORCH est un sous-système orchestré autonome gelé (sa propre state machine, son propre durable stage runner, son propre mécanisme checkpoint/resume EF-01A→F). Ce port compose exclusivement les exports gelés déjà séparés — jamais une reconstruction de leur logique. Deuxième correction (durabilité cross-process) : le backend est injecté explicitement (options.durableBackend à la construction du port), jamais choisi implicitement par le port ; resume()/getStatus()/getResult() réhydratent systématiquement depuis stateSnapshotStore.getRunState(), jamais depuis une Map locale (T01-21, deux instances de port distinctes sur un même backend injecté). Les dépendances externes par sous-étape (EF-01B/EF-01C1 LLM=INDIRECT_UPSTREAM, EF-01C2 réseau=DIRECT_RUNTIME) sont injectées par l'appelant via executionDependencies (connectorRunners), jamais codées en dur. Voir contracts/ef-orch-execution-port-v1.json."
+    },
+    {
+      "portId": "ProfessionalPipelinePort",
+      "file": "ports/professional-pipeline-port.js",
+      "coversModuleIds": ["EF-02A", "EF-02B", "EF-02C"],
+      "expectedCanonicalVersion": { "EF-02A": "v1", "EF-02B": "v1", "EF-02C": "v2" },
+      "methods": {
+        "discoverProfessionals": { "callType": "ASYNC_EXTERNAL", "externalDependencies": ["externalStageAdapter"], "requiredInputs": ["corpusSnapshot", "missionDimensionSet"] },
+        "verifyProfessionals": { "callType": "ASYNC_EXTERNAL", "externalDependencies": ["externalStageAdapter"], "requiredInputs": ["professionalDiscovery"] },
+        "buildProfessionalCorpus": { "callType": "ASYNC_EXTERNAL", "externalDependencies": ["externalStageAdapter"], "requiredInputs": ["professionalVerification"] }
+      },
+      "bindingStatus": "BOUND",
+      "bindingType": "EXTERNAL_STAGE_ADAPTER",
+      "notes": "Décision d'architecture tranchée (correction post-audit) : EF-02A/B/C restent des outils HTML gelés, jamais pilotés ni réimplémentés par MONO-01. L'invocation délègue systématiquement à un ExternalStageAdapter injecté explicitement par l'appelant (contracts/external-stage-adapter-v1.json). Son absence pour une étape donnée produit DEPENDENCY_UNAVAILABLE (dependency=\"externalStageAdapter\"), jamais un comportement par défaut. Les 3 étapes restent strictement séparées : un adapter incomplet ne rend disponibles que les méthodes qu'il implémente réellement. CORRECTION 3 : discoverProfessionals (EF-02A) exige DEUX entrées gelées distinctes — corpusSnapshot (EvidenceForge.CorpusSnapshot) ET missionDimensionSet (EvidenceForge.MissionDimensionSet/EF-PR-GEN-v1, version exacte du registre MONO-00) — chacune requise et validée individuellement, plus jamais une seule requiredInputName transmise sans contrôle."
+    },
+    {
+      "portId": "EligibilityPanelPort",
+      "file": "ports/eligibility-panel-port.js",
+      "coversModuleIds": ["EF-02D"],
+      "expectedCanonicalVersion": "v1",
+      "methods": {
+        "buildEligibilityRelevanceSet": { "callType": "ASYNC_EXTERNAL", "externalDependencies": ["llm"] },
+        "buildCoverageMatrix": { "callType": "ASYNC_EXTERNAL", "externalDependencies": ["llm"] },
+        "resumeCoverageMatrix": { "callType": "ASYNC_EXTERNAL", "externalDependencies": ["llm"] },
+        "selectPanel": { "callType": "SYNC", "externalDependencies": [] }
+      },
+      "bindingStatus": "BOUND"
+    },
+    {
+      "portId": "GovernancePort",
+      "file": "ports/governance-port.js",
+      "coversModuleIds": ["EF-02E"],
+      "expectedCanonicalVersion": "v1",
+      "methods": {
+        "setRegistry": { "callType": "SYNC", "externalDependencies": [] },
+        "findActiveExclusion": { "callType": "SYNC", "externalDependencies": [] },
+        "deactivateExclusion": { "callType": "SYNC", "externalDependencies": [] }
+      },
+      "bindingStatus": "BOUND"
+    },
+    {
+      "portId": "DocumentaryTwinPort",
+      "file": "ports/documentary-twin-port.js",
+      "coversModuleIds": ["EF-02E"],
+      "expectedCanonicalVersion": "v1",
+      "methods": {
+        "buildDocumentaryTwinSet": { "callType": "ASYNC", "externalDependencies": [] },
+        "withdrawTwin": { "callType": "SYNC", "externalDependencies": [] }
+      },
+      "bindingStatus": "BOUND"
+    },
+    {
+      "portId": "TargetDocumentPort",
+      "file": "ports/target-document-port.js",
+      "coversModuleIds": ["EF-03"],
+      "expectedCanonicalVersion": "v1",
+      "methods": {
+        "buildTargetDocumentSet": { "callType": "ASYNC", "externalDependencies": [] },
+        "getDocumentForTarget": { "callType": "SYNC", "externalDependencies": [] }
+      },
+      "bindingStatus": "BOUND"
+    },
+    {
+      "portId": "ReviewSchemaPort",
+      "file": "ports/review-schema-port.js",
+      "coversModuleIds": ["EF-03"],
+      "expectedCanonicalVersion": "v1",
+      "methods": { "buildReviewSchema": { "callType": "ASYNC", "externalDependencies": [] } },
+      "bindingStatus": "BOUND"
+    },
+    {
+      "portId": "DocumentaryReviewPort",
+      "file": "ports/documentary-review-port.js",
+      "coversModuleIds": ["EF-03"],
+      "expectedCanonicalVersion": "v1",
+      "methods": {
+        "buildDocumentaryReviewSet": { "callType": "ASYNC_EXTERNAL", "externalDependencies": ["llm"] },
+        "resumeDocumentaryReviewSet": { "callType": "ASYNC_EXTERNAL", "externalDependencies": ["llm"] }
+      },
+      "bindingStatus": "BOUND"
+    },
+    {
+      "portId": "AggregationPort",
+      "file": "ports/aggregation-port.js",
+      "coversModuleIds": ["EF-03"],
+      "expectedCanonicalVersion": "v1",
+      "methods": { "buildAggregatedDocumentaryReview": { "callType": "ASYNC", "externalDependencies": [] } },
+      "bindingStatus": "BOUND"
+    },
+    {
+      "portId": "StabilityPort",
+      "file": "ports/stability-port.js",
+      "coversModuleIds": ["EF-03"],
+      "expectedCanonicalVersion": "v1",
+      "methods": { "buildStabilityContradictionAnalysis": { "callType": "SYNC", "externalDependencies": [] } },
+      "bindingStatus": "BOUND"
+    },
+    {
+      "portId": "LineagePort",
+      "file": "ports/lineage-port.js",
+      "coversModuleIds": ["EF-04"],
+      "expectedCanonicalVersion": "v1",
+      "methods": {
+        "assertLineage": { "callType": "SYNC", "externalDependencies": [] },
+        "buildLineageFingerprint": { "callType": "ASYNC", "externalDependencies": [] }
+      },
+      "bindingStatus": "BOUND"
+    },
+    {
+      "portId": "ReportPort",
+      "file": "ports/report-port.js",
+      "coversModuleIds": ["EF-04"],
+      "expectedCanonicalVersion": "v1",
+      "methods": { "buildUnifiedReportSummary": { "callType": "ASYNC", "externalDependencies": [], "gate": "LineagePort PASS requis" } },
+      "bindingStatus": "BOUND"
+    },
+    {
+      "portId": "ExternalExecutionPort",
+      "file": "ports/external-execution-port.js",
+      "coversModuleIds": ["*"],
+      "bindingStatus": "BOUND",
+      "notes": "Port transversal de classification LLM/OpenAlex/Crossref/PubMed/Worker — table dérivée du registre MONO-00, granularité par sous-étape préservée pour EF-ORCH et EF-03."
+    }
+  ],
+  "moduleCoverage": {
+    "EF-ORCH": { "coveredByPort": ["CorpusSnapshotPort", "EFOrchExecutionPort", "ExternalExecutionPort"] },
+    "EF-PR-GEN-01": { "coveredByPort": ["MissionPort", "ExternalExecutionPort"] },
+    "EF-02A": { "coveredByPort": ["ProfessionalPipelinePort", "ExternalExecutionPort"], "bindingStatus": "BOUND" },
+    "EF-02B": { "coveredByPort": ["ProfessionalPipelinePort", "ExternalExecutionPort"], "bindingStatus": "BOUND" },
+    "EF-02C": { "coveredByPort": ["ProfessionalPipelinePort", "ExternalExecutionPort"], "bindingStatus": "BOUND" },
+    "EF-02ABC-SMOKE-REAL": { "explicitlyNotApplicable": true, "reason": "Artefact historique (fixtures de smoke réel), pas un module gelé exécutable — HISTORICAL_FREEZE_CONFIRMED dans MONO-00, aucune frontière d'appel à formaliser." },
+    "EF-02D": { "coveredByPort": ["EligibilityPanelPort", "ExternalExecutionPort"] },
+    "EF-02E": { "coveredByPort": ["GovernancePort", "DocumentaryTwinPort", "ExternalExecutionPort"] },
+    "EF-03": { "coveredByPort": ["TargetDocumentPort", "ReviewSchemaPort", "DocumentaryReviewPort", "AggregationPort", "StabilityPort", "ExternalExecutionPort"] },
+    "EF-04": { "coveredByPort": ["LineagePort", "ReportPort", "ExternalExecutionPort"] }
+  }
+}

@@ -1,0 +1,534 @@
+{
+  "$comment": "MONO-10 v0.5 — schemas IMPLEMENTES. Changement structurant : la racine de confiance est PROVISIONNEE PAR L EXPLOITANT, hors du processus appelant.",
+  "schemaFamily": "EvidenceForge.MONO-10",
+  "schemaVersion": "MONO-10-v5",
+  "supersedes": "MONO-10-v4",
+  "historicalImmutableLots": [
+    "MONO-01..MONO-09",
+    "MONO-10 v0.1..v0.4 (tous NON_GELABLE)"
+  ],
+  "architecturalDecision": {
+    "principle": "EvidenceForge may choose what to verify. EvidenceForge may not choose whom to trust.",
+    "INTERNAL_CHAIN_CONSISTENCY": "les artefacts concordent entre eux",
+    "AUTHENTICATED_PRODUCTION_EXECUTION": "une frontiere EXTERIEURE, provisionnee hors du processus appelant, atteste le run",
+    "rule": "en PRODUCTION, QUALIFIED exige LES DEUX"
+  },
+  "genericCoreBoundary": {
+    "core": "core/ — noyau universel, y compris la racine de confiance et l'adaptateur a porte",
+    "validators": "validators/ — surface de validation unique",
+    "adapters": "adapters/ — traductions de cas, optionnelles",
+    "tools": "tools/ — outillage hors production (aucune cle embarquee)",
+    "rule": "aucun nom de cas, de domaine, de fournisseur ni de registre dans core/"
+  },
+  "breakingChanges": [
+    "La racine de confiance n est plus un argument : l espace PRODUCTION n est atteignable que par provisionnement depuis l environnement.",
+    "Aucune API de production n accepte une cle, un ancrage, une carte de confiance ni un callback de verification.",
+    "Quatre objets critiques portent une marque d origine : frontiere, verificateur, store anti-rejeu, registre authentifie.",
+    "L anti-rejeu est obligatoire et persistant en production ; absent, le provisionnement echoue.",
+    "Le mecanisme d authentification humaine est provisionne par la frontiere ; un callback appelant est refuse.",
+    "Le registre d artefacts est construit depuis le manifeste et chaque entree est verifiee liee au run.",
+    "Les preuves vues par l humain sont des references de lignee RESOLUES, plus des chaines opaques.",
+    "L eligibilite au corpus n est jamais acceptee en entree : isEligible exige recomputed === true.",
+    "L attestation engage runManifestRootHash : l intention d ouverture du run est figee avant signature.",
+    "Les cles portent un cycle de vie ACTIVE/RETIRED/REVOKED evalue a la DATE DE SIGNATURE."
+  ],
+  "commonTypes": {
+    "RunBinding": {
+      "champs": [
+        "runId",
+        "executionMode",
+        "authorityId",
+        "attestationId",
+        "attestationHash",
+        "missionHash",
+        "manifestBindingHash",
+        "artifactId",
+        "artifactHash",
+        "crossHash"
+      ],
+      "crossHash": "sha256(manifestBindingHash, runId, attestationHash, artifactId, artifactHash)",
+      "note": "l'empreinte d'artefact exclut toujours runBinding et trustEnvelope"
+    },
+    "HumanAct": {
+      "declaration": {
+        "actorType": {
+          "const": "human"
+        },
+        "actorIdentity": "string non vide",
+        "decidedAt": "ISO-8601 reel"
+      },
+      "authentication": {
+        "enum": [
+          "TEST_FIXTURE_DECLARED",
+          "PRODUCTION_MECHANISM_VERIFIED",
+          "NOT_AUTHENTICATED"
+        ]
+      },
+      "invariant": "une declaration n'est jamais une authentification ; aucune signature humaine n'est inventee"
+    },
+    "IdentityEvidence": {
+      "champs": [
+        "evidenceType",
+        "identifier",
+        "assertedValue",
+        "provenanceRef",
+        "subjectBinding",
+        "verificationStatus",
+        "confidenceContribution"
+      ],
+      "invariant": "provenanceRef est la SEULE voie d etablissement de l origine ; non resolue, l independance est INCONNUE"
+    },
+    "Independence": {
+      "enum": [
+        "INDEPENDENT",
+        "SAME_SUBJECT_RECORD",
+        "SAME_SOURCE_ROOT",
+        "SAME_AUTHORITY_ROOT",
+        "SAME_FAMILY_ROOT",
+        "INDEPENDENCE_UNKNOWN"
+      ]
+    },
+    "Unknown": {
+      "champs": [
+        "unknownId",
+        "genesisHash",
+        "originArtifact",
+        "reason",
+        "blockingStatus",
+        "evidenceRefs",
+        "runId",
+        "sequence",
+        "transitions",
+        "status"
+      ],
+      "status": "DERIVE de transitions[] — un champ force leve UNKNOWN_STATUS_FORGED",
+      "blockingStatus": {
+        "enum": [
+          "BLOCKING",
+          "NON_BLOCKING",
+          "NOT_ASSESSED"
+        ]
+      }
+    },
+    "UnknownTransition": {
+      "champs": [
+        "transitionId",
+        "sequence",
+        "fromStatus",
+        "toStatus",
+        "reason",
+        "evidenceRefs",
+        "decidedAt",
+        "runId",
+        "previousEventHash"
+      ],
+      "toStatus": {
+        "enum": [
+          "RESOLVED",
+          "SUPERSEDED",
+          "RECLASSIFIED"
+        ]
+      },
+      "invariants": [
+        "sequence monotone",
+        "chainage par previousEventHash",
+        "evidenceRefs doivent RESOUDRE",
+        "un evenement d'un autre run est rejete"
+      ]
+    },
+    "ArtifactRef": {
+      "champs": [
+        "artifactId",
+        "relation",
+        "artifactType",
+        "schemaVersion",
+        "sha256",
+        "runId",
+        "missionHash",
+        "attestationHash"
+      ],
+      "relation": {
+        "enum": [
+          "mission",
+          "discovery",
+          "verification",
+          "assessment",
+          "panel-decision",
+          "effective-eligibility",
+          "corpus",
+          "twins",
+          "reviews",
+          "aggregation",
+          "readiness-pre",
+          "readiness-full",
+          "capability",
+          "qualification",
+          "report",
+          "acceptance",
+          "downstream-authorization"
+        ]
+      }
+    },
+    "OperatorTrustBoundary": {
+      "champs": [
+        "operatorTrustBoundaryId",
+        "boundaryDescriptorHash",
+        "namespace",
+        "provisionedFrom",
+        "sourceDescriptor",
+        "policy"
+      ],
+      "provisionedFrom": {
+        "enum": [
+          "ENVIRONMENT",
+          "IN_PROCESS_TEST"
+        ]
+      },
+      "invariant": "l espace PRODUCTION exige provisionedFrom = ENVIRONMENT ; une frontiere construite en processus est figee sur TEST"
+    },
+    "RuntimeAttestation": {
+      "signedFields": [
+        "attestationId",
+        "authorityId",
+        "keyId",
+        "executionMode",
+        "runId",
+        "nonce",
+        "missionHash",
+        "producerId",
+        "producerVersion",
+        "runManifestRootHash",
+        "issuedAt",
+        "expiresAt"
+      ],
+      "signature": "Ed25519, base64, sur la forme canonique des champs signes",
+      "invariants": [
+        "un ancrage vaut pour UN SEUL executionMode",
+        "expiresAt obligatoire en PRODUCTION",
+        "le nonce est a consommation unique",
+        "runManifestRootHash engage l intention d ouverture du run"
+      ]
+    },
+    "KeyRecord": {
+      "champs": [
+        "authorityId",
+        "keyId",
+        "publicKeyPem",
+        "publicKeyFingerprint",
+        "status",
+        "validFrom",
+        "validUntil",
+        "revokedAt",
+        "revocationReason",
+        "supersedesKeyId"
+      ],
+      "status": {
+        "enum": [
+          "ACTIVE",
+          "RETIRED",
+          "REVOKED"
+        ]
+      },
+      "invariants": [
+        "aucune matiere privee acceptee",
+        "l empreinte est derivee, jamais declaree",
+        "REVOKED n est jamais valide, y compris retroactivement",
+        "RETIRED reste verifiable pour ce qu elle a signe dans sa fenetre"
+      ]
+    },
+    "ReplayProtectionStore": {
+      "contrat": [
+        "hasSeen",
+        "getSeen",
+        "markSeen",
+        "checkAndConsume"
+      ],
+      "invariants": [
+        "checkAndConsume atomique",
+        "persistant obligatoire en PRODUCTION",
+        "marque d origine : un store fourni par l appelant est refuse"
+      ]
+    },
+    "DocumentaryEvidenceRecord": {
+      "champs": [
+        "evidenceId",
+        "sourceRootId",
+        "authorityRootId",
+        "familyRootId",
+        "retrievedAt",
+        "locator",
+        "contentHash"
+      ],
+      "invariant": "c est cet artefact, lie au run, qui porte les racines de provenance — jamais un libelle inline"
+    }
+  },
+  "artifacts": {
+    "RunEvidenceManifest": {
+      "schemaVersion": "MONO-10-v5",
+      "champs": [
+        "runId",
+        "executionMode",
+        "authorityId",
+        "keyId",
+        "operatorTrustBoundaryId",
+        "boundaryDescriptorHash",
+        "runtimeAttestationId",
+        "runtimeAttestationHash",
+        "runManifestRootHash",
+        "missionHash",
+        "producers",
+        "openedAt",
+        "artifacts",
+        "manifestBindingHash"
+      ],
+      "invariant": "ouvert depuis une attestation VERIFIEE ; il reprend son mode et son run, il ne les declare pas"
+    },
+    "ProfessionalCandidateAssessment": {
+      "schemaVersion": "MONO-10-v4",
+      "assessmentStatus": {
+        "enum": [
+          "PRESENT_FOR_HUMAN_REVIEW",
+          "INSUFFICIENT_DOCUMENTARY_BASIS",
+          "IDENTITY_AMBIGUOUS",
+          "OUT_OF_SCOPE_DOCUMENTARILY"
+        ]
+      },
+      "invariant": "aucun etat ne vaut admission ni jugement de competence"
+    },
+    "ProfessionalPanelValidation": {
+      "schemaVersion": "MONO-10-v4",
+      "decision": {
+        "enum": [
+          "APPROVE_FOR_DOCUMENTARY_PANEL",
+          "REJECT",
+          "DEFER"
+        ]
+      },
+      "liaisons": [
+        "missionHash",
+        "candidateAssessmentId",
+        "candidateAssessmentHash",
+        "validatesAssessmentRef",
+        "validatesDiscoveryRef",
+        "validatesVerificationRef",
+        "runId",
+        "attestationHash",
+        "decisions[].evidenceRefs",
+        "decisions[].evidenceRefsHash",
+        "decisions[].candidateBindingHash"
+      ],
+      "invariant": "evidenceRefs hachees DES DEUX COTES ; exhaustivite ; APPROVE impossible sur identite AMBIGUOUS ; acte authentifie"
+    },
+    "EffectiveCorpusEligibility": {
+      "schemaVersion": "MONO-10-v4",
+      "effectiveCorpusEligibility": {
+        "enum": [
+          "ELIGIBLE_BY_HUMAN_PANEL_APPROVAL",
+          "ELIGIBLE_BY_LEGACY_VERIFICATION",
+          "NOT_ELIGIBLE",
+          "DEFERRED"
+        ]
+      },
+      "invariant": "toujours RECALCULEE ; isEligible exige recomputed === true ; DEFER et REJECT n ouvrent jamais le corpus",
+      "champs": [
+        "candidateId",
+        "legacyVerificationStatus",
+        "humanPanelDecision",
+        "humanActAuthenticated",
+        "panelGateValid",
+        "effectiveCorpusEligibility",
+        "eligibilitySource",
+        "eligibilityReason",
+        "recomputed",
+        "suppliedEligibilityIgnored",
+        "evidenceRefs",
+        "policy"
+      ]
+    },
+    "LlmCapability": {
+      "schemaVersion": "MONO-10-v4",
+      "status": {
+        "enum": [
+          "DECLARED",
+          "CONFIGURED",
+          "PROBED",
+          "AVAILABLE",
+          "DEGRADED",
+          "UNAVAILABLE"
+        ]
+      },
+      "runBindingFields": [
+        "probeRunId",
+        "probeExecutionMode",
+        "probeAttestationHash"
+      ],
+      "invariants": [
+        "credentialPresenceAttested est un BOOLEEN, jamais un secret",
+        "credentialProbeSkipped doit valoir explicitement false ET etre atteste",
+        "cles JSON dupliquees refusees avant analyse",
+        "une sonde executee sous un run de TEST ne prouve pas une capacite de PRODUCTION"
+      ]
+    },
+    "ScientificReadiness": {
+      "schemaVersion": "MONO-10-v4",
+      "status": {
+        "enum": [
+          "READY",
+          "PARTIAL",
+          "NOT_READY"
+        ]
+      },
+      "champs": [
+        "phase",
+        "requiredDimensions",
+        "assessedDimensions",
+        "dimensions[].derivedFromRefs",
+        "dimensionsHash",
+        "sourcesBindingHash",
+        "runId",
+        "attestationHash"
+      ],
+      "phaseDimensions": {
+        "PRE": [
+          "candidateAssessment",
+          "professionalPanelGate",
+          "blockingAmbiguities",
+          "llmCapability",
+          "lineage",
+          "unknowns"
+        ],
+        "FULL": [
+          "... PRE ...",
+          "professionalCorpus",
+          "documentaryTwins",
+          "reviewCoverage",
+          "aggregation"
+        ]
+      },
+      "invariant": "une dimension sans source resolvable ne promeut aucune phase"
+    },
+    "ScientificQualification": {
+      "schemaVersion": "MONO-10-v4",
+      "qualificationStatus": {
+        "enum": [
+          "QUALIFIED",
+          "QUALIFIED_WITH_RESERVATIONS",
+          "NOT_QUALIFIED",
+          "IMPOSSIBLE_TO_ASSESS"
+        ]
+      },
+      "evidenceClass": {
+        "enum": [
+          "AUTHENTICATED_PRODUCTION_EXECUTION",
+          "AUTHENTICATED_TEST_EXECUTION",
+          "INTERNAL_CHAIN_CONSISTENCY_ONLY"
+        ]
+      },
+      "champs": [
+        "internalChainConsistency",
+        "authenticatedProductionExecution",
+        "trustedRuntime",
+        "readinessRecomputed",
+        "criteria",
+        "reservations",
+        "unknowns"
+      ],
+      "invariants": [
+        "les deux preparations sont RECALCULEES sur les sources",
+        "en PRODUCTION, QUALIFIED exige une attestation verifiee",
+        "le nombre d'experts n'est jamais un critere",
+        "NOT_QUALIFIED n'efface aucun verdict anterieur"
+      ]
+    },
+    "ScientificUnifiedReport": {
+      "schemaVersion": "MONO-10-v4",
+      "champs": [
+        "missionId",
+        "missionHash",
+        "runId",
+        "attestationHash",
+        "priorReportReference",
+        "qualificationId",
+        "qualificationHash",
+        "evidenceClassReported",
+        "priorVerdict",
+        "reservations",
+        "unknowns",
+        "lineage"
+      ],
+      "invariant": "ADDITIF ; un seul run, une seule mission, une seule attestation ; l'absence d'un runId n'exonere de rien"
+    },
+    "FinalReportAcceptance": {
+      "schemaVersion": "MONO-10-v4",
+      "decision": {
+        "enum": [
+          "ACCEPT_AS_REPORTED",
+          "ACCEPT_WITH_RESERVATIONS",
+          "REJECT_FOR_REVIEW"
+        ]
+      },
+      "champsInterdits": [
+        "finalVerdict",
+        "verdict",
+        "priorVerdict",
+        "scientificallyActionableVerdict",
+        "qualificationStatus",
+        "downstreamUseAuthorized"
+      ],
+      "invariant": "le rapport concret est OBLIGATOIRE ; mission, run et attestation sont compares ; l'acte humain est authentifie"
+    },
+    "DownstreamUseAuthorization": {
+      "schemaVersion": "MONO-10-v4",
+      "authorization": {
+        "enum": [
+          "AUTHORIZED",
+          "NOT_AUTHORIZED",
+          "DEFERRED"
+        ]
+      },
+      "nonNegotiableControls": [
+        "trustVerification",
+        "artifactBinding",
+        "lineageResolution",
+        "qualificationRevalidation",
+        "fixtureRejection"
+      ],
+      "champs": [
+        "downstreamUseAuthorized",
+        "revalidation",
+        "refusedPolicyOverrides",
+        "executionMode",
+        "runId",
+        "attestationHash",
+        "rewritesVerdict"
+      ],
+      "invariants": [
+        "la revalidation est toujours obligatoire",
+        "aucun motif n'affirme une action non executee",
+        "aucun verdict n'est reecrit"
+      ]
+    },
+    "AuthenticatedArtifactRegistry": {
+      "schemaVersion": "MONO-10-v5",
+      "champs": [
+        "runId",
+        "missionHash",
+        "attestationHash",
+        "operatorTrustBoundaryId",
+        "executionMode",
+        "size"
+      ],
+      "invariant": "construit depuis le manifeste ; chaque entree est VERIFIEE liee au run ; marque d origine"
+    }
+  },
+  "caseAdapters": {
+    "CasePhaseAuthorization": {
+      "schemaVersion": "MONO-10-v4-adapter",
+      "note": "le nom de phase est une DONNEE de l'appelant"
+    },
+    "DeclaredAuthorityIdentityExtractor": {
+      "note": "fournit des libelles d'autorite ; ils devront encore RESOUDRE au registre exterieur"
+    }
+  },
+  "schemaFamilyNote": "Les modules non listes ici conservent leurs contrats v0.4, audites conformes, avec schemaVersion MONO-10-v5."
+}

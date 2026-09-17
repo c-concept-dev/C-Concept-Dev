@@ -1,0 +1,38 @@
+
+=== MATRICE DE STATUT MONO-08 (jamais un total global trompeur) ===
+
+[BLOCKED] T08-01 - baseline R3 gate  (kitRoot non fourni: KIT_ROOT_REQUIRED — aucun chemin de kit fourni. Fournissez-le explicitement :
+  node bin/run-real-smoke.js /chemin/vers/le/kit
+ou :
+  EVIDENCEFORGE_KIT_ROOT=/chemin/vers/le/kit node bin/run-real-smoke.js
+Jamais un chemin de session implicite.)
+[PASS] T08-02 - preflight valide (classification reelle executee)  (overallStatus=BLOCKED [LOCAL_CONTROLLED])
+[NOT_RUN_ENVIRONMENT_BLOCKED] T08-03 - network/provider connectivity  (preflight non READY dans cet environnement (voir reports/mono-08-preflight-v1.json) — implementationStatus=READY)
+[NOT_RUN_ENVIRONMENT_BLOCKED] T08-04 - real external call accepted  (preflight non READY dans cet environnement (voir reports/mono-08-preflight-v1.json) — implementationStatus=READY)
+[NOT_RUN_ENVIRONMENT_BLOCKED] T08-05 - real professional discovery  (preflight non READY dans cet environnement (voir reports/mono-08-preflight-v1.json) — implementationStatus=READY)
+[NOT_RUN_ENVIRONMENT_BLOCKED] T08-06 - real verification path  (preflight non READY dans cet environnement (voir reports/mono-08-preflight-v1.json) — implementationStatus=READY)
+[NOT_RUN_ENVIRONMENT_BLOCKED] T08-07 - real corpus path  (preflight non READY dans cet environnement (voir reports/mono-08-preflight-v1.json) — implementationStatus=READY)
+[NOT_RUN_ENVIRONMENT_BLOCKED] T08-08 - EF-02D non-empty usable records (reel)  (preflight non READY dans cet environnement (voir reports/mono-08-preflight-v1.json) — implementationStatus=READY)
+[NOT_RUN_ENVIRONMENT_BLOCKED] T08-09 - panel selection (reel)  (preflight non READY dans cet environnement (voir reports/mono-08-preflight-v1.json) — implementationStatus=READY)
+[NOT_RUN_ENVIRONMENT_BLOCKED] T08-10 - twins produced (reel)  (preflight non READY dans cet environnement (voir reports/mono-08-preflight-v1.json) — implementationStatus=READY)
+[NOT_RUN_ENVIRONMENT_BLOCKED] T08-11 - target docs valid (reel)  (preflight non READY dans cet environnement (voir reports/mono-08-preflight-v1.json) — implementationStatus=READY)
+[NOT_RUN_ENVIRONMENT_BLOCKED] T08-12 - review matrix complete (reel)  (preflight non READY dans cet environnement (voir reports/mono-08-preflight-v1.json) — implementationStatus=READY)
+[NOT_RUN_ENVIRONMENT_BLOCKED] T08-13 - aggregation valid (reel)  (preflight non READY dans cet environnement (voir reports/mono-08-preflight-v1.json) — implementationStatus=READY)
+[NOT_RUN_ENVIRONMENT_BLOCKED] T08-14 - structurallyStable semantics (reel)  (preflight non READY dans cet environnement (voir reports/mono-08-preflight-v1.json) — implementationStatus=READY)
+[NOT_RUN_ENVIRONMENT_BLOCKED] T08-15 - lineage PASS (reel)  (preflight non READY dans cet environnement (voir reports/mono-08-preflight-v1.json) — implementationStatus=READY)
+[NOT_RUN_ENVIRONMENT_BLOCKED] T08-16 - final report (reel)  (preflight non READY dans cet environnement (voir reports/mono-08-preflight-v1.json) — implementationStatus=READY)
+[NOT_RUN_ENVIRONMENT_BLOCKED] T08-17 - assuranceLevel preserved (reel)  (preflight non READY dans cet environnement (voir reports/mono-08-preflight-v1.json) — implementationStatus=READY)
+[NOT_RUN_ENVIRONMENT_BLOCKED] T08-18 - durable persistence (reel)  (preflight non READY dans cet environnement (voir reports/mono-08-preflight-v1.json) — implementationStatus=READY)
+[NOT_RUN_ENVIRONMENT_BLOCKED] T08-19 - process restart readback (reel)  (preflight non READY dans cet environnement (voir reports/mono-08-preflight-v1.json) — implementationStatus=READY)
+[NOT_RUN_ENVIRONMENT_BLOCKED] T08-20 - real UI smoke  (preflight non READY dans cet environnement (voir reports/mono-08-preflight-v1.json) — implementationStatus=READY)
+[NOT_RUN_ENVIRONMENT_BLOCKED] T08-21 - external failure fail-closed (reel)  (preflight non READY dans cet environnement (voir reports/mono-08-preflight-v1.json) — implementationStatus=PARTIAL)
+[PASS] T08-22 - secret absence (logique du scanner testee localement)  ([LOCAL_CONTROLLED])
+[NOT_RUN] T08-23 - frozen ZIP integrity  (kitRoot non fourni.)
+[PASS] T08-24 - static check (portabilite + motifs interdits)  ([])
+
+Repartition par statut : {
+  "BLOCKED": 1,
+  "PASS": 3,
+  "NOT_RUN_ENVIRONMENT_BLOCKED": 19,
+  "NOT_RUN": 1
+}

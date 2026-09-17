@@ -1,0 +1,29 @@
+PASS — R4-F01-02. la mission canonique livree (fixtures/mission-real-smoke-v1.json) est desormais readyForExecution=false (jamais true sans eForchProvenance reelle), avec blockedReason et operatorInputRequired explicites
+PASS — R4-F01-05. operatorInputRequired de la mission canonique indique EXACTEMENT les 5 informations manquantes (jamais une liste partielle ou vague)
+PASS — R4-F01-01. readyForExecution=true + eForchProvenance absent => mission-gate refuse (MISSION_NOT_READY)
+PASS — R4-F01-03. mission complete avec provenance structurellement coherente => mission-gate PASS
+PASS — R4-F01-04a. fixtures/real-provenance-operator-input.example.json est explicitement mode=SYNTHETIC_EXAMPLE (jamais un mode consommable par le chemin REAL)
+PASS — R4-F01-04b. aucun fichier lib/ ou bin/ ne charge automatiquement real-provenance-operator-input.example.json (revue statique — jamais consomme silencieusement par le chemin REAL)
+PASS — R4-F01-04c. les valeurs SYNTHETIC_EXAMPLE_PLACEHOLDER du template ne peuvent jamais construire un artefact REAL valide (echec fail-closed reel, pas seulement documente)
+PASS — R4-F02-01. aucune provenance operateur (resolverRuns absent) en mode REAL => OPERATOR_INPUT_REQUIRED
+PASS — R4-F02-04/R4-F02-02. resolverRun.discipline attestee ne correspond a AUCUNE discipline du RunContract confirme => OPERATOR_INPUT_REQUIRED (attestation mal attribuee, jamais acceptee silencieusement)
+PASS — R4-F02-04b. validateRealEForchProvenance() (mission-gate) rejette AUSSI une discipline attestee incoherente, AVANT tout builder (meme regle que buildResolverTraceForMission, jamais dupliquee differemment)
+PASS — R4-F02-03. plannerOutputHash incoherent (tampere post-construction) => detecte mecaniquement : protocolHash recalcule diverge du protocolHash declare
+PASS — R4-F02-02. attestation plannerRun mal liee a un AUTRE missionId => rejetee (contrat gele MONO-01, jamais contourne — preuve que MONO-08 construit toujours plannerRuns[].missionId coherent avec searchProtocol.missionId, verifie ici en le tamperant deliberement, hash recalcule pour isoler cette cause precise)
+PASS — R4-F02-02c. en construction normale (non tamperee), plannerRuns[0].missionId correspond reellement a searchProtocol.missionId (invariant garanti par construction, jamais accidentel)
+PASS — R4-F02-05. humanValidation.commentaire blanc/vide => OPERATOR_INPUT_REQUIRED (jamais silencieusement accepte comme une validation reelle, jamais une auto-generation de remplacement)
+PASS — R4-F02-06. le template SYNTHETIC_EXAMPLE (valeurs SYNTHETIC_EXAMPLE_PLACEHOLDER litterales) utilise tel quel en mode REAL => echec (jamais consommable comme une provenance reelle)
+PASS — R4-F03-01. exactement 2 sources de screening reellement retrouvees (jamais 1 source synthetique fixe)
+PASS — R4-F03-02. ScreeningArtifact[0] reprend REELLEMENT le contenu du Record A (titre/auteur/reference exacts, jamais 'Source '+id)
+PASS — R4-F03-03. ScreeningArtifact[1] reprend REELLEMENT le contenu du Record B, distinct de A (titre/auteur/reference exacts)
+PASS — R4-F03-04. les deux sources ont des id REELLEMENT distincts (jamais le meme id reutilise pour plusieurs resultats)
+PASS — R4-F03-05. fieldProvenance classe correctement chaque champ documentaire reellement retrouve en RETRIEVAL_DERIVED
+PASS — R4-F03-06. auteurOuOrganisme/date/reference reellement absents => null + fieldProvenance NOT_AVAILABLE (jamais une valeur fabriquee pour satisfaire le schema)
+PASS — R4-F03-07. lineage.sourceRecordHash distinct entre deux sources au contenu different (R->S verifiable, jamais un hash constant)
+PASS — R4-F03-08. lineage.retrievalResultHash partage par toutes les sources d'UN MEME run (meme lot retrieval), mais distinct d'un run different
+PASS — R4-F03-09. retrievalLineage porte retrievalResultHash/screeningArtifactHash/qualificationArtifactHash (chaine R->S->Q complete)
+PASS — R4-F03-10. buildEForchArtifacts() retourne connectorRunners (instance deja invoquee, memoisee) — jamais une factory qui en reconstruirait une nouvelle a chaque appel
+
+TOUS LES TESTS PASSENT (25)
+
+(Rappel : tous ces resultats sont LOCAL_CONTROLLED — jamais une preuve Real Smoke reelle. Aucun appel reseau reel n'a ete tente.)

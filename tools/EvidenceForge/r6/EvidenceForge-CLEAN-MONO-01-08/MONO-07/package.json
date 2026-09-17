@@ -1,0 +1,13 @@
+{
+  "name": "evidenceforge-mono-07",
+  "version": "1.0.0",
+  "private": true,
+  "description": "EvidenceForge — MONO-07 — End-to-End Synthetic TEST. Premier run synthetique bout-en-bout reel du monolithe, composant MONO-01->05-R3 et les 7 lots historiques geles via leurs ports reels. Aucune donnee reelle, aucun lot gele modifie.",
+  "main": "lib/e2e-driver.js",
+  "scripts": {
+    "test": "node test/run-all.js"
+  },
+  "dependencies": {
+    "playwright": "^1.56.0"
+  }
+}

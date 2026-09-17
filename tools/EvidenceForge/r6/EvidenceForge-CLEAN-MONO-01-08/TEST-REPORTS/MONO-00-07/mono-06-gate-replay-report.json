@@ -1,0 +1,1686 @@
+{
+  "generatedAt": "2026-08-31T21:08:56.665Z",
+  "kitRoot": "/tmp/claude-0/-home-user-C-Concept-Dev/362792d2-f6e7-5ece-b91a-192c9cb10c3c/scratchpad/gate-replay/kitroot-exec",
+  "presence": {
+    "status": "PASS",
+    "results": [
+      {
+        "id": "MONO-00",
+        "group": "MONO",
+        "zipPath": "04-ARTEFACTS-CANONIQUES/MONO/EvidenceForge-MONO-00-v1.zip",
+        "status": "PRESENT",
+        "sizeBytes": 66014
+      },
+      {
+        "id": "MONO-01",
+        "group": "MONO",
+        "zipPath": "04-ARTEFACTS-CANONIQUES/MONO/EvidenceForge-MONO-01-v1.zip",
+        "status": "PRESENT",
+        "sizeBytes": 251230
+      },
+      {
+        "id": "MONO-02",
+        "group": "MONO",
+        "zipPath": "04-ARTEFACTS-CANONIQUES/MONO/EvidenceForge-MONO-02-R1.zip",
+        "status": "PRESENT",
+        "sizeBytes": 348138
+      },
+      {
+        "id": "MONO-03",
+        "group": "MONO",
+        "zipPath": "04-ARTEFACTS-CANONIQUES/MONO/EvidenceForge-MONO-03-R1.zip",
+        "status": "PRESENT",
+        "sizeBytes": 419071
+      },
+      {
+        "id": "MONO-04",
+        "group": "MONO",
+        "zipPath": "04-ARTEFACTS-CANONIQUES/MONO/EvidenceForge-MONO-04-R1.zip",
+        "status": "PRESENT",
+        "sizeBytes": 492018
+      },
+      {
+        "id": "MONO-05",
+        "group": "MONO",
+        "zipPath": "04-ARTEFACTS-CANONIQUES/MONO/EvidenceForge-MONO-05-R3.zip",
+        "status": "PRESENT",
+        "sizeBytes": 823795
+      },
+      {
+        "id": "EF-ORCH",
+        "group": "HISTORIQUE",
+        "zipPath": "04-ARTEFACTS-CANONIQUES/HISTORIQUES/EF-ORCH-RELEASE-v0.1.zip",
+        "status": "PRESENT",
+        "sizeBytes": 463064
+      },
+      {
+        "id": "EF-PR-GEN-01",
+        "group": "HISTORIQUE",
+        "zipPath": "04-ARTEFACTS-CANONIQUES/HISTORIQUES/EF-PR-GEN-01-FINAL.zip",
+        "status": "PRESENT",
+        "sizeBytes": 120216
+      },
+      {
+        "id": "EF-02ABC",
+        "group": "HISTORIQUE",
+        "zipPath": "04-ARTEFACTS-CANONIQUES/HISTORIQUES/EF-02ABC-v1.zip",
+        "status": "PRESENT",
+        "sizeBytes": 53605
+      },
+      {
+        "id": "EF-02D",
+        "group": "HISTORIQUE",
+        "zipPath": "04-ARTEFACTS-CANONIQUES/HISTORIQUES/EF-02D-v1.zip",
+        "status": "PRESENT",
+        "sizeBytes": 57166
+      },
+      {
+        "id": "EF-02E",
+        "group": "HISTORIQUE",
+        "zipPath": "04-ARTEFACTS-CANONIQUES/HISTORIQUES/EF-02E-v1.zip",
+        "status": "PRESENT",
+        "sizeBytes": 46806
+      },
+      {
+        "id": "EF-03",
+        "group": "HISTORIQUE",
+        "zipPath": "04-ARTEFACTS-CANONIQUES/HISTORIQUES/EF-03-v1.zip",
+        "status": "PRESENT",
+        "sizeBytes": 78158
+      },
+      {
+        "id": "EF-04",
+        "group": "HISTORIQUE",
+        "zipPath": "04-ARTEFACTS-CANONIQUES/HISTORIQUES/EF-04-v1.zip",
+        "status": "PRESENT",
+        "sizeBytes": 92605
+      }
+    ],
+    "missing": []
+  },
+  "perArtifact": {
+    "MONO-00": {
+      "id": "MONO-00",
+      "group": "MONO",
+      "manifest": {
+        "status": "PASS",
+        "results": [
+          {
+            "status": "PASS",
+            "manifestRelPath": "manifest/SHA256SUMS.txt",
+            "totalEntries": 23,
+            "okCount": 23,
+            "mismatches": [],
+            "missingFiles": [],
+            "malformed": []
+          }
+        ]
+      },
+      "contracts": {
+        "status": "PASS",
+        "filesChecked": 3,
+        "expected": 3,
+        "countMismatch": false,
+        "parseFailures": []
+      },
+      "staticSearch": {
+        "pilotHardcoding": {
+          "status": "PASS",
+          "hits": []
+        },
+        "epistemicDrift": {
+          "status": "PASS",
+          "hits": []
+        },
+        "realSecrets": {
+          "status": "PASS",
+          "hits": [],
+          "excludedAsSynthetic": []
+        }
+      },
+      "execution": {
+        "status": "PASS",
+        "testsObserved": 27,
+        "testsExpected": 27,
+        "perFile": [
+          {
+            "file": "tests/test_mono00_classification_logic.py",
+            "exitCode": 0,
+            "count": 2,
+            "method": "FALLBACK_COUNT_PASS_LINES"
+          },
+          {
+            "file": "tests/test_mono00_script_portability.py",
+            "exitCode": 0,
+            "count": 10,
+            "method": "SUM_TOUS_LES_TESTS_PASSENT(1_fichiers)"
+          },
+          {
+            "file": "tests/test_mono00_t00_15_external_dependencies.py",
+            "exitCode": 0,
+            "count": 13,
+            "method": "SUM_TOUS_LES_TESTS_PASSENT(1_fichiers)"
+          },
+          {
+            "file": "tests/test_mono00_manifest_integrity.js",
+            "exitCode": 0,
+            "count": 2,
+            "method": "SUM_TOUS_LES_TESTS_PASSENT(1_fichiers)"
+          }
+        ],
+        "failures": [],
+        "countMethod": "SUM_PYTEST_SCRIPTS+NODE_SCRIPT"
+      },
+      "artifactStatus": "PASS"
+    },
+    "MONO-01": {
+      "id": "MONO-01",
+      "group": "MONO",
+      "manifest": {
+        "status": "PASS",
+        "results": [
+          {
+            "status": "PASS",
+            "manifestRelPath": "manifest/SHA256SUMS",
+            "totalEntries": 106,
+            "okCount": 106,
+            "mismatches": [],
+            "missingFiles": [],
+            "malformed": []
+          }
+        ]
+      },
+      "provenanceChain": {
+        "status": "PASS",
+        "rowCount": 45,
+        "results": [
+          {
+            "fichier": "ef-orch-hash-v0.1.js",
+            "sourceZip": "EF-ORCH-RELEASE-v0.1.zip",
+            "sourceSubdir": "code",
+            "declaredHash": "8722ec43529d848d3f1a0bebfe75d12682ba2ac7963e94edf4c18c006d8032e4",
+            "status": "PASS",
+            "localHash": "8722ec43529d848d3f1a0bebfe75d12682ba2ac7963e94edf4c18c006d8032e4",
+            "sourceHash": "8722ec43529d848d3f1a0bebfe75d12682ba2ac7963e94edf4c18c006d8032e4",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-pr-gen-mission-dimension-set-v1.js",
+            "sourceZip": "EF-PR-GEN-01-FINAL.zip",
+            "sourceSubdir": "",
+            "declaredHash": "750cb892d674e402d6cf16980a41ca1174bd5bc3b66d22715d98d76dc79040de",
+            "status": "PASS",
+            "localHash": "750cb892d674e402d6cf16980a41ca1174bd5bc3b66d22715d98d76dc79040de",
+            "sourceHash": "750cb892d674e402d6cf16980a41ca1174bd5bc3b66d22715d98d76dc79040de",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-pr-gen-mission-document-mapping-v1.js",
+            "sourceZip": "EF-PR-GEN-01-FINAL.zip",
+            "sourceSubdir": "",
+            "declaredHash": "a10fcd0919a2e6fda32b5bd3c44b6ec4e0e1f12d01eda1220c94584eaaa69ef0",
+            "status": "PASS",
+            "localHash": "a10fcd0919a2e6fda32b5bd3c44b6ec4e0e1f12d01eda1220c94584eaaa69ef0",
+            "sourceHash": "a10fcd0919a2e6fda32b5bd3c44b6ec4e0e1f12d01eda1220c94584eaaa69ef0",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-pr-gen-heuristic-policy-v1.js",
+            "sourceZip": "EF-PR-GEN-01-FINAL.zip",
+            "sourceSubdir": "",
+            "declaredHash": "08bcb7c93080b3156d9a5f27bc6234c7015081efeb48146ef1d61ce615f55e45",
+            "status": "PASS",
+            "localHash": "08bcb7c93080b3156d9a5f27bc6234c7015081efeb48146ef1d61ce615f55e45",
+            "sourceHash": "08bcb7c93080b3156d9a5f27bc6234c7015081efeb48146ef1d61ce615f55e45",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-02d1-eligibility-v1.js",
+            "sourceZip": "EF-02D-v1.zip",
+            "sourceSubdir": "src",
+            "declaredHash": "f1a74043093d873c1b70af8bc9a78ace66c62a58e834eb8412dd979abe3478e0",
+            "status": "PASS",
+            "localHash": "f1a74043093d873c1b70af8bc9a78ace66c62a58e834eb8412dd979abe3478e0",
+            "sourceHash": "f1a74043093d873c1b70af8bc9a78ace66c62a58e834eb8412dd979abe3478e0",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-02d2-mission-relevance-v1.js",
+            "sourceZip": "EF-02D-v1.zip",
+            "sourceSubdir": "src",
+            "declaredHash": "d24d3f953025c21b1f1af5a0d44feb04deb5102777a1c03aaaa560b78f09d96f",
+            "status": "PASS",
+            "localHash": "d24d3f953025c21b1f1af5a0d44feb04deb5102777a1c03aaaa560b78f09d96f",
+            "sourceHash": "d24d3f953025c21b1f1af5a0d44feb04deb5102777a1c03aaaa560b78f09d96f",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-02d1d2-orchestrator-v1.js",
+            "sourceZip": "EF-02D-v1.zip",
+            "sourceSubdir": "src",
+            "declaredHash": "c5d0f9b74de7b7c898f2ded6f10dbfdb75ee7712a73c4b181f451d501a78da78",
+            "status": "PASS",
+            "localHash": "c5d0f9b74de7b7c898f2ded6f10dbfdb75ee7712a73c4b181f451d501a78da78",
+            "sourceHash": "c5d0f9b74de7b7c898f2ded6f10dbfdb75ee7712a73c4b181f451d501a78da78",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-02d3-coverage-panel-v1.js",
+            "sourceZip": "EF-02D-v1.zip",
+            "sourceSubdir": "src",
+            "declaredHash": "547bd49c36521f30536e422a99524d47a617451d2ba2e158f357b6d1a2eb6b03",
+            "status": "PASS",
+            "localHash": "547bd49c36521f30536e422a99524d47a617451d2ba2e158f357b6d1a2eb6b03",
+            "sourceHash": "547bd49c36521f30536e422a99524d47a617451d2ba2e158f357b6d1a2eb6b03",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-02e-twin-builder-v1.js",
+            "sourceZip": "EF-02E-v1.zip",
+            "sourceSubdir": "src",
+            "declaredHash": "dce18f9dfeb7f64750e70c8f022a44bdd09cc9d2f249bba9ed6371e2630c7654",
+            "status": "PASS",
+            "localHash": "dce18f9dfeb7f64750e70c8f022a44bdd09cc9d2f249bba9ed6371e2630c7654",
+            "sourceHash": "dce18f9dfeb7f64750e70c8f022a44bdd09cc9d2f249bba9ed6371e2630c7654",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-02e-exclusion-registry-v1.js",
+            "sourceZip": "EF-02E-v1.zip",
+            "sourceSubdir": "src",
+            "declaredHash": "5ad01ab1dd8286f04d6251193196f25f4193eb6ae48daaaafdb30a982d0c4ca3",
+            "status": "PASS",
+            "localHash": "5ad01ab1dd8286f04d6251193196f25f4193eb6ae48daaaafdb30a982d0c4ca3",
+            "sourceHash": "5ad01ab1dd8286f04d6251193196f25f4193eb6ae48daaaafdb30a982d0c4ca3",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-03-target-document-set-v1.js",
+            "sourceZip": "EF-03-v1.zip",
+            "sourceSubdir": "src",
+            "declaredHash": "00b6d0d582b36fe2de3cec40af7517cebc762aee22a204e5f0b617bf393542e7",
+            "status": "PASS",
+            "localHash": "00b6d0d582b36fe2de3cec40af7517cebc762aee22a204e5f0b617bf393542e7",
+            "sourceHash": "00b6d0d582b36fe2de3cec40af7517cebc762aee22a204e5f0b617bf393542e7",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-03a-review-schema-v1.js",
+            "sourceZip": "EF-03-v1.zip",
+            "sourceSubdir": "src",
+            "declaredHash": "9a44f8d6c17de5c21b646934ff1c46c8fa187bbf5d959da211fb7ffac2752b54",
+            "status": "PASS",
+            "localHash": "9a44f8d6c17de5c21b646934ff1c46c8fa187bbf5d959da211fb7ffac2752b54",
+            "sourceHash": "9a44f8d6c17de5c21b646934ff1c46c8fa187bbf5d959da211fb7ffac2752b54",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-03b-review-runner-v1.js",
+            "sourceZip": "EF-03-v1.zip",
+            "sourceSubdir": "src",
+            "declaredHash": "e033b704754ab0e3c61724c44a9698fea2ddeee45dde7392db81dabc3eb276b4",
+            "status": "PASS",
+            "localHash": "e033b704754ab0e3c61724c44a9698fea2ddeee45dde7392db81dabc3eb276b4",
+            "sourceHash": "e033b704754ab0e3c61724c44a9698fea2ddeee45dde7392db81dabc3eb276b4",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-03c-aggregation-v1.js",
+            "sourceZip": "EF-03-v1.zip",
+            "sourceSubdir": "src",
+            "declaredHash": "7787d3237a1690ad0e141ce02bca42c0013d47182e3538889247b53f6c6c92f6",
+            "status": "PASS",
+            "localHash": "7787d3237a1690ad0e141ce02bca42c0013d47182e3538889247b53f6c6c92f6",
+            "sourceHash": "7787d3237a1690ad0e141ce02bca42c0013d47182e3538889247b53f6c6c92f6",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-03d-stability-contradiction-v1.js",
+            "sourceZip": "EF-03-v1.zip",
+            "sourceSubdir": "src",
+            "declaredHash": "b19947fcd56c5bbd121c91ffdc223f912ad71752af93a54fb5de599da3974387",
+            "status": "PASS",
+            "localHash": "b19947fcd56c5bbd121c91ffdc223f912ad71752af93a54fb5de599da3974387",
+            "sourceHash": "b19947fcd56c5bbd121c91ffdc223f912ad71752af93a54fb5de599da3974387",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-04-lineage-guard-v1.js",
+            "sourceZip": "EF-04-v1.zip",
+            "sourceSubdir": "src",
+            "declaredHash": "5d090cff78803d027e16d5a502146249606a60f863642282fe552629a676fb83",
+            "status": "PASS",
+            "localHash": "5d090cff78803d027e16d5a502146249606a60f863642282fe552629a676fb83",
+            "sourceHash": "5d090cff78803d027e16d5a502146249606a60f863642282fe552629a676fb83",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-04a-unified-report-v1.js",
+            "sourceZip": "EF-04-v1.zip",
+            "sourceSubdir": "src",
+            "declaredHash": "af0c16a6f25a0854aff120587289d0b4c7d864d70ca4a8a393eeaf1d268dca9d",
+            "status": "PASS",
+            "localHash": "af0c16a6f25a0854aff120587289d0b4c7d864d70ca4a8a393eeaf1d268dca9d",
+            "sourceHash": "af0c16a6f25a0854aff120587289d0b4c7d864d70ca4a8a393eeaf1d268dca9d",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-orch-runcontract-v0.1.js",
+            "sourceZip": "EF-ORCH-RELEASE-v0.1.zip",
+            "sourceSubdir": "code",
+            "declaredHash": "cd09e1c775143a7e55adcb66905d800ecf154ba7ca9dff6d65f3f335d575696b",
+            "status": "PASS",
+            "localHash": "cd09e1c775143a7e55adcb66905d800ecf154ba7ca9dff6d65f3f335d575696b",
+            "sourceHash": "cd09e1c775143a7e55adcb66905d800ecf154ba7ca9dff6d65f3f335d575696b",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-orch-state-machine-v0.1.js",
+            "sourceZip": "EF-ORCH-RELEASE-v0.1.zip",
+            "sourceSubdir": "code",
+            "declaredHash": "c18c533c1c931d13f5c4ac1a9df70c950a7518f60e87ffa86dbbc50773ae66c8",
+            "status": "PASS",
+            "localHash": "c18c533c1c931d13f5c4ac1a9df70c950a7518f60e87ffa86dbbc50773ae66c8",
+            "sourceHash": "c18c533c1c931d13f5c4ac1a9df70c950a7518f60e87ffa86dbbc50773ae66c8",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-orch-stage-adapter-v0.1.js",
+            "sourceZip": "EF-ORCH-RELEASE-v0.1.zip",
+            "sourceSubdir": "code",
+            "declaredHash": "21f6ac84f60d2779ca918454849be249d4fff4e59bdbb7c12e87bcb118867af9",
+            "status": "PASS",
+            "localHash": "21f6ac84f60d2779ca918454849be249d4fff4e59bdbb7c12e87bcb118867af9",
+            "sourceHash": "21f6ac84f60d2779ca918454849be249d4fff4e59bdbb7c12e87bcb118867af9",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-orch-execute-stage-v0.1.js",
+            "sourceZip": "EF-ORCH-RELEASE-v0.1.zip",
+            "sourceSubdir": "code",
+            "declaredHash": "9f23e5f89c184b0f50e8b4384c0e08066918086a843cc37a1626da4e08404ab9",
+            "status": "PASS",
+            "localHash": "9f23e5f89c184b0f50e8b4384c0e08066918086a843cc37a1626da4e08404ab9",
+            "sourceHash": "9f23e5f89c184b0f50e8b4384c0e08066918086a843cc37a1626da4e08404ab9",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-orch-durable-stage-runner-v0.1.js",
+            "sourceZip": "EF-ORCH-RELEASE-v0.1.zip",
+            "sourceSubdir": "code",
+            "declaredHash": "3cb94414d69a8302fd181d3380ac098841a456dd5e588c7a1358190cef221939",
+            "status": "PASS",
+            "localHash": "3cb94414d69a8302fd181d3380ac098841a456dd5e588c7a1358190cef221939",
+            "sourceHash": "3cb94414d69a8302fd181d3380ac098841a456dd5e588c7a1358190cef221939",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-orch-ef01-stage-registry-v0.1.js",
+            "sourceZip": "EF-ORCH-RELEASE-v0.1.zip",
+            "sourceSubdir": "code",
+            "declaredHash": "45fc27100e3929e4dc9a2bde3bfc5e029e825429c0c6e0d8431c0dc167bc6929",
+            "status": "PASS",
+            "localHash": "45fc27100e3929e4dc9a2bde3bfc5e029e825429c0c6e0d8431c0dc167bc6929",
+            "sourceHash": "45fc27100e3929e4dc9a2bde3bfc5e029e825429c0c6e0d8431c0dc167bc6929",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-orch-durable-backend-v0.1.js",
+            "sourceZip": "EF-ORCH-RELEASE-v0.1.zip",
+            "sourceSubdir": "code",
+            "declaredHash": "ea84d1d8d62abd53af84f918e661b5b3e4c52a26199256ab2f5b83d1a6d38ef1",
+            "status": "PASS",
+            "localHash": "ea84d1d8d62abd53af84f918e661b5b3e4c52a26199256ab2f5b83d1a6d38ef1",
+            "sourceHash": "ea84d1d8d62abd53af84f918e661b5b3e4c52a26199256ab2f5b83d1a6d38ef1",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-orch-durable-run-output-store-v0.1.js",
+            "sourceZip": "EF-ORCH-RELEASE-v0.1.zip",
+            "sourceSubdir": "code",
+            "declaredHash": "3f0e365b18ac909992a1fe137000815ab9837a2f9bde07557ce2e740c220c79a",
+            "status": "PASS",
+            "localHash": "3f0e365b18ac909992a1fe137000815ab9837a2f9bde07557ce2e740c220c79a",
+            "sourceHash": "3f0e365b18ac909992a1fe137000815ab9837a2f9bde07557ce2e740c220c79a",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-orch-durable-checkpoint-identity-v0.1.js",
+            "sourceZip": "EF-ORCH-RELEASE-v0.1.zip",
+            "sourceSubdir": "code",
+            "declaredHash": "b0f8790f6aaa07112f09b33073b84d7ae265ccce04705f9d31124e9939b7ce90",
+            "status": "PASS",
+            "localHash": "b0f8790f6aaa07112f09b33073b84d7ae265ccce04705f9d31124e9939b7ce90",
+            "sourceHash": "b0f8790f6aaa07112f09b33073b84d7ae265ccce04705f9d31124e9939b7ce90",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-orch-run-state-snapshot-v0.1.js",
+            "sourceZip": "EF-ORCH-RELEASE-v0.1.zip",
+            "sourceSubdir": "code",
+            "declaredHash": "bf0bf5d5dfc3ad3be38f0b47cce8972cd390137f578d1b3f780472bc3d5c2f0f",
+            "status": "PASS",
+            "localHash": "bf0bf5d5dfc3ad3be38f0b47cce8972cd390137f578d1b3f780472bc3d5c2f0f",
+            "sourceHash": "bf0bf5d5dfc3ad3be38f0b47cce8972cd390137f578d1b3f780472bc3d5c2f0f",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-orch-stage-input-resolver-v0.1.js",
+            "sourceZip": "EF-ORCH-RELEASE-v0.1.zip",
+            "sourceSubdir": "code",
+            "declaredHash": "93235032cb0049309e4258ce2049082083f14050acab26a873f386c74c15811f",
+            "status": "PASS",
+            "localHash": "93235032cb0049309e4258ce2049082083f14050acab26a873f386c74c15811f",
+            "sourceHash": "93235032cb0049309e4258ce2049082083f14050acab26a873f386c74c15811f",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-orch-ef01-output-contracts-v0.1.js",
+            "sourceZip": "EF-ORCH-RELEASE-v0.1.zip",
+            "sourceSubdir": "code",
+            "declaredHash": "284d030003d7a1134d35834848f52c6a95caf01228fd9b9d8a0a6e9db153b716",
+            "status": "PASS",
+            "localHash": "284d030003d7a1134d35834848f52c6a95caf01228fd9b9d8a0a6e9db153b716",
+            "sourceHash": "284d030003d7a1134d35834848f52c6a95caf01228fd9b9d8a0a6e9db153b716",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-orch-ef01a-executor-v0.1.js",
+            "sourceZip": "EF-ORCH-RELEASE-v0.1.zip",
+            "sourceSubdir": "code",
+            "declaredHash": "6b791ea6403239058526f4632fbe80e00a6324ce5834edcccb2e8fec99249edc",
+            "status": "PASS",
+            "localHash": "6b791ea6403239058526f4632fbe80e00a6324ce5834edcccb2e8fec99249edc",
+            "sourceHash": "6b791ea6403239058526f4632fbe80e00a6324ce5834edcccb2e8fec99249edc",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-orch-ef01b-executor-v0.1.js",
+            "sourceZip": "EF-ORCH-RELEASE-v0.1.zip",
+            "sourceSubdir": "code",
+            "declaredHash": "15c14dc7682097c6ee3ec6757975b8b7f734fab5e11634ffe27369f54433c17e",
+            "status": "PASS",
+            "localHash": "15c14dc7682097c6ee3ec6757975b8b7f734fab5e11634ffe27369f54433c17e",
+            "sourceHash": "15c14dc7682097c6ee3ec6757975b8b7f734fab5e11634ffe27369f54433c17e",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-orch-ef01b-resolver-trace-v0.1.js",
+            "sourceZip": "EF-ORCH-RELEASE-v0.1.zip",
+            "sourceSubdir": "code",
+            "declaredHash": "754087f4ed5b923342d3600c038d1aa115b7c5b245be3c3724b99c3b22546e02",
+            "status": "PASS",
+            "localHash": "754087f4ed5b923342d3600c038d1aa115b7c5b245be3c3724b99c3b22546e02",
+            "sourceHash": "754087f4ed5b923342d3600c038d1aa115b7c5b245be3c3724b99c3b22546e02",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-orch-ef01c1-executor-v0.1.js",
+            "sourceZip": "EF-ORCH-RELEASE-v0.1.zip",
+            "sourceSubdir": "code",
+            "declaredHash": "69a07125f5a34ac52e4609c493c897d9d44c6484521f59186b510ea6cbe0a4c2",
+            "status": "PASS",
+            "localHash": "69a07125f5a34ac52e4609c493c897d9d44c6484521f59186b510ea6cbe0a4c2",
+            "sourceHash": "69a07125f5a34ac52e4609c493c897d9d44c6484521f59186b510ea6cbe0a4c2",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-orch-ef01c1-planner-trace-v0.1.js",
+            "sourceZip": "EF-ORCH-RELEASE-v0.1.zip",
+            "sourceSubdir": "code",
+            "declaredHash": "ac0c4037103b87830efc202991d9a24d01f8aec0e36ef2ed06fa6164eb5f3dd7",
+            "status": "PASS",
+            "localHash": "ac0c4037103b87830efc202991d9a24d01f8aec0e36ef2ed06fa6164eb5f3dd7",
+            "sourceHash": "ac0c4037103b87830efc202991d9a24d01f8aec0e36ef2ed06fa6164eb5f3dd7",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-orch-ef01c2-executor-v0.1.js",
+            "sourceZip": "EF-ORCH-RELEASE-v0.1.zip",
+            "sourceSubdir": "code",
+            "declaredHash": "766de16caa2f4c3c00e8b461d5882449cd4e820b23b72e84523b98e58d4148bf",
+            "status": "PASS",
+            "localHash": "766de16caa2f4c3c00e8b461d5882449cd4e820b23b72e84523b98e58d4148bf",
+            "sourceHash": "766de16caa2f4c3c00e8b461d5882449cd4e820b23b72e84523b98e58d4148bf",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-orch-ef01c2-runner-openalex-v0.1.js",
+            "sourceZip": "EF-ORCH-RELEASE-v0.1.zip",
+            "sourceSubdir": "code",
+            "declaredHash": "c08799ac6e1fed01b0c17d72d41f0ec5272e07b47d6cc049249be028096c7bbb",
+            "status": "PASS",
+            "localHash": "c08799ac6e1fed01b0c17d72d41f0ec5272e07b47d6cc049249be028096c7bbb",
+            "sourceHash": "c08799ac6e1fed01b0c17d72d41f0ec5272e07b47d6cc049249be028096c7bbb",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-orch-ef01c2-connector-capabilities-v0.1.js",
+            "sourceZip": "EF-ORCH-RELEASE-v0.1.zip",
+            "sourceSubdir": "code",
+            "declaredHash": "588d0d016a4577f5670e3215b1478be436e614c9d94029ff75f771365718f531",
+            "status": "PASS",
+            "localHash": "588d0d016a4577f5670e3215b1478be436e614c9d94029ff75f771365718f531",
+            "sourceHash": "588d0d016a4577f5670e3215b1478be436e614c9d94029ff75f771365718f531",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-orch-ef01c2-checkpoint-contract-v0.1.js",
+            "sourceZip": "EF-ORCH-RELEASE-v0.1.zip",
+            "sourceSubdir": "code",
+            "declaredHash": "56f9631bfe357aac1b7cb65c0d519686c96a8839b949e00d4246802d00704000",
+            "status": "PASS",
+            "localHash": "56f9631bfe357aac1b7cb65c0d519686c96a8839b949e00d4246802d00704000",
+            "sourceHash": "56f9631bfe357aac1b7cb65c0d519686c96a8839b949e00d4246802d00704000",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-orch-ef01d-executor-v0.1.js",
+            "sourceZip": "EF-ORCH-RELEASE-v0.1.zip",
+            "sourceSubdir": "code",
+            "declaredHash": "c9a9341820869f8dda0522caccd3e92abad33025fcb7f1e00d34c237400b6091",
+            "status": "PASS",
+            "localHash": "c9a9341820869f8dda0522caccd3e92abad33025fcb7f1e00d34c237400b6091",
+            "sourceHash": "c9a9341820869f8dda0522caccd3e92abad33025fcb7f1e00d34c237400b6091",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-orch-ef01d-screening-artifact-v0.1.js",
+            "sourceZip": "EF-ORCH-RELEASE-v0.1.zip",
+            "sourceSubdir": "code",
+            "declaredHash": "fb6f7fe96fc4adb2331c65841aafe337e3338b8adf4513e72040eb976b149d89",
+            "status": "PASS",
+            "localHash": "fb6f7fe96fc4adb2331c65841aafe337e3338b8adf4513e72040eb976b149d89",
+            "sourceHash": "fb6f7fe96fc4adb2331c65841aafe337e3338b8adf4513e72040eb976b149d89",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-orch-ef01e-executor-v0.1.js",
+            "sourceZip": "EF-ORCH-RELEASE-v0.1.zip",
+            "sourceSubdir": "code",
+            "declaredHash": "d27dbe992a56cf5ad6cbb2909532611d294af471ea3fe4cb061a9f2b837ec4f8",
+            "status": "PASS",
+            "localHash": "d27dbe992a56cf5ad6cbb2909532611d294af471ea3fe4cb061a9f2b837ec4f8",
+            "sourceHash": "d27dbe992a56cf5ad6cbb2909532611d294af471ea3fe4cb061a9f2b837ec4f8",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-orch-ef01e-qualification-test-artifact-v0.1.js",
+            "sourceZip": "EF-ORCH-RELEASE-v0.1.zip",
+            "sourceSubdir": "code",
+            "declaredHash": "88a52d356f5e469686a5ac49dc3d1d1c465e1b760b05b19f3c09edd6b848b4de",
+            "status": "PASS",
+            "localHash": "88a52d356f5e469686a5ac49dc3d1d1c465e1b760b05b19f3c09edd6b848b4de",
+            "sourceHash": "88a52d356f5e469686a5ac49dc3d1d1c465e1b760b05b19f3c09edd6b848b4de",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-orch-ef01e-test-qualification-generator-v0.1.js",
+            "sourceZip": "EF-ORCH-RELEASE-v0.1.zip",
+            "sourceSubdir": "code",
+            "declaredHash": "42627eda9da0c6f0498c85dba31dc598580d27c611160fa068eb7c152a9061e1",
+            "status": "PASS",
+            "localHash": "42627eda9da0c6f0498c85dba31dc598580d27c611160fa068eb7c152a9061e1",
+            "sourceHash": "42627eda9da0c6f0498c85dba31dc598580d27c611160fa068eb7c152a9061e1",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-orch-ef01f-executor-v0.1.js",
+            "sourceZip": "EF-ORCH-RELEASE-v0.1.zip",
+            "sourceSubdir": "code",
+            "declaredHash": "4d66e45f5a6156c4d12b05ff71f23d8528095d4ea1c474a2f7f7d66b4219dd1e",
+            "status": "PASS",
+            "localHash": "4d66e45f5a6156c4d12b05ff71f23d8528095d4ea1c474a2f7f7d66b4219dd1e",
+            "sourceHash": "4d66e45f5a6156c4d12b05ff71f23d8528095d4ea1c474a2f7f7d66b4219dd1e",
+            "recomputedFromCanonical": true
+          },
+          {
+            "fichier": "ef-orch-run-output-store-v0.1.js",
+            "sourceZip": "EF-ORCH-RELEASE-v0.1.zip",
+            "sourceSubdir": "code",
+            "declaredHash": "bc60d642fcda3bb73291060dc4a983af75502da8c83c5168a639c47abfbf487a",
+            "status": "PASS",
+            "localHash": "bc60d642fcda3bb73291060dc4a983af75502da8c83c5168a639c47abfbf487a",
+            "sourceHash": "bc60d642fcda3bb73291060dc4a983af75502da8c83c5168a639c47abfbf487a",
+            "recomputedFromCanonical": true
+          }
+        ]
+      },
+      "contracts": {
+        "status": "PASS",
+        "filesChecked": 9,
+        "expected": 9,
+        "countMismatch": false,
+        "parseFailures": []
+      },
+      "staticSearch": {
+        "pilotHardcoding": {
+          "status": "PASS",
+          "hits": []
+        },
+        "epistemicDrift": {
+          "status": "PASS",
+          "hits": []
+        },
+        "realSecrets": {
+          "status": "PASS",
+          "hits": [],
+          "excludedAsSynthetic": []
+        }
+      },
+      "execution": {
+        "status": "PASS",
+        "exitCode": 0,
+        "testsObserved": 172,
+        "testsExpected": 172,
+        "countMethod": "TOTAL_CUMULE",
+        "npmInstallMode": "none",
+        "outputTail": "PASS — 2. createMono01(registry) sans backend -> ne peut PAS fournir un EFOrchExecutionPort exploitable durablement (start() refuse explicitement)\nPASS — 3. les autres ports (ex: MissionPort) fonctionnent normalement sur une instance createMono01() sans backend EF-ORCH\nPASS — 4. mono1 et mono2 sont deux instances createMono01() totalement distinctes\nPASS — 4b. mono1 et mono2 partagent explicitement le même backend EF-ORCH (injection réussie à travers createMono01)\nPASS — 5. mono1.efOrchExecutionPort.start() progresse réellement (via la vraie factory d'intégration)\nPASS — 6. mono2.efOrchExecutionPort.getStatus() (instance createMono01 DISTINCTE) retrouve l'état exact du run démarré par mono1\nPASS — 7. mono2.efOrchExecutionPort.resume() (instance distincte) continue réellement l'exécution jusqu'à EF-01D\n\nTOUS LES TESTS PASSENT (10)\n\n============================================\nTOTAL CUMULE : 172 tests\nAUCUNE REGRESSION\n\n"
+      },
+      "artifactStatus": "PASS"
+    },
+    "MONO-02": {
+      "id": "MONO-02",
+      "group": "MONO",
+      "manifest": {
+        "status": "PASS",
+        "results": [
+          {
+            "status": "PASS",
+            "manifestRelPath": "manifest/SHA256SUMS",
+            "totalEntries": 152,
+            "okCount": 152,
+            "mismatches": [],
+            "missingFiles": [],
+            "malformed": []
+          },
+          {
+            "status": "PASS",
+            "manifestRelPath": "dependencies/MONO-01/manifest/SHA256SUMS",
+            "totalEntries": 106,
+            "okCount": 106,
+            "mismatches": [],
+            "missingFiles": [],
+            "malformed": []
+          }
+        ]
+      },
+      "nested": [
+        {
+          "nestedRel": "dependencies/MONO-01",
+          "standaloneId": "MONO-01",
+          "status": "PASS",
+          "onlyInNested": [],
+          "onlyInStandalone": [],
+          "mismatches": [],
+          "filesCompared": 107
+        }
+      ],
+      "contracts": {
+        "status": "PASS",
+        "filesChecked": 5,
+        "expected": 5,
+        "countMismatch": false,
+        "parseFailures": []
+      },
+      "staticSearch": {
+        "pilotHardcoding": {
+          "status": "PASS",
+          "hits": []
+        },
+        "epistemicDrift": {
+          "status": "PASS",
+          "hits": []
+        },
+        "realSecrets": {
+          "status": "PASS",
+          "hits": [],
+          "excludedAsSynthetic": []
+        }
+      },
+      "execution": {
+        "status": "PASS",
+        "exitCode": 0,
+        "testsObserved": 334,
+        "testsExpected": 334,
+        "countMethod": "TOTAL_CUMULE",
+        "npmInstallMode": "none",
+        "outputTail": "PASS — T02-R1-02b. EF-02D atteint SUCCESS (buildCoverageMatrix exécuté réellement, aucune exception corpusByRef.get)\nPASS — T02-R1-02c. Au moins un usableRecord réel a atteint buildCoverageMatrix (jamais un tableau vide qui masquerait le bug)\nPASS — T02-R1-02d. CoverageMatrix produite et non vide\nPASS — T02-R1-03a. EF-02D SUCCESS avec 2 professionnels usables\nPASS — T02-R1-03b. Les 2 professionnels (r1p1, r1p2) apparaissent chacun exactement une fois dans la CoverageMatrix (aucune collision Map)\nPASS — T02-R1-04. resumeCoverageMatrix() avec un record manquant ('b') utilise correctement corpusByRef.get() sans exception\nPASS — T02-R1-04b. Le professionnel manquant ('b') est bien évalué et ajouté\n\nTOUS LES TESTS PASSENT (10)\n\n============================================\nTOTAL CUMULE : 334 tests\nAUCUNE REGRESSION\n\n"
+      },
+      "artifactStatus": "PASS"
+    },
+    "MONO-03": {
+      "id": "MONO-03",
+      "group": "MONO",
+      "manifest": {
+        "status": "PASS",
+        "results": [
+          {
+            "status": "PASS",
+            "manifestRelPath": "manifest/SHA256SUMS",
+            "totalEntries": 189,
+            "okCount": 189,
+            "mismatches": [],
+            "missingFiles": [],
+            "malformed": []
+          },
+          {
+            "status": "PASS",
+            "manifestRelPath": "dependencies/MONO-02/manifest/SHA256SUMS",
+            "totalEntries": 152,
+            "okCount": 152,
+            "mismatches": [],
+            "missingFiles": [],
+            "malformed": []
+          },
+          {
+            "status": "PASS",
+            "manifestRelPath": "dependencies/MONO-02/dependencies/MONO-01/manifest/SHA256SUMS",
+            "totalEntries": 106,
+            "okCount": 106,
+            "mismatches": [],
+            "missingFiles": [],
+            "malformed": []
+          }
+        ]
+      },
+      "nested": [
+        {
+          "nestedRel": "dependencies/MONO-02",
+          "standaloneId": "MONO-02",
+          "status": "PASS",
+          "onlyInNested": [],
+          "onlyInStandalone": [],
+          "mismatches": [],
+          "filesCompared": 153
+        },
+        {
+          "nestedRel": "dependencies/MONO-02/dependencies/MONO-01",
+          "standaloneId": "MONO-01",
+          "status": "PASS",
+          "onlyInNested": [],
+          "onlyInStandalone": [],
+          "mismatches": [],
+          "filesCompared": 107
+        }
+      ],
+      "contracts": {
+        "status": "PASS",
+        "filesChecked": 6,
+        "expected": 6,
+        "countMismatch": false,
+        "parseFailures": []
+      },
+      "staticSearch": {
+        "pilotHardcoding": {
+          "status": "PASS",
+          "hits": []
+        },
+        "epistemicDrift": {
+          "status": "PASS",
+          "hits": []
+        },
+        "realSecrets": {
+          "status": "PASS",
+          "hits": [],
+          "excludedAsSynthetic": []
+        }
+      },
+      "execution": {
+        "status": "PASS",
+        "exitCode": 0,
+        "testsObserved": 64,
+        "testsExpected": 64,
+        "countMethod": "TOTAL_CUMULE",
+        "npmInstallMode": "none",
+        "outputTail": "PASS — T03-SUCCESS-ATOMIC-01d. l'ArtifactRecord orphelin PEUT exister (écrit avant la panne du commit RunState) — comportement accepté, pas une fuite\nPASS — T03-SUCCESS-ATOMIC-02a. retry (nouvelle instance, même backend) avec le même payload -> SUCCESS complet\nPASS — T03-SUCCESS-ATOMIC-02b. outputArtifactRefs[0] === artifactRefs[nodeId]\nPASS — T03-SUCCESS-ATOMIC-02c. aucun doublon d'artefact (le retry a réutilisé l'ArtifactRecord orphelin, jamais recréé un second)\nPASS — T03-SUCCESS-ATOMIC-03a. invariant SUCCESS complet : exactement une outputArtifactRef, artifactRefs[nodeId] existe, les deux identiques\nPASS — T03-SUCCESS-ATOMIC-03b. ArtifactStore.getArtifact(id) réussit pour cette référence\nPASS — T03-SUCCESS-ATOMIC-04. un RunState historique/corrompu (SUCCESS avec artifactRefs incohérent) est rejeté fail-closed à loadRun(), jamais traité comme un SUCCESS réutilisable\n\nTOUS LES TESTS PASSENT (10)\n\n============================================\nTOTAL CUMULE : 64 tests\nAUCUNE REGRESSION\n\n"
+      },
+      "artifactStatus": "PASS"
+    },
+    "MONO-04": {
+      "id": "MONO-04",
+      "group": "MONO",
+      "manifest": {
+        "status": "PASS",
+        "results": [
+          {
+            "status": "PASS",
+            "manifestRelPath": "manifest/SHA256SUMS",
+            "totalEntries": 225,
+            "okCount": 225,
+            "mismatches": [],
+            "missingFiles": [],
+            "malformed": []
+          },
+          {
+            "status": "PASS",
+            "manifestRelPath": "dependencies/MONO-03/manifest/SHA256SUMS",
+            "totalEntries": 189,
+            "okCount": 189,
+            "mismatches": [],
+            "missingFiles": [],
+            "malformed": []
+          },
+          {
+            "status": "PASS",
+            "manifestRelPath": "dependencies/MONO-03/dependencies/MONO-02/manifest/SHA256SUMS",
+            "totalEntries": 152,
+            "okCount": 152,
+            "mismatches": [],
+            "missingFiles": [],
+            "malformed": []
+          },
+          {
+            "status": "PASS",
+            "manifestRelPath": "dependencies/MONO-03/dependencies/MONO-02/dependencies/MONO-01/manifest/SHA256SUMS",
+            "totalEntries": 106,
+            "okCount": 106,
+            "mismatches": [],
+            "missingFiles": [],
+            "malformed": []
+          }
+        ]
+      },
+      "nested": [
+        {
+          "nestedRel": "dependencies/MONO-03",
+          "standaloneId": "MONO-03",
+          "status": "PASS",
+          "onlyInNested": [],
+          "onlyInStandalone": [],
+          "mismatches": [],
+          "filesCompared": 190
+        },
+        {
+          "nestedRel": "dependencies/MONO-03/dependencies/MONO-02",
+          "standaloneId": "MONO-02",
+          "status": "PASS",
+          "onlyInNested": [],
+          "onlyInStandalone": [],
+          "mismatches": [],
+          "filesCompared": 153
+        },
+        {
+          "nestedRel": "dependencies/MONO-03/dependencies/MONO-02/dependencies/MONO-01",
+          "standaloneId": "MONO-01",
+          "status": "PASS",
+          "onlyInNested": [],
+          "onlyInStandalone": [],
+          "mismatches": [],
+          "filesCompared": 107
+        }
+      ],
+      "contracts": {
+        "status": "PASS",
+        "filesChecked": 5,
+        "expected": 5,
+        "countMismatch": false,
+        "parseFailures": []
+      },
+      "staticSearch": {
+        "pilotHardcoding": {
+          "status": "PASS",
+          "hits": []
+        },
+        "epistemicDrift": {
+          "status": "PASS",
+          "hits": []
+        },
+        "realSecrets": {
+          "status": "PASS",
+          "hits": [],
+          "excludedAsSynthetic": [
+            {
+              "file": "reports/mono-04-security-report-v1.md",
+              "patternId": "sk-prefix",
+              "redactedSample": "sk-V…LOGS [REDACTED]",
+              "valueSha256": "1e78a62605ffa200ad76217c1540a1f84da816c7e0e8acba13da37f5301cf350",
+              "justification": "Marqueur synthetique documente par le rapport de securite du lot lui-meme (voir redactedSample), jamais une cle reelle."
+            },
+            {
+              "file": "reports/mono-04-static-search-report-v1.md",
+              "patternId": "sk-prefix",
+              "redactedSample": "sk-V…RET- [REDACTED]",
+              "valueSha256": "e3d002283512914cb8acb3bcdb64260aeaec15b5feefc481b262a8ddedac2587",
+              "justification": "Meme marqueur synthetique que l'entree precedente (prefixe tronque par la prose du rapport)."
+            },
+            {
+              "file": "test/test_t04_15_18_idempotence_redaction_payload.js",
+              "patternId": "sk-prefix",
+              "redactedSample": "sk-V…LOGS [REDACTED]",
+              "valueSha256": "1e78a62605ffa200ad76217c1540a1f84da816c7e0e8acba13da37f5301cf350",
+              "justification": "Fixture du test qui verifie que ce marqueur synthetique est bien redige — jamais serialise."
+            },
+            {
+              "file": "test/test_t04_15_18_idempotence_redaction_payload.js",
+              "patternId": "sk-prefix",
+              "redactedSample": "sk-V…LOGS [REDACTED]",
+              "valueSha256": "1e78a62605ffa200ad76217c1540a1f84da816c7e0e8acba13da37f5301cf350",
+              "justification": "Fixture du test qui verifie que ce marqueur synthetique est bien redige — jamais serialise."
+            },
+            {
+              "file": "test/test_t04_15_18_idempotence_redaction_payload.js",
+              "patternId": "sk-prefix",
+              "redactedSample": "sk-V…LOGS [REDACTED]",
+              "valueSha256": "1e78a62605ffa200ad76217c1540a1f84da816c7e0e8acba13da37f5301cf350",
+              "justification": "Fixture du test qui verifie que ce marqueur synthetique est bien redige — jamais serialise."
+            },
+            {
+              "file": "test/test_t04_15_18_idempotence_redaction_payload.js",
+              "patternId": "bearer-token",
+              "redactedSample": "Bear…LOGS [REDACTED]",
+              "valueSha256": "11202a6de18309063b68b33dcb39e10322e69426744de805bc3c4076e2a68943",
+              "justification": "Meme marqueur synthetique, forme 'Bearer <marqueur>' utilisee par le meme test de redaction."
+            },
+            {
+              "file": "test/test_t04_32_38_persistence_diagnostics_secrets.js",
+              "patternId": "sk-prefix",
+              "redactedSample": "sk-v…isee [REDACTED]",
+              "valueSha256": "1b69fa4749fff9ff1bf8918dc0a036e2944392dbc275019c53f6490a3a65e758",
+              "justification": "Marqueur synthetique (voir redactedSample), verifie par le test comme jamais persiste en clair."
+            },
+            {
+              "file": "test/test_t04_32_38_persistence_diagnostics_secrets.js",
+              "patternId": "sk-prefix",
+              "redactedSample": "sk-v…isee [REDACTED]",
+              "valueSha256": "1b69fa4749fff9ff1bf8918dc0a036e2944392dbc275019c53f6490a3a65e758",
+              "justification": "Marqueur synthetique (voir redactedSample), verifie par le test comme jamais persiste en clair."
+            },
+            {
+              "file": "test/test_t04_idempotence_conflict_01_07.js",
+              "patternId": "sk-prefix",
+              "redactedSample": "sk-J…LOGS [REDACTED]",
+              "valueSha256": "a89a9be71bea177966c191e26d430275beca202b6f7d2164809080fd27a6e914",
+              "justification": "Marqueur synthetique (voir redactedSample), verifie par le test comme absent du fingerprint/logs."
+            },
+            {
+              "file": "test/test_t04_idempotence_conflict_01_07.js",
+              "patternId": "sk-prefix",
+              "redactedSample": "sk-J…LOGS [REDACTED]",
+              "valueSha256": "a89a9be71bea177966c191e26d430275beca202b6f7d2164809080fd27a6e914",
+              "justification": "Marqueur synthetique (voir redactedSample), verifie par le test comme absent du fingerprint/logs."
+            },
+            {
+              "file": "test/test_t04_idempotence_conflict_01_07.js",
+              "patternId": "sk-prefix",
+              "redactedSample": "sk-J…LOGS [REDACTED]",
+              "valueSha256": "a89a9be71bea177966c191e26d430275beca202b6f7d2164809080fd27a6e914",
+              "justification": "Marqueur synthetique (voir redactedSample), verifie par le test comme absent du fingerprint/logs."
+            }
+          ]
+        }
+      },
+      "execution": {
+        "status": "PASS",
+        "exitCode": 0,
+        "testsObserved": 69,
+        "testsExpected": 69,
+        "countMethod": "TOTAL_CUMULE",
+        "npmInstallMode": "none",
+        "outputTail": "PASS — T04-IDEMPOTENCE-CONFLICT-04. même requestId + operation DIFFÉRENTE -> conflit\nPASS — T04-IDEMPOTENCE-CONFLICT-05. même requestId + runId/nodeId/moduleId différent (chacun testé isolément) -> conflit à chaque fois, jamais un second appel réseau\nPASS — T04-IDEMPOTENCE-CONFLICT-06. ordre différent des clés JSON, contenu sémantiquement identique -> même fingerprint, PAS de faux conflit\nPASS — T04-IDEMPOTENCE-CONFLICT-06b. computeRequestFingerprint() lui-même produit une empreinte identique indépendamment de l'ordre des clés\nPASS — T04-IDEMPOTENCE-CONFLICT-07a. le fingerprint calculé ne contient jamais la valeur du secret réel\nPASS — T04-IDEMPOTENCE-CONFLICT-07b. aucun log capturé ne contient le secret réel\nPASS — T04-IDEMPOTENCE-CONFLICT-07c. le payload de l'appelant n'est jamais modifié par le calcul du fingerprint\n\nTOUS LES TESTS PASSENT (10)\n\n============================================\nTOTAL CUMULE : 69 tests\nAUCUNE REGRESSION\n\n"
+      },
+      "artifactStatus": "PASS"
+    },
+    "MONO-05": {
+      "id": "MONO-05",
+      "group": "MONO",
+      "manifest": {
+        "status": "PASS",
+        "results": [
+          {
+            "status": "PASS",
+            "manifestRelPath": "manifest/SHA256SUMS",
+            "totalEntries": 259,
+            "okCount": 259,
+            "mismatches": [],
+            "missingFiles": [],
+            "malformed": []
+          },
+          {
+            "status": "PASS",
+            "manifestRelPath": "dependencies/MONO-04/manifest/SHA256SUMS",
+            "totalEntries": 225,
+            "okCount": 225,
+            "mismatches": [],
+            "missingFiles": [],
+            "malformed": []
+          },
+          {
+            "status": "PASS",
+            "manifestRelPath": "dependencies/MONO-04/dependencies/MONO-03/manifest/SHA256SUMS",
+            "totalEntries": 189,
+            "okCount": 189,
+            "mismatches": [],
+            "missingFiles": [],
+            "malformed": []
+          },
+          {
+            "status": "PASS",
+            "manifestRelPath": "dependencies/MONO-04/dependencies/MONO-03/dependencies/MONO-02/manifest/SHA256SUMS",
+            "totalEntries": 152,
+            "okCount": 152,
+            "mismatches": [],
+            "missingFiles": [],
+            "malformed": []
+          },
+          {
+            "status": "PASS",
+            "manifestRelPath": "dependencies/MONO-04/dependencies/MONO-03/dependencies/MONO-02/dependencies/MONO-01/manifest/SHA256SUMS",
+            "totalEntries": 106,
+            "okCount": 106,
+            "mismatches": [],
+            "missingFiles": [],
+            "malformed": []
+          }
+        ]
+      },
+      "nested": [
+        {
+          "nestedRel": "dependencies/MONO-04",
+          "standaloneId": "MONO-04",
+          "status": "PASS",
+          "onlyInNested": [],
+          "onlyInStandalone": [],
+          "mismatches": [],
+          "filesCompared": 226
+        },
+        {
+          "nestedRel": "dependencies/MONO-04/dependencies/MONO-03",
+          "standaloneId": "MONO-03",
+          "status": "PASS",
+          "onlyInNested": [],
+          "onlyInStandalone": [],
+          "mismatches": [],
+          "filesCompared": 190
+        },
+        {
+          "nestedRel": "dependencies/MONO-04/dependencies/MONO-03/dependencies/MONO-02",
+          "standaloneId": "MONO-02",
+          "status": "PASS",
+          "onlyInNested": [],
+          "onlyInStandalone": [],
+          "mismatches": [],
+          "filesCompared": 153
+        },
+        {
+          "nestedRel": "dependencies/MONO-04/dependencies/MONO-03/dependencies/MONO-02/dependencies/MONO-01",
+          "standaloneId": "MONO-01",
+          "status": "PASS",
+          "onlyInNested": [],
+          "onlyInStandalone": [],
+          "mismatches": [],
+          "filesCompared": 107
+        }
+      ],
+      "contracts": {
+        "status": "PASS",
+        "filesChecked": 3,
+        "expected": 3,
+        "countMismatch": false,
+        "parseFailures": []
+      },
+      "staticSearch": {
+        "pilotHardcoding": {
+          "status": "PASS",
+          "hits": []
+        },
+        "epistemicDrift": {
+          "status": "PASS",
+          "hits": []
+        },
+        "realSecrets": {
+          "status": "PASS",
+          "hits": [],
+          "excludedAsSynthetic": [
+            {
+              "file": "README.md",
+              "patternId": "sk-prefix",
+              "redactedSample": "sk-T…-123 [REDACTED]",
+              "valueSha256": "f5f057f22290c028654655148cef6ad2e3f247b4ff298f793333fdf7e3a2dda8",
+              "justification": "Marqueur synthetique (voir redactedSample) documente explicitement par le README du lot comme jamais reel, utilise par le test de fuite de secret navigateur."
+            },
+            {
+              "file": "dependencies/MONO-04/reports/mono-04-security-report-v1.md",
+              "patternId": "sk-prefix",
+              "redactedSample": "sk-V…LOGS [REDACTED]",
+              "valueSha256": "1e78a62605ffa200ad76217c1540a1f84da816c7e0e8acba13da37f5301cf350",
+              "justification": "Copie bytewise nichee de l'entree MONO-04 ci-dessus, deja verifiee."
+            },
+            {
+              "file": "dependencies/MONO-04/reports/mono-04-static-search-report-v1.md",
+              "patternId": "sk-prefix",
+              "redactedSample": "sk-V…RET- [REDACTED]",
+              "valueSha256": "e3d002283512914cb8acb3bcdb64260aeaec15b5feefc481b262a8ddedac2587",
+              "justification": "Copie bytewise nichee de l'entree MONO-04 ci-dessus, deja verifiee."
+            },
+            {
+              "file": "dependencies/MONO-04/test/test_t04_15_18_idempotence_redaction_payload.js",
+              "patternId": "sk-prefix",
+              "redactedSample": "sk-V…LOGS [REDACTED]",
+              "valueSha256": "1e78a62605ffa200ad76217c1540a1f84da816c7e0e8acba13da37f5301cf350",
+              "justification": "Copie bytewise nichee de l'entree MONO-04 ci-dessus, deja verifiee."
+            },
+            {
+              "file": "dependencies/MONO-04/test/test_t04_15_18_idempotence_redaction_payload.js",
+              "patternId": "sk-prefix",
+              "redactedSample": "sk-V…LOGS [REDACTED]",
+              "valueSha256": "1e78a62605ffa200ad76217c1540a1f84da816c7e0e8acba13da37f5301cf350",
+              "justification": "Copie bytewise nichee de l'entree MONO-04 ci-dessus, deja verifiee."
+            },
+            {
+              "file": "dependencies/MONO-04/test/test_t04_15_18_idempotence_redaction_payload.js",
+              "patternId": "sk-prefix",
+              "redactedSample": "sk-V…LOGS [REDACTED]",
+              "valueSha256": "1e78a62605ffa200ad76217c1540a1f84da816c7e0e8acba13da37f5301cf350",
+              "justification": "Copie bytewise nichee de l'entree MONO-04 ci-dessus, deja verifiee."
+            },
+            {
+              "file": "dependencies/MONO-04/test/test_t04_15_18_idempotence_redaction_payload.js",
+              "patternId": "bearer-token",
+              "redactedSample": "Bear…LOGS [REDACTED]",
+              "valueSha256": "11202a6de18309063b68b33dcb39e10322e69426744de805bc3c4076e2a68943",
+              "justification": "Copie bytewise nichee de l'entree MONO-04 ci-dessus, deja verifiee."
+            },
+            {
+              "file": "dependencies/MONO-04/test/test_t04_32_38_persistence_diagnostics_secrets.js",
+              "patternId": "sk-prefix",
+              "redactedSample": "sk-v…isee [REDACTED]",
+              "valueSha256": "1b69fa4749fff9ff1bf8918dc0a036e2944392dbc275019c53f6490a3a65e758",
+              "justification": "Copie bytewise nichee de l'entree MONO-04 ci-dessus, deja verifiee."
+            },
+            {
+              "file": "dependencies/MONO-04/test/test_t04_32_38_persistence_diagnostics_secrets.js",
+              "patternId": "sk-prefix",
+              "redactedSample": "sk-v…isee [REDACTED]",
+              "valueSha256": "1b69fa4749fff9ff1bf8918dc0a036e2944392dbc275019c53f6490a3a65e758",
+              "justification": "Copie bytewise nichee de l'entree MONO-04 ci-dessus, deja verifiee."
+            },
+            {
+              "file": "dependencies/MONO-04/test/test_t04_idempotence_conflict_01_07.js",
+              "patternId": "sk-prefix",
+              "redactedSample": "sk-J…LOGS [REDACTED]",
+              "valueSha256": "a89a9be71bea177966c191e26d430275beca202b6f7d2164809080fd27a6e914",
+              "justification": "Copie bytewise nichee de l'entree MONO-04 ci-dessus, deja verifiee."
+            },
+            {
+              "file": "dependencies/MONO-04/test/test_t04_idempotence_conflict_01_07.js",
+              "patternId": "sk-prefix",
+              "redactedSample": "sk-J…LOGS [REDACTED]",
+              "valueSha256": "a89a9be71bea177966c191e26d430275beca202b6f7d2164809080fd27a6e914",
+              "justification": "Copie bytewise nichee de l'entree MONO-04 ci-dessus, deja verifiee."
+            },
+            {
+              "file": "dependencies/MONO-04/test/test_t04_idempotence_conflict_01_07.js",
+              "patternId": "sk-prefix",
+              "redactedSample": "sk-J…LOGS [REDACTED]",
+              "valueSha256": "a89a9be71bea177966c191e26d430275beca202b6f7d2164809080fd27a6e914",
+              "justification": "Copie bytewise nichee de l'entree MONO-04 ci-dessus, deja verifiee."
+            },
+            {
+              "file": "reports/mono-05-security-report-v1.md",
+              "patternId": "sk-prefix",
+              "redactedSample": "sk-T…-123 [REDACTED]",
+              "valueSha256": "f5f057f22290c028654655148cef6ad2e3f247b4ff298f793333fdf7e3a2dda8",
+              "justification": "Meme marqueur synthetique, rapporte dans le rapport de securite du lot."
+            },
+            {
+              "file": "test/browser/test_t05_browser_core.js",
+              "patternId": "sk-prefix",
+              "redactedSample": "sk-T…-123 [REDACTED]",
+              "valueSha256": "f5f057f22290c028654655148cef6ad2e3f247b4ff298f793333fdf7e3a2dda8",
+              "justification": "Fixture du test navigateur reel qui verifie l'absence de fuite de ce marqueur (DOM/localStorage/sessionStorage/console)."
+            }
+          ]
+        }
+      },
+      "execution": {
+        "status": "PASS",
+        "exitCode": 0,
+        "testsObserved": 119,
+        "testsExpected": 119,
+        "countMethod": "TOTAL_CUMULE",
+        "npmInstallMode": "ci",
+        "outputTail": "PASS — T05-30. un élément focusé possède un style de focus visible (outline non 'none')\nPASS — T05-31. à 1440x900 (desktop), aucun débordement horizontal critique\nPASS — T05-31b. à 1440x900, au moins un bouton d'action reste visible/accessible\nPASS — T05-32. à 1024x768 (tablet), aucun débordement horizontal critique\nPASS — T05-32b. à 1024x768, au moins un bouton d'action reste visible/accessible\nPASS — T05-33. à 390x844 (mobile), aucun débordement horizontal critique\nPASS — T05-33b. à 390x844, au moins un bouton d'action reste visible/accessible\n\nTOUS LES TESTS PASSENT (22)\n\n============================================\nTOTAL CUMULE : 119 tests\nAUCUNE REGRESSION\n\n"
+      },
+      "artifactStatus": "PASS"
+    },
+    "EF-ORCH": {
+      "id": "EF-ORCH",
+      "group": "HISTORIQUE",
+      "manifest": {
+        "status": "PASS",
+        "results": [
+          {
+            "status": "PASS",
+            "manifestRelPath": "SHA256SUMS.txt",
+            "totalEntries": 72,
+            "okCount": 72,
+            "mismatches": [],
+            "missingFiles": [],
+            "malformed": []
+          }
+        ]
+      },
+      "contracts": {
+        "status": "NO_JSON_CONTRACTS_FOUND",
+        "filesChecked": 0,
+        "parseFailures": [],
+        "expected": 0
+      },
+      "staticSearch": {
+        "pilotHardcoding": {
+          "status": "OUT_OF_SCOPE",
+          "reason": "Regle limitee a MONO-00->05 (REGLES-ANTI-DERIVE.md) — non applicable aux lots historiques.",
+          "hits": []
+        },
+        "epistemicDrift": {
+          "status": "PASS",
+          "hits": []
+        },
+        "realSecrets": {
+          "status": "PASS",
+          "hits": [],
+          "excludedAsSynthetic": []
+        }
+      },
+      "execution": {
+        "status": "PASS",
+        "testsObserved": 842,
+        "testsExpected": 842,
+        "filesRun": 35,
+        "failures": [],
+        "countMethod": "SUM_PER_FILE(35_fichiers_test_ef_orch)"
+      },
+      "artifactStatus": "PASS"
+    },
+    "EF-PR-GEN-01": {
+      "id": "EF-PR-GEN-01",
+      "group": "HISTORIQUE",
+      "manifest": {
+        "status": "SKIPPED_NO_MANIFEST",
+        "reason": "Aucun manifeste interne dans ce paquet historique (reconfirme, voir missing-evidence.json) — statut de preuve HISTORICAL_FREEZE_CONFIRMED base sur T06-05..T06-11 (tests rejoues), pas sur un manifeste.",
+        "results": []
+      },
+      "contracts": {
+        "status": "PASS",
+        "filesChecked": 4,
+        "expected": 4,
+        "countMismatch": false,
+        "parseFailures": []
+      },
+      "staticSearch": {
+        "pilotHardcoding": {
+          "status": "OUT_OF_SCOPE",
+          "reason": "Regle limitee a MONO-00->05 (REGLES-ANTI-DERIVE.md) — non applicable aux lots historiques.",
+          "hits": []
+        },
+        "epistemicDrift": {
+          "status": "PASS",
+          "hits": []
+        },
+        "realSecrets": {
+          "status": "PASS",
+          "hits": [],
+          "excludedAsSynthetic": []
+        }
+      },
+      "execution": {
+        "status": "PASS",
+        "exitCode": 0,
+        "testsObserved": 105,
+        "testsExpected": 105,
+        "countMethod": "TOTAL_CUMULE",
+        "npmInstallMode": "install",
+        "outputTail": "PASS — 7. sans matcher explicite -> repli générique par similarité de tokens fonctionne quand même\nPASS — 8a. regex invalide dans filenamePatterns -> rejetée à la construction  [INVALID_MISSION_MAPPING: motif regex invalide fourni par la mission (slot \"t1\", filenamePatterns : \"((\") — Invalid regular expression: /((/i: Unterminated group]\nPASS — 8b. regex invalide dans contentPatterns -> rejetée à la construction  [INVALID_MISSION_MAPPING: motif regex invalide fourni par la mission (slot \"t1\", contentPatterns : \"[a-\") — Invalid regular expression: /[a-/i: Unterminated character class]\nPASS — 9. mapping rechargé depuis JSON brut avec regex invalide -> rejeté par resolveDocumentSlots lui-même  [INVALID_MISSION_MAPPING: motif regex invalide fourni par la mission (slot \"t1\", filenamePatterns : \"((\") — Invalid regular expression: /((/i: Unterminated group]\nPASS — 10a. slot sans matchers -> rejeté\nPASS — 10b. ambiguityFloor négatif -> rejeté\nPASS — 10c. targetId dupliqué dans un objet construit à la main -> rejeté\n\nTOUS LES TESTS PASSENT (23)\n\n============================================\nTOTAL CUMULE : 105 tests\nAUCUNE REGRESSION\n\n"
+      },
+      "artifactStatus": "PASS"
+    },
+    "EF-02ABC": {
+      "id": "EF-02ABC",
+      "group": "HISTORIQUE",
+      "manifest": {
+        "status": "SKIPPED_NO_MANIFEST",
+        "reason": "Aucun manifeste interne dans ce paquet historique (reconfirme, voir missing-evidence.json) — statut de preuve HISTORICAL_FREEZE_CONFIRMED base sur T06-05..T06-11 (tests rejoues), pas sur un manifeste.",
+        "results": []
+      },
+      "contracts": {
+        "status": "PASS",
+        "filesChecked": 3,
+        "expected": 3,
+        "countMismatch": false,
+        "parseFailures": []
+      },
+      "staticSearch": {
+        "pilotHardcoding": {
+          "status": "OUT_OF_SCOPE",
+          "reason": "Regle limitee a MONO-00->05 (REGLES-ANTI-DERIVE.md) — non applicable aux lots historiques.",
+          "hits": []
+        },
+        "epistemicDrift": {
+          "status": "PASS",
+          "hits": []
+        },
+        "realSecrets": {
+          "status": "PASS",
+          "hits": [],
+          "excludedAsSynthetic": []
+        }
+      },
+      "execution": {
+        "status": "PASS",
+        "exitCode": 0,
+        "testsObserved": 30,
+        "testsExpected": 30,
+        "countMethod": "TOTAL_CUMULE",
+        "npmInstallMode": "install",
+        "outputTail": "PASS — 2b. jamais d'appel direct à api.openalex.org\nPASS — 3. seuls les professionnels 'verified' avec un OpenAlex Author ID sont retenus (pc2-3 exclu)\nPASS — 4a. corpus construit avec succès pour le professionnel valide (2 travaux, 1 DOI)\nPASS — 4b. l'erreur Worker sur un professionnel n'affecte que lui seul (status='error'), jamais tout le lot\nPASS — 5a. après un arrêt volontaire simulé juste après le premier professionnel, un seul corpus est déjà construit\nPASS — 5b. la reprise (#resume) complète le lot (2 corpus au total)\nPASS — 5c. le Worker OpenAlex n'a été appelé qu'une seule fois pour A1 au total (arrêt puis reprise -> aucune double collecte)\n\nTOUS LES TESTS PASSENT (9)\n\n============================================\nTOTAL CUMULE : 30 tests\nAUCUNE REGRESSION\n\n"
+      },
+      "artifactStatus": "PASS"
+    },
+    "EF-02D": {
+      "id": "EF-02D",
+      "group": "HISTORIQUE",
+      "manifest": {
+        "status": "PASS",
+        "results": [
+          {
+            "status": "PASS",
+            "manifestRelPath": "EF-02D-MANIFEST-SHA256.txt",
+            "totalEntries": 36,
+            "okCount": 36,
+            "mismatches": [],
+            "missingFiles": [],
+            "malformed": []
+          }
+        ]
+      },
+      "contracts": {
+        "status": "PASS",
+        "filesChecked": 21,
+        "expected": 21,
+        "countMismatch": false,
+        "parseFailures": []
+      },
+      "staticSearch": {
+        "pilotHardcoding": {
+          "status": "OUT_OF_SCOPE",
+          "reason": "Regle limitee a MONO-00->05 (REGLES-ANTI-DERIVE.md) — non applicable aux lots historiques.",
+          "hits": []
+        },
+        "epistemicDrift": {
+          "status": "PASS",
+          "hits": []
+        },
+        "realSecrets": {
+          "status": "PASS",
+          "hits": [],
+          "excludedAsSynthetic": []
+        }
+      },
+      "execution": {
+        "status": "PASS",
+        "exitCode": 0,
+        "testsObserved": 49,
+        "testsExpected": 49,
+        "countMethod": "TOTAL_CUMULE",
+        "npmInstallMode": "none",
+        "outputTail": "PASS — 15. aucune chaîne JMJS/S01/S02/target-0 dans le code\nPASS — 16. maxPanel=12 mais un seul candidat pertinent -> panel de taille 1, jamais complété artificiellement à 12\nPASS — 17. noPrestigeWeighting=true déclaré, aucune donnée de citation/prestige utilisée dans la sélection\nPASS — 18. evidenceWorks avec un titre inventé -> l'évaluation finit en erreur (aucune preuve inventée acceptée)\nPASS — 19. level='not_determinable' conservé tel quel, jamais transformé en connaissance positive\nPASS — 20. exigence de gain marginal très élevée -> panel VIDE accepté (jamais forcé à contenir quelqu'un)\nPASS — 21. la matrice conserve les TROIS informations séparées (level='strong', relevanceStatus='mission_irrelevant', epistemicStatus='documented') — un professionnel bien couvert documentairement mais hors sujet reste visible comme tel\n\nTOUS LES TESTS PASSENT (21)\n\n============================================\nTOTAL CUMULE : 49 tests\nAUCUNE REGRESSION\n\n"
+      },
+      "artifactStatus": "PASS"
+    },
+    "EF-02E": {
+      "id": "EF-02E",
+      "group": "HISTORIQUE",
+      "manifest": {
+        "status": "PASS",
+        "results": [
+          {
+            "status": "PASS",
+            "manifestRelPath": "EF-02E-MANIFEST-SHA256.txt",
+            "totalEntries": 28,
+            "okCount": 28,
+            "mismatches": [],
+            "missingFiles": [],
+            "malformed": []
+          }
+        ]
+      },
+      "contracts": {
+        "status": "PASS",
+        "filesChecked": 18,
+        "expected": 18,
+        "countMismatch": false,
+        "parseFailures": []
+      },
+      "staticSearch": {
+        "pilotHardcoding": {
+          "status": "OUT_OF_SCOPE",
+          "reason": "Regle limitee a MONO-00->05 (REGLES-ANTI-DERIVE.md) — non applicable aux lots historiques.",
+          "hits": []
+        },
+        "epistemicDrift": {
+          "status": "PASS",
+          "hits": []
+        },
+        "realSecrets": {
+          "status": "PASS",
+          "hits": [],
+          "excludedAsSynthetic": []
+        }
+      },
+      "execution": {
+        "status": "PASS",
+        "exitCode": 0,
+        "testsObserved": 60,
+        "testsExpected": 60,
+        "countMethod": "TOTAL_CUMULE",
+        "npmInstallMode": "none",
+        "outputTail": "PASS — 21. ../src/ef-02e-exclusion-registry-v1.js — aucun mot 'clone' dans le code produit (hors documentation historique de Worker)\nPASS — 22a. vérifié + éligible + au panel + exclusion ACTIVE -> ZÉRO twin, sans exception\nPASS — 22b. le DocumentaryTwinSet déjà calculé reste inchangé après désactivation ailleurs (aucune mutation implicite)\nPASS — 22c. nouvelle exécution EXPLICITE avec le registre mis à jour -> le twin apparaît maintenant\nPASS — 23. DOI/titre présent mais authorship pointe vers un AUTRE auteur -> rejet (aucune réparation intelligente)  [EF-02E: référence inconnue (\"Étude mal attribuée\") pour la dimension \"d1\" du professionnel \"pMisattr\" — aucune preuve inexistante n'est acceptée dans un jumeau.]\nPASS — 24. professionnel absent de la liste d'authorship du travail cité -> rejet  [EF-02E: référence inconnue (\"Étude sans lui dans l'authorship\") pour la dimension \"d1\" du professionnel \"pAbsentAuthorship\" — aucune preuve inexistante n'est acceptée dans un jumeau.]\nPASS — 25. un travail présent dans le corpus mais jamais cité par D3 -> absent de worksUsed (aucune inclusion implicite)\n\nTOUS LES TESTS PASSENT (37)\n\n============================================\nTOTAL CUMULE : 60 tests\nAUCUNE REGRESSION\n\n"
+      },
+      "artifactStatus": "PASS"
+    },
+    "EF-03": {
+      "id": "EF-03",
+      "group": "HISTORIQUE",
+      "manifest": {
+        "status": "PASS",
+        "results": [
+          {
+            "status": "PASS",
+            "manifestRelPath": "EF-03-MANIFEST-SHA256.txt",
+            "totalEntries": 55,
+            "okCount": 55,
+            "mismatches": [],
+            "missingFiles": [],
+            "malformed": []
+          }
+        ]
+      },
+      "contracts": {
+        "status": "PASS",
+        "filesChecked": 39,
+        "expected": 39,
+        "countMismatch": false,
+        "parseFailures": []
+      },
+      "staticSearch": {
+        "pilotHardcoding": {
+          "status": "OUT_OF_SCOPE",
+          "reason": "Regle limitee a MONO-00->05 (REGLES-ANTI-DERIVE.md) — non applicable aux lots historiques.",
+          "hits": []
+        },
+        "epistemicDrift": {
+          "status": "PASS",
+          "hits": []
+        },
+        "realSecrets": {
+          "status": "PASS",
+          "hits": [],
+          "excludedAsSynthetic": []
+        }
+      },
+      "execution": {
+        "status": "PASS",
+        "exitCode": 0,
+        "testsObserved": 100,
+        "testsExpected": 100,
+        "countMethod": "TOTAL_CUMULE",
+        "npmInstallMode": "none",
+        "outputTail": "PASS — 19. 3 dimensions -> 3 analyses distinctes, jamais un nombre fixe\nPASS — 19. 13 dimensions -> 13 analyses distinctes, jamais un nombre fixe\nPASS — 20. plusieurs targets -> analyses distinctes par target\nPASS — 21. aucun champ 'pValue'/'confidenceScore'/'scientificScore' nulle part dans la sortie\nPASS — 21b. structurallyStableDefinition explicite, jamais 'scientifiquement validé'\nPASS — 22. aucune constante DIMS\nPASS — 23. aucune chaîne JMJS/S01/S02\n\nTOUS LES TESTS PASSENT (27)\n\n============================================\nTOTAL CUMULE : 100 tests\nAUCUNE REGRESSION\n\n"
+      },
+      "artifactStatus": "PASS"
+    },
+    "EF-04": {
+      "id": "EF-04",
+      "group": "HISTORIQUE",
+      "manifest": {
+        "status": "PASS",
+        "results": [
+          {
+            "status": "PASS",
+            "manifestRelPath": "EF-04-MANIFEST-SHA256.txt",
+            "totalEntries": 52,
+            "okCount": 52,
+            "mismatches": [],
+            "missingFiles": [],
+            "malformed": []
+          }
+        ]
+      },
+      "contracts": {
+        "status": "PASS",
+        "filesChecked": 37,
+        "expected": 37,
+        "countMismatch": false,
+        "parseFailures": []
+      },
+      "staticSearch": {
+        "pilotHardcoding": {
+          "status": "OUT_OF_SCOPE",
+          "reason": "Regle limitee a MONO-00->05 (REGLES-ANTI-DERIVE.md) — non applicable aux lots historiques.",
+          "hits": []
+        },
+        "epistemicDrift": {
+          "status": "PASS",
+          "hits": []
+        },
+        "realSecrets": {
+          "status": "PASS",
+          "hits": [],
+          "excludedAsSynthetic": []
+        }
+      },
+      "execution": {
+        "status": "PASS",
+        "exitCode": 0,
+        "testsObserved": 37,
+        "testsExpected": 37,
+        "countMethod": "TOTAL_CUMULE",
+        "npmInstallMode": "none",
+        "outputTail": "PASS — 18. aucune conclusion générique non traçable type 'semble globalement fiable'\nPASS — 19. provenance conservée (reviewSchemaHash, lineageFingerprint, sourceStages)\nPASS — 19b. chaque finding conserve targetEvidenceRefs/twinBasisWorkRefs -> navigable de haut en bas\nPASS — 20. lineageAssurance exposé avec assuranceLevel correct et limitation textuelle\nPASS — 21. dimensionSummaries au format gabarit déterministe (contient le nombre réel de convergences/divergences)\nPASS — 22. aucune constante DIMS\nPASS — 23. aucune chaîne JMJS/S01/S02\n\nTOUS LES TESTS PASSENT (25)\n\n============================================\nTOTAL CUMULE : 37 tests\nAUCUNE REGRESSION\n\n"
+      },
+      "artifactStatus": "PASS"
+    }
+  },
+  "globalTotals": {
+    "monoObserved": 785,
+    "monoExpected": 785,
+    "monoMatch": true,
+    "historiqueObserved": 1223,
+    "historiqueExpected": 1223,
+    "historiqueMatch": true
+  },
+  "staticSearch": {},
+  "knownLimitations": {
+    "status": "PASS",
+    "results": [
+      {
+        "id": "EF-04-assurance-level",
+        "artifactId": "EF-04",
+        "marker": "reference_revalidated_not_source_hash_bound",
+        "description": "targetDocuments/documentaryTwins non hash-bound depuis EF-03 — doit rester documente, jamais masque.",
+        "status": "PASS",
+        "matches": [
+          "README.md",
+          "contracts/CONTRACTS.md",
+          "fixtures/case-lineage-pass-report-TEST.json",
+          "fixtures/case-lineage-pass-result-TEST.json",
+          "fixtures/case-report-13dims-TEST.json",
+          "fixtures/case-report-3dims-TEST.json",
+          "fixtures/case-report-contradiction-TEST.json",
+          "fixtures/case-report-convergence-TEST.json",
+          "fixtures/case-report-divergence-TEST.json",
+          "fixtures/case-report-notdeterminable-TEST.json",
+          "fixtures/case-report-plusieurs-targets-TEST.json",
+          "fixtures/case-report-structurallystable-true-TEST.json",
+          "fixtures/case-vide-report-TEST.json",
+          "src/ef-04-lineage-guard-v1.js",
+          "test/test_ef04a_unified_report.js"
+        ]
+      },
+      {
+        "id": "MONO-03-runlock",
+        "artifactId": "MONO-03",
+        "marker": "RunLock",
+        "description": "Pas de compare-and-swap distribue — get()+put() simple, acceptable en memoire uniquement.",
+        "status": "PASS",
+        "matches": [
+          "README.md",
+          "index.js",
+          "lib/persistence-backend.js",
+          "lib/run-lock.js",
+          "reports/mono-03-persistence-report-v1.md",
+          "test/test_t03_22_25_crash_recovery_locking.js"
+        ]
+      },
+      {
+        "id": "MONO-04-idempotence-in-process",
+        "artifactId": "MONO-04",
+        "marker": "in-process",
+        "description": "Cache de deduplication requestId+fingerprint in-process uniquement, aucune garantie cross-process.",
+        "status": "PASS",
+        "matches": [
+          "CDC-TRACE.md",
+          "README.md",
+          "contracts/external-execution-request-v1.json",
+          "lib/external-execution-gateway.js",
+          "reports/mono-04-gateway-report-v1.md"
+        ]
+      },
+      {
+        "id": "MONO-05-externalstageadapter-blocked",
+        "artifactId": "MONO-05",
+        "marker": "BLOCKED",
+        "description": "EF-02A/B/C non pilotables depuis le formulaire generique — restent BLOCKED pour tout run cree via MONO-05.",
+        "status": "PASS",
+        "matches": [
+          "CDC-TRACE.md",
+          "README.md",
+          "app/client/app.js",
+          "app/client/index.html",
+          "app/server/http-server.js",
+          "app/server/operator-api.js",
+          "app/server/run-registry.js",
+          "contracts/operator-api-v1.json",
+          "reports/mono-05-security-report-v1.md",
+          "test/integration/test_t05_R2_cross_reg01_reg02.js",
+          "test/integration/test_t05_R2_lineage_status_sync.js",
+          "test/integration/test_t05_integration_core.js",
+          "test/integration/test_t05_restart_concurrency.js",
+          "test/integration/test_t05_resume_retry_policies.js"
+        ]
+      },
+      {
+        "id": "MONO-05-accessibility-no-automated-audit",
+        "artifactId": "MONO-05",
+        "marker": "axe-core",
+        "description": "Audit accessibilite manuel/cible, aucun outil automatise exhaustif type axe-core integre.",
+        "status": "PASS",
+        "matches": [
+          "reports/mono-05-accessibility-report-v1.md"
+        ]
+      }
+    ]
+  },
+  "overallStatus": "PASS"
+}

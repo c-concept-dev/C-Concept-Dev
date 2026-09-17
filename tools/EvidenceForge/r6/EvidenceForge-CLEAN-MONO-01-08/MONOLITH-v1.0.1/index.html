@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EvidenceForge</title>
+<style>
+:root{--bg:#f7f6f2;--card:#fff;--ink:#1c1c1a;--muted:#5f5e58;--line:#dedcd3;--accent:#1f5f8b;--ok:#2f7d4a;--warn:#b7791f;--bad:#b23a3a;--soft:#eef2f6}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+header{background:var(--card);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;position:sticky;top:0;z-index:5}
+header h1{font-size:18px;margin:0;font-weight:650}header .sub{color:var(--muted);font-size:13px}header .grow{flex:1}
+.mode{display:flex;gap:6px}.mode button{border:1px solid var(--line);background:var(--card);padding:6px 12px;border-radius:999px;cursor:pointer;font-size:13px}.mode button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+main{max-width:1080px;margin:0 auto;padding:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:14px}
+h2{font-size:17px;margin:0 0 10px}h3{font-size:15px;margin:14px 0 6px}
+label{display:block;font-weight:600;margin:10px 0 4px}textarea,input[type=text]{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff}textarea{min-height:110px;resize:vertical}
+.btn{background:var(--accent);color:#fff;border:0;padding:10px 16px;border-radius:8px;font:inherit;font-weight:600;cursor:pointer}.btn.sec{background:#fff;color:var(--accent);border:1px solid var(--accent)}.btn:disabled{opacity:.5;cursor:not-allowed}.btn.small{padding:6px 10px;font-size:13px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.muted{color:var(--muted)}.small{font-size:13px}
+.steps{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}.steps li{border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;background:#fff}
+.steps li.DONE{border-color:var(--ok);background:#f0f8f2}.steps li.RUNNING{border-color:var(--accent);background:var(--soft)}.steps li.INTERRUPTED,.steps li.FAILED{border-color:var(--bad);background:#fbf0f0}
+.pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;border:1px solid var(--line);background:#fff}.pill.ok{border-color:var(--ok);color:var(--ok)}.pill.warn{border-color:var(--warn);color:var(--warn)}.pill.bad{border-color:var(--bad);color:var(--bad)}
+.banner{padding:12px 14px;border-radius:8px;border:1px solid;margin:10px 0}.banner.warn{border-color:var(--warn);background:#fff8ec}.banner.bad{border-color:var(--bad);background:#fbf0f0}.banner.ok{border-color:var(--ok);background:#f0f8f2}.banner.info{border-color:var(--accent);background:var(--soft)}
+.log{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;max-height:220px;overflow:auto;background:#fafaf7;border:1px solid var(--line);border-radius:8px;padding:8px}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+.src{border:1px solid var(--line);border-radius:8px;padding:10px;margin:8px 0;background:#fff}.src .t{font-weight:600}.src .r{font-size:13px;color:var(--muted);margin-top:4px}
+.dec{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}.dec button{border:1px solid var(--line);background:#fff;padding:4px 10px;border-radius:999px;cursor:pointer;font-size:12px}.dec button.on.inclus{background:#e6f4ea;border-color:var(--ok)}.dec button.on.exclu{background:#fbecec;border-color:var(--bad)}.dec button.on.doublon{background:#eee}
+details{margin:6px 0}summary{cursor:pointer;font-weight:600}
+.stmt{border-left:4px solid var(--line);padding:8px 12px;margin:8px 0;background:#fff;border-radius:0 8px 8px 0}.stmt.etabli{border-left-color:var(--ok)}.stmt.convergent{border-left-color:var(--accent)}.stmt.divergent{border-left-color:var(--warn)}.stmt.provisoire{border-left-color:#888}.stmt.nonEtabli{border-left-color:var(--bad)}
+.why{font-size:13px;background:#fafaf7;border:1px solid var(--line);border-radius:8px;padding:8px;margin-top:6px}
+pre{white-space:pre-wrap;word-break:break-word;font-size:12px;background:#fafaf7;border:1px solid var(--line);border-radius:8px;padding:8px;max-height:420px;overflow:auto}
+.hash{font-family:ui-monospace,Menlo,monospace;font-size:12px;word-break:break-all}
+#report,#report li,#report p,#report div,.stmt,.why,.banner,.src{overflow-wrap:anywhere;word-break:break-word;min-width:0}
+main{overflow-x:hidden}.card{max-width:100%}
+.notify{position:sticky;top:52px;z-index:4}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}.tabs button{border:1px solid var(--line);background:#fff;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:13px}.tabs button.on{background:var(--soft);border-color:var(--accent)}
+[hidden]{display:none!important}
+@media print{header,.noprint,#runCard .steps,#runCard details,#runCard #userMsg,#runCard #resumeBox{display:none!important}main{max-width:none;padding:0}body{background:#fff}.card{border:0;margin:0;padding:0;page-break-inside:auto}#runCard{page-break-after:avoid}.stmt,.why,.banner{page-break-inside:avoid}.why{border:1px solid #ccc}details.why[open]>summary{display:none}.tech-details{display:none!important}.stmt{border-left-width:3px}}
+@media (max-width:600px){main{padding:10px}.steps{grid-template-columns:1fr 1fr}header h1{font-size:16px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>EvidenceForge</h1><span class="sub" id="cfgline">…</span><span class="grow"></span>
+  <div class="mode noprint"><button id="mSimple" class="on">Mode simple</button><button id="mExpert">Mode expert</button></div>
+</header>
+<main>
+  <div id="gateNotify" class="banner warn noprint notify" hidden></div>
+  <div id="providerWarn" class="banner bad noprint" hidden>Le service d'analyse n'est pas configuré sur cette machine (identifiants absents de l'environnement). Aucune analyse ne peut démarrer.</div>
+
+  <!-- ================= MODE SIMPLE ================= -->
+  <section id="simple">
+    <div class="card" id="newRun">
+      <h2>Que voulez-vous faire examiner ?</h2>
+      <p class="muted small">Décrivez votre demande. Vous pouvez joindre des documents texte (.txt, .md). EvidenceForge reformule votre demande, la fait analyser par des jumeaux documentaires de professionnels identifiés dans les publications réelles, puis rédige un rapport en distinguant ce qui est établi, convergent, divergent, provisoire ou non établi.</p>
+      <label for="q">Votre demande</label><textarea id="q" placeholder="Ex. : Examiner ce cahier des charges et dire ce qui est étayé, discuté ou non établi…"></textarea>
+      <label for="files">Documents (facultatif)</label><input type="file" id="files" multiple accept=".txt,.md">
+      <div id="fileList" class="small muted"></div>
+      <div class="row" style="margin-top:12px"><button class="btn" id="start">Analyser ma demande</button><span class="small muted">Rien n'est lancé sans votre confirmation à l'étape suivante.</span></div>
+      <details style="margin-top:12px"><summary>Reprendre un run existant</summary><div id="runList" class="small"></div></details>
+      <details style="margin-top:6px"><summary>Importer un rapport JSON exporté</summary><div class="small muted">Le rapport est ré-affiché tel quel après vérification de son hash canonique. Les artefacts détaillés du run d'origine ne sont pas inclus dans un export JSON.</div><input type="file" id="importReport" accept=".json,application/json"><div id="importErr" class="banner bad" hidden></div></details>
+    </div>
+
+    <div class="card" id="runCard" hidden>
+      <div class="row"><h2 id="runTitle">Analyse en cours</h2><span class="pill" id="runStatus">…</span><span class="grow"></span><button class="btn sec small noprint" id="btnNew">Nouvelle demande</button></div>
+      <p class="small muted" id="runQuestion"></p>
+      <ul class="steps" id="steps"></ul>
+      <div id="userMsg" class="banner info" hidden></div>
+      <div id="resumeBox" class="row noprint" hidden><button class="btn" id="btnResume">Reprendre le run</button><span class="small muted">Les résultats déjà validés sont conservés ; seul ce qui manque est recalculé (les réponses réelles déjà validées sont réutilisées, jamais recomptées comme nouvelles).</span></div>
+      <details class="noprint" style="margin-top:8px"><summary>Journal</summary><div class="log" id="log"></div></details>
+    </div>
+
+    <!-- Porte 1 -->
+    <div class="card noprint" id="gatePlan" hidden>
+      <h2>Vérifiez, puis confirmez et lancez</h2>
+      <h3>Ce qu'EvidenceForge a compris</h3><div id="gpReformulation"></div>
+      <h3>Angles d'expertise retenus</h3><ul id="gpDisciplines"></ul>
+      <h3>Plan de recherche (requêtes qui seront exécutées dans la base de publications)</h3><ul id="gpPlan" class="small"></ul>
+      <div class="banner warn small">Votre confirmation est un acte réel, enregistré à votre nom (le contrat de données d'EvidenceForge exige une validation humaine du plan). Aucune décision n'est prise à votre place.</div>
+      <label for="gpName">Votre nom</label><input type="text" id="gpName" placeholder="Prénom Nom">
+      <label for="gpComment">Commentaire (facultatif)</label><input type="text" id="gpComment" placeholder="">
+      <div class="row" style="margin-top:12px"><button class="btn" id="gpConfirm">Confirmer et lancer l'analyse</button><button class="btn sec" id="gpCancel">Reformuler ma demande</button></div>
+      <div id="gpErr" class="banner bad" hidden></div>
+    </div>
+
+    <!-- Porte 2 -->
+    <div class="card noprint" id="gateSources" hidden>
+      <h2>Ratifiez la sélection des publications</h2>
+      <p class="small muted" id="gsSummary"></p>
+      <div class="banner warn small">Ces propositions sont fondées sur les métadonnées et résumés réels de chaque publication (aucun texte intégral lu). Vous pouvez inverser un choix. Votre ratification est un acte réel, enregistré à votre nom pour chaque source.</div>
+      <div class="row small"><button class="btn sec small" id="gsShowAll">Tout afficher</button><span id="gsCount" class="muted"></span></div>
+      <div id="gsList"></div>
+      <label for="gsName">Votre nom</label><input type="text" id="gsName" placeholder="Prénom Nom">
+      <div class="row" style="margin-top:12px"><button class="btn" id="gsConfirm">Ratifier et poursuivre</button></div>
+      <div id="gsErr" class="banner bad" hidden></div>
+    </div>
+
+    <!-- Rapport -->
+    <div class="card" id="report" hidden>
+      <div class="row"><h2>Rapport</h2><span class="grow"></span><button class="btn sec small noprint" id="btnJson">Exporter JSON</button><button class="btn sec small noprint" id="btnPdf">Exporter PDF (imprimer)</button></div>
+      <div id="rpHead"></div>
+      <div id="rpBody"></div>
+    </div>
+  </section>
+
+  <!-- ================= MODE EXPERT ================= -->
+  <section id="expert" hidden>
+    <div class="card">
+      <div class="row"><h2>Mode expert</h2><span class="small muted" id="exRun"></span></div>
+      <div class="tabs" id="exTabs"></div>
+      <div id="exView"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+(function(){
+"use strict";
+const $=(s)=>document.querySelector(s); const esc=(s)=>String(s==null?"":s).replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const api=async(p,opt)=>{const r=await fetch(p,Object.assign({headers:{"content-type":"application/json"}},opt||{}));const j=await r.json().catch(()=>({}));if(!r.ok){const e=new Error(j.message||j.error||("HTTP "+r.status));e.code=j.error;throw e;}return j;};
+let CFG=null, RUN=null, ES=null, STATE=null, REPORT=null, GATE=null, EXTAB="state";
+let pendingFiles=[]; let overrides={}; let showAll=false;
+
+/* ---------- config ---------- */
+api("/api/config").then((c)=>{CFG=c;$("#cfgline").textContent=c.product+" "+c.version+" · "+c.frozenLots.length+" lots gelés vérifiés";if(!c.providerConfigured){$("#providerWarn").hidden=false;$("#start").disabled=true;}renderRunList();fromHash();}).catch((e)=>{$("#cfgline").textContent="Serveur injoignable : "+e.message;});
+async function renderRunList(){try{const r=await api("/api/runs");$("#runList").innerHTML=r.runs.length?r.runs.map((x)=>'<div><a href="#" data-run="'+esc(x.runId)+'">'+esc(x.runId)+'</a> · '+esc(x.status)+' · '+esc((x.question||"").slice(0,80))+'</div>').join(""):"<em>Aucun run.</em>";$("#runList").querySelectorAll("a").forEach((a)=>a.onclick=(ev)=>{ev.preventDefault();openRun(a.dataset.run);});}catch(e){}}
+
+/* ---------- mode ---------- */
+$("#mSimple").onclick=()=>setMode("simple");$("#mExpert").onclick=()=>setMode("expert");
+function setMode(m){$("#simple").hidden=m!=="simple";$("#expert").hidden=m!=="expert";$("#mSimple").classList.toggle("on",m==="simple");$("#mExpert").classList.toggle("on",m==="expert");if(m==="expert")renderExpert();setHash();}
+/* l'URL porte le run et le mode : un rafraîchissement (F5) ou un lien rouvre exactement la même vue */
+function setHash(){const h=(RUN?"run="+RUN:"")+($("#expert").hidden?"":(RUN?"&":"")+"mode=expert");if(location.hash.slice(1)!==h)history.replaceState(null,"","#"+h);}
+function fromHash(){const q=new URLSearchParams(location.hash.slice(1));const r=q.get("run");if(r&&r!==RUN)openRun(r);if(q.get("mode")==="expert")setMode("expert");}
+window.addEventListener("hashchange",fromHash);
+
+/* ---------- nouveau run ---------- */
+$("#files").onchange=async()=>{pendingFiles=[];for(const f of $("#files").files){const buf=await f.arrayBuffer();pendingFiles.push({name:f.name,contentBase64:btoa(String.fromCharCode(...new Uint8Array(buf)))});}$("#fileList").textContent=pendingFiles.map((f)=>f.name).join(", ");};
+$("#start").onclick=async()=>{const q=$("#q").value.trim();if(q.length<12){alert("Décrivez votre demande (12 caractères minimum).");return;}$("#start").disabled=true;
+  try{let r;try{r=await api("/api/runs",{method:"POST",body:JSON.stringify({question:q,files:pendingFiles})});}
+    catch(e){if(e.code==="DOCUMENTS_REJECTED"){/* jamais un lancement silencieux sans le document : confirmation explicite */if(!confirm(e.message+"\n\nOK = continuer sans ce(s) document(s) · Annuler = corriger mes fichiers"))return;r=await api("/api/runs",{method:"POST",body:JSON.stringify({question:q,files:pendingFiles,acknowledgeRejected:true})});}else throw e;}
+    if(r.rejected&&r.rejected.length)$("#fileList").textContent="Documents refusés (run lancé sans eux) : "+r.rejected.map((x)=>x.name).join(", ");askNotifyPermission();openRun(r.runId);}catch(e){alert(e.message);}finally{$("#start").disabled=false;}};
+$("#importReport").onchange=async()=>{const f=$("#importReport").files[0];if(!f)return;$("#importErr").hidden=true;try{const report=JSON.parse(await f.text());const r=await api("/api/reports/import",{method:"POST",body:JSON.stringify({report})});openRun(r.runId);}catch(e){$("#importErr").hidden=false;$("#importErr").textContent=e.message;}};
+$("#btnNew").onclick=()=>{closeRun();$("#newRun").hidden=false;setHash();};
+function closeRun(){if(ES){ES.close();ES=null;}if(POLL){clearInterval(POLL);POLL=null;}RUN=null;STATE=null;REPORT=null;GATE=null;overrides={};["#runCard","#gatePlan","#gateSources","#report"].forEach((s)=>$(s).hidden=true);}
+
+/* ---------- suivi d'un run ---------- */
+let POLL=null;
+function openRun(runId){closeRun();RUN=runId;$("#newRun").hidden=true;$("#runCard").hidden=false;$("#log").innerHTML="";$("#exRun").textContent=runId;setHash();
+  ES=new EventSource("/api/runs/"+runId+"/events");ES.onmessage=(m)=>{const d=JSON.parse(m.data);if(d.type==="state")onState(d.state);if(d.type==="event"&&d.event.level==="user")logLine(d.event);};ES.onerror=()=>{};
+  /* filet de securite : relecture de l'etat toutes les 10 s (si le flux d'evenements est coupe, la page ne reste jamais figee sur un etat perime) */
+  POLL=setInterval(async()=>{if(!RUN)return;try{const s=await api("/api/runs/"+RUN);if(!STATE||s.updatedAt!==STATE.updatedAt||s.status!==STATE.status)onState(s);}catch(e){}},10000);}
+function refreshState(){if(RUN)api("/api/runs/"+RUN).then(onState).catch(()=>{});}
+/* Notification claire quand un acte de l'utilisateur est requis (porte 1 ou 2) : bandeau, titre d'onglet, notification systeme si autorisee */
+let lastGate=null;function askNotifyPermission(){try{if("Notification" in window&&Notification.permission==="default")Notification.requestPermission();}catch(e){}}
+function notifyGate(s){const id=s.gate&&s.gate.id;if(!id||id===lastGate)return;lastGate=id;const msg=id==="RATIFY_SOURCES"?"Votre ratification des sources est requise pour poursuivre.":"Votre confirmation est requise pour lancer l'analyse.";
+  document.title="⚠ Action requise — EvidenceForge";const n=$("#gateNotify");n.hidden=false;n.innerHTML=esc(msg)+' <button class="btn small" id="gateJump" style="margin-left:8px">'+(id==="RATIFY_SOURCES"?"Aller à la ratification":"Aller à la confirmation")+'</button>';$("#gateJump").onclick=()=>{const g=$(id==="RATIFY_SOURCES"?"#gateSources":"#gatePlan");if(g){g.hidden=false;g.scrollIntoView({behavior:"smooth"});}};try{if("Notification" in window&&Notification.permission==="granted")new Notification("EvidenceForge — action requise",{body:msg});}catch(e){}
+  setTimeout(()=>{const g=$(id==="RATIFY_SOURCES"?"#gateSources":"#gatePlan");if(g&&!g.hidden)g.scrollIntoView({behavior:"smooth"});},300);}
+function logLine(e){const div=document.createElement("div");div.textContent=(e.at||"").slice(11,19)+"  "+e.message;$("#log").appendChild(div);$("#log").scrollTop=$("#log").scrollHeight;}
+function onState(s){STATE=s;$("#runTitle").textContent=(s.stageLabel||"")+(s.status==="COMPLETED"?" — terminé":"");$("#runQuestion").textContent=s.runId+" · "+(s.mission?s.mission.question:"");
+  const st=$("#runStatus");st.textContent={CREATED:"créé",RUNNING:"en cours",WAITING_USER:"votre action est attendue",STOPPED:"arrêté (reprenable)",FAILED:"arrêté (erreur de contrat)",COMPLETED:"terminé"}[s.status]||s.status;st.className="pill "+(s.status==="COMPLETED"?"ok":s.status==="WAITING_USER"?"warn":(s.status==="STOPPED"||s.status==="FAILED")?"bad":"");
+  $("#steps").innerHTML=CFG?CFG.stages.map((x)=>{const g=s.stages[x.id]||{};return '<li class="'+esc(g.status)+'">'+esc(x.label)+'<br><span class="muted">'+esc({PENDING:"à venir",RUNNING:"en cours…",DONE:"terminé",INTERRUPTED:"interrompu",FAILED:"échec"}[g.status]||g.status)+'</span></li>';}).join(""):"";
+  const um=$("#userMsg");if(s.userMessage||(s.error&&s.error.userMessage)){um.hidden=false;um.className="banner "+(s.status==="COMPLETED"?"ok":(s.status==="FAILED"?"bad":s.status==="STOPPED"?"warn":"info"));um.textContent=s.userMessage||s.error.userMessage;}else um.hidden=true;
+  $("#resumeBox").hidden=s.status!=="STOPPED";
+  $("#gatePlan").hidden=true;$("#gateSources").hidden=true;
+  if(s.status==="WAITING_USER"&&s.gate){loadGate(s.gate.id);notifyGate(s);}else{lastGate=null;$("#gateNotify").hidden=true;document.title="EvidenceForge";}
+  if(s.status==="COMPLETED"&&!REPORT)loadReport();
+  if(!$("#expert").hidden)renderExpert();}
+$("#btnResume").onclick=async()=>{try{await api("/api/runs/"+RUN+"/resume",{method:"POST",body:"{}"});}catch(e){alert(e.message);}};
+
+/* ---------- porte 1 ---------- */
+async function loadGate(id){try{GATE=await api("/api/runs/"+RUN+"/gate");}catch(e){return;}
+  if(id==="CONFIRM_PLAN"){const g=GATE;const r=g.reformulation||{};$("#gpReformulation").innerHTML='<p><strong>'+esc(r.missionReformulee)+'</strong></p><p class="small"><b>Périmètre :</b> '+esc(r.perimetre)+(r.horsPerimetre?' <b>Hors périmètre :</b> '+esc(r.horsPerimetre):'')+'</p><p class="small"><b>Livrable :</b> '+esc(r.livrableAttendu)+'</p>'+((r.ambiguites||[]).length?'<p class="small"><b>Ambiguïtés relevées :</b> '+r.ambiguites.map(esc).join(" ; ")+'</p>':'')+((g.documents||[]).length?'<p class="small"><b>Documents :</b> '+g.documents.map((d)=>esc(d.name)).join(", ")+'</p>':'<p class="small muted">Aucun document fourni : votre demande confirmée sera le document examiné.</p>');
+    $("#gpDisciplines").innerHTML=(g.disciplines||[]).map((d)=>'<li><b>'+esc(d.label)+'</b><span class="small muted"> — '+esc(d.justification||"")+'</span></li>').join("");
+    const plan=Array.isArray(g.plan)?g.plan:[];$("#gpPlan").innerHTML=plan.length?plan.map((p)=>'<li>'+esc(typeof p==="string"?p:(p.query||p.requete||p.texte||JSON.stringify(p)))+'</li>').join(""):'<li class="muted">(plan disponible en mode expert)</li>';
+    $("#gatePlan").hidden=false;$("#gpErr").hidden=true;}
+  if(id==="RATIFY_SOURCES"){overrides={};showAll=false;renderSources();$("#gateSources").hidden=false;$("#gsErr").hidden=true;}}
+$("#gpConfirm").onclick=async()=>{$("#gpConfirm").disabled=true;askNotifyPermission();try{const r=await api("/api/runs/"+RUN+"/confirm-plan",{method:"POST",body:JSON.stringify({validatedBy:$("#gpName").value,commentaire:$("#gpComment").value})});
+    /* retour immediat : la confirmation est recue et l'analyse est lancee ; l'etat reel est relu tout de suite */
+    $("#gatePlan").hidden=true;$("#gateNotify").hidden=true;lastGate=null;document.title="EvidenceForge";const um=$("#userMsg");um.hidden=false;um.className="banner ok";um.textContent="Confirmation reçue ("+r.validatedBy+"). L'analyse est lancée.";$("#runStatus").textContent="en cours";$("#runStatus").className="pill";refreshState();}
+  catch(e){$("#gpErr").hidden=false;$("#gpErr").textContent=e.message;}finally{$("#gpConfirm").disabled=false;}};
+$("#gpCancel").onclick=()=>{closeRun();$("#newRun").hidden=false;};
+
+/* ---------- porte 2 ---------- */
+function decisionOf(p){return overrides[p.sourceId]||p.proposed;}
+function renderSources(){const g=GATE;const s=g.summary;$("#gsSummary").textContent=s.sources+" publication(s) trouvée(s) · "+s.judged+" évaluée(s) · "+s.duplicates+" doublon(s)"+(s.failed?" · "+s.failed+" sans proposition (seront exclues par prudence, sauf votre choix)":"");
+  const props=g.proposals.slice();const inc=props.filter((p)=>decisionOf(p)==="inclus").length;$("#gsCount").textContent=inc+" incluse(s) / "+props.length;
+  const list=showAll?props:props.filter((p)=>decisionOf(p)==="inclus").concat(props.filter((p)=>decisionOf(p)!=="inclus").slice(0,10));
+  $("#gsList").innerHTML=list.map((p)=>{const d=decisionOf(p);return '<div class="src"><div class="t">'+esc(p.titre||p.sourceId)+'</div><div class="r">'+esc([p.annee,p.lieu].filter(Boolean).join(" · "))+(p.doi?' · <a href="'+esc(p.doi)+'" target="_blank" rel="noopener">DOI</a>':'')+'</div><div class="r"><b>Proposition :</b> '+esc(p.proposed)+' — '+esc(p.justification)+(p.evidence&&p.evidence.length?' <i>(« '+esc(p.evidence.slice(0,2).join(" » ; « "))+' »)</i>':'')+' · confiance '+esc(p.confiance)+'</div>'+(p.resume?'<details><summary class="small">Résumé</summary><div class="small">'+esc(p.resume)+'</div></details>':'')+(p.proposed==="doublon"?'<div class="dec"><button class="on doublon" disabled>doublon de '+esc(p.duplicateOf)+'</button></div>':'<div class="dec" data-id="'+esc(p.sourceId)+'"><button class="'+(d==="inclus"?"on inclus":"")+'" data-d="inclus">inclure</button><button class="'+(d==="exclu"?"on exclu":"")+'" data-d="exclu">exclure</button></div>')+'</div>';}).join("")+((g.failedSourceIds||[]).length?'<div class="small muted">Sans proposition machine : '+g.failedSourceIds.map((f)=>esc(f.titre||f.sourceId)).join(" ; ")+'</div>':'');
+  $("#gsList").querySelectorAll(".dec[data-id] button").forEach((b)=>b.onclick=()=>{const id=b.parentNode.dataset.id;const p=props.find((x)=>x.sourceId===id);if(b.dataset.d===p.proposed)delete overrides[id];else overrides[id]=b.dataset.d;renderSources();});}
+$("#gsShowAll").onclick=()=>{showAll=!showAll;renderSources();};
+$("#gsConfirm").onclick=async()=>{$("#gsConfirm").disabled=true;try{const r=await api("/api/runs/"+RUN+"/ratify-sources",{method:"POST",body:JSON.stringify({ratifiedBy:$("#gsName").value,overrides})});
+    $("#gateSources").hidden=true;$("#gateNotify").hidden=true;lastGate=null;document.title="EvidenceForge";const um=$("#userMsg");um.hidden=false;um.className="banner ok";um.textContent="Ratification reçue ("+r.ratifiedBy+", "+r.overrides+" choix modifié(s)). L'analyse se poursuit.";$("#runStatus").textContent="en cours";$("#runStatus").className="pill";refreshState();}
+  catch(e){$("#gsErr").hidden=false;$("#gsErr").textContent=e.message;}finally{$("#gsConfirm").disabled=false;}};
+
+/* ---------- rapport ---------- */
+async function loadReport(){try{REPORT=await api("/api/runs/"+RUN+"/report");}catch(e){return;}renderReport();}
+function why(list){return '<details class="why"><summary>Pourquoi EvidenceForge dit cela ?</summary>'+list.map((w)=>{if(w.missing)return '<div class="muted">constat introuvable : '+esc(w.findingId)+'</div>';const t=w.twin||{};const pr=t.professional||{};return '<div style="margin:6px 0;padding-bottom:6px;border-bottom:1px solid var(--line)"><div><b>Constat</b> ('+esc(w.disposition)+', '+esc(w.epistemicStatus)+', confiance '+esc(w.confidence)+') : '+esc(w.finding)+'</div><div class="small"><b>Raisonnement :</b> '+esc(w.rationale)+'</div>'+(w.targetEvidence.length?'<div class="small"><b>Passages de votre document :</b> « '+w.targetEvidence.map(esc).join(" » ; « ")+' »</div>':'')+'<div class="small"><b>Jumeau documentaire de :</b> '+esc(pr.displayName||"?")+(pr.affiliation?' ('+esc(pr.affiliation)+')':'')+(pr.openAlexAuthorId?' · <a href="'+esc(pr.openAlexAuthorId)+'" target="_blank" rel="noopener">identifiant OpenAlex</a>':'')+(pr.orcid?' · ORCID '+esc(pr.orcid):'')+'</div>'+(w.twinBasisWorks.length?'<div class="small"><b>Publications réelles mobilisées :</b> '+w.twinBasisWorks.map(esc).join(" ; ")+'</div>':'')+((t.seedSources||[]).length?'<div class="small"><b>Source ratifiée à l\'origine :</b> '+t.seedSources.map((s)=>esc(s.titre)).join(" ; ")+'</div>':'')+(w.limitations.length?'<div class="small muted"><b>Limites déclarées :</b> '+w.limitations.map(esc).join(" ; ")+'</div>':'')+'</div>';}).join("")+'</details>';}
+function stmt(cls,s){const ctx='<span class="small muted">'+esc(s.targetLabel)+' · '+esc(s.dimensionLabel)+'</span>';if(s.kind==="DIVERGENCE")return '<div class="stmt '+cls+'">'+ctx+'<div><b>Positions divergentes</b></div>'+s.branches.map((b,i)=>'<div style="margin:6px 0"><b>Position '+(i+1)+'</b> ('+b.twinCount+' jumeau(x)) : '+esc(b.position)+why(b.why)+'</div>').join("")+'</div>';
+  return '<div class="stmt '+cls+'">'+ctx+'<div>'+(s.dispositionLabel?'<span class="pill">'+esc(s.dispositionLabel)+'</span> ':'')+(s.independentTwinCount?'<span class="pill">'+s.independentTwinCount+' jumeaux indépendants</span> ':'')+(s.kind&&s.kind!=="CONVERGENCE"?'<span class="pill">'+esc({NOT_DETERMINABLE:"non déterminable",EVIDENCE_GAP:"manque documentaire",SINGLE_TWIN_CONVERGENCE_REJECTED:"convergence mono-jumeau rejetée",ISOLATED_CAUTIOUS_INFERENCE:"inférence prudente isolée",ISOLATED_FINDING:"constat isolé"}[s.kind]||s.kind)+'</span>':'')+'</div><div style="margin-top:4px">'+esc(s.statement)+'</div>'+why(s.why)+'</div>';}
+function renderReport(){const r=REPORT;const h=r.headline;$("#report").hidden=false;
+  $("#rpHead").innerHTML='<p class="small muted">'+esc(r.runId)+' · '+esc(r.generatedAt)+'</p><p><b>Demande :</b> '+esc(r.question)+'</p>'+(r.missionReformulee?'<p><b>Mission :</b> '+esc(r.missionReformulee)+'</p>':'')+'<div class="banner '+(h.PROCESS_QUALIFICATION==="QUALIFIED"?"ok":h.PROCESS_QUALIFICATION==="QUALIFIED_WITH_RESERVATIONS"?"warn":"bad")+'"><div><b>PROCESS_QUALIFICATION = '+esc(h.PROCESS_QUALIFICATION)+'</b> — '+esc(h.PROCESS_QUALIFICATION_USER)+'</div><div><b>SCIENTIFICALLY_USABLE = '+esc(h.SCIENTIFICALLY_USABLE)+'</b> <span class="small">('+esc(h.scientificallyUsableRule.rule)+')</span></div>'+(h.warning?'<div style="margin-top:6px">'+esc(h.warning)+'</div>':'')+'</div><p class="small">'+esc(r.pipeline.sourcesRetrieved)+' publications trouvées · '+esc(r.pipeline.sourcesIncluded)+' retenues · '+esc(r.pipeline.professionalsCandidates)+' professionnels candidats · '+esc(r.pipeline.twins)+' jumeaux documentaires · revues '+esc(r.pipeline.reviews&&r.pipeline.reviews.reviewsComplete)+'/'+esc(r.pipeline.reviews&&r.pipeline.reviews.reviewsExpected)+' · appels d\'analyse réels '+esc(r.pipeline.llm&&r.pipeline.llm.real)+', réutilisés '+esc(r.pipeline.llm&&r.pipeline.llm.reused)+'</p>';
+  const S=r.statements;const sec=(title,cls,arr,intro)=>'<h3>'+title+' <span class="pill">'+arr.length+'</span></h3><p class="small muted">'+intro+'</p>'+(arr.length?arr.map((s)=>stmt(cls,s)).join(""):'<p class="small muted">Aucun.</p>');
+  $("#rpBody").innerHTML=sec("Établi (convergences documentées)","etabli",S.etabli,"Plusieurs analyses documentaires indépendantes, majoritairement documentées, aboutissent au même constat. « Établi » signifie établi documentairement dans ce processus, pas scientifiquement validé.")
+   +sec("Convergent","convergent",S.convergent,"Constats compatibles entre plusieurs jumeaux, mais avec une part d'inférence prudente ou une disposition de recommandation/manque.")
+   +sec("Divergent","divergent",S.divergent,"Des analyses indépendantes aboutissent à des positions incompatibles : EvidenceForge ne tranche pas.")
+   +sec("Provisoire","provisoire",S.provisoire,"Constat porté par un seul jumeau ou par une inférence prudente : à ne pas considérer comme acquis.")
+   +sec("Non établi","nonEtabli",S.nonEtabli,"Non déterminable, manque documentaire ou convergence rejetée par la règle anti-mono-jumeau.")
+   +'<h3>Réserves <span class="pill">'+r.reservations.length+'</span></h3><p class="small muted">Ce que le processus signale lui-même comme limite de ce run.</p><ul class="small">'+r.reservations.map((x)=>'<li>'+esc(x.detail||x.code)+'</li>').join("")+'</ul>'
+   +'<h3>Qualification du processus</h3><p class="small"><b>'+esc(r.headline.PROCESS_QUALIFICATION_USER)+'</b> — '+r.qualification.criteria.filter((c)=>c.pass).length+' critère(s) satisfait(s) sur '+r.qualification.criteria.length+(r.qualification.failedCriteria.length?' ; '+r.qualification.failedCriteria.length+' non satisfait(s)':'')+'.</p>'
+   +'<h3>Limites</h3><ul class="small">'+r.limits.map((l)=>'<li>'+esc(l)+'</li>').join("")+'</ul>'
+   /* details techniques : masques par defaut en mode simple, disponibles ici sur demande et integralement en mode expert */
+   +'<details class="tech-details noprint"><summary class="small">Détails techniques (codes de réserves, critères, readiness, sceaux et hashes — voir aussi le mode expert)</summary><ul class="small">'+r.reservations.map((x)=>'<li><span class="hash">'+esc(x.code)+'</span> ('+esc(x.scope)+')</li>').join("")+'</ul><p class="small">Statut : '+esc(r.qualification.status)+' · readiness PRE '+esc(r.qualification.readinessPre)+' · FULL '+esc(r.qualification.readinessFull)+'</p><ul class="small">'+r.qualification.criteria.map((c)=>'<li>'+(c.pass?"✔":"✘")+' <span class="hash">'+esc(c.criterion)+'</span> — '+esc(String(c.detail||"").slice(0,200))+'</li>').join("")+'</ul>'+(r.qualification.disclaimer?'<p class="small muted">'+esc(r.qualification.disclaimer)+'</p>':'')+'<div class="small hash">'+(r.integrity.seal?'MONO-11 '+esc(r.integrity.seal.mono11Version)+' sceau '+esc(r.integrity.seal.runtimeSealSha256)+'<br>code '+esc(r.integrity.seal.runCodeHash)+'<br>zip '+esc(r.integrity.seal.mono11ZipSha256)+'<br>':'')+'panel '+esc(r.integrity.panelHash)+'<br>snapshot '+esc(r.integrity.snapshotHash)+'<br>RunContract '+esc(r.integrity.runContractHash)+'<br>SearchProtocol '+esc(r.integrity.searchProtocolHash)+'<br>rapport '+esc(r.reportHash)+'</div></details>'
+   +'<p class="small muted">Empreinte du rapport : <span class="hash">'+esc(r.reportHash)+'</span></p>';}
+/* impression / PDF : ouvrir toutes les sections « Pourquoi EvidenceForge dit cela ? » le temps de l'impression, puis restaurer */
+let openedForPrint=[];window.addEventListener("beforeprint",()=>{openedForPrint=[];document.querySelectorAll("#report details.why:not([open])").forEach((d)=>{d.open=true;openedForPrint.push(d);});});window.addEventListener("afterprint",()=>{openedForPrint.forEach((d)=>{d.open=false;});openedForPrint=[];});
+$("#btnJson").onclick=()=>{const b=new Blob([JSON.stringify(REPORT,null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="EvidenceForge-rapport-"+RUN+".json";a.click();};
+$("#btnPdf").onclick=()=>window.print();
+
+/* ---------- mode expert ---------- */
+const EXTABS=[["state","État / mission"],["disciplines","RunContract"],["plan","Plan / SearchProtocol"],["retrieval","Sources / snapshot"],["screening","Screening"],["corpus","Corpus"],["professionals","Candidats"],["assessment","Évaluation MONO-10"],["panel","Gate machine"],["corpora","Corpus pro."],["twins","Jumeaux"],["reviews","Revues"],["aggregation","Agrégation"],["qualification","Qualification"],["mono10","Run MONO-10 / sceau"],["lineage","Lignée / hashes"],["llm","Appels LLM"],["log","Journal"],["files","Fichiers"]];
+const EXFILE={disciplines:"disciplines.json",plan:"plan-confirmation.json",retrieval:"retrieval-snapshot.json",screening:"screening-evidence.json",corpus:"corpus-snapshot.json",professionals:"professionals-discovery.json",assessment:"assessment.json",panel:"panel.json",corpora:"corpora-admitted.json",twins:"twins.json",reviews:"reviews.json",aggregation:"aggregation.json",qualification:"qualification.json",mono10:"mono10-run.json",lineage:"lineage.json",llm:"llm-calls.jsonl",log:"events.jsonl"};
+async function renderExpert(){$("#exTabs").innerHTML=EXTABS.map(([k,l])=>'<button class="'+(k===EXTAB?"on":"")+'" data-k="'+k+'">'+l+'</button>').join("");$("#exTabs").querySelectorAll("button").forEach((b)=>b.onclick=()=>{EXTAB=b.dataset.k;renderExpert();});
+  const v=$("#exView");if(!RUN){v.innerHTML='<p class="muted">Ouvrez ou créez un run en mode simple.</p>';return;}
+  if(EXTAB==="state"){v.innerHTML='<pre>'+esc(JSON.stringify(STATE,null,2))+'</pre>';return;}
+  if(EXTAB==="files"){try{const f=await api("/api/runs/"+RUN+"/artifacts");v.innerHTML='<table><tr><th>fichier</th><th>octets</th></tr>'+f.files.map((x)=>'<tr><td><a href="/api/runs/'+RUN+'/artifacts/'+esc(x.name)+'" target="_blank">'+esc(x.name)+'</a></td><td>'+x.bytes+'</td></tr>').join("")+'</table><p class="small">Preuves MONO-11 : '+f.evidence.map((e)=>esc(e.dir)+" ("+e.files+")").join(", ")+'</p>';}catch(e){v.innerHTML=esc(e.message);}return;}
+  const file=EXFILE[EXTAB];try{const r=await fetch("/api/runs/"+RUN+"/artifacts/"+file);if(!r.ok){v.innerHTML='<p class="muted">Artefact non encore produit ('+esc(file)+').</p>';return;}const txt=await r.text();
+    if(file.endsWith(".jsonl")){v.innerHTML='<pre>'+esc(txt.split("\n").filter(Boolean).slice(-300).join("\n"))+'</pre>';return;}
+    const j=JSON.parse(txt);let head="";
+    if(EXTAB==="panel")head='<p class="small">'+esc(JSON.stringify(j.counts))+' · acteur '+esc(j.machineActor&&j.machineActor.actorType)+' · override humain '+esc(j.humanOverrideApplied)+'</p>';
+    if(EXTAB==="reviews")head='<p class="small">'+esc(JSON.stringify(j.summary))+'</p>';
+    if(EXTAB==="qualification")head='<p class="small"><b>'+esc(j.status)+'</b> · réserves '+esc((j.reservations||[]).map((x)=>x.code).join(", "))+'</p>';
+    if(EXTAB==="mono10")head='<p class="small">run MONO-10 '+esc(j.mono10RunId)+' · attestation '+esc(j.attestation&&j.attestation.attestationId)+' expire '+esc(j.attestation&&j.attestation.expiresAt)+' · chaînes MONO-10 '+esc(j.chains&&j.chains.mono10&&j.chains.mono10.valid)+' / MONO-11 '+esc(j.chains&&j.chains.mono11&&j.chains.mono11.valid)+'</p>';
+    v.innerHTML=head+'<pre>'+esc(JSON.stringify(j,null,2).slice(0,400000))+'</pre>';}catch(e){v.innerHTML=esc(e.message);}}
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,232 @@
+{
+  "lot": "MONO-10-v0.3",
+  "title": "Qualification scientifique — noyau generique, preuves liees au run",
+  "status": "SUCCESSEUR — soumis a audit independant",
+  "additiveOver": [
+    "MONO-01..MONO-08",
+    "MONO-09 v0.1",
+    "MONO-09 v0.2",
+    "MONO-10 v0.1",
+    "MONO-10 v0.2"
+  ],
+  "frozenLotsModified": [],
+  "principle": "Aucune valeur auto-declaree ne constitue a elle seule une preuve.",
+  "closesAuditA": [
+    "A-01",
+    "A-02",
+    "A-03",
+    "A-04",
+    "A-05",
+    "A-06"
+  ],
+  "closesAuditB": [
+    "B-02",
+    "B-03",
+    "B-05",
+    "B-06",
+    "B-07",
+    "B-08",
+    "B-09",
+    "B-10"
+  ],
+  "closesMandateSections": [
+    "§1",
+    "§2",
+    "§3",
+    "§4",
+    "§5",
+    "§6",
+    "§7",
+    "§8",
+    "§9",
+    "§10",
+    "§11",
+    "§12",
+    "§13",
+    "§14",
+    "§15",
+    "§16",
+    "§17",
+    "§18",
+    "§19"
+  ],
+  "declaredNotDelivered": [
+    {
+      "item": "EvidenceForge-CHARTE-IDENTITE-ADN-GOUVERNANCE.md (§25)",
+      "reason": "Le fichier est ABSENT de l espace de travail. Il n a pas ete fabrique : inventer un document de gouvernance serait exactement l artefact fabrique que l ADN interdit. Il doit etre fourni par le proprietaire pour etre inclus."
+    }
+  ],
+  "executionEvidence": {
+    "NETWORK_CALLS": 0,
+    "REAL_LLM_CALLS": 0,
+    "REAL_EF02_RUNS": 0,
+    "REAL_PROFESSIONAL_RUNS": 0,
+    "note": "Le test d integration declare executionMode=TEST et prouve que cette execution ne peut pas etre presentee comme une preuve de production."
+  },
+  "tests": {
+    "adversarial": {
+      "file": "test/test-mono10-v0.3.js",
+      "checks": 88,
+      "failures": 0
+    },
+    "integration": {
+      "file": "test/test-mono10-v0.3-integration.js",
+      "checks": 26,
+      "failures": 0
+    }
+  },
+  "generatedAt": "2026-09-11T21:29:10.204Z",
+  "fileCount": 30,
+  "files": [
+    {
+      "file": "ARCHITECTURE.md",
+      "size": 4999,
+      "sha256": "521e13431089f15e163412acae4d794977c482342ea960f2d5d9f12bc5dfbfff"
+    },
+    {
+      "file": "AUDIT-REMEDIATION-MATRIX.md",
+      "size": 5106,
+      "sha256": "457f9cc9fdfee7c0d4c84849741989ddf68a164a8aebac100199cdefa0df3445"
+    },
+    {
+      "file": "CONTRACT-MAPPING.md",
+      "size": 4124,
+      "sha256": "5b0830542d0c8db8684a09b991afa7923183ce741195563a27e0ade18313a3ff"
+    },
+    {
+      "file": "LINEAGE.md",
+      "size": 5570,
+      "sha256": "49fc0ccc0c14a0af946fc5ae55ec5e30b86bd0010976626664e641dab7471fa1"
+    },
+    {
+      "file": "MIGRATION-v0.2-v0.3.md",
+      "size": 5072,
+      "sha256": "d666dae49999d93bab8ce4c1b569120d649d2acb7ae651c50de827064749fb56"
+    },
+    {
+      "file": "NON-REGRESSION.md",
+      "size": 5231,
+      "sha256": "fa23b7b594fb0d90e3d821c880faeecc6ede1cd5de326e6c778fc70c6b4aef51"
+    },
+    {
+      "file": "README.md",
+      "size": 1098,
+      "sha256": "c416060eb08eea9897820d7f283d4881c2ede72b710a4a610c485d6c2b0daf03"
+    },
+    {
+      "file": "RUN-ORDER.md",
+      "size": 4018,
+      "sha256": "b0176790b6acedab3e84bbd16ea3647989c8fe563fa71af6d3486377f650cf09"
+    },
+    {
+      "file": "adapters/README.md",
+      "size": 962,
+      "sha256": "484b3e66418efc47420a34a4967ef5876600a6dfbb91fcd31109cfb8906e2a5a"
+    },
+    {
+      "file": "adapters/case-phase-adapter.js",
+      "size": 1461,
+      "sha256": "1a647a4733de5d23e294fb62f7e640a844433d9a5a0e7d36b61f4b7c79fa8104"
+    },
+    {
+      "file": "adapters/declared-authority-identity-adapter.js",
+      "size": 3425,
+      "sha256": "091405a2319a043b1c1df7454211e82a4847c8d3e300325d74288edc5ec9167d"
+    },
+    {
+      "file": "core/candidate-assessment.js",
+      "size": 10444,
+      "sha256": "38e37f27a5adc37e228e5e9726d04cdea2e67459fc96bbdeae826f3ecb8e6703"
+    },
+    {
+      "file": "core/downstream-authorization.js",
+      "size": 8094,
+      "sha256": "fc8342a73374f8cd78516cb52de892556a9cccd775f6c19cea858f3c717162c3"
+    },
+    {
+      "file": "core/effective-eligibility.js",
+      "size": 3865,
+      "sha256": "148041ab38a74cfce7d420a02c08c3a09d67f0b72635bc7075a25805f5636677"
+    },
+    {
+      "file": "core/final-report-acceptance.js",
+      "size": 7129,
+      "sha256": "2a3ebc9078594e2e331a6fec52b1a68566fb6d34290be8ba13fa5730be060142"
+    },
+    {
+      "file": "core/identity-evidence.js",
+      "size": 8466,
+      "sha256": "dbb6f35d71492acb5c1192a87b7029c0795acadfa4fe01d69e7da1932396cfb9"
+    },
+    {
+      "file": "core/lineage.js",
+      "size": 5266,
+      "sha256": "cb21deed96dbeffc34eee462d15d3e871717c13e6a082a31dc9a0f6c594f45c1"
+    },
+    {
+      "file": "core/llm-capability.js",
+      "size": 13329,
+      "sha256": "6fae852aadeb50ee000e6823cc04b40551acb6a1049653ac29bff9665878de21"
+    },
+    {
+      "file": "core/panel-gate.js",
+      "size": 8433,
+      "sha256": "af6e63bc0252a0094742a011ebcdb25814d083a06f16120d0e35073ae846d0db"
+    },
+    {
+      "file": "core/panel-gated-adapter.js",
+      "size": 6080,
+      "sha256": "90d7591d4db2cd6d717c805d297edc7acbdf5d226b46425bd6bc76b8f98d2fe1"
+    },
+    {
+      "file": "core/relevance.js",
+      "size": 4694,
+      "sha256": "dcb23aadb405499d8c8c5961cb273c2a60b73726fa7d0aef9d413f80f3bdb1ec"
+    },
+    {
+      "file": "core/run-evidence-manifest.js",
+      "size": 6573,
+      "sha256": "3bf553e53d40d89e1b043c75b966235500783b3eed8bda2c9e5b9d219e1205e9"
+    },
+    {
+      "file": "core/scientific-qualification.js",
+      "size": 12930,
+      "sha256": "b0961bfebc7dcfd92cd8fec96591f94886392d479c4f7641439e48873b542fcb"
+    },
+    {
+      "file": "core/scientific-readiness.js",
+      "size": 11129,
+      "sha256": "0ceef9ecea54dc30b5a43c0425e496eec99777738e7e9f6f7295373bee0b3c6a"
+    },
+    {
+      "file": "core/scientific-unified-report.js",
+      "size": 8241,
+      "sha256": "e3c413bcc94dba8797c36ac87429570349c4dea03402dda45dbfdd7f9aac63b4"
+    },
+    {
+      "file": "core/unknowns.js",
+      "size": 7686,
+      "sha256": "25c7cb53933d41a26e46d84ecd6a1cc2c135a865bf3785d2e8f74e90f3efc309"
+    },
+    {
+      "file": "schemas/MONO-10-SCHEMAS-v0.3.json",
+      "size": 10798,
+      "sha256": "99bf28f4f05e3489eafe742e9012f1e20ef20976dac10dbef9a7a50ba32924bd"
+    },
+    {
+      "file": "test/test-mono10-v0.3-integration.js",
+      "size": 17010,
+      "sha256": "77ba0d2f840c14d56ce5e8e28df3b194c39bbbabc03d8d3e2532a563832b6e70"
+    },
+    {
+      "file": "test/test-mono10-v0.3.js",
+      "size": 37844,
+      "sha256": "48ce7e707ec4e586ed78c984675159bf6dc7a6354fdd67c706739dff708828f3"
+    },
+    {
+      "file": "tools/aggregate-hash.js",
+      "size": 1746,
+      "sha256": "895e1531c9e8d1e3b6e8fc56b04096ee1e196587f6607ad9c74ee7cbda7de8fa"
+    }
+  ]
+}

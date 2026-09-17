@@ -1,0 +1,18 @@
+{
+  "schema": "EvidenceForge.OrchestrationError",
+  "schemaVersion": "MONO-02-v1",
+  "description": "Taxonomie d'erreurs d'orchestration MONO-02 - minimale, ajoutee UNIQUEMENT par-dessus la taxonomie MONO-01 (jamais une refonte). Les erreurs de contrat/schema/version/mission/dependance restent celles de MONO-01 (INTEGRATION_CONTRACT_ERROR, SCHEMA_VERSION_MISMATCH, MISSING_REQUIRED_INPUT, MISSION_ID_MISMATCH, DEPENDENCY_UNAVAILABLE, MODULE_NOT_IN_BASELINE, MODULE_VERSION_MISMATCH, INVALID_MODULE_OUTPUT, LINEAGE_BLOCKED), remontees telles quelles par runNode().",
+  "codes": [
+    "INVALID_STATE_TRANSITION",
+    "NODE_NOT_READY",
+    "UPSTREAM_NOT_SUCCESS",
+    "ORCHESTRATION_BLOCKED"
+  ],
+  "codeDescriptions": {
+    "INVALID_STATE_TRANSITION": "Une transition (from, to) ne figurant pas dans contracts/orchestration-state-v1.json a ete demandee.",
+    "NODE_NOT_READY": "runNode() a ete appele sur un noeud dont l'etat courant n'est pas READY.",
+    "UPSTREAM_NOT_SUCCESS": "Un noeud requis par requiredUpstreamNodes n'a pas l'etat SUCCESS - le noeud courant ne peut pas devenir READY.",
+    "ORCHESTRATION_BLOCKED": "Un controle de precondition orchestration-level (requiredInputs absent du contexte, requiredDependencies non confirmee) echoue avant meme l'appel au port MONO-01 - jamais un contournement du controle equivalent deja fait par MONO-01, une seconde ligne de defense."
+  },
+  "noNewBusinessTaxonomy": "Aucune de ces 4 erreurs ne porte de jugement sur le contenu documentaire, la pertinence, la credibilite ou la validite scientifique d'un resultat - uniquement sur l'etat d'execution du graphe."
+}

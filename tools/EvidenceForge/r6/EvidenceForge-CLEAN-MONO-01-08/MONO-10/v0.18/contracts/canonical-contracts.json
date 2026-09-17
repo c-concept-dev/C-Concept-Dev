@@ -1,0 +1,53 @@
+{
+  "$comment": "MONO-10 v0.7 — SOURCE CANONIQUE des contrats critiques. Le code IMPORTE ce fichier ; la documentation est VALIDEE contre lui. Aucune enumeration critique n'est ecrite deux fois.",
+  "contractVersion": "MONO-10-v7",
+  "keyStatuses": {
+    "values": ["ACTIVE", "RETIRED", "REVOKED"],
+    "absentOrNull": "INVALID",
+    "note": "§38 — un statut absent, nul ou inconnu est INVALIDE. Il n'existe aucun chemin par lequel l'absence devient ACTIVE."
+  },
+  "artifactCapabilities": {
+    "values": ["RUN_BOUND", "AUTHENTICATED_PROVENANCE", "HUMAN_AUTHENTICATED", "PRODUCTION_LLM_CAPABILITY"],
+    "orthogonal": true,
+    "note": "§31 — capacites TYPEES, non ordinales. Chaque capacite exige une preuve emise par la capacite operateur competente."
+  },
+  "capabilityEligibleSchemas": {
+    "AUTHENTICATED_PROVENANCE": ["EvidenceForge.DocumentaryEvidenceRecord"],
+    "HUMAN_AUTHENTICATED": ["EvidenceForge.ProfessionalPanelValidation", "EvidenceForge.FinalReportAcceptance"],
+    "PRODUCTION_LLM_CAPABILITY": ["EvidenceForge.LlmCapability"]
+  },
+  "qualificationStates": {
+    "values": ["QUALIFIED", "QUALIFIED_WITH_RESERVATIONS", "NOT_QUALIFIED", "IMPOSSIBLE_TO_ASSESS"]
+  },
+  "evidenceClasses": {
+    "values": ["AUTHENTICATED_PRODUCTION_EXECUTION", "AUTHENTICATED_TEST_EXECUTION", "INTERNAL_CHAIN_CONSISTENCY_ONLY"]
+  },
+  "eligibilityStates": {
+    "values": ["ELIGIBLE_BY_HUMAN_PANEL_APPROVAL", "NOT_ELIGIBLE", "DEFERRED"],
+    "note": "§3 — ELIGIBLE_BY_LEGACY_VERIFICATION est SUPPRIME en v0.7 : aucun statut amont ne cree une admission."
+  },
+  "panelDecisions": {
+    "values": ["APPROVE_FOR_DOCUMENTARY_PANEL", "REJECT", "DEFER"]
+  },
+  "acceptanceDecisions": {
+    "values": ["ACCEPT", "ACCEPT_WITH_RESERVATIONS", "REJECT_FOR_REVIEW"]
+  },
+  "readinessPhases": {
+    "values": ["PRE", "FULL"]
+  },
+  "provenanceStatuses": {
+    "values": ["AUTHENTICATED", "UNRESOLVED", "ABSENT", "AMBIGUOUS"],
+    "note": "§32 — une racine declaree par l'appelant n'est jamais AUTHENTICATED."
+  },
+  "upstreamAssertionStates": {
+    "values": ["CONFIRMED", "ASSERTED", "AMBIGUOUS", "UNKNOWN"],
+    "note": "§19 — sans preuve amont correspondante, un pont rend UNKNOWN."
+  },
+  "documentedContracts": [
+    { "contract": "keyStatuses", "document": "KEY-MANAGEMENT.md" },
+    { "contract": "artifactCapabilities", "document": "ARTIFACT-REGISTRY-TRUST.md" },
+    { "contract": "eligibilityStates", "document": "ARCHITECTURE.md" },
+    { "contract": "provenanceStatuses", "document": "TRUST-MODEL.md" },
+    { "contract": "upstreamAssertionStates", "document": "UPSTREAM-EVIDENCE-BINDING.md" }
+  ]
+}
