@@ -1,5 +1,5 @@
 /* GENERATED — LOT 10G.3B.3F.2
- * source-sha256: 38a127499417846ca16c648e989cd355d9cf86eab8fdbe49f0d664ab37f2b99a
+ * source-sha256: 169fef3aecff4beeeaeaadc26d3f04f5d68f0eff23f101d26cb65661f32bb3ff
  * Ne pas modifier manuellement. Régénérer avec tools/build-adn-browser-runtime.mjs
  */
 (function(global){
@@ -2652,10 +2652,18 @@ function diagnoseAgainstOprie(analysis, base, signals, observations) {
 
   /* Cardinalités : un ensemble plus grand côté Architecte signifie qu'un élément
      a été créé après la validation OPRIE. Aucune écriture n'en découle. */
+  /* ADN-ARCH-03b — OBSERVÉ, PLUS BLOQUANT, SUR PREUVE D'UN TROISIÈME CAS RÉEL.
+     Sur l'échange GASPPN, le contrat compact exporté ne portait AUCUN registre
+     `secondary_objectives` — OPRIE n'en avait confirmé aucun, la référence valait donc 0 — tandis
+     que le schéma 3.4 rend `intentions_secondaires` OBLIGATOIRE. L'analyse en nommait deux, toutes
+     deux des lectures de la demande (« maintenir une communication sereine », « formuler le
+     changement sans ambiguïté »), et le comptage concluait 2 > 0.
+     Même forme que les deux comparaisons désarmées avant : le système EXIGE un champ dont toute
+     valeur dépassait un registre qu'OPRIE laisse vide. Nommer une intention ne l'écrit pas —
+     `intent.secondary_objectives` reste hors de ARCH_ENRICHABLE_PATHS. */
   if (list(comprehension.intentions_secondaires).length > list(base.intent.secondary_objectives).length) {
-    signals.push(signal('CONTRACT_INCONSISTENT', 'intent.secondary_objectives',
-      'comprehension.intentions_secondaires',
-      'Un objectif secondaire absent du contrat validé apparaît dans l’analyse.', true));
+    observations.push(registerDivergence('intent.secondary_objectives', 'comprehension.intentions_secondaires',
+      list(base.intent.secondary_objectives).length, list(comprehension.intentions_secondaires).length));
   }
   if (list(pilotage.decisions_autonomes).length > list(base.intent.delegated_decisions).length) {
     signals.push(signal('CONTRACT_INCONSISTENT', 'intent.delegated_decisions',
@@ -12438,5 +12446,5 @@ function createAdapterAuditView(envelope) {
 
 return {ENGINE_ADAPTERS_VERSION,buildExecutionEnvelope,projectToRapide,projectToArchitecte,projectToAtelier,validateLegacyLockMapping,createAdapterAuditView};
 })({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON});
-global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...BOUNDED,...ORCORE,...ROLEDEG,...SOLICIT,...COREPLANE,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'38a127499417846ca16c648e989cd355d9cf86eab8fdbe49f0d664ab37f2b99a'});
+global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...BOUNDED,...ORCORE,...ROLEDEG,...SOLICIT,...COREPLANE,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'169fef3aecff4beeeaeaadc26d3f04f5d68f0eff23f101d26cb65661f32bb3ff'});
 })(window);

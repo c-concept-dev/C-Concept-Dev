@@ -25,7 +25,7 @@ aucune police et aucune image ne sont chargés depuis un tiers.
 | --- | --- |
 | Chemin | `atelier-prompts-v11.5-lot10g-decision-provider.html` |
 | Taille | 1566722 octets |
-| SHA-256 | `c40d5b18d617ed1ce29225ea82120b128cd5c2909fc4952a011591e272bb5641` |
+| SHA-256 | `f2eab661a93935847e48884b3a0637925d4c3126ab4ca6bb25478d0afd2618ab` |
 
 ## Runtime compilé
 
@@ -65,7 +65,7 @@ sa propre empreinte.
 | Classe | Fichier | SHA-256 |
 | --- | --- | --- |
 | REQUIRED_BUILD | `anti-regression-baseline.json` | `7bd0fcca3f3ed226e3fdd30ee52dc204dae158dbde8842c08731054a1f58e7d6` |
-| REQUIRED_HTML | `atelier-prompts-v11.5-lot10g-decision-provider.html` | `c40d5b18d617ed1ce29225ea82120b128cd5c2909fc4952a011591e272bb5641` |
+| REQUIRED_HTML | `atelier-prompts-v11.5-lot10g-decision-provider.html` | `f2eab661a93935847e48884b3a0637925d4c3126ab4ca6bb25478d0afd2618ab` |
 | REQUIRED_BUILD | `core/adn/adaptive-lock-selector.js` | `15d3154d639b761747a26215f2ec59eb6b121e6072187b6a2dd611eefe5b65ea` |
 | REQUIRED_BUILD | `core/adn/adn-state.js` | `814bbc8318cd2e20d1964c0930809e9997e00bf1cfe8f474aa8f3f39af767d8b` |
 | REQUIRED_BUILD | `core/adn/arch-canonical-enrichment.js` | `65bc4b8518ea06eb8a25d2cedd437fff4549726eed34a148db05cfddbb92aaaf` |

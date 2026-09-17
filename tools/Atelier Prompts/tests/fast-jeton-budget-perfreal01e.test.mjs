@@ -382,7 +382,7 @@ test('T-PERFREAL01E-14 : l’artefact frontend n’a pas bougé, et l’observat
      qu'un refus de sortie fournisseur cesse d'être compté comme un défaut de notre code. Aucune
      règle, aucun prompt, aucun schéma, aucun comportement d'interface. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    'c40d5b18d617ed1ce29225ea82120b128cd5c2909fc4952a011591e272bb5641', 'CANONICAL_HTML_CHANGED = NO');
+    'f2eab661a93935847e48884b3a0637925d4c3126ab4ca6bb25478d0afd2618ab', 'CANONICAL_HTML_CHANGED = NO');
   /* La seule modification du worker est le relevé de usage : cinq champs, aucun branchement. */
   assert.match(WORKER, /event: "groq_usage_observation"/);
   for (const champ of ['jetons_entree', 'jetons_sortie', 'jetons_total',
