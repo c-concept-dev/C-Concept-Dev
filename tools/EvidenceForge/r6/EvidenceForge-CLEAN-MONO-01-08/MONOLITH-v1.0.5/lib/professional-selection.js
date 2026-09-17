@@ -62,12 +62,15 @@ function selectCandidates(input) {
 /** Assessment PLAFONNE (meme schema MONO-10, sous-ensemble des evaluations, resume recalcule) — jamais une reevaluation. */
 function capAssessment(assessment, selection) {
   const sel = new Set(selection.selectedIds);
-  const assessments = (assessment.assessments || []).filter((a) => sel.has(a.candidateId));
+  /* v1.0.5 — ORDRE D'EVALUATION = selectionOrder (tourniquet par discipline, meilleur rang d'abord) : la boucle gelee MONO-11 parcourt
+     l'assessment dans l'ordre recu ; l'ordre MONO-10 (groupe par discipline) laissait des angles entiers non vus sous contrainte de budget */
+  const pos = new Map((selection.selectionOrder || []).map((id, i) => [id, i]));
+  const assessments = (assessment.assessments || []).filter((a) => sel.has(a.candidateId)).map((a, i) => ({ a, i })).sort((x, y) => (pos.has(x.a.candidateId) && pos.has(y.a.candidateId) ? pos.get(x.a.candidateId) - pos.get(y.a.candidateId) : x.i - y.i)).map((x) => x.a);
   const summary = { total: assessments.length, presentedForHumanReview: assessments.filter((a) => a.assessmentStatus === "PRESENT_FOR_HUMAN_REVIEW").length, insufficientDocumentaryBasis: assessments.filter((a) => a.assessmentStatus === "INSUFFICIENT_DOCUMENTARY_BASIS").length,
     identityAmbiguous: assessments.filter((a) => a.assessmentStatus === "IDENTITY_AMBIGUOUS").length, outOfScopeDocumentarily: assessments.filter((a) => a.assessmentStatus === "OUT_OF_SCOPE_DOCUMENTARILY").length };
   summary.humanReviewBurden = summary.presentedForHumanReview; summary.openUnknowns = (assessment.unknowns || []).filter((u) => selectedUnknown(u, assessments)).length;
   const out = Object.assign({}, assessment, { assessments, unknowns: (assessment.unknowns || []).filter((u) => selectedUnknown(u, assessments)), summary,
-    evaluationCap: { algorithm: selection.algorithm, cap: selection.cap, poolCount: selection.poolCount, poolHash: selection.poolHash, selectedCount: selection.selectedCount, selectionHash: selection.selectionHash, reason: selection.reason, fullAssessmentTotal: (assessment.assessments || []).length } });
+    evaluationCap: { algorithm: selection.algorithm, cap: selection.cap, poolCount: selection.poolCount, poolHash: selection.poolHash, selectedCount: selection.selectedCount, selectionHash: selection.selectionHash, reason: selection.reason, fullAssessmentTotal: (assessment.assessments || []).length, evaluationOrder: selection.selectionOrder ? "SELECTION_ORDER" : "ASSESSMENT_ORDER" } });
   delete out.runBinding;   /* le sous-ensemble est lie a nouveau par le run (artefact derive, provenance explicite vers l'evaluation complete) */
   return out;
 }

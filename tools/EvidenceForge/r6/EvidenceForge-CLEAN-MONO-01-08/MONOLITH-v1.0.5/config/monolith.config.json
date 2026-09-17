@@ -41,6 +41,9 @@
   },
   "llm": {
     "model": "claude-opus-4-8",
+    "routing": {
+      "$comment": "v1.0.5 — routage par FINALITE d'appel : { \"EF-02D2 relevance\": \"claude-haiku-4-5\" } enverrait l'oracle de pertinence des professionnels vers un modele economique. VIDE par defaut : une route ne se pose qu'apres benchmark de qualite (tools/bench-oracle-model.js) — voir RAPPORT-PANEL-COST-OPTIMIZER.md. Surcharge : EVIDENCEFORGE_LLM_ROUTING (JSON). Le modele de chaque appel est journalise."
+    },
     "minSpacingMs": 1500,
     "maxAttemptsOnCapacity": 8,
     "reviewMaxPasses": 3,
@@ -93,6 +96,19 @@
   },
   "professionals": {
     "maxCandidatesToEvaluate": 150,
-    "$comment": "MAX_PROFESSIONAL_CANDIDATES_TO_EVALUATE — decision produit du proprietaire (2026-09-16) : nombre maximal de professionnels entrant dans l evaluation LLM (REAL ou REUSE). Selection deterministe PROFESSIONAL-SELECTION-v1 (lib/professional-selection.js), persistee avant tout appel payant. v1.0.5 : ce plafond est une GARDE, pas une cible ; le gain marginal est mesure (professionals-economics.json), aucun early-stop n'est applique."
+    "evaluationOrder": "SELECTION_ORDER",
+    "workRefNormalization": true,
+    "earlyStop": {
+      "enabled": true,
+      "targetAdmissiblePerDimension": 3,
+      "minEvaluatedPerDimension": 3,
+      "plateauWindowFactor": 2,
+      "plateauWindowMin": 10,
+      "closeOnPlateau": false,
+      "plateauGraceFactor": 2,
+      "closeDimensionOnTarget": true,
+      "$comment": "v1.0.5 — PANEL-SUFFICIENCY-v1 (lib/panel-sufficiency.js) : arret anticipe DEMONTRABLE = chaque angle de mission a >= targetAdmissiblePerDimension candidats admissibles (SUPPORTED <=> admis par le gate gele) ou un vivier epuise ; un angle qui atteint sa cible est ferme (closeDimensionOnTarget). Le plateau (aucune nouveaute depuis plateauWindowFactor x angles, min plateauWindowMin, apres minEvaluatedPerDimension par angle) n'est qu'un signal (EARLY_STOP_CANDIDATE) : closeOnPlateau=false par defaut, car sur les deux runs reels analyses (AUTOPSIE-PANEL-COST-OPTIMIZER.md) les admissions sont rares et reparties sans plateau. Aucun nombre de cas ; le plafond 150 reste une garde. Le budget garde la priorite."
+    },
+    "$comment": "MAX_PROFESSIONAL_CANDIDATES_TO_EVALUATE — decision produit du proprietaire (2026-09-16) : nombre maximal de professionnels entrant dans l evaluation LLM (REAL ou REUSE). Selection deterministe PROFESSIONAL-SELECTION-v1 (lib/professional-selection.js), persistee avant tout appel payant. v1.0.5 : ce plafond est une GARDE, pas une cible ; evaluationOrder = SELECTION_ORDER (tourniquet par discipline) ; workRefNormalization = normalisation typographique des references d'oeuvres avant le validateur gele EF-02D2 (MONOLITH-WORKREF-NORMALIZATION-v1, journalisee) ; earlyStop = suffisance du panel (voir ci-dessous)."
   }
 }

@@ -45,6 +45,12 @@ function createLlm(opts) {
   opts = opts || {};
   const cfg = P.CONFIG.llm;
   const MODEL = process.env.EVIDENCEFORGE_LLM_MODEL || opts.model || cfg.model;
+  /* v1.0.5 — ROUTAGE PAR FINALITE (config llm.routing { "<purpose>": "<model>" } ou opts.routing ; env EVIDENCEFORGE_LLM_ROUTING = JSON) :
+     un appel dont la finalite est routee part vers ce modele ; le modele est journalise par appel (ledger, llm-calls, registre MONO-11) et la
+     reuse compare le modele de la finalite. Par defaut : aucune route (tout va au modele principal). Une route n'est posee qu'apres benchmark. */
+  let ROUTING = Object.assign({}, cfg.routing || {}, opts.routing || {}); try { if (process.env.EVIDENCEFORGE_LLM_ROUTING) ROUTING = Object.assign(ROUTING, JSON.parse(process.env.EVIDENCEFORGE_LLM_ROUTING)); } catch (e) { /* JSON invalide : ignore, journalise ci-dessous */ }
+  Object.keys(ROUTING).forEach((k) => { if (k.startsWith("$") || typeof ROUTING[k] !== "string" || !ROUTING[k]) delete ROUTING[k]; });
+  const modelFor = (meta) => (meta && meta.purpose && ROUTING[meta.purpose]) || MODEL;
   const LOG = path.join(opts.runDir, "llm-calls.jsonl"), CACHE = path.join(opts.runDir, "llm-cache");
   const store = createFileStore(opts.storePath || path.join(P.RUNS, "llm-reuse-store.jsonl"));   // magasin PARTAGE entre runs (reuse inter-run, provenance complete)
   const policy = RU.createReusePolicy({ store: store, allowReuse: process.env.EVIDENCEFORGE_LLM_REUSE !== "0" });
@@ -57,11 +63,11 @@ function createLlm(opts) {
   let REFUSED = 0;
   const PROVIDER_ID = "anthropic", VALIDATION_CONTRACT = "MONO-11-v2";   /* contrat SCIENTIFIQUE de validation des reponses (contractVersion MONO-11-v2, inchange en v0.3-r1 ; distinct de la version du CODE = sceau) */
   function cacheBodyPath(entry) { const c = [entry.cachePath, path.join(CACHE, entry.responseSha256 + ".response.json")].concat(extraCacheDirs.map((dir) => path.join(dir, entry.responseSha256 + ".response.json"))).filter(Boolean); return c.find((f) => fs.existsSync(f)) || null; }
-  function reuseContextCheck(entry) {
-    if (!entry) return { ok: false, reason: "entree absente" };
+  function reuseContextCheck(entry, model) {
+    model = model || MODEL; if (!entry) return { ok: false, reason: "entree absente" };
     if (entry.validationStatus !== "VALID") return { ok: false, reason: "statut " + entry.validationStatus };
     if (entry.providerId !== PROVIDER_ID) return { ok: false, reason: "fournisseur different (" + entry.providerId + ")" };
-    if (entry.modelId !== MODEL) return { ok: false, reason: "modele different (" + entry.modelId + " vs " + MODEL + ")" };
+    if (entry.modelId !== model) return { ok: false, reason: "modele different (" + entry.modelId + " vs " + model + ")" };
     if ((entry.validationContract || null) !== VALIDATION_CONTRACT) return { ok: false, reason: "contrat de validation different (" + (entry.validationContract || "absent") + ")" };
     if (opts.sealHash && entry.sourceSealHash !== opts.sealHash) return { ok: false, reason: "sceau different (" + (entry.sourceSealHash || "absent") + ")" };
     const src = cacheBodyPath(entry); if (!src) return { ok: false, reason: "corps en cache absent" };
@@ -104,7 +110,7 @@ function createLlm(opts) {
   /* v1.0.5 — ledger de cout et garde de budget (optionnels : les tests unitaires du transport n'en ont pas besoin) */
   const LEDGER = opts.ledger || null, BUDGET = opts.budget || null;
   const ledgerRecord = (e) => { if (LEDGER) { try { LEDGER.record(e); } catch (x) { fs.appendFileSync(LOG, JSON.stringify({ kind: "COST_LEDGER_ERROR", runId: opts.runId, message: String(x.message).slice(0, 300), at: new Date().toISOString() }) + "\n"); } } };
-  const budgetCheck = (meta, where) => { if (BUDGET) BUDGET.assertAllowed({ model: MODEL, purpose: (meta && meta.purpose) || null, where }); };
+  const budgetCheck = (meta, where) => { if (BUDGET) BUDGET.assertAllowed({ model: modelFor(meta), purpose: (meta && meta.purpose) || null, where }); };
   function latch(e, where) { if (!LATCH && e && TRANSPORT_CODES.indexOf(e.code) !== -1) { LATCH = { code: e.code, userMessage: e.userMessage || null, message: String(e.message).slice(0, 300), at: new Date().toISOString(), where: where || null }; fs.appendFileSync(LOG, JSON.stringify(Object.assign({ kind: "TRANSPORT_FAILURE_LATCHED", runId: opts.runId }, LATCH)) + "\n");
     if (opts.onTrace) { try { opts.onTrace({ event: "transport_failure_latched", outcome: e.code, code: e.code, normalizedCause: "TRANSPORT_FAILURE", where: where || null }); } catch (x) { /* */ } } } }
   function latchedError() { const e = new Error(LATCH.code + " (verrou de panne : " + LATCH.message + ")"); e.code = LATCH.code; e.userMessage = LATCH.userMessage; e.fatal = true; e.latched = true; return e; }
@@ -118,7 +124,7 @@ function createLlm(opts) {
     if (d.decision === policy.DECISION.REUSE_VALID) {
       /* v1.0.2 — REUSE LIEE AU CONTEXTE (filtre additif au-dessus de la politique gelee) : meme fournisseur, meme modele, meme
          sceau d'execution, meme contrat de validation, statut VALID, et corps en cache dont le hash == responseSha256. Sinon : appel reel. */
-      const chk = reuseContextCheck(d.entry);
+      const chk = reuseContextCheck(d.entry, modelFor(meta));
       if (!chk.ok) { fs.appendFileSync(LOG, JSON.stringify({ kind: "LLM_REUSE_REFUSED", reason: chk.reason, promptSha256: sha(prompt), responseSha256: d.entry.responseSha256, entryModel: d.entry.modelId, entryProvider: d.entry.providerId, entrySeal: d.entry.sourceSealHash || null, runId: opts.runId, at: new Date().toISOString() }) + "\n"); REFUSED++; d = { decision: "REAL_CALL", reason: "reuse refusee : " + chk.reason }; }
     }
     if (d.decision === policy.DECISION.REUSE_VALID) {
@@ -135,24 +141,25 @@ function createLlm(opts) {
     }
     budgetCheck(meta, "llm");   /* v1.0.5 : AVANT tout appel reel ; leve BUDGET_LIMIT_REACHED / PRICING_UNKNOWN_FOR_MODEL (verrouilles par llmCall) */
     const localRequestId = "efm-" + crypto.randomBytes(6).toString("hex");
-    const body = JSON.stringify({ model: MODEL, max_tokens: 8192, messages: [{ role: "user", content: prompt }] });
+    const CALL_MODEL = modelFor(meta);
+    const body = JSON.stringify({ model: CALL_MODEL, max_tokens: 8192, messages: [{ role: "user", content: prompt }] });
     const startedAt = new Date().toISOString();
     const r = await httpCall(body, localRequestId);
     let parsed = null; try { parsed = JSON.parse(r.raw); } catch (e) { parsed = null; }
     const text = parsed && Array.isArray(parsed.content) ? parsed.content.filter((c) => c.type === "text").map((c) => c.text).join("") : "";
     const rec = { kind: "LLM_CALL", decision: d.decision, purpose: (meta && meta.purpose) || null, pass: (meta && meta.pass) || null, runId: opts.runId, startedAt, completedAt: new Date().toISOString(), localRequestId,
-      providerRequestId: (parsed && parsed.id) || null, providerId: "anthropic", modelId: MODEL, httpStatus: r.res.status, providerAttempts: r.attempts, capacityWaits: r.waits,
+      providerRequestId: (parsed && parsed.id) || null, providerId: "anthropic", modelId: CALL_MODEL, routed: CALL_MODEL !== MODEL, httpStatus: r.res.status, providerAttempts: r.attempts, capacityWaits: r.waits,
       promptSha256: sha(prompt), responseSha256: sha(r.raw), usage: (parsed && parsed.usage) || null, stopReason: (parsed && parsed.stop_reason) || null };
     fs.mkdirSync(CACHE, { recursive: true });
-    fs.writeFileSync(path.join(CACHE, rec.promptSha256 + ".request.json"), JSON.stringify({ model: MODEL, prompt }));
+    fs.writeFileSync(path.join(CACHE, rec.promptSha256 + ".request.json"), JSON.stringify({ model: CALL_MODEL, prompt }));
     fs.writeFileSync(path.join(CACHE, rec.responseSha256 + ".response.json"), r.raw);
     fs.appendFileSync(LOG, JSON.stringify(rec) + "\n"); REAL++;
-    if (r.res.status === 200) ledgerRecord({ kind: "REAL_CALL", at: rec.completedAt, purpose: rec.purpose, pass: rec.pass, model: (parsed && parsed.model) || MODEL, usage: rec.usage, providerRequestId: rec.providerRequestId, callId: rec.responseSha256, localRequestId, httpStatus: 200, candidateRef: meta && meta.candidateRef, twinId: meta && meta.twinId, targetId: meta && meta.targetId });
+    if (r.res.status === 200) ledgerRecord({ kind: "REAL_CALL", at: rec.completedAt, purpose: rec.purpose, pass: rec.pass, model: (parsed && parsed.model) || CALL_MODEL, usage: rec.usage, providerRequestId: rec.providerRequestId, callId: rec.responseSha256, localRequestId, httpStatus: 200, candidateRef: meta && meta.candidateRef, twinId: meta && meta.twinId, targetId: meta && meta.targetId });
     if (opts.onTrace) { try { opts.onTrace({ event: "llm_call", outcome: r.res.status === 200 ? "OK" : "HTTP_" + r.res.status, kindOfCall: r.attempts > 1 ? "retry" : "call", purpose: rec.purpose, pass: rec.pass, providerRequestId: rec.providerRequestId, durationMs: Date.parse(rec.completedAt) - Date.parse(rec.startedAt), providerAttempts: r.attempts, promptSha256: rec.promptSha256 }); } catch (e) { /* observabilite */ } }
     if (r.res.status !== 200) { const st = r.state; const e = new Error(st.code + " (HTTP " + r.res.status + ")"); e.code = st.code; e.userMessage = st.user; e.fatal = true; e.httpStatus = r.res.status; throw e; }
     if (!text) { const e = new Error("PROVIDER_EMPTY_RESPONSE"); e.code = "PROVIDER_EMPTY_RESPONSE"; e.userMessage = parsed ? PROVIDER_STATES.UNAVAILABLE.user : PROVIDER_STATES.BAD_RESPONSE.user; throw e; }
-    policy.recordReal({ promptSha256: rec.promptSha256, responseSha256: rec.responseSha256, sourceRunId: opts.runId, sourceCallId: rec.providerRequestId || localRequestId, providerRequestId: rec.providerRequestId, providerId: PROVIDER_ID, modelId: MODEL, completedAt: rec.completedAt, httpStatus: 200, purpose: rec.purpose, sourceSealHash: opts.sealHash || null, validationContract: VALIDATION_CONTRACT, cachePath: path.join(CACHE, rec.responseSha256 + ".response.json") });
-    return { text, providerId: "anthropic", modelId: MODEL, providerRequestId: rec.providerRequestId, localRequestId, callId: rec.responseSha256, transportKind: "DELEGATED_WORKER_ANTHROPIC", httpStatus: 200, usage: rec.usage, reused: false };
+    policy.recordReal({ promptSha256: rec.promptSha256, responseSha256: rec.responseSha256, sourceRunId: opts.runId, sourceCallId: rec.providerRequestId || localRequestId, providerRequestId: rec.providerRequestId, providerId: PROVIDER_ID, modelId: CALL_MODEL, completedAt: rec.completedAt, httpStatus: 200, purpose: rec.purpose, sourceSealHash: opts.sealHash || null, validationContract: VALIDATION_CONTRACT, cachePath: path.join(CACHE, rec.responseSha256 + ".response.json") });
+    return { text, providerId: "anthropic", modelId: CALL_MODEL, providerRequestId: rec.providerRequestId, localRequestId, callId: rec.responseSha256, transportKind: "DELEGATED_WORKER_ANTHROPIC", httpStatus: 200, usage: rec.usage, reused: false };
   }
   function onValidation(v) { if (v) policy.markValidation(Object.assign({}, v, { responseSha256: v.callId || v.responseSha256 })); }
   /** Sonde de disponibilite (1 appel reel minimal) — rend un etat utilisateur, jamais un booleen declaratif. */
@@ -166,7 +173,7 @@ function createLlm(opts) {
   /** workerCallFn(prompt) -> texte, forme attendue par EF-02D2/D3/03B/03C geles et par le resolveur/planificateur via MONO-04. */
   const workerCallFn = async (prompt) => (await llmCall(prompt, { purpose: "worker" })).text;
   return { llmCall, onValidation, preflight, workerCallFn, model: MODEL, counts: () => ({ real: REAL, reused: REUSED, reuseRefused: REFUSED }), PROVIDER_STATES,
-    transportFailure: () => LATCH, latch: latch, resetLatch: () => { LATCH = null; }, TRANSPORT_CODES, ledger: LEDGER, budget: BUDGET };
+    transportFailure: () => LATCH, latch: latch, resetLatch: () => { LATCH = null; }, TRANSPORT_CODES, ledger: LEDGER, budget: BUDGET, routing: Object.assign({}, ROUTING), modelFor };
 }
 
 module.exports = { createLlm, PROVIDER_STATES };

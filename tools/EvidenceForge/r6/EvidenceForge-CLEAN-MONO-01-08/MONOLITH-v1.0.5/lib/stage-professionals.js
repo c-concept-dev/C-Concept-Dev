@@ -14,6 +14,7 @@ const fs = require("fs"), path = require("path"), crypto = require("crypto");
 const P = require("./paths.js");
 const { createOpenAlexFetch } = require("./stage-retrieval.js");
 const PSEL = require("./professional-selection.js");
+const PSUF = require("./panel-sufficiency.js"); const WN = require("./workref-normalization.js");   /* v1.0.5 : early-stop par suffisance + normalisation des references (additifs) */
 const sha = (b) => crypto.createHash("sha256").update(b).digest("hex");
 const now = () => new Date().toISOString();
 const wid = (u) => String(u || "").replace(/^https?:\/\/openalex\.org\//, "");
@@ -165,8 +166,14 @@ function assertNoTransportFailure(llm, where) { const f = llm.transportFailure &
 /**
  * PROFESSIONALS (2/2) — v1.0.2 : MONO-10 frontiere/run + MONO-11 panel autonome, puis CHECKPOINT METIER durable
  * (calcul -> validation -> ecriture atomique hachee -> DONE par le pipeline). Aucune panne de transport n'est absorbee.
- * input : { runDir, runId, attemptRunId, missionId, missionHash, missionQuestion, runContract, corpusSnapshot, discovery, verification, llm, log }
+ * input : { runDir, runId, attemptRunId, missionId, missionHash, missionQuestion, runContract, corpusSnapshot, discovery, verification, llm, log,
+ *           selection?, onSelection?, onSufficiency? }
  * -> { checkpoint } (objet a persister par store.saveCheckpoint) + stats
+ * v1.0.5 — (a) l'assessment plafonne est parcouru dans l'ordre `selectionOrder` (tourniquet) ; (b) EARLY-STOP par SUFFISANCE
+ * (lib/panel-sufficiency.js) : un candidat dont l'angle a atteint sa cible d'admissibles, ou une fois le panel juge suffisant,
+ * n'est plus evalue — `fetchAuthorWorks` (dependance injectee) le signale a la boucle gelee par une erreur PANEL_SUFFICIENT_EARLY_STOP
+ * (le candidat est journalise « non evalue », jamais un verdict) ; (c) NORMALISATION des references d'oeuvres (lib/workref-normalization.js)
+ * appliquee au texte rendu par le transport avant le parseur gele EF-02D2, journalisee. Le budget reste verifie avant chaque appel.
  */
 async function runPanel(input) {
   const log = typeof input.log === "function" ? input.log : function () {};
@@ -201,14 +208,23 @@ async function runPanel(input) {
   const assessmentCapped = bind("candidate-assessment-capped", R.ASSESSMENT, Object.assign(PSEL.capAssessment(assessment, selection), { derivedFromFullAssessment: assessmentFullRef }));
   const assessmentRef = M10.LIN.artifactRef(assessmentCapped, "candidate-assessment-capped", R.ASSESSMENT);
   const guard = PSEL.createEvaluationGuard(selection);
+  /* ===== v1.0.5 — SUFFISANCE DU PANEL (early-stop deterministe) + normalisation des references ===== */
+  const primaryDim = new Map(); (discovery.candidates || []).forEach((c) => { if (c.candidateRef) primaryDim.set(c.candidateRef, c.dimensionRef || (Array.isArray(c.disciplines) && c.disciplines[0]) || null); });
+  const esCfg = Object.assign({}, (P.CONFIG.professionals && P.CONFIG.professionals.earlyStop) || {}); delete esCfg.$comment;
+  const tracker = PSUF.createSufficiencyTracker({ dimensions: dimensionSet.dimensions.map((d) => d.id), candidates: selection.selectedIds.map((id) => ({ candidateRef: id, dimension: primaryDim.get(id) })), policy: esCfg });
+  const wnEnabled = !(P.CONFIG.professionals && P.CONFIG.professionals.workRefNormalization === false);
+  const wn = WN.createWorkRefAdapter({ journalPath: path.join(input.runDir, "professionals-workref-normalization.jsonl"), onRecord: (rec) => log({ event: "workref_normalized", candidateRef: rec.candidateRef, replacements: rec.replacements.length, rule: rec.rule, reused: rec.reused }) });
+  let lastState = tracker.decision().state;
   await certifyLlm(run, input.llm, input.attemptRunId);
 
   /* corpus reels par auteur (OpenAlex, cache par URL : aucune requete reseau pour une reponse deja obtenue) ; panne de transport => verrou ; GARDE DURE du plafond */
   const client = createOpenAlexClient(input.runDir, log); const RAW = new Map(); const llm = input.llm;
-  const guardedLlmCall = async (prompt, meta) => { guard.check(meta && meta.candidateRef); return llm.llmCall(prompt, meta); };
+  const guardedLlmCall = async (prompt, meta) => { guard.check(meta && meta.candidateRef); const r = await llm.llmCall(prompt, meta); return wnEnabled ? wn.adapt(r, prompt, meta) : r; };
   async function fetchAuthorWorks(candidateRef) {
     guard.enter(candidateRef);   /* hors selection ou > cap => EVALUATION_CAP_INVARIANT_VIOLATION, sans reseau */
     if (llm.transportFailure()) throw Object.assign(new Error(llm.transportFailure().code + " (verrou de panne)"), { code: llm.transportFailure().code, latched: true });
+    /* v1.0.5 — suffisance : candidat non evalue (aucun reseau, aucun appel), journalise ; la boucle gelee le consigne en corpus_fetch_error */
+    const dec = tracker.shouldEvaluate(candidateRef); if (!dec.evaluate) { tracker.skip(candidateRef, dec.reason); log({ event: "candidate_skipped_sufficiency", candidateId: candidateRef, reason: dec.reason, rule: PSUF.RULE_ID }); throw Object.assign(new Error("PANEL_SUFFICIENT_EARLY_STOP: " + dec.reason + " — évaluation non demandée (" + PSUF.RULE_ID + ")"), { code: "PANEL_SUFFICIENT_EARLY_STOP", reason: dec.reason }); }
     let j; try { j = await client.getJson("/works?filter=author.id:" + wid(candidateRef) + "&per-page=100&sort=publication_year:desc&select=id,display_name,doi,publication_year,topics,authorships,type"); }
     catch (e) { const t = openAlexTransportError(e); if (t) { llm.latch(t, "corpus fetch " + candidateRef); throw t; } throw e; }
     const works = (j.results || []).map((w) => Object.assign({}, w, { topics: (w.topics || []).map((t) => ({ name: t.display_name, id: t.id, score: t.score })) }));
@@ -222,9 +238,20 @@ async function runPanel(input) {
     return { method: "openalex-authorships (filter author.id, verifie sur chaque oeuvre)", byWorkRef };
   }
   const gateCtx = { runId: input.attemptRunId, missionHash: input.missionHash, operatorTrustBoundaryId: manifest.operatorTrustBoundaryId, attestationHash: manifest.runtimeAttestationHash };
+  /* v1.0.5 — observation de chaque evaluation (sorties deja produites : classe + dimensions soutenues dans le registre MONO-11), aucun appel */
+  const logObserved = (e) => {
+    if (e && e.event === "candidate_evidence") {
+      const art = ledger.exportArtifacts()["mono11:relevance:" + e.candidateId]; const a = art && (art.artifact || art);
+      const ob = tracker.observe({ candidateRef: e.candidateId, corpus: e.corpus, relevanceClass: e.relevance, supportedDimensions: a && a.supportingDimensions, partialDimensions: a && a.partialDimensions });
+      const d = tracker.decision(); log(Object.assign({}, e, { novelty: ob.novelty, sufficiency: d.state, admissibleCumulative: d.admissible, sinceNovelty: d.sinceNovelty }));
+      if (d.state !== lastState) { lastState = d.state; log({ event: "panel_sufficiency_transition", state: d.state, evaluated: d.evaluated, admissible: d.admissible, reasons: d.reasons }); if (typeof input.onSufficiency === "function") { try { input.onSufficiency(d); } catch (x) { /* observabilite */ } } }
+      return;
+    }
+    log(e);
+  };
   let res;
   try { res = await M11.autonomousRun.runAutonomousPanel({ frozen: F, ledger, registry, assessment: assessmentCapped, discovery: boundDiscovery, verification: verificationB, fetchAuthorWorks, attributionFor,
-    llmCall: guardedLlmCall, onValidation: llm.onValidation, missionQuestion: input.missionQuestion, dimensionSet, ctx: gateCtx, assessmentRef, log }); }
+    llmCall: guardedLlmCall, onValidation: llm.onValidation, missionQuestion: input.missionQuestion, dimensionSet, ctx: gateCtx, assessmentRef, log: logObserved }); }
   catch (e) { if (e.code === "EVALUATION_CAP_INVARIANT_VIOLATION") throw e; throw e; }
   /* FRONTIERE FAIL-CLOSED : si une panne de transport s'est produite pendant l'evaluation, le panel n'est PAS un verdict */
   assertNoTransportFailure(llm, "Découvrir et évaluer les professionnels");
@@ -232,13 +259,14 @@ async function runPanel(input) {
   const evidence = ledger.exportArtifacts(); const chains = { mono10: registry.verifyEventChain(), mono11: ledger.verifyChain() };
   if (!chains.mono10.valid || !chains.mono11.valid) throw Object.assign(new Error("LINEAGE_CHAIN_INVALID"), { code: "LINEAGE_CHAIN_INVALID" });
   const inputHashes = { corpusSnapshot: sha(JSON.stringify(input.corpusSnapshot)), discovery: sha(JSON.stringify(input.discovery)), verification: sha(JSON.stringify(input.verification || null)), runContractHash: rc.runContractHash, missionHash: input.missionHash, dimensionSetHash: dimensionSet.dimensionSetHash };
+  const sufficiency = tracker.decision();   /* v1.0.5 : decision de suffisance (deterministe) persistee avec le checkpoint ; l'historique complet est rendu a part */
   const checkpoint = { schema: "EvidenceForge.ProfessionalsCheckpoint", schemaVersion: "MONOLITH-v1.0.2", runId: input.runId, attemptId: input.attemptId, mono10RunId: input.attemptRunId,
     lotVersions: { mono11: SEAL.mono11Version, mono10: "v0.19", mono09: "v0.2", monolith: P.CONFIG.product.version }, seal: { mono11Version: SEAL.mono11Version, runtimeSealSha256: SEAL.runtimeSealSha256, runCodeHash: SEAL.runCodeHash, mono11ZipSha256: SEAL.mono11ZipSha256, mono11ManifestSha256: SEAL.mono11ManifestSha256 },
     inputHashes, dimensionSet, deduplication: dd.record, assessment: assessmentCapped, assessmentFull: assessment, selection, evaluatedCandidateCount: guard.evaluatedCount(), panel: res.panel, gateInputs: res.gateInputs, corpusSetAll: res.corpusSetAll, stats: res.stats,
     evidence, ledgerExport: ledger.export(), registryEntries: registry.entries(), chains, capability: run.capability, llmConfig: run.llmConfig, attestation: run.attestation, operatorConfig: run.cfgPath,
     outputHashes: { panelHash: res.panel.panelHash, assessment: M10.CANON.artifactHash(assessment), ledgerRoot: ledger.rootHash, registryRoot: chains.mono10.registryRootHash, evidenceCount: Object.keys(evidence).length },
-    transportFailures: [], openAlexCalls: client.calls.length, llmCounts: llm.counts(), complete: true };
-  return { checkpoint, stats: res.stats, panelCounts: res.panel.counts, selection };
+    transportFailures: [], openAlexCalls: client.calls.length, llmCounts: llm.counts(), sufficiency, workRefNormalizations: wn.count(), complete: true };
+  return { checkpoint, stats: Object.assign({}, res.stats, { evaluatedReal: sufficiency.evaluated, skippedBySufficiency: sufficiency.skipped, admissible: sufficiency.admissible, sufficiency: sufficiency.state, workRefNormalizations: wn.count() }), panelCounts: res.panel.counts, selection, sufficiencyRecord: tracker.record() };
 }
 
 /**
