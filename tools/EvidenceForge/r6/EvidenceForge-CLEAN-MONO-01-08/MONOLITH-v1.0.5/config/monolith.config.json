@@ -83,7 +83,13 @@
     "minSourcesForOverRepresentation": 3,
     "llmBatchSize": 12,
     "maxPasses": 3,
-    "$comment": "v1.0.5 — parametres GENERIQUES de la revue de portefeuille du corpus (lib/corpus-portfolio-review.js) : seuil de similarite lexicale (TF-IDF cosinus) pour un groupe de redondance ; facteur de surrepresentation par rapport a la part uniforme ; taille des lots LLM pour la distinction domaine / methode. Aucun domaine, aucun mot-cle, aucun nom de cas. La revue ne decide rien (notADecision)."
+    "$comment": "v1.0.5 — parametres GENERIQUES de la revue de portefeuille du corpus (lib/corpus-portfolio-review.js) : seuil de similarite lexicale (TF-IDF cosinus) pour un groupe de redondance ; facteur de surrepresentation par rapport a la part uniforme ; taille des lots LLM pour la distinction domaine / methode. Aucun domaine, aucun mot-cle, aucun nom de cas. La revue ne decide rien (notADecision).",
+    "balancing": {
+      "coverageTargetFactor": 0.5,
+      "minimumIndependentSources": 2,
+      "overRepresentationFactor": 2,
+      "swapSimilarityThreshold": 0.85
+    }
   },
   "professionals": {
     "maxCandidatesToEvaluate": 150,

@@ -28,6 +28,12 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms)); const sha = (s) => 
   const r2 = mk("efm-20260917-ui105gate", "RETRIEVAL", "WAITING_USER", { gate: { id: RS.GATES.RATIFY_SOURCES, since: new Date().toISOString(), userMessage: "Ratifiez." } }); r2.saveJson("screening-evidence.json", ev); r2.saveJson("sources-enriched.json", { enriched: srcs });
   const dims = [{ id: "d1", label: "d1" }, { id: "d2", label: "d2" }, { id: "d3", label: "d3" }]; const pf = await CPR.buildCorpusPortfolioReview({ llm: null, mission: "m", dimensions: dims, sources: srcs, evidence: ev, config: { redundancySimilarityThreshold: 0.3 } });
   pf.methodologicalCrossDomainCandidates = [{ sourceId: "s4", domainRelevance: "basse", methodologicalRelevance: "haute", methodologicalInterest: "cadre de gouvernance transposable", anglesConcernes: ["d3"], evidence: [] }]; pf.suggestedReview.push({ sourceId: "s4", reasons: [{ code: "METHODOLOGICAL_RELEVANCE_DESPITE_DOMAIN" }] }); r2.saveJson("corpus-portfolio-review.json", pf);
+  /* Additional synthetic balanced proposal; never touches a real run. */
+  const balancingFixture = require("../test/fixtures/portfolio-incident.json");
+  const balanced = require("../lib/portfolio-balancing.js").balancePortfolio(balancingFixture);
+  const r3 = mk("efm-20260917-ui105balance", "RETRIEVAL", "WAITING_USER", { gate: { id: RS.GATES.RATIFY_SOURCES, since: new Date().toISOString(), userMessage: "Ratifiez." } });
+  // Missing machine proposals remain explicit, exactly as in the incident topology.
+  r3.saveJson("screening-evidence.json",balanced.evidence); r3.saveJson("screening-primary.json",balancingFixture.evidence); r3.saveJson("sources-enriched.json",{enriched:balancingFixture.sources}); r3.saveJson("corpus-portfolio-review.json",balanced.review);
   /* serveur v1.0.5 sans identifiants fournisseur */
   const env = Object.assign({}, process.env, { EVIDENCEFORGE_PORT: String(PORT), EVIDENCEFORGE_RUNS_ROOT: RR }); delete env.EVIDENCEFORGE_WORKER_API_KEY; delete env.LLM_WORKER_BASE_URL;
   const srv = spawn(process.execPath, [path.join(ROOT, "server.js")], { env, stdio: ["ignore", "pipe", "pipe"] }); let srvOut = ""; srv.stdout.on("data", (d) => { srvOut += d; }); srv.stderr.on("data", (d) => { srvOut += d; });
@@ -64,6 +70,14 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms)); const sha = (s) => 
     await p.ev("document.getElementById('gsName').value='';document.getElementById('gsConfirm').click();true"); await sleep(800);
     ok("ratification sans nom refusée (HUMAN_IDENTITY_REQUIRED) : la porte reste ouverte", await p.ev("(()=>{const e=document.getElementById('gsErr');return !e.hidden && /nom/i.test(e.textContent) && !document.getElementById('gateSources').hidden;})()"), await p.ev("document.getElementById('gsErr').textContent"));
     ok("aucune exception console (porte 2)", p.consoleErrors.length === 0, p.consoleErrors.join(" | ")); p.close();
+    p = await page(BASE + "/#run=efm-20260917-ui105balance");
+    ok("portfolio équilibré : états résolu/non résolu et trace visibles",await p.ev("(()=>{const t=document.getElementById('gsPortfolio').textContent;return /Sous-couverture résolue/.test(t)&&/Couverture insuffisante/.test(t)&&/Ajustements proposés/.test(t)&&/0 USD/.test(t);})()"));
+    ok("portfolio équilibré : compteur conforme au backend", await p.ev("document.getElementById('gsCount').textContent")===balanced.review.counts.proposedIncluded+" incluse(s) / "+balancingFixture.sources.length);
+    await p.ev("document.querySelector('#gsList .dec button[data-d=exclu]').click();true");
+    ok("choix humain modifie le compteur sans ratifier",await p.ev("document.getElementById('gsCount').textContent")===(balanced.review.counts.proposedIncluded-1)+" incluse(s) / "+balancingFixture.sources.length);
+    await p.ev("location.reload();true"); await sleep(1200);
+    ok("rechargement conserve le choix humain et la porte ouverte",await p.ev("document.getElementById('gsCount').textContent")===(balanced.review.counts.proposedIncluded-1)+" incluse(s) / "+balancingFixture.sources.length && !fs.existsSync(path.join(r3.dir,"sources-ratification.json")));
+    ok("aucune exception console (rééquilibrage)",p.consoleErrors.length===0,p.consoleErrors.join(" | "));p.close();
     /* 4 — accueil : aide masquee par defaut, s'ouvre et se ferme ; bouton de cadrage et budget presents ; run non lance */
     p = await page(BASE + "/");
     ok("aide masquée par défaut, bouton Aide présent", await p.ev("(()=>{return document.getElementById('helpCard').hidden && !!document.getElementById('btnHelp');})()"));

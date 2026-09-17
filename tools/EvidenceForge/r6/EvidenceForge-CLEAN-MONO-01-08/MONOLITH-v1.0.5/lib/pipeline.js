@@ -139,8 +139,14 @@ function advance(runId) {
         /* v1.0.5 — REVUE DE PORTEFEUILLE (additive, notADecision) : signaux de niveau corpus pour la lecture humaine avant la Porte 2 ;
            la partie deterministe est toujours produite, la partie LLM declare son indisponibilite ; une panne de transport (verrou) arrete le run comme ailleurs */
         store.event({ level: "user", message: "Revue d'ensemble du corpus proposé (redondances, couverture des angles, méthodes hors domaine)…", _state: state });
-        const review = await CPR.buildCorpusPortfolioReview({ llm, mission: missionQuestion, dimensions: dims, sources: en.enriched, evidence: ev, config: P.CONFIG.portfolio || {} });
-        store.saveJson("corpus-portfolio-review.json", review); SP.assertNoTransportFailure(llm, "Revue d'ensemble du corpus");
+        const initialReview = await CPR.buildCorpusPortfolioReview({ llm, mission: missionQuestion, dimensions: dims, sources: en.enriched, evidence: ev, config: P.CONFIG.portfolio || {} });
+        const balanced = require("./portfolio-balancing.js").balancePortfolio({ sources: en.enriched, dimensions: dims, evidence: ev, review: initialReview, config: (P.CONFIG.portfolio || {}).balancing || {} });
+        const review = balanced.review;
+        store.saveJson("screening-primary.json", ev);
+        store.saveJson("screening-evidence.json", balanced.evidence);
+        store.saveJson("corpus-portfolio-review.json", review);
+        store.event({ level: "user", message: "Rééquilibrage proposé : " + review.balancing.adjustments.length + " ajustement(s), " + review.possibleUndercoverage.length + " angle(s) non résolu(s). Aucun appel LLM supplémentaire.", _state: state });
+        SP.assertNoTransportFailure(llm, "Revue d'ensemble du corpus");
         if (!r.snapshot.sourceCount) { const e = new Error("NO_SOURCE_RETRIEVED"); e.code = "NO_SOURCE_RETRIEVED"; e.userMessage = "Aucune publication n'a été trouvée pour ce plan de recherche. Le run s'arrête (rien n'est inventé). Reformulez votre demande."; throw e; }
         done("RETRIEVAL", { sources: r.snapshot.sourceCount, judged: ev.judged, duplicates: ev.duplicates, failed: ev.failedSourceIds.length, portfolioWarnings: review.warnings.length, portfolioLlmStatus: review.llmStatus });
       }

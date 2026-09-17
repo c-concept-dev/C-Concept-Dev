@@ -1,9 +1,9 @@
 {
   "schema": "EvidenceForge.MonolithBrowserTestResults",
   "version": "MONOLITH-v1.0.5",
-  "ranAt": "2026-09-17T12:35:03.190Z",
-  "total": 20,
-  "passed": 20,
+  "ranAt": "2026-09-17T13:46:32.291Z",
+  "total": 25,
+  "passed": 25,
   "failed": 0,
   "results": [
     {
@@ -44,7 +44,7 @@
     {
       "name": "mise à jour du budget depuis la page : budget.json = 25 / 20, historique conservé, marque d'arrêt effacée",
       "ok": true,
-      "info": "{\"schema\":\"EvidenceForge.RunBudget\",\"runId\":\"efm-20260917-ui105bud\",\"currency\":\"USD\",\"costBudgetUsd\":25,\"warningThresholdUsd\":20,\"updatedAt\":\"2026-09-17T12:34:52.343Z\",\"warningRaisedAt\":null,\"limitReachedAt\":null,\"history\":[{\"at\":\"2026-09-17T12:34:46.201Z\",\"costBudgetUsd\":1,\"warningThresholdUsd\":0.5,\"previous\":{\"costBudgetUsd\":null,\"warningThresholdUsd\":null},\"setBy\":\"user\"},{\"at\":\"2026-09-17T12:34:52.343Z\",\"costBudgetUsd\":25,\"warningThresholdUsd\":20,\"previous\":{\"costBudgetUsd\":1,\"warningThresholdUsd\":0.5},\"setBy\":\"user\"}],\"setBy\":\"user\",\"warningRaisedSpentUsd\":3.1,\"limitReachedSpentUsd\":3.1}"
+      "info": "{\"schema\":\"EvidenceForge.RunBudget\",\"runId\":\"efm-20260917-ui105bud\",\"currency\":\"USD\",\"costBudgetUsd\":25,\"warningThresholdUsd\":20,\"updatedAt\":\"2026-09-17T13:46:16.152Z\",\"warningRaisedAt\":null,\"limitReachedAt\":null,\"history\":[{\"at\":\"2026-09-17T13:46:09.693Z\",\"costBudgetUsd\":1,\"warningThresholdUsd\":0.5,\"previous\":{\"costBudgetUsd\":null,\"warningThresholdUsd\":null},\"setBy\":\"user\"},{\"at\":\"2026-09-17T13:46:16.152Z\",\"costBudgetUsd\":25,\"warningThresholdUsd\":20,\"previous\":{\"costBudgetUsd\":1,\"warningThresholdUsd\":0.5},\"setBy\":\"user\"}],\"setBy\":\"user\",\"warningRaisedSpentUsd\":3.1,\"limitReachedSpentUsd\":3.1}"
     },
     {
       "name": "affichage : reste avant plafond 21.9x USD, plus de badge « plafond atteint »",
@@ -78,6 +78,31 @@
     },
     {
       "name": "aucune exception console (porte 2)",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "name": "portfolio équilibré : états résolu/non résolu et trace visibles",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "name": "portfolio équilibré : compteur conforme au backend",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "name": "choix humain modifie le compteur sans ratifier",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "name": "rechargement conserve le choix humain et la porte ouverte",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "name": "aucune exception console (rééquilibrage)",
       "ok": true,
       "info": ""
     },

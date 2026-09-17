@@ -12964,12 +12964,70 @@ ${recent}`;
       _genStopReason = null;
       const _tCall2Start = performance.now();
       const _genCtrl = new AbortController();
-      let _genTid = setTimeout(() => { _abortReason2 = 'transport-timeout'; _genCtrl.abort(); }, ADOC_CALL2_TRANSPORT_TIMEOUT_MS);
-      function _resetGenTimeout() { clearTimeout(_genTid); _genTid = setTimeout(() => { _abortReason2 = 'transport-timeout'; _genCtrl.abort(); }, ADOC_CALL2_TRANSPORT_TIMEOUT_MS); }
-      let _genSemTid = setTimeout(() => { _abortReason2 = 'semantic-timeout'; _genCtrl.abort(); }, ADOC_CALL2_SEMANTIC_TIMEOUT_MS_EXPERIMENTAL);
+      // Item 21, famille "arrière-plan navigateur" — jamais construite jusqu'ici (grep exhaustif
+      // confirmé avant ce lot : zéro Page Visibility API dans tout le fichier). La fermeture
+      // précédente d'item 21 (Option A retenue par Christophe le 15 septembre) portait sur les
+      // familles A/B/C diagnostiquées mais acceptait explicitement de ne rien construire pour ce
+      // cas précis. Nouvelle preuve du 17 septembre (req_011Cf93dn7mYjXMDqN6BVmRy) : un setTimeout
+      // programmé à 45s (ADOC_CALL2_TRANSPORT_TIMEOUT_MS) ne s'est déclenché qu'à 68029ms —
+      // signature connue du ralentissement des minuteurs par le navigateur quand l'onglet est
+      // masqué (WebKit #322545, déjà confirmé sur un autre incident à l'échelle des dizaines de
+      // minutes). Périmètre STRICT de ce lot : appel 2 uniquement — les minuteries de l'appel 1
+      // (_searchTid/_searchSemTid) restent inchangées.
+      // Principe : ne plus dépendre de la seule fidélité du délai programmé — mesurer le temps
+      // RÉEL écoulé (Date.now()) et ne jamais compter contre le seuil le temps passé onglet masqué
+      // (document.hidden), qui n'est pas un vrai silence réseau, seulement du JS suspendu.
+      let _genHiddenSinceMs = document.hidden ? Date.now() : null;
+      let _genHiddenMsSinceTransportReset = 0;
+      let _genHiddenMsSinceSemanticReset = 0;
+      function _adocGenOnVisibilityChange() {
+        if (document.hidden) {
+          if (_genHiddenSinceMs == null) _genHiddenSinceMs = Date.now();
+        } else if (_genHiddenSinceMs != null) {
+          const hiddenMs = Date.now() - _genHiddenSinceMs;
+          _genHiddenMsSinceTransportReset += hiddenMs;
+          _genHiddenMsSinceSemanticReset += hiddenMs;
+          _genHiddenSinceMs = null;
+        }
+      }
+      document.addEventListener('visibilitychange', _adocGenOnVisibilityChange);
+      function _adocGenRemoveVisibilityListener() { document.removeEventListener('visibilitychange', _adocGenOnVisibilityChange); }
+      // Temps masqué "en cours" (onglet toujours masqué au moment du calcul) ajouté à celui déjà
+      // accumulé lors des retours au premier plan précédents — jamais compté deux fois (remis à 0
+      // dans le compteur accumulé à chaque retour, cf. _adocGenOnVisibilityChange ci-dessus).
+      function _genCurrentHiddenMs(accumulatedMs) {
+        return accumulatedMs + (_genHiddenSinceMs != null ? (Date.now() - _genHiddenSinceMs) : 0);
+      }
+      let _genLastTransportResetAt = Date.now();
+      let _genTid = setTimeout(_adocCheckGenTransportTimeout, ADOC_CALL2_TRANSPORT_TIMEOUT_MS);
+      function _adocCheckGenTransportTimeout() {
+        const realElapsedMs = Date.now() - _genLastTransportResetAt;
+        const effectiveElapsedMs = realElapsedMs - _genCurrentHiddenMs(_genHiddenMsSinceTransportReset);
+        if (effectiveElapsedMs >= ADOC_CALL2_TRANSPORT_TIMEOUT_MS) { _abortReason2 = 'transport-timeout'; _genCtrl.abort(); return; }
+        // Pas encore un vrai silence transport de ADOC_CALL2_TRANSPORT_TIMEOUT_MS une fois le
+        // temps masqué déduit — reprogrammé pour le temps restant réellement effectif, jamais un
+        // abandon prématuré sur la seule foi du délai programmé initial.
+        _genTid = setTimeout(_adocCheckGenTransportTimeout, ADOC_CALL2_TRANSPORT_TIMEOUT_MS - effectiveElapsedMs);
+      }
+      function _resetGenTimeout() {
+        clearTimeout(_genTid);
+        _genLastTransportResetAt = Date.now();
+        _genHiddenMsSinceTransportReset = 0;
+        _genTid = setTimeout(_adocCheckGenTransportTimeout, ADOC_CALL2_TRANSPORT_TIMEOUT_MS);
+      }
+      let _genLastSemanticResetAt = Date.now();
+      let _genSemTid = setTimeout(_adocCheckGenSemanticTimeout, ADOC_CALL2_SEMANTIC_TIMEOUT_MS_EXPERIMENTAL);
+      function _adocCheckGenSemanticTimeout() {
+        const realElapsedMs = Date.now() - _genLastSemanticResetAt;
+        const effectiveElapsedMs = realElapsedMs - _genCurrentHiddenMs(_genHiddenMsSinceSemanticReset);
+        if (effectiveElapsedMs >= ADOC_CALL2_SEMANTIC_TIMEOUT_MS_EXPERIMENTAL) { _abortReason2 = 'semantic-timeout'; _genCtrl.abort(); return; }
+        _genSemTid = setTimeout(_adocCheckGenSemanticTimeout, ADOC_CALL2_SEMANTIC_TIMEOUT_MS_EXPERIMENTAL - effectiveElapsedMs);
+      }
       function _resetGenSemanticTimeout() {
         clearTimeout(_genSemTid);
-        _genSemTid = setTimeout(() => { _abortReason2 = 'semantic-timeout'; _genCtrl.abort(); }, ADOC_CALL2_SEMANTIC_TIMEOUT_MS_EXPERIMENTAL);
+        _genLastSemanticResetAt = Date.now();
+        _genHiddenMsSinceSemanticReset = 0;
+        _genSemTid = setTimeout(_adocCheckGenSemanticTimeout, ADOC_CALL2_SEMANTIC_TIMEOUT_MS_EXPERIMENTAL);
         _m2.lastSemanticActivityAt = performance.now();
         if (_m2.msToFirstSemanticProgress == null) _m2.msToFirstSemanticProgress = Math.round(performance.now() - _tCall2Start);
       }
@@ -12999,6 +13057,7 @@ ${recent}`;
           });
         } catch (_genFetchErr) {
           clearTimeout(_genTid); clearTimeout(_genSemTid);
+          _adocGenRemoveVisibilityListener();
           throw _genFetchErr;
         }
         _m2.msToHttp200 = Math.round(performance.now() - _tCall2Start);
@@ -13008,6 +13067,7 @@ ${recent}`;
         _m2.anthropicRequestId = resp.headers.get('X-Anthropic-Request-Id') || null;
         if (!resp.ok) {
           clearTimeout(_genTid); clearTimeout(_genSemTid);
+          _adocGenRemoveVisibilityListener();
           _fetchOrHttpErr = new Error('HTTP ' + resp.status);
           _fetchOrHttpErr.httpStatus = resp.status;
           throw _fetchOrHttpErr;
@@ -13144,6 +13204,7 @@ ${recent}`;
         } finally {
           clearTimeout(_genTid);
           clearTimeout(_genSemTid);
+          _adocGenRemoveVisibilityListener();
         }
         _logTiming('flux terminé (stop_reason=' + _genStopReason + '), JSON tool_use accumulé: ' + _genToolInputJson.length + ' caractères');
         _m2.finalState = 'completed';
