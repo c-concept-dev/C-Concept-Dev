@@ -650,9 +650,46 @@ export function guardDisplayedQuestion(texte, { candidates = [], objectiveNature
    *
    * Le texte est transmis. Ce repli reste ce qu'il a toujours été : une ÉGALITÉ exacte, jamais une
    * ressemblance — aucun seuil, aucune distance, aucun synonyme. */
-  const affichable = (q, focus, id) => isAtomicQuestion(q)
-    && !isMetaOutputQuestion(q, { objectiveNature, requestFocus, questionFocus: focus })
-    && !isRepeatedSolicitation(q, history, id);
+  /* DEEP-DISPLAY-RETRY — LA CAUSE DU REFUS ÉTAIT CALCULÉE, PUIS JETÉE.
+   *
+   * MESURÉ EN PRODUCTION : `sujet_presentation` refusé deux fois de suite, ~47 s d'appels profonds,
+   * puis accepté au troisième essai sur une formulation différente. Le manque était légitime ; seule
+   * la FORME était fautive. Or le plan profond était rappelé sans savoir qu'il venait d'être refusé,
+   * ni pourquoi — là où le plan rapide reçoit depuis toujours un verdict nommé et une correction.
+   *
+   * L'asymétrie tenait à une seule ligne : les trois prédicats vivaient dans une expression
+   * booléenne, et seul leur ET final sortait. `cause()` les évalue SÉPARÉMENT, dans le MÊME ordre,
+   * avec le MÊME court-circuit, et rend le premier qui échoue. Aucune règle n'est ajoutée, aucune
+   * n'est déplacée, aucune n'est dupliquée : `affichable()` s'exprime désormais PAR `cause()`, ce
+   * qui rend une divergence entre les deux structurellement impossible.
+   *
+   * LE VOCABULAIRE EST CELUI QUI EXISTE. `SOLICITATION_VERDICTS` nomme déjà ces refus sur le plan
+   * rapide ; en inventer d'autres ici créerait deux langages pour un seul fait. */
+  const cause = (q, focus, id) => {
+    /* Un texte vide ne compte pas comme « plusieurs questions » : `EMPTY` figure déjà dans
+       l'énumération, et le nom juste compte ici plus que partout — c'est lui qui partira en
+       correction au plan profond. */
+    if (!String(q || '').trim()) return 'EMPTY';
+    /* EN DEUX BRANCHES, PAS EN TERNAIRE, ET POUR UNE RAISON MESURÉE.
+     *
+     * V221D2F-01 interdit toute question constante dans la logique exécutée, et la reconnaît à une
+     * littérale terminée par un point d'interrogation ; sa détection compte les guillemets depuis le
+     * début du fichier, si bien qu'un ternaire glissé entre deux littérales lui apparaît comme une
+     * question en dur. Ce détecteur garde un invariant que la gouvernance exige : c'est donc la forme
+     * d'ici qui cède, jamais le détecteur. Le sens est identique, et la lecture y gagne.
+     *
+     * Les lignes de ce bloc sont préfixées — V211-11 et V221D2F-01 dépouillent l'un et l'autre les
+     * lignes ainsi marquées avant d'inspecter la logique. Un commentaire qui explique un garde ne
+     * doit pas pouvoir le faire échouer sur ses propres mots. */
+    if (!isAtomicQuestion(q)) {
+      if (countNamedAlternatives(q) >= 3) return 'CATALOGUE';
+      return 'MULTIPLE_QUESTIONS';
+    }
+    if (isMetaOutputQuestion(q, { objectiveNature, requestFocus, questionFocus: focus })) return 'META_OUTPUT_QUESTION';
+    if (isRepeatedSolicitation(q, history, id)) return 'ALREADY_ANSWERED';
+    return null;
+  };
+  const affichable = (q, focus, id) => cause(q, focus, id) === null;
   const t = String(texte || '').trim();
   if (affichable(t, questionFocus, missingDeterminantId)) return { verdict: 'ALLOW', text: t };
   /* Chaque candidate porte SON propre fait : on ne lui applique jamais celui d'une autre question. */
@@ -680,6 +717,10 @@ export function guardDisplayedQuestion(texte, { candidates = [], objectiveNature
    * Couper n'est pas choisir : le résultat est une question que personne n'a écrite. Les seules
    * issues sont donc celles qui viennent de l'autorité — sa question, ou l'une de ses candidates. */
   /* Rien d'affichable, et rien d'inventé : `text` vaut null, et chaque appelant a déjà son
-     issue — le silence sur le plan rapide, le repli de contrat sur le plan profond. */
-  return { verdict: 'NOT_DISPLAYABLE', text: null };
+     issue — le silence sur le plan rapide, le repli de contrat sur le plan profond.
+     DEEP-DISPLAY-RETRY — la cause du refus de la question PRINCIPALE accompagne le verdict. C'est
+     elle, et elle seule, qu'une reprise corrective peut transmettre à l'autorité. Les causes des
+     candidates ne sont pas rendues : c'est la principale que l'autorité doit reformuler. */
+  return { verdict: 'NOT_DISPLAYABLE', text: null,
+    reason: cause(t, questionFocus, missingDeterminantId) };
 }

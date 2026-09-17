@@ -53,7 +53,14 @@ async function corpsProduction(executer, entree = ENTREE) {
 test('T-AMCD01-01 : l’Arbitre passe par l’adaptateur générique, sans batch', () => {
   const worker = lire('workers/groq/src/index.js');
   assert.match(worker, /const isCritic = role === "critic";/);
-  assert.match(worker, /: \(\) => GENERIC_ROLE_ADAPTERS\[name\]\(role, input, env\)/);
+  /* DEEP-DISPLAY-RETRY — HISTORICAL_IMPLEMENTATION_CONTRACT. Cet épinglage portait la liste
+     d'arguments exacte de l'adaptateur générique ; elle en compte un quatrième depuis que le plan
+     profond reçoit le CONSTAT de son refus d'affichage. Ce que ce test affirme n'a pas changé et
+     reste vérifié ici : l'adaptateur générique est appelé, le même pour tous les fournisseurs, sans
+     enrobage propre à l'un d'eux — le quatrième argument est identique sur les trois chemins. Le
+     littéral est donc réépinglé sur sa forme courante, ENTIÈRE : la mise à jour resserre la garde,
+     elle ne la relâche pas. */
+  assert.match(worker, /: \(\) => GENERIC_ROLE_ADAPTERS\[name\]\(role, input, env, corrective \? \{ corrective \} : undefined\)/);
   /* Pas de pipeline batché pour l'Arbitre : un seul constructeur à corriger. */
   assert.equal(/ARBITER_PIPELINES/.test(worker), false);
 });

@@ -524,7 +524,49 @@ async function runCoreFirstTurnForRequest(input, { executeRole, log, trace }) {
     semantic_deep_calls: 1,
     contractualization_calls: 1
   });
-  return applyDisplayGuardToTurn(resultat.turn, { question_candidates: resultat.question_candidates }, log, input && input.clarification_history);
+  /* DEEP-DISPLAY-RETRY — UNE SECONDE CHANCE, INFORMÉE, ET UNE SEULE.
+   *
+   * MESURÉ EN PRODUCTION : `sujet_presentation` refusé deux fois, ~47 s d'appels profonds, puis
+   * accepté au troisième essai. Le manque était légitime ; seule la forme était fautive. Et chaque
+   * nouvel appel repartait AVEUGLE — le plan rapide, lui, reçoit un verdict nommé et une correction
+   * depuis BETA-04. L'asymétrie est comblée, à l'identique : après la chaîne, même autorité, un
+   * appel de plus, re-passage du MÊME garde.
+   *
+   * EXACTEMENT UNE REPRISE. Ce n'est pas un compteur : c'est une seule branche, non récursive. Si
+   * elle échoue, la levée d'origine est relancée telle quelle — même statut, même code — et la borne
+   * du tour reste celle qui existe déjà, humaine : le client affiche l'échec et attend un clic.
+   * Aucune relance automatique n'est créée ici, et l'audit a établi qu'il n'en existe aucune.
+   *
+   * CE QUI N'EST PAS REPRIS : un refus sans cause nommée, et un `REPLACED` — une candidate
+   * affichable a déjà sauvé le tour, il n'y a rien à corriger. */
+  try {
+    return applyDisplayGuardToTurn(resultat.turn, { question_candidates: resultat.question_candidates }, log, input && input.clarification_history);
+  } catch (refus) {
+    const constat = refus && refus.display_refusal;
+    if (!constat || !constat.reason) throw refus;
+    log({ event: "DEEP_CORRECTIVE_RETRY", reason: constat.reason,
+          missing_determinant_id: constat.missing_determinant_id || null });
+    let reprise;
+    try {
+      reprise = await runCoreFirstTurn(input, { executeRole, log, corrective: constat });
+    } catch (erreur) {
+      /* Une panne pendant la reprise n'est pas un refus de forme : on rend le refus d'origine, qui
+         décrit ce que la personne a réellement rencontré. */
+      log({ event: "DEEP_CORRECTIVE_RETRY_RESULT", result: "EXHAUSTED", cause: "PROVIDER_ERROR" });
+      throw refus;
+    }
+    try {
+      const tour = applyDisplayGuardToTurn(reprise.turn, { question_candidates: reprise.question_candidates }, log, input && input.clarification_history);
+      log({ event: "DEEP_CORRECTIVE_RETRY_RESULT", result: "DISPLAYABLE" });
+      return tour;
+    } catch (secondRefus) {
+      log({ event: "DEEP_CORRECTIVE_RETRY_RESULT", result: "EXHAUSTED",
+            reason: (secondRefus && secondRefus.display_refusal && secondRefus.display_refusal.reason) || null });
+      log({ event: "DEEP_CORRECTIVE_RETRY_EXHAUSTED",
+            missing_determinant_id: constat.missing_determinant_id || null });
+      throw secondRefus;
+    }
+  }
 }
 
 /**
@@ -614,8 +656,24 @@ export function applyDisplayGuardToTurn(turn, analystOutput, log = () => {}, his
       state: turn && turn.state,
       candidates_available: candidates.length
     });
-    throw new DecisionHttpError(502, "turn_contractually_unusable",
-      "Le tour exige une clarification, et aucune des questions produites n'est affichable.");
+    /* DEEP-DISPLAY-RETRY — LA CAUSE DU REFUS ACCOMPAGNE LA LEVÉE.
+     *
+     * Elle était calculée par le garde et jetée ici. Mesuré : le plan profond était rappelé sans
+     * savoir qu'il venait d'être refusé, ni pourquoi — deux appels aveugles, ~47 s, avant qu'une
+     * formulation passe. La cause est donc attachée à l'erreur, et c'est `runCoreFirstTurnForRequest`
+     * qui la lit pour offrir UNE reprise corrective. La réponse HTTP, elle, ne change pas : même
+     * statut, même code, même message. */
+    log({ event: "DEEP_DISPLAY_REJECTED", reason: garde.reason || null,
+          missing_determinant_id: (question && typeof question.missing_determinant_id === "string"
+            ? question.missing_determinant_id.trim() : null) || null });
+    throw Object.assign(new DecisionHttpError(502, "turn_contractually_unusable",
+      "Le tour exige une clarification, et aucune des questions produites n'est affichable."), {
+        display_refusal: {
+          reason: garde.reason || null,
+          missing_determinant_id: (question && typeof question.missing_determinant_id === "string"
+            ? question.missing_determinant_id.trim() : null) || null
+        }
+      });
   }
   if (garde.text === texte) return turn;
   /* FINAL-TARGETED-FIX — il n'existe plus de troisième issue. Le garde rend ALLOW (même texte),

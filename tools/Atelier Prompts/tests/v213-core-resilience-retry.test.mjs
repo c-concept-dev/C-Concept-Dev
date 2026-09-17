@@ -272,7 +272,14 @@ test('V213-10 : une sortie déterministe invalide n’est jamais reprise, et auc
   assert.equal(/while \(true\)|for \(let tentative/.test(chemin), false,
     'aucune boucle de reprise sur le chemin profond');
   assert.match(worker, /core_attempt_count: tentatives\.length/, 'le nombre de tentatives est compté, non supposé');
-  assert.match(worker, /: \(\) => GENERIC_ROLE_ADAPTERS\[name\]\(role, input, env\)/,
+  /* DEEP-DISPLAY-RETRY — HISTORICAL_IMPLEMENTATION_CONTRACT. Cet épinglage portait la liste
+     d'arguments exacte de l'adaptateur générique ; elle en compte un quatrième depuis que le plan
+     profond reçoit le CONSTAT de son refus d'affichage. Ce que ce test affirme n'a pas changé et
+     reste vérifié ici : l'adaptateur générique est appelé, le même pour tous les fournisseurs, sans
+     enrobage propre à l'un d'eux — le quatrième argument est identique sur les trois chemins. Le
+     littéral est donc réépinglé sur sa forme courante, ENTIÈRE : la mise à jour resserre la garde,
+     elle ne la relâche pas. */
+  assert.match(worker, /: \(\) => GENERIC_ROLE_ADAPTERS\[name\]\(role, input, env, corrective \? \{ corrective \} : undefined\)/,
     'l’adaptateur générique reste appelé tel quel, sans enrobage par fournisseur');
   /* Une erreur non étiquetée est un défaut de NOTRE code, jamais une panne fournisseur. */
   assert.equal(failureClassOf(new Error('inconnue')), FAILURE_CLASSES.PROGRAMMING_ERROR);

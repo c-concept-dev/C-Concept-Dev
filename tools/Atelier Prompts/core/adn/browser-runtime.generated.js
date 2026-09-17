@@ -1,5 +1,5 @@
 /* GENERATED — LOT 10G.3B.3F.2
- * source-sha256: b2ac536fa0a762fb58a70eeba036ed1988f92acd586e72df90f369773f129af4
+ * source-sha256: f26cec6b3bfb1fb585e27173be6fbd06b2ceeb1bb2e00832679ae17924ea6a76
  * Ne pas modifier manuellement. Régénérer avec tools/build-adn-browser-runtime.mjs
  */
 (function(global){
@@ -7384,9 +7384,46 @@ function guardDisplayedQuestion(texte, { candidates = [], objectiveNature = null
    *
    * Le texte est transmis. Ce repli reste ce qu'il a toujours été : une ÉGALITÉ exacte, jamais une
    * ressemblance — aucun seuil, aucune distance, aucun synonyme. */
-  const affichable = (q, focus, id) => isAtomicQuestion(q)
-    && !isMetaOutputQuestion(q, { objectiveNature, requestFocus, questionFocus: focus })
-    && !isRepeatedSolicitation(q, history, id);
+  /* DEEP-DISPLAY-RETRY — LA CAUSE DU REFUS ÉTAIT CALCULÉE, PUIS JETÉE.
+   *
+   * MESURÉ EN PRODUCTION : `sujet_presentation` refusé deux fois de suite, ~47 s d'appels profonds,
+   * puis accepté au troisième essai sur une formulation différente. Le manque était légitime ; seule
+   * la FORME était fautive. Or le plan profond était rappelé sans savoir qu'il venait d'être refusé,
+   * ni pourquoi — là où le plan rapide reçoit depuis toujours un verdict nommé et une correction.
+   *
+   * L'asymétrie tenait à une seule ligne : les trois prédicats vivaient dans une expression
+   * booléenne, et seul leur ET final sortait. `cause()` les évalue SÉPARÉMENT, dans le MÊME ordre,
+   * avec le MÊME court-circuit, et rend le premier qui échoue. Aucune règle n'est ajoutée, aucune
+   * n'est déplacée, aucune n'est dupliquée : `affichable()` s'exprime désormais PAR `cause()`, ce
+   * qui rend une divergence entre les deux structurellement impossible.
+   *
+   * LE VOCABULAIRE EST CELUI QUI EXISTE. `SOLICITATION_VERDICTS` nomme déjà ces refus sur le plan
+   * rapide ; en inventer d'autres ici créerait deux langages pour un seul fait. */
+  const cause = (q, focus, id) => {
+    /* Un texte vide ne compte pas comme « plusieurs questions » : `EMPTY` figure déjà dans
+       l'énumération, et le nom juste compte ici plus que partout — c'est lui qui partira en
+       correction au plan profond. */
+    if (!String(q || '').trim()) return 'EMPTY';
+    /* EN DEUX BRANCHES, PAS EN TERNAIRE, ET POUR UNE RAISON MESURÉE.
+     *
+     * V221D2F-01 interdit toute question constante dans la logique exécutée, et la reconnaît à une
+     * littérale terminée par un point d'interrogation ; sa détection compte les guillemets depuis le
+     * début du fichier, si bien qu'un ternaire glissé entre deux littérales lui apparaît comme une
+     * question en dur. Ce détecteur garde un invariant que la gouvernance exige : c'est donc la forme
+     * d'ici qui cède, jamais le détecteur. Le sens est identique, et la lecture y gagne.
+     *
+     * Les lignes de ce bloc sont préfixées — V211-11 et V221D2F-01 dépouillent l'un et l'autre les
+     * lignes ainsi marquées avant d'inspecter la logique. Un commentaire qui explique un garde ne
+     * doit pas pouvoir le faire échouer sur ses propres mots. */
+    if (!isAtomicQuestion(q)) {
+      if (countNamedAlternatives(q) >= 3) return 'CATALOGUE';
+      return 'MULTIPLE_QUESTIONS';
+    }
+    if (isMetaOutputQuestion(q, { objectiveNature, requestFocus, questionFocus: focus })) return 'META_OUTPUT_QUESTION';
+    if (isRepeatedSolicitation(q, history, id)) return 'ALREADY_ANSWERED';
+    return null;
+  };
+  const affichable = (q, focus, id) => cause(q, focus, id) === null;
   const t = String(texte || '').trim();
   if (affichable(t, questionFocus, missingDeterminantId)) return { verdict: 'ALLOW', text: t };
   /* Chaque candidate porte SON propre fait : on ne lui applique jamais celui d'une autre question. */
@@ -7414,8 +7451,12 @@ function guardDisplayedQuestion(texte, { candidates = [], objectiveNature = null
    * Couper n'est pas choisir : le résultat est une question que personne n'a écrite. Les seules
    * issues sont donc celles qui viennent de l'autorité — sa question, ou l'une de ses candidates. */
   /* Rien d'affichable, et rien d'inventé : `text` vaut null, et chaque appelant a déjà son
-     issue — le silence sur le plan rapide, le repli de contrat sur le plan profond. */
-  return { verdict: 'NOT_DISPLAYABLE', text: null };
+     issue — le silence sur le plan rapide, le repli de contrat sur le plan profond.
+     DEEP-DISPLAY-RETRY — la cause du refus de la question PRINCIPALE accompagne le verdict. C'est
+     elle, et elle seule, qu'une reprise corrective peut transmettre à l'autorité. Les causes des
+     candidates ne sont pas rendues : c'est la principale que l'autorité doit reformuler. */
+  return { verdict: 'NOT_DISPLAYABLE', text: null,
+    reason: cause(t, questionFocus, missingDeterminantId) };
 }
 
 return {SOLICITING_TYPES,SOLICITATION_VERDICTS,SILENT_INTERACTION,countInterrogations,countNamedAlternatives,countTargetedDimensions,isRepeatedSolicitation,assessSolicitation,guardFastSolicitation,DISPLAY_VERDICTS,isAtomicQuestion,guardDisplayedQuestion};
@@ -7557,6 +7598,43 @@ INTERDICTIONS
 ${ISSUE_TAXONOMY_GUIDE}
 
 Répondez uniquement avec l'objet JSON demandé, conforme au schéma.`;
+
+/* DEEP-DISPLAY-RETRY — CE QU'ON DIT À L'AUTORITÉ QUAND SA QUESTION N'A PAS ÉTÉ MONTRÉE.
+ *
+ * MESURÉ : `sujet_presentation` refusé deux fois, ~47 s d'appels profonds, accepté au troisième
+ * essai. Le manque était juste ; la forme, non. Et le plan profond était rappelé SANS savoir qu'il
+ * venait d'être refusé — là où le plan rapide reçoit un verdict nommé et une correction depuis
+ * BETA-04. Cette table est l'équivalent strict de `FAST_CORRECTIONS`, pour l'autre plan.
+ *
+ * Ce qui est transmis est un CONSTAT DE FORME, jamais une règle métier, jamais un exemple, jamais
+ * une suggestion de contenu. L'autorité garde la main sur ce qu'elle demande et sur la façon de le
+ * demander : on lui dit ce qui a été refusé, pas quoi écrire.
+ *
+ * Et rien n'invite à CHANGER de manque. Le manque sélectionné était correct dans les deux cas
+ * observés ; lui suggérer d'en changer déplacerait un défaut de forme vers un défaut de choix.
+ * ALREADY_ANSWERED est la seule exception, et pour cause : là, le manque lui-même est acquis. */
+const DEEP_DISPLAY_CORRECTIONS = Object.freeze({
+  MULTIPLE_QUESTIONS: "VOTRE QUESTION PRÉCÉDENTE N'A PAS ÉTÉ MONTRÉE À LA PERSONNE : elle portait plusieurs besoins à la fois. Reprenez le MÊME manque et posez-le en UNE seule question, sur un seul besoin, sans coordination ni énumération.",
+  CATALOGUE: "VOTRE QUESTION PRÉCÉDENTE N'A PAS ÉTÉ MONTRÉE À LA PERSONNE : elle proposait un catalogue d'options à choisir. Reprenez le MÊME manque et posez-le comme une question ouverte sur une variable du problème, sans énumérer de réponses possibles.",
+  META_OUTPUT_QUESTION: "VOTRE QUESTION PRÉCÉDENTE N'A PAS ÉTÉ MONTRÉE À LA PERSONNE : elle lui demandait de définir ce que nous devons produire. Portez votre question sur une variable de SA situation — ce qu'elle seule sait et qui change le résultat — ou, si aucune ne reste déterminante, ne demandez rien.",
+  ALREADY_ANSWERED: "VOTRE QUESTION PRÉCÉDENTE N'A PAS ÉTÉ MONTRÉE À LA PERSONNE : ce manque a déjà été sollicité, et l'historique en porte la réponse. Tenez-le pour acquis. Choisissez un AUTRE manque seulement s'il est réellement non substituable ; sinon, produisez le candidat.",
+  EMPTY: "VOTRE QUESTION PRÉCÉDENTE N'A PAS ÉTÉ MONTRÉE À LA PERSONNE : son texte était vide. Reprenez le MÊME manque et écrivez la question, en une seule phrase interrogative."
+});
+
+/**
+ * La consigne du Core, augmentée d'un constat de refus. Rien n'est retiré : la correction s'ajoute
+ * en fin, comme `consigneRapide` le fait côté rapide, et la doctrine reste intégralement en place.
+ */
+function coreSystemPromptWithCorrection(reason, missingDeterminantId = null) {
+  const correction = DEEP_DISPLAY_CORRECTIONS[reason];
+  if (!correction) return CORE_SYSTEM_PROMPT;
+  /* L'identité du manque est rappelée quand elle existe — c'est un identifiant que l'autorité a
+     elle-même forgé, jamais un mot de la personne. */
+  const identite = typeof missingDeterminantId === "string" && missingDeterminantId.trim()
+    ? ` Le manque visé était nommé « ${missingDeterminantId.trim()} » ; conservez cette identité si elle reste la bonne.`
+    : "";
+  return `${CORE_SYSTEM_PROMPT}\n\n${correction}${identite}`;
+}
 
 /** Les huit champs de l'Arbitre, plus les deux que le Core ajoute. */
 const CORE_OUTPUT_FIELDS = Object.freeze([
@@ -7818,7 +7896,7 @@ function nouveauRelevé() {
  * Le chemin nominal est une ligne : un appel `core`, et le tour est rendu. Les deux étapes
  * suivantes n'existent que si un CONSTAT les a demandées et qu'un garde déterministe l'a accordé.
  */
-async function runCoreFirstTurn(input, { executeRole, log = () => {} } = {}) {
+async function runCoreFirstTurn(input, { executeRole, log = () => {}, corrective = null } = {}) {
   if (typeof executeRole !== "function") throw new TypeError("runCoreFirstTurn : executeRole requis.");
   const base = validateCoreInput(input);
   const appels = nouveauRelevé();
@@ -7831,7 +7909,9 @@ async function runCoreFirstTurn(input, { executeRole, log = () => {} } = {}) {
      qu'un défaut de notre code ne doit jamais se déguiser en état produit. */
   let brut;
   try {
-    brut = await executeRole("core", base, { log });
+    /* DEEP-DISPLAY-RETRY — le constat de refus voyage dans les OPTIONS, jamais dans l'entrée :
+       le contrat d'entrée du rôle reste clos. Sans constat, l'appel est identique à l'octet près. */
+    brut = await executeRole("core", base, { log, ...(corrective ? { corrective } : {}) });
   } catch (error) {
     if (error?.all_providers_failed !== true) throw error;
     log({ event: "v2_degraded", role: "core", attempts: error.attempts ?? [] });
@@ -8420,7 +8500,49 @@ async function runCoreFirstTurnForRequest(input, { executeRole, log, trace }) {
     semantic_deep_calls: 1,
     contractualization_calls: 1
   });
-  return applyDisplayGuardToTurn(resultat.turn, { question_candidates: resultat.question_candidates }, log, input && input.clarification_history);
+  /* DEEP-DISPLAY-RETRY — UNE SECONDE CHANCE, INFORMÉE, ET UNE SEULE.
+   *
+   * MESURÉ EN PRODUCTION : `sujet_presentation` refusé deux fois, ~47 s d'appels profonds, puis
+   * accepté au troisième essai. Le manque était légitime ; seule la forme était fautive. Et chaque
+   * nouvel appel repartait AVEUGLE — le plan rapide, lui, reçoit un verdict nommé et une correction
+   * depuis BETA-04. L'asymétrie est comblée, à l'identique : après la chaîne, même autorité, un
+   * appel de plus, re-passage du MÊME garde.
+   *
+   * EXACTEMENT UNE REPRISE. Ce n'est pas un compteur : c'est une seule branche, non récursive. Si
+   * elle échoue, la levée d'origine est relancée telle quelle — même statut, même code — et la borne
+   * du tour reste celle qui existe déjà, humaine : le client affiche l'échec et attend un clic.
+   * Aucune relance automatique n'est créée ici, et l'audit a établi qu'il n'en existe aucune.
+   *
+   * CE QUI N'EST PAS REPRIS : un refus sans cause nommée, et un `REPLACED` — une candidate
+   * affichable a déjà sauvé le tour, il n'y a rien à corriger. */
+  try {
+    return applyDisplayGuardToTurn(resultat.turn, { question_candidates: resultat.question_candidates }, log, input && input.clarification_history);
+  } catch (refus) {
+    const constat = refus && refus.display_refusal;
+    if (!constat || !constat.reason) throw refus;
+    log({ event: "DEEP_CORRECTIVE_RETRY", reason: constat.reason,
+          missing_determinant_id: constat.missing_determinant_id || null });
+    let reprise;
+    try {
+      reprise = await runCoreFirstTurn(input, { executeRole, log, corrective: constat });
+    } catch (erreur) {
+      /* Une panne pendant la reprise n'est pas un refus de forme : on rend le refus d'origine, qui
+         décrit ce que la personne a réellement rencontré. */
+      log({ event: "DEEP_CORRECTIVE_RETRY_RESULT", result: "EXHAUSTED", cause: "PROVIDER_ERROR" });
+      throw refus;
+    }
+    try {
+      const tour = applyDisplayGuardToTurn(reprise.turn, { question_candidates: reprise.question_candidates }, log, input && input.clarification_history);
+      log({ event: "DEEP_CORRECTIVE_RETRY_RESULT", result: "DISPLAYABLE" });
+      return tour;
+    } catch (secondRefus) {
+      log({ event: "DEEP_CORRECTIVE_RETRY_RESULT", result: "EXHAUSTED",
+            reason: (secondRefus && secondRefus.display_refusal && secondRefus.display_refusal.reason) || null });
+      log({ event: "DEEP_CORRECTIVE_RETRY_EXHAUSTED",
+            missing_determinant_id: constat.missing_determinant_id || null });
+      throw secondRefus;
+    }
+  }
 }
 
 /**
@@ -8510,8 +8632,24 @@ function applyDisplayGuardToTurn(turn, analystOutput, log = () => {}, history = 
       state: turn && turn.state,
       candidates_available: candidates.length
     });
-    throw new DecisionHttpError(502, "turn_contractually_unusable",
-      "Le tour exige une clarification, et aucune des questions produites n'est affichable.");
+    /* DEEP-DISPLAY-RETRY — LA CAUSE DU REFUS ACCOMPAGNE LA LEVÉE.
+     *
+     * Elle était calculée par le garde et jetée ici. Mesuré : le plan profond était rappelé sans
+     * savoir qu'il venait d'être refusé, ni pourquoi — deux appels aveugles, ~47 s, avant qu'une
+     * formulation passe. La cause est donc attachée à l'erreur, et c'est `runCoreFirstTurnForRequest`
+     * qui la lit pour offrir UNE reprise corrective. La réponse HTTP, elle, ne change pas : même
+     * statut, même code, même message. */
+    log({ event: "DEEP_DISPLAY_REJECTED", reason: garde.reason || null,
+          missing_determinant_id: (question && typeof question.missing_determinant_id === "string"
+            ? question.missing_determinant_id.trim() : null) || null });
+    throw Object.assign(new DecisionHttpError(502, "turn_contractually_unusable",
+      "Le tour exige une clarification, et aucune des questions produites n'est affichable."), {
+        display_refusal: {
+          reason: garde.reason || null,
+          missing_determinant_id: (question && typeof question.missing_determinant_id === "string"
+            ? question.missing_determinant_id.trim() : null) || null
+        }
+      });
   }
   if (garde.text === texte) return turn;
   /* FINAL-TARGETED-FIX — il n'existe plus de troisième issue. Le garde rend ALLOW (même texte),
@@ -12246,5 +12384,5 @@ function createAdapterAuditView(envelope) {
 
 return {ENGINE_ADAPTERS_VERSION,buildExecutionEnvelope,projectToRapide,projectToArchitecte,projectToAtelier,validateLegacyLockMapping,createAdapterAuditView};
 })({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON});
-global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...BOUNDED,...ORCORE,...ROLEDEG,...SOLICIT,...COREPLANE,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'b2ac536fa0a762fb58a70eeba036ed1988f92acd586e72df90f369773f129af4'});
+global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...BOUNDED,...ORCORE,...ROLEDEG,...SOLICIT,...COREPLANE,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'f26cec6b3bfb1fb585e27173be6fbd06b2ceeb1bb2e00832679ae17924ea6a76'});
 })(window);

@@ -32,7 +32,7 @@ export { PROVIDER_TECHNICAL_CAPABILITIES, resolveProviderConcurrency } from "../
 import { handleOperationalRequest, resolveInvocationId } from "../../shared/operational-request-orchestrator.js";
 /* V2.2 — la doctrine de clarification vient de son PROPRIÉTAIRE, elle n'est pas recopiée ici. */
 import { OPRIE_CLARIFICATION_DOCTRINE } from "../../shared/operational-request-core.js";
-import { CORE_ROLE_DEFINITIONS } from "../../shared/core-first-plane.js";
+import { CORE_ROLE_DEFINITIONS, coreSystemPromptWithCorrection } from "../../shared/core-first-plane.js";
 import { guardFastSolicitation, guardFastInteraction, assessSolicitation, SILENT_INTERACTION, SOLICITING_TYPES } from "../../shared/solicitation-policy.js";
 
 const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
@@ -1926,11 +1926,26 @@ export async function decideWithSelectedProvider(input, env, options = {}) {
  * Pour analyst et arbiter (mono-call par nature, non concernés par X2-BATCH), c'est toujours ici le
  * chemin réel de production.
  */
-export async function runRoleWithGroq(role, input, env, { retryOverrides = {} } = {}) {
+/* DEEP-DISPLAY-RETRY — LA CONSIGNE D'UN RÔLE PEUT PORTER UN CONSTAT DE REFUS.
+ *
+ * `resolveRoleSchema(definition, input)` existait déjà : le schéma d'un rôle se résout depuis son
+ * entrée. Ce résolveur est son symétrique pour la consigne, et il ne s'applique qu'au rôle `core`
+ * et qu'en présence d'un constat. Sans constat, il rend exactement `definition.systemPrompt` —
+ * l'octet près, donc aucun chemin existant ne change.
+ *
+ * Le correctif voyage dans les OPTIONS, jamais dans l'entrée : le contrat d'entrée du rôle reste
+ * clos, et aucun registre sémantique n'est ajouté. C'est le transport qu'emploie déjà le plan
+ * rapide pour `FAST_CORRECTIONS`. */
+function resolveRoleSystemPrompt(role, definition, corrective) {
+  if (role !== "core" || !corrective || typeof corrective !== "object") return definition.systemPrompt;
+  return coreSystemPromptWithCorrection(corrective.reason, corrective.missing_determinant_id);
+}
+
+export async function runRoleWithGroq(role, input, env, { retryOverrides = {}, corrective = null } = {}) {
   const definition = ALL_ROLE_DEFINITIONS[role];
   if (!definition) throw new Error(`Rôle OPRIE inconnu : ${role}.`);
   const content = await callGroqChatCompletion({
-    systemPrompt: definition.systemPrompt,
+    systemPrompt: resolveRoleSystemPrompt(role, definition, corrective),
     userMessage: definition.buildUserMessage(input),
     schema: resolveRoleSchema(definition, input),
     schemaName: `oprie_${role}`,
@@ -2437,11 +2452,11 @@ function parseRoleOutput(role, content, provider) {
  * schéma, userMessage et parseOutput, issus du MÊME registre. callAnthropicMessages (R5.1) était déjà
  * entièrement générique : aucune adaptation de transport supplémentaire n'était nécessaire.
  */
-export async function runRoleWithAnthropic(role, input, env) {
+export async function runRoleWithAnthropic(role, input, env, { corrective = null } = {}) {
   const definition = ALL_ROLE_DEFINITIONS[role];
   if (!definition) throw new Error(`Rôle OPRIE inconnu : ${role}.`);
   const content = await callAnthropicMessages({
-    systemPrompt: definition.systemPrompt,
+    systemPrompt: resolveRoleSystemPrompt(role, definition, corrective),
     userMessage: definition.buildUserMessage(input),
     schema: resolveRoleSchema(definition, input),
     schemaName: `oprie_${role}`,
@@ -2458,11 +2473,11 @@ export async function runRoleWithAnthropic(role, input, env) {
  * tests/operational-request-groq-schema-compat.test.mjs, et revérifiés à l'exécution par
  * assertRoleContractUsable. Aucune projection, aucune réécriture de schéma.
  */
-export async function runRoleWithOpenAI(role, input, env) {
+export async function runRoleWithOpenAI(role, input, env, { corrective = null } = {}) {
   const definition = ALL_ROLE_DEFINITIONS[role];
   if (!definition) throw new Error(`Rôle OPRIE inconnu : ${role}.`);
   const content = await callOpenAiChatCompletion({
-    systemPrompt: definition.systemPrompt,
+    systemPrompt: resolveRoleSystemPrompt(role, definition, corrective),
     userMessage: definition.buildUserMessage(input),
     schema: resolveRoleSchema(definition, input),
     schemaName: `oprie_${role}`,
@@ -2571,9 +2586,9 @@ const CRITIC_PIPELINES = Object.freeze({
 const ALL_ROLE_DEFINITIONS = Object.freeze({ ...ROLE_DEFINITIONS, ...CORE_ROLE_DEFINITIONS });
 
 const GENERIC_ROLE_ADAPTERS = Object.freeze({
-  groq: (role, input, env) => runRoleWithGroq(role, input, env),
-  anthropic: (role, input, env) => runRoleWithAnthropic(role, input, env),
-  openai: (role, input, env) => runRoleWithOpenAI(role, input, env)
+  groq: (role, input, env, options) => runRoleWithGroq(role, input, env, options),
+  anthropic: (role, input, env, options) => runRoleWithAnthropic(role, input, env, options),
+  openai: (role, input, env, options) => runRoleWithOpenAI(role, input, env, options)
 });
 
 /**
@@ -2586,7 +2601,7 @@ const GENERIC_ROLE_ADAPTERS = Object.freeze({
  * canonique est fournie séparément par degradedResultFromProviderChainError, à l'usage de la couche
  * qui possède l'autorité OPRIE — jamais décidée ici.
  */
-export async function runRoleWithHaChain(role, input, env, { order = ROLE_PROVIDER_ORDER, log, retryOverrides } = {}) {
+export async function runRoleWithHaChain(role, input, env, { order = ROLE_PROVIDER_ORDER, log, retryOverrides, corrective = null } = {}) {
   const isCritic = role === "critic";
   return avecReleveDeChaine(role, order, env, log, (observer) => runProviderChain({
     role,
@@ -2625,7 +2640,9 @@ export async function runRoleWithHaChain(role, input, env, { order = ROLE_PROVID
               throw tagCriticPipelineFailure(error, name);
             }
           }
-        : () => GENERIC_ROLE_ADAPTERS[name](role, input, env)
+        /* DEEP-DISPLAY-RETRY — le constat de refus atteint l'adaptateur, quel que soit le
+           fournisseur : la reprise corrective vaut pour les trois, jamais pour un seul. */
+        : () => GENERIC_ROLE_ADAPTERS[name](role, input, env, corrective ? { corrective } : undefined)
     })),
     log: observer
   }));
@@ -2816,7 +2833,9 @@ export default {
            l'enregistrement terminal. provider-ha.js n'est pas touché. */
         executeRole: (role, roleInput, options) => runRoleWithHaChain(role, roleInput, env, {
           order: resolveProviderOrderForRole(role, env),
-          ...(options && typeof options.log === "function" ? { log: options.log } : {})
+          ...(options && typeof options.log === "function" ? { log: options.log } : {}),
+          /* DEEP-DISPLAY-RETRY — le constat de refus descend jusqu'au fournisseur, comme le `log`. */
+          ...(options && options.corrective ? { corrective: options.corrective } : {})
         }),
         resolveModel: (provider) => resolveRoleProviderModel(provider, env)
       });

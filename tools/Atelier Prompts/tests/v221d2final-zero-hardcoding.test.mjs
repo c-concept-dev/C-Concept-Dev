@@ -121,7 +121,21 @@ test('V221D2F-05 : sans rien de récupérable, la frontière constate — elle n
     (e) => e.status === 502 && e.code === 'turn_contractually_unusable');
   /* Et le client sait déjà traiter ce cas, depuis toujours, sans question fabriquée : une réponse
      non-OK lève l'échec technique nommé, rejouable. */
-  assert.match(html, /if\(!response\.ok\)throw oprieTechnicalFailure\(\)/);
+  /* DEEP-DISPLAY-RETRY — HISTORICAL_IMPLEMENTATION_CONTRACT. Le chemin d'échec est le même, et
+     c'est ce que ce test affirme : une réponse non-OK lève l'échec technique nommé, rejouable, sans
+     question fabriquée. Il porte maintenant le CODE du contrat, pour que le message montré à la
+     personne distingue « la question n'a pas pu être formulée » d'une panne quelconque. Le littéral
+     est réépinglé, et deux garanties s'y ajoutent plutôt que de s'y perdre : seul `error` est lu, et
+     le message du serveur — qui pourrait porter des mots de la demande — ne l'est jamais. */
+  assert.match(html, /if\(!response\.ok\)\{/);
+  assert.match(html, /throw oprieTechnicalFailure\(code\);/);
+  assert.match(html, /code=corps&&typeof corps\.error==='string'\?corps\.error:null/,
+    'le code du contrat est lu, et lui seul');
+  /* Borné AU BLOC d'échec : `corps.message` seul attraperait `corps.messages`, un champ de corps de
+     requête qui n'a rien à voir. Une garde mal ancrée accuse le code innocent. */
+  const blocEchec = html.slice(html.indexOf('if(!response.ok){'), html.indexOf('throw oprieTechnicalFailure(code);'));
+  assert.equal(/corps\.message\b/.test(blocEchec), false, 'le message du serveur n’est pas lu');
+  assert.equal(/corps\.message[^s]/.test(blocEchec), false, 'et rien qui en approche');
 });
 
 test('V221D2F-05b : une candidate du même tour est toujours préférée à l’absence', () => {

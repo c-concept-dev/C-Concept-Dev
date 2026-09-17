@@ -141,6 +141,43 @@ ${ISSUE_TAXONOMY_GUIDE}
 
 Répondez uniquement avec l'objet JSON demandé, conforme au schéma.`;
 
+/* DEEP-DISPLAY-RETRY — CE QU'ON DIT À L'AUTORITÉ QUAND SA QUESTION N'A PAS ÉTÉ MONTRÉE.
+ *
+ * MESURÉ : `sujet_presentation` refusé deux fois, ~47 s d'appels profonds, accepté au troisième
+ * essai. Le manque était juste ; la forme, non. Et le plan profond était rappelé SANS savoir qu'il
+ * venait d'être refusé — là où le plan rapide reçoit un verdict nommé et une correction depuis
+ * BETA-04. Cette table est l'équivalent strict de `FAST_CORRECTIONS`, pour l'autre plan.
+ *
+ * Ce qui est transmis est un CONSTAT DE FORME, jamais une règle métier, jamais un exemple, jamais
+ * une suggestion de contenu. L'autorité garde la main sur ce qu'elle demande et sur la façon de le
+ * demander : on lui dit ce qui a été refusé, pas quoi écrire.
+ *
+ * Et rien n'invite à CHANGER de manque. Le manque sélectionné était correct dans les deux cas
+ * observés ; lui suggérer d'en changer déplacerait un défaut de forme vers un défaut de choix.
+ * ALREADY_ANSWERED est la seule exception, et pour cause : là, le manque lui-même est acquis. */
+export const DEEP_DISPLAY_CORRECTIONS = Object.freeze({
+  MULTIPLE_QUESTIONS: "VOTRE QUESTION PRÉCÉDENTE N'A PAS ÉTÉ MONTRÉE À LA PERSONNE : elle portait plusieurs besoins à la fois. Reprenez le MÊME manque et posez-le en UNE seule question, sur un seul besoin, sans coordination ni énumération.",
+  CATALOGUE: "VOTRE QUESTION PRÉCÉDENTE N'A PAS ÉTÉ MONTRÉE À LA PERSONNE : elle proposait un catalogue d'options à choisir. Reprenez le MÊME manque et posez-le comme une question ouverte sur une variable du problème, sans énumérer de réponses possibles.",
+  META_OUTPUT_QUESTION: "VOTRE QUESTION PRÉCÉDENTE N'A PAS ÉTÉ MONTRÉE À LA PERSONNE : elle lui demandait de définir ce que nous devons produire. Portez votre question sur une variable de SA situation — ce qu'elle seule sait et qui change le résultat — ou, si aucune ne reste déterminante, ne demandez rien.",
+  ALREADY_ANSWERED: "VOTRE QUESTION PRÉCÉDENTE N'A PAS ÉTÉ MONTRÉE À LA PERSONNE : ce manque a déjà été sollicité, et l'historique en porte la réponse. Tenez-le pour acquis. Choisissez un AUTRE manque seulement s'il est réellement non substituable ; sinon, produisez le candidat.",
+  EMPTY: "VOTRE QUESTION PRÉCÉDENTE N'A PAS ÉTÉ MONTRÉE À LA PERSONNE : son texte était vide. Reprenez le MÊME manque et écrivez la question, en une seule phrase interrogative."
+});
+
+/**
+ * La consigne du Core, augmentée d'un constat de refus. Rien n'est retiré : la correction s'ajoute
+ * en fin, comme `consigneRapide` le fait côté rapide, et la doctrine reste intégralement en place.
+ */
+export function coreSystemPromptWithCorrection(reason, missingDeterminantId = null) {
+  const correction = DEEP_DISPLAY_CORRECTIONS[reason];
+  if (!correction) return CORE_SYSTEM_PROMPT;
+  /* L'identité du manque est rappelée quand elle existe — c'est un identifiant que l'autorité a
+     elle-même forgé, jamais un mot de la personne. */
+  const identite = typeof missingDeterminantId === "string" && missingDeterminantId.trim()
+    ? ` Le manque visé était nommé « ${missingDeterminantId.trim()} » ; conservez cette identité si elle reste la bonne.`
+    : "";
+  return `${CORE_SYSTEM_PROMPT}\n\n${correction}${identite}`;
+}
+
 /** Les huit champs de l'Arbitre, plus les deux que le Core ajoute. */
 export const CORE_OUTPUT_FIELDS = Object.freeze([
   ...ARBITER_JSON_SCHEMA.required, "question_candidates", "escalation"
@@ -401,7 +438,7 @@ function nouveauRelevé() {
  * Le chemin nominal est une ligne : un appel `core`, et le tour est rendu. Les deux étapes
  * suivantes n'existent que si un CONSTAT les a demandées et qu'un garde déterministe l'a accordé.
  */
-export async function runCoreFirstTurn(input, { executeRole, log = () => {} } = {}) {
+export async function runCoreFirstTurn(input, { executeRole, log = () => {}, corrective = null } = {}) {
   if (typeof executeRole !== "function") throw new TypeError("runCoreFirstTurn : executeRole requis.");
   const base = validateCoreInput(input);
   const appels = nouveauRelevé();
@@ -414,7 +451,9 @@ export async function runCoreFirstTurn(input, { executeRole, log = () => {} } = 
      qu'un défaut de notre code ne doit jamais se déguiser en état produit. */
   let brut;
   try {
-    brut = await executeRole("core", base, { log });
+    /* DEEP-DISPLAY-RETRY — le constat de refus voyage dans les OPTIONS, jamais dans l'entrée :
+       le contrat d'entrée du rôle reste clos. Sans constat, l'appel est identique à l'octet près. */
+    brut = await executeRole("core", base, { log, ...(corrective ? { corrective } : {}) });
   } catch (error) {
     if (error?.all_providers_failed !== true) throw error;
     log({ event: "v2_degraded", role: "core", attempts: error.attempts ?? [] });

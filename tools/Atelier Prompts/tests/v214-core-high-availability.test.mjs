@@ -276,7 +276,16 @@ test('V214-12 : le secondaire passe par le MÊME contrat, le même schéma, le m
     worker.indexOf('const CRITIC_PIPELINES'));
   assert.equal((bloc.match(/ALL_ROLE_DEFINITIONS\[role\]/g) || []).length >= 2, true,
     'les deux adaptateurs lisent le même registre');
-  assert.equal((bloc.match(/definition\.systemPrompt/g) || []).length >= 2, true);
+  /* DEEP-DISPLAY-RETRY — HISTORICAL_IMPLEMENTATION_CONTRACT. Les deux adaptateurs lisaient
+     `definition.systemPrompt` directement ; ils passent désormais par UN résolveur unique, parce que
+     le contractualisateur peut recevoir le constat de son refus d'affichage. La propriété affirmée
+     est intacte — aucun fournisseur ne possède sa consigne — et elle est vérifiée sur les DEUX
+     marches, ce que l'ancienne forme ne faisait pas : les adaptateurs consultent le même résolveur,
+     et ce résolveur rend le registre dès qu'il n'y a rien à corriger. */
+  assert.equal((bloc.match(/resolveRoleSystemPrompt\(role, definition, corrective\)/g) || []).length >= 2, true,
+    'les deux adaptateurs résolvent leur consigne par le même chemin');
+  assert.match(worker, /if \(role !== "core" \|\| !corrective \|\| typeof corrective !== "object"\) return definition\.systemPrompt;/,
+    'et ce chemin rend le registre, inchangé, en l’absence de constat');
   assert.equal((bloc.match(/resolveRoleSchema\(definition, input\)/g) || []).length >= 2, true);
   assert.equal((bloc.match(/parseRoleOutput\(role, content/g) || []).length >= 2, true,
     'et la même validation de sortie');
