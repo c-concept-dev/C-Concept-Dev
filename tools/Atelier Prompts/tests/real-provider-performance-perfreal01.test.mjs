@@ -149,8 +149,12 @@ test('T-PERFREAL01-08 : le schéma rapide reste à deux champs, et refuse tout l
      Le plan rapide dit désormais aussi CE QUI MANQUE. Comme `question_focus`, ce champ ne prononce
      aucun état, n'ouvre aucune route et n'autorise aucune exécution : les assertions qui suivent
      continuent de le vérifier, et c'est elles qui portent l'invariant. */
+  /* OPTION D — CINQ CHAMPS, ET L'INVARIANT EST TOUJOURS LE MÊME. Le plan rapide nomme aussi les
+     inconnues que la PERSONNE a déclarées : ce champ ne prononce aucun état, n'ouvre aucune route
+     et n'autorise aucune exécution — ce que les assertions qui suivent continuent de vérifier. */
   assert.deepEqual(Object.keys(verdict.interaction).sort(), ['authority', 'can_execute', 'can_mark_ready',
-    'can_route', 'canonical_version', 'interaction_id', 'missing_determinant_id', 'question_focus', 'source', 'text', 'turn_id', 'type']);
+    'can_route', 'canonical_version', 'explicit_unknown_determinant_ids', 'interaction_id', 'missing_determinant_id',
+    'question_focus', 'source', 'text', 'turn_id', 'type']);
   assert.equal(verdict.interaction.authority, 'candidate');
   for (const pouvoir of ['can_execute', 'can_mark_ready', 'can_route']) {
     assert.equal(verdict.interaction[pouvoir], false, `FAST_CAN_${pouvoir.slice(4).toUpperCase()} = NO`);
@@ -256,7 +260,7 @@ test('T-PERFREAL01-15 : l’artefact frontend n’a pas bougé', () => {
   assert.ok(crypto, 'empreinte calculable');
   const octets = fs.readFileSync(path.join(racine, 'atelier-prompts-v11.5-lot10g-decision-provider.html'));
   const empreinte = require$sha(octets);
-  assert.equal(empreinte, 'faf9e599ecef9ff8e89839b56912b4c3e85c3980dae68a7234f39994d6f78df6',
+  assert.equal(empreinte, '8e1e5061b0fad962fffc5c1ed5903f07eff5666c24b9c1b4aa5d4badb95b2a59',
     'CANONICAL_HTML_CHANGED = NO');
   /* Et les quatre points de terminaison qu'il déclare sont ceux de production. */
   const metas = [...HTML.matchAll(/<meta name="(atelier-[a-z-]+)" content="([^"]+)"/g)];

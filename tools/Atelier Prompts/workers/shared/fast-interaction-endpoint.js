@@ -141,7 +141,10 @@ export async function handleFastInteractionRequest(request, env, { executeFast, 
       /* TARGETED-FIX-POST-CODEX-01 — l'identité du manque repart avec la question. Sans elle,
          l'historique perdait ce que la question cherchait, et une reformulation ultérieure du même
          manque redevenait invisible. Recopiée, jamais recalculée. */
-      missing_determinant_id: verdict.interaction.missing_determinant_id
+      missing_determinant_id: verdict.interaction.missing_determinant_id,
+      /* OPTION D — les inconnues que la personne a déclarées repartent avec la décision. Recopiées,
+         jamais recalculées : cette porte ne lit aucune phrase et n'en déduit rien. */
+      explicit_unknown_determinant_ids: verdict.interaction.explicit_unknown_determinant_ids
     }, 200, cors);
   } catch (error) {
     /* V2.1.1 — POURQUOI CE TOUR N'A PAS EU DE PLAN RAPIDE.

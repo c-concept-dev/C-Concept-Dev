@@ -322,6 +322,23 @@ export function countNamedAlternatives(texte) {
  * deux restent un choix sur une même dimension, ce qu'une question atomique peut légitimement
  * proposer.
  */
+/**
+ * OPTION D — la question vise-t-elle un manque que la personne a elle-même déclaré ignorer ?
+ *
+ * Les deux faits viennent du MÊME objet, produit par la MÊME décision, dans le MÊME appel. Ce garde
+ * n'interroge aucune source extérieure et n'interprète rien : il compare deux identités qu'une
+ * autorité a établies. Une autorité qui ne déclare rien n'est pas contredite — c'est la limite
+ * assumée de ce mécanisme, et elle ne se comble pas par une devinette.
+ */
+export function isDeclaredUnknown(candidate) {
+  const vise = typeof (candidate && candidate.missing_determinant_id) === 'string'
+    ? candidate.missing_determinant_id.trim() : '';
+  if (!vise) return false;
+  const declarees = Array.isArray(candidate && candidate.explicit_unknown_determinant_ids)
+    ? candidate.explicit_unknown_determinant_ids : [];
+  return declarees.some((id) => typeof id === 'string' && id.trim() === vise);
+}
+
 export function assessSolicitation(candidate, history = [], materialPresent = false, faits = {}) {
   const texte = String((candidate && candidate.text) || '').trim();
   if (!texte) return 'EMPTY';
@@ -329,6 +346,20 @@ export function assessSolicitation(candidate, history = [], materialPresent = fa
   if (isMetaOutputQuestion(texte, { ...faits, questionFocus: candidate && candidate.question_focus })) return 'META_OUTPUT_QUESTION';
   /* F5 — la candidate porte l'identité du manque qu'elle vise ; c'est elle qu'on compare. */
   if (isRepeatedSolicitation(texte, history, candidate && candidate.missing_determinant_id)) return 'ALREADY_ANSWERED';
+  /* OPTION D — CE QUE LA PERSONNE A DÉCLARÉ IGNORER EST DÉJÀ UNE RÉPONSE.
+   *
+   * Mesuré : une demande disait ne pas connaître une donnée, et la PREMIÈRE question portait dessus.
+   * Aucun mécanisme n'avait tort — l'historique était vide, et il n'y avait rien à comparer.
+   *
+   * Il y a désormais quelque chose : la MÊME décision qui choisit la question nomme aussi les
+   * inconnues que la personne a déclarées. Ce garde ne fait que constater qu'elles désignent la même
+   * chose — une ÉGALITÉ d'identités, jamais une lecture de la phrase. Aucun appariement flou n'est
+   * réintroduit ; ce contrôle ne sait rien du langage et ne le saura jamais.
+   *
+   * LE VERDICT EST CELUI QUI EXISTE DÉJÀ. « La personne s'est déjà exprimée sur ce manque » est
+   * exactement ce que ALREADY_ANSWERED dit ; lui inventer un frère ne dirait rien de plus et
+   * doublerait le traitement en aval, reprise comprise. */
+  if (isDeclaredUnknown(candidate)) return 'ALREADY_ANSWERED';
   if (countInterrogations(texte) >= 2) return 'MULTIPLE_QUESTIONS';
   if (countNamedAlternatives(texte) >= 3) return 'CATALOGUE';
   return 'ALLOW';

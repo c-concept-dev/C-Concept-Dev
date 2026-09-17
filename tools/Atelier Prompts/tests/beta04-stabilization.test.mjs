@@ -137,7 +137,7 @@ test('T04-09 : une sollicitation refusée rend le silence, qui n’ouvre aucune 
 test('T04-10 : le plan rapide ne peut pas émettre READY, et le garde n’en fabrique pas', () => {
   assert.equal(validateFastInteraction({ type: 'operational_request_ready', text: 'Prêt' }, snapshot).ok, false);
   /* V2.2.1-D2F1 — trois champs, aucun n'étant un état : l'incapacité vérifiée ici est intacte. */
-  assert.deepEqual(Object.keys(FAST_INTERACTION_JSON_SCHEMA.properties).sort(), ['missing_determinant_id', 'question_focus', 'text', 'type']);
+  assert.deepEqual(Object.keys(FAST_INTERACTION_JSON_SCHEMA.properties).sort(), ['explicit_unknown_determinant_ids', 'missing_determinant_id', 'question_focus', 'text', 'type']);
   /* Et le verdict du garde ne voyage pas : il ne sort jamais de la fonction. */
   const out = guardFastSolicitation({ type: 'ASK_CLARIFICATION', text: CATALOGUE_REEL, question_focus: 'output_specification' }, snapshot);
   assert.deepEqual(Object.keys(out).sort(), ['text', 'type']);

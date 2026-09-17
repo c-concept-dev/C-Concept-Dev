@@ -76,7 +76,7 @@ test('T1 : le plan rapide déclare l’identité du manque, et la porte réseau 
     { ALLOWED_ORIGINS: 'https://a.test' },
     { executeFast: async () => ({ type: 'ASK_CLARIFICATION', text: 'Q ?', question_focus: 'problem_or_user_context', missing_determinant_id: 'manque_a' }) });
   const json = await res.json();
-  assert.deepEqual(Object.keys(json).sort(), ['missing_determinant_id', 'question_focus', 'text', 'type']);
+  assert.deepEqual(Object.keys(json).sort(), ['explicit_unknown_determinant_ids', 'missing_determinant_id', 'question_focus', 'text', 'type']);
   assert.equal(json.missing_determinant_id, 'manque_a');
   /* Lecture tolérante : un fournisseur qui l’omet ne casse rien, l’identité vaut null. */
   const sans = validateFastInteraction({ type: 'ACKNOWLEDGE', text: 'Reçu.' },

@@ -69,7 +69,7 @@ export const FAST_FORBIDDEN_AUTHORITY_FIELDS = Object.freeze([
 export const FAST_INTERACTION_JSON_SCHEMA = Object.freeze({
   type: "object",
   additionalProperties: false,
-  required: ["type", "text", "question_focus", "missing_determinant_id"],
+  required: ["type", "text", "question_focus", "missing_determinant_id", "explicit_unknown_determinant_ids"],
   properties: {
     type: { type: "string", enum: [...FAST_INTERACTION_TYPES] },
     text: { type: "string" },
@@ -87,7 +87,23 @@ export const FAST_INTERACTION_JSON_SCHEMA = Object.freeze({
      * Ce n'est pas une seconde autorité : c'est la MÊME décision qui choisit la question, à qui
      * l'on demande de nommer ce qu'elle cherche. Aucun identifiant n'est dérivé de mots-clés, aucun
      * n'est fabriqué par l'interface, et null reste une réponse légitime. */
-    missing_determinant_id: { type: ["string", "null"] }
+    missing_determinant_id: { type: ["string", "null"] },
+    /* OPTION D — CE QUE LA PERSONNE A ELLE-MÊME DÉCLARÉ NE PAS CONNAÎTRE.
+     *
+     * Mesuré en usage réel : une demande disait « pour cette donnée, je ne sais pas encore », et la
+     * première question portait exactement dessus. Aucun mécanisme n'avait tort — le garde compare
+     * l'historique, qui était vide, et la doctrine ne parle que d'une réponse OBTENUE. Une inconnue
+     * déclarée AVANT toute question n'avait aucun porteur : pour tout composant déterministe, elle
+     * était indiscernable d'une absence.
+     *
+     * Ce champ lui en donne un. Ce n'est pas une seconde autorité — c'est la MÊME décision qui lit
+     * déjà la demande et nomme déjà ce qui manque, à qui l'on demande de nommer aussi ce que la
+     * personne a dit ignorer. Rien n'est déduit de mots-clés, rien n'est fabriqué par l'interface,
+     * et une liste vide reste la réponse normale.
+     *
+     * CE QU'IL NE FAIT PAS : il ne déclare aucune readiness, ne convertit rien en inconnue
+     * résiduelle, et ne juge pas si l'inconnue est bloquante. Il NOMME un fait. */
+    explicit_unknown_determinant_ids: { type: ["array", "null"], items: { type: "string" } }
   }
 });
 
@@ -155,6 +171,7 @@ export function validateFastInteraction(candidate, snapshot) {
   const attendues = ["text", "type"];
   if (cles.includes("question_focus")) attendues.push("question_focus");
   if (cles.includes("missing_determinant_id")) attendues.push("missing_determinant_id");
+  if (cles.includes("explicit_unknown_determinant_ids")) attendues.push("explicit_unknown_determinant_ids");
   attendues.sort();
   if (cles.length !== attendues.length || cles.some((c, i) => c !== attendues[i])) {
     return { ok: false, reason: "FAST_SCHEMA_ERROR", detail: `clés inattendues : ${cles.join(", ") || "aucune"}` };
@@ -180,6 +197,12 @@ export function validateFastInteraction(candidate, snapshot) {
       /* L'identité du manque, telle que le plan rapide l'a nommée. Jamais dérivée ici. */
       missing_determinant_id: typeof candidate.missing_determinant_id === "string" && candidate.missing_determinant_id.trim()
         ? candidate.missing_determinant_id.trim() : null,
+      /* OPTION D — des IDENTITÉS, jamais des phrases. Ce qui n'est pas une identité non vide est
+         écarté sans être réparé ; une liste absente vaut une liste vide, et ne se devine pas. */
+      explicit_unknown_determinant_ids: Object.freeze((Array.isArray(candidate.explicit_unknown_determinant_ids)
+        ? candidate.explicit_unknown_determinant_ids : [])
+        .filter((id) => typeof id === "string" && id.trim())
+        .map((id) => id.trim())),
       source: "fast_plane",
       /* Le mot compte : ce résultat est un CANDIDAT. Rien dans le système ne
          doit le lire comme un état. */

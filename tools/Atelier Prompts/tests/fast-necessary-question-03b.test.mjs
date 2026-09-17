@@ -159,7 +159,10 @@ test('T-03B-06/07 : le mécanisme d’escalade reste celui que 1D-N a figé', ()
      démontré qu'une question rapide répondue laissait l'historique sans identité : une reformulation
      ultérieure du même manque n'était alors plus reconnue. Le schéma reste clos et incapable de
      porter un état — c'est ce que cette assertion garde, et cela n'a pas changé. */
-  assert.deepEqual(FAST_INTERACTION_JSON_SCHEMA.required, ['type', 'text', 'question_focus', 'missing_determinant_id'],
+  /* OPTION D — CINQ CHAMPS, ET L'INVARIANT EST TOUJOURS LE MÊME. Le plan rapide nomme aussi les
+     inconnues que la PERSONNE a déclarées : ce champ ne prononce aucun état, n'ouvre aucune route
+     et n'autorise aucune exécution — ce que les assertions qui suivent continuent de vérifier. */
+  assert.deepEqual(FAST_INTERACTION_JSON_SCHEMA.required, ['type', 'text', 'question_focus', 'missing_determinant_id', 'explicit_unknown_determinant_ids'],
     'le plan rapide reste physiquement incapable de porter un état');
   assert.deepEqual([...FAST_INTERACTION_JSON_SCHEMA.properties.type.enum], [...FAST_INTERACTION_TYPES],
     'l’énumération du schéma reste celle du plan, sans type libre');

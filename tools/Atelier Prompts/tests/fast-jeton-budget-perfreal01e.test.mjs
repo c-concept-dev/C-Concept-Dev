@@ -87,7 +87,9 @@ test('T-PERFREAL01E-02 : le plan rapide ne porte que ses propres responsabilité
   /* Et ce qu'il porte est irréductible : trois obligations, aucune imposée ailleurs. */
   assert.match(p, /Types possibles : ACKNOWLEDGE/);
   assert.match(p, /Demander une précision est le dernier recours, jamais le premier/);
-  assert.match(p, /Répondez exactement au schéma fourni : un type, un texte, ce que la question interroge, et ce qui manque\. Rien d'autre\./);
+  /* OPTION D — la clause finale énumère un cinquième fait : ce que la personne a déclaré ignorer.
+     Ce qu'elle garde est inchangé — la consigne CLÔT l'énumération et interdit tout le reste. */
+  assert.match(p, /Répondez exactement au schéma fourni : un type, un texte, ce que la question interroge, ce qui manque, et ce que la personne a déclaré ignorer\. Rien d'autre\./);
 });
 
 test('T-PERFREAL01E-03 : aucune autorité OPRIE n’est recopiée dans le payload rapide', () => {
@@ -121,9 +123,9 @@ test('T-PERFREAL01E-04 : le schéma est inchangé, et il est irréductible', () 
      le plan profond le fait pour les siennes. `question_focus` n'est PAS un champ d'autorité : il
      ne prononce aucun état, n'ouvre aucune route, n'autorise aucune exécution — ce que les
      assertions suivantes continuent de vérifier. */
-  assert.deepEqual(Object.keys(FAST_INTERACTION_JSON_SCHEMA.properties).sort(), ['missing_determinant_id', 'question_focus', 'text', 'type']);
+  assert.deepEqual(Object.keys(FAST_INTERACTION_JSON_SCHEMA.properties).sort(), ['explicit_unknown_determinant_ids', 'missing_determinant_id', 'question_focus', 'text', 'type']);
   assert.equal(FAST_INTERACTION_JSON_SCHEMA.additionalProperties, false);
-  assert.deepEqual([...FAST_INTERACTION_JSON_SCHEMA.required].sort(), ['missing_determinant_id', 'question_focus', 'text', 'type']);
+  assert.deepEqual([...FAST_INTERACTION_JSON_SCHEMA.required].sort(), ['explicit_unknown_determinant_ids', 'missing_determinant_id', 'question_focus', 'text', 'type']);
   assert.deepEqual(FAST_INTERACTION_JSON_SCHEMA.properties.type.enum, [...FAST_INTERACTION_TYPES]);
   /* C'est cet objet-là qui rend l'autorité impossible : le retirer pour gagner
      69 jetons supprimerait la garantie, pas seulement du texte. */
@@ -277,7 +279,7 @@ test('T-PERFREAL01E-15 : aucune réduction n’a été appliquée, et le planche
    * des mots dans le texte. C'est ce qui a permis de retirer trois motifs de vocabulaire décisionnel
    * du chemin de production. Le sens de ce test est intact : il interdit de RACCOURCIR la consigne
    * pour gagner des jetons, jamais de l'allonger pour une raison mesurée. */
-  assert.equal(FAST_INTERACTION_SYSTEM_PROMPT.length, 8627,
+  assert.equal(FAST_INTERACTION_SYSTEM_PROMPT.length, 9240,
     'la consigne n’a pas été raccourcie — elle a été allongée par 03B, BETA-04, V2.1.5, V2.1.5.3, V2.2.1-D2F1 puis TARGETED-FIX-POST-CODEX-01, à coût mesuré');
   assert.equal(FAST_INTERACTION_SYSTEM_PROMPT.split(' ').length > 100, true);
   assert.match(E.optimisation.raison, /la section 6 interdit de supprimer une instruction parce qu elle est longue/);
@@ -377,7 +379,7 @@ test('T-PERFREAL01E-14 : l’artefact frontend n’a pas bougé, et l’observat
      qu'un refus de sortie fournisseur cesse d'être compté comme un défaut de notre code. Aucune
      règle, aucun prompt, aucun schéma, aucun comportement d'interface. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    'faf9e599ecef9ff8e89839b56912b4c3e85c3980dae68a7234f39994d6f78df6', 'CANONICAL_HTML_CHANGED = NO');
+    '8e1e5061b0fad962fffc5c1ed5903f07eff5666c24b9c1b4aa5d4badb95b2a59', 'CANONICAL_HTML_CHANGED = NO');
   /* La seule modification du worker est le relevé de usage : cinq champs, aucun branchement. */
   assert.match(WORKER, /event: "groq_usage_observation"/);
   for (const champ of ['jetons_entree', 'jetons_sortie', 'jetons_total',

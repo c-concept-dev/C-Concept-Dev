@@ -77,7 +77,7 @@ test('T-RUNTIME01-01 : question_focus traverse la porte réseau, identique à ce
       type: 'ASK_CLARIFICATION', text: 'Depuis quelle ville partez-vous ?', question_focus: focus
     });
     assert.equal(status, 200, `${focus} : la porte accepte une sortie conforme`);
-    assert.deepEqual(Object.keys(json).sort(), ['missing_determinant_id', 'question_focus', 'text', 'type'],
+    assert.deepEqual(Object.keys(json).sort(), ['explicit_unknown_determinant_ids', 'missing_determinant_id', 'question_focus', 'text', 'type'],
       `${focus} : les trois champs du contrat repartent, ni plus ni moins`);
     assert.equal(json.question_focus, focus, `${focus} : la valeur rendue est celle qui a été écrite`);
     assert.equal(json.type, 'ASK_CLARIFICATION');
@@ -116,7 +116,7 @@ test('T-RUNTIME01-03 : sans question, le champ vaut null — jamais une valeur i
     const { status, json } = await allerRetour({ type, text: 'Reçu.', question_focus: null });
     assert.equal(status, 200, `${type} accepté`);
     assert.equal(json.question_focus, null, `${type} : rien n'est interrogé, donc rien n'est déclaré`);
-    assert.deepEqual(Object.keys(json).sort(), ['missing_determinant_id', 'question_focus', 'text', 'type'],
+    assert.deepEqual(Object.keys(json).sort(), ['explicit_unknown_determinant_ids', 'missing_determinant_id', 'question_focus', 'text', 'type'],
       `${type} : le champ reste présent et vaut null — l'absence est DITE, pas laissée à deviner`);
   }
 });

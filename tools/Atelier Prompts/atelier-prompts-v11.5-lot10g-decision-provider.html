@@ -10883,7 +10883,7 @@ function v11RequireDemand(){
   return '';
 }
 /* GENERATED — LOT 10G.3B.3F.2
- * source-sha256: 125f7ec7e78834c5d22b5c50cedc4d144df63b88f40b3bab9c37480c1ba408cc
+ * source-sha256: cd8530f04a75d303e54c2dd5d8c44126fb5564434330032376a29f2e86587508
  * Ne pas modifier manuellement. Régénérer avec tools/build-adn-browser-runtime.mjs
  */
 (function(global){
@@ -17918,6 +17918,23 @@ function countNamedAlternatives(texte) {
  * deux restent un choix sur une même dimension, ce qu'une question atomique peut légitimement
  * proposer.
  */
+/**
+ * OPTION D — la question vise-t-elle un manque que la personne a elle-même déclaré ignorer ?
+ *
+ * Les deux faits viennent du MÊME objet, produit par la MÊME décision, dans le MÊME appel. Ce garde
+ * n'interroge aucune source extérieure et n'interprète rien : il compare deux identités qu'une
+ * autorité a établies. Une autorité qui ne déclare rien n'est pas contredite — c'est la limite
+ * assumée de ce mécanisme, et elle ne se comble pas par une devinette.
+ */
+function isDeclaredUnknown(candidate) {
+  const vise = typeof (candidate && candidate.missing_determinant_id) === 'string'
+    ? candidate.missing_determinant_id.trim() : '';
+  if (!vise) return false;
+  const declarees = Array.isArray(candidate && candidate.explicit_unknown_determinant_ids)
+    ? candidate.explicit_unknown_determinant_ids : [];
+  return declarees.some((id) => typeof id === 'string' && id.trim() === vise);
+}
+
 function assessSolicitation(candidate, history = [], materialPresent = false, faits = {}) {
   const texte = String((candidate && candidate.text) || '').trim();
   if (!texte) return 'EMPTY';
@@ -17925,6 +17942,20 @@ function assessSolicitation(candidate, history = [], materialPresent = false, fa
   if (isMetaOutputQuestion(texte, { ...faits, questionFocus: candidate && candidate.question_focus })) return 'META_OUTPUT_QUESTION';
   /* F5 — la candidate porte l'identité du manque qu'elle vise ; c'est elle qu'on compare. */
   if (isRepeatedSolicitation(texte, history, candidate && candidate.missing_determinant_id)) return 'ALREADY_ANSWERED';
+  /* OPTION D — CE QUE LA PERSONNE A DÉCLARÉ IGNORER EST DÉJÀ UNE RÉPONSE.
+   *
+   * Mesuré : une demande disait ne pas connaître une donnée, et la PREMIÈRE question portait dessus.
+   * Aucun mécanisme n'avait tort — l'historique était vide, et il n'y avait rien à comparer.
+   *
+   * Il y a désormais quelque chose : la MÊME décision qui choisit la question nomme aussi les
+   * inconnues que la personne a déclarées. Ce garde ne fait que constater qu'elles désignent la même
+   * chose — une ÉGALITÉ d'identités, jamais une lecture de la phrase. Aucun appariement flou n'est
+   * réintroduit ; ce contrôle ne sait rien du langage et ne le saura jamais.
+   *
+   * LE VERDICT EST CELUI QUI EXISTE DÉJÀ. « La personne s'est déjà exprimée sur ce manque » est
+   * exactement ce que ALREADY_ANSWERED dit ; lui inventer un frère ne dirait rien de plus et
+   * doublerait le traitement en aval, reprise comprise. */
+  if (isDeclaredUnknown(candidate)) return 'ALREADY_ANSWERED';
   if (countInterrogations(texte) >= 2) return 'MULTIPLE_QUESTIONS';
   if (countNamedAlternatives(texte) >= 3) return 'CATALOGUE';
   return 'ALLOW';
@@ -22392,7 +22423,7 @@ const FAST_FORBIDDEN_AUTHORITY_FIELDS = Object.freeze([
 const FAST_INTERACTION_JSON_SCHEMA = Object.freeze({
   type: "object",
   additionalProperties: false,
-  required: ["type", "text", "question_focus", "missing_determinant_id"],
+  required: ["type", "text", "question_focus", "missing_determinant_id", "explicit_unknown_determinant_ids"],
   properties: {
     type: { type: "string", enum: [...FAST_INTERACTION_TYPES] },
     text: { type: "string" },
@@ -22410,7 +22441,23 @@ const FAST_INTERACTION_JSON_SCHEMA = Object.freeze({
      * Ce n'est pas une seconde autorité : c'est la MÊME décision qui choisit la question, à qui
      * l'on demande de nommer ce qu'elle cherche. Aucun identifiant n'est dérivé de mots-clés, aucun
      * n'est fabriqué par l'interface, et null reste une réponse légitime. */
-    missing_determinant_id: { type: ["string", "null"] }
+    missing_determinant_id: { type: ["string", "null"] },
+    /* OPTION D — CE QUE LA PERSONNE A ELLE-MÊME DÉCLARÉ NE PAS CONNAÎTRE.
+     *
+     * Mesuré en usage réel : une demande disait « pour cette donnée, je ne sais pas encore », et la
+     * première question portait exactement dessus. Aucun mécanisme n'avait tort — le garde compare
+     * l'historique, qui était vide, et la doctrine ne parle que d'une réponse OBTENUE. Une inconnue
+     * déclarée AVANT toute question n'avait aucun porteur : pour tout composant déterministe, elle
+     * était indiscernable d'une absence.
+     *
+     * Ce champ lui en donne un. Ce n'est pas une seconde autorité — c'est la MÊME décision qui lit
+     * déjà la demande et nomme déjà ce qui manque, à qui l'on demande de nommer aussi ce que la
+     * personne a dit ignorer. Rien n'est déduit de mots-clés, rien n'est fabriqué par l'interface,
+     * et une liste vide reste la réponse normale.
+     *
+     * CE QU'IL NE FAIT PAS : il ne déclare aucune readiness, ne convertit rien en inconnue
+     * résiduelle, et ne juge pas si l'inconnue est bloquante. Il NOMME un fait. */
+    explicit_unknown_determinant_ids: { type: ["array", "null"], items: { type: "string" } }
   }
 });
 
@@ -22478,6 +22525,7 @@ function validateFastInteraction(candidate, snapshot) {
   const attendues = ["text", "type"];
   if (cles.includes("question_focus")) attendues.push("question_focus");
   if (cles.includes("missing_determinant_id")) attendues.push("missing_determinant_id");
+  if (cles.includes("explicit_unknown_determinant_ids")) attendues.push("explicit_unknown_determinant_ids");
   attendues.sort();
   if (cles.length !== attendues.length || cles.some((c, i) => c !== attendues[i])) {
     return { ok: false, reason: "FAST_SCHEMA_ERROR", detail: `clés inattendues : ${cles.join(", ") || "aucune"}` };
@@ -22503,6 +22551,12 @@ function validateFastInteraction(candidate, snapshot) {
       /* L'identité du manque, telle que le plan rapide l'a nommée. Jamais dérivée ici. */
       missing_determinant_id: typeof candidate.missing_determinant_id === "string" && candidate.missing_determinant_id.trim()
         ? candidate.missing_determinant_id.trim() : null,
+      /* OPTION D — des IDENTITÉS, jamais des phrases. Ce qui n'est pas une identité non vide est
+         écarté sans être réparé ; une liste absente vaut une liste vide, et ne se devine pas. */
+      explicit_unknown_determinant_ids: Object.freeze((Array.isArray(candidate.explicit_unknown_determinant_ids)
+        ? candidate.explicit_unknown_determinant_ids : [])
+        .filter((id) => typeof id === "string" && id.trim())
+        .map((id) => id.trim())),
       source: "fast_plane",
       /* Le mot compte : ce résultat est un CANDIDAT. Rien dans le système ne
          doit le lire comme un état. */
@@ -22996,7 +23050,7 @@ function createAdapterAuditView(envelope) {
 
 return {ENGINE_ADAPTERS_VERSION,buildExecutionEnvelope,projectToRapide,projectToArchitecte,projectToAtelier,validateLegacyLockMapping,createAdapterAuditView};
 })({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON});
-global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...BOUNDED,...ORCORE,...ROLEDEG,...SOLICIT,...COREPLANE,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'125f7ec7e78834c5d22b5c50cedc4d144df63b88f40b3bab9c37480c1ba408cc'});
+global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...BOUNDED,...ORCORE,...ROLEDEG,...SOLICIT,...COREPLANE,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'cd8530f04a75d303e54c2dd5d8c44126fb5564434330032376a29f2e86587508'});
 })(window);
 
 

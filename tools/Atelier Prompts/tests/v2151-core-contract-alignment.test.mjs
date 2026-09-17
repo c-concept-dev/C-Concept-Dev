@@ -226,7 +226,12 @@ test('V2151-11 : le plan rapide est inchangé', () => {
      CE QUI MANQUE, comme le plan profond le fait pour ses propres questions. Cette mesure est une
      caractérisation de taille, pas un invariant : elle dit qu'aucune consigne n'a grossi sans
      décision. */
-  assert.equal(FAST_INTERACTION_SYSTEM_PROMPT.length, 8627);
+  /* OPTION D — la consigne s'allonge de 613 caractères : le plan rapide doit désormais nommer les
+     inconnues que la PERSONNE a déclarées. Le coût est réel et il est mesuré ici, pas supposé —
+     environ 150 jetons par appel rapide, sur une réserve dont le plancher B3 est connu. Cette
+     mesure reste une caractérisation de taille, pas un invariant : elle dit qu'aucune consigne n'a
+     grossi sans décision. */
+  assert.equal(FAST_INTERACTION_SYSTEM_PROMPT.length, 9240);
   /* V2.2 a retiré cette revendication d'autorité du plan rapide : la doctrine qu'il applique est
      celle d'OPRIE, et il le dit. La retenue mesurée, elle, est intacte. */
   assert.match(FAST_INTERACTION_SYSTEM_PROMPT, /La doctrine ci-dessous n'est pas la vôtre/);

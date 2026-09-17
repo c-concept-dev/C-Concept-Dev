@@ -94,7 +94,7 @@ test('V22-01 : une seule frontière peut prononcer un état, et ce n’est ni Fa
   /* LE PLAN RAPIDE EST INCAPABLE DE PORTER UN ÉTAT — par son schéma, pas par convention. */
   /* V2.2.1-D2F1 — trois champs, et l'incapacité est intacte : question_focus dit ce qu'une question
      interroge, jamais un état, et son vocabulaire ne contient aucun nom d'état. */
-  assert.deepEqual(Object.keys(FAST_INTERACTION_JSON_SCHEMA.properties).sort(), ['missing_determinant_id', 'question_focus', 'text', 'type']);
+  assert.deepEqual(Object.keys(FAST_INTERACTION_JSON_SCHEMA.properties).sort(), ['explicit_unknown_determinant_ids', 'missing_determinant_id', 'question_focus', 'text', 'type']);
   assert.equal(FAST_INTERACTION_TYPES.includes('operational_request_ready'), false);
   assert.equal(FAST_INTERACTION_JSON_SCHEMA.properties.question_focus.enum.includes('operational_request_ready'), false);
   for (const source of [politique, worker]) {
@@ -292,7 +292,7 @@ test('V22-12 : aucune mécanique interne n’atteint l’écran', () => {
   /* Et le contrat de sortie du plan rapide ne peut porter que deux champs : un type, un texte. */
   /* V2.2.1-D2F1 — trois champs. question_focus dit ce que la question interroge ; il ne prononce
      aucun état, et l'invariant vérifié ici reste entier. */
-  assert.deepEqual([...FAST_INTERACTION_JSON_SCHEMA.required].sort(), ['missing_determinant_id', 'question_focus', 'text', 'type']);
+  assert.deepEqual([...FAST_INTERACTION_JSON_SCHEMA.required].sort(), ['explicit_unknown_determinant_ids', 'missing_determinant_id', 'question_focus', 'text', 'type']);
 });
 
 /* ==========================================================================

@@ -99,7 +99,7 @@ test('V221E1-03 : le plan rapide est incapable de prononcer une maturité — co
   /* Par son schéma : aucun de ses trois champs ne porte d'état, et son vocabulaire de types n'en
      contient aucun. */
   assert.deepEqual(Object.keys(FAST_INTERACTION_JSON_SCHEMA.properties).sort(),
-    ['missing_determinant_id', 'question_focus', 'text', 'type']);
+    ['explicit_unknown_determinant_ids', 'missing_determinant_id', 'question_focus', 'text', 'type']);
   for (const etat of [...autorite.ARBITER_STATES]) {
     assert.equal(FAST_INTERACTION_JSON_SCHEMA.properties.type.enum.includes(etat), false, etat);
   }
