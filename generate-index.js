@@ -50,6 +50,11 @@ function scanDirectory(dir, baseDir = ROOT_DIR) {
       const stats = fs.statSync(fullPath);
       const relativePath = path.relative(baseDir, fullPath);
 
+      // Le bundle local EvidenceForge n’est pas une application GitHub Pages.
+      if (relativePath === path.join('tools', 'EvidenceForge')) {
+        continue;
+      }
+
       if (relativePath === 'index.html') {
         continue;
       }
