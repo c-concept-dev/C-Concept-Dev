@@ -365,6 +365,103 @@ export function createGroqRateLimitPacer({ sleepFn = sleep } = {}) {
  * permettent au pipeline Critic batché de faire respecter le budget agrégé entre appels successifs
  * sans dupliquer cette logique : cf. runCriticWithGroq ci-dessous.
  */
+/* GROQ-FAILED-GEN-TELEMETRY — DÉCRIRE UN ÉCHEC SANS LE CITER.
+ *
+ * CE QUE DEUX ÉCHECS RÉELS ONT COÛTÉ. Sur `json_validate_failed`, Groq renvoie `failed_generation`
+ * — la sortie que le modèle a tentée — et le dit lui-même dans son message. Ce corps était lu, deux
+ * champs en étaient extraits, le reste était jeté. Résultat : impossible de savoir quelle clé avait
+ * échoué, si la génération était tronquée, ni même si elle était du JSON.
+ *
+ * POURQUOI ON NE PEUT PAS LE JOURNALISER TEL QUEL. `failed_generation` porte le texte que le modèle
+ * écrivait — une question dérivée de la demande, donc potentiellement les mots de la personne. Le
+ * `redact` du chemin d'erreur ne couvre que les clés d'API ; il ne protégerait rien ici.
+ *
+ * CE QUI SORT D'ICI EST DONC UNE FORME : des longueurs, des booléens, des NOMS de clés et des TYPES.
+ * Aucune valeur de champ, aucun extrait, aucune chaîne du modèle.
+ *
+ * UN NOM DE CLÉ RESTE CHOISI PAR LE MODÈLE, et pourrait donc reprendre les mots de la personne —
+ * `{"quel est votre budget": …}`. Les clés attendues viennent de notre propre liste et sont sûres ;
+ * les clés INATTENDUES ne sont nommées que si elles ont la forme d'un identifiant. Les autres sont
+ * comptées, jamais citées. C'est la seule façon d'honorer à la fois « donne les noms de clés » et
+ * « aucun fragment de la demande ».
+ *
+ * CE QUE CETTE FONCTION NE FAIT PAS : elle ne décide rien. Le statut rendu, la classe d'échec, la
+ * chaîne HA, la reprise et le repli profond sont inchangés — elle n'est appelée que pour décrire.
+ */
+const FAST_EXPECTED_KEYS = Object.freeze([
+  "explicit_unknown_determinant_ids", "type", "text", "question_focus", "missing_determinant_id"
+]);
+const IDENTIFIANT_SUR = /^[A-Za-z_][A-Za-z0-9_]{0,63}$/;
+
+export function describeFailedGeneration(valeur, expectedKeys = FAST_EXPECTED_KEYS) {
+  if (typeof valeur !== "string" || valeur === "") {
+    return {
+      failed_generation_present: valeur !== undefined && valeur !== null,
+      failed_generation_length: null,
+      failed_generation_json_parseable: null,
+      failed_generation_root_type: null,
+      failed_generation_keys_present: [],
+      failed_generation_expected_keys_missing: [],
+      failed_generation_unexpected_keys: [],
+      failed_generation_unexpected_keys_unnamed: 0,
+      failed_generation_value_types: {},
+      failed_generation_probably_truncated: null
+    };
+  }
+  let racine;
+  let parsable = true;
+  try { racine = JSON.parse(valeur); } catch { parsable = false; }
+
+  const typeJson = (v) => v === null ? "null" : Array.isArray(v) ? "array" : typeof v;
+  const rootType = parsable ? typeJson(racine) : null;
+
+  const clesBrutes = (parsable && rootType === "object") ? Object.keys(racine) : [];
+  const attendues = clesBrutes.filter((k) => expectedKeys.includes(k));
+  const inattenduesBrutes = clesBrutes.filter((k) => !expectedKeys.includes(k));
+  /* Une clé inattendue n'est nommée que si sa forme interdit d'y cacher une phrase. */
+  const inattenduesSures = inattenduesBrutes.filter((k) => IDENTIFIANT_SUR.test(k));
+  const types = {};
+  for (const k of [...attendues, ...inattenduesSures]) types[k] = typeJson(racine[k]);
+
+  /* TRONCATURE — STRUCTURELLE ET CONSERVATRICE. Un JSON qui parse n'est pas tronqué. Un JSON qui
+     ne parse pas ne l'est que si sa forme le montre : une structure restée ouverte, ou une chaîne
+     non terminée. Les guillemets sont COMPTÉS, jamais conservés. Tout autre échec de parsage reste
+     `false` : on ne prétend pas reconnaître une troncature qu'on ne peut pas démontrer. */
+  let tronquee = null;
+  if (parsable) {
+    tronquee = false;
+  } else {
+    let profondeur = 0;
+    let dansChaine = false;
+    let echappe = false;
+    for (const c of valeur) {
+      if (dansChaine) {
+        if (echappe) { echappe = false; continue; }
+        if (c === "\\") { echappe = true; continue; }
+        if (c === '"') dansChaine = false;
+        continue;
+      }
+      if (c === '"') { dansChaine = true; continue; }
+      if (c === "{" || c === "[") profondeur += 1;
+      if (c === "}" || c === "]") profondeur -= 1;
+    }
+    tronquee = profondeur > 0 || dansChaine === true;
+  }
+
+  return {
+    failed_generation_present: true,
+    failed_generation_length: valeur.length,
+    failed_generation_json_parseable: parsable,
+    failed_generation_root_type: rootType,
+    failed_generation_keys_present: attendues,
+    failed_generation_expected_keys_missing: expectedKeys.filter((k) => !clesBrutes.includes(k)),
+    failed_generation_unexpected_keys: inattenduesSures,
+    failed_generation_unexpected_keys_unnamed: inattenduesBrutes.length - inattenduesSures.length,
+    failed_generation_value_types: types,
+    failed_generation_probably_truncated: tronquee
+  };
+}
+
 async function callGroqChatCompletion({ systemPrompt, userMessage, schema, schemaName, env, maxCompletionTokens, pacer, retryOverrides = {} }) {
   // HA-01 : classe d'échec explicite. Secret absent = CE provider n'est pas configuré dans CET
   // environnement — jamais un défaut du contrat partagé : le provider suivant reste pertinent.
@@ -497,17 +594,24 @@ async function callGroqChatCompletion({ systemPrompt, userMessage, schema, schem
   if (!response.ok) {
     let code = "unknown";
     let message = "Message Groq indisponible.";
+    let structure = describeFailedGeneration(undefined);
     try {
       const error = JSON.parse(raw)?.error;
       code = String(error?.code || "unknown");
       message = String(error?.message || message);
+      /* GROQ-FAILED-GEN-TELEMETRY — LA FORME DE CE QUI A ÉCHOUÉ, JAMAIS SON CONTENU.
+         Deux `json_validate_failed` en production n'ont laissé que « Failed to generate JSON » :
+         le corps portait `failed_generation`, il était lu dans `raw` et jeté. Ce relevé en décrit
+         la STRUCTURE — longueur, parsabilité, noms de clés, types, troncature probable — et rien
+         de ce qu'elle contient. Aucun caractère du modèle ni de la personne n'en sort. */
+      structure = describeFailedGeneration(error?.failed_generation);
     } catch {}
     const redact = (value) => value
       .replace(/Bearer\s+\S+/gi, "Bearer [EXPURGÉ]")
       .replace(/\b(?:gsk_|sk-)[A-Za-z0-9_-]+\b/g, "[EXPURGÉ]")
       .replace(/\s+/g, " ")
       .slice(0, 500);
-    console.error({ event: "groq_api_error", status: response.status, code: redact(code), message: redact(message) });
+    console.error({ event: "groq_api_error", status: response.status, code: redact(code), message: redact(message), ...structure });
     // Classe déterminée par classifyProviderHttpStatus : jamais un désaccord sémantique, jamais une
     // raison de préférer un autre modèle — seulement une raison d'en essayer un autre parce que
     // celui-ci n'a rien produit.
