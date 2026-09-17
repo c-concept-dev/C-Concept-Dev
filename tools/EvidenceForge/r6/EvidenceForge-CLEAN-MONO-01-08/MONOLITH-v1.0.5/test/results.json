@@ -1,8 +1,8 @@
 {
   "schema": "EvidenceForge.MonolithTestResults",
-  "ranAt": "2026-09-17T13:42:39.581Z",
-  "total": 116,
-  "passed": 116,
+  "ranAt": "2026-09-17T15:33:30.684Z",
+  "total": 133,
+  "passed": 133,
   "failed": 0,
   "results": [
     {
@@ -583,6 +583,91 @@
     {
       "id": "NONREG-06",
       "name": "runs anterieurs (v1.0.4, sans ledger ni budget) restent lisibles : etat public avec cost.ledgerPresent=false, vue de cout PARTIAL, economie NOT_AVAILABLE, aucune ecriture dans le dossier du run",
+      "ok": true
+    },
+    {
+      "id": "PRO-EARLY-01",
+      "name": "panel convergent : 3 angles x 5 candidats, les 3 premiers de chaque angle sont SUPPORTED => EARLY_STOP_CONFIRMED apres 9 evaluations, 6 candidats non evalues (0 appel, 0 reseau), gate gele : 9 admis, chaines valides, checkpoint complet",
+      "ok": true
+    },
+    {
+      "id": "PRO-EARLY-02",
+      "name": "nouvelle discipline tardive : deux angles a la cible mais un troisieme angle encore jamais vu => CONTINUE (jamais CONFIRMED tant qu'un angle a des candidats non echantillonnes) ; vivier epuise => CONFIRMED",
+      "ok": true
+    },
+    {
+      "id": "PRO-EARLY-03",
+      "name": "divergence majeure tardive : un plateau (CANDIDATE) est annule par un candidat admissible ou un angle nouvellement SUPPORTED => CONTINUE ; la fenetre de grace repart",
+      "ok": true
+    },
+    {
+      "id": "PRO-EARLY-04",
+      "name": "redondance prolongee : par defaut (closeOnPlateau=false) le plateau reste un SIGNAL (CANDIDATE, l'evaluation continue) ; avec closeOnPlateau=true (politique explicite) => arret apres fenetre + grace",
+      "ok": true
+    },
+    {
+      "id": "PRO-EARLY-05",
+      "name": "couverture insuffisante : un angle sans admissible et avec des candidats restants => CONTINUE, ses candidats restent evalues, meme si tous les autres angles ont atteint leur cible",
+      "ok": true
+    },
+    {
+      "id": "PRO-EARLY-06",
+      "name": "aucun hardcoding : les modules et la configuration ne portent ni nom de cas, ni discipline particuliere, ni nombre issu du run reel ; le scanner anti-hardcoding passe",
+      "ok": true
+    },
+    {
+      "id": "PRO-EARLY-07",
+      "name": "aucun cap arbitraire comme cible : le plafond reste 150 (garde) ; la politique ne contient aucun nombre absolu d'evaluations ; 200 candidats sans admission => jamais CONFIRMED par simple comptage ; 151 selectionnes => 150 (garde inchangee)",
+      "ok": true
+    },
+    {
+      "id": "PRO-EARLY-08",
+      "name": "checkpoint / reprise identiques : fonctions de checkpoint byte-identiques a v1.0.4 ; un checkpoint portant `sufficiency` se charge et se verifie (hash) ; la reprise aval repart du checkpoint sans recalcul (X4 reste vert)",
+      "ok": true
+    },
+    {
+      "id": "PRO-EARLY-09",
+      "name": "lignee complete : chaque candidat selectionne a un artefact corpus/relevance dans le registre MONO-11 (les non evalues portent le motif PANEL_SUFFICIENT_EARLY_STOP), professionals-sufficiency (history) liste 9 observes + 6 non evalues, reserve explicite construite pour l'aval",
+      "ok": true
+    },
+    {
+      "id": "PRO-EARLY-10",
+      "name": "budget garde la priorite : plafond atteint pendant la boucle => BUDGET_LIMIT_REACHED (verrou) avant toute decision de suffisance, aucun appel apres, panel jamais un verdict (assertNoTransportFailure)",
+      "ok": true
+    },
+    {
+      "id": "PRO-EARLY-11",
+      "name": "couts journalises : le ledger porte exactement une ligne REAL_CALL par evaluation reelle (candidateRef), aucune pour les non evalues ; economie mesurable = 6/15 evaluations evitees",
+      "ok": true
+    },
+    {
+      "id": "PRO-EARLY-12",
+      "name": "lots geles byte-identiques apres le chantier (sceaux, zips MONO-10 / MONO-11 / v1.0.4)",
+      "ok": true
+    },
+    {
+      "id": "WORKREF-01",
+      "name": "normalisation typographique : apostrophe / guillemets / casse / espaces => reference canonique du corpus (une seule correspondance) ; ambigue ou absente => inchangee ; statuts et rationales intacts ; journal",
+      "ok": true
+    },
+    {
+      "id": "WORKREF-02",
+      "name": "le parseur GELE EF-02D2 refuse la reference typographique et accepte la reference normalisee : aucune preuve inventee n'est acceptee (reference absente toujours refusee)",
+      "ok": true
+    },
+    {
+      "id": "WORKREF-03",
+      "name": "dans la boucle gelee : une reponse avec apostrophe droite est normalisee AVANT le parseur => 1 seul appel, candidat SUPPORTED (sans normalisation : reparation payante puis UNKNOWN)",
+      "ok": true
+    },
+    {
+      "id": "WORKREF-04",
+      "name": "rejeu lecture seule du run reel (si present) : les premieres reponses EF-02D2 valides passent de 64 a 84 sur 86 avec la normalisation ; le dossier du run n'est pas modifie",
+      "ok": true
+    },
+    {
+      "id": "ROUTING-01",
+      "name": "routage par finalite : une route posee (opts.routing) envoie la finalite vers ce modele (corps de requete, ledger, llm-calls, registre), les autres finalites restent sur le modele principal ; la reuse compare le modele de la finalite ; sans route : tout au modele principal",
       "ok": true
     }
   ]

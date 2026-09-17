@@ -56,3 +56,14 @@ Le monolithe **compose** ; il ne réécrit rien. Ce document liste, brique par b
 | Runs réels (`efm-20260917-f8a95282`, `efm-20260917-cf6101c7`, `efm-20260916-7990da62`) | lecture seule (`tools/reconstruct-cost.js`, scan anti-hardcoding alimenté par leurs artefacts) | `RAPPORT-FINAL-COST-SCREENING-v1.0.5.md` |
 | Runs antérieurs (sans ledger ni budget) | lisibles : `cost.ledgerPresent=false`, projection partielle, économie `NOT_AVAILABLE`, aucune écriture | NONREG-06 |
 | Diagnostic fournisseur (addendum one-command) | `providerConfigured` devenu strict (= prêt) ; `POST /api/runs` refuse sans fournisseur prêt ; `url.parse` remplacé par `URL` dans `server.js` seulement | V1 (mis à jour), LAUNCH-01…12, DOCTOR-01/02 ; aucun lot gelé touché |
+
+## v1.0.5 — Professional Panel Cost Optimizer (2026-09-17)
+
+| Élément | Statut | Preuve |
+|---|---|---|
+| Boucle d'évaluation MONO-11 (`runAutonomousPanel`), gate (`gatePanel`), oracle EF-02D2 (MONO-01) | gelés, byte-identiques ; l'arrêt anticipé passe par la dépendance injectée `fetchAuthorWorks` (contrat existant : erreur ⇒ `corpus_fetch_error`, candidat non évalué, jamais un verdict) ; MONO-11 reçoit toujours l'assessment plafonné entier | PRO-EARLY-01/09/12, PROF-ECON-04 |
+| Sélection plafonnée (`selectCandidates`, garde dure `createEvaluationGuard`, cap 150) | byte-identiques ; `capAssessment` ordonne désormais par `selectionOrder` (tourniquet) — `evaluationCap.evaluationOrder` le déclare | PROF-ECON-03, PRO-EARLY-07 |
+| Checkpoints, reprise, aval (`runDownstreamFromCheckpoint`) | byte-identiques ; le checkpoint porte en plus `sufficiency` et `workRefNormalizations` (hachés) | PRO-EARLY-08, X4, X5 |
+| Budget | vérifié avant chaque appel, en amont de la suffisance (verrou de panne avant `tracker.shouldEvaluate`) | PRO-EARLY-10, COST-06 |
+| Validateur gelé EF-02D2 (« aucune preuve inventée ») | inchangé ; la normalisation ne réécrit une référence que vers l'unique titre/DOI réel de forme canonique identique ; une référence absente reste refusée | WORKREF-01/02/04 |
+| Runs réels 65c805ef / cf6101c7 | lecture seule (rejeu WORKREF-04 vérifie que le dossier est intact) | WORKREF-04 |

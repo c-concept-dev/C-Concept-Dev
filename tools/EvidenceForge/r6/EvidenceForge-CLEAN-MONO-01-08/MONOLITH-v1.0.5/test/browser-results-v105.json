@@ -1,7 +1,7 @@
 {
   "schema": "EvidenceForge.MonolithBrowserTestResults",
   "version": "MONOLITH-v1.0.5",
-  "ranAt": "2026-09-17T13:46:32.291Z",
+  "ranAt": "2026-09-17T15:52:24.676Z",
   "total": 25,
   "passed": 25,
   "failed": 0,
@@ -44,7 +44,7 @@
     {
       "name": "mise à jour du budget depuis la page : budget.json = 25 / 20, historique conservé, marque d'arrêt effacée",
       "ok": true,
-      "info": "{\"schema\":\"EvidenceForge.RunBudget\",\"runId\":\"efm-20260917-ui105bud\",\"currency\":\"USD\",\"costBudgetUsd\":25,\"warningThresholdUsd\":20,\"updatedAt\":\"2026-09-17T13:46:16.152Z\",\"warningRaisedAt\":null,\"limitReachedAt\":null,\"history\":[{\"at\":\"2026-09-17T13:46:09.693Z\",\"costBudgetUsd\":1,\"warningThresholdUsd\":0.5,\"previous\":{\"costBudgetUsd\":null,\"warningThresholdUsd\":null},\"setBy\":\"user\"},{\"at\":\"2026-09-17T13:46:16.152Z\",\"costBudgetUsd\":25,\"warningThresholdUsd\":20,\"previous\":{\"costBudgetUsd\":1,\"warningThresholdUsd\":0.5},\"setBy\":\"user\"}],\"setBy\":\"user\",\"warningRaisedSpentUsd\":3.1,\"limitReachedSpentUsd\":3.1}"
+      "info": "{\"schema\":\"EvidenceForge.RunBudget\",\"runId\":\"efm-20260917-ui105bud\",\"currency\":\"USD\",\"costBudgetUsd\":25,\"warningThresholdUsd\":20,\"updatedAt\":\"2026-09-17T15:52:10.052Z\",\"warningRaisedAt\":null,\"limitReachedAt\":null,\"history\":[{\"at\":\"2026-09-17T15:52:04.587Z\",\"costBudgetUsd\":1,\"warningThresholdUsd\":0.5,\"previous\":{\"costBudgetUsd\":null,\"warningThresholdUsd\":null},\"setBy\":\"user\"},{\"at\":\"2026-09-17T15:52:10.052Z\",\"costBudgetUsd\":25,\"warningThresholdUsd\":20,\"previous\":{\"costBudgetUsd\":1,\"warningThresholdUsd\":0.5},\"setBy\":\"user\"}],\"setBy\":\"user\",\"warningRaisedSpentUsd\":3.1,\"limitReachedSpentUsd\":3.1}"
     },
     {
       "name": "affichage : reste avant plafond 21.9x USD, plus de badge « plafond atteint »",

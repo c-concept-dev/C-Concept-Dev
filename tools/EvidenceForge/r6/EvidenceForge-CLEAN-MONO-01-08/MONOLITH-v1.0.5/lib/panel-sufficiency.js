@@ -42,8 +42,10 @@ function createSufficiencyTracker(input) {
     if (sampled && since >= window) { if (policy.closeOnPlateau && since >= window + grace) return STATES.CONFIRMED; return STATES.CANDIDATE; }
     return STATES.CONTINUE;
   }
+  const skippedSet = new Set();
   function observe(o) {
-    o = o || {}; const d = primary.get(o.candidateRef) || dimId(o.dimension) || "(sans dimension)"; if (!per[d]) per[d] = { dimensionId: d, candidates: 0, evaluated: 0, skipped: 0, admissible: 0, remaining: 0, lastNoveltyAt: 0, closed: false, closedReason: null, closedAtRank: null };
+    o = o || {}; if (o.candidateRef && skippedSet.has(o.candidateRef)) return { state, novelty: [], ignored: "SKIPPED" };   /* la boucle gelee journalise aussi les candidats non evalues : jamais comptes comme evaluations */
+    const d = primary.get(o.candidateRef) || dimId(o.dimension) || "(sans dimension)"; if (!per[d]) per[d] = { dimensionId: d, candidates: 0, evaluated: 0, skipped: 0, admissible: 0, remaining: 0, lastNoveltyAt: 0, closed: false, closedReason: null, closedAtRank: null };
     rank++; const p = per[d]; p.evaluated++; if (p.remaining > 0) p.remaining--;
     const sup = new Set((o.supportedDimensions || []).map(dimId).filter(Boolean)), par = new Set((o.partialDimensions || []).map(dimId).filter(Boolean));
     const isAdm = o.relevanceClass === "SUPPORTED"; const novel = []; if (isAdm) novel.push("ADMISSIBLE"); if (Array.from(sup).some((x) => !covS.has(x))) novel.push("NEW_SUPPORTED_DIMENSION"); if (Array.from(new Set([...sup, ...par])).some((x) => !covS.has(x) && !covP.has(x))) novel.push("NEW_PARTIAL_DIMENSION"); if (p.evaluated === 1) novel.push("FIRST_OF_DIMENSION");
@@ -54,7 +56,7 @@ function createSufficiencyTracker(input) {
     return { state, novelty: novel };
   }
   function shouldEvaluate(candidateRef) { if (!policy.enabled) return { evaluate: true }; if (state === STATES.CONFIRMED) return { evaluate: false, reason: "PANEL_SUFFICIENT" }; const d = primary.get(candidateRef); if (d && per[d] && per[d].closed) return { evaluate: false, reason: "DIMENSION_" + per[d].closedReason }; return { evaluate: true }; }
-  function skip(candidateRef, reason) { const d = primary.get(candidateRef) || "(sans dimension)"; if (per[d]) { per[d].skipped++; if (per[d].remaining > 0) per[d].remaining--; } history.push({ rank: null, candidateRef, dimension: d, skipped: true, reason: reason || null, state }); }
+  function skip(candidateRef, reason) { skippedSet.add(candidateRef); const d = primary.get(candidateRef) || "(sans dimension)"; if (per[d]) { per[d].skipped++; if (per[d].remaining > 0) per[d].remaining--; } history.push({ rank: null, candidateRef, dimension: d, skipped: true, reason: reason || null, state }); }
   function decision() {
     const since = rank - lastNovelty; const reasons = [];
     missionDims.forEach((d) => { const p = per[d]; if (p.admissible >= policy.targetAdmissiblePerDimension) reasons.push(d + " : cible atteinte (" + p.admissible + " admissible(s))"); else if (p.remaining === 0) reasons.push(d + " : vivier épuisé (" + p.admissible + " admissible(s) sur " + p.evaluated + " évalué(s))"); else reasons.push(d + " : " + p.admissible + "/" + policy.targetAdmissiblePerDimension + " admissible(s), " + p.remaining + " candidat(s) restant(s)"); });
