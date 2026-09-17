@@ -15,7 +15,6 @@ const ROOT_DIR = process.cwd();
 const IGNORE_PATTERNS = [
   /node_modules/,
   /\.git/,
-  /^index\.html$/,
   /\.DS_Store/,
   /^\..*$/
 ];
@@ -50,6 +49,10 @@ function scanDirectory(dir, baseDir = ROOT_DIR) {
       const fullPath = path.join(dir, item);
       const stats = fs.statSync(fullPath);
       const relativePath = path.relative(baseDir, fullPath);
+
+      if (relativePath === 'index.html') {
+        continue;
+      }
       
       if (stats.isDirectory()) {
         // Dossier : scanner récursivement
