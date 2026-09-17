@@ -21,8 +21,12 @@ const clone = (value) => JSON.parse(JSON.stringify(value));
 
 const SIGNAL_ANALYSES = Object.freeze({
   CONTRACT_INCONSISTENT() {
+    /* ADN-ARCH-03b — le déclencheur était `intentions_secondaires`, dont la comparaison de
+       cardinalité n'arrête plus rien depuis l'échange réel GASPPN. Ce que ces tests éprouvent est
+       la FUSION des signaux, pas ce prédicat : la fixture est rearmée sur `ambiguites`, qui bloque
+       toujours, et toutes leurs assertions restent identiques. */
     const a = coherentAnalysis();
-    a.comprehension.intentions_secondaires = ['Objectif secondaire non validé.'];
+    a.comprehension.ambiguites = ['Ambiguïté hors contrat validé.'];
     return a;
   },
   EXECUTION_UNSAFE() {
@@ -185,7 +189,7 @@ test('§19 preuve instrumentée séparée des chemins API et import fichier', as
 
 test('§20 déduplication par triplet, preuves distinctes et ordre déterministe', () => {
   const duplicated = mergedSignalsFor(SIGNAL_ANALYSES.CONTRACT_INCONSISTENT()).merged;
-  assert.equal(duplicated.filter((s) => s.signal === 'CONTRACT_INCONSISTENT' && s.canonical_field === 'intent.secondary_objectives' && s.arch_source_field === 'comprehension.intentions_secondaires').length, 1);
+  assert.equal(duplicated.filter((s) => s.signal === 'CONTRACT_INCONSISTENT' && s.canonical_field === 'executability.substitutable_missing' && s.arch_source_field === 'comprehension.ambiguites').length, 1);
   const input = [
     { signal: 'EXECUTION_UNSAFE', canonical_field: 'executability.critical_missing', arch_source_field: 'source.b', detail: 'B' },
     { signal: 'CONTRACT_INCONSISTENT', canonical_field: 'intent.objective', arch_source_field: 'source.a', detail: 'A' },

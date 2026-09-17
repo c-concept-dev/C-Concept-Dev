@@ -1,9 +1,9 @@
 {
   "schema": "EvidenceForge.MonolithTestResults",
-  "ranAt": "2026-09-17T22:52:40.646Z",
-  "total": 177,
-  "passed": 177,
-  "failed": 0,
+  "ranAt": "2026-09-17T22:56:32.382Z",
+  "total": 198,
+  "passed": 194,
+  "failed": 4,
   "results": [
     {
       "id": "I1",
@@ -888,6 +888,115 @@
     {
       "id": "SCREEN-COST-18",
       "name": "cout calcule avant / apres sur le run reel 5ad77c88 (si present) : BASELINE = ledger (1,333 USD, 42 appels, 12 reprises) ; normalisation seule et reprise ciblee economisent sans aucun faux accept ; les items encore refuses sont exactement les paraphrases et l'enumeration",
+      "ok": true
+    },
+    {
+      "id": "RUN-SAFETY-01",
+      "name": "champ budget vide => impossible de lancer silencieusement : startRun sans budget, avec {}, avec des champs vides ou avec mode inconnu => BUDGET_REQUIRED, aucun dossier de run cree",
+      "ok": true
+    },
+    {
+      "id": "RUN-SAFETY-02",
+      "name": "LIMITED => budget.json (mode, plafond, alerte < plafond, setBy, createdAt, history) ecrit AVANT state.json donc avant tout appel ; alerte >= plafond refusee ; compat : plafond > 0 sans mode = LIMITED",
+      "ok": true
+    },
+    {
+      "id": "RUN-SAFETY-03",
+      "name": "UNLIMITED => confirmation explicite requise (confirmedUnlimited: true) ; sans elle : BUDGET_REQUIRED ; le texte de confirmation UI est celui exige",
+      "ok": true
+    },
+    {
+      "id": "RUN-SAFETY-04",
+      "name": "UNLIMITED_CONFIRMED => budget.json existe quand meme (mode, confirmedUnlimited: true, plafond null) ; la vue de cout l'expose ; l'absence de budget.json est une anomalie declaree (BUDGET_FILE_MISSING)",
+      "ok": true
+    },
+    {
+      "id": "RUN-SAFETY-05",
+      "name": "stop avant le premier appel => 0 appel fournisseur : run CREATED (aucun moteur) arrete immediatement (STOPPED / STOPPED_BY_USER), demande persistee, etat partiel ecrit ; puis advance() sur ce run apres reprise explicite consomme la demande",
+      "ok": true
+    },
+    {
+      "id": "RUN-SAFETY-06",
+      "name": "stop entre deux lots de screening => aucun lot suivant : la demande posee apres le 1er lot fait echouer le 2e appel (STOPPED_BY_USER) sans reseau ; verrou de transport pose ; 1 seul appel",
+      "ok": true
+    },
+    {
+      "id": "RUN-SAFETY-07",
+      "name": "stop entre deux professionnels (pipeline) => aucun candidat suivant : la demande posee pendant l'etape fait refuser le 2e appel, l'etape s'arrete STOPPED / STOPPED_BY_USER avec etat partiel (run-stop-state + panelPartialState), PROFESSIONALS jamais DONE, aucun checkpoint",
+      "ok": false,
+      "error": "{\"schema\":\"EvidenceForge.RunStopState\",\"schemaVersion\":\"MONOLITH-v1.0.5\",\"notAVerdict\":true,\"notACheckpoint\":true,\"runId\":\"efm-20260917-71e23e26\",\"stage\":\"PROFESSIONALS\",\"stageStatus\":\"INTERRUPTED\",\"reason\":\"STOPPED_BY_USER\",\"stoppedAt\":\"2026-09-17T22:56:31.773Z\",\"requestedAt\":\"2026-09-17T22:56:31.766Z\",\"actor\":\"Testeur\",\"attempts\":1,\"cost\":{\"totalUsd\":0.00006,\"currency\":\"USD\",\"byStage\":{\"PREFLIGH"
+    },
+    {
+      "id": "RUN-SAFETY-08",
+      "name": "stop entre deux jumeaux (aval depuis le checkpoint) => aucune revue suivante : 1 appel puis STOPPED / STOPPED_BY_USER, TWINS_REVIEWS interrompu, checkpoint professionnel conserve",
+      "ok": false,
+      "error": "{\"schema\":\"EvidenceForge.RunStopState\",\"schemaVersion\":\"MONOLITH-v1.0.5\",\"notAVerdict\":true,\"notACheckpoint\":true,\"runId\":\"efm-20260917-276f9cd2\",\"stage\":\"TWINS_REVIEWS\",\"stageStatus\":\"INTERRUPTED\",\"reason\":\"STOPPED_BY_USER\",\"stoppedAt\":\"2026-09-17T22:56:31.892Z\",\"requestedAt\":\"2026-09-17T22:56:31.8"
+    },
+    {
+      "id": "RUN-SAFETY-09",
+      "name": "STOPPED_BY_USER persiste : state.json (status STOPPED, error.code, stop.requestedAt/honoredAt), stop-request.json honore, artefacts intacts ; un second stop est idempotent ; un run COMPLETED / importe refuse (RUN_NOT_ACTIVE)",
+      "ok": true
+    },
+    {
+      "id": "RUN-SAFETY-10",
+      "name": "artefact partiel : run-stop-state.json est notAVerdict / notACheckpoint, porte runId, stage, reason, stoppedAt, cost, realCalls, reuse, lastCompletedUnit, nextUnit, checkpointRef, resumeAllowed, budget, partialArtifacts ; jamais un checkpoint (aucune reference dans state.checkpoints)",
+      "ok": true
+    },
+    {
+      "id": "RUN-SAFETY-11",
+      "name": "reprise uniquement explicite : markInterruptedRuns ne consomme ni ne relance ; la demande reste en attente tant qu'advance() (acte utilisateur) n'a pas ete appele ; advance() la consomme et journalise la reprise",
+      "ok": true
+    },
+    {
+      "id": "RUN-SAFETY-12",
+      "name": "reprise utilise checkpoint + cache : apres un arret utilisateur en aval, la reprise repart du checkpoint professionnel (runPanel jamais rappele) et les reponses VALID sont REUTILISEES (ledger REUSE, aucun REAL_CALL pour elles)",
+      "ok": true
+    },
+    {
+      "id": "RUN-SAFETY-13",
+      "name": "aucune double facturation sur fixture de reprise : totaux ledger = 2 appels reels de revue (A, B) + sondes ; la reponse A reutilisee compte 0 USD, countsAsRealCall false",
+      "ok": false,
+      "error": "{\"real\":2,\"reuse\":1,\"realCall\":2,\"kit\":0,\"probe\":0,\"preflight\":0,\"unpriced\":0} {\"schema\":\"EvidenceForge.CostLedgerEntry\",\"seq\":2,\"at\":\"2026-09-17T22:56:32.222Z\",\"runId\":\"fx\",\"attemptId\":2,\"stage\":\"TWINS_REVIEWS\",\"kind\":\"REUSE\",\"purpose\":\"EF-03B review\",\"pass\":null,\"model\":\"claud"
+    },
+    {
+      "id": "RUN-SAFETY-14",
+      "name": "priorite du plafond : le budget atteint arrete AVANT le contenu (BUDGET_LIMIT_REACHED) meme sans demande d'arret ; avec les deux, la cause est celle rencontree en premier (verrou) et jamais fusionnee",
+      "ok": false,
+      "error": "BUDGET_LIMIT_REACHED: 0.00 >= 0.00 USD"
+    },
+    {
+      "id": "RUN-SAFETY-15",
+      "name": "panne de transport distincte de l'arret utilisateur : NETWORK_UNAVAILABLE => normalizedCause TRANSPORT_FAILURE, aucun run-stop-state.json, pas de champ stop ; STOPPED_BY_USER => USER_STOP + run-stop-state.json",
+      "ok": true
+    },
+    {
+      "id": "RUN-SAFETY-16",
+      "name": "interruption par redemarrage distincte de l'arret utilisateur : run RUNNING orphelin => INTERRUPTED_BY_RESTART (reprenable), sans run-stop-state.json ; un run STOPPED_BY_USER n'est pas requalifie par le redemarrage ; l'UI libelle les trois causes separement",
+      "ok": true
+    },
+    {
+      "id": "RUN-SAFETY-17",
+      "name": "bouton « Arrêter le run » : route POST /api/runs/:id/stop, bouton visible seulement en RUNNING, confirmation avec le texte exige, aucune suppression d'artefact ; le resume affiche cout dépensé / étape / restant / budget avant reprise",
+      "ok": true
+    },
+    {
+      "id": "RUN-SAFETY-18",
+      "name": "wording plateau corrige sans changement de policy : le message CANDIDATE->CONTINUE dit « Plateau informatif terminé : l'évaluation continue » et ne parle plus de « reprise » ; panel-sufficiency.js, config earlyStop et DEFAULT_POLICY inchanges (byte-identiques a HEAD)",
+      "ok": true
+    },
+    {
+      "id": "RUN-SAFETY-19",
+      "name": "lots geles byte-identiques (MONO-01/09/10/11, 0 divergence)",
+      "ok": true
+    },
+    {
+      "id": "RUN-SAFETY-20",
+      "name": "aucun hardcoding mission / discipline / cas dans les modules du lot (run-stop, budget-guard, pipeline, server, index.html)",
+      "ok": true
+    },
+    {
+      "id": "RUN-SAFETY-21",
+      "name": "cas f78528fe (lecture seule, si present) : ses 4 revues EF-03B validees, copiees dans un run temporaire avec leurs entrees de magasin, sont REUTILISEES par le transport (aucun REAL_CALL, aucun reseau) ; la 5e revue (inconnue) part reellement => la reprise commencerait au prochain travail manquant",
       "ok": true
     }
   ]

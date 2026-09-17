@@ -81,7 +81,25 @@ test('T-READINESS-05 objectif OPRIE non repris par l’analyse → CONTRACT_INCO
   assert.equal(result.signals[0].return_to_oprie, true);
 });
 
-test('T-READINESS-06 nouvel objectif secondaire → CONTRACT_INCONSISTENT, secondary_objectives inchangé', () => {
+test('T-READINESS-06 une intention secondaire NOMMÉE par l’analyse n’écrit rien, et ne bloque plus', () => {
+  /* ADN-ARCH-03b — HISTORICAL_IMPLEMENTATION_CONTRACT.
+   *
+   * L'INVARIANT QUE CE TEST PRÉTENDAIT PROTÉGER : « un objectif secondaire que la personne n'a pas
+   * validé ne peut pas entrer dans le contrat ». Il le prouvait par un COMPTAGE — plus d'intentions
+   * côté Architecte que dans `intent.secondary_objectives` — et il exigeait un arrêt.
+   *
+   * CE QUE LA PRODUCTION A MESURÉ, SUR L'ÉCHANGE RÉEL GASPPN. Le contrat compact exporté ne portait
+   * AUCUN registre `secondary_objectives` : OPRIE n'en avait confirmé aucun, la référence valait
+   * donc zéro. Or le schéma 3.4 rend `intentions_secondaires` OBLIGATOIRE. L'analyse en nommait
+   * deux — « maintenir une communication sereine autour du changement d'agenda », « formuler le
+   * changement de date sans ambiguïté » — qui sont des LECTURES de la demande, pas des objectifs
+   * ajoutés. Le comptage lisait 2 > 0 et arrêtait un tour dont l'Architecte disait
+   * `action_recommandee: continuer`, zéro question, zéro ambiguïté.
+   *
+   * CE QUI REMPLACE L'ASSERTION, plutôt que de disparaître avec elle : l'invariant tient toujours,
+   * et il tient MIEUX, parce qu'il est désormais éprouvé sur la propriété qui le garantit vraiment
+   * — `intent.secondary_objectives` reste hors de ARCH_ENRICHABLE_PATHS, donc l'analyse peut NOMMER
+   * une intention sans jamais l'écrire dans le contrat. */
   const { validateFromTurn: validate } = loadPostOprieValidator();
   const turn = oprieReadyTurn();
   const before = JSON.stringify(turn.operational_request_candidate.secondary_objectives);
@@ -90,8 +108,12 @@ test('T-READINESS-06 nouvel objectif secondaire → CONTRACT_INCONSISTENT, secon
   analysis.comprehension.intentions_secondaires = ['Un objectif secondaire non validé.'];
 
   const result = validate(analysis, turn);
-  assert.equal(result.ok, false);
-  assert.equal(result.signals[0].canonical_field, 'intent.secondary_objectives');
+  assert.equal(result.ok, true, 'nommer une intention n’arrête plus la préparation');
+  assert.deepEqual(result.signals, [], 'aucun signal bloquant sur ce registre');
+  assert.equal(result.divergences.length, 1);
+  assert.equal(result.divergences[0].canonical_field, 'intent.secondary_objectives');
+  assert.equal(result.divergences[0].blocking, false);
+  /* Et le champ protégé n'a pas bougé d'un octet — ce que le test disait déjà, et qui reste vrai. */
   assert.equal(JSON.stringify(turn.operational_request_candidate.secondary_objectives), before,
     'le validateur ne doit jamais écrire dans le champ protégé');
 });
@@ -335,8 +357,12 @@ test('T-READINESS-15 remaining_candidate_questions ne pilote plus rien sur le ch
 test('T-READINESS-16 return_to_oprie ne déclenche aucune question Architecte', () => {
   const { validateFromTurn: validate, showStop, ui } = loadPostOprieValidator();
 
+  /* ADN-ARCH-03b — déclencheur rearmé. Ce test utilisait `intentions_secondaires` comme moyen
+     commode d'obtenir un CONTRACT_INCONSISTENT ; cette comparaison n'arrête plus rien depuis
+     l'échange réel GASPPN. Son SUJET est ailleurs, et son assertion est inchangée : le déclencheur
+     est `ambiguites`, qui conserve son autorité de blocage. */
   const analysis = coherentAnalysis();
-  analysis.comprehension.intentions_secondaires = ['Objectif non validé.'];
+  analysis.comprehension.ambiguites = ['Ambiguïté hors contrat validé.'];
   const result = validate(analysis, oprieReadyTurn());
 
   const signal = result.signals[0];
@@ -475,7 +501,18 @@ test('T-READINESS-23 les champs OPRIE protégés sont strictement immuables à l
   const result = validate(analysis, turn);
 
   assert.equal(result.ok, false);
-  assert.ok(result.signals.length >= 6, 'toutes les divergences sont signalées');
+  /* ADN-ARCH-03 / 03b — le compte figé « au moins 6 » épinglait un nombre de signaux BLOQUANTS que
+     trois désarmements ont légitimement fait baisser. Ce que ce test protège est que RIEN n'est
+     perdu en silence : chaque déclencheur armé ressort, en signal ou en observation. La propriété
+     est donc vérifiée par COUVERTURE et non par un total, ce qui la rend insensible au prochain
+     désarmement tout en restant aussi stricte. */
+  const releves = [...result.signals.map((s) => s.canonical_field),
+                   ...result.divergences.map((d) => d.canonical_field)];
+  for (const arme of ['intent.objective', 'intent.secondary_objectives', 'intent.delegated_decisions',
+                      'assumptions.allowed', 'executability.substitutable_missing',
+                      'executability.critical_missing', 'intent.deliverable']) {
+    assert.ok(releves.includes(arme), `déclencheur armé non relevé : ${arme}`);
+  }
   assert.equal(JSON.stringify(turn), snapshot, 'le tour OPRIE est inchangé, champ pour champ');
   assert.equal(JSON.stringify(analysis), analysisSnapshot, 'l’analyse est inchangée : le validateur est pur');
 });
@@ -539,16 +576,20 @@ test('T-READINESS-33 la preuve d’un EXECUTION_UNSAFE est l’information typé
 
 test('T-READINESS-34 la preuve d’un CONTRACT_INCONSISTENT est le champ protégé, jamais action_recommandee', () => {
   const { validateFromTurn: validate } = loadPostOprieValidator();
+  /* ADN-ARCH-03b — déclencheur rearmé. Ce test utilisait `intentions_secondaires` comme moyen
+     commode d'obtenir un CONTRACT_INCONSISTENT ; cette comparaison n'arrête plus rien depuis
+     l'échange réel GASPPN. Son SUJET est ailleurs, et son assertion est inchangée : le déclencheur
+     est `ambiguites`, qui conserve son autorité de blocage. */
   const analysis = coherentAnalysis();
   analysis.evaluation.action_recommandee = 'questionner';
-  analysis.comprehension.intentions_secondaires = ['Objectif secondaire non validé.'];
+  analysis.comprehension.ambiguites = ['Ambiguïté hors contrat validé.'];
 
   const result = validate(analysis, oprieReadyTurn());
   assert.equal(result.ok, false);
   assert.equal(result.signals.length, 1);
   assert.equal(result.signals[0].signal, 'CONTRACT_INCONSISTENT');
-  assert.equal(result.signals[0].canonical_field, 'intent.secondary_objectives');
-  assert.equal(result.signals[0].arch_source_field, 'comprehension.intentions_secondaires');
+  assert.equal(result.signals[0].canonical_field, 'executability.substitutable_missing');
+  assert.equal(result.signals[0].arch_source_field, 'comprehension.ambiguites');
 });
 
 test('T-READINESS-35 les trois jugements réunis, sans autre défaut → aucun signal, continuation autorisée', () => {
@@ -612,7 +653,11 @@ test('T-READINESS-37 aucun signal bloquant ne cite un champ de evaluation comme 
 
   const result = validate(analysis, oprieReadyTurn());
   assert.equal(result.ok, false);
-  assert.ok(result.signals.length >= 6);
+  /* ADN-ARCH-03 / 03b — même raison qu'en T-READINESS-23 : ce qui compte n'est pas un total de
+     signaux, mais que plusieurs déclencheurs structurels distincts aient bien produit un arrêt, et
+     qu'AUCUN ne cite une conclusion de readiness comme preuve. */
+  assert.ok(result.signals.length >= 3, 'plusieurs déclencheurs structurels distincts ont bloqué');
+  assert.ok(new Set(result.signals.map((s) => s.canonical_field)).size >= 3);
 
   for (const s of result.signals) {
     assert.equal(String(s.arch_source_field || '').startsWith('evaluation.'), false,

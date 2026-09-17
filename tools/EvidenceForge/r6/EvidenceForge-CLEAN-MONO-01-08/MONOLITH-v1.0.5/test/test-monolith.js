@@ -548,6 +548,7 @@ function fakeLlm(script) {   // script : tableau de textes ou de fonctions (prom
   await require("./test-panel.js")({ T, assert, assertThrows, tmp, sha, setEnv, K_KEY, K_URL, withFakeProvider, okBody, P, ROOT, createLlm });
   await require("./test-sufficiency.js")({ T, assert, assertThrows, tmp, sha, setEnv, P, ROOT, createLlm });
   await require("./test-screening-cost.js")({ T, assert, assertThrows, tmp, sha, setEnv, P, ROOT, createLlm });
+  await require("./test-run-safety.js")({ T, assert, assertThrows, tmp, sha, setEnv, K_KEY, K_URL, withFakeProvider, okBody, seedRunAtProfessionals, patchSP, patchSeal, fakeProCheckpoint, fakeDownCheckpoint, P, RS, PL, ROOT, createLlm });
 
   setEnv(K_KEY, REAL_ENV.key); setEnv(K_URL, REAL_ENV.url);
   const out = { schema: "EvidenceForge.MonolithTestResults", ranAt: new Date().toISOString(), total: results.length, passed: results.length - failures, failed: failures, results };

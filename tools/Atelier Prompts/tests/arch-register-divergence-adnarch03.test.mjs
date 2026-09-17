@@ -123,6 +123,14 @@ test('T-AA03-04 : la divergence reste observable, dénombrée, et jamais bloquan
   }
   const champs = observations.map((o) => o.canonical_field).sort();
   assert.deepEqual(champs, ['assumptions.allowed', 'executability.remaining_unknowns']);
+  /* ADN-ARCH-03b — le troisième registre désarmé s'observe de la même façon, par le MÊME canal. */
+  const avecSec = coherentAnalysis();
+  avecSec.comprehension.intentions_secondaires = ['S1', 'S2'];
+  const troisieme = enrichCanonicalContractFromArchAnalysis(canonicalFrom(oprieReadyTurn()), avecSec);
+  assert.deepEqual(troisieme.signals, []);
+  assert.equal(troisieme.observations.length, 1);
+  assert.equal(troisieme.observations[0].kind, ARCH_REGISTER_DIVERGENCE);
+  assert.equal(troisieme.observations[0].canonical_field, 'intent.secondary_objectives');
 });
 
 test('T-AA03-05 : une observation NE PEUT PAS devenir un arrêt — la séparation est structurelle', () => {
@@ -206,14 +214,15 @@ test('T-AA03-08 · D : l’analyse cohérente historique ne régresse pas', () =
   assert.deepEqual(validateArchCanonicalEnrichment(base, contract, analyse).mutated_oprie_fields, []);
 });
 
-test('T-AA03-09 : les TROIS autres comparaisons de cardinalité gardent leur autorité', () => {
-  /* PÉRIMÈTRE. Ce lot retire l’autorité de blocage à DEUX comparaisons, celles dont la production
-     a prouvé l’invalidité. Les trois autres la conservent : les toucher serait décider à la place
-     du propriétaire. Ce test le constate, pour qu’un lot futur voie ce qui a été laissé. */
+test('T-AA03-09 : les DEUX autres comparaisons de cardinalité gardent leur autorité', () => {
+  /* PÉRIMÈTRE, MIS À JOUR PAR ADN-ARCH-03b. Trois comparaisons ont désormais perdu leur autorité,
+     chacune sur preuve d’un cas réel : `assumptions.allowed` et `executability.remaining_unknowns`
+     (JCBRHF, VELA5Q), puis `intent.secondary_objectives` (GASPPN). Les DEUX dernières la conservent,
+     et le resteront tant qu’aucun cas réel ne les invalide : les toucher par analogie serait décider
+     à la place du propriétaire. Ce test le constate, pour qu’un lot futur voie ce qui a été laissé. */
   const { validate } = loadPostOprieValidator();
   const base = canonicalFrom(oprieReadyTurn());
   const cas = [
-    ['intent.secondary_objectives', (a) => { a.comprehension.intentions_secondaires = ['S1']; }],
     ['intent.delegated_decisions', (a) => { a.strategie.pilotage_incertitude = { decisions_autonomes: ['D1'], estimations_a_etiqueter: [], inconnues_non_devineables: [] }; }],
     ['executability.substitutable_missing', (a) => { a.comprehension.ambiguites = ['A1']; }]
   ];
@@ -223,24 +232,30 @@ test('T-AA03-09 : les TROIS autres comparaisons de cardinalité gardent leur aut
     const { signals } = enrichCanonicalContractFromArchAnalysis(base, analyse);
     assert.ok(signals.some((s) => s.canonical_field === champ), `${champ} bloque encore`);
   }
-  /* Et le validateur de l’artefact conserve les siens, sauf celui qui a été retiré. */
+  /* Et le validateur de l’artefact conserve les siens, sauf ceux qui ont été retirés. */
+  const analyseAmb = coherentAnalysis();
+  analyseAmb.comprehension.ambiguites = ['A1'];
+  assert.equal(validate(analyseAmb, base).ok, false, 'l’artefact bloque encore sur les ambiguïtés');
+  /* Le troisième registre désarmé ne bloque plus, ni au module ni à l’artefact. */
   const analyseSec = coherentAnalysis();
   analyseSec.comprehension.intentions_secondaires = ['S1'];
-  assert.equal(validate(analyseSec, base).ok, false, 'l’artefact bloque encore sur les objectifs secondaires');
+  const verdictSec = validate(analyseSec, base);
+  assert.equal(verdictSec.ok, true, 'les objectifs secondaires ne bloquent plus');
+  assert.equal(verdictSec.divergences[0].canonical_field, 'intent.secondary_objectives');
 });
 
 /* ==========================================================================
  * LES FICHIERS RÉELS, QUAND ILS SONT LÀ
  * ======================================================================= */
 
-test('T-AA03-10 : rejeu des échanges réels JCBRHF et VELA5Q', (t) => {
+test('T-AA03-10 : rejeu des échanges réels JCBRHF, VELA5Q et GASPPN', (t) => {
   /* Ces fichiers portent la demande d’une personne : ils ne sont PAS versionnés. Le test les
      rejoue quand ils sont présents sur la machine du propriétaire, et se déclare ignoré sinon —
      la propriété est déjà couverte par les fixtures neutres ci-dessus, aux mêmes cardinalités. */
   const dossier = `${process.env.HOME}/Downloads`;
-  const presents = ['JCBRHF', 'VELA5Q'].filter((id) =>
+  const presents = ['JCBRHF', 'VELA5Q', 'GASPPN'].filter((id) =>
     fs.existsSync(`${dossier}/demande-pour-ia-${id}.json`) && fs.existsSync(`${dossier}/reponse-de-ia-${id}.json`));
-  if (presents.length < 2) return t.skip('échanges réels absents de cette machine');
+  if (presents.length < 3) return t.skip('échanges réels absents de cette machine');
 
   const { validate } = loadPostOprieValidator();
   for (const id of presents) {
@@ -268,6 +283,47 @@ test('T-AA03-10 : rejeu des échanges réels JCBRHF et VELA5Q', (t) => {
     assert.equal(verdict.ok, true, `${id} : enrichissement accepté`);
     assert.deepEqual(verdict.mutated_oprie_fields, [], `${id} : mutated_oprie_fields = []`);
   }
+});
+
+test('T-AA03-12 · GASPPN : un registre ABSENT du contrat vaut zéro, et n’arrête plus rien', () => {
+  /* LE CAS GASPPN, EN FIXTURE NEUTRE. Ce que l'échange réel portait de décisif n'est pas son texte,
+     c'est sa FORME : le contrat compact exporté n'avait AUCUN registre `secondary_objectives` — la
+     projection ne l'inclut que s'il est non vide — donc la référence valait zéro, tandis que le
+     schéma 3.4 rend `intentions_secondaires` OBLIGATOIRE côté Architecte. Toute analyse conforme
+     dépassait donc la référence.
+
+     C'est la forme partagée par les trois désarmements de ce chantier, et c'est elle qu'il faut
+     garder sous test : un registre qu'OPRIE laisse vide ne doit pas rendre l'obligation du schéma
+     auto-incriminante. */
+  const { validateFromTurn } = loadPostOprieValidator();
+  /* Aucun objectif secondaire côté OPRIE — exactement l'export GASPPN. */
+  const tour = oprieReadyTurn({ operational_request_candidate: {
+    secondary_objectives: [], assumptions_allowed: ['A1', 'A2', 'A3'], delegated_decisions: ['D1', 'D2', 'D3']
+  } });
+  const base = canonicalFrom(tour);
+  assert.equal(base.intent.secondary_objectives.length, 0, 'le registre est vide, comme à l’export');
+
+  const analyse = coherentAnalysis();
+  analyse.comprehension.intentions_secondaires = [
+    'Maintenir une communication sereine.', 'Formuler le changement sans ambiguïté.'
+  ];
+
+  const verdict = validateFromTurn(analyse, tour);
+  assert.equal(verdict.ok, true, 'le tour n’est plus arrêté');
+  assert.deepEqual(verdict.signals, [], 'zéro signal bloquant');
+  assert.equal(verdict.divergences.length, 1);
+  assert.equal(verdict.divergences[0].canonical_field, 'intent.secondary_objectives');
+  assert.equal(verdict.divergences[0].canonical_count, 0);
+  assert.equal(verdict.divergences[0].arch_count, 2);
+
+  /* Et rien n'a été écrit : c'est la seule garantie qui compte. */
+  const { contract, signals, observations } = enrichCanonicalContractFromArchAnalysis(base, analyse);
+  assert.deepEqual(signals, [], 'le module non plus n’arrête rien');
+  assert.ok(observations.some((o) => o.canonical_field === 'intent.secondary_objectives'));
+  assert.deepEqual(contract.intent.secondary_objectives, base.intent.secondary_objectives);
+  assert.deepEqual(validateArchCanonicalEnrichment(base, contract, analyse).mutated_oprie_fields, []);
+  assert.equal(JSON.stringify(contract).includes('communication sereine'), false,
+    'l’intention nommée n’entre pas dans le contrat');
 });
 
 test('T-AA03-11 : aucun appariement lexical n’a été introduit', () => {

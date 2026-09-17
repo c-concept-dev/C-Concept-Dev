@@ -180,10 +180,14 @@ test('T-ARCH01-16 objectif secondaire identique → aucun signal, aucune écritu
 });
 
 for (const [id, label, mutate, field] of [
-  ['17', 'nouvel objectif secondaire', (a) => { a.comprehension.intentions_secondaires = ['SEC_OPRIE', 'NOUVEAU']; }, 'intent.secondary_objectives'],
   ['18', 'décision autonome non déléguée', (a) => { a.strategie.pilotage_incertitude.decisions_autonomes = ['DEL_OPRIE', 'NOUVELLE']; }, 'intent.delegated_decisions'],
   ['19', 'ambiguïté hors contrat OPRIE', (a) => { a.comprehension.ambiguites = ['AMBIGUE']; }, 'executability.substitutable_missing'],
-  /* ADN-ARCH-03 — HISTORICAL_IMPLEMENTATION_CONTRACT : 19b et 19c ont quitté cette table.
+  /* ADN-ARCH-03 / 03b — HISTORICAL_IMPLEMENTATION_CONTRACT : 17, 19b et 19c ont quitté cette table.
+   *
+   * 17 les a rejointes sur preuve de l'échange GASPPN : contrat exporté SANS registre
+   * `secondary_objectives`, champ Architecte OBLIGATOIRE au schéma 3.4, deux intentions nommées qui
+   * étaient des lectures de la demande — et 2 > 0 arrêtait un tour déclaré prêt. Troisième
+   * occurrence de la même forme.
    *
    * L'INVARIANT QU'ILS PRÉTENDAIENT PROTÉGER : « un ensemble plus grand côté Architecte signifie
    * qu'un élément a été créé après la validation OPRIE ». Mesuré sur deux échanges réels, cet
@@ -557,7 +561,7 @@ test('T-ARCH01-44 la garde core anti-promotion reste opérante après enrichisse
  * ADVERSARIAL COMPLET
  * ======================================================================= */
 
-test('T-ARCH01-19bc ADN-ARCH-03 : les deux registres retirés restent INÉCRIVABLES', () => {
+test('T-ARCH01-19bc ADN-ARCH-03 : les TROIS registres retirés restent INÉCRIVABLES', () => {
   /* Ce que 19b et 19c gardaient réellement d'utile, exprimé sur la propriété qui tient : une
      analyse qui NOMME davantage ne peut pas pour autant écrire dans le contrat. La garde est une
      comparaison de CHEMINS — elle ne dénombre rien, donc elle ne peut pas confondre une lecture
@@ -566,10 +570,11 @@ test('T-ARCH01-19bc ADN-ARCH-03 : les deux registres retirés restent INÉCRIVAB
   const a = analysis();
   a.strategie.hypotheses_autorisees = ['ASS_OPRIE', 'NON_AUTORISEE'];
   a.strategie.pilotage_incertitude.inconnues_non_devineables = ['UNK_OPRIE', 'NOUVELLE'];
+  a.comprehension.intentions_secondaires = ['SEC_OPRIE', 'NOUVEAU'];
   const { contract, signals, observations } = enrich(base, a);
 
-  /* Aucun arrêt sur ces deux registres… */
-  for (const champ of ['assumptions.allowed', 'executability.remaining_unknowns']) {
+  /* Aucun arrêt sur ces trois registres… */
+  for (const champ of ['assumptions.allowed', 'executability.remaining_unknowns', 'intent.secondary_objectives']) {
     assert.equal(signals.some((s) => s.canonical_field === champ), false, `${champ} ne bloque plus`);
     assert.ok(observations.some((o) => o.canonical_field === champ), `${champ} reste observé`);
     assert.equal(ARCH_ENRICHABLE_PATHS.includes(champ), false, `${champ} n'est pas enrichissable`);
@@ -577,9 +582,11 @@ test('T-ARCH01-19bc ADN-ARCH-03 : les deux registres retirés restent INÉCRIVAB
   /* …et rien n'a été écrit : le contrat porte exactement ce qu'OPRIE avait validé. */
   assert.deepEqual(contract.assumptions.allowed, base.assumptions.allowed);
   assert.deepEqual(contract.executability.remaining_unknowns, base.executability.remaining_unknowns);
+  assert.deepEqual(contract.intent.secondary_objectives, base.intent.secondary_objectives);
   assert.deepEqual(validateArchCanonicalEnrichment(base, contract, a).mutated_oprie_fields, []);
   assert.equal(JSON.stringify(contract).includes('NON_AUTORISEE'), false, 'la valeur nommée n’entre pas');
   assert.equal(JSON.stringify(contract).includes('NOUVELLE'), false);
+  assert.equal(JSON.stringify(contract).includes('NOUVEAU'), false);
 });
 
 test('T-ARCH01-ADV analyse hostile totale : 0 mutation OPRIE, signaux structurés', () => {
@@ -624,10 +631,10 @@ test('T-ARCH01-ADV analyse hostile totale : 0 mutation OPRIE, signaux structuré
      canaux : une analyse hostile ne peut donc pas devenir invisible en changeant de registre. */
   const fields = signals.map((s) => s.canonical_field);
   const observed = observations.map((o) => o.canonical_field);
-  for (const expected of ['intent.secondary_objectives', 'intent.delegated_decisions', 'executability.substitutable_missing']) {
+  for (const expected of ['intent.delegated_decisions', 'executability.substitutable_missing']) {
     assert.ok(fields.includes(expected), `divergence non signalée : ${expected}`);
   }
-  for (const expected of ['assumptions.allowed', 'executability.remaining_unknowns']) {
+  for (const expected of ['assumptions.allowed', 'executability.remaining_unknowns', 'intent.secondary_objectives']) {
     assert.ok(observed.includes(expected), `divergence non observée : ${expected}`);
     assert.equal(fields.includes(expected), false, `${expected} ne bloque plus`);
   }

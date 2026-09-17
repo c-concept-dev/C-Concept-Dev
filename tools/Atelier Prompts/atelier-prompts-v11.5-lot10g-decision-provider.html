@@ -10896,7 +10896,7 @@ function v11RequireDemand(){
   return '';
 }
 /* GENERATED — LOT 10G.3B.3F.2
- * source-sha256: 38a127499417846ca16c648e989cd355d9cf86eab8fdbe49f0d664ab37f2b99a
+ * source-sha256: 169fef3aecff4beeeaeaadc26d3f04f5d68f0eff23f101d26cb65661f32bb3ff
  * Ne pas modifier manuellement. Régénérer avec tools/build-adn-browser-runtime.mjs
  */
 (function(global){
@@ -13549,10 +13549,18 @@ function diagnoseAgainstOprie(analysis, base, signals, observations) {
 
   /* Cardinalités : un ensemble plus grand côté Architecte signifie qu'un élément
      a été créé après la validation OPRIE. Aucune écriture n'en découle. */
+  /* ADN-ARCH-03b — OBSERVÉ, PLUS BLOQUANT, SUR PREUVE D'UN TROISIÈME CAS RÉEL.
+     Sur l'échange GASPPN, le contrat compact exporté ne portait AUCUN registre
+     `secondary_objectives` — OPRIE n'en avait confirmé aucun, la référence valait donc 0 — tandis
+     que le schéma 3.4 rend `intentions_secondaires` OBLIGATOIRE. L'analyse en nommait deux, toutes
+     deux des lectures de la demande (« maintenir une communication sereine », « formuler le
+     changement sans ambiguïté »), et le comptage concluait 2 > 0.
+     Même forme que les deux comparaisons désarmées avant : le système EXIGE un champ dont toute
+     valeur dépassait un registre qu'OPRIE laisse vide. Nommer une intention ne l'écrit pas —
+     `intent.secondary_objectives` reste hors de ARCH_ENRICHABLE_PATHS. */
   if (list(comprehension.intentions_secondaires).length > list(base.intent.secondary_objectives).length) {
-    signals.push(signal('CONTRACT_INCONSISTENT', 'intent.secondary_objectives',
-      'comprehension.intentions_secondaires',
-      'Un objectif secondaire absent du contrat validé apparaît dans l’analyse.', true));
+    observations.push(registerDivergence('intent.secondary_objectives', 'comprehension.intentions_secondaires',
+      list(base.intent.secondary_objectives).length, list(comprehension.intentions_secondaires).length));
   }
   if (list(pilotage.decisions_autonomes).length > list(base.intent.delegated_decisions).length) {
     signals.push(signal('CONTRACT_INCONSISTENT', 'intent.delegated_decisions',
@@ -23335,7 +23343,7 @@ function createAdapterAuditView(envelope) {
 
 return {ENGINE_ADAPTERS_VERSION,buildExecutionEnvelope,projectToRapide,projectToArchitecte,projectToAtelier,validateLegacyLockMapping,createAdapterAuditView};
 })({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON});
-global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...BOUNDED,...ORCORE,...ROLEDEG,...SOLICIT,...COREPLANE,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'38a127499417846ca16c648e989cd355d9cf86eab8fdbe49f0d664ab37f2b99a'});
+global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...BOUNDED,...ORCORE,...ROLEDEG,...SOLICIT,...COREPLANE,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'169fef3aecff4beeeaeaadc26d3f04f5d68f0eff23f101d26cb65661f32bb3ff'});
 })(window);
 
 
@@ -23603,9 +23611,25 @@ function adnValidatePostOprie(analysis,canonicalContract){
   if(!text(comprehension.intention_principale)&&text(intent.objective))
     push('CONTRACT_INCONSISTENT','intent.objective','comprehension.intention_principale',
       'L’objectif validé par OPRIE n’est pas repris par l’analyse.',true);
+  /* ADN-ARCH-03b — OBSERVÉ, PLUS BLOQUANT, ET MESURÉ SUR L'ÉCHANGE GASPPN.
+   *
+   * Le contrat compact exporté ne portait AUCUN registre `secondary_objectives` : OPRIE n'en avait
+   * confirmé aucun, donc la référence valait zéro. Or le schéma 3.4 rend `intentions_secondaires`
+   * OBLIGATOIRE. L'analyse en nommait deux — « maintenir une communication sereine autour du
+   * changement d'agenda », « formuler le changement de date sans ambiguïté » — qui sont des
+   * lectures de la demande, pas des objectifs ajoutés. Le comptage lisait 2 > 0 et arrêtait un tour
+   * dont l'Architecte disait pourtant `action_recommandee: continuer`, zéro question, zéro ambiguïté.
+   *
+   * C'est la TROISIÈME fois que cette forme se présente, et toujours la même : le système exige un
+   * champ dont toute valeur dépasse un registre qu'OPRIE laisse vide sur une demande bien spécifiée.
+   * Nommer une intention ne l'impose pas — `intent.secondary_objectives` reste hors de
+   * ARCH_ENRICHABLE_PATHS, donc l'enrichisseur ne peut pas l'écrire, et la garde de chemins le
+   * refuserait. */
   if(list(comprehension.intentions_secondaires).length>list(intent.secondary_objectives).length)
-    push('CONTRACT_INCONSISTENT','intent.secondary_objectives','comprehension.intentions_secondaires',
-      'Un objectif secondaire absent du contrat validé apparaît dans l’analyse.',true);
+    divergences.push({kind:'ARCH_REGISTER_DIVERGENCE',canonical_field:'intent.secondary_objectives',
+      arch_source_field:'comprehension.intentions_secondaires',
+      canonical_count:list(intent.secondary_objectives).length,
+      arch_count:list(comprehension.intentions_secondaires).length,blocking:false});
   if(list(pilotage.decisions_autonomes).length>list(intent.delegated_decisions).length)
     push('CONTRACT_INCONSISTENT','intent.delegated_decisions','strategie.pilotage_incertitude.decisions_autonomes',
       'Une décision autonome non déléguée par la personne apparaît dans l’analyse.',true);
