@@ -4,7 +4,7 @@
     "name": "EvidenceForge",
     "version": "MONOLITH-v1.0.5"
   },
-  "generatedAt": "2026-09-17T18:04:24.495Z",
+  "generatedAt": "2026-09-17T18:54:04.995Z",
   "frozenLots": {
     "MONO-10": {
       "dir": "MONO-10/v0.19",
@@ -88,7 +88,7 @@
       "total": 156,
       "passed": 156,
       "failed": 0,
-      "ranAt": "2026-09-17T18:03:58.144Z"
+      "ranAt": "2026-09-17T18:49:33.771Z"
     },
     "professionals": {
       "maxCandidatesToEvaluate": 150,
@@ -177,13 +177,18 @@
     },
     {
       "path": "RAPPORT-PANEL-SUFFICIENCY-POLICY.md",
-      "sha256": "86d7b3784d76badbc5b4e07758335655951b07f49baf47aee6bf2f70079664e6",
-      "bytes": 10044
+      "sha256": "8f83ec0ead0f044e1e4d561bf8e2588321bbc0683f401047fa1143ad2daaffdc",
+      "bytes": 10593
+    },
+    {
+      "path": "RAPPORT-PANEL-SUFFICIENCY-v2-REAL-VALIDATION.md",
+      "sha256": "d77cf10e471affaaf550e58b689cbbff426cf1b8aed8f6a0b8dc10714729b835",
+      "bytes": 16526
     },
     {
       "path": "README.md",
-      "sha256": "e22c1a33ccaaa62b5486d612375e905a137747117f5cdeeb671af6f15644b8a2",
-      "bytes": 22289
+      "sha256": "30573e5b7bcfcc59f05f7a0d4ade45912f3abe91efe21135c0163c4409a788f5",
+      "bytes": 22533
     },
     {
       "path": "TEST-REPORT-MONOLITH-MONO11-v0.3-r1.md",
@@ -347,7 +352,7 @@
     },
     {
       "path": "test/browser-results-v105.json",
-      "sha256": "58b8d639bab55ba6c6a6bfd343c392e0c54aa01033bd405dd07806ed4600ec1c",
+      "sha256": "ef6e888d0907ddc0fd00e7122023ffc19ba3dc28a2169e730460230f17988bee",
       "bytes": 6230
     },
     {
@@ -357,7 +362,7 @@
     },
     {
       "path": "test/results.json",
-      "sha256": "3df9e2f79204b537a1fdf8380506b6f6b7fbb9273cf459b9b7f6ae6c0257ce25",
+      "sha256": "7c2deebf13de771f297b6d0c7daa93b4f0557eee1a460613abbf89f3bcd3c609",
       "bytes": 37505
     },
     {
@@ -486,6 +491,6 @@
       "bytes": 1614
     }
   ],
-  "fileCount": 77,
-  "contentHash": "067e10c6928fb533430f38fb1f9eb0bb7cd8b40e9f2bcc49e7019fcdf7d06ebb"
+  "fileCount": 78,
+  "contentHash": "1a7305efd1a9cc844f454ba2b9425d3b17a9bf1d586da9ea3c97a3ac2b3937f3"
 }

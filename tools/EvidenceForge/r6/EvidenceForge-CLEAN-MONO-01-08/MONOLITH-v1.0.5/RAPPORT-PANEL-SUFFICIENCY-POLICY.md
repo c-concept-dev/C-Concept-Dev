@@ -84,7 +84,7 @@ Modifiés : `lib/panel-sufficiency.js` (v2), `lib/stage-professionals.js` (`runP
   entérinaient l'ancien comportement « épuisé = satisfait »). Lanceur **14/14**, navigateur **25/25** (portefeuille inclus), secrets **0 hit**,
   anti-hardcoding **0 hit** (jetons des runs réels), lots gelés **byte-identiques** (MONO-01 106, MONO-09 9, MONO-10 79, MONO-11 52 fichiers, 0 divergence),
   runs historiques intacts (WORKREF-04), `.env.local` non versionné.
-- Coût de validation réelle : **0 USD** (aucun run lancé ; le comportement PANEL_SUFFICIENT réel reste à observer sur un vivier riche).
+- Coût de validation réelle : **2,54 USD** (run `5ad77c88`, §7c) ; états A/B non observés en réel.
 
 ## 7b. Contrôle MAXIMAL / MAXIMUM (2026-09-17, après d85c9a7)
 Le code construit un ensemble indépendant **maximal** (inclusion) glouton dans l'ordre d'évaluation, **pas maximum** ; la formulation
@@ -94,6 +94,11 @@ sous-estimation possible (SUFF-16 : 63/400 instances aléatoires ; 135 SUFFICIEN
 elle peut retarder `DIMENSION_SUFFICIENT` ou laisser un angle `EXHAUSTED_PARTIAL` alors qu'un maximum l'aurait déclaré suffisant. Stratégie
 journalisée dans chaque décision (`independenceAlgorithm: GREEDY_MAXIMAL_IN_EVALUATION_ORDER / MAXIMAL_NOT_MAXIMUM / NEVER_OVERESTIMATES`).
 Pas de remplacement par un algorithme exponentiel (décision du propriétaire).
+
+## 7c. Validation réelle (2026-09-17, run `efm-20260917-5ad77c88`, 2,54 USD) — `RAPPORT-PANEL-SUFFICIENCY-v2-REAL-VALIDATION.md`
+Pipeline standard, 8 angles, 1927 découverts / 1783 résolus / 150 sélectionnés, 26 évaluations réelles avant `BUDGET_LIMIT_REACHED` (plafond 2,50).
+Logique v2 conforme en exploitation (gate gelé 3 = 3, dimensions soutenues, indépendance active : cardiologie 2 représentants / 1 indépendant par
+graine partagée, post-verrou ignoré, rejeu identique 26/26) ; **ni PANEL_SUFFICIENT ni PANEL_EXHAUSTED_WITH_GAPS observé** (budget borne avant).
 
 ## 8. Verdict
 **NON GELABLE en l'état → GELABLE (candidat) après un run réel** montrant `EARLY_STOP_CONFIRMED` ou `PANEL_EXHAUSTED_WITH_GAPS` avec l'artefact
