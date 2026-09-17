@@ -55498,6 +55498,13 @@ var Worker_default = {
       return handleBrandKitGet(env2, brandKitIdMatch[1]);
     if (p === "/brand-assets/upload" && request2.method === "POST")
       return handleBrandAssetUpload(request2, env2);
+    // LOT C (Studio Clinique — glisser-déposer d'image locale) — aucune route de lecture
+    // n'existait pour BRAND_ASSETS avant ce lot : l'upload (ci-dessus) stockait déjà dans R2/D1,
+    // mais rien ne servait les octets en retour (investigation confirmée). Même patron que
+    // handleGetFile (CLONE_KV) juste au-dessus dans ce routeur, appliqué à R2 au lieu de KV.
+    const brandAssetGetMatch = p.match(/^\/brand-assets\/([a-f0-9]{64})$/);
+    if (brandAssetGetMatch && request2.method === "GET")
+      return handleBrandAssetGet(env2, brandAssetGetMatch[1]);
     // Audit systémique (Priorité 8.7) — CONFIRMÉ : tout POST non reconnu par une route explicite
     // ci-dessus tombait silencieusement dans handleAnthropicProxy, tentant un appel LLM réel
     // avec un corps qui ne lui était pas destiné. Le seul appel légitime au proxy Anthropic est
@@ -56149,6 +56156,28 @@ async function handleBrandAssetUpload(request2, env2) {
   }
 }
 __name(handleBrandAssetUpload, "handleBrandAssetUpload");
+
+// LOT C (Studio Clinique) — sert les octets d'un asset déjà uploadé (handleBrandAssetUpload
+// ci-dessus). assetId déjà validé par le routeur (^[a-f0-9]{64}$, l'empreinte SHA-256 elle-même
+// sert de clé R2 — cf. commentaire de handleBrandAssetUpload), donc jamais utilisé ici sans passer
+// par ce filtre. Content-Type lu depuis R2 httpMetadata (posé à l'upload) — jamais recalculé.
+// Cache-Control long + immutable : légitime uniquement parce que la clé est adressée par contenu
+// (un asset_id donné ne peut jamais changer de contenu), contrairement à handleGetFile (CLONE_KV,
+// fichiers éphémères générés, no-store).
+async function handleBrandAssetGet(env2, assetId) {
+  if (!env2.BRAND_ASSETS) return jsonErr("R2 binding BRAND_ASSETS not configured", 500);
+  const object = await env2.BRAND_ASSETS.get(assetId);
+  if (!object) return new Response("Asset not found", { status: 404 });
+  return new Response(object.body, {
+    status: 200,
+    headers: {
+      "Content-Type": object.httpMetadata && object.httpMetadata.contentType || "application/octet-stream",
+      "Cache-Control": "public, max-age=31536000, immutable",
+      "Access-Control-Allow-Origin": ADOC_ALLOWED_ORIGIN
+    }
+  });
+}
+__name(handleBrandAssetGet, "handleBrandAssetGet");
 
 async function handleAnthropicProxy(request2, env2, ctx2) {
   // Item 24 — journalisation permanente, en parallèle du console.log existant (jamais un
