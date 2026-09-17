@@ -4,7 +4,7 @@
     "name": "EvidenceForge",
     "version": "MONOLITH-v1.0.5"
   },
-  "generatedAt": "2026-09-17T23:02:40.593Z",
+  "generatedAt": "2026-09-17T23:25:18.662Z",
   "frozenLots": {
     "MONO-10": {
       "dir": "MONO-10/v0.19",
@@ -88,7 +88,7 @@
       "total": 198,
       "passed": 198,
       "failed": 0,
-      "ranAt": "2026-09-17T22:58:42.463Z"
+      "ranAt": "2026-09-17T23:23:13.985Z"
     },
     "professionals": {
       "maxCandidatesToEvaluate": 150,
@@ -189,6 +189,11 @@
       "path": "RAPPORT-PANEL-SUFFICIENCY-v2-REAL-VALIDATION.md",
       "sha256": "d77cf10e471affaaf550e58b689cbbff426cf1b8aed8f6a0b8dc10714729b835",
       "bytes": 16526
+    },
+    {
+      "path": "RAPPORT-RUN-SAFETY-REAL-SMOKE.md",
+      "sha256": "4aed5a96d392a4fcf5851a537427ac6265662c142645308d8637311f923bc76e",
+      "bytes": 9584
     },
     {
       "path": "RAPPORT-SCREENING-COST-OPTIMIZER-REAL-SMOKE.md",
@@ -412,7 +417,7 @@
     },
     {
       "path": "test/browser-results-v105.json",
-      "sha256": "41fdc6f589e112ebed22432ea0e4ec0be4192c867145ea0366708a02e844e1e6",
+      "sha256": "0f722cc00bde94b652bd7052d66091eef4701c93c41fdbdcb1a4d569e3ecd9c9",
       "bytes": 8260
     },
     {
@@ -422,7 +427,7 @@
     },
     {
       "path": "test/results.json",
-      "sha256": "420ac82b7d6705adc37792f59dc56dd8b02c642bdd49fa4c535fd82a40510913",
+      "sha256": "1e154d5655c976b2e314898b30c50702ccf756a5a8f2ce4ebb04cf9c79052660",
       "bytes": 49042
     },
     {
@@ -566,6 +571,6 @@
       "bytes": 1614
     }
   ],
-  "fileCount": 93,
-  "contentHash": "230d2ba475afefd2f8dc3b2853b3acfd3bbd4c08290ed00d4dd0d0e311c02c72"
+  "fileCount": 94,
+  "contentHash": "151937a1d3e1b1fff6691274f1d9b7dda52e6285df80bdaaf7c961931459facc"
 }
