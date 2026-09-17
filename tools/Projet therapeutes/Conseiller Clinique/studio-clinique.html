@@ -1831,6 +1831,14 @@
     .adoc-sc-block-text[contenteditable="true"]:focus,
     .cc-ws-doc-card [data-cc-legacy-block-id][contenteditable="true"]:focus { outline: 2px dashed var(--petrol-800); outline-offset: 2px; }
     .cc-block-edit-panel { margin: 10px 0 18px; }
+    /* Item 64 construction — le panneau vit désormais dans #cc-ws-panel (colonne de gauche),
+       plus juste à côté du bloc dans le document : cet indicateur remplace le lien visuel de
+       proximité perdu (le bloc reste surligné dans le document via .is-selected, déjà existant). */
+    .cc-block-edit-target {
+      font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+      color: var(--muted); margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid var(--ivory);
+    }
+    .cc-block-edit-target strong { color: var(--ink); text-transform: none; letter-spacing: normal; font-weight: 600; }
     .cc-block-edit-diff { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
     .cc-block-edit-label {
       font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
@@ -9971,6 +9979,18 @@ ${recent}`;
     function walk(blocks) { for (const b of blocks || []) { if (b.id === id) return b; const child = walk(b.content && b.content.blocks); if (child) return child; } }
     return walk(doc && doc.blocks);
   }
+  // Item 64 construction — court aperçu du bloc sélectionné, affiché en tête du panneau de
+  // correction déplacé dans #cc-ws-panel (le lien visuel de proximité avec le bloc, perdu par le
+  // déplacement, est remplacé par ce rappel textuel — cf. décision demandée). Une seule fonction,
+  // réutilisée par les deux moteurs (structuré ici, legacy directement sur el.textContent) —
+  // jamais deux implémentations séparées pour la même préoccupation.
+  function adocBlockPreviewText(block) {
+    const c = block && block.content || {};
+    const raw = c.text || (Array.isArray(c.items) ? c.items.join(', ') : '')
+      || (c.title) || (Array.isArray(c.headers) ? c.headers.join(' / ') : '') || '';
+    const trimmed = String(raw).trim();
+    return trimmed.length > 60 ? trimmed.slice(0, 60) + '…' : trimmed;
+  }
   function adocEditorArt() { return window._adocArtifacts && window._adocArtifacts[window._adocWsState && window._adocWsState.storeKey]; }
   function adocEditorContext() {
     const art = adocEditorArt();
@@ -9982,7 +10002,10 @@ ${recent}`;
     return {art: art, legacy: legacy, st: st, el: el, block: legacy ? null : adocFindEditableBlock(art._adocStructuredDoc, st.blockId)};
   }
   function adocEditorMessage(message) {
-    const panel = document.querySelector('#cc-ws-doc-card .cc-block-edit-panel');
+    // Item 64 construction — le panneau vit désormais dans #cc-ws-block-edit-slot (colonne de
+    // gauche), plus dans #cc-ws-doc-card : sélecteur mis à jour en conséquence (même panneau,
+    // nouvelle position, cf. adocWsSetupBlockEditing/adocWsSetupLegacyBlockEditing).
+    const panel = document.querySelector('#cc-ws-block-edit-slot .cc-block-edit-panel');
     const out = panel && panel.querySelector('.cc-editor-message');
     if (out) out.textContent = message;
   }
@@ -10427,24 +10450,37 @@ ${recent}`;
     else adocEditorTableAction(action,ctx);
     adocEditorPrepare(ctx.el,ctx.legacy);adocEditorSync();
   }
-  function adocEditorInstall(root, legacy) {
+  // Item 64 construction — 3ᵉ paramètre optionnel `listenerRoot`. Investigation préalable :
+  // .cc-block-edit-panel vit désormais dans #cc-ws-block-edit-slot (colonne de gauche), plus dans
+  // `root` (#cc-ws-doc-card) — sans ce changement, tous les écouteurs délégués ci-dessous
+  // (click/change/focusin/beforeinput/input/focusout, attachés à `root`) cesseraient de recevoir
+  // les événements du panneau désormais hors de `root`, cassant silencieusement CHAQUE contrôle
+  // interactif du panneau (couleur, police, alignement, undo/redo…) — risque identifié avant tout
+  // déplacement, jamais supposé. `root` reste utilisé UNIQUEMENT pour adocEditorPrepare (scan des
+  // blocs éditables réels) : l'élargir à `listenerRoot` y ferait à tort matcher des éléments du
+  // panneau de la colonne de gauche (ex. les <p class="cc-ws-panel-section-title">, qui
+  // correspondent au même sélecteur qu'un paragraphe legacy) — jamais fait, risque écarté par
+  // construction. `listenerRoot` par défaut = `root` (comportement strictement inchangé pour tout
+  // appelant qui ne le fournit pas).
+  function adocEditorInstall(root, legacy, listenerRoot) {
     adocEditorPrepare(root,legacy);
-    if(root.dataset.ccEditorBound)return;root.dataset.ccEditorBound='1';
+    const lr = listenerRoot || root;
+    if(lr.dataset.ccEditorBound)return;lr.dataset.ccEditorBound='1';
     document.addEventListener('selectionchange',adocEditorRememberSelection);
-    root.addEventListener('pointerdown',function(e){root._ccPointerSelecting=true;if(e.target.closest('.cc-editor-tools button'))e.preventDefault();else if(!e.target.closest('.cc-block-edit-panel'))adocEditorRememberSelection();});
-    root.addEventListener('pointerup',function(){setTimeout(function(){root._ccPointerSelecting=false;},0);});
-    root.addEventListener('click',function(e){
+    lr.addEventListener('pointerdown',function(e){lr._ccPointerSelecting=true;if(e.target.closest('.cc-editor-tools button'))e.preventDefault();else if(!e.target.closest('.cc-block-edit-panel'))adocEditorRememberSelection();});
+    lr.addEventListener('pointerup',function(){setTimeout(function(){lr._ccPointerSelecting=false;},0);});
+    lr.addEventListener('click',function(e){
       const action=e.target.closest('[data-editor-action]'),color=e.target.closest('[data-editor-color]');
       if(action)adocEditorAction(action.dataset.editorAction);if(color)adocEditorApplyStyle('color',color.dataset.editorColor);
     });
-    root.addEventListener('change',function(e){if(e.target.matches('[data-editor-scope]'))adocEditorRefreshControls();
+    lr.addEventListener('change',function(e){if(e.target.matches('[data-editor-scope]'))adocEditorRefreshControls();
       if(e.target.matches('[data-editor-style]')){
       if(e.target.type==='number'&&!e.target.checkValidity()){adocEditorMessage('Valeur hors limites.');return;}
       const value=e.target.type==='number'?(e.target.value===''?'':Number(e.target.value)):e.target.value;
       adocEditorApplyStyle(e.target.dataset.editorStyle,value);
     }});
-    root.addEventListener('focusin',function(e){const leaf=e.target.closest('[data-cc-editor-leaf]');if(leaf){_adocEditorLeaf=leaf;const el=leaf.closest('.adoc-sc-block,[data-cc-legacy-block-id]');if(el&&!root._ccPointerSelecting&&!el.classList.contains('is-selected'))el.click();}});
-    root.addEventListener('beforeinput',function(e){
+    lr.addEventListener('focusin',function(e){const leaf=e.target.closest('[data-cc-editor-leaf]');if(leaf){_adocEditorLeaf=leaf;const el=leaf.closest('.adoc-sc-block,[data-cc-legacy-block-id]');if(el&&!lr._ccPointerSelecting&&!el.classList.contains('is-selected'))el.click();}});
+    lr.addEventListener('beforeinput',function(e){
       const leaf=e.target.closest('[data-cc-editor-leaf]');if(!leaf)return;
       if(e.inputType==='historyUndo'||e.inputType==='historyRedo'){e.preventDefault();adocEditorHistory(e.inputType==='historyRedo');return;}
       if(e.inputType==='insertParagraph'||e.inputType==='insertLineBreak'){
@@ -10455,14 +10491,14 @@ ${recent}`;
       }
       adocEditorCheckpoint();
     });
-    root.addEventListener('input',function(e){if(e.target.closest('[data-cc-editor-leaf]')&&!e.isComposing){adocEditorSync();adocEditorMarkDirty();}});
+    lr.addEventListener('input',function(e){if(e.target.closest('[data-cc-editor-leaf]')&&!e.isComposing){adocEditorSync();adocEditorMarkDirty();}});
     // Item 68 — la frappe reste toujours libre (jamais bloquée, jamais interceptée) même à zéro
     // caractère : adocSyncEditedRootFieldsToDoc ne fait déjà qu'ignorer le vide (garde la dernière
     // valeur valide dans le doc, cf. ci-dessus). En quittant le champ, un DOM resté vide serait
     // trompeur (il semblerait que la donnée ait disparu, alors que le doc a conservé l'ancienne
     // valeur) : on réaffiche cette valeur conservée, jamais un message ni un blocage nouveaux.
     // Ne concerne jamais un bloc normal (.adoc-sc-block) — son contenu n'a aucun minLength.
-    root.addEventListener('focusout',function(e){
+    lr.addEventListener('focusout',function(e){
       const leaf=e.target.closest('[data-cc-editor-leaf]'); if(!leaf||leaf.closest('.adoc-sc-block'))return;
       if((leaf.textContent||'').trim())return;
       const art=adocEditorArt(); const doc=art&&art._adocStructuredDoc; if(!doc)return;
@@ -10475,8 +10511,8 @@ ${recent}`;
         if(card)leaf.textContent=card.content.title;
       }
     });
-    root.addEventListener('compositionend',function(e){if(e.target.closest('[data-cc-editor-leaf]')){adocEditorSync();adocEditorMarkDirty();}});
-    root.addEventListener('keydown',function(e){
+    lr.addEventListener('compositionend',function(e){if(e.target.closest('[data-cc-editor-leaf]')){adocEditorSync();adocEditorMarkDirty();}});
+    lr.addEventListener('keydown',function(e){
       const leaf=e.target.closest('[data-cc-editor-leaf]');if(!leaf||e.isComposing)return;
       if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();adocEditorHistory(e.shiftKey);return;}
       if(e.key==='Tab'){
@@ -10501,7 +10537,7 @@ ${recent}`;
         }
       }
     });
-    root.addEventListener('paste',function(e){
+    lr.addEventListener('paste',function(e){
       const leaf=e.target.closest('[data-cc-editor-leaf]');if(!leaf)return;e.preventDefault();adocEditorCheckpoint();
       const sel=window.getSelection();if(!sel.rangeCount)return;const range=sel.getRangeAt(0);if(!leaf.contains(range.commonAncestorContainer))return;
       // Preserve rich inline text; block/list/table structures cannot escape the active host.
@@ -10520,7 +10556,7 @@ ${recent}`;
       const fragment=range.createContextualFragment(clean),last=fragment.lastChild;range.deleteContents();range.insertNode(fragment);
       if(last){range.setStartAfter(last);range.collapse(true);sel.removeAllRanges();sel.addRange(range);}adocEditorSync();
     });
-    root.addEventListener('drop',function(e){if(e.target.closest('[data-cc-editor-leaf]')){e.preventDefault();adocEditorMessage('Utilisez le copier-coller pour insérer du texte dans ce passage.');}});
+    lr.addEventListener('drop',function(e){if(e.target.closest('[data-cc-editor-leaf]')){e.preventDefault();adocEditorMessage('Utilisez le copier-coller pour insérer du texte dans ce passage.');}});
   }
 
   function adocEditorExportFonts(doc) {
@@ -11031,13 +11067,20 @@ ${recent}`;
     btn.hidden = false;
   }
 
-  // LOT 11 (complément palette) — deuxième point d'accès au même panneau que le bouton
-  // "Reteinter" de la carte (adocOpenLegacyReThemePanel, INCHANGÉ, appelé ici tel quel — jamais
-  // un second mécanisme). Agit sur le document actuellement ouvert dans l'espace de travail
-  // (window._adocWsState.storeKey, même source de vérité que adocWsSave/adocOpenWorkspace) :
-  // en pratique le panneau #cc-ws-panel (donc cette entrée) n'est visible que lorsqu'un document
-  // EST déjà ouvert (il vit à l'intérieur de #cc-workspace, jamais affiché seul) — le message
-  // "aucun document ouvert" ci-dessous reste un garde-fou défensif, jamais supposé inatteignable.
+  // LOT 11 (complément palette) — point d'accès permanent, dans la colonne de gauche, au même
+  // panneau que le bouton "Charte" de la carte (jamais un second mécanisme). Agit sur le document
+  // actuellement ouvert dans l'espace de travail (window._adocWsState.storeKey, même source de
+  // vérité que adocWsSave/adocOpenWorkspace) : en pratique le panneau #cc-ws-panel (donc cette
+  // entrée) n'est visible que lorsqu'un document EST déjà ouvert (il vit à l'intérieur de
+  // #cc-workspace, jamais affiché seul) — le message "aucun document ouvert" ci-dessous reste un
+  // garde-fou défensif, jamais supposé inatteignable.
+  // Item 64 construction — investigation préalable : le refus catégorique du structuré ici datait
+  // d'avant item 61 (qui n'avait pas encore donné de charte persistante au moteur structuré). Le
+  // bouton "Charte" de la carte de conversation route DÉJÀ les deux moteurs vers leur bon flux
+  // interne selon art._adocStructuredDoc (cf. le gestionnaire data-action "retheme-html",
+  // ~ligne 6756) — cette entrée de palette reprend EXACTEMENT le même dispatch, jamais un second
+  // système de charte : plus aucune raison de refuser le structuré, la raison d'origine ne tient
+  // plus (confirmé, pas supposé).
   window.adocOpenLegacyFontPanelFromPalette = function () {
     const storeKey = window._adocWsState && window._adocWsState.storeKey;
     const art = storeKey && window._adocArtifacts?.[storeKey];
@@ -11045,11 +11088,8 @@ ${recent}`;
       alert('Ouvrez ou générez d\'abord un document pour pouvoir changer sa police.');
       return;
     }
-    if (art._adocStructuredDoc) {
-      alert('Le changement de police ne s\'applique qu\'aux documents de l\'ancien moteur — pas à une Fiche synthèse structurée.');
-      return;
-    }
-    window.adocOpenLegacyReThemePanel(storeKey);
+    if (art._adocStructuredDoc) window.adocOpenStructuredReThemePanel(storeKey);
+    else window.adocOpenLegacyReThemePanel(storeKey);
   };
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -13845,8 +13885,14 @@ ${recent}`;
       panel.className = 'cc-clarity-card cc-block-edit-panel';
       panel.setAttribute('role', 'group');
       panel.setAttribute('aria-label', 'Corriger ce passage sélectionné');
-      panel.innerHTML = adocBuildBlockEditPanelHTML(block.type);
-      (blockEl.matches('td,th') ? blockEl.closest('table') : blockEl).insertAdjacentElement('afterend', panel);
+      // Item 64 construction — panneau déplacé dans #cc-ws-block-edit-slot (colonne de gauche),
+      // plus juste après le bloc dans le document : indicateur "bloc en cours d'édition" ajouté en
+      // tête du MÊME panel.innerHTML (jamais un second composant) pour garder le lien visuel avec
+      // le bloc réellement sélectionné (qui reste surligné dans le document via .is-selected).
+      const preview = adocEsc(adocBlockPreviewText(block)) || '(bloc sans texte)';
+      panel.innerHTML = '<div class="cc-block-edit-target">Bloc en cours d’édition : <strong>« ' + preview + ' »</strong></div>' + adocBuildBlockEditPanelHTML(block.type);
+      const slot = document.getElementById('cc-ws-block-edit-slot');
+      if (slot) { slot.innerHTML = ''; slot.appendChild(panel); }
       window._adocBlockEditState = { storeKey: storeKey, blockId: blockId, panelEl: panel, pendingBlock: null, originalBlock: block };
       // Item 57c Lot 1 — ne vole plus le focus vers le champ libre pour un bloc directement
       // éditable : sinon le clic qui sélectionne le bloc empêcherait de facto d'y taper (le focus
@@ -13857,7 +13903,12 @@ ${recent}`;
       if (ta && !isDirectlyEditable) ta.focus();
     };
     docCard.onkeydown = null;
-    adocEditorInstall(docCard, false);
+    // Item 64 construction — écouteurs délégués attachés à .cc-ws-body (parent commun de
+    // #cc-ws-doc-card ET #cc-ws-panel), jamais à docCard seul : le panneau de correction vit
+    // maintenant dans #cc-ws-block-edit-slot, hors de docCard (cf. plus haut) — sans cet
+    // élargissement, ses contrôles (couleur/police/undo/redo…) ne recevraient plus aucun
+    // événement. adocEditorPrepare (scan des blocs éditables) reste scopé à docCard, inchangé.
+    adocEditorInstall(docCard, false, document.querySelector('.cc-ws-body'));
   }
 
   // Compatibility entry point for the shared block style controls.
@@ -14273,8 +14324,13 @@ ${recent}`;
       panel.className = 'cc-clarity-card cc-block-edit-panel';
       panel.setAttribute('role', 'group');
       panel.setAttribute('aria-label', 'Corriger ce passage sélectionné');
-      panel.innerHTML = adocBuildLegacyBlockEditPanelHTML(kind);
-      (blockEl.matches('td,th') ? blockEl.closest('table') : blockEl).insertAdjacentElement('afterend', panel);
+      // Item 64 construction — même déplacement que le moteur structuré (cf.
+      // adocWsSetupBlockEditing) : indicateur "bloc en cours d'édition" à partir du texte réel du
+      // bloc DOM (pas d'objet block JSON côté legacy), panneau déplacé dans le même slot partagé.
+      const legacyPreview = adocEsc((blockEl.textContent || '').trim().slice(0, 60)) || '(bloc sans texte)';
+      panel.innerHTML = '<div class="cc-block-edit-target">Bloc en cours d’édition : <strong>« ' + legacyPreview + (blockEl.textContent && blockEl.textContent.trim().length > 60 ? '…' : '') + ' »</strong></div>' + adocBuildLegacyBlockEditPanelHTML(kind);
+      const legacySlot = document.getElementById('cc-ws-block-edit-slot');
+      if (legacySlot) { legacySlot.innerHTML = ''; legacySlot.appendChild(panel); }
       window._adocLegacyBlockEditState = {
         storeKey: storeKey, blockKey: blockKey, panelEl: panel, el: blockEl,
         kind: kind, pendingHtml: null, pendingDropsCitations: false, styleDraft: {},
@@ -14286,7 +14342,9 @@ ${recent}`;
       if (ta && !isDirectlyEditable) ta.focus();
     };
     docCard.onkeydown = null;
-    adocEditorInstall(docCard, true);
+    // Item 64 construction — même élargissement que côté structuré (cf. adocWsSetupBlockEditing) :
+    // adocEditorPrepare reste scopé à docCard, seuls les écouteurs délégués s'attachent plus haut.
+    adocEditorInstall(docCard, true, document.querySelector('.cc-ws-body'));
   }
 
   // Compatibility entry point for the shared block style controls.
@@ -14932,6 +14990,13 @@ ${recent}`;
           Police
         </button>
       </div>
+      <!-- Item 64 construction — le panneau de correction de bloc (57c/68), jusqu'ici affiché au
+           clic juste à côté du bloc, s'affiche désormais ICI (décision CDC v0.5.5 : palette
+           permanente unique). MÊME composant DOM déplacé (adocWsSetupBlockEditing/
+           adocWsSetupLegacyBlockEditing y insèrent le même panel.cc-block-edit-panel qu'avant,
+           jamais une reconstruction), avec un indicateur "bloc en cours d'édition" ajouté en tête
+           pour garder le lien visuel avec le bloc (surligné dans le document, cf. is-selected). -->
+      <div id="cc-ws-block-edit-slot"></div>
       <div>
         <p class="cc-ws-panel-section-title">
           <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-sources"></use></svg>
