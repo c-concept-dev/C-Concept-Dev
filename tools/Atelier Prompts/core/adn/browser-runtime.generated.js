@@ -1,5 +1,5 @@
 /* GENERATED — LOT 10G.3B.3F.2
- * source-sha256: 0d5ef59c9b78b7f6a1b6aee2814cef9055d5959bc133efa9a5955b65bf7f112a
+ * source-sha256: 8bb5bb9b1f14e97a86177663e90fc6696a65160706088255de4394e9a0b0642e
  * Ne pas modifier manuellement. Régénérer avec tools/build-adn-browser-runtime.mjs
  */
 (function(global){
@@ -2837,8 +2837,51 @@ function validateArchSignals(signals) {
   return { ok: problems.length === 0, problems };
 }
 
+/* ADN-OBS-01 — LES DEUX OPÉRANDES DE LA DERNIÈRE GARDE, RENDUES MESURABLES.
+ *
+ * POURQUOI ELLES NE L'ÉTAIENT PAS. `executability.critical_missing` et
+ * `executability.substitutable_missing` naissent de `routeIssues(arbiterOutput.issues)` côté OPRIE,
+ * et le contrat COMPACT exporté vers l'Architecte ne les transporte pas — ses quinze clés n'en
+ * portent aucune. Un audit conduit depuis les fichiers d'échange ne peut donc pas reconstruire
+ * `known_issues_total` : il ne peut que le SUPPOSER nul. Sur les quatre cas précédents ce zéro n'a
+ * jamais changé un verdict, `ambiguites` valant zéro partout ; sur un cas qui déclare une ambiguïté,
+ * il déciderait du résultat. Une supposition ne peut pas fonder un verdict.
+ *
+ * CE QUE CETTE FONCTION EST, ET CE QU'ELLE N'EST PAS. Elle LIT et COMPTE. Elle ne décide rien, ne
+ * bloque rien, ne produit aucun signal, n'écrit dans aucun champ. Le prédicat est recalculé pour
+ * être rapporté ; l'ÉMISSION RÉELLE, elle, est lue dans la liste de signaux que la garde a produite,
+ * jamais devinée. Si les deux divergeaient un jour, cette observation le montrerait au lieu de le
+ * masquer — c'est précisément ce qu'un relevé qui prédit au lieu de constater avait coûté ailleurs.
+ *
+ * AUCUN CONTENU. Des comptes, un identifiant de demande, deux booléens. Ni le texte d'une ambiguïté,
+ * ni le contenu d'une issue, ni un mot de la personne. */
+const ARCH_AMBIGUITY_GUARD_EVENT = 'arch_ambiguity_guard_observation';
+
+function observeAmbiguityGuard(base, archAnalyse, signals = []) {
+  const executability = (base && typeof base.executability === 'object' && base.executability) || {};
+  const comprehension = (archAnalyse && typeof archAnalyse.comprehension === 'object' && archAnalyse.comprehension) || {};
+  const critical = list(executability.critical_missing).length;
+  const substitutable = list(executability.substitutable_missing).length;
+  const ambiguities = list(comprehension.ambiguites).length;
+  const known = critical + substitutable;
+  return {
+    event: ARCH_AMBIGUITY_GUARD_EVENT,
+    request_id: text(base && base.request_id) || null,
+    arch_ambiguities_count: ambiguities,
+    canonical_critical_missing_count: critical,
+    canonical_substitutable_missing_count: substitutable,
+    known_issues_total: known,
+    predicate_triggered: ambiguities > known,
+    /* CONSTATÉ, PAS PRÉDIT : ce que la garde a réellement émis. */
+    blocking_signal_emitted: list(signals).some((s) => s
+      && s.signal === 'CONTRACT_INCONSISTENT'
+      && s.canonical_field === 'executability.substitutable_missing'
+      && s.arch_source_field === 'comprehension.ambiguites')
+  };
+}
+
 /** Vue d'audit sans contenu utilisateur. */
-function createArchEnrichmentAuditView(base, enriched, signals, observations = []) {
+function createArchEnrichmentAuditView(base, enriched, signals, observations = [], archAnalyse = null) {
   return clone({
     version: ARCH_ENRICHMENT_VERSION,
     enriched_paths: changedPaths(base, enriched),
@@ -2855,7 +2898,10 @@ function createArchEnrichmentAuditView(base, enriched, signals, observations = [
       arch_source_field: o?.arch_source_field || null,
       canonical_count: Number.isInteger(o?.canonical_count) ? o.canonical_count : null,
       arch_count: Number.isInteger(o?.arch_count) ? o.arch_count : null
-    }))
+    })),
+    /* ADN-OBS-01 — la dernière garde bloquante, mesurée. `null` quand l'analyse n'est pas fournie :
+       cette vue reste utilisable par ses appelants historiques, qui n'en passent pas. */
+    ambiguity_guard: archAnalyse ? observeAmbiguityGuard(base, archAnalyse, signals) : null
   });
 }
 
@@ -12457,5 +12503,5 @@ function createAdapterAuditView(envelope) {
 
 return {ENGINE_ADAPTERS_VERSION,buildExecutionEnvelope,projectToRapide,projectToArchitecte,projectToAtelier,validateLegacyLockMapping,createAdapterAuditView};
 })({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON});
-global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...BOUNDED,...ORCORE,...ROLEDEG,...SOLICIT,...COREPLANE,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'0d5ef59c9b78b7f6a1b6aee2814cef9055d5959bc133efa9a5955b65bf7f112a'});
+global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...BOUNDED,...ORCORE,...ROLEDEG,...SOLICIT,...COREPLANE,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'8bb5bb9b1f14e97a86177663e90fc6696a65160706088255de4394e9a0b0642e'});
 })(window);

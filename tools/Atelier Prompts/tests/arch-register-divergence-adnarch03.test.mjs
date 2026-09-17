@@ -273,10 +273,15 @@ test('T-AA03-10 : rejeu des échanges réels JCBRHF, VELA5Q, GASPPN et TE7BSV', 
   /* Ces fichiers portent la demande d’une personne : ils ne sont PAS versionnés. Le test les
      rejoue quand ils sont présents sur la machine du propriétaire, et se déclare ignoré sinon —
      la propriété est déjà couverte par les fixtures neutres ci-dessus, aux mêmes cardinalités. */
+  /* LE TEST S'IGNORE SUR UN ACCÈS REFUSÉ, PAS SEULEMENT SUR UNE ABSENCE — et c'est une leçon payée :
+     `~/Downloads` est un dossier protégé par macOS, et une révocation d'autorisation laisse
+     `existsSync` répondre VRAI tout en refusant la lecture. Le seul test fiable de disponibilité est
+     la lecture elle-même. */
   const dossier = `${process.env.HOME}/Downloads`;
+  const lisible = (chemin) => { try { fs.readFileSync(chemin, 'utf8'); return true; } catch { return false; } };
   const presents = ['JCBRHF', 'VELA5Q', 'GASPPN', 'TE7BSV'].filter((id) =>
-    fs.existsSync(`${dossier}/demande-pour-ia-${id}.json`) && fs.existsSync(`${dossier}/reponse-de-ia-${id}.json`));
-  if (presents.length < 4) return t.skip('échanges réels absents de cette machine');
+    lisible(`${dossier}/demande-pour-ia-${id}.json`) && lisible(`${dossier}/reponse-de-ia-${id}.json`));
+  if (presents.length < 4) return t.skip('échanges réels indisponibles sur cette machine');
 
   const { validate } = loadPostOprieValidator();
   for (const id of presents) {
