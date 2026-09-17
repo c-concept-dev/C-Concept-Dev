@@ -242,19 +242,112 @@ test('T-OPTD-12 : la mémoire transporte, elle n’interprète jamais', () => {
   }), /doit être une liste/);
 });
 
-test('T-OPTD-13 : le client écrit la mémoire, et le fait sans rien décider', () => {
-  /* Trois points de passage, sur les octets servis : ce que l'autorité a déclaré est retenu à
-     l'affichage, joint à la réponse, puis rendu à l'historique. Aucun n'interprète. */
-  assert.match(artefact, /oprieState\.pendingExplicitUnknownIds=\(Array\.isArray\(declarees\)\?declarees:\[\]\)/);
-  assert.match(artefact, /oprieAsk\(interaction\.text,FAST_QUESTION_INTRO,[^)]*interaction\.explicit_unknown_determinant_ids\)/);
-  assert.match(artefact, /declareesTour\.length\?\{explicit_unknown_determinant_ids:declareesTour\.slice\(\)\}/);
-  /* Et l'historique rendu aux autorités les reporte tour par tour. */
-  const histo = artefact.slice(artefact.indexOf('function oprieClarificationHistory()'),
-    artefact.indexOf('function oprieClarificationHistory()') + 1400);
-  assert.match(histo, /explicit_unknown_determinant_ids/);
-  for (const interdit of ['toLowerCase', 'includes(\'', 'match(', 'RegExp', 'similar']) {
-    assert.equal(histo.includes(interdit), false, `« ${interdit} » n’a rien à faire dans une mémoire`);
+/* ==========================================================================
+ * OPTION D2 — LE REGISTRE APPARTIENT AU TOUR, PAS À LA QUESTION
+ *
+ * CE QUE LE SMOKE RÉEL A MONTRÉ, ET QUE MES TREIZE PREMIERS TESTS N'AVAIENT PAS VU. Le registre
+ * était écrit dans `oprieAsk` — donc uniquement quand le plan RAPIDE posait lui-même la question.
+ * Sur le cas réel, il a rendu un ACKNOWLEDGE, la question est venue du plan PROFOND, et l'appel
+ * profond à `oprieAsk` — quatre arguments — remettait le registre à vide. Deux pertes, sur la seule
+ * branche que je n'avais pas couverte. Ces tests couvrent le cycle entier.
+ * ======================================================================= */
+
+/** Le cycle de tour du client, exécuté sur les octets réellement servis. */
+function cycleDeTour() {
+  const morceau = (debut, fin) => {
+    const a = artefact.indexOf(debut);
+    assert.ok(a !== -1, `introuvable : ${debut}`);
+    return artefact.slice(a, artefact.indexOf(fin, a));
+  };
+  return {
+    rendu: morceau('function oprieRenderFastInteraction(', '\nfunction oprieAsk('),
+    ask: morceau('function oprieAsk(question,intro,chips,determinant)', '$(\'#v11-answer-continue\')'),
+    reponse: artefact.slice(artefact.indexOf('function answerQuestion(answer){'),
+      artefact.indexOf('function answerQuestion(answer){') + 2400),
+    historique: morceau('function oprieClarificationHistory()', '\n/* Adaptateur')
+  };
+}
+
+test('T-OPTD-13 : le registre est retenu pour TOUTE interaction du tour, question ou non', () => {
+  const c = cycleDeTour();
+  /* L'enregistrement a lieu dans le rendu, AVANT la bifurcation question / accusé de réception :
+     c'est ce qui le rend indépendant du composant qui posera la question. */
+  assert.match(c.rendu, /turnExplicitUnknownIds/);
+  const iEnregistrement = c.rendu.indexOf('turnExplicitUnknownIds');
+  const iBifurcation = c.rendu.indexOf('FAST_SOLICITING_TYPES.indexOf');
+  assert.ok(iEnregistrement > 0 && iEnregistrement < iBifurcation,
+    'le registre est retenu avant que l’on sache si une question sera posée');
+  /* Union, jamais remplacement : une seconde interaction du même tour n'efface pas la première. */
+  assert.match(c.rendu, /indexOf\(identite\)===-1/);
+});
+
+test('T-OPTD-14 : la question ne possède plus le registre, et ne peut donc plus l’effacer', () => {
+  const c = cycleDeTour();
+  /* C'est la moitié du défaut : l'appel profond à oprieAsk remettait le registre à vide. */
+  assert.equal(/turnExplicitUnknownIds|pendingExplicitUnknownIds/.test(c.ask), false,
+    'oprieAsk n’écrit ni n’efface le registre');
+  /* Et plus aucun appel ne lui transmet un cinquième argument : le propriétaire est unique. */
+  assert.equal(/oprieAsk\([^)]*explicit_unknown_determinant_ids/.test(artefact), false);
+  /* L'ancien porteur a disparu du produit servi. */
+  assert.equal(artefact.includes('pendingExplicitUnknownIds'), false);
+});
+
+test('T-OPTD-15 : la réponse consomme le registre du tour, et c’est le seul point de reset', () => {
+  const c = cycleDeTour();
+  /* La réponse lit le registre du TOUR — pas celui d'une question. */
+  assert.match(c.reponse, /turnExplicitUnknownIds/);
+  /* L'écriture précède le reset : le registre entre dans l'historique avant d'être vidé. */
+  const iLecture = c.reponse.indexOf('const declareesTour');
+  const iEcriture = c.reponse.indexOf('state.answers.push');
+  const iReset = c.reponse.indexOf('oprieState.turnExplicitUnknownIds=[]');
+  assert.ok(iLecture > 0 && iLecture < iEcriture && iEcriture < iReset,
+    'lecture, puis écriture durable, puis reset — jamais l’inverse');
+
+  /* LA FRONTIÈRE, ÉNONCÉE EN NÉGATIF : aucun des quatre événements que le brief interdit ne vide le
+     registre. Aucun d'eux n'écrit de réponse, et le reset est attaché à l'écriture. */
+  const resets = (artefact.match(/turnExplicitUnknownIds=\[\]/g) || []).length;
+  assert.equal(resets, 2, 'exactement deux points de reset : la consommation, et l’abandon explicite');
+  assert.equal(/turnExplicitUnknownIds=\[\]/.test(c.rendu), false, 'un ACKNOWLEDGE ne vide rien');
+  assert.equal(/turnExplicitUnknownIds=\[\]/.test(c.ask), false, 'une question posée ne vide rien');
+  /* Et l'ouverture d'un tour ne le vide pas non plus : une reprise technique passe par là. */
+  const ouverture = artefact.slice(artefact.indexOf('function oprieOpenTurn(){'),
+    artefact.indexOf('function oprieOpenTurn(){') + 260);
+  assert.equal(/turnExplicitUnknownIds/.test(ouverture), false,
+    'une reprise technique ouvre un tour et ne doit rien perdre');
+});
+
+test('T-OPTD-16 : l’historique reçoit le registre, et le tour suivant le voit', () => {
+  const c = cycleDeTour();
+  assert.match(c.historique, /explicit_unknown_determinant_ids/);
+  /* La chaîne complète, exécutée : ce que l'historique porte suffit au garde, sans état courant. */
+  const tourPrecedent = { turn: 1, question: 'Une question du plan profond ?', answer: 'sa réponse',
+    provenance: 'user', explicit_unknown_determinant_ids: ['manque_a'] };
+  const candidat = q('Quelle est la donnée manquante ?', { id: 'manque_a', declarees: [] });
+  assert.deepEqual(guardFastInteraction(candidat, snap([tourPrecedent])), SILENT_INTERACTION);
+  /* Et une autre identité reste posable. */
+  assert.deepEqual(guardFastInteraction(q('Et l’autre donnée ?', { id: 'manque_b' }), snap([tourPrecedent])),
+    q('Et l’autre donnée ?', { id: 'manque_b' }));
+});
+
+test('T-OPTD-17 : la comparaison du garde est désormais observable, et sans contenu', () => {
+  /* Le smoke précédent était indécidable faute de ces valeurs. Ce sont des IDENTIFIANTS produits
+     par l'autorité — jamais un mot de la personne. */
+  const worker = fs.readFileSync(new URL('../workers/groq/src/index.js', import.meta.url), 'utf8');
+  const releve = worker.slice(worker.indexOf('event: "fast_decision"'), worker.indexOf('event: "fast_decision"') + 1200);
+  for (const champ of ['missing_determinant_id', 'explicit_unknown_determinant_ids',
+                       'declared_unknown_ids_history', 'declared_unknown_match']) {
+    assert.ok(releve.includes(champ), `${champ} est journalisé`);
   }
+  /* Aucun texte n'entre dans le relevé. */
+  for (const interdit of ['candidate.text', 'original_request', 'answer']) {
+    assert.equal(releve.includes(interdit), false, `« ${interdit} » n’a rien à faire dans un relevé`);
+  }
+  /* Et la question profonde déclare aussi l'identité qu'elle vise. */
+  const orchestrateur = fs.readFileSync(new URL('../workers/shared/operational-request-orchestrator.js', import.meta.url), 'utf8');
+  const garde = orchestrateur.slice(orchestrateur.indexOf('event: "displayed_question_guard"'),
+    orchestrateur.indexOf('event: "displayed_question_guard"') + 420);
+  assert.match(garde, /missing_determinant_id/);
+  assert.equal(/texte|question\.text/.test(garde), false, 'le texte reste hors du relevé');
 });
 
 test('T-OPTD-08 : une granularité réellement différente n’est pas bloquée par parenté', () => {

@@ -10848,11 +10848,17 @@ function answerQuestion(answer){
   /* OPTION D — les identités déclarées inconnues à ce tour entrent dans l'historique avec la
      réponse. C'est le seul endroit où elles deviennent durables ; ensuite, plus personne ne les
      interprète — elles se comparent. */
-  const declareesTour=(oprieState&&Array.isArray(oprieState.pendingExplicitUnknownIds))?oprieState.pendingExplicitUnknownIds:[];
+  /* OPTION D2 — le registre du TOUR, quel que soit le composant qui a posé la question. */
+  const declareesTour=(oprieState&&Array.isArray(oprieState.turnExplicitUnknownIds))?oprieState.turnExplicitUnknownIds:[];
   state.answers.push({question:$('#v11-question').textContent,answer,
     ...(determinantRepondu?{missing_determinant_id:determinantRepondu}:{}),
     ...(declareesTour.length?{explicit_unknown_determinant_ids:declareesTour.slice()}:{})});
-  if(oprieState){oprieState.pendingDeterminantId=null;oprieState.pendingExplicitUnknownIds=[]}
+  /* OPTION D2 — FRONTIÈRE DE RESET, ET ELLE EST ICI, PAS AILLEURS. Le registre est vidé au seul
+     moment où il a été DURABLEMENT CONSOMMÉ : la réponse vient d'entrer dans state.answers, donc
+     dans clarification_history, qui le portera pour tous les tours suivants. Il survit donc à un
+     ACKNOWLEDGE, à l'appel profond, à un changement de question dans le même tour et à une reprise
+     technique — aucun de ces événements n'écrit de réponse. */
+  if(oprieState){oprieState.pendingDeterminantId=null;oprieState.turnExplicitUnknownIds=[]}
   if(adpState&&adpState.pendingQuestion){
     adpState.pendingQuestion=false;
     syncLegacy();
@@ -10877,6 +10883,8 @@ function resetAll(){
   v11AbandonGovernedTurn();v11ForgetDialogue();
   state.docs=[];state.exchangeId=null;
   if(typeof adpState==='object'){adpState.pendingQuestion=false;adpState.clarifications=0;adpState.lastEnvelope=null;adpState.requestedMode='rapide';adpState.returnFocus=null;}
+  /* OPTION D2 — un tour explicitement abandonné ne lègue rien : second et dernier point de reset. */
+  if(typeof oprieState==='object'&&oprieState)oprieState.turnExplicitUnknownIds=[];
   state.requestName='demande-pour-ia.json';state.responseName='reponse-de-ia.json';$('#v11-demande').value='';renderFiles();$('#v11-final').value='';show(null);
   if(window.__ARCHITECTE_V10__&&window.__ARCHITECTE_V10__.nouvelleDemande)try{window.__ARCHITECTE_V10__.nouvelleDemande()}catch(e){}
 }
@@ -10888,7 +10896,7 @@ function v11RequireDemand(){
   return '';
 }
 /* GENERATED — LOT 10G.3B.3F.2
- * source-sha256: a40af5052927610c48e11fe78b51f1aa4d497f0d40bc7a3422b3e6eeb58572f9
+ * source-sha256: 5a0a770102f58e0ea84f3b07a39a4396f0ae5101055b3e9fda571ce17691c80d
  * Ne pas modifier manuellement. Régénérer avec tools/build-adn-browser-runtime.mjs
  */
 (function(global){
@@ -19361,8 +19369,13 @@ function applyDisplayGuardToTurn(turn, analystOutput, log = () => {}, history = 
     history: Array.isArray(history) ? history : [],
     missingDeterminantId: question && question.missing_determinant_id });
   /* Le verdict est journalisé, jamais le texte : la question porte des mots de la personne. */
+  /* OPTION D2 — l'identité de ce que la question profonde cherche, à côté du verdict. Le texte
+     reste hors du relevé — il porte des mots de la personne ; l'identité, elle, est un identifiant
+     que l'autorité a forgé, et c'est lui qui manquait pour rendre un smoke décidable. */
   log({ event: "displayed_question_guard", verdict: garde.verdict,
-        candidates_available: candidates.length, changed: garde.text !== texte });
+        candidates_available: candidates.length, changed: garde.text !== texte,
+        missing_determinant_id: (question && typeof question.missing_determinant_id === "string"
+          ? question.missing_determinant_id.trim() : null) || null });
   if (garde.verdict === "NOT_DISPLAYABLE") {
     /* V2.2.1-D2 FINAL — RIEN D'AFFICHABLE SE DIT, NE SE REMPLACE PAS.
      *
@@ -23092,7 +23105,7 @@ function createAdapterAuditView(envelope) {
 
 return {ENGINE_ADAPTERS_VERSION,buildExecutionEnvelope,projectToRapide,projectToArchitecte,projectToAtelier,validateLegacyLockMapping,createAdapterAuditView};
 })({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON});
-global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...BOUNDED,...ORCORE,...ROLEDEG,...SOLICIT,...COREPLANE,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'a40af5052927610c48e11fe78b51f1aa4d497f0d40bc7a3422b3e6eeb58572f9'});
+global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...BOUNDED,...ORCORE,...ROLEDEG,...SOLICIT,...COREPLANE,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'5a0a770102f58e0ea84f3b07a39a4396f0ae5101055b3e9fda571ce17691c80d'});
 })(window);
 
 
@@ -23480,7 +23493,7 @@ const OPRIE_ENDPOINT=(document.querySelector('meta[name="atelier-operational-req
  *
  * `telemetry` est bornée à OPRIE_TELEMETRY_MAX et `appliedActions` à ORCHESTRATION_APPLIED_MAX :
  * aucune de ces collections ne grandit sans fin. */
-const oprieState={seq:0,controller:null,running:false,lastTurn:null,canonicalContract:null,requestedMode:'rapide',fastController:null,fastInteraction:null,lastReconciliation:null,lastOrchestration:null,concludedTurn:null,appliedActions:[],lifecycle:null,executionId:null,telemetry:[]};
+const oprieState={seq:0,controller:null,running:false,turnExplicitUnknownIds:[],lastTurn:null,canonicalContract:null,requestedMode:'rapide',fastController:null,fastInteraction:null,lastReconciliation:null,lastOrchestration:null,concludedTurn:null,appliedActions:[],lifecycle:null,executionId:null,telemetry:[]};
 
 function oprieTechnicalFailure(){
   return Object.assign(new Error('OPERATIONAL_REQUEST_TECHNICAL_FAILURE'),{operational_request_technical_failure:true});
@@ -23793,6 +23806,22 @@ function oprieRenderFastInteraction(interaction,seq){
   /* UNE seule sollicitation à la fois : si une question est déjà ouverte, la candidate ne s'y
      superpose pas. C'est ce qui rend une double question structurellement impossible. */
   if(adpState.pendingQuestion){oprieMark('fast_discarded_pending');return false}
+  /* OPTION D2 — LE REGISTRE APPARTIENT AU TOUR, PAS À LA QUESTION.
+   *
+   * MESURÉ SUR LE SMOKE RÉEL L8HZGL, ET C'EST LA CORRECTION DE MON PROPRE DÉFAUT. Le registre était
+   * écrit dans `oprieAsk`, donc UNIQUEMENT quand le plan rapide posait lui-même une question. Sur ce
+   * cas, il a rendu un ACKNOWLEDGE : ce qu'il avait déclaré n'a été enregistré nulle part, et la
+   * question est venue du plan profond — qui appelait `oprieAsk` sans registre, effaçant au passage
+   * ce qui aurait pu être en attente. Deux pertes, sur la branche que mes tests ne couvraient pas.
+   *
+   * La déclaration est un fait du TOUR. Elle est donc retenue ICI, dès que l'interaction appartient
+   * au tour courant — avant même de savoir si elle sera affichée, et quel que soit le composant qui
+   * posera la question. Union, jamais remplacement : un tour peut appeler le plan rapide plus d'une
+   * fois, et aucune déclaration ne doit en effacer une autre. */
+  for(const id of (Array.isArray(interaction.explicit_unknown_determinant_ids)?interaction.explicit_unknown_determinant_ids:[])){
+    const identite=String(id||'').trim();
+    if(identite&&oprieState.turnExplicitUnknownIds.indexOf(identite)===-1)oprieState.turnExplicitUnknownIds.push(identite);
+  }
   /* V2.2.1-E1 — LE PLAN RAPIDE NE DÉCIDE PLUS RIEN, DONC IL N'Y A PLUS DE DÉCISION À SAUVER.
    *
    * V2.2.1-D1 enregistrait ici le type CANONIQUE d'avant projection, pour qu'un ACKNOWLEDGE survive
@@ -23804,7 +23833,7 @@ function oprieRenderFastInteraction(interaction,seq){
   if(interaction.type==='WAIT_FOR_DEEP_VALIDATION'){oprieMark('fast_silent',{type:interaction.type});return false}
   oprieState.fastInteraction=interaction;
   if(FAST_SOLICITING_TYPES.indexOf(interaction.type)!==-1){
-    oprieAsk(interaction.text,FAST_QUESTION_INTRO,['Je ne sais pas','À vous de choisir'],interaction.missing_determinant_id,interaction.explicit_unknown_determinant_ids);
+    oprieAsk(interaction.text,FAST_QUESTION_INTRO,['Je ne sais pas','À vous de choisir'],interaction.missing_determinant_id);
     oprieReleaseForFastQuestion(seq);
     oprieMark('fast_render',{type:interaction.type,soliciting:true});
     return true;
@@ -23913,13 +23942,13 @@ function oprieShowNetworkFailure(){
    que ce manque-là a déjà été sollicité et le redemandera sous une autre formulation. `determinant`
    est donc retenu ici, et consommé au moment où la réponse entre dans l'historique. Absent, il
    n'est pas fabriqué : l'historique repart alors comme avant ce lot. */
-function oprieAsk(question,intro,chips,determinant,declarees){
+function oprieAsk(question,intro,chips,determinant){
   oprieState.retryTurn=false;
   oprieState.pendingDeterminantId=String(determinant||'').trim()||null;
-  /* OPTION D — ce que l'autorité a déclaré inconnu à CE tour part avec la réponse, exactement comme
-     l'identité du manque. Rien n'est fabriqué ici : absent, le registre reste vide. */
-  oprieState.pendingExplicitUnknownIds=(Array.isArray(declarees)?declarees:[])
-    .map(function(id){return String(id||'').trim()}).filter(Boolean);
+  /* OPTION D2 — LA QUESTION NE POSSÈDE PAS LE REGISTRE, et c'est le défaut que le smoke a révélé.
+     Il était écrit ici, donc perdu dès que le plan rapide n'appelait pas cette fonction, et écrasé
+     dès que le plan profond l'appelait sans lui. Le registre vit désormais dans l'état du TOUR ;
+     cette fonction n'y touche plus, ni pour l'écrire, ni pour l'effacer. */
   $('#v11-answer-continue').textContent='Continuer';
   // Le bandeau d'analyse est effacé avant d'ouvrir la modale : sans cela il continuerait d'annoncer
   // « Analyse de votre demande… » derrière une question déjà posée. Défaut révélé au test navigateur.

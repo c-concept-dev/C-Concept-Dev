@@ -1,5 +1,5 @@
 /* GENERATED — LOT 10G.3B.3F.2
- * source-sha256: a40af5052927610c48e11fe78b51f1aa4d497f0d40bc7a3422b3e6eeb58572f9
+ * source-sha256: 5a0a770102f58e0ea84f3b07a39a4396f0ae5101055b3e9fda571ce17691c80d
  * Ne pas modifier manuellement. Régénérer avec tools/build-adn-browser-runtime.mjs
  */
 (function(global){
@@ -8472,8 +8472,13 @@ function applyDisplayGuardToTurn(turn, analystOutput, log = () => {}, history = 
     history: Array.isArray(history) ? history : [],
     missingDeterminantId: question && question.missing_determinant_id });
   /* Le verdict est journalisé, jamais le texte : la question porte des mots de la personne. */
+  /* OPTION D2 — l'identité de ce que la question profonde cherche, à côté du verdict. Le texte
+     reste hors du relevé — il porte des mots de la personne ; l'identité, elle, est un identifiant
+     que l'autorité a forgé, et c'est lui qui manquait pour rendre un smoke décidable. */
   log({ event: "displayed_question_guard", verdict: garde.verdict,
-        candidates_available: candidates.length, changed: garde.text !== texte });
+        candidates_available: candidates.length, changed: garde.text !== texte,
+        missing_determinant_id: (question && typeof question.missing_determinant_id === "string"
+          ? question.missing_determinant_id.trim() : null) || null });
   if (garde.verdict === "NOT_DISPLAYABLE") {
     /* V2.2.1-D2 FINAL — RIEN D'AFFICHABLE SE DIT, NE SE REMPLACE PAS.
      *
@@ -12203,5 +12208,5 @@ function createAdapterAuditView(envelope) {
 
 return {ENGINE_ADAPTERS_VERSION,buildExecutionEnvelope,projectToRapide,projectToArchitecte,projectToAtelier,validateLegacyLockMapping,createAdapterAuditView};
 })({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON});
-global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...BOUNDED,...ORCORE,...ROLEDEG,...SOLICIT,...COREPLANE,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'a40af5052927610c48e11fe78b51f1aa4d497f0d40bc7a3422b3e6eeb58572f9'});
+global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...BOUNDED,...ORCORE,...ROLEDEG,...SOLICIT,...COREPLANE,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'5a0a770102f58e0ea84f3b07a39a4396f0ae5101055b3e9fda571ce17691c80d'});
 })(window);

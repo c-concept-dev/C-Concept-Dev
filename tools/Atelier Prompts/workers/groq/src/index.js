@@ -1410,6 +1410,19 @@ export async function runFastInteractionWithHaChain(snapshot, env, { order = FAS
         refus.verdict=assessSolicitation(candidate,snapshot.clarification_history,
           snapshot.material_present,snapshot.original_request);
         refus.candidate_chars=String((candidate&&candidate.text)||"").length;
+        /* OPTION D2 — OBSERVABILITÉ DE LA COMPARAISON, PARCE QU'ELLE ÉTAIT INDÉCIDABLE.
+         * Le smoke L8HZGL n'a pas pu dire si l'autorité avait déclaré l'inconnue, ou si elle l'avait
+         * nommée autrement que l'inconnue visée : aucun des deux identifiants n'était journalisé. Ce
+         * relevé les rend visibles. Ce sont des IDENTIFIANTS produits par l'autorité — jamais un mot
+         * de la personne, jamais un texte de question, jamais une réponse. */
+        refus.target_id=(candidate&&typeof candidate.missing_determinant_id==="string")?candidate.missing_determinant_id.trim()||null:null;
+        refus.declared_current=Array.isArray(candidate&&candidate.explicit_unknown_determinant_ids)
+          ?candidate.explicit_unknown_determinant_ids.filter((id)=>typeof id==="string"&&id.trim()).map((id)=>id.trim()):[];
+        refus.declared_history=(Array.isArray(snapshot.clarification_history)?snapshot.clarification_history:[])
+          .flatMap((entree)=>Array.isArray(entree&&entree.explicit_unknown_determinant_ids)?entree.explicit_unknown_determinant_ids:[])
+          .filter((id)=>typeof id==="string"&&id.trim()).map((id)=>id.trim());
+        refus.declared_match=refus.target_id!==null
+          &&[...refus.declared_current,...refus.declared_history].includes(refus.target_id);
         const garde=guardFastInteraction(candidate,snapshot);
         /* V2.1.5.3 — LE REFUS DE FORME, ENREGISTRÉ QUELLE QUE SOIT LA GARDE QUI LE PRONONCE.
          * `refus.verdict` ne porte que le verdict de sollicitation. Une question refusée par la
@@ -1480,6 +1493,11 @@ function journaliserDecisionRapide(log, refus, rendu, final) {
     fast_raw_type: refus.raw_type,
     fast_candidate_chars: refus.candidate_chars,
     fast_guard_result: refus.verdict,
+    /* OPTION D2 — les quatre valeurs sans lesquelles le smoke précédent restait indécidable. */
+    missing_determinant_id: refus.target_id === undefined ? null : refus.target_id,
+    explicit_unknown_determinant_ids: refus.declared_current === undefined ? [] : refus.declared_current,
+    declared_unknown_ids_history: refus.declared_history === undefined ? [] : refus.declared_history,
+    declared_unknown_match: refus.declared_match === true,
     fast_rejection_reason: refuse ? (refus.verdict && refus.verdict !== "ALLOW" ? refus.verdict : "DISPLAY_FRONTIER") : null,
     /* V2.1.5.3 — ce que la reprise a donné, et ce que le tour en a fait. La reprise s'ENREGISTRE
        elle-même : le silence est un objet gelé partagé, et comparer les identités concluait toujours

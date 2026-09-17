@@ -576,8 +576,13 @@ export function applyDisplayGuardToTurn(turn, analystOutput, log = () => {}, his
     history: Array.isArray(history) ? history : [],
     missingDeterminantId: question && question.missing_determinant_id });
   /* Le verdict est journalisé, jamais le texte : la question porte des mots de la personne. */
+  /* OPTION D2 — l'identité de ce que la question profonde cherche, à côté du verdict. Le texte
+     reste hors du relevé — il porte des mots de la personne ; l'identité, elle, est un identifiant
+     que l'autorité a forgé, et c'est lui qui manquait pour rendre un smoke décidable. */
   log({ event: "displayed_question_guard", verdict: garde.verdict,
-        candidates_available: candidates.length, changed: garde.text !== texte });
+        candidates_available: candidates.length, changed: garde.text !== texte,
+        missing_determinant_id: (question && typeof question.missing_determinant_id === "string"
+          ? question.missing_determinant_id.trim() : null) || null });
   if (garde.verdict === "NOT_DISPLAYABLE") {
     /* V2.2.1-D2 FINAL — RIEN D'AFFICHABLE SE DIT, NE SE REMPLACE PAS.
      *
