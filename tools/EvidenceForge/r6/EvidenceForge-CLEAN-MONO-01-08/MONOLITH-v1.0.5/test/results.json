@@ -1,8 +1,8 @@
 {
   "schema": "EvidenceForge.MonolithTestResults",
-  "ranAt": "2026-09-17T18:49:33.771Z",
-  "total": 156,
-  "passed": 156,
+  "ranAt": "2026-09-17T19:18:32.917Z",
+  "total": 158,
+  "passed": 158,
   "failed": 0,
   "results": [
     {
@@ -436,6 +436,11 @@
       "ok": true
     },
     {
+      "id": "PRO-PARTIAL-02",
+      "name": "pipeline : sur BUDGET_LIMIT_REACHED pendant les professionnels, professionals-sufficiency-partial.json est persiste (etat partiel + cout + budget, notAVerdict) et annonce (panel_partial_state) ; aucun checkpoint ; une erreur sans etat partiel n'ecrit rien",
+      "ok": true
+    },
+    {
       "id": "COST-06",
       "name": "pipeline : plafond atteint pendant l'evaluation des professionnels => STOPPED / BUDGET_LIMIT_REACHED (jamais FAILED), reprenable, aucun checkpoint, PROFESSIONALS jamais DONE, aucun appel apres le plafond",
       "ok": true
@@ -638,6 +643,11 @@
     {
       "id": "PRO-EARLY-11",
       "name": "couts journalises : le ledger porte exactement une ligne REAL_CALL par evaluation reelle (candidateRef), aucune pour les non evalues ; economie mesurable = 6/15 evaluations evitees",
+      "ok": true
+    },
+    {
+      "id": "PRO-PARTIAL-01",
+      "name": "etat partiel sur arret budget (additif) : runPanel reel sous plafond => l'erreur BUDGET_LIMIT_REACHED porte panelPartialState (notAVerdict, scientificPanelState, rang, approuves, perDimension, gaps, remaining, policy, history) ; aucun checkpoint, verrou toujours prioritaire",
       "ok": true
     },
     {

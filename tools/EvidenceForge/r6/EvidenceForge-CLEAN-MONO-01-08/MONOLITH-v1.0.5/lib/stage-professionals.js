@@ -261,12 +261,21 @@ async function runPanel(input) {
     }
     log(e);
   };
+  /* v1.0.5 — ETAT PARTIEL SUR ARRET (additif, tracabilite) : si l'etape s'interrompt (plafond budget, panne de transport, invariant),
+     l'etat courant du traqueur de suffisance est attache a l'erreur pour etre persiste par le pipeline. Ce n'est JAMAIS un verdict ni un checkpoint :
+     `notAVerdict: true`, deux axes explicites (scientificPanelState = PANEL_* ; economicEvaluationState reserve, non evalue ici). */
+  const partialStateFor = (e) => { const d = tracker.record(); const f = (llm.transportFailure && llm.transportFailure()) || null;
+    return { schema: "EvidenceForge.PanelSufficiencyPartialState", schemaVersion: "MONOLITH-v1.0.5", notAVerdict: true, runId: input.runId, attemptId: input.attemptId, mono10RunId: input.attemptRunId, reason: e.code || "UNEXPECTED_ERROR", transportFailure: f ? { code: f.code, message: String(f.message || "").slice(0, 300) } : null,
+      rule: d.rule, policy: d.policy, independenceAlgorithm: d.independenceAlgorithm, scientificPanelState: d.panel, earlyStopState: d.state, economicEvaluationState: null, economicPolicy: null,
+      rank: d.evaluated, evaluated: d.evaluated, skipped: d.skipped, approved: d.approved, selectedCount: selection.selectedCount, remaining: Math.max(0, selection.selectedCount - d.evaluated - d.skipped),
+      coverage: d.coverage, gaps: d.coverage.gaps, perDimension: d.perDimension, reasons: d.reasons, statement: d.statement, workRefNormalizations: wn.count(), history: d.history,
+      limitations: ["état partiel au moment de l'arrêt : ni verdict, ni checkpoint, ni preuve de suffisance", "le gate gelé de fin de boucle (gatePanel) n'a pas produit de panel : les approbations sont celles de gateCandidate par candidat", "economicEvaluationState réservé : aucune politique économique n'est évaluée dans cette version"] }; };
   let res;
   try { res = await M11.autonomousRun.runAutonomousPanel({ frozen: F, ledger, registry, assessment: assessmentCapped, discovery: boundDiscovery, verification: verificationB, fetchAuthorWorks, attributionFor,
     llmCall: guardedLlmCall, onValidation: llm.onValidation, missionQuestion: input.missionQuestion, dimensionSet, ctx: gateCtx, assessmentRef, log: logObserved }); }
-  catch (e) { if (e.code === "EVALUATION_CAP_INVARIANT_VIOLATION") throw e; throw e; }
+  catch (e) { try { e.panelPartialState = partialStateFor(e); } catch (x) { /* la tracabilite n'ajoute jamais une panne */ } throw e; }
   /* FRONTIERE FAIL-CLOSED : si une panne de transport s'est produite pendant l'evaluation, le panel n'est PAS un verdict */
-  assertNoTransportFailure(llm, "Découvrir et évaluer les professionnels");
+  try { assertNoTransportFailure(llm, "Découvrir et évaluer les professionnels"); } catch (e) { try { e.panelPartialState = partialStateFor(e); } catch (x) { /* idem */ } throw e; }
   if (guard.evaluatedCount() > selection.cap) throw Object.assign(new Error("EVALUATION_CAP_INVARIANT_VIOLATION: post-check"), { code: "EVALUATION_CAP_INVARIANT_VIOLATION" });
   const evidence = ledger.exportArtifacts(); const chains = { mono10: registry.verifyEventChain(), mono11: ledger.verifyChain() };
   if (!chains.mono10.valid || !chains.mono11.valid) throw Object.assign(new Error("LINEAGE_CHAIN_INVALID"), { code: "LINEAGE_CHAIN_INVALID" });
