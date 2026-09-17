@@ -4,7 +4,7 @@
     "name": "EvidenceForge",
     "version": "MONOLITH-v1.0.5"
   },
-  "generatedAt": "2026-09-17T12:36:12.435Z",
+  "generatedAt": "2026-09-17T17:15:21.113Z",
   "frozenLots": {
     "MONO-10": {
       "dir": "MONO-10/v0.19",
@@ -85,10 +85,10 @@
       }
     },
     "tests": {
-      "total": 116,
-      "passed": 116,
+      "total": 133,
+      "passed": 133,
       "failed": 0,
-      "ranAt": "2026-09-17T12:36:12.328Z"
+      "ranAt": "2026-09-17T17:15:21.014Z"
     },
     "professionals": {
       "maxCandidatesToEvaluate": 150,
@@ -100,6 +100,11 @@
     "status": "CANDIDAT (v1.0.5) — NON GELE : tests fonctionnels/adversariaux passes ; audit independant differentiel et run reel sous cette version requis avant gel"
   },
   "files": [
+    {
+      "path": "AUTOPSIE-PANEL-COST-OPTIMIZER.md",
+      "sha256": "9cc8f83b3f68a6be32c95cc991f968de4c6e8ca1ab40443110da3ae7dae3ddb9",
+      "bytes": 10655
+    },
     {
       "path": "AUTOPSIE-POST-RUN-COST-SCREENING.md",
       "sha256": "f78be367c605aa85d02d645ec35a364724c74228dee01b6d6bb08fab3ffd0d96",
@@ -137,13 +142,18 @@
     },
     {
       "path": "NON-REGRESSION.md",
-      "sha256": "9c924c0883fcbebbef2f5956e3c74ea1a8df7ec9c1e1f60c27d021f8e4efd1a1",
-      "bytes": 9593
+      "sha256": "4b87991944d2f2fc0bbd8bd5508214f611005ea357d072809645e7e75ca35ecb",
+      "bytes": 11040
     },
     {
       "path": "PLAN-CORRECTIF-COST-SCREENING-v1.md",
       "sha256": "99de29d621aa6e30f3e50ff4440fd1c30c03f97746d0d5a4b6767bc382642631",
       "bytes": 9155
+    },
+    {
+      "path": "PORTFOLIO-BALANCING.md",
+      "sha256": "70b93dcab3308c1e78c91e0d47a78ee6acf6154f2b57f3de6f9b99c181ff0456",
+      "bytes": 4183
     },
     {
       "path": "PRIVACY-SECRET-SCAN.md",
@@ -156,9 +166,14 @@
       "bytes": 17216
     },
     {
+      "path": "RAPPORT-PANEL-COST-OPTIMIZER.md",
+      "sha256": "7860cde51c13ab9f10aa2f47d67fdc6df2a31e570172660c090e9f2151a5f897",
+      "bytes": 10085
+    },
+    {
       "path": "README.md",
-      "sha256": "3c0528e81a4646f910d6072546e905c8c74c782fd6ae04c68083ade2bed3b577",
-      "bytes": 20146
+      "sha256": "7d63b9060f77601c3e500b28152ccb51bac0d0ca3114ad4deceb9374cc1bdccd",
+      "bytes": 21121
     },
     {
       "path": "TEST-REPORT-MONOLITH-MONO11-v0.3-r1.md",
@@ -177,8 +192,8 @@
     },
     {
       "path": "config/monolith.config.json",
-      "sha256": "c7bdc88f6206b3c0ec4aa198fb2cf881009ae41c29ee86e3feb2fd2669444714",
-      "bytes": 4348
+      "sha256": "7dee745da77c2a4b6abfc333482e1a0458b6c0c6ecb0c41745aefbc1c629f842",
+      "bytes": 6243
     },
     {
       "path": "governance/EvidenceForge-MONO11-v0.2-FREEZE-DECISION.md",
@@ -187,8 +202,8 @@
     },
     {
       "path": "index.html",
-      "sha256": "0a0afc73b9bde7bbe4b62dc17cdfb707dcccb042370b41ff1c5b9a6cdf52860e",
-      "bytes": 59836
+      "sha256": "34758f30fff95840e51ad96f25688d0d1754d13d0988d6b88d6c46005a84f1a0",
+      "bytes": 60747
     },
     {
       "path": "lib/budget-guard.js",
@@ -222,13 +237,18 @@
     },
     {
       "path": "lib/llm.js",
-      "sha256": "4c3337abf56e21d02023f835712da375b6b666b58ebdc59d5a50cf6fb1dec12d",
-      "bytes": 20089
+      "sha256": "0f288d80241116bb60cdc965ea924d69ebfe8471d30f8ca0674385f3b98fd32a",
+      "bytes": 21221
     },
     {
       "path": "lib/mono04-fence-adapter.js",
       "sha256": "8884b2ff107fc078876b0f41eb8fa77f28b3931fbb2e1cf8d8be14c06a0ca6d9",
       "bytes": 4633
+    },
+    {
+      "path": "lib/panel-sufficiency.js",
+      "sha256": "77474b4ec0128f517d5a510b2ad32789aa20d456c456c19f8ad184a0ed6a1b41",
+      "bytes": 8789
     },
     {
       "path": "lib/paths.js",
@@ -237,8 +257,13 @@
     },
     {
       "path": "lib/pipeline.js",
-      "sha256": "d098c8e99074e2e15c6f5bb87049b656d5d42833d35efe2bb77e22012cf75a70",
-      "bytes": 41118
+      "sha256": "2ebba73424944da7e5f3bea627c993e3f3d2bf26131e0385be025335ed0ac15d",
+      "bytes": 43175
+    },
+    {
+      "path": "lib/portfolio-balancing.js",
+      "sha256": "bce99d839bf67bdaf9177b237de2f8a22b961c03b429f1eef72dac506e9ab104",
+      "bytes": 10908
     },
     {
       "path": "lib/preflight-assistant.js",
@@ -252,13 +277,13 @@
     },
     {
       "path": "lib/professional-selection.js",
-      "sha256": "66781c69029aac615ebdb9a523bf4465799a7b03c68e89a06a3919eef632a679",
-      "bytes": 8983
+      "sha256": "3978df3606b259e26dd0ddc1a1066a3be95fc4dbf654e351ea2eb97c306ffad6",
+      "bytes": 9608
     },
     {
       "path": "lib/professionals-economics.js",
-      "sha256": "2fd5e2384fd78e1029fdf2145edd2bb60f976b2064b9f47a8c948022b97c04df",
-      "bytes": 9304
+      "sha256": "8ab40955e3ebd56d92836983b3608460601c91618856475e3ea282bbcf0c31ce",
+      "bytes": 9733
     },
     {
       "path": "lib/provider-diagnostic.js",
@@ -287,8 +312,8 @@
     },
     {
       "path": "lib/stage-professionals.js",
-      "sha256": "425e26ff5273a7c35373a076cf3d56d91e41fa3cf05fda67c64d15610a002f4b",
-      "bytes": 34612
+      "sha256": "0b6864ffc1c1f37c393698e8b9b01013126b86b9c43df4b21ebdd9db73558e39",
+      "bytes": 38813
     },
     {
       "path": "lib/stage-report.js",
@@ -301,29 +326,49 @@
       "bytes": 16284
     },
     {
+      "path": "lib/workref-normalization.js",
+      "sha256": "5eec1f7753bd8c8021f441cc9a88f94a6bc6888e68571c9f3d32fd5ca35ce38f",
+      "bytes": 6215
+    },
+    {
       "path": "server.js",
       "sha256": "1207480d4ae3822c7e4f59b391736e7d0ff80b0c66e7ca0415f8e4bd1f302c43",
       "bytes": 14720
     },
     {
       "path": "test/browser-results-v105.json",
-      "sha256": "0cdf3fa39afc4322bc1e91400c0cb0082ca733afc54e02bb5e453939e9db4be4",
-      "bytes": 5635
+      "sha256": "6505d3f62c9f3333bc09a2faeab09c534a9bec57ce8185c8cdd770044a937289",
+      "bytes": 6230
+    },
+    {
+      "path": "test/fixtures/portfolio-incident.json",
+      "sha256": "60fd497f7a64ecc00735d28dbb1d84c7f539fac2c9d598971c24291cf14245ec",
+      "bytes": 55181
     },
     {
       "path": "test/results.json",
-      "sha256": "d150b6ec130c78abbb08188f4130816f036a3375b5a2cd93859d9b05df4e98f5",
-      "bytes": 26897
+      "sha256": "71ae4e4830328b0cee06c4a090861f07f70765029acfdffe808270e7fd7dc32d",
+      "bytes": 31527
     },
     {
       "path": "test/test-monolith.js",
-      "sha256": "b16dbcd90f7b047b4e92f396f7a460beceafc9d16b2cb7660968cc940da48b9b",
-      "bytes": 111749
+      "sha256": "c3452445ed2360a3190e0b2217bee49cff0bbf1381f6f320faf784e42235eca9",
+      "bytes": 112010
+    },
+    {
+      "path": "test/test-panel.js",
+      "sha256": "4afccf53b2f3c6af762763c4728565b7d7a82c252b62298d0db5b8341b196888",
+      "bytes": 30495
+    },
+    {
+      "path": "test/test-portfolio-balancing.js",
+      "sha256": "c5090bf8cd0477327f9b180190f9e6654aae72180715bc7861eee4e9f94d9628",
+      "bytes": 6254
     },
     {
       "path": "test/test-v105.js",
-      "sha256": "96dd19bfd3e763e2e085828861942835179225ed1ffccf06073aa25cf25e7731",
-      "bytes": 57704
+      "sha256": "8b6181a3c59f00bf9bd19aad021b2aced14e8d2179fb98b896248dd0896cf9a6",
+      "bytes": 59077
     },
     {
       "path": "tools/anti-hardcoding-scan.js",
@@ -331,9 +376,14 @@
       "bytes": 3474
     },
     {
+      "path": "tools/bench-oracle-model.js",
+      "sha256": "25ac2c4e763fdce1946cd31b488d06cfe11f71908de2441aba659edbe4fa69dc",
+      "bytes": 10523
+    },
+    {
       "path": "tools/browser-tests-v105.js",
-      "sha256": "85ee35a67542e7808be400ce88e53d019d73cf18ad64314ce962d4b2f1063350",
-      "bytes": 15064
+      "sha256": "5fd307645d0b4dd9651d03b505d652ace4e6784c685eb144dbfcee0b53fbe9db",
+      "bytes": 17182
     },
     {
       "path": "tools/browser-tests.js",
@@ -421,6 +471,6 @@
       "bytes": 1614
     }
   ],
-  "fileCount": 64,
-  "contentHash": "64a095dd4ad7d9af2452b548dbb6001c6eb402835f8416ae6144dacd18992111"
+  "fileCount": 74,
+  "contentHash": "497f999ff85e9000ccb86d57d25c3cf00b28ddaf5a6c0660db0fffec62c2aa94"
 }
