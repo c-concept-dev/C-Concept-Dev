@@ -1,0 +1,72 @@
+{
+  "schema": "EvidenceForge.MonolithRunState",
+  "schemaVersion": "MONOLITH-v1.0",
+  "runId": "efm-20260916-e41b8dbf",
+  "status": "STOPPED",
+  "stage": "MISSION",
+  "stages": {
+    "MISSION": {
+      "status": "PENDING"
+    },
+    "DISCIPLINES": {
+      "status": "PENDING"
+    },
+    "PLAN": {
+      "status": "PENDING"
+    },
+    "RETRIEVAL": {
+      "status": "PENDING"
+    },
+    "CORPUS": {
+      "status": "PENDING"
+    },
+    "PROFESSIONALS": {
+      "status": "PENDING"
+    },
+    "TWINS_REVIEWS": {
+      "status": "PENDING"
+    },
+    "QUALIFICATION": {
+      "status": "PENDING"
+    },
+    "REPORT": {
+      "status": "PENDING"
+    }
+  },
+  "gate": null,
+  "createdAt": "2026-09-16T14:28:07.546Z",
+  "mission": {
+    "question": "Une bibliothèque municipale veut remplacer ses ateliers d'initiation numérique en présentiel par des tutoriels vidéo en ligne. Dire ce qui est étayé, discuté ou non établi quant à l'efficacité de ce remplacement pour les usagers peu à l'aise avec le numérique.",
+    "questionSha256": "7ff87048dff281861cc55df394819fe15e188266bea6a3277a2915773cd47058",
+    "missionId": "efm-mission-7ff87048dff2",
+    "documents": [],
+    "reformulated": null
+  },
+  "attempts": 3,
+  "counters": {
+    "llmReal": 0,
+    "llmReused": 0,
+    "openAlexCalls": 0,
+    "kitRealCalls": 0
+  },
+  "seal": null,
+  "summary": null,
+  "userMessage": "Réseau indisponible : impossible de joindre le fournisseur d'analyse. Aucun résultat n'est inventé.",
+  "error": {
+    "code": "NETWORK_UNAVAILABLE",
+    "message": "NETWORK_UNAVAILABLE",
+    "userMessage": "Réseau indisponible : impossible de joindre le fournisseur d'analyse. Aucun résultat n'est inventé.",
+    "at": "2026-09-16T14:28:11.965Z",
+    "stage": "MISSION",
+    "resumable": true,
+    "details": null
+  },
+  "documentsRejected": [],
+  "updatedAt": "2026-09-16T14:28:11.965Z",
+  "provider": {
+    "checkedAt": "2026-09-16T14:28:11.965Z",
+    "ok": false,
+    "code": "NETWORK_UNAVAILABLE",
+    "model": "claude-opus-4-8"
+  }
+}
