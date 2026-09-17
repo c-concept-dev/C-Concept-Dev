@@ -13584,16 +13584,40 @@ ${recent}`;
   // 502 sur /browser-rendering/screenshot-slide, sur les DEUX mécanismes qui la partagent (item
   // 58 export JPEG, item 78 Phase A vidéo automatique). Cause retenue, appuyée par la
   // documentation officielle Cloudflare Browser Rendering (rythme REST appliqué "de façon
-  // régulière", jamais en rafale même sous le quota nominal ; palier gratuit limité à 1
-  // requête/10s) : un appel immédiat après le précédent peut être refusé. Correctif à DEUX
-  // niveaux, jamais dupliqué entre les deux mécanismes qui le partagent (régression #6) : un
-  // retry avec backoff côté Worker (cf. handleScreenshotSlide) ET un espacement minimal ici,
-  // côté client, dans cette fonction PARTAGÉE — jamais réimplémentée séparément par item 58/78.
-  const ADOC_SCREENSHOT_SLIDE_DELAY_MS = 1200;
+  // régulière", jamais en rafale même sous le quota nominal) — puis CONFIRMÉE précisément le 18
+  // septembre par un vrai 429 "Rate limit exceeded" après les 3 tentatives du retry Worker : le
+  // compte est sur le plan GRATUIT Cloudflare Browser Rendering, limite STRICTE de 1 requête/10s
+  // sur /browser-rendering (pas seulement "pas de rafale" — un vrai palier dur). Un espacement de
+  // 1200ms (déployé dans le lot précédent, sur l'hypothèse "pas de rafale" alors non encore
+  // précisée) est donc resté trop court à lui seul et a continué à produire des 429.
+  //
+  // Correctif ÉTENDU ici (extension du 78-fix, pas un nouveau mécanisme, régression #6) : le
+  // délai minimal entre deux appels RÉELLEMENT envoyés (tous mécanismes confondus, cf. le
+  // compteur PARTAGÉ _adocLastScreenshotSlideCallAt ci-dessous — la limite Cloudflare est par
+  // COMPTE, jamais par mécanisme) passe de 1200ms à 10500ms (10,5s — marge de 500ms au-delà des
+  // 10s stricts documentés). Le retry avec backoff côté Worker (cf. handleScreenshotSlide) reste
+  // INCHANGÉ et continue de servir de filet de sécurité résiduel (ex. latence réseau ponctuelle),
+  // périmètre strict de ce lot : uniquement cet espacement client, rien d'autre.
+  //
+  // ⚠️ COMPROMIS EXPLICITEMENT TEMPORAIRE (décision de Christophe, phase de test/construction) :
+  // ce délai de 10,5s est dimensionné pour le PLAN GRATUIT Cloudflare Browser Rendering. Si le
+  // compte passe un jour en plan payant (10 requêtes/s au lieu de 1/10s), cette file d'attente
+  // devient inutilement lente d'un facteur ~100 — ADOC_SCREENSHOT_SLIDE_DELAY_MS est le seul
+  // point à revoir alors (aucune bascule automatique de plan construite ici, hors périmètre :
+  // ce commentaire EST le point de sortie documenté pour qui reprendra ce code plus tard).
+  const ADOC_SCREENSHOT_SLIDE_DELAY_MS = 10500;
   let _adocLastScreenshotSlideCallAt = 0;
-  async function adocFetchCarrouselSlideScreenshot(workerUrl, slideHtml, slideNumber) {
+  // `onWaiting(waitSeconds)` — optionnel, appelé UNE FOIS juste avant l'attente si une pause est
+  // nécessaire (jamais si le délai est déjà écoulé) — permet à l'appelant (JPEG ou vidéo) de
+  // refléter cette pause dans SON propre label de progression déjà existant, plutôt que de
+  // laisser l'interface paraître figée pendant les ~10s d'attente (un Carrousel de 5 diapositives
+  // prend ~50-55s rien que pour les captures — jamais silencieusement).
+  async function adocFetchCarrouselSlideScreenshot(workerUrl, slideHtml, slideNumber, onWaiting) {
     const wait = ADOC_SCREENSHOT_SLIDE_DELAY_MS - (Date.now() - _adocLastScreenshotSlideCallAt);
-    if (wait > 0) await new Promise(function (resolve) { setTimeout(resolve, wait); });
+    if (wait > 0) {
+      if (onWaiting) onWaiting(Math.ceil(wait / 1000));
+      await new Promise(function (resolve) { setTimeout(resolve, wait); });
+    }
     _adocLastScreenshotSlideCallAt = Date.now();
     const workerUrlClean = workerUrl.replace(/\/+$/, '');
     const r = await fetch(workerUrlClean + '/browser-rendering/screenshot-slide', {
@@ -13637,7 +13661,11 @@ ${recent}`;
         if (btnLabel) btnLabel.textContent = 'Diapositive ' + (i + 1) + '/' + doc.blocks.length + '…';
         const cardHtml = adocRenderCardHTML(doc.blocks[i], i, doc.blocks.length);
         const slideHtml = adocClinicalDocumentWrapHTML(doc, cardHtml, rendered.tokens);
-        const r = await adocFetchCarrouselSlideScreenshot(workerUrl, slideHtml, i + 1);
+        // File d'attente Cloudflare (plan gratuit, 78-fix étendu) — l'attente est reflétée dans
+        // CE MÊME label, jamais une interface qui semble figée pendant les ~10s de pause.
+        const r = await adocFetchCarrouselSlideScreenshot(workerUrl, slideHtml, i + 1, function (waitS) {
+          if (btnLabel) btnLabel.textContent = 'Diapositive ' + (i + 1) + '/' + doc.blocks.length + '… (limite Cloudflare, patience ' + waitS + 's)';
+        });
         zip.file('diapositive-' + String(i + 1).padStart(2, '0') + '.jpg', await r.arrayBuffer());
       }
       const blob = await zip.generateAsync({ type: 'blob', mimeType: 'application/zip' });
@@ -13685,8 +13713,12 @@ ${recent}`;
       const slideHtml = adocClinicalDocumentWrapHTML(doc, cardHtml, rendered.tokens);
       // Fonction PARTAGÉE avec adocWsExportJPEG (item 58) — jamais un second appel réseau
       // réimplémenté ici, cf. commentaire au-dessus d'adocFetchCarrouselSlideScreenshot pour le
-      // détail du bug 502 partagé et de son correctif (espacement + retry Worker).
-      const r = await adocFetchCarrouselSlideScreenshot(workerUrl, slideHtml, i + 1);
+      // détail du bug 502 partagé et de son correctif (espacement + retry Worker). Le 3e
+      // paramètre optionnel d'onProgress (waitS) reflète la file d'attente Cloudflare (plan
+      // gratuit, 78-fix étendu) dans le même label — jamais une interface qui semble figée.
+      const r = await adocFetchCarrouselSlideScreenshot(workerUrl, slideHtml, i + 1, function (waitS) {
+        if (onProgress) onProgress(i + 1, doc.blocks.length, waitS);
+      });
       const buf = await r.arrayBuffer();
       const dataUrl = 'data:image/jpeg;base64,' + adocArrayBufferToBase64(buf);
       scenes.push({ imageDataUrl: dataUrl, texte: doc.blocks[i].title || '', duree: ADOC_VIDEO_SCENE_DURATION_S });
@@ -13745,8 +13777,13 @@ ${recent}`;
     if (btn) btn.disabled = true;
     try {
       if (btnLabel) btnLabel.textContent = 'Préparation des scènes…';
-      const scenes = await adocBuildVideoScenesFromCarrousel(storeKey, function (i, total) {
-        if (btnLabel) btnLabel.textContent = 'Diapositive ' + i + '/' + total + '…';
+      const scenes = await adocBuildVideoScenesFromCarrousel(storeKey, function (i, total, waitS) {
+        if (!btnLabel) return;
+        // File d'attente Cloudflare (plan gratuit, 78-fix étendu) — waitS n'est fourni que
+        // lorsqu'une pause est réellement nécessaire, jamais une interface qui semble figée.
+        btnLabel.textContent = waitS
+          ? 'Diapositive ' + i + '/' + total + '… (limite Cloudflare, patience ' + waitS + 's)'
+          : 'Diapositive ' + i + '/' + total + '…';
       });
       if (btnLabel) btnLabel.textContent = 'Assemblage de la vidéo…';
       await adocRunVideoAssembly(scenes, musicFile, musicVolume);
