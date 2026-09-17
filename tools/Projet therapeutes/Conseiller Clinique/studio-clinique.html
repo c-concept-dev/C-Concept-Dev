@@ -1857,10 +1857,23 @@
       margin: 0;
     }
     .cc-block-edit-target {
+      display: flex; align-items: flex-start; gap: 8px;
       font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
       color: var(--muted); margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid var(--ivory);
     }
     .cc-block-edit-target strong { color: var(--ink); text-transform: none; letter-spacing: normal; font-weight: 600; }
+    /* Bouton "Fermer" explicite (Partie A, lot correctif) — toujours disponible même quand le
+       panneau recouvre le bloc qu'il édite ou un bloc voisin (cf. rapport : jusqu'ici la seule
+       façon de le fermer était de cliquer hors bloc/panneau, inefficace si le panneau recouvre
+       justement cette zone). flex-order avant le texte pour rester atteignable même si le libellé
+       s'allonge ; ordre visuel inversé (à droite) via margin-left:auto. */
+    .cc-block-edit-target .cc-block-edit-close {
+      order: 2; margin-left: auto; flex: 0 0 auto;
+      width: 20px; height: 20px; line-height: 18px; padding: 0; text-align: center;
+      font-size: 15px; font-weight: 400; color: var(--muted); background: none;
+      border: 1px solid var(--stone-300); border-radius: 50%; cursor: pointer;
+    }
+    .cc-block-edit-target .cc-block-edit-close:hover { color: var(--ink); border-color: var(--stone-400,var(--stone-300)); }
     .cc-block-edit-diff { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
     .cc-block-edit-label {
       font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;

@@ -7535,13 +7535,22 @@ ${recent}`;
     function button(action, label) { return '<button type="button" class="cc-clarity-other-btn" data-editor-action="' + action + '">' + label + '</button>'; }
     function number(field, label, min, max, step) { return '<label>' + label + '<input type="number" data-editor-style="' + field + '" min="' + min + '" max="' + max + '" step="' + (step || 1) + '"></label>'; }
     return '<div class="cc-block-style-controls cc-editor-tools" role="group" aria-label="Édition et mise en forme">' +
-      '<strong>Texte et mise en forme</strong><div class="cc-editor-row">' + button('undo','Annuler') + button('redo','Rétablir') +
+      // Lot correctif (Partie A) — mesuré en investiguant : ce bloc (en-tête + 4 lignes ci-dessous,
+      // police/taille/gras/alignement/casse/couleurs) contribue à lui seul ~370 des ~510px de
+      // .cc-block-style-controls (~50% de la hauteur totale du panneau), cause directe du
+      // recouvrement de blocs voisins découvert en régression. Replié par défaut derrière le même
+      // libellé "Texte et mise en forme" déjà présent (jamais un intitulé inventé), sur le modèle
+      // exact du <details>/<summary> "Espacements et bordures" juste en dessous, déjà de ce lot.
+      // Les actions IA (Réécrire/Raccourcir/…) vivent dans .cc-block-edit-controls, EN DEHORS de
+      // ce bloc et donc jamais affectées par ce repli.
+      '<details class="cc-editor-text-format"><summary>Texte et mise en forme</summary><div class="cc-editor-row">' + button('undo','Annuler') + button('redo','Rétablir') +
       '<label>Appliquer à<select data-editor-scope><option value="block">Tout le bloc</option><option value="selection">Texte sélectionné</option><option value="cell">Cellule active</option></select></label></div>' +
       '<div class="cc-editor-row"><label>Police<input data-editor-style="fontFamily" list="cc-editor-fonts" placeholder="Police de la charte"></label><datalist id="cc-editor-fonts"></datalist>' + button('local-fonts','Polices de cet ordinateur') + number('fontSizePt','Taille (pt)',6,144) + '</div>' +
       '<div class="cc-editor-row">' + button('bold','Gras') + button('italic','Italique') + button('underline','Souligné') + button('strike','Barré') +
       '<label>Alignement<select data-editor-style="textAlign"><option value="">Charte</option><option value="left">Gauche</option><option value="center">Centré</option><option value="right">Droite</option><option value="justify">Justifié</option></select></label>' +
       '<label>Casse<select data-editor-style="textTransform"><option value="none">Originale</option><option value="uppercase">MAJUSCULES</option><option value="lowercase">minuscules</option><option value="capitalize">Initiales</option></select></label></div>' +
       '<div class="cc-editor-row"><label>Texte<input type="color" data-editor-style="color"></label><label>Surlignage / fond<input type="color" data-editor-style="backgroundColor"></label><div class="cc-editor-swatches" aria-label="Couleurs de la charte active"></div></div>' +
+      '</details>' +
       '<details><summary>Espacements et bordures</summary><div class="cc-editor-row">' + number('lineHeight','Interligne',0.5,4,0.1) + number('letterSpacing','Caractères (px)',-2,20,0.1) + number('marginTop','Avant (px)',0,160) + number('marginBottom','Après (px)',0,160) + number('textIndent','Retrait (px)',0,160) +
       '<label>Bordure<input type="color" data-editor-style="borderColor"></label>' + number('borderWidth','Épaisseur (px)',0,12) + '</div></details>' +
       '<div class="cc-editor-list-tools cc-editor-row">' + button('list-add','Ajouter un élément') + button('list-remove','Retirer l’élément') + button('indent','Augmenter le niveau') + button('outdent','Réduire le niveau') + button('bullets','Puces') + button('numbered','Numéros') + '</div>' +
@@ -7755,7 +7764,13 @@ ${recent}`;
     const lr = listenerRoot || root;
     if(lr.dataset.ccEditorBound)return;lr.dataset.ccEditorBound='1';
     document.addEventListener('selectionchange',adocEditorRememberSelection);
-    lr.addEventListener('pointerdown',function(e){lr._ccPointerSelecting=true;if(e.target.closest('.cc-editor-tools button'))e.preventDefault();else if(!e.target.closest('.cc-block-edit-panel'))adocEditorRememberSelection();});
+    // Lot correctif Partie A — l'accordéon "Texte et mise en forme" ajoute un nouveau point de
+    // clic (summary) DANS .cc-editor-tools : sans la même protection que les boutons de mise en
+    // forme ci-dessous, l'ouvrir effaçait la sélection de texte en cours (comportement natif du
+    // navigateur au mousedown), rendant "Texte sélectionné" inutilisable une fois l'accordéon
+    // replié par défaut — découvert en testant, jamais un souci avant ce lot (l'ancien
+    // <strong>, non cliquable, ne pouvait pas capter le pointerdown).
+    lr.addEventListener('pointerdown',function(e){lr._ccPointerSelecting=true;if(e.target.closest('.cc-editor-tools button, .cc-editor-tools summary'))e.preventDefault();else if(!e.target.closest('.cc-block-edit-panel'))adocEditorRememberSelection();});
     lr.addEventListener('pointerup',function(){setTimeout(function(){lr._ccPointerSelecting=false;},0);});
     lr.addEventListener('click',function(e){
       const action=e.target.closest('[data-editor-action]'),color=e.target.closest('[data-editor-color]');
@@ -11231,6 +11246,22 @@ ${recent}`;
     if (panel.parentNode) panel.parentNode.removeChild(panel);
   }
 
+  // Bouton "Fermer" explicite (Partie A, lot correctif) — un seul point d'entrée pour les DEUX
+  // moteurs (régression #6), qui réutilise le chemin de désélection déjà existant (clic hors
+  // bloc/panneau) plutôt que de dupliquer le retrait du panneau : structuré et legacy ont chacun
+  // leur propre état/fonction de désélection (_adocBlockEditState/_adocLegacyBlockEditState),
+  // jamais les deux à la fois, d'où le simple aiguillage sur lequel des deux est actif.
+  window.adocCloseBlockEditPanel = function () {
+    if (window._adocBlockEditState.storeKey) adocWsClearBlockSelection();
+    else if (window._adocLegacyBlockEditState.storeKey) adocWsClearLegacyBlockSelection();
+  };
+  function adocBlockEditPanelHeaderHTML(previewText) {
+    return '<div class="cc-block-edit-target">' +
+      '<button type="button" class="cc-block-edit-close" aria-label="Fermer le panneau de correction" onclick="window.adocCloseBlockEditPanel()">×</button>' +
+      'Bloc en cours d’édition : <strong>« ' + previewText + ' »</strong>' +
+    '</div>';
+  }
+
   // État de la correction en cours — un seul bloc sélectionné à la fois (cf. demande), remis à
   // zéro par adocWsClearBlockSelection() à chaque désélection/confirmation/annulation/fermeture.
   window._adocBlockEditState = { storeKey: null, blockId: null, panelEl: null, pendingBlock: null, originalBlock: null };
@@ -11369,7 +11400,7 @@ ${recent}`;
       // .is-selected une fois contextuel, mais garde un rappel textuel utile si le bloc défile
       // hors champ pendant que le panneau reste ouvert.
       const preview = adocEsc(adocBlockPreviewText(block)) || '(bloc sans texte)';
-      panel.innerHTML = '<div class="cc-block-edit-target">Bloc en cours d’édition : <strong>« ' + preview + ' »</strong></div>' + adocBuildBlockEditPanelHTML(block.type);
+      panel.innerHTML = adocBlockEditPanelHeaderHTML(preview) + adocBuildBlockEditPanelHTML(block.type);
       adocMountContextualBlockEditPanel(panel, blockEl);
       window._adocBlockEditState = { storeKey: storeKey, blockId: blockId, panelEl: panel, pendingBlock: null, originalBlock: block };
       // Item 57c Lot 1 — ne vole plus le focus vers le champ libre pour un bloc directement
@@ -11806,8 +11837,8 @@ ${recent}`;
       // adocWsSetupBlockEditing/adocMountContextualBlockEditPanel, jamais une 2e implémentation) :
       // indicateur "bloc en cours d'édition" à partir du texte réel du bloc DOM (pas d'objet block
       // JSON côté legacy), panneau ancré au bloc DOM réellement sélectionné.
-      const legacyPreview = adocEsc((blockEl.textContent || '').trim().slice(0, 60)) || '(bloc sans texte)';
-      panel.innerHTML = '<div class="cc-block-edit-target">Bloc en cours d’édition : <strong>« ' + legacyPreview + (blockEl.textContent && blockEl.textContent.trim().length > 60 ? '…' : '') + ' »</strong></div>' + adocBuildLegacyBlockEditPanelHTML(kind);
+      const legacyPreview = (adocEsc((blockEl.textContent || '').trim().slice(0, 60)) || '(bloc sans texte)') + (blockEl.textContent && blockEl.textContent.trim().length > 60 ? '…' : '');
+      panel.innerHTML = adocBlockEditPanelHeaderHTML(legacyPreview) + adocBuildLegacyBlockEditPanelHTML(kind);
       adocMountContextualBlockEditPanel(panel, blockEl);
       window._adocLegacyBlockEditState = {
         storeKey: storeKey, blockKey: blockKey, panelEl: panel, el: blockEl,
