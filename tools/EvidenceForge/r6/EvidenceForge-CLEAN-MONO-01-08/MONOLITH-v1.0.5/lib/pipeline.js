@@ -24,7 +24,8 @@ const now = () => new Date().toISOString();
    deduplication a la reprise (dedupeDiscovery) ; la reprise rejoue l'etape PROFESSIONALS sur un nouveau run MONO-10 */
 const RESUMABLE = ["INTERRUPTED_BY_RESTART", "LEDGER_DUPLICATE_OR_INVALID", "AGGREGATION_CLASSIFICATION_ERROR", "CHECKPOINT_CORRUPT", "PROVIDER_CREDIT_EXHAUSTED", "PROVIDER_RATE_LIMITED", "NETWORK_UNAVAILABLE", "PROVIDER_TIMEOUT", "PROVIDER_UNAVAILABLE", "PROVIDER_NOT_CONFIGURED", "LLM_UNAVAILABLE", "PROVIDER_EMPTY_RESPONSE",
   "LLM_PROVIDER_UNAVAILABLE", "LLM_RESPONSE_INVALID", "LLM_OUTPUT_SCHEMA_INVALID", "REFORMULATION_INVALID", "PLANNER_OUTPUT_INVALID", "RESOLVER_OUTPUT_INVALID",
-  "BUDGET_LIMIT_REACHED", "PRICING_UNKNOWN_FOR_MODEL"];   /* v1.0.5 : plafond de depense atteint / tarif inconnu = arret propre AVANT l'appel, reprenable apres decision humaine (budget) */
+  "BUDGET_LIMIT_REACHED", "PRICING_UNKNOWN_FOR_MODEL",
+  "PROVIDER_PLACEHOLDER", "PROVIDER_URL_INVALID", "PROVIDER_DNS_ERROR", "PROVIDER_CONNECTION_REFUSED", "PROVIDER_TLS_ERROR", "PROVIDER_AUTH_ERROR", "PROVIDER_ROUTE_NOT_FOUND", "PROVIDER_CAPACITY", "PROVIDER_BAD_RESPONSE"];   /* v1.0.5 : pannes de configuration/transport distinguees, toutes reprenables une fois corrigees */   /* v1.0.5 : plafond de depense atteint / tarif inconnu = arret propre AVANT l'appel, reprenable apres decision humaine (budget) */
 const isResumable = (state) => state && (state.status === "STOPPED" || (state.status === "FAILED" && state.error && RESUMABLE.indexOf(state.error.code) !== -1));
 const running = new Map();   // runId -> Promise (un seul moteur par run)
 
@@ -54,15 +55,16 @@ async function startRun(input) {
   /* document refuse : jamais un lancement silencieux sur la question seule — l'utilisateur doit confirmer explicitement */
   if (intake.rejected.length && input.acknowledgeRejected !== true) { const e = new Error("DOCUMENTS_REJECTED"); e.code = "DOCUMENTS_REJECTED"; e.details = { rejected: intake.rejected, accepted: intake.documents.map((d) => d.name) };
     e.userMessage = intake.rejected.length + " document(s) refusé(s) : " + intake.rejected.map((r) => r.name + " (" + r.reason + ")").join(" ; ") + ". Voulez-vous continuer " + (intake.documents.length ? "avec les " + intake.documents.length + " document(s) accepté(s) seulement" : "sans document (votre demande seule sera examinée)") + " ?"; throw e; }
+  if (typeof input.assertProviderReady === "function") await input.assertProviderReady();   /* v1.0.5 : fournisseur pret (sonde gratuite) avant de creer le moindre artefact */
   const runId = RS.newRunId(); const store = RS.createRunStore(runId);
   const docsDir = path.join(store.dir, "documents"); fs.mkdirSync(docsDir, { recursive: true });
   intake.documents.forEach((d) => fs.writeFileSync(path.join(docsDir, d.documentId + ".txt"), Buffer.from(d.contentBase64, "base64")));
   const state = makeState(runId, q, intake.documents.map((d) => ({ documentId: d.documentId, name: d.name, bytes: d.bytes, sha256: d.sha256 })));
   state.documentsRejected = intake.rejected;
   /* v1.0.5 : budget facultatif a la creation (plafond / alerte), persiste dans budget.json AVANT tout appel */
-  if (input.budget && (input.budget.costBudgetUsd != null || input.budget.warningThresholdUsd != null)) { const n = BG.normalizeBudgetInput(input.budget); costFor(store, state).budget.set(n, "user"); }
+  let budgetSet = null; if (input.budget && (input.budget.costBudgetUsd != null || input.budget.warningThresholdUsd != null)) { const n = BG.normalizeBudgetInput(input.budget); budgetSet = costFor(store, state).budget.set(n, "user"); }
   store.write(state); store.event({ level: "user", message: "Run créé. " + intake.documents.length + " document(s) accepté(s)" + (intake.rejected.length ? ", " + intake.rejected.length + " refusé(s)." : ".") , _state: state });
-  return { runId, documents: state.mission.documents, rejected: intake.rejected };
+  return { runId, documents: state.mission.documents, rejected: intake.rejected, budget: budgetSet ? { costBudgetUsd: budgetSet.costBudgetUsd, warningThresholdUsd: budgetSet.warningThresholdUsd } : null };   /* v1.0.5 : ce qui est REELLEMENT enregistre */
 }
 
 function loadDocuments(store, state) {

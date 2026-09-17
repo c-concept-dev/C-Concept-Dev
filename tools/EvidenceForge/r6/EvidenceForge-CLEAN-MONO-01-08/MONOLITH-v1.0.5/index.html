@@ -54,7 +54,7 @@ input[type=number]{width:100%;padding:10px;border:1px solid var(--line);border-r
 <main>
   <div id="gateNotify" class="banner warn noprint notify" hidden></div>
   <div id="gateErr" class="banner bad noprint" hidden></div>
-  <div id="providerWarn" class="banner bad noprint" hidden>Le service d'analyse n'est pas configuré sur cette machine (identifiants absents de l'environnement). Aucune analyse ne peut démarrer.</div>
+  <div id="providerWarn" class="banner bad noprint" hidden></div>
 
   <!-- v1.0.5 : AIDE (jamais affichee par defaut, jamais bloquante) -->
   <div class="card noprint" id="helpCard" hidden>
@@ -81,8 +81,9 @@ input[type=number]{width:100%;padding:10px;border:1px solid var(--line);border-r
       <div id="preflightBox" class="banner info" hidden></div>
       <!-- v1.0.5 : budget du run -->
       <details style="margin-top:10px" id="budgetDetails"><summary>Combien suis-je prêt à dépenser ? (budget du run, facultatif)</summary>
-        <div class="grid2"><div><label for="bMax">Budget maximum (USD)</label><input type="number" id="bMax" min="0" step="0.5" placeholder="ex. 25"></div><div><label for="bWarn">Alerte (USD)</label><input type="number" id="bWarn" min="0" step="0.5" placeholder="ex. 20"></div></div>
-        <p class="small muted">Au plafond, le run s'arrête proprement avant tout nouvel appel payant ; il pourra reprendre après augmentation du budget. Sans plafond, le coût est affiché mais non borné.</p></details>
+        <div class="grid2"><div><label for="bMax">Budget maximum (USD)</label><input type="number" id="bMax" min="0" step="0.01" inputmode="decimal" autocomplete="off" placeholder="ex. 25"></div><div><label for="bWarn">Alerte (USD)</label><input type="number" id="bWarn" min="0" step="0.01" inputmode="decimal" autocomplete="off" placeholder="ex. 20"></div></div>
+        <p class="small" id="bPreview">Aucun plafond : le coût sera affiché mais non borné.</p>
+        <p class="small muted">Au plafond, le run s'arrête proprement avant tout nouvel appel payant ; il pourra reprendre après augmentation du budget.</p></details>
       <div class="row" style="margin-top:12px"><button class="btn" id="start">Analyser ma demande</button><span class="small muted">Rien n'est lancé sans votre confirmation à l'étape suivante.</span></div>
       <details style="margin-top:12px"><summary>Reprendre un run existant</summary><div id="runList" class="small"></div></details>
       <details style="margin-top:6px"><summary>Importer un rapport JSON exporté</summary><div class="small muted">Le rapport est ré-affiché tel quel après vérification de son hash canonique. Les artefacts détaillés du run d'origine ne sont pas inclus dans un export JSON.</div><input type="file" id="importReport" accept=".json,application/json"><div id="importErr" class="banner bad" hidden></div></details>
@@ -161,7 +162,12 @@ let CFG=null, RUN=null, ES=null, STATE=null, REPORT=null, GATE=null, EXTAB="stat
 let pendingFiles=[]; let overrides={}; let showAll=false;
 
 /* ---------- config ---------- */
-api("/api/config").then((c)=>{CFG=c;$("#cfgline").textContent=c.product+" "+c.version+" · "+c.frozenLots.length+" lots gelés vérifiés";if(!c.providerConfigured){$("#providerWarn").hidden=false;$("#start").disabled=true;}renderRunList();fromHash();}).catch((e)=>{$("#cfgline").textContent="Serveur injoignable : "+e.message;});
+/* v1.0.5 : etat du fournisseur en trois niveaux (identifiants / joignable / pret) — « configuré » n'est jamais affiché sur un simple placeholder */
+function renderProvider(pv){const w=$("#providerWarn");if(pv&&pv.ready){w.hidden=true;$("#start").disabled=false;$("#cfgline").textContent=CFG.product+" "+CFG.version+" · "+CFG.frozenLots.length+" lots gelés vérifiés · service d'analyse prêt";return;}
+  $("#start").disabled=true;w.hidden=false;const lvl=!pv||!pv.credentialsPresent?"identifiants absents":pv.placeholderDetected?"valeur factice détectée":!pv.urlValid?"adresse invalide":pv.reachable===false?"worker injoignable":pv.authOk===false?"clé refusée":"diagnostic en attente";
+  w.innerHTML='<b>Le service d\'analyse n\'est pas prêt ('+esc(lvl)+').</b> '+esc(pv?pv.userMessage:"")+' <button class="btn small" id="provRetry" style="margin-left:8px">Re-tester</button>';$("#provRetry").onclick=async()=>{$("#provRetry").disabled=true;try{renderProvider(await api("/api/provider?refresh=1"));}catch(e){}};
+  $("#cfgline").textContent=CFG.product+" "+CFG.version+" · service d'analyse NON prêt";}
+api("/api/config").then(async(c)=>{CFG=c;$("#cfgline").textContent=c.product+" "+c.version+" · "+c.frozenLots.length+" lots gelés vérifiés";renderProvider(c.provider);renderRunList();fromHash();try{renderProvider(await api("/api/provider"));}catch(e){}}).catch((e)=>{$("#cfgline").textContent="Serveur injoignable : "+e.message;});
 async function renderRunList(){try{const r=await api("/api/runs");$("#runList").innerHTML=r.runs.length?r.runs.map((x)=>'<div><a href="#" data-run="'+esc(x.runId)+'">'+esc(x.runId)+'</a> · '+esc(x.status)+' · '+esc((x.question||"").slice(0,80))+'</div>').join(""):"<em>Aucun run.</em>";$("#runList").querySelectorAll("a").forEach((a)=>a.onclick=(ev)=>{ev.preventDefault();openRun(a.dataset.run);});}catch(e){}}
 
 /* ---------- mode ---------- */
@@ -178,10 +184,17 @@ window.addEventListener("hashchange",fromHash);
 $("#files").onchange=async()=>{pendingFiles=[];for(const f of $("#files").files){const buf=await f.arrayBuffer();pendingFiles.push({name:f.name,contentBase64:btoa(String.fromCharCode(...new Uint8Array(buf)))});}$("#fileList").textContent=pendingFiles.map((f)=>f.name).join(", ");};
 const numOrNull=(v)=>{const t=String(v==null?"":v).trim();if(t==="")return null;const n=Number(t);return Number.isFinite(n)?n:null;};
 function budgetInput(){return {costBudgetUsd:numOrNull($("#bMax").value),warningThresholdUsd:numOrNull($("#bWarn").value)};}
+/* apercu EN DIRECT de ce qui sera enregistre (le run affichera ensuite exactement budget.json) */
+function renderBudgetPreview(){const b=budgetInput();const el=$("#bPreview");if(b.costBudgetUsd===null&&b.warningThresholdUsd===null){el.textContent="Aucun plafond : le coût sera affiché mais non borné.";el.className="small muted";return;}
+  if(b.costBudgetUsd!==null&&b.warningThresholdUsd!==null&&b.warningThresholdUsd>b.costBudgetUsd){el.textContent="Le seuil d'alerte ne peut pas dépasser le budget maximum.";el.className="small";el.style.color="var(--bad)";return;}el.style.color="";
+  el.textContent="Sera enregistré : "+(b.costBudgetUsd!==null?"plafond "+b.costBudgetUsd.toFixed(2)+" USD":"aucun plafond (coût non borné)")+" · "+(b.warningThresholdUsd!==null?"alerte à "+b.warningThresholdUsd.toFixed(2)+" USD":"aucune alerte");el.className="small";}
+$("#bMax").oninput=renderBudgetPreview;$("#bWarn").oninput=renderBudgetPreview;$("#budgetDetails").ontoggle=renderBudgetPreview;
 $("#start").onclick=async()=>{const q=$("#q").value.trim();if(q.length<12){alert("Décrivez votre demande (12 caractères minimum).");return;}const budget=budgetInput();if(budget.costBudgetUsd!==null&&budget.warningThresholdUsd!==null&&budget.warningThresholdUsd>budget.costBudgetUsd){alert("Le seuil d'alerte ne peut pas dépasser le budget maximum.");return;}$("#start").disabled=true;
   try{let r;try{r=await api("/api/runs",{method:"POST",body:JSON.stringify({question:q,files:pendingFiles,budget})});}
     catch(e){if(e.code==="DOCUMENTS_REJECTED"){/* jamais un lancement silencieux sans le document : confirmation explicite */if(!confirm(e.message+"\n\nOK = continuer sans ce(s) document(s) · Annuler = corriger mes fichiers"))return;r=await api("/api/runs",{method:"POST",body:JSON.stringify({question:q,files:pendingFiles,acknowledgeRejected:true,budget})});}else throw e;}
-    if(r.rejected&&r.rejected.length)$("#fileList").textContent="Documents refusés (run lancé sans eux) : "+r.rejected.map((x)=>x.name).join(", ");askNotifyPermission();openRun(r.runId);}catch(e){alert(e.message);}finally{$("#start").disabled=false;}};
+    if(r.rejected&&r.rejected.length)$("#fileList").textContent="Documents refusés (run lancé sans eux) : "+r.rejected.map((x)=>x.name).join(", ");askNotifyPermission();openRun(r.runId);
+    /* confirmation de ce qui a ete reellement enregistre (budget.json), jamais ce qui a ete saisi */
+    if(r.budget){const um=$("#userMsg");um.hidden=false;um.className="banner info";um.textContent="Run créé · budget enregistré : "+(r.budget.costBudgetUsd!=null?"plafond "+Number(r.budget.costBudgetUsd).toFixed(2)+" USD":"aucun plafond")+" · "+(r.budget.warningThresholdUsd!=null?"alerte à "+Number(r.budget.warningThresholdUsd).toFixed(2)+" USD":"aucune alerte")+".";}}catch(e){alert(e.message);}finally{$("#start").disabled=false;}};
 /* v1.0.5 : « Vérifier ma demande avec l'IA » — hors run ; l'IA propose ; la zone de texte n'est modifiee que sur clic explicite ; l'original reste disponible */
 let PRE_ORIGINAL=null;
 $("#btnPreflight").onclick=async()=>{const q=$("#q").value.trim();if(q.length<12){alert("Décrivez votre demande (12 caractères minimum).");return;}const box=$("#preflightBox");box.hidden=false;box.className="banner info";box.textContent="Vérification en cours (un appel au service d'analyse)…";$("#btnPreflight").disabled=true;

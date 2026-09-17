@@ -13516,6 +13516,36 @@ ${recent}`;
     }
   };
 
+  // Bug items 58/78 (18 septembre) — investigation confirmée : la diapositive 2 (index 1, la
+  // DEUXIÈME requête envoyée, quel que soit le contenu réel de cette carte — reproduction fidèle
+  // du prompt de test de Christophe, comparaison structurelle des 3 cartes et rendu réel en
+  // Chromium local n'ont trouvé AUCUNE anomalie de contenu/HTML) échouait systématiquement en
+  // 502 sur /browser-rendering/screenshot-slide, sur les DEUX mécanismes qui la partagent (item
+  // 58 export JPEG, item 78 Phase A vidéo automatique). Cause retenue, appuyée par la
+  // documentation officielle Cloudflare Browser Rendering (rythme REST appliqué "de façon
+  // régulière", jamais en rafale même sous le quota nominal ; palier gratuit limité à 1
+  // requête/10s) : un appel immédiat après le précédent peut être refusé. Correctif à DEUX
+  // niveaux, jamais dupliqué entre les deux mécanismes qui le partagent (régression #6) : un
+  // retry avec backoff côté Worker (cf. handleScreenshotSlide) ET un espacement minimal ici,
+  // côté client, dans cette fonction PARTAGÉE — jamais réimplémentée séparément par item 58/78.
+  const ADOC_SCREENSHOT_SLIDE_DELAY_MS = 1200;
+  let _adocLastScreenshotSlideCallAt = 0;
+  async function adocFetchCarrouselSlideScreenshot(workerUrl, slideHtml, slideNumber) {
+    const wait = ADOC_SCREENSHOT_SLIDE_DELAY_MS - (Date.now() - _adocLastScreenshotSlideCallAt);
+    if (wait > 0) await new Promise(function (resolve) { setTimeout(resolve, wait); });
+    _adocLastScreenshotSlideCallAt = Date.now();
+    const workerUrlClean = workerUrl.replace(/\/+$/, '');
+    const r = await fetch(workerUrlClean + '/browser-rendering/screenshot-slide', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
+      body: JSON.stringify({ html: slideHtml })
+    });
+    // Aucun succès n'est jamais rapporté à l'appelant si CETTE diapositive a échoué (même après
+    // le retry déjà tenté côté Worker) — l'appelant (adocWsExportJPEG/adocBuildVideoScenesFromCarrousel)
+    // propage l'exception telle quelle, jamais un zip/une vidéo partiel(le) traité(e) comme réussi.
+    if (!r.ok) throw new Error('Échec de capture pour la diapositive ' + slideNumber + ' (' + r.status + ')');
+    return r;
+  }
+
   // Item 58 — export JPEG par diapositive (Carrousel structuré uniquement, cf. bouton et
   // adocOpenWorkspace : le découpage legacy n'a pas de sélecteur DOM fiable). Chaque diapositive
   // est ré-enveloppée en document HTML autonome via adocClinicalDocumentWrapHTML — LA MÊME
@@ -13540,17 +13570,13 @@ ${recent}`;
       // Même charte que l'aperçu/export HTML (cohérence déjà exigée par UX-1) — re-rendu
       // uniquement pour obtenir les tokens de charte, jamais pour reconstruire doc.blocks.
       const rendered = await window.adocRenderClinicalDocument(doc, art._adocStructuredSnapshot, art._adocRenderManifestOverride || null);
-      const workerUrl = adocGetWorkerUrl().replace(/\/+$/, '');
+      const workerUrl = adocGetWorkerUrl();
       const zip = new JSZip();
       for (let i = 0; i < doc.blocks.length; i++) {
         if (btnLabel) btnLabel.textContent = 'Diapositive ' + (i + 1) + '/' + doc.blocks.length + '…';
         const cardHtml = adocRenderCardHTML(doc.blocks[i], i, doc.blocks.length);
         const slideHtml = adocClinicalDocumentWrapHTML(doc, cardHtml, rendered.tokens);
-        const r = await fetch(workerUrl + '/browser-rendering/screenshot-slide', {
-          method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
-          body: JSON.stringify({ html: slideHtml })
-        });
-        if (!r.ok) throw new Error('Échec de capture pour la diapositive ' + (i + 1));
+        const r = await adocFetchCarrouselSlideScreenshot(workerUrl, slideHtml, i + 1);
         zip.file('diapositive-' + String(i + 1).padStart(2, '0') + '.jpg', await r.arrayBuffer());
       }
       const blob = await zip.generateAsync({ type: 'blob', mimeType: 'application/zip' });
@@ -13590,17 +13616,16 @@ ${recent}`;
       throw new Error('Ce document n\'est pas un Carrousel structuré exploitable.');
     }
     const rendered = await window.adocRenderClinicalDocument(doc, art._adocStructuredSnapshot, art._adocRenderManifestOverride || null);
-    const workerUrl = adocGetWorkerUrl().replace(/\/+$/, '');
+    const workerUrl = adocGetWorkerUrl();
     const scenes = [];
     for (let i = 0; i < doc.blocks.length; i++) {
       if (onProgress) onProgress(i + 1, doc.blocks.length);
       const cardHtml = adocRenderCardHTML(doc.blocks[i], i, doc.blocks.length);
       const slideHtml = adocClinicalDocumentWrapHTML(doc, cardHtml, rendered.tokens);
-      const r = await fetch(workerUrl + '/browser-rendering/screenshot-slide', {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
-        body: JSON.stringify({ html: slideHtml })
-      });
-      if (!r.ok) throw new Error('Échec de capture pour la diapositive ' + (i + 1));
+      // Fonction PARTAGÉE avec adocWsExportJPEG (item 58) — jamais un second appel réseau
+      // réimplémenté ici, cf. commentaire au-dessus d'adocFetchCarrouselSlideScreenshot pour le
+      // détail du bug 502 partagé et de son correctif (espacement + retry Worker).
+      const r = await adocFetchCarrouselSlideScreenshot(workerUrl, slideHtml, i + 1);
       const buf = await r.arrayBuffer();
       const dataUrl = 'data:image/jpeg;base64,' + adocArrayBufferToBase64(buf);
       scenes.push({ imageDataUrl: dataUrl, texte: doc.blocks[i].title || '', duree: ADOC_VIDEO_SCENE_DURATION_S });

@@ -169,3 +169,7 @@ Worker/presentation_attachment.pptx
 
 # ═══ EvidenceForge : bundle des lots gelés + monolithes (rien n'est ignoré sous ce chemin ; aucun secret n'y entre — voir tools/EvidenceForge/README.md) ═══
 !tools/EvidenceForge/**
+
+# EvidenceForge : configuration locale (secrets) — jamais versionnée, jamais dans un zip ni un manifeste
+tools/EvidenceForge/.env.local
+tools/EvidenceForge/.env.local.*

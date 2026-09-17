@@ -12,6 +12,7 @@ const fs = require("fs"), path = require("path"), crypto = require("crypto");
 const P = require("./paths.js");
 const RU = require(path.join(P.MONO11, "core", "llm-response-reuse.js"));
 const sha = (s) => crypto.createHash("sha256").update(String(s), "utf8").digest("hex");
+const PD = require("./provider-diagnostic.js");   /* v1.0.5 : classification fine des pannes (DNS / connexion / TLS / URL / auth / route / capacite) et placeholders */
 
 /** Classification d'une indisponibilite, en langage utilisateur (jamais un faux succes). */
 const PROVIDER_STATES = Object.freeze({
@@ -22,7 +23,12 @@ const PROVIDER_STATES = Object.freeze({
   NETWORK: { code: "NETWORK_UNAVAILABLE", user: "Réseau indisponible : impossible de joindre le fournisseur d'analyse. Aucun résultat n'est inventé." },
   TIMEOUT: { code: "PROVIDER_TIMEOUT", user: "Le fournisseur d'analyse n'a pas répondu dans le délai imparti. Le run est arrêté proprement ; il pourra reprendre (les réponses déjà validées sont conservées)." },
   UNAVAILABLE: { code: "PROVIDER_UNAVAILABLE", user: "Le fournisseur d'analyse a répondu par une erreur. Le run est arrêté proprement." },
+  /* v1.0.5 — etats distingues (jamais un secret dans le message) */
+  PLACEHOLDER: { code: "PROVIDER_PLACEHOLDER", user: PD.USER.PROVIDER_PLACEHOLDER }, URL_INVALID: { code: "PROVIDER_URL_INVALID", user: PD.USER.PROVIDER_URL_INVALID },
+  DNS: { code: "PROVIDER_DNS_ERROR", user: PD.USER.PROVIDER_DNS_ERROR }, REFUSED: { code: "PROVIDER_CONNECTION_REFUSED", user: PD.USER.PROVIDER_CONNECTION_REFUSED }, TLS: { code: "PROVIDER_TLS_ERROR", user: PD.USER.PROVIDER_TLS_ERROR },
+  AUTH: { code: "PROVIDER_AUTH_ERROR", user: PD.USER.PROVIDER_AUTH_ERROR }, ROUTE: { code: "PROVIDER_ROUTE_NOT_FOUND", user: PD.USER.PROVIDER_ROUTE_NOT_FOUND }, CAPACITY: { code: "PROVIDER_CAPACITY", user: PD.USER.PROVIDER_CAPACITY }, BAD_RESPONSE: { code: "PROVIDER_BAD_RESPONSE", user: PD.USER.PROVIDER_BAD_RESPONSE },
 });
+const STATE_BY_CODE = {}; Object.keys(PROVIDER_STATES).forEach((k) => { STATE_BY_CODE[PROVIDER_STATES[k].code] = PROVIDER_STATES[k]; });
 
 function createFileStore(storePath) {
   const load = () => (fs.existsSync(storePath) ? fs.readFileSync(storePath, "utf8").trim().split("\n").filter(Boolean).map((l) => JSON.parse(l)) : []);
@@ -62,14 +68,14 @@ function createLlm(opts) {
     if (sha(fs.readFileSync(src, "utf8")) !== entry.responseSha256) return { ok: false, reason: "corps en cache altere (hash different de responseSha256)" };
     return { ok: true };
   }
-  function configured() { return !!(process.env.LLM_WORKER_BASE_URL && process.env.EVIDENCEFORGE_WORKER_API_KEY); }
-  function classify(status, raw, err) {
-    if (err) return PROVIDER_STATES.NETWORK;
-    if (status === 400 && /credit balance/i.test(raw || "")) return PROVIDER_STATES.CREDIT;
-    if (status === 429 || status === 503 || status === 529) return PROVIDER_STATES.RATE_LIMIT;
-    if (status === 200) return PROVIDER_STATES.OK;
-    return PROVIDER_STATES.UNAVAILABLE;
+  /* v1.0.5 : "configure" = identifiants presents, sans placeholder, URL valide (un TON_URL_WORKER / TA_CLE n'est PAS une configuration) */
+  function credentials() { return PD.credentialsStatus(process.env); }
+  function configured() { return credentials().usable; }
+  function classify(status, raw, err, timedOut) {
+    if (err) return STATE_BY_CODE[PD.classifyFetchError(err, timedOut)] || PROVIDER_STATES.NETWORK;
+    const code = PD.classifyStatus(status, raw); return STATE_BY_CODE[code] || PROVIDER_STATES.UNAVAILABLE;
   }
+  const RETRYABLE_STATES = [PROVIDER_STATES.RATE_LIMIT, PROVIDER_STATES.CAPACITY];
   async function httpCall(body, localRequestId) {
     const base = process.env.LLM_WORKER_BASE_URL.replace(/\/$/, ""), key = process.env.EVIDENCEFORGE_WORKER_API_KEY;
     const gap = Date.now() - lastAt; if (gap < minGap) await new Promise((r) => setTimeout(r, minGap - gap));
@@ -80,11 +86,11 @@ function createLlm(opts) {
       /* delai borne : minuterie REFERENCEE (un AbortSignal.timeout natif est unref'd et ne garantit pas le declenchement) */
       const ac = new AbortController(); let timedOut = false; const timer = setTimeout(() => { timedOut = true; ac.abort(); }, timeoutMs);
       try { res = await fetch(base + "/v1/messages", { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + key, "x-evidenceforge-request-id": localRequestId }, body: body, signal: ac.signal }); raw = await res.text(); }
-      catch (e) { const st = timedOut ? PROVIDER_STATES.TIMEOUT : PROVIDER_STATES.NETWORK; const err = new Error(st.code + ": " + e.message); err.code = st.code; err.userMessage = st.user; err.fatal = true; throw err; }
+      catch (e) { const st = classify(null, null, e, timedOut); const err = new Error(st.code + ": " + String(e.message).slice(0, 200)); err.code = st.code; err.userMessage = st.user; err.fatal = true; err.detail = String(e && e.cause && e.cause.code || "").slice(0, 60); throw err; }
       finally { clearTimeout(timer); }
       const st = classify(res.status, raw, null);
       if (st === PROVIDER_STATES.CREDIT) { const err = new Error(st.code); err.code = st.code; err.userMessage = st.user; err.fatal = true; err.httpStatus = 400; throw err; }
-      if (st === PROVIDER_STATES.RATE_LIMIT && attempts < maxAttempts) { const ra = Number(res.headers.get("retry-after")); const w = Number.isFinite(ra) && ra > 0 ? Math.min(ra * 1000, 300000) : Math.min(30000 * Math.pow(2, attempts - 1), 300000); waits.push({ status: res.status, waitMs: w }); await new Promise((r) => setTimeout(r, w)); continue; }
+      if (RETRYABLE_STATES.indexOf(st) !== -1 && attempts < maxAttempts) { const ra = Number(res.headers.get("retry-after")); const w = Number.isFinite(ra) && ra > 0 ? Math.min(ra * 1000, 300000) : Math.min(30000 * Math.pow(2, attempts - 1), 300000); waits.push({ status: res.status, waitMs: w }); await new Promise((r) => setTimeout(r, w)); continue; }
       return { res: res, raw: raw, attempts: attempts, waits: waits, state: st };
     }
   }
@@ -93,7 +99,8 @@ function createLlm(opts) {
      memorisee ; tout appel suivant echoue immediatement sans reseau, pour qu'un lot gele qui absorbe les exceptions ne transforme
      jamais une panne en verdict documentaire. Le pipeline lit `transportFailure()` a la frontiere de l'etape et arrete (reprenable). */
   let LATCH = null;
-  const TRANSPORT_CODES = ["NETWORK_UNAVAILABLE", "PROVIDER_TIMEOUT", "PROVIDER_CREDIT_EXHAUSTED", "PROVIDER_RATE_LIMITED", "PROVIDER_UNAVAILABLE", "PROVIDER_NOT_CONFIGURED", "PROVIDER_EMPTY_RESPONSE", "BUDGET_LIMIT_REACHED", "PRICING_UNKNOWN_FOR_MODEL"];
+  const TRANSPORT_CODES = ["NETWORK_UNAVAILABLE", "PROVIDER_TIMEOUT", "PROVIDER_CREDIT_EXHAUSTED", "PROVIDER_RATE_LIMITED", "PROVIDER_UNAVAILABLE", "PROVIDER_NOT_CONFIGURED", "PROVIDER_EMPTY_RESPONSE", "BUDGET_LIMIT_REACHED", "PRICING_UNKNOWN_FOR_MODEL",
+    "PROVIDER_PLACEHOLDER", "PROVIDER_URL_INVALID", "PROVIDER_DNS_ERROR", "PROVIDER_CONNECTION_REFUSED", "PROVIDER_TLS_ERROR", "PROVIDER_AUTH_ERROR", "PROVIDER_ROUTE_NOT_FOUND", "PROVIDER_CAPACITY", "PROVIDER_BAD_RESPONSE"];
   /* v1.0.5 — ledger de cout et garde de budget (optionnels : les tests unitaires du transport n'en ont pas besoin) */
   const LEDGER = opts.ledger || null, BUDGET = opts.budget || null;
   const ledgerRecord = (e) => { if (LEDGER) { try { LEDGER.record(e); } catch (x) { fs.appendFileSync(LOG, JSON.stringify({ kind: "COST_LEDGER_ERROR", runId: opts.runId, message: String(x.message).slice(0, 300), at: new Date().toISOString() }) + "\n"); } } };
@@ -106,7 +113,7 @@ function createLlm(opts) {
     try { return await llmCallInner(prompt, meta); } catch (e) { latch(e, (meta && meta.purpose) || null); throw e; }
   }
   async function llmCallInner(prompt, meta) {
-    if (!configured()) { const st = PROVIDER_STATES.NOT_CONFIGURED; const e = new Error(st.code); e.code = st.code; e.userMessage = st.user; e.fatal = true; throw e; }
+    if (!configured()) { const cs = credentials(); const st = STATE_BY_CODE[cs.code] || PROVIDER_STATES.NOT_CONFIGURED; const e = new Error(st.code); e.code = st.code; e.userMessage = st.user; e.fatal = true; throw e; }
     let d = policy.decide(prompt);
     if (d.decision === policy.DECISION.REUSE_VALID) {
       /* v1.0.2 — REUSE LIEE AU CONTEXTE (filtre additif au-dessus de la politique gelee) : meme fournisseur, meme modele, meme
@@ -143,14 +150,14 @@ function createLlm(opts) {
     if (r.res.status === 200) ledgerRecord({ kind: "REAL_CALL", at: rec.completedAt, purpose: rec.purpose, pass: rec.pass, model: (parsed && parsed.model) || MODEL, usage: rec.usage, providerRequestId: rec.providerRequestId, callId: rec.responseSha256, localRequestId, httpStatus: 200, candidateRef: meta && meta.candidateRef, twinId: meta && meta.twinId, targetId: meta && meta.targetId });
     if (opts.onTrace) { try { opts.onTrace({ event: "llm_call", outcome: r.res.status === 200 ? "OK" : "HTTP_" + r.res.status, kindOfCall: r.attempts > 1 ? "retry" : "call", purpose: rec.purpose, pass: rec.pass, providerRequestId: rec.providerRequestId, durationMs: Date.parse(rec.completedAt) - Date.parse(rec.startedAt), providerAttempts: r.attempts, promptSha256: rec.promptSha256 }); } catch (e) { /* observabilite */ } }
     if (r.res.status !== 200) { const st = r.state; const e = new Error(st.code + " (HTTP " + r.res.status + ")"); e.code = st.code; e.userMessage = st.user; e.fatal = true; e.httpStatus = r.res.status; throw e; }
-    if (!text) { const e = new Error("PROVIDER_EMPTY_RESPONSE"); e.code = "PROVIDER_EMPTY_RESPONSE"; e.userMessage = PROVIDER_STATES.UNAVAILABLE.user; throw e; }
+    if (!text) { const e = new Error("PROVIDER_EMPTY_RESPONSE"); e.code = "PROVIDER_EMPTY_RESPONSE"; e.userMessage = parsed ? PROVIDER_STATES.UNAVAILABLE.user : PROVIDER_STATES.BAD_RESPONSE.user; throw e; }
     policy.recordReal({ promptSha256: rec.promptSha256, responseSha256: rec.responseSha256, sourceRunId: opts.runId, sourceCallId: rec.providerRequestId || localRequestId, providerRequestId: rec.providerRequestId, providerId: PROVIDER_ID, modelId: MODEL, completedAt: rec.completedAt, httpStatus: 200, purpose: rec.purpose, sourceSealHash: opts.sealHash || null, validationContract: VALIDATION_CONTRACT, cachePath: path.join(CACHE, rec.responseSha256 + ".response.json") });
     return { text, providerId: "anthropic", modelId: MODEL, providerRequestId: rec.providerRequestId, localRequestId, callId: rec.responseSha256, transportKind: "DELEGATED_WORKER_ANTHROPIC", httpStatus: 200, usage: rec.usage, reused: false };
   }
   function onValidation(v) { if (v) policy.markValidation(Object.assign({}, v, { responseSha256: v.callId || v.responseSha256 })); }
   /** Sonde de disponibilite (1 appel reel minimal) — rend un etat utilisateur, jamais un booleen declaratif. */
   async function preflight() {
-    if (!configured()) return Object.assign({ ok: false }, PROVIDER_STATES.NOT_CONFIGURED);
+    if (!configured()) { const cs = credentials(); return Object.assign({ ok: false }, STATE_BY_CODE[cs.code] || PROVIDER_STATES.NOT_CONFIGURED); }
     try { budgetCheck({ purpose: "preflight" }, "preflight"); const r = await httpCall(JSON.stringify({ model: MODEL, max_tokens: 8, messages: [{ role: "user", content: "Reponds uniquement: ok" }] }), "efm-preflight-" + crypto.randomBytes(4).toString("hex"));
       if (r.res.status === 200) { let pu = null; try { pu = JSON.parse(r.raw); } catch (e) { pu = null; } ledgerRecord({ kind: "PREFLIGHT", stage: "PREFLIGHT", purpose: "preflight", model: (pu && pu.model) || MODEL, usage: pu && pu.usage, providerRequestId: pu && pu.id, httpStatus: 200 }); }
       return Object.assign({ ok: r.res.status === 200, httpStatus: r.res.status, model: MODEL }, r.state); }

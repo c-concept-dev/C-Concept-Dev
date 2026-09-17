@@ -1,0 +1,80 @@
+{
+  "schema": "EvidenceForge.LauncherTestResults",
+  "version": "MONOLITH-v1.0.5",
+  "ranAt": "2026-09-17T12:34:13.541Z",
+  "total": 14,
+  "passed": 14,
+  "failed": 0,
+  "results": [
+    {
+      "id": "LAUNCH-01",
+      "name": "sans .env.local : start refuse avec « configuration locale » + action setup.sh ; doctor [FAIL] configuration",
+      "ok": true
+    },
+    {
+      "id": "LAUNCH-02",
+      "name": "placeholder TON_URL_WORKER : refus AVANT tout run et AVANT toute sonde (code PLACEHOLDER, action setup.sh)",
+      "ok": true
+    },
+    {
+      "id": "LAUNCH-03",
+      "name": "placeholder TA_CLE : refus (code PLACEHOLDER) ; la clé factice n'apparaît jamais dans le message",
+      "ok": true
+    },
+    {
+      "id": "LAUNCH-04",
+      "name": "worker DNS invalide : diagnostic clair « Cause : DNS » + message utilisateur (nom introuvable), aucun run",
+      "ok": true
+    },
+    {
+      "id": "LAUNCH-05",
+      "name": "auth invalide : le worker répond 401 => « Cause : AUTH », clé refusée, action setup.sh ; la clé n'est pas dans le message",
+      "ok": true
+    },
+    {
+      "id": "LAUNCH-06 / LAUNCH-10",
+      "name": "port libre : start lance la version active, /api/config renvoie EXACTEMENT MONOLITH-v1.0.5, résumé complet (worker, modèle, pricing, lots, runs, git), journal écrit",
+      "ok": true
+    },
+    {
+      "id": "LAUNCH-07",
+      "name": "bonne version déjà active : start réutilise (reused:true), aucun processus tué, même pid",
+      "ok": true
+    },
+    {
+      "id": "DOCTOR-01",
+      "name": "doctor nominal : toutes les vérifications [OK], y compris port occupé par la bonne version et /api/config = version active",
+      "ok": true
+    },
+    {
+      "id": "LAUNCH-11",
+      "name": "secrets jamais imprimés : toute la sortie du lanceur (start réutilisé, doctor, erreurs auth) ne contient ni la clé ni « Bearer »",
+      "ok": true
+    },
+    {
+      "id": "BUDGET-UI-01 / BUDGET-UI-02",
+      "name": "saisie réelle max=3 alerte=2 → création → budget.json = 3 / 2 → interface « plafond 3.00 / alerte 2.00 » → reprise conserve les valeurs",
+      "ok": true
+    },
+    {
+      "id": "LAUNCH-08",
+      "name": "ancienne EvidenceForge (v1.0.4) sur le port : identifiée (node + server.js + dossier MONOLITH), arrêtée par SIGTERM, port libéré, puis MONOLITH-v1.0.5 lancée",
+      "ok": true
+    },
+    {
+      "id": "LAUNCH-09",
+      "name": "application étrangère sur le port : JAMAIS tuée ; start utilise un port de repli et l'annonce ; l'application étrangère répond toujours",
+      "ok": true
+    },
+    {
+      "id": "LAUNCH-12",
+      "name": ".env.local ignoré par git (check-ignore), .env.example versionné avec placeholders seulement, ACTIVE_VERSION = MONOLITH-v1.0.5",
+      "ok": true
+    },
+    {
+      "id": "DOCTOR-02",
+      "name": "chaque famille d'erreur produit un diagnostic exploitable : DNS, connexion, auth, placeholder, config absente, modèle non tarifé, runs root dans le dépôt",
+      "ok": true
+    }
+  ]
+}

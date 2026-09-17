@@ -9,11 +9,11 @@
  * v1.0.5 : GET /api/runs/:id/cost (cout reel + budget + projection), POST /api/runs/:id/budget, GET /api/runs/:id/economics,
  *          POST /api/preflight (controle de cadrage hors run, jamais une creation de run) ; /api/config expose la version du tarif.
  */
-const http = require("http"), fs = require("fs"), path = require("path"), url = require("url");
+const http = require("http"), fs = require("fs"), path = require("path");   /* v1.0.5 : WHATWG URL (plus de url.parse deprecie) */
 const P = require("./lib/paths.js");
 const RS = require("./lib/run-store.js");
 const PL = require("./lib/pipeline.js");
-const { createLlm } = require("./lib/llm.js"); const CL = require("./lib/cost-ledger.js"); const PA = require("./lib/preflight-assistant.js"); const SM = require("./lib/stage-mission.js"); const { createPricing } = require("./lib/pricing.js");
+const { createLlm } = require("./lib/llm.js"); const PD = require("./lib/provider-diagnostic.js"); const CL = require("./lib/cost-ledger.js"); const PA = require("./lib/preflight-assistant.js"); const SM = require("./lib/stage-mission.js"); const { createPricing } = require("./lib/pricing.js");
 
 const INTEGRITY = P.verifyFrozenLots();   // leve FROZEN_LOT_ALTERED : le produit ne demarre pas sur un lot altere
 const INTERRUPTED = RS.markInterruptedRuns();   // runs laisses RUNNING par un arret : STOPPED reprenables (jamais un faux "en cours")
@@ -21,25 +21,46 @@ const HOST = P.CONFIG.server.host || "127.0.0.1", PORT = Number(process.env.EVID
 const INDEX = path.join(P.ROOT, "index.html");
 const send = (res, code, obj) => { res.writeHead(code, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" }); res.end(JSON.stringify(obj)); };
 const readBody = (req) => new Promise((resolve, reject) => { const c = []; let n = 0; req.on("data", (d) => { n += d.length; if (n > 64 * 1024 * 1024) { reject(Object.assign(new Error("PAYLOAD_TOO_LARGE"), { code: "PAYLOAD_TOO_LARGE" })); req.destroy(); } c.push(d); }); req.on("end", () => { try { resolve(c.length ? JSON.parse(Buffer.concat(c).toString("utf8")) : {}); } catch (e) { reject(Object.assign(new Error("BAD_JSON"), { code: "BAD_JSON" })); } }); req.on("error", reject); });
-const errOut = (res, e) => send(res, e.code === "RUN_NOT_FOUND" ? 404 : (["GATE_NOT_OPEN", "HUMAN_IDENTITY_REQUIRED", "MISSION_INVALID", "BAD_JSON", "DOCUMENTS_REJECTED", "REPORT_IMPORT_INVALID", "BUDGET_INVALID", "PREFLIGHT_INVALID"].indexOf(e.code) !== -1) ? 400 : (["PROVIDER_NOT_CONFIGURED", "BUDGET_LIMIT_REACHED", "PRICING_UNKNOWN_FOR_MODEL"].indexOf(e.code) !== -1 ? 409 : 500), { error: e.code || "ERROR", message: e.userMessage || e.message, details: e.details || null });
+const errOut = (res, e) => send(res, e.code === "RUN_NOT_FOUND" ? 404 : (["GATE_NOT_OPEN", "HUMAN_IDENTITY_REQUIRED", "MISSION_INVALID", "BAD_JSON", "DOCUMENTS_REJECTED", "REPORT_IMPORT_INVALID", "BUDGET_INVALID", "PREFLIGHT_INVALID"].indexOf(e.code) !== -1) ? 400 : (["PROVIDER_NOT_CONFIGURED", "PROVIDER_NOT_READY", "BUDGET_LIMIT_REACHED", "PRICING_UNKNOWN_FOR_MODEL"].indexOf(e.code) !== -1 ? 409 : 500), { error: e.code || "ERROR", message: e.userMessage || e.message, details: e.details || null });
 const safeName = (n) => /^[A-Za-z0-9_.-]+\.json$/.test(n) && n.indexOf("..") === -1;
 
-let PRICING = null; try { PRICING = createPricing(); } catch (e) { PRICING = null; }   /* v1.0.5 : autorite de tarification (config/llm-pricing.json) ; absente ou invalide => signalee, jamais un tarif invente */
+let PRICING = null; try { PRICING = createPricing(); } catch (e) { PRICING = null; }
+/* v1.0.5 — ETAT DU FOURNISSEUR en trois niveaux : identifiants presents (sans placeholder, URL valide) / worker joignable / pret (auth acceptee).
+   La sonde est GRATUITE (corps `{}` refuse par le Worker apres authentification, aucun appel amont) ; resultat cache PROVIDER_TTL_MS ; jamais la clef. */
+const PROVIDER_TTL_MS = 30000; let PROVIDER_DIAG = null, PROVIDER_PENDING = null; const STARTED_AT = new Date().toISOString();
+async function providerDiagnostic(force) {
+  if (!force && PROVIDER_DIAG && Date.now() - Date.parse(PROVIDER_DIAG.checkedAt) < PROVIDER_TTL_MS) return PROVIDER_DIAG;
+  if (PROVIDER_PENDING) return PROVIDER_PENDING;
+  PROVIDER_PENDING = PD.probeWorker({ env: process.env, timeoutMs: 15000 }).then((d) => { PROVIDER_DIAG = d; PROVIDER_PENDING = null; return d; }, (e) => { PROVIDER_PENDING = null; PROVIDER_DIAG = { ready: false, reachable: false, authOk: false, code: "PROVIDER_UNAVAILABLE", userMessage: PD.USER.PROVIDER_UNAVAILABLE, checkedAt: new Date().toISOString(), detail: String(e.message).slice(0, 120) }; return PROVIDER_DIAG; });
+  return PROVIDER_PENDING;
+}
+function providerSummary() {
+  const cs = PD.credentialsStatus(process.env); const d = PROVIDER_DIAG;
+  return { credentialsPresent: cs.credentialsPresent, placeholderDetected: cs.placeholderDetected, placeholders: cs.placeholders, urlValid: cs.urlValid, host: cs.host, credentialsCode: cs.code,
+    reachable: d ? d.reachable : null, authOk: d ? d.authOk : null, ready: d ? d.ready === true : false, code: d ? d.code : (cs.usable ? "PROVIDER_UNCHECKED" : cs.code), userMessage: d ? d.userMessage : (cs.usable ? "Diagnostic du fournisseur non encore effectué." : cs.userMessage), checkedAt: d ? d.checkedAt : null, httpStatus: d ? d.httpStatus : null, ms: d ? d.ms : null };
+}   /* v1.0.5 : autorite de tarification (config/llm-pricing.json) ; absente ou invalide => signalee, jamais un tarif invente */
 function publicConfig() {
   const model = process.env.EVIDENCEFORGE_LLM_MODEL || P.CONFIG.llm.model;
-  return { product: P.CONFIG.product.name, version: P.CONFIG.product.version, model, providerConfigured: !!(process.env.LLM_WORKER_BASE_URL && process.env.EVIDENCEFORGE_WORKER_API_KEY),
+  const prov = providerSummary();
+  /* providerConfigured = providerReady (strict) : un placeholder non vide n'est plus "configuré" */
+  return { product: P.CONFIG.product.name, version: P.CONFIG.product.version, model, providerConfigured: prov.ready, providerCredentialsPresent: prov.credentialsPresent, providerReachable: prov.reachable, providerReady: prov.ready, provider: prov,
+    runtime: { pid: process.pid, startedAt: STARTED_AT, port: PORT, gitSha: process.env.EVIDENCEFORGE_GIT_SHA || null, runsRoot: P.RUNS, node: process.version },
     pricing: PRICING ? { version: PRICING.version, currency: PRICING.currency, snapshotHash: PRICING.hash, modelPriced: !!PRICING.resolve(model), verifiedAt: PRICING.snapshot().verifiedAt || null, source: PRICING.snapshot().source || null } : { version: null, modelPriced: false, error: "PRICING_UNAVAILABLE" },
     budgetDefaults: P.CONFIG.budget || { costBudgetUsd: null, warningThresholdUsd: null }, professionals: { maxCandidatesToEvaluate: P.CONFIG.professionals && P.CONFIG.professionals.maxCandidatesToEvaluate },
     frozenLots: Object.keys(INTEGRITY).map((k) => ({ lot: k, files: INTEGRITY[k].files, verified: INTEGRITY[k].verified, canonicalZipSha256: INTEGRITY[k].canonicalZipSha256 || null })), documents: P.CONFIG.documents, stages: RS.STAGES.map((s) => ({ id: s, label: RS.STAGE_LABELS[s] })) };
 }
 
 const server = http.createServer(async function (req, res) {
-  const u = url.parse(req.url, true); const p = u.pathname; const m = req.method;
+  const u = new URL(req.url, "http://127.0.0.1"); const p = u.pathname; const m = req.method;
   try {
     if (m === "GET" && (p === "/" || p === "/index.html")) { res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" }); return res.end(fs.readFileSync(INDEX)); }
     if (m === "GET" && p === "/api/config") return send(res, 200, publicConfig());
+    /* v1.0.5 — diagnostic fournisseur a la demande (sonde gratuite, cache 30 s ; ?refresh=1 force) ; jamais un secret */
+    if (m === "GET" && p === "/api/provider") { await providerDiagnostic(u.searchParams.get("refresh") === "1"); return send(res, 200, providerSummary()); }
     if (m === "GET" && p === "/api/runs") return send(res, 200, { runs: RS.listRuns() });
-    if (m === "POST" && p === "/api/runs") { const b = await readBody(req); const files = (b.files || []).map((f) => ({ name: f.name, bytes: Buffer.from(String(f.contentBase64 || ""), "base64") })); const r = await PL.startRun({ question: b.question, files, acknowledgeRejected: b.acknowledgeRejected === true, budget: b.budget || null }); PL.advance(r.runId); return send(res, 201, r); }
+    if (m === "POST" && p === "/api/runs") { const b = await readBody(req);
+      /* v1.0.5 — AUCUN run n'est cree si le fournisseur n'est pas pret (diagnostic frais, gratuit), verifie APRES la validation de la demande et AVANT la creation du dossier : pas d'artefact fantome, message precis */
+      const assertProviderReady = async () => { const d = await providerDiagnostic(false); if (!d.ready) { const e = new Error("PROVIDER_NOT_READY: " + d.code); e.code = "PROVIDER_NOT_READY"; e.userMessage = "Le service d'analyse n'est pas prêt : " + d.userMessage; e.details = providerSummary(); throw e; } }; const files = (b.files || []).map((f) => ({ name: f.name, bytes: Buffer.from(String(f.contentBase64 || ""), "base64") })); const r = await PL.startRun({ question: b.question, files, acknowledgeRejected: b.acknowledgeRejected === true, budget: b.budget || null, assertProviderReady }); PL.advance(r.runId); return send(res, 201, r); }
     /* v1.0.5 — controle de cadrage HORS RUN : 1 appel reel (facture, journalise dans runs/_preflight/), aucun run cree, aucune porte franchie */
     if (m === "POST" && p === "/api/preflight") { const b = await readBody(req); const intake = SM.intakeDocuments((b.files || []).map((f) => ({ name: f.name, bytes: Buffer.from(String(f.contentBase64 || ""), "base64") })));
       const dir = path.join(P.RUNS, "_preflight"); fs.mkdirSync(dir, { recursive: true }); const ledger = CL.createCostLedger({ runDir: dir, runId: "_preflight" }); ledger.setStage("PREFLIGHT_ASSISTANT");
@@ -79,7 +100,8 @@ server.listen(PORT, HOST, function () {
   console.log("EvidenceForge " + P.CONFIG.product.version + " — http://" + HOST + ":" + PORT);
   console.log("  lots gelés vérifiés : " + Object.keys(INTEGRITY).map((k) => k + " (" + INTEGRITY[k].files + " fichiers)").join(", "));
   if (INTERRUPTED.length) console.log("  runs interrompus par le redémarrage, reprenables : " + INTERRUPTED.join(", "));
-  console.log("  fournisseur d'analyse : " + (publicConfig().providerConfigured ? "configuré (identifiants présents dans l'environnement, jamais affichés)" : "NON configuré — aucun run ne pourra démarrer"));
+  const cs0 = PD.credentialsStatus(process.env); console.log("  fournisseur d'analyse : identifiants " + (cs0.credentialsPresent ? "présents" : "ABSENTS") + (cs0.placeholderDetected ? " — VALEUR FACTICE DETECTEE (" + cs0.placeholders.join(", ") + ")" : "") + (cs0.credentialsPresent && !cs0.urlValid ? " — URL invalide" : "") + " (jamais affichés)");
+  providerDiagnostic(true).then((d) => console.log("  diagnostic fournisseur : " + (d.ready ? "PRÊT (worker joignable, clé acceptée, sonde gratuite)" : d.code + " — " + d.userMessage)));
   const pc = publicConfig(); console.log("  tarification : " + (pc.pricing.version || "ABSENTE") + " · modèle " + pc.model + (pc.pricing.modelPriced ? " tarifé" : " NON TARIFÉ (un budget refusera tout appel)"));
 });
 module.exports = { server };

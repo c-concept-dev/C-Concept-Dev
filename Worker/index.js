@@ -57017,31 +57017,50 @@ async function handleScreenshotSlide(request2, env2) {
   const { html, width = 1024, height = 768, quality = 90 } = body;
   if (!html)
     return jsonErr("Missing html (fragment HTML autonome d'une diapositive)", 400);
-  try {
-    const shotRes = await fetch(
-      `https://api.cloudflare.com/client/v4/accounts/${env2.CF_ACCOUNT_ID}/browser-rendering/screenshot`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${env2.CF_API_TOKEN}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          html,
-          viewport: { width, height },
-          screenshotOptions: { type: "jpeg", quality, fullPage: true }
-        })
+  // Bug items 58/78 (18 septembre) — investigation confirmée : la diapositive 2 (index 1, la
+  // DEUXIÈME requête de la séquence, quel que soit son contenu réel — vérifié par reproduction
+  // fidèle du prompt de test, aucune anomalie de rendu trouvée côté HTML/contenu, cf. rapport)
+  // échouait systématiquement en 502 sur les deux mécanismes qui partagent cette route (item 58
+  // export JPEG, item 78 Phase A vidéo automatique). Cause retenue, appuyée par la documentation
+  // officielle Cloudflare Browser Rendering (limites REST : rythme fixe par seconde, "spread
+  // evenly", jamais une autorisation de rafale même sous le quota nominal ; palier gratuit limité
+  // à 1 requête/10s) : un deuxième appel immédiat après le premier peut être refusé même sans
+  // dépasser le total autorisé. Retry avec backoff ajouté ICI (jamais côté client, un seul point
+  // de correction pour les deux mécanismes qui appellent cette route, régression #6) — 3
+  // tentatives, backoff 1s/2s, jamais plus (évite de bloquer un Worker HTTP request indéfiniment).
+  // Le statut/texte RÉEL de la dernière tentative Cloudflare est conservé dans le message final
+  // (jamais un "502" générique qui masquerait un vrai 429 de limitation de débit, comme c'était
+  // le cas avant ce correctif).
+  const maxAttempts = 3;
+  let lastErr = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const shotRes = await fetch(
+        `https://api.cloudflare.com/client/v4/accounts/${env2.CF_ACCOUNT_ID}/browser-rendering/screenshot`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${env2.CF_API_TOKEN}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            html,
+            viewport: { width, height },
+            screenshotOptions: { type: "jpeg", quality, fullPage: true }
+          })
+        }
+      );
+      if (shotRes.ok) {
+        const jpegBuffer = await shotRes.arrayBuffer();
+        return new Response(jpegBuffer, { status: 200, headers: { ...CORS, "Content-Type": "image/jpeg" } });
       }
-    );
-    if (!shotRes.ok) {
-      const err2 = await shotRes.text();
-      return jsonErr(`Browser Rendering error: ${err2}`, 502);
+      lastErr = `HTTP ${shotRes.status}: ${await shotRes.text()}`;
+    } catch (err2) {
+      lastErr = err2.message;
     }
-    const jpegBuffer = await shotRes.arrayBuffer();
-    return new Response(jpegBuffer, { status: 200, headers: { ...CORS, "Content-Type": "image/jpeg" } });
-  } catch (err2) {
-    return jsonErr("Screenshot generation failed: " + err2.message, 500);
+    if (attempt < maxAttempts) await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
   }
+  return jsonErr(`Browser Rendering error after ${maxAttempts} tentatives: ${lastErr}`, 502);
 }
 __name(handleScreenshotSlide, "handleScreenshotSlide");
 async function handleGenerateDOCX(request2, env2) {

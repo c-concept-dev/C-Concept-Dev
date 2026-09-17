@@ -10,7 +10,7 @@
  * ledger de cout du run par le registre (cle = intent.runId), verifie le budget AVANT la sonde et renseigne costUsd (prevu par le contrat).
  */
 const fs = require("fs"), path = require("path"), crypto = require("crypto");
-const CL = require("./cost-ledger.js");
+const CL = require("./cost-ledger.js"); const PD = require("./provider-diagnostic.js");
 const sha = (s) => crypto.createHash("sha256").update(String(s)).digest("hex");
 
 async function probe(intent) {
@@ -18,6 +18,7 @@ async function probe(intent) {
   const base = process.env.LLM_WORKER_BASE_URL, key = process.env.EVIDENCEFORGE_WORKER_API_KEY;
   const localRequestId = "efm-probe-" + crypto.randomBytes(8).toString("hex");
   if (!base) throw Object.assign(new Error("PROVIDER_NOT_CONFIGURED: LLM_WORKER_BASE_URL absent — fail closed."), { code: "PROVIDER_NOT_CONFIGURED" });
+  const cs = PD.credentialsStatus(process.env); if (key && !cs.usable) throw Object.assign(new Error(cs.code + ": configuration inutilisable — fail closed."), { code: cs.code, userMessage: cs.userMessage });   /* v1.0.5 : placeholder / URL invalide */
   if (!key) return { httpStatus: 0, text: "", requestId: localRequestId, credentialProbeSkipped: true, costUsd: null, transportKind: "DELEGATED_WORKER_ANTHROPIC" };
   const ledger = CL.lookup(intent.runId); const budget = ledger && ledger.budget ? ledger.budget : null;
   if (budget) budget.assertAllowed({ model: intent.modelId, purpose: "probe", where: "probe" });   /* v1.0.5 : AVANT la sonde (appel reel) */
@@ -26,7 +27,7 @@ async function probe(intent) {
   let res, raw; const timeoutMs = Number(process.env.EVIDENCEFORGE_LLM_PROBE_TIMEOUT_MS || (intent && intent.timeoutMs) || 60000);
   const ac = new AbortController(); let to = false; const timer = setTimeout(() => { to = true; ac.abort(); }, timeoutMs);   /* v1.0.2 : delai borne de la sonde (minuterie referencee) */
   try { res = await fetch(base.replace(/\/$/, "") + "/v1/messages", { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + key, "x-evidenceforge-request-id": localRequestId }, body, signal: ac.signal }); raw = await res.text(); }
-  catch (e) { throw Object.assign(new Error((to ? "PROVIDER_TIMEOUT" : "NETWORK_UNAVAILABLE") + ": " + e.message), { code: to ? "PROVIDER_TIMEOUT" : "NETWORK_UNAVAILABLE", userMessage: to ? "La sonde du fournisseur d'analyse n'a pas répondu dans le délai imparti." : "Réseau indisponible pendant la sonde du fournisseur d'analyse." }); }
+  catch (e) { const code = PD.classifyFetchError(e, to); throw Object.assign(new Error(code + ": " + String(e.message).slice(0, 200)), { code, userMessage: PD.USER[code] }); }   /* v1.0.5 : DNS / connexion / TLS / URL / delai distingues */
   finally { clearTimeout(timer); }
   let text = "", providerRequestId = null, usage = null, observedModel = null;
   try { const p = JSON.parse(raw); providerRequestId = p.id || null; usage = p.usage || null; observedModel = p.model || null; text = Array.isArray(p.content) ? p.content.filter((c) => c.type === "text").map((c) => c.text).join("") : ""; } catch (e) { text = raw; }
