@@ -7268,9 +7268,9 @@ ${recent}`;
     return walk(doc && doc.blocks);
   }
   // Item 64 construction — court aperçu du bloc sélectionné, affiché en tête du panneau de
-  // correction déplacé dans #cc-ws-panel (le lien visuel de proximité avec le bloc, perdu par le
-  // déplacement, est remplacé par ce rappel textuel — cf. décision demandée). Une seule fonction,
-  // réutilisée par les deux moteurs (structuré ici, legacy directement sur el.textContent) —
+  // correction (utile même redevenu contextuel : rappel textuel si le bloc défile hors champ
+  // pendant que le panneau reste ouvert). Une seule fonction, réutilisée par les deux moteurs
+  // (structuré ici, legacy directement sur el.textContent) —
   // jamais deux implémentations séparées pour la même préoccupation.
   function adocBlockPreviewText(block) {
     const c = block && block.content || {};
@@ -7290,10 +7290,11 @@ ${recent}`;
     return {art: art, legacy: legacy, st: st, el: el, block: legacy ? null : adocFindEditableBlock(art._adocStructuredDoc, st.blockId)};
   }
   function adocEditorMessage(message) {
-    // Item 64 construction — le panneau vit désormais dans #cc-ws-block-edit-slot (colonne de
-    // gauche), plus dans #cc-ws-doc-card : sélecteur mis à jour en conséquence (même panneau,
-    // nouvelle position, cf. adocWsSetupBlockEditing/adocWsSetupLegacyBlockEditing).
-    const panel = document.querySelector('#cc-ws-block-edit-slot .cc-block-edit-panel');
+    // 0B précisé — le panneau est monté sur document.body (jamais dans #cc-ws-doc-card) : un seul
+    // .cc-block-edit-panel existe à la fois sur toute la page (adocWsClearBlockSelection/
+    // adocWsClearLegacyBlockSelection le retirent avant toute nouvelle sélection), sélecteur
+    // global suffisant.
+    const panel = document.querySelector('.cc-block-edit-panel');
     const out = panel && panel.querySelector('.cc-editor-message');
     if (out) out.textContent = message;
   }
@@ -7738,16 +7739,15 @@ ${recent}`;
     else adocEditorTableAction(action,ctx);
     adocEditorPrepare(ctx.el,ctx.legacy);adocEditorSync();
   }
-  // Item 64 construction — 3ᵉ paramètre optionnel `listenerRoot`. Investigation préalable :
-  // .cc-block-edit-panel vit désormais dans #cc-ws-block-edit-slot (colonne de gauche), plus dans
-  // `root` (#cc-ws-doc-card) — sans ce changement, tous les écouteurs délégués ci-dessous
-  // (click/change/focusin/beforeinput/input/focusout, attachés à `root`) cesseraient de recevoir
-  // les événements du panneau désormais hors de `root`, cassant silencieusement CHAQUE contrôle
-  // interactif du panneau (couleur, police, alignement, undo/redo…) — risque identifié avant tout
-  // déplacement, jamais supposé. `root` reste utilisé UNIQUEMENT pour adocEditorPrepare (scan des
-  // blocs éditables réels) : l'élargir à `listenerRoot` y ferait à tort matcher des éléments du
-  // panneau de la colonne de gauche (ex. les <p class="cc-ws-panel-section-title">, qui
-  // correspondent au même sélecteur qu'un paragraphe legacy) — jamais fait, risque écarté par
+  // 3ᵉ paramètre optionnel `listenerRoot` (Item 64, toujours nécessaire après le retour au geste
+  // contextuel 0B) : .cc-block-edit-panel est monté sur document.body
+  // (adocMountContextualBlockEditPanel), jamais dans `root` (#cc-ws-doc-card) — sans ce
+  // paramètre, tous les écouteurs délégués ci-dessous (click/change/focusin/beforeinput/input/
+  // focusout, attachés à `root`) cesseraient de recevoir les événements du panneau, cassant
+  // silencieusement CHAQUE contrôle interactif du panneau (couleur, police, alignement,
+  // undo/redo…). `root` reste utilisé UNIQUEMENT pour adocEditorPrepare (scan des blocs éditables
+  // réels) : l'élargir à `listenerRoot` (document.body) y ferait à tort matcher n'importe quel
+  // élément de la page correspondant au même sélecteur — jamais fait, risque écarté par
   // construction. `listenerRoot` par défaut = `root` (comportement strictement inchangé pour tout
   // appelant qui ne le fournit pas).
   function adocEditorInstall(root, legacy, listenerRoot) {
@@ -11171,13 +11171,73 @@ ${recent}`;
     return toolUse.input;
   }
 
+  // 0B précisé (annule Item 64/CDC v0.5.5) — le panneau de correction de bloc redevient
+  // CONTEXTUEL, ancré au bloc sélectionné, jamais dans la colonne de gauche. Fonctions PARTAGÉES
+  // par les deux moteurs (structuré et legacy, régression #6) — un seul mécanisme de
+  // positionnement, jamais deux implémentations séparées.
+  //
+  // Positionne le panneau juste sous le bloc ; bascule au-dessus si ça déborderait le bas du
+  // viewport ; toujours clampé horizontalement dans le viewport (bloc proche d'un bord d'écran).
+  function adocPositionBlockEditPanel(panel, anchorEl) {
+    if (!panel || !anchorEl || !anchorEl.isConnected) return;
+    const margin = 12;
+    const anchorRect = anchorEl.getBoundingClientRect();
+    const panelRect = panel.getBoundingClientRect();
+    let top = anchorRect.bottom + margin;
+    if (top + panelRect.height > window.innerHeight - margin) {
+      const above = anchorRect.top - margin - panelRect.height;
+      top = above >= margin ? above : Math.max(margin, window.innerHeight - margin - panelRect.height);
+    }
+    let left = anchorRect.left;
+    if (left + panelRect.width > window.innerWidth - margin) left = window.innerWidth - margin - panelRect.width;
+    if (left < margin) left = margin;
+    panel.style.top = top + 'px';
+    panel.style.left = left + 'px';
+  }
+  // Monté directement sur document.body (jamais dans #cc-ws-doc-card ni #cc-ws-panel) : position:
+  // fixed reste correct quel que soit l'endroit du DOM, mais body évite toute surprise de bloc
+  // englobant (transform/filter sur un ancêtre casserait fixed). Réagit au scroll ET au resize —
+  // le scroll de .cc-ws-doc-area (conteneur réel qui défile, jamais window) ne bulle pas, mais un
+  // écouteur posé en phase de capture sur window reçoit quand même la capture (indépendant du
+  // bulles), donc un seul écouteur suffit pour tous les conteneurs défilants.
+  function adocMountContextualBlockEditPanel(panel, anchorEl) {
+    panel.classList.add('cc-contextual');
+    document.body.appendChild(panel);
+    const reposition = function () { adocPositionBlockEditPanel(panel, anchorEl); };
+    reposition();
+    window.addEventListener('scroll', reposition, true);
+    window.addEventListener('resize', reposition);
+    // Bug découvert en testant : une seule mesure synchrone au montage n'est pas fiable — la
+    // hauteur réelle du panneau peut encore bouger juste après (ex. polices Google chargées de
+    // façon asynchrone changeant le retour à la ligne du texte), rendant le calcul initial
+    // obsolète en quelques dizaines de ms sans qu'aucun scroll/resize ne se soit produit entre
+    // temps. Un ResizeObserver sur le panneau lui-même se redéclenche à CHAQUE changement réel de
+    // sa taille, quelle qu'en soit la cause — bien plus robuste qu'une mesure figée au clic.
+    let ro = null;
+    if (window.ResizeObserver) {
+      ro = new ResizeObserver(reposition);
+      ro.observe(panel);
+    }
+    panel._adocReposition = reposition;
+    panel._adocResizeObserver = ro;
+  }
+  function adocUnmountBlockEditPanel(panel) {
+    if (!panel) return;
+    if (panel._adocReposition) {
+      window.removeEventListener('scroll', panel._adocReposition, true);
+      window.removeEventListener('resize', panel._adocReposition);
+    }
+    if (panel._adocResizeObserver) panel._adocResizeObserver.disconnect();
+    if (panel.parentNode) panel.parentNode.removeChild(panel);
+  }
+
   // État de la correction en cours — un seul bloc sélectionné à la fois (cf. demande), remis à
   // zéro par adocWsClearBlockSelection() à chaque désélection/confirmation/annulation/fermeture.
   window._adocBlockEditState = { storeKey: null, blockId: null, panelEl: null, pendingBlock: null, originalBlock: null };
 
   function adocWsClearBlockSelection() {
     const st = window._adocBlockEditState;
-    if (st.panelEl && st.panelEl.parentNode) st.panelEl.parentNode.removeChild(st.panelEl);
+    adocUnmountBlockEditPanel(st.panelEl);
     const docCard = document.getElementById('cc-ws-doc-card');
     if (docCard) {
       const sel = docCard.querySelector('.adoc-sc-block.is-selected');
@@ -11303,14 +11363,14 @@ ${recent}`;
       panel.className = 'cc-clarity-card cc-block-edit-panel';
       panel.setAttribute('role', 'group');
       panel.setAttribute('aria-label', 'Corriger ce passage sélectionné');
-      // Item 64 construction — panneau déplacé dans #cc-ws-block-edit-slot (colonne de gauche),
-      // plus juste après le bloc dans le document : indicateur "bloc en cours d'édition" ajouté en
-      // tête du MÊME panel.innerHTML (jamais un second composant) pour garder le lien visuel avec
-      // le bloc réellement sélectionné (qui reste surligné dans le document via .is-selected).
+      // 0B précisé — panneau CONTEXTUEL, ancré au bloc réellement sélectionné (annule le
+      // déplacement Item 64/CDC v0.5.5). Indicateur "bloc en cours d'édition" conservé en tête du
+      // MÊME panel.innerHTML (jamais un second composant) : redondant avec le surlignage
+      // .is-selected une fois contextuel, mais garde un rappel textuel utile si le bloc défile
+      // hors champ pendant que le panneau reste ouvert.
       const preview = adocEsc(adocBlockPreviewText(block)) || '(bloc sans texte)';
       panel.innerHTML = '<div class="cc-block-edit-target">Bloc en cours d’édition : <strong>« ' + preview + ' »</strong></div>' + adocBuildBlockEditPanelHTML(block.type);
-      const slot = document.getElementById('cc-ws-block-edit-slot');
-      if (slot) { slot.innerHTML = ''; slot.appendChild(panel); }
+      adocMountContextualBlockEditPanel(panel, blockEl);
       window._adocBlockEditState = { storeKey: storeKey, blockId: blockId, panelEl: panel, pendingBlock: null, originalBlock: block };
       // Item 57c Lot 1 — ne vole plus le focus vers le champ libre pour un bloc directement
       // éditable : sinon le clic qui sélectionne le bloc empêcherait de facto d'y taper (le focus
@@ -11321,12 +11381,12 @@ ${recent}`;
       if (ta && !isDirectlyEditable) ta.focus();
     };
     docCard.onkeydown = null;
-    // Item 64 construction — écouteurs délégués attachés à .cc-ws-body (parent commun de
-    // #cc-ws-doc-card ET #cc-ws-panel), jamais à docCard seul : le panneau de correction vit
-    // maintenant dans #cc-ws-block-edit-slot, hors de docCard (cf. plus haut) — sans cet
-    // élargissement, ses contrôles (couleur/police/undo/redo…) ne recevraient plus aucun
-    // événement. adocEditorPrepare (scan des blocs éditables) reste scopé à docCard, inchangé.
-    adocEditorInstall(docCard, false, document.querySelector('.cc-ws-body'));
+    // 0B précisé — écouteurs délégués attachés à document.body, jamais à docCard seul : le
+    // panneau de correction est monté sur document.body (adocMountContextualBlockEditPanel),
+    // hors de docCard — sans cet élargissement, ses contrôles (couleur/police/undo/redo…) ne
+    // recevraient plus aucun événement. adocEditorPrepare (scan des blocs éditables) reste scopé
+    // à docCard, inchangé.
+    adocEditorInstall(docCard, false, document.body);
   }
 
   // Compatibility entry point for the shared block style controls.
@@ -11652,7 +11712,7 @@ ${recent}`;
 
   function adocWsClearLegacyBlockSelection() {
     const st = window._adocLegacyBlockEditState;
-    if (st.panelEl && st.panelEl.parentNode) st.panelEl.parentNode.removeChild(st.panelEl);
+    adocUnmountBlockEditPanel(st.panelEl);
     const docCard = document.getElementById('cc-ws-doc-card');
     if (docCard) {
       const sel = docCard.querySelector('[data-cc-legacy-block-id].is-selected');
@@ -11742,13 +11802,13 @@ ${recent}`;
       panel.className = 'cc-clarity-card cc-block-edit-panel';
       panel.setAttribute('role', 'group');
       panel.setAttribute('aria-label', 'Corriger ce passage sélectionné');
-      // Item 64 construction — même déplacement que le moteur structuré (cf.
-      // adocWsSetupBlockEditing) : indicateur "bloc en cours d'édition" à partir du texte réel du
-      // bloc DOM (pas d'objet block JSON côté legacy), panneau déplacé dans le même slot partagé.
+      // 0B précisé — même mécanisme CONTEXTUEL que le moteur structuré (cf.
+      // adocWsSetupBlockEditing/adocMountContextualBlockEditPanel, jamais une 2e implémentation) :
+      // indicateur "bloc en cours d'édition" à partir du texte réel du bloc DOM (pas d'objet block
+      // JSON côté legacy), panneau ancré au bloc DOM réellement sélectionné.
       const legacyPreview = adocEsc((blockEl.textContent || '').trim().slice(0, 60)) || '(bloc sans texte)';
       panel.innerHTML = '<div class="cc-block-edit-target">Bloc en cours d’édition : <strong>« ' + legacyPreview + (blockEl.textContent && blockEl.textContent.trim().length > 60 ? '…' : '') + ' »</strong></div>' + adocBuildLegacyBlockEditPanelHTML(kind);
-      const legacySlot = document.getElementById('cc-ws-block-edit-slot');
-      if (legacySlot) { legacySlot.innerHTML = ''; legacySlot.appendChild(panel); }
+      adocMountContextualBlockEditPanel(panel, blockEl);
       window._adocLegacyBlockEditState = {
         storeKey: storeKey, blockKey: blockKey, panelEl: panel, el: blockEl,
         kind: kind, pendingHtml: null, pendingDropsCitations: false, styleDraft: {},
@@ -11760,9 +11820,10 @@ ${recent}`;
       if (ta && !isDirectlyEditable) ta.focus();
     };
     docCard.onkeydown = null;
-    // Item 64 construction — même élargissement que côté structuré (cf. adocWsSetupBlockEditing) :
-    // adocEditorPrepare reste scopé à docCard, seuls les écouteurs délégués s'attachent plus haut.
-    adocEditorInstall(docCard, true, document.querySelector('.cc-ws-body'));
+    // 0B précisé — même élargissement que côté structuré (cf. adocWsSetupBlockEditing) :
+    // adocEditorPrepare reste scopé à docCard, seuls les écouteurs délégués s'attachent à
+    // document.body (le panneau y est monté, cf. adocMountContextualBlockEditPanel).
+    adocEditorInstall(docCard, true, document.body);
   }
 
   // Compatibility entry point for the shared block style controls.
