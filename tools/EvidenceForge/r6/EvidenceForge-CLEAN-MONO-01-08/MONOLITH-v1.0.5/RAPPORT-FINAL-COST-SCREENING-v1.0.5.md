@@ -143,3 +143,36 @@ budget, cadrage, limites et reprises. Sans code technique en mode simple (U1, HE
 ## 15. Verdict technique
 **GELABLE (candidat)** — sous réserve : (1) d'un run réel complet sous v1.0.5 avec budget, dont le ledger et la projection sont
 confrontés au solde fournisseur ; (2) d'un audit indépendant différentiel v1.0.4 → v1.0.5. Je ne déclare pas GELÉ.
+
+---
+
+## Addendum 2026-09-17 — chantier « one command / GitHub main » (exploitation depuis le dépôt)
+
+Motivé par le lancement réel : ancienne v1.0.4 restée sur 8768 (EADDRINUSE, PID à tuer à la main), lancement accidentel avec
+`TON_URL_WORKER` / `TA_CLE` accepté comme « configuré » puis « Réseau indisponible », variables perdues entre terminaux.
+
+- **Lanceur unique** `tools/EvidenceForge/start.sh` (+ `setup.sh`, `doctor.sh`, `stop.sh`, logique dans `bin/launcher.js`) ; version
+  active dans `tools/EvidenceForge/ACTIVE_VERSION` ; configuration locale `tools/EvidenceForge/.env.local` (gitignorée, chmod 600,
+  jamais dans un zip ni un manifeste), modèle versionné `.env.example` (placeholders). Port : même version ⇒ réutilisée ; ancienne
+  EvidenceForge ⇒ arrêt propre (processus identifié) ; application étrangère ⇒ jamais tuée, port de repli.
+- **`lib/provider-diagnostic.js`** (nouveau) : `credentialsPresent` / `reachable` / `ready` ; placeholders refusés ; sonde
+  **gratuite** (`POST /v1/messages` corps `{}` → le worker refuse après authentification, sans appel amont) ; classification
+  DNS / connexion refusée / TLS / URL invalide / délai / auth / route / débit / capacité / crédit / réponse invalide, avec messages
+  utilisateur précis. `lib/llm.js`, `lib/llm-transport.js` l'utilisent ; `pipeline.RESUMABLE` étendu.
+- **Faux « configuré » corrigé** : `/api/config.providerConfigured` = `providerReady` (strict) ; `providerCredentialsPresent`,
+  `providerReachable`, `provider{…}` ; `GET /api/provider` ; `POST /api/runs` refuse (`409 PROVIDER_NOT_READY`, après validation de
+  la demande, avant toute création) tant que le fournisseur n'est pas prêt ; bandeau UI en trois niveaux + « Re-tester ».
+- **Budget UI** : bug `null / 4` du smoke `efm-20260917-7a61f422` **non reproduit** (API et interface donnent 3 / 2 exactement,
+  tests BUDGET-UI-01/02 à saisie clavier réelle) ; rendu explicite : aperçu « Sera enregistré : … », `autocomplete=off`, la réponse
+  de création renvoie le budget réellement persisté et le run l'affiche. L'artefact du smoke n'est pas modifié.
+- **`url.parse` (DEP0169)** : remplacé par WHATWG `URL` dans `server.js` (monolithe) ; aucun usage dans un lot gelé.
+- **Tests** : `tools/EvidenceForge/test/test-launch.js` 14/14 (LAUNCH-01…12, DOCTOR-01/02, BUDGET-UI-01/02) ; suite monolithe
+  116/116 (V1 mis à jour aux nouvelles sémantiques) ; navigateur 20/20 ; scans secrets / anti-hardcoding : 0 hit ; lots gelés
+  byte-identiques (MONO-11 zip `3c44b397…`, v1.0.4 zip `97b999ad…`, SHA256SUMS 47/0).
+- **Validation réelle** (2026-09-17, configuration réelle via `setup.sh --from-env`) : `doctor.sh` 12/12 [OK] ; `start.sh` →
+  `MONOLITH-v1.0.5`, git `2ece6b9`, worker OK (146 ms), pricing OK, lots OK ; smoke `efm-20260917-e2068b53` (budget 3 / alerte 2)
+  créé, **4 appels réels journalisés** (preflight 0,0001 · reformulation 0,0097 · **résolveur EF-01B 0,0196 · planificateur EF-01C1
+  0,0361 — chemin kit désormais valorisé**) = **0,07 USD**, run en attente à la Porte 1 ; arrêt volontaire là (objectifs atteints,
+  aucune dépense supplémentaire).
+- Limites : `stop.sh`/`doctor.sh` n'arrêtent jamais une application étrangère (par conception) ; l'ancienne instance v1.0.4 sur 8767
+  est seulement signalée ([INFO]) ; la sonde gratuite consomme 1 requête du limiteur de débit du worker (30/min).

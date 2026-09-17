@@ -4,7 +4,7 @@
     "name": "EvidenceForge",
     "version": "MONOLITH-v1.0.5"
   },
-  "generatedAt": "2026-09-17T11:50:04.567Z",
+  "generatedAt": "2026-09-17T12:36:12.435Z",
   "frozenLots": {
     "MONO-10": {
       "dir": "MONO-10/v0.19",
@@ -88,7 +88,7 @@
       "total": 116,
       "passed": 116,
       "failed": 0,
-      "ranAt": "2026-09-17T11:50:04.450Z"
+      "ranAt": "2026-09-17T12:36:12.328Z"
     },
     "professionals": {
       "maxCandidatesToEvaluate": 150,
@@ -137,8 +137,8 @@
     },
     {
       "path": "NON-REGRESSION.md",
-      "sha256": "725411dec0fdbd5508027a80eeecbf46648048a7e747ad88f0d9bdd44e79dffc",
-      "bytes": 9311
+      "sha256": "9c924c0883fcbebbef2f5956e3c74ea1a8df7ec9c1e1f60c27d021f8e4efd1a1",
+      "bytes": 9593
     },
     {
       "path": "PLAN-CORRECTIF-COST-SCREENING-v1.md",
@@ -152,8 +152,8 @@
     },
     {
       "path": "RAPPORT-FINAL-COST-SCREENING-v1.0.5.md",
-      "sha256": "a8b5d6a249593b497941c17af2a4f00683f9e3fd4504d2c51b7c702c30fa3e15",
-      "bytes": 13767
+      "sha256": "4902a2aa8983b6c3c4da9f493c29594d8c41ee0e37fd95d3e068e28958a31887",
+      "bytes": 17216
     },
     {
       "path": "README.md",
@@ -187,8 +187,8 @@
     },
     {
       "path": "index.html",
-      "sha256": "4c92b29ebfb124f60dcc58ba237c47163df45c8dd631078d47befae0ac212deb",
-      "bytes": 57247
+      "sha256": "0a0afc73b9bde7bbe4b62dc17cdfb707dcccb042370b41ff1c5b9a6cdf52860e",
+      "bytes": 59836
     },
     {
       "path": "lib/budget-guard.js",
@@ -217,13 +217,13 @@
     },
     {
       "path": "lib/llm-transport.js",
-      "sha256": "6008e902589c30b698ac07252d85362658c63a14e271e83f518ea0e08477a2c0",
-      "bytes": 4617
+      "sha256": "a15c5240620c0f150d65627d1ba0bfab1f0c143c0556306844e0cdc6fb1230ee",
+      "bytes": 4818
     },
     {
       "path": "lib/llm.js",
-      "sha256": "279fbe2ff4f3108a7d17511a5238d782159d29e270a475df49a515d0c69be35e",
-      "bytes": 18413
+      "sha256": "4c3337abf56e21d02023f835712da375b6b666b58ebdc59d5a50cf6fb1dec12d",
+      "bytes": 20089
     },
     {
       "path": "lib/mono04-fence-adapter.js",
@@ -237,8 +237,8 @@
     },
     {
       "path": "lib/pipeline.js",
-      "sha256": "5ac7d39cf46242e2aaa298646440f429d7ff17fda4b981463957006d9924cc27",
-      "bytes": 40411
+      "sha256": "d098c8e99074e2e15c6f5bb87049b656d5d42833d35efe2bb77e22012cf75a70",
+      "bytes": 41118
     },
     {
       "path": "lib/preflight-assistant.js",
@@ -259,6 +259,11 @@
       "path": "lib/professionals-economics.js",
       "sha256": "2fd5e2384fd78e1029fdf2145edd2bb60f976b2064b9f47a8c948022b97c04df",
       "bytes": 9304
+    },
+    {
+      "path": "lib/provider-diagnostic.js",
+      "sha256": "6411ca33b79d620e129fca25838e2c0ff11256c1d78390daf441023e81e09317",
+      "bytes": 10182
     },
     {
       "path": "lib/run-store.js",
@@ -297,23 +302,23 @@
     },
     {
       "path": "server.js",
-      "sha256": "4ed30c203a1bc19d076bd9c1b5cf69b3d2ef4932fff4ba1f9e8a6a9d12bcbc3f",
-      "bytes": 11292
+      "sha256": "1207480d4ae3822c7e4f59b391736e7d0ff80b0c66e7ca0415f8e4bd1f302c43",
+      "bytes": 14720
     },
     {
       "path": "test/browser-results-v105.json",
-      "sha256": "3937e988aa15a5bf35eea2fa24a433e0ddf10f7624af77aabb5a33f309d0bd33",
+      "sha256": "0cdf3fa39afc4322bc1e91400c0cb0082ca733afc54e02bb5e453939e9db4be4",
       "bytes": 5635
     },
     {
       "path": "test/results.json",
-      "sha256": "68609345b954e4cae4a135f798d4d783635fc4d0aa28d70a5c18352fabafae0e",
+      "sha256": "d150b6ec130c78abbb08188f4130816f036a3375b5a2cd93859d9b05df4e98f5",
       "bytes": 26897
     },
     {
       "path": "test/test-monolith.js",
-      "sha256": "9303f870615ea7c6dd0a2884014dcebaf9367bef46dbad28034382ce5645b499",
-      "bytes": 110727
+      "sha256": "b16dbcd90f7b047b4e92f396f7a460beceafc9d16b2cb7660968cc940da48b9b",
+      "bytes": 111749
     },
     {
       "path": "test/test-v105.js",
@@ -339,6 +344,11 @@
       "path": "tools/build-manifest.js",
       "sha256": "c0b197f181acb19aaada63a675546d273736dfb820793e9526d3035bfa595d5e",
       "bytes": 5289
+    },
+    {
+      "path": "tools/fake-worker.js",
+      "sha256": "6d89b1394a7ca7512a5ee4dac325057af1fbda2947addd43fe153a1d2be37dc5",
+      "bytes": 2708
     },
     {
       "path": "tools/import-sealed-run.js",
@@ -411,6 +421,6 @@
       "bytes": 1614
     }
   ],
-  "fileCount": 62,
-  "contentHash": "d8b759eb07de05e9661883c6fb6e88feb8fc1d249371a2e0287bcaedde81a7dd"
+  "fileCount": 64,
+  "contentHash": "64a095dd4ad7d9af2452b548dbb6001c6eb402835f8416ae6144dacd18992111"
 }

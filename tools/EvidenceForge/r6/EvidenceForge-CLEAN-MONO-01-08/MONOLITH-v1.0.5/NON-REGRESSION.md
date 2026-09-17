@@ -55,3 +55,4 @@ Le monolithe **compose** ; il ne réécrit rien. Ce document liste, brique par b
 | Contrat de validation MONO-11-v2, reuse liée au contexte | inchangés ; le reuse est enregistré à coût 0 et jamais compté comme réel | COST-02, L5, X7 |
 | Runs réels (`efm-20260917-f8a95282`, `efm-20260917-cf6101c7`, `efm-20260916-7990da62`) | lecture seule (`tools/reconstruct-cost.js`, scan anti-hardcoding alimenté par leurs artefacts) | `RAPPORT-FINAL-COST-SCREENING-v1.0.5.md` |
 | Runs antérieurs (sans ledger ni budget) | lisibles : `cost.ledgerPresent=false`, projection partielle, économie `NOT_AVAILABLE`, aucune écriture | NONREG-06 |
+| Diagnostic fournisseur (addendum one-command) | `providerConfigured` devenu strict (= prêt) ; `POST /api/runs` refuse sans fournisseur prêt ; `url.parse` remplacé par `URL` dans `server.js` seulement | V1 (mis à jour), LAUNCH-01…12, DOCTOR-01/02 ; aucun lot gelé touché |
