@@ -4,7 +4,7 @@
     "name": "EvidenceForge",
     "version": "MONOLITH-v1.0.5"
   },
-  "generatedAt": "2026-09-17T17:15:21.113Z",
+  "generatedAt": "2026-09-17T17:58:06.030Z",
   "frozenLots": {
     "MONO-10": {
       "dir": "MONO-10/v0.19",
@@ -85,10 +85,10 @@
       }
     },
     "tests": {
-      "total": 133,
-      "passed": 133,
+      "total": 154,
+      "passed": 154,
       "failed": 0,
-      "ranAt": "2026-09-17T17:15:21.014Z"
+      "ranAt": "2026-09-17T17:52:47.092Z"
     },
     "professionals": {
       "maxCandidatesToEvaluate": 150,
@@ -100,6 +100,11 @@
     "status": "CANDIDAT (v1.0.5) — NON GELE : tests fonctionnels/adversariaux passes ; audit independant differentiel et run reel sous cette version requis avant gel"
   },
   "files": [
+    {
+      "path": "AUDIT-PANEL-SUFFICIENCY-POLICY.md",
+      "sha256": "514694f3b1ae3a805e9e27673c5d1da061dd16e16816fb360b06d9b2bbc2f488",
+      "bytes": 10419
+    },
     {
       "path": "AUTOPSIE-PANEL-COST-OPTIMIZER.md",
       "sha256": "9cc8f83b3f68a6be32c95cc991f968de4c6e8ca1ab40443110da3ae7dae3ddb9",
@@ -142,8 +147,8 @@
     },
     {
       "path": "NON-REGRESSION.md",
-      "sha256": "4b87991944d2f2fc0bbd8bd5508214f611005ea357d072809645e7e75ca35ecb",
-      "bytes": 11040
+      "sha256": "e97c04528f2375ec9a2efcd361dada367b8e4edd687308d5972293e834e06eb7",
+      "bytes": 12583
     },
     {
       "path": "PLAN-CORRECTIF-COST-SCREENING-v1.md",
@@ -167,13 +172,18 @@
     },
     {
       "path": "RAPPORT-PANEL-COST-OPTIMIZER.md",
-      "sha256": "7860cde51c13ab9f10aa2f47d67fdc6df2a31e570172660c090e9f2151a5f897",
-      "bytes": 10085
+      "sha256": "70cde520d2ab9b834600914ab30299ce7420913940ef9b5af27b1d00a8620085",
+      "bytes": 10619
+    },
+    {
+      "path": "RAPPORT-PANEL-SUFFICIENCY-POLICY.md",
+      "sha256": "e09c26976445fb25130cb672e338bb71cd9b64cee40d8a45e3924b7ace8f1e3e",
+      "bytes": 8737
     },
     {
       "path": "README.md",
-      "sha256": "7d63b9060f77601c3e500b28152ccb51bac0d0ca3114ad4deceb9374cc1bdccd",
-      "bytes": 21121
+      "sha256": "8c2a78f71b5f39fbacf4abd22b866c92206e3f86f00637986ad44b0e16f3ef12",
+      "bytes": 22133
     },
     {
       "path": "TEST-REPORT-MONOLITH-MONO11-v0.3-r1.md",
@@ -192,8 +202,8 @@
     },
     {
       "path": "config/monolith.config.json",
-      "sha256": "7dee745da77c2a4b6abfc333482e1a0458b6c0c6ecb0c41745aefbc1c629f842",
-      "bytes": 6243
+      "sha256": "cee03bfa2d410272b38a09b0ad5891baa56b2958099c8a942ddfd7a30778555e",
+      "bytes": 6843
     },
     {
       "path": "governance/EvidenceForge-MONO11-v0.2-FREEZE-DECISION.md",
@@ -247,8 +257,8 @@
     },
     {
       "path": "lib/panel-sufficiency.js",
-      "sha256": "77474b4ec0128f517d5a510b2ad32789aa20d456c456c19f8ad184a0ed6a1b41",
-      "bytes": 8789
+      "sha256": "58e5e3fad597ab896fbd923da194fa88bb247e90fb8430f598408cb8365fdb19",
+      "bytes": 18040
     },
     {
       "path": "lib/paths.js",
@@ -257,8 +267,8 @@
     },
     {
       "path": "lib/pipeline.js",
-      "sha256": "2ebba73424944da7e5f3bea627c993e3f3d2bf26131e0385be025335ed0ac15d",
-      "bytes": 43175
+      "sha256": "1345e287890ffad0329a6280fdea224e8510cd9f78044bccc6d7526531262625",
+      "bytes": 44067
     },
     {
       "path": "lib/portfolio-balancing.js",
@@ -282,8 +292,8 @@
     },
     {
       "path": "lib/professionals-economics.js",
-      "sha256": "8ab40955e3ebd56d92836983b3608460601c91618856475e3ea282bbcf0c31ce",
-      "bytes": 9733
+      "sha256": "2f95a0512eac5c82d4c55e2ee68080812c33fe743281c74c6aad9006c52f6ec6",
+      "bytes": 10049
     },
     {
       "path": "lib/provider-diagnostic.js",
@@ -312,8 +322,8 @@
     },
     {
       "path": "lib/stage-professionals.js",
-      "sha256": "0b6864ffc1c1f37c393698e8b9b01013126b86b9c43df4b21ebdd9db73558e39",
-      "bytes": 38813
+      "sha256": "1c6e91b4ff39e454c38b155f0fb201efc8ccd81c24f2fa50aebef4ce01162d7f",
+      "bytes": 41018
     },
     {
       "path": "lib/stage-report.js",
@@ -337,7 +347,7 @@
     },
     {
       "path": "test/browser-results-v105.json",
-      "sha256": "6505d3f62c9f3333bc09a2faeab09c534a9bec57ce8185c8cdd770044a937289",
+      "sha256": "58b8d639bab55ba6c6a6bfd343c392e0c54aa01033bd405dd07806ed4600ec1c",
       "bytes": 6230
     },
     {
@@ -347,18 +357,18 @@
     },
     {
       "path": "test/results.json",
-      "sha256": "71ae4e4830328b0cee06c4a090861f07f70765029acfdffe808270e7fd7dc32d",
-      "bytes": 31527
+      "sha256": "91006a18c8841acd238d509d0242848af2ffd0c4ee153d597a4335a5628020de",
+      "bytes": 36826
     },
     {
       "path": "test/test-monolith.js",
-      "sha256": "c3452445ed2360a3190e0b2217bee49cff0bbf1381f6f320faf784e42235eca9",
-      "bytes": 112010
+      "sha256": "524ba37d735eba481c8c63dda69c8ddce0fece48d1b9ed8c5e02de3021282790",
+      "bytes": 112119
     },
     {
       "path": "test/test-panel.js",
-      "sha256": "4afccf53b2f3c6af762763c4728565b7d7a82c252b62298d0db5b8341b196888",
-      "bytes": 30495
+      "sha256": "88c1c654ff39ca7ee08f72a2396c6350248e9f647f7abc1ef316f86dac5dd848",
+      "bytes": 32065
     },
     {
       "path": "test/test-portfolio-balancing.js",
@@ -366,9 +376,14 @@
       "bytes": 6254
     },
     {
+      "path": "test/test-sufficiency.js",
+      "sha256": "8695b5b4ba70ed78cdf0456588aed9869cd9a93a780647d1908303d8196fdd43",
+      "bytes": 22087
+    },
+    {
       "path": "test/test-v105.js",
-      "sha256": "8b6181a3c59f00bf9bd19aad021b2aced14e8d2179fb98b896248dd0896cf9a6",
-      "bytes": 59077
+      "sha256": "1491d93e62561dad17838d1d3ad9451a1e0b28fc4b342c665e592cbd9ad99275",
+      "bytes": 59154
     },
     {
       "path": "tools/anti-hardcoding-scan.js",
@@ -382,8 +397,8 @@
     },
     {
       "path": "tools/browser-tests-v105.js",
-      "sha256": "5fd307645d0b4dd9651d03b505d652ace4e6784c685eb144dbfcee0b53fbe9db",
-      "bytes": 17182
+      "sha256": "d2ac24cc6f29c7b391a2e1b0bbbb81f37d719439b70036d706788f19bc6420d5",
+      "bytes": 17347
     },
     {
       "path": "tools/browser-tests.js",
@@ -471,6 +486,6 @@
       "bytes": 1614
     }
   ],
-  "fileCount": 74,
-  "contentHash": "497f999ff85e9000ccb86d57d25c3cf00b28ddaf5a6c0660db0fffec62c2aa94"
+  "fileCount": 77,
+  "contentHash": "837e9534f9cde0dacb7212bea3d399963cd9f4ccb4c9280646343a2142585e6d"
 }

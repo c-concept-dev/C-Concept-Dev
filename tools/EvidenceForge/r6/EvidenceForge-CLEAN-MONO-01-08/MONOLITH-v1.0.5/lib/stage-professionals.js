@@ -211,7 +211,17 @@ async function runPanel(input) {
   /* ===== v1.0.5 — SUFFISANCE DU PANEL (early-stop deterministe) + normalisation des references ===== */
   const primaryDim = new Map(); (discovery.candidates || []).forEach((c) => { if (c.candidateRef) primaryDim.set(c.candidateRef, c.dimensionRef || (Array.isArray(c.disciplines) && c.disciplines[0]) || null); });
   const esCfg = Object.assign({}, (P.CONFIG.professionals && P.CONFIG.professionals.earlyStop) || {}); delete esCfg.$comment;
-  const tracker = PSUF.createSufficiencyTracker({ dimensions: dimensionSet.dimensions.map((d) => d.id), candidates: selection.selectedIds.map((id) => ({ candidateRef: id, dimension: primaryDim.get(id) })), policy: esCfg });
+  const seedsOf = new Map(); (discovery.candidates || []).forEach((c) => { if (c.candidateRef) seedsOf.set(c.candidateRef, (c.seedReferences || []).map((r) => r && r.providerWorkId).filter((x) => typeof x === "string" && x)); });
+  const tracker = PSUF.createSufficiencyTracker({ dimensions: dimensionSet.dimensions.map((d) => d.id), candidates: selection.selectedIds.map((id) => ({ candidateRef: id, dimension: primaryDim.get(id), seedWorkRefs: seedsOf.get(id) || [] })), policy: esCfg });
+  /* v1.0.5 (PANEL-SUFFICIENCY-v2) — decision REELLE du gate gele par candidat, calculee a l'observation avec exactement les entrees que gatePanel recevra
+     (fonction pure, lecture seule du lot MONO-11) : « approuve » remplace « SUPPORTED » comme notion de representation */
+  const MEG = require(path.join(P.MONO11, "core", "machine-evidence-gate.js")); const assById = new Map((assessmentCapped.assessments || []).map((a) => [a.candidateId, a])); const candByIdB = new Map((boundDiscovery.candidates || []).map((c) => [c.candidateRef, c]));
+  function gateDecisionFor(candidateId, artifacts) {
+    try { const a = assById.get(candidateId), c = candByIdB.get(candidateId); const ce = artifacts["mono11:corpus-sufficiency:" + candidateId], re = artifacts["mono11:relevance:" + candidateId]; if (!a || !c || !ce || !re) return null;
+      const d = MEG.gateCandidate({ assessment: a, candidate: c, corpusEvidence: ce.artifact || ce, relevanceEvidence: re.artifact || re, seedWorkRefs: (c.seedReferences || []).map((r) => r.providerWorkId).filter((x) => typeof x === "string" && x),
+        candidateUnknowns: (assessmentCapped.unknowns || []).filter((u) => u && typeof u.reason === "string" && u.reason.indexOf('"' + c.displayName + '"') !== -1), evidenceArtifactRefs: { assessment: assessmentRef || null, corpus: ledger.ref("mono11:corpus-sufficiency:" + candidateId), relevance: ledger.ref("mono11:relevance:" + candidateId) }, ctx: gateCtx });
+      return d && d.state === MEG.STATE.APPROVED; } catch (e) { return null; }
+  }
   const wnEnabled = !(P.CONFIG.professionals && P.CONFIG.professionals.workRefNormalization === false);
   const wn = WN.createWorkRefAdapter({ journalPath: path.join(input.runDir, "professionals-workref-normalization.jsonl"), onRecord: (rec) => log({ event: "workref_normalized", candidateRef: rec.candidateRef, replacements: rec.replacements.length, rule: rec.rule, reused: rec.reused }) });
   let lastState = tracker.decision().state;
@@ -241,10 +251,12 @@ async function runPanel(input) {
   /* v1.0.5 — observation de chaque evaluation (sorties deja produites : classe + dimensions soutenues dans le registre MONO-11), aucun appel */
   const logObserved = (e) => {
     if (e && e.event === "candidate_evidence") {
-      const art = ledger.exportArtifacts()["mono11:relevance:" + e.candidateId]; const a = art && (art.artifact || art);
-      const ob = tracker.observe({ candidateRef: e.candidateId, corpus: e.corpus, relevanceClass: e.relevance, supportedDimensions: a && a.supportingDimensions, partialDimensions: a && a.partialDimensions });
-      const d = tracker.decision(); log(Object.assign({}, e, { novelty: ob.novelty, sufficiency: d.state, admissibleCumulative: d.admissible, sinceNovelty: d.sinceNovelty }));
-      if (d.state !== lastState) { lastState = d.state; log({ event: "panel_sufficiency_transition", state: d.state, evaluated: d.evaluated, admissible: d.admissible, reasons: d.reasons }); if (typeof input.onSufficiency === "function") { try { input.onSufficiency(d); } catch (x) { /* observabilite */ } } }
+      const artifacts = ledger.exportArtifacts(); const art = artifacts["mono11:relevance:" + e.candidateId]; const a = art && (art.artifact || art);
+      const approved = gateDecisionFor(e.candidateId, artifacts);
+      const ob = tracker.observe({ candidateRef: e.candidateId, corpus: e.corpus, relevanceClass: e.relevance, approved, supportedDimensions: a && a.supportingDimensions, partialDimensions: a && a.partialDimensions, supportingDimensionsDetail: a && a.supportingDimensions, supportingWorks: a && a.supportingWorks,
+        ignore: llm.transportFailure() ? "TRANSPORT_LATCHED" : null });   /* parcours a vide apres verrou : jamais une evaluation */
+      const d = tracker.decision(); log(Object.assign({}, e, { approved, novelty: ob.novelty, sufficiency: d.state, panel: d.panel, approvedCumulative: d.approved, sinceNovelty: d.sinceNovelty }));
+      if (d.state !== lastState) { lastState = d.state; log({ event: "panel_sufficiency_transition", state: d.state, panel: d.panel, evaluated: d.evaluated, approved: d.approved, reasons: d.reasons }); if (typeof input.onSufficiency === "function") { try { input.onSufficiency(d); } catch (x) { /* observabilite */ } } }
       return;
     }
     log(e);
@@ -266,7 +278,7 @@ async function runPanel(input) {
     evidence, ledgerExport: ledger.export(), registryEntries: registry.entries(), chains, capability: run.capability, llmConfig: run.llmConfig, attestation: run.attestation, operatorConfig: run.cfgPath,
     outputHashes: { panelHash: res.panel.panelHash, assessment: M10.CANON.artifactHash(assessment), ledgerRoot: ledger.rootHash, registryRoot: chains.mono10.registryRootHash, evidenceCount: Object.keys(evidence).length },
     transportFailures: [], openAlexCalls: client.calls.length, llmCounts: llm.counts(), sufficiency, workRefNormalizations: wn.count(), complete: true };
-  return { checkpoint, stats: Object.assign({}, res.stats, { evaluatedReal: sufficiency.evaluated, skippedBySufficiency: sufficiency.skipped, admissible: sufficiency.admissible, sufficiency: sufficiency.state, workRefNormalizations: wn.count() }), panelCounts: res.panel.counts, selection, sufficiencyRecord: tracker.record() };
+  return { checkpoint, stats: Object.assign({}, res.stats, { evaluatedReal: sufficiency.evaluated, skippedBySufficiency: sufficiency.skipped, approved: sufficiency.approved, sufficiency: sufficiency.state, panelSufficiency: sufficiency.panel, workRefNormalizations: wn.count() }), panelCounts: res.panel.counts, selection, sufficiencyRecord: tracker.record() };
 }
 
 /**

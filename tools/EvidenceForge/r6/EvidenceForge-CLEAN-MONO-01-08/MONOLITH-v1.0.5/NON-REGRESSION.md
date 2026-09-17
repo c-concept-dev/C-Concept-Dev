@@ -67,3 +67,14 @@ Le monolithe **compose** ; il ne réécrit rien. Ce document liste, brique par b
 | Budget | vérifié avant chaque appel, en amont de la suffisance (verrou de panne avant `tracker.shouldEvaluate`) | PRO-EARLY-10, COST-06 |
 | Validateur gelé EF-02D2 (« aucune preuve inventée ») | inchangé ; la normalisation ne réécrit une référence que vers l'unique titre/DOI réel de forme canonique identique ; une référence absente reste refusée | WORKREF-01/02/04 |
 | Runs réels 65c805ef / cf6101c7 | lecture seule (rejeu WORKREF-04 vérifie que le dossier est intact) | WORKREF-04 |
+
+## v1.0.5 — Panel Sufficiency Policy v2 (2026-09-17, `RAPPORT-PANEL-SUFFICIENCY-POLICY.md`)
+
+| Élément | Statut | Preuve |
+|---|---|---|
+| Gate gelé MONO-11 (`gateCandidate`, `gatePanel`) | byte-identique ; `gateCandidate` (fonction pure) est consulté par candidat avec les entrées exactes de `gatePanel` — la représentation d'un angle = approuvés par le gate (définition G-6), jamais « SUPPORTED » seul | SUFF-01, SUFF-09, PRO-EARLY-01 |
+| Agrégation gelée EF-03C (anti-mono-jumeau) | byte-identique ; son invariant (≥ 2 jumeaux) devient le **plancher contractuel** de la suffisance, impossible à abaisser par config | SUFF-12 |
+| Vivier épuisé | n'est **jamais** « satisfait » : `DIMENSION_EXHAUSTED_PARTIAL / EMPTY`, `PANEL_EXHAUSTED_WITH_GAPS`, réserve aval `PROFESSIONAL_POOL_EXHAUSTED_WITH_GAPS` | SUFF-03/04/06, PRO-EARLY-02/07 |
+| Indépendance des preuves | même œuvre (workRef/DOI/titre canonique) ou même source-graine ⇒ non indépendants ; référence non identifiable ⇒ jamais indépendant ; normalisation sans effet sur la cardinalité | SUFF-02/13/14 |
+| Budget, reprise, verrou de transport | budget prioritaire inchangé ; observations post-verrou ignorées ; décision rejouable à l'identique | SUFF-07/08, PRO-EARLY-10 |
+| Normalisation des références (audit adversarial) | remplacement uniquement sur correspondance canonique unique ; ambigu/inventé intacts ; rien ajouté/supprimé ; rationale/classe intacts ; hashes journalisés ; validateur gelé dernier mot | WORKREF-ADV-01…08 |

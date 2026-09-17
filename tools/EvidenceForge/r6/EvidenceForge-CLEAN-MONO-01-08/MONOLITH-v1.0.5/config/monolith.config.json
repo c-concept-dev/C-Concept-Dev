@@ -100,14 +100,17 @@
     "workRefNormalization": true,
     "earlyStop": {
       "enabled": true,
-      "targetAdmissiblePerDimension": 3,
-      "minEvaluatedPerDimension": 3,
-      "plateauWindowFactor": 2,
-      "plateauWindowMin": 10,
-      "closeOnPlateau": false,
-      "plateauGraceFactor": 2,
-      "closeDimensionOnTarget": true,
-      "$comment": "v1.0.5 — PANEL-SUFFICIENCY-v1 (lib/panel-sufficiency.js) : arret anticipe DEMONTRABLE = chaque angle de mission a >= targetAdmissiblePerDimension candidats admissibles (SUPPORTED <=> admis par le gate gele) ou un vivier epuise ; un angle qui atteint sa cible est ferme (closeDimensionOnTarget). Le plateau (aucune nouveaute depuis plateauWindowFactor x angles, min plateauWindowMin, apres minEvaluatedPerDimension par angle) n'est qu'un signal (EARLY_STOP_CANDIDATE) : closeOnPlateau=false par defaut, car sur les deux runs reels analyses (AUTOPSIE-PANEL-COST-OPTIMIZER.md) les admissions sont rares et reparties sans plateau. Aucun nombre de cas ; le plafond 150 reste une garde. Le budget garde la priorite."
+      "policy": {
+        "id": "PANEL-SUFFICIENCY-v2",
+        "strategy": "MIN_INDEPENDENT_REPRESENTATION",
+        "provenance": "PRODUCT_POLICY",
+        "minimumAdmissibleRepresentativesPerDimension": 3,
+        "minimumIndependentRepresentativesPerDimension": 2,
+        "independence": ["SUPPORTING_WORKS", "SEED_SOURCES"],
+        "closeDimensionWhenSufficient": true,
+        "plateau": { "minEvaluatedPerDimension": 3, "windowFactor": 2, "windowMin": 10, "graceFactor": 2, "closeOnPlateau": false },
+        "$comment": "POLITIQUE PRODUIT explicite, versionnee, tracee dans chaque decision (lib/panel-sufficiency.js). Un angle est SUFFISANT s'il est represente par >= minimumAdmissibleRepresentativesPerDimension professionnels APPROUVES par le gate gele (couverture G-6 : approuves dont la pertinence soutient l'angle) dont >= minimumIndependentRepresentativesPerDimension INDEPENDANTS (aucune oeuvre citee ni source-graine en commun). minimumIndependentRepresentativesPerDimension = 2 est un PLANCHER CONTRACTUEL lu dans le lot gele (MONO-01 EF-03C : une convergence exige >= 2 jumeaux independants) et ne peut pas etre abaisse ; minimumAdmissibleRepresentativesPerDimension = 3 est une MARGE PRODUIT (un approuve peut ne pas produire de jumeau), pas un seuil scientifique. Un vivier epuise n'est JAMAIS suffisant : etats DIMENSION_EXHAUSTED_PARTIAL / _EMPTY et PANEL_EXHAUSTED_WITH_GAPS, reserve aval explicite. Le plateau n'est qu'un signal (closeOnPlateau=false). Aucun nombre de cas ; le plafond 150 reste une garde ; le budget garde la priorite."
+      }
     },
     "$comment": "MAX_PROFESSIONAL_CANDIDATES_TO_EVALUATE — decision produit du proprietaire (2026-09-16) : nombre maximal de professionnels entrant dans l evaluation LLM (REAL ou REUSE). Selection deterministe PROFESSIONAL-SELECTION-v1 (lib/professional-selection.js), persistee avant tout appel payant. v1.0.5 : ce plafond est une GARDE, pas une cible ; evaluationOrder = SELECTION_ORDER (tourniquet par discipline) ; workRefNormalization = normalisation typographique des references d'oeuvres avant le validateur gele EF-02D2 (MONOLITH-WORKREF-NORMALIZATION-v1, journalisee) ; earlyStop = suffisance du panel (voir ci-dessous)."
   }

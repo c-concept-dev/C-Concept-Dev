@@ -1,5 +1,7 @@
 # RAPPORT — PROFESSIONAL PANEL COST OPTIMIZER (MONOLITH-v1.0.5, 2026-09-17)
 
+> **Mise à jour 2026-09-17 (même jour) :** la règle PANEL-SUFFICIENCY-v1 décrite au §4 (levier 2) et au §10 a été auditée et **remplacée par PANEL-SUFFICIENCY-v2** (représentation par le gate gelé, plancher contractuel 2 indépendants, vivier épuisé jamais « satisfait ») — voir `AUDIT-PANEL-SUFFICIENCY-POLICY.md` et `RAPPORT-PANEL-SUFFICIENCY-POLICY.md`. Les mesures et le benchmark différentiel ci-dessous restent valides (ils ne dépendaient pas de la règle v1 : aucun arrêt anticipé ne s'est déclenché).
+
 Autopsie détaillée : `AUTOPSIE-PANEL-COST-OPTIMIZER.md`. Runs réels lus en lecture seule : baseline `efm-20260917-65c805ef`
 (5,02 USD), run complet `efm-20260917-cf6101c7` (v1.0.4). Run différentiel créé pour ce chantier : `efm-20260917-dc30dc7a`.
 

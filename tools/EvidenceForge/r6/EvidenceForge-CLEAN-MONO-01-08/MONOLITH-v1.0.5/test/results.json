@@ -1,8 +1,8 @@
 {
   "schema": "EvidenceForge.MonolithTestResults",
-  "ranAt": "2026-09-17T17:15:21.014Z",
-  "total": 133,
-  "passed": 133,
+  "ranAt": "2026-09-17T17:52:47.092Z",
+  "total": 154,
+  "passed": 154,
   "failed": 0,
   "results": [
     {
@@ -592,7 +592,7 @@
     },
     {
       "id": "PRO-EARLY-02",
-      "name": "nouvelle discipline tardive : deux angles a la cible mais un troisieme angle encore jamais vu => CONTINUE (jamais CONFIRMED tant qu'un angle a des candidats non echantillonnes) ; vivier epuise => CONFIRMED",
+      "name": "nouvelle discipline tardive : deux angles suffisants mais un troisieme angle jamais vu => CONTINUE ; angle non vu evalue, angles suffisants fermes ; vivier de l'angle epuise sans approuve => PANEL_EXHAUSTED_WITH_GAPS (jamais CONFIRMED)",
       "ok": true
     },
     {
@@ -668,6 +668,111 @@
     {
       "id": "ROUTING-01",
       "name": "routage par finalite : une route posee (opts.routing) envoie la finalite vers ce modele (corps de requete, ledger, llm-calls, registre), les autres finalites restent sur le modele principal ; la reuse compare le modele de la finalite ; sans route : tout au modele principal",
+      "ok": true
+    },
+    {
+      "id": "SUFF-01",
+      "name": "cible atteinte avec preuves independantes (3 approuves, oeuvres et graines toutes distinctes) => DIMENSION_SUFFICIENT, angle ferme, motif et effectifs enregistres",
+      "ok": true
+    },
+    {
+      "id": "SUFF-02",
+      "name": "cible numerique atteinte mais une seule oeuvre citee par tous (co-auteurs) => 3 representants, 1 independant : PAS suffisant ; un 2e independant suffit ensuite (plancher contractuel 2) ; meme chose pour une graine commune",
+      "ok": true
+    },
+    {
+      "id": "SUFF-03",
+      "name": "vivier epuise + 0 approuve => DIMENSION_EXHAUSTED_EMPTY, jamais SUFFICIENT ; panel => PANEL_EXHAUSTED_WITH_GAPS, early-stop reste CONTINUE, reserve « faute de candidats »",
+      "ok": true
+    },
+    {
+      "id": "SUFF-04",
+      "name": "vivier epuise + representation partielle (1 approuve) => DIMENSION_EXHAUSTED_PARTIAL (jamais SATISFIED), effectifs et cible dans le motif",
+      "ok": true
+    },
+    {
+      "id": "SUFF-05",
+      "name": "toutes dimensions suffisantes => PANEL_SUFFICIENT / EARLY_STOP_CONFIRMED ; les candidats restants ne sont plus evalues ; l'enonce dit « politique produit », pas « preuve »",
+      "ok": true
+    },
+    {
+      "id": "SUFF-06",
+      "name": "une dimension epuisee vide et les autres suffisantes => PANEL_EXHAUSTED_WITH_GAPS (« on ne peut plus trouver » ≠ « on a assez ») ; un angle sans vivier (NO_POOL) est un manque explicite",
+      "ok": true
+    },
+    {
+      "id": "SUFF-07",
+      "name": "budget atteint avant suffisance : le verrou de transport est verifie avant la suffisance (source) ; les observations posterieures au verrou sont ignorees (ignore=TRANSPORT_LATCHED) : elles n'epuisent jamais un vivier",
+      "ok": true
+    },
+    {
+      "id": "SUFF-08",
+      "name": "reprise : la meme sequence d'observations (reponses reutilisees) redonne exactement la meme decision et les memes candidats non evalues (determinisme, aucune horloge dans la decision)",
+      "ok": true
+    },
+    {
+      "id": "SUFF-09",
+      "name": "aucun appel LLM ajoute : lib/panel-sufficiency.js n'importe ni llm ni fetch ni transport ; la decision du gate est la fonction pure gelee (gateCandidate), appelee en lecture seule",
+      "ok": true
+    },
+    {
+      "id": "SUFF-10 / SUFF-11",
+      "name": "aucun hardcoding : aucune discipline, aucun nom de cas, aucun nombre du run reel dans la politique, le module et la config ; scanner anti-hardcoding vert",
+      "ok": true
+    },
+    {
+      "id": "SUFF-12",
+      "name": "policy enregistree dans les artefacts : la decision porte id, strategie, provenance, parametres effectifs, plancher contractuel (source gelee), par angle : etat, motif, representants, independants, oeuvres/graines distinctes, vivier initial/restant/non evalue, raison de fermeture",
+      "ok": true
+    },
+    {
+      "id": "SUFF-13",
+      "name": "une supporting work non identifiable (absente de supportingWorks : inventee ou non resolue) ne cree jamais d'independance ni de cardinalite documentaire",
+      "ok": true
+    },
+    {
+      "id": "SUFF-14",
+      "name": "la normalisation des references ne change pas la cardinalite documentaire : deux graphies de la meme oeuvre = une identite (workRef), un titre canonique identique = une identite",
+      "ok": true
+    },
+    {
+      "id": "WORKREF-ADV-01",
+      "name": "apostrophe droite, guillemets droits, casse, espaces, accents (NFD/NFC) => remplaces par le titre canonique UNIQUE ; DOI en casse differente => DOI reel",
+      "ok": true
+    },
+    {
+      "id": "WORKREF-ADV-02",
+      "name": "deux titres du corpus identiques apres canonisation (« Titre jumeau » / « titre  JUMEAU ») => AMBIGU : aucun remplacement, la reference reste telle quelle et le validateur gele la refuse",
+      "ok": true
+    },
+    {
+      "id": "WORKREF-ADV-03",
+      "name": "reference inventee (absente) => aucun remplacement, jamais ajoutee ni supprimee ; validateur gele : refus",
+      "ok": true
+    },
+    {
+      "id": "WORKREF-ADV-04",
+      "name": "aucune reference ajoutee ni supprimee, ordre conserve ; rationale, relevanceStatus, epistemicStatus, limitations, professionalRef et cles racine intacts (comparaison structurelle)",
+      "ok": true
+    },
+    {
+      "id": "WORKREF-ADV-05",
+      "name": "hashes journalises : originalSha256 = sha du texte recu, normalizedSha256 = sha du texte rendu, journal sans rationale ; texte non EF-02D2 (autre schema, pas de judgments, JSON invalide, prose) inchange",
+      "ok": true
+    },
+    {
+      "id": "WORKREF-ADV-06",
+      "name": "le validateur gele accepte la sortie normalisee et refuse l'entree brute : la normalisation n'accepte jamais plus que le validateur n'accepterait sur le titre reel",
+      "ok": true
+    },
+    {
+      "id": "WORKREF-ADV-07",
+      "name": "cloture Markdown ```json``` autour de la reponse : normalisation appliquee a l'interieur, sortie = JSON pur accepte par le validateur gele",
+      "ok": true
+    },
+    {
+      "id": "WORKREF-ADV-08",
+      "name": "corpus tel que le validateur le connait : corpusFromPrompt lit le JSON gele du prompt ; prompt sans corpus => null => adaptateur inactif (jamais une normalisation sur un corpus suppose)",
       "ok": true
     }
   ]
