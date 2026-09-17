@@ -10717,7 +10717,7 @@ function makeEnvelope(){
   schema.properties=Object.assign({},schema.properties,{id_echange:{type:'string',const:state.exchangeId}});
   schema.required=Array.from(new Set([...(schema.required||[]),'id_echange']));
   const adnContract=adnCompactContractForArchitecte();
-  const adnBlock=adnContract?'\n\n## CONTRAT D’EXÉCUTION ADN — CADRAGE À PRÉSERVER\nCe contrat est une donnée de cadrage pour le livrable final. À cette étape Architecte, produisez uniquement l’analyse JSON demandée par le système ; ne produisez pas encore le livrable final. Préservez toutes les obligations, hypothèses, quantités, verrous et limites jusqu’à la compilation finale.\n'+JSON.stringify(adnContract,null,2):'';
+  const adnBlock=adnContract?'\n\n## CONTRAT D’EXÉCUTION ADN — CADRAGE À PRÉSERVER\nCe contrat est une donnée de cadrage pour le livrable final. À cette étape Architecte, produisez uniquement l’analyse JSON demandée par le système ; ne produisez pas encore le livrable final. Préservez jusqu’à la compilation finale tout ce que ce contrat porte, registre par registre. Ils sont DISTINCTS et ne se remplacent pas : une obligation engage, une hypothèse reste révisable, une délégation vous autorise à décider, une inconnue conservée doit rester inconnue plutôt que d’être comblée, un fait à vérifier ne doit pas être affirmé avant de l’être. Un registre absent signifie qu’il est vide, jamais qu’il ne compte pas.\n'+JSON.stringify(adnContract,null,2):'';
   const readinessInstruction=adnReadinessInstruction();
   const readinessBlock=readinessInstruction?'\n\n'+readinessInstruction:'';
   const request=api.systeme+'\n\n## IDENTIFIANT D’ÉCHANGE\nL’objet JSON de sortie doit contenir en racine exactement : "id_echange": "'+state.exchangeId+'". Cet identifiant sert uniquement à relier la réponse à la bonne demande et ne doit jamais être modifié.'+adnBlock+readinessBlock+'\n\n## ENTRÉE À ANALYSER\n'+JSON.stringify(api.contexte(),null,2)+'\n\n## SCHÉMA JSON DE SORTIE\n'+JSON.stringify(schema,null,2)+'\n\n## LIVRAISON OBLIGATOIRE\nCréez réellement un fichier JSON téléchargeable nommé exactement "'+state.responseName+'". Le contenu de ce fichier doit être uniquement l’objet JSON conforme au schéma ci-dessus, sans balise Markdown, sans commentaire et sans texte supplémentaire. Joignez ce fichier à votre réponse. Ne collez pas le JSON dans le corps de la réponse comme résultat principal. Si, et seulement si, votre environnement ne permet techniquement pas de créer ou joindre un fichier, affichez alors l’objet JSON brut comme solution de repli.';
@@ -23114,23 +23114,61 @@ function adnMergeLegacyLocks(existing,projection){
   [...(Array.isArray(existing)?existing:[]),...(projection&&Array.isArray(projection.legacy_lock_ids)?projection.legacy_lock_ids:[])].forEach(id=>{if(id&&!merged.includes(id))merged.push(id)});
   return merged;
 }
+/* OPTION C — LES REGISTRES SÉMANTIQUES ATTEIGNENT LE CONSOMMATEUR FINAL.
+ *
+ * CE QUI A ÉTÉ MESURÉ. Sur cinq demandes réelles, « Je te laisse décider du reste » n'apparaissait
+ * dans AUCUN contrat produit — ni comme délégation, ni comme décision, ni comme citation. Une
+ * absence de budget y devenait « Budget non contraint ». Une date inconnue y devenait « le prochain
+ * samedi disponible ». Le contrat ne connaissait que deux registres — obligation et hypothèse — et
+ * tout ce qui n'était ni l'un ni l'autre tombait dans le second, ou disparaissait.
+ *
+ * OÙ LA PERTE SE PRODUISAIT, ET OÙ ELLE NE SE PRODUISAIT PAS. `canonicalBaseToEnvelopeInput()`
+ * projette vers l'état ADN en aplatissant : c'est délibéré, documenté par ADN-CANON-02, et COMPENSÉ
+ * — l'enveloppe attache la base canonique verbatim, précisément pour que ces sept registres restent
+ * lisibles en aval. La base était donc là, intacte, à côté du contrat. Cette fonction ne la
+ * regardait pas. La perte tenait en une omission de lecture, pas en une projection destructrice.
+ *
+ * CE QUI EST FAIT ICI, ET RIEN D'AUTRE : lire les registres depuis la base attachée. Aucune valeur
+ * n'est réinterprétée, aucune catégorie n'est créée, aucun registre n'est converti en un autre. Les
+ * noms sont ceux de l'amont. Un registre vide n'écrit aucune clé : un contrat ne doit pas porter le
+ * bruit de ce qu'il n'a pas.
+ *
+ * CE QUE CE LOT NE FAIT PAS. Il n'oblige personne à employer ces cases. Si l'autorité ne remplit pas
+ * `delegated_decisions`, cette fonction ne l'inventera pas — et c'est la seule conduite honnête. */
+function adnRegistreTextes(items){
+  return (Array.isArray(items)?items:[]).map(x=>typeof x==='string'?x:(x&&(x.text||x.description))||'').map(v=>String(v).trim()).filter(Boolean);
+}
 function adnCompactContractForArchitecte(){
   const env=adpState.lastEnvelope;
   if(!env||!env.contract)return null;
   let contract=env.contract;
   try{const runtime=adnRuntime();if(runtime&&typeof runtime.contractForContractualization==='function')contract=runtime.contractForContractualization(env.contract)}catch(error){console.warn('Execution Readiness Gate indisponible ; contrat ADN historique conservé.',error)}
-  return {
+  /* La base canonique accompagne l'enveloppe depuis ADN-CANON-02. Absente — chemins sans tour
+     sémantique — aucun registre n'est écrit, et le contrat reste exactement ce qu'il était. */
+  const base=env.canonical_base||null;
+  const intent=base&&base.intent||{};
+  const registres={
+    secondary_objectives:adnRegistreTextes(intent.secondary_objectives),
+    priorities:adnRegistreTextes(intent.priorities),
+    preferences:adnRegistreTextes(intent.preferences),
+    delegated_decisions:adnRegistreTextes(intent.delegated_decisions),
+    remaining_unknowns:adnRegistreTextes(base&&base.executability&&base.executability.remaining_unknowns),
+    external_facts_to_research:adnRegistreTextes(base&&base.evidence&&base.evidence.external_facts)
+  };
+  const compact={
     version:contract.version||'1.0',
     request_id:contract.request_id,
     obligations:(contract.obligations||[]).map(x=>({text:x.text,source:x.source,mandatory:x.mandatory})),
     quantities:contract.quantities||[],
-    assumptions:contract.assumptions||[],
-    output:contract.output||{},
-    locks:(contract.locks||[]).map(x=>({id:x.id,priority:x.priority,reason:x.reason})),
-    readiness:contract.readiness||{state:'contractualization',can_analyze:true,can_execute:false},
-    execution_policy:contract.execution_policy||{},
-    ethics:contract.ethics||{}
+    assumptions:contract.assumptions||[]
   };
+  for(const cle of Object.keys(registres))if(registres[cle].length)compact[cle]=registres[cle];
+  compact.output=contract.output||{};
+  compact.locks=(contract.locks||[]).map(x=>({id:x.id,priority:x.priority,reason:x.reason}));
+  compact.readiness=contract.readiness||{state:'contractualization',can_analyze:true,can_execute:false};
+  compact.execution_policy=contract.execution_policy||{};
+  compact.ethics=contract.ethics||{};
+  return compact;
 }
 /* ADN-ARCH-01 — ENRICHISSEMENT ARCHITECTE DU CONTRAT CANONIQUE.
  * Additif seulement : l'enrichisseur ne peut écrire que dans des champs que
