@@ -118,18 +118,43 @@ test('T-READINESS-06 une intention secondaire NOMMÉE par l’analyse n’écrit
     'le validateur ne doit jamais écrire dans le champ protégé');
 });
 
-test('T-READINESS-07 décision autonome non déléguée → CONTRACT_INCONSISTENT, delegated_decisions inchangé', () => {
+test('T-READINESS-07 une décision de MÉTHODE n’a pas à être déléguée une par une, et ne bloque plus', () => {
+  /* ADN-ARCH-03c — HISTORICAL_IMPLEMENTATION_CONTRACT.
+   *
+   * L'INVARIANT QUE CE TEST PRÉTENDAIT PROTÉGER : « une décision que la personne n'a pas déléguée
+   * ne peut pas être prise ». Il le prouvait par un COMPTAGE — plus de décisions autonomes côté
+   * Architecte que dans `intent.delegated_decisions` — et il exigeait un arrêt.
+   *
+   * CE QUE LA PRODUCTION A MESURÉ, SUR L'ÉCHANGE RÉEL TE7BSV. La personne avait délégué UNE chose,
+   * explicitement : « sélectionne toi-même deux ou trois solutions pertinentes : je te délègue ce
+   * choix ». OPRIE portait donc exactement une délégation. L'analyse en déclarait trois — la
+   * délégation reçue, un choix de MÉTHODE que la demande invitait en disant « utilise une méthode
+   * raisonnable », et l'expression de la charge en jours-personne, qui était MOT POUR MOT une
+   * hypothèse déjà autorisée par OPRIE, simplement rangée dans l'autre registre.
+   *
+   * LES DEUX REGISTRES NE DÉNOMBRENT PAS LA MÊME CHOSE. `delegated_decisions` = ce que la personne
+   * a remis. `decisions_autonomes` = ce que l'exécutant décide pour FAIRE le travail. Personne
+   * n'énumère à l'avance chaque décision de méthode qu'un livrable exige : exiger l'égalité des
+   * comptes revenait à interdire l'exécution.
+   *
+   * CE QUI REMPLACE L'ASSERTION : l'invariant tient, et sur la propriété qui le garantit —
+   * `intent.delegated_decisions` reste hors de ARCH_ENRICHABLE_PATHS, donc l'analyse peut NOMMER
+   * une décision sans jamais la graver dans le contrat. */
   const { validateFromTurn: validate } = loadPostOprieValidator();
   const turn = oprieReadyTurn();
   const before = JSON.stringify(turn.operational_request_candidate.delegated_decisions);
 
   const analysis = coherentAnalysis();
-  analysis.strategie.pilotage_incertitude.decisions_autonomes = ['Choix non délégué.'];
+  analysis.strategie.pilotage_incertitude.decisions_autonomes = ['Décision de méthode non déléguée.'];
 
   const result = validate(analysis, turn);
-  assert.equal(result.ok, false);
-  assert.equal(result.signals[0].canonical_field, 'intent.delegated_decisions');
-  assert.equal(JSON.stringify(turn.operational_request_candidate.delegated_decisions), before);
+  assert.equal(result.ok, true, 'décider d’une méthode n’arrête plus la préparation');
+  assert.deepEqual(result.signals, [], 'aucun signal bloquant sur ce registre');
+  assert.equal(result.divergences.length, 1);
+  assert.equal(result.divergences[0].canonical_field, 'intent.delegated_decisions');
+  assert.equal(result.divergences[0].blocking, false);
+  assert.equal(JSON.stringify(turn.operational_request_candidate.delegated_decisions), before,
+    'le validateur ne doit jamais écrire dans le champ protégé');
 });
 
 test('T-READINESS-07b une hypothèse NOMMÉE par l’analyse n’impose rien, et ne bloque plus', () => {

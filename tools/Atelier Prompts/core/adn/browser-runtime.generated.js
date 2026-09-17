@@ -1,5 +1,5 @@
 /* GENERATED — LOT 10G.3B.3F.2
- * source-sha256: 169fef3aecff4beeeaeaadc26d3f04f5d68f0eff23f101d26cb65661f32bb3ff
+ * source-sha256: 0d5ef59c9b78b7f6a1b6aee2814cef9055d5959bc133efa9a5955b65bf7f112a
  * Ne pas modifier manuellement. Régénérer avec tools/build-adn-browser-runtime.mjs
  */
 (function(global){
@@ -2665,10 +2665,21 @@ function diagnoseAgainstOprie(analysis, base, signals, observations) {
     observations.push(registerDivergence('intent.secondary_objectives', 'comprehension.intentions_secondaires',
       list(base.intent.secondary_objectives).length, list(comprehension.intentions_secondaires).length));
   }
+  /* ADN-ARCH-03c — OBSERVÉ, PLUS BLOQUANT, SUR PREUVE DE L'ÉCHANGE TE7BSV.
+     Les deux registres ne dénombrent pas la même chose. `intent.delegated_decisions` porte ce que la
+     personne a EXPLICITEMENT remis — ici « sélection des 2 à 3 solutions SaaS », parce qu'elle avait
+     écrit « je te délègue ce choix ». `decisions_autonomes` porte ce que l'exécutant décide POUR
+     FAIRE le travail, méthode comprise. L'analyse en déclarait trois : la délégation reçue, plus
+     « choisir une méthode homogène de comparaison sur trois ans » — que la demande invite
+     explicitement — plus « exprimer la charge humaine en jours-personne », qui est MOT POUR MOT
+     l'hypothèse qu'OPRIE avait autorisée, reclassée d'un registre à l'autre.
+     Personne ne peut énumérer à l'avance chaque décision de méthode. 3 > 1 arrêtait donc un tour que
+     l'Architecte déclarait prêt. Nommer une décision ne la grave pas : `intent.delegated_decisions`
+     reste hors de ARCH_ENRICHABLE_PATHS. */
   if (list(pilotage.decisions_autonomes).length > list(base.intent.delegated_decisions).length) {
-    signals.push(signal('CONTRACT_INCONSISTENT', 'intent.delegated_decisions',
+    observations.push(registerDivergence('intent.delegated_decisions',
       'strategie.pilotage_incertitude.decisions_autonomes',
-      'Une décision autonome non déléguée par la personne apparaît dans l’analyse.', true));
+      list(base.intent.delegated_decisions).length, list(pilotage.decisions_autonomes).length));
   }
   /* ADN-ARCH-03 — OBSERVÉ, PLUS BLOQUANT. Sur JCBRHF, la troisième hypothèse portait sur l'identité
      des destinataires, que le contrat OPRIE avait déjà déléguée : 3 contre 2, pour un fait déjà
@@ -12446,5 +12457,5 @@ function createAdapterAuditView(envelope) {
 
 return {ENGINE_ADAPTERS_VERSION,buildExecutionEnvelope,projectToRapide,projectToArchitecte,projectToAtelier,validateLegacyLockMapping,createAdapterAuditView};
 })({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON});
-global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...BOUNDED,...ORCORE,...ROLEDEG,...SOLICIT,...COREPLANE,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'169fef3aecff4beeeaeaadc26d3f04f5d68f0eff23f101d26cb65661f32bb3ff'});
+global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...BOUNDED,...ORCORE,...ROLEDEG,...SOLICIT,...COREPLANE,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'0d5ef59c9b78b7f6a1b6aee2814cef9055d5959bc133efa9a5955b65bf7f112a'});
 })(window);

@@ -214,16 +214,16 @@ test('T-AA03-08 · D : l’analyse cohérente historique ne régresse pas', () =
   assert.deepEqual(validateArchCanonicalEnrichment(base, contract, analyse).mutated_oprie_fields, []);
 });
 
-test('T-AA03-09 : les DEUX autres comparaisons de cardinalité gardent leur autorité', () => {
+test('T-AA03-09 : la DERNIÈRE comparaison de cardinalité garde son autorité', () => {
   /* PÉRIMÈTRE, MIS À JOUR PAR ADN-ARCH-03b. Trois comparaisons ont désormais perdu leur autorité,
      chacune sur preuve d’un cas réel : `assumptions.allowed` et `executability.remaining_unknowns`
-     (JCBRHF, VELA5Q), puis `intent.secondary_objectives` (GASPPN). Les DEUX dernières la conservent,
-     et le resteront tant qu’aucun cas réel ne les invalide : les toucher par analogie serait décider
-     à la place du propriétaire. Ce test le constate, pour qu’un lot futur voie ce qui a été laissé. */
+     (JCBRHF, VELA5Q), puis `intent.secondary_objectives` (GASPPN), puis `intent.delegated_decisions`
+     (TE7BSV). Il n’en reste qu’UNE — `executability.substitutable_missing` ← `ambiguites` — et elle
+     conserve son autorité tant qu’aucun cas réel ne l’invalide : la désarmer par analogie serait
+     décider à la place du propriétaire. Ce test le constate, pour qu’un lot futur voie ce qui reste. */
   const { validate } = loadPostOprieValidator();
   const base = canonicalFrom(oprieReadyTurn());
   const cas = [
-    ['intent.delegated_decisions', (a) => { a.strategie.pilotage_incertitude = { decisions_autonomes: ['D1'], estimations_a_etiqueter: [], inconnues_non_devineables: [] }; }],
     ['executability.substitutable_missing', (a) => { a.comprehension.ambiguites = ['A1']; }]
   ];
   for (const [champ, muter] of cas) {
@@ -236,26 +236,47 @@ test('T-AA03-09 : les DEUX autres comparaisons de cardinalité gardent leur auto
   const analyseAmb = coherentAnalysis();
   analyseAmb.comprehension.ambiguites = ['A1'];
   assert.equal(validate(analyseAmb, base).ok, false, 'l’artefact bloque encore sur les ambiguïtés');
-  /* Le troisième registre désarmé ne bloque plus, ni au module ni à l’artefact. */
-  const analyseSec = coherentAnalysis();
-  analyseSec.comprehension.intentions_secondaires = ['S1'];
-  const verdictSec = validate(analyseSec, base);
-  assert.equal(verdictSec.ok, true, 'les objectifs secondaires ne bloquent plus');
-  assert.equal(verdictSec.divergences[0].canonical_field, 'intent.secondary_objectives');
+  /* LES QUATRE REGISTRES DÉSARMÉS NE BLOQUENT PLUS, ET LES DEUX IMPLÉMENTATIONS N'EN PORTENT PAS
+     AUTANT — ce que ce test dit explicitement plutôt que de le contourner.
+     L'artefact compare quatre registres ; le module en compare cinq. `remaining_unknowns` n'a
+     JAMAIS existé côté artefact : c'est pourquoi VELA5Q ne tombait que par le module. L'asymétrie
+     est antérieure à ce chantier ; la nommer ici évite qu'un lot futur la prenne pour un oubli. */
+  const DESARMES_ARTEFACT = [
+    ['intent.secondary_objectives', (a) => { a.comprehension.intentions_secondaires = ['S1']; }],
+    ['intent.delegated_decisions', (a) => { a.strategie.pilotage_incertitude.decisions_autonomes = ['D1']; }],
+    ['assumptions.allowed', (a) => { a.strategie.hypotheses_autorisees = ['H1']; }]
+  ];
+  for (const [champ, muter] of DESARMES_ARTEFACT) {
+    const analyse = coherentAnalysis();
+    muter(analyse);
+    const verdict = validate(analyse, base);
+    assert.equal(verdict.ok, true, `${champ} ne bloque plus`);
+    assert.equal(verdict.divergences[0].canonical_field, champ, `${champ} est observé par l’artefact`);
+  }
+  /* Le cinquième registre est du ressort du MODULE seul, et il y est observé de la même façon. */
+  const analyseUnk = coherentAnalysis();
+  analyseUnk.strategie.pilotage_incertitude.inconnues_non_devineables = ['U1'];
+  const verdictUnk = validate(analyseUnk, base);
+  assert.equal(verdictUnk.ok, true, 'l’artefact ne juge pas ce registre');
+  assert.deepEqual(verdictUnk.divergences, [], 'et il ne l’observe pas non plus : il ne le connaît pas');
+  const moduleUnk = enrichCanonicalContractFromArchAnalysis(base, analyseUnk);
+  assert.deepEqual(moduleUnk.signals, [], 'le module ne bloque pas davantage');
+  assert.equal(moduleUnk.observations[0].canonical_field, 'executability.remaining_unknowns',
+    'c’est le module qui porte ce registre, et il l’observe');
 });
 
 /* ==========================================================================
  * LES FICHIERS RÉELS, QUAND ILS SONT LÀ
  * ======================================================================= */
 
-test('T-AA03-10 : rejeu des échanges réels JCBRHF, VELA5Q et GASPPN', (t) => {
+test('T-AA03-10 : rejeu des échanges réels JCBRHF, VELA5Q, GASPPN et TE7BSV', (t) => {
   /* Ces fichiers portent la demande d’une personne : ils ne sont PAS versionnés. Le test les
      rejoue quand ils sont présents sur la machine du propriétaire, et se déclare ignoré sinon —
      la propriété est déjà couverte par les fixtures neutres ci-dessus, aux mêmes cardinalités. */
   const dossier = `${process.env.HOME}/Downloads`;
-  const presents = ['JCBRHF', 'VELA5Q', 'GASPPN'].filter((id) =>
+  const presents = ['JCBRHF', 'VELA5Q', 'GASPPN', 'TE7BSV'].filter((id) =>
     fs.existsSync(`${dossier}/demande-pour-ia-${id}.json`) && fs.existsSync(`${dossier}/reponse-de-ia-${id}.json`));
-  if (presents.length < 3) return t.skip('échanges réels absents de cette machine');
+  if (presents.length < 4) return t.skip('échanges réels absents de cette machine');
 
   const { validate } = loadPostOprieValidator();
   for (const id of presents) {
@@ -324,6 +345,47 @@ test('T-AA03-12 · GASPPN : un registre ABSENT du contrat vaut zéro, et n’arr
   assert.deepEqual(validateArchCanonicalEnrichment(base, contract, analyse).mutated_oprie_fields, []);
   assert.equal(JSON.stringify(contract).includes('communication sereine'), false,
     'l’intention nommée n’entre pas dans le contrat');
+});
+
+test('T-AA03-13 · TE7BSV : décider d’une MÉTHODE n’exige pas une délégation par décision', () => {
+  /* LE CAS TE7BSV, EN FIXTURE NEUTRE. La personne avait délégué UNE chose, explicitement. L'analyse
+     déclarait trois décisions autonomes : celle-là, un choix de méthode que la demande invitait, et
+     une hypothèse déjà autorisée par OPRIE — le même fait rangé dans l'autre registre.
+
+     CE QUE CETTE FORME ÉTABLIT, et qu'aucun des trois cas précédents ne montrait aussi nettement :
+     exiger l'égalité des comptes revenait à exiger qu'une personne énumère à l'avance CHAQUE
+     décision de méthode qu'un livrable demande. Ce n'est pas une garde trop stricte, c'est une
+     garde impossible à satisfaire. */
+  const { validateFromTurn } = loadPostOprieValidator();
+  const tour = oprieReadyTurn({ operational_request_candidate: {
+    delegated_decisions: ['La seule chose explicitement déléguée.'],
+    secondary_objectives: ['S1', 'S2', 'S3'], assumptions_allowed: ['A1', 'A2']
+  } });
+  const base = canonicalFrom(tour);
+  assert.equal(base.intent.delegated_decisions.length, 1, 'une seule délégation, comme à l’export');
+
+  const analyse = coherentAnalysis();
+  analyse.strategie.pilotage_incertitude.decisions_autonomes = [
+    'La délégation reçue, reprise.', 'Un choix de méthode que la demande invitait.',
+    'Une hypothèse déjà autorisée, reclassée ici.'
+  ];
+
+  const verdict = validateFromTurn(analyse, tour);
+  assert.equal(verdict.ok, true, 'le tour n’est plus arrêté');
+  assert.deepEqual(verdict.signals, [], 'zéro signal bloquant');
+  assert.equal(verdict.divergences.length, 1);
+  assert.equal(verdict.divergences[0].canonical_field, 'intent.delegated_decisions');
+  assert.equal(verdict.divergences[0].canonical_count, 1);
+  assert.equal(verdict.divergences[0].arch_count, 3);
+
+  /* Et le contrat compilé ne porte que la délégation d'OPRIE. */
+  const { contract, signals, observations } = enrichCanonicalContractFromArchAnalysis(base, analyse);
+  assert.deepEqual(signals, []);
+  assert.ok(observations.some((o) => o.canonical_field === 'intent.delegated_decisions'));
+  assert.deepEqual(contract.intent.delegated_decisions, base.intent.delegated_decisions);
+  assert.deepEqual(validateArchCanonicalEnrichment(base, contract, analyse).mutated_oprie_fields, []);
+  assert.equal(JSON.stringify(contract).includes('choix de méthode'), false,
+    'la décision nommée n’entre pas dans le contrat');
 });
 
 test('T-AA03-11 : aucun appariement lexical n’a été introduit', () => {

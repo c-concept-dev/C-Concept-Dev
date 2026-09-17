@@ -13,8 +13,8 @@
 | --- | --- |
 | Lot | HTML-FINAL-02 |
 | Artefact | Atelier de prompts — V11.5 LOT 10G Adaptive Decision Pipeline |
-| Commit local | `cdfd2acdf59d0263ac7e9257a72e38a1d27fbea7` |
-| Date du commit | 2026-09-18T00:57:46+02:00 |
+| Commit local | `cb4607de7d56454ab2167194e02671ae330a61a1` |
+| Date du commit | 2026-09-18T01:03:55+02:00 |
 
 ## Artefact canonique
 
@@ -24,8 +24,8 @@ aucune police et aucune image ne sont chargés depuis un tiers.
 | Champ | Valeur |
 | --- | --- |
 | Chemin | `atelier-prompts-v11.5-lot10g-decision-provider.html` |
-| Taille | 1568772 octets |
-| SHA-256 | `f2eab661a93935847e48884b3a0637925d4c3126ab4ca6bb25478d0afd2618ab` |
+| Taille | 1571161 octets |
+| SHA-256 | `6e8e172ecbfb4d7489d875d58b0057ece8ab787f97a0c0b4e750b8c792e5b8c9` |
 
 ## Runtime compilé
 
@@ -34,11 +34,11 @@ Le bloc embarqué dans la page et le fichier généré sont comparés octet pour
 | Champ | Valeur |
 | --- | --- |
 | Fichier | `core/adn/browser-runtime.generated.js` |
-| SHA-256 du fichier | `c28b7b3e25bf156ec64b624f383984954762740d09d9e58c03f5e07eade0ad0c` |
-| SHA-256 du bloc embarqué | `c28b7b3e25bf156ec64b624f383984954762740d09d9e58c03f5e07eade0ad0c` |
+| SHA-256 du fichier | `6e9f722a58c3fa37b1dba7d09f4438645d14c9b34fdba07ed7d76937cb05c3d0` |
+| SHA-256 du bloc embarqué | `6e9f722a58c3fa37b1dba7d09f4438645d14c9b34fdba07ed7d76937cb05c3d0` |
 | Identiques | oui |
 | Blocs de runtime dans la page | 1 |
-| Empreinte des sources compilées | `169fef3aecff4beeeaeaadc26d3f04f5d68f0eff23f101d26cb65661f32bb3ff` |
+| Empreinte des sources compilées | `0d5ef59c9b78b7f6a1b6aee2814cef9055d5959bc133efa9a5955b65bf7f112a` |
 
 ## Plages gelées
 
@@ -59,17 +59,17 @@ Le bloc embarqué dans la page et le fichier généré sont comparés octet pour
 l'artefact. Le manifeste lui-même en est exclu : un document ne peut pas contenir
 sa propre empreinte.
 
-| Empreinte du jeu | `5a65c55286d4844586cf3e7a9cd98597647c6627f5bf2f44854e23232e3102d4` |
+| Empreinte du jeu | `9e3f70887bc43696d0c3172059ffc0c897c3dedbdec5da3b200554786387d092` |
 | --- | --- |
 
 | Classe | Fichier | SHA-256 |
 | --- | --- | --- |
 | REQUIRED_BUILD | `anti-regression-baseline.json` | `7bd0fcca3f3ed226e3fdd30ee52dc204dae158dbde8842c08731054a1f58e7d6` |
-| REQUIRED_HTML | `atelier-prompts-v11.5-lot10g-decision-provider.html` | `f2eab661a93935847e48884b3a0637925d4c3126ab4ca6bb25478d0afd2618ab` |
+| REQUIRED_HTML | `atelier-prompts-v11.5-lot10g-decision-provider.html` | `6e8e172ecbfb4d7489d875d58b0057ece8ab787f97a0c0b4e750b8c792e5b8c9` |
 | REQUIRED_BUILD | `core/adn/adaptive-lock-selector.js` | `15d3154d639b761747a26215f2ec59eb6b121e6072187b6a2dd611eefe5b65ea` |
 | REQUIRED_BUILD | `core/adn/adn-state.js` | `814bbc8318cd2e20d1964c0930809e9997e00bf1cfe8f474aa8f3f39af767d8b` |
-| REQUIRED_BUILD | `core/adn/arch-canonical-enrichment.js` | `fde296f1751f90cf41eee0654a16a258d613262a7639f7482ec9e1d9fcc3f3bf` |
-| REQUIRED_BUILD | `core/adn/browser-runtime.generated.js` | `c28b7b3e25bf156ec64b624f383984954762740d09d9e58c03f5e07eade0ad0c` |
+| REQUIRED_BUILD | `core/adn/arch-canonical-enrichment.js` | `94e89993014f2b430e5b02f9d1e2e326eb72947b6218079e785cc47ece3fe618` |
+| REQUIRED_BUILD | `core/adn/browser-runtime.generated.js` | `6e9f722a58c3fa37b1dba7d09f4438645d14c9b34fdba07ed7d76937cb05c3d0` |
 | REQUIRED_BUILD | `core/adn/engine-adapters.js` | `81e206b5bb1705c404a494dd136fea1fd17bb7cd502aca2855b6bf6f9b161255` |
 | REQUIRED_BUILD | `core/adn/execution-lifecycle.js` | `accdee01c6c294f33e28be321024501c152e2fdd6e53298575c2450adebf8ec7` |
 | REQUIRED_BUILD | `core/adn/execution-readiness.js` | `c6aef9daf228e441ad96545ed036c45955d8a46a8fcaf8f387f4a3196132ffb6` |

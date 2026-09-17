@@ -398,10 +398,16 @@ test('T-ARCH02-18b ADN-ARCH-03b : un registre DÉSARMÉ laisse la compilation ab
      OPRIE ne confirme aucun objectif secondaire, l'analyse en nomme deux — et le prompt final EST
      produit, sur les deux chemins. C'est ce que la personne attendait et ne recevait pas. */
   for (const pathName of Object.keys(PATHS)) {
-    const analyse = coherentAnalysis({ comprehension: {
-      ...coherentAnalysis().comprehension,
-      intentions_secondaires: ['Maintenir une communication sereine.', 'Formuler sans ambiguïté.']
-    } });
+    /* ADN-ARCH-03c — la forme TE7BSV rejoint celle de GASPPN : deux registres désarmés à la fois,
+       et le prompt final sort quand même. */
+    const nominale = coherentAnalysis();
+    const analyse = coherentAnalysis({
+      comprehension: { ...nominale.comprehension,
+        intentions_secondaires: ['Maintenir une communication sereine.', 'Formuler sans ambiguïté.'] },
+      strategie: { ...nominale.strategie,
+        pilotage_incertitude: { ...nominale.strategie.pilotage_incertitude,
+          decisions_autonomes: ['Un choix de méthode.', 'Un second choix de méthode.'] } }
+    });
     const h = createPathHarness(pathName, analyse);
     await h.run();
     assert.equal(h.calls.compiler.length, 1, `${pathName} : le prompt final est compilé`);
@@ -410,7 +416,10 @@ test('T-ARCH02-18b ADN-ARCH-03b : un registre DÉSARMÉ laisse la compilation ab
     const recu = h.calls.compiler[0];
     assert.deepEqual(recu.intent.secondary_objectives, [],
       'le contrat compilé ne porte aucune intention ajoutée par l’analyse');
+    assert.deepEqual(recu.intent.delegated_decisions, [],
+      'ni aucune décision que la personne n’a pas déléguée');
     assert.equal(JSON.stringify(recu).includes('communication sereine'), false);
+    assert.equal(JSON.stringify(recu).includes('choix de méthode'), false);
   }
 });
 
