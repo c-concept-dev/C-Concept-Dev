@@ -308,7 +308,12 @@ test('V2152-23 / V2152-24 / V2152-25 : Fast, haute disponibilité et acquis V2.1
      la version courte, en fin de consigne, n'était pas appliquée au premier passage. Le coût — de
      l'ordre de 150 jetons par appel rapide, sur une réserve dont le plancher B3 est connu — est
      mesuré ici, jamais supposé. */
-  assert.equal(FAST_INTERACTION_SYSTEM_PROMPT.length, 9850);
+  /* FAST-INDEPENDENCE — +445 caractères. Le registre des inconnues déclarées était défini par
+     référence à missing_determinant_id et justifié par son seul effet sur la décision du tour :
+     un smoke de robustesse a montré qu'une question sur une autre variable le laissait vide, donc
+     la protection D2 non armée. La règle d'indépendance est posée dans le bloc des faits, avant la
+     doctrine. Mesure de taille, pas invariant : aucune consigne n'a grossi sans décision. */
+  assert.equal(FAST_INTERACTION_SYSTEM_PROMPT.length, 10295);
   /* V2.2 a retiré cette revendication d'autorité du plan rapide : la doctrine qu'il applique est
      celle d'OPRIE, et il le dit. La retenue mesurée, elle, est intacte. */
   assert.match(FAST_INTERACTION_SYSTEM_PROMPT, /La doctrine ci-dessous n'est pas la vôtre/);

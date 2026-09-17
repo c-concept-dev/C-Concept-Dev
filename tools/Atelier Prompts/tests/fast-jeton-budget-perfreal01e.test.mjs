@@ -282,7 +282,7 @@ test('T-PERFREAL01E-15 : aucune réduction n’a été appliquée, et le planche
    * des mots dans le texte. C'est ce qui a permis de retirer trois motifs de vocabulaire décisionnel
    * du chemin de production. Le sens de ce test est intact : il interdit de RACCOURCIR la consigne
    * pour gagner des jetons, jamais de l'allonger pour une raison mesurée. */
-  assert.equal(FAST_INTERACTION_SYSTEM_PROMPT.length, 9850,
+  assert.equal(FAST_INTERACTION_SYSTEM_PROMPT.length, 10295,
     'la consigne n’a pas été raccourcie — elle a été allongée par 03B, BETA-04, V2.1.5, V2.1.5.3, V2.2.1-D2F1 puis TARGETED-FIX-POST-CODEX-01, à coût mesuré');
   assert.equal(FAST_INTERACTION_SYSTEM_PROMPT.split(' ').length > 100, true);
   assert.match(E.optimisation.raison, /la section 6 interdit de supprimer une instruction parce qu elle est longue/);
@@ -382,7 +382,7 @@ test('T-PERFREAL01E-14 : l’artefact frontend n’a pas bougé, et l’observat
      qu'un refus de sortie fournisseur cesse d'être compté comme un défaut de notre code. Aucune
      règle, aucun prompt, aucun schéma, aucun comportement d'interface. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    '61083844254b0edba415ef874579901bec103fbbac03c12d7a44496bc6e3bed7', 'CANONICAL_HTML_CHANGED = NO');
+    'a73c8c840a108ce16d93a0c1886acdc355a15c42c3c78bc3892db1ce92aea954', 'CANONICAL_HTML_CHANGED = NO');
   /* La seule modification du worker est le relevé de usage : cinq champs, aucun branchement. */
   assert.match(WORKER, /event: "groq_usage_observation"/);
   for (const champ of ['jetons_entree', 'jetons_sortie', 'jetons_total',

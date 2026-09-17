@@ -329,6 +329,101 @@ test('T-OPTD-16 : l’historique reçoit le registre, et le tour suivant le voit
     q('Et l’autre donnée ?', { id: 'manque_b' }));
 });
 
+/* ==========================================================================
+ * FAST-INDEPENDENCE — LE REGISTRE NE DÉPEND PAS DE LA DÉCISION DU TOUR
+ *
+ * MESURÉ SUR UN SMOKE DE ROBUSTESSE. Une demande déclarait une inconnue X et portait une variable Y
+ * réellement bloquante — exigée par le livrable lui-même. L'autorité a questionné Y correctement,
+ * n'a PAS redemandé X, et le contrat final n'a rien inventé : le comportement produit était juste.
+ * Mais `explicit_unknown_determinant_ids` valait `[]`. La protection D2 n'était donc pas armée : si
+ * un tour ultérieur avait visé X, rien ne l'aurait arrêté.
+ *
+ * L'AUDIT A TROUVÉ LA CAUSE DANS LE TEXTE, PAS DANS LA STRUCTURE. Le schéma acceptait déjà X et Y
+ * ensemble — vérifié. Le prompt, lui, définissait le registre PAR RÉFÉRENCE à missing_determinant_id
+ * et le justifiait UNIQUEMENT par son effet sur la décision du tour, dans une consigne dont
+ * l'injonction dominante est « plusieurs manques, une seule question ». Rien n'énonçait leur
+ * indépendance.
+ * ======================================================================= */
+
+test('T-OPTD-20 : le registre et la question sont deux faits indépendants, acceptés ensemble', () => {
+  /* T2 du brief, et le cas exact qui a échoué en production. */
+  const xy = { type: 'ASK_CLARIFICATION', text: 'Quelle est la seconde donnée ?',
+    question_focus: 'problem_or_user_context', missing_determinant_id: 'manque_y',
+    explicit_unknown_determinant_ids: ['manque_x'] };
+  const v = validateFastInteraction(xy, snap());
+  assert.equal(v.ok, true, 'X déclaré ET question sur Y : le contrat l’accepte');
+  assert.deepEqual(v.interaction.explicit_unknown_determinant_ids, ['manque_x']);
+  assert.equal(v.interaction.missing_determinant_id, 'manque_y');
+  /* Et le garde laisse passer : la question ne vise pas ce qui a été déclaré. */
+  assert.deepEqual(guardFastInteraction(xy, snap()), xy);
+
+  /* T4 — plusieurs inconnues déclarées survivent toutes à une question sur une autre variable. */
+  const multi = { ...xy, explicit_unknown_determinant_ids: ['manque_x1', 'manque_x2'] };
+  const v2 = validateFastInteraction(multi, snap());
+  assert.deepEqual(v2.interaction.explicit_unknown_determinant_ids, ['manque_x1', 'manque_x2'],
+    'aucune déclaration n’est sacrifiée à la question courante');
+  assert.equal(v2.interaction.missing_determinant_id, 'manque_y');
+});
+
+test('T-OPTD-21 : le registre vide reste légitime, question ou non', () => {
+  /* T5 et T6 — l'indépendance ne rend rien obligatoire : rien de déclaré, rien d'inscrit. */
+  const ask = { type: 'ASK_CLARIFICATION', text: 'Quelle est la donnée ?',
+    question_focus: 'problem_or_user_context', missing_determinant_id: 'manque_y',
+    explicit_unknown_determinant_ids: [] };
+  assert.equal(validateFastInteraction(ask, snap()).ok, true);
+  assert.deepEqual(guardFastInteraction(ask, snap()), ask, 'un registre vide ne bloque rien');
+  const ack = { type: 'ACKNOWLEDGE', text: 'Reçu.', question_focus: null,
+    missing_determinant_id: null, explicit_unknown_determinant_ids: [] };
+  assert.equal(validateFastInteraction(ack, snap()).ok, true);
+  assert.deepEqual(validateFastInteraction(ack, snap()).interaction.explicit_unknown_determinant_ids, []);
+});
+
+test('T-OPTD-22 : l’indépendance est énoncée dans les DEUX moitiés du contrat', () => {
+  /* LE PROMPT — la règle est posée dans le bloc des faits, avant la doctrine qui gouverne la
+     décision, et elle nomme explicitement le type d'interaction qui écrasait le registre. */
+  const i = FAST_INTERACTION_SYSTEM_PROMPT.indexOf('CE REGISTRE EST INDÉPENDANT DE LA DÉCISION DU TOUR');
+  assert.notEqual(i, -1);
+  assert.ok(i < FAST_INTERACTION_SYSTEM_PROMPT.indexOf('AVANT DE QUESTIONNER'),
+    'avant la doctrine de sélection d’une seule question');
+  const regle = FAST_INTERACTION_SYSTEM_PROMPT.slice(i, i + 460);
+  assert.match(regle, /même quand vous rendez ASK_CLARIFICATION sur une AUTRE variable/);
+  assert.match(regle, /Ne videz jamais le registre/);
+
+  /* LE SCHÉMA — la même règle, là où le champ est écrit. Aucune structure n'a changé. */
+  const p = FAST_INTERACTION_JSON_SCHEMA.properties;
+  assert.match(p.explicit_unknown_determinant_ids.description, /indépendant du type d'interaction/);
+  assert.match(p.missing_determinant_id.description, /distinct de explicit_unknown_determinant_ids/);
+  /* Les types, l'ordre, required et la clôture sont intacts — seules deux descriptions sont nées. */
+  assert.deepEqual(p.explicit_unknown_determinant_ids.type, ['array', 'null']);
+  assert.deepEqual(p.explicit_unknown_determinant_ids.items, { type: 'string' });
+  assert.deepEqual(p.missing_determinant_id.type, ['string', 'null']);
+  assert.deepEqual([...FAST_INTERACTION_JSON_SCHEMA.required],
+    ['explicit_unknown_determinant_ids', 'type', 'text', 'question_focus', 'missing_determinant_id']);
+  assert.equal(FAST_INTERACTION_JSON_SCHEMA.additionalProperties, false);
+  assert.equal(Object.keys(p).length, 5);
+  /* Aucun vocabulaire métier dans l'une ou l'autre moitié. */
+  for (const domaine of ['budget', 'date', 'projet', 'réunion', 'prix', 'ville']) {
+    assert.equal(new RegExp(domaine, 'i').test(p.explicit_unknown_determinant_ids.description), false,
+      `« ${domaine} » interdit dans la description`);
+    assert.equal(new RegExp(domaine, 'i').test(regle), false, `« ${domaine} » interdit dans la règle`);
+  }
+});
+
+test('T-OPTD-23 : les descriptions partent réellement avec le schéma, sans filtrage', () => {
+  /* LA SEULE AFFIRMATION QUE JE M'AUTORISE : elles sont TRANSMISES. Ce que le fournisseur en fait
+     est hors de ma portée, et je ne le prétends pas. Ce test mesure le transport, pas l'effet. */
+  const worker = fs.readFileSync(new URL('../workers/groq/src/index.js', import.meta.url), 'utf8');
+  const envoi = worker.slice(worker.indexOf('response_format: {'), worker.indexOf('reasoning_format'));
+  assert.match(envoi, /json_schema: \{/);
+  assert.match(envoi, /\n\s+schema\n/, 'l’objet schéma est transmis tel quel, non reconstruit');
+  /* Aucun filtrage des descriptions nulle part sur le chemin. */
+  assert.equal(/delete\s+\w+\.description|omitDescription|stripSchema/.test(worker), false);
+  /* Et la sérialisation les contient effectivement. */
+  const serialise = JSON.stringify({ type: 'json_schema', json_schema: { name: 'fast_interaction', strict: true, schema: FAST_INTERACTION_JSON_SCHEMA } });
+  assert.ok(serialise.includes('indépendant du type d') , 'la description est dans le payload sérialisé');
+  assert.ok(serialise.includes('distinct de explicit_unknown_determinant_ids'));
+});
+
 test('T-OPTD-17 : la comparaison du garde est désormais observable, et sans contenu', () => {
   /* Le smoke précédent était indécidable faute de ces valeurs. Ce sont des IDENTIFIANTS produits
      par l'autorité — jamais un mot de la personne. */

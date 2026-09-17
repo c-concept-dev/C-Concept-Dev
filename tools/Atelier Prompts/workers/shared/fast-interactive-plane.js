@@ -102,7 +102,25 @@ export const FAST_INTERACTION_JSON_SCHEMA = Object.freeze({
      *
      * CE QU'IL NE FAIT PAS : il ne déclare aucune readiness, ne convertit rien en inconnue
      * résiduelle, et ne juge pas si l'inconnue est bloquante. Il NOMME un fait. */
-    explicit_unknown_determinant_ids: { type: ["array", "null"], items: { type: "string" } },
+    explicit_unknown_determinant_ids: {
+      type: ["array", "null"], items: { type: "string" },
+      /* FAST-INDEPENDENCE — LA DESCRIPTION VOYAGE AVEC LE SCHÉMA, DANS LE MÊME APPEL.
+       *
+       * MESURÉ : sur une demande déclarant une inconnue X ET portant une variable Y réellement
+       * bloquante, l'autorité a correctement questionné Y, n'a pas redemandé X — et a laissé ce
+       * registre VIDE. Le comportement était juste, la déclaration absente, donc la protection D2
+       * non armée.
+       *
+       * L'audit du prompt a montré pourquoi : le registre y était défini PAR RÉFÉRENCE à
+       * missing_determinant_id (« dans le même espace d'identifiants que… ») et justifié UNIQUEMENT
+       * par son effet sur la décision du tour. Rien ne disait qu'il en est indépendant — dans une
+       * consigne dont l'injonction dominante est « plusieurs manques, une seule question ».
+       *
+       * Cette description énonce l'indépendance là où le champ est écrit. Je n'affirme rien sur la
+       * façon dont le fournisseur l'exploite : le seul fait vérifié est qu'elle part avec le schéma
+       * dans `response_format`, le payload transportant l'objet sans filtrage. */
+      description: "Identifiants des informations que la personne a explicitement déclaré ne pas connaître. Ce registre est indépendant du type d'interaction et de missing_determinant_id ; il reste renseigné lorsqu'une question porte sur une autre variable."
+    },
     type: { type: "string", enum: [...FAST_INTERACTION_TYPES] },
     text: { type: "string" },
     /* V2.2.1-D2F1 — ce que la question INTERROGE, dit par celui qui l'écrit. null quand il n'y a
@@ -119,7 +137,10 @@ export const FAST_INTERACTION_JSON_SCHEMA = Object.freeze({
      * Ce n'est pas une seconde autorité : c'est la MÊME décision qui choisit la question, à qui
      * l'on demande de nommer ce qu'elle cherche. Aucun identifiant n'est dérivé de mots-clés, aucun
      * n'est fabriqué par l'interface, et null reste une réponse légitime. */
-    missing_determinant_id: { type: ["string", "null"] }
+    missing_determinant_id: {
+      type: ["string", "null"],
+      description: "Identifiant de l'information recherchée par la question de ce tour. Il est distinct de explicit_unknown_determinant_ids, qui décrit en parallèle les inconnues explicitement déclarées par la personne."
+    }
 
   }
 });
