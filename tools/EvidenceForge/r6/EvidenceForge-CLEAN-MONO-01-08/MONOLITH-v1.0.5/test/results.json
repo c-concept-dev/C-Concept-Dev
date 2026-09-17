@@ -1,8 +1,8 @@
 {
   "schema": "EvidenceForge.MonolithTestResults",
-  "ranAt": "2026-09-17T17:52:47.092Z",
-  "total": 154,
-  "passed": 154,
+  "ranAt": "2026-09-17T18:03:58.144Z",
+  "total": 156,
+  "passed": 156,
   "failed": 0,
   "results": [
     {
@@ -733,6 +733,16 @@
     {
       "id": "SUFF-14",
       "name": "la normalisation des references ne change pas la cardinalite documentaire : deux graphies de la meme oeuvre = une identite (workRef), un titre canonique identique = une identite",
+      "ok": true
+    },
+    {
+      "id": "SUFF-15",
+      "name": "independance : ensemble MAXIMAL (inclusion) glouton, PAS maximum — contre-exemple A{W1,W2} B{W1} C{W2} : ordre A,B,C => 1 independant (maximum = 2 : {B,C}) ; ordre B,C,A => 2 ; jamais de sur-estimation ; strategie journalisee dans la decision",
+      "ok": true
+    },
+    {
+      "id": "SUFF-16",
+      "name": "propriete de surete (400 instances aleatoires deterministes, maximum par force brute) : |glouton| <= |maximum| toujours ; l'ensemble glouton est deux a deux independant ; SUFFICIENT glouton => SUFFICIENT maximum (aucun faux SUFFICIENT) ; sous-estimation observee au moins une fois (documentee)",
       "ok": true
     },
     {

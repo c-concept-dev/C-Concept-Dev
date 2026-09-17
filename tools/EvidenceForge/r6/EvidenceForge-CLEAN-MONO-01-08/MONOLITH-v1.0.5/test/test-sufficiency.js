@@ -68,6 +68,28 @@ module.exports = async function (h) {
     const t = mk(["d1"], 4); ["d1-1", "d1-2", "d1-3"].forEach((r, i) => t.observe({ candidateRef: r, dimension: "d1", relevanceClass: "SUPPORTED", approved: true, supportedDimensions: ["d1"], supportingDimensionsDetail: [{ dimensionId: "d1", supportingWorkRefs: [["L'étude \"A\" : résultats", "L’étude “A” : résultats", "https://doi.org/10.1/x"][i]] }], supportingWorks: works, seedWorkRefs: ["S" + i] }));
     const d = t.decision().perDimension.d1; assert(d.distinctSupportingWorks === 1 && d.independentRepresentatives === 1 && d.state === "DIMENSION_CONTINUE", "meme oeuvre sous trois graphies = 1 oeuvre, co-auteurs non independants : " + JSON.stringify(d)); });
 
+  await T("SUFF-15", "independance : ensemble MAXIMAL (inclusion) glouton, PAS maximum — contre-exemple A{W1,W2} B{W1} C{W2} : ordre A,B,C => 1 independant (maximum = 2 : {B,C}) ; ordre B,C,A => 2 ; jamais de sur-estimation ; strategie journalisee dans la decision", () => {
+    const t = mk(["d1"], 4); ok(t, "d1-1", "d1", ["W1", "W2"]); ok(t, "d1-2", "d1", ["W1"]); ok(t, "d1-3", "d1", ["W2"]); const d = t.decision();
+    assert(d.perDimension.d1.representatives === 3 && d.perDimension.d1.independentRepresentatives === 1 && d.perDimension.d1.independentRefs.join() === "d1-1" && d.perDimension.d1.state === "DIMENSION_CONTINUE", "sous-estimation conservatrice (maximum = 2 aurait suffi) : " + JSON.stringify(d.perDimension.d1));
+    const t2 = mk(["d1"], 4); ok(t2, "d1-2", "d1", ["W1"]); ok(t2, "d1-3", "d1", ["W2"]); ok(t2, "d1-1", "d1", ["W1", "W2"]); const e = t2.decision().perDimension.d1; assert(e.independentRepresentatives === 2 && e.independentRefs.join() === "d1-2,d1-3" && e.state === "DIMENSION_SUFFICIENT", "dependant de l'ordre : " + JSON.stringify(e));
+    assert(d.independenceAlgorithm.id === "GREEDY_MAXIMAL_IN_EVALUATION_ORDER" && d.independenceAlgorithm.guarantee === "MAXIMAL_NOT_MAXIMUM" && d.independenceAlgorithm.bound === "NEVER_OVERESTIMATES" && PS.INDEPENDENCE_ALGORITHM === d.independenceAlgorithm, "strategie journalisee");
+    const src = fs.readFileSync(path.join(ROOT, "lib", "panel-sufficiency.js"), "utf8"); assert(!/plus grand ensemble/.test(src) && /MAXIMAL \(au sens de l'inclusion\)/.test(src) && /PAS un ensemble MAXIMUM/.test(src), "terminologie honnete dans le module"); });
+  await T("SUFF-16", "propriete de surete (400 instances aleatoires deterministes, maximum par force brute) : |glouton| <= |maximum| toujours ; l'ensemble glouton est deux a deux independant ; SUFFICIENT glouton => SUFFICIENT maximum (aucun faux SUFFICIENT) ; sous-estimation observee au moins une fois (documentee)", () => {
+    let seed = 20260917 >>> 0; const rnd = (n) => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return (seed >>> 8) % n; };   /* LCG 32 bits exact (Math.imul), deterministe */
+    const indep = (a, b) => !a.works.some((w) => b.works.indexOf(w) !== -1) && !a.seeds.some((x) => b.seeds.indexOf(x) !== -1);
+    const maximum = (reps) => { let best = 0; const n = reps.length; for (let mask = 1; mask < (1 << n); mask++) { const sel = []; for (let i = 0; i < n; i++) if (mask & (1 << i)) sel.push(reps[i]); if (sel.length <= best) continue; let okSet = true; for (let i = 0; i < sel.length && okSet; i++) for (let j = i + 1; j < sel.length; j++) if (!indep(sel[i], sel[j])) { okSet = false; break; } if (okSet) best = sel.length; } return best; };
+    let under = 0, suffG = 0, suffM = 0;
+    for (let it = 0; it < 400; it++) {
+      const n = 2 + rnd(7), nw = 2 + rnd(5), ns = 1 + rnd(4); const reps = [];
+      for (let i = 0; i < n; i++) { const works = []; const k = 1 + rnd(3); for (let j = 0; j < k; j++) { const w = "W" + rnd(nw); if (works.indexOf(w) === -1) works.push(w); } reps.push({ ref: "r" + i, works, seeds: ["S" + rnd(ns)] }); }
+      const t = mk(["d1"], n + 1); reps.forEach((r) => ok(t, r.ref, "d1", r.works, r.seeds[0])); const d = t.decision().perDimension.d1;
+      const g = d.independentRepresentatives, m = maximum(reps); assert(g <= m, "sur-estimation : glouton " + g + " > maximum " + m + " sur " + JSON.stringify(reps)); if (g < m) under++;
+      const chosen = d.independentRefs.map((ref) => reps.find((r) => r.ref === ref)); for (let i = 0; i < chosen.length; i++) for (let j = i + 1; j < chosen.length; j++) assert(indep(chosen[i], chosen[j]), "ensemble glouton non independant");
+      /* SUFFICIENT selon le glouton => SUFFICIENT selon le maximum (avec la meme cible 3/2) */
+      const sG = n >= 3 && g >= 2, sM = n >= 3 && m >= 2; if (sG) { suffG++; assert(sM, "faux SUFFICIENT"); assert(d.state === "DIMENSION_SUFFICIENT"); } if (sM) suffM++; if (!sG) assert(d.state !== "DIMENSION_SUFFICIENT");
+    }
+    assert(under > 0, "aucune sous-estimation observee : le test ne couvre pas le cas"); assert(suffG <= suffM); console.log("         sous-estimations " + under + "/400, SUFFICIENT glouton " + suffG + " <= maximum " + suffM); });
+
   console.log("  --- v1.0.5 : AUDIT ADVERSARIAL WORKREF NORMALIZATION ---");
   const corpus = { professionalRef: "https://openalex.org/A1", corpus: { works: [{ title: "L’étude “A” : résultats  et  méthodes", doi: "https://doi.org/10.1000/ABC.1" }, { title: "Étude B — évaluation", doi: null }, { title: "Titre jumeau", doi: null }, { title: "titre  JUMEAU", doi: null }] } };
   const J = (refs, extra) => JSON.stringify(Object.assign({ professionalRef: "https://openalex.org/A1", judgments: [{ dimensionId: "d1", relevanceStatus: "mission_relevant", epistemicStatus: "documented", rationale: "R1 « raison »", supportingWorkRefs: refs, limitations: ["L"] }] }, extra || {}));

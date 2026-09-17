@@ -36,7 +36,9 @@ historique touchés. **Aucun run réel payant lancé pour ce chantier (0 USD).**
   candidat avec exactement les entrées de `gatePanel` ; jamais « SUPPORTED » seul) dont la pertinence soutient l'angle (définition G-6).
 - **Indépendance** (le critère prioritaire du chantier) : deux représentants sont indépendants s'ils ne partagent **aucune œuvre citée
   pour l'angle** (identité `workRef` OpenAlex > DOI > titre canonique) **et aucune source-graine** (`seedReferences[].providerWorkId`).
-  Nombre d'indépendants = plus grand ensemble deux à deux indépendants construit gloutonnement dans l'ordre d'évaluation (déterministe).
+  Nombre d'indépendants = taille d'un ensemble deux à deux indépendants **maximal** (inclusion), construit gloutonnement dans l'ordre d'évaluation
+  (déterministe, `independenceAlgorithm: GREEDY_MAXIMAL_IN_EVALUATION_ORDER`) — **pas maximum** : dépend de l'ordre, ne sur-estime jamais
+  (|glouton| ≤ |maximum| ⇒ aucun faux SUFFICIENT), peut sous-estimer (conservateur : retarde SUFFICIENT ou laisse EXHAUSTED_PARTIAL) — SUFF-15/16.
   **3 approuvés adossés à la même œuvre = 3 représentants, 1 indépendant ⇒ non suffisant** (SUFF-02). Un représentant sans œuvre
   identifiable n'est jamais compté indépendant (SUFF-13). La normalisation typographique ne change pas la cardinalité (SUFF-14).
 - **Angle SUFFISANT** ⇔ représentants ≥ 3 (policy) **et** indépendants ≥ 2 (plancher). Fermeture d'angle uniquement sur SUFFISANT.
@@ -78,11 +80,20 @@ Modifiés : `lib/panel-sufficiency.js` (v2), `lib/stage-professionals.js` (`runP
 `NON-REGRESSION.md`. Nouveaux : `AUDIT-PANEL-SUFFICIENCY-POLICY.md`, `test/test-sufficiency.js`, ce rapport.
 
 ## 7. Tests et non-régression
-- `test/test-monolith.js` : **154/154** (+21 : SUFF-01…14, WORKREF-ADV-01…08 ; PRO-EARLY-01…12 réécrits pour v2, dont PRO-EARLY-02/07 qui
+- `test/test-monolith.js` : **156/156** (+23 : SUFF-01…16, WORKREF-ADV-01…08 ; PRO-EARLY-01…12 réécrits pour v2, dont PRO-EARLY-02/07 qui
   entérinaient l'ancien comportement « épuisé = satisfait »). Lanceur **14/14**, navigateur **25/25** (portefeuille inclus), secrets **0 hit**,
   anti-hardcoding **0 hit** (jetons des runs réels), lots gelés **byte-identiques** (MONO-01 106, MONO-09 9, MONO-10 79, MONO-11 52 fichiers, 0 divergence),
   runs historiques intacts (WORKREF-04), `.env.local` non versionné.
 - Coût de validation réelle : **0 USD** (aucun run lancé ; le comportement PANEL_SUFFICIENT réel reste à observer sur un vivier riche).
+
+## 7b. Contrôle MAXIMAL / MAXIMUM (2026-09-17, après d85c9a7)
+Le code construit un ensemble indépendant **maximal** (inclusion) glouton dans l'ordre d'évaluation, **pas maximum** ; la formulation
+« plus grand ensemble » était fausse et a été corrigée (module, audit, rapport). Contre-exemple : A{W1,W2}, B{W1}, C{W2} ⇒ glouton 1, maximum 2
+(SUFF-15). Sûreté : tout ensemble glouton est un ensemble indépendant valide ⇒ |glouton| ≤ |maximum| ⇒ **aucun faux SUFFICIENT possible** ;
+sous-estimation possible (SUFF-16 : 63/400 instances aléatoires ; 135 SUFFICIENT glouton contre 186 avec le maximum) = conservatrice :
+elle peut retarder `DIMENSION_SUFFICIENT` ou laisser un angle `EXHAUSTED_PARTIAL` alors qu'un maximum l'aurait déclaré suffisant. Stratégie
+journalisée dans chaque décision (`independenceAlgorithm: GREEDY_MAXIMAL_IN_EVALUATION_ORDER / MAXIMAL_NOT_MAXIMUM / NEVER_OVERESTIMATES`).
+Pas de remplacement par un algorithme exponentiel (décision du propriétaire).
 
 ## 8. Verdict
 **NON GELABLE en l'état → GELABLE (candidat) après un run réel** montrant `EARLY_STOP_CONFIRMED` ou `PANEL_EXHAUSTED_WITH_GAPS` avec l'artefact

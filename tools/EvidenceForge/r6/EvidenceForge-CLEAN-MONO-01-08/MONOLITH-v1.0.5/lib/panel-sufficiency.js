@@ -11,8 +11,12 @@
  *                                (meme definition que la couverture G-6 du gate).
  *   Independance                = deux representants sont independants s'ils ne partagent AUCUNE oeuvre citee pour l'angle (identite
  *                                workRef / DOI / titre canonique ; un representant sans oeuvre identifiable n'est jamais compte independant) ET aucune
- *                                source-graine ; nombre de representants independants = plus grand ensemble deux a deux independants,
- *                                construit gloutonnement dans l'ordre d'evaluation (deterministe).
+ *                                source-graine ; nombre de representants independants = taille d'un ensemble deux a deux independant
+ *                                MAXIMAL (au sens de l'inclusion), construit gloutonnement dans l'ordre d'evaluation (deterministe).
+ *                                Ce n'est PAS un ensemble MAXIMUM (le maximum est NP-difficile en general) : le resultat depend de l'ordre
+ *                                et peut SOUS-estimer l'independance, jamais la SUR-estimer (tout ensemble glouton est un ensemble
+ *                                independant valide, donc |glouton| <= |maximum|). Sous-estimation = conservatrice : elle peut retarder
+ *                                DIMENSION_SUFFICIENT ou laisser un angle EXHAUSTED_PARTIAL, jamais creer un faux SUFFICIENT.
  *   Angle SUFFISANT            <=> representants >= minimumAdmissibleRepresentativesPerDimension (PRODUCT_POLICY)
  *                                ET independants >= minimumIndependentRepresentativesPerDimension (CONTRACTUAL_FLOOR = 2).
  *   Etats par angle : DIMENSION_CONTINUE | DIMENSION_SUFFICIENT | DIMENSION_EXHAUSTED_PARTIAL | DIMENSION_EXHAUSTED_EMPTY | DIMENSION_NO_POOL
@@ -25,6 +29,7 @@ const STATES = Object.freeze({ CONTINUE: "EARLY_STOP_CONTINUE", CANDIDATE: "EARL
 const DIM = Object.freeze({ CONTINUE: "DIMENSION_CONTINUE", SUFFICIENT: "DIMENSION_SUFFICIENT", EXHAUSTED_PARTIAL: "DIMENSION_EXHAUSTED_PARTIAL", EXHAUSTED_EMPTY: "DIMENSION_EXHAUSTED_EMPTY", NO_POOL: "DIMENSION_NO_POOL" });
 const PANEL = Object.freeze({ CONTINUE: "PANEL_CONTINUE", SUFFICIENT: "PANEL_SUFFICIENT", EXHAUSTED_WITH_GAPS: "PANEL_EXHAUSTED_WITH_GAPS" });
 const RULE_ID = "PANEL-SUFFICIENCY-v2";
+const INDEPENDENCE_ALGORITHM = Object.freeze({ id: "GREEDY_MAXIMAL_IN_EVALUATION_ORDER", guarantee: "MAXIMAL_NOT_MAXIMUM", bound: "NEVER_OVERESTIMATES", note: "ensemble independant maximal (inclusion) construit dans l'ordre d'evaluation ; |glouton| <= |maximum| ; sous-estimation possible = conservatrice (jamais un faux SUFFICIENT)" });
 const CONTRACTUAL_FLOOR = Object.freeze({ minimumIndependentRepresentativesPerDimension: 2, source: "MONO-01 EF-03C (gele) : invariant anti-mono-jumeau — une convergence exige >= 2 jumeaux independants (twinRefs.length < 2 => rejetee)" });
 const DEFAULT_POLICY = Object.freeze({
   id: RULE_ID, strategy: "MIN_INDEPENDENT_REPRESENTATION", provenance: "PRODUCT_POLICY",
@@ -127,7 +132,7 @@ function createSufficiencyTracker(input) {
         pool: p ? { initial: p.candidates, evaluated: p.evaluated, skipped: p.skipped, remaining: p.remaining } : null, closed: r.closed, closedReason: r.closedReason, closedAtRank: r.closedAtRank }; reasons.push(d + " : " + st + " — " + why); });
     const ps = panelState();
     const gaps = dims.filter((d) => dimState(d) !== DIM.SUFFICIENT);
-    return { schema: "EvidenceForge.PanelSufficiencyDecision", rule: RULE_ID, policy: Object.assign({ contractualFloor: CONTRACTUAL_FLOOR }, policy), state, panel: ps, evaluated: rank, skipped: Object.keys(pool).reduce((a, k) => a + pool[k].skipped, 0), approved: approvedTotal, sinceNovelty: since, plateauWindow: window, plateauGrace: grace, candidateAt, confirmedAt,
+    return { schema: "EvidenceForge.PanelSufficiencyDecision", rule: RULE_ID, policy: Object.assign({ contractualFloor: CONTRACTUAL_FLOOR }, policy), independenceAlgorithm: INDEPENDENCE_ALGORITHM, state, panel: ps, evaluated: rank, skipped: Object.keys(pool).reduce((a, k) => a + pool[k].skipped, 0), approved: approvedTotal, sinceNovelty: since, plateauWindow: window, plateauGrace: grace, candidateAt, confirmedAt,
       coverage: { dimensions: dims, supported: Array.from(covS), supportedOrPartial: Array.from(new Set([...covS, ...covP])), sufficient: dims.filter((d) => dimState(d) === DIM.SUFFICIENT), gaps, exhaustedPartial: dims.filter((d) => dimState(d) === DIM.EXHAUSTED_PARTIAL), exhaustedEmpty: dims.filter((d) => dimState(d) === DIM.EXHAUSTED_EMPTY), noPool: dims.filter((d) => dimState(d) === DIM.NO_POOL) },
       perDimension, reasons,
       statement: ps === PANEL.SUFFICIENT ? "Panel suffisant selon la politique produit " + RULE_ID + " : chaque angle est représenté par au moins " + policy.minimumAdmissibleRepresentativesPerDimension + " professionnels approuvés dont " + policy.minimumIndependentRepresentativesPerDimension + " indépendants (œuvres et sources-graines distinctes) ; les candidats restants ne sont pas évalués (journalisés). Ce n'est pas une preuve scientifique de complétude."
@@ -137,4 +142,4 @@ function createSufficiencyTracker(input) {
   return { observe, shouldEvaluate, skip, decision, record: () => Object.assign(decision(), { history }), STATES, DIM, PANEL, policy, window, grace };
 }
 
-module.exports = { createSufficiencyTracker, normalizePolicy, workIdentities, STATES, DIM, PANEL, DEFAULT_POLICY, CONTRACTUAL_FLOOR, RULE_ID };
+module.exports = { createSufficiencyTracker, normalizePolicy, workIdentities, STATES, DIM, PANEL, DEFAULT_POLICY, CONTRACTUAL_FLOOR, INDEPENDENCE_ALGORITHM, RULE_ID };

@@ -76,5 +76,6 @@ Le monolithe **compose** ; il ne réécrit rien. Ce document liste, brique par b
 | Agrégation gelée EF-03C (anti-mono-jumeau) | byte-identique ; son invariant (≥ 2 jumeaux) devient le **plancher contractuel** de la suffisance, impossible à abaisser par config | SUFF-12 |
 | Vivier épuisé | n'est **jamais** « satisfait » : `DIMENSION_EXHAUSTED_PARTIAL / EMPTY`, `PANEL_EXHAUSTED_WITH_GAPS`, réserve aval `PROFESSIONAL_POOL_EXHAUSTED_WITH_GAPS` | SUFF-03/04/06, PRO-EARLY-02/07 |
 | Indépendance des preuves | même œuvre (workRef/DOI/titre canonique) ou même source-graine ⇒ non indépendants ; référence non identifiable ⇒ jamais indépendant ; normalisation sans effet sur la cardinalité | SUFF-02/13/14 |
+| Comptage des indépendants | ensemble indépendant **maximal** glouton (pas maximum) : ne sur-estime jamais (aucun faux SUFFICIENT), peut sous-estimer (conservateur), stratégie journalisée | SUFF-15/16 |
 | Budget, reprise, verrou de transport | budget prioritaire inchangé ; observations post-verrou ignorées ; décision rejouable à l'identique | SUFF-07/08, PRO-EARLY-10 |
 | Normalisation des références (audit adversarial) | remplacement uniquement sur correspondance canonique unique ; ambigu/inventé intacts ; rien ajouté/supprimé ; rationale/classe intacts ; hashes journalisés ; validateur gelé dernier mot | WORKREF-ADV-01…08 |

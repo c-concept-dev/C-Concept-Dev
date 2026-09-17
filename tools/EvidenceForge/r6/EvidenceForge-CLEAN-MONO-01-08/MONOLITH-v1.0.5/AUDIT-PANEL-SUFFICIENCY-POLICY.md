@@ -61,7 +61,7 @@ appuyés sur la même œuvre » est donc mesurable exactement par identité d'œ
   dont `supportingDimensions` contient l'angle (même définition que G-6).
 - **Indépendance** : deux représentants sont indépendants s'ils ne partagent **aucune œuvre** citée pour l'angle (identité `workRef`,
   DOI ou titre canonique — une référence non identifiable ne crée jamais d'indépendance) **et aucune source-graine**. Nombre de
-  représentants indépendants = plus grand ensemble deux à deux indépendants construit gloutonnement dans l'ordre d'évaluation (déterministe).
+  représentants indépendants = taille d'un ensemble deux à deux indépendants **maximal** (inclusion), construit gloutonnement dans l'ordre d'évaluation (déterministe) — **pas maximum** : dépend de l'ordre, ne sur-estime jamais (|glouton| ≤ |maximum|), peut sous-estimer (conservateur).
 - **Angle SUFFISANT** ⇔ représentants ≥ `minimumAdmissibleRepresentativesPerDimension` (PRODUCT_POLICY, 3) **ET** représentants
   indépendants ≥ `minimumIndependentRepresentativesPerDimension` (CONTRACTUAL_FLOOR = 2, invariant anti-mono-jumeau).
 - États par angle : `DIMENSION_CONTINUE` · `DIMENSION_SUFFICIENT` · `DIMENSION_EXHAUSTED_PARTIAL` (vivier épuisé, ≥ 1 représentant,
