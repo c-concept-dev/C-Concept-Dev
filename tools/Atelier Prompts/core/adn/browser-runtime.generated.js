@@ -1,5 +1,5 @@
 /* GENERATED — LOT 10G.3B.3F.2
- * source-sha256: cd8530f04a75d303e54c2dd5d8c44126fb5564434330032376a29f2e86587508
+ * source-sha256: a40af5052927610c48e11fe78b51f1aa4d497f0d40bc7a3422b3e6eeb58572f9
  * Ne pas modifier manuellement. Régénérer avec tools/build-adn-browser-runtime.mjs
  */
 (function(global){
@@ -3026,12 +3026,27 @@ function validateOriginalRequestRecord(record) {
        Lecture tolérante, écriture stricte : les historiques écrits avant ce lot n'en portent pas, et
        ils restent valides. Quand elle est là, c'est elle qui dit QUEL manque a été sollicité — jamais
        le texte de la question, qui change de formulation d'un tour à l'autre. */
-    exactKeys(turn, Object.prototype.hasOwnProperty.call(turn || {}, "missing_determinant_id")
-      ? ["turn", "question", "answer", "provenance", "missing_determinant_id"]
-      : ["turn", "question", "answer", "provenance"], `clarification_history[${index}]`);
+    /* OPTION D — CE QUE LA PERSONNE A DÉCLARÉ IGNORER VOYAGE AUSSI, ET SE CUMULE.
+       La première implémentation s'en remettait à la RE-DÉRIVATION : l'autorité relit la demande à
+       chaque tour, donc elle redéclare. C'était vrai, et insuffisant — si elle omettait l'identité
+       un seul tour, plus rien ne la rattrapait. Une mémoire qui dépend de celui dont elle doit
+       corriger l'oubli n'est pas une mémoire.
+       Cette clé la porte. Elle TRANSPORTE des identités que l'autorité a établies : l'historique
+       n'en produit aucune, n'en interprète aucune, et ne lit jamais un mot de la personne. */
+    const clesTour = ["turn", "question", "answer", "provenance"];
+    if (Object.prototype.hasOwnProperty.call(turn || {}, "missing_determinant_id")) clesTour.push("missing_determinant_id");
+    if (Object.prototype.hasOwnProperty.call(turn || {}, "explicit_unknown_determinant_ids")) clesTour.push("explicit_unknown_determinant_ids");
+    exactKeys(turn, clesTour, `clarification_history[${index}]`);
     if (Object.prototype.hasOwnProperty.call(turn, "missing_determinant_id")) {
       assert(turn.missing_determinant_id === null || text(turn.missing_determinant_id),
         `clarification_history[${index}].missing_determinant_id doit être un identifiant non vide, ou null.`);
+    }
+    if (Object.prototype.hasOwnProperty.call(turn, "explicit_unknown_determinant_ids")) {
+      assert(Array.isArray(turn.explicit_unknown_determinant_ids),
+        `clarification_history[${index}].explicit_unknown_determinant_ids doit être une liste.`);
+      turn.explicit_unknown_determinant_ids.forEach((id, rang) => {
+        assert(text(id), `clarification_history[${index}].explicit_unknown_determinant_ids[${rang}] doit être un identifiant non vide.`);
+      });
     }
     assert(Number.isInteger(turn.turn) && turn.turn === index + 1, `clarification_history[${index}].turn doit être ${index + 1}.`);
     assert(text(turn.question), `clarification_history[${index}].question doit être non vide.`);
@@ -3045,7 +3060,7 @@ function validateOriginalRequestRecord(record) {
  * Ajoute un tour de clarification sans jamais muter l'enregistrement précédent ni réassigner
  * original_request. C'est la seule voie légitime de faire évoluer clarification_history.
  */
-function appendClarificationTurn(record, { question, answer, provenance = "user", missing_determinant_id = null } = {}) {
+function appendClarificationTurn(record, { question, answer, provenance = "user", missing_determinant_id = null, explicit_unknown_determinant_ids = null } = {}) {
   validateOriginalRequestRecord(record);
   const q = text(question);
   const a = text(answer);
@@ -3058,7 +3073,14 @@ function appendClarificationTurn(record, { question, answer, provenance = "user"
     answer: a,
     provenance,
     /* F5 — ce que le manque EST, et non comment il a été formulé. */
-    ...(text(missing_determinant_id) ? { missing_determinant_id: text(missing_determinant_id) } : {})
+    ...(text(missing_determinant_id) ? { missing_determinant_id: text(missing_determinant_id) } : {}),
+    /* OPTION D — les identités déclarées inconnues à ce tour, recopiées telles quelles. Une liste
+       vide n'écrit pas la clé : un tour sans déclaration reste exactement ce qu'il était. */
+    ...((() => {
+      const ids = (Array.isArray(explicit_unknown_determinant_ids) ? explicit_unknown_determinant_ids : [])
+        .map((id) => text(id)).filter(Boolean);
+      return ids.length ? { explicit_unknown_determinant_ids: Object.freeze(ids) } : {};
+    })())
   });
   const next = Object.freeze({
     version: record.version,
@@ -7042,12 +7064,27 @@ function countNamedAlternatives(texte) {
  * autorité a établies. Une autorité qui ne déclare rien n'est pas contredite — c'est la limite
  * assumée de ce mécanisme, et elle ne se comble pas par une devinette.
  */
-function isDeclaredUnknown(candidate) {
+function isDeclaredUnknown(candidate, history = []) {
   const vise = typeof (candidate && candidate.missing_determinant_id) === 'string'
     ? candidate.missing_determinant_id.trim() : '';
   if (!vise) return false;
-  const declarees = Array.isArray(candidate && candidate.explicit_unknown_determinant_ids)
-    ? candidate.explicit_unknown_determinant_ids : [];
+  /* DEUX SOURCES, UNE SEULE COMPARAISON. Ce que l'autorité déclare à CE tour, et ce qu'elle a
+   * déclaré aux tours précédents — l'historique le transporte depuis Option D. Les deux sont des
+   * identités qu'elle a établies ; ni l'une ni l'autre n'est dérivée ici.
+   *
+   * POURQUOI L'HISTORIQUE EST NÉCESSAIRE, ET PAS SEULEMENT CONFORTABLE. La re-dérivation seule
+   * faisait dépendre la mémoire de celui dont elle doit corriger l'oubli : l'autorité relit la
+   * demande à chaque tour, donc elle redéclare — sauf le tour où elle omet, et ce tour-là est
+   * précisément celui où la protection devait jouer. La re-dérivation reste une SOURCE ; elle
+   * n'est plus la mémoire. */
+  const declarees = [
+    ...(Array.isArray(candidate && candidate.explicit_unknown_determinant_ids)
+      ? candidate.explicit_unknown_determinant_ids : []),
+    ...(Array.isArray(history) ? history : []).flatMap((entree) => (
+      Array.isArray(entree && entree.explicit_unknown_determinant_ids)
+        ? entree.explicit_unknown_determinant_ids : []))
+  ];
+  /* Égalité stricte, jamais autre chose : deux identités voisines sont deux identités. */
   return declarees.some((id) => typeof id === 'string' && id.trim() === vise);
 }
 
@@ -7071,7 +7108,7 @@ function assessSolicitation(candidate, history = [], materialPresent = false, fa
    * LE VERDICT EST CELUI QUI EXISTE DÉJÀ. « La personne s'est déjà exprimée sur ce manque » est
    * exactement ce que ALREADY_ANSWERED dit ; lui inventer un frère ne dirait rien de plus et
    * doublerait le traitement en aval, reprise comprise. */
-  if (isDeclaredUnknown(candidate)) return 'ALREADY_ANSWERED';
+  if (isDeclaredUnknown(candidate, history)) return 'ALREADY_ANSWERED';
   if (countInterrogations(texte) >= 2) return 'MULTIPLE_QUESTIONS';
   if (countNamedAlternatives(texte) >= 3) return 'CATALOGUE';
   return 'ALLOW';
@@ -12166,5 +12203,5 @@ function createAdapterAuditView(envelope) {
 
 return {ENGINE_ADAPTERS_VERSION,buildExecutionEnvelope,projectToRapide,projectToArchitecte,projectToAtelier,validateLegacyLockMapping,createAdapterAuditView};
 })({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON});
-global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...BOUNDED,...ORCORE,...ROLEDEG,...SOLICIT,...COREPLANE,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'cd8530f04a75d303e54c2dd5d8c44126fb5564434330032376a29f2e86587508'});
+global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...BOUNDED,...ORCORE,...ROLEDEG,...SOLICIT,...COREPLANE,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'a40af5052927610c48e11fe78b51f1aa4d497f0d40bc7a3422b3e6eeb58572f9'});
 })(window);

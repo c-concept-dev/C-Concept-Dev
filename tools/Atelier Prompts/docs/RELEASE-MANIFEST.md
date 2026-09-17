@@ -13,8 +13,8 @@
 | --- | --- |
 | Lot | HTML-FINAL-02 |
 | Artefact | Atelier de prompts — V11.5 LOT 10G Adaptive Decision Pipeline |
-| Commit local | `a8623ff062f60e797f98cf4fac16b7749d7c672e` |
-| Date du commit | 2026-09-17T15:56:03+02:00 |
+| Commit local | `2f3b7710eb62251adb72fd870e29546f6f639668` |
+| Date du commit | 2026-09-17T17:07:48+02:00 |
 
 ## Artefact canonique
 
@@ -24,8 +24,8 @@ aucune police et aucune image ne sont chargés depuis un tiers.
 | Champ | Valeur |
 | --- | --- |
 | Chemin | `atelier-prompts-v11.5-lot10g-decision-provider.html` |
-| Taille | 1540381 octets |
-| SHA-256 | `8e1e5061b0fad962fffc5c1ed5903f07eff5666c24b9c1b4aa5d4badb95b2a59` |
+| Taille | 1544685 octets |
+| SHA-256 | `22502fb9d5ad7218b081bd8773561d18dbeea9159c9580c156523a532bf790ee` |
 
 ## Runtime compilé
 
@@ -34,11 +34,11 @@ Le bloc embarqué dans la page et le fichier généré sont comparés octet pour
 | Champ | Valeur |
 | --- | --- |
 | Fichier | `core/adn/browser-runtime.generated.js` |
-| SHA-256 du fichier | `da4eddd8cb770c9bda96348c28c9665f421078cb2e169329400868f35f618ae5` |
-| SHA-256 du bloc embarqué | `da4eddd8cb770c9bda96348c28c9665f421078cb2e169329400868f35f618ae5` |
+| SHA-256 du fichier | `2fd5eb69214ea55010eec3ccb125ce64526fa75dba6f51229bdb2362dbefc4eb` |
+| SHA-256 du bloc embarqué | `2fd5eb69214ea55010eec3ccb125ce64526fa75dba6f51229bdb2362dbefc4eb` |
 | Identiques | oui |
 | Blocs de runtime dans la page | 1 |
-| Empreinte des sources compilées | `cd8530f04a75d303e54c2dd5d8c44126fb5564434330032376a29f2e86587508` |
+| Empreinte des sources compilées | `a40af5052927610c48e11fe78b51f1aa4d497f0d40bc7a3422b3e6eeb58572f9` |
 
 ## Plages gelées
 
@@ -59,24 +59,24 @@ Le bloc embarqué dans la page et le fichier généré sont comparés octet pour
 l'artefact. Le manifeste lui-même en est exclu : un document ne peut pas contenir
 sa propre empreinte.
 
-| Empreinte du jeu | `50520b2d5489acc5c3288ee9c762d700b1e2ed847cafb0f6b38d1831fdd665ed` |
+| Empreinte du jeu | `fbed795231d30d3e23eafcbade765d65d213c42124d2a8db2f2a9a5335ec9d08` |
 | --- | --- |
 
 | Classe | Fichier | SHA-256 |
 | --- | --- | --- |
 | REQUIRED_BUILD | `anti-regression-baseline.json` | `7bd0fcca3f3ed226e3fdd30ee52dc204dae158dbde8842c08731054a1f58e7d6` |
-| REQUIRED_HTML | `atelier-prompts-v11.5-lot10g-decision-provider.html` | `8e1e5061b0fad962fffc5c1ed5903f07eff5666c24b9c1b4aa5d4badb95b2a59` |
+| REQUIRED_HTML | `atelier-prompts-v11.5-lot10g-decision-provider.html` | `22502fb9d5ad7218b081bd8773561d18dbeea9159c9580c156523a532bf790ee` |
 | REQUIRED_BUILD | `core/adn/adaptive-lock-selector.js` | `15d3154d639b761747a26215f2ec59eb6b121e6072187b6a2dd611eefe5b65ea` |
 | REQUIRED_BUILD | `core/adn/adn-state.js` | `814bbc8318cd2e20d1964c0930809e9997e00bf1cfe8f474aa8f3f39af767d8b` |
 | REQUIRED_BUILD | `core/adn/arch-canonical-enrichment.js` | `ee87dff7cd6c822b8aaba63edd05eff0614749ec6044fe0bacd22531b1ab8fc0` |
-| REQUIRED_BUILD | `core/adn/browser-runtime.generated.js` | `da4eddd8cb770c9bda96348c28c9665f421078cb2e169329400868f35f618ae5` |
+| REQUIRED_BUILD | `core/adn/browser-runtime.generated.js` | `2fd5eb69214ea55010eec3ccb125ce64526fa75dba6f51229bdb2362dbefc4eb` |
 | REQUIRED_BUILD | `core/adn/engine-adapters.js` | `81e206b5bb1705c404a494dd136fea1fd17bb7cd502aca2855b6bf6f9b161255` |
 | REQUIRED_BUILD | `core/adn/execution-lifecycle.js` | `accdee01c6c294f33e28be321024501c152e2fdd6e53298575c2450adebf8ec7` |
 | REQUIRED_BUILD | `core/adn/execution-readiness.js` | `c6aef9daf228e441ad96545ed036c45955d8a46a8fcaf8f387f4a3196132ffb6` |
 | REQUIRED_BUILD | `core/adn/index.js` | `83897c9958d4102243efdd180e43872c91df20104884cbffe8a4c9c621056513` |
 | REQUIRED_BUILD | `core/adn/intent-preservation.js` | `9e3dfcc8acecd0169e2f3238fa2feb07199d6652394cfbf6e00b390e3f890484` |
 | REQUIRED_BUILD | `core/adn/mode-contracts.js` | `3c8c7f414213166b1790674e9195cf072c73eb427ddac37f9a51399167149359` |
-| REQUIRED_BUILD | `core/adn/operational-request-state.js` | `e53efb5d3efd5f5a0428b00aff9c0c4cc9222e9f0843aedcad2e8e8fce585622` |
+| REQUIRED_BUILD | `core/adn/operational-request-state.js` | `981215fe0dd6bb7941c954a3a2311c0469d0cfea794fde15f32c4a184733aee3` |
 | REQUIRED_BUILD | `core/adn/oprie-canonical-mapping.js` | `b700e24abffd6e04efbc06658d8c4044ed60e9ec650056ff33c065ee07914f59` |
 | REQUIRED_BUILD | `core/adn/oprie-manual-roundtrip.js` | `34eaf03a4b68a6932f5a7a5767d3a3e4c8a9c1e335539f88372c7510ae1042af` |
 | REQUIRED_BUILD | `core/adn/orchestration-policy.js` | `53007469046156d821085862cc1264d18c196681206a0cb0ee92041de5340dc1` |
@@ -172,7 +172,7 @@ sa propre empreinte.
 | REQUIRED_RUNTIME | `workers/shared/provider-ha.js` | `19ae3e7af098a875b30e59e9a8c0257a09b4709b810b2c8fe5fa2a4dbcabf1da` |
 | REQUIRED_RUNTIME | `workers/shared/provider-rate-control.js` | `38da9840452fa70e444108559d78b9423e733208cf05e0a23f350936e3a94abd` |
 | REQUIRED_RUNTIME | `workers/shared/role-degradation.js` | `2259190f7f3a2b2f224605fc1b3ae8c4d6552f88e4cf4d56e34875b61a6a9ab7` |
-| REQUIRED_RUNTIME | `workers/shared/solicitation-policy.js` | `8190f19570cb963eeee14a5a6ae210229c5a200289258b43060e855cdc27a57a` |
+| REQUIRED_RUNTIME | `workers/shared/solicitation-policy.js` | `b46480406003f54bc3e755b45026567e08c85ff03cccf5ec5ec206587bb74280` |
 | REQUIRED_RUNTIME | `workers/workers-ai/src/index.js` | `a198c0f8e845122f42e57e1fae18ba21f50a4c822cfca45acea6ca8ee2167643` |
 | REQUIRED_RUNTIME | `workers/workers-ai/wrangler.jsonc` | `2bb01da47bbb8d869da3ab0b31d2cd7d40ed98c9008fcced69c3e94072a3be6f` |
 
@@ -206,7 +206,7 @@ par ce script.*
 | EXEC-PHASE-INSTRUMENT-01 | CLOSED |
 | FC01b FINAL | CLOSED |
 | HTML-FINAL-01 / 01A | CLOSED |
-| Tests au vert | 3440 |
+| Tests au vert | 3443 |
 
 ## Dette encore ouverte
 

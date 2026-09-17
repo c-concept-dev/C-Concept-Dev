@@ -330,12 +330,27 @@ export function countNamedAlternatives(texte) {
  * autorité a établies. Une autorité qui ne déclare rien n'est pas contredite — c'est la limite
  * assumée de ce mécanisme, et elle ne se comble pas par une devinette.
  */
-export function isDeclaredUnknown(candidate) {
+export function isDeclaredUnknown(candidate, history = []) {
   const vise = typeof (candidate && candidate.missing_determinant_id) === 'string'
     ? candidate.missing_determinant_id.trim() : '';
   if (!vise) return false;
-  const declarees = Array.isArray(candidate && candidate.explicit_unknown_determinant_ids)
-    ? candidate.explicit_unknown_determinant_ids : [];
+  /* DEUX SOURCES, UNE SEULE COMPARAISON. Ce que l'autorité déclare à CE tour, et ce qu'elle a
+   * déclaré aux tours précédents — l'historique le transporte depuis Option D. Les deux sont des
+   * identités qu'elle a établies ; ni l'une ni l'autre n'est dérivée ici.
+   *
+   * POURQUOI L'HISTORIQUE EST NÉCESSAIRE, ET PAS SEULEMENT CONFORTABLE. La re-dérivation seule
+   * faisait dépendre la mémoire de celui dont elle doit corriger l'oubli : l'autorité relit la
+   * demande à chaque tour, donc elle redéclare — sauf le tour où elle omet, et ce tour-là est
+   * précisément celui où la protection devait jouer. La re-dérivation reste une SOURCE ; elle
+   * n'est plus la mémoire. */
+  const declarees = [
+    ...(Array.isArray(candidate && candidate.explicit_unknown_determinant_ids)
+      ? candidate.explicit_unknown_determinant_ids : []),
+    ...(Array.isArray(history) ? history : []).flatMap((entree) => (
+      Array.isArray(entree && entree.explicit_unknown_determinant_ids)
+        ? entree.explicit_unknown_determinant_ids : []))
+  ];
+  /* Égalité stricte, jamais autre chose : deux identités voisines sont deux identités. */
   return declarees.some((id) => typeof id === 'string' && id.trim() === vise);
 }
 
@@ -359,7 +374,7 @@ export function assessSolicitation(candidate, history = [], materialPresent = fa
    * LE VERDICT EST CELUI QUI EXISTE DÉJÀ. « La personne s'est déjà exprimée sur ce manque » est
    * exactement ce que ALREADY_ANSWERED dit ; lui inventer un frère ne dirait rien de plus et
    * doublerait le traitement en aval, reprise comprise. */
-  if (isDeclaredUnknown(candidate)) return 'ALREADY_ANSWERED';
+  if (isDeclaredUnknown(candidate, history)) return 'ALREADY_ANSWERED';
   if (countInterrogations(texte) >= 2) return 'MULTIPLE_QUESTIONS';
   if (countNamedAlternatives(texte) >= 3) return 'CATALOGUE';
   return 'ALLOW';

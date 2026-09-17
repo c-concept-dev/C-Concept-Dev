@@ -164,8 +164,14 @@ test('V213-03 / V213-12 : le payload de reprise est reconstruit à l’identique
   assert.match(requete, /oprieClarificationHistory\(\)/);
   /* Et rien dans ce corps n’est écrit par la reprise : aucune mutation d’historique. */
   assert.equal(/state\.answers\.push/.test(requete), false, 'la requête n’écrit jamais dans l’historique');
-  /* L’historique ne s’écrit qu’à une réponse réelle, et la branche de reprise sort AVANT. */
-  const reponse = html.slice(html.indexOf('function answerQuestion(answer){'), html.indexOf('function answerQuestion(answer){') + 1400);
+  /* L’historique ne s’écrit qu’à une réponse réelle, et la branche de reprise sort AVANT.
+     OPTION D — la fenêtre de lecture passe de 1400 à 2400 caractères. Ce n'est PAS un assouplissement :
+     l'invariant mesuré est l'ORDRE des deux repères, et il est inchangé — la reprise sort à l'offset
+     378, l'écriture survient à 1488. La fenêtre, elle, était devenue trop courte pour contenir le
+     second, et un repère absent aurait fait passer l'assertion pour une raison qui n'est pas la
+     bonne. On élargit ce qu'on regarde, jamais ce qu'on accepte. */
+  const reponse = html.slice(html.indexOf('function answerQuestion(answer){'), html.indexOf('function answerQuestion(answer){') + 2400);
+  assert.ok(reponse.includes('state.answers.push'), 'la fenêtre contient bien le point d’écriture');
   const iReprise = reponse.indexOf('coreOnly:true');
   const iEcriture = reponse.indexOf('state.answers.push');
   assert.ok(iReprise > 0 && iEcriture > iReprise, 'la reprise rend la main avant toute écriture');

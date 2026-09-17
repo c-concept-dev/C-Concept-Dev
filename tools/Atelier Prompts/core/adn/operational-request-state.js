@@ -235,12 +235,27 @@ export function validateOriginalRequestRecord(record) {
        Lecture tolérante, écriture stricte : les historiques écrits avant ce lot n'en portent pas, et
        ils restent valides. Quand elle est là, c'est elle qui dit QUEL manque a été sollicité — jamais
        le texte de la question, qui change de formulation d'un tour à l'autre. */
-    exactKeys(turn, Object.prototype.hasOwnProperty.call(turn || {}, "missing_determinant_id")
-      ? ["turn", "question", "answer", "provenance", "missing_determinant_id"]
-      : ["turn", "question", "answer", "provenance"], `clarification_history[${index}]`);
+    /* OPTION D — CE QUE LA PERSONNE A DÉCLARÉ IGNORER VOYAGE AUSSI, ET SE CUMULE.
+       La première implémentation s'en remettait à la RE-DÉRIVATION : l'autorité relit la demande à
+       chaque tour, donc elle redéclare. C'était vrai, et insuffisant — si elle omettait l'identité
+       un seul tour, plus rien ne la rattrapait. Une mémoire qui dépend de celui dont elle doit
+       corriger l'oubli n'est pas une mémoire.
+       Cette clé la porte. Elle TRANSPORTE des identités que l'autorité a établies : l'historique
+       n'en produit aucune, n'en interprète aucune, et ne lit jamais un mot de la personne. */
+    const clesTour = ["turn", "question", "answer", "provenance"];
+    if (Object.prototype.hasOwnProperty.call(turn || {}, "missing_determinant_id")) clesTour.push("missing_determinant_id");
+    if (Object.prototype.hasOwnProperty.call(turn || {}, "explicit_unknown_determinant_ids")) clesTour.push("explicit_unknown_determinant_ids");
+    exactKeys(turn, clesTour, `clarification_history[${index}]`);
     if (Object.prototype.hasOwnProperty.call(turn, "missing_determinant_id")) {
       assert(turn.missing_determinant_id === null || text(turn.missing_determinant_id),
         `clarification_history[${index}].missing_determinant_id doit être un identifiant non vide, ou null.`);
+    }
+    if (Object.prototype.hasOwnProperty.call(turn, "explicit_unknown_determinant_ids")) {
+      assert(Array.isArray(turn.explicit_unknown_determinant_ids),
+        `clarification_history[${index}].explicit_unknown_determinant_ids doit être une liste.`);
+      turn.explicit_unknown_determinant_ids.forEach((id, rang) => {
+        assert(text(id), `clarification_history[${index}].explicit_unknown_determinant_ids[${rang}] doit être un identifiant non vide.`);
+      });
     }
     assert(Number.isInteger(turn.turn) && turn.turn === index + 1, `clarification_history[${index}].turn doit être ${index + 1}.`);
     assert(text(turn.question), `clarification_history[${index}].question doit être non vide.`);
@@ -254,7 +269,7 @@ export function validateOriginalRequestRecord(record) {
  * Ajoute un tour de clarification sans jamais muter l'enregistrement précédent ni réassigner
  * original_request. C'est la seule voie légitime de faire évoluer clarification_history.
  */
-export function appendClarificationTurn(record, { question, answer, provenance = "user", missing_determinant_id = null } = {}) {
+export function appendClarificationTurn(record, { question, answer, provenance = "user", missing_determinant_id = null, explicit_unknown_determinant_ids = null } = {}) {
   validateOriginalRequestRecord(record);
   const q = text(question);
   const a = text(answer);
@@ -267,7 +282,14 @@ export function appendClarificationTurn(record, { question, answer, provenance =
     answer: a,
     provenance,
     /* F5 — ce que le manque EST, et non comment il a été formulé. */
-    ...(text(missing_determinant_id) ? { missing_determinant_id: text(missing_determinant_id) } : {})
+    ...(text(missing_determinant_id) ? { missing_determinant_id: text(missing_determinant_id) } : {}),
+    /* OPTION D — les identités déclarées inconnues à ce tour, recopiées telles quelles. Une liste
+       vide n'écrit pas la clé : un tour sans déclaration reste exactement ce qu'il était. */
+    ...((() => {
+      const ids = (Array.isArray(explicit_unknown_determinant_ids) ? explicit_unknown_determinant_ids : [])
+        .map((id) => text(id)).filter(Boolean);
+      return ids.length ? { explicit_unknown_determinant_ids: Object.freeze(ids) } : {};
+    })())
   });
   const next = Object.freeze({
     version: record.version,

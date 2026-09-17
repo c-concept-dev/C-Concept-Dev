@@ -32,8 +32,11 @@ import {
 } from '../workers/shared/fast-interactive-plane.js';
 import { FAST_INTERACTION_PATHNAME, handleFastInteractionRequest } from '../workers/shared/fast-interaction-endpoint.js';
 import { FAST_INTERACTION_SYSTEM_PROMPT } from '../workers/groq/src/index.js';
+import { createOriginalRequestRecord as creerEnregistrement, appendClarificationTurn, validateOriginalRequestRecord }
+  from '../core/adn/operational-request-state.js';
 
 const politique = fs.readFileSync(new URL('../workers/shared/solicitation-policy.js', import.meta.url), 'utf8');
+const artefact = fs.readFileSync(new URL('../atelier-prompts-v11.5-lot10g-decision-provider.html', import.meta.url), 'utf8');
 
 const DEMANDE = 'Comparez plusieurs approches selon leur coût, leur risque et leur simplicité.';
 const snap = (historique = []) => createTurnSnapshot({
@@ -178,22 +181,80 @@ test('T-OPTD-06 : le registre arrive chez le client, identique à ce qui a été
  * T10 / T11 / T12 — LA PORTÉE DIALOGUE
  * ======================================================================= */
 
-test('T-OPTD-07 : la protection vaut à tous les tours, pas seulement au premier', () => {
-  /* LA PERSISTANCE EST PAR RE-DÉRIVATION, ET C'EST UN CHOIX À DIRE. La déclaration vit dans la
-     demande, que l'autorité relit à CHAQUE tour — `createTurnSnapshot` l'exige à chaque fois. Elle
-     la redéclare donc naturellement tant que la demande la porte, sans qu'aucune mémoire ait à la
-     recopier. Aucune clé n'a été ajoutée au contrat de `clarification_history` : ce qui n'existe
-     pas ne peut pas diverger. */
-  const historique = [
-    { turn: 1, question: 'Une première question ?', answer: 'sa réponse', provenance: 'user', missing_determinant_id: 'manque_x' },
-    { turn: 2, question: 'Une deuxième question ?', answer: 'sa réponse', provenance: 'user', missing_determinant_id: 'manque_y' }
+test('T-OPTD-07 : une identité déclarée survit au tour où l’autorité l’oublie', () => {
+  /* CE TEST A REMPLACÉ UNE VERSION PLUS FAIBLE, ET LA RAISON MÉRITE D'ÊTRE ÉCRITE.
+   *
+   * La première implémentation s'en remettait à la RE-DÉRIVATION : l'autorité relit la demande à
+   * chaque tour, donc elle redéclare. C'est vrai, et c'était insuffisant — la mémoire dépendait
+   * alors de celui dont elle doit corriger l'oubli. Le seul tour qui compte est justement celui où
+   * l'autorité omet l'identité ; c'est là que la protection devait jouer, et elle ne jouait pas.
+   *
+   * L'historique la porte désormais. La re-dérivation reste une source ; elle n'est plus la mémoire. */
+  const tour1 = { turn: 1, question: 'Une première question ?', answer: 'sa réponse', provenance: 'user',
+    missing_determinant_id: 'manque_y', explicit_unknown_determinant_ids: ['manque_a'] };
+  /* Au tour suivant, l'autorité n'a RIEN redéclaré — le registre du candidat est vide. */
+  const candidate = q('Quelle est la donnée manquante ?', { id: 'manque_a', declarees: [] });
+  assert.equal(isDeclaredUnknown(candidate), false, 'le candidat seul ne sait rien');
+  assert.equal(isDeclaredUnknown(candidate, [tour1]), true, 'l’historique, lui, se souvient');
+  assert.equal(assessSolicitation(candidate, [tour1], false, DEMANDE), 'ALREADY_ANSWERED');
+  assert.deepEqual(guardFastInteraction(candidate, snap([tour1])), SILENT_INTERACTION);
+});
+
+test('T-OPTD-11 : la mémoire cumule les tours, sans suppression ni multiplication', () => {
+  const tours = [
+    { turn: 1, question: 'q1 ?', answer: 'r1', provenance: 'user', explicit_unknown_determinant_ids: ['manque_a'] },
+    { turn: 2, question: 'q2 ?', answer: 'r2', provenance: 'user', missing_determinant_id: 'manque_y' },
+    { turn: 3, question: 'q3 ?', answer: 'r3', provenance: 'user', explicit_unknown_determinant_ids: ['manque_b', 'manque_a'] }
   ];
-  const candidate = q('Quelle est la donnée manquante ?', { id: 'manque_a', declarees: ['manque_a'] });
-  assert.deepEqual(guardFastInteraction(candidate, snap(historique)), SILENT_INTERACTION,
-    'au troisième tour comme au premier');
-  /* Et la protection historique par identité continue de fonctionner, indépendamment. */
-  const dejaPose = q('Autrement formulée ?', { id: 'manque_x' });
-  assert.equal(assessSolicitation(dejaPose, historique, false, DEMANDE), 'ALREADY_ANSWERED');
+  for (const identite of ['manque_a', 'manque_b']) {
+    assert.equal(isDeclaredUnknown(q('Quelle donnée ?', { id: identite }), tours), true,
+      `${identite} déclaré à un tour vaut pour tous les suivants`);
+  }
+  /* Une identité jamais déclarée ne l'est pas davantage par voisinage avec celles qui le sont. */
+  assert.equal(isDeclaredUnknown(q('Quelle donnée ?', { id: 'manque_c' }), tours), false);
+  /* Un doublon entre deux tours ne change rien : une identité est une identité. */
+  assert.equal(assessSolicitation(q('Quelle donnée ?', { id: 'manque_a' }), tours, false, DEMANDE), 'ALREADY_ANSWERED');
+});
+
+test('T-OPTD-12 : la mémoire transporte, elle n’interprète jamais', () => {
+  /* L'historique accepte des identités et REFUSE tout ce qui n'en est pas une. Il ne lit aucun
+     texte de la personne, n'en dérive aucune identité, et n'a aucun moyen de le faire. */
+  const base = creerEnregistrement('Une demande.');
+  const avec = appendClarificationTurn(base, { question: 'q ?', answer: 'r',
+    explicit_unknown_determinant_ids: ['manque_a', '  ', null, '  manque_b  '] });
+  assert.deepEqual([...avec.clarification_history[0].explicit_unknown_determinant_ids], ['manque_a', 'manque_b']);
+
+  /* Un tour sans déclaration n'écrit pas la clé : le contrat d'hier reste valide tel quel. */
+  const sans = appendClarificationTurn(base, { question: 'q ?', answer: 'r' });
+  assert.equal('explicit_unknown_determinant_ids' in sans.clarification_history[0], false);
+  assert.deepEqual(Object.keys(sans.clarification_history[0]).sort(), ['answer', 'provenance', 'question', 'turn']);
+
+  /* Et le validateur refuse ce qui n'est pas une identité — jamais il ne le répare. */
+  assert.throws(() => validateOriginalRequestRecord({
+    version: sans.version, original_request: 'Une demande.',
+    clarification_history: [{ turn: 1, question: 'q ?', answer: 'r', provenance: 'user',
+      explicit_unknown_determinant_ids: ['   '] }]
+  }), /explicit_unknown_determinant_ids\[0\] doit être un identifiant non vide/);
+  assert.throws(() => validateOriginalRequestRecord({
+    version: sans.version, original_request: 'Une demande.',
+    clarification_history: [{ turn: 1, question: 'q ?', answer: 'r', provenance: 'user',
+      explicit_unknown_determinant_ids: 'manque_a' }]
+  }), /doit être une liste/);
+});
+
+test('T-OPTD-13 : le client écrit la mémoire, et le fait sans rien décider', () => {
+  /* Trois points de passage, sur les octets servis : ce que l'autorité a déclaré est retenu à
+     l'affichage, joint à la réponse, puis rendu à l'historique. Aucun n'interprète. */
+  assert.match(artefact, /oprieState\.pendingExplicitUnknownIds=\(Array\.isArray\(declarees\)\?declarees:\[\]\)/);
+  assert.match(artefact, /oprieAsk\(interaction\.text,FAST_QUESTION_INTRO,[^)]*interaction\.explicit_unknown_determinant_ids\)/);
+  assert.match(artefact, /declareesTour\.length\?\{explicit_unknown_determinant_ids:declareesTour\.slice\(\)\}/);
+  /* Et l'historique rendu aux autorités les reporte tour par tour. */
+  const histo = artefact.slice(artefact.indexOf('function oprieClarificationHistory()'),
+    artefact.indexOf('function oprieClarificationHistory()') + 1400);
+  assert.match(histo, /explicit_unknown_determinant_ids/);
+  for (const interdit of ['toLowerCase', 'includes(\'', 'match(', 'RegExp', 'similar']) {
+    assert.equal(histo.includes(interdit), false, `« ${interdit} » n’a rien à faire dans une mémoire`);
+  }
 });
 
 test('T-OPTD-08 : une granularité réellement différente n’est pas bloquée par parenté', () => {
