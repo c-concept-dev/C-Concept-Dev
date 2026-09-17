@@ -51,5 +51,5 @@
     estimation des tokens de reprise ciblée par ratio caractères/token.
 14. **Lots gelés** : MONO-01 (106), MONO-09 (9), MONO-10 (79), MONO-11 (52) vérifiés, 0 divergence ; sceaux inchangés.
 15. **SHA commit** : voir le message de commit (renseigné à la livraison).
-16. **Verdict** : **NON GELABLE** tant qu'un smoke réel n'a pas confirmé (i) la validité des réponses aux reprises partielles, (ii) l'effet réel des
-    bornes de sortie. Le smoke est proposé, **non lancé** (autorisation du propriétaire requise).
+16. **Verdict** : smoke réel `edb27b86` exécuté (`RAPPORT-SCREENING-COST-OPTIMIZER-REAL-SMOKE.md`) : reprises partielles valides, 0 faux accept,
+    −44 % par source mesuré ; anomalie d'alignement corrigée dans `lib/portfolio-balancing.js` (SCREEN-COST-19) — **GELABLE (candidat)**.
