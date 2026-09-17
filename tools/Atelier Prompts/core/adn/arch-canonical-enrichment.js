@@ -153,6 +153,41 @@ const list = (v) => (Array.isArray(v) ? v : []);
 const clone = (v) => (v === undefined ? undefined : JSON.parse(JSON.stringify(v)));
 const texts = (items, key = 'text') => list(items).map((i) => text(i?.[key])).filter(Boolean);
 
+/* ADN-ARCH-03 — LA DIVERGENCE DE REGISTRE N'EST PAS UNE INCOHÉRENCE.
+ *
+ * MESURÉ SUR DEUX CAS RÉELS, JCBRHF ET VELA5Q. Le contrat OPRIE rangeait trois faits — objet de la
+ * réunion, motif du report, identité des destinataires — en `intent.delegated_decisions`, en les
+ * déclarant traitables. L'analyse Architecte, que le schéma 3.4 OBLIGE à produire
+ * `pilotage_incertitude`, rangeait les MÊMES faits en `inconnues_non_devineables`. Les deux lectures
+ * sont défendables ; aucune n'invente quoi que ce soit.
+ *
+ * La cardinalité comparait alors 3 contre 0 et concluait « une inconnue absente du contrat validé ».
+ * Le défaut frappait donc les demandes les MIEUX spécifiées : plus OPRIE délègue proprement, plus
+ * `remaining_unknowns` reste vide, plus l'arrêt était certain.
+ *
+ * CE QUI EST RETIRÉ, ET CE QUI RESTE. Deux comparaisons perdent leur autorité de blocage, parce
+ * qu'elles dénombrent des registres qu'un même fait peut traverser. La vraie barrière — l'Architecte
+ * n'écrit pas dans un champ OPRIE — est intacte : `ARCH_ENRICHABLE_PATHS` et `changedPaths` la
+ * tiennent, et elles ne comptent rien, elles comparent des chemins.
+ *
+ * POURQUOI UNE OBSERVATION ET PAS UN CINQUIÈME SIGNAL. `mergePostOprieSignals` est FAIL CLOSED : un
+ * type de signal inconnu devient un TECHNICAL_STOP. Un signal non bloquant ne peut donc pas exister
+ * dans ce vocabulaire — et `ARCH_SIGNAL_POLICY` déclare les quatre bloquants. L'observation vit donc
+ * HORS de la liste de signaux : elle ne peut pas atteindre l'arrêt, par construction et non par
+ * convention. Elle ne porte aucun texte de la personne : deux noms de champ et deux comptes. */
+export const ARCH_REGISTER_DIVERGENCE = 'ARCH_REGISTER_DIVERGENCE';
+
+function registerDivergence(canonicalField, archSourceField, canonicalCount, archCount) {
+  return {
+    kind: ARCH_REGISTER_DIVERGENCE,
+    canonical_field: canonicalField,
+    arch_source_field: archSourceField,
+    canonical_count: canonicalCount,
+    arch_count: archCount,
+    blocking: false
+  };
+}
+
 function signal(kind, canonicalField, archSourceField, detail, returnToOprie) {
   if (!ARCH_SIGNALS.includes(kind)) throw new TypeError(`Signal Architecte inconnu : ${kind}.`);
   /* BLOCKING_SIGNAL_HAS_STRUCTURAL_PROOF : un signal sans preuve n'existe pas. */
@@ -549,7 +584,7 @@ export function activeArchSemanticSourceCount(enrichedContract) {
  * DIAGNOSTIC — champs de readiness Architecte, sans aucune autorité
  * ---------------------------------------------------------------------- */
 
-function diagnoseAgainstOprie(analysis, base, signals) {
+function diagnoseAgainstOprie(analysis, base, signals, observations) {
   const comprehension = analysis.comprehension;
   const pilotage = analysis.strategie.pilotage_incertitude || {};
 
@@ -565,10 +600,13 @@ function diagnoseAgainstOprie(analysis, base, signals) {
       'strategie.pilotage_incertitude.decisions_autonomes',
       'Une décision autonome non déléguée par la personne apparaît dans l’analyse.', true));
   }
+  /* ADN-ARCH-03 — OBSERVÉ, PLUS BLOQUANT. Sur JCBRHF, la troisième hypothèse portait sur l'identité
+     des destinataires, que le contrat OPRIE avait déjà déléguée : 3 contre 2, pour un fait déjà
+     traité. Une hypothèse ne peut de toute façon pas s'imposer, `assumptions.allowed` restant hors
+     de ARCH_ENRICHABLE_PATHS — l'Architecte la NOMME sans pouvoir l'écrire. */
   if (list(analysis.strategie.hypotheses_autorisees).length > list(base.assumptions.allowed).length) {
-    signals.push(signal('CONTRACT_INCONSISTENT', 'assumptions.allowed',
-      'strategie.hypotheses_autorisees',
-      'Une hypothèse non autorisée par la personne apparaît dans l’analyse.', true));
+    observations.push(registerDivergence('assumptions.allowed', 'strategie.hypotheses_autorisees',
+      list(base.assumptions.allowed).length, list(analysis.strategie.hypotheses_autorisees).length));
   }
   const knownIssues = list(base.executability.critical_missing).length + list(base.executability.substitutable_missing).length;
   if (list(comprehension.ambiguites).length > knownIssues) {
@@ -576,10 +614,14 @@ function diagnoseAgainstOprie(analysis, base, signals) {
       'comprehension.ambiguites',
       'L’analyse relève une ambiguïté absente du contrat validé.', true));
   }
+  /* ADN-ARCH-03 — OBSERVÉ, PLUS BLOQUANT. C'est ce prédicat qui bloquait JCBRHF ET VELA5Q : le
+     schéma 3.4 rend `pilotage_incertitude` obligatoire, et OPRIE laisse `remaining_unknowns` vide
+     dès qu'il a classé ces faits en décisions déléguées. La référence valait donc 0, et TOUTE
+     réponse conforme la dépassait. */
   if (list(pilotage.inconnues_non_devineables).length > list(base.executability.remaining_unknowns).length) {
-    signals.push(signal('CONTRACT_INCONSISTENT', 'executability.remaining_unknowns',
+    observations.push(registerDivergence('executability.remaining_unknowns',
       'strategie.pilotage_incertitude.inconnues_non_devineables',
-      'L’analyse relève une inconnue absente du contrat validé.', true));
+      list(base.executability.remaining_unknowns).length, list(pilotage.inconnues_non_devineables).length));
   }
 
   /* Seul fait de danger réellement TYPÉ dans le schéma 3.4. */
@@ -619,15 +661,19 @@ export function enrichCanonicalContractFromArchAnalysis(canonicalBase, archAnaly
     /* Analyse inutilisable : le contrat sort inchangé, un signal technique le dit. */
     return {
       contract: clone(canonicalBase),
-      signals: [signal('TECHNICAL_STOP', null, problem.field, problem.detail, false)]
+      signals: [signal('TECHNICAL_STOP', null, problem.field, problem.detail, false)],
+      observations: []
     };
   }
 
   /* Copie profonde : la base d'entrée n'est jamais touchée. */
   const contract = clone(canonicalBase);
   const signals = [];
+  /* ADN-ARCH-03 — les divergences de registre sont transportées SÉPARÉMENT des signaux. L'appelant
+     fusionne `signals` pour décider d'un arrêt ; `observations` n'entre jamais dans cette fusion. */
+  const observations = [];
 
-  diagnoseAgainstOprie(archAnalyse, canonicalBase, signals);
+  diagnoseAgainstOprie(archAnalyse, canonicalBase, signals, observations);
 
   enrichEvidence(archAnalyse, contract, signals);
   enrichAssumptions(archAnalyse, contract);
@@ -646,7 +692,7 @@ export function enrichCanonicalContractFromArchAnalysis(canonicalBase, archAnaly
     throw new TypeError(`ADN-ARCH-01 : écriture interdite dans un champ OPRIE : ${illegal.join(', ')}.`);
   }
 
-  return { contract, signals };
+  return { contract, signals, observations };
 }
 
 /**
@@ -711,7 +757,7 @@ export function validateArchSignals(signals) {
 }
 
 /** Vue d'audit sans contenu utilisateur. */
-export function createArchEnrichmentAuditView(base, enriched, signals) {
+export function createArchEnrichmentAuditView(base, enriched, signals, observations = []) {
   return clone({
     version: ARCH_ENRICHMENT_VERSION,
     enriched_paths: changedPaths(base, enriched),
@@ -720,6 +766,14 @@ export function createArchEnrichmentAuditView(base, enriched, signals) {
       acc[kind] = list(signals).filter((s) => s.signal === kind).length;
       return acc;
     }, {}),
-    readiness_unchanged: enriched?.executability?.oprie_state === base?.executability?.oprie_state
+    readiness_unchanged: enriched?.executability?.oprie_state === base?.executability?.oprie_state,
+    /* ADN-ARCH-03 — ce que l'Architecte a reclassé, dénombré et jamais bloqué. Des noms de champ et
+       des comptes : aucun mot de la personne n'entre dans une vue d'audit. */
+    register_divergences: list(observations).map((o) => ({
+      canonical_field: o?.canonical_field || null,
+      arch_source_field: o?.arch_source_field || null,
+      canonical_count: Number.isInteger(o?.canonical_count) ? o.canonical_count : null,
+      arch_count: Number.isInteger(o?.arch_count) ? o.arch_count : null
+    }))
   });
 }

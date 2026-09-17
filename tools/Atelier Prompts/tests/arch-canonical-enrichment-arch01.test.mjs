@@ -183,8 +183,22 @@ for (const [id, label, mutate, field] of [
   ['17', 'nouvel objectif secondaire', (a) => { a.comprehension.intentions_secondaires = ['SEC_OPRIE', 'NOUVEAU']; }, 'intent.secondary_objectives'],
   ['18', 'décision autonome non déléguée', (a) => { a.strategie.pilotage_incertitude.decisions_autonomes = ['DEL_OPRIE', 'NOUVELLE']; }, 'intent.delegated_decisions'],
   ['19', 'ambiguïté hors contrat OPRIE', (a) => { a.comprehension.ambiguites = ['AMBIGUE']; }, 'executability.substitutable_missing'],
-  ['19b', 'hypothèse non autorisée', (a) => { a.strategie.hypotheses_autorisees = ['ASS_OPRIE', 'NON_AUTORISEE']; }, 'assumptions.allowed'],
-  ['19c', 'inconnue hors contrat OPRIE', (a) => { a.strategie.pilotage_incertitude.inconnues_non_devineables = ['UNK_OPRIE', 'NOUVELLE']; }, 'executability.remaining_unknowns']
+  /* ADN-ARCH-03 — HISTORICAL_IMPLEMENTATION_CONTRACT : 19b et 19c ont quitté cette table.
+   *
+   * L'INVARIANT QU'ILS PRÉTENDAIENT PROTÉGER : « un ensemble plus grand côté Architecte signifie
+   * qu'un élément a été créé après la validation OPRIE ». Mesuré sur deux échanges réels, cet
+   * énoncé est faux pour ces deux registres : un même fait — l'identité des destinataires, l'objet
+   * d'une réunion — est rangé par OPRIE en décision déléguée et par l'Architecte en inconnue non
+   * devinable ou en hypothèse. Aucun des deux n'invente ; le comptage par registre lisait ce
+   * passage comme une invention, et bloquait les demandes LES MIEUX spécifiées, celles où OPRIE
+   * délègue proprement et laisse `remaining_unknowns` vide.
+   *
+   * CE QUI REMPLACE L'ASSERTION, plutôt que de la supprimer : la vraie propriété structurelle est
+   * éprouvée juste en dessous — ces deux champs restent HORS de ARCH_ENRICHABLE_PATHS, donc
+   * l'Architecte peut les NOMMER sans jamais les ÉCRIRE. Et l'observabilité est conservée sans
+   * autorité : tests/arch-register-divergence-adnarch03.test.mjs, T-AA03-04 et T-AA03-07.
+   *
+   * Les trois lignes restantes conservent leur autorité : ce lot n'a pas tranché pour elles. */
 ]) {
   test(`T-ARCH01-${id} ${label} → CONTRACT_INCONSISTENT, sans écriture`, () => {
     const base = baseFor();
@@ -543,6 +557,31 @@ test('T-ARCH01-44 la garde core anti-promotion reste opérante après enrichisse
  * ADVERSARIAL COMPLET
  * ======================================================================= */
 
+test('T-ARCH01-19bc ADN-ARCH-03 : les deux registres retirés restent INÉCRIVABLES', () => {
+  /* Ce que 19b et 19c gardaient réellement d'utile, exprimé sur la propriété qui tient : une
+     analyse qui NOMME davantage ne peut pas pour autant écrire dans le contrat. La garde est une
+     comparaison de CHEMINS — elle ne dénombre rien, donc elle ne peut pas confondre une lecture
+     avec une écriture. */
+  const base = baseFor();
+  const a = analysis();
+  a.strategie.hypotheses_autorisees = ['ASS_OPRIE', 'NON_AUTORISEE'];
+  a.strategie.pilotage_incertitude.inconnues_non_devineables = ['UNK_OPRIE', 'NOUVELLE'];
+  const { contract, signals, observations } = enrich(base, a);
+
+  /* Aucun arrêt sur ces deux registres… */
+  for (const champ of ['assumptions.allowed', 'executability.remaining_unknowns']) {
+    assert.equal(signals.some((s) => s.canonical_field === champ), false, `${champ} ne bloque plus`);
+    assert.ok(observations.some((o) => o.canonical_field === champ), `${champ} reste observé`);
+    assert.equal(ARCH_ENRICHABLE_PATHS.includes(champ), false, `${champ} n'est pas enrichissable`);
+  }
+  /* …et rien n'a été écrit : le contrat porte exactement ce qu'OPRIE avait validé. */
+  assert.deepEqual(contract.assumptions.allowed, base.assumptions.allowed);
+  assert.deepEqual(contract.executability.remaining_unknowns, base.executability.remaining_unknowns);
+  assert.deepEqual(validateArchCanonicalEnrichment(base, contract, a).mutated_oprie_fields, []);
+  assert.equal(JSON.stringify(contract).includes('NON_AUTORISEE'), false, 'la valeur nommée n’entre pas');
+  assert.equal(JSON.stringify(contract).includes('NOUVELLE'), false);
+});
+
 test('T-ARCH01-ADV analyse hostile totale : 0 mutation OPRIE, signaux structurés', () => {
   const base = baseFor();
   const snapshot = JSON.stringify(base);
@@ -565,7 +604,7 @@ test('T-ARCH01-ADV analyse hostile totale : 0 mutation OPRIE, signaux structuré
     livrable: { nature: 'LIVRABLE_PIRATE', format_technique: 'json', quantites: null, ton: 't', longueur_indicative: 'l' }
   });
 
-  const { contract, signals } = enrich(base, hostile);
+  const { contract, signals, observations } = enrich(base, hostile);
 
   assert.equal(JSON.stringify(base), snapshot, 'la base d’entrée est intacte');
   const verdict = validateArchCanonicalEnrichment(base, contract, hostile);
@@ -578,10 +617,19 @@ test('T-ARCH01-ADV analyse hostile totale : 0 mutation OPRIE, signaux structuré
   assert.equal(JSON.stringify(contract.assumptions.allowed).includes('PIRATE'), false);
   assert.equal(JSON.stringify(contract).includes('QUESTION_PIRATE'), false);
 
-  /* Mais les divergences sont toutes signalées, avec preuve. */
+  /* Mais les divergences sont toutes RELEVÉES, avec preuve — les unes en signaux, les deux que
+     ADN-ARCH-03 a désarmées en observations. HISTORICAL_IMPLEMENTATION_CONTRACT : cette assertion
+     exigeait les cinq dans `signals`, ce qui consacrait l'autorité de blocage retirée depuis. Ce
+     qu'elle protégeait — rien n'est passé sous silence — est ici vérifié en ENTIER, et sur les deux
+     canaux : une analyse hostile ne peut donc pas devenir invisible en changeant de registre. */
   const fields = signals.map((s) => s.canonical_field);
-  for (const expected of ['intent.secondary_objectives', 'intent.delegated_decisions', 'assumptions.allowed', 'executability.substitutable_missing', 'executability.remaining_unknowns']) {
+  const observed = observations.map((o) => o.canonical_field);
+  for (const expected of ['intent.secondary_objectives', 'intent.delegated_decisions', 'executability.substitutable_missing']) {
     assert.ok(fields.includes(expected), `divergence non signalée : ${expected}`);
+  }
+  for (const expected of ['assumptions.allowed', 'executability.remaining_unknowns']) {
+    assert.ok(observed.includes(expected), `divergence non observée : ${expected}`);
+    assert.equal(fields.includes(expected), false, `${expected} ne bloque plus`);
   }
   assert.ok(signals.some((s) => s.signal === 'EXECUTION_UNSAFE'));
   assert.equal(validateArchSignals(signals).ok, true);

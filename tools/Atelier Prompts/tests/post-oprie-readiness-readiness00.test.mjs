@@ -110,7 +110,24 @@ test('T-READINESS-07 décision autonome non déléguée → CONTRACT_INCONSISTEN
   assert.equal(JSON.stringify(turn.operational_request_candidate.delegated_decisions), before);
 });
 
-test('T-READINESS-07b hypothèse non autorisée → CONTRACT_INCONSISTENT, assumptions.allowed inchangé', () => {
+test('T-READINESS-07b une hypothèse NOMMÉE par l’analyse n’impose rien, et ne bloque plus', () => {
+  /* ADN-ARCH-03 — HISTORICAL_IMPLEMENTATION_CONTRACT.
+   *
+   * L'INVARIANT QUE CE TEST PRÉTENDAIT PROTÉGER : « une hypothèse que personne n'a autorisée ne
+   * peut pas s'imposer ». Il le prouvait par un COMPTAGE — plus d'hypothèses côté Architecte que
+   * dans `assumptions.allowed` — et il exigeait un arrêt.
+   *
+   * CE QUE LA PRODUCTION A MESURÉ. Sur l'échange réel JCBRHF, l'Architecte déclarait 3 hypothèses
+   * contre 2 autorisées ; la troisième portait sur l'identité des destinataires, que le contrat
+   * OPRIE avait DÉJÀ rangée en décision déléguée, en la déclarant traitable. Le même fait vivait
+   * dans deux registres, et le comptage lisait ce passage comme une invention. La demande était
+   * pourtant complète : zéro question, zéro ambiguïté, `livrable_complet_possible: true`.
+   *
+   * CE QUI REMPLACE L'ASSERTION, plutôt que de disparaître avec elle : l'invariant tient toujours,
+   * et il tient MIEUX, parce qu'il est désormais éprouvé sur la propriété qui le garantit vraiment
+   * — `assumptions.allowed` reste hors de ARCH_ENRICHABLE_PATHS, donc l'analyse peut NOMMER une
+   * hypothèse sans jamais l'écrire dans le contrat. C'est ce que ce test vérifie maintenant : rien
+   * n'est imposé, et rien n'est bloqué. */
   const { validateFromTurn: validate } = loadPostOprieValidator();
   const turn = oprieReadyTurn();
   const before = JSON.stringify(turn.operational_request_candidate.assumptions_allowed);
@@ -119,9 +136,15 @@ test('T-READINESS-07b hypothèse non autorisée → CONTRACT_INCONSISTENT, assum
   analysis.strategie.hypotheses_autorisees = ['Hypothèse que personne n’a autorisée.'];
 
   const result = validate(analysis, turn);
-  assert.equal(result.ok, false);
-  assert.equal(result.signals[0].canonical_field, 'assumptions.allowed');
-  assert.equal(JSON.stringify(turn.operational_request_candidate.assumptions_allowed), before);
+  assert.equal(result.ok, true, 'nommer une hypothèse n’arrête plus la préparation');
+  assert.deepEqual(result.signals, [], 'aucun signal bloquant sur ce registre');
+  /* Elle est RELEVÉE, sans autorité, et avec ses deux comptes. */
+  assert.equal(result.divergences.length, 1);
+  assert.equal(result.divergences[0].canonical_field, 'assumptions.allowed');
+  assert.equal(result.divergences[0].blocking, false);
+  /* Et le champ protégé n'a pas bougé d'un octet — ce que le test disait déjà, et qui reste vrai. */
+  assert.equal(JSON.stringify(turn.operational_request_candidate.assumptions_allowed), before,
+    'le validateur n’écrit jamais dans le champ protégé');
 });
 
 test('T-READINESS-08 ambiguïté après READY → signal de validation, executability inchangé', () => {
@@ -249,10 +272,29 @@ test('T-READINESS-13 le validateur n’émet jamais execution_ready : sa sortie 
   ];
   for (const [analysis, turn] of cases) {
     const result = validate(analysis, turn);
-    assert.deepEqual(Object.keys(result).sort(), ['ok', 'signals']);
+    /* ADN-ARCH-03 — HISTORICAL_IMPLEMENTATION_CONTRACT sur la LISTE DES CLÉS, pas sur l'invariant.
+     *
+     * Ce que ce test protège est intact et c'est l'essentiel : la sortie du validateur est un
+     * booléen et des constats, jamais une readiness. Elle porte un troisième champ depuis que deux
+     * comparaisons de cardinalité ont perdu leur autorité de blocage — les divergences de registre
+     * doivent bien aller quelque part, et ce quelque part ne peut pas être `signals`, que
+     * l'appelant fusionne pour décider d'un arrêt.
+     *
+     * La clé ajoutée est donc réépinglée, et l'invariant est RENFORCÉ juste en dessous : ce
+     * troisième champ ne peut porter aucune autorité. */
+    assert.deepEqual(Object.keys(result).sort(), ['divergences', 'ok', 'signals']);
     assert.equal(typeof result.ok, 'boolean');
     for (const s of result.signals) assert.ok(SIGNALS.includes(s.signal));
     assert.equal(JSON.stringify(result).includes('execution_ready'), false);
+    /* Le troisième champ n'est ni un signal, ni une décision : il ne peut rien arrêter. */
+    assert.ok(Array.isArray(result.divergences));
+    for (const d of result.divergences) {
+      assert.equal(d.blocking, false, 'une divergence ne bloque jamais');
+      assert.equal(SIGNALS.includes(d.kind), false, 'et elle n’usurpe aucun type de signal');
+      assert.equal('return_to_oprie' in d, false, 'elle ne prescrit aucune conduite');
+    }
+    /* `ok` reste gouverné par les SEULS signaux : une divergence ne peut pas le faire basculer. */
+    assert.equal(result.ok, result.signals.length === 0);
   }
 });
 
