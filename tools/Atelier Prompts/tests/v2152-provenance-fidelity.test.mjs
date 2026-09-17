@@ -302,7 +302,13 @@ test('V2152-23 / V2152-24 / V2152-25 : Fast, haute disponibilité et acquis V2.1
      environ 150 jetons par appel rapide, sur une réserve dont le plancher B3 est connu. Cette
      mesure reste une caractérisation de taille, pas un invariant : elle dit qu'aucune consigne n'a
      grossi sans décision. */
-  assert.equal(FAST_INTERACTION_SYSTEM_PROMPT.length, 9240);
+  /* FAST-FIRST-PASS — +610 caractères, et ce n'est pas un ajout : c'est un DÉPLACEMENT augmenté.
+     L'obligation de déclarer les inconnues passe de 92 % à 7 % du prompt, devient une étape plutôt
+     qu'une formalité, et dit ce qu'elle change pour la décision. Deux smokes humains ont montré que
+     la version courte, en fin de consigne, n'était pas appliquée au premier passage. Le coût — de
+     l'ordre de 150 jetons par appel rapide, sur une réserve dont le plancher B3 est connu — est
+     mesuré ici, jamais supposé. */
+  assert.equal(FAST_INTERACTION_SYSTEM_PROMPT.length, 9850);
   /* V2.2 a retiré cette revendication d'autorité du plan rapide : la doctrine qu'il applique est
      celle d'OPRIE, et il le dit. La retenue mesurée, elle, est intacte. */
   assert.match(FAST_INTERACTION_SYSTEM_PROMPT, /La doctrine ci-dessous n'est pas la vôtre/);

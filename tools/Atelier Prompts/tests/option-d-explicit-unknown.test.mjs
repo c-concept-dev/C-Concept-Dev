@@ -390,15 +390,73 @@ test('T-OPTD-09 : le plan rapide ne gagne aucune autorité, et rien d’autre n�
   assert.equal(/REDUCED|reduceQuestionDeterministically/.test(code), false);
 });
 
-test('T-OPTD-10 : la consigne NOMME un fait, elle ne prescrit aucun comportement', () => {
-  /* La frontière tient à cela : si la consigne disait « ne pose pas de question », le plan rapide
-     déciderait. Elle lui demande de dire ce que la personne a énoncé ; le refus, lui, appartient au
-     garde déterministe. */
-  const i = FAST_INTERACTION_SYSTEM_PROMPT.indexOf('explicit_unknown_determinant_ids');
-  assert.notEqual(i, -1);
-  const consigne = FAST_INTERACTION_SYSTEM_PROMPT.slice(i - 80, i + 700);
-  assert.match(consigne, /NOMMEZ un fait/);
-  assert.match(consigne, /vous ne jugez ni s'il est bloquant/);
-  /* Elle interdit explicitement d'y verser une inconnue que le modèle constate lui-même. */
-  assert.match(consigne, /jamais une inconnue que VOUS constatez/);
+test('T-OPTD-10 : la consigne NOMME un fait, et elle le demande AVANT toute décision', () => {
+  /* FAST-FIRST-PASS — LA CONSIGNE A CHANGÉ DE PLACE, ET C'EST LA CORRECTION.
+   *
+   * Elle vivait à 92 % du prompt, après la doctrine, la forme et les deux autres déclarations —
+   * énoncée comme une formalité de remplissage. Deux smokes humains, dont un sur une demande
+   * parfaitement formulée, ont montré qu'elle n'était pas appliquée au premier passage. Elle est
+   * désormais une ÉTAPE, posée avant la doctrine qui gouverne la décision. */
+  const i = FAST_INTERACTION_SYSTEM_PROMPT.indexOf("ÉTABLISSEZ D'ABORD LES FAITS");
+  assert.notEqual(i, -1, 'l’étape existe');
+  const doctrine = FAST_INTERACTION_SYSTEM_PROMPT.indexOf('AVANT DE QUESTIONNER');
+  assert.ok(i < doctrine, 'les faits sont établis avant la doctrine qui gouverne la décision');
+  assert.ok(i / FAST_INTERACTION_SYSTEM_PROMPT.length < 0.2,
+    'dans le premier cinquième du prompt, plus dans le dernier dixième');
+
+  const consigne = FAST_INTERACTION_SYSTEM_PROMPT.slice(i, doctrine);
+  /* Elle demande de NOMMER, jamais de juger. */
+  assert.match(consigne, /Vous NOMMEZ ce qu'elle a énoncé/);
+  assert.match(consigne, /vous ne jugez ni si c'est bloquant/);
+  assert.match(consigne, /jamais une inconnue que\s+VOUS constatez/);
+  /* Et elle dit ce que le registre change ENSUITE — c'est ce qui le rend décisionnel plutôt
+     qu'annotatif, sans lui faire prononcer le moindre état. */
+  assert.match(consigne, /information TRAITÉE/);
+  assert.match(consigne, /Ne la redemandez pas/);
+  for (const interdit of ['READY', 'operational_request_ready', 'route', 'bloquant :']) {
+    assert.equal(consigne.includes(interdit), false, `« ${interdit} » n’a rien à faire ici`);
+  }
+});
+
+test('T-OPTD-18 : le contrat de sortie place le fait sémantique AVANT la décision', () => {
+  /* LA CAUSE RACINE ÉTAIT ICI, ET ELLE N'ÉTAIT PAS DANS LA CONSIGNE. En sortie structurée stricte,
+     le modèle émet les clés dans l'ordre où le schéma les déclare. Le registre venait EN DERNIER :
+     le type, le texte et l'inconnue visée étaient déjà écrits — donc la décision de questionner
+     était déjà prise — quand il se remplissait. Il ne POUVAIT pas y participer. */
+  const ordre = Object.keys(FAST_INTERACTION_JSON_SCHEMA.properties);
+  assert.equal(ordre[0], 'explicit_unknown_determinant_ids', 'le fait s’écrit en premier');
+  assert.ok(ordre.indexOf('explicit_unknown_determinant_ids') < ordre.indexOf('type'),
+    'avant le type d’interaction');
+  assert.ok(ordre.indexOf('explicit_unknown_determinant_ids') < ordre.indexOf('missing_determinant_id'),
+    'avant l’inconnue visée');
+  /* `required` suit le même ordre : les deux gouvernent la génération selon les fournisseurs. */
+  assert.deepEqual([...FAST_INTERACTION_JSON_SCHEMA.required],
+    ['explicit_unknown_determinant_ids', 'type', 'text', 'question_focus', 'missing_determinant_id']);
+  /* Le contrat reste clos, et ne s’est enrichi d’aucun champ. */
+  assert.equal(FAST_INTERACTION_JSON_SCHEMA.additionalProperties, false);
+  assert.equal(ordre.length, 5);
+});
+
+test('T-OPTD-19 : la ceinture de cohérence existe, et elle vit là où elle peut encore servir', () => {
+  /* CE QU'ELLE EST : si l'autorité déclare X inconnu ET questionne X dans la même sortie, la
+     combinaison est refusée. Le garde le fait déjà — `isDeclaredUnknown` → ALREADY_ANSWERED.
+     CE QU'ELLE N'EST PAS : le correctif principal. Elle ne peut rien quand le registre reste vide,
+     et c'était précisément le cas mesuré. */
+  const contradiction = q('Quelle est la donnée manquante ?', { id: 'manque_a', declarees: ['manque_a'] });
+  assert.equal(assessSolicitation(contradiction, [], false, DEMANDE), 'ALREADY_ANSWERED');
+  assert.deepEqual(guardFastInteraction(contradiction, snap()), SILENT_INTERACTION);
+  /* ASK(Y) + déclaré [X] reste permis : on ne ferme que la contradiction. */
+  assert.equal(assessSolicitation(q('Et l’autre ?', { id: 'manque_b', declarees: ['manque_a'] }), [], false, DEMANDE), 'ALLOW');
+
+  /* POURQUOI ELLE N'A PAS ÉTÉ DOUBLÉE DANS LE VALIDATEUR, et c'est un choix argumenté. Un refus au
+     validateur rendrait FAST_SCHEMA_ERROR, donc une escalade profonde immédiate — ~20 s et un appel
+     de plus. Au garde, le verdict ALREADY_ANSWERED ouvre la reprise corrective du MÊME tour, qui
+     redonne sa chance à l'autorité sans quitter le plan rapide. Refuser plus tôt coûterait plus et
+     apprendrait moins. */
+  const worker = fs.readFileSync(new URL('../workers/groq/src/index.js', import.meta.url), 'utf8');
+  assert.match(worker, /ALREADY_ANSWERED: CORRECTION_DEJA_REPONDU/,
+    'le verdict ouvre une reprise corrective, et c’est ce qui rend ce placement supérieur');
+  const validateur = fs.readFileSync(new URL('../workers/shared/fast-interactive-plane.js', import.meta.url), 'utf8');
+  assert.equal(/isDeclaredUnknown/.test(validateur), false,
+    'le validateur ne double pas le garde : il perdrait la reprise');
 });

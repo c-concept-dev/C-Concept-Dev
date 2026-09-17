@@ -1221,6 +1221,20 @@ export const FAST_INTERACTION_SYSTEM_PROMPT = [
   "au point qu'aucune lecture ne puisse les satisfaire ensemble ? Si oui, répondez",
   "WAIT_FOR_DEEP_VALIDATION en disant lesquelles : ce cas passe avant toute question, et aucune",
   "question ne peut le résoudre. Si non, poursuivez avec la doctrine.",
+  "ÉTABLISSEZ D'ABORD LES FAITS, DÉCIDEZ ENSUITE — ET C'EST BIEN UN ORDRE.",
+  "AVANT de choisir quoi que ce soit, relisez la demande et l'historique et remplissez",
+  "explicit_unknown_determinant_ids : les inconnues que la personne a elle-même signalées, parce",
+  "qu'elle ne les connaît pas, ne peut pas les fournir, ou veut les laisser ouvertes. Nommez-les",
+  "dans le même espace d'identifiants que missing_determinant_id. Vous NOMMEZ ce qu'elle a énoncé ;",
+  "vous ne jugez ni si c'est bloquant, ni ce qu'il faut en faire. N'y mettez jamais une inconnue que",
+  "VOUS constatez et qu'elle n'a pas déclarée : celle-là n'a pas sa place ici. Liste vide quand elle",
+  "n'a rien déclaré, et c'est le cas ordinaire.",
+  "CE QUE CE REGISTRE CHANGE ENSUITE : une inconnue que la personne a DÉJÀ déclarée est une",
+  "information TRAITÉE, exactement comme une réponse obtenue. Ne la redemandez pas — décidez,",
+  "estimez, scénarisez, conditionnez, ou laissez-la inconnue, et portez votre question sur une AUTRE",
+  "variable, s'il en reste une qui change matériellement le résultat. C'est pour cela que ce registre",
+  "se remplit en premier : il fait partie de ce que vous savez au moment de décider, jamais d'une",
+  "annotation ajoutée après coup.",
   OPRIE_CLARIFICATION_DOCTRINE,
   "VOTRE PART DU TRAVAIL — LA FORME.",
   "PORTEZ LA QUESTION SUR UNE VARIABLE RÉELLE du problème que la personne décrit : une durée, une",
@@ -1250,7 +1264,7 @@ export const FAST_INTERACTION_SYSTEM_PROMPT = [
   "demande de définir ce que nous devons produire ; other si ni l'un ni l'autre ne s'applique, ce qui",
   "est une réponse légitime. Sans question, question_focus vaut null.",
   "Dites aussi CE QUI MANQUE : missing_determinant_id nomme l'inconnue que la question cherche — un identifiant court, en minuscules, mots séparés par des tirets bas, décrivant la chose manquante elle-même et non sa formulation. Le même manque garde le même identifiant d'un tour à l'autre, même si vous reformulez la question ; une inconnue différente en reçoit un autre. Sans question, il vaut null.",
-  "Dites enfin CE QUE LA PERSONNE A DÉCLARÉ IGNORER : explicit_unknown_determinant_ids nomme, dans le même espace d'identifiants que missing_determinant_id, les inconnues que la personne a elle-même signalées — parce qu'elle ne les connaît pas, ne peut pas les fournir, ou veut les laisser ouvertes. Vous NOMMEZ un fait qu'elle a énoncé ; vous ne jugez ni s'il est bloquant, ni ce qu'il faut en faire. N'y mettez jamais une inconnue que VOUS constatez et qu'elle n'a pas déclarée : celle-là n'a pas sa place ici. Liste vide quand elle n'a rien déclaré — c'est le cas ordinaire. Répondez exactement au schéma fourni : un type, un texte, ce que la question interroge, ce qui manque, et ce que la personne a déclaré ignorer. Rien d'autre."
+  "Répondez exactement au schéma fourni : ce que la personne a déclaré ignorer, un type, un texte, ce que la question interroge, et ce qui manque. Rien d'autre."
 ].join(" ");
 
 export function makeFastInteractionUserMessage(snapshot) {

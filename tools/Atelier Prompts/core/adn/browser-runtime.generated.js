@@ -1,5 +1,5 @@
 /* GENERATED — LOT 10G.3B.3F.2
- * source-sha256: 5a0a770102f58e0ea84f3b07a39a4396f0ae5101055b3e9fda571ce17691c80d
+ * source-sha256: 67789fcfbcc4138da8c45d3fae4ac15304dba4ac226e9dfad948652608e9565f
  * Ne pas modifier manuellement. Régénérer avec tools/build-adn-browser-runtime.mjs
  */
 (function(global){
@@ -11581,8 +11581,40 @@ const FAST_FORBIDDEN_AUTHORITY_FIELDS = Object.freeze([
 const FAST_INTERACTION_JSON_SCHEMA = Object.freeze({
   type: "object",
   additionalProperties: false,
-  required: ["type", "text", "question_focus", "missing_determinant_id", "explicit_unknown_determinant_ids"],
+  /* FAST-FIRST-PASS — L'ORDRE DES CHAMPS EST L'ORDRE DU RAISONNEMENT.
+   *
+   * MESURÉ SUR DEUX SMOKES HUMAINS INDÉPENDANTS, dont un sur une demande parfaitement formulée :
+   * la demande disait « je ne sais pas encore quel budget », et le premier tour rendait
+   * `{ASK, missing_determinant_id: "budget", explicit_unknown_determinant_ids: []}`. La consigne
+   * existait, au bon endroit, et n'était pas appliquée au premier passage.
+   *
+   * LA CAUSE N'ÉTAIT PAS LA CONSIGNE, C'ÉTAIT CE CONTRAT. En sortie structurée stricte, le modèle
+   * émet les clés dans l'ordre où le schéma les déclare. `explicit_unknown_determinant_ids` venait
+   * EN DERNIER : le type, le texte et l'inconnue visée étaient donc déjà écrits — la décision de
+   * questionner était déjà prise — quand le registre était rempli. Il ne pouvait structurellement
+   * pas participer à cette décision : c'était une annotation de fin, pas un fait.
+   *
+   * Il passe en tête. Le modèle établit d'abord ce que la personne a déclaré ignorer, et décide
+   * ensuite. Aucun champ ajouté, aucune autorité nouvelle, aucun appel de plus : le même contrat,
+   * dans l'ordre où il doit être pensé. */
+  required: ["explicit_unknown_determinant_ids", "type", "text", "question_focus", "missing_determinant_id"],
   properties: {
+    /* OPTION D — CE QUE LA PERSONNE A ELLE-MÊME DÉCLARÉ NE PAS CONNAÎTRE.
+     *
+     * Mesuré en usage réel : une demande disait « pour cette donnée, je ne sais pas encore », et la
+     * première question portait exactement dessus. Aucun mécanisme n'avait tort — le garde compare
+     * l'historique, qui était vide, et la doctrine ne parle que d'une réponse OBTENUE. Une inconnue
+     * déclarée AVANT toute question n'avait aucun porteur : pour tout composant déterministe, elle
+     * était indiscernable d'une absence.
+     *
+     * Ce champ lui en donne un. Ce n'est pas une seconde autorité — c'est la MÊME décision qui lit
+     * déjà la demande et nomme déjà ce qui manque, à qui l'on demande de nommer aussi ce que la
+     * personne a dit ignorer. Rien n'est déduit de mots-clés, rien n'est fabriqué par l'interface,
+     * et une liste vide reste la réponse normale.
+     *
+     * CE QU'IL NE FAIT PAS : il ne déclare aucune readiness, ne convertit rien en inconnue
+     * résiduelle, et ne juge pas si l'inconnue est bloquante. Il NOMME un fait. */
+    explicit_unknown_determinant_ids: { type: ["array", "null"], items: { type: "string" } },
     type: { type: "string", enum: [...FAST_INTERACTION_TYPES] },
     text: { type: "string" },
     /* V2.2.1-D2F1 — ce que la question INTERROGE, dit par celui qui l'écrit. null quand il n'y a
@@ -11599,23 +11631,8 @@ const FAST_INTERACTION_JSON_SCHEMA = Object.freeze({
      * Ce n'est pas une seconde autorité : c'est la MÊME décision qui choisit la question, à qui
      * l'on demande de nommer ce qu'elle cherche. Aucun identifiant n'est dérivé de mots-clés, aucun
      * n'est fabriqué par l'interface, et null reste une réponse légitime. */
-    missing_determinant_id: { type: ["string", "null"] },
-    /* OPTION D — CE QUE LA PERSONNE A ELLE-MÊME DÉCLARÉ NE PAS CONNAÎTRE.
-     *
-     * Mesuré en usage réel : une demande disait « pour cette donnée, je ne sais pas encore », et la
-     * première question portait exactement dessus. Aucun mécanisme n'avait tort — le garde compare
-     * l'historique, qui était vide, et la doctrine ne parle que d'une réponse OBTENUE. Une inconnue
-     * déclarée AVANT toute question n'avait aucun porteur : pour tout composant déterministe, elle
-     * était indiscernable d'une absence.
-     *
-     * Ce champ lui en donne un. Ce n'est pas une seconde autorité — c'est la MÊME décision qui lit
-     * déjà la demande et nomme déjà ce qui manque, à qui l'on demande de nommer aussi ce que la
-     * personne a dit ignorer. Rien n'est déduit de mots-clés, rien n'est fabriqué par l'interface,
-     * et une liste vide reste la réponse normale.
-     *
-     * CE QU'IL NE FAIT PAS : il ne déclare aucune readiness, ne convertit rien en inconnue
-     * résiduelle, et ne juge pas si l'inconnue est bloquante. Il NOMME un fait. */
-    explicit_unknown_determinant_ids: { type: ["array", "null"], items: { type: "string" } }
+    missing_determinant_id: { type: ["string", "null"] }
+
   }
 });
 
@@ -12208,5 +12225,5 @@ function createAdapterAuditView(envelope) {
 
 return {ENGINE_ADAPTERS_VERSION,buildExecutionEnvelope,projectToRapide,projectToArchitecte,projectToAtelier,validateLegacyLockMapping,createAdapterAuditView};
 })({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON});
-global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...BOUNDED,...ORCORE,...ROLEDEG,...SOLICIT,...COREPLANE,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'5a0a770102f58e0ea84f3b07a39a4396f0ae5101055b3e9fda571ce17691c80d'});
+global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...BOUNDED,...ORCORE,...ROLEDEG,...SOLICIT,...COREPLANE,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'67789fcfbcc4138da8c45d3fae4ac15304dba4ac226e9dfad948652608e9565f'});
 })(window);

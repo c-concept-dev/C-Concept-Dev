@@ -89,7 +89,10 @@ test('T-PERFREAL01E-02 : le plan rapide ne porte que ses propres responsabilité
   assert.match(p, /Demander une précision est le dernier recours, jamais le premier/);
   /* OPTION D — la clause finale énumère un cinquième fait : ce que la personne a déclaré ignorer.
      Ce qu'elle garde est inchangé — la consigne CLÔT l'énumération et interdit tout le reste. */
-  assert.match(p, /Répondez exactement au schéma fourni : un type, un texte, ce que la question interroge, ce qui manque, et ce que la personne a déclaré ignorer\. Rien d'autre\./);
+  /* FAST-FIRST-PASS — la clause finale énumère le contrat DANS L'ORDRE OÙ IL EST PRODUIT : le fait
+     sémantique d'abord, la décision ensuite. Ce qu'elle garde est inchangé — elle CLÔT l'énumération
+     et interdit tout le reste. */
+  assert.match(p, /Répondez exactement au schéma fourni : ce que la personne a déclaré ignorer, un type, un texte, ce que la question interroge, et ce qui manque\. Rien d'autre\./);
 });
 
 test('T-PERFREAL01E-03 : aucune autorité OPRIE n’est recopiée dans le payload rapide', () => {
@@ -279,7 +282,7 @@ test('T-PERFREAL01E-15 : aucune réduction n’a été appliquée, et le planche
    * des mots dans le texte. C'est ce qui a permis de retirer trois motifs de vocabulaire décisionnel
    * du chemin de production. Le sens de ce test est intact : il interdit de RACCOURCIR la consigne
    * pour gagner des jetons, jamais de l'allonger pour une raison mesurée. */
-  assert.equal(FAST_INTERACTION_SYSTEM_PROMPT.length, 9240,
+  assert.equal(FAST_INTERACTION_SYSTEM_PROMPT.length, 9850,
     'la consigne n’a pas été raccourcie — elle a été allongée par 03B, BETA-04, V2.1.5, V2.1.5.3, V2.2.1-D2F1 puis TARGETED-FIX-POST-CODEX-01, à coût mesuré');
   assert.equal(FAST_INTERACTION_SYSTEM_PROMPT.split(' ').length > 100, true);
   assert.match(E.optimisation.raison, /la section 6 interdit de supprimer une instruction parce qu elle est longue/);
@@ -379,7 +382,7 @@ test('T-PERFREAL01E-14 : l’artefact frontend n’a pas bougé, et l’observat
      qu'un refus de sortie fournisseur cesse d'être compté comme un défaut de notre code. Aucune
      règle, aucun prompt, aucun schéma, aucun comportement d'interface. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    '1af206f28863c1f9ee667558ea0f4489d5f5c21eb01d05925c92c3d6f3afb7a4', 'CANONICAL_HTML_CHANGED = NO');
+    '61083844254b0edba415ef874579901bec103fbbac03c12d7a44496bc6e3bed7', 'CANONICAL_HTML_CHANGED = NO');
   /* La seule modification du worker est le relevé de usage : cinq champs, aucun branchement. */
   assert.match(WORKER, /event: "groq_usage_observation"/);
   for (const champ of ['jetons_entree', 'jetons_sortie', 'jetons_total',
