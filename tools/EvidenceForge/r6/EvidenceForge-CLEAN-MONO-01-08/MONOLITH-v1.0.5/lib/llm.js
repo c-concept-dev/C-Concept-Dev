@@ -152,7 +152,7 @@ function createLlm(opts) {
   async function preflight() {
     if (!configured()) return Object.assign({ ok: false }, PROVIDER_STATES.NOT_CONFIGURED);
     try { budgetCheck({ purpose: "preflight" }, "preflight"); const r = await httpCall(JSON.stringify({ model: MODEL, max_tokens: 8, messages: [{ role: "user", content: "Reponds uniquement: ok" }] }), "efm-preflight-" + crypto.randomBytes(4).toString("hex"));
-      if (r.res.status === 200) { let pu = null; try { pu = JSON.parse(r.raw); } catch (e) { pu = null; } ledgerRecord({ kind: "PREFLIGHT", purpose: "preflight", model: (pu && pu.model) || MODEL, usage: pu && pu.usage, providerRequestId: pu && pu.id, httpStatus: 200 }); }
+      if (r.res.status === 200) { let pu = null; try { pu = JSON.parse(r.raw); } catch (e) { pu = null; } ledgerRecord({ kind: "PREFLIGHT", stage: "PREFLIGHT", purpose: "preflight", model: (pu && pu.model) || MODEL, usage: pu && pu.usage, providerRequestId: pu && pu.id, httpStatus: 200 }); }
       return Object.assign({ ok: r.res.status === 200, httpStatus: r.res.status, model: MODEL }, r.state); }
     catch (e) { return { ok: false, code: e.code, user: e.userMessage || e.message }; }
   }

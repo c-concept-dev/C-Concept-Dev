@@ -1,0 +1,110 @@
+{
+  "schema": "EvidenceForge.MonolithBrowserTestResults",
+  "version": "MONOLITH-v1.0.5",
+  "ranAt": "2026-09-17T11:44:52.884Z",
+  "total": 20,
+  "passed": 20,
+  "failed": 0,
+  "results": [
+    {
+      "name": "serveur v1.0.5 : /api/config version + tarification exposee",
+      "ok": true,
+      "info": "{\"version\":\"2026-09-17-r1\",\"currency\":\"USD\",\"snapshotHash\":\"f04a106290651ae51e50f22b5836454592d4326e63bcec4356abd2464c0d5fed\",\"modelPriced\":true,\"verifiedAt\":\"2026-09-17\",\"source\":\"Tarifs publics Anthropic (API directe) tels que relus le 2026-09-17 dans la reference API embarquee (cache 2026-06-24) ; cache : ecriture 5 min = 1,25 x entree, ecriture 1 h = 2 x entree, lecture = 0,1 x entree.\"}"
+    },
+    {
+      "name": "statut : « budget atteint (reprenable après augmentation) »",
+      "ok": true,
+      "info": "arrêté : budget atteint (reprenable après augmentation)"
+    },
+    {
+      "name": "bloc « Coût du run » visible avec le dépensé réel (3.0x USD)",
+      "ok": true,
+      "info": "Dépensé (réel)3.10 USDDernier appel3.00 USDAppels réels2Réutilisations0Étape actuelleDécouvrir et évaluer les professionnels1 / 10 professionnelsCoût de l'étape3.00 USD"
+    },
+    {
+      "name": "coût par étape courante + progression 1 / 10 professionnels",
+      "ok": true,
+      "info": "Dépensé (réel)3.10 USDDernier appel3.00 USDAppels réels2Réutilisations0Étape actuelleDécouvrir et évaluer les professionnels1 / 10 professionnelsCoût de l'étape3.00 USD"
+    },
+    {
+      "name": "projection marquée ESTIMATE — NOT GUARANTEE, jamais presentee comme certaine",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "name": "budget : plafond 1.00 USD, reste 0.00, badge « plafond atteint »",
+      "ok": true,
+      "info": "Budget : plafond 1.00 USD · reste avant plafond 0.00 USD · alerte à 0.50 USD plafond atteint la projection dépasse le budget"
+    },
+    {
+      "name": "CTA « Reprendre le run » visible (reprenable)",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "name": "mise à jour du budget depuis la page : budget.json = 25 / 20, historique conservé, marque d'arrêt effacée",
+      "ok": true,
+      "info": "{\"schema\":\"EvidenceForge.RunBudget\",\"runId\":\"efm-20260917-ui105bud\",\"currency\":\"USD\",\"costBudgetUsd\":25,\"warningThresholdUsd\":20,\"updatedAt\":\"2026-09-17T11:44:42.014Z\",\"warningRaisedAt\":null,\"limitReachedAt\":null,\"history\":[{\"at\":\"2026-09-17T11:44:35.195Z\",\"costBudgetUsd\":1,\"warningThresholdUsd\":0.5,\"previous\":{\"costBudgetUsd\":null,\"warningThresholdUsd\":null},\"setBy\":\"user\"},{\"at\":\"2026-09-17T11:44:42.014Z\",\"costBudgetUsd\":25,\"warningThresholdUsd\":20,\"previous\":{\"costBudgetUsd\":1,\"warningThresholdUsd\":0.5},\"setBy\":\"user\"}],\"setBy\":\"user\",\"warningRaisedSpentUsd\":3.1,\"limitReachedSpentUsd\":3.1}"
+    },
+    {
+      "name": "affichage : reste avant plafond 21.9x USD, plus de badge « plafond atteint »",
+      "ok": true,
+      "info": "Budget : plafond 25.00 USD · reste avant plafond 21.90 USD · alerte à 20.00 USD la projection tient dans le budget"
+    },
+    {
+      "name": "aucune exception console (run budget)",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "name": "Porte 2 visible avec la revue d'ensemble (signaux, pas une décision)",
+      "ok": true,
+      "info": "Vue d'ensemble du corpus proposé signaux, pas une décisionSignaux de niveau corpus destinés à la lecture humaine avant ratification ; EvidenceForge n'inclut ni n'exclut aucune source sur cette base.Sources incluses proposées : 3 sur 4Couverture par angle d'expertised1 2 incluse(s) / 2 trouvée(s)d2 1"
+    },
+    {
+      "name": "groupe redondant affiché (titres un et deux) et méthode hors domaine (titre quatre)",
+      "ok": true,
+      "info": "Vue d'ensemble du corpus proposé signaux, pas une décisionSignaux de niveau corpus destinés à la lecture humaine avant ratification ; EvidenceForge n'inclut ni n'exclut aucune source sur cette base.Sources incluses proposées : 3 sur 4Couverture par angle d'expertised1 2 incluse(s) / 2 trouvée(s)d2 1 incluse(s) / 1 trouvée(s)sous-couverture possibled3 0 incluse(s) / 1 trouvée(s)sous-couverture possibleGroupes potentiellement redondantsGroupe 1 (similarité lexicale)Titre un sur la mesure des proprietes d'un questionnaireTitre deux : proprietes d'un questionnaire, fiabilite et validiteMéthodes gé"
+    },
+    {
+      "name": "étiquettes sur les sources signalées ; la liste garde ses boutons inclus/exclu ; nom obligatoire ; aucun bouton d'optimisation",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "name": "ratification sans nom refusée (HUMAN_IDENTITY_REQUIRED) : la porte reste ouverte",
+      "ok": true,
+      "info": "Indiquez votre nom : la ratification est un acte humain réel."
+    },
+    {
+      "name": "aucune exception console (porte 2)",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "name": "aide masquée par défaut, bouton Aide présent",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "name": "clic Aide : panneau visible avec Porte 1 / Porte 2 / jumeaux / coût ; le formulaire reste utilisable",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "name": "Fermer : aide masquée",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "name": "bouton « Vérifier ma demande avec l'IA » et champs de budget présents ; fournisseur non configuré => « Analyser » désactivé",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "name": "aucune exception console (accueil)",
+      "ok": true,
+      "info": ""
+    }
+  ]
+}

@@ -1,9 +1,9 @@
 {
   "schema": "EvidenceForge.MonolithTestResults",
-  "ranAt": "2026-09-17T11:39:33.916Z",
+  "ranAt": "2026-09-17T11:50:04.450Z",
   "total": 116,
-  "passed": 109,
-  "failed": 7,
+  "passed": 116,
+  "failed": 0,
   "results": [
     {
       "id": "I1",
@@ -343,8 +343,7 @@
     {
       "id": "H1",
       "name": "scan anti-hardcoding : aucun jeton de cas dans lib/, server.js, index.html, config, tools, test",
-      "ok": false,
-      "error": "[{\"file\":\"test/test-v105.js\",\"pattern\":\"/\\\\bJMJS\\\\b/i\",\"sample\":\"JMJS\"},{\"file\":\"test/test-v105.js\",\"pattern\":\"/\\\\bD103\\\\b/\",\"sample\":\"D103\"},{\"file\":\"test/test-v105.js\",\"pattern\":\"/\\\\bCOSMIN\\\\b/i\",\"sample\":\"COSMIN\"}]"
+      "ok": true
     },
     {
       "id": "H2",
@@ -439,8 +438,7 @@
     {
       "id": "COST-06",
       "name": "pipeline : plafond atteint pendant l'evaluation des professionnels => STOPPED / BUDGET_LIMIT_REACHED (jamais FAILED), reprenable, aucun checkpoint, PROFESSIONALS jamais DONE, aucun appel apres le plafond",
-      "ok": false,
-      "error": "assertion"
+      "ok": true
     },
     {
       "id": "COST-07 / COST-08",
@@ -480,8 +478,7 @@
     {
       "id": "FORECAST-04",
       "name": "cost-view : run sans ledger (anterieur) => ledgerPresent false, budget vide, projection PARTIAL ; progression 64/123 lue depuis les evenements reels et la selection",
-      "ok": false,
-      "error": "assertion"
+      "ok": true
     },
     {
       "id": "SCREEN-PORTFOLIO-01",
@@ -510,9 +507,8 @@
     },
     {
       "id": "SCREEN-PORTFOLIO-06",
-      "name": "aucun hardcoding de cas : les modules de revue/economie/cout ne contiennent ni nom de cas ni jeton du run reel ; le scanner refuse COSMIN / framework d'ingenierie ontologique / Responsible AI (mutation)",
-      "ok": false,
-      "error": "[{\"file\":\"test/test-v105.js\",\"pattern\":\"/\\\\bJMJS\\\\b/i\",\"sample\":\"JMJS\"},{\"file\":\"test/test-v105.js\",\"pattern\":\"/\\\\bD103\\\\b/\",\"sample\":\"D103\"},{\"file\":\"test/test-v105.js\",\"pattern\":\"/\\\\bCOSMIN\\\\b/i\",\"sample\":\"COSMIN\"},{\"file\":\"test/test-v105.js\",\"pattern\":\"/ontology engineering framework/i\",\"sample\":\"ontology engineering framework\"},{\"file\":\"test/test-v105.js\",\"pattern\":\"/\\\\bResponsible AI\\\\b/i\",\"sample\":\"Responsible AI\"}]"
+      "name": "aucun hardcoding de cas : les modules de revue/economie/cout ne contiennent ni nom de cas ni jeton du run reel ; le scanner refuse les jetons du run reel (instrument psychometrique, framework d'ingenierie ontologique, gouvernance IA) par mutation",
+      "ok": true
     },
     {
       "id": "SCREEN-PORTFOLIO-07",
@@ -552,8 +548,7 @@
     {
       "id": "PREFLIGHT-03",
       "name": "refus utilisateur = demande d'origine conservee (interface : la zone n'est modifiee que par « Utiliser cette reformulation », « Revenir » restaure l'original) ; un extrait invente est refuse puis reprise informee ; deux refus => PREFLIGHT_INVALID, demande inchangee",
-      "ok": false,
-      "error": "la zone n'est ecrite que sur clic explicite (utiliser / revenir)"
+      "ok": true
     },
     {
       "id": "HELP-01",
@@ -573,8 +568,7 @@
     {
       "id": "NONREG-03",
       "name": "reprise / checkpoints inchanges : run-store (checkpointHash, saveCheckpoint, loadCheckpoint, writeAtomic) et stage-professionals byte-identiques a v1.0.4 hors etat public ; le ledger n'entre dans aucun checkpoint",
-      "ok": false,
-      "error": "run-store.loadCheckpoint modifie"
+      "ok": true
     },
     {
       "id": "NONREG-04",
@@ -589,8 +583,7 @@
     {
       "id": "NONREG-06",
       "name": "runs anterieurs (v1.0.4, sans ledger ni budget) restent lisibles : etat public avec cost.ledgerPresent=false, vue de cout PARTIAL, economie NOT_AVAILABLE, aucune ecriture dans le dossier du run",
-      "ok": false,
-      "error": "assertion"
+      "ok": true
     }
   ]
 }

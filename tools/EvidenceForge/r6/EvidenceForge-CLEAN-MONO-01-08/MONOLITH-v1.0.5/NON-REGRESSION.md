@@ -40,3 +40,18 @@ Le monolithe **compose** ; il ne réécrit rien. Ce document liste, brique par b
 
 - Le kit EF-01 (résolveur/planificateur) passe par MONO-04 et non par `lib/llm.js` : ses appels ne bénéficient pas de la politique de réutilisation (un rerun = nouveaux appels réels, journalisés dans `ef01-evidence/`).
 - Le rapport classe « établi » toute convergence de ≥ 2 jumeaux majoritairement documentée (support / vigilance) : règle de présentation du monolithe, documentée dans `stage-report.js`, pas une règle scientifique.
+
+## v1.0.5 — chantier correctif coût / budget / screening global / économie du panel (2026-09-17)
+
+| Élément gelé ou protégé | Statut sous v1.0.5 | Preuve |
+|---|---|---|
+| MONO-01, MONO-09 v0.2, MONO-10 v0.19, MONO-11 v0.3-r1 | byte-identiques (sceaux, zips) | `FROZEN-HASHES-BEFORE-AFTER.md`, tests I1, NONREG-01 |
+| MONOLITH v1.0.4 (prédécesseur) | byte-identique (SHA256SUMS 47/0, zip `97b999ad…`), suite 80/80 rejouée depuis le dépôt | NONREG-02 |
+| Kits EF-01B/EF-01C1 v0.2-r2, MONO-04, MONO-08 | non touchés ; le chemin kit passe par l'adaptateur additif `wrapMono04` (déjà présent en v1.0.4) | COST-11, `lib/mono04-fence-adapter.js` |
+| Checkpoints, reprise, écriture atomique | fonctions byte-identiques ; le ledger de coût n'entre dans aucun checkpoint haché | NONREG-03, X4, X5, COST-07 |
+| Porte 1 (`confirmPlan`, acte humain) | byte-identique ; l'assistant de cadrage est hors run et ne confirme rien | NONREG-04, PREFLIGHT-01/02/03 |
+| Porte 2 (`ratifySources`, `buildAuditDecisions`, acteur `human`) | byte-identiques ; la revue de portefeuille est un artefact à côté (`notADecision`), la ratification enregistre le hash de la preuve de screening | NONREG-05, SCREEN-PORTFOLIO-02/07 |
+| Plafond 150 (PROFESSIONAL-SELECTION-v1, garde dure) | inchangé (`professional-selection.js`, `stage-professionals.js` byte-identiques) ; mesuré, jamais seuillé | PROF-ECON-03/04, C1–C6 |
+| Contrat de validation MONO-11-v2, reuse liée au contexte | inchangés ; le reuse est enregistré à coût 0 et jamais compté comme réel | COST-02, L5, X7 |
+| Runs réels (`efm-20260917-f8a95282`, `efm-20260917-cf6101c7`, `efm-20260916-7990da62`) | lecture seule (`tools/reconstruct-cost.js`, scan anti-hardcoding alimenté par leurs artefacts) | `RAPPORT-FINAL-COST-SCREENING-v1.0.5.md` |
+| Runs antérieurs (sans ledger ni budget) | lisibles : `cost.ledgerPresent=false`, projection partielle, économie `NOT_AVAILABLE`, aucune écriture | NONREG-06 |

@@ -54,6 +54,11 @@ function createBudgetGuard(opts) {
   function assertAllowed(ctx) {
     ctx = ctx || {}; const b = read(); if (b.costBudgetUsd === null && b.warningThresholdUsd === null) return { allowed: true, budget: b };
     const p = opts.ledger.pricing(); const t = opts.ledger.totals(); const spent = t.totalUsd;
+    /* alerte d'abord (une fois par seuil), puis plafond : franchir les deux d'un coup emet l'alerte ET refuse l'appel */
+    if (b.warningThresholdUsd !== null && spent >= b.warningThresholdUsd && !b.warningRaisedAt) {
+      const cur = read(); cur.warningRaisedAt = new Date().toISOString(); cur.warningRaisedSpentUsd = spent; writeAtomic(file, JSON.stringify(cur, null, 2) + "\n");
+      emit({ type: "budget_warning", spentUsd: spent, warningThresholdUsd: b.warningThresholdUsd, costBudgetUsd: b.costBudgetUsd });
+    }
     if (b.costBudgetUsd !== null) {
       if (ctx.model && !p.resolve(ctx.model)) { const e = new Error("PRICING_UNKNOWN_FOR_MODEL: " + ctx.model); e.code = "PRICING_UNKNOWN_FOR_MODEL"; e.fatal = true; e.details = { model: ctx.model, pricingVersion: p.version };
         e.userMessage = "Un budget est fixé mais le modèle d'analyse configuré (" + ctx.model + ") n'a pas de tarif connu (tarification " + p.version + ") : EvidenceForge refuse tout appel plutôt que de dépasser votre budget sans le savoir."; throw e; }
@@ -64,10 +69,6 @@ function createBudgetGuard(opts) {
         const e = new Error("BUDGET_LIMIT_REACHED: " + spent.toFixed(2) + " >= " + b.costBudgetUsd.toFixed(2) + " USD"); e.code = "BUDGET_LIMIT_REACHED"; e.fatal = true; e.details = { spentUsd: spent, costBudgetUsd: b.costBudgetUsd, where: ctx.where || null, purpose: ctx.purpose || null };
         e.userMessage = "Le budget maximum que vous avez fixé (" + b.costBudgetUsd.toFixed(2) + " USD) est atteint : " + spent.toFixed(2) + " USD dépensés. Le run est arrêté proprement AVANT tout nouvel appel payant ; les résultats déjà validés sont conservés. Pour poursuivre, augmentez le budget puis reprenez le run.";
         emit({ type: "budget_limit", spentUsd: spent, costBudgetUsd: b.costBudgetUsd, where: ctx.where || null }); throw e; }
-    }
-    if (b.warningThresholdUsd !== null && spent >= b.warningThresholdUsd && !b.warningRaisedAt) {
-      const cur = read(); cur.warningRaisedAt = new Date().toISOString(); cur.warningRaisedSpentUsd = spent; writeAtomic(file, JSON.stringify(cur, null, 2) + "\n");
-      emit({ type: "budget_warning", spentUsd: spent, warningThresholdUsd: b.warningThresholdUsd, costBudgetUsd: b.costBudgetUsd });
     }
     return { allowed: true, budget: b, spentUsd: spent };
   }

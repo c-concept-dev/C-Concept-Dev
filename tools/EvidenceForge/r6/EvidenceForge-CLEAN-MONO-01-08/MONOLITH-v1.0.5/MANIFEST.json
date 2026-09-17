@@ -1,0 +1,416 @@
+{
+  "schema": "EvidenceForge.MonolithManifest",
+  "product": {
+    "name": "EvidenceForge",
+    "version": "MONOLITH-v1.0.5"
+  },
+  "generatedAt": "2026-09-17T11:50:04.567Z",
+  "frozenLots": {
+    "MONO-10": {
+      "dir": "MONO-10/v0.19",
+      "seal": "SHA256SUMS.txt",
+      "canonicalZip": "MONO-10/EvidenceForge-MONO10-SCIENTIFIC-QUALIFICATION-v0.19.zip",
+      "canonicalZipSha256": "f5a4165414f4aacc32f48f50eb14d59c87a09e3f138e24f8bd14b956972c2e04"
+    },
+    "MONO-11": {
+      "dir": "MONO-11/v0.3-r1",
+      "version": "v0.3-r1",
+      "seal": "SHA256SUMS.txt",
+      "canonicalZip": "MONO-11/EvidenceForge-MONO11-AUTONOMOUS-PANEL-v0.3-r1.zip",
+      "canonicalZipSha256": "3c44b397dda0997d0fff6ab4c8e8a8b311430e6a5ac7aeee38149f8349296b0b",
+      "$comment": "MONO-11 v0.3-r1 = GELE (decision de gouvernance 2026-09-16) ; version = MANIFEST.version attendu par run-seal-guard ; v0.2 (5c208cbb...) = gele historique, v0.3 (bec55841...) = candidat intermediaire non retenu"
+    },
+    "MONO-09": {
+      "dir": "MONO-09/v0.2",
+      "seal": "SHA256SUMS.txt"
+    },
+    "MONO-01": {
+      "dir": "MONO-01",
+      "seal": "manifest/SHA256SUMS"
+    }
+  },
+  "integration": {
+    "mono11": {
+      "version": "v0.3-r1",
+      "zipSha256": "3c44b397dda0997d0fff6ab4c8e8a8b311430e6a5ac7aeee38149f8349296b0b",
+      "runtimeSealSha256": "9fbef4126d437e0bb2ee4b2564b5ebcc381e8a338eacba40a590eff8402c079c",
+      "sourceSealHash": "9fbef4126d437e0bb2ee4b2564b5ebcc381e8a338eacba40a590eff8402c079c",
+      "runCodeHash": "e156590d1605a8873b7b9814ad44a314084ad8946c8993dff4e5e7f86b452755",
+      "manifestSha256": "9cbf02d41b8d9f78212bd398afcbb5af5cb1166d028311e105fa59bd2b7a0cb5",
+      "validationContract": "MONO-11-v2",
+      "note": "sourceSealHash = runtimeSealSha256 du lot MONO-11 charge : cle de contexte de la reuse (lib/llm.js reuseContextCheck) ; validationContract = contrat SCIENTIFIQUE (inchange), distinct de la version du code"
+    },
+    "predecessor": {
+      "version": "MONOLITH-v1.0.4",
+      "zipSha256": "97b999adcff395ab49f7cd33e8e70bab767c7df22ffdda0967771db5595dd961",
+      "mono11": "v0.3-r1 (zip 3c44b397dda0997d0fff6ab4c8e8a8b311430e6a5ac7aeee38149f8349296b0b), inchange"
+    },
+    "pricing": {
+      "version": "2026-09-17-r1",
+      "snapshotHash": "f04a106290651ae51e50f22b5836454592d4326e63bcec4356abd2464c0d5fed",
+      "models": [
+        "claude-haiku-4-5",
+        "claude-opus-4-6",
+        "claude-opus-4-7",
+        "claude-opus-4-8",
+        "claude-opus-5",
+        "claude-sonnet-4-6",
+        "claude-sonnet-5"
+      ]
+    },
+    "frozenLotsMeasured": {
+      "MONO-10": {
+        "files": 79,
+        "divergences": 0,
+        "sealSha256": "e050af0545ab5b902eb710b2308914523125b784dc27a9a2d387040dced48227",
+        "canonicalZipSha256": "f5a4165414f4aacc32f48f50eb14d59c87a09e3f138e24f8bd14b956972c2e04"
+      },
+      "MONO-11": {
+        "files": 52,
+        "divergences": 0,
+        "sealSha256": "9fbef4126d437e0bb2ee4b2564b5ebcc381e8a338eacba40a590eff8402c079c",
+        "canonicalZipSha256": "3c44b397dda0997d0fff6ab4c8e8a8b311430e6a5ac7aeee38149f8349296b0b"
+      },
+      "MONO-09": {
+        "files": 9,
+        "divergences": 0,
+        "sealSha256": "f1f1e94bdcca4402bc690883ee443ad0b188987fc65c5bd16e050b50b4016e56",
+        "canonicalZipSha256": null
+      },
+      "MONO-01": {
+        "files": 106,
+        "divergences": 0,
+        "sealSha256": "4ba8903ceaeb7e24886708909d734a7b7f34e7cd9ae28b15603440577fe18ffd",
+        "canonicalZipSha256": null
+      }
+    },
+    "tests": {
+      "total": 116,
+      "passed": 116,
+      "failed": 0,
+      "ranAt": "2026-09-17T11:50:04.450Z"
+    },
+    "professionals": {
+      "maxCandidatesToEvaluate": 150,
+      "selection": "PROFESSIONAL-SELECTION-v1 (inchangee)",
+      "capIsGuardNotTarget": true,
+      "earlyStopPolicy": "NONE"
+    },
+    "provenance": "MONOLITH v1.0.5 = v1.0.4 (GELEE, inchangee) + couche additive : ledger de cout (tarif versionne, snapshot par run), budget dur par run (verifie avant chaque appel reel, BUDGET_LIMIT_REACHED reprenable), projection separee, revue de portefeuille du corpus (notADecision) avant la Porte 2, economie du panel (mesure, aucun early-stop), assistant de cadrage hors run, aide. Lots geles MONO-01..MONO-11, EF-01B/EF-01C1, MONO-04 : aucun fichier touche. Contrat scientifique, validateur, cap 150, checkpoints, lignee, reuse inchanges.",
+    "status": "CANDIDAT (v1.0.5) — NON GELE : tests fonctionnels/adversariaux passes ; audit independant differentiel et run reel sous cette version requis avant gel"
+  },
+  "files": [
+    {
+      "path": "AUTOPSIE-POST-RUN-COST-SCREENING.md",
+      "sha256": "f78be367c605aa85d02d645ec35a364724c74228dee01b6d6bb08fab3ffd0d96",
+      "bytes": 18704
+    },
+    {
+      "path": "CHECKPOINT-REANCHOR-TEST.md",
+      "sha256": "ecdb5b0e4434b8e3a35430b56afd8bbdcd34f910a0cde4874e5d771eaefa72a6",
+      "bytes": 2408
+    },
+    {
+      "path": "CROSS-TWIN-MONOLITH-TEST.md",
+      "sha256": "9ac71edbbd93017bfc2d3c960023c58a12d35411810ddde99975163011f88b7c",
+      "bytes": 3279
+    },
+    {
+      "path": "FROZEN-HASHES-BEFORE-AFTER.md",
+      "sha256": "0316c7cb8c5a0cc8fd62f81f5378a2fc769986febeaa08d851071dbb11d534af",
+      "bytes": 3563
+    },
+    {
+      "path": "FROZEN-INTEGRITY.md",
+      "sha256": "c74a17c1513b90a19cf241e5e8c3b2387fd95a816df8f6d61b52db03c9bbbeb2",
+      "bytes": 4040
+    },
+    {
+      "path": "FUNCTIONAL-TEST-REPORT.md",
+      "sha256": "e9f53148c1afc3b28d6084d365f05c6fed02d05049bc236de85e1fa18136beea",
+      "bytes": 13767
+    },
+    {
+      "path": "INTEGRATION-REPORT-MONO11-v0.3-r1.md",
+      "sha256": "47240d1df6cefc6685265e35d236784761f8727c3876f07c63b5e5aaa23187ba",
+      "bytes": 11792
+    },
+    {
+      "path": "NON-REGRESSION.md",
+      "sha256": "725411dec0fdbd5508027a80eeecbf46648048a7e747ad88f0d9bdd44e79dffc",
+      "bytes": 9311
+    },
+    {
+      "path": "PLAN-CORRECTIF-COST-SCREENING-v1.md",
+      "sha256": "99de29d621aa6e30f3e50ff4440fd1c30c03f97746d0d5a4b6767bc382642631",
+      "bytes": 9155
+    },
+    {
+      "path": "PRIVACY-SECRET-SCAN.md",
+      "sha256": "ffb1e923c3a12c440c1f575f9a3e6210503972e126b88836856645b6182f5f8d",
+      "bytes": 3046
+    },
+    {
+      "path": "RAPPORT-FINAL-COST-SCREENING-v1.0.5.md",
+      "sha256": "a8b5d6a249593b497941c17af2a4f00683f9e3fd4504d2c51b7c702c30fa3e15",
+      "bytes": 13767
+    },
+    {
+      "path": "README.md",
+      "sha256": "3c0528e81a4646f910d6072546e905c8c74c782fd6ae04c68083ade2bed3b577",
+      "bytes": 20146
+    },
+    {
+      "path": "TEST-REPORT-MONOLITH-MONO11-v0.3-r1.md",
+      "sha256": "3919c9828ecbfa361090099ba448467505a051d95e5648d6375b00cc1371d832",
+      "bytes": 3101
+    },
+    {
+      "path": "UX-ACCEPTANCE.md",
+      "sha256": "f654f2741b5d4a33e2fb88786924b628477a3ec657f443e161f85b99d6845305",
+      "bytes": 6372
+    },
+    {
+      "path": "config/llm-pricing.json",
+      "sha256": "802cd2ce05e2f3a7006d4aebc25df9f923788b5ca50983e9402e85d4169bcd06",
+      "bytes": 2265
+    },
+    {
+      "path": "config/monolith.config.json",
+      "sha256": "c7bdc88f6206b3c0ec4aa198fb2cf881009ae41c29ee86e3feb2fd2669444714",
+      "bytes": 4348
+    },
+    {
+      "path": "governance/EvidenceForge-MONO11-v0.2-FREEZE-DECISION.md",
+      "sha256": "57ee19354e5f015f633da21fb17ec79abd7b0ea5d59ace491a38ee0956976ddf",
+      "bytes": 991
+    },
+    {
+      "path": "index.html",
+      "sha256": "4c92b29ebfb124f60dcc58ba237c47163df45c8dd631078d47befae0ac212deb",
+      "bytes": 57247
+    },
+    {
+      "path": "lib/budget-guard.js",
+      "sha256": "059e71032a92b3636c8bf812afb10c87b605f81507a4e9c3fe9617bae43cabf8",
+      "bytes": 7790
+    },
+    {
+      "path": "lib/corpus-portfolio-review.js",
+      "sha256": "009f810b5963b65ad1146012eea750d4cdde4f19bd8156670ebed691a0f21632",
+      "bytes": 20502
+    },
+    {
+      "path": "lib/cost-forecast.js",
+      "sha256": "07665b75af26bedcb80fd2cb1d7f218df4daba623161d9f549a2606e3f1972bf",
+      "bytes": 8530
+    },
+    {
+      "path": "lib/cost-ledger.js",
+      "sha256": "3f2dcbb0c0390d94e5b3ef5998018df833ab429c664977cbece5e297b8ccc248",
+      "bytes": 9540
+    },
+    {
+      "path": "lib/cost-view.js",
+      "sha256": "10554a8575cf4d6e369b0a0659e03adbe5354a5ec64d4162799b406833df3a62",
+      "bytes": 5873
+    },
+    {
+      "path": "lib/llm-transport.js",
+      "sha256": "6008e902589c30b698ac07252d85362658c63a14e271e83f518ea0e08477a2c0",
+      "bytes": 4617
+    },
+    {
+      "path": "lib/llm.js",
+      "sha256": "279fbe2ff4f3108a7d17511a5238d782159d29e270a475df49a515d0c69be35e",
+      "bytes": 18413
+    },
+    {
+      "path": "lib/mono04-fence-adapter.js",
+      "sha256": "8884b2ff107fc078876b0f41eb8fa77f28b3931fbb2e1cf8d8be14c06a0ca6d9",
+      "bytes": 4633
+    },
+    {
+      "path": "lib/paths.js",
+      "sha256": "504789ac05f9e6299ebd709153c79497991525bbec2e454dd2d58f80a636d873",
+      "bytes": 3512
+    },
+    {
+      "path": "lib/pipeline.js",
+      "sha256": "5ac7d39cf46242e2aaa298646440f429d7ff17fda4b981463957006d9924cc27",
+      "bytes": 40411
+    },
+    {
+      "path": "lib/preflight-assistant.js",
+      "sha256": "84bb9f2384ab929873e71830cf074783ca99248f1efd742ad5d769b56c25c100",
+      "bytes": 7844
+    },
+    {
+      "path": "lib/pricing.js",
+      "sha256": "5a321d5dc7020e7457ea6925fd843a81fd5f424c65173e15c864f3a5b0bf9fce",
+      "bytes": 5351
+    },
+    {
+      "path": "lib/professional-selection.js",
+      "sha256": "66781c69029aac615ebdb9a523bf4465799a7b03c68e89a06a3919eef632a679",
+      "bytes": 8983
+    },
+    {
+      "path": "lib/professionals-economics.js",
+      "sha256": "2fd5e2384fd78e1029fdf2145edd2bb60f976b2064b9f47a8c948022b97c04df",
+      "bytes": 9304
+    },
+    {
+      "path": "lib/run-store.js",
+      "sha256": "6f958b84ab8b7cfab6679ecc1cc65288070ad2d86369f738bb91aef1cc92e0ae",
+      "bytes": 10915
+    },
+    {
+      "path": "lib/screening-evidence.js",
+      "sha256": "de6614f67fbe72aeba11a0462992c52b5da3e58934f057c09f768b123e3256ce",
+      "bytes": 8169
+    },
+    {
+      "path": "lib/stage-ef01.js",
+      "sha256": "e42f52d2621cfe16afa94de0fcecbf6fed9d7a46c11fa2ecd01c653d08186ffd",
+      "bytes": 16533
+    },
+    {
+      "path": "lib/stage-mission.js",
+      "sha256": "c62b8d9530775f33046759048b4e255921318ffdabe69c8fcad6db13dcdec7c1",
+      "bytes": 6852
+    },
+    {
+      "path": "lib/stage-professionals.js",
+      "sha256": "425e26ff5273a7c35373a076cf3d56d91e41fa3cf05fda67c64d15610a002f4b",
+      "bytes": 34612
+    },
+    {
+      "path": "lib/stage-report.js",
+      "sha256": "0e67295b65583537f71799b02f8c9df2fe54ce33137bc799d8efc57c88664beb",
+      "bytes": 14419
+    },
+    {
+      "path": "lib/stage-retrieval.js",
+      "sha256": "2e31fe849426b96a59699aff018e47210989e3f9cc82ac0d6d21e481f0f15caa",
+      "bytes": 16284
+    },
+    {
+      "path": "server.js",
+      "sha256": "4ed30c203a1bc19d076bd9c1b5cf69b3d2ef4932fff4ba1f9e8a6a9d12bcbc3f",
+      "bytes": 11292
+    },
+    {
+      "path": "test/browser-results-v105.json",
+      "sha256": "3937e988aa15a5bf35eea2fa24a433e0ddf10f7624af77aabb5a33f309d0bd33",
+      "bytes": 5635
+    },
+    {
+      "path": "test/results.json",
+      "sha256": "68609345b954e4cae4a135f798d4d783635fc4d0aa28d70a5c18352fabafae0e",
+      "bytes": 26897
+    },
+    {
+      "path": "test/test-monolith.js",
+      "sha256": "9303f870615ea7c6dd0a2884014dcebaf9367bef46dbad28034382ce5645b499",
+      "bytes": 110727
+    },
+    {
+      "path": "test/test-v105.js",
+      "sha256": "96dd19bfd3e763e2e085828861942835179225ed1ffccf06073aa25cf25e7731",
+      "bytes": 57704
+    },
+    {
+      "path": "tools/anti-hardcoding-scan.js",
+      "sha256": "259f71433f25a329ec2e5e06fe645dc2e21109989e3fd8da7c9792dd301877e8",
+      "bytes": 3474
+    },
+    {
+      "path": "tools/browser-tests-v105.js",
+      "sha256": "85ee35a67542e7808be400ce88e53d019d73cf18ad64314ce962d4b2f1063350",
+      "bytes": 15064
+    },
+    {
+      "path": "tools/browser-tests.js",
+      "sha256": "329fab905c7ae31dc51fc8c3d3b00ee18d16817480a649f0ba8fe368b6f192e3",
+      "bytes": 7326
+    },
+    {
+      "path": "tools/build-manifest.js",
+      "sha256": "c0b197f181acb19aaada63a675546d273736dfb820793e9526d3035bfa595d5e",
+      "bytes": 5289
+    },
+    {
+      "path": "tools/import-sealed-run.js",
+      "sha256": "979c35b056a036abe338964bbdd431bb356f4ce51d1f2f7c4ec9cbdc86b7a4c3",
+      "bytes": 8358
+    },
+    {
+      "path": "tools/package.sh",
+      "sha256": "f2157195bee676265ceeaeab13593c3b9255ff2d7fb979a83060b483469df96a",
+      "bytes": 393
+    },
+    {
+      "path": "tools/reconstruct-cost.js",
+      "sha256": "26a00598cc99c53f94cd22ab02327dfde8cc25c34085c295071c21c20b85d7d2",
+      "bytes": 4541
+    },
+    {
+      "path": "tools/secret-scan.js",
+      "sha256": "b6470e2efb5625ed07a6605faa9cca3b0ede80f7dde719541104d75cf65ed403",
+      "bytes": 2068
+    },
+    {
+      "path": "vendor/operator-kit-r1.3/README.md",
+      "sha256": "914e99cfbb3440bf0b4a726b018a74060b56b81654e71f30e45d71006f695a95",
+      "bytes": 497
+    },
+    {
+      "path": "vendor/operator-kit-r1.3/assert-runcontract-confirmed.js",
+      "sha256": "59e90767fd2270594e11d916e45397e3c36f00504c5ba75e0ebadad54f6e1655",
+      "bytes": 1239
+    },
+    {
+      "path": "vendor/operator-kit-r1.3/build-eforch-provenance.js",
+      "sha256": "c0305503c349eefe1157ff8424457083cdddf2a685a6ec9a1be3a77a396ea341",
+      "bytes": 3040
+    },
+    {
+      "path": "vendor/operator-kit-r1.3/build-real-mono04.js",
+      "sha256": "2e53cbe3ff91a703d3254b0df5b0931ee1ad45148ac94f7a33bd50a788947e7b",
+      "bytes": 1343
+    },
+    {
+      "path": "vendor/operator-kit-r1.3/build-runcontract-draft-core.js",
+      "sha256": "0c7a376753a4d214e2041d269222f8c5468804909b23459e70a8bcc77dbd23a6",
+      "bytes": 3841
+    },
+    {
+      "path": "vendor/operator-kit-r1.3/build-searchprotocol-core.js",
+      "sha256": "271b9d6483a8e8c82df730cfab3cf20a8371197123cceae81e63de52c14feaa1",
+      "bytes": 2155
+    },
+    {
+      "path": "vendor/operator-kit-r1.3/derive-auto-included-discipline-ids.js",
+      "sha256": "84060e0457395b6828a09b7ec6241d2ffb74c4ab229a84a1809972e6301ee69e",
+      "bytes": 2773
+    },
+    {
+      "path": "vendor/operator-kit-r1.3/filter-resolver-runs-by-runcontract.js",
+      "sha256": "d919f2e375e3452d2e43721c5d2cf5ae86b0ee84c9cec4d7aaa29c7ebb4b2c24",
+      "bytes": 3597
+    },
+    {
+      "path": "vendor/operator-kit-r1.3/run-planner-core.js",
+      "sha256": "c9ac749d9107052c869526a5bd0d31430b62a1678b03d5cf88401ac06a3c6d1a",
+      "bytes": 1283
+    },
+    {
+      "path": "vendor/operator-kit-r1.3/run-resolver-core.js",
+      "sha256": "3fed524343550469d4a520137226e3305c4a18b3fc038059697de828a0a1beb7",
+      "bytes": 1614
+    }
+  ],
+  "fileCount": 62,
+  "contentHash": "d8b759eb07de05e9661883c6fb6e88feb8fc1d249371a2e0287bcaedde81a7dd"
+}
