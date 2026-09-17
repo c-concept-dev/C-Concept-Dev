@@ -80,3 +80,14 @@ Le monolithe **compose** ; il ne réécrit rien. Ce document liste, brique par b
 | État partiel sur arrêt (`professionals-sufficiency-partial.json`) | additif : écrit seulement quand `runPanel` s'interrompt (plafond, panne, invariant) ; `notAVerdict`, deux axes (`scientificPanelState`, `economicEvaluationState` réservé) ; jamais un checkpoint ; boucle gelée, gate, verrou de transport inchangés | PRO-PARTIAL-01/02, COST-06, PRO-EARLY-10 |
 | Budget, reprise, verrou de transport | budget prioritaire inchangé ; observations post-verrou ignorées ; décision rejouable à l'identique | SUFF-07/08, PRO-EARLY-10 |
 | Normalisation des références (audit adversarial) | remplacement uniquement sur correspondance canonique unique ; ambigu/inventé intacts ; rien ajouté/supprimé ; rationale/classe intacts ; hashes journalisés ; validateur gelé dernier mot | WORKREF-ADV-01…08 |
+
+## v1.0.5 — Screening Cost Optimizer (2026-09-17, `SCREENING-COST-OPTIMIZER-IMPLEMENTATION.md`)
+
+| Élément | Statut | Preuve |
+|---|---|---|
+| Ratification humaine (`buildAuditDecisions`, Porte 2, contrat gelé MONO-08) | byte-identique ; les champs additifs des propositions ne sont pas propagés dans les décisions humaines | SCREEN-COST-14, R1–R3 |
+| Validateur de fond (paraphrase, preuve inventée, énumération hors contrat) | refus maintenu ; seule la FORME est normalisée (mots entiers, fragment littéral réel rendu, trace hachée) ; faux accepts 0 sur 37 normalisations réelles | SCREEN-COST-05/06/11/18 |
+| Doublons déterministes, décisions {inclus, exclu}, schéma `MachineScreeningEvidence` | byte-identiques | NONREG-03 (requalifié), S1–S3 |
+| Reprise | RETRY_ONLY_INVALID_ITEMS : items valides immuables (hash), recomposition ordonnée, lignée ; RETRY_FULL_BATCH disponible | SCREEN-COST-08/09/10/12 |
+| Revue de portefeuille | `notADecision`, énoncé, signaux déterministes inchangés ; périmètre LLM par défaut inchangé, périmètres restreints tracés | SCREEN-COST-13, SCREEN-PORTFOLIO-* |
+| Runs réels | lecture seule (`tools/screening-replay.js` n'écrit rien) | SCREEN-COST-17/18 |

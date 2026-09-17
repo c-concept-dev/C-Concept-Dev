@@ -60,8 +60,11 @@
   "attestationValidityHours": 8,
   "screening": {
     "batchSize": 8,
-    "$comment": "screening machine par lots : preuve LLM structuree par source, ratifiee par l'utilisateur (contrat gele MONO-08 : acteur humain requis en REAL)",
-    "maxPasses": 3
+    "$comment": "screening machine par lots : preuve LLM structuree par source, ratifiee par l'utilisateur (contrat gele MONO-08 : acteur humain requis en REAL). v1.0.5 cost optimizer : evidence verifiee par SCREENING-EVIDENCE-NORMALIZATION-v1 (litteral puis forme canonique, fragment reel rendu) sur les champs evidenceFields ; reprise ciblee RETRY_ONLY_INVALID_ITEMS ; bornes de sortie demandees au modele (jamais un motif de refus). batchSize inchange (validite JSON des grands lots non mesuree).",
+    "maxPasses": 3,
+    "evidenceFields": ["titre", "resume", "lieu"],
+    "retryStrategy": "RETRY_ONLY_INVALID_ITEMS",
+    "outputBounds": { "justificationMaxChars": 160, "evidenceMaxFragments": 2, "evidenceMaxChars": 80 }
   },
   "documents": {
     "acceptedExtensions": [
@@ -86,6 +89,11 @@
     "minSourcesForOverRepresentation": 3,
     "llmBatchSize": 12,
     "maxPasses": 3,
+    "llmScope": "ALL_EXCLUDED_WITH_ABSTRACT",
+    "evidenceFields": ["titre", "resume", "lieu"],
+    "retryStrategy": "RETRY_ONLY_INVALID_ITEMS",
+    "outputBounds": { "interestMaxChars": 160, "evidenceMaxFragments": 2, "evidenceMaxChars": 80 },
+    "$comment2": "v1.0.5 cost optimizer : llmScope ∈ {ALL_EXCLUDED_WITH_ABSTRACT (defaut, perimetre inchange), UNDERCOVERED_ANGLES_ONLY, NON_HIGH_CONFIDENCE_ONLY, NONE} — un perimetre restreint est une decision produit tracee (llmScope.removed), jamais une autorite scientifique ; doublons parmi les exclues retires deterministiquement.",
     "$comment": "v1.0.5 — parametres GENERIQUES de la revue de portefeuille du corpus (lib/corpus-portfolio-review.js) : seuil de similarite lexicale (TF-IDF cosinus) pour un groupe de redondance ; facteur de surrepresentation par rapport a la part uniforme ; taille des lots LLM pour la distinction domaine / methode. Aucun domaine, aucun mot-cle, aucun nom de cas. La revue ne decide rien (notADecision).",
     "balancing": {
       "coverageTargetFactor": 0.5,

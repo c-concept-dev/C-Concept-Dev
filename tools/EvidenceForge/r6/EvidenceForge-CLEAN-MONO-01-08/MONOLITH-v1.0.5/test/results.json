@@ -1,8 +1,8 @@
 {
   "schema": "EvidenceForge.MonolithTestResults",
-  "ranAt": "2026-09-17T19:18:32.917Z",
-  "total": 158,
-  "passed": 158,
+  "ranAt": "2026-09-17T19:48:04.407Z",
+  "total": 176,
+  "passed": 176,
   "failed": 0,
   "results": [
     {
@@ -793,6 +793,96 @@
     {
       "id": "WORKREF-ADV-08",
       "name": "corpus tel que le validateur le connait : corpusFromPrompt lit le JSON gele du prompt ; prompt sans corpus => null => adaptateur inactif (jamais une normalisation sur un corpus suppose)",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-COST-01",
+      "name": "apostrophe typographique : evidence citee avec apostrophe droite => acceptee sans reprise, fragment litteral reel rendu, normalisation tracee (original, canonique, litteral, champ, hashes, regle)",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-COST-02",
+      "name": "casse uniquement => acceptee sans reprise ; un fragment deja exact n'est pas marque normalise",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-COST-03",
+      "name": "accents Unicode (NFD vs NFC, accents omis) => acceptee sans reprise, litteral reel rendu (les marques combinantes du champ NFD sont conservees)",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-COST-04",
+      "name": "ponctuation, tirets et espaces multiples => acceptee sans reprise ; guillemets typographiques => acceptee",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-COST-05",
+      "name": "paraphrase absente du texte reel => rejet maintenu (aucun synonyme, aucune correspondance floue, aucune correspondance a l'interieur d'un mot) : l'item est refuse, jamais accepte",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-COST-06",
+      "name": "preuve inventee => rejet maintenu (screening et portefeuille) ; aucun LLM, aucune expansion dans le module de normalisation (source)",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-COST-07",
+      "name": "champ lieu (option A retenue) : un nom de revue cite tel quel est une preuve verifiable (champ lieu enregistre) ; annee et requete ne sont jamais des preuves ; un champ non configure est refuse",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-COST-08",
+      "name": "1 item invalide sur 8 => seule cette source repart en reprise (prompt cible : ses donnees, son erreur exacte, son entree precedente, aucune autre source) ; 2 appels au total",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-COST-09",
+      "name": "7 items valides en passe 1 => decisions et hashes inchanges apres la reprise, meme si la reprise renvoie des entrees pour eux (ignorees) ; l'item corrige porte sa lignee",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-COST-10",
+      "name": "recomposition du lot : ordre d'origine exact, lignee complete (originalBatchId, acceptedAtPass, decisionHash, history[pass, previousDecisionHash, validationErrors]), passes journalisees, calls compatibles",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-COST-11",
+      "name": "enumeration hors contrat (decision « moyenne », confiance inconnue) => refus maintenu et reprise ciblee sur ces seuls items ; apres maxPasses l'item non corrige est declare (failedSourceIds), les autres restent acceptes",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-COST-12",
+      "name": "aucun appel LLM supplementaire du a la normalisation : 8 items dont 5 evidences typographiques => 1 seul appel ; la strategie RETRY_FULL_BATCH reste disponible et conserve elle aussi les items acceptes",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-COST-13",
+      "name": "revue de portefeuille : notADecision, enonce, signaux deterministes et structure inchanges ; perimetre LLM par defaut = toutes les exclues avec resume (moins les doublons, declares) ; perimetres restreints traces, jamais une decision",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-COST-14",
+      "name": "ratification humaine inchangee : buildAuditDecisions byte-identique a v1.0.4 et accepte les propositions enrichies (evidenceFields, evidenceNormalization) sans les propager dans les decisions humaines",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-COST-15",
+      "name": "aucun lot gele modifie (MONO-01/09/10/11 verifies, 0 divergence) ; le screening et la revue restent des modules du monolithe",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-COST-16",
+      "name": "aucun hardcoding de discipline / mission / cas dans les nouveaux modules, le rejeu et la configuration (scanner anti-hardcoding)",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-COST-17",
+      "name": "rejeu deterministe : deux rejeux du run reel (si present) produisent un JSON identique ; sur un run synthetique, validation identique a chaque appel",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-COST-18",
+      "name": "cout calcule avant / apres sur le run reel 5ad77c88 (si present) : BASELINE = ledger (1,333 USD, 42 appels, 12 reprises) ; normalisation seule et reprise ciblee economisent sans aucun faux accept ; les items encore refuses sont exactement les paraphrases et l'enumeration",
       "ok": true
     }
   ]

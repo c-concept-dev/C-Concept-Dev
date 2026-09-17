@@ -134,7 +134,7 @@ function advance(runId) {
         const en = await SR.enrichSources({ runDir: store.dir, snapshot: r.snapshot, log }); store.saveJson("sources-enriched.json", en);
         store.event({ level: "user", message: "Tri documentaire des publications (proposition machine, à ratifier)…" , _state: state });
         const dims = disciplines.runContract.disciplinesProposees.filter((d) => d.statut === "retenue").map((d) => ({ id: d.discipline, label: d.discipline, definition: d.justification }));
-        const ev = await SR.buildScreeningEvidence({ llm, mission: missionQuestion, dimensions: dims, sources: en.enriched, batchSize: P.CONFIG.screening.batchSize, maxPasses: P.CONFIG.screening.maxPasses || 3 });
+        const ev = await SR.buildScreeningEvidence({ llm, mission: missionQuestion, dimensions: dims, sources: en.enriched, batchSize: P.CONFIG.screening.batchSize, maxPasses: P.CONFIG.screening.maxPasses || 3, evidenceFields: P.CONFIG.screening.evidenceFields, retryStrategy: P.CONFIG.screening.retryStrategy, outputBounds: P.CONFIG.screening.outputBounds });
         store.saveJson("screening-evidence.json", ev); state.counters.openAlexCalls += r.networkCalls.length + en.networkCalls.length;
         /* v1.0.5 — REVUE DE PORTEFEUILLE (additive, notADecision) : signaux de niveau corpus pour la lecture humaine avant la Porte 2 ;
            la partie deterministe est toujours produite, la partie LLM declare son indisponibilite ; une panne de transport (verrou) arrete le run comme ailleurs */

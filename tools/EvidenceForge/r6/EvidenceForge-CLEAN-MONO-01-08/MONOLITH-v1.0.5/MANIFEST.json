@@ -4,7 +4,7 @@
     "name": "EvidenceForge",
     "version": "MONOLITH-v1.0.5"
   },
-  "generatedAt": "2026-09-17T19:21:21.419Z",
+  "generatedAt": "2026-09-17T19:47:20.446Z",
   "frozenLots": {
     "MONO-10": {
       "dir": "MONO-10/v0.19",
@@ -85,10 +85,10 @@
       }
     },
     "tests": {
-      "total": 158,
-      "passed": 158,
+      "total": 176,
+      "passed": 176,
       "failed": 0,
-      "ranAt": "2026-09-17T19:18:32.917Z"
+      "ranAt": "2026-09-17T19:44:31.611Z"
     },
     "professionals": {
       "maxCandidatesToEvaluate": 150,
@@ -147,8 +147,8 @@
     },
     {
       "path": "NON-REGRESSION.md",
-      "sha256": "21a0d162d1ea8b4732e7e79bb3c9bb164d5d30b1c94cd0bdbd06c54b643fadde",
-      "bytes": 13159
+      "sha256": "2d51c402a1bb94bda4abbc5937441f3eaed48919c24cd524bf03ebc4dfa177be",
+      "bytes": 14388
     },
     {
       "path": "PLAN-CORRECTIF-COST-SCREENING-v1.md",
@@ -192,13 +192,28 @@
     },
     {
       "path": "README.md",
-      "sha256": "193a556d75a63cc5317cc44537776c8095634c2e744fa95e565a563003d17a86",
-      "bytes": 23224
+      "sha256": "34cbe4504ec3c4218bdcd939b5574b823326c95d7ebcabbce68cc0bca2f1c0b9",
+      "bytes": 24091
     },
     {
       "path": "SCREENING-COST-AUTOPSY.md",
       "sha256": "a71ea612657e759aaa064ad646fea6e7f586b29f114f0d88173c26a43c997f0c",
       "bytes": 4912
+    },
+    {
+      "path": "SCREENING-COST-OPTIMIZER-AUDIT.md",
+      "sha256": "ee51d09dda27d96a1a2f70028e3a612a116bef5abd36f6d22f1beec72156c404",
+      "bytes": 9587
+    },
+    {
+      "path": "SCREENING-COST-OPTIMIZER-BENCHMARK.md",
+      "sha256": "d065afe8dc09ebab63e5183697b50818ab06fdd0bed97c35cc96c524209f2071",
+      "bytes": 4396
+    },
+    {
+      "path": "SCREENING-COST-OPTIMIZER-IMPLEMENTATION.md",
+      "sha256": "b43e922ea50d6cb44ad95d4c57aa87b03d73507e5840037b3f25b027349247b9",
+      "bytes": 6821
     },
     {
       "path": "TEST-REPORT-MONOLITH-MONO11-v0.3-r1.md",
@@ -217,8 +232,8 @@
     },
     {
       "path": "config/monolith.config.json",
-      "sha256": "cee03bfa2d410272b38a09b0ad5891baa56b2958099c8a942ddfd7a30778555e",
-      "bytes": 6843
+      "sha256": "c45cb00a51cefc7cb4928faa853cad837d7afb967b67caec1973a67490e84f91",
+      "bytes": 7976
     },
     {
       "path": "governance/EvidenceForge-MONO11-v0.2-FREEZE-DECISION.md",
@@ -231,14 +246,19 @@
       "bytes": 60747
     },
     {
+      "path": "lib/batch-judge.js",
+      "sha256": "eabf77602a68b77adc0184c93585770a28efd96b45678d02ff68b40aa1a56e8d",
+      "bytes": 6931
+    },
+    {
       "path": "lib/budget-guard.js",
       "sha256": "059e71032a92b3636c8bf812afb10c87b605f81507a4e9c3fe9617bae43cabf8",
       "bytes": 7790
     },
     {
       "path": "lib/corpus-portfolio-review.js",
-      "sha256": "009f810b5963b65ad1146012eea750d4cdde4f19bd8156670ebed691a0f21632",
-      "bytes": 20502
+      "sha256": "912a56fb7442dbc1a4959ab2c61cccadba7e29508138e02dd9148782b64ba67f",
+      "bytes": 25991
     },
     {
       "path": "lib/cost-forecast.js",
@@ -282,8 +302,8 @@
     },
     {
       "path": "lib/pipeline.js",
-      "sha256": "bc01fa9478fff6a45186ad49898023acecee7b1e7e518eaabf913ad5c2f8012f",
-      "bytes": 45228
+      "sha256": "47ff4fba0f683626ddfb01b2cc739994e3f387d8b0d753af1c897096422cb1f7",
+      "bytes": 45375
     },
     {
       "path": "lib/portfolio-balancing.js",
@@ -322,8 +342,13 @@
     },
     {
       "path": "lib/screening-evidence.js",
-      "sha256": "de6614f67fbe72aeba11a0462992c52b5da3e58934f057c09f768b123e3256ce",
-      "bytes": 8169
+      "sha256": "2547ed4c7aa2ac5879a881e7fe519d6d22b3794ea30ad4aaf183d9373de9d03b",
+      "bytes": 12460
+    },
+    {
+      "path": "lib/screening-normalization.js",
+      "sha256": "9792a85c8a3cbb450adeeea24e007de1065a30fe99ba63d3b5c1976c5bbf95f1",
+      "bytes": 4631
     },
     {
       "path": "lib/stage-ef01.js",
@@ -362,7 +387,7 @@
     },
     {
       "path": "test/browser-results-v105.json",
-      "sha256": "ef6e888d0907ddc0fd00e7122023ffc19ba3dc28a2169e730460230f17988bee",
+      "sha256": "acec2f25705df8cccfdc24c3f4a5aa37367c6bcdd0c6cf230565ad2a4eb18215",
       "bytes": 6230
     },
     {
@@ -372,13 +397,13 @@
     },
     {
       "path": "test/results.json",
-      "sha256": "16b89a26edc16b4727f5484a2f79f65dc83509a15605f1f15380c5a9b1af734d",
-      "bytes": 38190
+      "sha256": "8a908bf65555fda4d6f08cca959f018e23d997ebe053c2404fc3a2916e2d63c7",
+      "bytes": 42705
     },
     {
       "path": "test/test-monolith.js",
-      "sha256": "524ba37d735eba481c8c63dda69c8ddce0fece48d1b9ed8c5e02de3021282790",
-      "bytes": 112119
+      "sha256": "69e77033f54b07b88013c1029bd28ed2c9edef48cd024e4b09f19c27a9c1f584",
+      "bytes": 112231
     },
     {
       "path": "test/test-panel.js",
@@ -391,14 +416,19 @@
       "bytes": 6254
     },
     {
+      "path": "test/test-screening-cost.js",
+      "sha256": "a514d644a19eac820085e1890ca22e430324b728312e492973626df550a9d260",
+      "bytes": 23972
+    },
+    {
       "path": "test/test-sufficiency.js",
       "sha256": "51226d4dea4205930c4788d3a9ee27fb3a5204b837bb0a6b392601509b4070a9",
       "bytes": 26314
     },
     {
       "path": "test/test-v105.js",
-      "sha256": "4e839d8736ecc99c50ca125364c121b9d5dfda29ba45782de82c906650132859",
-      "bytes": 62419
+      "sha256": "b1ff3b42206b9de317b6a497a9d51368957766b48307f95f2e4159d560b5bb72",
+      "bytes": 63018
     },
     {
       "path": "tools/anti-hardcoding-scan.js",
@@ -444,6 +474,11 @@
       "path": "tools/reconstruct-cost.js",
       "sha256": "26a00598cc99c53f94cd22ab02327dfde8cc25c34085c295071c21c20b85d7d2",
       "bytes": 4541
+    },
+    {
+      "path": "tools/screening-replay.js",
+      "sha256": "b5f97de0e16f74eafa5fc721086838e7251b2ee9c3079fe4da280e7ec9cb16e4",
+      "bytes": 13263
     },
     {
       "path": "tools/secret-scan.js",
@@ -501,6 +536,6 @@
       "bytes": 1614
     }
   ],
-  "fileCount": 80,
-  "contentHash": "f25d8be482440d98225381018560f65367f83b6747a177740a1452bb6ab6c54e"
+  "fileCount": 87,
+  "contentHash": "db6bf898d77aa8df9a6d5e5982c4e4b0dd504682c19395894e37b7b961297b3c"
 }
