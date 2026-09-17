@@ -72,7 +72,7 @@ function balancePortfolio({ sources, dimensions, evidence, review, config = {} }
     const adjusted=[{row:candidate,to:'inclus',reason}];
     if(donor) adjusted.push({row:donor,to:'exclu',reason:'Swap proposé : similarité lexicale directe avec '+(witness.a===donor.s.sourceId?witness.b:witness.a)+', angle surreprésenté ; couverture et diversité préservées. Redondance à vérifier humainement.'});
     adjusted.forEach(({row,to,reason})=>{ row.p.primaryProposal=evidence.proposals.find(p=>p.sourceId===row.s.sourceId).proposed; row.p.primaryJustification=row.p.justification; row.p.proposed=to; row.p.justification=reason+' Screening primaire : '+row.p.justification; row.p.portfolioAdjusted=true;
-      if(to==='inclus') {row.p.evidence=row.a.evidence.slice(); row.p.methodologicalOutsideDomain=row.methodOutsideDomain;}
+      if(to==='inclus') {row.p.evidence=row.a.evidence.slice(); row.p.methodologicalOutsideDomain=row.methodOutsideDomain; /* v1.0.5 cost optimizer : l'evidence remplacee vient de l'evaluation de portefeuille — ses champs d'origine et sa trace de normalisation la suivent (jamais ceux du screening primaire) */ if(Array.isArray(row.a.evidenceFields)) row.p.evidenceFields=row.a.evidenceFields.slice(); else delete row.p.evidenceFields; if(row.a.evidenceNormalization) row.p.evidenceNormalization=row.a.evidenceNormalization.map(n=>Object.assign({},n)); else delete row.p.evidenceNormalization;}
     });
     adjustments.push({kind:donor?'SWAP':'ADD',added:candidate.s.sourceId,removed:donor?donor.s.sourceId:null,reason,donorReason:donor?donor.p.justification:null,redundancyEvidence:witness,qualityRankAdded:candidate.quality,qualityRankRemoved:donor?donor.quality:null,before:current,after:metrics()});
   }

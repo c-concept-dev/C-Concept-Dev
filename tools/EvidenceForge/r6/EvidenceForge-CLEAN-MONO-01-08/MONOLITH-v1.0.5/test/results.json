@@ -1,8 +1,8 @@
 {
   "schema": "EvidenceForge.MonolithTestResults",
-  "ranAt": "2026-09-17T19:48:04.407Z",
-  "total": 176,
-  "passed": 176,
+  "ranAt": "2026-09-17T20:02:23.941Z",
+  "total": 177,
+  "passed": 177,
   "failed": 0,
   "results": [
     {
@@ -878,6 +878,11 @@
     {
       "id": "SCREEN-COST-17",
       "name": "rejeu deterministe : deux rejeux du run reel (si present) produisent un JSON identique ; sur un run synthetique, validation identique a chaque appel",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-COST-19",
+      "name": "equilibrage de portefeuille (module existant) : quand une proposition est ajustee, l'evidence remplacee garde ses champs d'origine et sa trace (evidenceFields / evidenceNormalization de l'evaluation, jamais ceux du screening primaire) — anomalie detectee par le smoke reel",
       "ok": true
     },
     {
