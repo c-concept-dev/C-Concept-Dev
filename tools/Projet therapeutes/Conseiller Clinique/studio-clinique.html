@@ -1831,31 +1831,12 @@
     .adoc-sc-block-text[contenteditable="true"]:focus,
     .cc-ws-doc-card [data-cc-legacy-block-id][contenteditable="true"]:focus { outline: 2px dashed var(--petrol-800); outline-offset: 2px; }
     /* 0B précisé — retour au geste contextuel (annule le déplacement Item 64/CDC v0.5.5 dans
-       #cc-ws-panel) : le panneau flotte au-dessus du document, ancré au bloc sélectionné par
-       adocMountContextualBlockEditPanel (position calculée en JS via getBoundingClientRect,
-       jamais en CSS pur — dépend du bloc réel). z-index sous les modales (8000+) mais au-dessus
-       du reste. max-width fixe en pixels : le max-width:85% hérité de .cc-clarity-card serait
-       démesuré une fois le panneau détaché du flux normal de la colonne. */
-    .cc-block-edit-panel.cc-contextual {
-      /* z-index 8300 — DOIT dépasser #cc-workspace (z-index:8200, l'écran plein viewport dans
-         lequel ce panneau doit flotter) : un z-index plus bas (essayé d'abord, 700) plaçait le
-         panneau DERRIÈRE tout l'espace de travail malgré une position DOM/CSS par ailleurs
-         correcte — invisible bien que présent dans le DOM avec un rect exact, bug découvert en
-         testant (rendu invisible dans une capture d'écran malgré des coordonnées justes). Reste
-         sous les modales (8400+) qui doivent pouvoir le recouvrir si ouvertes en parallèle. */
-      position: fixed; z-index: 8300; max-width: 420px; width: calc(100vw - 32px);
-      box-shadow: 0 12px 32px rgba(16,47,49,.22);
-      /* Le panneau (options de correction + parfois les contrôles de style complets) peut
-         dépasser la hauteur de petits viewports une fois détaché du flux scrollable de l'ancienne
-         colonne — jamais recadré au clic seul (cf. adocPositionBlockEditPanel), le contenu doit
-         pouvoir défiler EN INTERNE plutôt que déborder de l'écran. */
-      max-height: calc(100vh - 24px); overflow-y: auto;
-      /* .cc-clarity-card impose margin:8px 0 26px — un margin sur un élément position:fixed ne
-         collapse jamais mais continue de décaler la boîte au-delà de son top/left ; découvert en
-         testant (écart de 8px mesuré entre le top calculé en JS et le rendu réel). Neutralisé ici
-         pour que le calcul de adocPositionBlockEditPanel (viewport, clamp aux bords) reste exact. */
-      margin: 0;
-    }
+       #cc-ws-panel). Lot correctif : retour à l'insertion en flux normal, juste après le bloc
+       sélectionné (adocMountContextualBlockEditPanel, insertAdjacentElement), comme avant item 64
+       — jamais de position:fixed ni de calcul JS de coordonnées, le panneau ne peut donc plus
+       structurellement recouvrir un autre bloc (il pousse le contenu suivant, ne flotte jamais
+       dessus). */
+    .cc-block-edit-panel { margin: 10px 0 18px; }
     .cc-block-edit-target {
       display: flex; align-items: flex-start; gap: 8px;
       font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
