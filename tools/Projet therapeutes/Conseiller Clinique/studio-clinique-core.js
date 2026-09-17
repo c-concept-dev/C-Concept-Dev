@@ -411,6 +411,38 @@
     return key;
   }
 
+  // LOT C (Studio Clinique — glisser-déposer d'image locale, remplacement Pexels/fond/insertion)
+  // — mécanisme PARTAGÉ entre les 3 usages (régression #6 : une seule zone d'upload réutilisable,
+  // jamais trois implémentations séparées). Réutilise EXACTEMENT le patron déjà éprouvé de
+  // l'upload de PDF de charte graphique (adocBrandKitConfirmSave, POST /brand-assets/upload,
+  // JSON base64) — jamais un second mécanisme de transport pour un même contrat Worker. jpg/png
+  // uniquement (décision déjà actée, investigation Lot 2 précédente) : contrôlé ici côté client,
+  // le Worker lui-même n'impose aucune restriction de type (confirmé par investigation).
+  var ADOC_IMAGE_UPLOAD_ACCEPTED_TYPES = ['image/jpeg', 'image/png'];
+  async function adocUploadImageAsset(file) {
+    if (ADOC_IMAGE_UPLOAD_ACCEPTED_TYPES.indexOf(file.type) === -1) {
+      throw new Error('Seuls les fichiers JPG ou PNG sont acceptés.');
+    }
+    const buffer = await file.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    const base64 = btoa(binary);
+    const res = await fetch(adocGetWorkerUrl() + '/brand-assets/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
+      body: JSON.stringify({ content: base64, role: 'image', mime_type: file.type }),
+    });
+    if (!res.ok) throw new Error('Échec de l’envoi de l’image (HTTP ' + res.status + ')');
+    const body = await res.json();
+    return body.asset_id;
+  }
+  // URL de lecture — GET /brand-assets/:assetId (nouvelle route Worker, LOT C), jamais une
+  // URL R2 en dur (le Worker reste le seul point d'accès, comme pour toute autre ressource).
+  function adocImageAssetUrl(assetId) {
+    return adocGetWorkerUrl() + '/brand-assets/' + assetId;
+  }
+
   // N2 — Charger dossier patient depuis le système thérapeutique
   function adocLoadPatientContext() {
     try {
@@ -7263,7 +7295,30 @@ ${recent}`;
     letterSpacing: 'letter-spacing', marginTop: 'margin-top', marginBottom: 'margin-bottom',
     textIndent: 'text-indent', textTransform: 'text-transform', borderColor: 'border-color', borderWidth: 'border-width'
   };
+  // LOT D — titre de couverture (doc.title, racine du ClinicalDocument, 4 documentKind qui
+  // partagent la même bannière — Fiche/Script/Tableau/Liens, cf. Lot B) et titre de carte
+  // Carrousel (card.content.title) ne vivent jamais dans doc.blocks[] (investigation item 68) :
+  // un seul point d'entrée partagé (jamais cinq correctifs séparés, régression #6) pour les
+  // reconnaître comme "corrigibles" par le même panneau que n'importe quel bloc. Identifiants
+  // réservés ('root:doc-title', 'root:card-title:<cardId>') posés en id= sur l'élément rendu
+  // (adocRenderFicheHTML et consorts, adocRenderCardHTML) pour que document.getElementById
+  // (adocEditorContext) les résolve exactement comme un bloc normal, sans mécanisme séparé.
+  function adocRootFieldRef(doc, id) {
+    if (!doc || !id) return null;
+    if (id === 'root:doc-title') return { get: function () { return doc.title; }, set: function (v) { doc.title = v; } };
+    if (id.indexOf('root:card-title:') === 0) {
+      const cardId = id.slice('root:card-title:'.length);
+      const card = (doc.blocks || []).find(function (c) { return c.id === cardId; });
+      if (card) return { get: function () { return card.content.title; }, set: function (v) { card.content.title = v; } };
+    }
+    return null;
+  }
   function adocFindEditableBlock(doc, id) {
+    const rootRef = adocRootFieldRef(doc, id);
+    // Niveau 1 par convention (jamais recalculé depuis un rendu existant, ni deviné) : ces
+    // titres ne sont jamais des .adoc-sc-block réels, adocBlockContentText/adocDescribeBlockContent
+    // n'utilisent que .text pour 'heading' — level ne sert ici qu'au clamp d'affichage existant.
+    if (rootRef) return { id: id, type: 'heading', content: { text: rootRef.get() || '', level: 1 }, citationIds: [], validation: {} };
     function walk(blocks) { for (const b of blocks || []) { if (b.id === id) return b; const child = walk(b.content && b.content.blocks); if (child) return child; } }
     return walk(doc && doc.blocks);
   }
@@ -9076,9 +9131,16 @@ ${recent}`;
       case 'image': {
         // data-pexels résolu ensuite par adocResolveImages (mécanisme existant et éprouvé,
         // cf. adocHandleReply) — jamais une URL en dur ici, jamais un nouveau mécanisme.
+        // LOT C — quand content.assetId est renseigné (fichier local envoyé via glisser-déposer,
+        // GET /brand-assets/:assetId), sert cette image directement au lieu de résoudre `query`
+        // via Pexels — les deux mécanismes restent mutuellement exclusifs sur un même bloc,
+        // jamais superposés (data-pexels absent dès qu'un assetId existe).
         const note = cites ? '<div class="adoc-sc-cite-note">Sources :' + cites + '</div>' : '';
+        const imgAttr = b.content.assetId
+          ? 'src="' + adocEsc(adocImageAssetUrl(b.content.assetId)) + '"'
+          : 'data-pexels="' + adocEsc(b.content.query) + '"';
         return '<figure class="adoc-sc-block adoc-sc-image' + statusClass + '" id="' + adocEsc(b.id) + '">' +
-          '<img data-pexels="' + adocEsc(b.content.query) + '" alt="' + adocEsc(b.content.alt) + '" style="width:100%;border-radius:8px;object-fit:cover;">' +
+          '<img ' + imgAttr + ' alt="' + adocEsc(b.content.alt) + '" style="width:100%;border-radius:8px;object-fit:cover;">' +
           note + '</figure>';
       }
       default:
@@ -9112,11 +9174,18 @@ ${recent}`;
     // un texte fixe, jamais reparsé depuis le texte affiché (un reparsing du sous-titre entier
     // serait ambigu dès que doc.audience contiendrait lui-même " · ") — l'option la plus sûre.
     const audienceHTML = '<span class="adoc-sc-cover-audience" data-cc-editor-leaf="doc-audience">' + adocEsc(doc.audience || '') + '</span>';
-    const coverAttrs = coverBlock ? ' data-pexels="' + adocEsc(coverBlock.content.query) + '"' : '';
+    // LOT C (cas 2, fond) — même bloc image que le cas 1 (imageBlock/imageContent, jamais un
+    // second schéma) : assetId prioritaire sur query, exactement la même règle que le bloc image
+    // autonome ci-dessus, réutilisée telle quelle (régression #6).
+    const coverAttrs = coverBlock
+      ? (coverBlock.content.assetId
+          ? ' style="background-image:url(' + adocEsc(adocImageAssetUrl(coverBlock.content.assetId)) + ')"'
+          : ' data-pexels="' + adocEsc(coverBlock.content.query) + '"')
+      : '';
     const cover = '<div class="adoc-sc-cover"' + coverAttrs + '>' +
       '<div class="adoc-sc-cover-content">' +
       '<p class="adoc-sc-cover-category" data-cc-editor-leaf="doc-purpose">' + category + '</p>' +
-      '<h1 class="adoc-sc-cover-title" data-cc-editor-leaf="doc-title">' + adocEsc(doc.title) + '</h1>' +
+      '<h1 class="adoc-sc-cover-title" id="root:doc-title" data-cc-editor-leaf="doc-title">' + adocEsc(doc.title) + '</h1>' +
       '<p class="adoc-sc-cover-meta">Studio Clinique · ' + audienceHTML + '</p>' +
       '</div></div>';
     const body = bodyBlocks.map(adocRenderBlockHTML).join('\n');
@@ -9140,7 +9209,7 @@ ${recent}`;
       // Item 68 — même mécanisme d'édition directe que la bannière Fiche (data-cc-editor-leaf
       // générique, jamais .adoc-sc-block : un titre de carte reste une DÉCORATION de card.content,
       // synchronisé par adocSyncEditedRootFieldsToDoc, jamais par adocEditorSyncStructured).
-      img + '<h2 class="adoc-sc-card-title" data-cc-editor-leaf="card-title">' + adocEsc(card.content.title) + '</h2>' + nested + '</section>';
+      img + '<h2 class="adoc-sc-card-title" id="' + adocEsc('root:card-title:' + card.id) + '" data-cc-editor-leaf="card-title">' + adocEsc(card.content.title) + '</h2>' + nested + '</section>';
   }
   function adocRenderCarrouselHTML(doc, tokens) {
     const cards = (doc.blocks || []).map(function(c, i) { return adocRenderCardHTML(c, i, doc.blocks.length); }).join('\n');
@@ -9167,11 +9236,18 @@ ${recent}`;
     }
     const category = adocEsc(doc.purpose || 'Script verbatim');
     const audienceHTML = '<span class="adoc-sc-cover-audience" data-cc-editor-leaf="doc-audience">' + adocEsc(doc.audience || '') + '</span>';
-    const coverAttrs = coverBlock ? ' data-pexels="' + adocEsc(coverBlock.content.query) + '"' : '';
+    // LOT C (cas 2, fond) — même bloc image que le cas 1 (imageBlock/imageContent, jamais un
+    // second schéma) : assetId prioritaire sur query, exactement la même règle que le bloc image
+    // autonome ci-dessus, réutilisée telle quelle (régression #6).
+    const coverAttrs = coverBlock
+      ? (coverBlock.content.assetId
+          ? ' style="background-image:url(' + adocEsc(adocImageAssetUrl(coverBlock.content.assetId)) + ')"'
+          : ' data-pexels="' + adocEsc(coverBlock.content.query) + '"')
+      : '';
     const cover = '<div class="adoc-sc-cover"' + coverAttrs + '>' +
       '<div class="adoc-sc-cover-content">' +
       '<p class="adoc-sc-cover-category" data-cc-editor-leaf="doc-purpose">' + category + '</p>' +
-      '<h1 class="adoc-sc-cover-title" data-cc-editor-leaf="doc-title">' + adocEsc(doc.title) + '</h1>' +
+      '<h1 class="adoc-sc-cover-title" id="root:doc-title" data-cc-editor-leaf="doc-title">' + adocEsc(doc.title) + '</h1>' +
       '<p class="adoc-sc-cover-meta">Studio Clinique · ' + audienceHTML + '</p>' +
       '</div></div>';
     const body = bodyBlocks.map(adocRenderBlockHTML).join('\n');
@@ -9195,11 +9271,18 @@ ${recent}`;
     }
     const category = adocEsc(doc.purpose || 'Tableau comparatif');
     const audienceHTML = '<span class="adoc-sc-cover-audience" data-cc-editor-leaf="doc-audience">' + adocEsc(doc.audience || '') + '</span>';
-    const coverAttrs = coverBlock ? ' data-pexels="' + adocEsc(coverBlock.content.query) + '"' : '';
+    // LOT C (cas 2, fond) — même bloc image que le cas 1 (imageBlock/imageContent, jamais un
+    // second schéma) : assetId prioritaire sur query, exactement la même règle que le bloc image
+    // autonome ci-dessus, réutilisée telle quelle (régression #6).
+    const coverAttrs = coverBlock
+      ? (coverBlock.content.assetId
+          ? ' style="background-image:url(' + adocEsc(adocImageAssetUrl(coverBlock.content.assetId)) + ')"'
+          : ' data-pexels="' + adocEsc(coverBlock.content.query) + '"')
+      : '';
     const cover = '<div class="adoc-sc-cover"' + coverAttrs + '>' +
       '<div class="adoc-sc-cover-content">' +
       '<p class="adoc-sc-cover-category" data-cc-editor-leaf="doc-purpose">' + category + '</p>' +
-      '<h1 class="adoc-sc-cover-title" data-cc-editor-leaf="doc-title">' + adocEsc(doc.title) + '</h1>' +
+      '<h1 class="adoc-sc-cover-title" id="root:doc-title" data-cc-editor-leaf="doc-title">' + adocEsc(doc.title) + '</h1>' +
       '<p class="adoc-sc-cover-meta">Studio Clinique · ' + audienceHTML + '</p>' +
       '</div></div>';
     const body = bodyBlocks.map(adocRenderBlockHTML).join('\n');
@@ -9223,11 +9306,18 @@ ${recent}`;
     }
     const category = adocEsc(doc.purpose || 'Liens transversaux');
     const audienceHTML = '<span class="adoc-sc-cover-audience" data-cc-editor-leaf="doc-audience">' + adocEsc(doc.audience || '') + '</span>';
-    const coverAttrs = coverBlock ? ' data-pexels="' + adocEsc(coverBlock.content.query) + '"' : '';
+    // LOT C (cas 2, fond) — même bloc image que le cas 1 (imageBlock/imageContent, jamais un
+    // second schéma) : assetId prioritaire sur query, exactement la même règle que le bloc image
+    // autonome ci-dessus, réutilisée telle quelle (régression #6).
+    const coverAttrs = coverBlock
+      ? (coverBlock.content.assetId
+          ? ' style="background-image:url(' + adocEsc(adocImageAssetUrl(coverBlock.content.assetId)) + ')"'
+          : ' data-pexels="' + adocEsc(coverBlock.content.query) + '"')
+      : '';
     const cover = '<div class="adoc-sc-cover"' + coverAttrs + '>' +
       '<div class="adoc-sc-cover-content">' +
       '<p class="adoc-sc-cover-category" data-cc-editor-leaf="doc-purpose">' + category + '</p>' +
-      '<h1 class="adoc-sc-cover-title" data-cc-editor-leaf="doc-title">' + adocEsc(doc.title) + '</h1>' +
+      '<h1 class="adoc-sc-cover-title" id="root:doc-title" data-cc-editor-leaf="doc-title">' + adocEsc(doc.title) + '</h1>' +
       '<p class="adoc-sc-cover-meta">Studio Clinique · ' + audienceHTML + '</p>' +
       '</div></div>';
     const body = bodyBlocks.map(adocRenderBlockHTML).join('\n');
@@ -11236,7 +11326,7 @@ ${recent}`;
     adocUnmountBlockEditPanel(st.panelEl);
     const docCard = document.getElementById('cc-ws-doc-card');
     if (docCard) {
-      const sel = docCard.querySelector('.adoc-sc-block.is-selected');
+      const sel = docCard.querySelector('.adoc-sc-block.is-selected, .adoc-sc-cover-title.is-selected, .adoc-sc-card-title.is-selected');
       if (sel) sel.classList.remove('is-selected');
     }
     window._adocBlockEditState = { storeKey: null, blockId: null, panelEl: null, pendingBlock: null, originalBlock: null };
@@ -11335,7 +11425,10 @@ ${recent}`;
     docCard.onclick = function (e) {
       if (e.target.closest('.cc-block-edit-panel')) return; // clic dans le panneau — jamais réinterprété comme une (dé)sélection
       if (e.target.closest('.adoc-sc-cite')) return; // note de bas de page — laisse naviguer normalement
-      const blockEl = e.target.closest('.adoc-sc-block');
+      // LOT D — .adoc-sc-cover-title/.adoc-sc-card-title rejoignent .adoc-sc-block comme ancre
+      // sélectionnable (jamais un second écouteur/mécanisme) : id="root:doc-title"/"root:card-
+      // title:<id>" déjà posé au rendu, résolu par adocFindEditableBlock ci-dessus.
+      const blockEl = e.target.closest('.adoc-sc-block, .adoc-sc-cover-title, .adoc-sc-card-title');
       const current = window._adocBlockEditState;
       if (!blockEl) { if (current.storeKey) adocWsClearBlockSelection(); return; }
       const storeKey = window._adocWsState.storeKey;
@@ -11377,9 +11470,57 @@ ${recent}`;
       if (ta && !isDirectlyEditable) ta.focus();
     };
     docCard.onkeydown = null;
+    // LOT C (cas 1 + 2, glisser-déposer) — UNE seule zone de dépôt déléguée, partagée entre le
+    // bloc image autonome (.adoc-sc-image, remplacement) et la bannière de couverture
+    // (.adoc-sc-cover, fond) — régression #6, jamais deux mécanismes séparés. Le cas 4
+    // (insertion) a son propre point d'entrée dans le panneau "Insérer un bloc avant/après"
+    // (adocChooseBlockInsertType/adocConfirmBlockInsertFromFile ci-dessous) : un fichier déposé
+    // là crée un NOUVEAU bloc, jamais un remplacement — logique différente, jamais mélangée ici.
+    docCard.ondragover = function (e) {
+      if (e.target.closest('.adoc-sc-image, .adoc-sc-cover')) e.preventDefault();
+    };
+    docCard.ondrop = function (e) {
+      const dropEl = e.target.closest('.adoc-sc-image, .adoc-sc-cover');
+      if (!dropEl) return;
+      e.preventDefault();
+      const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (file) adocHandleImageDrop(dropEl, file);
+    };
     // Lot correctif — le panneau vit à nouveau DANS docCard (insertAdjacentElement, comme avant
     // item 64) : plus besoin d'élargir les écouteurs délégués à document.body, docCard suffit.
     adocEditorInstall(docCard, false);
+  }
+
+  // LOT C — point d'entrée partagé du glisser-déposer (cas 1 : remplacer l'image Pexels d'un
+  // bloc 'image' autonome ; cas 2 : fond de la bannière de couverture, avec création du bloc de
+  // couverture s'il n'existait pas encore — la bannière elle-même est toujours rendue, cf.
+  // adocRenderFicheHTML et consorts, même sans bloc image en tête de document). Remplacement de
+  // contenu EXISTANT (comme une correction), donc même comportement qu'une correction confirmée
+  // (adocConfirmBlockCorrection) : re-rendu ET sauvegarde immédiate — jamais l'attente d'un clic
+  // "Enregistrer" séparé pour un simple remplacement d'image.
+  async function adocHandleImageDrop(dropEl, file) {
+    const storeKey = window._adocWsState && window._adocWsState.storeKey;
+    const art = window._adocArtifacts && window._adocArtifacts[storeKey];
+    if (!art || !art._adocStructuredDoc) return;
+    const doc = art._adocStructuredDoc;
+    let assetId;
+    try { assetId = await adocUploadImageAsset(file); }
+    catch (e) { alert(e.message); return; }
+    const label = file.name.replace(/\.[^.]+$/, '') || 'Image importée';
+    if (dropEl.classList.contains('adoc-sc-cover')) {
+      let coverBlock = doc.blocks[0] && doc.blocks[0].type === 'image' ? doc.blocks[0] : null;
+      if (!coverBlock) {
+        coverBlock = { id: adocNextBlockId(doc, 'image'), type: 'image', content: { query: label, alt: label, assetId: null }, citationIds: [], validation: {} };
+        doc.blocks.unshift(coverBlock);
+      }
+      coverBlock.content.assetId = assetId;
+    } else {
+      const block = adocFindEditableBlock(doc, dropEl.id);
+      if (!block || block.type !== 'image') return;
+      block.content.assetId = assetId;
+    }
+    if (!await window.adocOpenWorkspace(storeKey)) return;
+    await window.adocWsSave();
   }
 
   // Compatibility entry point for the shared block style controls.
@@ -11470,6 +11611,21 @@ ${recent}`;
     const art = window._adocArtifacts && window._adocArtifacts[st.storeKey];
     if (!art || !art._adocStructuredDoc) return;
     const doc = art._adocStructuredDoc;
+    // LOT D — titre de couverture/carte : champ racine (doc.title/card.content.title), jamais un
+    // élément de doc.blocks[] — même cycle rendu/annulation/sauvegarde que pour un bloc normal
+    // (adocOpenWorkspace + adocWsSave ci-dessous, réutilisés tels quels), juste un point d'écriture
+    // différent (régression #6 : un seul mécanisme de confirmation, une branche selon la cible).
+    const rootRef = adocRootFieldRef(doc, st.blockId);
+    if (rootRef) {
+      const originalValue = rootRef.get();
+      rootRef.set(st.pendingBlock.content.text);
+      const storeKey = st.storeKey;
+      adocWsClearBlockSelection();
+      const renderOk = await window.adocOpenWorkspace(storeKey);
+      if (!renderOk) { rootRef.set(originalValue); return; }
+      await window.adocWsSave();
+      return;
+    }
     const siblings = adocEditorBlockContainer(doc, st.blockId) || [];
     const idx = siblings.findIndex(function (b) { return b.id === st.blockId; });
     if (idx === -1) { adocWsClearBlockSelection(); return; }
@@ -11532,14 +11688,27 @@ ${recent}`;
     if (type === 'image') {
       const resultEl = st.panelEl.querySelector('.cc-block-edit-result');
       if (!resultEl) return;
+      // LOT C (cas 4, insertion) — glisser-déposer AJOUTÉ à côté de la description texte déjà
+      // existante (Pexels), jamais à sa place : les deux entrées créent le même type de bloc
+      // 'image', juste via une source différente (assetId vs query).
       resultEl.innerHTML =
-        '<div class="cc-block-edit-label">Décrivez brièvement l\'image souhaitée</div>' +
+        '<div class="cc-block-edit-label">Décrivez brièvement l\'image souhaitée, ou glissez-déposez un fichier JPG/PNG</div>' +
         '<div style="display:flex;gap:6px;margin-top:6px;">' +
           '<input type="text" class="cc-block-edit-freetext adoc-textarea" style="flex:1;" placeholder="ex. mère et enfant en interaction calme" ' +
             'onkeydown="if(event.key===\'Enter\'){event.preventDefault();event.stopPropagation();window.adocConfirmBlockInsert(\'' + direction + '\',\'image\',this.value);}" />' +
           '<button type="button" class="cc-clarity-reply-btn" onclick="event.stopPropagation();window.adocConfirmBlockInsert(\'' + direction + '\',\'image\',this.previousElementSibling.value)">Créer</button>' +
         '</div>' +
+        '<div class="cc-block-insert-image-drop" style="margin-top:8px;padding:12px;border:1px dashed var(--stone-300);border-radius:8px;text-align:center;font-size:12px;color:var(--muted);">Ou glissez une image ici (JPG/PNG)</div>' +
         '<div style="margin-top:8px;"><button type="button" class="cc-clarity-other-btn" onclick="event.stopPropagation();window.adocCancelBlockCorrection()">Annuler</button></div>';
+      const dropZone = resultEl.querySelector('.cc-block-insert-image-drop');
+      dropZone.addEventListener('dragover', function (e) { e.preventDefault(); e.stopPropagation(); dropZone.style.borderColor = 'var(--petrol-800)'; });
+      dropZone.addEventListener('dragleave', function () { dropZone.style.borderColor = 'var(--stone-300)'; });
+      dropZone.addEventListener('drop', function (e) {
+        e.preventDefault(); e.stopPropagation();
+        dropZone.style.borderColor = 'var(--stone-300)';
+        const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+        if (file) window.adocConfirmBlockInsertFromFile(direction, file);
+      });
       return;
     }
     window.adocConfirmBlockInsert(direction, type, '');
@@ -11583,6 +11752,40 @@ ${recent}`;
       const el = document.getElementById(newId);
       if (el) el.click(); // même sélection que si l'utilisatrice venait de cliquer ce bloc
     }
+  };
+
+  // LOT C (cas 4, insertion par glisser-déposer) — variante d'adocConfirmBlockInsert ci-dessus
+  // pour un fichier local au lieu d'une description Pexels : même insertion dans la séquence,
+  // même comportement de sauvegarde (aucune ici, identique à adocConfirmBlockInsert — l'insertion
+  // reste en attente du bouton "Enregistrer", contrairement au remplacement par glisser-déposer
+  // d'une image déjà existante, cf. adocHandleImageDrop, qui sauvegarde immédiatement comme une
+  // correction). jamais une deuxième fonction d'insertion dans la séquence : seul le contenu du
+  // nouveau bloc diffère (assetId au lieu de query).
+  window.adocConfirmBlockInsertFromFile = async function (direction, file) {
+    const st = window._adocBlockEditState;
+    if (!st.storeKey || !st.blockId) return;
+    let assetId;
+    try { assetId = await adocUploadImageAsset(file); }
+    catch (e) { alert(e.message); return; }
+    const art = window._adocArtifacts && window._adocArtifacts[st.storeKey];
+    if (!art || !art._adocStructuredDoc) return;
+    const doc = art._adocStructuredDoc;
+    const siblings = adocEditorBlockContainer(doc, st.blockId) || [];
+    const idx = siblings.findIndex(function (b) { return b.id === st.blockId; });
+    if (idx === -1) { adocWsClearBlockSelection(); return; }
+    const label = file.name.replace(/\.[^.]+$/, '') || 'Image importée';
+    const newBlock = {
+      id: adocNextBlockId(doc, 'image'),
+      type: 'image',
+      content: { query: label, alt: label, assetId: assetId },
+      citationIds: [],
+      validation: {},
+    };
+    const insertIdx = direction === 'before' ? idx : idx + 1;
+    siblings.splice(insertIdx, 0, newBlock);
+    const storeKey = st.storeKey;
+    adocWsClearBlockSelection();
+    if (!await window.adocOpenWorkspace(storeKey)) { siblings.splice(insertIdx, 1); return; }
   };
 
   // Chiffres bruts, pas de jugement de valeur (même esprit que la jauge d'usage, UX-10A Étape 1)
