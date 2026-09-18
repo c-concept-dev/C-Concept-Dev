@@ -7760,35 +7760,66 @@ ${recent}`;
   }
   window.adocApplyBlockOpacity = adocApplyBlockOpacity;
 
-  // NOUVEAU CHANTIER — panneau image dédié (Phase 1). Second panneau, séparé du panneau de
-  // correction texte (ADOC_BLOCK_EDIT_TYPES continue d'exclure 'image', décision assumée) —
-  // ouvert par docCard.onclick (cf. branche 'image' dédiée), fermé par le même mécanisme que
-  // le panneau texte (adocMountContextualBlockEditPanel/adocWsClearBlockSelection/bouton ×
-  // déjà existant, régression #6 : jamais un second mécanisme d'ouverture/fermeture).
-  // Contrairement au curseur universel du Lot E (qui écrit dans block.style, réservé aux 6
-  // types éditoriaux), un bloc image porte ses réglages directement dans content.opacity /
-  // content.widthPercent (déjà le cas pour opacity, schéma Lot E jamais câblé jusqu'ici) —
-  // jamais dans .style, qui n'existe pas sur imageContent (investigation confirmée : aucun
-  // champ de taille préexistant sous un autre nom).
-  function adocBuildImageEditPanelHTML() {
+  // NOUVEAU CHANTIER — panneau image dédié (Phase 1) + bloc mixte. Second panneau, séparé du
+  // panneau de correction texte (ADOC_BLOCK_EDIT_TYPES continue d'exclure 'image', décision
+  // assumée) — ouvert par docCard.onclick (branches 'image' et "fond de bloc mixte"), fermé
+  // par le même mécanisme que le panneau texte (adocMountContextualBlockEditPanel/
+  // adocWsClearBlockSelection/bouton × déjà existant, régression #6 : jamais un second
+  // mécanisme d'ouverture/fermeture).
+  // DEUX contextes réels, contenu et champs différents (investigation confirmée) :
+  //  - bloc `image` autonome (isPureImage=true) : Opacité + Taille, écrits dans
+  //    content.opacity/content.widthPercent (imageContent, pas de .style sur ce type) ; bouton
+  //    "Ajouter du texte" pour amorcer la transition vers un bloc mixte.
+  //  - fond d'un bloc mixte (isPureImage=false, déjà un type éditorial avec
+  //    style.backgroundAssetId posé par le Lot E) : Opacité SEULE — le curseur Taille n'a pas
+  //    de sens sur un fond en `background-size:cover` (toujours étiré à 100%, aucune taille
+  //    intrinsèque à réduire) et est donc ABSENT du DOM dans ce cas (jamais généré puis masqué
+  //    en CSS — aucun état fantôme). Réutilise TEL QUEL le curseur universel du Lot E
+  //    (data-editor-opacity="backgroundOpacity", adocApplyBlockOpacity déjà existant, jamais
+  //    une seconde implémentation pour le même champ).
+  function adocBuildImageEditPanelHTML(isPureImage) {
+    const opacityAttr = isPureImage ? 'data-image-opacity="opacity"' : 'data-editor-opacity="backgroundOpacity"';
+    const sizeRow = isPureImage
+      ? '<div class="cc-editor-row"><label>Taille<input type="range" min="10" max="100" step="1" value="100" data-image-size="widthPercent"></label></div>'
+      : '';
+    // "Ajouter du texte" n'a de sens que sur un bloc image autonome ET seulement si son image
+    // a déjà été localisée (content.assetId, glisser-déposer Lot C) : une image encore
+    // résolue via Pexels (query, pas d'assetId) n'a aucun équivalent représentable dans
+    // style.backgroundAssetId (qui ne porte qu'un identifiant local R2, jamais une requête
+    // Pexels) — proposer la transition dans ce cas perdrait silencieusement l'image, jamais
+    // acceptable. Le bouton est donc absent tant que l'image n'est pas localisée.
+    const addTextBtn = isPureImage
+      ? '<div class="cc-editor-row"><button type="button" class="cc-clarity-reply-btn" data-image-add-text onclick="window.adocConvertImageBlockToText()" hidden>Ajouter du texte</button></div>'
+      : '';
     return '<div class="cc-block-style-controls cc-editor-tools" role="group" aria-label="Réglages de l’image">' +
-      '<div class="cc-editor-row"><label>Opacité<input type="range" min="0" max="100" step="1" value="100" data-image-opacity="opacity"></label></div>' +
-      '<div class="cc-editor-row"><label>Taille<input type="range" min="10" max="100" step="1" value="100" data-image-size="widthPercent"></label></div>' +
+      '<div class="cc-editor-row"><label>Opacité<input type="range" min="0" max="100" step="1" value="100" ' + opacityAttr + '></label></div>' +
+      sizeRow + addTextBtn +
     '</div>';
   }
   // Valeurs initiales des curseurs à l'ouverture — même garde-fou que
   // adocEditorRefreshControls (LOT E) : jamais vide (retomberait sur le minimum, ex. 10% pour
-  // la taille, à tort pour une image jamais réglée).
-  function adocEditorRefreshImageControls() {
-    const ctx = adocEditorContext(); if (!ctx || ctx.legacy || !ctx.block || ctx.block.type !== 'image') return;
+  // la taille, à tort pour une image jamais réglée). Ne réutilise PAS
+  // adocEditorRefreshControls (LOT E) : cette fonction suppose la structure complète du
+  // panneau texte (.cc-editor-list-tools etc., absents ici) et lèverait une erreur.
+  function adocEditorRefreshImageControls(isPureImage) {
+    const ctx = adocEditorContext(); if (!ctx || ctx.legacy || !ctx.block) return;
     const panel = ctx.st.panelEl; if (!panel) return;
-    const opacityInput = panel.querySelector('[data-image-opacity]');
-    if (opacityInput) opacityInput.value = ctx.block.content.opacity == null ? '100' : ctx.block.content.opacity;
-    const sizeInput = panel.querySelector('[data-image-size]');
-    if (sizeInput) sizeInput.value = ctx.block.content.widthPercent == null ? '100' : ctx.block.content.widthPercent;
+    if (isPureImage) {
+      const opacityInput = panel.querySelector('[data-image-opacity]');
+      if (opacityInput) opacityInput.value = ctx.block.content.opacity == null ? '100' : ctx.block.content.opacity;
+      const sizeInput = panel.querySelector('[data-image-size]');
+      if (sizeInput) sizeInput.value = ctx.block.content.widthPercent == null ? '100' : ctx.block.content.widthPercent;
+      const addTextBtn = panel.querySelector('[data-image-add-text]');
+      if (addTextBtn) addTextBtn.hidden = !ctx.block.content.assetId;
+    } else {
+      const opacityInput = panel.querySelector('[data-editor-opacity="backgroundOpacity"]');
+      if (opacityInput) opacityInput.value = (ctx.block.style && ctx.block.style.backgroundOpacity) == null ? '100' : ctx.block.style.backgroundOpacity;
+    }
   }
   // Retour visuel immédiat sur l'<img> déjà à l'écran — jamais un re-rendu complet pendant le
-  // glissement (même principe qu'adocApplyBlockOpacity ci-dessus).
+  // glissement (même principe qu'adocApplyBlockOpacity ci-dessus). Réservé au bloc `image`
+  // autonome (content.opacity) — le fond d'un bloc mixte réutilise adocApplyBlockOpacity
+  // ('backgroundOpacity') déjà existant, jamais dupliqué ici.
   function adocApplyImageOpacity(value, checkpointOnce) {
     const ctx = adocEditorContext(); if (!ctx || ctx.legacy || !ctx.block || ctx.block.type !== 'image') return;
     if (checkpointOnce) adocEditorCheckpoint();
@@ -7803,7 +7834,8 @@ ${recent}`;
   // investigation confirmée : seul l'élément width est fixé au rendu (height jamais imposée),
   // donc changer uniquement `width` conserve le ratio intrinsèque de l'image sans déformation.
   // Centrage (display:block;margin:0 auto) posé systématiquement, sans effet visible à 100%
-  // (rien à centrer), pour éviter qu'une image réduite reste collée à gauche.
+  // (rien à centrer), pour éviter qu'une image réduite reste collée à gauche. Réservé au bloc
+  // `image` autonome — aucun équivalent pour un fond en cover (cf. commentaire ci-dessus).
   function adocApplyImageWidth(value, checkpointOnce) {
     const ctx = adocEditorContext(); if (!ctx || ctx.legacy || !ctx.block || ctx.block.type !== 'image') return;
     if (checkpointOnce) adocEditorCheckpoint();
@@ -7814,6 +7846,41 @@ ${recent}`;
     adocEditorSync(); adocEditorMarkDirty();
   }
   window.adocApplyImageWidth = adocApplyImageWidth;
+
+  // NOUVEAU CHANTIER (bloc mixte) — transition IMAGE → TEXTE : mutation EN PLACE du bloc trouvé
+  // (jamais un splice/insertion), donc même id et même position dans doc.blocks[] (ou
+  // card.content.blocks[]) — juste ses propriétés type/content/style qui changent. Type cible
+  // 'paragraph' (le plus neutre, décision actée). content.assetId migré vers
+  // style.backgroundAssetId, content.opacity migré vers style.backgroundOpacity (même
+  // signification sémantique conservée) ; nouveau content réinitialisé au texte par défaut déjà
+  // existant (adocDefaultBlockContent('paragraph'), jamais un nouveau placeholder inventé — le
+  // schéma exige minLength:1, une chaîne vide est impossible). Rouvre ensuite automatiquement
+  // le panneau TEXTE sur ce même bloc (même patron qu'adocConfirmBlockInsert : clic simulé sur
+  // le nouvel élément après adocOpenWorkspace).
+  window.adocConvertImageBlockToText = function () {
+    const ctx = adocEditorContext(); if (!ctx || ctx.legacy || !ctx.block || ctx.block.type !== 'image' || !ctx.block.content.assetId) return;
+    adocEditorCheckpoint();
+    const block = ctx.block;
+    const migratedOpacity = block.content.opacity != null ? block.content.opacity : 100;
+    block.style = Object.assign({}, block.style, { backgroundAssetId: block.content.assetId, backgroundOpacity: migratedOpacity });
+    block.content = adocDefaultBlockContent('paragraph');
+    block.type = 'paragraph';
+    const storeKey = window._adocWsState.storeKey;
+    const blockId = block.id;
+    adocWsClearBlockSelection();
+    window.adocOpenWorkspace(storeKey).then(function (ok) {
+      if (!ok) return;
+      const el = document.getElementById(blockId);
+      if (!el) return;
+      // Le bloc porte désormais style.backgroundAssetId (migration ci-dessus) : un simple
+      // el.click() cible l'élément englobant lui-même (e.target = el), que la nouvelle
+      // branche de routage bloc mixte interpréterait comme "hors de la zone de texte" →
+      // rouvrirait à tort le panneau FOND. Cible explicitement .adoc-sc-fg-content (déjà
+      // présent au rendu, hasBg=true) pour rouvrir le panneau TEXTE, but réel de ce bouton.
+      const fg = el.querySelector('.adoc-sc-fg-content');
+      (fg || el).click();
+    });
+  };
 
   function adocEditorLeafInContext(ctx) {
     return _adocEditorLeaf && ctx.el.contains(_adocEditorLeaf) ? _adocEditorLeaf : ctx.el.querySelector('[data-cc-editor-leaf]');
@@ -9229,8 +9296,19 @@ ${recent}`;
       ? '<span class="adoc-sc-bg-overlay" style="position:absolute;inset:0;background-image:url(' + adocEsc(adocImageAssetUrl(style.backgroundAssetId)) + ');background-size:cover;background-position:center;opacity:' + bgOpacity + ';pointer-events:none;"></span>'
       : '';
     const wrapStyle = 'display:block;opacity:' + textOpacity + (hasBg ? ';position:relative;z-index:1;' : ';');
+    // NOUVEAU CHANTIER (bloc mixte) — padding conditionnel de 16px, UNIQUEMENT quand un fond
+    // existe (hasBg), jamais sur un bloc sans fond (aucun changement visuel dans le cas par
+    // défaut). Mesuré avant de figer cette valeur (investigation) : sans padding, la boîte de
+    // .adoc-sc-fg-content est identique au pixel près à celle du bloc pour heading/paragraph/
+    // list/table (aucune zone de fond cliquable) — ce padding crée cette zone pour les 6 types
+    // de façon uniforme, cohérent avec le padding déjà existant sur callout (12px/16px, ici
+    // remplacé par une valeur unique pour rester simple, écart mineur assumé). En `padding`
+    // (jamais margin) sur l'élément englobant : bg-overlay (position:absolute;inset:0) se cale
+    // sur la boîte de padding et couvre donc aussi cette marge, tandis que fg-content (flux
+    // normal) reste naturellement à l'intérieur — même mécanique de boîte CSS qui rend déjà
+    // callout cliquable sur son fond aujourd'hui, appliquée aux 5 autres types.
     return {
-      outerStyle: hasBg ? 'position:relative;' : '',
+      outerStyle: hasBg ? 'position:relative;padding:16px;' : '',
       overlay: overlay,
       wrapOpen: '<span class="adoc-sc-fg-content" style="' + wrapStyle + '">',
       wrapClose: '</span>',
@@ -11520,7 +11598,10 @@ ${recent}`;
 
   // État de la correction en cours — un seul bloc sélectionné à la fois (cf. demande), remis à
   // zéro par adocWsClearBlockSelection() à chaque désélection/confirmation/annulation/fermeture.
-  window._adocBlockEditState = { storeKey: null, blockId: null, panelEl: null, pendingBlock: null, originalBlock: null };
+  // `zone` (NOUVEAU CHANTIER, bloc mixte) — quel panneau est réellement ouvert sur ce bloc
+  // ('text'/'image'/'background'), distinct de blockId : un même bloc mixte a désormais deux
+  // zones cliquables séparées (texte vs fond), jamais confondues par le seul id du bloc.
+  window._adocBlockEditState = { storeKey: null, blockId: null, panelEl: null, pendingBlock: null, originalBlock: null, zone: null };
 
   function adocWsClearBlockSelection() {
     const st = window._adocBlockEditState;
@@ -11530,7 +11611,7 @@ ${recent}`;
       const sel = docCard.querySelector('.adoc-sc-block.is-selected, .adoc-sc-cover-title.is-selected, .adoc-sc-card-title.is-selected');
       if (sel) sel.classList.remove('is-selected');
     }
-    window._adocBlockEditState = { storeKey: null, blockId: null, panelEl: null, pendingBlock: null, originalBlock: null };
+    window._adocBlockEditState = { storeKey: null, blockId: null, panelEl: null, pendingBlock: null, originalBlock: null, zone: null };
   }
 
   // Boutons d'intention + champ libre AU MÊME NIVEAU VISUEL (jamais les boutons seuls) — même
@@ -11642,9 +11723,12 @@ ${recent}`;
       // ADOC_BLOCK_EDIT_TYPES ci-dessous, pour ouvrir un second panneau (jamais mélangé au
       // panneau de correction texte) sans toucher au comportement des autres types. Un bloc
       // image reste hors ADOC_BLOCK_EDIT_TYPES (décision assumée, "Corriger ce passage" n'a
-      // pas de sens sans texte) — mais n'est plus inerte pour autant.
+      // pas de sens sans texte) — mais n'est plus inerte pour autant. `zone` (pas seulement
+      // blockId) distingue quel panneau est réellement ouvert sur ce bloc : un reclic dans la
+      // MÊME zone ferme, un clic dans une AUTRE zone du même bloc bascule vers le bon panneau
+      // (utile dès qu'un bloc mixte a deux zones cliquables, cf. branche fond ci-dessous).
       if (block.type === 'image') {
-        if (current.blockId === blockId) { adocWsClearBlockSelection(); return; } // reclic = fermeture, comme tout type non directement éditable
+        if (current.blockId === blockId && current.zone === 'image') { adocWsClearBlockSelection(); return; }
         adocWsClearBlockSelection();
         blockEl.classList.add('is-selected');
         const imgPanel = document.createElement('div');
@@ -11652,15 +11736,36 @@ ${recent}`;
         imgPanel.setAttribute('role', 'group');
         imgPanel.setAttribute('aria-label', 'Image sélectionnée');
         const imgPreview = adocEsc(block.content.alt) || '(image)';
-        imgPanel.innerHTML = adocBlockEditPanelHeaderHTML(imgPreview) + adocBuildImageEditPanelHTML();
+        imgPanel.innerHTML = adocBlockEditPanelHeaderHTML(imgPreview) + adocBuildImageEditPanelHTML(true);
         adocMountContextualBlockEditPanel(imgPanel, blockEl);
-        window._adocBlockEditState = { storeKey: storeKey, blockId: blockId, panelEl: imgPanel, pendingBlock: null, originalBlock: block };
-        adocEditorRefreshImageControls();
+        window._adocBlockEditState = { storeKey: storeKey, blockId: blockId, panelEl: imgPanel, pendingBlock: null, originalBlock: block, zone: 'image' };
+        adocEditorRefreshImageControls(true);
+        return;
+      }
+      // NOUVEAU CHANTIER (bloc mixte) — clic HORS de la zone de texte (.adoc-sc-fg-content) sur
+      // un type éditorial qui porte un fond (style.backgroundAssetId, Lot E) → panneau image
+      // dédié, contexte "fond" (opacité seule). Le padding conditionnel posé par
+      // adocBlockOpacityLayerHTML quand hasBg crée cette zone cliquable distincte — sans fond,
+      // ce padding n'existe pas, donc closest('.adoc-sc-fg-content') couvre alors TOUT le bloc
+      // et cette branche n'est jamais atteinte (comportement strictement inchangé).
+      const clickedInsideText = !!e.target.closest('.adoc-sc-fg-content');
+      if (block.style && block.style.backgroundAssetId && !clickedInsideText) {
+        if (current.blockId === blockId && current.zone === 'background') { adocWsClearBlockSelection(); return; }
+        adocWsClearBlockSelection();
+        blockEl.classList.add('is-selected');
+        const bgPanel = document.createElement('div');
+        bgPanel.className = 'cc-clarity-card cc-block-edit-panel';
+        bgPanel.setAttribute('role', 'group');
+        bgPanel.setAttribute('aria-label', 'Fond de ce bloc sélectionné');
+        bgPanel.innerHTML = adocBlockEditPanelHeaderHTML('fond de ce bloc') + adocBuildImageEditPanelHTML(false);
+        adocMountContextualBlockEditPanel(bgPanel, blockEl);
+        window._adocBlockEditState = { storeKey: storeKey, blockId: blockId, panelEl: bgPanel, pendingBlock: null, originalBlock: block, zone: 'background' };
+        adocEditorRefreshImageControls(false);
         return;
       }
       if (ADOC_BLOCK_EDIT_TYPES.indexOf(block.type) === -1) return; // type non pris en charge dans ce lot — inerte
       const isDirectlyEditable = ADOC_DIRECT_TYPES.includes(block.type);
-      if (current.blockId === blockId) {
+      if (current.blockId === blockId && current.zone === 'text') {
         // Item 57c Lot 1 — un bloc directement éditable reste sélectionné au reclic : repositionner
         // le curseur dans le texte ne doit jamais faire disparaître le panneau "Corriger ce
         // passage" (conflit de clic identifié par l'investigation) — les autres types gardent le
@@ -11682,7 +11787,7 @@ ${recent}`;
       const preview = adocEsc(adocBlockPreviewText(block)) || '(bloc sans texte)';
       panel.innerHTML = adocBlockEditPanelHeaderHTML(preview) + adocBuildBlockEditPanelHTML(block.type);
       adocMountContextualBlockEditPanel(panel, blockEl);
-      window._adocBlockEditState = { storeKey: storeKey, blockId: blockId, panelEl: panel, pendingBlock: null, originalBlock: block };
+      window._adocBlockEditState = { storeKey: storeKey, blockId: blockId, panelEl: panel, pendingBlock: null, originalBlock: block, zone: 'text' };
       // Item 57c Lot 1 — ne vole plus le focus vers le champ libre pour un bloc directement
       // éditable : sinon le clic qui sélectionne le bloc empêcherait de facto d'y taper (le focus
       // partirait aussitôt dans le textarea de correction IA, à côté). Comportement inchangé pour
