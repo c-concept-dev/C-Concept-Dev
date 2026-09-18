@@ -261,7 +261,7 @@ test('T-PERFREAL01-15 : l’artefact frontend n’a pas bougé', () => {
   assert.ok(crypto, 'empreinte calculable');
   const octets = fs.readFileSync(path.join(racine, 'atelier-prompts-v11.5-lot10g-decision-provider.html'));
   const empreinte = require$sha(octets);
-  assert.equal(empreinte, 'be4d1e492d88126eb6d133f051e0ddbbf1d5b2c1330857fc836bb7a97e0a66f6',
+  assert.equal(empreinte, 'e833dadd4c14a222e2797a041f831bbb94ca63e45d2c362e33eb952b111f9bdc',
     'CANONICAL_HTML_CHANGED = NO');
   /* Et les quatre points de terminaison qu'il déclare sont ceux de production. */
   const metas = [...HTML.matchAll(/<meta name="(atelier-[a-z-]+)" content="([^"]+)"/g)];

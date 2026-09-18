@@ -430,9 +430,13 @@ test('T12a · aucune heuristique, aucun canal fusionné, aucune persistance, auc
   assert.equal((html.match(/function v11AddPastedMaterial\(/g) || []).length, 1);
   const apiPath = sansProse(tranche('async function beginApiAnalysis(', 'function compositeDemand(){'));
   assert.equal((apiPath.match(/appelFournisseur\(/g) || []).length, 1, 'le mode API s’arrête toujours au prompt final');
-  /* Le listener destructeur de #v11-demande n'a pas été touché : la continuation ne modifie pas la
-     demande, donc n'a pas besoin de lui. */
-  assert.match(INIT, /\$\('#v11-demande'\)\.addEventListener\('input',\(\)=>\{\s*if\(!state\.dialogueRequest\|\|state\.dialogueRequest===oprieOriginalRequest\(\)\)return;\s*v11AbandonGovernedTurn\(\);v11ForgetDialogue\(\);/);
+  /* HISTORICAL_IMPLEMENTATION_CONTRACT (CONTINUITE-03). Ce lot avait épinglé le gestionnaire
+     d'édition de #v11-demande TEL QU'IL ÉTAIT — abandon du tour PUIS oubli de l'historique — pour
+     dire qu'il ne l'avait pas touché. CONTINUITE-03 l'a changé, délibérément : éditer la demande
+     n'est plus une nouvelle demande, l'oubli n'a plus qu'un appelant (resetAll). Ce qui reste vrai
+     ici, et qui était le sujet : la continuation n'écrit jamais dans la demande, et le gestionnaire
+     ne s'anime que si un dialogue est attaché à un autre texte. */
+  assert.match(INIT, /\$\('#v11-demande'\)\.addEventListener\('input',\(\)=>\{\s*if\(!state\.dialogueRequest\|\|state\.dialogueRequest===oprieOriginalRequest\(\)\)return;/);
   assert.equal(/#v11-demande/.test(lot), false, 'la continuation n’écrit jamais dans la demande');
   /* Aucun bloc gelé modifié : le garde le vérifie, ce test le rappelle. */
   assert.equal(/answerQuestion\(/.test(lot), false, 'answerQuestion n’est pas détournée');

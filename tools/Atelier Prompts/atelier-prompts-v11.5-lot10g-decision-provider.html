@@ -25471,11 +25471,37 @@ function init(){
    * Restent trois écritures, et aucune n'est une autorité : l'historique de clarification et sa
    * demande d'attache, qui appartiennent à `state` ; le drapeau de question en cours, déjà écrit par
    * plusieurs chemins existants ; et le drapeau de reprise introduit par ce lot. */
+  /* CONTINUITE-03 — ÉDITER LA DEMANDE N'EST PLUS UNE NOUVELLE DEMANDE.
+   *
+   * CE QUE BETA-04 FAISAIT ICI, ET POURQUOI C'EST DEVENU FAUX. Ce gestionnaire DEVINAIT une nouvelle
+   * demande à partir d'une frappe : toute différence de texte avec la demande à laquelle le dialogue
+   * était attaché effaçait l'historique de clarification. Il ne pouvait distinguer une faute
+   * corrigée, une précision ajoutée, une reprise de rédaction, d'un vrai changement de sujet. Depuis
+   * CONTINUITE-01, la personne dispose d'une action EXPLICITE — « Nouvelle demande », près du
+   * composeur et dans le panneau final, toutes deux sur resetAll — et d'une autre pour poursuivre.
+   * Le produit n'a plus rien à deviner, et une supposition ne peut pas fonder un effacement.
+   *
+   * LA DISTINCTION QUI RESTE, ET ELLE EST CENTRALE. Deux choses vivaient dans le même geste :
+   *   - ANNULER LE TOUR EN VOL, devenu obsolète : un tour parti sur l'ancien texte (transports,
+   *     numéro de tour, question en attente) ne doit pas atterrir sur le nouveau. Cela reste ;
+   *     `v11AbandonGovernedTurn` ne touche à rien s'il n'y a rien en vol, et rend vrai sinon.
+   *   - OUBLIER L'HISTORIQUE DURABLE : cela part. `v11ForgetDialogue` reste l'unique écrivain de
+   *     l'effacement, et n'a plus qu'un appelant : resetAll.
+   * Le tour suivant, lancé explicitement, recevra la demande courante, l'historique existant et les
+   * matériaux existants, et OPRIE reconstruira — comme pour toute réponse. Aucune heuristique ne
+   * remplace la supposition retirée : ni délai, ni longueur, ni ressemblance.
+   *
+   * `state.dialogueRequest` garde ses deux rôles : nommer la demande à laquelle le dialogue est
+   * attaché (le garde ci-dessous ne s'anime que si un dialogue existe et que le texte a changé), et
+   * voyager dans la photographie CONTINUITE-02. Il n'est plus remis à null par une frappe. */
   $('#v11-demande').addEventListener('input',()=>{
     if(!state.dialogueRequest||state.dialogueRequest===oprieOriginalRequest())return;
-    v11AbandonGovernedTurn();v11ForgetDialogue();
+    /* Ce que l'édition annule : le tour en vol et la question en attente, tous deux nés de l'ancien
+       texte. Ce qu'elle conserve : state.answers, state.docs, et le prompt final déjà produit. */
+    const enVol=v11AbandonGovernedTurn();
+    const question=adpState.pendingQuestion;
     adpState.pendingQuestion=false;
-    $('#v11-final').value='';show(null);v11ShowRapidGate(null);
+    if(enVol||question){show(null);v11ShowRapidGate(null);}
   });
   $('#v11-add-clarification-document').addEventListener('click',()=>$('#v11-files').click());
   $('#v11-cancel-clarification').addEventListener('click',adpCancelClarification);
