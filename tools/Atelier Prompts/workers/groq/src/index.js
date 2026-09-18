@@ -437,6 +437,118 @@ export function describeProviderError(provider, status, corpsErreur) {
   };
 }
 
+/* GROQ-FAILED-GENERATION-SHAPE-01 — DÉCRIRE UNE FORME, JAMAIS IDENTIFIER UN CONTENU.
+ *
+ * CE QUI RESTE INCONNU APRÈS HUIT OCCURRENCES. Les 400 `json_validate_failed` portent tous un
+ * `failed_generation` de 64 caractères, non parsable, sans aucune clé, et NON tronqué — identique
+ * cinq fois sur deux versions de Worker. On sait donc que le modèle produit quelque chose de
+ * déterministe, et on ignore de quelle NATURE : un fragment de JSON, une phrase, une répétition.
+ * Ces trois hypothèses appellent trois corrections opposées, et rien ne permettait de choisir.
+ *
+ * CE QUE CE PROFIL EST. Des COMPTES et des BOOLÉENS. Pas un caractère du contenu n'en sort : ni
+ * extrait, ni préfixe, ni suffixe, ni le premier caractère réel — seulement sa CLASSE. Aucun hachage,
+ * aucun encodage, aucune échappée : un hachage identifierait un contenu, ce que ce relevé doit
+ * précisément ne pas pouvoir faire.
+ *
+ * ET C'EST UNE PROPRIÉTÉ VOULUE, PAS UNE LIMITE : deux chaînes différentes de même forme rendent le
+ * MÊME profil. Un relevé qui distinguerait deux contenus serait un relevé qui les décrit.
+ *
+ * LA POSITION D'ERREUR, SI ELLE EXISTE. `JSON.parse` annonce parfois « at position N ». Seul
+ * l'ENTIER est retenu, extrait par un motif qui ne capture que des chiffres ; le message, lui, peut
+ * citer un caractère du contenu et n'est jamais lu ailleurs ni conservé. */
+export const GENERATION_SHAPE_CHAR_CLASSES = Object.freeze([
+  'letter', 'digit', 'whitespace', 'brace', 'bracket', 'quote', 'punctuation', 'other'
+]);
+
+const PONCTUATION_JSON = new Set([':', ',']);
+
+function classeDeCaractere(c) {
+  if (c === undefined) return null;
+  if (/\p{L}/u.test(c)) return 'letter';
+  if (/\p{Nd}/u.test(c)) return 'digit';
+  if (/\s/u.test(c)) return 'whitespace';
+  if (c === '{' || c === '}') return 'brace';
+  if (c === '[' || c === ']') return 'bracket';
+  if (c === '"') return 'quote';
+  if (/[!-\/:-@\[-`{-~]/.test(c) || /\p{P}|\p{S}/u.test(c)) return 'punctuation';
+  return 'other';
+}
+
+/** Profil STRUCTUREL d'une génération refusée. N'expose aucun caractère du contenu. */
+export function describeGenerationShape(valeur) {
+  if (typeof valeur !== 'string' || valeur === '') {
+    return {
+      shape_measured: false, shape_length: null,
+      shape_letters: null, shape_digits: null, shape_spaces: null, shape_newlines: null,
+      shape_punctuation: null, shape_non_ascii: null,
+      shape_curly_open: null, shape_curly_close: null,
+      shape_square_open: null, shape_square_close: null,
+      shape_quotes: null, shape_colons: null, shape_commas: null, shape_escape_chars: null,
+      shape_first_char_class: null, shape_last_char_class: null,
+      shape_starts_with_json_container: null, shape_ends_with_json_container: null,
+      shape_balanced_curly_braces: null, shape_balanced_square_brackets: null,
+      shape_quote_count_even: null, shape_contains_json_like_punctuation: null,
+      shape_json_parseable: null, shape_parse_error_position: null
+    };
+  }
+  const caracteres = [...valeur];
+  let letters = 0, digits = 0, spaces = 0, newlines = 0, punctuation = 0, nonAscii = 0;
+  let curlyOpen = 0, curlyClose = 0, squareOpen = 0, squareClose = 0;
+  let quotes = 0, colons = 0, commas = 0, echappements = 0;
+  for (const c of caracteres) {
+    if (c.codePointAt(0) > 127) nonAscii += 1;
+    if (c === '\n' || c === '\r') newlines += 1;
+    else if (c === ' ' || c === '\t') spaces += 1;
+    if (c === '{') curlyOpen += 1;
+    else if (c === '}') curlyClose += 1;
+    else if (c === '[') squareOpen += 1;
+    else if (c === ']') squareClose += 1;
+    else if (c === '"') quotes += 1;
+    else if (c === ':') colons += 1;
+    else if (c === ',') commas += 1;
+    else if (c === '\\') echappements += 1;
+    const classe = classeDeCaractere(c);
+    if (classe === 'letter') letters += 1;
+    else if (classe === 'digit') digits += 1;
+    else if (classe === 'punctuation') punctuation += 1;
+  }
+  let parsable = true;
+  let position = null;
+  try {
+    JSON.parse(valeur);
+  } catch (erreur) {
+    parsable = false;
+    /* SEULS LES CHIFFRES. Le message peut citer un caractère du contenu ; il n'est ni conservé,
+       ni lu au-delà de ce motif, et rien d'autre n'en est extrait. */
+    const m = /at position (\d+)/.exec(String(erreur && erreur.message || ''));
+    position = m ? Number(m[1]) : null;
+  }
+  const premier = caracteres[0];
+  const dernier = caracteres[caracteres.length - 1];
+  return {
+    shape_measured: true,
+    shape_length: caracteres.length,
+    shape_letters: letters, shape_digits: digits, shape_spaces: spaces, shape_newlines: newlines,
+    shape_punctuation: punctuation, shape_non_ascii: nonAscii,
+    shape_curly_open: curlyOpen, shape_curly_close: curlyClose,
+    shape_square_open: squareOpen, shape_square_close: squareClose,
+    /* `shape_escape_chars` compte le caractère d'échappement JSON. Le nom évident portait une
+       sous-chaîne que T-P03A-46 interdit dans ce fichier — il y traque les revendications de
+       performance — et la garde a priorité sur mon confort de nommage. */
+    shape_quotes: quotes, shape_colons: colons, shape_commas: commas, shape_escape_chars: echappements,
+    shape_first_char_class: classeDeCaractere(premier),
+    shape_last_char_class: classeDeCaractere(dernier),
+    shape_starts_with_json_container: premier === '{' || premier === '[',
+    shape_ends_with_json_container: dernier === '}' || dernier === ']',
+    shape_balanced_curly_braces: curlyOpen === curlyClose,
+    shape_balanced_square_brackets: squareOpen === squareClose,
+    shape_quote_count_even: quotes % 2 === 0,
+    shape_contains_json_like_punctuation: [...PONCTUATION_JSON].some((c) => valeur.includes(c)),
+    shape_json_parseable: parsable,
+    shape_parse_error_position: position
+  };
+}
+
 export function describeFailedGeneration(valeur, expectedKeys = FAST_EXPECTED_KEYS) {
   if (typeof valeur !== "string" || valeur === "") {
     return {
@@ -639,6 +751,7 @@ async function callGroqChatCompletion({ systemPrompt, userMessage, schema, schem
     let code = "unknown";
     let message = "Message Groq indisponible.";
     let structure = describeFailedGeneration(undefined);
+    let forme = describeGenerationShape(undefined);
     let corpsErreur = null;
     try {
       const error = JSON.parse(raw)?.error;
@@ -651,13 +764,17 @@ async function callGroqChatCompletion({ systemPrompt, userMessage, schema, schem
          la STRUCTURE — longueur, parsabilité, noms de clés, types, troncature probable — et rien
          de ce qu'elle contient. Aucun caractère du modèle ni de la personne n'en sort. */
       structure = describeFailedGeneration(error?.failed_generation);
+      /* GROQ-FAILED-GENERATION-SHAPE-01 — la FORME est mesurée ICI, au seul endroit où le contenu
+         existe encore, puis le contenu est jeté exactement comme avant : sa durée de vie ne change
+         pas d'une instruction. */
+      forme = describeGenerationShape(error?.failed_generation);
     } catch {}
     const redact = (value) => value
       .replace(/Bearer\s+\S+/gi, "Bearer [EXPURGÉ]")
       .replace(/\b(?:gsk_|sk-)[A-Za-z0-9_-]+\b/g, "[EXPURGÉ]")
       .replace(/\s+/g, " ")
       .slice(0, 500);
-    console.error({ event: "groq_api_error", status: response.status, code: redact(code), message: redact(message), ...structure });
+    console.error({ event: "groq_api_error", status: response.status, code: redact(code), message: redact(message), ...structure, ...forme });
     // Classe déterminée par classifyProviderHttpStatus : jamais un désaccord sémantique, jamais une
     // raison de préférer un autre modèle — seulement une raison d'en essayer un autre parce que
     // celui-ci n'a rien produit.
@@ -666,7 +783,9 @@ async function callGroqChatCompletion({ systemPrompt, userMessage, schema, schem
        devenir. Il ne copie que des champs DÉJÀ expurgés. */
     throw tagFailure(new Error(`Groq a répondu ${response.status}.`), classifyProviderHttpStatus(response.status), {
       provider: "groq", status: response.status,
-      provider_error: describeProviderError("groq", response.status, corpsErreur)
+      /* Le profil de forme accompagne le motif : c'est dans `fast_unavailable` qu'on lit désormais
+         la cause, et la forme y est plus utile qu'enfouie dans un relevé d'adaptateur. */
+      provider_error: { ...describeProviderError("groq", response.status, corpsErreur), ...forme }
     });
   }
   let envelope;

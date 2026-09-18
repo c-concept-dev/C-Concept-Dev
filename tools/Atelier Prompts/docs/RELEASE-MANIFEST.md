@@ -13,8 +13,8 @@
 | --- | --- |
 | Lot | HTML-FINAL-02 |
 | Artefact | Atelier de prompts — V11.5 LOT 10G Adaptive Decision Pipeline |
-| Commit local | `013212527c059a56c86eb92063d88afb2d9bf22f` |
-| Date du commit | 2026-09-18T09:07:06+02:00 |
+| Commit local | `004002e44c8a8e32ad200d5c1809f09c7df5dc7e` |
+| Date du commit | 2026-09-18T09:20:17+02:00 |
 
 ## Artefact canonique
 
@@ -59,7 +59,7 @@ Le bloc embarqué dans la page et le fichier généré sont comparés octet pour
 l'artefact. Le manifeste lui-même en est exclu : un document ne peut pas contenir
 sa propre empreinte.
 
-| Empreinte du jeu | `e8bb8a805347530e112233bfe63d5704813dee663c920ea5e8a466c51e5206eb` |
+| Empreinte du jeu | `c1794ce539d937b4bf8d9c7744c38298c95956d898c7f172ec7482fabc6598a9` |
 | --- | --- |
 
 | Classe | Fichier | SHA-256 |
@@ -160,7 +160,7 @@ sa propre empreinte.
 | BUILD_TOOL | `tools/build-adn-browser-runtime.mjs` | `5b43a54d8c561dea23cdca4462af16c9ffd418487489c21d5b03cae97c1a2cf3` |
 | BUILD_TOOL | `tools/build-release-manifest.mjs` | `960bebd9ed050125cadf819af0b71373524d1d240431798a2579af5172064eb1` |
 | BUILD_TOOL | `tools/frozen-guard.mjs` | `fa1d9b3e323bf350157f623e49e4d91d40afabe12a0adf7415ac90343bfe038c` |
-| REQUIRED_RUNTIME | `workers/groq/src/index.js` | `e8269062951294aee019c4095e3b7f8d78dce177918d285dbf0047c47ca28abe` |
+| REQUIRED_RUNTIME | `workers/groq/src/index.js` | `466fac079b53c4a9f27cf19fb4d7d8f075ca52ba212d022f3e8e0e6fd338dfee` |
 | REQUIRED_RUNTIME | `workers/groq/wrangler.jsonc` | `a49272421d15e9348d5e389e37e36a493f40c6a65c13ec0bbd8e56ac964ebfb7` |
 | REQUIRED_RUNTIME | `workers/shared/bounded-concurrency.js` | `033c06782be23a64103b193ce005dccc894d0a741f3687dcf7ee566b0a817973` |
 | REQUIRED_RUNTIME | `workers/shared/core-first-plane.js` | `4a136472ed0b5b010d9391cd8f5814bf96e20bbfba0f093afea78d70b24dbaac` |
@@ -180,7 +180,7 @@ sa propre empreinte.
 
 | Classe | Fichiers | Raison |
 | --- | --- | --- |
-| REQUIRED_TEST_ONLY | 206 | preuves ; ne sont pas servies |
+| REQUIRED_TEST_ONLY | 207 | preuves ; ne sont pas servies |
 | EVALUATION_ONLY | 378 | bancs et campagnes, dont le worker `…-local-only` |
 | AUDIT_ONLY | 76 | relevés des lots passés |
 | PROVENANCE | 2 | trace de la dérivation de l'artefact courant |
@@ -206,7 +206,7 @@ par ce script.*
 | EXEC-PHASE-INSTRUMENT-01 | CLOSED |
 | FC01b FINAL | CLOSED |
 | HTML-FINAL-01 / 01A | CLOSED |
-| Tests au vert | 3526 |
+| Tests au vert | 3536 |
 
 ## Dette encore ouverte
 
