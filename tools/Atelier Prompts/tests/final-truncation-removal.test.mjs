@@ -148,8 +148,10 @@ test('T-TRUNC-05 : le plan rapide ne rend jamais un texte réduit privé de ses 
     'le plan rapide se tait plutôt que de couper');
 
   /* Et ce qu'il laisse passer sort INTACT : même objet, mêmes faits, aucun appauvrissement. */
+  /* FAST-SPURIOUS-CLARIFICATION-FIX-01 — la candidate cite le passage de la demande qui la fonde. */
   const acceptee = { type: 'ASK_CLARIFICATION', text: 'Quelle est la donnée manquante ?',
-    question_focus: 'problem_or_user_context', missing_determinant_id: 'manque_a' };
+    question_focus: 'problem_or_user_context', missing_determinant_id: 'manque_a',
+    missing_determinant_evidence: 'préparer un déplacement' };
   assert.deepEqual(guardFastInteraction(acceptee, snap), acceptee);
 
   /* La garantie structurelle : la composition rapide n'a plus que ces deux issues. */

@@ -34,7 +34,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runProviderChain, FAILURE_CLASSES, failureClassOf, tagFailure } from '../workers/shared/provider-ha.js';
 import { FAST_INTERACTION_PATHNAME, handleFastInteractionRequest } from '../workers/shared/fast-interaction-endpoint.js';
-import { FAST_INTERACTION_TYPES, FAST_FORBIDDEN_AUTHORITY_FIELDS, FAST_INTERACTION_JSON_SCHEMA, createTurnSnapshot, validateFastInteraction }
+import { FAST_INTERACTION_TYPES, FAST_FORBIDDEN_AUTHORITY_FIELDS, FAST_INTERACTION_JSON_SCHEMA, FAST_INTERACTION_TRANSPORT_FIELDS, createTurnSnapshot, validateFastInteraction }
   from '../workers/shared/fast-interactive-plane.js';
 import {
   DECISION_PROVIDER_ORDER, FAST_INTERACTION_ADAPTERS, runFastInteractionWithHaChain
@@ -188,7 +188,8 @@ test('T-PERFREAL01-09 : le plan rapide n’écrit aucune autorité', async () =>
   const reponse = await handleFastInteractionRequest(requete, { ALLOWED_ORIGINS: 'https://atelier.example' },
     { executeFast: async () => ({ type: 'ACKNOWLEDGE', text: 'Je regarde.', question_focus: null }) });
   const rendu = await reponse.json();
-  assert.deepEqual(Object.keys(rendu).sort(), [...FAST_INTERACTION_JSON_SCHEMA.required].sort(),
+  /* FAST-SPURIOUS-CLARIFICATION-FIX-01 — ce qui sort est le contrat de TRANSPORT : le schéma moins la citation qui fonde la question, qui a servi au garde et porte les mots de la personne. */
+  assert.deepEqual(Object.keys(rendu).sort(), [...FAST_INTERACTION_TRANSPORT_FIELDS].sort(),
     'ce qui sort est le contrat déclaré');
   for (const champ of FAST_FORBIDDEN_AUTHORITY_FIELDS) {
     assert.equal(champ in rendu, false, `${champ} ne sort pas de la porte`);
@@ -260,7 +261,7 @@ test('T-PERFREAL01-15 : l’artefact frontend n’a pas bougé', () => {
   assert.ok(crypto, 'empreinte calculable');
   const octets = fs.readFileSync(path.join(racine, 'atelier-prompts-v11.5-lot10g-decision-provider.html'));
   const empreinte = require$sha(octets);
-  assert.equal(empreinte, '81128d62e6564fdeb49cc319cead314a99b2c66cfa0329a6e88f9e9bf1a8e23c',
+  assert.equal(empreinte, '964f62530182dcb9c41d773a40d7a02ca2ee7f3397405da8c45b120b4a174943',
     'CANONICAL_HTML_CHANGED = NO');
   /* Et les quatre points de terminaison qu'il déclare sont ceux de production. */
   const metas = [...HTML.matchAll(/<meta name="(atelier-[a-z-]+)" content="([^"]+)"/g)];

@@ -137,7 +137,7 @@ test('T04-09 : une sollicitation refusée rend le silence, qui n’ouvre aucune 
 test('T04-10 : le plan rapide ne peut pas émettre READY, et le garde n’en fabrique pas', () => {
   assert.equal(validateFastInteraction({ type: 'operational_request_ready', text: 'Prêt' }, snapshot).ok, false);
   /* V2.2.1-D2F1 — trois champs, aucun n'étant un état : l'incapacité vérifiée ici est intacte. */
-  assert.deepEqual(Object.keys(FAST_INTERACTION_JSON_SCHEMA.properties).sort(), ['explicit_unknown_determinant_ids', 'missing_determinant_id', 'question_focus', 'text', 'type']);
+  assert.deepEqual(Object.keys(FAST_INTERACTION_JSON_SCHEMA.properties).sort(), ['explicit_unknown_determinant_ids', 'missing_determinant_evidence', 'missing_determinant_id', 'question_focus', 'text', 'type']);
   /* Et le verdict du garde ne voyage pas : il ne sort jamais de la fonction. */
   const out = guardFastSolicitation({ type: 'ASK_CLARIFICATION', text: CATALOGUE_REEL, question_focus: 'output_specification' }, snapshot);
   assert.deepEqual(Object.keys(out).sort(), ['text', 'type']);
@@ -277,11 +277,16 @@ test('T04-21c : la présence du matériau voyage jusqu’au plan rapide, jamais 
 test('T04-18b : la famille des verdicts est fermée, et chacun est atteignable', () => {
   /* Un verdict qu'on ne peut pas obtenir est une branche morte ; un verdict hors liste serait une
      décision non déclarée. Les deux sont vérifiés ici, sur la liste elle-même. */
+  /* FAST-SPURIOUS-CLARIFICATION-FIX-01 — un huitième verdict, pour un fait que les sept autres ne
+     mesuraient pas : une question sans fondement dans les mots de la personne. Il n'est prononcé que
+     lorsque l'appelant fournit ces mots (`originalRequest`), ce que la composition de production fait
+     toujours ; ici, il est atteint en les fournissant. */
   assert.deepEqual([...SOLICITATION_VERDICTS],
     ['ALLOW', 'MULTIPLE_QUESTIONS', 'CATALOGUE', 'ALREADY_ANSWERED', 'MATERIAL_PRESENT',
-     'META_OUTPUT_QUESTION', 'EMPTY']);
+     'META_OUTPUT_QUESTION', 'EMPTY', 'UNGROUNDED_DETERMINANT']);
   const obtenus = new Set([
     assessSolicitation(question, []),
+    assessSolicitation({ ...question, missing_determinant_evidence: null }, [], false, { originalRequest: 'Une demande neutre.' }),
     /* V2.2.1-D2B — le catalogue RÉEL est aussi une question méta, et il est désormais classé comme
        tel (cf. T04-03). Le témoin de CATALOGUE est donc une énumération qui ne nomme PAS notre
        production : c'est la seule façon d'atteindre ce verdict sans passer par le précédent. */

@@ -32,7 +32,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { FAST_INTERACTION_TYPES, FAST_FORBIDDEN_AUTHORITY_FIELDS, FAST_INTERACTION_JSON_SCHEMA } from '../workers/shared/fast-interactive-plane.js';
+import { FAST_INTERACTION_TYPES, FAST_FORBIDDEN_AUTHORITY_FIELDS, FAST_INTERACTION_JSON_SCHEMA, FAST_INTERACTION_TRANSPORT_FIELDS } from '../workers/shared/fast-interactive-plane.js';
 import { FAST_INTERACTION_PATHNAME, handleFastInteractionRequest } from '../workers/shared/fast-interaction-endpoint.js';
 import {
   resolveFastProviderOrder, FAST_BENCH_PROVIDER_BINDING, FAST_BENCH_CHAIN,
@@ -239,7 +239,8 @@ test('T-PERFNOMINAL01-09 : autorité du plan rapide nulle chez les trois', async
   const reponse = await handleFastInteractionRequest(requete, { ALLOWED_ORIGINS: 'https://atelier.example' },
     { executeFast: async () => ({ type: 'ACKNOWLEDGE', text: 'Je regarde.', question_focus: null }) });
   const rendu = await reponse.json();
-  assert.deepEqual(Object.keys(rendu).sort(), [...FAST_INTERACTION_JSON_SCHEMA.required].sort(),
+  /* FAST-SPURIOUS-CLARIFICATION-FIX-01 — ce qui sort est le contrat de TRANSPORT : le schéma moins la citation qui fonde la question, qui a servi au garde et porte les mots de la personne. */
+  assert.deepEqual(Object.keys(rendu).sort(), [...FAST_INTERACTION_TRANSPORT_FIELDS].sort(),
     'ce qui sort est le contrat déclaré');
   for (const champ of FAST_FORBIDDEN_AUTHORITY_FIELDS) {
     assert.equal(champ in rendu, false, `${champ} ne sort pas de la porte`);
@@ -290,7 +291,7 @@ test('T-PERFNOMINAL01-11 : le HTML canonique est inchangé', () => {
      qu'un refus de sortie fournisseur cesse d'être compté comme un défaut de notre code. Aucune
      règle, aucun prompt, aucun schéma, aucun comportement d'interface. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    '81128d62e6564fdeb49cc319cead314a99b2c66cfa0329a6e88f9e9bf1a8e23c', 'CANONICAL_HTML_CHANGED = NO');
+    '964f62530182dcb9c41d773a40d7a02ca2ee7f3397405da8c45b120b4a174943', 'CANONICAL_HTML_CHANGED = NO');
   assert.equal(R.invariants.canonical_html_changed, false);
 });
 

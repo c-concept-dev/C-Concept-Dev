@@ -92,7 +92,9 @@ test('T-PERFREAL01E-02 : le plan rapide ne porte que ses propres responsabilité
   /* FAST-FIRST-PASS — la clause finale énumère le contrat DANS L'ORDRE OÙ IL EST PRODUIT : le fait
      sémantique d'abord, la décision ensuite. Ce qu'elle garde est inchangé — elle CLÔT l'énumération
      et interdit tout le reste. */
-  assert.match(p, /Répondez exactement au schéma fourni : ce que la personne a déclaré ignorer, un type, un texte, ce que la question interroge, et ce qui manque\. Rien d'autre\./);
+  /* FAST-SPURIOUS-CLARIFICATION-FIX-01 — un sixième fait, à sa place dans l'ordre de production : la
+     citation qui fonde la question, entre le registre et le type. L'énumération reste close. */
+  assert.match(p, /Répondez exactement au schéma fourni : ce que la personne a déclaré ignorer, la citation qui fonde la question, un type, un texte, ce que la question interroge, et ce qui manque\. Rien d'autre\./);
 });
 
 test('T-PERFREAL01E-03 : aucune autorité OPRIE n’est recopiée dans le payload rapide', () => {
@@ -126,9 +128,10 @@ test('T-PERFREAL01E-04 : le schéma est inchangé, et il est irréductible', () 
      le plan profond le fait pour les siennes. `question_focus` n'est PAS un champ d'autorité : il
      ne prononce aucun état, n'ouvre aucune route, n'autorise aucune exécution — ce que les
      assertions suivantes continuent de vérifier. */
-  assert.deepEqual(Object.keys(FAST_INTERACTION_JSON_SCHEMA.properties).sort(), ['explicit_unknown_determinant_ids', 'missing_determinant_id', 'question_focus', 'text', 'type']);
+  assert.deepEqual(Object.keys(FAST_INTERACTION_JSON_SCHEMA.properties).sort(), ['explicit_unknown_determinant_ids', 'missing_determinant_evidence', 'missing_determinant_id', 'question_focus', 'text', 'type']);
   assert.equal(FAST_INTERACTION_JSON_SCHEMA.additionalProperties, false);
-  assert.deepEqual([...FAST_INTERACTION_JSON_SCHEMA.required].sort(), ['explicit_unknown_determinant_ids', 'missing_determinant_id', 'question_focus', 'text', 'type']);
+  /* FAST-SPURIOUS-CLARIFICATION-FIX-01 — la citation qui fonde une question est entrée au contrat, entre le registre et le type ; elle sert au garde et ne repart jamais vers le client (FAST_INTERACTION_TRANSPORT_FIELDS). */
+  assert.deepEqual([...FAST_INTERACTION_JSON_SCHEMA.required].sort(), ['explicit_unknown_determinant_ids', 'missing_determinant_evidence', 'missing_determinant_id', 'question_focus', 'text', 'type']);
   assert.deepEqual(FAST_INTERACTION_JSON_SCHEMA.properties.type.enum, [...FAST_INTERACTION_TYPES]);
   /* C'est cet objet-là qui rend l'autorité impossible : le retirer pour gagner
      69 jetons supprimerait la garantie, pas seulement du texte. */
@@ -282,8 +285,16 @@ test('T-PERFREAL01E-15 : aucune réduction n’a été appliquée, et le planche
    * des mots dans le texte. C'est ce qui a permis de retirer trois motifs de vocabulaire décisionnel
    * du chemin de production. Le sens de ce test est intact : il interdit de RACCOURCIR la consigne
    * pour gagner des jetons, jamais de l'allonger pour une raison mesurée. */
-  assert.equal(FAST_INTERACTION_SYSTEM_PROMPT.length, 10295,
-    'la consigne n’a pas été raccourcie — elle a été allongée par 03B, BETA-04, V2.1.5, V2.1.5.3, V2.2.1-D2F1 puis TARGETED-FIX-POST-CODEX-01, à coût mesuré');
+  /* FAST-SPURIOUS-CLARIFICATION-FIX-01 — CINQUIÈME ALLONGEMENT, ET SON PRIX EST INSCRIT ICI COMME LES
+   * AUTRES. 10 295 → 11 144 caractères, soit +849, environ +212 jetons par appel rapide. Ce que cela
+   * achète, mesuré en production sur ZEVQ7C : le plan rapide demandait « laquelle en premier ? » sur
+   * une demande qui comparait plusieurs options ENSEMBLE — une sous-structure de travail que rien
+   * dans la demande ne portait, et sur laquelle le tour s'arrêtait. La consigne exige désormais de
+   * CITER, mot pour mot, le passage de la demande dont dépend l'information demandée, AVANT de
+   * choisir de questionner ; le garde constate la citation dans les mots de la personne, et refuse le
+   * reste. Aucun mot de domaine, aucun exemple : la règle est la même pour toute demande. */
+  assert.equal(FAST_INTERACTION_SYSTEM_PROMPT.length, 11144,
+    'la consigne n’a pas été raccourcie — elle a été allongée par 03B, BETA-04, V2.1.5, V2.1.5.3, V2.2.1-D2F1, TARGETED-FIX-POST-CODEX-01 puis FAST-SPURIOUS-CLARIFICATION-FIX-01, à coût mesuré');
   assert.equal(FAST_INTERACTION_SYSTEM_PROMPT.split(' ').length > 100, true);
   assert.match(E.optimisation.raison, /la section 6 interdit de supprimer une instruction parce qu elle est longue/);
 });
@@ -382,7 +393,7 @@ test('T-PERFREAL01E-14 : l’artefact frontend n’a pas bougé, et l’observat
      qu'un refus de sortie fournisseur cesse d'être compté comme un défaut de notre code. Aucune
      règle, aucun prompt, aucun schéma, aucun comportement d'interface. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    '81128d62e6564fdeb49cc319cead314a99b2c66cfa0329a6e88f9e9bf1a8e23c', 'CANONICAL_HTML_CHANGED = NO');
+    '964f62530182dcb9c41d773a40d7a02ca2ee7f3397405da8c45b120b4a174943', 'CANONICAL_HTML_CHANGED = NO');
   /* La seule modification du worker est le relevé de usage : cinq champs, aucun branchement. */
   assert.match(WORKER, /event: "groq_usage_observation"/);
   for (const champ of ['jetons_entree', 'jetons_sortie', 'jetons_total',

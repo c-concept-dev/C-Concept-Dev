@@ -85,7 +85,26 @@ export const FAST_INTERACTION_JSON_SCHEMA = Object.freeze({
    * Il passe en tête. Le modèle établit d'abord ce que la personne a déclaré ignorer, et décide
    * ensuite. Aucun champ ajouté, aucune autorité nouvelle, aucun appel de plus : le même contrat,
    * dans l'ordre où il doit être pensé. */
-  required: ["explicit_unknown_determinant_ids", "type", "text", "question_focus", "missing_determinant_id"],
+  /* FAST-SPURIOUS-CLARIFICATION-FIX-01 — LA PREUVE AVANT LA DÉCISION, POUR LA MÊME RAISON.
+   *
+   * MESURÉ EN PRODUCTION SUR ZEVQ7C : la demande comparait plusieurs options ENSEMBLE, et le plan
+   * rapide a rendu `{ASK_CLARIFICATION, missing_determinant_id: "lot_to_start"}` — une sous-structure
+   * de travail (« laquelle en premier ? ») que la demande ne contenait pas, ne contraignait pas, et
+   * dont rien ne dépendait. L'analyse profonde du même cas concluait « continuer », zéro question.
+   *
+   * POURQUOI RIEN NE L'ARRÊTAIT. Tous les gardes du plan rapide jugent la FORME d'une question —
+   * atomique, non méta, non répétée, pas de matériau. Aucun ne pouvait juger son FONDEMENT : le
+   * modèle nommait l'inconnue APRÈS avoir décidé de questionner, et l'identifiant était libre. Un
+   * garde déterministe ne peut pas lire une phrase pour savoir si la demande la justifie — ce
+   * serait le classifieur que l'architecture interdit. Il peut en revanche constater qu'une
+   * citation figure, mot pour mot, dans les mots de la personne.
+   *
+   * CE CHAMP EST CETTE CITATION, et il vient AVANT `type` : le modèle doit d'abord trouver dans la
+   * demande l'exigence dont le respect dépend d'une information non donnée, puis décider. S'il
+   * n'en trouve aucune à citer, il n'y a pas de question à poser. Même mécanisme que le registre
+   * ci-dessus, même raison : l'ordre du schéma est l'ordre du raisonnement. Ce champ ne repart
+   * jamais vers le client — il sert au garde, et à lui seul. */
+  required: ["explicit_unknown_determinant_ids", "missing_determinant_evidence", "type", "text", "question_focus", "missing_determinant_id"],
   properties: {
     /* OPTION D — CE QUE LA PERSONNE A ELLE-MÊME DÉCLARÉ NE PAS CONNAÎTRE.
      *
@@ -121,6 +140,11 @@ export const FAST_INTERACTION_JSON_SCHEMA = Object.freeze({
        * dans `response_format`, le payload transportant l'objet sans filtrage. */
       description: "Identifiants des informations que la personne a explicitement déclaré ne pas connaître. Ce registre est indépendant du type d'interaction et de missing_determinant_id ; il reste renseigné lorsqu'une question porte sur une autre variable."
     },
+    /* FAST-SPURIOUS-CLARIFICATION-FIX-01 — la citation qui FONDE une question. Voir `required`. */
+    missing_determinant_evidence: {
+      type: ["string", "null"],
+      description: "Citation exacte, mot pour mot et sans coupure, du passage de la demande ou d'une réponse déjà donnée dont le respect dépend de l'information que la question demande. Ce passage est une exigence écrite par la personne, jamais une étape, un ordre ou un découpage du travail imaginé pour l'exécuter. null si aucun passage ne dépend d'une information non donnée : dans ce cas aucune question n'est possible. null sans question."
+    },
     type: { type: "string", enum: [...FAST_INTERACTION_TYPES] },
     text: { type: "string" },
     /* V2.2.1-D2F1 — ce que la question INTERROGE, dit par celui qui l'écrit. null quand il n'y a
@@ -144,6 +168,15 @@ export const FAST_INTERACTION_JSON_SCHEMA = Object.freeze({
 
   }
 });
+
+/* FAST-SPURIOUS-CLARIFICATION-FIX-01 — CE QUI REPART VERS LE CLIENT : le contrat déclaré, MOINS la
+ * citation. Elle a servi au garde, elle porte les mots de la personne, et le client n'en a aucun
+ * usage — ni pour afficher, ni pour l'historique, ni pour l'anti-répétition. Déclaré ici pour que
+ * la porte réseau et les tests lisent la même liste, et pour qu'un client déjà déployé continue
+ * de recevoir exactement les clés qu'il connaît. */
+export const FAST_INTERACTION_TRANSPORT_FIELDS = Object.freeze(
+  FAST_INTERACTION_JSON_SCHEMA.required.filter((k) => k !== "missing_determinant_evidence")
+);
 
 const text = (v) => (typeof v === "string" ? v.trim() : "");
 const isObject = (v) => !!v && typeof v === "object" && !Array.isArray(v);
@@ -210,6 +243,9 @@ export function validateFastInteraction(candidate, snapshot) {
   if (cles.includes("question_focus")) attendues.push("question_focus");
   if (cles.includes("missing_determinant_id")) attendues.push("missing_determinant_id");
   if (cles.includes("explicit_unknown_determinant_ids")) attendues.push("explicit_unknown_determinant_ids");
+  /* FAST-SPURIOUS-CLARIFICATION-FIX-01 — la citation est tolérée à l'entrée, jamais recopiée à la
+     sortie : elle a déjà servi au garde, et elle porte les mots de la personne. */
+  if (cles.includes("missing_determinant_evidence")) attendues.push("missing_determinant_evidence");
   attendues.sort();
   if (cles.length !== attendues.length || cles.some((c, i) => c !== attendues[i])) {
     return { ok: false, reason: "FAST_SCHEMA_ERROR", detail: `clés inattendues : ${cles.join(", ") || "aucune"}` };

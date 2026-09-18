@@ -166,7 +166,8 @@ test('T-03B-06/07 : le mécanisme d’escalade reste celui que 1D-N a figé', ()
      le modèle émet les clés dans l'ordre déclaré : le registre des inconnues déclarées était écrit
      APRÈS le type et le texte, donc après que la décision de questionner était prise. Il passe en
      tête. Ce que ce test garde est inchangé — l'énumération reste close et sans champ d'autorité. */
-  assert.deepEqual(FAST_INTERACTION_JSON_SCHEMA.required, ['explicit_unknown_determinant_ids', 'type', 'text', 'question_focus', 'missing_determinant_id'],
+  /* FAST-SPURIOUS-CLARIFICATION-FIX-01 — la citation qui fonde une question est entrée au contrat, entre le registre et le type ; elle sert au garde et ne repart jamais vers le client (FAST_INTERACTION_TRANSPORT_FIELDS). */
+  assert.deepEqual(FAST_INTERACTION_JSON_SCHEMA.required, ['explicit_unknown_determinant_ids', 'missing_determinant_evidence', 'type', 'text', 'question_focus', 'missing_determinant_id'],
     'le plan rapide reste physiquement incapable de porter un état');
   assert.deepEqual([...FAST_INTERACTION_JSON_SCHEMA.properties.type.enum], [...FAST_INTERACTION_TYPES],
     'l’énumération du schéma reste celle du plan, sans type libre');

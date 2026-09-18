@@ -13,7 +13,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FAST_INTERACTION_PATHNAME, handleFastInteractionRequest, snapshotFromBody } from '../workers/shared/fast-interaction-endpoint.js';
 import { resolveFastProviderOrder, resolveRoleProviderOrder } from '../workers/groq/src/index.js';
-import { FAST_INTERACTION_JSON_SCHEMA } from '../workers/shared/fast-interactive-plane.js';
+import { FAST_INTERACTION_JSON_SCHEMA, FAST_INTERACTION_TRANSPORT_FIELDS } from '../workers/shared/fast-interactive-plane.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const WORKER = fs.readFileSync(path.join(root, 'workers/groq/src/index.js'), 'utf8');
@@ -59,7 +59,8 @@ test('T-P04-EP01 : la réponse porte exactement le contrat déclaré — ni un c
   const json = await res.json();
   /* L'invariant est énoncé PAR LE SCHÉMA, pas par une liste recopiée ici : le jour où le contrat
      canonique change encore, ce test suit le contrat au lieu de s'y opposer. */
-  assert.deepEqual(Object.keys(json).sort(), [...FAST_INTERACTION_JSON_SCHEMA.required].sort(),
+  /* FAST-SPURIOUS-CLARIFICATION-FIX-01 — ce qui sort est le contrat de TRANSPORT : le schéma moins la citation qui fonde la question, qui a servi au garde et porte les mots de la personne. */
+  assert.deepEqual(Object.keys(json).sort(), [...FAST_INTERACTION_TRANSPORT_FIELDS].sort(),
     'ce qui sort est le contrat déclaré, et rien qui ressemble à une permission.');
   assert.equal(json.type, 'ASK_CLARIFICATION');
   /* Et la sortie du fournisseur portait bien ce fait : il est arrivé jusqu’ici. */

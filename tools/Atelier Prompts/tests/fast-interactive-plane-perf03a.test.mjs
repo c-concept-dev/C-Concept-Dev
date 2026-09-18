@@ -168,12 +168,13 @@ test('T-P03A-09 la sortie rapide est structurée et validée selon M-01', () => 
      le plan profond le fait pour les siennes. `question_focus` n'est PAS un champ d'autorité : il
      ne prononce aucun état, n'ouvre aucune route, n'autorise aucune exécution — ce que les
      assertions suivantes continuent de vérifier. */
-  assert.deepEqual([...FAST_INTERACTION_JSON_SCHEMA.required].sort(), ['explicit_unknown_determinant_ids', 'missing_determinant_id', 'question_focus', 'text', 'type']);
+  /* FAST-SPURIOUS-CLARIFICATION-FIX-01 — la citation qui fonde une question est entrée au contrat, entre le registre et le type ; elle sert au garde et ne repart jamais vers le client (FAST_INTERACTION_TRANSPORT_FIELDS). */
+  assert.deepEqual([...FAST_INTERACTION_JSON_SCHEMA.required].sort(), ['explicit_unknown_determinant_ids', 'missing_determinant_evidence', 'missing_determinant_id', 'question_focus', 'text', 'type']);
   /* TARGETED-FIX-POST-CODEX-01 — un quatrième champ, nommé : l'identité du manque. Le contre-audit
      a démontré qu'une question rapide répondue laissait l'historique sans identité, si bien qu'une
      reformulation par le plan profond n'était plus reconnue. Le contrat s'allonge d'un fait produit
      par la même décision ; il ne s'ouvre à rien d'arbitraire. */
-  assert.deepEqual(Object.keys(FAST_INTERACTION_JSON_SCHEMA.properties).sort(), ['explicit_unknown_determinant_ids', 'missing_determinant_id', 'question_focus', 'text', 'type']);
+  assert.deepEqual(Object.keys(FAST_INTERACTION_JSON_SCHEMA.properties).sort(), ['explicit_unknown_determinant_ids', 'missing_determinant_evidence', 'missing_determinant_id', 'question_focus', 'text', 'type']);
   /* Les trois adaptateurs passent le schéma nativement, avec le durcissement M-01. */
   const code = sansCommentaires(ADAPTERS_SRC);
   assert.equal((code.match(/schemaName: "fast_interaction"/g) || []).length, 3);

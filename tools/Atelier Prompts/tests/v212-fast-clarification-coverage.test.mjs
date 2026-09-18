@@ -121,8 +121,10 @@ test('V212-04 : une candidate méta est refusée', () => {
 test('V212-05 : un refus de garde ouvre UN rattrapage rapide, qui vise une autre question', () => {
   /* Le rattrapage ne concerne plus la seule question méta : tout refus corrigible en ouvre un, parce
      que rendre le silence coûtait un tour profond entier. */
+  /* FAST-SPURIOUS-CLARIFICATION-FIX-01 — un cinquième motif, et sa correction : une question qui ne
+     citait rien de ce que la personne a écrit. Même forme, même borne d'un seul essai. */
   assert.deepEqual(Object.keys(FAST_CORRECTIONS).sort(),
-    ['ALREADY_ANSWERED', 'CATALOGUE', 'META_OUTPUT_QUESTION', 'MULTIPLE_QUESTIONS']);
+    ['ALREADY_ANSWERED', 'CATALOGUE', 'META_OUTPUT_QUESTION', 'MULTIPLE_QUESTIONS', 'UNGROUNDED_DETERMINANT']);
   for (const [verdict, correction] of Object.entries(FAST_CORRECTIONS)) {
     assert.equal(typeof correction, 'string');
     assert.ok(correction.length > 80, `${verdict} : la correction dit quoi faire`);

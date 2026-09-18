@@ -33,7 +33,7 @@ import { handleOperationalRequest, resolveInvocationId } from "../../shared/oper
 /* V2.2 — la doctrine de clarification vient de son PROPRIÉTAIRE, elle n'est pas recopiée ici. */
 import { OPRIE_CLARIFICATION_DOCTRINE } from "../../shared/operational-request-core.js";
 import { CORE_ROLE_DEFINITIONS, coreSystemPromptWithCorrection } from "../../shared/core-first-plane.js";
-import { guardFastSolicitation, guardFastInteraction, assessSolicitation, SILENT_INTERACTION, SOLICITING_TYPES } from "../../shared/solicitation-policy.js";
+import { guardFastSolicitation, guardFastInteraction, assessSolicitation, fastSnapshotFacts, isGroundedInRequest, SILENT_INTERACTION, SOLICITING_TYPES } from "../../shared/solicitation-policy.js";
 
 const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 export const MODEL = "openai/gpt-oss-20b";
@@ -1515,6 +1515,15 @@ export const FAST_INTERACTION_SYSTEM_PROMPT = [
   "explicit_unknown_determinant_ids dit ce qu'elle a déclaré inconnu, missing_determinant_id dit ce",
   "que vous choisissez de demander maintenant. Deux faits indépendants, présents ensemble sans se",
   "gêner. Ne videz jamais le registre au motif qu'une question porte ailleurs.",
+  "ENSUITE, AVANT DE CHOISIR DE QUESTIONNER, CITEZ CE QUI L'EXIGERAIT : missing_determinant_evidence",
+  "reproduit TEXTUELLEMENT, sans coupure ni reformulation, le passage de la demande — ou d'une réponse",
+  "déjà donnée — dont le respect dépend d'une information que la personne n'a pas fournie. Ce passage",
+  "est une exigence qu'elle a écrite, telle qu'elle l'a écrite. Ce n'est jamais une étape, un ordre",
+  "de traitement ou un découpage du travail que vous imagineriez pour produire le résultat : cela ne",
+  "se demande pas à la personne. Si aucun passage ne dépend d'une information non fournie, ce champ",
+  "vaut null — et alors vous ne posez aucune question, quelle qu'elle soit. Une question dont la",
+  "citation manque, ou ne figure pas dans ce que la personne a écrit, est refusée avant affichage.",
+  "Sans question, ce champ vaut null.",
   OPRIE_CLARIFICATION_DOCTRINE,
   "VOTRE PART DU TRAVAIL — LA FORME.",
   "PORTEZ LA QUESTION SUR UNE VARIABLE RÉELLE du problème que la personne décrit : une durée, une",
@@ -1544,7 +1553,7 @@ export const FAST_INTERACTION_SYSTEM_PROMPT = [
   "demande de définir ce que nous devons produire ; other si ni l'un ni l'autre ne s'applique, ce qui",
   "est une réponse légitime. Sans question, question_focus vaut null.",
   "Dites aussi CE QUI MANQUE : missing_determinant_id nomme l'inconnue que la question cherche — un identifiant court, en minuscules, mots séparés par des tirets bas, décrivant la chose manquante elle-même et non sa formulation. Le même manque garde le même identifiant d'un tour à l'autre, même si vous reformulez la question ; une inconnue différente en reçoit un autre. Sans question, il vaut null.",
-  "Répondez exactement au schéma fourni : ce que la personne a déclaré ignorer, un type, un texte, ce que la question interroge, et ce qui manque. Rien d'autre."
+  "Répondez exactement au schéma fourni : ce que la personne a déclaré ignorer, la citation qui fonde la question, un type, un texte, ce que la question interroge, et ce qui manque. Rien d'autre."
 ].join(" ");
 
 export function makeFastInteractionUserMessage(snapshot) {
@@ -1602,11 +1611,22 @@ const CORRECTION_DEJA_REPONDU = "Votre proposition précédente redemandait une 
   + "Reprenez : tenez cette information pour acquise, et posez UNE question sur une AUTRE variable qui "
   + "change matériellement ce qui sera produit. S'il n'en reste aucune, ne demandez rien.";
 
+/* FAST-SPURIOUS-CLARIFICATION-FIX-01 — la question ne citait rien de ce que la personne a écrit. La
+   correction ne propose aucune question et ne nomme aucun domaine : elle rappelle que le fondement
+   se cite, et que sans fondement on ne demande rien. Un essai, comme les autres. */
+const CORRECTION_SANS_FONDEMENT = "Votre proposition précédente demandait une information dont aucun passage "
+  + "de la demande ne dépend, ou citait un passage que la personne n'a pas écrit. Reprenez : recopiez "
+  + "TEXTUELLEMENT, dans missing_determinant_evidence, le passage de la demande ou d'une réponse dont le "
+  + "respect dépend réellement d'une information non fournie, et ne demandez que celle-là. Si aucun "
+  + "passage ne dépend d'une information non fournie, ne demandez rien : ce que vous imagineriez pour "
+  + "organiser le travail ne se demande pas à la personne.";
+
 export const FAST_CORRECTIONS = Object.freeze({
   META_OUTPUT_QUESTION: FAST_META_CORRECTION,
   MULTIPLE_QUESTIONS: CORRECTION_UNE_SEULE_QUESTION,
   CATALOGUE: CORRECTION_PAS_DE_CATALOGUE,
-  ALREADY_ANSWERED: CORRECTION_DEJA_REPONDU
+  ALREADY_ANSWERED: CORRECTION_DEJA_REPONDU,
+  UNGROUNDED_DETERMINANT: CORRECTION_SANS_FONDEMENT
 });
 
 const consigneRapide = (corrective) => corrective
@@ -1701,8 +1721,10 @@ export async function runFastInteractionWithHaChain(snapshot, env, { order = FAS
         /* V2.1.2 — on ENREGISTRE ce que le garde a conclu, sans ajouter aucune condition ici : ce
            chemin doit rester technique. Le rattrapage, lui, vit après la chaîne et lira ce relevé. */
         refus.raw_type=candidate&&candidate.type;
+        /* FAST-SPURIOUS-CLARIFICATION-FIX-01 — les MÊMES faits que le garde : la demande passait
+           déjà ici, comme une chaîne nue que le verdict ne lisait pas. */
         refus.verdict=assessSolicitation(candidate,snapshot.clarification_history,
-          snapshot.material_present,snapshot.original_request);
+          snapshot.material_present,fastSnapshotFacts(snapshot));
         refus.candidate_chars=String((candidate&&candidate.text)||"").length;
         /* OPTION D2 — OBSERVABILITÉ DE LA COMPARAISON, PARCE QU'ELLE ÉTAIT INDÉCIDABLE.
          * Le smoke L8HZGL n'a pas pu dire si l'autorité avait déclaré l'inconnue, ou si elle l'avait
@@ -1717,6 +1739,11 @@ export async function runFastInteractionWithHaChain(snapshot, env, { order = FAS
           .filter((id)=>typeof id==="string"&&id.trim()).map((id)=>id.trim());
         refus.declared_match=refus.target_id!==null
           &&[...refus.declared_current,...refus.declared_history].includes(refus.target_id);
+        /* FAST-SPURIOUS-CLARIFICATION-FIX-01 — le fondement, constaté ; jamais la citation elle-même,
+           qui porte les mots de la personne. Un booléen, et la présence d'une citation. */
+        refus.evidence_present=typeof (candidate&&candidate.missing_determinant_evidence)==="string"
+          &&candidate.missing_determinant_evidence.trim().length>0;
+        refus.determinant_grounded=isGroundedInRequest(candidate,fastSnapshotFacts(snapshot),snapshot.clarification_history);
         const garde=guardFastInteraction(candidate,snapshot);
         /* V2.1.5.3 — LE REFUS DE FORME, ENREGISTRÉ QUELLE QUE SOIT LA GARDE QUI LE PRONONCE.
          * `refus.verdict` ne porte que le verdict de sollicitation. Une question refusée par la
@@ -1792,6 +1819,10 @@ function journaliserDecisionRapide(log, refus, rendu, final) {
     explicit_unknown_determinant_ids: refus.declared_current === undefined ? [] : refus.declared_current,
     declared_unknown_ids_history: refus.declared_history === undefined ? [] : refus.declared_history,
     declared_unknown_match: refus.declared_match === true,
+    /* FAST-SPURIOUS-CLARIFICATION-FIX-01 — deux booléens : la question citait-elle quelque chose, et
+       cette citation figure-t-elle dans les mots de la personne. Jamais le texte cité. */
+    evidence_present: refus.evidence_present === true,
+    determinant_grounded: refus.determinant_grounded === true,
     fast_rejection_reason: refuse ? (refus.verdict && refus.verdict !== "ALLOW" ? refus.verdict : "DISPLAY_FRONTIER") : null,
     /* V2.1.5.3 — ce que la reprise a donné, et ce que le tour en a fait. La reprise s'ENREGISTRE
        elle-même : le silence est un objet gelé partagé, et comparer les identités concluait toujours

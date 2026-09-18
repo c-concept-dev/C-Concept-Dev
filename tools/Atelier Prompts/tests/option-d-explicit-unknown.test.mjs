@@ -42,9 +42,14 @@ const DEMANDE = 'Comparez plusieurs approches selon leur coût, leur risque et l
 const snap = (historique = []) => createTurnSnapshot({
   turn_id: historique.length + 1, original_request: DEMANDE, clarification_history: historique
 });
-const q = (texte, { id = null, declarees = [] } = {}) => ({
+/* FAST-SPURIOUS-CLARIFICATION-FIX-01 — une question du plan rapide CITE désormais le passage de la
+   demande qui la fonde ; sans citation, `guardFastInteraction` la refuse. Les fixtures citent la
+   demande neutre ci-dessus, mot pour mot : ce fichier éprouve le registre, pas le fondement. */
+const CITATION = 'selon leur coût, leur risque et leur simplicité';
+const q = (texte, { id = null, declarees = [], citation = CITATION } = {}) => ({
   type: 'ASK_CLARIFICATION', text: texte, question_focus: 'problem_or_user_context',
-  missing_determinant_id: id, explicit_unknown_determinant_ids: declarees
+  missing_determinant_id: id, explicit_unknown_determinant_ids: declarees,
+  missing_determinant_evidence: citation
 });
 
 const ORIGINE = 'https://atelier.example';
@@ -102,10 +107,12 @@ test('T-OPTD-02 : une question visant un manque déclaré inconnu est refusée',
   assert.equal(isDeclaredUnknown(candidate), true);
   assert.equal(assessSolicitation(candidate, [], false, DEMANDE), 'ALREADY_ANSWERED');
   assert.deepEqual(guardFastInteraction(candidate, snap()), SILENT_INTERACTION);
-  /* Aucun verdict nouveau n'a été inventé : « la personne s'est déjà exprimée » existait déjà. */
+  /* Aucun verdict nouveau n'a été inventé PAR CE LOT : « la personne s'est déjà exprimée » existait
+     déjà. FAST-SPURIOUS-CLARIFICATION-FIX-01 en a ajouté un, distinct, pour un autre fait — une
+     question sans fondement dans les mots de la personne. */
   assert.deepEqual([...SOLICITATION_VERDICTS],
     ['ALLOW', 'MULTIPLE_QUESTIONS', 'CATALOGUE', 'ALREADY_ANSWERED', 'MATERIAL_PRESENT',
-     'META_OUTPUT_QUESTION', 'EMPTY']);
+     'META_OUTPUT_QUESTION', 'EMPTY', 'UNGROUNDED_DETERMINANT']);
 });
 
 test('T-OPTD-03 : une question visant un AUTRE manque passe, même si un manque est déclaré inconnu', () => {
@@ -349,7 +356,7 @@ test('T-OPTD-20 : le registre et la question sont deux faits indépendants, acce
   /* T2 du brief, et le cas exact qui a échoué en production. */
   const xy = { type: 'ASK_CLARIFICATION', text: 'Quelle est la seconde donnée ?',
     question_focus: 'problem_or_user_context', missing_determinant_id: 'manque_y',
-    explicit_unknown_determinant_ids: ['manque_x'] };
+    explicit_unknown_determinant_ids: ['manque_x'], missing_determinant_evidence: CITATION };
   const v = validateFastInteraction(xy, snap());
   assert.equal(v.ok, true, 'X déclaré ET question sur Y : le contrat l’accepte');
   assert.deepEqual(v.interaction.explicit_unknown_determinant_ids, ['manque_x']);
@@ -369,7 +376,7 @@ test('T-OPTD-21 : le registre vide reste légitime, question ou non', () => {
   /* T5 et T6 — l'indépendance ne rend rien obligatoire : rien de déclaré, rien d'inscrit. */
   const ask = { type: 'ASK_CLARIFICATION', text: 'Quelle est la donnée ?',
     question_focus: 'problem_or_user_context', missing_determinant_id: 'manque_y',
-    explicit_unknown_determinant_ids: [] };
+    explicit_unknown_determinant_ids: [], missing_determinant_evidence: CITATION };
   assert.equal(validateFastInteraction(ask, snap()).ok, true);
   assert.deepEqual(guardFastInteraction(ask, snap()), ask, 'un registre vide ne bloque rien');
   const ack = { type: 'ACKNOWLEDGE', text: 'Reçu.', question_focus: null,
@@ -397,10 +404,11 @@ test('T-OPTD-22 : l’indépendance est énoncée dans les DEUX moitiés du cont
   assert.deepEqual(p.explicit_unknown_determinant_ids.type, ['array', 'null']);
   assert.deepEqual(p.explicit_unknown_determinant_ids.items, { type: 'string' });
   assert.deepEqual(p.missing_determinant_id.type, ['string', 'null']);
-  assert.deepEqual([...FAST_INTERACTION_JSON_SCHEMA.required],
-    ['explicit_unknown_determinant_ids', 'type', 'text', 'question_focus', 'missing_determinant_id']);
+  /* FAST-SPURIOUS-CLARIFICATION-FIX-01 a ajouté UN champ — la citation qui fonde la question —
+     entre le registre et le type ; le registre reste premier, et rien d'autre n'a bougé. */
+  assert.deepEqual([...FAST_INTERACTION_JSON_SCHEMA.required], ['explicit_unknown_determinant_ids', 'missing_determinant_evidence', 'type', 'text', 'question_focus', 'missing_determinant_id']);
   assert.equal(FAST_INTERACTION_JSON_SCHEMA.additionalProperties, false);
-  assert.equal(Object.keys(p).length, 5);
+  assert.equal(Object.keys(p).length, 6);
   /* Aucun vocabulaire métier dans l'une ou l'autre moitié. */
   for (const domaine of ['budget', 'date', 'projet', 'réunion', 'prix', 'ville']) {
     assert.equal(new RegExp(domaine, 'i').test(p.explicit_unknown_determinant_ids.description), false,
@@ -524,12 +532,13 @@ test('T-OPTD-18 : le contrat de sortie place le fait sémantique AVANT la décis
     'avant le type d’interaction');
   assert.ok(ordre.indexOf('explicit_unknown_determinant_ids') < ordre.indexOf('missing_determinant_id'),
     'avant l’inconnue visée');
-  /* `required` suit le même ordre : les deux gouvernent la génération selon les fournisseurs. */
-  assert.deepEqual([...FAST_INTERACTION_JSON_SCHEMA.required],
-    ['explicit_unknown_determinant_ids', 'type', 'text', 'question_focus', 'missing_determinant_id']);
-  /* Le contrat reste clos, et ne s’est enrichi d’aucun champ. */
+  /* `required` suit le même ordre : les deux gouvernent la génération selon les fournisseurs.
+     FAST-SPURIOUS-CLARIFICATION-FIX-01 y a placé la citation qui fonde la question, pour la même
+     raison et au même endroit : avant `type`, après le registre. */
+  assert.deepEqual([...FAST_INTERACTION_JSON_SCHEMA.required], ['explicit_unknown_determinant_ids', 'missing_determinant_evidence', 'type', 'text', 'question_focus', 'missing_determinant_id']);
+  /* Le contrat reste clos. */
   assert.equal(FAST_INTERACTION_JSON_SCHEMA.additionalProperties, false);
-  assert.equal(ordre.length, 5);
+  assert.equal(ordre.length, 6);
 });
 
 test('T-OPTD-19 : la ceinture de cohérence existe, et elle vit là où elle peut encore servir', () => {

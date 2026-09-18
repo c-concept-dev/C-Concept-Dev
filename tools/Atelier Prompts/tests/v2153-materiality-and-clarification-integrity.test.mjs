@@ -46,6 +46,10 @@ const worker = lire('../workers/groq/src/index.js');
 const html = lire('../atelier-prompts-v11.5-lot10g-decision-provider.html');
 
 const DEMANDE = 'Je veux préparer un voyage à Lisbonne au printemps.';
+/* FAST-SPURIOUS-CLARIFICATION-FIX-01 — une question du plan rapide cite le passage de la demande qui
+   la fonde ; sans citation elle est refusée AVANT tout jugement de forme. Les fixtures de ce fichier
+   éprouvent la forme et la reprise : elles citent donc la demande, mot pour mot. */
+const CITATION = 'un voyage à Lisbonne au printemps';
 const instantane = (historique = []) => ({
   turn_id: historique.length, original_request: DEMANDE,
   clarification_history: historique, current_answer: null,
@@ -88,8 +92,8 @@ test('V2153-01 : deux questions refusées, la reprise en produit une valide — 
      qui ouvre réellement la reprise — une question simplement coordonnée, elle, est RÉDUITE sans
      second appel, et V2153-02 le vérifie. */
   const appels = avecFournisseurRapide(t, [
-    { type: 'ASK_CLARIFICATION', text: 'Itinéraire, recommandations, liste de contrôle, ou autre chose ?' },
-    { type: 'ASK_CLARIFICATION', text: 'Depuis quelle ville partez-vous ?' }
+    { type: 'ASK_CLARIFICATION', text: 'Itinéraire, recommandations, liste de contrôle, ou autre chose ?', missing_determinant_evidence: CITATION },
+    { type: 'ASK_CLARIFICATION', text: 'Depuis quelle ville partez-vous ?', missing_determinant_evidence: CITATION }
   ]);
   const { vus, log } = journal();
   const rendu = await runFastInteractionWithHaChain(instantane(), ENV, { log });
@@ -117,7 +121,7 @@ test('V2153-02 : la reprise demande la question la plus matérielle, pas la prem
     'aucun jugement de matérialité dans la couche de réparation');
   /* Et la garde qui refuse ne réécrit jamais : elle coupe ou elle se taît. Quand elle coupe, aucun
      second appel n'est dépensé — c'est la première préférence du contrat. */
-  const deux = { type: 'ASK_CLARIFICATION', text: 'Quel est votre budget ? Et depuis quelle ville partez-vous ?' };
+  const deux = { type: 'ASK_CLARIFICATION', text: 'Quel est votre budget ? Et depuis quelle ville partez-vous ?', missing_determinant_evidence: CITATION };
   const garde = guardFastInteraction(deux, { original_request: DEMANDE, clarification_history: [] });
   if (garde.type !== SILENT_INTERACTION.type) {
     assert.ok(deux.text.includes(garde.text.replace(/\s*\?$/, '').trim())
@@ -133,7 +137,7 @@ test('V2153-03 : la reprise échoue — le motif est nommé, et le plan rapide n
      appartient à OPRIE. V2.2 l'a SUPPRIMÉE. Un refus de forme irrécupérable rend la main à la même
      autorité, exécutée plus lentement : la doctrine appliquée est identique, et le motif du passage
      est relevé au lieu d'être maquillé en accusé de réception. */
-  const catalogue = { type: 'ASK_CLARIFICATION', text: 'Itinéraire, recommandations, liste de contrôle, ou autre chose ?' };
+  const catalogue = { type: 'ASK_CLARIFICATION', text: 'Itinéraire, recommandations, liste de contrôle, ou autre chose ?', missing_determinant_evidence: CITATION };
   const appels = avecFournisseurRapide(t, [catalogue, catalogue]);
   const { vus, log } = journal();
   const rendu = await runFastInteractionWithHaChain(instantane(), ENV, { log });
@@ -149,7 +153,7 @@ test('V2153-03 : la reprise échoue — le motif est nommé, et le plan rapide n
 
 
 test('V2153-04 : jamais plus de deux appels rapides pour une clarification', async (t) => {
-  const catalogue = { type: 'ASK_CLARIFICATION', text: 'Itinéraire, recommandations, liste de contrôle, ou autre chose ?' };
+  const catalogue = { type: 'ASK_CLARIFICATION', text: 'Itinéraire, recommandations, liste de contrôle, ou autre chose ?', missing_determinant_evidence: CITATION };
   const appels = avecFournisseurRapide(t, [catalogue, catalogue, catalogue, catalogue]);
   await runFastInteractionWithHaChain(instantane(), ENV, { log: () => {} });
   assert.equal(appels.length, 2, 'un essai, une reprise, et rien de plus');

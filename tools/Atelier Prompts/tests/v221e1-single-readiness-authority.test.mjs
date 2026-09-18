@@ -98,8 +98,9 @@ test('V221E1-02 : le vocabulaire du verrou a disparu de l’autorité, du transp
 test('V221E1-03 : le plan rapide est incapable de prononcer une maturité — contrat', () => {
   /* Par son schéma : aucun de ses trois champs ne porte d'état, et son vocabulaire de types n'en
      contient aucun. */
+  /* FAST-SPURIOUS-CLARIFICATION-FIX-01 — la citation qui fonde une question est entrée au contrat ; ce n'est pas un champ d'autorité : elle ne prononce rien, elle atteste. */
   assert.deepEqual(Object.keys(FAST_INTERACTION_JSON_SCHEMA.properties).sort(),
-    ['explicit_unknown_determinant_ids', 'missing_determinant_id', 'question_focus', 'text', 'type']);
+    ['explicit_unknown_determinant_ids', 'missing_determinant_evidence', 'missing_determinant_id', 'question_focus', 'text', 'type']);
   for (const etat of [...autorite.ARBITER_STATES]) {
     assert.equal(FAST_INTERACTION_JSON_SCHEMA.properties.type.enum.includes(etat), false, etat);
   }

@@ -42,7 +42,10 @@ const politique = fs.readFileSync(new URL('../workers/shared/solicitation-policy
 const worker = fs.readFileSync(new URL('../workers/groq/src/index.js', import.meta.url), 'utf8');
 const orchestrateur = fs.readFileSync(new URL('../workers/shared/operational-request-orchestrator.js', import.meta.url), 'utf8');
 
-const q = (texte) => ({ type: 'ASK_CLARIFICATION', text: texte });
+/* FAST-SPURIOUS-CLARIFICATION-FIX-01 — une question du plan rapide cite désormais le passage de la
+   demande qui la fonde ; sans citation, `guardFastInteraction` la refuse. Les trois demandes de
+   fixture commencent toutes par ces mots : la citation vaut pour chacune, mot pour mot. */
+const q = (texte) => ({ type: 'ASK_CLARIFICATION', text: texte, missing_determinant_evidence: 'Je veux préparer' });
 const snap = (demande, historique = []) => createTurnSnapshot({
   turn_id: historique.length + 1, original_request: demande, clarification_history: historique
 });

@@ -32,7 +32,7 @@ export const SOLICITING_TYPES = Object.freeze(['ASK_CLARIFICATION', 'ASK_CONFIRM
 /** Ce que le garde peut conclure. Fermé, et sans aucun état OPRIE. */
 export const SOLICITATION_VERDICTS = Object.freeze([
   'ALLOW', 'MULTIPLE_QUESTIONS', 'CATALOGUE', 'ALREADY_ANSWERED', 'MATERIAL_PRESENT',
-  'META_OUTPUT_QUESTION', 'EMPTY'
+  'META_OUTPUT_QUESTION', 'EMPTY', 'UNGROUNDED_DETERMINANT'
 ]);
 
 /**
@@ -231,6 +231,51 @@ export function isRepeatedSolicitation(question, history = [], missingDeterminan
   return tours.some((entree) => identite(entree && entree.question) === cle);
 }
 
+/* ==========================================================================
+ * FAST-SPURIOUS-CLARIFICATION-FIX-01 — UNE QUESTION SE FONDE SUR LES MOTS DE LA PERSONNE
+ *
+ * MESURÉ EN PRODUCTION SUR ZEVQ7C. La demande comparait plusieurs options ENSEMBLE ; le plan rapide a
+ * demandé laquelle traiter EN PREMIER — `missing_determinant_id: "lot_to_start"`. Rien dans la
+ * demande ne portait cette sous-structure : aucune exigence n'en dépendait, aucune contrainte ne la
+ * nommait, et l'analyse profonde du même cas concluait « continuer », zéro question. La question
+ * changeait silencieusement la structure du problème, et le tour s'arrêtait dessus.
+ *
+ * POURQUOI AUCUN GARDE NE LA VOYAIT. Tout ce qui précède juge la FORME : une interrogation, pas de
+ * catalogue, pas de répétition, pas de matériau, pas de question méta — et `question_focus` valait
+ * `problem_or_user_context`, ce qui est vrai d'une question inventée comme d'une question fondée.
+ * Le FONDEMENT n'était constaté par personne : l'identifiant du manque est libre, choisi après la
+ * décision de questionner, et rien ne le rattache à la demande.
+ *
+ * CE QUI EST MESURÉ ICI, ET COMMENT. Pas un jugement sur la phrase — un garde ne sait pas dire si une
+ * demande justifie une question, et le deviner serait le classifieur que l'architecture interdit.
+ * L'auteur de la question DÉCLARE son fondement : `missing_determinant_evidence`, la citation du
+ * passage de la demande (ou d'une réponse déjà donnée) dont le respect dépend de l'information
+ * demandée. Le garde constate une seule chose : que cette citation figure, mot pour mot, dans les
+ * mots de la personne. Une ÉGALITÉ de contenu sous la normalisation d'identité déjà employée pour la
+ * répétition — casse et ponctuation — jamais une similarité, jamais un seuil, jamais un lexique.
+ *
+ * LA GARANTIE, ET SA LIMITE, DITES PLUTÔT QUE TUES. Une question qui ne cite rien, ou cite ce que la
+ * personne n'a pas écrit, est refusée déterministement ; le silence rend le tour au plan profond,
+ * qui reste seul à décider. Une citation réelle mais mal choisie n'est pas contredite : la
+ * protection tient à ce que la citation vient AVANT la décision dans le schéma — le modèle doit
+ * trouver l'exigence avant de choisir de questionner — et non à une lecture du sens.
+ *
+ * Sans mots de la personne fournis par l'appelant, rien n'est comparé et rien n'est accusé : la
+ * composition de production (`guardFastInteraction`) les fournit toujours.
+ * ======================================================================== */
+export function isGroundedInRequest(candidate, { originalRequest = null, currentAnswer = null } = {}, history = []) {
+  const citation = identite(candidate && candidate.missing_determinant_evidence);
+  if (!citation) return false;
+  /* Les mots de la personne, et eux seuls : la demande, ses réponses passées, sa réponse en cours.
+     Jamais les questions du système, qui ne fondent rien. */
+  const paroles = [
+    originalRequest,
+    ...(Array.isArray(history) ? history : []).map((entree) => entree && entree.answer),
+    currentAnswer
+  ].map(identite).filter(Boolean);
+  return paroles.some((parole) => parole.includes(citation));
+}
+
 /* Interrogatifs français. Grammaire, pas domaine. `où` garde son accent : sans lui, il deviendrait
  * la conjonction `ou` et tout choix binaire serait compté comme une seconde question.
  *
@@ -361,6 +406,16 @@ export function assessSolicitation(candidate, history = [], materialPresent = fa
   if (isMetaOutputQuestion(texte, { ...faits, questionFocus: candidate && candidate.question_focus })) return 'META_OUTPUT_QUESTION';
   /* F5 — la candidate porte l'identité du manque qu'elle vise ; c'est elle qu'on compare. */
   if (isRepeatedSolicitation(texte, history, candidate && candidate.missing_determinant_id)) return 'ALREADY_ANSWERED';
+  /* FAST-SPURIOUS-CLARIFICATION-FIX-01 — le fondement, quand l'appelant fournit ce que la personne
+     a écrit. Après la répétition : un manque déjà traité est un fait plus fort qu'un manque non
+     fondé, et sa correction dit autre chose. Seule une SOLLICITATION a un fondement à établir : un
+     silence ou un accusé venu du modèle n'est pas une question, et ne se voit pas accuser d'en être
+     une sans citation — ni ici, ni dans le relevé du Worker qui lit le même verdict. */
+  if (SOLICITING_TYPES.includes(candidate && candidate.type)
+    && typeof (faits && faits.originalRequest) === 'string'
+    && !isGroundedInRequest(candidate, faits, history)) {
+    return 'UNGROUNDED_DETERMINANT';
+  }
   /* OPTION D — CE QUE LA PERSONNE A DÉCLARÉ IGNORER EST DÉJÀ UNE RÉPONSE.
    *
    * Mesuré : une demande disait ne pas connaître une donnée, et la PREMIÈRE question portait dessus.
@@ -601,14 +656,25 @@ export function isAtomicQuestion(texte) {
 
 /** Ce qui ne se répare pas : un besoin déjà satisfait, ou une question qui n'est pas la nôtre à poser. */
 const VERDICTS_SANS_REMEDE = Object.freeze([
-  'EMPTY', 'MATERIAL_PRESENT', 'ALREADY_ANSWERED', 'META_OUTPUT_QUESTION'
+  'EMPTY', 'MATERIAL_PRESENT', 'ALREADY_ANSWERED', 'META_OUTPUT_QUESTION', 'UNGROUNDED_DETERMINANT'
 ]);
+
+/* FAST-SPURIOUS-CLARIFICATION-FIX-01 — LES FAITS QUE LE PLAN RAPIDE REMET AU VERDICT.
+ * Ce sont les mots de la personne, tels que l'instantané les porte : la demande et la réponse en
+ * cours. Ils étaient déjà passés — sous la forme d'une chaîne nue, que `faits` ne savait pas lire.
+ * Une seule construction, partagée par le garde et par le relevé du Worker. */
+export function fastSnapshotFacts(snapshot = {}) {
+  return {
+    originalRequest: typeof snapshot.original_request === 'string' ? snapshot.original_request : '',
+    currentAnswer: typeof snapshot.current_answer === 'string' ? snapshot.current_answer : null
+  };
+}
 
 export function guardFastInteraction(candidate, snapshot = {}) {
   if (!candidate) return candidate;
   if (!SOLICITING_TYPES.includes(candidate.type)) return guardFastSolicitation(candidate, snapshot);
   const verdict = assessSolicitation(candidate, snapshot.clarification_history,
-    snapshot.material_present, snapshot.original_request);
+    snapshot.material_present, fastSnapshotFacts(snapshot));
   if (VERDICTS_SANS_REMEDE.includes(verdict)) return SILENT_INTERACTION;
   /* TOUTE question rapide passe ensuite par la frontière d'affichage — y compris celle que les
    * verdicts ont laissée passer. Deux raisons, et la seconde a été trouvée en validant : cette

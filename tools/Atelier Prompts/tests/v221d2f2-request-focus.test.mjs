@@ -64,7 +64,8 @@ test('V221D2F2-01 : le fait est produit par l’autorité existante, et vit au n
      diffCandidates, ni dans le domaine de ProvenanceRecord.field. */
   assert.equal(CANDIDATE_FIELDS.includes('request_focus'), false);
   /* Le plan rapide n'est pas touché : il reste à trois champs, et ne porte pas ce fait. */
-  assert.deepEqual(Object.keys(FAST_INTERACTION_JSON_SCHEMA.properties).sort(), ['explicit_unknown_determinant_ids', 'missing_determinant_id', 'question_focus', 'text', 'type']);
+  /* FAST-SPURIOUS-CLARIFICATION-FIX-01 — la citation qui fonde une question est entrée au contrat ; ce n'est pas un champ d'autorité : elle ne prononce rien, elle atteste. */
+  assert.deepEqual(Object.keys(FAST_INTERACTION_JSON_SCHEMA.properties).sort(), ['explicit_unknown_determinant_ids', 'missing_determinant_evidence', 'missing_determinant_id', 'question_focus', 'text', 'type']);
 });
 
 test('V221D2F2-01b : lecture tolérante, écriture stricte — comme available_inputs avant lui', () => {

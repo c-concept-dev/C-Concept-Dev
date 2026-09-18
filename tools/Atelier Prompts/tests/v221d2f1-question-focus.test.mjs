@@ -61,7 +61,8 @@ test('V221D2F1-01 : une question du plan rapide transporte ce qu’elle interrog
   assert.equal(v.ok, true);
   assert.equal(v.interaction.question_focus, SITUATION);
   /* Le schéma l'exige du modèle, et refuse tout ce qui n'appartient pas au vocabulaire. */
-  assert.deepEqual([...FAST_INTERACTION_JSON_SCHEMA.required].sort(), ['explicit_unknown_determinant_ids', 'missing_determinant_id', 'question_focus', 'text', 'type']);
+  /* FAST-SPURIOUS-CLARIFICATION-FIX-01 — la citation qui fonde une question est entrée au contrat ; ce n'est pas un champ d'autorité : elle ne prononce rien, elle atteste. */
+  assert.deepEqual([...FAST_INTERACTION_JSON_SCHEMA.required].sort(), ['explicit_unknown_determinant_ids', 'missing_determinant_evidence', 'missing_determinant_id', 'question_focus', 'text', 'type']);
   assert.equal(validateFastInteraction(
     { type: 'ASK_CLARIFICATION', text: 'x', question_focus: 'deliverable' }, snapshot()).reason, 'FAST_SCHEMA_ERROR');
 });

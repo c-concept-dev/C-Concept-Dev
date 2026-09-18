@@ -1,5 +1,5 @@
 /* GENERATED — LOT 10G.3B.3F.2
- * source-sha256: cd65111effdff75874232a4c1b79bfadf91c992bf3be04bc3d21e9b24c4e116e
+ * source-sha256: 64ee4ca727df166da3f10896d0a56858cbecacafbeb6da67521ed961ca88d9c3
  * Ne pas modifier manuellement. Régénérer avec tools/build-adn-browser-runtime.mjs
  */
 (function(global){
@@ -6927,7 +6927,7 @@ const SOLICITING_TYPES = Object.freeze(['ASK_CLARIFICATION', 'ASK_CONFIRMATION']
 /** Ce que le garde peut conclure. Fermé, et sans aucun état OPRIE. */
 const SOLICITATION_VERDICTS = Object.freeze([
   'ALLOW', 'MULTIPLE_QUESTIONS', 'CATALOGUE', 'ALREADY_ANSWERED', 'MATERIAL_PRESENT',
-  'META_OUTPUT_QUESTION', 'EMPTY'
+  'META_OUTPUT_QUESTION', 'EMPTY', 'UNGROUNDED_DETERMINANT'
 ]);
 
 /**
@@ -7126,6 +7126,51 @@ function isRepeatedSolicitation(question, history = [], missingDeterminantId = n
   return tours.some((entree) => identite(entree && entree.question) === cle);
 }
 
+/* ==========================================================================
+ * FAST-SPURIOUS-CLARIFICATION-FIX-01 — UNE QUESTION SE FONDE SUR LES MOTS DE LA PERSONNE
+ *
+ * MESURÉ EN PRODUCTION SUR ZEVQ7C. La demande comparait plusieurs options ENSEMBLE ; le plan rapide a
+ * demandé laquelle traiter EN PREMIER — `missing_determinant_id: "lot_to_start"`. Rien dans la
+ * demande ne portait cette sous-structure : aucune exigence n'en dépendait, aucune contrainte ne la
+ * nommait, et l'analyse profonde du même cas concluait « continuer », zéro question. La question
+ * changeait silencieusement la structure du problème, et le tour s'arrêtait dessus.
+ *
+ * POURQUOI AUCUN GARDE NE LA VOYAIT. Tout ce qui précède juge la FORME : une interrogation, pas de
+ * catalogue, pas de répétition, pas de matériau, pas de question méta — et `question_focus` valait
+ * `problem_or_user_context`, ce qui est vrai d'une question inventée comme d'une question fondée.
+ * Le FONDEMENT n'était constaté par personne : l'identifiant du manque est libre, choisi après la
+ * décision de questionner, et rien ne le rattache à la demande.
+ *
+ * CE QUI EST MESURÉ ICI, ET COMMENT. Pas un jugement sur la phrase — un garde ne sait pas dire si une
+ * demande justifie une question, et le deviner serait le classifieur que l'architecture interdit.
+ * L'auteur de la question DÉCLARE son fondement : `missing_determinant_evidence`, la citation du
+ * passage de la demande (ou d'une réponse déjà donnée) dont le respect dépend de l'information
+ * demandée. Le garde constate une seule chose : que cette citation figure, mot pour mot, dans les
+ * mots de la personne. Une ÉGALITÉ de contenu sous la normalisation d'identité déjà employée pour la
+ * répétition — casse et ponctuation — jamais une similarité, jamais un seuil, jamais un lexique.
+ *
+ * LA GARANTIE, ET SA LIMITE, DITES PLUTÔT QUE TUES. Une question qui ne cite rien, ou cite ce que la
+ * personne n'a pas écrit, est refusée déterministement ; le silence rend le tour au plan profond,
+ * qui reste seul à décider. Une citation réelle mais mal choisie n'est pas contredite : la
+ * protection tient à ce que la citation vient AVANT la décision dans le schéma — le modèle doit
+ * trouver l'exigence avant de choisir de questionner — et non à une lecture du sens.
+ *
+ * Sans mots de la personne fournis par l'appelant, rien n'est comparé et rien n'est accusé : la
+ * composition de production (`guardFastInteraction`) les fournit toujours.
+ * ======================================================================== */
+function isGroundedInRequest(candidate, { originalRequest = null, currentAnswer = null } = {}, history = []) {
+  const citation = identite(candidate && candidate.missing_determinant_evidence);
+  if (!citation) return false;
+  /* Les mots de la personne, et eux seuls : la demande, ses réponses passées, sa réponse en cours.
+     Jamais les questions du système, qui ne fondent rien. */
+  const paroles = [
+    originalRequest,
+    ...(Array.isArray(history) ? history : []).map((entree) => entree && entree.answer),
+    currentAnswer
+  ].map(identite).filter(Boolean);
+  return paroles.some((parole) => parole.includes(citation));
+}
+
 /* Interrogatifs français. Grammaire, pas domaine. `où` garde son accent : sans lui, il deviendrait
  * la conjonction `ou` et tout choix binaire serait compté comme une seconde question.
  *
@@ -7256,6 +7301,16 @@ function assessSolicitation(candidate, history = [], materialPresent = false, fa
   if (isMetaOutputQuestion(texte, { ...faits, questionFocus: candidate && candidate.question_focus })) return 'META_OUTPUT_QUESTION';
   /* F5 — la candidate porte l'identité du manque qu'elle vise ; c'est elle qu'on compare. */
   if (isRepeatedSolicitation(texte, history, candidate && candidate.missing_determinant_id)) return 'ALREADY_ANSWERED';
+  /* FAST-SPURIOUS-CLARIFICATION-FIX-01 — le fondement, quand l'appelant fournit ce que la personne
+     a écrit. Après la répétition : un manque déjà traité est un fait plus fort qu'un manque non
+     fondé, et sa correction dit autre chose. Seule une SOLLICITATION a un fondement à établir : un
+     silence ou un accusé venu du modèle n'est pas une question, et ne se voit pas accuser d'en être
+     une sans citation — ni ici, ni dans le relevé du Worker qui lit le même verdict. */
+  if (SOLICITING_TYPES.includes(candidate && candidate.type)
+    && typeof (faits && faits.originalRequest) === 'string'
+    && !isGroundedInRequest(candidate, faits, history)) {
+    return 'UNGROUNDED_DETERMINANT';
+  }
   /* OPTION D — CE QUE LA PERSONNE A DÉCLARÉ IGNORER EST DÉJÀ UNE RÉPONSE.
    *
    * Mesuré : une demande disait ne pas connaître une donnée, et la PREMIÈRE question portait dessus.
@@ -7496,14 +7551,25 @@ function isAtomicQuestion(texte) {
 
 /** Ce qui ne se répare pas : un besoin déjà satisfait, ou une question qui n'est pas la nôtre à poser. */
 const VERDICTS_SANS_REMEDE = Object.freeze([
-  'EMPTY', 'MATERIAL_PRESENT', 'ALREADY_ANSWERED', 'META_OUTPUT_QUESTION'
+  'EMPTY', 'MATERIAL_PRESENT', 'ALREADY_ANSWERED', 'META_OUTPUT_QUESTION', 'UNGROUNDED_DETERMINANT'
 ]);
+
+/* FAST-SPURIOUS-CLARIFICATION-FIX-01 — LES FAITS QUE LE PLAN RAPIDE REMET AU VERDICT.
+ * Ce sont les mots de la personne, tels que l'instantané les porte : la demande et la réponse en
+ * cours. Ils étaient déjà passés — sous la forme d'une chaîne nue, que `faits` ne savait pas lire.
+ * Une seule construction, partagée par le garde et par le relevé du Worker. */
+function fastSnapshotFacts(snapshot = {}) {
+  return {
+    originalRequest: typeof snapshot.original_request === 'string' ? snapshot.original_request : '',
+    currentAnswer: typeof snapshot.current_answer === 'string' ? snapshot.current_answer : null
+  };
+}
 
 function guardFastInteraction(candidate, snapshot = {}) {
   if (!candidate) return candidate;
   if (!SOLICITING_TYPES.includes(candidate.type)) return guardFastSolicitation(candidate, snapshot);
   const verdict = assessSolicitation(candidate, snapshot.clarification_history,
-    snapshot.material_present, snapshot.original_request);
+    snapshot.material_present, fastSnapshotFacts(snapshot));
   if (VERDICTS_SANS_REMEDE.includes(verdict)) return SILENT_INTERACTION;
   /* TOUTE question rapide passe ensuite par la frontière d'affichage — y compris celle que les
    * verdicts ont laissée passer. Deux raisons, et la seconde a été trouvée en validant : cette
@@ -11896,7 +11962,26 @@ const FAST_INTERACTION_JSON_SCHEMA = Object.freeze({
    * Il passe en tête. Le modèle établit d'abord ce que la personne a déclaré ignorer, et décide
    * ensuite. Aucun champ ajouté, aucune autorité nouvelle, aucun appel de plus : le même contrat,
    * dans l'ordre où il doit être pensé. */
-  required: ["explicit_unknown_determinant_ids", "type", "text", "question_focus", "missing_determinant_id"],
+  /* FAST-SPURIOUS-CLARIFICATION-FIX-01 — LA PREUVE AVANT LA DÉCISION, POUR LA MÊME RAISON.
+   *
+   * MESURÉ EN PRODUCTION SUR ZEVQ7C : la demande comparait plusieurs options ENSEMBLE, et le plan
+   * rapide a rendu `{ASK_CLARIFICATION, missing_determinant_id: "lot_to_start"}` — une sous-structure
+   * de travail (« laquelle en premier ? ») que la demande ne contenait pas, ne contraignait pas, et
+   * dont rien ne dépendait. L'analyse profonde du même cas concluait « continuer », zéro question.
+   *
+   * POURQUOI RIEN NE L'ARRÊTAIT. Tous les gardes du plan rapide jugent la FORME d'une question —
+   * atomique, non méta, non répétée, pas de matériau. Aucun ne pouvait juger son FONDEMENT : le
+   * modèle nommait l'inconnue APRÈS avoir décidé de questionner, et l'identifiant était libre. Un
+   * garde déterministe ne peut pas lire une phrase pour savoir si la demande la justifie — ce
+   * serait le classifieur que l'architecture interdit. Il peut en revanche constater qu'une
+   * citation figure, mot pour mot, dans les mots de la personne.
+   *
+   * CE CHAMP EST CETTE CITATION, et il vient AVANT `type` : le modèle doit d'abord trouver dans la
+   * demande l'exigence dont le respect dépend d'une information non donnée, puis décider. S'il
+   * n'en trouve aucune à citer, il n'y a pas de question à poser. Même mécanisme que le registre
+   * ci-dessus, même raison : l'ordre du schéma est l'ordre du raisonnement. Ce champ ne repart
+   * jamais vers le client — il sert au garde, et à lui seul. */
+  required: ["explicit_unknown_determinant_ids", "missing_determinant_evidence", "type", "text", "question_focus", "missing_determinant_id"],
   properties: {
     /* OPTION D — CE QUE LA PERSONNE A ELLE-MÊME DÉCLARÉ NE PAS CONNAÎTRE.
      *
@@ -11932,6 +12017,11 @@ const FAST_INTERACTION_JSON_SCHEMA = Object.freeze({
        * dans `response_format`, le payload transportant l'objet sans filtrage. */
       description: "Identifiants des informations que la personne a explicitement déclaré ne pas connaître. Ce registre est indépendant du type d'interaction et de missing_determinant_id ; il reste renseigné lorsqu'une question porte sur une autre variable."
     },
+    /* FAST-SPURIOUS-CLARIFICATION-FIX-01 — la citation qui FONDE une question. Voir `required`. */
+    missing_determinant_evidence: {
+      type: ["string", "null"],
+      description: "Citation exacte, mot pour mot et sans coupure, du passage de la demande ou d'une réponse déjà donnée dont le respect dépend de l'information que la question demande. Ce passage est une exigence écrite par la personne, jamais une étape, un ordre ou un découpage du travail imaginé pour l'exécuter. null si aucun passage ne dépend d'une information non donnée : dans ce cas aucune question n'est possible. null sans question."
+    },
     type: { type: "string", enum: [...FAST_INTERACTION_TYPES] },
     text: { type: "string" },
     /* V2.2.1-D2F1 — ce que la question INTERROGE, dit par celui qui l'écrit. null quand il n'y a
@@ -11955,6 +12045,15 @@ const FAST_INTERACTION_JSON_SCHEMA = Object.freeze({
 
   }
 });
+
+/* FAST-SPURIOUS-CLARIFICATION-FIX-01 — CE QUI REPART VERS LE CLIENT : le contrat déclaré, MOINS la
+ * citation. Elle a servi au garde, elle porte les mots de la personne, et le client n'en a aucun
+ * usage — ni pour afficher, ni pour l'historique, ni pour l'anti-répétition. Déclaré ici pour que
+ * la porte réseau et les tests lisent la même liste, et pour qu'un client déjà déployé continue
+ * de recevoir exactement les clés qu'il connaît. */
+const FAST_INTERACTION_TRANSPORT_FIELDS = Object.freeze(
+  FAST_INTERACTION_JSON_SCHEMA.required.filter((k) => k !== "missing_determinant_evidence")
+);
 
 const text = (v) => (typeof v === "string" ? v.trim() : "");
 const isObject = (v) => !!v && typeof v === "object" && !Array.isArray(v);
@@ -12021,6 +12120,9 @@ function validateFastInteraction(candidate, snapshot) {
   if (cles.includes("question_focus")) attendues.push("question_focus");
   if (cles.includes("missing_determinant_id")) attendues.push("missing_determinant_id");
   if (cles.includes("explicit_unknown_determinant_ids")) attendues.push("explicit_unknown_determinant_ids");
+  /* FAST-SPURIOUS-CLARIFICATION-FIX-01 — la citation est tolérée à l'entrée, jamais recopiée à la
+     sortie : elle a déjà servi au garde, et elle porte les mots de la personne. */
+  if (cles.includes("missing_determinant_evidence")) attendues.push("missing_determinant_evidence");
   attendues.sort();
   if (cles.length !== attendues.length || cles.some((c, i) => c !== attendues[i])) {
     return { ok: false, reason: "FAST_SCHEMA_ERROR", detail: `clés inattendues : ${cles.join(", ") || "aucune"}` };
@@ -12545,5 +12647,5 @@ function createAdapterAuditView(envelope) {
 
 return {ENGINE_ADAPTERS_VERSION,buildExecutionEnvelope,projectToRapide,projectToArchitecte,projectToAtelier,validateLegacyLockMapping,createAdapterAuditView};
 })({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON});
-global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...BOUNDED,...ORCORE,...ROLEDEG,...SOLICIT,...COREPLANE,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'cd65111effdff75874232a4c1b79bfadf91c992bf3be04bc3d21e9b24c4e116e'});
+global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...BOUNDED,...ORCORE,...ROLEDEG,...SOLICIT,...COREPLANE,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'64ee4ca727df166da3f10896d0a56858cbecacafbeb6da67521ed961ca88d9c3'});
 })(window);
