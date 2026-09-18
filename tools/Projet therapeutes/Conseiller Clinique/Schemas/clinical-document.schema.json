@@ -96,6 +96,34 @@
           }
         }
       }
+    },
+    {
+      "$comment": "ITEM 75 Phase 1 (complément, 18 septembre 2026) — garde-fou décidé par Christophe : x/y/width/height/zIndex (block.schema.json#/$defs/blockStyle, ITEM 75 Phase 1 initial) réservés au documentKind carrousel, rejetés par AJV ailleurs (échec fermé, pas un simple avertissement — cohérence avec la posture A18). Même patron allOf/if/then que les deux branches ci-dessus, appliqué à l'inverse : fiche/tableau/script/liens (jamais carrousel) ne peuvent pas porter ces 5 champs sur un bloc de premier niveau. Ne s'applique qu'aux blocs de PREMIER NIVEAU (doc.blocks[]) — jamais aux blocs imbriqués de card.content.blocks[] (block.schema.json#/$defs/nestedBlock), seul endroit où ces champs ont un sens (une carte, elle, n'a pas de `style` — cardBlock ne le définit pas), donc aucune récursion n'est nécessaire ici : un document non-carrousel n'a jamais de bloc `card` à sa racine (branche `fiche` ci-dessus l'exclut déjà d'editorialBlock ; tableau/script/liens restent une union non contrainte, UX-8M, mais ce garde-fou n'élargit ni ne réduit cette lacune déjà documentée, il ferme seulement la fuite de position). Combine par ET (allOf) avec la contrainte de forme déjà posée pour 'fiche' ci-dessus — un bloc de Fiche doit rester conforme à editorialBlock ET ne jamais porter ces 5 champs.",
+      "if": { "properties": { "documentKind": { "enum": ["fiche", "tableau", "script", "liens"] } }, "required": ["documentKind"] },
+      "then": {
+        "properties": {
+          "blocks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "style": {
+                  "type": "object",
+                  "not": {
+                    "anyOf": [
+                      { "properties": { "x": {} }, "required": ["x"] },
+                      { "properties": { "y": {} }, "required": ["y"] },
+                      { "properties": { "width": {} }, "required": ["width"] },
+                      { "properties": { "height": {} }, "required": ["height"] },
+                      { "properties": { "zIndex": {} }, "required": ["zIndex"] }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   ]
 }
