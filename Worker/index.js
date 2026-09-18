@@ -56506,15 +56506,22 @@ async function handleIngest(request2, env2) {
         }
         if (emb[j]) {
           try {
+            // CORRECTIF A17 (audit Codex) — author manquait ici (jamais écrit dans les
+            // métadonnées Vectorize, alors que D1 le porte déjà ci-dessus) et `page` était
+            // renommé `page_number` uniquement à la lecture (handleRagSearch) : cause exacte de
+            // l'attribution auteur/page silencieusement vide dans les citations RAG (Q&A sourcé,
+            // Carrousel) pour tout chunk retrouvé par similarité vectorielle. Noms désormais
+            // identiques des deux côtés (D1 et Vectorize), jamais un mapping implicite à retenir.
             await env2.VECTOR_INDEX.upsert([{
               id,
               values: emb[j],
               metadata: {
                 book_id: book_meta.book_id,
                 book_title: book_meta.title,
+                author: book_meta.author || "Unknown",
                 approach: book_meta.approach || "general",
                 language: book_meta.language || "fr",
-                page: ck.page || 0
+                page_number: ck.page || 0
               }
             }]);
             vec++;
@@ -57882,14 +57889,23 @@ async function handleRagSearch(request2, env2) {
       seen.add(chunk.id);
       merged.push(chunk);
     }
-    const ids = merged.filter((c) => !c.content).map((c) => c.id);
+    // CORRECTIF A17 (audit Codex) — le round-trip D1 existait déjà pour compléter `content`
+    // manquant (chunks vectoriels, dont les métadonnées Vectorize ne l'ont jamais porté), mais
+    // ne sélectionnait que cette seule colonne. Étendu ici à author/page_number : sert de filet
+    // de sécurité pour tout chunk déjà ingéré AVANT ce correctif (métadonnées Vectorize encore
+    // sans author, ou avec l'ancien nom `page`) sans attendre une ré-ingestion complète du corpus
+    // — jamais un second mécanisme, la même requête fait simplement plus de travail utile.
+    const ids = merged.filter((c) => !c.content || !c.author || c.page_number == null).map((c) => c.id);
     if (ids.length) {
       const ph = ids.map(() => "?").join(",");
-      const rows = await env2.DB.prepare(`SELECT id, content FROM chunks WHERE id IN (${ph})`).bind(...ids).all();
-      const cm = Object.fromEntries((rows.results || []).map((r) => [r.id, r.content]));
+      const rows = await env2.DB.prepare(`SELECT id, content, author, page_number FROM chunks WHERE id IN (${ph})`).bind(...ids).all();
+      const cm = Object.fromEntries((rows.results || []).map((r) => [r.id, r]));
       merged.forEach((c) => {
-        if (!c.content)
-          c.content = cm[c.id] || "";
+        const r = cm[c.id];
+        if (!r) return;
+        if (!c.content) c.content = r.content || "";
+        if (!c.author) c.author = r.author || "";
+        if (c.page_number == null) c.page_number = r.page_number ?? null;
       });
     }
     const finalChunks = merged.slice(0, topK).map((c, i) => {
