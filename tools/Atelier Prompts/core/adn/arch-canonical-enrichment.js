@@ -627,11 +627,24 @@ function diagnoseAgainstOprie(analysis, base, signals, observations) {
     observations.push(registerDivergence('assumptions.allowed', 'strategie.hypotheses_autorisees',
       list(base.assumptions.allowed).length, list(analysis.strategie.hypotheses_autorisees).length));
   }
+  /* ADN-ARCH-03d — OBSERVÉ, PLUS BLOQUANT, SUR PREUVE DE L'ÉCHANGE ZEVQ7C.
+     C'était la dernière comparaison de cardinalité bloquante, et ADN-OBS-01/02 l'avaient rendue
+     mesurable AVANT de la toucher. Le relevé de production a tranché : contrat canonique présent,
+     readiness exploitable, `signal_count = 1`, et ce signal unique était celui-ci. Côté Architecte,
+     trois `ambiguites`, trois informations manquantes toutes NON bloquantes,
+     `livrable_complet_possible = true`, `action_recommandee = continuer`, zéro question.
+     Les deux registres ne dénombrent pas la même chose. `critical_missing` et
+     `substitutable_missing` sont des ISSUES OPRIE, nées de `routeIssues(arbiterOutput.issues)` :
+     sur un contrat READY, ce sont des manques déjà arbitrés. `ambiguites` porte des LECTURES de la
+     demande — descriptives, que le schéma 3.4 n'assortit d'aucun `bloquant` ; le seul fait de danger
+     typé reste `informations_manquantes[].bloquant`, et il garde son EXECUTION_UNSAFE ci-dessous.
+     Un contrat bien arbitré porte zéro issue ; toute analyse qui nomme une ambiguïté le dépassait.
+     Aucune ambiguïté n'est convertie en `substitutable_missing` : ce serait reconstruire une
+     équivalence qui n'existe pas, et le champ reste hors de ARCH_ENRICHABLE_PATHS. */
   const knownIssues = list(base.executability.critical_missing).length + list(base.executability.substitutable_missing).length;
   if (list(comprehension.ambiguites).length > knownIssues) {
-    signals.push(signal('CONTRACT_INCONSISTENT', 'executability.substitutable_missing',
-      'comprehension.ambiguites',
-      'L’analyse relève une ambiguïté absente du contrat validé.', true));
+    observations.push(registerDivergence('executability.substitutable_missing', 'comprehension.ambiguites',
+      knownIssues, list(comprehension.ambiguites).length));
   }
   /* ADN-ARCH-03 — OBSERVÉ, PLUS BLOQUANT. C'est ce prédicat qui bloquait JCBRHF ET VELA5Q : le
      schéma 3.4 rend `pilotage_incertitude` obligatoire, et OPRIE laisse `remaining_unknowns` vide
@@ -792,7 +805,13 @@ export function validateArchSignals(signals) {
  * masquer — c'est précisément ce qu'un relevé qui prédit au lieu de constater avait coûté ailleurs.
  *
  * AUCUN CONTENU. Des comptes, un identifiant de demande, deux booléens. Ni le texte d'une ambiguïté,
- * ni le contenu d'une issue, ni un mot de la personne. */
+ * ni le contenu d'une issue, ni un mot de la personne.
+ *
+ * ADN-ARCH-03d. Ce relevé a fait son travail : c'est lui qui a prouvé, en production sur ZEVQ7C,
+ * que la garde tirait sur une demande exécutable. La garde a depuis quitté le canal bloquant pour
+ * `observations`. Le relevé est conservé TEL QUEL — `predicate_triggered` recalcule toujours le
+ * prédicat, `blocking_signal_emitted` lit toujours ce qui a été émis — et le couple
+ * (true, false) est désormais la mesure attendue quand une analyse nomme une ambiguïté. */
 export const ARCH_AMBIGUITY_GUARD_EVENT = 'arch_ambiguity_guard_observation';
 
 export function observeAmbiguityGuard(base, archAnalyse, signals = []) {
@@ -837,8 +856,9 @@ export function createArchEnrichmentAuditView(base, enriched, signals, observati
       canonical_count: Number.isInteger(o?.canonical_count) ? o.canonical_count : null,
       arch_count: Number.isInteger(o?.arch_count) ? o.arch_count : null
     })),
-    /* ADN-OBS-01 — la dernière garde bloquante, mesurée. `null` quand l'analyse n'est pas fournie :
-       cette vue reste utilisable par ses appelants historiques, qui n'en passent pas. */
+    /* ADN-OBS-01 — la garde d'ambiguïté, mesurée (désarmée par ADN-ARCH-03d, le relevé demeure).
+       `null` quand l'analyse n'est pas fournie : cette vue reste utilisable par ses appelants
+       historiques, qui n'en passent pas. */
     ambiguity_guard: archAnalyse ? observeAmbiguityGuard(base, archAnalyse, signals) : null
   });
 }

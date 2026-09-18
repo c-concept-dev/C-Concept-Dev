@@ -214,29 +214,15 @@ test('T-AA03-08 · D : l’analyse cohérente historique ne régresse pas', () =
   assert.deepEqual(validateArchCanonicalEnrichment(base, contract, analyse).mutated_oprie_fields, []);
 });
 
-test('T-AA03-09 : la DERNIÈRE comparaison de cardinalité garde son autorité', () => {
-  /* PÉRIMÈTRE, MIS À JOUR PAR ADN-ARCH-03b. Trois comparaisons ont désormais perdu leur autorité,
-     chacune sur preuve d’un cas réel : `assumptions.allowed` et `executability.remaining_unknowns`
-     (JCBRHF, VELA5Q), puis `intent.secondary_objectives` (GASPPN), puis `intent.delegated_decisions`
-     (TE7BSV). Il n’en reste qu’UNE — `executability.substitutable_missing` ← `ambiguites` — et elle
-     conserve son autorité tant qu’aucun cas réel ne l’invalide : la désarmer par analogie serait
-     décider à la place du propriétaire. Ce test le constate, pour qu’un lot futur voie ce qui reste. */
+test('T-AA03-09 : AUCUNE comparaison de cardinalité ne bloque plus — cinq registres, cinq cas réels', () => {
+  /* PÉRIMÈTRE, MIS À JOUR PAR ADN-ARCH-03d. Ce test constatait qu'il restait UNE comparaison
+     bloquante — `executability.substitutable_missing` ← `ambiguites` — « tant qu'aucun cas réel ne
+     l'invalide ». ZEVQ7C l'a invalidée, et mesurée en production par le relevé d'ADN-OBS-02 :
+     contrat présent, readiness exploitable, `signal_count = 1`, ce signal-là. Le test dit désormais
+     ce qui reste : rien ne bloque par comptage, et tout ce qui comptait est observé. */
   const { validate } = loadPostOprieValidator();
   const base = canonicalFrom(oprieReadyTurn());
-  const cas = [
-    ['executability.substitutable_missing', (a) => { a.comprehension.ambiguites = ['A1']; }]
-  ];
-  for (const [champ, muter] of cas) {
-    const analyse = coherentAnalysis();
-    muter(analyse);
-    const { signals } = enrichCanonicalContractFromArchAnalysis(base, analyse);
-    assert.ok(signals.some((s) => s.canonical_field === champ), `${champ} bloque encore`);
-  }
-  /* Et le validateur de l’artefact conserve les siens, sauf ceux qui ont été retirés. */
-  const analyseAmb = coherentAnalysis();
-  analyseAmb.comprehension.ambiguites = ['A1'];
-  assert.equal(validate(analyseAmb, base).ok, false, 'l’artefact bloque encore sur les ambiguïtés');
-  /* LES QUATRE REGISTRES DÉSARMÉS NE BLOQUENT PLUS, ET LES DEUX IMPLÉMENTATIONS N'EN PORTENT PAS
+  /* LES CINQ REGISTRES DÉSARMÉS NE BLOQUENT PLUS, ET LES DEUX IMPLÉMENTATIONS N'EN PORTENT PAS
      AUTANT — ce que ce test dit explicitement plutôt que de le contourner.
      L'artefact compare quatre registres ; le module en compare cinq. `remaining_unknowns` n'a
      JAMAIS existé côté artefact : c'est pourquoi VELA5Q ne tombait que par le module. L'asymétrie
@@ -244,14 +230,19 @@ test('T-AA03-09 : la DERNIÈRE comparaison de cardinalité garde son autorité',
   const DESARMES_ARTEFACT = [
     ['intent.secondary_objectives', (a) => { a.comprehension.intentions_secondaires = ['S1']; }],
     ['intent.delegated_decisions', (a) => { a.strategie.pilotage_incertitude.decisions_autonomes = ['D1']; }],
-    ['assumptions.allowed', (a) => { a.strategie.hypotheses_autorisees = ['H1']; }]
+    ['assumptions.allowed', (a) => { a.strategie.hypotheses_autorisees = ['H1']; }],
+    ['executability.substitutable_missing', (a) => { a.comprehension.ambiguites = ['A1']; }]
   ];
   for (const [champ, muter] of DESARMES_ARTEFACT) {
     const analyse = coherentAnalysis();
     muter(analyse);
     const verdict = validate(analyse, base);
     assert.equal(verdict.ok, true, `${champ} ne bloque plus`);
+    assert.deepEqual(verdict.signals, [], `${champ} : aucun signal`);
     assert.equal(verdict.divergences[0].canonical_field, champ, `${champ} est observé par l’artefact`);
+    const { signals, observations } = enrichCanonicalContractFromArchAnalysis(base, analyse);
+    assert.deepEqual(signals, [], `${champ} : le module ne bloque pas davantage`);
+    assert.ok(observations.some((o) => o.canonical_field === champ), `${champ} est observé par le module`);
   }
   /* Le cinquième registre est du ressort du MODULE seul, et il y est observé de la même façon. */
   const analyseUnk = coherentAnalysis();
@@ -263,13 +254,179 @@ test('T-AA03-09 : la DERNIÈRE comparaison de cardinalité garde son autorité',
   assert.deepEqual(moduleUnk.signals, [], 'le module ne bloque pas davantage');
   assert.equal(moduleUnk.observations[0].canonical_field, 'executability.remaining_unknowns',
     'c’est le module qui porte ce registre, et il l’observe');
+  /* Et le module n'a plus AUCUN CONTRACT_INCONSISTENT par comptage : sur l'analyse la plus
+     divergente possible côté registres, il n'émet que le fait de danger typé. */
+  const tout = coherentAnalysis();
+  for (const [, muter] of DESARMES_ARTEFACT) muter(tout);
+  tout.strategie.pilotage_incertitude.inconnues_non_devineables = ['U1'];
+  assert.deepEqual(enrichCanonicalContractFromArchAnalysis(base, tout).signals, []);
+  tout.comprehension.informations_manquantes = [{ information: 'I', bloquant: true, justification: 'justifié' }];
+  assert.deepEqual(enrichCanonicalContractFromArchAnalysis(base, tout).signals.map((s) => s.signal), ['EXECUTION_UNSAFE']);
+});
+
+/* ==========================================================================
+ * ADN-ARCH-03d — ZEVQ7C : UNE AMBIGUÏTÉ N'EST PAS UNE ISSUE
+ * ======================================================================= */
+
+/** Un tour READY portant des issues OPRIE substituables : c'est la seule façon d'obtenir une
+ *  référence non nulle pour l'ancien comptage, par le mapper de production et par personne d'autre. */
+const tourAvecIssues = (n) => oprieReadyTurn({
+  issues: Array.from({ length: n }, (_, i) => ({
+    id: `i${i + 1}`, type: 'missing_information', kind: null, description: `Manque substituable ${i + 1}.`,
+    impact: 'non_material', substitutable: true, recommended_treatment: 'estimate'
+  }))
+});
+/** La forme exacte de ZEVQ7C : n ambiguïtés, des informations manquantes NON bloquantes, continuer. */
+const analyseZevq7c = (ambiguites = 3, manquantes = 3) => coherentAnalysis({
+  comprehension: {
+    ...coherentAnalysis().comprehension,
+    ambiguites: Array.from({ length: ambiguites }, (_, i) => `AMB_${i + 1}`),
+    informations_manquantes: Array.from({ length: manquantes }, (_, i) => ({
+      information: `INFO_${i + 1}`, bloquant: false, justification: 'Substituable par une hypothèse.'
+    }))
+  },
+  evaluation: { ...coherentAnalysis().evaluation, livrable_complet_possible: true, action_recommandee: 'continuer', questions_a_poser: [] }
+});
+
+test('T-AA03-14 · ZEVQ7C : trois ambiguïtés, zéro issue, continuer → aucun arrêt, divergence observée', () => {
+  /* LA FORME EXACTE DE L'ÉCHANGE RÉEL. Côté OPRIE : contrat présent, readiness exploitable, zéro
+     issue — un contrat READY n'en porte pas. Côté Architecte : trois ambiguïtés, trois informations
+     manquantes toutes non bloquantes, livrable complet possible, continuer, zéro question.
+     Avant ce lot : `signal_count = 1`, CONTRACT_INCONSISTENT, « Préparation interrompue ». */
+  const { validate } = loadPostOprieValidator();
+  const base = canonicalFrom(oprieReadyTurn());
+  const analyse = analyseZevq7c(3, 3);
+  assert.equal(base.executability.critical_missing.length + base.executability.substitutable_missing.length, 0);
+  assert.equal(analyse.evaluation.action_recommandee, 'continuer');
+  assert.equal(analyse.comprehension.informations_manquantes.some((i) => i.bloquant), false);
+
+  const validation = validate(analyse, base);
+  assert.equal(validation.ok, true, 'la préparation continue');
+  assert.deepEqual(validation.signals, [], 'artefact : zéro signal bloquant');
+  const enrichissement = enrichCanonicalContractFromArchAnalysis(base, analyse);
+  assert.deepEqual(enrichissement.signals, [], 'module : zéro signal bloquant');
+  assert.deepEqual(mergePostOprieSignals(validation.signals, enrichissement.signals), [], 'fusion de production : rien n’arrête');
+
+  /* L'écart est observé, NON BLOQUANT, par le mécanisme existant, sur les deux implémentations. */
+  for (const [nom, liste] of [['artefact', validation.divergences], ['module', enrichissement.observations]]) {
+    const d = liste.find((o) => o.canonical_field === 'executability.substitutable_missing');
+    assert.ok(d, `${nom} : la divergence est relevée`);
+    assert.equal(d.kind, ARCH_REGISTER_DIVERGENCE);
+    assert.equal(d.arch_source_field, 'comprehension.ambiguites');
+    assert.equal(d.canonical_count, 0);
+    assert.equal(d.arch_count, 3);
+    assert.equal(d.blocking, false);
+  }
+  /* Rien n'a été écrit : aucune ambiguïté n'est devenue une issue. */
+  assert.deepEqual(enrichissement.contract.executability, base.executability);
+  assert.deepEqual(validateArchCanonicalEnrichment(base, enrichissement.contract, analyse).mutated_oprie_fields, []);
+  assert.equal(JSON.stringify(enrichissement.contract).includes('AMB_'), false);
+});
+
+test('T-AA03-15 · A/B/C : ambiguïtés supérieures, égales ou nulles face aux issues → PASS, sans conversion', () => {
+  const { validate } = loadPostOprieValidator();
+  for (const [libelle, issues, ambiguites, divergenceAttendue] of [
+    ['A · ambiguites > issues, demande exécutable', 1, 3, true],
+    ['B · ambiguites = issues', 2, 2, false],
+    ['C · ambiguites = 0', 2, 0, false],
+    ['C’ · ambiguites = 0, issues = 0', 0, 0, false]
+  ]) {
+    const base = canonicalFrom(tourAvecIssues(issues));
+    assert.equal(base.executability.substitutable_missing.length, issues, `${libelle} : référence par le mapper de production`);
+    assert.equal(base.executability.state, 'exploitable');
+    const analyse = analyseZevq7c(ambiguites, 0);
+
+    const validation = validate(analyse, base);
+    const enrichissement = enrichCanonicalContractFromArchAnalysis(base, analyse);
+    assert.equal(validation.ok, true, `${libelle} : PASS artefact`);
+    assert.deepEqual(validation.signals, [], `${libelle} : zéro signal artefact`);
+    assert.deepEqual(enrichissement.signals, [], `${libelle} : zéro signal module`);
+
+    const observeeArtefact = validation.divergences.some((d) => d.canonical_field === 'executability.substitutable_missing');
+    const observeeModule = enrichissement.observations.some((d) => d.canonical_field === 'executability.substitutable_missing');
+    assert.equal(observeeArtefact, divergenceAttendue, `${libelle} : observation artefact`);
+    assert.equal(observeeModule, divergenceAttendue, `${libelle} : observation module`);
+    /* Miroir : les deux implémentations relèvent les mêmes comptes. */
+    if (divergenceAttendue) {
+      const a = validation.divergences.find((d) => d.canonical_field === 'executability.substitutable_missing');
+      const m = enrichissement.observations.find((d) => d.canonical_field === 'executability.substitutable_missing');
+      assert.deepEqual([a.canonical_count, a.arch_count], [m.canonical_count, m.arch_count]);
+      assert.deepEqual([a.canonical_count, a.arch_count], [issues, ambiguites]);
+    }
+    assert.deepEqual(enrichissement.contract.executability.substitutable_missing, base.executability.substitutable_missing,
+      `${libelle} : aucune ambiguïté convertie en issue`);
+  }
+});
+
+test('T-AA03-16 · D : une vraie incohérence sur un autre registre reste BLOQUANTE', () => {
+  const { validate } = loadPostOprieValidator();
+  const base = canonicalFrom(oprieReadyTurn());
+  /* D1 — l'objectif validé n'est pas repris : CONTRACT_INCONSISTENT, côté artefact, inchangé. */
+  const sansObjectif = analyseZevq7c(3, 3);
+  sansObjectif.comprehension.intention_principale = '';
+  const v1 = validate(sansObjectif, base);
+  assert.equal(v1.ok, false);
+  assert.deepEqual(v1.signals.map((s) => [s.signal, s.canonical_field]), [['CONTRACT_INCONSISTENT', 'intent.objective']]);
+  assert.equal(v1.signals[0].return_to_oprie, true);
+  /* D2 — une information BLOQUANTE : EXECUTION_UNSAFE, sur les deux implémentations, inchangé. */
+  const bloquante = analyseZevq7c(3, 3);
+  bloquante.comprehension.informations_manquantes[0].bloquant = true;
+  const v2 = validate(bloquante, base);
+  const m2 = enrichCanonicalContractFromArchAnalysis(base, bloquante);
+  assert.deepEqual(v2.signals.map((s) => s.signal), ['EXECUTION_UNSAFE']);
+  assert.deepEqual(m2.signals.map((s) => s.signal), ['EXECUTION_UNSAFE']);
+  assert.ok(mergePostOprieSignals(v2.signals, m2.signals).length >= 1, 'la fusion arrête');
+  /* D3 — une mutation réelle d'un champ OPRIE : refusée par la garde de chemins, inchangé. */
+  const { contract } = enrichCanonicalContractFromArchAnalysis(base, analyseZevq7c(3, 3));
+  const falsifie = JSON.parse(JSON.stringify(contract));
+  falsifie.executability.substitutable_missing = [{ description: 'AMB_1 promue en issue', source: 'oprie' }];
+  const verdict = validateArchCanonicalEnrichment(base, falsifie, analyseZevq7c(3, 3));
+  assert.equal(verdict.ok, false, 'convertir une ambiguïté en issue serait une écriture OPRIE : refusée');
+  assert.deepEqual(verdict.mutated_oprie_fields, ['executability.substitutable_missing']);
+  /* D4 — l'état OPRIE n'autorise pas l'exécution : CONTRACT_INCONSISTENT, inchangé. */
+  const pasPret = canonicalFrom(oprieReadyTurn({ state: 'clarification_required' }));
+  const v4 = validate(analyseZevq7c(3, 3), pasPret);
+  assert.equal(v4.ok, false);
+  assert.equal(v4.signals[0].signal, 'CONTRACT_INCONSISTENT');
+  assert.equal(v4.signals[0].canonical_field, 'executability.oprie_state');
+});
+
+test('T-AA03-17 · E : contrat canonique absent → comportement existant inchangé', () => {
+  const { validate } = loadPostOprieValidator();
+  for (const absent of [null, undefined, [], 'contrat']) {
+    const verdict = validate(analyseZevq7c(3, 3), absent);
+    assert.equal(verdict.ok, false);
+    assert.equal(verdict.signals.length, 1);
+    assert.equal(verdict.signals[0].signal, 'CONTRACT_INCONSISTENT');
+    assert.equal(verdict.signals[0].canonical_field, 'executability.oprie_state');
+    assert.equal(verdict.signals[0].return_to_oprie, true);
+    assert.deepEqual(verdict.divergences, [], 'sans contrat, rien n’est comparé — donc rien n’est observé');
+  }
+  /* Et le module exige toujours une base : ce n'est pas un chemin de continuation. */
+  assert.throws(() => enrichCanonicalContractFromArchAnalysis(null, analyseZevq7c(3, 3)), TypeError);
+});
+
+test('T-AA03-18 : la règle bloquante a quitté les DEUX implémentations, et le miroir est cohérent', () => {
+  /* Sur les octets : plus aucun `push('CONTRACT_INCONSISTENT', …, 'comprehension.ambiguites')` ni
+     `signal('CONTRACT_INCONSISTENT', 'executability.substitutable_missing', …)` nulle part. */
+  assert.equal(/push\('CONTRACT_INCONSISTENT','executability\.substitutable_missing'/.test(artefact), false,
+    'artefact : la règle bloquante est retirée');
+  assert.equal(/signal\('CONTRACT_INCONSISTENT', 'executability\.substitutable_missing'/.test(module_), false,
+    'module : la règle bloquante est retirée');
+  /* Et le même écart passe par le même canal des deux côtés : registerDivergence / divergences. */
+  assert.match(module_, /registerDivergence\('executability\.substitutable_missing', 'comprehension\.ambiguites'/);
+  assert.match(artefact, /divergences\.push\(\{kind:'ARCH_REGISTER_DIVERGENCE',canonical_field:'executability\.substitutable_missing'/);
+  /* Le runtime embarqué dans la page est celui du module, régénéré — pas une troisième copie. */
+  const embarque = artefact.slice(artefact.indexOf('function diagnoseAgainstOprie'), artefact.indexOf('/* Seul fait de danger', artefact.indexOf('function diagnoseAgainstOprie')));
+  assert.equal(embarque.includes("signal('CONTRACT_INCONSISTENT'"), false, 'runtime embarqué : la règle bloquante est retirée');
+  assert.match(embarque, /registerDivergence\('executability\.substitutable_missing', 'comprehension\.ambiguites'/);
 });
 
 /* ==========================================================================
  * LES FICHIERS RÉELS, QUAND ILS SONT LÀ
  * ======================================================================= */
 
-test('T-AA03-10 : rejeu des échanges réels JCBRHF, VELA5Q, GASPPN et TE7BSV', (t) => {
+test('T-AA03-10 : rejeu des échanges réels JCBRHF, VELA5Q, GASPPN, TE7BSV et ZEVQ7C', (t) => {
   /* Ces fichiers portent la demande d’une personne : ils ne sont PAS versionnés. Le test les
      rejoue quand ils sont présents sur la machine du propriétaire, et se déclare ignoré sinon —
      la propriété est déjà couverte par les fixtures neutres ci-dessus, aux mêmes cardinalités. */
@@ -279,9 +436,9 @@ test('T-AA03-10 : rejeu des échanges réels JCBRHF, VELA5Q, GASPPN et TE7BSV', 
      la lecture elle-même. */
   const dossier = `${process.env.HOME}/Downloads`;
   const lisible = (chemin) => { try { fs.readFileSync(chemin, 'utf8'); return true; } catch { return false; } };
-  const presents = ['JCBRHF', 'VELA5Q', 'GASPPN', 'TE7BSV'].filter((id) =>
+  const presents = ['JCBRHF', 'VELA5Q', 'GASPPN', 'TE7BSV', 'ZEVQ7C'].filter((id) =>
     lisible(`${dossier}/demande-pour-ia-${id}.json`) && lisible(`${dossier}/reponse-de-ia-${id}.json`));
-  if (presents.length < 4) return t.skip('échanges réels indisponibles sur cette machine');
+  if (presents.length < 5) return t.skip('échanges réels indisponibles sur cette machine');
 
   const { validate } = loadPostOprieValidator();
   for (const id of presents) {
@@ -308,6 +465,15 @@ test('T-AA03-10 : rejeu des échanges réels JCBRHF, VELA5Q, GASPPN et TE7BSV', 
     const verdict = validateArchCanonicalEnrichment(base, enrichissement.contract, reponse);
     assert.equal(verdict.ok, true, `${id} : enrichissement accepté`);
     assert.deepEqual(verdict.mutated_oprie_fields, [], `${id} : mutated_oprie_fields = []`);
+    if (id === 'ZEVQ7C') {
+      /* ADN-ARCH-03d — les opérandes mesurés sur le cas réel, tels que le relevé de production
+         les a rapportés : 3 ambiguïtés, 0 issue, et l'écart observé sans bloquer. */
+      assert.equal(reponse.comprehension.ambiguites.length, 3);
+      assert.equal(reponse.evaluation.action_recommandee, 'continuer');
+      assert.equal(reponse.comprehension.informations_manquantes.some((i) => i.bloquant === true), false);
+      const d = validation.divergences.find((o) => o.canonical_field === 'executability.substitutable_missing');
+      assert.deepEqual([d.canonical_count, d.arch_count, d.blocking], [0, 3, false]);
+    }
   }
 });
 

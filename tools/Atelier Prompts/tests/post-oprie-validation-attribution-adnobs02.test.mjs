@@ -61,25 +61,29 @@ function chargerAttribution(canonicalContract) {
  * LES QUATRE CAS QUI DOIVENT SE DISTINGUER
  * ======================================================================= */
 
-test('T-AOBS2-01 · CAS A : la garde locale d’ambiguïté, prouvée et nommée', () => {
-  /* Le vrai verdict de la vraie fonction, sur la forme de S8B2FD : une ambiguïté, aucune issue. */
+test('T-AOBS2-01 · CAS A : la garde locale d’ambiguïté, prouvée, nommée — puis désarmée sur cette preuve', () => {
+  /* ADN-ARCH-03d — HISTORICAL_IMPLEMENTATION_CONTRACT. Ce relevé a rendu, en production sur ZEVQ7C,
+     EXACTEMENT ce que ce test attendait : `canonical_contract_present = true`, `ok = false`,
+     `signal_count = 1`, CONTRACT_INCONSISTENT sur `executability.substitutable_missing` ←
+     `comprehension.ambiguites`. C'est cette preuve qui a fait désarmer la garde. Le relevé, lui,
+     est inchangé : il rapporte désormais un verdict OK, zéro signal, une divergence — et c'est
+     ainsi qu'il montrerait une régression. */
   const { validateFromTurn } = loadPostOprieValidator();
   const tour = oprieReadyTurn();
   const analyse = coherentAnalysis();
   analyse.comprehension.ambiguites = ['UNE AMBIGUÏTÉ SIGNALÉE'];
   const verdict = validateFromTurn(analyse, tour);
-  assert.equal(verdict.ok, false, 'la garde locale tire bien sur cette forme');
+  assert.equal(verdict.ok, true, 'la garde locale ne tire plus sur cette forme');
 
   const { retenir, port } = chargerAttribution(canonicalFrom(tour));
   retenir(verdict);
   const releve = port.getLastPostOprieValidationObservation();
 
   assert.equal(releve.canonical_contract_present, true, 'le contrat était là : CAS B écarté');
-  assert.equal(releve.ok, false);
-  assert.equal(releve.signal_count, 1);
-  assert.equal(releve.signals[0].signal, 'CONTRACT_INCONSISTENT');
-  assert.equal(releve.signals[0].canonical_field, 'executability.substitutable_missing');
-  assert.equal(releve.signals[0].arch_source_field, 'comprehension.ambiguites');
+  assert.equal(releve.ok, true);
+  assert.equal(releve.signal_count, 0);
+  assert.equal(releve.divergence_count, 1, 'l’écart est compté, en observation');
+  assert.deepEqual(releve.signals, []);
 });
 
 test('T-AOBS2-02 · CAS B : contrat canonique absent à l’import, prouvé', () => {
@@ -158,7 +162,10 @@ test('T-AOBS2-06 : null avant observation, copie défensive, aucun contenu utili
   assert.equal(port.getLastPostOprieValidationObservation(), null, 'rien n’est fabriqué avant');
 
   const { validateFromTurn } = loadPostOprieValidator();
+  /* ADN-ARCH-03d — `ambiguites` ne produit plus de signal ; le relevé est nourri par un producteur
+     encore armé, l'objectif non repris, et le texte à ne pas laisser fuir reste dans l'analyse. */
   const analyse = coherentAnalysis();
+  analyse.comprehension.intention_principale = '';
   analyse.comprehension.ambiguites = ['TEXTE_QUI_NE_DOIT_PAS_FUIR'];
   retenir(validateFromTurn(analyse, oprieReadyTurn()));
 
@@ -167,7 +174,7 @@ test('T-AOBS2-06 : null avant observation, copie défensive, aucun contenu utili
   copie.signals[0].canonical_field = 'PIRATE';
   copie.canonical_contract_present = false;
   copie.injecte = 'PIRATE';
-  assert.equal(interne.lastPostOprieValidation.signals[0].canonical_field, 'executability.substitutable_missing');
+  assert.equal(interne.lastPostOprieValidation.signals[0].canonical_field, 'intent.objective');
   assert.equal(interne.lastPostOprieValidation.canonical_contract_present, true);
   assert.equal('injecte' in interne.lastPostOprieValidation, false);
 
@@ -182,15 +189,18 @@ test('T-AOBS2-06 : null avant observation, copie défensive, aucun contenu utili
   }
 });
 
-test('T-AOBS2-07 : adnValidatePostOprie n’a PAS été touché, ni aucune décision', () => {
+test('T-AOBS2-07 : adnValidatePostOprie n’est PAS instrumenté, et l’observation ne décide rien', () => {
   /* LA GARANTIE CENTRALE DU LOT. Instrumenter au site d'appel, et non dans la fonction, permet de
-     l'affirmer sur les octets : la garde observée est exactement celle d'avant. */
+     l'affirmer sur les octets : la fonction observée ne contient pas son observateur.
+     ADN-ARCH-03d a depuis changé la garde d'ambiguïté elle-même — sur la preuve que ce relevé a
+     fournie — mais pas cette séparation : la garde, dans sa forme actuelle, mot pour mot. */
   const corps = artefact.slice(artefact.indexOf('function adnValidatePostOprie('),
     artefact.indexOf('/* CORRECTION-ADN-ARCH-01-01 — FUSION DES SIGNAUX POST-OPRIE.'));
   assert.equal(corps.includes('adnRetenirValidationPostOprie'), false, 'aucune instrumentation dedans');
   assert.equal(corps.includes('lastPostOprieValidation'), false);
-  /* La garde locale, mot pour mot. */
-  assert.match(corps, /if\(list\(comprehension\.ambiguites\)\.length>knownIssues\)\n\s*push\('CONTRACT_INCONSISTENT','executability\.substitutable_missing','comprehension\.ambiguites'/);
+  /* La garde locale, mot pour mot, dans sa forme ADN-ARCH-03d : même prédicat, observation. */
+  assert.match(corps, /if\(list\(comprehension\.ambiguites\)\.length>knownIssues\)\n\s*divergences\.push\(\{kind:'ARCH_REGISTER_DIVERGENCE',canonical_field:'executability\.substitutable_missing',/);
+  assert.equal(corps.includes("push('CONTRACT_INCONSISTENT','executability.substitutable_missing'"), false, 'plus aucun signal sur ce registre');
   assert.match(corps, /const knownIssues=list\(executability\.critical_missing\)\.length\+list\(executability\.substitutable_missing\)\.length;/);
 
   /* L'ordre d'exécution et le branchement sont inchangés : le retenteur s'insère APRÈS la

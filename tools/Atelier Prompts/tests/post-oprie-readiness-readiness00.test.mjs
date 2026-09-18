@@ -194,7 +194,27 @@ test('T-READINESS-07b une hypothèse NOMMÉE par l’analyse n’impose rien, et
     'le validateur n’écrit jamais dans le champ protégé');
 });
 
-test('T-READINESS-08 ambiguïté après READY → signal de validation, executability inchangé', () => {
+test('T-READINESS-08 une ambiguïté NOMMÉE après READY n’arrête plus rien, executability inchangé', () => {
+  /* ADN-ARCH-03d — HISTORICAL_IMPLEMENTATION_CONTRACT.
+   *
+   * L'INVARIANT QUE CE TEST PRÉTENDAIT PROTÉGER : « une ambiguïté relevée après la validation OPRIE
+   * est une incohérence contractuelle ». Il le prouvait par un COMPTAGE — plus d'`ambiguites` côté
+   * Architecte que d'issues (`critical_missing` + `substitutable_missing`) côté contrat — et il
+   * exigeait un arrêt.
+   *
+   * CE QUE LA PRODUCTION A MESURÉ, SUR L'ÉCHANGE RÉEL ZEVQ7C. Contrat canonique présent, readiness
+   * exploitable, `signal_count = 1`, et ce signal unique était celui-ci. L'Architecte rendait trois
+   * ambiguïtés, trois informations manquantes toutes NON bloquantes, `livrable_complet_possible =
+   * true`, `action_recommandee = continuer`, zéro question.
+   *
+   * LES DEUX REGISTRES NE DÉNOMBRENT PAS LA MÊME CHOSE. `substitutable_missing` = une ISSUE OPRIE,
+   * déjà arbitrée ; sur un contrat READY il en reste zéro. `ambiguites` = une LECTURE descriptive de
+   * la demande, que le schéma 3.4 n'assortit d'aucun `bloquant`. Toute analyse qui en nommait une
+   * dépassait donc une référence nulle : la garde arrêtait les demandes exécutables.
+   *
+   * CE QUI REMPLACE L'ASSERTION : le seul fait de danger TYPÉ — `informations_manquantes[].bloquant`
+   * — garde son EXECUTION_UNSAFE (T-READINESS-09) ; l'écart est observé sans bloquer ; et le tour
+   * OPRIE reste inchangé, ce que ce test a toujours vérifié. */
   const { validateFromTurn: validate } = loadPostOprieValidator();
   const turn = oprieReadyTurn();
   const snapshot = JSON.stringify(turn);
@@ -203,9 +223,12 @@ test('T-READINESS-08 ambiguïté après READY → signal de validation, executab
   analysis.comprehension.ambiguites = ['Une ambiguïté non cataloguée.'];
 
   const result = validate(analysis, turn);
-  assert.equal(result.ok, false);
-  assert.equal(result.signals[0].signal, 'CONTRACT_INCONSISTENT');
-  assert.equal(result.signals[0].canonical_field, 'executability.substitutable_missing');
+  assert.equal(result.ok, true, 'nommer une ambiguïté n’arrête plus la préparation');
+  assert.deepEqual(result.signals, [], 'aucun signal bloquant sur ce registre');
+  assert.equal(result.divergences.length, 1);
+  assert.equal(result.divergences[0].canonical_field, 'executability.substitutable_missing');
+  assert.equal(result.divergences[0].arch_source_field, 'comprehension.ambiguites');
+  assert.equal(result.divergences[0].blocking, false);
   assert.equal(JSON.stringify(turn), snapshot, 'aucune mutation du tour OPRIE');
 });
 
@@ -382,15 +405,17 @@ test('T-READINESS-15 remaining_candidate_questions ne pilote plus rien sur le ch
 test('T-READINESS-16 return_to_oprie ne déclenche aucune question Architecte', () => {
   const { validateFromTurn: validate, showStop, ui } = loadPostOprieValidator();
 
-  /* ADN-ARCH-03b — déclencheur rearmé. Ce test utilisait `intentions_secondaires` comme moyen
-     commode d'obtenir un CONTRACT_INCONSISTENT ; cette comparaison n'arrête plus rien depuis
-     l'échange réel GASPPN. Son SUJET est ailleurs, et son assertion est inchangée : le déclencheur
-     est `ambiguites`, qui conserve son autorité de blocage. */
+  /* ADN-ARCH-03b / 03d — déclencheur rearmé deux fois. Ce test utilisait `intentions_secondaires`,
+     puis `ambiguites`, comme moyen commode d'obtenir un CONTRACT_INCONSISTENT ; ces deux comparaisons
+     n'arrêtent plus rien depuis les échanges réels GASPPN et ZEVQ7C. Son SUJET est ailleurs, et son
+     assertion est inchangée : le déclencheur est l'objectif validé non repris par l'analyse —
+     `intent.objective` ← `comprehension.intention_principale` — qui conserve son autorité. */
   const analysis = coherentAnalysis();
-  analysis.comprehension.ambiguites = ['Ambiguïté hors contrat validé.'];
+  analysis.comprehension.intention_principale = '';
   const result = validate(analysis, oprieReadyTurn());
 
   const signal = result.signals[0];
+  assert.equal(signal.signal, 'CONTRACT_INCONSISTENT');
   assert.equal(signal.return_to_oprie, true);
 
   const outcome = showStop(result.signals);
@@ -457,7 +482,9 @@ test('T-READINESS-17 / T-READINESS-18 le mode Rapide reste strictement inchangé
 test('T-READINESS-19 mêmes entrées → mêmes signaux', () => {
   const { validateFromTurn: validate } = loadPostOprieValidator();
   const analysis = coherentAnalysis();
-  analysis.comprehension.ambiguites = ['A'];
+  /* ADN-ARCH-03d — `ambiguites` n'est plus un signal ; le premier déclencheur est rearmé sur
+     l'objectif non repris, qui l'est encore. */
+  analysis.comprehension.intention_principale = '';
   analysis.livrable.format_technique = '';
 
   const a = validate(analysis, oprieReadyTurn());
@@ -601,20 +628,21 @@ test('T-READINESS-33 la preuve d’un EXECUTION_UNSAFE est l’information typé
 
 test('T-READINESS-34 la preuve d’un CONTRACT_INCONSISTENT est le champ protégé, jamais action_recommandee', () => {
   const { validateFromTurn: validate } = loadPostOprieValidator();
-  /* ADN-ARCH-03b — déclencheur rearmé. Ce test utilisait `intentions_secondaires` comme moyen
-     commode d'obtenir un CONTRACT_INCONSISTENT ; cette comparaison n'arrête plus rien depuis
-     l'échange réel GASPPN. Son SUJET est ailleurs, et son assertion est inchangée : le déclencheur
-     est `ambiguites`, qui conserve son autorité de blocage. */
+  /* ADN-ARCH-03b / 03d — déclencheur rearmé deux fois. Ce test utilisait `intentions_secondaires`,
+     puis `ambiguites`, comme moyen commode d'obtenir un CONTRACT_INCONSISTENT ; ces deux comparaisons
+     n'arrêtent plus rien depuis les échanges réels GASPPN et ZEVQ7C. Son SUJET est ailleurs, et son
+     assertion est inchangée : la preuve est un champ protégé, jamais `action_recommandee`. Le
+     déclencheur est l'objectif validé non repris — `intent.objective` ← `intention_principale`. */
   const analysis = coherentAnalysis();
   analysis.evaluation.action_recommandee = 'questionner';
-  analysis.comprehension.ambiguites = ['Ambiguïté hors contrat validé.'];
+  analysis.comprehension.intention_principale = '';
 
   const result = validate(analysis, oprieReadyTurn());
   assert.equal(result.ok, false);
   assert.equal(result.signals.length, 1);
   assert.equal(result.signals[0].signal, 'CONTRACT_INCONSISTENT');
-  assert.equal(result.signals[0].canonical_field, 'executability.substitutable_missing');
-  assert.equal(result.signals[0].arch_source_field, 'comprehension.ambiguites');
+  assert.equal(result.signals[0].canonical_field, 'intent.objective');
+  assert.equal(result.signals[0].arch_source_field, 'comprehension.intention_principale');
 });
 
 test('T-READINESS-35 les trois jugements réunis, sans autre défaut → aucun signal, continuation autorisée', () => {

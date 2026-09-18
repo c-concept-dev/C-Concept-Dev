@@ -179,53 +179,61 @@ test('T-ARCH01-16 objectif secondaire identique → aucun signal, aucune écritu
   assert.deepEqual(contract.intent.secondary_objectives, baseFor().intent.secondary_objectives);
 });
 
-for (const [id, label, mutate, field] of [
-  ['19', 'ambiguïté hors contrat OPRIE', (a) => { a.comprehension.ambiguites = ['AMBIGUE']; }, 'executability.substitutable_missing'],
-  /* ADN-ARCH-03 / 03b / 03c — HISTORICAL_IMPLEMENTATION_CONTRACT : 17, 18, 19b et 19c ont quitté
-   * cette table. Il n'en reste qu'UNE, et c'est volontaire.
-   *
-   * 18 les a rejointes sur preuve de l'échange TE7BSV : OPRIE portait UNE délégation — « sélection
-   * des 2 à 3 solutions SaaS », que la personne avait explicitement remise — et l'analyse déclarait
-   * trois décisions autonomes, dont un choix de MÉTHODE que la demande invitait et une hypothèse
-   * déjà autorisée par OPRIE, reclassée. Personne n'énumère à l'avance chaque décision de méthode
-   * qu'exige la production d'un livrable.
-   *
-   * 17 les a rejointes sur preuve de l'échange GASPPN : contrat exporté SANS registre
-   * `secondary_objectives`, champ Architecte OBLIGATOIRE au schéma 3.4, deux intentions nommées qui
-   * étaient des lectures de la demande — et 2 > 0 arrêtait un tour déclaré prêt. Troisième
-   * occurrence de la même forme.
-   *
-   * L'INVARIANT QU'ILS PRÉTENDAIENT PROTÉGER : « un ensemble plus grand côté Architecte signifie
-   * qu'un élément a été créé après la validation OPRIE ». Mesuré sur deux échanges réels, cet
-   * énoncé est faux pour ces deux registres : un même fait — l'identité des destinataires, l'objet
-   * d'une réunion — est rangé par OPRIE en décision déléguée et par l'Architecte en inconnue non
-   * devinable ou en hypothèse. Aucun des deux n'invente ; le comptage par registre lisait ce
-   * passage comme une invention, et bloquait les demandes LES MIEUX spécifiées, celles où OPRIE
-   * délègue proprement et laisse `remaining_unknowns` vide.
-   *
-   * CE QUI REMPLACE L'ASSERTION, plutôt que de la supprimer : la vraie propriété structurelle est
-   * éprouvée juste en dessous — ces deux champs restent HORS de ARCH_ENRICHABLE_PATHS, donc
-   * l'Architecte peut les NOMMER sans jamais les ÉCRIRE. Et l'observabilité est conservée sans
-   * autorité : tests/arch-register-divergence-adnarch03.test.mjs, T-AA03-04 et T-AA03-07.
-   *
-   * Les trois lignes restantes conservent leur autorité : ce lot n'a pas tranché pour elles. */
-]) {
-  test(`T-ARCH01-${id} ${label} → CONTRACT_INCONSISTENT, sans écriture`, () => {
-    const base = baseFor();
-    const a = analysis();
-    mutate(a);
-    const { contract, signals } = enrich(base, a);
+/* ADN-ARCH-03 / 03b / 03c / 03d — HISTORICAL_IMPLEMENTATION_CONTRACT : 17, 18, 19, 19b et 19c ont
+ * quitté cette table, et la table est désormais vide. `diagnoseAgainstOprie` n'émet plus AUCUN
+ * CONTRACT_INCONSISTENT par comptage : c'est le résultat de cinq cas réels, pas une décision prise
+ * par analogie.
+ *
+ * 19 les a rejointes en dernier, sur preuve de l'échange ZEVQ7C — mesurée EN PRODUCTION par le relevé
+ * d'ADN-OBS-02 : contrat canonique présent, readiness exploitable, `signal_count = 1`, et ce signal
+ * unique était `executability.substitutable_missing` ← `comprehension.ambiguites`. L'Architecte
+ * rendait trois ambiguïtés, trois informations manquantes toutes NON bloquantes,
+ * `livrable_complet_possible = true`, `action_recommandee = continuer`, zéro question. Les deux
+ * registres ne dénombrent pas la même chose : `substitutable_missing` est une ISSUE OPRIE déjà
+ * arbitrée — zéro sur un contrat READY — et `ambiguites` une LECTURE descriptive de la demande, sans
+ * `bloquant`. Toute analyse qui en nommait une dépassait une référence nulle.
+ *
+ * 18 les a rejointes sur preuve de l'échange TE7BSV : OPRIE portait UNE délégation — « sélection
+ * des 2 à 3 solutions SaaS », que la personne avait explicitement remise — et l'analyse déclarait
+ * trois décisions autonomes, dont un choix de MÉTHODE que la demande invitait et une hypothèse
+ * déjà autorisée par OPRIE, reclassée. Personne n'énumère à l'avance chaque décision de méthode
+ * qu'exige la production d'un livrable.
+ *
+ * 17 les a rejointes sur preuve de l'échange GASPPN : contrat exporté SANS registre
+ * `secondary_objectives`, champ Architecte OBLIGATOIRE au schéma 3.4, deux intentions nommées qui
+ * étaient des lectures de la demande — et 2 > 0 arrêtait un tour déclaré prêt. Troisième
+ * occurrence de la même forme.
+ *
+ * L'INVARIANT QU'ILS PRÉTENDAIENT PROTÉGER : « un ensemble plus grand côté Architecte signifie
+ * qu'un élément a été créé après la validation OPRIE ». Mesuré sur cinq échanges réels, cet
+ * énoncé est faux pour ces registres : un même fait — l'identité des destinataires, l'objet
+ * d'une réunion — est rangé par OPRIE en décision déléguée et par l'Architecte en inconnue non
+ * devinable ou en hypothèse. Aucun des deux n'invente ; le comptage par registre lisait ce
+ * passage comme une invention, et bloquait les demandes LES MIEUX spécifiées, celles où OPRIE
+ * délègue proprement et laisse `remaining_unknowns` — et ses issues — vides.
+ *
+ * CE QUI REMPLACE L'ASSERTION, plutôt que de la supprimer : la vraie propriété structurelle est
+ * éprouvée juste en dessous — ces champs restent HORS de ARCH_ENRICHABLE_PATHS, donc
+ * l'Architecte peut les NOMMER sans jamais les ÉCRIRE. Et l'observabilité est conservée sans
+ * autorité : tests/arch-register-divergence-adnarch03.test.mjs, T-AA03-04, T-AA03-07 et T-AA03-14.
+ * Le seul fait de danger TYPÉ, `informations_manquantes[].bloquant`, garde son EXECUTION_UNSAFE :
+ * T-ARCH01-20, juste en dessous. */
+test('T-ARCH01-19 ambiguïté nommée par l’analyse → observée, jamais bloquante, sans écriture', () => {
+  const base = baseFor();
+  const a = analysis();
+  a.comprehension.ambiguites = ['AMBIGUE'];
+  const { contract, signals, observations } = enrich(base, a);
 
-    const signal = signals.find((s) => s.canonical_field === field);
-    assert.ok(signal, `un signal sur ${field} est attendu`);
-    assert.equal(signal.signal, 'CONTRACT_INCONSISTENT');
-    assert.equal(signal.return_to_oprie, true);
-
-    const read = field.split('.').reduce((acc, k) => acc[k], contract);
-    const expected = field.split('.').reduce((acc, k) => acc[k], base);
-    assert.deepEqual(read, expected, `${field} reste inchangé`);
-  });
-}
+  assert.deepEqual(signals.filter((s) => s.canonical_field === 'executability.substitutable_missing'), [],
+    'aucun signal bloquant ne cite plus ce registre');
+  const observed = observations.find((o) => o.canonical_field === 'executability.substitutable_missing');
+  assert.ok(observed, 'l’écart est observé');
+  assert.equal(observed.arch_source_field, 'comprehension.ambiguites');
+  assert.equal(observed.blocking, false);
+  assert.deepEqual(contract.executability.substitutable_missing, base.executability.substitutable_missing,
+    'executability.substitutable_missing reste inchangé : aucune ambiguïté n’y est convertie');
+  assert.equal(JSON.stringify(contract).includes('AMBIGUE'), false, 'l’ambiguïté nommée n’entre pas dans le contrat');
+});
 
 test('T-ARCH01-20 information bloquante → EXECUTION_UNSAFE, executability inchangée', () => {
   const base = baseFor();
@@ -634,21 +642,22 @@ test('T-ARCH01-ADV analyse hostile totale : 0 mutation OPRIE, signaux structuré
   assert.equal(JSON.stringify(contract.assumptions.allowed).includes('PIRATE'), false);
   assert.equal(JSON.stringify(contract).includes('QUESTION_PIRATE'), false);
 
-  /* Mais les divergences sont toutes RELEVÉES, avec preuve — les unes en signaux, les deux que
-     ADN-ARCH-03 a désarmées en observations. HISTORICAL_IMPLEMENTATION_CONTRACT : cette assertion
-     exigeait les cinq dans `signals`, ce qui consacrait l'autorité de blocage retirée depuis. Ce
-     qu'elle protégeait — rien n'est passé sous silence — est ici vérifié en ENTIER, et sur les deux
-     canaux : une analyse hostile ne peut donc pas devenir invisible en changeant de registre. */
+  /* Mais les divergences sont toutes RELEVÉES, avec preuve — les cinq registres de comptage que
+     ADN-ARCH-03 à 03d ont désarmés, en observations. HISTORICAL_IMPLEMENTATION_CONTRACT : cette
+     assertion exigeait les cinq dans `signals`, ce qui consacrait une autorité de blocage retirée
+     depuis, cas réel après cas réel. Ce qu'elle protégeait — rien n'est passé sous silence — est ici
+     vérifié en ENTIER : une analyse hostile ne peut donc pas devenir invisible en changeant de
+     registre. Et le seul fait de danger TYPÉ reste un SIGNAL : l'information bloquante. */
   const fields = signals.map((s) => s.canonical_field);
   const observed = observations.map((o) => o.canonical_field);
-  for (const expected of ['executability.substitutable_missing']) {
-    assert.ok(fields.includes(expected), `divergence non signalée : ${expected}`);
-  }
   for (const expected of ['assumptions.allowed', 'executability.remaining_unknowns',
-                          'intent.secondary_objectives', 'intent.delegated_decisions']) {
+                          'intent.secondary_objectives', 'intent.delegated_decisions',
+                          'executability.substitutable_missing']) {
     assert.ok(observed.includes(expected), `divergence non observée : ${expected}`);
     assert.equal(fields.includes(expected), false, `${expected} ne bloque plus`);
   }
+  assert.equal(signals.some((s) => s.signal === 'CONTRACT_INCONSISTENT'), false,
+    'aucun comptage ne produit plus de CONTRACT_INCONSISTENT');
   assert.ok(signals.some((s) => s.signal === 'EXECUTION_UNSAFE'));
   assert.equal(validateArchSignals(signals).ok, true);
 });

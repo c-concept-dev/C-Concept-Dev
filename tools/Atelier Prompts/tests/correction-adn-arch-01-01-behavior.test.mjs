@@ -21,12 +21,14 @@ const clone = (value) => JSON.parse(JSON.stringify(value));
 
 const SIGNAL_ANALYSES = Object.freeze({
   CONTRACT_INCONSISTENT() {
-    /* ADN-ARCH-03b — le déclencheur était `intentions_secondaires`, dont la comparaison de
-       cardinalité n'arrête plus rien depuis l'échange réel GASPPN. Ce que ces tests éprouvent est
-       la FUSION des signaux, pas ce prédicat : la fixture est rearmée sur `ambiguites`, qui bloque
-       toujours, et toutes leurs assertions restent identiques. */
+    /* ADN-ARCH-03b / 03d — le déclencheur était `intentions_secondaires`, puis `ambiguites` : deux
+       comparaisons de cardinalité qui n'arrêtent plus rien depuis les échanges réels GASPPN et
+       ZEVQ7C. Ce que ces tests éprouvent est la FUSION des signaux, pas ce prédicat : la fixture est
+       rearmée sur l'objectif validé non repris par l'analyse — `intent.objective` ←
+       `comprehension.intention_principale`, qui bloque toujours — et toutes leurs assertions
+       restent identiques. */
     const a = coherentAnalysis();
-    a.comprehension.ambiguites = ['Ambiguïté hors contrat validé.'];
+    a.comprehension.intention_principale = '';
     return a;
   },
   EXECUTION_UNSAFE() {
@@ -189,7 +191,7 @@ test('§19 preuve instrumentée séparée des chemins API et import fichier', as
 
 test('§20 déduplication par triplet, preuves distinctes et ordre déterministe', () => {
   const duplicated = mergedSignalsFor(SIGNAL_ANALYSES.CONTRACT_INCONSISTENT()).merged;
-  assert.equal(duplicated.filter((s) => s.signal === 'CONTRACT_INCONSISTENT' && s.canonical_field === 'executability.substitutable_missing' && s.arch_source_field === 'comprehension.ambiguites').length, 1);
+  assert.equal(duplicated.filter((s) => s.signal === 'CONTRACT_INCONSISTENT' && s.canonical_field === 'intent.objective' && s.arch_source_field === 'comprehension.intention_principale').length, 1);
   const input = [
     { signal: 'EXECUTION_UNSAFE', canonical_field: 'executability.critical_missing', arch_source_field: 'source.b', detail: 'B' },
     { signal: 'CONTRACT_INCONSISTENT', canonical_field: 'intent.objective', arch_source_field: 'source.a', detail: 'A' },

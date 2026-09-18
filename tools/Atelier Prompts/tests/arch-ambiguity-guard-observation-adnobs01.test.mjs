@@ -111,16 +111,25 @@ test('T-AOBS-03 : blocking_signal_emitted est CONSTATÉ, jamais prédit', () => 
   assert.equal(observeAmbiguityGuard(base, analyse, signalAutreType).blocking_signal_emitted, false);
 });
 
-test('T-AOBS-04 : le prédicat rapporté et le signal réel concordent sur le chemin de production', () => {
-  /* Les deux mesures viennent de sources différentes — arithmétique d’un côté, liste de signaux de
-     l’autre — et elles doivent concorder. C’est le test qui verrait une dérive future. */
+test('T-AOBS-04 : le prédicat rapporté et l’émission réelle, sur le chemin de production, après désarmement', () => {
+  /* ADN-ARCH-03d — HISTORICAL_IMPLEMENTATION_CONTRACT. Ce test exigeait que le prédicat et le signal
+     réel CONCORDENT : c'était vrai tant que la garde bloquait. C'est ce relevé qui, sur ZEVQ7C, a
+     prouvé en production que la garde tirait sur une demande exécutable — et la garde a été
+     désarmée sur cette preuve. Les deux mesures viennent toujours de sources différentes —
+     arithmétique d'un côté, liste de signaux de l'autre — et c'est toujours ce test qui verrait une
+     dérive : le prédicat compte comme avant, l'émission est désormais NULLE quoi qu'il compte, et
+     l'écart passe par `observations`. Un relevé qui prédirait l'émission masquerait exactement ce
+     désarmement ; il le constate. */
   for (const [critiques, substituables, ambiguites] of [[0, 0, 0], [0, 0, 1], [1, 1, 2], [1, 1, 3], [0, 2, 2]]) {
     const base = canonicalFrom(tourAvecIssues(critiques, substituables));
     const analyse = analyseAvecAmbiguites(ambiguites);
-    const { signals } = enrichCanonicalContractFromArchAnalysis(base, analyse);
+    const { signals, observations } = enrichCanonicalContractFromArchAnalysis(base, analyse);
     const o = observeAmbiguityGuard(base, analyse, signals);
-    assert.equal(o.blocking_signal_emitted, o.predicate_triggered,
-      `${ambiguites} vs ${critiques + substituables} : prédicat et signal réel doivent concorder`);
+    assert.equal(o.predicate_triggered, ambiguites > critiques + substituables, 'le prédicat compte comme avant');
+    assert.equal(o.blocking_signal_emitted, false,
+      `${ambiguites} vs ${critiques + substituables} : plus aucune émission bloquante`);
+    assert.equal(observations.some((d) => d.canonical_field === 'executability.substitutable_missing'), o.predicate_triggered,
+      `${ambiguites} vs ${critiques + substituables} : l’écart est observé exactement quand le prédicat est vrai`);
   }
 });
 
@@ -163,19 +172,25 @@ test('T-AOBS-06 : observer ne mute rien — ni la base, ni l’analyse, ni le co
   assert.deepEqual(validateArchCanonicalEnrichment(base, contract, analyse).mutated_oprie_fields, []);
 });
 
-test('T-AOBS-07 : le verdict de la garde n’a pas changé — elle bloque et passe comme avant', () => {
+test('T-AOBS-07 : le verdict de la garde A changé, sur preuve — elle observe, elle ne bloque plus', () => {
+  /* ADN-ARCH-03d — HISTORICAL_IMPLEMENTATION_CONTRACT. Ce test figeait « elle bloque et passe
+     comme avant » : c'était le contrat d'ADN-OBS-01, qui rendait la garde mesurable SANS la toucher.
+     La mesure a eu lieu — ZEVQ7C, en production — et elle a tranché. Le verdict est désormais :
+     une ambiguïté de plus que ce qu'OPRIE connaissait est OBSERVÉE, jamais bloquante. */
   const { validateFromTurn } = loadPostOprieValidator();
-  /* ELLE BLOQUE quand elle doit : une ambiguïté de plus que ce qu’OPRIE connaissait. */
   const tourVide = tourAvecIssues(0, 0);
-  const bloque = validateFromTurn(analyseAvecAmbiguites(1), tourVide);
-  assert.equal(bloque.ok, false, 'la dernière garde bloque toujours');
-  assert.equal(bloque.signals[0].canonical_field, 'executability.substitutable_missing');
-  assert.equal(bloque.signals[0].arch_source_field, 'comprehension.ambiguites');
+  const observe = validateFromTurn(analyseAvecAmbiguites(1), tourVide);
+  assert.equal(observe.ok, true, 'la garde ne bloque plus');
+  assert.deepEqual(observe.signals, []);
+  assert.equal(observe.divergences[0].canonical_field, 'executability.substitutable_missing');
+  assert.equal(observe.divergences[0].arch_source_field, 'comprehension.ambiguites');
+  assert.equal(observe.divergences[0].blocking, false);
 
-  /* ELLE PASSE quand elle doit : autant d’ambiguïtés que d’issues connues. */
+  /* ELLE PASSE toujours, et sans rien observer, quand le compte ne dépasse pas. */
   const passe = validateFromTurn(analyseAvecAmbiguites(2), tourAvecIssues(1, 1));
   assert.equal(passe.ok, true, 'et elle laisse passer quand le compte ne dépasse pas');
   assert.deepEqual(passe.signals, []);
+  assert.deepEqual(passe.divergences, []);
 });
 
 /* ==========================================================================
@@ -183,9 +198,10 @@ test('T-AOBS-07 : le verdict de la garde n’a pas changé — elle bloque et pa
  * ======================================================================= */
 
 test('T-AOBS-08 : rien de ce que le lot s’interdisait n’a bougé', () => {
-  /* La garde elle-même, mot pour mot, dans les DEUX implémentations. */
-  assert.match(module_, /if \(list\(comprehension\.ambiguites\)\.length > knownIssues\) \{\n\s*signals\.push\(signal\('CONTRACT_INCONSISTENT', 'executability\.substitutable_missing',/);
-  assert.match(artefact, /if\(list\(comprehension\.ambiguites\)\.length>knownIssues\)\n\s*push\('CONTRACT_INCONSISTENT','executability\.substitutable_missing','comprehension\.ambiguites'/);
+  /* La garde elle-même, mot pour mot, dans les DEUX implémentations — dans sa forme ADN-ARCH-03d :
+     le MÊME prédicat, et une observation à la place du signal. */
+  assert.match(module_, /if \(list\(comprehension\.ambiguites\)\.length > knownIssues\) \{\n\s*observations\.push\(registerDivergence\('executability\.substitutable_missing', 'comprehension\.ambiguites',/);
+  assert.match(artefact, /if\(list\(comprehension\.ambiguites\)\.length>knownIssues\)\n\s*divergences\.push\(\{kind:'ARCH_REGISTER_DIVERGENCE',canonical_field:'executability\.substitutable_missing',/);
   /* Le calcul des opérandes, inchangé de part et d'autre. */
   assert.match(module_, /const knownIssues = list\(base\.executability\.critical_missing\)\.length \+ list\(base\.executability\.substitutable_missing\)\.length;/);
   assert.match(artefact, /const knownIssues=list\(executability\.critical_missing\)\.length\+list\(executability\.substitutable_missing\)\.length;/);
@@ -227,7 +243,8 @@ test('T-AOBS-09 : la vue d’audit porte l’observation, et reste utilisable sa
   assert.equal(avecAnalyse.ambiguity_guard.known_issues_total, 1);
   assert.equal(avecAnalyse.ambiguity_guard.arch_ambiguities_count, 2);
   assert.equal(avecAnalyse.ambiguity_guard.predicate_triggered, true);
-  assert.equal(avecAnalyse.ambiguity_guard.blocking_signal_emitted, true);
+  /* ADN-ARCH-03d — le couple (true, false) est désormais la mesure attendue. */
+  assert.equal(avecAnalyse.ambiguity_guard.blocking_signal_emitted, false);
   assert.deepEqual(avecAnalyse.mutated_oprie_fields, []);
   assert.equal(JSON.stringify(avecAnalyse).includes('AMB_'), false, 'aucun texte d’ambiguïté');
 });

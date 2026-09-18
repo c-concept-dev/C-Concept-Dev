@@ -373,13 +373,14 @@ test('T-ARCH02-17 READINESS_AUTHORITY_REMAINS_OPRIE_ONLY : la compilation ne tou
 });
 
 test('T-ARCH02-18 les signaux bloquants arrêtent toujours la compilation sur les deux chemins', async () => {
-  /* ADN-ARCH-03b — déclencheur rearmé. Le CONTRACT_INCONSISTENT était obtenu par
-     `intentions_secondaires`, comparaison qui n'arrête plus rien depuis l'échange réel GASPPN. Le
-     SUJET de ce test est intact et il est essentiel : un signal bloquant, quel qu'il soit, empêche
-     TOUJOURS la compilation sur les deux chemins. Le déclencheur est `ambiguites`, qui conserve son
-     autorité. */
+  /* ADN-ARCH-03b / 03d — déclencheur rearmé deux fois. Le CONTRACT_INCONSISTENT était obtenu par
+     `intentions_secondaires`, puis par `ambiguites` — deux comparaisons qui n'arrêtent plus rien
+     depuis les échanges réels GASPPN et ZEVQ7C. Le SUJET de ce test est intact et il est essentiel :
+     un signal bloquant, quel qu'il soit, empêche TOUJOURS la compilation sur les deux chemins. Le
+     déclencheur est l'objectif validé non repris par l'analyse — `intent.objective` ←
+     `comprehension.intention_principale` — qui conserve son autorité. */
   const analyses = {
-    CONTRACT_INCONSISTENT: () => coherentAnalysis({ comprehension: { ...coherentAnalysis().comprehension, ambiguites: ['Ambiguïté hors contrat validé.'] } }),
+    CONTRACT_INCONSISTENT: () => coherentAnalysis({ comprehension: { ...coherentAnalysis().comprehension, intention_principale: '' } }),
     EXECUTION_UNSAFE: () => coherentAnalysis({ comprehension: { ...coherentAnalysis().comprehension, informations_manquantes: [{ information: 'Donnée déterminante.', bloquant: true, justification: 'Sans elle, exécuter serait non fiable.' }] } }),
     MISSING_PROJECTION_DATA: () => coherentAnalysis({ livrable: { ...coherentAnalysis().livrable, nature: '' } })
   };
@@ -420,6 +421,36 @@ test('T-ARCH02-18b ADN-ARCH-03b : un registre DÉSARMÉ laisse la compilation ab
       'ni aucune décision que la personne n’a pas déléguée');
     assert.equal(JSON.stringify(recu).includes('communication sereine'), false);
     assert.equal(JSON.stringify(recu).includes('choix de méthode'), false);
+  }
+});
+
+test('T-ARCH02-18c ADN-ARCH-03d · ZEVQ7C : une ambiguïté nommée laisse le prompt final sortir', async () => {
+  /* LA FORME EXACTE DE L'ÉCHANGE ZEVQ7C, en fixture neutre, rejouée jusqu'au compilateur sur les
+     DEUX chemins : trois ambiguïtés, trois informations manquantes toutes NON bloquantes,
+     `livrable_complet_possible = true`, `action_recommandee = continuer`, zéro question — et un
+     contrat READY qui, par définition, ne porte aucune issue. Avant ce lot, la page affichait
+     « Préparation interrompue » ; le prompt final doit désormais être compilé. */
+  for (const pathName of Object.keys(PATHS)) {
+    const nominale = coherentAnalysis();
+    const analyse = coherentAnalysis({
+      comprehension: { ...nominale.comprehension,
+        ambiguites: ['Première lecture possible.', 'Deuxième lecture possible.', 'Troisième lecture possible.'],
+        informations_manquantes: [
+          { information: 'Détail 1', bloquant: false, justification: 'Substituable par une hypothèse raisonnable.' },
+          { information: 'Détail 2', bloquant: false, justification: 'Substituable par une hypothèse raisonnable.' },
+          { information: 'Détail 3', bloquant: false, justification: 'Substituable par une hypothèse raisonnable.' }
+        ] }
+    });
+    const h = createPathHarness(pathName, analyse);
+    await h.run();
+    assert.equal(h.calls.compiler.length, 1, `${pathName} : le prompt final est compilé`);
+    assert.equal(h.calls.stops, 0, `${pathName} : aucun arrêt`);
+    const recu = h.calls.compiler[0];
+    assert.equal(h.canonicalContract.executability.critical_missing.length + h.canonicalContract.executability.substitutable_missing.length, 0,
+      'un contrat READY ne porte aucune issue : la référence du comptage valait zéro');
+    assert.deepEqual(recu.executability.substitutable_missing, h.canonicalContract.executability.substitutable_missing,
+      'aucune ambiguïté n’a été convertie en substitutable_missing');
+    assert.equal(JSON.stringify(recu).includes('lecture possible'), false, 'l’ambiguïté nommée n’entre pas dans le contrat');
   }
 });
 
