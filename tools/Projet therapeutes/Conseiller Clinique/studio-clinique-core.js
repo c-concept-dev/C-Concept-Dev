@@ -9255,8 +9255,20 @@ ${recent}`;
         const imgAttr = b.content.assetId
           ? 'src="' + adocEsc(adocImageAssetUrl(b.content.assetId)) + '"'
           : 'data-pexels="' + adocEsc(b.content.query) + '"';
+        // CORRECTIF (Lot C cas 4, investigation réelle à l'appui) — repli visuel si le
+        // chargement de l'image échoue RÉELLEMENT (assetId uniquement : le chemin data-pexels
+        // a déjà son propre repli SVG via adocResolveImages, jamais dupliqué ici). Point
+        // localisé sur l'<img> lui-même (onerror), pas une extension d'adocResolveImages — ce
+        // mécanisme ne traite que des références NON résolues (data-pexels/data-gen), alors
+        // qu'un <img src> par assetId est déjà résolu au rendu ; ce n'est pas le même problème
+        // (échec de CHARGEMENT après coup, pas de résolution). .adoc-sc-image reste une cible de
+        // dépôt valide (cf. adocHandleImageDrop) : le message invite donc à glisser un nouveau
+        // fichier plutôt que d'ajouter un bouton "réessayer" séparé (aucun mécanisme neuf requis).
+        const onErrorAttr = b.content.assetId
+          ? ' onerror="this.style.display=\'none\';var f=this.closest(\'.adoc-sc-image\');if(f)f.classList.add(\'adoc-sc-image-failed\')"'
+          : '';
         return '<figure class="adoc-sc-block adoc-sc-image' + statusClass + '" id="' + adocEsc(b.id) + '">' +
-          '<img ' + imgAttr + ' alt="' + adocEsc(b.content.alt) + '" style="width:100%;border-radius:8px;object-fit:cover;">' +
+          '<img ' + imgAttr + onErrorAttr + ' alt="' + adocEsc(b.content.alt) + '" style="width:100%;border-radius:8px;object-fit:cover;">' +
           note + '</figure>';
       }
       default:
@@ -11611,6 +11623,18 @@ ${recent}`;
     adocEditorInstall(docCard, false);
   }
 
+  // CORRECTIF (Lot C cas 4, investigation réelle à l'appui) — retour visuel PENDANT l'upload,
+  // mécanisme UNIQUE partagé par les deux points d'entrée qui appellent adocUploadImageAsset
+  // (adocHandleImageDrop ci-dessous : remplacement/fond/générique ; adocConfirmBlockInsertFromFile
+  // plus bas : insertion), quel que soit le type d'élément visé (bloc de contenu réel ou simple
+  // zone de dépôt texte) — jamais un indicateur par point d'entrée (régression #6). Purement
+  // visuel (classe CSS + voile ::after posé dans studio-clinique.html, jamais de manipulation du
+  // texte/contenu réel de l'élément) : aucun état stocké ailleurs, toujours retiré via `finally`,
+  // succès ou échec — jamais un élément resté grisé/inerte après une erreur d'upload.
+  function adocSetImageDropBusy(el, busy) {
+    if (el) el.classList.toggle('cc-image-drop-busy', !!busy);
+  }
+
   // LOT C — point d'entrée partagé du glisser-déposer (cas 1 : remplacer l'image Pexels d'un
   // bloc 'image' autonome ; cas 2 : fond de la bannière de couverture, avec création du bloc de
   // couverture s'il n'existait pas encore — la bannière elle-même est toujours rendue, cf.
@@ -11629,8 +11653,10 @@ ${recent}`;
     if (!art || !art._adocStructuredDoc) return;
     const doc = art._adocStructuredDoc;
     let assetId;
+    adocSetImageDropBusy(dropEl, true);
     try { assetId = await adocUploadImageAsset(file); }
     catch (e) { alert(e.message); return; }
+    finally { adocSetImageDropBusy(dropEl, false); }
     const label = file.name.replace(/\.[^.]+$/, '') || 'Image importée';
     if (dropEl.classList.contains('adoc-sc-cover')) {
       let coverBlock = doc.blocks[0] && doc.blocks[0].type === 'image' ? doc.blocks[0] : null;
@@ -11893,9 +11919,16 @@ ${recent}`;
   window.adocConfirmBlockInsertFromFile = async function (direction, file) {
     const st = window._adocBlockEditState;
     if (!st.storeKey || !st.blockId) return;
+    // CORRECTIF (Lot C cas 4) — même retour visuel que adocHandleImageDrop ci-dessus
+    // (adocSetImageDropBusy), posé ici sur la petite zone de dépôt du panneau d'insertion
+    // (0B précisé — un seul .cc-block-edit-panel existe à la fois sur toute la page, cf.
+    // adocEditorMessage, même sélecteur global déjà utilisé ailleurs pour la même raison).
+    const dropZone = document.querySelector('.cc-block-insert-image-drop');
     let assetId;
+    adocSetImageDropBusy(dropZone, true);
     try { assetId = await adocUploadImageAsset(file); }
     catch (e) { alert(e.message); return; }
+    finally { adocSetImageDropBusy(dropZone, false); }
     const art = window._adocArtifacts && window._adocArtifacts[st.storeKey];
     if (!art || !art._adocStructuredDoc) return;
     const doc = art._adocStructuredDoc;

@@ -2074,6 +2074,30 @@
     .adoc-sc-table-el { font:inherit; color:inherit; }
     .adoc-sc-table[style*="color:"] th { color:inherit; }
     .cc-editor-message { margin:0;min-height:1em; }
+    /* CORRECTIF Lot C cas 4 (investigation réelle à l'appui, mesures : 578ms de blocage +
+       aucun indice visuel pendant l'upload) — voile "Envoi en cours…" partagé par les deux
+       points d'entrée de glisser-déposer d'image (adocSetImageDropBusy) : recouvre l'élément
+       visé, qu'il s'agisse d'un vrai bloc de contenu (image/couverture/générique) ou de la
+       simple zone de dépôt texte du panneau d'insertion — un seul mécanisme visuel, jamais un
+       par point d'entrée (régression #6). z-index élevé pour rester au-dessus du calque de
+       premier plan LOT E (.adoc-sc-fg-content, z-index:1) sur un bloc qui aurait déjà une
+       opacité de texte réduite. */
+    .cc-image-drop-busy { position: relative; pointer-events: none; cursor: progress; }
+    .cc-image-drop-busy::after {
+      content: "Envoi en cours…";
+      position: absolute; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center;
+      background: rgba(255,255,255,0.85); color: var(--ink,#273331); font: 600 13px/1.4 system-ui;
+      border-radius: inherit; text-align: center; padding: 4px;
+    }
+    /* CORRECTIF Lot C cas 4 — repli visuel si le GET /brand-assets/:assetId échoue réellement
+       (onerror posé sur l'<img>, cf. adocRenderBlockHTML case 'image') : remplace l'icône
+       d'image cassée du navigateur par un message clair, jamais silencieux. */
+    .adoc-sc-image-failed::after {
+      content: "Image indisponible — glissez un nouveau fichier ici pour réessayer.";
+      display: block; padding: 24px 12px; text-align: center; font: 13px/1.4 system-ui;
+      color: var(--muted,#5d6966); background: var(--stone-200,#ddd7cc);
+      border: 1px dashed var(--stone-300,#c9c3b8); border-radius: 8px;
+    }
   </style>
 </head>
 <body>
