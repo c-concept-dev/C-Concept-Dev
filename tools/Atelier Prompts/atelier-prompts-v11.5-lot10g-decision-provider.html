@@ -10572,6 +10572,8 @@ function show(id,focusTarget){
   ['#v11-api-progress','#v11-exchange','#v11-dialogue','#v11-ready'].forEach(x=>{const e=$(x);if(e)e.hidden=true});
   if(id){$(id).hidden=false;scrollToActive(id,focusTarget)}
   else scrollToActive('#v11-start-card','#v11-demande');
+  /* CONTINUITE-02 — le prompt final affiché est un point de sauvegarde. */
+  if(id==='#v11-ready'&&typeof v11SessionSave==='function')v11SessionSave();
 }
 function toast(msg){if(typeof signaler==='function')signaler(msg);else alert(msg)}
 function humanError(msg){const z=$('#v11-exchange-status');z.className='v11-status warn';z.innerHTML='<strong>Je n’ai pas pu utiliser ce résultat.</strong><br>'+escapeHtml(msg)}
@@ -10677,6 +10679,8 @@ function renderFiles(){
     row.innerHTML='<div><strong>'+escapeHtml(d.name)+'</strong><span>'+status+'</span></div><button type="button" aria-label="Retirer '+escapeHtml(d.name)+'">Retirer</button>';
     row.querySelector('button').addEventListener('click',()=>{state.docs.splice(i,1);renderFiles()});z.appendChild(row);
   });
+  /* CONTINUITE-02 — tout changement de documents passe ici : un seul point de sauvegarde. */
+  if(typeof v11SessionSave==='function')v11SessionSave();
 }
 function looksLikeAnalysis(obj){return !!(obj&&obj.version==='3.4'&&obj.comprehension&&obj.evaluation&&obj.strategie&&obj.compilation)}
 function looksLikeOutgoingEnvelope(obj){return !!(obj&&obj.version_echange&&obj.requete_complete&&obj.fichier_retour_attendu)}
@@ -10917,6 +10921,8 @@ function resetAll(){
   /* CONTINUITE-01 — une zone de continuation restée ouverte ne survit pas à une nouvelle demande :
      elle est de la présentation, et une nouvelle demande n'en hérite pas. Rien de sémantique ici. */
   if(typeof v11CloseContinuation==='function')v11CloseContinuation();
+  /* CONTINUITE-02 — une nouvelle demande efface aussi la photographie : un seul point de nettoyage. */
+  if(typeof v11SessionClear==='function')v11SessionClear();
 }
 /* CONTINUITE-01 · LOT 2 — CONTINUER CETTE DEMANDE, SANS FABRIQUER DE PROVENANCE.
  *
@@ -10972,6 +10978,7 @@ function v11OpenContinuation(){
   v11CloseContinuation();panel.hidden=false;
   const b=$('#v11-continue');if(b)b.setAttribute('aria-expanded','true');
   scrollToActive('#v11-continue-panel','#v11-continue-precision');
+  if(typeof v11SessionSave==='function')v11SessionSave();
   return true;
 }
 function v11CloseContinuation(){
@@ -10982,6 +10989,7 @@ function v11CloseContinuation(){
   const seul=$('#v11-continue-analyse-only');if(seul)seul.hidden=true;
   const b=$('#v11-continue');if(b)b.setAttribute('aria-expanded','false');
   ['#v11-continue-precision','#v11-continue-ai-response'].forEach(x=>{const e=$(x);if(e)e.setAttribute('aria-pressed','false')});
+  if(typeof v11SessionSave==='function')v11SessionSave();
   return true;
 }
 function v11ChooseContinuation(kind){
@@ -11004,6 +11012,7 @@ function v11ChooseContinuation(kind){
       :'Votre précision sera ajoutée à votre demande, qui sera ensuite réanalysée.')
     :'La réponse sera conservée comme document de travail. Vous direz ensuite ce que vous voulez faire.';
   scrollToActive('#v11-continue-editor','#v11-continue-text');
+  if(typeof v11SessionSave==='function')v11SessionSave();
   return true;
 }
 function v11SubmitContinuation(){
@@ -11050,6 +11059,145 @@ function v11RequireDemand(){
   toast('Expliquez d’abord ce que vous voulez obtenir.');
   $('#v11-demande').focus();
   return '';
+}
+/* CONTINUITE-02 — PERSISTANCE DE LA SESSION ACTIVE, REPRISE APRÈS REFRESH.
+ *
+ * CE QUE C'EST. Une photographie de l'état RUNTIME existant, écrite dans sessionStorage par le
+ * coffre du produit (`coffre`, qui absorbe déjà Safari file:// et le quota), relue au chargement.
+ * Elle TRANSPORTE ; elle n'interprète rien, n'arbitre rien, ne décide d'aucune readiness, ne porte
+ * aucun contrat. La restauration RECONSTRUIT l'état — elle ne rejoue jamais les gestes qui l'ont
+ * produit (aucun v11AddPastedMaterial, aucun answerQuestion, aucun tour, aucun appel fournisseur).
+ *
+ * CE QUI SURVIT (MUST_PERSIST) : la demande, l'historique de clarification tel qu'écrit
+ * (`state.answers`, clés connues seulement), les documents tels que le produit les tient déjà —
+ * `{name,type,size,text,external}` ; un fichier non textuel n'a JAMAIS été gardé en octets, seule
+ * sa fiche l'est, et c'est ce qui est restauré —, la demande à laquelle l'historique est attaché
+ * (`state.dialogueRequest`, que le garde d'édition compare), le mode du dernier tour, le prompt
+ * final s'il existe, et l'état de la zone « Continuer cette demande » (ouverte, intention, réponse
+ * ingérée). Rien d'autre.
+ *
+ * CE QUI NE SURVIT PAS, ET POURQUOI. `oprieState.canonicalContract` et `oprieState.lastTurn` :
+ * ce sont des AUTORITÉS dont la source unique est nommée ailleurs — les rejouer depuis un stockage
+ * en créerait une seconde ; un échange par fichier en vol (`state.exchangeId`, noms d'échange)
+ * n'a de sens qu'avec ce contrat, il se regénère par un nouveau tour que la personne lance.
+ * `turnExplicitUnknownIds`, `pendingDeterminantId`, la question affichée : liés à un TOUR, et le
+ * tour n'existe plus après rechargement (OPTION D2 garde ses deux seuls points de reset). Les
+ * contrôleurs, promesses, compteurs de tentatives, relevés de diagnostic : transitoires. Les clés
+ * API : jamais — elles ont leur propre mécanique, intacte. Le mode données sensibles n'écrit rien,
+ * ici comme partout. */
+const V11_SESSION_KEY='atelier.v11.session';
+const V11_SESSION_VERSION=1;
+const V11_SESSION_MODES=Object.freeze(['rapide','architecte','atelier']);
+const V11_SESSION_TOO_LARGE='Cette session est trop volumineuse pour être restaurée automatiquement après un rechargement. Gardez cette page ouverte pour poursuivre.';
+function v11SessionStore(){return (typeof coffre==='object'&&coffre&&typeof coffre.ecrire==='function')?coffre:null}
+/* La photographie : des copies, clés connues seulement, JSON pur. */
+function v11SessionSnapshot(){
+  const texte=v=>typeof v==='string'?v:'';
+  const answers=state.answers.map(a=>({
+    question:texte(a&&a.question),answer:texte(a&&a.answer),
+    ...(texte(a&&a.missing_determinant_id)?{missing_determinant_id:a.missing_determinant_id}:{}),
+    ...(Array.isArray(a&&a.explicit_unknown_determinant_ids)&&a.explicit_unknown_determinant_ids.length
+      ?{explicit_unknown_determinant_ids:a.explicit_unknown_determinant_ids.map(texte).filter(Boolean)}:{})
+  })).filter(a=>a.question&&a.answer);
+  const docs=state.docs.map(d=>({name:texte(d&&d.name),type:texte(d&&d.type),size:Number.isFinite(d&&d.size)?d.size:0,
+    text:texte(d&&d.text),external:!!(d&&d.external)})).filter(d=>d.name);
+  const panel=$('#v11-continue-panel');
+  const continuation=panel&&panel.hidden===false
+    ?{open:true,kind:(panel.dataset.kind==='precision'||panel.dataset.kind==='ai_response')?panel.dataset.kind:null,
+      ingested:texte(panel.dataset.ingested)||null}
+    :null;
+  return {
+    version:V11_SESSION_VERSION,saved_at:new Date().toISOString(),
+    state:{answers,docs,dialogueRequest:texte(state.dialogueRequest)||null,
+      requestedMode:V11_SESSION_MODES.includes(adpState.requestedMode)?adpState.requestedMode:null},
+    ui:{demande:texte(($('#v11-demande')||{}).value),finalPrompt:texte(($('#v11-final')||{}).value),continuation}
+  };
+}
+function v11SessionIsEmpty(snap){
+  return !snap.ui.demande.trim()&&!snap.state.answers.length&&!snap.state.docs.length&&!snap.ui.finalPrompt.trim();
+}
+/* Écrire ne peut ni lever, ni corrompre l'état courant, ni boucler : le runtime continue quoi qu'il
+   arrive. Un stockage absent (Safari file://) se tait ; un stockage présent qui refuse la
+   photographie — le quota — le dit une fois, avec des mots. */
+function v11SessionSave(){
+  try{
+    const store=v11SessionStore();if(!store)return false;
+    if(typeof modeSensible!=='undefined'&&modeSensible)return false;
+    const snap=v11SessionSnapshot();
+    if(v11SessionIsEmpty(snap)){store.effacer('session',V11_SESSION_KEY);return true}
+    if(store.ecrire('session',V11_SESSION_KEY,JSON.stringify(snap))){state.sessionSaveFailed=false;return true}
+    /* Sonde minimale : le stockage lui-même est-il là ? Sinon, rien à dire. */
+    if(!store.ecrire('session',V11_SESSION_KEY+'.probe','1'))return false;
+    store.effacer('session',V11_SESSION_KEY+'.probe');
+    store.effacer('session',V11_SESSION_KEY);
+    if(!state.sessionSaveFailed){state.sessionSaveFailed=true;toast(V11_SESSION_TOO_LARGE)}
+    return false;
+  }catch(error){return false}
+}
+function v11SessionClear(){
+  try{const store=v11SessionStore();if(store)store.effacer('session',V11_SESSION_KEY)}catch(error){}
+  state.sessionSaveFailed=false;
+}
+/* Relire : version et forme minimales, sinon la photographie est ignorée ET retirée. Aucune
+   migration, aucune devinette. Rend l'état RECONSTRUIT, ou null. */
+function v11SessionRead(){
+  const store=v11SessionStore();if(!store)return null;
+  const brut=store.lire('session',V11_SESSION_KEY);if(!brut)return null;
+  let snap=null;
+  try{snap=JSON.parse(brut)}catch(error){snap=null}
+  const objet=v=>!!v&&typeof v==='object'&&!Array.isArray(v);
+  const texte=v=>typeof v==='string'?v:'';
+  const valide=objet(snap)&&snap.version===V11_SESSION_VERSION&&objet(snap.state)&&objet(snap.ui)
+    &&Array.isArray(snap.state.answers)&&Array.isArray(snap.state.docs);
+  if(!valide){store.effacer('session',V11_SESSION_KEY);return null}
+  const answers=snap.state.answers.filter(objet).map(a=>({
+    question:texte(a.question).trim(),answer:texte(a.answer).trim(),
+    ...(texte(a.missing_determinant_id).trim()?{missing_determinant_id:a.missing_determinant_id.trim()}:{}),
+    ...(Array.isArray(a.explicit_unknown_determinant_ids)&&a.explicit_unknown_determinant_ids.some(id=>texte(id).trim())
+      ?{explicit_unknown_determinant_ids:a.explicit_unknown_determinant_ids.map(id=>texte(id).trim()).filter(Boolean)}:{})
+  })).filter(a=>a.question&&a.answer);
+  const docs=snap.state.docs.filter(objet).map(d=>({name:texte(d.name),type:texte(d.type),
+    size:Number.isFinite(d.size)?d.size:0,text:texte(d.text),external:d.external===true})).filter(d=>d.name);
+  const c=objet(snap.ui.continuation)?snap.ui.continuation:null;
+  return {
+    answers,docs,
+    dialogueRequest:texte(snap.state.dialogueRequest)||null,
+    requestedMode:V11_SESSION_MODES.includes(snap.state.requestedMode)?snap.state.requestedMode:null,
+    demande:texte(snap.ui.demande),finalPrompt:texte(snap.ui.finalPrompt),
+    continuation:c&&c.open===true?{kind:(c.kind==='precision'||c.kind==='ai_response')?c.kind:null,ingested:texte(c.ingested)||null}:null
+  };
+}
+/* RESTAURATION PURE. Aucun tour, aucun appel, aucun rejeu, aucun nouvel identifiant d'échange :
+   l'état est posé tel qu'il était, les écrans réaffichés par les fonctions existantes. */
+function v11SessionRestore(){
+  let session=null;
+  try{session=v11SessionRead()}catch(error){session=null}
+  if(!session)return false;
+  if(!session.demande.trim()&&!session.answers.length&&!session.docs.length&&!session.finalPrompt.trim()){v11SessionClear();return false}
+  /* Au chargement, les deux listes sont vides : la reprise les REMPLIT, elle ne les remet pas à
+     zéro — l'unique écrivain de l'effacement reste v11ForgetDialogue / resetAll. */
+  for(const a of session.answers)state.answers.push(a);
+  for(const d of session.docs)state.docs.push(d);
+  state.dialogueRequest=session.dialogueRequest;
+  if(session.requestedMode){
+    adpState.requestedMode=session.requestedMode;
+    const sel=$('#ui-mode-select');if(sel)sel.value=session.requestedMode;
+  }
+  /* Une affectation programmatique ne déclenche pas `input` : le garde d'édition n'oublie rien. */
+  $('#v11-demande').value=session.demande;
+  renderFiles();
+  if(session.finalPrompt.trim()){
+    $('#v11-final').value=session.finalPrompt;
+    show('#v11-ready');
+    if(session.continuation){
+      v11OpenContinuation();
+      const panel=$('#v11-continue-panel');
+      if(session.continuation.ingested&&panel)panel.dataset.ingested=session.continuation.ingested;
+      if(session.continuation.kind)v11ChooseContinuation(session.continuation.kind);
+    }
+  }
+  toast('Session restaurée');
+  return true;
 }
 /* GENERATED — LOT 10G.3B.3F.2
  * source-sha256: 64ee4ca727df166da3f10896d0a56858cbecacafbeb6da67521ed961ca88d9c3
@@ -24993,6 +25141,9 @@ async function oprieRunTurn(requestedMode,options){
   state.dialogueRequest=oprieOriginalRequest();
   oprieState.retryTurn=false;
   oprieState.running=true;oprieState.requestedMode=requestedMode;adpState.requestedMode=requestedMode;
+  /* CONTINUITE-02 — un tour part : la demande, l'historique et les documents qui le nourrissent sont
+     photographiés. Une réponse de clarification ou une précision passent toujours par ici. */
+  if(typeof v11SessionSave==='function')v11SessionSave();
   oprieSetBusy(true);oprieShowAnalysing();
   oprieState.fastInteraction=null;oprieState.lastReconciliation=null;
   /* IA-04 — LE PLAN PROFOND EST UNE ESCALADE, PAS UN CHEMIN RÉFLEXE.
@@ -25334,6 +25485,12 @@ function init(){
   $('#v11-continue-add-document').addEventListener('click',()=>$('#v11-files').click());
   $('#v11-continue-analyse-only').addEventListener('click',v11ContinueWithoutAddition);
   $('#v11-continue-cancel').addEventListener('click',v11CloseContinuation);
+  /* CONTINUITE-02 — la demande en cours de saisie survit aussi : une écriture différée, jamais une
+     par frappe. Le garde d'édition ci-dessus reste intact ; ce gestionnaire ne fait que photographier. */
+  let v11SessionMinuteur=null;
+  $('#v11-demande').addEventListener('input',()=>{clearTimeout(v11SessionMinuteur);v11SessionMinuteur=setTimeout(v11SessionSave,800)});
+  /* CONTINUITE-02 — et la reprise, en dernier, une fois tout câblé. Restauration pure. */
+  v11SessionRestore();
   $('#v11-details').addEventListener('click',()=>{setNormal(false);if(typeof ouvrirVue==='function')ouvrirVue('architecte')});
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
