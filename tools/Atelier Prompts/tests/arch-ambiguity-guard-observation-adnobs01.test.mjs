@@ -26,6 +26,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import vm from 'node:vm';
 import { loadPostOprieValidator, oprieReadyTurn, coherentAnalysis, canonicalFrom } from './post-oprie-validation-harness.helper.mjs';
 import {
   observeAmbiguityGuard, ARCH_AMBIGUITY_GUARD_EVENT, createArchEnrichmentAuditView,
@@ -229,4 +230,98 @@ test('T-AOBS-09 : la vue d’audit porte l’observation, et reste utilisable sa
   assert.equal(avecAnalyse.ambiguity_guard.blocking_signal_emitted, true);
   assert.deepEqual(avecAnalyse.mutated_oprie_fields, []);
   assert.equal(JSON.stringify(avecAnalyse).includes('AMB_'), false, 'aucun texte d’ambiguïté');
+});
+
+
+/* ==========================================================================
+ * ADN-OBS-01b — LE PORT DE LECTURE
+ * --------------------------------------------------------------------------
+ * LE SMOKE A ÉCHOUÉ AVANT DE COMMENCER. `oprieState.lastAmbiguityGuardObservation` rendait
+ * « ReferenceError: Can't find variable: oprieState » : cet état est un `const` de portée interne,
+ * et c'est très bien ainsi — il porte la demande de la personne, ses réponses, l'historique de
+ * clarification. Le relevé, lui, tient en sept valeurs. On expose le relevé, pas l'état.
+ * ======================================================================= */
+
+/** Charge le bloc du routeur avec un `oprieState` minimal, et rend le port public. */
+function chargerPortDeLecture(observation) {
+  const lignes = artefact.split('\n');
+  const debut = lignes.findIndex((l) => l.startsWith('window.__V11_ROUTER__=Object.freeze({'));
+  const fin = lignes.findIndex((l, i) => i > debut && l.trimEnd() === '});');
+  assert.ok(debut > 0 && fin > debut, 'le bloc du routeur est localisable');
+
+  const contexte = {
+    window: {}, JSON,
+    /* L'état interne, réduit au champ que le port doit rendre — plus un champ SENSIBLE, pour
+       éprouver qu'il ne sort pas. */
+    oprieState: { lastAmbiguityGuardObservation: observation, original_request: 'TEXTE_DE_LA_PERSONNE' },
+    v11ModeUsesGovernedPipeline: () => true, v11AbandonGovernedTurn() {},
+    v11StartRapide() {}, v11StartAtelier() {}, v11StartArchitecte() {}
+  };
+  contexte.globalThis = contexte;
+  vm.createContext(contexte);
+  vm.runInContext(lignes.slice(debut, fin + 1).join('\n'), contexte, { filename: 'atelier:v11-router' });
+  return { port: contexte.window.__V11_ROUTER__, interne: contexte.oprieState };
+}
+
+test('T-AOBS-10 : le relevé est lisible depuis le scope global de la page', () => {
+  const releve = {
+    event: ARCH_AMBIGUITY_GUARD_EVENT, request_id: 'adn-test',
+    arch_ambiguities_count: 1, canonical_critical_missing_count: 0,
+    canonical_substitutable_missing_count: 0, known_issues_total: 0,
+    predicate_triggered: true, blocking_signal_emitted: true
+  };
+  const { port } = chargerPortDeLecture(releve);
+  assert.equal(typeof port.getLastAmbiguityGuardObservation, 'function',
+    'le port existe sur un handle DÉJÀ exposé');
+  assert.deepEqual(port.getLastAmbiguityGuardObservation(), releve);
+});
+
+test('T-AOBS-11 : null avant toute observation, et rien d’autre n’est exposé', () => {
+  const { port } = chargerPortDeLecture(null);
+  assert.equal(port.getLastAmbiguityGuardObservation(), null, 'rien n’est fabriqué avant la première');
+
+  /* SEUL LE RELEVÉ BORNÉ SORT. Le port ne rend pas l'état, et le routeur n'expose que deux membres. */
+  assert.deepEqual(Object.keys(port).sort(), ['getLastAmbiguityGuardObservation', 'start']);
+  assert.equal(JSON.stringify(port.getLastAmbiguityGuardObservation()).includes('TEXTE_DE_LA_PERSONNE'), false);
+  /* Et l'artefact n'expose jamais l'état complet, ni un quatrième handle. */
+  assert.equal(artefact.includes('window.oprieState'), false, 'oprieState n’est jamais publié');
+  const handles = [...new Set([...artefact.matchAll(/window\.(__[A-Z_0-9]+__)\s*=/g)].map((m) => m[1]))];
+  assert.deepEqual(handles.sort(), ['__ARCHITECTE_V10__', '__QUALITE_V10__', '__V11_ROUTER__'],
+    'aucun namespace nouveau : T-CLEAN03-11 épingle cet ensemble, et il a raison');
+});
+
+test('T-AOBS-12 : muter ce que le port rend ne touche pas l’état interne', () => {
+  /* UN PORT D'AUDIT N'EST PAS UNE PORTE. Le relevé est sérialisé puis relu : la référence interne
+     ne sort jamais, donc une écriture sur la copie ne peut rien atteindre. */
+  const releve = {
+    event: ARCH_AMBIGUITY_GUARD_EVENT, request_id: 'adn-test',
+    arch_ambiguities_count: 1, canonical_critical_missing_count: 0,
+    canonical_substitutable_missing_count: 0, known_issues_total: 0,
+    predicate_triggered: true, blocking_signal_emitted: true
+  };
+  const { port, interne } = chargerPortDeLecture(releve);
+
+  const copie = port.getLastAmbiguityGuardObservation();
+  assert.notEqual(copie, interne.lastAmbiguityGuardObservation, 'ce n’est pas la même référence');
+  copie.arch_ambiguities_count = 999;
+  copie.predicate_triggered = false;
+  copie.injecte = 'PIRATE';
+
+  assert.equal(interne.lastAmbiguityGuardObservation.arch_ambiguities_count, 1, 'l’interne est intact');
+  assert.equal(interne.lastAmbiguityGuardObservation.predicate_triggered, true);
+  assert.equal('injecte' in interne.lastAmbiguityGuardObservation, false);
+  /* Et deux lectures successives rendent deux objets distincts. */
+  assert.notEqual(port.getLastAmbiguityGuardObservation(), port.getLastAmbiguityGuardObservation());
+  assert.deepEqual(port.getLastAmbiguityGuardObservation(), releve);
+});
+
+test('T-AOBS-13 : le port ne journalise rien et ne décide rien', () => {
+  const lignes = artefact.split('\n');
+  const debut = lignes.findIndex((l) => l.includes('getLastAmbiguityGuardObservation(){'));
+  const corps = lignes.slice(debut, debut + 4).join('\n');
+  for (const interdit of ['console.', 'push(', 'fetch(', 'localStorage']) {
+    assert.equal(corps.includes(interdit), false, `le port ne fait pas « ${interdit} »`);
+  }
+  /* Il rend une COPIE, jamais la référence — la forme le dit. */
+  assert.match(corps, /return releve\?JSON\.parse\(JSON\.stringify\(releve\)\):null;/);
 });

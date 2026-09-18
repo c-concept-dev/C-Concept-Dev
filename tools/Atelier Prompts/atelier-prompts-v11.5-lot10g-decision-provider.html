@@ -24834,6 +24834,27 @@ window.__V11_ROUTER__=Object.freeze({
     if(mode==='rapide')return v11StartRapide();
     if(mode==='atelier')return v11StartAtelier();
     return v11StartArchitecte();
+  },
+  /* ADN-OBS-01b — LE SEUL PORT DE LECTURE DU RELEVÉ, ET IL NE REND QU'UNE COPIE.
+   *
+   * POURQUOI ICI ET PAS AILLEURS. `oprieState` est un `const` de portée interne : la console n'y a
+   * aucun accès, et c'est voulu — l'exposer entier donnerait à quiconque ouvre les outils de
+   * développement la demande de la personne, ses réponses, l'historique de clarification. Le smoke
+   * n'a besoin que de sept nombres.
+   *
+   * POURQUOI CE HANDLE-CI. Trois handles seulement sont exposés, et T-CLEAN03-11 épingle cet
+   * ensemble exactement : en créer un quatrième romprait un invariant de gouvernance qui vaut mieux
+   * que ma commodité. Des trois, celui-ci est le seul déclaré dans le MÊME bloc de script
+   * qu'`oprieState` ; la façade du moteur Architecte vit dans un autre et ne peut pas le voir.
+   * Son nom n'est pas répété ici : T-CLEAN01-05 compte ses occurrences pour garantir qu'il n'existe
+   * qu'UN routeur — définition, exposition, appel — et un commentaire n'a pas à peser dans ce compte.
+   *
+   * POURQUOI UNE COPIE. Le relevé rendu est sérialisé puis relu : muter ce qu'on reçoit ne peut
+   * donc rien changer à l'état interne. Un getter qui rendrait la référence ferait de cette lecture
+   * une écriture, et d'un port d'audit une porte. */
+  getLastAmbiguityGuardObservation(){
+    const releve=oprieState.lastAmbiguityGuardObservation;
+    return releve?JSON.parse(JSON.stringify(releve)):null;
   }
 });
 /* La famille d'un mode vient de la table des contrats — source unique. Si elle est injoignable,
