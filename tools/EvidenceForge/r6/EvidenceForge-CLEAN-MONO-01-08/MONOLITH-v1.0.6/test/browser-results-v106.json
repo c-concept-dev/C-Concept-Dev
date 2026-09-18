@@ -1,0 +1,65 @@
+{
+  "schema": "EvidenceForge.MonolithBrowserTestResults",
+  "version": "MONOLITH-v1.0.6",
+  "ranAt": "2026-09-18T10:19:42.543Z",
+  "total": 11,
+  "passed": 11,
+  "failed": 0,
+  "results": [
+    {
+      "name": "serveur v1.0.6 : /api/config version = config + chunking expose",
+      "ok": true,
+      "info": "{\"acceptedExtensions\":[\".txt\",\".md\"],\"maxBytes\":2000000,\"$comment\":\"seuls les textes bruts sont lus tels quels ; aucun parseur PDF n'est embarque (limite declaree)\",\"chunking\":{\"maxChunkChars\":4500,\"strategy\":\"PARAGRAPH>LINE>SENTENCE>SPACE>HARD\",\"$comment\":\"v1.0.6 AUTO-CHUNK UPLOAD — tout texte uploade est decoupe AVANT tout passage a un modele en segments <= maxChunkChars (marge sous la limite de 5000 du cadrage), de facon deterministe, sans LLM, sans perte ni duplication (lib/document-chunker.js). Unite : longueur de chaine JS (UTF-16), pas les octets. Les segments PART-k-OF-n restent les parties d'UN document source ; un upload de 1 fichier compte 1 document.\"}}"
+    },
+    {
+      "name": "long document : « 8 segments générés automatiquement » affiche",
+      "ok": true,
+      "info": "D103-CDC-v4.1.md · 33 448 caractères → 8 segments générés automatiquement → document complet1 document · 8 segments au total (segments ≤ 4 500 caractères, lus intégralement)"
+    },
+    {
+      "name": "long document : nombre de caracteres affiche (33448) et « document complet »",
+      "ok": true,
+      "info": "D103-CDC-v4.1.md · 33 448 caractères → 8 segments générés automatiquement → document complet1 document · 8 segments au total (segments ≤ 4 500 caractères, lus intégralement)"
+    },
+    {
+      "name": "long document : compte « 1 document » (pas 8 documents), segments lus integralement",
+      "ok": true,
+      "info": "D103-CDC-v4.1.md · 33 448 caractères → 8 segments générés automatiquement → document complet1 document · 8 segments au total (segments ≤ 4 500 caractères, lus intégralement)"
+    },
+    {
+      "name": "long document : une seule ligne de document (pas de liste de sous-fichiers)",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "name": "court + long : « 2 documents » et « 1 segment » pour le court",
+      "ok": true,
+      "info": "court.txt · 43 caractères → 1 segment → document completD103-CDC-v4.1.md · 33 448 caractères → 8 segments générés automatiquement → document complet2 documents · 9 segments au total (segments ≤ 4 500 caractères, lus intégralement)"
+    },
+    {
+      "name": "court + long : 2 lignes de document, statuts COMPLETE",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "name": "fichier vide : « document vide — non exploitable », compte « 1 document »",
+      "ok": true,
+      "info": "court.txt · 43 caractères → 1 segment → document completvide.txt · document vide — non exploitable document vide (aucun texte exploitable apres extraction)1 document · 1 segment au total (segments ≤ 4 500 caractères, lus intégralement)"
+    },
+    {
+      "name": "fichier vide : ligne marquee DOCUMENT_EMPTY",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "name": "apercu : aucun run cree, aucun dossier _preflight",
+      "ok": true,
+      "info": "{\"runs\":[]}"
+    },
+    {
+      "name": "aucune exception console",
+      "ok": true,
+      "info": ""
+    }
+  ]
+}

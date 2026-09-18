@@ -19,7 +19,7 @@ label{display:block;font-weight:600;margin:10px 0 4px}textarea,input[type=text]{
 .muted{color:var(--muted)}.small{font-size:13px}
 .steps{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}.steps li{border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;background:#fff}
 .steps li.DONE{border-color:var(--ok);background:#f0f8f2}.steps li.RUNNING{border-color:var(--accent);background:var(--soft)}.steps li.INTERRUPTED,.steps li.FAILED{border-color:var(--bad);background:#fbf0f0}
-.pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;border:1px solid var(--line);background:#fff}.pill.ok{border-color:var(--ok);color:var(--ok)}.pill.warn{border-color:var(--warn);color:var(--warn)}.pill.bad{border-color:var(--bad);color:var(--bad)}
+.pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;border:1px solid var(--line);background:#fff}.docrow{margin:2px 0;font-size:.92em}.pill.ok{border-color:var(--ok);color:var(--ok)}.pill.warn{border-color:var(--warn);color:var(--warn)}.pill.bad{border-color:var(--bad);color:var(--bad)}
 .banner{padding:12px 14px;border-radius:8px;border:1px solid;margin:10px 0}.banner.warn{border-color:var(--warn);background:#fff8ec}.banner.bad{border-color:var(--bad);background:#fbf0f0}.banner.ok{border-color:var(--ok);background:#f0f8f2}.banner.info{border-color:var(--accent);background:var(--soft)}
 .log{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;max-height:220px;overflow:auto;background:#fafaf7;border:1px solid var(--line);border-radius:8px;padding:8px}
 table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
@@ -35,7 +35,7 @@ main{overflow-x:hidden}.card{max-width:100%}
 .notify{position:sticky;top:52px;z-index:4}
 .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}.tabs button{border:1px solid var(--line);background:#fff;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:13px}.tabs button.on{background:var(--soft);border-color:var(--accent)}
 [hidden]{display:none!important}
-/* v1.0.5 : cout / budget / portefeuille / aide */
+/* v1.0.5 : cout / budget / portefeuille / aide ; v1.0.6 : apercu du decoupage automatique des documents (AUTO-CHUNK UPLOAD) */
 .cost{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:8px 0}.cost .k{font-size:12px;color:var(--muted)}.cost .v{font-weight:650;font-size:16px}.cost .cell{border:1px solid var(--line);border-radius:8px;padding:8px;background:#fff}
 .bar{display:inline-block;height:10px;background:var(--accent);border-radius:3px;vertical-align:middle}.bar.warn{background:var(--warn)}.bar.bad{background:var(--bad)}
 .covrow{display:grid;grid-template-columns:minmax(160px,1fr) 2fr auto;gap:8px;align-items:center;font-size:13px;padding:3px 0}
@@ -183,7 +183,18 @@ function fromHash(){const q=new URLSearchParams(location.hash.slice(1));const r=
 window.addEventListener("hashchange",fromHash);
 
 /* ---------- nouveau run ---------- */
-$("#files").onchange=async()=>{pendingFiles=[];for(const f of $("#files").files){const buf=await f.arrayBuffer();pendingFiles.push({name:f.name,contentBase64:btoa(String.fromCharCode(...new Uint8Array(buf)))});}$("#fileList").textContent=pendingFiles.map((f)=>f.name).join(", ");};
+/* v1.0.6 AUTO-CHUNK UPLOAD : conversion base64 par blocs (aucun debordement de pile sur un long document), puis apercu LOCAL du decoupage
+   (/api/documents/preview : synchrone, sans appel IA, sans run). 1 fichier = 1 document, quel que soit le nombre de segments. */
+const toBase64=(buf)=>{const u=new Uint8Array(buf);let b="";for(let i=0;i<u.length;i+=0x8000)b+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(b);};
+const fmtInt=(n)=>Number(n).toLocaleString("fr-FR");
+function renderDocPreview(pv){const rows=[];(pv.documents||[]).forEach((d)=>{rows.push('<div class="docrow" data-doc-status="'+esc(d.ingestionStatus)+'"><b>'+esc(d.name)+'</b> · '+fmtInt(d.characters)+' caractères → '+(d.segments===1?'1 segment':d.segments+' segments générés automatiquement')+' → <span class="pill">'+(d.status==="COMPLET"?'document complet':'document incomplet')+'</span></div>');});
+  (pv.rejected||[]).forEach((r)=>{rows.push('<div class="docrow" data-doc-status="'+esc(r.code||"REFUSE")+'"><b>'+esc(r.name)+'</b> · <span class="pill">'+(r.status==="VIDE"?'document vide — non exploitable':'refusé')+'</span> <span class="muted">'+esc(r.reason)+'</span></div>');});
+  const n=pv.documentCount||0;rows.push('<div class="muted" id="docCount">'+(n===0?'Aucun document exploitable':n+' document'+(n>1?'s':'')+' · '+fmtInt(pv.segmentCount||0)+' segment'+((pv.segmentCount||0)>1?'s':'')+' au total (segments ≤ '+fmtInt(pv.maxChunkChars)+' caractères, lus intégralement)')+'</div>');$("#fileList").innerHTML=rows.join("");}
+let filesSeq=0;
+$("#files").onchange=async()=>{const seq=++filesSeq;const files=[];for(const f of $("#files").files){const buf=await f.arrayBuffer();files.push({name:f.name,contentBase64:toBase64(buf)});}
+  if(seq!==filesSeq)return;/* une selection plus recente a pris le relais : jamais deux listes melangees */pendingFiles=files;
+  if(!pendingFiles.length){$("#fileList").textContent="";return;}$("#fileList").textContent="Analyse des documents…";
+  try{const pv=await api("/api/documents/preview",{method:"POST",body:JSON.stringify({files:pendingFiles})});if(seq!==filesSeq)return;renderDocPreview(pv);}catch(e){$("#fileList").textContent=pendingFiles.map((f)=>f.name).join(", ")+" (aperçu du découpage indisponible : "+(e.message||e)+")";}};
 const numOrNull=(v)=>{const t=String(v==null?"":v).trim();if(t==="")return null;const n=Number(t);return Number.isFinite(n)?n:null;};
 function budgetMode(){return $("#bModeUnlimited").checked?"UNLIMITED":"LIMITED";}
 function budgetInput(){const m=budgetMode();return {mode:m==="LIMITED"?"LIMITED":"UNLIMITED_CONFIRMED",costBudgetUsd:m==="LIMITED"?numOrNull($("#bMax").value):null,warningThresholdUsd:numOrNull($("#bWarn").value)};}

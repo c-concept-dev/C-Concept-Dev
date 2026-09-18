@@ -1,8 +1,8 @@
 {
-  "$comment": "EvidenceForge MONOLITH v1.0.5 (CANDIDAT) — configuration d'exploitation. AUCUN SECRET ICI : les identifiants viennent de l'environnement (EVIDENCEFORGE_WORKER_API_KEY, LLM_WORKER_BASE_URL, LLM_AUTH_MODE). Les chemins sont relatifs a la racine du bundle sauf indication.",
+  "$comment": "EvidenceForge MONOLITH v1.0.6 (CANDIDAT = v1.0.5 + AUTO-CHUNK UPLOAD) — configuration d'exploitation. AUCUN SECRET ICI : les identifiants viennent de l'environnement (EVIDENCEFORGE_WORKER_API_KEY, LLM_WORKER_BASE_URL, LLM_AUTH_MODE). Les chemins sont relatifs a la racine du bundle sauf indication.",
   "product": {
     "name": "EvidenceForge",
-    "version": "MONOLITH-v1.0.5"
+    "version": "MONOLITH-v1.0.6"
   },
   "bundleRoot": "..",
   "frozenLots": {
@@ -72,7 +72,12 @@
       ".md"
     ],
     "maxBytes": 2000000,
-    "$comment": "seuls les textes bruts sont lus tels quels ; aucun parseur PDF n'est embarque (limite declaree)"
+    "$comment": "seuls les textes bruts sont lus tels quels ; aucun parseur PDF n'est embarque (limite declaree)",
+    "chunking": {
+      "maxChunkChars": 4500,
+      "strategy": "PARAGRAPH>LINE>SENTENCE>SPACE>HARD",
+      "$comment": "v1.0.6 AUTO-CHUNK UPLOAD — tout texte uploade est decoupe AVANT tout passage a un modele en segments <= maxChunkChars (marge sous la limite de 5000 du cadrage), de facon deterministe, sans LLM, sans perte ni duplication (lib/document-chunker.js). Unite : longueur de chaine JS (UTF-16), pas les octets. Les segments PART-k-OF-n restent les parties d'UN document source ; un upload de 1 fichier compte 1 document."
+    }
   },
   "pricing": {
     "file": "config/llm-pricing.json",

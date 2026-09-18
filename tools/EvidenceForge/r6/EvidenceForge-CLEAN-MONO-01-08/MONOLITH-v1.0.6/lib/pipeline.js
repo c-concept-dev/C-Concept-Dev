@@ -17,6 +17,7 @@ const RS = require("./run-store.js");
 const { createLlm } = require("./llm.js");
 const SM = require("./stage-mission.js"), S1 = require("./stage-ef01.js"), SR = require("./stage-retrieval.js"), SP = require("./stage-professionals.js"), SRP = require("./stage-report.js");
 const RSTOP = require("./run-stop.js");
+const DC = require("./document-chunker.js");   /* v1.0.6 AUTO-CHUNK UPLOAD : metadonnees de segments persistees, verifiees a chaque chargement */
 const CL = require("./cost-ledger.js"), BG = require("./budget-guard.js"), CPR = require("./corpus-portfolio-review.js"), PE = require("./professionals-economics.js"), CV = require("./cost-view.js");
 const sha = (b) => crypto.createHash("sha256").update(b).digest("hex");
 const now = () => new Date().toISOString();
@@ -60,7 +61,9 @@ async function startRun(input) {
   const runId = RS.newRunId(); const store = RS.createRunStore(runId);
   const docsDir = path.join(store.dir, "documents"); fs.mkdirSync(docsDir, { recursive: true });
   intake.documents.forEach((d) => fs.writeFileSync(path.join(docsDir, d.documentId + ".txt"), Buffer.from(d.contentBase64, "base64")));
-  const state = makeState(runId, q, intake.documents.map((d) => ({ documentId: d.documentId, name: d.name, bytes: d.bytes, sha256: d.sha256 })));
+  /* v1.0.6 — segments : metadonnees (bornes, hashes, ordre, total) persistees SANS le texte (il se rederive du fichier source) ; jamais un document par segment */
+  store.saveJson("documents-chunks.json", { schema: "EvidenceForge.DocumentChunks", schemaVersion: "MONOLITH-v1.0.6", maxChunkChars: SM.chunkOptions().maxChunkChars, strategy: DC.STRATEGY, documentCount: intake.documents.length, chunkCount: intake.documents.reduce((n, d) => n + d.chunking.totalChunks, 0), documents: intake.documents.map((d) => DC.chunkMetadata(d.chunked)) });
+  const state = makeState(runId, q, intake.documents.map((d) => ({ documentId: d.documentId, name: d.name, bytes: d.bytes, sha256: d.sha256, chunking: d.chunking })));
   state.documentsRejected = intake.rejected;
   /* RUN SAFETY — budget EXPLICITE a la creation : mode LIMITED (plafond > 0) ou UNLIMITED_CONFIRMED (confirmation explicite) ; budget.json est
      ecrit AVANT state.json, donc avant tout appel ; un champ vide n'est jamais transforme en « sans plafond » ; l'absence de budget.json devient une anomalie */
@@ -71,8 +74,20 @@ async function startRun(input) {
 }
 
 function loadDocuments(store, state) {
+  /* v1.0.6 — si le run porte des metadonnees de segments, chaque document est re-decoupe (deterministe) et confronte a ce qui a ete
+     enregistre : nombre annonce != nombre present => INPUT_DOCUMENT_CHUNK_MISSING ; texte/hash d'un segment different => INPUT_DOCUMENT_TRUNCATED ;
+     trou/doublon/bornes => DOCUMENT_INCOMPLETE. Aucune erreur n'est degradee en avertissement. Les anciens runs (sans fichier) restent lus tels quels. */
+  const meta = store.loadJson("documents-chunks.json"); const byId = {}; ((meta && meta.documents) || []).forEach((m) => { byId[m.sourceDocumentId] = m; });
   return (state.mission.documents || []).map(function (d) { const bytes = fs.readFileSync(path.join(store.dir, "documents", d.documentId + ".txt")); if (sha(bytes) !== d.sha256) throw Object.assign(new Error("DOCUMENT_HASH_MISMATCH: " + d.name), { code: "DOCUMENT_HASH_MISMATCH" });
-    return Object.assign({}, d, { content: bytes.toString("utf8"), contentBase64: bytes.toString("base64") }); });
+    const doc = Object.assign({}, d, { content: bytes.toString("utf8"), contentBase64: bytes.toString("base64") });
+    if (meta) { const recorded = byId[d.documentId]; const chunked = SM.chunkedView(doc);
+      if (!recorded) throw Object.assign(new Error(DC.STATUS.CHUNK_MISSING + ": aucun segment enregistre pour " + d.name), { code: DC.STATUS.CHUNK_MISSING, userMessage: "Le document « " + d.name + " » n'a pas de segments enregistres : le run ne peut pas garantir une lecture complete." });
+      const merged = Object.assign({}, recorded, { chunks: recorded.chunks.map((m) => { const c = chunked.chunks.find((x) => x.sequence === m.sequence); return Object.assign({}, m, { text: c ? c.text : undefined }); }) });
+      if (recorded.totalChunks !== chunked.totalChunks) throw Object.assign(new Error(DC.STATUS.CHUNK_MISSING + ": " + d.name + " annonce " + recorded.totalChunks + " segment(s), " + chunked.totalChunks + " rederive(s)"), { code: DC.STATUS.CHUNK_MISSING, userMessage: "Le document « " + d.name + " » n'a plus le nombre de segments enregistre à sa création." });
+      const v = DC.verifyChunkedDocument(merged, doc.content);
+      if (!v.ok) throw Object.assign(new Error(v.status + ": " + d.name + " — " + v.errors.slice(0, 2).join(" ; ")), { code: v.status, userMessage: "Le document « " + d.name + " » ne peut pas être lu intégralement (" + v.status + ") : le run est arrêté plutôt que de travailler sur un texte incomplet." });
+      doc.chunked = chunked; doc.chunking = d.chunking || { sourceCharacterLength: chunked.sourceCharacterLength, totalChunks: chunked.totalChunks, maxChunkChars: chunked.maxChunkChars, ingestionStatus: chunked.ingestionStatus, sourceTextSha256: chunked.sourceTextSha256 }; }
+    return doc; });
 }
 
 function fail(store, state, e, llm, base, cost) {
@@ -337,4 +352,4 @@ function requestRunStop(runId, input) {
 function costView(runId) { const store = RS.createRunStore(runId); return CV.buildCostView(store); }
 function economicsView(runId) { const store = RS.createRunStore(runId); if (!store.read()) return null; return PE.buildProfessionalsEconomics(store); }
 
-module.exports = { startRun, advance, confirmPlan, ratifySources, gateView, importReport, updateBudget, costView, economicsView, requestRunStop, RESUMABLE, isResumable };
+module.exports = { startRun, advance, confirmPlan, ratifySources, gateView, importReport, updateBudget, costView, economicsView, requestRunStop, RESUMABLE, isResumable, _loadDocuments: loadDocuments /* v1.0.6 : expose pour test-chunking (verification des segments au rechargement) */ };

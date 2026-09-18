@@ -2,9 +2,9 @@
   "schema": "EvidenceForge.MonolithManifest",
   "product": {
     "name": "EvidenceForge",
-    "version": "MONOLITH-v1.0.5"
+    "version": "MONOLITH-v1.0.6"
   },
-  "generatedAt": "2026-09-17T23:25:18.662Z",
+  "generatedAt": "2026-09-18T10:23:30.929Z",
   "frozenLots": {
     "MONO-10": {
       "dir": "MONO-10/v0.19",
@@ -41,8 +41,9 @@
       "note": "sourceSealHash = runtimeSealSha256 du lot MONO-11 charge : cle de contexte de la reuse (lib/llm.js reuseContextCheck) ; validationContract = contrat SCIENTIFIQUE (inchange), distinct de la version du code"
     },
     "predecessor": {
-      "version": "MONOLITH-v1.0.4",
-      "zipSha256": "97b999adcff395ab49f7cd33e8e70bab767c7df22ffdda0967771db5595dd961",
+      "version": "MONOLITH-v1.0.5",
+      "zipSha256": "c6eae8afb03c66963194427bb30bb49b2697b9ca236dcdd8b83bf7f1bb39b7a1",
+      "frozen": "GELE (bc99864e, 2026-09-18)",
       "mono11": "v0.3-r1 (zip 3c44b397dda0997d0fff6ab4c8e8a8b311430e6a5ac7aeee38149f8349296b0b), inchange"
     },
     "pricing": {
@@ -88,7 +89,7 @@
       "total": 198,
       "passed": 198,
       "failed": 0,
-      "ranAt": "2026-09-17T23:23:13.985Z"
+      "ranAt": "2026-09-18T10:18:18.906Z"
     },
     "professionals": {
       "maxCandidatesToEvaluate": 150,
@@ -96,8 +97,8 @@
       "capIsGuardNotTarget": true,
       "earlyStopPolicy": "NONE"
     },
-    "provenance": "MONOLITH v1.0.5 = v1.0.4 (GELEE, inchangee) + couche additive : ledger de cout (tarif versionne, snapshot par run), budget dur par run (verifie avant chaque appel reel, BUDGET_LIMIT_REACHED reprenable), projection separee, revue de portefeuille du corpus (notADecision) avant la Porte 2, economie du panel (mesure, aucun early-stop), assistant de cadrage hors run, aide. Lots geles MONO-01..MONO-11, EF-01B/EF-01C1, MONO-04 : aucun fichier touche. Contrat scientifique, validateur, cap 150, checkpoints, lignee, reuse inchanges.",
-    "status": "CANDIDAT (v1.0.5) — NON GELE : tests fonctionnels/adversariaux passes ; audit independant differentiel et run reel sous cette version requis avant gel"
+    "provenance": "MONOLITH v1.0.6 = v1.0.5 (GELEE, inchangee) + AUTO-CHUNK UPLOAD : decoupage deterministe, sans LLM, sans perte ni duplication de chaque document uploade en segments <= 4500 caracteres (lib/document-chunker.js), metadonnees de segments persistees et verifiees par run (documents-chunks.json), cadrage IA et controle pre-run recevant TOUS les segments etiquetes PART-k-OF-n d un document source (plus aucune troncature a 6000/4000), apercu local du decoupage dans l interface (/api/documents/preview). Rien d autre : panel, jumeaux, agregation, budget, run safety, screening, portefeuille et lots geles inchanges",
+    "status": "CANDIDAT (v1.0.6) — NON GELE : tests fonctionnels/adversariaux/chunking passes ; audit independant differentiel requis avant gel"
   },
   "files": [
     {
@@ -144,6 +145,11 @@
       "path": "INTEGRATION-REPORT-MONO11-v0.3-r1.md",
       "sha256": "47240d1df6cefc6685265e35d236784761f8727c3876f07c63b5e5aaa23187ba",
       "bytes": 11792
+    },
+    {
+      "path": "MONOLITH-v1.0.6-AUTO-CHUNK-UPLOAD-REPORT.md",
+      "sha256": "2fe0c13eb78263f74e5252000fc62de92c0381c599e9f269fe10f1ff2559b210",
+      "bytes": 14752
     },
     {
       "path": "NON-REGRESSION.md",
@@ -202,8 +208,8 @@
     },
     {
       "path": "README.md",
-      "sha256": "f5da0f455845cde5d61552cc5fa61df4c808870912c8285f61ee33ca59025f98",
-      "bytes": 25402
+      "sha256": "ed33e3348406919b0a3d3ddcc4e2017b5e216329bb9a8a40ba5809794e28cf81",
+      "bytes": 27131
     },
     {
       "path": "RUN-SAFETY-CONTROLS-AUDIT.md",
@@ -257,8 +263,28 @@
     },
     {
       "path": "config/monolith.config.json",
-      "sha256": "c45cb00a51cefc7cb4928faa853cad837d7afb967b67caec1973a67490e84f91",
-      "bytes": 7976
+      "sha256": "bf8293280eb2753f212cf4cfe002edb9f9b7c2083af1e8932d7348e107dd0d33",
+      "bytes": 8550
+    },
+    {
+      "path": "fixtures/real-documents/D103-CDC-v4.1.md",
+      "sha256": "45714242444e5c20338e12d5e87f839d599d6f01d9039282e1e57641edfd9134",
+      "bytes": 33490
+    },
+    {
+      "path": "fixtures/real-documents/D103-anti-derive-v1.3.md",
+      "sha256": "a46c67bd8c2ce5919c0249154e0ff758e3ea4c48a8548d28744d174569e8f65e",
+      "bytes": 26152
+    },
+    {
+      "path": "fixtures/real-documents/D103P0.1-grille-revue-professionnelle-structure-v0.2.md",
+      "sha256": "e3916c766aa726b956fe08d4a4a92e6b42c3c90236bd5d15bf1092100c4b4713",
+      "bytes": 29117
+    },
+    {
+      "path": "fixtures/real-documents/EF-JMJS-CDC-gouvernance-v1.0.md",
+      "sha256": "9a7e653e9f36536088826bd3745bc2a6666cb794b28fd288aa9d33c2725b6070",
+      "bytes": 16009
     },
     {
       "path": "governance/EvidenceForge-MONO11-v0.2-FREEZE-DECISION.md",
@@ -267,8 +293,8 @@
     },
     {
       "path": "index.html",
-      "sha256": "a61d7613ab2ffe4758485b89aabab7c968a9455a3c161cdc564c5af9bf603940",
-      "bytes": 65700
+      "sha256": "51397eba1435fbc899a3ebdf27016fe2a341b4964e7ccb1370499dcf0d76b8d4",
+      "bytes": 67829
     },
     {
       "path": "lib/batch-judge.js",
@@ -301,6 +327,11 @@
       "bytes": 6134
     },
     {
+      "path": "lib/document-chunker.js",
+      "sha256": "6a7953968a7d7472273ef2a09869b8f4813af3606ae19e482ac6295d164e9935",
+      "bytes": 12753
+    },
+    {
       "path": "lib/llm-transport.js",
       "sha256": "a15c5240620c0f150d65627d1ba0bfab1f0c143c0556306844e0cdc6fb1230ee",
       "bytes": 4818
@@ -327,8 +358,8 @@
     },
     {
       "path": "lib/pipeline.js",
-      "sha256": "e849283f3d99860a69c88679406e5c34ef14cf364b9445f1450c41dbd060c780",
-      "bytes": 50010
+      "sha256": "4132ce9b7c5000e1427c23fc8dcfa2de9acdce9e2b9088b3f86f16fbf6302e59",
+      "bytes": 53082
     },
     {
       "path": "lib/portfolio-balancing.js",
@@ -337,8 +368,8 @@
     },
     {
       "path": "lib/preflight-assistant.js",
-      "sha256": "84bb9f2384ab929873e71830cf074783ca99248f1efd742ad5d769b56c25c100",
-      "bytes": 7844
+      "sha256": "5a4309f5f83b31dcef0d6df02d8734c219697d0d9c3be502911d29c957c25b64",
+      "bytes": 8057
     },
     {
       "path": "lib/pricing.js",
@@ -387,8 +418,8 @@
     },
     {
       "path": "lib/stage-mission.js",
-      "sha256": "c62b8d9530775f33046759048b4e255921318ffdabe69c8fcad6db13dcdec7c1",
-      "bytes": 6852
+      "sha256": "bed328016bfffba43f9800405414194702364acff5e80eb90442f092647f6080",
+      "bytes": 9143
     },
     {
       "path": "lib/stage-professionals.js",
@@ -412,13 +443,18 @@
     },
     {
       "path": "server.js",
-      "sha256": "311fac70085d8a5b91bd1bec2ddc5f0c8407edc636eaea7c3af92024df0e03c4",
-      "bytes": 15139
+      "sha256": "3a4d2d226e2fcfd8a50b8361e87d952d29ca5ae25a53b2e65344ac8d6ac68d59",
+      "bytes": 16587
     },
     {
       "path": "test/browser-results-v105.json",
-      "sha256": "0f722cc00bde94b652bd7052d66091eef4701c93c41fdbdcb1a4d569e3ecd9c9",
+      "sha256": "23cd59dfcb0e89fd59c65604680dade3a8f526d2c37476d18f077d3d020b8bb7",
       "bytes": 8260
+    },
+    {
+      "path": "test/browser-results-v106.json",
+      "sha256": "99254ce61a56f8614b4fa06b0babc175dad5fa2774f7f2930ca888c1ebc5536b",
+      "bytes": 3392
     },
     {
       "path": "test/fixtures/portfolio-incident.json",
@@ -426,9 +462,19 @@
       "bytes": 55181
     },
     {
+      "path": "test/results-chunking.json",
+      "sha256": "809c586de6125ad80b9e7c00448ac9c8230d8cf9658272d1c7518f1060e38594",
+      "bytes": 4289
+    },
+    {
       "path": "test/results.json",
-      "sha256": "1e154d5655c976b2e314898b30c50702ccf756a5a8f2ce4ebb04cf9c79052660",
+      "sha256": "a62c396adec0547ad477e9d6cda4dbbbe61d0aee5607eaec99e86a136ba6431e",
       "bytes": 49042
+    },
+    {
+      "path": "test/test-chunking.js",
+      "sha256": "69f70532af19fe3763955621298a3b52901864187fd89bec4f4a1261017a83cb",
+      "bytes": 20429
     },
     {
       "path": "test/test-monolith.js",
@@ -462,8 +508,8 @@
     },
     {
       "path": "test/test-v105.js",
-      "sha256": "b1ff3b42206b9de317b6a497a9d51368957766b48307f95f2e4159d560b5bb72",
-      "bytes": 63018
+      "sha256": "377395ec762e940a63ed46f88d34fe3d520d9d4e4e330970676a856674d7706f",
+      "bytes": 63787
     },
     {
       "path": "tools/anti-hardcoding-scan.js",
@@ -477,8 +523,13 @@
     },
     {
       "path": "tools/browser-tests-v105.js",
-      "sha256": "002826d9479aa4b4e7bb4967b4293a10e919b1cc8bac294813221bdbb54f5c22",
-      "bytes": 21901
+      "sha256": "153e2f61ec933836247d276335d6e345f81d1af01c79181435d2df2b9d5acf1a",
+      "bytes": 21941
+    },
+    {
+      "path": "tools/browser-tests-v106.js",
+      "sha256": "803dafddb5e093222a74aa31ff82783add9872338f8adcaf8e9b2778d934046a",
+      "bytes": 8115
     },
     {
       "path": "tools/browser-tests.js",
@@ -487,8 +538,8 @@
     },
     {
       "path": "tools/build-manifest.js",
-      "sha256": "c0b197f181acb19aaada63a675546d273736dfb820793e9526d3035bfa595d5e",
-      "bytes": 5289
+      "sha256": "02d1bd3ed3ec4765b2ec0de707946cdd9b8ccef49b705e847f30e1240e1bcb55",
+      "bytes": 5388
     },
     {
       "path": "tools/fake-worker.js",
@@ -502,7 +553,7 @@
     },
     {
       "path": "tools/package.sh",
-      "sha256": "f2157195bee676265ceeaeab13593c3b9255ff2d7fb979a83060b483469df96a",
+      "sha256": "be45d972f55c7c3c1b19cabc8d1cc84f5678c5799629bea04f7e18e39d5132bf",
       "bytes": 393
     },
     {
@@ -571,6 +622,6 @@
       "bytes": 1614
     }
   ],
-  "fileCount": 94,
-  "contentHash": "151937a1d3e1b1fff6691274f1d9b7dda52e6285df80bdaaf7c961931459facc"
+  "fileCount": 104,
+  "contentHash": "61674288df345c112130f5029509bb26328a0c46e25729ae07d5d05e021ac885"
 }

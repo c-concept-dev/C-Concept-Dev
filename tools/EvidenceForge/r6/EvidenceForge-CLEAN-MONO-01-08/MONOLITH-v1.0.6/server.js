@@ -8,6 +8,8 @@
  *   node server.js            -> http://127.0.0.1:8765
  * v1.0.5 : GET /api/runs/:id/cost (cout reel + budget + projection), POST /api/runs/:id/budget, GET /api/runs/:id/economics,
  *          POST /api/preflight (controle de cadrage hors run, jamais une creation de run) ; /api/config expose la version du tarif.
+ * v1.0.6 : POST /api/documents/preview (AUTO-CHUNK UPLOAD : apercu local et synchrone du decoupage — nombre de caracteres, de segments,
+ *          COMPLET/INCOMPLET par document source — aucun run cree, aucun appel LLM, aucun contenu renvoye).
  */
 const http = require("http"), fs = require("fs"), path = require("path");   /* v1.0.5 : WHATWG URL (plus de url.parse deprecie) */
 const P = require("./lib/paths.js");
@@ -67,6 +69,10 @@ const server = http.createServer(async function (req, res) {
       const llm = createLlm({ runDir: dir, runId: "_preflight-" + Date.now().toString(36), ledger, storePath: path.join(dir, "llm-reuse-store.jsonl") });
       const before = ledger.totals().totalUsd; const r = await PA.reviewRequest({ llm, question: b.question, documents: intake.documents }); const after = ledger.totals().totalUsd;
       return send(res, 200, Object.assign(r, { rejectedDocuments: intake.rejected, cost: { thisCheckUsd: Math.round((after - before) * 100) / 100, currency: "USD", label: "ACTUAL_COST", pricingVersion: ledger.pricing().version } })); }
+    /* v1.0.6 — AUTO-CHUNK UPLOAD : apercu du decoupage (local, synchrone, sans LLM, sans run) ; 1 fichier uploade = 1 document, quel que soit son nombre de segments */
+    if (m === "POST" && p === "/api/documents/preview") { const b = await readBody(req); const intake = SM.intakeDocuments((b.files || []).map((f) => ({ name: f.name, bytes: Buffer.from(String(f.contentBase64 || ""), "base64") })));
+      const documents = intake.documents.map((d) => ({ name: d.name, bytes: d.bytes, characters: d.chunking.sourceCharacterLength, segments: d.chunking.totalChunks, maxChunkChars: d.chunking.maxChunkChars, status: d.chunking.ingestionStatus === "COMPLETE" ? "COMPLET" : "INCOMPLET", ingestionStatus: d.chunking.ingestionStatus, sourceSha256Prefix: d.sha256.slice(0, 12) }));
+      return send(res, 200, { schema: "EvidenceForge.DocumentsPreview", schemaVersion: "MONOLITH-v1.0.6", documentCount: documents.length, segmentCount: documents.reduce((n, d) => n + d.segments, 0), maxChunkChars: SM.chunkOptions().maxChunkChars, documents, rejected: intake.rejected.map((r) => ({ name: r.name, code: r.code || null, reason: r.reason, status: r.code === "DOCUMENT_EMPTY" ? "VIDE" : "REFUSE" })) }); }
     if (m === "POST" && p === "/api/reports/import") { const b = await readBody(req); return send(res, 201, PL.importReport(b.report || b)); }
     const mr = /^\/api\/runs\/([A-Za-z0-9-]+)(?:\/([A-Za-z0-9_.-]+))?(?:\/([A-Za-z0-9_.-]+))?$/.exec(p);
     if (mr) {

@@ -1,0 +1,117 @@
+{
+  "schema": "EvidenceForge.MonolithChunkingTestResults",
+  "version": "MONOLITH-v1.0.6",
+  "ranAt": "2026-09-18T10:17:16.207Z",
+  "maxChunkChars": 4500,
+  "fixtureExternalCaseAnalysis": true,
+  "total": 21,
+  "passed": 21,
+  "failed": 0,
+  "results": [
+    {
+      "id": "T-CHUNK-01",
+      "name": "texte de 1000 caracteres -> 1 chunk",
+      "ok": true
+    },
+    {
+      "id": "T-CHUNK-02",
+      "name": "texte de 4500 caracteres exacts -> 1 chunk (aucun decoupage artificiel)",
+      "ok": true
+    },
+    {
+      "id": "T-CHUNK-03",
+      "name": "texte de 4501 caracteres -> >= 2 chunks, aucun > 4500",
+      "ok": true
+    },
+    {
+      "id": "T-CHUNK-04",
+      "name": "long document a paragraphes -> coupe sur double saut de ligne en priorite (chaque chunk hors dernier se termine par \\n\\n)",
+      "ok": true
+    },
+    {
+      "id": "T-CHUNK-05",
+      "name": "aucun separateur avant 4500 -> repli correct (coupe brute a 4500, reconstitution exacte)",
+      "ok": true
+    },
+    {
+      "id": "T-CHUNK-06",
+      "name": "accents, apostrophes typographiques, tirets longs, emoji, multioctets -> contenu recompose identique, aucun substitut coupe, chunks bien formes",
+      "ok": true
+    },
+    {
+      "id": "T-CHUNK-07",
+      "name": "concat(chunks) === source sur 5 textes varies (y compris CRLF et lignes vides conservees)",
+      "ok": true
+    },
+    {
+      "id": "T-CHUNK-08",
+      "name": "aucun caractere duplique : somme des longueurs === longueur source et bornes strictement contigues",
+      "ok": true
+    },
+    {
+      "id": "T-CHUNK-09",
+      "name": "sequence complete : commence a 1, finit a totalChunks, sans trou ni doublon, ordre strict",
+      "ok": true
+    },
+    {
+      "id": "T-CHUNK-10",
+      "name": "hash source stable : deux decoupages du meme texte donnent le meme sourceTextSha256 et les memes bornes ; sourceSha256 (octets) inchange par le decoupage",
+      "ok": true
+    },
+    {
+      "id": "T-CHUNK-11",
+      "name": "hash chunk stable et verifiable : chunkSha256 === sha256(text) pour chaque chunk, identique entre deux executions",
+      "ok": true
+    },
+    {
+      "id": "T-CHUNK-12",
+      "name": "chunk manquant -> INPUT_DOCUMENT_CHUNK_MISSING (nombre annonce != present) ; trou de sequence / bornes -> DOCUMENT_INCOMPLETE ; texte altere -> INPUT_DOCUMENT_TRUNCATED",
+      "ok": true
+    },
+    {
+      "id": "T-CHUNK-13",
+      "name": "document vide (0 octet, espaces seuls, BOM seul) -> DOCUMENT_EMPTY : refuse explicitement, jamais un faux chunk vide, jamais presente comme exploitable",
+      "ok": true
+    },
+    {
+      "id": "T-CHUNK-14",
+      "name": "document de 30 000+ caracteres -> tous les chunks <= 4500, reconstitution exacte ; 300 000 caracteres traites en < 1 s",
+      "ok": true
+    },
+    {
+      "id": "T-CHUNK-15",
+      "name": "deux documents longs -> provenance non melangee : chunkId prefixe par sourceDocumentId, hashes de texte disjoints, rendu par document",
+      "ok": true
+    },
+    {
+      "id": "T-CHUNK-16",
+      "name": "un document court + un long -> compte documents = 2 (pas le nombre total de chunks) : intake, prompt, run cree, documents-chunks.json, apercu",
+      "ok": true
+    },
+    {
+      "id": "T-CHUNK-REAL-01",
+      "name": "chaque document reel est complet : totalChunks coherent, reconstitution byte-identique, sourceSha256 inchange, aucun chunk > 4500",
+      "ok": true
+    },
+    {
+      "id": "T-CHUNK-REAL-02",
+      "name": "ordre exact : sequences 1..n, bornes contigues, coupes majoritairement sur paragraphes (documents markdown)",
+      "ok": true
+    },
+    {
+      "id": "T-CHUNK-REAL-03",
+      "name": "le cadrage voit N documents source (N = fichiers uploades, pas 25+ segments), tous les segments PART-k-OF-n, aucune alerte « tronque »",
+      "ok": true
+    },
+    {
+      "id": "T-CHUNK-REAL-04",
+      "name": "run cree avec la fixture reelle : state.mission.documents = N documents (chunking resume), documents-chunks.json coherent, rechargement verifie sans erreur",
+      "ok": true
+    },
+    {
+      "id": "T-CHUNK-REAL-05",
+      "name": "les fiches de cas ne sont ni dans les fixtures du depot ni utilisees comme regles : aucune valeur de cas dans le chunker, l'intake, le serveur ni l'interface",
+      "ok": true
+    }
+  ]
+}
