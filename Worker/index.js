@@ -55276,7 +55276,29 @@ var CORS = {
 //  - /library-stats, /sync-check : lectures agrégées (compteurs), aucune donnée patient
 //    ni document, appelées avant tout contexte applicatif (chargement de la page).
 var ADOC_PUBLIC_ROUTES = ["/get-file/", "/library-stats", "/sync-check"];
-function adocIsPublicRoute(pathname) {
+// CORRECTIF (investigation Lot C — 401 systématique confirmé, citation ci-dessous) —
+// GET /brand-assets/:assetId rejoint l'exception publique, GET UNIQUEMENT. Cause exacte
+// confirmée par lecture : cette route n'était PAS dans ADOC_PUBLIC_ROUTES (ni ailleurs),
+// donc protégée par défaut par la garde X-API-Key ci-dessous (SEC-HOTFIX-01, "route ajoutée
+// plus tard... protégée automatiquement, jamais ouverte par oubli") depuis sa création en
+// LOT C — jamais corrigé à ce moment-là. Or l'unique consommateur réel de cette URL est un
+// <img src="..."> posé par le navigateur (studio-clinique-core.js, adocRenderBlockHTML
+// case 'image') : un tel élément ne peut STRUCTURELLEMENT jamais envoyer d'en-tête
+// personnalisé, contrairement à un fetch() explicite (POST /brand-assets/upload, qui pose
+// bien X-API-Key et réussit, cf. adocUploadImageAsset) — d'où un 401 systématique, quel que
+// soit l'assetId, confirmé indépendamment du contenu réellement stocké.
+// Même modèle de menace que les images Pexels déjà servies sans authentification
+// (images.pexels.com, mécanisme existant et éprouvé) : identifiant opaque de 64 caractères
+// hexadécimaux (empreinte SHA-256 du contenu, non énumérable) et contenu non critique
+// (images composées par l'utilisatrice elle-même pour ses propres documents, jamais une
+// donnée patiente) — pas de raison de sécurité réelle identifiée qui justifierait une URL
+// signée à durée limitée pour ce seul usage.
+// Regex dédiée (jamais un simple préfixe "/brand-assets/" dans ADOC_PUBLIC_ROUTES) : un
+// préfixe aurait AUSSI rendu publique /brand-assets/upload (POST), qui doit impérativement
+// rester protégée — la méthode GET est donc vérifiée explicitement, pas seulement le chemin.
+var ADOC_PUBLIC_BRAND_ASSET_GET_RE = /^\/brand-assets\/[a-f0-9]{64}$/;
+function adocIsPublicRoute(pathname, method) {
+  if (method === "GET" && ADOC_PUBLIC_BRAND_ASSET_GET_RE.test(pathname)) return true;
   return ADOC_PUBLIC_ROUTES.some((r) => r.endsWith("/") ? pathname.startsWith(r) : pathname === r);
 }
 // SEC-HOTFIX-01/02 — limitation de débit basique par IP. Seuil VOLONTAIREMENT généreux
@@ -55377,7 +55399,7 @@ var Worker_default = {
     // SEC-HOTFIX-01 — protégé par défaut (liste d'exceptions publiques ci-dessus), plutôt
     // que l'ancienne liste blanche de routes protégées : une route ajoutée plus tard au
     // routeur ci-dessous est désormais protégée automatiquement, jamais ouverte par oubli.
-    if (!adocIsPublicRoute(p)) {
+    if (!adocIsPublicRoute(p, request2.method)) {
       const k = request2.headers.get('X-API-Key') || request2.headers.get('x-api-key');
       // Fail closed : une clé serveur non configurée bloque désormais l'accès (401) au lieu
       // de désactiver silencieusement la vérification — cf. rapport SEC-HOTFIX-01, WORKER_API_KEY
