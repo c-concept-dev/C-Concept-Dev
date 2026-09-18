@@ -6873,9 +6873,17 @@ ${recent}`;
     };
     return _adocAjvValidators;
   }
+  // CORRECTIF A18 (audit Codex) — {valid:true, skipped:true} restait un état DISTINCT de
+  // {valid:true} (utile pour du diagnostic), mais les 3 sites d'appel qui inspectent .skipped
+  // le traitaient comme "validé avec succès" (`!check.valid && !check.skipped`), jamais comme un
+  // échec — un document réellement invalide passait alors sans que personne ne le sache, si AJV
+  // n'avait pas pu charger. Message d'erreur désormais explicite dans ce cas (au lieu d'un
+  // tableau vide qui aurait produit un message tronqué "Validation de schéma échouée (kind) : "
+  // sans aucun détail) : la forme du retour ne change pas, seul errors est rempli.
   function adocValidateSchema(kind, obj) {
     const validators = adocInitSchemaValidators();
-    if (!validators || !validators[kind]) return { valid: true, errors: null, skipped: true };
+    if (!validators || !validators[kind])
+      return { valid: true, errors: ['AJV (vendor/ajv2020.min.js) non chargé — validation de schéma impossible.'], skipped: true };
     const fn = validators[kind];
     const valid = fn(obj);
     return { valid, errors: valid ? null : (fn.errors || []).map(e => (e.instancePath || '/') + ' ' + e.message) };
@@ -6895,7 +6903,9 @@ ${recent}`;
       throw AdocSchemaValidationError('render-manifest.schema.json', ['renderManifestId "' + doc.renderManifestId + '" introuvable dans window.adocRenderManifests']);
     }
     const check = adocValidateSchema('renderManifest', manifest);
-    if (!check.valid && !check.skipped) throw AdocSchemaValidationError('render-manifest.schema.json', check.errors);
+    // CORRECTIF A18 — échoue désormais fermé si AJV n'a pas pu charger (check.skipped), jamais
+    // traité comme un succès silencieux (cf. commentaire d'adocValidateSchema).
+    if (!check.valid || check.skipped) throw AdocSchemaValidationError('render-manifest.schema.json', check.errors);
     return manifest;
   }
   function adocResolveTokens(renderManifest) {
@@ -9714,11 +9724,13 @@ ${recent}`;
     }
 
     const docCheck = adocValidateSchema('clinicalDocument', doc);
-    if (!docCheck.valid && !docCheck.skipped) throw AdocSchemaValidationError('clinical-document.schema.json', docCheck.errors);
+    // CORRECTIF A18 — même correctif que adocResolveRenderManifest ci-dessus : échoue fermé si
+    // AJV n'a pas pu charger, jamais un document non validé traité comme valide.
+    if (!docCheck.valid || docCheck.skipped) throw AdocSchemaValidationError('clinical-document.schema.json', docCheck.errors);
 
     if (sourceSnapshot) {
       const snapCheck = adocValidateSchema('sourceSnapshot', sourceSnapshot);
-      if (!snapCheck.valid && !snapCheck.skipped) throw AdocSchemaValidationError('source-snapshot.schema.json', snapCheck.errors);
+      if (!snapCheck.valid || snapCheck.skipped) throw AdocSchemaValidationError('source-snapshot.schema.json', snapCheck.errors);
     }
 
     const renderManifest = adocResolveRenderManifest(doc, renderManifestOverride);

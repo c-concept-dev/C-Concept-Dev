@@ -1733,6 +1733,7 @@ pre,.sortie,#ui-rapid-output{overflow-wrap:anywhere;word-break:break-word}
             <div class="v11-actions ui-stage-actions">
               <button type="button" class="v11-primary ui-stage-primary" id="v11-continue-submit">Continuer</button>
               <button type="button" class="v11-secondary ui-stage-secondary" id="v11-continue-add-document" hidden>Ajouter un document</button>
+              <button type="button" class="v11-secondary ui-stage-secondary" id="v11-continue-analyse-only" hidden>Réanalyser avec cette réponse, sans rien ajouter</button>
               <button type="button" class="v11-secondary ui-stage-secondary" id="v11-continue-cancel">Annuler</button>
             </div>
             <p class="v11-muted" id="v11-continue-help"></p>
@@ -10944,7 +10945,13 @@ function resetAll(){
  *     Le libellé nomme l'origine et le cycle, pour qu'un tour suivant puisse s'y référer.
  * Aucune heuristique de longueur, aucun registre nouveau, aucune autorité : le tour suivant est
  * le même `oprieRunTurn` qu'une réponse de clarification déclenche. Le futur mode API réutilisera
- * `v11AddPastedMaterial` tel quel : une seule fonction d'ingestion, deux appelants. */
+ * `v11AddPastedMaterial` tel quel : une seule fonction d'ingestion, deux appelants.
+ *
+ * LE CONTRAT DU CYCLE (clôture CONTINUITE-01). Coller la réponse de l'IA l'INGÈRE et le confirme ;
+ * cela ne lance aucun tour : la personne formule d'abord ce qu'elle veut faire ensuite, et c'est
+ * « Continuer » qui ouvre UN tour, avec l'historique, la réponse ingérée et sa nouvelle parole
+ * ensemble. Faire analyser la réponse sans rien ajouter reste possible, mais par un geste
+ * EXPLICITE (« Réanalyser avec cette réponse, sans rien ajouter ») — jamais inféré. */
 const V11_CONTINUATION_QUESTION='Précision ajoutée par la personne après la préparation, sans question posée';
 const V11_AI_RESPONSE_LABEL='Réponse IA — cycle ';
 function v11AppendUserContinuation(text){
@@ -10969,9 +10976,10 @@ function v11OpenContinuation(){
 }
 function v11CloseContinuation(){
   const panel=$('#v11-continue-panel');if(!panel)return false;
-  panel.hidden=true;delete panel.dataset.kind;delete panel.dataset.docsBefore;
+  panel.hidden=true;delete panel.dataset.kind;delete panel.dataset.docsBefore;delete panel.dataset.ingested;
   const ed=$('#v11-continue-editor');if(ed)ed.hidden=true;
   const ta=$('#v11-continue-text');if(ta)ta.value='';
+  const seul=$('#v11-continue-analyse-only');if(seul)seul.hidden=true;
   const b=$('#v11-continue');if(b)b.setAttribute('aria-expanded','false');
   ['#v11-continue-precision','#v11-continue-ai-response'].forEach(x=>{const e=$(x);if(e)e.setAttribute('aria-pressed','false')});
   return true;
@@ -10987,10 +10995,14 @@ function v11ChooseContinuation(kind){
   const ta=$('#v11-continue-text');ta.value='';
   ta.placeholder=precision?'Ex. Le budget est finalement de 5 000 €. Supprime la partie juridique. À toi de choisir.':'Collez ici la réponse que votre IA vous a donnée.';
   $('#v11-continue-add-document').hidden=precision;
-  $('#v11-continue-submit').textContent=precision?'Ajouter et continuer':'Utiliser cette réponse et continuer';
+  /* Réanalyser sans rien ajouter n'est proposé qu'une fois une réponse ingérée dans cette zone. */
+  $('#v11-continue-analyse-only').hidden=!(precision&&panel.dataset.ingested);
+  $('#v11-continue-submit').textContent=precision?'Continuer':'Utiliser cette réponse';
   $('#v11-continue-help').textContent=precision
-    ?'Votre précision sera ajoutée à votre demande, qui sera ensuite réanalysée.'
-    :'La réponse sera conservée comme document de travail, et votre demande sera réanalysée avec.';
+    ?(panel.dataset.ingested
+      ?'Réponse prise en compte ('+panel.dataset.ingested+'). Dites maintenant ce que vous voulez faire ensuite, puis Continuer : votre demande sera réanalysée avec cette réponse et votre précision.'
+      :'Votre précision sera ajoutée à votre demande, qui sera ensuite réanalysée.')
+    :'La réponse sera conservée comme document de travail. Vous direz ensuite ce que vous voulez faire.';
   scrollToActive('#v11-continue-editor','#v11-continue-text');
   return true;
 }
@@ -11002,10 +11014,24 @@ function v11SubmitContinuation(){
   if(kind==='precision'){
     if(!v11AppendUserContinuation(text)){toast('Écrivez votre précision avec vos mots.');$('#v11-continue-text').focus();return false}
   }else{
+    /* CONTRAT DU CYCLE — ingérer et confirmer, sans lancer de tour : la personne dit d'abord ce
+       qu'elle veut faire ensuite. La zone bascule sur la précision, la confirmation reste visible. */
     const joint=state.docs.length>Number(panel.dataset.docsBefore||0);
     if(!text&&!joint){toast('Collez la réponse de votre IA, ou joignez-la comme document.');$('#v11-continue-text').focus();return false}
-    if(text)v11AddPastedMaterial(text);
+    const doc=text?v11AddPastedMaterial(text):state.docs[state.docs.length-1];
+    panel.dataset.ingested=(doc&&doc.name)||'document joint';
+    toast('Réponse de votre IA prise en compte');
+    v11ChooseContinuation('precision');
+    return true;
   }
+  v11CloseContinuation();
+  return v11ContinueTurn();
+}
+/* Le geste EXPLICITE de faire analyser la réponse ingérée sans rien ajouter. Jamais inféré. */
+function v11ContinueWithoutAddition(){
+  if(oprieState.running)return false;
+  const panel=$('#v11-continue-panel');
+  if(!panel||!panel.dataset.ingested)return false;
   v11CloseContinuation();
   return v11ContinueTurn();
 }
@@ -25306,6 +25332,7 @@ function init(){
   $('#v11-continue-ai-response').addEventListener('click',()=>v11ChooseContinuation('ai_response'));
   $('#v11-continue-submit').addEventListener('click',v11SubmitContinuation);
   $('#v11-continue-add-document').addEventListener('click',()=>$('#v11-files').click());
+  $('#v11-continue-analyse-only').addEventListener('click',v11ContinueWithoutAddition);
   $('#v11-continue-cancel').addEventListener('click',v11CloseContinuation);
   $('#v11-details').addEventListener('click',()=>{setNormal(false);if(typeof ouvrirVue==='function')ouvrirVue('architecte')});
 }

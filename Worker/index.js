@@ -55413,8 +55413,22 @@ var Worker_default = {
     }
     if (p === "/search-library" && request2.method === "POST")
       return handleLibrarySearch(request2, env2);
-    if (p === "/library-stats" && request2.method === "GET")
+    // CORRECTIF A6 (audit Codex) — /library-stats est publique (ADOC_PUBLIC_ROUTES), donc hors
+    // du rate-limit générique par défaut (câblé uniquement dans la branche X-API-Key ci-dessus,
+    // sautée d'office pour toute route publique). Investigation étendue à /get-file/ (même
+    // trou, corrigé plus bas) : /sync-check avait déjà sa propre limite dédiée plus stricte
+    // (Priorité 8.5, 10/min — route de diagnostic à faible enjeu), mais ces deux-là ne l'avaient
+    // jamais reçue. Réutilise adocCheckRateLimit TEL QUEL (même limite que le reste, 60/min/IP,
+    // comme demandé) plutôt qu'un troisième espace de clés KV dédié — aucune raison contraire
+    // identifiée pour ces deux routes (contrairement à /sync-check, jamais un enjeu/volume
+    // différent justifiant un seuil séparé).
+    if (p === "/library-stats" && request2.method === "GET") {
+      const ip = request2.headers.get("CF-Connecting-IP") || "unknown";
+      const withinLimit = await adocCheckRateLimit(env2, ip);
+      if (!withinLimit)
+        return new Response(JSON.stringify({ error: "Too many requests — réessayez dans une minute." }), { status: 429, headers: { ...CORS, "Content-Type": "application/json" } });
       return handleLibraryStats(env2);
+    }
     if (p === "/ingest" && request2.method === "POST")
       return handleIngest(request2, env2);
     if (p === "/delete-book" && request2.method === "POST")
@@ -55425,8 +55439,15 @@ var Worker_default = {
       return handleD1Query(request2, env2);
     if (p === "/store-file" && request2.method === "POST")
       return handleStoreFile(request2, env2);
-    if (p.startsWith("/get-file/") && request2.method === "GET")
+    // CORRECTIF A6 (audit Codex) — même trou que /library-stats ci-dessus (route publique,
+    // jamais rate-limitée), même correctif (adocCheckRateLimit réutilisé tel quel).
+    if (p.startsWith("/get-file/") && request2.method === "GET") {
+      const ip = request2.headers.get("CF-Connecting-IP") || "unknown";
+      const withinLimit = await adocCheckRateLimit(env2, ip);
+      if (!withinLimit)
+        return new Response(JSON.stringify({ error: "Too many requests — réessayez dans une minute." }), { status: 429, headers: { ...CORS, "Content-Type": "application/json" } });
       return handleGetFile(url, env2);
+    }
     if (p === "/generate-pdf" && request2.method === "POST")
       return handleGeneratePDF(request2, env2);
     if (p === "/browser-rendering/screenshot-slide" && request2.method === "POST")
@@ -57585,8 +57606,16 @@ async function handleFetchImage(url, env2) {
     const resp = await fetch(pexelsUrl, {
       headers: { Authorization: key }
     });
-    if (!resp.ok)
-      return jsonErr("Pexels API error: " + resp.status, 502);
+    if (!resp.ok) {
+      // CORRECTIF (diagnostic) — le code 502 était systématique, quel que soit le vrai code
+      // Pexels (401 clé invalide, 429 débit dépassé, 403 requête refusée, etc.), masquant la
+      // cause réelle à la prochaine occurrence. Relaie désormais le VRAI code HTTP renvoyé par
+      // Pexels, et inclut son corps de réponse (tronqué, jamais illimité) quand il est présent
+      // — aucun changement fonctionnel, uniquement de la visibilité en cas d'échec.
+      let bodyText = "";
+      try { bodyText = (await resp.text()).slice(0, 500); } catch {}
+      return jsonErr("Pexels API error (HTTP " + resp.status + ")" + (bodyText ? ": " + bodyText : ""), resp.status);
+    }
     const data = await resp.json();
     const photos = (data.photos || []).map((p) => ({
       url: p.src?.large || p.src?.original || "",
