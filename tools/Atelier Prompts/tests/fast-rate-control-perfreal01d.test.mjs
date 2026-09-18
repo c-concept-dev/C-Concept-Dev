@@ -246,7 +246,7 @@ test('T-PERFREAL01D-15 : l’artefact frontend n’a pas bougé', () => {
      qu'un refus de sortie fournisseur cesse d'être compté comme un défaut de notre code. Aucune
      règle, aucun prompt, aucun schéma, aucun comportement d'interface. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    '191ed3161288a92f48d750684bc2f609d40102fff2386956e03fc1cf0a02b7be', 'CANONICAL_HTML_CHANGED = NO');
+    '35e583f396403a35078855b0bed8411f94458284c293022e6e8f8cb3869cfd8a', 'CANONICAL_HTML_CHANGED = NO');
 });
 
 test('T-PERFREAL01D-16 : les seuils officiels n’ont pas bougé, et le verdict en découle', () => {

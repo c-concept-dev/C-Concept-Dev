@@ -58,6 +58,12 @@ html[data-theme="sombre"]{
   --ds-warning-bg:#402721;
   --ds-warning-border:#704438;
   --ds-warning-text:#d77c63;
+  --ds-success-bg:#22302a;
+  --ds-success-border:#3c5a45;
+  --ds-success-text:#8ccf9e;
+  --ds-danger-bg:#3a2523;
+  --ds-danger-border:#6b3a34;
+  --ds-danger-text:#e58a7c;
 }
 
 
@@ -950,6 +956,12 @@ body.v11-normal #v11-shell{display:block}
   --ds-warning-bg:#fff6f2;
   --ds-warning-border:#efc8b7;
   --ds-warning-text:#8a513c;
+  --ds-success-bg:#eef6ef;
+  --ds-success-border:#b7d6bc;
+  --ds-success-text:#2f6b3d;
+  --ds-danger-bg:#fdf0ee;
+  --ds-danger-border:#efb8b0;
+  --ds-danger-text:#a3372a;
 
   /* Typographie */
   --ds-font:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
@@ -1028,6 +1040,13 @@ body.v11-normal #v11-shell{display:block}
 #v11-shell .ui-api-grid{display:grid;grid-template-columns:220px minmax(0,1fr);gap:14px}
 #v11-shell .ui-api-key-row{display:flex;gap:10px;align-items:center}
 #v11-shell .ui-inline-link{border:1px solid var(--ui-border);background:var(--ds-surface);color:var(--ui-text);padding:11px 14px;border-radius:var(--ds-radius-md);font:600 .88rem/1 var(--ds-font);cursor:pointer}
+#v11-shell .ui-api-test{white-space:nowrap}
+#v11-shell .ui-api-test:disabled{cursor:progress;opacity:.75}
+#v11-shell .ui-api-test[data-etat="ok"]{background:var(--ds-success-bg);border-color:var(--ds-success-border);color:var(--ds-success-text)}
+#v11-shell .ui-api-test[data-etat="ko"]{background:var(--ds-danger-bg);border-color:var(--ds-danger-border);color:var(--ds-danger-text)}
+#v11-shell .ui-api-test[data-etat="avis"]{background:var(--ds-warning-bg);border-color:var(--ds-warning-border);color:var(--ds-warning-text)}
+#v11-shell .ui-api-test-note{margin:8px 0 0;font:500 .86rem/1.45 var(--ds-font);color:var(--ui-muted)}
+#v11-shell .ui-api-test-note[hidden]{display:none}
 #v11-shell .ui-api-status{margin-top:12px;padding:12px 14px;border-radius:var(--ds-radius-md);background:var(--ds-accent-soft-2);border:1px solid var(--ds-accent-soft);color:#7b5738;font:500 .9rem/1.45 var(--ds-font)}
 #v11-shell .ui-home-grid{display:block}
 #v11-shell .ui-panel{background:var(--ui-surface);border:1px solid var(--ui-border);border-radius:var(--ui-radius);box-shadow:var(--ui-shadow);overflow:hidden}
@@ -1542,7 +1561,9 @@ pre,.sortie,#ui-rapid-output{overflow-wrap:anywhere;word-break:break-word}
           <div class="ui-api-key-row">
             <input type="password" id="v11-api-key" autocomplete="off" placeholder="Collez votre clé API">
             <button type="button" class="ui-inline-link" id="v11-api-show">Afficher</button>
+            <button type="button" class="ui-inline-link ui-api-test" id="v11-api-test" data-etat="neutre" title="Un appel réel minimal au fournisseur sélectionné, avec cette clé et le modèle configuré">Tester</button>
           </div>
+          <p class="ui-api-test-note" id="v11-api-test-note" hidden></p>
         </div>
       </div>
       <div class="v11-api-status ui-api-status" id="v11-api-status">Sans clé API, le parcours fonctionne en mode fichier. Avec une clé, le mode Architecte peut travailler directement.</div>
@@ -10597,13 +10618,98 @@ function toast(msg){if(typeof signaler==='function')signaler(msg);else alert(msg
 function humanError(msg){const z=$('#v11-exchange-status');z.className='v11-status warn';z.innerHTML='<strong>Je n’ai pas pu utiliser ce résultat.</strong><br>'+escapeHtml(msg)}
 function escapeHtml(x){return String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function v11SyncApiUi(){
-  const lp=$('#fournisseur-actif'),p=$('#v11-api-provider'),lk=$('#api-cle'),k=$('#v11-api-key');if(p&&lp){if(!p.options.length)p.innerHTML=lp.innerHTML;p.value=lp.value}if(k&&lk&&document.activeElement!==k)k.value=lk.value||'';v11UpdateApiStatus()
+  const lp=$('#fournisseur-actif'),p=$('#v11-api-provider'),lk=$('#api-cle'),k=$('#v11-api-key');if(p&&lp){if(!p.options.length)p.innerHTML=lp.innerHTML;p.value=lp.value}if(k&&lk&&document.activeElement!==k){if(k.value!==(lk.value||''))v11KeyTestReset();k.value=lk.value||''}v11UpdateApiStatus()
 }
 function v11UpdateApiStatus(){
   const k=$('#v11-api-key'),p=$('#v11-api-provider'),st=$('#v11-api-status'),tr=$('#v11-api-toggle');if(!k||!st||!tr)return;const ok=!!k.value.trim(),nom=p&&p.options[p.selectedIndex]?p.options[p.selectedIndex].textContent:'IA';tr.textContent=ok?'IA connectée · '+nom:'Connexion IA';st.className='v11-api-status'+(ok?' ok':'');st.textContent=ok?'Clé prête pour cette session. Les demandes peuvent être analysées directement par '+nom+'.':'Sans clé : le parcours par fichier reste disponible. Avec une clé : l’analyse Architecte se fait directement.'
 }
 function v11PushApiUi(){
   const p=$('#v11-api-provider'),lp=$('#fournisseur-actif'),k=$('#v11-api-key'),lk=$('#api-cle');if(p&&lp&&p.value!==lp.value){lp.value=p.value;lp.dispatchEvent(new Event('change',{bubbles:true}))}if(k&&lk)lk.value=k.value;v11UpdateApiStatus()
+}
+/* API-KEY-TEST-01 — VÉRIFIER LA CLÉ AVANT DE LANCER UNE ANALYSE.
+ *
+ * CE QUE C'EST. Un bouton « Tester » à côté du champ de clé : un appel réel, minimal, au fournisseur
+ * sélectionné, avec la clé saisie et le modèle configuré (`obtenirModeleActif('architecte-analyse')`,
+ * le même réglage que l'analyse). Même façade `appelFournisseur`, même transport, même normalisation
+ * d'erreur (`categorie`, `statut_http`) : aucun second transport, aucun format de clé présumé.
+ *
+ * CE QUE ÇA COÛTE. Seize tokens de sortie au plus, un contenu utilisateur d'une ligne, ni système,
+ * ni schéma, ni effort, ni OPRIE, ni Fast, ni Deep. UNE tentative (`essaisMax:1`) bornée à trente
+ * secondes (`delaiMs`) — un test de clé ne mérite ni reprise ni attente longue.
+ *
+ * CE QUE ÇA CONCLUT. Seule une réponse d'authentification (401, `authentification`) vaut « Clé
+ * invalide ». Un 403 = clé reconnue, accès refusé. Un 404 = clé reconnue, modèle indisponible (le
+ * fournisseur authentifie avant de résoudre le modèle). 429, 5xx, réseau, délai = vérification
+ * impossible, jamais « clé invalide ». Un 2xx — même si le transport rejette ensuite le contenu
+ * (troncature, refus, absence de texte) — prouve que la clé est acceptée : « Clé valide ».
+ *
+ * CE QUI EFFACE LE VERDICT. Toute modification de la clé, du fournisseur ou du modèle remet le
+ * bouton au neutre ; un test en vol dont la clé, le fournisseur ou le modèle ont changé entre le
+ * départ et le retour est ignoré (comparaison simple des trois valeurs au retour, plus abandon du
+ * transport). Rien n'est persisté : après rechargement, le bouton est neutre. La clé ne quitte
+ * jamais son champ : ni state, ni session, ni dataset, ni journal. */
+const V11_KEY_TEST_TIMEOUT_MS=30000;
+const V11_KEY_TEST_MAX_TOKENS=16;
+const V11_KEY_TEST_CONTENU='Répondez uniquement : OK';
+const V11_KEY_TEST_VERDICTS={
+  neutre:{etat:'neutre',bouton:'Tester',note:''},
+  en_cours:{etat:'en-cours',bouton:'Test en cours…',note:''},
+  valide:{etat:'ok',bouton:'✓ Clé valide',note:'Le fournisseur a accepté la clé et répondu avec le modèle sélectionné.'},
+  invalide:{etat:'ko',bouton:'✕ Clé invalide',note:'Authentification refusée par le fournisseur : vérifiez la clé.'},
+  acces_refuse:{etat:'ko',bouton:'✕ Accès refusé',note:'Clé reconnue, mais le fournisseur refuse l’accès à cette ressource.'},
+  modele:{etat:'avis',bouton:'Modèle indisponible',note:'Clé reconnue, mais le modèle sélectionné n’est pas disponible.'},
+  limitation:{etat:'avis',bouton:'Limite atteinte',note:'Clé reconnue, mais limite API atteinte.'},
+  reseau:{etat:'avis',bouton:'Vérification impossible',note:'Impossible de vérifier la clé pour le moment.'},
+  indisponibilite:{etat:'avis',bouton:'Service indisponible',note:'Service fournisseur temporairement indisponible.'},
+  autre:{etat:'avis',bouton:'Erreur fournisseur',note:'Autre erreur fournisseur.'}
+};
+const v11KeyTest={enVol:false,controller:null};
+function v11KeyTestClassifier(err){
+  const statut=err&&typeof err.statut_http==='number'?err.statut_http:null,cat=(err&&err.categorie)||'';
+  if(statut!==null&&statut>=200&&statut<300)return 'valide';
+  if(statut===401||cat==='authentification')return 'invalide';
+  if(statut===403||cat==='acces_refuse')return 'acces_refuse';
+  if(statut===404)return 'modele';
+  if(statut===429||cat==='limitation')return 'limitation';
+  if((statut!==null&&statut>=500)||cat==='indisponibilite')return 'indisponibilite';
+  if(statut===null&&(cat==='delai_depasse'||cat==='annulation'||cat==='inconnue'||!cat))return 'reseau';
+  return 'autre';
+}
+function v11KeyTestAfficher(cle,complement){
+  const b=$('#v11-api-test'),n=$('#v11-api-test-note'),v=V11_KEY_TEST_VERDICTS[cle]||V11_KEY_TEST_VERDICTS.neutre;
+  if(!b||!n)return;
+  b.dataset.etat=v.etat;b.textContent=v.bouton;b.disabled=cle==='en_cours';
+  const texte=v.note+(complement?' '+complement:'');n.textContent=texte;n.hidden=!texte;
+}
+function v11KeyTestReset(){
+  if(v11KeyTest.controller){v11KeyTest.controller.abort();v11KeyTest.controller=null}
+  v11KeyTestAfficher('neutre');
+}
+function v11KeyTestSignature(){
+  const fournisseur=obtenirFournisseurActif();
+  return {fournisseur,modele:obtenirModeleActif('architecte-analyse')||'',cle:obtenirCleFournisseur(fournisseur)};
+}
+async function v11KeyTestRun(){
+  if(v11KeyTest.enVol)return false;
+  const depart=v11KeyTestSignature();
+  if(!depart.cle){v11KeyTestAfficher('neutre');toast('Saisissez une clé API');return false}
+  const controller=new AbortController();
+  v11KeyTest.enVol=true;v11KeyTest.controller=controller;v11KeyTestAfficher('en_cours');
+  let verdict='valide',complement='';
+  try{
+    await window.appelFournisseur({fournisseur:depart.fournisseur,cle:depart.cle,modele:depart.modele,maxTokens:V11_KEY_TEST_MAX_TOKENS,contenuUtilisateur:V11_KEY_TEST_CONTENU,essaisMax:1,delaiMs:V11_KEY_TEST_TIMEOUT_MS,signal:controller.signal});
+  }catch(err){
+    verdict=v11KeyTestClassifier(err);
+    if(verdict==='autre'&&err&&typeof err.statut_http==='number')complement='(code '+err.statut_http+')';
+  }finally{
+    v11KeyTest.enVol=false;
+    if(v11KeyTest.controller===controller)v11KeyTest.controller=null;
+  }
+  const retour=v11KeyTestSignature();
+  const meme=!controller.signal.aborted&&retour.fournisseur===depart.fournisseur&&retour.modele===depart.modele&&retour.cle===depart.cle;
+  if(!meme)return false;
+  v11KeyTestAfficher(verdict,complement);
+  return verdict==='valide';
 }
 /* CONTINUITE-04 — MODE API BOUT-EN-BOUT : EXÉCUTER LE PROMPT FINAL, RAPPORTER LA RÉPONSE COMME MATÉRIAU.
  *
@@ -25533,9 +25639,13 @@ function init(){
   const apiPanel=$('#v11-api-panel'),apiToggle=$('#v11-api-toggle');v11SyncApiUi();
   apiToggle.addEventListener('click',()=>{const open=apiPanel.hidden;apiPanel.hidden=!open;apiToggle.setAttribute('aria-expanded',String(open));if(open){v11SyncApiUi();setTimeout(()=>$('#v11-api-key').focus(),0)}});
   $('#v11-api-provider').addEventListener('change',()=>{v11PushApiUi();setTimeout(v11SyncApiUi,0)});$('#v11-api-key').addEventListener('input',v11PushApiUi);
+  /* API-KEY-TEST-01 — clé, fournisseur ou modèle modifié → verdict effacé ; un clic → un test. */
+  $('#v11-api-key').addEventListener('input',v11KeyTestReset);$('#api-cle').addEventListener('input',v11KeyTestReset);
+  $('#fournisseur-actif').addEventListener('change',v11KeyTestReset);$('#api-modele').addEventListener('change',v11KeyTestReset);
+  $('#v11-api-test').addEventListener('click',v11KeyTestRun);
   $('#v11-api-show').addEventListener('click',()=>{const k=$('#v11-api-key'),show=k.type==='password';k.type=show?'text':'password';$('#v11-api-show').textContent=show?'Masquer':'Afficher'});
   $('#v11-expert').addEventListener('click',()=>{if(typeof appliquerEspace==='function')appliquerEspace('avance');if(typeof ecrire==='function')ecrire('atelier10.espace','avance');setNormal(false);if(typeof ouvrirVue==='function')ouvrirVue('architecte')});
-  const back=document.createElement('button');back.type='button';back.id='v11-back-normal';back.className='lot4-back';back.textContent='← Retour à l’accueil';back.addEventListener('click',()=>setNormal(true));const railReturn=document.querySelector('#lot4-rail-retour');if(railReturn)railReturn.append(back);else{const railFoot=document.querySelector('.rail-pied');if(railFoot)railFoot.prepend(back);}
+  const back=document.createElement('button');back.type='button';back.id='v11-back-normal';back.className='lot4-back';back.textContent='← Retour à l’accueil';back.addEventListener('click',()=>{setNormal(true);v11SyncApiUi()/* API-KEY-TEST-01 — une clé effacée ou changée dans les outils efface le verdict. */});const railReturn=document.querySelector('#lot4-rail-retour');if(railReturn)railReturn.append(back);else{const railFoot=document.querySelector('.rail-pied');if(railFoot)railFoot.prepend(back);}
   $('#v11-files').addEventListener('change',async e=>{const added=[...e.target.files];await processIncomingFiles(added);if(added.length&&adpState.pendingQuestion)$('#v11-answer').value='Le document demandé est joint.';e.target.value=''});
   const dz=$('#v11-dropzone');
   dz.addEventListener('click',()=>$('#v11-files').click());
