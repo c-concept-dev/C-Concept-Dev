@@ -7651,6 +7651,10 @@ ${recent}`;
       if (document.activeElement === input) return;
       input.value = style[field] == null ? '100' : style[field];
     });
+    // LOT 3 — "Ajouter une image" n'a de sens que si le bloc n'a pas déjà un fond (rien à
+    // ajouter sinon) : même patron que data-image-add-text (adocEditorRefreshImageControls).
+    const addImageBtn = panel.querySelector('[data-block-add-image]');
+    if (addImageBtn) addImageBtn.hidden = !!(ctx.block && ctx.block.style && ctx.block.style.backgroundAssetId);
     const families = new Set(_adocEditorLocalFonts);
     ADOC_LEGACY_FONT_PAIRS.forEach(function (p) { if (p.bodyFont) families.add(p.bodyFont); if(p.headingFont) families.add(p.headingFont); });
     tools.querySelector('datalist').innerHTML = Array.from(families).map(function (f) { return '<option value="' + adocEsc(f) + '"></option>'; }).join('');
@@ -7880,6 +7884,20 @@ ${recent}`;
       const fg = el.querySelector('.adoc-sc-fg-content');
       (fg || el).click();
     });
+  };
+
+  // LOT 3 — symétrique de adocConvertImageBlockToText : rend DÉCOUVRABLE le glisser-déposer de
+  // fond déjà pleinement fonctionnel (docCard.ondragover/ondrop, Lot E) sur un bloc texte, sans
+  // créer un second mécanisme de dépôt. Ne fait qu'ajouter une classe de surlignage (le bloc
+  // était DÉJÀ une cible de dépôt valide avant ce clic, cf. docCard.ondragover : ce bouton ne
+  // débloque rien, il l'indique) et un message explicite dans le panneau — le dépôt réel reste
+  // entièrement géré par adocHandleImageDrop, jamais dupliqué ici. Nettoyée par
+  // adocWsClearBlockSelection (fermeture du panneau) ou disparaît d'elle-même au réaffichage
+  // complet qui suit un dépôt réussi (adocOpenWorkspace, nouveau DOM).
+  window.adocArmImageDropOnBlock = function () {
+    const ctx = adocEditorContext(); if (!ctx || ctx.legacy || !ctx.block) return;
+    ctx.el.classList.add('cc-image-drop-armed');
+    adocEditorMessage('Glissez une image (JPG/PNG) sur ce bloc pour l’ajouter en fond.');
   };
 
   function adocEditorLeafInContext(ctx) {
@@ -11609,7 +11627,7 @@ ${recent}`;
     const docCard = document.getElementById('cc-ws-doc-card');
     if (docCard) {
       const sel = docCard.querySelector('.adoc-sc-block.is-selected, .adoc-sc-cover-title.is-selected, .adoc-sc-card-title.is-selected');
-      if (sel) sel.classList.remove('is-selected');
+      if (sel) sel.classList.remove('is-selected', 'cc-image-drop-armed'); // LOT 3 — jamais un surlignage orphelin après fermeture du panneau
     }
     window._adocBlockEditState = { storeKey: null, blockId: null, panelEl: null, pendingBlock: null, originalBlock: null, zone: null };
   }
@@ -11630,11 +11648,20 @@ ${recent}`;
     const insertBtn = function (direction, label) {
       return '<button type="button" class="cc-clarity-reply-btn" onclick="event.stopPropagation();window.adocRequestBlockInsert(\'' + direction + '\')">' + label + '</button>';
     };
+    // LOT 3 — symétrique de "Ajouter du texte" (adocBuildImageEditPanelHTML) : le glisser-déposer
+    // de fond (style.backgroundAssetId, Lot E) fonctionne déjà sur N'IMPORTE QUEL bloc générique
+    // (docCard.ondragover/ondrop plus bas, jamais un second mécanisme), mais restait totalement
+    // indécouvrable sans le savoir au préalable (investigation LOT 2 confirmée). Ce bouton
+    // n'ajoute AUCUNE nouvelle logique de dépôt : il rend visible, via adocArmImageDropOnBlock,
+    // le mécanisme déjà fonctionnel (surlignage + message), jamais une seconde implémentation
+    // (régression #6). Masqué quand le bloc porte déjà un fond (rien à "ajouter") — bascule dans
+    // adocEditorRefreshControls, même patron que data-image-add-text.
+    const addImageBtn = '<button type="button" class="cc-clarity-reply-btn" data-block-add-image hidden onclick="event.stopPropagation();window.adocArmImageDropOnBlock()">Ajouter une image</button>';
     return '<div class="cc-clarity-question sc-icon-label">' + adocIconSvg('icon-clarify') + '<span>Corriger ce passage</span></div>' +
       '<div class="cc-block-edit-controls" style="display:flex;flex-wrap:wrap;align-items:flex-start;gap:8px;">' +
         btn('rewrite') + btn('shorten') + btn('expand') + btn('verifySources') +
         '<div style="width:1px;align-self:stretch;background:var(--stone-300);"></div>' +
-        insertBtn('before', 'Insérer un bloc avant') + insertBtn('after', 'Insérer un bloc après') +
+        insertBtn('before', 'Insérer un bloc avant') + insertBtn('after', 'Insérer un bloc après') + addImageBtn +
         '<div style="display:flex;gap:6px;flex:1 1 240px;min-width:240px;">' +
           '<textarea class="cc-block-edit-freetext adoc-textarea" style="flex:1;min-height:34px;max-height:120px;" ' +
             'placeholder="Ou décrivez la correction souhaitée…" rows="1" ' +
@@ -12029,6 +12056,16 @@ ${recent}`;
     const controlsEl = st.panelEl.querySelector('.cc-block-edit-controls');
     const resultEl = st.panelEl.querySelector('.cc-block-edit-result');
     if (controlsEl) controlsEl.hidden = true;
+    // LOT 3 — controlsEl.hidden ne suffit PAS seul ici : son style inline display:flex (posé au
+    // rendu, cf. adocBuildBlockEditPanelHTML) prime sur la règle [hidden] de la feuille de style
+    // UA (comportement préexistant, hors périmètre de ce lot), donc ses boutons restent
+    // visuellement affichés. Sans incidence avant ce lot (aucun de leurs libellés ne recoupait le
+    // sélecteur de type qui s'affiche juste après) — mais "Ajouter une image" recoupe désormais le
+    // bouton de type "Image" du sélecteur (adocBuildBlockInsertTypePickerHTML ci-dessous) : masqué
+    // explicitement ici pour ne jamais laisser deux boutons "image" visibles en même temps.
+    // Restauré par adocEditorRefreshControls, toujours appelé à la réouverture d'un panneau frais.
+    const addImageBtn = controlsEl && controlsEl.querySelector('[data-block-add-image]');
+    if (addImageBtn) addImageBtn.hidden = true;
     if (resultEl) { resultEl.hidden = false; resultEl.innerHTML = adocBuildBlockInsertTypePickerHTML(direction); }
   };
 

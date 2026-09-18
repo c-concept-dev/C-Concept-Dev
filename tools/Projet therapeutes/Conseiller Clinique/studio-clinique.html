@@ -2089,6 +2089,17 @@
       background: rgba(255,255,255,0.85); color: var(--ink,#273331); font: 600 13px/1.4 system-ui;
       border-radius: inherit; text-align: center; padding: 4px;
     }
+    /* LOT 3 — rend visible le glisser-déposer de fond déjà fonctionnel (Lot E) après un clic sur
+       "Ajouter une image" (adocArmImageDropOnBlock) : jamais pointer-events:none ici, contrairement
+       à .cc-image-drop-busy ci-dessus — le bloc doit rester une cible dragover/drop réelle, ce
+       surlignage n'est qu'un repère visuel, aucune nouvelle logique de dépôt. */
+    .cc-image-drop-armed { position: relative; outline: 2px dashed var(--petrol-800,#1f4b47); outline-offset: 2px; }
+    .cc-image-drop-armed::after {
+      content: "Glissez une image ici (JPG/PNG)";
+      position: absolute; top: 4px; right: 4px; z-index: 15;
+      background: var(--petrol-800,#1f4b47); color: #fff; font: 600 11px/1.4 system-ui;
+      padding: 3px 8px; border-radius: 6px; pointer-events: none;
+    }
     /* CORRECTIF Lot C cas 4 — repli visuel si le GET /brand-assets/:assetId échoue réellement
        (onerror posé sur l'<img>, cf. adocRenderBlockHTML case 'image') : remplace l'icône
        d'image cassée du navigateur par un message clair, jamais silencieux. */
