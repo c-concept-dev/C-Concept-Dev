@@ -10614,6 +10614,7 @@ async function beginApiAnalysis(){
   /* READINESS-00 : plus aucune décision de readiness ici. Le validateur post-OPRIE
    * signale, il ne décide pas, et ne pose jamais de question. */
   const validation=adnValidatePostOprie(obj,oprieState.canonicalContract);
+  adnRetenirValidationPostOprie(validation,oprieState.canonicalContract);
   /* CORRECTION-ADN-ARCH-01-01 : l'enrichissement est exécuté même lorsque la
      validation a déjà signalé, car il détecte des divergences que le validateur
      ne couvre pas — les ignorer perdrait un signal distinct. Les deux jeux sont
@@ -10821,6 +10822,7 @@ function useAnalysis(obj){
   }
   /* READINESS-00 : chemin par fichier — même validation post-OPRIE, mêmes signaux. */
   const validation=adnValidatePostOprie(legacyObj,oprieState.canonicalContract);
+  adnRetenirValidationPostOprie(validation,oprieState.canonicalContract);
   /* CORRECTION-ADN-ARCH-01-01 : chemin par fichier — même séquence exactement,
      même fusion, même arrêt unique, même interdiction de compiler. */
   const enrichment=adnEnrichCanonicalWithArch(legacyObj);
@@ -23631,6 +23633,52 @@ function adnEnrichCanonicalWithArch(analysis){
     return {contract:null,signals:[adnPostOprieSignal('TECHNICAL_STOP',null,'archAnalyse','L’enrichissement canonique Architecte a échoué : '+(error&&error.message||'cause inconnue')+'.',false)]};
   }
 }
+/* ADN-OBS-02 · PLACEMENT — ET IL A ÉTÉ MESURÉ, PAS CHOISI.
+ * Ce retenteur a d'abord été posé AVANT `adnEnrichCanonicalWithArch`, et deux suites l'ont refusé
+ * pour deux raisons distinctes, toutes deux justes : il tombait dans la tranche
+ * `adnCompactContractForArchitecte → adnEnrichCanonicalWithArch`, dont T-ARCH01-36 exige qu'elle
+ * n'écrive aucun état ; et il tombait HORS de la tranche
+ * `adnEnrichCanonicalWithArch → adnReadinessInstruction`, la seule que les harnais de chemin
+ * chargent — dix tests le déclaraient donc introuvable. Sa place est ici : dans la tranche des
+ * gardes post-OPRIE, avec les fonctions qu'il observe. */
+/* ADN-OBS-02 — ATTRIBUER L'ARRÊT, SANS TOUCHER À CE QUI L'A PRODUIT.
+ *
+ * CE QUE LE SMOKE S8B2FD A MONTRÉ, ET CE QU'IL N'A PAS MONTRÉ. L'écran annonçait « la préparation
+ * ne correspond plus à la demande validée » ; le relevé d'ADN-OBS-01 rendait `null`. On en a d'abord
+ * conclu que la garde d'ambiguïté n'avait pas tiré — à tort. Ce relevé-là est pris DANS
+ * l'enrichissement, après l'appel au runtime ; or la même garde existe aussi dans
+ * `adnValidatePostOprie`, qui tourne AVANT, et qui n'utilise ni `adnRuntime` ni le runtime du tout.
+ * Un relevé nul prouvait donc seulement que l'enrichissement n'était pas arrivé à son point
+ * d'observation. L'attribution restait ouverte, et instrumenter au mauvais étage aurait fait
+ * corriger la mauvaise garde.
+ *
+ * POURQUOI ICI, AU SITE D'APPEL, ET PAS DANS LA FONCTION. Sa décision est DÉJÀ calculée quand elle
+ * rend `{ok, signals, divergences}` : il n'y a rien à recalculer, rien à dupliquer, aucune garde à
+ * réécrire. `adnValidatePostOprie` sort de ce lot à l'octet près — c'est la seule façon d'observer
+ * une garde sans risquer de la changer.
+ *
+ * CE QUI EST RETENU. Le type du signal et ses deux noms de champ, des comptes, deux booléens. PAS
+ * `detail` : c'est de la prose, et une prose peut porter une valeur. Aucun contenu de la personne. */
+function adnRetenirValidationPostOprie(validation,base){
+  try{
+    const signaux=Array.isArray(validation&&validation.signals)?validation.signals:[];
+    oprieState.lastPostOprieValidation={
+      event:'post_oprie_validation_observation',
+      request_id:(base&&typeof base.request_id==='string'&&base.request_id.trim())?base.request_id.trim():null,
+      /* LE DISCRIMINANT DU CANDIDAT B, et il est pris À L'IMPORT — le seul moment qui compte, car
+         24407 a déjà prouvé qu'un contrat absent À L'ENTRÉE ferme le tour avant l'échange. */
+      canonical_contract_present:!!base&&typeof base==='object'&&!Array.isArray(base),
+      ok:!!(validation&&validation.ok===true),
+      signal_count:signaux.length,
+      divergence_count:Array.isArray(validation&&validation.divergences)?validation.divergences.length:0,
+      signals:signaux.map(s=>({
+        signal:(s&&s.signal)||null,
+        canonical_field:(s&&s.canonical_field)||null,
+        arch_source_field:(s&&s.arch_source_field)||null
+      }))
+    };
+  }catch(error){/* Observer ne peut pas faire échouer une préparation. */}
+}
 /* READINESS-00 — VALIDATION POST-OPRIE.
  * OPRIE / Arbiter est la SEULE autorité de readiness :
  *   CANONICAL_EXECUTABLE  <=>  OPRIE.state === 'operational_request_ready'.
@@ -23868,7 +23916,10 @@ const OPRIE_ENDPOINT=(document.querySelector('meta[name="atelier-operational-req
 const oprieState={seq:0,controller:null,running:false,turnExplicitUnknownIds:[],lastFailureCode:null,
   /* ADN-OBS-01 — DE DIAGNOSTIC, jamais de produit. Un scalaire remplacé à chaque enrichissement :
      il ne s'empile pas, ne décide rien, et aucune branche ne le lit. */
-  lastAmbiguityGuardObservation:null,lastTurn:null,canonicalContract:null,requestedMode:'rapide',fastController:null,fastInteraction:null,lastReconciliation:null,lastOrchestration:null,concludedTurn:null,appliedActions:[],lifecycle:null,executionId:null,telemetry:[]};
+  lastAmbiguityGuardObservation:null,
+  /* ADN-OBS-02 — DE DIAGNOSTIC. Un scalaire remplacé à chaque validation : il ne s'empile pas,
+     aucune branche ne le lit, et il ne décide rien. */
+  lastPostOprieValidation:null,lastTurn:null,canonicalContract:null,requestedMode:'rapide',fastController:null,fastInteraction:null,lastReconciliation:null,lastOrchestration:null,concludedTurn:null,appliedActions:[],lifecycle:null,executionId:null,telemetry:[]};
 
 function oprieTechnicalFailure(code){
   /* DEEP-DISPLAY-RETRY — DEUX ÉCHECS DIFFÉRENTS MÉRITENT DEUX MESSAGES DIFFÉRENTS.
@@ -24854,6 +24905,15 @@ window.__V11_ROUTER__=Object.freeze({
    * une écriture, et d'un port d'audit une porte. */
   getLastAmbiguityGuardObservation(){
     const releve=oprieState.lastAmbiguityGuardObservation;
+    return releve?JSON.parse(JSON.stringify(releve)):null;
+  },
+  /* ADN-OBS-02 — UN GETTER DÉDIÉ, ET C'EST DÉLIBÉRÉ. Les deux relevés viennent de deux ÉTAGES
+   * différents — la validation locale, puis l'enrichissement par le runtime — et c'est précisément
+   * leur confusion qui a fait conclure trop vite sur S8B2FD. Les mêler dans une seule réponse
+   * inviterait à refaire l'erreur ; deux ports nomment deux moments. Même clonage défensif, même
+   * handle, aucun namespace nouveau. */
+  getLastPostOprieValidationObservation(){
+    const releve=oprieState.lastPostOprieValidation;
     return releve?JSON.parse(JSON.stringify(releve)):null;
   }
 });

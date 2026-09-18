@@ -281,7 +281,10 @@ test('T-AOBS-11 : null avant toute observation, et rien d’autre n’est expos�
   assert.equal(port.getLastAmbiguityGuardObservation(), null, 'rien n’est fabriqué avant la première');
 
   /* SEUL LE RELEVÉ BORNÉ SORT. Le port ne rend pas l'état, et le routeur n'expose que deux membres. */
-  assert.deepEqual(Object.keys(port).sort(), ['getLastAmbiguityGuardObservation', 'start']);
+  /* ADN-OBS-02 a ajouté un SECOND port, délibérément distinct : deux étages d'observation, deux
+     ports. Leur confusion est exactement ce qui avait fait conclure trop vite sur S8B2FD. */
+  assert.deepEqual(Object.keys(port).sort(),
+    ['getLastAmbiguityGuardObservation', 'getLastPostOprieValidationObservation', 'start']);
   assert.equal(JSON.stringify(port.getLastAmbiguityGuardObservation()).includes('TEXTE_DE_LA_PERSONNE'), false);
   /* Et l'artefact n'expose jamais l'état complet, ni un quatrième handle. */
   assert.equal(artefact.includes('window.oprieState'), false, 'oprieState n’est jamais publié');

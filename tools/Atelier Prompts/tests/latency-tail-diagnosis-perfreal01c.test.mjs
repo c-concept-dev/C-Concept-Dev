@@ -236,7 +236,7 @@ test('T-PERFREAL01C-12 : rien n’a été déplacé — ni politique, ni seuil, 
      qu'un refus de sortie fournisseur cesse d'être compté comme un défaut de notre code. Aucune
      règle, aucun prompt, aucun schéma, aucun comportement d'interface. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    '0f92b81eb85fde1ae56ae2fbf4cadc3489a9e2683e9412c1ac00f5042a076088', 'CANONICAL_HTML_CHANGED = NO');
+    '37669e9aeb932fa04fc8e53bdd4bcd04c957d656352bea8d0bfc1e3c4819c930', 'CANONICAL_HTML_CHANGED = NO');
   /* Et le protocole du banc n'a pas été retouché pour flatter le résultat. */
   assert.equal(D.protocole.identique_a, 'PERF-REAL-01B');
   assert.equal(D.protocole.methode_percentile, 'NEAREST_RANK');
