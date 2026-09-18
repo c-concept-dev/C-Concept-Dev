@@ -1,0 +1,141 @@
+{
+ "schema": "EvidenceForge.FreezeManifest",
+ "version": "MONOLITH-v1.0.5",
+ "status": "FROZEN",
+ "frozenAt": "2026-09-18T00:04:32Z",
+ "ownerDecision": "FROZEN",
+ "ownerDecisionBy": "proprietaire produit (Christophe Bonnet) — 2026-09-18",
+ "candidateRef": "3add607fdfcb5d4864dd3ed4cc541217c95e854d",
+ "repoHeadAtFreeze": "ebc2d072615e57f0d358185fa5899908ebf66174",
+ "repoHeadNote": "HEAD global du depot au moment du gel ; il contient des commits Atelier Prompts / Studio posterieurs au candidat. La reference fonctionnelle EvidenceForge reste candidateRef parce que le sous-arbre tools/EvidenceForge/ est byte-identique entre candidateRef et repoHeadAtFreeze (git diff --name-status vide).",
+ "subtree": "tools/EvidenceForge/",
+ "bundle": "tools/EvidenceForge/r6/EvidenceForge-CLEAN-MONO-01-08/MONOLITH-v1.0.5/",
+ "evidenceForgeTreeHash": "974fcfd656bd3892e264377cd0ea8700649b7abd",
+ "monolithTreeHash": "ab8554a6e3b9d456524157ed5feaa6e3993f98f4",
+ "hashNotions": {
+  "GIT_TREE_HASH": "hash git du tree (contenu + noms + modes), ex. evidenceForgeTreeHash / monolithTreeHash — avant ajout des artefacts administratifs de gel",
+  "CONTENT_HASH": "internalManifestContentHash : hash de contenu des 94 fichiers du bundle calcule par tools/build-manifest.js (exclut MANIFEST.json, SHA256SUMS.txt et les zips)",
+  "ZIP_SHA256": "SHA-256 des octets du ZIP canonique reproductible"
+ },
+ "internalManifestContentHash": "151937a1d3e1b1fff6691274f1d9b7dda52e6285df80bdaaf7c961931459facc",
+ "internalManifestFileCount": 94,
+ "zip": {
+  "filename": "EvidenceForge-MONOLITH-v1.0.5.zip",
+  "path": "tools/EvidenceForge/r6/EvidenceForge-CLEAN-MONO-01-08/MONOLITH-v1.0.5/EvidenceForge-MONOLITH-v1.0.5.zip",
+  "sha256": "c6eae8afb03c66963194427bb30bb49b2697b9ca236dcdd8b83bf7f1bb39b7a1",
+  "sha256File": "tools/EvidenceForge/r6/EvidenceForge-CLEAN-MONO-01-08/MONOLITH-v1.0.5/EvidenceForge-MONOLITH-v1.0.5.zip.sha256",
+  "bytes": 460673,
+  "entries": 96,
+  "root": "MONOLITH-v1.0.5/",
+  "layoutNote": "racine unique MONOLITH-v1.0.5/ (les archives anterieures v1.0.x etaient a plat) ; contenu = 94 fichiers du MANIFEST interne + MANIFEST.json + SHA256SUMS.txt ; exclus : zips, *.sha256, runs/, scratch/, fichiers non suivis par git",
+  "source": "git tree ab8554a6e3b9d456524157ed5feaa6e3993f98f4 (git archive), hors exclusions"
+ },
+ "packaging": {
+  "tool": "tools/EvidenceForge/bin/freeze-package.py (administratif, hors runtime)",
+  "determinism": [
+   "liste triee par nom (octets UTF-8)",
+   "aucune entree de repertoire",
+   "horodatage fixe 1980-01-01 00:00:00",
+   "attributs externes fixes 0100644 / create_system 3",
+   "aucun champ extra ni commentaire",
+   "DEFLATE niveau 9 (zlib 1.2.12, Python 3.13.1)",
+   "contenu lu depuis git archive (independant du systeme de fichiers et du chemin local)"
+  ]
+ },
+ "reproducibility": {
+  "buildA": {
+   "dir": "/tmp/ef-freeze-a",
+   "sha256": "c6eae8afb03c66963194427bb30bb49b2697b9ca236dcdd8b83bf7f1bb39b7a1",
+   "bytes": 460673
+  },
+  "buildB": {
+   "dir": "/tmp/ef-freeze-b",
+   "sha256": "c6eae8afb03c66963194427bb30bb49b2697b9ca236dcdd8b83bf7f1bb39b7a1",
+   "bytes": 460673
+  },
+  "byteIdentical": true,
+  "buildC": {
+   "note": "reconstruction apres promotion et apres push, depuis origin/main ; renseignee dans MONOLITH-v1.0.5-FREEZE-REPORT.md"
+  }
+ },
+ "inventory": {
+  "entries": 96,
+  "manifestFiles": 94,
+  "extraOutsideManifest": [],
+  "missing": [],
+  "manifestHashMismatches": 0,
+  "sha256sumsOk": "94/94",
+  "parasites": 0,
+  "secrets": 0
+ },
+ "tests": {
+  "monolith": "198/198",
+  "browser": "33/33",
+  "launcher": "14/14",
+  "secretScan": "0 hit",
+  "antiHardcoding": "0 hit (9 522 jetons de 6 runs reels)",
+  "manifestVerify": "94 fichiers, 0 mauvais",
+  "frozenDivergences": 0
+ },
+ "frozenLots": [
+  {
+   "lot": "MONO-01",
+   "files": 106,
+   "sealSha256": "4ba8903ceaeb7e24886708909d734a7b7f34e7cd9ae28b15603440577fe18ffd"
+  },
+  {
+   "lot": "MONO-09",
+   "version": "v0.2",
+   "files": 9,
+   "sealSha256": "f1f1e94bdcca4402bc690883ee443ad0b188987fc65c5bd16e050b50b4016e56"
+  },
+  {
+   "lot": "MONO-10",
+   "version": "v0.19",
+   "files": 79,
+   "sealSha256": "e050af0545ab5b902eb710b2308914523125b784dc27a9a2d387040dced48227",
+   "canonicalZipSha256": "f5a4165414f4aacc32f48f50eb14d59c87a09e3f138e24f8bd14b956972c2e04"
+  },
+  {
+   "lot": "MONO-11",
+   "version": "v0.3-r1",
+   "files": 52,
+   "sealSha256": "9fbef4126d437e0bb2ee4b2564b5ebcc381e8a338eacba40a590eff8402c079c",
+   "canonicalZipSha256": "3c44b397dda0997d0fff6ab4c8e8a8b311430e6a5ac7aeee38149f8349296b0b"
+  }
+ ],
+ "predecessor": {
+  "version": "MONOLITH-v1.0.4",
+  "zipSha256": "97b999adcff395ab49f7cd33e8e70bab767c7df22ffdda0967771db5595dd961"
+ },
+ "realValidation": {
+  "screeningCostOptimizer": "PASS",
+  "panelSufficiency": "PASS_WITH_REAL_EXHAUSTED_WITH_GAPS",
+  "runSafety": "PASS",
+  "runs": [
+   "efm-20260917-5ad77c88",
+   "efm-20260917-edb27b86",
+   "efm-20260917-f78528fe",
+   "efm-20260917-a4df0747"
+  ]
+ },
+ "knownLimitations": [
+  "stop-request.json / run-stop-state.json ne conservent que le dernier cycle (historique complet dans events.jsonl)",
+  "kits EF-01B/EF-01C1 (MONO-04) couverts par la garde de budget et les transitions d'etape, pas par le controle d'arret par appel",
+  "bouton « Arreter le run » masque aux portes (WAITING_USER) ; l'API d'arret reste disponible",
+  "latence de rafraichissement du bloc cout (cosmetique)",
+  "equilibrage de portefeuille : heuristique produit deterministe modifiant la proposition par defaut avant ratification humaine (primaire conserve et hache)",
+  "GitHub Pages publie tout le depot (bundle servi sans lien ; aucun secret)",
+  "PANEL_SUFFICIENT / EARLY_STOP_CONFIRMED demontres par tests, jamais observes en reel",
+  "budget par etape / reserve aval non implementes",
+  "bornes de sortie du screening : gain mesure (-12 %) inferieur a l'estimation (-27 %)",
+  "cache de prompt, lots > 8, normalisation des references sur EF-02D3 non traites",
+  "runs anterieurs a Run Safety : budget.json sans champ mode"
+ ],
+ "auditVerdictBeforeFreeze": "GELABLE",
+ "auditReports": [
+  "~/evidenceforge-work/reports/AUDIT-GLOBAL-GEL-MONOLITH-v1.0.5.md",
+  "~/evidenceforge-work/reports/AUDIT-GLOBAL-GEL-MONOLITH-v1.0.5.json"
+ ],
+ "postFreezeRule": "toute evolution part dans MONOLITH-v1.0.6 ou ulterieure ; MONOLITH-v1.0.5 n'est plus modifie"
+}
