@@ -13,8 +13,8 @@
 | --- | --- |
 | Lot | HTML-FINAL-02 |
 | Artefact | Atelier de prompts — V11.5 LOT 10G Adaptive Decision Pipeline |
-| Commit local | `08b0107fc47fed5e4c7d31c9ebb23fa4fbd873ab` |
-| Date du commit | 2026-09-18T18:53:53+02:00 |
+| Commit local | `4763fe89e54b9dfa2079531ff4fa8bccbb20147d` |
+| Date du commit | 2026-09-18T19:06:42+02:00 |
 
 ## Artefact canonique
 
@@ -24,8 +24,8 @@ aucune police et aucune image ne sont chargés depuis un tiers.
 | Champ | Valeur |
 | --- | --- |
 | Chemin | `atelier-prompts-v11.5-lot10g-decision-provider.html` |
-| Taille | 1621122 octets |
-| SHA-256 | `8fb3cd55773c22a4a3309cc9f59545ee21c70c83514440f1c559e65ba9a2b1b6` |
+| Taille | 1628154 octets |
+| SHA-256 | `179a07bb3c59dc376f3ae2085fa32d957fd625f69fb50206790c0c577d3e300f` |
 
 ## Runtime compilé
 
@@ -59,13 +59,13 @@ Le bloc embarqué dans la page et le fichier généré sont comparés octet pour
 l'artefact. Le manifeste lui-même en est exclu : un document ne peut pas contenir
 sa propre empreinte.
 
-| Empreinte du jeu | `23f34dd6836c72f37169f73458a3dc0b74561a9cb00bc58c38e579af6b15875c` |
+| Empreinte du jeu | `dbb5eed9c4d9e514c6e38a49af6b2995448d7eb9bb4389aa1dd260d2b746f399` |
 | --- | --- |
 
 | Classe | Fichier | SHA-256 |
 | --- | --- | --- |
 | REQUIRED_BUILD | `anti-regression-baseline.json` | `7bd0fcca3f3ed226e3fdd30ee52dc204dae158dbde8842c08731054a1f58e7d6` |
-| REQUIRED_HTML | `atelier-prompts-v11.5-lot10g-decision-provider.html` | `8fb3cd55773c22a4a3309cc9f59545ee21c70c83514440f1c559e65ba9a2b1b6` |
+| REQUIRED_HTML | `atelier-prompts-v11.5-lot10g-decision-provider.html` | `179a07bb3c59dc376f3ae2085fa32d957fd625f69fb50206790c0c577d3e300f` |
 | REQUIRED_BUILD | `core/adn/adaptive-lock-selector.js` | `15d3154d639b761747a26215f2ec59eb6b121e6072187b6a2dd611eefe5b65ea` |
 | REQUIRED_BUILD | `core/adn/adn-state.js` | `814bbc8318cd2e20d1964c0930809e9997e00bf1cfe8f474aa8f3f39af767d8b` |
 | REQUIRED_BUILD | `core/adn/arch-canonical-enrichment.js` | `159140c46266a8fe6cb35995f53addbfb8fe9802b6ef427d3c0589c449cc0aaa` |
@@ -180,7 +180,7 @@ sa propre empreinte.
 
 | Classe | Fichiers | Raison |
 | --- | --- | --- |
-| REQUIRED_TEST_ONLY | 211 | preuves ; ne sont pas servies |
+| REQUIRED_TEST_ONLY | 212 | preuves ; ne sont pas servies |
 | EVALUATION_ONLY | 378 | bancs et campagnes, dont le worker `…-local-only` |
 | AUDIT_ONLY | 76 | relevés des lots passés |
 | PROVENANCE | 2 | trace de la dérivation de l'artefact courant |
@@ -206,7 +206,7 @@ par ce script.*
 | EXEC-PHASE-INSTRUMENT-01 | CLOSED |
 | FC01b FINAL | CLOSED |
 | HTML-FINAL-01 / 01A | CLOSED |
-| Tests au vert | 3605 |
+| Tests au vert | 3621 |
 
 ## Dette encore ouverte
 

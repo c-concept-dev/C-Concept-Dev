@@ -429,8 +429,13 @@ test('T12a · aucune heuristique, aucun canal fusionné, aucune persistance, auc
   /* Une seule fonction d'ingestion de matériau collé, prête pour le futur mode API — et le futur
      mode API n'existe pas encore : aucun second appel fournisseur après le prompt final. */
   assert.equal((html.match(/function v11AddPastedMaterial\(/g) || []).length, 1);
+  /* HISTORICAL_IMPLEMENTATION_CONTRACT (CONTINUITE-04). Ce lot affirmait « le mode API s'arrête au
+     prompt final ». CONTINUITE-04 va au bout : l'exécution du prompt vit dans sa propre fonction,
+     appelée depuis l'analyse, et sa réponse entre par la MÊME primitive que le collage manuel —
+     ce qui reste la propriété de ce lot-ci : une seule ingestion. */
   const apiPath = sansProse(tranche('async function beginApiAnalysis(', 'function compositeDemand(){'));
-  assert.equal((apiPath.match(/appelFournisseur\(/g) || []).length, 1, 'le mode API s’arrête toujours au prompt final');
+  assert.equal((apiPath.match(/appelFournisseur\(/g) || []).length, 1, 'l’analyse fait un appel ; l’exécution est ailleurs');
+  assert.match(apiPath, /v11ExecuteFinalPromptViaApi\(/);
   /* HISTORICAL_IMPLEMENTATION_CONTRACT (CONTINUITE-03). Ce lot avait épinglé le gestionnaire
      d'édition de #v11-demande TEL QU'IL ÉTAIT — abandon du tour PUIS oubli de l'historique — pour
      dire qu'il ne l'avait pas touché. CONTINUITE-03 l'a changé, délibérément : éditer la demande

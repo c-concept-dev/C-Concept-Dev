@@ -1718,6 +1718,17 @@ pre,.sortie,#ui-rapid-output{overflow-wrap:anywhere;word-break:break-word}
           <button type="button" class="v11-secondary ui-stage-secondary" id="v11-restart">Nouvelle demande</button>
           <button type="button" class="v11-secondary ui-stage-secondary" id="v11-details">Voir les détails</button>
         </div>
+        <!-- CONTINUITE-04 — MODE API BOUT-EN-BOUT. Le prompt final est exécuté par l'IA de la personne
+             (appel #2, même transport, même modèle) et la réponse est montrée ICI, puis ingérée par la
+             MÊME fonction que le collage manuel. Pas un chat : un artefact, sous le prompt qui l'a produit. -->
+        <div id="v11-execution" class="ui-paste-panel" hidden>
+          <p class="ui-field-label" id="v11-execution-title">Réponse de votre IA</p>
+          <p class="v11-muted" id="v11-execution-status" aria-live="polite"></p>
+          <textarea id="v11-execution-output" aria-label="Réponse reçue de votre IA" readonly hidden></textarea>
+          <div class="v11-actions ui-stage-actions">
+            <button type="button" class="v11-secondary ui-stage-secondary" id="v11-copy-execution" hidden>Copier la réponse</button>
+          </div>
+        </div>
         <!-- CONTINUITE-01 · LOT 2 — CONTINUER CETTE DEMANDE. Deux intentions EXPLICITES, choisies par la
              personne : une précision (sa parole) ou la réponse de son IA (un document de travail). Aucune
              détection par longueur, aucune classification cachée : le choix est un clic. Le motif est
@@ -10576,6 +10587,9 @@ function show(id,focusTarget){
   ['#v11-api-progress','#v11-exchange','#v11-dialogue','#v11-ready'].forEach(x=>{const e=$(x);if(e)e.hidden=true});
   if(id){$(id).hidden=false;scrollToActive(id,focusTarget)}
   else scrollToActive('#v11-start-card','#v11-demande');
+  /* CONTINUITE-04 — la réponse affichée appartient au prompt sous lequel elle est née : quitter le
+     panneau final la retire ; un prompt suivant repart sans elle. */
+  if(id!=='#v11-ready'){const x=$('#v11-execution');if(x)x.hidden=true}
   /* CONTINUITE-02 — le prompt final affiché est un point de sauvegarde. */
   if(id==='#v11-ready'&&typeof v11SessionSave==='function')v11SessionSave();
 }
@@ -10590,6 +10604,77 @@ function v11UpdateApiStatus(){
 }
 function v11PushApiUi(){
   const p=$('#v11-api-provider'),lp=$('#fournisseur-actif'),k=$('#v11-api-key'),lk=$('#api-cle');if(p&&lp&&p.value!==lp.value){lp.value=p.value;lp.dispatchEvent(new Event('change',{bubbles:true}))}if(k&&lk)lk.value=k.value;v11UpdateApiStatus()
+}
+/* CONTINUITE-04 — MODE API BOUT-EN-BOUT : EXÉCUTER LE PROMPT FINAL, RAPPORTER LA RÉPONSE COMME MATÉRIAU.
+ *
+ * CE QUE C'EST. Un second appel au MÊME transport (`appelFournisseur`), au même fournisseur et au
+ * même modèle que l'analyse — la finalité `architecte-livrable` du produit résout sur le même
+ * réglage —, avec le prompt final TEL QUEL comme contenu utilisateur. Le prompt compilé est le
+ * produit : il porte déjà tout, jusqu'à la directive finale d'exécution. Le message système est
+ * celui que le produit emploie déjà pour exécuter un prompt compilé (Architecte Pro) : neutre,
+ * sans rôle ni consigne. Ni schéma, ni validation JSON, ni identifiant d'échange, ni enveloppe.
+ *
+ * CE QUE ÇA N'EST PAS. Aucune seconde logique métier : la réponse entre par v11AddPastedMaterial,
+ * la fonction du collage manuel — même forme, même nom « Réponse IA — cycle N », même provenance
+ * (user_provided_material) au tour suivant, même écran ensuite (la zone de continuation, réponse
+ * prise en compte). AUCUN tour OPRIE ne part de lui-même : la réponse est un matériau, et la
+ * personne dit ce qu'elle veut faire ensuite (CONTINUITE-01).
+ *
+ * PÉREMPTION, PAR LES PRIMITIVES EXISTANTES. Le contrôleur d'annulation est celui du tour
+ * (`oprieState.controller`) : une édition (v11AbandonGovernedTurn), une nouvelle demande (resetAll)
+ * ou un nouveau tour (oprieOpenTurn) l'avortent. Une réponse tardive n'est appliquée que si le
+ * numéro de tour est inchangé ET si le prompt est encore courant — la règle de CONTINUITE-03,
+ * demande courante === state.dialogueRequest. Sinon elle est ignorée, sans rien écrire.
+ *
+ * ÉCHEC. Le prompt reste affiché et copiable ; le message dit d'exécuter soi-même et de coller la
+ * réponse. Une réponse vide n'est pas un matériau. Aucun texte — ni prompt, ni réponse — n'est
+ * journalisé : les relevés ne portent que le type d'appel et l'issue. */
+const V11_EXECUTION_SYSTEM='Répondez directement et complètement au prompt suivant.';
+function v11ExecutionStatus(message,{texte=null,warn=false}={}){
+  const bloc=$('#v11-execution'),statut=$('#v11-execution-status'),sortie=$('#v11-execution-output'),copier=$('#v11-copy-execution');
+  if(!bloc)return;
+  bloc.hidden=false;
+  if(statut){statut.textContent=message;statut.dataset.warn=warn?'oui':'non'}
+  if(sortie){sortie.value=texte||'';sortie.hidden=!texte}
+  if(copier)copier.hidden=!texte;
+}
+async function v11ExecuteFinalPromptViaApi({fournisseur,cle,modele,max}){
+  const prompt=String(($('#v11-final')||{}).value||'').trim();
+  if(!prompt||typeof window.appelFournisseur!=='function')return false;
+  const tourDemandeur=oprieState.seq;
+  const demandeDemandeur=state.dialogueRequest;
+  const perdu=()=>tourDemandeur!==oprieState.seq||demandeDemandeur!==state.dialogueRequest||state.dialogueRequest!==oprieOriginalRequest();
+  const controller=new AbortController();oprieState.controller=controller;
+  v11ExecutionStatus('Votre IA exécute le prompt…');
+  if(typeof oprieMark==='function')oprieMark('api_execution_start');
+  let r=null;
+  try{
+    r=await window.appelFournisseur({fournisseur,cle,modele,maxTokens:max,systeme:V11_EXECUTION_SYSTEM,contenuUtilisateur:prompt,signal:controller.signal});
+  }catch(error){
+    if(oprieState.controller===controller)oprieState.controller=null;
+    if(controller.signal.aborted||perdu()){if(typeof oprieMark==='function')oprieMark('api_execution_discarded',{reason:'stale'});return false}
+    if(typeof oprieMark==='function')oprieMark('api_execution_end',{ok:false,reason:'provider_error'});
+    v11ExecutionStatus('Votre IA n’a pas répondu ('+String((error&&(error.message_utilisateur||error.message))||'erreur inconnue')+'). Le prompt reste copiable : exécutez-le vous-même, puis collez la réponse avec « Continuer cette demande ».',{warn:true});
+    return false;
+  }
+  if(oprieState.controller===controller)oprieState.controller=null;
+  if(perdu()){if(typeof oprieMark==='function')oprieMark('api_execution_discarded',{reason:'stale'});return false}
+  const texte=String(r&&r.texte||'').trim();
+  if(!texte){
+    if(typeof oprieMark==='function')oprieMark('api_execution_end',{ok:false,reason:'empty'});
+    v11ExecutionStatus('Votre IA a renvoyé une réponse vide. Le prompt reste copiable : exécutez-le vous-même, puis collez la réponse avec « Continuer cette demande ».',{warn:true});
+    return false;
+  }
+  /* L'INGESTION CANONIQUE — la même fonction que « Coller la réponse de mon IA ». */
+  const doc=v11AddPastedMaterial(texte);
+  if(typeof oprieMark==='function')oprieMark('api_execution_end',{ok:true});
+  v11ExecutionStatus('Réponse reçue et prise en compte ('+doc.name+'). Dites ensuite ce que vous voulez faire.',{texte});
+  /* Le même écran qu'après un collage : la zone attend la suite, la réanalyse sans ajout est offerte. */
+  v11OpenContinuation();
+  const panel=$('#v11-continue-panel');if(panel)panel.dataset.ingested=doc.name;
+  v11ChooseContinuation('precision');
+  scrollToActive('#v11-execution','#v11-execution-output');
+  return true;
 }
 async function beginApiAnalysis(){
   syncLegacy();
@@ -10658,6 +10743,11 @@ async function beginApiAnalysis(){
      jamais l'analyse brute. C'est sa seule source sémantique. */
   const prompt=api.compiler(enrichment&&enrichment.contract);if(!prompt)throw new Error('La demande a été comprise, mais le prompt final n’a pas pu être préparé.');
   $('#v11-final').value=adnAppendFinalExecutionDirective(prompt);show('#v11-ready','#v11-copy-final');
+  /* CONTINUITE-04 — le mode API va jusqu'au bout : le prompt qui vient d'être compilé est exécuté
+     par la même IA, et sa réponse rapportée comme matériau. Le modèle est celui de la finalité
+     « livrable » du produit — le même réglage. Un échec ici ne défait rien de ce qui précède. */
+  const modeleLivrable=typeof window.obtenirModeleActif==='function'?(window.obtenirModeleActif('architecte-livrable')||modele):modele;
+  if(typeof v11ExecuteFinalPromptViaApi==='function')await v11ExecuteFinalPromptViaApi({fournisseur,cle,modele:modeleLivrable,max});
 }
 function compositeDemand(){
   const d=$('#v11-demande').value.trim();
@@ -25537,6 +25627,8 @@ function init(){
   $('#v11-continue-add-document').addEventListener('click',()=>$('#v11-files').click());
   $('#v11-continue-analyse-only').addEventListener('click',v11ContinueWithoutAddition);
   $('#v11-continue-cancel').addEventListener('click',v11CloseContinuation);
+  /* CONTINUITE-04 — copier la réponse reçue, par la fonction de copie existante. */
+  $('#v11-copy-execution').addEventListener('click',()=>copyText($('#v11-execution-output').value));
   /* CONTINUITE-02 — la demande en cours de saisie survit aussi : une écriture différée, jamais une
      par frappe. Le garde d'édition ci-dessus reste intact ; ce gestionnaire ne fait que photographier. */
   let v11SessionMinuteur=null;
