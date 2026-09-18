@@ -4,7 +4,7 @@
     "name": "EvidenceForge",
     "version": "MONOLITH-v1.0.6"
   },
-  "generatedAt": "2026-09-18T10:23:30.929Z",
+  "generatedAt": "2026-09-18T10:33:41.386Z",
   "frozenLots": {
     "MONO-10": {
       "dir": "MONO-10/v0.19",
@@ -89,7 +89,7 @@
       "total": 198,
       "passed": 198,
       "failed": 0,
-      "ranAt": "2026-09-18T10:18:18.906Z"
+      "ranAt": "2026-09-18T10:33:12.770Z"
     },
     "professionals": {
       "maxCandidatesToEvaluate": 150,
@@ -148,8 +148,8 @@
     },
     {
       "path": "MONOLITH-v1.0.6-AUTO-CHUNK-UPLOAD-REPORT.md",
-      "sha256": "2fe0c13eb78263f74e5252000fc62de92c0381c599e9f269fe10f1ff2559b210",
-      "bytes": 14752
+      "sha256": "d7fdd1f65fb334a11290b7cdca6b9bf8504dcd134c245853cff1580789ead497",
+      "bytes": 14986
     },
     {
       "path": "NON-REGRESSION.md",
@@ -208,7 +208,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "ed33e3348406919b0a3d3ddcc4e2017b5e216329bb9a8a40ba5809794e28cf81",
+      "sha256": "b77bd03c1c3493899b454ca3db1470d6412e8e0f9237b0c1030b4749d7f26c12",
       "bytes": 27131
     },
     {
@@ -448,13 +448,13 @@
     },
     {
       "path": "test/browser-results-v105.json",
-      "sha256": "23cd59dfcb0e89fd59c65604680dade3a8f526d2c37476d18f077d3d020b8bb7",
+      "sha256": "61b9bf8dba16c16ab85337957325b26bb6917f4d998843e4a8529b01d1c48189",
       "bytes": 8260
     },
     {
       "path": "test/browser-results-v106.json",
-      "sha256": "99254ce61a56f8614b4fa06b0babc175dad5fa2774f7f2930ca888c1ebc5536b",
-      "bytes": 3392
+      "sha256": "cf02cbc4b912bb7cf43c95ebab2de0c7da62f23fab6dc164912d8d5fa194fffa",
+      "bytes": 1774
     },
     {
       "path": "test/fixtures/portfolio-incident.json",
@@ -463,12 +463,12 @@
     },
     {
       "path": "test/results-chunking.json",
-      "sha256": "809c586de6125ad80b9e7c00448ac9c8230d8cf9658272d1c7518f1060e38594",
+      "sha256": "ebe1ce662b6852addfaf38e9a97fb310976863a6abcb87faa3068b26a1197756",
       "bytes": 4289
     },
     {
       "path": "test/results.json",
-      "sha256": "a62c396adec0547ad477e9d6cda4dbbbe61d0aee5607eaec99e86a136ba6431e",
+      "sha256": "1b56907cdb39b234b1fb1872a268717c6cd42eb44ffac17d2909c6388fffe256",
       "bytes": 49042
     },
     {
@@ -528,8 +528,8 @@
     },
     {
       "path": "tools/browser-tests-v106.js",
-      "sha256": "803dafddb5e093222a74aa31ff82783add9872338f8adcaf8e9b2778d934046a",
-      "bytes": 8115
+      "sha256": "8f03ecaed4eccf5a35096c13719d21a8c39eefb7878bae820d87ad79a9207a05",
+      "bytes": 10976
     },
     {
       "path": "tools/browser-tests.js",
@@ -623,5 +623,5 @@
     }
   ],
   "fileCount": 104,
-  "contentHash": "61674288df345c112130f5029509bb26328a0c46e25729ae07d5d05e021ac885"
+  "contentHash": "5a3a065eba2b4efcd2facca9a9163c61b4f0e73142a8f9b986df44d2ee32a7b8"
 }

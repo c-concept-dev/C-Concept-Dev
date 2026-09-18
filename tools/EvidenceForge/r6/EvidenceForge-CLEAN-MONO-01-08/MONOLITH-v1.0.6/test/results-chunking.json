@@ -1,7 +1,7 @@
 {
   "schema": "EvidenceForge.MonolithChunkingTestResults",
   "version": "MONOLITH-v1.0.6",
-  "ranAt": "2026-09-18T10:17:16.207Z",
+  "ranAt": "2026-09-18T10:30:35.833Z",
   "maxChunkChars": 4500,
   "fixtureExternalCaseAnalysis": true,
   "total": 21,

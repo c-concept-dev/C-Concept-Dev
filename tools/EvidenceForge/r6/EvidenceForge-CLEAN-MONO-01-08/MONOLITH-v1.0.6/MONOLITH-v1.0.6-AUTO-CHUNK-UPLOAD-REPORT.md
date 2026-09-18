@@ -20,7 +20,7 @@ Le cadrage IA (`lib/stage-mission.js`) lisait chaque document jusqu'à `DOC_EXCE
 | `index.html` | base64 par blocs (plus de débordement de pile sur un long fichier), aperçu du découpage, compte de documents, garde de ré-entrance | 17 |
 | `config/monolith.config.json` | `product.version = MONOLITH-v1.0.6` ; `documents.chunking { maxChunkChars: 4500, strategy }` | 11 |
 | `test/test-chunking.js` | **AJOUTÉ** — T-CHUNK-01..16 + T-CHUNK-REAL-01..05 | 21 tests |
-| `tools/browser-tests-v106.js` | **AJOUTÉ** — tests navigateur de l'upload (Chrome headless, CDP) | 11 tests |
+| `tools/browser-tests-v106.js` | **AJOUTÉ** — tests navigateur de l'upload (Chrome headless, CDP) ; correctif d'audit : compteur DOM `#docCount`, RegExp dynamiques, 3e document à N ≠ 1, 2, 8 segments, résultats persistés sans diagnostics | 12 tests |
 | `fixtures/real-documents/` | **AJOUTÉ** — 4 documents de gouvernance réels complets (fixture locale, données) | 4 fichiers |
 | `test/test-v105.js` | NONREG-03 : `stage-mission.js` n'est plus exigé byte-identique à v1.0.4 (modifié par ce lot) ; le contrat de reformulation l'est toujours | 5 |
 | `tools/browser-tests-v105.js` | version lue dans la config (plus de littéral v1.0.5) | 2 |
@@ -89,7 +89,7 @@ court.txt · 43 caractères → 1 segment → document complet
 vide.txt · document vide — non exploitable
 2 documents · 9 segments au total (segments ≤ 4 500 caractères, lus intégralement)
 ```
-État `COMPLET` / `INCOMPLET` par document ; jamais une liste de sous-fichiers ; un fichier vide reste listé mais non compté. Garde de ré-entrance : deux sélections rapprochées ne mélangent jamais deux listes. Vérifié en navigateur réel (11/11).
+État `COMPLET` / `INCOMPLET` par document ; jamais une liste de sous-fichiers ; un fichier vide reste listé mais non compté. Garde de ré-entrance : deux sélections rapprochées ne mélangent jamais deux listes. Vérifié en navigateur réel (12/12 : compteur DOM de documents, jamais le nombre de segments — cas 8, 4 et 1 + 8 segments).
 
 ## 8. Tests
 
@@ -97,7 +97,7 @@ vide.txt · document vide — non exploitable
 |---|---|---|
 | `test/test-monolith.js` (fonctionnels, adversariaux, UI, privacy, anti-hardcoding, intégrité ; charge test-v105/panel/sufficiency/screening-cost/run-safety/portfolio) | **198 / 198** | aucun |
 | `test/test-chunking.js` — T-CHUNK-01..16 + T-CHUNK-REAL-01..05 | **21 / 21** | aucun |
-| `tools/browser-tests-v106.js` (Chrome headless) | **11 / 11** | aucun (serveur sans identifiants) |
+| `tools/browser-tests-v106.js` (Chrome headless) | **12 / 12** | aucun (serveur sans identifiants) |
 | `tools/browser-tests-v105.js` (non-régression UI v1.0.5 sur v1.0.6) | **33 / 33** | aucun |
 | `tools/EvidenceForge/test/test-launch.js` (lanceur, ACTIVE_VERSION = v1.0.6) | **14 / 14** | worker factice local |
 | `tools/anti-hardcoding-scan.js` | 0 hit | — |
