@@ -1586,6 +1586,9 @@ pre,.sortie,#ui-rapid-output{overflow-wrap:anywhere;word-break:break-word}
 
           <div class="ui-primary-actions">
             <button type="button" class="ui-cta" id="ui-main-action">Préparer avec Architecte</button>
+            <!-- CONTINUITE-01 · LOT 1 — le même reset que #v11-restart, rendu accessible depuis le composeur.
+                 Aucune logique ici : le bouton est câblé sur resetAll, exactement comme le bouton final. -->
+            <button type="button" class="ui-cta ui-cta-soft" id="v11-new-request">Nouvelle demande</button>
           </div>
           <div id="ui-rapid-gate" class="ui-rapid-gate" hidden role="status" aria-live="polite">
             <strong id="ui-rapid-gate-title"></strong>
@@ -1711,8 +1714,29 @@ pre,.sortie,#ui-rapid-output{overflow-wrap:anywhere;word-break:break-word}
         <textarea id="v11-final" aria-label="Demande finale préparée" readonly></textarea>
         <div class="v11-actions ui-stage-actions">
           <button type="button" class="v11-primary ui-stage-primary" id="v11-copy-final">Copier pour mon IA</button>
+          <button type="button" class="v11-secondary ui-stage-secondary" id="v11-continue" aria-controls="v11-continue-panel" aria-expanded="false">Continuer cette demande</button>
           <button type="button" class="v11-secondary ui-stage-secondary" id="v11-restart">Nouvelle demande</button>
           <button type="button" class="v11-secondary ui-stage-secondary" id="v11-details">Voir les détails</button>
+        </div>
+        <!-- CONTINUITE-01 · LOT 2 — CONTINUER CETTE DEMANDE. Deux intentions EXPLICITES, choisies par la
+             personne : une précision (sa parole) ou la réponse de son IA (un document de travail). Aucune
+             détection par longueur, aucune classification cachée : le choix est un clic. Le motif est
+             celui du dialogue de clarification — une zone de texte, des actions, une aide. -->
+        <div id="v11-continue-panel" class="ui-paste-panel" hidden>
+          <p class="ui-field-label" id="v11-continue-title">Que souhaitez-vous ajouter ?</p>
+          <div class="v11-actions ui-stage-actions" role="group" aria-labelledby="v11-continue-title">
+            <button type="button" class="v11-secondary ui-stage-secondary" id="v11-continue-precision" aria-pressed="false">Ajouter une précision</button>
+            <button type="button" class="v11-secondary ui-stage-secondary" id="v11-continue-ai-response" aria-pressed="false">Coller la réponse de mon IA</button>
+          </div>
+          <div id="v11-continue-editor" hidden>
+            <textarea class="v11-answer ui-answer" id="v11-continue-text" aria-label="Ce que vous ajoutez à votre demande"></textarea>
+            <div class="v11-actions ui-stage-actions">
+              <button type="button" class="v11-primary ui-stage-primary" id="v11-continue-submit">Continuer</button>
+              <button type="button" class="v11-secondary ui-stage-secondary" id="v11-continue-add-document" hidden>Ajouter un document</button>
+              <button type="button" class="v11-secondary ui-stage-secondary" id="v11-continue-cancel">Annuler</button>
+            </div>
+            <p class="v11-muted" id="v11-continue-help"></p>
+          </div>
         </div>
       </div>
     </div>
@@ -10889,6 +10913,110 @@ function resetAll(){
   if(typeof oprieState==='object'&&oprieState)oprieState.turnExplicitUnknownIds=[];
   state.requestName='demande-pour-ia.json';state.responseName='reponse-de-ia.json';$('#v11-demande').value='';renderFiles();$('#v11-final').value='';show(null);
   if(window.__ARCHITECTE_V10__&&window.__ARCHITECTE_V10__.nouvelleDemande)try{window.__ARCHITECTE_V10__.nouvelleDemande()}catch(e){}
+  /* CONTINUITE-01 — une zone de continuation restée ouverte ne survit pas à une nouvelle demande :
+     elle est de la présentation, et une nouvelle demande n'en hérite pas. Rien de sémantique ici. */
+  if(typeof v11CloseContinuation==='function')v11CloseContinuation();
+}
+/* CONTINUITE-01 · LOT 2 — CONTINUER CETTE DEMANDE, SANS FABRIQUER DE PROVENANCE.
+ *
+ * CE QUE L'AUDIT A ÉTABLI. `answerQuestion` écrit `question:$('#v11-question').textContent` : hors
+ * d'une question réellement posée, ce champ porterait le texte périmé de la dernière question, et
+ * l'historique de clarification mentirait sur ce qui s'est passé. Une précision ajoutée après le
+ * prompt final n'est PAS une réponse à une question ; elle n'entre donc pas par `answerQuestion`.
+ *
+ * POURQUOI PAS `question: null`. Trois consommateurs exigent une question non vide, et aucun n'est
+ * modifiable dans ce lot : `oprieClarificationHistory()` ignore toute entrée dont la question est
+ * vide (l'ajout serait invisible pour OPRIE) ; `validateOriginalRequestRecord` /
+ * `appendClarificationTurn` (core/adn/operational-request-state.js, gelés) affirment
+ * `clarification_history[i].question` non vide ; et le contrat serveur reçoit le même historique.
+ * La représentation la plus petite et honnête est donc une valeur TECHNIQUE constante, qui dit
+ * exactement ce qui s'est passé — aucune question n'a été posée — sans se confondre avec une
+ * question réelle (l'anti-répétition compare des identités de question ; celle-ci n'en croise
+ * aucune). Elle n'est jamais dérivée du texte de la personne.
+ *
+ * DEUX INTENTIONS, DEUX CANAUX EXISTANTS, ET C'EST LA PERSONNE QUI CHOISIT.
+ *   - Ajouter une précision  → une entrée de `state.answers`, donc de clarification_history :
+ *     la parole de la personne, réinjectée dans le cycle OPRIE normal (tour complet, jamais un
+ *     patch local).
+ *   - Coller la réponse de mon IA → une entrée de `state.docs`, de la forme exacte qu'`addFiles`
+ *     produit pour un fichier texte : un MATÉRIAU, transporté par `material_content` avec la
+ *     provenance existante (`user_provided_material`), jamais une affirmation de la personne.
+ *     Le libellé nomme l'origine et le cycle, pour qu'un tour suivant puisse s'y référer.
+ * Aucune heuristique de longueur, aucun registre nouveau, aucune autorité : le tour suivant est
+ * le même `oprieRunTurn` qu'une réponse de clarification déclenche. Le futur mode API réutilisera
+ * `v11AddPastedMaterial` tel quel : une seule fonction d'ingestion, deux appelants. */
+const V11_CONTINUATION_QUESTION='Précision ajoutée par la personne après la préparation, sans question posée';
+const V11_AI_RESPONSE_LABEL='Réponse IA — cycle ';
+function v11AppendUserContinuation(text){
+  text=String(text||'').trim();if(!text)return false;
+  state.answers.push({question:V11_CONTINUATION_QUESTION,answer:text});
+  return true;
+}
+function v11AddPastedMaterial(text){
+  text=String(text||'').trim();if(!text)return null;
+  const cycle=state.docs.filter(d=>d&&typeof d.name==='string'&&d.name.indexOf(V11_AI_RESPONSE_LABEL)===0).length+1;
+  const size=(typeof TextEncoder==='function')?new TextEncoder().encode(text).length:text.length;
+  const doc={name:V11_AI_RESPONSE_LABEL+cycle+'.txt',type:'text/plain',size,text,external:false};
+  state.docs.push(doc);renderFiles();
+  return doc;
+}
+function v11OpenContinuation(){
+  const panel=$('#v11-continue-panel');if(!panel)return false;
+  v11CloseContinuation();panel.hidden=false;
+  const b=$('#v11-continue');if(b)b.setAttribute('aria-expanded','true');
+  scrollToActive('#v11-continue-panel','#v11-continue-precision');
+  return true;
+}
+function v11CloseContinuation(){
+  const panel=$('#v11-continue-panel');if(!panel)return false;
+  panel.hidden=true;delete panel.dataset.kind;delete panel.dataset.docsBefore;
+  const ed=$('#v11-continue-editor');if(ed)ed.hidden=true;
+  const ta=$('#v11-continue-text');if(ta)ta.value='';
+  const b=$('#v11-continue');if(b)b.setAttribute('aria-expanded','false');
+  ['#v11-continue-precision','#v11-continue-ai-response'].forEach(x=>{const e=$(x);if(e)e.setAttribute('aria-pressed','false')});
+  return true;
+}
+function v11ChooseContinuation(kind){
+  if(kind!=='precision'&&kind!=='ai_response')return false;
+  const panel=$('#v11-continue-panel');if(!panel)return false;
+  panel.dataset.kind=kind;panel.dataset.docsBefore=String(state.docs.length);
+  const precision=kind==='precision';
+  $('#v11-continue-precision').setAttribute('aria-pressed',String(precision));
+  $('#v11-continue-ai-response').setAttribute('aria-pressed',String(!precision));
+  const ed=$('#v11-continue-editor');ed.hidden=false;
+  const ta=$('#v11-continue-text');ta.value='';
+  ta.placeholder=precision?'Ex. Le budget est finalement de 5 000 €. Supprime la partie juridique. À toi de choisir.':'Collez ici la réponse que votre IA vous a donnée.';
+  $('#v11-continue-add-document').hidden=precision;
+  $('#v11-continue-submit').textContent=precision?'Ajouter et continuer':'Utiliser cette réponse et continuer';
+  $('#v11-continue-help').textContent=precision
+    ?'Votre précision sera ajoutée à votre demande, qui sera ensuite réanalysée.'
+    :'La réponse sera conservée comme document de travail, et votre demande sera réanalysée avec.';
+  scrollToActive('#v11-continue-editor','#v11-continue-text');
+  return true;
+}
+function v11SubmitContinuation(){
+  if(oprieState.running)return false;
+  const panel=$('#v11-continue-panel');const kind=panel&&panel.dataset.kind;
+  if(!kind){toast('Choisissez d’abord ce que vous souhaitez ajouter.');return false}
+  const text=String(($('#v11-continue-text')||{}).value||'').trim();
+  if(kind==='precision'){
+    if(!v11AppendUserContinuation(text)){toast('Écrivez votre précision avec vos mots.');$('#v11-continue-text').focus();return false}
+  }else{
+    const joint=state.docs.length>Number(panel.dataset.docsBefore||0);
+    if(!text&&!joint){toast('Collez la réponse de votre IA, ou joignez-la comme document.');$('#v11-continue-text').focus();return false}
+    if(text)v11AddPastedMaterial(text);
+  }
+  v11CloseContinuation();
+  return v11ContinueTurn();
+}
+/* Le tour suivant est le tour ordinaire : même branchement qu'une réponse de clarification — le
+   pipeline gouverné quand le mode en a un, l'échange par fichier sinon. Rien n'est décidé ici. */
+function v11ContinueTurn(){
+  syncLegacy();
+  const mode=adpState.requestedMode||'architecte';
+  if(v11ModeUsesGovernedPipeline(mode))return oprieRunTurn(mode);
+  beginExchange();
+  return true;
 }
 function v11RequireDemand(){
   const d=$('#v11-demande').value.trim();
@@ -25170,6 +25298,15 @@ function init(){
   $('#v11-dialogue').addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();adpCancelClarification()}});
   $('#v11-copy-final').addEventListener('click',()=>copyText($('#v11-final').value));
   $('#v11-restart').addEventListener('click',resetAll);
+  /* CONTINUITE-01 · LOT 1 — le MÊME gestionnaire, la MÊME fonction : aucune seconde remise à zéro. */
+  $('#v11-new-request').addEventListener('click',resetAll);
+  /* CONTINUITE-01 · LOT 2 — le flux de continuation. */
+  $('#v11-continue').addEventListener('click',v11OpenContinuation);
+  $('#v11-continue-precision').addEventListener('click',()=>v11ChooseContinuation('precision'));
+  $('#v11-continue-ai-response').addEventListener('click',()=>v11ChooseContinuation('ai_response'));
+  $('#v11-continue-submit').addEventListener('click',v11SubmitContinuation);
+  $('#v11-continue-add-document').addEventListener('click',()=>$('#v11-files').click());
+  $('#v11-continue-cancel').addEventListener('click',v11CloseContinuation);
   $('#v11-details').addEventListener('click',()=>{setNormal(false);if(typeof ouvrirVue==='function')ouvrirVue('architecte')});
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
