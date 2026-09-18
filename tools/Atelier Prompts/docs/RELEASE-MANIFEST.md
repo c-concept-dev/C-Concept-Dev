@@ -13,8 +13,8 @@
 | --- | --- |
 | Lot | HTML-FINAL-02 |
 | Artefact | Atelier de prompts — V11.5 LOT 10G Adaptive Decision Pipeline |
-| Commit local | `60f6fa9b7bc415a5b96e27b1aac79ca5c2c0a405` |
-| Date du commit | 2026-09-18T17:52:08+02:00 |
+| Commit local | `c399c59959651735a3513b981d092a6cf81eab41` |
+| Date du commit | 2026-09-18T18:06:59+02:00 |
 
 ## Artefact canonique
 
@@ -24,8 +24,8 @@ aucune police et aucune image ne sont chargés depuis un tiers.
 | Champ | Valeur |
 | --- | --- |
 | Chemin | `atelier-prompts-v11.5-lot10g-decision-provider.html` |
-| Taille | 1604569 octets |
-| SHA-256 | `e30c045371cc204ed8c5eeee0027bc8a253156b7bc28108134ea84f2ecb1d5c8` |
+| Taille | 1606562 octets |
+| SHA-256 | `429d7c2bc6008fb54aeae4ca5feb5dac22bd07dae3be5494301b60bab90f9c5b` |
 
 ## Runtime compilé
 
@@ -59,13 +59,13 @@ Le bloc embarqué dans la page et le fichier généré sont comparés octet pour
 l'artefact. Le manifeste lui-même en est exclu : un document ne peut pas contenir
 sa propre empreinte.
 
-| Empreinte du jeu | `dc58ebb2fd90dd0bc8f445139be95d7b71eaad39b487f7576ad857ac74bf50e9` |
+| Empreinte du jeu | `220f0fc95f7f2555363c464867a515d4bb8a03ba6dbbcbb3efae3959a7998797` |
 | --- | --- |
 
 | Classe | Fichier | SHA-256 |
 | --- | --- | --- |
 | REQUIRED_BUILD | `anti-regression-baseline.json` | `7bd0fcca3f3ed226e3fdd30ee52dc204dae158dbde8842c08731054a1f58e7d6` |
-| REQUIRED_HTML | `atelier-prompts-v11.5-lot10g-decision-provider.html` | `e30c045371cc204ed8c5eeee0027bc8a253156b7bc28108134ea84f2ecb1d5c8` |
+| REQUIRED_HTML | `atelier-prompts-v11.5-lot10g-decision-provider.html` | `429d7c2bc6008fb54aeae4ca5feb5dac22bd07dae3be5494301b60bab90f9c5b` |
 | REQUIRED_BUILD | `core/adn/adaptive-lock-selector.js` | `15d3154d639b761747a26215f2ec59eb6b121e6072187b6a2dd611eefe5b65ea` |
 | REQUIRED_BUILD | `core/adn/adn-state.js` | `814bbc8318cd2e20d1964c0930809e9997e00bf1cfe8f474aa8f3f39af767d8b` |
 | REQUIRED_BUILD | `core/adn/arch-canonical-enrichment.js` | `159140c46266a8fe6cb35995f53addbfb8fe9802b6ef427d3c0589c449cc0aaa` |
@@ -206,7 +206,7 @@ par ce script.*
 | EXEC-PHASE-INSTRUMENT-01 | CLOSED |
 | FC01b FINAL | CLOSED |
 | HTML-FINAL-01 / 01A | CLOSED |
-| Tests au vert | 3566 |
+| Tests au vert | 3568 |
 
 ## Dette encore ouverte
 

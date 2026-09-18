@@ -65,7 +65,7 @@ function chargerContinuite({ answers = [], docs = [], mode = 'architecte', gover
   };
   vm.runInNewContext(source + `
 ;globalThis.__c={resetAll,v11ForgetDialogue,v11AppendUserContinuation,v11AddPastedMaterial,v11OpenContinuation,
-  v11CloseContinuation,v11ChooseContinuation,v11SubmitContinuation,v11ContinueTurn,V11_CONTINUATION_QUESTION,V11_AI_RESPONSE_LABEL};`, context);
+  v11CloseContinuation,v11ChooseContinuation,v11SubmitContinuation,v11ContinueTurn,v11ContinueWithoutAddition,V11_CONTINUATION_QUESTION,V11_AI_RESPONSE_LABEL};`, context);
   return { c: context.__c, ctx: context, spy, el };
 }
 
@@ -255,17 +255,28 @@ test('T5 · CONTINUE_LLM_RESPONSE : la réponse de l’IA devient un matériau n
   assert.equal(doc.text, 'Je recommande PostgreSQL pour ce projet.');
   assert.equal(doc.size, Buffer.byteLength(doc.text, 'utf8'), 'la taille est celle du fichier qu’il aurait été');
   assert.equal(h.spy.rendered, 1, 'la liste des documents est rafraîchie par la fonction existante');
-  assert.deepEqual(plain(h.spy.turns), [{ mode: 'architecte', options: null }], 'le tour suivant part, et OPRIE pourra l’analyser');
+  /* CONTRAT DU CYCLE — coller n'est pas continuer : aucun tour ne part, la réponse est confirmée, et
+     la zone attend maintenant ce que la personne veut faire ensuite. */
+  assert.deepEqual(h.spy.turns, [], 'PAS de tour OPRIE automatique au collage');
+  assert.deepEqual(plain(h.spy.toasts), ['Réponse de votre IA prise en compte']);
+  assert.equal(h.ctx.$('#v11-continue-panel').hidden, false, 'la zone reste ouverte');
+  assert.equal(h.ctx.$('#v11-continue-panel').dataset.kind, 'precision', 'et attend la demande suivante');
+  assert.equal(h.ctx.$('#v11-continue-panel').dataset.ingested, 'Réponse IA — cycle 1.txt');
+  assert.match(h.ctx.$('#v11-continue-help').textContent, /^Réponse prise en compte \(Réponse IA — cycle 1\.txt\)\. Dites maintenant ce que vous voulez faire ensuite/);
+  assert.equal(h.ctx.$('#v11-continue-text').value, '', 'la zone est prête pour la parole de la personne');
+  assert.equal(h.ctx.$('#v11-continue-analyse-only').hidden, false, 'le geste explicite « sans rien ajouter » est offert');
   /* Un second cycle porte le numéro suivant, sans registre : dérivé des documents présents. */
-  h.c.v11OpenContinuation(); h.c.v11ChooseContinuation('ai_response');
+  h.c.v11ChooseContinuation('ai_response');
   h.ctx.$('#v11-continue-text').value = 'Version révisée.'; h.c.v11SubmitContinuation();
   assert.equal(h.ctx.state.docs[1].name, 'Réponse IA — cycle 2.txt');
-  /* Sans texte ni document joint : rien n'est écrit, rien ne part. Avec un document joint pendant
-     la continuation (mécanisme de fichier existant) et sans texte : le tour part. */
+  assert.deepEqual(h.spy.turns, [], 'toujours aucun tour');
+  /* Sans texte ni document joint : rien n'est écrit. Avec un document joint pendant la continuation
+     (mécanisme de fichier existant) et sans texte : ingéré et confirmé, sans tour. */
   const v = chargerContinuite(); v.c.v11OpenContinuation(); v.c.v11ChooseContinuation('ai_response');
   assert.equal(v.c.v11SubmitContinuation(), false); assert.deepEqual(v.spy.turns, []);
   v.ctx.state.docs.push({ name: 'reponse.txt', type: 'text/plain', size: 3, text: 'abc', external: false });
-  assert.equal(v.c.v11SubmitContinuation(), true); assert.equal(v.spy.turns.length, 1);
+  assert.equal(v.c.v11SubmitContinuation(), true); assert.deepEqual(v.spy.turns, []);
+  assert.equal(v.ctx.$('#v11-continue-panel').dataset.ingested, 'reponse.txt');
 
   /* Le tour réel : le texte collé voyage dans material_content — le canal des matériaux, avec la
      provenance existante — et n'apparaît ni dans original_request ni dans clarification_history. */
@@ -425,4 +436,134 @@ test('T12a · aucune heuristique, aucun canal fusionné, aucune persistance, auc
   assert.equal(/#v11-demande/.test(lot), false, 'la continuation n’écrit jamais dans la demande');
   /* Aucun bloc gelé modifié : le garde le vérifie, ce test le rappelle. */
   assert.equal(/answerQuestion\(/.test(lot), false, 'answerQuestion n’est pas détournée');
+});
+
+/* ==========================================================================
+ * CLÔTURE — P0 : LE CONTRAT DU CYCLE ; P1 : LA DURÉE DE VIE DU REGISTRE DE TOUR
+ * ======================================================================= */
+
+test('T13 · P0 CYCLE_CONTRACT : coller la réponse, puis formuler la suite, puis Continuer → UN seul tour, avec l’historique, le matériau et la parole ensemble', () => {
+  const h = chargerContinuite({ answers: [{ question: 'Quel est le public ?', answer: 'Des dirigeants.', missing_determinant_id: 'public' }] });
+  h.c.v11OpenContinuation(); h.c.v11ChooseContinuation('ai_response');
+  h.ctx.$('#v11-continue-text').value = 'Voici le cahier des charges rédigé : …'; assert.equal(h.c.v11SubmitContinuation(), true);
+  assert.deepEqual(h.spy.turns, [], 'étape 1 — ingéré, confirmé, aucun tour');
+  /* Étape 2 — la personne formule la suite. */
+  assert.equal(h.ctx.$('#v11-continue-panel').dataset.kind, 'precision');
+  h.ctx.$('#v11-continue-text').value = 'Supprime la partie juridique et ajoute un calendrier.';
+  assert.equal(h.c.v11SubmitContinuation(), true);
+  /* Étape 3 — UN tour, et tout y est. */
+  assert.deepEqual(plain(h.spy.turns), [{ mode: 'architecte', options: null }], 'exactement un tour OPRIE');
+  assert.deepEqual(plain(h.ctx.state.answers).map((a) => a.answer), ['Des dirigeants.', 'Supprime la partie juridique et ajoute un calendrier.'], 'historique existant + nouvelle parole');
+  assert.deepEqual(plain(h.ctx.state.docs).map((d) => d.name), ['Réponse IA — cycle 1.txt'], 'la réponse ingérée est là pour ce tour');
+  assert.equal(h.ctx.$('#v11-continue-panel').hidden, true, 'la zone se referme après Continuer');
+  assert.equal(h.ctx.$('#v11-continue-panel').dataset.ingested, undefined);
+
+  /* Le cas particulier — analyser la réponse sans rien ajouter — n'est JAMAIS inféré : sans le geste
+     explicite, un Continuer vide refuse ; le geste explicite, lui, lance un tour. */
+  const seul = chargerContinuite(); seul.c.v11OpenContinuation(); seul.c.v11ChooseContinuation('ai_response');
+  seul.ctx.$('#v11-continue-text').value = 'Réponse.'; seul.c.v11SubmitContinuation();
+  assert.equal(seul.c.v11SubmitContinuation(), false, 'Continuer sans parole ne lance rien');
+  assert.deepEqual(seul.spy.turns, []);
+  assert.equal(seul.c.v11ContinueWithoutAddition(), true, 'le geste explicite lance UN tour');
+  assert.deepEqual(plain(seul.spy.turns), [{ mode: 'architecte', options: null }]);
+  assert.deepEqual(plain(seul.ctx.state.answers), [], 'et n’écrit aucune parole que la personne n’a pas dite');
+  /* Sans réponse ingérée dans cette zone, le geste n'existe pas. */
+  const sans = chargerContinuite(); sans.c.v11OpenContinuation(); sans.c.v11ChooseContinuation('precision');
+  assert.equal(sans.ctx.$('#v11-continue-analyse-only').hidden, true);
+  assert.equal(sans.c.v11ContinueWithoutAddition(), false); assert.deepEqual(sans.spy.turns, []);
+  /* Aucune machine à états : l'état de la zone vit dans le DOM (dataset), et se lit là. */
+  const lot = sansProse(tranche('const V11_CONTINUATION_QUESTION=', 'function v11RequireDemand(){'));
+  assert.equal(/let \w+|var \w+/.test(lot), false, 'aucune variable d’état de module');
+  assert.match(INIT, /\$\('#v11-continue-analyse-only'\)\.addEventListener\('click',v11ContinueWithoutAddition\);/);
+});
+
+test('T14 · P1 TURN_REGISTER_LIFETIME : « je ne sais pas » sur X, prompt final, puis une précision sans rapport — rien de transitoire n’est attribué, X reste durablement inconnu', async () => {
+  /* Le pilote RÉEL : tour 1, le plan rapide pose une question sur X et déclare Y inconnu ; la
+     personne répond « je ne sais pas » par answerQuestion (le code réel, chargé dans le même
+     contexte) ; tour 2, le plan rapide redéclare X et se tait, le plan profond rend READY ; puis la
+     continuation (code réel, même contexte) ajoute une précision sans rapport et lance le tour 3. */
+  let tour = 0;
+  const p = loadPilot({
+    demande: 'Prépare une note de cadrage.',
+    fast: () => {
+      tour += 1;
+      if (tour === 1) return { type: 'ASK_CLARIFICATION', text: 'Quel est le budget ?', question_focus: 'problem_or_user_context',
+        missing_determinant_id: 'budget', explicit_unknown_determinant_ids: ['delai_declare_inconnu'] };
+      /* Dès le tour 2, l'autorité relit l'historique et déclare le budget inconnu, comme Option D le prévoit. */
+      return { type: 'WAIT_FOR_DEEP_VALIDATION', text: 'Rien à demander.', question_focus: null,
+        missing_determinant_id: null, explicit_unknown_determinant_ids: ['budget'] };
+    },
+    deep: () => arbiterTurn('operational_request_ready')
+  });
+  Object.assign(p.ctx, { toast() {}, syncLegacy() {}, beginExchange() {}, adpTexteQuestion: (t) => String(t || '').toLowerCase(),
+    renderFiles() {}, scrollToActive() {}, v11ModeUsesGovernedPipeline: () => true, TextEncoder });
+  /* Les éléments de la zone de continuation, avec ce que le code réel leur demande : dataset, attributs, hidden. */
+  for (const id of ['#v11-continue-panel', '#v11-continue-editor', '#v11-continue-text', '#v11-continue', '#v11-continue-precision',
+    '#v11-continue-ai-response', '#v11-continue-add-document', '#v11-continue-analyse-only', '#v11-continue-submit', '#v11-continue-help']) {
+    Object.assign(p.el(id), { dataset: {}, hidden: true, attrs: {}, setAttribute(k, v) { this.attrs[k] = String(v); }, getAttribute(k) { return this.attrs[k] ?? null; } });
+  }
+  vm.runInContext(tranche('function answerQuestion(answer){', 'function resetAll()') + tranche('function v11ForgetDialogue(){', 'function v11RequireDemand(){')
+    + ';globalThis.__k={answerQuestion,v11OpenContinuation,v11ChooseContinuation,v11SubmitContinuation};', p.ctx);
+  const k = p.ctx.__k;
+  const registre = () => plain(p.pilot.oprieState.turnExplicitUnknownIds);
+
+  /* Tour 1 : la question sur X. Le registre porte la déclaration de ce tour ; rien n'est encore durable. */
+  await p.pilot.oprieRunTurn('architecte');
+  assert.equal(p.ctx.$('#v11-question').textContent, 'Quel est le budget ?');
+  assert.equal(p.pilot.oprieState.pendingDeterminantId, 'budget');
+  assert.deepEqual(registre(), ['delai_declare_inconnu']);
+  /* « je ne sais pas » : la réponse consomme le registre — c'est le premier point de reset D2 — et
+     emporte l'identité du manque. C'est ICI que X devient durablement connu comme traité. */
+  k.answerQuestion('Je ne sais pas.');
+  assert.deepEqual(registre(), [], 'consommé à l’écriture durable');
+  assert.equal(p.pilot.oprieState.pendingDeterminantId, null);
+  assert.deepEqual(plain(p.ctx.state.answers), [{ question: 'Quel est le budget ?', answer: 'Je ne sais pas.',
+    missing_determinant_id: 'budget', explicit_unknown_determinant_ids: ['delai_declare_inconnu'] }]);
+  /* Tour 2 (lancé par la réponse) : READY, prompt final. Le plan rapide a redéclaré X ; sans
+     question, rien ne consomme le registre — il reste posé sur l'état du tour. */
+  await new Promise((r) => setTimeout(r, 20));
+  assert.equal(p.spy.deepCalls.length, 1);
+  assert.deepEqual(plain(p.spy.deepCalls[0].body.clarification_history), [{ turn: 1, question: 'Quel est le budget ?', answer: 'Je ne sais pas.',
+    provenance: 'user', missing_determinant_id: 'budget', explicit_unknown_determinant_ids: ['delai_declare_inconnu'] }]);
+  assert.deepEqual(registre(), ['budget'], 'le registre du tour READY n’est pas consommé : comportement D2 préexistant');
+  assert.equal(p.pilot.oprieState.running, false);
+
+  /* La continuation : une précision sans rapport avec X. */
+  k.v11OpenContinuation(); k.v11ChooseContinuation('precision');
+  p.ctx.$('#v11-continue-text').value = 'Le public est constitué de dirigeants non techniques.';
+  /* Avec le vrai oprieRunTurn, la continuation rend la promesse du tour : on l'attend. */
+  assert.equal(await k.v11SubmitContinuation(), true);
+  await new Promise((r) => setTimeout(r, 20));
+  /* 1. Rien de transitoire n'est attribué à la précision. */
+  const entrees = plain(p.ctx.state.answers);
+  assert.equal(entrees.length, 2);
+  assert.deepEqual(entrees[1], { question: 'Précision ajoutée par la personne après la préparation, sans question posée', answer: 'Le public est constitué de dirigeants non techniques.' });
+  assert.equal('explicit_unknown_determinant_ids' in entrees[1], false);
+  assert.equal('missing_determinant_id' in entrees[1], false);
+  /* 2. Le registre n'est ni consommé ni déformé par la continuation ; le tour 3 le voit tel quel,
+     et le plan rapide y déclare de nouveau (union, jamais doublon). */
+  assert.deepEqual(registre(), ['budget'], 'ni vidé, ni réattribué');
+  /* 3. Ce que le tour 3 reçoit : l'historique durable, entrée 1 intacte, entrée 2 sans identité. */
+  assert.equal(p.spy.deepCalls.length, 2);
+  const h3 = plain(p.spy.deepCalls[1].body.clarification_history);
+  assert.deepEqual(h3.map((t) => t.turn), [1, 2]);
+  assert.deepEqual(h3[0], { turn: 1, question: 'Quel est le budget ?', answer: 'Je ne sais pas.', provenance: 'user',
+    missing_determinant_id: 'budget', explicit_unknown_determinant_ids: ['delai_declare_inconnu'] });
+  assert.deepEqual(h3[1], { turn: 2, question: 'Précision ajoutée par la personne après la préparation, sans question posée',
+    answer: 'Le public est constitué de dirigeants non techniques.', provenance: 'user' });
+  assert.equal(plain(p.spy.fastCalls[2].body.clarification_history).length, 2, 'le plan rapide du tour 3 reçoit le même historique');
+  /* 4. X reste connu comme traité, par l'historique DURABLE et par le garde réel : une question qui
+     viserait de nouveau le budget est refusée — par identité de manque (F5), et par déclaration
+     (Option D, si le plan rapide la redéclare). */
+  const { assessSolicitation } = await import('../workers/shared/solicitation-policy.js');
+  const revient = { type: 'ASK_CLARIFICATION', text: 'Quel montant pouvez-vous consacrer à ce projet ?', question_focus: 'problem_or_user_context',
+    missing_determinant_id: 'budget', explicit_unknown_determinant_ids: [], missing_determinant_evidence: 'note de cadrage' };
+  assert.equal(assessSolicitation(revient, h3, false, { originalRequest: 'Prépare une note de cadrage.' }), 'ALREADY_ANSWERED');
+  const redeclare = { ...revient, missing_determinant_id: 'montant', explicit_unknown_determinant_ids: ['montant'] };
+  assert.equal(assessSolicitation(redeclare, h3, false, { originalRequest: 'Prépare une note de cadrage.' }), 'ALREADY_ANSWERED');
+  /* 5. Le registre du tour READY ne rejoint l'historique que par la voie prévue par D2 — la prochaine
+     réponse à une VRAIE question — et jamais par la continuation. C'est la frontière existante,
+     que ce lot n'a pas déplacée : le code de continuation ne nomme aucun des deux registres. */
+  const lot = sansProse(tranche('const V11_CONTINUATION_QUESTION=', 'function v11RequireDemand(){'));
+  assert.equal(/turnExplicitUnknownIds|pendingDeterminantId/.test(lot), false);
 });
