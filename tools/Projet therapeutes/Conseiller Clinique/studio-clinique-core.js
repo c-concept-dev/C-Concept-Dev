@@ -7760,6 +7760,61 @@ ${recent}`;
   }
   window.adocApplyBlockOpacity = adocApplyBlockOpacity;
 
+  // NOUVEAU CHANTIER — panneau image dédié (Phase 1). Second panneau, séparé du panneau de
+  // correction texte (ADOC_BLOCK_EDIT_TYPES continue d'exclure 'image', décision assumée) —
+  // ouvert par docCard.onclick (cf. branche 'image' dédiée), fermé par le même mécanisme que
+  // le panneau texte (adocMountContextualBlockEditPanel/adocWsClearBlockSelection/bouton ×
+  // déjà existant, régression #6 : jamais un second mécanisme d'ouverture/fermeture).
+  // Contrairement au curseur universel du Lot E (qui écrit dans block.style, réservé aux 6
+  // types éditoriaux), un bloc image porte ses réglages directement dans content.opacity /
+  // content.widthPercent (déjà le cas pour opacity, schéma Lot E jamais câblé jusqu'ici) —
+  // jamais dans .style, qui n'existe pas sur imageContent (investigation confirmée : aucun
+  // champ de taille préexistant sous un autre nom).
+  function adocBuildImageEditPanelHTML() {
+    return '<div class="cc-block-style-controls cc-editor-tools" role="group" aria-label="Réglages de l’image">' +
+      '<div class="cc-editor-row"><label>Opacité<input type="range" min="0" max="100" step="1" value="100" data-image-opacity="opacity"></label></div>' +
+      '<div class="cc-editor-row"><label>Taille<input type="range" min="10" max="100" step="1" value="100" data-image-size="widthPercent"></label></div>' +
+    '</div>';
+  }
+  // Valeurs initiales des curseurs à l'ouverture — même garde-fou que
+  // adocEditorRefreshControls (LOT E) : jamais vide (retomberait sur le minimum, ex. 10% pour
+  // la taille, à tort pour une image jamais réglée).
+  function adocEditorRefreshImageControls() {
+    const ctx = adocEditorContext(); if (!ctx || ctx.legacy || !ctx.block || ctx.block.type !== 'image') return;
+    const panel = ctx.st.panelEl; if (!panel) return;
+    const opacityInput = panel.querySelector('[data-image-opacity]');
+    if (opacityInput) opacityInput.value = ctx.block.content.opacity == null ? '100' : ctx.block.content.opacity;
+    const sizeInput = panel.querySelector('[data-image-size]');
+    if (sizeInput) sizeInput.value = ctx.block.content.widthPercent == null ? '100' : ctx.block.content.widthPercent;
+  }
+  // Retour visuel immédiat sur l'<img> déjà à l'écran — jamais un re-rendu complet pendant le
+  // glissement (même principe qu'adocApplyBlockOpacity ci-dessus).
+  function adocApplyImageOpacity(value, checkpointOnce) {
+    const ctx = adocEditorContext(); if (!ctx || ctx.legacy || !ctx.block || ctx.block.type !== 'image') return;
+    if (checkpointOnce) adocEditorCheckpoint();
+    const clamped = Math.max(0, Math.min(100, Number(value)));
+    ctx.block.content.opacity = clamped;
+    const img = ctx.el.querySelector('img');
+    if (img) img.style.opacity = String(clamped / 100);
+    adocEditorSync(); adocEditorMarkDirty();
+  }
+  window.adocApplyImageOpacity = adocApplyImageOpacity;
+  // Largeur en pourcentage appliquée à l'<img> lui-même (jamais au <figure> englobant) —
+  // investigation confirmée : seul l'élément width est fixé au rendu (height jamais imposée),
+  // donc changer uniquement `width` conserve le ratio intrinsèque de l'image sans déformation.
+  // Centrage (display:block;margin:0 auto) posé systématiquement, sans effet visible à 100%
+  // (rien à centrer), pour éviter qu'une image réduite reste collée à gauche.
+  function adocApplyImageWidth(value, checkpointOnce) {
+    const ctx = adocEditorContext(); if (!ctx || ctx.legacy || !ctx.block || ctx.block.type !== 'image') return;
+    if (checkpointOnce) adocEditorCheckpoint();
+    const clamped = Math.max(10, Math.min(100, Number(value)));
+    ctx.block.content.widthPercent = clamped;
+    const img = ctx.el.querySelector('img');
+    if (img) { img.style.width = clamped + '%'; img.style.display = 'block'; img.style.margin = '0 auto'; }
+    adocEditorSync(); adocEditorMarkDirty();
+  }
+  window.adocApplyImageWidth = adocApplyImageWidth;
+
   function adocEditorLeafInContext(ctx) {
     return _adocEditorLeaf && ctx.el.contains(_adocEditorLeaf) ? _adocEditorLeaf : ctx.el.querySelector('[data-cc-editor-leaf]');
   }
@@ -7885,6 +7940,10 @@ ${recent}`;
       // LOT E — point d'annulation posé UNE FOIS au début du glissement (jamais à chaque tick
       // 'input', qui viendrait polluer l'historique d'un état par pixel parcouru).
       if(e.target.matches('[data-editor-opacity]'))adocApplyBlockOpacity(e.target.dataset.editorOpacity,e.target.value,true);
+      // Panneau image dédié (Phase 1) — même principe de point d'annulation unique par
+      // glissement, jamais à chaque tick.
+      if(e.target.matches('[data-image-opacity]'))adocApplyImageOpacity(e.target.value,true);
+      if(e.target.matches('[data-image-size]'))adocApplyImageWidth(e.target.value,true);
     });
     lr.addEventListener('pointerup',function(){setTimeout(function(){lr._ccPointerSelecting=false;},0);});
     lr.addEventListener('click',function(e){
@@ -7894,7 +7953,10 @@ ${recent}`;
     // LOT E — 'input' (jamais 'change') pour un aperçu réellement continu pendant le
     // glissement : 'change' ne se déclenche qu'au relâchement d'un <input type=range>, trop
     // tard pour "aperçu en temps réel pendant le déplacement" (exigence explicite).
-    lr.addEventListener('input',function(e){if(e.target.matches('[data-editor-opacity]'))adocApplyBlockOpacity(e.target.dataset.editorOpacity,e.target.value,false);});
+    lr.addEventListener('input',function(e){if(e.target.matches('[data-editor-opacity]'))adocApplyBlockOpacity(e.target.dataset.editorOpacity,e.target.value,false);
+      if(e.target.matches('[data-image-opacity]'))adocApplyImageOpacity(e.target.value,false);
+      if(e.target.matches('[data-image-size]'))adocApplyImageWidth(e.target.value,false);
+    });
     lr.addEventListener('change',function(e){if(e.target.matches('[data-editor-scope]'))adocEditorRefreshControls();
       if(e.target.matches('[data-editor-style]')){
       if(e.target.type==='number'&&!e.target.checkValidity()){adocEditorMessage('Valeur hors limites.');return;}
@@ -9267,8 +9329,19 @@ ${recent}`;
         const onErrorAttr = b.content.assetId
           ? ' onerror="this.style.display=\'none\';var f=this.closest(\'.adoc-sc-image\');if(f)f.classList.add(\'adoc-sc-image-failed\')"'
           : '';
+        // NOUVEAU CHANTIER — panneau image dédié (Phase 1) : content.opacity (Lot E, jamais
+        // câblé jusqu'ici) et content.widthPercent (nouveau) appliqués ici au rendu, pour que
+        // le réglage persiste réellement après sauvegarde/rechargement (pas seulement en
+        // aperçu live, cf. adocApplyImageOpacity/adocApplyImageWidth). Largeur posée
+        // uniquement sur l'<img> (jamais le <figure>) : seul `width` est fixé, `height` reste
+        // toujours implicite, donc le ratio intrinsèque de l'image est conservé sans
+        // déformation. Centrage systématique (sans effet visible à 100%) pour qu'une image
+        // réduite ne reste pas collée à gauche.
+        const imgOpacity = b.content.opacity != null ? Math.max(0, Math.min(100, Number(b.content.opacity))) : 100;
+        const imgWidth = b.content.widthPercent != null ? Math.max(10, Math.min(100, Number(b.content.widthPercent))) : 100;
+        const imgStyle = 'width:' + imgWidth + '%;border-radius:8px;object-fit:cover;display:block;margin:0 auto;' + (imgOpacity < 100 ? 'opacity:' + (imgOpacity / 100) + ';' : '');
         return '<figure class="adoc-sc-block adoc-sc-image' + statusClass + '" id="' + adocEsc(b.id) + '">' +
-          '<img ' + imgAttr + onErrorAttr + ' alt="' + adocEsc(b.content.alt) + '" style="width:100%;border-radius:8px;object-fit:cover;">' +
+          '<img ' + imgAttr + onErrorAttr + ' alt="' + adocEsc(b.content.alt) + '" style="' + imgStyle + '">' +
           note + '</figure>';
       }
       default:
@@ -11564,7 +11637,28 @@ ${recent}`;
       if (!curArt || !curArt._adocStructuredDoc) return;
       const blockId = blockEl.id;
       const block = adocFindEditableBlock(curArt._adocStructuredDoc, blockId);
-      if (!block || ADOC_BLOCK_EDIT_TYPES.indexOf(block.type) === -1) return; // type non pris en charge dans ce lot (ex. image) — inerte
+      if (!block) return;
+      // NOUVEAU CHANTIER — panneau image dédié (Phase 1) : branche séparée AVANT le test
+      // ADOC_BLOCK_EDIT_TYPES ci-dessous, pour ouvrir un second panneau (jamais mélangé au
+      // panneau de correction texte) sans toucher au comportement des autres types. Un bloc
+      // image reste hors ADOC_BLOCK_EDIT_TYPES (décision assumée, "Corriger ce passage" n'a
+      // pas de sens sans texte) — mais n'est plus inerte pour autant.
+      if (block.type === 'image') {
+        if (current.blockId === blockId) { adocWsClearBlockSelection(); return; } // reclic = fermeture, comme tout type non directement éditable
+        adocWsClearBlockSelection();
+        blockEl.classList.add('is-selected');
+        const imgPanel = document.createElement('div');
+        imgPanel.className = 'cc-clarity-card cc-block-edit-panel';
+        imgPanel.setAttribute('role', 'group');
+        imgPanel.setAttribute('aria-label', 'Image sélectionnée');
+        const imgPreview = adocEsc(block.content.alt) || '(image)';
+        imgPanel.innerHTML = adocBlockEditPanelHeaderHTML(imgPreview) + adocBuildImageEditPanelHTML();
+        adocMountContextualBlockEditPanel(imgPanel, blockEl);
+        window._adocBlockEditState = { storeKey: storeKey, blockId: blockId, panelEl: imgPanel, pendingBlock: null, originalBlock: block };
+        adocEditorRefreshImageControls();
+        return;
+      }
+      if (ADOC_BLOCK_EDIT_TYPES.indexOf(block.type) === -1) return; // type non pris en charge dans ce lot — inerte
       const isDirectlyEditable = ADOC_DIRECT_TYPES.includes(block.type);
       if (current.blockId === blockId) {
         // Item 57c Lot 1 — un bloc directement éditable reste sélectionné au reclic : repositionner
