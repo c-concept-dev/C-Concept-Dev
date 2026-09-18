@@ -214,7 +214,7 @@ test('T5 · NEW_REQUEST_CLEARS_SESSION : resetAll (bouton d’accueil) efface le
   assert.deepEqual(neuve.spy.toasts, []);
   /* Le nettoyage est centralisé : un seul appel de v11SessionClear, dans resetAll — aucun écouteur
      n'efface la clé de son côté. */
-  assert.equal((html.match(/v11SessionClear\(\)/g) || []).length, 3, 'la définition, l’appel dans resetAll, et l’hygiène d’une photographie vide à la reprise');
+  assert.equal((html.match(/v11SessionClear\(\)/g) || []).length, 4, 'la définition, l’appel dans resetAll, l’hygiène d’une photographie vide à la reprise, et le refus de reprise en mode sensible');
   assert.match(tranche('function v11SessionRestore(){', '/* GENERATED — LOT 10G.3B.3F.2'), /v11SessionClear\(\);return false/);
   assert.match(tranche('function resetAll(){', 'const V11_CONTINUATION_QUESTION='), /v11SessionClear\(\)/);
   assert.equal(/v11SessionClear|removeItem|effacer\('session'/.test(INIT), false, 'init n’efface rien de lui-même');
@@ -491,4 +491,132 @@ test('T18 · NO_NEW_AUTHORITY : la couche transporte, elle ne décide rien, et n
   for (const f of ['v11AddPastedMaterial', 'v11AppendUserContinuation', 'v11SubmitContinuation', 'resetAll', 'v11SessionRestore', 'v11SessionSave']) {
     assert.equal((html.match(new RegExp(`function ${f}\\(`, 'g')) || []).length, 1, `${f} : une seule définition`);
   }
+});
+
+/* ==========================================================================
+ * CLÔTURE — P0 : FICHIERS NON TEXTUELS APRÈS REFRESH ; P1 : MODE DONNÉES SENSIBLES
+ * ======================================================================= */
+
+/** La page avec, en plus, l'échange par fichier réel : makeEnvelope, beginExchange, noms d'échange. */
+function chargerPageEchange(options = {}) {
+  const h = chargerPage(options);
+  const source = tranche('function materialText(){', 'function syncLegacy(){')
+    + '\n' + tranche('function newExchangeId(){', 'function makeEnvelope(){')
+    + '\n' + tranche('function makeEnvelope(){', 'function blobDownload(')
+    + '\n' + tranche('async function beginExchange(){', 'function extractCandidate(');
+  Object.assign(h.ctx, {
+    window: { __ARCHITECTE_V10__: { schema: { properties: {}, required: [] }, systeme: 'SYSTEME', contexte: () => ({ demande: h.el('#v11-demande').value, materiau: h.ctx.__ex ? h.ctx.__ex.materialText() : '' }) }, crypto: null },
+    adnCompactContractForArchitecte: () => null, adnReadinessInstruction: () => '', v11PushApiUi() {}, humanError: (m) => h.spy.toasts.push('ERREUR ' + m),
+    Uint8Array, Math
+  });
+  vm.runInContext(source + ';globalThis.__ex={materialText,makeEnvelope,beginExchange,setExchangeNames};', h.ctx);
+  return { ...h, ex: h.ctx.__ex };
+}
+
+test('T19 · P0 EXTERNAL_FILE_AFTER_REFRESH : la fiche revient, jamais les octets — et le produit dit, avant comme après, que le fichier est à joindre', async () => {
+  /* 1. Avant refresh : un PDF déposé. addFiles ne garde JAMAIS le File — seule sa fiche existe. */
+  assert.match(html, /state\.docs\.push\(\{name:file\.name,type:file\.type,size:file\.size,text,external:!textual\}\)/);
+  const avant = chargerPageEchange();
+  avant.el('#v11-demande').value = 'Analyse ce contrat et résume ses risques.';
+  avant.ctx.state.docs.push({ name: 'contrat.pdf', type: 'application/pdf', size: 482113, text: '', external: true });
+  avant.ctx.state.docs.push({ name: 'notes.txt', type: 'text/plain', size: 5, text: 'notes', external: false });
+  avant.v.renderFiles();
+  /* Ce que le produit en fait AVANT tout refresh — la référence d'honnêteté. */
+  await avant.ex.beginExchange();
+  const envAvant = avant.ex.makeEnvelope();
+  assert.deepEqual(plain(envAvant.pieces_a_joindre), [{ nom: 'contrat.pdf', type: 'application/pdf', taille: 482113 }]);
+  assert.match(envAvant.note_pieces, /doivent être joints séparément/);
+  assert.equal(envAvant.requete_complete.includes('notes'), true, 'le texte lu est transmis');
+  assert.equal(avant.ex.materialText().includes('contrat.pdf'), false, 'le PDF n’a aucun contenu à transmettre');
+  assert.equal(avant.el('#v11-piece-title').textContent, 'Joignez aussi ces documents dans la même conversation');
+  assert.match(avant.el('#v11-attachment-note').innerHTML, /contrat\.pdf[\s\S]*votre IA doit les recevoir séparément/);
+
+  /* 2. Sauvegarde : la fiche, rien d'autre — aucun octet, aucun encodage. */
+  const s = avant.snap();
+  assert.deepEqual(s.state.docs[0], { name: 'contrat.pdf', type: 'application/pdf', size: 482113, text: '', external: true });
+  assert.equal(/base64|data:|Blob|ArrayBuffer/.test(avant.brut()), false);
+  assert.ok(avant.brut().length < 2000, 'la photographie ne grossit pas avec le fichier');
+
+  /* 3. Refresh / restore. */
+  const apres = chargerPageEchange({ stockage: avant.stockage });
+  apres.v.v11SessionRestore();
+  /* 4. État UI : la fiche est là, pour mémoire, sous le libellé qui dit exactement ce qu'elle est. */
+  assert.deepEqual(plain(apres.ctx.state.docs)[0], { name: 'contrat.pdf', type: 'application/pdf', size: 482113, text: '', external: true });
+  assert.match(tranche('function renderFiles(){', 'function looksLikeAnalysis('), /const status=d\.text\?'Pris en compte':'À joindre aussi à votre IA'/,
+    'à l’écran, un fichier sans contenu lu n’est jamais annoncé « pris en compte »');
+  /* 5. Préparer un nouvel échange dépendant de ce fichier : la personne est invitée à le joindre,
+        exactement comme avant le refresh — le produit n'a jamais prétendu le détenir. */
+  await apres.ex.beginExchange();
+  const envApres = apres.ex.makeEnvelope();
+  assert.deepEqual(plain(envApres.pieces_a_joindre), plain(envAvant.pieces_a_joindre), 'même invitation à joindre');
+  assert.equal(envApres.note_pieces, envAvant.note_pieces);
+  assert.equal(apres.el('#v11-piece-title').textContent, 'Joignez aussi ces documents dans la même conversation');
+  assert.match(apres.el('#v11-attachment-note').innerHTML, /contrat\.pdf/);
+  assert.equal(envApres.requete_complete.includes('contrat.pdf'), false, 'aucun contenu binaire inventé dans la requête');
+  assert.notEqual(apres.ctx.state.exchangeId, null, 'l’échange est bien nouveau : lancé par la personne, pas par la reprise');
+  /* Et vers OPRIE : le matériau est présent mais son contenu n'est PAS disponible — la doctrine
+     existante autorise alors une clarification sur son contenu, et interdit de le supposer. */
+  const p = loadPilot({ demande: 'Analyse ce contrat et résume ses risques.', deep: () => arbiterTurn('operational_request_ready') });
+  for (const d of plain(apres.ctx.state.docs)) p.ctx.state.docs.push(d);
+  p.ctx.window = { __ATELIER_ADN_RUNTIME__: { TRANSPORT_LIMITS: { analyst: 16384 } } }; p.ctx.TextEncoder = TextEncoder;
+  await p.pilot.oprieRunTurn('architecte');
+  assert.deepEqual(plain(p.spy.deepCalls[0].body.material_context), { present: true, deep_content_available: false });
+  assert.equal('material_content' in p.spy.deepCalls[0].body, false, 'aucun contenu fabriqué pour le PDF');
+});
+
+/** Le commutateur du mode données sensibles, tel qu'écrit dans le produit, avec ses dépendances espionnées. */
+function chargerModeSensible(h) {
+  const source = tranche('function basculerModeSensibleInterne(actif){', 'function effacerToutesDonnees(){');
+  const bouton = { textContent: '', classList: { toggle() {} } };
+  Object.assign(h.ctx, {
+    document: { ...h.ctx.document, documentElement: { dataset: {} }, getElementById: () => null, querySelectorAll: () => [] },
+    ecrire: (k, v) => { h.ctx.stockageLocal = h.ctx.stockageLocal || {}; h.ctx.stockageLocal[k] = v; return true; },
+    signaler: (m) => h.spy.toasts.push(m)
+  });
+  const dollar = h.ctx.$;
+  h.ctx.$ = (sel) => (sel === '#btn-sensible' ? bouton : sel === '#bandeau-sensible' ? null : dollar(sel));
+  vm.runInContext(source + ';globalThis.__sens=basculerModeSensibleInterne;', h.ctx);
+  return h.ctx.__sens;
+}
+
+test('T20 · P1 SENSITIVE_MODE_CLEARS_SNAPSHOT : activer le mode efface la photographie existante ; désactiver la laisse reprendre, sans ressusciter', () => {
+  /* 1–2. Session normale, photographie présente. */
+  const h = chargerPage();
+  sessionTypique(h);
+  assert.notEqual(h.brut(), null, 'la photographie existe avant l’activation');
+  const basculer = chargerModeSensible(h);
+  /* 3–4. Activation → inspection immédiate. */
+  basculer(true);
+  assert.equal(h.ctx.modeSensible, true);
+  assert.equal(h.brut(), null, 'la photographie CONTINUITE-02 est supprimée dans le même geste');
+  assert.equal(h.ctx.stockageLocal['atelier.sensible'], true, 'et le choix du mode, lui, est bien enregistré, comme avant');
+  /* Aucune nouvelle sauvegarde tant que le mode est actif — quelle que soit la mutation. */
+  h.v.v11AddPastedMaterial('Nouvelle réponse.'); h.v.show('#v11-ready'); h.v.v11OpenContinuation(); h.v.v11SessionSave();
+  assert.equal(h.brut(), null);
+  /* Et une photographie qui subsisterait malgré tout n'est jamais relue : retirée à la reprise. */
+  h.stockage.zones.session.set(KEY, JSON.stringify({ version: 1, saved_at: 'x', state: { answers: [{ question: 'Q', answer: 'R' }], docs: [], dialogueRequest: null, requestedMode: null }, ui: { demande: 'D', finalPrompt: '', continuation: null } }));
+  const sensible = chargerPage({ stockage: h.stockage, sensible: true });
+  assert.equal(sensible.v.v11SessionRestore(), false);
+  assert.equal(h.brut(), null, 'retirée, pas restaurée');
+  assert.deepEqual(plain(sensible.ctx.state.answers), []);
+  /* Le vocabulaire du bandeau reste vrai : « Aucune demande … n'est enregistrée ». */
+  assert.match(tranche('function basculerModeSensibleInterne(actif){', 'function effacerToutesDonnees(){'), /if\(actif\) coffre\.effacer\('session', 'atelier\.v11\.session'\);/);
+  /* Les clés API gardent leur mécanique : la ligne n'efface QUE cette clé. */
+  const commutateur = sansProse(tranche('function basculerModeSensibleInterne(actif){', 'function effacerToutesDonnees(){'));
+  assert.equal((commutateur.match(/coffre\.effacer\(/g) || []).length, 1);
+  assert.equal(/atelier\.cle|atelier\.modele|atelier\.max/.test(commutateur), false);
+  /* Et « Effacer les données locales » l'emporte aussi : une remise à zéro vraiment vierge. */
+  assert.match(tranche('function effacerToutesDonnees(){', 'Toutes les données locales ont été effacées'), /'atelier\.v11\.session'\]/);
+
+  /* 5. Désactivation → la sauvegarde reprend à la prochaine mutation significative, et l'ancienne
+        session supprimée ne revient pas : ce qui est photographié est l'état COURANT. */
+  basculer(false);
+  assert.equal(h.ctx.modeSensible, false);
+  assert.equal(h.brut(), null, 'désactiver n’écrit rien par lui-même');
+  h.v.v11AddPastedMaterial('Réponse après désactivation.');
+  const s = h.snap();
+  assert.ok(s, 'la photographie reprend à la mutation suivante');
+  assert.deepEqual(s.state.docs.map((d) => d.text), ['Voici le plan proposé par votre IA.', 'Nouvelle réponse.', 'Réponse après désactivation.'],
+    'l’état courant, tel qu’il est en mémoire');
+  assert.equal(JSON.stringify(s).includes('"answer":"R"'), false, 'la session supprimée n’est pas ressuscitée');
 });

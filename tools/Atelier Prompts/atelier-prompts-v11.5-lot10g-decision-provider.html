@@ -6566,6 +6566,10 @@ function basculerModeSensibleInterne(actif){
       'enregistré.</em> Utilisez « Effacer les données locales » pour cela.';
   }
   ecrire('atelier.sensible', actif);
+  /* CONTINUITE-02 — la photographie de session porte la demande et les réponses : le bandeau
+     ci-dessus promet qu'aucune demande n'est enregistrée, elle ne peut donc pas survivre à
+     l'activation. Cette clé, et elle seule ; les clés API gardent leur mécanique. */
+  if(actif) coffre.effacer('session', 'atelier.v11.session');
   signaler(actif ? 'Mode données sensibles activé' : 'Mode données sensibles désactivé');
 }
 
@@ -6576,7 +6580,7 @@ function effacerToutesDonnees(){
   ['atelier.brouillon','atelier.versions','atelier.recents','atelier.suivi',
    'atelier.theme','atelier.sensible','atelier.cle','atelier.modele','atelier.max',
    'atelier.apprentissage','atelier10.architecte','atelier10.preferences',
-   'atelier10.espace','atelier10.visiteFaite']
+   'atelier10.espace','atelier10.visiteFaite','atelier.v11.session']
     .forEach(k => { coffre.effacer('local', k); coffre.effacer('session', k); });
   etat.versions = []; etat.recents = [];
   etat.suivi = {total:0, sommeNotes:0, tokens:0, dictees:0, formats:{}};
@@ -11170,6 +11174,9 @@ function v11SessionRead(){
 /* RESTAURATION PURE. Aucun tour, aucun appel, aucun rejeu, aucun nouvel identifiant d'échange :
    l'état est posé tel qu'il était, les écrans réaffichés par les fonctions existantes. */
 function v11SessionRestore(){
+  /* Le mode données sensibles ne restaure pas plus qu'il n'écrit : une photographie qui subsisterait
+     malgré l'effacement à l'activation est retirée, jamais relue. */
+  if(typeof modeSensible!=='undefined'&&modeSensible){v11SessionClear();return false}
   let session=null;
   try{session=v11SessionRead()}catch(error){session=null}
   if(!session)return false;
