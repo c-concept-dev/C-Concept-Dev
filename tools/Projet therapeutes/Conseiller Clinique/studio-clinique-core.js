@@ -7607,6 +7607,17 @@ ${recent}`;
       '</details>' +
       '<details><summary>Espacements et bordures</summary><div class="cc-editor-row">' + number('lineHeight','Interligne',0.5,4,0.1) + number('letterSpacing','Caractères (px)',-2,20,0.1) + number('marginTop','Avant (px)',0,160) + number('marginBottom','Après (px)',0,160) + number('textIndent','Retrait (px)',0,160) +
       '<label>Bordure<input type="color" data-editor-style="borderColor"></label>' + number('borderWidth','Épaisseur (px)',0,12) + '</div></details>' +
+      // LOT E — curseur d'opacité universel : glissant continu (0-100), aperçu en temps réel
+      // (data-editor-opacity, écouteur 'input' dédié, jamais le 'change' de data-editor-style
+      // — un glissement continu a besoin d'un retour à chaque tick, pas seulement au relâché).
+      // Fond ET texte réglables indépendamment (jamais un `opacity` CSS unique sur tout
+      // l'élément, qui aurait fondu les deux ensemble — cf. rapport d'investigation). Toujours
+      // affiché, même sans fond d'image posé (universel, sans condition — le réglage "Fond"
+      // est simplement sans effet visible tant qu'aucune image de fond n'existe sur ce bloc).
+      '<details><summary>Opacité</summary><div class="cc-editor-row">' +
+        '<label>Fond<input type="range" min="0" max="100" step="1" value="100" data-editor-opacity="backgroundOpacity"></label>' +
+        '<label>Texte<input type="range" min="0" max="100" step="1" value="100" data-editor-opacity="textOpacity"></label>' +
+      '</div></details>' +
       '<div class="cc-editor-list-tools cc-editor-row">' + button('list-add','Ajouter un élément') + button('list-remove','Retirer l’élément') + button('indent','Augmenter le niveau') + button('outdent','Réduire le niveau') + button('bullets','Puces') + button('numbered','Numéros') + '</div>' +
       '<div class="cc-editor-table-tools"><strong>Tableau — cellule active</strong><div class="cc-editor-row">' + button('row-before','Ligne avant') + button('row-after','Ligne après') + button('row-delete','Supprimer la ligne') + button('col-before','Colonne avant') + button('col-after','Colonne après') + button('col-delete','Supprimer la colonne') + button('merge-right','Fusionner à droite') + button('merge-down','Fusionner en dessous') + button('split','Dissocier') + button('sort-asc','Trier A → Z') + button('sort-desc','Trier Z → A') + '</div><details><summary>Mise en forme conditionnelle de la colonne active</summary><div class="cc-editor-row"><select aria-label="Condition" data-rule-op><option value="gt">Supérieur à</option><option value="lt">Inférieur à</option><option value="eq">Égal à</option></select><input type="number" aria-label="Seuil" data-rule-value value="0"><input type="color" aria-label="Couleur conditionnelle" data-rule-color value="#fff1b8">' + button('rule-add','Appliquer la règle') + button('rule-clear','Retirer les règles') + '</div></details></div>' +
       '<div class="cc-editor-row">' + button('reset','Réinitialiser le style') + '</div><p class="cc-editor-message" role="status" aria-live="polite"></p></div>';
@@ -7632,6 +7643,13 @@ ${recent}`;
       const field = input.dataset.editorStyle;
       if (document.activeElement === input) return;
       input.value = style[field] == null ? (input.type === 'color' ? (field === 'color' ? '#273331' : '#ffffff') : field === 'textTransform' ? 'none' : '') : style[field];
+    });
+    // LOT E — curseurs d'opacité : 100 (opaque) par défaut, jamais vide (un <input type=range>
+    // vide retomberait sur son minimum, affichant 0% à tort pour un bloc sans réglage).
+    tools.querySelectorAll('[data-editor-opacity]').forEach(function (input) {
+      const field = input.dataset.editorOpacity;
+      if (document.activeElement === input) return;
+      input.value = style[field] == null ? '100' : style[field];
     });
     const families = new Set(_adocEditorLocalFonts);
     ADOC_LEGACY_FONT_PAIRS.forEach(function (p) { if (p.bodyFont) families.add(p.bodyFont); if(p.headingFont) families.add(p.headingFont); });
@@ -7699,6 +7717,49 @@ ${recent}`;
     }
     adocEditorSync(); adocEditorRefreshControls(); adocEditorMessage('Modification appliquée.');
   }
+
+  // LOT E — curseur d'opacité universel (backgroundOpacity/textOpacity, bloc structuré
+  // uniquement — les 6 types heading/paragraph/callout/list/table/quote, cf. investigation :
+  // aucun de ces champs n'existe côté ancien moteur, hors périmètre de ce lot). Séparée
+  // d'adocEditorApplyStyle (gardée par ADOC_DIRECT_STYLE_FIELDS, ces deux champs n'y figurent
+  // pas — ils exigent un calque DOM dédié, pas une simple propriété CSS sur l'élément lui-même,
+  // cf. rapport). checkpointOnce=false pendant le glissement continu (retour visuel à chaque
+  // tick, jamais un historique d'annulation pollué d'un état par pixel parcouru) ; le point
+  // d'annulation est posé UNE SEULE FOIS, au pointerdown du curseur (cf. adocEditorInstall).
+  function adocApplyBlockOpacity(field, value, checkpointOnce) {
+    const ctx = adocEditorContext(); if (!ctx || ctx.legacy || !ctx.block) return;
+    if (checkpointOnce) adocEditorCheckpoint();
+    const style = Object.assign({}, ctx.block.style);
+    const clamped = Math.max(0, Math.min(100, Number(value)));
+    style[field] = clamped;
+    ctx.block.style = style;
+    // Retour visuel immédiat sur les calques déjà posés au rendu (adocBlockOpacityLayerHTML) —
+    // jamais un re-rendu complet, qui interromprait le glissement en cours (même principe
+    // qu'adocApplyBlockStyleToElement ci-dessus pour les autres réglages).
+    if (field === 'backgroundOpacity') {
+      const overlay = ctx.el.querySelector(':scope > .adoc-sc-bg-overlay');
+      if (overlay) overlay.style.opacity = String(clamped / 100);
+    } else if (field === 'textOpacity') {
+      // Premier réglage sur un bloc qui n'a encore ni fond ni opacité de texte : le calque
+      // .adoc-sc-fg-content n'existe pas encore dans le DOM (posé au rendu seulement quand l'un
+      // des deux est déjà réglé, cf. adocBlockOpacityLayerHTML) — créé ici à la volée pour que
+      // l'aperçu reste réellement en temps réel dès le tout premier glissement, jamais seulement
+      // après un rechargement. Reproduit exactement ce que le rendu ferait au prochain
+      // adocOpenWorkspace, jamais une structure DOM différente qui divergerait une fois rechargée.
+      let wrap = ctx.el.querySelector(':scope > .adoc-sc-fg-content');
+      if (!wrap && clamped < 100) {
+        wrap = document.createElement('span');
+        wrap.className = 'adoc-sc-fg-content';
+        wrap.style.display = 'block';
+        while (ctx.el.firstChild) wrap.appendChild(ctx.el.firstChild);
+        ctx.el.appendChild(wrap);
+      }
+      if (wrap) wrap.style.opacity = String(clamped / 100);
+    }
+    adocEditorSync(); adocEditorMarkDirty();
+  }
+  window.adocApplyBlockOpacity = adocApplyBlockOpacity;
+
   function adocEditorLeafInContext(ctx) {
     return _adocEditorLeaf && ctx.el.contains(_adocEditorLeaf) ? _adocEditorLeaf : ctx.el.querySelector('[data-cc-editor-leaf]');
   }
@@ -7820,12 +7881,20 @@ ${recent}`;
     // navigateur au mousedown), rendant "Texte sélectionné" inutilisable une fois l'accordéon
     // replié par défaut — découvert en testant, jamais un souci avant ce lot (l'ancien
     // <strong>, non cliquable, ne pouvait pas capter le pointerdown).
-    lr.addEventListener('pointerdown',function(e){lr._ccPointerSelecting=true;if(e.target.closest('.cc-editor-tools button, .cc-editor-tools summary'))e.preventDefault();else if(!e.target.closest('.cc-block-edit-panel'))adocEditorRememberSelection();});
+    lr.addEventListener('pointerdown',function(e){lr._ccPointerSelecting=true;if(e.target.closest('.cc-editor-tools button, .cc-editor-tools summary'))e.preventDefault();else if(!e.target.closest('.cc-block-edit-panel'))adocEditorRememberSelection();
+      // LOT E — point d'annulation posé UNE FOIS au début du glissement (jamais à chaque tick
+      // 'input', qui viendrait polluer l'historique d'un état par pixel parcouru).
+      if(e.target.matches('[data-editor-opacity]'))adocApplyBlockOpacity(e.target.dataset.editorOpacity,e.target.value,true);
+    });
     lr.addEventListener('pointerup',function(){setTimeout(function(){lr._ccPointerSelecting=false;},0);});
     lr.addEventListener('click',function(e){
       const action=e.target.closest('[data-editor-action]'),color=e.target.closest('[data-editor-color]');
       if(action)adocEditorAction(action.dataset.editorAction);if(color)adocEditorApplyStyle('color',color.dataset.editorColor);
     });
+    // LOT E — 'input' (jamais 'change') pour un aperçu réellement continu pendant le
+    // glissement : 'change' ne se déclenche qu'au relâchement d'un <input type=range>, trop
+    // tard pour "aperçu en temps réel pendant le déplacement" (exigence explicite).
+    lr.addEventListener('input',function(e){if(e.target.matches('[data-editor-opacity]'))adocApplyBlockOpacity(e.target.dataset.editorOpacity,e.target.value,false);});
     lr.addEventListener('change',function(e){if(e.target.matches('[data-editor-scope]'))adocEditorRefreshControls();
       if(e.target.matches('[data-editor-style]')){
       if(e.target.type==='number'&&!e.target.checkValidity()){adocEditorMessage('Valeur hors limites.');return;}
@@ -9077,6 +9146,35 @@ ${recent}`;
       '<ol class="adoc-sc-citations-list">' + items + '</ol></section>';
   }
 
+  // LOT E — curseur d'opacité universel. Investigation préalable (rapport séparé) : les 6 types
+  // de bloc sont rendus en ÉLÉMENT PLAT (texte enfant direct), contrairement à la bannière
+  // (.adoc-sc-cover-content, wrapper dédié) — un fond d'image + une opacité de texte
+  // indépendantes exigent donc CE wrapper interne, ajouté ICI, jamais un copier-coller de la
+  // bannière. Deux calques SÉPARÉS, chacun sa propre opacité CSS (jamais `opacity` sur
+  // l'élément entier, qui aurait fondu fond ET texte ensemble — cf. rapport, exclu explicitement) :
+  // un <span> de fond en position absolue (image + backgroundOpacity), un <span> de premier
+  // plan empilé au-dessus (texte + citations + textOpacity). N'ajoute AUCUNE balise ni style
+  // quand ni fond ni opacité de texte ne sont réglés (zéro changement pour le cas par défaut,
+  // le plus fréquent — jamais de régression visuelle pour un bloc sans ce réglage).
+  function adocBlockOpacityLayerHTML(style) {
+    const hasBg = !!(style && style.backgroundAssetId);
+    const hasTextOpacity = !!(style && style.textOpacity != null && Number(style.textOpacity) < 100);
+    if (!hasBg && !hasTextOpacity) return { outerStyle: '', overlay: '', wrapOpen: '', wrapClose: '' };
+    const clamp01 = function (v, dflt) { return (v == null ? dflt : Math.max(0, Math.min(100, Number(v)))) / 100; };
+    const bgOpacity = clamp01(hasBg ? style.backgroundOpacity : null, 100);
+    const textOpacity = clamp01(hasTextOpacity ? style.textOpacity : null, 100);
+    const overlay = hasBg
+      ? '<span class="adoc-sc-bg-overlay" style="position:absolute;inset:0;background-image:url(' + adocEsc(adocImageAssetUrl(style.backgroundAssetId)) + ');background-size:cover;background-position:center;opacity:' + bgOpacity + ';pointer-events:none;"></span>'
+      : '';
+    const wrapStyle = 'display:block;opacity:' + textOpacity + (hasBg ? ';position:relative;z-index:1;' : ';');
+    return {
+      outerStyle: hasBg ? 'position:relative;' : '',
+      overlay: overlay,
+      wrapOpen: '<span class="adoc-sc-fg-content" style="' + wrapStyle + '">',
+      wrapClose: '</span>',
+    };
+  }
+
   // ── Rendu d'un bloc (utilisé à la racine ET imbriqué dans une card) ──
   // Point 6 : les citations s'affichent désormais sur TOUS les types de blocs porteurs de
   // texte (heading/paragraph/callout/list/table/quote), placement adapté à chaque type.
@@ -9105,29 +9203,47 @@ ${recent}`;
         // JSON persisté, jamais depuis un DOM déjà stylé comme le ferait le moteur legacy).
         if (b.style && b.style.fontPairId) adocEnsurePageGoogleFontLoaded(b.style.fontPairId);
         const headingStyleCSS = adocBlockStyleToCSSText(b.style, 'heading');
-        const headingStyleAttr = headingStyleCSS ? ' style="' + adocEsc(headingStyleCSS) + '"' : '';
-        return '<h' + lvl + ' class="adoc-sc-block adoc-sc-heading' + statusClass + '" id="' + adocEsc(b.id) + '"' + headingStyleAttr + '>' + adocEditorTextHTML(b, 'text', b.content.text) + cites + '</h' + lvl + '>';
+        const headingLayer = adocBlockOpacityLayerHTML(b.style);
+        const headingCombinedCSS = headingLayer.outerStyle + headingStyleCSS;
+        const headingStyleAttr = headingCombinedCSS ? ' style="' + adocEsc(headingCombinedCSS) + '"' : '';
+        return '<h' + lvl + ' class="adoc-sc-block adoc-sc-heading' + statusClass + '" id="' + adocEsc(b.id) + '"' + headingStyleAttr + '>' + headingLayer.overlay + headingLayer.wrapOpen + adocEditorTextHTML(b, 'text', b.content.text) + cites + headingLayer.wrapClose + '</h' + lvl + '>';
       }
       case 'paragraph': {
         if (b.style && b.style.fontPairId) adocEnsurePageGoogleFontLoaded(b.style.fontPairId);
         const paragraphStyleCSS = adocBlockStyleToCSSText(b.style, 'paragraph');
-        const paragraphStyleAttr = paragraphStyleCSS ? ' style="' + adocEsc(paragraphStyleCSS) + '"' : '';
-        return '<p class="adoc-sc-block adoc-sc-paragraph' + statusClass + '" id="' + adocEsc(b.id) + '"' + paragraphStyleAttr + '>' + adocEditorTextHTML(b, 'text', b.content.text) + cites + '</p>';
+        const paragraphLayer = adocBlockOpacityLayerHTML(b.style);
+        const paragraphCombinedCSS = paragraphLayer.outerStyle + paragraphStyleCSS;
+        const paragraphStyleAttr = paragraphCombinedCSS ? ' style="' + adocEsc(paragraphCombinedCSS) + '"' : '';
+        return '<p class="adoc-sc-block adoc-sc-paragraph' + statusClass + '" id="' + adocEsc(b.id) + '"' + paragraphStyleAttr + '>' + paragraphLayer.overlay + paragraphLayer.wrapOpen + adocEditorTextHTML(b, 'text', b.content.text) + cites + paragraphLayer.wrapClose + '</p>';
       }
-      case 'callout':
-        return '<div class="adoc-sc-block adoc-sc-callout adoc-sc-callout-' + adocEsc(b.content.visualRole) + statusClass + '" id="' + adocEsc(b.id) + '"' + extraStyle + ' role="note">' + adocEditorTextHTML(b, 'text', b.content.text) + cites + '</div>';
+      case 'callout': {
+        const calloutLayer = adocBlockOpacityLayerHTML(b.style);
+        const calloutCombinedCSS = calloutLayer.outerStyle + extraCSS;
+        const calloutStyleAttr = calloutCombinedCSS ? ' style="' + adocEsc(calloutCombinedCSS) + '"' : '';
+        return '<div class="adoc-sc-block adoc-sc-callout adoc-sc-callout-' + adocEsc(b.content.visualRole) + statusClass + '" id="' + adocEsc(b.id) + '"' + calloutStyleAttr + ' role="note">' + calloutLayer.overlay + calloutLayer.wrapOpen + adocEditorTextHTML(b, 'text', b.content.text) + cites + calloutLayer.wrapClose + '</div>';
+      }
       case 'list': {
         const list = adocEditorRenderList(b);
         const note = cites ? '<div class="adoc-sc-cite-note">Sources :' + cites + '</div>' : '';
-        return '<div class="adoc-sc-block adoc-sc-list' + statusClass + '" id="' + adocEsc(b.id) + '"' + extraStyle + '>' + list + note + '</div>';
+        const listLayer = adocBlockOpacityLayerHTML(b.style);
+        const listCombinedCSS = listLayer.outerStyle + extraCSS;
+        const listStyleAttr = listCombinedCSS ? ' style="' + adocEsc(listCombinedCSS) + '"' : '';
+        return '<div class="adoc-sc-block adoc-sc-list' + statusClass + '" id="' + adocEsc(b.id) + '"' + listStyleAttr + '>' + listLayer.overlay + listLayer.wrapOpen + list + note + listLayer.wrapClose + '</div>';
       }
       case 'table': {
         const table = adocEditorRenderTable(b);
         const note = cites ? '<div class="adoc-sc-cite-note">Sources :' + cites + '</div>' : '';
-        return '<div class="adoc-sc-block adoc-sc-table' + statusClass + '" id="' + adocEsc(b.id) + '"' + extraStyle + '>' + table + note + '</div>';
+        const tableLayer = adocBlockOpacityLayerHTML(b.style);
+        const tableCombinedCSS = tableLayer.outerStyle + extraCSS;
+        const tableStyleAttr = tableCombinedCSS ? ' style="' + adocEsc(tableCombinedCSS) + '"' : '';
+        return '<div class="adoc-sc-block adoc-sc-table' + statusClass + '" id="' + adocEsc(b.id) + '"' + tableStyleAttr + '>' + tableLayer.overlay + tableLayer.wrapOpen + table + note + tableLayer.wrapClose + '</div>';
       }
-      case 'quote':
-        return '<blockquote class="adoc-sc-block adoc-sc-quote' + statusClass + '" id="' + adocEsc(b.id) + '"' + extraStyle + '>' + adocEditorTextHTML(b, 'text', b.content.text) + cites + '</blockquote>';
+      case 'quote': {
+        const quoteLayer = adocBlockOpacityLayerHTML(b.style);
+        const quoteCombinedCSS = quoteLayer.outerStyle + extraCSS;
+        const quoteStyleAttr = quoteCombinedCSS ? ' style="' + adocEsc(quoteCombinedCSS) + '"' : '';
+        return '<blockquote class="adoc-sc-block adoc-sc-quote' + statusClass + '" id="' + adocEsc(b.id) + '"' + quoteStyleAttr + '>' + quoteLayer.overlay + quoteLayer.wrapOpen + adocEditorTextHTML(b, 'text', b.content.text) + cites + quoteLayer.wrapClose + '</blockquote>';
+      }
       case 'image': {
         // data-pexels résolu ensuite par adocResolveImages (mécanisme existant et éprouvé,
         // cf. adocHandleReply) — jamais une URL en dur ici, jamais un nouveau mécanisme.
@@ -11476,11 +11592,15 @@ ${recent}`;
     // (insertion) a son propre point d'entrée dans le panneau "Insérer un bloc avant/après"
     // (adocChooseBlockInsertType/adocConfirmBlockInsertFromFile ci-dessous) : un fichier déposé
     // là crée un NOUVEAU bloc, jamais un remplacement — logique différente, jamais mélangée ici.
+    // LOT E — même zone de dépôt étendue à .adoc-sc-block (n'importe quel bloc générique) pour
+    // y déposer une image de fond (style.backgroundAssetId) : toujours le MÊME mécanisme
+    // (adocHandleImageDrop ci-dessous décide de la branche selon l'élément visé), jamais un
+    // second gestionnaire dragover/drop.
     docCard.ondragover = function (e) {
-      if (e.target.closest('.adoc-sc-image, .adoc-sc-cover')) e.preventDefault();
+      if (e.target.closest('.adoc-sc-image, .adoc-sc-cover, .adoc-sc-block')) e.preventDefault();
     };
     docCard.ondrop = function (e) {
-      const dropEl = e.target.closest('.adoc-sc-image, .adoc-sc-cover');
+      const dropEl = e.target.closest('.adoc-sc-image, .adoc-sc-cover, .adoc-sc-block');
       if (!dropEl) return;
       e.preventDefault();
       const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
@@ -11498,6 +11618,11 @@ ${recent}`;
   // contenu EXISTANT (comme une correction), donc même comportement qu'une correction confirmée
   // (adocConfirmBlockCorrection) : re-rendu ET sauvegarde immédiate — jamais l'attente d'un clic
   // "Enregistrer" séparé pour un simple remplacement d'image.
+  // LOT E (cas 3, fond à opacité réduite) — troisième branche : un bloc générique (.adoc-sc-block,
+  // mais NI .adoc-sc-cover NI .adoc-sc-image) reçoit l'image comme fond (style.backgroundAssetId),
+  // jamais comme content.assetId (réservé aux blocs 'image'). L'ORDRE des tests compte : un
+  // .adoc-sc-image porte AUSSI la classe .adoc-sc-block, donc le test image doit précéder le
+  // test générique pour ne pas détourner le remplacement Pexels existant (Lot C, cas 1).
   async function adocHandleImageDrop(dropEl, file) {
     const storeKey = window._adocWsState && window._adocWsState.storeKey;
     const art = window._adocArtifacts && window._adocArtifacts[storeKey];
@@ -11514,10 +11639,14 @@ ${recent}`;
         doc.blocks.unshift(coverBlock);
       }
       coverBlock.content.assetId = assetId;
-    } else {
+    } else if (dropEl.classList.contains('adoc-sc-image')) {
       const block = adocFindEditableBlock(doc, dropEl.id);
       if (!block || block.type !== 'image') return;
       block.content.assetId = assetId;
+    } else {
+      const block = adocFindEditableBlock(doc, dropEl.id);
+      if (!block || !block.type || block.type === 'image' || block.type === 'card') return;
+      block.style = Object.assign({}, block.style, { backgroundAssetId: assetId });
     }
     if (!await window.adocOpenWorkspace(storeKey)) return;
     await window.adocWsSave();

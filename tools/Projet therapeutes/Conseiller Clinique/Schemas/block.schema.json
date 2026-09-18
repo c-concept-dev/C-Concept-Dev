@@ -95,14 +95,15 @@
       }
     },
     "imageContent": {
-      "$comment": "UX-8A.2 — bloc d'illustration autonome (pas une image de couverture de card). `query` est la requête de recherche Pexels résolue par le mécanisme existant et éprouvé (app hôte, adocResolveImages, via data-pexels=) — jamais une URL en dur. `alt` est toujours requis et non vide : contrairement à card.content.imageAlt (conditionnel, l'image y est optionnelle), un bloc image n'existe que pour porter une image, donc le texte alternatif est obligatoire par construction, jamais implicite. LOT C (glisser-déposer, remplacement Pexels par un fichier local) — assetId (optionnel, string|null) porte l'identifiant SHA-256 d'un fichier local envoyé vers R2 (BRAND_ASSETS, rôle 'image', route existante POST /brand-assets/upload) : quand renseigné, le rendu sert cette image (GET /brand-assets/:assetId, nouvelle route) au lieu de résoudre `query` via Pexels — query/alt restent obligatoires (alt sert de texte alternatif dans les deux cas, query reste un repli textuel jamais perdu).",
+      "$comment": "UX-8A.2 — bloc d'illustration autonome (pas une image de couverture de card). `query` est la requête de recherche Pexels résolue par le mécanisme existant et éprouvé (app hôte, adocResolveImages, via data-pexels=) — jamais une URL en dur. `alt` est toujours requis et non vide : contrairement à card.content.imageAlt (conditionnel, l'image y est optionnelle), un bloc image n'existe que pour porter une image, donc le texte alternatif est obligatoire par construction, jamais implicite. LOT C (glisser-déposer, remplacement Pexels par un fichier local) — assetId (optionnel, string|null) porte l'identifiant SHA-256 d'un fichier local envoyé vers R2 (BRAND_ASSETS, rôle 'image', route existante POST /brand-assets/upload) : quand renseigné, le rendu sert cette image (GET /brand-assets/:assetId, nouvelle route) au lieu de résoudre `query` via Pexels — query/alt restent obligatoires (alt sert de texte alternatif dans les deux cas, query reste un repli textuel jamais perdu). LOT E — opacity (optionnel, 0-100, défaut 100 = opaque) : opacité de CETTE image (bloc autonome ou fond de bannière une fois consommée comme couverture), réglable via le curseur universel. NOTE (déjà signalée) : cette copie sur disque reste une référence, désynchronisée du schéma réellement validé (embarqué dans studio-clinique.html) pour d'autres champs (style/editor, absents ici) — non reconcilié dans ce lot, hors périmètre.",
       "type": "object",
       "required": ["query", "alt"],
       "additionalProperties": false,
       "properties": {
         "query": { "type": "string", "minLength": 1 },
         "alt": { "type": "string", "minLength": 1 },
-        "assetId": { "type": ["string", "null"] }
+        "assetId": { "type": ["string", "null"] },
+        "opacity": { "type": "number", "minimum": 0, "maximum": 100 }
       }
     },
     "cardContent": {
