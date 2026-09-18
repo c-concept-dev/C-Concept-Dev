@@ -11285,7 +11285,11 @@ function v11SessionRestore(){
   state.dialogueRequest=session.dialogueRequest;
   if(session.requestedMode){
     adpState.requestedMode=session.requestedMode;
-    const sel=$('#ui-mode-select');if(sel)sel.value=session.requestedMode;
+    /* CONTINUITE-02R — le mode est restauré par le geste que la façade écoute déjà (`change` →
+       setMode → présentation du mode, dont la remise à zéro des panneaux). Il passe AVANT le
+       résultat : la restauration reste la dernière autorité de présentation. */
+    const sel=$('#ui-mode-select');
+    if(sel&&sel.value!==session.requestedMode){sel.value=session.requestedMode;try{sel.dispatchEvent(new Event('change',{bubbles:true}))}catch(error){}}
   }
   /* Une affectation programmatique ne déclenche pas `input` : le garde d'édition n'oublie rien. */
   $('#v11-demande').value=session.demande;
@@ -25673,7 +25677,17 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
     const router=window.__V11_ROUTER__;
     if(router&&typeof router.start==='function')router.start(currentMode());
   }
-  document.addEventListener('DOMContentLoaded',function(){
+  /* CONTINUITE-02R — L'ORDRE D'INITIALISATION EST ÉTABLI, PAS SUBI.
+   *
+   * MESURÉ par le smoke d'intégration de CONTINUITE-04 : ce bloc attendait DOMContentLoaded, et son
+   * gestionnaire était le DERNIER enregistré — après init() du contrôleur V11, qui restaure la
+   * session et rend le résultat courant. setMode(currentMode()) → resetModePresentation masquait
+   * donc, APRÈS la restauration, #v11-ready et le bandeau : l'état revenait, la présentation était
+   * effacée. Ce script est placé après tout le balisage qu'il touche : il s'initialise ICI, au
+   * parse, donc avant DOMContentLoaded par construction du cycle de vie du document — aucun délai,
+   * aucune observation, aucun rejeu. La restauration, dernière étape d'init(), est ensuite la
+   * dernière autorité de présentation au chargement. */
+  (function initialiserFacade(){
     const select=$('#ui-mode-select');
     if(select)select.addEventListener('change',e=>setMode(e.target.value));
     $$('.ui-mode-card').forEach(card=>card.addEventListener('click',()=>setMode(card.dataset.mode)));
@@ -25682,7 +25696,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
     const rapidAtelier=$('#ui-rapid-open-atelier');if(rapidAtelier)rapidAtelier.addEventListener('click',()=>{setMode('atelier');document.querySelector('#ui-main-action')?.focus();});
     const rapidPhoto=$('#ui-rapid-result-photo'),sourcePhoto=document.querySelector('.ui-mode-card[data-mode="rapide"] img');if(rapidPhoto&&sourcePhoto)rapidPhoto.src=sourcePhoto.src;
     setMode(currentMode());
-  },{once:true});
+  })();
 })();
 </script>
 
