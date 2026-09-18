@@ -71,6 +71,7 @@ function chargerPage({ stockage = faireStockage(), sensible = false, mode = 'arc
     syncLegacy: () => {}, v11AbandonGovernedTurn: () => { spy.abandons += 1; return true; },
     oprieRunTurn: (m, o) => { spy.turns.push({ mode: m, options: o || null }); return true; },
     beginExchange: () => {}, v11ModeUsesGovernedPipeline: () => governed,
+    v11ShowRapidGate: (d) => { spy.gate = spy.gate || []; spy.gate.push(d); },
     window: {}, TextEncoder, Date, JSON, Number, Array, Object,
     /* Ce que la restauration touche aussi : le sélecteur de mode. */
     __v11: null

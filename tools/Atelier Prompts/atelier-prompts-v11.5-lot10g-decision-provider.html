@@ -10927,6 +10927,8 @@ function resetAll(){
   if(typeof v11CloseContinuation==='function')v11CloseContinuation();
   /* CONTINUITE-02 — une nouvelle demande efface aussi la photographie : un seul point de nettoyage. */
   if(typeof v11SessionClear==='function')v11SessionClear();
+  /* CLÔTURE CONTINUITE-03 — ni bandeau d'un résultat obsolète ni d'aucun autre : présentation vierge. */
+  v11ShowRapidGate(null);
 }
 /* CONTINUITE-01 · LOT 2 — CONTINUER CETTE DEMANDE, SANS FABRIQUER DE PROVENANCE.
  *
@@ -11093,6 +11095,11 @@ const V11_SESSION_KEY='atelier.v11.session';
 const V11_SESSION_VERSION=1;
 const V11_SESSION_MODES=Object.freeze(['rapide','architecte','atelier']);
 const V11_SESSION_TOO_LARGE='Cette session est trop volumineuse pour être restaurée automatiquement après un rechargement. Gardez cette page ouverte pour poursuivre.';
+/* CLÔTURE CONTINUITE-03 — le bandeau d'un résultat devenu obsolète. La validité d'un prompt final
+   n'est pas un état : elle se DÉRIVE, par égalité stricte, de la demande courante et de la demande
+   du tour qui l'a produit (`state.dialogueRequest`). Même règle à l'édition et à la reprise. */
+const V11_RESULT_OUTDATED_GATE=Object.freeze({state:'improvable',title:'Demande modifiée',
+  text:'Le résultat précédent ne correspond plus à cette demande. Préparez à nouveau pour obtenir un prompt à jour : vos réponses et vos documents sont conservés.'});
 function v11SessionStore(){return (typeof coffre==='object'&&coffre&&typeof coffre.ecrire==='function')?coffre:null}
 /* La photographie : des copies, clés connues seulement, JSON pur. */
 function v11SessionSnapshot(){
@@ -11195,8 +11202,12 @@ function v11SessionRestore(){
   renderFiles();
   if(session.finalPrompt.trim()){
     $('#v11-final').value=session.finalPrompt;
-    show('#v11-ready');
-    if(session.continuation){
+    /* CLÔTURE CONTINUITE-03 — un prompt produit pour une autre demande que celle restaurée n'est pas
+       le résultat courant : dérivé, jamais photographié. Le texte est là, le panneau ne l'est pas. */
+    const courant=!session.dialogueRequest||session.demande.trim()===session.dialogueRequest;
+    if(!courant)v11ShowRapidGate(V11_RESULT_OUTDATED_GATE);
+    else show('#v11-ready');
+    if(courant&&session.continuation){
       v11OpenContinuation();
       const panel=$('#v11-continue-panel');
       if(session.continuation.ingested&&panel)panel.dataset.ingested=session.continuation.ingested;
@@ -25497,11 +25508,19 @@ function init(){
   $('#v11-demande').addEventListener('input',()=>{
     if(!state.dialogueRequest||state.dialogueRequest===oprieOriginalRequest())return;
     /* Ce que l'édition annule : le tour en vol et la question en attente, tous deux nés de l'ancien
-       texte. Ce qu'elle conserve : state.answers, state.docs, et le prompt final déjà produit. */
+       texte. Ce qu'elle conserve : state.answers, state.docs, et le TEXTE du prompt déjà produit.
+       CLÔTURE CONTINUITE-03 — ce prompt n'est plus PRÉSENTÉ comme le résultat courant : la règle est
+       l'égalité stricte ci-dessus, la seule qui existe. Le panneau final se retire, la zone de
+       continuation avec lui, et un bandeau dit quoi faire ; #v11-final garde son texte, non exposé. */
     const enVol=v11AbandonGovernedTurn();
     const question=adpState.pendingQuestion;
     adpState.pendingQuestion=false;
-    if(enVol||question){show(null);v11ShowRapidGate(null);}
+    const resultat=!$('#v11-ready').hidden;
+    if(enVol||question||resultat){
+      if(resultat)v11CloseContinuation();
+      show(null);
+      v11ShowRapidGate(resultat?V11_RESULT_OUTDATED_GATE:null);
+    }
   });
   $('#v11-add-clarification-document').addEventListener('click',()=>$('#v11-files').click());
   $('#v11-cancel-clarification').addEventListener('click',adpCancelClarification);

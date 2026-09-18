@@ -105,8 +105,9 @@ test('T1 · EDIT_DOES_NOT_FORGET : historique présent, demande modifiée → st
   assert.equal(h.ctx.state.dialogueRequest, 'Prépare un voyage de dix jours en Italie.', 'la demande d’attache n’est plus remise à null par une frappe');
   assert.deepEqual(h.spy.turns, [], 'aucune analyse automatique');
   assert.equal(h.spy.abandons, 1, 'l’abandon est demandé — et ne fait rien, rien n’étant en vol');
-  assert.deepEqual(h.spy.shown, ['#v11-ready'], 'rien n’est masqué : aucun tour, aucune question à annuler');
-  assert.equal(h.el('#v11-final').value, 'PROMPT FINAL', 'le prompt déjà produit reste copiable');
+  assert.deepEqual(h.spy.shown, ['#v11-ready', null], 'le résultat du texte précédent n’est plus présenté comme courant (clôture CONTINUITE-03)');
+  assert.equal(h.el('#v11-final').value, 'PROMPT FINAL', 'le TEXTE du prompt déjà produit n’est pas détruit');
+  assert.equal(h.el('#v11-ready').hidden, true, 'mais il n’est plus exposé comme résultat courant');
   /* Et dix frappes de plus ne changent rien non plus. */
   for (const t of ['P', 'Pr', 'Pré', 'Prépare un voyage de douze jours en Italie, en train.']) frapper(h, t);
   assert.equal(h.ctx.state.answers.length, 1);
@@ -123,10 +124,10 @@ test('T2 · EDIT_DOES_NOT_DROP_DOCS : matériau présent, demande modifiée → 
   h.ctx.state.docs.push({ name: 'contrat.pdf', type: 'application/pdf', size: 10, text: '', external: true });
   frapper(h, 'Prépare un voyage de douze jours en Italie.');
   assert.deepEqual(plain(h.ctx.state.docs).map((d) => d.name), ['Réponse IA — cycle 1.txt', 'contrat.pdf']);
-  /* Et la zone de continuation, si elle était ouverte, n'est pas touchée non plus. */
-  h.v.v11OpenContinuation(); h.v.v11ChooseContinuation('precision');
-  frapper(h, 'Prépare un voyage de douze jours en Italie, en train.');
-  assert.equal(h.el('#v11-continue-panel').hidden, false); assert.equal(h.el('#v11-continue-panel').dataset.kind, 'precision');
+  /* La zone de continuation appartenait au résultat retiré : elle se referme avec lui ; ce qu'elle
+     avait ingéré (state.docs) reste. */
+  assert.equal(h.el('#v11-continue-panel').hidden, true);
+  assert.equal(h.ctx.state.docs.length, 2);
 });
 
 test('T3 · EDIT_UPDATES_SESSION : la demande modifiée est photographiée par CONTINUITE-02, avec l’historique', () => {
@@ -188,7 +189,8 @@ test('T7 · SINGLE_FORGET_WRITER : v11ForgetDialogue reste l’unique écrivain 
   /* Le gestionnaire tel qu'écrit : il annule, il n'oublie pas. */
   assert.equal(/v11ForgetDialogue|state\.answers|state\.docs|dialogueRequest\s*=(?!=)/.test(GESTIONNAIRE), false, 'il ne lit ni n’écrit l’historique, les documents, la demande d’attache');
   assert.match(GESTIONNAIRE, /const enVol=v11AbandonGovernedTurn\(\);/);
-  assert.match(GESTIONNAIRE, /if\(enVol\|\|question\)\{show\(null\);v11ShowRapidGate\(null\);\}/);
+  assert.match(GESTIONNAIRE, /if\(enVol\|\|question\|\|resultat\)\{/);
+  assert.match(GESTIONNAIRE, /v11ShowRapidGate\(resultat\?V11_RESULT_OUTDATED_GATE:null\);/);
 });
 
 /* ==========================================================================
@@ -199,7 +201,12 @@ test('T7 · SINGLE_FORGET_WRITER : v11ForgetDialogue reste l’unique écrivain 
 function piloteAvecEdition(options) {
   const p = loadPilot(options);
   p.ctx.window = {};
-  vm.runInContext(tranche('window.__V11_ROUTER__', 'function init()') + `\n;globalThis.__edit=${GESTIONNAIRE};globalThis.__abandon=v11AbandonGovernedTurn;`, p.ctx);
+  /* Hors de la tranche pilote : le bandeau (constante réelle, relue dans la page) et la fermeture de la
+     zone de continuation (espionnée : elle est éprouvée ailleurs). */
+  const constante = html.match(/const V11_RESULT_OUTDATED_GATE=Object\.freeze\(\{[\s\S]*?\}\);/)[0];
+  p.ctx.v11CloseContinuation = () => { p.spy.closed = (p.spy.closed || 0) + 1; };
+  p.ctx.$('#v11-ready').hidden = true; /* l'état initial de la page : le panneau final est caché */
+  vm.runInContext(constante + '\n' + tranche('window.__V11_ROUTER__', 'function init()') + `\n;globalThis.__edit=${GESTIONNAIRE};globalThis.__abandon=v11AbandonGovernedTurn;`, p.ctx);
   return { ...p, edit: p.ctx.__edit, abandon: p.ctx.__abandon };
 }
 
@@ -273,4 +280,122 @@ test('T9 · NO_HEURISTIC : rien ne devine plus un changement de sujet — ni dé
   assert.match(html, /state\.dialogueRequest=oprieOriginalRequest\(\);/);
   assert.match(html, /dialogueRequest:texte\(state\.dialogueRequest\)\|\|null/);
   assert.match(html, /state\.dialogueRequest=session\.dialogueRequest;/);
+});
+
+/* ==========================================================================
+ * CLÔTURE — LE PROMPT FINAL DEVENU OBSOLÈTE APRÈS ÉDITION
+ * Règle de validité, dérivée et jamais stockée : demande courante === state.dialogueRequest.
+ * ======================================================================= */
+
+const BANDEAU = { state: 'improvable', title: 'Demande modifiée',
+  text: 'Le résultat précédent ne correspond plus à cette demande. Préparez à nouveau pour obtenir un prompt à jour : vos réponses et vos documents sont conservés.' };
+
+test('T10 · FINAL_BECOMES_STALE_ON_EDIT : Prompt A puis A → A′ — Prompt A n’est plus le résultat courant, tout le reste est conservé', () => {
+  const h = chargerPage(); dialogueEtabli(h);
+  assert.equal(h.el('#v11-ready').hidden, false, 'Prompt A est présenté');
+  frapper(h, 'Prépare un voyage de douze jours en Italie.');
+  assert.equal(h.el('#v11-ready').hidden, true, 'le panneau final se retire : Copier et Continuer ne sont plus offerts');
+  assert.deepEqual(plain(h.spy.gate.slice(-1)), [BANDEAU], 'la personne sait quoi faire');
+  assert.equal(h.ctx.state.answers.length, 1); assert.equal(h.ctx.state.docs.length, 1);
+  assert.equal(h.ctx.state.dialogueRequest, 'Prépare un voyage de dix jours en Italie.');
+  assert.deepEqual(h.spy.turns, [], 'aucun tour automatique');
+  /* Une seconde frappe ne rejoue rien : plus rien n'est présenté, plus rien à retirer. */
+  const affiches = h.spy.shown.length, bandeaux = h.spy.gate.length;
+  frapper(h, 'Prépare un voyage de douze jours en Italie, en train.');
+  assert.equal(h.spy.shown.length, affiches); assert.equal(h.spy.gate.length, bandeaux);
+});
+
+test('T11 · FINAL_TEXT_NOT_REQUIRED_TO_BE_DESTROYED : le texte du prompt reste dans #v11-final, mais n’est plus exposé', () => {
+  const h = chargerPage(); dialogueEtabli(h);
+  frapper(h, 'Prépare un voyage de douze jours en Italie.');
+  assert.equal(h.el('#v11-final').value, 'PROMPT FINAL', 'artefact conservé, aucune destruction inutile');
+  assert.equal(h.el('#v11-ready').hidden, true, 'le seul chemin vers Copier / Continuer est le panneau, et il est retiré');
+  /* Sur les octets : le gestionnaire n'écrit plus dans #v11-final, et le bouton Copier ne lit que le
+     panneau final — il n'existe aucun autre accès au texte. */
+  assert.equal(/#v11-final/.test(GESTIONNAIRE), false);
+  assert.match(INIT, /\$\('#v11-copy-final'\)\.addEventListener\('click',\(\)=>copyText\(\$\('#v11-final'\)\.value\)\);/);
+  const pret = html.slice(html.indexOf('id="v11-ready"'), html.indexOf('</section>', html.indexOf('id="v11-ready"')));
+  assert.ok(pret.includes('id="v11-final"') && pret.includes('id="v11-copy-final"') && pret.includes('id="v11-continue"'), 'texte, Copier et Continuer vivent tous dans le panneau retiré');
+});
+
+test('T12 · REPREPARE_AFTER_EDIT : A → Prompt A → A′ → Préparer → Prompt A′ seul résultat courant, historique disponible', async () => {
+  const historique = [{ question: 'Quel est votre budget ?', answer: 'Deux mille euros.', missing_determinant_id: 'budget' }];
+  const p = piloteAvecEdition({ demande: 'Prépare un voyage de dix jours en Italie.', answers: historique, deep: () => arbiterTurn('operational_request_ready') });
+  await p.pilot.oprieRunTurn('architecte');
+  assert.equal(p.ctx.state.dialogueRequest, 'Prépare un voyage de dix jours en Italie.');
+  assert.equal(p.spy.executed.length, 1, 'Prompt A : le tour a atteint l’exécution');
+  /* Le panneau final est présenté (ce que l'exécution fait dans la page) ; puis l'édition. */
+  p.ctx.$('#v11-ready').hidden = false; p.ctx.$('#v11-final').value = 'PROMPT A';
+  p.ctx.$('#v11-demande').value = 'Prépare un voyage de douze jours en Italie.';
+  p.edit();
+  assert.deepEqual(p.spy.shown.slice(-1).map((x) => x.id), [null]);
+  assert.deepEqual(plain(p.spy.gate.slice(-1)[0].decision), BANDEAU);
+  assert.deepEqual(plain(p.ctx.state.answers), historique);
+  /* Préparer : le tour ordinaire, sur A′, avec l'historique ; le bandeau cède à l'analyse, puis au résultat. */
+  await p.pilot.oprieRunTurn('architecte');
+  assert.equal(p.spy.deepCalls.length, 2);
+  assert.equal(p.spy.deepCalls[1].body.original_request, 'Prépare un voyage de douze jours en Italie.');
+  assert.deepEqual(plain(p.spy.deepCalls[1].body.clarification_history).map((t) => t.answer), ['Deux mille euros.']);
+  assert.equal(p.ctx.state.dialogueRequest, 'Prépare un voyage de douze jours en Italie.', 'Prompt A′ est désormais le résultat de la demande courante');
+  assert.equal(p.spy.executed.length, 2);
+  assert.ok(p.spy.gate.some((g) => g.decision && g.decision.state === 'thinking' && g.at > 0), 'le bandeau « Demande modifiée » a cédé la place à l’analyse');
+});
+
+test('T13 · NEW_REQUEST_UNCHANGED : Nouvelle demande reste le reset complet — et repart sans bandeau', () => {
+  const h = chargerPage(); dialogueEtabli(h);
+  frapper(h, 'Prépare un voyage de douze jours en Italie.');
+  h.v.resetAll();
+  assert.deepEqual(plain(h.ctx.state.answers), []); assert.deepEqual(plain(h.ctx.state.docs), []);
+  assert.equal(h.el('#v11-demande').value, ''); assert.equal(h.el('#v11-final').value, ''); assert.equal(h.ctx.state.dialogueRequest, null);
+  assert.equal(h.brut(), null);
+  assert.deepEqual(h.spy.gate.slice(-1), [null], 'aucun bandeau ne survit à une nouvelle demande');
+  assert.match(tranche('function resetAll(){', 'const V11_CONTINUATION_QUESTION='), /v11ShowRapidGate\(null\);\n\}/);
+});
+
+test('T14 · CONTINUE_UNCHANGED : sans édition, Prompt A → Continuer cette demande → comportement CONTINUITE-01 intact', () => {
+  const h = chargerPage(); dialogueEtabli(h);
+  assert.equal(h.el('#v11-ready').hidden, false);
+  h.v.v11OpenContinuation(); h.v.v11ChooseContinuation('ai_response');
+  h.el('#v11-continue-text').value = 'Réponse de mon IA.'; assert.equal(h.v.v11SubmitContinuation(), true);
+  assert.deepEqual(h.spy.turns, [], 'coller n’est pas continuer');
+  assert.equal(h.el('#v11-continue-panel').dataset.kind, 'precision');
+  h.el('#v11-continue-text').value = 'Ajoute un jour à Rome.'; assert.equal(h.v.v11SubmitContinuation(), true);
+  assert.deepEqual(plain(h.spy.turns), [{ mode: 'architecte', options: null }]);
+  assert.equal(h.ctx.state.answers.length, 2); assert.equal(h.ctx.state.docs.length, 2);
+  assert.equal(h.spy.gate.length, 0, 'aucun bandeau : la demande n’a pas changé');
+});
+
+test('T15 · REFRESH_AFTER_EDIT : A′ et l’historique restaurés, Prompt A conservé mais pas présenté comme résultat courant', () => {
+  const h = chargerPage(); dialogueEtabli(h);
+  frapper(h, 'Prépare un voyage de douze jours en Italie.'); h.v.v11SessionSave();
+  const s = h.snap();
+  assert.equal(s.ui.finalPrompt, 'PROMPT FINAL'); assert.equal(s.ui.demande, 'Prépare un voyage de douze jours en Italie.'); assert.equal(s.state.dialogueRequest, 'Prépare un voyage de dix jours en Italie.');
+  assert.deepEqual(Object.keys(s.ui).sort(), ['continuation', 'demande', 'finalPrompt'], 'aucun champ de validité photographié : elle se dérive');
+  assert.equal(h.brut().includes('stale'), false);
+  const apres = chargerPage({ stockage: h.stockage });
+  assert.equal(apres.v.v11SessionRestore(), true);
+  assert.equal(apres.el('#v11-demande').value, 'Prépare un voyage de douze jours en Italie.');
+  assert.equal(apres.ctx.state.answers.length, 1); assert.equal(apres.ctx.state.docs.length, 1);
+  assert.equal(apres.el('#v11-final').value, 'PROMPT FINAL', 'l’artefact revient');
+  assert.equal(apres.el('#v11-ready').hidden, true, 'mais pas comme résultat courant');
+  assert.equal(apres.spy.shown.includes('#v11-ready'), false);
+  assert.deepEqual(plain(apres.spy.gate.slice(-1)), [BANDEAU]);
+  assert.equal(apres.el('#v11-continue-panel').hidden, true);
+  /* Et sans édition, la reprise présente le résultat, comme avant. */
+  const g = chargerPage(); dialogueEtabli(g); g.v.v11SessionSave();
+  const gApres = chargerPage({ stockage: g.stockage }); gApres.v.v11SessionRestore();
+  assert.equal(gApres.el('#v11-ready').hidden, false); assert.equal(gApres.spy.gate.length, 0);
+});
+
+test('T16 · ACTIVE_TURN_EDIT et T17 · NO_FORGET : les acquis de 08b0107f tiennent', () => {
+  assert.match(GESTIONNAIRE, /const enVol=v11AbandonGovernedTurn\(\);/);
+  assert.match(GESTIONNAIRE, /const resultat=!\$\('#v11-ready'\)\.hidden;/);
+  assert.match(GESTIONNAIRE, /if\(enVol\|\|question\|\|resultat\)\{/);
+  assert.equal(/v11ForgetDialogue|state\.answers|state\.docs|dialogueRequest\s*=(?!=)/.test(GESTIONNAIRE), false);
+  assert.equal([...html.matchAll(/v11ForgetDialogue\(\)/g)].length, 2, 'la définition et resetAll, seul appelant');
+  /* La règle de validité n'est pas un état : aucune propriété nouvelle, ni sur state, ni sur oprieState, ni dans la photographie. */
+  for (const interdit of ['promptStale', 'stale', 'dirty', 'outdated:', 'resultValid', 'finalValid']) {
+    assert.equal(new RegExp(interdit).test(sansProse(tranche('const V11_SESSION_KEY=', '/* GENERATED — LOT 10G.3B.3F.2'))), false, `${interdit} absent`);
+  }
+  assert.match(html, /const courant=!session\.dialogueRequest\|\|session\.demande\.trim\(\)===session\.dialogueRequest;/);
 });

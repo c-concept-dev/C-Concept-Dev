@@ -61,6 +61,7 @@ function chargerContinuite({ answers = [], docs = [], mode = 'architecte', gover
     oprieRunTurn: (m, o) => { spy.turns.push({ mode: m, options: o || null }); return true; },
     beginExchange: () => { spy.exchanges.push(true); },
     v11ModeUsesGovernedPipeline: () => governed,
+    v11ShowRapidGate() {}, /* clôture CONTINUITE-03 : resetAll efface aussi le bandeau */
     window: {}, TextEncoder
   };
   vm.runInNewContext(source + `
