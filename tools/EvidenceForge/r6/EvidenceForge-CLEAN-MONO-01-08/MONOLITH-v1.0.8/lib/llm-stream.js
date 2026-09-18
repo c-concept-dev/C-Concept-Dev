@@ -33,7 +33,7 @@ function createSseParser() {
 
 /** Assembleur deterministe des evenements Anthropic (message_start, content_block_start/delta/stop, message_delta, message_stop, ping, error). */
 function createMessageAssembler() {
-  const st = { started: false, completed: false, id: null, model: null, role: "assistant", type: "message", stopReason: null, stopSequence: null, usage: null, blocks: [], events: 0, textChars: 0, error: null, unknownEvents: 0 };
+  const st = { started: false, completed: false, id: null, model: null, role: "assistant", type: "message", stopReason: null, stopSequence: null, usage: null, usageFinal: false, blocks: [], events: 0, textChars: 0, error: null, unknownEvents: 0 };
   function apply(ev) {
     st.events++; let d = null; try { d = ev.data ? JSON.parse(ev.data) : null; } catch (e) { throw Object.assign(new Error("PROVIDER_BAD_RESPONSE: evenement SSE non JSON (" + (ev.event || "?") + ")"), { code: "PROVIDER_BAD_RESPONSE" }); }
     const type = (d && d.type) || ev.event;
@@ -42,7 +42,7 @@ function createMessageAssembler() {
       case "content_block_start": { const i = Number(d.index); const cb = d.content_block || {}; st.blocks[i] = { type: cb.type || "text", text: typeof cb.text === "string" ? cb.text : "" }; if (cb.type && cb.type !== "text") st.blocks[i].raw = cb; return; }
       case "content_block_delta": { const i = Number(d.index); if (!st.blocks[i]) st.blocks[i] = { type: "text", text: "" }; const delta = d.delta || {}; if (delta.type === "text_delta" && typeof delta.text === "string") { st.blocks[i].text += delta.text; st.textChars += delta.text.length; } else if (delta.type === "input_json_delta" && typeof delta.partial_json === "string") { st.blocks[i].partialJson = (st.blocks[i].partialJson || "") + delta.partial_json; } return; }
       case "content_block_stop": return;
-      case "message_delta": { const dl = d.delta || {}; if (dl.stop_reason !== undefined) st.stopReason = dl.stop_reason; if (dl.stop_sequence !== undefined) st.stopSequence = dl.stop_sequence; if (d.usage) st.usage = Object.assign({}, st.usage || {}, d.usage); return; }
+      case "message_delta": { const dl = d.delta || {}; if (dl.stop_reason !== undefined) st.stopReason = dl.stop_reason; if (dl.stop_sequence !== undefined) st.stopSequence = dl.stop_sequence; if (d.usage) { st.usage = Object.assign({}, st.usage || {}, d.usage); st.usageFinal = true; } return; }
       case "message_stop": st.completed = true; return;
       case "ping": return;
       case "error": { const e = (d && d.error) || {}; st.error = { type: e.type || "error", message: String(e.message || "").slice(0, 300) }; return; }
@@ -80,7 +80,7 @@ function interruptedError(stats, cause) {
 async function readSseResponse(res, opts) {
   opts = opts || {}; const inactivityMs = Number(opts.inactivityMs || 90000), maxTotalMs = Number(opts.maxTotalMs || 900000);
   const startedAt = Date.now(); let lastActivity = startedAt; let bytes = 0; const parser = createSseParser(), asm = createMessageAssembler();
-  const stats = () => { const s = asm.state(); return { events: s.events, bytes, elapsedMs: Date.now() - startedAt, lastActivityAt: new Date(lastActivity).toISOString(), started: s.started, completed: s.completed, providerRequestId: s.id || null, model: s.model || null, textChars: s.textChars, usage: s.usage || null, localRequestId: opts.localRequestId || null }; };
+  const stats = () => { const s = asm.state(); return { events: s.events, bytes, elapsedMs: Date.now() - startedAt, lastActivityAt: new Date(lastActivity).toISOString(), started: s.started, completed: s.completed, providerRequestId: s.id || null, model: s.model || null, textChars: s.textChars, usage: s.usage || null, usageFinal: s.usageFinal === true, localRequestId: opts.localRequestId || null }; };
   const progress = (kind) => { if (typeof opts.onProgress === "function") { try { opts.onProgress(Object.assign({ kind }, stats())); } catch (e) { /* observabilite */ } } };
   if (!res || !res.body || typeof res.body.getReader !== "function") throw interruptedError(stats(), "corps de reponse non lisible en flux");
   const reader = res.body.getReader(); const decoder = new TextDecoder("utf-8"); let watchdog = null; let timedOutCause = null;
@@ -93,7 +93,7 @@ async function readSseResponse(res, opts) {
       if (chunk.done) break;
       bytes += chunk.value ? chunk.value.length : 0; lastActivity = Date.now(); arm();
       if (typeof opts.stopCheck === "function" && opts.stopCheck()) { try { reader.cancel("STOPPED_BY_USER").catch(() => {}); } catch (e) { /* */ } const e = interruptedError(stats(), "STOPPED_BY_USER"); e.code = "STOPPED_BY_USER"; e.userStop = true; e.userMessage = "Run arrêté à votre demande pendant une réponse en cours : rien de partiel n'est conservé comme résultat ; les réponses déjà validées sont réutilisées à la reprise."; throw e; }
-      const evs = parser.feed(decoder.decode(chunk.value, { stream: true })); for (const ev of evs) { asm.apply(ev); if (asm.state().error) { const s = asm.state(); const e = interruptedError(stats(), "PROVIDER_STREAM_ERROR: " + s.error.type); e.code = /overloaded|rate/i.test(s.error.type) ? "PROVIDER_CAPACITY" : "PROVIDER_UNAVAILABLE"; e.providerError = s.error; throw e; } }
+      const evs = parser.feed(decoder.decode(chunk.value, { stream: true })); for (const ev of evs) { try { asm.apply(ev); } catch (pe) { const e = interruptedError(stats(), "PROVIDER_BAD_RESPONSE: " + String(pe.message).slice(0, 120)); e.code = "PROVIDER_BAD_RESPONSE"; try { reader.cancel("PROVIDER_BAD_RESPONSE").catch(() => {}); } catch (x) { /* */ } throw e; } if (asm.state().error) { const s = asm.state(); const e = interruptedError(stats(), "PROVIDER_STREAM_ERROR: " + s.error.type); e.code = /overloaded|rate/i.test(s.error.type) ? "PROVIDER_CAPACITY" : "PROVIDER_UNAVAILABLE"; e.providerError = s.error; throw e; } }
       progress("STREAM_PROGRESS");
     }
     parser.end().forEach(asm.apply);

@@ -17,7 +17,7 @@ const results = [];
 function check(name, cond, detail) { results.push({ name: name, pass: !!cond, detail: detail || "" }); }
 
 function makeRequest({ method, path, headers, body }) {
-  return new Request("https://evidenceforge-llm-proxy.example.workers.dev" + (path || "/v1/messages"), {
+  return new Request("https://evidenceforge-llm-proxy.example.invalid" + (path || "/v1/messages"), {
     method: method || "POST",
     headers: headers || {},
     body: body,

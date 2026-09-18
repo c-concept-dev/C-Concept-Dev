@@ -1,0 +1,1199 @@
+{
+  "schema": "EvidenceForge.MonolithTestResults",
+  "ranAt": "2026-09-18T19:37:56.218Z",
+  "total": 238,
+  "passed": 238,
+  "failed": 0,
+  "results": [
+    {
+      "id": "I1",
+      "name": "verifyFrozenLots : les quatre lots geles sont intacts (sceaux + zips canoniques)",
+      "ok": true
+    },
+    {
+      "id": "I2",
+      "name": "verifySealFile detecte un fichier modifie et un fichier absent (copie temporaire, lot gele jamais touche)",
+      "ok": true
+    },
+    {
+      "id": "I3",
+      "name": "MONO-11 (version declaree par la config : v0.3-r1) : garde de sceau (assertSealedRuntime) accepte le lot et le zip canonique declares",
+      "ok": true
+    },
+    {
+      "id": "I4",
+      "name": "MONO-11 garde de sceau : un zip attendu different est refuse (RUN_ON_UNSEALED_CODE ou equivalent), sans toucher au lot",
+      "ok": true
+    },
+    {
+      "id": "I5",
+      "name": "Aucun fichier du paquet ne modifie un lot gele : le paquet vit hors des dossiers scelles",
+      "ok": true
+    },
+    {
+      "id": "M1",
+      "name": "intakeDocuments : accepte .txt/.md, refuse .pdf, vide, trop gros ; hash et identifiant derives du contenu",
+      "ok": true
+    },
+    {
+      "id": "M2",
+      "name": "reformulate : schema ferme accepte ; cle supplementaire refusee puis reprise informee acceptee ; deux refus => REFORMULATION_INVALID",
+      "ok": true
+    },
+    {
+      "id": "M3",
+      "name": "adversarial : un document contenant des instructions n'est pas execute (il est cite comme donnee dans le prompt, jamais interprete)",
+      "ok": true
+    },
+    {
+      "id": "S1",
+      "name": "detectDuplicates : DOI, identifiant fournisseur, titre normalise ; le premier est conserve",
+      "ok": true
+    },
+    {
+      "id": "S2",
+      "name": "validateBatch : refuse une evidence absente du titre/resume reel, un sourceId inconnu, une source oubliee, une cle non prevue",
+      "ok": true
+    },
+    {
+      "id": "S3",
+      "name": "buildScreeningEvidence : lots, reprise informee, lot en echec => aucune proposition (jamais une decision par defaut), doublons hors LLM",
+      "ok": true
+    },
+    {
+      "id": "R1",
+      "name": "buildAuditDecisions : acteur=human + identite saisie sur CHAQUE decision ; exhaustif ; source sans proposition => exclue (jamais incluse par defaut)",
+      "ok": true
+    },
+    {
+      "id": "R2",
+      "name": "buildAuditDecisions : renversement utilisateur applique et trace ; un doublon ne peut pas etre renverse ; identite absente => HUMAN_IDENTITY_REQUIRED",
+      "ok": true
+    },
+    {
+      "id": "R3",
+      "name": "POST_RETRIEVAL_GATE gele refuse des decisions synthetiques (acteur machine) ou un snapshotHash different",
+      "ok": true
+    },
+    {
+      "id": "R4",
+      "name": "abstractFromInverted reconstruit un resume OpenAlex ; fetch OpenAlex : URL expurgee des cles dans le journal",
+      "ok": true
+    },
+    {
+      "id": "E1",
+      "name": "confirmPlan exige une identite (HUMAN_IDENTITY_REQUIRED) — jamais un nom par defaut",
+      "ok": true
+    },
+    {
+      "id": "E3",
+      "name": "modele reel du kit EF-01 : LLM_REAL_MODEL pose depuis la configuration (choix explicite), modele observe different => MODEL_PROVENANCE_MISMATCH",
+      "ok": true
+    },
+    {
+      "id": "E6",
+      "name": "question seule : la demande confirmee est declaree comme document des le RunContract, avec le meme nom et hash qu'a la confirmation (cardinalite exacte exigee par EF-01A gele)",
+      "ok": true
+    },
+    {
+      "id": "E7",
+      "name": "REGRESSION BUG efm-20260915-04c86cc3 (question seule) : RunContract sans document audite + 1 cible => EF-01A gele refuse (cardinalite) ; avec la demande declaree des le RunContract => accepte",
+      "ok": true
+    },
+    {
+      "id": "E2",
+      "name": "commentaire de confirmation automatique du RunContract = constante de provenance (aucune revue humaine affirmee)",
+      "ok": true
+    },
+    {
+      "id": "F1",
+      "name": "normalizeFence : retire ```json``` seulement si l'interieur est un JSON valide ; texte inchange sinon ; hashes et regle consignes",
+      "ok": true
+    },
+    {
+      "id": "F2",
+      "name": "wrapMono04 : gateway enveloppe, interface conservee, journal de normalisation ecrit, texte original conserve",
+      "ok": true
+    },
+    {
+      "id": "E4",
+      "name": "kitAttempts : 2 sorties invalides puis succes => 3 tentatives, 3 dossiers de preuves distincts, journal avec l'erreur precedente, onAttempt appele avant chaque appel",
+      "ok": true
+    },
+    {
+      "id": "E5",
+      "name": "kitAttempts : 3 echecs => fail-closed avec message utilisateur et nombre de tentatives ; erreur non reprenable (contrat) relancee immediatement sans nouvelle tentative",
+      "ok": true
+    },
+    {
+      "id": "L1",
+      "name": "fournisseur non configure => PROVIDER_NOT_CONFIGURED (fail-closed) avant tout appel ; preflight le dit en langage utilisateur",
+      "ok": true
+    },
+    {
+      "id": "L2",
+      "name": "credit epuise (HTTP 400 credit balance) => PROVIDER_CREDIT_EXHAUSTED fatal, message utilisateur, aucun rejeu",
+      "ok": true
+    },
+    {
+      "id": "L3",
+      "name": "rate-limit 429 => attente bornee puis reprise ; la reponse reelle est journalisee avec ses tentatives",
+      "ok": true
+    },
+    {
+      "id": "L4",
+      "name": "reseau indisponible => NETWORK_UNAVAILABLE fatal ; erreur fournisseur 500 => PROVIDER_UNAVAILABLE",
+      "ok": true
+    },
+    {
+      "id": "L5",
+      "name": "reutilisation (politique gelee MONO-11, module byte-identique v0.2 -> v0.3-r1) : reponse validee => REUSE_VALID (reused:true, jamais compte comme reel) ; reponse invalidee => nouvel appel reel",
+      "ok": true
+    },
+    {
+      "id": "L6",
+      "name": "timeout fournisseur => PROVIDER_TIMEOUT (reprenable), message utilisateur, aucun faux succes",
+      "ok": true
+    },
+    {
+      "id": "D1",
+      "name": "dedupeDiscovery : un meme candidateRef issu de deux disciplines => une entree, preuves fusionnees (seeds, evidenceRefs, provenance), disciplines=[d1,d2] ; sans ref intact ; verification dedoublonnee ; idempotent",
+      "ok": true
+    },
+    {
+      "id": "P1",
+      "name": "SCIENTIFICALLY_USABLE calcule : QUALIFIED_WITH_RESERVATIONS => NO ; QUALIFIED avec reserve => NO ; QUALIFIED sans reserve sans validation humaine => NO ; sinon YES",
+      "ok": true
+    },
+    {
+      "id": "P2",
+      "name": "buildUserReport sur des artefacts synthetiques : classification etabli/convergent/divergent/provisoire/non etabli et lignee « pourquoi » complete",
+      "ok": true
+    },
+    {
+      "id": "P3",
+      "name": "buildUserReport : convergence a majorite d'inference prudente ou de recommandation => CONVERGENT, jamais ETABLI ; constat isole => PROVISOIRE",
+      "ok": true
+    },
+    {
+      "id": "P4",
+      "name": "hash canonique du rapport : stable hors generatedAt/importedFrom/exportedAt ; toute alteration du contenu est detectee ; libelles d'angles humanises",
+      "ok": true
+    },
+    {
+      "id": "Q1",
+      "name": "startRun : demande trop courte refusee ; documents stockes et haches ; etat CREATED, aucun secret dans state.json",
+      "ok": true
+    },
+    {
+      "id": "Q6",
+      "name": "document refuse : startRun refuse (DOCUMENTS_REJECTED, message avec la question a poser) sauf acquittement explicite ; jamais de lancement silencieux sur la question seule",
+      "ok": true
+    },
+    {
+      "id": "Q7",
+      "name": "reimport d'un rapport JSON : hash verifie => run IMPORTED_REPORT complete avec le meme rapport ; rapport altere => REPORT_IMPORT_INVALID",
+      "ok": true
+    },
+    {
+      "id": "Q8",
+      "name": "flux d'evenements : les abonnes sont partages par runId entre instances de magasin (la page recoit les mises a jour du moteur) ; runs RUNNING orphelins => STOPPED reprenables au demarrage",
+      "ok": true
+    },
+    {
+      "id": "Q9",
+      "name": "garde precoce : un run dont le RunContract ne declare pas le document examine est arrete AVANT la recherche (RUNCONTRACT_TARGET_MISMATCH, non reprenable, message explicite)",
+      "ok": true
+    },
+    {
+      "id": "Q2",
+      "name": "portes fermees : confirmPlan / ratifySources hors porte => GATE_NOT_OPEN (aucun acte humain simule ni accepte hors contexte)",
+      "ok": true
+    },
+    {
+      "id": "Q3",
+      "name": "advance sans fournisseur configure : STOPPED (reprenable) avec PROVIDER_NOT_CONFIGURED, message utilisateur, aucune etape marquee terminee",
+      "ok": true
+    },
+    {
+      "id": "Q4",
+      "name": "RESUMABLE : les indisponibilites fournisseur sont reprenables ; une erreur de contrat ne l'est pas (FAILED)",
+      "ok": true
+    },
+    {
+      "id": "Q5",
+      "name": "run-store : libelles utilisateur sans code EF-* ; etat public sans contenu de document ; listRuns",
+      "ok": true
+    },
+    {
+      "id": "X0",
+      "name": "REGRESSION v1.0.1 (cause du bug de reprise) : done(stage, {status}) n'ecrase jamais DONE ; QUALIFICATION porte qualificationStatus",
+      "ok": true
+    },
+    {
+      "id": "X1",
+      "name": "panne reseau pendant le corpus professionnel (424-like) => STOPPED reprenable, PROFESSIONALS jamais DONE, aucun checkpoint ni panel publie",
+      "ok": true
+    },
+    {
+      "id": "X2",
+      "name": "classification transport OpenAlex : reseau/delai/429/5xx = panne (jamais un verdict documentaire) ; 404 = donnee absente (pas une panne)",
+      "ok": true
+    },
+    {
+      "id": "X3",
+      "name": "verrou de panne LLM : apres une panne fatale, tout appel suivant echoue immediatement sans reseau ; corpus obtenu mais insuffisant reste un verdict documentaire legitime (aucun verrou)",
+      "ok": true
+    },
+    {
+      "id": "X4",
+      "name": "checkpoint professionnel durable puis panne fournisseur en aval => reprise DIRECTEMENT en aval : aucun recalcul du panel, aucun appel pour les resultats professionnels, seul l'aval repart",
+      "ok": true
+    },
+    {
+      "id": "X5",
+      "name": "ecriture atomique interrompue : le checkpoint precedent reste lisible et valide ; checkpoint altere => CHECKPOINT_CORRUPT ; checkpoint incomplet refuse",
+      "ok": true
+    },
+    {
+      "id": "X6",
+      "name": "le preflight fournisseur ne degrade jamais une etape DONE en INTERRUPTED ; le pointeur d'etape designe la premiere etape non terminee",
+      "ok": true
+    },
+    {
+      "id": "X7",
+      "name": "reuse liee au contexte : meme prompt + modele different => refusee ; corps de cache altere => refusee ; sceau different => refusee ; contrat de validation absent => refusee ; contexte identique => reutilisee",
+      "ok": true
+    },
+    {
+      "id": "X8",
+      "name": "sonde de capacite : delai borne (probe qui ne repond pas => PROVIDER_TIMEOUT, jamais un blocage)",
+      "ok": true
+    },
+    {
+      "id": "X9",
+      "name": "aggregation.classificationError => AGGREGATION_CLASSIFICATION_ERROR (reprenable), jamais une qualification",
+      "ok": true
+    },
+    {
+      "id": "X10",
+      "name": "source sans proposition machine : presentee explicitement dans la porte (proposed=null, defaut exclure) ; ratification sans TypeError ; decision explicite « inclure » appliquee",
+      "ok": true
+    },
+    {
+      "id": "X11",
+      "name": "UI v1.0.2 : CTA Reprendre sur tout etat reprenable (drapeau backend), porte visible depuis le mode expert, echec GET porte => Reessayer, choix de ratification persistes, dedoublonnage des evenements par eventId, heure locale",
+      "ok": true
+    },
+    {
+      "id": "X12",
+      "name": "traceur : eventId unique, attemptId, stage, actor, previousState/nextState, checkpointRef, duree, cause normalisee presents dans le journal d'un run",
+      "ok": true
+    },
+    {
+      "id": "C1",
+      "name": "selection plafonnee : pool 50 -> 50 ; 149 -> 149 ; 150 -> 150 ; 151 -> exactement 150 ; 542 -> exactement 150 ; jamais 151",
+      "ok": true
+    },
+    {
+      "id": "C1b",
+      "name": "identites non resolues (sans candidateRef) : jamais dans la selection, jamais comptees dans le plafond, consignees a part",
+      "ok": true
+    },
+    {
+      "id": "C2",
+      "name": "determinisme : deux executions identiques => memes IDs dans le meme ordre, meme hash ; le pool melange donne la meme selection ; hash de selection stable",
+      "ok": true
+    },
+    {
+      "id": "C3",
+      "name": "diversite disciplinaire : une discipline abondante ne peut pas eliminer une discipline minoritaire (tourniquet) ; ordre canonique MONO-10 respecte dans chaque discipline",
+      "ok": true
+    },
+    {
+      "id": "C4",
+      "name": "garde dure : candidat hors selection => EVALUATION_CAP_INVARIANT_VIOLATION sans reseau ; 151e candidat => violation ; oracle pour un candidat hors selection => violation ; assessment plafonne = sous-ensemble exact",
+      "ok": true
+    },
+    {
+      "id": "C5",
+      "name": "pipeline : selection persistee AVANT tout appel LLM (sonde comprise) ; a la reprise la MEME selection est imposee (hash) ; aucun appel OpenAlex/LLM pour les exclus ; selection differente a la reprise => refusee",
+      "ok": true
+    },
+    {
+      "id": "C6",
+      "name": "runPanel (source) : la selection est persistee avant certifyLlm (sonde) et avant runAutonomousPanel ; MONO-11 recoit l'assessment plafonne ; fetchAuthorWorks et llmCall sont gardes",
+      "ok": true
+    },
+    {
+      "id": "R5",
+      "name": "re-ancrage reel : checkpoint synthetique valide -> runDownstreamFromCheckpoint (non mocke) -> assessment MONO-10 sous sa relation typee, reference de checkpoint dans le registre MONO-11 -> aucune REGISTRY_TYPE_RELATION_MISMATCH -> entree effective dans l'aval gele ; un ProfessionalsCheckpointRef sous `assessment` reste refuse par MONO-10",
+      "ok": true
+    },
+    {
+      "id": "V1",
+      "name": "serveur local : / sert l'interface ; /api/config n'expose JAMAIS les valeurs des secrets (seulement leur presence) ; 404 ; 400 sur demande invalide",
+      "ok": true
+    },
+    {
+      "id": "U1",
+      "name": "index.html : mode simple sans code EF-*/MONO-*, sans JSON a reparer, sans gestion de checkpoint ; deux portes exigent un nom ; export JSON/PDF ; « Pourquoi EvidenceForge dit cela ? » ; viewport + print",
+      "ok": true
+    },
+    {
+      "id": "H1",
+      "name": "scan anti-hardcoding : aucun jeton de cas dans lib/, server.js, index.html, config, tools, test",
+      "ok": true
+    },
+    {
+      "id": "H2",
+      "name": "mutation : un fichier temporaire portant un identifiant de cas est detecte par le scanner",
+      "ok": true
+    },
+    {
+      "id": "H3",
+      "name": "aucune constante de profession, discipline, quota ou taille de panel dans lib/ (les dimensions viennent du RunContract emergent)",
+      "ok": true
+    },
+    {
+      "id": "V1",
+      "name": "CROSS-TWIN dans le monolithe (ordre A -> B) : transport/reuse reels + MONO-11 v0.3-r1 gele ; meme document, meme citation fautive, constats differents ; A choisit X, B choisit Y ; 0 reuse croise, 2 empreintes, 2 prompts ; prompt contextualise transmis byte-exact",
+      "ok": true
+    },
+    {
+      "id": "V2",
+      "name": "CROSS-TWIN dans le monolithe (ordre B -> A) : memes attentes, A n'obtient jamais le repair de B",
+      "ok": true
+    },
+    {
+      "id": "V3",
+      "name": "SAME-CONTEXT dans le monolithe : meme jumeau + meme constat + meme document sur deux executions => meme empreinte, meme prompt, REUSE_VALID de la reparation ; puis STOP/reprise (nouveau createLlm, nouveau runDir, magasin persiste) => reuse conserve, aucun changement semantique",
+      "ok": true
+    },
+    {
+      "id": "V4",
+      "name": "REPAIR_CONTEXT_REQUIRED au niveau monolithe : un prompt cible sans contexte est refuse par le lot gele ; le monolithe ne construit aucun prompt de revue lui-meme (aucun fallback v0.3 non contextualise possible)",
+      "ok": true
+    },
+    {
+      "id": "V5",
+      "name": "checkpoint PROFESSIONALS produit sous un autre sceau MONO-11 (ex. v0.2 / H1) => CHECKPOINT_SEAL_MISMATCH (reprise refusee, fail-closed) ; la structure du checkpoint et son contentHash sont inchanges (run-store non touche)",
+      "ok": true
+    },
+    {
+      "id": "V6",
+      "name": "cas historique A (fixture R1, revue refusee 3 passes en H1 ; reponses historiques byte-exactes) rejoue via le transport reel : reponse fautive toujours rejetee (TARGET_REF_NOT_LITERAL), 2 fragments non contigus, reparation ciblee CONTEXTUALISEE, repetition exacte controlee (passe 3 = changement de strategie, aucune 4e passe), aucune acceptation artificielle, aucun reuse",
+      "ok": true
+    },
+    {
+      "id": "V7",
+      "name": "cas historique B (fixture R2, corrige au retry en H1) rejoue via le transport reel : la correction historique, rejouee comme reparation ciblee, est ACCEPTEE par le validateur inchange et EF-03B gele ; autres champs preserves ; contexte de reuse stable (= empreinte du rejeu scelle du lot)",
+      "ok": true
+    },
+    {
+      "id": "V8",
+      "name": "non-regression scientifique de l'integration : validateur litteral (contentContainsRef / TARGET_REF_NOT_LITERAL) byte-identique a la reference v0.2 embarquee dans le lot ; contrat MONO-11-v2 ; reviewMaxPasses 3 ; cap 150 ; rejeu historique 0 fausse acceptation / 0 regression",
+      "ok": true
+    },
+    {
+      "id": "K1",
+      "name": "scan de secrets : aucun motif de cle / URL worker / Bearer litteral dans le paquet ; les valeurs d'environnement reelles (si presentes) n'y figurent pas",
+      "ok": true
+    },
+    {
+      "id": "K2",
+      "name": "mutation : un fichier contenant une cle sk-ant-… ou une URL workers.dev est detecte",
+      "ok": true
+    },
+    {
+      "id": "COST-01",
+      "name": "un appel reel ajoute EXACTEMENT une ligne au ledger (REAL_CALL, usage fournisseur, modele, finalite, candidateRef du meta)",
+      "ok": true
+    },
+    {
+      "id": "COST-02",
+      "name": "une reponse REUTILISEE ajoute une ligne REUSE a cout 0 et n'est JAMAIS comptee comme appel reel",
+      "ok": true
+    },
+    {
+      "id": "COST-03",
+      "name": "entree / sortie / ecriture cache 5m et 1h / lecture cache comptes exactement (formule par million de tokens, tarif de test)",
+      "ok": true
+    },
+    {
+      "id": "COST-04",
+      "name": "le SNAPSHOT de tarification est persiste au premier appel (version + hash) et fait autorite pour le run : un tarif modifie ensuite est signale (derive), jamais applique ; aucun tarif hors config/llm-pricing.json",
+      "ok": true
+    },
+    {
+      "id": "COST-05",
+      "name": "le budget est controle AVANT l'appel : plafond 0 => aucun appel reseau (BUDGET_LIMIT_REACHED, fatal, verrouille) ; alerte franchie => un seul evenement",
+      "ok": true
+    },
+    {
+      "id": "COST-05b",
+      "name": "tarif inconnu + budget pose => PRICING_UNKNOWN_FOR_MODEL fail-closed AVANT l'appel ; sans budget, l'appel part et la ligne est marquee non tarifee",
+      "ok": true
+    },
+    {
+      "id": "PRO-PARTIAL-02",
+      "name": "pipeline : sur BUDGET_LIMIT_REACHED pendant les professionnels, professionals-sufficiency-partial.json est persiste (etat partiel + cout + budget, notAVerdict) et annonce (panel_partial_state) ; aucun checkpoint ; une erreur sans etat partiel n'ecrit rien",
+      "ok": true
+    },
+    {
+      "id": "COST-06",
+      "name": "pipeline : plafond atteint pendant l'evaluation des professionnels => STOPPED / BUDGET_LIMIT_REACHED (jamais FAILED), reprenable, aucun checkpoint, PROFESSIONALS jamais DONE, aucun appel apres le plafond",
+      "ok": true
+    },
+    {
+      "id": "COST-07 / COST-08",
+      "name": "reprise SANS augmentation => a nouveau STOPPED sans aucun appel (aucun depassement silencieux) ; augmentation explicite du budget puis reprise => COMPLETED, checkpoints produits ; le ledger est append-only et le total = somme exacte",
+      "ok": true
+    },
+    {
+      "id": "COST-09",
+      "name": "cout par etape = somme EXACTE des appels reels de l'etape ; par modele et par finalite idem ; le reuse n'y contribue pas",
+      "ok": true
+    },
+    {
+      "id": "COST-11",
+      "name": "chemin KIT (EF-01B/EF-01C1 via MONO-04) : l'adaptateur additif verifie le budget AVANT l'appel et capture usage/modele APRES (ligne KIT_CALL) ; sans opts.cost, comportement v1.0.4",
+      "ok": true
+    },
+    {
+      "id": "COST-12",
+      "name": "sonde MONO-10 (transport non injecte) : retrouve le ledger par le registre, verifie le budget AVANT, enregistre PROBE et renseigne costUsd (contrat gele)",
+      "ok": true
+    },
+    {
+      "id": "FORECAST-01",
+      "name": "l'estimation distingue ACTUAL (mesure) et ESTIMATE (projection) : champs separes, notGuarantee, libelle explicite, et ne contient aucun tarif",
+      "ok": true
+    },
+    {
+      "id": "FORECAST-02",
+      "name": "la projection evolue avec les unites reellement traitees : 3/10 puis 5/10 candidats (cout par candidat mesure) ; p25/moyenne/p75 sur les mesures du run",
+      "ok": true
+    },
+    {
+      "id": "FORECAST-03",
+      "name": "projection impossible => UNKNOWN (statut PARTIAL, valeurs nulles, etapes listees), jamais une valeur inventee ; avec historique mesure => PROJECTED ; run COMPLETED => COMPLETE = reel",
+      "ok": true
+    },
+    {
+      "id": "FORECAST-04",
+      "name": "cost-view : run sans ledger (anterieur) => ledgerPresent false, budget vide, projection PARTIAL ; progression 64/123 lue depuis les evenements reels et la selection",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-PORTFOLIO-01",
+      "name": "plusieurs sources fortement redondantes (titre/resume) parmi les incluses proposees => un groupe de redondance (TF-IDF cosinus, composante connexe) ; une source distincte reste hors groupe",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-PORTFOLIO-02",
+      "name": "la revue NE DECIDE PAS : notADecision, aucune decision par source, la preuve de screening est intacte (hash) et buildAuditDecisions s'appuie toujours sur les propositions d'origine + l'acte humain",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-PORTFOLIO-03",
+      "name": "discipline sous-couverte detectee : angle avec des sources trouvees mais 0 ou 1 incluse ; angle sans aucune source trouvee signale ; les exclues de l'angle sont suggerees a relecture",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-PORTFOLIO-04",
+      "name": "discipline surrepresentee detectee (part > facteur x part uniforme, >= minSources) ; parametres generiques lus de la config (aucun seuil de cas)",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-PORTFOLIO-05",
+      "name": "une methodologie generique hors domaine (proposee exclue) peut etre signalee comme pertinente : domainRelevance != haute et methodologicalRelevance != basse, preuves litterales verifiees ; une preuve inventee est refusee puis reprise informee",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-PORTFOLIO-06",
+      "name": "aucun hardcoding de cas : les modules de revue/economie/cout ne contiennent ni nom de cas ni jeton du run reel ; le scanner refuse les jetons du run reel (instrument psychometrique, framework d'ingenierie ontologique, gouvernance IA) par mutation",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-PORTFOLIO-07",
+      "name": "la Porte 2 exige toujours l'acte humain reel : ratification sans identite refusee ; la revue est exposee dans la vue de porte mais l'acte enregistre reste lie a la preuve de screening ; aucun 'optimiser le corpus' dans l'interface",
+      "ok": true
+    },
+    {
+      "id": "PROF-ECON-01",
+      "name": "cout par professionnel persiste : evaluationCost (appels reels a son candidateRef), reusedCalls, cumulativeCost dans l'ordre de selection ; rang, discipline, identityConfidence, eligibilityStatus, twinProduced, finalUse presents",
+      "ok": true
+    },
+    {
+      "id": "PROF-ECON-02",
+      "name": "gain marginal mesurable : newCoverage / duplicateCoverage par rang (dimensions soutenues, preuves MONO-11), courbe cumulee monotone (cout, admis, couverture nouvelle, jumeaux), rang de la derniere couverture nouvelle et du dernier admis",
+      "ok": true
+    },
+    {
+      "id": "PROF-ECON-03",
+      "name": "le plafond 150 reste une LIMITE HAUTE, pas une cible : config inchangee (150), capIsGuardNotTarget, 151 candidats => 150 evalues, 123 => 123 ; aucune constante de panel dans lib/",
+      "ok": true
+    },
+    {
+      "id": "PROF-ECON-04",
+      "name": "aucun early-stop arbitraire : earlyStop.policy = NONE, aucun seuil de rang/cout d'arret dans lib/, runPanel (source) inchange par rapport a v1.0.4, MONO-11 recoit toujours l'assessment plafonne entier",
+      "ok": true
+    },
+    {
+      "id": "PREFLIGHT-01",
+      "name": "l'assistant ne modifie JAMAIS silencieusement la demande : original rendu tel quel (hash), proposition dans un champ distinct, notADecision ; aucun run cree",
+      "ok": true
+    },
+    {
+      "id": "PREFLIGHT-02",
+      "name": "l'assistant ne confirme jamais la Porte 1 : le module n'expose ni confirmation ni creation de run ; la route /api/preflight n'appelle ni startRun ni confirmPlan ni advance ; confirmPlan exige toujours un acte humain identifie",
+      "ok": true
+    },
+    {
+      "id": "PREFLIGHT-03",
+      "name": "refus utilisateur = demande d'origine conservee (interface : la zone n'est modifiee que par « Utiliser cette reformulation », « Revenir » restaure l'original) ; un extrait invente est refuse puis reprise informee ; deux refus => PREFLIGHT_INVALID, demande inchangee",
+      "ok": true
+    },
+    {
+      "id": "HELP-01",
+      "name": "aide accessible sans bloquer le parcours : bouton Aide, panneau masque par defaut, fermable, sans code EF-*/MONO-* ; couvre etapes, portes, jumeaux, lecture du rapport, cout, cadrage, limites",
+      "ok": true
+    },
+    {
+      "id": "NONREG-01",
+      "name": "lots geles byte-identiques : sceaux verifies (4 lots), zips canoniques MONO-10 / MONO-11 aux SHA declares, MONO-11 = 52 fichiers",
+      "ok": true
+    },
+    {
+      "id": "NONREG-02",
+      "name": "hashes geles identiques avant/apres : le paquet v1.0.4 (predecesseur, GELE) verifie toujours son SHA256SUMS et son zip canonique 97b999ad… ; les lots referencent la meme config gelee",
+      "ok": true
+    },
+    {
+      "id": "NONREG-03",
+      "name": "reprise / checkpoints inchanges : run-store (checkpointHash, saveCheckpoint, loadCheckpoint, writeAtomic) et stage-professionals byte-identiques a v1.0.4 hors etat public ; le ledger n'entre dans aucun checkpoint",
+      "ok": true
+    },
+    {
+      "id": "NONREG-04",
+      "name": "Porte 1 inchangee : confirmPlan (pipeline) et S1.confirmPlan byte-identiques a v1.0.4 ; la reformulation (stage-mission) inchangee",
+      "ok": true
+    },
+    {
+      "id": "NONREG-05",
+      "name": "Porte 2 humaine inchangee : ratifySources (pipeline) et buildAuditDecisions byte-identiques a v1.0.4 ; la ratification enregistre le hash de la preuve de screening (jamais celui de la revue)",
+      "ok": true
+    },
+    {
+      "id": "NONREG-06",
+      "name": "runs anterieurs (v1.0.4, sans ledger ni budget) restent lisibles : etat public avec cost.ledgerPresent=false, vue de cout PARTIAL, economie NOT_AVAILABLE, aucune ecriture dans le dossier du run",
+      "ok": true
+    },
+    {
+      "id": "PRO-EARLY-01",
+      "name": "panel convergent : 3 angles x 5 candidats, les 3 premiers de chaque angle sont SUPPORTED => EARLY_STOP_CONFIRMED apres 9 evaluations, 6 candidats non evalues (0 appel, 0 reseau), gate gele : 9 admis, chaines valides, checkpoint complet",
+      "ok": true
+    },
+    {
+      "id": "PRO-EARLY-02",
+      "name": "nouvelle discipline tardive : deux angles suffisants mais un troisieme angle jamais vu => CONTINUE ; angle non vu evalue, angles suffisants fermes ; vivier de l'angle epuise sans approuve => PANEL_EXHAUSTED_WITH_GAPS (jamais CONFIRMED)",
+      "ok": true
+    },
+    {
+      "id": "PRO-EARLY-03",
+      "name": "divergence majeure tardive : un plateau (CANDIDATE) est annule par un candidat admissible ou un angle nouvellement SUPPORTED => CONTINUE ; la fenetre de grace repart",
+      "ok": true
+    },
+    {
+      "id": "PRO-EARLY-04",
+      "name": "redondance prolongee : par defaut (closeOnPlateau=false) le plateau reste un SIGNAL (CANDIDATE, l'evaluation continue) ; avec closeOnPlateau=true (politique explicite) => arret apres fenetre + grace",
+      "ok": true
+    },
+    {
+      "id": "PRO-EARLY-05",
+      "name": "couverture insuffisante : un angle sans admissible et avec des candidats restants => CONTINUE, ses candidats restent evalues, meme si tous les autres angles ont atteint leur cible",
+      "ok": true
+    },
+    {
+      "id": "PRO-EARLY-06",
+      "name": "aucun hardcoding : les modules et la configuration ne portent ni nom de cas, ni discipline particuliere, ni nombre issu du run reel ; le scanner anti-hardcoding passe",
+      "ok": true
+    },
+    {
+      "id": "PRO-EARLY-07",
+      "name": "aucun cap arbitraire comme cible : le plafond reste 150 (garde) ; la politique ne contient aucun nombre absolu d'evaluations ; 200 candidats sans admission => jamais CONFIRMED par simple comptage ; 151 selectionnes => 150 (garde inchangee)",
+      "ok": true
+    },
+    {
+      "id": "PRO-EARLY-08",
+      "name": "checkpoint / reprise identiques : fonctions de checkpoint byte-identiques a v1.0.4 ; un checkpoint portant `sufficiency` se charge et se verifie (hash) ; la reprise aval repart du checkpoint sans recalcul (X4 reste vert)",
+      "ok": true
+    },
+    {
+      "id": "PRO-EARLY-09",
+      "name": "lignee complete : chaque candidat selectionne a un artefact corpus/relevance dans le registre MONO-11 (les non evalues portent le motif PANEL_SUFFICIENT_EARLY_STOP), professionals-sufficiency (history) liste 9 observes + 6 non evalues, reserve explicite construite pour l'aval",
+      "ok": true
+    },
+    {
+      "id": "PRO-EARLY-10",
+      "name": "budget garde la priorite : plafond atteint pendant la boucle => BUDGET_LIMIT_REACHED (verrou) avant toute decision de suffisance, aucun appel apres, panel jamais un verdict (assertNoTransportFailure)",
+      "ok": true
+    },
+    {
+      "id": "PRO-EARLY-11",
+      "name": "couts journalises : le ledger porte exactement une ligne REAL_CALL par evaluation reelle (candidateRef), aucune pour les non evalues ; economie mesurable = 6/15 evaluations evitees",
+      "ok": true
+    },
+    {
+      "id": "PRO-PARTIAL-01",
+      "name": "etat partiel sur arret budget (additif) : runPanel reel sous plafond => l'erreur BUDGET_LIMIT_REACHED porte panelPartialState (notAVerdict, scientificPanelState, rang, approuves, perDimension, gaps, remaining, policy, history) ; aucun checkpoint, verrou toujours prioritaire",
+      "ok": true
+    },
+    {
+      "id": "PRO-EARLY-12",
+      "name": "lots geles byte-identiques apres le chantier (sceaux, zips MONO-10 / MONO-11 / v1.0.4)",
+      "ok": true
+    },
+    {
+      "id": "WORKREF-01",
+      "name": "normalisation typographique : apostrophe / guillemets / casse / espaces => reference canonique du corpus (une seule correspondance) ; ambigue ou absente => inchangee ; statuts et rationales intacts ; journal",
+      "ok": true
+    },
+    {
+      "id": "WORKREF-02",
+      "name": "le parseur GELE EF-02D2 refuse la reference typographique et accepte la reference normalisee : aucune preuve inventee n'est acceptee (reference absente toujours refusee)",
+      "ok": true
+    },
+    {
+      "id": "WORKREF-03",
+      "name": "dans la boucle gelee : une reponse avec apostrophe droite est normalisee AVANT le parseur => 1 seul appel, candidat SUPPORTED (sans normalisation : reparation payante puis UNKNOWN)",
+      "ok": true
+    },
+    {
+      "id": "WORKREF-04",
+      "name": "rejeu lecture seule du run reel (si present) : les premieres reponses EF-02D2 valides passent de 64 a 84 sur 86 avec la normalisation ; le dossier du run n'est pas modifie",
+      "ok": true
+    },
+    {
+      "id": "ROUTING-01",
+      "name": "routage par finalite : une route posee (opts.routing) envoie la finalite vers ce modele (corps de requete, ledger, llm-calls, registre), les autres finalites restent sur le modele principal ; la reuse compare le modele de la finalite ; sans route : tout au modele principal",
+      "ok": true
+    },
+    {
+      "id": "SUFF-01",
+      "name": "cible atteinte avec preuves independantes (3 approuves, oeuvres et graines toutes distinctes) => DIMENSION_SUFFICIENT, angle ferme, motif et effectifs enregistres",
+      "ok": true
+    },
+    {
+      "id": "SUFF-02",
+      "name": "cible numerique atteinte mais une seule oeuvre citee par tous (co-auteurs) => 3 representants, 1 independant : PAS suffisant ; un 2e independant suffit ensuite (plancher contractuel 2) ; meme chose pour une graine commune",
+      "ok": true
+    },
+    {
+      "id": "SUFF-03",
+      "name": "vivier epuise + 0 approuve => DIMENSION_EXHAUSTED_EMPTY, jamais SUFFICIENT ; panel => PANEL_EXHAUSTED_WITH_GAPS, early-stop reste CONTINUE, reserve « faute de candidats »",
+      "ok": true
+    },
+    {
+      "id": "SUFF-04",
+      "name": "vivier epuise + representation partielle (1 approuve) => DIMENSION_EXHAUSTED_PARTIAL (jamais SATISFIED), effectifs et cible dans le motif",
+      "ok": true
+    },
+    {
+      "id": "SUFF-05",
+      "name": "toutes dimensions suffisantes => PANEL_SUFFICIENT / EARLY_STOP_CONFIRMED ; les candidats restants ne sont plus evalues ; l'enonce dit « politique produit », pas « preuve »",
+      "ok": true
+    },
+    {
+      "id": "SUFF-06",
+      "name": "une dimension epuisee vide et les autres suffisantes => PANEL_EXHAUSTED_WITH_GAPS (« on ne peut plus trouver » ≠ « on a assez ») ; un angle sans vivier (NO_POOL) est un manque explicite",
+      "ok": true
+    },
+    {
+      "id": "SUFF-07",
+      "name": "budget atteint avant suffisance : le verrou de transport est verifie avant la suffisance (source) ; les observations posterieures au verrou sont ignorees (ignore=TRANSPORT_LATCHED) : elles n'epuisent jamais un vivier",
+      "ok": true
+    },
+    {
+      "id": "SUFF-08",
+      "name": "reprise : la meme sequence d'observations (reponses reutilisees) redonne exactement la meme decision et les memes candidats non evalues (determinisme, aucune horloge dans la decision)",
+      "ok": true
+    },
+    {
+      "id": "SUFF-09",
+      "name": "aucun appel LLM ajoute : lib/panel-sufficiency.js n'importe ni llm ni fetch ni transport ; la decision du gate est la fonction pure gelee (gateCandidate), appelee en lecture seule",
+      "ok": true
+    },
+    {
+      "id": "SUFF-10 / SUFF-11",
+      "name": "aucun hardcoding : aucune discipline, aucun nom de cas, aucun nombre du run reel dans la politique, le module et la config ; scanner anti-hardcoding vert",
+      "ok": true
+    },
+    {
+      "id": "SUFF-12",
+      "name": "policy enregistree dans les artefacts : la decision porte id, strategie, provenance, parametres effectifs, plancher contractuel (source gelee), par angle : etat, motif, representants, independants, oeuvres/graines distinctes, vivier initial/restant/non evalue, raison de fermeture",
+      "ok": true
+    },
+    {
+      "id": "SUFF-13",
+      "name": "une supporting work non identifiable (absente de supportingWorks : inventee ou non resolue) ne cree jamais d'independance ni de cardinalite documentaire",
+      "ok": true
+    },
+    {
+      "id": "SUFF-14",
+      "name": "la normalisation des references ne change pas la cardinalite documentaire : deux graphies de la meme oeuvre = une identite (workRef), un titre canonique identique = une identite",
+      "ok": true
+    },
+    {
+      "id": "SUFF-15",
+      "name": "independance : ensemble MAXIMAL (inclusion) glouton, PAS maximum — contre-exemple A{W1,W2} B{W1} C{W2} : ordre A,B,C => 1 independant (maximum = 2 : {B,C}) ; ordre B,C,A => 2 ; jamais de sur-estimation ; strategie journalisee dans la decision",
+      "ok": true
+    },
+    {
+      "id": "SUFF-16",
+      "name": "propriete de surete (400 instances aleatoires deterministes, maximum par force brute) : |glouton| <= |maximum| toujours ; l'ensemble glouton est deux a deux independant ; SUFFICIENT glouton => SUFFICIENT maximum (aucun faux SUFFICIENT) ; sous-estimation observee au moins une fois (documentee)",
+      "ok": true
+    },
+    {
+      "id": "WORKREF-ADV-01",
+      "name": "apostrophe droite, guillemets droits, casse, espaces, accents (NFD/NFC) => remplaces par le titre canonique UNIQUE ; DOI en casse differente => DOI reel",
+      "ok": true
+    },
+    {
+      "id": "WORKREF-ADV-02",
+      "name": "deux titres du corpus identiques apres canonisation (« Titre jumeau » / « titre  JUMEAU ») => AMBIGU : aucun remplacement, la reference reste telle quelle et le validateur gele la refuse",
+      "ok": true
+    },
+    {
+      "id": "WORKREF-ADV-03",
+      "name": "reference inventee (absente) => aucun remplacement, jamais ajoutee ni supprimee ; validateur gele : refus",
+      "ok": true
+    },
+    {
+      "id": "WORKREF-ADV-04",
+      "name": "aucune reference ajoutee ni supprimee, ordre conserve ; rationale, relevanceStatus, epistemicStatus, limitations, professionalRef et cles racine intacts (comparaison structurelle)",
+      "ok": true
+    },
+    {
+      "id": "WORKREF-ADV-05",
+      "name": "hashes journalises : originalSha256 = sha du texte recu, normalizedSha256 = sha du texte rendu, journal sans rationale ; texte non EF-02D2 (autre schema, pas de judgments, JSON invalide, prose) inchange",
+      "ok": true
+    },
+    {
+      "id": "WORKREF-ADV-06",
+      "name": "le validateur gele accepte la sortie normalisee et refuse l'entree brute : la normalisation n'accepte jamais plus que le validateur n'accepterait sur le titre reel",
+      "ok": true
+    },
+    {
+      "id": "WORKREF-ADV-07",
+      "name": "cloture Markdown ```json``` autour de la reponse : normalisation appliquee a l'interieur, sortie = JSON pur accepte par le validateur gele",
+      "ok": true
+    },
+    {
+      "id": "WORKREF-ADV-08",
+      "name": "corpus tel que le validateur le connait : corpusFromPrompt lit le JSON gele du prompt ; prompt sans corpus => null => adaptateur inactif (jamais une normalisation sur un corpus suppose)",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-COST-01",
+      "name": "apostrophe typographique : evidence citee avec apostrophe droite => acceptee sans reprise, fragment litteral reel rendu, normalisation tracee (original, canonique, litteral, champ, hashes, regle)",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-COST-02",
+      "name": "casse uniquement => acceptee sans reprise ; un fragment deja exact n'est pas marque normalise",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-COST-03",
+      "name": "accents Unicode (NFD vs NFC, accents omis) => acceptee sans reprise, litteral reel rendu (les marques combinantes du champ NFD sont conservees)",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-COST-04",
+      "name": "ponctuation, tirets et espaces multiples => acceptee sans reprise ; guillemets typographiques => acceptee",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-COST-05",
+      "name": "paraphrase absente du texte reel => rejet maintenu (aucun synonyme, aucune correspondance floue, aucune correspondance a l'interieur d'un mot) : l'item est refuse, jamais accepte",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-COST-06",
+      "name": "preuve inventee => rejet maintenu (screening et portefeuille) ; aucun LLM, aucune expansion dans le module de normalisation (source)",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-COST-07",
+      "name": "champ lieu (option A retenue) : un nom de revue cite tel quel est une preuve verifiable (champ lieu enregistre) ; annee et requete ne sont jamais des preuves ; un champ non configure est refuse",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-COST-08",
+      "name": "1 item invalide sur 8 => seule cette source repart en reprise (prompt cible : ses donnees, son erreur exacte, son entree precedente, aucune autre source) ; 2 appels au total",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-COST-09",
+      "name": "7 items valides en passe 1 => decisions et hashes inchanges apres la reprise, meme si la reprise renvoie des entrees pour eux (ignorees) ; l'item corrige porte sa lignee",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-COST-10",
+      "name": "recomposition du lot : ordre d'origine exact, lignee complete (originalBatchId, acceptedAtPass, decisionHash, history[pass, previousDecisionHash, validationErrors]), passes journalisees, calls compatibles",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-COST-11",
+      "name": "enumeration hors contrat (decision « moyenne », confiance inconnue) => refus maintenu et reprise ciblee sur ces seuls items ; apres maxPasses l'item non corrige est declare (failedSourceIds), les autres restent acceptes",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-COST-12",
+      "name": "aucun appel LLM supplementaire du a la normalisation : 8 items dont 5 evidences typographiques => 1 seul appel ; la strategie RETRY_FULL_BATCH reste disponible et conserve elle aussi les items acceptes",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-COST-13",
+      "name": "revue de portefeuille : notADecision, enonce, signaux deterministes et structure inchanges ; perimetre LLM par defaut = toutes les exclues avec resume (moins les doublons, declares) ; perimetres restreints traces, jamais une decision",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-COST-14",
+      "name": "ratification humaine inchangee : buildAuditDecisions byte-identique a v1.0.4 et accepte les propositions enrichies (evidenceFields, evidenceNormalization) sans les propager dans les decisions humaines",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-COST-15",
+      "name": "aucun lot gele modifie (MONO-01/09/10/11 verifies, 0 divergence) ; le screening et la revue restent des modules du monolithe",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-COST-16",
+      "name": "aucun hardcoding de discipline / mission / cas dans les nouveaux modules, le rejeu et la configuration (scanner anti-hardcoding)",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-COST-17",
+      "name": "rejeu deterministe : deux rejeux du run reel (si present) produisent un JSON identique ; sur un run synthetique, validation identique a chaque appel",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-COST-19",
+      "name": "equilibrage de portefeuille (module existant) : quand une proposition est ajustee, l'evidence remplacee garde ses champs d'origine et sa trace (evidenceFields / evidenceNormalization de l'evaluation, jamais ceux du screening primaire) — anomalie detectee par le smoke reel",
+      "ok": true
+    },
+    {
+      "id": "SCREEN-COST-18",
+      "name": "cout calcule avant / apres sur le run reel 5ad77c88 (si present) : BASELINE = ledger (1,333 USD, 42 appels, 12 reprises) ; normalisation seule et reprise ciblee economisent sans aucun faux accept ; les items encore refuses sont exactement les paraphrases et l'enumeration",
+      "ok": true
+    },
+    {
+      "id": "RUN-SAFETY-01",
+      "name": "champ budget vide => impossible de lancer silencieusement : startRun sans budget, avec {}, avec des champs vides ou avec mode inconnu => BUDGET_REQUIRED, aucun dossier de run cree",
+      "ok": true
+    },
+    {
+      "id": "RUN-SAFETY-02",
+      "name": "LIMITED => budget.json (mode, plafond, alerte < plafond, setBy, createdAt, history) ecrit AVANT state.json donc avant tout appel ; alerte >= plafond refusee ; compat : plafond > 0 sans mode = LIMITED",
+      "ok": true
+    },
+    {
+      "id": "RUN-SAFETY-03",
+      "name": "UNLIMITED => confirmation explicite requise (confirmedUnlimited: true) ; sans elle : BUDGET_REQUIRED ; le texte de confirmation UI est celui exige",
+      "ok": true
+    },
+    {
+      "id": "RUN-SAFETY-04",
+      "name": "UNLIMITED_CONFIRMED => budget.json existe quand meme (mode, confirmedUnlimited: true, plafond null) ; la vue de cout l'expose ; l'absence de budget.json est une anomalie declaree (BUDGET_FILE_MISSING)",
+      "ok": true
+    },
+    {
+      "id": "RUN-SAFETY-05",
+      "name": "stop avant le premier appel => 0 appel fournisseur : run CREATED (aucun moteur) arrete immediatement (STOPPED / STOPPED_BY_USER), demande persistee, etat partiel ecrit ; puis advance() sur ce run apres reprise explicite consomme la demande",
+      "ok": true
+    },
+    {
+      "id": "RUN-SAFETY-06",
+      "name": "stop entre deux lots de screening => aucun lot suivant : la demande posee apres le 1er lot fait echouer le 2e appel (STOPPED_BY_USER) sans reseau ; verrou de transport pose ; 1 seul appel",
+      "ok": true
+    },
+    {
+      "id": "RUN-SAFETY-07",
+      "name": "stop entre deux professionnels (pipeline) => aucun candidat suivant : la demande posee pendant l'etape fait refuser le 2e appel, l'etape s'arrete STOPPED / STOPPED_BY_USER avec etat partiel (run-stop-state + panelPartialState), PROFESSIONALS jamais DONE, aucun checkpoint",
+      "ok": true
+    },
+    {
+      "id": "RUN-SAFETY-08",
+      "name": "stop entre deux jumeaux (aval depuis le checkpoint) => aucune revue suivante : 1 appel puis STOPPED / STOPPED_BY_USER, TWINS_REVIEWS interrompu, checkpoint professionnel conserve",
+      "ok": true
+    },
+    {
+      "id": "RUN-SAFETY-09",
+      "name": "STOPPED_BY_USER persiste : state.json (status STOPPED, error.code, stop.requestedAt/honoredAt), stop-request.json honore, artefacts intacts ; un second stop est idempotent ; un run COMPLETED / importe refuse (RUN_NOT_ACTIVE)",
+      "ok": true
+    },
+    {
+      "id": "RUN-SAFETY-10",
+      "name": "artefact partiel : run-stop-state.json est notAVerdict / notACheckpoint, porte runId, stage, reason, stoppedAt, cost, realCalls, reuse, lastCompletedUnit, nextUnit, checkpointRef, resumeAllowed, budget, partialArtifacts ; jamais un checkpoint (aucune reference dans state.checkpoints)",
+      "ok": true
+    },
+    {
+      "id": "RUN-SAFETY-11",
+      "name": "reprise uniquement explicite : markInterruptedRuns ne consomme ni ne relance ; la demande reste en attente tant qu'advance() (acte utilisateur) n'a pas ete appele ; advance() la consomme et journalise la reprise",
+      "ok": true
+    },
+    {
+      "id": "RUN-SAFETY-12",
+      "name": "reprise utilise checkpoint + cache : apres un arret utilisateur en aval, la reprise repart du checkpoint professionnel (runPanel jamais rappele) et les reponses VALID sont REUTILISEES (ledger REUSE, aucun REAL_CALL pour elles)",
+      "ok": true
+    },
+    {
+      "id": "RUN-SAFETY-13",
+      "name": "aucune double facturation sur fixture de reprise : totaux ledger = 2 appels reels de revue (A, B) + sondes ; la reponse A reutilisee compte 0 USD, countsAsRealCall false",
+      "ok": true
+    },
+    {
+      "id": "RUN-SAFETY-14",
+      "name": "priorite du plafond : le budget atteint arrete AVANT le contenu (BUDGET_LIMIT_REACHED) meme sans demande d'arret ; avec les deux, la cause est celle rencontree en premier (verrou) et jamais fusionnee",
+      "ok": true
+    },
+    {
+      "id": "RUN-SAFETY-15",
+      "name": "panne de transport distincte de l'arret utilisateur : NETWORK_UNAVAILABLE => normalizedCause TRANSPORT_FAILURE, aucun run-stop-state.json, pas de champ stop ; STOPPED_BY_USER => USER_STOP + run-stop-state.json",
+      "ok": true
+    },
+    {
+      "id": "RUN-SAFETY-16",
+      "name": "interruption par redemarrage distincte de l'arret utilisateur : run RUNNING orphelin => INTERRUPTED_BY_RESTART (reprenable), sans run-stop-state.json ; un run STOPPED_BY_USER n'est pas requalifie par le redemarrage ; l'UI libelle les trois causes separement",
+      "ok": true
+    },
+    {
+      "id": "RUN-SAFETY-17",
+      "name": "bouton « Arrêter le run » : route POST /api/runs/:id/stop, bouton visible seulement en RUNNING, confirmation avec le texte exige, aucune suppression d'artefact ; le resume affiche cout dépensé / étape / restant / budget avant reprise",
+      "ok": true
+    },
+    {
+      "id": "RUN-SAFETY-18",
+      "name": "wording plateau corrige sans changement de policy : le message CANDIDATE->CONTINUE dit « Plateau informatif terminé : l'évaluation continue » et ne parle plus de « reprise » ; panel-sufficiency.js, config earlyStop et DEFAULT_POLICY inchanges (byte-identiques a HEAD)",
+      "ok": true
+    },
+    {
+      "id": "RUN-SAFETY-19",
+      "name": "lots geles byte-identiques (MONO-01/09/10/11, 0 divergence)",
+      "ok": true
+    },
+    {
+      "id": "RUN-SAFETY-20",
+      "name": "aucun hardcoding mission / discipline / cas dans les modules du lot (run-stop, budget-guard, pipeline, server, index.html)",
+      "ok": true
+    },
+    {
+      "id": "RUN-SAFETY-21",
+      "name": "cas f78528fe (lecture seule, si present) : ses 4 revues EF-03B validees, copiees dans un run temporaire avec leurs entrees de magasin, sont REUTILISEES par le transport (aucun REAL_CALL, aucun reseau) ; la 5e revue (inconnue) part reellement => la reprise commencerait au prochain travail manquant",
+      "ok": true
+    },
+    {
+      "id": "T-ECO-01",
+      "name": "plafond 150 : jamais une cible — 150 candidats retenus, panel suffisant a 9 => 9 evalues, 141 non evalues sans appel ; capIsGuardNotTarget = true dans la politique, la config et le record",
+      "ok": true
+    },
+    {
+      "id": "T-ECO-02",
+      "name": "panel suffisant a 8 professionnels (4 angles x 2 approuves suffisent : politique 3 admissibles ramenee ici a 2 par config de test ? NON — politique inchangee : 4 angles x 3 = 12) => arret exactement au 12e ; variante 2 angles => arret a 6",
+      "ok": true
+    },
+    {
+      "id": "T-ECO-03",
+      "name": "panel insuffisant apres le lot initial => lot d'expansion (taille expansionBatch = 4) ajoute puis reevalue ; lots journalises avec contribution marginale",
+      "ok": true
+    },
+    {
+      "id": "T-ECO-04",
+      "name": "panel devient suffisant au 10e professionnel => aucun professionnel 11+ evalue (beforeEvaluate refuse, aucun appel), skip journalise PANEL_SUFFICIENT",
+      "ok": true
+    },
+    {
+      "id": "T-ECO-05",
+      "name": "divergence forte (approuves partageant les memes oeuvres : jamais independants) => le panel N'EST PAS suffisant, l'evaluation continue jusqu'a un 2e independant ; aucun arret premature",
+      "ok": true
+    },
+    {
+      "id": "T-ECO-06",
+      "name": "lot redondant (approuves sans nouvel angle ni nouvelle position independante) => contribution marginale faible enregistree : newApproved > 0 mais newDisciplinesCovered = 0, nearDuplicatePositions = newApproved ; DIMINISHING_INFORMATION_RETURNS apres 3 lots sans gain",
+      "ok": true
+    },
+    {
+      "id": "T-ECO-07",
+      "name": "la redondance seule ne cree jamais un faux PANEL_SUFFICIENT : 12 approuves co-auteurs (1 independant) => PANEL_CONTINUE puis EXHAUSTED_WITH_GAPS, jamais SUFFICIENT ; rendements decroissants actifs et sans effet",
+      "ok": true
+    },
+    {
+      "id": "T-ECO-08",
+      "name": "budget LIMITED insuffisant pour le prochain lot => PANEL_INCOMPLETE_BUDGET_LIMIT AVANT le lot (aucun appel du lot), couverture actuelle / gaps / depense / estimation / reprise dans le detail ; jamais PANEL_SUFFICIENT",
+      "ok": true
+    },
+    {
+      "id": "T-ECO-09",
+      "name": "jamais PANEL_SUFFICIENT par raison de cout : source du module sans regle cout=>suffisance ; controleur a budget 0 avec panel non suffisant => BUDGET_LIMIT, etat scientifique inchange (PANEL_CONTINUE) ; le seul PANEL_SUFFICIENT vient du traqueur",
+      "ok": true
+    },
+    {
+      "id": "T-ECO-10",
+      "name": "1 professionnel = 1 document de revue complet par mission : mode MISSION_DOSSIER => 1 cible (dossier delimite, provenance par document), reviewsPerTwin = 1 quel que soit le nombre de documents",
+      "ok": true
+    },
+    {
+      "id": "T-ECO-11",
+      "name": "N requirements / findings internes ne multiplient pas reviewDocuments : 3 jumeaux x 1 cible x 10 findings => reviewDocuments 3, reviewItems 30",
+      "ok": true
+    },
+    {
+      "id": "T-ECO-12",
+      "name": "compteurs distincts professionnels / reviewDocuments / reviewItems dans la vue de cout et l'interface (aucun « n / N revues » ou N compterait des items)",
+      "ok": true
+    },
+    {
+      "id": "T-ECO-13",
+      "name": "projection recalculee apres chaque lot : l'estimation du prochain lot suit les couts mesures (IN_RUN des 3 echantillons, sinon HISTORY, sinon UNKNOWN non bloquant) ; projectDownstream change avec le panel",
+      "ok": true
+    },
+    {
+      "id": "T-ECO-14",
+      "name": "projection centrale > 40 USD => ECONOMIC_OUTLIER_WARNING + message « Cette mission est inhabituellement coûteuse. » + cause principale ; <= 40 => aucune alerte ; PARTIAL (aucune mesure) => borne basse, jamais un tarif invente",
+      "ok": true
+    },
+    {
+      "id": "T-ECO-15",
+      "name": "projection > seuil (40) => porte humaine ECONOMIC_REVIEW avant les jumeaux (run WAITING_USER, aucun appel fournisseur), refus sans nom, confirmation nominative => porte levee, decision persistee avec la projection",
+      "ok": true
+    },
+    {
+      "id": "T-ECO-16",
+      "name": "reprise apres arret budgetaire : les observations deja produites (reponses reutilisees, cout 0) rejouent le meme plan et les memes lots, puis l'evaluation continue sans re-payer ; determinisme des lots",
+      "ok": true
+    },
+    {
+      "id": "T-ECO-17",
+      "name": "aucun appel fournisseur apres PANEL_SUFFICIENT : dans la source, beforeEvaluate est consulte AVANT tout reseau/oracle ; simulation : nombre d'appels === evaluations, 0 apres l'arret",
+      "ok": true
+    },
+    {
+      "id": "T-ECO-18",
+      "name": "aucune modification des lots geles : MONO-01/09/10/11 verifies (sceaux + zips canoniques, 0 divergence) ; panel-sufficiency.js byte-identique a v1.0.6 ; le code gele des revues (EF-03B) n'est pas touche",
+      "ok": true
+    },
+    {
+      "id": "T-STREAM-01",
+      "name": "FANOUT PROOF : 9 documents => 1 cible (MISSION_DOSSIER) ; 19 jumeaux => 19 revues logiques attendues ; jamais 171 / 288 / 480 ; 19 revues x 1 cible => reviewDocuments 19",
+      "ok": true
+    },
+    {
+      "id": "T-STREAM-02",
+      "name": "requete : `stream: true` + Accept text/event-stream ; meme modele, meme max_tokens, meme prompt qu'en non-streaming (le streaming ne change que le transport) ; EVIDENCEFORGE_LLM_STREAM=0 => corps sans `stream`, transport JSON ; preflight jamais en streaming",
+      "ok": true
+    },
+    {
+      "id": "T-STREAM-03",
+      "name": "reconstruction canonique deterministe : evenements SSE decoupes a des frontieres d'octets arbitraires (UTF-8 multi-octets, CRLF, ping, commentaires, data multi-lignes, evenement inconnu) => corps identique au corps non streaming (id, model, content, stop_reason, usage fusionne) ; meme hash a chaque rejeu",
+      "ok": true
+    },
+    {
+      "id": "T-STREAM-04",
+      "name": "usage / model / id / stop_reason conserves ; journal llm-calls (transport SSE_STREAM, evenements, octets, duree) ; cache request/response ecrit avec le corps canonique ; cout du ledger identique a celui du meme usage en transport JSON",
+      "ok": true
+    },
+    {
+      "id": "T-STREAM-05",
+      "name": "validation et reuse inchanges : texte identique passe a la validation ; avant VALID => nouvel appel reel ; apres VALID => REUSE (cout 0, jamais compte reel) ; entree du magasin complete (promptSha256, responseSha256, providerRequestId, VALID, providerId, modelId, sourceSealHash, MONO-11-v2)",
+      "ok": true
+    },
+    {
+      "id": "T-STREAM-06",
+      "name": "flux interrompu en pleine generation => PROVIDER_STREAM_INTERRUPTED (fatal, reprenable) ; aucune reponse, aucun cache, aucune entree de magasin, aucun texte partiel nulle part ; journal precis (twinId, targetId, localRequestId, providerRequestId, evenements, octets, duree, cause) ; verrou : appel suivant sans reseau",
+      "ok": true
+    },
+    {
+      "id": "T-STREAM-07",
+      "name": "cout d'un flux interrompu : usage fournisseur connu (message_start recu) => REAL_CALL `interrupted`, `usageIncomplete`, cout sur l'usage connu seulement ; coupure avant message_start => aucune entree de cout (jamais un cout invente), usage null au journal",
+      "ok": true
+    },
+    {
+      "id": "T-STREAM-08",
+      "name": "aucun retry automatique apres une interruption de flux (une generation deja lancee serait re-facturee) : exactement 1 requete ; aucune boucle infinie ; la reprise est un acte explicite (nouveau run/tentative)",
+      "ok": true
+    },
+    {
+      "id": "T-STREAM-09",
+      "name": "chiens de garde bornes : flux qui se tait (message_start puis silence) => interruption STREAM_INACTIVITY ; flux lent mais actif au-dela de la duree totale => STREAM_MAX_DURATION ; flux lent mais actif sous les bornes => succes",
+      "ok": true
+    },
+    {
+      "id": "T-STREAM-10",
+      "name": "delai local du PREMIER octet (aucun en-tete recu) => PROVIDER_TIMEOUT (reprenable), jamais un faux succes ; en streaming le delai de 180 s ne couvre plus la generation",
+      "ok": true
+    },
+    {
+      "id": "T-STREAM-11",
+      "name": "HTTP 524 (edge) => PROVIDER_UNAVAILABLE journalise httpStatus 524, verrou, reprenable, aucun cache reutilisable ; 500 / 502 => PROVIDER_UNAVAILABLE ; 503 => PROVIDER_CAPACITY ; 429 puis 200 => attente bornee puis flux complet (providerAttempts 2)",
+      "ok": true
+    },
+    {
+      "id": "T-STREAM-12",
+      "name": "flux malforme / erreur fournisseur en cours de flux : evenement error overloaded => PROVIDER_CAPACITY ; error autre => PROVIDER_UNAVAILABLE ; JSON invalide => PROVIDER_BAD_RESPONSE ; fin sans message_stop => interrompu ; flux vide => interrompu ; complet sans texte => PROVIDER_EMPTY_RESPONSE — jamais une reponse, jamais un cache reutilisable",
+      "ok": true
+    },
+    {
+      "id": "T-STREAM-13",
+      "name": "compatibilite ancien proxy (v0.6 bufferise le SSE en application/json) : reponse reconstruite (transport SSE_BUFFERED_BY_PROXY) ; SSE bufferise incomplet => interrompu (BUFFERED_SSE_INCOMPLETE), rien de partiel",
+      "ok": true
+    },
+    {
+      "id": "T-STREAM-14",
+      "name": "arret utilisateur PENDANT un flux => STOPPED_BY_USER (userStop), flux annule, rien de partiel, journal STREAM_STOPPED_BY_USER, verrou : aucun appel suivant ; arret demande AVANT l'appel => aucune requete",
+      "ok": true
+    },
+    {
+      "id": "T-STREAM-15",
+      "name": "budget LIMITED atteint => BUDGET_LIMIT_REACHED AVANT la requete (aucune requete streamee lancee), verrou, reprenable ; le budget reste une autorite de transport (jamais scientifique)",
+      "ok": true
+    },
+    {
+      "id": "T-STREAM-16",
+      "name": "coupure reseau : URL injoignable => code de transport classe (connexion refusee), verrou, reprenable ; annulation du lecteur en cours de flux (AbortController / socket detruit) => interruption avec cause STREAM_READ_ERROR ou fin prematuree, jamais une reponse",
+      "ok": true
+    },
+    {
+      "id": "T-STREAM-17",
+      "name": "observabilite live : live-status.json (tous les champs du mandat), providerCallState IDLE/STARTED/STREAMING/COMPLETED/FAILED, heartbeat borne (updatedAt bouge pendant le flux, jamais par jeton), compteurs llmReal/llmReused coherents, revues logiques attendues = jumeaux x cibles, completes seulement apres VALID ; state.live expose par publicState ; vue de cout `live`",
+      "ok": true
+    },
+    {
+      "id": "T-STREAM-18",
+      "name": "mode trace console (EVIDENCEFORGE_TRACE_REVIEWS=1) : lignes [EF REVIEW] / [EF STREAM] / [EF REVIEW ERROR] ; JAMAIS la cle, Authorization, le prompt ni la reponse ; desactive par defaut (aucune ligne)",
+      "ok": true
+    },
+    {
+      "id": "T-STREAM-19",
+      "name": "aucun secret dans llm-calls.jsonl, cost-ledger, live-status, magasin ni cache apres tous les modes (succes, interruption, arret) ; la cle n'est envoyee qu'au transport (Bearer)",
+      "ok": true
+    },
+    {
+      "id": "T-STREAM-20",
+      "name": "invariants : lib/panel-sufficiency.js byte-identique (sha256 fd05e26b…) ; lots geles 0 divergence ; Worker gele MONO-08 v0.6 intact (sha256 a4f70bda…) ; proxy v0.7 additif (relais `new Response(upstreamResponse.body`, compat bufferisee conservee, cle Anthropic jamais renvoyee, credential Worker verifie) ; config streaming/observabilite ; RESUMABLE",
+      "ok": true
+    },
+    {
+      "id": "T-STREAM-21",
+      "name": "PIPELINE bout en bout (lots geles patches, transport reel streame vers le Worker factice) : flux coupe pendant TWINS_REVIEWS => STOPPED / PROVIDER_STREAM_INTERRUPTED reprenable, etape INTERRUPTED, aucun checkpoint aval, compteurs exacts, live-status persiste (FAILED, code, cible), state.live public, vue de cout `live` ; reprise explicite => flux complet, COMPLETED, checkpoint, revue journalisee SSE_STREAM",
+      "ok": true
+    },
+    {
+      "id": "T-STREAM-22",
+      "name": "reprise apres interruption : la revue interrompue est recalculee en REEL (jamais reutilisee : aucune entree de magasin) ; une revue VALIDEE avant l'interruption est reutilisee a cout 0 a la reprise (contrat MONO-11 inchange)",
+      "ok": true
+    }
+  ]
+}

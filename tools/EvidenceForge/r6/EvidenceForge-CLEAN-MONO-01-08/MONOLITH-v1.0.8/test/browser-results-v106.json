@@ -1,0 +1,58 @@
+{
+  "schema": "EvidenceForge.MonolithBrowserTestResults",
+  "version": "MONOLITH-v1.0.6",
+  "ranAt": "2026-09-18T19:35:49.456Z",
+  "total": 12,
+  "passed": 12,
+  "failed": 0,
+  "results": [
+    {
+      "name": "serveur v1.0.6 : /api/config version = config + chunking expose",
+      "ok": true
+    },
+    {
+      "name": "long document : « 8 segments générés automatiquement » affiche",
+      "ok": true
+    },
+    {
+      "name": "long document : nombre de caracteres affiche (33448) et « document complet »",
+      "ok": true
+    },
+    {
+      "name": "long document : compteur DOM = 1 document source (N = 8 segments != 1), jamais « 8 documents », segments lus integralement",
+      "ok": true
+    },
+    {
+      "name": "long document : exactement 1 ligne .docrow (pas de liste de sous-fichiers)",
+      "ok": true
+    },
+    {
+      "name": "document synthetique a 4 segments : compteur DOM = 1 document, 1 .docrow, « 4 segments » affiche, jamais « 4 documents »",
+      "ok": true
+    },
+    {
+      "name": "court + long : compteur DOM = 2 documents sources (total segments = 9 jamais utilise comme compte), « 1 segment » pour le court, « 9 segments au total »",
+      "ok": true
+    },
+    {
+      "name": "court + long : exactement 2 .docrow, statuts COMPLETE",
+      "ok": true
+    },
+    {
+      "name": "fichier vide : « document vide — non exploitable », compteur DOM = 1 document (le vide n'est pas compte), 2 lignes (vide liste, non exploitable)",
+      "ok": true
+    },
+    {
+      "name": "fichier vide : ligne marquee DOCUMENT_EMPTY",
+      "ok": true
+    },
+    {
+      "name": "apercu : aucun run cree, aucun dossier _preflight",
+      "ok": true
+    },
+    {
+      "name": "aucune exception console",
+      "ok": true
+    }
+  ]
+}
