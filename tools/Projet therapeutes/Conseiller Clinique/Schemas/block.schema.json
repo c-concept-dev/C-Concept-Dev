@@ -5,12 +5,28 @@
   "$defs": {
     "citationLink": {
       "type": "object",
-      "required": ["citationId", "claimText", "claimSupport"],
+      "required": [
+        "citationId",
+        "claimText",
+        "claimSupport"
+      ],
       "additionalProperties": false,
       "properties": {
-        "citationId": { "type": "string", "minLength": 1 },
-        "claimText": { "type": "string", "minLength": 1 },
-        "claimSupport": { "enum": ["pass", "needs-review", "pending"] }
+        "citationId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "claimText": {
+          "type": "string",
+          "minLength": 1
+        },
+        "claimSupport": {
+          "enum": [
+            "pass",
+            "needs-review",
+            "pending"
+          ]
+        }
       }
     },
     "blockValidation": {
@@ -19,247 +35,526 @@
       "properties": {
         "citationLinks": {
           "type": "array",
-          "items": { "$ref": "#/$defs/citationLink" }
+          "items": {
+            "$ref": "#/$defs/citationLink"
+          }
         }
       }
     },
     "citationIds": {
       "type": "array",
-      "items": { "type": "string", "minLength": 1 }
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
     },
-
     "headingContent": {
       "type": "object",
-      "required": ["text", "level"],
+      "required": [
+        "text",
+        "level"
+      ],
       "additionalProperties": false,
       "properties": {
-        "text": { "type": "string", "minLength": 1 },
-        "level": { "enum": [1, 2, 3] }
+        "text": {
+          "type": "string",
+          "minLength": 1
+        },
+        "level": {
+          "enum": [
+            1,
+            2,
+            3
+          ]
+        }
       }
     },
     "paragraphContent": {
       "type": "object",
-      "required": ["text"],
+      "required": [
+        "text"
+      ],
       "additionalProperties": false,
       "properties": {
-        "text": { "type": "string", "minLength": 1 }
+        "text": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "calloutContent": {
       "type": "object",
-      "required": ["text", "visualRole"],
+      "required": [
+        "text",
+        "visualRole"
+      ],
       "additionalProperties": false,
       "properties": {
-        "text": { "type": "string", "minLength": 1 },
-        "visualRole": { "enum": ["info", "warning", "critical", "success"] }
+        "text": {
+          "type": "string",
+          "minLength": 1
+        },
+        "visualRole": {
+          "enum": [
+            "info",
+            "warning",
+            "critical",
+            "success"
+          ]
+        }
       }
     },
     "listContent": {
       "type": "object",
-      "required": ["items", "ordered"],
+      "required": [
+        "items",
+        "ordered"
+      ],
       "additionalProperties": false,
       "properties": {
         "items": {
           "type": "array",
           "minItems": 1,
-          "items": { "type": "string", "minLength": 1 }
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         },
-        "ordered": { "type": "boolean" }
+        "ordered": {
+          "type": "boolean"
+        }
       }
     },
     "tableContent": {
       "type": "object",
-      "required": ["headers", "rows"],
+      "required": [
+        "headers",
+        "rows"
+      ],
       "additionalProperties": false,
       "properties": {
         "headers": {
           "type": "array",
           "minItems": 1,
-          "items": { "type": "string" }
+          "items": {
+            "type": "string"
+          }
         },
         "rows": {
           "type": "array",
           "items": {
             "type": "array",
-            "items": { "type": "string" }
+            "items": {
+              "type": "string"
+            }
           }
         }
       }
     },
     "quoteContent": {
       "type": "object",
-      "required": ["text"],
+      "required": [
+        "text"
+      ],
       "additionalProperties": false,
       "properties": {
-        "text": { "type": "string", "minLength": 1 }
+        "text": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "imageContent": {
-      "$comment": "UX-8A.2 — bloc d'illustration autonome (pas une image de couverture de card). `query` est la requête de recherche Pexels résolue par le mécanisme existant et éprouvé (app hôte, adocResolveImages, via data-pexels=) — jamais une URL en dur. `alt` est toujours requis et non vide : contrairement à card.content.imageAlt (conditionnel, l'image y est optionnelle), un bloc image n'existe que pour porter une image, donc le texte alternatif est obligatoire par construction, jamais implicite. LOT C (glisser-déposer, remplacement Pexels par un fichier local) — assetId (optionnel, string|null) porte l'identifiant SHA-256 d'un fichier local envoyé vers R2 (BRAND_ASSETS, rôle 'image', route existante POST /brand-assets/upload) : quand renseigné, le rendu sert cette image (GET /brand-assets/:assetId, nouvelle route) au lieu de résoudre `query` via Pexels — query/alt restent obligatoires (alt sert de texte alternatif dans les deux cas, query reste un repli textuel jamais perdu). LOT E — opacity (optionnel, 0-100, défaut 100 = opaque) : opacité de CETTE image (bloc autonome ou fond de bannière une fois consommée comme couverture), réglable via le curseur universel. NOTE (déjà signalée) : cette copie sur disque reste une référence, désynchronisée du schéma réellement validé (embarqué dans studio-clinique.html) pour d'autres champs (style/editor, absents ici) — non reconcilié dans ce lot, hors périmètre.",
+      "$comment": "UX-8A.2 — bloc d'illustration autonome (pas une image de couverture de card). `query` est la requête de recherche Pexels résolue par le mécanisme existant et éprouvé (app hôte, adocResolveImages, via data-pexels=) — jamais une URL en dur. `alt` est toujours requis et non vide : contrairement à card.content.imageAlt (conditionnel, l'image y est optionnelle), un bloc image n'existe que pour porter une image, donc le texte alternatif est obligatoire par construction, jamais implicite. LOT C (glisser-déposer, remplacement Pexels par un fichier local) — assetId (optionnel, string|null) porte l'identifiant SHA-256 d'un fichier local envoyé vers R2 (BRAND_ASSETS, rôle 'image', route existante POST /brand-assets/upload) : quand renseigné, le rendu sert cette image (GET /brand-assets/:assetId, nouvelle route) au lieu de résoudre `query` via Pexels — query/alt restent obligatoires (alt sert de texte alternatif dans les deux cas, query reste un repli textuel jamais perdu). LOT E — opacity (optionnel, 0-100, défaut 100 = opaque) : opacité de CETTE image (bloc autonome ou fond de bannière une fois consommée comme couverture), réglable via le curseur universel. NOUVEAU CHANTIER (panneau image dédié, Phase 1) — widthPercent (optionnel, 10-100, défaut 100 = pleine largeur) : largeur de CETTE image en pourcentage de la largeur du bloc, réglable via le même panneau que opacity. Aucun champ de taille préexistant sous un autre nom (confirmé par investigation avant ajout). NOTE (déjà signalée) : cette copie sur disque reste une référence, désynchronisée du schéma réellement validé (embarqué dans studio-clinique.html) pour d'autres champs (style/editor, absents ici) — non reconcilié dans ce lot, hors périmètre. LOT ROTATION (Phase 1 bis) — rotation (optionnel, 0-360, défaut 0) : rotation en degrés de CETTE image, réservée au bloc image autonome (même logique que widthPercent, absente du panneau sur un fond de bloc mixte — investigation confirmée : un fond en background-size:cover pivoté laisserait des coins non couverts, pire que le simple écrêtage déjà documenté pour widthPercent).",
       "type": "object",
-      "required": ["query", "alt"],
+      "required": [
+        "query",
+        "alt"
+      ],
       "additionalProperties": false,
       "properties": {
-        "query": { "type": "string", "minLength": 1 },
-        "alt": { "type": "string", "minLength": 1 },
-        "assetId": { "type": ["string", "null"] },
-        "opacity": { "type": "number", "minimum": 0, "maximum": 100 }
+        "query": {
+          "type": "string",
+          "minLength": 1
+        },
+        "alt": {
+          "type": "string",
+          "minLength": 1
+        },
+        "assetId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "opacity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "widthPercent": {
+          "type": "number",
+          "minimum": 10,
+          "maximum": 100
+        },
+        "rotation": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 360
+        }
       }
     },
     "cardContent": {
       "$comment": "imageAlt : requis (non vide) dès que imageRef est renseigné — le contrat de contrôle qualité UX-8A traite un texte alternatif absent sur une image informative comme bloquant. Reste optionnel/null quand imageRef est null (pas d'image, rien à décrire).",
       "type": "object",
-      "required": ["title", "imageRef", "imageAlt", "blocks"],
+      "required": [
+        "title",
+        "imageRef",
+        "imageAlt",
+        "blocks"
+      ],
       "additionalProperties": false,
       "properties": {
-        "title": { "type": "string", "minLength": 1 },
-        "imageRef": { "type": ["string", "null"] },
-        "imageAlt": { "type": ["string", "null"] },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "imageRef": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "imageAlt": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "blocks": {
           "type": "array",
-          "items": { "$ref": "#/$defs/nestedBlock" }
+          "items": {
+            "$ref": "#/$defs/nestedBlock"
+          }
         }
       },
-      "if": { "properties": { "imageRef": { "type": "string" } }, "required": ["imageRef"] },
-      "then": { "properties": { "imageAlt": { "type": "string", "minLength": 1 } } }
+      "if": {
+        "properties": {
+          "imageRef": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "imageRef"
+        ]
+      },
+      "then": {
+        "properties": {
+          "imageAlt": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
     },
-
     "headingBlock": {
       "type": "object",
-      "required": ["id", "type", "content"],
+      "required": [
+        "id",
+        "type",
+        "content"
+      ],
       "additionalProperties": false,
       "properties": {
-        "id": { "type": "string", "minLength": 1 },
-        "type": { "const": "heading" },
-        "content": { "$ref": "#/$defs/headingContent" },
-        "citationIds": { "$ref": "#/$defs/citationIds" },
-        "validation": { "$ref": "#/$defs/blockValidation" }
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "const": "heading"
+        },
+        "content": {
+          "$ref": "#/$defs/headingContent"
+        },
+        "citationIds": {
+          "$ref": "#/$defs/citationIds"
+        },
+        "validation": {
+          "$ref": "#/$defs/blockValidation"
+        }
       }
     },
     "paragraphBlock": {
       "type": "object",
-      "required": ["id", "type", "content"],
+      "required": [
+        "id",
+        "type",
+        "content"
+      ],
       "additionalProperties": false,
       "properties": {
-        "id": { "type": "string", "minLength": 1 },
-        "type": { "const": "paragraph" },
-        "content": { "$ref": "#/$defs/paragraphContent" },
-        "citationIds": { "$ref": "#/$defs/citationIds" },
-        "validation": { "$ref": "#/$defs/blockValidation" }
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "const": "paragraph"
+        },
+        "content": {
+          "$ref": "#/$defs/paragraphContent"
+        },
+        "citationIds": {
+          "$ref": "#/$defs/citationIds"
+        },
+        "validation": {
+          "$ref": "#/$defs/blockValidation"
+        }
       }
     },
     "calloutBlock": {
       "type": "object",
-      "required": ["id", "type", "content"],
+      "required": [
+        "id",
+        "type",
+        "content"
+      ],
       "additionalProperties": false,
       "properties": {
-        "id": { "type": "string", "minLength": 1 },
-        "type": { "const": "callout" },
-        "content": { "$ref": "#/$defs/calloutContent" },
-        "citationIds": { "$ref": "#/$defs/citationIds" },
-        "validation": { "$ref": "#/$defs/blockValidation" }
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "const": "callout"
+        },
+        "content": {
+          "$ref": "#/$defs/calloutContent"
+        },
+        "citationIds": {
+          "$ref": "#/$defs/citationIds"
+        },
+        "validation": {
+          "$ref": "#/$defs/blockValidation"
+        }
       }
     },
     "listBlock": {
       "type": "object",
-      "required": ["id", "type", "content"],
+      "required": [
+        "id",
+        "type",
+        "content"
+      ],
       "additionalProperties": false,
       "properties": {
-        "id": { "type": "string", "minLength": 1 },
-        "type": { "const": "list" },
-        "content": { "$ref": "#/$defs/listContent" },
-        "citationIds": { "$ref": "#/$defs/citationIds" },
-        "validation": { "$ref": "#/$defs/blockValidation" }
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "const": "list"
+        },
+        "content": {
+          "$ref": "#/$defs/listContent"
+        },
+        "citationIds": {
+          "$ref": "#/$defs/citationIds"
+        },
+        "validation": {
+          "$ref": "#/$defs/blockValidation"
+        }
       }
     },
     "tableBlock": {
       "type": "object",
-      "required": ["id", "type", "content"],
+      "required": [
+        "id",
+        "type",
+        "content"
+      ],
       "additionalProperties": false,
       "properties": {
-        "id": { "type": "string", "minLength": 1 },
-        "type": { "const": "table" },
-        "content": { "$ref": "#/$defs/tableContent" },
-        "citationIds": { "$ref": "#/$defs/citationIds" },
-        "validation": { "$ref": "#/$defs/blockValidation" }
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "const": "table"
+        },
+        "content": {
+          "$ref": "#/$defs/tableContent"
+        },
+        "citationIds": {
+          "$ref": "#/$defs/citationIds"
+        },
+        "validation": {
+          "$ref": "#/$defs/blockValidation"
+        }
       }
     },
     "quoteBlock": {
       "type": "object",
-      "required": ["id", "type", "content"],
+      "required": [
+        "id",
+        "type",
+        "content"
+      ],
       "additionalProperties": false,
       "properties": {
-        "id": { "type": "string", "minLength": 1 },
-        "type": { "const": "quote" },
-        "content": { "$ref": "#/$defs/quoteContent" },
-        "citationIds": { "$ref": "#/$defs/citationIds" },
-        "validation": { "$ref": "#/$defs/blockValidation" }
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "const": "quote"
+        },
+        "content": {
+          "$ref": "#/$defs/quoteContent"
+        },
+        "citationIds": {
+          "$ref": "#/$defs/citationIds"
+        },
+        "validation": {
+          "$ref": "#/$defs/blockValidation"
+        }
       }
     },
     "cardBlock": {
       "type": "object",
-      "required": ["id", "type", "content"],
+      "required": [
+        "id",
+        "type",
+        "content"
+      ],
       "additionalProperties": false,
       "properties": {
-        "id": { "type": "string", "minLength": 1 },
-        "type": { "const": "card" },
-        "content": { "$ref": "#/$defs/cardContent" },
-        "citationIds": { "$ref": "#/$defs/citationIds" },
-        "validation": { "$ref": "#/$defs/blockValidation" }
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "const": "card"
+        },
+        "content": {
+          "$ref": "#/$defs/cardContent"
+        },
+        "citationIds": {
+          "$ref": "#/$defs/citationIds"
+        },
+        "validation": {
+          "$ref": "#/$defs/blockValidation"
+        }
       }
     },
     "imageBlock": {
       "type": "object",
-      "required": ["id", "type", "content"],
+      "required": [
+        "id",
+        "type",
+        "content"
+      ],
       "additionalProperties": false,
       "properties": {
-        "id": { "type": "string", "minLength": 1 },
-        "type": { "const": "image" },
-        "content": { "$ref": "#/$defs/imageContent" },
-        "citationIds": { "$ref": "#/$defs/citationIds" },
-        "validation": { "$ref": "#/$defs/blockValidation" }
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "const": "image"
+        },
+        "content": {
+          "$ref": "#/$defs/imageContent"
+        },
+        "citationIds": {
+          "$ref": "#/$defs/citationIds"
+        },
+        "validation": {
+          "$ref": "#/$defs/blockValidation"
+        }
       }
     },
-
     "editorialBlock": {
       "$comment": "Blocs éditoriaux autorisés au niveau racine d'une Fiche synthèse (documentKind:'fiche') : tous les types sauf `card`.",
       "oneOf": [
-        { "$ref": "#/$defs/headingBlock" },
-        { "$ref": "#/$defs/paragraphBlock" },
-        { "$ref": "#/$defs/calloutBlock" },
-        { "$ref": "#/$defs/listBlock" },
-        { "$ref": "#/$defs/tableBlock" },
-        { "$ref": "#/$defs/quoteBlock" },
-        { "$ref": "#/$defs/imageBlock" }
+        {
+          "$ref": "#/$defs/headingBlock"
+        },
+        {
+          "$ref": "#/$defs/paragraphBlock"
+        },
+        {
+          "$ref": "#/$defs/calloutBlock"
+        },
+        {
+          "$ref": "#/$defs/listBlock"
+        },
+        {
+          "$ref": "#/$defs/tableBlock"
+        },
+        {
+          "$ref": "#/$defs/quoteBlock"
+        },
+        {
+          "$ref": "#/$defs/imageBlock"
+        }
       ]
     },
     "nestedBlock": {
       "$comment": "Blocs autorisés dans card.content.blocks[] (imbriqué) : mêmes types que l'ensemble éditorial, sauf `table` (non imbriquée) et `card` (jamais imbriquée dans une autre carte).",
       "oneOf": [
-        { "$ref": "#/$defs/headingBlock" },
-        { "$ref": "#/$defs/paragraphBlock" },
-        { "$ref": "#/$defs/calloutBlock" },
-        { "$ref": "#/$defs/listBlock" },
-        { "$ref": "#/$defs/quoteBlock" },
-        { "$ref": "#/$defs/imageBlock" }
+        {
+          "$ref": "#/$defs/headingBlock"
+        },
+        {
+          "$ref": "#/$defs/paragraphBlock"
+        },
+        {
+          "$ref": "#/$defs/calloutBlock"
+        },
+        {
+          "$ref": "#/$defs/listBlock"
+        },
+        {
+          "$ref": "#/$defs/quoteBlock"
+        },
+        {
+          "$ref": "#/$defs/imageBlock"
+        }
       ]
     },
     "cardOnlyBlock": {
       "$comment": "Bloc autorisé au niveau racine d'un Carrousel (documentKind:'carrousel') : exclusivement `card`.",
       "oneOf": [
-        { "$ref": "#/$defs/cardBlock" }
+        {
+          "$ref": "#/$defs/cardBlock"
+        }
       ]
     }
   },
-
   "oneOf": [
-    { "$ref": "#/$defs/headingBlock" },
-    { "$ref": "#/$defs/paragraphBlock" },
-    { "$ref": "#/$defs/calloutBlock" },
-    { "$ref": "#/$defs/listBlock" },
-    { "$ref": "#/$defs/tableBlock" },
-    { "$ref": "#/$defs/quoteBlock" },
-    { "$ref": "#/$defs/cardBlock" },
-    { "$ref": "#/$defs/imageBlock" }
+    {
+      "$ref": "#/$defs/headingBlock"
+    },
+    {
+      "$ref": "#/$defs/paragraphBlock"
+    },
+    {
+      "$ref": "#/$defs/calloutBlock"
+    },
+    {
+      "$ref": "#/$defs/listBlock"
+    },
+    {
+      "$ref": "#/$defs/tableBlock"
+    },
+    {
+      "$ref": "#/$defs/quoteBlock"
+    },
+    {
+      "$ref": "#/$defs/cardBlock"
+    },
+    {
+      "$ref": "#/$defs/imageBlock"
+    }
   ]
 }
