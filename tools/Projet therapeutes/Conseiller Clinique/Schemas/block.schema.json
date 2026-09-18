@@ -48,6 +48,31 @@
         "minLength": 1
       }
     },
+    "blockStyle": {
+      "$comment": "ITEM 75 Phase 1 (18 septembre 2026) — copie disque MINIMALE, scopée strictement aux 5 champs introduits par ce lot (x/y/width/height/zIndex, positionnement libre façon Canva, réservé au documentKind carrousel — CDC-ITEM-75-MISE-EN-PAGE-LIBRE.md §2.2). Le schéma réellement validé (embarqué dans studio-clinique.html) porte en plus de nombreux champs de style manuel historiques (fontPairId/color/backgroundAssetId/opacity/etc., Item 57c Lot 2 et Lot E) ABSENTS ICI — écart déjà documenté (A9), volontairement NON reconcilié dans ce lot (hors périmètre, ne pas aggraver : cette copie n'ajoute que les champs neufs, elle ne prétend pas au complet). x/y/width/height en pixels (cohérence avec le canevas Carrousel déjà existant : viewport de /browser-rendering/screenshot-slide, carte à largeur fixe en pixels). Tous optionnels — un bloc sans ces champs reste en flux normal. zIndex réservé dès maintenant même si les calques (Phase 2 du CDC) ne sont pas construits dans ce lot. AUCUN rendu ni AUCUNE UI ne consomme ces champs dans ce lot.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "width": {
+          "type": "number",
+          "minimum": 0
+        },
+        "height": {
+          "type": "number",
+          "minimum": 0
+        },
+        "zIndex": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
     "headingContent": {
       "type": "object",
       "required": [
@@ -281,6 +306,9 @@
         },
         "validation": {
           "$ref": "#/$defs/blockValidation"
+        },
+        "style": {
+          "$ref": "#/$defs/blockStyle"
         }
       }
     },
@@ -308,6 +336,9 @@
         },
         "validation": {
           "$ref": "#/$defs/blockValidation"
+        },
+        "style": {
+          "$ref": "#/$defs/blockStyle"
         }
       }
     },
@@ -335,6 +366,9 @@
         },
         "validation": {
           "$ref": "#/$defs/blockValidation"
+        },
+        "style": {
+          "$ref": "#/$defs/blockStyle"
         }
       }
     },
@@ -362,6 +396,9 @@
         },
         "validation": {
           "$ref": "#/$defs/blockValidation"
+        },
+        "style": {
+          "$ref": "#/$defs/blockStyle"
         }
       }
     },
@@ -389,6 +426,9 @@
         },
         "validation": {
           "$ref": "#/$defs/blockValidation"
+        },
+        "style": {
+          "$ref": "#/$defs/blockStyle"
         }
       }
     },
@@ -416,6 +456,9 @@
         },
         "validation": {
           "$ref": "#/$defs/blockValidation"
+        },
+        "style": {
+          "$ref": "#/$defs/blockStyle"
         }
       }
     },
