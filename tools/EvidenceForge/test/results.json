@@ -1,7 +1,7 @@
 {
   "schema": "EvidenceForge.LauncherTestResults",
-  "version": "MONOLITH-v1.0.6",
-  "ranAt": "2026-09-18T10:32:08.939Z",
+  "version": "MONOLITH-v1.0.7",
+  "ranAt": "2026-09-18T13:49:25.629Z",
   "total": 14,
   "passed": 14,
   "failed": 0,
@@ -33,7 +33,7 @@
     },
     {
       "id": "LAUNCH-06 / LAUNCH-10",
-      "name": "port libre : start lance la version active, /api/config renvoie EXACTEMENT MONOLITH-v1.0.6, résumé complet (worker, modèle, pricing, lots, runs, git), journal écrit",
+      "name": "port libre : start lance la version active, /api/config renvoie EXACTEMENT MONOLITH-v1.0.7, résumé complet (worker, modèle, pricing, lots, runs, git), journal écrit",
       "ok": true
     },
     {
@@ -58,7 +58,7 @@
     },
     {
       "id": "LAUNCH-08",
-      "name": "ancienne EvidenceForge (v1.0.4) sur le port : identifiée (node + server.js + dossier MONOLITH), arrêtée par SIGTERM, port libéré, puis MONOLITH-v1.0.6 lancée",
+      "name": "ancienne EvidenceForge (v1.0.4) sur le port : identifiée (node + server.js + dossier MONOLITH), arrêtée par SIGTERM, port libéré, puis MONOLITH-v1.0.7 lancée",
       "ok": true
     },
     {
@@ -68,7 +68,7 @@
     },
     {
       "id": "LAUNCH-12",
-      "name": ".env.local ignoré par git (check-ignore), .env.example versionné avec placeholders seulement, ACTIVE_VERSION = MONOLITH-v1.0.6",
+      "name": ".env.local ignoré par git (check-ignore), .env.example versionné avec placeholders seulement, ACTIVE_VERSION = MONOLITH-v1.0.7",
       "ok": true
     },
     {

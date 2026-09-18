@@ -1,0 +1,149 @@
+{
+  "$comment": "EvidenceForge MONOLITH v1.0.7 (CANDIDAT = v1.0.6 + ECONOMIC PANEL OPTIMIZATION + EARLY SUFFICIENCY + MARGINAL VALUE CONTROL + REVIEW FANOUT CONTROL) — configuration d'exploitation. AUCUN SECRET ICI : les identifiants viennent de l'environnement (EVIDENCEFORGE_WORKER_API_KEY, LLM_WORKER_BASE_URL, LLM_AUTH_MODE). Les chemins sont relatifs a la racine du bundle sauf indication.",
+  "product": {
+    "name": "EvidenceForge",
+    "version": "MONOLITH-v1.0.7"
+  },
+  "bundleRoot": "..",
+  "frozenLots": {
+    "MONO-10": {
+      "dir": "MONO-10/v0.19",
+      "seal": "SHA256SUMS.txt",
+      "canonicalZip": "MONO-10/EvidenceForge-MONO10-SCIENTIFIC-QUALIFICATION-v0.19.zip",
+      "canonicalZipSha256": "f5a4165414f4aacc32f48f50eb14d59c87a09e3f138e24f8bd14b956972c2e04"
+    },
+    "MONO-11": {
+      "dir": "MONO-11/v0.3-r1",
+      "version": "v0.3-r1",
+      "seal": "SHA256SUMS.txt",
+      "canonicalZip": "MONO-11/EvidenceForge-MONO11-AUTONOMOUS-PANEL-v0.3-r1.zip",
+      "canonicalZipSha256": "3c44b397dda0997d0fff6ab4c8e8a8b311430e6a5ac7aeee38149f8349296b0b",
+      "$comment": "MONO-11 v0.3-r1 = GELE (decision de gouvernance 2026-09-16) ; version = MANIFEST.version attendu par run-seal-guard ; v0.2 (5c208cbb...) = gele historique, v0.3 (bec55841...) = candidat intermediaire non retenu"
+    },
+    "MONO-09": {
+      "dir": "MONO-09/v0.2",
+      "seal": "SHA256SUMS.txt"
+    },
+    "MONO-01": {
+      "dir": "MONO-01",
+      "seal": "manifest/SHA256SUMS"
+    }
+  },
+  "operatorKit": {
+    "ef01bRoot": "../../../EF-01B-v0.2-r2",
+    "ef01c1Root": "../../../EF-01C1-v0.2-r2",
+    "$comment": "EF-01B/EF-01C1 v0.2-r2 : resolveur de disciplines et planificateur de recherche (kit d'exploitation, hors bundle) ; les coeurs r1.3 sont vendored dans vendor/operator-kit-r1.3"
+  },
+  "runsRoot": "./runs",
+  "server": {
+    "host": "127.0.0.1",
+    "port": 8765
+  },
+  "llm": {
+    "model": "claude-opus-4-8",
+    "routing": {
+      "$comment": "v1.0.5 — routage par FINALITE d'appel : { \"EF-02D2 relevance\": \"claude-haiku-4-5\" } enverrait l'oracle de pertinence des professionnels vers un modele economique. VIDE par defaut : une route ne se pose qu'apres benchmark de qualite (tools/bench-oracle-model.js) — voir RAPPORT-PANEL-COST-OPTIMIZER.md. Surcharge : EVIDENCEFORGE_LLM_ROUTING (JSON). Le modele de chaque appel est journalise."
+    },
+    "minSpacingMs": 1500,
+    "maxAttemptsOnCapacity": 8,
+    "reviewMaxPasses": 3,
+    "coverageMaxPasses": 3,
+    "timeoutMs": 180000,
+    "kitMaxAttempts": 3,
+    "probeTimeoutMs": 60000
+  },
+  "openalex": {
+    "userAgent": "EvidenceForge-MONOLITH-v1.0",
+    "perPage": 100,
+    "timeoutMs": 60000
+  },
+  "attestationValidityHours": 8,
+  "screening": {
+    "batchSize": 8,
+    "$comment": "screening machine par lots : preuve LLM structuree par source, ratifiee par l'utilisateur (contrat gele MONO-08 : acteur humain requis en REAL). v1.0.5 cost optimizer : evidence verifiee par SCREENING-EVIDENCE-NORMALIZATION-v1 (litteral puis forme canonique, fragment reel rendu) sur les champs evidenceFields ; reprise ciblee RETRY_ONLY_INVALID_ITEMS ; bornes de sortie demandees au modele (jamais un motif de refus). batchSize inchange (validite JSON des grands lots non mesuree).",
+    "maxPasses": 3,
+    "evidenceFields": ["titre", "resume", "lieu"],
+    "retryStrategy": "RETRY_ONLY_INVALID_ITEMS",
+    "outputBounds": { "justificationMaxChars": 160, "evidenceMaxFragments": 2, "evidenceMaxChars": 80 }
+  },
+  "documents": {
+    "acceptedExtensions": [
+      ".txt",
+      ".md"
+    ],
+    "maxBytes": 2000000,
+    "$comment": "seuls les textes bruts sont lus tels quels ; aucun parseur PDF n'est embarque (limite declaree)",
+    "chunking": {
+      "maxChunkChars": 4500,
+      "strategy": "PARAGRAPH>LINE>SENTENCE>SPACE>HARD",
+      "$comment": "v1.0.6 AUTO-CHUNK UPLOAD — tout texte uploade est decoupe AVANT tout passage a un modele en segments <= maxChunkChars (marge sous la limite de 5000 du cadrage), de facon deterministe, sans LLM, sans perte ni duplication (lib/document-chunker.js). Unite : longueur de chaine JS (UTF-16), pas les octets. Les segments PART-k-OF-n restent les parties d'UN document source ; un upload de 1 fichier compte 1 document."
+    }
+  },
+  "pricing": {
+    "file": "config/llm-pricing.json",
+    "$comment": "v1.0.5 — AUTORITE UNIQUE de tarification (versionnee, auditable). Aucun tarif ailleurs. Chaque run persiste son snapshot (pricing-snapshot.json)."
+  },
+  "budget": {
+    "costBudgetUsd": null,
+    "warningThresholdUsd": null,
+    "$comment": "v1.0.5 — valeurs PAR DEFAUT proposees a la creation d'un run (null = aucun plafond). Le budget effectif est celui du run (runs/<runId>/budget.json), fixe ou modifie par l'utilisateur ; verifie AVANT chaque appel reel ; plafond atteint => STOPPED / BUDGET_LIMIT_REACHED (reprenable apres augmentation explicite)."
+  },
+  "portfolio": {
+    "redundancySimilarityThreshold": 0.5,
+    "overRepresentationFactor": 2,
+    "minSourcesForOverRepresentation": 3,
+    "llmBatchSize": 12,
+    "maxPasses": 3,
+    "llmScope": "ALL_EXCLUDED_WITH_ABSTRACT",
+    "evidenceFields": ["titre", "resume", "lieu"],
+    "retryStrategy": "RETRY_ONLY_INVALID_ITEMS",
+    "outputBounds": { "interestMaxChars": 160, "evidenceMaxFragments": 2, "evidenceMaxChars": 80 },
+    "$comment2": "v1.0.5 cost optimizer : llmScope ∈ {ALL_EXCLUDED_WITH_ABSTRACT (defaut, perimetre inchange), UNDERCOVERED_ANGLES_ONLY, NON_HIGH_CONFIDENCE_ONLY, NONE} — un perimetre restreint est une decision produit tracee (llmScope.removed), jamais une autorite scientifique ; doublons parmi les exclues retires deterministiquement.",
+    "$comment": "v1.0.5 — parametres GENERIQUES de la revue de portefeuille du corpus (lib/corpus-portfolio-review.js) : seuil de similarite lexicale (TF-IDF cosinus) pour un groupe de redondance ; facteur de surrepresentation par rapport a la part uniforme ; taille des lots LLM pour la distinction domaine / methode. Aucun domaine, aucun mot-cle, aucun nom de cas. La revue ne decide rien (notADecision).",
+    "balancing": {
+      "coverageTargetFactor": 0.5,
+      "minimumIndependentSources": 2,
+      "overRepresentationFactor": 2,
+      "swapSimilarityThreshold": 0.85
+    }
+  },
+  "professionals": {
+    "maxCandidatesToEvaluate": 150,
+    "capIsGuardNotTarget": true,
+    "economic": {
+      "policy": "SUFFICIENCY_FIRST",
+      "enabled": true,
+      "capIsGuardNotTarget": true,
+      "minProfessionalsPerCoreDiscipline": 1,
+      "targetProfessionalsPerCoreDiscipline": 2,
+      "maxProfessionalsPerCoreDisciplineBeforeReassess": 3,
+      "expansionBatch": 4,
+      "diminishingReturnsBatches": 3,
+      "budgetAwareExpansion": true,
+      "reviewTargetMode": "MISSION_DOSSIER",
+      "dossierMaxChars": 400000,
+      "economicReviewThresholdUsd": 40,
+      "economicOutlierUsd": 40,
+      "kpiStandardUsd": [10, 25],
+      "kpiComplexUsd": [25, 40],
+      "$comment": "v1.0.7 ECONOMIC PANEL : le plafond maxCandidatesToEvaluate reste une GARDE absolue, jamais une cible. Panel initial compact (minProfessionalsPerCoreDiscipline par angle), puis lots d'expansion (expansionBatch) reevalues a chaque lot (couverture, independance, contribution marginale, suffisance PANEL-SUFFICIENCY-v2 = seule autorite scientifique). Le budget LIMITED empeche un lot dont le cout estime depasserait le plafond (PANEL_INCOMPLETE_BUDGET_LIMIT, reprenable) ; le cout ne fabrique JAMAIS un PANEL_SUFFICIENT. DIMINISHING_INFORMATION_RETURNS = signal descriptif. reviewTargetMode MISSION_DOSSIER = 1 revue complete par jumeau et par mission (les documents forment un seul dossier delimite) ; PER_DOCUMENT = contrat historique (jumeaux x documents). Seuils economiques = KPI produit / gate humain, jamais une autorite scientifique."
+    },
+    "evaluationOrder": "SELECTION_ORDER",
+    "workRefNormalization": true,
+    "earlyStop": {
+      "enabled": true,
+      "policy": {
+        "id": "PANEL-SUFFICIENCY-v2",
+        "strategy": "MIN_INDEPENDENT_REPRESENTATION",
+        "provenance": "PRODUCT_POLICY",
+        "minimumAdmissibleRepresentativesPerDimension": 3,
+        "minimumIndependentRepresentativesPerDimension": 2,
+        "independence": ["SUPPORTING_WORKS", "SEED_SOURCES"],
+        "closeDimensionWhenSufficient": true,
+        "plateau": { "minEvaluatedPerDimension": 3, "windowFactor": 2, "windowMin": 10, "graceFactor": 2, "closeOnPlateau": false },
+        "$comment": "POLITIQUE PRODUIT explicite, versionnee, tracee dans chaque decision (lib/panel-sufficiency.js). Un angle est SUFFISANT s'il est represente par >= minimumAdmissibleRepresentativesPerDimension professionnels APPROUVES par le gate gele (couverture G-6 : approuves dont la pertinence soutient l'angle) dont >= minimumIndependentRepresentativesPerDimension INDEPENDANTS (aucune oeuvre citee ni source-graine en commun). minimumIndependentRepresentativesPerDimension = 2 est un PLANCHER CONTRACTUEL lu dans le lot gele (MONO-01 EF-03C : une convergence exige >= 2 jumeaux independants) et ne peut pas etre abaisse ; minimumAdmissibleRepresentativesPerDimension = 3 est une MARGE PRODUIT (un approuve peut ne pas produire de jumeau), pas un seuil scientifique. Un vivier epuise n'est JAMAIS suffisant : etats DIMENSION_EXHAUSTED_PARTIAL / _EMPTY et PANEL_EXHAUSTED_WITH_GAPS, reserve aval explicite. Le plateau n'est qu'un signal (closeOnPlateau=false). Aucun nombre de cas ; le plafond 150 reste une garde ; le budget garde la priorite."
+      }
+    },
+    "$comment": "MAX_PROFESSIONAL_CANDIDATES_TO_EVALUATE — decision produit du proprietaire (2026-09-16) : nombre maximal de professionnels entrant dans l evaluation LLM (REAL ou REUSE). Selection deterministe PROFESSIONAL-SELECTION-v1 (lib/professional-selection.js), persistee avant tout appel payant. v1.0.5 : ce plafond est une GARDE, pas une cible ; evaluationOrder = SELECTION_ORDER (tourniquet par discipline) ; workRefNormalization = normalisation typographique des references d'oeuvres avant le validateur gele EF-02D2 (MONOLITH-WORKREF-NORMALIZATION-v1, journalisee) ; earlyStop = suffisance du panel (voir ci-dessous)."
+  }
+}

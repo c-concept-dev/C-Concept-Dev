@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EvidenceForge</title>
+<style>
+:root{--bg:#f7f6f2;--card:#fff;--ink:#1c1c1a;--muted:#5f5e58;--line:#dedcd3;--accent:#1f5f8b;--ok:#2f7d4a;--warn:#b7791f;--bad:#b23a3a;--soft:#eef2f6}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+header{background:var(--card);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;position:sticky;top:0;z-index:5}
+header h1{font-size:18px;margin:0;font-weight:650}header .sub{color:var(--muted);font-size:13px}header .grow{flex:1}
+.mode{display:flex;gap:6px}.mode button{border:1px solid var(--line);background:var(--card);padding:6px 12px;border-radius:999px;cursor:pointer;font-size:13px}.mode button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+main{max-width:1080px;margin:0 auto;padding:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:14px}
+h2{font-size:17px;margin:0 0 10px}h3{font-size:15px;margin:14px 0 6px}
+label{display:block;font-weight:600;margin:10px 0 4px}textarea,input[type=text]{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff}textarea{min-height:110px;resize:vertical}
+.btn{background:var(--accent);color:#fff;border:0;padding:10px 16px;border-radius:8px;font:inherit;font-weight:600;cursor:pointer}.btn.sec{background:#fff;color:var(--accent);border:1px solid var(--accent)}.btn:disabled{opacity:.5;cursor:not-allowed}.btn.small{padding:6px 10px;font-size:13px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.muted{color:var(--muted)}.small{font-size:13px}
+.steps{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}.steps li{border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;background:#fff}
+.steps li.DONE{border-color:var(--ok);background:#f0f8f2}.steps li.RUNNING{border-color:var(--accent);background:var(--soft)}.steps li.INTERRUPTED,.steps li.FAILED{border-color:var(--bad);background:#fbf0f0}
+.pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;border:1px solid var(--line);background:#fff}.docrow{margin:2px 0;font-size:.92em}.pill.ok{border-color:var(--ok);color:var(--ok)}.pill.warn{border-color:var(--warn);color:var(--warn)}.pill.bad{border-color:var(--bad);color:var(--bad)}
+.banner{padding:12px 14px;border-radius:8px;border:1px solid;margin:10px 0}.banner.warn{border-color:var(--warn);background:#fff8ec}.banner.bad{border-color:var(--bad);background:#fbf0f0}.banner.ok{border-color:var(--ok);background:#f0f8f2}.banner.info{border-color:var(--accent);background:var(--soft)}
+.log{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;max-height:220px;overflow:auto;background:#fafaf7;border:1px solid var(--line);border-radius:8px;padding:8px}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+.src{border:1px solid var(--line);border-radius:8px;padding:10px;margin:8px 0;background:#fff}.src .t{font-weight:600}.src .r{font-size:13px;color:var(--muted);margin-top:4px}
+.src.noprop{border-color:var(--warn);background:#fffaf0}.dec{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;align-items:center}.dec button{border:1px solid var(--line);background:#fff;padding:4px 10px;border-radius:999px;cursor:pointer;font-size:12px}.dec button.on.inclus{background:#e6f4ea;border-color:var(--ok)}.dec button.on.exclu{background:#fbecec;border-color:var(--bad)}.dec button.on.doublon{background:#eee}
+details{margin:6px 0}summary{cursor:pointer;font-weight:600}
+.stmt{border-left:4px solid var(--line);padding:8px 12px;margin:8px 0;background:#fff;border-radius:0 8px 8px 0}.stmt.etabli{border-left-color:var(--ok)}.stmt.convergent{border-left-color:var(--accent)}.stmt.divergent{border-left-color:var(--warn)}.stmt.provisoire{border-left-color:#888}.stmt.nonEtabli{border-left-color:var(--bad)}
+.why{font-size:13px;background:#fafaf7;border:1px solid var(--line);border-radius:8px;padding:8px;margin-top:6px}
+pre{white-space:pre-wrap;word-break:break-word;font-size:12px;background:#fafaf7;border:1px solid var(--line);border-radius:8px;padding:8px;max-height:420px;overflow:auto}
+.hash{font-family:ui-monospace,Menlo,monospace;font-size:12px;word-break:break-all}
+#report,#report li,#report p,#report div,.stmt,.why,.banner,.src{overflow-wrap:anywhere;word-break:break-word;min-width:0}
+main{overflow-x:hidden}.card{max-width:100%}
+.notify{position:sticky;top:52px;z-index:4}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}.tabs button{border:1px solid var(--line);background:#fff;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:13px}.tabs button.on{background:var(--soft);border-color:var(--accent)}
+[hidden]{display:none!important}
+/* v1.0.5 : cout / budget / portefeuille / aide ; v1.0.6 : apercu du decoupage automatique des documents (AUTO-CHUNK UPLOAD) */
+.cost{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:8px 0}.cost .k{font-size:12px;color:var(--muted)}.cost .v{font-weight:650;font-size:16px}.cost .cell{border:1px solid var(--line);border-radius:8px;padding:8px;background:#fff}
+.bar{display:inline-block;height:10px;background:var(--accent);border-radius:3px;vertical-align:middle}.bar.warn{background:var(--warn)}.bar.bad{background:var(--bad)}
+.covrow{display:grid;grid-template-columns:minmax(160px,1fr) 2fr auto;gap:8px;align-items:center;font-size:13px;padding:3px 0}
+.tag{display:inline-block;font-size:11px;border:1px solid var(--line);border-radius:4px;padding:1px 5px;margin-left:4px;background:#fff}
+#helpCard h3{margin-top:12px}#helpCard p,#helpCard li{font-size:14px}
+input[type=number]{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}@media (max-width:600px){.grid2{grid-template-columns:1fr}}
+@media print{header,.noprint,#runCard .steps,#runCard details,#runCard #userMsg,#runCard #resumeBox{display:none!important}main{max-width:none;padding:0}body{background:#fff}.card{border:0;margin:0;padding:0;page-break-inside:auto}#runCard{page-break-after:avoid}.stmt,.why,.banner{page-break-inside:avoid}.why{border:1px solid #ccc}details.why[open]>summary{display:none}.tech-details{display:none!important}.stmt{border-left-width:3px}}
+@media (max-width:600px){main{padding:10px}.steps{grid-template-columns:1fr 1fr}header h1{font-size:16px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>EvidenceForge</h1><span class="sub" id="cfgline">…</span><span class="grow"></span>
+  <div class="mode noprint"><button id="mSimple" class="on">Mode simple</button><button id="mExpert">Mode expert</button><button id="btnHelp" title="Comment utiliser EvidenceForge ?">Aide</button></div>
+</header>
+<main>
+  <div id="gateNotify" class="banner warn noprint notify" hidden></div>
+  <div id="gateErr" class="banner bad noprint" hidden></div>
+  <div id="providerWarn" class="banner bad noprint" hidden></div>
+
+  <!-- v1.0.5 : AIDE (jamais affichee par defaut, jamais bloquante) -->
+  <div class="card noprint" id="helpCard" hidden>
+    <div class="row"><h2>Comment utiliser EvidenceForge ?</h2><span class="grow"></span><button class="btn sec small" id="btnHelpClose">Fermer</button></div>
+    <h3>Ce qu'est EvidenceForge</h3><p>Un outil qui fait examiner votre demande par des <b>jumeaux documentaires</b> : des analyses construites uniquement à partir des publications réelles de professionnels identifiés dans une base de publications. Il distingue ce qui est <b>établi</b>, <b>convergent</b>, <b>divergent</b>, <b>provisoire</b> ou <b>non établi</b> dans ce processus.</p>
+    <h3>Ce qu'il n'est pas</h3><p>Ce n'est ni une validation scientifique, ni un avis de professionnels réels, ni une réponse générée librement par une IA. Aucune décision n'est prise à votre place : deux portes exigent votre acte réel, enregistré à votre nom.</p>
+    <h3>Les étapes</h3><ol><li><b>Comprendre votre demande</b> — reformulation, à confirmer.</li><li><b>Angles d'expertise</b> et <b>plan de recherche</b> — proposés automatiquement.</li><li><b>Porte 1</b> : vous vérifiez la compréhension, les angles et le plan, puis vous confirmez et lancez (rien n'est lancé avant).</li><li><b>Recherche des publications</b> et <b>tri proposé</b> source par source, puis <b>revue d'ensemble</b> du corpus (redondances, couverture des angles, méthodes hors domaine).</li><li><b>Porte 2</b> : vous ratifiez la sélection des publications (vous pouvez inverser chaque choix). C'est le seul acte qui constitue le corpus.</li><li><b>Professionnels</b> — découverte et évaluation, dans la limite d'un plafond de garde.</li><li><b>Jumeaux documentaires</b>, revues, agrégation, qualification, rapport.</li></ol>
+    <h3>Lire le rapport</h3><p><b>Établi</b> = plusieurs analyses indépendantes documentées convergent. <b>Convergent</b> = compatibles mais avec inférence prudente. <b>Divergent</b> = positions incompatibles, EvidenceForge ne tranche pas. <b>Provisoire</b> = un seul jumeau ou inférence prudente. <b>Non établi</b> = non déterminable, manque documentaire ou convergence rejetée. Chaque énoncé porte un « Pourquoi EvidenceForge dit cela ? » qui remonte aux constats et aux publications.</p>
+    <h3>Le coût</h3><p>Chaque appel au service d'analyse est facturé. Le bloc « Coût du run » affiche ce qui est <b>réellement dépensé</b> (journal de coût, tarif versionné) et, séparément, une <b>projection</b> marquée ESTIMATE — NOT GUARANTEE. Vous pouvez fixer un <b>budget maximum</b> et un <b>seuil d'alerte</b> avant ou pendant le run : au plafond, le run s'arrête proprement avant tout nouvel appel, conserve ses résultats, et peut reprendre après augmentation du budget.</p>
+    <h3>Bien cadrer une demande</h3><p>Décrivez ce que vous voulez faire examiner, sur quel périmètre, avec quels documents. « Vérifier ma demande avec l'IA » signale ambiguïtés, termes orientants, périmètre flou ou documents manquants et propose une reformulation : vous seul décidez de l'utiliser, de la modifier ou de garder votre texte.</p>
+    <h3>Limites et reprises</h3><p>Seuls les textes bruts (.txt, .md) sont lus. Une panne du fournisseur, du réseau ou un budget atteint arrête le run proprement : « Reprendre le run » repart de ce qui est déjà validé, sans recompter les réponses déjà obtenues.</p>
+  </div>
+
+  <!-- ================= MODE SIMPLE ================= -->
+  <section id="simple">
+    <div class="card" id="newRun">
+      <h2>Que voulez-vous faire examiner ?</h2>
+      <p class="muted small">Décrivez votre demande. Vous pouvez joindre des documents texte (.txt, .md). EvidenceForge reformule votre demande, la fait analyser par des jumeaux documentaires de professionnels identifiés dans les publications réelles, puis rédige un rapport en distinguant ce qui est établi, convergent, divergent, provisoire ou non établi.</p>
+      <label for="q">Votre demande</label><textarea id="q" placeholder="Ex. : Examiner ce cahier des charges et dire ce qui est étayé, discuté ou non établi…"></textarea>
+      <label for="files">Documents (facultatif)</label><input type="file" id="files" multiple accept=".txt,.md">
+      <div id="fileList" class="small muted"></div>
+      <!-- v1.0.5 : controle de cadrage AVANT la Porte 1 (hors run) — l'IA propose, vous decidez -->
+      <div class="row" style="margin-top:10px"><button class="btn sec" id="btnPreflight">Vérifier ma demande avec l'IA</button><span class="small muted">Un appel facturé, hors run : signale les problèmes de cadrage et propose une reformulation. Ne modifie rien sans votre choix.</span></div>
+      <div id="preflightBox" class="banner info" hidden></div>
+      <!-- v1.0.5 : budget du run -->
+      <details style="margin-top:10px" id="budgetDetails" open><summary>Combien suis-je prêt à dépenser ? (budget du run, <b>requis</b>)</summary>
+        <div class="row"><label><input type="radio" name="bMode" id="bModeLimited" value="LIMITED" checked> Plafond de coût (recommandé)</label><label><input type="radio" name="bMode" id="bModeUnlimited" value="UNLIMITED"> Sans plafond (confirmation explicite requise)</label></div>
+        <div class="grid2"><div><label for="bMax">Plafond de coût (USD, requis)</label><input type="number" id="bMax" min="0" step="0.01" inputmode="decimal" autocomplete="off" placeholder="ex. 25"></div><div><label for="bWarn">Alerte (USD, facultatif, inférieure au plafond)</label><input type="number" id="bWarn" min="0" step="0.01" inputmode="decimal" autocomplete="off" placeholder="ex. 20"></div></div>
+        <p class="small" id="bPreview">Indiquez un plafond de coût.</p>
+        <p class="small muted">Au plafond, le run s'arrête proprement avant tout nouvel appel payant ; il pourra reprendre après augmentation du budget. Un champ vide n'est jamais interprété comme « sans plafond » : sans plafond, vous devez le confirmer explicitement.</p></details>
+      <div class="row" style="margin-top:12px"><button class="btn" id="start">Analyser ma demande</button><span class="small muted">Rien n'est lancé sans votre confirmation à l'étape suivante.</span></div>
+      <details style="margin-top:12px"><summary>Reprendre un run existant</summary><div id="runList" class="small"></div></details>
+      <details style="margin-top:6px"><summary>Importer un rapport JSON exporté</summary><div class="small muted">Le rapport est ré-affiché tel quel après vérification de son hash canonique. Les artefacts détaillés du run d'origine ne sont pas inclus dans un export JSON.</div><input type="file" id="importReport" accept=".json,application/json"><div id="importErr" class="banner bad" hidden></div></details>
+    </div>
+
+    <div class="card" id="runCard" hidden>
+      <div class="row"><h2 id="runTitle">Analyse en cours</h2><span class="pill" id="runStatus">…</span><span class="grow"></span><button class="btn sec small noprint" id="btnNew">Nouvelle demande</button></div>
+      <p class="small muted" id="runQuestion"></p>
+      <ul class="steps" id="steps"></ul>
+      <div id="userMsg" class="banner info" hidden></div>
+      <!-- v1.0.5 : COUT DU RUN (reel) + projection (separee) + budget -->
+      <div id="costBox" hidden>
+        <h3>Coût du run <span class="small muted" id="costPricing"></span></h3>
+        <div class="cost" id="costCells"></div>
+        <div id="costForecast" class="small"></div>
+        <div id="costBudget" class="small"></div>
+        <details class="noprint"><summary class="small">Modifier le budget</summary><div class="grid2"><div><label for="rbMax">Budget maximum (USD)</label><input type="number" id="rbMax" min="0" step="0.5"></div><div><label for="rbWarn">Alerte (USD)</label><input type="number" id="rbWarn" min="0" step="0.5"></div></div>
+          <div class="row" style="margin-top:8px"><button class="btn small" id="rbSave">Mettre à jour le budget</button><span class="small muted">Acte explicite, enregistré dans le run. Vide = aucun plafond.</span></div><div id="rbErr" class="banner bad" hidden></div></details>
+      </div>
+      <div id="stopBox" class="row noprint" hidden><button class="btn" id="btnStop" style="border-color:var(--bad);color:var(--bad)">Arrêter le run</button><span class="small muted" id="stopHint">Aucun nouvel appel au service d'analyse après votre demande ; un appel déjà envoyé peut se terminer et être facturé. Les résultats déjà produits sont conservés.</span></div>
+      <div id="resumeBox" class="noprint" hidden><div class="small" id="resumeSummary"></div><div class="row"><button class="btn" id="btnResume">Reprendre le run</button><span class="small muted">Acte explicite : jamais de reprise automatique. Les résultats déjà validés sont conservés ; seul ce qui manque est recalculé (les réponses réelles déjà validées sont réutilisées, jamais recomptées comme nouvelles).</span></div></div>
+      <details class="noprint" style="margin-top:8px"><summary>Journal <span class="small muted">(heure locale)</span></summary><div class="log" id="log"></div></details>
+    </div>
+
+    <!-- Porte 1 -->
+    <div class="card noprint" id="gatePlan" hidden>
+      <h2>Vérifiez, puis confirmez et lancez</h2>
+      <h3>Ce qu'EvidenceForge a compris</h3><div id="gpReformulation"></div>
+      <h3>Angles d'expertise retenus</h3><ul id="gpDisciplines"></ul>
+      <h3>Plan de recherche (requêtes qui seront exécutées dans la base de publications)</h3><ul id="gpPlan" class="small"></ul>
+      <div class="banner warn small">Votre confirmation est un acte réel, enregistré à votre nom (le contrat de données d'EvidenceForge exige une validation humaine du plan). Aucune décision n'est prise à votre place.</div>
+      <label for="gpName">Votre nom</label><input type="text" id="gpName" placeholder="Prénom Nom">
+      <label for="gpComment">Commentaire (facultatif)</label><input type="text" id="gpComment" placeholder="">
+      <div class="row" style="margin-top:12px"><button class="btn" id="gpConfirm">Confirmer et lancer l'analyse</button><button class="btn sec" id="gpCancel">Reformuler ma demande</button></div>
+      <div id="gpErr" class="banner bad" hidden></div>
+    </div>
+
+    <!-- Porte 2 -->
+    <!-- v1.0.7 : PORTE ECONOMIQUE (humaine) — projection avant les revues ; jamais un blocage scientifique -->
+    <div class="card noprint" id="gateEconomics" hidden>
+      <h2>Coût projeté avant les revues : votre confirmation est requise</h2>
+      <div class="banner warn small" id="geWarn"></div>
+      <div class="cost" id="geCells"></div>
+      <p class="small muted" id="geExplain"></p>
+      <div class="row" style="margin-top:8px"><input id="geName" placeholder="Votre nom (acte réel)" style="max-width:260px"><button class="btn" id="geConfirm">Confirmer et lancer les revues</button><span class="small muted">Ou réduisez le budget / arrêtez le run. La suffisance scientifique du panel n'est pas concernée par cette porte.</span></div>
+      <div id="geErr" class="banner err small" hidden></div>
+    </div>
+    <div class="card noprint" id="gateSources" hidden>
+      <h2>Ratifiez la sélection des publications</h2>
+      <p class="small muted" id="gsSummary"></p>
+      <div class="banner warn small">Ces propositions sont fondées sur les métadonnées et résumés réels de chaque publication (aucun texte intégral lu). Vous pouvez inverser un choix. Votre ratification est un acte réel, enregistré à votre nom pour chaque source.</div>
+      <!-- v1.0.5 : revue d'ensemble du corpus (signaux, jamais une decision) -->
+      <div id="gsPortfolio"></div>
+      <div class="row small"><button class="btn sec small" id="gsShowAll">Tout afficher</button><span id="gsCount" class="muted"></span></div>
+      <div id="gsList"></div>
+      <label for="gsName">Votre nom</label><input type="text" id="gsName" placeholder="Prénom Nom">
+      <div class="row" style="margin-top:12px"><button class="btn" id="gsConfirm">Ratifier et poursuivre</button></div>
+      <div id="gsErr" class="banner bad" hidden></div>
+    </div>
+
+    <!-- Rapport -->
+    <div class="card" id="report" hidden>
+      <div class="row"><h2>Rapport</h2><span class="grow"></span><button class="btn sec small noprint" id="btnJson">Exporter JSON</button><button class="btn sec small noprint" id="btnPdf">Exporter PDF (imprimer)</button></div>
+      <div id="rpHead"></div>
+      <div id="rpBody"></div>
+    </div>
+  </section>
+
+  <!-- ================= MODE EXPERT ================= -->
+  <section id="expert" hidden>
+    <div class="card">
+      <div class="row"><h2>Mode expert</h2><span class="small muted" id="exRun"></span></div>
+      <div id="exGate" class="banner warn noprint" hidden></div>
+      <div class="tabs" id="exTabs"></div>
+      <div id="exView"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+(function(){
+"use strict";
+const $=(s)=>document.querySelector(s); const esc=(s)=>String(s==null?"":s).replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const api=async(p,opt)=>{const r=await fetch(p,Object.assign({headers:{"content-type":"application/json"}},opt||{}));const j=await r.json().catch(()=>({}));if(!r.ok){const e=new Error(j.message||j.error||("HTTP "+r.status));e.code=j.error;throw e;}return j;};
+let CFG=null, RUN=null, ES=null, STATE=null, REPORT=null, GATE=null, EXTAB="state";
+let pendingFiles=[]; let overrides={}; let showAll=false;
+
+/* ---------- config ---------- */
+/* v1.0.5 : etat du fournisseur en trois niveaux (identifiants / joignable / pret) — « configuré » n'est jamais affiché sur un simple placeholder */
+function renderProvider(pv){const w=$("#providerWarn");if(pv&&pv.ready){w.hidden=true;$("#start").disabled=false;$("#cfgline").textContent=CFG.product+" "+CFG.version+" · "+CFG.frozenLots.length+" lots gelés vérifiés · service d'analyse prêt";return;}
+  $("#start").disabled=true;w.hidden=false;const lvl=!pv||!pv.credentialsPresent?"identifiants absents":pv.placeholderDetected?"valeur factice détectée":!pv.urlValid?"adresse invalide":pv.reachable===false?"worker injoignable":pv.authOk===false?"clé refusée":"diagnostic en attente";
+  w.innerHTML='<b>Le service d\'analyse n\'est pas prêt ('+esc(lvl)+').</b> '+esc(pv?pv.userMessage:"")+' <button class="btn small" id="provRetry" style="margin-left:8px">Re-tester</button>';$("#provRetry").onclick=async()=>{$("#provRetry").disabled=true;try{renderProvider(await api("/api/provider?refresh=1"));}catch(e){}};
+  $("#cfgline").textContent=CFG.product+" "+CFG.version+" · service d'analyse NON prêt";}
+api("/api/config").then(async(c)=>{CFG=c;$("#cfgline").textContent=c.product+" "+c.version+" · "+c.frozenLots.length+" lots gelés vérifiés";renderProvider(c.provider);renderRunList();fromHash();try{renderProvider(await api("/api/provider"));}catch(e){}}).catch((e)=>{$("#cfgline").textContent="Serveur injoignable : "+e.message;});
+async function renderRunList(){try{const r=await api("/api/runs");$("#runList").innerHTML=r.runs.length?r.runs.map((x)=>'<div><a href="#" data-run="'+esc(x.runId)+'">'+esc(x.runId)+'</a> · '+esc(x.status)+' · '+esc((x.question||"").slice(0,80))+'</div>').join(""):"<em>Aucun run.</em>";$("#runList").querySelectorAll("a").forEach((a)=>a.onclick=(ev)=>{ev.preventDefault();openRun(a.dataset.run);});}catch(e){}}
+
+/* ---------- mode ---------- */
+$("#mSimple").onclick=()=>setMode("simple");$("#mExpert").onclick=()=>setMode("expert");
+/* v1.0.5 : aide (panneau ferme par defaut, ne bloque jamais le parcours) */
+$("#btnHelp").onclick=()=>{const h=$("#helpCard");h.hidden=!h.hidden;if(!h.hidden)h.scrollIntoView({behavior:"smooth"});};$("#btnHelpClose").onclick=()=>{$("#helpCard").hidden=true;};
+function setMode(m){$("#simple").hidden=m!=="simple";$("#expert").hidden=m!=="expert";$("#mSimple").classList.toggle("on",m==="simple");$("#mExpert").classList.toggle("on",m==="expert");if(m==="expert")renderExpert();setHash();}
+/* l'URL porte le run et le mode : un rafraîchissement (F5) ou un lien rouvre exactement la même vue */
+function setHash(){const h=(RUN?"run="+RUN:"")+($("#expert").hidden?"":(RUN?"&":"")+"mode=expert");if(location.hash.slice(1)!==h)history.replaceState(null,"","#"+h);}
+function fromHash(){const q=new URLSearchParams(location.hash.slice(1));const r=q.get("run");if(r&&r!==RUN)openRun(r);if(q.get("mode")==="expert")setMode("expert");}
+window.addEventListener("hashchange",fromHash);
+
+/* ---------- nouveau run ---------- */
+/* v1.0.6 AUTO-CHUNK UPLOAD : conversion base64 par blocs (aucun debordement de pile sur un long document), puis apercu LOCAL du decoupage
+   (/api/documents/preview : synchrone, sans appel IA, sans run). 1 fichier = 1 document, quel que soit le nombre de segments. */
+const toBase64=(buf)=>{const u=new Uint8Array(buf);let b="";for(let i=0;i<u.length;i+=0x8000)b+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(b);};
+const fmtInt=(n)=>Number(n).toLocaleString("fr-FR");
+function renderDocPreview(pv){const rows=[];(pv.documents||[]).forEach((d)=>{rows.push('<div class="docrow" data-doc-status="'+esc(d.ingestionStatus)+'"><b>'+esc(d.name)+'</b> · '+fmtInt(d.characters)+' caractères → '+(d.segments===1?'1 segment':d.segments+' segments générés automatiquement')+' → <span class="pill">'+(d.status==="COMPLET"?'document complet':'document incomplet')+'</span></div>');});
+  (pv.rejected||[]).forEach((r)=>{rows.push('<div class="docrow" data-doc-status="'+esc(r.code||"REFUSE")+'"><b>'+esc(r.name)+'</b> · <span class="pill">'+(r.status==="VIDE"?'document vide — non exploitable':'refusé')+'</span> <span class="muted">'+esc(r.reason)+'</span></div>');});
+  const n=pv.documentCount||0;rows.push('<div class="muted" id="docCount">'+(n===0?'Aucun document exploitable':n+' document'+(n>1?'s':'')+' · '+fmtInt(pv.segmentCount||0)+' segment'+((pv.segmentCount||0)>1?'s':'')+' au total (segments ≤ '+fmtInt(pv.maxChunkChars)+' caractères, lus intégralement)')+'</div>');$("#fileList").innerHTML=rows.join("");}
+let filesSeq=0;
+$("#files").onchange=async()=>{const seq=++filesSeq;const files=[];for(const f of $("#files").files){const buf=await f.arrayBuffer();files.push({name:f.name,contentBase64:toBase64(buf)});}
+  if(seq!==filesSeq)return;/* une selection plus recente a pris le relais : jamais deux listes melangees */pendingFiles=files;
+  if(!pendingFiles.length){$("#fileList").textContent="";return;}$("#fileList").textContent="Analyse des documents…";
+  try{const pv=await api("/api/documents/preview",{method:"POST",body:JSON.stringify({files:pendingFiles})});if(seq!==filesSeq)return;renderDocPreview(pv);}catch(e){$("#fileList").textContent=pendingFiles.map((f)=>f.name).join(", ")+" (aperçu du découpage indisponible : "+(e.message||e)+")";}};
+const numOrNull=(v)=>{const t=String(v==null?"":v).trim();if(t==="")return null;const n=Number(t);return Number.isFinite(n)?n:null;};
+function budgetMode(){return $("#bModeUnlimited").checked?"UNLIMITED":"LIMITED";}
+function budgetInput(){const m=budgetMode();return {mode:m==="LIMITED"?"LIMITED":"UNLIMITED_CONFIRMED",costBudgetUsd:m==="LIMITED"?numOrNull($("#bMax").value):null,warningThresholdUsd:numOrNull($("#bWarn").value)};}
+const UNLIMITED_TEXT="Ce run n'aura aucun plafond automatique de coût.\nLes appels fournisseur continueront jusqu'à la fin ou jusqu'à votre arrêt manuel.";
+/* apercu EN DIRECT de ce qui sera enregistre (le run affichera ensuite exactement budget.json) */
+function renderBudgetPreview(){const b=budgetInput();const el=$("#bPreview");$("#bMax").disabled=b.mode!=="LIMITED";el.style.color="";
+  if(b.mode==="UNLIMITED_CONFIRMED"){el.textContent="SANS PLAFOND : "+UNLIMITED_TEXT.replace("\n"," ")+" Une confirmation explicite vous sera demandée au lancement.";el.className="small";el.style.color="var(--bad)";return;}
+  if(b.costBudgetUsd===null||!(b.costBudgetUsd>0)){el.textContent="Plafond requis : indiquez un montant strictement positif (USD). Le run ne sera pas lancé sans plafond ni confirmation explicite.";el.className="small";el.style.color="var(--bad)";return;}
+  if(b.warningThresholdUsd!==null&&b.warningThresholdUsd>=b.costBudgetUsd){el.textContent="Le seuil d'alerte doit être strictement inférieur au plafond.";el.className="small";el.style.color="var(--bad)";return;}
+  el.textContent="Sera enregistré : plafond "+b.costBudgetUsd.toFixed(2)+" USD · "+(b.warningThresholdUsd!==null?"alerte à "+b.warningThresholdUsd.toFixed(2)+" USD":"aucune alerte")+" (budget.json écrit avant tout appel).";el.className="small";}
+$("#bMax").oninput=renderBudgetPreview;$("#bWarn").oninput=renderBudgetPreview;$("#budgetDetails").ontoggle=renderBudgetPreview;$("#bModeLimited").onchange=renderBudgetPreview;$("#bModeUnlimited").onchange=renderBudgetPreview;renderBudgetPreview();
+$("#start").onclick=async()=>{const q=$("#q").value.trim();if(q.length<12){alert("Décrivez votre demande (12 caractères minimum).");return;}const budget=budgetInput();
+  /* RUN SAFETY : jamais un lancement payant sans plafond explicite ou sans confirmation explicite « sans plafond » */
+  if(budget.mode==="LIMITED"){if(budget.costBudgetUsd===null||!(budget.costBudgetUsd>0)){alert("Indiquez un plafond de coût strictement positif (USD), ou choisissez explicitement « Sans plafond » et confirmez.");$("#budgetDetails").open=true;return;}
+    if(budget.warningThresholdUsd!==null&&budget.warningThresholdUsd>=budget.costBudgetUsd){alert("Le seuil d'alerte doit être strictement inférieur au plafond.");return;}}
+  else{if(!confirm(UNLIMITED_TEXT+"\n\nConfirmez-vous le lancement SANS plafond de coût ?"))return;budget.confirmedUnlimited=true;}
+  $("#start").disabled=true;
+  try{let r;try{r=await api("/api/runs",{method:"POST",body:JSON.stringify({question:q,files:pendingFiles,budget})});}
+    catch(e){if(e.code==="DOCUMENTS_REJECTED"){/* jamais un lancement silencieux sans le document : confirmation explicite */if(!confirm(e.message+"\n\nOK = continuer sans ce(s) document(s) · Annuler = corriger mes fichiers"))return;r=await api("/api/runs",{method:"POST",body:JSON.stringify({question:q,files:pendingFiles,acknowledgeRejected:true,budget})});}else throw e;}
+    if(r.rejected&&r.rejected.length)$("#fileList").textContent="Documents refusés (run lancé sans eux) : "+r.rejected.map((x)=>x.name).join(", ");askNotifyPermission();openRun(r.runId);
+    /* confirmation de ce qui a ete reellement enregistre (budget.json), jamais ce qui a ete saisi */
+    if(r.budget){const um=$("#userMsg");um.hidden=false;um.className="banner "+(r.budget.mode==="UNLIMITED_CONFIRMED"?"warn":"info");um.textContent="Run créé · budget enregistré : "+(r.budget.costBudgetUsd!=null?"plafond "+Number(r.budget.costBudgetUsd).toFixed(2)+" USD":"AUCUN PLAFOND (confirmé explicitement)")+" · "+(r.budget.warningThresholdUsd!=null?"alerte à "+Number(r.budget.warningThresholdUsd).toFixed(2)+" USD":"aucune alerte")+".";}}catch(e){alert(e.message);}finally{$("#start").disabled=false;}};
+/* v1.0.5 : « Vérifier ma demande avec l'IA » — hors run ; l'IA propose ; la zone de texte n'est modifiee que sur clic explicite ; l'original reste disponible */
+let PRE_ORIGINAL=null;
+$("#btnPreflight").onclick=async()=>{const q=$("#q").value.trim();if(q.length<12){alert("Décrivez votre demande (12 caractères minimum).");return;}const box=$("#preflightBox");box.hidden=false;box.className="banner info";box.textContent="Vérification en cours (un appel au service d'analyse)…";$("#btnPreflight").disabled=true;
+  try{const r=await api("/api/preflight",{method:"POST",body:JSON.stringify({question:q,files:pendingFiles})});PRE_ORIGINAL=r.original.question;const v=r.review;
+    const probs=(v.problemes||[]).map((p)=>'<li><b>'+esc(p.type.replace(/_/g," ").toLowerCase())+'</b> — '+esc(p.detail)+(p.extrait?' <span class="muted">« '+esc(p.extrait)+' »</span>':'')+'</li>').join("");
+    box.className="banner "+((v.problemes||[]).length?"warn":"ok");
+    box.innerHTML='<div><b>Contrôle de cadrage</b> — clarté : '+esc(v.clarte)+' · neutralité : '+esc(v.neutralite)+' · coût de cette vérification : '+(r.cost&&r.cost.thisCheckUsd!=null?r.cost.thisCheckUsd.toFixed(2)+' USD':'n/a')+'</div>'
+      +((v.problemes||[]).length?'<div class="small" style="margin-top:6px"><b>Problèmes détectés :</b><ul>'+probs+'</ul></div>':'<div class="small" style="margin-top:6px">Aucun problème de cadrage détecté.</div>')
+      +((v.questionsAPoser||[]).length?'<div class="small"><b>À trancher avant de lancer :</b><ul>'+v.questionsAPoser.map((x)=>'<li>'+esc(x)+'</li>').join("")+'</ul></div>':'')
+      +(r.proposalDiffers?'<div class="small" style="margin-top:6px"><b>Reformulation proposée :</b><div class="why">'+esc(v.propositionReformulee)+'</div><div class="row" style="margin-top:6px"><button class="btn small" id="preUse">Utiliser cette reformulation</button><button class="btn sec small" id="preKeep">Garder ma demande</button></div></div>':'<div class="small" style="margin-top:6px">Aucune reformulation proposée : votre demande est conservée telle quelle.</div>')
+      +'<div class="small muted" style="margin-top:6px">'+esc(r.statement)+'</div>';
+    const use=$("#preUse");if(use)use.onclick=()=>{$("#q").value=v.propositionReformulee;box.innerHTML='<div>Reformulation appliquée dans la zone de saisie (vous pouvez encore la modifier). <button class="btn sec small" id="preRevert">Revenir à ma demande d\'origine</button></div>';$("#preRevert").onclick=()=>{$("#q").value=PRE_ORIGINAL;box.hidden=true;};};
+    const keep=$("#preKeep");if(keep)keep.onclick=()=>{box.hidden=true;};}
+  catch(e){box.className="banner bad";box.textContent="Vérification impossible : "+e.message+" — votre demande est inchangée.";}finally{$("#btnPreflight").disabled=false;}};
+$("#importReport").onchange=async()=>{const f=$("#importReport").files[0];if(!f)return;$("#importErr").hidden=true;try{const report=JSON.parse(await f.text());const r=await api("/api/reports/import",{method:"POST",body:JSON.stringify({report})});openRun(r.runId);}catch(e){$("#importErr").hidden=false;$("#importErr").textContent=e.message;}};
+$("#btnNew").onclick=()=>{closeRun();$("#newRun").hidden=false;setHash();};
+function closeRun(){if(ES){ES.close();ES=null;}if(POLL){clearInterval(POLL);POLL=null;}RUN=null;STATE=null;REPORT=null;GATE=null;overrides={};["#runCard","#gatePlan","#gateSources","#report"].forEach((s)=>$(s).hidden=true);}
+
+/* ---------- suivi d'un run ---------- */
+let POLL=null;
+function openRun(runId){closeRun();SEEN_EVENTS.clear();RUN=runId;COST=null;$("#newRun").hidden=true;$("#runCard").hidden=false;$("#log").innerHTML="";$("#exRun").textContent=runId;setHash();loadCost();
+  ES=new EventSource("/api/runs/"+runId+"/events");ES.onmessage=(m)=>{const d=JSON.parse(m.data);if(d.type==="state")onState(d.state);if(d.type==="event"&&d.event.level==="user")logLine(d.event);if(d.type==="event"&&/^(cost_update|budget_)/.test(d.event.event||""))scheduleCost();};ES.onerror=()=>{};
+  /* filet de securite : relecture de l'etat toutes les 10 s (si le flux d'evenements est coupe, la page ne reste jamais figee sur un etat perime) */
+  POLL=setInterval(async()=>{if(!RUN)return;try{const s=await api("/api/runs/"+RUN);if(!STATE||s.updatedAt!==STATE.updatedAt||s.status!==STATE.status)onState(s);}catch(e){}},10000);}
+function refreshState(){if(RUN)api("/api/runs/"+RUN).then(onState).catch(()=>{});}
+/* v1.0.5 : vue de cout (reel + budget + projection) — rafraichie a chaque appel journalise (SSE), bornee a 1 requete / 2 s */
+let COST=null,COST_T=null;function scheduleCost(){if(COST_T)return;COST_T=setTimeout(()=>{COST_T=null;loadCost();},2000);}
+async function loadCost(){if(!RUN)return;try{COST=await api("/api/runs/"+RUN+"/cost");renderCost();}catch(e){}}
+const usd=(v)=>v==null?"—":(Math.round(v*100)/100).toFixed(2)+" USD";
+function renderCost(){const c=COST;const box=$("#costBox");if(!c){box.hidden=true;return;}box.hidden=false;
+  $("#costPricing").textContent=c.ledgerPresent?"(coût réel, tarif "+(c.actual&&c.actual.pricingVersion||"?")+")":"(coût non journalisé pour ce run)";
+  const a=c.actual,p=c.progress,f=c.forecast,b=c.budget;const cells=[];
+  cells.push(["Dépensé (réel)",a?usd(a.totalUsd):"non journalisé"]);cells.push(["Dernier appel",a&&a.lastCall&&a.lastCall.totalUsd!=null?usd(a.lastCall.totalUsd):"—"]);cells.push(["Appels réels",a?a.calls.real:"—"]);cells.push(["Réutilisations",a?a.calls.reuse:"—"]);
+  cells.push(["Étape actuelle",(STATE&&STATE.stageLabel||c.stage)+(p&&p.professionals&&c.stage==="PROFESSIONALS"?"<br>"+p.professionals.evaluated+" évalué(s) / "+p.professionals.selected+" retenu(s) (plafond "+p.professionals.cap+" = garde, pas cible)":"")+(p&&p.twins&&c.stage==="TWINS_REVIEWS"&&p.twins.reviewDocuments!=null?"<br>"+p.twins.reviewDocumentsComplete+" / "+p.twins.reviewDocuments+" revues complètes ("+p.twins.twins+" jumeaux × "+p.twins.targets+" cible"+(p.twins.targets>1?"s":"")+(p.twins.reviewTargetMode==="MISSION_DOSSIER"?" — dossier de mission":"")+")":"")]);cells.push(["Coût de l'étape",a?usd(a.currentStageUsd):"—"]);
+  /* v1.0.7 : compteurs distincts (professionnels / revues complètes / items de grille) + lots + contribution marginale + projection — jamais « N / 480 revues » quand 480 sont des items */
+  const ec=c.economics||null;if(ec&&ec.panel){const pn=ec.panel;cells.push(["Panel par lots ("+esc(ec.policy)+")","initial "+pn.initialPanelSize+" · "+pn.batchesClosed+" lot(s) clos · "+pn.evaluated+" évalué(s) · "+pn.approved+" approuvé(s)<br><span class=\"small\">"+esc(pn.scientificPanelState)+" · "+esc(pn.economicState)+(pn.diminishingReturns&&pn.diminishingReturns.active?" · rendements décroissants (signal)":"")+"</span>"]);
+    if(pn.lastBatch)cells.push(["Contribution du dernier lot","+"+pn.lastBatch.newApproved+" approuvé(s), +"+pn.lastBatch.newDisciplinesCovered+" angle(s), +"+pn.lastBatch.newIndependentPositions+" position(s) indép., "+pn.lastBatch.nearDuplicatePositions+" quasi-doublon(s) · "+usd(pn.lastBatch.costUsd)]);
+    if(pn.nextBatch&&pn.nextBatch.estimateUsd!=null)cells.push(["Coût du prochain lot",usd(pn.nextBatch.estimateUsd)+" ("+pn.nextBatch.units+" candidat(s), "+esc(pn.nextBatch.basis)+")"]);}
+  if(ec&&ec.reviewUnits)cells.push(["Revues / items","jumeaux revus "+ec.reviewUnits.twinsReviewed+" · revues complètes "+ec.reviewUnits.reviewDocumentsComplete+" / "+ec.reviewUnits.reviewDocuments+" · items de grille "+ec.reviewUnits.reviewItems+(ec.reviewUnits.duplicateReviewRate!=null?" · taux de revues redondantes "+Math.round(ec.reviewUnits.duplicateReviewRate*100)+" %":"")]);
+  if(ec&&ec.projection)cells.push(["Projection avant revues","central "+(ec.projection.CENTRAL_COST!=null?usd(ec.projection.CENTRAL_COST):"≥ "+usd(ec.projection.LOW_COST))+" · "+ec.projection.EXPECTED_REVIEWS+" revue(s) attendue(s)"+(ec.projection.confirmed?" · confirmée par "+esc(ec.projection.confirmedBy):"")]);
+  if(ec&&ec.ECONOMIC_OUTLIER_WARNING)cells.push(["⚠ ECONOMIC_OUTLIER_WARNING","Cette mission est inhabituellement coûteuse (projection > "+usd(ec.outlierUsd)+")."+(ec.projection&&ec.projection.mainCostDriver?" Cause principale : "+esc(ec.projection.mainCostDriver):"")]);
+  if(a&&a.calls.unpriced)cells.push(["Appels non tarifés",a.calls.unpriced]);
+  $("#costCells").innerHTML=cells.map(([k,v])=>'<div class="cell"><div class="k">'+k+'</div><div class="v">'+v+'</div></div>').join("");
+  let fh='<b>Projection</b> <span class="tag">ESTIMATE — NOT GUARANTEE</span> ';
+  if(f.forecast.status==="COMPLETE")fh+="run terminé : coût final réel "+usd(f.actualUsd)+".";
+  else if(f.forecast.status==="PROJECTED")fh+="bas "+usd(f.forecast.low)+" · central "+usd(f.forecast.central)+" · haut "+usd(f.forecast.high)+".";
+  else fh+="au moins "+usd(f.forecast.lowerBound)+" ; étape(s) non projetable(s) : "+(f.forecast.unknownStages||[]).map((s)=>CFG&&CFG.stages.find((x)=>x.id===s)?CFG.stages.find((x)=>x.id===s).label:s).join(", ")+" (aucune mesure disponible : rien n'est inventé).";
+  fh+='<details><summary class="small muted">Méthode et détail par étape</summary><div class="small muted">'+esc(f.method)+'</div><table><tr><th>Étape</th><th>Statut</th><th>Réel</th><th>Reste (bas / central / haut)</th><th>Base</th></tr>'+f.perStage.map((r)=>'<tr><td>'+esc(CFG&&CFG.stages.find((x)=>x.id===r.stage)?CFG.stages.find((x)=>x.id===r.stage).label:r.stage)+'</td><td>'+esc(r.kind)+'</td><td>'+usd(r.actualUsd)+'</td><td>'+(r.remaining?usd(r.remaining.low)+" / "+usd(r.remaining.central)+" / "+usd(r.remaining.high):"inconnu")+'</td><td>'+esc(r.basis||"")+(r.units!=null?" ("+r.units+" "+esc(r.unit||"")+" restant(s)"+(r.samples?", "+r.samples+" mesure(s)":"")+")":"")+'</td></tr>').join("")+'</table></details>';
+  $("#costForecast").innerHTML=fh;
+  let bh='<b>Budget</b> : ';if(b&&b.costBudgetUsd!=null){bh+="plafond "+usd(b.costBudgetUsd)+" · reste avant plafond "+usd(b.remainingUsd)+(b.warningThresholdUsd!=null?" · alerte à "+usd(b.warningThresholdUsd):"");if(b.limitReached)bh+=' <span class="pill bad">plafond atteint</span>';else if(b.warningReached)bh+=' <span class="pill warn">seuil d\'alerte dépassé</span>';if(b.forecastExceedsBudget===true)bh+=' <span class="pill warn">la projection dépasse le budget</span>';else if(b.forecastExceedsBudget===false)bh+=' <span class="pill ok">la projection tient dans le budget</span>';}
+  else bh+=(b&&b.mode==="UNLIMITED_CONFIRMED"?'<span class="pill warn">AUCUN PLAFOND (confirmé explicitement)</span> — les appels continuent jusqu\'à la fin ou jusqu\'à votre arrêt manuel':(b&&b.missing?'<span class="pill bad">ANOMALIE : aucun budget enregistré</span>':"aucun plafond fixé"))+(b&&b.warningThresholdUsd!=null?" · alerte à "+usd(b.warningThresholdUsd):"")+".";
+  $("#costBudget").innerHTML=bh;if(b){if(document.activeElement!==$("#rbMax"))$("#rbMax").value=b.costBudgetUsd==null?"":b.costBudgetUsd;if(document.activeElement!==$("#rbWarn"))$("#rbWarn").value=b.warningThresholdUsd==null?"":b.warningThresholdUsd;}}
+$("#rbSave").onclick=async()=>{$("#rbErr").hidden=true;const cap=numOrNull($("#rbMax").value);let body={mode:"LIMITED",costBudgetUsd:cap,warningThresholdUsd:numOrNull($("#rbWarn").value)};
+  if(cap===null){if(!confirm(UNLIMITED_TEXT+"\n\nConfirmez-vous la suppression du plafond de coût ?"))return;body={mode:"UNLIMITED_CONFIRMED",confirmedUnlimited:true,warningThresholdUsd:numOrNull($("#rbWarn").value)};}
+  try{await api("/api/runs/"+RUN+"/budget",{method:"POST",body:JSON.stringify(body)});loadCost();}catch(e){$("#rbErr").hidden=false;$("#rbErr").textContent=e.message;}};
+/* Notification claire quand un acte de l'utilisateur est requis (porte 1 ou 2) : bandeau, titre d'onglet, notification systeme si autorisee */
+let lastGate=null;function askNotifyPermission(){try{if("Notification" in window&&Notification.permission==="default")Notification.requestPermission();}catch(e){}}
+function notifyGate(s){const id=s.gate&&s.gate.id;if(!id||id===lastGate)return;lastGate=id;const msg=id==="RATIFY_SOURCES"?"Votre ratification des sources est requise pour poursuivre.":id==="ECONOMIC_REVIEW"?"Le coût projeté des revues dépasse le seuil : votre confirmation est requise avant de lancer les jumeaux.":"Votre confirmation est requise pour lancer l'analyse.";
+  document.title="⚠ Action requise — EvidenceForge";const n=$("#gateNotify");n.hidden=false;n.innerHTML=esc(msg)+' <button class="btn small" id="gateJump" style="margin-left:8px">'+(id==="RATIFY_SOURCES"?"Aller à la ratification":id==="ECONOMIC_REVIEW"?"Voir la projection":"Aller à la confirmation")+'</button>';$("#gateJump").onclick=()=>{if(!$("#expert").hidden)setMode("simple");const g=$(id==="RATIFY_SOURCES"?"#gateSources":id==="ECONOMIC_REVIEW"?"#gateEconomics":"#gatePlan");if(g){g.hidden=false;g.scrollIntoView({behavior:"smooth"});}};try{if("Notification" in window&&Notification.permission==="granted")new Notification("EvidenceForge — action requise",{body:msg});}catch(e){}
+  setTimeout(()=>{const g=$(id==="RATIFY_SOURCES"?"#gateSources":id==="ECONOMIC_REVIEW"?"#gateEconomics":"#gatePlan");if(g&&!g.hidden)g.scrollIntoView({behavior:"smooth"});},300);}
+const SEEN_EVENTS=new Set();
+function localTime(iso){try{const d=new Date(iso);return d.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",second:"2-digit"});}catch(e){return (iso||"").slice(11,19);}}
+function logLine(e){if(e.eventId){if(SEEN_EVENTS.has(e.eventId))return;SEEN_EVENTS.add(e.eventId);}const div=document.createElement("div");div.textContent=localTime(e.at)+"  "+e.message+(e.actor&&e.actor!=="system"&&e.actor!=="machine"?"  ["+e.actor+"]":"");div.title=e.at+(e.attemptId!=null?" · tentative "+e.attemptId:"")+(e.stage?" · "+e.stage:"");$("#log").appendChild(div);$("#log").scrollTop=$("#log").scrollHeight;}
+function onState(s){STATE=s;$("#runTitle").textContent=(s.stageLabel||"")+(s.status==="COMPLETED"?" — terminé":"");$("#runQuestion").textContent=s.runId+" · "+(s.mission?s.mission.question:"");
+  const st=$("#runStatus");st.textContent=(s.status==="STOPPED"&&s.error&&s.error.code==="BUDGET_LIMIT_REACHED")?"arrêté : budget atteint (reprenable après augmentation)":(s.status==="STOPPED"&&s.error&&s.error.code==="STOPPED_BY_USER")?"arrêté à votre demande (reprenable)":(s.status==="STOPPED"&&s.error&&s.error.code==="INTERRUPTED_BY_RESTART")?"interrompu par un arrêt du serveur (reprenable)":({CREATED:"créé",RUNNING:"en cours",WAITING_USER:"votre action est attendue",STOPPED:"arrêté (reprenable)",FAILED:"arrêté (erreur de contrat)",COMPLETED:"terminé"}[s.status]||s.status);st.className="pill "+(s.status==="COMPLETED"?"ok":s.status==="WAITING_USER"?"warn":(s.status==="STOPPED"||s.status==="FAILED")?"bad":"");
+  $("#steps").innerHTML=CFG?CFG.stages.map((x)=>{const g=s.stages[x.id]||{};return '<li class="'+esc(g.status)+'">'+esc(x.label)+'<br><span class="muted">'+esc({PENDING:"à venir",RUNNING:"en cours…",DONE:"terminé",INTERRUPTED:"interrompu",FAILED:"échec"}[g.status]||g.status)+'</span></li>';}).join(""):"";
+  const um=$("#userMsg");if(s.userMessage||(s.error&&s.error.userMessage)){um.hidden=false;um.className="banner "+(s.status==="COMPLETED"?"ok":(s.status==="FAILED"?"bad":s.status==="STOPPED"?"warn":"info"));um.textContent=s.userMessage||s.error.userMessage;}else um.hidden=true;
+  $("#resumeBox").hidden=!(s.resumable===true||s.status==="STOPPED");$("#stopBox").hidden=!(s.status==="RUNNING");$("#btnStop").disabled=!!(s.stop&&s.stop.requestedAt&&!s.stop.honoredAt);
+  if(!$("#resumeBox").hidden)renderResumeSummary(s);
+  $("#gatePlan").hidden=true;$("#gateSources").hidden=true;
+  if(s.status==="WAITING_USER"&&s.gate){loadGate(s.gate.id);notifyGate(s);}else{lastGate=null;$("#gateNotify").hidden=true;document.title="EvidenceForge";}
+  if(s.status==="COMPLETED"&&!REPORT)loadReport();
+  if(s.cost&&s.kind!=="IMPORTED_REPORT")scheduleCost();else $("#costBox").hidden=true;
+  if(!$("#expert").hidden)renderExpert();}
+$("#btnResume").onclick=async()=>{try{await api("/api/runs/"+RUN+"/resume",{method:"POST",body:"{}"});}catch(e){alert(e.message);}};
+/* RUN SAFETY — arret utilisateur : confirmation simple, demande persistee cote serveur, aucun artefact supprime */
+$("#btnStop").onclick=async()=>{if(!confirm("Arrêter ce run ?\nLes résultats déjà produits seront conservés.\nAucun nouvel appel fournisseur ne sera lancé."))return;$("#btnStop").disabled=true;try{const r=await api("/api/runs/"+RUN+"/stop",{method:"POST",body:JSON.stringify({actor:"user"})});if(r.state)onState(r.state);refreshState();}catch(e){alert(e.message);$("#btnStop").disabled=false;}};
+/* avant reprise : cout deja depense, etape, restant, projection (ESTIMATE), budget et plafond restant — lus dans /cost, jamais devines */
+async function renderResumeSummary(s){const el=$("#resumeSummary");try{const c=await api("/api/runs/"+RUN+"/cost");const st=CFG&&CFG.stages.find((x)=>x.id===s.stage);const cause={STOPPED_BY_USER:"arrêté à votre demande",BUDGET_LIMIT_REACHED:"plafond de budget atteint",INTERRUPTED_BY_RESTART:"interrompu par un arrêt du serveur"}[s.error&&s.error.code]||(s.error&&s.error.code)||"arrêté";
+  const b=c.budget||{};const f=c.forecast&&c.forecast.forecast;const done=Object.keys(s.stages||{}).filter((k)=>s.stages[k].status==="DONE").length,total=Object.keys(s.stages||{}).length;
+  el.innerHTML="<b>Avant de reprendre</b> · cause : "+esc(cause)+" · déjà dépensé : "+usd(c.actual&&c.actual.totalUsd)+" · étape : "+esc(st?st.label:s.stage)+" ("+done+"/"+total+" étapes terminées) · reste estimé : "+(f&&f.status==="PROJECTED"?"central "+usd(f.central)+" (ESTIMATE — NOT GUARANTEE)":"non projetable")+" · budget : "+(b.costBudgetUsd!=null?"plafond "+usd(b.costBudgetUsd)+", reste avant plafond "+usd(b.remainingUsd):"aucun plafond (confirmé)")+".";}catch(e){el.textContent="";}}
+
+/* ---------- porte 1 ---------- */
+async function loadGate(id){const ge=$("#gateErr");try{GATE=await api("/api/runs/"+RUN+"/gate");ge.hidden=true;}catch(e){ge.hidden=false;ge.innerHTML="La porte n'a pas pu être chargée ("+esc(e.message)+"). <button class=\"btn small\" id=\"gateRetry\">Réessayer</button>";$("#gateRetry").onclick=()=>loadGate(id);return;}
+  if(id==="CONFIRM_PLAN"){const g=GATE;const r=g.reformulation||{};$("#gpReformulation").innerHTML='<p><strong>'+esc(r.missionReformulee)+'</strong></p><p class="small"><b>Périmètre :</b> '+esc(r.perimetre)+(r.horsPerimetre?' <b>Hors périmètre :</b> '+esc(r.horsPerimetre):'')+'</p><p class="small"><b>Livrable :</b> '+esc(r.livrableAttendu)+'</p>'+((r.ambiguites||[]).length?'<p class="small"><b>Ambiguïtés relevées :</b> '+r.ambiguites.map(esc).join(" ; ")+'</p>':'')+((g.documents||[]).length?'<p class="small"><b>Documents :</b> '+g.documents.map((d)=>esc(d.name)).join(", ")+'</p>':'<p class="small muted">Aucun document fourni : votre demande confirmée sera le document examiné.</p>');
+    $("#gpDisciplines").innerHTML=(g.disciplines||[]).map((d)=>'<li><b>'+esc(d.label)+'</b><span class="small muted"> — '+esc(d.justification||"")+'</span></li>').join("");
+    const plan=Array.isArray(g.plan)?g.plan:[];$("#gpPlan").innerHTML=plan.length?plan.map((p)=>'<li>'+esc(typeof p==="string"?p:(p.query||p.requete||p.texte||JSON.stringify(p)))+'</li>').join(""):'<li class="muted">(plan disponible en mode expert)</li>';
+    $("#gatePlan").hidden=false;$("#gpErr").hidden=true;}
+  if(id==="RATIFY_SOURCES"){restoreOverrides();showAll=false;renderSources();$("#gateSources").hidden=false;$("#gsErr").hidden=true;}
+  if(id==="ECONOMIC_REVIEW"){renderEconomicGate(GATE);$("#gateEconomics").hidden=false;$("#geErr").hidden=true;}}
+/* v1.0.7 : porte economique — projection avec le panel courant (jumeaux potentiels x cibles de revue), causes du cout, acte humain explicite */
+function renderEconomicGate(g){const pj=g.projection||{};const eco=g.economicPanel||null;const rt=g.reviewTargets||null;const fmt=(v)=>v==null?"—":usd(v);
+  $("#geWarn").textContent=(pj.ECONOMIC_OUTLIER_WARNING?"Cette mission est inhabituellement coûteuse. ":"")+"Projection centrale "+fmt(pj.CENTRAL_COST)+" (basse "+fmt(pj.LOW_COST)+", haute "+fmt(pj.HIGH_COST)+") — seuil de confirmation "+fmt(pj.thresholdUsd)+". ESTIMATE — NOT GUARANTEE.";
+  const cells=[["Professionnels retenus (panel initial)",pj.INITIAL_PANEL_SIZE!=null?pj.INITIAL_PANEL_SIZE:"—"],["Professionnels approuvés",pj.PANEL_SIZE],["Jumeaux potentiels",pj.EXPECTED_TWINS],["Revues complètes attendues",pj.EXPECTED_REVIEWS+(rt?" ("+(rt.mode==="MISSION_DOSSIER"?"1 dossier de mission, "+rt.sourceDocumentCount+" documents":rt.targets.length+" cibles")+")":"")],["Appels de revue attendus",pj.EXPECTED_REVIEW_CALLS],["Angles",pj.dimensions],["Déjà dépensé",fmt(pj.spentUsd)],["Cause principale du coût",pj.mainCostDriver||"—"]];
+  if(eco)cells.push(["Panel par lots",eco.batches.length+" lot(s), "+eco.evaluated+" évalué(s), état "+esc(eco.scientificPanelState)]);
+  $("#geCells").innerHTML=cells.map(([k,v])=>'<div class="cell"><div class="k">'+esc(k)+'</div><div class="v">'+v+'</div></div>').join("");
+  $("#geExplain").textContent="Cette porte est économique : elle ne juge pas la science. Le panel a été constitué par la politique de suffisance ; confirmer lance les revues des jumeaux avec le coût projeté ci-dessus. Vous pouvez aussi arrêter le run ou ajuster le budget.";}
+$("#geConfirm").onclick=async()=>{$("#geConfirm").disabled=true;try{const r=await api("/api/runs/"+RUN+"/confirm-economics",{method:"POST",body:JSON.stringify({confirmedBy:$("#geName").value})});$("#gateEconomics").hidden=true;$("#gateNotify").hidden=true;lastGate=null;document.title="EvidenceForge";const um=$("#userMsg");um.hidden=false;um.className="banner ok";um.textContent="Coût projeté accepté par "+r.confirmedBy+" : les revues sont lancées.";}
+  catch(e){$("#geErr").hidden=false;$("#geErr").textContent=e.message;}finally{$("#geConfirm").disabled=false;}};
+$("#gpConfirm").onclick=async()=>{$("#gpConfirm").disabled=true;askNotifyPermission();try{const r=await api("/api/runs/"+RUN+"/confirm-plan",{method:"POST",body:JSON.stringify({validatedBy:$("#gpName").value,commentaire:$("#gpComment").value})});
+    /* retour immediat : la confirmation est recue et l'analyse est lancee ; l'etat reel est relu tout de suite */
+    $("#gatePlan").hidden=true;$("#gateNotify").hidden=true;lastGate=null;document.title="EvidenceForge";const um=$("#userMsg");um.hidden=false;um.className="banner ok";um.textContent="Confirmation reçue ("+r.validatedBy+"). L'analyse est lancée.";$("#runStatus").textContent="en cours";$("#runStatus").className="pill";refreshState();}
+  catch(e){$("#gpErr").hidden=false;$("#gpErr").textContent=e.message;}finally{$("#gpConfirm").disabled=false;}};
+$("#gpCancel").onclick=()=>{closeRun();$("#newRun").hidden=false;};
+
+/* ---------- porte 2 ---------- */
+function decisionOf(p){return overrides[p.sourceId]||p.proposed||p.defaultDecision||"exclu";}
+function ovKey(){return "efm-overrides-"+RUN;}function saveOverrides(){try{localStorage.setItem(ovKey(),JSON.stringify(overrides));}catch(e){}}function restoreOverrides(){try{const v=localStorage.getItem(ovKey());if(v)overrides=JSON.parse(v)||{};}catch(e){overrides={};}}
+/* v1.0.5 : revue d'ensemble du corpus — signaux lisibles AVANT de ratifier ; aucun bouton n'optimise ni ne ratifie a votre place */
+function renderPortfolio(g){const pf=g.portfolio;const el=$("#gsPortfolio");if(!pf){el.innerHTML="";return;}const byId=new Map(g.proposals.map((p)=>[p.sourceId,p]));const t=(id)=>{const p=byId.get(id);return p&&p.titre?p.titre:id;};
+  const balance=pf.balancing; const statusById=new Map(((balance&&balance.statuses)||[]).map(x=>[x.dimensionId,x]));
+  const cov=Object.keys(pf.coverageMap||{}).map((k)=>pf.coverageMap[k]);const max=Math.max(1,...cov.map((c)=>c.proposedIncluded));const under=new Set((pf.possibleUndercoverage||[]).map((u)=>u.dimensionId)),over=new Set((pf.possibleOvercoverage||[]).map((o)=>o.dimensionId));
+  let h='<details open><summary>Vue d\'ensemble du corpus proposé <span class="tag">signaux, pas une décision</span></summary><p class="small muted">'+esc(pf.statement)+'</p>';
+  h+='<div class="small"><b>Sources incluses proposées : '+pf.counts.proposedIncluded+'</b> sur '+pf.counts.sources+'</div><div style="margin:6px 0"><b class="small">Couverture par angle d\'expertise</b>'+cov.map((c)=>'<div class="covrow"><span>'+esc(c.label||c.dimensionId)+'</span><span><span class="bar'+(under.has(c.dimensionId)?" bad":over.has(c.dimensionId)?" warn":"")+'" style="width:'+Math.round(100*c.proposedIncluded/max)+'%"></span> '+c.proposedIncluded+' incluse(s) / '+c.found+' trouvée(s)</span><span class="small muted">'+(balance?esc((statusById.get(c.dimensionId)||{}).message||"")+(over.has(c.dimensionId)?" Surreprésentation.":""):(under.has(c.dimensionId)?"sous-couverture possible":over.has(c.dimensionId)?"surreprésentation possible":""))+'</span></div>').join("")+'</div>';
+  if(balance)h+='<p class="small">Couverture de la proposition machine (avant vos modifications). Contribution multi-angle fractionnée ; au moins '+esc(balance.policy.minimumIndependentSources)+' sources indépendantes pour un signal satisfaisant. Coût additionnel du rééquilibrage : 0 USD.</p><details><summary>Ajustements proposés ('+balance.adjustments.length+')</summary>'+balance.adjustments.map(a=>'<p class="small"><b>'+esc(a.kind)+'</b> — ajout : '+esc(t(a.added))+(a.removed?' ; retrait : '+esc(t(a.removed)):'')+'<br>'+esc(a.reason)+(a.donorReason?'<br>'+esc(a.donorReason):'')+'</p>').join('')+'</details>';
+  if((pf.redundancyGroups||[]).length)h+='<div style="margin:6px 0"><b class="small">Groupes potentiellement redondants</b>'+pf.redundancyGroups.map((gr,i)=>'<div class="small" style="margin:4px 0"><b>Groupe '+(i+1)+'</b> (similarité lexicale)<ul style="margin:2px 0">'+gr.sourceIds.map((id)=>'<li>'+esc(t(id))+'</li>').join("")+'</ul></div>').join("")+'</div>';
+  if((pf.methodologicalCrossDomainCandidates||[]).length)h+='<div style="margin:6px 0"><b class="small">Méthodes génériques hors domaine (statut proposé indiqué pour chaque source)</b>'+pf.methodologicalCrossDomainCandidates.map((c)=>'<div class="small" style="margin:4px 0">• '+esc(t(c.sourceId))+' — '+esc((byId.get(c.sourceId)||{}).proposed||'sans proposition')+'<br><span class="muted">domaine : '+esc(c.domainRelevance)+' · intérêt méthodologique : '+esc(c.methodologicalRelevance)+(c.methodologicalInterest?' — '+esc(c.methodologicalInterest):'')+'</span></div>').join("")+'</div>';
+  if(pf.llmStatus!=="DONE")h+='<div class="small muted">Distinction domaine / méthode : '+esc({SKIPPED:"non exécutée",NOTHING_TO_JUDGE:"aucune source exclue avec résumé",UNAVAILABLE:"indisponible (fournisseur)",PARTIAL:"partielle"}[pf.llmStatus]||pf.llmStatus)+'.</div>';
+  const other=(pf.warnings||[]).filter((w)=>["POSSIBLE_REDUNDANCY","GENERIC_METHOD_OUTSIDE_DOMAIN"].indexOf(w.code)===-1);if(other.length)h+='<ul class="small">'+other.map((w)=>'<li>'+esc(w.message)+'</li>').join("")+'</ul>';
+  h+='</details>';el.innerHTML=h;}
+function renderSources(){const g=GATE;const s=g.summary;renderPortfolio(g);$("#gsSummary").textContent=s.sources+" publication(s) trouvée(s) · "+s.judged+" évaluée(s) · "+s.duplicates+" doublon(s)"+(s.failed?" · "+s.failed+" sans proposition (seront exclues par prudence, sauf votre choix)":"");
+  const props=g.proposals.slice();const inc=props.filter((p)=>decisionOf(p)==="inclus").length;$("#gsCount").textContent=inc+" incluse(s) / "+props.length;
+  const list=showAll?props:props.filter((p)=>decisionOf(p)==="inclus").concat(props.filter((p)=>decisionOf(p)!=="inclus").slice(0,10));
+    const flags=new Map();((g.portfolio&&g.portfolio.suggestedReview)||[]).forEach((x)=>flags.set(x.sourceId,x.reasons));
+    $("#gsList").innerHTML=list.map((p)=>{const d=decisionOf(p);const noProp=!p.proposed;const fl=flags.get(p.sourceId);return '<div class="src'+(noProp?' noprop':'')+'"><div class="t">'+esc(p.titre||p.sourceId)+(fl?fl.map((r)=>'<span class="tag">'+esc({POSSIBLE_REDUNDANCY:"redondance possible",METHODOLOGICAL_RELEVANCE_DESPITE_DOMAIN:"méthode hors domaine",UNDERCOVERED_DIMENSION_EXCLUDED_SOURCE:"angle sous-couvert"}[r.code]||r.code)+'</span>').join(""):"")+'</div><div class="r">'+esc([p.annee,p.lieu].filter(Boolean).join(" · "))+(p.doi?' · <a href="'+esc(p.doi)+'" target="_blank" rel="noopener">DOI</a>':'')+'</div><div class="r"><b>'+(noProp?'Sans proposition machine :':'Proposition :')+'</b> '+(noProp?'':esc(p.proposed)+' — ')+esc(p.justification||"")+(p.evidence&&p.evidence.length?' <i>(« '+esc(p.evidence.slice(0,2).join(" » ; « "))+' »)</i>':'')+(p.confiance?' · confiance '+esc(p.confiance):'')+'</div>'+(p.resume?'<details><summary class="small">Résumé</summary><div class="small">'+esc(p.resume)+'</div></details>':'')+(p.proposed==="doublon"?'<div class="dec"><button class="on doublon" disabled>doublon de '+esc(p.duplicateOf)+'</button></div>':'<div class="dec" data-id="'+esc(p.sourceId)+'"><button class="'+(d==="inclus"?"on inclus":"")+'" data-d="inclus">inclure</button><button class="'+(d==="exclu"?"on exclu":"")+'" data-d="exclu">exclure</button>'+(noProp?'<span class="small muted">décision explicite requise (défaut : exclure)</span>':'')+'</div>')+'</div>';}).join("");
+  $("#gsList").querySelectorAll(".dec[data-id] button").forEach((b)=>b.onclick=()=>{const id=b.parentNode.dataset.id;const p=props.find((x)=>x.sourceId===id);const baseline=p.proposed||p.defaultDecision||"exclu";if(b.dataset.d===baseline)delete overrides[id];else overrides[id]=b.dataset.d;saveOverrides();renderSources();});}
+$("#gsShowAll").onclick=()=>{showAll=!showAll;renderSources();};
+$("#gsConfirm").onclick=async()=>{$("#gsConfirm").disabled=true;try{const r=await api("/api/runs/"+RUN+"/ratify-sources",{method:"POST",body:JSON.stringify({ratifiedBy:$("#gsName").value,overrides})});
+    try{localStorage.removeItem(ovKey());}catch(e){}$("#gateSources").hidden=true;$("#gateNotify").hidden=true;lastGate=null;document.title="EvidenceForge";const um=$("#userMsg");um.hidden=false;um.className="banner ok";um.textContent="Ratification reçue ("+r.ratifiedBy+", "+r.overrides+" choix modifié(s)). L'analyse se poursuit.";$("#runStatus").textContent="en cours";$("#runStatus").className="pill";refreshState();}
+  catch(e){$("#gsErr").hidden=false;$("#gsErr").textContent=e.message;}finally{$("#gsConfirm").disabled=false;}};
+
+/* ---------- rapport ---------- */
+async function loadReport(){try{REPORT=await api("/api/runs/"+RUN+"/report");}catch(e){return;}renderReport();}
+function why(list){return '<details class="why"><summary>Pourquoi EvidenceForge dit cela ?</summary>'+list.map((w)=>{if(w.missing)return '<div class="muted">constat introuvable : '+esc(w.findingId)+'</div>';const t=w.twin||{};const pr=t.professional||{};return '<div style="margin:6px 0;padding-bottom:6px;border-bottom:1px solid var(--line)"><div><b>Constat</b> ('+esc(w.disposition)+', '+esc(w.epistemicStatus)+', confiance '+esc(w.confidence)+') : '+esc(w.finding)+'</div><div class="small"><b>Raisonnement :</b> '+esc(w.rationale)+'</div>'+(w.targetEvidence.length?'<div class="small"><b>Passages de votre document :</b> « '+w.targetEvidence.map(esc).join(" » ; « ")+' »</div>':'')+'<div class="small"><b>Jumeau documentaire de :</b> '+esc(pr.displayName||"?")+(pr.affiliation?' ('+esc(pr.affiliation)+')':'')+(pr.openAlexAuthorId?' · <a href="'+esc(pr.openAlexAuthorId)+'" target="_blank" rel="noopener">identifiant OpenAlex</a>':'')+(pr.orcid?' · ORCID '+esc(pr.orcid):'')+'</div>'+(w.twinBasisWorks.length?'<div class="small"><b>Publications réelles mobilisées :</b> '+w.twinBasisWorks.map(esc).join(" ; ")+'</div>':'')+((t.seedSources||[]).length?'<div class="small"><b>Source ratifiée à l\'origine :</b> '+t.seedSources.map((s)=>esc(s.titre)).join(" ; ")+'</div>':'')+(w.limitations.length?'<div class="small muted"><b>Limites déclarées :</b> '+w.limitations.map(esc).join(" ; ")+'</div>':'')+'</div>';}).join("")+'</details>';}
+function stmt(cls,s){const ctx='<span class="small muted">'+esc(s.targetLabel)+' · '+esc(s.dimensionLabel)+'</span>';if(s.kind==="DIVERGENCE")return '<div class="stmt '+cls+'">'+ctx+'<div><b>Positions divergentes</b></div>'+s.branches.map((b,i)=>'<div style="margin:6px 0"><b>Position '+(i+1)+'</b> ('+b.twinCount+' jumeau(x)) : '+esc(b.position)+why(b.why)+'</div>').join("")+'</div>';
+  return '<div class="stmt '+cls+'">'+ctx+'<div>'+(s.dispositionLabel?'<span class="pill">'+esc(s.dispositionLabel)+'</span> ':'')+(s.independentTwinCount?'<span class="pill">'+s.independentTwinCount+' jumeaux indépendants</span> ':'')+(s.kind&&s.kind!=="CONVERGENCE"?'<span class="pill">'+esc({NOT_DETERMINABLE:"non déterminable",EVIDENCE_GAP:"manque documentaire",SINGLE_TWIN_CONVERGENCE_REJECTED:"convergence mono-jumeau rejetée",ISOLATED_CAUTIOUS_INFERENCE:"inférence prudente isolée",ISOLATED_FINDING:"constat isolé"}[s.kind]||s.kind)+'</span>':'')+'</div><div style="margin-top:4px">'+esc(s.statement)+'</div>'+why(s.why)+'</div>';}
+function renderReport(){const r=REPORT;const h=r.headline;$("#report").hidden=false;
+  $("#rpHead").innerHTML='<p class="small muted">'+esc(r.runId)+' · '+esc(r.generatedAt)+'</p><p><b>Demande :</b> '+esc(r.question)+'</p>'+(r.missionReformulee?'<p><b>Mission :</b> '+esc(r.missionReformulee)+'</p>':'')+'<div class="banner '+(h.PROCESS_QUALIFICATION==="QUALIFIED"?"ok":h.PROCESS_QUALIFICATION==="QUALIFIED_WITH_RESERVATIONS"?"warn":"bad")+'"><div><b>PROCESS_QUALIFICATION = '+esc(h.PROCESS_QUALIFICATION)+'</b> — '+esc(h.PROCESS_QUALIFICATION_USER)+'</div><div><b>SCIENTIFICALLY_USABLE = '+esc(h.SCIENTIFICALLY_USABLE)+'</b> <span class="small">('+esc(h.scientificallyUsableRule.rule)+')</span></div>'+(h.warning?'<div style="margin-top:6px">'+esc(h.warning)+'</div>':'')+'</div><p class="small">'+esc(r.pipeline.sourcesRetrieved)+' publications trouvées · '+esc(r.pipeline.sourcesIncluded)+' retenues · '+esc(r.pipeline.professionalsCandidates)+' professionnels candidats · '+esc(r.pipeline.twins)+' jumeaux documentaires · revues '+esc(r.pipeline.reviews&&r.pipeline.reviews.reviewsComplete)+'/'+esc(r.pipeline.reviews&&r.pipeline.reviews.reviewsExpected)+' · appels d\'analyse réels '+esc(r.pipeline.llm&&r.pipeline.llm.real)+', réutilisés '+esc(r.pipeline.llm&&r.pipeline.llm.reused)+'</p>';
+  const S=r.statements;const sec=(title,cls,arr,intro)=>'<h3>'+title+' <span class="pill">'+arr.length+'</span></h3><p class="small muted">'+intro+'</p>'+(arr.length?arr.map((s)=>stmt(cls,s)).join(""):'<p class="small muted">Aucun.</p>');
+  $("#rpBody").innerHTML=sec("Établi (convergences documentées)","etabli",S.etabli,"Plusieurs analyses documentaires indépendantes, majoritairement documentées, aboutissent au même constat. « Établi » signifie établi documentairement dans ce processus, pas scientifiquement validé.")
+   +sec("Convergent","convergent",S.convergent,"Constats compatibles entre plusieurs jumeaux, mais avec une part d'inférence prudente ou une disposition de recommandation/manque.")
+   +sec("Divergent","divergent",S.divergent,"Des analyses indépendantes aboutissent à des positions incompatibles : EvidenceForge ne tranche pas.")
+   +sec("Provisoire","provisoire",S.provisoire,"Constat porté par un seul jumeau ou par une inférence prudente : à ne pas considérer comme acquis.")
+   +sec("Non établi","nonEtabli",S.nonEtabli,"Non déterminable, manque documentaire ou convergence rejetée par la règle anti-mono-jumeau.")
+   +'<h3>Réserves <span class="pill">'+r.reservations.length+'</span></h3><p class="small muted">Ce que le processus signale lui-même comme limite de ce run.</p><ul class="small">'+r.reservations.map((x)=>'<li>'+esc(x.detail||x.code)+'</li>').join("")+'</ul>'
+   +'<h3>Qualification du processus</h3><p class="small"><b>'+esc(r.headline.PROCESS_QUALIFICATION_USER)+'</b> — '+r.qualification.criteria.filter((c)=>c.pass).length+' critère(s) satisfait(s) sur '+r.qualification.criteria.length+(r.qualification.failedCriteria.length?' ; '+r.qualification.failedCriteria.length+' non satisfait(s)':'')+'.</p>'
+   +'<h3>Limites</h3><ul class="small">'+r.limits.map((l)=>'<li>'+esc(l)+'</li>').join("")+'</ul>'
+   /* details techniques : masques par defaut en mode simple, disponibles ici sur demande et integralement en mode expert */
+   +'<details class="tech-details noprint"><summary class="small">Détails techniques (codes de réserves, critères, readiness, sceaux et hashes — voir aussi le mode expert)</summary><ul class="small">'+r.reservations.map((x)=>'<li><span class="hash">'+esc(x.code)+'</span> ('+esc(x.scope)+')</li>').join("")+'</ul><p class="small">Statut : '+esc(r.qualification.status)+' · readiness PRE '+esc(r.qualification.readinessPre)+' · FULL '+esc(r.qualification.readinessFull)+'</p><ul class="small">'+r.qualification.criteria.map((c)=>'<li>'+(c.pass?"✔":"✘")+' <span class="hash">'+esc(c.criterion)+'</span> — '+esc(String(c.detail||"").slice(0,200))+'</li>').join("")+'</ul>'+(r.qualification.disclaimer?'<p class="small muted">'+esc(r.qualification.disclaimer)+'</p>':'')+'<div class="small hash">'+(r.integrity.seal?'MONO-11 '+esc(r.integrity.seal.mono11Version)+' sceau '+esc(r.integrity.seal.runtimeSealSha256)+'<br>code '+esc(r.integrity.seal.runCodeHash)+'<br>zip '+esc(r.integrity.seal.mono11ZipSha256)+'<br>':'')+'panel '+esc(r.integrity.panelHash)+'<br>snapshot '+esc(r.integrity.snapshotHash)+'<br>RunContract '+esc(r.integrity.runContractHash)+'<br>SearchProtocol '+esc(r.integrity.searchProtocolHash)+'<br>rapport '+esc(r.reportHash)+'</div></details>'
+   +'<p class="small muted">Empreinte du rapport : <span class="hash">'+esc(r.reportHash)+'</span></p>';}
+/* impression / PDF : ouvrir toutes les sections « Pourquoi EvidenceForge dit cela ? » le temps de l'impression, puis restaurer */
+let openedForPrint=[];window.addEventListener("beforeprint",()=>{openedForPrint=[];document.querySelectorAll("#report details.why:not([open])").forEach((d)=>{d.open=true;openedForPrint.push(d);});});window.addEventListener("afterprint",()=>{openedForPrint.forEach((d)=>{d.open=false;});openedForPrint=[];});
+$("#btnJson").onclick=()=>{const b=new Blob([JSON.stringify(REPORT,null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="EvidenceForge-rapport-"+RUN+".json";a.click();};
+$("#btnPdf").onclick=()=>window.print();
+
+/* ---------- mode expert ---------- */
+const EXTABS=[["state","État / mission"],["disciplines","RunContract"],["plan","Plan / SearchProtocol"],["retrieval","Sources / snapshot"],["screening","Screening"],["corpus","Corpus"],["professionals","Candidats"],["assessment","Évaluation MONO-10"],["panel","Gate machine"],["corpora","Corpus pro."],["twins","Jumeaux"],["reviews","Revues"],["aggregation","Agrégation"],["qualification","Qualification"],["mono10","Run MONO-10 / sceau"],["lineage","Lignée / hashes"],["llm","Appels LLM"],["cost","Coût (ledger)"],["portfolio","Revue du corpus"],["economics","Économie du panel"],["budget","Budget"],["log","Journal"],["files","Fichiers"]];
+const EXFILE={disciplines:"disciplines.json",plan:"plan-confirmation.json",retrieval:"retrieval-snapshot.json",screening:"screening-evidence.json",corpus:"corpus-snapshot.json",professionals:"professionals-discovery.json",assessment:"assessment.json",panel:"panel.json",corpora:"corpora-admitted.json",twins:"twins.json",reviews:"reviews.json",aggregation:"aggregation.json",qualification:"qualification.json",mono10:"mono10-run.json",lineage:"lineage.json",llm:"llm-calls.jsonl",cost:"cost-ledger.jsonl",portfolio:"corpus-portfolio-review.json",economics:"professionals-economics.json",budget:"budget.json",log:"events.jsonl"};
+async function renderExpert(){$("#exTabs").innerHTML=EXTABS.map(([k,l])=>'<button class="'+(k===EXTAB?"on":"")+'" data-k="'+k+'">'+l+'</button>').join("");$("#exTabs").querySelectorAll("button").forEach((b)=>b.onclick=()=>{EXTAB=b.dataset.k;renderExpert();});
+  const v=$("#exView");if(!RUN){v.innerHTML='<p class="muted">Ouvrez ou créez un run en mode simple.</p>';return;}
+  const xg=$("#exGate");if(STATE&&STATE.status==="WAITING_USER"&&STATE.gate){xg.hidden=false;xg.innerHTML=esc(STATE.gate.id==="RATIFY_SOURCES"?"Votre ratification des sources est requise.":STATE.gate.id==="ECONOMIC_REVIEW"?"Votre confirmation du coût projeté est requise avant les revues.":"Votre confirmation est requise pour lancer l'analyse.")+' <button class="btn small" id="exGateGo">'+(STATE.gate.id==="RATIFY_SOURCES"?"Aller à la ratification":"Aller à la confirmation")+'</button>';$("#exGateGo").onclick=()=>{setMode("simple");const g=$(STATE.gate.id==="RATIFY_SOURCES"?"#gateSources":"#gatePlan");if(g){g.hidden=false;g.scrollIntoView({behavior:"smooth"});}};}else xg.hidden=true;
+  if(EXTAB==="state"){v.innerHTML='<pre>'+esc(JSON.stringify(STATE,null,2))+'</pre>';return;}
+  if(EXTAB==="economics"){try{const j=await api("/api/runs/"+RUN+"/economics");v.innerHTML='<p class="small">'+esc(j.status||"")+(j.rates?' · évalués '+j.rates.evaluated+' · admis '+j.rates.admitted+' · jumeaux '+j.rates.twins+' · coût/évalué '+(j.rates.costPerEvaluatedUsd!=null?j.rates.costPerEvaluatedUsd+' USD':'n/a')+' · dernier rang avec couverture nouvelle : '+(j.rates.rankOfLastNewCoverage||'—')+' · dernier admis : rang '+(j.rates.rankOfLastAdmitted||'—'):'')+'</p><pre>'+esc(JSON.stringify(j,null,2).slice(0,400000))+'</pre>';}catch(e){v.innerHTML=esc(e.message);}return;}
+  if(EXTAB==="files"){try{const f=await api("/api/runs/"+RUN+"/artifacts");v.innerHTML='<table><tr><th>fichier</th><th>octets</th></tr>'+f.files.map((x)=>'<tr><td><a href="/api/runs/'+RUN+'/artifacts/'+esc(x.name)+'" target="_blank">'+esc(x.name)+'</a></td><td>'+x.bytes+'</td></tr>').join("")+'</table><p class="small">Preuves MONO-11 : '+f.evidence.map((e)=>esc(e.dir)+" ("+e.files+")").join(", ")+'</p>';}catch(e){v.innerHTML=esc(e.message);}return;}
+  const file=EXFILE[EXTAB];try{const r=await fetch("/api/runs/"+RUN+"/artifacts/"+file);if(!r.ok){v.innerHTML='<p class="muted">Artefact non encore produit ('+esc(file)+').</p>';return;}const txt=await r.text();
+    if(file.endsWith(".jsonl")){v.innerHTML='<pre>'+esc(txt.split("\n").filter(Boolean).slice(-300).join("\n"))+'</pre>';return;}
+    const j=JSON.parse(txt);let head="";
+    if(EXTAB==="panel")head='<p class="small">'+esc(JSON.stringify(j.counts))+' · acteur '+esc(j.machineActor&&j.machineActor.actorType)+' · override humain '+esc(j.humanOverrideApplied)+'</p>';
+    if(EXTAB==="reviews")head='<p class="small">'+esc(JSON.stringify(j.summary))+'</p>';
+    if(EXTAB==="qualification")head='<p class="small"><b>'+esc(j.status)+'</b> · réserves '+esc((j.reservations||[]).map((x)=>x.code).join(", "))+'</p>';
+    if(EXTAB==="mono10")head='<p class="small">run MONO-10 '+esc(j.mono10RunId)+' · attestation '+esc(j.attestation&&j.attestation.attestationId)+' expire '+esc(j.attestation&&j.attestation.expiresAt)+' · chaînes MONO-10 '+esc(j.chains&&j.chains.mono10&&j.chains.mono10.valid)+' / MONO-11 '+esc(j.chains&&j.chains.mono11&&j.chains.mono11.valid)+'</p>';
+    v.innerHTML=head+'<pre>'+esc(JSON.stringify(j,null,2).slice(0,400000))+'</pre>';}catch(e){v.innerHTML=esc(e.message);}}
+})();
+</script>
+</body>
+</html>

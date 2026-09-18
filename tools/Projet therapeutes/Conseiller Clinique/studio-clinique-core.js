@@ -7786,12 +7786,12 @@ ${recent}`;
     const sizeRow = isPureImage
       ? '<div class="cc-editor-row"><label>Taille<input type="range" min="10" max="100" step="1" value="100" data-image-size="widthPercent"></label></div>'
       : '';
-    // "Ajouter du texte" n'a de sens que sur un bloc image autonome ET seulement si son image
-    // a déjà été localisée (content.assetId, glisser-déposer Lot C) : une image encore
-    // résolue via Pexels (query, pas d'assetId) n'a aucun équivalent représentable dans
-    // style.backgroundAssetId (qui ne porte qu'un identifiant local R2, jamais une requête
-    // Pexels) — proposer la transition dans ce cas perdrait silencieusement l'image, jamais
-    // acceptable. Le bouton est donc absent tant que l'image n'est pas localisée.
+    // "Ajouter du texte" n'a de sens que sur un bloc image autonome — disponible que la source
+    // soit un fichier importé (content.assetId) OU une image encore résolue via Pexels
+    // (content.query) : adocConvertImageBlockToText localise l'image à la volée dans ce second
+    // cas (téléchargement de l'URL déjà résolue + adocUploadImageAsset), jamais une perte
+    // silencieuse. Masqué uniquement si le bloc ne porte aucune image exploitable (cas dégénéré,
+    // le schéma garantit query non vide).
     const addTextBtn = isPureImage
       ? '<div class="cc-editor-row"><button type="button" class="cc-clarity-reply-btn" data-image-add-text onclick="window.adocConvertImageBlockToText()" hidden>Ajouter du texte</button></div>'
       : '';
@@ -7813,8 +7813,14 @@ ${recent}`;
       if (opacityInput) opacityInput.value = ctx.block.content.opacity == null ? '100' : ctx.block.content.opacity;
       const sizeInput = panel.querySelector('[data-image-size]');
       if (sizeInput) sizeInput.value = ctx.block.content.widthPercent == null ? '100' : ctx.block.content.widthPercent;
+      // CORRECTIF — "Ajouter du texte" ne dépendait QUE de content.assetId (image importée),
+      // excluant systématiquement une image encore résolue via Pexels (content.query, jamais
+      // localisée) — asymétrie confirmée et corrigée : adocConvertImageBlockToText sait
+      // désormais localiser une image Pexels à la volée (télécharge l'URL déjà résolue et
+      // affichée, l'envoie vers R2 via adocUploadImageAsset). Visible dès que le bloc porte une
+      // image quelconque (schéma : query toujours présent, minLength:1).
       const addTextBtn = panel.querySelector('[data-image-add-text]');
-      if (addTextBtn) addTextBtn.hidden = !ctx.block.content.assetId;
+      if (addTextBtn) addTextBtn.hidden = !(ctx.block.content.assetId || ctx.block.content.query);
     } else {
       const opacityInput = panel.querySelector('[data-editor-opacity="backgroundOpacity"]');
       if (opacityInput) opacityInput.value = (ctx.block.style && ctx.block.style.backgroundOpacity) == null ? '100' : ctx.block.style.backgroundOpacity;
@@ -7861,29 +7867,67 @@ ${recent}`;
   // schéma exige minLength:1, une chaîne vide est impossible). Rouvre ensuite automatiquement
   // le panneau TEXTE sur ce même bloc (même patron qu'adocConfirmBlockInsert : clic simulé sur
   // le nouvel élément après adocOpenWorkspace).
-  window.adocConvertImageBlockToText = function () {
-    const ctx = adocEditorContext(); if (!ctx || ctx.legacy || !ctx.block || ctx.block.type !== 'image' || !ctx.block.content.assetId) return;
-    adocEditorCheckpoint();
+  // CORRECTIF — symétrie Pexels/import confirmée par investigation : une image encore résolue
+  // via Pexels (content.query, jamais glissée-déposée) n'a pas d'assetId, donc rien à écrire
+  // directement dans style.backgroundAssetId (qui ne porte qu'un identifiant local R2). Option
+  // retenue (A, sur les 2 investiguées) — télécharger l'image DÉJÀ RÉSOLUE ET AFFICHÉE (son
+  // <img src> réel, jamais une nouvelle requête /fetch-image : une recherche Pexels n'est pas
+  // déterministe, une seconde requête pourrait renvoyer une photo différente de celle que
+  // l'utilisatrice voit à l'écran) puis la réinjecter dans R2 via adocUploadImageAsset — EXACTEMENT
+  // le même mécanisme de stockage que l'import de fichier local, jamais un second (régression #6).
+  // Préférée à l'alternative (un champ style.backgroundUrl pointant l'URL Pexels externe) pour deux
+  // raisons vérifiées par l'investigation : (1) elle évite de dupliquer, dans chaque endroit qui
+  // consulte déjà backgroundAssetId (rendu du fond, routage de clic, masquage du bouton Taille,
+  // migration elle-même — 5 points identifiés), une seconde branche à maintenir indéfiniment en
+  // parallèle ; (2) elle élimine toute dépendance PERSISTANTE à Pexels — un document clinique
+  // enregistré ne doit jamais dépendre de la disponibilité continue d'une URL tierce. Le seul point
+  // non vérifiable EMPIRIQUEMENT dans cet environnement (accès réseau vers images.pexels.com
+  // bloqué par la politique du bac à sable) est le comportement CORS réel du CDN Pexels pour un
+  // fetch() cross-origin — comportement largement documenté comme permissif pour cet usage précis
+  // (chargement direct par des applications tierces), mais non confirmé ici par un test direct :
+  // en cas d'échec réel (réseau, CORS, ou URL Pexels expirée), le bloc n'est JAMAIS muté à moitié —
+  // message d'erreur clair, glisser-déposer d'un fichier local proposé comme repli immédiat.
+  window.adocConvertImageBlockToText = async function () {
+    const ctx = adocEditorContext(); if (!ctx || ctx.legacy || !ctx.block || ctx.block.type !== 'image') return;
     const block = ctx.block;
+    let assetId = block.content.assetId;
+    if (!assetId) {
+      const img = ctx.el.querySelector('img');
+      if (!img || !img.src) { alert('Image indisponible pour le moment — réessayez dans un instant.'); return; }
+      adocSetImageDropBusy(ctx.el, true);
+      try {
+        const resp = await fetch(img.src);
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const blob = await resp.blob();
+        const mime = blob.type === 'image/png' ? 'image/png' : 'image/jpeg';
+        const file = new File([blob], 'pexels.' + (mime === 'image/png' ? 'png' : 'jpg'), { type: mime });
+        assetId = await adocUploadImageAsset(file);
+      } catch (e) {
+        alert('Impossible de récupérer cette image Pexels pour ajouter du texte (' + e.message + '). Vous pouvez glisser-déposer un fichier local sur ce bloc à la place.');
+        return;
+      } finally {
+        adocSetImageDropBusy(ctx.el, false);
+      }
+    }
+    adocEditorCheckpoint();
     const migratedOpacity = block.content.opacity != null ? block.content.opacity : 100;
-    block.style = Object.assign({}, block.style, { backgroundAssetId: block.content.assetId, backgroundOpacity: migratedOpacity });
+    block.style = Object.assign({}, block.style, { backgroundAssetId: assetId, backgroundOpacity: migratedOpacity });
     block.content = adocDefaultBlockContent('paragraph');
     block.type = 'paragraph';
     const storeKey = window._adocWsState.storeKey;
     const blockId = block.id;
     adocWsClearBlockSelection();
-    window.adocOpenWorkspace(storeKey).then(function (ok) {
-      if (!ok) return;
-      const el = document.getElementById(blockId);
-      if (!el) return;
-      // Le bloc porte désormais style.backgroundAssetId (migration ci-dessus) : un simple
-      // el.click() cible l'élément englobant lui-même (e.target = el), que la nouvelle
-      // branche de routage bloc mixte interpréterait comme "hors de la zone de texte" →
-      // rouvrirait à tort le panneau FOND. Cible explicitement .adoc-sc-fg-content (déjà
-      // présent au rendu, hasBg=true) pour rouvrir le panneau TEXTE, but réel de ce bouton.
-      const fg = el.querySelector('.adoc-sc-fg-content');
-      (fg || el).click();
-    });
+    const ok = await window.adocOpenWorkspace(storeKey);
+    if (!ok) return;
+    const el = document.getElementById(blockId);
+    if (!el) return;
+    // Le bloc porte désormais style.backgroundAssetId (migration ci-dessus) : un simple
+    // el.click() cible l'élément englobant lui-même (e.target = el), que la nouvelle
+    // branche de routage bloc mixte interpréterait comme "hors de la zone de texte" →
+    // rouvrirait à tort le panneau FOND. Cible explicitement .adoc-sc-fg-content (déjà
+    // présent au rendu, hasBg=true) pour rouvrir le panneau TEXTE, but réel de ce bouton.
+    const fg = el.querySelector('.adoc-sc-fg-content');
+    (fg || el).click();
   };
 
   // LOT 3 — symétrique de adocConvertImageBlockToText : rend DÉCOUVRABLE le glisser-déposer de
