@@ -156,6 +156,23 @@ export async function handleFastInteractionRequest(request, env, { executeFast, 
       log({
         event: "fast_unavailable",
         provider_attempts: Array.isArray(error?.attempts) ? error.attempts.length : null,
+        /* FAST-502-OBS-01 — CE QUI MANQUAIT, ET QUI AVAIT ÉTÉ ÉCRIT UN ÉVÉNEMENT PLUS HAUT.
+           Huit `fast_unavailable` observés en production disaient « aucun fournisseur disponible »
+           et rien de plus, alors que `groq_api_error` portait déjà `status: 400` et
+           `code: "json_validate_failed"`. Seule la LONGUEUR de `attempts` était retenue, jamais son
+           contenu — or chaque tentative porte sa classe, et désormais le motif borné du fournisseur.
+           Un relevé de synthèse qui perd la cause oblige à rouvrir la trace brute pour la retrouver.
+           Rien de ce qui est ajouté ici ne décide : ni le code HTTP rendu, ni l'escalade vers le
+           plan profond, qui restent exactement ce qu'ils étaient. */
+        attempts: (Array.isArray(error?.provider_errors) ? error.provider_errors : []).map((t) => ({
+          provider: (t && t.provider) || null,
+          failure_class: (t && t.failure_class) || null,
+          upstream_status: Number.isFinite(t && t.upstream_status) ? t.upstream_status : null,
+          provider_error_code: (t && t.provider_error_code) || null,
+          provider_error_type: (t && t.provider_error_type) || null,
+          provider_error_param: (t && t.provider_error_param) || null,
+          provider_error_message: (t && t.provider_error_message) || null
+        })),
         all_providers_failed: error?.all_providers_failed === true,
         rate_limited: error?.rateLimited === true,
         retry_count: Number.isFinite(error?.retries) ? error.retries : null,

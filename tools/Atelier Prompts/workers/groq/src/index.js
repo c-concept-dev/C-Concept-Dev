@@ -393,6 +393,50 @@ const FAST_EXPECTED_KEYS = Object.freeze([
 ]);
 const IDENTIFIANT_SUR = /^[A-Za-z_][A-Za-z0-9_]{0,63}$/;
 
+/* FAST-502-OBS-01 — LE MOTIF DU REJET DOIT SURVIVRE À LA CHAÎNE.
+ *
+ * CE QUE HUIT OCCURRENCES ONT MONTRÉ, ET CE QUI SE PERDAIT. Les huit `fast_unavailable` observés
+ * portaient tous, un événement plus haut, un `groq_api_error` disant `status: 400`,
+ * `code: "json_validate_failed"`. Cette information EXISTE au point de capture — et elle n'allait
+ * pas plus loin : `provider_ha_failure` ne garde que la classe, et `fast_unavailable` ne garde que
+ * `attempts.length`. Qui lit le relevé de synthèse voit « aucun fournisseur disponible » sans jamais
+ * savoir POURQUOI, alors que le pourquoi avait été écrit.
+ *
+ * CE QUI PART, ET CE QUI NE PART JAMAIS. Le statut, le code et le type du fournisseur — des
+ * étiquettes de son énumération. Le champ incriminé s'il le nomme. Un message BORNÉ à 200
+ * caractères, espaces normalisés, avec expurgation de toute séquence ressemblant à un secret. Jamais
+ * le corps de la requête, jamais un prompt, jamais `failed_generation` — dont seule la STRUCTURE
+ * voyage, par `describeFailedGeneration`, et dont aucun caractère ne sort.
+ *
+ * RIEN N'EN DÉCIDE. Aucune branche ne lit ces champs : ni reprise, ni bascule, ni classification, ni
+ * code HTTP. Ils sont ajoutés à côté de ce qui existe, jamais à sa place. */
+export const PROVIDER_ERROR_MESSAGE_MAX_LENGTH = 200;
+
+export function redactProviderText(valeur, maxLength = PROVIDER_ERROR_MESSAGE_MAX_LENGTH) {
+  if (typeof valeur !== "string" || valeur === "") return null;
+  return valeur
+    .replace(/Bearer\s+\S+/gi, "Bearer [EXPURGÉ]")
+    .replace(/\b(?:gsk_|sk-|sk_|xoxb-|ghp_)[A-Za-z0-9_-]{8,}\b/g, "[EXPURGÉ]")
+    .replace(/\b[A-Za-z0-9_-]{32,}\b/g, "[EXPURGÉ]")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxLength) || null;
+}
+
+/** Résumé borné d'un rejet fournisseur. Ne lit que ce que le fournisseur a nommé ; n'invente rien. */
+export function describeProviderError(provider, status, corpsErreur) {
+  const e = (corpsErreur && typeof corpsErreur === "object") ? corpsErreur : {};
+  const etiquette = (v) => (typeof v === "string" && v.trim()) ? redactProviderText(v.trim(), 64) : null;
+  return {
+    provider: provider || null,
+    upstream_status: Number.isFinite(status) ? status : null,
+    provider_error_code: etiquette(e.code),
+    provider_error_type: etiquette(e.type),
+    provider_error_param: etiquette(e.param),
+    provider_error_message: redactProviderText(typeof e.message === "string" ? e.message : null)
+  };
+}
+
 export function describeFailedGeneration(valeur, expectedKeys = FAST_EXPECTED_KEYS) {
   if (typeof valeur !== "string" || valeur === "") {
     return {
@@ -595,8 +639,10 @@ async function callGroqChatCompletion({ systemPrompt, userMessage, schema, schem
     let code = "unknown";
     let message = "Message Groq indisponible.";
     let structure = describeFailedGeneration(undefined);
+    let corpsErreur = null;
     try {
       const error = JSON.parse(raw)?.error;
+      corpsErreur = error || null;
       code = String(error?.code || "unknown");
       message = String(error?.message || message);
       /* GROQ-FAILED-GEN-TELEMETRY — LA FORME DE CE QUI A ÉCHOUÉ, JAMAIS SON CONTENU.
@@ -615,7 +661,13 @@ async function callGroqChatCompletion({ systemPrompt, userMessage, schema, schem
     // Classe déterminée par classifyProviderHttpStatus : jamais un désaccord sémantique, jamais une
     // raison de préférer un autre modèle — seulement une raison d'en essayer un autre parce que
     // celui-ci n'a rien produit.
-    throw tagFailure(new Error(`Groq a répondu ${response.status}.`), classifyProviderHttpStatus(response.status), { provider: "groq", status: response.status });
+    /* FAST-502-OBS-01 — le résumé borné accompagne l'erreur, pour que la chaîne puisse le relayer
+       sans jamais lire `error.message` : provider-ha.js n'a pas accès aux secrets et ne doit pas le
+       devenir. Il ne copie que des champs DÉJÀ expurgés. */
+    throw tagFailure(new Error(`Groq a répondu ${response.status}.`), classifyProviderHttpStatus(response.status), {
+      provider: "groq", status: response.status,
+      provider_error: describeProviderError("groq", response.status, corpsErreur)
+    });
   }
   let envelope;
   try {

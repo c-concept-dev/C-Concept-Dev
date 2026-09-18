@@ -1,5 +1,5 @@
 /* GENERATED — LOT 10G.3B.3F.2
- * source-sha256: 8bb5bb9b1f14e97a86177663e90fc6696a65160706088255de4394e9a0b0642e
+ * source-sha256: 6e6e67753ebdbb6aff0ba73a195701761cac587f992a6b58126f805e999ead86
  * Ne pas modifier manuellement. Régénérer avec tools/build-adn-browser-runtime.mjs
  */
 (function(global){
@@ -3927,6 +3927,9 @@ async function runProviderChain({ role, providers, preflight, log = defaultLog }
   }
 
   const attempts = [];
+  /* FAST-502-OBS-01 — parallèle à `attempts`, et volontairement SÉPARÉ : ce recueil n'entre dans
+     aucun événement de ce module. Il ne sert qu'à porter le motif jusqu'à l'appelant. */
+  const providerErrors = [];
   for (let index = 0; index < providers.length; index += 1) {
     const { name, execute } = providers[index];
     const fallback_from = index === 0 ? null : providers[index - 1].name;
@@ -3939,6 +3942,24 @@ async function runProviderChain({ role, providers, preflight, log = defaultLog }
       const failure_class = failureClassOf(error);
       attempts.push({ provider: name, failure_class });
       log({ event: "provider_ha_failure", role, provider: name, attempt_index: index, failure_class });
+      /* FAST-502-OBS-01 — LE MOTIF DU FOURNISSEUR VOYAGE, MAIS PAS PAR L'OBSERVABILITÉ HA.
+       *
+       * PREMIÈRE TENTATIVE, REFUSÉE PAR HA01-16, ET ELLE AVAIT RAISON. J'avais ajouté le résumé du
+       * fournisseur dans `attempts` et dans `provider_ha_failure`. Or l'observabilité de ce module
+       * est STRUCTURELLE PAR CONSTRUCTION — noms de providers, index de tentative, classes d'une
+       * énumération fermée — et c'est cette propriété, non une expurgation, qui rend une fuite
+       * impossible. Y faire entrer un texte du fournisseur, même borné et expurgé, échangeait une
+       * garantie de construction contre une garantie de filtrage. Le test l'a dit en refusant le mot
+       * « invalid » ; il gardait mieux que mon correctif.
+       *
+       * CE QUI EST FAIT À LA PLACE. Le résumé accompagne l'ERREUR, jamais un événement : une erreur
+       * en vol est une donnée, pas une trace. `attempts` et les deux relevés HA sortent de ce lot
+       * INCHANGÉS, à l'octet près. Seul l'appelant — qui connaît son propre contrat de journalisation
+       * — décide d'en rendre quelque chose. */
+      if (error && typeof error === "object" && error.provider_error
+          && typeof error.provider_error === "object") {
+        providerErrors.push({ provider: name, failure_class, ...error.provider_error });
+      }
 
       const rejections = attempts.filter((attempt) => attempt.failure_class === FAILURE_CLASSES.REQUEST_REJECTED).length;
       if (failure_class === FAILURE_CLASSES.REQUEST_REJECTED && rejections >= COMMON_CAUSE_REJECTION_THRESHOLD) {
@@ -3956,7 +3977,8 @@ async function runProviderChain({ role, providers, preflight, log = defaultLog }
       const next = providers[index + 1];
       if (!next) {
         log({ event: "provider_ha_exhausted", role, provider_order: order, attempts });
-        throw new ProviderChainError(role, attempts);
+        throw Object.assign(new ProviderChainError(role, attempts),
+          providerErrors.length ? { provider_errors: providerErrors } : {});
       }
       log({ event: "provider_ha_fallback", role, fallback_from: name, fallback_to: next.name, failure_class });
     }
@@ -12503,5 +12525,5 @@ function createAdapterAuditView(envelope) {
 
 return {ENGINE_ADAPTERS_VERSION,buildExecutionEnvelope,projectToRapide,projectToArchitecte,projectToAtelier,validateLegacyLockMapping,createAdapterAuditView};
 })({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON});
-global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...BOUNDED,...ORCORE,...ROLEDEG,...SOLICIT,...COREPLANE,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'8bb5bb9b1f14e97a86177663e90fc6696a65160706088255de4394e9a0b0642e'});
+global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...BOUNDED,...ORCORE,...ROLEDEG,...SOLICIT,...COREPLANE,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'6e6e67753ebdbb6aff0ba73a195701761cac587f992a6b58126f805e999ead86'});
 })(window);
