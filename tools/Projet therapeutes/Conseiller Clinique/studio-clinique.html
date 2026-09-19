@@ -2910,6 +2910,15 @@
       <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-download"></use></svg>
       <span>Exporter en JPEG</span>
     </button>
+    <!-- ITEM 75 Phase 1 Lot 2 — même patron EXACT que le bouton JPEG ci-dessus (visibilité,
+         placement, mécanisme) : bouton dédié plutôt qu'une option ajoutée au bouton "Exporter"
+         générique — investigation confirmée, ce dernier sert TOUS les documentKind (Fiche/Script/
+         Tableau/Liens inclus) qui n'ont jamais de PDF paginé par carte, jamais de bascule de
+         format ajoutée à un mécanisme partagé pour un cas qui ne concerne qu'un seul type. -->
+    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-export-pdf-carrousel-btn" onclick="window.adocWsExportCarrouselPDF()" aria-label="Exporter en PDF (une page par carte)" hidden>
+      <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-file-pdf"></use></svg>
+      <span>Exporter en PDF</span>
+    </button>
     <button type="button" class="cc-ws-close" id="cc-ws-close-btn" onclick="window.adocCloseWorkspace()"
       aria-label="Fermer l'espace de travail et revenir à la conversation">
       <svg aria-hidden="true" focusable="false" style="width:18px;height:18px;"><use href="#icon-close"></use></svg>

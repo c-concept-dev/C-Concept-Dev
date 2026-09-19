@@ -55452,6 +55452,11 @@ var Worker_default = {
       return handleGeneratePDF(request2, env2);
     if (p === "/browser-rendering/screenshot-slide" && request2.method === "POST")
       return handleScreenshotSlide(request2, env2);
+    // ITEM 75 Phase 1 Lot 2 — export PDF Carrousel structuré (une carte = une page). Route
+    // dédiée dans le même espace de noms /browser-rendering que screenshot-slide ci-dessus
+    // (même mécanisme Cloudflare Browser Rendering, même compte, jamais un chemin séparé).
+    if (p === "/browser-rendering/generate-carrousel-pdf" && request2.method === "POST")
+      return handleGenerateCarrouselPDF(request2, env2);
     if (p === "/generate-docx" && request2.method === "POST")
       return handleGenerateDOCX(request2, env2);
     if (p === "/generate-pptx" && request2.method === "POST")
@@ -57142,6 +57147,65 @@ async function handleScreenshotSlide(request2, env2) {
   return jsonErr(`Browser Rendering error after ${maxAttempts} tentatives: ${lastErr}`, 502);
 }
 __name(handleScreenshotSlide, "handleScreenshotSlide");
+
+// ITEM 75 Phase 1 Lot 2 — export PDF Carrousel structuré, une carte = une page. MÊME patron que
+// handleScreenshotSlide ci-dessus (fragment HTML déjà AUTONOME, construit et enveloppé côté
+// client via adocBuildCarrouselPdfPagesHTML — cette route ne construit ni n'injecte AUCUN style
+// elle-même, contrairement à handleGeneratePDF qui traite un document complet potentiellement non
+// autonome). La pagination (une page par carte) est entièrement pilotée par le CSS
+// @page/page-break-after DÉJÀ présent dans le HTML reçu (jamais recréée ici) : Cloudflare Browser
+// Rendering l'honore quand pdfOptions.preferCSSPageSize est activé — confirmé par un test
+// Playwright local (Chromium, même moteur PDF que Browser Rendering) avant construction, cf.
+// rapport de lot. Retry avec backoff : MÊME mécanisme que handleScreenshotSlide (limite 1
+// requête/10s du plan gratuit Cloudflare sur tout /browser-rendering — jamais une deuxième
+// logique de retry divergente, régression #6).
+async function handleGenerateCarrouselPDF(request2, env2) {
+  if (!env2.CF_ACCOUNT_ID || !env2.CF_API_TOKEN)
+    return jsonErr("CF_ACCOUNT_ID et CF_API_TOKEN requis pour Browser Rendering", 500);
+  let body;
+  try {
+    body = await request2.json();
+  } catch {
+    return jsonErr("Invalid JSON", 400);
+  }
+  const { html } = body;
+  if (!html)
+    return jsonErr("Missing html (document PDF multi-pages déjà autonome, une page par carte)", 400);
+  const maxAttempts = 3;
+  let lastErr = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const pdfRes = await fetch(
+        `https://api.cloudflare.com/client/v4/accounts/${env2.CF_ACCOUNT_ID}/browser-rendering/pdf`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${env2.CF_API_TOKEN}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            html,
+            // preferCSSPageSize — priorité aux règles @page du HTML reçu (1024×768, une page par
+            // carte) sur toute taille de page par défaut ; printBackground — les cartes portent
+            // des fonds/bordures cliniquement significatifs (cf. adocRenderCardHTML côté client),
+            // jamais omis comme le ferait un rendu "économie d'encre" par défaut.
+            pdfOptions: { preferCSSPageSize: true, printBackground: true }
+          })
+        }
+      );
+      if (pdfRes.ok) {
+        const pdfBuffer = await pdfRes.arrayBuffer();
+        return new Response(pdfBuffer, { status: 200, headers: { ...CORS, "Content-Type": "application/pdf" } });
+      }
+      lastErr = `HTTP ${pdfRes.status}: ${await pdfRes.text()}`;
+    } catch (err2) {
+      lastErr = err2.message;
+    }
+    if (attempt < maxAttempts) await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+  }
+  return jsonErr(`Browser Rendering error after ${maxAttempts} tentatives: ${lastErr}`, 502);
+}
+__name(handleGenerateCarrouselPDF, "handleGenerateCarrouselPDF");
 async function handleGenerateDOCX(request2, env2) {
   let body;
   try {

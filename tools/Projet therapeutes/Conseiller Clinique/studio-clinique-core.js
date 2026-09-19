@@ -9922,6 +9922,57 @@ ${recent}`;
       '</style></head><body>' + bodyHtml + '</body></html>';
   }
 
+  // ITEM 75 Phase 1 Lot 2 — enveloppe HTML DÉDIÉE pour l'export PDF Carrousel (une carte = une
+  // page). PAS une réutilisation d'adocClinicalDocumentWrapHTML ci-dessus (investigation
+  // confirmée) : son body{max-width:760px;margin:40px auto;...} et son
+  // .adoc-sc-carrousel{display:flex;overflow-x:auto;...} entreraient en conflit avec une page
+  // fixe 1024×768 (le canevas déjà borné par le Lot 1, réutilisé TEL QUEL, jamais une seconde
+  // dimension inventée). Réutilise adocRenderCardHTML TEL QUEL pour chaque carte (régression #6 —
+  // jamais un second mécanisme de rendu de carte) ; seule la coquille de page change. Les règles
+  // CSS non liées à la mise en page (tableaux/citations/citation-pied de page/quote/carte) sont
+  // copiées VERBATIM depuis adocClinicalDocumentWrapHTML ci-dessus (même rendu visuel qu'à
+  // l'écran, jamais une seconde définition divergente) ; seules body/.adoc-sc-carrousel sont
+  // remplacées par le gabarit de page fixe @page — confirmé par test Playwright local (Chromium,
+  // même moteur PDF que Cloudflare Browser Rendering) avant construction : @page{size:1024px
+  // 768px}+page-break-after:always+preferCSSPageSize:true (côté Worker, cf.
+  // handleGenerateCarrouselPDF) produit exactement une page par .adoc-pdf-page, dimensionnée
+  // correctement (cf. rapport de lot).
+  function adocBuildCarrouselPdfPagesHTML(doc, tokens) {
+    const cssVars = adocTokensToCSSVars(tokens);
+    const pages = (doc.blocks || []).map(function (card, i) {
+      return '<div class="adoc-pdf-page">' + adocRenderCardHTML(card, i, doc.blocks.length) + '</div>';
+    }).join('\n');
+    return '<!DOCTYPE html><html lang="' + adocEsc(doc.language || 'fr') + '"><head><meta charset="UTF-8">' +
+      adocEditorExportFonts(doc) + '<title>' + adocEsc(doc.title) + ' — Studio Clinique</title>' +
+      '<style>:root{' + cssVars + '}' +
+      '@page{size:1024px 768px;margin:0;}' +
+      '*{box-sizing:border-box;}' +
+      'html,body{margin:0;padding:0;background:#fff;}' +
+      '[data-cc-editor-leaf]{white-space:pre-wrap}.adoc-sc-table-el{font:inherit;color:inherit}.adoc-sc-table[style*="color:"] th{color:inherit}' +
+      '.adoc-sc-doc{font-family:var(--adoc-sc-body-font,Georgia,serif);color:var(--adoc-sc-body-color,#2a2a28);line-height:1.65;}' +
+      '.adoc-sc-heading{color:var(--adoc-sc-heading-color,#102f31);font-family:var(--adoc-sc-heading-font,Georgia,serif);}' +
+      // Une page par carte — mêmes dimensions que le canevas de positionnement (Lot 1),
+      // jamais une valeur distincte qui désynchroniserait positionnement et export.
+      '.adoc-pdf-page{position:relative;width:1024px;height:768px;overflow:hidden;padding:24px;page-break-after:always;break-after:page;}' +
+      '.adoc-pdf-page:last-child{page-break-after:auto;break-after:auto;}' +
+      // position:relative — même principe que la feuille de style de l'espace de travail (Lot UI) :
+      // ancre tout élément absolument positionné éventuellement imbriqué (ex. poignée de
+      // redimensionnement, invisible ici faute de règle CSS dédiée) à LA CARTE, jamais à la page.
+      '.adoc-sc-card{position:relative;border:1px solid var(--adoc-sc-card-border,#c9c3b8);background:var(--adoc-sc-card-bg,#fff);border-radius:12px;padding:18px;}' +
+      '.adoc-sc-table-el{border-collapse:collapse;width:100%;}.adoc-sc-table-el th,.adoc-sc-table-el td{border:1px solid var(--adoc-sc-table-border,#c9c3b8);padding:6px 10px;}' +
+      '.adoc-sc-table-el th{background:var(--adoc-sc-table-header-bg,#dce8e6);color:var(--adoc-sc-table-header-color,#102f31);}' +
+      '.adoc-sc-cite{color:var(--adoc-sc-cite-color,#8a3f29);font-size:0.7em;}' +
+      '.adoc-sc-cite a{color:inherit;text-decoration:underline;}' +
+      '.adoc-sc-citations{margin-top:1.6em;padding-top:1em;border-top:1px solid var(--adoc-sc-table-border,#c9c3b8);font-size:13px;}' +
+      '.adoc-sc-citations-title{font-size:14px;margin:0 0 0.6em;color:var(--adoc-sc-heading-color,#102f31);}' +
+      '.adoc-sc-citations-list{margin:0;padding-left:1.4em;}' +
+      '.adoc-sc-citations-list li{margin-bottom:0.5em;}' +
+      '.adoc-sc-citation-excerpt{color:#5d6966;font-style:italic;}' +
+      '.adoc-cite-score{margin-left:4px;opacity:0.6;}' +
+      '.adoc-sc-quote{border-left:3px solid var(--adoc-sc-quote-border,#8a3f29);color:var(--adoc-sc-quote-color,#173f42);padding-left:12px;font-style:italic;}' +
+      '</style></head><body>' + pages + '</body></html>';
+  }
+
   // ── Export HTML autonome — même moteur, même fragment que l'aperçu (principe UX-1 :
   //    "aperçu = livrable"). Point 2 : le blocage qualité est réellement appliqué ici —
   //    si qc.exportAllowed est false, AUCUN html exploitable n'est retourné. ──
@@ -11373,6 +11424,10 @@ ${recent}`;
     // découpage par diapositive non fiable côté ancien moteur, cf. commentaire au bouton).
     const exportJpegBtn = document.getElementById('cc-ws-export-jpeg-btn');
     if (exportJpegBtn) exportJpegBtn.hidden = !(!isLegacy && docKind === 'carrousel');
+    // ITEM 75 Phase 1 Lot 2 — même condition de visibilité EXACTE que le bouton JPEG ci-dessus
+    // (même patron, jamais une seconde règle divergente).
+    const exportPdfCarrouselBtn = document.getElementById('cc-ws-export-pdf-carrousel-btn');
+    if (exportPdfCarrouselBtn) exportPdfCarrouselBtn.hidden = !(!isLegacy && docKind === 'carrousel');
 
     // Statut calculé UNIQUEMENT à partir de ce que le pipeline existant sait déjà dire
     // (qc.blocking) — pas d'état "Brouillon" inventé : rien dans le pipeline actuel ne
@@ -11562,6 +11617,75 @@ ${recent}`;
     } catch (exportErr) {
       console.warn('[Export JPEG] échec:', exportErr && exportErr.message);
       alert('Impossible d\'exporter en JPEG : ' + (exportErr && exportErr.message || 'erreur inconnue') + '.');
+    } finally {
+      if (btn) btn.disabled = false;
+      if (btnLabel && originalLabel) btnLabel.textContent = originalLabel;
+    }
+  };
+
+  // ITEM 75 Phase 1 Lot 2 — export PDF Carrousel (une carte = une page). MÊME compteur PARTAGÉ
+  // que adocFetchCarrouselSlideScreenshot ci-dessus (_adocLastScreenshotSlideCallAt /
+  // ADOC_SCREENSHOT_SLIDE_DELAY_MS) — la limite Cloudflare Browser Rendering (plan gratuit, 1
+  // requête/10s) s'applique à TOUT /browser-rendering, par COMPTE, jamais par mécanisme (cf.
+  // commentaire ci-dessus) : un export JPEG suivi immédiatement d'un export PDF doit respecter la
+  // même fenêtre, jamais un second compteur qui ignorerait l'autre mécanisme. Un SEUL appel ici
+  // (contrairement à l'export JPEG, un par diapositive) : le document PDF multi-pages est
+  // assemblé entièrement côté client puis envoyé en une fois, la pagination étant pilotée par
+  // Cloudflare via le CSS @page déjà présent dans le HTML (jamais des appels répétés).
+  async function adocFetchCarrouselPdf(workerUrl, pagesHtml, onWaiting) {
+    // Même correctif image cassée que adocFetchCarrouselSlideScreenshot ci-dessus (régression #6,
+    // même cause : adocRenderCardHTML seul ne résout jamais data-pexels/data-gen, contrairement au
+    // rendu complet adocRenderClinicalDocument qui appelle adocResolveImages).
+    if (pagesHtml.indexOf('data-pexels=') !== -1 || pagesHtml.indexOf('data-gen=') !== -1) {
+      pagesHtml = await adocResolveImages(pagesHtml);
+    }
+    const wait = ADOC_SCREENSHOT_SLIDE_DELAY_MS - (Date.now() - _adocLastScreenshotSlideCallAt);
+    if (wait > 0) {
+      if (onWaiting) onWaiting(Math.ceil(wait / 1000));
+      await new Promise(function (resolve) { setTimeout(resolve, wait); });
+    }
+    _adocLastScreenshotSlideCallAt = Date.now();
+    const workerUrlClean = workerUrl.replace(/\/+$/, '');
+    const r = await fetch(workerUrlClean + '/browser-rendering/generate-carrousel-pdf', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
+      body: JSON.stringify({ html: pagesHtml })
+    });
+    if (!r.ok) throw new Error('Échec de génération du PDF (' + r.status + ')');
+    return r;
+  }
+
+  // Item 75 Phase 1 Lot 2 — export PDF Carrousel structuré, une carte = une page (Carrousel
+  // structuré uniquement — même garde qu'export JPEG ci-dessus : le découpage legacy n'a pas de
+  // sélecteur DOM fiable). Investigation confirmée (rapport de lot) : aucun export PDF n'existait
+  // pour un document structuré avant ce lot (handleGeneratePDF/adocGeneratePDF* étaient du code
+  // mort, cf. investigation précédente) — ceci est le premier chemin réel, jamais une extension
+  // d'un mécanisme préexistant qui n'existait pas.
+  window.adocWsExportCarrouselPDF = async function () {
+    adocEditorSync();
+    const storeKey = window._adocWsState.storeKey;
+    const art = window._adocArtifacts?.[storeKey];
+    if (!art || art._adocGenerationEngine === 'legacy-html') return;
+    const doc = art._adocStructuredDoc;
+    if (!doc || doc.documentKind !== 'carrousel' || !Array.isArray(doc.blocks) || !doc.blocks.length) return;
+    const btn = document.getElementById('cc-ws-export-pdf-carrousel-btn');
+    const btnLabel = btn?.querySelector('span');
+    const originalLabel = btnLabel?.textContent;
+    if (btn) btn.disabled = true;
+    if (btnLabel) btnLabel.textContent = 'Export en cours…';
+    try {
+      // Même charte que l'aperçu/export HTML (cohérence déjà exigée par UX-1) — re-rendu
+      // uniquement pour obtenir les tokens de charte, jamais pour reconstruire doc.blocks.
+      const rendered = await window.adocRenderClinicalDocument(doc, art._adocStructuredSnapshot, art._adocRenderManifestOverride || null);
+      const workerUrl = adocGetWorkerUrl();
+      const pagesHtml = adocBuildCarrouselPdfPagesHTML(doc, rendered.tokens);
+      const r = await adocFetchCarrouselPdf(workerUrl, pagesHtml, function (waitS) {
+        if (btnLabel) btnLabel.textContent = 'Export en cours… (limite Cloudflare, patience ' + waitS + 's)';
+      });
+      const blob = await r.blob();
+      adocDownloadArtifact(blob, (art.name || doc.title || 'carrousel') + '.pdf');
+    } catch (exportErr) {
+      console.warn('[Export PDF Carrousel] échec:', exportErr && exportErr.message);
+      alert('Impossible d\'exporter en PDF : ' + (exportErr && exportErr.message || 'erreur inconnue') + '.');
     } finally {
       if (btn) btn.disabled = false;
       if (btnLabel && originalLabel) btnLabel.textContent = originalLabel;
