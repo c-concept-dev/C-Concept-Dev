@@ -13,8 +13,13 @@
  * 1 not (quantites), 45 minLength, 2 maxLength, 2 minimum, 1 maxItems, 1 minItems 2, 7 $ref locaux vers
  * definitions, 17 enum, 17 const, 20 additionalProperties:false, types union avec null.
  *
- * LA PROJECTION (`schemaPourAnthropic`, couche fournisseur uniquement) : oneOf → anyOf quand les branches
- * sont PROUVÉES disjointes ; règles logiques (if/then/else, not, contains…) et contraintes de valeur
+ * CORRECTION #2, PREUVE FOURNISSEUR : la projection oneOf → anyOf (avec type ['object','null'] à côté) a été
+ * refusée — « For 'anyOf', 'type' is not supported ». Un nœud ne peut porter anyOf et type ensemble. Le oneOf est
+ * désormais projeté en UN objet unique : discriminant `type` requis à enum réunie, propriétés des branches
+ * réunies et optionnelles, nullable, additionalProperties:false — moins expressif, jamais plus permissif que ce
+ * que violationsContreSchema() exige ensuite (exclusivité des branches, required par branche, minItems 2).
+ *
+ * LA PROJECTION (`schemaPourAnthropic`, couche fournisseur uniquement) : oneOf → objet unique + discriminant ; règles logiques (if/then/else, not, contains…) et contraintes de valeur
  * (minLength, maxLength, minimum, maxItems, minItems > 1…) retirées de la projection et reportées mot pour
  * mot dans la description du nœud ; tout le reste (types, enum, const, required, additionalProperties:false,
  * $ref/definitions, structure) inchangé. Le canonique n'est jamais muté.
@@ -166,8 +171,18 @@ test('T1 · NO_ONEOF_AFTER_ANTHROPIC_ADAPTATION : plus aucun oneOf ni aucun mot-
     if (n.additionalProperties !== undefined) assert.equal(n.additionalProperties, false, chemin);
     if (n.$ref !== undefined) assert.match(n.$ref, /^#\/definitions\//, `référence locale seulement : ${chemin}`);
   });
-  assert.deepEqual(Object.keys(comptes).sort(), ['$ref', 'additionalProperties', 'anyOf', 'const', 'definitions', 'description', 'enum', 'items', 'minItems', 'properties', 'required', 'type'], 'le vocabulaire restant est exactement le sous-ensemble pris en charge');
+  assert.deepEqual(Object.keys(comptes).sort(), ['$ref', 'additionalProperties', 'const', 'definitions', 'description', 'enum', 'items', 'minItems', 'properties', 'required', 'type'], 'le vocabulaire restant est exactement le sous-ensemble pris en charge — sans anyOf');
   assert.deepEqual(clone(adapt(projete)), clone(projete), 'idempotente');
+});
+
+test('T1b · ZERO_UNSUPPORTED_ANYOF_PATTERN : aucun nœud ne porte anyOf à côté de type (motif refusé : « For \'anyOf\', \'type\' is not supported ») — et plus aucun anyOf du tout dans la projection 3.4', () => {
+  const { api, adapt } = page();
+  const projete = adapt(api.schema);
+  parcourir(projete, (n, chemin) => { if (n.anyOf !== undefined) assert.equal(n.type, undefined, `${chemin} : anyOf et type ensemble`); if (n.oneOf !== undefined || n.allOf !== undefined) assert.fail(`${chemin} : combinateur restant`); });
+  assert.equal(JSON.stringify(projete).includes('"anyOf"'), false);
+  /* La seule source d'anyOf restante (BETA-04, enum à type union) retire elle aussi le type du nœud. */
+  const b = clone(adapt({ type: ['string', 'null'], enum: ['a', null] }));
+  assert.equal(b.type, undefined); assert.ok(b.anyOf);
 });
 
 test('T2 · CANONICAL_SCHEMA_UNCHANGED : le canonique est deep-equal avant/après, non muté, et son empreinte est celle du guard', () => {
@@ -185,16 +200,17 @@ test('T2 · CANONICAL_SCHEMA_UNCHANGED : le canonique est deep-equal avant/aprè
 });
 
 /** Paires (chemin, valeur) d'un mot-clé, hors sous-arbres conditionnels, avec oneOf renommé anyOf dans les chemins. */
+const HORS_FUSION = (chemin) => chemin.startsWith('$.definitions.preference_proposable');
 function releve(s, cle) {
   const out = [];
-  parcourir(s, (n, chemin, cond) => { if (!cond && n[cle] !== undefined) out.push([chemin.replace(/\.oneOf\[/g, '.anyOf['), JSON.stringify(n[cle])]); });
+  parcourir(s, (n, chemin, cond) => { if (!cond && !HORS_FUSION(chemin) && n[cle] !== undefined) out.push([chemin, JSON.stringify(n[cle])]); });
   return out.sort((a, b) => a[0].localeCompare(b[0]));
 }
 
-test('T3 · REQUIRED_PRESERVED : chaque required du canonique (hors règles conditionnelles) est identique, au même chemin, dans la projection', () => {
+test('T3 · REQUIRED_PRESERVED : chaque required du canonique (hors règles conditionnelles et hors le oneOf fusionné, traité en T7) est identique, au même chemin, dans la projection', () => {
   const { api, adapt } = page();
   const c = releve(api.schema, 'required'), p = releve(adapt(api.schema), 'required');
-  assert.ok(c.length >= 20); assert.deepEqual(p, c);
+  assert.ok(c.length >= 18); assert.deepEqual(p, c);
 });
 
 test('T4 · ENUMS_PRESERVED : chaque enum et chaque const hors conditionnels sont identiques ; les enums des conditions vivent dans les règles reportées', () => {
@@ -203,18 +219,18 @@ test('T4 · ENUMS_PRESERVED : chaque enum et chaque const hors conditionnels son
   assert.deepEqual(releve(projete, 'enum'), releve(api.schema, 'enum'));
   assert.deepEqual(releve(projete, 'const'), releve(api.schema, 'const'));
   assert.equal(releve(api.schema, 'enum').length, 10);
-  assert.deepEqual(releve(projete, 'const').map(([c]) => c), ['$.definitions.preference_proposable.anyOf[1].properties.type', '$.definitions.preference_proposable.anyOf[2].properties.type', '$.properties.version']);
+  assert.deepEqual(releve(projete, 'const').map(([c]) => c), ['$.properties.version']);
 });
 
 test('T5 · OBJECT_STRUCTURE_PRESERVED : mêmes properties, mêmes types, mêmes additionalProperties:false (20), mêmes $ref, mêmes items — aucun aplatissement', () => {
   const { api, adapt } = page();
   const projete = adapt(api.schema);
-  const cles = (s) => { const out = []; parcourir(s, (n, chemin, cond) => { if (!cond && n.properties) out.push([chemin.replace(/\.oneOf\[/g, '.anyOf['), Object.keys(n.properties).join(',')]); }); return out.sort(); };
+  const cles = (s) => { const out = []; parcourir(s, (n, chemin, cond) => { if (!cond && !HORS_FUSION(chemin) && n.properties) out.push([chemin, Object.keys(n.properties).join(',')]); }); return out.sort(); };
   assert.deepEqual(cles(projete), cles(api.schema));
   assert.deepEqual(releve(projete, 'type'), releve(api.schema, 'type'));
   assert.deepEqual(releve(projete, '$ref'), releve(api.schema, '$ref'));
   assert.deepEqual(releve(projete, 'additionalProperties'), releve(api.schema, 'additionalProperties'));
-  assert.equal(releve(projete, 'additionalProperties').length, 20);
+  assert.equal(releve(projete, 'additionalProperties').length, 18, '20 dans le canonique : 2 sont dans les branches fusionnées, 1 sur l’objet fusionné (T7)');
   assert.deepEqual(clone(Object.keys(projete.definitions)), clone(Object.keys(api.schema.definitions)));
   assert.deepEqual(clone(projete.required), clone(api.schema.required));
   assert.equal(projete.$schema, undefined); assert.equal(projete.$id, undefined); assert.equal(api.schema.$schema, 'http://json-schema.org/draft-07/schema#');
@@ -227,44 +243,49 @@ test('T6 · NULLABLE_CASES : les unions de type avec null restent telles quelles
   assert.ok(unions.length >= 8, 'le canonique a des unions avec null');
   assert.deepEqual(releve(projete, 'type').filter(([, t]) => t.includes('null')), unions);
   assert.deepEqual(clone(projete.definitions.preuve.type), ['object', 'null']);
-  assert.deepEqual(clone(projete.definitions.preference_proposable.type), ['object', 'null']);
-  assert.deepEqual(clone(projete.definitions.preference_proposable.anyOf[0]), { type: 'null' });
+  assert.deepEqual(clone(projete.definitions.preference_proposable.type), ['object', 'null'], 'la branche null du oneOf devient la nullabilité de l’objet fusionné');
   assert.deepEqual(clone(adapt({ type: ['string', 'null'], enum: ['a', null] })), { anyOf: [{ type: 'string', enum: ['a'] }, { type: 'null', enum: [null] }] });
-  assert.deepEqual(clone(adapt({ oneOf: [{ type: 'string' }, { type: 'null' }] })), { anyOf: [{ type: 'string' }, { type: 'null' }] });
+  assert.throws(() => adapt({ oneOf: [{ type: 'string' }, { type: 'null' }] }), /non projetable/, 'un oneOf de primitives n’a pas de projection prouvée : refus explicite');
 });
 
-test('T7 · DISCRIMINATED_BRANCHES : preference_proposable — trois branches prouvées disjointes (null / type=nouvelle / type=corroboration) → anyOf ; un oneOf non prouvé disjoint est refusé', () => {
+test('T7 · MERGED_OBJECT_WITH_DISCRIMINANT : preference_proposable → un objet unique nullable, discriminant `type` requis à enum [nouvelle, corroboration], propriétés des deux branches conservées et optionnelles, additionalProperties:false, règle oneOf reportée mot pour mot ; oneOf sans projection sûre → refus', () => {
   const { api, adapt } = page();
   const canon = api.schema.definitions.preference_proposable;
-  const p = adapt(api.schema).definitions.preference_proposable;
-  assert.equal(p.oneOf, undefined); assert.equal(p.anyOf.length, 3);
-  assert.deepEqual(clone(p.anyOf), clone(canon.oneOf.map((b) => adapt(b))), 'chaque branche est la projection de la branche canonique');
-  assert.deepEqual(clone(p.anyOf[1].required), ['type', 'texte']); assert.deepEqual(clone(p.anyOf[2].required), ['type', 'preference_id', 'confirmations_invoquees']);
-  assert.equal(p.anyOf[1].properties.type.const, 'nouvelle'); assert.equal(p.anyOf[2].properties.type.const, 'corroboration');
-  assert.equal(p.anyOf[2].properties.confirmations_invoquees.minItems, 1);
-  assert.match(p.anyOf[2].properties.confirmations_invoquees.description, /minItems 2/);
-  /* Disjonction prouvée par discriminant enum, par types primitifs distincts ; refus sinon. */
-  assert.ok(adapt({ oneOf: [{ type: 'object', required: ['k'], properties: { k: { enum: ['a', 'b'] } } }, { type: 'object', required: ['k'], properties: { k: { enum: ['c'] } } }] }).anyOf);
-  assert.ok(adapt({ oneOf: [{ type: 'string' }, { type: 'integer' }] }).anyOf);
-  assert.throws(() => adapt({ oneOf: [{ type: 'object', properties: { a: { type: 'string' } } }, { type: 'object', properties: { b: { type: 'string' } } }] }), /non prouvées disjointes/);
-  assert.throws(() => adapt({ oneOf: [{ type: 'object', required: ['k'], properties: { k: { enum: ['a', 'b'] } } }, { type: 'object', required: ['k'], properties: { k: { enum: ['b'] } } }] }), /non prouvées disjointes/);
-  assert.throws(() => adapt({ oneOf: [{ type: 'number' }, { type: 'integer' }] }), /non prouvées disjointes/);
-  assert.throws(() => adapt({ oneOf: [{ type: 'object', properties: { k: { const: 'a' } } }, { type: 'object', properties: { k: { const: 'b' } } }] }), /non prouvées disjointes/, 'sans required des deux côtés, rien n’est prouvé');
-  /* Un anyOf déjà présent est conservé par conjonction, jamais écrasé. */
-  assert.deepEqual(clone(adapt({ anyOf: [{ type: 'string' }], oneOf: [{ type: 'string' }, { type: 'null' }] })), { anyOf: [{ type: 'string' }], allOf: [{ anyOf: [{ type: 'string' }, { type: 'null' }] }] });
+  const p = clone(adapt(api.schema).definitions.preference_proposable);
+  assert.equal(p.oneOf, undefined); assert.equal(p.anyOf, undefined); assert.equal(p.allOf, undefined);
+  assert.deepEqual(p.type, ['object', 'null']); assert.equal(p.additionalProperties, false);
+  assert.deepEqual(p.required, ['type']);
+  assert.deepEqual(Object.keys(p.properties), ['type', 'texte', 'preference_id', 'confirmations_invoquees']);
+  assert.deepEqual(p.properties.type, { enum: ['nouvelle', 'corroboration'], type: 'string' }, 'PREFERENCE_DISCRIMINANT_PRESERVED');
+  /* NO_BRANCH_INFORMATION_LOST : chaque propriété de branche est la projection de sa propriété canonique. */
+  assert.deepEqual(p.properties.texte, clone(adapt(canon.oneOf[1].properties.texte)));
+  assert.deepEqual(p.properties.preference_id, clone(adapt(canon.oneOf[2].properties.preference_id)));
+  assert.deepEqual(p.properties.confirmations_invoquees, clone(adapt(canon.oneOf[2].properties.confirmations_invoquees)));
+  assert.equal(p.properties.confirmations_invoquees.minItems, 1); assert.match(p.properties.confirmations_invoquees.description, /minItems 2/);
+  assert.equal(p.description, 'Règle vérifiée après réponse : ' + JSON.stringify({ oneOf: clone(canon.oneOf) }) + '.');
+  /* Généricité : discriminant par enum, propriété commune identique tolérée, null au plus une fois ; refus sinon. */
+  const A = { type: 'object', additionalProperties: false, required: ['k', 'c'], properties: { k: { enum: ['a', 'b'] }, c: { type: 'string' }, x: { type: 'integer' } } };
+  const B = { type: 'object', additionalProperties: false, required: ['k', 'c', 'y'], properties: { k: { const: 'c' }, c: { type: 'string' }, y: { type: 'boolean' } } };
+  assert.deepEqual(clone(adapt({ oneOf: [A, B] })), { description: 'Règle vérifiée après réponse : ' + JSON.stringify({ oneOf: [A, B] }) + '.', type: 'object', additionalProperties: false, required: ['k', 'c'], properties: { k: { enum: ['a', 'b', 'c'], type: 'string' }, c: { type: 'string' }, x: { type: 'integer' }, y: { type: 'boolean' } } });
+  assert.throws(() => adapt({ oneOf: [A, { ...B, properties: { ...B.properties, k: { const: 'b' } } }] }), /aucun discriminant/, 'valeurs de discriminant non disjointes');
+  assert.throws(() => adapt({ oneOf: [A, { ...B, properties: { ...B.properties, c: { type: 'integer' } } }] }), /diffère selon la branche/);
+  assert.throws(() => adapt({ oneOf: [A, { ...B, required: ['c', 'y'] }] }), /aucun discriminant/, 'discriminant non requis dans une branche');
+  assert.throws(() => adapt({ oneOf: [{ type: 'null' }, { type: 'null' }, A] }), /au plus une branche null/);
+  assert.throws(() => adapt({ oneOf: [A, { type: 'object', properties: { k: { const: 'z' } } }] }), /additionalProperties false, properties et required/);
+  assert.throws(() => adapt({ oneOf: [A, { type: 'string' }] }), /additionalProperties false, properties et required/);
 });
 
-test('T7b · RULES_REPORTED_VERBATIM : les 14 règles (13 if/then + 1 not) et chaque contrainte de valeur hors conditionnel sont reportées mot pour mot dans la description du nœud porteur', () => {
+test('T7b · RULES_REPORTED_VERBATIM : les 15 règles (13 if/then + 1 not + 1 oneOf) et chaque contrainte de valeur hors conditionnel sont reportées mot pour mot dans la description du nœud porteur', () => {
   const { api, adapt } = page();
   const projete = adapt(api.schema);
   let regles = 0; parcourir(projete, (n) => { if (n.description) regles += (n.description.match(/Règle vérifiée après réponse : /g) || []).length; });
-  assert.equal(regles, 14);
+  assert.equal(regles, 15, '13 if/then + 1 not + 1 oneOf');
   /* Chaque règle canonique, sérialisée telle quelle, figure dans une description. */
   const descriptions = []; parcourir(projete, (n) => { if (n.description) descriptions.push(n.description); });
   const tout = descriptions.join('\n');
   parcourir(api.schema, (n, chemin, cond) => {
     if (cond) return;
-    const regle = {}; for (const k of ['if', 'then', 'else', 'not', 'contains']) if (n[k] !== undefined) regle[k] = n[k];
+    const regle = {}; for (const k of ['if', 'then', 'else', 'not', 'contains', 'oneOf']) if (n[k] !== undefined) regle[k] = n[k];
     if (Object.keys(regle).length) assert.ok(tout.includes('Règle vérifiée après réponse : ' + JSON.stringify(regle) + '.'), chemin);
     for (const k of ['minLength', 'maxLength', 'minimum', 'maximum', 'maxItems']) if (n[k] !== undefined) assert.ok(tout.includes(`${k} ${JSON.stringify(n[k])}`), `${chemin}.${k}`);
     if (n.minItems > 1) assert.ok(tout.includes(`minItems ${n.minItems}`), chemin);
@@ -285,6 +306,10 @@ test('T8 · POST_VALIDATION_STILL_REJECTS_INVALID : une réponse valide passe ; 
   const valide = analyseFixture();
   assert.deepEqual(clone(violations(api.schema, valide)), [], 'la fixture canonique est conforme');
   const cas = [
+    ['CANONICAL_VALIDATION_NEW : type=nouvelle sans texte', (a) => { a.apprentissage.preference_proposable = { type: 'nouvelle' }; }, /preference_proposable\.texte : requis \(branche 1\)/],
+    ['CANONICAL_VALIDATION_NEW : type=nouvelle avec preference_id (propriété de l’autre branche, tolérée par la projection)', (a) => { a.apprentissage.preference_proposable = { type: 'nouvelle', texte: 'x', preference_id: 'p' }; }, /preference_proposable\.preference_id : propriété non prévue \(branche 1\)/],
+    ['CANONICAL_VALIDATION_CORROBORATION : type=corroboration sans preference_id ni confirmations', (a) => { a.apprentissage.preference_proposable = { type: 'corroboration' }; }, /preference_proposable\.preference_id : requis \(branche 2\)/],
+    ['discriminant hors enum', (a) => { a.apprentissage.preference_proposable = { type: 'autre', texte: 'x' }; }, /oneOf exige exactement une branche \(0 satisfaite\)/],
     ['oneOf exact (branche corroboration sans preference_id)', (a) => { a.apprentissage.preference_proposable = { type: 'corroboration', texte: 'x' }; }, /preference_proposable : aucune branche anyOf|oneOf exige exactement une branche/],
     ['minItems 2 reporté', (a) => { a.apprentissage.preference_proposable = { type: 'corroboration', preference_id: 'p1', confirmations_invoquees: ['une'] }; }, /confirmations_invoquees : minItems 2/],
     ['not reporté (min et max null)', (a) => { a.livrable.quantites = { min: null, max: null, unite: null }; }, /quantites : forme interdite par not/],
@@ -306,6 +331,11 @@ test('T8 · POST_VALIDATION_STILL_REJECTS_INVALID : une réponse valide passe ; 
     assert.ok(v.length, `${nom} : aucune violation détectée`);
     assert.ok(v.some((m) => attendu.test(m)), `${nom} : ${v.join(' | ')}`);
     for (const m of v) assert.equal(/extrême|délai|commentaire=|usage clair/.test(m.replace(/^\S+ /, '')), false, 'les messages ne citent jamais la valeur reçue');
+  }
+  /* NULL_CASE : null est la forme canonique valide ; les deux objets complets aussi. */
+  for (const pref of [null, { type: 'nouvelle', texte: 'x' }, { type: 'corroboration', preference_id: 'p', confirmations_invoquees: ['a', 'b'] }]) {
+    const a = analyseFixture(); a.apprentissage.preference_proposable = pref;
+    assert.deepEqual(clone(violations(api.schema, a)), [], JSON.stringify(pref));
   }
   /* Le transport : une réponse 200 non conforme est rejetée avant d'être rendue ; une conforme passe. */
   let corps = analyseFixture(); corps.apprentissage.preference_proposable = { type: 'nouvelle', texte: '' };
@@ -356,6 +386,8 @@ test('T-PAYLOAD · le corps de l’appel #1 tel que le transport le construit : 
   assert.equal(texte.includes('"oneOf"'), false);
   const comptes = motsCles(b.output_config.format.schema);
   for (const k of NON_SUPPORTES) assert.equal(comptes[k], undefined, k);
+  assert.deepEqual(Object.keys(comptes).sort(), ['$ref', 'additionalProperties', 'const', 'definitions', 'description', 'enum', 'items', 'minItems', 'properties', 'required', 'type'], 'REAL_PAYLOAD_VOCABULARY');
+  parcourir(b.output_config.format.schema, (n, chemin) => { assert.equal(n.anyOf, undefined, chemin); });
   assert.ok(texte.length > 11000 && texte.length < 20000, `schéma projeté : ${texte.length} octets`);
   assert.ok(JSON.stringify(b).length < 40000);
 });

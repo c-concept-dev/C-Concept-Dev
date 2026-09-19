@@ -5866,15 +5866,18 @@ function schemaPourAnthropic(schema){
     }
     if(restants.length)out.allOf=restants;else delete out.allOf;
   }
-  /* 5. oneOf → anyOf, seulement si les branches CANONIQUES sont prouvées deux à deux disjointes. */
+  /* 5. oneOf → OBJET UNIQUE + DISCRIMINANT (SCHEMA-ANTHROPIC-01, correction #2). Preuve fournisseur : la
+     projection oneOf → anyOf est refusée — « For 'anyOf', 'type' is not supported » (un nœud ne peut porter
+     anyOf et type ensemble). Un oneOf de branches objet (plus, au choix, une branche null) est donc projeté en
+     UN SEUL objet : discriminant requis à enum réunie, propriétés de toutes les branches réunies et
+     optionnelles, additionalProperties:false, nullable si une branche null existe. Volontairement MOINS
+     expressif — l'exclusivité des branches est reportée mot pour mot et exigée après réponse par
+     violationsContreSchema() contre le canonique. Tout autre oneOf est refusé (TypeError). */
   if(Array.isArray(out.oneOf)){
-    const branches=out.oneOf;
-    for(let i=0;i<schema.oneOf.length;i++)for(let j=i+1;j<schema.oneOf.length;j++){
-      if(!schemaBranchesDisjointes(schema.oneOf[i],schema.oneOf[j]))throw new TypeError('oneOf non projetable vers Anthropic : branches '+i+' et '+j+' non prouvées disjointes.');
-    }
+    schemaAjouterDescription(out,'Règle vérifiée après réponse : '+JSON.stringify({oneOf:schema.oneOf})+'.');
+    const fusion=schemaFusionnerBranchesObjet(out.oneOf);
     delete out.oneOf;
-    if(out.anyOf)out.allOf=[...(out.allOf||[]),{anyOf:branches}];
-    else out.anyOf=branches;
+    for(const key of Object.keys(fusion))out[key]=fusion[key];
   }
   /* 6. BETA-04 — une enum à type union devient l'union de ses valeurs par type ; null reste null. */
   if(Array.isArray(out.type)&&Array.isArray(out.enum)){
@@ -5891,32 +5894,34 @@ const SCHEMA_ANTHROPIC_REGLES_REPORTEES=['if','then','else','not','contains','de
 const SCHEMA_ANTHROPIC_CONTRAINTES_REPORTEES=['minLength','maxLength','minimum','maximum','exclusiveMinimum','exclusiveMaximum','multipleOf','pattern','maxItems','uniqueItems','minProperties','maxProperties'];
 function schemaAjouterDescription(out,texte){out.description=(out.description?out.description+' ':'')+texte}
 function schemaTypeJson(v){return v===null?'null':Array.isArray(v)?'array':typeof v==='object'?'object':Number.isInteger(v)?'integer':typeof v}
-function schemaTypesDe(s){
-  if(!s||typeof s!=='object')return null;
-  if(Array.isArray(s.type))return s.type;
-  if(typeof s.type==='string')return [s.type];
-  if(s.const!==undefined)return [schemaTypeJson(s.const)];
-  if(Array.isArray(s.enum))return [...new Set(s.enum.map(schemaTypeJson))];
-  return null;
-}
-/* Deux branches sont prouvées disjointes si leurs types ne se recouvrent pas, ou — pour deux objets — si une
-   propriété requise des deux côtés porte des const/enum sans valeur commune. Tout autre cas = non prouvé. */
-function schemaBranchesDisjointes(a,b){
-  const ta=schemaTypesDe(a),tb=schemaTypesDe(b);
-  if(ta&&tb){
-    const numerique=t=>t==='integer'||t==='number';
-    const communs=ta.filter(t=>tb.includes(t)||(numerique(t)&&tb.some(numerique)));
-    if(!communs.length)return true;
-    if(communs.some(t=>t!=='object'))return false;
-  }
-  const pa=(a&&a.properties)||{},pb=(b&&b.properties)||{};
+/* Fusion des branches d'un oneOf en un objet unique : exige des branches objet (additionalProperties:false,
+   properties, required) et au plus une branche {type:'null'} ; exige un discriminant — propriété requise dans
+   CHAQUE branche objet, à const/enum sans valeur commune entre branches ; exige qu'une même propriété présente
+   dans plusieurs branches y soit identique. Sinon : non projetable, TypeError. */
+function schemaFusionnerBranchesObjet(branches){
+  const nulles=branches.filter(b=>b&&b.type==='null'&&Object.keys(b).every(k=>k==='type'||k==='description'));
+  const objets=branches.filter(b=>!nulles.includes(b));
+  if(nulles.length>1||!objets.length)throw new TypeError('oneOf non projetable vers Anthropic : branches attendues = objets, plus au plus une branche null.');
+  for(const b of objets)if(!b||b.type!=='object'||b.additionalProperties!==false||!b.properties||!Array.isArray(b.required))throw new TypeError('oneOf non projetable vers Anthropic : chaque branche objet doit porter type object, additionalProperties false, properties et required.');
   const valeurs=p=>p&&p.const!==undefined?[p.const]:p&&Array.isArray(p.enum)?p.enum:null;
-  for(const nom of Object.keys(pa)){
-    if(!((a.required||[]).includes(nom)&&(b.required||[]).includes(nom)))continue;
-    const va=valeurs(pa[nom]),vb=valeurs(pb[nom]);
-    if(va&&vb&&!va.some(v=>vb.some(w=>JSON.stringify(v)===JSON.stringify(w))))return true;
+  const candidats=Object.keys(objets[0].properties).filter(nom=>objets.every(b=>b.required.includes(nom)&&valeurs(b.properties[nom])));
+  const discriminant=candidats.find(nom=>{
+    const listes=objets.map(b=>valeurs(b.properties[nom]));
+    return listes.every((va,i)=>listes.every((vb,j)=>i===j||!va.some(v=>vb.some(w=>JSON.stringify(v)===JSON.stringify(w)))));
+  });
+  if(!discriminant)throw new TypeError('oneOf non projetable vers Anthropic : aucun discriminant requis à valeurs disjointes.');
+  const properties={};
+  for(const b of objets)for(const nom of Object.keys(b.properties)){
+    if(nom===discriminant)continue;
+    if(properties[nom]&&JSON.stringify(properties[nom])!==JSON.stringify(b.properties[nom]))throw new TypeError('oneOf non projetable vers Anthropic : la propriété « '+nom+' » diffère selon la branche.');
+    properties[nom]=b.properties[nom];
   }
-  return false;
+  const enumeration=[];for(const b of objets)for(const v of valeurs(b.properties[discriminant]))enumeration.push(v);
+  const types=[...new Set(enumeration.map(schemaTypeJson))];
+  const discriminantProjete={enum:enumeration};if(types.length===1)discriminantProjete.type=types[0];
+  const descriptions=objets.map(b=>b.properties[discriminant].description).filter(Boolean);if(descriptions.length)discriminantProjete.description=descriptions.join(' ');
+  const requis=objets[0].required.filter(nom=>objets.every(b=>b.required.includes(nom)));
+  return {type:nulles.length?['object','null']:'object',additionalProperties:false,required:requis,properties:Object.assign({[discriminant]:discriminantProjete},properties)};
 }
 /* VALIDATION CANONIQUE APRÈS RÉPONSE — le pendant de la projection : tout ce que la projection a dû reporter
    (règles if/then/not/contains, minLength, minimum, minItems > 1, maxItems, oneOf exact…) est vérifié ici,
@@ -5967,7 +5972,8 @@ function violationsContreSchema(schema,valeur,chemin,racine){
   }
   if(Array.isArray(schema.allOf))schema.allOf.forEach(s=>v.push(...violationsContreSchema(s,valeur,chemin,racine)));
   /* Aucune branche satisfaite : la plus proche (le moins de violations) explique pourquoi. */
-  const brancheLaPlusProche=listes=>{const poids=l=>(l.some(m=>m.startsWith(chemin+' : type attendu'))?1000:0)+l.length;const i=listes.reduce((m,l,k)=>poids(l)<poids(listes[m])?k:m,0);return listes[i].map(m=>m+' (branche '+i+')')};
+  /* Poids : type racine incompatible (1000) > discriminant contredit (10 par const/enum d'une propriété directe) > nombre de violations. */
+  const brancheLaPlusProche=listes=>{const poids=l=>(l.some(m=>m.startsWith(chemin+' : type attendu'))?1000:0)+l.filter(m=>/^[^ ]+ : (valeur attendue|valeur hors enum)/.test(m)&&m.split(' : ')[0].slice(chemin.length+1).indexOf('.')===-1&&m.startsWith(chemin+'.')).length*10+l.length;const i=listes.reduce((m,l,k)=>poids(l)<poids(listes[m])?k:m,0);return listes[i].map(m=>m+' (branche '+i+')')};
   if(Array.isArray(schema.anyOf)){
     const listes=schema.anyOf.map(s=>violationsContreSchema(s,valeur,chemin,racine));
     if(!listes.some(l=>l.length===0))v.push(chemin+' : aucune branche anyOf satisfaite',...brancheLaPlusProche(listes));

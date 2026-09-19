@@ -198,7 +198,7 @@ test('T-MCNT01-11 : HTML canonique inchangé, dette ouverte', () => {
      qu'un refus de sortie fournisseur cesse d'être compté comme un défaut de notre code. Aucune
      règle, aucun prompt, aucun schéma, aucun comportement d'interface. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    'b5e787c34ae3db391d96f37edaadc17369c02bff5d6eff2275971ae4d99003d9',
+    '5029b9d0d7f5716834dfe713e7a2a65e0e64c5fba39f2161a2856773800e2188',
     'CANONICAL_HTML_CHANGED = NO — l’empreinte est celle que le lot précédent a laissée');
   const registre = lire('docs/OPEN-DEBTS.md');
   const ouvertes = registre.slice(registre.indexOf('## Ouvertes'), registre.indexOf('## Fermées'));
