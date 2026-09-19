@@ -7968,6 +7968,81 @@ ${recent}`;
     const y = Math.max(0, Math.min(containerHeight - height, Number(style.y)));
     return Object.assign({}, style, { x: x, y: y, width: width, height: height });
   }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // ITEM 75 Phase 3 — aimantation / guides d'alignement pendant le GLISSEMENT (jamais le
+  // redimensionnement, hors périmètre investigué/demandé pour ce lot). Même niveau, jamais de
+  // croisement : cartes contre autres cartes + canevas 1024×768 ; éléments imbriqués contre
+  // autres éléments de la MÊME carte + la carte elle-même — les deux branches d'onmousedown
+  // fournissent déjà, chacune, le bon ensemble de rectangles de référence (calculé UNE SEULE FOIS
+  // au mousedown, jamais recalculé à chaque tick — investigation confirmée : aucun autre élément
+  // ne bouge pendant CE geste). Seuil fixe, sans lien avec le seuil de 3px de démarrage du
+  // glissement (question différente).
+  // ═══════════════════════════════════════════════════════════════════════
+  var ADOC_ALIGN_SNAP_THRESHOLD = 8;
+
+  // Ajuste UN SEUL axe (x OU y) : compare nos 3 bords/centre (début/centre/fin) à la liste de
+  // candidats (bords/centre de tous les rectangles de référence, déjà à plat dans `candidates`),
+  // retient le candidat le plus proche SOUS le seuil (toutes comparaisons confondues, jamais un
+  // ordre de priorité arbitraire bord-avant-centre). Retourne la position ajustée et la
+  // coordonnée du guide à afficher (null si aucune accroche).
+  function adocSnapAxis(pos, size, candidates) {
+    const ours = [pos, pos + size / 2, pos + size];
+    let best = null;
+    ours.forEach(function (ourEdge) {
+      candidates.forEach(function (c) {
+        const diff = Math.abs(ourEdge - c);
+        if (diff <= ADOC_ALIGN_SNAP_THRESHOLD && (!best || diff < best.diff)) best = { diff: diff, delta: c - ourEdge, candidate: c };
+      });
+    });
+    return best ? { pos: pos + best.delta, guide: best.candidate } : { pos: pos, guide: null };
+  }
+  // Point d'entrée partagé (régression #6, une seule implémentation pour les deux niveaux carte/
+  // élément imbriqué — seuls les rectangles de référence passés en argument diffèrent selon
+  // l'appelant). `siblingRects`/`containerWidth`/`containerHeight` déjà dans le même référentiel
+  // que `style.x/y` (relatif au conteneur), aucune conversion supplémentaire nécessaire ici.
+  function adocComputeAlignmentSnap(style, siblingRects, containerWidth, containerHeight) {
+    const width = Number(style.width), height = Number(style.height);
+    const xCandidates = [0, containerWidth / 2, containerWidth];
+    const yCandidates = [0, containerHeight / 2, containerHeight];
+    siblingRects.forEach(function (r) {
+      xCandidates.push(r.x, r.x + r.width / 2, r.x + r.width);
+      yCandidates.push(r.y, r.y + r.height / 2, r.y + r.height);
+    });
+    const snappedX = adocSnapAxis(Number(style.x), width, xCandidates);
+    const snappedY = adocSnapAxis(Number(style.y), height, yCandidates);
+    return { x: snappedX.pos, y: snappedY.pos, guideV: snappedX.guide, guideH: snappedY.guide };
+  }
+  // Guides — DEUX <div> éphémères (une ligne verticale, une horizontale), créées à la demande
+  // dans le CONTENEUR déjà utilisé pour le bornage (jamais un troisième conteneur inventé),
+  // jamais posées par adocRenderCardHTML/adocRenderBlockHTML (qui produisent le HTML persisté/
+  // exporté — un guide n'existe QUE pendant un geste en cours, jamais dans un document sauvegardé
+  // ou exporté). `pointer-events:none` et z-index dédié posés en CSS (studio-clinique.html),
+  // jamais recalculés ici.
+  function adocEnsureAlignGuides(containerEl) {
+    let v = containerEl.querySelector(':scope > .adoc-sc-align-guide-v');
+    let h = containerEl.querySelector(':scope > .adoc-sc-align-guide-h');
+    if (!v) { v = document.createElement('div'); v.className = 'adoc-sc-align-guide adoc-sc-align-guide-v'; containerEl.appendChild(v); }
+    if (!h) { h = document.createElement('div'); h.className = 'adoc-sc-align-guide adoc-sc-align-guide-h'; containerEl.appendChild(h); }
+    return { v: v, h: h };
+  }
+  function adocUpdateAlignGuides(containerEl, guideV, guideH) {
+    const g = adocEnsureAlignGuides(containerEl);
+    g.v.style.display = guideV != null ? 'block' : 'none';
+    if (guideV != null) g.v.style.left = guideV + 'px';
+    g.h.style.display = guideH != null ? 'block' : 'none';
+    if (guideH != null) g.h.style.top = guideH + 'px';
+  }
+  // Retrait explicite au relâchement (onUp, jamais laissé au hasard) — jamais persisté, jamais
+  // recréé au rendu suivant : un guide oublié resterait un artefact visuel silencieux, contraire
+  // à leur nature strictement transitoire.
+  function adocRemoveAlignGuides(containerEl) {
+    const v = containerEl.querySelector(':scope > .adoc-sc-align-guide-v');
+    const h = containerEl.querySelector(':scope > .adoc-sc-align-guide-h');
+    if (v) v.remove();
+    if (h) h.remove();
+  }
+
   // Retour visuel immédiat sur la carte déjà à l'écran (position:absolute + left/top/width/
   // height/z-index) — jamais un re-rendu complet pendant le glissement, même principe
   // qu'adocApplyBlockOpacity/adocApplyImageWidth ci-dessus. Fonction PARTAGÉE (régression #6)
@@ -12427,6 +12502,13 @@ ${recent}`;
         const startW = baseStyle.width != null ? Number(baseStyle.width) : elRect.width;
         const startH = baseStyle.height != null ? Number(baseStyle.height) : elRect.height;
         const pointerStartX = e.clientX, pointerStartY = e.clientY;
+        // ITEM 75 Phase 3 — rectangles des AUTRES éléments de la MÊME carte, lus UNE SEULE FOIS
+        // ici (investigation confirmée : aucun autre élément ne bouge pendant ce geste), jamais
+        // recalculés à chaque tick. `.adoc-sc-block` exclut déjà titre/image de couverture/
+        // poignées (aucune de ces classes), même filtre que celui déjà utilisé pour retrouver
+        // nestedEl lui-même.
+        const nestedSiblingRects = Array.prototype.filter.call(nestedEl.parentElement.children, function (el) { return el !== nestedEl && el.classList.contains('adoc-sc-block'); })
+          .map(function (el) { const r = el.getBoundingClientRect(); return { x: r.left - containerRect.left, y: r.top - containerRect.top, width: r.width, height: r.height }; });
         let moved = false, checkpointed = false;
         function suppressNextClick(ev2) { ev2.stopPropagation(); ev2.preventDefault(); document.removeEventListener('click', suppressNextClick, true); }
         function onMove(ev) {
@@ -12447,6 +12529,12 @@ ${recent}`;
             newStyle.y = startY + dy;
             if (newStyle.width == null) newStyle.width = startW;
             if (newStyle.height == null) newStyle.height = startH;
+            // ITEM 75 Phase 3 — aimantation D'ABORD (ajuste x/y), clampage TOUJOURS EN DERNIER
+            // ci-dessous (inchangé) : jamais appliquée au redimensionnement (poignée), hors
+            // périmètre investigué pour ce lot.
+            const snap = adocComputeAlignmentSnap(newStyle, nestedSiblingRects, containerRect.width, containerRect.height);
+            newStyle.x = snap.x; newStyle.y = snap.y;
+            adocUpdateAlignGuides(nestedEl.parentElement, snap.guideV, snap.guideH);
           }
           block.style = adocClampNestedStyleToContainer(newStyle, containerRect.width, containerRect.height);
           adocApplyCardPositionToElement(nestedEl, block.style);
@@ -12456,6 +12544,7 @@ ${recent}`;
         function onUp() {
           document.removeEventListener('mousemove', onMove);
           document.removeEventListener('mouseup', onUp);
+          adocRemoveAlignGuides(nestedEl.parentElement);
           // Clic direct sur la poignée SANS glissement réel — ouvre quand même le panneau (même
           // non-régression que la poignée de carte). Un clic normal AILLEURS dans le bloc, sans
           // glissement, ne fait RIEN ici : le clic naturel atteint ensuite docCard.onclick
@@ -12484,6 +12573,11 @@ ${recent}`;
       const startW = baseStyle.width != null ? Number(baseStyle.width) : cardRect.width;
       const startH = baseStyle.height != null ? Number(baseStyle.height) : cardRect.height;
       const pointerStartX = e.clientX, pointerStartY = e.clientY;
+      // ITEM 75 Phase 3 — rectangles des AUTRES cartes du MÊME Carrousel, lus UNE SEULE FOIS ici
+      // (même principe que pour un élément imbriqué ci-dessus, régression #6 — aucune autre
+      // carte ne bouge pendant ce geste).
+      const cardSiblingRects = Array.prototype.filter.call(cardEl.parentElement.children, function (el) { return el !== cardEl && el.classList.contains('adoc-sc-card'); })
+        .map(function (el) { const r = el.getBoundingClientRect(); return { x: r.left - containerRect.left, y: r.top - containerRect.top, width: r.width, height: r.height }; });
       let moved = false, checkpointed = false;
       function selectCard() {
         const current = window._adocBlockEditState;
@@ -12516,6 +12610,12 @@ ${recent}`;
           newStyle.y = startY + dy;
           if (newStyle.width == null) newStyle.width = startW;
           if (newStyle.height == null) newStyle.height = startH;
+          // ITEM 75 Phase 3 — aimantation D'ABORD (ajuste x/y contre les autres cartes + le
+          // canevas, centre inclus), clampage TOUJOURS EN DERNIER ci-dessous (inchangé) — jamais
+          // appliquée au redimensionnement (poignée), hors périmètre investigué pour ce lot.
+          const snap = adocComputeAlignmentSnap(newStyle, cardSiblingRects, ADOC_CARD_CANVAS_WIDTH, ADOC_CARD_CANVAS_HEIGHT);
+          newStyle.x = snap.x; newStyle.y = snap.y;
+          adocUpdateAlignGuides(cardEl.parentElement, snap.guideV, snap.guideH);
         }
         // Bornage (Item 75 Phase 1 complément) — clampé à CHAQUE tick, jamais seulement au
         // relâchement : l'aperçu en direct doit refléter l'arrêt au bord du canevas pendant le
@@ -12528,6 +12628,7 @@ ${recent}`;
       function onUp() {
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
+        adocRemoveAlignGuides(cardEl.parentElement);
         if (!moved) selectCard(); // clic normal, sans glissement réel — ouvre quand même le panneau (non-régression demandée)
       }
       document.addEventListener('mousemove', onMove);

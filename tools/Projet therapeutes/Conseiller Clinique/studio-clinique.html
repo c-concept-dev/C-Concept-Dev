@@ -1723,6 +1723,18 @@
       background: var(--paper); cursor: pointer; line-height: 1; padding: 0;
     }
     .cc-block-layers-btn:disabled { opacity: 0.35; cursor: default; }
+    /* ITEM 75 Phase 3 — guides d'alignement, éléments DOM éphémères créés/retirés en JS pendant
+       un glissement (adocEnsureAlignGuides/adocRemoveAlignGuides), jamais posés par
+       adocRenderCardHTML/adocRenderBlockHTML (jamais dans le HTML persisté/sauvegardé ni dans
+       l'export PDF). `pointer-events:none` — un guide ne doit jamais intercepter un clic destiné
+       à l'élément réel en-dessous. z-index volontairement très supérieur à tout zIndex de calque
+       possible (Phase 2 : multiples de 10 générés par le réordonnancement, jamais une saisie
+       libre) — un guide reste TOUJOURS visuellement au-dessus, y compris de la poignée de
+       redimensionnement. `display:none` par défaut, activé au cas par cas
+       (adocUpdateAlignGuides) selon qu'une accroche existe sur cet axe ou non. */
+    .adoc-sc-align-guide { position: absolute; pointer-events: none; z-index: 99999; display: none; background: var(--terracotta-700); }
+    .adoc-sc-align-guide-v { top: 0; bottom: 0; width: 1px; }
+    .adoc-sc-align-guide-h { left: 0; right: 0; height: 1px; }
     .adoc-sc-card-title {
       color: var(--adoc-sc-heading-color, var(--petrol-950));
       font-family: var(--adoc-sc-heading-font, "Source Serif 4", Georgia, serif);
