@@ -5827,28 +5827,30 @@ function attendre(ms){ return new Promise(resoudre => setTimeout(resoudre, ms));
  * types de base (dont null), enum, const, anyOf, allOf (sans $ref), $ref et definitions locaux, required,
  * additionalProperties:false, description, default, minItems 0 et 1.
  *
- * LE CANONIQUE RESTE LA VÉRITÉ. Cette fonction ne mute jamais son argument ; sa sortie est une projection
- * moins expressive, jamais plus permissive en silence : chaque contrainte ou règle non exprimable est
- * (1) reportée MOT POUR MOT dans la description du nœud qui la portait, pour que le modèle la connaisse, et
- * (2) vérifiée après réponse contre le schéma CANONIQUE par violationsContreSchema(), dans transportAnthropic
- * — une sortie qui viole le canonique est rejetée (sortie_invalide), jamais transmise. Un oneOf n'est
- * converti en anyOf que si ses branches sont PROUVÉES deux à deux disjointes (types disjoints, ou
- * discriminant requis des deux côtés à const/enum disjoints) : sinon l'adaptation refuse (TypeError) plutôt
- * que d'élargir le contrat. BETA-04 (enum à type union → anyOf par type) est conservé tel quel. */
+ * LE CANONIQUE RESTE LA VÉRITÉ. Cette fonction ne mute jamais son argument ; sa sortie est un GUIDE STRUCTUREL
+ * MINIMAL COMPATIBLE — structure, propriétés, required, types, enum/const, additionalProperties:false,
+ * $ref/definitions — jamais plus permissive en silence : tout ce qu'elle ne dit plus (règles if/then/not/
+ * contains, oneOf exact, minLength, minimum, minItems, maxItems…) est exigé après réponse contre le schéma
+ * CANONIQUE par violationsContreSchema(), dans transportAnthropic — une sortie qui viole le canonique est
+ * rejetée (sortie_invalide), jamais transmise. Un oneOf de branches objet est projeté en un objet unique à
+ * discriminant (schemaFusionnerBranchesObjet) ; tout autre oneOf est refusé (TypeError). BETA-04 (enum à
+ * type union → anyOf par type, sans type à côté) est conservé tel quel.
+ *
+ * SCHEMA-ANTHROPIC-02, PREUVE FOURNISSEUR (smoke réel après correction #2) : HTTP 400 « The compiled grammar
+ * is too large ». Mesuré : la projection #2 pesait 15 297 octets dont 6 927 octets de 50 descriptions
+ * TECHNIQUES ajoutées ici — recopie en prose/JSON des règles et contraintes retirées, déjà garanties par
+ * violationsContreSchema(). Une règle n'est plus encodée deux fois : aucune description n'est ajoutée par
+ * l'adaptateur, seules les descriptions MÉTIER du canonique subsistent ; minItems (cardinalité fine) est
+ * retiré comme les autres contraintes de valeur. */
 function schemaPourAnthropic(schema){
   if(!schema||typeof schema!=='object'||Array.isArray(schema))return schema;
   const out=JSON.parse(JSON.stringify(schema));
   /* 0. Métadonnées sans effet sur la validation : hors projection. */
   for(const key of ['$schema','$id','$comment'])delete out[key];
-  /* 1. Règles logiques non exprimables : retirées de la projection, reportées mot pour mot. */
-  const regles={};
-  for(const key of SCHEMA_ANTHROPIC_REGLES_REPORTEES){if(out[key]!==undefined){regles[key]=out[key];delete out[key]}}
-  if(Object.keys(regles).length)schemaAjouterDescription(out,'Règle vérifiée après réponse : '+JSON.stringify(regles)+'.');
-  /* 2. Contraintes de valeur non prises en charge : idem. minItems 0/1 reste, au-delà devient 1 + report. */
-  const contraintes=[];
-  for(const key of SCHEMA_ANTHROPIC_CONTRAINTES_REPORTEES){if(out[key]!==undefined){contraintes.push(key+' '+JSON.stringify(out[key]));delete out[key]}}
-  if(typeof out.minItems==='number'&&out.minItems>1){contraintes.push('minItems '+out.minItems);out.minItems=1}
-  if(contraintes.length)schemaAjouterDescription(out,'Contrainte'+(contraintes.length>1?'s':'')+' vérifiée'+(contraintes.length>1?'s':'')+' après réponse : '+contraintes.join(' ; ')+'.');
+  /* 1. Règles logiques non exprimables et 2. contraintes de valeur : retirées de la projection — exigées après
+     réponse par violationsContreSchema() contre le canonique, jamais recopiées ici. */
+  for(const key of SCHEMA_ANTHROPIC_REGLES_REPORTEES)delete out[key];
+  for(const key of SCHEMA_ANTHROPIC_CONTRAINTES_REPORTEES)delete out[key];
   /* 3. Récursion sur les sous-schémas restants. */
   for(const key of ['properties','$defs','definitions']){
     if(out[key])for(const name of Object.keys(out[key]))out[key][name]=schemaPourAnthropic(out[key][name]);
@@ -5857,7 +5859,7 @@ function schemaPourAnthropic(schema){
     if(out[key]&&typeof out[key]==='object')out[key]=Array.isArray(out[key])?out[key].map(schemaPourAnthropic):schemaPourAnthropic(out[key]);
   }
   for(const key of ['anyOf','allOf','oneOf','prefixItems'])if(Array.isArray(out[key]))out[key]=out[key].map(schemaPourAnthropic);
-  /* 4. Un membre d'allOf vidé par (1) — il ne portait qu'une règle — ne garde que sa description : fusionnée dans le nœud parent. */
+  /* 4. Un membre d'allOf vidé par (1) — il ne portait qu'une règle — ne garde que sa description MÉTIER éventuelle : fusionnée dans le nœud parent. */
   if(Array.isArray(out.allOf)){
     const restants=[];
     for(const membre of out.allOf){
@@ -5871,10 +5873,9 @@ function schemaPourAnthropic(schema){
      anyOf et type ensemble). Un oneOf de branches objet (plus, au choix, une branche null) est donc projeté en
      UN SEUL objet : discriminant requis à enum réunie, propriétés de toutes les branches réunies et
      optionnelles, additionalProperties:false, nullable si une branche null existe. Volontairement MOINS
-     expressif — l'exclusivité des branches est reportée mot pour mot et exigée après réponse par
-     violationsContreSchema() contre le canonique. Tout autre oneOf est refusé (TypeError). */
+     expressif — l'exclusivité des branches est exigée après réponse par violationsContreSchema() contre le
+     canonique. Tout autre oneOf est refusé (TypeError). */
   if(Array.isArray(out.oneOf)){
-    schemaAjouterDescription(out,'Règle vérifiée après réponse : '+JSON.stringify({oneOf:schema.oneOf})+'.');
     const fusion=schemaFusionnerBranchesObjet(out.oneOf);
     delete out.oneOf;
     for(const key of Object.keys(fusion))out[key]=fusion[key];
@@ -5891,7 +5892,7 @@ function schemaPourAnthropic(schema){
   return out;
 }
 const SCHEMA_ANTHROPIC_REGLES_REPORTEES=['if','then','else','not','contains','dependentSchemas','dependentRequired','patternProperties','propertyNames'];
-const SCHEMA_ANTHROPIC_CONTRAINTES_REPORTEES=['minLength','maxLength','minimum','maximum','exclusiveMinimum','exclusiveMaximum','multipleOf','pattern','maxItems','uniqueItems','minProperties','maxProperties'];
+const SCHEMA_ANTHROPIC_CONTRAINTES_REPORTEES=['minLength','maxLength','minimum','maximum','exclusiveMinimum','exclusiveMaximum','multipleOf','pattern','minItems','maxItems','uniqueItems','minProperties','maxProperties'];
 function schemaAjouterDescription(out,texte){out.description=(out.description?out.description+' ':'')+texte}
 function schemaTypeJson(v){return v===null?'null':Array.isArray(v)?'array':typeof v==='object'?'object':Number.isInteger(v)?'integer':typeof v}
 /* Fusion des branches d'un oneOf en un objet unique : exige des branches objet (additionalProperties:false,
