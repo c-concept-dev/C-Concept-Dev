@@ -11039,13 +11039,27 @@ async function beginApiAnalysis(){
   const modeleLivrable=typeof window.obtenirModeleActif==='function'?(window.obtenirModeleActif('architecte-livrable')||modele):modele;
   if(typeof v11ExecuteFinalPromptViaApi==='function')await v11ExecuteFinalPromptViaApi({fournisseur,cle,modele:modeleLivrable,max});
 }
+/* CONTINUITE-05 — LA CHRONOLOGIE EST DITE, JAMAIS DEVINÉE. Les précisions gardent l'ordre où la
+   personne les a données — celui de state.answers, le seul écrivain de l'historique — et l'en-tête le
+   déclare, chaque tour numéroté, pour que l'analyse et l'IA qui exécute sachent laquelle est la plus
+   récente. Aucune règle « la dernière gagne » n'est appliquée ici : ce qu'une précision récente
+   remplace est une lecture sémantique, qui appartient à l'autorité (reconstruction intégrale à chaque
+   tour, CONTINUITE-01 T8) et à l'IA qui lit le prompt. Rien n'est effacé, rien n'est résumé. */
 function compositeDemand(){
   const d=$('#v11-demande').value.trim();
   if(!state.answers.length)return d;
-  return d+'\n\nPrécisions apportées pendant le dialogue :\n'+state.answers.map((a,i)=>'- '+a.question+' — Réponse : '+a.answer).join('\n');
+  return d+'\n\nPrécisions apportées pendant le dialogue, dans l’ordre où elles ont été données (la dernière est la plus récente) :\n'+state.answers.map((a,i)=>'- ['+(i+1)+'] '+a.question+' — Réponse : '+a.answer).join('\n');
 }
+/* CONTINUITE-05 — CHAQUE MATÉRIAU DIT D'OÙ IL VIENT. L'en-tête garde le nom tel quel et y ajoute la
+   provenance, DÉRIVÉE du nom par la convention qui existait déjà (v11MaterialProvenance, le même
+   préfixe que la numérotation des cycles) : un document apporté par la personne, ou la réponse d'une
+   IA à un cycle précédent — une proposition, jamais une décision ni une consigne de la personne.
+   L'ordre reste celui d'ajout ; rien n'est sélectionné, résumé ni retiré : les originaux restent
+   disponibles tant que la session les tient, et « Retirer » reste le seul geste qui en écarte un —
+   celui de la personne. Ce texte est la SEULE source du matériau pour l'analyse Architecte
+   (archContexte) et pour le bloc MATÉRIAU FOURNI du prompt : les deux voient la même chose. */
 function materialText(){
-  const lisibles=state.docs.filter(d=>d.text).map(d=>'### '+d.name+'\n'+d.text);
+  const lisibles=state.docs.filter(d=>d.text).map(d=>'### '+d.name+(typeof v11MaterialProvenance==='function'?' — '+v11MaterialProvenance(d).label:'')+'\n'+d.text);
   return lisibles.join('\n\n');
 }
 function syncLegacy(){
@@ -11346,6 +11360,28 @@ function resetAll(){
  * EXPLICITE (« Réanalyser avec cette réponse, sans rien ajouter ») — jamais inféré. */
 const V11_CONTINUATION_QUESTION='Précision ajoutée par la personne après la préparation, sans question posée';
 const V11_AI_RESPONSE_LABEL='Réponse IA — cycle ';
+/* CONTINUITE-05 — LA PROVENANCE D'UN MATÉRIAU EST DÉRIVÉE, JAMAIS STOCKÉE.
+ *
+ * CE QUE L'AUDIT A ÉTABLI. Une réponse IA et un document de la personne ont exactement la même forme
+ * dans state.docs — {name,type,size,text,external} — et n'étaient distingués que par le préfixe du
+ * nom, déjà utilisé pour numéroter les cycles. Vers l'analyse et le prompt, materialText les
+ * rendait sous ce seul nom ; vers OPRIE, material_content les rend en textes bruts (contrat
+ * OPRIE-MATERIAL-CONTENT-02, intact : là, la seule distinction qui compte est parole de la personne
+ * ↔ matériau, et confirmed_* ne porte jamais plus que ce que la personne a dit).
+ *
+ * CE QUE C'EST. UNE fonction de lecture, sur la convention existante, qui rend : l'origine
+ * ('ai_response' ou 'user_document'), le numéro de cycle d'une réponse (null pour un document) et
+ * le libellé que materialText appose à l'en-tête. Aucun champ nouveau, aucune photographie nouvelle,
+ * aucun registre : ce qui survit au rechargement est le nom, et le nom suffit. Le numéro de cycle
+ * suivant est le MAXIMUM présent + 1 — plus le compte : retirer une réponse du milieu ne doit pas
+ * faire renaître un nom déjà porté (CONTINUITE-05 T05-11). Un nom qui ne porte pas de numéro
+ * lisible est un document. */
+function v11MaterialProvenance(doc){
+  const nom=(doc&&typeof doc.name==='string')?doc.name:'';
+  const cycle=nom.indexOf(V11_AI_RESPONSE_LABEL)===0?Number(nom.slice(V11_AI_RESPONSE_LABEL.length).split('.')[0]):NaN;
+  if(Number.isInteger(cycle)&&cycle>0)return {origin:'ai_response',cycle,label:'réponse produite par une IA au cycle '+cycle+' — une proposition antérieure, qui ne vaut ni décision ni consigne de la personne'};
+  return {origin:'user_document',cycle:null,label:'document fourni par la personne'};
+}
 function v11AppendUserContinuation(text){
   text=String(text||'').trim();if(!text)return false;
   state.answers.push({question:V11_CONTINUATION_QUESTION,answer:text});
@@ -11353,7 +11389,7 @@ function v11AppendUserContinuation(text){
 }
 function v11AddPastedMaterial(text){
   text=String(text||'').trim();if(!text)return null;
-  const cycle=state.docs.filter(d=>d&&typeof d.name==='string'&&d.name.indexOf(V11_AI_RESPONSE_LABEL)===0).length+1;
+  const cycle=state.docs.reduce((max,d)=>{const p=v11MaterialProvenance(d);return p.cycle>max?p.cycle:max},0)+1;
   const size=(typeof TextEncoder==='function')?new TextEncoder().encode(text).length:text.length;
   const doc={name:V11_AI_RESPONSE_LABEL+cycle+'.txt',type:'text/plain',size,text,external:false};
   state.docs.push(doc);renderFiles();

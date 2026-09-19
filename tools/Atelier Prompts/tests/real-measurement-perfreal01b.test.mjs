@@ -292,6 +292,11 @@ test('T-PERFREAL01B-17 : l’artefact frontend n’a pas bougé', () => {
      UNE assertion de contrat — celle dont l'empreinte de message correspond au 502 observé — pour
      qu'un refus de sortie fournisseur cesse d'être compté comme un défaut de notre code. Aucune
      règle, aucun prompt, aucun schéma, aucun comportement d'interface. */
+  /* CONTINUITE-05 — L'EMPREINTE A BOUGÉ, PAR LE CONTRÔLEUR V11 SEUL : la provenance d'un matériau est dérivée de son
+     nom (v11MaterialProvenance) et dite à l'en-tête de materialText (document de la personne ↔ réponse d'une IA à un cycle
+     précédent, proposition qui ne vaut ni décision ni consigne) ; compositeDemand déclare l'ordre des précisions et les
+     numérote ; le cycle suivant est le maximum présent + 1 (voir tests/continuite-conversation-longue-cont05.test.mjs).
+     Aucune règle, aucun prompt serveur, aucun schéma, aucun transport, aucune plage gelée n'a changé. */
   /* CONTINUITE-04B — L'EMPREINTE A BOUGÉ D'UNE LIGNE DU MOTEUR ARCHITECTE : archNormaliser() plie la ponctuation
      typographique avant de comparer une citation à sa source (voir tests/continuite-api-citation-cont04b.test.mjs).
      Aucune règle, aucun prompt, aucun schéma, aucun transport n'a changé. */
@@ -307,7 +312,7 @@ test('T-PERFREAL01B-17 : l’artefact frontend n’a pas bougé', () => {
      silencieux quand une actualisation depuis /v1/models fait disparaître le modèle retenu. Aucune
      règle, aucun prompt, aucun schéma, aucun comportement d'interface visible n'a changé. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    'ffff94bb128e138a9fd1b130b9b306e73f8a8de97e309173c1e3572d01e15be4', 'CANONICAL_HTML_CHANGED = NO');
+    '3f0308fe624d87b3a75efe2d3dc130e4f7e3806c652e299a67de14f3ea87340a', 'CANONICAL_HTML_CHANGED = NO');
   /* Et aucune mesure navigateur n’a été inventée à la place de celle qu’on ne peut pas prendre. */
   assert.equal(M.navigateur.statut, 'NOT_AVAILABLE');
   assert.match(M.navigateur.raison, /n admet que https:\/\/c-concept-dev\.github\.io/);
