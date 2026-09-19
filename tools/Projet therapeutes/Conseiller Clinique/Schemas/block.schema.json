@@ -463,6 +463,7 @@
       }
     },
     "cardBlock": {
+      "$comment": "ITEM 75 Phase 1 UI (complément) — `style` ajouté ici, réutilisant TEL QUEL $defs/blockStyle (même définition que heading/paragraph/etc., jamais une seconde définition dupliquée pour les 5 champs x/y/width/height/zIndex — investigation confirmée : additionalProperties:false n'empêche pas de n'en renseigner qu'une partie, exactement comme un bloc éditorial ordinaire n'utilise jamais tous les champs de blockStyle). Une carte ne consomme en pratique que x/y/width/height/zIndex (positionnement libre, garde-fou déjà réservé au documentKind carrousel) — les champs texte/police de blockStyle restent inertes sur une carte, jamais interdits par construction, cohérent avec le principe additif déjà établi.",
       "type": "object",
       "required": [
         "id",
@@ -486,6 +487,9 @@
         },
         "validation": {
           "$ref": "#/$defs/blockValidation"
+        },
+        "style": {
+          "$ref": "#/$defs/blockStyle"
         }
       }
     },

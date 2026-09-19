@@ -7896,6 +7896,59 @@ ${recent}`;
   }
   window.adocApplyImageRotation = adocApplyImageRotation;
 
+  // ITEM 75 Phase 1 UI — troisième panneau dédié (texte / image / position), ouvert uniquement
+  // sur une carte Carrousel (documentKind:'carrousel', garde-fou de schéma déjà réservé à ce
+  // type — cf. adocWsSetupBlockEditing/onmousedown ci-dessous). Champs x/y/width/height en
+  // pixels, écrits dans card.style (blockStyle, réutilisée telle quelle — jamais un second
+  // schéma). zIndex volontairement absent de ce panneau : réservé au schéma (Phase 1) mais son
+  // édition appartient aux calques (Phase 2 du CDC, hors périmètre de ce lot).
+  function adocBuildCardPositionPanelHTML() {
+    function number(field, label) { return '<label>' + label + '<input type="number" data-card-position="' + field + '" step="1"></label>'; }
+    return '<div class="cc-block-style-controls cc-editor-tools" role="group" aria-label="Position et taille de cette carte">' +
+      '<div class="cc-editor-row">' + number('x', 'X (px)') + number('y', 'Y (px)') + '</div>' +
+      '<div class="cc-editor-row">' + number('width', 'Largeur (px)') + number('height', 'Hauteur (px)') + '</div>' +
+    '</div>';
+  }
+  // Valeurs initiales à l'ouverture — même garde-fou que adocEditorRefreshImageControls (LOT E) :
+  // jamais un champ vide écrasé par du texte tapé en cours (document.activeElement), pour ne pas
+  // interrompre la frappe pendant que le glissement au clavier des flèches met à jour le style en
+  // parallèle (input type=number natif).
+  function adocEditorRefreshCardPositionControls() {
+    const ctx = adocEditorContext(); if (!ctx || ctx.legacy || !ctx.block || ctx.block.type !== 'card') return;
+    const panel = ctx.st.panelEl; if (!panel) return;
+    ['x', 'y', 'width', 'height'].forEach(function (field) {
+      const input = panel.querySelector('[data-card-position="' + field + '"]');
+      if (input && document.activeElement !== input) input.value = ctx.block.style && ctx.block.style[field] != null ? ctx.block.style[field] : '';
+    });
+  }
+  // Retour visuel immédiat sur la carte déjà à l'écran (position:absolute + left/top/width/
+  // height/z-index) — jamais un re-rendu complet pendant le glissement, même principe
+  // qu'adocApplyBlockOpacity/adocApplyImageWidth ci-dessus. Fonction PARTAGÉE (régression #6)
+  // entre le panneau (adocApplyCardPosition, un champ à la fois) et le glissement/redimensionnement
+  // à la souris (adocWsSetupBlockEditing/onmousedown, plusieurs champs par tick) — jamais deux
+  // implémentations de la même traduction style→DOM (déjà écrite une fois pour le rendu initial,
+  // adocCardPositionCSSText ci-dessus : mêmes 5 champs, même unité pixels).
+  function adocApplyCardPositionToElement(el, style) {
+    el.style.position = 'absolute';
+    if (style.x != null) el.style.left = Number(style.x) + 'px';
+    if (style.y != null) el.style.top = Number(style.y) + 'px';
+    if (style.width != null) el.style.width = Number(style.width) + 'px';
+    if (style.height != null) el.style.height = Number(style.height) + 'px';
+    if (style.zIndex != null) el.style.zIndex = String(style.zIndex);
+  }
+  function adocApplyCardPosition(field, value, checkpointOnce) {
+    const ctx = adocEditorContext(); if (!ctx || ctx.legacy || !ctx.block || ctx.block.type !== 'card') return;
+    const num = Number(value);
+    if (!Number.isFinite(num)) return;
+    if (checkpointOnce) adocEditorCheckpoint();
+    const style = Object.assign({}, ctx.block.style);
+    style[field] = (field === 'width' || field === 'height') ? Math.max(40, num) : num;
+    ctx.block.style = style;
+    adocApplyCardPositionToElement(ctx.el, style);
+    adocEditorSync(); adocEditorMarkDirty();
+  }
+  window.adocApplyCardPosition = adocApplyCardPosition;
+
   // NOUVEAU CHANTIER (bloc mixte) — transition IMAGE → TEXTE : mutation EN PLACE du bloc trouvé
   // (jamais un splice/insertion), donc même id et même position dans doc.blocks[] (ou
   // card.content.blocks[]) — juste ses propriétés type/content/style qui changent. Type cible
@@ -8128,6 +8181,7 @@ ${recent}`;
       if(e.target.matches('[data-image-rotation]'))adocApplyImageRotation(e.target.value,false);
     });
     lr.addEventListener('change',function(e){if(e.target.matches('[data-editor-scope]'))adocEditorRefreshControls();
+      if(e.target.matches('[data-card-position]'))adocApplyCardPosition(e.target.dataset.cardPosition,e.target.value,true);
       if(e.target.matches('[data-editor-style]')){
       if(e.target.type==='number'&&!e.target.checkValidity()){adocEditorMessage('Valeur hors limites.');return;}
       const value=e.target.type==='number'?(e.target.value===''?'':Number(e.target.value)):e.target.value;
@@ -9584,17 +9638,42 @@ ${recent}`;
     return '<article class="adoc-sc-doc adoc-sc-fiche" data-document-id="' + adocEsc(doc.documentId) + "\" style='" + adocTokensToCSSVars(tokens) + "'>" + cover + body + '</article>';
   }
 
+  // ITEM 75 Phase 1 UI — traduit card.style (x/y/width/height/zIndex, seuls champs de blockStyle
+  // réellement consommés ici) en CSS inline. Aucun champ renseigné → chaîne vide, la carte reste
+  // dans le flux flex normal (position:relative posée en CSS statique, sans effet). Jamais un
+  // remplacement d'adocBlockStyleToCSSText (réservée aux 6 types texte/ADOC_DIRECT_STYLE_FIELDS,
+  // ces 5 champs n'y figurent jamais, cf. investigation) — un helper dédié, même principe que
+  // adocApplyCardPositionToElement ci-dessous qui applique exactement la même logique côté DOM
+  // pendant le glissement (jamais deux implémentations divergentes).
+  function adocCardPositionCSSText(style) {
+    if (!style) return '';
+    const parts = [];
+    if (style.x != null || style.y != null || style.width != null || style.height != null) parts.push('position:absolute');
+    if (style.x != null) parts.push('left:' + Number(style.x) + 'px');
+    if (style.y != null) parts.push('top:' + Number(style.y) + 'px');
+    if (style.width != null) parts.push('width:' + Number(style.width) + 'px');
+    if (style.height != null) parts.push('height:' + Number(style.height) + 'px');
+    if (style.zIndex != null) parts.push('z-index:' + Number(style.zIndex));
+    return parts.length ? parts.join(';') + ';' : '';
+  }
   // ── Pilote 2 : Carrousel (modèle minimal unique, structure imbriquée card > blocks[]) ──
   function adocRenderCardHTML(card, index, total) {
     const nested = (card.content.blocks || []).map(adocRenderBlockHTML).join('\n');
     const img = card.content.imageRef
       ? '<img class="adoc-sc-card-img" src="' + adocEsc(card.content.imageRef) + '" alt="' + adocEsc(card.content.imageAlt || '') + '">'
       : '';
-    return '<section class="adoc-sc-card" id="' + adocEsc(card.id) + '" role="group" aria-label="Carte ' + (index + 1) + ' sur ' + total + ' : ' + adocEsc(card.content.title) + '">' +
+    const posCSS = adocCardPositionCSSText(card.style);
+    const styleAttr = posCSS ? ' style="' + adocEsc(posCSS) + '"' : '';
+    // ITEM 75 Phase 1 UI — poignée de redimensionnement, toujours présente dans le balisage
+    // (jamais un state fantôme à créer/détruire au clic) mais masquée en CSS sauf sur la carte
+    // sélectionnée (.adoc-sc-card.is-selected), même principe que Lot E/widthPercent (champ posé,
+    // visuellement inerte sans action explicite de l'utilisatrice).
+    const resizeHandle = '<div class="adoc-sc-card-resize-handle" aria-hidden="true"></div>';
+    return '<section class="adoc-sc-card" id="' + adocEsc(card.id) + '"' + styleAttr + ' role="group" aria-label="Carte ' + (index + 1) + ' sur ' + total + ' : ' + adocEsc(card.content.title) + '">' +
       // Item 68 — même mécanisme d'édition directe que la bannière Fiche (data-cc-editor-leaf
       // générique, jamais .adoc-sc-block : un titre de carte reste une DÉCORATION de card.content,
       // synchronisé par adocSyncEditedRootFieldsToDoc, jamais par adocEditorSyncStructured).
-      img + '<h2 class="adoc-sc-card-title" id="' + adocEsc('root:card-title:' + card.id) + '" data-cc-editor-leaf="card-title">' + adocEsc(card.content.title) + '</h2>' + nested + '</section>';
+      img + '<h2 class="adoc-sc-card-title" id="' + adocEsc('root:card-title:' + card.id) + '" data-cc-editor-leaf="card-title">' + adocEsc(card.content.title) + '</h2>' + nested + resizeHandle + '</section>';
   }
   function adocRenderCarrouselHTML(doc, tokens) {
     const cards = (doc.blocks || []).map(function(c, i) { return adocRenderCardHTML(c, i, doc.blocks.length); }).join('\n');
@@ -11716,7 +11795,7 @@ ${recent}`;
     adocUnmountBlockEditPanel(st.panelEl);
     const docCard = document.getElementById('cc-ws-doc-card');
     if (docCard) {
-      const sel = docCard.querySelector('.adoc-sc-block.is-selected, .adoc-sc-cover-title.is-selected, .adoc-sc-card-title.is-selected');
+      const sel = docCard.querySelector('.adoc-sc-block.is-selected, .adoc-sc-cover-title.is-selected, .adoc-sc-card-title.is-selected, .adoc-sc-card.is-selected');
       if (sel) sel.classList.remove('is-selected', 'cc-image-drop-armed'); // LOT 3 — jamais un surlignage orphelin après fermeture du panneau
     }
     window._adocBlockEditState = { storeKey: null, blockId: null, panelEl: null, pendingBlock: null, originalBlock: null, zone: null };
@@ -11819,11 +11898,18 @@ ${recent}`;
     if (!docCard) return;
     const enabled = !!(art._adocCapabilities && art._adocCapabilities.blockEditing);
     docCard.classList.toggle('cc-ws-block-editable', enabled);
-    if (!enabled) { docCard.onclick = null; return; } // ex. legacy-html — aucune interaction de sélection, comportement inchangé
+    if (!enabled) { docCard.onclick = null; docCard.onmousedown = null; return; } // ex. legacy-html — aucune interaction de sélection, comportement inchangé
     // 57f — each textual leaf is prepared after the delegated click handler.
     docCard.onclick = function (e) {
       if (e.target.closest('.cc-block-edit-panel')) return; // clic dans le panneau — jamais réinterprété comme une (dé)sélection
       if (e.target.closest('.adoc-sc-cite')) return; // note de bas de page — laisse naviguer normalement
+      // ITEM 75 Phase 1 UI — un clic sur la SURFACE PROPRE d'une carte Carrousel (jamais son
+      // titre, jamais un bloc imbriqué, qui restent gérés plus bas exactement comme avant) est
+      // entièrement pris en charge par docCard.onmousedown ci-dessous (sélection + panneau
+      // position, glissement éventuel) : sans ce garde, le passage normal de ce clic dans les
+      // branches suivantes verrait blockEl rester null et appellerait adocWsClearBlockSelection(),
+      // effaçant la sélection tout juste posée au mousedown précédent (même évènement de clic).
+      if (e.target.closest('.adoc-sc-card') && !e.target.closest('.adoc-sc-block, .adoc-sc-cover-title, .adoc-sc-card-title')) return;
       // LOT D — .adoc-sc-cover-title/.adoc-sc-card-title rejoignent .adoc-sc-block comme ancre
       // sélectionnable (jamais un second écouteur/mécanisme) : id="root:doc-title"/"root:card-
       // title:<id>" déjà posé au rendu, résolu par adocFindEditableBlock ci-dessus.
@@ -11933,6 +12019,80 @@ ${recent}`;
       e.preventDefault();
       const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
       if (file) adocHandleImageDrop(dropEl, file);
+    };
+    // ITEM 75 Phase 1 UI — glisser pour repositionner une carte Carrousel / poignée pour la
+    // redimensionner. Aucun précédent de glisser-déposer de RÉORGANISATION dans ce code (le seul
+    // "drag" existant, docCard.ondragover/ondrop ci-dessus, est un dépôt de FICHIER HTML5, jamais
+    // un déplacement d'élément) — investigation confirmée, mécanisme entièrement nouveau,
+    // mousedown/mousemove/mouseup classiques. Seuil de 3px avant de considérer qu'il y a
+    // réellement glissement (jamais un pixel de tremblement de souris interprété comme un
+    // déplacement) : sous ce seuil, mouseup ouvre quand même le panneau (clic normal, non-
+    // régression explicitement demandée). Point d'annulation posé UNE SEULE FOIS au premier tick
+    // de mouvement réel (même principe que le curseur d'opacité, Lot E, jamais à chaque frame).
+    docCard.onmousedown = function (e) {
+      const handle = e.target.closest('.adoc-sc-card-resize-handle');
+      const cardEl = e.target.closest('.adoc-sc-card');
+      if (!cardEl) return;
+      if (!handle && e.target.closest('.adoc-sc-block, .adoc-sc-card-title')) return; // titre/bloc imbriqué — laisse la sélection normale s'en charger
+      const storeKey = window._adocWsState.storeKey;
+      const curArt = window._adocArtifacts && window._adocArtifacts[storeKey];
+      if (!curArt || !curArt._adocStructuredDoc || curArt._adocStructuredDoc.documentKind !== 'carrousel') return; // garde-fou déjà posé au schéma (positionnement réservé au Carrousel) — cohérent ici aussi
+      const block = adocFindEditableBlock(curArt._adocStructuredDoc, cardEl.id);
+      if (!block || block.type !== 'card') return;
+      e.preventDefault();
+      const containerRect = cardEl.parentElement.getBoundingClientRect();
+      const cardRect = cardEl.getBoundingClientRect();
+      const baseStyle = block.style || {};
+      const startX = baseStyle.x != null ? Number(baseStyle.x) : (cardRect.left - containerRect.left);
+      const startY = baseStyle.y != null ? Number(baseStyle.y) : (cardRect.top - containerRect.top);
+      const startW = baseStyle.width != null ? Number(baseStyle.width) : cardRect.width;
+      const startH = baseStyle.height != null ? Number(baseStyle.height) : cardRect.height;
+      const pointerStartX = e.clientX, pointerStartY = e.clientY;
+      let moved = false, checkpointed = false;
+      function selectCard() {
+        const current = window._adocBlockEditState;
+        if (current.blockId === cardEl.id && current.zone === 'position') return;
+        adocWsClearBlockSelection();
+        cardEl.classList.add('is-selected');
+        const panel = document.createElement('div');
+        panel.className = 'cc-clarity-card cc-block-edit-panel';
+        panel.setAttribute('role', 'group');
+        panel.setAttribute('aria-label', 'Position de cette carte sélectionnée');
+        panel.innerHTML = adocBlockEditPanelHeaderHTML(adocEsc(block.content.title) || '(carte)') + adocBuildCardPositionPanelHTML();
+        adocMountContextualBlockEditPanel(panel, cardEl);
+        window._adocBlockEditState = { storeKey: storeKey, blockId: cardEl.id, panelEl: panel, pendingBlock: null, originalBlock: block, zone: 'position' };
+        adocEditorRefreshCardPositionControls();
+      }
+      function onMove(ev) {
+        const dx = ev.clientX - pointerStartX, dy = ev.clientY - pointerStartY;
+        if (!moved && Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
+        moved = true;
+        if (!checkpointed) { adocEditorCheckpoint(); checkpointed = true; }
+        selectCard();
+        const newStyle = Object.assign({}, block.style);
+        if (handle) {
+          newStyle.width = Math.max(40, startW + dx);
+          newStyle.height = Math.max(40, startH + dy);
+          if (newStyle.x == null) newStyle.x = startX;
+          if (newStyle.y == null) newStyle.y = startY;
+        } else {
+          newStyle.x = startX + dx;
+          newStyle.y = startY + dy;
+          if (newStyle.width == null) newStyle.width = startW;
+          if (newStyle.height == null) newStyle.height = startH;
+        }
+        block.style = newStyle;
+        adocApplyCardPositionToElement(cardEl, newStyle);
+        adocEditorRefreshCardPositionControls();
+        adocEditorSync(); adocEditorMarkDirty();
+      }
+      function onUp() {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        if (!moved) selectCard(); // clic normal, sans glissement réel — ouvre quand même le panneau (non-régression demandée)
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
     };
     // Lot correctif — le panneau vit à nouveau DANS docCard (insertAdjacentElement, comme avant
     // item 64) : plus besoin d'élargir les écouteurs délégués à document.body, docCard suffit.
