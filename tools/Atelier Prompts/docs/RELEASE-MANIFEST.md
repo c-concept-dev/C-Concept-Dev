@@ -13,8 +13,8 @@
 | --- | --- |
 | Lot | HTML-FINAL-02 |
 | Artefact | Atelier de prompts — V11.5 LOT 10G Adaptive Decision Pipeline |
-| Commit local | `a06dd9346e2064f04b263d8d5cb8df8610652bcc` |
-| Date du commit | 2026-09-19T10:57:39+02:00 |
+| Commit local | `5d323da2bf7d4c3031a98e435a793c3605e5651f` |
+| Date du commit | 2026-09-19T12:46:16+00:00 |
 
 ## Artefact canonique
 
@@ -54,12 +54,12 @@ Le bloc embarqué dans la page et le fichier généré sont comparés octet pour
 
 ## Jeu de release
 
-111 fichiers. C'est ce qui doit exister pour **servir** la page,
+112 fichiers. C'est ce qui doit exister pour **servir** la page,
 **redéployer** les workers qui la soutiennent, et **reconstruire puis vérifier**
 l'artefact. Le manifeste lui-même en est exclu : un document ne peut pas contenir
 sa propre empreinte.
 
-| Empreinte du jeu | `4dfc53315abecda097a790bb7d1e88c1a479004d1f50bb7da7d2b924fdfd618a` |
+| Empreinte du jeu | `087e0f28da0178141b35378564ecc74f4fd87b117fda623e5289e03c19e4cf43` |
 | --- | --- |
 
 | Classe | Fichier | SHA-256 |
@@ -157,6 +157,7 @@ sa propre empreinte.
 | REQUIRED_DOC | `docs/PERF-NOMINAL-PROVIDER-01.md` | `2bd66e87aedf0b0e29fe095db6177a503bb29d5928d222befa87012378eea0fd` |
 | REQUIRED_DOC | `docs/PERF-REAL-01-REPORT.md` | `4d3b16bf400738cffb21995deb9302788dc67dd8da25649cecc7592b345bd77e` |
 | REQUIRED_BUILD | `package.json` | `c89fdaa9b4ce892b8a75eac66b42ddc20868098b608c24fc6ed1d30c8e064693` |
+| BUILD_TOOL | `tools/anthropic-grammar-bisect.mjs` | `65f731585b9e0b123eb58ccc4a9b300f3a5a43609b8dff50310e3b9d22d195b4` |
 | BUILD_TOOL | `tools/build-adn-browser-runtime.mjs` | `5b43a54d8c561dea23cdca4462af16c9ffd418487489c21d5b03cae97c1a2cf3` |
 | BUILD_TOOL | `tools/build-release-manifest.mjs` | `960bebd9ed050125cadf819af0b71373524d1d240431798a2579af5172064eb1` |
 | BUILD_TOOL | `tools/frozen-guard.mjs` | `fa1d9b3e323bf350157f623e49e4d91d40afabe12a0adf7415ac90343bfe038c` |
