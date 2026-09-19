@@ -468,7 +468,12 @@ test('T-IA05-LIMITE : EXEC-PHASE-INSTRUMENT-01 est caractérisée, et n’a pas 
 test('T-IA05-FROZEN : les sept plages gelées sont référencées et intactes', () => {
   const baseline = JSON.parse(lire('anti-regression-baseline.json'));
   assert.equal(baseline.hashes['moteur Rapide'], '3725f2c9335cb176084cf62c51472b5f02a1faa5bed496c424954c841a689664');
-  assert.equal(baseline.hashes['moteur Architecte'], 'bebb29dc9a0b6f70fb23b22cf13e6573688d8e2dbfbfd54356a14bf1522b6d1e');
+  /* CONTINUITE-04B — plage « moteur Architecte » volontairement rouverte pour UNE ligne : archNormaliser() plie
+     désormais la ponctuation typographique (apostrophes, guillemets, tirets) avant la comparaison des citations.
+     Mesuré en réel : une citation exacte à apostrophe droite contre une demande à apostrophe typographique
+     arrêtait tout le parcours API après un appel #1 en 200. Baseline régénérée par frozen-guard --write-baseline ;
+     les six autres plages sont inchangées (voir tests/continuite-api-citation-cont04b.test.mjs). */
+  assert.equal(baseline.hashes['moteur Architecte'], '7ec1abaa6e94f2a0f9f2ff1dec491a50339268ab81e61c155bf4959b0de4ad6a');
   assert.equal(Object.keys(baseline.hashes).length, 7);
 });
 

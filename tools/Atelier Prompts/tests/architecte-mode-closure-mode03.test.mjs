@@ -403,7 +403,12 @@ test('T-MODE03-61 : EXEC-PHASE-INSTRUMENT-01 reste ouverte, et rien n’a été 
   /* Ce qui est prouvé reste l'unicité de l'ENTRÉE, hors plage gelée. */
   assert.ok(html.indexOf('let archExecutionEnCours=false;') > fin);
   const baseline = JSON.parse(fs.readFileSync(path.join(root, 'anti-regression-baseline.json'), 'utf8'));
-  assert.equal(baseline.hashes['moteur Architecte'], 'bebb29dc9a0b6f70fb23b22cf13e6573688d8e2dbfbfd54356a14bf1522b6d1e');
+  /* CONTINUITE-04B — plage « moteur Architecte » volontairement rouverte pour UNE ligne : archNormaliser() plie
+     désormais la ponctuation typographique (apostrophes, guillemets, tirets) avant la comparaison des citations.
+     Mesuré en réel : une citation exacte à apostrophe droite contre une demande à apostrophe typographique
+     arrêtait tout le parcours API après un appel #1 en 200. Baseline régénérée par frozen-guard --write-baseline ;
+     les six autres plages sont inchangées (voir tests/continuite-api-citation-cont04b.test.mjs). */
+  assert.equal(baseline.hashes['moteur Architecte'], '7ec1abaa6e94f2a0f9f2ff1dec491a50339268ab81e61c155bf4959b0de4ad6a');
 });
 
 // =================================================================================================

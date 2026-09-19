@@ -9217,7 +9217,13 @@ function archExporterQualiteFichier(){
   archQualiteEtat('Paquet exporté — importable dans le banc qualitatif (Importer un rapport).' + suffixeStatut, oracle.statut === 'confirme' ? 'succes' : 'alerte');
 }
 function archChampsInterdits(v,chemin,erreurs){if(!v||typeof v!=='object')return;Object.keys(v).forEach(k=>{const p=(chemin?chemin+'.':'')+k;if(ARCH_LOCAL_FIELDS.has(k))erreurs.push('Champ réservé à l’application : '+p);archChampsInterdits(v[k],p,erreurs)})}
-function archNormaliser(t){return String(t||'').normalize('NFC').replace(/\s+/g,' ').trim()}
+/* CONTINUITE-04B — la citation est comparée à la source à PONCTUATION TYPOGRAPHIQUE PLIÉE : apostrophes
+   (' ‘ ’ ‚ ‛ ′ ʼ), guillemets (" “ ” „ ‟ « » ″) et tirets (- – —) sont chacun ramenés à leur forme ASCII, comme
+   les espaces le sont déjà. Mesuré en réel (claude-sonnet-5, appel #1 en 200) : une déclaration citait « d'un »
+   là où la demande portait « d’un » — citation exacte au sens humain, refusée ici, et tout le parcours API
+   s'arrêtait sans prompt final. Rien n'est réécrit : la comparaison seule est tolérante, la valeur reste celle
+   du modèle. */
+function archNormaliser(t){return String(t||'').normalize('NFC').replace(/[\u2018\u2019\u201A\u201B\u2032\u02BC]/g,"'").replace(/[\u201C\u201D\u201E\u201F\u00AB\u00BB\u2033]/g,'"').replace(/[\u2013\u2014]/g,'-').replace(/\s+/g,' ').trim()}
 function archCitationPresente(source,citation){return archNormaliser(source).includes(archNormaliser(citation))}
 function archCleTitre(t){return archNormaliser(t).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim()}
 function archTitreReserve(t){return new Set(['role','objectif','demande originale','demande du joueur','question prealable','informations manquantes','informations manquantes et pilotage','recherche et actualite','hypotheses autorisees','hypotheses interdites','format de sortie','verification avant envoi']).has(archCleTitre(t))}
