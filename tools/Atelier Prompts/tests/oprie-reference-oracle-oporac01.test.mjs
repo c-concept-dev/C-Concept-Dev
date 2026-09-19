@@ -248,8 +248,19 @@ test('T-OPORAC01-11 : HTML canonique inchangé, dette ouverte', () => {
      UNE assertion de contrat — celle dont l'empreinte de message correspond au 502 observé — pour
      qu'un refus de sortie fournisseur cesse d'être compté comme un défaut de notre code. Aucune
      règle, aucun prompt, aucun schéma, aucun comportement d'interface. */
+  /* SCHEMA-ANTHROPIC-03 / CONTINUITE-04 — L'EMPREINTE A BOUGÉ, PAR LE TRANSPORT ANTHROPIC SEUL : le schéma
+     canonique de l'analyse part désormais comme schéma d'outil (appel forcé, JSON garanti, aucune grammaire
+     compilée — la sortie structurée refusait l'analyse complète, « compiled grammar is too large »), la
+     réponse est vérifiée contre le canonique complet, avec UNE requête de correction bornée. Ni règle, ni
+     prompt, ni schéma canonique, ni plage gelée n'a changé : FROZEN identique. Le runner de bisection de
+     grammaire (outil hors produit) a été retiré. */
+  /* SCHEMA-ANTHROPIC-02 / MODELE-PAR-DEFAUT-01 — L'EMPREINTE A ENCORE BOUGÉ, ET TOUJOURS POUR LA
+     MÊME RAISON MÉCANIQUE : le repli du sélecteur de modèle API, jusqu'ici un index positionnel
+     muet vers 'claude-opus-5', devient MODELE_PAR_DEFAUT ('claude-sonnet-5'), annoncé plutôt que
+     silencieux quand une actualisation depuis /v1/models fait disparaître le modèle retenu. Aucune
+     règle, aucun prompt, aucun schéma, aucun comportement d'interface visible n'a changé. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    '3d72b74071d9a1669534cf209ac3bac481da314d538574a90a531c1c0e25b57c', 'CANONICAL_HTML_CHANGED = NO');
+    'a6cf38e722c07b68b160082e9f30a7ace651cc18c9018cb6167a0b92966532c7', 'CANONICAL_HTML_CHANGED = NO');
   const registre = lire('docs/OPEN-DEBTS.md');
   const ouvertes = registre.slice(registre.indexOf('## Ouvertes'), registre.indexOf('## Fermées'));
   assert.deepEqual([...ouvertes.matchAll(/^### ([A-Z][A-Z-]+-\d{2})$/gm)].map((m) => m[1]), ['PERF-REAL-01']);

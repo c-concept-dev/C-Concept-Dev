@@ -167,6 +167,10 @@ test('T-CLEAN04-05 : un seul graphe de build, et il ne diverge pas des imports r
      aucune source ; il lit l'inventaire et produit un document. L'invariant que
      ce test défend — un seul graphe de build, une seule liste de modules — reste
      entier, et on le vérifie ici plutôt que de se contenter d'élargir la liste. */
+  /* SCHEMA-ANTHROPIC-03 — le runner de diagnostic de grammaire (anthropic-grammar-bisect.mjs,
+     quatrième programme le temps de SCHEMA-ANTHROPIC-02) a été retiré : le produit ne compile
+     plus aucune grammaire de sortie structurée chez Anthropic, il n'y a plus rien à bissecter.
+     Ses mesures sont consignées dans l'en-tête de schemaPourAnthropic. Trois programmes. */
   const outils = fs.readdirSync(path.join(root, 'tools'));
   assert.deepEqual(outils.sort(), ['build-adn-browser-runtime.mjs', 'build-release-manifest.mjs',
     'frozen-guard.mjs']);

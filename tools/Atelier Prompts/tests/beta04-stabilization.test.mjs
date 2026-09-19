@@ -363,9 +363,12 @@ test('T04-11b : les annotations et valeurs par défaut ne sont pas transformées
 });
 
 test('T04-11c : contrainte anyOf existante conservée par conjonction', () => {
-  const s = { type: ['string', 'null'], enum: ['x', null], anyOf: [{ type: 'string' }] };
-  const out = clone(ctx.adapt(s));
-  assert.deepEqual(out.anyOf, s.anyOf);
+  /* SCHEMA-ANTHROPIC-03 : le nœud vit sous une propriété, plus à la racine — Anthropic refuse tout
+     oneOf/allOf/anyOf À LA RACINE d'un input_schema, et l'adaptateur les y retire ; l'invariant
+     (conjonction conservée) ne peut donc exister qu'en profondeur. */
+  const v = { type: ['string', 'null'], enum: ['x', null], anyOf: [{ type: 'string' }] };
+  const out = clone(ctx.adapt({ type: 'object', properties: { v } })).properties.v;
+  assert.deepEqual(out.anyOf, v.anyOf);
   assert.equal(out.allOf[0].anyOf.length, 2);
 });
 
