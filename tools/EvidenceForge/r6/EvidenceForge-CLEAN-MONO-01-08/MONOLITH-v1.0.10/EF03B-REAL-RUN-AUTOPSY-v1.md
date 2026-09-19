@@ -1,6 +1,6 @@
 # EF-03B REAL RUN AUTOPSY v1 — run `efm-20260918-a64167c0` (lecture seule, 0 appel fournisseur)
 
-Généré le 2026-09-19T12:53:50.475Z par `tools/ef03b-autopsy.js` (MONOLITH-v1.0.10). Tentative finale : 9 ; run COMPLETED (9 tentatives). Revues attendues 18 · VALID 10 · ERROR 8. Aucun prompt ni réponse reproduits ; références publiques des professionnels seulement.
+Généré le 2026-09-19T13:05:41.293Z par `tools/ef03b-autopsy.js` (MONOLITH-v1.0.10). Tentative finale : 9 ; run COMPLETED (9 tentatives). Revues attendues 18 · VALID 10 · ERROR 8. Aucun prompt ni réponse reproduits ; références publiques des professionnels seulement.
 
 ## 1. Les 18 revues — passes de la tentative finale
 
@@ -117,3 +117,26 @@ Sorties TRONQUÉES (stop_reason=max_tokens) : 21 — findings commencés / compl
 ≠ seuils
 ≠ exceptions c…` |
 | PARAPHRASE_OR_ABSENT | 2 | `Distinguer systématiquement : BESOINS DE REPRÉSENTATION de FUTURES RÈGLES DE DÉCISION.…` → aucun span unique |
+
+## 5. Tentatives : ce que l'historique révèle (lecture des tentatives 7 → 9)
+
+- Tentative 7 (v1.0.8, streaming) : 18 jumeaux, **10 revues VALID** (dont 8 à la passe 2 par réparation ciblée), 8 non validées, puis 504 pendant l'agrégation → aucun checkpoint aval → **rien de conservé**.
+- Tentative 9 : 17 des 18 revues **recalculées en réel** (6,34 USD pour des jumeaux déjà VALID en t7 ; 1 seule réutilisation, celle validée à la passe 1) : la politique de reuse (clé = octets du prompt d'une *passe*) ne connaît pas la revue *logique* ; une revue validée à la passe 2/3 n'est jamais retrouvée puisque la passe 1 est rejouée (non déterministe) et produit une autre passe 2. Résultat : **4 revues VALID en t7 sont ERROR en t9** (2 restent réutilisables aujourd'hui, 2 ont vu les preuves de leur jumeau changer).
+- 3 jumeaux sur 17 ont changé de preuves (worksUsed) entre t7 et t9 : la couverture EF-02D3 rejouée (passes 1 invalides jamais réutilisables, contrat gelé) n'est pas déterministe.
+
+## 6. PHASE 2 — ROOT CAUSE (réponses explicites)
+
+| # | Question | Réponse factuelle |
+|---|---|---|
+| 1 | Pourquoi des revues atteignent 8 192 jetons ? | 10 findings × 9 champs dont 3 textes libres : mesuré sur les 13 réponses complètes, `finding` 300–860 car., `rationale` 500–860, `limitations` 400–560, 1,4–4,3 citations de 200–620 car. par finding ⇒ 22–29 k caractères ≈ 6,2–8,2 k jetons. Toute réponse un peu plus longue que la médiane dépasse 8 192 : **61 % des passes 1 tronquées (11/18)**, toujours au 9ᵉ/10ᵉ finding (8–9 findings complets). |
+| 2 | Le modèle produit-il trop de findings ? | Non : cardinalité toujours respectée (10/10 ; 0 cas CARDINALITY / DIMENSION_DUPLICATE / DIMENSION_MISSING). |
+| 3 | Répète-t-il le dossier ou les citations ? | Pas le dossier ; mais des citations longues (jusqu'à 620 car., 3–4 par finding) et des `limitations` verbeuses. |
+| 4 | Le schéma encourage-t-il une sortie volumineuse ? | Le prompt gelé n'impose aucune longueur ; trois champs libres (`finding`, `rationale`, `limitations`) sans budget ⇒ le modèle remplit richement. |
+| 5 | Exigences redondantes ? | `finding` et `rationale` sont de tailles comparables (≈ 600 / 650 car.) : justification dupliquée probable ; non mesurable sémantiquement hors ligne. |
+| 6 | Le validateur rejette-t-il des réponses utilisables pour un défaut de forme ? | **Oui, massivement, pour la forme des citations** : 173 citations rejetées ; 130 (75 %) correspondent à un span EXACT du document une fois retirés marqueurs Markdown (`**`), puces/numéros de liste, sauts de ligne, cases `[ ]` ; 41 partielles ; 2 paraphrases. Le validateur byte-exact est légitime (contrat) ; c'est le prompt qui ne prévient pas que le document est en Markdown brut. |
+| 7 | Les reprises repartent-elles avec trop de contexte ? | Oui : `INFORMED_REPAIR_V02` renvoie le document (132 k car.) + la réponse fautive complète (≤ 60 k car.) ⇒ 48–49 k jetons d'entrée pour régénérer 10 findings ; 16 passes, 4,27 USD, **0 VALID directement, 10 tronquées à nouveau**. |
+| 8 | Le retry régénère-t-il tout alors qu'un sous-ensemble est invalide ? | Oui pour la troncature (1–2 findings manquants ⇒ régénération des 10) ; non pour TARGET_REF_NOT_LITERAL (réparation ciblée gelée : 15 passes, 9 VALID, 0,149 USD/passe). |
+| 9 | Peut-on réparer localement sans LLM ? | Partiellement et **structurellement seulement** : (a) après troncature, les 8–9 findings complets sont extractibles par un sauvetage de *framing JSON* (aucun contenu modifié) — 21/21 sorties tronquées ; (b) 130 citations ont un span exact déterministe — mais **une citation n'est jamais réparée localement** (contrat) : le span est *proposé* au modèle. Les 2 revues VALID de t7 dont les preuves sont inchangées sont re-validées hors ligne (0 appel). |
+| 10 | `max_tokens` est-il mal dimensionné ? | **Oui** : 8 192 est inférieur à la taille naturelle de la sortie contractuelle (médiane des complètes 7,6 k, max 8,1 k jetons). Il faut à la fois un budget de forme (réduire) et une marge (12 288 ≥ 1,5 × la médiane), le coût de sortie n'étant engagé que s'il est utilisé. |
+
+**ROOT_CAUSE (double)** : (i) `max_tokens = 8192` sous-dimensionné pour 10 findings non bornés ⇒ troncature ⇒ `JSON_INVALID` ⇒ régénération complète (même taille, même risque) ; (ii) citations rendues « à l'écran » (Markdown aplati) contre un validateur byte-exact ⇒ `TARGET_REF_NOT_LITERAL` ⇒ jusqu'à 3 passes. Facteur aggravant (coût) : reuse par prompt de passe, aveugle à la revue logique ⇒ 6,34 USD de revues déjà VALID recalculées à la tentative 9 et 4 revues VALID perdues.

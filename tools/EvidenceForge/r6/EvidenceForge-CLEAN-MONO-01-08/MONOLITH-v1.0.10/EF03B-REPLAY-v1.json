@@ -2,7 +2,7 @@
   "schema": "EvidenceForge.EF03BReplay",
   "schemaVersion": "MONOLITH-v1.0.10",
   "runId": "efm-20260918-a64167c0",
-  "generatedAt": "2026-09-19T12:53:50.475Z",
+  "generatedAt": "2026-09-19T13:05:41.293Z",
   "providerCallsDuringReplay": 0,
   "OLD": {
     "reviewsExpected": 18,
@@ -72,8 +72,40 @@
   },
   "SIMULATED": {
     "candidatesForReplay": 6,
-    "ofWhichTruncationFamily": 6,
-    "ofWhichLiteralityFamily": 0,
+    "ofWhichTruncationFamily": 3,
+    "ofWhichLiteralityFamily": 3,
+    "terminalCauses": [
+      {
+        "twinId": "twin-https://openalex.org/A5031631835",
+        "terminal": "TARGET_REF_NOT_LITERAL",
+        "historicalValid": true
+      },
+      {
+        "twinId": "twin-https://openalex.org/A5034919242",
+        "terminal": "TARGET_REF_NOT_LITERAL",
+        "historicalValid": false
+      },
+      {
+        "twinId": "twin-https://openalex.org/A5084194176",
+        "terminal": "max_tokens",
+        "historicalValid": true
+      },
+      {
+        "twinId": "twin-https://openalex.org/A5067779338",
+        "terminal": "max_tokens",
+        "historicalValid": false
+      },
+      {
+        "twinId": "twin-https://openalex.org/A5081732198",
+        "terminal": "TARGET_REF_NOT_LITERAL",
+        "historicalValid": false
+      },
+      {
+        "twinId": "twin-https://openalex.org/A5072236225",
+        "terminal": "max_tokens",
+        "historicalValid": false
+      }
+    ],
     "unitCostsUsd": {
       "pass1FullUsd": 0.2648,
       "completionUsd": 0.1491,

@@ -1,9 +1,9 @@
 {
   "schema": "EvidenceForge.MonolithTestResults",
-  "ranAt": "2026-09-19T13:03:42.346Z",
+  "ranAt": "2026-09-19T13:13:10.612Z",
   "total": 265,
-  "passed": 264,
-  "failed": 1,
+  "passed": 265,
+  "failed": 0,
   "results": [
     {
       "id": "I1",
@@ -1183,8 +1183,7 @@
     {
       "id": "T-STREAM-20",
       "name": "invariants : lib/panel-sufficiency.js byte-identique (sha256 fd05e26b…) ; lots geles 0 divergence ; Worker gele MONO-08 v0.6 intact (sha256 a4f70bda…) ; proxy v0.8 additif (delais separes, HEADER_TIMEOUT_MS 60 s, lecture stricte) (relais `new Response(upstreamResponse.body`, compat bufferisee conservee, cle Anthropic jamais renvoyee, credential Worker verifie) ; config streaming/observabilite ; RESUMABLE",
-      "ok": false,
-      "error": "reprenable + version"
+      "ok": true
     },
     {
       "id": "T-STREAM-21",

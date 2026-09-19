@@ -20,7 +20,7 @@
 
 | candidates au replay | famille troncature | famille littéralité | appels estimés | coût estimé | coût OLD des mêmes revues | régénérations complètes évitées |
 |---|---|---|---|---|---|---|
-| 6 | 6 | 0 | 6–18 | 1.5888–2.5914 USD | 4.4923 USD | 16 |
+| 6 | 3 | 3 | 6–18 | 1.5888–2.5914 USD | 4.4923 USD | 16 |
 
 Unités mesurées : passe 1 complète 0.2648 USD ; complétion / réparation ciblée 0.1491 USD ; littéralisation sur extraits ≈ 0.018 USD ; régénération complète 0.2669 USD. estimation par unites MESUREES (passe 1, reparation ciblee) ; le taux de reussite des 8 revues n'est PAS invente : EXPECTED_NOT_YET_PROVEN
 

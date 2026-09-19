@@ -2,9 +2,9 @@
   "schema": "EvidenceForge.MonolithManifest",
   "product": {
     "name": "EvidenceForge",
-    "version": "MONOLITH-v1.0.9"
+    "version": "MONOLITH-v1.0.10"
   },
-  "generatedAt": "2026-09-19T08:32:14.324Z",
+  "generatedAt": "2026-09-19T13:13:10.761Z",
   "frozenLots": {
     "MONO-10": {
       "dir": "MONO-10/v0.19",
@@ -41,9 +41,9 @@
       "note": "sourceSealHash = runtimeSealSha256 du lot MONO-11 charge : cle de contexte de la reuse (lib/llm.js reuseContextCheck) ; validationContract = contrat SCIENTIFIQUE (inchange), distinct de la version du code"
     },
     "predecessor": {
-      "version": "MONOLITH-v1.0.8",
-      "zipSha256": "d4b3dcacb7b0a021d6a43acdb1941e484cc713e0fd3cc8d05ee1deed9eecefa1",
-      "status": "CANDIDAT GELABLE (STREAMING TRANSPORT + LIVE OBSERVABILITY ; streaming valide en reel : 56 appels SSE jusqu a 156 s)",
+      "version": "MONOLITH-v1.0.9",
+      "zipSha256": "174fa8c38c75c9841bd3b29e4060294cbe127236060c5eafe10a3c622fbbb9bb",
+      "status": "CANDIDAT GELABLE (proxy v0.8 delais separes ; streaming + HEADER_TIMEOUT_MS 60 s valides en reel)",
       "mono11": "v0.3-r1 (zip 3c44b397dda0997d0fff6ab4c8e8a8b311430e6a5ac7aeee38149f8349296b0b), inchange"
     },
     "pricing": {
@@ -86,10 +86,10 @@
       }
     },
     "tests": {
-      "total": 239,
-      "passed": 239,
+      "total": 265,
+      "passed": 265,
       "failed": 0,
-      "ranAt": "2026-09-19T08:28:53.394Z"
+      "ranAt": "2026-09-19T13:13:10.612Z"
     },
     "professionals": {
       "maxCandidatesToEvaluate": 150,
@@ -110,8 +110,21 @@
         "$comment": "v1.0.8 : live-status.json + state.updatedAt/counters rafraichis sur activite significative et par heartbeat borne pendant un appel fournisseur (jamais par jeton) ; trace console EVIDENCEFORGE_TRACE_REVIEWS=1 (desactivee par defaut) — identifiants, tailles, compteurs, codes ; jamais un prompt, une reponse ou un secret."
       }
     },
-    "provenance": "MONOLITH v1.0.9 = v1.0.8 (inchangee cote client : streaming valide en reel) + proxy v0.8 : delais separes HEADER_TIMEOUT_MS (seul applique par le Worker, attente des en-tetes amont, defaut 60 s justifie par la mesure : max 7,0 s sur 56 appels reels, fenetre edge ~100 s, client premier octet 180 s) / STREAM_INACTIVITY_TIMEOUT_MS / STREAM_MAX_DURATION_MS (gardes client, annoncees jamais appliquees), lecture stricte des variables Cloudflare (chaine/nombre, bornes, defaut sur + trace non sensible), alias TIMEOUT_MS herite — correctif du 504 upstream_timeout a 8,187 s (ROOT-CAUSE-504-8S-AUTOPSY-v1.md). v1.0.8 = v1.0.7 (inchangee : Panel Sufficiency, economic-panel, contrats scientifiques, semantique et independance des jumeaux, fanout 1 revue par jumeau x cible dossier) + STREAMING TRANSPORT (Anthropic stream:true -> Worker v0.7 relais SSE -> client lib/llm-stream.js reconstruction canonique deterministe -> validation / cache / reuse / ledger inchanges ; interruption fail-closed PROVIDER_STREAM_INTERRUPTED, aucun retry automatique, cout connu inscrit) + LIVE OBSERVABILITY (lib/live-status.js : live-status.json, state.live, heartbeat borne, trace console optionnelle EVIDENCEFORGE_TRACE_REVIEWS=1) — correctif des HTTP 524 edge sur les revues de dossier (ROOT-CAUSE-524-AUTOPSY-v1.md). v1.0.7 : ECONOMIC PANEL OPTIMIZATION + EARLY SUFFICIENCY + MARGINAL VALUE CONTROL + REVIEW FANOUT CONTROL : politique SUFFICIENCY_FIRST (lib/economic-panel.js) — panel initial compact, lots d expansion reevalues, contribution marginale par composantes, DIMINISHING_INFORMATION_RETURNS descriptif, arret budgetaire AVANT un lot (PANEL_INCOMPLETE_BUDGET_LIMIT reprenable, jamais une suffisance), plafond = garde ; cibles de revue = dossier de mission (1 revue complete par jumeau et par mission, PER_DOCUMENT explicite) ; compteurs reviewDocuments / reviewItems distincts ; projection avant la premiere revue, ECONOMIC_OUTLIER_WARNING, porte humaine ECONOMIC_REVIEW ; PANEL-SUFFICIENCY-v2 inchangee = seule autorite scientifique ; lots geles inchanges",
-    "status": "CANDIDAT (v1.0.9) — NON GELE : tests fonctionnels/adversariaux/economiques/streaming/delais passes ; audit independant, deploiement du proxy v0.8 (proprietaire) et doctor OK requis AVANT toute reprise du run reel ; run reel requis avant gel"
+    "ef03b": {
+      "adapter": "lib/ef03b-resilience.js (additif autour de llmCall ; MONO-11 gele inchange)",
+      "reviewMaxTokens": 12288,
+      "reviewResilience": {
+        "enableOutputBudget": true,
+        "enableCompletion": true,
+        "enableLiteralization": true,
+        "maxCompletionDims": 4,
+        "excerptChars": 300
+      },
+      "registry": "reviews-valid.jsonl (par run ; cle = sha256 du prompt EF-03B de passe 1 + sceau + contrat)",
+      "replay": "POST /api/runs/:id/replay-reviews (depuis le checkpoint professionnel ; aval seul)"
+    },
+    "provenance": "MONOLITH v1.0.10 = v1.0.9 (inchangee : transport streame, proxy v0.8, Panel Sufficiency, economic-panel, stage-professionals) + EF-03B REVIEW RESILIENCE : adaptateur additif lib/ef03b-resilience.js autour de llmCall (registre des revues logiques VALID servies a 0 appel puis revalidees par le lot gele ; contrat de budget de sortie = forme seule ; max_tokens dimensionne au contrat (12288) ; troncature => REVIEW_OUTPUT_TRUNCATED, sauvetage structurel des findings complets + completion ciblee des dimensions manquantes, fusion deterministe ; litteralisation sur extraits (spans exacts proposes, choix du modele, empreinte de contexte) ; replay cible des revues depuis le checkpoint professionnel ; trace EF-03B par passe ; outils d autopsie / import de registre hors ligne) — correctif des 8 revues ERROR (21 sorties tronquees a 8192, 173 citations non litterales dont 74 % par mise en forme Markdown) du run reel (EF03B-REAL-RUN-AUTOPSY-v1.md). v1.0.9 = v1.0.8 (inchangee cote client : streaming valide en reel) + proxy v0.8 : delais separes HEADER_TIMEOUT_MS (seul applique par le Worker, attente des en-tetes amont, defaut 60 s justifie par la mesure : max 7,0 s sur 56 appels reels, fenetre edge ~100 s, client premier octet 180 s) / STREAM_INACTIVITY_TIMEOUT_MS / STREAM_MAX_DURATION_MS (gardes client, annoncees jamais appliquees), lecture stricte des variables Cloudflare (chaine/nombre, bornes, defaut sur + trace non sensible), alias TIMEOUT_MS herite — correctif du 504 upstream_timeout a 8,187 s (ROOT-CAUSE-504-8S-AUTOPSY-v1.md). v1.0.8 = v1.0.7 (inchangee : Panel Sufficiency, economic-panel, contrats scientifiques, semantique et independance des jumeaux, fanout 1 revue par jumeau x cible dossier) + STREAMING TRANSPORT (Anthropic stream:true -> Worker v0.7 relais SSE -> client lib/llm-stream.js reconstruction canonique deterministe -> validation / cache / reuse / ledger inchanges ; interruption fail-closed PROVIDER_STREAM_INTERRUPTED, aucun retry automatique, cout connu inscrit) + LIVE OBSERVABILITY (lib/live-status.js : live-status.json, state.live, heartbeat borne, trace console optionnelle EVIDENCEFORGE_TRACE_REVIEWS=1) — correctif des HTTP 524 edge sur les revues de dossier (ROOT-CAUSE-524-AUTOPSY-v1.md). v1.0.7 : ECONOMIC PANEL OPTIMIZATION + EARLY SUFFICIENCY + MARGINAL VALUE CONTROL + REVIEW FANOUT CONTROL : politique SUFFICIENCY_FIRST (lib/economic-panel.js) — panel initial compact, lots d expansion reevalues, contribution marginale par composantes, DIMINISHING_INFORMATION_RETURNS descriptif, arret budgetaire AVANT un lot (PANEL_INCOMPLETE_BUDGET_LIMIT reprenable, jamais une suffisance), plafond = garde ; cibles de revue = dossier de mission (1 revue complete par jumeau et par mission, PER_DOCUMENT explicite) ; compteurs reviewDocuments / reviewItems distincts ; projection avant la premiere revue, ECONOMIC_OUTLIER_WARNING, porte humaine ECONOMIC_REVIEW ; PANEL-SUFFICIENCY-v2 inchangee = seule autorite scientifique ; lots geles inchanges",
+    "status": "CANDIDAT (v1.0.10) — NON GELE : tests fonctionnels/adversariaux/economiques/streaming/delais/EF-03B passes ; audit independant du lot requis AVANT le run reel de recuperation des revues restantes ; run reel requis avant gel"
   },
   "files": [
     {
@@ -148,6 +161,46 @@
       "path": "ECONOMIC-PANEL-AUTOPSY-v1.md",
       "sha256": "8d1c5ebd340dc8729f88b98afe8cb8cd0fd982426ef99b8caa3acc09e08f5697",
       "bytes": 11438
+    },
+    {
+      "path": "EF03B-COST-ANALYSIS-v1.json",
+      "sha256": "96e9f7e5a7898cfea9dae8bb61e0853323ca85a025404dc043b587fe25026658",
+      "bytes": 17097
+    },
+    {
+      "path": "EF03B-COST-ANALYSIS-v1.md",
+      "sha256": "d66c9156edd8adc1b0810586eecb6320b728e8842e98116f4f3fb37a0d7bb485",
+      "bytes": 1117
+    },
+    {
+      "path": "EF03B-FAILURE-TAXONOMY-v1.json",
+      "sha256": "a45cc751397c3ff1dd637c5629346cfca4d830b649fc6ea257e5d8b3d703a34b",
+      "bytes": 11842
+    },
+    {
+      "path": "EF03B-FAILURE-TAXONOMY-v1.md",
+      "sha256": "09967e6f15c46b33923327b7980522bfda27602e597909aa1452da0da5fada7e",
+      "bytes": 2371
+    },
+    {
+      "path": "EF03B-REAL-RUN-AUTOPSY-v1.md",
+      "sha256": "905cc5fb63fa4ae44ce85b8b6969a453dbac1c60c120b0c5c8f6b858b55e0492",
+      "bytes": 21582
+    },
+    {
+      "path": "EF03B-REPAIR-DESIGN-v1.md",
+      "sha256": "682ada1aba8953336d9e162d0de56ec873a4c6fb5768602ac197852d52672da8",
+      "bytes": 8211
+    },
+    {
+      "path": "EF03B-REPLAY-v1.json",
+      "sha256": "cf83988f75cc79acd016412470eec2bc37ebe4b32953c03a64b78325cd2ace44",
+      "bytes": 4662
+    },
+    {
+      "path": "EF03B-REPLAY-v1.md",
+      "sha256": "f97990f4fd95e06eebd94f4aa5c0e8a9defdfcf09c41c94c75ab8c9a7e6df7ab",
+      "bytes": 2739
     },
     {
       "path": "FROZEN-HASHES-BEFORE-AFTER.md",
@@ -198,6 +251,11 @@
       "path": "JMMJS-TWINS-524-REPLAY-v1.md",
       "sha256": "72a939b92cf0f70d56a2a76059da26d1460046976ae06ff028f8d2fc41d0582a",
       "bytes": 8765
+    },
+    {
+      "path": "MONOLITH-v1.0.10-EF03B-RESILIENCE-REPORT.md",
+      "sha256": "72d4e8b3f47092d52e75c96c8ed4d31f6592a99cde03119d77170f4a2fcdd476",
+      "bytes": 8122
     },
     {
       "path": "MONOLITH-v1.0.6-AUTO-CHUNK-UPLOAD-REPORT.md",
@@ -281,8 +339,8 @@
     },
     {
       "path": "README.md",
-      "sha256": "56bf43115db7e0dda50fc1b681bad114bb71e3ac1ffc617d8befefd2e48df51d",
-      "bytes": 32230
+      "sha256": "7423fef528c6d870a4ad83b303bfaed815a3ee97e3c0d6e9d2c1e43be259b50f",
+      "bytes": 34351
     },
     {
       "path": "REVIEW-RESUME-DESIGN-v1.md",
@@ -356,8 +414,8 @@
     },
     {
       "path": "config/monolith.config.json",
-      "sha256": "eb9a81434ed6cdcb316a42926c0ba5c1eea928de529675c7211ad56a32fd8885",
-      "bytes": 11311
+      "sha256": "3339894a9db186915dd3f0c733cef632887f0f0964b0fc1955f4cd4c8e3a55d6",
+      "bytes": 12297
     },
     {
       "path": "fixtures/real-documents/D103-CDC-v4.1.md",
@@ -386,8 +444,8 @@
     },
     {
       "path": "index.html",
-      "sha256": "f24536750da7793219624f447030dbbcc08bc04421f6add8cb3313d067412407",
-      "bytes": 75327
+      "sha256": "d3541fa69556df8dcd8d7a802627cd531fd533c0d8d1e1dc2049625fbe0ec30c",
+      "bytes": 76401
     },
     {
       "path": "lib/batch-judge.js",
@@ -416,8 +474,8 @@
     },
     {
       "path": "lib/cost-view.js",
-      "sha256": "56a1b16b00893b58095eda5324f89734d214e0b3fec54b1284756ab0283f3aae",
-      "bytes": 12176
+      "sha256": "7357d89ee8f3ac794552f3f2d7781c365f6d0620549bac51bbd1e6700dda428a",
+      "bytes": 12200
     },
     {
       "path": "lib/document-chunker.js",
@@ -430,9 +488,14 @@
       "bytes": 30192
     },
     {
+      "path": "lib/ef03b-resilience.js",
+      "sha256": "23946c7a5317f99e57db5b071242cc0558b9f63c71b7bb06d66bc68dd89254f7",
+      "bytes": 31261
+    },
+    {
       "path": "lib/live-status.js",
-      "sha256": "ad21d9069ce72e4a7329d277d9ae38ae13dfbd495c1e2822932a27d9f82bc999",
-      "bytes": 9803
+      "sha256": "ce2a733a318dc61f38158bfc99d08191d4829ea4d5a763ee64235a5ebf4d1c2c",
+      "bytes": 10760
     },
     {
       "path": "lib/llm-stream.js",
@@ -446,8 +509,8 @@
     },
     {
       "path": "lib/llm.js",
-      "sha256": "9929f15f7f0b14c16db6b7e3261458dd9e429fbe0a69a45788e6e75ad5ebe0b5",
-      "bytes": 30955
+      "sha256": "b9d1c4799179be786d9a9560dfe326c2d8f826623a7c5c174da475f69b5dff1e",
+      "bytes": 32615
     },
     {
       "path": "lib/mono04-fence-adapter.js",
@@ -466,8 +529,8 @@
     },
     {
       "path": "lib/pipeline.js",
-      "sha256": "50cf7be07069f9b90a8280f9cfddfe6908a9a4eadb5a63985244e14919cc6b41",
-      "bytes": 64791
+      "sha256": "ea2dadeb88e05a094c3039c7cbd2bdad8a7a867d004855794754bca98e2f0d22",
+      "bytes": 69962
     },
     {
       "path": "lib/portfolio-balancing.js",
@@ -551,27 +614,27 @@
     },
     {
       "path": "server.js",
-      "sha256": "b010da592d9e2d0e3bfff13e28dca37193ed61bbfdb05876df3bc8af4f97b247",
-      "bytes": 17202
+      "sha256": "8f567af101b7a4d444eb04938a28a8575aa60d75c0ec1587d625b59ef17f073b",
+      "bytes": 17630
     },
     {
       "path": "test/browser-results-v105.json",
-      "sha256": "4c0542f9d65b0478654eb95afda704c2edd58138bb6f587a9e71102e01faab5d",
+      "sha256": "ecacf8470ee33d2591ec2f21087b3b5f4e7589e53812deafd72ec410bf78e1eb",
       "bytes": 8340
     },
     {
       "path": "test/browser-results-v106.json",
-      "sha256": "e9400effcbd90ea27a447bb86068d62ad4b126b9508c7d8f49bc4ba114ba8974",
+      "sha256": "1c9cd43bc9674cdab2a0ab9bb4aac2cff9565f3df519ff51a0e8f048717d82b5",
       "bytes": 1774
     },
     {
       "path": "test/browser-results-v107.json",
-      "sha256": "d94bb47f233b4479dcedf167468686cbdedbaabf491ed889b7a1b1816568c5cf",
+      "sha256": "bc24620a9bf7466e0528b46f4e6f0cf334a9712d705ed827fcc1bd1d7e734fe1",
       "bytes": 1870
     },
     {
       "path": "test/browser-results-v108.json",
-      "sha256": "ee36b0bbc7ea1a9d1935396715f0c5539f09369203bd914186de01db0e11f085",
+      "sha256": "fbfe59568bf2ea9c7853286fed03720fe8295c396d61d1c2191e7342d1a1b757",
       "bytes": 1577
     },
     {
@@ -581,13 +644,13 @@
     },
     {
       "path": "test/results-chunking.json",
-      "sha256": "dbe440a8af9383ee007d7508791af3eebd5fde2dde24c19cf2dfe6e20a28b223",
-      "bytes": 4289
+      "sha256": "da26d7ead7091b4fd49c07af5e99cd2f57be19e195f27b67f6dd91b3976efa9a",
+      "bytes": 4290
     },
     {
       "path": "test/results.json",
-      "sha256": "2fd80963cf4b7f44ee7bba712ea19ffcc7c64541655c71a9a408134e0812aedd",
-      "bytes": 61531
+      "sha256": "d2c1a658b64288dc7459ce1bb5d78bc37666e76d9005bc7260e1f1f4654604cd",
+      "bytes": 68231
     },
     {
       "path": "test/test-chunking.js",
@@ -600,9 +663,14 @@
       "bytes": 25290
     },
     {
+      "path": "test/test-ef03b.js",
+      "sha256": "0ccb5236c301cd10f8977c65e68d312008306493edb4bacea2da3ff907642870",
+      "bytes": 36846
+    },
+    {
       "path": "test/test-monolith.js",
-      "sha256": "369760aff3ccde145ce6753054ce8ecb194641310477cd70cd547e055e845419",
-      "bytes": 113565
+      "sha256": "698840623519db78960d38fd4a96d1a7d5a5fb362ea14d1f61bf239c37894350",
+      "bytes": 114705
     },
     {
       "path": "test/test-panel.js",
@@ -626,8 +694,8 @@
     },
     {
       "path": "test/test-stream.js",
-      "sha256": "66d80cb79a279f41c2214a059e2c3b1ca191dc2dcd7d1e86552fa0d406af3713",
-      "bytes": 45946
+      "sha256": "9c208e31ec56af512ac04270aa90b0cbbe36a374069b9da2bc9a327a84b43a0f",
+      "bytes": 45947
     },
     {
       "path": "test/test-sufficiency.js",
@@ -676,13 +744,23 @@
     },
     {
       "path": "tools/build-manifest.js",
-      "sha256": "cf66a6f27f96670eaa1961667c80a8c27701ddcab71527c499ffd55b137e6a58",
-      "bytes": 7494
+      "sha256": "b187d62965a73a9a5fb56db64340e84961b6bd1577c3e61fd0094d218b25837d",
+      "bytes": 8870
     },
     {
       "path": "tools/economic-replay.js",
       "sha256": "a23347a9ec750a220dc047d60b5f4815954783c476a9b6e7f2e2b307791068ec",
       "bytes": 16964
+    },
+    {
+      "path": "tools/ef03b-autopsy.js",
+      "sha256": "ccab1b6ea8813b51fad00b6f8fc2a482eff03687618659bd7399abfecf62b549",
+      "bytes": 32788
+    },
+    {
+      "path": "tools/ef03b-registry-import.js",
+      "sha256": "3a6708539e6dd17fcc18306dc4bff5c66c09d45c578b935b458d362af538acf8",
+      "bytes": 7001
     },
     {
       "path": "tools/fake-worker.js",
@@ -696,8 +774,8 @@
     },
     {
       "path": "tools/package.sh",
-      "sha256": "42c3338ce95ffcf55593919bb7cb54c538e35abad5dd15cbd5d8b2265eb38ade",
-      "bytes": 393
+      "sha256": "e2b36bc3edce9779a745a8ef9b0761121cf83107a856ea0bfcc5aa8e0096135e",
+      "bytes": 396
     },
     {
       "path": "tools/reconstruct-cost.js",
@@ -795,6 +873,6 @@
       "bytes": 4100
     }
   ],
-  "fileCount": 136,
-  "contentHash": "7e3b52adc0749e40d22789c822b8febf0274775969a6c22980abfe625b3ac478"
+  "fileCount": 149,
+  "contentHash": "9b129453fd7ad421de70514ebfd2b95d4c7b8cf960188e9466a5150fc9e1ea40"
 }
