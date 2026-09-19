@@ -1,3 +1,9 @@
+  /* CONTINUITE-05 — L'EMPREINTE DU MOTEUR ARCHITECTE A BOUGÉ D'UNE LIGNE : archCitationPresente() plie désormais la casse
+     et les diacritiques AVANT de comparer une citation à sa source (pliage déjà employé par archCleTitre dans ce moteur).
+     Mesuré en réel (smoke multi-cycles, claude-sonnet-5, cycle 2) : le modèle citait « Evite … » là où la précision
+     portait « Évite … », et api.valider arrêtait tout le parcours après un appel #1 en 200. La valeur du modèle n'est
+     jamais réécrite ; une citation absente reste refusée. Baseline régénérée par frozen-guard --write-baseline ; les six
+     autres plages sont inchangées (voir tests/continuite-conversation-longue-cont05.test.mjs, T05-25). */
 /* CLEAN-03 — LA FRONTIÈRE ENTRE CE QUI DÉCIDE ET CE QUI OBSERVE.
  * ============================================================================
  *
@@ -283,8 +289,14 @@ test('T-CLEAN03-18/19 : EXEC-PHASE-INSTRUMENT-01 reste ouverte, et rien n’a é
      Mesuré en réel : une citation exacte à apostrophe droite contre une demande à apostrophe typographique
      arrêtait tout le parcours API après un appel #1 en 200. Baseline régénérée par frozen-guard --write-baseline ;
      les six autres plages sont inchangées (voir tests/continuite-api-citation-cont04b.test.mjs). */
+  /* CONTINUITE-05 — L'EMPREINTE DU MOTEUR ARCHITECTE A BOUGÉ D'UNE LIGNE : archCitationPresente() plie désormais la casse
+     et les diacritiques AVANT de comparer une citation à sa source (pliage déjà employé par archCleTitre dans ce moteur).
+     Mesuré en réel (smoke multi-cycles, claude-sonnet-5, cycle 2) : le modèle citait « Evite … » là où la précision
+     portait « Évite … », et api.valider arrêtait tout le parcours après un appel #1 en 200. La valeur du modèle n'est
+     jamais réécrite ; une citation absente reste refusée. Baseline régénérée par frozen-guard --write-baseline ; les six
+     autres plages sont inchangées (voir tests/continuite-conversation-longue-cont05.test.mjs, T05-25). */
   assert.equal(baseline.hashes['moteur Architecte'],
-    '7ec1abaa6e94f2a0f9f2ff1dec491a50339268ab81e61c155bf4959b0de4ad6a');
+    '8668de58c928afaf010d37aa3b3f1c57a280f32e916cf483ad100c2784debc39');
 });
 
 test('T-CLEAN03-BUNDLE : le sous-graphe worker embarqué est mesuré, et non prétendu fermé', () => {
