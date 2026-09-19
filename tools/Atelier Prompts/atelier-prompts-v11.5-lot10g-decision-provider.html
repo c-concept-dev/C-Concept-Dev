@@ -9224,7 +9224,7 @@ function archChampsInterdits(v,chemin,erreurs){if(!v||typeof v!=='object')return
    s'arrêtait sans prompt final. Rien n'est réécrit : la comparaison seule est tolérante, la valeur reste celle
    du modèle. */
 function archNormaliser(t){return String(t||'').normalize('NFC').replace(/[\u2018\u2019\u201A\u201B\u2032\u02BC]/g,"'").replace(/[\u201C\u201D\u201E\u201F\u00AB\u00BB\u2033]/g,'"').replace(/[\u2013\u2014]/g,'-').replace(/\s+/g,' ').trim()}
-function archCitationPresente(source,citation){return archNormaliser(source).includes(archNormaliser(citation))}
+function archCitationPresente(source,citation){const plier=t=>archNormaliser(t).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');return plier(source).includes(plier(citation))}
 function archCleTitre(t){return archNormaliser(t).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim()}
 function archTitreReserve(t){return new Set(['role','objectif','demande originale','demande du joueur','question prealable','informations manquantes','informations manquantes et pilotage','recherche et actualite','hypotheses autorisees','hypotheses interdites','format de sortie','verification avant envoi']).has(archCleTitre(t))}
 function archValider(a){const e=[];['version','comprehension','evaluation','strategie','livrable','compilation','verification','apprentissage'].forEach(k=>{if(!a||a[k]===undefined)e.push('Bloc obligatoire absent : '+k)});if(a&&a.version!=='3.4')e.push('Version attendue : 3.4');archChampsInterdits(a,'',e);
@@ -10975,6 +10975,19 @@ async function beginApiAnalysis(){
   if(!cle)throw new Error('Aucune clé API configurée.');
   const modele=typeof window.obtenirModeleActif==='function'?(window.obtenirModeleActif('architecte-analyse')||($('#api-modele')&&$('#api-modele').value)):($('#api-modele')&&$('#api-modele').value);
   const max=Math.max(8000,Number($('#api-max')&&$('#api-max').value)||8000);
+  /* CONTINUITE-05 — L'ANALYSE STRUCTURÉE N'A PAS DE LONGUEUR SOUHAITÉE. Mesuré en réel (smoke multi-cycles,
+     claude-sonnet-5, cycle 2) : la sortie de l'appel #1 — le JSON d'analyse, dont chaque déclaration cite sa
+     source — grossit avec le matériau des cycles précédents ; la requête de correction bornée a atteint le
+     plafond de 8 000 jetons (stop_reason max_tokens) et tout le parcours s'est arrêté sur « Réponse tronquée ».
+     Le réglage « Longueur maximale » (#api-max) décrit le LIVRABLE que la personne attend ; il ne peut pas
+     borner une analyse dont la taille est dictée par le schéma et par la conversation. Le plafond de l'analyse
+     est donc la capacité de sortie du modèle telle que la fiche produit la déclare (ficheModeleActif —
+     source unique, jamais une constante recopiée), et jamais moins que le réglage. Le transport borne un
+     appel à 90 s, calibré pour 8 000 jetons : le délai de l'analyse suit le plafond dans le même rapport.
+     L'exécution (#2) garde le réglage : c'est lui qui décrit sa longueur. */
+  const fiche=typeof window.ficheModeleActif==='function'?window.ficheModeleActif(modele):null;
+  const maxAnalyse=Math.max(max,Number(fiche&&fiche.sortieMax)||0);
+  const delaiAnalyseMs=Math.max(90000,Math.round(maxAnalyse*90000/8000));
   const readinessInstruction=adnReadinessInstruction();
   show('#v11-api-progress');
   /* MODE-05 — CETTE ANALYSE APPARTIENT AU CONTEXTE QUI L'A DEMANDÉE, ET À LUI SEUL.
@@ -10999,11 +11012,12 @@ async function beginApiAnalysis(){
       fournisseur,
       cle,
       modele,
-      maxTokens:max,
+      maxTokens:maxAnalyse,
       systeme:api.systeme+(readinessInstruction?'\n\n'+readinessInstruction:''),
       contenuUtilisateur:JSON.stringify(api.contexte(),null,2),
       schema:api.schema,
-      effort:'high'
+      effort:'high',
+      delaiMs:delaiAnalyseMs
     });
     if(contexteDemandeurPerdu())return false;
     const brut=String(r&&r.texte||'').trim().replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'').trim();
@@ -24874,6 +24888,31 @@ function oprieOriginalRequest(){return String(($('#v11-demande')||{}).value||'')
 function oprieMaterialDocs(){
   return (typeof state!=='undefined'&&state&&Array.isArray(state.docs))?state.docs:null;
 }
+/* CONTINUITE-05 — CE QUI EST LE MATÉRIAU DU TOUR POUR L'AUTORITÉ, DANS UNE CONVERSATION LONGUE.
+ *
+ * MESURÉ EN RÉEL (smoke multi-cycles, cycle 7) : six réponses d'IA ingérées, puis un document de la personne
+ * de 95 caractères ; l'ensemble dépassait la limite de transport, donc rien ne partait — et l'autorité,
+ * honnêtement informée que le contenu ne lui parvenait pas, a demandé de coller le document. Une question
+ * inutile, née de la seule limite. La règle de tout-ou-rien ci-dessous reste entière ; ce qui change est
+ * la MATIÈRE sur laquelle elle porte.
+ *
+ * LA RÈGLE, DÉTERMINISTE, DÉRIVÉE DE L'ORDRE DES CYCLES. Le matériau d'un tour est : chaque document
+ * apporté par la personne, et la DERNIÈRE réponse d'IA. Chaque réponse a été produite par un prompt qui
+ * portait déjà toutes les précédentes et toutes les précisions données jusque-là : la dernière est l'état
+ * courant du travail, les précédentes en sont l'histoire. L'autorité juge la maturité de la demande ; ce
+ * qu'elle attribue à la personne ne vient que de sa parole (original_request, clarification_history), et
+ * une réponse d'IA — quelle qu'elle soit — ne peut devenir ni contrainte ni décision. Rien n'est perdu
+ * ailleurs : l'analyse Architecte et le prompt reçoivent toutes les réponses, sous leur provenance
+ * (materialText), et state.docs les garde tant que la session les tient.
+ *
+ * CE QUE CE N'EST PAS : ni une sélection par taille, ni par ordre d'ajout, ni par type de fichier, ni par
+ * contenu — une lecture de provenance (v11MaterialProvenance, dérivée du nom) et un maximum de cycle.
+ * Sans cette lecture (contexte de test partiel), la matière est l'ensemble, comme avant. */
+function oprieMaterialForTurn(docs){
+  if(!Array.isArray(docs)||typeof v11MaterialProvenance!=='function')return docs;
+  const derniere=docs.reduce((acc,d)=>{const p=v11MaterialProvenance(d);return p.origin==='ai_response'&&(!acc||p.cycle>acc.cycle)?{doc:d,cycle:p.cycle}:acc},null);
+  return docs.filter(d=>v11MaterialProvenance(d).origin!=='ai_response'||(derniere&&d===derniere.doc));
+}
 function oprieTransportLimit(){
   try{
     const runtime=window.__ATELIER_ADN_RUNTIME__;
@@ -24919,7 +24958,9 @@ function oprieBuildBody(){
   const docs=oprieMaterialDocs();
   if(!docs)return{...base,material_context:{present:'unknown',deep_content_available:'unknown'}};
   const present=docs.length>0;
-  const textes=docs.map(d=>(d&&d.external!==true&&typeof d.text==='string')?d.text:'');
+  /* CONTINUITE-05 — la matière du tour (documents de la personne + dernière réponse IA) ; tout ou rien dessus. */
+  const matiere=oprieMaterialForTurn(docs);
+  const textes=matiere.map(d=>(d&&d.external!==true&&typeof d.text==='string')?d.text:'');
   const complet=present&&textes.every(t=>t.length>0);
   const limite=oprieTransportLimit();
   if(!complet)return{...base,material_context:{present,deep_content_available:false}};

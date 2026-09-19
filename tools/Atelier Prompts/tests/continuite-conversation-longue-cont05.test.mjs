@@ -137,8 +137,10 @@ function conversation(h, n, { demande = DEMANDE } = {}) {
 }
 
 /** Le corps RÉEL envoyé à l'autorité pour cet état — par le pilote réel, réseau espionné. */
-async function corpsOprie({ demande = DEMANDE, answers = [], docs = [] } = {}) {
+const PROVENANCE_REELLE = chargerPage().v.v11MaterialProvenance;
+async function corpsOprie({ demande = DEMANDE, answers = [], docs = [], sansProvenance = false } = {}) {
   const p = loadPilot({ demande, answers: plain(answers), deep: () => arbiterTurn('operational_request_ready') });
+  if (!sansProvenance) p.ctx.v11MaterialProvenance = PROVENANCE_REELLE;
   for (const d of plain(docs)) p.ctx.state.docs.push(d);
   p.ctx.window = { __ATELIER_ADN_RUNTIME__: { TRANSPORT_LIMITS: { analyst: 16384 } } };
   p.ctx.TextEncoder = TextEncoder;
@@ -168,7 +170,8 @@ test('T05-01 · THREE_CYCLES_CONTEXT : trois cycles → la parole, les réponses
   assert.equal(corps.original_request, DEMANDE);
   assert.deepEqual(corps.clarification_history.map((t) => [t.turn, t.answer, t.provenance]), [[1, PRECISION(2), 'user'], [2, PRECISION(3), 'user']]);
   assert.deepEqual(corps.material_context, { present: true, deep_content_available: true });
-  assert.deepEqual(corps.material_content, [REPONSE(1), REPONSE(2), REPONSE(3)], 'textes bruts, ordre d’ajout — le contrat OPRIE-MATERIAL-CONTENT-02 est intact');
+  assert.deepEqual(corps.material_content, [REPONSE(3)], 'texte brut : la matière du tour pour l’autorité est la DERNIÈRE réponse (les documents de la personne s’y ajoutent) — tout ou rien dessus');
+  assert.deepEqual(plain(h.ctx.state.docs).map((d) => d.text), [REPONSE(1), REPONSE(2), REPONSE(3)], 'les trois réponses restent tenues par la session');
   assert.equal(fast.length, 1); assert.equal(fast[0].material_present, true);
   assert.equal('material_content' in fast[0], false, 'le plan rapide ne reçoit jamais le contenu');
 });
@@ -241,11 +244,13 @@ test('T05-05 · NO_ARBITRARY_POLLUTION : un ancien matériau n’entre jamais da
   /* Les canaux de la personne ne portent que sa parole. */
   assert.equal(JSON.stringify([corps.original_request, corps.clarification_history]).includes('RÉPONSE-IA'), false);
   assert.equal(h.v.compositeDemand().includes('RÉPONSE-IA'), false);
-  /* Le matériau : tout, dans l'ordre, ou rien — jamais un sous-ensemble choisi (contrat OPRIE-MATERIAL-CONTENT-02). */
-  assert.deepEqual(corps.material_content, [1, 2, 3, 4].map(REPONSE));
+  /* Le matériau pour l'autorité : les documents de la personne et la dernière réponse — tout, ou rien (contrat OPRIE-MATERIAL-CONTENT-02 sur cette matière). */
+  assert.deepEqual(corps.material_content, [REPONSE(4)]);
   const zone = sansProse(tranche('function oprieBuildBody(){', 'function oprieBuildCanonicalContract('));
-  assert.match(zone, /const textes=docs\.map\(d=>\(d&&d\.external!==true&&typeof d\.text==='string'\)\?d\.text:''\);/, 'textes bruts, ordre d’ajout — inchangé');
-  assert.equal(/slice\(|splice\(|sort\(|filter\(|reverse\(/.test(zone), false, 'aucune sélection');
+  assert.match(zone, /const matiere=oprieMaterialForTurn\(docs\);\s*const textes=matiere\.map\(d=>\(d&&d\.external!==true&&typeof d\.text==='string'\)\?d\.text:''\);/, 'textes bruts, ordre d’ajout');
+  assert.equal(/slice\(|splice\(|sort\(|reverse\(|\.size|byteLength\s*[<>]/.test(zone.replace(/oprieUtf8Bytes\(candidat\)<=limite/, '')), false, 'aucune sélection par taille ni par ordre (la seule mesure est la porte de transport, entière)');
+  const regle = sansProse(tranche('function oprieMaterialForTurn(docs){', 'function oprieTransportLimit(){'));
+  assert.equal(/slice\(|substring|substr|truncat|chunk|resum|summar|while\(|for\(|\.text|\.size|length\s*[<>]/.test(regle), false, 'la règle ne lit ni contenu ni taille : provenance et numéro de cycle seulement');
   /* Ni ici ni dans les projections : aucun seuil de cycles, aucune fenêtre, aucun mot-clé. */
   const code = (LOT + PROJECTIONS).replace(/'[^'\n]*'/g, "''");
   assert.equal(/(?<![A-Za-z_$\d])\d{2,}/.test(code), false, 'aucun nombre magique');
@@ -262,7 +267,7 @@ test('T05-06 · OLD_RELEVANT_CONTEXT_REMAINS : après cinq cycles, la réponse d
   assert.equal(materiau.split(REPONSE(1)).length - 1, 1, 'exactement une fois');
   assert.ok(materiau.includes('### Réponse IA — cycle 1.txt — réponse produite par une IA au cycle 1'));
   const { corps } = await corpsOprie({ answers: h.ctx.state.answers, docs: h.ctx.state.docs });
-  assert.equal(corps.material_content[0], REPONSE(1), 'la première réponse reste transmise tant que l’ensemble tient');
+  assert.deepEqual(corps.material_content, [REPONSE(5)], 'l’autorité reçoit l’état courant du travail ; la première réponse, elle, reste dans le prompt et l’analyse');
   assert.equal(plain(h.ctx.state.answers)[0].answer, PRECISION(2), 'la première précision aussi');
 });
 
@@ -425,7 +430,7 @@ test('T05-14 · CONTRADICTION_USER_PRIORITY : proposition IA « PROPOSÉ-2 » pu
   const { corps } = await corpsOprie({ answers: h.ctx.state.answers, docs: h.ctx.state.docs });
   assert.deepEqual(corps.clarification_history.map((t) => t.answer), ['Précise le point 1.', 'Ne retiens pas PROPOSÉ-2 : aucun paramètre n’est décidé. Construis la structure sans en inventer.']);
   assert.ok(corps.clarification_history.every((t) => t.provenance === 'user'));
-  assert.deepEqual(corps.material_content, ['RÉPONSE-IA-1 : je propose PROPOSÉ-1.', 'RÉPONSE-IA-2 : je propose maintenant PROPOSÉ-2.']);
+  assert.deepEqual(corps.material_content, ['RÉPONSE-IA-2 : je propose maintenant PROPOSÉ-2.'], 'la dernière réponse, brute — la précédente reste au prompt sous son en-tête');
   /* La règle qui fait primer la personne est celle du contrat déployé — pas un « last wins » local. */
   assert.match(CORE_SYSTEM_PROMPT, /Une entrée de confirmed_constraints, confirmed_priorities ou confirmed_preferences ne porte JAMAIS plus d'information que ce que la personne a dit/);
   assert.equal(/superseded\s*(?:\[\]|:\s*\[|=\s*\[)|lastWins|last_wins|derniereGagne/.test(html), false, 'aucune structure de supersession locale');
@@ -449,7 +454,8 @@ test('T05-15 · EXPLICIT_CONFIRMATION : « Oui, on garde PROPOSÉ-1. » devient 
   assert.deepEqual(plain(h.ctx.state.answers).map((a) => a.answer), ['Précise le point 1.', 'Oui, on garde PROPOSÉ-1.']);
   const { corps } = await corpsOprie({ answers: h.ctx.state.answers, docs: h.ctx.state.docs });
   assert.deepEqual(corps.clarification_history.map((t) => [t.turn, t.answer, t.provenance]), [[1, 'Précise le point 1.', 'user'], [2, 'Oui, on garde PROPOSÉ-1.', 'user']]);
-  assert.equal(corps.material_content.length, 2, 'les deux réponses restent matériau');
+  assert.deepEqual(corps.material_content, ['RÉPONSE-IA-2 : je maintiens PROPOSÉ-1.'], 'la dernière réponse reste matériau ; les deux restent tenues par la session');
+  assert.equal(h.ctx.state.docs.length, 2);
   /* La forme que le contrat gelé accepte, telle quelle. */
   const record = createOriginalRequestRecord(DEMANDE);
   assert.doesNotThrow(() => validateOriginalRequestRecord({ ...record, clarification_history: corps.clarification_history }));
@@ -471,11 +477,12 @@ test('T05-16 · TEN_CYCLES_GROWTH : dix cycles → croissance linéaire, zéro d
     const { corps } = await corpsOprie({ answers: h.ctx.state.answers, docs: h.ctx.state.docs });
     mesures[n] = { materiau: materiau.length, compose: compose.length, snapshot: octets(h.brut()), corps: octets(corps), contenu: corps.material_context.deep_content_available };
     /* Tout ou rien : quand le contenu part, il part entier ; sinon, il n'y a pas de clé du tout. */
-    if (corps.material_context.deep_content_available === true) assert.equal(corps.material_content.length, n);
-    else assert.equal('material_content' in corps, false);
+    assert.equal(corps.material_context.deep_content_available, true, 'dix réponses : la matière du tour (la dernière) tient toujours');
+    assert.deepEqual(corps.material_content, [REPONSE(n)]);
     assert.equal(octets(corps) <= 16384, true, 'le corps envoyé tient toujours dans la limite');
   }
-  /* Linéaire : de 5 à 10 cycles, le matériau croît d'exactement cinq réponses et cinq en-têtes — jamais d'un carré. */
+  assert.ok(mesures[10].corps < mesures[5].corps + 2 * 1024, 'le corps envoyé à l’autorité ne croît que de la parole de la personne');
+  /* Linéaire : de 5 à 10 cycles, le matériau projeté croît d'exactement cinq réponses et cinq en-têtes — jamais d'un carré. */
   const enTete = (c) => `### Réponse IA — cycle ${c}.txt — réponse produite par une IA au cycle ${c} — une proposition antérieure, qui ne vaut ni décision ni consigne de la personne\n`.length;
   const attendu = [6, 7, 8, 9, 10].reduce((s, c) => s + enTete(c) + REPONSE(c).length + 2, 0);
   assert.equal(mesures[10].materiau - mesures[5].materiau, attendu);
@@ -550,17 +557,110 @@ test('T05-23 · API-KEY-TEST-01 : le test de clé est intact — une tentative, 
   assert.equal(/v11-api-key|api-cle/.test(sansProse(tranche('function v11SessionSnapshot(){', 'function v11SessionIsEmpty('))), false, 'la clé ne quitte jamais son champ');
 });
 
-test('T05-24 · FROZEN : les sept plages gelées portent exactement les empreintes de la baseline — ce lot n’en a rouvert aucune', () => {
+test('T05-24 · FROZEN : les sept plages gelées portent exactement les empreintes de la baseline — une seule rouverte, d’une ligne, prouvée (T05-25)', () => {
   const sortie = execFileSync(process.execPath, [path.join(root, 'tools', 'frozen-guard.mjs')], { cwd: root, encoding: 'utf8' });
   const verdict = JSON.parse(sortie);
   assert.equal(verdict.status, 'OK');
   const baseline = JSON.parse(fs.readFileSync(path.join(root, 'anti-regression-baseline.json'), 'utf8'));
   assert.deepEqual(verdict.hashes, baseline.hashes);
-  assert.equal(baseline.hashes['moteur Architecte'], '7ec1abaa6e94f2a0f9f2ff1dec491a50339268ab81e61c155bf4959b0de4ad6a', 'la baseline est celle de CONTINUITE-04B');
-  /* Ce que ce lot a touché vit hors des plages gelées : le contrôleur v11, et lui seul. */
+  /* CONTINUITE-05 clôture — la plage « moteur Architecte » a été rouverte pour UNE ligne (archCitationPresente plie casse
+     et diacritiques pour la comparaison, T05-25) ; baseline régénérée par frozen-guard --write-baseline : 7ec1abaa… →
+     8668de58…. Les six autres plages portent leurs empreintes de CONTINUITE-04B, inchangées. */
+  assert.equal(baseline.hashes['moteur Architecte'], '8668de58c928afaf010d37aa3b3f1c57a280f32e916cf483ad100c2784debc39');
+  assert.equal(baseline.hashes['moteur Rapide'], '3725f2c9335cb176084cf62c51472b5f02a1faa5bed496c424954c841a689664');
+  assert.equal(baseline.hashes['moteur Atelier'], '8c3511538a96d4be3953270c4a5463da6b8d4807187a0b7d4b1c31c0e4589802');
+  assert.equal(baseline.hashes.ARCH_SYSTEM, '7fc7b736f6b80049c42a39d74a0fae76eee26d9e2af8249c7761de1ec3236317');
+  assert.equal(baseline.hashes.ARCH_SCHEMA, 'a976687cf6412be80f74eac88762f8c4a4115fe30697bdefd0ea5e6e318fd84b');
+  /* Ce que ce lot a AJOUTÉ vit hors des plages gelées : le contrôleur v11, et lui seul. */
   for (const marque of ['function v11MaterialProvenance(doc){', 'dans l’ordre où elles ont été données (la dernière est la plus récente)']) {
     const i = html.indexOf(marque);
     assert.ok(i > html.indexOf('<script id="v11-controller">') && i < html.indexOf('/* GENERATED — LOT 10G.3B.3F.2'), `${marque.slice(0, 30)}… vit dans le contrôleur`);
   }
   assert.equal(crypto.createHash('sha256').update(fs.readFileSync(path.join(root, 'tools', 'frozen-guard.mjs'))).digest('hex').length, 64);
+});
+
+/* ==========================================================================
+ * T05-25 — CLÔTURE : LE DÉFAUT RÉEL DU SMOKE MULTI-CYCLES
+ * ======================================================================= */
+
+test('T05-25 · CITATION_DIACRITICS_FOLDED_FOR_COMPARISON : « Evite » cité contre « Évite » écrit — la comparaison plie casse et diacritiques ; une citation absente reste refusée ; la valeur du modèle n’est pas réécrite', async () => {
+  /* MESURÉ EN RÉEL (smoke multi-cycles, claude-sonnet-5, cycle 2, req_011CfDc… → appel #1 en 200) : la précision de la
+     personne portait « Évite le ton marketing excessif … » ; le modèle a cité « Evite le ton marketing excessif … » —
+     la capitale sans son accent — et api.valider a arrêté tout le parcours : « Citation introuvable dans la source
+     utilisateur ». CONTINUITE-04B avait plié la ponctuation typographique ; les diacritiques et la casse ne l'étaient
+     pas. Une ligne, plage « moteur Architecte » volontairement rouverte, baseline régénérée (7ec1abaa… → 8668de58…),
+     les six autres plages inchangées. Le pliage est celui qu'archCleTitre employait déjà dans ce moteur. */
+  const { analyseFixture } = await import('./archcompiler-harness.helper.mjs');
+  const src = html.slice(html.indexOf('function archNormaliser('), html.indexOf('function archCleTitre('));
+  assert.match(src, /function archCitationPresente\(source,citation\)\{const plier=t=>archNormaliser\(t\)\.toLowerCase\(\)\.normalize\('NFD'\)\.replace\(\/\[\\u0300-\\u036f\]\/g,''\);return plier\(source\)\.includes\(plier\(citation\)\)\}/);
+  const ctx = { String, RegExp };
+  vm.runInNewContext(src + ';globalThis.__p=archCitationPresente;globalThis.__n=archNormaliser;', ctx);
+  const source = 'Je veux finalement cibler les professionnels. Évite le ton marketing excessif et privilégie la crédibilité clinique et la clarté.';
+  for (const c of ['Evite le ton marketing excessif et privilégie la crédibilité clinique et la clarté.', 'évite le ton marketing excessif', 'EVITE LE TON MARKETING', 'privilegie la credibilite clinique', 'Évite le ton marketing excessif']) {
+    assert.equal(ctx.__p(source, c), true, `« ${c} » est reconnue`);
+  }
+  for (const c of ['ton chaleureux', 'Évite le ton marketing modéré', '']) if (c) assert.equal(ctx.__p(source, c), false, `« ${c} » reste refusée`);
+  assert.equal(ctx.__n('Évite'), 'Évite', 'archNormaliser ne plie ni la casse ni les accents : seule la COMPARAISON les plie');
+  /* Sur le validateur réel de la page entière : la valeur citée par le modèle reste intacte dans l'analyse. */
+  const a = analyseFixture({ compilation: { composants_retenus: [{ type: 'contrainte', titre: 'Ton', contenu: 'Ton sobre.', justification: 'Exigé.', fondements: [{ nature: 'utilisateur', citation: 'Evite le ton marketing excessif' }] }] } });
+  assert.equal(a.compilation.composants_retenus[0].fondements[0].citation, 'Evite le ton marketing excessif');
+});
+
+test('T05-26 · ANALYSIS_CEILING_IS_MODEL_CAPACITY : l’appel #1 part avec la capacité de sortie du modèle (fiche produit) et un délai qui la suit ; l’exécution garde le réglage', async () => {
+  /* MESURÉ EN RÉEL (smoke multi-cycles, claude-sonnet-5, cycle 2) : la requête de correction bornée a rendu 8 000 jetons
+     de sortie exactement (stop_reason max_tokens) — le JSON d'analyse grossit avec le matériau des cycles précédents — et
+     « Réponse tronquée : augmentez la longueur maximale » a arrêté tout le parcours. */
+  const analyse = sansProse(tranche('async function beginApiAnalysis(){', 'function compositeDemand(){'));
+  assert.match(analyse, /const fiche=typeof window\.ficheModeleActif==='function'\?window\.ficheModeleActif\(modele\):null;/);
+  assert.match(analyse, /const maxAnalyse=Math\.max\(max,Number\(fiche&&fiche\.sortieMax\)\|\|0\);/);
+  assert.match(analyse, /const delaiAnalyseMs=Math\.max\(90000,Math\.round\(maxAnalyse\*90000\/8000\)\);/, 'le rapport du transport : 90 s pour 8 000 jetons');
+  assert.match(analyse, /maxTokens:maxAnalyse,/); assert.match(analyse, /delaiMs:delaiAnalyseMs/);
+  assert.match(analyse, /v11ExecuteFinalPromptViaApi\(\{fournisseur,cle,modele:modeleLivrable,max\}\)/, 'l’exécution garde le réglage de longueur');
+  assert.match(html, /delaiMs = delaiMs \|\| 90000;/, 'la calibration du transport est bien celle citée');
+  /* Exécuté : la fiche produit dit 128 000 → l'appel #1 part avec 128 000 et 1 440 s ; sans fiche → le réglage et 90 s. */
+  const appels = [];
+  const faire = (fiche) => {
+    const dom = new Map([['#api-max', { value: '8000' }], ['#ui-mode-select', { value: 'architecte' }], ['#v11-demande', { value: 'D.' }]]);
+    const el = (id) => { if (!dom.has(id)) dom.set(id, { value: '', hidden: true, textContent: '' }); return dom.get(id); };
+    const ctx = { $: el, syncLegacy() {}, show() {}, adnReadinessInstruction: () => '', oprieState: { seq: 1 }, JSON, Math, Number, Error, String,
+      window: { __ARCHITECTE_V10__: { systeme: 'S', schema: { type: 'object' }, contexte: () => ({ demande: 'D.' }) },
+        appelFournisseur: async (p) => { appels.push({ maxTokens: p.maxTokens, delaiMs: p.delaiMs }); throw new Error('stop'); },
+        obtenirFournisseurActif: () => 'anthropic', obtenirCleFournisseur: () => 'k', obtenirModeleActif: () => 'claude-sonnet-5',
+        ...(fiche ? { ficheModeleActif: () => fiche } : {}) } };
+    vm.runInNewContext(tranche('async function beginApiAnalysis(){', 'function compositeDemand(){') + ';globalThis.__b=beginApiAnalysis;', ctx);
+    return ctx.__b().catch((e) => e.message);
+  };
+  assert.match(await faire({ sortieMax: 128000 }), /n’a pas abouti/);
+  assert.deepEqual(appels.pop(), { maxTokens: 128000, delaiMs: 1440000 });
+  await faire(null);
+  assert.deepEqual(appels.pop(), { maxTokens: 8000, delaiMs: 90000 });
+  await faire({ sortieMax: 4096 });
+  assert.deepEqual(appels.pop(), { maxTokens: 8000, delaiMs: 90000 }, 'jamais moins que le réglage');
+});
+
+test('T05-27 · MATERIAL_FOR_TURN : documents de la personne + dernière réponse IA, dans l’ordre d’ajout ; tout ou rien dessus ; sans lecture de provenance, l’ensemble comme avant', async () => {
+  /* MESURÉ EN RÉEL (smoke multi-cycles, cycle 7) : six réponses ingérées puis un document de 95 caractères ; l'ensemble
+     dépassait la limite, rien ne partait, et l'autorité demandait de coller le document. */
+  const docA = { name: 'a.txt', type: 'text/plain', size: 1, text: 'DOC-A', external: false };
+  const docB = { name: 'b.txt', type: 'text/plain', size: 1, text: 'DOC-B', external: false };
+  const ia = (n) => ({ name: `Réponse IA — cycle ${n}.txt`, type: 'text/plain', size: 1, text: REPONSE(n), external: false });
+  const { corps } = await corpsOprie({ docs: [docA, ia(1), ia(2), docB, ia(3)] });
+  assert.deepEqual(corps.material_context, { present: true, deep_content_available: true });
+  assert.deepEqual(corps.material_content, ['DOC-A', 'DOC-B', REPONSE(3)], 'documents de la personne, puis la dernière réponse — ordre d’ajout');
+  /* La dernière par NUMÉRO de cycle, pas par position : une réponse restaurée ou retirée n'y change rien. */
+  const { corps: c2 } = await corpsOprie({ docs: [ia(3), ia(1), docA] });
+  assert.deepEqual(c2.material_content, [REPONSE(3), 'DOC-A']);
+  /* Tout ou rien sur cette matière : une dernière réponse trop grande → aucun contenu, jamais les documents seuls. */
+  const { corps: c3 } = await corpsOprie({ docs: [docA, { ...ia(4), text: 'x'.repeat(16384) }] });
+  assert.equal(c3.material_context.deep_content_available, false); assert.equal('material_content' in c3, false);
+  /* Un document sans texte (PDF) rend la matière incomplète, comme avant ; une vieille réponse sans texte n'y change rien. */
+  const { corps: c4 } = await corpsOprie({ docs: [{ ...ia(1), text: '' }, docA, ia(2)] });
+  assert.deepEqual(c4.material_content, ['DOC-A', REPONSE(2)]);
+  const { corps: c5 } = await corpsOprie({ docs: [{ name: 'c.pdf', type: 'application/pdf', size: 9, text: '', external: true }, ia(2)] });
+  assert.equal(c5.material_context.deep_content_available, false);
+  /* Sans la lecture de provenance (contexte partiel), la matière est l'ensemble : le comportement d'avant, jamais un plantage. */
+  const { corps: c6 } = await corpsOprie({ docs: [ia(1), ia(2)], sansProvenance: true });
+  assert.deepEqual(c6.material_content, [REPONSE(1), REPONSE(2)]);
+  /* Le plan rapide et la présence ne changent pas : le matériau existe, même si la matière transmise est réduite. */
+  assert.match(sansProse(tranche('function oprieBuildBody(){', 'function oprieBuildCanonicalContract(')), /const present=docs\.length>0;/);
 });

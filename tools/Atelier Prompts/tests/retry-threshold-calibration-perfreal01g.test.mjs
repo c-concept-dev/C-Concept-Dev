@@ -240,7 +240,10 @@ test('T-PERFREAL01G-14/15/16 : péremption, faux READY et artefact frontend', ()
      nom (v11MaterialProvenance) et dite à l'en-tête de materialText (document de la personne ↔ réponse d'une IA à un cycle
      précédent, proposition qui ne vaut ni décision ni consigne) ; compositeDemand déclare l'ordre des précisions et les
      numérote ; le cycle suivant est le maximum présent + 1 (voir tests/continuite-conversation-longue-cont05.test.mjs).
-     Aucune règle, aucun prompt serveur, aucun schéma, aucun transport, aucune plage gelée n'a changé. */
+     Clôture, mesurée en réel sur claude-sonnet-5 : archCitationPresente (moteur Architecte, une ligne) plie casse et
+     diacritiques pour comparer une citation (T05-25) ; l'appel #1 part avec la capacité de sortie du modèle et un délai
+     qui la suit (T05-26) ; la matière du tour pour l'autorité est documents de la personne + dernière réponse IA, tout ou
+     rien dessus (T05-27). Aucune règle, aucun prompt serveur, aucun schéma, aucun transport n'a changé. */
   /* CONTINUITE-04B — L'EMPREINTE A BOUGÉ D'UNE LIGNE DU MOTEUR ARCHITECTE : archNormaliser() plie la ponctuation
      typographique avant de comparer une citation à sa source (voir tests/continuite-api-citation-cont04b.test.mjs).
      Aucune règle, aucun prompt, aucun schéma, aucun transport n'a changé. */
@@ -256,5 +259,5 @@ test('T-PERFREAL01G-14/15/16 : péremption, faux READY et artefact frontend', ()
      silencieux quand une actualisation depuis /v1/models fait disparaître le modèle retenu. Aucune
      règle, aucun prompt, aucun schéma, aucun comportement d'interface visible n'a changé. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    '3f0308fe624d87b3a75efe2d3dc130e4f7e3806c652e299a67de14f3ea87340a', 'CANONICAL_HTML_CHANGED = NO');
+    '669f4d830042f4a04817c474bb9a3232c9441de12ad1d6114d6748940068ecb2', 'CANONICAL_HTML_CHANGED = NO');
 });

@@ -13,8 +13,8 @@
 | --- | --- |
 | Lot | HTML-FINAL-02 |
 | Artefact | Atelier de prompts — V11.5 LOT 10G Adaptive Decision Pipeline |
-| Commit local | `69069e6027441174d37fbe1d9c596121703434d6` |
-| Date du commit | 2026-09-19T21:10:10Z |
+| Commit local | `c957d716d9a26830dc91dea3798979009a22e207` |
+| Date du commit | 2026-09-20T00:39:04+02:00 |
 
 ## Artefact canonique
 
@@ -24,8 +24,8 @@ aucune police et aucune image ne sont chargés depuis un tiers.
 | Champ | Valeur |
 | --- | --- |
 | Chemin | `atelier-prompts-v11.5-lot10g-decision-provider.html` |
-| Taille | 1656662 octets |
-| SHA-256 | `3f0308fe624d87b3a75efe2d3dc130e4f7e3806c652e299a67de14f3ea87340a` |
+| Taille | 1660408 octets |
+| SHA-256 | `669f4d830042f4a04817c474bb9a3232c9441de12ad1d6114d6748940068ecb2` |
 
 ## Runtime compilé
 
@@ -45,7 +45,7 @@ Le bloc embarqué dans la page et le fichier généré sont comparés octet pour
 | Plage | SHA-256 |
 | --- | --- |
 | moteur Rapide | `3725f2c9335cb176084cf62c51472b5f02a1faa5bed496c424954c841a689664` |
-| moteur Architecte | `7ec1abaa6e94f2a0f9f2ff1dec491a50339268ab81e61c155bf4959b0de4ad6a` |
+| moteur Architecte | `8668de58c928afaf010d37aa3b3f1c57a280f32e916cf483ad100c2784debc39` |
 | moteur Atelier | `8c3511538a96d4be3953270c4a5463da6b8d4807187a0b7d4b1c31c0e4589802` |
 | FORMATS | `f4c9f1da5a14ecbe28d3cd0853871aa621909360ab6475bebeb76bc2191e141b` |
 | VERROUS | `0019d7e26efab37164b435667d89494135cc4ae7f9f8206e95472435d1dd63ff` |
@@ -59,13 +59,13 @@ Le bloc embarqué dans la page et le fichier généré sont comparés octet pour
 l'artefact. Le manifeste lui-même en est exclu : un document ne peut pas contenir
 sa propre empreinte.
 
-| Empreinte du jeu | `502c38248ca5f42606521f249be1d3012150fa9723251f4c4f04734b04932375` |
+| Empreinte du jeu | `472bede4cabc5b9ced55d57e585c2e3ccb4fb392e98ef72c703f8db64ee10fba` |
 | --- | --- |
 
 | Classe | Fichier | SHA-256 |
 | --- | --- | --- |
-| REQUIRED_BUILD | `anti-regression-baseline.json` | `13ad09c88f04fd1ee6117f16335169d84771daa7a5ea85f057ce577edfa25381` |
-| REQUIRED_HTML | `atelier-prompts-v11.5-lot10g-decision-provider.html` | `3f0308fe624d87b3a75efe2d3dc130e4f7e3806c652e299a67de14f3ea87340a` |
+| REQUIRED_BUILD | `anti-regression-baseline.json` | `50fa51876930feeace1e8cb1fa40512a629f59692f075060f3da7849a32a0719` |
+| REQUIRED_HTML | `atelier-prompts-v11.5-lot10g-decision-provider.html` | `669f4d830042f4a04817c474bb9a3232c9441de12ad1d6114d6748940068ecb2` |
 | REQUIRED_BUILD | `core/adn/adaptive-lock-selector.js` | `15d3154d639b761747a26215f2ec59eb6b121e6072187b6a2dd611eefe5b65ea` |
 | REQUIRED_BUILD | `core/adn/adn-state.js` | `814bbc8318cd2e20d1964c0930809e9997e00bf1cfe8f474aa8f3f39af767d8b` |
 | REQUIRED_BUILD | `core/adn/arch-canonical-enrichment.js` | `159140c46266a8fe6cb35995f53addbfb8fe9802b6ef427d3c0589c449cc0aaa` |
@@ -206,7 +206,7 @@ par ce script.*
 | EXEC-PHASE-INSTRUMENT-01 | CLOSED |
 | FC01b FINAL | CLOSED |
 | HTML-FINAL-01 / 01A | CLOSED |
-| Tests au vert | 3698 |
+| Tests au vert | 3701 |
 
 ## Dette encore ouverte
 
