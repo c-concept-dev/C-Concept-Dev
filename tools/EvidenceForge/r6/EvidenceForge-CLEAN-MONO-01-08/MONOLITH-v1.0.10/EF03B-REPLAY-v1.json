@@ -1,0 +1,112 @@
+{
+  "schema": "EvidenceForge.EF03BReplay",
+  "schemaVersion": "MONOLITH-v1.0.10",
+  "runId": "efm-20260918-a64167c0",
+  "generatedAt": "2026-09-19T12:53:50.475Z",
+  "providerCallsDuringReplay": 0,
+  "OLD": {
+    "reviewsExpected": 18,
+    "valid": 10,
+    "error": 8,
+    "finalAttemptReviewCostUsd": 11.2744,
+    "allAttemptsReviewCostUsd": 20.9451,
+    "realCallsFinalAttempt": 49
+  },
+  "ACTUALLY_PROVEN": {
+    "validReviewsReusedAtZeroCost": 10,
+    "validReviewsReuseProof": "registre : cle = sha256 du prompt EF-03B de passe 1 (jumeau + preuves + document + schema) + sceau + contrat ; candidat accepte re-valide par le validateur gele et le parseur EF-03B gele (T-EF03B-11)",
+    "errorReviewsRecoverableOfflineFromHistoricalValid": [
+      {
+        "twinId": "twin-https://openalex.org/A5015262154",
+        "attemptId": 7,
+        "pass": 2,
+        "candidateSha256": "784736c8efd7483cb05215995804407fa331f5aa95183f50b6e48d9935a8fefb"
+      },
+      {
+        "twinId": "twin-https://openalex.org/A5076883985",
+        "attemptId": 7,
+        "pass": 2,
+        "candidateSha256": "ccde99e3fb14537e72fd1009cafe67c338dd9d73359b013855139c885386ddf3"
+      }
+    ],
+    "errorReviewsHistoricalValidButEvidenceChanged": [
+      {
+        "twinId": "twin-https://openalex.org/A5031631835",
+        "reason": "NO_EVIDENCE_CHANGED (TWIN_REF_UNKNOWN,TWIN_REF_UNKNOWN,TWIN_REF_UNKNOWN)"
+      },
+      {
+        "twinId": "twin-https://openalex.org/A5084194176",
+        "reason": "NO_EVIDENCE_CHANGED (TWIN_REF_UNKNOWN,TWIN_REF_UNKNOWN,TWIN_REF_UNKNOWN)"
+      }
+    ],
+    "truncatedOutputsHadCompleteFindings": [
+      9,
+      8,
+      8,
+      9,
+      9,
+      9,
+      9,
+      9,
+      9,
+      9,
+      9,
+      8,
+      9,
+      9,
+      9,
+      9,
+      9,
+      9,
+      8,
+      9,
+      9
+    ],
+    "nonLiteralRefsDeterministicMapping": {
+      "PARTIAL_LITERAL": 41,
+      "JOINED_LIST_ITEMS": 87,
+      "MARKDOWN_MARKERS_STRIPPED": 37,
+      "WHITESPACE_LINEBREAK_ONLY": 6,
+      "PARAPHRASE_OR_ABSENT": 2
+    }
+  },
+  "SIMULATED": {
+    "candidatesForReplay": 6,
+    "ofWhichTruncationFamily": 6,
+    "ofWhichLiteralityFamily": 0,
+    "unitCostsUsd": {
+      "pass1FullUsd": 0.2648,
+      "completionUsd": 0.1491,
+      "literalizationExcerptUsd": 0.018,
+      "fullRegenUsd": 0.2669
+    },
+    "newMechanism": {
+      "pass1WithOutputBudget": "1 appel complet (max_tokens dimensionne au contrat)",
+      "truncationPath": "REVIEW_OUTPUT_TRUNCATED -> sauvetage structurel des findings complets + 1 appel de completion cible (dimensions manquantes seulement)",
+      "literalityPath": "1 appel de litteralisation sur EXTRAITS (spans exacts proposes de facon deterministe, choix du modele) ; sinon reparation ciblee gelee"
+    },
+    "estimatedCallsRange": [
+      6,
+      18
+    ],
+    "estimatedCostUsdRange": [
+      1.5888,
+      2.5914
+    ],
+    "oldCostForSameReviewsUsd": 4.4923,
+    "fullRegenerationsAvoided": 16,
+    "note": "estimation par unites MESUREES (passe 1, reparation ciblee) ; le taux de reussite des 8 revues n'est PAS invente : EXPECTED_NOT_YET_PROVEN"
+  },
+  "EXPECTED_NOT_YET_PROVEN": {
+    "reviewsRequiringRealCalls": [
+      "twin-https://openalex.org/A5031631835",
+      "twin-https://openalex.org/A5034919242",
+      "twin-https://openalex.org/A5084194176",
+      "twin-https://openalex.org/A5067779338",
+      "twin-https://openalex.org/A5081732198",
+      "twin-https://openalex.org/A5072236225"
+    ],
+    "theoreticalRecovery": "troncature : 8 a 9 findings sur 10 deja complets dans chaque sortie tronquee (completion de 1 a 2 dimensions) ; litteralite : 75.1445 % des citations rejetees ont une correspondance exacte deterministe dans le document",
+    "realRunRequired": true
+  }
+}

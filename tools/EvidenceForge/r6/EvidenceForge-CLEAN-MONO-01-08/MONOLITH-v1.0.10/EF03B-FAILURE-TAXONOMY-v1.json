@@ -1,0 +1,433 @@
+{
+  "schema": "EvidenceForge.EF03BFailureTaxonomy",
+  "runId": "efm-20260918-a64167c0",
+  "generatedAt": "2026-09-19T12:53:50.475Z",
+  "categories": {
+    "A": {
+      "category": "A",
+      "name": "MAX_TOKENS_TRUNCATED",
+      "cases": 21,
+      "costUsd": 5.6768,
+      "passes": {
+        "1": 11,
+        "2": 5,
+        "3": 5
+      },
+      "recoveredAtNextPass": 0,
+      "terminal": 5
+    },
+    "G": {
+      "category": "G",
+      "name": "TARGET_REF_NOT_LITERAL",
+      "cases": 18,
+      "costUsd": 4.0386,
+      "passes": {
+        "1": 6,
+        "2": 9,
+        "3": 3
+      },
+      "recoveredAtNextPass": 9,
+      "terminal": 3
+    }
+  },
+  "nonLiteralRefClasses": {
+    "PARTIAL_LITERAL": 41,
+    "JOINED_LIST_ITEMS": 87,
+    "MARKDOWN_MARKERS_STRIPPED": 37,
+    "WHITESPACE_LINEBREAK_ONLY": 6,
+    "PARAPHRASE_OR_ABSENT": 2
+  },
+  "examples": {
+    "PARTIAL_LITERAL": {
+      "twinId": "twin-https://openalex.org/A5031631835",
+      "pass": 2,
+      "dimensionId": "DISC-01",
+      "refPrefix": "La structure doit-elle distinguer explicitement : habituel ≠ prévu ≠ réalisé ≠ réaction après réalis",
+      "exactSpanFound": null
+    },
+    "JOINED_LIST_ITEMS": {
+      "twinId": "twin-https://openalex.org/A5031631835",
+      "pass": 2,
+      "dimensionId": "DISC-01",
+      "refPrefix": "La fiche permet-elle suffisamment de documenter : réaction pendant l'activité ; réaction juste après",
+      "exactSpanFound": "La fiche permet-elle suffisamment de documenter :\n\n- réaction pendant l'activité ;\n- réaction juste "
+    },
+    "MARKDOWN_MARKERS_STRIPPED": {
+      "twinId": "twin-https://openalex.org/A5031631835",
+      "pass": 2,
+      "dimensionId": "DISC-02",
+      "refPrefix": "Attention : ne pas transformer ces distinctions en dimensions définitives à ce stade.",
+      "exactSpanFound": "Attention :** ne pas transformer ces distinctions en dimensions définitives à ce stade."
+    },
+    "WHITESPACE_LINEBREAK_ONLY": {
+      "twinId": "twin-https://openalex.org/A5059446032",
+      "pass": 1,
+      "dimensionId": "DISC-03",
+      "refPrefix": "S01 / S02 = cas d'observation ≠ profils produit ≠ règles métier ≠ catégories ≠ seuils ≠ exceptions c",
+      "exactSpanFound": "S01 / S02\n= cas d'observation\n≠ profils produit\n≠ règles métier\n≠ catégories\n≠ seuils\n≠ exceptions c"
+    },
+    "PARAPHRASE_OR_ABSENT": {
+      "twinId": "twin-https://openalex.org/A5059446032",
+      "pass": 1,
+      "dimensionId": "DISC-06",
+      "refPrefix": "Distinguer systématiquement : BESOINS DE REPRÉSENTATION de FUTURES RÈGLES DE DÉCISION.",
+      "exactSpanFound": null
+    }
+  },
+  "outputVolume": {
+    "complete": [
+      {
+        "twinId": "twin-https://openalex.org/A5031631835",
+        "pass": 2,
+        "valid": false,
+        "chars": 28168,
+        "outputTokens": 8140,
+        "findings": 10,
+        "avgFinding": 504,
+        "avgRationale": 845,
+        "avgRefsChars": 463,
+        "avgRefs": 3.4,
+        "maxRefLen": 454,
+        "avgLimitations": 426
+      },
+      {
+        "twinId": "twin-https://openalex.org/A5000192723",
+        "pass": 2,
+        "valid": false,
+        "chars": 27610,
+        "outputTokens": 7645,
+        "findings": 10,
+        "avgFinding": 661,
+        "avgRationale": 656,
+        "avgRefsChars": 264,
+        "avgRefs": 3.8,
+        "maxRefLen": 160,
+        "avgLimitations": 475
+      },
+      {
+        "twinId": "twin-https://openalex.org/A5008124698",
+        "pass": 1,
+        "valid": false,
+        "chars": 21852,
+        "outputTokens": 6238,
+        "findings": 10,
+        "avgFinding": 297,
+        "avgRationale": 729,
+        "avgRefsChars": 207,
+        "avgRefs": 2.5,
+        "maxRefLen": 191,
+        "avgLimitations": 406
+      },
+      {
+        "twinId": "twin-https://openalex.org/A5009943886",
+        "pass": 1,
+        "valid": true,
+        "chars": 24550,
+        "outputTokens": 7150,
+        "findings": 10,
+        "avgFinding": 650,
+        "avgRationale": 569,
+        "avgRefsChars": 303,
+        "avgRefs": 1.4,
+        "maxRefLen": 620,
+        "avgLimitations": 412
+      },
+      {
+        "twinId": "twin-https://openalex.org/A5059446032",
+        "pass": 1,
+        "valid": false,
+        "chars": 26484,
+        "outputTokens": 7459,
+        "findings": 10,
+        "avgFinding": 715,
+        "avgRationale": 590,
+        "avgRefsChars": 345,
+        "avgRefs": 3.3,
+        "maxRefLen": 252,
+        "avgLimitations": 434
+      },
+      {
+        "twinId": "twin-https://openalex.org/A5002572744",
+        "pass": 1,
+        "valid": false,
+        "chars": 29441,
+        "outputTokens": 8126,
+        "findings": 10,
+        "avgFinding": 594,
+        "avgRationale": 690,
+        "avgRefsChars": 378,
+        "avgRefs": 4.3,
+        "maxRefLen": 221,
+        "avgLimitations": 564
+      },
+      {
+        "twinId": "twin-https://openalex.org/A5105521386",
+        "pass": 2,
+        "valid": false,
+        "chars": 28572,
+        "outputTokens": 8036,
+        "findings": 10,
+        "avgFinding": 768,
+        "avgRationale": 612,
+        "avgRefsChars": 452,
+        "avgRefs": 3.3,
+        "maxRefLen": 490,
+        "avgLimitations": 464
+      },
+      {
+        "twinId": "twin-https://openalex.org/A5061537459",
+        "pass": 1,
+        "valid": false,
+        "chars": 26261,
+        "outputTokens": 6530,
+        "findings": 10,
+        "avgFinding": 514,
+        "avgRationale": 862,
+        "avgRefsChars": 252,
+        "avgRefs": 2.5,
+        "maxRefLen": 302,
+        "avgLimitations": 522
+      },
+      {
+        "twinId": "twin-https://openalex.org/A5008056222",
+        "pass": 2,
+        "valid": false,
+        "chars": 28553,
+        "outputTokens": 7940,
+        "findings": 10,
+        "avgFinding": 593,
+        "avgRationale": 644,
+        "avgRefsChars": 362,
+        "avgRefs": 2.8,
+        "maxRefLen": 246,
+        "avgLimitations": 488
+      },
+      {
+        "twinId": "twin-https://openalex.org/A5034919242",
+        "pass": 2,
+        "valid": false,
+        "chars": 27681,
+        "outputTokens": 7784,
+        "findings": 10,
+        "avgFinding": 862,
+        "avgRationale": 497,
+        "avgRefsChars": 396,
+        "avgRefs": 3.3,
+        "maxRefLen": 454,
+        "avgLimitations": 441
+      },
+      {
+        "twinId": "twin-https://openalex.org/A5050677675",
+        "pass": 1,
+        "valid": false,
+        "chars": 28707,
+        "outputTokens": 8119,
+        "findings": 10,
+        "avgFinding": 844,
+        "avgRationale": 558,
+        "avgRefsChars": 403,
+        "avgRefs": 2.8,
+        "maxRefLen": 454,
+        "avgLimitations": 533
+      },
+      {
+        "twinId": "twin-https://openalex.org/A5057022658",
+        "pass": 1,
+        "valid": false,
+        "chars": 25613,
+        "outputTokens": 7296,
+        "findings": 10,
+        "avgFinding": 616,
+        "avgRationale": 630,
+        "avgRefsChars": 352,
+        "avgRefs": 3,
+        "maxRefLen": 302,
+        "avgLimitations": 464
+      },
+      {
+        "twinId": "twin-https://openalex.org/A5081732198",
+        "pass": 2,
+        "valid": false,
+        "chars": 24743,
+        "outputTokens": 6964,
+        "findings": 10,
+        "avgFinding": 551,
+        "avgRationale": 500,
+        "avgRefsChars": 262,
+        "avgRefs": 2.4,
+        "maxRefLen": 291,
+        "avgLimitations": 498
+      }
+    ],
+    "truncated": [
+      {
+        "twinId": "twin-https://openalex.org/A5031631835",
+        "pass": 1,
+        "chars": 28340,
+        "outputTokens": 8192,
+        "findingsStarted": 10,
+        "findingsComplete": 9
+      },
+      {
+        "twinId": "twin-https://openalex.org/A5015262154",
+        "pass": 1,
+        "chars": 29001,
+        "outputTokens": 8192,
+        "findingsStarted": 9,
+        "findingsComplete": 8
+      },
+      {
+        "twinId": "twin-https://openalex.org/A5015262154",
+        "pass": 2,
+        "chars": 28132,
+        "outputTokens": 8192,
+        "findingsStarted": 9,
+        "findingsComplete": 8
+      },
+      {
+        "twinId": "twin-https://openalex.org/A5015262154",
+        "pass": 3,
+        "chars": 28679,
+        "outputTokens": 8192,
+        "findingsStarted": 10,
+        "findingsComplete": 9
+      },
+      {
+        "twinId": "twin-https://openalex.org/A5000192723",
+        "pass": 1,
+        "chars": 29483,
+        "outputTokens": 8192,
+        "findingsStarted": 10,
+        "findingsComplete": 9
+      },
+      {
+        "twinId": "twin-https://openalex.org/A5105521386",
+        "pass": 1,
+        "chars": 28997,
+        "outputTokens": 8192,
+        "findingsStarted": 10,
+        "findingsComplete": 9
+      },
+      {
+        "twinId": "twin-https://openalex.org/A5008056222",
+        "pass": 1,
+        "chars": 29431,
+        "outputTokens": 8192,
+        "findingsStarted": 10,
+        "findingsComplete": 9
+      },
+      {
+        "twinId": "twin-https://openalex.org/A5034919242",
+        "pass": 1,
+        "chars": 28908,
+        "outputTokens": 8192,
+        "findingsStarted": 10,
+        "findingsComplete": 9
+      },
+      {
+        "twinId": "twin-https://openalex.org/A5084194176",
+        "pass": 1,
+        "chars": 29477,
+        "outputTokens": 8192,
+        "findingsStarted": 10,
+        "findingsComplete": 9
+      },
+      {
+        "twinId": "twin-https://openalex.org/A5084194176",
+        "pass": 2,
+        "chars": 29457,
+        "outputTokens": 8192,
+        "findingsStarted": 10,
+        "findingsComplete": 9
+      },
+      {
+        "twinId": "twin-https://openalex.org/A5084194176",
+        "pass": 3,
+        "chars": 29454,
+        "outputTokens": 8192,
+        "findingsStarted": 10,
+        "findingsComplete": 9
+      },
+      {
+        "twinId": "twin-https://openalex.org/A5067779338",
+        "pass": 1,
+        "chars": 29846,
+        "outputTokens": 8192,
+        "findingsStarted": 9,
+        "findingsComplete": 8
+      },
+      {
+        "twinId": "twin-https://openalex.org/A5067779338",
+        "pass": 2,
+        "chars": 29824,
+        "outputTokens": 8192,
+        "findingsStarted": 10,
+        "findingsComplete": 9
+      },
+      {
+        "twinId": "twin-https://openalex.org/A5067779338",
+        "pass": 3,
+        "chars": 29818,
+        "outputTokens": 8192,
+        "findingsStarted": 10,
+        "findingsComplete": 9
+      },
+      {
+        "twinId": "twin-https://openalex.org/A5076883985",
+        "pass": 1,
+        "chars": 28223,
+        "outputTokens": 8192,
+        "findingsStarted": 10,
+        "findingsComplete": 9
+      },
+      {
+        "twinId": "twin-https://openalex.org/A5076883985",
+        "pass": 2,
+        "chars": 28272,
+        "outputTokens": 8192,
+        "findingsStarted": 10,
+        "findingsComplete": 9
+      },
+      {
+        "twinId": "twin-https://openalex.org/A5076883985",
+        "pass": 3,
+        "chars": 28272,
+        "outputTokens": 8192,
+        "findingsStarted": 10,
+        "findingsComplete": 9
+      },
+      {
+        "twinId": "twin-https://openalex.org/A5081732198",
+        "pass": 1,
+        "chars": 28825,
+        "outputTokens": 8192,
+        "findingsStarted": 10,
+        "findingsComplete": 9
+      },
+      {
+        "twinId": "twin-https://openalex.org/A5072236225",
+        "pass": 1,
+        "chars": 29407,
+        "outputTokens": 8192,
+        "findingsStarted": 9,
+        "findingsComplete": 8
+      },
+      {
+        "twinId": "twin-https://openalex.org/A5072236225",
+        "pass": 2,
+        "chars": 29372,
+        "outputTokens": 8192,
+        "findingsStarted": 10,
+        "findingsComplete": 9
+      },
+      {
+        "twinId": "twin-https://openalex.org/A5072236225",
+        "pass": 3,
+        "chars": 29368,
+        "outputTokens": 8192,
+        "findingsStarted": 10,
+        "findingsComplete": 9
+      }
+    ]
+  }
+}
