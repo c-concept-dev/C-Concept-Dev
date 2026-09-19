@@ -1665,6 +1665,18 @@
          flux flex normal), même principe déjà éprouvé pour .adoc-sc-bg-overlay/.adoc-sc-fg-content. */
       position: relative;
     }
+    /* CORRECTIF ITEM 75 (effondrement du Carrousel) — appliquée UNIQUEMENT quand adocRenderCarrouselHTML
+       détecte qu'au moins une carte porte un style positionné (adocCardHasPositionStyle) : cette carte
+       sort du flux flex (position:absolute), et si c'est le cas de TOUTES les cartes, .adoc-sc-carrousel
+       n'a plus aucun enfant en flux normal pour lui donner une hauteur — il s'effondre à son seul padding.
+       768px = ADOC_CARD_CANVAS_HEIGHT (le canevas de référence déjà utilisé pour le bornage des cartes,
+       jamais une valeur arbitraire) ; le padding déjà défini ci-dessus (8px haut + 16px bas) s'additionne
+       normalement en content-box, sans rien à recalculer ici. Jamais une règle statique sur
+       .adoc-sc-carrousel seul : un Carrousel classique (aucune carte positionnée) ne reçoit jamais cette
+       classe et garde son comportement actuel strictement intact. */
+    .adoc-sc-carrousel.adoc-sc-carrousel-has-positioned {
+      min-height: 768px;
+    }
     .adoc-sc-card {
       flex: 0 0 320px; scroll-snap-align: start;
       background: var(--adoc-sc-card-bg, var(--paper)); border: 1px solid var(--adoc-sc-card-border, var(--stone-300)); border-radius: 12px;

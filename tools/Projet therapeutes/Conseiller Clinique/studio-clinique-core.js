@@ -9975,11 +9975,31 @@ ${recent}`;
       // synchronisé par adocSyncEditedRootFieldsToDoc, jamais par adocEditorSyncStructured).
       img + '<h2 class="adoc-sc-card-title" id="' + adocEsc('root:card-title:' + card.id) + '" data-cc-editor-leaf="card-title">' + adocEsc(card.content.title) + '</h2>' + nested + resizeHandle + '</section>';
   }
+  // CORRECTIF ITEM 75 (effondrement du Carrousel) — `.adoc-sc-carrousel` est en display:flex, sa
+  // hauteur dépend normalement de ses cartes en flux normal ; une carte avec x/y/width/height
+  // (Phase 1) en sort (position:absolute) — si TOUTES les cartes sont positionnées, il ne reste
+  // rien en flux pour donner une hauteur au conteneur, qui s'effondre à son padding seul (cause
+  // confirmée par lecture directe du CSS, pas une hypothèse). Détecte si AU MOINS une carte porte
+  // un style positionné — jamais une simple présence de `style` (une carte peut avoir un style
+  // pour d'autres raisons futures sans être positionnée), les 4 champs concernés uniquement.
+  function adocCardHasPositionStyle(card) {
+    return !!(card.style && (card.style.x != null || card.style.y != null || card.style.width != null || card.style.height != null));
+  }
   function adocRenderCarrouselHTML(doc, tokens) {
     const cards = (doc.blocks || []).map(function(c, i) { return adocRenderCardHTML(c, i, doc.blocks.length); }).join('\n');
+    // Classe CONDITIONNELLE (jamais une règle CSS statique qui s'appliquerait à tort à tout
+    // Carrousel, y compris ceux sans aucun positionnement) : posée seulement si au moins une
+    // carte a un style positionné — un Carrousel classique garde son comportement actuel
+    // strictement intact (aucune hauteur minimale imposée). Suffit aussi pour le cas
+    // intermédiaire (seulement QUELQUES cartes positionnées) : la classe se pose dès la première,
+    // exactement comme il faut puisque les cartes RESTÉES en flux normal ne comptent plus sur le
+    // conteneur pour leur propre positionnement (elles gardent une hauteur de flux normale,
+    // inchangée), seule la hauteur du CONTENEUR devait être garantie.
+    const hasPositionedCard = (doc.blocks || []).some(adocCardHasPositionStyle);
+    const carrouselClass = 'adoc-sc-doc adoc-sc-carrousel' + (hasPositionedCard ? ' adoc-sc-carrousel-has-positioned' : '');
     // Même correctif que adocRenderFicheHTML ci-dessus (guillemet simple pour style=, jamais en
     // collision avec les polices entre guillemets doubles produites par adocTokensToCSSVars).
-    return '<div class="adoc-sc-doc adoc-sc-carrousel" data-document-id="' + adocEsc(doc.documentId) + "\" role=\"region\" aria-label=\"Carrousel\" style='" + adocTokensToCSSVars(tokens) + "'>" + cards + '</div>';
+    return '<div class="' + carrouselClass + '" data-document-id="' + adocEsc(doc.documentId) + "\" role=\"region\" aria-label=\"Carrousel\" style='" + adocTokensToCSSVars(tokens) + "'>" + cards + '</div>';
   }
 
   // ── Pilote 3 : Script verbatim (item 72 construction) — DÉCISION CHRISTOPHE EXPLICITE : rendu
