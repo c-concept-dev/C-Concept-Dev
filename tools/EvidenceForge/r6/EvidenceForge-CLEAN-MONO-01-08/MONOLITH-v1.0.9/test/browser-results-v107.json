@@ -1,0 +1,54 @@
+{
+  "schema": "EvidenceForge.MonolithBrowserTestResults",
+  "version": "MONOLITH-v1.0.7",
+  "ranAt": "2026-09-19T08:29:44.671Z",
+  "total": 11,
+  "passed": 11,
+  "failed": 0,
+  "results": [
+    {
+      "name": "serveur v1.0.7 : /api/config version + plafond garde (professionals.maxCandidatesToEvaluate) expose",
+      "ok": true
+    },
+    {
+      "name": "API : vue de porte ECONOMIC_REVIEW avec projection (> 40), cibles (dossier) et panel par lots",
+      "ok": true
+    },
+    {
+      "name": "API : vue de cout avec bloc economics (politique, lots, dernier lot, prochain lot, projection, ECONOMIC_OUTLIER_WARNING)",
+      "ok": true
+    },
+    {
+      "name": "porte economique visible : carte #gateEconomics affichee, alerte « inhabituellement coûteuse », projection centrale et seuil",
+      "ok": true
+    },
+    {
+      "name": "porte economique : cellules Professionnels retenus (panel initial) / approuves / jumeaux potentiels / revues attendues (dossier) / cause principale",
+      "ok": true
+    },
+    {
+      "name": "bandeau d'action : « coût projeté … confirmation » + bouton « Voir la projection »",
+      "ok": true
+    },
+    {
+      "name": "cellules de cout : « évalué(s) / retenu(s) (plafond 150 = garde, pas cible) », lot, contribution du dernier lot, prochain lot, projection, ECONOMIC_OUTLIER_WARNING",
+      "ok": true
+    },
+    {
+      "name": "confirmation sans nom refusee (HUMAN_IDENTITY_REQUIRED), porte toujours ouverte",
+      "ok": true
+    },
+    {
+      "name": "confirmation nominative => POST /confirm-economics, decision persistee, porte fermee",
+      "ok": true
+    },
+    {
+      "name": "decision persistee : confirmed, nom, projection jointe (CENTRAL > 40) ; l'etat scientifique du panel n'est pas touche",
+      "ok": true
+    },
+    {
+      "name": "aucune exception console",
+      "ok": true
+    }
+  ]
+}

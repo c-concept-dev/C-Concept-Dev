@@ -1,10 +1,10 @@
 {
   "schema": "EvidenceForge.LauncherTestResults",
-  "version": "MONOLITH-v1.0.8",
-  "ranAt": "2026-09-18T19:40:17.609Z",
+  "version": "MONOLITH-v1.0.9",
+  "ranAt": "2026-09-19T08:31:50.395Z",
   "total": 14,
-  "passed": 14,
-  "failed": 0,
+  "passed": 12,
+  "failed": 2,
   "results": [
     {
       "id": "LAUNCH-01",
@@ -24,7 +24,8 @@
     {
       "id": "LAUNCH-04",
       "name": "worker DNS invalide : diagnostic clair « Cause : DNS » + message utilisateur (nom introuvable), aucun run",
-      "ok": true
+      "ok": false,
+      "error": "[\"PROVIDER_TLS_ERROR\",\"Worker inaccessible — Cause : TLS — La connexion sécurisée (TLS) avec le worker a échoué : certificat ou protocole invalide.\"]"
     },
     {
       "id": "LAUNCH-05",
@@ -33,7 +34,7 @@
     },
     {
       "id": "LAUNCH-06 / LAUNCH-10",
-      "name": "port libre : start lance la version active, /api/config renvoie EXACTEMENT MONOLITH-v1.0.8, résumé complet (worker, modèle, pricing, lots, runs, git), journal écrit",
+      "name": "port libre : start lance la version active, /api/config renvoie EXACTEMENT MONOLITH-v1.0.9, résumé complet (worker, modèle, pricing, lots, runs, git), journal écrit",
       "ok": true
     },
     {
@@ -58,7 +59,7 @@
     },
     {
       "id": "LAUNCH-08",
-      "name": "ancienne EvidenceForge (v1.0.4) sur le port : identifiée (node + server.js + dossier MONOLITH), arrêtée par SIGTERM, port libéré, puis MONOLITH-v1.0.8 lancée",
+      "name": "ancienne EvidenceForge (v1.0.4) sur le port : identifiée (node + server.js + dossier MONOLITH), arrêtée par SIGTERM, port libéré, puis MONOLITH-v1.0.9 lancée",
       "ok": true
     },
     {
@@ -68,13 +69,14 @@
     },
     {
       "id": "LAUNCH-12",
-      "name": ".env.local ignoré par git (check-ignore), .env.example versionné avec placeholders seulement, ACTIVE_VERSION = MONOLITH-v1.0.8",
+      "name": ".env.local ignoré par git (check-ignore), .env.example versionné avec placeholders seulement, ACTIVE_VERSION = MONOLITH-v1.0.9",
       "ok": true
     },
     {
       "id": "DOCTOR-02",
       "name": "chaque famille d'erreur produit un diagnostic exploitable : DNS, connexion, auth, placeholder, config absente, modèle non tarifé, runs root dans le dépôt",
-      "ok": true
+      "ok": false,
+      "error": "DNS : [FAIL] worker DNS / HTTP : Worker inaccessible — Cause : TLS — La connexion sécurisée (TLS) avec le worker a échoué : certificat ou protocole invalide. | [FAIL] worker auth : non testable (worker injoignable) | [FAIL] EvidenceForge MONOLITH-v1.0.9 : 2 vérification(s) en échec |        Action : corriger les points [FAIL] ci-dessus"
     }
   ]
 }
