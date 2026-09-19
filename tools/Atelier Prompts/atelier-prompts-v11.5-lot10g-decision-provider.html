@@ -2707,12 +2707,12 @@ pre,.sortie,#ui-rapid-output{overflow-wrap:anywhere;word-break:break-word}
     <div class="champ cache" id="bloc-schema">
       <label style="display:flex;gap:10px;align-items:center;cursor:pointer;font-weight:500;margin-bottom:10px">
         <input type="checkbox" id="opt-schema" style="width:auto">
-        <span>Contraindre la génération par ce schéma (<code>output_config.format</code>)</span>
+        <span>Contraindre la génération par ce schéma (schéma d'outil, réponse vérifiée)</span>
       </label>
       <label class="etiquette" for="api-schema">Schéma de sortie JSON</label>
       <textarea id="api-schema" class="code" rows="6" placeholder='{"type":"object","properties":{"items":{"type":"array"}},"required":["items"],"additionalProperties":false}'></textarea>
-      <div class="aide" id="schema-etat">Facultatif. Renseigné, il est transmis en <code>output_config.format</code> :
-      l'API contraint alors la génération à ce schéma au lieu de compter sur la consigne.
+      <div class="aide" id="schema-etat">Facultatif. Renseigné, il est transmis à l'API comme schéma d'outil (<code>input_schema</code>, appel forcé) :
+      la réponse arrive en JSON, puis est vérifiée contre ce schéma et refusée si elle s'en écarte.
       C'est la garantie que le préremplissage ne donnait pas.</div>
     </div>
     <div class="note avis" id="recap-requete"></div>
@@ -3503,7 +3503,7 @@ const BIBLIO = [
    limite:'N\u2019augmente pas la compétence réelle du modèle sur le domaine invoqué.'},
   {nom:'Amorce de réponse', usage:'Historiquement, le préremplissage du tour assistant imposait les premiers caractères produits.',
    limite:'Retiré des modèles Claude actuels : la requête renvoie une erreur 400. Remplacé par l\u2019instruction système pour la forme, et par les sorties structurées pour le JSON.'},
-  {nom:'Sorties structurées', usage:'Un schéma JSON transmis en output_config.format contraint la génération au niveau de l\u2019API. C\u2019est la seule garantie de sortie valide, par opposition à une consigne.',
+  {nom:'Sorties structurées', usage:'Un schéma JSON transmis à l\u2019API comme schéma d\u2019outil guide la génération ; la réponse, en JSON garanti, est ensuite vérifiée contre le schéma complet et refusée si elle s\u2019en écarte. C\u2019est la garantie qu\u2019une consigne seule ne donne pas.',
    limite:'JSON uniquement. Un schéma trop profond ou trop permissif perd son intérêt ; visez deux niveaux d\u2019imbrication et des clés obligatoires.'},
   {nom:'Schéma de sortie', usage:'Un schéma JSON explicite dans le prompt, avec clés obligatoires et types.',
    limite:'Un schéma trop profond dégrade la conformité ; préférez deux niveaux d\u2019imbrication.'},
@@ -5846,70 +5846,58 @@ function attendre(ms){ return new Promise(resoudre => setTimeout(resoudre, ms));
  * l'Architecte, au compilateur ou au banc qualitatif, qui ne
  * connaissent que la façade générique.
  * ---------------------------------------------------------------------- */
-/* SCHEMA-ANTHROPIC-01 (CONTINUITE-04) — PROJECTION DU SCHÉMA CANONIQUE VERS LE SOUS-ENSEMBLE ANTHROPIC.
+/* SCHEMA-ANTHROPIC-03 (CONTINUITE-04) — LE SCHÉMA CANONIQUE EST TRANSMIS À ANTHROPIC COMME SCHÉMA D'OUTIL.
  *
- * PREUVE FOURNISSEUR (smoke réel, appel #1) : HTTP 400 invalid_request_error « output_config.format.schema:
- * Schema type 'oneOf' is not supported ». Documentation Anthropic, structured outputs, « JSON Schema
- * limitations » : NON pris en charge — oneOf, not, if/then/else, contains, contraintes numériques
- * (minimum, maximum, multipleOf), contraintes de chaîne (minLength, maxLength), contraintes de tableau
- * au-delà de minItems 0/1, additionalProperties autre que false ; toute présence vaut 400. PRIS en charge —
- * types de base (dont null), enum, const, anyOf, allOf (sans $ref), $ref et definitions locaux, required,
- * additionalProperties:false, description, default, minItems 0 et 1.
+ * HISTORIQUE DES PREUVES FOURNISSEUR (appel #1, sorties structurées `output_config.format`, modèles
+ * claude-opus-5 et claude-sonnet-5) : 400 « Schema type 'oneOf' is not supported » (SCHEMA-ANTHROPIC-01) ;
+ * 400 « For 'anyOf', 'type' is not supported » (correction #2) ; puis, projection réduite à 8 092 octets,
+ * 400 « The compiled grammar is too large » (SCHEMA-ANTHROPIC-02). Mesuré ensuite, en réel, sur la grammaire :
+ * ni les descriptions, ni les enum/const, ni les unions avec null, ni l'inline des definitions ne changent
+ * le verdict ; rendre les propriétés optionnelles est refusé au-delà de 24 (« too many optional parameters »)
+ * ; et un objet PLAT de 74 propriétés `string` à clés d'un caractère est déjà « too large », alors que le
+ * canonique en compte 83 (90 une fois les definitions dépliées). Une sortie structurée à grammaire compilée
+ * ne peut donc PAS porter l'analyse complète en un appel, quelle que soit la projection : seuls des
+ * appels fragmentés le pourraient, au prix de la cohérence entre fragments.
  *
- * LE CANONIQUE RESTE LA VÉRITÉ. Cette fonction ne mute jamais son argument ; sa sortie est un GUIDE STRUCTUREL
- * MINIMAL COMPATIBLE — structure, propriétés, required, types, enum/const, additionalProperties:false,
- * $ref/definitions — jamais plus permissive en silence : tout ce qu'elle ne dit plus (règles if/then/not/
- * contains, oneOf exact, minLength, minimum, minItems, maxItems…) est exigé après réponse contre le schéma
- * CANONIQUE par violationsContreSchema(), dans transportAnthropic — une sortie qui viole le canonique est
- * rejetée (sortie_invalide), jamais transmise. Un oneOf de branches objet est projeté en un objet unique à
- * discriminant (schemaFusionnerBranchesObjet) ; tout autre oneOf est refusé (TypeError). BETA-04 (enum à
- * type union → anyOf par type, sans type à côté) est conservé tel quel.
+ * ARCHITECTURE RETENUE. L'appel porte un outil personnalisé NON strict dont `input_schema` est le schéma
+ * canonique lui-même (`tool_choice` forcé sur cet outil) : aucune grammaire n'est compilée, aucune limite
+ * de taille ; l'API garantit un JSON syntaxiquement valide (`tool_use.input`), le modèle lit le schéma
+ * complet — règles conditionnelles, oneOf, cardinalités — comme guide. Vérifié en réel : 200 avec le
+ * canonique entier, claude-sonnet-5, thinking adaptatif et effort acceptés. La SEULE restriction d'un
+ * input_schema non strict, constatée en réel : « input_schema does not support oneOf, allOf, or anyOf at
+ * the top level ». Cet adaptateur retire donc uniquement les combinateurs de la RACINE (leur description
+ * métier remonte à la racine) et les métadonnées sans effet ; tout le reste part tel quel.
  *
- * SCHEMA-ANTHROPIC-02, PREUVE FOURNISSEUR (smoke réel après correction #2) : HTTP 400 « The compiled grammar
- * is too large ». Mesuré : la projection #2 pesait 15 297 octets dont 6 927 octets de 50 descriptions
- * TECHNIQUES ajoutées ici — recopie en prose/JSON des règles et contraintes retirées, déjà garanties par
- * violationsContreSchema(). Une règle n'est plus encodée deux fois : aucune description n'est ajoutée par
- * l'adaptateur, seules les descriptions MÉTIER du canonique subsistent ; minItems (cardinalité fine) est
- * retiré comme les autres contraintes de valeur. */
+ * LE CANONIQUE RESTE LA VÉRITÉ. Cette fonction ne mute jamais son argument. La réponse est vérifiée après
+ * coup contre le schéma CANONIQUE complet par violationsContreSchema(), dans transportAnthropic — une
+ * sortie qui le viole est rejetée (sortie_invalide), jamais transmise. BETA-04 (enum à type union → anyOf
+ * par type, sans type à côté) est conservé tel quel, à tous les niveaux. */
+const NOM_OUTIL_SORTIE_STRUCTUREE='sortie_structuree';
+/* Mesuré en réel (claude-sonnet-5) : sans cette précision, le modèle enveloppe l'objet entier sous une clé unique
+   (« args », « analyse ») — une propriété non prévue, rejetée par la validation canonique. */
+const DESCRIPTION_OUTIL_SORTIE_STRUCTUREE='Transmet la réponse structurée. Les paramètres de cet outil SONT l\u2019objet demandé : chaque propriété de premier niveau du schéma (par exemple « version ») est un paramètre direct de l\u2019appel. N\u2019enveloppez jamais l\u2019objet sous une clé englobante (« args », « analyse », « data »…).';
 function schemaPourAnthropic(schema){
   if(!schema||typeof schema!=='object'||Array.isArray(schema))return schema;
   const out=JSON.parse(JSON.stringify(schema));
-  /* 0. Métadonnées sans effet sur la validation : hors projection. */
   for(const key of ['$schema','$id','$comment'])delete out[key];
-  /* 1. Règles logiques non exprimables et 2. contraintes de valeur : retirées de la projection — exigées après
-     réponse par violationsContreSchema() contre le canonique, jamais recopiées ici. */
-  for(const key of SCHEMA_ANTHROPIC_REGLES_REPORTEES)delete out[key];
-  for(const key of SCHEMA_ANTHROPIC_CONTRAINTES_REPORTEES)delete out[key];
-  /* 3. Récursion sur les sous-schémas restants. */
-  for(const key of ['properties','$defs','definitions']){
-    if(out[key])for(const name of Object.keys(out[key]))out[key][name]=schemaPourAnthropic(out[key][name]);
+  for(const key of ['allOf','anyOf','oneOf']){
+    if(!Array.isArray(out[key]))continue;
+    for(const membre of out[key])if(membre&&membre.description)out.description=(out.description?out.description+' ':'')+membre.description;
+    delete out[key];
   }
-  for(const key of ['items','additionalProperties']){
-    if(out[key]&&typeof out[key]==='object')out[key]=Array.isArray(out[key])?out[key].map(schemaPourAnthropic):schemaPourAnthropic(out[key]);
+  return schemaAdapterEnumUnion(out);
+}
+/* BETA-04 — une enum à type union devient l'union de ses valeurs par type ; null reste null. Récursif, sur
+   une copie déjà faite par l'appelant. */
+function schemaAdapterEnumUnion(out){
+  if(!out||typeof out!=='object'||Array.isArray(out))return out;
+  for(const key of ['properties','$defs','definitions','patternProperties']){
+    if(out[key])for(const name of Object.keys(out[key]))out[key][name]=schemaAdapterEnumUnion(out[key][name]);
   }
-  for(const key of ['anyOf','allOf','oneOf','prefixItems'])if(Array.isArray(out[key]))out[key]=out[key].map(schemaPourAnthropic);
-  /* 4. Un membre d'allOf vidé par (1) — il ne portait qu'une règle — ne garde que sa description MÉTIER éventuelle : fusionnée dans le nœud parent. */
-  if(Array.isArray(out.allOf)){
-    const restants=[];
-    for(const membre of out.allOf){
-      const cles=Object.keys(membre||{}).filter(k=>k!=='description'&&k!=='title');
-      if(cles.length)restants.push(membre);else if(membre&&membre.description)schemaAjouterDescription(out,membre.description);
-    }
-    if(restants.length)out.allOf=restants;else delete out.allOf;
+  for(const key of ['items','additionalProperties','not','if','then','else','contains','propertyNames']){
+    if(out[key]&&typeof out[key]==='object')out[key]=Array.isArray(out[key])?out[key].map(schemaAdapterEnumUnion):schemaAdapterEnumUnion(out[key]);
   }
-  /* 5. oneOf → OBJET UNIQUE + DISCRIMINANT (SCHEMA-ANTHROPIC-01, correction #2). Preuve fournisseur : la
-     projection oneOf → anyOf est refusée — « For 'anyOf', 'type' is not supported » (un nœud ne peut porter
-     anyOf et type ensemble). Un oneOf de branches objet (plus, au choix, une branche null) est donc projeté en
-     UN SEUL objet : discriminant requis à enum réunie, propriétés de toutes les branches réunies et
-     optionnelles, additionalProperties:false, nullable si une branche null existe. Volontairement MOINS
-     expressif — l'exclusivité des branches est exigée après réponse par violationsContreSchema() contre le
-     canonique. Tout autre oneOf est refusé (TypeError). */
-  if(Array.isArray(out.oneOf)){
-    const fusion=schemaFusionnerBranchesObjet(out.oneOf);
-    delete out.oneOf;
-    for(const key of Object.keys(fusion))out[key]=fusion[key];
-  }
-  /* 6. BETA-04 — une enum à type union devient l'union de ses valeurs par type ; null reste null. */
+  for(const key of ['anyOf','allOf','oneOf','prefixItems'])if(Array.isArray(out[key]))out[key]=out[key].map(schemaAdapterEnumUnion);
   if(Array.isArray(out.type)&&Array.isArray(out.enum)){
     const matches=(value,type)=>type==='null'?value===null:type==='array'?Array.isArray(value):type==='object'?value!==null&&typeof value==='object'&&!Array.isArray(value):type==='integer'?Number.isInteger(value):typeof value===type;
     const branches=out.type.map(type=>({type,enum:out.enum.filter(value=>matches(value,type))})).filter(branch=>branch.enum.length);
@@ -5920,39 +5908,7 @@ function schemaPourAnthropic(schema){
   }
   return out;
 }
-const SCHEMA_ANTHROPIC_REGLES_REPORTEES=['if','then','else','not','contains','dependentSchemas','dependentRequired','patternProperties','propertyNames'];
-const SCHEMA_ANTHROPIC_CONTRAINTES_REPORTEES=['minLength','maxLength','minimum','maximum','exclusiveMinimum','exclusiveMaximum','multipleOf','pattern','minItems','maxItems','uniqueItems','minProperties','maxProperties'];
-function schemaAjouterDescription(out,texte){out.description=(out.description?out.description+' ':'')+texte}
 function schemaTypeJson(v){return v===null?'null':Array.isArray(v)?'array':typeof v==='object'?'object':Number.isInteger(v)?'integer':typeof v}
-/* Fusion des branches d'un oneOf en un objet unique : exige des branches objet (additionalProperties:false,
-   properties, required) et au plus une branche {type:'null'} ; exige un discriminant — propriété requise dans
-   CHAQUE branche objet, à const/enum sans valeur commune entre branches ; exige qu'une même propriété présente
-   dans plusieurs branches y soit identique. Sinon : non projetable, TypeError. */
-function schemaFusionnerBranchesObjet(branches){
-  const nulles=branches.filter(b=>b&&b.type==='null'&&Object.keys(b).every(k=>k==='type'||k==='description'));
-  const objets=branches.filter(b=>!nulles.includes(b));
-  if(nulles.length>1||!objets.length)throw new TypeError('oneOf non projetable vers Anthropic : branches attendues = objets, plus au plus une branche null.');
-  for(const b of objets)if(!b||b.type!=='object'||b.additionalProperties!==false||!b.properties||!Array.isArray(b.required))throw new TypeError('oneOf non projetable vers Anthropic : chaque branche objet doit porter type object, additionalProperties false, properties et required.');
-  const valeurs=p=>p&&p.const!==undefined?[p.const]:p&&Array.isArray(p.enum)?p.enum:null;
-  const candidats=Object.keys(objets[0].properties).filter(nom=>objets.every(b=>b.required.includes(nom)&&valeurs(b.properties[nom])));
-  const discriminant=candidats.find(nom=>{
-    const listes=objets.map(b=>valeurs(b.properties[nom]));
-    return listes.every((va,i)=>listes.every((vb,j)=>i===j||!va.some(v=>vb.some(w=>JSON.stringify(v)===JSON.stringify(w)))));
-  });
-  if(!discriminant)throw new TypeError('oneOf non projetable vers Anthropic : aucun discriminant requis à valeurs disjointes.');
-  const properties={};
-  for(const b of objets)for(const nom of Object.keys(b.properties)){
-    if(nom===discriminant)continue;
-    if(properties[nom]&&JSON.stringify(properties[nom])!==JSON.stringify(b.properties[nom]))throw new TypeError('oneOf non projetable vers Anthropic : la propriété « '+nom+' » diffère selon la branche.');
-    properties[nom]=b.properties[nom];
-  }
-  const enumeration=[];for(const b of objets)for(const v of valeurs(b.properties[discriminant]))enumeration.push(v);
-  const types=[...new Set(enumeration.map(schemaTypeJson))];
-  const discriminantProjete={enum:enumeration};if(types.length===1)discriminantProjete.type=types[0];
-  const descriptions=objets.map(b=>b.properties[discriminant].description).filter(Boolean);if(descriptions.length)discriminantProjete.description=descriptions.join(' ');
-  const requis=objets[0].required.filter(nom=>objets.every(b=>b.required.includes(nom)));
-  return {type:nulles.length?['object','null']:'object',additionalProperties:false,required:requis,properties:Object.assign({[discriminant]:discriminantProjete},properties)};
-}
 /* VALIDATION CANONIQUE APRÈS RÉPONSE — le pendant de la projection : tout ce que la projection a dû reporter
    (règles if/then/not/contains, minLength, minimum, minItems > 1, maxItems, oneOf exact…) est vérifié ici,
    contre le schéma CANONIQUE, sur la valeur réellement renvoyée. Retourne la liste des violations
@@ -6037,7 +5993,17 @@ async function transportAnthropic({cle, modele, maxTokens, systeme, contenuUtili
   const messages = [{ role: 'user', content: contenuUtilisateur }];
   if(prefill) messages.push({ role: 'assistant', content: prefill });
   const body = { model: modele, max_tokens: maxTokens, system: systeme, messages };
-  if (schema) { body.output_config = { format: { type: 'json_schema', schema:schemaPourAnthropic(schema) } }; if (effort) body.output_config.effort = effort; }
+  /* SCHEMA-ANTHROPIC-03 — le schéma part comme input_schema d'un outil non strict, appel forcé : pas de
+     grammaire compilée (voir schemaPourAnthropic), JSON garanti par l'API, guide complet lu par le modèle. */
+  if (schema) { body.tools = [{ name: NOM_OUTIL_SORTIE_STRUCTUREE, description: DESCRIPTION_OUTIL_SORTIE_STRUCTUREE, input_schema: schemaPourAnthropic(schema) }]; body.tool_choice = { type: 'tool', name: NOM_OUTIL_SORTIE_STRUCTUREE }; }
+  if (effort) body.output_config = { effort };
+  /* SCHEMA-ANTHROPIC-03 — UNE requête de correction, bornée. Mesuré en réel (claude-sonnet-5, 4 demandes) :
+     2 premières réponses sur 4 violaient une règle du canonique (quantites min/max tous deux null ; un bloc
+     objet rendu en chaîne). La correction renvoie au modèle la liste STRUCTURÉE des violations (chemin et
+     attente du schéma, jamais de contenu), comme résultat d'outil en erreur, et exige l'objet complet.
+     Jamais plus d'une ; jamais de retouche locale de la réponse ; une seconde non-conformité est rejetée. */
+  let corrige = false;
+  const tokensCumules = { entree: 0, sortie: 0 };
   let tentative = 0;
   while (tentative < essaisMax) {
     tentative++;
@@ -6053,28 +6019,31 @@ async function transportAnthropic({cle, modele, maxTokens, systeme, contenuUtili
       if ([429, 500, 502, 503, 529].includes(r.status) && tentative < essaisMax) { await attendre(500 * tentative); continue; }
       const data = await r.json();
       if (!r.ok) throw creerErreurApi({categorie:qCategorieDepuisStatutHttp(r.status),fournisseur:'anthropic',statut_http:r.status,recuperable:[429,500,502,503,529].includes(r.status),message_utilisateur:(data.error && data.error.message) || ('code ' + r.status)});
-      const txt = (data.content || []).filter(x => x.type === 'text').map(x => x.text).join('');
+      const blocOutil = schema ? (data.content || []).find(x => x.type === 'tool_use' && x.name === NOM_OUTIL_SORTIE_STRUCTUREE && x.input && typeof x.input === 'object') : null;
+      const txt = schema ? (blocOutil ? JSON.stringify(blocOutil.input) : '') : (data.content || []).filter(x => x.type === 'text').map(x => x.text).join('');
       const blocsReflexion = (data.content || []).filter(x => x.type === 'thinking').length;
-      const tokens = { entree: data.usage ? data.usage.input_tokens : null, sortie: data.usage ? data.usage.output_tokens : null };
+      tokensCumules.entree += (data.usage && data.usage.input_tokens) || 0; tokensCumules.sortie += (data.usage && data.usage.output_tokens) || 0;
+      const tokens = { entree: tokensCumules.entree, sortie: tokensCumules.sortie };
       if (data.stop_reason === 'max_tokens') throw creerErreurApi({categorie:'troncature',fournisseur:'anthropic',statut_http:r.status,recuperable:false,message_utilisateur:'Réponse tronquée : augmentez la longueur maximale.',tokens,texte_partiel:txt,detail:{blocs_reflexion:blocsReflexion}});
       if (data.stop_reason === 'refusal') {
         const cat = (data.stop_details && data.stop_details.category) || (data.refusal && (data.refusal.classifier || data.refusal.reason)) || null;
         throw creerErreurApi({categorie:'refus',fournisseur:'anthropic',statut_http:r.status,recuperable:false,message_utilisateur:'Le modèle a refusé cette demande.',tokens,texte_partiel:txt,detail:{refus_categorie:cat,blocs_reflexion:blocsReflexion}});
       }
-      if (!txt) throw creerErreurApi({categorie:'sortie_invalide',fournisseur:'anthropic',statut_http:r.status,recuperable:false,message_utilisateur:'L\u2019API n\u2019a renvoyé aucun bloc texte.',tokens,detail:{blocs_reflexion:blocsReflexion}});
-      /* SCHEMA-ANTHROPIC-01 — la projection envoyée est moins expressive que le canonique : la réponse est
-         donc vérifiée ici contre le schéma CANONIQUE (règles et contraintes reportées comprises). Non
-         conforme = sortie_invalide, jamais transmise. Un texte non analysable reste à l'appelant. */
-      let structureValidee = schema ? true : null;
+      if (!txt) throw creerErreurApi({categorie:'sortie_invalide',fournisseur:'anthropic',statut_http:r.status,recuperable:false,message_utilisateur:schema?'L\u2019API n\u2019a renvoyé aucune sortie structurée.':'L\u2019API n\u2019a renvoyé aucun bloc texte.',tokens,detail:{blocs_reflexion:blocsReflexion}});
+      /* SCHEMA-ANTHROPIC-03 — l'outil n'est pas strict : le schéma transmis guide, il ne garantit pas. La
+         réponse est donc vérifiée ici contre le schéma CANONIQUE complet (règles conditionnelles, oneOf,
+         cardinalités comprises). Non conforme = sortie_invalide, jamais transmise. */
       if (schema) {
-        let analyse; try { analyse = JSON.parse(txt); } catch (e) { analyse = undefined; }
-        if (analyse === undefined) structureValidee = false;
-        else {
-          const violations = violationsContreSchema(schema, analyse);
-          if (violations.length) throw creerErreurApi({categorie:'sortie_invalide',fournisseur:'anthropic',statut_http:r.status,recuperable:false,message_utilisateur:'Réponse structurée non conforme au schéma canonique : '+violations.slice(0,3).join(' ; ')+(violations.length>3?' ; +'+(violations.length-3)+' autre(s)':'')+'.',tokens,texte_partiel:txt,detail:{violations,blocs_reflexion:blocsReflexion}});
+        const violations = violationsContreSchema(schema, blocOutil.input);
+        if (violations.length && !corrige) {
+          corrige = true;
+          body.messages = [...messages, { role: 'assistant', content: data.content }, { role: 'user', content: [{ type: 'tool_result', tool_use_id: blocOutil.id, is_error: true, content: messageCorrectionSchema(violations) }] }];
+          tentative = 0; /* la requête de correction dispose de son propre budget de reprises réseau */
+          continue;
         }
+        if (violations.length) throw creerErreurApi({categorie:'sortie_invalide',fournisseur:'anthropic',statut_http:r.status,recuperable:false,message_utilisateur:'Réponse structurée non conforme au schéma canonique : '+violations.slice(0,3).join(' ; ')+(violations.length>3?' ; +'+(violations.length-3)+' autre(s)':'')+'.',tokens,texte_partiel:txt,detail:{violations,blocs_reflexion:blocsReflexion}});
       }
-      return { fournisseur:'anthropic', modele, texte: txt, tokens, raison_arret: data.stop_reason || null, structure_validee: structureValidee, detail:{refus_categorie:null,blocs_reflexion:blocsReflexion} };
+      return { fournisseur:'anthropic', modele, texte: txt, tokens, raison_arret: data.stop_reason || null, structure_validee: schema ? true : null, detail:{refus_categorie:null,blocs_reflexion:blocsReflexion,corrections:corrige?1:0} };
     } catch (err) {
       clearTimeout(minuteur);
       if (signal) signal.removeEventListener('abort', relaisAbandon);
@@ -6088,6 +6057,9 @@ async function transportAnthropic({cle, modele, maxTokens, systeme, contenuUtili
   }
 }
 
+function messageCorrectionSchema(violations){
+  return 'Réponse non conforme au schéma de l\u2019outil. Violations (chemin : attente du schéma) :\n'+violations.map(v=>'- '+v).join('\n')+'\nRappelez l\u2019outil avec l\u2019objet COMPLET corrigé : toutes les propriétés, y compris celles qui étaient déjà correctes, jamais seulement celles en défaut.';
+}
 /* §5 de l'audit fournisseurs — erreur normalisée, jamais analysée par
    sa prose après coup : categorie/fournisseur/statut_http/recuperable
    sont fixés au moment où l'erreur est levée, par le transport qui
@@ -6471,7 +6443,7 @@ function construireCorpsRequete(promptTexte){
   let schemaErreur = null;
   if(schemaVoulu && contratJson){
     try{
-      corps.output_config = {format:{type:'json_schema', schema:normaliserSchema(JSON.parse(brutSchema))}};
+      corps.schema = normaliserSchema(JSON.parse(brutSchema)); /* forme de transport décidée par appelFournisseur */
     }catch(e){ schemaErreur = e.message; }
   }
   return {corps: corps, contratJson: contratJson,
@@ -6596,7 +6568,7 @@ async function envoyerApi(){
   etatApi('Envoi en cours…', 'avis');
   const t0 = Date.now();
   const systeme = corpsRequete.system || '';
-  const schema = corpsRequete.output_config ? corpsRequete.output_config.format.schema : undefined;
+  const schema = corpsRequete.schema;
   const prefillTexte = (fiche.prefill && contrainte) ? contrainte : undefined;
 
   try{
@@ -7168,7 +7140,7 @@ const AIDES = {
   'api-max':'Plafond de la réponse, ajusté automatiquement au maximum du modèle retenu. Sur les modèles à réflexion adaptative, ce budget couvre aussi les blocs de raisonnement : trop bas, la réponse peut être consommée avant d\u2019être écrite. S\u2019il est atteint, l\u2019outil le signale.',
   'api-prompt':'Contenu envoyé au modèle. Le bouton « Charger le prompt courant » y verse l\u2019assemblage de l\u2019onglet Génération.',
   'api-amorce':'Les premiers caractères attendus. Sur les modèles Claude actuels, le préremplissage du tour assistant renvoie une erreur 400 : la contrainte est donc transmise en instruction système. Efficace, mais non garantie — contrairement au schéma de sortie, qui contraint réellement la génération.',
-  'api-schema':'Un schéma JSON transmis en output_config.format. L\u2019API contraint alors la génération à le respecter, au lieu de compter sur la bonne volonté du modèle. C\u2019est le remplacement officiel du préremplissage retiré. Laissé vide, le prompt seul gouverne le format.',
+  'api-schema':'Un schéma JSON transmis à l\u2019API comme schéma d\u2019outil, appel forcé. La réponse arrive en JSON et est vérifiée contre le schéma avant d\u2019être acceptée, au lieu de compter sur la bonne volonté du modèle. C\u2019est le remplacement officiel du préremplissage retiré. Laissé vide, le prompt seul gouverne le format.',
   biblio_recherche:'Filtre sur le nom et le cas d\u2019usage.',
   materiau:'Collez ici uniquement le contenu que l’IA doit consulter pour travailler : texte, notes, données ou extrait. Ne recopiez pas votre demande principale. Laissez vide si vous n’avez rien à ajouter.',
   langage:'À utiliser uniquement si vous demandez du code. Cela permet d’adapter certains commentaires au langage choisi.',

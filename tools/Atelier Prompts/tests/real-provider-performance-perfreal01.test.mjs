@@ -261,12 +261,18 @@ test('T-PERFREAL01-15 : l’artefact frontend n’a pas bougé', () => {
   assert.ok(crypto, 'empreinte calculable');
   const octets = fs.readFileSync(path.join(racine, 'atelier-prompts-v11.5-lot10g-decision-provider.html'));
   const empreinte = require$sha(octets);
+  /* SCHEMA-ANTHROPIC-03 / CONTINUITE-04 — L'EMPREINTE A BOUGÉ, PAR LE TRANSPORT ANTHROPIC SEUL : le schéma
+     canonique de l'analyse part désormais comme schéma d'outil (appel forcé, JSON garanti, aucune grammaire
+     compilée — la sortie structurée refusait l'analyse complète, « compiled grammar is too large »), la
+     réponse est vérifiée contre le canonique complet, avec UNE requête de correction bornée. Ni règle, ni
+     prompt, ni schéma canonique, ni plage gelée n'a changé : FROZEN identique. Le runner de bisection de
+     grammaire (outil hors produit) a été retiré. */
   /* SCHEMA-ANTHROPIC-02 / MODELE-PAR-DEFAUT-01 — L'EMPREINTE A ENCORE BOUGÉ, ET TOUJOURS POUR LA
      MÊME RAISON MÉCANIQUE : le repli du sélecteur de modèle API, jusqu'ici un index positionnel
      muet vers 'claude-opus-5', devient MODELE_PAR_DEFAUT ('claude-sonnet-5'), annoncé plutôt que
      silencieux quand une actualisation depuis /v1/models fait disparaître le modèle retenu. Aucune
      règle, aucun prompt, aucun schéma, aucun comportement d'interface visible n'a changé. */
-  assert.equal(empreinte, '96fa5dcc4f10874d187a04b0d89e08a98e2486817a518927f8ea94f2fdf5e65c',
+  assert.equal(empreinte, 'a6cf38e722c07b68b160082e9f30a7ace651cc18c9018cb6167a0b92966532c7',
     'CANONICAL_HTML_CHANGED = NO');
   /* Et les quatre points de terminaison qu'il déclare sont ceux de production. */
   const metas = [...HTML.matchAll(/<meta name="(atelier-[a-z-]+)" content="([^"]+)"/g)];

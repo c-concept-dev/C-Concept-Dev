@@ -13,8 +13,8 @@
 | --- | --- |
 | Lot | HTML-FINAL-02 |
 | Artefact | Atelier de prompts — V11.5 LOT 10G Adaptive Decision Pipeline |
-| Commit local | `c2be1f0c14e0f160b44cba79687c622c460369fe` |
-| Date du commit | 2026-09-19T13:26:51+00:00 |
+| Commit local | `16c80ea1fcc66064613132cd6d558921b5a033da` |
+| Date du commit | 2026-09-19T13:57:41Z |
 
 ## Artefact canonique
 
@@ -24,8 +24,8 @@ aucune police et aucune image ne sont chargés depuis un tiers.
 | Champ | Valeur |
 | --- | --- |
 | Chemin | `atelier-prompts-v11.5-lot10g-decision-provider.html` |
-| Taille | 1654137 octets |
-| SHA-256 | `96fa5dcc4f10874d187a04b0d89e08a98e2486817a518927f8ea94f2fdf5e65c` |
+| Taille | 1652437 octets |
+| SHA-256 | `a6cf38e722c07b68b160082e9f30a7ace651cc18c9018cb6167a0b92966532c7` |
 
 ## Runtime compilé
 
@@ -54,18 +54,18 @@ Le bloc embarqué dans la page et le fichier généré sont comparés octet pour
 
 ## Jeu de release
 
-112 fichiers. C'est ce qui doit exister pour **servir** la page,
+111 fichiers. C'est ce qui doit exister pour **servir** la page,
 **redéployer** les workers qui la soutiennent, et **reconstruire puis vérifier**
 l'artefact. Le manifeste lui-même en est exclu : un document ne peut pas contenir
 sa propre empreinte.
 
-| Empreinte du jeu | `3b5a597820c742f225964741e616dbe388fc9ddbcd3bbdaeee42588fbd73a3a9` |
+| Empreinte du jeu | `53066ec809c76a661ff09f083d27eeff2ea8749c0f1e59f2e2e03e30feace1f2` |
 | --- | --- |
 
 | Classe | Fichier | SHA-256 |
 | --- | --- | --- |
 | REQUIRED_BUILD | `anti-regression-baseline.json` | `7bd0fcca3f3ed226e3fdd30ee52dc204dae158dbde8842c08731054a1f58e7d6` |
-| REQUIRED_HTML | `atelier-prompts-v11.5-lot10g-decision-provider.html` | `96fa5dcc4f10874d187a04b0d89e08a98e2486817a518927f8ea94f2fdf5e65c` |
+| REQUIRED_HTML | `atelier-prompts-v11.5-lot10g-decision-provider.html` | `a6cf38e722c07b68b160082e9f30a7ace651cc18c9018cb6167a0b92966532c7` |
 | REQUIRED_BUILD | `core/adn/adaptive-lock-selector.js` | `15d3154d639b761747a26215f2ec59eb6b121e6072187b6a2dd611eefe5b65ea` |
 | REQUIRED_BUILD | `core/adn/adn-state.js` | `814bbc8318cd2e20d1964c0930809e9997e00bf1cfe8f474aa8f3f39af767d8b` |
 | REQUIRED_BUILD | `core/adn/arch-canonical-enrichment.js` | `159140c46266a8fe6cb35995f53addbfb8fe9802b6ef427d3c0589c449cc0aaa` |
@@ -157,7 +157,6 @@ sa propre empreinte.
 | REQUIRED_DOC | `docs/PERF-NOMINAL-PROVIDER-01.md` | `2bd66e87aedf0b0e29fe095db6177a503bb29d5928d222befa87012378eea0fd` |
 | REQUIRED_DOC | `docs/PERF-REAL-01-REPORT.md` | `4d3b16bf400738cffb21995deb9302788dc67dd8da25649cecc7592b345bd77e` |
 | REQUIRED_BUILD | `package.json` | `c89fdaa9b4ce892b8a75eac66b42ddc20868098b608c24fc6ed1d30c8e064693` |
-| BUILD_TOOL | `tools/anthropic-grammar-bisect.mjs` | `222445c44a73d66ee770e0a541a9a52ba88299bcd36135e823d5b1d67e9aefe1` |
 | BUILD_TOOL | `tools/build-adn-browser-runtime.mjs` | `5b43a54d8c561dea23cdca4462af16c9ffd418487489c21d5b03cae97c1a2cf3` |
 | BUILD_TOOL | `tools/build-release-manifest.mjs` | `960bebd9ed050125cadf819af0b71373524d1d240431798a2579af5172064eb1` |
 | BUILD_TOOL | `tools/frozen-guard.mjs` | `fa1d9b3e323bf350157f623e49e4d91d40afabe12a0adf7415ac90343bfe038c` |
@@ -181,7 +180,7 @@ sa propre empreinte.
 
 | Classe | Fichiers | Raison |
 | --- | --- | --- |
-| REQUIRED_TEST_ONLY | 218 | preuves ; ne sont pas servies |
+| REQUIRED_TEST_ONLY | 216 | preuves ; ne sont pas servies |
 | EVALUATION_ONLY | 376 | bancs et campagnes, dont le worker `…-local-only` |
 | AUDIT_ONLY | 76 | relevés des lots passés |
 | PROVENANCE | 2 | trace de la dérivation de l'artefact courant |
@@ -207,7 +206,7 @@ par ce script.*
 | EXEC-PHASE-INSTRUMENT-01 | CLOSED |
 | FC01b FINAL | CLOSED |
 | HTML-FINAL-01 / 01A | CLOSED |
-| Tests au vert | 3692 |
+| Tests au vert | 3671 |
 
 ## Dette encore ouverte
 

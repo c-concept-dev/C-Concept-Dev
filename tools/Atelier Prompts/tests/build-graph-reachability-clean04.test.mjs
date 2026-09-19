@@ -167,14 +167,13 @@ test('T-CLEAN04-05 : un seul graphe de build, et il ne diverge pas des imports r
      aucune source ; il lit l'inventaire et produit un document. L'invariant que
      ce test défend — un seul graphe de build, une seule liste de modules — reste
      entier, et on le vérifie ici plutôt que de se contenter d'élargir la liste. */
-  /* SCHEMA-ANTHROPIC-02 / MODELE-PAR-DEFAUT-01 — un quatrième programme, hors produit et
-     hors graphe de build lui aussi : anthropic-grammar-bisect.mjs ne compile rien et n'écrit
-     dans aucune source. Il LIT le schéma canonique et la projection déjà compilés dans le
-     HTML (le même code que le produit exécute) pour envoyer de vrais appels de diagnostic à
-     l'API Anthropic depuis un poste qui détient la clé — jamais depuis ce dépôt ni CI. */
+  /* SCHEMA-ANTHROPIC-03 — le runner de diagnostic de grammaire (anthropic-grammar-bisect.mjs,
+     quatrième programme le temps de SCHEMA-ANTHROPIC-02) a été retiré : le produit ne compile
+     plus aucune grammaire de sortie structurée chez Anthropic, il n'y a plus rien à bissecter.
+     Ses mesures sont consignées dans l'en-tête de schemaPourAnthropic. Trois programmes. */
   const outils = fs.readdirSync(path.join(root, 'tools'));
-  assert.deepEqual(outils.sort(), ['anthropic-grammar-bisect.mjs', 'build-adn-browser-runtime.mjs',
-    'build-release-manifest.mjs', 'frozen-guard.mjs']);
+  assert.deepEqual(outils.sort(), ['build-adn-browser-runtime.mjs', 'build-release-manifest.mjs',
+    'frozen-guard.mjs']);
   const manifeste = fs.readFileSync(path.join(root, 'tools/build-release-manifest.mjs'), 'utf8');
   assert.equal(/const modules\s*=\s*\[/.test(manifeste), false,
     'le générateur de manifeste ne tient aucune seconde liste de modules.');
