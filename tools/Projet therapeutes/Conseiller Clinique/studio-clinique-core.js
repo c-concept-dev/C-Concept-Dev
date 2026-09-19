@@ -10257,6 +10257,86 @@ ${recent}`;
     return s.replace(ADOC_EMOJI_RE, '').replace(/ {2,}/g, ' ').trim();
   }
 
+  // Continuation JSON structurée (CDC-CONTINUATION-JSON-STRUCTUREE-APPEL2.md, §3) — scanner
+  // PURPOSE-BUILT (pas un parseur JSON tolérant générique) : repère l'ouverture du tableau ciblé
+  // (`"blocks":[`) SEULEMENT lorsqu'elle apparaît directement à la racine de l'objet JSON
+  // (depth===1 au moment du guillemet ouvrant de la clé) — cette garde de profondeur rend
+  // impossible un faux positif à l'intérieur du texte d'un bloc (ex. un texte contenant
+  // littéralement la sous-chaîne '"blocks":[' serait nécessairement à une profondeur bien
+  // supérieure à 1, jamais confondu avec la vraie ouverture du tableau).
+  function _adocFindTopLevelArrayStart(raw, key) {
+    const marker = '"' + key + '":[';
+    let depth = 0, inString = false, escaped = false;
+    for (let i = 0; i < raw.length; i++) {
+      const ch = raw[i];
+      if (inString) {
+        if (escaped) escaped = false;
+        else if (ch === '\\') escaped = true;
+        else if (ch === '"') inString = false;
+        continue;
+      }
+      if (ch === '"') {
+        if (depth === 1 && raw.startsWith(marker, i)) return i; // début du marqueur "key":[ lui-même
+        inString = true;
+        continue;
+      }
+      if (ch === '{' || ch === '[') { depth++; continue; }
+      if (ch === '}' || ch === ']') { depth--; continue; }
+    }
+    return -1;
+  }
+
+  // Continuation JSON structurée (CDC §2 Option B retenue, §3) — répare un JSON `{title, purpose,
+  // audience, blocks:[...]}` tronqué en plein flux (max_tokens) : ne recolle JAMAIS à l'intérieur
+  // d'un bloc entamé, abandonne le bloc inachevé (même écrit à 95%), ne garde que les blocs du
+  // tableau `arrayKey` syntaxiquement complets, referme programmatiquement le tableau/l'objet
+  // racine, puis valide le résultat par un JSON.parse — filet de sécurité qui renvoie `null` sur
+  // tout échec (base déjà corrompue, ou troncature avant même l'ouverture du tableau ciblé —
+  // cas A/B du §1 du CDC), déclenchant le repli direct sur l'ancien moteur (§4 du CDC : jamais de
+  // continuation sur une base déjà invalide).
+  function adocRepairTruncatedBlocksJSON(raw, arrayKey) {
+    const markerStart = _adocFindTopLevelArrayStart(raw, arrayKey);
+    if (markerStart === -1) return null;
+    const marker = '"' + arrayKey + '":[';
+    const bracketIdx = markerStart + marker.length - 1; // index du '[' lui-même
+    // depth ici est relatif au tableau ciblé (0 = directement dans le tableau, entre éléments) —
+    // jamais confondu avec un tableau/objet imbriqué à l'intérieur d'un bloc (items/rows), qui ne
+    // fait que monter au-dessus de 0 sans jamais retoucher ce niveau 0 réservé au tableau ciblé.
+    let depth = 0, inString = false, escaped = false, lastSafeCut = -1, sawArrayClose = false;
+    for (let i = bracketIdx + 1; i < raw.length; i++) {
+      const ch = raw[i];
+      if (inString) {
+        if (escaped) escaped = false;
+        else if (ch === '\\') escaped = true;
+        else if (ch === '"') inString = false;
+        continue;
+      }
+      if (ch === '"') { inString = true; continue; }
+      if (ch === '{' || ch === '[') { depth++; continue; }
+      if (ch === '}') {
+        depth--;
+        if (depth === 0) lastSafeCut = i; // un élément du tableau vient de se refermer complètement
+        continue;
+      }
+      if (ch === ']') {
+        if (depth === 0) { sawArrayClose = true; lastSafeCut = i; break; } // le tableau ciblé lui-même s'est refermé
+        depth--;
+        continue;
+      }
+    }
+    // Cas limite (scénario "troncature dans le tout premier bloc", CDC §5.5) — le tableau ciblé a
+    // bien été ouvert mais aucun élément n'a encore fini de s'écrire : un tableau VIDE est un état
+    // intermédiaire valide (confirmedBlocks = []), jamais un motif de repli sur l'ancien moteur.
+    const blocksJSON = lastSafeCut === -1 ? '[]'
+      : raw.slice(bracketIdx, lastSafeCut + 1) + (sawArrayClose ? '' : ']');
+    const reconstructed = raw.slice(0, markerStart) + '"' + arrayKey + '":' + blocksJSON + '}';
+    try {
+      return JSON.parse(reconstructed);
+    } catch (_repairParseErr) {
+      return null;
+    }
+  }
+
   // Item 69 construction — un profil par documentKind câblé au structuré : SEULS les 4 points
   // identifiés par l'investigation varient (outil/nom d'outil, suffixe de prompt système,
   // conversion raw→blocks) ; tout le reste (orchestration réseau, minuteries, parsing SSE,
@@ -10805,18 +10885,24 @@ ${recent}`;
     // et tout le reste (max_tokens, retry, repli, persistance legacy-html) : INCHANGÉS.
     const ADOC_CALL2_TRANSPORT_TIMEOUT_MS = 45000;
     const ADOC_CALL2_SEMANTIC_TIMEOUT_MS_EXPERIMENTAL = 120000;
-    let _genToolName = null;
-    let _genToolInputJson = '';
-    let _genStopReason = null;
-    for (let _attempt2 = 1; _attempt2 <= ADOC_CALL2_MAX_ATTEMPTS; _attempt2++) {
+    // Continuation JSON structurée (CDC §6 brique 4, vérifié faisable dans
+    // VERIFICATION-REFACTOR-BOUCLE-STREAMING-APPEL2.md) — extraction de la boucle de streaming en
+    // fonction paramétrée, appelable aussi bien pour une tentative INITIALE que pour un tour de
+    // CONTINUATION (précédent déjà établi dans ce fichier : adocRunContinuationRound, appelée par
+    // deux orchestrateurs distincts, L2308/L3328). Tout ce qui suivait ci-dessous est préservé À
+    // L'IDENTIQUE (minuteries 45s/120s, comptabilité temps masqué, parsing SSE complet incluant
+    // _genEarlyComplete, métriques par tentative) — seul le couplage par mutation de variables de
+    // la fonction englobante devient une valeur de retour explicite (couplage superficiel déjà
+    // confirmé par la vérification ciblée, jamais un obstacle réel à l'extraction).
+    async function _adocRunGenStreamAttempt(payload, metricsLabel, typingLabelOrNull, attemptNumber) {
       const _m2 = _adocNewCallMetrics();
-      _m2.attemptNumber = _attempt2; // Correction rang 4 — identifie cette tentative précise, jamais devinable a posteriori sinon
+      _m2.attemptNumber = attemptNumber; // Correction rang 4 — identifie cette tentative précise, jamais devinable a posteriori sinon (continuation comprise : la numérotation continue au-delà des tentatives initiales)
       let _progressedPastHttp200_2 = false;
       let _abortReason2 = null;
       let _genReceivedChars = 0;
-      _genToolName = null;
-      _genToolInputJson = '';
-      _genStopReason = null;
+      let _genToolName = null;
+      let _genToolInputJson = '';
+      let _genStopReason = null;
       const _tCall2Start = performance.now();
       const _genCtrl = new AbortController();
       // Item 21, famille "arrière-plan navigateur" — jamais construite jusqu'ici (grep exhaustif
@@ -10888,26 +10974,16 @@ ${recent}`;
       }
 
       let resp;
-      const _payload2 = {
-        provider: 'anthropic',
-        model: 'claude-sonnet-4-6',
-        max_tokens: 8000,
-        stream: true,
-        system: structuredSystemPrompt,
-        messages: [{ role: 'user', content: text }],
-        tools: [profile.tool],
-        tool_choice: { type: 'tool', name: profile.toolName },
-      };
-      _m2.payloadBytes = JSON.stringify(_payload2).length;
-      _logTiming('avant envoi appel 2 (génération structurée forcée, streamée)' + (_attempt2 > 1 ? ' — nouvelle tentative' : ''));
-      if (_attempt2 > 1 && typingId) adocUpdateTypingLabel(typingId, 'icon-structure', 'Génération structurée (' + kindLabel + ')… nouvelle tentative');
+      _m2.payloadBytes = JSON.stringify(payload).length;
+      _logTiming('avant envoi appel 2 (génération structurée forcée, streamée)' + (typingLabelOrNull ? ' — ' + typingLabelOrNull : ''));
+      if (typingLabelOrNull && typingId) adocUpdateTypingLabel(typingId, 'icon-structure', 'Génération structurée (' + kindLabel + ')… ' + typingLabelOrNull);
       let _fetchOrHttpErr = null;
       try {
         try {
           resp = await fetch(workerUrl.replace(/\/+$/, ''), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
-            body: JSON.stringify({ payload: _payload2 }),
+            body: JSON.stringify({ payload: payload }),
             signal: _genCtrl.signal,
           });
         } catch (_genFetchErr) {
@@ -11063,10 +11139,10 @@ ${recent}`;
         }
         _logTiming('flux terminé (stop_reason=' + _genStopReason + '), JSON tool_use accumulé: ' + _genToolInputJson.length + ' caractères');
         _m2.finalState = 'completed';
-        _adocLogCallMetrics('appel 2, tentative ' + _attempt2, _m2);
+        _adocLogCallMetrics(metricsLabel, _m2);
         _m2.durationMs = Math.round(performance.now() - _tCall2Start); // Correction rang 4 — durée propre à CETTE tentative
         window._adocLastStructAttemptMetrics.metrics2.push(_m2); // traceur persistant — une entrée par tentative, jamais un remplacement (cf. commentaire en tête de fonction)
-        break; // flux mené à son terme (avec ou sans JSON exploitable) — validation après la boucle.
+        return { toolName: _genToolName, toolInputJson: _genToolInputJson, stopReason: _genStopReason, metrics: _m2 };
       } catch (_genErr) {
         // Partie A, point 5 — même niveau de détail chronométrique sur un abandon PENDANT la
         // lecture du flux que sur un échec initial du fetch (auparavant asymétrique : seul
@@ -11080,11 +11156,15 @@ ${recent}`;
         // timeout — le flux s'arrête avant tout message_delta portant stop_reason — mais capturé
         // honnêtement tel quel, jamais deviné, pour les cas où il serait déjà connu).
         _m2.stopReasonAtAbandon = _genStopReason;
-        _adocLogCallMetrics('appel 2, tentative ' + _attempt2, _m2);
+        _adocLogCallMetrics(metricsLabel, _m2);
         _m2.durationMs = Math.round(performance.now() - _tCall2Start); // Correction rang 4 — durée propre à CETTE tentative
         window._adocLastStructAttemptMetrics.metrics2.push(_m2); // traceur persistant — une entrée par tentative, jamais un remplacement (cf. commentaire en tête de fonction)
 
-        const _isTransient = !_progressedPastHttp200_2 && (
+        // Classification retry/throw — INCHANGÉE (même formule qu'avant l'extraction), attachée à
+        // l'erreur re-levée (`.isTransient`/`.abortReason2`) pour que l'orchestrateur appelant
+        // (boucle des tentatives INITIALES ci-dessous, ou continuation) n'ait aucune logique de
+        // classification à dupliquer.
+        _genErr.isTransient = !_progressedPastHttp200_2 && (
           (_genErr && _genErr.httpStatus && _adocIsTransientHttpStatus(_genErr.httpStatus)) ||
           (_genErr && !_genErr.httpStatus && _genErr.name !== 'AdocSSEStreamError') // échec réseau/abort avant tout HTTP 200
         ) || (
@@ -11095,10 +11175,40 @@ ${recent}`;
             (_genErr && _genErr.name === 'AbortError')
           )
         );
+        _genErr.abortReason2 = _abortReason2;
+        throw _genErr;
+      }
+    }
 
-        if (!_isTransient || _attempt2 >= ADOC_CALL2_MAX_ATTEMPTS) {
+    const _payload2 = {
+      provider: 'anthropic',
+      model: 'claude-sonnet-4-6',
+      max_tokens: 8000,
+      stream: true,
+      system: structuredSystemPrompt,
+      messages: [{ role: 'user', content: text }],
+      tools: [profile.tool],
+      tool_choice: { type: 'tool', name: profile.toolName },
+    };
+    let _genToolName = null;
+    let _genToolInputJson = '';
+    let _genStopReason = null;
+    // Numérotation continue des tentatives (Correction rang 4) — partagée avec l'orchestrateur de
+    // continuation ci-dessous (même compteur, jamais remis à zéro), pour que le traceur persistant
+    // numérote sans ambiguïté les tentatives initiales ET les rounds de continuation qui suivent.
+    let _totalAttemptsSoFar = 0;
+    for (let _attempt2 = 1; _attempt2 <= ADOC_CALL2_MAX_ATTEMPTS; _attempt2++) {
+      _totalAttemptsSoFar = _attempt2;
+      try {
+        const _attemptResult = await _adocRunGenStreamAttempt(_payload2, 'appel 2, tentative ' + _attempt2, _attempt2 > 1 ? 'nouvelle tentative' : null, _attempt2);
+        _genToolName = _attemptResult.toolName;
+        _genToolInputJson = _attemptResult.toolInputJson;
+        _genStopReason = _attemptResult.stopReason;
+        break; // flux mené à son terme (avec ou sans JSON exploitable) — validation après la boucle.
+      } catch (_genErr) {
+        if (!_genErr.isTransient || _attempt2 >= ADOC_CALL2_MAX_ATTEMPTS) {
           if (_genErr && _genErr.name === 'AbortError') {
-            throw new Error('Génération structurée : inactivité du flux (' + (_abortReason2 || 'timeout') + '), abandon.');
+            throw new Error('Génération structurée : inactivité du flux (' + (_genErr.abortReason2 || 'timeout') + '), abandon.');
           }
           throw _genErr;
         }
@@ -11109,14 +11219,100 @@ ${recent}`;
     if (_genToolName !== profile.toolName || !_genToolInputJson) {
       throw new Error('Réponse sans bloc tool_use structuré (' + profile.toolName + ') après streaming.');
     }
-    if (_genStopReason === 'max_tokens') {
-      throw new Error('Génération structurée tronquée (max_tokens atteint pendant le flux).');
+
+    // Continuation JSON structurée (CDC-CONTINUATION-JSON-STRUCTUREE-APPEL2.md, Phase 1 — Fiche/
+    // Script/Tableau/Liens, forme plate partagée) — dérive un tool minimal `emit_remaining_blocks`
+    // réutilisant TEL QUEL (jamais dupliqué à la main) le schéma de bloc déjà défini dans le
+    // profil, pour demander UNIQUEMENT les blocs restants une fois le dernier bloc complet repéré.
+    function _adocBuildRemainingBlocksTool(prof) {
+      return {
+        name: 'emit_remaining_blocks',
+        description: "Poursuit un document structuré déjà entamé (" + prof.toolName + ") en produisant UNIQUEMENT les blocs restants, dans la continuité exacte de ceux déjà confirmés — jamais une répétition d'un bloc déjà produit, jamais un résumé de ce qui précède.",
+        strict: true,
+        eager_input_streaming: true,
+        input_schema: {
+          type: 'object',
+          properties: { blocks: prof.tool.input_schema.properties.blocks },
+          required: ['blocks'],
+          additionalProperties: false,
+        },
+      };
     }
+
+    // Plafond de sécurité — même philosophie que MAX_CONTINUATIONS_AUTO de l'ancien moteur,
+    // adapté au niveau bloc : au-delà, repli final avec le même message d'erreur clair qu'avant
+    // ce lot (comportement de filet de sécurité inchangé, cf. CDC §5.7).
+    const ADOC_CONTINUATION_MAX_ROUNDS = 3;
+    const ADOC_STRUCT_TRUNCATED_ERROR = 'Génération structurée tronquée (max_tokens atteint pendant le flux).';
+
+    // Orchestrateur de continuation (CDC §2 Option B, §6 brique 5) — répare le JSON tronqué de la
+    // tentative initiale (abandonnant le dernier bloc entamé mais inachevé), puis boucle sur des
+    // tours `tool_use`(document confirmé jusqu'ici)/`tool_result`(demande de suite) forçant
+    // `emit_remaining_blocks`, fusionnant les blocs en espace objet JS (jamais en concaténation de
+    // texte JSON brut) jusqu'à un flux qui ne se termine plus par max_tokens, ou jusqu'au plafond.
+    async function _adocContinueStructuredDocument(firstTruncatedJson) {
+      let confirmedDoc = adocRepairTruncatedBlocksJSON(firstTruncatedJson, 'blocks');
+      if (!confirmedDoc) throw new Error(ADOC_STRUCT_TRUNCATED_ERROR); // base déjà invalide (§4) — jamais de continuation dessus
+      const remainingTool = _adocBuildRemainingBlocksTool(profile);
+      for (let round = 1; round <= ADOC_CONTINUATION_MAX_ROUNDS; round++) {
+        const _contPayload = {
+          provider: 'anthropic',
+          model: 'claude-sonnet-4-6',
+          max_tokens: 8000,
+          stream: true,
+          system: structuredSystemPrompt,
+          messages: [
+            { role: 'user', content: text },
+            { role: 'assistant', content: [{ type: 'tool_use', id: 'continuation-' + round, name: profile.toolName, input: confirmedDoc }] },
+            { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'continuation-' + round, content: "Le document ci-dessus est tronqué (max_tokens atteint). Continue EXACTEMENT là où il s'est arrêté : produis UNIQUEMENT les blocs restants via emit_remaining_blocks, jamais une répétition d'un bloc déjà produit ci-dessus, jamais un résumé de ce qui précède." }] },
+          ],
+          tools: [remainingTool],
+          tool_choice: { type: 'tool', name: 'emit_remaining_blocks' },
+        };
+        let _contResult;
+        _totalAttemptsSoFar++;
+        try {
+          _contResult = await _adocRunGenStreamAttempt(_contPayload, 'appel 2, continuation ' + round, 'poursuite du document (' + kindLabel + ')', _totalAttemptsSoFar);
+        } catch (_contErr) {
+          // Aucun retry dédié sur une continuation en échec transitoire dans cette Phase 1 — le
+          // filet de sécurité reste le même message d'erreur clair qu'avant ce lot, jamais un gel
+          // ni une tentative indéfinie.
+          throw new Error(ADOC_STRUCT_TRUNCATED_ERROR);
+        }
+        if (_contResult.toolName !== 'emit_remaining_blocks' || !_contResult.toolInputJson) {
+          throw new Error(ADOC_STRUCT_TRUNCATED_ERROR);
+        }
+        if (_contResult.stopReason !== 'max_tokens') {
+          let contParsed;
+          try {
+            contParsed = JSON.parse(_contResult.toolInputJson);
+          } catch (_contJsonErr) {
+            throw new Error(ADOC_STRUCT_TRUNCATED_ERROR);
+          }
+          confirmedDoc.blocks = confirmedDoc.blocks.concat(contParsed.blocks || []);
+          return confirmedDoc;
+        }
+        // La continuation elle-même a de nouveau atteint max_tokens — répare ce fragment (même
+        // forme `{blocks:[...]}` que emit_remaining_blocks) et boucle pour un tour de plus.
+        const contRepaired = adocRepairTruncatedBlocksJSON(_contResult.toolInputJson, 'blocks');
+        if (!contRepaired) throw new Error(ADOC_STRUCT_TRUNCATED_ERROR);
+        confirmedDoc.blocks = confirmedDoc.blocks.concat(contRepaired.blocks || []);
+      }
+      throw new Error(ADOC_STRUCT_TRUNCATED_ERROR); // plafond de rounds épuisé — repli final inchangé
+    }
+
+    // Point de déclenchement (CDC §6 brique 6) — SEUL le cas max_tokens change : toutes les autres
+    // causes de throw/repli ci-dessus (tool_use absent, échec transitoire épuisé, inactivité du
+    // flux) restent strictement inchangées.
     let toolUseInput;
-    try {
-      toolUseInput = JSON.parse(_genToolInputJson);
-    } catch (_jsonErr) {
-      throw new Error('JSON du document structuré invalide après accumulation du flux : ' + _jsonErr.message);
+    if (_genStopReason === 'max_tokens') {
+      toolUseInput = await _adocContinueStructuredDocument(_genToolInputJson);
+    } else {
+      try {
+        toolUseInput = JSON.parse(_genToolInputJson);
+      } catch (_jsonErr) {
+        throw new Error('JSON du document structuré invalide après accumulation du flux : ' + _jsonErr.message);
+      }
     }
     _logTiming('JSON tool_use parsé avec succès');
 
