@@ -7921,6 +7921,25 @@ ${recent}`;
       if (input && document.activeElement !== input) input.value = ctx.block.style && ctx.block.style[field] != null ? ctx.block.style[field] : '';
     });
   }
+  // ITEM 75 Phase 1 (complément — bornage) — 1024×768 réutilise TEL QUEL la dimension déjà
+  // canonique du canevas Carrousel (Worker/index.js, handleScreenshotSlide : `width = 1024,
+  // height = 768` par défaut du viewport Browser Rendering — partagé par l'export JPEG, item 58,
+  // et la vidéo, item 78, qui réutilise le même point d'entrée) — jamais une valeur inventée,
+  // investigation confirmée : aucune autre dimension canonique (ex. 1920×1080) n'existe ailleurs
+  // dans le code client ou Worker pour ce pilote Carrousel.
+  var ADOC_CARD_CANVAS_WIDTH = 1024;
+  var ADOC_CARD_CANVAS_HEIGHT = 768;
+  // Clampe x/y/width/height ENSEMBLE, jamais un champ isolément (la plage valide de x dépend de
+  // width) : garantit qu'aucune carte ne peut se retrouver, même partiellement, hors des limites
+  // du canevas — ni par glissement/redimensionnement à la souris, ni par une valeur tapée dans le
+  // panneau de propriétés (fonction PARTAGÉE, régression #6, entre les deux points d'écriture).
+  function adocClampCardStyleToCanvas(style) {
+    const width = Math.max(40, Math.min(ADOC_CARD_CANVAS_WIDTH, Number(style.width)));
+    const height = Math.max(40, Math.min(ADOC_CARD_CANVAS_HEIGHT, Number(style.height)));
+    const x = Math.max(0, Math.min(ADOC_CARD_CANVAS_WIDTH - width, Number(style.x)));
+    const y = Math.max(0, Math.min(ADOC_CARD_CANVAS_HEIGHT - height, Number(style.y)));
+    return Object.assign({}, style, { x: x, y: y, width: width, height: height });
+  }
   // Retour visuel immédiat sur la carte déjà à l'écran (position:absolute + left/top/width/
   // height/z-index) — jamais un re-rendu complet pendant le glissement, même principe
   // qu'adocApplyBlockOpacity/adocApplyImageWidth ci-dessus. Fonction PARTAGÉE (régression #6)
@@ -7941,10 +7960,24 @@ ${recent}`;
     const num = Number(value);
     if (!Number.isFinite(num)) return;
     if (checkpointOnce) adocEditorCheckpoint();
-    const style = Object.assign({}, ctx.block.style);
-    style[field] = (field === 'width' || field === 'height') ? Math.max(40, num) : num;
+    // Bornage (Item 75 Phase 1 complément) — un champ manquant (carte jamais glissée, l'autre
+    // dimension n'a encore aucune valeur enregistrée) part de la taille/position réelle déjà à
+    // l'écran, jamais de zéro, pour ne jamais faire "sauter" la carte à la saisie du premier champ.
+    const rect = ctx.el.getBoundingClientRect();
+    const containerRect = ctx.el.parentElement.getBoundingClientRect();
+    const current = ctx.block.style || {};
+    const effective = {
+      x: current.x != null ? Number(current.x) : (rect.left - containerRect.left),
+      y: current.y != null ? Number(current.y) : (rect.top - containerRect.top),
+      width: current.width != null ? Number(current.width) : rect.width,
+      height: current.height != null ? Number(current.height) : rect.height,
+    };
+    effective[field] = num;
+    const clamped = adocClampCardStyleToCanvas(effective);
+    const style = Object.assign({}, ctx.block.style, clamped);
     ctx.block.style = style;
     adocApplyCardPositionToElement(ctx.el, style);
+    adocEditorRefreshCardPositionControls();
     adocEditorSync(); adocEditorMarkDirty();
   }
   window.adocApplyCardPosition = adocApplyCardPosition;
@@ -12081,8 +12114,11 @@ ${recent}`;
           if (newStyle.width == null) newStyle.width = startW;
           if (newStyle.height == null) newStyle.height = startH;
         }
-        block.style = newStyle;
-        adocApplyCardPositionToElement(cardEl, newStyle);
+        // Bornage (Item 75 Phase 1 complément) — clampé à CHAQUE tick, jamais seulement au
+        // relâchement : l'aperçu en direct doit refléter l'arrêt au bord du canevas pendant le
+        // geste lui-même, pas seulement une fois le bouton de la souris relâché.
+        block.style = adocClampCardStyleToCanvas(newStyle);
+        adocApplyCardPositionToElement(cardEl, block.style);
         adocEditorRefreshCardPositionControls();
         adocEditorSync(); adocEditorMarkDirty();
       }
