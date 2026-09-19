@@ -317,7 +317,7 @@ test('T-PERFREAL01F-15/16/17 : artefact intact, observation sans secret, transit
      qu'un refus de sortie fournisseur cesse d'être compté comme un défaut de notre code. Aucune
      règle, aucun prompt, aucun schéma, aucun comportement d'interface. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    '5029b9d0d7f5716834dfe713e7a2a65e0e64c5fba39f2161a2856773800e2188', 'CANONICAL_HTML_CHANGED = NO');
+    '3d72b74071d9a1669534cf209ac3bac481da314d538574a90a531c1c0e25b57c', 'CANONICAL_HTML_CHANGED = NO');
   /* Aucun secret, aucun contenu utilisateur dans les journaux ajoutés. */
   for (const motif of [/sk-[A-Za-z0-9]{16,}/, /gsk_[A-Za-z0-9]{20,}/, /BEGIN [A-Z ]*PRIVATE KEY/]) {
     assert.equal(motif.test(WORKER), false);

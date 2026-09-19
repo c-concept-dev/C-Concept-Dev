@@ -20,8 +20,8 @@
  * que violationsContreSchema() exige ensuite (exclusivité des branches, required par branche, minItems 2).
  *
  * LA PROJECTION (`schemaPourAnthropic`, couche fournisseur uniquement) : oneOf → objet unique + discriminant ; règles logiques (if/then/else, not, contains…) et contraintes de valeur
- * (minLength, maxLength, minimum, maxItems, minItems > 1…) retirées de la projection et reportées mot pour
- * mot dans la description du nœud ; tout le reste (types, enum, const, required, additionalProperties:false,
+ * (minLength, maxLength, minimum, minItems, maxItems…) retirées de la projection — SCHEMA-ANTHROPIC-02 : plus
+ * recopiées dans les descriptions (« compiled grammar is too large ») ; tout le reste (types, enum, const, required, additionalProperties:false,
  * $ref/definitions, structure) inchangé. Le canonique n'est jamais muté.
  *
  * LA GARANTIE APRÈS RÉPONSE (`violationsContreSchema`, transportAnthropic) : la réponse est vérifiée contre
@@ -159,7 +159,7 @@ const motsCles = (s) => { const c = {}; parcourir(s, (n) => { for (const k of Ob
  * LA PROJECTION
  * ======================================================================= */
 
-test('T1 · NO_ONEOF_AFTER_ANTHROPIC_ADAPTATION : plus aucun oneOf ni aucun mot-clé documenté non pris en charge ; minItems ≤ 1 ; additionalProperties uniquement false', () => {
+test('T1 · NO_ONEOF_AFTER_ANTHROPIC_ADAPTATION : plus aucun oneOf ni aucun mot-clé documenté non pris en charge ; aucun minItems ; additionalProperties uniquement false', () => {
   const { api, adapt } = page();
   const projete = adapt(api.schema);
   const texte = JSON.stringify(projete);
@@ -167,11 +167,11 @@ test('T1 · NO_ONEOF_AFTER_ANTHROPIC_ADAPTATION : plus aucun oneOf ni aucun mot-
   const comptes = motsCles(projete);
   for (const k of NON_SUPPORTES) assert.equal(comptes[k], undefined, `mot-clé non pris en charge encore présent : ${k}`);
   parcourir(projete, (n, chemin) => {
-    if (n.minItems !== undefined) assert.ok(n.minItems === 0 || n.minItems === 1, `${chemin}.minItems=${n.minItems}`);
+    assert.equal(n.minItems, undefined, `${chemin}.minItems`);
     if (n.additionalProperties !== undefined) assert.equal(n.additionalProperties, false, chemin);
     if (n.$ref !== undefined) assert.match(n.$ref, /^#\/definitions\//, `référence locale seulement : ${chemin}`);
   });
-  assert.deepEqual(Object.keys(comptes).sort(), ['$ref', 'additionalProperties', 'const', 'definitions', 'description', 'enum', 'items', 'minItems', 'properties', 'required', 'type'], 'le vocabulaire restant est exactement le sous-ensemble pris en charge — sans anyOf');
+  assert.deepEqual(Object.keys(comptes).sort(), ['$ref', 'additionalProperties', 'const', 'definitions', 'description', 'enum', 'items', 'properties', 'required', 'type'], 'le vocabulaire restant est exactement le sous-ensemble pris en charge — sans anyOf, sans minItems');
   assert.deepEqual(clone(adapt(projete)), clone(projete), 'idempotente');
 });
 
@@ -261,12 +261,12 @@ test('T7 · MERGED_OBJECT_WITH_DISCRIMINANT : preference_proposable → un objet
   assert.deepEqual(p.properties.texte, clone(adapt(canon.oneOf[1].properties.texte)));
   assert.deepEqual(p.properties.preference_id, clone(adapt(canon.oneOf[2].properties.preference_id)));
   assert.deepEqual(p.properties.confirmations_invoquees, clone(adapt(canon.oneOf[2].properties.confirmations_invoquees)));
-  assert.equal(p.properties.confirmations_invoquees.minItems, 1); assert.match(p.properties.confirmations_invoquees.description, /minItems 2/);
-  assert.equal(p.description, 'Règle vérifiée après réponse : ' + JSON.stringify({ oneOf: clone(canon.oneOf) }) + '.');
+  assert.deepEqual(p.properties.confirmations_invoquees, { type: 'array', items: { type: 'string' } }, 'minItems 2 n’est plus dans la projection : exigé après réponse');
+  assert.equal(p.description, undefined, 'SCHEMA-ANTHROPIC-02 : aucune description technique ajoutée');
   /* Généricité : discriminant par enum, propriété commune identique tolérée, null au plus une fois ; refus sinon. */
   const A = { type: 'object', additionalProperties: false, required: ['k', 'c'], properties: { k: { enum: ['a', 'b'] }, c: { type: 'string' }, x: { type: 'integer' } } };
   const B = { type: 'object', additionalProperties: false, required: ['k', 'c', 'y'], properties: { k: { const: 'c' }, c: { type: 'string' }, y: { type: 'boolean' } } };
-  assert.deepEqual(clone(adapt({ oneOf: [A, B] })), { description: 'Règle vérifiée après réponse : ' + JSON.stringify({ oneOf: [A, B] }) + '.', type: 'object', additionalProperties: false, required: ['k', 'c'], properties: { k: { enum: ['a', 'b', 'c'], type: 'string' }, c: { type: 'string' }, x: { type: 'integer' }, y: { type: 'boolean' } } });
+  assert.deepEqual(clone(adapt({ oneOf: [A, B] })), { type: 'object', additionalProperties: false, required: ['k', 'c'], properties: { k: { enum: ['a', 'b', 'c'], type: 'string' }, c: { type: 'string' }, x: { type: 'integer' }, y: { type: 'boolean' } } });
   assert.throws(() => adapt({ oneOf: [A, { ...B, properties: { ...B.properties, k: { const: 'b' } } }] }), /aucun discriminant/, 'valeurs de discriminant non disjointes');
   assert.throws(() => adapt({ oneOf: [A, { ...B, properties: { ...B.properties, c: { type: 'integer' } } }] }), /diffère selon la branche/);
   assert.throws(() => adapt({ oneOf: [A, { ...B, required: ['c', 'y'] }] }), /aucun discriminant/, 'discriminant non requis dans une branche');
@@ -275,26 +275,16 @@ test('T7 · MERGED_OBJECT_WITH_DISCRIMINANT : preference_proposable → un objet
   assert.throws(() => adapt({ oneOf: [A, { type: 'string' }] }), /additionalProperties false, properties et required/);
 });
 
-test('T7b · RULES_REPORTED_VERBATIM : les 15 règles (13 if/then + 1 not + 1 oneOf) et chaque contrainte de valeur hors conditionnel sont reportées mot pour mot dans la description du nœud porteur', () => {
+test('T7b · NO_TECHNICAL_DESCRIPTIONS (SCHEMA-ANTHROPIC-02) : l’adaptateur n’ajoute aucune description ; seules les descriptions MÉTIER du canonique subsistent, à leur nœud ; celle du membre allOf racine est fusionnée dans la racine', () => {
   const { api, adapt } = page();
   const projete = adapt(api.schema);
-  let regles = 0; parcourir(projete, (n) => { if (n.description) regles += (n.description.match(/Règle vérifiée après réponse : /g) || []).length; });
-  assert.equal(regles, 15, '13 if/then + 1 not + 1 oneOf');
-  /* Chaque règle canonique, sérialisée telle quelle, figure dans une description. */
-  const descriptions = []; parcourir(projete, (n) => { if (n.description) descriptions.push(n.description); });
-  const tout = descriptions.join('\n');
-  parcourir(api.schema, (n, chemin, cond) => {
-    if (cond) return;
-    const regle = {}; for (const k of ['if', 'then', 'else', 'not', 'contains', 'oneOf']) if (n[k] !== undefined) regle[k] = n[k];
-    if (Object.keys(regle).length) assert.ok(tout.includes('Règle vérifiée après réponse : ' + JSON.stringify(regle) + '.'), chemin);
-    for (const k of ['minLength', 'maxLength', 'minimum', 'maximum', 'maxItems']) if (n[k] !== undefined) assert.ok(tout.includes(`${k} ${JSON.stringify(n[k])}`), `${chemin}.${k}`);
-    if (n.minItems > 1) assert.ok(tout.includes(`minItems ${n.minItems}`), chemin);
-  });
-  assert.match(projete.description, /^Une information bloquante interdit un livrable complet immédiat\. Règle vérifiée après réponse : \{"if"/, 'la description propre du membre allOf est conservée devant la règle');
-  assert.equal(projete.allOf, undefined);
-  assert.equal(projete.properties.livrable.properties.quantites.allOf, undefined);
-  assert.match(projete.properties.livrable.properties.quantites.description, /"not"/);
-  assert.match(projete.definitions.declaration.description, /"statut":\{"enum":\["declaration_utilisateur"\]\}/);
+  const descriptions = []; parcourir(projete, (n, chemin) => { if (n.description !== undefined) descriptions.push([chemin, n.description]); });
+  for (const [chemin, d] of descriptions) { assert.equal(/Règle vérifiée|Contrainte|vérifiée après réponse|\{"|minLength|minItems|oneOf/.test(d), false, chemin); }
+  const canoniques = []; parcourir(api.schema, (n, chemin, cond) => { if (!cond && n.description !== undefined) canoniques.push([chemin.replace(/\.oneOf\[2\]/, '').replace(/^\$\.allOf\[0\]$/, '$'), n.description]); });
+  assert.deepEqual(descriptions.sort(), canoniques.sort(), 'exactement les descriptions métier du canonique, ni plus ni moins');
+  assert.equal(descriptions.length, 4);
+  assert.equal(projete.description, 'Une information bloquante interdit un livrable complet immédiat.');
+  assert.equal(projete.allOf, undefined); assert.equal(projete.properties.livrable.properties.quantites.allOf, undefined); assert.equal(projete.properties.livrable.properties.quantites.description, undefined);
 });
 
 /* ==========================================================================
@@ -386,10 +376,10 @@ test('T-PAYLOAD · le corps de l’appel #1 tel que le transport le construit : 
   assert.equal(texte.includes('"oneOf"'), false);
   const comptes = motsCles(b.output_config.format.schema);
   for (const k of NON_SUPPORTES) assert.equal(comptes[k], undefined, k);
-  assert.deepEqual(Object.keys(comptes).sort(), ['$ref', 'additionalProperties', 'const', 'definitions', 'description', 'enum', 'items', 'minItems', 'properties', 'required', 'type'], 'REAL_PAYLOAD_VOCABULARY');
+  assert.deepEqual(Object.keys(comptes).sort(), ['$ref', 'additionalProperties', 'const', 'definitions', 'description', 'enum', 'items', 'properties', 'required', 'type'], 'REAL_PAYLOAD_VOCABULARY');
   parcourir(b.output_config.format.schema, (n, chemin) => { assert.equal(n.anyOf, undefined, chemin); });
-  assert.ok(texte.length > 11000 && texte.length < 20000, `schéma projeté : ${texte.length} octets`);
-  assert.ok(JSON.stringify(b).length < 40000);
+  assert.ok(texte.length < 8200, `schéma projeté : ${texte.length} octets (15 297 avant SCHEMA-ANTHROPIC-02)`);
+  assert.ok(JSON.stringify(b).length < 8400);
 });
 
 /* ==========================================================================
