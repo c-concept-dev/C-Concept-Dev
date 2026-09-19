@@ -292,6 +292,9 @@ test('T-PERFREAL01B-17 : l’artefact frontend n’a pas bougé', () => {
      UNE assertion de contrat — celle dont l'empreinte de message correspond au 502 observé — pour
      qu'un refus de sortie fournisseur cesse d'être compté comme un défaut de notre code. Aucune
      règle, aucun prompt, aucun schéma, aucun comportement d'interface. */
+  /* CONTINUITE-04B — L'EMPREINTE A BOUGÉ D'UNE LIGNE DU MOTEUR ARCHITECTE : archNormaliser() plie la ponctuation
+     typographique avant de comparer une citation à sa source (voir tests/continuite-api-citation-cont04b.test.mjs).
+     Aucune règle, aucun prompt, aucun schéma, aucun transport n'a changé. */
   /* SCHEMA-ANTHROPIC-03 / CONTINUITE-04 — L'EMPREINTE A BOUGÉ, PAR LE TRANSPORT ANTHROPIC SEUL : le schéma
      canonique de l'analyse part désormais comme schéma d'outil (appel forcé, JSON garanti, aucune grammaire
      compilée — la sortie structurée refusait l'analyse complète, « compiled grammar is too large »), la
@@ -304,7 +307,7 @@ test('T-PERFREAL01B-17 : l’artefact frontend n’a pas bougé', () => {
      silencieux quand une actualisation depuis /v1/models fait disparaître le modèle retenu. Aucune
      règle, aucun prompt, aucun schéma, aucun comportement d'interface visible n'a changé. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    'a6cf38e722c07b68b160082e9f30a7ace651cc18c9018cb6167a0b92966532c7', 'CANONICAL_HTML_CHANGED = NO');
+    'ffff94bb128e138a9fd1b130b9b306e73f8a8de97e309173c1e3572d01e15be4', 'CANONICAL_HTML_CHANGED = NO');
   /* Et aucune mesure navigateur n’a été inventée à la place de celle qu’on ne peut pas prendre. */
   assert.equal(M.navigateur.statut, 'NOT_AVAILABLE');
   assert.match(M.navigateur.raison, /n admet que https:\/\/c-concept-dev\.github\.io/);
