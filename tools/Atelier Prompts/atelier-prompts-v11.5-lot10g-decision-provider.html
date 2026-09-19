@@ -5817,19 +5817,66 @@ function attendre(ms){ return new Promise(resoudre => setTimeout(resoudre, ms));
  * l'Architecte, au compilateur ou au banc qualitatif, qui ne
  * connaissent que la façade générique.
  * ---------------------------------------------------------------------- */
-/* BETA-04 — adaptation de transport uniquement. Le schéma canonique n'est jamais
-   muté. Une enum à type union devient l'union de ses valeurs par type ; null
-   reste null. Les annotations et valeurs par défaut ne sont pas des schémas. */
+/* SCHEMA-ANTHROPIC-01 (CONTINUITE-04) — PROJECTION DU SCHÉMA CANONIQUE VERS LE SOUS-ENSEMBLE ANTHROPIC.
+ *
+ * PREUVE FOURNISSEUR (smoke réel, appel #1) : HTTP 400 invalid_request_error « output_config.format.schema:
+ * Schema type 'oneOf' is not supported ». Documentation Anthropic, structured outputs, « JSON Schema
+ * limitations » : NON pris en charge — oneOf, not, if/then/else, contains, contraintes numériques
+ * (minimum, maximum, multipleOf), contraintes de chaîne (minLength, maxLength), contraintes de tableau
+ * au-delà de minItems 0/1, additionalProperties autre que false ; toute présence vaut 400. PRIS en charge —
+ * types de base (dont null), enum, const, anyOf, allOf (sans $ref), $ref et definitions locaux, required,
+ * additionalProperties:false, description, default, minItems 0 et 1.
+ *
+ * LE CANONIQUE RESTE LA VÉRITÉ. Cette fonction ne mute jamais son argument ; sa sortie est une projection
+ * moins expressive, jamais plus permissive en silence : chaque contrainte ou règle non exprimable est
+ * (1) reportée MOT POUR MOT dans la description du nœud qui la portait, pour que le modèle la connaisse, et
+ * (2) vérifiée après réponse contre le schéma CANONIQUE par violationsContreSchema(), dans transportAnthropic
+ * — une sortie qui viole le canonique est rejetée (sortie_invalide), jamais transmise. Un oneOf n'est
+ * converti en anyOf que si ses branches sont PROUVÉES deux à deux disjointes (types disjoints, ou
+ * discriminant requis des deux côtés à const/enum disjoints) : sinon l'adaptation refuse (TypeError) plutôt
+ * que d'élargir le contrat. BETA-04 (enum à type union → anyOf par type) est conservé tel quel. */
 function schemaPourAnthropic(schema){
   if(!schema||typeof schema!=='object'||Array.isArray(schema))return schema;
   const out=JSON.parse(JSON.stringify(schema));
-  for(const key of ['properties','patternProperties','$defs','definitions','dependentSchemas']){
+  /* 0. Métadonnées sans effet sur la validation : hors projection. */
+  for(const key of ['$schema','$id','$comment'])delete out[key];
+  /* 1. Règles logiques non exprimables : retirées de la projection, reportées mot pour mot. */
+  const regles={};
+  for(const key of SCHEMA_ANTHROPIC_REGLES_REPORTEES){if(out[key]!==undefined){regles[key]=out[key];delete out[key]}}
+  if(Object.keys(regles).length)schemaAjouterDescription(out,'Règle vérifiée après réponse : '+JSON.stringify(regles)+'.');
+  /* 2. Contraintes de valeur non prises en charge : idem. minItems 0/1 reste, au-delà devient 1 + report. */
+  const contraintes=[];
+  for(const key of SCHEMA_ANTHROPIC_CONTRAINTES_REPORTEES){if(out[key]!==undefined){contraintes.push(key+' '+JSON.stringify(out[key]));delete out[key]}}
+  if(typeof out.minItems==='number'&&out.minItems>1){contraintes.push('minItems '+out.minItems);out.minItems=1}
+  if(contraintes.length)schemaAjouterDescription(out,'Contrainte'+(contraintes.length>1?'s':'')+' vérifiée'+(contraintes.length>1?'s':'')+' après réponse : '+contraintes.join(' ; ')+'.');
+  /* 3. Récursion sur les sous-schémas restants. */
+  for(const key of ['properties','$defs','definitions']){
     if(out[key])for(const name of Object.keys(out[key]))out[key][name]=schemaPourAnthropic(out[key][name]);
   }
-  for(const key of ['items','additionalProperties','contains','not','if','then','else','propertyNames']){
+  for(const key of ['items','additionalProperties']){
     if(out[key]&&typeof out[key]==='object')out[key]=Array.isArray(out[key])?out[key].map(schemaPourAnthropic):schemaPourAnthropic(out[key]);
   }
   for(const key of ['anyOf','allOf','oneOf','prefixItems'])if(Array.isArray(out[key]))out[key]=out[key].map(schemaPourAnthropic);
+  /* 4. Un membre d'allOf vidé par (1) — il ne portait qu'une règle — ne garde que sa description : fusionnée dans le nœud parent. */
+  if(Array.isArray(out.allOf)){
+    const restants=[];
+    for(const membre of out.allOf){
+      const cles=Object.keys(membre||{}).filter(k=>k!=='description'&&k!=='title');
+      if(cles.length)restants.push(membre);else if(membre&&membre.description)schemaAjouterDescription(out,membre.description);
+    }
+    if(restants.length)out.allOf=restants;else delete out.allOf;
+  }
+  /* 5. oneOf → anyOf, seulement si les branches CANONIQUES sont prouvées deux à deux disjointes. */
+  if(Array.isArray(out.oneOf)){
+    const branches=out.oneOf;
+    for(let i=0;i<schema.oneOf.length;i++)for(let j=i+1;j<schema.oneOf.length;j++){
+      if(!schemaBranchesDisjointes(schema.oneOf[i],schema.oneOf[j]))throw new TypeError('oneOf non projetable vers Anthropic : branches '+i+' et '+j+' non prouvées disjointes.');
+    }
+    delete out.oneOf;
+    if(out.anyOf)out.allOf=[...(out.allOf||[]),{anyOf:branches}];
+    else out.anyOf=branches;
+  }
+  /* 6. BETA-04 — une enum à type union devient l'union de ses valeurs par type ; null reste null. */
   if(Array.isArray(out.type)&&Array.isArray(out.enum)){
     const matches=(value,type)=>type==='null'?value===null:type==='array'?Array.isArray(value):type==='object'?value!==null&&typeof value==='object'&&!Array.isArray(value):type==='integer'?Number.isInteger(value):typeof value===type;
     const branches=out.type.map(type=>({type,enum:out.enum.filter(value=>matches(value,type))})).filter(branch=>branch.enum.length);
@@ -5839,6 +5886,114 @@ function schemaPourAnthropic(schema){
     else out.anyOf=branches;
   }
   return out;
+}
+const SCHEMA_ANTHROPIC_REGLES_REPORTEES=['if','then','else','not','contains','dependentSchemas','dependentRequired','patternProperties','propertyNames'];
+const SCHEMA_ANTHROPIC_CONTRAINTES_REPORTEES=['minLength','maxLength','minimum','maximum','exclusiveMinimum','exclusiveMaximum','multipleOf','pattern','maxItems','uniqueItems','minProperties','maxProperties'];
+function schemaAjouterDescription(out,texte){out.description=(out.description?out.description+' ':'')+texte}
+function schemaTypeJson(v){return v===null?'null':Array.isArray(v)?'array':typeof v==='object'?'object':Number.isInteger(v)?'integer':typeof v}
+function schemaTypesDe(s){
+  if(!s||typeof s!=='object')return null;
+  if(Array.isArray(s.type))return s.type;
+  if(typeof s.type==='string')return [s.type];
+  if(s.const!==undefined)return [schemaTypeJson(s.const)];
+  if(Array.isArray(s.enum))return [...new Set(s.enum.map(schemaTypeJson))];
+  return null;
+}
+/* Deux branches sont prouvées disjointes si leurs types ne se recouvrent pas, ou — pour deux objets — si une
+   propriété requise des deux côtés porte des const/enum sans valeur commune. Tout autre cas = non prouvé. */
+function schemaBranchesDisjointes(a,b){
+  const ta=schemaTypesDe(a),tb=schemaTypesDe(b);
+  if(ta&&tb){
+    const numerique=t=>t==='integer'||t==='number';
+    const communs=ta.filter(t=>tb.includes(t)||(numerique(t)&&tb.some(numerique)));
+    if(!communs.length)return true;
+    if(communs.some(t=>t!=='object'))return false;
+  }
+  const pa=(a&&a.properties)||{},pb=(b&&b.properties)||{};
+  const valeurs=p=>p&&p.const!==undefined?[p.const]:p&&Array.isArray(p.enum)?p.enum:null;
+  for(const nom of Object.keys(pa)){
+    if(!((a.required||[]).includes(nom)&&(b.required||[]).includes(nom)))continue;
+    const va=valeurs(pa[nom]),vb=valeurs(pb[nom]);
+    if(va&&vb&&!va.some(v=>vb.some(w=>JSON.stringify(v)===JSON.stringify(w))))return true;
+  }
+  return false;
+}
+/* VALIDATION CANONIQUE APRÈS RÉPONSE — le pendant de la projection : tout ce que la projection a dû reporter
+   (règles if/then/not/contains, minLength, minimum, minItems > 1, maxItems, oneOf exact…) est vérifié ici,
+   contre le schéma CANONIQUE, sur la valeur réellement renvoyée. Retourne la liste des violations
+   (chemin de donnée + attente du schéma ; jamais la valeur reçue elle-même). Vide = conforme. */
+function violationsContreSchema(schema,valeur,chemin,racine){
+  chemin=chemin||'$';racine=racine||schema;const v=[];
+  if(!schema||typeof schema!=='object')return v;
+  if(typeof schema.$ref==='string'){
+    const cible=schemaResoudreRef(schema.$ref,racine);
+    if(!cible){v.push(chemin+' : référence introuvable '+schema.$ref);return v}
+    return violationsContreSchema(cible,valeur,chemin,racine);
+  }
+  const t=schemaTypeJson(valeur);
+  if(schema.type!==undefined){
+    const types=Array.isArray(schema.type)?schema.type:[schema.type];
+    if(!types.some(x=>x===t||(x==='number'&&t==='integer'))){v.push(chemin+' : type attendu '+types.join('|')+' (reçu '+t+')');return v}
+  }
+  if(schema.const!==undefined&&JSON.stringify(valeur)!==JSON.stringify(schema.const))v.push(chemin+' : valeur attendue '+JSON.stringify(schema.const));
+  if(Array.isArray(schema.enum)&&!schema.enum.some(e=>JSON.stringify(e)===JSON.stringify(valeur)))v.push(chemin+' : valeur hors enum '+JSON.stringify(schema.enum));
+  if(t==='string'){
+    if(schema.minLength!==undefined&&valeur.length<schema.minLength)v.push(chemin+' : minLength '+schema.minLength+' (reçu '+valeur.length+')');
+    if(schema.maxLength!==undefined&&valeur.length>schema.maxLength)v.push(chemin+' : maxLength '+schema.maxLength+' (reçu '+valeur.length+')');
+    if(typeof schema.pattern==='string'&&!(new RegExp(schema.pattern)).test(valeur))v.push(chemin+' : motif '+schema.pattern+' non respecté');
+  }
+  if(t==='integer'||t==='number'){
+    if(schema.minimum!==undefined&&valeur<schema.minimum)v.push(chemin+' : minimum '+schema.minimum);
+    if(schema.maximum!==undefined&&valeur>schema.maximum)v.push(chemin+' : maximum '+schema.maximum);
+    if(schema.exclusiveMinimum!==undefined&&valeur<=schema.exclusiveMinimum)v.push(chemin+' : exclusiveMinimum '+schema.exclusiveMinimum);
+    if(schema.exclusiveMaximum!==undefined&&valeur>=schema.exclusiveMaximum)v.push(chemin+' : exclusiveMaximum '+schema.exclusiveMaximum);
+    if(schema.multipleOf!==undefined&&valeur%schema.multipleOf!==0)v.push(chemin+' : multipleOf '+schema.multipleOf);
+  }
+  if(t==='array'){
+    if(schema.minItems!==undefined&&valeur.length<schema.minItems)v.push(chemin+' : minItems '+schema.minItems+' (reçu '+valeur.length+')');
+    if(schema.maxItems!==undefined&&valeur.length>schema.maxItems)v.push(chemin+' : maxItems '+schema.maxItems+' (reçu '+valeur.length+')');
+    if(schema.uniqueItems===true&&new Set(valeur.map(x=>JSON.stringify(x))).size!==valeur.length)v.push(chemin+' : éléments non uniques');
+    if(schema.items&&typeof schema.items==='object'&&!Array.isArray(schema.items))valeur.forEach((x,i)=>v.push(...violationsContreSchema(schema.items,x,chemin+'['+i+']',racine)));
+    if(schema.contains&&typeof schema.contains==='object'&&!valeur.some(x=>violationsContreSchema(schema.contains,x,chemin,racine).length===0))v.push(chemin+' : aucun élément ne satisfait contains');
+  }
+  if(t==='object'){
+    for(const nom of schema.required||[])if(valeur[nom]===undefined)v.push(chemin+'.'+nom+' : requis');
+    if(schema.properties)for(const nom of Object.keys(schema.properties))if(valeur[nom]!==undefined)v.push(...violationsContreSchema(schema.properties[nom],valeur[nom],chemin+'.'+nom,racine));
+    const connus=new Set(Object.keys(schema.properties||{}));
+    if(schema.additionalProperties===false)for(const nom of Object.keys(valeur))if(!connus.has(nom))v.push(chemin+'.'+nom+' : propriété non prévue');
+    else if(schema.additionalProperties&&typeof schema.additionalProperties==='object')for(const nom of Object.keys(valeur))if(!connus.has(nom))v.push(...violationsContreSchema(schema.additionalProperties,valeur[nom],chemin+'.'+nom,racine));
+    if(schema.minProperties!==undefined&&Object.keys(valeur).length<schema.minProperties)v.push(chemin+' : minProperties '+schema.minProperties);
+    if(schema.maxProperties!==undefined&&Object.keys(valeur).length>schema.maxProperties)v.push(chemin+' : maxProperties '+schema.maxProperties);
+  }
+  if(Array.isArray(schema.allOf))schema.allOf.forEach(s=>v.push(...violationsContreSchema(s,valeur,chemin,racine)));
+  /* Aucune branche satisfaite : la plus proche (le moins de violations) explique pourquoi. */
+  const brancheLaPlusProche=listes=>{const poids=l=>(l.some(m=>m.startsWith(chemin+' : type attendu'))?1000:0)+l.length;const i=listes.reduce((m,l,k)=>poids(l)<poids(listes[m])?k:m,0);return listes[i].map(m=>m+' (branche '+i+')')};
+  if(Array.isArray(schema.anyOf)){
+    const listes=schema.anyOf.map(s=>violationsContreSchema(s,valeur,chemin,racine));
+    if(!listes.some(l=>l.length===0))v.push(chemin+' : aucune branche anyOf satisfaite',...brancheLaPlusProche(listes));
+  }
+  if(Array.isArray(schema.oneOf)){
+    const listes=schema.oneOf.map(s=>violationsContreSchema(s,valeur,chemin,racine));
+    const n=listes.filter(l=>l.length===0).length;
+    if(n!==1)v.push(chemin+' : oneOf exige exactement une branche ('+n+' satisfaite'+(n>1?'s':'')+')',...(n===0?brancheLaPlusProche(listes):[]));
+  }
+  if(schema.not&&typeof schema.not==='object'&&violationsContreSchema(schema.not,valeur,chemin,racine).length===0)v.push(chemin+' : forme interdite par not');
+  if(schema.if&&typeof schema.if==='object'){
+    const condition=violationsContreSchema(schema.if,valeur,chemin,racine).length===0;
+    if(condition&&schema.then)v.push(...violationsContreSchema(schema.then,valeur,chemin,racine).map(m=>m+' (règle conditionnelle)'));
+    if(!condition&&schema.else)v.push(...violationsContreSchema(schema.else,valeur,chemin,racine).map(m=>m+' (règle conditionnelle)'));
+  }
+  return v;
+}
+function schemaResoudreRef(ref,racine){
+  if(!ref.startsWith('#/'))return null;
+  let noeud=racine;
+  for(const segment of ref.slice(2).split('/')){
+    const cle=segment.replace(/~1/g,'/').replace(/~0/g,'~');
+    if(!noeud||typeof noeud!=='object'||!(cle in noeud))return null;
+    noeud=noeud[cle];
+  }
+  return noeud;
 }
 async function transportAnthropic({cle, modele, maxTokens, systeme, contenuUtilisateur, schema, effort, prefill, delaiMs, essaisMax, signal}){
   essaisMax = essaisMax || 3;
@@ -5871,7 +6026,19 @@ async function transportAnthropic({cle, modele, maxTokens, systeme, contenuUtili
         throw creerErreurApi({categorie:'refus',fournisseur:'anthropic',statut_http:r.status,recuperable:false,message_utilisateur:'Le modèle a refusé cette demande.',tokens,texte_partiel:txt,detail:{refus_categorie:cat,blocs_reflexion:blocsReflexion}});
       }
       if (!txt) throw creerErreurApi({categorie:'sortie_invalide',fournisseur:'anthropic',statut_http:r.status,recuperable:false,message_utilisateur:'L\u2019API n\u2019a renvoyé aucun bloc texte.',tokens,detail:{blocs_reflexion:blocsReflexion}});
-      return { fournisseur:'anthropic', modele, texte: txt, tokens, raison_arret: data.stop_reason || null, structure_validee: schema ? true : null, detail:{refus_categorie:null,blocs_reflexion:blocsReflexion} };
+      /* SCHEMA-ANTHROPIC-01 — la projection envoyée est moins expressive que le canonique : la réponse est
+         donc vérifiée ici contre le schéma CANONIQUE (règles et contraintes reportées comprises). Non
+         conforme = sortie_invalide, jamais transmise. Un texte non analysable reste à l'appelant. */
+      let structureValidee = schema ? true : null;
+      if (schema) {
+        let analyse; try { analyse = JSON.parse(txt); } catch (e) { analyse = undefined; }
+        if (analyse === undefined) structureValidee = false;
+        else {
+          const violations = violationsContreSchema(schema, analyse);
+          if (violations.length) throw creerErreurApi({categorie:'sortie_invalide',fournisseur:'anthropic',statut_http:r.status,recuperable:false,message_utilisateur:'Réponse structurée non conforme au schéma canonique : '+violations.slice(0,3).join(' ; ')+(violations.length>3?' ; +'+(violations.length-3)+' autre(s)':'')+'.',tokens,texte_partiel:txt,detail:{violations,blocs_reflexion:blocsReflexion}});
+        }
+      }
+      return { fournisseur:'anthropic', modele, texte: txt, tokens, raison_arret: data.stop_reason || null, structure_validee: structureValidee, detail:{refus_categorie:null,blocs_reflexion:blocsReflexion} };
     } catch (err) {
       clearTimeout(minuteur);
       if (signal) signal.removeEventListener('abort', relaisAbandon);
@@ -5903,6 +6070,8 @@ function creerErreurApi({categorie, fournisseur, statut_http, recuperable, messa
   return err;
 }
 window.creerErreurApi = creerErreurApi;
+window.violationsContreSchema = violationsContreSchema;
+window.schemaPourAnthropic = schemaPourAnthropic;
 function qCategorieDepuisStatutHttp(status){
   if(status === 401)return 'authentification';
   if(status === 403)return 'acces_refuse';
