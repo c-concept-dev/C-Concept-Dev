@@ -197,8 +197,13 @@ test('T-MCNT01-11 : HTML canonique inchangé, dette ouverte', () => {
      UNE assertion de contrat — celle dont l'empreinte de message correspond au 502 observé — pour
      qu'un refus de sortie fournisseur cesse d'être compté comme un défaut de notre code. Aucune
      règle, aucun prompt, aucun schéma, aucun comportement d'interface. */
+  /* SCHEMA-ANTHROPIC-02 / MODELE-PAR-DEFAUT-01 — L'EMPREINTE A ENCORE BOUGÉ, ET TOUJOURS POUR LA
+     MÊME RAISON MÉCANIQUE : le repli du sélecteur de modèle API, jusqu'ici un index positionnel
+     muet vers 'claude-opus-5', devient MODELE_PAR_DEFAUT ('claude-sonnet-5'), annoncé plutôt que
+     silencieux quand une actualisation depuis /v1/models fait disparaître le modèle retenu. Aucune
+     règle, aucun prompt, aucun schéma, aucun comportement d'interface visible n'a changé. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    '3d72b74071d9a1669534cf209ac3bac481da314d538574a90a531c1c0e25b57c',
+    '96fa5dcc4f10874d187a04b0d89e08a98e2486817a518927f8ea94f2fdf5e65c',
     'CANONICAL_HTML_CHANGED = NO — l’empreinte est celle que le lot précédent a laissée');
   const registre = lire('docs/OPEN-DEBTS.md');
   const ouvertes = registre.slice(registre.indexOf('## Ouvertes'), registre.indexOf('## Fermées'));

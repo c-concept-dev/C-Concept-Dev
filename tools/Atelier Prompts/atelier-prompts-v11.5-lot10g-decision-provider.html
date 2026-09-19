@@ -3460,6 +3460,12 @@ const MODELES = {
                                retention:'selon votre contrat', zdr:true, note:'Le plus rapide. Fenêtre de contexte de 200 000 tokens.'}
 };
 
+/* Modèle proposé par défaut quand rien n'est encore sélectionné (identifiant API, jamais le libellé
+   d'affichage). Seul point de vérité pour ce choix : peuplerModelesApi() et son repli après une
+   actualisation depuis /v1/models s'y réfèrent tous deux, plutôt que de dupliquer le choix. */
+const MODELE_PAR_DEFAUT = 'claude-sonnet-5';
+window.MODELE_PAR_DEFAUT = MODELE_PAR_DEFAUT;
+
 /* Le tarif de lancement s'applique tant que la date butoir n'est pas passée. */
 function tarifDuJour(id){
   const m = MODELES[id];
@@ -4892,10 +4898,17 @@ function peuplerModeles(){
     '</article>').join('');
 }
 
+/* Le repli, quand le modèle demandé n'est plus dans la liste (ex. après une actualisation depuis
+   /v1/models qui ne le renvoie plus), n'est jamais un index positionnel muet : il suit un ordre
+   déterministe — MODELE_PAR_DEFAUT s'il est encore listé, sinon le premier modèle listé — et l'appelant
+   reçoit de quoi le signaler (rien n'est décidé « silencieusement » ici, seulement rapporté). */
 function peuplerModelesApi(retenu, cibleId){
   const sel = $('#' + (cibleId || 'api-modele'));
-  const cle = retenu || sel.value || 'claude-opus-5';
+  const demande = retenu || sel.value || MODELE_PAR_DEFAUT;
   const modelesActifs = obtenirModelesFournisseur();
+  const cle = modelesActifs[demande] ? demande
+            : modelesActifs[MODELE_PAR_DEFAUT] ? MODELE_PAR_DEFAUT
+            : Object.keys(modelesActifs)[0];
   sel.innerHTML = Object.keys(modelesActifs).map(k => {
     const m = modelesActifs[k], t = obtenirTarifFournisseur(undefined, k);
     const prix = t.connu
@@ -4904,9 +4917,10 @@ function peuplerModelesApi(retenu, cibleId){
     return '<option value="' + k + '"' + (k === cle ? ' selected' : '') + '>' +
            echapper(m.nom) + prix + '</option>';
   }).join('');
-  if(!modelesActifs[cle]) sel.selectedIndex = 0;
+  sel.value = cle;
   synchroniserBancModele();
   majFicheModele();
+  return {demande, retenu: cle, degrade: demande !== cle};
 }
 
 /* Le sélecteur du banc était recopié une seule fois au démarrage : après
@@ -5022,11 +5036,26 @@ async function apiRafraichirModeles(){
   }
   $('#api-etat').classList.remove('cache');
   etatApi('Interrogation de la liste des modèles\u2026', 'avis');
+  /* Le nom affiché du modèle actuellement retenu, pris AVANT l'actualisation : listerModeles()
+     remplace le contenu de MODELES en place, donc toute lecture après coup y trouverait déjà la
+     nouvelle table et manquerait le nom de ce qui vient de disparaître. */
+  const nomAvant = ficheModeleActif($('#api-modele').value).nom || $('#api-modele').value;
   try{
     const resultat = await f.listerModeles(cle);
-    repeuplerTousLesSelectsModeles();
-    etatApi('Liste actualisée : ' + resultat.nombre + ' modèles accessibles avec cette clé ' +
-            '(la table du fichier en comptait ' + resultat.avant + ').', 'ok');
+    const principal = repeuplerTousLesSelectsModeles();
+    const base = 'Liste actualisée : ' + resultat.nombre + ' modèles accessibles avec cette clé ' +
+            '(la table du fichier en comptait ' + resultat.avant + ').';
+    /* Le modèle sélectionné avant l'actualisation peut ne plus figurer dans la réponse de l'API
+       (retiré du catalogue, absent de cette clé). Le repli est annoncé, jamais silencieux : la
+       personne saurait sinon qu'elle a demandé Sonnet et se retrouverait sur un autre modèle sans le
+       savoir avant son prochain appel. */
+    if(principal && principal.degrade){
+      const nomRetenu = ficheModeleActif(principal.retenu).nom || principal.retenu;
+      etatApi(base + ' Le modèle sélectionné (' + nomAvant + ') n\u2019y figure plus : ' +
+              'repli sur ' + nomRetenu + '.', 'erreur');
+    } else {
+      etatApi(base, 'ok');
+    }
   }catch(e){
     etatApi('Échec : ' + e.message, 'erreur');
   }
@@ -6280,9 +6309,10 @@ function surChangementFournisseurActif(){
 }
 window.surChangementFournisseurActif = surChangementFournisseurActif;
 function repeuplerTousLesSelectsModeles(){
-  peuplerModelesApi(undefined,'api-modele');
+  const principal = peuplerModelesApi(undefined,'api-modele');
   if(document.getElementById('qualite-modele-exec')) peuplerModelesApi(undefined,'qualite-modele-exec');
   if(document.getElementById('qualite-modele-juge')) peuplerModelesApi(undefined,'qualite-modele-juge');
+  return principal;
 }
 window.repeuplerTousLesSelectsModeles = repeuplerTousLesSelectsModeles;
 function majTextesFournisseurDynamiques(){
