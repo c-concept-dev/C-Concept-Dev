@@ -1687,6 +1687,42 @@
     .adoc-sc-card.is-selected .adoc-sc-card-resize-handle { display: block; }
     .cc-ws-doc-card.cc-ws-block-editable .adoc-sc-carrousel .adoc-sc-card { cursor: grab; }
     .cc-ws-doc-card.cc-ws-block-editable .adoc-sc-carrousel .adoc-sc-card:active { cursor: grabbing; }
+    /* ITEM 75 Phase 2 (intra-carte) — ancre tout élément imbriqué positionné en absolu (posé en
+       style inline par adocRenderBlockHTML quand style.x/y/width/height est renseigné) à SA
+       carte, jamais à la carte suivante ni au canevas Carrousel entier. Scopé à `.adoc-sc-card`
+       (jamais .adoc-sc-block seul) : ce dernier est aussi la classe générique des blocs de
+       PREMIER NIVEAU des 4 autres documentKind (Fiche/Script/Tableau/Liens), qui n'ont jamais de
+       positionnement libre — cette règle ne doit jamais s'y appliquer, même sans effet visuel
+       réel (position:relative sans décalage n'a aucun rendu propre), par prudence explicite. */
+    .adoc-sc-card .adoc-sc-block { position: relative; }
+    /* Poignée de redimensionnement d'un élément imbriqué — même principe que la poignée de carte
+       ci-dessus (coin bas-droit, masquée sauf sélection), mais un <span> (jamais un <div>) :
+       h1-h6/p n'acceptent que du contenu phrasé, un <div> y serait invalide (vérifié avant
+       construction). Visible sur .is-position-selected UNIQUEMENT (jamais .is-selected seul, qui
+       reste aussi posé pendant une correction de texte sur ce même bloc — la poignée ne doit
+       jamais apparaître dans ce cas, sans rapport avec la position). */
+    .adoc-sc-nested-resize-handle {
+      position: absolute; right: 2px; bottom: 2px; width: 14px; height: 14px;
+      border-radius: 3px; background: var(--terracotta-700); cursor: nwse-resize; display: none;
+    }
+    .adoc-sc-block.is-position-selected .adoc-sc-nested-resize-handle { display: block; }
+    /* Panneau de calques — liste des éléments d'une carte avec leur ordre d'empilement, ajoutée
+       sous les champs x/y/largeur/hauteur DANS le même panneau de position (jamais un second
+       panneau flottant séparé). Style minimal, cohérent avec .cc-editor-tools déjà existant. */
+    .cc-block-layers-panel { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--stone-300); }
+    .cc-block-layers-title { margin: 0 0 6px; font-size: 0.8rem; font-weight: 600; color: var(--ink); }
+    .cc-block-layers-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+    .cc-block-layers-item {
+      display: flex; align-items: center; gap: 6px; padding: 4px 6px; border-radius: 6px;
+      background: var(--paper); border: 1px solid var(--stone-300); font-size: 0.82rem;
+    }
+    .cc-block-layers-item.is-current { border-color: var(--terracotta-700); background: var(--sand-100, var(--paper)); }
+    .cc-block-layers-label { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+    .cc-block-layers-btn {
+      flex: 0 0 auto; width: 22px; height: 22px; border-radius: 4px; border: 1px solid var(--stone-300);
+      background: var(--paper); cursor: pointer; line-height: 1; padding: 0;
+    }
+    .cc-block-layers-btn:disabled { opacity: 0.35; cursor: default; }
     .adoc-sc-card-title {
       color: var(--adoc-sc-heading-color, var(--petrol-950));
       font-family: var(--adoc-sc-heading-font, "Source Serif 4", Georgia, serif);

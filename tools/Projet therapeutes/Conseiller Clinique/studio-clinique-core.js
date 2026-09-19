@@ -7902,19 +7902,31 @@ ${recent}`;
   // pixels, écrits dans card.style (blockStyle, réutilisée telle quelle — jamais un second
   // schéma). zIndex volontairement absent de ce panneau : réservé au schéma (Phase 1) mais son
   // édition appartient aux calques (Phase 2 du CDC, hors périmètre de ce lot).
-  function adocBuildCardPositionPanelHTML() {
+  // ITEM 75 Phase 2 (intra-carte) — RÉUTILISÉ tel quel pour le panneau de position d'un élément
+  // imbriqué (jamais un second panneau dupliqué, régression #6) : seul le libellé aria change
+  // (paramètre optionnel, défaut inchangé = comportement carte identique à avant ce lot).
+  function adocBuildCardPositionPanelHTML(ariaLabel) {
     function number(field, label) { return '<label>' + label + '<input type="number" data-card-position="' + field + '" step="1"></label>'; }
-    return '<div class="cc-block-style-controls cc-editor-tools" role="group" aria-label="Position et taille de cette carte">' +
+    return '<div class="cc-block-style-controls cc-editor-tools" role="group" aria-label="' + adocEsc(ariaLabel || 'Position et taille de cette carte') + '">' +
       '<div class="cc-editor-row">' + number('x', 'X (px)') + number('y', 'Y (px)') + '</div>' +
       '<div class="cc-editor-row">' + number('width', 'Largeur (px)') + number('height', 'Hauteur (px)') + '</div>' +
     '</div>';
   }
+  // ITEM 75 Phase 2 (intra-carte) — périmètre EXACT de nestedBlock (block.schema.json), vérifié
+  // par lecture directe du schéma avant construction, jamais supposé : 6 types (table EXCLUE,
+  // jamais imbriquée dans une carte). Réutilisé pour généraliser adocApplyCardPosition/
+  // adocEditorRefreshCardPositionControls ci-dessous à un élément imbriqué SANS dupliquer leur
+  // logique (régression #6) — seul le garde-fou de type change, tout le reste est déjà générique
+  // (adocEditorContext()/adocFindEditableBlock résolvent déjà un id imbriqué comme un id de
+  // premier niveau, vérifié par lecture de ces deux fonctions).
+  var ADOC_NESTED_POSITIONABLE_TYPES = ['heading', 'paragraph', 'callout', 'list', 'quote', 'image'];
   // Valeurs initiales à l'ouverture — même garde-fou que adocEditorRefreshImageControls (LOT E) :
   // jamais un champ vide écrasé par du texte tapé en cours (document.activeElement), pour ne pas
   // interrompre la frappe pendant que le glissement au clavier des flèches met à jour le style en
   // parallèle (input type=number natif).
   function adocEditorRefreshCardPositionControls() {
-    const ctx = adocEditorContext(); if (!ctx || ctx.legacy || !ctx.block || ctx.block.type !== 'card') return;
+    const ctx = adocEditorContext(); if (!ctx || ctx.legacy || !ctx.block) return;
+    if (ctx.block.type !== 'card' && ADOC_NESTED_POSITIONABLE_TYPES.indexOf(ctx.block.type) === -1) return;
     const panel = ctx.st.panelEl; if (!panel) return;
     ['x', 'y', 'width', 'height'].forEach(function (field) {
       const input = panel.querySelector('[data-card-position="' + field + '"]');
@@ -7940,6 +7952,22 @@ ${recent}`;
     const y = Math.max(0, Math.min(ADOC_CARD_CANVAS_HEIGHT - height, Number(style.y)));
     return Object.assign({}, style, { x: x, y: y, width: width, height: height });
   }
+  // ITEM 75 Phase 2 (intra-carte) — jumelle PARAMÉTRÉE d'adocClampCardStyleToCanvas ci-dessus,
+  // jamais une réutilisation telle quelle (investigation confirmée) : une carte est bornée à un
+  // canevas d'export FIXE (1024×768, ci-dessus), mais un élément imbriqué doit être borné à la
+  // taille RÉELLE de SA carte contenante — variable (carte redimensionnée en Phase 1, ou taille
+  // de flux par défaut) — jamais une constante globale commune aux deux niveaux. Même logique de
+  // clampage ENSEMBLE (x/y/width/height, jamais un champ isolément). Seuil minimal 24px (pas 40
+  // comme les cartes) : un élément interne (ex. un petit logo) peut légitimement être plus petit
+  // qu'une carte entière.
+  function adocClampNestedStyleToContainer(style, containerWidth, containerHeight) {
+    const minSize = 24;
+    const width = Math.max(minSize, Math.min(containerWidth, Number(style.width)));
+    const height = Math.max(minSize, Math.min(containerHeight, Number(style.height)));
+    const x = Math.max(0, Math.min(containerWidth - width, Number(style.x)));
+    const y = Math.max(0, Math.min(containerHeight - height, Number(style.y)));
+    return Object.assign({}, style, { x: x, y: y, width: width, height: height });
+  }
   // Retour visuel immédiat sur la carte déjà à l'écran (position:absolute + left/top/width/
   // height/z-index) — jamais un re-rendu complet pendant le glissement, même principe
   // qu'adocApplyBlockOpacity/adocApplyImageWidth ci-dessus. Fonction PARTAGÉE (régression #6)
@@ -7956,7 +7984,15 @@ ${recent}`;
     if (style.zIndex != null) el.style.zIndex = String(style.zIndex);
   }
   function adocApplyCardPosition(field, value, checkpointOnce) {
-    const ctx = adocEditorContext(); if (!ctx || ctx.legacy || !ctx.block || ctx.block.type !== 'card') return;
+    const ctx = adocEditorContext(); if (!ctx || ctx.legacy || !ctx.block) return;
+    const isCard = ctx.block.type === 'card';
+    // ITEM 75 Phase 2 (intra-carte) — MÊME fonction pour une carte ET un élément imbriqué
+    // (régression #6, jamais une seconde fonction pour la même mécanique d'application) : tout
+    // le calcul ci-dessous (rect/containerRect/effective) est déjà générique — ctx.el.parentElement
+    // est la carte elle-même pour un élément imbriqué (rendu comme enfant direct, vérifié par
+    // lecture d'adocRenderCardHTML), exactement le "conteneur" voulu par l'investigation. Seul le
+    // choix de la fonction de bornage diffère (ci-dessous).
+    if (!isCard && ADOC_NESTED_POSITIONABLE_TYPES.indexOf(ctx.block.type) === -1) return;
     const num = Number(value);
     if (!Number.isFinite(num)) return;
     if (checkpointOnce) adocEditorCheckpoint();
@@ -7973,7 +8009,7 @@ ${recent}`;
       height: current.height != null ? Number(current.height) : rect.height,
     };
     effective[field] = num;
-    const clamped = adocClampCardStyleToCanvas(effective);
+    const clamped = isCard ? adocClampCardStyleToCanvas(effective) : adocClampNestedStyleToContainer(effective, containerRect.width, containerRect.height);
     const style = Object.assign({}, ctx.block.style, clamped);
     ctx.block.style = style;
     adocApplyCardPositionToElement(ctx.el, style);
@@ -7981,6 +8017,133 @@ ${recent}`;
     adocEditorSync(); adocEditorMarkDirty();
   }
   window.adocApplyCardPosition = adocApplyCardPosition;
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // ITEM 75 Phase 2 (intra-carte) — calques des éléments imbriqués d'une carte. `zIndex` (déjà
+  // réservé au schéma depuis Phase 1, jamais consommé jusqu'ici) devient l'UNIQUE source de
+  // vérité de l'ordre d'empilement — décision motivée par l'investigation : une égalité de
+  // zIndex est déjà départagée par CSS natif via l'ordre du tableau (même règle que l'ordre du
+  // DOM), jamais besoin d'une structure de liste séparée qui risquerait de diverger du zIndex
+  // réel (régression #6). Le panneau de calques est une VUE CALCULÉE (tri de card.content.blocks[]
+  // par zIndex), jamais un second état persistant.
+  // ═══════════════════════════════════════════════════════════════════════
+
+  // Trie une liste de blocs imbriqués par zIndex croissant (arrière-plan → premier plan) ;
+  // égalité départagée par l'ordre du tableau (= ordre du DOM au rendu, adocRenderCardHTML les
+  // parcourt dans cet ordre) — exactement la même règle de départage que CSS applique déjà
+  // nativement à l'écran, jamais une convention divergente inventée ici.
+  function adocNestedBlocksSortedByLayer(blocks) {
+    return (blocks || [])
+      .map(function (b, i) { return { b: b, i: i }; })
+      .sort(function (A, B) {
+        const za = A.b.style && A.b.style.zIndex != null ? Number(A.b.style.zIndex) : 0;
+        const zb = B.b.style && B.b.style.zIndex != null ? Number(B.b.style.zIndex) : 0;
+        return za !== zb ? za - zb : A.i - B.i;
+      })
+      .map(function (x) { return x.b; });
+  }
+  // Retrouve la carte qui CONTIENT un bloc imbriqué donné (jamais mémorisé ailleurs — recalculé
+  // à la demande, même principe que adocFindEditableBlock ci-dessus : une seule source de
+  // vérité, doc.blocks[]).
+  function adocFindParentCardBlock(doc, nestedBlockId) {
+    return (doc && doc.blocks || []).find(function (c) {
+      return c.type === 'card' && (c.content.blocks || []).some(function (nb) { return nb.id === nestedBlockId; });
+    }) || null;
+  }
+  // Échange la position de deux éléments dans l'ordre de calque puis réattribue des zIndex
+  // entiers espacés (10/20/30…) à TOUS les éléments de la carte — jamais un ajustement partiel
+  // qui laisserait certains éléments sans zIndex explicite pendant que d'autres en ont un (cf.
+  // investigation : la première réorganisation doit initialiser tout le monde d'un coup, pour ne
+  // jamais faire "sauter" visuellement un élément resté sans valeur explicite). Mutation EN PLACE
+  // des objets bloc (jamais une réaffectation de card.content.blocks[], son ORDRE reste le rendu
+  // initial — seul le zIndex gouverne l'empilement, cf. en-tête de section).
+  function adocMoveLayer(cardBlock, blockId, direction) {
+    const list = cardBlock.content.blocks || [];
+    const sorted = adocNestedBlocksSortedByLayer(list);
+    const idx = sorted.findIndex(function (b) { return b.id === blockId; });
+    if (idx === -1) return;
+    const swapIdx = direction === 'up' ? idx + 1 : idx - 1;
+    if (swapIdx < 0 || swapIdx >= sorted.length) return; // déjà tout en haut/bas de la pile
+    const tmp = sorted[idx]; sorted[idx] = sorted[swapIdx]; sorted[swapIdx] = tmp;
+    sorted.forEach(function (b, i) { b.style = Object.assign({}, b.style, { zIndex: (i + 1) * 10 }); });
+  }
+  // Liste affichée du PREMIER PLAN vers l'ARRIÈRE-PLAN (convention déjà répandue, ex. calques
+  // d'un éditeur graphique) — inverse de adocNestedBlocksSortedByLayer (tri croissant). "Monter"
+  // (bouton ↑, vers le premier plan) est désactivé sur la première ligne, "descendre" (↓, vers
+  // l'arrière-plan) sur la dernière — jamais un bouton actif sans effet possible.
+  function adocBuildLayersPanelHTML(cardBlock, currentBlockId) {
+    const sorted = adocNestedBlocksSortedByLayer(cardBlock.content.blocks || []).slice().reverse();
+    const rows = sorted.map(function (b, i) {
+      const label = adocEsc(adocBlockPreviewText(b)) || ('(' + adocEsc(b.type) + ')');
+      const isCurrent = b.id === currentBlockId ? ' is-current' : '';
+      return '<li class="cc-block-layers-item' + isCurrent + '" data-layer-block-id="' + adocEsc(b.id) + '">' +
+        '<span class="cc-block-layers-label" data-layer-select="' + adocEsc(b.id) + '">' + label + '</span>' +
+        '<button type="button" class="cc-block-layers-btn" data-layer-action="up" data-layer-block-id="' + adocEsc(b.id) + '" aria-label="Monter d\'un cran (vers le premier plan)"' + (i === 0 ? ' disabled' : '') + '>&uarr;</button>' +
+        '<button type="button" class="cc-block-layers-btn" data-layer-action="down" data-layer-block-id="' + adocEsc(b.id) + '" aria-label="Descendre d\'un cran (vers l\'arrière-plan)"' + (i === sorted.length - 1 ? ' disabled' : '') + '>&darr;</button>' +
+      '</li>';
+    }).join('');
+    return '<div class="cc-block-layers-panel" role="group" aria-label="Calques de cette carte"><p class="cc-block-layers-title">Calques</p><ul class="cc-block-layers-list">' + rows + '</ul></div>';
+  }
+  // Un seul écouteur délégué sur `panel` (jamais sur `.cc-block-layers-panel`, remplacé à chaque
+  // reclassement — un écouteur posé dessus serait perdu à la première réorganisation). Réordonner
+  // applique le nouveau zIndex EN DIRECT sur les éléments déjà affichés (réutilise
+  // adocApplyCardPositionToElement, régression #6 — jamais un re-rendu complet du document pour
+  // un simple changement d'ordre de calque, cf. adocApplyCardPosition/onmousedown ci-dessus qui
+  // suivent déjà ce principe).
+  function adocWireLayersPanel(panel, storeKey) {
+    panel.addEventListener('click', function (e) {
+      const btn = e.target.closest('[data-layer-action]');
+      const label = !btn && e.target.closest('[data-layer-select]');
+      if (!btn && !label) return;
+      const art = window._adocArtifacts && window._adocArtifacts[storeKey];
+      const doc = art && art._adocStructuredDoc;
+      if (!doc) return;
+      if (btn) {
+        const blockId = btn.getAttribute('data-layer-block-id');
+        const cardBlock = adocFindParentCardBlock(doc, blockId);
+        if (!cardBlock) return;
+        adocEditorCheckpoint();
+        adocMoveLayer(cardBlock, blockId, btn.getAttribute('data-layer-action'));
+        (cardBlock.content.blocks || []).forEach(function (nb) {
+          const nel = document.getElementById(nb.id);
+          if (nel) adocApplyCardPositionToElement(nel, nb.style || {});
+        });
+        adocEditorSync(); adocEditorMarkDirty();
+        const layersContainer = panel.querySelector('.cc-block-layers-panel');
+        if (layersContainer) layersContainer.outerHTML = adocBuildLayersPanelHTML(cardBlock, window._adocBlockEditState.blockId);
+        return;
+      }
+      if (label) {
+        const blockId = label.getAttribute('data-layer-select');
+        const block = adocFindEditableBlock(doc, blockId);
+        const el = document.getElementById(blockId);
+        if (block && el) adocSelectNestedBlockForPosition(el, block, storeKey);
+      }
+    });
+  }
+  // Point d'entrée RÉUTILISABLE (jamais imbriqué dans la seule fermeture d'onmousedown — le
+  // panneau de calques doit pouvoir sélectionner un élément COUVERT par un autre, donc jamais
+  // cliqué directement sur le canevas, cf. investigation point 4) : appelée à la fois par le
+  // glissement réel (onmousedown ci-dessous) et par un clic sur une ligne du panneau de calques.
+  function adocSelectNestedBlockForPosition(el, block, storeKey) {
+    const current = window._adocBlockEditState;
+    if (current.blockId === el.id && current.zone === 'position') return; // déjà sélectionné
+    adocWsClearBlockSelection();
+    el.classList.add('is-selected', 'is-position-selected');
+    const doc = window._adocArtifacts[storeKey]._adocStructuredDoc;
+    const cardBlock = adocFindParentCardBlock(doc, el.id);
+    const panel = document.createElement('div');
+    panel.className = 'cc-clarity-card cc-block-edit-panel';
+    panel.setAttribute('role', 'group');
+    panel.setAttribute('aria-label', 'Position de cet élément sélectionné');
+    panel.innerHTML = adocBlockEditPanelHeaderHTML(adocEsc(adocBlockPreviewText(block)) || '(élément)') +
+      adocBuildCardPositionPanelHTML('Position et taille de cet élément') +
+      (cardBlock ? adocBuildLayersPanelHTML(cardBlock, el.id) : '');
+    adocMountContextualBlockEditPanel(panel, el);
+    window._adocBlockEditState = { storeKey: storeKey, blockId: el.id, panelEl: panel, pendingBlock: null, originalBlock: block, zone: 'position' };
+    adocEditorRefreshCardPositionControls();
+    adocWireLayersPanel(panel, storeKey);
+  }
 
   // NOUVEAU CHANTIER (bloc mixte) — transition IMAGE → TEXTE : mutation EN PLACE du bloc trouvé
   // (jamais un splice/insertion), donc même id et même position dans doc.blocks[] (ou
@@ -9517,6 +9680,22 @@ ${recent}`;
     linksToLoad.querySelectorAll('link').forEach(function(link) { if(!Array.from(document.head.querySelectorAll('link')).some(function(existing){return existing.href===link.href;}))document.head.appendChild(link); });
     const extraCSS = adocBlockStyleToCSSText(b.style, b.type);
     const extraStyle = extraCSS ? ' style="' + adocEsc(extraCSS) + '"' : '';
+    // ITEM 75 Phase 2 (intra-carte) — réutilise TEL QUEL adocCardPositionCSSText (régression #6,
+    // jamais un second mécanisme de traduction style→CSS de position) pour honorer x/y/width/
+    // height/zIndex sur un élément IMBRIQUÉ. Fonction DISTINCTE d'adocBlockStyleToCSSText
+    // ci-dessus (jamais fusionnée avec ADOC_DIRECT_STYLE_FIELDS) : ce dernier ne connaît que les
+    // champs cosmétiques (police/couleur/marges), jamais la position — garantit par construction
+    // qu'un style cosmétique classique ne peut jamais se retrouver positionné par erreur (test
+    // négatif dédié, cf. tests/). Vide (donc sans effet, chaîne '') pour tout bloc SANS x/y/width/
+    // height renseigné — c'est-à-dire, par construction du garde-fou de schéma (Q1-complément),
+    // TOUT bloc des 5 autres documentKind (jamais de bloc imbriqué chez eux) ainsi que tout bloc
+    // de premier niveau d'un Carrousel (toujours du type `card`, jamais rendu ici). Poignée de
+    // redimensionnement TOUJOURS présente dans le balisage (même principe que la carte, Phase 1
+    // UI) mais masquée en CSS sauf sur l'élément sélectionné en mode position
+    // (.is-position-selected, distinct de .is-selected — jamais affichée pendant une simple
+    // correction de texte sur ce même bloc).
+    const nestedPosCSS = adocCardPositionCSSText(b.style);
+    const nestedResizeHandle = '<span class="adoc-sc-nested-resize-handle" aria-hidden="true"></span>';
     switch (b.type) {
       case 'heading': {
         const lvl = Math.min(Math.max(b.content.level, 1), 3);
@@ -9534,31 +9713,35 @@ ${recent}`;
         if (b.style && b.style.fontPairId) adocEnsurePageGoogleFontLoaded(b.style.fontPairId);
         const headingStyleCSS = adocBlockStyleToCSSText(b.style, 'heading');
         const headingLayer = adocBlockOpacityLayerHTML(b.style);
-        const headingCombinedCSS = headingLayer.outerStyle + headingStyleCSS;
+        const headingCombinedCSS = headingLayer.outerStyle + headingStyleCSS + nestedPosCSS;
         const headingStyleAttr = headingCombinedCSS ? ' style="' + adocEsc(headingCombinedCSS) + '"' : '';
-        return '<h' + lvl + ' class="adoc-sc-block adoc-sc-heading' + statusClass + '" id="' + adocEsc(b.id) + '"' + headingStyleAttr + '>' + headingLayer.overlay + headingLayer.wrapOpen + adocEditorTextHTML(b, 'text', b.content.text) + cites + headingLayer.wrapClose + '</h' + lvl + '>';
+        // ITEM 75 Phase 2 — poignée en <span> (jamais <div>) : h1-h6/p n'acceptent que du contenu
+        // phrasé, un <div> y serait invalide et reparenté par le parseur HTML (vérifié avant
+        // construction) — un <span> positionné en absolu reste valide ici comme dans les 4 autres
+        // cas (callout/list/quote en <div>/<blockquote>, qui acceptent aussi bien un <span>).
+        return '<h' + lvl + ' class="adoc-sc-block adoc-sc-heading' + statusClass + '" id="' + adocEsc(b.id) + '"' + headingStyleAttr + '>' + headingLayer.overlay + headingLayer.wrapOpen + adocEditorTextHTML(b, 'text', b.content.text) + cites + headingLayer.wrapClose + nestedResizeHandle + '</h' + lvl + '>';
       }
       case 'paragraph': {
         if (b.style && b.style.fontPairId) adocEnsurePageGoogleFontLoaded(b.style.fontPairId);
         const paragraphStyleCSS = adocBlockStyleToCSSText(b.style, 'paragraph');
         const paragraphLayer = adocBlockOpacityLayerHTML(b.style);
-        const paragraphCombinedCSS = paragraphLayer.outerStyle + paragraphStyleCSS;
+        const paragraphCombinedCSS = paragraphLayer.outerStyle + paragraphStyleCSS + nestedPosCSS;
         const paragraphStyleAttr = paragraphCombinedCSS ? ' style="' + adocEsc(paragraphCombinedCSS) + '"' : '';
-        return '<p class="adoc-sc-block adoc-sc-paragraph' + statusClass + '" id="' + adocEsc(b.id) + '"' + paragraphStyleAttr + '>' + paragraphLayer.overlay + paragraphLayer.wrapOpen + adocEditorTextHTML(b, 'text', b.content.text) + cites + paragraphLayer.wrapClose + '</p>';
+        return '<p class="adoc-sc-block adoc-sc-paragraph' + statusClass + '" id="' + adocEsc(b.id) + '"' + paragraphStyleAttr + '>' + paragraphLayer.overlay + paragraphLayer.wrapOpen + adocEditorTextHTML(b, 'text', b.content.text) + cites + paragraphLayer.wrapClose + nestedResizeHandle + '</p>';
       }
       case 'callout': {
         const calloutLayer = adocBlockOpacityLayerHTML(b.style);
-        const calloutCombinedCSS = calloutLayer.outerStyle + extraCSS;
+        const calloutCombinedCSS = calloutLayer.outerStyle + extraCSS + nestedPosCSS;
         const calloutStyleAttr = calloutCombinedCSS ? ' style="' + adocEsc(calloutCombinedCSS) + '"' : '';
-        return '<div class="adoc-sc-block adoc-sc-callout adoc-sc-callout-' + adocEsc(b.content.visualRole) + statusClass + '" id="' + adocEsc(b.id) + '"' + calloutStyleAttr + ' role="note">' + calloutLayer.overlay + calloutLayer.wrapOpen + adocEditorTextHTML(b, 'text', b.content.text) + cites + calloutLayer.wrapClose + '</div>';
+        return '<div class="adoc-sc-block adoc-sc-callout adoc-sc-callout-' + adocEsc(b.content.visualRole) + statusClass + '" id="' + adocEsc(b.id) + '"' + calloutStyleAttr + ' role="note">' + calloutLayer.overlay + calloutLayer.wrapOpen + adocEditorTextHTML(b, 'text', b.content.text) + cites + calloutLayer.wrapClose + nestedResizeHandle + '</div>';
       }
       case 'list': {
         const list = adocEditorRenderList(b);
         const note = cites ? '<div class="adoc-sc-cite-note">Sources :' + cites + '</div>' : '';
         const listLayer = adocBlockOpacityLayerHTML(b.style);
-        const listCombinedCSS = listLayer.outerStyle + extraCSS;
+        const listCombinedCSS = listLayer.outerStyle + extraCSS + nestedPosCSS;
         const listStyleAttr = listCombinedCSS ? ' style="' + adocEsc(listCombinedCSS) + '"' : '';
-        return '<div class="adoc-sc-block adoc-sc-list' + statusClass + '" id="' + adocEsc(b.id) + '"' + listStyleAttr + '>' + listLayer.overlay + listLayer.wrapOpen + list + note + listLayer.wrapClose + '</div>';
+        return '<div class="adoc-sc-block adoc-sc-list' + statusClass + '" id="' + adocEsc(b.id) + '"' + listStyleAttr + '>' + listLayer.overlay + listLayer.wrapOpen + list + note + listLayer.wrapClose + nestedResizeHandle + '</div>';
       }
       case 'table': {
         const table = adocEditorRenderTable(b);
@@ -9570,9 +9753,9 @@ ${recent}`;
       }
       case 'quote': {
         const quoteLayer = adocBlockOpacityLayerHTML(b.style);
-        const quoteCombinedCSS = quoteLayer.outerStyle + extraCSS;
+        const quoteCombinedCSS = quoteLayer.outerStyle + extraCSS + nestedPosCSS;
         const quoteStyleAttr = quoteCombinedCSS ? ' style="' + adocEsc(quoteCombinedCSS) + '"' : '';
-        return '<blockquote class="adoc-sc-block adoc-sc-quote' + statusClass + '" id="' + adocEsc(b.id) + '"' + quoteStyleAttr + '>' + quoteLayer.overlay + quoteLayer.wrapOpen + adocEditorTextHTML(b, 'text', b.content.text) + cites + quoteLayer.wrapClose + '</blockquote>';
+        return '<blockquote class="adoc-sc-block adoc-sc-quote' + statusClass + '" id="' + adocEsc(b.id) + '"' + quoteStyleAttr + '>' + quoteLayer.overlay + quoteLayer.wrapOpen + adocEditorTextHTML(b, 'text', b.content.text) + cites + quoteLayer.wrapClose + nestedResizeHandle + '</blockquote>';
       }
       case 'image': {
         // data-pexels résolu ensuite par adocResolveImages (mécanisme existant et éprouvé,
@@ -9610,10 +9793,19 @@ ${recent}`;
         // LOT ROTATION (Phase 1 bis) — même principe : appliqué ici pour persister après
         // sauvegarde/rechargement (pas seulement en aperçu live, cf. adocApplyImageRotation).
         const imgRotation = b.content.rotation != null ? ((Math.round(Number(b.content.rotation)) % 360) + 360) % 360 : 0;
-        const imgStyle = 'width:' + imgWidth + '%;border-radius:8px;object-fit:cover;display:block;margin:0 auto;' + (imgOpacity < 100 ? 'opacity:' + (imgOpacity / 100) + ';' : '') + (imgRotation ? 'transform:rotate(' + imgRotation + 'deg);' : '');
-        return '<figure class="adoc-sc-block adoc-sc-image' + statusClass + '" id="' + adocEsc(b.id) + '">' +
+        // ITEM 75 Phase 2 (intra-carte) — premier style dynamique posé sur ce <figure> (jamais
+        // aucun jusqu'ici, investigation confirmée). Quand l'image est positionnée (nestedPosCSS
+        // non vide), l'<img> reçoit AUSSI height:100% — seulement dans ce cas précis, jamais pour
+        // le cas non positionné (comportement par défaut inchangé, ratio intrinsèque conservé) :
+        // sans hauteur fixée, object-fit:cover (déjà posé, systématique) n'a aucun effet réel dans
+        // une boîte à hauteur elle-même non contrainte — une fois la figure dimensionnée en dur,
+        // l'image doit réellement la remplir/recadrer, pas déborder ni laisser du vide.
+        const imgPositionedFill = nestedPosCSS ? 'height:100%;' : '';
+        const imgStyle = 'width:' + imgWidth + '%;border-radius:8px;object-fit:cover;display:block;margin:0 auto;' + imgPositionedFill + (imgOpacity < 100 ? 'opacity:' + (imgOpacity / 100) + ';' : '') + (imgRotation ? 'transform:rotate(' + imgRotation + 'deg);' : '');
+        const imgFigureStyleAttr = nestedPosCSS ? ' style="' + adocEsc(nestedPosCSS) + '"' : '';
+        return '<figure class="adoc-sc-block adoc-sc-image' + statusClass + '" id="' + adocEsc(b.id) + '"' + imgFigureStyleAttr + '>' +
           '<img ' + imgAttr + onErrorAttr + ' alt="' + adocEsc(b.content.alt) + '" style="' + imgStyle + '">' +
-          note + '</figure>';
+          note + nestedResizeHandle + '</figure>';
       }
       default:
         return '';
@@ -11918,6 +12110,18 @@ ${recent}`;
     // carte s'agrandit proprement, comportement conservé tel quel, jamais élargi sans raison).
     const coverEl = anchorEl.closest('.adoc-sc-cover');
     if (coverEl) { coverEl.insertAdjacentElement('afterend', panel); return; }
+    // ITEM 75 Phase 2 (intra-carte) — cas NEUF, jamais rencontré avant ce lot : un bloc de
+    // CONTENU IMBRIQUÉ (.adoc-sc-block DANS une carte — jamais le titre de carte, qui ne porte
+    // pas cette classe, vérifié — ni la carte elle-même). Sans cette sortie, le panneau resterait
+    // ENFANT de `.adoc-sc-card` (inséré "afterend" du bloc imbriqué) — un clic dedans (ex.
+    // panneau de calques) serait alors intercepté par docCard.onmousedown comme un clic SUR LA
+    // CARTE (e.target.closest('.adoc-sc-card') le retrouverait), sélectionnant la carte au lieu
+    // d'agir sur le panneau — bug réel trouvé et corrigé par le test dédié. Condition précise
+    // (`.adoc-sc-block`, jamais un simple `anchorEl !== cardAncestor`) : un test de régression a
+    // montré qu'une condition plus large capturait AUSSI le titre de carte, décalant les index
+    // `:nth-child` des cartes suivantes dans `.adoc-sc-carrousel` — jamais reproduit ici.
+    const cardAncestor = anchorEl.closest('.adoc-sc-card');
+    if (cardAncestor && cardAncestor !== anchorEl && anchorEl.classList.contains('adoc-sc-block')) { cardAncestor.insertAdjacentElement('afterend', panel); return; }
     (anchorEl.matches('td,th') ? anchorEl.closest('table') : anchorEl).insertAdjacentElement('afterend', panel);
   }
   function adocUnmountBlockEditPanel(panel) {
@@ -11953,7 +12157,11 @@ ${recent}`;
     const docCard = document.getElementById('cc-ws-doc-card');
     if (docCard) {
       const sel = docCard.querySelector('.adoc-sc-block.is-selected, .adoc-sc-cover-title.is-selected, .adoc-sc-card-title.is-selected, .adoc-sc-card.is-selected');
-      if (sel) sel.classList.remove('is-selected', 'cc-image-drop-armed'); // LOT 3 — jamais un surlignage orphelin après fermeture du panneau
+      // ITEM 75 Phase 2 — is-position-selected (poignée de redimensionnement d'un élément
+      // imbriqué, cf. adocSelectNestedBlockForPosition) toujours retirée ICI aussi, même point
+      // unique de nettoyage (régression #6) — jamais une poignée qui reste visible après
+      // fermeture du panneau de position.
+      if (sel) sel.classList.remove('is-selected', 'cc-image-drop-armed', 'is-position-selected'); // LOT 3 — jamais un surlignage orphelin après fermeture du panneau
     }
     window._adocBlockEditState = { storeKey: null, blockId: null, panelEl: null, pendingBlock: null, originalBlock: null, zone: null };
   }
@@ -12187,10 +12395,81 @@ ${recent}`;
     // régression explicitement demandée). Point d'annulation posé UNE SEULE FOIS au premier tick
     // de mouvement réel (même principe que le curseur d'opacité, Lot E, jamais à chaque frame).
     docCard.onmousedown = function (e) {
-      const handle = e.target.closest('.adoc-sc-card-resize-handle');
+      const cardHandle = e.target.closest('.adoc-sc-card-resize-handle');
+      const nestedHandle = e.target.closest('.adoc-sc-nested-resize-handle');
+      const nestedEl = e.target.closest('.adoc-sc-block');
       const cardEl = e.target.closest('.adoc-sc-card');
       if (!cardEl) return;
-      if (!handle && e.target.closest('.adoc-sc-block, .adoc-sc-card-title')) return; // titre/bloc imbriqué — laisse la sélection normale s'en charger
+
+      // ITEM 75 Phase 2 (intra-carte) — glisser/redimensionner un ÉLÉMENT IMBRIQUÉ, testé AVANT
+      // la garde carte ci-dessous (Phase 1 y bloquait tout mousedown sur .adoc-sc-block — cette
+      // branche EST le "branchement dédié" que l'investigation identifiait comme nécessaire).
+      // Coexistence avec le panneau texte/image déjà existant (investigation point 3) : jamais de
+      // e.preventDefault() au mousedown pour un clic simple (préserverait le placement du curseur
+      // natif dans un bloc directement éditable, 57c) — seul un mouvement RÉEL (>=3px) déclenche
+      // le mode position, et à ce moment seulement le clic synthétisé au relâchement est
+      // intercepté UNE FOIS (suppressNextClick) pour ne jamais aussi rouvrir le panneau texte. Un
+      // clic direct sur la poignée, lui, n'a AUCUN autre sens possible : il ouvre le panneau de
+      // position même sans mouvement (comme la poignée de carte, Phase 1).
+      if (nestedEl) {
+        const storeKey = window._adocWsState.storeKey;
+        const curArt = window._adocArtifacts && window._adocArtifacts[storeKey];
+        if (!curArt || !curArt._adocStructuredDoc || curArt._adocStructuredDoc.documentKind !== 'carrousel') return;
+        const block = adocFindEditableBlock(curArt._adocStructuredDoc, nestedEl.id);
+        if (!block || ADOC_NESTED_POSITIONABLE_TYPES.indexOf(block.type) === -1) return;
+        const isHandle = !!nestedHandle;
+        if (isHandle) e.preventDefault(); // poignée : aucun comportement par défaut à préserver ici
+        const containerRect = nestedEl.parentElement.getBoundingClientRect(); // = la carte elle-même (élément imbriqué = enfant direct, vérifié)
+        const elRect = nestedEl.getBoundingClientRect();
+        const baseStyle = block.style || {};
+        const startX = baseStyle.x != null ? Number(baseStyle.x) : (elRect.left - containerRect.left);
+        const startY = baseStyle.y != null ? Number(baseStyle.y) : (elRect.top - containerRect.top);
+        const startW = baseStyle.width != null ? Number(baseStyle.width) : elRect.width;
+        const startH = baseStyle.height != null ? Number(baseStyle.height) : elRect.height;
+        const pointerStartX = e.clientX, pointerStartY = e.clientY;
+        let moved = false, checkpointed = false;
+        function suppressNextClick(ev2) { ev2.stopPropagation(); ev2.preventDefault(); document.removeEventListener('click', suppressNextClick, true); }
+        function onMove(ev) {
+          const dx = ev.clientX - pointerStartX, dy = ev.clientY - pointerStartY;
+          if (!moved && Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
+          if (!moved) { document.addEventListener('click', suppressNextClick, true); ev.preventDefault(); }
+          moved = true;
+          if (!checkpointed) { adocEditorCheckpoint(); checkpointed = true; }
+          adocSelectNestedBlockForPosition(nestedEl, block, storeKey);
+          const newStyle = Object.assign({}, block.style);
+          if (nestedHandle) {
+            newStyle.width = Math.max(24, startW + dx);
+            newStyle.height = Math.max(24, startH + dy);
+            if (newStyle.x == null) newStyle.x = startX;
+            if (newStyle.y == null) newStyle.y = startY;
+          } else {
+            newStyle.x = startX + dx;
+            newStyle.y = startY + dy;
+            if (newStyle.width == null) newStyle.width = startW;
+            if (newStyle.height == null) newStyle.height = startH;
+          }
+          block.style = adocClampNestedStyleToContainer(newStyle, containerRect.width, containerRect.height);
+          adocApplyCardPositionToElement(nestedEl, block.style);
+          adocEditorRefreshCardPositionControls();
+          adocEditorSync(); adocEditorMarkDirty();
+        }
+        function onUp() {
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+          // Clic direct sur la poignée SANS glissement réel — ouvre quand même le panneau (même
+          // non-régression que la poignée de carte). Un clic normal AILLEURS dans le bloc, sans
+          // glissement, ne fait RIEN ici : le clic naturel atteint ensuite docCard.onclick
+          // (panneau texte/image existant), jamais intercepté — c'est tout l'objet de ne pas
+          // appeler adocSelectNestedBlockForPosition dans ce cas précis.
+          if (!moved && isHandle) adocSelectNestedBlockForPosition(nestedEl, block, storeKey);
+        }
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+        return;
+      }
+
+      if (!cardHandle && e.target.closest('.adoc-sc-card-title')) return; // titre — laisse la sélection normale s'en charger
+      const handle = cardHandle;
       const storeKey = window._adocWsState.storeKey;
       const curArt = window._adocArtifacts && window._adocArtifacts[storeKey];
       if (!curArt || !curArt._adocStructuredDoc || curArt._adocStructuredDoc.documentKind !== 'carrousel') return; // garde-fou déjà posé au schéma (positionnement réservé au Carrousel) — cohérent ici aussi
