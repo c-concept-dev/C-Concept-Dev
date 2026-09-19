@@ -10264,8 +10264,17 @@ ${recent}`;
   // impossible un faux positif à l'intérieur du texte d'un bloc (ex. un texte contenant
   // littéralement la sous-chaîne '"blocks":[' serait nécessairement à une profondeur bien
   // supérieure à 1, jamais confondu avec la vraie ouverture du tableau).
+  // Correctif urgent confirmé — le marqueur littéral "key":[ exigeait une correspondance EXACTE,
+  // sans espace toléré entre la clé et `:` ni entre `:` et `[`. Le modèle produit le JSON en
+  // streaming caractère par caractère et peut légitimement émettre `"blocks": [` (avec un espace,
+  // forme JSON parfaitement valide) — ce marqueur ne la reconnaissait alors jamais,
+  // `_adocFindTopLevelArrayStart` renvoyait -1, et toute la chaîne de continuation échouait
+  // immédiatement sans le moindre appel réseau. Recherche désormais la clé quotée seule, puis
+  // tolère tout espace blanc avant/après le `:` et avant le `[`, sans jamais changer la garde de
+  // profondeur (depth===1, uniquement à la racine de l'objet) qui empêche un faux positif dans le
+  // texte d'un bloc.
   function _adocFindTopLevelArrayStart(raw, key) {
-    const marker = '"' + key + '":[';
+    const quotedKey = '"' + key + '"';
     let depth = 0, inString = false, escaped = false;
     for (let i = 0; i < raw.length; i++) {
       const ch = raw[i];
@@ -10276,7 +10285,15 @@ ${recent}`;
         continue;
       }
       if (ch === '"') {
-        if (depth === 1 && raw.startsWith(marker, i)) return i; // début du marqueur "key":[ lui-même
+        if (depth === 1 && raw.startsWith(quotedKey, i)) {
+          let j = i + quotedKey.length;
+          while (j < raw.length && /\s/.test(raw[j])) j++;
+          if (raw[j] === ':') {
+            j++;
+            while (j < raw.length && /\s/.test(raw[j])) j++;
+            if (raw[j] === '[') return i; // début du marqueur "key" ... [ lui-même (espaces tolérés)
+          }
+        }
         inString = true;
         continue;
       }
@@ -10297,8 +10314,17 @@ ${recent}`;
   function adocRepairTruncatedBlocksJSON(raw, arrayKey) {
     const markerStart = _adocFindTopLevelArrayStart(raw, arrayKey);
     if (markerStart === -1) return null;
-    const marker = '"' + arrayKey + '":[';
-    const bracketIdx = markerStart + marker.length - 1; // index du '[' lui-même
+    // Correctif urgent (suite) — bracketIdx ne peut plus être déduit d'une longueur de marqueur
+    // FIXE (`'"'+arrayKey+'":['`.length) depuis que `_adocFindTopLevelArrayStart` tolère des
+    // espaces blancs entre la clé/':'/'[' : la distance réelle jusqu'au '[' varie selon ce que le
+    // modèle a effectivement émis. Ré-avance depuis markerStart en sautant la clé quotée puis tout
+    // espace blanc, exactement comme le fait déjà le repérage ci-dessus.
+    let bracketIdx = markerStart + ('"' + arrayKey + '"').length;
+    while (bracketIdx < raw.length && /\s/.test(raw[bracketIdx])) bracketIdx++;
+    bracketIdx++; // saute le ':'
+    while (bracketIdx < raw.length && /\s/.test(raw[bracketIdx])) bracketIdx++;
+    // bracketIdx pointe maintenant sur le '[' lui-même (garanti présent : c'est la condition même
+    // que _adocFindTopLevelArrayStart a déjà vérifiée pour retourner un markerStart valide).
     // depth ici est relatif au tableau ciblé (0 = directement dans le tableau, entre éléments) —
     // jamais confondu avec un tableau/objet imbriqué à l'intérieur d'un bloc (items/rows), qui ne
     // fait que monter au-dessus de 0 sans jamais retoucher ce niveau 0 réservé au tableau ciblé.
