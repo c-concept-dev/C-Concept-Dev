@@ -55437,6 +55437,14 @@ var Worker_default = {
       return handleUpdateBookMeta(request2, env2);
     if (p === "/d1-query" && request2.method === "POST")
       return handleD1Query(request2, env2);
+    // Correctif urgent bibliotheque-admin — remplace le SQL brut cassé de scanDuplicates()/
+    // purgeDuplicates() (cf. handleFindDuplicates/handlePurgeDuplicates ci-dessus). Protégées
+    // par le mécanisme deny-by-default (non ajoutées à ADOC_PUBLIC_ROUTES), comme /storage-stats
+    // et /delete-book — pas de raison de les rendre publiques comme /library-stats.
+    if (p === "/find-duplicates" && request2.method === "GET")
+      return handleFindDuplicates(env2);
+    if (p === "/purge-duplicates" && request2.method === "POST")
+      return handlePurgeDuplicates(request2, env2);
     if (p === "/store-file" && request2.method === "POST")
       return handleStoreFile(request2, env2);
     // CORRECTIF A6 (audit Codex) — même trou que /library-stats ci-dessus (route publique,
@@ -56490,6 +56498,15 @@ async function handleIngest(request2, env2) {
       for (let j = 0; j < batch.length; j++) {
         const ck = batch[j];
         const id = ck.id || `${book_meta.book_id}-${i + j}`;
+        // Correctif urgent (bibliotheque-admin) — cause confirmée du bug "chunk_index repart de
+        // zéro tous les 20 chunks" : `i` est local aux lots de 10 DE CETTE SEULE requête
+        // /ingest (elle-même déjà limitée à 20 chunks par lot côté admin), donc `i+j` valait
+        // toujours 0..19 à CHAQUE appel /ingest, jamais l'indice global du livre — provoquant
+        // des doublons book_id+chunk_index dès qu'un livre dépasse 20 chunks (plusieurs appels
+        // /ingest). L'admin transmet désormais l'indice global explicite (même valeur que le
+        // suffixe de `id`) : utilisé tel quel, jamais recalculé localement. Repli sur l'ancien
+        // calcul UNIQUEMENT si un appelant plus ancien ne le fournit pas encore.
+        const chunkIndex = ck.chunk_index != null ? ck.chunk_index : i + j;
         try {
           await env2.DB.prepare(
             `INSERT OR REPLACE INTO chunks (id,book_id,book_title,author,language,chapter,page_number,chunk_index,content,approach,tags) VALUES (?,?,?,?,?,?,?,?,?,?,?)`
@@ -56501,7 +56518,7 @@ async function handleIngest(request2, env2) {
             book_meta.language || "fr",
             ck.chapter || null,
             ck.page || 0,
-            i + j,
+            chunkIndex,
             ck.content,
             book_meta.approach || "general",
             JSON.stringify(book_meta.tags || [])
@@ -56564,6 +56581,75 @@ async function handleDeleteBook(request2, env2) {
   }
 }
 __name(handleDeleteBook, "handleDeleteBook");
+// Correctif urgent bibliotheque-admin — scanDuplicates()/purgeDuplicates() envoyaient du SQL
+// brut à /d1-query (COUNT/GROUP BY/DELETE arbitraires) : cassé depuis que /d1-query n'accepte
+// plus que l'intention structurée {terms,term_match,authors,approaches,book_title,limit}
+// (cf. D1_SEARCH_ALLOWED_KEYS ci-dessus). Deux requêtes fixes, aucun texte client dans le SQL —
+// mêmes deux gabarits que l'admin utilisait déjà côté client, portés tels quels côté Worker.
+async function handleFindDuplicates(env2) {
+  if (!env2.DB)
+    return jsonErr("D1 not configured", 500);
+  try {
+    const contentDups = await env2.DB.prepare(
+      "SELECT book_id, book_title, content, COUNT(*) as cnt FROM chunks GROUP BY book_id, content HAVING cnt > 1 ORDER BY cnt DESC LIMIT 100"
+    ).all();
+    const rows = contentDups?.results || [];
+    if (rows.length > 0) {
+      const groups = {};
+      for (const r of rows) {
+        if (!groups[r.book_id]) groups[r.book_id] = { book_id: r.book_id, book_title: r.book_title, duplicates: 0 };
+        groups[r.book_id].duplicates += r.cnt - 1;
+      }
+      return json({ books: Object.values(groups) });
+    }
+    // Aucun doublon de contenu détecté ci-dessus : par construction (COUNT(*) group by
+    // book_id,content), total>unique_chunks par livre ne peut alors jamais se produire non plus
+    // — cette 2e requête reste néanmoins portée telle quelle (comportement identique à l'admin
+    // avant ce correctif, jamais une simplification hors périmètre de ce correctif précis).
+    const bookDups = await env2.DB.prepare(
+      "SELECT book_id, book_title, COUNT(*) as total, COUNT(DISTINCT content) as unique_chunks FROM chunks GROUP BY book_id HAVING total > unique_chunks ORDER BY (total - unique_chunks) DESC"
+    ).all();
+    const books = (bookDups?.results || []).map((r) => ({ book_id: r.book_id, book_title: r.book_title, duplicates: r.total - r.unique_chunks }));
+    return json({ books });
+  } catch (err2) {
+    return jsonErr(err2.message, 500);
+  }
+}
+__name(handleFindDuplicates, "handleFindDuplicates");
+async function handlePurgeDuplicates(request2, env2) {
+  let body;
+  try {
+    body = await request2.json();
+  } catch {
+    return jsonErr("Invalid JSON", 400);
+  }
+  const { book_id } = body;
+  if (!book_id)
+    return jsonErr("book_id requis", 400);
+  if (!env2.DB)
+    return jsonErr("D1 not configured", 500);
+  try {
+    // Même stratégie que l'admin (garder le rowid le plus petit par contenu identique), mais
+    // on sélectionne d'abord les `id` (identifiant Vectorize, jamais le rowid interne D1) des
+    // lignes à supprimer — nécessaire pour nettoyer Vectorize en même temps que D1, ce que le
+    // DELETE SQL brut de l'admin ne faisait jamais (correctif explicitement demandé).
+    const { results } = await env2.DB.prepare(
+      "SELECT id FROM chunks WHERE book_id = ? AND rowid NOT IN (SELECT MIN(rowid) FROM chunks WHERE book_id = ? GROUP BY content)"
+    ).bind(book_id, book_id).all();
+    const ids = results?.map((r) => r.id) || [];
+    if (ids.length) {
+      const placeholders = ids.map(() => "?").join(",");
+      await env2.DB.prepare(`DELETE FROM chunks WHERE id IN (${placeholders})`).bind(...ids).run();
+      if (env2.VECTOR_INDEX)
+        for (let i = 0; i < ids.length; i += 100)
+          await env2.VECTOR_INDEX.deleteByIds(ids.slice(i, i + 100));
+    }
+    return json({ success: true, book_id, deleted_chunks: ids.length });
+  } catch (err2) {
+    return jsonErr(err2.message, 500);
+  }
+}
+__name(handlePurgeDuplicates, "handlePurgeDuplicates");
 async function handleUpdateBookMeta(request2, env2) {
   let body;
   try {
