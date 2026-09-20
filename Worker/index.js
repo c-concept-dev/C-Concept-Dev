@@ -56425,7 +56425,14 @@ async function handleLibrarySearch(request2, env2) {
     const embedResult = await env2.AI.run("@cf/baai/bge-m3", { text: [query] });
     if (!embedResult?.data?.[0])
       return jsonErr("Embedding generation failed", 500);
-    const fetchK = exclude_approach ? Math.min(topK * 3, 50) : Math.min(topK, 20);
+    // Lot 2/2, correctif 5 — `approach` était déjà déclaré ci-dessus (destructuration) mais
+    // jamais utilisé nulle part dans cette fonction (paramètre mort, confirmé) : un opérateur
+    // sélectionnant "ACT" recevait des résultats hors ACT en pensant le filtre appliqué. Corrigé
+    // en réutilisant EXACTEMENT le même patron que `exclude_approach`/`language` ci-dessous
+    // (filtre post-ANN) — `fetchK` élargi de la même façon que pour `exclude_approach`, pour la
+    // même raison (filtrer après le topK Vectorize peut sinon écarter de bons résultats sans en
+    // récupérer d'autres à la place, cf. Correctif 8 identifié séparément).
+    const fetchK = (exclude_approach || approach) ? Math.min(topK * 3, 50) : Math.min(topK, 20);
     const vq = { topK: fetchK, returnMetadata: "all" };
     const matches = await env2.VECTOR_INDEX.query(embedResult.data[0], vq);
     if (!matches?.matches?.length)
@@ -56448,6 +56455,8 @@ async function handleLibrarySearch(request2, env2) {
         content: c?.content || "[non trouv\xE9]"
       };
     });
+    if (approach)
+      results = results.filter((r) => r.approach === approach);
     if (language)
       results = results.filter((r) => r.language === language);
     if (exclude_approach) {
@@ -56508,8 +56517,13 @@ async function handleIngest(request2, env2) {
         // calcul UNIQUEMENT si un appelant plus ancien ne le fournit pas encore.
         const chunkIndex = ck.chunk_index != null ? ck.chunk_index : i + j;
         try {
+          // Lot 2/2, correctif 2 (migration 0006) — page_end était déjà calculé et transmis par
+          // l'admin (chunkPages()) mais jamais stocké ici : seul page_number (= page de début)
+          // l'était, rendant la localisation d'un passage imprécise pour toute citation
+          // vérifiable. Repli sur page_number si page_end absent (appelant plus ancien), jamais
+          // une valeur inventée.
           await env2.DB.prepare(
-            `INSERT OR REPLACE INTO chunks (id,book_id,book_title,author,language,chapter,page_number,chunk_index,content,approach,tags) VALUES (?,?,?,?,?,?,?,?,?,?,?)`
+            `INSERT OR REPLACE INTO chunks (id,book_id,book_title,author,language,chapter,page_number,page_end,chunk_index,content,approach,tags) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
           ).bind(
             id,
             book_meta.book_id,
@@ -56518,6 +56532,7 @@ async function handleIngest(request2, env2) {
             book_meta.language || "fr",
             ck.chapter || null,
             ck.page || 0,
+            ck.page_end != null ? ck.page_end : (ck.page || 0),
             chunkIndex,
             ck.content,
             book_meta.approach || "general",
@@ -56572,10 +56587,28 @@ async function handleDeleteBook(request2, env2) {
     const { results } = await env2.DB.prepare("SELECT id FROM chunks WHERE book_id = ?").bind(book_id).all();
     const ids = results?.map((r) => r.id) || [];
     await env2.DB.prepare("DELETE FROM chunks WHERE book_id = ?").bind(book_id).run();
-    if (env2.VECTOR_INDEX)
-      for (let i = 0; i < ids.length; i += 100)
-        await env2.VECTOR_INDEX.deleteByIds(ids.slice(i, i + 100));
-    return json({ success: true, book_id, deleted_chunks: ids.length });
+    // Correctif urgent (cohérence D1/Vectorize non transactionnelle) — la suppression D1 est
+    // déjà confirmée à ce point (ligne ci-dessus terminée sans exception) ; un échec Vectorize
+    // APRÈS ce point ne doit jamais produire un succès ambigu ni un 500 générique qui masquerait
+    // que D1 a réellement changé. Chaque lot est tenté indépendamment (jamais un seul échec
+    // n'interrompt les lots suivants), les échecs sont collectés explicitement.
+    const failedVectorIds = [];
+    let deletedVectorize = 0;
+    if (env2.VECTOR_INDEX) {
+      for (let i = 0; i < ids.length; i += 100) {
+        const batch = ids.slice(i, i + 100);
+        try {
+          await env2.VECTOR_INDEX.deleteByIds(batch);
+          deletedVectorize += batch.length;
+        } catch {
+          failedVectorIds.push(...batch);
+        }
+      }
+    }
+    if (failedVectorIds.length) {
+      return json({ success: false, partial: true, book_id, deleted_d1: ids.length, deleted_vectorize: deletedVectorize, failed_vector_ids: failedVectorIds, deleted_chunks: ids.length });
+    }
+    return json({ success: true, book_id, deleted_d1: ids.length, deleted_vectorize: deletedVectorize, failed_vector_ids: [], deleted_chunks: ids.length });
   } catch (err2) {
     return jsonErr(err2.message, 500);
   }
@@ -56637,14 +56670,30 @@ async function handlePurgeDuplicates(request2, env2) {
       "SELECT id FROM chunks WHERE book_id = ? AND rowid NOT IN (SELECT MIN(rowid) FROM chunks WHERE book_id = ? GROUP BY content)"
     ).bind(book_id, book_id).all();
     const ids = results?.map((r) => r.id) || [];
+    let deletedVectorize = 0;
+    const failedVectorIds = [];
     if (ids.length) {
       const placeholders = ids.map(() => "?").join(",");
       await env2.DB.prepare(`DELETE FROM chunks WHERE id IN (${placeholders})`).bind(...ids).run();
-      if (env2.VECTOR_INDEX)
-        for (let i = 0; i < ids.length; i += 100)
-          await env2.VECTOR_INDEX.deleteByIds(ids.slice(i, i + 100));
+      // Correctif urgent (cohérence D1/Vectorize non transactionnelle) — même principe que
+      // handleDeleteBook : D1 est déjà confirmé supprimé à ce point, un échec Vectorize après
+      // ne doit jamais produire un succès ambigu. Lots indépendants, échecs collectés.
+      if (env2.VECTOR_INDEX) {
+        for (let i = 0; i < ids.length; i += 100) {
+          const batch = ids.slice(i, i + 100);
+          try {
+            await env2.VECTOR_INDEX.deleteByIds(batch);
+            deletedVectorize += batch.length;
+          } catch {
+            failedVectorIds.push(...batch);
+          }
+        }
+      }
     }
-    return json({ success: true, book_id, deleted_chunks: ids.length });
+    if (failedVectorIds.length) {
+      return json({ success: false, partial: true, book_id, deleted_d1: ids.length, deleted_vectorize: deletedVectorize, failed_vector_ids: failedVectorIds, deleted_chunks: ids.length });
+    }
+    return json({ success: true, book_id, deleted_d1: ids.length, deleted_vectorize: deletedVectorize, failed_vector_ids: [], deleted_chunks: ids.length });
   } catch (err2) {
     return jsonErr(err2.message, 500);
   }
@@ -57991,7 +58040,7 @@ async function handleRagSearch(request2, env2) {
     const ftsQuery = terms.map((t) => t.replace(/['"]/g, "")).join(" OR ");
     let ftsPromise = Promise.resolve({ results: [] });
     if (ftsQuery) {
-      let sql = `SELECT c.id, c.book_title, c.author, c.page_number, c.approach, c.content
+      let sql = `SELECT c.id, c.book_title, c.author, c.page_number, c.approach, c.language, c.content
         FROM chunks_fts JOIN chunks c ON c.rowid = chunks_fts.rowid
         WHERE chunks_fts MATCH ?`;
       const params = [ftsQuery];
@@ -58029,44 +58078,112 @@ async function handleRagSearch(request2, env2) {
       _source: "vector"
     }));
     const ftsChunks = (ftsRes.results || []).map((r) => ({ ...r, _source: "fts5", score: 0.7 }));
-    const seen = /* @__PURE__ */ new Set();
-    const merged = [];
+    // Correctif urgent (biais vector-first confirmé par lecture directe) — `merged` était
+    // construit comme [...vecChunks, ...ftsChunks] PUIS tronqué à `topK` par simple `.slice()` :
+    // dès que la recherche vectorielle produit ≥topK résultats distincts (le cas normal, `vq.topK`
+    // est déjà topK*3), TOUS les résultats retournés étaient vectoriels — un résultat FTS5
+    // authentiquement pertinent n'avait struturellement AUCUNE chance d'atteindre le topK final,
+    // quel que soit son classement lexical réel. Remplacé par une fusion par rang réciproque
+    // (RRF, Cormack et al.) : combine deux classements hétérogènes sans dépendre de scores
+    // directement comparables (similarité cosinus vectorielle réelle vs score FTS5 arbitraire
+    // fixe à 0.7 ci-dessus) — seul le RANG au sein de chaque source compte, jamais sa valeur brute.
+    const RRF_K = 60;
+    const rrfScore = /* @__PURE__ */ new Map();
+    vecChunks.forEach((c, rank) => rrfScore.set(c.id, (rrfScore.get(c.id) || 0) + 1 / (RRF_K + rank + 1)));
+    ftsChunks.forEach((c, rank) => rrfScore.set(c.id, (rrfScore.get(c.id) || 0) + 1 / (RRF_K + rank + 1)));
+    // Correctif micro-lot RRF-CLOSE (provenance double perdue) — la déduplication conservait
+    // auparavant SEULEMENT la première occurrence rencontrée dans [...vecChunks, ...ftsChunks]
+    // (donc toujours la version vectorielle quand un chunk était trouvé par les deux moteurs),
+    // écrasant silencieusement sa provenance FTS5. `_sources` accumule désormais TOUTES les
+    // provenances rencontrées pour un même id, sans jamais en écraser une par l'autre ; le champ
+    // `_source` (singulier) est conservé tel quel sur l'objet de base pour ne rien changer au
+    // filtre de réhydratation D1 existant ci-dessous (toujours vrai : la première occurrence
+    // reste la base, jamais un second round-trip nécessaire pour les champs déjà présents).
+    const vecRankById = /* @__PURE__ */ new Map();
+    vecChunks.forEach((c, rank) => vecRankById.set(c.id, rank));
+    const ftsRankById = /* @__PURE__ */ new Map();
+    ftsChunks.forEach((c, rank) => ftsRankById.set(c.id, rank));
+    const byId = /* @__PURE__ */ new Map();
     for (const chunk of [...vecChunks, ...ftsChunks]) {
-      if (seen.has(chunk.id))
+      const existing = byId.get(chunk.id);
+      if (existing) {
+        if (!existing._sources.includes(chunk._source))
+          existing._sources.push(chunk._source);
         continue;
-      if (approach && chunk._source === "vector" && chunk.approach && chunk.approach !== approach)
-        continue;
-      seen.add(chunk.id);
-      merged.push(chunk);
+      }
+      // Lot 2/2, correctif 4 — le filtre `approach` sur les chunks vectoriels a été retiré D'ICI
+      // (déplacé après la réhydratation D1 ci-dessous) : il comparait auparavant à la métadonnée
+      // Vectorize, jamais synchronisée par /update-book-meta (confirmé : cette route ne touche
+      // que D1) — un chunk dont l'approche a été modifiée APRÈS son ingestion initiale pouvait
+      // donc être exclu ou inclus à tort selon une valeur figée et obsolète.
+      chunk._sources = [chunk._source];
+      byId.set(chunk.id, chunk);
     }
+    const merged = Array.from(byId.values());
+    // Tri par RRF décroissant AVANT toute troncature `topK` — l'ordre d'insertion (vectoriel
+    // d'abord) ne détermine plus jamais qui survit au topK, seul le classement combiné compte.
+    merged.sort((a, b) => (rrfScore.get(b.id) || 0) - (rrfScore.get(a.id) || 0));
     // CORRECTIF A17 (audit Codex) — le round-trip D1 existait déjà pour compléter `content`
     // manquant (chunks vectoriels, dont les métadonnées Vectorize ne l'ont jamais porté), mais
-    // ne sélectionnait que cette seule colonne. Étendu ici à author/page_number : sert de filet
-    // de sécurité pour tout chunk déjà ingéré AVANT ce correctif (métadonnées Vectorize encore
-    // sans author, ou avec l'ancien nom `page`) sans attendre une ré-ingestion complète du corpus
-    // — jamais un second mécanisme, la même requête fait simplement plus de travail utile.
-    const ids = merged.filter((c) => !c.content || !c.author || c.page_number == null).map((c) => c.id);
+    // ne sélectionnait que cette seule colonne. Étendu ici à author/page_number/approach/language
+    // : sert de filet de sécurité pour tout chunk déjà ingéré AVANT ce correctif (métadonnées
+    // Vectorize encore sans author, ou avec l'ancien nom `page`) sans attendre une ré-ingestion
+    // complète du corpus — jamais un second mécanisme, la même requête fait simplement plus de
+    // travail utile.
+    // Lot 2/2, correctif 4 (décision : D1 reste l'autorité documentaire unique, jamais Vectorize
+    // — /update-book-meta ne synchronise QUE D1, ré-upserter Vectorize sur tout le livre à
+    // chaque modification de métadonnées serait un coût réel bien plus élevé pour le même
+    // résultat) — approach/language sont désormais TOUJOURS réhydratés depuis D1 pour un chunk
+    // vectoriel (jamais seulement quand `null`, contrairement à content/author/page_number qui
+    // ne peuvent que manquer, jamais devenir incorrects a posteriori) : la métadonnée Vectorize
+    // correspondante peut être non-nulle mais PÉRIMÉE depuis la dernière modification.
+    const ids = merged.filter((c) => c._source === "vector").map((c) => c.id);
     if (ids.length) {
       const ph = ids.map(() => "?").join(",");
-      const rows = await env2.DB.prepare(`SELECT id, content, author, page_number FROM chunks WHERE id IN (${ph})`).bind(...ids).all();
+      const rows = await env2.DB.prepare(`SELECT id, content, author, page_number, approach, language FROM chunks WHERE id IN (${ph})`).bind(...ids).all();
       const cm = Object.fromEntries((rows.results || []).map((r) => [r.id, r]));
       merged.forEach((c) => {
+        if (c._source !== "vector") return;
         const r = cm[c.id];
         if (!r) return;
         if (!c.content) c.content = r.content || "";
         if (!c.author) c.author = r.author || "";
         if (c.page_number == null) c.page_number = r.page_number ?? null;
+        c.approach = r.approach;
+        c.language = r.language;
       });
     }
-    const finalChunks = merged.slice(0, topK).map((c, i) => {
+    // Filtre approach appliqué ICI, après réhydratation — toujours la valeur D1 fraîche pour un
+    // chunk vectoriel, déjà fraîche par construction pour un chunk FTS5 (lu directement de D1
+    // dans la requête SQL ci-dessus, jamais filtrée deux fois à tort).
+    const filteredMerged = approach ? merged.filter((c) => !c.approach || c.approach === approach) : merged;
+    // Lot 2/2, correctif 5 — `id`/`language` ajoutés à la sortie (additifs, jamais un champ
+    // retiré) : /rag-search n'a aujourd'hui AUCUN consommateur réel dans studio-clinique-core.js
+    // (confirmé par recherche négative) — champs nécessaires au nouveau panneau diagnostic de
+    // l'admin (voir bibliotheque-admin.html), sans risque pour un futur consommateur qui
+    // ignorerait simplement des champs en plus.
+    const finalChunks = filteredMerged.slice(0, topK).map((c, i) => {
+      // Correctif micro-lot RRF-CLOSE — `source` (singulier) reste tel quel pour compatibilité
+      // (jamais retiré) ; `sources` expose désormais TOUTES les provenances réelles (jamais une
+      // seule écrasant l'autre). `vector_rank`/`fts_rank`/`rrf_score` exposés séparément du
+      // `score` brut existant : ce dernier reste une similarité cosinus (vectoriel) ou une valeur
+      // arbitraire fixe à 0.7 (FTS5, cf. plus haut) — jamais ce qui détermine réellement le
+      // classement final depuis le correctif RRF ; un panneau de diagnostic qui n'afficherait que
+      // `score` resterait trompeur sur ce point.
       const out = {
         index: i + 1,
+        id: c.id,
         book_title: c.book_title || "",
         author: c.author || "",
         page_number: c.page_number || null,
         approach: c.approach || "",
+        language: c.language || "",
         score: Math.round((c.score || 0) * 1e3) / 1e3,
-        source: c._source || "unknown"
+        source: c._source || "unknown",
+        sources: c._sources || [c._source || "unknown"],
+        vector_rank: vecRankById.has(c.id) ? vecRankById.get(c.id) + 1 : null,
+        fts_rank: ftsRankById.has(c.id) ? ftsRankById.get(c.id) + 1 : null,
+        rrf_score: Math.round((rrfScore.get(c.id) || 0) * 1e6) / 1e6
       };
       if (include_content)
         out.content = (c.content || "").substring(0, 800);
