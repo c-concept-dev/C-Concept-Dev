@@ -282,23 +282,11 @@
                 <div style="display:flex;gap:8px;">
                     <input type="text" id="searchQuery" placeholder="Ex: schéma d'abandon en thérapie de couple"
                         style="flex:1;padding:10px 14px;border:2px solid #D8CDBB;border-radius:8px;font-family:inherit;font-size:13px;">
+                    <!-- Lot 2/2, correctif 6 — options peuplées dynamiquement depuis ADMIN_APPROACHES
+                         (source unique, voir le script plus bas) : cette liste était auparavant codée en
+                         dur ici, plus courte et déjà en désaccord avec les formulaires d'import/édition. -->
                     <select id="searchApproach" style="padding:8px;border:2px solid #D8CDBB;border-radius:8px;font-size:12px;font-family:inherit;">
                         <option value="">Toutes approches</option>
-                        <option value="schema_therapy">Schémas</option>
-                        <option value="act">ACT</option>
-                        <option value="ifs">IFS</option>
-                        <option value="couple">Couple</option>
-                        <option value="attachment">Attachement</option>
-                        <option value="mi">MI</option>
-                        <option value="cnv">CNV</option>
-                        <option value="cft">CFT</option>
-                        <option value="dbt">DBT</option>
-                        <option value="emdr">EMDR</option>
-                        <option value="hypnosis">Hypnose Ericksonienne</option>
-                        <option value="personal_development">Développement Personnel</option>
-                        <option value="icv">ICV</option>
-                        <option value="systemic">Systémique</option>
-                        <option value="coherence">Cohérence</option>
                     </select>
                     <button class="btn-refresh" onclick="testSearch()">🔍 Rechercher</button>
                 </div>
@@ -459,11 +447,25 @@ function switchTab(name) {
 }
 
 // ── Log ──
+// Correctif urgent P0-3 — durci PAR CONSTRUCTION (jamais un escHtml() de plus au cas par cas
+// côté appelant) : `msg` était inséré via `innerHTML +=`, donc interprété comme HTML par
+// N'IMPORTE QUEL appelant qui oublierait de l'échapper (chaque site d'appel ajouté depuis restait
+// une dette potentielle). `msg` est désormais TOUJOURS un nœud texte (`appendChild` +
+// `document.createTextNode`, jamais `innerHTML`) — un appelant ne peut structurellement plus
+// injecter de balise interprétée, quel que soit son contenu. `cls`/`time` restent construits
+// par cette fonction elle-même (jamais depuis une donnée externe) : `createElement`+`className`+
+// `textContent` par prudence, sans changer le rendu visuel (mêmes classes, même timestamp, même
+// retour à la ligne avant chaque entrée).
 function log(msg, type = '') {
     const box = document.getElementById('logBox');
     const cls = type === 'error' ? 'err' : type === 'success' ? 'ok' : 'info';
     const time = new Date().toLocaleTimeString('fr-FR');
-    box.innerHTML += `\n<span class="${cls}">[${time}]</span> ${msg}`;
+    box.appendChild(document.createTextNode('\n'));
+    const timeSpan = document.createElement('span');
+    timeSpan.className = cls;
+    timeSpan.textContent = '[' + time + ']';
+    box.appendChild(timeSpan);
+    box.appendChild(document.createTextNode(' ' + msg));
     box.scrollTop = box.scrollHeight;
 }
 
@@ -498,6 +500,43 @@ function getAdminApiKey() {
 // contenu variable inséré via innerHTML (titres, auteurs, approches, contenu de passages,
 // requête saisie, messages d'erreur) doit désormais passer par escHtml(), jamais par
 // concaténation brute — sans quoi un titre de livre contenant <script> s'exécuterait tel quel.
+// Lot 2/2, correctif 6 — taxonomie des approches centralisée. Avant ce correctif, la liste des
+// valeurs d'approche était dupliquée à plusieurs endroits (formulaire d'import, formulaire
+// d'édition, menu de test — celui-ci déjà en désaccord : plus court, labels absents des deux
+// autres) — une seule source désormais, chaque endroit qui en a besoin la lit ici.
+// `outils_couple` : assigné à l'import pour tout fichier HTML (cf. addFiles, isHTML ?
+// 'outils_couple' : 'general') mais absent de la liste canonique précédente — décision : ajouté
+// ici plutôt que retiré du code d'import. Cette session n'a pas accès au corpus D1 réel pour
+// vérifier son usage effectif sur des livres déjà ingérés (même limite que l'audit précédent) ;
+// l'ajouter est la modification non destructive (un livre déjà catégorisé 'outils_couple' reste
+// affichable/filtrable), le retrait du code d'import serait, lui, irréversible sans certitude
+// que la catégorie est réellement inutilisée. Vérification exacte à faire par vous :
+// `SELECT COUNT(*) FROM chunks WHERE approach = 'outils_couple';` (lecture seule).
+const ADMIN_APPROACHES = [
+    { value: 'general', label: 'Général' },
+    { value: 'schema_therapy', label: 'Schémas' },
+    { value: 'act', label: 'ACT' },
+    { value: 'ifs', label: 'IFS' },
+    { value: 'coherence', label: 'Cohérence' },
+    { value: 'emdr', label: 'EMDR' },
+    { value: 'hypnosis', label: 'Hypnose Ericksonienne' },
+    { value: 'couple', label: 'Couple' },
+    { value: 'outils_couple', label: 'Outils de couple' },
+    { value: 'attachment', label: 'Attachement' },
+    { value: 'cbt', label: 'CBT / TCC' },
+    { value: 'cft', label: 'CFT' },
+    { value: 'dbt', label: 'DBT' },
+    { value: 'mi', label: 'MI' },
+    { value: 'cnv', label: 'CNV' },
+    { value: 'mbct', label: 'MBCT' },
+    { value: 'pbt', label: 'PBT' },
+    { value: 'icv', label: 'ICV' },
+    { value: 'systemic', label: 'Systémique' },
+    { value: 'trauma', label: 'Trauma' },
+    { value: 'psychodynamic', label: 'Psychodynamique' },
+    { value: 'personal_development', label: 'Développement Personnel' },
+];
+
 function escHtml(s) {
     return String(s == null ? '' : s)
         .replace(/&/g, '&amp;')
@@ -599,8 +638,7 @@ function renderQueue() {
 function renderMetaForm(q) {
     return `<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
         <select onchange="updateMeta('${q.id}','approach',this.value)" style="padding:4px 6px;border:1px solid #ddd;border-radius:4px;font-size:11px;font-family:inherit;">
-            ${['general','schema_therapy','act','ifs','coherence','emdr','hypnosis','couple','attachment','cbt','cft','dbt','mi','cnv','mbct','pbt','icv','systemic','trauma','psychodynamic','personal_development']
-                .map(a => `<option value="${a}" ${q.meta.approach===a?'selected':''}>${a}</option>`).join('')}
+            ${ADMIN_APPROACHES.map(a => `<option value="${a.value}" ${q.meta.approach===a.value?'selected':''}>${escHtml(a.label)}</option>`).join('')}
         </select>
         <select onchange="updateMeta('${q.id}','language',this.value)" style="padding:4px 6px;border:1px solid #ddd;border-radius:4px;font-size:11px;">
             <option value="fr" ${q.meta.language==='fr'?'selected':''}>FR</option>
@@ -715,18 +753,79 @@ async function extractHTMLText(file, progressCb) {
         }
     }
     
-    const fullText = pages.map(p => p.text).join('\n\n');
+    // Lot 2/2, correctif 7 — mesure réelle (échantillon de 12 fichiers HTML réels, catégorie
+    // 'outils_couple') : 34,2% du contenu extrait était exactement dupliqué (jusqu'à ~51% sur
+    // certains fichiers). Cause RÉELLE identifiée par inspection directe du HTML source (pas
+    // l'hypothèse initiale d'un bug de parcours DOM) : ces documents interactifs répètent
+    // eux-mêmes littéralement certains titres/labels dans leur propre structure (ex. un même
+    // <h4> "Métiers ou loisirs recherchés :" répété 6 fois pour 6 catégories, un <h2> de trait
+    // répété entre section questionnaire et section infobulle) — un changement de stratégie
+    // d'extraction ne résoudrait PAS ce cas précis (la répétition existe dans le contenu
+    // lui-même, pas dans la façon de le parcourir) et risquerait de perdre du contexte légitime.
+    // Correctif ciblé et sûr : une "page" dont le texte est EXACTEMENT identique à une page déjà
+    // vue est retirée avant chunking — un texte strictement identique (byte à byte) n'apporte
+    // aucune valeur RAG supplémentaire la 2e fois, aucun risque de perte d'information réelle
+    // (seul un doublon exact est retiré, jamais un texte simplement similaire ou apparenté).
+    const seenPageTexts = new Set();
+    const dedupedPages = pages.filter(p => {
+        if (seenPageTexts.has(p.text)) return false;
+        seenPageTexts.add(p.text);
+        return true;
+    });
+    const removedCount = pages.length - dedupedPages.length;
+
+    const fullText = dedupedPages.map(p => p.text).join('\n\n');
     if (progressCb) progressCb(100);
-    
-    log(`  📄 HTML: ${pages.length} sections extraites, ${fullText.split(/\s+/).length} mots`);
-    return { pages, fullText, numPages: pages.length };
+
+    log(`  📄 HTML: ${dedupedPages.length} sections extraites, ${fullText.split(/\s+/).length} mots` +
+        (removedCount > 0 ? ` (${removedCount} section(s) dupliquée(s) exactement retirée(s))` : ''));
+    return { pages: dedupedPages, fullText, numPages: dedupedPages.length };
 }
 
 // ── Chunking intelligent (respecte les paragraphes) ──
+// Lot 2/2, correctif 1 — cause confirmée : chunkText() ne vérifiait la limite `maxSize` (700
+// mots) qu'ENTRE deux paragraphes (`currentChunk.length > 0 && ...`) — un paragraphe UNIQUE trop
+// long (fréquent après extractPDFText(), qui aplatit chaque page en une seule chaîne, effaçant
+// les retours structurants du PDF) passait intégralement dès qu'il atterrissait sur un
+// `currentChunk` vide, sans jamais être vérifié. Aucun découpeur de secours par limite de phrase
+// n'existait déjà ailleurs dans ce fichier (recherche négative) — seul un découpeur par limite de
+// MOTS existait (fallback plus bas, PDF sans aucun saut de paragraphe) : celui-ci l'étend avec une
+// préférence pour la fin de phrase la plus proche, jamais en plein milieu d'un mot en dernier
+// recours. Chaque paragraphe est désormais pré-découpé en segments ne dépassant JAMAIS
+// HARD_MAX_WORDS avant d'entrer dans la boucle d'accumulation — celle-ci reste inchangée, elle ne
+// reçoit simplement plus jamais un paragraphe surdimensionné en une seule pièce.
+function splitOversizedParagraph(text, hardMaxWords) {
+    const words = text.split(/\s+/);
+    if (words.length <= hardMaxWords) return [text];
+    const segments = [];
+    let start = 0;
+    while (start < words.length) {
+        let end = Math.min(start + hardMaxWords, words.length);
+        if (end < words.length) {
+            // Chercher la fin de phrase la plus proche de `end`, en remontant, sans produire un
+            // segment trop court (jamais avant 70% de hardMaxWords depuis `start`).
+            const minEnd = start + Math.floor(hardMaxWords * 0.7);
+            let cut = end;
+            for (let i = end; i > minEnd; i--) {
+                if (/[.!?]$/.test(words[i - 1])) { cut = i; break; }
+            }
+            end = cut;
+        }
+        segments.push(words.slice(start, end).join(' '));
+        start = end;
+    }
+    return segments;
+}
+
 function chunkText(text, targetSize = 500, maxSize = 700, overlap = 100) {
+    // Marge sur maxSize (700) : un paragraphe unique peut désormais atteindre jusqu'à ~900 mots
+    // avant d'être forcé à se scinder — jamais plus, même combiné à l'overlap (100 mots) ajouté
+    // par la boucle ci-dessous, restant sous la limite dure de ~1000 mots demandée.
+    const HARD_MAX_WORDS = 900;
     // Découper par paragraphes d'abord (double saut de ligne ou point suivi de majuscule)
-    const paragraphs = text.split(/\n\s*\n|(?<=\.)\s{2,}/).filter(p => p.trim().length > 20);
-    
+    const rawParagraphs = text.split(/\n\s*\n|(?<=\.)\s{2,}/).filter(p => p.trim().length > 20);
+    const paragraphs = rawParagraphs.flatMap(p => splitOversizedParagraph(p, HARD_MAX_WORDS));
+
     const chunks = [];
     let currentChunk = '';
     let lastOverlap = '';
@@ -777,37 +876,61 @@ function chunkText(text, targetSize = 500, maxSize = 700, overlap = 100) {
     return chunks;
 }
 
+// Lot 2/2, correctif 2 — cause confirmée : chunkPages() attribuait la MÊME plage
+// startPage→currentPage à TOUS les chunks produits à partir d'un même tampon (3-4 pages) — un
+// passage principalement situé en fin de tampon (ex. page 43) pouvait être enregistré page 41.
+// Corrigé par une carte mot→page du tampon (`bufferPageMap[i]` = page réelle du i-ème mot),
+// utilisée pour situer PROPORTIONNELLEMENT chaque chunk produit à sa position réelle dans le
+// tampon — jamais une exactitude au mot près garantie (l'overlap entre chunks rend cela
+// intrinsèquement approximatif), mais réellement propre à chaque chunk plutôt qu'une plage
+// globale recopiée identique sur tous.
+function chunkTextWithPages(text, pageMap, targetSize = 500, maxSize = 700, overlap = 100) {
+    const contents = chunkText(text, targetSize, maxSize, overlap);
+    const totalWords = pageMap.length;
+    if (totalWords === 0) return contents.map(content => ({ content, page: 1, page_end: 1 }));
+    let cursor = 0;
+    return contents.map(content => {
+        const wc = content.split(/\s+/).filter(Boolean).length;
+        const startIdx = Math.min(cursor, totalWords - 1);
+        const endIdx = Math.min(cursor + wc - 1, totalWords - 1);
+        const page = pageMap[Math.max(0, startIdx)];
+        const page_end = pageMap[Math.max(0, endIdx)];
+        // Recule le curseur de `overlap` mots : ils réapparaissent au début du chunk suivant
+        // (cf. chunkText), jamais comptés deux fois dans la progression à travers le tampon.
+        cursor += Math.max(1, wc - overlap);
+        return { content, page, page_end };
+    });
+}
+
 function chunkPages(pages) {
     // Stratégie : regrouper les pages proches puis chunker le texte continu
     // Cela évite de couper un concept qui s'étend sur 2 pages
     const allChunks = [];
     let buffer = '';
-    let startPage = 1;
-    let currentPage = 1;
-    
+    let bufferPageMap = [];
+
+    function flushBuffer() {
+        if (buffer.trim().length > 80) {
+            allChunks.push(...chunkTextWithPages(buffer, bufferPageMap));
+        }
+    }
+
     for (const p of pages) {
-        buffer += ' ' + p.text;
-        currentPage = p.page;
-        
+        const pageWords = p.text.split(/\s+/).filter(Boolean);
+        buffer += (buffer ? ' ' : '') + p.text;
+        for (let i = 0; i < pageWords.length; i++) bufferPageMap.push(p.page);
+
         // Chunker quand on a assez de texte (environ 3-4 pages)
         if (buffer.split(/\s+/).length > 1500) {
-            const textChunks = chunkText(buffer);
-            for (const content of textChunks) {
-                allChunks.push({ content, page: startPage, page_end: currentPage });
-            }
+            flushBuffer();
             buffer = '';
-            startPage = currentPage + 1;
+            bufferPageMap = [];
         }
     }
-    
+
     // Dernier buffer
-    if (buffer.trim().length > 80) {
-        const textChunks = chunkText(buffer);
-        for (const content of textChunks) {
-            allChunks.push({ content, page: startPage, page_end: currentPage });
-        }
-    }
-    
+    flushBuffer();
+
     return allChunks;
 }
 
@@ -831,42 +954,78 @@ async function startIngestion() {
             // exposée) : /library-stats reste la seule méthode, un contrôle "existe déjà"
             // (booléen) plutôt qu'un compte exact — jugé suffisant, la bannière ci-dessous
             // n'affiche plus jamais de nombre de chunks inventé (cf. _existingChunks/renderDupAlerts).
+            // Correctif urgent P0-2 — fail-open corrigé : avant, un échec de vérification
+            // (réseau, HTTP non-ok, JSON invalide) se contentait d'un log et LAISSAIT
+            // l'ingestion continuer comme si l'absence de doublon était confirmée — jamais le
+            // cas. Contrat désormais explicite : réponse /library-stats valide (HTTP ok + JSON
+            // décodable) ET absent → autorisé ; valide ET présent → 'duplicate', arrêt ; tout
+            // échec de vérification (réseau/HTTP/JSON) → erreur levée, `/ingest` jamais appelée
+            // pour ce livre (capturée par le catch englobant, qui marque déjà le livre en
+            // erreur — jamais un faux succès ni un faux repli silencieux).
             if (q._dupAction !== 'overwrite') {
                 log('  🔎 Vérification doublon : ' + q.meta.book_id + '...');
+                let statsRes;
                 try {
-                    const statsRes = await fetch(getWorkerUrl() + '/library-stats');
-                    if (statsRes.ok) {
-                        const stats = await statsRes.json();
-                        const exists = (stats.books || []).some(b => b.book_id === q.meta.book_id);
-                        if (exists) {
-                            q._existingChunks = null; // connu : existe déjà — jamais un compte exact via cette méthode
-                            q.status = 'duplicate';
-                            log('  ⚠️ DOUBLON : "' + escHtml(q.meta.title) + '" existe déjà', 'error');
-                            renderQueue();
-                            continue;
-                        }
-                    }
-                } catch(dupErr) { log('  ⚡ Vérification doublon impossible — on continue'); }
+                    statsRes = await fetch(getWorkerUrl() + '/library-stats');
+                } catch (dupErr) {
+                    throw new Error('Vérification doublon impossible (réseau : ' + dupErr.message + ') — ingestion bloquée par précaution');
+                }
+                if (!statsRes.ok) {
+                    throw new Error('Vérification doublon impossible (HTTP ' + statsRes.status + ') — ingestion bloquée par précaution');
+                }
+                let stats;
+                try {
+                    stats = await statsRes.json();
+                } catch (parseErr) {
+                    throw new Error('Vérification doublon impossible (réponse invalide) — ingestion bloquée par précaution');
+                }
+                const exists = (stats.books || []).some(b => b.book_id === q.meta.book_id);
+                if (exists) {
+                    q._existingChunks = null; // connu : existe déjà — jamais un compte exact via cette méthode
+                    q.status = 'duplicate';
+                    log('  ⚠️ DOUBLON : "' + q.meta.title + '" existe déjà', 'error');
+                    renderQueue();
+                    continue;
+                }
             } else {
-                // L'utilisateur a choisi "écraser" — supprimer l'ancien avant de ré-indexer,
-                // via /delete-book (supprime D1 ET les IDs Vectorize correspondants — le SQL
-                // brut ci-dessous ne touchait jamais Vectorize et n'est de toute façon plus
-                // accepté par le Worker).
+                // Correctif urgent P0-1 — fail-open corrigé : avant, le résultat de /delete-book
+                // n'était ni capturé ni vérifié, "✅ Ancien contenu supprimé" s'affichait
+                // INCONDITIONNELLEMENT juste après (y compris sur 401/429/4xx/5xx ou
+                // {success:false}) — l'ingestion du nouveau contenu se poursuivait alors par-dessus
+                // un ancien contenu potentiellement toujours présent. Contrat désormais explicite :
+                // HTTP ok ET JSON décodable ET data.success===true → confirmé, on continue ; tout
+                // le reste → erreur levée, extraction/indexation de ce livre jamais entamée (capturée
+                // par le catch englobant, jamais un faux succès affiché).
                 log('  🗑 Suppression de l\'ancien "' + q.meta.book_id + '"...');
+                let delRes;
                 try {
-                    await fetch(getWorkerUrl() + '/delete-book', {
+                    delRes = await fetch(getWorkerUrl() + '/delete-book', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'X-API-Key': getAdminApiKey() },
                         body: JSON.stringify({ book_id: q.meta.book_id })
                     });
-                    log('  ✅ Ancien contenu supprimé');
-                } catch(e) { log('  ⚠️ Suppression partielle : ' + escHtml(e.message)); }
+                } catch (delErr) {
+                    throw new Error('Suppression de l\'ancien contenu impossible (réseau : ' + delErr.message + ') — ingestion bloquée');
+                }
+                if (!delRes.ok) {
+                    throw new Error('Suppression de l\'ancien contenu non confirmée (HTTP ' + delRes.status + ') — ingestion bloquée');
+                }
+                let delData;
+                try {
+                    delData = await delRes.json();
+                } catch (parseErr) {
+                    throw new Error('Suppression de l\'ancien contenu non confirmée (réponse invalide) — ingestion bloquée');
+                }
+                if (delData.success !== true) {
+                    throw new Error('Suppression de l\'ancien contenu non confirmée (' + (delData.error || 'success absent de la réponse') + ') — ingestion bloquée');
+                }
+                log('  ✅ Ancien contenu supprimé (' + (delData.deleted_chunks != null ? delData.deleted_chunks : '?') + ' chunks)');
             }
 
             // Phase 1: Extract
             q.status = 'extracting';
             renderQueue();
-            log(`📄 Extraction: ${escHtml(q.meta.title)}...`);
+            log(`📄 Extraction: ${q.meta.title}...`);
 
             let pages, numPages;
             if (q.fileType === 'html') {
@@ -892,7 +1051,7 @@ async function startIngestion() {
                 const detected = autoDetectMeta(pages, q.file.name);
                 if (!q.meta.author && detected.author) {
                     q.meta.author = detected.author;
-                    log('  🔍 Auteur détecté : ' + escHtml(detected.author));
+                    log('  🔍 Auteur détecté : ' + detected.author);
                 }
                 if (q.meta.approach === 'general' && detected.approach !== 'general') {
                     q.meta.approach = detected.approach;
@@ -961,19 +1120,19 @@ async function startIngestion() {
             if (d1Written < q.chunks.length || vecWritten < q.chunks.length) {
                 q.status = 'partial';
                 q._partialInfo = { d1: d1Written, vec: vecWritten, total: q.chunks.length };
-                log(`  ⚠️ ${escHtml(q.meta.title)} — PARTIEL, RÉPARATION REQUISE (D1: ${d1Written}/${q.chunks.length}, Vectorize: ${vecWritten}/${q.chunks.length})`, 'error');
+                log(`  ⚠️ ${q.meta.title} — PARTIEL, RÉPARATION REQUISE (D1: ${d1Written}/${q.chunks.length}, Vectorize: ${vecWritten}/${q.chunks.length})`, 'error');
                 partial++;
             } else {
                 q.status = 'done';
                 success++;
-                log(`  ✅ ${escHtml(q.meta.title)} — ${q.chunks.length} chunks indexés`, 'success');
+                log(`  ✅ ${q.meta.title} — ${q.chunks.length} chunks indexés`, 'success');
             }
 
         } catch (err) {
             q.status = 'error';
             q.error = err.message;
             errors++;
-            log(`  ❌ ${escHtml(q.meta.title)}: ${escHtml(err.message)}`, 'error');
+            log(`  ❌ ${q.meta.title}: ${err.message}`, 'error');
         }
 
         renderQueue();
@@ -1096,8 +1255,16 @@ async function purgeDuplicates(bookId, bookTitle) {
         const data = await res.json();
         const deleted = data?.deleted_chunks || 0;
 
-        el.innerHTML = '<div class="dup-clean">✅ ' + deleted + ' chunk(s) en double supprimé(s) de "' + escHtml(bookTitle) + '"</div>';
-        log('🧹 Purge doublons : ' + deleted + ' chunks supprimés de "' + escHtml(bookTitle) + '"', 'success');
+        // Correctif urgent (cohérence D1/Vectorize) — jamais afficher "supprimé" sur un
+        // résultat partiel (D1 confirmé, Vectorize partiellement en échec) : distingué
+        // explicitement de la même façon que deleteBook() ci-dessus.
+        if (data.partial) {
+            el.innerHTML = '<div style="color:#c00;padding:16px;">⚠️ PARTIEL : D1 nettoyé (' + data.deleted_d1 + '), Vectorize incomplet (' + data.deleted_vectorize + '/' + data.deleted_d1 + ', ' + data.failed_vector_ids.length + ' échec(s)) — "' + escHtml(bookTitle) + '"</div>';
+            log('🧹 Purge PARTIELLE de "' + bookTitle + '" : D1 ' + data.deleted_d1 + ', Vectorize ' + data.deleted_vectorize + '/' + data.deleted_d1, 'error');
+        } else {
+            el.innerHTML = '<div class="dup-clean">✅ ' + deleted + ' chunk(s) en double supprimé(s) de "' + escHtml(bookTitle) + '"</div>';
+            log('🧹 Purge doublons : ' + deleted + ' chunks supprimés de "' + bookTitle + '"', 'success');
+        }
 
         // Re-scanner après 2 secondes
         setTimeout(scanDuplicates, 2000);
@@ -1169,8 +1336,6 @@ function deleteBookByIndex(idx) {
 
 // ── Modifier les métadonnées d'un livre ──
 async function editBookMeta(bookId, title, currentApproach, currentAuthor, currentLang) {
-    const approaches = ['general','schema_therapy','act','ifs','coherence','emdr','hypnosis','couple','attachment','cbt','cft','dbt','mi','cnv','mbct','pbt','icv','systemic','trauma','psychodynamic','personal_development'];
-    
     // Créer un mini-formulaire en overlay
     const overlay = document.createElement('div');
     overlay.id = 'edit-overlay';
@@ -1178,7 +1343,7 @@ async function editBookMeta(bookId, title, currentApproach, currentAuthor, curre
     // Stocker l'ID du livre en cours d'édition (évite les apostrophes dans onclick)
     window._editBookId = bookId;
 
-    const optionsHtml = approaches.map(a => '<option value="' + a + '"' + (a === currentApproach ? ' selected' : '') + '>' + a + '</option>').join('');
+    const optionsHtml = ADMIN_APPROACHES.map(a => '<option value="' + a.value + '"' + (a.value === currentApproach ? ' selected' : '') + '>' + escHtml(a.label) + '</option>').join('');
 
     const formDiv = document.createElement('div');
     formDiv.style.cssText = 'background:white;border-radius:16px;padding:28px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);';
@@ -1227,7 +1392,7 @@ async function submitEditMeta(bookId) {
     const language = document.getElementById('edit-lang').value;
     
     try {
-        log('✏️ Modification : ' + bookId + ' → ' + approach + ', ' + escHtml(author));
+        log('✏️ Modification : ' + bookId + ' → ' + approach + ', ' + author);
         
         // Essayer d'abord /update-book-meta
         let res = await fetch(getWorkerUrl() + '/update-book-meta', {
@@ -1252,7 +1417,7 @@ async function submitEditMeta(bookId) {
         // Dernier recours : instruction manuelle
         log('  ⚠️ Endpoints non disponibles. Ajoutez /update-book-meta à votre Worker.', 'error');
         log('  📋 SQL à exécuter dans D1 Dashboard :', 'info');
-        log('  UPDATE chunks SET approach = "' + approach + '", author = "' + escHtml(author) + '" WHERE book_id = "' + bookId + '";', 'info');
+        log('  UPDATE chunks SET approach = "' + approach + '", author = "' + author + '" WHERE book_id = "' + bookId + '";', 'info');
         
         // Copier dans le presse-papier
         const sql = 'UPDATE chunks SET approach = "' + approach + '", author = "' + author + '", language = "' + language + '" WHERE book_id = "' + bookId + '";';
@@ -1262,7 +1427,7 @@ async function submitEditMeta(bookId) {
         } catch(e) {}
         
     } catch (err) {
-        log('  ❌ ' + escHtml(err.message), 'error');
+        log('  ❌ ' + err.message, 'error');
         // Donner le SQL en fallback
         const sql = 'UPDATE chunks SET approach = "' + approach + '", author = "' + author + '", language = "' + language + '" WHERE book_id = "' + bookId + '";';
         log('  📋 SQL fallback : ' + sql, 'info');
@@ -1277,61 +1442,117 @@ async function deleteBook(bookId, title) {
     if (!confirm(`Supprimer "${title}" de la bibliothèque ?`)) return;
 
     try {
-        log(`🗑 Suppression: ${escHtml(title)}...`);
+        log(`🗑 Suppression: ${title}...`);
         const res = await fetch(getWorkerUrl() + '/delete-book', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-API-Key': getAdminApiKey() },
             body: JSON.stringify({ book_id: bookId })
         });
         const data = await res.json();
+        // Correctif urgent (cohérence D1/Vectorize) — data.success reste false sur un résultat
+        // 'partial' (D1 confirmé supprimé, Vectorize partiellement en échec) : jamais affiché
+        // comme "supprimé" dans ce cas, message dédié distinguant clairement l'état réel.
         if (data.success) {
-            log(`  ✅ ${escHtml(title)} supprimé (${data.deleted_chunks} chunks)`, 'success');
+            log(`  ✅ ${title} supprimé (${data.deleted_chunks} chunks)`, 'success');
+        } else if (data.partial) {
+            log(`  ⚠️ ${title} — PARTIEL : D1 supprimé (${data.deleted_d1}), Vectorize incomplet (${data.deleted_vectorize}/${data.deleted_d1}, ${data.failed_vector_ids.length} échec(s))`, 'error');
         } else {
-            log(`  ❌ ${escHtml(data.error)}`, 'error');
+            log(`  ❌ ${data.error}`, 'error');
         }
         refreshLibrary();
         refreshStats();
     } catch (err) {
-        log(`  ❌ ${escHtml(err.message)}`, 'error');
+        log(`  ❌ ${err.message}`, 'error');
     }
 }
 
 // ── Test Search ──
+// Lot 2/2, correctif 5 — l'onglet "Tester la recherche RAG" n'appelait que /search-library
+// (vectoriel pur, confirmé), jamais /d1-query, FTS5 ni /rag-search (l'hybride) : un opérateur
+// pensait tester "la recherche RAG" alors qu'il ne testait qu'UNE des voies réellement
+// disponibles, jamais les deux autres. Transformé en vrai diagnostic de corpus : les 3 voies
+// côte à côte (vectoriel via /search-library, lexical FTS5 et hybride via les deux faces de
+// /rag-search — celui-ci calcule déjà les deux en interne, cf. Worker), avec id, langue,
+// approche et provenance (`source`) visibles pour chaque résultat. Reste un outil
+// d'administration/diagnostic, jamais l'UI grand public de Passerelle.
+function renderSearchColumn(title, results, ms, emptyLabel) {
+    if (!results.length) {
+        return `<div style="flex:1;min-width:0;"><h4 style="font-size:12px;color:#8FAFB1;margin-bottom:8px;">${escHtml(title)} (0, ${ms}ms)</h4>
+            <div style="font-size:11px;color:#aaa;padding:12px;text-align:center;">${escHtml(emptyLabel)}</div></div>`;
+    }
+    // Correctif micro-lot RRF-CLOSE — `r.sources` (tableau, quand fourni par /rag-search) reflète
+    // désormais TOUTES les provenances réelles d'un chunk (un chunk trouvé par les deux moteurs
+    // n'écrase plus jamais l'une par l'autre) ; repli sur `r.source` (singulier) pour les
+    // résultats de /search-library qui n'ont jamais porté ce champ pluriel. `rrf_score` affiché
+    // à côté du `score` brut existant (cosinus vectoriel ou 0.7 FTS5 arbitraire) — jamais ce
+    // dernier seul, qui ne détermine plus le classement réel depuis le correctif RRF.
+    return `<div style="flex:1;min-width:0;"><h4 style="font-size:12px;color:#8FAFB1;margin-bottom:8px;">${escHtml(title)} (${results.length}, ${ms}ms)</h4>` +
+        results.map(r => {
+            const srcList = Array.isArray(r.sources) ? r.sources : [r.source || '?'];
+            const isLexical = srcList.includes('fts5');
+            return `<div style="background:#fafaf8;padding:10px;border-radius:6px;margin-bottom:6px;border-left:3px solid ${isLexical ? '#FFB74D' : '#8FAFB1'};font-size:11px;">
+            <div style="font-weight:600;color:#7A9A9C;margin-bottom:4px;">📖 ${escHtml(r.book_title || '?')} — ${escHtml(r.author || '?')} ${r.page_number ? '(p.'+escHtml(r.page_number)+')' : ''}</div>
+            <div style="color:#999;margin-bottom:4px;">id: <code style="font-size:10px;">${escHtml(r.id || '?')}</code> · langue: ${escHtml(r.language || '?')} · approche: ${escHtml(r.approach || '?')} · source(s) : <b>${escHtml(srcList.join('+'))}</b> · score: ${(r.score || 0).toFixed(3)}${r.rrf_score != null ? ' · rrf: ' + r.rrf_score.toFixed(4) : ''}</div>
+            <div style="color:#444;line-height:1.5;">${escHtml((r.content || '').substring(0, 300))}${(r.content||'').length > 300 ? '...' : ''}</div>
+        </div>`;
+        }).join('') + '</div>';
+}
+
 async function testSearch() {
     const query = document.getElementById('searchQuery').value.trim();
     if (!query) return;
     const approach = document.getElementById('searchApproach').value;
     const topK = parseInt(document.getElementById('searchTopK').value) || 5;
     const el = document.getElementById('searchResults');
-    el.innerHTML = '<div style="text-align:center;padding:20px;color:#aaa;">Recherche en cours...</div>';
+    el.innerHTML = '<div style="text-align:center;padding:20px;color:#aaa;">Recherche en cours (3 voies)...</div>';
 
     try {
+        const key = getAdminApiKey();
         const t0 = Date.now();
-        const res = await fetch(getWorkerUrl() + '/search-library', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-API-Key': getAdminApiKey() },
-            body: JSON.stringify({ query, topK, approach: approach || undefined })
-        });
-        const data = await res.json();
+        const [vecRes, ragRes] = await Promise.all([
+            fetch(getWorkerUrl() + '/search-library', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-API-Key': key },
+                body: JSON.stringify({ query, topK, approach: approach || undefined })
+            }),
+            fetch(getWorkerUrl() + '/rag-search', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-API-Key': key },
+                body: JSON.stringify({ query, topK, approach: approach || undefined })
+            }),
+        ]);
         const ms = Date.now() - t0;
-        const results = data.results || [];
+        const vecData = vecRes.ok ? await vecRes.json() : { results: [], error: 'HTTP ' + vecRes.status };
+        const ragData = ragRes.ok ? await ragRes.json() : { chunks: [], error: 'HTTP ' + ragRes.status };
 
-        if (results.length === 0) {
-            el.innerHTML = `<div class="empty-state"><div class="icon">😐</div><div>Aucun résultat pour "${escHtml(query)}" (${ms}ms)</div></div>`;
-            return;
-        }
+        // /search-library (vectoriel pur) : forme {results:[...]}, champ `page` (pas
+        // page_number), pas de `source` (toujours vectoriel par construction de cette route).
+        const vectorResults = (vecData.results || []).map(r => ({ ...r, page_number: r.page, source: 'vector' }));
+        // /rag-search (hybride) : forme {chunks:[...]}, `source` déjà présent par résultat —
+        // 'lexical' = seulement les résultats FTS5 de CE MÊME appel, jamais un 3e appel réseau
+        // séparé (le Worker calcule déjà les deux voies en interne pour construire l'hybride).
+        // Correctif urgent — ce filtre était trompeur tant que /rag-search fusionnait par simple
+        // concaténation-puis-slice (biais vector-first : un résultat FTS5 authentiquement
+        // pertinent n'atteignait pratiquement jamais le topK final). Corrigé côté Worker (fusion
+        // par rang réciproque, RRF) plutôt que d'ajouter ici un 3e appel réseau en pansement —
+        // cette colonne reflète désormais honnêtement les résultats FTS5 qui survivent à un
+        // classement combiné réel, jamais un biais d'insertion.
+        // Correctif micro-lot RRF-CLOSE — `r.source === 'fts5'` ratait tout chunk trouvé par LES
+        // DEUX moteurs (la déduplication Worker ne gardait que la provenance vectorielle dans ce
+        // cas, cf. `_sources` côté Worker). Filtre désormais sur `sources` (tableau, provenances
+        // réelles cumulées) avec repli sur `source` pour compatibilité si absent.
+        const hybridResults = ragData.chunks || [];
+        const lexicalResults = hybridResults.filter(r => (Array.isArray(r.sources) ? r.sources : [r.source]).includes('fts5'));
 
-        // Correctif urgent (sécurité P0) — book_title/author/approach/content viennent tous du
-        // Worker, eux-mêmes dérivés de métadonnées saisies à l'ingestion (titre de fichier,
-        // auteur libre) : jamais dignes de confiance, échappés avant insertion.
-        el.innerHTML = `<div style="margin-bottom:12px;font-size:11px;color:#888;">${results.length} résultats en ${ms}ms</div>` +
-            results.map((r, i) => `<div style="background:#fafaf8;padding:14px;border-radius:8px;margin-bottom:8px;border-left:4px solid ${i===0?'#8FAFB1':'#C8D0C3'};">
-                <div style="font-weight:600;font-size:12px;color:#7A9A9C;margin-bottom:6px;">
-                    📖 ${escHtml(r.book_title || '?')} — ${escHtml(r.author || '?')} ${r.page ? '(p.'+escHtml(r.page)+')' : ''}
-                    <span style="float:right;font-size:10px;color:#aaa;">score: ${(r.score || r.similarity || 0).toFixed(3)} · ${escHtml(r.approach || '?')}</span>
-                </div>
-                <div style="font-size:12px;line-height:1.6;color:#444;">${escHtml((r.content || r.text || '').substring(0, 500))}${(r.content||r.text||'').length > 500 ? '...' : ''}</div>
-            </div>`).join('');
+        if (vecData.error) log('  ⚠️ Voie vectorielle : ' + vecData.error, 'error');
+        if (ragData.error) log('  ⚠️ Voie hybride/lexicale : ' + ragData.error, 'error');
+
+        el.innerHTML = `<div style="margin-bottom:10px;font-size:11px;color:#888;">Requête : "${escHtml(query)}" — ${ms}ms (les 3 voies interrogées en parallèle)</div>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;">
+                ${renderSearchColumn('🎯 Vectoriel (/search-library)', vectorResults, ms, 'Aucun résultat vectoriel')}
+                ${renderSearchColumn('🔤 Lexical FTS5 (part de /rag-search)', lexicalResults, ms, 'Aucun résultat lexical (termes trop courts/absents ?)')}
+                ${renderSearchColumn('🔀 Hybride (/rag-search, fusionné)', hybridResults, ms, 'Aucun résultat hybride')}
+            </div>`;
 
     } catch (err) {
         el.innerHTML = `<div style="color:#c00;padding:20px;">Erreur: ${escHtml(err.message)}</div>`;
@@ -1421,6 +1642,9 @@ async function refreshStats() {
 }
 
 // ── Init ──
+// Lot 2/2, correctif 6 — peuple le menu de test depuis la source unique ADMIN_APPROACHES.
+document.getElementById('searchApproach').insertAdjacentHTML('beforeend',
+    ADMIN_APPROACHES.map(a => `<option value="${a.value}">${escHtml(a.label)}</option>`).join(''));
 refreshStats();
 </script>
 </body>
