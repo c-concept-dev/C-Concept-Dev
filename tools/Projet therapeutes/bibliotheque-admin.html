@@ -104,6 +104,7 @@
         }
         .queue-item.processing { border-left-color: #8FAFB1; background: #f0f6f6; }
         .queue-item.done { border-left-color: #27ae60; }
+        .queue-item.partial { border-left-color: #FFA726; background: #FFF8E1; }
         .queue-item.error { border-left-color: #e74c3c; }
         .qi-icon { font-size: 20px; }
         .qi-info { flex: 1; }
@@ -219,7 +220,14 @@
     <!-- CONFIG -->
     <div class="config-bar">
         <label>Worker URL</label>
-        <input type="text" id="workerUrl" value="https://clone-proxy.11drumboy11.workers.dev" placeholder="https://clone-proxy.xxx.workers.dev">
+        <!-- Correctif urgent (sécurité P0) — champ libre remplacé par une liste blanche : une
+             saisie libre envoyait la clé X-API-Key (cf. getAdminApiKey) à N'IMPORTE QUELLE URL
+             tapée ici. Seule l'URL de production réelle (clone-proxy, cf. wrangler.toml) est
+             listée — en ajouter une nouvelle exige une modification explicite de ce code, jamais
+             une simple saisie utilisateur. -->
+        <select id="workerUrl" style="flex:1;min-width:250px;padding:8px 12px;border:2px solid #D8CDBB;border-radius:8px;font-family:monospace;font-size:12px;">
+            <option value="https://clone-proxy.11drumboy11.workers.dev">https://clone-proxy.11drumboy11.workers.dev (production)</option>
+        </select>
         <button class="btn-refresh" onclick="refreshStats()">🔄 Actualiser</button>
     </div>
 
@@ -469,17 +477,35 @@ function getWorkerUrl() {
 // désormais X-API-Key sur toute route non explicitement publique — /library-stats reste
 // publique (aucune clé nécessaire), mais /d1-query, /ingest, /update-book-meta, /delete-book et
 // /search-library l'exigent maintenant. Sans cet en-tête, ces routes renvoient
-// {"error":"Unauthorized"} — c'est ce qui a cassé la recherche dans cet outil sans avertissement.
-// /d1-query exécute du SQL transmis tel quel par le client : la garder derrière une clé (même
-// minimale) reste nettement préférable à la rendre publique sans aucune protection.
-// Même clé que Studio Clinique — voir studio-clinique.html, adocGetApiKey(), même valeur en
-// dernier recours pendant la phase de test/construction active.
+// {"error":"Unauthorized"}.
+// Correctif urgent (sécurité P0) — la clé était codée en dur ici (même préalable déjà identifié
+// pour Studio Clinique côté client) : n'importe qui affichant le code source de cette page peut
+// la lire et appeler le Worker directement (dont /delete-book, /ingest — jamais un enjeu
+// mineur). Retirée sans repli en dur : demandée une seule fois via prompt(), puis mémorisée en
+// localStorage pour les appels suivants. Une clé absente/refusée fait simplement échouer les
+// appels protégés avec Unauthorized — comportement honnête plutôt qu'un accès ouvert par défaut.
 function getAdminApiKey() {
-    return '7005f3fe8b04dfde1299be47d75a6648f65c4f06c178b2c8';
+    let key = localStorage.getItem('adminApiKey');
+    if (!key) {
+        key = prompt('Clé API du Worker (X-API-Key) — nécessaire pour toutes les routes sauf /library-stats :');
+        if (key) localStorage.setItem('adminApiKey', key.trim());
+    }
+    return key ? key.trim() : null;
 }
 
-// Helper: échapper les apostrophes pour les attributs onclick
-function esc(s) { return (s || '').replace(/'/g, "\\'"); }
+// Correctif urgent (sécurité P0) — échappement HTML complet. `esc()` n'échappait que les
+// apostrophes (et n'était en réalité jamais appelé avant ce correctif — code mort) : tout
+// contenu variable inséré via innerHTML (titres, auteurs, approches, contenu de passages,
+// requête saisie, messages d'erreur) doit désormais passer par escHtml(), jamais par
+// concaténation brute — sans quoi un titre de livre contenant <script> s'exécuterait tel quel.
+function escHtml(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
 
 
 // ── Drag & Drop ──
@@ -533,23 +559,31 @@ function addFiles(files) {
 function renderQueue() {
     const el = document.getElementById('queue');
     el.innerHTML = queue.map(q => {
-        const icon = q.status === 'done' ? '✅' : q.status === 'error' ? '❌' :
+        const icon = q.status === 'done' ? '✅' : q.status === 'partial' ? '⚠️' : q.status === 'error' ? '❌' :
                      q.status === 'extracting' ? '📄' : q.status === 'uploading' ? '☁️' : '📄';
-        const statusCls = q.status === 'done' ? 'done' : q.status === 'error' ? 'error' :
+        const statusCls = q.status === 'done' ? 'done' : q.status === 'partial' ? 'partial' : q.status === 'error' ? 'error' :
                           (q.status === 'extracting' || q.status === 'uploading') ? 'processing' : '';
 
+        // Correctif SQL→structuré : _existingChunks n'est plus jamais un compte exact
+        // (/library-stats donne seulement "existe/n'existe pas") — jamais afficher un nombre
+        // inventé quand seul le booléen est connu.
+        const dupChunkText = (typeof q._existingChunks === 'number' && q._existingChunks > 1)
+            ? ` (${q._existingChunks} chunks)` : '';
         let statusText = '';
         if (q.status === 'pending') statusText = `${(q.file.size/(1024*1024)).toFixed(1)} Mo — en attente`;
-        else if (q.status === 'duplicate') statusText = `<span class="err">⚠️ Doublon (${q._existingChunks} chunks)</span>`;
+        else if (q.status === 'duplicate') statusText = `<span class="err">⚠️ Doublon${dupChunkText}</span>`;
         else if (q.status === 'extracting') statusText = 'Extraction du texte...';
         else if (q.status === 'uploading') statusText = `Indexation ${q.chunks.length} chunks...`;
         else if (q.status === 'done') statusText = `<span class="ok">✓ ${q.chunks.length} chunks indexés</span>`;
-        else if (q.status === 'error') statusText = `<span class="err">✗ ${q.error}</span>`;
+        // Correctif urgent — ingestion partielle désormais détectée (cf. startIngestion) et
+        // affichée explicitement, jamais confondue avec un succès complet ('done' ci-dessus).
+        else if (q.status === 'partial') statusText = `<span class="err">⚠️ PARTIEL — RÉPARATION REQUISE (D1: ${q._partialInfo.d1}/${q._partialInfo.total}, Vectorize: ${q._partialInfo.vec}/${q._partialInfo.total})</span>`;
+        else if (q.status === 'error') statusText = `<span class="err">✗ ${escHtml(q.error)}</span>`;
 
         return `<div class="queue-item ${statusCls}" id="qi-${q.id}">
             <div class="qi-icon">${icon}</div>
             <div class="qi-info">
-                <div class="qi-name">${q.meta.title}</div>
+                <div class="qi-name">${escHtml(q.meta.title)}</div>
                 <div class="qi-status">${statusText}</div>
                 ${(q.status === 'extracting' || q.status === 'uploading') ?
                     `<div class="qi-progress"><div class="qi-progress-fill" id="qp-${q.id}"></div></div>` : ''}
@@ -572,7 +606,7 @@ function renderMetaForm(q) {
             <option value="fr" ${q.meta.language==='fr'?'selected':''}>FR</option>
             <option value="en" ${q.meta.language==='en'?'selected':''}>EN</option>
         </select>
-        <input type="text" placeholder="Auteur" value="${q.meta.author}"
+        <input type="text" placeholder="Auteur" value="${escHtml(q.meta.author)}"
             onchange="updateMeta('${q.id}','author',this.value)"
             style="padding:4px 6px;border:1px solid #ddd;border-radius:4px;font-size:11px;width:120px;">
     </div>`;
@@ -788,59 +822,51 @@ async function startIngestion() {
     const pending = queue.filter(q => q.status === 'pending' || q.status === 'error');
     // Filtrer ceux marqués 'skip' par l'utilisateur
     const toProcess = pending.filter(q => q._dupAction !== 'skip');
-    let success = 0, errors = 0;
+    let success = 0, errors = 0, partial = 0;
 
     for (const q of toProcess) {
         try {
-            // Phase 0: Vérification doublons — essaie /d1-query, fallback /library-stats
+            // Phase 0: Vérification doublons — /d1-query n'accepte plus de SQL brut (Worker
+            // durci, {terms/authors/book_title/limit} seulement, aucune clé book_id exacte
+            // exposée) : /library-stats reste la seule méthode, un contrôle "existe déjà"
+            // (booléen) plutôt qu'un compte exact — jugé suffisant, la bannière ci-dessous
+            // n'affiche plus jamais de nombre de chunks inventé (cf. _existingChunks/renderDupAlerts).
             if (q._dupAction !== 'overwrite') {
                 log('  🔎 Vérification doublon : ' + q.meta.book_id + '...');
                 try {
-                    let existing = 0;
-                    // Méthode 1 : /d1-query (précis)
-                    const dupRes = await fetch(getWorkerUrl() + '/d1-query', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-API-Key': getAdminApiKey() },
-                        body: JSON.stringify({ sql: "SELECT COUNT(*) as cnt FROM chunks WHERE book_id = ?", params: [q.meta.book_id] })
-                    });
-                    if (dupRes.ok) {
-                        const dupData = await dupRes.json();
-                        existing = dupData?.results?.[0]?.cnt || 0;
-                    } else {
-                        // Fallback : /library-stats (toujours dispo)
-                        log('  ↪ Fallback /library-stats...');
-                        const statsRes = await fetch(getWorkerUrl() + '/library-stats');
-                        if (statsRes.ok) {
-                            const stats = await statsRes.json();
-                            const match = (stats.books || []).find(b => b.book_id === q.meta.book_id);
-                            if (match) existing = 1; // on sait juste qu'il existe
+                    const statsRes = await fetch(getWorkerUrl() + '/library-stats');
+                    if (statsRes.ok) {
+                        const stats = await statsRes.json();
+                        const exists = (stats.books || []).some(b => b.book_id === q.meta.book_id);
+                        if (exists) {
+                            q._existingChunks = null; // connu : existe déjà — jamais un compte exact via cette méthode
+                            q.status = 'duplicate';
+                            log('  ⚠️ DOUBLON : "' + escHtml(q.meta.title) + '" existe déjà', 'error');
+                            renderQueue();
+                            continue;
                         }
-                    }
-                    if (existing > 0) {
-                        q._existingChunks = existing;
-                        q.status = 'duplicate';
-                        log('  ⚠️ DOUBLON : "' + q.meta.title + '" existe déjà' + (existing > 1 ? ' (' + existing + ' chunks)' : '') , 'error');
-                        renderQueue();
-                        continue;
                     }
                 } catch(dupErr) { log('  ⚡ Vérification doublon impossible — on continue'); }
             } else {
-                // L'utilisateur a choisi "écraser" — supprimer l'ancien avant de ré-indexer
+                // L'utilisateur a choisi "écraser" — supprimer l'ancien avant de ré-indexer,
+                // via /delete-book (supprime D1 ET les IDs Vectorize correspondants — le SQL
+                // brut ci-dessous ne touchait jamais Vectorize et n'est de toute façon plus
+                // accepté par le Worker).
                 log('  🗑 Suppression de l\'ancien "' + q.meta.book_id + '"...');
                 try {
-                    await fetch(getWorkerUrl() + '/d1-query', {
+                    await fetch(getWorkerUrl() + '/delete-book', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'X-API-Key': getAdminApiKey() },
-                        body: JSON.stringify({ sql: "DELETE FROM chunks WHERE book_id = ?", params: [q.meta.book_id] })
+                        body: JSON.stringify({ book_id: q.meta.book_id })
                     });
                     log('  ✅ Ancien contenu supprimé');
-                } catch(e) { log('  ⚠️ Suppression partielle : ' + e.message); }
+                } catch(e) { log('  ⚠️ Suppression partielle : ' + escHtml(e.message)); }
             }
 
             // Phase 1: Extract
             q.status = 'extracting';
             renderQueue();
-            log(`📄 Extraction: ${q.meta.title}...`);
+            log(`📄 Extraction: ${escHtml(q.meta.title)}...`);
 
             let pages, numPages;
             if (q.fileType === 'html') {
@@ -866,7 +892,7 @@ async function startIngestion() {
                 const detected = autoDetectMeta(pages, q.file.name);
                 if (!q.meta.author && detected.author) {
                     q.meta.author = detected.author;
-                    log('  🔍 Auteur détecté : ' + detected.author);
+                    log('  🔍 Auteur détecté : ' + escHtml(detected.author));
                 }
                 if (q.meta.approach === 'general' && detected.approach !== 'general') {
                     q.meta.approach = detected.approach;
@@ -889,10 +915,24 @@ async function startIngestion() {
             // Send in batches of 20 chunks to avoid timeout
             const BATCH = 20;
             let totalSent = 0;
+            // Correctif urgent — le Worker avale déjà les erreurs D1/Vectorize par chunk
+            // (try/catch vide, cf. handleIngest) et renvoie chunks_d1/chunks_vectorize/
+            // total_chunks par lot — jamais lus jusqu'ici, seul le HTTP 200 comptait, donc une
+            // ingestion partielle (quelques chunks perdus en route) s'affichait comme un succès
+            // complet. Accumulés sur tous les lots du livre, comparés au total réellement
+            // envoyé une fois tous les lots traités.
+            let d1Written = 0, vecWritten = 0;
 
             for (let i = 0; i < q.chunks.length; i += BATCH) {
                 const batch = q.chunks.slice(i, i + BATCH).map((c, j) => ({
                     id: `${q.meta.book_id}-${i + j}`,
+                    // Correctif urgent — chunk_index global explicite (même valeur que le
+                    // suffixe de `id` ci-dessus). Avant : jamais transmis, le Worker le
+                    // recalculait localement sur CE lot de 20 (0..19 à chaque appel /ingest),
+                    // provoquant des doublons book_id+chunk_index dès qu'un livre dépasse 20
+                    // chunks — cassant le dédoublonnage FTS5. `i` est l'indice global de la
+                    // boucle externe (avant découpage en lots), jamais un indice local au lot.
+                    chunk_index: i + j,
                     content: c.content,
                     page: c.page,
                     page_end: c.page_end || c.page,
@@ -909,20 +949,31 @@ async function startIngestion() {
                     throw new Error(`Worker error ${res.status}: ${err.substring(0, 100)}`);
                 }
 
+                const resData = await res.json();
+                d1Written += resData.chunks_d1 || 0;
+                vecWritten += resData.chunks_vectorize || 0;
+
                 totalSent += batch.length;
                 const bar = document.getElementById('qp-' + q.id);
                 if (bar) bar.style.width = Math.round((totalSent / q.chunks.length) * 100) + '%';
             }
 
-            q.status = 'done';
-            success++;
-            log(`  ✅ ${q.meta.title} — ${q.chunks.length} chunks indexés`, 'success');
+            if (d1Written < q.chunks.length || vecWritten < q.chunks.length) {
+                q.status = 'partial';
+                q._partialInfo = { d1: d1Written, vec: vecWritten, total: q.chunks.length };
+                log(`  ⚠️ ${escHtml(q.meta.title)} — PARTIEL, RÉPARATION REQUISE (D1: ${d1Written}/${q.chunks.length}, Vectorize: ${vecWritten}/${q.chunks.length})`, 'error');
+                partial++;
+            } else {
+                q.status = 'done';
+                success++;
+                log(`  ✅ ${escHtml(q.meta.title)} — ${q.chunks.length} chunks indexés`, 'success');
+            }
 
         } catch (err) {
             q.status = 'error';
             q.error = err.message;
             errors++;
-            log(`  ❌ ${q.meta.title}: ${err.message}`, 'error');
+            log(`  ❌ ${escHtml(q.meta.title)}: ${escHtml(err.message)}`, 'error');
         }
 
         renderQueue();
@@ -939,7 +990,7 @@ async function startIngestion() {
         return;
     }
 
-    log(`\n═══ Terminé: ${success} réussi(s), ${errors} erreur(s) ═══`, success > 0 ? 'success' : 'error');
+    log(`\n═══ Terminé: ${success} réussi(s), ${partial} partiel(s), ${errors} erreur(s) ═══`, success > 0 ? 'success' : 'error');
 
     btn.disabled = false;
     btn.textContent = '⚡ Indexer tout';
@@ -963,9 +1014,15 @@ function renderDupAlerts() {
     const dups = queue.filter(q => q.status === 'duplicate');
     if (dups.length === 0) { el.innerHTML = ''; return; }
     el.innerHTML = dups.map(q => {
+        // Correctif SQL→structuré : _existingChunks n'est plus jamais un compte exact
+        // (/library-stats donne seulement "existe/n'existe pas") — ne jamais afficher de
+        // nombre inventé, seulement le cas où il est réellement connu (repli /d1-query
+        // supprimé, mais _existingChunks>1 resterait géré si une source future le fournit).
+        const chunkCountText = (typeof q._existingChunks === 'number' && q._existingChunks > 1)
+            ? ' (' + q._existingChunks + ' chunks)' : '';
         return '<div class="dup-banner">'
             + '<div class="dup-icon">⚠️</div>'
-            + '<div class="dup-text"><b>' + q.meta.title + '</b> existe déjà dans la base (' + q._existingChunks + ' chunks). Écraser ou ignorer ?</div>'
+            + '<div class="dup-text"><b>' + escHtml(q.meta.title) + '</b> existe déjà dans la base' + chunkCountText + '. Écraser ou ignorer ?</div>'
             + '<div class="dup-actions">'
             + '<button class="btn-overwrite" onclick="overwriteDuplicate(\''+q.id+'\')">♻️ Écraser</button>'
             + '<button class="btn-skip" onclick="skipDuplicate(\''+q.id+'\')">Ignorer</button>'
@@ -979,75 +1036,37 @@ async function scanDuplicates() {
     el.innerHTML = '<div style="text-align:center;padding:16px;color:#aaa;">🔍 Scan en cours...</div>';
 
     try {
-        // Chercher les book_id avec des chunks en double (même content dans le même livre)
-        const res = await fetch(getWorkerUrl() + '/d1-query', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-API-Key': getAdminApiKey() },
-            body: JSON.stringify({
-                sql: "SELECT book_id, book_title, content, COUNT(*) as cnt FROM chunks GROUP BY book_id, content HAVING cnt > 1 ORDER BY cnt DESC LIMIT 100"
-            })
+        // Correctif SQL→structuré : /d1-query n'accepte plus de SQL brut. Le scan (deux
+        // gabarits fixes : doublons de contenu, puis repli livres total>unique) est désormais
+        // exécuté côté Worker (handleFindDuplicates) — même résultat, transport structuré.
+        const res = await fetch(getWorkerUrl() + '/find-duplicates', {
+            headers: { 'X-API-Key': getAdminApiKey() }
         });
 
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
-        const results = data?.results || data?.[0]?.results || [];
+        const books = data?.books || [];
 
-        if (results.length === 0) {
-            // Vérifier aussi les livres entièrement dupliqués (même book_id, même nombre de chunks)
-            const res2 = await fetch(getWorkerUrl() + '/d1-query', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-API-Key': getAdminApiKey() },
-                body: JSON.stringify({
-                    sql: "SELECT book_id, book_title, COUNT(*) as total, COUNT(DISTINCT content) as unique_chunks FROM chunks GROUP BY book_id HAVING total > unique_chunks ORDER BY (total - unique_chunks) DESC"
-                })
-            });
-            const data2 = await res2.json();
-            const results2 = data2?.results || data2?.[0]?.results || [];
-
-            if (results2.length === 0) {
-                el.innerHTML = '<div class="dup-clean">✅ Aucun doublon détecté — la bibliothèque est propre !</div>';
-                return;
-            }
-
-            // Afficher les livres avec doublons internes
-            let html = '<div style="margin-bottom:12px;font-size:13px;color:#E65100;font-weight:600;">⚠️ ' + results2.length + ' livre(s) avec des chunks dupliqués :</div>';
-            window._dupBooks = results2;
-            results2.forEach(function(r, idx) {
-                const surplus = r.total - r.unique_chunks;
-                html += '<div class="dup-group">'
-                    + '<div class="dup-group-header"><span>📘 ' + r.book_title + '</span><span>' + r.total + ' chunks (' + surplus + ' doublons)</span></div>'
-                    + '<div class="dup-group-items"><div><span>Total chunks</span><span>' + r.total + '</span></div>'
-                    + '<div><span>Chunks uniques</span><span>' + r.unique_chunks + '</span></div>'
-                    + '<div><span>À supprimer</span><span style="color:#E65100;font-weight:700;">' + surplus + '</span></div></div>'
-                    + '<button onclick="purgeDupByIndex('+idx+')">'
-                    + '🧹 Purger les doublons</button></div>';
-            });
-            el.innerHTML = html;
+        if (books.length === 0) {
+            el.innerHTML = '<div class="dup-clean">✅ Aucun doublon détecté — la bibliothèque est propre !</div>';
             return;
         }
 
-        // Regrouper par book_id
-        const groups = {};
-        results.forEach(function(r) {
-            if (!groups[r.book_id]) groups[r.book_id] = { title: r.book_title, duplicates: 0 };
-            groups[r.book_id].duplicates += (r.cnt - 1);
-        });
-
-        let html = '<div style="margin-bottom:12px;font-size:13px;color:#E65100;font-weight:600;">⚠️ ' + Object.keys(groups).length + ' livre(s) avec des doublons :</div>';
-        window._dupBooks = Object.entries(groups).map(function(entry) { return { book_id: entry[0], book_title: entry[1].title, duplicates: entry[1].duplicates }; });
-        window._dupBooks.forEach(function(g, idx) {
+        let html = '<div style="margin-bottom:12px;font-size:13px;color:#E65100;font-weight:600;">⚠️ ' + books.length + ' livre(s) avec des doublons :</div>';
+        window._dupBooks = books;
+        books.forEach(function(g, idx) {
             html += '<div class="dup-group">'
-                + '<div class="dup-group-header"><span>📘 ' + g.book_title + '</span><span>' + g.duplicates + ' chunks en double</span></div>'
+                + '<div class="dup-group-header"><span>📘 ' + escHtml(g.book_title) + '</span><span>' + g.duplicates + ' chunks en double</span></div>'
                 + '<button onclick="purgeDupByIndex('+idx+')">'
                 + '🧹 Purger les doublons</button></div>';
         });
         el.innerHTML = html;
 
     } catch(err) {
-        if (err.message.includes('400')) {
-            el.innerHTML = '<div style="color:#c00;padding:16px;">⚠️ Le Worker ne supporte pas /d1-query. Déployez la nouvelle version du Worker (clone-proxy-v2.js) pour activer le scan de doublons.</div>';
+        if (err.message.includes('404')) {
+            el.innerHTML = '<div style="color:#c00;padding:16px;">⚠️ Le Worker ne supporte pas /find-duplicates. Déployez la nouvelle version du Worker pour activer le scan de doublons.</div>';
         } else {
-            el.innerHTML = '<div style="color:#c00;padding:16px;">Erreur scan : ' + err.message + '</div>';
+            el.innerHTML = '<div style="color:#c00;padding:16px;">Erreur scan : ' + escHtml(err.message) + '</div>';
         }
     }
 }
@@ -1064,28 +1083,27 @@ async function purgeDuplicates(bookId, bookTitle) {
     el.innerHTML = '<div style="text-align:center;padding:16px;color:#aaa;">🧹 Purge en cours...</div>';
 
     try {
-        // Stratégie : pour chaque book_id, supprimer les doublons en gardant le rowid le plus petit
-        const res = await fetch(getWorkerUrl() + '/d1-query', {
+        // Correctif SQL→structuré : /purge-duplicates (Worker) garde le rowid le plus petit par
+        // contenu identique, ET nettoie Vectorize pour les IDs supprimés — le DELETE SQL brut
+        // précédent ne touchait jamais Vectorize (correctif explicitement demandé).
+        const res = await fetch(getWorkerUrl() + '/purge-duplicates', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-API-Key': getAdminApiKey() },
-            body: JSON.stringify({
-                sql: "DELETE FROM chunks WHERE rowid NOT IN (SELECT MIN(rowid) FROM chunks WHERE book_id = ? GROUP BY content) AND book_id = ?",
-                params: [bookId, bookId]
-            })
+            body: JSON.stringify({ book_id: bookId })
         });
 
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
-        const deleted = data?.meta?.changes || data?.[0]?.meta?.changes || 0;
+        const deleted = data?.deleted_chunks || 0;
 
-        el.innerHTML = '<div class="dup-clean">✅ ' + deleted + ' chunk(s) en double supprimé(s) de "' + bookTitle + '"</div>';
-        log('🧹 Purge doublons : ' + deleted + ' chunks supprimés de "' + bookTitle + '"', 'success');
+        el.innerHTML = '<div class="dup-clean">✅ ' + deleted + ' chunk(s) en double supprimé(s) de "' + escHtml(bookTitle) + '"</div>';
+        log('🧹 Purge doublons : ' + deleted + ' chunks supprimés de "' + escHtml(bookTitle) + '"', 'success');
 
         // Re-scanner après 2 secondes
         setTimeout(scanDuplicates, 2000);
 
     } catch(err) {
-        el.innerHTML = '<div style="color:#c00;padding:16px;">Erreur purge : ' + err.message + '</div>';
+        el.innerHTML = '<div style="color:#c00;padding:16px;">Erreur purge : ' + escHtml(err.message) + '</div>';
     }
 }
 
@@ -1110,16 +1128,19 @@ async function refreshLibrary() {
         // Stocker les livres globalement — les index numériques évitent les problèmes d'apostrophes
         window._libBooks = data.books;
 
+        // Correctif urgent (sécurité P0) — book_title/author/approach/language viennent tous du
+        // Worker (/library-stats), dérivés de métadonnées saisies à l'ingestion — jamais dignes
+        // de confiance, échappés avant insertion.
         let html = '<div style="margin-bottom:12px;font-size:12px;color:#888;">'
             + data.total_chunks + ' chunks · ' + data.books.length + ' livres · '
-            + data.by_approach.map(a => a.approach + ' (' + a.count + ')').join(', ')
+            + data.by_approach.map(a => escHtml(a.approach) + ' (' + a.count + ')').join(', ')
             + '</div><div class="book-grid">';
 
         data.books.forEach(function(b, idx) {
             html += '<div class="book-card">'
                 + '<div class="bc-info">'
-                + '<div class="bc-title">' + b.book_title + '</div>'
-                + '<div class="bc-meta">' + b.author + ' · <span class="bc-approach">' + b.approach + '</span> · ' + b.language.toUpperCase() + '</div>'
+                + '<div class="bc-title">' + escHtml(b.book_title) + '</div>'
+                + '<div class="bc-meta">' + escHtml(b.author) + ' · <span class="bc-approach">' + escHtml(b.approach) + '</span> · ' + escHtml((b.language || '').toUpperCase()) + '</div>'
                 + '</div>'
                 + '<div style="display:flex;gap:4px;">'
                 + '<button class="btn-delete" style="font-size:10px;padding:4px 8px;" onclick="editBookByIndex(' + idx + ')">✏️</button>'
@@ -1131,7 +1152,7 @@ async function refreshLibrary() {
         el.innerHTML = html;
 
     } catch (err) {
-        el.innerHTML = '<div style="color:#c00;padding:20px;">Erreur: ' + err.message + '</div>';
+        el.innerHTML = '<div style="color:#c00;padding:20px;">Erreur: ' + escHtml(err.message) + '</div>';
     }
 }
 
@@ -1171,7 +1192,7 @@ async function editBookMeta(bookId, title, currentApproach, currentAuthor, curre
         + '<div><label style="font-size:11px;color:#888;font-weight:600;display:block;margin-bottom:4px;">Approche thérapeutique</label>'
         + '<select id="edit-approach" style="width:100%;padding:8px 10px;border:2px solid #D8CDBB;border-radius:8px;font-size:13px;font-family:inherit;">' + optionsHtml + '</select></div>'
         + '<div><label style="font-size:11px;color:#888;font-weight:600;display:block;margin-bottom:4px;">Auteur</label>'
-        + '<input id="edit-author" type="text" value="' + (currentAuthor || '').replace(/"/g, '&quot;') + '" style="width:100%;padding:8px 10px;border:2px solid #D8CDBB;border-radius:8px;font-size:13px;font-family:inherit;"></div>'
+        + '<input id="edit-author" type="text" value="' + escHtml(currentAuthor || '') + '" style="width:100%;padding:8px 10px;border:2px solid #D8CDBB;border-radius:8px;font-size:13px;font-family:inherit;"></div>'
         + '<div><label style="font-size:11px;color:#888;font-weight:600;display:block;margin-bottom:4px;">Langue</label>'
         + '<select id="edit-lang" style="width:100%;padding:8px 10px;border:2px solid #D8CDBB;border-radius:8px;font-size:13px;font-family:inherit;">'
         + '<option value="fr"' + (currentLang === 'fr' ? ' selected' : '') + '>FR</option>'
@@ -1206,7 +1227,7 @@ async function submitEditMeta(bookId) {
     const language = document.getElementById('edit-lang').value;
     
     try {
-        log('✏️ Modification : ' + bookId + ' → ' + approach + ', ' + author);
+        log('✏️ Modification : ' + bookId + ' → ' + approach + ', ' + escHtml(author));
         
         // Essayer d'abord /update-book-meta
         let res = await fetch(getWorkerUrl() + '/update-book-meta', {
@@ -1225,29 +1246,13 @@ async function submitEditMeta(bookId) {
             }
         }
         
-        // Fallback : si l'endpoint n'existe pas (404/405), utiliser /d1-query direct
-        log('  ⚠️ /update-book-meta non disponible — tentative via /d1-query...');
-        res = await fetch(getWorkerUrl() + '/d1-query', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-API-Key': getAdminApiKey() },
-            body: JSON.stringify({
-                sql: "UPDATE chunks SET approach = ?, author = ?, language = ? WHERE book_id = ?",
-                params: [approach, author, language, bookId]
-            })
-        });
-        
-        if (res.ok) {
-            const data = await res.json();
-            log('  ✅ Métadonnées mises à jour via D1 direct', 'success');
-            document.getElementById('edit-overlay')?.remove();
-            refreshLibrary();
-            return;
-        }
-
+        // /update-book-meta est la seule voie principale (fonctionne déjà) — le repli via
+        // /d1-query n'était qu'un fallback, retiré : /d1-query n'accepte plus de SQL brut
+        // depuis le durcissement du Worker, donc cette tentative échouait de toute façon.
         // Dernier recours : instruction manuelle
         log('  ⚠️ Endpoints non disponibles. Ajoutez /update-book-meta à votre Worker.', 'error');
         log('  📋 SQL à exécuter dans D1 Dashboard :', 'info');
-        log('  UPDATE chunks SET approach = "' + approach + '", author = "' + author + '" WHERE book_id = "' + bookId + '";', 'info');
+        log('  UPDATE chunks SET approach = "' + approach + '", author = "' + escHtml(author) + '" WHERE book_id = "' + bookId + '";', 'info');
         
         // Copier dans le presse-papier
         const sql = 'UPDATE chunks SET approach = "' + approach + '", author = "' + author + '", language = "' + language + '" WHERE book_id = "' + bookId + '";';
@@ -1257,7 +1262,7 @@ async function submitEditMeta(bookId) {
         } catch(e) {}
         
     } catch (err) {
-        log('  ❌ ' + err.message, 'error');
+        log('  ❌ ' + escHtml(err.message), 'error');
         // Donner le SQL en fallback
         const sql = 'UPDATE chunks SET approach = "' + approach + '", author = "' + author + '", language = "' + language + '" WHERE book_id = "' + bookId + '";';
         log('  📋 SQL fallback : ' + sql, 'info');
@@ -1272,7 +1277,7 @@ async function deleteBook(bookId, title) {
     if (!confirm(`Supprimer "${title}" de la bibliothèque ?`)) return;
 
     try {
-        log(`🗑 Suppression: ${title}...`);
+        log(`🗑 Suppression: ${escHtml(title)}...`);
         const res = await fetch(getWorkerUrl() + '/delete-book', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-API-Key': getAdminApiKey() },
@@ -1280,14 +1285,14 @@ async function deleteBook(bookId, title) {
         });
         const data = await res.json();
         if (data.success) {
-            log(`  ✅ ${title} supprimé (${data.deleted_chunks} chunks)`, 'success');
+            log(`  ✅ ${escHtml(title)} supprimé (${data.deleted_chunks} chunks)`, 'success');
         } else {
-            log(`  ❌ ${data.error}`, 'error');
+            log(`  ❌ ${escHtml(data.error)}`, 'error');
         }
         refreshLibrary();
         refreshStats();
     } catch (err) {
-        log(`  ❌ ${err.message}`, 'error');
+        log(`  ❌ ${escHtml(err.message)}`, 'error');
     }
 }
 
@@ -1312,21 +1317,24 @@ async function testSearch() {
         const results = data.results || [];
 
         if (results.length === 0) {
-            el.innerHTML = `<div class="empty-state"><div class="icon">😐</div><div>Aucun résultat pour "${query}" (${ms}ms)</div></div>`;
+            el.innerHTML = `<div class="empty-state"><div class="icon">😐</div><div>Aucun résultat pour "${escHtml(query)}" (${ms}ms)</div></div>`;
             return;
         }
 
+        // Correctif urgent (sécurité P0) — book_title/author/approach/content viennent tous du
+        // Worker, eux-mêmes dérivés de métadonnées saisies à l'ingestion (titre de fichier,
+        // auteur libre) : jamais dignes de confiance, échappés avant insertion.
         el.innerHTML = `<div style="margin-bottom:12px;font-size:11px;color:#888;">${results.length} résultats en ${ms}ms</div>` +
             results.map((r, i) => `<div style="background:#fafaf8;padding:14px;border-radius:8px;margin-bottom:8px;border-left:4px solid ${i===0?'#8FAFB1':'#C8D0C3'};">
                 <div style="font-weight:600;font-size:12px;color:#7A9A9C;margin-bottom:6px;">
-                    📖 ${r.book_title || '?'} — ${r.author || '?'} ${r.page ? '(p.'+r.page+')' : ''}
-                    <span style="float:right;font-size:10px;color:#aaa;">score: ${(r.score || r.similarity || 0).toFixed(3)} · ${r.approach || '?'}</span>
+                    📖 ${escHtml(r.book_title || '?')} — ${escHtml(r.author || '?')} ${r.page ? '(p.'+escHtml(r.page)+')' : ''}
+                    <span style="float:right;font-size:10px;color:#aaa;">score: ${(r.score || r.similarity || 0).toFixed(3)} · ${escHtml(r.approach || '?')}</span>
                 </div>
-                <div style="font-size:12px;line-height:1.6;color:#444;">${(r.content || r.text || '').substring(0, 500)}${(r.content||r.text||'').length > 500 ? '...' : ''}</div>
+                <div style="font-size:12px;line-height:1.6;color:#444;">${escHtml((r.content || r.text || '').substring(0, 500))}${(r.content||r.text||'').length > 500 ? '...' : ''}</div>
             </div>`).join('');
 
     } catch (err) {
-        el.innerHTML = `<div style="color:#c00;padding:20px;">Erreur: ${err.message}</div>`;
+        el.innerHTML = `<div style="color:#c00;padding:20px;">Erreur: ${escHtml(err.message)}</div>`;
     }
 }
 
@@ -1366,13 +1374,17 @@ function autoDetectMeta(pages, filename) {
         'mi': ['motivationnel', 'miller', 'rollnick', 'ambivalence', 'discours-changement'],
         'cnv': ['non violente', 'rosenberg', 'communication non', 'osbd', 'girafe', 'chacal'],
         'icv': ['intégration du cycle', 'lifespan integration', 'peggy pace', 'ligne du temps', 'timeline', 'icv'],
-        'systemic': ['systémique', 'watzlawick', 'minuchin', 'selvini', 'palo alto', 'circularité', 'de shazer', 'question miracle', 'narratif', 'white', 'epston', 'externalisation', 'boucle', 'homéostasie'],
+        // Correctif urgent — deux clés littérales 'systemic' existaient dans ce même objet ;
+        // la seconde (mots-clés pauvres) écrasait silencieusement celle-ci (mots-clés riches,
+        // Watzlawick/Minuchin/Selvini/de Shazer/narratif/White/Epston) à l'évaluation de l'objet
+        // — fusionnées en une seule entrée, union des deux listes, rien perdu, doublons
+        // ('systémique', 'homéostasie') retirés.
+        'systemic': ['systémique', 'watzlawick', 'minuchin', 'selvini', 'palo alto', 'circularité', 'de shazer', 'question miracle', 'narratif', 'white', 'epston', 'externalisation', 'boucle', 'homéostasie', 'famille', 'neuburger', 'double lien'],
         'coherence': ['cohérence', 'reconsolidation', 'ecker', 'hulley', 'juxtaposition', 'mémoire implicite', 'savoir émotionnel'],
         'mbct': ['pleine conscience', 'mbct', 'segal', 'mindfulness', 'méditation'],
         'cbt': ['cognitif', 'beck', 'cbt', 'tcc', 'restructuration cognitive'],
         'trauma': ['trauma', 'ptsd', 'van der kolk', 'herman', 'dissociation', 'traumatisme'],
         'psychodynamic': ['psychodynamique', 'transfert', 'inconscient', 'pulsion', 'freud'],
-        'systemic': ['systémique', 'famille', 'neuburger', 'homéostasie', 'double lien'],
         'hypnosis': ['hypnose', 'hypnotique', 'transe', 'erickson', 'roustang', 'bioy', 'megglé', 'induction', 'suggestion hypnotique', 'auto-hypnose', 'hypnothérapie', 'état modifié', 'saupoudrage', 'ancrage ressource', 'hypno-analgésie', 'benhaiem', 'état hypnotique'],
         'personal_development': ['développement personnel', 'confiance en soi', 'estime de soi', 'croissance personnelle', 'plein potentiel', 'coaching', 'habits', 'habitudes', 'productivité', 'objectifs', 'motivation', 'goleman', 'intelligence émotionnelle', 'covey', 'robbins', 'carnegie', 'gladwell', 'seligman', 'psychologie positive', 'flow', 'csikszentmihalyi', 'résilience', 'stoïcisme', 'tolle', 'présence', 'mindset', 'dweck', 'assertivité', 'gestion du stress', 'burn-out', 'bien-être', 'bonheur', 'sens de la vie', 'valeurs personnelles'],
     };
