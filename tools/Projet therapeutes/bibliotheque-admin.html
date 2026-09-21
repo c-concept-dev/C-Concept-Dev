@@ -1640,7 +1640,23 @@ async function deleteBook(bookId, title) {
 // /rag-search — celui-ci calcule déjà les deux en interne, cf. Worker), avec id, langue,
 // approche et provenance (`source`) visibles pour chaque résultat. Reste un outil
 // d'administration/diagnostic, jamais l'UI grand public de Passerelle.
-function renderSearchColumn(title, results, ms, emptyLabel) {
+// Intégration traduction (CDC Passerelle §2.6/§4) — un résultat déjà traduit par /rag-search
+// (is_machine_translated:true) affiche le texte traduit PAR DÉFAUT, marqué visiblement comme
+// traduction automatique, avec un bouton de bascule vers le texte original (VO) — jamais une
+// traduction affichée sans ce marquage, jamais la VO cachée sans moyen facile d'y revenir. Sert
+// de premier lieu de vérification visuelle avant toute UI grand public de Passerelle.
+function toggleTranslationView(uid) {
+    const tEl = document.getElementById('tr-' + uid);
+    const oEl = document.getElementById('vo-' + uid);
+    const btn = document.getElementById('btn-' + uid);
+    if (!tEl || !oEl) return;
+    const showingTranslation = tEl.style.display !== 'none';
+    tEl.style.display = showingTranslation ? 'none' : '';
+    oEl.style.display = showingTranslation ? '' : 'none';
+    if (btn) btn.textContent = showingTranslation ? '🔤 Voir la traduction' : '📖 Voir le texte original (VO)';
+}
+
+function renderSearchColumn(title, results, ms, emptyLabel, columnKey, targetLang) {
     if (!results.length) {
         return `<div style="flex:1;min-width:0;"><h4 style="font-size:12px;color:#8FAFB1;margin-bottom:8px;">${escHtml(title)} (0, ${ms}ms)</h4>
             <div style="font-size:11px;color:#aaa;padding:12px;text-align:center;">${escHtml(emptyLabel)}</div></div>`;
@@ -1652,13 +1668,34 @@ function renderSearchColumn(title, results, ms, emptyLabel) {
     // à côté du `score` brut existant (cosinus vectoriel ou 0.7 FTS5 arbitraire) — jamais ce
     // dernier seul, qui ne détermine plus le classement réel depuis le correctif RRF.
     return `<div style="flex:1;min-width:0;"><h4 style="font-size:12px;color:#8FAFB1;margin-bottom:8px;">${escHtml(title)} (${results.length}, ${ms}ms)</h4>` +
-        results.map(r => {
+        results.map((r, idx) => {
             const srcList = Array.isArray(r.sources) ? r.sources : [r.source || '?'];
             const isLexical = srcList.includes('fts5');
+            const uid = `${columnKey || 'col'}-${idx}`;
+            let bodyHtml;
+            if (r.is_machine_translated) {
+                // Traduit avec succès : traduction affichée par défaut, VO présente dans le DOM
+                // mais masquée (aucun second appel réseau nécessaire pour basculer).
+                bodyHtml = `
+                <div style="margin-bottom:4px;">
+                    <span style="background:#E3F2FD;color:#1565C0;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;">🌐 Traduction automatique (${escHtml(r.language || '?')} → ${escHtml(targetLang || 'fr')})</span>
+                    <button type="button" id="btn-${uid}" onclick="toggleTranslationView('${uid}')" style="margin-left:6px;font-size:10px;padding:1px 6px;border:1px solid #90CAF9;border-radius:3px;background:#fff;color:#1565C0;cursor:pointer;">📖 Voir le texte original (VO)</button>
+                </div>
+                <div id="tr-${uid}" style="color:#444;line-height:1.5;">${escHtml((r.translated_content || '').substring(0, 300))}${(r.translated_content || '').length > 300 ? '...' : ''}</div>
+                <div id="vo-${uid}" style="display:none;color:#444;line-height:1.5;">${escHtml((r.content || '').substring(0, 300))}${(r.content || '').length > 300 ? '...' : ''}</div>`;
+            } else if (r.translation_failed) {
+                // Échec de traduction isolé à CE résultat (jamais toute la réponse en erreur) —
+                // texte original affiché avec un avertissement explicite, jamais un texte vide.
+                bodyHtml = `
+                <div style="margin-bottom:4px;"><span style="background:#FFEBEE;color:#C62828;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;">⚠️ Échec de traduction automatique — texte original (VO) affiché</span></div>
+                <div style="color:#444;line-height:1.5;">${escHtml((r.content || '').substring(0, 300))}${(r.content || '').length > 300 ? '...' : ''}</div>`;
+            } else {
+                bodyHtml = `<div style="color:#444;line-height:1.5;">${escHtml((r.content || '').substring(0, 300))}${(r.content || '').length > 300 ? '...' : ''}</div>`;
+            }
             return `<div style="background:#fafaf8;padding:10px;border-radius:6px;margin-bottom:6px;border-left:3px solid ${isLexical ? '#FFB74D' : '#8FAFB1'};font-size:11px;">
             <div style="font-weight:600;color:#7A9A9C;margin-bottom:4px;">📖 ${escHtml(r.book_title || '?')} — ${escHtml(r.author || '?')} ${r.page_number ? '(p.'+escHtml(r.page_number)+')' : ''}</div>
             <div style="color:#999;margin-bottom:4px;">id: <code style="font-size:10px;">${escHtml(r.id || '?')}</code> · langue: ${escHtml(r.language || '?')} · approche: ${escHtml(r.approach || '?')} · source(s) : <b>${escHtml(srcList.join('+'))}</b> · score: ${(r.score || 0).toFixed(3)}${r.rrf_score != null ? ' · rrf: ' + r.rrf_score.toFixed(4) : ''}</div>
-            <div style="color:#444;line-height:1.5;">${escHtml((r.content || '').substring(0, 300))}${(r.content||'').length > 300 ? '...' : ''}</div>
+            ${bodyHtml}
         </div>`;
         }).join('') + '</div>';
 }
@@ -1708,15 +1745,20 @@ async function testSearch() {
         // réelles cumulées) avec repli sur `source` pour compatibilité si absent.
         const hybridResults = ragData.chunks || [];
         const lexicalResults = hybridResults.filter(r => (Array.isArray(r.sources) ? r.sources : [r.source]).includes('fts5'));
+        // Intégration traduction — target_lang renvoyé par /rag-search (défaut 'fr' côté Worker
+        // si omis ici) sert uniquement à l'affichage du badge "langue source → langue cible" ;
+        // /search-library (colonne vectorielle) ne traduit rien (hors périmètre de ce lot, seul
+        // /rag-search intègre la traduction) — cette colonne n'affiche donc jamais de badge.
+        const targetLang = ragData.target_lang || 'fr';
 
         if (vecData.error) log('  ⚠️ Voie vectorielle : ' + vecData.error, 'error');
         if (ragData.error) log('  ⚠️ Voie hybride/lexicale : ' + ragData.error, 'error');
 
         el.innerHTML = `<div style="margin-bottom:10px;font-size:11px;color:#888;">Requête : "${escHtml(query)}" — ${ms}ms (les 3 voies interrogées en parallèle)</div>
             <div style="display:flex;gap:12px;flex-wrap:wrap;">
-                ${renderSearchColumn('🎯 Vectoriel (/search-library)', vectorResults, ms, 'Aucun résultat vectoriel')}
-                ${renderSearchColumn('🔤 Lexical FTS5 (part de /rag-search)', lexicalResults, ms, 'Aucun résultat lexical (termes trop courts/absents ?)')}
-                ${renderSearchColumn('🔀 Hybride (/rag-search, fusionné)', hybridResults, ms, 'Aucun résultat hybride')}
+                ${renderSearchColumn('🎯 Vectoriel (/search-library)', vectorResults, ms, 'Aucun résultat vectoriel', 'vec', targetLang)}
+                ${renderSearchColumn('🔤 Lexical FTS5 (part de /rag-search)', lexicalResults, ms, 'Aucun résultat lexical (termes trop courts/absents ?)', 'lex', targetLang)}
+                ${renderSearchColumn('🔀 Hybride (/rag-search, fusionné)', hybridResults, ms, 'Aucun résultat hybride', 'hyb', targetLang)}
             </div>`;
 
     } catch (err) {

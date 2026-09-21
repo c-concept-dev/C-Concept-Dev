@@ -58036,7 +58036,7 @@ async function handleRagSearch(request2, env2) {
   } catch {
     return jsonErr("Invalid JSON", 400);
   }
-  const { query, approach, exclude_approach, language = "fr", topK = 10, include_content = true, fts_terms, book_title } = body;
+  const { query, approach, exclude_approach, language = "fr", topK = 10, include_content = true, fts_terms, book_title, target_lang = "fr" } = body;
   if (!query)
     return jsonErr("Missing query", 400);
   if (!env2.AI || !env2.VECTOR_INDEX || !env2.DB)
@@ -58190,16 +58190,63 @@ async function handleRagSearch(request2, env2) {
         sources: c._sources || [c._source || "unknown"],
         vector_rank: vecRankById.has(c.id) ? vecRankById.get(c.id) + 1 : null,
         fts_rank: ftsRankById.has(c.id) ? ftsRankById.get(c.id) + 1 : null,
-        rrf_score: Math.round((rrfScore.get(c.id) || 0) * 1e6) / 1e6
+        rrf_score: Math.round((rrfScore.get(c.id) || 0) * 1e6) / 1e6,
+        // Traduction automatique interlingue (CDC Passerelle §2.6/§4) — présent sur TOUT résultat
+        // dès sa construction, jamais seulement ajouté après coup sur les résultats traduits :
+        // `false` ici est déjà la valeur finale pour un résultat qui n'a pas besoin de traduction
+        // (langue cible déjà correcte, ou langue source inconnue — jamais devinée), jamais une
+        // absence de champ qui laisserait "pas traduit" et "traduit à l'identique" ambigus.
+        is_machine_translated: false
       };
       if (include_content)
         out.content = (c.content || "").substring(0, 800);
       return out;
     });
+    // Traduction automatique interlingue (CDC Passerelle §2.6/§4) — jamais à la demande : un
+    // résultat pertinent dans une langue différente de `target_lang` arrive déjà traduit dans
+    // CETTE réponse, jamais via un second appel séparé. Insérée ICI, APRÈS la troncature finale à
+    // `topK` (finalChunks est déjà le résultat définitif, jamais les candidats intermédiaires
+    // avant filtrage) — l'ordre RRF déjà établi ci-dessus n'est jamais perturbé, cette étape ne
+    // fait qu'enrichir chaque objet déjà à sa position finale. `target_lang` est un paramètre
+    // DISTINCT de `language` (qui filtre déjà FTS5 sur la langue SOURCE, un rôle différent) —
+    // jamais réutilisé, pour ne jamais confondre "langue filtrée en entrée" et "langue cible en
+    // sortie". Traduit exactement `out.content` (déjà tronqué à 800 caractères ci-dessus, PAS le
+    // contenu complet du chunk) : la bascule VO doit comparer deux versions du MÊME extrait,
+    // jamais un texte plus long d'un côté.
+    //
+    // Appels en parallèle (Promise.all sur un tableau de closures indépendantes), jamais en
+    // série : chaque traduction est indépendante des autres, la latence totale ne doit jamais
+    // s'additionner résultat par résultat. Gestion d'erreur PAR RÉSULTAT (try/catch à l'intérieur
+    // de chaque closure, jamais autour du Promise.all global) : si une traduction échoue ou que
+    // le modèle renvoie une forme inattendue/vide, CE résultat précis revient avec son texte
+    // original intact et `translation_failed: true` — jamais une bascule de toute la réponse en
+    // erreur, jamais un texte vide affiché comme une traduction réussie.
+    const toTranslate = finalChunks.filter((c) => c.content && c.language && c.language !== target_lang);
+    if (toTranslate.length) {
+      await Promise.all(toTranslate.map(async (c) => {
+        try {
+          const aiResp = await env2.AI.run("@cf/meta/m2m100-1.2b", {
+            text: c.content,
+            source_lang: c.language,
+            target_lang
+          });
+          const translated = aiResp?.translated_text;
+          if (typeof translated !== "string" || translated.trim().length === 0) {
+            c.translation_failed = true;
+            return;
+          }
+          c.translated_content = translated;
+          c.is_machine_translated = true;
+        } catch {
+          c.translation_failed = true;
+        }
+      }));
+    }
     return json({
       query,
+      target_lang,
       chunks: finalChunks,
-      stats: { total: finalChunks.length, vector: vecChunks.length, fts5: ftsChunks.length, approach: approach || "all", topK }
+      stats: { total: finalChunks.length, vector: vecChunks.length, fts5: ftsChunks.length, approach: approach || "all", topK, translated: toTranslate.filter((c) => c.is_machine_translated).length }
     });
   } catch (err2) {
     return jsonErr("rag-search failed: " + err2.message, 500);
