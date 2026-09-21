@@ -55496,6 +55496,13 @@ var Worker_default = {
       return handleRagStats(env2);
     if (p === "/rag-query" && request2.method === "POST")
       return handleRagQuery(request2, env2);
+    // Nouveau chantier — brique de traduction (Workers AI, @cf/meta/m2m100-1.2b), ISOLÉE :
+    // testable indépendamment, PAS encore appelée par /rag-search ni par un panneau admin
+    // (intégration = lot séparé, une fois cette brique validée). Protégée par le mécanisme
+    // deny-by-default ci-dessus (non ajoutée à ADOC_PUBLIC_ROUTES) — X-API-Key déjà requis,
+    // même convention que le reste, aucune exception.
+    if (p === "/translate-passage" && request2.method === "POST")
+      return handleTranslatePassage(request2, env2);
     if (p === "/llm-proxy" && request2.method === "POST")
       return handleLLMProxy(request2, env2);
     if (p === "/generate-presentation" && request2.method === "POST")
@@ -58353,6 +58360,60 @@ ${context2}` }],
   });
 }
 __name(handleRagQuery, "handleRagQuery");
+// Nouveau chantier — brique de traduction isolée (CDC Passerelle §2.6/§4 : traduction
+// automatique interlingue, jamais à la demande — un passage traduit reste marqué comme
+// traduction automatique avec bascule vers la VO, mais CETTE DÉCISION D'AFFICHAGE appartient au
+// client qui appellera cette route, pas à elle). Point d'entrée isolé, testable indépendamment,
+// PAS encore appelé par /rag-search ni par un panneau admin (intégration = lot séparé).
+//
+// Contrat vérifié auprès de la documentation Cloudflare officielle (recherche documentaire, pas
+// supposé) pour @cf/meta/m2m100-1.2b :
+//   - Entrée : { text: string (requis, minLength 1), source_lang: string (défaut "en"),
+//     target_lang: string (requis) }.
+//   - Réserve honnête, ambiguïté RÉELLE trouvée dans la documentation Cloudflare elle-même : les
+//     exemples TypeScript/Python/curl officiels utilisent des noms complets ("english",
+//     "french"), tandis que la description des paramètres indique des codes courts façon
+//     ISO 639-1 ("en" pour anglais, "es" pour espagnol). Cette route ne devine JAMAIS le bon
+//     format : elle transmet exactement source_lang/target_lang tels que fournis par l'appelant,
+//     sans transformation. À déterminer empiriquement par un appel réel (cf. rapport).
+//   - Sortie attendue : { translated_text: string } — convention utilisée de façon cohérente par
+//     les autres modèles de traduction Workers AI, mais le schéma JSON brut exact de ce modèle
+//     précis n'a pas pu être extrait de la documentation interactive (widget d'onglets non
+//     capturé par l'outil de recherche documentaire utilisé). Vérifiée explicitement ci-dessous
+//     avant tout retour positif — jamais un champ absent silencieusement traité comme une chaîne
+//     vide valide.
+async function handleTranslatePassage(request2, env2) {
+  let body;
+  try {
+    body = await request2.json();
+  } catch {
+    return jsonErr("Invalid JSON", 400);
+  }
+  const { text, source_lang, target_lang } = body || {};
+  if (typeof text !== "string" || text.trim().length === 0)
+    return jsonErr("Missing text", 400);
+  if (typeof target_lang !== "string" || target_lang.trim().length === 0)
+    return jsonErr("Missing target_lang", 400);
+  if (!env2.AI)
+    return jsonErr("Worker binding not configured. Need: AI", 500);
+  const resolvedSourceLang = typeof source_lang === "string" && source_lang.trim().length > 0 ? source_lang : "en";
+  let aiResponse;
+  try {
+    aiResponse = await env2.AI.run("@cf/meta/m2m100-1.2b", {
+      text,
+      source_lang: resolvedSourceLang,
+      target_lang
+    });
+  } catch (err2) {
+    return jsonErr("Translation model error: " + err2.message, 502);
+  }
+  const translatedText = aiResponse?.translated_text;
+  if (typeof translatedText !== "string" || translatedText.trim().length === 0) {
+    return jsonErr("Translation model returned an unexpected or empty response: " + JSON.stringify(aiResponse), 502);
+  }
+  return json({ translated_text: translatedText, source_lang: resolvedSourceLang, target_lang });
+}
+__name(handleTranslatePassage, "handleTranslatePassage");
 async function handleGeneratePresentation(request2, env2) {
   let body;
   try {
