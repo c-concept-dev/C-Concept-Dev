@@ -6,6 +6,10 @@
     <title>Bibliothèque Thérapeutique — Administration</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <!-- Support EPUB : JSZip lit l'archive ZIP (container.xml + OPF + chapitres XHTML) dans le
+         navigateur — même CDN que pdf.js ci-dessus, licence MIT, aucune dépendance, aucun parseur
+         ZIP maison écrit pour ce lot (cf. investigation EPUB). -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -565,33 +569,62 @@ fileInput.addEventListener('change', () => {
 function addFiles(files) {
     const accepted = files.filter(f => {
         const name = f.name.toLowerCase();
-        return name.endsWith('.pdf') || name.endsWith('.html') || name.endsWith('.htm');
+        return name.endsWith('.pdf') || name.endsWith('.html') || name.endsWith('.htm') || name.endsWith('.epub');
     });
-    if (accepted.length === 0) { log('⚠️ Aucun fichier PDF ou HTML détecté'); return; }
+    if (accepted.length === 0) { log('⚠️ Aucun fichier PDF, HTML ou EPUB détecté'); return; }
 
     for (const f of accepted) {
         if (queue.find(q => q.file.name === f.name)) continue;
         const id = 'q-' + Date.now() + '-' + Math.random().toString(36).substring(2, 5);
         const ext = f.name.toLowerCase().match(/\.[^.]+$/)?.[0] || '';
-        const bookId = f.name.replace(/\.(pdf|html?)$/i, '').replace(/[^a-zA-Z0-9àâäéèêëïîôùûüÿçœæ\s-]/g, '').substring(0, 60);
+        const bookId = f.name.replace(/\.(pdf|html?|epub)$/i, '').replace(/[^a-zA-Z0-9àâäéèêëïîôùûüÿçœæ\s-]/g, '').substring(0, 60);
         const isHTML = ext === '.html' || ext === '.htm';
-        queue.push({
+        const isEPUB = ext === '.epub';
+        const q = {
             id, file: f,
-            fileType: isHTML ? 'html' : 'pdf',
+            fileType: isHTML ? 'html' : (isEPUB ? 'epub' : 'pdf'),
             meta: {
                 book_id: bookId,
-                title: f.name.replace(/\.(pdf|html?)$/i, ''),
+                title: f.name.replace(/\.(pdf|html?|epub)$/i, ''),
                 author: '',
                 language: 'fr',
                 approach: isHTML ? 'outils_couple' : 'general',
                 tags: isHTML ? ['outil', 'couple', 'exercice'] : []
             },
             status: 'pending', chunks: [], error: null
-        });
+        };
+        queue.push(q);
+        // Pré-détection EPUB asynchrone (langue + extraction complète mise en cache) — DOIT se
+        // faire ici, à l'ajout, pas pendant l'extraction de startIngestion : le formulaire
+        // éditable (renderMetaForm) ne s'affiche QUE tant que status === 'pending' (cf.
+        // renderQueue) — une fois l'ingestion lancée, le champ langue disparaît de l'écran pour
+        // TOUS les types de fichiers, donc toute détection faite après ce point ne serait plus
+        // jamais visible/modifiable avant l'import, contrairement à l'exigence explicite.
+        // Échec de cette détection précoce : silencieux ici (pas de statut d'erreur affiché) —
+        // le même appel réel à extractEPUBText sera de toute façon retenté pendant l'ingestion,
+        // où son échec est déjà géré et affiché normalement (jamais un message dupliqué avant
+        // même que l'utilisateur ait cliqué sur "Indexer").
+        if (isEPUB) detectAndCacheEPUB(q);
     }
     renderQueue();
     document.getElementById('actionBar').style.display = 'flex';
-    log(`${accepted.length} fichier(s) ajouté(s) (${accepted.filter(f=>f.name.endsWith('.pdf')).length} PDF, ${accepted.filter(f=>f.name.match(/\.html?$/i)).length} HTML)`);
+    log(`${accepted.length} fichier(s) ajouté(s) (${accepted.filter(f=>f.name.endsWith('.pdf')).length} PDF, ${accepted.filter(f=>f.name.match(/\.html?$/i)).length} HTML, ${accepted.filter(f=>f.name.toLowerCase().endsWith('.epub')).length} EPUB)`);
+}
+
+async function detectAndCacheEPUB(q) {
+    try {
+        const result = await extractEPUBText(q.file, null);
+        q._epubExtraction = result;
+        // 'fr' est la valeur par défaut jamais vérifiée pour PDF/HTML (cf. CDC Passerelle) —
+        // une détection positive et fiable (dc:language de l'OPF, normalisée) la remplace, mais
+        // reste un champ éditable au même titre qu'avant, jamais un remplacement définitif.
+        if (result.detectedLanguage && q.meta.language === 'fr') {
+            q.meta.language = result.detectedLanguage;
+        }
+        renderQueue();
+    } catch (e) {
+        // Best-effort : voir commentaire au site d'appel.
+    }
 }
 
 // ── Queue Render ──
@@ -780,6 +813,125 @@ async function extractHTMLText(file, progressCb) {
     log(`  📄 HTML: ${dedupedPages.length} sections extraites, ${fullText.split(/\s+/).length} mots` +
         (removedCount > 0 ? ` (${removedCount} section(s) dupliquée(s) exactement retirée(s))` : ''));
     return { pages: dedupedPages, fullText, numPages: dedupedPages.length };
+}
+
+// ── Extract EPUB text (JSZip : container.xml → OPF → spine, chapitres XHTML) ──
+// Investigation confirmée avant construction : un EPUB est une archive ZIP contenant
+// META-INF/container.xml (pointe vers le fichier OPF via <rootfile full-path="...">), un fichier
+// .opf (métadonnées + <manifest> id→href + <spine> = ORDRE DE LECTURE RÉEL, jamais l'ordre
+// alphabétique des noms de fichiers internes — chapter1.xhtml/chapter10.xhtml/chapter2.xhtml
+// serait trompeur), et des fichiers XHTML pour le contenu de chaque chapitre.
+
+// Évite les pièges de sélecteur CSS sur un préfixe d'espace de noms XML (dc:language, `:` invalide
+// en CSS) — cherche par nom local, insensible au préfixe réellement utilisé par l'éditeur EPUB
+// source (dc:language, opf:language, ou sans préfixe selon les outils de production).
+function firstTextByLocalName(doc, localName) {
+    const all = doc.getElementsByTagName('*');
+    for (const el of all) {
+        if ((el.localName || el.tagName).toLowerCase() === localName.toLowerCase()) {
+            return el.textContent?.trim() || '';
+        }
+    }
+    return '';
+}
+
+function parseStrictXml(str, label) {
+    const doc = new DOMParser().parseFromString(str, 'application/xml');
+    if (doc.querySelector('parsererror')) {
+        throw new Error(`EPUB invalide : ${label} n'est pas un XML valide.`);
+    }
+    return doc;
+}
+
+async function extractEPUBText(file, progressCb) {
+    // Détection par SIGNATURE, jamais par la seule extension : un .epub est une archive ZIP,
+    // qui commence toujours par les octets "PK" — un fichier mal renommé ou corrompu échoue ici
+    // avec un message explicite, avant toute tentative de décompression.
+    const header = new Uint8Array(await file.slice(0, 2).arrayBuffer());
+    if (header[0] !== 0x50 || header[1] !== 0x4B) {
+        throw new Error('Ce fichier .epub n\'est pas une archive ZIP valide (signature "PK" absente) — fichier corrompu ou mal renommé.');
+    }
+
+    const zip = await JSZip.loadAsync(await file.arrayBuffer());
+
+    const containerEntry = zip.file('META-INF/container.xml');
+    if (!containerEntry) throw new Error('EPUB invalide : META-INF/container.xml introuvable.');
+    const containerDoc = parseStrictXml(await containerEntry.async('string'), 'META-INF/container.xml');
+    const rootfilePath = containerDoc.querySelector('rootfile')?.getAttribute('full-path')?.replace(/^\/+/, '');
+    if (!rootfilePath) throw new Error('EPUB invalide : aucun <rootfile full-path> dans container.xml.');
+
+    const opfEntry = zip.file(rootfilePath);
+    if (!opfEntry) throw new Error(`EPUB invalide : fichier OPF introuvable (${rootfilePath}).`);
+    const opfDoc = parseStrictXml(await opfEntry.async('string'), 'le fichier OPF (' + rootfilePath + ')');
+
+    // Les hrefs du manifeste sont TOUJOURS relatifs à l'emplacement du fichier OPF (spec EPUB),
+    // jamais à la racine de l'archive : avec un OPF en "OEBPS/content.opf", un item
+    // href="Text/ch1.xhtml" désigne "OEBPS/Text/ch1.xhtml", pas "Text/ch1.xhtml". `URL` gère
+    // aussi correctement les "../" éventuels, plutôt qu'une concaténation naïve de chaînes.
+    const opfDir = rootfilePath.includes('/') ? rootfilePath.slice(0, rootfilePath.lastIndexOf('/') + 1) : '';
+    function resolveHref(href) {
+        const url = new URL(href, 'epub:///' + opfDir);
+        return decodeURIComponent(url.pathname.replace(/^\/+/, ''));
+    }
+
+    const manifest = new Map();
+    opfDoc.querySelectorAll('manifest > item').forEach(item => {
+        const id = item.getAttribute('id');
+        const href = item.getAttribute('href');
+        if (id && href) {
+            manifest.set(id, { href: resolveHref(href), mediaType: item.getAttribute('media-type') || '' });
+        }
+    });
+
+    // Métadonnée de langue (opportunité identifiée à l'investigation) — normalisée au sous-tag
+    // primaire ISO 639-1 (fr-FR → fr, en-US → en). Jamais imposée si elle ne correspond pas à
+    // l'une des deux seules valeurs actuellement proposées dans le formulaire (fr/en, cf.
+    // renderMetaForm) : préremplir un champ avec une valeur que son propre sélecteur ne propose
+    // pas créerait un état affiché/réel divergent — jamais un remplacement silencieux non
+    // vérifiable par l'utilisateur.
+    const languageRaw = firstTextByLocalName(opfDoc, 'language').toLowerCase();
+    const languagePrimary = languageRaw.split(/[-_]/)[0];
+    const detectedLanguage = ['fr', 'en'].includes(languagePrimary) ? languagePrimary : null;
+
+    // Ordre de lecture RÉEL : le <spine>, jamais l'ordre des noms de fichiers.
+    const spineIdrefs = Array.from(opfDoc.querySelectorAll('spine > itemref')).map(el => el.getAttribute('idref'));
+    if (spineIdrefs.length === 0) throw new Error('EPUB invalide : <spine> vide ou introuvable dans l\'OPF.');
+
+    const pages = [];
+    let chapterNum = 0;
+    for (const idref of spineIdrefs) {
+        const item = manifest.get(idref);
+        if (!item) continue; // idref sans entrée manifeste correspondante — ignoré, jamais deviné
+        if (item.mediaType && !/x?html/i.test(item.mediaType)) continue; // référence non textuelle dans le spine
+        const zipEntry = zip.file(item.href);
+        if (!zipEntry) continue;
+        chapterNum++;
+
+        const xhtml = await zipEntry.async('string');
+        // 'text/html' (pas 'application/xml') : plus tolérant aux XHTML légèrement malformés,
+        // même stratégie que extractHTMLText() ci-dessus pour un contenu qui n'a pas besoin
+        // d'être un XML strictement valide pour qu'on en extraie le texte.
+        const doc = new DOMParser().parseFromString(xhtml, 'text/html');
+        doc.querySelectorAll('script, style, noscript, [hidden]').forEach(el => el.remove());
+        const text = doc.body?.textContent?.replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim() || '';
+        if (text.length > 20) pages.push({ page: chapterNum, text });
+
+        if (progressCb) progressCb(Math.round((chapterNum / spineIdrefs.length) * 100));
+    }
+
+    if (pages.length === 0) throw new Error('Aucun texte extrait de l\'EPUB (chapitres vides ou non résolus depuis le spine).');
+
+    const fullText = pages.map(p => p.text).join('\n\n');
+    if (progressCb) progressCb(100);
+
+    log(`  📖 EPUB: ${pages.length} chapitre(s) extrait(s) (ordre du spine), ${fullText.split(/\s+/).length} mots` +
+        (detectedLanguage ? `, langue détectée : ${detectedLanguage}` : ''));
+    // `numPages` et la forme {pages, fullText, numPages} sont IDENTIQUES à extractPDFText/
+    // extractHTMLText — chaque "page" correspond ici à un chapitre, dans l'ordre du spine, pour
+    // rester compatible avec chunkPages()/chunkTextWithPages() sans aucune modification de ces
+    // fonctions (page/page_end désignent alors des numéros de chapitre, pas des pages physiques —
+    // cohérent avec ce que le Worker/l'admin attendent déjà : un simple repère de position).
+    return { pages, fullText, numPages: pages.length, detectedLanguage };
 }
 
 // ── Chunking intelligent (respecte les paragraphes) ──
@@ -1035,6 +1187,19 @@ async function startIngestion() {
                 });
                 pages = result.pages;
                 numPages = result.numPages;
+            } else if (q.fileType === 'epub') {
+                // Réutilise l'extraction déjà faite (et sa langue déjà appliquée au formulaire)
+                // pendant addFiles()/detectAndCacheEPUB si elle a eu le temps de se terminer —
+                // sinon (ingestion lancée avant la fin de cette détection précoce, ou détection
+                // ayant échoué), relance l'extraction réelle ici avec la barre de progression
+                // visible ; jamais un double coût perçu par l'utilisateur, jamais une extraction
+                // manquée non plus.
+                const result = q._epubExtraction || await extractEPUBText(q.file, pct => {
+                    const bar = document.getElementById('qp-' + q.id);
+                    if (bar) bar.style.width = pct + '%';
+                });
+                pages = result.pages;
+                numPages = result.numPages;
             } else {
                 const result = await extractPDFText(q.file, pct => {
                     const bar = document.getElementById('qp-' + q.id);
@@ -1044,7 +1209,7 @@ async function startIngestion() {
                 numPages = result.numPages;
             }
 
-            if (pages.length === 0) throw new Error(q.fileType === 'html' ? 'Aucun texte extrait du HTML' : 'Aucun texte extrait (PDF scanné ou protégé)');
+            if (pages.length === 0) throw new Error(q.fileType === 'html' ? 'Aucun texte extrait du HTML' : q.fileType === 'epub' ? 'Aucun texte extrait de l\'EPUB' : 'Aucun texte extrait (PDF scanné ou protégé)');
 
             // Phase 1b: Auto-detect metadata
             if (!q.meta.author || q.meta.approach === 'general') {

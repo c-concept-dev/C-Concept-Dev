@@ -1,0 +1,647 @@
+{
+  "schema": "EvidenceForge.EF03BCostAnalysis",
+  "runId": "efm-20260918-a64167c0",
+  "generatedAt": "2026-09-19T13:05:41.293Z",
+  "finalAttempt": 9,
+  "reviewsExpected": 18,
+  "reviewsValid": 10,
+  "reviewsError": 8,
+  "finalAttemptReviewCostUsd": 11.2744,
+  "previousAttemptsReviewCostUsd": 9.6707,
+  "avgCostValidReviewUsd": 0.5168,
+  "avgCostErrorReviewUsd": 0.7633,
+  "avgCostPerPassUsd": 0.2301,
+  "byStrategy": {
+    "BASE_EF03B": {
+      "passes": 18,
+      "usd": 4.7673,
+      "valid": 1,
+      "maxTokens": 11
+    },
+    "INFORMED_REPAIR_V02": {
+      "passes": 16,
+      "usd": 4.271,
+      "valid": 0,
+      "maxTokens": 10
+    },
+    "TARGETED_REPAIR": {
+      "passes": 12,
+      "usd": 1.8235,
+      "valid": 6,
+      "maxTokens": 0
+    },
+    "TARGETED_REPAIR_STRATEGY_CHANGE": {
+      "passes": 3,
+      "usd": 0.4126,
+      "valid": 3,
+      "maxTokens": 0
+    }
+  },
+  "maxTokensOutputs": {
+    "passes": 21,
+    "usd": 5.6768,
+    "avgDurationSec": 148.2238
+  },
+  "fullRegenerations": {
+    "passes": 16,
+    "usd": 4.271,
+    "validDirectly": 0,
+    "truncatedAgain": 10
+  },
+  "targetedRepairs": {
+    "passes": 15,
+    "usd": 2.2361,
+    "valid": 9,
+    "avgUsd": 0.1491,
+    "avgOutputTokens": 1202.8
+  },
+  "previousAttemptsValidReviewsRecomputed": 11,
+  "previousAttemptsValidRecomputationUsd": 6.3398,
+  "perReview": [
+    {
+      "twinId": "twin-https://openalex.org/A5031631835",
+      "finalStatus": "error",
+      "costUsd": 0.7018,
+      "previousAttemptsCostUsd": 0.4035,
+      "passes": [
+        {
+          "pass": 1,
+          "strategy": "BASE_EF03B",
+          "costUsd": 0.2697,
+          "outputTokens": 8192,
+          "stopReason": "max_tokens",
+          "valid": false,
+          "category": "A:MAX_TOKENS_TRUNCATED"
+        },
+        {
+          "pass": 2,
+          "strategy": "INFORMED_REPAIR_V02",
+          "costUsd": 0.2683,
+          "outputTokens": 8140,
+          "stopReason": "end_turn",
+          "valid": false,
+          "category": "G:TARGET_REF_NOT_LITERAL"
+        },
+        {
+          "pass": 3,
+          "strategy": "TARGETED_REPAIR",
+          "costUsd": 0.1638,
+          "outputTokens": 1817,
+          "stopReason": "end_turn",
+          "valid": false,
+          "category": "G:TARGET_REF_NOT_LITERAL"
+        }
+      ]
+    },
+    {
+      "twinId": "twin-https://openalex.org/A5015262154",
+      "finalStatus": "error",
+      "costUsd": 0.8094,
+      "previousAttemptsCostUsd": 0.4069,
+      "passes": [
+        {
+          "pass": 1,
+          "strategy": "BASE_EF03B",
+          "costUsd": 0.2706,
+          "outputTokens": 8192,
+          "stopReason": "max_tokens",
+          "valid": false,
+          "category": "A:MAX_TOKENS_TRUNCATED"
+        },
+        {
+          "pass": 2,
+          "strategy": "INFORMED_REPAIR_V02",
+          "costUsd": 0.2694,
+          "outputTokens": 8192,
+          "stopReason": "max_tokens",
+          "valid": false,
+          "category": "A:MAX_TOKENS_TRUNCATED"
+        },
+        {
+          "pass": 3,
+          "strategy": "INFORMED_REPAIR_V02",
+          "costUsd": 0.2694,
+          "outputTokens": 8192,
+          "stopReason": "max_tokens",
+          "valid": false,
+          "category": "A:MAX_TOKENS_TRUNCATED"
+        }
+      ]
+    },
+    {
+      "twinId": "twin-https://openalex.org/A5000192723",
+      "finalStatus": "complete",
+      "costUsd": 0.6645,
+      "previousAttemptsCostUsd": 0.8105,
+      "passes": [
+        {
+          "pass": 1,
+          "strategy": "BASE_EF03B",
+          "costUsd": 0.2719,
+          "outputTokens": 8192,
+          "stopReason": "max_tokens",
+          "valid": false,
+          "category": "A:MAX_TOKENS_TRUNCATED"
+        },
+        {
+          "pass": 2,
+          "strategy": "INFORMED_REPAIR_V02",
+          "costUsd": 0.2611,
+          "outputTokens": 7645,
+          "stopReason": "end_turn",
+          "valid": false,
+          "category": "G:TARGET_REF_NOT_LITERAL"
+        },
+        {
+          "pass": 3,
+          "strategy": "TARGETED_REPAIR",
+          "costUsd": 0.1315,
+          "outputTokens": 606,
+          "stopReason": "end_turn",
+          "valid": true,
+          "category": null
+        }
+      ]
+    },
+    {
+      "twinId": "twin-https://openalex.org/A5008124698",
+      "finalStatus": "complete",
+      "costUsd": 0.3787,
+      "previousAttemptsCostUsd": 0.3865,
+      "passes": [
+        {
+          "pass": 1,
+          "strategy": "BASE_EF03B",
+          "costUsd": 0.2399,
+          "outputTokens": 6238,
+          "stopReason": "end_turn",
+          "valid": false,
+          "category": "G:TARGET_REF_NOT_LITERAL"
+        },
+        {
+          "pass": 2,
+          "strategy": "TARGETED_REPAIR",
+          "costUsd": 0.1388,
+          "outputTokens": 880,
+          "stopReason": "end_turn",
+          "valid": true,
+          "category": null
+        }
+      ]
+    },
+    {
+      "twinId": "twin-https://openalex.org/A5009943886",
+      "finalStatus": "complete",
+      "costUsd": 0.2531,
+      "previousAttemptsCostUsd": 0.2531,
+      "passes": [
+        {
+          "pass": 1,
+          "strategy": "BASE_EF03B",
+          "costUsd": 0.2531,
+          "outputTokens": 7150,
+          "stopReason": "end_turn",
+          "valid": true,
+          "category": null
+        }
+      ]
+    },
+    {
+      "twinId": "twin-https://openalex.org/A5059446032",
+      "finalStatus": "complete",
+      "costUsd": 0.5418,
+      "previousAttemptsCostUsd": 0.4057,
+      "passes": [
+        {
+          "pass": 1,
+          "strategy": "BASE_EF03B",
+          "costUsd": 0.2581,
+          "outputTokens": 7459,
+          "stopReason": "end_turn",
+          "valid": false,
+          "category": "G:TARGET_REF_NOT_LITERAL"
+        },
+        {
+          "pass": 2,
+          "strategy": "TARGETED_REPAIR",
+          "costUsd": 0.1547,
+          "outputTokens": 1412,
+          "stopReason": "end_turn",
+          "valid": false,
+          "category": "G:TARGET_REF_NOT_LITERAL"
+        },
+        {
+          "pass": 3,
+          "strategy": "TARGETED_REPAIR_STRATEGY_CHANGE",
+          "costUsd": 0.129,
+          "outputTokens": 494,
+          "stopReason": "end_turn",
+          "valid": true,
+          "category": null
+        }
+      ]
+    },
+    {
+      "twinId": "twin-https://openalex.org/A5002572744",
+      "finalStatus": "complete",
+      "costUsd": 0.5963,
+      "previousAttemptsCostUsd": 0.8099,
+      "passes": [
+        {
+          "pass": 1,
+          "strategy": "BASE_EF03B",
+          "costUsd": 0.2705,
+          "outputTokens": 8126,
+          "stopReason": "end_turn",
+          "valid": false,
+          "category": "G:TARGET_REF_NOT_LITERAL"
+        },
+        {
+          "pass": 2,
+          "strategy": "TARGETED_REPAIR",
+          "costUsd": 0.1701,
+          "outputTokens": 2381,
+          "stopReason": "end_turn",
+          "valid": false,
+          "category": "G:TARGET_REF_NOT_LITERAL"
+        },
+        {
+          "pass": 3,
+          "strategy": "TARGETED_REPAIR_STRATEGY_CHANGE",
+          "costUsd": 0.1557,
+          "outputTokens": 1402,
+          "stopReason": "end_turn",
+          "valid": true,
+          "category": null
+        }
+      ]
+    },
+    {
+      "twinId": "twin-https://openalex.org/A5105521386",
+      "finalStatus": "complete",
+      "costUsd": 0.6995,
+      "previousAttemptsCostUsd": 0.5451,
+      "passes": [
+        {
+          "pass": 1,
+          "strategy": "BASE_EF03B",
+          "costUsd": 0.2689,
+          "outputTokens": 8192,
+          "stopReason": "max_tokens",
+          "valid": false,
+          "category": "A:MAX_TOKENS_TRUNCATED"
+        },
+        {
+          "pass": 2,
+          "strategy": "INFORMED_REPAIR_V02",
+          "costUsd": 0.2665,
+          "outputTokens": 8036,
+          "stopReason": "end_turn",
+          "valid": false,
+          "category": "G:TARGET_REF_NOT_LITERAL"
+        },
+        {
+          "pass": 3,
+          "strategy": "TARGETED_REPAIR",
+          "costUsd": 0.1641,
+          "outputTokens": 1716,
+          "stopReason": "end_turn",
+          "valid": true,
+          "category": null
+        }
+      ]
+    },
+    {
+      "twinId": "twin-https://openalex.org/A5061537459",
+      "finalStatus": "complete",
+      "costUsd": 0.3908,
+      "previousAttemptsCostUsd": 0.3976,
+      "passes": [
+        {
+          "pass": 1,
+          "strategy": "BASE_EF03B",
+          "costUsd": 0.2438,
+          "outputTokens": 6530,
+          "stopReason": "end_turn",
+          "valid": false,
+          "category": "G:TARGET_REF_NOT_LITERAL"
+        },
+        {
+          "pass": 2,
+          "strategy": "TARGETED_REPAIR",
+          "costUsd": 0.147,
+          "outputTokens": 1178,
+          "stopReason": "end_turn",
+          "valid": true,
+          "category": null
+        }
+      ]
+    },
+    {
+      "twinId": "twin-https://openalex.org/A5008056222",
+      "finalStatus": "complete",
+      "costUsd": 0.692,
+      "previousAttemptsCostUsd": 0.5427,
+      "passes": [
+        {
+          "pass": 1,
+          "strategy": "BASE_EF03B",
+          "costUsd": 0.2731,
+          "outputTokens": 8192,
+          "stopReason": "max_tokens",
+          "valid": false,
+          "category": "A:MAX_TOKENS_TRUNCATED"
+        },
+        {
+          "pass": 2,
+          "strategy": "INFORMED_REPAIR_V02",
+          "costUsd": 0.2658,
+          "outputTokens": 7940,
+          "stopReason": "end_turn",
+          "valid": false,
+          "category": "G:TARGET_REF_NOT_LITERAL"
+        },
+        {
+          "pass": 3,
+          "strategy": "TARGETED_REPAIR",
+          "costUsd": 0.1531,
+          "outputTokens": 1274,
+          "stopReason": "end_turn",
+          "valid": true,
+          "category": null
+        }
+      ]
+    },
+    {
+      "twinId": "twin-https://openalex.org/A5034919242",
+      "finalStatus": "error",
+      "costUsd": 0.683,
+      "previousAttemptsCostUsd": 0.808,
+      "passes": [
+        {
+          "pass": 1,
+          "strategy": "BASE_EF03B",
+          "costUsd": 0.2697,
+          "outputTokens": 8192,
+          "stopReason": "max_tokens",
+          "valid": false,
+          "category": "A:MAX_TOKENS_TRUNCATED"
+        },
+        {
+          "pass": 2,
+          "strategy": "INFORMED_REPAIR_V02",
+          "costUsd": 0.263,
+          "outputTokens": 7784,
+          "stopReason": "end_turn",
+          "valid": false,
+          "category": "G:TARGET_REF_NOT_LITERAL"
+        },
+        {
+          "pass": 3,
+          "strategy": "TARGETED_REPAIR",
+          "costUsd": 0.1503,
+          "outputTokens": 1054,
+          "stopReason": "end_turn",
+          "valid": false,
+          "category": "G:TARGET_REF_NOT_LITERAL"
+        }
+      ]
+    },
+    {
+      "twinId": "twin-https://openalex.org/A5050677675",
+      "finalStatus": "complete",
+      "costUsd": 0.4254,
+      "previousAttemptsCostUsd": 0.3996,
+      "passes": [
+        {
+          "pass": 1,
+          "strategy": "BASE_EF03B",
+          "costUsd": 0.2666,
+          "outputTokens": 8119,
+          "stopReason": "end_turn",
+          "valid": false,
+          "category": "G:TARGET_REF_NOT_LITERAL"
+        },
+        {
+          "pass": 2,
+          "strategy": "TARGETED_REPAIR",
+          "costUsd": 0.1588,
+          "outputTokens": 1588,
+          "stopReason": "end_turn",
+          "valid": true,
+          "category": null
+        }
+      ]
+    },
+    {
+      "twinId": "twin-https://openalex.org/A5057022658",
+      "finalStatus": "complete",
+      "costUsd": 0.5256,
+      "previousAttemptsCostUsd": 0.4172,
+      "passes": [
+        {
+          "pass": 1,
+          "strategy": "BASE_EF03B",
+          "costUsd": 0.2539,
+          "outputTokens": 7296,
+          "stopReason": "end_turn",
+          "valid": false,
+          "category": "G:TARGET_REF_NOT_LITERAL"
+        },
+        {
+          "pass": 2,
+          "strategy": "TARGETED_REPAIR",
+          "costUsd": 0.1438,
+          "outputTokens": 707,
+          "stopReason": "end_turn",
+          "valid": false,
+          "category": "G:TARGET_REF_NOT_LITERAL"
+        },
+        {
+          "pass": 3,
+          "strategy": "TARGETED_REPAIR_STRATEGY_CHANGE",
+          "costUsd": 0.1279,
+          "outputTokens": 400,
+          "stopReason": "end_turn",
+          "valid": true,
+          "category": null
+        }
+      ]
+    },
+    {
+      "twinId": "twin-https://openalex.org/A5084194176",
+      "finalStatus": "error",
+      "costUsd": 0.8087,
+      "previousAttemptsCostUsd": 0.2666,
+      "passes": [
+        {
+          "pass": 1,
+          "strategy": "BASE_EF03B",
+          "costUsd": 0.2711,
+          "outputTokens": 8192,
+          "stopReason": "max_tokens",
+          "valid": false,
+          "category": "A:MAX_TOKENS_TRUNCATED"
+        },
+        {
+          "pass": 2,
+          "strategy": "INFORMED_REPAIR_V02",
+          "costUsd": 0.2688,
+          "outputTokens": 8192,
+          "stopReason": "max_tokens",
+          "valid": false,
+          "category": "A:MAX_TOKENS_TRUNCATED"
+        },
+        {
+          "pass": 3,
+          "strategy": "INFORMED_REPAIR_V02",
+          "costUsd": 0.2688,
+          "outputTokens": 8192,
+          "stopReason": "max_tokens",
+          "valid": false,
+          "category": "A:MAX_TOKENS_TRUNCATED"
+        }
+      ]
+    },
+    {
+      "twinId": "twin-https://openalex.org/A5067779338",
+      "finalStatus": "error",
+      "costUsd": 0.8205,
+      "previousAttemptsCostUsd": 0.8205,
+      "passes": [
+        {
+          "pass": 1,
+          "strategy": "BASE_EF03B",
+          "costUsd": 0.2771,
+          "outputTokens": 8192,
+          "stopReason": "max_tokens",
+          "valid": false,
+          "category": "A:MAX_TOKENS_TRUNCATED"
+        },
+        {
+          "pass": 2,
+          "strategy": "INFORMED_REPAIR_V02",
+          "costUsd": 0.2717,
+          "outputTokens": 8192,
+          "stopReason": "max_tokens",
+          "valid": false,
+          "category": "A:MAX_TOKENS_TRUNCATED"
+        },
+        {
+          "pass": 3,
+          "strategy": "INFORMED_REPAIR_V02",
+          "costUsd": 0.2717,
+          "outputTokens": 8192,
+          "stopReason": "max_tokens",
+          "valid": false,
+          "category": "A:MAX_TOKENS_TRUNCATED"
+        }
+      ]
+    },
+    {
+      "twinId": "twin-https://openalex.org/A5076883985",
+      "finalStatus": "error",
+      "costUsd": 0.805,
+      "previousAttemptsCostUsd": 0.3787,
+      "passes": [
+        {
+          "pass": 1,
+          "strategy": "BASE_EF03B",
+          "costUsd": 0.2676,
+          "outputTokens": 8192,
+          "stopReason": "max_tokens",
+          "valid": false,
+          "category": "A:MAX_TOKENS_TRUNCATED"
+        },
+        {
+          "pass": 2,
+          "strategy": "INFORMED_REPAIR_V02",
+          "costUsd": 0.2687,
+          "outputTokens": 8192,
+          "stopReason": "max_tokens",
+          "valid": false,
+          "category": "A:MAX_TOKENS_TRUNCATED"
+        },
+        {
+          "pass": 3,
+          "strategy": "INFORMED_REPAIR_V02",
+          "costUsd": 0.2687,
+          "outputTokens": 8192,
+          "stopReason": "max_tokens",
+          "valid": false,
+          "category": "A:MAX_TOKENS_TRUNCATED"
+        }
+      ]
+    },
+    {
+      "twinId": "twin-https://openalex.org/A5081732198",
+      "finalStatus": "error",
+      "costUsd": 0.6698,
+      "previousAttemptsCostUsd": 0.8101,
+      "passes": [
+        {
+          "pass": 1,
+          "strategy": "BASE_EF03B",
+          "costUsd": 0.2714,
+          "outputTokens": 8192,
+          "stopReason": "max_tokens",
+          "valid": false,
+          "category": "A:MAX_TOKENS_TRUNCATED"
+        },
+        {
+          "pass": 2,
+          "strategy": "INFORMED_REPAIR_V02",
+          "costUsd": 0.2509,
+          "outputTokens": 6964,
+          "stopReason": "end_turn",
+          "valid": false,
+          "category": "G:TARGET_REF_NOT_LITERAL"
+        },
+        {
+          "pass": 3,
+          "strategy": "TARGETED_REPAIR",
+          "costUsd": 0.1475,
+          "outputTokens": 1133,
+          "stopReason": "end_turn",
+          "valid": false,
+          "category": "G:TARGET_REF_NOT_LITERAL"
+        }
+      ]
+    },
+    {
+      "twinId": "twin-https://openalex.org/A5072236225",
+      "finalStatus": "error",
+      "costUsd": 0.8085,
+      "previousAttemptsCostUsd": 0.8085,
+      "passes": [
+        {
+          "pass": 1,
+          "strategy": "BASE_EF03B",
+          "costUsd": 0.2703,
+          "outputTokens": 8192,
+          "stopReason": "max_tokens",
+          "valid": false,
+          "category": "A:MAX_TOKENS_TRUNCATED"
+        },
+        {
+          "pass": 2,
+          "strategy": "INFORMED_REPAIR_V02",
+          "costUsd": 0.2691,
+          "outputTokens": 8192,
+          "stopReason": "max_tokens",
+          "valid": false,
+          "category": "A:MAX_TOKENS_TRUNCATED"
+        },
+        {
+          "pass": 3,
+          "strategy": "INFORMED_REPAIR_V02",
+          "costUsd": 0.2691,
+          "outputTokens": 8192,
+          "stopReason": "max_tokens",
+          "valid": false,
+          "category": "A:MAX_TOKENS_TRUNCATED"
+        }
+      ]
+    }
+  ]
+}
