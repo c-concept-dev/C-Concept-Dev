@@ -58051,7 +58051,7 @@ async function handleRagSearch(request2, env2) {
         FROM chunks_fts JOIN chunks c ON c.rowid = chunks_fts.rowid
         WHERE chunks_fts MATCH ?`;
       const params = [ftsQuery];
-      if (approach) {
+      if (approach && approach !== "all") {
         sql += ` AND c.approach = ?`;
         params.push(approach);
       }
@@ -58163,7 +58163,7 @@ async function handleRagSearch(request2, env2) {
     // Filtre approach appliqué ICI, après réhydratation — toujours la valeur D1 fraîche pour un
     // chunk vectoriel, déjà fraîche par construction pour un chunk FTS5 (lu directement de D1
     // dans la requête SQL ci-dessus, jamais filtrée deux fois à tort).
-    const filteredMerged = approach ? merged.filter((c) => !c.approach || c.approach === approach) : merged;
+    const filteredMerged = approach && approach !== "all" ? merged.filter((c) => !c.approach || c.approach === approach) : merged;
     // Lot 2/2, correctif 5 — `id`/`language` ajoutés à la sortie (additifs, jamais un champ
     // retiré) : /rag-search n'a aujourd'hui AUCUN consommateur réel dans studio-clinique-core.js
     // (confirmé par recherche négative) — champs nécessaires au nouveau panneau diagnostic de
