@@ -1,0 +1,178 @@
+{
+ "schema": "EvidenceForge.MonolithFreezeRecord",
+ "version": "MONOLITH-v1.0.12",
+ "name": "GLOBAL LINEAGE INTEGRATION CHECKPOINT",
+ "frozenAt": "2026-09-22T14:26:21+00:00",
+ "frozenBy": "OWNER",
+ "frozenByDecision": "D1 = FREEZE_WITH_RESERVATIONS (Christophe, 2026-09-22)",
+ "status": "FROZEN_WITH_RESERVATIONS",
+ "meaning": {
+  "is": "checkpoint d'integration gele : v1.0.11 + lot gele MONO-11 v0.4 + conditions R5 / R6 fermees",
+  "isNot": "READY_FOR_ACTIVATION"
+ },
+ "ACTIVATION_BLOCKED_BY_RA2": true,
+ "activationPreconditions": [
+  "correctif R-A2 (autorite documentaire) implemente, audite independamment et gele (v1.0.13)",
+  "smoke reel borne mesurant R12 (frequence CAS B, erreurs fail-closed, prompt v0.4 en reel, couts, absence de regression de lignee)",
+  "decision proprietaire d'activation"
+ ],
+ "parent": {
+  "version": "MONOLITH-v1.0.11",
+  "status": "GELE FROZEN_WITH_RESERVATIONS",
+  "freezeRecord": "MONOLITH-v1.0.11/EVIDENCEFORGE-v1.0.11-FREEZE-RECORD.json"
+ },
+ "frozenLot": {
+  "lot": "MONO-11",
+  "version": "v0.4",
+  "status": "GELE FROZEN_WITH_RESERVATIONS (2026-09-22)",
+  "runtimeSealSha256": "110db4de24709926d4a5fb6d0e951530f0afc2c1c807a09127852a92aa182c3d",
+  "runCodeHash": "27610c84502104b3dc9643a9cc0289aef4ae40ae65ee34e4fe82f31a73e381ad",
+  "canonicalZipSha256": "79c16d08a0a52bc1b9ae3c6884cc22f6161145bed18158d6c9b6a44df1a7c474",
+  "contractVersion": "MONO-11-v3",
+  "note": "runtimeSealSha256 et runCodeHash appartiennent au LOT MONO-11 ; le monolithe porte un MANIFEST / SHA256SUMS et un contentHash (correction de vocabulaire de l'audit independant)"
+ },
+ "runtimeManifest": {
+  "fileCount": 158,
+  "contentHash": "9552b45e484cf2e3cdc4f7ef08e275cd1de117055e2643ac854e7a196178f3e2",
+  "manifestSha256": "d8bb0d3e7c28a6cc419333432e32193534d85c1bf593e267bf97cce88f4f5c6f",
+  "sealFileSha256": "3c1c736fd19bb1a79626b4908ff9438523b26625fe997f8358c9dbb75c80aa6d",
+  "adapterSha256": "564a0e3d7a507f1f981a73f6799675236efe9655bcb13154ea9c9b00ae077798",
+  "note": "D4 — perimetre runtime AUDITE ; package.sh NON execute (il regenererait le manifeste en y incluant les rapports d'audit et changerait le contentHash audite) ; aucun zip canonique v1.0.12"
+ },
+ "integrationReport": {
+  "file": "EVIDENCEFORGE-v1.0.12-INTEGRATION-REPORT.md",
+  "sha256": "9eb2e4955cfb9db78bfd785db2e30fcc45c16984745b8578ccde4265a1a1f354",
+  "jsonSha256": "bb3de5cb1a0a5b1ebca4e6a6b9e8f2123f08ca26d2711fcad76a12a8f33c4a5d",
+  "inRuntimeManifest": false
+ },
+ "independentAudit": {
+  "file": "EVIDENCEFORGE-v1.0.12-INDEPENDENT-FREEZE-AUDIT.md",
+  "sha256": "f21a3e1dcfa5a64752dc77ed9d1efc3a287a68889401184a24e8879d3536c619",
+  "jsonSha256": "94ddfe98e7c2d98df71b36b9c274b62086cbe51704e3039cb66420861f431aef",
+  "verdict": "V1_0_12_FREEZE_AUDIT_PASS_WITH_RESERVATIONS",
+  "recommendation": "GELER",
+  "blockers": 0,
+  "r5": "ADAPTER_MONO11_PARITY_PASS",
+  "r6": "PASS",
+  "globalLineage": "KNOWN_GAP_REMAINS",
+  "inRuntimeManifest": false
+ },
+ "measurements": {
+  "monolith": "292/292",
+  "chunking": "21/21",
+  "secretScan": 0,
+  "antiHardcoding": 0,
+  "manifestVerify": "ok 158",
+  "frozenLots": "MONO-10 79 / MONO-09 9 / MONO-01 106 / MONO-11 55, 0 divergence",
+  "shadowA10": "70 constats / 12 citations restaurees / 3 constats vides restaures",
+  "aggregation": "13 / 9 / 7 / 0 / 67 / 10 ; QUALIFIED_WITH_RESERVATIONS ; SCIENTIFICALLY_USABLE = NO",
+  "revertCheck": "R5 -> 290/292 (T-EF03B-34, V12-02) ; R6a -> 285/292 ; R6b -> 288/292 ; R6c -> 291/292"
+ },
+ "reservations": [
+  {
+   "id": "R-A1",
+   "severity": "medium",
+   "new": true,
+   "preexisting": false,
+   "summary": "Parite octet du candidat TRACE non tenue sur les passes ou parseRepair echoue cote lot (18/48) : l adaptateur ignore rp.ok et passe toutes les dimensions au lieu des seules fautives ; la trace EF-03B peut afficher CANDIDATE_VALID pour une passe rejetee par le lot (cas 25). Aucune ecriture au registre, aucune fausse acceptation."
+  },
+  {
+   "id": "R-A2",
+   "severity": "medium_high",
+   "new": true,
+   "preexisting": true,
+   "summary": "Le miroir lit le document dans st.ctx.content (re-analyse du prompt) et non doc.content ; si le corps du document contient le marqueur BASE DOCUMENTAIRE DU PROFESSIONNEL, parseReviewPromptContext rend un contenu silencieusement tronque (contextUnparsed reste 0) => le registre recoit un candidat AMPUTE marque VALID, reutilisable a 0 appel. Chaine causale prouvee de bout en bout. NON introduit par v1.0.12 (v1.0.11 amputait sans condition)."
+  },
+  {
+   "id": "R-A3",
+   "severity": "low",
+   "new": true,
+   "preexisting": false,
+   "summary": "tools/build-manifest.js l.15 annonce le contrat de validation comme MESURE en chargeant le module ; il est en realite deduit par expression reguliere sur la source de lib/llm.js puis relu dans la config. Ecart provenance annoncee / provenance reelle."
+  },
+  {
+   "id": "R-A4",
+   "severity": "low",
+   "new": true,
+   "preexisting": false,
+   "summary": "17 des 18 tests V12-* ne detectent pas un retour arriere de R5 : parity() compare deux sorties produites toutes deux par le lot gele. Seul V12-02 est decisif (avec T-EF03B-34, partiellement textuel). Prouve par revert."
+  },
+  {
+   "id": "R-A5",
+   "severity": "info",
+   "new": true,
+   "preexisting": true,
+   "summary": "report-restored.json ne se verifie pas sous le module de rapport gele (ec0ef55a... vs 88145afc...) uniquement a cause d une cle d annotation restoration ajoutee apres hachage ; en la retirant, 88145afc... est reproduit exactement. Artefact A10, hors perimetre v1.0.12 (stage-report.js identique en v1.0.10/11/12)."
+  },
+  {
+   "id": "R-A6",
+   "severity": "low",
+   "new": true,
+   "preexisting": false,
+   "summary": "tools/package.sh appelle build-manifest.js : l executer au gel regenerera MANIFEST.json / SHA256SUMS.txt et y inclura les rapports d audit. Decision explicite requise (cf. decision D2 du lot MONO-11 v0.4)."
+  },
+  {
+   "id": "R3",
+   "severity": "medium",
+   "new": false,
+   "preexisting": false,
+   "summary": "Libelle de passe 3 du lot gele (review-enforcer.js l.245) : accuse le modele d avoir REPRODUIT A L IDENTIQUE alors qu en CAS B c est v0.4 qui re-presente (applied=raw). Attenuation : une citation inventee est non litterale donc refusee ; fail-closed borne a 3 passes. Pire cas = une passe perdue, jamais une fausse acceptation. Correctif = futur lot MONO-11."
+  },
+  {
+   "id": "R4",
+   "severity": "low",
+   "new": false,
+   "preexisting": false,
+   "summary": "Un parseRepair illisible laisse repairUnresolvedDimensions=[] ; l echec reste EXPLICITE (repair.parsed=false + REPAIR_JSON_INVALID dans errorCodes + reviewStatus error) aux deux niveaux de trace. Aucun risque de fausse reussite ; tracabilite indirecte mais reelle."
+  },
+  {
+   "id": "R12",
+   "severity": "info",
+   "new": false,
+   "preexisting": false,
+   "summary": "Durcissement voulu (Q6) : CAS B avec reparation [] echoue desormais en fail-closed au lieu de livrer un [] faussement reussi. Davantage de reviewStatus error attendus en run reel. A mesurer en smoke reel AVANT activation."
+  },
+  {
+   "id": "R13",
+   "severity": "low",
+   "new": false,
+   "preexisting": false,
+   "summary": "Aucun zip canonique v1.0.12. NON BLOQUANT : v1.0.11 a ete gelee sans zip (FREEZE-RECORD sans canonicalZipSha256) ; le zip releve de l acte de gel et tools/package.sh existe a la bonne version. Caveat : zip -X sans neutralisation des horodatages => reconstruction bit-a-bit non garantie (identique a R13 du lot)."
+  }
+ ],
+ "blockingForActivation": {
+  "R-A2": {
+   "decision": "D2 = BLOCKING_FOR_ACTIVATION",
+   "statement": "le miroir de l'adaptateur evalue la litteralite sur st.ctx.content (reconstruit depuis le prompt) au lieu de doc.content ; un document contenant le marqueur BASE DOCUMENTAIRE DU PROFESSIONNEL peut etre silencieusement tronque => candidat ampute inscrit VALID au registre => reutilise a 0 appel => perte silencieuse de lignee",
+   "preexisting": true,
+   "fixIn": "MONOLITH-v1.0.13 (RA2_DOCUMENT_CONTENT_AUTHORITY_FIX)"
+  }
+ },
+ "otherDispositions": {
+  "R-A1": "D3 — corrigee dans le meme chantier SI strictement locale au miroir (parite de trace uniquement)",
+  "R-A3": "observation non bloquante (documentation)",
+  "R-A5": "observation non bloquante (artefact shadow/audit)",
+  "R12": "EXPECTED_STRICTNESS — smoke reel requis avant activation, pas maintenant",
+  "R13": "non bloquant (D4 : aucun zip canonique)"
+ },
+ "activeVersion": {
+  "value": "MONOLITH-v1.0.10",
+  "changed": false,
+  "decision": "D5 = DO_NOT_ACTIVATE ; aucun run reel avec v1.0.12"
+ },
+ "historicalRun": {
+  "runId": "efm-20260918-a64167c0",
+  "boundTo": "MONOLITH-v1.0.10 / MONO-11 v0.3-r1",
+  "reportHash": "a962d5eefeb033ac4dd9f76627989a72d423737f3ca13cd2e4e65730de7a441c",
+  "shadow": "88145afc76b05abf48a3e328e42c437e0b50496414752a378e7f632bdf3937af (artefact parallele)",
+  "migration": "AUCUNE ; D103 inchange"
+ },
+ "governanceSums": "EVIDENCEFORGE-v1.0.12-GOVERNANCE.SHA256SUMS.txt",
+ "prohibitions": [
+  "0 appel fournisseur",
+  "0 run reel",
+  "0 activation",
+  "0 zip canonique",
+  "0 modification v1.0.10 / v1.0.11 / MONO-11 v0.4 / run historique / D103"
+ ]
+}

@@ -1,0 +1,1353 @@
+{
+ "schema": "EvidenceForge.V1012FreezeAudit",
+ "version": "v1",
+ "auditedAt": "2026-09-22",
+ "auditor": "independent adversarial agent (read-only)",
+ "subject": {
+  "version": "MONOLITH-v1.0.12",
+  "status": "CANDIDAT — NON GELE (audite avant decision proprietaire)",
+  "manifestContentHash": "9552b45e484cf2e3cdc4f7ef08e275cd1de117055e2643ac854e7a196178f3e2",
+  "manifestSha256": "d8bb0d3e7c28a6cc419333432e32193534d85c1bf593e267bf97cce88f4f5c6f",
+  "sha256sumsSha256": "3c1c736fd19bb1a79626b4908ff9438523b26625fe997f8358c9dbb75c80aa6d",
+  "testResultsSha256": "4ff7dc2080f2feb3d18d138e4318db330c821c95008ce37c3d1b0894e1dae902",
+  "fileCount": 158,
+  "filesOnDisk": 162,
+  "adapterSha256": "564a0e3d7a507f1f981a73f6799675236efe9655bcb13154ea9c9b00ae077798",
+  "adapterSha256Predecessor": "18739b7aac108f915edef04d53001d33e072c48b8a0f74497e4fca6bc4b76487",
+  "mono11": {
+   "version": "v0.4",
+   "seal": "110db4de24709926d4a5fb6d0e951530f0afc2c1c807a09127852a92aa182c3d",
+   "runCodeHash": "27610c84502104b3dc9643a9cc0289aef4ae40ae65ee34e4fe82f31a73e381ad",
+   "zip": "79c16d08a0a52bc1b9ae3c6884cc22f6161145bed18158d6c9b6a44df1a7c474",
+   "manifestSha256": "9acc820d698f7da05a9cd65795fc2cded93c1f0fe4820735bed25c4c3a29514b",
+   "contractVersion": "MONO-11-v3",
+   "sealedFiles": 55,
+   "divergences": 0,
+   "reviewEnforcerSha256": "cd620ab30ca1fbe863987dee6711b358930721d57c1b7d086c7bab87d985636a",
+   "contractsSha256": "b3e5ac7dc3a7a70deef015b1f26b93d173cf79e83c9644c4d37f65059d2c75d2"
+  }
+ },
+ "verdict": "V1_0_12_FREEZE_AUDIT_PASS_WITH_RESERVATIONS",
+ "recommendation": "GELER",
+ "recommendationDetail": "Geler en FROZEN_WITH_RESERVATIONS, SANS activation : ACTIVE_VERSION reste MONOLITH-v1.0.10 jusqu a un smoke reel mesurant R12. R5 et R6 sont tenues et prouvees par execution. Aucune reserve n est une regression.",
+ "blockers": [],
+ "reservations": [
+  {
+   "id": "R-A1",
+   "severity": "medium",
+   "new": true,
+   "summary": "Parite octet du candidat TRACE non tenue sur les passes ou parseRepair echoue cote lot (18/48) : l adaptateur ignore rp.ok et passe toutes les dimensions au lieu des seules fautives ; la trace EF-03B peut afficher CANDIDATE_VALID pour une passe rejetee par le lot (cas 25). Aucune ecriture au registre, aucune fausse acceptation.",
+   "evidence": "lib/ef03b-resilience.js l.194-196 vs MONO-11/v0.4/core/review-enforcer.js l.344-347"
+  },
+  {
+   "id": "R-A2",
+   "severity": "medium_high",
+   "new": true,
+   "preexisting": true,
+   "summary": "Le miroir lit le document dans st.ctx.content (re-analyse du prompt) et non doc.content ; si le corps du document contient le marqueur BASE DOCUMENTAIRE DU PROFESSIONNEL, parseReviewPromptContext rend un contenu silencieusement tronque (contextUnparsed reste 0) => le registre recoit un candidat AMPUTE marque VALID, reutilisable a 0 appel. Chaine causale prouvee de bout en bout. NON introduit par v1.0.12 (v1.0.11 amputait sans condition).",
+   "evidence": "lib/ef03b-resilience.js l.69-76 et l.195 ; sonde scratchpad/probes/replayleg2.js"
+  },
+  {
+   "id": "R-A3",
+   "severity": "low",
+   "new": true,
+   "summary": "tools/build-manifest.js l.15 annonce le contrat de validation comme MESURE en chargeant le module ; il est en realite deduit par expression reguliere sur la source de lib/llm.js puis relu dans la config. Ecart provenance annoncee / provenance reelle."
+  },
+  {
+   "id": "R-A4",
+   "severity": "low",
+   "new": true,
+   "summary": "17 des 18 tests V12-* ne detectent pas un retour arriere de R5 : parity() compare deux sorties produites toutes deux par le lot gele. Seul V12-02 est decisif (avec T-EF03B-34, partiellement textuel). Prouve par revert."
+  },
+  {
+   "id": "R-A5",
+   "severity": "info",
+   "new": true,
+   "preexisting": true,
+   "summary": "report-restored.json ne se verifie pas sous le module de rapport gele (ec0ef55a... vs 88145afc...) uniquement a cause d une cle d annotation restoration ajoutee apres hachage ; en la retirant, 88145afc... est reproduit exactement. Artefact A10, hors perimetre v1.0.12 (stage-report.js identique en v1.0.10/11/12)."
+  },
+  {
+   "id": "R-A6",
+   "severity": "low",
+   "new": true,
+   "summary": "tools/package.sh appelle build-manifest.js : l executer au gel regenerera MANIFEST.json / SHA256SUMS.txt et y inclura les rapports d audit. Decision explicite requise (cf. decision D2 du lot MONO-11 v0.4)."
+  },
+  {
+   "id": "R3",
+   "severity": "medium",
+   "transported": true,
+   "classification": "RISQUE_DE_COMPORTEMENT_MODELE (ni cosmetique ni bloquant)",
+   "summary": "Libelle de passe 3 du lot gele (review-enforcer.js l.245) : accuse le modele d avoir REPRODUIT A L IDENTIQUE alors qu en CAS B c est v0.4 qui re-presente (applied=raw). Attenuation : une citation inventee est non litterale donc refusee ; fail-closed borne a 3 passes. Pire cas = une passe perdue, jamais une fausse acceptation. Correctif = futur lot MONO-11."
+  },
+  {
+   "id": "R4",
+   "severity": "low",
+   "transported": true,
+   "summary": "Un parseRepair illisible laisse repairUnresolvedDimensions=[] ; l echec reste EXPLICITE (repair.parsed=false + REPAIR_JSON_INVALID dans errorCodes + reviewStatus error) aux deux niveaux de trace. Aucun risque de fausse reussite ; tracabilite indirecte mais reelle."
+  },
+  {
+   "id": "R12",
+   "severity": "info",
+   "transported": true,
+   "classification": "EXPECTED_STRICTNESS",
+   "summary": "Durcissement voulu (Q6) : CAS B avec reparation [] echoue desormais en fail-closed au lieu de livrer un [] faussement reussi. Davantage de reviewStatus error attendus en run reel. A mesurer en smoke reel AVANT activation."
+  },
+  {
+   "id": "R13",
+   "severity": "low",
+   "transported": true,
+   "summary": "Aucun zip canonique v1.0.12. NON BLOQUANT : v1.0.11 a ete gelee sans zip (FREEZE-RECORD sans canonicalZipSha256) ; le zip releve de l acte de gel et tools/package.sh existe a la bonne version. Caveat : zip -X sans neutralisation des horodatages => reconstruction bit-a-bit non garantie (identique a R13 du lot)."
+  }
+ ],
+ "integrity": {
+  "deliveredVerifyBefore": {
+   "ok": true,
+   "files": 158,
+   "bad": []
+  },
+  "deliveredVerifyAfter": {
+   "ok": true,
+   "files": 158,
+   "bad": []
+  },
+  "manifestContentHashRecomputed": "9552b45e484cf2e3cdc4f7ef08e275cd1de117055e2643ac854e7a196178f3e2",
+  "manifestContentHashMatches": true,
+  "fileCountMatchesFilesArray": true,
+  "sha256sumsLineCountMatchesManifest": true,
+  "allManifestFilesVerifiedShaAndSize": true,
+  "filesOnDiskOutsideManifest": [
+   "MANIFEST.json",
+   "SHA256SUMS.txt",
+   "EVIDENCEFORGE-v1.0.12-INTEGRATION-REPORT.json",
+   "EVIDENCEFORGE-v1.0.12-INTEGRATION-REPORT.md"
+  ],
+  "parasiteFiles": [],
+  "changedFiles": [
+   {
+    "path": "config/monolith.config.json",
+    "before": "2451b2a5f2994ea14c92e035641cc44aeca01cf1e79683aed174f1596322dae6",
+    "after": "a34cc964c14194982a58aad318c3709a443258995fce8b9bd92a929be5077f17",
+    "nature": "MONO-11 v0.3-r1 -> v0.4 ; zip 3c44b397 -> 79c16d08 ; AJOUT contractVersion MONO-11-v3 ; version produit",
+    "announced": true
+   },
+   {
+    "path": "lib/ef03b-resilience.js",
+    "before": "18739b7aac108f915edef04d53001d33e072c48b8a0f74497e4fca6bc4b76487",
+    "after": "564a0e3d7a507f1f981a73f6799675236efe9655bcb13154ea9c9b00ae077798",
+    "nature": "R5 mergeRepairLineage avant recompose (l.195) + trace lineage ; R6 CONTRACT depuis config (l.183) ; schemaVersion registre",
+    "announced": true
+   },
+   {
+    "path": "lib/llm.js",
+    "before": "b9d1c4799179be786d9a9560dfe326c2d8f826623a7c5c174da475f69b5dff1e",
+    "after": "34816352ef0ef5dc63ea66998b259d1532d2a079972669e7fdde864828f8fac2",
+    "nature": "R6 VALIDATION_CONTRACT depuis config (l.70)",
+    "announced": true
+   },
+   {
+    "path": "lib/pipeline.js",
+    "before": "7e2d718bf11efc2efb788912f91382887269226509d36a5da6260e25eb8d5e0a",
+    "after": "204862ccdb2e1b6e8a8c14d1ea9d578b91b44bcc2857efc916a15a22701b0a14",
+    "nature": "UNE LIGNE : schemaVersion ef03b-resilience.json v1.0.11 -> v1.0.12",
+    "announced": false,
+    "assessment": "cosmetique, sans effet runtime"
+   },
+   {
+    "path": "tools/build-manifest.js",
+    "before": "8c9a6469626e9c6723cd30081bc279b6b53ccf12c4dbe1ac87a148e4eee1a5fa",
+    "after": "af1f086c5935b7b1c314c4a3bf002d99b12e291d40f64ca50d9b5224fee481da",
+    "nature": "provenance, predecesseur, mesure du contrat (cf. R-A3)",
+    "announced": true
+   },
+   {
+    "path": "tools/ef03b-autopsy.js",
+    "before": "00e244afeb9b3eda31980723c14259ebe30f53bd442e4c9559581856df8a75f6",
+    "after": "bb310c6ae7089edee8b656c237b28481e663a1e0c2dd66335e03dae2aab600e1",
+    "nature": "UNE LIGNE : schemaVersion du replay",
+    "announced": false,
+    "assessment": "cosmetique"
+   },
+   {
+    "path": "tools/ef03b-registry-import.js",
+    "before": "3a6708539e6dd17fcc18306dc4bff5c66c09d45c578b935b458d362af538acf8",
+    "after": "c6d694ac4a03ed45cafe7ab8d8b7d228a38147dbe75db333918e4357682a73ac",
+    "nature": "R6 CONTRACT config + fail-closed sceau/contrat + mergeRepairLineage dans la reconstruction historique",
+    "announced": true
+   },
+   {
+    "path": "tools/package.sh",
+    "before": "5bb461bb700995774d6b8333ecf91c9c1be08076fc854c686cce81dbf1d00a8a",
+    "after": "93400b4f8fd6a619115b0b968c21309a0929c00ceac6e1d83e1efba20fc95cf2",
+    "nature": "nom du zip v1.0.11 -> v1.0.12",
+    "announced": true
+   }
+  ],
+  "addedFiles": [
+   "EVIDENCEFORGE-v1.0.12-INTEGRATION-REPORT.md",
+   "EVIDENCEFORGE-v1.0.12-INTEGRATION-REPORT.json",
+   "test/test-v1012-lineage-parity.js"
+  ],
+  "unchangedRuntimeConfirmed": [
+   "server.js",
+   "index.html",
+   "worker/",
+   "vendor/",
+   "governance/",
+   "fixtures/",
+   "lib/llm-stream.js",
+   "lib/live-status.js",
+   "lib/cost-view.js",
+   "lib/stage-professionals.js",
+   "lib/stage-report.js",
+   "lib/panel-sufficiency.js",
+   "lib/economic-panel.js",
+   "lib/run-store.js",
+   "lib/paths.js"
+  ],
+  "undeclaredRuntimeChanges": [
+   {
+    "path": "lib/pipeline.js",
+    "impact": "nul (schemaVersion)"
+   },
+   {
+    "path": "tools/ef03b-autopsy.js",
+    "impact": "nul (schemaVersion)"
+   }
+  ],
+  "frozenLots": {
+   "MONO-01": {
+    "verified": true,
+    "files": 106,
+    "divergences": 0,
+    "seal": "4ba8903ceaeb"
+   },
+   "MONO-09": {
+    "verified": true,
+    "files": 9,
+    "divergences": 0,
+    "seal": "f1f1e94bdcca"
+   },
+   "MONO-10": {
+    "verified": true,
+    "files": 79,
+    "divergences": 0,
+    "seal": "e050af0545ab",
+    "zip": "f5a4165414f4"
+   },
+   "MONO-11": {
+    "verified": true,
+    "files": 55,
+    "divergences": 0,
+    "seal": "110db4de2470",
+    "zip": "79c16d08a0a5"
+   }
+  },
+  "mono11IntegrationExact": true
+ },
+ "r5": {
+  "classification": "ADAPTER_MONO11_PARITY_PASS",
+  "precondition": "st.ctx.content === doc.content (non assertee, non mesuree — cf. R-A2)",
+  "matrix": {
+   "cases": 48,
+   "mismatches": 0,
+   "registryWrites": 25,
+   "registryCandidateByteIdenticalToLot": "25/25",
+   "statusIdentical": "48/48",
+   "acceptedPassIdentical": "48/48",
+   "refsIdentical": "48/48",
+   "lotPassShasIdentical": "48/48",
+   "mirrorTraceBytesDivergentPasses": 18,
+   "divergentPassesAllEndInError": true,
+   "divergentPassesCauseNoRegistryWrite": true
+  },
+  "residual": "Sur 18/48 cas (rp.ok=false cote lot) le candidat TRACE par le miroir differe ; cas 25 : la trace annonce CANDIDATE_VALID pour une passe rejetee par le lot. Effet borne a l observabilite.",
+  "reportClaimAssessment": "« le candidat trace / inscrit au registre est byte-identique a celui que le lot valide » : EXACT pour « inscrit au registre », TROP LARGE pour « trace »."
+ },
+ "r6": {
+  "status": "PASS",
+  "contractSourceProvenLiveByConfigProbe": true,
+  "probe": {
+   "root": "MONOLITH-PROBE (copie scratch)",
+   "configContractVersion": "AUDIT-PROBE-v9",
+   "contractWrittenByAdapter": "AUDIT-PROBE-v9",
+   "baselineRoot": "MONOLITH-v1.0.12",
+   "baselineConfig": "MONO-11-v3",
+   "baselineWritten": "MONO-11-v3"
+  },
+  "cases": [
+   "ancien sceau + MONO-11-v3",
+   "nouveau sceau + MONO-11-v2",
+   "ancien sceau + MONO-11-v2",
+   "nouveau sceau + contrat courant"
+  ],
+  "results": {
+   "registry": {
+    "ancien sceau + MONO-11-v3": "REFUSE (registryReuses=0, 1 appel reel)",
+    "nouveau sceau + MONO-11-v2": "REFUSE (registryReuses=0, 1 appel reel)",
+    "ancien sceau + MONO-11-v2": "REFUSE (registryReuses=0, 1 appel reel)",
+    "nouveau sceau + contrat courant": "ADMIS (registryReuses=1, 0 appel reel)"
+   },
+   "llmCache": {
+    "ancien sceau + MONO-11-v3": "REFUSE (sceau different, lib/llm.js l.77)",
+    "nouveau sceau + MONO-11-v2": "REFUSE (contrat different, l.76)",
+    "ancien sceau + MONO-11-v2": "REFUSE (les deux)",
+    "nouveau sceau + contrat courant": "ADMIS",
+    "note": "sealHash injecte par lib/pipeline.js l.120/129 ; corrobore par le revert (X7, V1, V2, V8, RUN-SAFETY-21, T-STREAM-05, V12-09)"
+   }
+  },
+  "registryImport": {
+   "sealMismatchThrows": "REGISTRY_IMPORT_SEAL_MISMATCH",
+   "contractMismatchThrows": "REGISTRY_IMPORT_CONTRACT_MISMATCH",
+   "historicalReconstructionUsesMergeRepairLineage": true,
+   "bareRecomposeRemoved": true
+  },
+  "noHardPinnedContractLeftInLibOrTools": true,
+  "noReuseOfV1010OrV1011ArtefactsUnderV1012": true
+ },
+ "globalLineage": {
+  "answer": "KNOWN_GAP_REMAINS",
+  "paths": {
+   "A": {
+    "name": "litteralisation (adaptateur, bloc G)",
+    "verdict": "SUR",
+    "evidence": "preserveLineageRepairs/mergeLiteralRefs inchanges ; bloc G non touche (diff) ; shadow A10 restaure 12/12"
+   },
+   "B": {
+    "name": "reparation ciblee (lot + miroir)",
+    "verdict": "SUR_SOUS_PRECONDITION",
+    "evidence": "48/48 parite, 25/25 registre ; precondition st.ctx.content === doc.content"
+   },
+   "C": {
+    "name": "import de registre",
+    "verdict": "SUR",
+    "evidence": "fail-closed sceau + contrat ; reconstruction via mergeRepairLineage"
+   },
+   "D": {
+    "name": "replay / reutilisation (registre, cache llm)",
+    "verdict": "BRECHE",
+    "evidence": "collision du marqueur BASE DOCUMENTAIRE DU PROFESSIONNEL => ctx tronque (contextUnparsed=0) => registre ampute VALID => servi a 0 appel => citation litterale valide perdue silencieusement, reviewStatus complete. PREEXISTANT, non introduit par v1.0.12."
+   },
+   "E": {
+    "name": "regeneration informee",
+    "verdict": "CORRECTEMENT_ETIQUETEE",
+    "evidence": "strategie distincte INFORMED_REPAIR_V02 ; preservedRefs=null, repairUnresolvedDimensions=[] ; rapport d integration l.212 declare explicitement aucune garantie de lignee. Conforme a R11 : non presentee comme une reparation preservant la lignee."
+   }
+  }
+ },
+ "caseAB": {
+  "caseA": "CAS_A_CORRECT — raw [] => NO_REFS_EXPECTED => [], passe 1, aucune reparation declenchee (cas 01, 28)",
+  "caseB": "CAS_B_FAIL_CLOSED_CORRECT — raw non vide, aucune valide, aucune reparation valide => REFS_PRESENT_BUT_UNRESOLVED => error, 3 passes, registre vide (cas 04, 12, 23, 29)",
+  "rawInvalidOnly": "OK",
+  "validPlusInvalid": "OK — la valide survit",
+  "modelOmitsValid": "OK — [VA, VC] des deux cotes",
+  "nonLiteralRepair": "OK — ecartee, conservee maintenue",
+  "parseRepairFailures": "15/15 en error (JSON malforme, mauvais schema, cles en trop, dimension manquante, refs non tableau, racine tableau, objet vide, repairs vide, entree null, revue complete, JSON tronque, prose+JSON, dimensionId non-chaine, repairs imbrique, texte vide)",
+  "thirdPass": "fail-closed borne, jamais de 4e passe",
+  "falseEmptySuccess": "aucun sur 48 cas",
+  "r4Inspection": "parseRepair en echec => repairUnresolvedDimensions=[] MAIS echec explicite : repair.parsed=false + REPAIR_JSON_INVALID dans errorCodes (lot ET trace miroir) + reviewStatus error. Tracabilite indirecte, aucun risque de fausse reussite."
+ },
+ "shadow": {
+  "run": "efm-20260918-a64167c0",
+  "method": "script de rejeu ecrit par l auditeur (pas seulement V12-13), hors ligne",
+  "findingsCompared": 70,
+  "expectedFindings": 70,
+  "citationsRestored": 12,
+  "expectedCitations": 12,
+  "emptiedFindingsRestored": 3,
+  "expectedEmptied": 3,
+  "mismatchesVsReviewsRestored": 0,
+  "otherSubstantiveFieldsChanged": 0,
+  "runDirWriteDetected": false,
+  "runDirMtimeAndSizeIdentical": true,
+  "networkCalls": 0,
+  "providerCalls": 0,
+  "runFilesHashedBeforeAfter": 1493,
+  "runDiffLines": 0
+ },
+ "aggregationReport": {
+  "counts": {
+   "etabli": 13,
+   "convergent": 9,
+   "divergent": 7,
+   "provisoire": 0,
+   "nonEtabli": 67,
+   "reservations": 10
+  },
+  "countsIdenticalHistoricalVsRestored": true,
+  "qualification": "QUALIFIED_WITH_RESERVATIONS",
+  "scientificallyUsable": "NO",
+  "headlineIdentical": true,
+  "reservationsIdentical": true,
+  "reservationsCount": 10,
+  "statementListLengthsIdentical": true,
+  "aggregatesCount": 10,
+  "convergenceCountUnchangedForAllAggregates": true,
+  "aggregateFieldsThatDiffer": [
+   "targetEvidenceRefs",
+   "convergences(targetEvidenceRefs seulement)"
+  ],
+  "statementFieldsThatDiffer": [
+   "targetEvidence",
+   "why",
+   "branches"
+  ],
+  "fieldsIdentical": [
+   "divergences",
+   "notDeterminable",
+   "evidenceGaps",
+   "epistemicProfile",
+   "independentTwinCount",
+   "contributingReviewRefs",
+   "allFindingIds",
+   "dimensionId"
+  ],
+  "runBindingAbsentFromRestored": true,
+  "runBindingAssessment": "attendu : attestation de run non reproductible hors ligne, non substantielle",
+  "conclusion": "lignee enrichie, substance identique",
+  "reportHashes": {
+   "historicalDeclared": "a962d5eefeb033ac4dd9f76627989a72d423737f3ca13cd2e4e65730de7a441c",
+   "historicalRecomputed": "a962d5eefeb033ac4dd9f76627989a72d423737f3ca13cd2e4e65730de7a441c",
+   "historicalValid": true,
+   "restoredDeclared": "88145afc76b05abf48a3e328e42c437e0b50496414752a378e7f632bdf3937af",
+   "restoredRecomputedRaw": "ec0ef55a60c1",
+   "restoredRecomputedWithoutRestorationKey": "88145afc76b0",
+   "restoredValidAfterRemovingAnnotationKey": true,
+   "stageReportIdenticalAcrossV1010V1011V1012": "0e67295b65583537"
+  }
+ },
+ "tests": {
+  "announced": {
+   "monolith": "292/292",
+   "chunking": "21/21",
+   "secretScan": 0,
+   "antiHardcoding": 0,
+   "manifestVerify": 158,
+   "frozenLotsDivergences": 0
+  },
+  "measured": {
+   "monolith": "292/292",
+   "chunking": "21/21",
+   "secretScan": 0,
+   "secretScanFiles": 162,
+   "antiHardcoding": 0,
+   "antiHardcodingFiles": 75,
+   "antiHardcodingCaseTokens": 0,
+   "manifestVerify": 158,
+   "frozenLotsDivergences": 0
+  },
+  "allAnnouncedFiguresConfirmed": true,
+  "environmentNote": "Premier passage : 291/292 (NONREG-01). Cause : les kits operateur EF-01B-v0.2-r2 / EF-01C1-v0.2-r2 vivent HORS du bundle (tools/EvidenceForge/) et n etaient pas dans ma copie rsync. Apres copie a la position relative equivalente : 292/292. Pas un defaut du candidat ; dependance d environnement hors paquet du test.",
+  "idsAdded": [
+   "V12-01",
+   "V12-02",
+   "V12-03",
+   "V12-04",
+   "V12-05",
+   "V12-06",
+   "V12-07",
+   "V12-08",
+   "V12-09",
+   "V12-10",
+   "V12-11",
+   "V12-12",
+   "V12-13",
+   "V12-14",
+   "V12-15",
+   "V12-16",
+   "V12-17",
+   "V12-18"
+  ],
+  "idsRemoved": [],
+  "idsReworded": [
+   "I3",
+   "L5",
+   "V1",
+   "V8",
+   "NONREG-01",
+   "RUN-SAFETY-21",
+   "T-EF03B-34"
+  ],
+  "noTestWeakened": true,
+  "rewordingAssessment": "toutes des mises a jour v0.3-r1 -> v0.4 / MONO-11-v2 -> v3 / 52 -> 55 fichiers. RUN-SAFETY-21 a ete RENFORCE (ajout de l assertion que les entrees sous l ancien contrat sont refusees).",
+  "v12TestsActuallyTestWhatTheyClaim": "OUI pour l ossature (lot gele et parseur EF-03B reellement executes, LLM factice, 0 reseau). MAIS parity() compare la revue LIVREE, produite par le meme lot gele dans les deux branches : du point de vue de R5 ces assertions sont largement tautologiques. Seul V12-02 assertionne sur le candidat du registre.",
+  "revertCheck": {
+   "method": "chaque correctif annule dans la copie REVERT/, suite relancee",
+   "R5": {
+    "reverted": "RE.recompose(st.parsed, mg.applied) -> RE.recompose(st.parsed, rp.repairs || {})",
+    "result": "290/292",
+    "failing": [
+     "T-EF03B-34",
+     "V12-02"
+    ],
+    "detected": true
+   },
+   "R6a": {
+    "reverted": "lib/llm.js VALIDATION_CONTRACT = \"MONO-11-v2\" en dur",
+    "result": "285/292",
+    "failing": [
+     "X7",
+     "V1",
+     "V2",
+     "V8",
+     "RUN-SAFETY-21",
+     "T-STREAM-05",
+     "V12-09"
+    ],
+    "detected": true
+   },
+   "R6b": {
+    "reverted": "adaptateur CONTRACT = \"MONO-11-v2\" en dur",
+    "result": "288/292",
+    "failing": [
+     "T-EF03B-08",
+     "T-EF03B-11",
+     "T-EF03B-12",
+     "V12-09"
+    ],
+    "detected": true
+   },
+   "R6c": {
+    "reverted": "import : suppression du fail-closed sceau/contrat + recompose nu",
+    "result": "291/292",
+    "failing": [
+     "V12-11"
+    ],
+    "detected": true
+   },
+   "conclusion": "Aucun correctif decoratif : chacun est protege par au moins un test qui echoue s il est annule. MAIS 17 des 18 tests V12-* passent encore avec R5 annule : la couverture de R5 tient a un seul test comportemental (V12-02) — cf. R-A4."
+  }
+ },
+ "probes": [
+  {
+   "id": 1,
+   "name": "valide originale omise par le modele",
+   "result": "conservee des deux cotes ([VA, VC]) — miroir == lot",
+   "verdict": "OK"
+  },
+  {
+   "id": 2,
+   "name": "reparation en doublon",
+   "result": "dedup stable => [VA, VB] — miroir == lot",
+   "verdict": "OK"
+  },
+  {
+   "id": 3,
+   "name": "reparation non litterale",
+   "result": "ecartee ; conservee maintenue => [VA]",
+   "verdict": "OK"
+  },
+  {
+   "id": 4,
+   "name": "brut tout invalide + reparation []",
+   "result": "error, 3 passes, fail-closed, registre vide",
+   "verdict": "OK"
+  },
+  {
+   "id": 5,
+   "name": "dimensions mixtes / reparation partielle",
+   "result": "parite totale ; reparation partielle => error",
+   "verdict": "OK"
+  },
+  {
+   "id": 6,
+   "name": "entree de registre perimee (autre sceau)",
+   "result": "refusee, appel reel",
+   "verdict": "OK"
+  },
+  {
+   "id": 7,
+   "name": "ancien contrat MONO-11-v2",
+   "result": "refuse au registre ET au cache",
+   "verdict": "OK"
+  },
+  {
+   "id": 8,
+   "name": "ancien sceau 9fbef412",
+   "result": "refuse partout ; import leve REGISTRY_IMPORT_SEAL_MISMATCH",
+   "verdict": "OK"
+  },
+  {
+   "id": 9,
+   "name": "reparation malformee (15 variantes)",
+   "result": "15/15 en error, jamais de reussite ; 18 cas de divergence de trace",
+   "verdict": "OK_AVEC_RESERVE_R-A1"
+  },
+  {
+   "id": 10,
+   "name": "refs vides legitimes (raw = [])",
+   "result": "NO_REFS_EXPECTED => [], passe 1, aucune reparation",
+   "verdict": "OK"
+  },
+  {
+   "id": 11,
+   "name": "collision du marqueur de prompt dans le document cible",
+   "result": "BRECHE : registre ampute puis servi a 0 appel ; citation litterale valide perdue silencieusement, reviewStatus complete",
+   "verdict": "BRECHE_R-A2"
+  },
+  {
+   "id": 12,
+   "name": "references sous-chaines l une de l autre (deux sens)",
+   "result": "parite exacte, aucune fusion parasite",
+   "verdict": "OK"
+  },
+  {
+   "id": 13,
+   "name": "entrees non-chaine / null dans brut et reparation",
+   "result": "parite exacte, aucune exception",
+   "verdict": "OK"
+  },
+  {
+   "id": 14,
+   "name": "le contrat suit-il la configuration ?",
+   "result": "oui : config sonde AUDIT-PROBE-v9 => constante AUDIT-PROBE-v9",
+   "verdict": "OK"
+  }
+ ],
+ "seals": {
+  "mandateWordingCorrection": "Le mandat parle du « runCodeHash / runtimeSeal » du monolithe : ces notions ne lui appartiennent pas. Le MONOLITHE possede un MANIFEST.json + SHA256SUMS.txt (158 fichiers) et un contentHash (9552b45e...), sa seule empreinte de paquet. runtimeSealSha256 (110db4de...) et runCodeHash (27610c84...) appartiennent au LOT GELE MONO-11 v0.4 ; le monolithe les CHARGE via loadSealedMono11() et les INSCRIT dans son MANIFEST (provenance mesuree).",
+  "newBaselineCarriesNewManifestAndContentHash": true,
+  "contentHash": "9552b45e484cf2e3cdc4f7ef08e275cd1de117055e2643ac854e7a196178f3e2",
+  "mono11ReferencedExactly": {
+   "dir": "MONO-11/v0.4",
+   "version": "v0.4",
+   "zipSha256": "79c16d08a0a52bc1b9ae3c6884cc22f6161145bed18158d6c9b6a44df1a7c474",
+   "contractVersion": "MONO-11-v3",
+   "allFourMatchFreezeRecordAndDisk": true
+  },
+  "checkpointFailClosed": {
+   "guard": "lib/stage-professionals.js l.319",
+   "rule": "cp.seal.runtimeSealSha256 !== SEAL.runtimeSealSha256 => CHECKPOINT_SEAL_MISMATCH",
+   "historicalRunSeal": "9fbef4126d437e0bb2ee4b2564b5ebcc381e8a338eacba40a590eff8402c079c",
+   "currentSeal": "110db4de24709926d4a5fb6d0e951530f0afc2c1c807a09127852a92aa182c3d",
+   "result": "reprise refusee, aucune migration",
+   "method": "raisonne (pas d execution bout en bout) ; corrobore par V5 et V12-14 qui passent"
+  }
+ },
+ "d103": {
+  "historicalRunBoundTo": "MONOLITH-v1.0 / MONO-11 v0.3-r1 (sceau 9fbef412...)",
+  "historicalRunUnchanged": true,
+  "historicalReportHash": "a962d5eefeb033ac4dd9f76627989a72d423737f3ca13cd2e4e65730de7a441c",
+  "historicalReportHashRecomputedIdentical": true,
+  "shadowIsParallelArtefact": true,
+  "shadowReportHash": "88145afc76b05abf48a3e328e42c437e0b50496414752a378e7f632bdf3937af",
+  "shadowFileSha256": "398dcc3cf279f8db425875c902794650024f80c74b6c68ad072aea7d9667ce7a",
+  "runFilesCompared": 1493,
+  "runShaDiffLines": 0,
+  "runMtimeDiffLines": 0,
+  "d103FilesCompared": 151,
+  "d103ShaDiffLines": 0,
+  "d103SampleSumsVerified": "4/4",
+  "d103Untouched": true
+ },
+ "constraintsRespected": {
+  "readOnlyEverywhere": true,
+  "deliveredTreeDiffLines": 0,
+  "deliveredTreeFilesCompared": 162,
+  "providerCalls": 0,
+  "networkCalls": 0,
+  "realRuns": 0,
+  "commits": 0,
+  "activeVersionUnchanged": "MONOLITH-v1.0.10",
+  "d103Unmodified": true,
+  "historicalRunUnmodified": true,
+  "noDeliveredArtefactByteEdited": true,
+  "allExecutionInScratchCopy": "/private/tmp/claude-501/-Users-christophebonnet/cefb334a-2fee-428d-b8f0-90b750293804/scratchpad/audit-v1012/",
+  "probesWrittenOnlyInScratch": true,
+  "scriptsReadBeforeRunning": true,
+  "noDoctorStartSetupOrServerExecuted": true
+ },
+ "hashesVerified": {
+  "manifestJson": "d8bb0d3e7c28a6cc419333432e32193534d85c1bf593e267bf97cce88f4f5c6f",
+  "sha256sumsTxt": "3c1c736fd19bb1a79626b4908ff9438523b26625fe997f8358c9dbb75c80aa6d",
+  "testResultsJson": "4ff7dc2080f2feb3d18d138e4318db330c821c95008ce37c3d1b0894e1dae902",
+  "manifestContentHash": "9552b45e484cf2e3cdc4f7ef08e275cd1de117055e2643ac854e7a196178f3e2",
+  "adapter": "564a0e3d7a507f1f981a73f6799675236efe9655bcb13154ea9c9b00ae077798",
+  "mono11Seal": "110db4de24709926d4a5fb6d0e951530f0afc2c1c807a09127852a92aa182c3d",
+  "mono11Zip": "79c16d08a0a52bc1b9ae3c6884cc22f6161145bed18158d6c9b6a44df1a7c474",
+  "mono11ReviewEnforcer": "cd620ab30ca1fbe863987dee6711b358930721d57c1b7d086c7bab87d985636a",
+  "mono11Contracts": "b3e5ac7dc3a7a70deef015b1f26b93d173cf79e83c9644c4d37f65059d2c75d2",
+  "mono10Zip": "f5a4165414f4aacc32f48f50eb14d59c87a09e3f138e24f8bd14b956972c2e04",
+  "historicalReportHash": "a962d5eefeb033ac4dd9f76627989a72d423737f3ca13cd2e4e65730de7a441c",
+  "restoredReportHash": "88145afc76b05abf48a3e328e42c437e0b50496414752a378e7f632bdf3937af",
+  "stageReportJs": "0e67295b65583537 (identique v1.0.10 / v1.0.11 / v1.0.12)"
+ },
+ "deliverablesNotInManifest": {
+  "note": "Les deux livrables de cet audit sont ecrits dans MONOLITH-v1.0.12/ APRES l enregistrement de l etat du manifeste. Ils sont donc absents du MANIFEST.json / SHA256SUMS.txt a 158 fichiers — meme discipline que le rapport d integration de l auteur, que l audit independant de v1.0.11, et que les rapports d audit du lot MONO-11 v0.4 (decision D2).",
+  "verifyStillPasses": true,
+  "reason": "lecture du code : verify() ne controle que les fichiers LISTES dans SHA256SUMS.txt (existence + hash), jamais l absence de fichiers supplementaires ; confirme par execution apres ecriture."
+ },
+ "r5Matrix": [
+  {
+   "case": "01 empty-raw-all",
+   "statusMirror": "complete",
+   "statusLot": "complete",
+   "acceptedPassMirror": 1,
+   "acceptedPassLot": 1,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": "8bc9ded1a9452de57705016a719487ef7370a43bc24198f0ca0dd43991b1c0e2",
+   "lotAcceptedCandidateSha256": "8bc9ded1a9452de57705016a719487ef7370a43bc24198f0ca0dd43991b1c0e2",
+   "registryMatchesLot": true,
+   "mirrorBytesEqualLotEveryPass": true,
+   "verdict": "OK"
+  },
+  {
+   "case": "02 all-valid",
+   "statusMirror": "complete",
+   "statusLot": "complete",
+   "acceptedPassMirror": 1,
+   "acceptedPassLot": 1,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": "7b15ec2dd1fd533ef9234b0e1937b432f125785d7ec7fd2714e5baf0ef5a04ba",
+   "lotAcceptedCandidateSha256": "7b15ec2dd1fd533ef9234b0e1937b432f125785d7ec7fd2714e5baf0ef5a04ba",
+   "registryMatchesLot": true,
+   "mirrorBytesEqualLotEveryPass": true,
+   "verdict": "OK"
+  },
+  {
+   "case": "03 all-invalid-1dim",
+   "statusMirror": "complete",
+   "statusLot": "complete",
+   "acceptedPassMirror": 2,
+   "acceptedPassLot": 2,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": "0f17ac2851d059eb920744c1c2f1473d88e5923a6af23aee9d060fc3d007ed60",
+   "lotAcceptedCandidateSha256": "0f17ac2851d059eb920744c1c2f1473d88e5923a6af23aee9d060fc3d007ed60",
+   "registryMatchesLot": true,
+   "mirrorBytesEqualLotEveryPass": true,
+   "verdict": "OK"
+  },
+  {
+   "case": "04 all-invalid-repair-empty",
+   "statusMirror": "error",
+   "statusLot": "error",
+   "acceptedPassMirror": null,
+   "acceptedPassLot": null,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": null,
+   "lotAcceptedCandidateSha256": null,
+   "registryMatchesLot": "N/A(no-entry)",
+   "mirrorBytesEqualLotEveryPass": true,
+   "verdict": "OK"
+  },
+  {
+   "case": "05 mixed-valid-invalid",
+   "statusMirror": "complete",
+   "statusLot": "complete",
+   "acceptedPassMirror": 2,
+   "acceptedPassLot": 2,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": "a76f6ee776091d027be69867ea21fe2106314417b0fd1eae624e2d00b8307808",
+   "lotAcceptedCandidateSha256": "a76f6ee776091d027be69867ea21fe2106314417b0fd1eae624e2d00b8307808",
+   "registryMatchesLot": true,
+   "mirrorBytesEqualLotEveryPass": true,
+   "verdict": "OK"
+  },
+  {
+   "case": "06 mixed-model-omits-valid",
+   "statusMirror": "complete",
+   "statusLot": "complete",
+   "acceptedPassMirror": 2,
+   "acceptedPassLot": 2,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": "fe933c8446a1281bf61c0befbdc8b1dcf53d0cb3e7fa38eea746641944c51f5a",
+   "lotAcceptedCandidateSha256": "fe933c8446a1281bf61c0befbdc8b1dcf53d0cb3e7fa38eea746641944c51f5a",
+   "registryMatchesLot": true,
+   "mirrorBytesEqualLotEveryPass": true,
+   "verdict": "OK"
+  },
+  {
+   "case": "07 dup-in-raw",
+   "statusMirror": "complete",
+   "statusLot": "complete",
+   "acceptedPassMirror": 2,
+   "acceptedPassLot": 2,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": "88b7d27a7ea5d7b505988a7a6d55183f15d22fb12c02802973e2baecac1188d2",
+   "lotAcceptedCandidateSha256": "88b7d27a7ea5d7b505988a7a6d55183f15d22fb12c02802973e2baecac1188d2",
+   "registryMatchesLot": true,
+   "mirrorBytesEqualLotEveryPass": true,
+   "verdict": "OK"
+  },
+  {
+   "case": "08 dup-in-repair",
+   "statusMirror": "complete",
+   "statusLot": "complete",
+   "acceptedPassMirror": 2,
+   "acceptedPassLot": 2,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": "7bd263c1133552efa0269894ebe95db7903a5770f6b4545374963f8ab561321c",
+   "lotAcceptedCandidateSha256": "7bd263c1133552efa0269894ebe95db7903a5770f6b4545374963f8ab561321c",
+   "registryMatchesLot": true,
+   "mirrorBytesEqualLotEveryPass": true,
+   "verdict": "OK"
+  },
+  {
+   "case": "09 repair-subset",
+   "statusMirror": "complete",
+   "statusLot": "complete",
+   "acceptedPassMirror": 2,
+   "acceptedPassLot": 2,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": "968f17e12753d4a61b59587b1bc3501c24deead22fb6494701cd40917d0bc70d",
+   "lotAcceptedCandidateSha256": "968f17e12753d4a61b59587b1bc3501c24deead22fb6494701cd40917d0bc70d",
+   "registryMatchesLot": true,
+   "mirrorBytesEqualLotEveryPass": true,
+   "verdict": "OK"
+  },
+  {
+   "case": "10 repair-superset",
+   "statusMirror": "complete",
+   "statusLot": "complete",
+   "acceptedPassMirror": 2,
+   "acceptedPassLot": 2,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": "90fa256e71a4e0aa01d3d705bf8713ba1debab8d13aee7b63352f656b8173cac",
+   "lotAcceptedCandidateSha256": "90fa256e71a4e0aa01d3d705bf8713ba1debab8d13aee7b63352f656b8173cac",
+   "registryMatchesLot": true,
+   "mirrorBytesEqualLotEveryPass": true,
+   "verdict": "OK"
+  },
+  {
+   "case": "11 repair-nonliteral",
+   "statusMirror": "complete",
+   "statusLot": "complete",
+   "acceptedPassMirror": 2,
+   "acceptedPassLot": 2,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": "5b51bd36b9e40807ddecd4eaeb598a8b5231d00fc4c392f54a47452df9ee8307",
+   "lotAcceptedCandidateSha256": "5b51bd36b9e40807ddecd4eaeb598a8b5231d00fc4c392f54a47452df9ee8307",
+   "registryMatchesLot": true,
+   "mirrorBytesEqualLotEveryPass": true,
+   "verdict": "OK"
+  },
+  {
+   "case": "12 repair-all-nonliteral",
+   "statusMirror": "error",
+   "statusLot": "error",
+   "acceptedPassMirror": null,
+   "acceptedPassLot": null,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": null,
+   "lotAcceptedCandidateSha256": null,
+   "registryMatchesLot": "N/A(no-entry)",
+   "mirrorBytesEqualLotEveryPass": true,
+   "verdict": "OK"
+  },
+  {
+   "case": "13 repair-whitespace-only",
+   "statusMirror": "complete",
+   "statusLot": "complete",
+   "acceptedPassMirror": 2,
+   "acceptedPassLot": 2,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": "6f30509f1fc49bdc5f740f5e4aaa5d30cd72fd8a306dfe85fe3aa97edae8b7a0",
+   "lotAcceptedCandidateSha256": "6f30509f1fc49bdc5f740f5e4aaa5d30cd72fd8a306dfe85fe3aa97edae8b7a0",
+   "registryMatchesLot": true,
+   "mirrorBytesEqualLotEveryPass": true,
+   "verdict": "OK"
+  },
+  {
+   "case": "14 repair-empty-string",
+   "statusMirror": "complete",
+   "statusLot": "complete",
+   "acceptedPassMirror": 2,
+   "acceptedPassLot": 2,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": "7c181cae719fba2279e71506f97cc72b78bacfabc89361b99ea95715d38c5568",
+   "lotAcceptedCandidateSha256": "7c181cae719fba2279e71506f97cc72b78bacfabc89361b99ea95715d38c5568",
+   "registryMatchesLot": true,
+   "mirrorBytesEqualLotEveryPass": true,
+   "verdict": "OK"
+  },
+  {
+   "case": "15 repair-nonstring",
+   "statusMirror": "complete",
+   "statusLot": "complete",
+   "acceptedPassMirror": 2,
+   "acceptedPassLot": 2,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": "5694e921acd1ec348f1c09052078283d0f1ed1b85ca43b4340f88c861776fb14",
+   "lotAcceptedCandidateSha256": "5694e921acd1ec348f1c09052078283d0f1ed1b85ca43b4340f88c861776fb14",
+   "registryMatchesLot": true,
+   "mirrorBytesEqualLotEveryPass": true,
+   "verdict": "OK"
+  },
+  {
+   "case": "16 raw-nonstring",
+   "statusMirror": "complete",
+   "statusLot": "complete",
+   "acceptedPassMirror": 2,
+   "acceptedPassLot": 2,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": "c7cff4ba6e385c208055c67f69b2e55197db09fa3dfa46fe29cce04db2a86b31",
+   "lotAcceptedCandidateSha256": "c7cff4ba6e385c208055c67f69b2e55197db09fa3dfa46fe29cce04db2a86b31",
+   "registryMatchesLot": true,
+   "mirrorBytesEqualLotEveryPass": true,
+   "verdict": "OK"
+  },
+  {
+   "case": "17 raw-null",
+   "statusMirror": "complete",
+   "statusLot": "complete",
+   "acceptedPassMirror": 2,
+   "acceptedPassLot": 2,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": "a70d973065158ba5e16763646c48c600c9ed809553f7cb6491dd938ba1a142b6",
+   "lotAcceptedCandidateSha256": "a70d973065158ba5e16763646c48c600c9ed809553f7cb6491dd938ba1a142b6",
+   "registryMatchesLot": true,
+   "mirrorBytesEqualLotEveryPass": true,
+   "verdict": "OK"
+  },
+  {
+   "case": "18 substring-refs",
+   "statusMirror": "complete",
+   "statusLot": "complete",
+   "acceptedPassMirror": 2,
+   "acceptedPassLot": 2,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": "1550880ee8d3ff25945b106d0f76ddf9580c8b7d2a88fbf92c4ce7ba1196a7d1",
+   "lotAcceptedCandidateSha256": "1550880ee8d3ff25945b106d0f76ddf9580c8b7d2a88fbf92c4ce7ba1196a7d1",
+   "registryMatchesLot": true,
+   "mirrorBytesEqualLotEveryPass": true,
+   "verdict": "OK"
+  },
+  {
+   "case": "19 substring-reverse",
+   "statusMirror": "complete",
+   "statusLot": "complete",
+   "acceptedPassMirror": 2,
+   "acceptedPassLot": 2,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": "9dee26a4a61cdbdc1ccdd6d76b48ef1264d514312d6b38a9e1c5052fc02e8b12",
+   "lotAcceptedCandidateSha256": "9dee26a4a61cdbdc1ccdd6d76b48ef1264d514312d6b38a9e1c5052fc02e8b12",
+   "registryMatchesLot": true,
+   "mirrorBytesEqualLotEveryPass": true,
+   "verdict": "OK"
+  },
+  {
+   "case": "20 repair-identical-to-invalid",
+   "statusMirror": "complete",
+   "statusLot": "complete",
+   "acceptedPassMirror": 2,
+   "acceptedPassLot": 2,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": "38bbf3c499a2461821d01f21ad1e49a965f8d9975a4d688362337414747e67e0",
+   "lotAcceptedCandidateSha256": "38bbf3c499a2461821d01f21ad1e49a965f8d9975a4d688362337414747e67e0",
+   "registryMatchesLot": true,
+   "mirrorBytesEqualLotEveryPass": true,
+   "verdict": "OK"
+  },
+  {
+   "case": "21 two-dims-mixed",
+   "statusMirror": "complete",
+   "statusLot": "complete",
+   "acceptedPassMirror": 2,
+   "acceptedPassLot": 2,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": "fd3ee8efbd6a6bf34ecebdedc9afd2f237245d609bb2943ecc9f0a8e41c3268b",
+   "lotAcceptedCandidateSha256": "fd3ee8efbd6a6bf34ecebdedc9afd2f237245d609bb2943ecc9f0a8e41c3268b",
+   "registryMatchesLot": true,
+   "mirrorBytesEqualLotEveryPass": true,
+   "verdict": "OK"
+  },
+  {
+   "case": "22 three-dims-invalid",
+   "statusMirror": "complete",
+   "statusLot": "complete",
+   "acceptedPassMirror": 2,
+   "acceptedPassLot": 2,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": "1191fb52321bc586104d04abc699b974641c7b22aa5f862f8206cccdb82934e3",
+   "lotAcceptedCandidateSha256": "1191fb52321bc586104d04abc699b974641c7b22aa5f862f8206cccdb82934e3",
+   "registryMatchesLot": true,
+   "mirrorBytesEqualLotEveryPass": true,
+   "verdict": "OK"
+  },
+  {
+   "case": "23 three-dims-partial-repair",
+   "statusMirror": "error",
+   "statusLot": "error",
+   "acceptedPassMirror": null,
+   "acceptedPassLot": null,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": null,
+   "lotAcceptedCandidateSha256": null,
+   "registryMatchesLot": "N/A(no-entry)",
+   "mirrorBytesEqualLotEveryPass": false,
+   "verdict": "OK"
+  },
+  {
+   "case": "24 one-faulty-one-clean",
+   "statusMirror": "complete",
+   "statusLot": "complete",
+   "acceptedPassMirror": 2,
+   "acceptedPassLot": 2,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": "6b8d6ba1c519738f09c8540aa47a58b2172d01433bbf6069ac435c50966bcad7",
+   "lotAcceptedCandidateSha256": "6b8d6ba1c519738f09c8540aa47a58b2172d01433bbf6069ac435c50966bcad7",
+   "registryMatchesLot": true,
+   "mirrorBytesEqualLotEveryPass": true,
+   "verdict": "OK"
+  },
+  {
+   "case": "25 repair-extra-nonfaulty-dim",
+   "statusMirror": "error",
+   "statusLot": "error",
+   "acceptedPassMirror": null,
+   "acceptedPassLot": null,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": null,
+   "lotAcceptedCandidateSha256": null,
+   "registryMatchesLot": "N/A(no-entry)",
+   "mirrorBytesEqualLotEveryPass": false,
+   "verdict": "OK"
+  },
+  {
+   "case": "26 repair-unknown-dim",
+   "statusMirror": "error",
+   "statusLot": "error",
+   "acceptedPassMirror": null,
+   "acceptedPassLot": null,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": null,
+   "lotAcceptedCandidateSha256": null,
+   "registryMatchesLot": "N/A(no-entry)",
+   "mirrorBytesEqualLotEveryPass": false,
+   "verdict": "OK"
+  },
+  {
+   "case": "27 mixed-preserve-2dims",
+   "statusMirror": "complete",
+   "statusLot": "complete",
+   "acceptedPassMirror": 2,
+   "acceptedPassLot": 2,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": "c7fc3cbe9bf64d4d4ad7e195a37654bf4d579097e2f5d16d02d403a66443c64a",
+   "lotAcceptedCandidateSha256": "c7fc3cbe9bf64d4d4ad7e195a37654bf4d579097e2f5d16d02d403a66443c64a",
+   "registryMatchesLot": true,
+   "mirrorBytesEqualLotEveryPass": true,
+   "verdict": "OK"
+  },
+  {
+   "case": "28 all-dims-empty-except-one-invalid",
+   "statusMirror": "complete",
+   "statusLot": "complete",
+   "acceptedPassMirror": 2,
+   "acceptedPassLot": 2,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": "20c49ca88a9e98ca732bee1f6120a6c756d7ada2d784a7a5a5310e30dbb1296d",
+   "lotAcceptedCandidateSha256": "20c49ca88a9e98ca732bee1f6120a6c756d7ada2d784a7a5a5310e30dbb1296d",
+   "registryMatchesLot": true,
+   "mirrorBytesEqualLotEveryPass": true,
+   "verdict": "OK"
+  },
+  {
+   "case": "29 dims-repair-empty-obj",
+   "statusMirror": "error",
+   "statusLot": "error",
+   "acceptedPassMirror": null,
+   "acceptedPassLot": null,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": null,
+   "lotAcceptedCandidateSha256": null,
+   "registryMatchesLot": "N/A(no-entry)",
+   "mirrorBytesEqualLotEveryPass": false,
+   "verdict": "OK"
+  },
+  {
+   "case": "30 all-valid-dup-across-dims",
+   "statusMirror": "complete",
+   "statusLot": "complete",
+   "acceptedPassMirror": 1,
+   "acceptedPassLot": 1,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": "194ccb23ca5157fc5ee40ffebbaab7277ebc5138ac88a3c4bc9a99abb9e1bb08",
+   "lotAcceptedCandidateSha256": "194ccb23ca5157fc5ee40ffebbaab7277ebc5138ac88a3c4bc9a99abb9e1bb08",
+   "registryMatchesLot": true,
+   "mirrorBytesEqualLotEveryPass": true,
+   "verdict": "OK"
+  },
+  {
+   "case": "31 repair-malformed-json",
+   "statusMirror": "error",
+   "statusLot": "error",
+   "acceptedPassMirror": null,
+   "acceptedPassLot": null,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": null,
+   "lotAcceptedCandidateSha256": null,
+   "registryMatchesLot": "N/A(no-entry)",
+   "mirrorBytesEqualLotEveryPass": false,
+   "verdict": "OK"
+  },
+  {
+   "case": "32 repair-wrong-schema",
+   "statusMirror": "error",
+   "statusLot": "error",
+   "acceptedPassMirror": null,
+   "acceptedPassLot": null,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": null,
+   "lotAcceptedCandidateSha256": null,
+   "registryMatchesLot": "N/A(no-entry)",
+   "mirrorBytesEqualLotEveryPass": false,
+   "verdict": "OK"
+  },
+  {
+   "case": "33 repair-extra-keys",
+   "statusMirror": "error",
+   "statusLot": "error",
+   "acceptedPassMirror": null,
+   "acceptedPassLot": null,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": null,
+   "lotAcceptedCandidateSha256": null,
+   "registryMatchesLot": "N/A(no-entry)",
+   "mirrorBytesEqualLotEveryPass": false,
+   "verdict": "OK"
+  },
+  {
+   "case": "34 repair-missing-dim",
+   "statusMirror": "error",
+   "statusLot": "error",
+   "acceptedPassMirror": null,
+   "acceptedPassLot": null,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": null,
+   "lotAcceptedCandidateSha256": null,
+   "registryMatchesLot": "N/A(no-entry)",
+   "mirrorBytesEqualLotEveryPass": false,
+   "verdict": "OK"
+  },
+  {
+   "case": "35 repair-refs-not-array",
+   "statusMirror": "error",
+   "statusLot": "error",
+   "acceptedPassMirror": null,
+   "acceptedPassLot": null,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": null,
+   "lotAcceptedCandidateSha256": null,
+   "registryMatchesLot": "N/A(no-entry)",
+   "mirrorBytesEqualLotEveryPass": false,
+   "verdict": "OK"
+  },
+  {
+   "case": "36 repair-array-root",
+   "statusMirror": "error",
+   "statusLot": "error",
+   "acceptedPassMirror": null,
+   "acceptedPassLot": null,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": null,
+   "lotAcceptedCandidateSha256": null,
+   "registryMatchesLot": "N/A(no-entry)",
+   "mirrorBytesEqualLotEveryPass": false,
+   "verdict": "OK"
+  },
+  {
+   "case": "37 repair-empty-object",
+   "statusMirror": "error",
+   "statusLot": "error",
+   "acceptedPassMirror": null,
+   "acceptedPassLot": null,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": null,
+   "lotAcceptedCandidateSha256": null,
+   "registryMatchesLot": "N/A(no-entry)",
+   "mirrorBytesEqualLotEveryPass": false,
+   "verdict": "OK"
+  },
+  {
+   "case": "38 repair-repairs-empty",
+   "statusMirror": "error",
+   "statusLot": "error",
+   "acceptedPassMirror": null,
+   "acceptedPassLot": null,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": null,
+   "lotAcceptedCandidateSha256": null,
+   "registryMatchesLot": "N/A(no-entry)",
+   "mirrorBytesEqualLotEveryPass": false,
+   "verdict": "OK"
+  },
+  {
+   "case": "39 repair-null-entry",
+   "statusMirror": "error",
+   "statusLot": "error",
+   "acceptedPassMirror": null,
+   "acceptedPassLot": null,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": null,
+   "lotAcceptedCandidateSha256": null,
+   "registryMatchesLot": "N/A(no-entry)",
+   "mirrorBytesEqualLotEveryPass": false,
+   "verdict": "OK"
+  },
+  {
+   "case": "40 repair-full-review-instead",
+   "statusMirror": "error",
+   "statusLot": "error",
+   "acceptedPassMirror": null,
+   "acceptedPassLot": null,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": null,
+   "lotAcceptedCandidateSha256": null,
+   "registryMatchesLot": "N/A(no-entry)",
+   "mirrorBytesEqualLotEveryPass": false,
+   "verdict": "OK"
+  },
+  {
+   "case": "41 repair-truncated-json",
+   "statusMirror": "error",
+   "statusLot": "error",
+   "acceptedPassMirror": null,
+   "acceptedPassLot": null,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": null,
+   "lotAcceptedCandidateSha256": null,
+   "registryMatchesLot": "N/A(no-entry)",
+   "mirrorBytesEqualLotEveryPass": false,
+   "verdict": "OK"
+  },
+  {
+   "case": "42 repair-prose-then-json",
+   "statusMirror": "complete",
+   "statusLot": "complete",
+   "acceptedPassMirror": 2,
+   "acceptedPassLot": 2,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": "ce693908cedcd9468a52c4ef75747071d1c33767c6a35a0b4c77421f80c9ccaf",
+   "lotAcceptedCandidateSha256": "ce693908cedcd9468a52c4ef75747071d1c33767c6a35a0b4c77421f80c9ccaf",
+   "registryMatchesLot": true,
+   "mirrorBytesEqualLotEveryPass": true,
+   "verdict": "OK"
+  },
+  {
+   "case": "43 repair-dim-nonstring",
+   "statusMirror": "error",
+   "statusLot": "error",
+   "acceptedPassMirror": null,
+   "acceptedPassLot": null,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": null,
+   "lotAcceptedCandidateSha256": null,
+   "registryMatchesLot": "N/A(no-entry)",
+   "mirrorBytesEqualLotEveryPass": false,
+   "verdict": "OK"
+  },
+  {
+   "case": "44 repair-nested-repairs",
+   "statusMirror": "error",
+   "statusLot": "error",
+   "acceptedPassMirror": null,
+   "acceptedPassLot": null,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": null,
+   "lotAcceptedCandidateSha256": null,
+   "registryMatchesLot": "N/A(no-entry)",
+   "mirrorBytesEqualLotEveryPass": false,
+   "verdict": "OK"
+  },
+  {
+   "case": "45 repair-empty-text",
+   "statusMirror": "error",
+   "statusLot": "error",
+   "acceptedPassMirror": null,
+   "acceptedPassLot": null,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": null,
+   "lotAcceptedCandidateSha256": null,
+   "registryMatchesLot": "N/A(no-entry)",
+   "mirrorBytesEqualLotEveryPass": false,
+   "verdict": "OK"
+  },
+  {
+   "case": "46 raw-not-json",
+   "statusMirror": "error",
+   "statusLot": "error",
+   "acceptedPassMirror": null,
+   "acceptedPassLot": null,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": null,
+   "lotAcceptedCandidateSha256": null,
+   "registryMatchesLot": "N/A(no-entry)",
+   "mirrorBytesEqualLotEveryPass": true,
+   "verdict": "OK"
+  },
+  {
+   "case": "47 raw-missing-dim",
+   "statusMirror": "error",
+   "statusLot": "error",
+   "acceptedPassMirror": null,
+   "acceptedPassLot": null,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": null,
+   "lotAcceptedCandidateSha256": null,
+   "registryMatchesLot": "N/A(no-entry)",
+   "mirrorBytesEqualLotEveryPass": true,
+   "verdict": "OK"
+  },
+  {
+   "case": "48 raw-extra-key",
+   "statusMirror": "error",
+   "statusLot": "error",
+   "acceptedPassMirror": null,
+   "acceptedPassLot": null,
+   "refsEqual": true,
+   "lotCandidateShasEqual": true,
+   "registryCandidateSha256": null,
+   "lotAcceptedCandidateSha256": null,
+   "registryMatchesLot": "N/A(no-entry)",
+   "mirrorBytesEqualLotEveryPass": true,
+   "verdict": "OK"
+  }
+ ]
+}

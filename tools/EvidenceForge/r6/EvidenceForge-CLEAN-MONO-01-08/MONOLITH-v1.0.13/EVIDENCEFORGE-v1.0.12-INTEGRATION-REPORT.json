@@ -1,0 +1,262 @@
+{
+ "schema": "EvidenceForge.MonolithIntegrationReport",
+ "version": "MONOLITH-v1.0.12",
+ "name": "GLOBAL LINEAGE PRESERVATION",
+ "generatedAt": "2026-09-22T12:20:30+00:00",
+ "author": "chantier (integration ; audit independant requis avant gel et avant activation)",
+ "statusProposed": "GELABLE",
+ "frozen": false,
+ "activeVersion": {
+  "value": "MONOLITH-v1.0.10",
+  "changed": false
+ },
+ "definition": "v1.0.12 = MONOLITH-v1.0.11 (inchangee sur la litteralisation, le transport, le proxy v0.8, Panel Sufficiency, l economic-panel et stage-professionals) + LOT GELE MONO-11 v0.4 (contrat MONO-11-v3) + les deux conditions d integration R5 et R6 de l audit independant v1.0.11 — et rien d autre",
+ "objective": "GLOBAL_LINEAGE_PRESERVATION sur les deux chemins connus : litteralisation (adaptateur, corrigee en v1.0.11) et reparation ciblee (lot gele v0.4)",
+ "ownerDecisionsApplied": {
+  "D6": "AUTHORIZED_TO_BUILD",
+  "R5": "BLOQUANTE — miroir aligne",
+  "R6": "BLOQUANTE — epinglages de contrat et import alignes, fail-closed",
+  "R3/R4/R12/R13/R2/R11": "transportees (voir reserves)"
+ },
+ "frozenLotSwitch": {
+  "from": {
+   "version": "v0.3-r1",
+   "zip": "3c44b397dda0997d0fff6ab4c8e8a8b311430e6a5ac7aeee38149f8349296b0b",
+   "seal": "9fbef4126d437e0bb2ee4b2564b5ebcc381e8a338eacba40a590eff8402c079c"
+  },
+  "to": {
+   "version": "v0.4",
+   "zip": "79c16d08a0a52bc1b9ae3c6884cc22f6161145bed18158d6c9b6a44df1a7c474",
+   "seal": "110db4de24709926d4a5fb6d0e951530f0afc2c1c807a09127852a92aa182c3d",
+   "runCodeHash": "27610c84502104b3dc9643a9cc0289aef4ae40ae65ee34e4fe82f31a73e381ad",
+   "contractVersion": "MONO-11-v3",
+   "status": "GELE FROZEN_WITH_RESERVATIONS (2026-09-22)"
+  },
+  "consequences": [
+   "CHECKPOINT_SEAL_MISMATCH pour tout checkpoint produit sous v0.3-r1 (dont efm-20260918-a64167c0) — voulu, fail-closed",
+   "aucune reutilisation de cache ni de registre inter-sceau ou inter-contrat",
+   "aucune migration, aucun run historique modifie"
+  ]
+ },
+ "R5": {
+  "condition": "le miroir de l adaptateur doit respecter exactement l invariant du lot et la semantique CAS A / CAS B ; meme entree => meme resultat de lignee",
+  "implementation": "lib/ef03b-resilience.js, branche isTargeted : const mg = RE.mergeRepairLineage(st.parsed, rp.repairs || {}, st.ctx.content); const cand = JSON.stringify(RE.recompose(st.parsed, mg.applied));",
+  "proof": "V12-02, V12-03, V12-04, V12-05, V12-06, V12-07, V12-16 (24 combinaisons brut x reparation) : statut, passe acceptee et targetEvidenceRefs identiques entre le miroir et le lot ; V12-02 verifie en outre que le registre inscrit le candidat AVEC la conservee (v1.0.11 l amputait)"
+ },
+ "R6": {
+  "condition": "aligner lib/llm.js, lib/ef03b-resilience.js et tools/ef03b-registry-import.js sur MONO-11-v3 ; import fail-closed",
+  "implementation": "contrat lu dans config.frozenLots[MONO-11].contractVersion (3 fichiers) ; import : REGISTRY_IMPORT_SEAL_MISMATCH si le run a un autre sceau, REGISTRY_IMPORT_CONTRACT_MISMATCH si le registre porte un autre contrat ou un autre sceau ; reconstruction historique via mergeRepairLineage",
+  "proof": "V12-09 (aucun contrat epingle en dur), V12-10 (registre : ancien contrat et autre sceau refuses, entree courante servie), V12-11 (import : deux refus), V12-12 (cache : contrat et sceau compares), RUN-SAFETY-21 (les memes entrees sous MONO-11-v2 ne sont jamais reutilisees, refus journalises)"
+ },
+ "diff": {
+  "changedFiles": [
+   {
+    "file": "lib/ef03b-resilience.js",
+    "before": "18739b7aac108f915edef04d53001d33e072c48b8a0f74497e4fca6bc4b76487",
+    "after": "564a0e3d7a507f1f981a73f6799675236efe9655bcb13154ea9c9b00ae077798",
+    "nature": "R5 — miroir de la reparation ciblee (branche isTargeted) : RE.mergeRepairLineage(st.parsed, rp.repairs, content) puis RE.recompose(st.parsed, mg.applied) ; trace lineage / repairUnresolvedDimensions ; R6 — CONTRACT lu dans config.frozenLots[MONO-11].contractVersion ; en-tete et schemaVersion du registre"
+   },
+   {
+    "file": "lib/llm.js",
+    "before": "b9d1c4799179be786d9a9560dfe326c2d8f826623a7c5c174da475f69b5dff1e",
+    "after": "34816352ef0ef5dc63ea66998b259d1532d2a079972669e7fdde864828f8fac2",
+    "nature": "R6 — VALIDATION_CONTRACT lu dans la configuration du lot gele (plus d epinglage MONO-11-v2) ; reuseContextCheck inchange (compare contrat et sceau)"
+   },
+   {
+    "file": "lib/pipeline.js",
+    "before": "7e2d718bf11efc2efb788912f91382887269226509d36a5da6260e25eb8d5e0a",
+    "after": "204862ccdb2e1b6e8a8c14d1ea9d578b91b44bcc2857efc916a15a22701b0a14",
+    "nature": "schemaVersion de ef03b-resilience.json -> MONOLITH-v1.0.12 (une chaine)"
+   },
+   {
+    "file": "config/monolith.config.json",
+    "before": "2451b2a5f2994ea14c92e035641cc44aeca01cf1e79683aed174f1596322dae6",
+    "after": "a34cc964c14194982a58aad318c3709a443258995fce8b9bd92a929be5077f17",
+    "nature": "frozenLots[MONO-11] -> dir MONO-11/v0.4, version v0.4, zip 79c16d08…, contractVersion MONO-11-v3 ; product.version MONOLITH-v1.0.12"
+   },
+   {
+    "file": "tools/ef03b-registry-import.js",
+    "before": "3a6708539e6dd17fcc18306dc4bff5c66c09d45c578b935b458d362af538acf8",
+    "after": "c6d694ac4a03ed45cafe7ab8d8b7d228a38147dbe75db333918e4357682a73ac",
+    "nature": "R6 / Q5 — CONTRACT depuis la configuration ; fail-closed REGISTRY_IMPORT_SEAL_MISMATCH et REGISTRY_IMPORT_CONTRACT_MISMATCH ; reconstruction historique via RE.mergeRepairLineage"
+   },
+   {
+    "file": "tools/build-manifest.js",
+    "before": "8c9a6469626e9c6723cd30081bc279b6b53ccf12c4dbe1ac87a148e4eee1a5fa",
+    "after": "af1f086c5935b7b1c314c4a3bf002d99b12e291d40f64ca50d9b5224fee481da",
+    "nature": "predecesseur v1.0.11, provenance, statut candidat v1.0.12, ef03b.mirrorAlignedWithLot / contractFromConfig, contrat mesure depuis la configuration, zip MONO-11 v0.4"
+   },
+   {
+    "file": "tools/ef03b-autopsy.js",
+    "before": "00e244afeb9b3eda31980723c14259ebe30f53bd442e4c9559581856df8a75f6",
+    "after": "bb310c6ae7089edee8b656c237b28481e663a1e0c2dd66335e03dae2aab600e1",
+    "nature": "schemaVersion du replay -> v1.0.12 (une chaine)"
+   },
+   {
+    "file": "tools/package.sh",
+    "before": "5bb461bb700995774d6b8333ecf91c9c1be08076fc854c686cce81dbf1d00a8a",
+    "after": "93400b4f8fd6a619115b0b968c21309a0929c00ceac6e1d83e1efba20fc95cf2",
+    "nature": "nom du zip v1.0.12"
+   },
+   {
+    "file": "README.md",
+    "before": "9d866155d42e114ed7309b5ac7a3365176f2be677597d12662a3cc4083fbdfa6",
+    "after": "661c8d6d862ac1795a8587237f08ad22b795b625676f53992e5b043a7cb72ba8",
+    "nature": "en-tete v1.0.12 (historique conserve)"
+   },
+   {
+    "file": "test/test-monolith.js",
+    "before": "698840623519db78960d38fd4a96d1a7d5a5fb362ea14d1f61bf239c37894350",
+    "after": "e03756172dcf5643a8d3b34ec85b0774af9650c597523a67eb5c962abe793bb2",
+    "nature": "assertions de version du lot (v0.4), chemins, zip canonique, contrat lu dans la configuration, MANIFEST du lot (83)"
+   },
+   {
+    "file": "test/test-v105.js",
+    "before": "377395ec762e940a63ed46f88d34fe3d520d9d4e4e330970676a856674d7706f",
+    "after": "a682411efccbaab7112858f3a13dc66d59ba247c1aaf32c33a34e88b7ff2922d",
+    "nature": "NONREG-01 (55 fichiers, zip v0.4) ; NONREG-02 (frozenLots : MONO-11 volontairement bascule, autres lots identiques a v1.0.4)"
+   },
+   {
+    "file": "test/test-stream.js",
+    "before": "aa37e0118fd0921d86c793f498425bdf91c32ffcc9e901d1af7e2659ff799a56",
+    "after": "dd23140a619ccbf3ababc9570a557ce22e73c7436ec6c2fb4ac7fefa212da496",
+    "nature": "T-STREAM-20 : version du produit v1.0.12"
+   },
+   {
+    "file": "test/test-run-safety.js",
+    "before": "998f388f9763cf60b3896858fe5359bf48134816cfe7b4b809de876210a20f26",
+    "after": "cb7a018e228f283d798cc3c50a198a30fe9928f810f1430c79e45a6e426299f6",
+    "nature": "RUN-SAFETY-21 : reuse sous le contrat COURANT + refus des memes entrees sous MONO-11-v2 (fail-closed), run historique intact"
+   },
+   {
+    "file": "test/test-panel.js",
+    "before": "cc36770ba83b23363f10052cac3caa86bec1f7ac3ef01c0727b2e5c063b27ea1",
+    "after": "578afc808fa6dac65a31d2138f0320abd4ef1708b392f82fb5f238ca5cb12ac5",
+    "nature": "zip canonique MONO-11 v0.4"
+   },
+   {
+    "file": "test/test-ef03b.js",
+    "before": "62e2c335d2a70726696fef19f4b8e345d3b1e7d418a389b0a693d0d096ac6254",
+    "after": "0e0b7d530f15c4f5cf4f0d491a4ac323a77c4c65a71a45e616300918c330a434",
+    "nature": "contrat des entrees de registre lu dans la configuration ; chargement du module de parite v1.0.12"
+   },
+   {
+    "file": "test/test-ef03b-lineage.js",
+    "before": "7c4922017101569389d5ea613692de6308e78007d887e160e5baef5ab08e5e9c",
+    "after": "35508d776d6d1c9221622ac3c419000cb501bf12f16916cdc5c7d32c890e2d32",
+    "nature": "T-EF03B-34 : le miroir applique desormais la fusion du lot (R5)"
+   },
+   {
+    "file": "test/results.json",
+    "before": "e4c3496ad38a8ff869403eb2e2f9df167005395465a42b060b9653ccca32efef",
+    "after": "4ff7dc2080f2feb3d18d138e4318db330c821c95008ce37c3d1b0894e1dae902",
+    "nature": "resultats (292/292)"
+   },
+   {
+    "file": "test/results-chunking.json",
+    "before": "35a8d50902d1720e12562ba3aa5900bb56d513d240d67e3eab2f0305448f5973",
+    "after": "17a17576bbfaffaec182f203c2b916b8df6edead92c80e849491bffd019b8636",
+    "nature": "resultats (21/21)"
+   },
+   {
+    "file": "MANIFEST.json",
+    "before": "331e2d4ca67503a4953118c0ebf9de8ddbdbb12c49266a9111f76f46435b6a8b",
+    "after": "d8bb0d3e7c28a6cc419333432e32193534d85c1bf593e267bf97cce88f4f5c6f",
+    "nature": "mesure (292/292, 158 fichiers, contentHash 9552b45e484c…)"
+   },
+   {
+    "file": "SHA256SUMS.txt",
+    "before": "e1708a3cef298984f4880667aa4e77b07ffc6c982a42d2a50e2a2960c8d9f9a1",
+    "after": "3c1c736fd19bb1a79626b4908ff9438523b26625fe997f8358c9dbb75c80aa6d",
+    "nature": "sceau du paquet"
+   },
+   {
+    "file": "test/test-v1012-lineage-parity.js",
+    "before": null,
+    "after": "a077d59b27222b710e2f511b5fa774586d7f585f9d2b987cafe0187bb05c7e92",
+    "nature": "AJOUT — V12-01..V12-18 : parite miroir/lot, CAS A/CAS B, contrat courant, registre / import / cache fail-closed, shadow A10, checkpoint, frontiere"
+   }
+  ],
+  "adapterDiff": "--- MONOLITH-v1.0.11/lib/ef03b-resilience.js\t2026-09-21 08:00:40\n+++ MONOLITH-v1.0.12/lib/ef03b-resilience.js\t2026-09-22 14:02:30\n@@ -1,7 +1,10 @@\n \"use strict\";\n /**\n- * EvidenceForge MONOLITH v1.0.11 — lib/ef03b-resilience.js\n+ * EvidenceForge MONOLITH v1.0.12 — lib/ef03b-resilience.js\n  * EF-03B REVIEW RESILIENCE : ADAPTATEUR ADDITIF autour de `llmCall` remis au lot gele MONO-11 (review-enforcer, INCHANGE).\n+ * v1.0.12 — GLOBAL LINEAGE PRESERVATION : le miroir de la reparation ciblee gelee (branche isTargeted) applique RE.mergeRepairLineage du lot\n+ *   MONO-11 v0.4 (contrat MONO-11-v3) AVANT RE.recompose : le candidat trace / inscrit au registre est byte-identique a celui que le lot\n+ *   gele valide (R5 de l'audit independant v1.0.11). Le contrat de validation vient de la configuration du lot (R6). Bloc G inchange.\n  * v1.0.11 — LITERALIZATION LINEAGE PRESERVATION (correctif du seul bloc G) : la recomposition apres litteralisation ne remplace plus\n  *   le tableau targetEvidenceRefs d'une dimension fautive par la seule reponse du modele ; elle CONSERVE les references originales\n  *   deja litterales (controle gele : isStr + content.indexOf) puis ajoute les references reparees qui passent ce meme controle —\n@@ -153,7 +156,7 @@\n   const file = path.join(opts.runDir, REGISTRY_FILE); const extra = (opts.extraFiles || []).filter((f) => fs.existsSync(f));\n   const read = () => [file].concat(extra).flatMap((f) => fs.existsSync(f) ? fs.readFileSync(f, \"utf8\").split(\"\\n\").filter(Boolean).map((l) => { try { return JSON.parse(l); } catch (e) { return null; } }).filter(Boolean) : []);\n   function find(basePromptSha256, sealHash, contract) { const all = read().filter((e) => e.basePromptSha256 === basePromptSha256 && e.validationContract === contract && (e.sourceSealHash || null) === (sealHash || null) && e.status === \"VALID\"); return all.length ? all[all.length - 1] : null; }\n-  function put(entry) { fs.mkdirSync(opts.runDir, { recursive: true }); fs.appendFileSync(file, JSON.stringify(Object.assign({ schema: \"EvidenceForge.ValidReviewRecord\", schemaVersion: \"MONOLITH-v1.0.11\", status: \"VALID\", recordedAt: new Date().toISOString() }, entry)) + \"\\n\"); return entry; }\n+  function put(entry) { fs.mkdirSync(opts.runDir, { recursive: true }); fs.appendFileSync(file, JSON.stringify(Object.assign({ schema: \"EvidenceForge.ValidReviewRecord\", schemaVersion: \"MONOLITH-v1.0.12\", status: \"VALID\", recordedAt: new Date().toISOString() }, entry)) + \"\\n\"); return entry; }\n   return { find, put, list: read, file };\n }\n \n@@ -164,7 +167,7 @@\n  */\n function createReviewAdapter(opts) {\n   const llm = opts.llm; const cfg = Object.assign({ maxTokens: 12288, enableOutputBudget: true, enableCompletion: true, enableLiteralization: true, maxCompletionDims: 4, excerptChars: 300, registryExtraFiles: [] }, (P.CONFIG.llm && P.CONFIG.llm.reviewResilience) || {}, opts.config || {}); delete cfg.$comment;\n-  const registry = createReviewRegistry({ runDir: opts.runDir, extraFiles: cfg.registryExtraFiles }); const TRACE = process.env.EVIDENCEFORGE_TRACE_REVIEWS === \"1\"; const CONTRACT = \"MONO-11-v2\";\n+  const registry = createReviewRegistry({ runDir: opts.runDir, extraFiles: cfg.registryExtraFiles }); const TRACE = process.env.EVIDENCEFORGE_TRACE_REVIEWS === \"1\"; const CONTRACT = P.CONFIG.frozenLots[\"MONO-11\"].contractVersion || \"MONO-11-v3\";   /* v1.0.12 (R6) : contrat de validation lu dans la configuration du lot gele (MONO-11 v0.4 : MONO-11-v3) — plus d'epinglage v2 en dur ; une entree de registre d'un autre contrat n'est jamais servie (find() exige l'egalite) */\n   const reviews = {}; const byCallId = {}; const order = []; const stats = { reviewsSeen: 0, registryReuses: 0, truncations: 0, completions: 0, literalizations: 0, realCalls: 0, cumulativeReviewCostUsd: 0, validated: 0, contextUnparsed: 0 };\n   const costOf = (callId) => { try { const e = CL.readEntries(opts.runDir).find((x) => x.callId === callId); return e && e.cost ? e.cost.totalUsd : 0; } catch (e) { return 0; } };\n   const trace = (rec) => { const line = Object.assign({ at: new Date().toISOString(), runId: opts.runId || null, attemptId: opts.attemptId || null }, rec); try { fs.appendFileSync(path.join(opts.runDir, TRACE_FILE), JSON.stringify(line) + \"\\n\"); } catch (e) { /* observabilite */ }\n@@ -188,7 +191,9 @@\n         record(st, meta, null, hit.candidate, { errors: [] }, { strategy: STRATEGY.REGISTRY, state: \"REUSED_VALID\", reusedFieldsCount: st.ctx ? st.ctx.dims.length : null, regeneratedFieldsCount: 0, repairScope: [], sourceAttemptId: hit.attemptId || null });\n         return { text: hit.candidate, callId: callId, providerId: hit.providerId || \"anthropic\", modelId: hit.modelId || llm.model, providerRequestId: null, transportKind: \"REVIEW_REGISTRY_REUSE\", httpStatus: 200, reused: true, stopReason: \"end_turn\", usage: null }; } }\n     if (isTargeted || !st.ctx) {   /* reparation ciblee gelee (petite sortie) ou contexte illisible : transport seul */\n-      const r = await call(prompt, meta); if (isTargeted && st.ctx && st.parsed) { const rp = RE.parseRepair(r.text, Object.keys(st.parsed.findings.reduce((o, f) => { o[f.dimensionId] = 1; return o; }, {}))); const cand = JSON.stringify(RE.recompose(st.parsed, rp.repairs || {})); st.candidates[r.callId] = cand; byCallId[r.callId] = st; const v = mirrorParsed(st, cand); record(st, meta, r, cand, v, { strategy: STRATEGY.PASSTHROUGH, state: v && v.ok ? \"CANDIDATE_VALID\" : \"CANDIDATE_INVALID\", repairScope: Object.keys(rp.repairs || {}), reusedFieldsCount: st.ctx.dims.length - Object.keys(rp.repairs || {}).length, regeneratedFieldsCount: Object.keys(rp.repairs || {}).length }); }\n+      const r = await call(prompt, meta); if (isTargeted && st.ctx && st.parsed) { const rp = RE.parseRepair(r.text, Object.keys(st.parsed.findings.reduce((o, f) => { o[f.dimensionId] = 1; return o; }, {})));\n+        const mg = RE.mergeRepairLineage(st.parsed, rp.repairs || {}, st.ctx.content);   /* v1.0.12 (R5) : MIROIR ALIGNE SUR LE LOT GELE v0.4 — meme fusion de lignee, meme semantique CAS A / CAS B ; le candidat trace est byte-identique a celui que le lot valide */\n+        const cand = JSON.stringify(RE.recompose(st.parsed, mg.applied)); st.candidates[r.callId] = cand; byCallId[r.callId] = st; const v = mirrorParsed(st, cand); record(st, meta, r, cand, v, { strategy: STRATEGY.PASSTHROUGH, state: v && v.ok ? \"CANDIDATE_VALID\" : \"CANDIDATE_INVALID\", repairScope: Object.keys(rp.repairs || {}), reusedFieldsCount: st.ctx.dims.length - Object.keys(rp.repairs || {}).length, regeneratedFieldsCount: Object.keys(rp.repairs || {}).length, lineage: mg.dimensions, repairUnresolvedDimensions: mg.unresolvedDimensions }); }\n       else { st.candidates[r.callId] = r.text; byCallId[r.callId] = st; record(st, meta, r, r.text, st.ctx ? mirrorParsed(st, r.text) : null, { strategy: STRATEGY.PASSTHROUGH, state: \"PASSTHROUGH\" }); }\n       return r; }\n     /* A — passe complete (BASE ou INFORMED) avec budget de sortie et max_tokens dimensionne */\n",
+  "llmDiff": "--- MONOLITH-v1.0.11/lib/llm.js\t2026-09-19 16:39:53\n+++ MONOLITH-v1.0.12/lib/llm.js\t2026-09-22 14:09:00\n@@ -68,7 +68,7 @@\n   const extraCacheDirs = (opts.extraCacheDirs || cfg.reuseCacheDirs || []).map((d) => path.resolve(P.ROOT, d));\n \n   let REFUSED = 0;\n-  const PROVIDER_ID = \"anthropic\", VALIDATION_CONTRACT = \"MONO-11-v2\";   /* contrat SCIENTIFIQUE de validation des reponses (contractVersion MONO-11-v2, inchange en v0.3-r1 ; distinct de la version du CODE = sceau) */\n+  const PROVIDER_ID = \"anthropic\", VALIDATION_CONTRACT = (P.CONFIG.frozenLots[\"MONO-11\"] || {}).contractVersion || \"MONO-11-v3\";   /* v1.0.12 (R6) : contrat SCIENTIFIQUE lu dans la configuration du lot gele (MONO-11 v0.4 : MONO-11-v3) ; une reponse mise en cache sous un autre contrat n'est jamais reutilisee (reuseContextCheck) */   /* contrat SCIENTIFIQUE de validation des reponses (contractVersion MONO-11-v3 (lot MONO-11 v0.4) ; distinct de la version du CODE = sceau) */\n   function cacheBodyPath(entry) { const c = [entry.cachePath, path.join(CACHE, entry.responseSha256 + \".response.json\")].concat(extraCacheDirs.map((dir) => path.join(dir, entry.responseSha256 + \".response.json\"))).filter(Boolean); return c.find((f) => fs.existsSync(f)) || null; }\n   function reuseContextCheck(entry, model) {\n     model = model || MODEL; if (!entry) return { ok: false, reason: \"entree absente\" };\n",
+  "registryImportDiff": "--- MONOLITH-v1.0.11/tools/ef03b-registry-import.js\t2026-09-19 16:39:53\n+++ MONOLITH-v1.0.12/tools/ef03b-registry-import.js\t2026-09-22 14:02:50\n@@ -1,7 +1,7 @@\n #!/usr/bin/env node\n \"use strict\";\n /**\n- * MONOLITH v1.0.10 — tools/ef03b-registry-import.js : IMPORT HORS LIGNE des revues EF-03B deja VALID d'un run dans son registre\n+ * MONOLITH v1.0.12 — tools/ef03b-registry-import.js : IMPORT HORS LIGNE des revues EF-03B deja VALID d'un run dans son registre\n  * `reviews-valid.jsonl` (lib/ef03b-resilience.js), pour qu'un replay cible (POST /api/runs/:id/replay-reviews) les serve a 0 appel.\n  * Deux sources, toutes deux RE-VALIDEES par le validateur local gele (MONO-11) ET le parseur EF-03B gele (MONO-01) avant import :\n  *   1. les revues `complete` du reviewSet final (reviews.json) — candidat = projection des 9 cles du contrat, dans l'ordre du schema ;\n@@ -13,10 +13,16 @@\n const fs = require(\"fs\"), path = require(\"path\"), crypto = require(\"crypto\");\n const ROOT = path.resolve(__dirname, \"..\"); const P = require(path.join(ROOT, \"lib\", \"paths.js\")); const SP = require(path.join(ROOT, \"lib\", \"stage-professionals.js\")); const EF3 = require(path.join(ROOT, \"lib\", \"ef03b-resilience.js\"));\n const RE = require(path.join(P.MONO11, \"core\", \"review-enforcer.js\")); const sha = (s) => crypto.createHash(\"sha256\").update(String(s), \"utf8\").digest(\"hex\");\n+const CONTRACT = (P.CONFIG.frozenLots[\"MONO-11\"] || {}).contractVersion || \"MONO-11-v3\";   /* v1.0.12 (R6) : contrat courant lu dans la configuration du lot gele */\n const lines = (f) => fs.existsSync(f) ? fs.readFileSync(f, \"utf8\").split(\"\\n\").filter(Boolean).map((l) => { try { return JSON.parse(l); } catch (e) { return null; } }).filter(Boolean) : [];\n const json = (f) => JSON.parse(fs.readFileSync(f, \"utf8\"));\n function importRun(runDir, opts) {\n-  opts = opts || {}; const { F, SEAL } = SP.loadSealedMono11(); const state = json(path.join(runDir, \"state.json\")); const traces = json(path.join(runDir, \"enforcement-traces.json\")).reviews; const reviews = json(path.join(runDir, \"reviews.json\")).reviews;\n+  opts = opts || {}; const { F, SEAL } = SP.loadSealedMono11(); const state = json(path.join(runDir, \"state.json\"));\n+  /* v1.0.12 (R6, decision proprietaire Q5) : FAIL CLOSED — aucun import automatique d'un run produit sous un autre sceau MONO-11 ou sous un autre contrat de validation. */\n+  const runSeal = state.seal && state.seal.runtimeSealSha256 || null;\n+  if (runSeal && runSeal !== SEAL.runtimeSealSha256) throw Object.assign(new Error(\"REGISTRY_IMPORT_SEAL_MISMATCH: le run a ete produit sous le sceau MONO-11 \" + String(runSeal).slice(0, 12) + \"… ; sceau courant \" + SEAL.runtimeSealSha256.slice(0, 12) + \"… — import refuse (aucune migration, aucune reutilisation inter-sceau)\"), { code: \"REGISTRY_IMPORT_SEAL_MISMATCH\", runSeal: runSeal, currentSeal: SEAL.runtimeSealSha256 });\n+  const foreign = EF3.createReviewRegistry({ runDir }).list().filter((e) => (e.validationContract || null) !== CONTRACT || (e.sourceSealHash || null) !== SEAL.runtimeSealSha256);\n+  if (foreign.length) throw Object.assign(new Error(\"REGISTRY_IMPORT_CONTRACT_MISMATCH: \" + foreign.length + \" entree(s) du registre portent un autre contrat ou un autre sceau (contrat courant \" + CONTRACT + \") — import refuse\"), { code: \"REGISTRY_IMPORT_CONTRACT_MISMATCH\", entries: foreign.length, contract: CONTRACT }); const traces = json(path.join(runDir, \"enforcement-traces.json\")).reviews; const reviews = json(path.join(runDir, \"reviews.json\")).reviews;\n   const twins = json(path.join(runDir, \"twins.json\")).twins; const tds = json(path.join(runDir, \"target-document-set.json\")); const schema = json(path.join(runDir, \"review-schema.json\")); const twinById = {}; twins.forEach((t) => { twinById[t.twinId] = t; });\n   const calls = lines(path.join(runDir, \"llm-calls.jsonl\")).filter((c) => c.kind === \"LLM_CALL\" && /^EF-03B/.test(c.purpose || \"\") && c.httpStatus === 200); const led = {}; lines(path.join(runDir, \"cost-ledger.jsonl\")).forEach((e) => { if (e.callId && !led[e.callId]) led[e.callId] = e; }); const store = {}; lines(path.join(P.RUNS, \"llm-reuse-store.jsonl\")).forEach((e) => { if (e.responseSha256) store[e.responseSha256] = e; });\n   const registry = EF3.createReviewRegistry({ runDir }); const existing = new Set(registry.list().map((e) => e.basePromptSha256 + \"|\" + e.candidateSha256)); const out = { imported: [], skipped: [], refused: [] };\n@@ -25,12 +31,12 @@\n   const tryImport = (t, twin, doc, candidate, source, extra) => { const v = RE.validateReviewCandidate(candidate, twin, doc, schema); if (!v.ok) { out.refused.push({ twinId: t.twinId, source, errors: v.errors.slice(0, 3).map((e) => e.code) }); return false; }\n     try { F.M01.RR.parseReviewResponse(candidate, twin, doc, schema); } catch (e) { out.refused.push({ twinId: t.twinId, source, errors: [\"EF03B_FROZEN_PARSER: \" + String(e.message).slice(0, 80)] }); return false; }\n     const key = t.passes[0].promptSha256 + \"|\" + sha(candidate); if (existing.has(key)) { out.skipped.push({ twinId: t.twinId, source, reason: \"deja au registre\" }); return true; }\n-    const entry = Object.assign({ basePromptSha256: t.passes[0].promptSha256, twinId: t.twinId, targetId: t.targetId, runId: state.runId, candidateSha256: sha(candidate), candidate, validationContract: \"MONO-11-v2\", sourceSealHash: SEAL.runtimeSealSha256, modelId: null, providerId: \"anthropic\", source }, extra || {}); if (!opts.dryRun) registry.put(entry); existing.add(key); out.imported.push({ twinId: t.twinId, source, candidateSha256: entry.candidateSha256, attemptId: entry.attemptId || finalAttempt }); return true; };\n+    const entry = Object.assign({ basePromptSha256: t.passes[0].promptSha256, twinId: t.twinId, targetId: t.targetId, runId: state.runId, candidateSha256: sha(candidate), candidate, validationContract: CONTRACT, sourceSealHash: SEAL.runtimeSealSha256, modelId: null, providerId: \"anthropic\", source }, extra || {}); if (!opts.dryRun) registry.put(entry); existing.add(key); out.imported.push({ twinId: t.twinId, source, candidateSha256: entry.candidateSha256, attemptId: entry.attemptId || finalAttempt }); return true; };\n   for (const t of traces) { const twin = twinById[t.twinId]; const doc = F.M01.TDS.getDocumentForTarget(tds, t.targetId); if (!twin || !doc || !t.passes.length) continue; const rv = reviews.find((r) => r.twinId === t.twinId && r.targetId === t.targetId);\n     if (rv && rv.reviewStatus === \"complete\" && Array.isArray(rv.findings)) { const findings = rv.findings.map((f) => { const o = {}; RE.FINDING_KEYS.forEach((k) => { o[k] = f[k]; }); return o; }); tryImport(t, twin, doc, JSON.stringify({ findings }), \"FINAL_REVIEWSET_COMPLETE\", { attemptId: finalAttempt, acceptedPass: t.acceptedPass }); continue; }\n     /* revue en erreur : candidat VALID d'une tentative precedente, reconstruit et re-valide (preuves inchangees exigees par le validateur) */\n     const hist = calls.filter((x) => x.twinId === t.twinId && led[x.responseSha256] && led[x.responseSha256].attemptId < finalAttempt).sort((a, b) => (led[a.responseSha256].attemptId - led[b.responseSha256].attemptId) || (a.pass - b.pass)); let parsed = null, done = false;\n-    for (const x of hist) { const text = textOf(x.responseSha256); if (text == null) continue; let candidate = text; const j0 = RE.extractJson(text); if (j0.ok && j0.value && Array.isArray(j0.value.repairs) && parsed) { const rp = RE.parseRepair(text, parsed.findings.map((f) => f.dimensionId)); candidate = JSON.stringify(RE.recompose(parsed, rp.repairs || {})); }\n+    for (const x of hist) { const text = textOf(x.responseSha256); if (text == null) continue; let candidate = text; const j0 = RE.extractJson(text); if (j0.ok && j0.value && Array.isArray(j0.value.repairs) && parsed) { const rp = RE.parseRepair(text, parsed.findings.map((f) => f.dimensionId)); candidate = JSON.stringify(RE.recompose(parsed, RE.mergeRepairLineage(parsed, rp.repairs || {}, doc.content).applied)); }\n       const v = RE.validateReviewCandidate(candidate, twin, doc, schema); if (v.parsed && Array.isArray(v.parsed.findings)) parsed = v.parsed;\n       if ((store[x.responseSha256] || {}).validationStatus === \"VALID\" && !done) { done = tryImport(t, twin, doc, candidate, \"HISTORICAL_VALID_REVALIDATED_OFFLINE\", { attemptId: led[x.responseSha256].attemptId, acceptedPass: x.pass, historicalCallId: x.responseSha256 }); } }\n   }\n",
+  "unchanged": "tout le reste : server.js, index.html, lib/llm-stream.js, lib/live-status.js, lib/cost-view.js, lib/stage-professionals.js, lib/stage-report.js, lib/panel-sufficiency.js, lib/economic-panel.js, worker/ (proxy v0.8), vendor/, governance/, fixtures/ — byte-identiques a v1.0.11"
+ },
+ "tests": {
+  "monolith": "292/292 (v1.0.11 : 274 ; +18 V12)",
+  "chunking": "21/21",
+  "secretScan": 0,
+  "antiHardcoding": "0 hit (75 fichiers)",
+  "manifestVerify": "ok 158",
+  "frozenLots": "MONO-10 79 / MONO-09 9 / MONO-01 106 / MONO-11 55 (v0.4), 0 divergence",
+  "mandatoryList": {
+   "1 tests v1.0.11": "repris (274 conserves, 3 assertions de version adaptees)",
+   "2 tests MONO-11 v0.4": "executes dans le lot (83/83) ; le monolithe verifie le MANIFEST du lot (83)",
+   "3 mirror parity": "V12-02/03/06/07/16",
+   "4 CAS A parity": "V12-04",
+   "5 CAS B parity": "V12-05",
+   "6 valid+invalid+repair": "V12-02",
+   "7 model omits valid ref": "V12-03",
+   "8 repair returns invalid ref": "V12-06",
+   "9 registry import old seal rejected": "V12-11",
+   "10 registry import old contract rejected": "V12-11",
+   "11 current v3 accepted": "V12-10",
+   "12 checkpoint old seal rejected": "V12-14 (+ V5 existant)",
+   "13 no semantic field changed": "V12-08",
+   "14 shadow A10 12/12": "V12-13 (70 constats, 12 citations)",
+   "15 no regression aggregation/report": "suite complete (V8, NONREG-01..03, T-EF03B-*)",
+   "16 secret scan": "0",
+   "17 anti-hardcoding": "0",
+   "18 manifest/seals": "I3, I4, NONREG-01/02, T-STREAM-20, build-manifest --verify"
+  }
+ },
+ "manifest": {
+  "fileCount": 158,
+  "contentHash": "9552b45e484cf2e3cdc4f7ef08e275cd1de117055e2643ac854e7a196178f3e2",
+  "sha256": "d8bb0d3e7c28a6cc419333432e32193534d85c1bf593e267bf97cce88f4f5c6f",
+  "sealFile": "3c1c736fd19bb1a79626b4908ff9438523b26625fe997f8358c9dbb75c80aa6d"
+ },
+ "reservationsTransported": [
+  {
+   "id": "R3",
+   "statement": "prompt de passe 3 potentiellement trompeur (« REPRODUISAIT A L IDENTIQUE ») quand la re-presentation vient du mecanisme CAS B",
+   "disposition": "non traite (lot gele ; toucher au prompt = nouveau lot MONO-11) ; a verifier/reformuler dans un lot ulterieur, sans modifier la substance"
+  },
+  {
+   "id": "R4",
+   "statement": "parseRepair illisible : repairUnresolvedDimensions vaut [] et la lignee est absente",
+   "disposition": "non traite (lot gele) ; l echec reste visible (repair.parsed=false, REPAIR_JSON_INVALID, passe invalide)"
+  },
+  {
+   "id": "R12",
+   "statement": "CAS B devient fail-closed : plus d echecs reels possibles qu avant",
+   "disposition": "comportement attendu (Q6) ; a mesurer lors d un smoke reel, hors de ce lot"
+  },
+  {
+   "id": "R13",
+   "statement": "zip non garanti reproductible bit-a-bit",
+   "disposition": "aucun zip canonique v1.0.12 produit a ce stade ; integrite par MANIFEST + SHA256SUMS ; ne pas revendiquer de reproductibilite deterministe"
+  },
+  {
+   "id": "R2",
+   "statement": "producedBy du lot annonce encore v0.3-r1",
+   "disposition": "champ non consomme par v1.0.12 (verifie : aucune lecture de producedBy dans lib/, tools/, server.js) ; observation transportee"
+  },
+  {
+   "id": "R11",
+   "statement": "regeneration INFORMED hors perimetre du contrat v3",
+   "disposition": "non elargie ; aucune garantie de lignee revendiquee sur ce chemin"
+  }
+ ],
+ "knownLimits": [
+  "aucun run reel de validation (interdit avant decision proprietaire)",
+  "aucun zip canonique produit",
+  "audit independant de v1.0.12 requis avant gel et avant activation",
+  "ACTIVE_VERSION reste MONOLITH-v1.0.10"
+ ],
+ "prohibitions": [
+  "0 appel fournisseur",
+  "0 run reel",
+  "0 modification de MONO-11 v0.3-r1 / v0.4 / v1.0.10 / v1.0.11 / ACTIVE_VERSION / run historique / D103"
+ ]
+}

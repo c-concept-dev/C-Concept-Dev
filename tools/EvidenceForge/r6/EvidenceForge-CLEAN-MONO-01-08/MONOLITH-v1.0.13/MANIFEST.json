@@ -1,0 +1,969 @@
+{
+  "schema": "EvidenceForge.MonolithManifest",
+  "product": {
+    "name": "EvidenceForge",
+    "version": "MONOLITH-v1.0.13"
+  },
+  "generatedAt": "2026-09-22T14:38:47.423Z",
+  "frozenLots": {
+    "MONO-10": {
+      "dir": "MONO-10/v0.19",
+      "seal": "SHA256SUMS.txt",
+      "canonicalZip": "MONO-10/EvidenceForge-MONO10-SCIENTIFIC-QUALIFICATION-v0.19.zip",
+      "canonicalZipSha256": "f5a4165414f4aacc32f48f50eb14d59c87a09e3f138e24f8bd14b956972c2e04"
+    },
+    "MONO-11": {
+      "dir": "MONO-11/v0.4",
+      "version": "v0.4",
+      "seal": "SHA256SUMS.txt",
+      "canonicalZip": "MONO-11/EvidenceForge-MONO11-AUTONOMOUS-PANEL-v0.4.zip",
+      "canonicalZipSha256": "79c16d08a0a52bc1b9ae3c6884cc22f6161145bed18158d6c9b6a44df1a7c474",
+      "contractVersion": "MONO-11-v3",
+      "$comment": "MONO-11 v0.4 = GELE FROZEN_WITH_RESERVATIONS (decision proprietaire 2026-09-22 ; TARGETED REPAIR LINEAGE PRESERVATION, contrat MONO-11-v3 lineageMonotonicityDuringRepair) ; sceau 110db4de..., runCodeHash 27610c84... ; v0.3-r1 (3c44b397...) = gele historique (runs anterieurs, dont efm-20260918-a64167c0), v0.2 (5c208cbb...), v0.3 (bec55841...) = geles historiques"
+    },
+    "MONO-09": {
+      "dir": "MONO-09/v0.2",
+      "seal": "SHA256SUMS.txt"
+    },
+    "MONO-01": {
+      "dir": "MONO-01",
+      "seal": "manifest/SHA256SUMS"
+    }
+  },
+  "integration": {
+    "mono11": {
+      "version": "v0.4",
+      "zipSha256": "79c16d08a0a52bc1b9ae3c6884cc22f6161145bed18158d6c9b6a44df1a7c474",
+      "runtimeSealSha256": "110db4de24709926d4a5fb6d0e951530f0afc2c1c807a09127852a92aa182c3d",
+      "sourceSealHash": "110db4de24709926d4a5fb6d0e951530f0afc2c1c807a09127852a92aa182c3d",
+      "runCodeHash": "27610c84502104b3dc9643a9cc0289aef4ae40ae65ee34e4fe82f31a73e381ad",
+      "manifestSha256": "9acc820d698f7da05a9cd65795fc2cded93c1f0fe4820735bed25c4c3a29514b",
+      "validationContract": "MONO-11-v3",
+      "note": "sourceSealHash = runtimeSealSha256 du lot MONO-11 charge : cle de contexte de la reuse (lib/llm.js reuseContextCheck) ; validationContract = contrat SCIENTIFIQUE (inchange), distinct de la version du code"
+    },
+    "predecessor": {
+      "version": "MONOLITH-v1.0.12",
+      "zipSha256": null,
+      "status": "GELE FROZEN_WITH_RESERVATIONS (integration MONO-11 v0.4 + R5/R6 ; audit independant PASS_WITH_RESERVATIONS ; ACTIVATION_BLOCKED_BY_RA2) ; aucun zip canonique",
+      "mono11": "v0.4 (zip 79c16d08..., contrat MONO-11-v3), inchange"
+    },
+    "pricing": {
+      "version": "2026-09-17-r1",
+      "snapshotHash": "f04a106290651ae51e50f22b5836454592d4326e63bcec4356abd2464c0d5fed",
+      "models": [
+        "claude-haiku-4-5",
+        "claude-opus-4-6",
+        "claude-opus-4-7",
+        "claude-opus-4-8",
+        "claude-opus-5",
+        "claude-sonnet-4-6",
+        "claude-sonnet-5"
+      ]
+    },
+    "frozenLotsMeasured": {
+      "MONO-10": {
+        "files": 79,
+        "divergences": 0,
+        "sealSha256": "e050af0545ab5b902eb710b2308914523125b784dc27a9a2d387040dced48227",
+        "canonicalZipSha256": "f5a4165414f4aacc32f48f50eb14d59c87a09e3f138e24f8bd14b956972c2e04"
+      },
+      "MONO-11": {
+        "files": 55,
+        "divergences": 0,
+        "sealSha256": "110db4de24709926d4a5fb6d0e951530f0afc2c1c807a09127852a92aa182c3d",
+        "canonicalZipSha256": "79c16d08a0a52bc1b9ae3c6884cc22f6161145bed18158d6c9b6a44df1a7c474"
+      },
+      "MONO-09": {
+        "files": 9,
+        "divergences": 0,
+        "sealSha256": "f1f1e94bdcca4402bc690883ee443ad0b188987fc65c5bd16e050b50b4016e56",
+        "canonicalZipSha256": null
+      },
+      "MONO-01": {
+        "files": 106,
+        "divergences": 0,
+        "sealSha256": "4ba8903ceaeb7e24886708909d734a7b7f34e7cd9ae28b15603440577fe18ffd",
+        "canonicalZipSha256": null
+      }
+    },
+    "tests": {
+      "total": 303,
+      "passed": 303,
+      "failed": 0,
+      "ranAt": "2026-09-22T14:38:06.895Z"
+    },
+    "professionals": {
+      "maxCandidatesToEvaluate": 150,
+      "selection": "PROFESSIONAL-SELECTION-v1 (inchangee)",
+      "capIsGuardNotTarget": true,
+      "earlyStopPolicy": "NONE"
+    },
+    "transport": {
+      "streaming": {
+        "enabled": true,
+        "inactivityMs": 90000,
+        "maxTotalMs": 900000
+      },
+      "proxy": "worker/evidenceforge-llm-proxy-v0.8 (= v0.7 relais SSE + HEADER_TIMEOUT_MS separe, defaut 60000 ms bornes 1000-90000, lecture stricte des vars, gardes de flux = client ; MONO-08 v0.6 gele et v0.7 (MONOLITH-v1.0.8) inchanges)",
+      "observability": {
+        "heartbeatMs": 10000,
+        "minWriteMs": 5000,
+        "$comment": "v1.0.8 : live-status.json + state.updatedAt/counters rafraichis sur activite significative et par heartbeat borne pendant un appel fournisseur (jamais par jeton) ; trace console EVIDENCEFORGE_TRACE_REVIEWS=1 (desactivee par defaut) — identifiants, tailles, compteurs, codes ; jamais un prompt, une reponse ou un secret."
+      }
+    },
+    "ef03b": {
+      "adapter": "lib/ef03b-resilience.js (additif autour de llmCall ; MONO-11 gele inchange)",
+      "documentContentAuthority": "v1.0.13 (R-A2) : documentAuthority(targetId) OBLIGATOIRE ; la litteralite est jugee sur le document reellement remis au lot gele, jamais sur une reconstruction du prompt ; autorite absente / vide => fail closed (fatal) ; ecart prompt-autorite compte et trace ; registre porte documentAuthoritySha256 et n est servi qu a empreinte identique",
+      "traceParity": "v1.0.13 (R-A1) : reparation illisible => aucune recomposition miroir, trace REPAIR_UNPARSABLE alignee sur le rejet du lot, dimensions fautives du lot",
+      "mirrorAlignedWithLot": "v1.0.12 (R5) : la branche isTargeted applique RE.mergeRepairLineage du lot gele MONO-11 v0.4 avant RE.recompose — le candidat trace / inscrit au registre est byte-identique a celui que le lot valide",
+      "contractFromConfig": "v1.0.12 (R6) : lib/llm.js, l adaptateur et tools/ef03b-registry-import.js lisent contractVersion dans config.frozenLots[MONO-11] (MONO-11-v3) ; import hors ligne fail-closed (sceau et contrat)",
+      "lineagePreservation": "v1.0.11 : recomposition apres litteralisation = dedup(VALID_ORIGINAL_REFS ++ VALID_REPAIRED_REFS) (mergeLiteralRefs / preserveLineageRepairs, fonctions pures ; controle de litteralite du lot gele reproduit) — une reference originale deja litterale n est jamais supprimee ; FINAL ⊇ VALID_ORIGINAL, FINAL ⊆ RAW ∪ REPAIR",
+      "reviewMaxTokens": 12288,
+      "reviewResilience": {
+        "enableOutputBudget": true,
+        "enableCompletion": true,
+        "enableLiteralization": true,
+        "maxCompletionDims": 4,
+        "excerptChars": 300
+      },
+      "registry": "reviews-valid.jsonl (par run ; cle = sha256 du prompt EF-03B de passe 1 + sceau + contrat)",
+      "replay": "POST /api/runs/:id/replay-reviews (depuis le checkpoint professionnel ; aval seul)"
+    },
+    "provenance": "MONOLITH v1.0.13 = v1.0.12 (inchangee : integration du lot gele MONO-11 v0.4, R5 miroir, R6 contrat) + RA2 DOCUMENT CONTENT AUTHORITY FIX (autorite documentaire obligatoire pour toute decision de litteralite ; fail closed sans elle ; registre lie a l empreinte du document) + RA1 TRACE PARITY (reparation illisible : trace alignee sur le rejet du lot) — correctifs LOCAUX a l adaptateur EF-03B et a son cablage ; aucun lot gele, aucun prompt, aucune regle d acceptation, aucune semantique metier modifies. MONOLITH v1.0.12 = MONOLITH v1.0.12 = v1.0.11 (inchangee : correctif de litteralisation, transport streame, proxy v0.8, Panel Sufficiency, economic-panel, stage-professionals) + LOT GELE MONO-11 v0.4 (TARGETED REPAIR LINEAGE PRESERVATION, contrat MONO-11-v3 : LINEAGE_MONOTONICITY_DURING_REPAIR) : GLOBAL LINEAGE PRESERVATION sur les deux chemins connus — litteralisation (adaptateur, v1.0.11) et reparation ciblee (lot gele, v0.4). Conditions d integration de l audit independant v1.0.11 traitees : R5 (miroir de l adaptateur aligne sur le lot : RE.mergeRepairLineage avant RE.recompose) et R6 (contrat de validation lu dans la configuration du lot ; registre et cache fail-closed inter-sceau / inter-contrat ; import hors ligne refusant un autre sceau ou un autre contrat). MONOLITH v1.0.11 = v1.0.10 (inchangee : prompts, validateurs, registre, troncature, agregation, rapport, transport, proxy v0.8, lots geles) + EF-03B LITERALIZATION LINEAGE PRESERVATION : lib/ef03b-resilience.js bloc G — la recomposition apres litteralisation conserve les references originales deja litterales et ajoute les references reparees litterales (fusion pure, ordre brut puis modele, deduplication stable) au lieu de remplacer le tableau entier ; cause racine v1.0.10 = references litterales exclues des propositions puis RE.recompose (gele) remplacant le tableau : 12 citations valides perdues et 3 constats vides au run efm-20260918-a64167c0 t.10 (audit independant + reconstruction hors ligne LINEAGE_RESTORATION_PASS) ; tests T-EF03B-27..35 (T1..T6, non-regression semantique, purete, shadow historique lecture seule). MONOLITH v1.0.10 = v1.0.9 (inchangee : transport streame, proxy v0.8, Panel Sufficiency, economic-panel, stage-professionals) + EF-03B REVIEW RESILIENCE : adaptateur additif lib/ef03b-resilience.js autour de llmCall (registre des revues logiques VALID servies a 0 appel puis revalidees par le lot gele ; contrat de budget de sortie = forme seule ; max_tokens dimensionne au contrat (12288) ; troncature => REVIEW_OUTPUT_TRUNCATED, sauvetage structurel des findings complets + completion ciblee des dimensions manquantes, fusion deterministe ; litteralisation sur extraits (spans exacts proposes, choix du modele, empreinte de contexte) ; replay cible des revues depuis le checkpoint professionnel ; trace EF-03B par passe ; outils d autopsie / import de registre hors ligne) — correctif des 8 revues ERROR (21 sorties tronquees a 8192, 173 citations non litterales dont 74 % par mise en forme Markdown) du run reel (EF03B-REAL-RUN-AUTOPSY-v1.md). v1.0.9 = v1.0.8 (inchangee cote client : streaming valide en reel) + proxy v0.8 : delais separes HEADER_TIMEOUT_MS (seul applique par le Worker, attente des en-tetes amont, defaut 60 s justifie par la mesure : max 7,0 s sur 56 appels reels, fenetre edge ~100 s, client premier octet 180 s) / STREAM_INACTIVITY_TIMEOUT_MS / STREAM_MAX_DURATION_MS (gardes client, annoncees jamais appliquees), lecture stricte des variables Cloudflare (chaine/nombre, bornes, defaut sur + trace non sensible), alias TIMEOUT_MS herite — correctif du 504 upstream_timeout a 8,187 s (ROOT-CAUSE-504-8S-AUTOPSY-v1.md). v1.0.8 = v1.0.7 (inchangee : Panel Sufficiency, economic-panel, contrats scientifiques, semantique et independance des jumeaux, fanout 1 revue par jumeau x cible dossier) + STREAMING TRANSPORT (Anthropic stream:true -> Worker v0.7 relais SSE -> client lib/llm-stream.js reconstruction canonique deterministe -> validation / cache / reuse / ledger inchanges ; interruption fail-closed PROVIDER_STREAM_INTERRUPTED, aucun retry automatique, cout connu inscrit) + LIVE OBSERVABILITY (lib/live-status.js : live-status.json, state.live, heartbeat borne, trace console optionnelle EVIDENCEFORGE_TRACE_REVIEWS=1) — correctif des HTTP 524 edge sur les revues de dossier (ROOT-CAUSE-524-AUTOPSY-v1.md). v1.0.7 : ECONOMIC PANEL OPTIMIZATION + EARLY SUFFICIENCY + MARGINAL VALUE CONTROL + REVIEW FANOUT CONTROL : politique SUFFICIENCY_FIRST (lib/economic-panel.js) — panel initial compact, lots d expansion reevalues, contribution marginale par composantes, DIMINISHING_INFORMATION_RETURNS descriptif, arret budgetaire AVANT un lot (PANEL_INCOMPLETE_BUDGET_LIMIT reprenable, jamais une suffisance), plafond = garde ; cibles de revue = dossier de mission (1 revue complete par jumeau et par mission, PER_DOCUMENT explicite) ; compteurs reviewDocuments / reviewItems distincts ; projection avant la premiere revue, ECONOMIC_OUTLIER_WARNING, porte humaine ECONOMIC_REVIEW ; PANEL-SUFFICIENCY-v2 inchangee = seule autorite scientifique ; lots geles inchanges",
+    "status": "CANDIDAT (v1.0.13) — NON GELE : correctif cible R-A2 (+ R-A1) ; 303 tests passes (292 de v1.0.12 conserves + RA2-01..08 + RA1-01..03) ; chunking 21/21 ; secret 0 ; anti-hardcoding 0 ; lots geles 0 divergence ; shadow A10 70/12/3 ; audit independant requis AVANT gel ; ACTIVE_VERSION inchangee (MONOLITH-v1.0.10) ; aucun run reel ; smoke reel R12 requis avant toute activation"
+  },
+  "files": [
+    {
+      "path": "AUDIT-PANEL-SUFFICIENCY-POLICY.md",
+      "sha256": "c7ef49a422d87df64dc9f74139522af1f68d6b1fdf30adcb4426a901e8164fba",
+      "bytes": 10568
+    },
+    {
+      "path": "AUTOPSIE-PANEL-COST-OPTIMIZER.md",
+      "sha256": "9cc8f83b3f68a6be32c95cc991f968de4c6e8ca1ab40443110da3ae7dae3ddb9",
+      "bytes": 10655
+    },
+    {
+      "path": "AUTOPSIE-POST-RUN-COST-SCREENING.md",
+      "sha256": "f78be367c605aa85d02d645ec35a364724c74228dee01b6d6bb08fab3ffd0d96",
+      "bytes": 18704
+    },
+    {
+      "path": "CHECKPOINT-REANCHOR-TEST.md",
+      "sha256": "ecdb5b0e4434b8e3a35430b56afd8bbdcd34f910a0cde4874e5d771eaefa72a6",
+      "bytes": 2408
+    },
+    {
+      "path": "COST-AWARE-PANEL-DESIGN-v1.md",
+      "sha256": "6cc00cc13ac308801e5f895897ad0ce3b508b2130fdb22f60b2e93b5acf7ea90",
+      "bytes": 8065
+    },
+    {
+      "path": "CROSS-TWIN-MONOLITH-TEST.md",
+      "sha256": "9ac71edbbd93017bfc2d3c960023c58a12d35411810ddde99975163011f88b7c",
+      "bytes": 3279
+    },
+    {
+      "path": "ECONOMIC-PANEL-AUTOPSY-v1.md",
+      "sha256": "8d1c5ebd340dc8729f88b98afe8cb8cd0fd982426ef99b8caa3acc09e08f5697",
+      "bytes": 11438
+    },
+    {
+      "path": "EF03B-COST-ANALYSIS-v1.json",
+      "sha256": "96e9f7e5a7898cfea9dae8bb61e0853323ca85a025404dc043b587fe25026658",
+      "bytes": 17097
+    },
+    {
+      "path": "EF03B-COST-ANALYSIS-v1.md",
+      "sha256": "d66c9156edd8adc1b0810586eecb6320b728e8842e98116f4f3fb37a0d7bb485",
+      "bytes": 1117
+    },
+    {
+      "path": "EF03B-FAILURE-TAXONOMY-v1.json",
+      "sha256": "a45cc751397c3ff1dd637c5629346cfca4d830b649fc6ea257e5d8b3d703a34b",
+      "bytes": 11842
+    },
+    {
+      "path": "EF03B-FAILURE-TAXONOMY-v1.md",
+      "sha256": "09967e6f15c46b33923327b7980522bfda27602e597909aa1452da0da5fada7e",
+      "bytes": 2371
+    },
+    {
+      "path": "EF03B-REAL-RUN-AUTOPSY-v1.md",
+      "sha256": "905cc5fb63fa4ae44ce85b8b6969a453dbac1c60c120b0c5c8f6b858b55e0492",
+      "bytes": 21582
+    },
+    {
+      "path": "EF03B-REPAIR-DESIGN-v1.md",
+      "sha256": "682ada1aba8953336d9e162d0de56ec873a4c6fb5768602ac197852d52672da8",
+      "bytes": 8211
+    },
+    {
+      "path": "EF03B-REPLAY-v1.json",
+      "sha256": "cf83988f75cc79acd016412470eec2bc37ebe4b32953c03a64b78325cd2ace44",
+      "bytes": 4662
+    },
+    {
+      "path": "EF03B-REPLAY-v1.md",
+      "sha256": "f97990f4fd95e06eebd94f4aa5c0e8a9defdfcf09c41c94c75ab8c9a7e6df7ab",
+      "bytes": 2739
+    },
+    {
+      "path": "EVIDENCEFORGE-v1.0.11-FREEZE-RECORD.json",
+      "sha256": "34c48853df189a66329e8bc631751b64b2658f0987ff69b04a6e82bd6a614612",
+      "bytes": 4720
+    },
+    {
+      "path": "EVIDENCEFORGE-v1.0.11-FREEZE-RECORD.md",
+      "sha256": "575678d2cd09da815b530473e970158dc7038da616da93e30862ee30fc004fa1",
+      "bytes": 4481
+    },
+    {
+      "path": "EVIDENCEFORGE-v1.0.11-GOVERNANCE.SHA256SUMS.txt",
+      "sha256": "eb36414621666b8ffd98963ffc0e792317c7cc97ba45ebf4d37b38af3b0c9a12",
+      "bytes": 731
+    },
+    {
+      "path": "EVIDENCEFORGE-v1.0.11-INDEPENDENT-FREEZE-AUDIT.json",
+      "sha256": "72ac1a0a2da6bd2feee130d0259fa376b555c3e16b04e44b7d5e52a7772bfaba",
+      "bytes": 25899
+    },
+    {
+      "path": "EVIDENCEFORGE-v1.0.11-INDEPENDENT-FREEZE-AUDIT.md",
+      "sha256": "afd89eebfe8ad2ebefc2599c6df3bea2e9b44fd22905328222c8d4c1884fadaf",
+      "bytes": 29756
+    },
+    {
+      "path": "EVIDENCEFORGE-v1.0.11-LITERALIZATION-LINEAGE-FIX-AUDIT.md",
+      "sha256": "2c57ee5f74c114db47e5a88ad881c68ce5f2f772a804b3c5da26503750330e74",
+      "bytes": 25813
+    },
+    {
+      "path": "EVIDENCEFORGE-v1.0.12-FREEZE-RECORD.json",
+      "sha256": "ee3916ce526781f61d09245cc0aa7114beb669b8da33c648298b4e7895be1be8",
+      "bytes": 9129
+    },
+    {
+      "path": "EVIDENCEFORGE-v1.0.12-FREEZE-RECORD.md",
+      "sha256": "f847930e6d041f74e0b1bb258d86018ec533a64a749d00323d52be53abf13a06",
+      "bytes": 7033
+    },
+    {
+      "path": "EVIDENCEFORGE-v1.0.12-GOVERNANCE.SHA256SUMS.txt",
+      "sha256": "27b4df3cdecf843a8643bb10c6a90f91ce5f8f9bd6cd1d9e9ff866343125e7e5",
+      "bytes": 829
+    },
+    {
+      "path": "EVIDENCEFORGE-v1.0.12-INDEPENDENT-FREEZE-AUDIT.json",
+      "sha256": "94ddfe98e7c2d98df71b36b9c274b62086cbe51704e3039cb66420861f431aef",
+      "bytes": 49217
+    },
+    {
+      "path": "EVIDENCEFORGE-v1.0.12-INDEPENDENT-FREEZE-AUDIT.md",
+      "sha256": "f21a3e1dcfa5a64752dc77ed9d1efc3a287a68889401184a24e8879d3536c619",
+      "bytes": 43495
+    },
+    {
+      "path": "EVIDENCEFORGE-v1.0.12-INTEGRATION-REPORT.json",
+      "sha256": "bb3de5cb1a0a5b1ebca4e6a6b9e8f2123f08ca26d2711fcad76a12a8f33c4a5d",
+      "bytes": 30987
+    },
+    {
+      "path": "EVIDENCEFORGE-v1.0.12-INTEGRATION-REPORT.md",
+      "sha256": "9eb2e4955cfb9db78bfd785db2e30fcc45c16984745b8578ccde4265a1a1f354",
+      "bytes": 26536
+    },
+    {
+      "path": "FROZEN-HASHES-BEFORE-AFTER.md",
+      "sha256": "0316c7cb8c5a0cc8fd62f81f5378a2fc769986febeaa08d851071dbb11d534af",
+      "bytes": 3563
+    },
+    {
+      "path": "FROZEN-INTEGRITY.md",
+      "sha256": "c74a17c1513b90a19cf241e5e8c3b2387fd95a816df8f6d61b52db03c9bbbeb2",
+      "bytes": 4040
+    },
+    {
+      "path": "FUNCTIONAL-TEST-REPORT.md",
+      "sha256": "e9f53148c1afc3b28d6084d365f05c6fed02d05049bc236de85e1fa18136beea",
+      "bytes": 13767
+    },
+    {
+      "path": "INTEGRATION-REPORT-MONO11-v0.3-r1.md",
+      "sha256": "47240d1df6cefc6685265e35d236784761f8727c3876f07c63b5e5aaa23187ba",
+      "bytes": 11792
+    },
+    {
+      "path": "JMMJS-PANEL-COST-REPLAY-v1.json",
+      "sha256": "b37a3c02e60042e71026dfb0cb5cb944111c13ec72608eb040a4bea7cbfc942c",
+      "bytes": 18509
+    },
+    {
+      "path": "JMMJS-PANEL-COST-REPLAY-v1.md",
+      "sha256": "0c4439660c3557fac0f7869d1c2240e7418b1e722118d7040a6f1d9e23f4747a",
+      "bytes": 7033
+    },
+    {
+      "path": "JMMJS-TWINS-504-REPLAY-v1.json",
+      "sha256": "6d4ef8eab1036f56f4ca939ea44856e17edc4a6b1756d46160b3989f3ab42e58",
+      "bytes": 15262
+    },
+    {
+      "path": "JMMJS-TWINS-504-REPLAY-v1.md",
+      "sha256": "ade28617e629365eca2789feb2e56472f0922cad0bf2ba979d3bae954fe62858",
+      "bytes": 8872
+    },
+    {
+      "path": "JMMJS-TWINS-524-REPLAY-v1.json",
+      "sha256": "2322e954795b3a7a6d62c9e64b9dbef9e580c6220a5832a9a6d07f9687e3c87f",
+      "bytes": 11251
+    },
+    {
+      "path": "JMMJS-TWINS-524-REPLAY-v1.md",
+      "sha256": "72a939b92cf0f70d56a2a76059da26d1460046976ae06ff028f8d2fc41d0582a",
+      "bytes": 8765
+    },
+    {
+      "path": "MONOLITH-v1.0.10-EF03B-RESILIENCE-REPORT.md",
+      "sha256": "72d4e8b3f47092d52e75c96c8ed4d31f6592a99cde03119d77170f4a2fcdd476",
+      "bytes": 8122
+    },
+    {
+      "path": "MONOLITH-v1.0.6-AUTO-CHUNK-UPLOAD-REPORT.md",
+      "sha256": "d7fdd1f65fb334a11290b7cdca6b9bf8504dcd134c245853cff1580789ead497",
+      "bytes": 14986
+    },
+    {
+      "path": "MONOLITH-v1.0.7-ECONOMIC-PANEL-REPORT.md",
+      "sha256": "63fbce5d24fb9b9a6ec37325a1a786816570c5861b40a6df3f099af9f9d51aa5",
+      "bytes": 8665
+    },
+    {
+      "path": "MONOLITH-v1.0.8-524-RESILIENCE-REPORT.md",
+      "sha256": "d66dac178b338a0765372ab83dfa3318b6ade9b9993f8dfa2578ee38205e72a1",
+      "bytes": 9936
+    },
+    {
+      "path": "MONOLITH-v1.0.9-504-RESILIENCE-REPORT.md",
+      "sha256": "6c75135d81c8b32ce58ac76dddf2c0791da84badd3388858210efd85979504f0",
+      "bytes": 6472
+    },
+    {
+      "path": "NON-REGRESSION.md",
+      "sha256": "c723c71076ae2c991961316cefe5373fbe09e4df719c11302b852ae368f7c05c",
+      "bytes": 15495
+    },
+    {
+      "path": "PLAN-CORRECTIF-COST-SCREENING-v1.md",
+      "sha256": "99de29d621aa6e30f3e50ff4440fd1c30c03f97746d0d5a4b6767bc382642631",
+      "bytes": 9155
+    },
+    {
+      "path": "PORTFOLIO-BALANCING.md",
+      "sha256": "70b93dcab3308c1e78c91e0d47a78ee6acf6154f2b57f3de6f9b99c181ff0456",
+      "bytes": 4183
+    },
+    {
+      "path": "PRIVACY-SECRET-SCAN.md",
+      "sha256": "ffb1e923c3a12c440c1f575f9a3e6210503972e126b88836856645b6182f5f8d",
+      "bytes": 3046
+    },
+    {
+      "path": "PROFESSIONAL-ECONOMIC-STOP-AUDIT.md",
+      "sha256": "320574596ae7599bb096a33f3fb0be1185600430b4d8f83a87afe450326d80ca",
+      "bytes": 15378
+    },
+    {
+      "path": "PROXY-v0.8-TIMEOUT-DESIGN-v1.md",
+      "sha256": "819b6e932a877398accacc1b2182c57bde8fde215fbcc3986505b8cf8a1f114f",
+      "bytes": 7345
+    },
+    {
+      "path": "RAPPORT-FINAL-COST-SCREENING-v1.0.5.md",
+      "sha256": "4902a2aa8983b6c3c4da9f493c29594d8c41ee0e37fd95d3e068e28958a31887",
+      "bytes": 17216
+    },
+    {
+      "path": "RAPPORT-PANEL-COST-OPTIMIZER.md",
+      "sha256": "70cde520d2ab9b834600914ab30299ce7420913940ef9b5af27b1d00a8620085",
+      "bytes": 10619
+    },
+    {
+      "path": "RAPPORT-PANEL-SUFFICIENCY-POLICY.md",
+      "sha256": "8f83ec0ead0f044e1e4d561bf8e2588321bbc0683f401047fa1143ad2daaffdc",
+      "bytes": 10593
+    },
+    {
+      "path": "RAPPORT-PANEL-SUFFICIENCY-v2-REAL-VALIDATION.md",
+      "sha256": "d77cf10e471affaaf550e58b689cbbff426cf1b8aed8f6a0b8dc10714729b835",
+      "bytes": 16526
+    },
+    {
+      "path": "RAPPORT-RUN-SAFETY-REAL-SMOKE.md",
+      "sha256": "4aed5a96d392a4fcf5851a537427ac6265662c142645308d8637311f923bc76e",
+      "bytes": 9584
+    },
+    {
+      "path": "RAPPORT-SCREENING-COST-OPTIMIZER-REAL-SMOKE.md",
+      "sha256": "86aec2b5599b6660f6d9f39a7b3fa8bc7a42ecc25e9273250712001e51e69ea6",
+      "bytes": 7763
+    },
+    {
+      "path": "README.md",
+      "sha256": "75fab7e51b31796dc3c084024b006175622224f7df116a7fefc8bf36fde1fcef",
+      "bytes": 39284
+    },
+    {
+      "path": "REVIEW-RESUME-DESIGN-v1.md",
+      "sha256": "8b1ff32a380898d982768acbad235ea12aca9b7c03012f0bbf7abe7b60dba7c0",
+      "bytes": 3615
+    },
+    {
+      "path": "ROOT-CAUSE-504-8S-AUTOPSY-v1.md",
+      "sha256": "159678b3ba65d1a86c138557e5877b311f4ab83a53ee22aaeb2fb29fcf807bab",
+      "bytes": 6740
+    },
+    {
+      "path": "ROOT-CAUSE-524-AUTOPSY-v1.md",
+      "sha256": "cb3d909aca15f9328b9c3b2b0cf5bf5d9f60d837e53c7ae9f13937dd6f3480a1",
+      "bytes": 6983
+    },
+    {
+      "path": "RUN-SAFETY-CONTROLS-AUDIT.md",
+      "sha256": "b246dd949e9869de57cff7210f810282196a0527bb5994be491563ecde078afa",
+      "bytes": 6334
+    },
+    {
+      "path": "RUN-SAFETY-CONTROLS-IMPLEMENTATION.md",
+      "sha256": "aabd9020d08e9489dd8791f95824181a0192a081c6e266588b1d50d568b9e7ab",
+      "bytes": 6094
+    },
+    {
+      "path": "RUN-SAFETY-CONTROLS-TEST-REPORT.md",
+      "sha256": "f17f8fb00accbc897c39f7620fb4b8b697ee9300a17e08087f20ddf21f2f5dcb",
+      "bytes": 4112
+    },
+    {
+      "path": "SCREENING-COST-AUTOPSY.md",
+      "sha256": "a71ea612657e759aaa064ad646fea6e7f586b29f114f0d88173c26a43c997f0c",
+      "bytes": 4912
+    },
+    {
+      "path": "SCREENING-COST-OPTIMIZER-AUDIT.md",
+      "sha256": "ee51d09dda27d96a1a2f70028e3a612a116bef5abd36f6d22f1beec72156c404",
+      "bytes": 9587
+    },
+    {
+      "path": "SCREENING-COST-OPTIMIZER-BENCHMARK.md",
+      "sha256": "d065afe8dc09ebab63e5183697b50818ab06fdd0bed97c35cc96c524209f2071",
+      "bytes": 4396
+    },
+    {
+      "path": "SCREENING-COST-OPTIMIZER-IMPLEMENTATION.md",
+      "sha256": "72c95c2bd62e732a6f97b5e918c7051f1814075740c86c302a2892c6c9006873",
+      "bytes": 6858
+    },
+    {
+      "path": "STREAMING-TRANSPORT-DESIGN-v1.md",
+      "sha256": "12ce3c6d90a8253b0cc6db5570554622853cab8d5daaa7b6c4dee8710add29d4",
+      "bytes": 10484
+    },
+    {
+      "path": "TEST-REPORT-MONOLITH-MONO11-v0.3-r1.md",
+      "sha256": "3919c9828ecbfa361090099ba448467505a051d95e5648d6375b00cc1371d832",
+      "bytes": 3101
+    },
+    {
+      "path": "UX-ACCEPTANCE.md",
+      "sha256": "f654f2741b5d4a33e2fb88786924b628477a3ec657f443e161f85b99d6845305",
+      "bytes": 6372
+    },
+    {
+      "path": "config/llm-pricing.json",
+      "sha256": "802cd2ce05e2f3a7006d4aebc25df9f923788b5ca50983e9402e85d4169bcd06",
+      "bytes": 2265
+    },
+    {
+      "path": "config/monolith.config.json",
+      "sha256": "b025bd30fc94af2921043f53320c05586d9cc38acd7864f127c44b11d201149c",
+      "bytes": 12927
+    },
+    {
+      "path": "fixtures/real-documents/D103-CDC-v4.1.md",
+      "sha256": "45714242444e5c20338e12d5e87f839d599d6f01d9039282e1e57641edfd9134",
+      "bytes": 33490
+    },
+    {
+      "path": "fixtures/real-documents/D103-anti-derive-v1.3.md",
+      "sha256": "a46c67bd8c2ce5919c0249154e0ff758e3ea4c48a8548d28744d174569e8f65e",
+      "bytes": 26152
+    },
+    {
+      "path": "fixtures/real-documents/D103P0.1-grille-revue-professionnelle-structure-v0.2.md",
+      "sha256": "e3916c766aa726b956fe08d4a4a92e6b42c3c90236bd5d15bf1092100c4b4713",
+      "bytes": 29117
+    },
+    {
+      "path": "fixtures/real-documents/EF-JMJS-CDC-gouvernance-v1.0.md",
+      "sha256": "9a7e653e9f36536088826bd3745bc2a6666cb794b28fd288aa9d33c2725b6070",
+      "bytes": 16009
+    },
+    {
+      "path": "governance/EvidenceForge-MONO11-v0.2-FREEZE-DECISION.md",
+      "sha256": "57ee19354e5f015f633da21fb17ec79abd7b0ea5d59ace491a38ee0956976ddf",
+      "bytes": 991
+    },
+    {
+      "path": "index.html",
+      "sha256": "d3541fa69556df8dcd8d7a802627cd531fd533c0d8d1e1dc2049625fbe0ec30c",
+      "bytes": 76401
+    },
+    {
+      "path": "lib/batch-judge.js",
+      "sha256": "eabf77602a68b77adc0184c93585770a28efd96b45678d02ff68b40aa1a56e8d",
+      "bytes": 6931
+    },
+    {
+      "path": "lib/budget-guard.js",
+      "sha256": "c55049449c74ebedcb1b6b05015c5aa11a814573f2c0e130f4285ae86d2e3878",
+      "bytes": 10023
+    },
+    {
+      "path": "lib/corpus-portfolio-review.js",
+      "sha256": "912a56fb7442dbc1a4959ab2c61cccadba7e29508138e02dd9148782b64ba67f",
+      "bytes": 25991
+    },
+    {
+      "path": "lib/cost-forecast.js",
+      "sha256": "07665b75af26bedcb80fd2cb1d7f218df4daba623161d9f549a2606e3f1972bf",
+      "bytes": 8530
+    },
+    {
+      "path": "lib/cost-ledger.js",
+      "sha256": "f6ed481e66a194d35285dc8882dfe502d5ae3e37b65f5a145f3c6f2b5ebd2eb9",
+      "bytes": 9745
+    },
+    {
+      "path": "lib/cost-view.js",
+      "sha256": "7357d89ee8f3ac794552f3f2d7781c365f6d0620549bac51bbd1e6700dda428a",
+      "bytes": 12200
+    },
+    {
+      "path": "lib/document-chunker.js",
+      "sha256": "6a7953968a7d7472273ef2a09869b8f4813af3606ae19e482ac6295d164e9935",
+      "bytes": 12753
+    },
+    {
+      "path": "lib/economic-panel.js",
+      "sha256": "cbf4307cddb74569b1aceff98e08fc10d72c5f5c11707db9dfeda3e67cf54ebb",
+      "bytes": 30192
+    },
+    {
+      "path": "lib/ef03b-resilience.js",
+      "sha256": "d13c1752d1f22ace72e5cf630e7905f55f9ab68cbaf46118444c91a807aec5fa",
+      "bytes": 43118
+    },
+    {
+      "path": "lib/live-status.js",
+      "sha256": "ce2a733a318dc61f38158bfc99d08191d4829ea4d5a763ee64235a5ebf4d1c2c",
+      "bytes": 10760
+    },
+    {
+      "path": "lib/llm-stream.js",
+      "sha256": "25e14d2720d5494a88ef878049a2e323730b6030a4e6575ff49c8a230d2468cf",
+      "bytes": 11134
+    },
+    {
+      "path": "lib/llm-transport.js",
+      "sha256": "a15c5240620c0f150d65627d1ba0bfab1f0c143c0556306844e0cdc6fb1230ee",
+      "bytes": 4818
+    },
+    {
+      "path": "lib/llm.js",
+      "sha256": "34816352ef0ef5dc63ea66998b259d1532d2a079972669e7fdde864828f8fac2",
+      "bytes": 32874
+    },
+    {
+      "path": "lib/mono04-fence-adapter.js",
+      "sha256": "8884b2ff107fc078876b0f41eb8fa77f28b3931fbb2e1cf8d8be14c06a0ca6d9",
+      "bytes": 4633
+    },
+    {
+      "path": "lib/panel-sufficiency.js",
+      "sha256": "fd05e26b708c4d4cdc59595838145669d05a267393629dbd922827c289bf7a3e",
+      "bytes": 19018
+    },
+    {
+      "path": "lib/paths.js",
+      "sha256": "504789ac05f9e6299ebd709153c79497991525bbec2e454dd2d58f80a636d873",
+      "bytes": 3512
+    },
+    {
+      "path": "lib/pipeline.js",
+      "sha256": "f5d48c534f29b0735e9bee317c2970dcb237d575f4653c14ea09c7931028632e",
+      "bytes": 70452
+    },
+    {
+      "path": "lib/portfolio-balancing.js",
+      "sha256": "f824dec1a3ceeae4e30f59d7aaf9a0c7ef7af0bdfb3bd33372c0b82ec3f9583f",
+      "bytes": 11381
+    },
+    {
+      "path": "lib/preflight-assistant.js",
+      "sha256": "5a4309f5f83b31dcef0d6df02d8734c219697d0d9c3be502911d29c957c25b64",
+      "bytes": 8057
+    },
+    {
+      "path": "lib/pricing.js",
+      "sha256": "5a321d5dc7020e7457ea6925fd843a81fd5f424c65173e15c864f3a5b0bf9fce",
+      "bytes": 5351
+    },
+    {
+      "path": "lib/professional-selection.js",
+      "sha256": "3978df3606b259e26dd0ddc1a1066a3be95fc4dbf654e351ea2eb97c306ffad6",
+      "bytes": 9608
+    },
+    {
+      "path": "lib/professionals-economics.js",
+      "sha256": "2f95a0512eac5c82d4c55e2ee68080812c33fe743281c74c6aad9006c52f6ec6",
+      "bytes": 10049
+    },
+    {
+      "path": "lib/provider-diagnostic.js",
+      "sha256": "79356d74115a4577f4b85bdfb4dd1413ab336ed69a43078c2019701844b48bd7",
+      "bytes": 10512
+    },
+    {
+      "path": "lib/run-stop.js",
+      "sha256": "2ca1c95e15cb1c648baae795754afb420942327713e0755ac16a7c4f489175ff",
+      "bytes": 6747
+    },
+    {
+      "path": "lib/run-store.js",
+      "sha256": "ab41ebc31f4505ff2f9825ea09767e76af091150df323346514655ff63a5be7d",
+      "bytes": 11151
+    },
+    {
+      "path": "lib/screening-evidence.js",
+      "sha256": "2547ed4c7aa2ac5879a881e7fe519d6d22b3794ea30ad4aaf183d9373de9d03b",
+      "bytes": 12460
+    },
+    {
+      "path": "lib/screening-normalization.js",
+      "sha256": "9792a85c8a3cbb450adeeea24e007de1065a30fe99ba63d3b5c1976c5bbf95f1",
+      "bytes": 4631
+    },
+    {
+      "path": "lib/stage-ef01.js",
+      "sha256": "e42f52d2621cfe16afa94de0fcecbf6fed9d7a46c11fa2ecd01c653d08186ffd",
+      "bytes": 16533
+    },
+    {
+      "path": "lib/stage-mission.js",
+      "sha256": "bed328016bfffba43f9800405414194702364acff5e80eb90442f092647f6080",
+      "bytes": 9143
+    },
+    {
+      "path": "lib/stage-professionals.js",
+      "sha256": "46f2b48f63ee268b7fdbe4c44098204948d2f53b6e439caec46dfb36e481b085",
+      "bytes": 46531
+    },
+    {
+      "path": "lib/stage-report.js",
+      "sha256": "0e67295b65583537f71799b02f8c9df2fe54ce33137bc799d8efc57c88664beb",
+      "bytes": 14419
+    },
+    {
+      "path": "lib/stage-retrieval.js",
+      "sha256": "2e31fe849426b96a59699aff018e47210989e3f9cc82ac0d6d21e481f0f15caa",
+      "bytes": 16284
+    },
+    {
+      "path": "lib/workref-normalization.js",
+      "sha256": "5eec1f7753bd8c8021f441cc9a88f94a6bc6888e68571c9f3d32fd5ca35ce38f",
+      "bytes": 6215
+    },
+    {
+      "path": "server.js",
+      "sha256": "8f567af101b7a4d444eb04938a28a8575aa60d75c0ec1587d625b59ef17f073b",
+      "bytes": 17630
+    },
+    {
+      "path": "test/browser-results-v105.json",
+      "sha256": "ecacf8470ee33d2591ec2f21087b3b5f4e7589e53812deafd72ec410bf78e1eb",
+      "bytes": 8340
+    },
+    {
+      "path": "test/browser-results-v106.json",
+      "sha256": "1c9cd43bc9674cdab2a0ab9bb4aac2cff9565f3df519ff51a0e8f048717d82b5",
+      "bytes": 1774
+    },
+    {
+      "path": "test/browser-results-v107.json",
+      "sha256": "bc24620a9bf7466e0528b46f4e6f0cf334a9712d705ed827fcc1bd1d7e734fe1",
+      "bytes": 1870
+    },
+    {
+      "path": "test/browser-results-v108.json",
+      "sha256": "fbfe59568bf2ea9c7853286fed03720fe8295c396d61d1c2191e7342d1a1b757",
+      "bytes": 1577
+    },
+    {
+      "path": "test/fixtures/ef03b-lineage-a10-cases.json",
+      "sha256": "557b118885ef1d0bc531ddede309632735180755a4dbb8e43bf42a9a6c9fea64",
+      "bytes": 18481
+    },
+    {
+      "path": "test/fixtures/portfolio-incident.json",
+      "sha256": "60fd497f7a64ecc00735d28dbb1d84c7f539fac2c9d598971c24291cf14245ec",
+      "bytes": 55181
+    },
+    {
+      "path": "test/results-chunking.json",
+      "sha256": "4064b3e7c92e1baa4f30472019cfbd2e1b264aa426a521b5dd5049d2c124ebdd",
+      "bytes": 4290
+    },
+    {
+      "path": "test/results.json",
+      "sha256": "56d509b758189dfb73dcd6fce2c5924367019abf4c972feff1d9a142df478f9c",
+      "bytes": 77705
+    },
+    {
+      "path": "test/test-chunking.js",
+      "sha256": "69f70532af19fe3763955621298a3b52901864187fd89bec4f4a1261017a83cb",
+      "bytes": 20429
+    },
+    {
+      "path": "test/test-economic-panel.js",
+      "sha256": "dadc5ce0cefbb61045b61916d2253673ec64f16b79bbcea9a18e202a03a1c0ee",
+      "bytes": 25290
+    },
+    {
+      "path": "test/test-ef03b-lineage.js",
+      "sha256": "f285595d37f2a52614125757e7e245d4b11ab1b23f59b27dd0b8272f414d776a",
+      "bytes": 20913
+    },
+    {
+      "path": "test/test-ef03b.js",
+      "sha256": "44eeac98e584fca1ff03cf21a5f3dc9cd4b02eb593f6488f1436d450bbfedb11",
+      "bytes": 37736
+    },
+    {
+      "path": "test/test-monolith.js",
+      "sha256": "e03756172dcf5643a8d3b34ec85b0774af9650c597523a67eb5c962abe793bb2",
+      "bytes": 115243
+    },
+    {
+      "path": "test/test-panel.js",
+      "sha256": "578afc808fa6dac65a31d2138f0320abd4ef1708b392f82fb5f238ca5cb12ac5",
+      "bytes": 34495
+    },
+    {
+      "path": "test/test-portfolio-balancing.js",
+      "sha256": "c5090bf8cd0477327f9b180190f9e6654aae72180715bc7861eee4e9f94d9628",
+      "bytes": 6254
+    },
+    {
+      "path": "test/test-run-safety.js",
+      "sha256": "cb7a018e228f283d798cc3c50a198a30fe9928f810f1430c79e45a6e426299f6",
+      "bytes": 37094
+    },
+    {
+      "path": "test/test-screening-cost.js",
+      "sha256": "d5769b735d7d034b04df4559c452d055d4ce54ae1b9aeab83776e53c2b13331d",
+      "bytes": 26212
+    },
+    {
+      "path": "test/test-stream.js",
+      "sha256": "3b2402ff12df4d09436293b91a917767c1ad02b9a5e05a4687d530ad2c1dfb65",
+      "bytes": 45981
+    },
+    {
+      "path": "test/test-sufficiency.js",
+      "sha256": "51226d4dea4205930c4788d3a9ee27fb3a5204b837bb0a6b392601509b4070a9",
+      "bytes": 26314
+    },
+    {
+      "path": "test/test-v1012-lineage-parity.js",
+      "sha256": "a94de4ad49d14f59898c8d80e6953ba0e7db14daa3426c6254c6c27130fedb7b",
+      "bytes": 22331
+    },
+    {
+      "path": "test/test-v1013-document-authority.js",
+      "sha256": "e1f3a26d1aac78230f71d33b929b7a31dc0315a60d805d72c39da4446286f66c",
+      "bytes": 20005
+    },
+    {
+      "path": "test/test-v105.js",
+      "sha256": "a682411efccbaab7112858f3a13dc66d59ba247c1aaf32c33a34e88b7ff2922d",
+      "bytes": 64280
+    },
+    {
+      "path": "tools/anti-hardcoding-scan.js",
+      "sha256": "259f71433f25a329ec2e5e06fe645dc2e21109989e3fd8da7c9792dd301877e8",
+      "bytes": 3474
+    },
+    {
+      "path": "tools/bench-oracle-model.js",
+      "sha256": "25ac2c4e763fdce1946cd31b488d06cfe11f71908de2441aba659edbe4fa69dc",
+      "bytes": 10523
+    },
+    {
+      "path": "tools/browser-tests-v105.js",
+      "sha256": "4d356f7dab06c6b19bde6b7888d4a4cb33c974d0323eede908b52bdbc23fa098",
+      "bytes": 22068
+    },
+    {
+      "path": "tools/browser-tests-v106.js",
+      "sha256": "8f03ecaed4eccf5a35096c13719d21a8c39eefb7878bae820d87ad79a9207a05",
+      "bytes": 10976
+    },
+    {
+      "path": "tools/browser-tests-v107.js",
+      "sha256": "d701c16795f721f39c2fe063405487ab96a78c415e110637c69f5e873dcbc545",
+      "bytes": 12594
+    },
+    {
+      "path": "tools/browser-tests-v108.js",
+      "sha256": "d65dae2eb74d9d5d2e0aa93ab1ccfb0d454744dadfce5d189a9abcf0bba14b1e",
+      "bytes": 11930
+    },
+    {
+      "path": "tools/browser-tests.js",
+      "sha256": "329fab905c7ae31dc51fc8c3d3b00ee18d16817480a649f0ba8fe368b6f192e3",
+      "bytes": 7326
+    },
+    {
+      "path": "tools/build-manifest.js",
+      "sha256": "bf94bd0455f904c9c742477e276af3ac3d1c8891b8562d6b428d4757260003df",
+      "bytes": 12763
+    },
+    {
+      "path": "tools/economic-replay.js",
+      "sha256": "a23347a9ec750a220dc047d60b5f4815954783c476a9b6e7f2e2b307791068ec",
+      "bytes": 16964
+    },
+    {
+      "path": "tools/ef03b-autopsy.js",
+      "sha256": "86e3d0bf1e4c5c7330296b911f0f7ff17d186877122ddd1c7a095d99f74b07ea",
+      "bytes": 32788
+    },
+    {
+      "path": "tools/ef03b-registry-import.js",
+      "sha256": "c6d694ac4a03ed45cafe7ab8d8b7d228a38147dbe75db333918e4357682a73ac",
+      "bytes": 8397
+    },
+    {
+      "path": "tools/fake-worker.js",
+      "sha256": "d44b716ce3922b4a20340a0e607a3a159dc4834214e75adcb0af461bb6c6b112",
+      "bytes": 8187
+    },
+    {
+      "path": "tools/import-sealed-run.js",
+      "sha256": "979c35b056a036abe338964bbdd431bb356f4ce51d1f2f7c4ec9cbdc86b7a4c3",
+      "bytes": 8358
+    },
+    {
+      "path": "tools/package.sh",
+      "sha256": "5d494cf0d76acb9e06d0fceb48bd894d63c3928252a0d9b5484a90958ea29c30",
+      "bytes": 396
+    },
+    {
+      "path": "tools/reconstruct-cost.js",
+      "sha256": "26a00598cc99c53f94cd22ab02327dfde8cc25c34085c295071c21c20b85d7d2",
+      "bytes": 4541
+    },
+    {
+      "path": "tools/screening-replay.js",
+      "sha256": "b5f97de0e16f74eafa5fc721086838e7251b2ee9c3079fe4da280e7ec9cb16e4",
+      "bytes": 13263
+    },
+    {
+      "path": "tools/secret-scan.js",
+      "sha256": "b6470e2efb5625ed07a6605faa9cca3b0ede80f7dde719541104d75cf65ed403",
+      "bytes": 2068
+    },
+    {
+      "path": "tools/stream-replay.js",
+      "sha256": "d68c1408ae05200a4d3a30daba33d96025838bc44ae9d22050f58f48af7d4dd0",
+      "bytes": 17882
+    },
+    {
+      "path": "vendor/operator-kit-r1.3/README.md",
+      "sha256": "914e99cfbb3440bf0b4a726b018a74060b56b81654e71f30e45d71006f695a95",
+      "bytes": 497
+    },
+    {
+      "path": "vendor/operator-kit-r1.3/assert-runcontract-confirmed.js",
+      "sha256": "59e90767fd2270594e11d916e45397e3c36f00504c5ba75e0ebadad54f6e1655",
+      "bytes": 1239
+    },
+    {
+      "path": "vendor/operator-kit-r1.3/build-eforch-provenance.js",
+      "sha256": "c0305503c349eefe1157ff8424457083cdddf2a685a6ec9a1be3a77a396ea341",
+      "bytes": 3040
+    },
+    {
+      "path": "vendor/operator-kit-r1.3/build-real-mono04.js",
+      "sha256": "2e53cbe3ff91a703d3254b0df5b0931ee1ad45148ac94f7a33bd50a788947e7b",
+      "bytes": 1343
+    },
+    {
+      "path": "vendor/operator-kit-r1.3/build-runcontract-draft-core.js",
+      "sha256": "0c7a376753a4d214e2041d269222f8c5468804909b23459e70a8bcc77dbd23a6",
+      "bytes": 3841
+    },
+    {
+      "path": "vendor/operator-kit-r1.3/build-searchprotocol-core.js",
+      "sha256": "271b9d6483a8e8c82df730cfab3cf20a8371197123cceae81e63de52c14feaa1",
+      "bytes": 2155
+    },
+    {
+      "path": "vendor/operator-kit-r1.3/derive-auto-included-discipline-ids.js",
+      "sha256": "84060e0457395b6828a09b7ec6241d2ffb74c4ab229a84a1809972e6301ee69e",
+      "bytes": 2773
+    },
+    {
+      "path": "vendor/operator-kit-r1.3/filter-resolver-runs-by-runcontract.js",
+      "sha256": "d919f2e375e3452d2e43721c5d2cf5ae86b0ee84c9cec4d7aaa29c7ebb4b2c24",
+      "bytes": 3597
+    },
+    {
+      "path": "vendor/operator-kit-r1.3/run-planner-core.js",
+      "sha256": "c9ac749d9107052c869526a5bd0d31430b62a1678b03d5cf88401ac06a3c6d1a",
+      "bytes": 1283
+    },
+    {
+      "path": "vendor/operator-kit-r1.3/run-resolver-core.js",
+      "sha256": "3fed524343550469d4a520137226e3305c4a18b3fc038059697de828a0a1beb7",
+      "bytes": 1614
+    },
+    {
+      "path": "worker/evidenceforge-llm-proxy-v0.8/README.md",
+      "sha256": "4fe24848b60f7bf1a0300805474a417002d81ca3274d6f52efde61b0e28267c0",
+      "bytes": 13287
+    },
+    {
+      "path": "worker/evidenceforge-llm-proxy-v0.8/package.json",
+      "sha256": "14667c4eb08a9fec29a0da742a4f7d8d70fdddc3521f77c6488c851a3b753764",
+      "bytes": 652
+    },
+    {
+      "path": "worker/evidenceforge-llm-proxy-v0.8/src/worker.js",
+      "sha256": "8e9173c23b5a1b736f6cb177dd2e674c9ad3c02599498de25045f8070e0a0e87",
+      "bytes": 25345
+    },
+    {
+      "path": "worker/evidenceforge-llm-proxy-v0.8/test/worker.test.js",
+      "sha256": "f8a352427013e238929091a66145b2bb20d9c10bb380de2c8d8fd4db55f19909",
+      "bytes": 38229
+    },
+    {
+      "path": "worker/evidenceforge-llm-proxy-v0.8/wrangler.jsonc",
+      "sha256": "8763132e283366439cbab62b62f48e02b10ca04a37fb3512ebc878b99ce6e412",
+      "bytes": 4100
+    }
+  ],
+  "fileCount": 166,
+  "contentHash": "6f8e037a853b1e46f12d21e95e6d6d516db84a73f2ebddb6e0e10ca5378c4ead"
+}

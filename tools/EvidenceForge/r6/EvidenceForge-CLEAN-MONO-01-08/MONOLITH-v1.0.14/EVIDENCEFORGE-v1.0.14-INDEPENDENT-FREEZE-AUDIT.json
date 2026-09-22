@@ -1,0 +1,1086 @@
+{
+  "schema": "EvidenceForge.V1014FreezeAudit",
+  "version": "v1",
+  "auditedAt": "2026-09-22",
+  "auditor": "independent adversarial agent (read-only)",
+  "subject": {
+    "version": "MONOLITH-v1.0.14",
+    "manifestContentHash": "77c05052d052e1ca1c4e1c81097254702bd57fe6c60f81c533178d24b6c53111",
+    "manifestFileCount": 160,
+    "manifestSha256": "4ae8962b3d25fb732f85fec04fa312d8f6177fc1ee2bba8365af27e86501a68a",
+    "sha256sumsSha256": "32841170147738a679c7c12b5485d41f7a4f1ae142c4745fdf2a918c107502a1",
+    "adapterSha256": "ea86f11528beb1b779b98d02ae241b9658b752b165a91b1321b56c573b1c3d99",
+    "pipelineSha256": "de4049c453940dc32fc573c45971e57c64947c214504e65a96b71f9bad0e5a9f",
+    "registryImportSha256": "70502a66a14134c41f2c0f2aae63b85f47f469b8fa32a267a2de14ab69d7b1c5",
+    "mono11": {
+      "version": "v0.4",
+      "seal": "110db4de24709926d4a5fb6d0e951530f0afc2c1c807a09127852a92aa182c3d",
+      "runCodeHash": "27610c84502104b3dc9643a9cc0289aef4ae40ae65ee34e4fe82f31a73e381ad",
+      "canonicalZipSha256": "79c16d08a0a52bc1b9ae3c6884cc22f6161145bed18158d6c9b6a44df1a7c474",
+      "contractVersion": "MONO-11-v3",
+      "files": 55,
+      "sha256sumsCheck": "55/55 OK",
+      "ownSuite": "83/83",
+      "targetNormalizerSha256": "9e419de7bdf506181e6f2e4246f28b19067df6e7e09c691452d9e0955bf390c8"
+    }
+  },
+  "verdict": "V1_0_14_FREEZE_AUDIT_PASS_WITH_RESERVATIONS",
+  "recommendationFreeze": "GELER",
+  "recommendationSmoke": "SMOKE",
+  "recommendationSmokeCondition": "R-SMOKE : smoke reel en MISSION_DOSSIER (defaut, 1 cible) ; si un dossier multi-cibles est vise, verifier manuellement documentAuthoritySha256 par cible (target-document-set.json vs ef03b-trace.jsonl / reviews-valid.jsonl) — zone non couverte par les tests (reserve R1).",
+  "blockers": [],
+  "reservations": [
+    {
+      "id": "R1",
+      "severity": "MEDIUM",
+      "title": "Mutant de cablage survivant",
+      "detail": "lib/pipeline.js : documentAuthority: (targetId) => authorityByTarget[\"target-01\"] passe 313/313. Les E2E extraient par regex la seule ligne de construction de la table et fournissent leur propre lambda ; aucun test ne fait passer l'adaptateur de production par une vraie revue (runDownstreamFromCheckpoint est toujours double). B3 partiellement ferme. Inerte en MISSION_DOSSIER (1 cible) ; actif sous repli DOSSIER_TOO_LARGE ou en PER_DOCUMENT. Le code livre est correct (parite 3/3 cibles prouvee) : trou de couverture, pas defaut d'execution."
+    },
+    {
+      "id": "R2",
+      "severity": "MEDIUM",
+      "title": "Faux negatif structurel de la garde de point fixe",
+      "detail": "DOCUMENT_AUTHORITY_NOT_NORMALIZED prouve 'point fixe des regles gelees', jamais 'le bon document'. Une autorite TRONQUEE mais deja normalisee est un point fixe et est ACCEPTEE (G3) ; un AUTRE document normalise aussi (G7). Consequence prouvee : mergeLiteralRefs ecarte silencieusement une reference litterale valide sous autorite tronquee. contextContentMismatch n'est pas discriminant (>=1 aussi avec une autorite correcte, cf. RA2-E2E-05) et n'est pas leve si le contexte du prompt est illisible."
+    },
+    {
+      "id": "R3",
+      "severity": "LOW",
+      "title": "Libelle de test trompeur",
+      "detail": "RA2-E2E-08 s'intitule 'une autorite tronquee ou brute est REFUSEE (fail closed)' alors que son corps prouve que la tronquee est ACCEPTEE (seulement comptee et tracee). Seule la brute est refusee."
+    },
+    {
+      "id": "R4",
+      "severity": "MEDIUM",
+      "title": "RI-01..RI-03 assertent du TEXTE SOURCE, pas un comportement",
+      "detail": "Mutant M4c (garde d'import neutralisee par 'if (false && ...)' en conservant le texte source) survit 313/313. L'outil a ete exerce comportementalement par l'auditeur (cas A..I) : comportement conforme."
+    },
+    {
+      "id": "R5",
+      "severity": "LOW",
+      "title": "REGISTRY_IMPORT_AUTHORITY_MISSING pratiquement inatteignable",
+      "detail": "Cible sans document -> continue silencieux (imported=0, refused=0, rien ecrit) ; document a contenu vide -> refuse en amont par RE.validateReviewCandidate. Effet global fail-closed mais le code annonce ne se declenche jamais."
+    },
+    {
+      "id": "R6",
+      "severity": "LOW",
+      "title": "Garde d'autorite non exigee sur une passe ni base ni ciblee sans ctx",
+      "detail": "Si st.ctx === null et la passe n'est ni BASE ni TARGETED, la branche transport seul n'appelle pas requireAuthority. Inatteignable dans le pipeline de production (passe 1 toujours BASE) ; non garde formellement."
+    },
+    {
+      "id": "R7",
+      "severity": "COSMETIC",
+      "title": "Comptage des identifiants de tests",
+      "detail": "'RI-01..07' annonce 7 identifiants pour 2 entrees reelles (RI-01..RI-03, RI-04..RI-07) ; total 313 honnete (292+21). Doublon d'identifiant V1 preexistant en v1.0.12."
+    },
+    {
+      "id": "R8",
+      "severity": "EXPECTED",
+      "title": "Limites reconnues par l'auteur",
+      "detail": "Aucun run reel, aucun zip canonique, R-A3 / R-A5 / R-A6 non traitees. Confirmees."
+    }
+  ],
+  "statuses": {
+    "B1": "CLOSED",
+    "B2": "CLOSED",
+    "B3": "PARTIALLY_CLOSED",
+    "B4": "CLOSED",
+    "RA1": "RA1_TRACE_PARITY_PASS",
+    "R5": "STILL_CLOSED",
+    "R6": "STILL_CLOSED",
+    "mono11v04": "NOT_REOPENED"
+  },
+  "diff": [
+    {
+      "file": "lib/ef03b-resilience.js",
+      "kind": "RUNTIME",
+      "announced": true,
+      "sha256": "ea86f11528beb1b779b98d02ae241b9658b752b165a91b1321b56c573b1c3d99",
+      "change": "R-A2 documentAuthority obligatoire + garde de point fixe (DOCUMENT_AUTHORITY_REQUIRED/_EMPTY/_NOT_NORMALIZED fatals) + withAuthority + registre cle par documentAuthoritySha256 + refus trace ; R-A1 reparation illisible non recomposee"
+    },
+    {
+      "file": "lib/pipeline.js",
+      "kind": "RUNTIME",
+      "announced": true,
+      "sha256": "de4049c453940dc32fc573c45971e57c64947c214504e65a96b71f9bad0e5a9f",
+      "change": "construction de authorityByTarget via le module GELE core/target-normalizer.js + passage de documentAuthority a l'adaptateur ; schemaVersion"
+    },
+    {
+      "file": "tools/ef03b-registry-import.js",
+      "kind": "RUNTIME",
+      "announced": true,
+      "sha256": "70502a66a14134c41f2c0f2aae63b85f47f469b8fa32a267a2de14ab69d7b1c5",
+      "change": "B4 : documentAuthoritySha256 = authoritySha(doc) sur le document normalise du run ; fail closed MISSING / NOT_NORMALIZED"
+    },
+    {
+      "file": "config/monolith.config.json",
+      "kind": "VERSION_STRING_ONLY",
+      "announced": true,
+      "change": "$comment + product.version 1.0.12 -> 1.0.14 ; aucune autre difference"
+    },
+    {
+      "file": "tools/build-manifest.js",
+      "kind": "PROVENANCE_STRING_ONLY",
+      "announced": true,
+      "change": "chaines predecessor/ef03b/provenance/status ; logique de mesure inchangee"
+    },
+    {
+      "file": "tools/ef03b-autopsy.js",
+      "kind": "VERSION_STRING_ONLY",
+      "announced": true,
+      "change": "schemaVersion 1.0.12 -> 1.0.14 (1 ligne)"
+    },
+    {
+      "file": "tools/package.sh",
+      "kind": "VERSION_STRING_ONLY",
+      "announced": true,
+      "change": "nom du zip (3 lignes)"
+    },
+    {
+      "file": "test/test-stream.js",
+      "kind": "TEST",
+      "announced": true,
+      "change": "1 seule difference : version produit attendue"
+    },
+    {
+      "file": "test/test-ef03b-lineage.js",
+      "kind": "TEST",
+      "announced": true,
+      "change": "+ AUTHORITY normalisee passee a l'adaptateur"
+    },
+    {
+      "file": "test/test-v1012-lineage-parity.js",
+      "kind": "TEST",
+      "announced": true,
+      "change": "+ AUTHORITY normalisee ; V12-18 version produit"
+    },
+    {
+      "file": "test/test-v1014-normalized-authority.js",
+      "kind": "TEST_NEW",
+      "announced": true,
+      "change": "RA2-01..08, RA1-01..03"
+    },
+    {
+      "file": "test/test-v1014-e2e-wiring.js",
+      "kind": "TEST_NEW",
+      "announced": true,
+      "change": "RA2-E2E-01..08, RI-01..RI-07"
+    },
+    {
+      "file": "MANIFEST.json / SHA256SUMS.txt / README.md / test/results*.json",
+      "kind": "MEASURED",
+      "announced": true,
+      "change": "regeneres"
+    }
+  ],
+  "diffUnannounced": [],
+  "byteIdentical": {
+    "note": "diff -rq lib/ v1.0.12 vs v1.0.14 ne montre QUE ef03b-resilience.js et pipeline.js",
+    "files": {
+      "lib/llm.js": "34816352ef0ef5dc63ea66998b259d1532d2a079972669e7fdde864828f8fac2",
+      "lib/stage-professionals.js": "46f2b48f63ee268b7fdbe4c44098204948d2f53b6e439caec46dfb36e481b085",
+      "lib/stage-report.js": "0e67295b65583537f71799b02f8c9df2fe54ce33137bc799d8efc57c88664beb"
+    },
+    "directories": [
+      "lib/ (tout sauf les 2 cites)",
+      "server.js",
+      "index.html",
+      "worker/",
+      "vendor/",
+      "fixtures/",
+      "governance/",
+      "bin/"
+    ],
+    "scientificOrAggregationLogicChanged": false
+  },
+  "normalizedAuthorityParity": {
+    "classification": "NORMALIZED_AUTHORITY_PARITY_PASS",
+    "method": "PL.advance() pilote reellement ; la lambda documentAuthority de production est CAPTUREE par instrumentation de EF3.createReviewAdapter ; le document du lot est produit par la chaine propre de MONO-11 (TN.normalizeTargetDocument ligne 158 + buildTargetDocumentSet ligne 162 de core/autonomous-run.js) sur les targetDocuments de PRODUCTION ; comparaison Buffer.compare + sha256",
+    "divergences": 0,
+    "casesTotal": 12,
+    "targetsCompared": 14,
+    "cases": [
+      {
+        "id": "P-01",
+        "name": "ordinary document",
+        "targets": 1,
+        "bytesIdentical": true,
+        "sha256": "7fa1f79d1278",
+        "rawDiffersFromNormalized": false,
+        "authorityNeverRaw": true,
+        "fixedPoint": true
+      },
+      {
+        "id": "P-02",
+        "name": "typographic apostrophes U+2019/2018/2032/02BC",
+        "targets": 1,
+        "bytesIdentical": true,
+        "sha256": "4a357d05da97",
+        "rawDiffersFromNormalized": true,
+        "authorityNeverRaw": true,
+        "fixedPoint": true
+      },
+      {
+        "id": "P-03",
+        "name": "typographic quotes U+201C/201D/201E/2033",
+        "targets": 1,
+        "bytesIdentical": true,
+        "sha256": "9f5d0ab1a529",
+        "rawDiffersFromNormalized": true,
+        "authorityNeverRaw": true,
+        "fixedPoint": true
+      },
+      {
+        "id": "P-04",
+        "name": "NBSP U+00A0 U+202F U+2007",
+        "targets": 1,
+        "bytesIdentical": true,
+        "sha256": "ce9d0ebf0101",
+        "rawDiffersFromNormalized": true,
+        "authorityNeverRaw": true,
+        "fixedPoint": true
+      },
+      {
+        "id": "P-05",
+        "name": "CRLF and lone CR",
+        "targets": 1,
+        "bytesIdentical": true,
+        "sha256": "16d192fd96bb",
+        "rawDiffersFromNormalized": true,
+        "authorityNeverRaw": true,
+        "fixedPoint": true
+      },
+      {
+        "id": "P-06",
+        "name": "non-NFC decomposed accents",
+        "targets": 1,
+        "bytesIdentical": true,
+        "sha256": "a3841e9eb16d",
+        "rawDiffersFromNormalized": true,
+        "authorityNeverRaw": true,
+        "fixedPoint": true
+      },
+      {
+        "id": "P-07",
+        "name": "combination of several transformations",
+        "targets": 1,
+        "bytesIdentical": true,
+        "sha256": "8dd295a74742",
+        "rawDiffersFromNormalized": true,
+        "authorityNeverRaw": true,
+        "fixedPoint": true
+      },
+      {
+        "id": "P-08",
+        "name": "document containing BASE DOCUMENTAIRE DU PROFESSIONNEL",
+        "targets": 1,
+        "bytesIdentical": true,
+        "sha256": "14de0066e948",
+        "rawDiffersFromNormalized": false,
+        "authorityNeverRaw": true,
+        "fixedPoint": true,
+        "noTruncationAtMarker": true
+      },
+      {
+        "id": "P-09",
+        "name": "marker + JSON line",
+        "targets": 1,
+        "bytesIdentical": true,
+        "sha256": "74d14ed56b9c",
+        "rawDiffersFromNormalized": true,
+        "authorityNeverRaw": true,
+        "fixedPoint": true,
+        "noTruncationAtMarker": true
+      },
+      {
+        "id": "P-10",
+        "name": "several markers (x3)",
+        "targets": 1,
+        "bytesIdentical": true,
+        "sha256": "b85e732c4e03",
+        "rawDiffersFromNormalized": false,
+        "authorityNeverRaw": true,
+        "fixedPoint": true,
+        "noTruncationAtMarker": true
+      },
+      {
+        "id": "P-11",
+        "name": "3 distinct documents, PER_DOCUMENT (index mapping)",
+        "targets": 3,
+        "bytesIdentical": true,
+        "sha256": [
+          "d06ba5104636",
+          "924695002d15",
+          "04d37c77aca6"
+        ],
+        "rawDiffersFromNormalized": true,
+        "authorityNeverRaw": true,
+        "fixedPoint": true
+      },
+      {
+        "id": "P-12",
+        "name": "2 documents merged, MISSION_DOSSIER",
+        "targets": 1,
+        "bytesIdentical": true,
+        "sha256": "b242d9e967aa",
+        "rawDiffersFromNormalized": true,
+        "authorityNeverRaw": true,
+        "fixedPoint": true
+      }
+    ]
+  },
+  "fixedPointGuard": {
+    "guard": "lib/ef03b-resilience.js requireAuthority() : TN.normalizeText(c).normalized !== c => throw DOCUMENT_AUTHORITY_NOT_NORMALIZED (fatal)",
+    "refuses": [
+      {
+        "case": "raw authority",
+        "code": "DOCUMENT_AUTHORITY_NOT_NORMALIZED"
+      },
+      {
+        "case": "partially normalized authority",
+        "code": "DOCUMENT_AUTHORITY_NOT_NORMALIZED"
+      },
+      {
+        "case": "empty authority",
+        "code": "DOCUMENT_AUTHORITY_EMPTY"
+      },
+      {
+        "case": "non-string authority",
+        "code": "DOCUMENT_AUTHORITY_REQUIRED"
+      },
+      {
+        "case": "unknown targetId",
+        "code": "DOCUMENT_AUTHORITY_REQUIRED"
+      }
+    ],
+    "accepts": [
+      {
+        "case": "correct normalized authority",
+        "mismatch": 0
+      },
+      {
+        "case": "TRUNCATED but already normalized authority",
+        "mismatch": 1,
+        "accepted": true
+      },
+      {
+        "case": "DIFFERENT but normalized document",
+        "mismatch": 1,
+        "accepted": true
+      }
+    ],
+    "falsePositive": {
+      "found": false,
+      "evidence": "fuzz aleatoire de 20000 documents sur le pool exact des caracteres couverts par les regles gelees : 0 sortie de normalizeTargetDocument n'est un non-point-fixe ; le module gele refuse lui-meme toute non-idempotence (NORMALIZATION_NOT_IDEMPOTENT). Aucun document normalise legitime ne peut etre refuse."
+    },
+    "falseNegative": {
+      "found": true,
+      "confirmed": true,
+      "statement": "UNE AUTORITE TRONQUEE MAIS DEJA NORMALISEE EST UN POINT FIXE : la garde ne la voit pas et l'accepte. Un AUTRE document normalise est egalement accepte. La garde prouve 'normalise', jamais 'le bon document'.",
+      "provenConsequence": "mergeLiteralRefs([CITE1,CITE2],[],TRUNC) rend 1 ref et ecarte CITE2 comme non litterale, alors que sous l'autorite correcte les 2 sont conservees : une reference litterale VALIDE est silencieusement perdue (mode de defaillance exact du run v1.0.10)."
+    },
+    "loop": false,
+    "destructiveDoubleNormalization": false,
+    "doubleNormalizationEvidence": "mutant X2 (normalisation appliquee deux fois dans lib/pipeline.js) : no-op, 313/313",
+    "residualRisk": "MEDIUM — non realise dans le paquet livre (parite 12/12 prouvee). Devient reel sous une regression du cablage, que la garde ne detecterait pas et que les tests ne couvrent pas integralement (R1). Attenuations partielles : contextContentMismatch (NON discriminant : >=1 aussi avec une autorite correcte, cf. RA2-E2E-05 ; non leve si le contexte du prompt est illisible) et liaison du registre a documentAuthoritySha256 (empeche la REUTILISATION, pas la perte dans le run courant)."
+  },
+  "wiring": {
+    "productionPath": "lib/pipeline.js -> targetDocs -> TNorm.normalizeTargetDocument -> authorityByTarget[target-NN] -> adapter.documentAuthority -> st.ctx.content -> isLiteralRef/mergeLiteralRefs/mergeRepairLineage ; en parallele SP.runDownstreamFromCheckpoint:329 -> MONO-11 autonomous-run:158/162 -> review-enforcer.contentContainsRef",
+    "deliveredE2EMethod": "regex WIRE_RE sur la source de lib/pipeline.js puis eval de la ligne de construction de la table ; le test fournit SA PROPRE lambda documentAuthority",
+    "faithfulProxy": "PARTIAL",
+    "coveredBySuite": [
+      "construction de authorityByTarget (normalisation, indexation, source du contenu)",
+      "renommage/deplacement de la ligne (assert(wireMatch))",
+      "indexation multi-documents DANS LA TABLE (RA2-E2E-07)",
+      "presence de la ligne de cablage (mutant X4 : 7 tests rouges)"
+    ],
+    "notCoveredBySuite": [
+      "la lambda documentAuthority: (targetId) => authorityByTarget[targetId] (mutant X1 survit 313/313)",
+      "le require du module normaliseur gele (substitue par le test)",
+      "l'adaptateur de PRODUCTION traverse par une vraie revue : runDownstreamFromCheckpoint est remplace par un double dans TOUTES les suites (X4, T-EF03B-26, RUN-SAFETY-08/12, COST-07/08, T-ECO-15, T-STREAM-21)"
+    ],
+    "auditorDroveRealPipeline": true,
+    "auditorMethod": "PL.advance() reellement execute avec fournisseur factice ; lambda de production capturee et evaluee ; comparaison octet pour octet contre la chaine propre de MONO-11 sur les targetDocuments de production ; 12 cas / 14 cibles / 0 divergence",
+    "multiDocumentIndexingCovered": {
+      "inTable": true,
+      "inLambda": false
+    },
+    "reachabilityOfTheGap": "MISSION_DOSSIER (defaut, dossierMaxChars=400000) produit 1 seule cible -> X1 inerte ; repli DOSSIER_TOO_LARGE ou mode PER_DOCUMENT -> N cibles -> X1 actif"
+  },
+  "mutationMatrix": [
+    {
+      "id": "M1",
+      "mutation": "autorite = contenu BRUT (defaut exact de v1.0.13)",
+      "file": "lib/pipeline.js",
+      "killed": true,
+      "killedBy": [
+        "RA2-E2E-01",
+        "RA2-E2E-02",
+        "RA2-E2E-03",
+        "RA2-E2E-04",
+        "RA2-E2E-08"
+      ],
+      "score": "308/313",
+      "authorClaimReproduced": true
+    },
+    {
+      "id": "M2",
+      "mutation": "index cible decale (target-NN -> target-NN+1)",
+      "file": "lib/pipeline.js",
+      "killed": true,
+      "killedBy": [
+        "RA2-E2E-01",
+        "RA2-E2E-02",
+        "RA2-E2E-03",
+        "RA2-E2E-04",
+        "RA2-E2E-05",
+        "RA2-E2E-06",
+        "RA2-E2E-07",
+        "RA2-E2E-08",
+        "T-STREAM-21"
+      ],
+      "score": "304/313",
+      "authorClaimReproduced": true
+    },
+    {
+      "id": "M3",
+      "mutation": "autorite tronquee (slice(0,20))",
+      "file": "lib/pipeline.js",
+      "killed": true,
+      "killedBy": [
+        "RA2-E2E-01",
+        "RA2-E2E-02",
+        "RA2-E2E-03",
+        "RA2-E2E-04",
+        "RA2-E2E-05",
+        "RA2-E2E-06",
+        "RA2-E2E-07",
+        "RA2-E2E-08"
+      ],
+      "score": "305/313",
+      "authorClaimReproduced": true
+    },
+    {
+      "id": "M4",
+      "mutation": "documentAuthoritySha256 absent a l'import",
+      "file": "tools/ef03b-registry-import.js",
+      "killed": true,
+      "killedBy": [
+        "RI-01..RI-03"
+      ],
+      "killKind": "SOURCE_TEXT_ASSERTION",
+      "score": "312/313",
+      "authorClaimReproduced": true
+    },
+    {
+      "id": "M4b",
+      "mutation": "garde de normalisation retiree de l'import (empreinte sur contenu non normalise)",
+      "file": "tools/ef03b-registry-import.js",
+      "killed": true,
+      "killedBy": [
+        "RI-01..RI-03"
+      ],
+      "killKind": "SOURCE_TEXT_ASSERTION",
+      "score": "312/313",
+      "authorClaimReproduced": true
+    },
+    {
+      "id": "M5",
+      "mutation": "correctif R-A1 retire (reparation illisible recomposee)",
+      "file": "lib/ef03b-resilience.js",
+      "killed": true,
+      "killedBy": [
+        "RA1-01",
+        "RA1-02",
+        "RA1-03"
+      ],
+      "score": "310/313",
+      "authorClaimReproduced": true
+    },
+    {
+      "id": "M6",
+      "mutation": "garde de normalisation retiree de l'adaptateur",
+      "file": "lib/ef03b-resilience.js",
+      "killed": true,
+      "killedBy": [
+        "RA2-04",
+        "RA2-E2E-08"
+      ],
+      "score": "311/313",
+      "authorClaimReproduced": true
+    },
+    {
+      "id": "X1",
+      "auditorExtra": true,
+      "mutation": "documentAuthority: (targetId) => authorityByTarget[\"target-01\"] (autorite de la cible 1 rendue pour TOUTES les cibles)",
+      "file": "lib/pipeline.js",
+      "killed": false,
+      "killedBy": [],
+      "score": "313/313",
+      "note": "MUTANT SURVIVANT — contredit l'affirmation B3 de l'auteur"
+    },
+    {
+      "id": "X2",
+      "auditorExtra": true,
+      "mutation": "normalisation appliquee deux fois",
+      "file": "lib/pipeline.js",
+      "killed": false,
+      "killedBy": [],
+      "score": "313/313",
+      "note": "survivant ATTENDU et CORRECT : la normalisation est idempotente, aucune double normalisation destructrice"
+    },
+    {
+      "id": "X3",
+      "auditorExtra": true,
+      "mutation": "autorite tiree de d.title au lieu de d.content",
+      "file": "lib/pipeline.js",
+      "killed": true,
+      "killedBy": [
+        "RA2-E2E-01",
+        "RA2-E2E-02",
+        "RA2-E2E-03",
+        "RA2-E2E-04",
+        "RA2-E2E-05",
+        "RA2-E2E-06",
+        "RA2-E2E-07",
+        "RA2-E2E-08"
+      ],
+      "score": "305/313"
+    },
+    {
+      "id": "X4",
+      "auditorExtra": true,
+      "mutation": "ligne de cablage documentAuthority: entierement supprimee",
+      "file": "lib/pipeline.js",
+      "killed": true,
+      "killedBy": [
+        "X4",
+        "COST-07 / COST-08",
+        "RUN-SAFETY-08",
+        "RUN-SAFETY-12",
+        "T-ECO-15",
+        "T-STREAM-21",
+        "T-EF03B-26"
+      ],
+      "score": "306/313"
+    },
+    {
+      "id": "M4c",
+      "auditorExtra": true,
+      "mutation": "garde d'import neutralisee en CONSERVANT le texte source (if (false && TN.normalizeText(c).normalized !== c) throw ...)",
+      "file": "tools/ef03b-registry-import.js",
+      "killed": false,
+      "killedBy": [],
+      "score": "313/313",
+      "note": "MUTANT SURVIVANT — prouve que RI-01..RI-03 n'ont aucune valeur comportementale"
+    }
+  ],
+  "mutationMatrixSummary": {
+    "announcedMutants": 7,
+    "announcedAllKilled": true,
+    "reproducedExactly": true,
+    "auditorExtraMutants": 5,
+    "survivingCriticalMutants": [
+      "X1",
+      "M4c"
+    ],
+    "survivingBenignMutants": [
+      "X2"
+    ]
+  },
+  "registryImport": {
+    "toolSha256": "70502a66a14134c41f2c0f2aae63b85f47f469b8fa32a267a2de14ab69d7b1c5",
+    "method": "BEHAVIOURAL — repertoires de run factices minimaux, importRun() en --dry-run ET en ecriture reelle (les tests livres RI-01..03 n'assertent que du texte source : juge comme une faiblesse, cf. R4 et mutant M4c)",
+    "cases": [
+      {
+        "id": "A",
+        "case": "normalised authority available",
+        "expected": "import accepte, entree servable",
+        "observed": "imported=1, refused=0 ; find() retourne l'entree",
+        "pass": true
+      },
+      {
+        "id": "B",
+        "case": "raw != normalised",
+        "expected": "empreinte du normalise seul",
+        "observed": "documentAuthoritySha256 = 9d3957c7d208... = sha(NORM) != sha(RAW) 804e294adddd...",
+        "pass": true
+      },
+      {
+        "id": "C",
+        "case": "authority absent (no document for target)",
+        "expected": "REGISTRY_IMPORT_AUTHORITY_MISSING",
+        "observed": "aucun jet : continue silencieux, imported=0, refused=0, rien ecrit",
+        "pass": "PARTIAL",
+        "note": "fail-closed en effet ; code annonce jamais leve (reserve R5)"
+      },
+      {
+        "id": "C2",
+        "case": "document present, empty content",
+        "expected": "fail closed",
+        "observed": "refuse en amont par RE.validateReviewCandidate ; imported=0",
+        "pass": true
+      },
+      {
+        "id": "D",
+        "case": "non-normalised authority",
+        "expected": "REGISTRY_IMPORT_AUTHORITY_NOT_NORMALIZED",
+        "observed": "jet exact, import entierement avorte",
+        "pass": true
+      },
+      {
+        "id": "E",
+        "case": "different hash at find()",
+        "expected": "refuse",
+        "observed": "find(..., sha('autre')) === null",
+        "pass": true
+      },
+      {
+        "id": "F",
+        "case": "old entry without hash",
+        "expected": "refuse",
+        "observed": "find() === null",
+        "pass": true
+      },
+      {
+        "id": "G",
+        "case": "old contractVersion",
+        "expected": "refuse",
+        "observed": "REGISTRY_IMPORT_CONTRACT_MISMATCH",
+        "pass": true
+      },
+      {
+        "id": "H",
+        "case": "old seal",
+        "expected": "refuse",
+        "observed": "REGISTRY_IMPORT_SEAL_MISMATCH",
+        "pass": true
+      },
+      {
+        "id": "I",
+        "case": "writable-but-unservable entry possible ?",
+        "expected": "impossible",
+        "observed": "entree ecrite ET servable sous l'autorite normalisee reelle du run",
+        "pass": true
+      }
+    ],
+    "cannotCreateWritableButUnservableEntry": true
+  },
+  "ra1": {
+    "classification": "RA1_TRACE_PARITY_PASS",
+    "noMirrorRecomposition": true,
+    "traceCode": "REPAIR_UNPARSABLE",
+    "faultyDimensionsFromLot": "RE.faultyDimensions(st.lastErrors)",
+    "errorCodesTraced": true,
+    "noRegistryWrite": true,
+    "acceptanceIdenticalToMono11": true,
+    "mutationM5": {
+      "killed": true,
+      "killedBy": [
+        "RA1-01",
+        "RA1-02",
+        "RA1-03"
+      ],
+      "score": "310/313",
+      "reallyFail": true
+    },
+    "independentProbe": "P13-c reparation malformee : revue 'error', registre = 0, aucune recomposition"
+  },
+  "r5": {
+    "status": "STILL_CLOSED",
+    "matrixCombinations": 24,
+    "parityOk": 20,
+    "lotRejectedLegitimately": 4,
+    "parityDivergence": 0,
+    "lineageLoss": 0,
+    "control": "le candidat inscrit au registre est octet-identique (Buffer.compare) a la projection FINDING_KEYS de la revue acceptee par le LOT",
+    "note": "les 4 refus du lot sont legitimes (refs d'origine toutes non litterales, jamais reparees) et n'ecrivent AUCUNE entree de registre"
+  },
+  "r6": {
+    "status": "STILL_CLOSED",
+    "llmJs": "VALIDATION_CONTRACT = (P.CONFIG.frozenLots[\"MONO-11\"] || {}).contractVersion || \"MONO-11-v3\"",
+    "adapter": "CONTRACT = P.CONFIG.frozenLots[\"MONO-11\"].contractVersion ; aucune occurrence de MONO-11-v2",
+    "registryImport": "contrat lu dans la configuration du lot",
+    "registryFailClosed": {
+      "foreignContract": true,
+      "foreignSeal": true,
+      "foreignAuthority": true,
+      "missingAuthorityHash": true
+    }
+  },
+  "mono11": {
+    "version": "v0.4",
+    "contractVersion": "MONO-11-v3",
+    "dir": "MONO-11/v0.4",
+    "reopened": false,
+    "lineageMonotonicity": true,
+    "caseA": {
+      "state": "RESOLVED",
+      "preservedRefs": [
+        "ALPHA ref alpha."
+      ],
+      "finalRefs": [
+        "ALPHA ref alpha.",
+        "GAMMA ref gamma."
+      ],
+      "ok": true
+    },
+    "caseB": {
+      "state": "RESOLVED",
+      "preservedRefs": [],
+      "finalRefs": [
+        "GAMMA ref gamma."
+      ],
+      "ok": true
+    },
+    "unresolved": {
+      "state": "REFS_PRESENT_BUT_UNRESOLVED",
+      "unresolvedDimensions": [
+        "D2"
+      ],
+      "ok": true
+    },
+    "stableDedup": {
+      "input": [
+        [
+          "A",
+          "A",
+          "B"
+        ],
+        [
+          "B",
+          "A",
+          "C",
+          "C"
+        ]
+      ],
+      "output": [
+        "ALPHA ref alpha.",
+        "BETA ref beta.",
+        "GAMMA ref gamma."
+      ],
+      "ok": true
+    },
+    "rejectedAreInvalidRefsOnly": true,
+    "divergences": 0,
+    "ownSuite": "83/83",
+    "sha256sumsCheck": "55/55 OK",
+    "canonicalZipMatches": true
+  },
+  "globalLineage": {
+    "answer": "GLOBAL_LINEAGE_PRESERVATION_GUARANTEED_FOR_KNOWN_REPAIR_REUSE_AND_AUTHORITY_PATHS",
+    "paths": [
+      {
+        "id": "A",
+        "name": "literalization",
+        "canSilentlyDropValidLiteralRef": false,
+        "evidence": "mergeLiteralRefs/preserveLineageRepairs operent sur st.ctx.content = autorite normalisee prouvee identique au document du lot ; FINAL superset de VALID_ORIGINAL verifie 24/24"
+      },
+      {
+        "id": "B",
+        "name": "targeted repair",
+        "canSilentlyDropValidLiteralRef": false,
+        "evidence": "miroir = RE.mergeRepairLineage du lot gele v0.4 avant RE.recompose ; candidat de registre octet-identique au lot (20/20) ; CASE A / CASE B verifies"
+      },
+      {
+        "id": "C",
+        "name": "registry import",
+        "canSilentlyDropValidLiteralRef": false,
+        "evidence": "empreinte sur le document normalise du run ; autorite absente ou non normalisee => rien d'ecrit ; aucune entree inservable"
+      },
+      {
+        "id": "D",
+        "name": "registry reuse",
+        "canSilentlyDropValidLiteralRef": false,
+        "evidence": "find() exige documentAuthoritySha256 identique ; entree sans empreinte jamais servie (cas F, P13-e) ; autre autorite refusee et tracee"
+      },
+      {
+        "id": "E",
+        "name": "replay / reuse",
+        "canSilentlyDropValidLiteralRef": false,
+        "evidence": "rejeu depuis le checkpoint professionnel, autorite reconstruite par le meme cablage ; cache et registre fail-closed inter-sceau / inter-contrat"
+      },
+      {
+        "id": "F",
+        "name": "document-authority mapping",
+        "canSilentlyDropValidLiteralRef": false,
+        "evidence": "parite 12/12 octet pour octet sur 14 cibles dont 3 distinctes ; targetId inconnu => DOCUMENT_AUTHORITY_REQUIRED fatal"
+      },
+      {
+        "id": "R11",
+        "name": "informed regeneration",
+        "excludedFromMonotoneGuarantee": true,
+        "labelledLineagePreserving": false,
+        "evidence": "la branche passe complete ne porte ni champ 'lineage' ni 'lineagePreservedRefs' ; ces champs n'existent que dans les branches reparation ciblee et litteralisation ; le contrat du lot LINEAGE_MONOTONICITY_DURING_REPAIR est borne a la reparation"
+      }
+    ],
+    "qualification": "La garantie porte sur l'ARTEFACT LIVRE (parite prouvee). Elle n'est pas auto-protegee : la garde de point fixe ne detecterait pas une autorite erronee mais normalisee (R2) et les tests ne couvrent pas integralement la lambda de cablage (R1). Toute evolution de lib/pipeline.js doit etre re-prouvee par une mesure de parite."
+  },
+  "shadow": {
+    "artefact": "/Users/christophebonnet/evidenceforge-work/reports/a10-lineage-restoration/reviews-restored.json",
+    "replayedIndependently": true,
+    "reviewsInSet": {
+      "expected": 18,
+      "measured": 18,
+      "ok": true
+    },
+    "reviewsConcernedByA10CallsOrRepairs": {
+      "expected": 7,
+      "measured": 7,
+      "ok": true,
+      "basis": "7 x BASE_WITH_OUTPUT_BUDGET a la tentative 10 (11 autres servies par le registre) ; 3 avec LITERALIZATION_EXCERPTS, 4 avec repairScope"
+    },
+    "findingsTotal": {
+      "expected": 180,
+      "measured": 180,
+      "ok": true
+    },
+    "findingsVerifiedInTargetedSubset": {
+      "expected": 70,
+      "measured": 70,
+      "ok": true
+    },
+    "citationsRestored": {
+      "expected": 12,
+      "measured": 12,
+      "ok": true
+    },
+    "emptiedFindingsRestored": {
+      "expected": 3,
+      "measured": 3,
+      "ok": true
+    },
+    "otherSubstantiveFieldChanges": 0,
+    "refsRemoved": 0,
+    "runtimeWrites": 0,
+    "networkCalls": 0,
+    "historicalReviewsSha256Recomputed": "2d87507bc890fed7047ec694f01a47a81b21c1ff71df54ea7fbc00eb2497874f",
+    "matchesShadowBasedOn": true,
+    "parallelArtefact": true,
+    "authorCountingCorrect": true,
+    "auditorCorrection": null,
+    "reviewsChangedByRestoration": 3
+  },
+  "aggregationReport": {
+    "runId": "efm-20260918-a64167c0",
+    "counts": {
+      "etabli": 13,
+      "convergent": 9,
+      "divergent": 7,
+      "provisoire": 0,
+      "nonEtabli": 67,
+      "reservations": 10
+    },
+    "expected": {
+      "etabli": 13,
+      "convergent": 9,
+      "divergent": 7,
+      "provisoire": 0,
+      "nonEtabli": 67,
+      "reservations": 10
+    },
+    "match": true,
+    "PROCESS_QUALIFICATION": "QUALIFIED_WITH_RESERVATIONS",
+    "SCIENTIFICALLY_USABLE": "NO",
+    "reportHashRecomputed": "a962d5eefeb033ac4dd9f76627989a72d423737f3ca13cd2e4e65730de7a441c",
+    "reportHashUnchanged": true,
+    "verifyReportHashValid": true,
+    "semanticDrift": false,
+    "semanticDriftEvidence": "lib/stage-report.js et tous les modules d'agregation sont byte-identiques a v1.0.12",
+    "shadowRemainsParallelArtefact": true
+  },
+  "tests": {
+    "announced": {
+      "monolith": "313/313",
+      "chunking": "21/21",
+      "secretScan": 0,
+      "antiHardcoding": 0,
+      "manifestVerify": "ok 160",
+      "frozenLots": "0 divergence",
+      "mono11Lot": "83/83"
+    },
+    "measured": {
+      "monolith": "313/313",
+      "chunking": "21/21",
+      "secretScan": "0 hit / 164 fichiers / exit 0",
+      "antiHardcoding": "0 hit / 77 fichiers / 0 jeton de cas / exit 0",
+      "manifestVerify": "{\"ok\":true,\"files\":160,\"bad\":[]}",
+      "frozenLots": "MONO-10=0 MONO-11=0 MONO-09=0 MONO-01=0",
+      "mono11Lot": "83/83 pass, 0 fail"
+    },
+    "allAnnouncedConfirmed": true,
+    "totalBefore": 292,
+    "totalAfter": 313,
+    "idsAdded": [
+      "RA2-01",
+      "RA2-02",
+      "RA2-03",
+      "RA2-04",
+      "RA2-05",
+      "RA2-06",
+      "RA2-07",
+      "RA2-08",
+      "RA1-01",
+      "RA1-02",
+      "RA1-03",
+      "RA2-E2E-01",
+      "RA2-E2E-02",
+      "RA2-E2E-03",
+      "RA2-E2E-04",
+      "RA2-E2E-05",
+      "RA2-E2E-06",
+      "RA2-E2E-07",
+      "RA2-E2E-08",
+      "RI-01..RI-03",
+      "RI-04..RI-07"
+    ],
+    "idsRemoved": [],
+    "idsRenamedOrRedefined": [
+      "V12-18"
+    ],
+    "anyWeakened": false,
+    "weakeningCheck": "les 3 tests modifies n'AJOUTENT que l'autorite normalisee exigee par le nouveau contrat ; aucune assertion retiree ni assouplie ; V12-18 conserve l'assertion frozenLots[MONO-11].dir === MONO-11/v0.4",
+    "preexistingAnomaly": "identifiant V1 porte par deux tests distincts (deja le cas en v1.0.12)"
+  },
+  "probes": [
+    {
+      "id": "P-02..P-07",
+      "name": "curly apostrophe / smart quotes / NBSP / CRLF / NFC-NFD",
+      "result": "parite octet pour octet",
+      "pass": true
+    },
+    {
+      "id": "P-08..P-10",
+      "name": "embedded marker / marker + JSON / several markers",
+      "result": "parite octet ; aucune troncature au marqueur",
+      "pass": true
+    },
+    {
+      "id": "P13-a",
+      "name": "wrong targetId (target-99)",
+      "result": "DOCUMENT_AUTHORITY_REQUIRED fatal",
+      "pass": true
+    },
+    {
+      "id": "P13-b",
+      "name": "correct normalised document but truncated prompt",
+      "result": "revue complete, 3 refs conservees, mismatch=0",
+      "pass": true
+    },
+    {
+      "id": "P13-c",
+      "name": "malformed repair",
+      "result": "revue error, 0 ecriture au registre, aucune recomposition",
+      "pass": true
+    },
+    {
+      "id": "P13-d",
+      "name": "model omitting a valid ref in the repair",
+      "result": "2 refs finales : originale litterale preservee + reparee ajoutee",
+      "pass": true
+    },
+    {
+      "id": "P13-e",
+      "name": "old-format registry entry (no authority hash)",
+      "result": "jamais servie",
+      "pass": true
+    },
+    {
+      "id": "G1",
+      "name": "raw authority",
+      "result": "DOCUMENT_AUTHORITY_NOT_NORMALIZED",
+      "pass": true
+    },
+    {
+      "id": "G2",
+      "name": "partially normalised authority",
+      "result": "DOCUMENT_AUTHORITY_NOT_NORMALIZED",
+      "pass": true
+    },
+    {
+      "id": "G3",
+      "name": "truncated but normalised authority",
+      "result": "ACCEPTEE (faux negatif confirme, R2)",
+      "pass": false
+    },
+    {
+      "id": "G5",
+      "name": "empty authority",
+      "result": "DOCUMENT_AUTHORITY_EMPTY",
+      "pass": true
+    },
+    {
+      "id": "G6",
+      "name": "non-string authority",
+      "result": "DOCUMENT_AUTHORITY_REQUIRED",
+      "pass": true
+    },
+    {
+      "id": "G7",
+      "name": "different but normalised document",
+      "result": "ACCEPTEE (faux negatif confirme, R2)",
+      "pass": false
+    },
+    {
+      "id": "FUZZ-20000",
+      "name": "false-positive search over the frozen rule character pool",
+      "result": "0 non-point-fixe en sortie",
+      "pass": true
+    }
+  ],
+  "raA3A5A6": {
+    "observationOnly": true,
+    "nothingContraryFound": true,
+    "note": "declarees non traitees par l'auteur ; aucun test ne revendique leur fermeture ; fichiers concernes byte-identiques a v1.0.12"
+  },
+  "constraintsRespected": {
+    "readOnlyOnDeliveredTree": true,
+    "deliveredTreeFilesHashedBeforeAfter": 4311,
+    "deliveredTreeUnchanged": true,
+    "providerCalls": 0,
+    "networkCalls": 0,
+    "realSmoke": false,
+    "commits": 0,
+    "activeVersionUnchanged": true,
+    "activeVersion": "MONOLITH-v1.0.10",
+    "d103Untouched": true,
+    "historicalRunUntouched": true,
+    "doctorStartSetupServerExecuted": false,
+    "buildManifestReadBeforeRunning": true,
+    "fullTreeCopiedToScratch": true,
+    "mutationsAndProbesOnlyInCopy": true,
+    "onlyFilesWrittenOutsideScratch": [
+      "MONOLITH-v1.0.14/EVIDENCEFORGE-v1.0.14-INDEPENDENT-FREEZE-AUDIT.md",
+      "MONOLITH-v1.0.14/EVIDENCEFORGE-v1.0.14-INDEPENDENT-FREEZE-AUDIT.json"
+    ]
+  },
+  "hashesVerified": {
+    "deliveredRecursiveBefore": "dfd36d5bb772efc5c69256db068d579e96b9189e8677d72ef668bd7a99fc2f46 (liste de 4311 hachages)",
+    "deliveredRecursiveAfter": "identique (diff vide)",
+    "MANIFEST.json": "4ae8962b3d25fb732f85fec04fa312d8f6177fc1ee2bba8365af27e86501a68a",
+    "SHA256SUMS.txt": "32841170147738a679c7c12b5485d41f7a4f1ae142c4745fdf2a918c107502a1",
+    "test/results.json": "8385109288af0b00ee5764b136f5ddc17994ae64a40bfa631f32392ead6a8cef",
+    "lib/ef03b-resilience.js": "ea86f11528beb1b779b98d02ae241b9658b752b165a91b1321b56c573b1c3d99",
+    "lib/pipeline.js": "de4049c453940dc32fc573c45971e57c64947c214504e65a96b71f9bad0e5a9f",
+    "tools/ef03b-registry-import.js": "70502a66a14134c41f2c0f2aae63b85f47f469b8fa32a267a2de14ab69d7b1c5",
+    "lib/llm.js": "34816352ef0ef5dc63ea66998b259d1532d2a079972669e7fdde864828f8fac2",
+    "lib/stage-professionals.js": "46f2b48f63ee268b7fdbe4c44098204948d2f53b6e439caec46dfb36e481b085",
+    "lib/stage-report.js": "0e67295b65583537f71799b02f8c9df2fe54ce33137bc799d8efc57c88664beb",
+    "MONO-11/v0.4/core/target-normalizer.js": "9e419de7bdf506181e6f2e4246f28b19067df6e7e09c691452d9e0955bf390c8",
+    "MONO-11 seal": "110db4de24709926d4a5fb6d0e951530f0afc2c1c807a09127852a92aa182c3d",
+    "MONO-11 runCodeHash": "27610c84502104b3dc9643a9cc0289aef4ae40ae65ee34e4fe82f31a73e381ad",
+    "MONO-11 canonical zip": "79c16d08a0a52bc1b9ae3c6884cc22f6161145bed18158d6c9b6a44df1a7c474",
+    "MONO-10 canonical zip": "f5a4165414f4...",
+    "historical report.json": "44b0242bbd25fca7867e1a0ad5c4a824bdf6119e0a9411a11220452fd75d384b",
+    "historical reviews.json": "2d87507bc890fed7047ec694f01a47a81b21c1ff71df54ea7fbc00eb2497874f",
+    "historical reportHash (recomputed)": "a962d5eefeb033ac4dd9f76627989a72d423737f3ca13cd2e4e65730de7a441c"
+  },
+  "manifestNote": {
+    "recordedBeforeWritingDeliverables": true,
+    "fileCountBefore": 160,
+    "contentHashBefore": "77c05052d052e1ca1c4e1c81097254702bd57fe6c60f81c533178d24b6c53111",
+    "verifyBefore": "{\"ok\":true,\"files\":160,\"bad\":[]}",
+    "deliverablesAreOutsideTheManifest": true,
+    "verifyStillPassesWithDeliverablesPresent": "{\"ok\":true,\"files\":160,\"bad\":[]} (exit 0, confirme APRES ecriture des deux livrables ; MANIFEST.json et SHA256SUMS.txt inchanges)",
+    "ownerAction": "regenerer le MANIFEST au moment du gel (fileCount 162, nouveau contentHash) ou laisser les deux livrables hors manifeste comme artefacts de gouvernance"
+  }
+}
