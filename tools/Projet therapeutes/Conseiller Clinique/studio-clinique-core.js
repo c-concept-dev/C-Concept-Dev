@@ -11505,7 +11505,7 @@ ${recent}`;
   // signal fiable, aujourd'hui, pour distinguer un rendu réussi d'un rendu en échec — nécessaire
   // à adocConfirmBlockCorrection pour ne jamais sauvegarder une correction dont le rendu vient
   // d'échouer (cf. investigation du lot).
-  window.adocOpenWorkspace = async function (storeKey) {
+  window.adocOpenWorkspace = async function (storeKey, options) {
     const art = window._adocArtifacts?.[storeKey];
     // Audit correctif, Partie B point 10 — l'écran de travail s'ouvre pour TOUT artefact dont les
     // capacités l'autorisent (structuré OU repli legacy-html), plus seulement le moteur structuré.
@@ -11597,8 +11597,12 @@ ${recent}`;
     adocWsSetupLegacyBlockEditing(art); // Phase 1 (monobloc) — équivalent pour un document HTML libre de l'ancien moteur, uniquement si legacyBlockEditing est vrai
     adocWsRenderSources(snapshot);
     adocRenderDocs(); // Documents joints — même rendu partagé que le reste de l'app (aucune divergence)
-    document.getElementById('cc-ws-search-input').value = '';
-    document.getElementById('cc-ws-search-results').innerHTML = '';
+    if (!options || !options.preserveLibrarySearch) {
+      ++_adocLibSearchStates['cc-ws-search'].seq;
+      _adocLibCards.forEach(function (card, uid) { if (card.mountId === 'cc-ws-search') _adocLibCards.delete(uid); });
+      document.getElementById('cc-ws-search-input').value = '';
+      document.getElementById('cc-ws-search-results').innerHTML = '';
+    }
     adocWsMountMemory();
 
     document.getElementById('cc-workspace').classList.add('open');
@@ -13517,16 +13521,7 @@ ${recent}`;
   }
 
   // ── Phase 1+ Passerelle — composant de recherche bibliothèque partagé ─────────────────
-  // Un seul jeu de fonctions monté à DEUX points d'entrée (barre latérale de l'espace de
-  // travail ET écran d'accueil, avant même l'ouverture d'un document), paramétré par son
-  // conteneur de montage (`mountId`) — jamais deux implémentations séparées. Remplace l'appel
-  // à /d1-query (gabarit A, terms/any) pour la recherche par CONTENU : utilise désormais
-  // /rag-search (hybride vecteur+FTS5, RRF, traduction automatique intégrée — briques
-  // construites et vérifiées séparément ce soir). La recherche par AUTEUR reste sur /d1-query
-  // (gabarit B dédié, inchangé) : /rag-search n'a AUCUN paramètre `author` — vérifié par
-  // lecture directe de handleRagSearch (Worker/index.js) avant d'écrire cette fonction, jamais
-  // supposé — les deux partent toujours en parallèle sur la même saisie, fusionnées et
-  // dédoublonnées exactement comme avant (adocLibrarySearchResultKey, inchangée).
+  // Deux orchestrateurs indépendants partagent requête, normalisation et cartes.
   function adocLibSearchIds(mountId) {
     return {
       input: mountId + '-input', results: mountId + '-results',
@@ -13553,6 +13548,8 @@ ${recent}`;
     const btn = document.getElementById('cc-lib-btn-' + uid);
     if (!tr || !vo || !btn) return;
     const showingTranslation = tr.style.display !== 'none';
+    const card = _adocLibCards.get(uid);
+    if (card) card.showingOriginal = showingTranslation;
     tr.style.display = showingTranslation ? 'none' : '';
     vo.style.display = showingTranslation ? '' : 'none';
     btn.textContent = showingTranslation ? 'Voir la traduction' : 'Voir le texte original';
@@ -13572,8 +13569,10 @@ ${recent}`;
   };
 
   // Une réponse tardive d'une recherche déjà remplacée par une saisie plus récente (même
-  // point de montage ou l'autre) ne doit jamais écraser un résultat plus récent déjà affiché.
-  let _adocLibSearchSeq = 0;
+  // point de montage) ne doit jamais écraser un résultat plus récent déjà affiché.
+  const _adocLibSearchStates = { 'cc-home-search': { seq: 0 }, 'cc-ws-search': { seq: 0 } };
+  const _adocLibCards = new Map();
+  let _adocLibraryInsertBusy = false;
 
   // Entoure d'un <mark> la MÊME occurrence déjà repérée par adocLibrarySearchSnippet — jamais
   // un second calcul de position indépendant qui pourrait diverger de l'extrait affiché.
@@ -13588,14 +13587,15 @@ ${recent}`;
     return adocEsc(text.slice(0, pos)) + '<mark>' + adocEsc(text.slice(pos, pos + matched.length)) + '</mark>' + adocEsc(text.slice(pos + matched.length));
   }
 
-  window.adocLibSearchExec = async function (mountId) {
+  async function adocRunLibrarySearch(mountId, state, allowInsert) {
     const ids = adocLibSearchIds(mountId);
     const input = document.getElementById(ids.input);
     const resultsEl = document.getElementById(ids.results);
     if (!input || !resultsEl) return;
     const raw = (input.value || '').trim();
+    const mySeq = ++state.seq;
+    _adocLibCards.forEach(function (card, uid) { if (card.mountId === mountId) _adocLibCards.delete(uid); });
     if (!raw) { resultsEl.innerHTML = ''; return; }
-    const mySeq = ++_adocLibSearchSeq;
     resultsEl.innerHTML = '<div class="cc-ws-search-result" style="color:var(--muted);">Recherche…</div>';
 
     const approachEl = document.getElementById(ids.approach);
@@ -13640,7 +13640,7 @@ ${recent}`;
       adocD1Search(authorIntent).catch(function () { return null; }),
     ]);
     clearTimeout(tid);
-    if (mySeq !== _adocLibSearchSeq) return;
+    if (mySeq !== state.seq) return;
 
     const ragChunks = (ragResp && ragResp.chunks) || [];
     const seen = new Set();
@@ -13655,7 +13655,7 @@ ${recent}`;
       const key = adocLibrarySearchResultKey(r);
       if (seen.has(key)) return;
       seen.add(key);
-      merged.push({ book_title: r.book_title, author: r.author, page_number: r.page_number, content: r.content, sources: ['author'] });
+      merged.push(Object.assign({}, r, { sources: ['author'] }));
     });
 
     if (!merged.length) {
@@ -13665,35 +13665,152 @@ ${recent}`;
       return;
     }
 
-    resultsEl.innerHTML = merged.slice(0, 8).map(function (c, i) {
-      const uid = mountId + '-' + i;
-      const sources = Array.isArray(c.sources) ? c.sources : (c.source ? [c.source] : []);
-      const lexicalProvenance = isPhrase ? 'correspondance de phrase exacte' : 'correspondance lexicale par mots-clés';
-      const provenance = sources.includes('fts5') && sources.includes('vector') ? lexicalProvenance + ' + de sens'
-        : sources.includes('fts5') ? lexicalProvenance
-        : sources.includes('vector') ? 'correspondance de sens'
-        : sources.includes('author') ? 'par auteur' : '';
-      const original = c.content || '';
-      const snippet = adocLibrarySearchSnippet(original, words);
-      let translationBlock;
-      if (c.is_machine_translated && c.translated_content) {
-        const trSnippet = adocLibrarySearchSnippet(c.translated_content, words);
-        translationBlock = '<div class="cc-lib-translation-badge">🌐 Traduction automatique</div>'
-          + '<div class="cc-ws-search-excerpt" id="cc-lib-tr-' + uid + '">' + adocLibHighlight(trSnippet, words) + '</div>'
-          + '<div class="cc-ws-search-excerpt" id="cc-lib-vo-' + uid + '" style="display:none;">' + adocLibHighlight(snippet, words) + '</div>'
-          + '<button type="button" class="cc-lib-vo-toggle" id="cc-lib-btn-' + uid + '" onclick="window.adocLibSearchToggleVO(\'' + uid + '\')">Voir le texte original</button>';
-      } else if (c.translation_failed) {
-        translationBlock = '<div class="cc-lib-translation-warning">⚠️ Échec de traduction automatique — texte original affiché</div>'
-          + (snippet ? '<div class="cc-ws-search-excerpt">' + adocLibHighlight(snippet, words) + '</div>' : '');
+    const cards = merged.slice(0, 8).map(function (c, i) {
+      const uid = mountId + '-' + mySeq + '-' + i;
+      const card = { uid, mountId, data: c, words, isPhrase, allowInsert, original: c.content || '',
+        translated: c.is_machine_translated ? c.translated_content || '' : '', showingOriginal: false };
+      _adocLibCards.set(uid, card);
+      return card;
+    });
+    if (!allowInsert) {
+      const groups = new Map();
+      cards.forEach(function (card) {
+        const approach = card.data.approach || 'Autres références';
+        if (!groups.has(approach)) groups.set(approach, []);
+        groups.get(approach).push(card);
+      });
+      resultsEl.innerHTML = Array.from(groups, function ([approach, items]) {
+        return '<section class="cc-lib-approach-group"><h4>' + adocEsc(approach) + '</h4>' + items.map(adocRenderLibraryCard).join('') + '</section>';
+      }).join('');
+    } else resultsEl.innerHTML = cards.map(adocRenderLibraryCard).join('');
+  }
+
+  window.adocHomeLibrarySearch = function () {
+    return adocRunLibrarySearch('cc-home-search', _adocLibSearchStates['cc-home-search'], false);
+  };
+  window.adocWorkspaceLibrarySearch = function () {
+    return adocRunLibrarySearch('cc-ws-search', _adocLibSearchStates['cc-ws-search'], true);
+  };
+  // Compatibility for existing callers; each orchestrator owns its sequence and final action.
+  window.adocLibSearchExec = function (mountId) {
+    if (mountId === 'cc-home-search') return window.adocHomeLibrarySearch();
+    if (mountId === 'cc-ws-search') return window.adocWorkspaceLibrarySearch();
+  };
+
+  function adocLibraryPageLabel(c) {
+    return c.page_number ? 'p. ' + c.page_number + (c.page_end && c.page_end !== c.page_number ? '–' + c.page_end : '') : '';
+  }
+  function adocRenderLibraryCard(card) {
+    const c = card.data, uid = card.uid;
+    const sources = Array.isArray(c.sources) ? c.sources : (c.source ? [c.source] : []);
+    const lexical = card.isPhrase ? 'correspondance de phrase exacte' : 'correspondance lexicale par mots-clés';
+    const provenance = sources.includes('fts5') && sources.includes('vector') ? lexical + ' + de sens'
+      : sources.includes('fts5') ? lexical : sources.includes('vector') ? 'correspondance de sens'
+      : sources.includes('author') ? 'par auteur' : '';
+    const translated = !!card.translated;
+    const text = translated
+      ? '<div class="cc-lib-translation-badge">🌐 Traduction automatique</div>'
+        + '<div class="cc-ws-search-excerpt" id="cc-lib-tr-' + uid + '"' + (card.showingOriginal ? ' style="display:none"' : '') + '>' + adocLibHighlight(card.translated, card.words) + '</div>'
+        + '<div class="cc-ws-search-excerpt" id="cc-lib-vo-' + uid + '"' + (!card.showingOriginal ? ' style="display:none"' : '') + '>' + adocLibHighlight(card.original, card.words) + '</div>'
+        + '<button type="button" class="cc-lib-vo-toggle" id="cc-lib-btn-' + uid + '" onclick="adocLibSearchToggleVO(\'' + uid + '\')">' + (card.showingOriginal ? 'Voir la traduction' : 'Voir le texte original') + '</button>'
+      : (c.translation_failed ? '<div class="cc-lib-translation-warning">⚠️ Échec de traduction automatique — texte original affiché</div>' : '')
+        + '<div class="cc-ws-search-excerpt">' + adocLibHighlight(card.original, card.words) + '</div>';
+    return '<article class="cc-ws-search-result" id="cc-lib-card-' + uid + '"><div><strong>' + adocEsc(c.book_title || 'Référence') + '</strong>'
+      + (c.author ? ' — ' + adocEsc(c.author) : '') + (adocLibraryPageLabel(c) ? ' <span class="cc-lib-page">' + adocEsc(adocLibraryPageLabel(c)) + '</span>' : '')
+      + (provenance ? ' <span class="cc-lib-provenance">· ' + provenance + '</span>' : '') + '</div>' + text
+      + '<div class="cc-lib-actions">' + (!card.full && c.id ? '<button type="button" onclick="adocLibraryFullContext(\'' + uid + '\')"' + (card.loading ? ' disabled' : '') + '>' + (card.loading ? 'Chargement…' : 'Voir plus de contexte') + '</button>' : '')
+      + (card.allowInsert ? '<button type="button" onclick="adocLibraryInsert(\'' + uid + '\')"' + (card.inserting ? ' disabled' : '') + '>Insérer cet extrait</button>' : '')
+      + '</div><div class="cc-lib-status" role="status">' + adocEsc(card.status || (card.full ? 'Contexte complet' : 'Extrait') + (card.allowInsert ? ' — insertion après le bloc sélectionné, ou en fin de document.' : '')) + '</div></article>';
+  }
+  function adocRefreshLibraryCard(card) {
+    if (_adocLibCards.get(card.uid) !== card) return;
+    const el = document.getElementById('cc-lib-card-' + card.uid);
+    if (el) el.outerHTML = adocRenderLibraryCard(card);
+  }
+  window.adocLibraryFullContext = async function (uid) {
+    const card = _adocLibCards.get(uid);
+    if (!card || card.loading || card.full || !card.data.id) return;
+    card.loading = true; card.status = ''; adocRefreshLibraryCard(card);
+    const ctrl = new AbortController(), timer = setTimeout(function () { ctrl.abort(); }, 30000);
+    try {
+      const response = await fetch(adocGetWorkerUrl() + '/passage-full', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
+        body: JSON.stringify({ id: card.data.id, target_lang: 'fr' }), signal: ctrl.signal,
+      });
+      const result = await response.json();
+      if (!response.ok || result.error || typeof result.full_content !== 'string') throw new Error('Contexte indisponible. Réessayez.');
+      card.original = result.full_content;
+      card.translated = result.is_machine_translated ? result.full_translated_content || '' : '';
+      card.data.translation_failed = !!result.translation_failed;
+      card.full = true;
+    } catch (e) { card.status = 'Contexte indisponible. Réessayez.'; }
+    finally { clearTimeout(timer); card.loading = false; adocRefreshLibraryCard(card); }
+  };
+
+  window.adocLibraryInsert = async function (uid) {
+    const card = _adocLibCards.get(uid);
+    if (!card || !card.allowInsert || card.inserting || _adocLibraryInsertBusy) return;
+    const storeKey = window._adocWsState.storeKey;
+    const art = window._adocArtifacts && window._adocArtifacts[storeKey];
+    if (!art) return;
+    const text = card.translated && !card.showingOriginal ? card.translated : card.original;
+    if (!text) return;
+    _adocLibraryInsertBusy = true;
+    card.inserting = true; card.status = ''; adocRefreshLibraryCard(card);
+    try {
+      const checksum = await adocComputeSHA256Hex(text);
+      if (window._adocWsState.storeKey !== storeKey || window._adocArtifacts[storeKey] !== art) throw new Error('Le document ouvert a changé. Recommencez.');
+      const c = card.data;
+      if (art._adocGenerationEngine === 'legacy-html') {
+        adocSyncEditedLegacyBlocksToHtml(art);
+        const previous = art.html;
+        const parsed = new DOMParser().parseFromString(previous || '', 'text/html');
+        const selection = window._adocLegacyBlockEditState;
+        const blocks = adocWsCollectLegacyBlocks(parsed.body);
+        let target = selection.storeKey === storeKey && selection.blockKey ? blocks[parseInt(selection.blockKey.slice(3), 10)] : null;
+        if (target && target.closest('table')) target = target.closest('table');
+        const reference = [c.author || 'Auteur inconnu', c.book_title || 'Référence', adocLibraryPageLabel(c)].filter(Boolean).join(' — ');
+        const html = '<blockquote><span style="white-space:pre-wrap">' + adocEsc(text) + '</span><footer>' + adocEsc(reference) + '</footer></blockquote>';
+        if (target) target.insertAdjacentHTML('afterend', html); else parsed.body.insertAdjacentHTML('beforeend', html);
+        art.html = '<!DOCTYPE html>\n' + parsed.documentElement.outerHTML;
+        if (!await window.adocOpenWorkspace(storeKey, { preserveLibrarySearch: true })) { art.html = previous; throw new Error('Insertion impossible.'); }
+        if (art.blobUrl) { URL.revokeObjectURL(art.blobUrl); art.blobUrl = URL.createObjectURL(new Blob([art.html], { type: 'text/html;charset=utf-8' })); }
       } else {
-        translationBlock = snippet ? '<div class="cc-ws-search-excerpt">' + adocLibHighlight(snippet, words) + '</div>' : '';
+        adocSyncEditedStructuredBlocksToDoc(art); adocSyncEditedRootFieldsToDoc(art);
+        const doc = art._adocStructuredDoc;
+        if (!doc) throw new Error('Document structuré indisponible.');
+        const oldDoc = JSON.parse(JSON.stringify(doc)), oldSnapshot = art._adocStructuredSnapshot;
+        const snapshot = oldSnapshot || { sourceSnapshotId: 'snapshot-' + adocUUID(), entries: [] };
+        const nextSnapshot = Object.assign({}, snapshot, { entries: snapshot.entries.slice() });
+        let entryId, citationId;
+        do { entryId = 'entry-' + adocUUID(); } while (nextSnapshot.entries.some(function (e) { return e.sourceSnapshotEntryId === entryId; }));
+        do { citationId = 'citation-' + adocUUID(); } while ((doc.citations || []).some(function (c) { return c.citationId === citationId; }));
+        nextSnapshot.entries.push({ sourceSnapshotEntryId: entryId, sourceType: 'library',
+          sourceId: String(c.book_id || c.book_title || 'Référence'), passageId: String(c.id || entryId),
+          exactText: text, contentChecksum: 'sha256:' + checksum, book: c.book_title || 'Référence', author: c.author || 'Auteur inconnu',
+          locator: { page: Number.isInteger(Number(c.page_number)) && Number(c.page_number) > 0 ? Number(c.page_number) : null, section: null }, retrievedAt: new Date().toISOString() });
+        doc.citations = doc.citations || [];
+        doc.citations.push({ citationId, sourceSnapshotEntryId: entryId, displayLabel: [c.author || 'Auteur inconnu', adocLibraryPageLabel(c) || c.book_title || 'Référence'].join(', ') });
+        const selection = window._adocBlockEditState;
+        let siblings = selection.storeKey === storeKey && selection.blockId ? adocEditorBlockContainer(doc, selection.blockId) : null;
+        let index = siblings ? siblings.findIndex(function (b) { return b.id === selection.blockId; }) + 1 : doc.blocks.length;
+        siblings = siblings || doc.blocks;
+        // A carrousel accepts cards at root, citation blocks live inside a card.
+        if (siblings === doc.blocks && siblings.length && siblings.every(function (b) { return b.type === 'card'; })) {
+          const selected = siblings.find(function (b) { return b.id === selection.blockId; }) || siblings[siblings.length - 1];
+          siblings = selected.content.blocks; index = siblings.length;
+        }
+        siblings.splice(index, 0, { id: adocNextBlockId(doc, 'quote'), type: 'quote', content: { text }, citationIds: [citationId],
+          validation: { citationLinks: [{ citationId, claimText: text, claimSupport: 'needs-review' }] } });
+        doc.sourceSnapshotId = nextSnapshot.sourceSnapshotId;
+        art._adocStructuredSnapshot = nextSnapshot;
+        if (!await window.adocOpenWorkspace(storeKey, { preserveLibrarySearch: true })) {
+          art._adocStructuredDoc = oldDoc; art._adocStructuredSnapshot = oldSnapshot; throw new Error('Insertion impossible.');
+        }
       }
-      return '<div class="cc-ws-search-result">'
-        + '<div><strong>' + adocEsc(c.book_title || 'Référence') + '</strong>'
-        + (c.author ? ' — ' + adocEsc(c.author) : '') + (c.page_number ? ', p.' + c.page_number : '')
-        + (provenance ? ' <span class="cc-lib-provenance">· ' + provenance + '</span>' : '')
-        + '</div>' + translationBlock + '</div>';
-    }).join('');
+      adocEditorMarkDirty(); card.status = 'Extrait inséré. Pensez à enregistrer le document.';
+    } catch (e) { card.status = e.message || 'Insertion impossible.'; }
+    finally { _adocLibraryInsertBusy = false; card.inserting = false; adocRefreshLibraryCard(card); }
   };
 
   // Déplace (jamais ne clone) le bloc Mémoire patient existant — mêmes ids, mêmes écouteurs,

@@ -2230,7 +2230,13 @@
       color: var(--muted,#5d6966); background: var(--stone-200,#ddd7cc);
       border: 1px dashed var(--stone-300,#c9c3b8); border-radius: 8px;
     }
-  </style>
+  .cc-lib-page{display:inline-block;border:1px solid currentColor;border-radius:4px;padding:1px 5px;font-size:.8em}
+.cc-ws-search-excerpt{white-space:pre-wrap}
+.cc-lib-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.cc-lib-actions button{font:inherit;color:var(--forest);background:var(--ivory);border:1px solid currentColor;border-radius:5px;padding:5px 9px;cursor:pointer}
+.cc-lib-status{font-size:.8em;color:var(--muted);margin-top:6px}
+.cc-lib-approach-group h4{margin:14px 0 7px}
+</style>
 </head>
 <body>
 <!-- ═══════════════════════════════════════════════════════════════ -->
@@ -2312,7 +2318,7 @@
           <div class="cc-home-search-panel" id="cc-home-search-panel" hidden>
             <input type="text" class="cc-ws-search-input" id="cc-home-search-input"
               placeholder='Rechercher un ouvrage, un auteur, ou "une phrase exacte"…' aria-label="Rechercher dans la bibliothèque thérapeutique"
-              onkeydown="if(event.key==='Enter'){event.preventDefault();window.adocLibSearchExec('cc-home-search');}">
+              onkeydown="if(event.key==='Enter'){event.preventDefault();window.adocHomeLibrarySearch();}">
             <button type="button" class="cc-lib-filters-toggle" id="cc-home-search-filters-toggle" aria-expanded="false" aria-controls="cc-home-search-filters" onclick="window.adocLibSearchToggleFilters('cc-home-search')">
               Filtres <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-chevron"></use></svg>
             </button>
@@ -3093,7 +3099,7 @@
         </p>
         <input type="text" class="cc-ws-search-input" id="cc-ws-search-input"
           placeholder='Rechercher un ouvrage, un auteur, ou "une phrase exacte"…' aria-label="Rechercher dans la bibliothèque thérapeutique"
-          onkeydown="if(event.key==='Enter'){event.preventDefault();window.adocLibSearchExec('cc-ws-search');}">
+          onkeydown="if(event.key==='Enter'){event.preventDefault();window.adocWorkspaceLibrarySearch();}">
         <button type="button" class="cc-lib-filters-toggle" id="cc-ws-search-filters-toggle" aria-expanded="false" aria-controls="cc-ws-search-filters" onclick="window.adocLibSearchToggleFilters('cc-ws-search')">
           Filtres <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-chevron"></use></svg>
         </button>

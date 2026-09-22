@@ -55490,6 +55490,8 @@ var Worker_default = {
         return new Response(JSON.stringify({ error: "Too many requests — réessayez dans une minute." }), { status: 429, headers: { ...CORS, "Content-Type": "application/json" } });
       return handleSyncCheck(request2, env2);
     }
+    if (p === "/passage-full" && request2.method === "POST")
+      return handlePassageFull(request2, env2);
     if (p === "/rag-search" && request2.method === "POST")
       return handleRagSearch(request2, env2);
     if (p === "/rag-stats" && request2.method === "GET")
@@ -56840,7 +56842,7 @@ async function handleD1Query(request2, env2) {
       if (bookTitle) { clauses.push("lower(c.book_title) LIKE ? ESCAPE '\\'"); params.push(d1SearchLikePrefixParam(bookTitle)); }
       if (language) { clauses.push("language = ? COLLATE NOCASE"); params.push(language); }
       params.push(overFetch);
-      const sql = `SELECT c.id, c.book_id, c.book_title, c.author, c.chapter, c.page_number, c.chunk_index, c.content, c.approach
+      const sql = `SELECT c.id, c.book_id, c.book_title, c.author, c.chapter, c.page_number, c.chunk_index, c.content, c.approach, c.language, c.page_end
         FROM chunks_fts JOIN chunks c ON c.rowid = chunks_fts.rowid
         WHERE ${clauses.join(" AND ")}
         ORDER BY rank LIMIT ?`;
@@ -56859,7 +56861,7 @@ async function handleD1Query(request2, env2) {
         if (bookTitle) { likeClauses.push("lower(book_title) LIKE ? ESCAPE '\\'"); likeParams.push(d1SearchLikePrefixParam(bookTitle)); }
         if (language) { likeClauses.push("language = ? COLLATE NOCASE"); likeParams.push(language); }
         likeParams.push(overFetch);
-        const likeSql = `SELECT id, book_id, book_title, author, chapter, page_number, chunk_index, content, approach
+        const likeSql = `SELECT id, book_id, book_title, author, chapter, page_number, chunk_index, content, approach, language, page_end
           FROM chunks WHERE ${likeClauses.join(" AND ")} LIMIT ?`;
         // Point 3 (demande) — même après échappement/troncature, si SQLite rejette encore ce
         // motif précis (cas limite non anticipé), jamais laisser remonter l'erreur SQLite brute
@@ -56882,7 +56884,7 @@ async function handleD1Query(request2, env2) {
       if (bookTitle) { clauses.push("lower(book_title) LIKE ? ESCAPE '\\'"); params.push(d1SearchLikePrefixParam(bookTitle)); }
       if (language) { clauses.push("language = ? COLLATE NOCASE"); params.push(language); }
       params.push(overFetch);
-      const sql = `SELECT id, book_id, book_title, author, chapter, page_number, chunk_index, content, approach
+      const sql = `SELECT id, book_id, book_title, author, chapter, page_number, chunk_index, content, approach, language, page_end
         FROM chunks WHERE ${clauses.join(" AND ")} ORDER BY chunk_index ASC LIMIT ?`;
       stmt = env2.DB.prepare(sql).bind(...params);
       result = await stmt.all();
@@ -56897,7 +56899,7 @@ async function handleD1Query(request2, env2) {
       const key = (r.book_id ?? r.book_title) + ":" + (r.chunk_index ?? r.id);
       if (seen.has(key)) continue;
       seen.add(key);
-      deduped.push({ book_title: r.book_title, author: r.author, chapter: r.chapter, page_number: r.page_number, content: r.content, approach: r.approach });
+      deduped.push({ id: r.id, book_id: r.book_id, language: r.language, page_end: r.page_end, book_title: r.book_title, author: r.author, chapter: r.chapter, page_number: r.page_number, content: r.content, approach: r.approach });
       if (deduped.length >= limit) break;
     }
     return json({ results: deduped });
@@ -58034,6 +58036,34 @@ async function handleSyncCheck(request2, env2) {
   }
 }
 __name(handleSyncCheck, "handleSyncCheck");
+// Recherche documentaire : lookup au clic uniquement, sans embedding ni nouvelle recherche.
+async function handlePassageFull(request2, env2) {
+  let body;
+  try { body = await request2.json(); } catch { return jsonErr("Invalid JSON", 400); }
+  if (!body || typeof body.id !== "string" || !body.id.trim() || body.id.length > 1024)
+    return jsonErr("Valid chunk id required", 400);
+  const targetLang = body.target_lang === undefined ? "fr" : body.target_lang;
+  if (typeof targetLang !== "string" || !/^[a-z]{2,3}(?:-[a-z0-9]{2,8})?$/i.test(targetLang))
+    return jsonErr("Invalid target_lang", 400);
+  if (!env2.DB) return jsonErr("D1 not configured", 500);
+  try {
+    const row = await env2.DB.prepare("SELECT id, book_id, book_title, author, approach, language, page_number, page_end, content FROM chunks WHERE id = ?").bind(body.id).first();
+    if (!row) return jsonErr("Passage introuvable", 404);
+    const out = { id: row.id, book_id: row.book_id, book_title: row.book_title, author: row.author,
+      approach: row.approach, language: row.language, page_number: row.page_number, page_end: row.page_end,
+      full_content: row.content || "", target_lang: targetLang, is_machine_translated: false };
+    if (out.full_content && row.language && row.language.toLowerCase() !== targetLang.toLowerCase()) {
+      try {
+        const translated = await env2.AI.run("@cf/meta/m2m100-1.2b", {text: out.full_content, source_lang: row.language, target_lang: targetLang});
+        if (typeof translated?.translated_text !== "string" || !translated.translated_text.trim()) throw new Error("Empty translation");
+        out.full_translated_content = translated.translated_text;
+        out.is_machine_translated = true;
+      } catch { out.translation_failed = true; }
+    }
+    return json(out);
+  } catch { return jsonErr("Passage indisponible pour le moment", 502); }
+}
+__name(handlePassageFull, "handlePassageFull");
 async function handleRagSearch(request2, env2) {
   let body;
   try {
@@ -58064,7 +58094,7 @@ async function handleRagSearch(request2, env2) {
     }).join(" OR ");
     let ftsPromise = Promise.resolve({ results: [] });
     if (ftsQuery) {
-      let sql = `SELECT c.id, c.book_title, c.author, c.page_number, c.approach, c.language, c.content
+      let sql = `SELECT c.id, c.book_title, c.author, c.page_number, c.page_end, c.approach, c.language, c.content
         FROM chunks_fts JOIN chunks c ON c.rowid = chunks_fts.rowid
         WHERE chunks_fts MATCH ?`;
       const params = [ftsQuery];
@@ -58164,7 +58194,7 @@ async function handleRagSearch(request2, env2) {
     const ids = merged.filter((c) => c._source === "vector").map((c) => c.id);
     if (ids.length) {
       const ph = ids.map(() => "?").join(",");
-      const rows = await env2.DB.prepare(`SELECT id, content, author, page_number, approach, language, book_title FROM chunks WHERE id IN (${ph})`).bind(...ids).all();
+      const rows = await env2.DB.prepare(`SELECT id, content, author, page_number, approach, language, book_title, page_end FROM chunks WHERE id IN (${ph})`).bind(...ids).all();
       const cm = Object.fromEntries((rows.results || []).map((r) => [r.id, r]));
       merged.forEach((c) => {
         if (c._source !== "vector") return;
@@ -58173,6 +58203,7 @@ async function handleRagSearch(request2, env2) {
         if (!c.content) c.content = r.content || "";
         if (!c.author) c.author = r.author || "";
         if (c.page_number == null) c.page_number = r.page_number ?? null;
+        c.page_end = r.page_end;
         c.book_title = r.book_title;
         c.approach = r.approach;
         c.language = r.language;
@@ -58208,6 +58239,7 @@ async function handleRagSearch(request2, env2) {
         book_title: c.book_title || "",
         author: c.author || "",
         page_number: c.page_number || null,
+        page_end: c.page_end || null,
         approach: c.approach || "",
         language: c.language || "",
         score: Math.round((c.score || 0) * 1e3) / 1e3,

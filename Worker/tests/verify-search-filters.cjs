@@ -6,8 +6,8 @@ const extract=(a,b)=>source.slice(source.indexOf(a),source.indexOf(b,source.inde
 const ctx=vm.createContext({Response,Request,console,__name(){},json:o=>Response.json(o),jsonErr:(e,status)=>Response.json({error:e},{status})});
 vm.runInContext(extract('const D1_SEARCH_ALLOWED_KEYS','async function handleStoreFile(')+extract('async function handleRagSearch(','async function handleRagStats('),ctx);
 const db=new DatabaseSync(':memory:');
-db.exec('CREATE TABLE chunks(id TEXT,book_id TEXT,book_title TEXT,author TEXT,chapter TEXT,page_number INTEGER,chunk_index INTEGER,content TEXT,approach TEXT,language TEXT); CREATE VIRTUAL TABLE chunks_fts USING fts5(content);');
-const insert=db.prepare('INSERT INTO chunks VALUES(?,?,?,?,?,?,?,?,?,?)');
+db.exec('CREATE TABLE chunks(id TEXT,book_id TEXT,book_title TEXT,author TEXT,chapter TEXT,page_number INTEGER,chunk_index INTEGER,content TEXT,approach TEXT,language TEXT,page_end INTEGER); CREATE VIRTUAL TABLE chunks_fts USING fts5(content);');
+const insert=db.prepare('INSERT INTO chunks(id,book_id,book_title,author,chapter,page_number,chunk_index,content,approach,language) VALUES(?,?,?,?,?,?,?,?,?,?)');
 const add=(id,title,approach,language,content='internal family systems',author='IFS Author')=>{insert.run(id,title,title,author,'',1,Number(id.replace(/\D/g,''))||0,content,approach,language);db.prepare('INSERT INTO chunks_fts(rowid,content) VALUES(?,?)').run(Number(db.prepare('SELECT last_insert_rowid() n').get().n),content)};
 for(let i=0;i<8;i++)add('ifs'+i,'IFS Livre','ifs','fr');
 add('icv','PPT N2 LM 3 diapos','icv','fr','internal family systems','Vos objectifs');
