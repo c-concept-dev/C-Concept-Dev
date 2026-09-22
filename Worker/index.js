@@ -55490,6 +55490,8 @@ var Worker_default = {
         return new Response(JSON.stringify({ error: "Too many requests — réessayez dans une minute." }), { status: 429, headers: { ...CORS, "Content-Type": "application/json" } });
       return handleSyncCheck(request2, env2);
     }
+    if (p === "/library-facets" && request2.method === "POST")
+      return handleLibraryFacets(request2, env2);
     if (p === "/passage-full" && request2.method === "POST")
       return handlePassageFull(request2, env2);
     if (p === "/rag-search" && request2.method === "POST")
@@ -58036,6 +58038,55 @@ async function handleSyncCheck(request2, env2) {
   }
 }
 __name(handleSyncCheck, "handleSyncCheck");
+// Dynamic faceting: one D1 snapshot, no vocabulary cache and no model call.
+async function handleLibraryFacets(request2, env2) {
+  let body;
+  try { body = await request2.json(); } catch { return jsonErr("Invalid JSON", 400); }
+  if (!body || typeof body !== "object" || Array.isArray(body)) return jsonErr("Invalid filters", 400);
+  for (const key of ["query", "approach", "language", "book_title"]) {
+    if (body[key] !== undefined && (typeof body[key] !== "string" || body[key].length > (key === "query" ? 1000 : 300))) return jsonErr("Invalid " + key, 400);
+  }
+  if (!env2.DB) return jsonErr("D1 not configured", 500);
+  const raw = (body.query || "").trim();
+  const params = [], clauses = [];
+  if (raw) {
+    const phrase = raw.length > 2 && raw.startsWith('"') && raw.endsWith('"');
+    const plain = raw.replace(/['"]/g, "");
+    const terms = plain.split(/\s+/).filter((w) => w.length > 3).slice(0, 6);
+    // Quoted literals prevent arbitrary FTS operators/syntax in user input.
+    const literal = (t) => '"' + t.replace(/"/g, '""') + '"';
+    const match = phrase ? literal(raw.slice(1, -1)) : (terms.length ? terms : [plain]).map(literal).join(" OR ");
+    clauses.push("c.rowid IN (SELECT rowid FROM chunks_fts WHERE chunks_fts MATCH ? UNION SELECT rowid FROM chunks WHERE author LIKE ? ESCAPE '\\')");
+    params.push(match, "%" + plain.replace(/[\\%_]/g, (c) => "\\" + c) + "%");
+  }
+  if ((body.book_title || "").trim()) {
+    clauses.push("c.book_title LIKE ? ESCAPE '\\'");
+    params.push(body.book_title.trim().replace(/[\\%_]/g, (c) => "\\" + c) + "%");
+  }
+  try {
+    const result = await env2.DB.prepare("SELECT c.approach, c.language, COUNT(*) AS count FROM chunks c" +
+      (clauses.length ? " WHERE " + clauses.join(" AND ") : "") +
+      " GROUP BY c.approach COLLATE NOCASE, c.language COLLATE NOCASE").bind(...params).all();
+    const maps = { approach: new Map(), language: new Map() };
+    const selected = { approach: (body.approach || "").trim().toLowerCase(), language: (body.language || "").trim().toLowerCase() };
+    let total = 0;
+    for (const row of result.results || []) {
+      const a = String(row.approach || ""), l = String(row.language || "");
+      const matchesA = !selected.approach || a.toLowerCase() === selected.approach;
+      const matchesL = !selected.language || l.toLowerCase() === selected.language;
+      if (matchesA && matchesL) total += row.count;
+      for (const [dimension, value, include] of [["approach", a, matchesL], ["language", l, matchesA]]) {
+        if (!value.trim() || !include) continue;
+        const key = value.toLowerCase(), prev = maps[dimension].get(key);
+        maps[dimension].set(key, { value: prev ? prev.value : value, count: (prev ? prev.count : 0) + row.count });
+      }
+    }
+    const facets = Object.fromEntries(Object.entries(maps).map(([key, map]) => [key, Array.from(map.values()).sort((a, b) => b.count - a.count || a.value.localeCompare(b.value))]));
+    return json({ facets, total, count_unit: "passages", scope: "text-and-author", disjunctive: true });
+  } catch { return jsonErr("Facettes indisponibles pour le moment", 503); }
+}
+__name(handleLibraryFacets, "handleLibraryFacets");
+
 // Recherche documentaire : lookup au clic uniquement, sans embedding ni nouvelle recherche.
 async function handlePassageFull(request2, env2) {
   let body;

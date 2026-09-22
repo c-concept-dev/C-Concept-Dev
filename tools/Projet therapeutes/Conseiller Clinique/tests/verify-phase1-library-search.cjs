@@ -109,7 +109,7 @@ const IFS_CHUNK_TRANSLATED = {
   await page.click('#cc-home-search-filters-toggle');
   const filtersOpenNow = await page.evaluate(() => document.getElementById('cc-home-search-filters').classList.contains('open'));
   log('2b. Le clic déplie les filtres', filtersOpenNow);
-  await page.fill('#cc-home-search-approach', 'ifs');
+  await page.locator('#cc-home-search-approach').evaluate((el, value) => { el.value = value; }, 'ifs'); // hidden facet state; clicks covered by verify-library-facets-dom
   ragBodies.length = 0;
   await page.fill('#cc-home-search-input', 'internal family systems');
   await page.press('#cc-home-search-input', 'Enter');
@@ -118,7 +118,7 @@ const IFS_CHUNK_TRANSLATED = {
 
   // ── Phrase exacte — comportement RÉELLEMENT différent, pas supposé ──
   console.log('\n=== 3. Phrase exacte entre guillemets — comportement réellement différent ===');
-  await page.fill('#cc-home-search-approach', '');
+  await page.locator('#cc-home-search-approach').evaluate((el, value) => { el.value = value; }, ''); // hidden facet state; clicks covered by verify-library-facets-dom
   ragBodies.length = 0;
   await page.fill('#cc-home-search-input', '"internal family systems"');
   await page.press('#cc-home-search-input', 'Enter');
@@ -185,7 +185,7 @@ const IFS_CHUNK_TRANSLATED = {
   // ── Indépendance des deux mounts : régler un filtre sur l'un ne doit jamais affecter l'autre ──
   console.log('\n=== 6. Indépendance des deux points de montage ===');
   await page.click('#cc-ws-search-filters-toggle');
-  await page.fill('#cc-ws-search-approach', 'systemic');
+  await page.locator('#cc-ws-search-approach').evaluate((el, value) => { el.value = value; }, 'systemic'); // hidden facet state; clicks covered by verify-library-facets-dom
   const homeApproachUnaffected = await page.evaluate(() => document.getElementById('cc-home-search-approach').value);
   log('6a. Remplir le filtre approche de la barre latérale ne modifie jamais celui de l\'accueil', homeApproachUnaffected === '');
 

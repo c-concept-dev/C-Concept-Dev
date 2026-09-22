@@ -2236,6 +2236,11 @@
 .cc-lib-actions button{font:inherit;color:var(--forest);background:var(--ivory);border:1px solid currentColor;border-radius:5px;padding:5px 9px;cursor:pointer}
 .cc-lib-status{font-size:.8em;color:var(--muted);margin-top:6px}
 .cc-lib-approach-group h4{margin:14px 0 7px}
+.cc-lib-facet-options,.cc-lib-active-filters{display:flex;gap:6px;flex-wrap:wrap;margin:7px 0}
+.cc-lib-facet-options button,.cc-lib-active-filters button,.cc-lib-recover{font:inherit;font-size:12px;border:1px solid var(--petrol-900);border-radius:14px;padding:5px 9px;background:var(--ivory);color:var(--petrol-900);cursor:pointer}
+.cc-lib-facet-options button[aria-pressed="true"]{background:var(--petrol-900);color:white}
+.cc-lib-facets fieldset{padding:0;border:0;margin:9px 0}#cc-landing .cc-lib-facets legend,.cc-lib-facets legend{position:static;width:auto;height:auto;margin:0;overflow:visible;clip:auto;white-space:normal;font-size:12px;font-weight:600}
+.cc-lib-facets p{font-size:11px;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -2318,20 +2323,17 @@
           <div class="cc-home-search-panel" id="cc-home-search-panel" hidden>
             <input type="text" class="cc-ws-search-input" id="cc-home-search-input"
               placeholder='Rechercher un ouvrage, un auteur, ou "une phrase exacte"…' aria-label="Rechercher dans la bibliothèque thérapeutique"
-              onkeydown="if(event.key==='Enter'){event.preventDefault();window.adocHomeLibrarySearch();}">
+              oninput="window.adocLibrarySearchInput('cc-home-search',event)" oncompositionstart="window.adocLibraryComposition('cc-home-search',true)" oncompositionend="window.adocLibraryComposition('cc-home-search',false)" onkeydown="if(event.key==='Enter' &amp;&amp; !event.isComposing){event.preventDefault();window.adocHomeLibrarySearch();}">
             <button type="button" class="cc-lib-filters-toggle" id="cc-home-search-filters-toggle" aria-expanded="false" aria-controls="cc-home-search-filters" onclick="window.adocLibSearchToggleFilters('cc-home-search')">
               Filtres <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-chevron"></use></svg>
             </button>
             <div class="cc-lib-filters" id="cc-home-search-filters">
-              <input type="text" class="cc-lib-filter-input" id="cc-home-search-approach" placeholder="Approche (ex. ifs, systemic)">
-              <select class="cc-lib-filter-input" id="cc-home-search-language">
-                <option value="">Langue source : toutes</option>
-                <option value="fr">Français</option>
-                <option value="en">Anglais</option>
-              </select>
-              <input type="text" class="cc-lib-filter-input" id="cc-home-search-book-title" placeholder="Titre du livre (début)">
+              <input type="hidden" id="cc-home-search-approach"><input type="hidden" id="cc-home-search-language">
+<div id="cc-home-search-facet-values" class="cc-lib-facets" aria-live="polite"></div>
+              <input type="text" class="cc-lib-filter-input" id="cc-home-search-book-title" aria-label="Filtrer par début du titre" oninput="window.adocLibraryFilterInput('cc-home-search')" placeholder="Titre du livre (début)">
             </div>
-            <div id="cc-home-search-results"></div>
+            <div id="cc-home-search-active-filters" class="cc-lib-active-filters" aria-label="Filtres actifs"></div>
+<div id="cc-home-search-results" aria-live="polite"></div>
           </div>
         </div>
 
@@ -3099,20 +3101,17 @@
         </p>
         <input type="text" class="cc-ws-search-input" id="cc-ws-search-input"
           placeholder='Rechercher un ouvrage, un auteur, ou "une phrase exacte"…' aria-label="Rechercher dans la bibliothèque thérapeutique"
-          onkeydown="if(event.key==='Enter'){event.preventDefault();window.adocWorkspaceLibrarySearch();}">
+          oninput="window.adocLibrarySearchInput('cc-ws-search',event)" oncompositionstart="window.adocLibraryComposition('cc-ws-search',true)" oncompositionend="window.adocLibraryComposition('cc-ws-search',false)" onkeydown="if(event.key==='Enter' &amp;&amp; !event.isComposing){event.preventDefault();window.adocWorkspaceLibrarySearch();}">
         <button type="button" class="cc-lib-filters-toggle" id="cc-ws-search-filters-toggle" aria-expanded="false" aria-controls="cc-ws-search-filters" onclick="window.adocLibSearchToggleFilters('cc-ws-search')">
           Filtres <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-chevron"></use></svg>
         </button>
         <div class="cc-lib-filters" id="cc-ws-search-filters">
-          <input type="text" class="cc-lib-filter-input" id="cc-ws-search-approach" placeholder="Approche (ex. ifs, systemic)">
-          <select class="cc-lib-filter-input" id="cc-ws-search-language">
-            <option value="">Langue source : toutes</option>
-            <option value="fr">Français</option>
-            <option value="en">Anglais</option>
-          </select>
-          <input type="text" class="cc-lib-filter-input" id="cc-ws-search-book-title" placeholder="Titre du livre (début)">
+          <input type="hidden" id="cc-ws-search-approach"><input type="hidden" id="cc-ws-search-language">
+<div id="cc-ws-search-facet-values" class="cc-lib-facets" aria-live="polite"></div>
+          <input type="text" class="cc-lib-filter-input" id="cc-ws-search-book-title" aria-label="Filtrer par début du titre" oninput="window.adocLibraryFilterInput('cc-ws-search')" placeholder="Titre du livre (début)">
         </div>
-        <div id="cc-ws-search-results"></div>
+        <div id="cc-ws-search-active-filters" class="cc-lib-active-filters" aria-label="Filtres actifs"></div>
+<div id="cc-ws-search-results" aria-live="polite"></div>
       </div>
       <div class="cc-ws-memory" id="cc-ws-memory-mount"></div>
     </aside>

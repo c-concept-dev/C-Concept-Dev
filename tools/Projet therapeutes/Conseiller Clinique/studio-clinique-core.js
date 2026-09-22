@@ -11598,10 +11598,12 @@ ${recent}`;
     adocWsRenderSources(snapshot);
     adocRenderDocs(); // Documents joints — même rendu partagé que le reste de l'app (aucune divergence)
     if (!options || !options.preserveLibrarySearch) {
-      ++_adocLibSearchStates['cc-ws-search'].seq;
+      adocInvalidateLibrarySearch('cc-ws-search');
       _adocLibCards.forEach(function (card, uid) { if (card.mountId === 'cc-ws-search') _adocLibCards.delete(uid); });
       document.getElementById('cc-ws-search-input').value = '';
       document.getElementById('cc-ws-search-results').innerHTML = '';
+      adocRenderActiveFilters('cc-ws-search');
+      adocLoadLibraryFacets('cc-ws-search');
     }
     adocWsMountMemory();
 
@@ -13537,6 +13539,7 @@ ${recent}`;
     if (!panel) return;
     const open = panel.classList.toggle('open');
     if (btn) btn.setAttribute('aria-expanded', String(open));
+    if (open) adocLoadLibraryFacets(mountId);
   };
 
   // Bascule VO ↔ traduction — show/hide DOM local, JAMAIS un second appel réseau (le texte
@@ -13565,6 +13568,7 @@ ${recent}`;
     if (!nowHidden) {
       const input = document.getElementById('cc-home-search-input');
       if (input) input.focus();
+      adocLoadLibraryFacets('cc-home-search');
     }
   };
 
@@ -13573,6 +13577,111 @@ ${recent}`;
   const _adocLibSearchStates = { 'cc-home-search': { seq: 0 }, 'cc-ws-search': { seq: 0 } };
   const _adocLibCards = new Map();
   let _adocLibraryInsertBusy = false;
+
+  function adocFacetLabel(dimension, value) {
+    if (dimension === 'language' && typeof Intl.DisplayNames === 'function') {
+      try { return new Intl.DisplayNames(['fr'], { type: 'language' }).of(value) || value; } catch (_) {}
+    }
+    const text = value.replace(/[_-]+/g, ' ');
+    return text.length <= 4 ? text.toUpperCase() : text.charAt(0).toUpperCase() + text.slice(1);
+  }
+  function adocLibraryFilters(mountId) {
+    const ids = adocLibSearchIds(mountId), values = {};
+    ['approach', 'language', 'bookTitle'].forEach(function (key) { values[key] = (document.getElementById(ids[key]).value || '').trim(); });
+    return values;
+  }
+  function adocRenderActiveFilters(mountId) {
+    const root = document.getElementById(mountId + '-active-filters');
+    if (!root) return;
+    root.replaceChildren();
+    const values = adocLibraryFilters(mountId);
+    Object.keys(values).forEach(function (key) {
+      if (!values[key]) return;
+      const button = document.createElement('button'); button.type = 'button';
+      const label = key === 'bookTitle' ? 'Titre : ' + values[key] : (key === 'approach' ? 'Approche : ' : 'Langue : ') + adocFacetLabel(key, values[key]);
+      button.textContent = label + ' ×'; button.setAttribute('aria-label', 'Retirer ' + label);
+      button.onclick = function () { adocSelectLibraryFacet(mountId, key, ''); }; root.appendChild(button);
+    });
+  }
+  function adocLibraryRecovery(mountId, resultsEl) {
+    const values = adocLibraryFilters(mountId), state = _adocLibSearchStates[mountId];
+    const key = (state.filterOrder || []).slice().reverse().find(function (k) { return values[k]; }) || Object.keys(values).find(function (k) { return values[k]; });
+    if (!key) return;
+    const hint = document.createElement('p'); hint.textContent = 'Cette combinaison ne donne aucun résultat. Vous pouvez retirer le dernier filtre sélectionné.';
+    const button = document.createElement('button'); button.type = 'button'; button.className = 'cc-lib-recover'; button.textContent = 'Retirer ce filtre';
+    button.onclick = function () { adocSelectLibraryFacet(mountId, key, ''); }; resultsEl.append(hint, button);
+  }
+  async function adocLoadLibraryFacets(mountId) {
+    const state = _adocLibSearchStates[mountId], root = document.getElementById(mountId + '-facet-values');
+    if (!state || !root) return;
+    const seq = state.facetSeq = (state.facetSeq || 0) + 1;
+    if (state.facetController) state.facetController.abort();
+    const controller = state.facetController = new AbortController();
+    const timer = setTimeout(function () { controller.abort(); }, 8000);
+    const values = adocLibraryFilters(mountId);
+    root.textContent = 'Actualisation des filtres…';
+    try {
+      const response = await fetch(adocGetWorkerUrl() + '/library-facets', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() }, signal: controller.signal,
+        body: JSON.stringify({ query: document.getElementById(mountId + '-input').value.trim(), approach: values.approach, language: values.language, book_title: values.bookTitle }),
+      });
+      const data = await response.json();
+      if (seq !== state.facetSeq) return;
+      if (response.ok === false || !data.facets) throw new Error('facets');
+      root.replaceChildren();
+      const note = document.createElement('p'); note.textContent = 'Comptes de passages trouvés par les mots ou l’auteur. La recherche propose aussi des rapprochements de sens.'; root.appendChild(note);
+      ['approach', 'language'].forEach(function (dimension) {
+        const fieldset = document.createElement('fieldset'), legend = document.createElement('legend');
+        legend.textContent = dimension === 'approach' ? 'Approches' : 'Langues'; fieldset.appendChild(legend);
+        const options = document.createElement('div'); options.className = 'cc-lib-facet-options'; options.dataset.dimension = dimension;
+        const items = (data.facets[dimension] || []).filter(function (item) { return item.count > 0; });
+        if (values[dimension] && !items.some(function (item) { return item.value.toLowerCase() === values[dimension].toLowerCase(); })) items.push({ value: values[dimension], count: 0 });
+        items.forEach(function (item) {
+          const selected = item.value.toLowerCase() === values[dimension].toLowerCase();
+          const button = document.createElement('button'); button.type = 'button'; button.textContent = adocFacetLabel(dimension, item.value) + ' (' + item.count + ')';
+          button.dataset.value = item.value; button.setAttribute('aria-pressed', String(selected));
+          if (!item.count) button.title = 'Aucun passage textuel avec ce filtre. Cliquez pour le retirer.';
+          button.onclick = function () { adocSelectLibraryFacet(mountId, dimension, selected ? '' : item.value); }; options.appendChild(button);
+        });
+        if (!items.length) options.textContent = 'Aucune valeur pour cette recherche.';
+        fieldset.appendChild(options); root.appendChild(fieldset);
+      });
+    } catch (e) {
+      if (seq === state.facetSeq) {
+        root.textContent = 'Filtres indisponibles pour le moment. ';
+        const retry = document.createElement('button'); retry.type = 'button'; retry.textContent = 'Réessayer'; retry.onclick = function () { adocLoadLibraryFacets(mountId); }; root.appendChild(retry);
+      }
+    } finally { clearTimeout(timer); }
+  }
+  function adocInvalidateLibrarySearch(mountId) {
+    const state = _adocLibSearchStates[mountId];
+    clearTimeout(state.timer); ++state.seq; state.facetSeq = (state.facetSeq || 0) + 1;
+    if (state.controller) state.controller.abort();
+    if (state.facetController) state.facetController.abort();
+  }
+  window.adocLibrarySearchInput = function (mountId, event) {
+    const state = _adocLibSearchStates[mountId]; adocInvalidateLibrarySearch(mountId);
+    // Old cards must not look like results for the text currently being typed.
+    document.getElementById(mountId + '-results').textContent = 'Recherche…';
+    if (state.composing || event && event.isComposing) return;
+    state.timer = setTimeout(function () { window.adocLibSearchExec(mountId); }, 350);
+  };
+  window.adocLibraryComposition = function (mountId, composing) {
+    _adocLibSearchStates[mountId].composing = composing;
+    window.adocLibrarySearchInput(mountId);
+  };
+  function adocRememberLibraryFilter(mountId, key) {
+    const state = _adocLibSearchStates[mountId];
+    state.filterOrder = (state.filterOrder || []).filter(function (k) { return k !== key; }).concat(key);
+    adocRenderActiveFilters(mountId);
+  }
+  function adocSelectLibraryFacet(mountId, dimension, value) {
+    document.getElementById(adocLibSearchIds(mountId)[dimension]).value = value;
+    adocRememberLibraryFilter(mountId, dimension); window.adocLibSearchExec(mountId);
+  }
+  window.adocLibraryFilterInput = function (mountId) {
+    adocRememberLibraryFilter(mountId, 'bookTitle'); window.adocLibrarySearchInput(mountId);
+  };
 
   // Entoure d'un <mark> la MÊME occurrence déjà repérée par adocLibrarySearchSnippet — jamais
   // un second calcul de position indépendant qui pourrait diverger de l'extrait affiché.
@@ -13588,6 +13697,10 @@ ${recent}`;
   }
 
   async function adocRunLibrarySearch(mountId, state, allowInsert) {
+    clearTimeout(state.timer);
+    if (state.controller) state.controller.abort();
+    adocRenderActiveFilters(mountId);
+    adocLoadLibraryFacets(mountId);
     const ids = adocLibSearchIds(mountId);
     const input = document.getElementById(ids.input);
     const resultsEl = document.getElementById(ids.results);
@@ -13628,7 +13741,7 @@ ${recent}`;
     if (language) authorIntent.language = language;
     if (bookTitle) authorIntent.book_title = bookTitle;
 
-    const ctrl = new AbortController();
+    const ctrl = state.controller = new AbortController();
     const tid = setTimeout(function () { ctrl.abort(); }, 6000);
     const [ragResp, authorResults] = await Promise.all([
       fetch(workerUrl + '/rag-search', {
@@ -13662,6 +13775,7 @@ ${recent}`;
       resultsEl.innerHTML = (ragResp && ragResp.error)
         ? '<div class="cc-ws-search-result" style="color:var(--muted);">Recherche indisponible pour le moment.</div>'
         : '<div class="cc-ws-search-result" style="color:var(--muted);">Aucun résultat pour « ' + adocEsc(raw) + ' ».</div>';
+      if (!(ragResp && ragResp.error)) adocLibraryRecovery(mountId, resultsEl);
       return;
     }
 
