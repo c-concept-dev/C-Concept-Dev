@@ -1,0 +1,805 @@
+{
+  "schema": "EvidenceForge.EconomicReplay",
+  "schemaVersion": "MONOLITH-v1.0.7",
+  "label": "ESTIMATE — NOT GUARANTEE (replay local, aucun appel reel)",
+  "runId": "efm-20260918-90544bfc",
+  "replayedAt": "2026-09-18T13:45:10.103Z",
+  "before": {
+    "candidates": 689,
+    "identified": 682,
+    "selected": 150,
+    "cap": 150,
+    "evaluated": 96,
+    "approved": 23,
+    "twinsBuilt": 16,
+    "targets": 30,
+    "reviewsExpected": 480,
+    "aggregationGroups": 300,
+    "spentUsd": 12.1,
+    "projectedUsd": 86.13,
+    "panel": "PANEL_EXHAUSTED_WITH_GAPS",
+    "sufficiency": "EARLY_STOP_CONTINUE"
+  },
+  "after": {
+    "policy": "SUFFICIENCY_FIRST",
+    "initialPanelSize": 8,
+    "batchesClosed": 36,
+    "evaluated": 96,
+    "replayedEvaluations": 96,
+    "skippedBySufficiency": 54,
+    "deferredByBudget": 0,
+    "notObserved": 0,
+    "approved": 23,
+    "scientificPanelState": "PANEL_EXHAUSTED_WITH_GAPS",
+    "economicState": "POOL_EXHAUSTED",
+    "stopped": null,
+    "diminishingReturns": {
+      "active": true,
+      "consecutiveBatchesWithoutGain": 5,
+      "threshold": 3,
+      "zeroYieldDimensions": [
+        "DISC-001",
+        "DISC-008"
+      ],
+      "descriptiveOnly": true
+    },
+    "averageMarginalGainPerBatch": 0.7813,
+    "duplicateReviewRate": 0.2273,
+    "reviewTargetMode": "MISSION_DOSSIER",
+    "targets": 1,
+    "dossierCharacters": 126063,
+    "twins": 16,
+    "reviewDocuments": 16,
+    "reviewItems": 160,
+    "aggregationGroups": 10,
+    "projection": {
+      "status": "PROJECTED",
+      "low": 18.67,
+      "central": 18.67,
+      "high": 18.67,
+      "spentAtProjection": 8.4,
+      "parts": [
+        {
+          "label": "couverture (1 appel par professionnel admis)",
+          "units": 23,
+          "low": 3.77,
+          "central": 3.77,
+          "high": 3.77,
+          "basis": "IN_RUN",
+          "perUnitUsd": 0.164,
+          "retryFactor": 1
+        },
+        {
+          "label": "revues (jumeaux × cibles)",
+          "units": 16,
+          "low": 4,
+          "central": 4,
+          "high": 4,
+          "basis": "IN_RUN",
+          "perUnitUsd": 0.2497,
+          "retryFactor": 1
+        },
+        {
+          "label": "agrégation (cibles × angles)",
+          "units": 10,
+          "low": 2.5,
+          "central": 2.5,
+          "high": 2.5,
+          "basis": "PROXY_REVIEW_UNIT",
+          "perUnitUsd": 0.2497,
+          "retryFactor": 1
+        }
+      ],
+      "outlier": false,
+      "reviewRequired": false,
+      "budgetExceeded": true
+    },
+    "unitCosts": {
+      "oraclePerCandidate": 0.0771,
+      "coveragePerAdmitted": 0.164,
+      "reviewMeasured": 0.1552,
+      "reviewWithDossier": 0.2497,
+      "usdPerInputToken": 0.0000029999999999999992,
+      "dossierTokens": 31516
+    }
+  },
+  "batches": [
+    {
+      "index": 0,
+      "kind": "INITIAL",
+      "evaluated": 8,
+      "newApproved": 1,
+      "newDisciplinesCovered": 1,
+      "newIndependentPositions": 1,
+      "nearDuplicatePositions": 0,
+      "costUsd": 0.6113,
+      "panelAfter": "PANEL_CONTINUE",
+      "gapsAfter": [
+        "DISC-001",
+        "DISC-002",
+        "DISC-003",
+        "DISC-004",
+        "DISC-005",
+        "DISC-006",
+        "DISC-007",
+        "DISC-008",
+        "DISC-009",
+        "DISC-010"
+      ]
+    },
+    {
+      "index": 1,
+      "kind": "EXPANSION",
+      "evaluated": 4,
+      "newApproved": 1,
+      "newDisciplinesCovered": 1,
+      "newIndependentPositions": 1,
+      "nearDuplicatePositions": 0,
+      "costUsd": 0.3211,
+      "panelAfter": "PANEL_CONTINUE",
+      "gapsAfter": [
+        "DISC-001",
+        "DISC-002",
+        "DISC-003",
+        "DISC-004",
+        "DISC-005",
+        "DISC-006",
+        "DISC-007",
+        "DISC-008",
+        "DISC-009",
+        "DISC-010"
+      ]
+    },
+    {
+      "index": 2,
+      "kind": "EXPANSION",
+      "evaluated": 4,
+      "newApproved": 0,
+      "newDisciplinesCovered": 0,
+      "newIndependentPositions": 0,
+      "nearDuplicatePositions": 0,
+      "costUsd": 0.2917,
+      "panelAfter": "PANEL_CONTINUE",
+      "gapsAfter": [
+        "DISC-001",
+        "DISC-002",
+        "DISC-003",
+        "DISC-004",
+        "DISC-005",
+        "DISC-006",
+        "DISC-007",
+        "DISC-008",
+        "DISC-009",
+        "DISC-010"
+      ]
+    },
+    {
+      "index": 3,
+      "kind": "EXPANSION",
+      "evaluated": 4,
+      "newApproved": 0,
+      "newDisciplinesCovered": 0,
+      "newIndependentPositions": 0,
+      "nearDuplicatePositions": 0,
+      "costUsd": 0.3058,
+      "panelAfter": "PANEL_CONTINUE",
+      "gapsAfter": [
+        "DISC-001",
+        "DISC-002",
+        "DISC-003",
+        "DISC-004",
+        "DISC-005",
+        "DISC-006",
+        "DISC-007",
+        "DISC-008",
+        "DISC-009",
+        "DISC-010"
+      ]
+    },
+    {
+      "index": 4,
+      "kind": "EXPANSION",
+      "evaluated": 4,
+      "newApproved": 1,
+      "newDisciplinesCovered": 1,
+      "newIndependentPositions": 1,
+      "nearDuplicatePositions": 0,
+      "costUsd": 0.2779,
+      "panelAfter": "PANEL_CONTINUE",
+      "gapsAfter": [
+        "DISC-001",
+        "DISC-002",
+        "DISC-003",
+        "DISC-004",
+        "DISC-005",
+        "DISC-006",
+        "DISC-007",
+        "DISC-008",
+        "DISC-009",
+        "DISC-010"
+      ]
+    },
+    {
+      "index": 5,
+      "kind": "EXPANSION",
+      "evaluated": 4,
+      "newApproved": 1,
+      "newDisciplinesCovered": 0,
+      "newIndependentPositions": 1,
+      "nearDuplicatePositions": 0,
+      "costUsd": 0.2862,
+      "panelAfter": "PANEL_CONTINUE",
+      "gapsAfter": [
+        "DISC-001",
+        "DISC-002",
+        "DISC-003",
+        "DISC-004",
+        "DISC-005",
+        "DISC-006",
+        "DISC-007",
+        "DISC-008",
+        "DISC-009",
+        "DISC-010"
+      ]
+    },
+    {
+      "index": 6,
+      "kind": "EXPANSION",
+      "evaluated": 4,
+      "newApproved": 2,
+      "newDisciplinesCovered": 1,
+      "newIndependentPositions": 2,
+      "nearDuplicatePositions": 0,
+      "costUsd": 0.3303,
+      "panelAfter": "PANEL_CONTINUE",
+      "gapsAfter": [
+        "DISC-001",
+        "DISC-002",
+        "DISC-003",
+        "DISC-004",
+        "DISC-005",
+        "DISC-006",
+        "DISC-007",
+        "DISC-008",
+        "DISC-009",
+        "DISC-010"
+      ]
+    },
+    {
+      "index": 7,
+      "kind": "EXPANSION",
+      "evaluated": 4,
+      "newApproved": 0,
+      "newDisciplinesCovered": 0,
+      "newIndependentPositions": 0,
+      "nearDuplicatePositions": 0,
+      "costUsd": 0.3115,
+      "panelAfter": "PANEL_CONTINUE",
+      "gapsAfter": [
+        "DISC-001",
+        "DISC-002",
+        "DISC-003",
+        "DISC-004",
+        "DISC-005",
+        "DISC-006",
+        "DISC-007",
+        "DISC-008",
+        "DISC-009",
+        "DISC-010"
+      ]
+    },
+    {
+      "index": 8,
+      "kind": "EXPANSION",
+      "evaluated": 4,
+      "newApproved": 0,
+      "newDisciplinesCovered": 0,
+      "newIndependentPositions": 0,
+      "nearDuplicatePositions": 0,
+      "costUsd": 0.2911,
+      "panelAfter": "PANEL_CONTINUE",
+      "gapsAfter": [
+        "DISC-001",
+        "DISC-002",
+        "DISC-003",
+        "DISC-004",
+        "DISC-005",
+        "DISC-006",
+        "DISC-007",
+        "DISC-008",
+        "DISC-009",
+        "DISC-010"
+      ]
+    },
+    {
+      "index": 9,
+      "kind": "EXPANSION",
+      "evaluated": 4,
+      "newApproved": 1,
+      "newDisciplinesCovered": 0,
+      "newIndependentPositions": 1,
+      "nearDuplicatePositions": 0,
+      "costUsd": 0.3735,
+      "panelAfter": "PANEL_CONTINUE",
+      "gapsAfter": [
+        "DISC-001",
+        "DISC-002",
+        "DISC-003",
+        "DISC-004",
+        "DISC-005",
+        "DISC-006",
+        "DISC-007",
+        "DISC-008",
+        "DISC-009",
+        "DISC-010"
+      ]
+    },
+    {
+      "index": 10,
+      "kind": "EXPANSION",
+      "evaluated": 4,
+      "newApproved": 1,
+      "newDisciplinesCovered": 0,
+      "newIndependentPositions": 1,
+      "nearDuplicatePositions": 0,
+      "costUsd": 0.3144,
+      "panelAfter": "PANEL_CONTINUE",
+      "gapsAfter": [
+        "DISC-001",
+        "DISC-002",
+        "DISC-004",
+        "DISC-005",
+        "DISC-006",
+        "DISC-007",
+        "DISC-008"
+      ]
+    },
+    {
+      "index": 11,
+      "kind": "EXPANSION",
+      "evaluated": 3,
+      "newApproved": 2,
+      "newDisciplinesCovered": 1,
+      "newIndependentPositions": 2,
+      "nearDuplicatePositions": 0,
+      "costUsd": 0.2319,
+      "panelAfter": "PANEL_CONTINUE",
+      "gapsAfter": [
+        "DISC-001",
+        "DISC-002",
+        "DISC-004",
+        "DISC-005",
+        "DISC-007",
+        "DISC-008"
+      ]
+    },
+    {
+      "index": 12,
+      "kind": "EXPANSION",
+      "evaluated": 2,
+      "newApproved": 0,
+      "newDisciplinesCovered": 0,
+      "newIndependentPositions": 0,
+      "nearDuplicatePositions": 0,
+      "costUsd": 0.1518,
+      "panelAfter": "PANEL_CONTINUE",
+      "gapsAfter": [
+        "DISC-001",
+        "DISC-002",
+        "DISC-004",
+        "DISC-005",
+        "DISC-007",
+        "DISC-008"
+      ]
+    },
+    {
+      "index": 13,
+      "kind": "EXPANSION",
+      "evaluated": 3,
+      "newApproved": 2,
+      "newDisciplinesCovered": 0,
+      "newIndependentPositions": 2,
+      "nearDuplicatePositions": 0,
+      "costUsd": 0.2545,
+      "panelAfter": "PANEL_CONTINUE",
+      "gapsAfter": [
+        "DISC-001",
+        "DISC-002",
+        "DISC-004",
+        "DISC-005",
+        "DISC-007",
+        "DISC-008"
+      ]
+    },
+    {
+      "index": 14,
+      "kind": "EXPANSION",
+      "evaluated": 2,
+      "newApproved": 1,
+      "newDisciplinesCovered": 0,
+      "newIndependentPositions": 0,
+      "nearDuplicatePositions": 1,
+      "costUsd": 0.1584,
+      "panelAfter": "PANEL_CONTINUE",
+      "gapsAfter": [
+        "DISC-001",
+        "DISC-002",
+        "DISC-004",
+        "DISC-007",
+        "DISC-008"
+      ]
+    },
+    {
+      "index": 15,
+      "kind": "EXPANSION",
+      "evaluated": 3,
+      "newApproved": 0,
+      "newDisciplinesCovered": 0,
+      "newIndependentPositions": 0,
+      "nearDuplicatePositions": 0,
+      "costUsd": 0.2421,
+      "panelAfter": "PANEL_CONTINUE",
+      "gapsAfter": [
+        "DISC-001",
+        "DISC-002",
+        "DISC-004",
+        "DISC-007",
+        "DISC-008"
+      ]
+    },
+    {
+      "index": 16,
+      "kind": "EXPANSION",
+      "evaluated": 1,
+      "newApproved": 0,
+      "newDisciplinesCovered": 0,
+      "newIndependentPositions": 0,
+      "nearDuplicatePositions": 0,
+      "costUsd": 0.0618,
+      "panelAfter": "PANEL_CONTINUE",
+      "gapsAfter": [
+        "DISC-001",
+        "DISC-002",
+        "DISC-004",
+        "DISC-007",
+        "DISC-008"
+      ]
+    },
+    {
+      "index": 17,
+      "kind": "EXPANSION",
+      "evaluated": 3,
+      "newApproved": 0,
+      "newDisciplinesCovered": 0,
+      "newIndependentPositions": 0,
+      "nearDuplicatePositions": 0,
+      "costUsd": 0.2215,
+      "panelAfter": "PANEL_CONTINUE",
+      "gapsAfter": [
+        "DISC-001",
+        "DISC-002",
+        "DISC-004",
+        "DISC-007",
+        "DISC-008"
+      ]
+    },
+    {
+      "index": 18,
+      "kind": "EXPANSION",
+      "evaluated": 1,
+      "newApproved": 0,
+      "newDisciplinesCovered": 0,
+      "newIndependentPositions": 0,
+      "nearDuplicatePositions": 0,
+      "costUsd": 0.0745,
+      "panelAfter": "PANEL_CONTINUE",
+      "gapsAfter": [
+        "DISC-001",
+        "DISC-002",
+        "DISC-004",
+        "DISC-007",
+        "DISC-008"
+      ]
+    },
+    {
+      "index": 19,
+      "kind": "EXPANSION",
+      "evaluated": 3,
+      "newApproved": 2,
+      "newDisciplinesCovered": 0,
+      "newIndependentPositions": 2,
+      "nearDuplicatePositions": 0,
+      "costUsd": 0.3092,
+      "panelAfter": "PANEL_CONTINUE",
+      "gapsAfter": [
+        "DISC-001",
+        "DISC-002",
+        "DISC-004",
+        "DISC-007",
+        "DISC-008"
+      ]
+    },
+    {
+      "index": 20,
+      "kind": "EXPANSION",
+      "evaluated": 2,
+      "newApproved": 1,
+      "newDisciplinesCovered": 0,
+      "newIndependentPositions": 0,
+      "nearDuplicatePositions": 1,
+      "costUsd": 0.1542,
+      "panelAfter": "PANEL_CONTINUE",
+      "gapsAfter": [
+        "DISC-001",
+        "DISC-002",
+        "DISC-004",
+        "DISC-007",
+        "DISC-008"
+      ]
+    },
+    {
+      "index": 21,
+      "kind": "EXPANSION",
+      "evaluated": 3,
+      "newApproved": 1,
+      "newDisciplinesCovered": 0,
+      "newIndependentPositions": 0,
+      "nearDuplicatePositions": 1,
+      "costUsd": 0.2495,
+      "panelAfter": "PANEL_CONTINUE",
+      "gapsAfter": [
+        "DISC-001",
+        "DISC-002",
+        "DISC-004",
+        "DISC-007",
+        "DISC-008"
+      ]
+    },
+    {
+      "index": 22,
+      "kind": "EXPANSION",
+      "evaluated": 2,
+      "newApproved": 0,
+      "newDisciplinesCovered": 0,
+      "newIndependentPositions": 0,
+      "nearDuplicatePositions": 0,
+      "costUsd": 0.151,
+      "panelAfter": "PANEL_CONTINUE",
+      "gapsAfter": [
+        "DISC-001",
+        "DISC-002",
+        "DISC-004",
+        "DISC-007",
+        "DISC-008"
+      ]
+    },
+    {
+      "index": 23,
+      "kind": "EXPANSION",
+      "evaluated": 1,
+      "newApproved": 0,
+      "newDisciplinesCovered": 0,
+      "newIndependentPositions": 0,
+      "nearDuplicatePositions": 0,
+      "costUsd": 0.0802,
+      "panelAfter": "PANEL_CONTINUE",
+      "gapsAfter": [
+        "DISC-001",
+        "DISC-002",
+        "DISC-004",
+        "DISC-007",
+        "DISC-008"
+      ]
+    },
+    {
+      "index": 24,
+      "kind": "EXPANSION",
+      "evaluated": 3,
+      "newApproved": 1,
+      "newDisciplinesCovered": 0,
+      "newIndependentPositions": 1,
+      "nearDuplicatePositions": 0,
+      "costUsd": 0.2319,
+      "panelAfter": "PANEL_CONTINUE",
+      "gapsAfter": [
+        "DISC-001",
+        "DISC-002",
+        "DISC-007",
+        "DISC-008"
+      ]
+    },
+    {
+      "index": 25,
+      "kind": "EXPANSION",
+      "evaluated": 2,
+      "newApproved": 1,
+      "newDisciplinesCovered": 0,
+      "newIndependentPositions": 1,
+      "nearDuplicatePositions": 0,
+      "costUsd": 0.1636,
+      "panelAfter": "PANEL_CONTINUE",
+      "gapsAfter": [
+        "DISC-001",
+        "DISC-002",
+        "DISC-007",
+        "DISC-008"
+      ]
+    },
+    {
+      "index": 26,
+      "kind": "EXPANSION",
+      "evaluated": 0,
+      "newApproved": 0,
+      "newDisciplinesCovered": 0,
+      "newIndependentPositions": 0,
+      "nearDuplicatePositions": 0,
+      "costUsd": 0,
+      "panelAfter": "PANEL_CONTINUE",
+      "gapsAfter": [
+        "DISC-001",
+        "DISC-002",
+        "DISC-007",
+        "DISC-008"
+      ]
+    },
+    {
+      "index": 27,
+      "kind": "EXPANSION",
+      "evaluated": 2,
+      "newApproved": 0,
+      "newDisciplinesCovered": 0,
+      "newIndependentPositions": 0,
+      "nearDuplicatePositions": 0,
+      "costUsd": 0.141,
+      "panelAfter": "PANEL_CONTINUE",
+      "gapsAfter": [
+        "DISC-001",
+        "DISC-002",
+        "DISC-007",
+        "DISC-008"
+      ]
+    },
+    {
+      "index": 28,
+      "kind": "EXPANSION",
+      "evaluated": 2,
+      "newApproved": 0,
+      "newDisciplinesCovered": 0,
+      "newIndependentPositions": 0,
+      "nearDuplicatePositions": 0,
+      "costUsd": 0.1617,
+      "panelAfter": "PANEL_CONTINUE",
+      "gapsAfter": [
+        "DISC-001",
+        "DISC-002",
+        "DISC-007",
+        "DISC-008"
+      ]
+    },
+    {
+      "index": 29,
+      "kind": "EXPANSION",
+      "evaluated": 0,
+      "newApproved": 0,
+      "newDisciplinesCovered": 0,
+      "newIndependentPositions": 0,
+      "nearDuplicatePositions": 0,
+      "costUsd": 0,
+      "panelAfter": "PANEL_CONTINUE",
+      "gapsAfter": [
+        "DISC-001",
+        "DISC-002",
+        "DISC-007",
+        "DISC-008"
+      ]
+    },
+    {
+      "index": 30,
+      "kind": "EXPANSION",
+      "evaluated": 2,
+      "newApproved": 1,
+      "newDisciplinesCovered": 0,
+      "newIndependentPositions": 1,
+      "nearDuplicatePositions": 0,
+      "costUsd": 0.1523,
+      "panelAfter": "PANEL_CONTINUE",
+      "gapsAfter": [
+        "DISC-001",
+        "DISC-002",
+        "DISC-007",
+        "DISC-008"
+      ]
+    },
+    {
+      "index": 31,
+      "kind": "EXPANSION",
+      "evaluated": 2,
+      "newApproved": 1,
+      "newDisciplinesCovered": 0,
+      "newIndependentPositions": 0,
+      "nearDuplicatePositions": 1,
+      "costUsd": 0.1683,
+      "panelAfter": "PANEL_CONTINUE",
+      "gapsAfter": [
+        "DISC-001",
+        "DISC-002",
+        "DISC-007",
+        "DISC-008"
+      ]
+    },
+    {
+      "index": 32,
+      "kind": "EXPANSION",
+      "evaluated": 0,
+      "newApproved": 0,
+      "newDisciplinesCovered": 0,
+      "newIndependentPositions": 0,
+      "nearDuplicatePositions": 0,
+      "costUsd": 0,
+      "panelAfter": "PANEL_CONTINUE",
+      "gapsAfter": [
+        "DISC-001",
+        "DISC-002",
+        "DISC-007",
+        "DISC-008"
+      ]
+    },
+    {
+      "index": 33,
+      "kind": "EXPANSION",
+      "evaluated": 2,
+      "newApproved": 1,
+      "newDisciplinesCovered": 0,
+      "newIndependentPositions": 0,
+      "nearDuplicatePositions": 1,
+      "costUsd": 0.1587,
+      "panelAfter": "PANEL_CONTINUE",
+      "gapsAfter": [
+        "DISC-001",
+        "DISC-002",
+        "DISC-007",
+        "DISC-008"
+      ]
+    },
+    {
+      "index": 34,
+      "kind": "EXPANSION",
+      "evaluated": 2,
+      "newApproved": 0,
+      "newDisciplinesCovered": 0,
+      "newIndependentPositions": 0,
+      "nearDuplicatePositions": 0,
+      "costUsd": 0.1659,
+      "panelAfter": "PANEL_CONTINUE",
+      "gapsAfter": [
+        "DISC-001",
+        "DISC-002",
+        "DISC-007",
+        "DISC-008"
+      ]
+    },
+    {
+      "index": 35,
+      "kind": "EXPANSION",
+      "evaluated": 0,
+      "newApproved": 0,
+      "newDisciplinesCovered": 0,
+      "newIndependentPositions": 0,
+      "nearDuplicatePositions": 0,
+      "costUsd": 0,
+      "panelAfter": "PANEL_CONTINUE",
+      "gapsAfter": [
+        "DISC-001",
+        "DISC-002",
+        "DISC-007",
+        "DISC-008"
+      ]
+    }
+  ],
+  "limits": [
+    "les observations rejouees sont celles du run reel (aucune nouvelle evaluation) ; un candidat jamais evalue reste NOT_OBSERVED",
+    "cout par revue avec dossier = cout mesure par revue + surcout d'entree du dossier au tarif mesure du run (jamais un tarif invente)",
+    "le nombre de jumeaux apres = min(jumeaux reellement construits, approuves rejoues)",
+    "l'agregation est projetee au cout unitaire d'une revue (proxy)"
+  ]
+}
