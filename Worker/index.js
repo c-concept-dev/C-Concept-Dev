@@ -58054,9 +58054,44 @@ async function handlePassageFull(request2, env2) {
       full_content: row.content || "", target_lang: targetLang, is_machine_translated: false };
     if (out.full_content && row.language && row.language.toLowerCase() !== targetLang.toLowerCase()) {
       try {
-        const translated = await env2.AI.run("@cf/meta/m2m100-1.2b", {text: out.full_content, source_lang: row.language, target_lang: targetLang});
-        if (typeof translated?.translated_text !== "string" || !translated.translated_text.trim()) throw new Error("Empty translation");
-        out.full_translated_content = translated.translated_text;
+        // A long OCR passage can exhaust the seq2seq response and degenerate into
+        // repetition. Translate bounded, contiguous segments; never crop the source.
+        const segments = [];
+        let remaining = out.full_content;
+        while (remaining) {
+          let end = Math.min(500, remaining.length);
+          if (end < remaining.length) {
+            const prefix = remaining.slice(0, end);
+            const boundaries = [...prefix.matchAll(/[.!?][”"’']?\s+|\n+/g)];
+            const sentenceEnd = boundaries.length ? boundaries[boundaries.length - 1].index + boundaries[boundaries.length - 1][0].length : 0;
+            const spaceEnd = prefix.lastIndexOf(" ") + 1;
+            end = sentenceEnd > 200 ? sentenceEnd : spaceEnd > 200 ? spaceEnd : end;
+            if (/[\uD800-\uDBFF]/.test(remaining[end - 1])) end--;
+          }
+          segments.push(remaining.slice(0, end)); remaining = remaining.slice(end);
+        }
+        const translatedSegments = new Array(segments.length);
+        let next = 0;
+        const translateNext = async () => {
+          while (next < segments.length) {
+            const i = next++, text = segments[i];
+            if (!text.trim()) { translatedSegments[i] = text; continue; }
+            const translated = await env2.AI.run("@cf/meta/m2m100-1.2b", {text, source_lang: row.language, target_lang: targetLang});
+            const result = translated?.translated_text;
+            if (typeof result !== "string" || !result.trim()) throw new Error("Empty translation");
+            const words = result.toLowerCase().split(/\s+/), repetitions = new Map();
+            for (let j = 0; j + 8 <= words.length; j++) {
+              const phrase = words.slice(j, j + 8).join(" ");
+              const count = (repetitions.get(phrase) || 0) + 1;
+              if (count >= 3) throw new Error("Degenerate translation");
+              repetitions.set(phrase, count);
+            }
+            translatedSegments[i] = result;
+          }
+        };
+        const settled = await Promise.allSettled([translateNext(), translateNext()]);
+        if (settled.some((r) => r.status === "rejected")) throw new Error("Incomplete translation");
+        out.full_translated_content = translatedSegments.join("\n");
         out.is_machine_translated = true;
       } catch { out.translation_failed = true; }
     }
