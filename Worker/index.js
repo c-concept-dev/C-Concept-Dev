@@ -56751,7 +56751,7 @@ __name(handleUpdateBookMeta, "handleUpdateBookMeta");
 // {terms, term_match, authors, approaches, book_title, limit} → mappée vers l'un des
 // DEUX gabarits de requête fixes ci-dessous, jamais de texte client dans le SQL lui-même
 // (seules des VALEURS liées via .bind() varient), propriétés inconnues rejetées.
-const D1_SEARCH_ALLOWED_KEYS = new Set(["terms", "term_match", "authors", "approaches", "book_title", "limit"]);
+const D1_SEARCH_ALLOWED_KEYS = new Set(["terms", "term_match", "authors", "approaches", "book_title", "language", "limit"]);
 const D1_SEARCH_MAX_VALUES_PER_FIELD = 8;
 
 function d1SearchNormalize(s) {
@@ -56811,7 +56811,9 @@ async function handleD1Query(request2, env2) {
   const terms = [...new Set(rawTerms.filter((t) => typeof t === "string").map(d1SearchNormalize).filter(Boolean))].slice(0, D1_SEARCH_MAX_VALUES_PER_FIELD);
   const authors = [...new Set(rawAuthors.filter((a) => typeof a === "string").map(d1SearchNormalize).filter(Boolean))].slice(0, D1_SEARCH_MAX_VALUES_PER_FIELD);
   const approaches = [...new Set(rawApproaches.filter((a) => typeof a === "string").map(d1SearchNormalize).filter(Boolean))].slice(0, D1_SEARCH_MAX_VALUES_PER_FIELD);
-  const bookTitle = typeof body.book_title === "string" && body.book_title.trim() ? d1SearchNormalize(body.book_title) : null;
+  const bookTitle = typeof body.book_title === "string" && body.book_title.trim() ? body.book_title.trim() : null;
+
+  const language = typeof body.language === "string" && body.language !== "all" ? body.language.trim() : null;
 
   let limit = Number.isFinite(body.limit) ? Math.floor(body.limit) : 10;
   limit = Math.max(1, Math.min(50, limit));
@@ -56836,6 +56838,7 @@ async function handleD1Query(request2, env2) {
       if (authors.length) { clauses.push("(" + authors.map(() => "lower(c.author) LIKE ? ESCAPE '\\'").join(" OR ") + ")"); authors.forEach((a) => params.push(d1SearchLikeParam(a))); }
       if (approaches.length) { clauses.push("(" + approaches.map(() => "lower(c.approach) = ?").join(" OR ") + ")"); approaches.forEach((a) => params.push(a)); }
       if (bookTitle) { clauses.push("lower(c.book_title) LIKE ? ESCAPE '\\'"); params.push(d1SearchLikePrefixParam(bookTitle)); }
+      if (language) { clauses.push("language = ? COLLATE NOCASE"); params.push(language); }
       params.push(overFetch);
       const sql = `SELECT c.id, c.book_id, c.book_title, c.author, c.chapter, c.page_number, c.chunk_index, c.content, c.approach
         FROM chunks_fts JOIN chunks c ON c.rowid = chunks_fts.rowid
@@ -56854,6 +56857,7 @@ async function handleD1Query(request2, env2) {
         if (authors.length) { likeClauses.push("(" + authors.map(() => "lower(author) LIKE ? ESCAPE '\\'").join(" OR ") + ")"); authors.forEach((a) => likeParams.push(d1SearchLikeParam(a))); }
         if (approaches.length) { likeClauses.push("(" + approaches.map(() => "lower(approach) = ?").join(" OR ") + ")"); approaches.forEach((a) => likeParams.push(a)); }
         if (bookTitle) { likeClauses.push("lower(book_title) LIKE ? ESCAPE '\\'"); likeParams.push(d1SearchLikePrefixParam(bookTitle)); }
+        if (language) { likeClauses.push("language = ? COLLATE NOCASE"); likeParams.push(language); }
         likeParams.push(overFetch);
         const likeSql = `SELECT id, book_id, book_title, author, chapter, page_number, chunk_index, content, approach
           FROM chunks WHERE ${likeClauses.join(" AND ")} LIMIT ?`;
@@ -56876,6 +56880,7 @@ async function handleD1Query(request2, env2) {
       if (authors.length) { clauses.push("(" + authors.map(() => "lower(author) LIKE ? ESCAPE '\\'").join(" OR ") + ")"); authors.forEach((a) => params.push(d1SearchLikeParam(a))); }
       if (approaches.length) { clauses.push("(" + approaches.map(() => "lower(approach) = ?").join(" OR ") + ")"); approaches.forEach((a) => params.push(a)); }
       if (bookTitle) { clauses.push("lower(book_title) LIKE ? ESCAPE '\\'"); params.push(d1SearchLikePrefixParam(bookTitle)); }
+      if (language) { clauses.push("language = ? COLLATE NOCASE"); params.push(language); }
       params.push(overFetch);
       const sql = `SELECT id, book_id, book_title, author, chapter, page_number, chunk_index, content, approach
         FROM chunks WHERE ${clauses.join(" AND ")} ORDER BY chunk_index ASC LIMIT ?`;
@@ -58064,7 +58069,7 @@ async function handleRagSearch(request2, env2) {
         WHERE chunks_fts MATCH ?`;
       const params = [ftsQuery];
       if (approach && approach !== "all") {
-        sql += ` AND c.approach = ?`;
+        sql += ` AND c.approach = ? COLLATE NOCASE`;
         params.push(approach);
       }
       if (exclude_approach) {
@@ -58072,11 +58077,11 @@ async function handleRagSearch(request2, env2) {
         params.push(exclude_approach);
       }
       if (book_title) {
-        sql += ` AND c.book_title LIKE ?`;
-        params.push(book_title + "%");
+        sql += ` AND c.book_title LIKE ? ESCAPE '\\'`;
+        params.push(book_title.replace(/[\\%_]/g, (c) => "\\" + c) + "%");
       }
       if (language !== "all") {
-        sql += ` AND c.language = ?`;
+        sql += ` AND c.language = ? COLLATE NOCASE`;
         params.push(language);
       }
       sql += ` ORDER BY rank LIMIT ${Math.min(topK * 2, 40)}`;
@@ -58159,15 +58164,16 @@ async function handleRagSearch(request2, env2) {
     const ids = merged.filter((c) => c._source === "vector").map((c) => c.id);
     if (ids.length) {
       const ph = ids.map(() => "?").join(",");
-      const rows = await env2.DB.prepare(`SELECT id, content, author, page_number, approach, language FROM chunks WHERE id IN (${ph})`).bind(...ids).all();
+      const rows = await env2.DB.prepare(`SELECT id, content, author, page_number, approach, language, book_title FROM chunks WHERE id IN (${ph})`).bind(...ids).all();
       const cm = Object.fromEntries((rows.results || []).map((r) => [r.id, r]));
       merged.forEach((c) => {
         if (c._source !== "vector") return;
         const r = cm[c.id];
-        if (!r) return;
+        if (!r) { c.approach = null; c.language = null; c.book_title = null; return; }
         if (!c.content) c.content = r.content || "";
         if (!c.author) c.author = r.author || "";
         if (c.page_number == null) c.page_number = r.page_number ?? null;
+        c.book_title = r.book_title;
         c.approach = r.approach;
         c.language = r.language;
       });
@@ -58175,7 +58181,14 @@ async function handleRagSearch(request2, env2) {
     // Filtre approach appliqué ICI, après réhydratation — toujours la valeur D1 fraîche pour un
     // chunk vectoriel, déjà fraîche par construction pour un chunk FTS5 (lu directement de D1
     // dans la requête SQL ci-dessus, jamais filtrée deux fois à tort).
-    const filteredMerged = approach && approach !== "all" ? merged.filter((c) => !c.approach || c.approach === approach) : merged;
+    // Même filtre pour les deux branches ; une métadonnée absente ne prouve pas un match.
+    // NOCASE/LIKE SQLite sont insensibles à la casse ASCII : même règle après fusion.
+    const fold = (value) => String(value ?? "").replace(/[A-Z]/g, (c) => c.toLowerCase());
+    const filteredMerged = merged.filter((c) =>
+      (!approach || approach === "all" || fold(c.approach) === fold(approach)) &&
+      (language === "all" || fold(c.language) === fold(language)) &&
+      (!book_title || fold(c.book_title).startsWith(fold(book_title)))
+    );
     // Lot 2/2, correctif 5 — `id`/`language` ajoutés à la sortie (additifs, jamais un champ
     // retiré) : /rag-search n'a aujourd'hui AUCUN consommateur réel dans studio-clinique-core.js
     // (confirmé par recherche négative) — champs nécessaires au nouveau panneau diagnostic de

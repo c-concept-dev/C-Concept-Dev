@@ -13623,6 +13623,11 @@ ${recent}`;
     if (language) body.language = language;
     if (bookTitle) body.book_title = bookTitle;
 
+    const authorIntent = { authors: [raw], limit: 6 };
+    if (approach && approach !== 'all') authorIntent.approaches = [approach];
+    if (language) authorIntent.language = language;
+    if (bookTitle) authorIntent.book_title = bookTitle;
+
     const ctrl = new AbortController();
     const tid = setTimeout(function () { ctrl.abort(); }, 6000);
     const [ragResp, authorResults] = await Promise.all([
@@ -13632,7 +13637,7 @@ ${recent}`;
       }).then(function (r) { return r.json(); }).catch(function (e) {
         return { error: e.name === 'AbortError' ? 'timeout' : 'network' };
       }),
-      adocD1Search({ authors: [raw], limit: 6 }).catch(function () { return null; }),
+      adocD1Search(authorIntent).catch(function () { return null; }),
     ]);
     clearTimeout(tid);
     if (mySeq !== _adocLibSearchSeq) return;
@@ -13663,8 +13668,9 @@ ${recent}`;
     resultsEl.innerHTML = merged.slice(0, 8).map(function (c, i) {
       const uid = mountId + '-' + i;
       const sources = Array.isArray(c.sources) ? c.sources : (c.source ? [c.source] : []);
-      const provenance = sources.includes('fts5') && sources.includes('vector') ? 'correspondance exacte + de sens'
-        : sources.includes('fts5') ? 'correspondance exacte'
+      const lexicalProvenance = isPhrase ? 'correspondance de phrase exacte' : 'correspondance lexicale par mots-clés';
+      const provenance = sources.includes('fts5') && sources.includes('vector') ? lexicalProvenance + ' + de sens'
+        : sources.includes('fts5') ? lexicalProvenance
         : sources.includes('vector') ? 'correspondance de sens'
         : sources.includes('author') ? 'par auteur' : '';
       const original = c.content || '';

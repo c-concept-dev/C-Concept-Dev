@@ -1,0 +1,46 @@
+{
+  "schema": "EvidenceForge.MonolithBrowserTestResults",
+  "version": "MONOLITH-v1.0.8",
+  "ranAt": "2026-09-19T13:08:31.077Z",
+  "total": 9,
+  "passed": 9,
+  "failed": 0,
+  "results": [
+    {
+      "name": "serveur v1.0.8 : /api/config version",
+      "ok": true
+    },
+    {
+      "name": "API /api/runs/:id : state.live (STREAMING, jumeau 7/19, 6 revues logiques completes sur 19, evenements / octets) et compteurs a jour",
+      "ok": true
+    },
+    {
+      "name": "API /api/runs/:id/cost : bloc live (etat, finalite, cible dossier, revues logiques, dernier checkpoint, derniere revue validee, cout de l'etape)",
+      "ok": true
+    },
+    {
+      "name": "API : run arrete apres interruption => live.providerCallState FAILED, lastTransportCode PROVIDER_STREAM_INTERRUPTED, active false",
+      "ok": true
+    },
+    {
+      "name": "UI run en cours : « Appel fournisseur en cours » en flux (duree, evenements, Ko), finalite, jumeau 7 / 19, cible MISSION_DOSSIER",
+      "ok": true
+    },
+    {
+      "name": "UI : « Revues logiques (1 par jumeau × cible) : 6 validée(s) / 19 attendue(s) » ; derniere activite, checkpoint, derniere revue validee, compteurs reels / reutilises",
+      "ok": true
+    },
+    {
+      "name": "aucune exception console (run en cours)",
+      "ok": true
+    },
+    {
+      "name": "UI run arrete apres flux interrompu : « échec (PROVIDER_STREAM_INTERRUPTED) », 0 validée(s) / 19, message utilisateur d'interruption",
+      "ok": true
+    },
+    {
+      "name": "aucune exception console (run arrete)",
+      "ok": true
+    }
+  ]
+}
