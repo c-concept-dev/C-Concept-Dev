@@ -1,0 +1,124 @@
+{
+ "id": "S4",
+ "kind": "success",
+ "sourceRun": "run-H1",
+ "sourceRunId": "run-ea96107f2179",
+ "targetId": "target-01",
+ "acceptedPassHistorical": 1,
+ "document": {
+  "targetId": "target-01",
+  "role": "review_target_not_evidence",
+  "content": "Une bibliothèque municipale veut remplacer ses ateliers d'initiation numérique en présentiel par des tutoriels vidéo en ligne. Dire ce qui est étayé, discuté ou non établi quant à l'efficacité de ce remplacement pour les usagers peu à l'aise avec le numérique."
+ },
+ "twin": {
+  "twinId": "twin-fixture-S4",
+  "professionalRef": "fixture-S4",
+  "referenceIdentity": {
+   "displayName": "fixture S4"
+  },
+  "documentaryBasis": {
+   "worksUsed": [
+    {
+     "workRef": "Cognitive load theory and the curriculum",
+     "citedForDimensions": [
+      "educational-sciences",
+      "instructional-design"
+     ]
+    },
+    {
+     "workRef": "Instructional sequences in science teaching: considering element interactivity when sequencing inquiry-based investigation activities and explicit instruction",
+     "citedForDimensions": [
+      "educational-sciences"
+     ]
+    },
+    {
+     "workRef": "Response to De Jong et al.’s (2023) paper “Let's talk evidence – The case for combining inquiry-based and direct instruction”",
+     "citedForDimensions": [
+      "educational-sciences"
+     ]
+    },
+    {
+     "workRef": "Correction to: There is an Evidence Crisis in Science Educational Policy",
+     "citedForDimensions": [
+      "educational-sciences"
+     ]
+    },
+    {
+     "workRef": "A Cognitive Load Theory Approach to Defining and Measuring Task Complexity Through Element Interactivity",
+     "citedForDimensions": [
+      "instructional-design"
+     ]
+    },
+    {
+     "workRef": "The effect of element interactivity and mental rehearsal on working memory resource depletion and the spacing effect",
+     "citedForDimensions": [
+      "instructional-design",
+      "cognitive-science"
+     ]
+    },
+    {
+     "workRef": "The Relationship between Interleaving and Variability Effects: A Cognitive Load Theory Perspective",
+     "citedForDimensions": [
+      "instructional-design"
+     ]
+    },
+    {
+     "workRef": "An Integrated Human Cognitive Architecture",
+     "citedForDimensions": [
+      "cognitive-science"
+     ]
+    },
+    {
+     "workRef": "Cognitive load theory and individual differences",
+     "citedForDimensions": [
+      "cognitive-science"
+     ]
+    },
+    {
+     "workRef": "Biological evolution and human cognition are analogous information processing systems",
+     "citedForDimensions": [
+      "cognitive-science"
+     ]
+    },
+    {
+     "workRef": "Cognitive Load Measurement Methods for Usability Testing: A Critical Analysis and Framework for Interface Evaluation",
+     "citedForDimensions": [
+      "human-computer-interaction"
+     ]
+    },
+    {
+     "workRef": "A critical analysis of cognitive load measurement methods for evaluating the usability of different types of interfaces: guidelines and framework for Human-Computer Interaction",
+     "citedForDimensions": [
+      "human-computer-interaction"
+     ]
+    }
+   ]
+  }
+ },
+ "dimensions": [
+  "digital-literacy-studies",
+  "educational-sciences",
+  "instructional-design",
+  "cognitive-science",
+  "human-computer-interaction",
+  "library-information-science",
+  "sociology-of-digital-divide",
+  "gerontology-and-aging-studies",
+  "andragogy"
+ ],
+ "passes": [
+  {
+   "pass": 1,
+   "informed": false,
+   "valid": true,
+   "errors": [],
+   "responseText": "{\"findings\":[\n{\"dimensionId\":\"digital-literacy-studies\",\"disposition\":\"gap\",\"epistemicStatus\":\"not_determinable\",\"finding\":\"Le document pose directement la question de l'efficacité de l'acquisition de compétences numériques par des usagers peu à l'aise, mais la base documentaire du twin ne contient aucune œuvre traitant de littératie numérique, d'appropriation des outils numériques ou de fractures numériques.\",\"rationale\":\"La question centrale relève des digital-literacy-studies, or aucun travail attribuable au professionnel n'aborde ce champ ; il ne peut donc rien étayer sur ce point depuis sa base documentaire.\",\"targetEvidenceRefs\":[\"Dire ce qui est étayé, discuté ou non établi quant à l'efficacité de ce remplacement pour les usagers peu à l'aise avec le numérique.\"],\"twinBasisWorkRefs\":[],\"confidenceQualitative\":\"high\",\"limitations\":[\"Absence totale de couverture documentaire sur la littératie numérique dans le corpus du twin.\"]},\n{\"dimensionId\":\"educational-sciences\",\"disposition\":\"concern\",\"epistemicStatus\":\"documented\",\"finding\":\"Le remplacement d'ateliers présentiels par des tutoriels vidéo est une décision de modalité pédagogique ; la base du twin documente des débats de sciences de l'éducation sur les modalités d'instruction (instruction directe vs. par investigation, politique éducative fondée sur les preuves), sans toutefois traiter la comparaison présentiel/à distance elle-même.\",\"rationale\":\"Les œuvres du corpus permettent de signaler que la substituabilité d'un format par un autre est une question empirique non tranchée par principe, mais aucune ne porte spécifiquement sur l'efficacité comparée présentiel/en ligne pour publics fragiles.\",\"targetEvidenceRefs\":[\"remplacer ses ateliers d'initiation numérique en présentiel par des tutoriels vidéo en ligne\"],\"twinBasisWorkRefs\":[\"Cognitive load theory and the curriculum\",\"Response to De Jong et al.’s (2023) paper “Let's talk evidence – The case for combining inquiry-based and direct instruction”\",\"Correction to: There is an Evidence Crisis in Science Educational Policy\"],\"confidenceQualitative\":\"medium\",\"limitations\":[\"Aucune œuvre ne traite spécifiquement de la comparaison présentiel/à distance ni de publics peu à l'aise avec le numérique.\"]},\n{\"dimensionId\":\"instructional-design\",\"disposition\":\"concern\",\"epistemicStatus\":\"documented\",\"finding\":\"L'efficacité de tutoriels vidéo comme ressource d'auto-formation dépend de leur conception ; la base du twin documente des principes de design (séquençage, interactivité des éléments, interleaving, variabilité) qui conditionnent l'apprentissage, suggérant que la simple mise en ligne ne garantit pas l'efficacité.\",\"rationale\":\"Les travaux sur la conception de l'instruction via la charge cognitive permettent d'affirmer que l'efficacité d'un tutoriel dépend de sa structure ; ils ne valident cependant pas la substituabilité du présentiel par la vidéo pour des novices.\",\"targetEvidenceRefs\":[\"des tutoriels vidéo en ligne\"],\"twinBasisWorkRefs\":[\"Cognitive load theory and the curriculum\",\"A Cognitive Load Theory Approach to Defining and Measuring Task Complexity Through Element Interactivity\",\"The Relationship between Interleaving and Variability Effects: A Cognitive Load Theory Perspective\"],\"confidenceQualitative\":\"medium\",\"limitations\":[\"Le corpus documente des principes de design mais pas leur application aux tutoriels vidéo pour usagers peu à l'aise avec le numérique.\"]},\n{\"dimensionId\":\"cognitive-science\",\"disposition\":\"concern\",\"epistemicStatus\":\"documented\",\"finding\":\"Le traitement d'un support vidéo par des apprenants novices sollicite la mémoire de travail ; la base du twin documente l'architecture cognitive humaine, la charge cognitive et les différences individuelles, ce qui éclaire les risques de surcharge pour des usagers peu familiers du numérique face à un format auto-porté.\",\"rationale\":\"Les œuvres sur la mémoire de travail et les différences individuelles permettent de signaler que des novices, sans accompagnement, sont plus exposés à la surcharge cognitive ; c'est la contribution la plus directe du corpus à la mission.\",\"targetEvidenceRefs\":[\"les usagers peu à l'aise avec le numérique\"],\"twinBasisWorkRefs\":[\"An Integrated Human Cognitive Architecture\",\"Cognitive load theory and individual differences\",\"The effect of element interactivity and mental rehearsal on working memory resource depletion and the spacing effect\"],\"confidenceQualitative\":\"medium\",\"limitations\":[\"Les travaux ne portent pas spécifiquement sur l'apprentissage numérique ni sur le format vidéo en contexte de bibliothèque.\"]},\n{\"dimensionId\":\"human-computer-interaction\",\"disposition\":\"concern\",\"epistemicStatus\":\"documented\",\"finding\":\"L'accès aux tutoriels en ligne suppose la maîtrise d'interfaces ; la base du twin documente l'évaluation de l'utilisabilité des interfaces via la mesure de la charge cognitive, ce qui permet de signaler que l'interface d'accès peut constituer un obstacle, mais sans traiter l'accessibilité pour publics vulnérables.\",\"rationale\":\"Les deux œuvres sur la mesure de la charge cognitive en IHM justifient une préoccupation méthodologique sur l'utilisabilité, mais restent centrées sur la mesure et non sur l'accessibilité des publics fragiles.\",\"targetEvidenceRefs\":[\"des tutoriels vidéo en ligne\"],\"twinBasisWorkRefs\":[\"Cognitive Load Measurement Methods for Usability Testing: A Critical Analysis and Framework for Interface Evaluation\",\"A critical analysis of cognitive load measurement methods for evaluating the usability of different types of interfaces: guidelines and framework for Human-Computer Interaction\"],\"confidenceQualitative\":\"low\",\"limitations\":[\"Couverture centrée sur la méthodologie de mesure, pas sur l'accessibilité pour usagers peu à l'aise avec le numérique.\"]},\n{\"dimensionId\":\"library-information-science\",\"disposition\":\"gap\",\"epistemicStatus\":\"not_determinable\",\"finding\":\"Le contexte est celui d'une bibliothèque municipale assurant une mission de médiation numérique, mais aucune œuvre de la base du twin ne traite des bibliothèques, de la médiation documentaire ou des services aux publics.\",\"rationale\":\"Sans travail attribuable relevant des sciences de l'information et des bibliothèques, le twin ne peut rien étayer sur le rôle de médiation numérique ou les modalités de service.\",\"targetEvidenceRefs\":[\"Une bibliothèque municipale veut remplacer ses ateliers d'initiation numérique en présentiel\"],\"twinBasisWorkRefs\":[],\"confidenceQualitative\":\"high\",\"limitations\":[\"Aucune couverture documentaire du champ bibliothéconomique dans le corpus.\"]},\n{\"dimensionId\":\"sociology-of-digital-divide\",\"disposition\":\"gap\",\"epistemicStatus\":\"not_determinable\",\"finding\":\"Les usagers ciblés sont définis par leur faible aisance numérique, question relevant de la fracture numérique, mais aucune œuvre de la base du twin n'aborde les inégalités d'accès, les publics vulnérables face à la dématérialisation ou la sociologie de la fracture numérique.\",\"rationale\":\"L'effet d'une dématérialisation du service sur des publics vulnérables ne peut être documenté depuis un corpus exclusivement centré sur la charge cognitive.\",\"targetEvidenceRefs\":[\"les usagers peu à l'aise avec le numérique\"],\"twinBasisWorkRefs\":[],\"confidenceQualitative\":\"high\",\"limitations\":[\"Absence totale de couverture sociologique de la fracture numérique dans le corpus du twin.\"]},\n{\"dimensionId\":\"gerontology-and-aging-studies\",\"disposition\":\"gap\",\"epistemicStatus\":\"not_determinable\",\"finding\":\"Une part des publics peu à l'aise avec le numérique relève de personnes âgées, mais aucune œuvre de la base du twin ne traite du vieillissement, des seniors ou de l'autonomie technologique.\",\"rationale\":\"Sans travail attribuable en gérontologie, le twin ne peut rien étayer sur les spécificités de l'apprentissage numérique des seniors.\",\"targetEvidenceRefs\":[\"les usagers peu à l'aise avec le numérique\"],\"twinBasisWorkRefs\":[],\"confidenceQualitative\":\"high\",\"limitations\":[\"Aucune œuvre du corpus n'aborde le vieillissement ou les publics âgés.\"]},\n{\"dimensionId\":\"andragogy\",\"disposition\":\"gap\",\"epistemicStatus\":\"not_determinable\",\"finding\":\"Les ateliers concernent des apprenants adultes et l'auto-formation, mais aucune œuvre de la base du twin ne porte spécifiquement sur l'apprentissage adulte ou les conditions de l'auto-formation adulte.\",\"rationale\":\"Les travaux sur la charge cognitive ne ciblent pas la spécificité andragogique et ne peuvent être crédités à ce titre ; le twin ne peut donc étayer la pertinence d'un format auto-formatif pour adultes.\",\"targetEvidenceRefs\":[\"remplacer ses ateliers d'initiation numérique en présentiel par des tutoriels vidéo en ligne\"],\"twinBasisWorkRefs\":[],\"confidenceQualitative\":\"high\",\"limitations\":[\"Aucune œuvre ne traite explicitement de l'apprentissage des adultes ou de l'auto-formation adulte.\"]}\n]}",
+   "usage": {
+    "input_tokens": 6464,
+    "output_tokens": 3458
+   },
+   "purpose": "EF-03B review"
+  }
+ ],
+ "note": "artefacts reels ; identite du jumeau anonymisee ; reponses byte-exactes"
+}

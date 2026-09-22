@@ -1,0 +1,106 @@
+{
+ "id": "S2",
+ "kind": "success",
+ "sourceRun": "run-H1",
+ "sourceRunId": "run-ea96107f2179",
+ "targetId": "target-01",
+ "acceptedPassHistorical": 1,
+ "document": {
+  "targetId": "target-01",
+  "role": "review_target_not_evidence",
+  "content": "Une bibliothèque municipale veut remplacer ses ateliers d'initiation numérique en présentiel par des tutoriels vidéo en ligne. Dire ce qui est étayé, discuté ou non établi quant à l'efficacité de ce remplacement pour les usagers peu à l'aise avec le numérique."
+ },
+ "twin": {
+  "twinId": "twin-fixture-S2",
+  "professionalRef": "fixture-S2",
+  "referenceIdentity": {
+   "displayName": "fixture S2"
+  },
+  "documentaryBasis": {
+   "worksUsed": [
+    {
+     "workRef": "Building Teachers’ Digital Competence Through Learning Activities",
+     "citedForDimensions": [
+      "digital-literacy-studies"
+     ]
+    },
+    {
+     "workRef": "Social presence: A key factor in embedding a pedagogical agent into online learning in primary education",
+     "citedForDimensions": [
+      "educational-sciences"
+     ]
+    },
+    {
+     "workRef": "LEARNING WITH STUDY-WITH-ME VIDEOS: A REVIEW OF THEIR COGNITIVE, SOCIAL, AND MOTIVATIONAL EFFECTS",
+     "citedForDimensions": [
+      "educational-sciences"
+     ]
+    },
+    {
+     "workRef": "Confidence Ratings in Digital Learning Environments",
+     "citedForDimensions": [
+      "educational-sciences"
+     ]
+    },
+    {
+     "workRef": "Beauty is the eye of the beholder: Introducing the visual aesthetic principle for multimedia instructional design and how it is moderated by learners’ creativity",
+     "citedForDimensions": [
+      "instructional-design"
+     ]
+    },
+    {
+     "workRef": "Is it not too redundant? When signaling overlap reduces extraneous load and enhances retention in a software video tutorial",
+     "citedForDimensions": [
+      "instructional-design",
+      "cognitive-science",
+      "human-computer-interaction"
+     ]
+    },
+    {
+     "workRef": "Learning in style: A typography × learning multi-layered model for digital learning environments from a PRISMA-ScR scoping review and expert interviews",
+     "citedForDimensions": [
+      "instructional-design"
+     ]
+    },
+    {
+     "workRef": "One or many? Evaluating the effectiveness of single-item and multiple-item scales for measuring cognitive load.",
+     "citedForDimensions": [
+      "cognitive-science"
+     ]
+    },
+    {
+     "workRef": "Mitigating the seductive details effect by topic and irrelevance signals",
+     "citedForDimensions": [
+      "cognitive-science"
+     ]
+    }
+   ]
+  }
+ },
+ "dimensions": [
+  "digital-literacy-studies",
+  "educational-sciences",
+  "instructional-design",
+  "cognitive-science",
+  "human-computer-interaction",
+  "library-information-science",
+  "sociology-of-digital-divide",
+  "gerontology-and-aging-studies",
+  "andragogy"
+ ],
+ "passes": [
+  {
+   "pass": 1,
+   "informed": false,
+   "valid": true,
+   "errors": [],
+   "responseText": "{\"findings\":[\n{\"dimensionId\":\"digital-literacy-studies\",\"disposition\":\"gap\",\"epistemicStatus\":\"cautious_inference\",\"finding\":\"Le document interroge l'acquisition de compétences numériques par des « usagers peu à l'aise avec le numérique », mais la base du twin ne couvre cette dimension que faiblement et de façon indirecte.\",\"rationale\":\"Le seul travail mobilisable porte sur le développement des compétences numériques des enseignants, non sur l'appropriation d'outils par des usagers novices ni sur les fractures numériques ; le lien est analogique et ne permet pas d'établir ce qui est étayé pour le public visé.\",\"targetEvidenceRefs\":[\"les usagers peu à l'aise avec le numérique\"],\"twinBasisWorkRefs\":[\"Building Teachers’ Digital Competence Through Learning Activities\"],\"confidenceQualitative\":\"low\",\"limitations\":[\"Population documentée (enseignants) éloignée du public cible novice\",\"Aucun travail sur les fractures numériques\"]},\n{\"dimensionId\":\"educational-sciences\",\"disposition\":\"concern\",\"epistemicStatus\":\"documented\",\"finding\":\"La question de l'efficacité comparée présentiel/à distance est directement éclairée par le corpus du twin, qui suggère que l'efficacité de l'apprentissage médiatisé dépend de facteurs comme la présence sociale et le format vidéo, non garantis par un simple remplacement.\",\"rationale\":\"Les travaux sur la présence sociale et sur les vidéos d'apprentissage montrent que les effets cognitifs, sociaux et motivationnels d'un dispositif en ligne sont conditionnels ; cela invite à la prudence sur un remplacement pur du présentiel, sans que le public novice de bibliothèque soit spécifiquement étudié.\",\"targetEvidenceRefs\":[\"remplacer ses ateliers d'initiation numérique en présentiel par des tutoriels vidéo en ligne\"],\"twinBasisWorkRefs\":[\"Social presence: A key factor in embedding a pedagogical agent into online learning in primary education\",\"LEARNING WITH STUDY-WITH-ME VIDEOS: A REVIEW OF THEIR COGNITIVE, SOCIAL, AND MOTIVATIONAL EFFECTS\",\"Confidence Ratings in Digital Learning Environments\"],\"confidenceQualitative\":\"medium\",\"limitations\":[\"Contextes documentés scolaires/génériques, non le public de bibliothèque\",\"La présence sociale perdue en présentiel n'est pas mesurée pour ce public\"]},\n{\"dimensionId\":\"instructional-design\",\"disposition\":\"support\",\"epistemicStatus\":\"documented\",\"finding\":\"La conception de tutoriels vidéo efficaces est étayée par le corpus du twin, dont un travail portant explicitement sur un tutoriel vidéo logiciel ; l'efficacité du format dépend de choix de design (signalisation, esthétique, typographie) plutôt que du format en soi.\",\"rationale\":\"Les travaux sur la signalisation réduisant la charge extrinsèque, sur le principe esthétique et sur la typographie établissent que l'efficacité d'un dispositif d'auto-formation médiatisée est conditionnée par sa conception ; le document pose la substituabilité mais ne précise aucune condition de conception.\",\"targetEvidenceRefs\":[\"par des tutoriels vidéo en ligne\"],\"twinBasisWorkRefs\":[\"Is it not too redundant? When signaling overlap reduces extraneous load and enhances retention in a software video tutorial\",\"Beauty is the eye of the beholder: Introducing the visual aesthetic principle for multimedia instructional design and how it is moderated by learners’ creativity\",\"Learning in style: A typography × learning multi-layered model for digital learning environments from a PRISMA-ScR scoping review and expert interviews\"],\"confidenceQualitative\":\"medium\",\"limitations\":[\"Travaux testés sur des apprenants non nécessairement novices en numérique\",\"Efficacité du design ne prouve pas la substituabilité au présentiel\"]},\n{\"dimensionId\":\"cognitive-science\",\"disposition\":\"concern\",\"epistemicStatus\":\"documented\",\"finding\":\"Le traitement cognitif d'un support vidéo par des apprenants novices est directement éclairé : la charge cognitive et les détails séduisants peuvent nuire à la mémorisation si le tutoriel n'est pas maîtrisé, ce qui n'est pas garanti pour un public peu à l'aise.\",\"rationale\":\"Les travaux sur la charge cognitive, sa mesure et l'atténuation de l'effet des détails séduisants montrent que l'efficacité d'un apprentissage vidéo dépend de la gestion de la charge ; les apprenants novices étant plus vulnérables à la surcharge, le remplacement comporte un risque cognitif documenté.\",\"targetEvidenceRefs\":[\"l'efficacité de ce remplacement pour les usagers peu à l'aise avec le numérique\"],\"twinBasisWorkRefs\":[\"Is it not too redundant? When signaling overlap reduces extraneous load and enhances retention in a software video tutorial\",\"One or many? Evaluating the effectiveness of single-item and multiple-item scales for measuring cognitive load.\",\"Mitigating the seductive details effect by topic and irrelevance signals\"],\"confidenceQualitative\":\"medium\",\"limitations\":[\"La spécificité cognitive du public novice de bibliothèque n'est pas testée directement\",\"Charge cognitive mesurée en contextes expérimentaux distincts\"]},\n{\"dimensionId\":\"human-computer-interaction\",\"disposition\":\"gap\",\"epistemicStatus\":\"cautious_inference\",\"finding\":\"L'accès aux tutoriels en ligne suppose la maîtrise d'interfaces, obstacle potentiel pour le public visé, mais la base du twin n'aborde pas l'utilisabilité ni l'accessibilité des interfaces en tant que telles.\",\"rationale\":\"Le seul travail proche concerne un tutoriel logiciel sous l'angle de l'apprentissage cognitif, non l'ergonomie ni l'accessibilité des interfaces ; l'obstacle d'accès aux ressources en ligne pour des usagers novices reste non établi par ce corpus.\",\"targetEvidenceRefs\":[\"par des tutoriels vidéo en ligne\"],\"twinBasisWorkRefs\":[\"Is it not too redundant? When signaling overlap reduces extraneous load and enhances retention in a software video tutorial\"],\"confidenceQualitative\":\"low\",\"limitations\":[\"Aucun travail centré sur l'utilisabilité/accessibilité des interfaces\",\"Angle du corpus = apprentissage cognitif, pas ergonomie\"]},\n{\"dimensionId\":\"library-information-science\",\"disposition\":\"not_determinable\",\"epistemicStatus\":\"not_determinable\",\"finding\":\"Le rôle de la bibliothèque municipale dans la médiation et l'inclusion numériques n'est pas analysable à partir de la base du twin, qui ne comporte aucun travail sur ce champ.\",\"rationale\":\"Aucun travail ne porte sur les bibliothèques, la médiation documentaire ou l'inclusion numérique institutionnelle ; le twin ne peut se prononcer sur la dimension de service public que soulève le document.\",\"targetEvidenceRefs\":[\"Une bibliothèque municipale veut remplacer ses ateliers d'initiation numérique en présentiel\"],\"twinBasisWorkRefs\":[],\"confidenceQualitative\":\"low\",\"limitations\":[\"Absence totale de travaux en sciences de l'information et des bibliothèques\"]},\n{\"dimensionId\":\"sociology-of-digital-divide\",\"disposition\":\"not_determinable\",\"epistemicStatus\":\"not_determinable\",\"finding\":\"Les effets sociaux d'une dématérialisation du service sur les publics vulnérables ne peuvent être étayés par la base du twin.\",\"rationale\":\"Aucun travail n'aborde les inégalités d'accès ou d'usage, les publics vulnérables ou les effets sociaux de la dématérialisation ; la question distributive posée par le remplacement échappe au corpus.\",\"targetEvidenceRefs\":[\"les usagers peu à l'aise avec le numérique\"],\"twinBasisWorkRefs\":[],\"confidenceQualitative\":\"low\",\"limitations\":[\"Aucun travail sur la fracture numérique ou les inégalités d'usage\"]},\n{\"dimensionId\":\"gerontology-and-aging-studies\",\"disposition\":\"not_determinable\",\"epistemicStatus\":\"not_determinable\",\"finding\":\"Les spécificités de l'apprentissage numérique des seniors, souvent surreprésentés parmi les publics visés, ne peuvent être documentées par la base du twin.\",\"rationale\":\"Aucun travail ne porte sur les personnes âgées ou le vieillissement ; les contextes disponibles sont scolaires, universitaires ou génériques, sans focalisation sur les seniors.\",\"targetEvidenceRefs\":[\"les usagers peu à l'aise avec le numérique\"],\"twinBasisWorkRefs\":[],\"confidenceQualitative\":\"low\",\"limitations\":[\"Aucun travail sur le vieillissement ou l'autonomie technologique des seniors\"]},\n{\"dimensionId\":\"andragogy\",\"disposition\":\"gap\",\"epistemicStatus\":\"cautious_inference\",\"finding\":\"Les conditions d'apprentissage autonome propres aux adultes, centrales pour juger d'un format auto-formatif, ne sont pas spécifiquement documentées par la base du twin.\",\"rationale\":\"Aucun travail ne traite des conditions andragogiques d'auto-formation ; les contextes documentés (primaire, supérieur, générique) ne permettent pas d'établir la pertinence du format vidéo pour des apprenants adultes novices.\",\"targetEvidenceRefs\":[\"remplacer ses ateliers d'initiation numérique en présentiel par des tutoriels vidéo en ligne\"],\"twinBasisWorkRefs\":[],\"confidenceQualitative\":\"low\",\"limitations\":[\"Absence de focalisation sur l'apprenant adulte\",\"Contextes documentés non transférables à l'andragogie\"]}\n]}",
+   "usage": {
+    "input_tokens": 6246,
+    "output_tokens": 3500
+   },
+   "purpose": "EF-03B review"
+  }
+ ],
+ "note": "artefacts reels ; identite du jumeau anonymisee ; reponses byte-exactes"
+}

@@ -1,0 +1,735 @@
+{
+ "summary": {
+  "fixtures": 11,
+  "occurrencesTargetRef": 12,
+  "exactRepeatsDetected": 5,
+  "wastedIdenticalPasses": 5,
+  "targetedEligibleSequences": 5,
+  "splices": 12,
+  "inventions": 0,
+  "truncations": 0,
+  "historicalCorrectionAcceptedByRecomposition": 2,
+  "falseAcceptances": 0,
+  "regressions": 0,
+  "tokensWastedIdentical": {
+   "input": 22401,
+   "output": 17193
+  },
+  "tokensR1": {
+   "input": 16691,
+   "output": 12117
+  },
+  "targetedPromptsBuilt": 5,
+  "targetedPromptCollisions": 0,
+  "distinctRepairContexts": 5
+ },
+ "rows": [
+  {
+   "id": "R1",
+   "kind": "multi",
+   "passes": [
+    {
+     "pass": 1,
+     "historicalValid": false,
+     "replayValid": false,
+     "sameVerdict": true,
+     "codes": [
+      "TARGET_REF_NOT_LITERAL"
+     ],
+     "exactRepeat": false,
+     "targetedEligible": true,
+     "rejected": {
+      "human-computer-interaction": [
+       "tutoriels vidéo en ligne pour les usagers peu à l'aise avec le numérique"
+      ]
+     },
+     "fragments": {
+      "human-computer-interaction": [
+       {
+        "ref": "tutoriels vidéo en ligne pour les usagers peu à l'aise avec le numérique",
+        "literal": false,
+        "fragments": [
+         "tutoriels vidéo en ligne",
+         " pour les usagers peu à l'aise avec le numérique"
+        ],
+        "coverage": 1
+       }
+      ]
+     },
+     "usage": {
+      "input_tokens": 6517,
+      "output_tokens": 4039
+     }
+    },
+    {
+     "pass": 2,
+     "historicalValid": false,
+     "replayValid": false,
+     "sameVerdict": true,
+     "codes": [
+      "TARGET_REF_NOT_LITERAL"
+     ],
+     "exactRepeat": true,
+     "targetedEligible": true,
+     "rejected": {
+      "human-computer-interaction": [
+       "tutoriels vidéo en ligne pour les usagers peu à l'aise avec le numérique"
+      ]
+     },
+     "fragments": {
+      "human-computer-interaction": [
+       {
+        "ref": "tutoriels vidéo en ligne pour les usagers peu à l'aise avec le numérique",
+        "literal": false,
+        "fragments": [
+         "tutoriels vidéo en ligne",
+         " pour les usagers peu à l'aise avec le numérique"
+        ],
+        "coverage": 1
+       }
+      ]
+     },
+     "usage": {
+      "input_tokens": 5087,
+      "output_tokens": 4039
+     }
+    },
+    {
+     "pass": 3,
+     "historicalValid": false,
+     "replayValid": false,
+     "sameVerdict": true,
+     "codes": [
+      "TARGET_REF_NOT_LITERAL"
+     ],
+     "exactRepeat": true,
+     "targetedEligible": true,
+     "rejected": {
+      "human-computer-interaction": [
+       "tutoriels vidéo en ligne pour les usagers peu à l'aise avec le numérique"
+      ]
+     },
+     "fragments": {
+      "human-computer-interaction": [
+       {
+        "ref": "tutoriels vidéo en ligne pour les usagers peu à l'aise avec le numérique",
+        "literal": false,
+        "fragments": [
+         "tutoriels vidéo en ligne",
+         " pour les usagers peu à l'aise avec le numérique"
+        ],
+        "coverage": 1
+       }
+      ]
+     },
+     "usage": {
+      "input_tokens": 5087,
+      "output_tokens": 4039
+     }
+    }
+   ],
+   "targetedPromptPass2": {
+    "sha256": "8974ae3e6662f4bbeaee54a56c7dff9f82c2c90d909b7b998fadf47f645e5dd1",
+    "chars": 2711,
+    "mentionsFragments": true,
+    "mentionsEmptyFallback": true,
+    "containsDocument": true,
+    "reinjectsFullPreviousResponse": false,
+    "repairContextFingerprint": "217afc5734bd8287ffc98e5aa6d74cab82c2cdf550a46bb2d7236addff42944d",
+    "carriesFingerprint": true
+   }
+  },
+  {
+   "id": "R2",
+   "kind": "multi",
+   "passes": [
+    {
+     "pass": 1,
+     "historicalValid": false,
+     "replayValid": false,
+     "sameVerdict": true,
+     "codes": [
+      "TARGET_REF_NOT_LITERAL"
+     ],
+     "exactRepeat": false,
+     "targetedEligible": true,
+     "rejected": {
+      "human-computer-interaction": [
+       "tutoriels vidéo en ligne pour les usagers peu à l'aise avec le numérique"
+      ],
+      "gerontology-and-aging-studies": [
+       "tutoriels vidéo en ligne pour les usagers peu à l'aise avec le numérique"
+      ]
+     },
+     "fragments": {
+      "human-computer-interaction": [
+       {
+        "ref": "tutoriels vidéo en ligne pour les usagers peu à l'aise avec le numérique",
+        "literal": false,
+        "fragments": [
+         "tutoriels vidéo en ligne",
+         " pour les usagers peu à l'aise avec le numérique"
+        ],
+        "coverage": 1
+       }
+      ],
+      "gerontology-and-aging-studies": [
+       {
+        "ref": "tutoriels vidéo en ligne pour les usagers peu à l'aise avec le numérique",
+        "literal": false,
+        "fragments": [
+         "tutoriels vidéo en ligne",
+         " pour les usagers peu à l'aise avec le numérique"
+        ],
+        "coverage": 1
+       }
+      ]
+     },
+     "usage": {
+      "input_tokens": 7948,
+      "output_tokens": 4354
+     }
+    },
+    {
+     "pass": 2,
+     "historicalValid": true,
+     "replayValid": true,
+     "sameVerdict": true,
+     "codes": [],
+     "exactRepeat": false,
+     "targetedEligible": false,
+     "rejected": {},
+     "fragments": {},
+     "usage": {
+      "input_tokens": 5950,
+      "output_tokens": 4356
+     }
+    }
+   ],
+   "historicalCorrectionAsTargetedRepair": {
+    "faultyDimensions": [
+     "human-computer-interaction",
+     "gerontology-and-aging-studies"
+    ],
+    "accepted": true,
+    "errors": [],
+    "lineage": {
+     "human-computer-interaction": {
+      "state": "RESOLVED",
+      "preservedRefs": [],
+      "rejectedRefs": [
+       "tutoriels vidéo en ligne pour les usagers peu à l'aise avec le numérique"
+      ],
+      "validRepairedRefs": [
+       "des tutoriels vidéo en ligne",
+       "les usagers peu à l'aise avec le numérique"
+      ],
+      "droppedRepairedRefs": [],
+      "finalRefs": [
+       "des tutoriels vidéo en ligne",
+       "les usagers peu à l'aise avec le numérique"
+      ],
+      "unresolvedInvalidRefs": [],
+      "repairOutcome": "REPAIRED"
+     },
+     "gerontology-and-aging-studies": {
+      "state": "RESOLVED",
+      "preservedRefs": [],
+      "rejectedRefs": [
+       "tutoriels vidéo en ligne pour les usagers peu à l'aise avec le numérique"
+      ],
+      "validRepairedRefs": [
+       "des tutoriels vidéo en ligne",
+       "les usagers peu à l'aise avec le numérique"
+      ],
+      "droppedRepairedRefs": [],
+      "finalRefs": [
+       "des tutoriels vidéo en ligne",
+       "les usagers peu à l'aise avec le numérique"
+      ],
+      "unresolvedInvalidRefs": [],
+      "repairOutcome": "REPAIRED"
+     }
+    },
+    "unresolvedDimensions": []
+   },
+   "targetedPromptPass2": {
+    "sha256": "e5bbf85aa23b2d35e3db72dd968557e3e928aaed09f25f9e036d08ecc79dbd29",
+    "chars": 3613,
+    "mentionsFragments": true,
+    "mentionsEmptyFallback": true,
+    "containsDocument": true,
+    "reinjectsFullPreviousResponse": false,
+    "repairContextFingerprint": "40d76865edf23ff47b31d9cd1320815dcc944cbd2c2ce9ce86229052b44ef2b6",
+    "carriesFingerprint": true
+   }
+  },
+  {
+   "id": "R3",
+   "kind": "multi",
+   "passes": [
+    {
+     "pass": 1,
+     "historicalValid": false,
+     "replayValid": false,
+     "sameVerdict": true,
+     "codes": [
+      "TARGET_REF_NOT_LITERAL"
+     ],
+     "exactRepeat": false,
+     "targetedEligible": true,
+     "rejected": {
+      "interaction-homme-machine": [
+       "des tutoriels vidéo en ligne pour les usagers peu à l'aise avec le numérique"
+      ]
+     },
+     "fragments": {
+      "interaction-homme-machine": [
+       {
+        "ref": "des tutoriels vidéo en ligne pour les usagers peu à l'aise avec le numérique",
+        "literal": false,
+        "fragments": [
+         "des tutoriels vidéo en ligne",
+         " pour les usagers peu à l'aise avec le numérique"
+        ],
+        "coverage": 1
+       }
+      ]
+     },
+     "usage": {
+      "input_tokens": 5605,
+      "output_tokens": 3237
+     }
+    },
+    {
+     "pass": 2,
+     "historicalValid": false,
+     "replayValid": false,
+     "sameVerdict": true,
+     "codes": [
+      "TARGET_REF_NOT_LITERAL"
+     ],
+     "exactRepeat": true,
+     "targetedEligible": true,
+     "rejected": {
+      "interaction-homme-machine": [
+       "des tutoriels vidéo en ligne pour les usagers peu à l'aise avec le numérique"
+      ]
+     },
+     "fragments": {
+      "interaction-homme-machine": [
+       {
+        "ref": "des tutoriels vidéo en ligne pour les usagers peu à l'aise avec le numérique",
+        "literal": false,
+        "fragments": [
+         "des tutoriels vidéo en ligne",
+         " pour les usagers peu à l'aise avec le numérique"
+        ],
+        "coverage": 1
+       }
+      ]
+     },
+     "usage": {
+      "input_tokens": 4292,
+      "output_tokens": 3237
+     }
+    },
+    {
+     "pass": 3,
+     "historicalValid": false,
+     "replayValid": false,
+     "sameVerdict": true,
+     "codes": [
+      "TARGET_REF_NOT_LITERAL"
+     ],
+     "exactRepeat": true,
+     "targetedEligible": true,
+     "rejected": {
+      "interaction-homme-machine": [
+       "des tutoriels vidéo en ligne pour les usagers peu à l'aise avec le numérique"
+      ]
+     },
+     "fragments": {
+      "interaction-homme-machine": [
+       {
+        "ref": "des tutoriels vidéo en ligne pour les usagers peu à l'aise avec le numérique",
+        "literal": false,
+        "fragments": [
+         "des tutoriels vidéo en ligne",
+         " pour les usagers peu à l'aise avec le numérique"
+        ],
+        "coverage": 1
+       }
+      ]
+     },
+     "usage": {
+      "input_tokens": 4292,
+      "output_tokens": 3237
+     }
+    }
+   ],
+   "targetedPromptPass2": {
+    "sha256": "fe96ea8bdc28002123425c9199d622386ec19dd4d309eee5cde7aad09b73a78e",
+    "chars": 2720,
+    "mentionsFragments": true,
+    "mentionsEmptyFallback": true,
+    "containsDocument": true,
+    "reinjectsFullPreviousResponse": false,
+    "repairContextFingerprint": "4cc98d373056d6aec98772982df4495336fc1a44476f5fd1b9c833621f10ec59",
+    "carriesFingerprint": true
+   }
+  },
+  {
+   "id": "R4",
+   "kind": "multi",
+   "passes": [
+    {
+     "pass": 1,
+     "historicalValid": false,
+     "replayValid": false,
+     "sameVerdict": true,
+     "codes": [
+      "TARGET_REF_NOT_LITERAL"
+     ],
+     "exactRepeat": false,
+     "targetedEligible": true,
+     "rejected": {
+      "interaction-homme-machine": [
+       "tutoriels vidéo en ligne pour les usagers peu à l'aise avec le numérique"
+      ]
+     },
+     "fragments": {
+      "interaction-homme-machine": [
+       {
+        "ref": "tutoriels vidéo en ligne pour les usagers peu à l'aise avec le numérique",
+        "literal": false,
+        "fragments": [
+         "tutoriels vidéo en ligne",
+         " pour les usagers peu à l'aise avec le numérique"
+        ],
+        "coverage": 1
+       }
+      ]
+     },
+     "usage": {
+      "input_tokens": 5419,
+      "output_tokens": 2640
+     }
+    },
+    {
+     "pass": 2,
+     "historicalValid": false,
+     "replayValid": false,
+     "sameVerdict": true,
+     "codes": [
+      "TARGET_REF_NOT_LITERAL"
+     ],
+     "exactRepeat": false,
+     "targetedEligible": true,
+     "rejected": {
+      "interaction-homme-machine": [
+       "des tutoriels vidéo en ligne pour les usagers peu à l'aise avec le numérique"
+      ]
+     },
+     "fragments": {
+      "interaction-homme-machine": [
+       {
+        "ref": "des tutoriels vidéo en ligne pour les usagers peu à l'aise avec le numérique",
+        "literal": false,
+        "fragments": [
+         "des tutoriels vidéo en ligne",
+         " pour les usagers peu à l'aise avec le numérique"
+        ],
+        "coverage": 1
+       }
+      ]
+     },
+     "usage": {
+      "input_tokens": 3641,
+      "output_tokens": 2641
+     }
+    },
+    {
+     "pass": 3,
+     "historicalValid": false,
+     "replayValid": false,
+     "sameVerdict": true,
+     "codes": [
+      "TARGET_REF_NOT_LITERAL"
+     ],
+     "exactRepeat": true,
+     "targetedEligible": true,
+     "rejected": {
+      "interaction-homme-machine": [
+       "des tutoriels vidéo en ligne pour les usagers peu à l'aise avec le numérique"
+      ]
+     },
+     "fragments": {
+      "interaction-homme-machine": [
+       {
+        "ref": "des tutoriels vidéo en ligne pour les usagers peu à l'aise avec le numérique",
+        "literal": false,
+        "fragments": [
+         "des tutoriels vidéo en ligne",
+         " pour les usagers peu à l'aise avec le numérique"
+        ],
+        "coverage": 1
+       }
+      ]
+     },
+     "usage": {
+      "input_tokens": 3643,
+      "output_tokens": 2641
+     }
+    }
+   ],
+   "targetedPromptPass2": {
+    "sha256": "ad53cc5dd426bc14095001b16c4d0bd4f9bc0556ae3c18971b36d5a480246ca1",
+    "chars": 2708,
+    "mentionsFragments": true,
+    "mentionsEmptyFallback": true,
+    "containsDocument": true,
+    "reinjectsFullPreviousResponse": false,
+    "repairContextFingerprint": "fcf864363f7d54f37dcdbf5f4419ee99d9841de272bdc5737e753460c77938c0",
+    "carriesFingerprint": true
+   }
+  },
+  {
+   "id": "R5",
+   "kind": "multi",
+   "passes": [
+    {
+     "pass": 1,
+     "historicalValid": false,
+     "replayValid": false,
+     "sameVerdict": true,
+     "codes": [
+      "DOCUMENTED_WITHOUT_TWIN_REF"
+     ],
+     "exactRepeat": false,
+     "targetedEligible": false,
+     "rejected": {},
+     "fragments": {},
+     "usage": {
+      "input_tokens": 5634,
+      "output_tokens": 2996
+     }
+    },
+    {
+     "pass": 2,
+     "historicalValid": true,
+     "replayValid": true,
+     "sameVerdict": true,
+     "codes": [],
+     "exactRepeat": false,
+     "targetedEligible": false,
+     "rejected": {},
+     "fragments": {},
+     "usage": {
+      "input_tokens": 4064,
+      "output_tokens": 3012
+     }
+    }
+   ]
+  },
+  {
+   "id": "R6",
+   "kind": "multi",
+   "passes": [
+    {
+     "pass": 1,
+     "historicalValid": false,
+     "replayValid": false,
+     "sameVerdict": true,
+     "codes": [
+      "TARGET_REF_NOT_LITERAL"
+     ],
+     "exactRepeat": false,
+     "targetedEligible": true,
+     "rejected": {
+      "sciences-information-documentation": [
+       "P0.1 devra vérifier ce que la fiche capture correctement"
+      ]
+     },
+     "fragments": {
+      "sciences-information-documentation": [
+       {
+        "ref": "P0.1 devra vérifier ce que la fiche capture correctement",
+        "literal": false,
+        "fragments": [
+         "P0.1 devra vérifier ",
+         "ce que la fiche capture correctement"
+        ],
+        "coverage": 1
+       }
+      ]
+     },
+     "usage": {
+      "input_tokens": 14051,
+      "output_tokens": 3293
+     }
+    },
+    {
+     "pass": 2,
+     "historicalValid": true,
+     "replayValid": true,
+     "sameVerdict": true,
+     "codes": [],
+     "exactRepeat": false,
+     "targetedEligible": false,
+     "rejected": {},
+     "fragments": {},
+     "usage": {
+      "input_tokens": 12743,
+      "output_tokens": 3289
+     }
+    }
+   ],
+   "historicalCorrectionAsTargetedRepair": {
+    "faultyDimensions": [
+     "sciences-information-documentation"
+    ],
+    "accepted": true,
+    "errors": [],
+    "lineage": {
+     "sciences-information-documentation": {
+      "state": "RESOLVED",
+      "preservedRefs": [
+       "Les champs d'analyse professionnelle inclus dans les deux exports sont restés vides. Le présent document ne les remplit pas à la place d'un relecteur professionnel."
+      ],
+      "rejectedRefs": [
+       "P0.1 devra vérifier ce que la fiche capture correctement"
+      ],
+      "validRepairedRefs": [
+       "Les champs d'analyse professionnelle inclus dans les deux exports sont restés vides. Le présent document ne les remplit pas à la place d'un relecteur professionnel.",
+       "vérifier ce que la fiche capture correctement"
+      ],
+      "droppedRepairedRefs": [],
+      "finalRefs": [
+       "Les champs d'analyse professionnelle inclus dans les deux exports sont restés vides. Le présent document ne les remplit pas à la place d'un relecteur professionnel.",
+       "vérifier ce que la fiche capture correctement"
+      ],
+      "unresolvedInvalidRefs": [],
+      "repairOutcome": "REPAIRED"
+     }
+    },
+    "unresolvedDimensions": []
+   },
+   "targetedPromptPass2": {
+    "sha256": "fee18de0f3400fb9d192d69c3d03959bfe67094cca90bbdf765ec86f0b6586cb",
+    "chars": 22584,
+    "mentionsFragments": true,
+    "mentionsEmptyFallback": true,
+    "containsDocument": true,
+    "reinjectsFullPreviousResponse": false,
+    "repairContextFingerprint": "033dc7c6864bea7284d2ac4043b3e051bb29252bd3b265620f01e0d6cb4d48f6",
+    "carriesFingerprint": true
+   }
+  },
+  {
+   "id": "S1",
+   "kind": "success",
+   "passes": [
+    {
+     "pass": 1,
+     "historicalValid": true,
+     "replayValid": true,
+     "sameVerdict": true,
+     "codes": [],
+     "exactRepeat": false,
+     "targetedEligible": false,
+     "rejected": {},
+     "fragments": {},
+     "usage": {
+      "input_tokens": 6010,
+      "output_tokens": 3202
+     }
+    }
+   ]
+  },
+  {
+   "id": "S2",
+   "kind": "success",
+   "passes": [
+    {
+     "pass": 1,
+     "historicalValid": true,
+     "replayValid": true,
+     "sameVerdict": true,
+     "codes": [],
+     "exactRepeat": false,
+     "targetedEligible": false,
+     "rejected": {},
+     "fragments": {},
+     "usage": {
+      "input_tokens": 6246,
+      "output_tokens": 3500
+     }
+    }
+   ]
+  },
+  {
+   "id": "S3",
+   "kind": "success",
+   "passes": [
+    {
+     "pass": 1,
+     "historicalValid": true,
+     "replayValid": true,
+     "sameVerdict": true,
+     "codes": [],
+     "exactRepeat": false,
+     "targetedEligible": false,
+     "rejected": {},
+     "fragments": {},
+     "usage": {
+      "input_tokens": 6265,
+      "output_tokens": 3300
+     }
+    }
+   ]
+  },
+  {
+   "id": "S4",
+   "kind": "success",
+   "passes": [
+    {
+     "pass": 1,
+     "historicalValid": true,
+     "replayValid": true,
+     "sameVerdict": true,
+     "codes": [],
+     "exactRepeat": false,
+     "targetedEligible": false,
+     "rejected": {},
+     "fragments": {},
+     "usage": {
+      "input_tokens": 6464,
+      "output_tokens": 3458
+     }
+    }
+   ]
+  },
+  {
+   "id": "S5",
+   "kind": "success",
+   "passes": [
+    {
+     "pass": 1,
+     "historicalValid": true,
+     "replayValid": true,
+     "sameVerdict": true,
+     "codes": [],
+     "exactRepeat": false,
+     "targetedEligible": false,
+     "rejected": {},
+     "fragments": {},
+     "usage": {
+      "input_tokens": 6687,
+      "output_tokens": 3558
+     }
+    }
+   ]
+  }
+ ]
+}

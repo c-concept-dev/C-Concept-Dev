@@ -1,0 +1,237 @@
+{
+  "schema": "EvidenceForge.Mono11V04FreezeAudit",
+  "version": "v1",
+  "auditedAt": "2026-09-22",
+  "auditor": "independent adversarial agent (read-only)",
+  "subject": {
+    "lot": "MONO-11",
+    "version": "v0.4",
+    "name": "TARGETED REPAIR LINEAGE PRESERVATION (contrat MONO-11-v3 : LINEAGE_MONOTONICITY_DURING_REPAIR)",
+    "lotDir": "/Users/christophebonnet/Documents/GitHub/C-Concept-Dev/tools/EvidenceForge/r6/EvidenceForge-CLEAN-MONO-01-08/MONO-11/v0.4",
+    "sealHash": "110db4de24709926d4a5fb6d0e951530f0afc2c1c807a09127852a92aa182c3d",
+    "runCodeHash": "27610c84502104b3dc9643a9cc0289aef4ae40ae65ee34e4fe82f31a73e381ad",
+    "zipSha256": "79c16d08a0a52bc1b9ae3c6884cc22f6161145bed18158d6c9b6a44df1a7c474",
+    "enforcerSha256": "cd620ab30ca1fbe863987dee6711b358930721d57c1b7d086c7bab87d985636a",
+    "manifestSha256": "9acc820d698f7da05a9cd65795fc2cded93c1f0fe4820735bed25c4c3a29514b",
+    "contractVersion": "MONO-11-v3",
+    "predecessor": { "version": "v0.3-r1", "zipSha256": "3c44b397dda0997d0fff6ab4c8e8a8b311430e6a5ac7aeee38149f8349296b0b", "sealHash": "9fbef4126d437e0bb2ee4b2564b5ebcc381e8a338eacba40a590eff8402c079c", "runCodeHash": "e156590d1605a8873b7b9814ad44a314084ad8946c8993dff4e5e7f86b452755", "enforcerSha256": "42de4c51daa1e33d40058f18dc8eef79beaee7ae3aca134c33118601ade92b3b", "intact": true }
+  },
+  "verdict": "MONO11_V0_4_FREEZE_AUDIT_PASS_WITH_RESERVATIONS",
+  "recommendation": "GELER",
+  "recommendationConditions": [
+    "R5 obligatoire avant tout run reel sous v0.4 : aligner le miroir de l'adaptateur MONOLITH (lib/ef03b-resilience.js l.191) sur mergeRepairLineage + recompose(applied)",
+    "R6 obligatoire a l'integration : aligner VALIDATION_CONTRACT / CONTRACT (lib/llm.js l.71, lib/ef03b-resilience.js l.167) et tools/ef03b-registry-import.js sur MONO-11-v3",
+    "R1 / R2 correctifs documentaires souhaitables (imposeraient un re-sceau => v0.4-r1 ; arbitrage proprietaire)",
+    "R3 / R4 backlog v0.5",
+    "R11 / R12 a enoncer au proprietaire (chemin INFORMED sans garantie de lignee ; davantage de reviewStatus error en CAS B)"
+  ],
+  "blockers": [],
+  "reservations": [
+    { "id": "R1", "severity": "low", "class": "CONTRACT_CODE_DIVERGENCE", "statement": "Le contrat ecrit NO_REFS_EXPECTED : RAW=[] => FINAL=[] ; le code (mergeRepairLineage l.199-201) rend FINAL = VALID_REPAIR, non vide si la reparation est litterale.", "evidence": "probe A8 : mergeRepairLineage({findings:[D1:[]]}, {D1:['ALPHA beta']}, content) -> state=NO_REFS_EXPECTED, FINAL=['ALPHA beta']", "reachableFromRunEnforcedReview": false, "reachabilityProof": "probe CASE A' : une dimension a raw=[] n'est jamais une faultyDimension (faultyDimensions l.168 exige une erreur TARGET_REF_NOT_LITERAL)" },
+    { "id": "R2", "severity": "low", "class": "TRACEABILITY", "statement": "buildEnforcedReviewSet l.403 : producedBy annonce toujours 'MONO-11 v0.3-r1 review-enforcer' ; le DocumentaryReviewSet produit par v0.4 se declare produit par v0.3-r1.", "file": "core/review-enforcer.js:403" },
+    { "id": "R3", "severity": "medium", "class": "PROMPT_ACCURACY", "statement": "En CAS B, le prompt de passe 3 porte 'elle REPRODUISAIT A L'IDENTIQUE la citation fautive' alors que le modele a pu rendre [] : la re-presentation est causee par v0.4 (applied = raw). Accusation fausse, pression possible vers l'invention.", "evidence": "probe CASE B pass3 : clause presente ; repeatedFaultyRef vrai car les refs brutes invalides sont reinjectees puis retrouvees dans forbiddenRefs", "file": "core/review-enforcer.js:245,320,323" },
+    { "id": "R4", "severity": "medium", "class": "TRACE_GAP", "statement": "Si parseRepair echoue, rec.repairUnresolvedDimensions vaut silencieusement [] et repair.lineage est absent ; le statut non resolu n'est porte que par repair.parsed=false + REPAIR_JSON_INVALID.", "evidence": "probe B-parseFail : repairUnresolvedDimensions=[] et lineage=undefined, mais reviewStatus reste error (aucun faux succes)", "file": "core/review-enforcer.js:343,347,353" },
+    { "id": "R5", "severity": "high_at_integration", "class": "INTEGRATION_MUST_FIX", "statement": "Le miroir de l'adaptateur MONOLITH RE.recompose(st.parsed, rp.repairs) diverge octet pour octet du candidat du lot sous v0.4 ; en CAS B le miroir est VALIDE la ou le candidat du lot est INVALIDE ; le registre EF-03B inscrirait un candidat ampute de ses references conservees.", "evidence": "mesure : miroir ['Troisieme option lisible'] vs lot ['ALPHA beta GAMMA','Troisieme option lisible'] ; CAS B : miroir [] valide=true, lot ['citation absolument inexistante'] valide=false", "file": "MONOLITH-v1.0.11/lib/ef03b-resilience.js:191 (v1.0.10 l.155)", "targetRelease": "MONOLITH-v1.0.12", "isDefectOfThisLot": false, "declaredByManifest": true },
+    { "id": "R6", "severity": "high_at_integration", "class": "INTEGRATION_MUST_FIX", "statement": "validationContract / CONTRACT epingles a MONO-11-v2 alors que contractVersion passe a MONO-11-v3 ; tools/ef03b-registry-import.js code le contrat en dur et reconstruit les candidats avec l'ancien recompose.", "file": "MONOLITH-v1.0.11/lib/llm.js:71, lib/ef03b-resilience.js:167, tools/ef03b-registry-import.js:33", "targetRelease": "MONOLITH-v1.0.12", "isDefectOfThisLot": false, "declaredByManifest": true },
+    { "id": "R7", "severity": "low", "class": "DEAD_PARAMETER", "statement": "forbiddenRefs est passe a targetedRepairPrompt mais jamais rendu dans le prompt (deja en v0.3-r1). La garantie 'aucune valide interdite' repose sur la regle d'accumulation, pas sur le texte : risque latent si une version future affichait la liste.", "evidence": "probe F : le prompt de passe 3 ne contient ni 'forbiddenRefs', ni une conservee dans une clause d'interdiction, ni meme la reparation ecartee", "file": "core/review-enforcer.js:239-267,323" },
+    { "id": "R8", "severity": "low", "class": "FIXTURE_PROVENANCE", "statement": "test/fixtures/tr8-targeted-repair-case.json reprend mot pour mot les trois citations historiques (A10 restorationTable[15]) : anonymisation = desidentification, pas decontextualisation. Le MANIFEST consigne 'aucun artefact de cas declare' alors qu'un artefact derive d'un cas existe desormais.", "evidence": "comparaison champ a champ avec EVIDENCEFORGE-A10-LINEAGE-RESTORATION-v1.json restorationTable[15] ; aucun identifiant (reviewId, findingId, targetId, documentSha256) repris ; scan anti-hardcoding adversarial avec 322 jetons du cas reel : 0 hit" },
+    { "id": "R9", "severity": "low", "class": "SIZING", "statement": "Croissance de la trace : +28 % sur une passe ciblee minimale (1237 -> 1578 octets) ; repair.lineage duplique les chaines de citations par dimension. Consommateurs tolerants, mais checkpoint-downstream.json fait 5,4 Mo sur le run historique.", "evidence": "mesure directe v0.3-r1 vs v0.4 sur le meme scenario" },
+    { "id": "R10", "severity": "very_low", "class": "DEFENSIVE_ROBUSTNESS", "statement": "mergeRepairLineage n'a pas la garde typeof content === 'string' de partitionRefsOf ; avec un targetDoc.content non-chaine et non-nul, le validateur utiliserait '' et isLiteralRef String(content). Inatteignable en pratique.", "file": "core/review-enforcer.js:170,177,192" },
+    { "id": "R11", "severity": "info", "class": "SCOPE_RESIDUAL", "statement": "Le chemin INFORMED_REPAIR_V02 (regeneration complete) n'offre aucune garantie de lignee : mesure, la reference valide VA disparait. Ce n'est PAS une perte de lignee de reparation mais une nouvelle reponse complete legitime, validee par le validateur gele, explicitement hors du scope du contrat v3 ; sur cette passe preservedRefs=null et repairUnresolvedDimensions=[] : la trace ne pretend rien.", "classification": "LEGITIMATE_NEW_ANSWER_NOT_A_LOSS" },
+    { "id": "R12", "severity": "info", "class": "OPERATIONAL", "statement": "Changement de comportement voulu (Q6) : une revue que v0.3-r1 acceptait (CAS B avec reparation [] => [] silencieux accepte) echoue desormais en fail-closed. Un run reel peut produire davantage de reviewStatus error." },
+    { "id": "R13", "severity": "low", "class": "BUILD", "statement": "Le zip canonique est produit par une commande zip -X ad hoc : aucun script de construction dans le lot, horodatages des entrees non neutralises => reconstruction deterministe octet pour octet NON garantie. L'integrite repose sur le hash publie, ce que le lot ne pretend pas depasser." }
+  ],
+  "integrity": {
+    "v03r1": { "shasumCheck": "52/52 OK, 0 fail", "filesOnDisk": 54, "sealedEntries": 52, "uncovered": ["MANIFEST.json", "SHA256SUMS.txt"], "enforcerSha256": "42de4c51daa1e33d40058f18dc8eef79beaee7ae3aca134c33118601ade92b3b", "zipSha256Match": true, "intact": true },
+    "v04": { "shasumCheck": "55/55 OK, 0 fail", "filesOnDisk": 57, "sealedEntries": 55, "uncovered": ["MANIFEST.json", "SHA256SUMS.txt"], "strayFiles": [], "hiddenFiles": [], "unsealedCodeUnderCoreOrContracts": [], "zipSha256MatchesDotSha256": true, "assertSealedRuntime": { "sealed": true, "runtimeSealSha256": "110db4de24709926d4a5fb6d0e951530f0afc2c1c807a09127852a92aa182c3d", "runCodeHash": "27610c84502104b3dc9643a9cc0289aef4ae40ae65ee34e4fe82f31a73e381ad", "sealedFiles": 55, "codeFilesSealed": 15 } },
+    "diffV03r1ToV04": {
+      "onlyInV04": ["CHANGELOG-v0.3-r1-to-v0.4.md", "TEST-REPORT-v0.4.md", "test/fixtures/tr8-targeted-repair-case.json", "test/test-mono11-v0.4.js"],
+      "onlyInV03r1": ["test/test-mono11-v0.3-r1.js"],
+      "differ": ["MANIFEST.json", "README.md", "SHA256SUMS.txt", "benchmark/replay-results.json", "benchmark/replay.js", "contracts/mono11-contracts.json", "core/review-enforcer.js", "index.js", "tools/build-manifest.js"],
+      "coreModulesByteIdentical": ["core/autonomous-panel-adapter.js", "core/autonomous-run.js", "core/composed-qualification.js", "core/corpus-sufficiency-probe.js", "core/coverage-enforcer.js", "core/frozen-bridge.js", "core/llm-response-reuse.js", "core/machine-evidence-gate.js", "core/mono11-ledger.js", "core/run-seal-guard.js", "core/semantic-relevance-oracle.js", "core/target-normalizer.js"],
+      "otherByteIdentical": ["test/harness.js", "test/fixtures/domains.js", "test/fixtures/v0.2-reference.json", "tools/seal.js", "tools/anti-hardcoding-scan.js"],
+      "onlyRuntimeBehaviourChange": "core/review-enforcer.js",
+      "nuance": "benchmark/replay.js change AUSSI de comportement (rejectedRefsOf avec doc.content l.28 ; mergeRepairLineage avant recompose l.38). Outil de mesure hors ligne, non charge par index.js, hors CODE_DIRS du run-seal-guard, donc hors runCodeHash. index.js = commentaire d'en-tete seul ; tools/build-manifest.js = donnees du manifeste seules.",
+      "restIsContractVersionDocsTestsManifestSeal": true
+    }
+  },
+  "contractChecks": [
+    { "property": "P1", "statement": "FINAL_REFS superset VALID_ORIGINAL_REFS", "codeSite": "core/review-enforcer.js:197-199", "statedInContract": true, "implementedInCode": true, "independentProbe": "fuzz 20000 tirages", "result": "PASS" },
+    { "property": "P2", "statement": "FINAL_REFS subset RAW_REFS union REPAIR_REFS", "codeSite": "core/review-enforcer.js:199", "statedInContract": true, "implementedInCode": true, "independentProbe": "fuzz 20000 tirages", "result": "PASS" },
+    { "property": "P3", "statement": "toute FINAL_REFS est litterale", "codeSite": "core/review-enforcer.js:197-198", "statedInContract": true, "implementedInCode": true, "independentProbe": "fuzz 20000 tirages", "result": "PASS" },
+    { "property": "P4", "statement": "ordre brut puis modele", "codeSite": "core/review-enforcer.js:199", "statedInContract": true, "implementedInCode": true, "independentProbe": "fuzz 20000 tirages (ordre exact recalcule)", "result": "PASS" },
+    { "property": "P5", "statement": "deduplication stable, premiere occurrence", "codeSite": "core/review-enforcer.js:199", "statedInContract": true, "implementedInCode": true, "independentProbe": "fuzz 20000 tirages", "result": "PASS" },
+    { "property": "P6", "statement": "aucun autre champ du constat n'est touche", "codeSite": "core/review-enforcer.js:288 (recompose, byte-identique a v0.3-r1)", "statedInContract": true, "implementedInCode": true, "independentProbe": "fuzz 20000 tirages : meme jeu de cles, toutes les autres valeurs JSON-identiques ; + 4 scenarios bout en bout", "result": "PASS" },
+    { "property": "isLiteralRef vs validateur gele", "statement": "controle identique a validateReviewCandidate l.108 (!isStr(ref) || content.indexOf(ref) === -1)", "codeSite": "core/review-enforcer.js:170 vs :108", "independentProbe": "probe A1 : 14 refs adverses (null, undefined, nombre, objet, tableau, chaine vide, espaces seuls, tabulation, sous-chaine, document entier, double espace) ; equivalence stricte sur chacune", "result": "PASS" },
+    { "property": "repairStates", "statement": "NO_REFS_EXPECTED / RESOLVED / REFS_PRESENT_BUT_UNRESOLVED", "codeSite": "core/review-enforcer.js:185,200-201", "result": "PASS_WITH_RESERVATION_R1" },
+    { "property": "rejectedRefs", "statement": "seules les refs reellement invalides sont rejetees ; une litterale n'entre jamais dans forbiddenRefs", "codeSite": "core/review-enforcer.js:178,181-183,321,345", "independentProbe": "probes A3/A4/A7 + fuzz (aucune litterale dans rejectedRefs ni droppedRepairedRefs sur 20000 tirages)", "result": "PASS" },
+    { "property": "emptyResult", "statement": "[] accepte seulement s'il existe des conservees", "codeSite": "core/review-enforcer.js:200-201", "independentProbe": "probes B2 (FINAL=[VA]) et CASE B (fail-closed)", "result": "PASS" }
+  ],
+  "rootCause": {
+    "gapAddressed": "LINEAGE_PRESERVATION_GAP (audit independant MONOLITH-v1.0.11 section 4)",
+    "onlyNonLiteralRefsAreRejected": true,
+    "literalRefNeverEntersForbiddenRefs": true,
+    "droppedRepairedRefsCanNeverHoldALiteral": true,
+    "droppedRepairedRefsProof": "droppedRepaired = rep.filter(r => !isLiteralRef(r, content)) (l.198) + garde isStr(x) au push (l.345) ; verifie sur 20000 tirages",
+    "validRefsNoLongerDependOnModelReemission": true,
+    "mergeHappensBeforeRecompose": true,
+    "mergeSite": "core/review-enforcer.js:344 puis :346",
+    "recomposeUnchanged": "byte-identique a v0.3-r1",
+    "otherWritersOfTargetEvidenceRefs": ["core/review-enforcer.js:288 recompose", "MONOLITH-v1.0.11/lib/ef03b-resilience.js:212 (litteralisation, deja corrigee en v1.0.11)", "MONOLITH-v1.0.11/lib/ef03b-resilience.js:191 (miroir, voir R5)"],
+    "buildEnforcedReviewSetNeverWritesRefs": true,
+    "informedPath": { "classification": "LEGITIMATE_NEW_ANSWER_NOT_A_LOSS", "measured": "la reference valide VA disparait apres une passe INFORMED_REPAIR_V02", "rationale": "regeneration complete de tous les champs, validee par le validateur gele ; explicitement hors du scope du contrat v3 ('reparation ciblee, passe >= 2') ; sur cette passe preservedRefs=null et repairUnresolvedDimensions=[] : la trace ne pretend rien" },
+    "pass3ForbiddenLine": { "forbiddenRefsRenderedInPrompt": false, "clauseIsGeneric": true, "noValidRefCanBeNamedForbidden": true, "note": "forbiddenRefs est un parametre mort de targetedRepairPrompt (R7)" },
+    "differentialProof": { "input": "fixture tr8, modele rendant uniquement le remplacement", "v03r1Final": ["terminée comme prévu ou non ;"], "v04Final": ["La fiche demande à partir de quand une activité choisie devient difficile.", "réaction pendant l'activité ;", "terminée comme prévu ou non ;"], "conclusion": "gap reproduit sur v0.3-r1, ferme sur v0.4" }
+  },
+  "caseAB": {
+    "classification": "CAS_B_FAIL_CLOSED_CORRECT",
+    "caseA": { "rawEmpty": "accepted at pass 1, FINAL=[], aucune reparation ciblee declenchee, rien d'invente", "dimensionWithEmptyRawIsNeverFaulty": true, "proof": "probes CASE A et CASE A'" },
+    "caseBMechanism": "mergeRepairLineage l.201 : applied(d) = raw.slice() ; recompose reinjecte les refs invalides inchangees ; le validateur gele les refuse a nouveau ; passe suivante possible ; fail-closed apres 3 passes",
+    "answersA_E": {
+      "A_confusableWithCaseA": "NON. Trois discriminants sur la meme trace : repair.lineage[d].state = REFS_PRESENT_BUT_UNRESOLVED ; repairUnresolvedDimensions = [d] ; le candidat conserve la ref invalide donc errorCodes = [TARGET_REF_NOT_LITERAL] et la revue finit en error. En CAS A, FINAL=[] est accepte passe 1 sans aucune passe ciblee. Aucun chemin ne produit un [] accepte depuis un raw non vide sans conservee.",
+      "B_statusCanBeLost": "PARTIELLEMENT, sur un seul sous-cas. (1) parseRepair en echec (l.347) : repair.lineage absent et repairUnresolvedDimensions = [] ; le statut n'est plus porte que par repair.parsed=false + REPAIR_JSON_INVALID + le maintien des erreurs cibles ; sonde : la revue finit bien en error, donc aucun faux succes (reserve R4). (2) Passe 3 / changement de strategie : statut recalcule a chaque passe, non perdu. (3) Trace persistee : autonomous-run.js l.173 (ledger) + pipeline.js l.274 (enforcement-traces.json). (4) Miroir adaptateur MONOLITH-v1.0.11 l.191 : sous v0.4 il calculerait D1=[] VALIDE la ou le candidat du lot est INVALIDE, et inscrirait CANDIDATE_VALID dans sa propre trace ; le registre n'etant alimente que sur onValidation(valid===true) pilote par le lot, aucune fausse acceptation, mais sur un cas RESOLVED il stockerait un candidat ampute des conservees (reserve R5, condition d'integration).",
+      "C_uselessLoopOrRepetition": "NON, borne. Exactement 3 passes, jamais plus. Effet secondaire mesure : la re-presentation de la ref invalide rend repeatedFaultyRef systematiquement vrai en passe 3 CAS B, activant la clause 'REPRODUISAIT A L'IDENTIQUE' meme si le modele a rendu [] (reserve R3). Aucun surcout de passe.",
+      "D_threePassRuleCoherent": "OUI. DEFAULT_MAX_PASSES = 3 inchange ; strategies observees en CAS B : BASE_EF03B, TARGETED_REPAIR, TARGETED_REPAIR_STRATEGY_CHANGE ; gardes I7 (EXACT_RETRY_REPEAT apres changement de strategie, EXACT_RETRY_REPEAT sur reprise informee) intactes et byte-identiques.",
+      "E_finalFailureExplicitAndTraceable": "OUI. review.reviewStatus = error ; review.error cite codes et details ; review.enforcement = { passes: 3, acceptedPass: null, failClosedReason, strategies } ; trace.passes[] porte preservedRefs, repairUnresolvedDimensions, repair.lineage[dim] = { state, preservedRefs, rejectedRefs, validRepairedRefs, droppedRepairedRefs, finalRefs, unresolvedInvalidRefs, repairOutcome }."
+    }
+  },
+  "prompt": {
+    "builtIndependently": true,
+    "providerCalls": 0,
+    "preservedAndToRepairDistinct": true,
+    "preservedNeverListedAsToRepair": true,
+    "modelToldNotToRewriteAcquiredRefs": true,
+    "emptySemanticsStated": true,
+    "noValidRefDeclaredForbidden": true,
+    "forbiddenRefsRendered": false,
+    "noNewInstructionOnSubstantiveFields": true,
+    "substantiveFieldsCheckedAbsent": ["disposition", "epistemicStatus", "rationale", "confidenceQualitative", "limitations", "twinBasisWorkRefs"],
+    "deterministicRepairContextFingerprintCarried": true,
+    "fingerprintUnaffectedByLineageMerge": true,
+    "reservation": "R3 (clause REPRODUISAIT A L'IDENTIQUE en passe 3 CAS B)"
+  },
+  "tests": {
+    "delivered": { "file": "test/test-mono11-v0.4.js", "announced": "83/83", "replayedByAuditor": "83/83, 0 fail, 0 skipped, 0 todo", "match": true, "environment": "EVIDENCEFORGE_BUNDLE_ROOT=<copie> node --test, dans la COPIE" },
+    "benchmarkReplay": { "announced": { "occurrencesTargetRef": 12, "splices": 12, "exactRepeats": 5, "targetedEligible": 5, "falseAcceptances": 0, "regressions": 0, "historicalCorrectionsAccepted": 2, "targetedPromptCollisions": 0 }, "measured": { "occurrencesTargetRef": 12, "splices": 12, "exactRepeats": 5, "targetedEligible": 5, "falseAcceptances": 0, "regressions": 0, "historicalCorrectionsAccepted": 2, "targetedPromptCollisions": 0, "inventions": 0, "truncations": 0, "distinctRepairContexts": 5 }, "match": true, "deliveredResultsFileMatchesRerun": true },
+    "antiHardcodingScan": { "announced": "0 hit", "measured": "0 hit, 30 fichiers", "adversarialRunWithRealCaseArtifacts": { "caseTokens": 322, "hits": 0, "CASE_SPECIFIC_LEAK_FOUND": "NO" }, "match": true },
+    "frozenLots": { "announced": { "MONO10": 79, "MONO09": 9, "MONO01": 106, "divergences": 0 }, "measured": { "MONO10": 79, "MONO09": 9, "MONO01": 106, "divergences": 0 }, "match": true },
+    "independentEquivalents": {
+      "TR-3": { "probe": "B1/B1b", "result": "PASS", "detail": "FINAL=[VA,VC] ; VA listee CONSERVEE et jamais dans REFS_TO_REPAIR" },
+      "TR-8": { "probes": 11, "result": "PASS", "fixtureEncodes2Literal1NonLiteral": true, "contentSha256SelfConsistent": true, "replacementIsLiteral": true, "noRealIdentifier": true, "anonymisationFaithfulToA10": true, "a10Source": "restorationTable[15] (reviewId twin-…A5081732198, findingId …DISC-01)", "nuance": "les 4 comportements du modele ne donnent PAS tous le meme FINAL : [] et 're-emet les 2 valides' donnent [v1,v2] ; 'rend le remplacement' et 'rend tout + remplacement' donnent [v1,v2,remplacement]. Ce qui est invariant est la SURVIE des conservees, pas le FINAL entier ; le libelle de TR-8 est imprecis, le comportement est correct." },
+      "TR-12": { "probes": 8, "result": "PASS", "detail": "fail-closed, etat REFS_PRESENT_BUT_UNRESOLVED, strategies BASE/TARGETED/TARGETED_CHANGE, refs invalides conservees dans le candidat ; reserve R4 relevee EN PLUS du test livre" },
+      "TR-13": { "probe": "B2/E", "result": "PASS", "detail": "FINAL=[VA], unresolvedInvalidRefs=[IB], repairOutcome=INVALID_DROPPED_NO_REPLACEMENT" },
+      "TR-14": { "probe": "B1/F", "result": "PASS", "detail": "la valide demeure ; en passe 3 aucune valide n'est a reparer ni interdite" }
+    },
+    "auditorProbes": { "files": ["probe-props.js", "probe-e2e.js", "probe-tr8.js", "probe-size-informed.js", "seal-probe.js"], "total": 45, "pass": 44, "fail": 1, "failIsIntentional": true, "failDetail": "A8 = sonde de divergence contrat/code NO_REFS_EXPECTED (R1)", "fuzzIterations": 20000 }
+  },
+  "semanticNonRegression": {
+    "fieldsByteIdenticalOutsideRefsRepair": ["disposition", "epistemicStatus", "finding", "rationale", "confidenceQualitative", "limitations", "twinBasisWorkRefs"],
+    "findingKeySetUnchanged": true,
+    "untargetedDimensionsUnchangedIncludingRefs": true,
+    "recomposeStillCopiesEverything": true,
+    "recomposeNote": "rend {findings} seul ; d'eventuelles cles racine surnumeraires seraient perdues, comportement INCHANGE depuis v0.3 et inatteignable sur ce chemin (onlyTargetRefErrors exclut EXTRA_KEY)",
+    "parserAddsOrStripsNothing": true,
+    "byteIdenticalToV02Reference": ["validateReviewCandidate", "informedRepairPrompt", "enforcementPreamble", "extractJson"],
+    "parseRepairByteIdenticalToV03r1": true,
+    "traceGrowth": { "targetedPassBytesV03r1": 1237, "targetedPassBytesV04": 1578, "deltaPercent": 27.6, "wholeTraceV03r1": 2025, "wholeTraceV04": 2419, "newPassFields": ["preservedRefs", "repairUnresolvedDimensions"], "newRepairFields": ["lineage", "unresolvedDimensions"], "consumersTolerant": true, "reservation": "R9" },
+    "repairContextFingerprintInsensitiveToMerge": true,
+    "otherFieldTouchedByPatch": "aucun"
+  },
+  "schemaVersionDecision": {
+    "classification": "SCHEMA_V2_ADDITIVE_COMPATIBLE",
+    "emitter": "core/autonomous-run.js:173 (fichier byte-identique a v0.3-r1)",
+    "emitted": { "schema": "EvidenceForge.ReviewEnforcementTrace", "schemaVersion": "MONO-11-v2" },
+    "contractVersionNow": "MONO-11-v3",
+    "newTraceFields": ["preservedRefs", "repairUnresolvedDimensions", "repair.lineage", "repair.unresolvedDimensions"],
+    "historicalRule": "CHANGELOG-v0.3-to-v0.3-r1.md section contractVersion/schemaVersion : ajouts purement additifs + lecteurs tolerants => pas de bump ; seules les cles CONSOMMEES font version de contrat",
+    "additivePolicyRespected": true,
+    "rationale": "Tous les ajouts sont additifs ; aucun consommateur recense n'utilise de schema ferme ni n'enumere les cles d'un enregistrement de passe ; tous lisent par nom. Un bump n'est pas du au seul changement de contractVersion, n'apporterait rien que le sceau ne porte deja (state.seal.mono11Version / runtimeSealSha256 / mono11ZipSha256) et couterait une divergence gratuite de filtre de reuse.",
+    "consumers": [
+      { "path": "MONOLITH-v1.0.10/tools/ef03b-autopsy.js ; MONOLITH-v1.0.11/tools/ef03b-autopsy.js", "reads": ["t.passes", "p.pass", "p.strategy", "p.valid", "p.costUsd", "p.errors", "p.errorCodes", "p.targetedDimensions", "p.exactRepeat", "p.callId", "acceptedPass"], "tolerant": true, "schemaValidation": false },
+      { "path": "MONOLITH-v1.0.10/tools/ef03b-registry-import.js ; MONOLITH-v1.0.11/tools/ef03b-registry-import.js", "reads": ["traces[].twinId", "traces[].targetId", "traces[].passes[0].promptSha256", "traces[].acceptedPass"], "tolerant": true, "schemaValidation": false, "note": "code validationContract 'MONO-11-v2' en dur (l.33) et reconstruit les candidats avec l'ancien RE.recompose : a aligner en v1.0.12 (R6)" },
+      { "path": "MONOLITH-v1.0.*/lib/pipeline.js:274,421", "reads": ["bloc opaque, persiste et archive"], "tolerant": true },
+      { "path": "MONOLITH-v1.0.*/lib/stage-professionals.js:345", "reads": ["enforcementTraces transporte dans le checkpoint"], "tolerant": true },
+      { "path": "MONO-11/v0.4/test/test-mono11-v0.4.js:301,325,381,398,503", "reads": ["acceptedPass", "passes[].errorCodes", "passes[].error"], "tolerant": true },
+      { "path": "MONO-10, MONO-09, MONO-01", "reads": [], "tolerant": true, "note": "aucune lecture de ces traces" }
+    ],
+    "compatibilityRisk": "La compatibilite de SCHEMA ne vaut pas compatibilite de SEMANTIQUE : sous contrat v3, une trace MONO-11-v2 decrit un moteur dont le comportement a change ([] apres reparation echouee n'est plus une acceptation). Toute reconstruction forensique rejouant RE.recompose(parsed, rp.repairs) reconstruirait la semantique v0.3-r1. A aligner en MONOLITH-v1.0.12 avec VALIDATION_CONTRACT (R5/R6).",
+    "bumpRequired": false,
+    "codeModified": false
+  },
+  "seals": {
+    "v03r1": { "runtimeSealSha256": "9fbef4126d437e0bb2ee4b2564b5ebcc381e8a338eacba40a590eff8402c079c", "runCodeHash": "e156590d1605a8873b7b9814ad44a314084ad8946c8993dff4e5e7f86b452755", "recomputedByAuditor": true, "matchesAnnounced": true },
+    "v04": { "runtimeSealSha256": "110db4de24709926d4a5fb6d0e951530f0afc2c1c807a09127852a92aa182c3d", "runCodeHash": "27610c84502104b3dc9643a9cc0289aef4ae40ae65ee34e4fe82f31a73e381ad", "recomputedByAuditor": true, "matchesAnnounced": true },
+    "runCodeHashScope": "core/ + contracts/ + index.js uniquement, 15 entrees triees (run-seal-guard.js:64-65)",
+    "checkpointSealMismatch": { "wouldFire": true, "site": "MONOLITH-v1.0.10/.11/lib/stage-professionals.js:319", "historicalCheckpointSeal": { "mono11Version": "v0.3-r1", "runtimeSealSha256": "9fbef4126d437e0bb2ee4b2564b5ebcc381e8a338eacba40a590eff8402c079c", "runCodeHash": "e156590d1605a8873b7b9814ad44a314084ad8946c8993dff4e5e7f86b452755", "mono11ZipSha256": "3c44b397dda0997d0fff6ab4c8e8a8b311430e6a5ac7aeee38149f8349296b0b" }, "readFrom": ["state.json", "checkpoint-professionals.json", "checkpoint-downstream.json"], "reasoning": "9fbef412… !== 110db4de… => CHECKPOINT_SEAL_MISMATCH, reprise refusee", "monolithNotExecuted": true },
+    "interSealRefusal": { "llmCache": "lib/llm.js:79 reuseContextCheck refuse si entry.sourceSealHash !== opts.sealHash", "ef03bRegistry": "lib/ef03b-resilience.js:155 find() filtre sur sourceSealHash ET validationContract ET status VALID", "frozenBridge": "79/9/106, 0 divergence" },
+    "migrationPath": "AUCUN", "silentCompatibilityPath": "AUCUN", "searchPerformed": "grep sealHash x (skip|ignore|allow|compat|migrat|force|legacy) sur MONOLITH-v1.0.11/lib/ => 0 occurrence",
+    "historicalRunBoundToOldRuntime": { "runId": "efm-20260918-a64167c0", "boundTo": "MONO-11 v0.3-r1", "unchanged": true, "neverModified": true },
+    "activeVersion": { "path": "tools/EvidenceForge/ACTIVE_VERSION", "value": "MONOLITH-v1.0.10", "unchanged": true },
+    "positiveControl": "ajout d'un core/stray.js non scelle DANS LA COPIE => RUN_ON_UNSEALED_CODE leve ; fichier retire"
+  },
+  "zip": {
+    "path": "MONO-11/EvidenceForge-MONO11-AUTONOMOUS-PANEL-v0.4.zip",
+    "sha256": "79c16d08a0a52bc1b9ae3c6884cc22f6161145bed18158d6c9b6a44df1a7c474",
+    "matchesDotSha256File": true,
+    "matchesAnnounced": true,
+    "entries": 66,
+    "files": 57,
+    "directories": 9,
+    "singleRoot": "v0.4/",
+    "extractedShasumCheck": "55/55 OK",
+    "extractedTreeIdenticalToDisk": true,
+    "secretsFound": [],
+    "secretScanNote": "unique occurrence des motifs : test/test-mono11-v0.4.js:488, assertion d'ABSENCE",
+    "tr8FixtureRealIdentifiers": [],
+    "reproducibility": { "sealJsDeterministic": true, "buildManifestDeterministic": false, "buildManifestNote": "builtAt = new Date().toISOString() ; sans effet, MANIFEST.json est hors sceau", "zipDeterministicRebuildGuaranteed": false, "zipNote": "produit par une commande zip -X ad hoc, aucun script de build dans le lot, horodatages des entrees non neutralises ; integrite par hash publie uniquement (R13)" }
+  },
+  "sealStateAtReportWriting": {
+    "sealAndManifestComputedBeforeTheseAuditFilesExisted": true,
+    "noSealedFileChanged": true,
+    "verifiedBeforeWriting": { "shasumCheck": "55/55 OK", "SHA256SUMS.txt": "110db4de24709926d4a5fb6d0e951530f0afc2c1c807a09127852a92aa182c3d", "MANIFEST.json": "9acc820d698f7da05a9cd65795fc2cded93c1f0fe4820735bed25c4c3a29514b", "core/review-enforcer.js": "cd620ab30ca1fbe863987dee6711b358930721d57c1b7d086c7bab87d985636a", "zip": "79c16d08a0a52bc1b9ae3c6884cc22f6161145bed18158d6c9b6a44df1a7c474" },
+    "auditFilesAreOutsideTheSeal": true,
+    "assertSealedRuntimeStillPassesWithAuditFilesPresent": true,
+    "assertSealedRuntimeProof": "execute DANS LA COPIE avec les deux fichiers homonymes a la racine : sealed=true, runtimeSealSha256=110db4de…, runCodeHash=27610c84…, sealedFiles=55, codeFilesSealed=15 ; le garde ne refuse un fichier non scelle que sous core/ ou contracts/ (CODE_DIRS l.20, l.51-52)",
+    "freezeMustDecide": {
+      "optionReseal": "SHA256SUMS.txt change => runtimeSealSha256 CHANGE ; runCodeHash NE CHANGE PAS (couvre seulement core/ + contracts/ + index.js) ; le zip canonique devrait etre reconstruit",
+      "optionKeepOutsideSeal": "conserver les fichiers d'audit hors sceau, comme pour MONOLITH-v1.0.11 ; le zip canonique 79c16d08… reste valide"
+    }
+  },
+  "constraintsRespected": {
+    "readOnlyOnDeliveredArtefacts": true,
+    "bytesModifiedInAnyDeliveredArtefact": 0,
+    "providerCalls": 0,
+    "networkCalls": 0,
+    "realRuns": 0,
+    "commits": 0,
+    "monolithV1012Built": false,
+    "d103Modified": false,
+    "historicalRunModified": false,
+    "checkpointMigration": false,
+    "patchesApplied": 0,
+    "testsAndToolsRunOnlyInCopy": true,
+    "copyPath": "/private/tmp/claude-501/-Users-christophebonnet/cefb334a-2fee-428d-b8f0-90b750293804/scratchpad/audit-m11v04/copy",
+    "copyMethod": "rsync -a --exclude .DS_Store, zips MONO-10/MONO-11 inclus",
+    "buildManifestOrSealRunOnDeliveredLot": false,
+    "filesWrittenOutsideScratch": [
+      "MONO-11/v0.4/MONO-11-v0.4-INDEPENDENT-FREEZE-AUDIT.md",
+      "MONO-11/v0.4/MONO-11-v0.4-INDEPENDENT-FREEZE-AUDIT.json"
+    ]
+  },
+  "hashesVerified": {
+    "v04_SHA256SUMS.txt": "110db4de24709926d4a5fb6d0e951530f0afc2c1c807a09127852a92aa182c3d",
+    "v04_MANIFEST.json": "9acc820d698f7da05a9cd65795fc2cded93c1f0fe4820735bed25c4c3a29514b",
+    "v04_core_review-enforcer.js": "cd620ab30ca1fbe863987dee6711b358930721d57c1b7d086c7bab87d985636a",
+    "v04_runCodeHash": "27610c84502104b3dc9643a9cc0289aef4ae40ae65ee34e4fe82f31a73e381ad",
+    "v04_zip": "79c16d08a0a52bc1b9ae3c6884cc22f6161145bed18158d6c9b6a44df1a7c474",
+    "v04_gateModule": "734ab97a062d92f51c42967bfcb56e3dc2a18a7a027a4283d3bba04b0ce31d06",
+    "v03r1_SHA256SUMS.txt": "9fbef4126d437e0bb2ee4b2564b5ebcc381e8a338eacba40a590eff8402c079c",
+    "v03r1_core_review-enforcer.js": "42de4c51daa1e33d40058f18dc8eef79beaee7ae3aca134c33118601ade92b3b",
+    "v03r1_MANIFEST.json": "9cbf02d41b8d9f78212bd398afcbb5af5cb1166d028311e105fa59bd2b7a0cb5",
+    "v03r1_runCodeHash": "e156590d1605a8873b7b9814ad44a314084ad8946c8993dff4e5e7f86b452755",
+    "v03r1_zip": "3c44b397dda0997d0fff6ab4c8e8a8b311430e6a5ac7aeee38149f8349296b0b",
+    "mono10_v019_zip": "f5a4165414f4aacc32f48f50eb14d59c87a09e3f138e24f8bd14b956972c2e04",
+    "tr8_fixture_contentSha256": "4154c050d49445c0f819dfc779446260d836e07859f2e7caef30ffae71933b20",
+    "reverifiedAfterWork": true
+  }
+}

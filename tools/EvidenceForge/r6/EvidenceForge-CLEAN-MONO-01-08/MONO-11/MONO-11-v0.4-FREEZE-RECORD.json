@@ -1,0 +1,160 @@
+{
+ "schema": "EvidenceForge.Mono11FreezeRecord",
+ "lot": "MONO-11",
+ "version": "v0.4",
+ "name": "TARGETED REPAIR LINEAGE PRESERVATION",
+ "frozenAt": "2026-09-22T12:00:36+00:00",
+ "frozenBy": "OWNER",
+ "frozenByDecision": "D1 = FREEZE_WITH_RESERVATIONS (Christophe, 2026-09-22)",
+ "status": "FROZEN_WITH_RESERVATIONS",
+ "contractVersion": "MONO-11-v3",
+ "contractProperty": "lineageMonotonicityDuringRepair (P1..P6)",
+ "traceSchemaVersion": {
+  "value": "MONO-11-v2",
+  "decision": "D4 — SCHEMA_V2_ADDITIVE_COMPATIBLE : aucun bump dans le lot gele ; schemaVersion de trace != contractVersion de comportement"
+ },
+ "runtimeSealSha256": "110db4de24709926d4a5fb6d0e951530f0afc2c1c807a09127852a92aa182c3d",
+ "runCodeHash": "27610c84502104b3dc9643a9cc0289aef4ae40ae65ee34e4fe82f31a73e381ad",
+ "canonicalZipSha256": "79c16d08a0a52bc1b9ae3c6884cc22f6161145bed18158d6c9b6a44df1a7c474",
+ "manifestSha256": "9acc820d698f7da05a9cd65795fc2cded93c1f0fe4820735bed25c4c3a29514b",
+ "sealFileSha256": "110db4de24709926d4a5fb6d0e951530f0afc2c1c807a09127852a92aa182c3d",
+ "reviewEnforcerSha256": "cd620ab30ca1fbe863987dee6711b358930721d57c1b7d086c7bab87d985636a",
+ "contractsSha256": "b3e5ac7dc3a7a70deef015b1f26b93d173cf79e83c9644c4d37f65059d2c75d2",
+ "predecessor": {
+  "version": "v0.3-r1",
+  "status": "GELE / HISTORIQUE / INTACT",
+  "zipSha256": "3c44b397dda0997d0fff6ab4c8e8a8b311430e6a5ac7aeee38149f8349296b0b",
+  "runtimeSealSha256": "9fbef4126d437e0bb2ee4b2564b5ebcc381e8a338eacba40a590eff8402c079c",
+  "runCodeHash": "e156590d1605a8873b7b9814ad44a314084ad8946c8993dff4e5e7f86b452755"
+ },
+ "lotAudit": {
+  "file": "~/evidenceforge-work/reports/mono11-v0.4/MONO-11-v0.4-TARGETED-REPAIR-LINEAGE-AUDIT.md",
+  "sha256": "58f64aae191ceff12f650ec5db7a8ad539f2f7590ba8a436db84c3d65bf4171e",
+  "jsonSha256": "fa7140f87f612ce9f7cb43778016f9326a8a70448bb3be530f9fa176b92db363",
+  "verdict": "GELABLE (chantier)"
+ },
+ "independentAudit": {
+  "file": "v0.4/MONO-11-v0.4-INDEPENDENT-FREEZE-AUDIT.md",
+  "sha256": "caab936f66d5beb0ccdbdb7b39cdc79bd49787fb5aacbad75265c289e78f62c3",
+  "jsonSha256": "f7cabd0e976e417ad59da9ed8b4a66ef4528e5aa157c0eb4965cd790e613fa19",
+  "verdict": "MONO11_V0_4_FREEZE_AUDIT_PASS_WITH_RESERVATIONS",
+  "recommendation": "GELER",
+  "blockers": 0,
+  "caseAB": "CAS_B_FAIL_CLOSED_CORRECT",
+  "schemaVersion": "SCHEMA_V2_ADDITIVE_COMPATIBLE",
+  "inRuntimeSeal": false
+ },
+ "sealPolicy": {
+  "decision": "D2 — DO_NOT_RESEAL_FOR_AUDIT_REPORTS",
+  "detail": "les rapports d'audit restent au racine du lot, HORS sceau runtime (artefacts de gouvernance, pas du code execute) ; assertSealedRuntime passe (le sceau verifie les fichiers scelles + l'absence de code non scelle sous core/ et contracts/) ; runCodeHash ne couvre que core/ + contracts + index.js et ne changerait pas",
+  "governanceSums": "MONO-11-v0.4-GOVERNANCE.SHA256SUMS.txt"
+ },
+ "measurements": {
+  "tests": "83/83 (test/test-mono11-v0.4.js)",
+  "replay": "12 occurrences / 12 collages / 5 repetitions / 5 eligibles / 0 fausse acceptation / 0 regression / 2 corrections / 0 collision",
+  "antiHardcoding": "0 hit (30 fichiers ; + balayage adversarial 322 jetons du cas reel : 0 hit)",
+  "frozenLots": "MONO-10 79 / MONO-09 9 / MONO-01 106, 0 divergence",
+  "independentProof": "fixture reelle : v0.3-r1 perd 2 citations litterales, v0.4 les conserve ; fuzz 20 000 tirages P1..P6 : 0 violation"
+ },
+ "reservations": [
+  {
+   "id": "R1",
+   "severity": "low",
+   "summary": "Le contrat ecrit NO_REFS_EXPECTED : RAW=[] => FINAL=[] ; le code (mergeRepairLineage l.199-201) rend FINAL = VALID_REPAIR, non vide si la reparation est litterale."
+  },
+  {
+   "id": "R2",
+   "severity": "low",
+   "summary": "buildEnforcedReviewSet l.403 : producedBy annonce toujours 'MONO-11 v0.3-r1 review-enforcer' ; le DocumentaryReviewSet produit par v0.4 se declare produit par v0.3-r1."
+  },
+  {
+   "id": "R3",
+   "severity": "medium",
+   "summary": "En CAS B, le prompt de passe 3 porte 'elle REPRODUISAIT A L'IDENTIQUE la citation fautive' alors que le modele a pu rendre [] : la re-presentation est causee par v0.4 (applied = raw). Accusation fausse, pression possible vers l'invention."
+  },
+  {
+   "id": "R4",
+   "severity": "medium",
+   "summary": "Si parseRepair echoue, rec.repairUnresolvedDimensions vaut silencieusement [] et repair.lineage est absent ; le statut non resolu n'est porte que par repair.parsed=false + REPAIR_JSON_INVALID."
+  },
+  {
+   "id": "R5",
+   "severity": "high_at_integration",
+   "summary": "Le miroir de l'adaptateur MONOLITH RE.recompose(st.parsed, rp.repairs) diverge octet pour octet du candidat du lot sous v0.4 ; en CAS B le miroir est VALIDE la ou le candidat du lot est INVALIDE ; le registre EF-03B inscrirait un candidat ampute de ses references conservees."
+  },
+  {
+   "id": "R6",
+   "severity": "high_at_integration",
+   "summary": "validationContract / CONTRACT epingles a MONO-11-v2 alors que contractVersion passe a MONO-11-v3 ; tools/ef03b-registry-import.js code le contrat en dur et reconstruit les candidats avec l'ancien recompose."
+  },
+  {
+   "id": "R7",
+   "severity": "low",
+   "summary": "forbiddenRefs est passe a targetedRepairPrompt mais jamais rendu dans le prompt (deja en v0.3-r1). La garantie 'aucune valide interdite' repose sur la regle d'accumulation, pas sur le texte : risque latent si une version future affichait la liste."
+  },
+  {
+   "id": "R8",
+   "severity": "low",
+   "summary": "test/fixtures/tr8-targeted-repair-case.json reprend mot pour mot les trois citations historiques (A10 restorationTable[15]) : anonymisation = desidentification, pas decontextualisation. Le MANIFEST consigne 'aucun artefact de cas declare' alors qu'un artefact derive d'un cas existe desormais."
+  },
+  {
+   "id": "R9",
+   "severity": "low",
+   "summary": "Croissance de la trace : +28 % sur une passe ciblee minimale (1237 -> 1578 octets) ; repair.lineage duplique les chaines de citations par dimension. Consommateurs tolerants, mais checkpoint-downstream.json fait 5,4 Mo sur le run historique."
+  },
+  {
+   "id": "R10",
+   "severity": "very_low",
+   "summary": "mergeRepairLineage n'a pas la garde typeof content === 'string' de partitionRefsOf ; avec un targetDoc.content non-chaine et non-nul, le validateur utiliserait '' et isLiteralRef String(content). Inatteignable en pratique."
+  },
+  {
+   "id": "R11",
+   "severity": "info",
+   "summary": "Le chemin INFORMED_REPAIR_V02 (regeneration complete) n'offre aucune garantie de lignee : mesure, la reference valide VA disparait. Ce n'est PAS une perte de lignee de reparation mais une nouvelle reponse complete legitime, validee par le validateur gele, explicitement hors du scope du contrat v3 ; sur cette passe preservedRefs=null et repairUnresolvedDimensions=[] : la trace ne pretend rien."
+  },
+  {
+   "id": "R12",
+   "severity": "info",
+   "summary": "Changement de comportement voulu (Q6) : une revue que v0.3-r1 acceptait (CAS B avec reparation [] => [] silencieux accepte) echoue desormais en fail-closed. Un run reel peut produire davantage de reviewStatus error."
+  },
+  {
+   "id": "R13",
+   "severity": "low",
+   "summary": "Le zip canonique est produit par une commande zip -X ad hoc : aucun script de construction dans le lot, horodatages des entrees non neutralises => reconstruction deterministe octet pour octet NON garantie. L'integrite repose sur le hash publie, ce que le lot ne pretend pas depasser."
+  }
+ ],
+ "observationsNonBlocking": {
+  "D3_producedBy": "buildEnforcedReviewSet l.403 annonce encore « MONO-11 v0.3-r1 review-enforcer » : OBSERVATION_NON_BLOCKING du lot gele ; ne pas modifier v0.4 apres gel pour ce libelle ; correctif eventuel a l'integration v1.0.12 si le champ est consomme ou expose"
+ },
+ "integrationConditions": {
+  "blockingForV1012": [
+   "R5 miroir adaptateur (MONOLITH lib/ef03b-resilience.js l.191) a aligner sur MONO-11-v3",
+   "R6 epinglages de contrat (lib/llm.js, lib/ef03b-resilience.js, tools/ef03b-registry-import.js) a aligner sur v3, fail-closed"
+  ],
+  "transported": [
+   "R3 libelle passe 3",
+   "R4 tracabilite d'un parseRepair illisible",
+   "R12 plus d'echecs reels (CAS B fail-closed) — a mesurer en smoke reel",
+   "R13 zip non garanti reproductible bit-a-bit",
+   "R2 producedBy si consomme",
+   "R11 regeneration INFORMED hors perimetre du contrat v3 — ne pas elargir silencieusement"
+  ]
+ },
+ "activeVersion": {
+  "value": "MONOLITH-v1.0.10",
+  "changed": false,
+  "note": "v1.0.12 devra passer tests + audit independant + decision proprietaire avant activation"
+ },
+ "historicalRun": {
+  "runId": "efm-20260918-a64167c0",
+  "boundTo": "MONOLITH-v1.0.10 / MONO-11 v0.3-r1 (sceau 9fbef412…)",
+  "reportHash": "a962d5eefeb033ac4dd9f76627989a72d423737f3ca13cd2e4e65730de7a441c",
+  "migration": "AUCUNE ; CHECKPOINT_SEAL_MISMATCH attendu sous v0.4 ; aucune reutilisation inter-sceau"
+ },
+ "prohibitions": [
+  "0 appel fournisseur",
+  "0 run reel",
+  "0 modification v0.3-r1 / v1.0.10 / v1.0.11 / ACTIVE_VERSION / run historique / D103",
+  "0 re-sceau pour les rapports d'audit"
+ ]
+}

@@ -1,0 +1,17 @@
+{
+ "schema": "EvidenceForge.MONO11.TR8Fixture",
+ "note": "derive d'une reparation ciblee reelle (tentative 10 d'un run reel, jumeau anonymise) : la dimension fautive portait 2 citations deja litterales et 1 non litterale ; le modele avait re-emis lui-meme les 2 valides. Document synthetique = passages litteraux + un remplacement plausible ; la citation non litterale en est absente. Aucun identifiant, aucun secret.",
+ "raw": [
+  "La fiche demande à partir de quand une activité choisie devient difficile.",
+  "réaction pendant l'activité ;",
+  "terminée comme prevu ou non ;"
+ ],
+ "validOriginal": [
+  "La fiche demande à partir de quand une activité choisie devient difficile.",
+  "réaction pendant l'activité ;"
+ ],
+ "invalidOriginal": "terminée comme prevu ou non ;",
+ "replacement": "terminée comme prévu ou non ;",
+ "content": "La fiche demande à partir de quand une activité choisie devient difficile.\n\nréaction pendant l'activité ;\n\nterminée comme prévu ou non ;\n\nAutre passage synthetique, non cite.",
+ "contentSha256": "4154c050d49445c0f819dfc779446260d836e07859f2e7caef30ffae71933b20"
+}

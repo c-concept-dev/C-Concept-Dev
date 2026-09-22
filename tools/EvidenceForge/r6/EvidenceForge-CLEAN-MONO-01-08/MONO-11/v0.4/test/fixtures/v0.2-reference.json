@@ -1,0 +1,48 @@
+{
+ "schema": "EvidenceForge.Mono11ReferenceHashes",
+ "purpose": "Reference d autonomie de la suite v0.3-r1 : empreintes SHA-256 des fonctions v0.2 GELEES que v0.3/v0.3-r1 doivent conserver byte-identiques (Function.prototype.toString). Calculees une fois sur le lot canonique MONO-11 v0.2 ; le lot v0.2 n est PAS requis pour executer la suite.",
+ "lot": "MONO-11 v0.2 (GELE)",
+ "file": "core/review-enforcer.js",
+ "fileSha256": "45c3a78c3853cfe54d7bba37dae8400e203966cfe69fbc644de9fe2ddaaca5f7",
+ "zip": "EvidenceForge-MONO11-AUTONOMOUS-PANEL-v0.2.zip",
+ "zipSha256": "5c208cbbd13231e732fe20475347f9f7cbe6f890f3ce4823581093c7eba60005",
+ "sealSha256": "57e243b785f8de8c0bc603933162f1df160085f92061a13a43d3d2d243eb9df3",
+ "functionSourceSha256": {
+  "validateReviewCandidate": "ad5779054fc664f9766e925e8a22eaf25c4e1f9a08f38878afb897621c01af69",
+  "informedRepairPrompt": "bfae8d71a7af3d1c7400ff0e51201606a3d18f73e5428024dfa7098da303c8ed",
+  "enforcementPreamble": "58388a5f21193cf96ef2741934d125504f7ba0224559b05a5bfac26f13c026da",
+  "extractJson": "3b23ae467278bdffb408c6abb2915da7f59be417b37320203895f4a4303023fc"
+ },
+ "constants": {
+  "FINDING_KEYS": [
+   "dimensionId",
+   "disposition",
+   "epistemicStatus",
+   "finding",
+   "rationale",
+   "targetEvidenceRefs",
+   "twinBasisWorkRefs",
+   "confidenceQualitative",
+   "limitations"
+  ],
+  "DISPOSITIONS": [
+   "support",
+   "concern",
+   "gap",
+   "recommendation",
+   "not_determinable"
+  ],
+  "EPISTEMIC": [
+   "documented",
+   "cautious_inference",
+   "not_determinable"
+  ],
+  "CONFIDENCE": [
+   "high",
+   "medium",
+   "low"
+  ],
+  "DEFAULT_MAX_PASSES": 3
+ },
+ "computedFromCanonicalLotAt": "2026-09-16"
+}
