@@ -1,0 +1,332 @@
+{
+  "schema": "EvidenceForge.RealSmokePlan",
+  "version": "MONOLITH-v1.0.15",
+  "generatedAt": "2026-09-22T22:49:23+02:00",
+  "status": "PLAN_ONLY_NOT_EXECUTED",
+  "providerCallsSoFar": 0,
+  "usdSpentSoFar": 0,
+  "ownerApprovalRequiredBeforeAnySpending": true,
+  "basis": {
+    "freezeRecord": "EVIDENCEFORGE-v1.0.15-FREEZE-RECORD.json (FROZEN_WITH_RESERVATIONS)",
+    "independentAudit": "V1_0_15_FREEZE_AUDIT_PASS_WITH_RESERVATIONS, 0 blocker, 11 reserves",
+    "ownerDecision": "D7 = SMOKE_AUTHORIZED_WITH_CONDITIONS",
+    "conditionsFromAudit": [
+      "run NEUF uniquement : jamais une reprise ni un replay d'un run cree sous <= v1.0.14 (reserve A4)",
+      "mode PER_DOCUMENT avec au moins 3 documents cibles distincts pour le seul chemin non couvert (reserve A1)",
+      "budget plafonne bas, arret budgetaire arme, un seul jumeau si possible"
+    ]
+  },
+  "objectives": [
+    "R12 : mesurer l'effet reel du fail-closed CAS B",
+    "observer le prompt MONO-11 v0.4 avec fournisseur reel",
+    "verifier qu'aucune perte de lineage ne reapparait",
+    "mesurer erreurs / reprises / nombre d'appels / cout",
+    "exercer l'identite target/document en situation reelle"
+  ],
+  "nonObjectives": [
+    "aucun objectif scientifique nouveau",
+    "aucune activation",
+    "aucune modification de code, de configuration ou de lot gele"
+  ],
+  "executionContext": {
+    "activeVersionUnchanged": "MONOLITH-v1.0.10 — le smoke ne touche PAS tools/EvidenceForge/ACTIVE_VERSION (D5)",
+    "howV1015IsRun": "lancement EXPLICITE du serveur de la version gelee, sans passer par ACTIVE_VERSION",
+    "launchProcedure": [
+      "const L = require('<repo>/tools/EvidenceForge/bin/launcher.js');",
+      "const env = Object.assign({}, L.loadEnvLocal(), { EVIDENCEFORGE_RUNS_ROOT: '<SMOKE_RUNS_ROOT>' });",
+      "L.startServer('<repo>/tools/EvidenceForge/r6/EvidenceForge-CLEAN-MONO-01-08/MONOLITH-v1.0.15', env, 8769, { logPath: '<SMOKE_RUNS_ROOT>/server.log' });"
+    ],
+    "whyThisProcedure": "loadEnvLocal est le chargeur officiel des identifiants (aucun secret n'est affiche : startServer passe par redact) ; startServer lance server.js depuis le repertoire de la version choisie. ACTIVE_VERSION reste intacte.",
+    "port": {
+      "value": 8769,
+      "reason": "distinct de 8768 (instance v1.0.10 courante) : aucune collision possible"
+    },
+    "runsRoot": {
+      "value": "~/evidenceforge-work/reports/smoke-v1015-runs",
+      "reason": "racine ISOLEE et VIDE : aucun run <= v1.0.14 n'y est visible, donc aucune reprise ni replay accidentel (reserve A4), et le run historique efm-20260918-a64167c0 reste hors d'atteinte",
+      "mustBeEmptyBeforeStart": true
+    },
+    "model": {
+      "value": "claude-sonnet-4-6 (EVIDENCEFORGE_LLM_MODEL, deja configure)",
+      "pricingUsdPerMillion": {
+        "input": 3,
+        "output": 15
+      },
+      "note": "le defaut de config est claude-opus-4-8 (5/25) ; le modele d'exploitation etabli est sonnet-4-6 par variable d'environnement. claude-sonnet-5 reste INTERDIT (kits geles)."
+    },
+    "preflightBeforeAnyCall": [
+      "node tools/build-manifest.js --verify -> {\"ok\":true,\"files\":169}",
+      "shasum -c EVIDENCEFORGE-v1.0.15-GOVERNANCE.SHA256SUMS.txt -> 8/8 OK",
+      "verification des lots geles -> 0 divergence",
+      "GET /api/config sur le port 8769 -> version MONOLITH-v1.0.15, modele et tarification presents",
+      "sonde de disponibilite fournisseur (declaree gratuite par bin/launcher.js) -> prete",
+      "racine de runs du smoke vide"
+    ]
+  },
+  "budgetAndCaps": {
+    "hardMechanism": "POST /api/runs/:id/budget -> runs/<runId>/budget.json ; verifie AVANT chaque appel LLM reel ; depassement borne par le cout d'UN appel ; BUDGET_LIMIT_REACHED = arret fatal, reprenable, checkpoint conserve",
+    "configChangeRequired": false,
+    "phaseA": {
+      "costBudgetUsd": 12,
+      "warningThresholdUsd": 8,
+      "indicativeRealCallCeiling": 80
+    },
+    "phaseB": {
+      "costBudgetUsd": 20,
+      "warningThresholdUsd": 14,
+      "indicativeRealCallCeiling": 120
+    },
+    "totalEnvelopeUsd": 32,
+    "economicGate": "economicReviewThresholdUsd = 40 : si la projection d'avant-revues depasse 40 USD, le run passe en WAITING_USER (gate ECONOMIC_REVIEW). Les plafonds proposes sont sous ce seuil ; si le gate se declenche malgre tout, NE PAS confirmer sans decision proprietaire.",
+    "measuredAnchors": {
+      "runHistoriqueA10": {
+        "totalUsd": 36.8228,
+        "realCalls": 507,
+        "byStage": {
+          "TWINS_REVIEWS": 28.948,
+          "PROFESSIONALS": 6.995,
+          "RETRIEVAL": 0.589,
+          "MISSION": 0.163,
+          "PLAN": 0.073,
+          "DISCIPLINES": 0.054,
+          "PREFLIGHT": 0.001
+        },
+        "model": "tarification Opus 5/25",
+        "attempts": 10
+      },
+      "avgCostValidReviewUsd": 0.5168,
+      "avgCostPerPassUsd": 0.2301
+    },
+    "estimateNote": "les estimations de phase sont des PROJECTIONS (modele moins cher, panel minimal, 1 jumeau vise) ; seul le budget.json est un plafond DUR."
+  },
+  "phaseA": {
+    "name": "CHEMIN NOMINAL AU COUT MINIMAL",
+    "mode": "MISSION_DOSSIER (mode de configuration gelee), UNE cible effective",
+    "twinsTarget": "un seul jumeau si le panel le permet (la politique SUFFICIENCY_FIRST fixe minProfessionalsPerCoreDiscipline = 1)",
+    "documents": "1 a 2 documents courts, total tres inferieur a dossierMaxChars = 400 000 caracteres",
+    "estimatedUsd": "3 a 8 (projection)",
+    "hardCapUsd": 12,
+    "measurements": [
+      "targetId",
+      "documentAuthoritySha256",
+      "nombre de reviews",
+      "reviews reutilisees (registryReuses)",
+      "appels fournisseur reels (realCalls)",
+      "passes de reparation",
+      "CAS B rencontres",
+      "REFS_PRESENT_BUT_UNRESOLVED",
+      "erreurs",
+      "cout",
+      "anomalies de GLOBAL LINEAGE",
+      "qualification du rapport"
+    ],
+    "measurementSources": {
+      "ef03b-resilience.json": [
+        "authorityIdentityVerified",
+        "authorityContextDivergences",
+        "registryRefusedForeignTarget",
+        "registryRefusedForeignAuthority",
+        "registryReuses",
+        "realCalls",
+        "truncations",
+        "completions",
+        "literalizations",
+        "contextUnparsed",
+        "contextContentMismatch",
+        "cumulativeReviewCostUsd",
+        "reviews[]"
+      ],
+      "ef03b-trace.jsonl": [
+        "strategy",
+        "state",
+        "repairScope",
+        "lineage",
+        "repairUnresolvedDimensions",
+        "DOCUMENT_AUTHORITY_MISMATCH",
+        "REGISTRY_REFUSED"
+      ],
+      "enforcement-traces.json": [
+        "passes",
+        "acceptedPass",
+        "promptSha256"
+      ],
+      "reviews-valid.jsonl": [
+        "targetId",
+        "documentAuthoritySha256",
+        "validationContract",
+        "sourceSealHash"
+      ],
+      "target-document-set.json": [
+        "documents[].targetId",
+        "documents[].contentHash"
+      ],
+      "reviews.json": [
+        "reviewStatus",
+        "findings[].targetEvidenceRefs"
+      ],
+      "cost-ledger.jsonl / llm-calls.jsonl": [
+        "cout par appel",
+        "attemptId",
+        "stage"
+      ],
+      "state.json / qualification.json / report.json": [
+        "status",
+        "stages",
+        "PROCESS_QUALIFICATION",
+        "SCIENTIFICALLY_USABLE",
+        "reportHash"
+      ]
+    },
+    "passCriteria": [
+      "run COMPLETED sans intervention hors gates prevus",
+      "authorityIdentityVerified > 0",
+      "authorityContextDivergences == 0",
+      "registryRefusedForeignTarget == 0",
+      "chaque entree de reviews-valid.jsonl porte un targetId ET un documentAuthoritySha256",
+      "pour la cible : sha256(autorite tracee) == sha256(contenu du document de target-document-set.json)",
+      "aucune reference litterale valide disparue (toutes les targetEvidenceRefs des revues completes sont litterales dans le document normalise)",
+      "aucun resultat vide silencieux apres reparation echouee (etat REPAIR_UNPARSABLE trace, jamais CANDIDATE_VALID)",
+      "cout <= plafond, aucun BUDGET_LIMIT_REACHED non prevu"
+    ],
+    "failCriteria": [
+      "toute condition d'arret declenchee",
+      "run FAILED pour une cause de contrat",
+      "perte de citation litterale",
+      "divergence d'autorite"
+    ]
+  },
+  "phaseB": {
+    "name": "MULTI-CIBLE CONTROLEE (execute seulement si PHASE A est saine)",
+    "mode": "PER_DOCUMENT obtenu par un repli REEL DOSSIER_TOO_LARGE",
+    "howToTriggerWithoutTouchingFrozenConfig": "reviewTargetMode = MISSION_DOSSIER et dossierMaxChars = 400 000 sont dans config/monolith.config.json, qui est DANS le manifeste gele : ils ne peuvent pas etre modifies sans ouvrir une nouvelle version. Le seul levier legitime est donc de fournir un dossier dont le total DEPASSE 400 000 caracteres : le repli PER_DOCUMENT est alors declenche par le moteur lui-meme, explicitement et journalise (code REVIEW_TARGET_FALLBACK).",
+    "documents": "3 documents distincts, ~140 000 caracteres chacun (total > 400 000), contenus et empreintes distincts, avec des differences de normalisation reelles (apostrophes typographiques, NBSP, CRLF, NFC) pour que brut != normalise sur chaque cible",
+    "twinsTarget": "un seul jumeau si possible (3 revues logiques)",
+    "estimatedUsd": "5 a 12 (projection : 3 cibles x ~35 000 jetons d'entree + panel d'un run NEUF)",
+    "hardCapUsd": 20,
+    "specificGoal": "observer en production reelle que target-01 recoit l'autorite de target-01, target-02 celle de target-02, target-03 celle de target-03, et qu'aucune cible ne recoit l'autorite d'une autre",
+    "manualInspectionA1": {
+      "why": "reserve A1 : le cablage de lib/pipeline.js n'a aucune couverture comportementale (mutant XPIPE survivant en test) ; la verification en production est donc MANUELLE",
+      "procedure": [
+        "1. extraire de target-document-set.json le couple (targetId, sha256(content)) pour chaque cible",
+        "2. extraire de reviews-valid.jsonl le couple (targetId, documentAuthoritySha256) pour chaque entree",
+        "3. extraire de ef03b-trace.jsonl les evenements portant targetId et documentAuthoritySha256",
+        "4. dresser la table des 3 couples et verifier l'egalite stricte, cible par cible",
+        "5. verifier que les 3 empreintes sont DISTINCTES entre elles"
+      ],
+      "expected": "3 lignes, 3 empreintes distinctes, 0 croisement",
+      "anyMismatch": "ARRET IMMEDIAT du smoke (condition d'arret 1 et 2)"
+    },
+    "passCriteria": [
+      "tous les criteres de la phase A",
+      "repli DOSSIER_TOO_LARGE effectivement journalise (REVIEW_TARGET_FALLBACK)",
+      ">= 2 cibles distinctes reellement revues (3 visees)",
+      "table d'inspection manuelle A1 : 3/3 conformes, empreintes distinctes",
+      "aucune entree de registre servie pour une autre cible",
+      "registryRefusedForeignTarget == 0"
+    ]
+  },
+  "stopConditions": [
+    {
+      "id": "S1",
+      "condition": "authority mismatch",
+      "detection": "trace DOCUMENT_AUTHORITY_MISMATCH inattendue, ou sha256(autorite) != sha256(document de la cible)"
+    },
+    {
+      "id": "S2",
+      "condition": "target mismatch",
+      "detection": "erreur DOCUMENT_AUTHORITY_TARGET_MISMATCH, ou couple (targetId, documentAuthoritySha256) croise dans l'inspection manuelle"
+    },
+    {
+      "id": "S3",
+      "condition": "context divergence inattendue",
+      "detection": "erreur DOCUMENT_AUTHORITY_CONTEXT_DIVERGENCE ou compteur authorityContextDivergences > 0"
+    },
+    {
+      "id": "S4",
+      "condition": "le registre sert une mauvaise cible",
+      "detection": "une revue reutilisee dont l'entree porte un autre targetId ; registryRefusedForeignTarget > 0 accompagne d'une reutilisation"
+    },
+    {
+      "id": "S5",
+      "condition": "une ancienne entree sans targetId est reutilisee",
+      "detection": "entree servie sans champ targetId dans reviews-valid.jsonl (ne doit pas exister : racine de runs isolee)"
+    },
+    {
+      "id": "S6",
+      "condition": "une citation litterale valide disparait",
+      "detection": "comparaison des targetEvidenceRefs avant/apres reparation dans ef03b-trace.jsonl (champ lineage) et litteralite dans le document normalise"
+    },
+    {
+      "id": "S7",
+      "condition": "garde CHECKPOINT / CONTRACT / AUTHORITY contournee",
+      "detection": "absence des codes fail-closed attendus la ou ils sont exiges ; CHECKPOINT_SEAL_MISMATCH, REGISTRY_IMPORT_*, reuseContextCheck"
+    },
+    {
+      "id": "S8",
+      "condition": "cout depassant le plafond approuve",
+      "detection": "BUDGET_LIMIT_REACHED, ou cout observe > plafond de phase"
+    },
+    {
+      "id": "S9",
+      "condition": "comportement non prevu menacant le lineage",
+      "detection": "tout etat REPAIR/lineage non documente dans ef03b-trace.jsonl"
+    }
+  ],
+  "stopProcedure": [
+    "1. arreter le run par l'API d'arret (acte explicite) ; ne jamais relancer automatiquement",
+    "2. ne RIEN corriger, ne RIEN rejouer",
+    "3. figer la copie du repertoire de run (aucune ecriture ulterieure)",
+    "4. calculer les empreintes des artefacts du run",
+    "5. produire le rapport de smoke avec le verdict SMOKE_FAIL et la chaine causale mesuree",
+    "6. attendre une decision proprietaire (un blocker factuel est la seule raison d'ouvrir une v1.0.16, cf. D6)"
+  ],
+  "filesProduced": {
+    "perRun": [
+      "state.json",
+      "review-targets.json",
+      "target-document-set.json",
+      "twins.json",
+      "review-schema.json",
+      "reviews.json",
+      "reviews-valid.jsonl",
+      "enforcement-traces.json",
+      "ef03b-trace.jsonl",
+      "ef03b-resilience.json",
+      "normalization-records.json",
+      "aggregation.json",
+      "qualification.json",
+      "report.json",
+      "cost-ledger.jsonl",
+      "llm-calls.jsonl",
+      "budget.json",
+      "live-status.json",
+      "checkpoint-professionals.json",
+      "checkpoint-downstream.json"
+    ],
+    "afterSmoke": [
+      "EVIDENCEFORGE-v1.0.15-REAL-SMOKE-REPORT.md",
+      "EVIDENCEFORGE-v1.0.15-REAL-SMOKE-REPORT.json"
+    ]
+  },
+  "afterSmoke": {
+    "verdicts": [
+      "SMOKE_PASS",
+      "SMOKE_PASS_WITH_RESERVATIONS",
+      "SMOKE_FAIL"
+    ],
+    "recommendations": [
+      "ACTIVATION_READY",
+      "ACTIVATION_NOT_READY"
+    ],
+    "noAutomaticActivation": true,
+    "finalDecision": "ACTIVE_VERSION reste une decision PROPRIETAIRE"
+  },
+  "ownerApprovalChecklist": [
+    "modele et tarification retenus (sonnet-4-6, 3/15 par million)",
+    "plafonds : phase A 12 USD, phase B 20 USD, enveloppe 32 USD",
+    "port 8769 et racine de runs isolee ~/evidenceforge-work/reports/smoke-v1015-runs",
+    "documents de la phase A (1 a 2 courts) et de la phase B (3 documents, total > 400 000 caracteres)",
+    "procedure de lancement explicite de v1.0.15 sans toucher ACTIVE_VERSION",
+    "accord pour que le repli PER_DOCUMENT soit obtenu par un dossier reellement trop grand, seul levier ne touchant pas la configuration gelee"
+  ]
+}

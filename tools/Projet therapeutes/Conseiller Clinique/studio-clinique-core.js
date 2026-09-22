@@ -13742,7 +13742,13 @@ ${recent}`;
     if (bookTitle) authorIntent.book_title = bookTitle;
 
     const ctrl = state.controller = new AbortController();
-    const tid = setTimeout(function () { ctrl.abort(); }, 6000);
+    // Délai porté à 12s (au lieu de 6s) — la recherche interlingue automatique (lancée le
+    // 22 septembre 2026) fait désormais une passe complète par langue du corpus en parallèle
+    // (vecteur + FTS5 + traduction), mesurée à 6,26s en conditions réelles sur une requête
+    // française typique avec une seule langue additionnelle (anglais) — dépassait déjà les 6s
+    // d'origine. 12s laisse une vraie marge plutôt qu'un ajustement minimal qui recréerait le
+    // même problème dès qu'une requête un peu plus longue ou une langue de plus s'ajoutera.
+    const tid = setTimeout(function () { ctrl.abort(); }, 12000);
     const [ragResp, authorResults] = await Promise.all([
       fetch(workerUrl + '/rag-search', {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
