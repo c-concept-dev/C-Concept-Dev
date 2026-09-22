@@ -1857,17 +1857,41 @@
       width: 100%; padding: 7px 10px; border: 1px solid var(--stone-200); border-radius: 8px;
       font-size: 12px; font-family: inherit; margin-bottom: 6px; box-sizing: border-box; color: var(--ink);
     }
-    .cc-ws-search-result { padding: 6px 2px; font-size: 11px; border-bottom: 1px solid var(--ivory); color: var(--ink); }
-    .cc-ws-search-excerpt { margin-top: 3px; color: var(--muted); line-height: 1.45; white-space: pre-wrap; }
+    /* Refonte visuelle "carte de citation professionnelle" (CDC §5) — chaque résultat devient une
+       vraie carte distincte (fond, coins arrondis, ombre légère) au lieu d'un paragraphe qui se
+       fond dans le suivant ; hiérarchie typographique claire (titre en évidence, auteur discret,
+       page/provenance en pastilles distinctes, langage visuel commun avec les pastilles de
+       facettes déjà construites ce soir — mêmes teintes pétrole/ivoire, mêmes coins arrondis).
+       Aucune classe existante retirée ni renommée (cc-ws-search-result reste un sélecteur de
+       test), uniquement enrichie visuellement et par de nouvelles classes internes. */
+    .cc-ws-search-result {
+      display: block; padding: 14px 16px; margin-bottom: 10px; font-size: 12px; color: var(--ink);
+      background: var(--paper); border: 1px solid var(--stone-200); border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(16,47,49,0.05);
+    }
+    .cc-ws-search-result:last-child { margin-bottom: 0; }
+    /* Titre/auteur puis pastilles TOUJOURS sur leur propre ligne en dessous (jamais côte à côte) :
+       dans la barre latérale étroite (280px, .cc-ws-panel), des pastilles côte à côte avec un
+       titre long soit écrasaient le titre (retour à la ligne mot par mot), soit débordaient de la
+       carte (flex-wrap sur un conteneur à largeur intrinsèque ne suffit pas à le contraindre à la
+       largeur disponible). Bloc simple, jamais flex sur l'en-tête entier : robuste à toute
+       longueur de titre ou de libellé de provenance, aux deux largeurs (accueil et espace de
+       travail). */
+    .cc-lib-card-title { font-size: 13.5px; font-weight: 700; color: var(--petrol-950); line-height: 1.3; }
+    .cc-lib-card-author { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .cc-lib-card-badges { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 6px; }
+    .cc-ws-search-excerpt { margin-top: 8px; color: var(--ink); line-height: 1.6; white-space: pre-wrap; }
     /* Phase 1+ Passerelle — composant de recherche bibliothèque partagé (barre latérale de
        l'espace de travail ET écran d'accueil, cf. adocLibSearchExec dans studio-clinique-core.js).
        Surlignage du terme trouvé, jamais un second calcul de position (réutilise celle déjà
        déterminée par adocLibrarySearchSnippet). */
     .cc-ws-search-excerpt mark { background: var(--terracotta-100); color: inherit; padding: 0 1px; border-radius: 2px; }
-    .cc-lib-provenance { font-weight: 400; color: var(--muted); font-size: 10px; }
-    .cc-lib-translation-badge { margin-top: 4px; font-size: 10px; font-weight: 700; color: var(--petrol-800); }
-    .cc-lib-translation-warning { margin-top: 4px; font-size: 10px; font-weight: 700; color: var(--terracotta-700); }
-    .cc-lib-vo-toggle { display: block; margin-top: 4px; background: none; border: none; padding: 0; font-size: 10px; text-decoration: underline; color: var(--muted); cursor: pointer; font-family: inherit; }
+    .cc-lib-translation-badge { margin-top: 8px; font-size: 10px; font-weight: 700; color: var(--petrol-800); }
+    .cc-lib-translation-warning { margin-top: 8px; font-size: 10px; font-weight: 700; color: var(--terracotta-700); }
+    .cc-lib-vo-toggle { display: block; margin-top: 6px; background: none; border: none; padding: 0; font-size: 10px; text-decoration: underline; color: var(--muted); cursor: pointer; font-family: inherit; }
+    /* Signal discret, jamais alarmant (couleur neutre, pas de rouge/orange) : heuristique simple
+       côté rendu (adocLibLooksGarbled), jamais une correction automatique du texte. */
+    .cc-lib-quality-flag { margin-top: 6px; font-size: 10px; color: var(--muted); font-style: italic; }
     .cc-lib-filters-toggle {
       display: flex; align-items: center; gap: 4px; background: none; border: none; padding: 2px 0;
       margin-bottom: 4px; font-size: 10px; font-weight: 700; color: var(--muted); cursor: pointer; font-family: inherit;
@@ -1896,7 +1920,6 @@
       margin-top: 10px; padding: 14px; border: 1px solid var(--stone-200); border-radius: 10px; background: var(--paper);
     }
     .cc-home-search-panel .cc-ws-search-input { margin-bottom: 8px; }
-    .cc-home-search-panel .cc-ws-search-result { border-bottom: 1px solid var(--ivory); }
     .cc-ws-memory { margin-top: auto; border-top: 1px solid var(--stone-200); padding-top: 14px; }
     .cc-ws-memory-toggle, .adoc-sidebar-memory-toggle {
       width: 100%; display: flex; align-items: center; justify-content: space-between;
@@ -2230,12 +2253,16 @@
       color: var(--muted,#5d6966); background: var(--stone-200,#ddd7cc);
       border: 1px dashed var(--stone-300,#c9c3b8); border-radius: 8px;
     }
-  .cc-lib-page{display:inline-block;border:1px solid currentColor;border-radius:4px;padding:1px 5px;font-size:.8em}
-.cc-ws-search-excerpt{white-space:pre-wrap}
-.cc-lib-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
-.cc-lib-actions button{font:inherit;color:var(--forest);background:var(--ivory);border:1px solid currentColor;border-radius:5px;padding:5px 9px;cursor:pointer}
-.cc-lib-status{font-size:.8em;color:var(--muted);margin-top:6px}
-.cc-lib-approach-group h4{margin:14px 0 7px}
+  .cc-lib-page{display:inline-block;border:1px solid var(--petrol-900);border-radius:12px;padding:2px 8px;font-size:10px;font-weight:600;color:var(--petrol-900);white-space:nowrap}
+.cc-lib-provenance{display:inline-block;font-weight:500;color:var(--muted);font-size:10px;background:var(--ivory);border-radius:12px;padding:2px 8px;white-space:normal;max-width:100%;box-sizing:border-box}
+.cc-lib-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.cc-lib-actions button{font:inherit;font-size:11px;font-weight:600;color:var(--petrol-900);background:var(--ivory);border:1px solid var(--petrol-900);border-radius:14px;padding:5px 11px;cursor:pointer;transition:background .15s,color .15s}
+.cc-lib-actions button:hover:not(:disabled),.cc-lib-actions button:focus-visible:not(:disabled){background:var(--petrol-900);color:#fff}
+.cc-lib-actions button:disabled{opacity:.6;cursor:default}
+.cc-lib-status{font-size:10px;color:var(--muted);margin-top:6px}
+.cc-lib-approach-group{margin-top:18px}
+.cc-lib-approach-group:first-child{margin-top:0}
+.cc-lib-approach-group h4{margin:0 0 10px;padding:5px 10px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--petrol-900);background:var(--petrol-100);border-radius:6px;display:inline-block}
 .cc-lib-facet-options,.cc-lib-active-filters{display:flex;gap:6px;flex-wrap:wrap;margin:7px 0}
 .cc-lib-facet-options button,.cc-lib-active-filters button,.cc-lib-recover{font:inherit;font-size:12px;border:1px solid var(--petrol-900);border-radius:14px;padding:5px 9px;background:var(--ivory);color:var(--petrol-900);cursor:pointer}
 .cc-lib-facet-options button[aria-pressed="true"]{background:var(--petrol-900);color:white}

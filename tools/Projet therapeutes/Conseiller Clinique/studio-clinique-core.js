@@ -13814,6 +13814,18 @@ ${recent}`;
   function adocLibraryPageLabel(c) {
     return c.page_number ? 'p. ' + c.page_number + (c.page_end && c.page_end !== c.page_number ? '–' + c.page_end : '') : '';
   }
+  // Refonte visuelle "carte de citation professionnelle" (CDC §5) — heuristique SIMPLE et
+  // discrète de qualité d'extraction dégradée : proportion de caractères hors lettres/chiffres/
+  // ponctuation courante au-delà d'un seuil (bruit d'extraction PDF typique : caractères isolés,
+  // symboles de mise en page mal décodés). Jamais alarmant (couleur neutre, texte factuel) ; ne
+  // touche à aucune donnée, seulement à l'affichage d'un signal — jamais construit de correction
+  // automatique, faute d'heuristique fiable pour ça.
+  function adocLibLooksGarbled(text) {
+    const clean = (text || '').replace(/\s+/g, '');
+    if (clean.length < 40) return false;
+    const bad = (clean.match(/[^a-zA-ZÀ-ÖØ-öø-ÿ0-9.,;:!?'"()«»–—\-]/g) || []).length;
+    return bad / clean.length > 0.15;
+  }
   function adocRenderLibraryCard(card) {
     const c = card.data, uid = card.uid;
     const sources = Array.isArray(c.sources) ? c.sources : (c.source ? [c.source] : []);
@@ -13829,9 +13841,16 @@ ${recent}`;
         + '<button type="button" class="cc-lib-vo-toggle" id="cc-lib-btn-' + uid + '" onclick="adocLibSearchToggleVO(\'' + uid + '\')">' + (card.showingOriginal ? 'Voir la traduction' : 'Voir le texte original') + '</button>'
       : (c.translation_failed ? '<div class="cc-lib-translation-warning">⚠️ Échec de traduction automatique — texte original affiché</div>' : '')
         + '<div class="cc-ws-search-excerpt">' + adocLibHighlight(card.original, card.words) + '</div>';
-    return '<article class="cc-ws-search-result" id="cc-lib-card-' + uid + '"><div><strong>' + adocEsc(c.book_title || 'Référence') + '</strong>'
-      + (c.author ? ' — ' + adocEsc(c.author) : '') + (adocLibraryPageLabel(c) ? ' <span class="cc-lib-page">' + adocEsc(adocLibraryPageLabel(c)) + '</span>' : '')
-      + (provenance ? ' <span class="cc-lib-provenance">· ' + provenance + '</span>' : '') + '</div>' + text
+    const badges = (adocLibraryPageLabel(c) ? '<span class="cc-lib-page">' + adocEsc(adocLibraryPageLabel(c)) + '</span>' : '')
+      + (provenance ? '<span class="cc-lib-provenance">' + adocEsc(provenance) + '</span>' : '');
+    const garbled = adocLibLooksGarbled(card.original)
+      ? '<div class="cc-lib-quality-flag" title="Extraction possiblement imparfaite (mise en page d\'origine complexe)">Extraction possiblement imparfaite</div>' : '';
+    return '<article class="cc-ws-search-result" id="cc-lib-card-' + uid + '">'
+      + '<div class="cc-lib-card-head">'
+        + '<div class="cc-lib-card-title-block"><div class="cc-lib-card-title">' + adocEsc(c.book_title || 'Référence') + '</div>'
+        + (c.author ? '<div class="cc-lib-card-author">' + adocEsc(c.author) + '</div>' : '') + '</div>'
+        + (badges ? '<div class="cc-lib-card-badges">' + badges + '</div>' : '')
+      + '</div>' + text + garbled
       + '<div class="cc-lib-actions">' + (!card.full && c.id ? '<button type="button" onclick="adocLibraryFullContext(\'' + uid + '\')"' + (card.loading ? ' disabled' : '') + '>' + (card.loading ? 'Chargement…' : 'Voir plus de contexte') + '</button>' : '')
       + (card.allowInsert ? '<button type="button" onclick="adocLibraryInsert(\'' + uid + '\')"' + (card.inserting ? ' disabled' : '') + '>Insérer cet extrait</button>' : '')
       + '</div><div class="cc-lib-status" role="status">' + adocEsc(card.status || (card.full ? 'Contexte complet' : 'Extrait') + (card.allowInsert ? ' — insertion après le bloc sélectionné, ou en fin de document.' : '')) + '</div></article>';
