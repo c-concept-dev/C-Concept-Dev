@@ -56777,17 +56777,46 @@ __name(d1SearchNormalize, "d1SearchNormalize");
 // ainsi construit reste toujours interprété comme voulu (les caractères spéciaux de la valeur
 // d'origine restent des caractères littéraux à chercher, jamais des jokers), donc toujours valide
 // quelle que soit la requête, plutôt qu'une simple tentative de contourner un cas précis.
-const D1_SEARCH_LIKE_MAX_VALUE_LENGTH = 100;
+// CORRECTIF URGENT — le plafond ci-dessus (100 caractères puis échappement) a été construit et
+// validé avec node:sqlite (limite de motif LIKE par défaut : 50 000 octets), jamais contre le
+// vrai moteur Cloudflare D1 en production. Reproduction directe en D1 réel (therapeute-library,
+// hors Worker, lecture seule, 2026-09-22) : la vraie limite D1 est de 50 OCTETS TOTAL pour le
+// motif LIKE (délimiteurs '%' inclus), confirmée par recherche dichotomique exacte — un motif de
+// 50 octets réussit, 51 octets échoue déjà ("LIKE or GLOB pattern too complex: SQLITE_ERROR"),
+// qu'il s'agisse d'ASCII, de caractères accentués multi-octets UTF-8 (24 'é' = 50 octets passe,
+// 25 'é' = 52 octets échoue) ou de caractères déjà échappés. Une valeur tronquée à 100
+// caractères PUIS échappée peut donc largement dépasser cette vraie limite dès qu'elle contient
+// des caractères accentués ou plusieurs '\'/'%'/'_' à échapper — le motif "%…%" produit par
+// l'ancienne version pouvait donc toujours déclencher la même erreur SQLite brute que ce
+// correctif était censé éliminer, simplement pour un texte plus long ou plus riche que celui
+// testé alors. Remplacé par un constructeur qui BORNE APRÈS échappement, octet par octet, en
+// tronquant par point de code Unicode complet (jamais une séquence UTF-8 coupée en deux) — le
+// motif final ne peut structurellement jamais dépasser la vraie limite D1, quelle que soit la
+// longueur ou le contenu de la valeur d'origine.
+const D1_LIKE_HARD_BYTE_LIMIT = 50;
+const d1LikeByteEncoder = /* @__PURE__ */ new TextEncoder();
+function d1BoundedLikePattern(raw, { prefix = false } = {}) {
+  const str = String(raw ?? "");
+  const reserved = prefix ? 1 : 2;
+  const budget = Math.max(0, D1_LIKE_HARD_BYTE_LIMIT - reserved);
+  let out = "", bytes = 0;
+  for (const ch of str) {
+    const needsEscape = ch === "\\" || ch === "%" || ch === "_";
+    const piece = needsEscape ? "\\" + ch : ch;
+    const pieceBytes = d1LikeByteEncoder.encode(piece).length;
+    if (bytes + pieceBytes > budget) break;
+    out += piece;
+    bytes += pieceBytes;
+  }
+  return prefix ? out + "%" : "%" + out + "%";
+}
+__name(d1BoundedLikePattern, "d1BoundedLikePattern");
 function d1SearchLikeParam(s) {
-  const truncated = String(s).slice(0, D1_SEARCH_LIKE_MAX_VALUE_LENGTH);
-  const escaped = truncated.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
-  return "%" + escaped + "%";
+  return d1BoundedLikePattern(s);
 }
 __name(d1SearchLikeParam, "d1SearchLikeParam");
 function d1SearchLikePrefixParam(s) {
-  const truncated = String(s).slice(0, D1_SEARCH_LIKE_MAX_VALUE_LENGTH);
-  const escaped = truncated.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
-  return escaped + "%";
+  return d1BoundedLikePattern(s, { prefix: true });
 }
 __name(d1SearchLikePrefixParam, "d1SearchLikePrefixParam");
 
@@ -58056,12 +58085,27 @@ async function handleLibraryFacets(request2, env2) {
     // Quoted literals prevent arbitrary FTS operators/syntax in user input.
     const literal = (t) => '"' + t.replace(/"/g, '""') + '"';
     const match = phrase ? literal(raw.slice(1, -1)) : (terms.length ? terms : [plain]).map(literal).join(" OR ");
+    // CORRECTIF URGENT — motif LIKE de repli (correspondance auteur) construit sans jamais
+    // borner sa longueur : "%" + plain (la phrase de recherche ENTIÈRE, jusqu'à 1000 caractères
+    // validés plus haut) + "%". Reproduit et confirmé en D1 réel (therapeute-library, lecture
+    // seule, 2026-09-22) : la vraie limite Cloudflare D1 pour un motif LIKE est de 50 OCTETS
+    // TOTAL (délimiteurs compris) — bien en-deçà de node:sqlite (50 000 par défaut), ce qui
+    // explique qu'aucun test local n'avait jamais révélé le problème. Une phrase de recherche
+    // réelle de dix mots (ex. "comment identifier les différents modes chez un patient en
+    // thérapie", 69 octets UTF-8 avec les '%') dépasse déjà cette limite et faisait échouer
+    // TOUTE la requête (masqué par le catch générique ci-dessous en 503 "Facettes
+    // indisponibles"), quelle que soit la pertinence de la recherche par ailleurs. Remplacé par
+    // `d1SearchLikeParam`/`d1SearchLikePrefixParam` (mêmes primitives déjà utilisées par
+    // handleD1Query, corrigées dans ce même lot pour réellement respecter cette limite après
+    // échappement) : la longueur de la phrase de recherche n'a plus aucune incidence, la
+    // correspondance FTS5 (MATCH, sans cette limite) reste inchangée et fait tout le travail
+    // pour la partie longue de la requête — le repli LIKE reste borné à un motif toujours valide.
     clauses.push("c.rowid IN (SELECT rowid FROM chunks_fts WHERE chunks_fts MATCH ? UNION SELECT rowid FROM chunks WHERE author LIKE ? ESCAPE '\\')");
-    params.push(match, "%" + plain.replace(/[\\%_]/g, (c) => "\\" + c) + "%");
+    params.push(match, d1SearchLikeParam(plain));
   }
   if ((body.book_title || "").trim()) {
     clauses.push("c.book_title LIKE ? ESCAPE '\\'");
-    params.push(body.book_title.trim().replace(/[\\%_]/g, (c) => "\\" + c) + "%");
+    params.push(d1SearchLikePrefixParam(body.book_title.trim()));
   }
   try {
     const result = await env2.DB.prepare("SELECT c.approach, c.language, COUNT(*) AS count FROM chunks c" +
@@ -58203,7 +58247,13 @@ async function handleRagSearch(request2, env2) {
       sql += ` ORDER BY rank LIMIT ${Math.min(topK * 2, 40)}`;
       ftsPromise = env2.DB.prepare(sql).bind(...params).all().catch(() => ({ results: [] }));
     }
-    const [embedResult, ftsRes] = await Promise.all([embedPromise, ftsPromise]);
+    // Recherche interlingue automatique (Option A, décision explicite) — la vraie liste des
+    // langues du corpus, jamais codée en dur : même source réelle (table `chunks`) que les
+    // facettes dynamiques (`handleLibraryFacets`), interrogée ici directement (pas d'appel HTTP
+    // interne à `/library-facets` — même donnée, sans aller-retour réseau superflu). Lancée EN
+    // PARALLÈLE de l'embedding et de la requête FTS5 déjà en cours, jamais en série.
+    const langPromise = env2.DB.prepare("SELECT DISTINCT language FROM chunks WHERE language IS NOT NULL AND language != ''").all().catch(() => ({ results: [] }));
+    const [embedResult, ftsRes, langRes] = await Promise.all([embedPromise, ftsPromise, langPromise]);
     if (!embedResult?.data?.[0])
       return jsonErr("Embedding failed", 500);
     const vq = { topK: Math.min(topK * 3, 50), returnMetadata: "all" };
@@ -58218,6 +58268,60 @@ async function handleRagSearch(request2, env2) {
       _source: "vector"
     }));
     const ftsChunks = (ftsRes.results || []).map((r) => ({ ...r, _source: "fts5", score: 0.7 }));
+    // Investigation (point 1) — aucune détection fiable et bon marché de la langue de la requête
+    // n'a été trouvée dans cette session (m2m100 exige `source_lang` en entrée, il ne le détecte
+    // jamais). Décision explicite de Christophe (repli accepté) : la requête est traitée comme
+    // écrite dans `target_lang` (déjà choisi par l'utilisatrice) et traduite vers CHAQUE AUTRE
+    // langue réellement présente dans le corpus — une requête déjà dans une de ces langues produit
+    // au pire une traduction redondante vers elle-même (jamais un faux résultat, gaspillage mineur
+    // assumé). Plafond simple (point 4, documenté plutôt que résolu en profondeur) : au-delà de 5
+    // langues additionnelles, seules les 5 en tête (déjà triées par volume par `handleLibraryFacets`
+    // pour la même donnée — ici juste dérivées, pas triées par volume faute d'un besoin réel tant
+    // que le corpus reste à 2 langues) sont traduites, pour éviter un éventail incontrôlé d'appels
+    // Workers AI si le corpus grossissait un jour à de nombreuses langues.
+    const fold0 = (v) => String(v ?? "").replace(/[A-Z]/g, (c) => c.toLowerCase());
+    const otherLanguages = (langRes.results || [])
+      .map((r) => String(r.language || "").trim())
+      .filter((l) => l && fold0(l) !== fold0(target_lang))
+      .slice(0, 5);
+    const extraPasses = otherLanguages.length ? await Promise.all(otherLanguages.map(async (lang) => {
+      try {
+        const tr = await env2.AI.run("@cf/meta/m2m100-1.2b", { text: query, source_lang: target_lang, target_lang: lang });
+        const translatedQuery = tr?.translated_text;
+        if (typeof translatedQuery !== "string" || !translatedQuery.trim()) return { vecChunks: [], ftsChunks: [] };
+        // Pas de mode phrase pour les passes traduites : une traduction ne préserve pas
+        // l'adjacence exacte des mots, une correspondance de phrase stricte n'aurait ici aucun
+        // sens garanti — union de mots (OR) uniquement, comme la dérivation automatique existante.
+        const terms2 = translatedQuery.split(/\s+/).filter((w) => w.length > 3).slice(0, 6);
+        const ftsQuery2 = terms2.map((t) => t.replace(/['"]/g, "")).join(" OR ");
+        const embedP2 = env2.AI.run("@cf/baai/bge-m3", { text: [translatedQuery] });
+        let ftsP2 = Promise.resolve({ results: [] });
+        if (ftsQuery2) {
+          let sql2 = `SELECT c.id, c.book_title, c.author, c.page_number, c.page_end, c.approach, c.language, c.content
+            FROM chunks_fts JOIN chunks c ON c.rowid = chunks_fts.rowid
+            WHERE chunks_fts MATCH ? AND c.language = ? COLLATE NOCASE`;
+          const params2 = [ftsQuery2, lang];
+          if (approach && approach !== "all") { sql2 += ` AND c.approach = ? COLLATE NOCASE`; params2.push(approach); }
+          if (exclude_approach) { sql2 += ` AND c.approach != ?`; params2.push(exclude_approach); }
+          if (book_title) { sql2 += ` AND c.book_title LIKE ? ESCAPE '\\'`; params2.push(book_title.replace(/[\\%_]/g, (c) => "\\" + c) + "%"); }
+          sql2 += ` ORDER BY rank LIMIT ${Math.min(topK * 2, 40)}`;
+          ftsP2 = env2.DB.prepare(sql2).bind(...params2).all().catch(() => ({ results: [] }));
+        }
+        const [embedR2, ftsR2] = await Promise.all([embedP2, ftsP2]);
+        const ftsChunks2 = (ftsR2.results || []).map((r) => ({ ...r, _source: "fts5", score: 0.7 }));
+        if (!embedR2?.data?.[0]) return { vecChunks: [], ftsChunks: ftsChunks2 };
+        const matches2 = await env2.VECTOR_INDEX.query(embedR2.data[0], vq);
+        const vecChunks2 = (matches2.matches || []).map((m) => ({
+          id: m.id, score: m.score, book_title: m.metadata?.book_title, author: m.metadata?.author,
+          page_number: m.metadata?.page_number, approach: m.metadata?.approach, _source: "vector"
+        }));
+        return { vecChunks: vecChunks2, ftsChunks: ftsChunks2 };
+      } catch {
+        // Une langue dont la traduction échoue est simplement ignorée pour cette recherche —
+        // jamais toute la réponse basculée en erreur pour l'échec d'UNE langue additionnelle.
+        return { vecChunks: [], ftsChunks: [] };
+      }
+    })) : [];
     // Correctif urgent (biais vector-first confirmé par lecture directe) — `merged` était
     // construit comme [...vecChunks, ...ftsChunks] PUIS tronqué à `topK` par simple `.slice()` :
     // dès que la recherche vectorielle produit ≥topK résultats distincts (le cas normal, `vq.topK`
@@ -58227,10 +58331,18 @@ async function handleRagSearch(request2, env2) {
     // (RRF, Cormack et al.) : combine deux classements hétérogènes sans dépendre de scores
     // directement comparables (similarité cosinus vectorielle réelle vs score FTS5 arbitraire
     // fixe à 0.7 ci-dessus) — seul le RANG au sein de chaque source compte, jamais sa valeur brute.
+    // Recherche interlingue — chaque passe (requête d'origine + une par langue additionnelle
+    // traduite) contribue au RRF selon le RANG DE CHAQUE CANDIDAT DANS SA PROPRE PASSE, jamais
+    // selon sa position dans une simple concaténation de listes (qui pénaliserait à tort tout
+    // candidat trouvé uniquement via une langue additionnelle, toujours placée après la passe
+    // principale). Équitable quel que soit le nombre de langues traduites.
+    const allPasses = [{ vecChunks, ftsChunks }, ...extraPasses];
     const RRF_K = 60;
     const rrfScore = /* @__PURE__ */ new Map();
-    vecChunks.forEach((c, rank) => rrfScore.set(c.id, (rrfScore.get(c.id) || 0) + 1 / (RRF_K + rank + 1)));
-    ftsChunks.forEach((c, rank) => rrfScore.set(c.id, (rrfScore.get(c.id) || 0) + 1 / (RRF_K + rank + 1)));
+    for (const pass of allPasses) {
+      pass.vecChunks.forEach((c, rank) => rrfScore.set(c.id, (rrfScore.get(c.id) || 0) + 1 / (RRF_K + rank + 1)));
+      pass.ftsChunks.forEach((c, rank) => rrfScore.set(c.id, (rrfScore.get(c.id) || 0) + 1 / (RRF_K + rank + 1)));
+    }
     // Correctif micro-lot RRF-CLOSE (provenance double perdue) — la déduplication conservait
     // auparavant SEULEMENT la première occurrence rencontrée dans [...vecChunks, ...ftsChunks]
     // (donc toujours la version vectorielle quand un chunk était trouvé par les deux moteurs),
@@ -58244,7 +58356,8 @@ async function handleRagSearch(request2, env2) {
     const ftsRankById = /* @__PURE__ */ new Map();
     ftsChunks.forEach((c, rank) => ftsRankById.set(c.id, rank));
     const byId = /* @__PURE__ */ new Map();
-    for (const chunk of [...vecChunks, ...ftsChunks]) {
+    for (const pass of allPasses)
+    for (const chunk of [...pass.vecChunks, ...pass.ftsChunks]) {
       const existing = byId.get(chunk.id);
       if (existing) {
         if (!existing._sources.includes(chunk._source))
@@ -58389,7 +58502,22 @@ async function handleRagSearch(request2, env2) {
       query,
       target_lang,
       chunks: finalChunks,
-      stats: { total: finalChunks.length, vector: vecChunks.length, fts5: ftsChunks.length, approach: approach || "all", topK, translated: toTranslate.filter((c) => c.is_machine_translated).length }
+      stats: {
+        total: finalChunks.length,
+        // Recherche interlingue — comptes CUMULÉS sur toutes les passes (requête d'origine +
+        // une par langue additionnelle traduite), jamais seulement la passe principale : sinon
+        // un candidat trouvé uniquement via une langue traduite deviendrait invisible dans ces
+        // compteurs alors qu'il a bien été cherché et peut figurer dans `chunks`.
+        vector: allPasses.reduce((n, p) => n + p.vecChunks.length, 0),
+        fts5: allPasses.reduce((n, p) => n + p.ftsChunks.length, 0),
+        approach: approach || "all",
+        topK,
+        translated: toTranslate.filter((c) => c.is_machine_translated).length,
+        // Langues effectivement interrogées pour CETTE recherche (target_lang + traductions) —
+        // dérivée en direct de la vraie liste du corpus, jamais codée en dur ; sert de preuve
+        // visible côté diagnostic que le mécanisme interlingue a bien tourné.
+        languages_searched: [target_lang, ...otherLanguages]
+      }
     });
   } catch (err2) {
     return jsonErr("rag-search failed: " + err2.message, 500);
