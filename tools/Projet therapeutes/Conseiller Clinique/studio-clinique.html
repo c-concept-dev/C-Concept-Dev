@@ -1859,6 +1859,44 @@
     }
     .cc-ws-search-result { padding: 6px 2px; font-size: 11px; border-bottom: 1px solid var(--ivory); color: var(--ink); }
     .cc-ws-search-excerpt { margin-top: 3px; color: var(--muted); line-height: 1.45; white-space: pre-wrap; }
+    /* Phase 1+ Passerelle — composant de recherche bibliothèque partagé (barre latérale de
+       l'espace de travail ET écran d'accueil, cf. adocLibSearchExec dans studio-clinique-core.js).
+       Surlignage du terme trouvé, jamais un second calcul de position (réutilise celle déjà
+       déterminée par adocLibrarySearchSnippet). */
+    .cc-ws-search-excerpt mark { background: var(--terracotta-100); color: inherit; padding: 0 1px; border-radius: 2px; }
+    .cc-lib-provenance { font-weight: 400; color: var(--muted); font-size: 10px; }
+    .cc-lib-translation-badge { margin-top: 4px; font-size: 10px; font-weight: 700; color: var(--petrol-800); }
+    .cc-lib-translation-warning { margin-top: 4px; font-size: 10px; font-weight: 700; color: var(--terracotta-700); }
+    .cc-lib-vo-toggle { display: block; margin-top: 4px; background: none; border: none; padding: 0; font-size: 10px; text-decoration: underline; color: var(--muted); cursor: pointer; font-family: inherit; }
+    .cc-lib-filters-toggle {
+      display: flex; align-items: center; gap: 4px; background: none; border: none; padding: 2px 0;
+      margin-bottom: 4px; font-size: 10px; font-weight: 700; color: var(--muted); cursor: pointer; font-family: inherit;
+    }
+    .cc-lib-filters-toggle:hover, .cc-lib-filters-toggle:focus-visible { color: var(--terracotta-700); }
+    .cc-lib-filters-toggle .cc-ws-icon { width: 12px; height: 12px; transition: transform .15s; }
+    .cc-lib-filters-toggle[aria-expanded="true"] .cc-ws-icon { transform: rotate(180deg); }
+    .cc-lib-filters { display: none; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+    .cc-lib-filters.open { display: flex; }
+    .cc-lib-filter-input {
+      width: 100%; padding: 6px 8px; border: 1px solid var(--stone-200); border-radius: 6px;
+      font-size: 11px; font-family: inherit; box-sizing: border-box; color: var(--ink);
+    }
+    /* Écran d'accueil — second point de montage du même composant, avant même l'ouverture d'un
+       document (préparer sa demande). Replié par défaut (jamais un bloc de recherche toujours
+       visible qui alourdirait le premier écran). */
+    .cc-home-search-wrap { margin: 4px 0 18px; }
+    .cc-home-search-toggle {
+      display: flex; align-items: center; gap: 6px; background: none; border: none; padding: 4px 0;
+      font-size: 12.5px; font-weight: 600; color: var(--petrol-800); cursor: pointer; font-family: inherit;
+    }
+    .cc-home-search-toggle:hover, .cc-home-search-toggle:focus-visible { color: var(--terracotta-700); }
+    .cc-home-search-toggle .cc-ws-icon { width: 15px; height: 15px; transition: transform .15s; }
+    .cc-home-search-toggle[aria-expanded="true"] .cc-ws-icon { transform: rotate(90deg); }
+    .cc-home-search-panel {
+      margin-top: 10px; padding: 14px; border: 1px solid var(--stone-200); border-radius: 10px; background: var(--paper);
+    }
+    .cc-home-search-panel .cc-ws-search-input { margin-bottom: 8px; }
+    .cc-home-search-panel .cc-ws-search-result { border-bottom: 1px solid var(--ivory); }
     .cc-ws-memory { margin-top: auto; border-top: 1px solid var(--stone-200); padding-top: 14px; }
     .cc-ws-memory-toggle, .adoc-sidebar-memory-toggle {
       width: 100%; display: flex; align-items: center; justify-content: space-between;
@@ -2258,6 +2296,36 @@
               <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 7V5a4 4 0 0 1 8 0v2"/><rect x="2.5" y="7" width="11" height="7" rx="2"/></svg>
               Utilisez des initiales plutôt que des données identifiantes.
             </span>
+          </div>
+        </div>
+
+        <!-- Phase 1+ Passerelle — second point de montage du composant de recherche partagé
+             (adocLibSearchExec, cf. studio-clinique-core.js), avant même l'ouverture d'un
+             document : permet de chercher un passage pour préparer sa demande. Replié par
+             défaut ; simple consultation (jamais de geste "utiliser cette source" — intention
+             non confirmée, cf. rapport de ce lot). -->
+        <div class="cc-home-search-wrap">
+          <button type="button" class="cc-home-search-toggle" id="cc-home-search-toggle" aria-expanded="false" aria-controls="cc-home-search-panel" onclick="window.adocHomeSearchTogglePanel()">
+            <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-library"></use></svg>
+            Chercher un passage dans la bibliothèque avant de rédiger
+          </button>
+          <div class="cc-home-search-panel" id="cc-home-search-panel" hidden>
+            <input type="text" class="cc-ws-search-input" id="cc-home-search-input"
+              placeholder='Rechercher un ouvrage, un auteur, ou "une phrase exacte"…' aria-label="Rechercher dans la bibliothèque thérapeutique"
+              onkeydown="if(event.key==='Enter'){event.preventDefault();window.adocLibSearchExec('cc-home-search');}">
+            <button type="button" class="cc-lib-filters-toggle" id="cc-home-search-filters-toggle" aria-expanded="false" aria-controls="cc-home-search-filters" onclick="window.adocLibSearchToggleFilters('cc-home-search')">
+              Filtres <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-chevron"></use></svg>
+            </button>
+            <div class="cc-lib-filters" id="cc-home-search-filters">
+              <input type="text" class="cc-lib-filter-input" id="cc-home-search-approach" placeholder="Approche (ex. ifs, systemic)">
+              <select class="cc-lib-filter-input" id="cc-home-search-language">
+                <option value="">Langue source : toutes</option>
+                <option value="fr">Français</option>
+                <option value="en">Anglais</option>
+              </select>
+              <input type="text" class="cc-lib-filter-input" id="cc-home-search-book-title" placeholder="Titre du livre (début)">
+            </div>
+            <div id="cc-home-search-results"></div>
           </div>
         </div>
 
@@ -3024,8 +3092,20 @@
           Bibliothèque thérapeutique
         </p>
         <input type="text" class="cc-ws-search-input" id="cc-ws-search-input"
-          placeholder="Rechercher un ouvrage, un auteur…" aria-label="Rechercher dans la bibliothèque thérapeutique"
-          onkeydown="if(event.key==='Enter'){event.preventDefault();window.adocWsSearchLibrary();}">
+          placeholder='Rechercher un ouvrage, un auteur, ou "une phrase exacte"…' aria-label="Rechercher dans la bibliothèque thérapeutique"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();window.adocLibSearchExec('cc-ws-search');}">
+        <button type="button" class="cc-lib-filters-toggle" id="cc-ws-search-filters-toggle" aria-expanded="false" aria-controls="cc-ws-search-filters" onclick="window.adocLibSearchToggleFilters('cc-ws-search')">
+          Filtres <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-chevron"></use></svg>
+        </button>
+        <div class="cc-lib-filters" id="cc-ws-search-filters">
+          <input type="text" class="cc-lib-filter-input" id="cc-ws-search-approach" placeholder="Approche (ex. ifs, systemic)">
+          <select class="cc-lib-filter-input" id="cc-ws-search-language">
+            <option value="">Langue source : toutes</option>
+            <option value="fr">Français</option>
+            <option value="en">Anglais</option>
+          </select>
+          <input type="text" class="cc-lib-filter-input" id="cc-ws-search-book-title" placeholder="Titre du livre (début)">
+        </div>
         <div id="cc-ws-search-results"></div>
       </div>
       <div class="cc-ws-memory" id="cc-ws-memory-mount"></div>

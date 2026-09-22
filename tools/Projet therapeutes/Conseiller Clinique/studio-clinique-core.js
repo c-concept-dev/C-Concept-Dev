@@ -13516,41 +13516,177 @@ ${recent}`;
     return (r.book_title || '') + '|' + (r.page_number || '') + '|' + (r.content || '').slice(0, 60);
   }
 
-  // Recherche par mot-clé OU par nom d'auteur, dans le VRAI contenu indexé des passages —
-  // jamais une image de la page PDF originale (chantier séparé, dépend d'un transfert de
-  // fichiers non encore fait). Les deux recherches (contenu via FTS5, auteur via le gabarit B
-  // dédié déjà existant côté Worker) partent en parallèle sur la MÊME saisie : une seule boîte
-  // de recherche couvre les deux usages sans que l'utilisatrice ait à préciser laquelle.
-  window.adocWsSearchLibrary = async function () {
-    const input = document.getElementById('cc-ws-search-input');
-    const q = (input.value || '').trim();
-    const resultsEl = document.getElementById('cc-ws-search-results');
-    if (!q) { resultsEl.innerHTML = ''; return; }
+  // ── Phase 1+ Passerelle — composant de recherche bibliothèque partagé ─────────────────
+  // Un seul jeu de fonctions monté à DEUX points d'entrée (barre latérale de l'espace de
+  // travail ET écran d'accueil, avant même l'ouverture d'un document), paramétré par son
+  // conteneur de montage (`mountId`) — jamais deux implémentations séparées. Remplace l'appel
+  // à /d1-query (gabarit A, terms/any) pour la recherche par CONTENU : utilise désormais
+  // /rag-search (hybride vecteur+FTS5, RRF, traduction automatique intégrée — briques
+  // construites et vérifiées séparément ce soir). La recherche par AUTEUR reste sur /d1-query
+  // (gabarit B dédié, inchangé) : /rag-search n'a AUCUN paramètre `author` — vérifié par
+  // lecture directe de handleRagSearch (Worker/index.js) avant d'écrire cette fonction, jamais
+  // supposé — les deux partent toujours en parallèle sur la même saisie, fusionnées et
+  // dédoublonnées exactement comme avant (adocLibrarySearchResultKey, inchangée).
+  function adocLibSearchIds(mountId) {
+    return {
+      input: mountId + '-input', results: mountId + '-results',
+      filtersToggle: mountId + '-filters-toggle', filters: mountId + '-filters',
+      approach: mountId + '-approach', language: mountId + '-language', bookTitle: mountId + '-book-title',
+    };
+  }
+
+  window.adocLibSearchToggleFilters = function (mountId) {
+    const ids = adocLibSearchIds(mountId);
+    const panel = document.getElementById(ids.filters);
+    const btn = document.getElementById(ids.filtersToggle);
+    if (!panel) return;
+    const open = panel.classList.toggle('open');
+    if (btn) btn.setAttribute('aria-expanded', String(open));
+  };
+
+  // Bascule VO ↔ traduction — show/hide DOM local, JAMAIS un second appel réseau (le texte
+  // original ET le texte traduit sont déjà tous les deux dans le DOM dès le premier rendu,
+  // même patron déjà construit et testé côté panneau diagnostic admin ce soir).
+  window.adocLibSearchToggleVO = function (uid) {
+    const tr = document.getElementById('cc-lib-tr-' + uid);
+    const vo = document.getElementById('cc-lib-vo-' + uid);
+    const btn = document.getElementById('cc-lib-btn-' + uid);
+    if (!tr || !vo || !btn) return;
+    const showingTranslation = tr.style.display !== 'none';
+    tr.style.display = showingTranslation ? 'none' : '';
+    vo.style.display = showingTranslation ? '' : 'none';
+    btn.textContent = showingTranslation ? 'Voir la traduction' : 'Voir le texte original';
+  };
+
+  window.adocHomeSearchTogglePanel = function () {
+    const panel = document.getElementById('cc-home-search-panel');
+    const btn = document.getElementById('cc-home-search-toggle');
+    if (!panel || !btn) return;
+    const nowHidden = !panel.hidden;
+    panel.hidden = nowHidden;
+    btn.setAttribute('aria-expanded', String(!nowHidden));
+    if (!nowHidden) {
+      const input = document.getElementById('cc-home-search-input');
+      if (input) input.focus();
+    }
+  };
+
+  // Une réponse tardive d'une recherche déjà remplacée par une saisie plus récente (même
+  // point de montage ou l'autre) ne doit jamais écraser un résultat plus récent déjà affiché.
+  let _adocLibSearchSeq = 0;
+
+  // Entoure d'un <mark> la MÊME occurrence déjà repérée par adocLibrarySearchSnippet — jamais
+  // un second calcul de position indépendant qui pourrait diverger de l'extrait affiché.
+  function adocLibHighlight(text, words) {
+    const lower = text.toLowerCase();
+    let pos = -1, matched = '';
+    for (let i = 0; i < words.length && pos === -1; i++) {
+      const w = (words[i] || '').toLowerCase();
+      if (w) { const p = lower.indexOf(w); if (p !== -1) { pos = p; matched = words[i]; } }
+    }
+    if (pos === -1) return adocEsc(text);
+    return adocEsc(text.slice(0, pos)) + '<mark>' + adocEsc(text.slice(pos, pos + matched.length)) + '</mark>' + adocEsc(text.slice(pos + matched.length));
+  }
+
+  window.adocLibSearchExec = async function (mountId) {
+    const ids = adocLibSearchIds(mountId);
+    const input = document.getElementById(ids.input);
+    const resultsEl = document.getElementById(ids.results);
+    if (!input || !resultsEl) return;
+    const raw = (input.value || '').trim();
+    if (!raw) { resultsEl.innerHTML = ''; return; }
+    const mySeq = ++_adocLibSearchSeq;
     resultsEl.innerHTML = '<div class="cc-ws-search-result" style="color:var(--muted);">Recherche…</div>';
-    const words = q.split(/\s+/).filter(Boolean);
-    const [contentResults, authorResults] = await Promise.all([
-      adocD1Search({ terms: words, term_match: 'any', limit: 6 }).catch(function () { return null; }),
-      adocD1Search({ authors: [q], limit: 6 }).catch(function () { return null; }),
+
+    const approachEl = document.getElementById(ids.approach);
+    const languageEl = document.getElementById(ids.language);
+    const bookTitleEl = document.getElementById(ids.bookTitle);
+    const approach = approachEl && approachEl.value ? approachEl.value.trim() : '';
+    const language = languageEl && languageEl.value ? languageEl.value : '';
+    const bookTitle = bookTitleEl && bookTitleEl.value ? bookTitleEl.value.trim() : '';
+
+    // Phrase exacte : requête tapée entre guillemets → transmise TELLE QUELLE via `fts_terms`
+    // (jamais éclatée mot à mot) ; le Worker préserve désormais la phrase pour un vrai MATCH
+    // FTS5 de proximité (correctif Phase 1+ Passerelle sur handleRagSearch — vérifié avant
+    // d'écrire ce client : sans ce correctif, les guillemets étaient inconditionnellement
+    // retirés et la requête toujours éclatée en mots joints par OR).
+    const isPhrase = raw.length > 2 && raw.startsWith('"') && raw.endsWith('"');
+    const plain = raw.replace(/['"]/g, '');
+    const words = plain.split(/\s+/).filter(Boolean);
+
+    const workerUrl = adocGetWorkerUrl();
+    if (!workerUrl) { resultsEl.innerHTML = '<div class="cc-ws-search-result" style="color:var(--muted);">Bibliothèque indisponible.</div>'; return; }
+
+    const body = { query: plain, topK: 8, target_lang: 'fr', language: 'all' };
+    if (isPhrase) body.fts_terms = [raw];
+    if (approach) body.approach = approach;
+    if (language) body.language = language;
+    if (bookTitle) body.book_title = bookTitle;
+
+    const ctrl = new AbortController();
+    const tid = setTimeout(function () { ctrl.abort(); }, 6000);
+    const [ragResp, authorResults] = await Promise.all([
+      fetch(workerUrl + '/rag-search', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
+        body: JSON.stringify(body), signal: ctrl.signal,
+      }).then(function (r) { return r.json(); }).catch(function (e) {
+        return { error: e.name === 'AbortError' ? 'timeout' : 'network' };
+      }),
+      adocD1Search({ authors: [raw], limit: 6 }).catch(function () { return null; }),
     ]);
+    clearTimeout(tid);
+    if (mySeq !== _adocLibSearchSeq) return;
+
+    const ragChunks = (ragResp && ragResp.chunks) || [];
     const seen = new Set();
     const merged = [];
-    (contentResults || []).concat(authorResults || []).forEach(function (r) {
+    ragChunks.forEach(function (c) {
+      const key = adocLibrarySearchResultKey(c);
+      if (seen.has(key)) return;
+      seen.add(key);
+      merged.push(c);
+    });
+    (authorResults || []).forEach(function (r) {
       const key = adocLibrarySearchResultKey(r);
       if (seen.has(key)) return;
       seen.add(key);
-      merged.push(r);
+      merged.push({ book_title: r.book_title, author: r.author, page_number: r.page_number, content: r.content, sources: ['author'] });
     });
+
     if (!merged.length) {
-      resultsEl.innerHTML = '<div class="cc-ws-search-result" style="color:var(--muted);">Aucun résultat pour « ' + adocEsc(q) + ' ».</div>';
+      resultsEl.innerHTML = (ragResp && ragResp.error)
+        ? '<div class="cc-ws-search-result" style="color:var(--muted);">Recherche indisponible pour le moment.</div>'
+        : '<div class="cc-ws-search-result" style="color:var(--muted);">Aucun résultat pour « ' + adocEsc(raw) + ' ».</div>';
       return;
     }
-    resultsEl.innerHTML = merged.slice(0, 8).map(function (r) {
-      const snippet = adocLibrarySearchSnippet(r.content, words);
+
+    resultsEl.innerHTML = merged.slice(0, 8).map(function (c, i) {
+      const uid = mountId + '-' + i;
+      const sources = Array.isArray(c.sources) ? c.sources : (c.source ? [c.source] : []);
+      const provenance = sources.includes('fts5') && sources.includes('vector') ? 'correspondance exacte + de sens'
+        : sources.includes('fts5') ? 'correspondance exacte'
+        : sources.includes('vector') ? 'correspondance de sens'
+        : sources.includes('author') ? 'par auteur' : '';
+      const original = c.content || '';
+      const snippet = adocLibrarySearchSnippet(original, words);
+      let translationBlock;
+      if (c.is_machine_translated && c.translated_content) {
+        const trSnippet = adocLibrarySearchSnippet(c.translated_content, words);
+        translationBlock = '<div class="cc-lib-translation-badge">🌐 Traduction automatique</div>'
+          + '<div class="cc-ws-search-excerpt" id="cc-lib-tr-' + uid + '">' + adocLibHighlight(trSnippet, words) + '</div>'
+          + '<div class="cc-ws-search-excerpt" id="cc-lib-vo-' + uid + '" style="display:none;">' + adocLibHighlight(snippet, words) + '</div>'
+          + '<button type="button" class="cc-lib-vo-toggle" id="cc-lib-btn-' + uid + '" onclick="window.adocLibSearchToggleVO(\'' + uid + '\')">Voir le texte original</button>';
+      } else if (c.translation_failed) {
+        translationBlock = '<div class="cc-lib-translation-warning">⚠️ Échec de traduction automatique — texte original affiché</div>'
+          + (snippet ? '<div class="cc-ws-search-excerpt">' + adocLibHighlight(snippet, words) + '</div>' : '');
+      } else {
+        translationBlock = snippet ? '<div class="cc-ws-search-excerpt">' + adocLibHighlight(snippet, words) + '</div>' : '';
+      }
       return '<div class="cc-ws-search-result">'
-        + '<div><strong>' + adocEsc(r.book_title || 'Référence') + '</strong>'
-        + (r.author ? ' — ' + adocEsc(r.author) : '') + (r.page_number ? ', p.' + r.page_number : '') + '</div>'
-        + (snippet ? '<div class="cc-ws-search-excerpt">' + adocEsc(snippet) + '</div>' : '')
-        + '</div>';
+        + '<div><strong>' + adocEsc(c.book_title || 'Référence') + '</strong>'
+        + (c.author ? ' — ' + adocEsc(c.author) : '') + (c.page_number ? ', p.' + c.page_number : '')
+        + (provenance ? ' <span class="cc-lib-provenance">· ' + provenance + '</span>' : '')
+        + '</div>' + translationBlock + '</div>';
     }).join('');
   };
 

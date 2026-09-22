@@ -58044,7 +58044,19 @@ async function handleRagSearch(request2, env2) {
   try {
     const embedPromise = env2.AI.run("@cf/baai/bge-m3", { text: [query] });
     const terms = fts_terms || query.split(/\s+/).filter((w) => w.length > 3).slice(0, 6);
-    const ftsQuery = terms.map((t) => t.replace(/['"]/g, "")).join(" OR ");
+    // Phase 1+ Passerelle — phrase exacte : un terme reçu déjà encadré de guillemets doubles
+    // (jamais un simple guillemet simple, réservé à l'apostrophe française) est une phrase FTS5
+    // au sens strict (correspondance de proximité, mots dans cet ordre) — ses guillemets sont
+    // CONSERVÉS tels quels dans le MATCH. Avant ce correctif, `t.replace(/['"]/g, "")` retirait
+    // inconditionnellement tout guillemet de CHAQUE terme, y compris `fts_terms` fourni
+    // explicitement : aucun appelant ne pouvait jamais obtenir une vraie recherche de phrase,
+    // seulement une union de mots (OR) — confirmé par lecture directe, jamais supposé. Un terme
+    // sans guillemets doubles garde exactement l'ancien comportement (apostrophes retirées).
+    const ftsQuery = terms.map((t) => {
+      const trimmed = (t || "").trim();
+      if (trimmed.length > 2 && trimmed.startsWith('"') && trimmed.endsWith('"')) return trimmed;
+      return trimmed.replace(/['"]/g, "");
+    }).join(" OR ");
     let ftsPromise = Promise.resolve({ results: [] });
     if (ftsQuery) {
       let sql = `SELECT c.id, c.book_title, c.author, c.page_number, c.approach, c.language, c.content
