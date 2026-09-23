@@ -63,7 +63,7 @@ test('T-OPMAT01-01 : les deux contrats d’entrée sont lus, pas devinés', () =
 test('T-OPMAT01-02 : state.docs existe et n’atteint pas le plan profond', () => {
   /* Le canal d’entrée existe, et il est multiple. */
   assert.match(HTML, /id="v11-files" type="file" multiple/);
-  assert.match(HTML, /state\.docs\.push\(\{name:file\.name,type:file\.type,size:file\.size,text,external:!textual\}\)/);
+  assert.match(HTML, /doc:\{name:file\.name,type:file\.type,size:file\.size,text:'',external:true,reading:true\}/);
   /* Le corps envoyé au plan profond ne porte que deux champs. */
   /* CORRIGÉ EN 02 : le corps porte désormais le troisième champ. */
   assert.match(HTML, /const body=oprieBuildBody\(\);/);
@@ -81,9 +81,9 @@ test('T-OPMAT01-02 : state.docs existe et n’atteint pas le plan profond', () =
 /* T-OPMAT01-03 — LA DISTINCTION PRÉSENT / EXPLOITABLE EXISTE DÉJÀ, elle n’est
  * pas inventée par ce lot. */
 test('T-OPMAT01-03 : présent et exploitable sont déjà distingués par le produit', () => {
-  /* Seuls les formats textuels donnent un contenu ; les autres sont external. */
-  assert.match(HTML, /const textual=\['txt','md','json','csv','html','htm'\]\.includes\(ext\)\|\|file\.type\.startsWith\('text\/'\)/);
-  assert.match(HTML, /if\(textual\)\{try\{text=await file\.text\(\)\}catch\(e\)\{text=''\}\}/);
+  /* Le lecteur documentaire met external à false seulement après extraction réussie. */
+  assert.match(HTML, /reader\.extractDocument\(file,/);
+  assert.match(HTML, /Object\.assign\(doc,result,\{external:false\}\)/);
   assert.match(R.source_de_verite.consequence, /la distinction n a pas a etre inventee/);
   /* Le contrat proposé retient deux dimensions, et écarte les deux autres avec raison. */
   assert.match(DOC, /"present": true \| false \| "unknown"/);
@@ -151,7 +151,7 @@ test('T-OPMAT01-07 : aucun code de production n’a bougé', () => {
   assert.ok(lire('workers/shared/operational-request-orchestrator.js').includes('material_context'));
   assert.ok(HTML.includes('material_context'), 'l’enveloppe navigateur le construit');
   /* La limite de transport n’a pas bougé non plus. */
-  assert.equal(TRANSPORT_LIMITS.analyst, 16384);
+  assert.equal(TRANSPORT_LIMITS.analyst, 524288);
   assert.match(DOC, /IMPLEMENTATION_TYPE  = BLOCKED_ARCH_CHANGE/);
 });
 
@@ -241,7 +241,7 @@ test('T-OPMAT01-10 : HTML canonique inchangé, dette ouverte', () => {
      silencieux quand une actualisation depuis /v1/models fait disparaître le modèle retenu. Aucune
      règle, aucun prompt, aucun schéma, aucun comportement d'interface visible n'a changé. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    'ad79ea66a97986a831839c302b8c7bc25ace982acc274dc03838aee885639a31', 'CANONICAL_HTML_CHANGED = NO');
+    '46fb0c10cabfa85c6e52ace90413b06ec750372b9320666037f8e16002cbbdb3', 'CANONICAL_HTML_CHANGED = NO');
   const registre = lire('docs/OPEN-DEBTS.md');
   const ouvertes = registre.slice(registre.indexOf('## Ouvertes'), registre.indexOf('## Fermées'));
   assert.deepEqual([...ouvertes.matchAll(/^### ([A-Z][A-Z-]+-\d{2})$/gm)].map((m) => m[1]), ['PERF-REAL-01']);

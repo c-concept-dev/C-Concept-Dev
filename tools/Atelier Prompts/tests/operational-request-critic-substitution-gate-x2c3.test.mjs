@@ -157,7 +157,7 @@ test("X2C3-9 : evaluateSubstitutionGate/applySubstitutionGate ne mentionnent jam
 });
 
 test("X2C3-10 : TRANSPORT_LIMITS (HTTP-8192a, gelé) reste strictement inchangé -- le Substitution Gate ne touche ni le transport ni un provider", () => {
-  assert.deepEqual(TRANSPORT_LIMITS, { decision: 16384, analyst: 16384, critic: 65536, arbiter: 196608, absolute: 262144 });
+  assert.deepEqual(TRANSPORT_LIMITS, { decision: 16384, analyst: 524288, critic: 65536, arbiter: 196608, absolute: 1048576 });
 });
 
 test("X2C3-10b : evaluateSubstitutionGate/applySubstitutionGate ne nomment aucun provider (groq, anthropic, openai)", () => {

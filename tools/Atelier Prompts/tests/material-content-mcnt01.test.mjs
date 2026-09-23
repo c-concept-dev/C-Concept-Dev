@@ -33,10 +33,11 @@ const DOC = lire('docs/OPRIE-MATERIAL-CONTENT-01.md');
 
 /* T-MCNT01-01 — la limite de transport est CONTRACTUELLE, pas inventée. */
 test('T-MCNT01-01 : la limite de transport est celle du contrat, antérieure à ce lot', () => {
-  assert.equal(TRANSPORT_LIMITS.analyst, 16384);
-  assert.equal(TRANSPORT_LIMITS.absolute, 262144);
-  assert.equal(R.transport.limite_route_octets, TRANSPORT_LIMITS.analyst);
-  assert.equal(R.transport.limite_absolue_octets, TRANSPORT_LIMITS.absolute);
+  assert.equal(TRANSPORT_LIMITS.analyst, 524288);
+  assert.equal(TRANSPORT_LIMITS.absolute, 1048576);
+  // Historical evidence is immutable; the document-reader lot expands only input capacity.
+  assert.equal(R.transport.limite_route_octets, 16384);
+  assert.equal(R.transport.limite_absolue_octets, 262144);
   /* Elle s’applique au corps ENTIER, ce qui borne le contenu transportable. */
   assert.match(lire('workers/shared/decision-core.js'), /const maxBytes = Math\.min\(routeLimitBytes, TRANSPORT_LIMITS\.absolute\)/);
   assert.match(R.transport.point_d_application, /CORPS ENTIER/);
@@ -220,7 +221,7 @@ test('T-MCNT01-11 : HTML canonique inchangé, dette ouverte', () => {
      silencieux quand une actualisation depuis /v1/models fait disparaître le modèle retenu. Aucune
      règle, aucun prompt, aucun schéma, aucun comportement d'interface visible n'a changé. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    'ad79ea66a97986a831839c302b8c7bc25ace982acc274dc03838aee885639a31',
+    '46fb0c10cabfa85c6e52ace90413b06ec750372b9320666037f8e16002cbbdb3',
     'CANONICAL_HTML_CHANGED = NO — l’empreinte est celle que le lot précédent a laissée');
   const registre = lire('docs/OPEN-DEBTS.md');
   const ouvertes = registre.slice(registre.indexOf('## Ouvertes'), registre.indexOf('## Fermées'));

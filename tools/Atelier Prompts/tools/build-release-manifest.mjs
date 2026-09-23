@@ -42,8 +42,9 @@ function classer(f) {
   if (f.startsWith('workers/evaluation/')) return 'EVALUATION_ONLY';
   if (f.startsWith('workers/')) return 'REQUIRED_RUNTIME';
   if (f.startsWith('core/adn/')) return 'REQUIRED_BUILD';
+  if (f.startsWith('core/documents/')) return 'REQUIRED_RUNTIME';
   if (f.startsWith('tools/')) return 'BUILD_TOOL';
-  if (f === 'anti-regression-baseline.json' || f === 'package.json') return 'REQUIRED_BUILD';
+  if (f === 'anti-regression-baseline.json' || f === 'package.json' || f === 'package-lock.json') return 'REQUIRED_BUILD';
   if (f.startsWith('docs/')) return 'REQUIRED_DOC';
   if (f.startsWith('tests/')) return 'REQUIRED_TEST_ONLY';
   if (f.startsWith('evaluation/')) return 'EVALUATION_ONLY';

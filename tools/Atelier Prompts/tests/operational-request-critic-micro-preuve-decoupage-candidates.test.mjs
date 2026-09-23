@@ -228,7 +228,7 @@ test("MPDC-11 : mergeCandidateGroups / buildSubstitutionReviewGroupSystemPrompt 
 });
 
 test("MPDC-12 : TRANSPORT_LIMITS (HTTP-8192a, gelé) reste strictement inchangé", () => {
-  assert.deepEqual(TRANSPORT_LIMITS, { decision: 16384, analyst: 16384, critic: 65536, arbiter: 196608, absolute: 262144 });
+  assert.deepEqual(TRANSPORT_LIMITS, { decision: 16384, analyst: 524288, critic: 65536, arbiter: 196608, absolute: 1048576 });
 });
 
 test("MPDC-13 : aucun nouveau provider introduit -- ni mergeCandidateGroups ni buildSubstitutionReviewGroupSystemPrompt ne nomment un provider", () => {

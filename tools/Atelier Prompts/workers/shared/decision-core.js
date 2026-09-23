@@ -293,10 +293,11 @@ export function jsonResponse(payload, status, cors) {
  */
 export const TRANSPORT_LIMITS = Object.freeze({
   decision: 16384,
-  analyst: 16384,
+  // Full extracted documents; bounded before JSON parsing and never silently truncated.
+  analyst: 524288,
   critic: 65536,
   arbiter: 196608,
-  absolute: 262144
+  absolute: 1048576
 });
 
 /**

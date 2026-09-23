@@ -138,13 +138,19 @@ function conversation(h, n, { demande = DEMANDE } = {}) {
 
 /** Le corps RÉEL envoyé à l'autorité pour cet état — par le pilote réel, réseau espionné. */
 const PROVENANCE_REELLE = chargerPage().v.v11MaterialProvenance;
-async function corpsOprie({ demande = DEMANDE, answers = [], docs = [], sansProvenance = false } = {}) {
+async function corpsOprie({ demande = DEMANDE, answers = [], docs = [], sansProvenance = false, expectedBlocked = false } = {}) {
   const p = loadPilot({ demande, answers: plain(answers), deep: () => arbiterTurn('operational_request_ready') });
   if (!sansProvenance) p.ctx.v11MaterialProvenance = PROVENANCE_REELLE;
   for (const d of plain(docs)) p.ctx.state.docs.push(d);
   p.ctx.window = { __ATELIER_ADN_RUNTIME__: { TRANSPORT_LIMITS: { analyst: 16384 } } };
   p.ctx.TextEncoder = TextEncoder;
   await p.pilot.oprieRunTurn('architecte');
+  if (expectedBlocked) {
+    assert.equal(p.spy.deepCalls.length, 0, 'aucun appel profond avec matière incomplète');
+    assert.equal(p.spy.fastCalls.length, 0, 'aucun appel rapide avec matière incomplète');
+    assert.equal(p.spy.gate.at(-1).decision.state, 'technical');
+    return { corps: p.ctx.oprieBuildBody() };
+  }
   assert.equal(p.spy.deepCalls.length, 1, 'un tour profond, exactement');
   return { corps: p.spy.deepCalls[0].body, fast: p.spy.fastCalls.map((c) => c.body) };
 }
@@ -257,7 +263,7 @@ test('T05-05 · NO_ARBITRARY_POLLUTION : un ancien matériau n’entre jamais da
   assert.equal(/summar|résum|resume|window|fenetre|fenêtre|recent|récent/i.test(code), false, 'ni résumé ni fenêtre');
   assert.equal(/appelFournisseur|fetch\(/.test(code), false, 'aucun appel supplémentaire');
   /* Ce que le produit rend visible, la personne peut l'écarter : « Retirer », mécanisme existant, seul geste d'écartement. */
-  assert.match(tranche('function renderFiles(){', 'function looksLikeAnalysis('), /state\.docs\.splice\(i,1\);renderFiles\(\)/);
+  assert.match(tranche('function renderFiles(){', 'function looksLikeAnalysis('), /state\.docs\.splice\(i,1\);[^\n]*renderFiles\(\)/);
 });
 
 test('T05-06 · OLD_RELEVANT_CONTEXT_REMAINS : après cinq cycles, la réponse du cycle 1 est toujours là, entière, une fois — pour l’analyse, le prompt et l’autorité', async () => {
@@ -651,12 +657,12 @@ test('T05-27 · MATERIAL_FOR_TURN : documents de la personne + dernière répons
   const { corps: c2 } = await corpsOprie({ docs: [ia(3), ia(1), docA] });
   assert.deepEqual(c2.material_content, [REPONSE(3), 'DOC-A']);
   /* Tout ou rien sur cette matière : une dernière réponse trop grande → aucun contenu, jamais les documents seuls. */
-  const { corps: c3 } = await corpsOprie({ docs: [docA, { ...ia(4), text: 'x'.repeat(16384) }] });
+  const { corps: c3 } = await corpsOprie({ docs: [docA, { ...ia(4), text: 'x'.repeat(16384) }], expectedBlocked: true });
   assert.equal(c3.material_context.deep_content_available, false); assert.equal('material_content' in c3, false);
   /* Un document sans texte (PDF) rend la matière incomplète, comme avant ; une vieille réponse sans texte n'y change rien. */
   const { corps: c4 } = await corpsOprie({ docs: [{ ...ia(1), text: '' }, docA, ia(2)] });
   assert.deepEqual(c4.material_content, ['DOC-A', REPONSE(2)]);
-  const { corps: c5 } = await corpsOprie({ docs: [{ name: 'c.pdf', type: 'application/pdf', size: 9, text: '', external: true }, ia(2)] });
+  const { corps: c5 } = await corpsOprie({ docs: [{ name: 'c.pdf', type: 'application/pdf', size: 9, text: '', external: true }, ia(2)], expectedBlocked: true });
   assert.equal(c5.material_context.deep_content_available, false);
   /* Sans la lecture de provenance (contexte partiel), la matière est l'ensemble : le comportement d'avant, jamais un plantage. */
   const { corps: c6 } = await corpsOprie({ docs: [ia(1), ia(2)], sansProvenance: true });

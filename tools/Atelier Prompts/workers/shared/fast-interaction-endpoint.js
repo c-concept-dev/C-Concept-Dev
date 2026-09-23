@@ -87,7 +87,8 @@ export async function handleFastInteractionRequest(request, env, { executeFast, 
     return jsonResponse({ error: "fast_interaction_unavailable", message: "Le plan rapide n'est pas configuré." }, 503, cors);
   }
   try {
-    const snapshot = snapshotFromBody(await readJsonBody(request, TRANSPORT_LIMITS.analyst));
+    // Fast receives a dialogue snapshot, never the full document payload.
+    const snapshot = snapshotFromBody(await readJsonBody(request, TRANSPORT_LIMITS.decision));
     /* V2.1 — LE COÛT D'UN TOUR DE CLARIFICATION, MESURÉ LÀ OÙ IL EST PAYÉ.
        Le contrat de fluidité vise 1 à 2 s par tour de dialogue ; il n'était mesurable que côté
        profond. Ce relevé dit ce qu'un tour de clarification a réellement coûté : un appel rapide,

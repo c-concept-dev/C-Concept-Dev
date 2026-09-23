@@ -393,7 +393,7 @@ test("ORCH01-17 : origine non autorisée -> 403, sans en-tête CORS", async (t) 
 
 test("ORCH01-18 : payload hors limite -> 413", async (t) => {
   withCapturedConsole(t);
-  const huge = { original_request: "x".repeat(40000), clarification_history: [] };
+  const huge = { original_request: "x".repeat(524289), clarification_history: [] };
   const response = await groqWorker.fetch(post("/operational-request", huge), ENV);
   assert.equal(response.status, 413);
   assert.equal((await response.json()).error, "payload_too_large");

@@ -1,5 +1,5 @@
 /* GENERATED — LOT 10G.3B.3F.2
- * source-sha256: 64ee4ca727df166da3f10896d0a56858cbecacafbeb6da67521ed961ca88d9c3
+ * source-sha256: 76cfb86e6701cd69b80f843d9e0ab34250cb3da2cb3c8cc825ea9303955babd2
  * Ne pas modifier manuellement. Régénérer avec tools/build-adn-browser-runtime.mjs
  */
 (function(global){
@@ -3664,10 +3664,11 @@ function jsonResponse(payload, status, cors) {
  */
 const TRANSPORT_LIMITS = Object.freeze({
   decision: 16384,
-  analyst: 16384,
+  // Full extracted documents; bounded before JSON parsing and never silently truncated.
+  analyst: 524288,
   critic: 65536,
   arbiter: 196608,
-  absolute: 262144
+  absolute: 1048576
 });
 
 /**
@@ -12647,5 +12648,5 @@ function createAdapterAuditView(envelope) {
 
 return {ENGINE_ADAPTERS_VERSION,buildExecutionEnvelope,projectToRapide,projectToArchitecte,projectToAtelier,validateLegacyLockMapping,createAdapterAuditView};
 })({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON});
-global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...BOUNDED,...ORCORE,...ROLEDEG,...SOLICIT,...COREPLANE,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'64ee4ca727df166da3f10896d0a56858cbecacafbeb6da67521ed961ca88d9c3'});
+global.__ATELIER_ADN_RUNTIME__=Object.freeze({...ADN,...LOCKS,...ROUTING,...READINESS,...CANON,...ARCHENRICH,...ORSTATE,...DECISIONCORE,...PROVIDERHA,...BOUNDED,...ORCORE,...ROLEDEG,...SOLICIT,...COREPLANE,...ORORCH,...RAPIDEENRICH,...OUTPUTQG,...QG,...MANUAL,...MODES,...EXECLIFE,...ORCHPOLICY,...FASTPLANE,...ADAPTERS,source_sha256:'76cfb86e6701cd69b80f843d9e0ab34250cb3da2cb3c8cc825ea9303955babd2'});
 })(window);

@@ -430,7 +430,7 @@ test('T15 · BINARY_FILE_BEHAVIOR : un fichier non textuel n’a jamais été ga
   assert.deepEqual(plain(apres.ctx.state.docs), s.state.docs, 'la fiche revient identique : le pipeline la traite comme avant le refresh');
   /* Ce que le produit en fait est inchangé : « À joindre aussi à votre IA » à l'écran, pièce à joindre
      dans l'enveloppe, et un matériau dont le contenu n'est pas disponible pour OPRIE. */
-  assert.match(tranche('function renderFiles(){', 'function looksLikeAnalysis('), /d\.text\?'Pris en compte':'À joindre aussi à votre IA'/);
+  assert.match(tranche('function renderFiles(){', 'function looksLikeAnalysis('), /Document non lu — retirez-le ou fournissez une version lisible/);
   assert.match(html, /const external=state\.docs\.filter\(d=>d\.external\)/);
 });
 
@@ -516,7 +516,7 @@ function chargerPageEchange(options = {}) {
 
 test('T19 · P0 EXTERNAL_FILE_AFTER_REFRESH : la fiche revient, jamais les octets — et le produit dit, avant comme après, que le fichier est à joindre', async () => {
   /* 1. Avant refresh : un PDF déposé. addFiles ne garde JAMAIS le File — seule sa fiche existe. */
-  assert.match(html, /state\.docs\.push\(\{name:file\.name,type:file\.type,size:file\.size,text,external:!textual\}\)/);
+  assert.match(html, /doc:\{name:file\.name,type:file\.type,size:file\.size,text:'',external:true,reading:true\}/);
   const avant = chargerPageEchange();
   avant.el('#v11-demande').value = 'Analyse ce contrat et résume ses risques.';
   avant.ctx.state.docs.push({ name: 'contrat.pdf', type: 'application/pdf', size: 482113, text: '', external: true });
@@ -543,7 +543,7 @@ test('T19 · P0 EXTERNAL_FILE_AFTER_REFRESH : la fiche revient, jamais les octet
   apres.v.v11SessionRestore();
   /* 4. État UI : la fiche est là, pour mémoire, sous le libellé qui dit exactement ce qu'elle est. */
   assert.deepEqual(plain(apres.ctx.state.docs)[0], { name: 'contrat.pdf', type: 'application/pdf', size: 482113, text: '', external: true });
-  assert.match(tranche('function renderFiles(){', 'function looksLikeAnalysis('), /const status=d\.text\?'Pris en compte':'À joindre aussi à votre IA'/,
+  assert.match(tranche('function renderFiles(){', 'function looksLikeAnalysis('), /Document non lu — retirez-le ou fournissez une version lisible/,
     'à l’écran, un fichier sans contenu lu n’est jamais annoncé « pris en compte »');
   /* 5. Préparer un nouvel échange dépendant de ce fichier : la personne est invitée à le joindre,
         exactement comme avant le refresh — le produit n'a jamais prétendu le détenir. */
@@ -561,8 +561,9 @@ test('T19 · P0 EXTERNAL_FILE_AFTER_REFRESH : la fiche revient, jamais les octet
   for (const d of plain(apres.ctx.state.docs)) p.ctx.state.docs.push(d);
   p.ctx.window = { __ATELIER_ADN_RUNTIME__: { TRANSPORT_LIMITS: { analyst: 16384 } } }; p.ctx.TextEncoder = TextEncoder;
   await p.pilot.oprieRunTurn('architecte');
-  assert.deepEqual(plain(p.spy.deepCalls[0].body.material_context), { present: true, deep_content_available: false });
-  assert.equal('material_content' in p.spy.deepCalls[0].body, false, 'aucun contenu fabriqué pour le PDF');
+  assert.equal(p.spy.deepCalls.length, 0, 'la pièce non lue bloque avant tout appel profond');
+  assert.equal(p.spy.fastCalls.length, 0, 'aucun dialogue aveugle sur une pièce non lue');
+  assert.match(p.spy.gate.at(-1).decision.text, /Aucun document ne sera ignoré/);
 });
 
 /** Le commutateur du mode données sensibles, tel qu'écrit dans le produit, avec ses dépendances espionnées. */

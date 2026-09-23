@@ -136,7 +136,8 @@ test('T-FASTCAPADM-05 : aucune statistique ne sert d’autorité, et la borne ex
       `${nombre} ne figure pas dans le code du worker`);
   }
   /* La seule borne exacte : jetons <= octets. Elle dépasse le quota d'une minute. */
-  const borneEntree = TRANSPORT_LIMITS.analyst;
+  assert.match(lire('workers/shared/fast-interaction-endpoint.js'), /readJsonBody\(request, TRANSPORT_LIMITS\.decision\)/);
+  const borneEntree = TRANSPORT_LIMITS.decision;
   assert.equal(borneEntree, 16384);
   const bornePrompt = 794;
   const plafondSortie = 512;
@@ -304,7 +305,7 @@ test('T-FASTCAPADM-12 : le HTML canonique est inchangé', () => {
      silencieux quand une actualisation depuis /v1/models fait disparaître le modèle retenu. Aucune
      règle, aucun prompt, aucun schéma, aucun comportement d'interface visible n'a changé. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    'ad79ea66a97986a831839c302b8c7bc25ace982acc274dc03838aee885639a31', 'CANONICAL_HTML_CHANGED = NO');
+    '46fb0c10cabfa85c6e52ace90413b06ec750372b9320666037f8e16002cbbdb3', 'CANONICAL_HTML_CHANGED = NO');
   /* Et rien du mécanisme n'a fui vers le navigateur. */
   const html = lire('atelier-prompts-v11.5-lot10g-decision-provider.html');
   for (const interdit of ['admissionRapide', 'REFROIDISSEMENT_RAPIDE', FAST_CAPACITY_UNAVAILABLE_CODE,

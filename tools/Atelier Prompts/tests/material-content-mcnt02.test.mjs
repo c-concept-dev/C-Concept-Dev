@@ -207,7 +207,7 @@ test('T-MCNT02-09 : aucune constante de transport dupliquée', () => {
   assert.equal(/16384|16 ?384/.test(zone), false, 'TRANSPORT_LIMIT_DUPLICATED = NO');
   assert.match(zone, /runtime&&runtime\.TRANSPORT_LIMITS&&runtime\.TRANSPORT_LIMITS\.analyst/);
   /* Et la source est bien celle que le serveur applique. */
-  assert.equal(TRANSPORT_LIMITS.analyst, 16384);
+  assert.equal(TRANSPORT_LIMITS.analyst, 524288);
   assert.match(lire('workers/shared/fast-interaction-endpoint.js'), /TRANSPORT_LIMITS/);
   /* Aucune marge inventée : on compare le corps réel à la limite réelle. */
   assert.equal(/limite\s*-\s*\d+/.test(zone), false, 'ARBITRARY_MARGIN_BYTES = 0');

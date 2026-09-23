@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build:documents": "node tools/build-document-assets.mjs",
     "test": "node --test tests/*.test.mjs",
     "guard": "node tools/frozen-guard.mjs",
     "check": "npm run test && npm run guard",
@@ -12,6 +13,15 @@
     "dry-run:groq": "wrangler deploy --dry-run --config workers/groq/wrangler.jsonc"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "5.20260923.1",
+    "@xmldom/xmldom": "0.9.12",
     "wrangler": "^4.0.0"
+  },
+  "dependencies": {
+    "@tesseract.js-data/eng": "1.0.0",
+    "@tesseract.js-data/fra": "1.0.0",
+    "fflate": "0.8.3",
+    "pdfjs-dist": "6.3.289",
+    "tesseract.js": "7.0.0"
   }
 }

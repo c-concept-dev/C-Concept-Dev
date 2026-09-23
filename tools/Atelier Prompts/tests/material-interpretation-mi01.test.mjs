@@ -196,7 +196,7 @@ test('T-MI01-08 : Critique, Arbitre, plan rapide et routage restent hors périm�
   const rapide = lire('workers/shared/fast-interaction-endpoint.js');
   assert.equal(/material_context|material_content/.test(rapide), false);
   /* Le transport n'a pas bougé : mêmes bornes, même égalité acceptée. */
-  assert.deepEqual({ ...TRANSPORT_LIMITS }, { decision: 16384, analyst: 16384, critic: 65536, arbiter: 196608, absolute: 262144 });
+  assert.deepEqual({ ...TRANSPORT_LIMITS }, { decision: 16384, analyst: 524288, critic: 65536, arbiter: 196608, absolute: 1048576 });
   assert.match(lire('workers/shared/decision-core.js'), /if \(length > maxBytes\) throw/);
 });
 

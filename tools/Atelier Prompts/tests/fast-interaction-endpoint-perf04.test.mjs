@@ -208,8 +208,8 @@ test('T-P04-EP11 : la route respecte le contrôle de débit et les sorties struc
   }
 });
 
-test('T-P04-EP12 : la limite de transport est celle d’une entrée d’Analyste, jamais illimitée', async () => {
-  assert.match(MODULE, /TRANSPORT_LIMITS\.analyst/, 'une limite de route explicite est appliquée.');
+test('T-P04-EP12 : Fast conserve sa limite de dialogue, indépendamment des documents', async () => {
+  assert.match(MODULE, /TRANSPORT_LIMITS\.decision/, 'une limite de route explicite est appliquée.');
   const enorme = body({ original_request: 'x'.repeat(20000) });
   const res = await handleFastInteractionRequest(post(enorme), env, { executeFast: ok });
   assert.ok(res.status >= 400, `un corps hors limite est refusé (statut ${res.status}).`);

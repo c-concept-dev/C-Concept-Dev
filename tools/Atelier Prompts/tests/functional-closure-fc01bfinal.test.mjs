@@ -643,9 +643,9 @@ test('GATE-103 : le runtime compilé n’a ni doublon, ni import mort, ni export
   const exports = modules.flatMap((m) => m.exports);
   assert.deepEqual(exports.filter((e) => !new RegExp(`\\b${e}\\b`).test(BUNDLE)), [],
     'ALL_COMPILED_MODULES_EXPOSED = YES');
-  /* Aucune dépendance externe n'entre dans le produit : le runtime reste sans tiers. */
+  /* Les lecteurs documentaires sont séparés : aucun tiers dans le bundle décisionnel. */
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-  assert.deepEqual(Object.keys(pkg.dependencies || {}), [], 'NEW_RUNTIME_DEPENDENCIES = 0');
+  assert.deepEqual(Object.keys(pkg.dependencies || {}).sort(), ['@tesseract.js-data/eng', '@tesseract.js-data/fra', 'fflate', 'pdfjs-dist', 'tesseract.js']);
   assert.equal(compte('from\\s+[\'"][^.\'"][^\'"]*[\'"]', BUNDLE), 0, 'et le bundle n’importe rien.');
 });
 

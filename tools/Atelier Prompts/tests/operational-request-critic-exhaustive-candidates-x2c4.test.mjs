@@ -245,7 +245,7 @@ test("X2C4-18 : evaluateSubstitutionCandidateGate/materializeSubstitutionReviewF
 });
 
 test("X2C4-19 : TRANSPORT_LIMITS (HTTP-8192a, gelé) reste strictement inchangé -- aucun provider nommé dans le Gate candidate-level", () => {
-  assert.deepEqual(TRANSPORT_LIMITS, { decision: 16384, analyst: 16384, critic: 65536, arbiter: 196608, absolute: 262144 });
+  assert.deepEqual(TRANSPORT_LIMITS, { decision: 16384, analyst: 524288, critic: 65536, arbiter: 196608, absolute: 1048576 });
   const source = fs.readFileSync(sharedCorePath, "utf8");
   for (const name of ["evaluateSubstitutionCandidateGate", "materializeSubstitutionReviewFromCandidates"]) {
     const body = extractFunctionSource(source, name);

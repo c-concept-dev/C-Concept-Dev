@@ -268,11 +268,14 @@ test('T-CLEAN02-GARDES : les gardes de péremption MODE-05 sont intacts', async 
   assert.ok(arch.indexOf('adpState.lastEnvelope=null') < arch.indexOf('try{'));
 });
 
-test('T-CLEAN02-BUILD : un bloc runtime, build reproductible, aucune dépendance ajoutée', () => {
+test('T-CLEAN02-BUILD : un bloc runtime, build reproductible, dépendances documentaires explicites et figées', () => {
   assert.equal((html.match(/\/\* GENERATED — LOT 10G\.3B\.3F\.[12]/g) || []).length, 1);
   const embarque = tranche('/* GENERATED — LOT 10G.3B.3F', '})(window);') + '})(window);\n';
   assert.equal(embarque.trim(), BUNDLE.trim(), 'HTML et runtime généré ne divergent pas.');
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-  assert.deepEqual(Object.keys(pkg.dependencies || {}), []);
-  assert.deepEqual(Object.keys(pkg.devDependencies || {}), ['wrangler']);
+  assert.deepEqual(pkg.dependencies, {
+    '@tesseract.js-data/eng': '1.0.0', '@tesseract.js-data/fra': '1.0.0',
+    fflate: '0.8.3', 'pdfjs-dist': '6.3.289', 'tesseract.js': '7.0.0'
+  });
+  assert.deepEqual(Object.keys(pkg.devDependencies || {}).sort(), ['@cloudflare/workers-types', '@xmldom/xmldom', 'wrangler']);
 });

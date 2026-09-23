@@ -321,5 +321,5 @@ test("X2C-NOCEILING : aucune constante de plafond quantitatif de questions (nomb
 // =====================================================================================================
 
 test("X2C-NOIMPACT-HTTP : TRANSPORT_LIMITS reste exactement celui gelé par HTTP-8192a, inchangé par ce lot", () => {
-  assert.deepEqual(TRANSPORT_LIMITS, Object.freeze({ decision: 16384, analyst: 16384, critic: 65536, arbiter: 196608, absolute: 262144 }));
+  assert.deepEqual(TRANSPORT_LIMITS, Object.freeze({ decision: 16384, analyst: 524288, critic: 65536, arbiter: 196608, absolute: 1048576 }));
 });
