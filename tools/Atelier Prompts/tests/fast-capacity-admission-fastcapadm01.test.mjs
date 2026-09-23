@@ -304,7 +304,7 @@ test('T-FASTCAPADM-12 : le HTML canonique est inchangé', () => {
      silencieux quand une actualisation depuis /v1/models fait disparaître le modèle retenu. Aucune
      règle, aucun prompt, aucun schéma, aucun comportement d'interface visible n'a changé. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    '669f4d830042f4a04817c474bb9a3232c9441de12ad1d6114d6748940068ecb2', 'CANONICAL_HTML_CHANGED = NO');
+    'ad79ea66a97986a831839c302b8c7bc25ace982acc274dc03838aee885639a31', 'CANONICAL_HTML_CHANGED = NO');
   /* Et rien du mécanisme n'a fui vers le navigateur. */
   const html = lire('atelier-prompts-v11.5-lot10g-decision-provider.html');
   for (const interdit of ['admissionRapide', 'REFROIDISSEMENT_RAPIDE', FAST_CAPACITY_UNAVAILABLE_CODE,

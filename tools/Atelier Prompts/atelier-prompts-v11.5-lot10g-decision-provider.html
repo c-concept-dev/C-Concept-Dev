@@ -25033,6 +25033,10 @@ async function oprieRequestTurn(seqOuvert){
   const seq=Number.isInteger(seqOuvert)?seqOuvert:++oprieState.seq;
   if(oprieState.controller)oprieState.controller.abort();
   const controller=new AbortController();oprieState.controller=controller;
+  // Borne technique du tour entier, y compris la lecture du corps HTTP.
+  // Une expiration ne décide jamais de la readiness : elle ferme en erreur réessayable.
+  const minuteur=setTimeout(()=>controller.abort(),180000);
+  try{
   /* V2.2.1-E1 — le corps de la requête ne porte plus aucune décision. Le plan rapide propose une
      interaction ; il ne prononce pas la readiness. Le constructeur retrouve son contrat d'origine. */
   const body=oprieBuildBody();
@@ -25056,6 +25060,7 @@ async function oprieRequestTurn(seqOuvert){
   if(seq!==oprieState.seq)return null;
   if(!turn||typeof turn!=='object'||Array.isArray(turn)||!OPRIE_STATES.includes(turn.state))throw oprieTechnicalFailure();
   return turn;
+  }finally{clearTimeout(minuteur)}
 }
 
 /* ================================================================================================
@@ -25613,7 +25618,7 @@ function oprieApplyTurn(turn,requestedMode){
   return oprieDriveOrchestration(decision,turn,requestedMode);
 }
 /* Un clic = un tour. oprieState.running interdit toute requête concurrente ; les boutons sont
-   désactivés pendant l'appel. Aucun timeout arbitraire : le pipeline serveur peut durer. */
+   désactivés pendant l'appel. L'adaptateur borne l'attente réseau, jamais une décision sémantique. */
 async function oprieRunTurn(requestedMode,options){
   const coreOnly=!!(options&&options.coreOnly);
   if(oprieState.running)return false;
@@ -25698,7 +25703,12 @@ async function oprieRunTurn(requestedMode,options){
     oprieState.coreTelemetry=Object.assign(oprieState.coreTelemetry||{},{duration_ms:oprieNow()-deepDebut});
     oprieMark('deep_end',{core_last_duration_ms:oprieNow()-deepDebut})}}
   if(seq!==oprieState.seq||turn===null)return false;
-  return oprieApplyTurn(turn,requestedMode);
+  try{return await oprieApplyTurn(turn,requestedMode)}
+  catch(error){
+    if(seq!==oprieState.seq)return false;
+    oprieMark('turn_application_failed');
+    return oprieShowNetworkFailure();
+  }
 }
 
 /* FC-01a : rendu de l'echec technique. Neutre par construction — il ne nomme aucun fournisseur,

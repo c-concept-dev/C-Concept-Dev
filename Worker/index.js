@@ -55431,6 +55431,10 @@ var Worker_default = {
     }
     if (p === "/ingest" && request2.method === "POST")
       return handleIngest(request2, env2);
+    // ⚠️ ROUTE TEMPORAIRE — à retirer avec handleTestEmbeddingLimit une fois le test Voie 2
+    // terminé et la vraie limite de bge-m3 confirmée (cf. commentaire complet sur la fonction).
+    if (p === "/test-embedding-limit" && request2.method === "POST")
+      return handleTestEmbeddingLimit(request2, env2);
     if (p === "/delete-book" && request2.method === "POST")
       return handleDeleteBook(request2, env2);
     if (p === "/update-book-meta" && request2.method === "POST")
@@ -56592,6 +56596,60 @@ async function handleIngest(request2, env2) {
   }
 }
 __name(handleIngest, "handleIngest");
+// ═══════════════════════════════════════════════════════════════════
+// ⚠️ ROUTE TEMPORAIRE DE TEST — Voie 2 (troncature embedding), lot dédié. À RETIRER une fois la
+// vraie limite de @cf/baai/bge-m3 confirmée empiriquement (3 sources documentaires Cloudflare se
+// contredisent : 512 / 8192 / 60000 tokens pour ce même modèle — jamais tranché faute d'accès
+// direct à env.AI depuis la session qui a mené l'investigation). JAMAIS appelée par handleIngest
+// ni par aucun autre chemin du produit — sert uniquement à observer le comportement réel du
+// modèle sur un texte envoyé SANS le `.substring(0, 2e3)` de handleIngest ci-dessus (c'est
+// précisément ce que ce test doit mesurer). Protégée comme toute route absente de
+// ADOC_PUBLIC_ROUTES : le garde deny-by-default du routeur exige déjà X-API-Key avant d'atteindre
+// ce code — aucune vérification d'auth supplémentaire à écrire ici.
+// ═══════════════════════════════════════════════════════════════════
+async function handleTestEmbeddingLimit(request2, env2) {
+  let body;
+  try {
+    body = await request2.json();
+  } catch {
+    return jsonErr("Invalid JSON", 400);
+  }
+  const { text } = body;
+  if (typeof text !== "string" || !text.length)
+    return jsonErr("Missing text", 400);
+  if (!env2.AI)
+    return jsonErr("AI not configured", 500);
+  const charLength = text.length;
+  // Estimation grossière (~4 caractères/token, jamais un compte exact — aucun tokenizer réel
+  // disponible pour la valider) : sert uniquement de repère. Le message d'erreur du modèle,
+  // relayé tel quel ci-dessous en cas d'échec, indique souvent le vrai compte de tokens calculé —
+  // c'est LUI la source fiable pour trancher, pas cette estimation.
+  const estimatedTokens = Math.ceil(charLength / 4);
+  const startedAt = Date.now();
+  try {
+    const result = await env2.AI.run("@cf/baai/bge-m3", { text: [text] });
+    const vector = result?.data?.[0];
+    return json({
+      success: true,
+      char_length: charLength,
+      estimated_tokens: estimatedTokens,
+      vector_dimension: Array.isArray(vector) ? vector.length : null,
+      duration_ms: Date.now() - startedAt
+    });
+  } catch (err2) {
+    // 200 volontaire, jamais 500 — cette route DIAGNOSTIQUE un échec du modèle, ce n'est pas un
+    // échec du test lui-même. Un 500 masquerait la distinction entre "cette route a mal tourné"
+    // et "cette route a bien tourné et a mesuré une erreur réelle du modèle" pour Christophe.
+    return json({
+      success: false,
+      char_length: charLength,
+      estimated_tokens: estimatedTokens,
+      error_message: err2 && err2.message || String(err2),
+      duration_ms: Date.now() - startedAt
+    });
+  }
+}
+__name(handleTestEmbeddingLimit, "handleTestEmbeddingLimit");
 async function handleDeleteBook(request2, env2) {
   let body;
   try {

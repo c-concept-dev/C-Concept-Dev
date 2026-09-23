@@ -1,0 +1,529 @@
+{
+  "schema": "EvidenceForge.V1011FreezeAudit",
+  "version": "v1",
+  "auditedAt": "2026-09-21T06:46:04.000Z",
+  "auditor": "independent adversarial agent (read-only)",
+  "subject": {
+    "version": "MONOLITH-v1.0.11",
+    "manifestContentHash": "04afaac9a3ae88442fc93d1a633ac5a00bc51197d0d00dd17cc5a9db11603fab",
+    "manifestFileCount": 152,
+    "adapterSha256": "18739b7aac108f915edef04d53001d33e072c48b8a0f74497e4fca6bc4b76487",
+    "adapterSha256Before": "23946c7a5317f99e57db5b071242cc0558b9f63c71b7bb06d66bc68dd89254f7",
+    "predecessor": {
+      "version": "MONOLITH-v1.0.10",
+      "zipSha256": "9f19e639dacdfa9ad113e6b1b2e73da6f5072edb3e11e314925179ffb53774b0"
+    },
+    "frozenReviewEnforcerSha256": "42de4c51daa1e33d40058f18dc8eef79beaee7ae3aca134c33118601ade92b3b",
+    "authorReport": "EVIDENCEFORGE-v1.0.11-LITERALIZATION-LINEAGE-FIX-AUDIT.md"
+  },
+  "verdict": "V1_0_11_FREEZE_AUDIT_PASS_WITH_RESERVATIONS",
+  "recommendation": "GELER",
+  "blockers": [],
+  "reservations": [
+    {
+      "id": "R1",
+      "title": "Chemin de reparation ciblee gelee (passe >= 2) non protege",
+      "classification": "LINEAGE_PRESERVATION_GAP / MODEL_DEPENDENT_BUT_NON_BLOCKING",
+      "evidence": "review-enforcer.js rejectedRefsOf l.151-156 (toutes les refs, valides comprises) ; targetedRepairPrompt l.198 'citation(s) rejetee(s)', l.194 INTERDIT passe 3, l.191 'conserves tels quels' = autres champs/dimensions seulement ; recompose l.234-237 remplace le tableau ; sondes P1-P5 : perte acceptee par les deux validateurs geles ; A10 A5081732198 conserve par re-verification du modele (reponse 3b358f65...)"
+    },
+    {
+      "id": "R2",
+      "title": "Reparation non litterale ecartee -> [] possible sans passe 2 gelee",
+      "classification": "BEHAVIOR_CHANGE_WITH_RESERVATION",
+      "evidence": "contractuel (validateur l.89-90 sans cardinalite ; enforcementPreamble l.107 'sinon []' ; targetedRepairPrompt l.207 ; buildLiteralizationPrompt l.116 ; parseur EF-03B l.95/100-101 ; refsMax jamais verifie) ; ecart non compte dans ef03b-trace.jsonl (pas de droppedRepairedRefs) ; retire une occasion de reparation sur document entier"
+    },
+    {
+      "id": "R3",
+      "title": "Registre : propagation de la lignee perdue de l'ere v1.0.10",
+      "classification": "OPERATIONAL_NOTE",
+      "evidence": "createReviewRegistry.find l.155 filtre basePromptSha256 + contrat + sceau + status, jamais schemaVersion ; candidat servi byte-identique (l.185-189) ; tools/ef03b-registry-import.js"
+    },
+    {
+      "id": "R4",
+      "title": "T-EF03B-35 chaine toutes les reparations tracees, y compris une passe 2 que v1.0.11 n'aurait pas declenchee",
+      "classification": "TEST_SCOPE_NOTE",
+      "evidence": "simulation runtime-fidele (B) = chaine (A) = reviews-restored.json 7/7 ; A5031631835 VALID des la fusion de la litteralisation"
+    },
+    {
+      "id": "R5",
+      "title": "Les deux livrables d'audit ne sont pas dans MANIFEST.json / SHA256SUMS.txt (152 fichiers)",
+      "classification": "OPERATIONAL_NOTE",
+      "evidence": "build-manifest.js verify() ne verifie que les fichiers listes ; un build au gel changera contentHash"
+    },
+    {
+      "id": "R6",
+      "title": "Aucun run reel de validation ; lineagePreservedRefs compte les doublons du brut",
+      "classification": "INFORMATIONAL",
+      "evidence": "rapport auteur §4/§10 ; ef03b-resilience.js l.213"
+    }
+  ],
+  "diff": [
+    {
+      "path": "lib/ef03b-resilience.js",
+      "status": "MODIFIED",
+      "sha256Before": "23946c7a5317f99e57db5b071242cc0558b9f63c71b7bb06d66bc68dd89254f7",
+      "sha256After": "18739b7aac108f915edef04d53001d33e072c48b8a0f74497e4fca6bc4b76487",
+      "nature": "SEUL changement de comportement runtime : isLiteralRef / mergeLiteralRefs / preserveLineageRepairs (pures) ; bloc G l.211-212 fusion avant RE.recompose ; trace lineagePreservedRefs ; schemaVersion registre (chaine non lue) ; exports",
+      "runtimeBehaviourChange": true
+    },
+    {
+      "path": "lib/pipeline.js",
+      "status": "MODIFIED",
+      "sha256Before": "ea2dadeb88e05a094c3039c7cbd2bdad8a7a867d004855794754bca98e2f0d22",
+      "sha256After": "7e2d718bf11efc2efb788912f91382887269226509d36a5da6260e25eb8d5e0a",
+      "nature": "schemaVersion ef03b-resilience.json (chaine)",
+      "runtimeBehaviourChange": false
+    },
+    {
+      "path": "config/monolith.config.json",
+      "status": "MODIFIED",
+      "sha256Before": "3339894a9db186915dd3f0c733cef632887f0f0964b0fc1955f4cd4c8e3a55d6",
+      "sha256After": "2451b2a5f2994ea14c92e035641cc44aeca01cf1e79683aed174f1596322dae6",
+      "nature": "$comment + product.version ; autres valeurs identiques",
+      "runtimeBehaviourChange": false
+    },
+    {
+      "path": "tools/build-manifest.js",
+      "status": "MODIFIED",
+      "sha256Before": "b187d62965a73a9a5fb56db64340e84961b6bd1577c3e61fd0094d218b25837d",
+      "sha256After": "8c9a6469626e9c6723cd30081bc279b6b53ccf12c4dbe1ac87a148e4eee1a5fa",
+      "nature": "chaines de provenance (predecessor, ef03b.lineagePreservation, provenance, status)",
+      "runtimeBehaviourChange": false
+    },
+    {
+      "path": "tools/ef03b-autopsy.js",
+      "status": "MODIFIED",
+      "sha256Before": "ccab1b6ea8813b51fad00b6f8fc2a482eff03687618659bd7399abfecf62b549",
+      "sha256After": "00e244afeb9b3eda31980723c14259ebe30f53bd442e4c9559581856df8a75f6",
+      "nature": "schemaVersion replay (chaine)",
+      "runtimeBehaviourChange": false
+    },
+    {
+      "path": "tools/package.sh",
+      "status": "MODIFIED",
+      "sha256Before": "e2b36bc3edce9779a745a8ef9b0761121cf83107a856ea0bfcc5aa8e0096135e",
+      "sha256After": "5bb461bb700995774d6b8333ecf91c9c1be08076fc854c686cce81dbf1d00a8a",
+      "nature": "nom du zip",
+      "runtimeBehaviourChange": false
+    },
+    {
+      "path": "README.md",
+      "status": "MODIFIED",
+      "sha256Before": "7423fef528c6d870a4ad83b303bfaed815a3ee97e3c0d6e9d2c1e43be259b50f",
+      "sha256After": "9d866155d42e114ed7309b5ac7a3365176f2be677597d12662a3cc4083fbdfa6",
+      "nature": "+2 lignes en-tete v1.0.11",
+      "runtimeBehaviourChange": false
+    },
+    {
+      "path": "test/test-ef03b.js",
+      "status": "MODIFIED",
+      "sha256Before": "0ccb5236c301cd10f8977c65e68d312008306493edb4bacea2da3ff907642870",
+      "sha256After": "62e2c335d2a70726696fef19f4b8e345d3b1e7d418a389b0a693d0d096ac6254",
+      "nature": "en-tete ; chargement test-ef03b-lineage.js",
+      "runtimeBehaviourChange": false
+    },
+    {
+      "path": "test/test-stream.js",
+      "status": "MODIFIED",
+      "sha256Before": "9c208e31ec56af512ac04270aa90b0cbbe36a374069b9da2bc9a327a84b43a0f",
+      "sha256After": "aa37e0118fd0921d86c793f498425bdf91c32ffcc9e901d1af7e2659ff799a56",
+      "nature": "version attendue T-STREAM-20",
+      "runtimeBehaviourChange": false
+    },
+    {
+      "path": "test/results.json",
+      "status": "MODIFIED",
+      "sha256Before": "d2c1a658b64288dc7459ce1bb5d78bc37666e76d9005bc7260e1f1f4654604cd",
+      "sha256After": "e4c3496ad38a8ff869403eb2e2f9df167005395465a42b060b9653ccca32efef",
+      "nature": "regenere 274/274",
+      "runtimeBehaviourChange": false
+    },
+    {
+      "path": "test/results-chunking.json",
+      "status": "MODIFIED",
+      "sha256Before": "da26d7ead7091b4fd49c07af5e99cd2f57be19e195f27b67f6dd91b3976efa9a",
+      "sha256After": "35a8d50902d1720e12562ba3aa5900bb56d513d240d67e3eab2f0305448f5973",
+      "nature": "regenere 21/21",
+      "runtimeBehaviourChange": false
+    },
+    {
+      "path": "MANIFEST.json",
+      "status": "MODIFIED",
+      "sha256Before": "6e73fd9f475c4372f68ed38b356ba59cd5dcfd99c90f221f356f77667ab9204e",
+      "sha256After": "331e2d4ca67503a4953118c0ebf9de8ddbdbb12c49266a9111f76f46435b6a8b",
+      "nature": "regenere 152 fichiers",
+      "runtimeBehaviourChange": false
+    },
+    {
+      "path": "SHA256SUMS.txt",
+      "status": "MODIFIED",
+      "sha256Before": "7e4473a0f3b684e7cf2ae215f2c6fa80dc32818bebfd728e207530c2c3df54e9",
+      "sha256After": "e1708a3cef298984f4880667aa4e77b07ffc6c982a42d2a50e2a2960c8d9f9a1",
+      "nature": "regenere",
+      "runtimeBehaviourChange": false
+    },
+    {
+      "path": "test/test-ef03b-lineage.js",
+      "status": "ADDED",
+      "sha256Before": null,
+      "sha256After": "7c4922017101569389d5ea613692de6308e78007d887e160e5baef5ab08e5e9c",
+      "nature": "AJOUT : T-EF03B-27..35",
+      "runtimeBehaviourChange": false
+    },
+    {
+      "path": "test/fixtures/ef03b-lineage-a10-cases.json",
+      "status": "ADDED",
+      "sha256Before": null,
+      "sha256After": "557b118885ef1d0bc531ddede309632735180755a4dbb8e43bf42a9a6c9fea64",
+      "nature": "AJOUT : fixture historique anonymisee",
+      "runtimeBehaviourChange": false
+    },
+    {
+      "path": "EVIDENCEFORGE-v1.0.11-LITERALIZATION-LINEAGE-FIX-AUDIT.md",
+      "status": "ADDED",
+      "sha256Before": null,
+      "sha256After": "2c57ee5f74c114db47e5a88ad881c68ce5f2f772a804b3c5da26503750330e74",
+      "nature": "AJOUT : rapport de lot de l'auteur",
+      "runtimeBehaviourChange": false
+    },
+    {
+      "path": "EvidenceForge-MONOLITH-v1.0.10.zip",
+      "status": "ONLY_IN_V1010",
+      "sha256Before": "9f19e639dacdfa9ad113e6b1b2e73da6f5072edb3e11e314925179ffb53774b0",
+      "sha256After": null,
+      "nature": "paquet v1.0.10 (exclu de la copie v1.0.11)",
+      "runtimeBehaviourChange": false
+    },
+    {
+      "path": "EvidenceForge-MONOLITH-v1.0.10.zip.sha256",
+      "status": "ONLY_IN_V1010",
+      "sha256Before": "ed32e1a8fcd12885bdea7792a20a8c7185a963567fe397532b39ab799aaa2c1b",
+      "sha256After": null,
+      "nature": "idem",
+      "runtimeBehaviourChange": false
+    }
+  ],
+  "frozenLots": {
+    "MONO-11/v0.3-r1": {
+      "sealFile": "SHA256SUMS.txt",
+      "shasumCheck": "52/52 OK",
+      "sealSha256": "9fbef4126d437e0bb2ee4b2564b5ebcc381e8a338eacba40a590eff8402c079c",
+      "canonicalZipSha256": "3c44b397dda0997d0fff6ab4c8e8a8b311430e6a5ac7aeee38149f8349296b0b",
+      "verifyFrozenLotsDivergences": 0
+    },
+    "MONO-10/v0.19": {
+      "shasumCheck": "79/79 OK",
+      "sealSha256": "e050af0545ab5b902eb710b2308914523125b784dc27a9a2d387040dced48227",
+      "canonicalZipSha256": "f5a4165414f4aacc32f48f50eb14d59c87a09e3f138e24f8bd14b956972c2e04",
+      "verifyFrozenLotsDivergences": 0
+    },
+    "MONO-09/v0.2": {
+      "shasumCheck": "9/9 OK",
+      "sealSha256": "f1f1e94bdcca4402bc690883ee443ad0b188987fc65c5bd16e050b50b4016e56",
+      "verifyFrozenLotsDivergences": 0
+    },
+    "MONO-01": {
+      "shasumCheck": "106/106 OK",
+      "sealSha256": "4ba8903ceaeb7e24886708909d734a7b7f34e7cd9ae28b15603440577fe18ffd",
+      "verifyFrozenLotsDivergences": 0
+    },
+    "treeHashDeliveredEqualsCopy": true
+  },
+  "invariantChecks": [
+    {
+      "id": "I1",
+      "statement": "FINAL ⊇ VALID_ORIGINAL_REFS",
+      "method": "raisonnement (validOriginal parcouru en premier) + fuzz 20000",
+      "result": "PASS"
+    },
+    {
+      "id": "I2",
+      "statement": "FINAL ⊆ RAW ∪ REPAIR",
+      "method": "raisonnement + fuzz 20000",
+      "result": "PASS"
+    },
+    {
+      "id": "I3",
+      "statement": "ordre brut conserve puis reparees dans l'ordre du modele",
+      "method": "fuzz (prefixe/suffixe) + cas [ghi,abc,zzz]+[def,abc] -> [ghi,abc,def]",
+      "result": "PASS"
+    },
+    {
+      "id": "I4",
+      "statement": "deduplication stable, premiere occurrence gagnante",
+      "method": "cas [abc,abc,zzz]+[def] ; [validA,invalidB]+[validA,validB,validB] (T-EF03B-30)",
+      "result": "PASS"
+    },
+    {
+      "id": "I5",
+      "statement": "aucune suppression d'une originale deja litterale",
+      "method": "I1 + T-EF03B-27/28/31/33 + shadow 12/12",
+      "result": "PASS"
+    },
+    {
+      "id": "I6",
+      "statement": "aucune ref ajoutee hors RAW ∪ REPAIR ; tout element litteral",
+      "method": "fuzz + cas 'hors document ecartee'",
+      "result": "PASS"
+    },
+    {
+      "id": "I7",
+      "statement": "aucun autre champ lu ni modifie ; RE.recompose copie les autres champs ; parsed non mute ; dimension non reparee = meme objet",
+      "method": "sonde preserveLineageRepairs + RE.recompose ; T-EF03B-33",
+      "result": "PASS"
+    },
+    {
+      "id": "I8",
+      "statement": "isLiteralRef == controle gele (isStr && content.indexOf(ref) !== -1) : chaines vides, espaces seuls, non-chaines, contenu vide",
+      "method": "85 sondes, 0 divergence ; seule difference theorique : contenu non-chaine (inatteignable : st.ctx.content toujours une chaine, prompt gele l.52-53 embarque targetDoc.content tel quel)",
+      "result": "PASS"
+    },
+    {
+      "id": "I9",
+      "statement": "point d'appel unique = bloc G ; miroir cible = RE.recompose gele",
+      "method": "grep (1 occurrence preserveLineageRepairs(v.parsed) ; RE.recompose(st.parsed, rp.repairs) l.191) + T-EF03B-34",
+      "result": "PASS"
+    },
+    {
+      "id": "I10",
+      "statement": "sous v1.0.11, lit non nul => candidat toujours remplace (vl.errors < v.errors strict) : plus de divergence st.parsed / cand",
+      "method": "raisonnement l.211-214 + parseRepair restreint aux dimensions fautives",
+      "result": "PASS (effet collateral positif)"
+    }
+  ],
+  "emptyRefsBehaviour": {
+    "classification": "BEHAVIOR_CHANGE_WITH_RESERVATION",
+    "answersA_E": {
+      "A_contractCompliant": "OUI : [] prevu par enforcementPreamble l.107, targetedRepairPrompt l.207, buildLiteralizationPrompt l.116 ; accepte par validateReviewCandidate l.89-90 et parseReviewResponse l.95/100-101 ; '1 a 3 citations' = preambule de forme seul, refsMax jamais verifie",
+      "B_minOneCitationInvariant": "N'EXISTE PAS ; seul 'toute ref presente => litterale' (l.90 ; parseur l.100-101 ; EF-04 l.146-160) ; DOCUMENTED_WITHOUT_TWIN_REF l.94 porte sur twinBasisWorkRefs ; EF-03D l.117-126 / l.224 descriptif (targetEvidenceRefCount, no_target_evidence), jamais un seuil",
+      "C_canMaskFailure": "PARTIELLEMENT : une reparation non litterale non vide est ecartee localement au lieu d'etre rejetee puis retentee par la passe 2 gelee (document entier) ; le resultat reste entierement valide et [] est un etat contractuel expose par EF-03D ; mais l'ecart n'est pas compte dans la trace (reconstructible seulement depuis llm-cache)",
+      "D_futureLineageQuality": "OUI, dans les deux sens : moins d'appels, moins d'occasions de citation sur document entier ; la passe 2 gelee etait elle-meme lossy (R1) ; instance historique A5031631835 : resultat final identique, 1 appel de moins",
+      "E_intentionalVsSilent": "INTENTIONNEL, documente (rapport auteur §7, mandat), contractuel, sans perte de ref valide ; reserve de qualite et d'observabilite"
+    }
+  },
+  "targetedRepairPath": {
+    "classification": "LINEAGE_PRESERVATION_GAP",
+    "subClassification": "MODEL_DEPENDENT_BUT_NON_BLOCKING",
+    "evidence": [
+      "review-enforcer.js (sha 42de4c51...) : rejectedRefsOf l.151-156 rend TOUTES les refs de la dimension fautive (filter(isStr)) ; targetedRepairPrompt l.188-214 : l.191 'conserves tels quels' = autres champs/dimensions ; l.198 'citation(s) rejetee(s)' = toutes ; l.194 (passe 3) INTERDIT de reutiliser une citation deja rejetee (s'applique aux valides) ; forbiddenRefs l.267-268 accumule les valides ; parseRepair l.217-231 ; recompose l.234-237 remplace le tableau ; runEnforcedReview l.289-292 ; parseur gele l.313",
+      "sonde P1 : 2/3 refs valides presentees comme rejetees ; P2/P3 : prompts ; P3 : recompose perd VALID_A ; P4 : runEnforcedReview accepte (complete, passe 2) un candidat ayant perdu une ref litterale ; P5 : repair [] accepte, 2 valides perdues",
+      "aucun test (MONO-11 test-mono11-v0.3-r1.js l.645-781 ; v1.0.11 T-EF03B-34) ne garantit la conservation",
+      "A10 A5081732198 passe 2 : candidat passe 1 DISC-01 = 2 valides + 1 non litterale ; prompt en cache liste les 3 comme rejetees ; le modele ecrit 'les trois citations rejetees', re-verifie et rend les 2 valides : conservation par le modele, pas par le code",
+      "miroir adaptateur l.191 RE.recompose(st.parsed, rp.repairs) volontairement identique au gele : registre byte-identique au candidat valide par le lot (l.221) ; correct sous la contrainte lot gele inchange"
+    ]
+  },
+  "fixGuarantee": {
+    "answer": "YES_TARGETED_REPAIR_PATH",
+    "statement": "literalization path fixed; targeted repair path still unprotected",
+    "lossDefinition": "recomposition LOCALE (code) retirant une ref litterale (controle gele) presente dans le candidat recompose ; une regeneration complete par le modele (INFORMED) n'est pas une perte",
+    "paths": [
+      {
+        "path": "LITERALIZATION (bloc G)",
+        "location": "ef03b-resilience.js l.207-214",
+        "lossPossible": false,
+        "note": "corrige, invariant prouve"
+      },
+      {
+        "path": "FROZEN TARGETED_REPAIR (pass >= 2)",
+        "location": "review-enforcer.js l.289-292 / recompose l.234 ; miroir l.191",
+        "lossPossible": true,
+        "note": "dependant du modele, indetectable"
+      },
+      {
+        "path": "FROZEN INFORMED_REPAIR (pass >= 2)",
+        "location": "review-enforcer.js l.275, l.112-122",
+        "lossPossible": false,
+        "note": "regeneration complete, pas de recomposition locale ; repasse par A/D/G"
+      },
+      {
+        "path": "TRUNCATION salvage + completion + mergeFindings",
+        "location": "ef03b-resilience.js l.198-205, l.101-105",
+        "lossPossible": false,
+        "note": "findings complets byte-identiques ; produits seulement pour dimensions manquantes"
+      },
+      {
+        "path": "REGISTRY reuse",
+        "location": "ef03b-resilience.js l.185-189",
+        "lossPossible": false,
+        "note": "byte-identique a un candidat valide ; propage une perte anterieure (R3)"
+      }
+    ]
+  },
+  "shadow": {
+    "suiteTest": "T-EF03B-35 executed (not SKIPPED) : 70 constats, 7 revues, 4 reparees, byte-identiques",
+    "independentScript": "shadow-independent.js (copie ; RE gele + EF3 v1.0.11 ; run lu seulement)",
+    "reconstructions": {
+      "A_chainAllTracedRepairs_identicalToRestored": "7/7",
+      "B_runtimeFaithful_identicalToRestored": "7/7"
+    },
+    "citationsRestored": {
+      "total": 12,
+      "perReview": {
+        "A5031631835": 4,
+        "A5084194176": 5,
+        "A5072236225": 3,
+        "A5081732198": 0
+      }
+    },
+    "emptiedFindingsRestored": [
+      "A5031631835/DISC-07",
+      "A5084194176/DISC-03",
+      "A5072236225/DISC-06"
+    ],
+    "otherFieldsChanged": 0,
+    "restoredReviewsFrozenValidation": [
+      {
+        "twinId": "A5031631835",
+        "local": true,
+        "frozenParser": "OK"
+      },
+      {
+        "twinId": "A5061537459",
+        "local": true,
+        "frozenParser": "OK"
+      },
+      {
+        "twinId": "A5034919242",
+        "local": true,
+        "frozenParser": "OK"
+      },
+      {
+        "twinId": "A5084194176",
+        "local": true,
+        "frozenParser": "OK"
+      },
+      {
+        "twinId": "A5067779338",
+        "local": true,
+        "frozenParser": "OK"
+      },
+      {
+        "twinId": "A5081732198",
+        "local": true,
+        "frozenParser": "OK"
+      },
+      {
+        "twinId": "A5072236225",
+        "local": true,
+        "frozenParser": "OK"
+      }
+    ],
+    "restorationSha256sumsCheck": "5/5 OK",
+    "reviewsRestoredSha256": "e5e5daeeb4b0549d195bf1efdfeab03233aeabe0ce9e255a3c7e09e089e5f358",
+    "runWriteCheck": {
+      "filesHashed": 1493,
+      "hashesIdenticalBeforeAfter": true,
+      "mtimesIdentical": true,
+      "newFiles": 0
+    },
+    "a5031631835Note": "sous v1.0.11 VALID des la fusion de la litteralisation ([✓,'']->[✓] ; [✓,'']->[✓] ; ['']->[originale]) : passe 2 tracee non declenchee ; son contenu (memes chaines, []) n'aurait rien change"
+  },
+  "tests": {
+    "announced": {
+      "monolith": "274/274",
+      "chunking": "21/21",
+      "secretScan": 0,
+      "antiHardcoding": 0,
+      "manifest": "152 / 04afaac9a3ae88442fc93d1a633ac5a00bc51197d0d00dd17cc5a9db11603fab"
+    },
+    "obtainedInCopy": {
+      "monolith": "274/274 (ids identiques a test/results.json livre)",
+      "chunking": "21/21",
+      "secretScan": "ok 154 fichiers 0 hit",
+      "antiHardcoding": "ok 74 fichiers 0 caseToken 0 hit"
+    },
+    "manifestVerifyDelivered": {
+      "ok": true,
+      "files": 152,
+      "contentHashRecomputed": "04afaac9a3ae88442fc93d1a633ac5a00bc51197d0d00dd17cc5a9db11603fab"
+    },
+    "tEF03B27to35": {
+      "T-EF03B-27": "ok",
+      "T-EF03B-28": "ok",
+      "T-EF03B-29": "ok",
+      "T-EF03B-30": "ok",
+      "T-EF03B-31": "ok",
+      "T-EF03B-32": "ok",
+      "T-EF03B-33": "ok",
+      "T-EF03B-34": "ok",
+      "T-EF03B-35": "ok (executed)"
+    },
+    "divergences": [],
+    "networkFree": "LLM factice scripte ; Worker factice 127.0.0.1 ; global.fetch stubbe ; .env.local retire de la copie ; aucune variable de cle exportee",
+    "fixtureCheck": {
+      "cases": 4,
+      "dims": 16,
+      "structuralIssues": 0,
+      "substitution": "S01->CAS-A, S02->CAS-B (injective)",
+      "literalityRelationsPreserved": true,
+      "contentSha256": "4/4",
+      "nonLiteralRefsAbsentFromSyntheticContent": true
+    }
+  },
+  "proposedLot": {
+    "id": "MONO-11 v0.3-r2 — TARGETED REPAIR LINEAGE PRESERVATION",
+    "boundary": "MONO-11/v0.3-r1/core/review-enforcer.js seul (nouveau sceau + zip canonique ; config.frozenLots MONO-11 dans une v1.0.12) ; MONO-01, validateurs, parseur, contrat MONO-11-v2 inchanges",
+    "invariant": "FINAL(d) = dedup(VALID_ORIGINAL(d) ++ VALID_REPAIRED(d)) pour toute dimension fautive d'une passe TARGETED ; forbiddenRefs et 'citation(s) rejetee(s)' = refs non litterales seulement ; refs valides listees 'conservees telles quelles'",
+    "changes": [
+      "rejectedRefsOf -> refs non litterales (ou {rejected, kept})",
+      "targetedRepairPrompt : ligne 'citations deja litterales, CONSERVEES' ; INTERDIT limite aux rejetees",
+      "recompose(parsed, repairs, content) ou mergeRepairs amont : fusion avant remplacement",
+      "exactRepeat / repeatedFaultyRef sur les seules refs non litterales"
+    ],
+    "tests": [
+      "miroir T1-T5 sur runEnforcedReview, LLM factice omettant les valides (passe 2 et 3 ; [], sous-ensemble, doublons)",
+      "fixtures R1..R6/S1..S5 rejeu identique",
+      "sondes P4/P5 comme non-regression",
+      "fixture A5081732198 (prompt/reponse en cache) : identique"
+    ],
+    "dependencies": "MONO-11 gele (gouvernance 2026-09-16) => audit + gel separes ; v1.0.12 = v1.0.11 + bascule frozenLots + miroir l.191 aligne ; sourceSealHash change => pas de reuse inter-sceau",
+    "alternativeWithoutTouchingLot": "garde de lignee dans l'adaptateur (branche isTargeted l.191) reecrivant le JSON {repairs} remis au lot gele via preserveLineageRepairs(st.parsed, ...) : garantit l'invariant, ne corrige ni l'etiquette 'rejetee(s)' ni l'INTERDIT passe 3",
+    "impactOnV1011Freeze": "aucun : v1.0.11 gelable ; R1 consignee jusqu'au lot"
+  },
+  "constraintsRespected": {
+    "providerCalls": 0,
+    "network": 0,
+    "attempt11": 0,
+    "replay": 0,
+    "patches": 0,
+    "testsRunInDeliveredDir": false,
+    "testsRunInCopy": true,
+    "copyPath": "/private/tmp/claude-501/-Users-christophebonnet/cefb334a-2fee-428d-b8f0-90b750293804/scratchpad/audit-v1011/EvidenceForge/",
+    "envLocalRemovedFromCopy": true,
+    "canonicalZipsCopiedIntoCopy": [
+      "MONO-11/EvidenceForge-MONO11-AUTONOMOUS-PANEL-v0.3-r1.zip",
+      "MONO-10/EvidenceForge-MONO10-SCIENTIFIC-QUALIFICATION-v0.19.zip",
+      "MONOLITH-v1.0.10/EvidenceForge-MONOLITH-v1.0.10.zip(.sha256)"
+    ],
+    "runDirUntouched": true,
+    "d103Untouched": true,
+    "activeVersionUntouched": true,
+    "v1010Untouched": true,
+    "frozenLotsUntouched": true,
+    "gitUntouched": true,
+    "filesWrittenOutsideScratch": [
+      "MONOLITH-v1.0.11/EVIDENCEFORGE-v1.0.11-INDEPENDENT-FREEZE-AUDIT.md",
+      "MONOLITH-v1.0.11/EVIDENCEFORGE-v1.0.11-INDEPENDENT-FREEZE-AUDIT.json"
+    ]
+  },
+  "hashesVerified": {
+    "MONOLITH-v1.0.11/lib/ef03b-resilience.js": "18739b7aac108f915edef04d53001d33e072c48b8a0f74497e4fca6bc4b76487",
+    "MONOLITH-v1.0.10/lib/ef03b-resilience.js": "23946c7a5317f99e57db5b071242cc0558b9f63c71b7bb06d66bc68dd89254f7",
+    "MONO-11/v0.3-r1/core/review-enforcer.js": "42de4c51daa1e33d40058f18dc8eef79beaee7ae3aca134c33118601ade92b3b",
+    "MONO-01/dependencies/ef-03b-review-runner-v1.js": "e033b704754ab0e3c61724c44a9698fea2ddeee45dde7392db81dabc3eb276b4",
+    "MONO-01/dependencies/ef-03c-aggregation-v1.js": "7787d3237a1690ad0e141ce02bca42c0013d47182e3538889247b53f6c6c92f6",
+    "MONOLITH-v1.0.11/MANIFEST.json": "331e2d4ca67503a4953118c0ebf9de8ddbdbb12c49266a9111f76f46435b6a8b",
+    "MONOLITH-v1.0.11/SHA256SUMS.txt": "e1708a3cef298984f4880667aa4e77b07ffc6c982a42d2a50e2a2960c8d9f9a1",
+    "MONOLITH-v1.0.11/test/results.json": "e4c3496ad38a8ff869403eb2e2f9df167005395465a42b060b9653ccca32efef",
+    "MONOLITH-v1.0.11/test/fixtures/ef03b-lineage-a10-cases.json": "557b118885ef1d0bc531ddede309632735180755a4dbb8e43bf42a9a6c9fea64",
+    "MONOLITH-v1.0.11/test/test-ef03b-lineage.js": "7c4922017101569389d5ea613692de6308e78007d887e160e5baef5ab08e5e9c",
+    "MONOLITH-v1.0.10/EvidenceForge-MONOLITH-v1.0.10.zip": "9f19e639dacdfa9ad113e6b1b2e73da6f5072edb3e11e314925179ffb53774b0",
+    "ACTIVE_VERSION": "81333261eb0b06055c6132cd18c21c5355f336e8e59bdb073dbbb227c8d69f62",
+    "a10-lineage-restoration/reviews-restored.json": "e5e5daeeb4b0549d195bf1efdfeab03233aeabe0ce9e255a3c7e09e089e5f358",
+    "a10-lineage-restoration/EVIDENCEFORGE-A10-LINEAGE-RESTORATION-v1.json": "a37439ab6ca613938f9c3b1b809e63b8f9c6b5a64cb6faa4bbc59c83927160ed",
+    "run/reviews.json": "2d87507bc890fed7047ec694f01a47a81b21c1ff71df54ea7fbc00eb2497874f",
+    "run/llm-calls.jsonl": "3f5384046ddae7c99c58896a6d2896febad174c97278ff5bba6e03bf24b14ef3",
+    "run/state.json": "9d8c3b2a6e00590a008d130bf39e57151ada9c8791e7f3a7051f49fb006ea814",
+    "run/reviews-valid.jsonl": "08446e4c477e3764f61461cb4c795fd1291c1263dd2c17114dc678e660a6c7fb"
+  }
+}

@@ -315,7 +315,7 @@ test('T-PERFREAL01B-17 : l’artefact frontend n’a pas bougé', () => {
      silencieux quand une actualisation depuis /v1/models fait disparaître le modèle retenu. Aucune
      règle, aucun prompt, aucun schéma, aucun comportement d'interface visible n'a changé. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    '669f4d830042f4a04817c474bb9a3232c9441de12ad1d6114d6748940068ecb2', 'CANONICAL_HTML_CHANGED = NO');
+    'ad79ea66a97986a831839c302b8c7bc25ace982acc274dc03838aee885639a31', 'CANONICAL_HTML_CHANGED = NO');
   /* Et aucune mesure navigateur n’a été inventée à la place de celle qu’on ne peut pas prendre. */
   assert.equal(M.navigateur.statut, 'NOT_AVAILABLE');
   assert.match(M.navigateur.raison, /n admet que https:\/\/c-concept-dev\.github\.io/);

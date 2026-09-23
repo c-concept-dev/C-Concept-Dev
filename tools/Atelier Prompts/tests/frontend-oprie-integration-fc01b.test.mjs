@@ -54,7 +54,7 @@ function loadPilot({ fetchImpl, demande = 'Rédige une note.', answers = [] } = 
     return dom.get(id);
   };
   const context = {
-    AbortController, fetch: fetchImpl, console: { warn() {}, error() {} },
+    AbortController, setTimeout, clearTimeout, fetch: fetchImpl, console: { warn() {}, error() {} },
     $: el,
     /* IA-02A : le tour délègue sa décision à la politique d'orchestration. Le harness expose donc
        LA politique réelle du noyau — jamais une imitation : un pilote testé contre une politique
