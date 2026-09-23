@@ -2736,18 +2736,24 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
   // {content, results} plutôt que de muter un tableau fermé (closure) — chaque appelant (structuré ou
   // Legacy) gère ainsi son propre halFindings local, sans état partagé entre les deux moteurs.
   async function _adocCallHalSearch(query, workerUrl) {
+    const _q = String(query || '').slice(0, 300);
+    // Log traceur — texte de la requête envoyée à HAL, jamais de contenu clinique.
+    console.log('[HAL] requête envoyée :', _q);
     try {
       const res = await fetch(workerUrl.replace(/\/+$/, '') + '/search-academic-studies', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
-        body: JSON.stringify({ query: String(query || '').slice(0, 300) }),
+        body: JSON.stringify({ query: _q }),
       });
       const data = await res.json().catch(function () { return null; });
       if (!data || !Array.isArray(data.results) || !data.results.length) {
+        console.log('[HAL] 0 résultat pour cette requête.');
         return { content: 'Aucun résultat HAL pertinent pour cette recherche.', results: [] };
       }
+      console.log('[HAL] ' + data.results.length + ' résultat(s) — titres :', data.results.map(function (r) { return r && r.title; }));
       return { content: JSON.stringify(data.results), results: data.results };
     } catch (e) {
+      console.log('[HAL] échec réseau :', e && e.message);
       return { content: 'Recherche HAL indisponible (' + (e && e.message || 'erreur réseau') + ') — continue sans ce résultat.', results: [] };
     }
   }
