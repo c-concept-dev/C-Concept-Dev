@@ -2696,6 +2696,62 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       });
   }
 
+  // Intégration HAL — primitives PARTAGÉES entre le moteur structuré (adocGenerateStructuredDocument)
+  // et le moteur Legacy (adocRunGenerationPipeline, ci-dessous) — PARITÉ DES MOTEURS (décision de
+  // Christophe) : tous les types de documents doivent avoir accès à HAL, quel que soit le moteur qui
+  // les produit. Réutilisées à l'IDENTIQUE par les deux moteurs, jamais dupliquées avec une seconde
+  // implémentation — seul le point d'appel côté client change. Garde-fou 1 (filtrage docType
+  // ART/COMM/THESE/COUV) reste appliqué CÔTÉ WORKER, jamais exposé ici comme paramètre au choix du
+  // modèle. Garde-fou 2 (pertinence stricte, piège lexical "couple" → droit/sociologie/histoire/
+  // théâtre) EST la description de l'outil ci-dessous, reprise telle quelle par chaque appelant dans
+  // son propre prompt de décision. Garde-fou 3 (plafond de citations) reste appliqué par CHAQUE
+  // appelant séparément via ADOC_HAL_SEARCH_CAP : halSearchCount/halFindings restent des variables
+  // LOCALES à chaque appelant (jamais partagées entre deux documents ni entre les deux moteurs).
+  const ADOC_HAL_SEARCH_CAP = 3;
+  const ADOC_HAL_SEARCH_TOOL = {
+    name: 'search_academic_studies',
+    description:
+      "Recherche des publications académiques réelles sur le portail HAL-SHS (sciences " +
+      "humaines et sociales — partagé avec le droit, la sociologie, l'histoire) pour appuyer " +
+      "une affirmation clinique précise par une référence scientifique vérifiable. N'utilise " +
+      "un résultat que s'il correspond RÉELLEMENT au sujet clinique traité — ignore et ne " +
+      "cite JAMAIS un résultat hors champ même s'il partage un mot-clé (ex. « couple » en " +
+      "droit du divorce, en sociologie ou au théâtre, jamais en psychologie clinique). " +
+      "Formule une requête ciblée (auteur connu + concept précis, jamais un mot seul trop " +
+      "générique). Trois recherches maximum par document.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          description: "Termes de recherche académique (français ou anglais), ciblés sur le concept clinique précis — jamais un mot isolé trop générique.",
+        },
+      },
+      required: ['query'],
+    },
+  };
+  // Exécute réellement la recherche HAL via le Worker (jamais depuis le client directement — cf.
+  // rapport HAL, point d'investigation 7) et met en forme le résultat en tool_result. Ne lève jamais
+  // d'exception vers l'appelant : une panne HAL est best-effort, comme web_search. Retourne
+  // {content, results} plutôt que de muter un tableau fermé (closure) — chaque appelant (structuré ou
+  // Legacy) gère ainsi son propre halFindings local, sans état partagé entre les deux moteurs.
+  async function _adocCallHalSearch(query, workerUrl) {
+    try {
+      const res = await fetch(workerUrl.replace(/\/+$/, '') + '/search-academic-studies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
+        body: JSON.stringify({ query: String(query || '').slice(0, 300) }),
+      });
+      const data = await res.json().catch(function () { return null; });
+      if (!data || !Array.isArray(data.results) || !data.results.length) {
+        return { content: 'Aucun résultat HAL pertinent pour cette recherche.', results: [] };
+      }
+      return { content: JSON.stringify(data.results), results: data.results };
+    } catch (e) {
+      return { content: 'Recherche HAL indisponible (' + (e && e.message || 'erreur réseau') + ') — continue sans ce résultat.', results: [] };
+    }
+  }
+
   // Item 70 Volet 2 — extraite d'adocSendOriginal (refactor structurel préalable au palier 2 de
   // clarté, format) : portion RAG → routage structuré/legacy → génération, inchangée à
   // l'exception de la frontière de fonction elle-même. Reprise directement par le palier 2
@@ -3042,6 +3098,22 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
         // jamais un blocage général sur les autres types (une Fiche qui mentionne incidemment
         // "Excel" dans son texte ne doit pas perdre l'accès au structuré pour autant).
         && !(_structuredAttemptKind === 'tableau' && plan?._explicitXlsxRequested);
+      // Diagnostic routage structuré/Legacy (investigation "Script verbatim") — sans type
+      // explicitement choisi à l'écran d'accueil, TOUTE la décision dépend de plan.intent, une
+      // classification libre du planificateur LLM (adocPlanQuery), SANS filet de sécurité par
+      // mot-clé déterministe sur ce chemin (contrairement à adocBuildFallbackPlan, utilisé
+      // uniquement si le planificateur échoue totalement) — une classification différente de
+      // l'attendu sur ce même chemin fait basculer silencieusement en Legacy sans jamais lever
+      // d'erreur. Ce log rend immédiatement diagnosticable, depuis la console navigateur, quelle
+      // valeur a été reçue/décidée à chaque génération (jamais de contenu clinique — uniquement
+      // les valeurs de routage elles-mêmes).
+      console.log('[ROUTAGE structuré/Legacy]', {
+        'plan.documentKind': plan?.documentKind ?? null,
+        'plan.intent': plan?.intent ?? null,
+        _hasExplicitKind, _structuredAttemptKind, _shouldAttemptStructured,
+        wired: _structuredAttemptKind ? (window.adocStructuredGenerationWiredByDocumentKind[_structuredAttemptKind] === true) : null,
+        _isLongDoc,
+      });
       let _struct;
       if (window.adocStructuredFicheEnabled && _shouldAttemptStructured && !_isLongDoc
           && adocGetRendererMode(_structuredAttemptKind) === 'structured') {
@@ -3148,36 +3220,21 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       const MODEL = 'claude-sonnet-4-6';
       window._adocCurrentModel = MODEL;
 
-      // ── Appel streaming mixte — web_search toujours disponible ──
-      // tool_choice:auto → CC décide librement s'il cherche sur le web
-      // Le streaming SSE gère nativement les blocs text + tool_use interleaved
-      const response = await fetch(workerUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
-        body: JSON.stringify({ payload: {
-          model: MODEL,
-          max_tokens: 16000,
-          stream: true,
-          system: systemPrompt,
-          messages,
-          tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-          tool_choice: { type: 'auto' }
-        }})
-      });
-
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error('Worker ' + response.status + ': ' + errText.substring(0, 200));
-      }
-
       let reply = '';
       let streamMsgId = null;
       let usedWebSearch = false;
-
-      // ── Streaming SSE unifié — gère text_delta + tool_use en temps réel ──
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let sseBuffer = '';
+      // Intégration HAL comme 4e pilier — PARITÉ DES MOTEURS (décision de Christophe) : les MÊMES
+      // ADOC_HAL_SEARCH_TOOL/_adocCallHalSearch/ADOC_HAL_SEARCH_CAP que le moteur structuré
+      // (définis au niveau module, jamais dupliqués) sont désormais aussi utilisés ICI, côté
+      // Legacy. halSearchCount/halFindings restent LOCALES à CETTE génération (repartent de zéro
+      // à chaque appel de adocRunGenerationPipeline, jamais partagées avec un autre document ni
+      // avec le moteur structuré).
+      let halSearchCount = 0;
+      let halFindings = [];
+      // Budget de rounds — même formule que le moteur structuré (cf. ADOC_CALL1_MAX_ROUNDS et son
+      // commentaire) : ADOC_HAL_SEARCH_CAP rounds réels + 1 round de refus explicite au plafond +
+      // 1 round final où le modèle peut conclure après ce refus.
+      const LEGACY_HAL_MAX_ROUNDS = ADOC_HAL_SEARCH_CAP + 2;
 
       // Correction rang 6 — cause déjà confirmée en code (rapport séparé) : un repli depuis la
       // Fiche structurée détruisait purement et simplement la carte riche de progression
@@ -3208,21 +3265,58 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       // est ce qui causait la disparition côté repli.
       streamMsgId = typingId;
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        sseBuffer += decoder.decode(value, { stream: true });
-        const lines = sseBuffer.split('\n');
-        sseBuffer = lines.pop();
+      // ── Appel(s) streaming mixte — web_search (serveur) ET/OU search_academic_studies (HAL,
+      // outil personnalisé) en libre décision. PARITÉ DES MOTEURS : mêmes deux outils, mêmes 3
+      // garde-fous que le moteur structuré (filtrage docType côté Worker, pertinence stricte dans
+      // la description de l'outil, plafond appliqué ci-dessous côté client). Architecture
+      // single-call historique conservée (un seul type d'appel streamé, jamais deux appels
+      // séparés décision/génération comme le moteur structuré) — mais désormais rejouée en
+      // boucle de ROUNDS tant que le modèle demande HAL, exactement comme l'appel 1 du moteur
+      // structuré (web_search est un outil SERVEUR, résolu par Anthropic dans le MÊME flux,
+      // jamais une cause de round supplémentaire ; search_academic_studies est personnalisé, le
+      // modèle s'arrête sur stop_reason:'tool_use', ce client doit appeler
+      // /search-academic-studies puis renvoyer un tool_result dans un tour suivant). `reply`
+      // s'accumule à travers TOUS les rounds dans la MÊME bulle affichée (streamMsgId=typingId,
+      // inchangé) : la thérapeute voit le document se construire en continu, sans rupture
+      // visible entre deux rounds.
+      _legacyHalRoundLoop:
+      for (let _legacyRound = 1; _legacyRound <= LEGACY_HAL_MAX_ROUNDS; _legacyRound++) {
+        const response = await fetch(workerUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
+          body: JSON.stringify({ payload: {
+            model: MODEL,
+            max_tokens: 16000,
+            stream: true,
+            system: systemPrompt,
+            messages,
+            tools: [{ type: 'web_search_20250305', name: 'web_search' }, ADOC_HAL_SEARCH_TOOL],
+            tool_choice: { type: 'auto' }
+          }})
+        });
 
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
+        if (!response.ok) {
+          const errText = await response.text();
+          throw new Error('Worker ' + response.status + ': ' + errText.substring(0, 200));
+        }
+
+        // ── Streaming SSE unifié — gère text_delta + tool_use (web_search ET HAL) en temps réel ──
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let sseBuffer = '';
+        // Round-scopées (jamais partagées entre rounds) : search_academic_studies uniquement —
+        // web_search est un outil serveur, jamais accumulé ici (résolu inline par Anthropic).
+        let _roundHalBlocksByIndex = {};
+        let _roundTextForHal = ''; // texte de CE round uniquement, pour reconstruire le tour assistant si HAL est demandé.
+
+        function _processLegacyLine(line) {
+          if (!line.startsWith('data: ')) return;
           const data = line.slice(6).trim();
-          if (data === '[DONE]') continue;
+          if (data === '[DONE]') return;
           let evt;
           try {
             evt = JSON.parse(data);
-          } catch (parseErr) { continue; /* SSE malformée (fragment JSON incomplet) — ignorer */ }
+          } catch (parseErr) { return; /* SSE malformée (fragment JSON incomplet) — ignorer */ }
 
           // Partie A, point 1 — un événement 'error' explicite ne doit jamais être avalé par le
           // catch de JSON.parse ci-dessus (avant ce correctif, throw+catch juste au-dessus le
@@ -3230,9 +3324,11 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
           // vers le catch englobant (ligne ~5025) qui l'affiche clairement à l'utilisatrice.
           if (evt.type === 'error') throw new Error('Stream error: ' + (evt.error?.message || 'erreur inconnue'));
 
-          // Texte normal — affiché en streaming temps réel
+          // Texte normal — affiché en streaming temps réel (reply, cumulé sur TOUS les rounds) et
+          // conservé pour ce round seul (_roundTextForHal, pour le tour assistant HAL éventuel).
           if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
             reply += evt.delta.text;
+            _roundTextForHal += evt.delta.text;
             adocUpdateStreamMsg(streamMsgId, reply);
           }
 
@@ -3246,6 +3342,18 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
             ind.innerHTML = adocIconSvg('icon-web') + '<span>CC consulte le web…</span>';
             const msgEl = document.getElementById(streamMsgId);
             if (msgEl && !document.getElementById(ind.id)) msgEl.appendChild(ind);
+          }
+
+          // Intégration HAL — outil personnalisé (jamais résolu par Anthropic elle-même,
+          // contrairement à web_search ci-dessus) : accumule le JSON d'entrée par index de bloc,
+          // jamais parsé avant la fin réelle du flux (même précaution que le moteur structuré).
+          if (evt.type === 'content_block_start' && evt.content_block?.type === 'tool_use'
+              && evt.content_block.name === 'search_academic_studies') {
+            _roundHalBlocksByIndex[evt.index] = { id: evt.content_block.id, name: evt.content_block.name, inputJson: '' };
+          }
+          if (evt.type === 'content_block_delta' && evt.delta?.type === 'input_json_delta'
+              && _roundHalBlocksByIndex[evt.index]) {
+            _roundHalBlocksByIndex[evt.index].inputJson += evt.delta.partial_json || '';
           }
 
           // Partie A, point 3 — usedWebSearch ne devient vrai qu'à réception d'un vrai résultat
@@ -3263,48 +3371,78 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
 
           // Tokens usage
           if (evt.type === 'message_start' && evt.message?.usage) {
-            adocLastUsage = { input: evt.message.usage.input_tokens || 0, output: 0 };
+            adocLastUsage = { input: (adocLastUsage?.input || 0) + (evt.message.usage.input_tokens || 0), output: adocLastUsage?.output || 0 };
           }
           if (evt.type === 'message_delta') {
             if (evt.usage) {
               if (!adocLastUsage) adocLastUsage = { input: 0, output: 0 };
-              adocLastUsage.output = evt.usage.output_tokens || 0;
+              adocLastUsage.output = (adocLastUsage.output || 0) + (evt.usage.output_tokens || 0);
             }
             if (evt.delta?.stop_reason) adocLastStopReason = evt.delta.stop_reason;
           }
         }
-      }
 
-      // Partie A, point 5 — ne jamais perdre le dernier fragment SSE resté dans le buffer si le
-      // flux se termine sans retour à la ligne final (rare mais déjà vu avec certains proxys).
-      if (sseBuffer && sseBuffer.startsWith('data: ')) {
-        const _leftover = sseBuffer.slice(6).trim();
-        if (_leftover && _leftover !== '[DONE]') {
-          // Audit systémique (Priorité 5.1) — même bug déjà corrigé 4 fois ailleurs (audit
-          // Codex précédent) : le `throw` volontaire pour un événement 'error' explicite était
-          // À L'INTÉRIEUR du try dont le catch avale tout, donc silencieusement perdu ici aussi.
-          // Séparé du parsing exactement comme la boucle principale ci-dessus (ligne ~5218) —
-          // seul JSON.parse lui-même reste protégé, jamais le contrôle métier qui suit.
-          let evt = null;
-          try {
-            evt = JSON.parse(_leftover);
-          } catch (parseErr) { /* dernier fragment illisible — rien à en tirer, ignorer */ }
-          if (evt) {
-            if (evt.type === 'error') throw new Error('Stream error: ' + (evt.error?.message || 'erreur inconnue'));
-            if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
-              reply += evt.delta.text;
-              adocUpdateStreamMsg(streamMsgId, reply);
-            }
-            if (evt.type === 'content_block_start' && evt.content_block?.type === 'web_search_tool_result'
-                && Array.isArray(evt.content_block.content) && evt.content_block.content.length) {
-              usedWebSearch = true;
-            }
-            if (evt.type === 'message_delta' && evt.delta?.stop_reason) adocLastStopReason = evt.delta.stop_reason;
-          }
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          sseBuffer += decoder.decode(value, { stream: true });
+          const lines = sseBuffer.split('\n');
+          sseBuffer = lines.pop();
+          for (const line of lines) _processLegacyLine(line);
         }
+
+        // Partie A, point 5 — ne jamais perdre le dernier fragment SSE resté dans le buffer si le
+        // flux se termine sans retour à la ligne final (rare mais déjà vu avec certains proxys).
+        // Réutilise _processLegacyLine (jamais une seconde implémentation du traitement d'événement
+        // en parallèle, qui aurait dû être maintenue manuellement en synchronisation avec elle).
+        if (sseBuffer && sseBuffer.startsWith('data: ')) {
+          const _leftover = sseBuffer.slice(6).trim();
+          if (_leftover && _leftover !== '[DONE]') _processLegacyLine('data: ' + _leftover);
+        }
+
+        // ── Fin de round — HAL demandée par le modèle ? ──────────────────────────────────────
+        // stop_reason:'tool_use' + au moins un bloc search_academic_studies accumulé : le modèle
+        // attend un tool_result avant de pouvoir continuer. web_search n'atteint JAMAIS cette
+        // branche (outil serveur, déjà résolu dans le flux ci-dessus).
+        const _roundHalBlocks = Object.keys(_roundHalBlocksByIndex).map((k) => _roundHalBlocksByIndex[k]);
+        if (adocLastStopReason === 'tool_use' && _roundHalBlocks.length) {
+          const _assistantContent = [];
+          if (_roundTextForHal) _assistantContent.push({ type: 'text', text: _roundTextForHal });
+          const _toolResultBlocks = [];
+          for (const _block of _roundHalBlocks) {
+            let _input = {};
+            try { _input = JSON.parse(_block.inputJson || '{}'); } catch { /* JSON incomplet/malformé — requête vide, best-effort */ }
+            _assistantContent.push({ type: 'tool_use', id: _block.id, name: _block.name, input: _input });
+            let _resultContent;
+            // Garde-fou 3 (plafond de citations HAL) — appliqué ICI, côté client, jamais laissé à
+            // la seule instruction du modèle : au-delà du plafond, AUCUN appel réel à HAL n'est
+            // fait, le modèle reçoit un refus explicite (jamais un silence).
+            if (halSearchCount >= ADOC_HAL_SEARCH_CAP) {
+              _resultContent = 'Plafond de recherches HAL atteint (' + ADOC_HAL_SEARCH_CAP + ' maximum) pour ce document — n\'utilise plus cet outil, base-toi sur les résultats déjà obtenus.';
+            } else {
+              halSearchCount++;
+              const _halRes = await _adocCallHalSearch(_input.query, workerUrl);
+              _resultContent = _halRes.content;
+              halFindings.push.apply(halFindings, _halRes.results);
+            }
+            _toolResultBlocks.push({ type: 'tool_result', tool_use_id: _block.id, content: _resultContent });
+          }
+          messages = messages.concat([
+            { role: 'assistant', content: _assistantContent },
+            { role: 'user', content: _toolResultBlocks },
+          ]);
+          // Consommé par ce round-trip HAL — jamais confondu avec le stop_reason FINAL du
+          // document, lu plus bas par M2 (qui doit voir 'end_turn'/'max_tokens' réel, jamais
+          // 'tool_use' résiduel d'un round intermédiaire déjà traité ici).
+          adocLastStopReason = null;
+          continue; // round suivant — le modèle reprend avec le(s) tool_result ci-dessus.
+        }
+
+        break _legacyHalRoundLoop; // pas de HAL en attente (ou plus de round disponible) — document terminé pour ce moteur, M2/finalisation ci-dessous inchangés.
       }
 
       console.log('[Mixte]', usedWebSearch ? 'web_search utilisé' : 'pas de web_search', '— D1:', d1Coverage, 'chunks');
+      console.log('[Mixte][HAL]', halSearchCount ? halSearchCount + ' recherche(s) HAL réelle(s) effectuée(s), ' + halFindings.length + ' résultat(s) reçu(s)' : 'non utilisée (bibliothèque/web jugés suffisants ou appel indisponible)');
 
       if (!reply) throw new Error('Réponse vide du modèle.');
 
@@ -10659,11 +10797,12 @@ ${recent}`;
     let usedWebSearch = false;
     let webFindings = '';
     // Garde-fou 3 (plafond de citations HAL) — appliqué ICI, côté client, jamais laissé à la
-    // seule instruction du modèle (moins fiable) : au-delà de ADOC_HAL_SEARCH_CAP appels réels à
-    // l'API HAL pour CE document, tout nouvel appel de l'outil reçoit un tool_result de refus
-    // explicite (le modèle est informé, jamais un simple silence), sans jamais interroger HAL une
-    // fois de plus — compteur remis à zéro à chaque nouveau document (portée de fonction).
-    const ADOC_HAL_SEARCH_CAP = 3;
+    // seule instruction du modèle (moins fiable) : au-delà de ADOC_HAL_SEARCH_CAP (partagée entre
+    // les deux moteurs, cf. hoisting Parité des moteurs, définie avant adocRunGenerationPipeline)
+    // appels réels à l'API HAL pour CE document, tout nouvel appel de l'outil reçoit un tool_result
+    // de refus explicite (le modèle est informé, jamais un simple silence), sans jamais interroger
+    // HAL une fois de plus — compteur remis à zéro à chaque nouveau document (portée de fonction,
+    // jamais partagé entre deux appels de adocGenerateStructuredDocument ni avec le moteur Legacy).
     let halSearchCount = 0;
     let halFindings = []; // { title, authors, docType, date, url, fullTextAvailable } — pour le rapport/débogage uniquement, jamais injecté tel quel dans le prompt final (le modèle cite directement depuis les tool_result déjà reçus).
 
@@ -10736,51 +10875,9 @@ ${recent}`;
       return [429, 502, 503, 504].includes(status);
     }
 
-    // Intégration HAL — schéma de l'outil personnalisé. Garde-fou 1 (filtrage docType) est
-    // appliqué CÔTÉ WORKER, jamais exposé ici comme paramètre au choix du modèle : seul `query`
-    // est laissé à sa main. La description EST le garde-fou 2 (pertinence stricte).
-    const ADOC_HAL_SEARCH_TOOL = {
-      name: 'search_academic_studies',
-      description:
-        "Recherche des publications académiques réelles sur le portail HAL-SHS (sciences " +
-        "humaines et sociales — partagé avec le droit, la sociologie, l'histoire) pour appuyer " +
-        "une affirmation clinique précise par une référence scientifique vérifiable. N'utilise " +
-        "un résultat que s'il correspond RÉELLEMENT au sujet clinique traité — ignore et ne " +
-        "cite JAMAIS un résultat hors champ même s'il partage un mot-clé (ex. « couple » en " +
-        "droit du divorce, en sociologie ou au théâtre, jamais en psychologie clinique). " +
-        "Formule une requête ciblée (auteur connu + concept précis, jamais un mot seul trop " +
-        "générique). Trois recherches maximum par document.",
-      input_schema: {
-        type: 'object',
-        properties: {
-          query: {
-            type: 'string',
-            description: "Termes de recherche académique (français ou anglais), ciblés sur le concept clinique précis — jamais un mot isolé trop générique.",
-          },
-        },
-        required: ['query'],
-      },
-    };
-    // Exécute réellement la recherche HAL via le Worker (jamais depuis le client directement —
-    // cf. rapport, point d'investigation 7) et met en forme le résultat en tool_result. Ne lève
-    // jamais d'exception vers l'appelant : une panne HAL est best-effort, comme web_search.
-    async function _adocCallHalSearch(query) {
-      try {
-        const res = await fetch(workerUrl.replace(/\/+$/, '') + '/search-academic-studies', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
-          body: JSON.stringify({ query: String(query || '').slice(0, 300) }),
-        });
-        const data = await res.json().catch(function () { return null; });
-        if (!data || !Array.isArray(data.results) || !data.results.length) {
-          return 'Aucun résultat HAL pertinent pour cette recherche.';
-        }
-        halFindings.push.apply(halFindings, data.results);
-        return JSON.stringify(data.results);
-      } catch (e) {
-        return 'Recherche HAL indisponible (' + (e && e.message || 'erreur réseau') + ') — continue sans ce résultat.';
-      }
-    }
+    // ADOC_HAL_SEARCH_TOOL / _adocCallHalSearch — désormais partagées avec le moteur Legacy
+    // (Parité des moteurs), définies au niveau module juste avant adocRunGenerationPipeline.
+    // Plus de définition locale ici : jamais une seconde implémentation dupliquée.
 
     // ── Premier appel — web_search ET/OU search_academic_studies (HAL) en libre décision. ──
     // web_search est un outil SERVEUR (exécuté par Anthropic dans le MÊME flux, jamais de
@@ -10994,7 +11091,9 @@ ${recent}`;
             _resultContent = 'Plafond de recherches HAL atteint (' + ADOC_HAL_SEARCH_CAP + ' maximum) pour ce document — n\'utilise plus cet outil, base-toi sur les résultats déjà obtenus.';
           } else {
             halSearchCount++;
-            _resultContent = await _adocCallHalSearch(_input.query);
+            const _halRes = await _adocCallHalSearch(_input.query, workerUrl);
+            _resultContent = _halRes.content;
+            halFindings.push.apply(halFindings, _halRes.results);
           }
           _toolResultBlocks.push({ type: 'tool_result', tool_use_id: _block.id, content: _resultContent });
         }
@@ -11588,6 +11687,11 @@ ${recent}`;
     return { doc: doc, sourceSnapshot: sourceSnapshot };
   }
   window.adocGenerateStructuredDocument = adocGenerateStructuredDocument;
+  // Parité des moteurs (HAL) — exposée pour les tests, même patron que
+  // window.adocGenerateStructuredDocument ci-dessus : permet de vérifier le moteur Legacy
+  // (adocRunGenerationPipeline) directement, sans dépendre de la classification du planificateur
+  // LLM (hors de portée d'un test sans appel réel payant à Anthropic).
+  window.adocRunGenerationPipeline = adocRunGenerationPipeline;
   // Compatibilité — délégation réelle, jamais une seconde copie de logique (même famille que le
   // décorateur déjà jugé légitime pour window.adocSend, cf. document de vigilance) : l'ancien nom
   // continue de fonctionner à l'identique pour tout appelant externe (tests notamment) qui s'y
