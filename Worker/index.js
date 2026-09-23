@@ -58761,6 +58761,38 @@ __name(handleTranslatePassage, "handleTranslatePassage");
 // rapport de ce lot).
 const HAL_ALLOWED_DOC_TYPES = ["ART", "COMM", "THESE", "COUV"];
 const HAL_FIELDS = "halId_s,uri_s,title_s,authFullName_s,docType_s,producedDate_s,abstract_s,files_s,fileMain_s";
+// CORRECTIF "HAL 0 résultat sur requêtes plausibles" — confirmé par test direct contre la vraie
+// API (numFound:0 sur 3 requêtes réelles de 5 mots, 99 résultats sur la même requête réduite à 2
+// mots) : HAL (Solr) exige par défaut que TOUS les mots d'une requête libre soient présents dans
+// un document pour qu'il corresponde (ET implicite) — plus la requête contient de mots, plus elle
+// devient restrictive, jusqu'à ne plus jamais rien trouver. Une recherche académique est par
+// nature exploratoire (jamais une correspondance exacte) : transformée ici en OR explicite entre
+// les mots-clés — MÊME PRINCIPE que notre propre recherche FTS5 interne (cf. handleRagSearch/
+// handleDocumentarySearch), mais seuil de longueur volontairement DIFFÉRENT (jamais copié
+// aveuglément) : le seuil FTS5 (>3 caractères) vise surtout des connecteurs français (les/des/une/
+// sur) — ici, il éliminerait aussi des acronymes cliniques courts mais essentiels (IFS, TCC, ACT,
+// DBT, tous à 3 caractères), qui sont exactement le genre de terme que le modèle doit pouvoir
+// cibler. Seuls les tokens de 1-2 caractères (jamais porteurs de sens dans une requête HAL) sont
+// écartés. OR étant strictement plus permissif qu'un ET implicite, une requête déjà courte (2-3
+// mots) qui fonctionnait avant ce correctif continue de fonctionner : les documents qui
+// correspondaient aux deux mots restent les mieux classés (ils correspondent en plus au plus de
+// termes), l'OR ne fait qu'ajouter des correspondances partielles moins bien classées.
+function halBuildOrQuery(raw) {
+  const terms = raw
+    .split(/\s+/)
+    // Solr (syntaxe standard/Lucene) attribue un sens spécial à certains caractères
+    // (+-!():^[]{}~*?\/"), qui casseraient la syntaxe de la requête si un mot-clé du modèle les
+    // contient — retirés ici (jamais échappés avec un backslash, inutile pour de simples
+    // mots-clés libres, jamais une phrase entre guillemets sur ce chemin).
+    .map((w) => w.replace(/[+\-!():^[\]{}~*?\\/"]/g, ""))
+    .filter((w) => w.length > 2)
+    .slice(0, 8);
+  // Filet de sécurité — jamais une requête vide envoyée à HAL (ex. requête ne contenant que des
+  // caractères spéciaux/mots de 1-2 lettres) : on retombe alors sur la requête brute plutôt que de
+  // ne rien envoyer.
+  return terms.length ? terms.join(" OR ") : raw;
+}
+__name(halBuildOrQuery, "halBuildOrQuery");
 async function handleSearchAcademicStudies(request2, env2) {
   let body;
   try {
@@ -58772,7 +58804,7 @@ async function handleSearchAcademicStudies(request2, env2) {
   if (!query || query.length > 300)
     return jsonErr("Missing or invalid query", 400);
   const docTypeFilter = "(" + HAL_ALLOWED_DOC_TYPES.map((t) => "docType_s:" + t).join(" OR ") + ")";
-  const params = new URLSearchParams({ q: query, fq: docTypeFilter, rows: "5", fl: HAL_FIELDS, wt: "json" });
+  const params = new URLSearchParams({ q: halBuildOrQuery(query), fq: docTypeFilter, rows: "5", fl: HAL_FIELDS, wt: "json" });
   // Best-effort, jamais bloquant (même posture que web_search/Pexels ailleurs dans ce fichier) —
   // une panne HAL ne doit jamais faire échouer toute la génération du document ; le client reçoit
   // toujours un statut 200 avec `results` (éventuellement vide) pour construire un tool_result.

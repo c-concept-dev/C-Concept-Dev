@@ -2717,14 +2717,21 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       "un résultat que s'il correspond RÉELLEMENT au sujet clinique traité — ignore et ne " +
       "cite JAMAIS un résultat hors champ même s'il partage un mot-clé (ex. « couple » en " +
       "droit du divorce, en sociologie ou au théâtre, jamais en psychologie clinique). " +
-      "Formule une requête ciblée (auteur connu + concept précis, jamais un mot seul trop " +
-      "générique). Trois recherches maximum par document.",
+      // Correctif "HAL 0 résultat" — une requête trop longue (phrase complète ou description
+      // du sujet) réduit fortement les chances de trouver un résultat, même quand du contenu
+      // pertinent existe réellement (confirmé par test direct contre la vraie API). Instruction
+      // désormais explicite avec un exemple concret avant/après, pour lever toute ambiguïté.
+      "Utilise 2 à 3 mots-clés précis, JAMAIS une phrase complète ni une description du sujet " +
+      "(ex. auteur connu + concept, ou juste le concept) : « Bodenmann coping dyadique » " +
+      "fonctionne, « idéal amoureux couple contemporain psychologie clinique » " +
+      "(5 mots) risque de ne renvoyer aucun résultat même si le sujet est pertinent. " +
+      "Trois recherches maximum par document.",
     input_schema: {
       type: 'object',
       properties: {
         query: {
           type: 'string',
-          description: "Termes de recherche académique (français ou anglais), ciblés sur le concept clinique précis — jamais un mot isolé trop générique.",
+          description: "2 à 3 mots-clés académiques précis (français ou anglais) — jamais une phrase complète ni un mot isolé trop générique. Ex. : \"Bodenmann coping dyadique\", pas \"idéal amoureux couple contemporain psychologie clinique\".",
         },
       },
       required: ['query'],
