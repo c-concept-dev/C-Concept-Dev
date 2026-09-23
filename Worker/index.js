@@ -55507,6 +55507,14 @@ var Worker_default = {
     // même convention que le reste, aucune exception.
     if (p === "/translate-passage" && request2.method === "POST")
       return handleTranslatePassage(request2, env2);
+    // Intégration HAL comme 4e pilier (bibliothèque + web + IA + HAL) — décision de Christophe.
+    // Outil personnalisé search_academic_studies (cf. studio-clinique-core.js,
+    // adocGenerateStructuredDocument) : exécuté ICI, jamais par Anthropic elle-même (contrairement
+    // à web_search, un "server tool") — le client intercepte le tool_use et appelle cette route.
+    // Protégée par le mécanisme deny-by-default (non ajoutée à ADOC_PUBLIC_ROUTES), même
+    // convention que le reste.
+    if (p === "/search-academic-studies" && request2.method === "POST")
+      return handleSearchAcademicStudies(request2, env2);
     if (p === "/llm-proxy" && request2.method === "POST")
       return handleLLMProxy(request2, env2);
     if (p === "/generate-presentation" && request2.method === "POST")
@@ -58732,6 +58740,70 @@ async function handleTranslatePassage(request2, env2) {
   return json({ translated_text: translatedText, source_lang: resolvedSourceLang, target_lang });
 }
 __name(handleTranslatePassage, "handleTranslatePassage");
+
+// Intégration HAL comme 4e pilier (bibliothèque + web + IA + HAL) — décision de Christophe.
+// Outil personnalisé search_academic_studies, exécuté ICI (jamais par Anthropic elle-même,
+// contrairement à web_search qui est un "server tool" — cf. studio-clinique-core.js,
+// adocGenerateStructuredDocument, pour le protocole complet tool_use/tool_result).
+//
+// Garde-fou 1 (filtrage type de document) : appliqué ICI, en dur, JAMAIS laissé au choix du
+// modèle (seul `query` lui est exposé, cf. ADOC_HAL_SEARCH_TOOL côté client) — ART/COMM/
+// THESE/COUV uniquement, BLOG/POSTER exclus par défaut (décision de Christophe, CDC §3).
+//
+// AVERTISSEMENT HONNÊTE — les noms de champs Solr ci-dessous (docType_s, files_s, fileMain_s,
+// etc.) viennent de la documentation publique connue de l'API HAL (portail halshs), PAS d'un
+// appel réel vérifié depuis cette session de construction : l'accès réseau sortant vers
+// api.archives-ouvertes.fr est bloqué par la politique d'egress de cet environnement (confirmé :
+// curl ET WebFetch renvoient tous deux EGRESS_BLOCKED). Un nom de champ erroné ne romprait pas
+// la requête (Solr renvoie simplement ce champ vide pour chaque document), mais pourrait
+// dégrader silencieusement la qualité des résultats présentés au modèle — Christophe doit
+// vérifier une fois en conditions réelles avant mise en production (commande exacte dans le
+// rapport de ce lot).
+const HAL_ALLOWED_DOC_TYPES = ["ART", "COMM", "THESE", "COUV"];
+const HAL_FIELDS = "halId_s,uri_s,title_s,authFullName_s,docType_s,producedDate_s,abstract_s,files_s,fileMain_s";
+async function handleSearchAcademicStudies(request2, env2) {
+  let body;
+  try {
+    body = await request2.json();
+  } catch {
+    return jsonErr("Invalid JSON", 400);
+  }
+  const query = String(body?.query || "").trim();
+  if (!query || query.length > 300)
+    return jsonErr("Missing or invalid query", 400);
+  const docTypeFilter = "(" + HAL_ALLOWED_DOC_TYPES.map((t) => "docType_s:" + t).join(" OR ") + ")";
+  const params = new URLSearchParams({ q: query, fq: docTypeFilter, rows: "5", fl: HAL_FIELDS, wt: "json" });
+  // Best-effort, jamais bloquant (même posture que web_search/Pexels ailleurs dans ce fichier) —
+  // une panne HAL ne doit jamais faire échouer toute la génération du document ; le client reçoit
+  // toujours un statut 200 avec `results` (éventuellement vide) pour construire un tool_result.
+  try {
+    const res = await fetch("https://api.archives-ouvertes.fr/search/halshs/?" + params.toString());
+    if (!res.ok)
+      return json({ results: [], error: "HAL indisponible (HTTP " + res.status + ")" });
+    const data = await res.json();
+    const docs = data?.response?.docs || [];
+    const results = docs.map((d) => {
+      const fullTextUrl = (Array.isArray(d.fileMain_s) ? d.fileMain_s[0] : d.fileMain_s)
+        || (Array.isArray(d.files_s) ? d.files_s[0] : d.files_s) || null;
+      return {
+        halId: d.halId_s || null,
+        title: Array.isArray(d.title_s) ? d.title_s[0] : d.title_s || "",
+        authors: d.authFullName_s || [],
+        docType: d.docType_s || "",
+        date: d.producedDate_s || "",
+        abstract: String((Array.isArray(d.abstract_s) ? d.abstract_s[0] : d.abstract_s) || "").slice(0, 600),
+        url: d.uri_s || null,
+        fullTextAvailable: Boolean(fullTextUrl),
+        fullTextUrl
+      };
+    });
+    return json({ results });
+  } catch (err2) {
+    return json({ results: [], error: "HAL indisponible : " + err2.message });
+  }
+}
+__name(handleSearchAcademicStudies, "handleSearchAcademicStudies");
+
 async function handleGeneratePresentation(request2, env2) {
   let body;
   try {

@@ -10630,17 +10630,42 @@ ${recent}`;
     const bookSummary = Array.from(new Set(sourceSnapshot.entries.map(function(e) {
       return e.book + (e.author ? ' [' + e.author + ']' : '');
     }))).join(' ; ');
+    // Intégration HAL comme 4e pilier (bibliothèque + web + IA + HAL) — décision de Christophe.
+    // Garde-fou 2 (instruction de pertinence stricte) : ce texte EST le mécanisme, pas un
+    // accessoire — un résultat HAL hors-champ mais lexicalement proche (le piège "couple" →
+    // droit/sociologie/histoire/théâtre, déjà rencontré en test réel sur le portail halshs,
+    // partagé entre ces disciplines) doit être ignoré explicitement, jamais cité par défaut.
+    // Garde-fou 3 (plafond de citations) mentionné ici en complément de l'application réelle,
+    // déterministe, côté client (ADOC_HAL_SEARCH_CAP ci-dessous) — l'instruction seule ne
+    // suffirait pas (le modèle peut ne pas s'y conformer), mais réduit les tentatives inutiles
+    // une fois le plafond expliqué.
     const searchDecisionSystemPrompt =
       "Tu es l'assistant clinique CC. On te demande UNIQUEMENT de décider si une recherche " +
-      "web t'apporterait une information réellement absente de la bibliothèque déjà " +
-      "consultée pour répondre à la demande ci-dessous (actualité récente, chiffre précis, " +
-      "étude postérieure, etc.) — utilise l'outil web_search UNIQUEMENT si cela apporte une " +
-      "valeur réelle, jamais par défaut. Si tu n'as pas besoin de chercher, réponds " +
-      "simplement par un court accusé, sans détailler.\n\n" +
+      "web et/ou une recherche académique (HAL) t'apporteraient une information réellement " +
+      "absente de la bibliothèque déjà consultée pour répondre à la demande ci-dessous " +
+      "(actualité récente, chiffre précis, étude postérieure, appui scientifique vérifiable " +
+      "d'une affirmation clinique précise, etc.) — utilise ces outils UNIQUEMENT si cela " +
+      "apporte une valeur réelle, jamais par défaut. Si tu n'as pas besoin de chercher, " +
+      "réponds simplement par un court accusé, sans détailler.\n\n" +
+      "Pour search_academic_studies (portail HAL-SHS, partagé avec le droit, la sociologie et " +
+      "l'histoire) : n'utilise UN résultat que s'il correspond RÉELLEMENT au sujet clinique " +
+      "traité — ignore et ne cite JAMAIS un résultat qui partage un mot-clé mais relève d'un " +
+      "autre champ (ex. \"couple\" en droit du divorce ou en sociologie du couple, jamais en " +
+      "psychologie clinique). Trois recherches maximum pour ce document : réserve cet outil aux " +
+      "affirmations qui bénéficient réellement d'un appui académique, jamais un usage " +
+      "systématique.\n\n" +
       'La bibliothèque a déjà fourni ' + sourceSnapshot.entries.length + ' passage(s) dans : ' + bookSummary + '.';
 
     let usedWebSearch = false;
     let webFindings = '';
+    // Garde-fou 3 (plafond de citations HAL) — appliqué ICI, côté client, jamais laissé à la
+    // seule instruction du modèle (moins fiable) : au-delà de ADOC_HAL_SEARCH_CAP appels réels à
+    // l'API HAL pour CE document, tout nouvel appel de l'outil reçoit un tool_result de refus
+    // explicite (le modèle est informé, jamais un simple silence), sans jamais interroger HAL une
+    // fois de plus — compteur remis à zéro à chaque nouveau document (portée de fonction).
+    const ADOC_HAL_SEARCH_CAP = 3;
+    let halSearchCount = 0;
+    let halFindings = []; // { title, authors, docType, date, url, fullTextAvailable } — pour le rapport/débogage uniquement, jamais injecté tel quel dans le prompt final (le modèle cite directement depuis les tool_result déjà reçus).
 
     // ── Partie A, point 4 — instrumentation métriques (jamais de contenu clinique dans les
     // logs, uniquement des chiffres/états), un objet par tentative de chaque appel. ──
@@ -10711,11 +10736,78 @@ ${recent}`;
       return [429, 502, 503, 504].includes(status);
     }
 
-    // ── Premier appel — web_search en libre décision. Jusqu'à 2 tentatives (Partie A, point 7),
+    // Intégration HAL — schéma de l'outil personnalisé. Garde-fou 1 (filtrage docType) est
+    // appliqué CÔTÉ WORKER, jamais exposé ici comme paramètre au choix du modèle : seul `query`
+    // est laissé à sa main. La description EST le garde-fou 2 (pertinence stricte).
+    const ADOC_HAL_SEARCH_TOOL = {
+      name: 'search_academic_studies',
+      description:
+        "Recherche des publications académiques réelles sur le portail HAL-SHS (sciences " +
+        "humaines et sociales — partagé avec le droit, la sociologie, l'histoire) pour appuyer " +
+        "une affirmation clinique précise par une référence scientifique vérifiable. N'utilise " +
+        "un résultat que s'il correspond RÉELLEMENT au sujet clinique traité — ignore et ne " +
+        "cite JAMAIS un résultat hors champ même s'il partage un mot-clé (ex. « couple » en " +
+        "droit du divorce, en sociologie ou au théâtre, jamais en psychologie clinique). " +
+        "Formule une requête ciblée (auteur connu + concept précis, jamais un mot seul trop " +
+        "générique). Trois recherches maximum par document.",
+      input_schema: {
+        type: 'object',
+        properties: {
+          query: {
+            type: 'string',
+            description: "Termes de recherche académique (français ou anglais), ciblés sur le concept clinique précis — jamais un mot isolé trop générique.",
+          },
+        },
+        required: ['query'],
+      },
+    };
+    // Exécute réellement la recherche HAL via le Worker (jamais depuis le client directement —
+    // cf. rapport, point d'investigation 7) et met en forme le résultat en tool_result. Ne lève
+    // jamais d'exception vers l'appelant : une panne HAL est best-effort, comme web_search.
+    async function _adocCallHalSearch(query) {
+      try {
+        const res = await fetch(workerUrl.replace(/\/+$/, '') + '/search-academic-studies', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
+          body: JSON.stringify({ query: String(query || '').slice(0, 300) }),
+        });
+        const data = await res.json().catch(function () { return null; });
+        if (!data || !Array.isArray(data.results) || !data.results.length) {
+          return 'Aucun résultat HAL pertinent pour cette recherche.';
+        }
+        halFindings.push.apply(halFindings, data.results);
+        return JSON.stringify(data.results);
+      } catch (e) {
+        return 'Recherche HAL indisponible (' + (e && e.message || 'erreur réseau') + ') — continue sans ce résultat.';
+      }
+    }
+
+    // ── Premier appel — web_search ET/OU search_academic_studies (HAL) en libre décision. ──
+    // web_search est un outil SERVEUR (exécuté par Anthropic dans le MÊME flux, jamais de
+    // round-trip visible ici) ; search_academic_studies est un outil personnalisé — le modèle
+    // s'arrête (stop_reason:'tool_use'), ce client doit appeler /search-academic-studies (Worker,
+    // qui interroge réellement HAL), puis renvoyer un tool_result dans un tour suivant pour que
+    // le modèle reprenne. D'où la boucle de ROUNDS ci-dessous (nouveau), enveloppant la boucle de
+    // tentatives déjà existante (comportement inchangé).
+    // Budget de rounds — jamais égal au seul plafond de citations (ADOC_HAL_SEARCH_CAP) : un
+    // round de refus explicite (plafond atteint, cf. plus bas) consomme un round SANS jamais
+    // interroger HAL réellement, puis le modèle a encore besoin d'UN dernier round pour produire
+    // son accusé final après ce refus — sans cette marge de +2, le budget s'épuiserait
+    // exactement au round de refus et le modèle ne recevrait jamais l'occasion de conclure.
+    const ADOC_CALL1_MAX_ROUNDS = ADOC_HAL_SEARCH_CAP + 2;
+    // Jusqu'à 2 tentatives PAR ROUND (Partie A, point 7),
     // UNIQUEMENT si l'échec précédent est survenu AVANT tout HTTP 200 (aucun outil lancé,
     // aucune progression reçue) — jamais après un flux entamé. ──
     const ADOC_CALL1_MAX_ATTEMPTS = 2;
-    for (let _attempt1 = 1; _attempt1 <= ADOC_CALL1_MAX_ATTEMPTS; _attempt1++) {
+    let _call1Messages = [{ role: 'user', content: text }];
+    _roundLoop:
+    for (let _round1 = 1; _round1 <= ADOC_CALL1_MAX_ROUNDS; _round1++) {
+      // Round-scopées (jamais partagées entre rounds) : un round correspond à UN appel complet
+      // à l'API (avec ses propres tentatives de retry sur échec transitoire ci-dessous).
+      let _roundStopReason = null;
+      let _roundBlocksByIndex = {};
+      let _roundTextBlocks = [];
+      for (let _attempt1 = 1; _attempt1 <= ADOC_CALL1_MAX_ATTEMPTS; _attempt1++) {
       const _m1 = _adocNewCallMetrics();
       _m1.attemptNumber = _attempt1; // Correction rang 4 — identifie cette tentative précise, jamais devinable a posteriori sinon
       let _progressedPastHttp200_1 = false;
@@ -10742,14 +10834,14 @@ ${recent}`;
           max_tokens: 200, // Partie A, point 5 — un accusé court n'a jamais besoin de 4000 tokens.
           stream: true,
           system: searchDecisionSystemPrompt,
-          messages: [{ role: 'user', content: text }],
-          tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+          messages: _call1Messages,
+          tools: [{ type: 'web_search_20250305', name: 'web_search' }, ADOC_HAL_SEARCH_TOOL],
           tool_choice: { type: 'auto' },
         };
         _m1.payloadBytes = JSON.stringify(_payload1).length;
 
         let searchResp;
-        _logTiming('avant envoi appel 1 (décision web_search, streamée, contexte réduit)' + (_attempt1 > 1 ? ' — nouvelle tentative' : ''));
+        _logTiming('avant envoi appel 1 (décision web_search/HAL, streamée, contexte réduit), round ' + _round1 + (_attempt1 > 1 ? ' — nouvelle tentative' : ''));
         try {
           searchResp = await fetch(workerUrl.replace(/\/+$/, ''), {
             method: 'POST',
@@ -10764,20 +10856,19 @@ ${recent}`;
         _m1.msToHttp200 = Math.round(performance.now() - _tCall1Start);
         if (!searchResp.ok) {
           clearTimeout(_searchTid); clearTimeout(_searchSemTid);
-          console.warn('[UX-8A.2] Premier appel (décision web_search) HTTP ' + searchResp.status + ' — on continue sans recherche web.');
+          console.warn('[UX-8A.2] Premier appel (décision web_search/HAL) HTTP ' + searchResp.status + ' — on continue sans recherche.');
           _m1.finalState = 'http-error';
-          _adocLogCallMetrics('appel 1, tentative ' + _attempt1, _m1);
+          _adocLogCallMetrics('appel 1, round ' + _round1 + ', tentative ' + _attempt1, _m1);
         _m1.durationMs = Math.round(performance.now() - _tCall1Start); // Correction rang 4 — durée propre à CETTE tentative
         window._adocLastStructAttemptMetrics.metrics1.push(_m1); // traceur persistant — une entrée par tentative, jamais un remplacement (cf. commentaire en tête de fonction)
           if (_adocIsTransientHttpStatus(searchResp.status) && _attempt1 < ADOC_CALL1_MAX_ATTEMPTS) {
             console.log('[UX-8A.2] Appel 1 — HTTP ' + searchResp.status + ' (transitoire), nouvelle tentative avant abandon.');
             continue;
           }
-          break; // best-effort, jamais bloquant — usedWebSearch reste false plus bas.
+          break _roundLoop; // best-effort, jamais bloquant — usedWebSearch/halFindings restent en l'état plus bas.
         }
         _progressedPastHttp200_1 = true;
-        _logTiming('réponse appel 1 reçue (HTTP ' + searchResp.status + '), début du flux');
-        const textBlocks = [];
+        _logTiming('réponse appel 1 reçue (HTTP ' + searchResp.status + '), début du flux, round ' + _round1);
         const resultEntries = [];
         function _processSearchLine(_sl) {
           if (!_sl.startsWith('data: ')) return;
@@ -10796,11 +10887,28 @@ ${recent}`;
                 // résultat exploitable, jamais au simple lancement de l'outil.
                 if (_se.content_block.content.length) usedWebSearch = true;
               }
+              // Intégration HAL — outil personnalisé (jamais résolu par Anthropic elle-même,
+              // contrairement à web_search ci-dessus) : accumule le JSON d'entrée par index de
+              // bloc, jamais parsé avant la fin réelle du flux (même précaution que les autres
+              // tool_use structurés de ce fichier, cf. adocRepairTruncatedBlocksJSON).
+              if (_se.content_block.type === 'tool_use' && _se.content_block.name === 'search_academic_studies') {
+                _roundBlocksByIndex[_se.index] = { id: _se.content_block.id, name: _se.content_block.name, inputJson: '' };
+              }
             }
-            if (_se.type === 'content_block_delta' && _se.delta && _se.delta.type === 'text_delta' && _se.delta.text) {
-              textBlocks.push(_se.delta.text);
-              _m1.usefulContentFragmentCount++;
-              _resetSearchSemanticTimeout();
+            if (_se.type === 'content_block_delta' && _se.delta) {
+              if (_se.delta.type === 'text_delta' && _se.delta.text) {
+                _roundTextBlocks.push(_se.delta.text);
+                _m1.usefulContentFragmentCount++;
+                _resetSearchSemanticTimeout();
+              }
+              if (_se.delta.type === 'input_json_delta' && _roundBlocksByIndex[_se.index]) {
+                _roundBlocksByIndex[_se.index].inputJson += _se.delta.partial_json || '';
+                _resetSearchSemanticTimeout();
+              }
+            }
+            // stop_reason arrive sur message_delta, avant message_stop — jamais sur ce dernier.
+            if (_se.type === 'message_delta' && _se.delta && _se.delta.stop_reason) {
+              _roundStopReason = _se.delta.stop_reason;
             }
           } catch (_searchParseErr) {
             if (_searchParseErr && _searchParseErr.name === 'AdocSSEStreamError') throw _searchParseErr;
@@ -10837,40 +10945,88 @@ ${recent}`;
           clearTimeout(_searchTid);
           clearTimeout(_searchSemTid);
         }
-        _logTiming('flux appel 1 terminé');
+        _logTiming('flux appel 1 terminé, round ' + _round1 + ', stop_reason=' + _roundStopReason);
         if (usedWebSearch) {
           const sourcesListing = resultEntries
             .filter(function(r) { return r && r.type === 'web_search_result'; })
             .map(function(r) { return '- ' + (r.title || r.url) + ' — ' + r.url; }).join('\n');
-          webFindings = [textBlocks.join(''), sourcesListing ? 'Sources web consultées :\n' + sourcesListing : '']
+          webFindings = [webFindings, _roundTextBlocks.join(''), sourcesListing ? 'Sources web consultées :\n' + sourcesListing : '']
             .filter(Boolean).join('\n\n');
         }
         _m1.finalState = 'completed';
-        _adocLogCallMetrics('appel 1, tentative ' + _attempt1, _m1);
+        _adocLogCallMetrics('appel 1, round ' + _round1 + ', tentative ' + _attempt1, _m1);
         _m1.durationMs = Math.round(performance.now() - _tCall1Start); // Correction rang 4 — durée propre à CETTE tentative
         window._adocLastStructAttemptMetrics.metrics1.push(_m1); // traceur persistant — une entrée par tentative, jamais un remplacement (cf. commentaire en tête de fonction)
-        break; // succès (avec ou sans web_search) — jamais de 2e tentative après un flux entamé.
+        break; // succès de CE round (avec ou sans web_search/HAL) — jamais de 2e tentative après un flux entamé.
       } catch (_searchErr) {
-        _logTiming('appel 1 en échec/timeout (' + (_searchErr && _searchErr.name) + ')');
+        _logTiming('appel 1 en échec/timeout (' + (_searchErr && _searchErr.name) + '), round ' + _round1);
         _m1.finalState = _searchErr && _searchErr.name === 'AdocSSEStreamError' ? 'sse-error'
           : _searchErr && _searchErr.name === 'AbortError' ? (_abortReason1 || 'transport-timeout')
           : 'network-error';
-        _adocLogCallMetrics('appel 1, tentative ' + _attempt1, _m1);
+        _adocLogCallMetrics('appel 1, round ' + _round1 + ', tentative ' + _attempt1, _m1);
         _m1.durationMs = Math.round(performance.now() - _tCall1Start); // Correction rang 4 — durée propre à CETTE tentative
         window._adocLastStructAttemptMetrics.metrics1.push(_m1); // traceur persistant — une entrée par tentative, jamais un remplacement (cf. commentaire en tête de fonction)
-        console.warn('[UX-8A.2] Premier appel (décision web_search) en échec, on continue sans recherche web:', _searchErr && _searchErr.name, _searchErr && _searchErr.message);
+        console.warn('[UX-8A.2] Premier appel (décision web_search/HAL) en échec, on continue sans recherche:', _searchErr && _searchErr.name, _searchErr && _searchErr.message);
         // Partie A, point 7 — jamais de 2e tentative après un flux entamé (HTTP 200 déjà reçu).
-        if (_progressedPastHttp200_1 || _attempt1 >= ADOC_CALL1_MAX_ATTEMPTS) break;
-        console.log('[UX-8A.2] Appel 1 (décision web_search) — nouvelle tentative avant abandon (échec avant tout HTTP 200).');
+        if (_progressedPastHttp200_1 || _attempt1 >= ADOC_CALL1_MAX_ATTEMPTS) break _roundLoop;
+        console.log('[UX-8A.2] Appel 1 (décision web_search/HAL) — nouvelle tentative avant abandon (échec avant tout HTTP 200).');
       }
+      } // fin boucle tentatives (par round)
+
+      // ── Fin de round — HAL demandée par le modèle ? ──────────────────────────────────────
+      // stop_reason:'tool_use' + au moins un bloc search_academic_studies accumulé : le modèle
+      // attend un tool_result avant de pouvoir continuer. web_search n'atteint JAMAIS cette
+      // branche (outil serveur, résolu dans le flux ci-dessus, jamais une cause d'arrêt ici).
+      const _roundHalBlocks = Object.keys(_roundBlocksByIndex).map((k) => _roundBlocksByIndex[k]);
+      if (_roundStopReason === 'tool_use' && _roundHalBlocks.length) {
+        const _assistantContent = [];
+        if (_roundTextBlocks.length) _assistantContent.push({ type: 'text', text: _roundTextBlocks.join('') });
+        const _toolResultBlocks = [];
+        for (const _block of _roundHalBlocks) {
+          let _input = {};
+          try { _input = JSON.parse(_block.inputJson || '{}'); } catch { /* JSON incomplet/malformé — requête vide, best-effort */ }
+          _assistantContent.push({ type: 'tool_use', id: _block.id, name: _block.name, input: _input });
+          let _resultContent;
+          // Garde-fou 3 (plafond de citations HAL) — appliqué ICI, jamais laissé à la seule
+          // instruction du modèle : au-delà du plafond, AUCUN appel réel à HAL n'est fait,
+          // le modèle reçoit un refus explicite (jamais un silence).
+          if (halSearchCount >= ADOC_HAL_SEARCH_CAP) {
+            _resultContent = 'Plafond de recherches HAL atteint (' + ADOC_HAL_SEARCH_CAP + ' maximum) pour ce document — n\'utilise plus cet outil, base-toi sur les résultats déjà obtenus.';
+          } else {
+            halSearchCount++;
+            _resultContent = await _adocCallHalSearch(_input.query);
+          }
+          _toolResultBlocks.push({ type: 'tool_result', tool_use_id: _block.id, content: _resultContent });
+        }
+        _call1Messages = _call1Messages.concat([
+          { role: 'assistant', content: _assistantContent },
+          { role: 'user', content: _toolResultBlocks },
+        ]);
+        _logTiming('round ' + _round1 + ' — ' + _roundHalBlocks.length + ' recherche(s) HAL traitée(s) (' + halSearchCount + '/' + ADOC_HAL_SEARCH_CAP + '), nouveau round.');
+        continue; // round suivant — le modèle reprend avec le(s) tool_result ci-dessus.
+      }
+      break; // terminé — end_turn, ou plus rien à faire pour ce document.
     }
     console.log('[UX-8A.2] web_search', usedWebSearch ? 'utilisé pour la génération structurée (' + kindLabel + ')' : 'non utilisé (bibliothèque jugée suffisante par CC ou appel indisponible)');
+    console.log('[UX-8A.2] HAL', halSearchCount ? halSearchCount + ' recherche(s) réelle(s) effectuée(s), ' + halFindings.length + ' résultat(s) reçu(s)' : 'non utilisée (bibliothèque/web jugés suffisants ou appel indisponible)');
     window._adocLastStructAttemptMetrics.usedWebSearch = usedWebSearch; // traceur persistant — valeur figée ici, jamais modifiée après ce point
+    window._adocLastStructAttemptMetrics.halSearchCount = halSearchCount; // traceur persistant — idem, pour HAL
 
     // ── Second appel — sortie structurée forcée, enrichie du complément web s'il existe ──
     // Le complément web est clairement distingué des passages bibliothèque : jamais associé à
     // un citationEntryIds (réservés aux passages numérotés), jamais confondu avec une source
     // vérifiée du SourceSnapshot.
+    // Intégration HAL — met en forme les résultats RÉELS déjà reçus (tool_result du round loop
+    // ci-dessus, jamais réinterrogé ici) pour que ce second appel (qui génère le document final)
+    // puisse effectivement les citer. Garde-fou 2 répété ici (jamais seulement dans la
+    // description de l'outil) : un résultat hors champ reste écartable même à ce stade.
+    const halFindingsListing = halFindings.length
+      ? halFindings.map(function(r) {
+          return '- ' + (r.title || '(sans titre)') + (r.authors && r.authors.length ? ' — ' + r.authors.join(', ') : '') +
+            (r.date ? ' (' + r.date + ')' : '') + (r.url ? ' — ' + r.url : '') +
+            (r.fullTextAvailable === false ? ' [texte intégral non vérifié, citer avec prudence]' : '');
+        }).join('\n')
+      : '';
     const structuredSystemPrompt = baseStructuredSystemPrompt +
       (usedWebSearch && webFindings
         ? '\n\n── COMPLÉMENT WEB (hors bibliothèque, à distinguer clairement des passages ci-dessus) ──\n' +
@@ -10878,6 +11034,16 @@ ${recent}`;
           'peut nourrir le texte produit mais ne remplace jamais une citation de passage ' +
           "bibliothèque : n'associe JAMAIS de citationEntryIds à une affirmation qui ne repose " +
           'que sur ce complément web.\n\n' + webFindings
+        : '') +
+      (halSearchCount && halFindingsListing
+        ? '\n\n── COMPLÉMENT ACADÉMIQUE HAL (hors bibliothèque, à distinguer clairement des passages ' +
+          'ci-dessus) ──\nCC a jugé utile de rechercher un appui académique réel (portail HAL-SHS) ' +
+          'pour cette demande. Ne cite QUE les études ci-dessous qui correspondent RÉELLEMENT au ' +
+          'sujet clinique traité — ignore toute étude hors champ (droit, sociologie, histoire, ' +
+          "etc.) même listée ici : le filtrage par type de document ne garantit pas la pertinence " +
+          "thématique, seule ta lecture du titre/auteurs le peut. N'associe JAMAIS de " +
+          "citationEntryIds (réservés aux passages bibliothèque numérotés) à une étude HAL — cite-la " +
+          "en clair (auteur, année, titre).\n\n" + halFindingsListing
         : '');
 
     // ── Second appel — sortie structurée forcée, STREAMÉE (lot streaming) ──────────────
