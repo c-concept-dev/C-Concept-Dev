@@ -1603,7 +1603,7 @@ pre,.sortie,#ui-rapid-output{overflow-wrap:anywhere;word-break:break-word}
             </div>
           </div>
           <div id="v11-filelist" class="v11-filelist ui-filelist"></div>
-          <p class="ui-fineprint">Lecture locale : PDF (y compris scans), DOCX, PPTX, XLSX, OpenDocument, images et textes. L’OCR lit le texte, pas les schémas. Limites : 40 Mo par fichier, 300 pages PDF, 180 000 caractères par document ; capacité totale vérifiée avant envoi. Un problème de lecture est toujours signalé.</p>
+          <p class="ui-fineprint">Lecture locale : PDF (y compris scans), DOCX, PPTX, XLSX, OpenDocument, images et textes. Un ZIP peut regrouper vos documents : sa liste est affichée avant analyse (100 fichiers, 64 Mo décompressés maximum ; sans mot de passe ni ZIP imbriqué). L’OCR lit le texte, pas les schémas. Limites : 40 Mo par fichier, 300 pages PDF, 180 000 caractères par document ; capacité totale vérifiée avant envoi. Un problème de lecture est toujours signalé.</p>
 
           <div class="ui-primary-actions">
             <button type="button" class="ui-cta" id="ui-main-action">Préparer avec Architecte</button>
@@ -11129,6 +11129,19 @@ async function addFiles(files){
     const controller=new AbortController();doc.controller=controller;
     const timeout=setTimeout(()=>controller.abort(),300000);
     try{
+      if(/\.zip$/i.test(file.name)&&!doc.archiveMember){
+        const archive=await import('./core/documents/archive.js');
+        const opened=await archive.expandZip(file,{signal:controller.signal,progress:message=>{
+          if(state.docs.includes(doc))v11ShowRapidGate({state:'thinking',title:'Ouverture du ZIP',text:message});
+        }});
+        if(!state.docs.includes(doc)||controller.signal.aborted)continue;
+        const archiveNotice='ZIP : '+opened.files.length+' fichier(s). '+opened.ignored.length+' fichier(s) technique(s) ignoré(s)'+(opened.ignored.length?' : '+opened.ignored.join(', '):'')+'.';
+        const members=opened.files.map(member=>({file:member,doc:{name:member.name,type:member.type,size:member.size,text:'',external:true,reading:true,archiveMember:true,archiveNotice}}));
+        state.docs.splice(state.docs.indexOf(doc),1,...members.map(member=>member.doc));
+        documents.push(...members);renderFiles();
+        continue;
+      }
+      if(doc.archiveMember&&/\.zip$/i.test(file.name))throw new Error('ZIP imbriqué non pris en charge : déposez ses documents séparément ou retirez cette pièce.');
       const reader=await import('./core/documents/reader.js');
       const extraction=reader.extractDocument(file,{signal:controller.signal,progress:message=>{
         if(state.docs.includes(doc)){doc.notice=message;v11ShowRapidGate({state:'thinking',title:'Lecture des documents',text:file.name+' — '+message})}
@@ -11139,12 +11152,13 @@ async function addFiles(files){
       })]);
       if(!state.docs.includes(doc)||controller.signal.aborted)continue;
       Object.assign(doc,result,{external:false});
+      if(doc.archiveNotice)doc.notice=doc.archiveNotice+' '+doc.notice;
     }catch(error){doc.error=controller.signal.aborted?'Lecture annulée ou trop longue. Réessayez avec un document plus petit.':String(error.message||'Document illisible.');}
     finally{clearTimeout(timeout);doc.reading=false;delete doc.controller;renderFiles()}
   }
   if(!documents.some(({doc})=>state.docs.includes(doc)))return;
-  const failed=documents.some(({doc})=>doc.error);
-  v11ShowRapidGate({state:failed?'technical':'improvable',title:failed?'Un document n’a pas pu être lu':'Lecture terminée',text:failed?'Le document concerné est signalé ci-dessus. Rien ne sera envoyé sans son contenu.':'Vérifiez les indications de lecture, puis préparez votre demande.'});
+  const failed=documents.some(({doc})=>state.docs.includes(doc)&&doc.error);
+  v11ShowRapidGate({state:failed?'technical':'improvable',title:failed?'Un document n’a pas pu être lu':'Lecture terminée',text:failed?'Le document concerné est signalé ci-dessus. Rien ne sera envoyé sans son contenu.':'Vérifiez la liste et les indications de lecture. Retirez les pièces à exclure, puis cliquez sur Préparer pour confirmer leur utilisation.'});
 }
 function newExchangeId(){
   const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
