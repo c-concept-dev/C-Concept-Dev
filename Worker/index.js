@@ -55431,10 +55431,13 @@ var Worker_default = {
     }
     if (p === "/ingest" && request2.method === "POST")
       return handleIngest(request2, env2);
-    // ⚠️ ROUTE TEMPORAIRE — à retirer avec handleTestEmbeddingLimit une fois le test Voie 2
-    // terminé et la vraie limite de bge-m3 confirmée (cf. commentaire complet sur la fonction).
-    if (p === "/test-embedding-limit" && request2.method === "POST")
-      return handleTestEmbeddingLimit(request2, env2);
+    // Voie 2 — route de test temporaire /test-embedding-limit RETIRÉE : son rôle est terminé (5
+    // appels réels ont confirmé la vraie limite bge-m3 à 8192 tokens, cf. commentaire dans
+    // handleIngest sur le nouveau seuil de 20000 caractères). Remplacée par /reembed-truncated
+    // (outil permanent de ré-embedding ciblé, jamais appelé automatiquement — toujours à la
+    // demande explicite).
+    if (p === "/reembed-truncated" && request2.method === "POST")
+      return handleReembedTruncated(request2, env2);
     if (p === "/delete-book" && request2.method === "POST")
       return handleDeleteBook(request2, env2);
     if (p === "/update-book-meta" && request2.method === "POST")
@@ -56524,8 +56527,19 @@ async function handleIngest(request2, env2) {
     let d1 = 0, vec = 0;
     for (let i = 0; i < chunks.length; i += 10) {
       const batch = chunks.slice(i, i + 10);
+      // Voie 2 — seuil élargi de 2000 à 20000 caractères, après test empirique réel (route jetable
+      // /test-embedding-limit, retirée) : 5 appels réels contre le modèle en production ont
+      // confirmé sa vraie limite à 8192 tokens (message d'erreur du modèle lui-même : "Sequence
+      // too long: 8194 > 8192", jamais une supposition), et le chunk le plus long de tout le
+      // corpus (13503 caractères) ne consommait qu'environ 3376 tokens estimés — aucun chunk réel
+      // n'approche la limite. 20000 caractères laisse une marge confortable pour un futur livre
+      // plus long ; un chunk qui malgré tout dépasserait la vraie limite du modèle échoue
+      // proprement (erreur capturée par le catch ci-dessous, jamais un embedding silencieusement
+      // tronqué côté modèle — `truncate_inputs` reste à sa valeur par défaut `false`), sans jamais
+      // bloquer les autres chunks du lot. Même valeur (2e4) que handleReembedTruncated ci-dessous —
+      // à faire évoluer ensemble si jamais revue.
       const emb = (await env2.AI.run("@cf/baai/bge-m3", {
-        text: batch.map((c) => (c.content || "").substring(0, 2e3))
+        text: batch.map((c) => (c.content || "").substring(0, 2e4))
       }))?.data || [];
       for (let j = 0; j < batch.length; j++) {
         const ck = batch[j];
@@ -56597,59 +56611,172 @@ async function handleIngest(request2, env2) {
 }
 __name(handleIngest, "handleIngest");
 // ═══════════════════════════════════════════════════════════════════
-// ⚠️ ROUTE TEMPORAIRE DE TEST — Voie 2 (troncature embedding), lot dédié. À RETIRER une fois la
-// vraie limite de @cf/baai/bge-m3 confirmée empiriquement (3 sources documentaires Cloudflare se
-// contredisent : 512 / 8192 / 60000 tokens pour ce même modèle — jamais tranché faute d'accès
-// direct à env.AI depuis la session qui a mené l'investigation). JAMAIS appelée par handleIngest
-// ni par aucun autre chemin du produit — sert uniquement à observer le comportement réel du
-// modèle sur un texte envoyé SANS le `.substring(0, 2e3)` de handleIngest ci-dessus (c'est
-// précisément ce que ce test doit mesurer). Protégée comme toute route absente de
-// ADOC_PUBLIC_ROUTES : le garde deny-by-default du routeur exige déjà X-API-Key avant d'atteindre
-// ce code — aucune vérification d'auth supplémentaire à écrire ici.
+// Voie 2 — outil PERMANENT de ré-embedding ciblé, jamais appelé automatiquement (ni par
+// handleIngest ni par aucun autre chemin du produit) — toujours à la demande explicite via
+// /reembed-truncated. Protégé comme toute route absente de ADOC_PUBLIC_ROUTES (X-API-Key déjà
+// exigé par le garde deny-by-default du routeur, aucune vérification supplémentaire ici).
+//
+// Sélectionne les chunks encore embeddés sous l'ANCIEN seuil (LEGACY_2000, 2000 caractères,
+// constante locale ci-dessous) et jamais encore ré-embeddés avec succès (`reembed_truncated_log`,
+// migration 0009), puis les ré-embedde avec le nouveau seuil (NEW_20000). Le texte D1
+// (`chunks.content`) n'est JAMAIS modifié — seul le vecteur Vectorize est mis à jour (même id,
+// même mécanisme d'upsert qu'à l'ingestion).
+//
+// `mode` (défaut "diagnose", fail-safe) :
+// - "diagnose" : LECTURE SEULE — aucun appel au modèle, aucune écriture. Renvoie combien de
+//   chunks seraient concernés par cette page (candidate_count), le total restant tous lots
+//   confondus (total_remaining), un échantillon d'ids et le curseur pour la page suivante.
+// - "execute" : traite réellement cette page (jusqu'à 1000 chunks, `limit`) — ré-embedding +
+//   upsert Vectorize + journalisation dans reembed_truncated_log. Isolation par chunk : l'échec
+//   d'UN chunk (erreur modèle, upsert...) est collecté dans `failed`, jamais une exception qui
+//   interromprait les autres chunks du lot.
+//
+// Deux façons de choisir les chunks à traiter :
+// - `ids: [...]` : liste explicite (utilisée pour le petit échantillon réel de validation, 5-10
+//   chunks, avant tout lot de masse).
+// - `after_id` + `limit` : pagination par curseur (id), pour les lots de jusqu'à 1000 — relance
+//   possible lot après lot sans jamais retraiter un id déjà réussi.
+//
+// `verify_change: true` (optionnel, coût supplémentaire assumé volontairement pour la validation
+// sur petit échantillon, jamais utile ni demandé pour un lot de masse) : récupère l'ancien vecteur
+// Vectorize AVANT de l'écraser (`getByIds`) et renvoie, pour chaque chunk réussi, si le nouveau
+// vecteur diffère réellement de l'ancien — preuve directe que le contenu complet a bien été pris
+// en compte, pas un nouvel appel identique par coïncidence.
 // ═══════════════════════════════════════════════════════════════════
-async function handleTestEmbeddingLimit(request2, env2) {
+async function handleReembedTruncated(request2, env2) {
   let body;
   try {
     body = await request2.json();
   } catch {
     return jsonErr("Invalid JSON", 400);
   }
-  const { text } = body;
-  if (typeof text !== "string" || !text.length)
-    return jsonErr("Missing text", 400);
-  if (!env2.AI)
-    return jsonErr("AI not configured", 500);
-  const charLength = text.length;
-  // Estimation grossière (~4 caractères/token, jamais un compte exact — aucun tokenizer réel
-  // disponible pour la valider) : sert uniquement de repère. Le message d'erreur du modèle,
-  // relayé tel quel ci-dessous en cas d'échec, indique souvent le vrai compte de tokens calculé —
-  // c'est LUI la source fiable pour trancher, pas cette estimation.
-  const estimatedTokens = Math.ceil(charLength / 4);
-  const startedAt = Date.now();
+  const { mode = "diagnose", ids, after_id, limit, verify_change } = body || {};
+  if (!env2.AI || !env2.VECTOR_INDEX || !env2.DB)
+    return jsonErr("Worker bindings not configured", 500);
+  const pageLimit = Math.max(1, Math.min(Number(limit) || 1000, 1000));
+  // Constantes locales à cette fonction (jamais au niveau module) : les tests de ce dépôt extraient
+  // les handlers Worker TEXTUELLEMENT (entre deux marqueurs `async function ...`) et les évaluent
+  // seuls dans un contexte vm isolé — une constante déclarée au niveau module, hors de la fonction
+  // extraite, y serait `undefined`. LEGACY_2000 = ancien seuil de troncature (figé, sert UNIQUEMENT
+  // à repérer les chunks déjà ingérés en-dessous — ne jamais le faire suivre le seuil courant, sinon
+  // plus aucun chunk ne serait jamais reconnu comme "à ré-embedder"). NEW_20000 = même valeur que le
+  // nouveau seuil de handleIngest ci-dessus (2e4) — à faire évoluer ensemble si jamais revue.
+  const LEGACY_2000 = 2e3;
+  const NEW_20000 = 2e4;
   try {
-    const result = await env2.AI.run("@cf/baai/bge-m3", { text: [text] });
-    const vector = result?.data?.[0];
+    let rows;
+    if (Array.isArray(ids) && ids.length) {
+      const placeholders = ids.map(() => "?").join(",");
+      const res = await env2.DB.prepare(
+        `SELECT id, book_id, book_title, author, language, approach, page_number, content
+         FROM chunks
+         WHERE id IN (${placeholders}) AND LENGTH(content) > ?
+           AND id NOT IN (SELECT id FROM reembed_truncated_log WHERE status = 'success')
+         ORDER BY id`
+      ).bind(...ids, LEGACY_2000).all();
+      rows = res.results || [];
+    } else {
+      const res = await env2.DB.prepare(
+        `SELECT id, book_id, book_title, author, language, approach, page_number, content
+         FROM chunks
+         WHERE LENGTH(content) > ?
+           AND id NOT IN (SELECT id FROM reembed_truncated_log WHERE status = 'success')
+           AND id > ?
+         ORDER BY id LIMIT ?`
+      ).bind(LEGACY_2000, after_id || "", pageLimit).all();
+      rows = res.results || [];
+    }
+    const nextCursor = rows.length ? rows[rows.length - 1].id : null;
+    const totalRemaining = (await env2.DB.prepare(
+      `SELECT COUNT(*) AS n FROM chunks WHERE LENGTH(content) > ?
+         AND id NOT IN (SELECT id FROM reembed_truncated_log WHERE status = 'success')`
+    ).bind(LEGACY_2000).first())?.n || 0;
+    if (mode !== "execute") {
+      return json({
+        mode: "diagnose",
+        candidate_count_this_page: rows.length,
+        total_remaining_overall: totalRemaining,
+        sample_ids: rows.slice(0, 20).map((r) => r.id),
+        next_cursor: nextCursor
+      });
+    }
+    let oldVectorsById = {};
+    if (verify_change && rows.length) {
+      try {
+        const got = await env2.VECTOR_INDEX.getByIds(rows.map((r) => r.id));
+        for (const v of got || []) oldVectorsById[v.id] = v.values;
+      } catch {
+      }
+    }
+    const succeeded = [];
+    const failed = [];
+    for (let i = 0; i < rows.length; i += 10) {
+      const batch = rows.slice(i, i + 10);
+      let emb;
+      try {
+        emb = (await env2.AI.run("@cf/baai/bge-m3", {
+          text: batch.map((r) => (r.content || "").substring(0, NEW_20000))
+        }))?.data || [];
+      } catch (embErr) {
+        for (const r of batch) failed.push({ id: r.id, error: embErr?.message || String(embErr) });
+        continue;
+      }
+      for (let j = 0; j < batch.length; j++) {
+        const r = batch[j];
+        if (!emb[j]) {
+          failed.push({ id: r.id, error: "No embedding returned" });
+          continue;
+        }
+        const newLen = Math.min(r.content.length, NEW_20000);
+        try {
+          await env2.VECTOR_INDEX.upsert([{
+            id: r.id,
+            values: emb[j],
+            metadata: {
+              book_id: r.book_id,
+              book_title: r.book_title,
+              author: r.author || "Unknown",
+              approach: r.approach || "general",
+              language: r.language || "fr",
+              page_number: r.page_number || 0
+            }
+          }]);
+          await env2.DB.prepare(
+            `INSERT OR REPLACE INTO reembed_truncated_log (id, book_id, old_length, new_length, status, error, embedded_at) VALUES (?,?,?,?,?,?,?)`
+          ).bind(r.id, r.book_id, r.content.length, newLen, "success", null, new Date().toISOString()).run();
+          const item = { id: r.id, old_length: r.content.length, new_length: newLen };
+          if (verify_change) {
+            const oldV = oldVectorsById[r.id];
+            item.vector_changed = !!oldV && JSON.stringify(oldV) !== JSON.stringify(emb[j]);
+            item.had_previous_vector = !!oldV;
+          }
+          succeeded.push(item);
+        } catch (upsertErr) {
+          const errMsg = upsertErr?.message || String(upsertErr);
+          failed.push({ id: r.id, error: errMsg });
+          try {
+            await env2.DB.prepare(
+              `INSERT OR REPLACE INTO reembed_truncated_log (id, book_id, old_length, new_length, status, error, embedded_at) VALUES (?,?,?,?,?,?,?)`
+            ).bind(r.id, r.book_id, r.content.length, 0, "failed", errMsg, new Date().toISOString()).run();
+          } catch {
+          }
+        }
+      }
+    }
     return json({
-      success: true,
-      char_length: charLength,
-      estimated_tokens: estimatedTokens,
-      vector_dimension: Array.isArray(vector) ? vector.length : null,
-      duration_ms: Date.now() - startedAt
+      mode: "execute",
+      processed: rows.length,
+      succeeded_count: succeeded.length,
+      failed_count: failed.length,
+      succeeded,
+      failed,
+      next_cursor: nextCursor
     });
   } catch (err2) {
-    // 200 volontaire, jamais 500 — cette route DIAGNOSTIQUE un échec du modèle, ce n'est pas un
-    // échec du test lui-même. Un 500 masquerait la distinction entre "cette route a mal tourné"
-    // et "cette route a bien tourné et a mesuré une erreur réelle du modèle" pour Christophe.
-    return json({
-      success: false,
-      char_length: charLength,
-      estimated_tokens: estimatedTokens,
-      error_message: err2 && err2.message || String(err2),
-      duration_ms: Date.now() - startedAt
-    });
+    return jsonErr(err2.message, 500);
   }
 }
-__name(handleTestEmbeddingLimit, "handleTestEmbeddingLimit");
+__name(handleReembedTruncated, "handleReembedTruncated");
 async function handleDeleteBook(request2, env2) {
   let body;
   try {
