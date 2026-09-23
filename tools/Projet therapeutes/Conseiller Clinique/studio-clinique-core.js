@@ -961,9 +961,15 @@
   // (inchangé, toujours xlsx) : décision de Christophe limitée au documentKind/intent 'tableau'.
   const ADOC_XLSX_EXPLICIT_RE = /\b(excel|xlsx|xls|tableur)\b/i;
 
-  function adocBuildFallbackPlan(text) {
+  // Correctif routage structuré/Legacy (filet de sécurité par mot-clé, lot dédié) — extraite de
+  // l'ancien corps de adocBuildFallbackPlan pour être RÉUTILISÉE TELLE QUELLE (jamais une seconde
+  // logique de classification en parallèle) par le diagnostic de routage plus bas
+  // (adocRunGenerationPipeline, log '[ROUTAGE structuré/Legacy]'). Simple détection par
+  // sous-chaîne, volontairement sommaire (comportement inchangé par cette extraction — seul le
+  // nom de fonction est nouveau, aucune règle ci-dessous n'a changé).
+  function adocDetectIntentKeyword(text) {
     const ql = text.toLowerCase();
-    const _iT = (ql.includes('excel') || ql.includes('comparatif') || ql.includes('tableau')) ? 'tableau'
+    return (ql.includes('excel') || ql.includes('comparatif') || ql.includes('tableau')) ? 'tableau'
       : (ql.includes('support visuel') || ql.includes('conf') || ql.includes('page web')) ? 'document'
       : (ql.includes('cours') || ql.includes('formation')) ? 'cours'
       // Audit systémique (Priorité 8.1) — 'carrousel' est une intention distincte reconnue par
@@ -979,6 +985,11 @@
       : ql.includes('liens') ? 'liens'
       : ql.includes('script') ? 'script'
       : 'chat';
+  }
+  window.adocDetectIntentKeyword = adocDetectIntentKeyword;
+
+  function adocBuildFallbackPlan(text) {
+    const _iT = adocDetectIntentKeyword(text);
     // Item 53 — 'tableau' ne force plus xlsx par défaut : seul un mot-clé Excel explicite le fait.
     const _explicitXlsxRequested = ADOC_XLSX_EXPLICIT_RE.test(text);
     // Item 56 Étape 1 élargie (13 septembre) — AUCUNE EXCEPTION : document/cours rejoignent
@@ -996,6 +1007,9 @@
     // LOT 30 — demande visuelle pure : orthogonal à _iT ci-dessus, jamais un remplacement.
     // Muet auparavant sur ce cas (aucune branche ci-dessus ne le teste) → retombait sur
     // 'chat' sans jamais signaler images_only, d'où le routage erroné vers le document long.
+    // ql recalculé ici (plus disponible localement depuis l'extraction d'adocDetectIntentKeyword
+    // ci-dessus) — même calcul strictement, aucun changement de comportement.
+    const ql = text.toLowerCase();
     const _imagesOnly = /\b(images?|photos?|visuels?)\b/.test(ql)
       && /(sans texte|pas de texte|aucun texte|uniquement (du|le) visuel|que des (images|photos))/.test(ql);
     // Phase B0.3 : plus de SQL construit côté client — intention structurée simple.
@@ -3122,12 +3136,44 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       // d'erreur. Ce log rend immédiatement diagnosticable, depuis la console navigateur, quelle
       // valeur a été reçue/décidée à chaque génération (jamais de contenu clinique — uniquement
       // les valeurs de routage elles-mêmes).
+      //
+      // CORRECTIF FILET DE SÉCURITÉ PAR MOT-CLÉ (lot dédié) — investigation (0E) : option retenue
+      // = enrichir CE log existant, jamais forcer silencieusement le routage. Réutilise EXACTEMENT
+      // les mêmes règles que adocBuildFallbackPlan (adocDetectIntentKeyword, extraite ci-dessus
+      // pour être partagée — jamais une seconde logique de classification en parallèle), mais
+      // UNIQUEMENT pour signaler un écart, jamais pour décider à la place de plan.intent.
+      // Pourquoi jamais un correctif actif (option a écartée) : au moins 2 des 5 mots-clés
+      // structurés sont du vocabulaire clinique COURANT sans rapport avec une demande de type de
+      // document — "tableau" apparaît sans cesse dans "tableau clinique"/"tableau dépressif"/
+      // "tableau anxieux" (état clinique, rien à voir avec le documentKind Tableau), et "liens"
+      // tout aussi souvent dans "liens d'attachement"/"liens thérapeutiques" (concept clinique,
+      // rien à voir avec "Liens transversaux"). Une simple recherche de sous-chaîne — la seule
+      // autorisée ici, le CDC demandant explicitement une réutilisation directe des règles de
+      // adocBuildFallbackPlan, jamais une nouvelle classification plus fine — ne peut PAS
+      // distinguer ces deux usages : forcer le structuré sur ce seul signal remplacerait un
+      // défaut RARE (une classification LLM erronée sur une demande de type clairement énoncée,
+      // un seul cas réel observé, "Script verbatim") par un défaut FRÉQUENT (toute mention
+      // clinique ordinaire de "tableau X"/"liens Y" détournée vers un document structuré alors
+      // qu'une réponse conversationnelle était attendue). Preuve du risque : scénario 3 du test
+      // dédié (verify-routage-keyword-diagnostic.cjs) reproduit exactement "Le tableau clinique
+      // du patient s'est aggravé" — _keywordDetectedIntent vaudrait 'tableau' avec une détection
+      // naïve, alors que la demande n'a RIEN d'une demande de document Tableau. Le mécanisme reste
+      // donc purement diagnostique, additif au seul log déjà existant : _structuredAttemptKind et
+      // _shouldAttemptStructured, calculés ci-dessus, ne sont JAMAIS relus ni modifiés par ce qui
+      // suit. Portée limitée au chemin sans type explicite (_hasExplicitKind faux) — un type
+      // cliqué sur l'écran d'accueil reste seul maître, comme avant ce lot (_keywordDetectedIntent
+      // vaut alors toujours null, jamais calculé pour ce cas).
+      const _keywordDetectedIntent = _hasExplicitKind ? null : adocDetectIntentKeyword(text);
+      const _intentKeywordMismatch = !_hasExplicitKind && !!_keywordDetectedIntent
+        && _keywordDetectedIntent !== 'chat' && _keywordDetectedIntent !== _structuredAttemptKind
+        && window.adocStructuredGenerationWiredByDocumentKind[_keywordDetectedIntent] === true;
       console.log('[ROUTAGE structuré/Legacy]', {
         'plan.documentKind': plan?.documentKind ?? null,
         'plan.intent': plan?.intent ?? null,
         _hasExplicitKind, _structuredAttemptKind, _shouldAttemptStructured,
         wired: _structuredAttemptKind ? (window.adocStructuredGenerationWiredByDocumentKind[_structuredAttemptKind] === true) : null,
         _isLongDoc,
+        _keywordDetectedIntent, _intentKeywordMismatch,
       });
       let _struct;
       if (window.adocStructuredFicheEnabled && _shouldAttemptStructured && !_isLongDoc
