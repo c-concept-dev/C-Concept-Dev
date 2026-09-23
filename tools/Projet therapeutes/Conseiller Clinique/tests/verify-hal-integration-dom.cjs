@@ -369,8 +369,104 @@ function ficheToolUseSSE() {
       console.log('PASS 4/4 — PARITÉ DES MOTEURS : plafond de citations HAL (garde-fou 3) réellement appliqué sur le moteur Legacy, même valeur (3) que le moteur structuré, jamais une seconde constante divergente.');
     }
 
-    assert.deepEqual(errors, [], 'aucune erreur JS non gérée pendant les quatre scénarios');
-    console.log('\nTOUS LES TESTS INTÉGRATION HAL (round-trip + plafond, 2 moteurs) PASSENT (4/4)');
+    // ── Scénario 5 — PARITÉ CITATIONS HAL : une étude HAL réellement citée par le modèle
+    //      (citationEntryIds) devient une vraie entrée numérotée dans la section Sources, avec
+    //      lien réel et badge "HAL" — jamais un texte informel séparé, invisible du système de
+    //      citations formel (cas réel confirmé en production : document "Le coping dyadique dans
+    //      le couple", 5 références HAL réelles jamais formalisées avant ce lot). La citation
+    //      bibliothèque, elle, doit garder EXACTEMENT son comportement (score, pas de lien, pas
+    //      de badge) — non-régression stricte. ──
+    {
+      await page.unroute('**/*');
+      await page.goto('file://' + path.join(__dirname, '../studio-clinique.html'));
+      await page.route('**/*', async (route) => {
+        const url = route.request().url();
+        if (url.startsWith('file:')) return route.continue();
+        let body = {};
+        try { body = route.request().postDataJSON() || {}; } catch {}
+        if (url.endsWith('/search-academic-studies')) {
+          return route.fulfill({
+            status: 200, contentType: 'application/json',
+            body: JSON.stringify({ results: [
+              { halId: 'hal-05693755', title: 'Coping dyadique et satisfaction conjugale', authors: ['Guy Bodenmann'], docType: 'ART', date: '2010', url: 'https://hal.science/hal-05693755', fullTextAvailable: true },
+            ] }),
+          });
+        }
+        if (body.payload) {
+          if (body.payload.tool_choice && body.payload.tool_choice.type === 'tool') {
+            const inputJson = JSON.stringify({
+              title: 'Le coping dyadique dans le couple', purpose: 'information', audience: 'clinicien',
+              blocks: [
+                { type: 'paragraph', text: 'Un passage de bibliothèque sur le sujet.', level: 2, visualRole: 'info', items: [], ordered: false, headers: [], rows: [], imageQuery: '', imageAlt: '', citationEntryIds: ['entry-1'] },
+                { type: 'paragraph', text: 'Bodenmann (2010) confirme empiriquement ce mécanisme.', level: 2, visualRole: 'info', items: [], ordered: false, headers: [], rows: [], imageQuery: '', imageAlt: '', citationEntryIds: ['entry-2'] },
+              ],
+            });
+            return route.fulfill({ status: 200, contentType: 'text/event-stream', body: sse([
+              { type: 'content_block_start', index: 0, content_block: { type: 'tool_use', id: 't1', name: 'emit_fiche_document' } },
+              { type: 'content_block_delta', index: 0, delta: { type: 'input_json_delta', partial_json: inputJson } },
+              { type: 'content_block_stop', index: 0 },
+              { type: 'message_delta', delta: { stop_reason: 'tool_use' } },
+              { type: 'message_stop' },
+            ]) });
+          }
+          const nMsg = (body.payload.messages || []).length;
+          if (nMsg === 1) {
+            return route.fulfill({ status: 200, contentType: 'text/event-stream', body: sse([
+              { type: 'content_block_start', index: 0, content_block: { type: 'tool_use', id: 'toolu_hal5', name: 'search_academic_studies' } },
+              { type: 'content_block_delta', index: 0, delta: { type: 'input_json_delta', partial_json: '{"query": "Bodenmann coping dyadique"}' } },
+              { type: 'content_block_stop', index: 0 },
+              { type: 'message_delta', delta: { stop_reason: 'tool_use' } },
+              { type: 'message_stop' },
+            ]) });
+          }
+          if (nMsg === 3) {
+            return route.fulfill({ status: 200, contentType: 'text/event-stream', body: sse([
+              { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } },
+              { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'Appui HAL trouvé.' } },
+              { type: 'content_block_stop', index: 0 },
+              { type: 'message_delta', delta: { stop_reason: 'end_turn' } },
+              { type: 'message_stop' },
+            ]) });
+          }
+        }
+        return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+      });
+
+      const result = await page.evaluate(async () => {
+        const ragResult = { chunks: [{ content: 'Passage de bibliothèque sur le coping dyadique.', book_title: 'Livre Test', author: 'Auteur Test', page_number: 12, _score: 0.9 }] };
+        const structured = await window.adocGenerateStructuredDocument('fiche', 'Le coping dyadique dans le couple', {}, ragResult, 'Système de base.', 'https://clone-proxy.test.local', 'typing-5');
+        const rendered = await window.adocRenderClinicalDocument(structured.doc, structured.sourceSnapshot);
+        return {
+          html: rendered.html,
+          qcBlocking: rendered.qc.blocking,
+          entryTypes: structured.sourceSnapshot.entries.map((e) => e.sourceType),
+          halEntry: structured.sourceSnapshot.entries.find((e) => e.sourceType === 'hal'),
+        };
+      });
+
+      assert.deepEqual(result.qcBlocking, [], 'aucun contrôle qualité bloquant — la citation HAL doit être techniquement valide (checksum réel calculé, entrée existante dans le SourceSnapshot), exactement comme une citation bibliothèque');
+      assert.deepEqual(result.entryTypes, ['library', 'hal'], 'le SourceSnapshot doit contenir 1 entrée bibliothèque (entry-1) puis 1 entrée HAL (entry-2), numérotation continue');
+      assert.ok(result.halEntry, 'une entrée sourceType:"hal" doit avoir été créée dans le SourceSnapshot');
+      assert.equal(result.halEntry.relevanceScore, null, 'une entrée HAL ne porte jamais de score de similarité (HAL n\'en fournit aucun)');
+      assert.equal(result.halEntry.sourceUrl, 'https://hal.science/hal-05693755', 'sourceUrl doit porter le lien HAL réel (uri_s)');
+
+      assert.match(result.html, /<section class="adoc-sc-citations"/, 'la section Sources doit être présente');
+      const liMatches = result.html.match(/<li id="cite-citation-\d+">[\s\S]*?<\/li>/g) || [];
+      assert.equal(liMatches.length, 2, `2 entrées Sources attendues (1 bibliothèque + 1 HAL), obtenu ${liMatches.length}`);
+      const halLi = liMatches.find((li) => li.includes('adoc-sc-cite-source-badge'));
+      const libLi = liMatches.find((li) => !li.includes('adoc-sc-cite-source-badge'));
+      assert.ok(halLi, 'une entrée Sources doit porter le badge de provenance "HAL"');
+      assert.match(halLi, /<a href="https:\/\/hal\.science\/hal-05693755"[^>]*>Guy Bodenmann/, 'l\'entrée HAL doit être un vrai lien cliquable vers sa page HAL réelle (uri_s), jamais un simple texte');
+      assert.ok(libLi && !/<a href=/.test(libLi), 'l\'entrée bibliothèque ne doit JAMAIS recevoir de lien — comportement strictement inchangé');
+      assert.match(libLi, /adoc-cite-score/, 'l\'entrée bibliothèque garde son score de pertinence — comportement strictement inchangé');
+      assert.ok(!halLi.includes('adoc-cite-score'), 'l\'entrée HAL ne doit jamais afficher de score inventé (HAL n\'en fournit aucun) — automatique, aucun code spécifique requis');
+      assert.match(result.html, /adoc-sc-cite-flagged/, 'le marqueur [N] inline doit porter le badge needs-review — mécanisme déjà existant, automatique, identique pour HAL et bibliothèque');
+
+      console.log('PASS 5/5 — PARITÉ CITATIONS HAL : une étude HAL réellement citée (citationEntryIds) devient une vraie entrée Sources numérotée avec lien réel + badge "HAL" + needs-review, jamais un texte informel invisible du système de citations ; la citation bibliothèque garde exactement son comportement (score, pas de lien, pas de badge) — non-régression confirmée.');
+    }
+
+    assert.deepEqual(errors, [], 'aucune erreur JS non gérée pendant les cinq scénarios');
+    console.log('\nTOUS LES TESTS INTÉGRATION HAL (round-trip + plafond + parité citations, 2 moteurs) PASSENT (5/5)');
   } finally {
     await browser.close();
   }

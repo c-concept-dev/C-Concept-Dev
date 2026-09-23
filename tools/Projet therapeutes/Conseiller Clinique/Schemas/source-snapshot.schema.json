@@ -13,7 +13,7 @@
       }
     },
     "sourceSnapshotEntry": {
-      "$comment": "relevanceScore : optionnel, non requis — absent des fixtures existantes (rétrocompatible). Reflète le score RAG déjà calculé (ragResult.chunks[]._score, cf. adocExecutePlan), jamais recalculé ni inventé ici ; null quand la source ne porte pas de score exploitable.",
+      "$comment": "relevanceScore : optionnel, non requis — absent des fixtures existantes (rétrocompatible). Reflète le score RAG déjà calculé (ragResult.chunks[]._score, cf. adocExecutePlan), jamais recalculé ni inventé ici ; null quand la source ne porte pas de score exploitable (systématique pour sourceType:'hal', HAL ne renvoie aucun score de similarité comparable). Parité citations HAL — sourceType accepte désormais 'hal' au même titre que 'library'/'session' : une étude HAL effectivement citée par le modèle (citationEntryIds) devient une entrée numérotée du SourceSnapshot comme un passage bibliothèque, jamais un mécanisme séparé. sourceUrl (optionnel) porte le lien réel vers la source externe (uri_s de l'API HAL) — absent/null pour library/session, qui n'ont jamais eu de lien externe.",
       "type": "object",
       "required": [
         "sourceSnapshotEntryId", "sourceType", "sourceId", "passageId",
@@ -22,7 +22,7 @@
       "additionalProperties": false,
       "properties": {
         "sourceSnapshotEntryId": { "type": "string", "minLength": 1 },
-        "sourceType": { "enum": ["library", "session"] },
+        "sourceType": { "enum": ["library", "session", "hal"] },
         "sourceId": { "type": "string", "minLength": 1 },
         "passageId": { "type": "string", "minLength": 1 },
         "exactText": { "type": "string", "minLength": 1 },
@@ -31,7 +31,8 @@
         "author": { "type": "string", "minLength": 1 },
         "locator": { "$ref": "#/$defs/locator" },
         "retrievedAt": { "type": "string", "format": "date-time" },
-        "relevanceScore": { "type": ["number", "null"], "minimum": 0, "maximum": 1 }
+        "relevanceScore": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "sourceUrl": { "type": ["string", "null"] }
       }
     }
   },

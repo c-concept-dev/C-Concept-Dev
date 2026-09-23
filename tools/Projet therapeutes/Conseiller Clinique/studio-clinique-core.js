@@ -9484,10 +9484,25 @@ ${recent}`;
       const excerpt = entry ? entry.exactText.slice(0, 300).trim() + (entry.exactText.length > 300 ? '…' : '') : '';
       // Score de pertinence (lot streaming/parité) — même style visuel que l'ancien moteur
       // (.adoc-cite-score, pourcentage arrondi). Jamais un score inventé : rien affiché si
-      // relevanceScore est null ou absent pour cette entrée, pas de placeholder.
+      // relevanceScore est null ou absent pour cette entrée, pas de placeholder — c'est
+      // systématiquement le cas pour une entrée HAL (aucun score de similarité comparable),
+      // sans code spécifique ici : elle traverse la même condition que toute source library
+      // sans score exploitable.
       const hasScore = entry && typeof entry.relevanceScore === 'number';
       const scoreStr = hasScore ? ' <span class="adoc-cite-score">' + Math.round(entry.relevanceScore * 100) + '%</span>' : '';
-      return '<li id="' + adocEsc('cite-' + c.citationId) + '"><strong>' + adocEsc(c.displayLabel) + '</strong>' + scoreStr +
+      // Parité citations HAL — badge de provenance + lien réel vers la page source, jamais
+      // pour une citation bibliothèque (sourceType 'library'/'session', comportement
+      // strictement inchangé pour elles : ni badge ni lien, comme avant ce lot). Le lien
+      // n'est rendu que si sourceUrl est une URL http(s) bien formée (jamais javascript:/
+      // data:/autre schéma — défense en profondeur sur une donnée d'origine externe, même
+      // si le Worker ne renvoie aujourd'hui que des URL HAL réelles).
+      const isHal = entry && entry.sourceType === 'hal';
+      const halBadge = isHal ? ' <span class="adoc-sc-cite-source-badge">HAL</span>' : '';
+      const safeUrl = entry && typeof entry.sourceUrl === 'string' && /^https?:\/\//i.test(entry.sourceUrl) ? entry.sourceUrl : null;
+      const labelHtml = safeUrl
+        ? '<a href="' + adocEsc(safeUrl) + '" target="_blank" rel="noopener noreferrer">' + adocEsc(c.displayLabel) + '</a>'
+        : adocEsc(c.displayLabel);
+      return '<li id="' + adocEsc('cite-' + c.citationId) + '"><strong>' + labelHtml + '</strong>' + halBadge + scoreStr +
         (excerpt ? ' — <span class="adoc-sc-citation-excerpt">« ' + adocEsc(excerpt) + ' »</span>' : '') + '</li>';
     }).join('');
     return '<section class="adoc-sc-citations" aria-label="Sources"><h2 class="adoc-sc-citations-title">Sources</h2>' +
@@ -11129,18 +11144,56 @@ ${recent}`;
     // ── Second appel — sortie structurée forcée, enrichie du complément web s'il existe ──
     // Le complément web est clairement distingué des passages bibliothèque : jamais associé à
     // un citationEntryIds (réservés aux passages numérotés), jamais confondu avec une source
-    // vérifiée du SourceSnapshot.
-    // Intégration HAL — met en forme les résultats RÉELS déjà reçus (tool_result du round loop
-    // ci-dessus, jamais réinterrogé ici) pour que ce second appel (qui génère le document final)
-    // puisse effectivement les citer. Garde-fou 2 répété ici (jamais seulement dans la
-    // description de l'outil) : un résultat hors champ reste écartable même à ce stade.
-    const halFindingsListing = halFindings.length
-      ? halFindings.map(function(r) {
-          return '- ' + (r.title || '(sans titre)') + (r.authors && r.authors.length ? ' — ' + r.authors.join(', ') : '') +
-            (r.date ? ' (' + r.date + ')' : '') + (r.url ? ' — ' + r.url : '') +
-            (r.fullTextAvailable === false ? ' [texte intégral non vérifié, citer avec prudence]' : '');
-        }).join('\n')
-      : '';
+    // vérifiée du SourceSnapshot. Ce choix reste inchangé pour le web (aucune demande de parité
+    // sur ce point) — seul le complément HAL, ci-dessous, change de statut dans ce lot.
+    // PARITÉ CITATIONS HAL (lot dédié) — chaque résultat HAL réellement reçu (halFindings, jamais
+    // réinterrogé ici) devient désormais une entrée NUMÉROTÉE du SourceSnapshot, au même titre
+    // qu'un passage bibliothèque, AVANT que ce second appel ne soit lancé : sourceSnapshot.entries
+    // est muté ICI (même objet référencé partout dans cette fonction), donc (a) le convertBlock
+    // plus bas — qui filtre citationEntryIds contre sourceSnapshot.entries — acceptera ces
+    // nouveaux entry-N exactement comme un entry-N de bibliothèque, et (b)
+    // adocRenderCitationsFooterHTML (moteur canonique) affichera une vraie entrée "Sources" avec
+    // lien réel (sourceUrl → uri_s de l'API HAL) et badge "HAL" pour chacune — jamais plus
+    // seulement un texte informel séparé, invisible du système de citations formel (cause du
+    // problème confirmé par le document réel "Le coping dyadique dans le couple"). sourceType
+    // 'hal' est distinct de 'library'/'session' — schéma étendu pour l'accepter
+    // (Schemas/source-snapshot.schema.json + copie embarquée dans studio-clinique.html).
+    // relevanceScore reste null (HAL ne renvoie aucun score de similarité comparable à celui du
+    // RAG) : adocRenderCitationsFooterHTML n'affiche déjà un score que si relevanceScore est un
+    // nombre — aucun code spécifique n'est nécessaire pour omettre le badge de score sur HAL.
+    // Un résultat sans titre NI résumé exploitable (jamais vu en pratique, filet de sécurité) est
+    // ignoré : exactText doit rester non vide (contrat SourceSnapshot, minLength:1).
+    const halListingLines = [];
+    for (const r of halFindings) {
+      const exactText = String(r.abstract || '').trim() || String(r.title || '').trim();
+      if (!exactText) continue;
+      const hex = await adocComputeSHA256Hex(exactText);
+      const entry = {
+        sourceSnapshotEntryId: 'entry-' + (sourceSnapshot.entries.length + 1),
+        sourceType: 'hal',
+        sourceId: String(r.halId || r.url || ('hal-' + (sourceSnapshot.entries.length + 1))).slice(0, 120),
+        passageId: 'passage-' + (sourceSnapshot.entries.length + 1),
+        exactText,
+        contentChecksum: 'sha256:' + hex,
+        book: String(r.title || '').trim() || 'Étude HAL',
+        author: (r.authors && r.authors.length ? r.authors.join(', ') : 'Auteur inconnu'),
+        locator: { page: null, section: null },
+        retrievedAt: new Date().toISOString(),
+        relevanceScore: null,
+        sourceUrl: r.url || null,
+      };
+      sourceSnapshot.entries.push(entry);
+      // Même format que passagesListing (entry-N — titre [auteurs] : texte), avec date/URL en
+      // complément pour que le modèle puisse aussi les mentionner en clair dans sa prose s'il le
+      // souhaite (garde-fou 2 : jamais un simple copier-coller, sa lecture du sujet reste seule
+      // juge de la pertinence réelle) — l'URL affichée en Sources, elle, vient toujours de
+      // sourceUrl au rendu, jamais reconstruite depuis ce texte de prompt.
+      halListingLines.push(entry.sourceSnapshotEntryId + ' — ' + entry.book +
+        (entry.author !== 'Auteur inconnu' ? ' [' + entry.author + ']' : '') +
+        (r.date ? ' (' + r.date + ')' : '') + ' : ' + exactText.slice(0, 500) +
+        (r.fullTextAvailable === false ? ' [texte intégral non vérifié, citer avec prudence]' : ''));
+    }
+    const halPassagesListing = halListingLines.join('\n\n');
     const structuredSystemPrompt = baseStructuredSystemPrompt +
       (usedWebSearch && webFindings
         ? '\n\n── COMPLÉMENT WEB (hors bibliothèque, à distinguer clairement des passages ci-dessus) ──\n' +
@@ -11149,15 +11202,19 @@ ${recent}`;
           "bibliothèque : n'associe JAMAIS de citationEntryIds à une affirmation qui ne repose " +
           'que sur ce complément web.\n\n' + webFindings
         : '') +
-      (halSearchCount && halFindingsListing
-        ? '\n\n── COMPLÉMENT ACADÉMIQUE HAL (hors bibliothèque, à distinguer clairement des passages ' +
-          'ci-dessus) ──\nCC a jugé utile de rechercher un appui académique réel (portail HAL-SHS) ' +
-          'pour cette demande. Ne cite QUE les études ci-dessous qui correspondent RÉELLEMENT au ' +
-          'sujet clinique traité — ignore toute étude hors champ (droit, sociologie, histoire, ' +
-          "etc.) même listée ici : le filtrage par type de document ne garantit pas la pertinence " +
-          "thématique, seule ta lecture du titre/auteurs le peut. N'associe JAMAIS de " +
-          "citationEntryIds (réservés aux passages bibliothèque numérotés) à une étude HAL — cite-la " +
-          "en clair (auteur, année, titre).\n\n" + halFindingsListing
+      (halPassagesListing
+        ? '\n\n── COMPLÉMENT ACADÉMIQUE HAL (hors bibliothèque, mais DÉSORMAIS des passages ' +
+          'numérotés au même titre que ceux ci-dessus) ──\nCC a jugé utile de rechercher un appui ' +
+          'académique réel (portail HAL-SHS) pour cette demande. N\'utilise QUE les études ' +
+          'ci-dessous qui correspondent RÉELLEMENT au sujet clinique traité — ignore toute étude ' +
+          'hors champ (droit, sociologie, histoire, etc.) même listée ici : le filtrage par type ' +
+          'de document ne garantit pas la pertinence thématique, seule ta lecture du ' +
+          "titre/auteurs le peut. Chaque étude retenue est un passage numéroté comme ceux de la " +
+          "bibliothèque : cite-la avec citationEntryIds (son identifiant exact ci-dessous, ex. " +
+          "'" + halListingLines[0].split(' — ')[0] + "'), jamais un identifiant inventé. La " +
+          'mention informelle en clair (auteur, année, titre) reste possible en complément dans ' +
+          'le texte, mais ne remplace JAMAIS cette citation formelle pour toute étude réellement ' +
+          'utilisée dans le document.\n\n' + halPassagesListing
         : '');
 
     // ── Second appel — sortie structurée forcée, STREAMÉE (lot streaming) ──────────────
