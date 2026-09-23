@@ -2717,21 +2717,23 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       "un résultat que s'il correspond RÉELLEMENT au sujet clinique traité — ignore et ne " +
       "cite JAMAIS un résultat hors champ même s'il partage un mot-clé (ex. « couple » en " +
       "droit du divorce, en sociologie ou au théâtre, jamais en psychologie clinique). " +
-      // Correctif "HAL 0 résultat" — une requête trop longue (phrase complète ou description
-      // du sujet) réduit fortement les chances de trouver un résultat, même quand du contenu
-      // pertinent existe réellement (confirmé par test direct contre la vraie API). Instruction
-      // désormais explicite avec un exemple concret avant/après, pour lever toute ambiguïté.
-      "Utilise 2 à 3 mots-clés précis, JAMAIS une phrase complète ni une description du sujet " +
-      "(ex. auteur connu + concept, ou juste le concept) : « Bodenmann coping dyadique » " +
+      // Correctif "HAL 0 résultat" — 3 tentatives confirmées contre la vraie API : requête brute
+      // trop longue → 0 résultat ; OR illimité → bruit massif (74768 résultats) ; OR plafonné à 3
+      // → encore du bruit (11-12 mille). Point d'équilibre confirmé : 2 mots-clés SEULEMENT,
+      // combinaison HAL/Solr par défaut (ET implicite, jamais un OR) — 15 à 34 résultats
+      // pertinents confirmés contre la vraie API à 2 mots. Instruction désormais resserrée à 2
+      // mots (jamais 3), avec un exemple concret avant/après, pour lever toute ambiguïté.
+      "Utilise 2 mots-clés précis MAXIMUM, JAMAIS une phrase complète ni une description du sujet " +
+      "(ex. auteur connu + concept, ou juste le concept) : « Bodenmann coping » " +
       "fonctionne, « idéal amoureux couple contemporain psychologie clinique » " +
-      "(5 mots) risque de ne renvoyer aucun résultat même si le sujet est pertinent. " +
+      "(6 mots) risque de ne renvoyer aucun résultat pertinent même si le sujet est pertinent. " +
       "Trois recherches maximum par document.",
     input_schema: {
       type: 'object',
       properties: {
         query: {
           type: 'string',
-          description: "2 à 3 mots-clés académiques précis (français ou anglais) — jamais une phrase complète ni un mot isolé trop générique. Ex. : \"Bodenmann coping dyadique\", pas \"idéal amoureux couple contemporain psychologie clinique\".",
+          description: "2 mots-clés académiques précis MAXIMUM (français ou anglais) — jamais une phrase complète ni un mot isolé trop générique. Ex. : \"Bodenmann coping\", pas \"idéal amoureux couple contemporain psychologie clinique\".",
         },
       },
       required: ['query'],

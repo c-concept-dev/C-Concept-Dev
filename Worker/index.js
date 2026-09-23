@@ -58761,23 +58761,29 @@ __name(handleTranslatePassage, "handleTranslatePassage");
 // rapport de ce lot).
 const HAL_ALLOWED_DOC_TYPES = ["ART", "COMM", "THESE", "COUV"];
 const HAL_FIELDS = "halId_s,uri_s,title_s,authFullName_s,docType_s,producedDate_s,abstract_s,files_s,fileMain_s";
-// CORRECTIF "HAL 0 résultat sur requêtes plausibles" — confirmé par test direct contre la vraie
-// API (numFound:0 sur 3 requêtes réelles de 5 mots, 99 résultats sur la même requête réduite à 2
-// mots) : HAL (Solr) exige par défaut que TOUS les mots d'une requête libre soient présents dans
-// un document pour qu'il corresponde (ET implicite) — plus la requête contient de mots, plus elle
-// devient restrictive, jusqu'à ne plus jamais rien trouver. Une recherche académique est par
-// nature exploratoire (jamais une correspondance exacte) : transformée ici en OR explicite entre
-// les mots-clés — MÊME PRINCIPE que notre propre recherche FTS5 interne (cf. handleRagSearch/
-// handleDocumentarySearch), mais seuil de longueur volontairement DIFFÉRENT (jamais copié
-// aveuglément) : le seuil FTS5 (>3 caractères) vise surtout des connecteurs français (les/des/une/
-// sur) — ici, il éliminerait aussi des acronymes cliniques courts mais essentiels (IFS, TCC, ACT,
-// DBT, tous à 3 caractères), qui sont exactement le genre de terme que le modèle doit pouvoir
-// cibler. Seuls les tokens de 1-2 caractères (jamais porteurs de sens dans une requête HAL) sont
-// écartés. OR étant strictement plus permissif qu'un ET implicite, une requête déjà courte (2-3
-// mots) qui fonctionnait avant ce correctif continue de fonctionner : les documents qui
-// correspondaient aux deux mots restent les mieux classés (ils correspondent en plus au plus de
-// termes), l'OR ne fait qu'ajouter des correspondances partielles moins bien classées.
-function halBuildOrQuery(raw) {
+// CORRECTIF "HAL 0 résultat sur requêtes plausibles" — HISTORIQUE COMPLET DES 3 TENTATIVES,
+// TOUTES CONFIRMÉES PAR TEST DIRECT CONTRE LA VRAIE API (jamais par supposition) :
+//   1. Requête brute (ET implicite HAL/Solr par défaut) à 5-6 mots → numFound:0 (trop restrictif,
+//      cause racine initiale).
+//   2. OR explicite illimité (jusqu'à 8 mots) → 74768 résultats à 6 mots, bruit massif confirmé
+//      (résultats hors-sujet en tête : coparentalité homoparentale, littérature, colonisation).
+//   3. OR explicite plafonné à 3 mots → encore 11-12 mille résultats (bruit), toujours trop.
+//   Point d'équilibre confirmé : ET implicite (comportement PAR DÉFAUT de HAL/Solr, donc plus
+//   aucune construction OR nécessaire), mais la requête doit rester à 2 mots-clés MAXIMUM — à 2
+//   mots, 15 à 34 résultats pertinents confirmés contre la vraie API ; au-delà, l'ET implicite
+//   redevient trop restrictif (retour au problème n°1). Piste `defType=edismax&mm=...` explorée et
+//   abandonnée précédemment : renvoie 0 résultat sans un paramètre `qf` (champs de recherche) dont
+//   le nom exact est inconnu — jamais retentée sans une vraie découverte de ce nom de champ.
+// CONCLUSION : la requête envoyée à HAL n'est plus reconstruite (ni OR, ni ET explicite — l'ET
+// implicite de Solr s'applique tel quel sur des mots simplement séparés par un espace) ; seul le
+// NOMBRE de mots-clés est borné à 2, après le même filtrage qu'avant (retrait des caractères
+// spéciaux Solr, mots ≤2 caractères écartés — seuil volontairement différent du seuil FTS5 interne
+// de >3 caractères, qui éliminerait des acronymes cliniques courts mais essentiels comme IFS/TCC/
+// ACT/DBT, tous à 3 caractères). Le plafond s'applique APRÈS ce filtre (jamais avant) : les 2 mots
+// CONSERVÉS (les plus significatifs) sont pris en priorité, jamais 2 mots bruts qui incluraient
+// encore du bruit filtrable (ex. "IFS le couple" → "le" déjà écarté par le filtre → "IFS" et
+// "couple" retenus, jamais "IFS"+"le").
+function halLimitQueryTerms(raw) {
   const terms = raw
     .split(/\s+/)
     // Solr (syntaxe standard/Lucene) attribue un sens spécial à certains caractères
@@ -58786,13 +58792,14 @@ function halBuildOrQuery(raw) {
     // mots-clés libres, jamais une phrase entre guillemets sur ce chemin).
     .map((w) => w.replace(/[+\-!():^[\]{}~*?\\/"]/g, ""))
     .filter((w) => w.length > 2)
-    .slice(0, 8);
+    .slice(0, 2);
   // Filet de sécurité — jamais une requête vide envoyée à HAL (ex. requête ne contenant que des
   // caractères spéciaux/mots de 1-2 lettres) : on retombe alors sur la requête brute plutôt que de
-  // ne rien envoyer.
-  return terms.length ? terms.join(" OR ") : raw;
+  // ne rien envoyer. Simple espace entre les mots (jamais OR, jamais un opérateur explicite) : l'ET
+  // implicite de Solr, comportement PAR DÉFAUT, est désormais le mécanisme recherché, pas contourné.
+  return terms.length ? terms.join(" ") : raw;
 }
-__name(halBuildOrQuery, "halBuildOrQuery");
+__name(halLimitQueryTerms, "halLimitQueryTerms");
 async function handleSearchAcademicStudies(request2, env2) {
   let body;
   try {
@@ -58804,7 +58811,7 @@ async function handleSearchAcademicStudies(request2, env2) {
   if (!query || query.length > 300)
     return jsonErr("Missing or invalid query", 400);
   const docTypeFilter = "(" + HAL_ALLOWED_DOC_TYPES.map((t) => "docType_s:" + t).join(" OR ") + ")";
-  const params = new URLSearchParams({ q: halBuildOrQuery(query), fq: docTypeFilter, rows: "5", fl: HAL_FIELDS, wt: "json" });
+  const params = new URLSearchParams({ q: halLimitQueryTerms(query), fq: docTypeFilter, rows: "5", fl: HAL_FIELDS, wt: "json" });
   // Best-effort, jamais bloquant (même posture que web_search/Pexels ailleurs dans ce fichier) —
   // une panne HAL ne doit jamais faire échouer toute la génération du document ; le client reçoit
   // toujours un statut 200 avec `results` (éventuellement vide) pour construire un tool_result.
