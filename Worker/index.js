@@ -56501,9 +56501,20 @@ async function handleLibraryStats(env2) {
     return jsonErr("D1 not configured", 500);
   try {
     const total = await env2.DB.prepare("SELECT COUNT(*) as count FROM chunks").first();
+    // Correctif — le compte de livres affiché à l'accueil ("240 ouvrages") était faux : `books`
+    // ci-dessous distingue par la combinaison de 5 colonnes (book_id, book_title, author,
+    // language, approach), donc un livre dont les chunks ont des métadonnées incohérentes (ex.
+    // approach différente selon les passages) était compté plusieurs fois. Vrai compte confirmé
+    // par test réel contre la base : COUNT(DISTINCT book_id) = 234, contre 240 pour l'ancien
+    // calcul. Même patron déjà utilisé ailleurs dans ce fichier pour ce même besoin
+    // (handleRagStats, total_books via COUNT(DISTINCT book_id)) — jamais une seconde logique
+    // divergente. `books` (le tableau détaillé) reste INCHANGÉ : consommé tel quel côté client
+    // (adocLoadLibraryStats) pour construire le catalogue par approche (booksByApproach), pas
+    // seulement pour son compte — total_books s'ajoute à côté, ne le remplace pas.
+    const totalBooks = await env2.DB.prepare("SELECT COUNT(DISTINCT book_id) as n FROM chunks").first();
     const books = await env2.DB.prepare("SELECT DISTINCT book_id, book_title, author, language, approach FROM chunks").all();
     const byAppr = await env2.DB.prepare("SELECT approach, COUNT(*) as count FROM chunks GROUP BY approach").all();
-    return json({ total_chunks: total?.count || 0, books: books?.results || [], by_approach: byAppr?.results || [] });
+    return json({ total_chunks: total?.count || 0, total_books: totalBooks?.n || 0, books: books?.results || [], by_approach: byAppr?.results || [] });
   } catch (err2) {
     return jsonErr(err2.message, 500);
   }
