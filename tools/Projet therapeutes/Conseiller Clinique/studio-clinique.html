@@ -457,6 +457,18 @@
             font-size: 10px; color: var(--petrol-950); align-items: center; gap: 6px;
         }
         .adoc-doc-banner.visible { display: flex; }
+        /* ITEM 63g — bouton facultatif "Convertir en document…" à côté du document activé.
+           Conçu pour rester facilement promouvable en "permanent" plus tard (Christophe, ce lot) :
+           sa seule condition d'affichage est déjà la plus large possible (visible dès qu'un
+           document est actif, comme le reste du bandeau) — le rendre visible en permanence
+           demanderait seulement de le sortir de ce bandeau conditionnel, jamais de retoucher sa
+           logique interne (adocPrefillDocConvert reste identique dans les deux cas). */
+        .adoc-doc-convert-btn {
+            margin-left: auto; background: rgba(16,47,49,0.08); border: 1px solid rgba(16,47,49,0.25);
+            border-radius: 5px; padding: 3px 8px; font-size: 10px; font-family: inherit; color: inherit;
+            cursor: pointer; white-space: nowrap;
+        }
+        .adoc-doc-convert-btn:hover { background: rgba(16,47,49,0.16); }
         .adoc-doc-truncnotice {
             display: none; background: var(--terracotta-100); border: 1px solid var(--terracotta-600);
             border-radius: 7px; padding: 7px 10px; margin-bottom: 8px;
@@ -1967,6 +1979,10 @@
     .cc-ws-doc-card :is(h1,h2,h3) { font-family: 'Source Serif 4', Georgia, serif; }
     .cc-ws-doc-card .adoc-sc-block {
       outline: 1px solid transparent; outline-offset: 4px; border-radius: 4px; transition: outline-color .1s;
+      /* ITEM 63f — ancre la poignée de glissement (position:absolute) même hors carte Carrousel
+         (.adoc-sc-card .adoc-sc-block ci-dessus le fait déjà pour les blocs imbriqués) ; aucun
+         effet visuel pour un bloc non ancré par ailleurs (même raisonnement qu'Item 75). */
+      position: relative;
     }
     .cc-ws-doc-card .adoc-sc-block:hover { outline-color: var(--petrol-100); }
     /* UX-11 — correction ciblée d'un bloc : curseur/sélection ajoutés uniquement quand
@@ -1990,6 +2006,30 @@
     .cc-ws-doc-card.cc-ws-legacy-block-editable [data-cc-legacy-block-id] { cursor: pointer; }
     .cc-ws-doc-card [data-cc-legacy-block-id].is-selected { outline: 2px solid var(--terracotta-700); outline-offset: 4px; }
     .cc-legacy-citation-flag { font-size: 10px; color: var(--terracotta-700); cursor: help; margin-left: 2px; }
+    /* ITEM 63f — glisser-déposer réel pour réordonner un bloc. Poignée TOUJOURS présente dans le
+       balisage (même principe que les poignées de redimensionnement Item 75), visible SEULEMENT
+       au survol et SEULEMENT dans l'espace de travail éditable (jamais en aperçu/export statique
+       — ces deux classes d'activation, cc-ws-block-editable/cc-ws-legacy-block-editable, ne sont
+       jamais posées hors de #cc-ws-doc-card). Coin haut-gauche (jamais bas-droit, déjà pris par la
+       poignée de redimensionnement Item 75 sur un bloc imbriqué de Carrousel). Ancien moteur :
+       enveloppe .adoc-sc-block-drag-wrap dédiée (jamais le bloc lui-même, qui peut être un
+       <table>/<ul>/<ol> — un <span> y serait invalide et reparenté par le moteur HTML, cf. rapport
+       de construction) ; moteur structuré : la poignée est un enfant direct de .adoc-sc-block
+       (jamais invalide, ce dernier n'est jamais littéralement une balise <table>/<ul>/<ol>). */
+    .adoc-sc-block-drag-handle {
+      position: absolute; left: 2px; top: 2px; width: 14px; height: 14px;
+      border-radius: 3px; background: var(--petrol-700); cursor: grab; display: none; z-index: 2;
+    }
+    .adoc-sc-block-drag-handle:active { cursor: grabbing; }
+    .adoc-sc-block-drag-wrap { position: relative; }
+    .cc-ws-doc-card.cc-ws-block-editable .adoc-sc-block:hover > .adoc-sc-block-drag-handle,
+    .cc-ws-doc-card.cc-ws-legacy-block-editable .adoc-sc-block-drag-wrap:hover > .adoc-sc-block-drag-handle {
+      display: block;
+    }
+    /* Ligne de dépôt — élément éphémère créé/retiré en JS pendant un glissement réel (même
+       principe que .adoc-sc-align-guide, Item 75) : jamais posée par adocRenderBlockHTML ni par
+       adocWsSetupLegacyBlockEditing au rendu initial, jamais dans le HTML persisté/exporté. */
+    .adoc-sc-drop-line { height: 3px; background: var(--terracotta-700); border-radius: 2px; margin: 2px 0; pointer-events: none; }
     /* Item 57c Lot 1 — édition directe du texte (heading/paragraph). Affordance distincte de
        .is-selected (contour terracotta) : un focus dashed indique qu'on est EN TRAIN de taper,
        jamais confondu avec la simple sélection du bloc (les deux peuvent coexister). */
@@ -2910,7 +2950,12 @@
       <div class="adoc-input-zone">
         <div class="adoc-doc-banner" id="adoc-doc-banner">
           <span aria-hidden="true"><svg class="sc-icon" aria-hidden="true" focusable="false"><use href="#icon-file"></use></svg></span><span id="adoc-doc-banner-name">Document actif</span>
-          <button type="button" style="margin-left:auto;background:none;border:none;cursor:pointer;opacity:0.6;font-size:13px;color:inherit;padding:2px;" onclick="adocClearDoc()" aria-label="Retirer ce document actif de la demande"><svg class="sc-icon" aria-hidden="true" focusable="false"><use href="#icon-close"></use></svg></button>
+          <!-- ITEM 63g — raccourci facultatif : pré-remplit la demande, n'envoie jamais
+               automatiquement (cf. adocPrefillDocConvert). Aucun changement au pipeline de
+               génération lui-même — ce document actif est déjà utilisé comme contexte
+               (docCtx) pour toute demande, avec ou sans ce bouton. -->
+          <button type="button" class="adoc-doc-convert-btn" onclick="window.adocPrefillDocConvert()" aria-label="Pré-remplir la demande pour convertir ce document en document structuré">Convertir en document…</button>
+          <button type="button" style="background:none;border:none;cursor:pointer;opacity:0.6;font-size:13px;color:inherit;padding:2px;" onclick="adocClearDoc()" aria-label="Retirer ce document actif de la demande"><svg class="sc-icon" aria-hidden="true" focusable="false"><use href="#icon-close"></use></svg></button>
         </div>
         <div class="adoc-doc-truncnotice" id="adoc-doc-truncnotice"></div>
         <!-- Phase UX-2A.1 — composeur unique : le contexte est optionnel et replié par

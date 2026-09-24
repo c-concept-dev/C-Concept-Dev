@@ -801,6 +801,21 @@
     adocRenderTruncNotice();
   };
 
+  // ITEM 63g (Option A) — raccourci facultatif : pré-remplit la demande avec une formulation
+  // neutre, jamais un type de document présupposé (fiche/tableau/carrousel/etc.) — laisse le
+  // planificateur décider normalement, sur le MÊME pipeline que toute autre demande (docCtx est
+  // déjà injecté dans les deux variantes du prompt système, cf. rapport d'investigation, aucun
+  // changement ici). Pré-remplit SEULEMENT — n'envoie jamais automatiquement, l'utilisatrice
+  // garde la main pour ajuster avant de valider.
+  window.adocPrefillDocConvert = function () {
+    if (adocActiveDoc === null) return;
+    const input = document.getElementById('adoc-input');
+    if (!input) return;
+    input.value = 'Génère un document structuré à partir de ce document joint.';
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+  };
+
   window.adocClearDoc  = function() { adocActiveDoc = null; adocRenderDocs(); document.getElementById('adoc-doc-banner').classList.remove('visible'); adocRenderTruncNotice(); };
   window.adocRemoveDoc = function(e, i) {
     e.stopPropagation();
@@ -9808,6 +9823,13 @@ ${recent}`;
     // correction de texte sur ce même bloc).
     const nestedPosCSS = adocCardPositionCSSText(b.style);
     const nestedResizeHandle = '<span class="adoc-sc-nested-resize-handle" aria-hidden="true"></span>';
+    // ITEM 63f — poignée de glissement pour réordonner ce bloc, même principe que
+    // nestedResizeHandle ci-dessus (toujours présente dans le balisage, visibilité gérée
+    // entièrement en CSS, cf. studio-clinique.html) : jamais un état JS créé/détruit au survol.
+    // Enfant direct de .adoc-sc-block, jamais invalide ici (.adoc-sc-block n'est jamais
+    // littéralement un <table>/<ul>/<ol> côté structuré, cf. case 'table' ci-dessous qui
+    // l'enveloppe déjà dans un <div> — contrairement à l'ancien moteur, cf. adocWsSetupLegacyBlockEditing).
+    const dragHandle = '<span class="adoc-sc-block-drag-handle" aria-hidden="true" title="Glisser pour réordonner"></span>';
     switch (b.type) {
       case 'heading': {
         const lvl = Math.min(Math.max(b.content.level, 1), 3);
@@ -9831,7 +9853,7 @@ ${recent}`;
         // phrasé, un <div> y serait invalide et reparenté par le parseur HTML (vérifié avant
         // construction) — un <span> positionné en absolu reste valide ici comme dans les 4 autres
         // cas (callout/list/quote en <div>/<blockquote>, qui acceptent aussi bien un <span>).
-        return '<h' + lvl + ' class="adoc-sc-block adoc-sc-heading' + statusClass + '" id="' + adocEsc(b.id) + '"' + headingStyleAttr + '>' + headingLayer.overlay + headingLayer.wrapOpen + adocEditorTextHTML(b, 'text', b.content.text) + cites + headingLayer.wrapClose + nestedResizeHandle + '</h' + lvl + '>';
+        return '<h' + lvl + ' class="adoc-sc-block adoc-sc-heading' + statusClass + '" id="' + adocEsc(b.id) + '"' + headingStyleAttr + '>' + headingLayer.overlay + headingLayer.wrapOpen + adocEditorTextHTML(b, 'text', b.content.text) + cites + headingLayer.wrapClose + dragHandle + nestedResizeHandle + '</h' + lvl + '>';
       }
       case 'paragraph': {
         if (b.style && b.style.fontPairId) adocEnsurePageGoogleFontLoaded(b.style.fontPairId);
@@ -9839,13 +9861,13 @@ ${recent}`;
         const paragraphLayer = adocBlockOpacityLayerHTML(b.style);
         const paragraphCombinedCSS = paragraphLayer.outerStyle + paragraphStyleCSS + nestedPosCSS;
         const paragraphStyleAttr = paragraphCombinedCSS ? ' style="' + adocEsc(paragraphCombinedCSS) + '"' : '';
-        return '<p class="adoc-sc-block adoc-sc-paragraph' + statusClass + '" id="' + adocEsc(b.id) + '"' + paragraphStyleAttr + '>' + paragraphLayer.overlay + paragraphLayer.wrapOpen + adocEditorTextHTML(b, 'text', b.content.text) + cites + paragraphLayer.wrapClose + nestedResizeHandle + '</p>';
+        return '<p class="adoc-sc-block adoc-sc-paragraph' + statusClass + '" id="' + adocEsc(b.id) + '"' + paragraphStyleAttr + '>' + paragraphLayer.overlay + paragraphLayer.wrapOpen + adocEditorTextHTML(b, 'text', b.content.text) + cites + paragraphLayer.wrapClose + dragHandle + nestedResizeHandle + '</p>';
       }
       case 'callout': {
         const calloutLayer = adocBlockOpacityLayerHTML(b.style);
         const calloutCombinedCSS = calloutLayer.outerStyle + extraCSS + nestedPosCSS;
         const calloutStyleAttr = calloutCombinedCSS ? ' style="' + adocEsc(calloutCombinedCSS) + '"' : '';
-        return '<div class="adoc-sc-block adoc-sc-callout adoc-sc-callout-' + adocEsc(b.content.visualRole) + statusClass + '" id="' + adocEsc(b.id) + '"' + calloutStyleAttr + ' role="note">' + calloutLayer.overlay + calloutLayer.wrapOpen + adocEditorTextHTML(b, 'text', b.content.text) + cites + calloutLayer.wrapClose + nestedResizeHandle + '</div>';
+        return '<div class="adoc-sc-block adoc-sc-callout adoc-sc-callout-' + adocEsc(b.content.visualRole) + statusClass + '" id="' + adocEsc(b.id) + '"' + calloutStyleAttr + ' role="note">' + calloutLayer.overlay + calloutLayer.wrapOpen + adocEditorTextHTML(b, 'text', b.content.text) + cites + calloutLayer.wrapClose + dragHandle + nestedResizeHandle + '</div>';
       }
       case 'list': {
         const list = adocEditorRenderList(b);
@@ -9853,7 +9875,7 @@ ${recent}`;
         const listLayer = adocBlockOpacityLayerHTML(b.style);
         const listCombinedCSS = listLayer.outerStyle + extraCSS + nestedPosCSS;
         const listStyleAttr = listCombinedCSS ? ' style="' + adocEsc(listCombinedCSS) + '"' : '';
-        return '<div class="adoc-sc-block adoc-sc-list' + statusClass + '" id="' + adocEsc(b.id) + '"' + listStyleAttr + '>' + listLayer.overlay + listLayer.wrapOpen + list + note + listLayer.wrapClose + nestedResizeHandle + '</div>';
+        return '<div class="adoc-sc-block adoc-sc-list' + statusClass + '" id="' + adocEsc(b.id) + '"' + listStyleAttr + '>' + listLayer.overlay + listLayer.wrapOpen + list + note + listLayer.wrapClose + dragHandle + nestedResizeHandle + '</div>';
       }
       case 'table': {
         const table = adocEditorRenderTable(b);
@@ -9861,13 +9883,13 @@ ${recent}`;
         const tableLayer = adocBlockOpacityLayerHTML(b.style);
         const tableCombinedCSS = tableLayer.outerStyle + extraCSS;
         const tableStyleAttr = tableCombinedCSS ? ' style="' + adocEsc(tableCombinedCSS) + '"' : '';
-        return '<div class="adoc-sc-block adoc-sc-table' + statusClass + '" id="' + adocEsc(b.id) + '"' + tableStyleAttr + '>' + tableLayer.overlay + tableLayer.wrapOpen + table + note + tableLayer.wrapClose + '</div>';
+        return '<div class="adoc-sc-block adoc-sc-table' + statusClass + '" id="' + adocEsc(b.id) + '"' + tableStyleAttr + '>' + tableLayer.overlay + tableLayer.wrapOpen + table + note + tableLayer.wrapClose + dragHandle + '</div>';
       }
       case 'quote': {
         const quoteLayer = adocBlockOpacityLayerHTML(b.style);
         const quoteCombinedCSS = quoteLayer.outerStyle + extraCSS + nestedPosCSS;
         const quoteStyleAttr = quoteCombinedCSS ? ' style="' + adocEsc(quoteCombinedCSS) + '"' : '';
-        return '<blockquote class="adoc-sc-block adoc-sc-quote' + statusClass + '" id="' + adocEsc(b.id) + '"' + quoteStyleAttr + '>' + quoteLayer.overlay + quoteLayer.wrapOpen + adocEditorTextHTML(b, 'text', b.content.text) + cites + quoteLayer.wrapClose + nestedResizeHandle + '</blockquote>';
+        return '<blockquote class="adoc-sc-block adoc-sc-quote' + statusClass + '" id="' + adocEsc(b.id) + '"' + quoteStyleAttr + '>' + quoteLayer.overlay + quoteLayer.wrapOpen + adocEditorTextHTML(b, 'text', b.content.text) + cites + quoteLayer.wrapClose + dragHandle + nestedResizeHandle + '</blockquote>';
       }
       case 'image': {
         // data-pexels résolu ensuite par adocResolveImages (mécanisme existant et éprouvé,
@@ -9917,7 +9939,7 @@ ${recent}`;
         const imgFigureStyleAttr = nestedPosCSS ? ' style="' + adocEsc(nestedPosCSS) + '"' : '';
         return '<figure class="adoc-sc-block adoc-sc-image' + statusClass + '" id="' + adocEsc(b.id) + '"' + imgFigureStyleAttr + '>' +
           '<img ' + imgAttr + onErrorAttr + ' alt="' + adocEsc(b.content.alt) + '" style="' + imgStyle + '">' +
-          note + nestedResizeHandle + '</figure>';
+          note + dragHandle + nestedResizeHandle + '</figure>';
       }
       default:
         return '';
@@ -13029,6 +13051,89 @@ ${recent}`;
     // régression explicitement demandée). Point d'annulation posé UNE SEULE FOIS au premier tick
     // de mouvement réel (même principe que le curseur d'opacité, Lot E, jamais à chaque frame).
     docCard.onmousedown = function (e) {
+      // ITEM 63f — glisser-déposer réel pour réordonner un bloc, testé EN PREMIER (avant la garde
+      // `if (!cardEl) return;` ci-dessous) : un bloc de premier niveau (Fiche/Script/Tableau/Liens,
+      // sans aucune .adoc-sc-card) doit pouvoir être réordonné tout autant qu'un bloc imbriqué dans
+      // une carte Carrousel — jamais restreint aux seuls documents Carrousel comme le sont les
+      // branches Item 75 ci-dessous. Réutilise le PATRON (seuil 3px, suppressNextClick, checkpoint
+      // unique, adocEditorSync/MarkDirty) déjà établi par Item 75 juste plus bas, jamais une
+      // fonction commune avec lui (calcul de position totalement différent — ici un INDEX dans
+      // `blocks[]`, jamais des coordonnées x/y).
+      const dragHandle = e.target.closest('.adoc-sc-block-drag-handle');
+      if (dragHandle) {
+        e.preventDefault();
+        const blockEl = dragHandle.closest('.adoc-sc-block');
+        if (!blockEl) return;
+        const storeKey = window._adocWsState.storeKey;
+        const curArt = window._adocArtifacts && window._adocArtifacts[storeKey];
+        if (!curArt || !curArt._adocStructuredDoc) return;
+        const doc = curArt._adocStructuredDoc;
+        const blockId = blockEl.id;
+        // adocEditorBlockContainer résout déjà, de façon générique et récursive, le tableau
+        // `siblings` exact d'un bloc — racine du document OU card.content.blocks d'une carte —
+        // jamais une seconde résolution de conteneur ici (cf. rapport d'investigation 63f).
+        const siblings = adocEditorBlockContainer(doc, blockId);
+        if (!siblings) return;
+        const oldIdx = siblings.findIndex(function (s) { return s.id === blockId; });
+        if (oldIdx === -1) return;
+        const block = siblings[oldIdx];
+        const container = blockEl.parentElement;
+        // Restriction de conteneur (point 5 du CDC) : uniquement les .adoc-sc-block ENFANTS
+        // DIRECTS du MÊME conteneur DOM que blockEl (l'article racine d'une Fiche, ou une carte de
+        // Carrousel) — jamais un bloc d'un autre conteneur. Rectangles lus UNE SEULE FOIS ici (même
+        // principe qu'Item 75 Phase 3, cardSiblingRects/nestedSiblingRects), jamais recalculés à
+        // chaque tick de mousemove.
+        const siblingEls = Array.prototype.filter.call(container.children, function (el) { return el.classList.contains('adoc-sc-block'); });
+        const rects = siblingEls.map(function (el) { const r = el.getBoundingClientRect(); return { el: el, mid: r.top + r.height / 2 }; });
+        const others = rects.filter(function (r) { return r.el !== blockEl; });
+        const pointerStartX = e.clientX, pointerStartY = e.clientY;
+        let moved = false, dropLine = null, dropIdx = oldIdx;
+        function suppressNextClick(ev2) { ev2.stopPropagation(); ev2.preventDefault(); document.removeEventListener('click', suppressNextClick, true); }
+        function computeDropIdx(pointerY) { for (let i = 0; i < others.length; i++) { if (pointerY < others[i].mid) return i; } return others.length; }
+        function placeDropLine(idx) {
+          if (!dropLine) { dropLine = document.createElement('div'); dropLine.className = 'adoc-sc-drop-line'; }
+          const ref = others[idx] ? others[idx].el : null;
+          if (ref) container.insertBefore(dropLine, ref); else container.appendChild(dropLine);
+        }
+        function onMove(ev) {
+          if (!moved && Math.abs(ev.clientX - pointerStartX) < 3 && Math.abs(ev.clientY - pointerStartY) < 3) return;
+          if (!moved) {
+            // Établit le contexte de correction (adocEditorContext) sur CE bloc — seul moyen déjà
+            // existant de rendre adocEditorCheckpoint() opérant ici (il exige un bloc "sélectionné"),
+            // jamais une 2e voie de sélection ni un accès direct à _adocBlockEditState : même geste
+            // que adocConfirmBlockInsert (el.click() pour réutiliser la sélection déjà câblée).
+            // ORDRE IMPORTANT : le piège suppressNextClick n'est posé qu'APRÈS ce clic synthétique,
+            // jamais avant — sinon il intercepterait ce clic-ci au lieu du seul qu'il doit viser
+            // (celui, natif, émis par le navigateur au relâchement de la souris qui suit).
+            blockEl.click();
+            adocEditorCheckpoint();
+            document.addEventListener('click', suppressNextClick, true);
+          }
+          moved = true;
+          dropIdx = computeDropIdx(ev.clientY);
+          placeDropLine(dropIdx);
+        }
+        function onUp() {
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+          // CORRECTIF (trouvé en testant) — quand mousedown et mouseup n'aboutissent pas au même
+          // élément (le cas normal d'un réordonnancement : la poignée puis un tout autre bloc), le
+          // navigateur n'émet parfois AUCUN clic de synthèse au relâchement — suppressNextClick
+          // (posé plus haut) ne s'auto-retire alors JAMAIS et resterait indéfiniment armé,
+          // interceptant à tort le TOUT PROCHAIN clic sans rapport ailleurs dans l'application.
+          // Retrait défensif ici, sans effet si le clic naturel l'a déjà fait lui-même.
+          document.removeEventListener('click', suppressNextClick, true);
+          if (dropLine && dropLine.parentNode) dropLine.parentNode.removeChild(dropLine);
+          if (moved && dropIdx !== oldIdx) {
+            siblings.splice(oldIdx, 1);
+            siblings.splice(dropIdx, 0, block);
+            window.adocOpenWorkspace(storeKey);
+          }
+        }
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+        return;
+      }
       const cardHandle = e.target.closest('.adoc-sc-card-resize-handle');
       const nestedHandle = e.target.closest('.adoc-sc-nested-resize-handle');
       const nestedEl = e.target.closest('.adoc-sc-block');
@@ -13882,6 +13987,109 @@ ${recent}`;
     if (!enabled) return;
     const blocks = adocWsCollectLegacyBlocks(docCard);
     blocks.forEach(function(el,i){el.setAttribute('data-cc-legacy-block-id','lb-'+i);});
+    // ITEM 63f — enveloppe .adoc-sc-block-drag-wrap dédiée pour porter la poignée de glissement,
+    // jamais un enfant direct du bloc lui-même (contrairement au moteur structuré, cf.
+    // adocRenderBlockHTML) : un bloc legacy peut être littéralement un <table>/<ul>/<ol>, où un
+    // <span> injecté en enfant serait invalide et reparenté par le moteur HTML du navigateur (vérifié
+    // avant construction). Idempotent (jamais ré-enveloppé si déjà fait, ex. rappel de ce setup par
+    // adocXlsxGridRerenderAndFocus) — jamais posée sur une cellule de tableau isolée (kind==='cell',
+    // même exclusion que l'insertion, point 6 du CDC). L'enveloppe n'existe QUE dans le DOM live de
+    // l'espace de travail : adocEditorSyncLegacy clone `el` lui-même (jamais wrap), donc jamais
+    // sérialisée dans art.html — aucun retrait explicite nécessaire avant persistance.
+    blocks.forEach(function (el) {
+      if (adocLegacyBlockKind(el) === 'cell') return;
+      if (el.parentElement && el.parentElement.classList.contains('adoc-sc-block-drag-wrap')) return;
+      const wrap = document.createElement('div');
+      wrap.className = 'adoc-sc-block-drag-wrap';
+      el.parentNode.insertBefore(wrap, el);
+      wrap.appendChild(el);
+      wrap.insertAdjacentHTML('afterbegin', '<span class="adoc-sc-block-drag-handle" aria-hidden="true" title="Glisser pour réordonner"></span>');
+    });
+    // ITEM 63f — glisser-déposer réel pour réordonner un bloc legacy. Réutilise le PATRON déjà
+    // établi côté structuré juste au-dessus (seuil 3px, suppressNextClick, checkpoint unique) —
+    // fonction ENTIÈREMENT SÉPARÉE (jamais partagée), la persistance diffère radicalement : ici un
+    // déplacement RÉEL de nœud DOM dans un reparsing d'art.html, même patron que
+    // adocConfirmLegacyBlockInsert, JAMAIS adocEditorSyncLegacy (qui ne fait que remplacer le
+    // CONTENU à un INDEX FIXE — incapable de persister un changement d'ORDRE, confirmé par lecture
+    // directe avant construction).
+    docCard.onmousedown = function (e) {
+      const dragHandle = e.target.closest('.adoc-sc-block-drag-handle');
+      if (!dragHandle) return;
+      e.preventDefault();
+      const wrap = dragHandle.closest('.adoc-sc-block-drag-wrap');
+      const blockEl = wrap && wrap.querySelector('[data-cc-legacy-block-id]');
+      if (!blockEl) return;
+      const storeKey = window._adocWsState.storeKey;
+      const curArt = window._adocArtifacts && window._adocArtifacts[storeKey];
+      if (!curArt || curArt._adocGenerationEngine !== 'legacy-html') return;
+      const container = wrap.parentElement;
+      const wraps = Array.prototype.filter.call(container.children, function (el) { return el.classList.contains('adoc-sc-block-drag-wrap'); });
+      const rects = wraps.map(function (el) { const r = el.getBoundingClientRect(); return { el: el, mid: r.top + r.height / 2 }; });
+      const others = rects.filter(function (r) { return r.el !== wrap; });
+      const pointerStartX = e.clientX, pointerStartY = e.clientY;
+      let moved = false, dropLine = null, dropIdx = -1;
+      function suppressNextClick(ev2) { ev2.stopPropagation(); ev2.preventDefault(); document.removeEventListener('click', suppressNextClick, true); }
+      function computeDropIdx(pointerY) { for (let i = 0; i < others.length; i++) { if (pointerY < others[i].mid) return i; } return others.length; }
+      function placeDropLine(idx) {
+        if (!dropLine) { dropLine = document.createElement('div'); dropLine.className = 'adoc-sc-drop-line'; }
+        const ref = others[idx] ? others[idx].el : null;
+        if (ref) container.insertBefore(dropLine, ref); else container.appendChild(dropLine);
+      }
+      function onMove(ev) {
+        if (!moved && Math.abs(ev.clientX - pointerStartX) < 3 && Math.abs(ev.clientY - pointerStartY) < 3) return;
+        if (!moved) {
+          // ORDRE IMPORTANT (même correctif que côté structuré) : le piège suppressNextClick est
+          // posé APRÈS ce clic synthétique, jamais avant — sinon il intercepterait ce clic-ci au
+          // lieu du seul qu'il doit viser (le clic natif émis au relâchement de la souris).
+          blockEl.click(); // établit le contexte de correction (_adocLegacyBlockEditState.el), seul moyen déjà existant de rendre adocEditorCheckpoint() opérant sur ce bloc précis
+          adocEditorCheckpoint();
+          document.addEventListener('click', suppressNextClick, true);
+        }
+        moved = true;
+        dropIdx = computeDropIdx(ev.clientY);
+        placeDropLine(dropIdx);
+      }
+      function onUp() {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        // CORRECTIF (même que côté structuré) — retrait défensif du piège suppressNextClick, sans
+        // effet si le clic naturel l'a déjà auto-retiré : mousedown/mouseup n'aboutissent presque
+        // jamais au même élément pour un réordonnancement, le navigateur peut alors n'émettre aucun
+        // clic de synthèse, ce qui laisserait sinon ce piège armé pour le tout prochain clic ailleurs.
+        document.removeEventListener('click', suppressNextClick, true);
+        if (dropLine && dropLine.parentNode) dropLine.parentNode.removeChild(dropLine);
+        if (!moved) return;
+        const refWrap = others[dropIdx] ? others[dropIdx].el : null;
+        const refBlockEl = refWrap ? refWrap.querySelector('[data-cc-legacy-block-id]') : null;
+        // Même patron de reparsing/réécriture que adocConfirmLegacyBlockInsert : jamais
+        // adocEditorSyncLegacy pour la persistance elle-même (cf. commentaire d'en-tête) — flush
+        // d'abord toute édition de texte en attente (Item 57c Lot 1), puis reparse art.html à part,
+        // déplace le nœud réel dans CE document reparsé, réécrit art.html.
+        adocSyncEditedLegacyBlocksToHtml(curArt);
+        const idx = parseInt(blockEl.getAttribute('data-cc-legacy-block-id').slice(3), 10);
+        const refIdx = refBlockEl ? parseInt(refBlockEl.getAttribute('data-cc-legacy-block-id').slice(3), 10) : null;
+        try {
+          const parsed = new DOMParser().parseFromString(curArt.html || '', 'text/html');
+          if (!parsed || !parsed.body) throw new Error('document illisible');
+          const freshBlocks = adocWsCollectLegacyBlocks(parsed.body);
+          const movingEl = freshBlocks[idx];
+          if (!movingEl) throw new Error('passage introuvable (document modifié entre-temps)');
+          const refEl = refIdx != null ? freshBlocks[refIdx] : null;
+          if (refEl) refEl.parentNode.insertBefore(movingEl, refEl); else movingEl.parentNode.appendChild(movingEl);
+          curArt.html = '<!DOCTYPE html>\n' + parsed.documentElement.outerHTML;
+          if (curArt.blobUrl) { URL.revokeObjectURL(curArt.blobUrl); curArt.blobUrl = URL.createObjectURL(new Blob([curArt.html], { type: 'text/html;charset=utf-8' })); }
+        } catch (err) {
+          adocWsClearLegacyBlockSelection();
+          alert('Impossible de réordonner ce bloc : ' + (err && err.message || 'erreur inconnue') + '.');
+          return;
+        }
+        const sk = storeKey;
+        adocWsClearLegacyBlockSelection();
+        window.adocOpenWorkspace(sk);
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    };
     docCard.onclick = function (e) {
       if (e.target.closest('.cc-block-edit-panel')) return;
       if (e.target.closest('sup')) return; // note de bas de page — laisse naviguer normalement, jamais réinterprétée comme une sélection
