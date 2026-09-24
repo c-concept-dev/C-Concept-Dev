@@ -3093,10 +3093,14 @@
   <!-- Audit correctif, Partie B point 11 — message EXPLICITE (jamais tooltip seul) affiché
        uniquement quand ce document vient du repli sur l'ancien moteur (generationEngine=
        'legacy-html', cf. adocOpenWorkspace) : rassure sur ce qui reste possible, précise
-       honnêtement ce qui ne l'est pas pour CE document précis. -->
+       honnêtement ce qui ne l'est pas pour CE document précis.
+       Item 76 — span id dédié (cc-ws-legacy-banner-text) : le texte devient réactif au format
+       d'origine réel (xlsx/pptx/docx) et à l'historique d'édition (adocUpdateSaveStatusUI),
+       remplaçant ce texte générique par défaut pour ces formats. Inchangé pour un document HTML/
+       PDF ordinaire (texte statique ci-dessous conservé tel quel). -->
   <div class="cc-ws-legacy-banner" id="cc-ws-legacy-banner" role="status" hidden>
     <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-info"></use></svg>
-    <span>Document HTML : l’édition directe, la correction IA, l’enregistrement et l’export sont disponibles. Les citations ne disposent pas du contrôle fin du moteur structuré.</span>
+    <span id="cc-ws-legacy-banner-text">Document HTML : l’édition directe, la correction IA, l’enregistrement et l’export sont disponibles. Les citations ne disposent pas du contrôle fin du moteur structuré.</span>
   </div>
   <div class="cc-ws-body">
     <aside class="cc-ws-panel" id="cc-ws-panel">

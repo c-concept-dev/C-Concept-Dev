@@ -2154,6 +2154,19 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
   // "normal" comme tableau/carrousel/script/liens/cours, qui n'a jamais tenté le moteur
   // structuré). Le SourceSnapshot est reconstruit ICI, au moment du repli, à partir de ragResult
   // (encore disponible dans ce scope) — jamais un ClinicalDocument fabriqué à partir du HTML.
+  // Item 76 — élargissement de la porte d'entrée de l'écran de travail au-delà de fmt==='html'
+  // (investigation livrée séparément) : le modèle génère déjà un HTML complet et riche même pour
+  // xlsx/pptx/docx (contrat _isDataEmbed, studio-clinique-core.js ~L1872 — <!DOCTYPE html> exigé
+  // en première ligne dans les 3 cas), simplement jeté par adocDeliverArtifact avant ce lot (seul
+  // un htmlBlobUrl, jamais la chaîne, en survivait). PDF est un cas trivial (le HTML envoyé au
+  // Worker EST déjà le document final, "print-ready" par consigne de prompt). DOCX inclus après
+  // test réel (voir rapport) : `markdown` (donc `docxSections`) est dérivé MÉCANIQUEMENT du même
+  // HTML (adocHtmlToMarkdown(resolvedTrimmed), jamais une seconde extraction indépendante comme
+  // le supposait à tort l'investigation initiale) — vérifié fidèle sur une structure représentative
+  // (titres/paragraphes/listes/tableau tous préservés). 'zip'/'html-visual' RESTENT hors périmètre
+  // (jamais demandés, jamais montrés fmt==='html' avant ce lot pour une autre raison que celle
+  // investiguée ici — pas réexaminés).
+  const ADOC_WORKSPACE_ELIGIBLE_FMTS = ['html', 'pdf', 'xlsx', 'pptx', 'docx'];
   async function adocFinalizeGeneration(streamMsgId, reply, plan, ragResult, fellBackFromStructured) {
     const _storeKey = await adocHandleReply(reply, plan, ragResult?.chunks || []);
     // Parité 0F (monobloc) — charte explicitement choisie (adocActiveBrandKitId, même mécanisme
@@ -2180,7 +2193,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     // ressortir TOUT document legacy déjà teinté malgré elle (violant le panneau manuel
     // opt-in existant). adocActiveBrandKitExplicit distingue les deux cas sans jamais toucher au
     // moteur structuré, qui continue de lire adocActiveBrandKitId seul, inchangé.
-    if (_storeKey && window._adocArtifacts?.[_storeKey] && window._adocArtifacts[_storeKey].fmt === 'html' && adocActiveBrandKitId && adocActiveBrandKitExplicit) {
+    if (_storeKey && window._adocArtifacts?.[_storeKey] && ADOC_WORKSPACE_ELIGIBLE_FMTS.includes(window._adocArtifacts[_storeKey].fmt) && adocActiveBrandKitId && adocActiveBrandKitExplicit) {
       try {
         await adocApplyBrandKitToLegacyArtifact(_storeKey, adocActiveBrandKitId);
       } catch (_brandErr) {
@@ -2203,7 +2216,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     // _adocGenerationEngine==='legacy-html', posé ici pour tout document html — sans quoi
     // l'écran de travail tenterait le rendu structuré (art._adocStructuredDoc undefined) au lieu
     // du rendu HTML figé attendu.
-    if (_storeKey && window._adocArtifacts?.[_storeKey] && window._adocArtifacts[_storeKey].fmt === 'html') {
+    if (_storeKey && window._adocArtifacts?.[_storeKey] && ADOC_WORKSPACE_ELIGIBLE_FMTS.includes(window._adocArtifacts[_storeKey].fmt)) {
       try {
         const _legacySnapshot = await adocBuildSourceSnapshotFromRAG(ragResult || { chunks: [] });
         Object.assign(window._adocArtifacts[_storeKey], {
@@ -3746,7 +3759,12 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     if (fmt === 'xlsx' || fmt === 'docx' || fmt === 'pptx') {
       const htmlSrc  = isResolvedHtml ? adocRepairHTML(resolvedTrimmed) : null;
       const markdown = isResolvedHtml ? adocHtmlToMarkdown(resolvedTrimmed) : resolvedTrimmed;
-      await adocDeliverArtifact({ markdown, html: htmlSrc, topic, fmt, citations, autoGenerate: true });
+      // Item 76 — le storeKey doit remonter jusqu'à l'appelant (adocFinalizeGeneration), même
+      // patron que le commentaire "Audit correctif, Partie B point 10" plus bas pour PDF/ZIP/HTML
+      // (déjà documenté comme nécessaire, jamais fait ici avant ce lot — sans quoi
+      // _adocCapabilities.workspace ne peut jamais être posé pour ces formats, capacité vidée de
+      // son effet malgré la condition de fmt déjà élargie).
+      const _storeKey = await adocDeliverArtifact({ markdown, html: htmlSrc, topic, fmt, citations, autoGenerate: true });
       // FIX-MULTIBLOCK-RENDER : scanner le reply pour TOUS les blocs HTML
       // Pipeline multi-Q : texte Q1-Q5 + HTML Q6 (xlsx) + texte Q7-Q9 + HTML Q10 (html-visual) + texte Q11-Q18
       if (plan?._multiPlan) {
@@ -3802,7 +3820,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
           adocAddMsg('assistant', _textOnly, citations);
         }
       }
-      return;
+      return _storeKey;
     }
 
     // ── Formats HTML-first : PDF, ZIP, HTML natif ──
@@ -4058,9 +4076,15 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       // les appels existants qui ignorent déjà cette valeur de retour.
     }
 
-    // Pour xlsx/docx/pptx : stocker le blobUrl HTML pour l'aperçu inline
+    // Pour xlsx/docx/pptx : stocker le blobUrl HTML pour l'aperçu inline, ET la chaîne HTML
+    // elle-même (art.html) — Item 76 : c'est ce même HTML riche, déjà généré par le modèle, que
+    // l'écran de travail affichera/éditera désormais pour ces formats (adocSanitizeLegacyHtmlForWorkspace
+    // attend une chaîne, jamais une URL de blob). Avant ce lot, seule l'URL de blob survivait —
+    // la chaîne était perdue, rendant tout écran de travail impossible même une fois la capacité
+    // accordée (cf. rapport d'investigation).
     if (html && (fmt === 'xlsx' || fmt === 'docx' || fmt === 'pptx')) {
       window._adocArtifacts[storeKey].htmlBlobUrl = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
+      window._adocArtifacts[storeKey].html = html;
     }
 
     // Afficher carte en état "génération en cours"
@@ -4072,6 +4096,11 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       if (fmt === 'pdf') {
         workerUrl = ADOC_WORKER + '/generate-pdf';
         body = { content: html, filename: safeName };
+        // Item 76 — retenir la chaîne HTML sur le chemin de SUCCÈS aussi (jusqu'ici seul le repli
+        // d'erreur pdf-fallback, ci-dessous dans le catch, la conservait) : ce HTML est déjà le
+        // document final envoyé au Worker, "print-ready" par consigne de prompt — l'écran de
+        // travail peut le réutiliser tel quel, sans rien régénérer.
+        window._adocArtifacts[storeKey].html = html;
 
       } else if (fmt === 'pptx') {
         workerUrl = ADOC_WORKER + '/generate-pptx';
@@ -4220,6 +4249,15 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
         adocUpdateArtifactCardError(storeKey, err.message);
       }
     }
+    // Item 76 — storeKey manquait ici (la fonction se terminait implicitement sans valeur pour
+    // TOUT le chemin binaire xlsx/docx/pptx/pdf/zip, succès comme échec) alors même qu'un
+    // commentaire déjà présent plus haut chez l'appelant ("Audit correctif, Partie B point 10")
+    // affirmait ce retour déjà réglé — il ne l'était que côté appelant (`return await
+    // adocDeliverArtifact(...)`), jamais côté callee. Sans ce retour, `_storeKey` valait toujours
+    // `undefined` dans adocFinalizeGeneration pour ces formats, rendant la capacité workspace
+    // impossible à poser quelle que soit la condition de fmt. `storeKey` reste valide même en cas
+    // d'échec (l'artefact existe déjà dans window._adocArtifacts, en état d'erreur affiché).
+    return storeKey;
   }
 
   // ── Affiche une carte artifact dans le chat ──
@@ -8404,6 +8442,11 @@ ${recent}`;
   function adocEditorMarkDirty() {
     const art=adocEditorArt();if(!art)return;
     art._ccEditorDirty=true;art._ccEditorRevision=(art._ccEditorRevision||0)+1;
+    // Item 76 (Option A) — _adocEverEdited, JAMAIS remis à false (contrairement à _ccEditorDirty,
+    // qui redevient false après un Enregistrer réussi, cf. adocWsSave) : sert uniquement à savoir
+    // si le fichier réel généré (xlsx/pptx/docx) a un jour cessé de refléter le contenu affiché —
+    // une fois vrai, ça le reste pour toujours pour CET artefact, même après sauvegarde.
+    art._adocEverEdited=true;
     adocUpdateSaveStatusUI(art);
   }
   function adocEditorStyleCompat(field,value) {
@@ -12025,6 +12068,23 @@ ${recent}`;
     if (!art || !art._adocCapabilities || !art._adocCapabilities.workspace) return;
     try {
       if (art._adocGenerationEngine === 'legacy-html') {
+        // Item 76 (Option A, décision produit actée) — un document d'origine xlsx/pptx/docx a un
+        // VRAI fichier déjà généré par le Worker (art.url), identique au HTML affiché TANT QU'AUCUNE
+        // MODIFICATION n'a été enregistrée dans l'écran de travail (_adocEverEdited, jamais remis à
+        // false) : "Exporter" rend alors ce vrai fichier, jamais une dégradation HTML sans raison
+        // d'être si rien n'a changé — même mécanisme exact que le bouton de téléchargement de la
+        // carte (data-action="download", adocShowArtifactCard ci-dessus), pas un nouveau chemin.
+        // Une fois modifié, ce fichier ne reflète plus le contenu affiché : "Exporter" bascule sur
+        // du HTML (seule sortie qui reste fidèle) — art.url reste accessible à part (bandeau
+        // cc-ws-legacy-banner-text, adocUpdateSaveStatusUI), jamais silencieusement remplacé par une
+        // fausse mise à jour du xlsx/pptx/docx réel (aucun mécanisme ne sait le régénérer).
+        const _ADOC_REAL_FILE_FMTS = ['xlsx', 'pptx', 'docx'];
+        if (!art._adocEverEdited && _ADOC_REAL_FILE_FMTS.includes(art.fmt) && art.url) {
+          const a = document.createElement('a');
+          a.href = art.url; a.download = (art.name || 'document') + '.' + art.fmt;
+          document.body.appendChild(a); a.click(); setTimeout(() => a.remove(), 1000);
+          return;
+        }
         // Audit correctif, Partie B point 12 — pas de re-rendu/QC pour ce moteur (HTML déjà
         // figé au moment du repli) : export = téléchargement direct, même mécanique de blob
         // que l'export du moteur structuré ci-dessous, factorisée (Priorité 4, audit systémique).
@@ -13264,6 +13324,26 @@ ${recent}`;
     if (saveBtn) {
       const label = saveBtn.querySelector('span');
       if (label) label.textContent = saved ? 'Enregistrer une nouvelle version' : 'Enregistrer';
+    }
+    // Item 76 (Option A, décision produit actée) — bandeau réactif au VRAI format d'origine
+    // (art.fmt, jamais réécrit par adocFinalizeGeneration) et à _adocEverEdited (jamais remis à
+    // false, contrairement à _ccEditorDirty). Appelé après CHAQUE édition (adocEditorMarkDirty),
+    // à l'ouverture (adocOpenWorkspace) et après chaque sauvegarde — le bandeau reflète donc
+    // toujours l'état réel sans jamais laisser croire que le fichier .xlsx/.pptx/.docx d'origine
+    // reflète encore le contenu affiché une fois modifié. `art.url` = le vrai fichier généré par
+    // le Worker à la génération (jamais régénéré par une édition dans l'écran de travail).
+    const bannerText = document.getElementById('cc-ws-legacy-banner-text');
+    if (bannerText && art && art._adocGenerationEngine === 'legacy-html') {
+      const _ADOC_REAL_FILE_LABELS = { xlsx: 'Excel (.xlsx)', pptx: 'PowerPoint (.pptx)', docx: 'Word (.docx)' };
+      const realLabel = _ADOC_REAL_FILE_LABELS[art.fmt];
+      if (realLabel && art.url) {
+        const link = '<a href="' + adocEsc(art.url) + '" download="' + adocEsc((art.name || 'document') + '.' + art.fmt) + '" style="color:inherit;text-decoration:underline;">fichier ' + realLabel + ' d’origine</a>';
+        bannerText.innerHTML = art._adocEverEdited
+          ? 'Ce document a été modifié depuis sa génération — « Exporter » livre désormais du HTML/PDF, seule sortie qui reflète fidèlement le contenu actuel. Le ' + link + ' (avant modification) reste disponible, mais ne reflète plus ces changements.'
+          : 'Aperçu HTML modifiable de ce document ' + realLabel + '. Tant qu’aucune modification n’est enregistrée, « Exporter » livre le ' + link + ' réel.';
+      } else {
+        bannerText.textContent = 'Document HTML : l’édition directe, la correction IA, l’enregistrement et l’export sont disponibles. Les citations ne disposent pas du contrôle fin du moteur structuré.';
+      }
     }
   }
 
