@@ -5413,20 +5413,10 @@ ${body}
   }
   const ADOC_WORKER = 'https://clone-proxy.11drumboy11.workers.dev';
 
-  // Conserver window.print pour PDF (inchangé — toujours utile)
-  function adocGeneratePDF(storeKey, btnEl) {
-    const art = window._adocArtifacts?.[storeKey];
-    if (!art) return;
-    const printCSS = '<style>@media print { @page { size: A4; margin: 15mm 18mm; } body { font-family: Arial, sans-serif; font-size: 11pt; } h1{font-size:20pt;} h2{font-size:15pt;} table{width:100%;border-collapse:collapse;} td,th{border:1px solid #ccc;padding:5pt;} .no-print{display:none!important;} }</style>'
-      + '<scr' + 'ipt>window.addEventListener("load",function(){var b=document.createElement("div");b.style.cssText="position:fixed;top:0;left:0;right:0;background:var(--petrol-950);color:white;padding:10px 20px;font-family:Arial;font-size:13px;display:flex;align-items:center;justify-content:space-between;z-index:9999;";b.innerHTML=\'<span>Fichier → Imprimer → <strong>Enregistrer en PDF</strong></span><button onclick="window.print()" style="background:var(--petrol-800);color:var(--ink);border:none;padding:6px 16px;border-radius:5px;font-weight:700;cursor:pointer;">Enregistrer PDF</button>\';document.body.insertBefore(b,document.body.firstChild);document.body.style.paddingTop="50px";});<\/script>';
-    const repairedHtml = adocRepairHTML(art.html);
-    const htmlWithPrint = repairedHtml.replace('</head>', printCSS + '</head>');
-    const blob = new Blob([htmlWithPrint], { type: 'text/html;charset=utf-8' });
-    const url  = URL.createObjectURL(blob);
-    const w    = window.open(url, '_blank');
-    if (!w) { const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.click(); }
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
-  }
+  // Item 63h — adocGeneratePDF (aucun appelant, confirmé par grep avant retrait) retiré : son
+  // mécanisme (CSS @page A4 15mm/18mm) est désormais celui réellement utilisé par le seul chemin
+  // PDF actif (/generate-pdf, Worker/index.js, handleGeneratePDF) — un seul mécanisme PDF au
+  // final, jamais deux en parallèle, cf. rapport Item 63h construction.
 
   window.adocClear = function() {
     if (!adocConversations.length || !confirm('Effacer la conversation ?')) return;

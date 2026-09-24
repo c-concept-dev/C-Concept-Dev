@@ -57338,6 +57338,20 @@ async function handleGeneratePDF(request2, env2) {
         },
         body: JSON.stringify({
           html: cleanedContent,
+          // Item 63h — format de page réel corrigé : sans cette clé, l'API Browser Rendering
+          // (wrapper direct de Puppeteer page.pdf()) retombe sur son défaut 'letter' (US), jamais
+          // A4 malgré la consigne de prompt "PDF — format A4" (une contrainte de LARGEUR DE
+          // CONTENU CSS, jamais une consigne de FORMAT DE PAGE transmise à l'API de rendu — écart
+          // mesuré par test réel, cf. rapport d'investigation Item 63h : MediaBox 612x792pt
+          // avant, 595.92x842.88pt après). Nom de champ et valeurs confirmés par la documentation
+          // officielle Cloudflare Browser Rendering (pdfOptions, wrapper direct des PDFOptions de
+          // leur fork Puppeteer) — jamais supposés. Marges reprises telles quelles du CSS
+          // `@page{size:A4;margin:15mm 18mm}` déjà écrit (correctement) dans le code mort
+          // `adocGeneratePDF` (désormais retiré, cf. plus bas) : 15mm haut/bas, 18mm gauche/droite.
+          pdfOptions: {
+            format: "a4",
+            margin: { top: "15mm", bottom: "15mm", left: "18mm", right: "18mm" }
+          },
           addStyleTag: [
             { content: "* { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }" },
             { url: "https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" },
