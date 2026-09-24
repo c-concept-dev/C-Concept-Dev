@@ -1700,6 +1700,12 @@
       border-radius: 3px; background: var(--terracotta-700); cursor: nwse-resize; display: none;
     }
     .adoc-sc-card.is-selected .adoc-sc-card-resize-handle { display: block; }
+    /* ITEM 75 — nettoyage de la dette (Sujet 1) — retour visuel transitoire pendant un geste de
+       glissement/redimensionnement qui créerait un chevauchement entre cartes (refusé, cf.
+       studio-clinique-core.js). Pointillé (jamais le même trait que .is-selected ci-dessus, plein)
+       pour rester distinguable au premier coup d'œil — même couleur (terracotta-700), déjà associée
+       à "attention" ailleurs dans l'app (bandeau legacy, notes de refus). Retiré au relâchement. */
+    .adoc-sc-card.adoc-sc-card-overlap-blocked { outline: 2px dashed var(--terracotta-700); outline-offset: 4px; }
     .cc-ws-doc-card.cc-ws-block-editable .adoc-sc-carrousel .adoc-sc-card { cursor: grab; }
     .cc-ws-doc-card.cc-ws-block-editable .adoc-sc-carrousel .adoc-sc-card:active { cursor: grabbing; }
     /* ITEM 75 Phase 2 (intra-carte) — ancre tout élément imbriqué positionné en absolu (posé en
@@ -3084,6 +3090,13 @@
     <button type="button" class="cc-ws-topbar-btn" id="cc-ws-export-pdf-carrousel-btn" onclick="window.adocWsExportCarrouselPDF()" aria-label="Exporter en PDF (une page par carte)" hidden>
       <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-file-pdf"></use></svg>
       <span>Exporter en PDF</span>
+    </button>
+    <!-- ITEM 75 — nettoyage de la dette (Sujet 2) — même patron EXACT que le bouton PDF ci-dessus
+         (visibilité, placement, mécanisme), déficit comblé : une carte = une diapositive, comme le
+         PDF déjà livré ; jamais un bouton pour tout autre documentKind. -->
+    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-export-pptx-carrousel-btn" onclick="window.adocWsExportCarrouselPPTX()" aria-label="Exporter en PPTX (une carte par diapositive)" hidden>
+      <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-file-pdf"></use></svg>
+      <span>Exporter en PPTX</span>
     </button>
     <button type="button" class="cc-ws-close" id="cc-ws-close-btn" onclick="window.adocCloseWorkspace()"
       aria-label="Fermer l'espace de travail et revenir à la conversation">

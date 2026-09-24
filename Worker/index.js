@@ -55472,6 +55472,12 @@ var Worker_default = {
     // (même mécanisme Cloudflare Browser Rendering, même compte, jamais un chemin séparé).
     if (p === "/browser-rendering/generate-carrousel-pdf" && request2.method === "POST")
       return handleGenerateCarrouselPDF(request2, env2);
+    // ITEM 75 — nettoyage de la dette (Sujet 2) — export PPTX pour Carrousel positionné, sur le
+    // modèle de la route PDF dédiée juste au-dessus (une carte = une diapositive), jamais le
+    // chemin LEGACY générique /generate-pptx (handleGeneratePPTX, inchangé) utilisé par tout
+    // autre document.
+    if (p === "/browser-rendering/generate-carrousel-pptx" && request2.method === "POST")
+      return handleGenerateCarrouselPPTX(request2, env2);
     if (p === "/generate-docx" && request2.method === "POST")
       return handleGenerateDOCX(request2, env2);
     if (p === "/generate-pptx" && request2.method === "POST")
@@ -57604,6 +57610,157 @@ async function handleGenerateCarrouselPDF(request2, env2) {
   return jsonErr(`Browser Rendering error after ${maxAttempts} tentatives: ${lastErr}`, 502);
 }
 __name(handleGenerateCarrouselPDF, "handleGenerateCarrouselPDF");
+
+// ═══════════════════════════════════════════════════════════════════
+// ITEM 75 — nettoyage de la dette (Sujet 2) — export PPTX pour Carrousel POSITIONNÉ (Item 75
+// Phase 1/2/3 : x/y/width/height/zIndex sur les cartes ET leurs éléments imbriqués), une carte =
+// une diapositive — même modèle déjà acté que l'export PDF dédié ci-dessus. MÊME SOURCE de
+// données que le PDF (card.style / nestedBlock.style, x/y/width/height/zIndex — jamais une
+// seconde extraction) : reçoit directement doc.blocks[] en JSON (le client l'envoie tel quel,
+// jamais du HTML à re-parser) — contrairement au chemin LEGACY générique /generate-pptx
+// (handleGeneratePPTX plus bas, adocParsePptxSlides côté client), qui reste STRICTEMENT INCHANGÉ
+// pour tout document qui n'est pas un Carrousel positionné : aucune ligne de handleGeneratePPTX
+// ni de son chemin d'appel n'est touchée par ce lot.
+//
+// PptxGenJS est déjà une dépendance du projet (Worker/package.json, déjà utilisée par
+// handleGeneratePPTX ci-dessous) — vérifié avant construction, aucune nouvelle dépendance
+// introduite (cf. rapport de lot).
+// ═══════════════════════════════════════════════════════════════════
+var ADOC_CARROUSEL_PPTX_PX_PER_INCH = 96;
+function adocPxToIn(px) {
+  return Number(px) / ADOC_CARROUSEL_PPTX_PX_PER_INCH;
+}
+// Même règle de tri que adocNestedBlocksSortedByLayer (studio-clinique-core.js, Item 75 Phase 2) —
+// zIndex croissant, égalité départagée par l'ordre du tableau. Dupliquée ici (Worker et client
+// sont deux runtimes séparés, aucun import possible entre eux dans cette architecture) : c'est
+// UNIQUEMENT ce comparateur de tri (3 lignes) qui est dupliqué, jamais un second mécanisme de
+// rendu — la même donnée source (card.content.blocks[].style.zIndex) gouverne les deux côtés.
+function adocPptxSortNestedByLayer(blocks) {
+  return (blocks || []).map(function(b, i) { return { b, i }; }).sort(function(A, B) {
+    const za = A.b.style && A.b.style.zIndex != null ? Number(A.b.style.zIndex) : 0;
+    const zb = B.b.style && B.b.style.zIndex != null ? Number(B.b.style.zIndex) : 0;
+    return za !== zb ? za - zb : A.i - B.i;
+  }).map(function(x) { return x.b; });
+}
+// Lecture directe du binding R2 (BRAND_ASSETS, même binding que handleBrandAssetGet ci-dessus) —
+// jamais un auto-fetch HTTP vers sa propre route /brand-assets/:id (accès direct au même stockage,
+// plus simple et plus robuste qu'un aller-retour réseau vers soi-même).
+async function adocResolvePptxImageDataUri(env2, assetId) {
+  if (!assetId || !env2.BRAND_ASSETS) return null;
+  try {
+    const object = await env2.BRAND_ASSETS.get(assetId);
+    if (!object) return null;
+    const buf = await object.arrayBuffer();
+    const mime = object.httpMetadata && object.httpMetadata.contentType || "image/jpeg";
+    const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+    return "data:" + mime + ";base64," + b64;
+  } catch {
+    return null;
+  }
+}
+// Un élément imbriqué SANS assetId réel (requête Pexels jamais résolue en fichier réel) n'a pas de
+// vraie image à embarquer — omis proprement, jamais un placeholder deviné (même principe que
+// adocRethemeLegacyHtml et consorts côté client : jamais inventer un contenu qui n'existe pas).
+async function adocRenderPptxNestedBlock(slide, prs, env2, block, box) {
+  const opts = { x: adocPxToIn(box.x), y: adocPxToIn(box.y), w: adocPxToIn(box.width), h: adocPxToIn(box.height) };
+  const c = block.content || {};
+  switch (block.type) {
+    case "heading":
+      slide.addText(String(c.text || ""), Object.assign({}, opts, { fontSize: c.level === 1 ? 22 : 17, bold: true, color: "102F31", fontFace: "Montserrat", valign: "top" }));
+      break;
+    case "paragraph":
+      slide.addText(String(c.text || ""), Object.assign({}, opts, { fontSize: 12, color: "273331", fontFace: "Montserrat", valign: "top" }));
+      break;
+    case "callout":
+      slide.addShape(prs.ShapeType.rect, Object.assign({}, opts, { fill: { color: "F6F2EA" }, line: { color: "1F5053", width: 1.5 } }));
+      slide.addText(String(c.text || ""), Object.assign({}, opts, { fontSize: 11, color: "273331", fontFace: "Montserrat", valign: "middle", margin: 6 }));
+      break;
+    case "quote":
+      slide.addText(String(c.text || ""), Object.assign({}, opts, { fontSize: 12, italic: true, color: "5D6966", fontFace: "Montserrat", valign: "top" }));
+      break;
+    case "list": {
+      const items = Array.isArray(c.items) ? c.items : [];
+      slide.addText(items.map(function(t) { return { text: String(t || ""), options: { bullet: true, fontSize: 11 } }; }),
+        Object.assign({}, opts, { color: "273331", fontFace: "Montserrat", valign: "top" }));
+      break;
+    }
+    case "image": {
+      const dataUri = await adocResolvePptxImageDataUri(env2, c.assetId);
+      if (dataUri) slide.addImage(Object.assign({}, opts, { data: dataUri }));
+      break;
+    }
+    default:
+      break; // "table" exclu des nestedBlock (block.schema.json), jamais atteint ici
+  }
+}
+__name(adocRenderPptxNestedBlock, "adocRenderPptxNestedBlock");
+async function handleGenerateCarrouselPPTX(request2, env2) {
+  let body;
+  try {
+    body = await request2.json();
+  } catch {
+    return jsonErr("Invalid JSON", 400);
+  }
+  const { cards, filename = "carrousel" } = body;
+  if (!Array.isArray(cards) || !cards.length)
+    return jsonErr("Missing cards array (doc.blocks[] du Carrousel, envoyé tel quel)", 400);
+  try {
+    const prs = new PptxGenJS();
+    // Même dimension que le canevas de positionnement (Item 75 Phase 1, 1024×768px) — réutilisée
+    // TELLE QUELLE, jamais une valeur distincte qui désynchroniserait édition et export (même
+    // principe déjà appliqué à l'export PDF dédié ci-dessus).
+    prs.defineLayout({ name: "ADOC_CARROUSEL_CANVAS", width: adocPxToIn(1024), height: adocPxToIn(768) });
+    prs.layout = "ADOC_CARROUSEL_CANVAS";
+    for (const card of cards) {
+      const s = prs.addSlide();
+      s.background = { color: "FFFFFF" };
+      // Boîte de la carte — position/taille réelles (Item 75 Phase 1) si positionnée, sinon repli
+      // identique au padding fixe de l'enveloppe PDF dédiée (adocBuildCarrouselPdfPagesHTML,
+      // .adoc-pdf-page{padding:24px}) — même comportement par défaut sur les deux exports, jamais
+      // deux conventions divergentes pour le même cas non positionné.
+      const cs = card.style || {};
+      const cardBox = {
+        x: cs.x != null ? Number(cs.x) : 24,
+        y: cs.y != null ? Number(cs.y) : 24,
+        width: cs.width != null ? Number(cs.width) : 1024 - 48,
+        height: cs.height != null ? Number(cs.height) : 768 - 48
+      };
+      s.addShape(prs.ShapeType.rect, {
+        x: adocPxToIn(cardBox.x), y: adocPxToIn(cardBox.y), w: adocPxToIn(cardBox.width), h: adocPxToIn(cardBox.height),
+        fill: { color: "FFFFFF" }, line: { color: "C9C3B8", width: 1 }
+      });
+      s.addText(card.content && card.content.title || "", {
+        x: adocPxToIn(cardBox.x + 8), y: adocPxToIn(cardBox.y + 6), w: adocPxToIn(cardBox.width - 16), h: 0.4,
+        fontSize: 18, bold: true, color: "102F31", fontFace: "Montserrat"
+      });
+      const nested = adocPptxSortNestedByLayer(card.content && card.content.blocks);
+      // Repli en flux vertical simple pour un élément SANS position explicite — cas résiduel,
+      // jamais le cas principal visé par ce lot (un Carrousel "positionné" a, par définition, des
+      // éléments dotés de x/y) : évite seulement de perdre silencieusement un bloc, jamais un vrai
+      // moteur de mise en page en flux comme en a le rendu HTML/écran.
+      let flowY = cardBox.y + 48;
+      for (const nb of nested) {
+        const ns = nb.style || {};
+        const hasPos = ns.x != null && ns.y != null && ns.width != null && ns.height != null;
+        // Coordonnées ABSOLUES sur le canevas = position de la carte + décalage RELATIF de
+        // l'élément à l'intérieur de sa carte — même référentiel que côté client
+        // (ctx.el.parentElement dans adocApplyCardPosition/onmousedown, studio-clinique-core.js),
+        // jamais une seconde convention inventée ici.
+        const box = hasPos
+          ? { x: cardBox.x + Number(ns.x), y: cardBox.y + Number(ns.y), width: Number(ns.width), height: Number(ns.height) }
+          : { x: cardBox.x + 12, y: flowY, width: cardBox.width - 24, height: 40 };
+        if (!hasPos) flowY += 46;
+        await adocRenderPptxNestedBlock(s, prs, env2, nb, box);
+      }
+    }
+    const buffer2 = await prs.write({ outputType: "arraybuffer" });
+    return await storeAndReturn(env2, buffer2, filename + ".pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation");
+  } catch (err2) {
+    return jsonErr("Carrousel PPTX generation failed: " + err2.message, 500);
+  }
+}
+__name(handleGenerateCarrouselPPTX, "handleGenerateCarrouselPPTX");
+
 async function handleGenerateDOCX(request2, env2) {
   let body;
   try {

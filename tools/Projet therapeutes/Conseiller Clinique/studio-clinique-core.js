@@ -7772,10 +7772,15 @@ ${recent}`;
   // (paramètre optionnel, défaut inchangé = comportement carte identique à avant ce lot).
   function adocBuildCardPositionPanelHTML(ariaLabel) {
     function number(field, label) { return '<label>' + label + '<input type="number" data-card-position="' + field + '" step="1"></label>'; }
+    // ITEM 75 — nettoyage de la dette (Sujet 1) — `.cc-editor-message` ajouté ici, MÊME classe/
+    // sélecteur déjà utilisés par adocEditorMessage() pour le panneau de style de bloc (ligne
+    // ~7498) : jamais un second mécanisme de message, adocEditorMessage() fonctionne déjà tel
+    // quel dès que cet élément existe dans N'IMPORTE QUEL .cc-block-edit-panel (sélecteur global,
+    // cf. son propre commentaire "0B précisé").
     return '<div class="cc-block-style-controls cc-editor-tools" role="group" aria-label="' + adocEsc(ariaLabel || 'Position et taille de cette carte') + '">' +
       '<div class="cc-editor-row">' + number('x', 'X (px)') + number('y', 'Y (px)') + '</div>' +
       '<div class="cc-editor-row">' + number('width', 'Largeur (px)') + number('height', 'Hauteur (px)') + '</div>' +
-    '</div>';
+    '</div><p class="cc-editor-message" role="status" aria-live="polite"></p>';
   }
   // ITEM 75 Phase 2 (intra-carte) — périmètre EXACT de nestedBlock (block.schema.json), vérifié
   // par lecture directe du schéma avant construction, jamais supposé : 6 types (table EXCLUE,
@@ -7816,6 +7821,26 @@ ${recent}`;
     const x = Math.max(0, Math.min(ADOC_CARD_CANVAS_WIDTH - width, Number(style.x)));
     const y = Math.max(0, Math.min(ADOC_CARD_CANVAS_HEIGHT - height, Number(style.y)));
     return Object.assign({}, style, { x: x, y: y, width: width, height: height });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // ITEM 75 — nettoyage de la dette (Sujet 1) — garde-fou anti-chevauchement ENTRE CARTES.
+  // Modèle déjà acté : "une carte = une diapositive", jamais de chevauchement voulu entre cartes —
+  // au contraire des éléments IMBRIQUÉS dans une carte, où le chevauchement reste délibérément
+  // permis (c'est le principe même des calques, Phase 2) : ce garde-fou ne s'applique donc QUE
+  // aux cartes entre elles, jamais aux nestedBlock (adocApplyCardPosition/onmousedown ci-dessous
+  // ne l'invoquent que dans leur branche `isCard`/`cardEl`, jamais dans la branche `nestedEl`).
+  // ═══════════════════════════════════════════════════════════════════════
+  // Test d'intersection de rectangles AABB classique, inégalités STRICTES : deux cartes dont un
+  // bord se touche exactement (x_a+largeur_a === x_b) ne sont PAS considérées en chevauchement —
+  // délibéré, pas un oubli : l'aimantation (Phase 3, ci-dessous) aligne précisément les bords des
+  // cartes entre elles, produisant très normalement des cartes bord-à-bord après un magnétisme —
+  // un garde-fou en inégalité large aurait combattu l'aimantation qu'il est censé compléter.
+  function adocRectsOverlap(a, b) {
+    return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+  }
+  function adocCardOverlapsSiblings(style, siblingRects) {
+    return siblingRects.some(function (r) { return adocRectsOverlap(style, r); });
   }
   // ITEM 75 Phase 2 (intra-carte) — jumelle PARAMÉTRÉE d'adocClampCardStyleToCanvas ci-dessus,
   // jamais une réutilisation telle quelle (investigation confirmée) : une carte est bornée à un
@@ -7948,8 +7973,27 @@ ${recent}`;
       width: current.width != null ? Number(current.width) : rect.width,
       height: current.height != null ? Number(current.height) : rect.height,
     };
+    // ITEM 75 — nettoyage de la dette (Sujet 1) — capturé AVANT d'appliquer le champ édité :
+    // sert de référence pour savoir si la carte était DÉJÀ chevauchante avant ce geste précis
+    // (cf. juste plus bas, même principe que la branche glissement/redimensionnement à la souris).
+    const beforeFieldEdit = Object.assign({}, effective);
     effective[field] = num;
     const clamped = isCard ? adocClampCardStyleToCanvas(effective) : adocClampNestedStyleToContainer(effective, containerRect.width, containerRect.height);
+    // ITEM 75 — nettoyage de la dette (Sujet 1) — garde-fou anti-chevauchement, CARTES SEULEMENT
+    // (jamais pour un élément imbriqué, cf. commentaire d'en-tête de adocRectsOverlap). Une carte
+    // DÉJÀ chevauchante avant ce champ précis (document existant antérieur à ce garde-fou, ou
+    // valeur tapée à la suite d'une autre déjà hors-règle) reste librement modifiable — le
+    // garde-fou ne bloque JAMAIS l'ouverture ni la correction d'un document existant, seulement la
+    // CRÉATION d'un chevauchement nouveau depuis une base saine (décision explicite, cf. rapport).
+    if (isCard) {
+      const siblingCardRects = Array.prototype.filter.call(ctx.el.parentElement.children, function (el) { return el !== ctx.el && el.classList.contains('adoc-sc-card'); })
+        .map(function (el) { const r = el.getBoundingClientRect(); return { x: r.left - containerRect.left, y: r.top - containerRect.top, width: r.width, height: r.height }; });
+      const alreadyOverlapping = adocCardOverlapsSiblings(beforeFieldEdit, siblingCardRects);
+      if (!alreadyOverlapping && adocCardOverlapsSiblings(clamped, siblingCardRects)) {
+        adocEditorMessage('Chevauchement refusé : une carte ne peut pas en recouvrir une autre.');
+        return;
+      }
+    }
     const style = Object.assign({}, ctx.block.style, clamped);
     ctx.block.style = style;
     adocApplyCardPositionToElement(ctx.el, style);
@@ -11996,6 +12040,10 @@ ${recent}`;
     // (même patron, jamais une seconde règle divergente).
     const exportPdfCarrouselBtn = document.getElementById('cc-ws-export-pdf-carrousel-btn');
     if (exportPdfCarrouselBtn) exportPdfCarrouselBtn.hidden = !(!isLegacy && docKind === 'carrousel');
+    // ITEM 75 — nettoyage de la dette (Sujet 2) — même condition de visibilité EXACTE que le
+    // bouton PDF ci-dessus (même patron, jamais une seconde règle divergente).
+    const exportPptxCarrouselBtn = document.getElementById('cc-ws-export-pptx-carrousel-btn');
+    if (exportPptxCarrouselBtn) exportPptxCarrouselBtn.hidden = !(!isLegacy && docKind === 'carrousel');
 
     // Statut calculé UNIQUEMENT à partir de ce que le pipeline existant sait déjà dire
     // (qc.blocking) — pas d'état "Brouillon" inventé : rien dans le pipeline actuel ne
@@ -12277,6 +12325,55 @@ ${recent}`;
     } catch (exportErr) {
       console.warn('[Export PDF Carrousel] échec:', exportErr && exportErr.message);
       alert('Impossible d\'exporter en PDF : ' + (exportErr && exportErr.message || 'erreur inconnue') + '.');
+    } finally {
+      if (btn) btn.disabled = false;
+      if (btnLabel && originalLabel) btnLabel.textContent = originalLabel;
+    }
+  };
+
+  // ITEM 75 — nettoyage de la dette (Sujet 2) — export PPTX pour Carrousel positionné. Aucune
+  // limite Cloudflare Browser Rendering ici (contrairement à l'export JPEG/PDF ci-dessus,
+  // adocFetchCarrouselSlideScreenshot/adocFetchCarrouselPdf) : PptxGenJS génère le fichier
+  // entièrement côté Worker sans appel à Browser Rendering, jamais d'attente à gérer. Envoie
+  // directement doc.blocks[] (JSON), jamais du HTML — même source de données que l'export PDF
+  // (card.style/nestedBlock.style), jamais une seconde extraction.
+  async function adocFetchCarrouselPptx(workerUrl, cards, filename) {
+    const workerUrlClean = workerUrl.replace(/\/+$/, '');
+    const r = await fetch(workerUrlClean + '/browser-rendering/generate-carrousel-pptx', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
+      body: JSON.stringify({ cards: cards, filename: filename })
+    });
+    if (!r.ok) throw new Error('Échec de génération du PPTX (' + r.status + ')');
+    return r.json(); // storeAndReturn — { id, url, url_preview, ... }, même convention que /generate-pptx
+  }
+
+  // Même garde-fou et même source (doc.blocks[] du Carrousel structuré) que l'export PDF dédié
+  // ci-dessus — jamais pour le Carrousel classique en flux (celui-ci reste sur l'export JPEG par
+  // diapositive, adocWsExportCarrouselJPEG, inchangé) ni pour un autre documentKind.
+  window.adocWsExportCarrouselPPTX = async function () {
+    adocEditorSync();
+    const storeKey = window._adocWsState.storeKey;
+    const art = window._adocArtifacts?.[storeKey];
+    if (!art || art._adocGenerationEngine === 'legacy-html') return;
+    const doc = art._adocStructuredDoc;
+    if (!doc || doc.documentKind !== 'carrousel' || !Array.isArray(doc.blocks) || !doc.blocks.length) return;
+    const btn = document.getElementById('cc-ws-export-pptx-carrousel-btn');
+    const btnLabel = btn?.querySelector('span');
+    const originalLabel = btnLabel?.textContent;
+    if (btn) btn.disabled = true;
+    if (btnLabel) btnLabel.textContent = 'Export en cours…';
+    try {
+      const workerUrl = adocGetWorkerUrl();
+      const filename = (art.name || doc.title || 'carrousel');
+      const data = await adocFetchCarrouselPptx(workerUrl, doc.blocks, filename);
+      // Même mécanisme de téléchargement que le fichier réel d'un artefact xlsx/pptx/docx (Item
+      // 76, adocWsExport) — un <a> créé et cliqué, jamais un second mécanisme de téléchargement.
+      const a = document.createElement('a');
+      a.href = data.url; a.download = filename + '.pptx';
+      document.body.appendChild(a); a.click(); a.remove();
+    } catch (exportErr) {
+      console.warn('[Export PPTX Carrousel] échec:', exportErr && exportErr.message);
+      alert('Impossible d\'exporter en PPTX : ' + (exportErr && exportErr.message || 'erreur inconnue') + '.');
     } finally {
       if (btn) btn.disabled = false;
       if (btnLabel && originalLabel) btnLabel.textContent = originalLabel;
@@ -12902,6 +12999,11 @@ ${recent}`;
       // carte ne bouge pendant ce geste).
       const cardSiblingRects = Array.prototype.filter.call(cardEl.parentElement.children, function (el) { return el !== cardEl && el.classList.contains('adoc-sc-card'); })
         .map(function (el) { const r = el.getBoundingClientRect(); return { x: r.left - containerRect.left, y: r.top - containerRect.top, width: r.width, height: r.height }; });
+      // ITEM 75 — nettoyage de la dette (Sujet 1) — capturé UNE SEULE FOIS au mousedown (même
+      // rectangles de référence que cardSiblingRects, jamais recalculés à chaque tick) : sert à
+      // savoir si CETTE carte était déjà chevauchante avant ce geste (document existant antérieur
+      // à ce garde-fou) — cf. juste plus bas dans onMove pour la décision que ça implique.
+      const startOverlapping = adocCardOverlapsSiblings({ x: startX, y: startY, width: startW, height: startH }, cardSiblingRects);
       let moved = false, checkpointed = false;
       function selectCard() {
         const current = window._adocBlockEditState;
@@ -12944,7 +13046,21 @@ ${recent}`;
         // Bornage (Item 75 Phase 1 complément) — clampé à CHAQUE tick, jamais seulement au
         // relâchement : l'aperçu en direct doit refléter l'arrêt au bord du canevas pendant le
         // geste lui-même, pas seulement une fois le bouton de la souris relâché.
-        block.style = adocClampCardStyleToCanvas(newStyle);
+        const clampedStyle = adocClampCardStyleToCanvas(newStyle);
+        // ITEM 75 — nettoyage de la dette (Sujet 1) — garde-fou anti-chevauchement ENTRE CARTES,
+        // vérifié à CHAQUE tick (même principe que le bornage canevas ci-dessus), CARTES SEULEMENT
+        // (jamais pour un nestedBlock, cf. en-tête d'adocRectsOverlap). `startOverlapping` (capturé
+        // au mousedown) laisse une carte DÉJÀ chevauchante avant ce geste librement déplaçable —
+        // le garde-fou ne bloque jamais l'ouverture ni la correction d'un document existant,
+        // seulement la CRÉATION d'un chevauchement nouveau depuis une position saine (décision
+        // explicite, cf. rapport). Un tick refusé fige la carte à sa DERNIÈRE position valide
+        // (block.style inchangé) : elle cesse simplement de suivre le curseur dans la direction
+        // qui créerait le chevauchement, jamais un saut ailleurs — retour visuel via la classe
+        // CSS ci-dessous (studio-clinique.html), retirée au relâchement (onUp).
+        const wouldOverlap = !startOverlapping && adocCardOverlapsSiblings(clampedStyle, cardSiblingRects);
+        cardEl.classList.toggle('adoc-sc-card-overlap-blocked', wouldOverlap);
+        if (wouldOverlap) return;
+        block.style = clampedStyle;
         adocApplyCardPositionToElement(cardEl, block.style);
         adocEditorRefreshCardPositionControls();
         adocEditorSync(); adocEditorMarkDirty();
@@ -12953,6 +13069,7 @@ ${recent}`;
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
         adocRemoveAlignGuides(cardEl.parentElement);
+        cardEl.classList.remove('adoc-sc-card-overlap-blocked');
         if (!moved) selectCard(); // clic normal, sans glissement réel — ouvre quand même le panneau (non-régression demandée)
       }
       document.addEventListener('mousemove', onMove);
