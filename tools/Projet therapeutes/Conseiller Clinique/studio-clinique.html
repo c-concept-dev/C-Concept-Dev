@@ -1608,6 +1608,18 @@
     .adoc-sc-table-el { border-collapse: collapse; width: 100%; font-size: 13px; }
     .adoc-sc-table-el th, .adoc-sc-table-el td { border: 1px solid var(--adoc-sc-table-border, var(--stone-300)); padding: 6px 10px; text-align: left; }
     .adoc-sc-table-el th { background: var(--adoc-sc-table-header-bg, var(--petrol-100)); color: var(--adoc-sc-table-header-color, var(--petrol-950)); }
+    /* ITEM 63c — grille éditable xlsx (écran de travail), même gabarit visuel que .adoc-sc-table-el
+       (jamais un second style de tableau) — cellules contenteditable (mécanisme legacy générique
+       existant) reçoivent un léger indice visuel au survol/focus, la ligne de section reprend le
+       zébrage déjà utilisé par l'export Worker (vertSauge/deep, cf. handleGenerateXLSX). */
+    .cc-xlsx-grid { border-collapse: collapse; width: 100%; font-size: 13px; margin-bottom: 1em; }
+    .cc-xlsx-grid th, .cc-xlsx-grid td { border: 1px solid var(--stone-300); padding: 6px 10px; text-align: left; }
+    .cc-xlsx-grid th { background: var(--petrol-100); color: var(--petrol-950); }
+    .cc-xlsx-grid td:hover, .cc-xlsx-grid th:hover { outline: 1px dashed var(--petrol-800); outline-offset: -1px; }
+    .cc-xlsx-grid-section td { background: var(--vert-sauge, #c9c3b8); color: var(--petrol-950); font-weight: 700; }
+    .cc-xlsx-readonly { margin: 0 0 1em; padding: 10px 14px; border: 1px solid var(--stone-300); border-radius: 8px; background: var(--sable); font-size: 13px; }
+    .cc-xlsx-readonly-heading { font-weight: 700; color: var(--petrol-950); margin-bottom: 6px; }
+    .cc-xlsx-readonly-text { color: var(--text); margin-bottom: 4px; }
     .adoc-sc-cite-note { font-size: 11px; color: var(--muted); margin-top: 4px; }
     .adoc-sc-quote {
       border-left: 3px solid var(--adoc-sc-quote-border, var(--terracotta-700)); padding-left: 12px;

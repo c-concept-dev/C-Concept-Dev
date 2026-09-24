@@ -4053,6 +4053,53 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     return { rows: filteredRows, sections: reindexedSections };
   }
 
+  // ITEM 63c — construit les feuilles ExcelJS (principale + Résumé/Légende/Notes dérivées) depuis
+  // la structure xlsx-data — SOURCE UNIQUE, réutilisée par la génération initiale (adocDeliverArtifact,
+  // ci-dessous) ET par la régénération réelle après édition dans la grille (adocWsExport) : jamais
+  // une seconde implémentation de ce mapping, jamais une divergence entre les deux.
+  function adocBuildXlsxSheetsFromData(mainSheetName, xlsxData) {
+    const headers = xlsxData.headers, rows = xlsxData.rows;
+    const sections = xlsxData.sections, columnSummaries = xlsxData.columnSummaries, legend = xlsxData.legend, notes = xlsxData.notes;
+    const sheets = [{ name: String(mainSheetName || 'Feuille 1').substring(0, 30), headers, rows, sections: (sections && sections.length) ? sections : undefined }];
+    if (columnSummaries && columnSummaries.length) {
+      sheets.push({
+        name: 'Résumé des approches',
+        headers: ['Approche', 'Tagline', 'Description'],
+        rows: columnSummaries.map(c => [c.header || '', c.tagline || '', c.description || '']),
+      });
+    }
+    if (legend && legend.length) {
+      sheets.push({
+        name: 'Légende',
+        headers: ['Repère', 'Signification'],
+        rows: legend.map(l => [l.symbol || '', l.label || '']),
+      });
+    }
+    if (notes && notes.length) {
+      sheets.push({
+        name: 'Notes cliniques',
+        headers: ['Titre', 'Contenu'],
+        rows: notes.map(n => [n.title || '', n.text || '']),
+      });
+    }
+    return sheets;
+  }
+
+  // ITEM 63c — régénère un VRAI fichier .xlsx à jour depuis la grille éditée (art.xlsxData), via
+  // la MÊME route Worker /generate-xlsx, INCHANGÉE (cf. rapport d'investigation : son contrat
+  // d'entrée {sheets:[{name,headers,rows,sections}]} est déjà exactement celui que produit
+  // adocBuildXlsxSheetsFromData) — jamais un second chemin de génération.
+  async function adocFetchRegeneratedXlsx(workerUrl, xlsxData, filename) {
+    const sheets = adocBuildXlsxSheetsFromData(filename, xlsxData);
+    const workerUrlClean = workerUrl.replace(/\/+$/, '');
+    const r = await fetch(workerUrlClean + '/generate-xlsx', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
+      body: JSON.stringify({ content: { sheets: sheets }, filename: filename }),
+    });
+    if (!r.ok) throw new Error('Échec de régénération du xlsx (' + r.status + ')');
+    return r.json(); // storeAndReturn — { id, url, url_preview, ... }, même convention que /generate-xlsx initial
+  }
+
   async function adocDeliverArtifact({ html, markdown, topic, fmt, citations, autoGenerate }) {
     const meta = ARTIFACT_META[fmt] || ARTIFACT_META.html;
     const safeName = (topic || 'document')
@@ -4138,41 +4185,28 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
         if (sections?.length) {
           ({ rows, sections } = adocFilterGhostSectionRows(rows, sections));
         }
+        // ITEM 63c — structure COMPLÈTE retenue désormais (jamais tronquée : avant ce lot,
+        // seules 6 lignes survivaient dans art.xlsxData, jamais relues nulle part — un état
+        // mort, cf. rapport d'investigation). C'est cette MÊME structure, jamais une seconde
+        // extraction, qui alimente à la fois la génération initiale ci-dessous ET la grille
+        // éditable de l'écran de travail (Item 76) + sa régénération réelle après édition
+        // (adocWsExport, adocBuildXlsxSheetsFromData).
+        window._adocArtifacts[storeKey].xlsxData = { headers, rows, sections, columnSummaries, legend, notes };
         // FIX-XLSX-DETTE : taglines/descriptions par approche, légende de lecture et
         // regroupement en sections existaient déjà côté modèle (visibles dans le rendu HTML)
         // mais étaient perdus à l'export xlsx (headers/rows bruts uniquement) — vraie perte
         // d'information de synthèse, pas une différence de style acceptable. Ces trois
         // éléments deviennent des feuilles/zones dédiées, adaptées au format tableur plutôt
-        // qu'un copier-coller du HTML (une puce Unicode remplace les points de couleur).
-        const sheets = [{ name: topic.substring(0, 30), headers, rows, sections: sections || undefined }];
-        if (columnSummaries?.length) {
-          sheets.push({
-            name: 'Résumé des approches',
-            headers: ['Approche', 'Tagline', 'Description'],
-            rows: columnSummaries.map(c => [c.header || '', c.tagline || '', c.description || '']),
-          });
-        }
-        if (legend?.length) {
-          sheets.push({
-            name: 'Légende',
-            headers: ['Repère', 'Signification'],
-            rows: legend.map(l => [l.symbol || '', l.label || '']),
-          });
-        }
-        // Item 67 Partie A — même patron que "Résumé des approches"/"Légende" ci-dessus : une
-        // feuille dédiée, jamais un nouveau mécanisme de rendu (handleGenerateXLSX construit déjà
-        // n'importe quelle feuille headers/rows générique, aucun changement Worker nécessaire).
-        if (notes?.length) {
-          sheets.push({
-            name: 'Notes cliniques',
-            headers: ['Titre', 'Contenu'],
-            rows: notes.map(n => [n.title || '', n.text || '']),
-          });
-        }
+        // qu'un copier-coller du HTML (une puce Unicode remplace les points de couleur) —
+        // construction déplacée dans adocBuildXlsxSheetsFromData (Item 63c, réutilisée par la
+        // régénération après édition, jamais une seconde implémentation).
+        const sheets = adocBuildXlsxSheetsFromData(topic, window._adocArtifacts[storeKey].xlsxData);
         // Item 67 Partie B — filet de sécurité : couvre ce que la Partie A pourrait quand même
         // rater (modèle qui omet de dupliquer un encadré dans `notes`). Jamais un blocage de
         // l'export (Option C explicitement écartée par Christophe) — un simple signal honnête,
-        // en première feuille pour être vu immédiatement à l'ouverture du fichier.
+        // en première feuille pour être vu immédiatement à l'ouverture du fichier. Comparaison
+        // au corps HTML d'ORIGINE uniquement (génération initiale) — n'a plus de sens après une
+        // édition dans la grille (Item 63c), où art.html n'est plus la référence.
         if (adocDetectXlsxNarrativeGap(html, { legend, columnSummaries, sections, notes })) {
           sheets.unshift({
             name: '⚠ Avertissement',
@@ -4181,7 +4215,6 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
           });
         }
         body = { content: { sheets }, filename: safeName };
-        window._adocArtifacts[storeKey].xlsxData = { headers, rows: rows.slice(0, 6), sections, columnSummaries, legend, notes };
 
       } else if (fmt === 'docx') {
         workerUrl = ADOC_WORKER + '/generate-docx';
@@ -7415,7 +7448,82 @@ ${recent}`;
   // adocEditorSyncStructured (jamais à sa place) : les deux visitent des éléments disjoints
   // (.adoc-sc-block vs bannière/titre de carte), un seul point d'appel reste la garantie que
   // toute frappe (input/compositionend, cf. adocEditorInstall) synchronise TOUT vers le doc.
-  function adocEditorSync() { const art = adocEditorArt(); if (!art) return; if (art._adocStructuredDoc) { adocEditorSyncStructured(art); adocSyncEditedRootFieldsToDoc(art); } else adocEditorSyncLegacy(art); }
+  // ITEM 63c — grille éditable pour un document xlsx (Item 76, moteur legacy-html) : rendu
+  // DÉTERMINISTE depuis art.xlsxData (jamais le corps HTML éventuellement écrit par le modèle
+  // pour ce format, non garanti par contrat — cf. rapport d'investigation, seul xlsx-data l'est).
+  // Cellules non pré-enveloppées ici : le mécanisme legacy générique déjà existant
+  // (adocEditorPrepare, branche TABLE) les enveloppe lui-même en feuilles contenteditable
+  // (.cc-legacy-edit-text[data-cc-editor-leaf]) exactement comme pour un <table> écrit par le
+  // modèle — jamais une seconde implémentation de ce câblage.
+  function adocXlsxGridNormalize(xlsxData) {
+    const headers = Array.isArray(xlsxData.headers) ? xlsxData.headers.slice() : [];
+    const rowsIn = Array.isArray(xlsxData.rows) ? xlsxData.rows : [];
+    let nCols = headers.length;
+    rowsIn.forEach(function (r) { if (Array.isArray(r) && r.length > nCols) nCols = r.length; });
+    nCols = Math.max(1, nCols);
+    while (headers.length < nCols) headers.push('');
+    const rows = rowsIn.map(function (r) {
+      const row = (Array.isArray(r) ? r : []).slice();
+      while (row.length < nCols) row.push('');
+      return row;
+    });
+    return { headers: headers, rows: rows, nCols: nCols };
+  }
+  function adocBuildXlsxGridHTML(xlsxData) {
+    const norm = adocXlsxGridNormalize(xlsxData);
+    const sections = Array.isArray(xlsxData.sections) ? xlsxData.sections : [];
+    const sectionByStartRow = new Map(
+      sections.filter(function (s) { return s && typeof s.startRow === 'number' && s.title; })
+        .map(function (s) { return [s.startRow, s.title]; })
+    );
+    const headHtml = '<tr>' + norm.headers.map(function (h) { return '<th>' + adocEsc(h) + '</th>'; }).join('') + '</tr>';
+    let bodyHtml = '';
+    norm.rows.forEach(function (row, ri) {
+      if (sectionByStartRow.has(ri)) {
+        bodyHtml += '<tr class="cc-xlsx-grid-section"><td colspan="' + norm.nCols + '">' + adocEsc(sectionByStartRow.get(ri)) + '</td></tr>';
+      }
+      bodyHtml += '<tr data-cc-xlsx-row="' + ri + '">' + row.map(function (v) { return '<td>' + adocEsc(v) + '</td>'; }).join('') + '</tr>';
+    });
+    return '<table class="cc-xlsx-grid" data-cc-xlsx-grid="1"><thead>' + headHtml + '</thead><tbody>' + bodyHtml + '</tbody></table>';
+  }
+  // columnSummaries/legend/notes — décision de Christophe pour ce lot : préservés tels quels
+  // (jamais perdus à l'édition/export) mais LECTURE SEULE, jamais rendus éditables. Rendus en
+  // <div> (jamais h1-h6/p/table, qui rejoindraient ADOC_LEGACY_BLOCK_SELECTOR et deviendraient
+  // par erreur des blocs "corrigeables" par le mécanisme générique IA — un vrai risque d'édition
+  // non voulue, pas seulement un choix cosmétique).
+  function adocBuildXlsxReadOnlyExtrasHTML(xlsxData) {
+    let html = '';
+    if (Array.isArray(xlsxData.columnSummaries) && xlsxData.columnSummaries.length) {
+      html += '<div class="cc-xlsx-readonly"><div class="cc-xlsx-readonly-heading">Résumé des approches (lecture seule)</div>' +
+        xlsxData.columnSummaries.map(function (c) { return '<div class="cc-xlsx-readonly-text"><strong>' + adocEsc(c.header || '') + '</strong> — ' + adocEsc(c.tagline || '') + ' : ' + adocEsc(c.description || '') + '</div>'; }).join('') + '</div>';
+    }
+    if (Array.isArray(xlsxData.legend) && xlsxData.legend.length) {
+      html += '<div class="cc-xlsx-readonly"><div class="cc-xlsx-readonly-heading">Légende (lecture seule)</div>' +
+        xlsxData.legend.map(function (l) { return '<div class="cc-xlsx-readonly-text">' + adocEsc(l.symbol || '') + ' — ' + adocEsc(l.label || '') + '</div>'; }).join('') + '</div>';
+    }
+    if (Array.isArray(xlsxData.notes) && xlsxData.notes.length) {
+      html += '<div class="cc-xlsx-readonly"><div class="cc-xlsx-readonly-heading">Notes cliniques (lecture seule)</div>' +
+        xlsxData.notes.map(function (n) { return '<div class="cc-xlsx-readonly-text"><strong>' + adocEsc(n.title || '') + '</strong> — ' + adocEsc(n.text || '') + '</div>'; }).join('') + '</div>';
+    }
+    return html;
+  }
+  // Synchronise la grille EN DIRECT (table[data-cc-xlsx-grid]) vers art.xlsxData — même patron de
+  // lecture que adocEditorSyncStructured (branche 'table' ci-dessus), jamais une seconde
+  // convention de lecture de tableau.
+  function adocEditorSyncXlsxGrid(art) {
+    if (!art || art.fmt !== 'xlsx' || !art.xlsxData) return;
+    const table = document.querySelector('#cc-ws-doc-card table[data-cc-xlsx-grid]');
+    if (!table || !table.tHead || !table.tHead.rows.length) return;
+    art.xlsxData.headers = Array.prototype.map.call(table.tHead.rows[0].cells, function (c) { return (c.textContent || '').trim(); });
+    const rows = [];
+    Array.prototype.forEach.call((table.tBodies[0] ? table.tBodies[0].rows : []), function (tr) {
+      if (!tr.hasAttribute('data-cc-xlsx-row')) return; // ligne de titre de section — jamais une ligne de données
+      const idx = Number(tr.getAttribute('data-cc-xlsx-row'));
+      rows[idx] = Array.prototype.map.call(tr.cells, function (c) { return (c.textContent || '').trim(); });
+    });
+    art.xlsxData.rows = rows;
+  }
+  function adocEditorSync() { const art = adocEditorArt(); if (!art) return; if (art._adocStructuredDoc) { adocEditorSyncStructured(art); adocSyncEditedRootFieldsToDoc(art); } else { adocEditorSyncLegacy(art); adocEditorSyncXlsxGrid(art); } }
   function adocEditorPrepare(root, legacy) {
     if (legacy) adocWsCollectLegacyBlocks(root).forEach(function (el) {
       function wrap(container) {
@@ -11985,6 +12093,13 @@ ${recent}`;
       // Codex A7 — assaini ICI, juste avant affichage (jamais art.html lui-même, cf. commentaire
       // d'adocSanitizeLegacyHtmlForWorkspace ci-dessus).
       renderedHtml = adocSanitizeLegacyHtmlForWorkspace(art.html || '');
+      // ITEM 63c — pour un document xlsx, REMPLACE le corps par notre propre grille déterministe
+      // (jamais le corps HTML éventuel du modèle pour ce format précis, cf. rapport
+      // d'investigation) : seule art.xlsxData est un contrat fiable. columnSummaries/legend/notes
+      // restent visibles mais en lecture seule (décision de Christophe, ce lot).
+      if (art.fmt === 'xlsx' && art.xlsxData && Array.isArray(art.xlsxData.headers) && art.xlsxData.headers.length) {
+        renderedHtml = adocBuildXlsxGridHTML(art.xlsxData) + adocBuildXlsxReadOnlyExtrasHTML(art.xlsxData);
+      }
       qcBlockingCount = 0; // pas de concept de QC bloquant pour ce moteur — jamais un état inventé
     } else {
       try {
@@ -12123,9 +12238,32 @@ ${recent}`;
           document.body.appendChild(a); a.click(); setTimeout(() => a.remove(), 1000);
           return;
         }
+        // ITEM 63c — décision de Christophe pour ce lot : un xlsx édité dans la grille RÉGÉNÈRE
+        // réellement le fichier .xlsx à jour (jamais la dégradation HTML Option A ci-dessous),
+        // possible ICI SEULEMENT parce que l'édition porte sur une structure JSON contrainte et
+        // déterministe (art.xlsxData), déjà exactement le contrat que consomme /generate-xlsx —
+        // jamais possible pour pptx/docx (HTML libre, aucune structure équivalente, cf. rapport
+        // d'investigation) : ceux-ci restent strictement sur l'Option A, inchangée ci-dessous.
+        if (art.fmt === 'xlsx' && art._adocEverEdited && art.xlsxData && Array.isArray(art.xlsxData.headers) && art.xlsxData.headers.length) {
+          try {
+            const workerUrl = adocGetWorkerUrl();
+            const data = await adocFetchRegeneratedXlsx(workerUrl, art.xlsxData, art.name || 'document');
+            art.url = data.url; art.url_preview = data.url_preview;
+            adocUpdateSaveStatusUI(art); // bandeau à jour immédiatement (nouveau art.url)
+            const a = document.createElement('a');
+            a.href = art.url; a.download = (art.name || 'document') + '.xlsx';
+            document.body.appendChild(a); a.click(); setTimeout(() => a.remove(), 1000);
+          } catch (xlsxErr) {
+            console.warn('[Export xlsx] régénération échouée:', xlsxErr && xlsxErr.message);
+            alert('Impossible de régénérer le fichier xlsx : ' + (xlsxErr && xlsxErr.message || 'erreur inconnue') + '.');
+          }
+          return;
+        }
         // Audit correctif, Partie B point 12 — pas de re-rendu/QC pour ce moteur (HTML déjà
         // figé au moment du repli) : export = téléchargement direct, même mécanique de blob
         // que l'export du moteur structuré ci-dessous, factorisée (Priorité 4, audit systémique).
+        // Reste le repli pour pptx/docx édités (Option A, inchangée) et pour un xlsx édité sans
+        // xlsxData exploitable (garde-fou, cas résiduel).
         adocDownloadArtifact(new Blob([art.html || ''], { type: 'text/html;charset=utf-8' }), (art.name || 'document') + '.html');
         return;
       }
@@ -13445,8 +13583,14 @@ ${recent}`;
       const realLabel = _ADOC_REAL_FILE_LABELS[art.fmt];
       if (realLabel && art.url) {
         const link = '<a href="' + adocEsc(art.url) + '" download="' + adocEsc((art.name || 'document') + '.' + art.fmt) + '" style="color:inherit;text-decoration:underline;">fichier ' + realLabel + ' d’origine</a>';
+        // ITEM 63c — xlsx édité : plus de mention de dégradation HTML pour ce format précis
+        // (jamais vraie depuis ce lot) — remplacée par la confirmation que l'export régénère
+        // réellement le fichier .xlsx à jour (cf. adocWsExport, adocFetchRegeneratedXlsx).
+        const isXlsxRegenerable = art.fmt === 'xlsx' && !!(art.xlsxData && Array.isArray(art.xlsxData.headers) && art.xlsxData.headers.length);
         bannerText.innerHTML = art._adocEverEdited
-          ? 'Ce document a été modifié depuis sa génération — « Exporter » livre désormais du HTML/PDF, seule sortie qui reflète fidèlement le contenu actuel. Le ' + link + ' (avant modification) reste disponible, mais ne reflète plus ces changements.'
+          ? (isXlsxRegenerable
+              ? 'Ce document a été modifié depuis sa génération — « Exporter » régénère un fichier ' + realLabel + ' réel et à jour avec vos modifications.'
+              : 'Ce document a été modifié depuis sa génération — « Exporter » livre désormais du HTML/PDF, seule sortie qui reflète fidèlement le contenu actuel. Le ' + link + ' (avant modification) reste disponible, mais ne reflète plus ces changements.')
           : 'Aperçu HTML modifiable de ce document ' + realLabel + '. Tant qu’aucune modification n’est enregistrée, « Exporter » livre le ' + link + ' réel.';
       } else {
         bannerText.textContent = 'Document HTML : l’édition directe, la correction IA, l’enregistrement et l’export sont disponibles. Les citations ne disposent pas du contrôle fin du moteur structuré.';
@@ -13535,6 +13679,14 @@ ${recent}`;
     if (/^h[1-6]$/.test(tag)) return 'heading';
     if (tag === 'blockquote') return 'quote';
     if (tag === 'ul' || tag === 'ol') return 'list';
+    // ITEM 63c — la grille déterministe rendue pour un document xlsx (marqueur data-cc-xlsx-grid,
+    // posé exclusivement par adocBuildXlsxGridHTML) est un <table> comme un autre pour
+    // ADOC_LEGACY_BLOCK_SELECTOR/adocWsCollectLegacyBlocks (même sélection/indexation, jamais
+    // dupliquée) — seul son PANNEAU diffère (ajout/suppression de ligne/colonne, jamais la
+    // correction IA générique, dénuée de sens pour une cellule de tableur). Aucune autre table
+    // (docx/pptx/tout autre document legacy) ne porte jamais cet attribut : comportement
+    // 'table' générique strictement inchangé pour elles.
+    if (tag === 'table' && el.hasAttribute('data-cc-xlsx-grid')) return 'xlsx-grid';
     if (tag === 'table') return 'table';
     if (el.matches('[role="note"],.callout,.encadre')) return 'callout';
     if (tag === 'td' || tag === 'th') return 'cell';
@@ -13576,7 +13728,115 @@ ${recent}`;
   // isolée n'a jamais de position "avant/après" sensée pour un bloc indépendant (l'insérer y
   // casserait la structure <tr>/<table> — jamais de correction de tableau ENTIER non plus dans
   // Phase 1, ce n'est donc pas une régression de périmètre mais sa continuité).
+  // ITEM 63c — panneau dédié à la grille xlsx : ajout/suppression de ligne/colonne (geste
+  // explicite demandé), même patron visuel que le panneau générique ci-dessous
+  // (cc-clarity-card/cc-block-edit-panel/cc-clarity-reply-btn) mais AUCUN bouton de correction IA
+  // (rewrite/shorten/expand n'ont aucun sens pour une cellule de tableur) — bifurcation immédiate
+  // dans adocBuildLegacyBlockEditPanelHTML, jamais mêlée aux branchements génériques ci-dessous.
+  function adocBuildXlsxGridPanelHTML() {
+    return '<div class="cc-clarity-question sc-icon-label">' + adocIconSvg('icon-clarify') + '<span>Grille éditable</span></div>' +
+      '<div class="cc-block-edit-controls" style="display:flex;flex-wrap:wrap;gap:8px;">' +
+        '<button type="button" class="cc-clarity-reply-btn" onclick="window.adocXlsxGridAddRow()">+ Ligne</button>' +
+        '<button type="button" class="cc-clarity-reply-btn" onclick="window.adocXlsxGridRemoveRow()">− Ligne</button>' +
+        '<button type="button" class="cc-clarity-reply-btn" onclick="window.adocXlsxGridAddColumn()">+ Colonne</button>' +
+        '<button type="button" class="cc-clarity-reply-btn" onclick="window.adocXlsxGridRemoveColumn()">− Colonne</button>' +
+      '</div>' +
+      '<p class="cc-editor-message" role="status" aria-live="polite"></p>';
+  }
+  // ITEM 63c — la cellule "active" pour une opération ligne/colonne est celle du dernier
+  // data-cc-editor-leaf focalisé (_adocEditorLeaf, déjà tenu à jour par adocEditorInstall à
+  // chaque focusin, cf. plus haut) — jamais un second suivi de sélection dédié à la grille.
+  function adocXlsxGridFocusedCell() {
+    return _adocEditorLeaf ? _adocEditorLeaf.closest('td,th') : null;
+  }
+  // Reconstruit la grille affichée depuis art.xlsxData (source unique, après une opération
+  // ligne/colonne) puis replace le focus sur la cellule ciblée. La table d'origine étant
+  // remplacée (table.replaceWith), son ancienne référence (_adocLegacyBlockEditState.el) est
+  // explicitement ré-ancrée sur la nouvelle ICI — jamais laissée pointer vers un nœud détaché
+  // (adocEditorContext() vérifie el.isConnected ailleurs) — et la classe visuelle is-selected
+  // reposée directement (le clic normal l'aurait fait, mais la sélection reste inchangée ici,
+  // aucun nouveau clic n'étant émis vers ce même bloc).
+  function adocXlsxGridRerenderAndFocus(art, focusRow, focusCol) {
+    const table = document.querySelector('#cc-ws-doc-card table[data-cc-xlsx-grid]');
+    if (!table) return;
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = adocBuildXlsxGridHTML(art.xlsxData);
+    const fresh = wrapper.firstElementChild;
+    table.replaceWith(fresh);
+    adocWsSetupLegacyBlockEditing(art);
+    fresh.classList.add('is-selected');
+    const st = window._adocLegacyBlockEditState;
+    if (st && st.kind === 'xlsx-grid') st.el = fresh;
+    const rowEl = fresh.querySelector('tr[data-cc-xlsx-row="' + focusRow + '"]') || fresh.querySelector('tbody tr[data-cc-xlsx-row]');
+    const cellEl = rowEl && (rowEl.cells[focusCol] || rowEl.cells[0]);
+    const leaf = cellEl && cellEl.querySelector('[data-cc-editor-leaf]');
+    if (leaf) leaf.focus();
+  }
+  // ITEM 63c — ajout/suppression de ligne/colonne, geste EXPLICITE (boutons dédiés du panneau
+  // grille) — jamais une action implicite au clavier. Opère sur art.xlsxData (source unique),
+  // puis reconstruit l'affichage depuis cette même donnée — jamais une manipulation DOM
+  // divergente de l'état conservé.
+  window.adocXlsxGridAddRow = function () {
+    const art = adocEditorArt(); if (!art || !art.xlsxData) return;
+    adocEditorSync();
+    const norm = adocXlsxGridNormalize(art.xlsxData);
+    const cell = adocXlsxGridFocusedCell();
+    const tr = cell && cell.closest('tr[data-cc-xlsx-row]');
+    const at = tr ? Number(tr.getAttribute('data-cc-xlsx-row')) + 1 : norm.rows.length;
+    const col = cell ? cell.cellIndex : 0;
+    norm.rows.splice(at, 0, new Array(norm.nCols).fill(''));
+    (art.xlsxData.sections || []).forEach(function (s) { if (s && typeof s.startRow === 'number' && s.startRow >= at) s.startRow += 1; });
+    art.xlsxData.headers = norm.headers; art.xlsxData.rows = norm.rows;
+    adocEditorMarkDirty();
+    adocXlsxGridRerenderAndFocus(art, at, col);
+  };
+  window.adocXlsxGridRemoveRow = function () {
+    const art = adocEditorArt(); if (!art || !art.xlsxData) return;
+    adocEditorSync();
+    const norm = adocXlsxGridNormalize(art.xlsxData);
+    if (norm.rows.length <= 1) { adocEditorMessage('Impossible de supprimer la dernière ligne.'); return; }
+    const cell = adocXlsxGridFocusedCell();
+    const tr = cell && cell.closest('tr[data-cc-xlsx-row]');
+    const at = tr ? Number(tr.getAttribute('data-cc-xlsx-row')) : norm.rows.length - 1;
+    const col = cell ? cell.cellIndex : 0;
+    norm.rows.splice(at, 1);
+    (art.xlsxData.sections || []).forEach(function (s) { if (s && typeof s.startRow === 'number' && s.startRow > at) s.startRow -= 1; });
+    art.xlsxData.headers = norm.headers; art.xlsxData.rows = norm.rows;
+    adocEditorMarkDirty();
+    adocXlsxGridRerenderAndFocus(art, Math.min(at, norm.rows.length - 1), col);
+  };
+  window.adocXlsxGridAddColumn = function () {
+    const art = adocEditorArt(); if (!art || !art.xlsxData) return;
+    adocEditorSync();
+    const norm = adocXlsxGridNormalize(art.xlsxData);
+    const cell = adocXlsxGridFocusedCell();
+    const tr = cell && cell.closest('tr[data-cc-xlsx-row]');
+    const row = tr ? Number(tr.getAttribute('data-cc-xlsx-row')) : 0;
+    const at = cell ? cell.cellIndex + 1 : norm.nCols;
+    norm.headers.splice(at, 0, '');
+    norm.rows.forEach(function (r) { r.splice(at, 0, ''); });
+    art.xlsxData.headers = norm.headers; art.xlsxData.rows = norm.rows;
+    adocEditorMarkDirty();
+    adocXlsxGridRerenderAndFocus(art, row, at);
+  };
+  window.adocXlsxGridRemoveColumn = function () {
+    const art = adocEditorArt(); if (!art || !art.xlsxData) return;
+    adocEditorSync();
+    const norm = adocXlsxGridNormalize(art.xlsxData);
+    if (norm.nCols <= 1) { adocEditorMessage('Impossible de supprimer la dernière colonne.'); return; }
+    const cell = adocXlsxGridFocusedCell();
+    const tr = cell && cell.closest('tr[data-cc-xlsx-row]');
+    const row = tr ? Number(tr.getAttribute('data-cc-xlsx-row')) : 0;
+    const at = cell ? cell.cellIndex : norm.nCols - 1;
+    const newNCols = norm.nCols - 1;
+    norm.headers.splice(at, 1);
+    norm.rows.forEach(function (r) { r.splice(at, 1); });
+    art.xlsxData.headers = norm.headers; art.xlsxData.rows = norm.rows;
+    adocEditorMarkDirty();
+    adocXlsxGridRerenderAndFocus(art, row, Math.min(at, newNCols - 1));
+  };
   function adocBuildLegacyBlockEditPanelHTML(kind) {
+    if (kind === 'xlsx-grid') return adocBuildXlsxGridPanelHTML();
     const btn = function (key) {
       return '<button type="button" class="cc-clarity-reply-btn" onclick="window.adocRequestLegacyBlockCorrectionByIntent(\'' + key + '\')">' +
         adocEsc(ADOC_BLOCK_EDIT_INTENTS[key].label) + '</button>';
