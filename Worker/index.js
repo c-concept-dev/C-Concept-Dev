@@ -55672,6 +55672,9 @@ var Worker_default = {
     const mediaAssetUseMatch = p.match(/^\/media-assets\/([a-f0-9]{64})\/use$/);
     if (mediaAssetUseMatch && request2.method === "POST")
       return handleMediaAssetUse(env2, mediaAssetUseMatch[1]);
+    const mediaAssetIdMatch = p.match(/^\/media-assets\/([a-f0-9]{64})$/);
+    if (mediaAssetIdMatch && request2.method === "DELETE")
+      return handleMediaAssetDelete(env2, mediaAssetIdMatch[1]);
     // Audit systémique (Priorité 8.7) — CONFIRMÉ : tout POST non reconnu par une route explicite
     // ci-dessus tombait silencieusement dans handleAnthropicProxy, tentant un appel LLM réel
     // avec un corps qui ne lui était pas destiné. Le seul appel légitime au proxy Anthropic est
@@ -56411,6 +56414,30 @@ async function handleMediaAssetsList(env2) {
   }
 }
 __name(handleMediaAssetsList, "handleMediaAssetsList");
+
+// Panneau "Médias" — suppression réelle (D1 + R2 ensemble, jamais l'un sans l'autre, pour éviter
+// un objet R2 orphelin ou une ligne D1 sans fichier réel). La route qui sert ces images aujourd'hui
+// est GET /brand-assets/:sha256 (handleBrandAssetGet ci-dessous, confirmé par lecture de code —
+// jamais /get-file/, qui sert CLONE_KV, un espace de stockage différent) : supprimer la ligne D1
+// et l'objet R2 associé (même clé, asset_id === r2_key, cf. handleBrandAssetUpload) rend cette
+// route 404 pour cet asset précis, dans tout document déjà sauvegardé qui le référencerait — image
+// cassée à l'affichage, comportement attendu, pas une régression de ce lot (cf. rapport).
+// ref_count > 0 ne bloque JAMAIS la suppression (Christophe reste seul juge) : signalé dans la
+// réponse pour que le client avertisse clairement avant de confirmer le geste.
+async function handleMediaAssetDelete(env2, assetId) {
+  if (!env2.DB) return jsonErr("D1 not configured", 500);
+  if (!env2.BRAND_ASSETS) return jsonErr("R2 binding BRAND_ASSETS not configured", 500);
+  const row = await env2.DB.prepare("SELECT asset_id, r2_key, ref_count FROM render_assets WHERE asset_id = ? AND role = 'image'").bind(assetId).first();
+  if (!row) return jsonErr("Media asset not found", 404);
+  try {
+    await env2.BRAND_ASSETS.delete(row.r2_key);
+    await env2.DB.prepare("DELETE FROM render_assets WHERE asset_id = ?").bind(assetId).run();
+    return json({ deleted: true, wasInUse: row.ref_count > 0, refCount: row.ref_count });
+  } catch (err2) {
+    return jsonErr(err2.message, 500);
+  }
+}
+__name(handleMediaAssetDelete, "handleMediaAssetDelete");
 
 // LOT C (Studio Clinique) — sert les octets d'un asset déjà uploadé (handleBrandAssetUpload
 // ci-dessus). assetId déjà validé par le routeur (^[a-f0-9]{64}$, l'empreinte SHA-256 elle-même

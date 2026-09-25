@@ -13731,10 +13731,18 @@ ${recent}`;
       // Obligation des conditions Pexels — attribution jamais retirée ni minimisée, un simple
       // texte discret sous la vignette suffit (décision de Christophe, cf. rapport d'investigation).
       const creditLine = credit ? ('Photo : ' + credit + ' — Pexels') : 'Pexels';
-      return '<div class="cc-media-item">' +
+      // "Effacer" — UNIQUEMENT sur l'historique (kind==='history') : un résultat de recherche
+      // n'est pas encore persisté tant que "Insérer" n'a pas été cliqué, rien à effacer côté serveur.
+      const deleteBtn = kind === 'history'
+        ? '<button type="button" class="cc-media-delete-btn" data-media-history-delete="' + i + '" onclick="event.stopPropagation();window.adocMediaDeleteFromHistory(' + i + ')" title="Effacer">Effacer</button>'
+        : '';
+      return '<div class="cc-media-item" data-media-item-' + kind + '="' + i + '">' +
         '<img class="cc-media-thumb" src="' + adocEsc(thumb) + '" alt="' + adocEsc(item.alt || credit || 'Image') + '" loading="lazy">' +
         '<p class="cc-media-credit">' + adocEsc(creditLine) + '</p>' +
-        '<button type="button" class="cc-media-insert-btn" data-media-' + kind + '-insert="' + i + '" onclick="window.' + insertFn + '(' + i + ')">Insérer</button>' +
+        '<div class="cc-media-actions">' +
+          '<button type="button" class="cc-media-insert-btn" data-media-' + kind + '-insert="' + i + '" onclick="window.' + insertFn + '(' + i + ')">Insérer</button>' +
+          deleteBtn +
+        '</div>' +
       '</div>';
     }).join('');
   }
@@ -13841,6 +13849,37 @@ ${recent}`;
     } catch (e) {
       alert('Insertion impossible : ' + e.message);
       if (btn) { btn.disabled = false; btn.textContent = 'Insérer'; }
+    }
+  };
+
+  // Suppression réelle (D1 + R2, cf. rapport de lot) — UNIQUEMENT depuis l'historique "Déjà
+  // utilisées" (jamais un résultat de recherche, pas encore persisté). Message renforcé si
+  // ref_count > 0 (déjà utilisée dans au moins un document enregistré) — la suppression reste
+  // possible (Christophe seul juge), jamais bloquée. Retrait immédiat de la vignette après succès,
+  // sans attendre un rechargement complet de la liste.
+  window.adocMediaDeleteFromHistory = async function (idx) {
+    const item = window._adocMediaHistoryResults && window._adocMediaHistoryResults[idx];
+    if (!item) return;
+    const confirmMsg = item.ref_count > 0
+      ? 'Cette image est utilisée dans au moins un document déjà enregistré — la supprimer la fera disparaître de ces documents. Continuer ?'
+      : 'Supprimer cette image ?';
+    if (!confirm(confirmMsg)) return;
+    const btn = document.querySelector('[data-media-history-delete="' + idx + '"]');
+    if (btn) { btn.disabled = true; btn.textContent = 'Suppression…'; }
+    try {
+      const res = await fetch(adocGetWorkerUrl() + '/media-assets/' + item.asset_id, {
+        method: 'DELETE', headers: { 'X-API-Key': adocGetApiKey() },
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const el = document.querySelector('[data-media-item-history="' + idx + '"]');
+      if (el) el.remove();
+      // Jamais un .filter() ici : ré-indexerait les items restants et désynchroniserait leurs
+      // boutons déjà rendus (data-media-history-*="i" pointeraient vers le mauvais item sans un
+      // nouveau rendu complet). Un simple trou (null) laisse chaque item déjà affiché intact.
+      window._adocMediaHistoryResults[idx] = null;
+    } catch (e) {
+      alert('Suppression impossible : ' + e.message);
+      if (btn) { btn.disabled = false; btn.textContent = 'Effacer'; }
     }
   };
 
