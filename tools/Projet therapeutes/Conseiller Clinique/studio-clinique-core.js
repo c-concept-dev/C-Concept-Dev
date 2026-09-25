@@ -12392,7 +12392,7 @@ ${recent}`;
       window._adocPreviewState = { documentId: documentId, art: art };
       if (titleEl) titleEl.textContent = art.name || 'Document';
       cardEl.innerHTML = renderedHtml;
-      adocPreviewDecorateTopLevelBlocks(cardEl);
+      adocPreviewDecorateBlocks(cardEl);
       return true;
     } catch (e) {
       cardEl.innerHTML = '<p class="cc-ws-empty">Aperçu impossible : ' + adocEsc(e && e.message || 'erreur inconnue') + '.</p>';
@@ -12402,68 +12402,163 @@ ${recent}`;
   };
 
   // Décoration APRÈS rendu, jamais dans adocRenderBlockHTML lui-même (qui sert aussi le document A
-  // principal — un bouton "Copier" y apparaîtrait à tort). Limite actée (décision 3, ce lot) :
-  // UNIQUEMENT les .adoc-sc-block ENFANTS DIRECTS de cardEl — exclut par construction la bannière
-  // (.adoc-sc-cover, un <div> séparé, jamais .adoc-sc-block) ET tout bloc imbriqué dans une carte
-  // Carrousel (.adoc-sc-card, jamais un enfant direct de cardEl) — cohérent avec la restriction
-  // déjà en place pour Item 63f (jamais une deuxième règle divergente).
-  function adocPreviewDecorateTopLevelBlocks(cardEl) {
-    // Correctif (test réel) — cardEl (#cc-preview-doc-card) n'a qu'UN SEUL enfant direct après le
-    // rendu : le conteneur racine du document (.adoc-sc-doc, quel que soit son type — fiche,
-    // carrousel, etc.), jamais les blocs eux-mêmes directement. Les .adoc-sc-block "premier niveau"
-    // sont enfants DIRECTS de CE conteneur, jamais de cardEl — même repère que le glisser-déposer
-    // Item 63f, qui résout toujours le parent réel du bloc, jamais #cc-ws-doc-card lui-même.
-    const container = cardEl.querySelector('.adoc-sc-doc') || cardEl;
-    const topBlocks = Array.prototype.filter.call(container.children, function (el) {
-      return el.classList && el.classList.contains('adoc-sc-block');
-    });
-    topBlocks.forEach(function (el) {
+  // principal — un bouton "Copier" y apparaîtrait à tort). Fusion Phase 1 (levée de la restriction
+  // "premier niveau uniquement", actée par Christophe) — décore désormais TOUS les .adoc-sc-block
+  // de B, qu'ils soient au premier niveau OU imbriqués dans une carte Carrousel
+  // (querySelectorAll descend dans tout l'arbre, contrairement au filtrage sur les seuls enfants
+  // directs utilisé jusqu'ici). Exclut TOUJOURS, par construction et sans code dédié, la bannière
+  // (.adoc-sc-cover, un <div> séparé, jamais .adoc-sc-block) et les cartes elles-mêmes
+  // (.adoc-sc-card, jamais .adoc-sc-block) — une carte reste structurellement non copiable, cohérent
+  // avec sa réservation à la racine d'un document Carrousel (cardOnlyBlock, cf. schéma).
+  function adocPreviewDecorateBlocks(cardEl) {
+    const allBlocks = Array.prototype.slice.call(cardEl.querySelectorAll('.adoc-sc-block'));
+    allBlocks.forEach(function (el) {
       const row = document.createElement('div');
       row.className = 'cc-preview-copy-row';
       row.innerHTML = '<button type="button" class="cc-preview-copy-btn" data-preview-copy-block="' + adocEsc(el.id) + '">Copier vers le document</button>';
       el.insertAdjacentElement('afterend', row);
     });
     cardEl.querySelectorAll('.cc-preview-copy-btn').forEach(function (btn) {
-      btn.addEventListener('click', function () { window.adocPreviewCopyBlock(btn.getAttribute('data-preview-copy-block')); });
+      btn.addEventListener('click', function () { window.adocPreviewRequestCopy(btn.getAttribute('data-preview-copy-block')); });
     });
   }
 
-  // Clic "Copier vers le document" — clone profond (décision 2 : une image copiée garde son
-  // assetId déjà persisté tel quel, aucun nouvel upload, jamais modifié ici), nouvel id RELATIF AU
-  // DOCUMENT A (adocNextBlockId, déjà existante — zéro connaissance de B nécessaire), citations
-  // retirées (décision 1 : citationId numéroté par document, cf. investigation — quasi certain que
-  // A et B partagent les mêmes "citation-1"/"citation-2" sans rapport l'un avec l'autre ; le texte
-  // reste, redevient un paragraphe non sourcé), ajouté en FIN de docA.blocks, reflet immédiat via
-  // adocOpenWorkspace (déjà existante, jamais une resynchronisation DOM manuelle inventée ici).
-  window.adocPreviewCopyBlock = async function (blockId) {
+  // ═══════════════════════════════════════════════════════════════════════
+  // Fusion Phase 1 — choix du point de dépôt dans A. RÉUTILISE la ligne visuelle déjà construite
+  // pour le glisser-déposer de réordonnancement (.adoc-sc-drop-line, Item 63f), jamais un second
+  // élément inventé — une classe additive (.cc-fusion-drop-target, cf. CSS) la rend cliquable ICI.
+  // Un seul dépôt en attente à la fois (jamais de sélection multiple, décision actée) : cliquer un
+  // AUTRE bouton "Copier" de B annule silencieusement le précédent choix en cours ; recliquer LE
+  // MÊME bouton annule explicitement.
+  // ═══════════════════════════════════════════════════════════════════════
+  window._adocFusionPendingCopy = null;
+
+  function adocFusionClearDropTargets() {
+    document.querySelectorAll('.cc-fusion-drop-target').forEach(function (el) { el.remove(); });
+  }
+
+  function adocFusionCancelPending() {
+    const pending = window._adocFusionPendingCopy;
+    adocFusionClearDropTargets();
+    if (pending && pending.btn) { pending.btn.classList.remove('cc-preview-copy-btn-picking'); pending.btn.disabled = false; pending.btn.textContent = 'Copier vers le document'; }
+    window._adocFusionPendingCopy = null;
+  }
+
+  function adocFusionBuildDropLine(anchorBlockId, position) {
+    const line = document.createElement('div');
+    line.className = 'adoc-sc-drop-line cc-fusion-drop-target';
+    line.dataset.fusionAnchor = anchorBlockId;
+    line.dataset.fusionPosition = position;
+    line.title = 'Insérer ici';
+    line.addEventListener('click', function () { window.adocFusionCommitDrop(anchorBlockId, position); });
+    return line;
+  }
+
+  // Un point de dépôt avant le premier bloc et un après chacun des N blocs de CHAQUE conteneur
+  // (racine du document A, et le contenu de chaque carte Carrousel de A) — exactement N+1
+  // positions valides par conteneur, chacune ancrée sur un bloc RÉEL déjà présent (jamais un
+  // conteneur totalement vide, cas dégénéré ignoré pour ce lot — sans empêcher le dépôt dans les
+  // autres conteneurs non vides).
+  function adocFusionShowDropTargets(docCardEl) {
+    const containers = [];
+    const rootEl = docCardEl.querySelector('.adoc-sc-doc');
+    if (rootEl) containers.push(rootEl);
+    Array.prototype.forEach.call(docCardEl.querySelectorAll('.adoc-sc-card'), function (c) { containers.push(c); });
+    containers.forEach(function (container) {
+      const blocks = Array.prototype.filter.call(container.children, function (el) { return el.classList.contains('adoc-sc-block'); });
+      if (!blocks.length) return;
+      container.insertBefore(adocFusionBuildDropLine(blocks[0].id, 'before'), blocks[0]);
+      blocks.forEach(function (b) {
+        const line = adocFusionBuildDropLine(b.id, 'after');
+        if (b.nextSibling) container.insertBefore(line, b.nextSibling); else container.appendChild(line);
+      });
+    });
+  }
+
+  // Clic "Copier vers le document" — Phase 1 : n'ajoute plus JAMAIS directement en fin de document,
+  // ouvre le choix du point de dépôt dans A (cf. adocFusionCommitDrop ci-dessous).
+  window.adocPreviewRequestCopy = function (blockId) {
     const preview = window._adocPreviewState;
     if (!preview || !preview.art || preview.art._adocGenerationEngine !== 'structured') return;
     const docB = preview.art._adocStructuredDoc;
-    const blockB = (docB.blocks || []).find(function (b) { return b.id === blockId; });
+    // adocEditorBlockContainer résout déjà, de façon générique et récursive, le tableau exact
+    // contenant ce bloc — racine de B OU card.content.blocks imbriqué — jamais une seconde
+    // résolution de conteneur ici (même fonction qu'Item 64/l'insertion de bloc par type).
+    const siblingsB = adocEditorBlockContainer(docB, blockId);
+    const blockB = siblingsB && siblingsB.find(function (b) { return b.id === blockId; });
     if (!blockB) return;
+    const btn = document.querySelector('.cc-preview-copy-btn[data-preview-copy-block="' + blockId.replace(/"/g, '\\"') + '"]');
+    const already = window._adocFusionPendingCopy;
+    adocFusionCancelPending();
+    if (already && already.blockId === blockId) return; // second clic sur le MÊME bouton = annulation
+    const docCardEl = document.getElementById('cc-ws-doc-card');
+    if (!docCardEl) return;
+    window._adocFusionPendingCopy = { blockId: blockId, blockB: blockB, btn: btn };
+    // JAMAIS disabled ici — le bouton doit rester cliquable pour permettre le second clic
+    // "recliquer LE MÊME bouton = annulation" (un bouton désactivé ne reçoit plus aucun clic).
+    if (btn) { btn.classList.add('cc-preview-copy-btn-picking'); btn.textContent = 'Choisir l’emplacement dans le document…'; }
+    adocFusionShowDropTargets(docCardEl);
+  };
+
+  // Compatibilité type de bloc / conteneur cible (point 3 du CDC), vérifiée AVANT tout dépôt.
+  // ADOC_NESTED_POSITIONABLE_TYPES (Item 75, déjà existante) délimite EXACTEMENT le périmètre
+  // nestedBlock du schéma (table et card exclus) — réutilisée telle quelle, jamais une seconde
+  // liste divergente.
+  function adocFusionCanDropBlockType(targetDoc, targetSiblings, blockType) {
+    if (targetSiblings === targetDoc.blocks) {
+      // Racine du document cible — un Carrousel n'y accepte QUE des cartes (cardOnlyBlock), jamais
+      // un bloc éditorial ; les autres documentKind (editorialBlock) acceptent tous les types
+      // copiables ici (jamais 'card', structurellement inatteignable en source : les cartes ne
+      // portent jamais .adoc-sc-block, donc jamais de bouton "Copier").
+      return targetDoc.documentKind !== 'carrousel';
+    }
+    return ADOC_NESTED_POSITIONABLE_TYPES.indexOf(blockType) !== -1;
+  }
+
+  // Clic sur un point de dépôt — résout le conteneur CIBLE via adocEditorBlockContainer (même
+  // fonction, jamais une seconde résolution, appliquée cette fois côté A), vérifie la compatibilité
+  // AVANT tout dépôt, clone profond (décision 2 : une image copiée garde son assetId déjà persisté
+  // tel quel, aucun nouvel upload) + nouvel id RELATIF À A (adocNextBlockId) + citations retirées
+  // (décision 1, inchangée — Phase 3 séparée) + insertion à l'INDEX EXACT choisi, reflet immédiat.
+  window.adocFusionCommitDrop = async function (anchorBlockId, position) {
+    const pending = window._adocFusionPendingCopy;
+    if (!pending) return;
     const storeKeyA = window._adocWsState.storeKey;
     const artA = window._adocArtifacts && window._adocArtifacts[storeKeyA];
-    if (!artA || !artA._adocStructuredDoc) { alert('Aucun document ouvert pour recevoir ce bloc — ouvrez ou générez d’abord un document.'); return; }
+    if (!artA || !artA._adocStructuredDoc) { adocFusionCancelPending(); alert('Aucun document ouvert pour recevoir ce bloc — ouvrez ou générez d’abord un document.'); return; }
     const docA = artA._adocStructuredDoc;
-    const btn = document.querySelector('.cc-preview-copy-btn[data-preview-copy-block="' + blockId.replace(/"/g, '\\"') + '"]');
-    if (btn) { btn.disabled = true; btn.textContent = 'Copie…'; }
+    const siblingsA = adocEditorBlockContainer(docA, anchorBlockId);
+    if (!siblingsA) { adocFusionCancelPending(); return; }
+    if (!adocFusionCanDropBlockType(docA, siblingsA, pending.blockB.type)) {
+      adocFusionCancelPending();
+      alert('Impossible d’insérer ce bloc à cet emplacement : un bloc de type « ' + pending.blockB.type + ' » n’y est pas autorisé.');
+      return;
+    }
+    const anchorIdx = siblingsA.findIndex(function (b) { return b.id === anchorBlockId; });
+    if (anchorIdx === -1) { adocFusionCancelPending(); return; }
+    const insertIdx = position === 'after' ? anchorIdx + 1 : anchorIdx;
     try {
-      const clone = JSON.parse(JSON.stringify(blockB));
+      const clone = JSON.parse(JSON.stringify(pending.blockB));
       clone.id = adocNextBlockId(docA, clone.type);
       delete clone.citationIds;
       if (clone.validation) delete clone.validation.citationLinks;
-      docA.blocks.push(clone);
+      siblingsA.splice(insertIdx, 0, clone);
+      adocFusionClearDropTargets();
       const opened = await window.adocOpenWorkspace(storeKeyA);
-      if (btn) { btn.textContent = opened ? 'Copié ✓' : 'Copier vers le document'; btn.disabled = !!opened; }
+      if (pending.btn) { pending.btn.classList.remove('cc-preview-copy-btn-picking'); pending.btn.textContent = opened ? 'Copié ✓' : 'Copier vers le document'; pending.btn.disabled = !!opened; }
+      window._adocFusionPendingCopy = null;
     } catch (e) {
+      window._adocFusionPendingCopy = null;
       alert('Copie impossible : ' + (e && e.message || 'erreur inconnue') + '.');
-      if (btn) { btn.disabled = false; btn.textContent = 'Copier vers le document'; }
+      if (pending.btn) { pending.btn.classList.remove('cc-preview-copy-btn-picking'); pending.btn.disabled = false; pending.btn.textContent = 'Copier vers le document'; }
     }
   };
 
   // "Fermer l'aperçu" — EXPLICITE uniquement (décision actée : jamais de fermeture au clic
-  // extérieur, pour ne pas perdre une session de copie multi-blocs en cours).
+  // extérieur, pour ne pas perdre une session de copie multi-blocs en cours). Annule aussi tout
+  // choix de point de dépôt resté en attente (jamais des lignes de dépôt orphelines dans A).
   window.adocPreviewClose = function () {
+    adocFusionCancelPending();
     const panel = document.getElementById('cc-preview-panel');
     if (panel) panel.hidden = true;
     const cardEl = document.getElementById('cc-preview-doc-card');

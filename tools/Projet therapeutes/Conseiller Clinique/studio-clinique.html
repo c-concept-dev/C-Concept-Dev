@@ -2441,9 +2441,10 @@
 .cc-preview-close-btn:hover { border-color: var(--terracotta-700); color: var(--terracotta-700); }
 .cc-preview-body { flex: 1; padding: 16px; }
 .cc-preview-body .cc-ws-doc-card { max-width: none; }
-/* Bouton ajouté APRÈS chaque bloc de premier niveau (jamais imbriqué dans une card Carrousel —
-   cf. adocPreviewDecorateTopLevelBlocks, restriction cohérente avec Item 63f). Discret : cette
-   consultation n'est pas l'action principale de l'écran. */
+/* Bouton ajouté APRÈS chaque bloc de B (Fusion Phase 1 — premier niveau ET imbriqué dans une
+   carte Carrousel, cf. adocPreviewDecorateBlocks ; les cartes elles-mêmes restent structurellement
+   exclues, jamais .adoc-sc-block). Discret : cette consultation n'est pas l'action principale de
+   l'écran. */
 .cc-preview-copy-row { margin: -10px 0 16px; }
 .cc-preview-copy-btn {
   font: inherit; font-size: 11px; font-weight: 600; padding: 4px 10px; border: 1px solid var(--stone-300);
@@ -2451,6 +2452,15 @@
 }
 .cc-preview-copy-btn:hover:not(:disabled) { border-color: var(--petrol-800); }
 .cc-preview-copy-btn:disabled { opacity: .6; cursor: default; }
+/* Fusion Phase 1 — état "choix du point de dépôt en cours" : jamais [disabled] (le bouton doit
+   rester cliquable pour permettre l'annulation par un second clic), une classe visuelle suffit. */
+.cc-preview-copy-btn.cc-preview-copy-btn-picking { background: var(--terracotta-100); border-color: var(--terracotta-700); color: var(--terracotta-700); }
+/* Fusion Phase 1 — choix du point de dépôt dans A : RÉUTILISE .adoc-sc-drop-line telle quelle
+   (même ligne visuelle que le glisser-déposer Item 63f, jamais un second élément inventé) ; cette
+   classe additive la rend cliquable ICI SEULEMENT (pointer-events:none reste la règle de base,
+   nécessaire pendant un glissement réel où la ligne ne doit jamais intercepter les événements). */
+.cc-fusion-drop-target { pointer-events: auto; cursor: pointer; margin: 4px 0; transition: height .1s, background .1s; }
+.cc-fusion-drop-target:hover { height: 6px; background: var(--petrol-800); }
 @media (max-width: 980px) {
   .cc-preview-panel:not([hidden]) {
     position: fixed; top: 49px; bottom: 0; right: 0; z-index: 20; width: 92vw; max-width: 420px;
