@@ -2050,7 +2050,13 @@
     }
     .cc-drag-edge-hover::before { opacity: 1; }
     .cc-drag-ghost {
-      position: fixed; pointer-events: none; z-index: 9999; opacity: .85;
+      /* CORRECTIF (mesure réelle) — le clone conserve sa classe d'origine .adoc-sc-block, dont une
+         règle plus spécifique (ex. .cc-ws-doc-card.cc-ws-block-editable .adoc-sc-block) pose déjà
+         position:relative et l'emporte par simple priorité de spécificité CSS. !important ciblé
+         UNIQUEMENT sur cette propriété (jamais une course à la spécificité, fragile à la moindre
+         nouvelle règle) garantit que le fantôme reste toujours en position:fixed, quelle que soit
+         l'origine, actuelle ou future, de la règle qu'il hériterait sinon. */
+      position: fixed !important; pointer-events: none; z-index: 9999; opacity: .85;
       box-shadow: 0 6px 18px rgba(16,47,49,.25); background: var(--paper);
       border-radius: 6px; margin: 0 !important; outline: none !important;
     }
