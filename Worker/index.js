@@ -57759,7 +57759,18 @@ async function handleScreenshotSlide(request2, env2) {
   } catch {
     return jsonErr("Invalid JSON", 400);
   }
-  const { html, width = 1024, height = 768, quality = 90 } = body;
+  // Correctif miniature "Mes créations" — fullPage devient un paramètre optionnel, PAS un
+  // changement de comportement par défaut : true si absent, exactement comme avant ce correctif
+  // pour les deux appelants déjà existants (Item 58 export JPEG par diapositive, Item 78 frames
+  // vidéo), qui n'envoient jamais ce champ et ne sont donc affectés en rien. Cause confirmée du
+  // défaut de miniature (cf. rapport de lot) : capturer la page ENTIÈRE (fullPage:true, systématique
+  // jusqu'ici) pour un document clinique potentiellement très long produit une image bien plus
+  // haute que large, ensuite affichée recadrée par le CSS (.cc-media-thumb, object-fit:cover) —
+  // le centre vertical de cette image géante tombe en plein milieu du texte du document, jamais
+  // sur le bandeau titre+couverture qui se trouve, lui, tout en haut. adocCaptureAndPersistThumbnail
+  // demande désormais explicitement fullPage:false (capture du seul viewport visible, donc du HAUT
+  // du document, là où vit le bandeau) — cf. studio-clinique-core.js.
+  const { html, width = 1024, height = 768, quality = 90, fullPage = true } = body;
   if (!html)
     return jsonErr("Missing html (fragment HTML autonome d'une diapositive)", 400);
   // Bug items 58/78 (18 septembre) — investigation confirmée : la diapositive 2 (index 1, la
@@ -57791,7 +57802,7 @@ async function handleScreenshotSlide(request2, env2) {
           body: JSON.stringify({
             html,
             viewport: { width, height },
-            screenshotOptions: { type: "jpeg", quality, fullPage: true }
+            screenshotOptions: { type: "jpeg", quality, fullPage }
           })
         }
       );

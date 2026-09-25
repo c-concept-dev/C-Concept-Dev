@@ -12527,9 +12527,18 @@ ${recent}`;
       const wait = ADOC_SCREENSHOT_SLIDE_DELAY_MS - (Date.now() - _adocLastScreenshotSlideCallAt);
       if (wait > 0) await new Promise(function (resolve) { setTimeout(resolve, wait); });
       _adocLastScreenshotSlideCallAt = Date.now();
+      // Correctif miniature — fullPage:false EXPLICITE (jamais le true implicite qu'utilisent
+      // Item 58/78, cf. Worker/index.js) : capture uniquement le viewport visible (donc le HAUT du
+      // document, où vit le bandeau titre+couverture), jamais la page entière. Cause confirmée du
+      // défaut : une capture fullPage d'un document long produit une image bien plus haute que
+      // large, ensuite recadrée par le CSS (.cc-media-thumb, object-fit:cover) autour de son
+      // centre vertical — qui tombe en plein milieu du texte, jamais sur le bandeau. Combiné à
+      // object-position:top (studio-clinique.html, scopé aux seules vignettes "Mes créations",
+      // jamais aux photos Pexels du panneau Médias) pour garantir que le recadrage reste ancré en
+      // haut même si l'image capturée dépasse encore la hauteur de la vignette.
       const shotRes = await fetch(workerUrlClean + '/browser-rendering/screenshot-slide', {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
-        body: JSON.stringify({ html: fullHtml }),
+        body: JSON.stringify({ html: fullHtml, fullPage: false }),
       });
       if (!shotRes.ok) { console.warn('[Mes créations] capture de miniature impossible (' + shotRes.status + ')'); return; }
       const jpegBlob = await shotRes.blob();

@@ -2395,6 +2395,18 @@
    silencieux) : mêmes dimensions que .cc-media-thumb (réutilisée à côté, jamais dupliquée),
    simplement centré pour accueillir le libellé du type de document. */
 .cc-creations-thumb-fallback { display: flex; align-items: center; justify-content: center; text-align: center; font-size: 11px; color: var(--muted); padding: 4px; }
+/* Correctif miniature "Mes créations" — la capture (adocCaptureAndPersistThumbnail) n'est plus
+   fullPage (cf. Worker/index.js), mais reste plus haute que cette vignette (70px) : ancre le
+   recadrage sur le HAUT de l'image capturée, où vit le bandeau titre+couverture, jamais le centre
+   par défaut du navigateur (qui pouvait retomber en plein milieu du texte du document — cause
+   confirmée du défaut). Scopé aux deux points de montage "Mes créations" UNIQUEMENT (jamais
+   .cc-media-thumb en général, partagée avec les photos Pexels du panneau Médias : leur centrage
+   par défaut reste inchangé, un recadrage "haut" systématique leur couperait parfois le sujet
+   principal d'une photo — comportement différent, non concerné par ce correctif). */
+#cc-ws-creations-results .cc-media-thumb,
+#cc-home-creations-results .cc-media-thumb {
+  object-position: top;
+}
 </style>
 </head>
 <body>
