@@ -2006,29 +2006,30 @@
     .cc-ws-doc-card.cc-ws-legacy-block-editable [data-cc-legacy-block-id] { cursor: pointer; }
     .cc-ws-doc-card [data-cc-legacy-block-id].is-selected { outline: 2px solid var(--terracotta-700); outline-offset: 4px; }
     .cc-legacy-citation-flag { font-size: 10px; color: var(--terracotta-700); cursor: help; margin-left: 2px; }
-    /* ITEM 63f — glisser-déposer réel pour réordonner un bloc. Poignée TOUJOURS présente dans le
-       balisage (même principe que les poignées de redimensionnement Item 75), visible SEULEMENT
-       au survol et SEULEMENT dans l'espace de travail éditable POUR CE GESTE-CI (réordonnancement
-       sur A, jamais en export statique) — ces deux classes d'activation, cc-ws-block-editable/
-       cc-ws-legacy-block-editable, ne sont jamais posées hors de #cc-ws-doc-card. (Fusion Phase 2,
-       plus bas dans ce fichier, révèle cette MÊME poignée dans le panneau B en lecture seule via
-       une règle séparée, condition d'activation différente, pour un geste totalement différent :
-       glisser une COPIE vers A, jamais un réordonnancement de B — l'ancienne affirmation "jamais en
-       aperçu" ne valait que pour LE RÉORDONNANCEMENT, toujours vraie ici.) Coin haut-gauche (jamais bas-droit, déjà pris par la
-       poignée de redimensionnement Item 75 sur un bloc imbriqué de Carrousel). Ancien moteur :
-       enveloppe .adoc-sc-block-drag-wrap dédiée (jamais le bloc lui-même, qui peut être un
-       <table>/<ul>/<ol> — un <span> y serait invalide et reparenté par le moteur HTML, cf. rapport
-       de construction) ; moteur structuré : la poignée est un enfant direct de .adoc-sc-block
-       (jamais invalide, ce dernier n'est jamais littéralement une balise <table>/<ul>/<ol>). */
-    .adoc-sc-block-drag-handle {
-      position: absolute; left: 2px; top: 2px; width: 14px; height: 14px;
-      border-radius: 3px; background: var(--petrol-800); cursor: grab; display: none; z-index: 2;
-    }
-    .adoc-sc-block-drag-handle:active { cursor: grabbing; }
+    /* ITEM 63f / Refonte du geste (Sujet 1) — plus aucune poignée carrée visible en permanence
+       (jugée intrusive, masquait le texte). Le bloc/l'enveloppe span le balisage tel quel : le
+       curseur "grab" apparaît via .cc-drag-edge-hover, posée/retirée en JS uniquement quand le
+       pointeur est à moins de ADOC_DRAG_EDGE_ZONE_PX du bord GAUCHE du bloc réordonnable (jamais en
+       plein texte, pour ne jamais interférer avec la sélection native) — voir
+       adocDragInEdgeZone/adocDragGhostCreate dans studio-clinique-core.js. Un vrai fantôme
+       (.cc-drag-ghost, clone DOM en position:fixed) suit le curseur pendant le glissement, pour
+       TOUS les types de bloc y compris image/tableau, jusqu'au dépôt. Le mécanisme de dépôt
+       (ligne .adoc-sc-drop-line, adocFusionShowDropTargets/adocFusionCommitDrop) reste strictement
+       inchangé — seul l'habillage visuel du geste de saisie change ici. Même geste étendu au
+       glissement B→A (Fusion Phase 2, plus bas dans ce fichier) : une seule paire de classes
+       partagée entre les trois mécanismes de glissement (réordonnancement structuré, réordonnancement
+       legacy, copie B→A). */
+    /* Le <span class="adoc-sc-block-drag-handle"> reste émis dans le balisage (moteur structuré ET
+       legacy, cf. studio-clinique-core.js) mais n'est plus jamais révélé — remplacé par la zone de
+       bord invisible ci-dessus. Conservé display:none inconditionnel plutôt que retiré du balisage,
+       pour un diff minimal (0D) : aucune fonction JS ne dépend plus de cet élément désormais. */
+    .adoc-sc-block-drag-handle { display: none; }
     .adoc-sc-block-drag-wrap { position: relative; }
-    .cc-ws-doc-card.cc-ws-block-editable .adoc-sc-block:hover > .adoc-sc-block-drag-handle,
-    .cc-ws-doc-card.cc-ws-legacy-block-editable .adoc-sc-block-drag-wrap:hover > .adoc-sc-block-drag-handle {
-      display: block;
+    .cc-drag-edge-hover { cursor: grab; }
+    .cc-drag-ghost {
+      position: fixed; pointer-events: none; z-index: 9999; opacity: .85;
+      box-shadow: 0 6px 18px rgba(16,47,49,.25); background: var(--paper);
+      border-radius: 6px; margin: 0 !important; outline: none !important;
     }
     /* Ligne de dépôt — élément éphémère créé/retiré en JS pendant un glissement réel (même
        principe que .adoc-sc-align-guide, Item 75) : jamais posée par adocRenderBlockHTML ni par
@@ -2465,12 +2466,11 @@
    nécessaire pendant un glissement réel où la ligne ne doit jamais intercepter les événements). */
 .cc-fusion-drop-target { pointer-events: auto; cursor: pointer; margin: 4px 0; transition: height .1s, background .1s; }
 .cc-fusion-drop-target:hover { height: 6px; background: var(--petrol-800); }
-/* Fusion Phase 2 — révèle la MÊME poignée .adoc-sc-block-drag-handle qu'Item 63f (déjà présente,
-   inconditionnellement, dans le balisage de chaque bloc rendu — y compris ici, cf.
-   adocRenderBlockHTML) mais sous une condition d'activation SÉPARÉE : jamais .cc-ws-block-editable
-   (Item 63f, réordonnancement sur A, sans aucun sens pour ce panneau strictement lecture seule) —
-   un panneau B en aperçu révèle sa poignée inconditionnellement au survol d'un bloc. */
-#cc-preview-doc-card .adoc-sc-block:hover > .adoc-sc-block-drag-handle { display: block; }
+/* Fusion Phase 2 / Refonte du geste (Sujet 1) — la poignée .adoc-sc-block-drag-handle n'est plus
+   jamais révélée ici (display:none inconditionnel, cf. plus haut dans ce fichier) : le panneau B
+   utilise désormais la MÊME zone de bord invisible (.cc-drag-edge-hover) et le MÊME fantôme
+   (.cc-drag-ghost) que le réordonnancement sur A, posés/retirés par adocFusionSetupDragSource dans
+   studio-clinique-core.js — jamais un second mécanisme visuel séparé. */
 /* Fusion Phase 2 — retour visuel pendant le glissement : B n'est jamais réellement modifié (copie,
    jamais déplacement), le bloc source reste exactement à sa place — une simple opacité réduite
    suffit à indiquer "ceci est en cours de glissement", retirée inconditionnellement au relâchement. */
@@ -3323,6 +3323,13 @@
     <button type="button" class="cc-ws-topbar-btn" id="cc-ws-save-btn" onclick="window.adocWsSave()" aria-label="Enregistrer le document">
       <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-cloud"></use></svg>
       <span>Enregistrer</span>
+    </button>
+    <!-- Sujet 2 — "Enregistrer sous" : crée toujours un NOUVEAU document (jamais la route de
+         version), demande un titre via prompt(), l'original reste inchangé. Disponible dès qu'un
+         enregistrement normal l'est (même garde de capacités, cf. window.adocWsSaveAs). -->
+    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-save-as-btn" onclick="window.adocWsSaveAs()" aria-label="Enregistrer sous un nouveau titre">
+      <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-copy"></use></svg>
+      <span>Enregistrer sous</span>
     </button>
     <button type="button" class="cc-ws-topbar-btn" id="cc-ws-delete-btn" onclick="window.adocWsDeleteRequest()" aria-label="Supprimer le document enregistré" hidden>
       <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-trash"></use></svg>
