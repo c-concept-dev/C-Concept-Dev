@@ -55368,6 +55368,50 @@ async function adocCheckSyncCheckRateLimit(env2, ip) {
   } catch {}
   return true;
 }
+// ÉCRAN DE CONNEXION (construction, cf. rapport d'investigation) — limite dédiée à /login,
+// JAMAIS partagée avec le compteur générique (adocCheckRateLimit, 60/min, pensé pour des appels
+// applicatifs légitimes une fois authentifié) ni avec celui de /sync-check ci-dessus (propre à
+// cette route de diagnostic) : un mot de passe simple reste bien plus vulnérable à l'essai
+// répété qu'une longue clé aléatoire à 256 bits. Même patron que adocCheckSyncCheckRateLimit
+// (fenêtre fixe simple, namespace KV séparé) — 10 tentatives / 15 minutes / IP, valeur retenue
+// telle quelle par Christophe (cf. investigation §4 : assez strict pour rendre un script
+// automatisé inutile sur la durée, assez souple pour ne pas verrouiller tout un foyer partageant
+// la même IP après quelques fautes de frappe).
+var ADOC_LOGIN_RATE_LIMIT_MAX = 10;
+var ADOC_LOGIN_RATE_LIMIT_WINDOW_S = 900;
+async function adocCheckLoginRateLimit(env2, ip) {
+  if (!env2.CLONE_KV || !ip) return true;
+  const bucket = Math.floor(Date.now() / (ADOC_LOGIN_RATE_LIMIT_WINDOW_S * 1e3));
+  const key = `ratelimit:login:${ip}:${bucket}`;
+  let current = 0;
+  try {
+    current = parseInt(await env2.CLONE_KV.get(key) || "0", 10) || 0;
+  } catch { return true; }
+  if (current >= ADOC_LOGIN_RATE_LIMIT_MAX) return false;
+  try {
+    await env2.CLONE_KV.put(key, String(current + 1), { expirationTtl: ADOC_LOGIN_RATE_LIMIT_WINDOW_S * 2 });
+  } catch {}
+  return true;
+}
+// ÉCRAN DE CONNEXION — comparaison à temps constant du mot de passe (décision actée par
+// Christophe, cf. investigation §2) : jamais `===`/`!==` ordinaire, qui court-circuite dès le
+// premier octet différent et peut en théorie fuiter la longueur du préfixe correct via le temps
+// de réponse. Les deux valeurs sont d'abord hachées (SHA-256, Web Crypto déjà disponible dans
+// l'environnement Worker) en une taille FIXE de 32 octets — élimine aussi toute fuite liée à la
+// longueur du mot de passe lui-même, pas seulement à son contenu — puis comparées octet par octet
+// en accumulant un OU exclusif SANS jamais retourner tôt (la boucle parcourt systématiquement les
+// 32 octets, qu'une différence apparaisse au premier ou au dernier).
+async function adocConstantTimeEqual(a, b) {
+  const enc = new TextEncoder();
+  const [digestA, digestB] = await Promise.all([
+    crypto.subtle.digest('SHA-256', enc.encode(a || '')),
+    crypto.subtle.digest('SHA-256', enc.encode(b || '')),
+  ]);
+  const viewA = new Uint8Array(digestA), viewB = new Uint8Array(digestB);
+  let diff = 0;
+  for (let i = 0; i < viewA.length; i++) diff |= viewA[i] ^ viewB[i];
+  return diff === 0;
+}
 var C_CONCEPT_COLORS = {
   deep:       "3A5658",  // Vert profond — titres, en-têtes
   mer:        "8FAFB1",  // Mer (bleu-vert doux) — accents, bordures
@@ -55396,6 +55440,30 @@ var Worker_default = {
       return new Response(null, { headers: CORS });
     const url = new URL(request2.url);
     const p = url.pathname;
+    // ÉCRAN DE CONNEXION (construction, cf. rapport d'investigation) — traitée AVANT la garde
+    // générique X-API-Key ci-dessous, jamais ajoutée à ADOC_PUBLIC_ROUTES (qui documente des
+    // routes SANS coût réel ni donnée sensible — une route d'authentification n'en est pas une :
+    // elle a sa PROPRE vérification, ci-dessous, et sa propre limite de débit dédiée, jamais
+    // ouverte sans contrôle). Seule route de toute l'application qui accepte un mot de passe à la
+    // place de X-API-Key, et seulement pour émettre la vraie clé technique en retour si ce mot de
+    // passe est correct — toutes les autres routes protégées continuent d'exiger X-API-Key
+    // exactement comme avant ce lot.
+    if (p === "/login" && request2.method === "POST") {
+      const loginIp = request2.headers.get('CF-Connecting-IP') || 'unknown';
+      const withinLoginLimit = await adocCheckLoginRateLimit(env2, loginIp);
+      if (!withinLoginLimit)
+        return new Response(JSON.stringify({ error: 'Trop de tentatives — réessayez dans quelques minutes.' }), { status: 429, headers: { ...CORS, 'Content-Type': 'application/json' } });
+      let loginBody;
+      try { loginBody = await request2.json(); } catch { loginBody = {}; }
+      const submittedPassword = typeof loginBody.password === 'string' ? loginBody.password : '';
+      // Fail closed (même posture que WORKER_API_KEY ci-dessous) : un secret serveur non
+      // configuré bloque l'accès, ne le désactive jamais silencieusement.
+      const passwordOk = !!env2.ADOC_LOGIN_PASSWORD && !!submittedPassword
+        && await adocConstantTimeEqual(submittedPassword, env2.ADOC_LOGIN_PASSWORD);
+      if (!passwordOk)
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...CORS, 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ apiKey: env2.WORKER_API_KEY }), { status: 200, headers: { ...CORS, 'Content-Type': 'application/json' } });
+    }
     // SEC-HOTFIX-01 — protégé par défaut (liste d'exceptions publiques ci-dessus), plutôt
     // que l'ancienne liste blanche de routes protégées : une route ajoutée plus tard au
     // routeur ci-dessous est désormais protégée automatiquement, jamais ouverte par oubli.

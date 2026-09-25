@@ -402,6 +402,44 @@
     return key;
   }
 
+  // ÉCRAN DE CONNEXION (construction, cf. rapport d'investigation) — seul point d'entrée qui
+  // pose désormais 'workerApiKey' dans localStorage : jamais tapée à la main par l'utilisatrice
+  // (elle ne voit et ne tape que le mot de passe simple), posée ici par le code lui-même une fois
+  // /login confirmé. Aucune modification des 41+ appels existants à adocGetApiKey() — ils
+  // continuent de lire localStorage exactement comme avant ce lot, quelle que soit la façon dont
+  // la valeur y est arrivée.
+  window.adocLoginSubmit = async function () {
+    const input = document.getElementById('cc-login-password');
+    const btn = document.getElementById('cc-login-submit-btn');
+    const msg = document.getElementById('cc-login-message');
+    const password = (input && input.value) || '';
+    if (!password) { if (msg) msg.textContent = 'Entrez votre mot de passe.'; return; }
+    if (btn) { btn.disabled = true; btn.textContent = 'Connexion…'; }
+    if (msg) msg.textContent = '';
+    try {
+      const workerUrl = adocGetWorkerUrl();
+      const r = await fetch(workerUrl + '/login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: password }),
+      });
+      if (r.status === 200) {
+        const data = await r.json();
+        localStorage.setItem('workerApiKey', data.apiKey);
+        if (input) input.value = '';
+        const screen = document.getElementById('cc-login-screen');
+        if (screen) screen.classList.add('cc-login-hidden');
+        return;
+      }
+      if (r.status === 429) { if (msg) msg.textContent = 'Trop de tentatives — réessayez dans quelques minutes.'; }
+      else { if (msg) msg.textContent = 'Mot de passe incorrect.'; }
+      if (input) { input.value = ''; input.focus(); }
+    } catch (e) {
+      if (msg) msg.textContent = 'Connexion impossible, réessayez.';
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'Se connecter'; }
+    }
+  };
+
   // LOT C (Studio Clinique — glisser-déposer d'image locale, remplacement Pexels/fond/insertion)
   // — mécanisme PARTAGÉ entre les 3 usages (régression #6 : une seule zone d'upload réutilisable,
   // jamais trois implémentations séparées). Réutilise EXACTEMENT le patron déjà éprouvé de
