@@ -381,21 +381,21 @@
     console.warn("[Sécurité] Clé d'accès Worker non configurée — définissez-la via localStorage.setItem('workerApiKey', '...') dans la console du navigateur.");
     try { alert("Clé d'accès non configurée — voir réglages.\n\nDéfinissez-la une fois dans la console du navigateur :\nlocalStorage.setItem('workerApiKey', 'votre-clé')"); } catch (_) {}
   }
+  // SEC-HOTFIX-03 — repli en dur définitivement retiré (introduit temporairement le
+  // 2026-09-07 "pour la commodité pendant l'itération rapide", jamais anodin : n'importe qui
+  // affichant le code source de cette page pouvait lire cette valeur et appeler le Worker
+  // directement, hors de Studio Clinique — confirmé par investigation, cf. rapport dédié). Le
+  // mécanisme localStorage ci-dessous est INCHANGÉ (déjà consulté en priorité avant ce repli) :
+  // seul le contournement disparaît. La valeur qui était en dur ici doit être considérée comme
+  // compromise et n'est plus jamais réintroduite — la clé serveur (WORKER_API_KEY) doit être
+  // tournée séparément (wrangler secret put), puis la nouvelle valeur définie une fois par
+  // appareil via localStorage.setItem('workerApiKey', '...'), cf. _adocWarnMissingApiKey.
   function adocGetApiKey() {
     const key = (
       window.conversationalSystem?.WORKER_API_KEY ||
       window._therapyWorkerApiKey ||
       window.CONFIG?.WORKER_API_KEY ||
       localStorage.getItem('workerApiKey') ||
-      // ⚠️ TEMPORAIRE — PHASE DE TEST/CONSTRUCTION ACTIVE (décision explicite, 2026-09-07) ⚠️
-      // Clé en dur réintroduite en dernier recours pour la commodité pendant l'itération rapide
-      // (nouveaux fichiers HTML fréquents, plusieurs appareils). Un audit précédent avait retiré
-      // cette clé pour une faille de sécurité critique (n'importe qui affichant le code source
-      // peut la lire et appeler le Worker directement). À RETIRER avant toute mise en production
-      // réelle avec de vraies données patientes en continu — remplacer par un vrai mécanisme
-      // d'authentification (écran de connexion, jeton temporaire) à ce moment-là, pas remettre
-      // cette valeur en dur indéfiniment.
-      '7005f3fe8b04dfde1299be47d75a6648f65c4f06c178b2c8' ||
       null
     );
     if (!key) _adocWarnMissingApiKey();
