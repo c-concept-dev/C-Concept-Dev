@@ -55661,6 +55661,17 @@ var Worker_default = {
     const brandAssetGetMatch = p.match(/^\/brand-assets\/([a-f0-9]{64})$/);
     if (brandAssetGetMatch && request2.method === "GET")
       return handleBrandAssetGet(env2, brandAssetGetMatch[1]);
+    // Panneau "Médias" (UX-8E, Volet 2) — protégées par défaut comme tout le reste (SEC-HOTFIX-01,
+    // jamais ajoutées à ADOC_PUBLIC_ROUTES) : à la différence de GET /brand-assets/:sha256
+    // (servir des octets déjà publics une fois l'asset_id connu), lister/persister/marquer un
+    // usage sont des actions internes à l'application authentifiée.
+    if (p === "/media-assets" && request2.method === "GET")
+      return handleMediaAssetsList(env2);
+    if (p === "/media-assets/from-url" && request2.method === "POST")
+      return handleMediaAssetFromUrl(request2, env2);
+    const mediaAssetUseMatch = p.match(/^\/media-assets\/([a-f0-9]{64})\/use$/);
+    if (mediaAssetUseMatch && request2.method === "POST")
+      return handleMediaAssetUse(env2, mediaAssetUseMatch[1]);
     // Audit systémique (Priorité 8.7) — CONFIRMÉ : tout POST non reconnu par une route explicite
     // ci-dessus tombait silencieusement dans handleAnthropicProxy, tentant un appel LLM réel
     // avec un corps qui ne lui était pas destiné. Le seul appel légitime au proxy Anthropic est
@@ -56263,6 +56274,29 @@ async function handleClinicalDocumentDelete(env2, documentId) {
 }
 __name(handleClinicalDocumentDelete, "handleClinicalDocumentDelete");
 
+// Panneau "Médias" (UX-8E, Volet 2) — extraction pure du cœur de persistance de
+// handleBrandAssetUpload ci-dessous (empreinte SHA-256, déduplication, écriture R2 + render_assets),
+// AUCUN changement de comportement pour l'upload glisser-déposer existant (attribution=null,
+// exactement l'ancien corps de fonction). Réutilisée par le nouveau chemin "image de recherche
+// persistée" (handleMediaAssetFromUrl) : une seule vraie logique de persistance d'image, jamais
+// deux implémentations parallèles (décision explicite du lot).
+async function adocPersistRenderAsset(env2, arrayBuffer, role, mimeType, attribution) {
+  const digest = await crypto.subtle.digest("SHA-256", arrayBuffer);
+  const assetId = Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  // Déduplication par empreinte : contenu déjà connu → ni ré-upload R2, ni doublon D1,
+  // l'asset_id renvoyé est le même quel que soit l'appelant ou le nombre d'uploads.
+  const existing = await env2.DB.prepare("SELECT asset_id, size_bytes FROM render_assets WHERE asset_id = ?").bind(assetId).first();
+  if (!existing) {
+    await env2.BRAND_ASSETS.put(assetId, arrayBuffer, { httpMetadata: { contentType: mimeType } });
+    await env2.DB.prepare(
+      `INSERT OR IGNORE INTO render_assets (asset_id, checksum, role, r2_key, mime_type, size_bytes, ref_count, created_at, attribution)
+       VALUES (?,?,?,?,?,?,0,?,?)`
+    ).bind(assetId, assetId, role, assetId, mimeType, arrayBuffer.byteLength, (/* @__PURE__ */ new Date()).toISOString(), attribution || null).run();
+  }
+  return { assetId, deduplicated: !!existing, sizeBytes: existing ? existing.size_bytes : arrayBuffer.byteLength };
+}
+__name(adocPersistRenderAsset, "adocPersistRenderAsset");
+
 async function handleBrandAssetUpload(request2, env2) {
   if (!env2.DB) return jsonErr("D1 not configured", 500);
   if (!env2.BRAND_ASSETS) return jsonErr("R2 binding BRAND_ASSETS not configured", 500);
@@ -56292,26 +56326,91 @@ async function handleBrandAssetUpload(request2, env2) {
   if (!role || !BRAND_ASSET_ROLES.includes(role))
     return jsonErr("role must be one of: " + BRAND_ASSET_ROLES.join(", "), 400);
 
-  const digest = await crypto.subtle.digest("SHA-256", arrayBuffer);
-  const assetId = Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
-
   try {
-    // Déduplication par empreinte : contenu déjà connu → ni ré-upload R2, ni doublon D1,
-    // l'asset_id renvoyé est le même quel que soit l'appelant ou le nombre d'uploads.
-    const existing = await env2.DB.prepare("SELECT asset_id, size_bytes FROM render_assets WHERE asset_id = ?").bind(assetId).first();
-    if (!existing) {
-      await env2.BRAND_ASSETS.put(assetId, arrayBuffer, { httpMetadata: { contentType: mimeType } });
-      await env2.DB.prepare(
-        `INSERT OR IGNORE INTO render_assets (asset_id, checksum, role, r2_key, mime_type, size_bytes, ref_count, created_at)
-         VALUES (?,?,?,?,?,?,0,?)`
-      ).bind(assetId, assetId, role, assetId, mimeType, arrayBuffer.byteLength, (/* @__PURE__ */ new Date()).toISOString()).run();
-    }
-    return json({ asset_id: assetId, deduplicated: !!existing, size_bytes: existing ? existing.size_bytes : arrayBuffer.byteLength });
+    const { assetId, deduplicated, sizeBytes } = await adocPersistRenderAsset(env2, arrayBuffer, role, mimeType, null);
+    return json({ asset_id: assetId, deduplicated, size_bytes: sizeBytes });
   } catch (err2) {
     return jsonErr(err2.message, 500);
   }
 }
 __name(handleBrandAssetUpload, "handleBrandAssetUpload");
+
+// Panneau "Médias" (UX-8E, Volet 2) — persiste une image de résultat de recherche (Pexels,
+// jamais un chemin arbitraire) en réutilisant adocPersistRenderAsset ci-dessus, EXACTEMENT le
+// même chemin que le glisser-déposer (rôle 'image', même bucket R2/table render_assets). Jamais
+// un second mécanisme de stockage. Le téléchargement de l'image a lieu ICI, côté serveur (jamais
+// le client ne transmet les octets) : l'appelant ne fournit que l'URL Pexels déjà obtenue via
+// /fetch-image et l'attribution photographe à conserver (obligation des conditions Pexels).
+async function handleMediaAssetFromUrl(request2, env2) {
+  if (!env2.DB) return jsonErr("D1 not configured", 500);
+  if (!env2.BRAND_ASSETS) return jsonErr("R2 binding BRAND_ASSETS not configured", 500);
+  let body;
+  try { body = await request2.json(); } catch { return jsonErr("Invalid JSON", 400); }
+  const sourceUrl = typeof body.url === "string" ? body.url : "";
+  const attribution = typeof body.attribution === "string" ? body.attribution.slice(0, 200) : null;
+  let parsed;
+  try { parsed = new URL(sourceUrl); } catch { return jsonErr("Invalid url", 400); }
+  // Jamais un proxy de téléchargement ouvert (protection SSRF) : seule la source réellement
+  // utilisée par /fetch-image (champs src.* de l'API Pexels, hôte images.pexels.com) est acceptée.
+  if (parsed.hostname !== "images.pexels.com")
+    return jsonErr("url must be an images.pexels.com source", 400);
+  let resp;
+  try {
+    resp = await fetch(parsed.toString());
+  } catch (err2) {
+    return jsonErr("Image download failed: " + err2.message, 502);
+  }
+  if (!resp.ok) return jsonErr("Image download failed (HTTP " + resp.status + ")", 502);
+  const arrayBuffer = await resp.arrayBuffer();
+  if (!arrayBuffer.byteLength) return jsonErr("Empty image", 502);
+  const mimeType = resp.headers.get("Content-Type") || "image/jpeg";
+  try {
+    const { assetId, deduplicated } = await adocPersistRenderAsset(env2, arrayBuffer, "image", mimeType, attribution);
+    // Chaque insertion réelle depuis le panneau Médias (fraîche ou déjà persistée, cf.
+    // handleMediaAssetUse ci-dessous) compte comme un usage — ref_count sert uniquement à
+    // distinguer plus tard "jamais réutilisée" de "déjà utilisée au moins une fois", jamais
+    // décrémenté ici (décrémenter exigerait de savoir quels documents référencent quel asset,
+    // hors périmètre de ce lot — cf. rapport).
+    await env2.DB.prepare("UPDATE render_assets SET ref_count = ref_count + 1 WHERE asset_id = ?").bind(assetId).run();
+    return json({ asset_id: assetId, deduplicated, attribution });
+  } catch (err2) {
+    return jsonErr(err2.message, 500);
+  }
+}
+__name(handleMediaAssetFromUrl, "handleMediaAssetFromUrl");
+
+// Panneau "Médias" — incrémente ref_count pour une image DÉJÀ persistée, réinsérée depuis
+// l'historique ("Déjà utilisées") : aucun nouveau téléchargement, l'asset est déjà dans R2.
+async function handleMediaAssetUse(env2, assetId) {
+  if (!env2.DB) return jsonErr("D1 not configured", 500);
+  const row = await env2.DB.prepare("SELECT asset_id FROM render_assets WHERE asset_id = ? AND role = 'image'").bind(assetId).first();
+  if (!row) return jsonErr("Media asset not found", 404);
+  await env2.DB.prepare("UPDATE render_assets SET ref_count = ref_count + 1 WHERE asset_id = ?").bind(assetId).run();
+  return json({ asset_id: assetId, ok: true });
+}
+__name(handleMediaAssetUse, "handleMediaAssetUse");
+
+// Panneau "Médias" — historique consultable des images déjà persistées (role='image' uniquement,
+// jamais les logos/polices/références de charte qui partagent la même table). Requête D1 simple,
+// même ampleur que celle déjà identifiée pour "Mes créations" (cf. rapport d'investigation).
+async function handleMediaAssetsList(env2) {
+  if (!env2.DB) return jsonErr("D1 not configured", 500);
+  try {
+    const { results } = await env2.DB.prepare(
+      "SELECT asset_id, attribution, ref_count, created_at FROM render_assets WHERE role = 'image' ORDER BY created_at DESC LIMIT 200"
+    ).all();
+    const media = (results || []).map((r) => ({
+      asset_id: r.asset_id,
+      attribution: r.attribution || "",
+      ref_count: r.ref_count,
+      created_at: r.created_at,
+    }));
+    return json({ media });
+  } catch (err2) {
+    return jsonErr(err2.message, 500);
+  }
+}
+__name(handleMediaAssetsList, "handleMediaAssetsList");
 
 // LOT C (Studio Clinique) — sert les octets d'un asset déjà uploadé (handleBrandAssetUpload
 // ci-dessus). assetId déjà validé par le routeur (^[a-f0-9]{64}$, l'empreinte SHA-256 elle-même

@@ -13698,6 +13698,152 @@ ${recent}`;
     if (!await window.adocOpenWorkspace(storeKey)) { siblings.splice(insertIdx, 1); return; }
   };
 
+  // ═══════════════════════════════════════════════════════════════════════
+  // Panneau "Médias" (UX-8E, Volet 2) — recherche d'images Pexels + historique des images déjà
+  // persistées, insérées via LE MÊME mécanisme que adocConfirmBlockInsertFromFile ci-dessus
+  // (content.assetId, jamais un second schéma de bloc image). Direction toujours 'after' (le
+  // bloc sélectionné juste avant l'ouverture du panneau Médias) : le panneau est une zone de
+  // navigation générale, pas un sous-formulaire par bouton avant/après comme
+  // adocChooseBlockInsertType — la position s'ajuste ensuite par glisser-déposer de bloc, déjà
+  // possible (Item 63f), plutôt que d'ajouter un second choix de direction ici.
+  // ═══════════════════════════════════════════════════════════════════════
+  window.adocMediaTogglePanel = function () {
+    const btn = document.getElementById('cc-ws-media-toggle');
+    const panel = document.getElementById('cc-ws-media-panel');
+    if (!btn || !panel) return;
+    const willOpen = panel.hidden;
+    panel.hidden = !willOpen;
+    btn.setAttribute('aria-expanded', String(willOpen));
+    if (willOpen) window.adocMediaLoadHistory();
+  };
+
+  function adocMediaRenderGrid(containerId, items, kind) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    if (!items || !items.length) {
+      el.innerHTML = '<p class="cc-media-empty">' + (kind === 'search' ? 'Aucun résultat.' : 'Aucune image utilisée pour l’instant.') + '</p>';
+      return;
+    }
+    const insertFn = kind === 'search' ? 'adocMediaInsertFromSearch' : 'adocMediaInsertFromHistory';
+    el.innerHTML = items.map(function (item, i) {
+      const thumb = kind === 'search' ? item.thumb : adocImageAssetUrl(item.asset_id);
+      const credit = kind === 'search' ? (item.photographer || '') : (item.attribution || '');
+      // Obligation des conditions Pexels — attribution jamais retirée ni minimisée, un simple
+      // texte discret sous la vignette suffit (décision de Christophe, cf. rapport d'investigation).
+      const creditLine = credit ? ('Photo : ' + credit + ' — Pexels') : 'Pexels';
+      return '<div class="cc-media-item">' +
+        '<img class="cc-media-thumb" src="' + adocEsc(thumb) + '" alt="' + adocEsc(item.alt || credit || 'Image') + '" loading="lazy">' +
+        '<p class="cc-media-credit">' + adocEsc(creditLine) + '</p>' +
+        '<button type="button" class="cc-media-insert-btn" data-media-' + kind + '-insert="' + i + '" onclick="window.' + insertFn + '(' + i + ')">Insérer</button>' +
+      '</div>';
+    }).join('');
+  }
+
+  window.adocMediaSearch = async function () {
+    const input = document.getElementById('cc-ws-media-search-input');
+    const q = (input && input.value || '').trim();
+    const resultsEl = document.getElementById('cc-ws-media-search-results');
+    if (!q) { if (resultsEl) resultsEl.innerHTML = ''; return; }
+    if (resultsEl) resultsEl.innerHTML = '<p class="cc-media-empty">Recherche…</p>';
+    try {
+      const res = await fetch(adocGetWorkerUrl() + '/fetch-image?q=' + encodeURIComponent(q) + '&per_page=12', {
+        headers: { 'X-API-Key': adocGetApiKey() },
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      window._adocMediaSearchResults = data.photos || [];
+      adocMediaRenderGrid('cc-ws-media-search-results', window._adocMediaSearchResults, 'search');
+    } catch (e) {
+      if (resultsEl) resultsEl.innerHTML = '<p class="cc-media-empty">Recherche impossible : ' + adocEsc(e.message) + '</p>';
+    }
+  };
+
+  window.adocMediaLoadHistory = async function () {
+    const el = document.getElementById('cc-ws-media-history');
+    if (!el) return;
+    try {
+      const res = await fetch(adocGetWorkerUrl() + '/media-assets', { headers: { 'X-API-Key': adocGetApiKey() } });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      window._adocMediaHistoryResults = data.media || [];
+      adocMediaRenderGrid('cc-ws-media-history', window._adocMediaHistoryResults, 'history');
+    } catch (e) {
+      el.innerHTML = '<p class="cc-media-empty">Historique indisponible : ' + adocEsc(e.message) + '</p>';
+    }
+  };
+
+  // Insertion partagée — même splice que adocConfirmBlockInsertFromFile ci-dessus, direction
+  // toujours 'after' (cf. commentaire d'en-tête de section).
+  async function adocInsertMediaImageBlockAsset(assetId, label) {
+    const st = window._adocBlockEditState;
+    const art = window._adocArtifacts && window._adocArtifacts[st.storeKey];
+    if (!art || !art._adocStructuredDoc) return;
+    const doc = art._adocStructuredDoc;
+    const siblings = adocEditorBlockContainer(doc, st.blockId) || [];
+    const idx = siblings.findIndex(function (b) { return b.id === st.blockId; });
+    if (idx === -1) { adocWsClearBlockSelection(); return; }
+    const newBlock = {
+      id: adocNextBlockId(doc, 'image'),
+      type: 'image',
+      content: { query: label, alt: label, assetId: assetId },
+      citationIds: [],
+      validation: {},
+    };
+    siblings.splice(idx + 1, 0, newBlock);
+    const storeKey = st.storeKey;
+    adocWsClearBlockSelection();
+    if (!await window.adocOpenWorkspace(storeKey)) { siblings.splice(idx + 1, 1); }
+  }
+
+  window.adocMediaInsertFromSearch = async function (idx) {
+    const st = window._adocBlockEditState;
+    if (!st.storeKey || !st.blockId) {
+      alert('Sélectionnez d’abord un bloc du document (« Insérer un bloc ») avant de choisir une image dans Médias.');
+      return;
+    }
+    const item = window._adocMediaSearchResults && window._adocMediaSearchResults[idx];
+    if (!item) return;
+    const btn = document.querySelector('[data-media-search-insert="' + idx + '"]');
+    if (btn) { btn.disabled = true; btn.textContent = 'Insertion…'; }
+    try {
+      const res = await fetch(adocGetWorkerUrl() + '/media-assets/from-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
+        body: JSON.stringify({ url: item.url, attribution: item.photographer || '' }),
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      await adocInsertMediaImageBlockAsset(data.asset_id, item.alt || item.photographer || 'Image');
+      window.adocMediaLoadHistory();
+    } catch (e) {
+      alert('Insertion impossible : ' + e.message);
+      if (btn) { btn.disabled = false; btn.textContent = 'Insérer'; }
+    }
+  };
+
+  window.adocMediaInsertFromHistory = async function (idx) {
+    const st = window._adocBlockEditState;
+    if (!st.storeKey || !st.blockId) {
+      alert('Sélectionnez d’abord un bloc du document (« Insérer un bloc ») avant de choisir une image dans Médias.');
+      return;
+    }
+    const item = window._adocMediaHistoryResults && window._adocMediaHistoryResults[idx];
+    if (!item) return;
+    const btn = document.querySelector('[data-media-history-insert="' + idx + '"]');
+    if (btn) { btn.disabled = true; btn.textContent = 'Insertion…'; }
+    try {
+      const res = await fetch(adocGetWorkerUrl() + '/media-assets/' + item.asset_id + '/use', {
+        method: 'POST', headers: { 'X-API-Key': adocGetApiKey() },
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      await adocInsertMediaImageBlockAsset(item.asset_id, item.attribution || 'Image');
+      window.adocMediaLoadHistory();
+    } catch (e) {
+      alert('Insertion impossible : ' + e.message);
+      if (btn) { btn.disabled = false; btn.textContent = 'Insérer'; }
+    }
+  };
+
   // Chiffres bruts, pas de jugement de valeur (même esprit que la jauge d'usage, UX-10A Étape 1)
   // — reflète simplement l'état réel : enregistré ou non, jamais une invitation insistante.
   function adocUpdateSaveStatusUI(art) {

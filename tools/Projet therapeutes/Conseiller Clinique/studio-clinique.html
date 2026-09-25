@@ -2359,6 +2359,29 @@
 .cc-login-submit:disabled { opacity: .6; cursor: default; }
 .cc-login-submit:hover:not(:disabled) { background: var(--petrol-800); }
 .cc-login-message { min-height: 18px; margin-top: 12px; font-size: 12px; color: var(--terracotta-700); }
+/* PANNEAU "MÉDIAS" (UX-8E, Volet 2) — un onglet de plus dans l'aside .cc-ws-panel déjà existant
+   (Sources utilisées / Bibliothèque thérapeutique), jamais une colonne distincte (cohérent avec
+   l'abandon d'Item 64). Mêmes jetons de couleur que le reste du panneau — aucun style inventé. */
+.cc-ws-media-panel { margin-top: 8px; }
+.cc-media-search-row { display: flex; gap: 6px; }
+.cc-media-search-row .cc-ws-search-input { flex: 1; margin-bottom: 0; }
+.cc-media-search-btn {
+  font: inherit; font-size: 12px; font-weight: 600; padding: 0 12px; border: 1px solid var(--stone-300);
+  border-radius: 6px; background: var(--paper); color: var(--ink); cursor: pointer;
+}
+.cc-media-search-btn:hover { border-color: var(--petrol-800); color: var(--petrol-800); }
+.cc-media-history-title { margin-top: 14px; }
+.cc-media-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 8px; }
+.cc-media-item { border: 1px solid var(--stone-300); border-radius: 8px; overflow: hidden; background: var(--paper); display: flex; flex-direction: column; }
+.cc-media-thumb { width: 100%; height: 70px; object-fit: cover; display: block; background: var(--ivory); }
+.cc-media-credit { font-size: 10px; color: var(--muted); margin: 4px 6px 0; line-height: 1.3; }
+.cc-media-insert-btn {
+  margin: 6px; font: inherit; font-size: 11px; font-weight: 600; padding: 4px 8px; border: none;
+  border-radius: 6px; background: var(--petrol-950); color: #fff; cursor: pointer;
+}
+.cc-media-insert-btn:hover:not(:disabled) { background: var(--petrol-800); }
+.cc-media-insert-btn:disabled { opacity: .6; cursor: default; }
+.cc-media-empty { font-size: 11px; color: var(--muted); margin: 8px 0 0; }
 </style>
 </head>
 <body>
@@ -3266,6 +3289,28 @@
         </div>
         <div id="cc-ws-search-active-filters" class="cc-lib-active-filters" aria-label="Filtres actifs"></div>
 <div id="cc-ws-search-results" aria-live="polite"></div>
+      </div>
+      <div>
+        <!-- Panneau "Médias" (UX-8E, Volet 2) — recherche d'images (Pexels, via /fetch-image déjà
+             existante) + historique des images déjà persistées (render_assets/R2, réutilisation du
+             mécanisme déjà éprouvé pour le glisser-déposer, cf. rapport de lot). Repliable, même
+             patron que les Filtres de la bibliothèque ci-dessus (aria-expanded + hidden). -->
+        <button type="button" class="cc-ws-panel-section-title cc-ws-panel-action-btn" id="cc-ws-media-toggle"
+          aria-expanded="false" aria-controls="cc-ws-media-panel" onclick="window.adocMediaTogglePanel()">
+          <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-empty"></use></svg>
+          Médias
+        </button>
+        <div class="cc-ws-media-panel" id="cc-ws-media-panel" hidden>
+          <div class="cc-media-search-row">
+            <input type="text" class="cc-ws-search-input" id="cc-ws-media-search-input"
+              placeholder="Rechercher une image (Pexels)…" aria-label="Rechercher une image"
+              onkeydown="if(event.key==='Enter'){event.preventDefault();window.adocMediaSearch();}">
+            <button type="button" class="cc-media-search-btn" onclick="window.adocMediaSearch()">Rechercher</button>
+          </div>
+          <div id="cc-ws-media-search-results" class="cc-media-grid" aria-live="polite"></div>
+          <p class="cc-ws-panel-section-title cc-media-history-title">Déjà utilisées</p>
+          <div id="cc-ws-media-history" class="cc-media-grid" aria-live="polite"></div>
+        </div>
       </div>
       <div class="cc-ws-memory" id="cc-ws-memory-mount"></div>
     </aside>
