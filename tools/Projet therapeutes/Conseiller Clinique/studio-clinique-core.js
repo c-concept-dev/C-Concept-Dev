@@ -14203,27 +14203,39 @@ ${recent}`;
   // montre TOUS les documents déjà enregistrés, pas seulement ceux de la personne connectée —
   // cohérent avec le contexte 2-personnes-de-confiance déjà acté, pas une nouvelle décision.
   // ═══════════════════════════════════════════════════════════════════════
-  window.adocCreationsTogglePanel = function () {
-    const btn = document.getElementById('cc-ws-creations-toggle');
-    const panel = document.getElementById('cc-ws-creations-panel');
+  // Ampleur (accueil) — les 4 fonctions ci-dessous sont génériques par `mountId` (même patron
+  // déjà appliqué à adocLibrarySearchInput/adocMediaRenderGrid ce soir) : `mountId + '-toggle'`,
+  // `'-panel'`, `'-results'`, `'-filter-title'`, `'-filter-kind'` composent les ids réels. Deux
+  // points de montage aujourd'hui : 'cc-ws-creations' (panneau latéral de l'écran de travail,
+  // construit plus tôt ce soir) et 'cc-home-creations' (accueil #cc-landing, ce lot) — RIEN de
+  // dupliqué entre les deux, même appel réseau, même rendu, même adaptateur de réouverture.
+  // État (liste chargée + liste filtrée) tenu PAR mountId (jamais une variable globale partagée)
+  // : les deux points de montage peuvent coexister dans le DOM (l'écran de travail se superpose à
+  // l'accueil, jamais un démontage) sans jamais se désynchroniser l'un l'autre.
+  window._adocCreationsState = window._adocCreationsState || {};
+
+  window.adocCreationsTogglePanel = function (mountId) {
+    const btn = document.getElementById(mountId + '-toggle');
+    const panel = document.getElementById(mountId + '-panel');
     if (!btn || !panel) return;
     const willOpen = panel.hidden;
     panel.hidden = !willOpen;
     btn.setAttribute('aria-expanded', String(willOpen));
-    if (willOpen) window.adocCreationsLoad();
+    if (willOpen) window.adocCreationsLoad(mountId);
   };
 
   var ADOC_CREATIONS_KIND_LABELS = { fiche: 'Fiche synthèse', carrousel: 'Carrousel', tableau: 'Tableau', script: 'Script', liens: 'Liens transversaux' };
 
-  window.adocCreationsLoad = async function () {
-    const el = document.getElementById('cc-ws-creations-results');
+  window.adocCreationsLoad = async function (mountId) {
+    const el = document.getElementById(mountId + '-results');
     if (el) el.innerHTML = '<p class="cc-media-empty">Chargement…</p>';
     try {
       const r = await fetch(adocGetWorkerUrl().replace(/\/+$/, '') + '/clinical-documents', { headers: { 'X-API-Key': adocGetApiKey() } });
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const data = await r.json();
-      window._adocCreationsAll = Array.isArray(data.documents) ? data.documents : [];
-      window.adocCreationsApplyFilters();
+      window._adocCreationsState[mountId] = window._adocCreationsState[mountId] || {};
+      window._adocCreationsState[mountId].all = Array.isArray(data.documents) ? data.documents : [];
+      window.adocCreationsApplyFilters(mountId);
     } catch (e) {
       if (el) el.innerHTML = '<p class="cc-media-empty">Liste indisponible : ' + adocEsc(e.message) + '</p>';
     }
@@ -14232,17 +14244,18 @@ ${recent}`;
   // Filtre entièrement côté client sur la liste déjà chargée (LIMIT 200 côté Worker, jamais une
   // pagination ni une seconde requête réseau par frappe) — même esprit de simplicité que le
   // périmètre volontairement borné du reste du panneau Médias ce soir.
-  window.adocCreationsApplyFilters = function () {
-    const titleQuery = ((document.getElementById('cc-ws-creations-filter-title') || {}).value || '').trim().toLowerCase();
-    const kindFilter = (document.getElementById('cc-ws-creations-filter-kind') || {}).value || '';
-    const all = window._adocCreationsAll || [];
+  window.adocCreationsApplyFilters = function (mountId) {
+    const titleQuery = ((document.getElementById(mountId + '-filter-title') || {}).value || '').trim().toLowerCase();
+    const kindFilter = (document.getElementById(mountId + '-filter-kind') || {}).value || '';
+    const state = window._adocCreationsState[mountId] || (window._adocCreationsState[mountId] = {});
+    const all = state.all || [];
     const filtered = all.filter(function (d) {
       if (kindFilter && d.document_kind !== kindFilter) return false;
       if (titleQuery && (d.title || '').toLowerCase().indexOf(titleQuery) === -1) return false;
       return true;
     });
-    window._adocCreationsFiltered = filtered;
-    const el = document.getElementById('cc-ws-creations-results');
+    state.filtered = filtered;
+    const el = document.getElementById(mountId + '-results');
     if (!el) return;
     if (!filtered.length) { el.innerHTML = '<p class="cc-media-empty">Aucune création trouvée.</p>'; return; }
     el.innerHTML = filtered.map(function (d, i) {
@@ -14258,18 +14271,20 @@ ${recent}`;
         thumbHtml +
         '<p class="cc-media-credit">' + adocEsc(d.title || 'Document') + ' — ' + adocEsc(kindLabel) + (dateLabel ? ' — ' + adocEsc(dateLabel) : '') + '</p>' +
         '<div class="cc-media-actions">' +
-          '<button type="button" class="cc-media-insert-btn" data-creations-open="' + i + '" onclick="window.adocCreationsOpen(' + i + ')">Ouvrir</button>' +
+          '<button type="button" class="cc-media-insert-btn" data-creations-open="' + i + '" onclick="window.adocCreationsOpen(\'' + mountId + '\',' + i + ')">Ouvrir</button>' +
         '</div>' +
       '</div>';
     }).join('');
   };
 
   // Clic → réouverture RÉELLE dans l'écran de travail, exactement comme un document fraîchement
-  // généré (cf. adocOpenSavedClinicalDocument, l'adaptateur défini plus haut avec adocOpenWorkspace).
-  window.adocCreationsOpen = async function (idx) {
-    const item = window._adocCreationsFiltered && window._adocCreationsFiltered[idx];
+  // généré (cf. adocOpenSavedClinicalDocument, l'adaptateur défini plus haut avec adocOpenWorkspace)
+  // — depuis l'accueil comme depuis le panneau latéral, LE MÊME appel, jamais une variante.
+  window.adocCreationsOpen = async function (mountId, idx) {
+    const state = window._adocCreationsState[mountId] || {};
+    const item = state.filtered && state.filtered[idx];
     if (!item) return;
-    const btn = document.querySelector('#cc-ws-creations-results [data-creations-open="' + idx + '"]');
+    const btn = document.querySelector('#' + mountId + '-results [data-creations-open="' + idx + '"]');
     if (btn) { btn.disabled = true; btn.textContent = 'Ouverture…'; }
     const opened = await window.adocOpenSavedClinicalDocument(item.document_id);
     if (!opened && btn) { btn.disabled = false; btn.textContent = 'Ouvrir'; }

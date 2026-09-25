@@ -2511,6 +2511,36 @@
           </div>
         </div>
 
+        <!-- "Mes créations" sur l'accueil — même patron d'interaction EXACT que le bloc de
+             recherche bibliothèque ci-dessus (cc-home-search-wrap/toggle/panel réutilisées telles
+             quelles pour l'identité visuelle, jamais un second jeu de classes dupliqué). Réutilise
+             TEL QUEL le mécanisme déjà construit dans le panneau latéral de l'écran de travail
+             (adocCreationsLoad/adocCreationsApplyFilters/adocCreationsOpen, généricisés par un
+             mountId — cf. studio-clinique-core.js) : même appel GET /clinical-documents, même
+             rendu de grille, même adaptateur de réouverture adocOpenSavedClinicalDocument. -->
+        <div class="cc-home-search-wrap">
+          <button type="button" class="cc-home-search-toggle" id="cc-home-creations-toggle" aria-expanded="false" aria-controls="cc-home-creations-panel" onclick="window.adocCreationsTogglePanel('cc-home-creations')">
+            <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-creations"></use></svg>
+            Mes créations
+          </button>
+          <div class="cc-home-search-panel cc-ws-media-panel" id="cc-home-creations-panel" hidden>
+            <div class="cc-media-search-row">
+              <input type="text" class="cc-ws-search-input" id="cc-home-creations-filter-title"
+                placeholder="Filtrer par titre…" aria-label="Filtrer les créations par titre"
+                oninput="window.adocCreationsApplyFilters('cc-home-creations')">
+            </div>
+            <select id="cc-home-creations-filter-kind" class="cc-ws-search-input" aria-label="Filtrer par type de document" onchange="window.adocCreationsApplyFilters('cc-home-creations')">
+              <option value="">Tous les types</option>
+              <option value="fiche">Fiche synthèse</option>
+              <option value="carrousel">Carrousel</option>
+              <option value="tableau">Tableau</option>
+              <option value="script">Script</option>
+              <option value="liens">Liens transversaux</option>
+            </select>
+            <div id="cc-home-creations-results" class="cc-media-grid" aria-live="polite"></div>
+          </div>
+        </div>
+
         <!-- Kit v2.4 (MISSION-HARMONISATION-CORRIGEE.md, Volet 1) — plus de présélection, plus
              de carte "Libre" : ne rien cocher produit déjà ce comportement (aucun préfixe,
              cf. window.addEventListener('conseiller-clinique:start') plus bas). Les 5 types
@@ -3331,7 +3361,7 @@
              patron que Médias ci-dessus (aria-expanded + hidden, panneau cc-ws-media-panel réutilisé
              pour l'espacement, jamais une nouvelle règle CSS pour un simple conteneur repliable). -->
         <button type="button" class="cc-ws-panel-section-title cc-ws-panel-action-btn" id="cc-ws-creations-toggle"
-          aria-expanded="false" aria-controls="cc-ws-creations-panel" onclick="window.adocCreationsTogglePanel()">
+          aria-expanded="false" aria-controls="cc-ws-creations-panel" onclick="window.adocCreationsTogglePanel('cc-ws-creations')">
           <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-creations"></use></svg>
           Mes créations
         </button>
@@ -3339,9 +3369,9 @@
           <div class="cc-media-search-row">
             <input type="text" class="cc-ws-search-input" id="cc-ws-creations-filter-title"
               placeholder="Filtrer par titre…" aria-label="Filtrer les créations par titre"
-              oninput="window.adocCreationsApplyFilters()">
+              oninput="window.adocCreationsApplyFilters('cc-ws-creations')">
           </div>
-          <select id="cc-ws-creations-filter-kind" class="cc-ws-search-input" aria-label="Filtrer par type de document" onchange="window.adocCreationsApplyFilters()">
+          <select id="cc-ws-creations-filter-kind" class="cc-ws-search-input" aria-label="Filtrer par type de document" onchange="window.adocCreationsApplyFilters('cc-ws-creations')">
             <option value="">Tous les types</option>
             <option value="fiche">Fiche synthèse</option>
             <option value="carrousel">Carrousel</option>
