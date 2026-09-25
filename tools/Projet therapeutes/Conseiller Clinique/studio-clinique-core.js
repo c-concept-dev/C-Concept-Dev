@@ -12268,6 +12268,85 @@ ${recent}`;
     if (lastFocus && typeof lastFocus.focus === 'function') lastFocus.focus();
   };
 
+  // UX-10B — "Mes créations" : adaptateur de réouverture. GET /clinical-documents/:id renvoie la
+  // forme de STOCKAGE brute (document/version tels qu'écrits par adocWsSave), jamais la forme
+  // attendue en mémoire par adocOpenWorkspace (_adocCapabilities, _adocStructuredDoc/
+  // _adocStructuredSnapshot ou art.html/_adocLegacySourceSnapshot selon le moteur — cf.
+  // investigation de ce lot). Traduction mécanique ICI, jamais une réécriture d'adocOpenWorkspace
+  // lui-même : les capacités posées ci-dessous sont EXACTEMENT celles posées à la génération
+  // (adocDeliverStructuredFicheArtifact pour 'structured', adocFinalizeGeneration pour
+  // 'legacy-html' — mêmes objets littéraux, jamais une variante divergente inventée ici).
+  window.adocOpenSavedClinicalDocument = async function (documentId) {
+    try {
+      const workerUrlClean = adocGetWorkerUrl().replace(/\/+$/, '');
+      const r = await fetch(workerUrlClean + '/clinical-documents/' + encodeURIComponent(documentId), {
+        headers: { 'X-API-Key': adocGetApiKey() },
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const data = await r.json();
+      if (!data.version || !data.version.document) throw new Error('Aucune version disponible pour ce document');
+      const engine = data.generation_engine || 'structured';
+      const storeKey = 'adocArt_saved_' + documentId;
+      window._adocArtifacts = window._adocArtifacts || {};
+      const art = { name: data.title || 'Document' };
+      window._adocArtifacts[storeKey] = art;
+      art._adocClinicalDocumentId = data.document_id;
+      art._adocClinicalVersionId = data.version.version_id;
+      art._adocGenerationEngine = engine;
+      if (engine === 'legacy-html') {
+        art.html = data.version.document.html || '';
+        art._adocLegacySourceSnapshot = data.version.document.sourceSnapshot || null;
+        art._adocDocumentKind = data.document_kind;
+        // Même enveloppe de capacités que adocFinalizeGeneration pour un repli legacy-html
+        // (jamais fmt='xlsx' — art.xlsxData n'existe jamais pour un document rouvert depuis ici,
+        // adocOpenWorkspace retombe alors correctement sur le rendu HTML générique, cf. investigation).
+        art._adocCapabilities = { workspace: true, persist: true, fineCitations: false, blockEditing: false, legacyBlockEditing: true, transform: false, export: true, qualityControlledExport: false };
+      } else {
+        art._adocStructuredDoc = data.version.document.clinicalDocument;
+        art._adocStructuredSnapshot = data.version.document.sourceSnapshot || null;
+        // Même enveloppe de capacités que adocDeliverStructuredFicheArtifact, appliquée à TOUT
+        // documentKind structuré (fiche/carrousel/tableau/script/liens — un seul point de
+        // livraison réel, cf. investigation item 69/74), jamais une variante par type inventée ici.
+        art._adocCapabilities = { workspace: true, persist: true, fineCitations: true, blockEditing: true, transform: false, export: true, qualityControlledExport: true };
+        // Piège identifié pendant le test réel de ce lot (pas dans l'investigation initiale) :
+        // le renderManifestOverride persisté référence un tokensSnapshotId qui ne vit QUE dans
+        // window.adocTokensSnapshots (cf. adocBuildRenderManifestForBrandKit) — un cache mémoire
+        // JAMAIS persisté lui-même, donc introuvable après un rechargement de page. Le réutiliser
+        // TEL QUEL ferait échouer le rendu (adocResolveTokens ne trouverait pas le snapshot).
+        // Reconstruit ICI via LE MÊME mécanisme qu'à la génération (adocBuildRenderManifestForBrandKit),
+        // à partir du SEUL brandKitRef.id conservé dans le manifeste persisté : résultat visuel
+        // fidèle (même charte) tant qu'elle n'a pas changé depuis — repli silencieux sur le
+        // manifeste par défaut si elle est introuvable/retirée (même esprit qu'adocResolveBrandKitForGeneration),
+        // jamais un rendu cassé ni un blocage de la réouverture.
+        const persistedOverride = data.version.document.renderManifestOverride || null;
+        const brandKitId = persistedOverride && persistedOverride.brandKitRef && persistedOverride.brandKitRef.id;
+        if (brandKitId) {
+          try {
+            const kit = await adocGetBrandKitById(brandKitId);
+            if (kit && kit.id) {
+              art._adocRenderManifestOverride = await adocBuildRenderManifestForBrandKit(art._adocStructuredDoc, kit);
+              art._adocBrandKitName = kit.name || null;
+            } else {
+              art._adocRenderManifestOverride = null;
+              art._adocBrandKitName = null;
+            }
+          } catch (e) {
+            art._adocRenderManifestOverride = null;
+            art._adocBrandKitName = null;
+          }
+        } else {
+          art._adocRenderManifestOverride = persistedOverride; // null la plupart du temps (charte par défaut du manifeste)
+        }
+      }
+      const opened = await window.adocOpenWorkspace(storeKey);
+      if (!opened) throw new Error('Ouverture impossible');
+      return true;
+    } catch (e) {
+      alert('Impossible de rouvrir cette création : ' + (e && e.message || 'erreur inconnue') + '.');
+      return false;
+    }
+  };
+
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && document.getElementById('cc-workspace')?.classList.contains('open')) {
       window.adocCloseWorkspace();
@@ -12410,6 +12489,66 @@ ${recent}`;
     // quelle, jamais un zip partiel traité comme réussi.
     if (!r.ok) throw new Error('Échec de capture pour la diapositive ' + slideNumber + ' (' + r.status + ')');
     return r;
+  }
+
+  // UX-10B — "Mes créations" : miniature réelle d'un document enregistré, capturée via LE MÊME
+  // /browser-rendering/screenshot-slide déjà utilisé ci-dessus (jamais un second mécanisme de
+  // capture), puis persistée via LE MÊME mécanisme que le panneau Médias (adocPersistRenderAsset
+  // côté Worker, exposé ici par le endpoint générique déjà existant POST /brand-assets/upload,
+  // role='thumbnail' — jamais une troisième implémentation de persistance d'image).
+  //
+  // Appelée en fire-and-forget APRÈS que adocWsSave a déjà confirmé la sauvegarde principale —
+  // jamais avant, jamais attendue par le bouton "Enregistrer" : la limite Cloudflare Browser
+  // Rendering (1 requête/10s, cf. ADOC_SCREENSHOT_SLIDE_DELAY_MS ci-dessus, compteur PARTAGÉ
+  // _adocLastScreenshotSlideCallAt réutilisé ICI aussi — jamais un second compteur qui doublerait
+  // le débit réel envoyé au compte Cloudflare) rendrait "Enregistrer" inutilement lent (jusqu'à
+  // 10,5s) si cette capture le bloquait. Échec silencieux (console.warn) à chaque étape : la
+  // miniature est un COMPLÉMENT visuel, jamais une condition de succès d'une sauvegarde déjà
+  // confirmée — "Mes créations" affiche un repli textuel titre/type quand elle manque.
+  async function adocCaptureAndPersistThumbnail(art) {
+    try {
+      const isLegacy = art._adocGenerationEngine === 'legacy-html';
+      let fullHtml;
+      if (isLegacy) {
+        // art.html est déjà un document HTML autonome complet (même source que celle affichée
+        // dans l'écran de travail, cf. adocOpenWorkspace) — jamais une re-construction ici.
+        fullHtml = adocSanitizeLegacyHtmlForWorkspace(art.html || '');
+        if (!fullHtml) return;
+      } else {
+        const doc = art._adocStructuredDoc;
+        if (!doc) return;
+        // Même enveloppe HTML autonome que celle déjà utilisée pour l'export/l'aperçu
+        // (adocDeliverStructuredFicheArtifact, adocExportClinicalDocumentHTML) — jamais un
+        // troisième gabarit HTML dupliqué pour ce seul besoin de capture.
+        const rendered = await window.adocRenderClinicalDocument(doc, art._adocStructuredSnapshot, art._adocRenderManifestOverride || null);
+        fullHtml = adocClinicalDocumentWrapHTML(doc, rendered.html, rendered.tokens);
+      }
+      const workerUrlClean = adocGetWorkerUrl().replace(/\/+$/, '');
+      const wait = ADOC_SCREENSHOT_SLIDE_DELAY_MS - (Date.now() - _adocLastScreenshotSlideCallAt);
+      if (wait > 0) await new Promise(function (resolve) { setTimeout(resolve, wait); });
+      _adocLastScreenshotSlideCallAt = Date.now();
+      const shotRes = await fetch(workerUrlClean + '/browser-rendering/screenshot-slide', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
+        body: JSON.stringify({ html: fullHtml }),
+      });
+      if (!shotRes.ok) { console.warn('[Mes créations] capture de miniature impossible (' + shotRes.status + ')'); return; }
+      const jpegBlob = await shotRes.blob();
+      const uploadRes = await fetch(workerUrlClean + '/brand-assets/upload?role=thumbnail', {
+        method: 'POST', headers: { 'Content-Type': 'image/jpeg', 'X-API-Key': adocGetApiKey() },
+        body: jpegBlob,
+      });
+      if (!uploadRes.ok) { console.warn('[Mes créations] persistance de miniature impossible (' + uploadRes.status + ')'); return; }
+      const uploadData = await uploadRes.json();
+      // Le document a pu être supprimé (ou n'a jamais été enregistré) pendant que cette capture,
+      // volontairement asynchrone, était en cours — jamais d'association orpheline dans ce cas.
+      if (!art._adocClinicalDocumentId) return;
+      await fetch(workerUrlClean + '/clinical-documents/' + encodeURIComponent(art._adocClinicalDocumentId) + '/thumbnail', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
+        body: JSON.stringify({ assetId: uploadData.asset_id }),
+      });
+    } catch (e) {
+      console.warn('[Mes créations] capture/persistance de miniature impossible :', e && e.message);
+    }
   }
 
   // Item 58 — export JPEG par diapositive (Carrousel structuré uniquement, cf. bouton et
@@ -14056,6 +14195,86 @@ ${recent}`;
     }
   };
 
+  // ═══════════════════════════════════════════════════════════════════════
+  // "Mes créations" (UX-10B) — bibliothèque des documents déjà enregistrés, cherchable, avec
+  // vraies miniatures et réouverture réelle. Même patron repliable que le panneau Médias
+  // ci-dessus (aria-expanded + hidden). Aucune colonne d'identifiant utilisateur/thérapeute
+  // n'existe sur clinical_documents (cf. GET /clinical-documents côté Worker) : cette liste
+  // montre TOUS les documents déjà enregistrés, pas seulement ceux de la personne connectée —
+  // cohérent avec le contexte 2-personnes-de-confiance déjà acté, pas une nouvelle décision.
+  // ═══════════════════════════════════════════════════════════════════════
+  window.adocCreationsTogglePanel = function () {
+    const btn = document.getElementById('cc-ws-creations-toggle');
+    const panel = document.getElementById('cc-ws-creations-panel');
+    if (!btn || !panel) return;
+    const willOpen = panel.hidden;
+    panel.hidden = !willOpen;
+    btn.setAttribute('aria-expanded', String(willOpen));
+    if (willOpen) window.adocCreationsLoad();
+  };
+
+  var ADOC_CREATIONS_KIND_LABELS = { fiche: 'Fiche synthèse', carrousel: 'Carrousel', tableau: 'Tableau', script: 'Script', liens: 'Liens transversaux' };
+
+  window.adocCreationsLoad = async function () {
+    const el = document.getElementById('cc-ws-creations-results');
+    if (el) el.innerHTML = '<p class="cc-media-empty">Chargement…</p>';
+    try {
+      const r = await fetch(adocGetWorkerUrl().replace(/\/+$/, '') + '/clinical-documents', { headers: { 'X-API-Key': adocGetApiKey() } });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const data = await r.json();
+      window._adocCreationsAll = Array.isArray(data.documents) ? data.documents : [];
+      window.adocCreationsApplyFilters();
+    } catch (e) {
+      if (el) el.innerHTML = '<p class="cc-media-empty">Liste indisponible : ' + adocEsc(e.message) + '</p>';
+    }
+  };
+
+  // Filtre entièrement côté client sur la liste déjà chargée (LIMIT 200 côté Worker, jamais une
+  // pagination ni une seconde requête réseau par frappe) — même esprit de simplicité que le
+  // périmètre volontairement borné du reste du panneau Médias ce soir.
+  window.adocCreationsApplyFilters = function () {
+    const titleQuery = ((document.getElementById('cc-ws-creations-filter-title') || {}).value || '').trim().toLowerCase();
+    const kindFilter = (document.getElementById('cc-ws-creations-filter-kind') || {}).value || '';
+    const all = window._adocCreationsAll || [];
+    const filtered = all.filter(function (d) {
+      if (kindFilter && d.document_kind !== kindFilter) return false;
+      if (titleQuery && (d.title || '').toLowerCase().indexOf(titleQuery) === -1) return false;
+      return true;
+    });
+    window._adocCreationsFiltered = filtered;
+    const el = document.getElementById('cc-ws-creations-results');
+    if (!el) return;
+    if (!filtered.length) { el.innerHTML = '<p class="cc-media-empty">Aucune création trouvée.</p>'; return; }
+    el.innerHTML = filtered.map(function (d, i) {
+      const kindLabel = ADOC_CREATIONS_KIND_LABELS[d.document_kind] || d.document_kind;
+      const dateLabel = d.created_at ? new Date(d.created_at).toLocaleDateString('fr-FR') : '';
+      // Repli textuel (titre + type), jamais un échec silencieux, quand aucune miniature n'a pu
+      // être capturée/persistée (document enregistré avant ce lot, ou capture ayant échoué —
+      // cf. adocCaptureAndPersistThumbnail, échec toujours non bloquant pour la sauvegarde elle-même).
+      const thumbHtml = d.thumbnail_asset_id
+        ? '<img class="cc-media-thumb" src="' + adocEsc(adocImageAssetUrl(d.thumbnail_asset_id)) + '" alt="' + adocEsc(d.title || 'Document') + '" loading="lazy">'
+        : '<div class="cc-media-thumb cc-creations-thumb-fallback">' + adocEsc(kindLabel) + '</div>';
+      return '<div class="cc-media-item" data-creations-item="' + i + '">' +
+        thumbHtml +
+        '<p class="cc-media-credit">' + adocEsc(d.title || 'Document') + ' — ' + adocEsc(kindLabel) + (dateLabel ? ' — ' + adocEsc(dateLabel) : '') + '</p>' +
+        '<div class="cc-media-actions">' +
+          '<button type="button" class="cc-media-insert-btn" data-creations-open="' + i + '" onclick="window.adocCreationsOpen(' + i + ')">Ouvrir</button>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  };
+
+  // Clic → réouverture RÉELLE dans l'écran de travail, exactement comme un document fraîchement
+  // généré (cf. adocOpenSavedClinicalDocument, l'adaptateur défini plus haut avec adocOpenWorkspace).
+  window.adocCreationsOpen = async function (idx) {
+    const item = window._adocCreationsFiltered && window._adocCreationsFiltered[idx];
+    if (!item) return;
+    const btn = document.querySelector('#cc-ws-creations-results [data-creations-open="' + idx + '"]');
+    if (btn) { btn.disabled = true; btn.textContent = 'Ouverture…'; }
+    const opened = await window.adocOpenSavedClinicalDocument(item.document_id);
+    if (!opened && btn) { btn.disabled = false; btn.textContent = 'Ouvrir'; }
+  };
+
   // Chiffres bruts, pas de jugement de valeur (même esprit que la jauge d'usage, UX-10A Étape 1)
   // — reflète simplement l'état réel : enregistré ou non, jamais une invitation insistante.
   function adocUpdateSaveStatusUI(art) {
@@ -14870,6 +15089,11 @@ ${recent}`;
       }
       if ((art._ccEditorRevision || 0) === revision) art._ccEditorDirty = false;
       adocUpdateSaveStatusUI(art);
+      // UX-10B — miniature réelle pour "Mes créations" : déclenchée APRÈS confirmation de la
+      // sauvegarde ci-dessus, JAMAIS attendue ici (pas de await) — le bouton "Enregistrer" se
+      // réactive immédiatement (cf. finally ci-dessous), la capture continue en arrière-plan
+      // (cf. adocCaptureAndPersistThumbnail, qui gère elle-même ses propres échecs).
+      adocCaptureAndPersistThumbnail(art);
     } catch (e) {
       alert('Impossible d’enregistrer ce document pour le moment : ' + (e && e.message || 'erreur inconnue') + '. Rien n’a été perdu, vous pouvez réessayer.');
     } finally {

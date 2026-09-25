@@ -2391,6 +2391,10 @@
 .cc-media-delete-btn:hover:not(:disabled) { border-color: var(--terracotta-700); color: var(--terracotta-700); }
 .cc-media-delete-btn:disabled { opacity: .6; cursor: default; }
 .cc-media-empty { font-size: 11px; color: var(--muted); margin: 8px 0 0; }
+/* "Mes créations" (UX-10B) — repli textuel quand thumbnail_asset_id est absent (jamais un échec
+   silencieux) : mêmes dimensions que .cc-media-thumb (réutilisée à côté, jamais dupliquée),
+   simplement centré pour accueillir le libellé du type de document. */
+.cc-creations-thumb-fallback { display: flex; align-items: center; justify-content: center; text-align: center; font-size: 11px; color: var(--muted); padding: 4px; }
 </style>
 </head>
 <body>
@@ -3319,6 +3323,33 @@
           <div id="cc-ws-media-search-results" class="cc-media-grid" aria-live="polite"></div>
           <p class="cc-ws-panel-section-title cc-media-history-title">Déjà utilisées</p>
           <div id="cc-ws-media-history" class="cc-media-grid" aria-live="polite"></div>
+        </div>
+      </div>
+      <div>
+        <!-- "Mes créations" (UX-10B) — bibliothèque des documents déjà enregistrés (tous moteurs,
+             tous types), cherchable, avec vraies miniatures et réouverture réelle. Repliable, même
+             patron que Médias ci-dessus (aria-expanded + hidden, panneau cc-ws-media-panel réutilisé
+             pour l'espacement, jamais une nouvelle règle CSS pour un simple conteneur repliable). -->
+        <button type="button" class="cc-ws-panel-section-title cc-ws-panel-action-btn" id="cc-ws-creations-toggle"
+          aria-expanded="false" aria-controls="cc-ws-creations-panel" onclick="window.adocCreationsTogglePanel()">
+          <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-creations"></use></svg>
+          Mes créations
+        </button>
+        <div class="cc-ws-media-panel" id="cc-ws-creations-panel" hidden>
+          <div class="cc-media-search-row">
+            <input type="text" class="cc-ws-search-input" id="cc-ws-creations-filter-title"
+              placeholder="Filtrer par titre…" aria-label="Filtrer les créations par titre"
+              oninput="window.adocCreationsApplyFilters()">
+          </div>
+          <select id="cc-ws-creations-filter-kind" class="cc-ws-search-input" aria-label="Filtrer par type de document" onchange="window.adocCreationsApplyFilters()">
+            <option value="">Tous les types</option>
+            <option value="fiche">Fiche synthèse</option>
+            <option value="carrousel">Carrousel</option>
+            <option value="tableau">Tableau</option>
+            <option value="script">Script</option>
+            <option value="liens">Liens transversaux</option>
+          </select>
+          <div id="cc-ws-creations-results" class="cc-media-grid" aria-live="polite"></div>
         </div>
       </div>
       <div class="cc-ws-memory" id="cc-ws-memory-mount"></div>

@@ -1,0 +1,13 @@
+-- Migration number: 0012
+--
+-- UX-10B — "Mes créations" : bibliothèque des documents déjà générés, avec vraies miniatures.
+-- Colonne additive, nullable (aucun document existant n'a de miniature avant ce lot — un simple
+-- repli textuel titre/type s'affiche pour eux dans la liste, jamais un échec silencieux) : même
+-- patron que l'ajout de render_assets.attribution en migration 0010, un ALTER TABLE ADD COLUMN
+-- simple suffit ici (pas de CHECK à élargir, contrairement à la migration 0011).
+--
+-- Stockée sur le DOCUMENT (clinical_documents), jamais sur une version précise
+-- (clinical_document_versions) : la miniature reflète l'état ACTUEL du document affiché dans
+-- "Mes créations", mise à jour à chaque nouvelle sauvegarde (nouvelle version), jamais un
+-- historique de miniatures par version (hors périmètre, jamais demandé).
+ALTER TABLE clinical_documents ADD COLUMN thumbnail_asset_id TEXT;

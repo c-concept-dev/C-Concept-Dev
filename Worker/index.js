@@ -55633,6 +55633,14 @@ var Worker_default = {
     // vérifiés en premier (versions/:versionId avant versions, avant le générique /:id).
     if (p === "/clinical-documents" && request2.method === "POST")
       return handleClinicalDocumentCreate(request2, env2);
+    // UX-10B — "Mes créations" : liste complète, motif le plus spécifique (chemin exact, sans
+    // segment) vérifié ici avant les regex à segments variables ci-dessous (même discipline
+    // d'ordre déjà en place pour ce groupe de routes).
+    if (p === "/clinical-documents" && request2.method === "GET")
+      return handleClinicalDocumentsList(env2);
+    const clinicalDocThumbnailMatch = p.match(/^\/clinical-documents\/([^\/]+)\/thumbnail$/);
+    if (clinicalDocThumbnailMatch && request2.method === "POST")
+      return handleClinicalDocumentThumbnailSet(request2, env2, clinicalDocThumbnailMatch[1]);
     const clinicalDocVersionGetMatch = p.match(/^\/clinical-documents\/([^\/]+)\/versions\/([^\/]+)$/);
     if (clinicalDocVersionGetMatch && request2.method === "GET")
       return handleClinicalDocumentVersionGet(env2, clinicalDocVersionGetMatch[1], clinicalDocVersionGetMatch[2]);
@@ -55690,7 +55698,10 @@ var Worker_default = {
 // ═══ UX-8B Lot 1 — Brand Kits : infrastructure de stockage uniquement ═══
 // Aucun parcours d'import, aucune extraction — la fondation (R2 + D1) qui rend le reste
 // possible. Voir migrations/0001_add_brand_kit_tables.sql pour le schéma exact.
-var BRAND_ASSET_ROLES = ["logo", "font", "image", "reference"];
+// UX-10B — 'thumbnail' ajouté (migration 0011) : miniature réelle d'un document enregistré
+// ("Mes créations"), persistée via ce même endpoint générique (POST /brand-assets/upload?role=
+// thumbnail), jamais un second mécanisme d'upload dédié.
+var BRAND_ASSET_ROLES = ["logo", "font", "image", "reference", "thumbnail"];
 var BRAND_SOURCE_TYPES = ["pptx", "pdf", "image", "font"];
 var BRAND_COLOR_KEYS = ["primary", "accent", "background", "text", "success", "warning", "critical"];
 
@@ -56276,6 +56287,58 @@ async function handleClinicalDocumentDelete(env2, documentId) {
   }
 }
 __name(handleClinicalDocumentDelete, "handleClinicalDocumentDelete");
+
+// UX-10B — "Mes créations" : liste de TOUS les documents déjà enregistrés, tous moteurs
+// confondus (structured/legacy-html), triée du plus récent au plus ancien. Aucune colonne
+// d'identifiant utilisateur/thérapeute n'existe sur clinical_documents (contexte 2-personnes-de-
+// confiance déjà acté pour l'écran de connexion, cf. rapport UX-10A Étape 1) : cette liste montre
+// donc tous les documents, jamais un sous-ensemble par auteur — cohérent avec le reste de
+// l'application, pas une nouvelle décision prise ici. thumbnail_asset_id peut être NULL (document
+// enregistré avant ce lot, ou capture de miniature ayant échoué) — le client affiche alors un
+// repli textuel titre/type, jamais un échec silencieux. LIMIT 200, même borne que GET
+// /media-assets (aucune pagination demandée, périmètre volontairement simple).
+async function handleClinicalDocumentsList(env2) {
+  if (!env2.DB) return jsonErr("D1 not configured", 500);
+  try {
+    const { results } = await env2.DB.prepare(
+      "SELECT document_id, title, document_kind, created_at, thumbnail_asset_id FROM clinical_documents ORDER BY created_at DESC LIMIT 200"
+    ).all();
+    return json({ documents: results || [] });
+  } catch (err2) {
+    return jsonErr(err2.message, 500);
+  }
+}
+__name(handleClinicalDocumentsList, "handleClinicalDocumentsList");
+
+// UX-10B — associe une miniature DÉJÀ persistée (via POST /brand-assets/upload?role=thumbnail,
+// jamais un second chemin d'upload) au document. Route séparée et minimale plutôt qu'un champ
+// ajouté à handleClinicalDocumentCreate/VersionCreate : la capture de miniature a lieu APRÈS la
+// sauvegarde principale côté client (jamais dans le même appel, cf. rapport de lot — la limite
+// Cloudflare Browser Rendering de 1 requête/10s rendrait "Enregistrer" inutilement lent si la
+// capture le bloquait). Vérifie que l'asset existe réellement avec role='thumbnail' avant
+// d'écrire le pointeur — jamais un id arbitraire non vérifié, jamais un asset d'un autre rôle.
+async function handleClinicalDocumentThumbnailSet(request2, env2, documentId) {
+  if (!env2.DB) return jsonErr("D1 not configured", 500);
+  let body;
+  try {
+    body = await request2.json();
+  } catch {
+    return jsonErr("Invalid JSON", 400);
+  }
+  const assetId = typeof body.assetId === "string" ? body.assetId : "";
+  if (!assetId) return jsonErr("Missing assetId", 400);
+  try {
+    const doc = await env2.DB.prepare("SELECT document_id FROM clinical_documents WHERE document_id = ?").bind(documentId).first();
+    if (!doc) return jsonErr("Clinical document not found", 404);
+    const asset = await env2.DB.prepare("SELECT asset_id FROM render_assets WHERE asset_id = ? AND role = 'thumbnail'").bind(assetId).first();
+    if (!asset) return jsonErr("Thumbnail asset not found", 404);
+    await env2.DB.prepare("UPDATE clinical_documents SET thumbnail_asset_id = ? WHERE document_id = ?").bind(assetId, documentId).run();
+    return json({ document_id: documentId, thumbnail_asset_id: assetId });
+  } catch (err2) {
+    return jsonErr(err2.message, 500);
+  }
+}
+__name(handleClinicalDocumentThumbnailSet, "handleClinicalDocumentThumbnailSet");
 
 // Panneau "Médias" (UX-8E, Volet 2) — extraction pure du cœur de persistance de
 // handleBrandAssetUpload ci-dessous (empreinte SHA-256, déduplication, écriture R2 + render_assets),
