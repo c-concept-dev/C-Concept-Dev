@@ -13385,6 +13385,36 @@ ${recent}`;
   // jamais comme content.assetId (réservé aux blocs 'image'). L'ORDRE des tests compte : un
   // .adoc-sc-image porte AUSSI la classe .adoc-sc-block, donc le test image doit précéder le
   // test générique pour ne pas détourner le remplacement Pexels existant (Lot C, cas 1).
+  //
+  // Panneau "Médias" (changement de comportement, ce lot) — extraite du corps d'adocHandleImageDrop
+  // ci-dessous EXACTEMENT tel quel (aucune logique de ciblage réécrite), pour être réutilisée par
+  // window.adocApplyMediaAssetToSelectedBlock plus bas SANS repasser par un fichier local : cette
+  // fonction reçoit directement un assetId déjà connu (déjà persisté par le panneau Médias) au lieu
+  // d'un File tout juste glissé (cf. rapport de lot — adocHandleImageDrop lui-même n'accepte
+  // jamais qu'un File, uniquement via adocUploadImageAsset). Renvoie true/false pour distinguer un
+  // bloc cible qui n'accepte pas d'image de fond (jamais un cas silencieux pour l'appelant).
+  function adocApplyImageAssetToDropTarget(dropEl, doc, assetId, label) {
+    if (dropEl.classList.contains('adoc-sc-cover')) {
+      let coverBlock = doc.blocks[0] && doc.blocks[0].type === 'image' ? doc.blocks[0] : null;
+      if (!coverBlock) {
+        coverBlock = { id: adocNextBlockId(doc, 'image'), type: 'image', content: { query: label, alt: label, assetId: null }, citationIds: [], validation: {} };
+        doc.blocks.unshift(coverBlock);
+      }
+      coverBlock.content.assetId = assetId;
+      return true;
+    }
+    if (dropEl.classList.contains('adoc-sc-image')) {
+      const block = adocFindEditableBlock(doc, dropEl.id);
+      if (!block || block.type !== 'image') return false;
+      block.content.assetId = assetId;
+      return true;
+    }
+    const block = adocFindEditableBlock(doc, dropEl.id);
+    if (!block || !block.type || block.type === 'image' || block.type === 'card') return false;
+    block.style = Object.assign({}, block.style, { backgroundAssetId: assetId });
+    return true;
+  }
+
   async function adocHandleImageDrop(dropEl, file) {
     const storeKey = window._adocWsState && window._adocWsState.storeKey;
     const art = window._adocArtifacts && window._adocArtifacts[storeKey];
@@ -13396,22 +13426,7 @@ ${recent}`;
     catch (e) { alert(e.message); return; }
     finally { adocSetImageDropBusy(dropEl, false); }
     const label = file.name.replace(/\.[^.]+$/, '') || 'Image importée';
-    if (dropEl.classList.contains('adoc-sc-cover')) {
-      let coverBlock = doc.blocks[0] && doc.blocks[0].type === 'image' ? doc.blocks[0] : null;
-      if (!coverBlock) {
-        coverBlock = { id: adocNextBlockId(doc, 'image'), type: 'image', content: { query: label, alt: label, assetId: null }, citationIds: [], validation: {} };
-        doc.blocks.unshift(coverBlock);
-      }
-      coverBlock.content.assetId = assetId;
-    } else if (dropEl.classList.contains('adoc-sc-image')) {
-      const block = adocFindEditableBlock(doc, dropEl.id);
-      if (!block || block.type !== 'image') return;
-      block.content.assetId = assetId;
-    } else {
-      const block = adocFindEditableBlock(doc, dropEl.id);
-      if (!block || !block.type || block.type === 'image' || block.type === 'card') return;
-      block.style = Object.assign({}, block.style, { backgroundAssetId: assetId });
-    }
+    if (!adocApplyImageAssetToDropTarget(dropEl, doc, assetId, label)) return;
     if (!await window.adocOpenWorkspace(storeKey)) return;
     await window.adocWsSave();
   }
@@ -13780,33 +13795,46 @@ ${recent}`;
     }
   };
 
-  // Insertion partagée — même splice que adocConfirmBlockInsertFromFile ci-dessus, direction
-  // toujours 'after' (cf. commentaire d'en-tête de section).
-  async function adocInsertMediaImageBlockAsset(assetId, label) {
+  // CHANGEMENT DE COMPORTEMENT (décision de Christophe, ce lot) — une image choisie dans le
+  // panneau Médias remplit désormais le FOND du bloc actuellement sélectionné, exactement comme
+  // le glisser-déposer déjà existant (adocHandleImageDrop ci-dessus, réutilisé via
+  // adocApplyImageAssetToDropTarget, jamais reconstruit) : même dispatch cover/image/générique,
+  // même sauvegarde immédiate. Seule différence : la cible n'est pas l'élément survolé au moment
+  // d'un drop (aucun geste de survol depuis un clic sur le panneau), mais le bloc actuellement
+  // sélectionné (_adocBlockEditState.blockId) — c'est ici le seul véritable adaptateur.
+  // Le mécanisme d'insertion d'un VRAI bloc image autonome (« Insérer un bloc » → type « image »,
+  // adocConfirmBlockInsert/adocConfirmBlockInsertFromFile ci-dessus) reste totalement INCHANGÉ et
+  // reste le SEUL moyen de créer un bloc image dédié — jamais un fallback automatique ici vers ce
+  // mécanisme (décision explicite : un refus clair, jamais une action de substitution surprise).
+  async function adocApplyMediaAssetToSelectedBlock(assetId, label) {
     const st = window._adocBlockEditState;
+    if (!st.storeKey || !st.blockId) {
+      alert('Sélectionnez d’abord un bloc du document avant de choisir une image dans Médias.');
+      return false;
+    }
     const art = window._adocArtifacts && window._adocArtifacts[st.storeKey];
-    if (!art || !art._adocStructuredDoc) return;
+    if (!art || !art._adocStructuredDoc) return false;
     const doc = art._adocStructuredDoc;
-    const siblings = adocEditorBlockContainer(doc, st.blockId) || [];
-    const idx = siblings.findIndex(function (b) { return b.id === st.blockId; });
-    if (idx === -1) { adocWsClearBlockSelection(); return; }
-    const newBlock = {
-      id: adocNextBlockId(doc, 'image'),
-      type: 'image',
-      content: { query: label, alt: label, assetId: assetId },
-      citationIds: [],
-      validation: {},
-    };
-    siblings.splice(idx + 1, 0, newBlock);
+    const dropEl = document.getElementById(st.blockId);
+    if (!dropEl) {
+      alert('Le bloc sélectionné est introuvable — sélectionnez-le à nouveau.');
+      return false;
+    }
+    if (!adocApplyImageAssetToDropTarget(dropEl, doc, assetId, label)) {
+      alert('Ce bloc n’accepte pas d’image en fond. Pour un bloc image dédié, utilisez « Insérer un bloc ».');
+      return false;
+    }
     const storeKey = st.storeKey;
     adocWsClearBlockSelection();
-    if (!await window.adocOpenWorkspace(storeKey)) { siblings.splice(idx + 1, 1); }
+    if (!await window.adocOpenWorkspace(storeKey)) return false;
+    await window.adocWsSave();
+    return true;
   }
 
   window.adocMediaInsertFromSearch = async function (idx) {
     const st = window._adocBlockEditState;
     if (!st.storeKey || !st.blockId) {
-      alert('Sélectionnez d’abord un bloc du document (« Insérer un bloc ») avant de choisir une image dans Médias.');
+      alert('Sélectionnez d’abord un bloc du document avant de choisir une image dans Médias.');
       return;
     }
     const item = window._adocMediaSearchResults && window._adocMediaSearchResults[idx];
@@ -13821,7 +13849,8 @@ ${recent}`;
       });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
-      await adocInsertMediaImageBlockAsset(data.asset_id, item.alt || item.photographer || 'Image');
+      const applied = await adocApplyMediaAssetToSelectedBlock(data.asset_id, item.alt || item.photographer || 'Image');
+      if (!applied) { if (btn) { btn.disabled = false; btn.textContent = 'Insérer'; } return; }
       window.adocMediaLoadHistory();
     } catch (e) {
       alert('Insertion impossible : ' + e.message);
@@ -13832,7 +13861,7 @@ ${recent}`;
   window.adocMediaInsertFromHistory = async function (idx) {
     const st = window._adocBlockEditState;
     if (!st.storeKey || !st.blockId) {
-      alert('Sélectionnez d’abord un bloc du document (« Insérer un bloc ») avant de choisir une image dans Médias.');
+      alert('Sélectionnez d’abord un bloc du document avant de choisir une image dans Médias.');
       return;
     }
     const item = window._adocMediaHistoryResults && window._adocMediaHistoryResults[idx];
@@ -13844,7 +13873,8 @@ ${recent}`;
         method: 'POST', headers: { 'X-API-Key': adocGetApiKey() },
       });
       if (!res.ok) throw new Error('HTTP ' + res.status);
-      await adocInsertMediaImageBlockAsset(item.asset_id, item.attribution || 'Image');
+      const applied = await adocApplyMediaAssetToSelectedBlock(item.asset_id, item.attribution || 'Image');
+      if (!applied) { if (btn) { btn.disabled = false; btn.textContent = 'Insérer'; } return; }
       window.adocMediaLoadHistory();
     } catch (e) {
       alert('Insertion impossible : ' + e.message);
