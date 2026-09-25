@@ -2021,11 +2021,34 @@
        legacy, copie B→A). */
     /* Le <span class="adoc-sc-block-drag-handle"> reste émis dans le balisage (moteur structuré ET
        legacy, cf. studio-clinique-core.js) mais n'est plus jamais révélé — remplacé par la zone de
-       bord invisible ci-dessus. Conservé display:none inconditionnel plutôt que retiré du balisage,
-       pour un diff minimal (0D) : aucune fonction JS ne dépend plus de cet élément désormais. */
+       bord ci-dessous. Conservé display:none inconditionnel plutôt que retiré du balisage, pour un
+       diff minimal (0D) : aucune fonction JS ne dépend plus de cet élément désormais. */
     .adoc-sc-block-drag-handle { display: none; }
     .adoc-sc-block-drag-wrap { position: relative; }
     .cc-drag-edge-hover { cursor: grab; }
+    /* CORRECTIF ERGONOMIE (mesure réelle : la zone de 10px, mécaniquement parfaite, restait
+       injouable car totalement invisible tant qu'on ne l'avait pas trouvée par tâtonnement) — un
+       repère TOUJOURS PRÉSENT (jamais seulement au survol, contrairement à .cc-drag-edge-hover
+       ci-dessus) annonce désormais où saisir : une fine bande verticale sur le bord gauche du bloc,
+       volontairement plus étroite que la zone cliquable réelle (ADOC_DRAG_EDGE_ZONE_PX, élargie à
+       26px, cf. studio-clinique-core.js) — même principe qu'une poignée de redimensionnement
+       classique, le repère annonce, la zone cliquable reste généreuse autour de lui. `position:
+       relative` déjà posé sur .adoc-sc-block (ligne ~1985 pour A, hérité pour B via la classe
+       partagée cc-ws-doc-card) et sur .adoc-sc-block-drag-wrap (legacy) ci-dessus : le repère (::
+       before, jamais un élément réel qui polluerait le rendu exporté) se positionne donc bien
+       relativement au bloc/à l'enveloppe, sans jamais décaler le texte (absolute, hors du flux).
+       Porté par les mêmes conditions d'activation que l'ancienne poignée (jamais un panneau en
+       lecture seule sans capacité de glissement) : .cc-ws-block-editable pour A structuré,
+       .cc-ws-legacy-block-editable pour A ancien moteur, inconditionnel pour #cc-preview-doc-card
+       (B, déjà le comportement de l'ancienne poignée côté aperçu, cf. Fusion Phase 2). */
+    .cc-ws-doc-card.cc-ws-block-editable .adoc-sc-block::before,
+    .cc-ws-doc-card.cc-ws-legacy-block-editable .adoc-sc-block-drag-wrap::before,
+    #cc-preview-doc-card .adoc-sc-block::before {
+      content: ''; position: absolute; left: 0; top: 6px; bottom: 6px; width: 4px;
+      border-radius: 2px; background: var(--petrol-800); opacity: .32; pointer-events: none;
+      transition: opacity .1s;
+    }
+    .cc-drag-edge-hover::before { opacity: 1; }
     .cc-drag-ghost {
       position: fixed; pointer-events: none; z-index: 9999; opacity: .85;
       box-shadow: 0 6px 18px rgba(16,47,49,.25); background: var(--paper);
