@@ -12499,9 +12499,23 @@ ${recent}`;
   // (`margin: 0 0 1em` sur .adoc-sc-paragraph etc., studio-clinique.html) — le texte commence au
   // tout premier pixel du bloc. La seule "bordure" réellement disponible SANS décaler le texte
   // d'aucun bloc est donc une bande mesurée en JS (getBoundingClientRect), jamais une marge CSS
-  // ajoutée. ADOC_DRAG_EDGE_ZONE_PX = 10px : assez large pour être trouvable au survol, assez
-  // étroit pour ne jamais recouvrir un clic normal visant le texte (une sélection commence presque
-  // toujours À L'INTÉRIEUR d'un mot, jamais exactement au pixel 0-10 du bloc).
+  // ajoutée. ADOC_DRAG_EDGE_ZONE_PX = 26px : assez large pour une saisie confortable au pouce/à la
+  // souris (comparable à une poignée cliquable standard), assez étroit pour ne jamais recouvrir un
+  // clic normal visant le texte (une sélection commence presque toujours À L'INTÉRIEUR d'un mot,
+  // jamais exactement au pixel 0-26 du bloc).
+  //
+  // CORRECTIF ERGONOMIE (trouvé en usage réel, mesure confirmée) — la première valeur retenue
+  // (10px) était mécaniquement parfaite (curseur "grab" activé/désactivé exactement au pixel près)
+  // mais invisible tant qu'on ne l'avait pas trouvée : un vrai défaut d'ergonomie, pas de code.
+  // Deux changements pour y répondre, jamais un seul : (1) la zone elle-même est élargie à 26px, ET
+  // (2) un repère visuel DISCRET MAIS TOUJOURS PRÉSENT (jamais seulement au survol) est ajouté en
+  // CSS sur le bord gauche de chaque bloc réordonnable — cf. `.adoc-sc-block::before` / `.adoc-sc-
+  // block-drag-wrap::before` dans studio-clinique.html — pour qu'on VOIE où saisir avant même de
+  // survoler, au lieu de devoir deviner puis chercher au pixel près. Le repère (une fine bande
+  // colorée, jamais un carré) reste volontairement plus étroit que la zone cliquable elle-même
+  // (même principe qu'une poignée de redimensionnement classique : le repère annonce, la zone
+  // cliquable reste généreuse autour de lui) — foncé au survol réel (.cc-drag-edge-hover) pour
+  // doubler le retour visuel déjà donné par le changement de curseur.
   //
   // ATTENTION conflit résolu par investigation, côté Item 63f structuré : un bloc IMBRIQUÉ dans une
   // carte Carrousel porte AUSSI le geste de positionnement libre Item 75 (mousedown n'importe où
@@ -12510,7 +12524,7 @@ ${recent}`;
   // réordonnancement, exactement comme la poignée le faisait déjà (testée en priorité, AVANT la
   // branche Item 75, avec un retour explicite en cas de zone atteinte — même ordre de précédence
   // qu'avant, seule la méthode de détection change).
-  const ADOC_DRAG_EDGE_ZONE_PX = 10;
+  const ADOC_DRAG_EDGE_ZONE_PX = 26;
   function adocDragInEdgeZone(el, clientX) {
     const r = el.getBoundingClientRect();
     const dx = clientX - r.left;
@@ -13708,8 +13722,9 @@ ${recent}`;
       // fonction commune avec lui (calcul de position totalement différent — ici un INDEX dans
       // `blocks[]`, jamais des coordonnées x/y).
       // Refonte du geste (Sujet 1, étendue à Item 63f sur confirmation explicite de Christophe) —
-      // la poignée carrée visible disparaît : le déclenchement se fait désormais par une zone
-      // invisible de ADOC_DRAG_EDGE_ZONE_PX le long du bord GAUCHE du bloc (adocDragInEdgeZone),
+      // la poignée carrée visible en permanence disparaît, remplacée par une zone de bord annoncée
+      // par un repère discret (CORRECTIF ERGONOMIE, cf. plus haut) sur ADOC_DRAG_EDGE_ZONE_PX le
+      // long du bord GAUCHE du bloc (adocDragInEdgeZone),
       // jamais en plein texte (conflit avec la sélection native écarté par investigation). ORDRE
       // DE BRANCHEMENT INCHANGÉ : ce test reste le tout premier, avant la garde carte/nestedEl
       // ci-dessous — un point hors zone retombe exactement comme avant sur Item 75
