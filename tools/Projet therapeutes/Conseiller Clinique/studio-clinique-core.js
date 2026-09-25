@@ -15270,8 +15270,10 @@ ${recent}`;
       // titre/type/enveloppe de contenu diffèrent selon le moteur.
       const saveTitle = isLegacy ? (art.name || 'Document').replace(/-\d+$/, '').replace(/-/g, ' ') : art._adocStructuredDoc.title;
       const saveKind = isLegacy ? (art._adocDocumentKind || 'fiche') : art._adocStructuredDoc.documentKind;
-      if (!art._adocClinicalDocumentId) {
-        // Première sauvegarde de ce document précis — crée le document ET sa version initiale.
+      // Extraite pour être réutilisée TELLE QUELLE par le repli "document supprimé entre-temps"
+      // ci-dessous (jamais une seconde implémentation de la création) — crée le document ET sa
+      // version initiale, assigne les deux ids sur l'artefact.
+      async function createNewClinicalDocument() {
         const r = await fetch(workerUrl + '/clinical-documents', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
@@ -15281,6 +15283,10 @@ ${recent}`;
         const data = await r.json();
         art._adocClinicalDocumentId = data.document_id;
         art._adocClinicalVersionId = data.version_id;
+      }
+      if (!art._adocClinicalDocumentId) {
+        // Première sauvegarde de ce document précis — crée le document ET sa version initiale.
+        await createNewClinicalDocument();
       } else {
         // Déjà enregistré — ajoute une nouvelle version immuable, ne modifie jamais l'existante.
         const r = await fetch(workerUrl + '/clinical-documents/' + encodeURIComponent(art._adocClinicalDocumentId) + '/versions', {
@@ -15288,9 +15294,22 @@ ${recent}`;
           headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
           body: JSON.stringify({ document: content }),
         });
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        const data = await r.json();
-        art._adocClinicalVersionId = data.version_id;
+        if (r.status === 404) {
+          // Gestion gracieuse d'un document supprimé entre-temps (croix "Mes créations", un autre
+          // onglet/session) — confirmé par lecture du Worker (handleClinicalDocumentVersionCreate
+          // renvoie exactement 404 "Clinical document not found" quand :id n'existe plus, jamais
+          // une autre cause). Jamais une erreur brute : propose explicitement de recommencer comme
+          // un NOUVEAU document. Refus explicite → RIEN n'est perdu (déjà garanti par le principe
+          // général de ce bouton), retour à l'état actuel exactement comme avant la tentative.
+          if (!confirm('Ce document a été supprimé depuis. Voulez-vous l’enregistrer comme un nouveau document ?')) return;
+          art._adocClinicalDocumentId = null;
+          art._adocClinicalVersionId = null;
+          await createNewClinicalDocument();
+        } else {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          const data = await r.json();
+          art._adocClinicalVersionId = data.version_id;
+        }
       }
       if ((art._ccEditorRevision || 0) === revision) art._ccEditorDirty = false;
       adocUpdateSaveStatusUI(art);
