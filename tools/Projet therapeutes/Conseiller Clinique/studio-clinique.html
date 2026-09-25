@@ -2008,9 +2008,13 @@
     .cc-legacy-citation-flag { font-size: 10px; color: var(--terracotta-700); cursor: help; margin-left: 2px; }
     /* ITEM 63f — glisser-déposer réel pour réordonner un bloc. Poignée TOUJOURS présente dans le
        balisage (même principe que les poignées de redimensionnement Item 75), visible SEULEMENT
-       au survol et SEULEMENT dans l'espace de travail éditable (jamais en aperçu/export statique
-       — ces deux classes d'activation, cc-ws-block-editable/cc-ws-legacy-block-editable, ne sont
-       jamais posées hors de #cc-ws-doc-card). Coin haut-gauche (jamais bas-droit, déjà pris par la
+       au survol et SEULEMENT dans l'espace de travail éditable POUR CE GESTE-CI (réordonnancement
+       sur A, jamais en export statique) — ces deux classes d'activation, cc-ws-block-editable/
+       cc-ws-legacy-block-editable, ne sont jamais posées hors de #cc-ws-doc-card. (Fusion Phase 2,
+       plus bas dans ce fichier, révèle cette MÊME poignée dans le panneau B en lecture seule via
+       une règle séparée, condition d'activation différente, pour un geste totalement différent :
+       glisser une COPIE vers A, jamais un réordonnancement de B — l'ancienne affirmation "jamais en
+       aperçu" ne valait que pour LE RÉORDONNANCEMENT, toujours vraie ici.) Coin haut-gauche (jamais bas-droit, déjà pris par la
        poignée de redimensionnement Item 75 sur un bloc imbriqué de Carrousel). Ancien moteur :
        enveloppe .adoc-sc-block-drag-wrap dédiée (jamais le bloc lui-même, qui peut être un
        <table>/<ul>/<ol> — un <span> y serait invalide et reparenté par le moteur HTML, cf. rapport
@@ -2461,6 +2465,16 @@
    nécessaire pendant un glissement réel où la ligne ne doit jamais intercepter les événements). */
 .cc-fusion-drop-target { pointer-events: auto; cursor: pointer; margin: 4px 0; transition: height .1s, background .1s; }
 .cc-fusion-drop-target:hover { height: 6px; background: var(--petrol-800); }
+/* Fusion Phase 2 — révèle la MÊME poignée .adoc-sc-block-drag-handle qu'Item 63f (déjà présente,
+   inconditionnellement, dans le balisage de chaque bloc rendu — y compris ici, cf.
+   adocRenderBlockHTML) mais sous une condition d'activation SÉPARÉE : jamais .cc-ws-block-editable
+   (Item 63f, réordonnancement sur A, sans aucun sens pour ce panneau strictement lecture seule) —
+   un panneau B en aperçu révèle sa poignée inconditionnellement au survol d'un bloc. */
+#cc-preview-doc-card .adoc-sc-block:hover > .adoc-sc-block-drag-handle { display: block; }
+/* Fusion Phase 2 — retour visuel pendant le glissement : B n'est jamais réellement modifié (copie,
+   jamais déplacement), le bloc source reste exactement à sa place — une simple opacité réduite
+   suffit à indiquer "ceci est en cours de glissement", retirée inconditionnellement au relâchement. */
+.cc-fusion-dragging-source { opacity: .35; }
 @media (max-width: 980px) {
   .cc-preview-panel:not([hidden]) {
     position: fixed; top: 49px; bottom: 0; right: 0; z-index: 20; width: 92vw; max-width: 420px;
