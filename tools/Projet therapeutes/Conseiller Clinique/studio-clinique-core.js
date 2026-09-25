@@ -12486,6 +12486,67 @@ ${recent}`;
   }
 
   // ═══════════════════════════════════════════════════════════════════════
+  // Refonte du geste de glisser-déposer (Sujet 1) — remplace la poignée carrée visible en
+  // permanence (jugée intrusive par Christophe, masquait une partie du contenu du bloc) par un
+  // simple changement de curseur au survol du BORD GAUCHE du bloc + un vrai fantôme qui suit
+  // réellement la souris pendant le déplacement. PARTAGÉ par les TROIS machines de glissement de
+  // l'outil (copie B→A ci-dessous, réordonnancement Item 63f structuré et legacy, cf.
+  // adocWsSetupBlockEditing/adocWsSetupLegacyBlockEditing) — jamais trois implémentations séparées
+  // de ce seul habillage visuel. La LOGIQUE DE DÉPÔT de chacune des trois machines reste, elle,
+  // entièrement inchangée — seuls le déclenchement et le retour visuel pendant le geste changent.
+  //
+  // Investigation (avant construction) : les blocs n'ont aucune marge/padding interne horizontale
+  // (`margin: 0 0 1em` sur .adoc-sc-paragraph etc., studio-clinique.html) — le texte commence au
+  // tout premier pixel du bloc. La seule "bordure" réellement disponible SANS décaler le texte
+  // d'aucun bloc est donc une bande mesurée en JS (getBoundingClientRect), jamais une marge CSS
+  // ajoutée. ADOC_DRAG_EDGE_ZONE_PX = 10px : assez large pour être trouvable au survol, assez
+  // étroit pour ne jamais recouvrir un clic normal visant le texte (une sélection commence presque
+  // toujours À L'INTÉRIEUR d'un mot, jamais exactement au pixel 0-10 du bloc).
+  //
+  // ATTENTION conflit résolu par investigation, côté Item 63f structuré : un bloc IMBRIQUÉ dans une
+  // carte Carrousel porte AUSSI le geste de positionnement libre Item 75 (mousedown n'importe où
+  // ailleurs sur ce même bloc déplace l'élément). Remplacer le déclenchement de la poignée par une
+  // zone couvrant TOUT LE BORD aurait pu masquer ce second geste — la zone reste donc réservée au
+  // réordonnancement, exactement comme la poignée le faisait déjà (testée en priorité, AVANT la
+  // branche Item 75, avec un retour explicite en cas de zone atteinte — même ordre de précédence
+  // qu'avant, seule la méthode de détection change).
+  const ADOC_DRAG_EDGE_ZONE_PX = 10;
+  function adocDragInEdgeZone(el, clientX) {
+    const r = el.getBoundingClientRect();
+    const dx = clientX - r.left;
+    return dx >= 0 && dx <= ADOC_DRAG_EDGE_ZONE_PX;
+  }
+  // Fantôme — clone RÉEL du DOM (jamais une reconstruction par type de bloc : un bloc image porte
+  // ainsi sa vraie miniature, un tableau ses vraies cellules, un bloc legacy son enveloppe réelle —
+  // vérifié suffisant par test réel avant de généraliser à tous les types, y compris image). Ajouté
+  // comme ENFANT du MÊME conteneur que l'élément d'origine (jamais document.body) : reste ainsi
+  // sous les mêmes règles CSS scopées par ancêtre (.cc-ws-doc-card .adoc-sc-block, etc.), jamais un
+  // second jeu de styles à dupliquer pour le fantôme. position:fixed le fait suivre le curseur par
+  // coordonnées viewport (clientX/clientY) quel que soit son ancêtre réel — vérifié qu'aucun
+  // ancêtre (.cc-ws-doc-card/.cc-preview-panel/.cc-preview-body/.cc-ws-body) ne pose de
+  // transform/filter qui romprait ce comportement (seul .cc-ws-panel, un tout autre panneau,
+  // utilise transform, jamais un ancêtre de la carte document).
+  function adocDragGhostCreate(el, clientX, clientY) {
+    const rect = el.getBoundingClientRect();
+    const ghost = el.cloneNode(true);
+    ghost.removeAttribute('id'); // jamais un second élément avec le même id que l'original pendant le geste
+    ghost.className = (el.className ? el.className + ' ' : '') + 'cc-drag-ghost';
+    ghost.style.width = rect.width + 'px';
+    ghost.style.left = (clientX + 14) + 'px';
+    ghost.style.top = (clientY + 14) + 'px';
+    el.parentNode.appendChild(ghost);
+    return ghost;
+  }
+  function adocDragGhostMove(ghost, clientX, clientY) {
+    if (!ghost) return;
+    ghost.style.left = (clientX + 14) + 'px';
+    ghost.style.top = (clientY + 14) + 'px';
+  }
+  function adocDragGhostRemove(ghost) {
+    if (ghost && ghost.parentNode) ghost.parentNode.removeChild(ghost);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
   // Fusion Phase 2 — vrai geste de glisser-déposer B→A, EN COMPLÉMENT du clic "Copier" ci-dessus
   // (jamais un remplacement, décision actée : les deux coexistent). Machine à état ENTIÈREMENT
   // SÉPARÉE de celle d'Item 63f (attachée à #cc-preview-doc-card, jamais #cc-ws-doc-card) —
@@ -12493,24 +12554,34 @@ ${recent}`;
   // mousedown), le verrou window._adocAnyDragActive (cf. adocWsSetupBlockEditing) n'étant qu'un
   // filet de sécurité pour le cas limite écarté explicitement par le CDC.
   //
-  // Poignée RÉUTILISÉE telle quelle (jamais un second élément inventé) : .adoc-sc-block-drag-handle
-  // est déjà présente, inconditionnellement, dans le balisage de CHAQUE bloc rendu — y compris dans
-  // B (même renderer que A, cf. adocRenderBlockHTML) — seulement masquée par la règle CSS d'Item
-  // 63f qui exige l'ancêtre .cc-ws-block-editable (jamais posé sur #cc-preview-doc-card, lecture
-  // seule). Une nouvelle règle CSS scoped à #cc-preview-doc-card (studio-clinique.html) la révèle
-  // ICI SEULEMENT, sous une condition d'activation différente — jamais la même que A.
+  // Poignée .adoc-sc-block-drag-handle RETIRÉE (Sujet 1, ce lot) : le <span> reste présent dans le
+  // balisage rendu (jamais touché ici, adocRenderBlockHTML est hors périmètre de ce lot) mais plus
+  // aucune règle CSS ne le révèle nulle part — le déclenchement passe désormais par la zone de bord
+  // gauche (adocDragInEdgeZone ci-dessus), jamais par ce <span>.
   //
   // Copie, jamais déplacement : B reste intact tout au long du geste (aucune mutation de son DOM ni
   // de son JSON), donc "annulation propre" est automatique — le bloc source n'a jamais quitté sa
   // position, une classe CSS purement cosmétique (cc-fusion-dragging-source) suffit comme retour
   // visuel pendant le geste.
   function adocFusionSetupDragSource(cardEl) {
+    // Sujet 1 — curseur "grab" au survol du bord gauche uniquement, jamais toute la surface (texte
+    // sélectionnable partout ailleurs, y compris sur un bloc image où le bord reste la seule zone
+    // de saisie par cohérence avec les autres types). Hors glissement actif uniquement.
+    let hoverBlockEl = null;
+    cardEl.onmousemove = function (e) {
+      if (window._adocAnyDragActive) return;
+      const blockEl = e.target.closest('.adoc-sc-block');
+      const inZone = blockEl && adocDragInEdgeZone(blockEl, e.clientX);
+      if (hoverBlockEl && hoverBlockEl !== (inZone ? blockEl : null)) { hoverBlockEl.classList.remove('cc-drag-edge-hover'); hoverBlockEl = null; }
+      if (inZone && hoverBlockEl !== blockEl) { blockEl.classList.add('cc-drag-edge-hover'); hoverBlockEl = blockEl; }
+    };
+    cardEl.onmouseleave = function () {
+      if (hoverBlockEl) { hoverBlockEl.classList.remove('cc-drag-edge-hover'); hoverBlockEl = null; }
+    };
     cardEl.onmousedown = function (e) {
       if (window._adocAnyDragActive) return;
-      const dragHandle = e.target.closest('.adoc-sc-block-drag-handle');
-      if (!dragHandle) return;
-      const blockEl = dragHandle.closest('.adoc-sc-block');
-      if (!blockEl) return;
+      const blockEl = e.target.closest('.adoc-sc-block');
+      if (!blockEl || !adocDragInEdgeZone(blockEl, e.clientX)) return;
       const preview = window._adocPreviewState;
       if (!preview || !preview.art || preview.art._adocGenerationEngine !== 'structured') return;
       const docB = preview.art._adocStructuredDoc;
@@ -12520,9 +12591,10 @@ ${recent}`;
       const blockB = siblingsB && siblingsB.find(function (b) { return b.id === blockEl.id; });
       if (!blockB) return;
       e.preventDefault();
+      if (hoverBlockEl) { hoverBlockEl.classList.remove('cc-drag-edge-hover'); hoverBlockEl = null; }
       const pointerStartX = e.clientX, pointerStartY = e.clientY;
       const docCardEl = document.getElementById('cc-ws-doc-card');
-      let moved = false, dropTargetsShown = false, overA = false;
+      let moved = false, dropTargetsShown = false, overA = false, ghost = null;
       function onMove(ev) {
         if (!moved && Math.abs(ev.clientX - pointerStartX) < 3 && Math.abs(ev.clientY - pointerStartY) < 3) return;
         if (!moved) {
@@ -12531,8 +12603,10 @@ ${recent}`;
           adocFusionCancelPending();
           window._adocAnyDragActive = true;
           blockEl.classList.add('cc-fusion-dragging-source');
+          ghost = adocDragGhostCreate(blockEl, ev.clientX, ev.clientY);
         }
         moved = true;
+        adocDragGhostMove(ghost, ev.clientX, ev.clientY);
         // Transition ENTER/LEAVE uniquement (jamais à chaque tick) : adocFusionShowDropTargets ne
         // garde aucune trace des lignes déjà posées, un second appel les dupliquerait — bug réel
         // identifié en investiguant avant de construire, jamais rencontré en pratique par Phase 1
@@ -12551,6 +12625,7 @@ ${recent}`;
         document.removeEventListener('mouseup', onUp);
         window._adocAnyDragActive = false;
         blockEl.classList.remove('cc-fusion-dragging-source');
+        adocDragGhostRemove(ghost);
         if (!moved) return;
         const dropTarget = dropTargetsShown ? ev.target.closest('.cc-fusion-drop-target') : null;
         if (dropTargetsShown) adocFusionClearDropTargets();
@@ -12559,7 +12634,9 @@ ${recent}`;
         // "Copier" (adocFusionCommitDrop), jamais une seconde implémentation — seul le déclencheur
         // change (relâchement de glissement au lieu d'un clic sur la ligne) ; pending.btn reste
         // null ici, déjà toléré par adocFusionCommitDrop (aucun bouton n'a été cliqué).
-        window._adocFusionPendingCopy = { blockId: blockEl.id, blockB: blockB, btn: null };
+        // Fusion Phase 3 — docB/snapshotB capturés au même instant que blockB (cf. commentaire
+        // identique côté clic, adocPreviewRequestCopy).
+        window._adocFusionPendingCopy = { blockId: blockEl.id, blockB: blockB, btn: null, docB: docB, snapshotB: preview.art._adocStructuredSnapshot };
         window.adocFusionCommitDrop(dropTarget.dataset.fusionAnchor, dropTarget.dataset.fusionPosition);
       }
       document.addEventListener('mousemove', onMove);
@@ -12585,7 +12662,11 @@ ${recent}`;
     if (already && already.blockId === blockId) return; // second clic sur le MÊME bouton = annulation
     const docCardEl = document.getElementById('cc-ws-doc-card');
     if (!docCardEl) return;
-    window._adocFusionPendingCopy = { blockId: blockId, blockB: blockB, btn: btn };
+    // Fusion Phase 3 — docB/snapshotB capturés ICI, au même instant que blockB (jamais relus plus
+    // tard depuis window._adocPreviewState, qui pourrait entre-temps pointer vers un AUTRE document
+    // si l'utilisatrice ouvrait un second aperçu sans annuler celui-ci — garantit que les citations
+    // fusionnées proviennent bien du MÊME document que le bloc copié).
+    window._adocFusionPendingCopy = { blockId: blockId, blockB: blockB, btn: btn, docB: docB, snapshotB: preview.art._adocStructuredSnapshot };
     // JAMAIS disabled ici — le bouton doit rester cliquable pour permettre le second clic
     // "recliquer LE MÊME bouton = annulation" (un bouton désactivé ne reçoit plus aucun clic).
     if (btn) { btn.classList.add('cc-preview-copy-btn-picking'); btn.textContent = 'Choisir l’emplacement dans le document…'; }
@@ -12607,11 +12688,41 @@ ${recent}`;
     return ADOC_NESTED_POSITIONABLE_TYPES.indexOf(blockType) !== -1;
   }
 
+  // Fusion Phase 3 — préservation des citations/sources, EN REMPLACEMENT du retrait silencieux des
+  // Phases 1+2. Décision de modélisation actée : A reste l'UNIQUE document qui reçoit, jamais deux
+  // sourceSnapshotId coexistants — l'entrée de B est RENUMÉROTÉE puis AJOUTÉE dans celles de A,
+  // jamais un second snapshot séparé. Réutilise tel quel le patron de génération d'id SANS
+  // collision déjà existant ailleurs dans l'outil (adocLibraryInsertCitation, ~ligne 16010-16012 :
+  // do{...}while(...some(...)), jamais citationSeq qui produirait des collisions garanties entre
+  // deux documents différents). Retourne le nouveau citationId, ou null si la citation/l'entrée
+  // source est introuvable dans B (donnée corrompue — l'appelant retire alors cette seule
+  // référence, jamais un lien orphelin conservé).
+  function adocFusionMergeCitationIntoTarget(citationIdB, docB, snapshotB, docA, artA) {
+    const citationB = (docB.citations || []).find(function (c) { return c.citationId === citationIdB; });
+    if (!citationB) return null;
+    const entryB = (snapshotB && snapshotB.entries || []).find(function (e) { return e.sourceSnapshotEntryId === citationB.sourceSnapshotEntryId; });
+    if (!entryB) return null;
+    if (!artA._adocStructuredSnapshot) artA._adocStructuredSnapshot = { sourceSnapshotId: 'snapshot-' + adocUUID(), entries: [] };
+    const snapshotA = artA._adocStructuredSnapshot;
+    let entryIdA;
+    do { entryIdA = 'entry-' + adocUUID(); } while (snapshotA.entries.some(function (e) { return e.sourceSnapshotEntryId === entryIdA; }));
+    snapshotA.entries.push(Object.assign({}, entryB, { sourceSnapshotEntryId: entryIdA }));
+    let citationIdA;
+    do { citationIdA = 'citation-' + adocUUID(); } while ((docA.citations || []).some(function (c) { return c.citationId === citationIdA; }));
+    docA.citations = docA.citations || [];
+    docA.citations.push({ citationId: citationIdA, sourceSnapshotEntryId: entryIdA, displayLabel: citationB.displayLabel });
+    // Un seul snapshot final pour A — jamais deux ids à résoudre en parallèle (no-op si A avait
+    // déjà ce snapshot, nécessaire seulement la toute première fois qu'A reçoit une citation).
+    docA.sourceSnapshotId = snapshotA.sourceSnapshotId;
+    return citationIdA;
+  }
+
   // Clic sur un point de dépôt — résout le conteneur CIBLE via adocEditorBlockContainer (même
   // fonction, jamais une seconde résolution, appliquée cette fois côté A), vérifie la compatibilité
   // AVANT tout dépôt, clone profond (décision 2 : une image copiée garde son assetId déjà persisté
-  // tel quel, aucun nouvel upload) + nouvel id RELATIF À A (adocNextBlockId) + citations retirées
-  // (décision 1, inchangée — Phase 3 séparée) + insertion à l'INDEX EXACT choisi, reflet immédiat.
+  // tel quel, aucun nouvel upload) + nouvel id RELATIF À A (adocNextBlockId) + citations RENUMÉROTÉES
+  // ET CONSERVÉES (Phase 3, jamais plus un retrait silencieux) + insertion à l'INDEX EXACT choisi,
+  // reflet immédiat.
   window.adocFusionCommitDrop = async function (anchorBlockId, position) {
     const pending = window._adocFusionPendingCopy;
     if (!pending) return;
@@ -12632,8 +12743,25 @@ ${recent}`;
     try {
       const clone = JSON.parse(JSON.stringify(pending.blockB));
       clone.id = adocNextBlockId(docA, clone.type);
-      delete clone.citationIds;
-      if (clone.validation) delete clone.validation.citationLinks;
+      // Fusion Phase 3 — une seule fusion par citationId DISTINCT (une même citation peut apparaître
+      // à la fois dans citationIds[] et dans validation.citationLinks[] : jamais deux nouveaux id
+      // générés pour la même citation d'origine).
+      const citationIdMap = {};
+      function remapCitationId(oldId) {
+        if (!(oldId in citationIdMap)) {
+          citationIdMap[oldId] = adocFusionMergeCitationIntoTarget(oldId, pending.docB, pending.snapshotB, docA, artA);
+        }
+        return citationIdMap[oldId];
+      }
+      if (clone.citationIds) {
+        clone.citationIds = clone.citationIds.map(remapCitationId).filter(function (id) { return !!id; });
+      }
+      if (clone.validation && clone.validation.citationLinks) {
+        clone.validation.citationLinks = clone.validation.citationLinks.map(function (link) {
+          const newId = remapCitationId(link.citationId);
+          return newId ? Object.assign({}, link, { citationId: newId }) : null;
+        }).filter(function (link) { return !!link; });
+      }
       siblingsA.splice(insertIdx, 0, clone);
       adocFusionClearDropTargets();
       const opened = await window.adocOpenWorkspace(storeKeyA);
@@ -13416,7 +13544,7 @@ ${recent}`;
     if (!docCard) return;
     const enabled = !!(art._adocCapabilities && art._adocCapabilities.blockEditing);
     docCard.classList.toggle('cc-ws-block-editable', enabled);
-    if (!enabled) { docCard.onclick = null; docCard.onmousedown = null; return; } // ex. legacy-html — aucune interaction de sélection, comportement inchangé
+    if (!enabled) { docCard.onclick = null; docCard.onmousedown = null; docCard.onmousemove = null; docCard.onmouseleave = null; return; } // ex. legacy-html — aucune interaction de sélection, comportement inchangé
     // 57f — each textual leaf is prepared after the delegated click handler.
     docCard.onclick = function (e) {
       if (e.target.closest('.cc-block-edit-panel')) return; // clic dans le panneau — jamais réinterprété comme une (dé)sélection
@@ -13547,6 +13675,22 @@ ${recent}`;
     // déplacement) : sous ce seuil, mouseup ouvre quand même le panneau (clic normal, non-
     // régression explicitement demandée). Point d'annulation posé UNE SEULE FOIS au premier tick
     // de mouvement réel (même principe que le curseur d'opacité, Lot E, jamais à chaque frame).
+    // Refonte du geste (Sujet 1, étendue à Item 63f) — curseur "grab" au survol du bord gauche
+    // d'un bloc réordonnable, jamais un carré visible en permanence (même zone que le nouveau
+    // déclenchement ci-dessous, adocDragInEdgeZone). N'interfère jamais avec les affordances
+    // Item 75 (poignées dédiées, révélées en CSS :hover) : classe posée/retirée uniquement sur
+    // le bloc lui-même, jamais sur les éléments de poignée carte/imbriqué.
+    let hoverReorderBlockEl = null;
+    docCard.onmousemove = function (e) {
+      if (window._adocAnyDragActive) return;
+      const blockEl = e.target.closest('.adoc-sc-block');
+      const inZone = blockEl && adocDragInEdgeZone(blockEl, e.clientX);
+      if (hoverReorderBlockEl && hoverReorderBlockEl !== (inZone ? blockEl : null)) { hoverReorderBlockEl.classList.remove('cc-drag-edge-hover'); hoverReorderBlockEl = null; }
+      if (inZone && hoverReorderBlockEl !== blockEl) { blockEl.classList.add('cc-drag-edge-hover'); hoverReorderBlockEl = blockEl; }
+    };
+    docCard.onmouseleave = function () {
+      if (hoverReorderBlockEl) { hoverReorderBlockEl.classList.remove('cc-drag-edge-hover'); hoverReorderBlockEl = null; }
+    };
     docCard.onmousedown = function (e) {
       // Fusion Phase 2 — verrou global partagé avec le glissement B→A (adocFusionSetupDragSource,
       // cf. plus bas) : bloque le DÉMARRAGE d'un des trois glissements ci-dessous (réordonnancement,
@@ -13563,10 +13707,19 @@ ${recent}`;
       // unique, adocEditorSync/MarkDirty) déjà établi par Item 75 juste plus bas, jamais une
       // fonction commune avec lui (calcul de position totalement différent — ici un INDEX dans
       // `blocks[]`, jamais des coordonnées x/y).
-      const dragHandle = e.target.closest('.adoc-sc-block-drag-handle');
-      if (dragHandle) {
+      // Refonte du geste (Sujet 1, étendue à Item 63f sur confirmation explicite de Christophe) —
+      // la poignée carrée visible disparaît : le déclenchement se fait désormais par une zone
+      // invisible de ADOC_DRAG_EDGE_ZONE_PX le long du bord GAUCHE du bloc (adocDragInEdgeZone),
+      // jamais en plein texte (conflit avec la sélection native écarté par investigation). ORDRE
+      // DE BRANCHEMENT INCHANGÉ : ce test reste le tout premier, avant la garde carte/nestedEl
+      // ci-dessous — un point hors zone retombe exactement comme avant sur Item 75
+      // (positionnement imbriqué), qui reste ainsi protégé de tout chevauchement (cf. rapport
+      // d'investigation). Seule la MÉTHODE DE DÉTECTION change (géométrie au lieu d'un élément
+      // poignée exact), jamais la structure de branchement.
+      const reorderBlockEl = e.target.closest('.adoc-sc-block');
+      if (reorderBlockEl && adocDragInEdgeZone(reorderBlockEl, e.clientX)) {
         e.preventDefault();
-        const blockEl = dragHandle.closest('.adoc-sc-block');
+        const blockEl = reorderBlockEl;
         if (!blockEl) return;
         const storeKey = window._adocWsState.storeKey;
         const curArt = window._adocArtifacts && window._adocArtifacts[storeKey];
@@ -13591,7 +13744,7 @@ ${recent}`;
         const rects = siblingEls.map(function (el) { const r = el.getBoundingClientRect(); return { el: el, mid: r.top + r.height / 2 }; });
         const others = rects.filter(function (r) { return r.el !== blockEl; });
         const pointerStartX = e.clientX, pointerStartY = e.clientY;
-        let moved = false, dropLine = null, dropIdx = oldIdx;
+        let moved = false, dropLine = null, dropIdx = oldIdx, ghost = null;
         function suppressNextClick(ev2) { ev2.stopPropagation(); ev2.preventDefault(); document.removeEventListener('click', suppressNextClick, true); }
         function computeDropIdx(pointerY) { for (let i = 0; i < others.length; i++) { if (pointerY < others[i].mid) return i; } return others.length; }
         function placeDropLine(idx) {
@@ -13613,8 +13766,11 @@ ${recent}`;
             adocEditorCheckpoint();
             document.addEventListener('click', suppressNextClick, true);
             window._adocAnyDragActive = true; // Fusion Phase 2 — verrou partagé, posé au même moment que le checkpoint (mouvement réel confirmé)
+            if (hoverReorderBlockEl) { hoverReorderBlockEl.classList.remove('cc-drag-edge-hover'); hoverReorderBlockEl = null; }
+            ghost = adocDragGhostCreate(blockEl, ev.clientX, ev.clientY);
           }
           moved = true;
+          adocDragGhostMove(ghost, ev.clientX, ev.clientY);
           dropIdx = computeDropIdx(ev.clientY);
           placeDropLine(dropIdx);
         }
@@ -13622,6 +13778,7 @@ ${recent}`;
           document.removeEventListener('mousemove', onMove);
           document.removeEventListener('mouseup', onUp);
           window._adocAnyDragActive = false; // Fusion Phase 2 — libère le verrou partagé, inconditionnel comme le retrait défensif ci-dessous
+          adocDragGhostRemove(ghost);
           // CORRECTIF (trouvé en testant) — quand mousedown et mouseup n'aboutissent pas au même
           // élément (le cas normal d'un réordonnancement : la poignée puis un tout autre bloc), le
           // navigateur n'émet parfois AUCUN clic de synthèse au relâchement — suppressNextClick
@@ -15031,12 +15188,30 @@ ${recent}`;
     // adocConfirmLegacyBlockInsert, JAMAIS adocEditorSyncLegacy (qui ne fait que remplacer le
     // CONTENU à un INDEX FIXE — incapable de persister un changement d'ORDRE, confirmé par lecture
     // directe avant construction).
+    // Refonte du geste (Sujet 1, étendue à Item 63f) — même principe que côté structuré
+    // (adocWsSetupBlockEditing) : curseur "grab" au survol du bord gauche de l'ENVELOPPE
+    // .adoc-sc-block-drag-wrap (jamais du bloc lui-même, qui peut être un <table>/<ul>/<ol> sans
+    // zone de bord fiable), jamais de carré visible en permanence. adocDragInEdgeZone et le
+    // fantôme (adocDragGhostCreate/Move/Remove) sont les MÊMES fonctions partagées que côté
+    // structuré et B→A — seule la source de géométrie/clonage change (wrap, pas blockEl).
+    let hoverReorderWrapEl = null;
+    docCard.onmousemove = function (e) {
+      if (window._adocAnyDragActive) return;
+      const wrapEl = e.target.closest('.adoc-sc-block-drag-wrap');
+      const inZone = wrapEl && adocDragInEdgeZone(wrapEl, e.clientX);
+      if (hoverReorderWrapEl && hoverReorderWrapEl !== (inZone ? wrapEl : null)) { hoverReorderWrapEl.classList.remove('cc-drag-edge-hover'); hoverReorderWrapEl = null; }
+      if (inZone && hoverReorderWrapEl !== wrapEl) { wrapEl.classList.add('cc-drag-edge-hover'); hoverReorderWrapEl = wrapEl; }
+    };
+    docCard.onmouseleave = function () {
+      if (hoverReorderWrapEl) { hoverReorderWrapEl.classList.remove('cc-drag-edge-hover'); hoverReorderWrapEl = null; }
+    };
     docCard.onmousedown = function (e) {
-      const dragHandle = e.target.closest('.adoc-sc-block-drag-handle');
-      if (!dragHandle) return;
+      if (window._adocAnyDragActive) return;
+      const wrap = e.target.closest('.adoc-sc-block-drag-wrap');
+      if (!wrap || !adocDragInEdgeZone(wrap, e.clientX)) return;
       e.preventDefault();
-      const wrap = dragHandle.closest('.adoc-sc-block-drag-wrap');
-      const blockEl = wrap && wrap.querySelector('[data-cc-legacy-block-id]');
+      if (hoverReorderWrapEl) { hoverReorderWrapEl.classList.remove('cc-drag-edge-hover'); hoverReorderWrapEl = null; }
+      const blockEl = wrap.querySelector('[data-cc-legacy-block-id]');
       if (!blockEl) return;
       const storeKey = window._adocWsState.storeKey;
       const curArt = window._adocArtifacts && window._adocArtifacts[storeKey];
@@ -15046,7 +15221,7 @@ ${recent}`;
       const rects = wraps.map(function (el) { const r = el.getBoundingClientRect(); return { el: el, mid: r.top + r.height / 2 }; });
       const others = rects.filter(function (r) { return r.el !== wrap; });
       const pointerStartX = e.clientX, pointerStartY = e.clientY;
-      let moved = false, dropLine = null, dropIdx = -1;
+      let moved = false, dropLine = null, dropIdx = -1, ghost = null;
       function suppressNextClick(ev2) { ev2.stopPropagation(); ev2.preventDefault(); document.removeEventListener('click', suppressNextClick, true); }
       function computeDropIdx(pointerY) { for (let i = 0; i < others.length; i++) { if (pointerY < others[i].mid) return i; } return others.length; }
       function placeDropLine(idx) {
@@ -15063,14 +15238,19 @@ ${recent}`;
           blockEl.click(); // établit le contexte de correction (_adocLegacyBlockEditState.el), seul moyen déjà existant de rendre adocEditorCheckpoint() opérant sur ce bloc précis
           adocEditorCheckpoint();
           document.addEventListener('click', suppressNextClick, true);
+          window._adocAnyDragActive = true;
+          ghost = adocDragGhostCreate(wrap, ev.clientX, ev.clientY);
         }
         moved = true;
+        adocDragGhostMove(ghost, ev.clientX, ev.clientY);
         dropIdx = computeDropIdx(ev.clientY);
         placeDropLine(dropIdx);
       }
       function onUp() {
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
+        window._adocAnyDragActive = false;
+        adocDragGhostRemove(ghost);
         // CORRECTIF (même que côté structuré) — retrait défensif du piège suppressNextClick, sans
         // effet si le clic naturel l'a déjà auto-retiré : mousedown/mouseup n'aboutissent presque
         // jamais au même élément pour un réordonnancement, le navigateur peut alors n'émettre aucun
@@ -15441,6 +15621,23 @@ ${recent}`;
     }
   };
 
+  // Sujet 2 (Enregistrer sous) — extraite de window.adocWsSave TELLE QUELLE (comportement
+  // inchangé pour "Enregistrer" : même appel, mêmes paramètres) pour être réutilisée par
+  // window.adocWsSaveAs ci-dessous sans dupliquer la création (route POST /clinical-documents,
+  // JAMAIS .../versions) — l'original n'est jamais touché par cette fonction, elle crée
+  // toujours un enregistrement neuf et réassigne les deux ids sur `art`.
+  async function adocCreateNewClinicalDocument(workerUrl, apiKey, art, content, title, kind) {
+    const r = await fetch(workerUrl + '/clinical-documents', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
+      body: JSON.stringify({ document: content, title: title, documentKind: kind, generationEngine: art._adocGenerationEngine || 'structured' }),
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    art._adocClinicalDocumentId = data.document_id;
+    art._adocClinicalVersionId = data.version_id;
+  }
+
   window.adocWsSave = async function () {
     const storeKey = window._adocWsState.storeKey;
     const art = window._adocArtifacts?.[storeKey];
@@ -15469,23 +15666,12 @@ ${recent}`;
       // titre/type/enveloppe de contenu diffèrent selon le moteur.
       const saveTitle = isLegacy ? (art.name || 'Document').replace(/-\d+$/, '').replace(/-/g, ' ') : art._adocStructuredDoc.title;
       const saveKind = isLegacy ? (art._adocDocumentKind || 'fiche') : art._adocStructuredDoc.documentKind;
-      // Extraite pour être réutilisée TELLE QUELLE par le repli "document supprimé entre-temps"
-      // ci-dessous (jamais une seconde implémentation de la création) — crée le document ET sa
-      // version initiale, assigne les deux ids sur l'artefact.
-      async function createNewClinicalDocument() {
-        const r = await fetch(workerUrl + '/clinical-documents', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
-          body: JSON.stringify({ document: content, title: saveTitle, documentKind: saveKind, generationEngine: art._adocGenerationEngine || 'structured' }),
-        });
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        const data = await r.json();
-        art._adocClinicalDocumentId = data.document_id;
-        art._adocClinicalVersionId = data.version_id;
-      }
+      // Réutilise TELLE QUELLE la fonction partagée adocCreateNewClinicalDocument (ci-dessus,
+      // aussi utilisée par window.adocWsSaveAs, Sujet 2) — jamais une seconde implémentation de
+      // la création. Repli "document supprimé entre-temps" ci-dessous : même appel.
       if (!art._adocClinicalDocumentId) {
         // Première sauvegarde de ce document précis — crée le document ET sa version initiale.
-        await createNewClinicalDocument();
+        await adocCreateNewClinicalDocument(workerUrl, apiKey, art, content, saveTitle, saveKind);
       } else {
         // Déjà enregistré — ajoute une nouvelle version immuable, ne modifie jamais l'existante.
         const r = await fetch(workerUrl + '/clinical-documents/' + encodeURIComponent(art._adocClinicalDocumentId) + '/versions', {
@@ -15503,7 +15689,7 @@ ${recent}`;
           if (!confirm('Ce document a été supprimé depuis. Voulez-vous l’enregistrer comme un nouveau document ?')) return;
           art._adocClinicalDocumentId = null;
           art._adocClinicalVersionId = null;
-          await createNewClinicalDocument();
+          await adocCreateNewClinicalDocument(workerUrl, apiKey, art, content, saveTitle, saveKind);
         } else {
           if (!r.ok) throw new Error('HTTP ' + r.status);
           const data = await r.json();
@@ -15519,6 +15705,48 @@ ${recent}`;
       adocCaptureAndPersistThumbnail(art);
     } catch (e) {
       alert('Impossible d’enregistrer ce document pour le moment : ' + (e && e.message || 'erreur inconnue') + '. Rien n’a été perdu, vous pouvez réessayer.');
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  };
+
+  // Sujet 2 — "Enregistrer sous" : sauvegarde le document personnalisé actuel comme un NOUVEAU
+  // document, distinct de l'original. Réutilise adocCreateNewClinicalDocument TELLE QUELLE (route
+  // POST /clinical-documents, JAMAIS .../versions) — l'original (art._adocClinicalDocumentId
+  // précédent) n'est jamais lu, ni modifié, ni supprimé ici : ce bouton ne fait qu'assigner un
+  // NOUVEAU document_id/version_id sur CE MÊME artefact en mémoire, exactement comme la toute
+  // première sauvegarde d'un document neuf (adocWsSave, branche !art._adocClinicalDocumentId) —
+  // seule différence : un titre demandé explicitement (prompt(), jamais de second mécanisme de
+  // saisie inventé pour ce lot) plutôt que dérivé automatiquement. Les sauvegardes suivantes
+  // (adocWsSave) s'appliquent ensuite naturellement à CE nouveau document, sans changement côté
+  // adocWsSave (elle ne fait que lire art._adocClinicalDocumentId, déjà réassigné ici).
+  window.adocWsSaveAs = async function () {
+    const storeKey = window._adocWsState.storeKey;
+    const art = window._adocArtifacts?.[storeKey];
+    if (!art || !art._adocCapabilities || !art._adocCapabilities.persist) return;
+    const isLegacy = art._adocGenerationEngine === 'legacy-html';
+    // Même resynchronisation de dernier recours qu'adocWsSave (Item 57c Lot 1 / Item 68) — jamais
+    // sans elle, sous peine de sauvegarder sous un nouveau titre un contenu qui n'inclurait pas
+    // la frappe en cours.
+    if (isLegacy) adocSyncEditedLegacyBlocksToHtml(art); else { adocSyncEditedStructuredBlocksToDoc(art); adocSyncEditedRootFieldsToDoc(art); }
+    const currentTitle = isLegacy ? (art.name || 'Document').replace(/-\d+$/, '').replace(/-/g, ' ') : art._adocStructuredDoc.title;
+    const newTitle = prompt('Enregistrer sous quel titre ?', currentTitle);
+    if (newTitle == null) return; // annulation explicite — rien n'est créé, l'original reste actif
+    const trimmedTitle = newTitle.trim();
+    if (!trimmedTitle) return;
+    const btn = document.getElementById('cc-ws-save-as-btn');
+    if (btn) btn.disabled = true;
+    try {
+      const workerUrl = adocGetWorkerUrl();
+      const apiKey = adocGetApiKey();
+      const content = adocBuildClinicalDocumentContent(art);
+      const saveKind = isLegacy ? (art._adocDocumentKind || 'fiche') : art._adocStructuredDoc.documentKind;
+      await adocCreateNewClinicalDocument(workerUrl, apiKey, art, content, trimmedTitle, saveKind);
+      art._ccEditorDirty = false;
+      adocUpdateSaveStatusUI(art);
+      adocCaptureAndPersistThumbnail(art);
+    } catch (e) {
+      alert('Impossible d’enregistrer sous un nouveau titre pour le moment : ' + (e && e.message || 'erreur inconnue') + '. Rien n’a été perdu, l’original reste inchangé, vous pouvez réessayer.');
     } finally {
       if (btn) btn.disabled = false;
     }
