@@ -13609,6 +13609,13 @@ ${recent}`;
       // LOT C (cas 4, insertion) — glisser-déposer AJOUTÉ à côté de la description texte déjà
       // existante (Pexels), jamais à sa place : les deux entrées créent le même type de bloc
       // 'image', juste via une source différente (assetId vs query).
+      // Item 69v3 — 3ᵉ mode AJOUTÉ à côté des deux premiers, jamais à leur place : « Choisir dans
+      // Médias » déplie la même recherche/historique déjà construite pour l'onglet Médias de la
+      // barre latérale (adocMediaRenderGrid/adocMediaFetchSearch/adocMediaFetchHistory, réutilisés
+      // tels quels, jamais une seconde recherche Pexels). Résultat = un vrai bloc image autonome
+      // (adocInsertImageBlockWithAsset, LE MÊME mécanisme que le glisser-déposer ci-dessus),
+      // jamais un fond (qui reste le comportement de l'onglet Médias cliqué depuis la barre
+      // latérale — deux gestes distincts, décision actée au lot précédent).
       resultEl.innerHTML =
         '<div class="cc-block-edit-label">Décrivez brièvement l\'image souhaitée, ou glissez-déposez un fichier JPG/PNG</div>' +
         '<div style="display:flex;gap:6px;margin-top:6px;">' +
@@ -13617,6 +13624,17 @@ ${recent}`;
           '<button type="button" class="cc-clarity-reply-btn" onclick="event.stopPropagation();window.adocConfirmBlockInsert(\'' + direction + '\',\'image\',this.previousElementSibling.value)">Créer</button>' +
         '</div>' +
         '<div class="cc-block-insert-image-drop" style="margin-top:8px;padding:12px;border:1px dashed var(--stone-300);border-radius:8px;text-align:center;font-size:12px;color:var(--muted);">Ou glissez une image ici (JPG/PNG)</div>' +
+        '<div style="margin-top:8px;"><button type="button" class="cc-clarity-reply-btn" onclick="event.stopPropagation();window.adocBlockInsertMediaToggle(\'' + direction + '\')">Choisir dans Médias</button></div>' +
+        '<div class="cc-ws-media-panel" id="cc-block-media-panel" hidden>' +
+          '<div class="cc-media-search-row">' +
+            '<input type="text" class="cc-ws-search-input" id="cc-block-media-search-input" placeholder="Rechercher une image (Pexels)…" aria-label="Rechercher une image" ' +
+              'onclick="event.stopPropagation();" onkeydown="event.stopPropagation();if(event.key===\'Enter\'){event.preventDefault();window.adocBlockInsertMediaSearch(\'' + direction + '\');}">' +
+            '<button type="button" class="cc-media-search-btn" onclick="event.stopPropagation();window.adocBlockInsertMediaSearch(\'' + direction + '\')">Rechercher</button>' +
+          '</div>' +
+          '<div id="cc-block-media-search-results" class="cc-media-grid" aria-live="polite"></div>' +
+          '<p class="cc-ws-panel-section-title cc-media-history-title">Déjà utilisées</p>' +
+          '<div id="cc-block-media-history" class="cc-media-grid" aria-live="polite"></div>' +
+        '</div>' +
         '<div style="margin-top:8px;"><button type="button" class="cc-clarity-other-btn" onclick="event.stopPropagation();window.adocCancelBlockCorrection()">Annuler</button></div>';
       const dropZone = resultEl.querySelector('.cc-block-insert-image-drop');
       dropZone.addEventListener('dragover', function (e) { e.preventDefault(); e.stopPropagation(); dropZone.style.borderColor = 'var(--petrol-800)'; });
@@ -13672,6 +13690,35 @@ ${recent}`;
     }
   };
 
+  // Extraite d'adocConfirmBlockInsertFromFile (comportement identique, jamais réécrit) pour être
+  // réutilisée par le 3ᵉ mode « Choisir dans Médias » du sous-panneau d'insertion d'image
+  // (ci-dessous) SANS repasser par un upload local : cette fonction ne fait aucune hypothèse sur
+  // la provenance de assetId (fichier tout juste envoyé, ou déjà persisté par le panneau Médias)
+  // — une seule vraie logique de création de bloc image, jamais une troisième implémentation.
+  async function adocInsertImageBlockWithAsset(direction, assetId, label) {
+    const st = window._adocBlockEditState;
+    if (!st.storeKey || !st.blockId) return false;
+    const art = window._adocArtifacts && window._adocArtifacts[st.storeKey];
+    if (!art || !art._adocStructuredDoc) return false;
+    const doc = art._adocStructuredDoc;
+    const siblings = adocEditorBlockContainer(doc, st.blockId) || [];
+    const idx = siblings.findIndex(function (b) { return b.id === st.blockId; });
+    if (idx === -1) { adocWsClearBlockSelection(); return false; }
+    const newBlock = {
+      id: adocNextBlockId(doc, 'image'),
+      type: 'image',
+      content: { query: label, alt: label, assetId: assetId },
+      citationIds: [],
+      validation: {},
+    };
+    const insertIdx = direction === 'before' ? idx : idx + 1;
+    siblings.splice(insertIdx, 0, newBlock);
+    const storeKey = st.storeKey;
+    adocWsClearBlockSelection();
+    if (!await window.adocOpenWorkspace(storeKey)) { siblings.splice(insertIdx, 1); return false; }
+    return true;
+  }
+
   // LOT C (cas 4, insertion par glisser-déposer) — variante d'adocConfirmBlockInsert ci-dessus
   // pour un fichier local au lieu d'une description Pexels : même insertion dans la séquence,
   // même comportement de sauvegarde (aucune ici, identique à adocConfirmBlockInsert — l'insertion
@@ -13692,25 +13739,8 @@ ${recent}`;
     try { assetId = await adocUploadImageAsset(file); }
     catch (e) { alert(e.message); return; }
     finally { adocSetImageDropBusy(dropZone, false); }
-    const art = window._adocArtifacts && window._adocArtifacts[st.storeKey];
-    if (!art || !art._adocStructuredDoc) return;
-    const doc = art._adocStructuredDoc;
-    const siblings = adocEditorBlockContainer(doc, st.blockId) || [];
-    const idx = siblings.findIndex(function (b) { return b.id === st.blockId; });
-    if (idx === -1) { adocWsClearBlockSelection(); return; }
     const label = file.name.replace(/\.[^.]+$/, '') || 'Image importée';
-    const newBlock = {
-      id: adocNextBlockId(doc, 'image'),
-      type: 'image',
-      content: { query: label, alt: label, assetId: assetId },
-      citationIds: [],
-      validation: {},
-    };
-    const insertIdx = direction === 'before' ? idx : idx + 1;
-    siblings.splice(insertIdx, 0, newBlock);
-    const storeKey = st.storeKey;
-    adocWsClearBlockSelection();
-    if (!await window.adocOpenWorkspace(storeKey)) { siblings.splice(insertIdx, 1); return; }
+    await adocInsertImageBlockWithAsset(direction, assetId, label);
   };
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -13732,34 +13762,63 @@ ${recent}`;
     if (willOpen) window.adocMediaLoadHistory();
   };
 
-  function adocMediaRenderGrid(containerId, items, kind) {
+  // Ampleur (Item 69v3, point 2) — déjà un rendu indépendant de son conteneur (containerId en
+  // paramètre, jamais un id en dur) : réutilisable tel quel à un second endroit. Seul ajout ici,
+  // additif et rétrocompatible (les deux appels existants ci-dessous n'y passent jamais rien) :
+  // `opts.insertFn`/`opts.insertArgs` pour brancher un AUTRE geste que "poser en fond"
+  // (adocMediaInsertFromSearch/FromHistory) — nécessaire pour le 3ᵉ mode « Choisir dans Médias »
+  // du sous-panneau d'insertion de bloc, qui doit créer un vrai bloc, jamais un fond — et
+  // `opts.showDelete` pour ne jamais proposer "Effacer" dans ce contexte de simple sélection.
+  function adocMediaRenderGrid(containerId, items, kind, opts) {
     const el = document.getElementById(containerId);
     if (!el) return;
+    opts = opts || {};
     if (!items || !items.length) {
       el.innerHTML = '<p class="cc-media-empty">' + (kind === 'search' ? 'Aucun résultat.' : 'Aucune image utilisée pour l’instant.') + '</p>';
       return;
     }
-    const insertFn = kind === 'search' ? 'adocMediaInsertFromSearch' : 'adocMediaInsertFromHistory';
+    const insertFn = opts.insertFn || (kind === 'search' ? 'adocMediaInsertFromSearch' : 'adocMediaInsertFromHistory');
+    const insertArgsPrefix = opts.insertArgs && opts.insertArgs.length ? opts.insertArgs.join(',') + ',' : '';
+    const showDelete = opts.showDelete !== undefined ? opts.showDelete : kind === 'history';
     el.innerHTML = items.map(function (item, i) {
       const thumb = kind === 'search' ? item.thumb : adocImageAssetUrl(item.asset_id);
       const credit = kind === 'search' ? (item.photographer || '') : (item.attribution || '');
       // Obligation des conditions Pexels — attribution jamais retirée ni minimisée, un simple
       // texte discret sous la vignette suffit (décision de Christophe, cf. rapport d'investigation).
       const creditLine = credit ? ('Photo : ' + credit + ' — Pexels') : 'Pexels';
-      // "Effacer" — UNIQUEMENT sur l'historique (kind==='history') : un résultat de recherche
-      // n'est pas encore persisté tant que "Insérer" n'a pas été cliqué, rien à effacer côté serveur.
-      const deleteBtn = kind === 'history'
+      // "Effacer" — UNIQUEMENT sur l'historique de la bibliothèque Médias (jamais dans un simple
+      // sous-panneau de sélection) : un résultat de recherche n'est pas encore persisté tant que
+      // "Insérer" n'a pas été cliqué, rien à effacer côté serveur.
+      const deleteBtn = showDelete
         ? '<button type="button" class="cc-media-delete-btn" data-media-history-delete="' + i + '" onclick="event.stopPropagation();window.adocMediaDeleteFromHistory(' + i + ')" title="Effacer">Effacer</button>'
         : '';
       return '<div class="cc-media-item" data-media-item-' + kind + '="' + i + '">' +
         '<img class="cc-media-thumb" src="' + adocEsc(thumb) + '" alt="' + adocEsc(item.alt || credit || 'Image') + '" loading="lazy">' +
         '<p class="cc-media-credit">' + adocEsc(creditLine) + '</p>' +
         '<div class="cc-media-actions">' +
-          '<button type="button" class="cc-media-insert-btn" data-media-' + kind + '-insert="' + i + '" onclick="window.' + insertFn + '(' + i + ')">Insérer</button>' +
+          '<button type="button" class="cc-media-insert-btn" data-media-' + kind + '-insert="' + i + '" onclick="window.' + insertFn + '(' + insertArgsPrefix + i + ')">Insérer</button>' +
           deleteBtn +
         '</div>' +
       '</div>';
     }).join('');
+  }
+
+  // Réseau seul, jamais de rendu ni d'état ici — extrait pour être appelé depuis DEUX endroits
+  // (l'onglet Médias de la barre latérale ET le nouveau sous-panneau d'insertion de bloc) sans
+  // dupliquer le moindre appel réseau, jamais une seconde recherche Pexels réimplémentée.
+  async function adocMediaFetchSearch(query) {
+    const res = await fetch(adocGetWorkerUrl() + '/fetch-image?q=' + encodeURIComponent(query) + '&per_page=12', {
+      headers: { 'X-API-Key': adocGetApiKey() },
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    return data.photos || [];
+  }
+  async function adocMediaFetchHistory() {
+    const res = await fetch(adocGetWorkerUrl() + '/media-assets', { headers: { 'X-API-Key': adocGetApiKey() } });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    return data.media || [];
   }
 
   window.adocMediaSearch = async function () {
@@ -13769,12 +13828,7 @@ ${recent}`;
     if (!q) { if (resultsEl) resultsEl.innerHTML = ''; return; }
     if (resultsEl) resultsEl.innerHTML = '<p class="cc-media-empty">Recherche…</p>';
     try {
-      const res = await fetch(adocGetWorkerUrl() + '/fetch-image?q=' + encodeURIComponent(q) + '&per_page=12', {
-        headers: { 'X-API-Key': adocGetApiKey() },
-      });
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const data = await res.json();
-      window._adocMediaSearchResults = data.photos || [];
+      window._adocMediaSearchResults = await adocMediaFetchSearch(q);
       adocMediaRenderGrid('cc-ws-media-search-results', window._adocMediaSearchResults, 'search');
     } catch (e) {
       if (resultsEl) resultsEl.innerHTML = '<p class="cc-media-empty">Recherche impossible : ' + adocEsc(e.message) + '</p>';
@@ -13785,13 +13839,99 @@ ${recent}`;
     const el = document.getElementById('cc-ws-media-history');
     if (!el) return;
     try {
-      const res = await fetch(adocGetWorkerUrl() + '/media-assets', { headers: { 'X-API-Key': adocGetApiKey() } });
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const data = await res.json();
-      window._adocMediaHistoryResults = data.media || [];
+      window._adocMediaHistoryResults = await adocMediaFetchHistory();
       adocMediaRenderGrid('cc-ws-media-history', window._adocMediaHistoryResults, 'history');
     } catch (e) {
       el.innerHTML = '<p class="cc-media-empty">Historique indisponible : ' + adocEsc(e.message) + '</p>';
+    }
+  };
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // Item 69v3 — 3ᵉ mode du sous-panneau « type de bloc = Image » : « Choisir dans Médias ».
+  // Conteneurs et tableaux de résultats SÉPARÉS de ceux de l'onglet Médias de la barre latérale
+  // (cc-block-media-* vs cc-ws-media-*, _adocBlockMedia* vs _adocMedia*) — les deux peuvent être
+  // ouverts en même temps sur la page (aside indépendante du panneau flottant d'édition de bloc),
+  // jamais un état ni des index partagés entre eux. Réutilise EXACTEMENT le rendu de grille
+  // (adocMediaRenderGrid) et la recherche/historique réseau (adocMediaFetchSearch/History) déjà
+  // construits — jamais une seconde recherche Pexels. Résultat : un vrai bloc image autonome via
+  // adocInsertImageBlockWithAsset (même mécanisme que le glisser-déposer), jamais un fond — ce
+  // dernier reste le comportement propre à l'onglet Médias de la barre latérale (lot précédent).
+  // ═══════════════════════════════════════════════════════════════════════
+  window.adocBlockInsertMediaToggle = function (direction) {
+    const panel = document.getElementById('cc-block-media-panel');
+    if (!panel) return;
+    const willOpen = panel.hidden;
+    panel.hidden = !willOpen;
+    if (willOpen) window.adocBlockInsertMediaLoadHistory(direction);
+  };
+
+  window.adocBlockInsertMediaSearch = async function (direction) {
+    const input = document.getElementById('cc-block-media-search-input');
+    const q = (input && input.value || '').trim();
+    const resultsEl = document.getElementById('cc-block-media-search-results');
+    if (!q) { if (resultsEl) resultsEl.innerHTML = ''; return; }
+    if (resultsEl) resultsEl.innerHTML = '<p class="cc-media-empty">Recherche…</p>';
+    try {
+      window._adocBlockMediaSearchResults = await adocMediaFetchSearch(q);
+      adocMediaRenderGrid('cc-block-media-search-results', window._adocBlockMediaSearchResults, 'search', {
+        insertFn: 'adocMediaBlockInsertFromSearch', insertArgs: ["'" + direction + "'"],
+      });
+    } catch (e) {
+      if (resultsEl) resultsEl.innerHTML = '<p class="cc-media-empty">Recherche impossible : ' + adocEsc(e.message) + '</p>';
+    }
+  };
+
+  window.adocBlockInsertMediaLoadHistory = async function (direction) {
+    const el = document.getElementById('cc-block-media-history');
+    if (!el) return;
+    try {
+      window._adocBlockMediaHistoryResults = await adocMediaFetchHistory();
+      // showDelete:false — ce sous-panneau sert à CHOISIR une image pour un nouveau bloc, jamais
+      // à gérer la bibliothèque Médias (suppression déjà possible, elle, depuis la barre latérale).
+      adocMediaRenderGrid('cc-block-media-history', window._adocBlockMediaHistoryResults, 'history', {
+        insertFn: 'adocMediaBlockInsertFromHistory', insertArgs: ["'" + direction + "'"], showDelete: false,
+      });
+    } catch (e) {
+      el.innerHTML = '<p class="cc-media-empty">Historique indisponible : ' + adocEsc(e.message) + '</p>';
+    }
+  };
+
+  window.adocMediaBlockInsertFromSearch = async function (direction, idx) {
+    const item = window._adocBlockMediaSearchResults && window._adocBlockMediaSearchResults[idx];
+    if (!item) return;
+    const btn = document.querySelector('#cc-block-media-search-results [data-media-search-insert="' + idx + '"]');
+    if (btn) { btn.disabled = true; btn.textContent = 'Insertion…'; }
+    try {
+      const res = await fetch(adocGetWorkerUrl() + '/media-assets/from-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
+        body: JSON.stringify({ url: item.url, attribution: item.photographer || '' }),
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      const created = await adocInsertImageBlockWithAsset(direction, data.asset_id, item.alt || item.photographer || 'Image');
+      if (!created && btn) { btn.disabled = false; btn.textContent = 'Insérer'; }
+    } catch (e) {
+      alert('Insertion impossible : ' + e.message);
+      if (btn) { btn.disabled = false; btn.textContent = 'Insérer'; }
+    }
+  };
+
+  window.adocMediaBlockInsertFromHistory = async function (direction, idx) {
+    const item = window._adocBlockMediaHistoryResults && window._adocBlockMediaHistoryResults[idx];
+    if (!item) return;
+    const btn = document.querySelector('#cc-block-media-history [data-media-history-insert="' + idx + '"]');
+    if (btn) { btn.disabled = true; btn.textContent = 'Insertion…'; }
+    try {
+      const res = await fetch(adocGetWorkerUrl() + '/media-assets/' + item.asset_id + '/use', {
+        method: 'POST', headers: { 'X-API-Key': adocGetApiKey() },
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const created = await adocInsertImageBlockWithAsset(direction, item.asset_id, item.attribution || 'Image');
+      if (!created && btn) { btn.disabled = false; btn.textContent = 'Insérer'; }
+    } catch (e) {
+      alert('Insertion impossible : ' + e.message);
+      if (btn) { btn.disabled = false; btn.textContent = 'Insérer'; }
     }
   };
 
@@ -13839,7 +13979,9 @@ ${recent}`;
     }
     const item = window._adocMediaSearchResults && window._adocMediaSearchResults[idx];
     if (!item) return;
-    const btn = document.querySelector('[data-media-search-insert="' + idx + '"]');
+    // Portée sur son propre conteneur — jamais un sélecteur global : le sous-panneau d'insertion
+    // de bloc (« Choisir dans Médias ») peut afficher une grille avec les MÊMES index côte à côte.
+    const btn = document.querySelector('#cc-ws-media-search-results [data-media-search-insert="' + idx + '"]');
     if (btn) { btn.disabled = true; btn.textContent = 'Insertion…'; }
     try {
       const res = await fetch(adocGetWorkerUrl() + '/media-assets/from-url', {
@@ -13866,7 +14008,8 @@ ${recent}`;
     }
     const item = window._adocMediaHistoryResults && window._adocMediaHistoryResults[idx];
     if (!item) return;
-    const btn = document.querySelector('[data-media-history-insert="' + idx + '"]');
+    // Portée sur son propre conteneur — même raison que ci-dessus.
+    const btn = document.querySelector('#cc-ws-media-history [data-media-history-insert="' + idx + '"]');
     if (btn) { btn.disabled = true; btn.textContent = 'Insertion…'; }
     try {
       const res = await fetch(adocGetWorkerUrl() + '/media-assets/' + item.asset_id + '/use', {
