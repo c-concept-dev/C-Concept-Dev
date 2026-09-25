@@ -14408,7 +14408,14 @@ ${recent}`;
       const previewBtn = mountId === 'cc-ws-creations'
         ? '<button type="button" class="cc-media-delete-btn" data-creations-preview="' + i + '" onclick="event.stopPropagation();window.adocCreationsPreview(\'' + mountId + '\',' + i + ')">Aperçu</button>'
         : '';
+      // Suppression directe depuis la vignette (sans ouvrir le document au préalable) — même route
+      // déjà existante que le bouton "Supprimer" du bandeau de travail (DELETE /clinical-documents/:id,
+      // cf. adocWsDeleteConfirmed), jamais une seconde implémentation. Discrète (petite croix en coin,
+      // .cc-creations-delete-x), jamais aussi visible que "Ouvrir" — même esprit que "Effacer" du
+      // panneau Médias, gabarit différent (croix, pas un bouton pleine largeur).
+      const deleteXBtn = '<button type="button" class="cc-creations-delete-x" data-creations-delete="' + i + '" onclick="event.stopPropagation();window.adocCreationsDelete(\'' + mountId + '\',' + i + ')" aria-label="Supprimer ce document" title="Supprimer">×</button>';
       return '<div class="cc-media-item" data-creations-item="' + i + '">' +
+        deleteXBtn +
         thumbHtml +
         '<p class="cc-media-credit">' + adocEsc(d.title || 'Document') + ' — ' + adocEsc(kindLabel) + (dateLabel ? ' — ' + adocEsc(dateLabel) : '') + '</p>' +
         '<div class="cc-media-actions">' +
@@ -14417,6 +14424,37 @@ ${recent}`;
         '</div>' +
       '</div>';
     }).join('');
+  };
+
+  // Suppression directe depuis "Mes créations" (croix sur la vignette, sans ouvrir le document au
+  // préalable) — réutilise TELLE QUELLE la route déjà existante et fonctionnelle
+  // (DELETE /clinical-documents/:id, cf. adocWsDeleteConfirmed plus bas), jamais une seconde
+  // implémentation. confirm() natif avec le titre du document (jamais un clic sans filet), même
+  // patron de retrait ciblé qu'adocMediaDeleteFromHistory (panneau Médias) : la vignette est retirée
+  // du DOM directement (jamais une réindexation qui décalerait les data-creations-*="i" des autres
+  // vignettes déjà affichées), et l'entrée est retirée de state.all pour ne JAMAIS réapparaître au
+  // prochain filtre (state.filtered, lui, n'est que nullifié à cet index précis — cohérent avec le
+  // DOM déjà rendu, jamais reconstruit ici).
+  window.adocCreationsDelete = async function (mountId, idx) {
+    const state = window._adocCreationsState[mountId] || {};
+    const item = state.filtered && state.filtered[idx];
+    if (!item) return;
+    if (!confirm('Supprimer définitivement « ' + (item.title || 'ce document') + ' » ? Cette action est irréversible.')) return;
+    const btn = document.querySelector('#' + mountId + '-results [data-creations-delete="' + idx + '"]');
+    if (btn) btn.disabled = true;
+    try {
+      const r = await fetch(adocGetWorkerUrl().replace(/\/+$/, '') + '/clinical-documents/' + encodeURIComponent(item.document_id), {
+        method: 'DELETE', headers: { 'X-API-Key': adocGetApiKey() },
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const el = document.querySelector('#' + mountId + '-results [data-creations-item="' + idx + '"]');
+      if (el) el.remove();
+      state.all = (state.all || []).filter(function (d) { return d.document_id !== item.document_id; });
+      state.filtered[idx] = null;
+    } catch (e) {
+      alert('Suppression impossible : ' + (e && e.message || 'erreur inconnue') + '.');
+      if (btn) btn.disabled = false;
+    }
   };
 
   // Fusion de documents — clic sur "Aperçu" : ouvre B dans le nouveau panneau de lecture seule,
