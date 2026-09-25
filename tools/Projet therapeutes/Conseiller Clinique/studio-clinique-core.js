@@ -12421,6 +12421,9 @@ ${recent}`;
     cardEl.querySelectorAll('.cc-preview-copy-btn').forEach(function (btn) {
       btn.addEventListener('click', function () { window.adocPreviewRequestCopy(btn.getAttribute('data-preview-copy-block')); });
     });
+    // Fusion Phase 2 — glissement réel B→A, geste ALTERNATIF au clic "Copier" ci-dessus, jamais un
+    // remplacement (les deux coexistent, décision actée).
+    adocFusionSetupDragSource(cardEl);
   }
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -12432,6 +12435,13 @@ ${recent}`;
   // MÊME bouton annule explicitement.
   // ═══════════════════════════════════════════════════════════════════════
   window._adocFusionPendingCopy = null;
+  // Fusion Phase 2 — verrou global partagé avec Item 63f/Item 75 (cf. leurs onMove/onUp dans
+  // adocWsSetupBlockEditing) : empêche le démarrage d'un second glissement (B→A ou réordonnancement/
+  // positionnement sur A) tant qu'un premier est réellement en cours (mouvement >=3px confirmé,
+  // jamais posé sur un simple clic). Filet de sécurité pour le cas limite écarté explicitement par
+  // le CDC (un pointeur de souris réel ne peut de toute façon déclencher les deux machines à la
+  // fois) — jamais une coordination plus complexe que ce booléen, comme demandé.
+  window._adocAnyDragActive = false;
 
   function adocFusionClearDropTargets() {
     document.querySelectorAll('.cc-fusion-drop-target').forEach(function (el) { el.remove(); });
@@ -12473,6 +12483,88 @@ ${recent}`;
         if (b.nextSibling) container.insertBefore(line, b.nextSibling); else container.appendChild(line);
       });
     });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // Fusion Phase 2 — vrai geste de glisser-déposer B→A, EN COMPLÉMENT du clic "Copier" ci-dessus
+  // (jamais un remplacement, décision actée : les deux coexistent). Machine à état ENTIÈREMENT
+  // SÉPARÉE de celle d'Item 63f (attachée à #cc-preview-doc-card, jamais #cc-ws-doc-card) —
+  // coexistence garantie par construction (éléments DOM distincts déclenchant chacun leur propre
+  // mousedown), le verrou window._adocAnyDragActive (cf. adocWsSetupBlockEditing) n'étant qu'un
+  // filet de sécurité pour le cas limite écarté explicitement par le CDC.
+  //
+  // Poignée RÉUTILISÉE telle quelle (jamais un second élément inventé) : .adoc-sc-block-drag-handle
+  // est déjà présente, inconditionnellement, dans le balisage de CHAQUE bloc rendu — y compris dans
+  // B (même renderer que A, cf. adocRenderBlockHTML) — seulement masquée par la règle CSS d'Item
+  // 63f qui exige l'ancêtre .cc-ws-block-editable (jamais posé sur #cc-preview-doc-card, lecture
+  // seule). Une nouvelle règle CSS scoped à #cc-preview-doc-card (studio-clinique.html) la révèle
+  // ICI SEULEMENT, sous une condition d'activation différente — jamais la même que A.
+  //
+  // Copie, jamais déplacement : B reste intact tout au long du geste (aucune mutation de son DOM ni
+  // de son JSON), donc "annulation propre" est automatique — le bloc source n'a jamais quitté sa
+  // position, une classe CSS purement cosmétique (cc-fusion-dragging-source) suffit comme retour
+  // visuel pendant le geste.
+  function adocFusionSetupDragSource(cardEl) {
+    cardEl.onmousedown = function (e) {
+      if (window._adocAnyDragActive) return;
+      const dragHandle = e.target.closest('.adoc-sc-block-drag-handle');
+      if (!dragHandle) return;
+      const blockEl = dragHandle.closest('.adoc-sc-block');
+      if (!blockEl) return;
+      const preview = window._adocPreviewState;
+      if (!preview || !preview.art || preview.art._adocGenerationEngine !== 'structured') return;
+      const docB = preview.art._adocStructuredDoc;
+      // Même résolution de conteneur SOURCE que le clic "Copier" (adocPreviewRequestCopy) —
+      // jamais une seconde lecture de blockB ici.
+      const siblingsB = adocEditorBlockContainer(docB, blockEl.id);
+      const blockB = siblingsB && siblingsB.find(function (b) { return b.id === blockEl.id; });
+      if (!blockB) return;
+      e.preventDefault();
+      const pointerStartX = e.clientX, pointerStartY = e.clientY;
+      const docCardEl = document.getElementById('cc-ws-doc-card');
+      let moved = false, dropTargetsShown = false, overA = false;
+      function onMove(ev) {
+        if (!moved && Math.abs(ev.clientX - pointerStartX) < 3 && Math.abs(ev.clientY - pointerStartY) < 3) return;
+        if (!moved) {
+          // Un seul dépôt en attente à la fois, quelle que soit son origine (clic ou glissement) —
+          // annule toute session "Copier" restée en attente sur un AUTRE bloc.
+          adocFusionCancelPending();
+          window._adocAnyDragActive = true;
+          blockEl.classList.add('cc-fusion-dragging-source');
+        }
+        moved = true;
+        // Transition ENTER/LEAVE uniquement (jamais à chaque tick) : adocFusionShowDropTargets ne
+        // garde aucune trace des lignes déjà posées, un second appel les dupliquerait — bug réel
+        // identifié en investiguant avant de construire, jamais rencontré en pratique par Phase 1
+        // (un seul appel par clic, jamais répété).
+        const nowOverA = !!(docCardEl && ev.target.closest && ev.target.closest('#cc-ws-doc-card'));
+        if (nowOverA && !overA) {
+          overA = true;
+          if (docCardEl) { adocFusionShowDropTargets(docCardEl); dropTargetsShown = true; }
+        } else if (!nowOverA && overA) {
+          overA = false;
+          if (dropTargetsShown) { adocFusionClearDropTargets(); dropTargetsShown = false; }
+        }
+      }
+      function onUp(ev) {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        window._adocAnyDragActive = false;
+        blockEl.classList.remove('cc-fusion-dragging-source');
+        if (!moved) return;
+        const dropTarget = dropTargetsShown ? ev.target.closest('.cc-fusion-drop-target') : null;
+        if (dropTargetsShown) adocFusionClearDropTargets();
+        if (!dropTarget) return; // relâché hors zone valide — rien inséré, B inchangé, aucun message nécessaire (même précédent que le drop sur soi-même en Item 63f)
+        // Réutilise EXACTEMENT la même logique de compatibilité/clone/insertion que le clic
+        // "Copier" (adocFusionCommitDrop), jamais une seconde implémentation — seul le déclencheur
+        // change (relâchement de glissement au lieu d'un clic sur la ligne) ; pending.btn reste
+        // null ici, déjà toléré par adocFusionCommitDrop (aucun bouton n'a été cliqué).
+        window._adocFusionPendingCopy = { blockId: blockEl.id, blockB: blockB, btn: null };
+        window.adocFusionCommitDrop(dropTarget.dataset.fusionAnchor, dropTarget.dataset.fusionPosition);
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    };
   }
 
   // Clic "Copier vers le document" — Phase 1 : n'ajoute plus JAMAIS directement en fin de document,
@@ -13456,6 +13548,13 @@ ${recent}`;
     // régression explicitement demandée). Point d'annulation posé UNE SEULE FOIS au premier tick
     // de mouvement réel (même principe que le curseur d'opacité, Lot E, jamais à chaque frame).
     docCard.onmousedown = function (e) {
+      // Fusion Phase 2 — verrou global partagé avec le glissement B→A (adocFusionSetupDragSource,
+      // cf. plus bas) : bloque le DÉMARRAGE d'un des trois glissements ci-dessous (réordonnancement,
+      // positionnement imbriqué, positionnement de carte) tant qu'un glissement B→A est réellement
+      // en cours. Un seul pointeur de souris réel ne peut de toute façon déclencher les deux à la
+      // fois — ce garde-fou couvre le cas limite écarté explicitement par le CDC (déclenchement
+      // synthétique/test), jamais un scénario utilisateur réel à gérer plus finement.
+      if (window._adocAnyDragActive) return;
       // ITEM 63f — glisser-déposer réel pour réordonner un bloc, testé EN PREMIER (avant la garde
       // `if (!cardEl) return;` ci-dessous) : un bloc de premier niveau (Fiche/Script/Tableau/Liens,
       // sans aucune .adoc-sc-card) doit pouvoir être réordonné tout autant qu'un bloc imbriqué dans
@@ -13513,6 +13612,7 @@ ${recent}`;
             blockEl.click();
             adocEditorCheckpoint();
             document.addEventListener('click', suppressNextClick, true);
+            window._adocAnyDragActive = true; // Fusion Phase 2 — verrou partagé, posé au même moment que le checkpoint (mouvement réel confirmé)
           }
           moved = true;
           dropIdx = computeDropIdx(ev.clientY);
@@ -13521,6 +13621,7 @@ ${recent}`;
         function onUp() {
           document.removeEventListener('mousemove', onMove);
           document.removeEventListener('mouseup', onUp);
+          window._adocAnyDragActive = false; // Fusion Phase 2 — libère le verrou partagé, inconditionnel comme le retrait défensif ci-dessous
           // CORRECTIF (trouvé en testant) — quand mousedown et mouseup n'aboutissent pas au même
           // élément (le cas normal d'un réordonnancement : la poignée puis un tout autre bloc), le
           // navigateur n'émet parfois AUCUN clic de synthèse au relâchement — suppressNextClick
@@ -13583,7 +13684,7 @@ ${recent}`;
         function onMove(ev) {
           const dx = ev.clientX - pointerStartX, dy = ev.clientY - pointerStartY;
           if (!moved && Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
-          if (!moved) { document.addEventListener('click', suppressNextClick, true); ev.preventDefault(); }
+          if (!moved) { document.addEventListener('click', suppressNextClick, true); ev.preventDefault(); window._adocAnyDragActive = true; }
           moved = true;
           if (!checkpointed) { adocEditorCheckpoint(); checkpointed = true; }
           adocSelectNestedBlockForPosition(nestedEl, block, storeKey);
@@ -13613,6 +13714,7 @@ ${recent}`;
         function onUp() {
           document.removeEventListener('mousemove', onMove);
           document.removeEventListener('mouseup', onUp);
+          window._adocAnyDragActive = false; // Fusion Phase 2 — verrou partagé
           adocRemoveAlignGuides(nestedEl.parentElement);
           // Clic direct sur la poignée SANS glissement réel — ouvre quand même le panneau (même
           // non-régression que la poignée de carte). Un clic normal AILLEURS dans le bloc, sans
@@ -13670,6 +13772,7 @@ ${recent}`;
       function onMove(ev) {
         const dx = ev.clientX - pointerStartX, dy = ev.clientY - pointerStartY;
         if (!moved && Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
+        if (!moved) window._adocAnyDragActive = true; // Fusion Phase 2 — verrou partagé
         moved = true;
         if (!checkpointed) { adocEditorCheckpoint(); checkpointed = true; }
         selectCard();
@@ -13716,6 +13819,7 @@ ${recent}`;
       function onUp() {
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
+        window._adocAnyDragActive = false; // Fusion Phase 2 — verrou partagé
         adocRemoveAlignGuides(cardEl.parentElement);
         cardEl.classList.remove('adoc-sc-card-overlap-blocked');
         if (!moved) selectCard(); // clic normal, sans glissement réel — ouvre quand même le panneau (non-régression demandée)
