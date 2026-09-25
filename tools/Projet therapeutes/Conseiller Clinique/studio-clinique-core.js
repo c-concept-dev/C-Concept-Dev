@@ -12276,68 +12276,79 @@ ${recent}`;
   // lui-même : les capacités posées ci-dessous sont EXACTEMENT celles posées à la génération
   // (adocDeliverStructuredFicheArtifact pour 'structured', adocFinalizeGeneration pour
   // 'legacy-html' — mêmes objets littéraux, jamais une variante divergente inventée ici).
-  window.adocOpenSavedClinicalDocument = async function (documentId) {
-    try {
-      const workerUrlClean = adocGetWorkerUrl().replace(/\/+$/, '');
-      const r = await fetch(workerUrlClean + '/clinical-documents/' + encodeURIComponent(documentId), {
-        headers: { 'X-API-Key': adocGetApiKey() },
-      });
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      const data = await r.json();
-      if (!data.version || !data.version.document) throw new Error('Aucune version disponible pour ce document');
-      const engine = data.generation_engine || 'structured';
-      const storeKey = 'adocArt_saved_' + documentId;
-      window._adocArtifacts = window._adocArtifacts || {};
-      const art = { name: data.title || 'Document' };
-      window._adocArtifacts[storeKey] = art;
-      art._adocClinicalDocumentId = data.document_id;
-      art._adocClinicalVersionId = data.version.version_id;
-      art._adocGenerationEngine = engine;
-      if (engine === 'legacy-html') {
-        art.html = data.version.document.html || '';
-        art._adocLegacySourceSnapshot = data.version.document.sourceSnapshot || null;
-        art._adocDocumentKind = data.document_kind;
-        // Même enveloppe de capacités que adocFinalizeGeneration pour un repli legacy-html
-        // (jamais fmt='xlsx' — art.xlsxData n'existe jamais pour un document rouvert depuis ici,
-        // adocOpenWorkspace retombe alors correctement sur le rendu HTML générique, cf. investigation).
-        art._adocCapabilities = { workspace: true, persist: true, fineCitations: false, blockEditing: false, legacyBlockEditing: true, transform: false, export: true, qualityControlledExport: false };
-      } else {
-        art._adocStructuredDoc = data.version.document.clinicalDocument;
-        art._adocStructuredSnapshot = data.version.document.sourceSnapshot || null;
-        // Même enveloppe de capacités que adocDeliverStructuredFicheArtifact, appliquée à TOUT
-        // documentKind structuré (fiche/carrousel/tableau/script/liens — un seul point de
-        // livraison réel, cf. investigation item 69/74), jamais une variante par type inventée ici.
-        art._adocCapabilities = { workspace: true, persist: true, fineCitations: true, blockEditing: true, transform: false, export: true, qualityControlledExport: true };
-        // Piège identifié pendant le test réel de ce lot (pas dans l'investigation initiale) :
-        // le renderManifestOverride persisté référence un tokensSnapshotId qui ne vit QUE dans
-        // window.adocTokensSnapshots (cf. adocBuildRenderManifestForBrandKit) — un cache mémoire
-        // JAMAIS persisté lui-même, donc introuvable après un rechargement de page. Le réutiliser
-        // TEL QUEL ferait échouer le rendu (adocResolveTokens ne trouverait pas le snapshot).
-        // Reconstruit ICI via LE MÊME mécanisme qu'à la génération (adocBuildRenderManifestForBrandKit),
-        // à partir du SEUL brandKitRef.id conservé dans le manifeste persisté : résultat visuel
-        // fidèle (même charte) tant qu'elle n'a pas changé depuis — repli silencieux sur le
-        // manifeste par défaut si elle est introuvable/retirée (même esprit qu'adocResolveBrandKitForGeneration),
-        // jamais un rendu cassé ni un blocage de la réouverture.
-        const persistedOverride = data.version.document.renderManifestOverride || null;
-        const brandKitId = persistedOverride && persistedOverride.brandKitRef && persistedOverride.brandKitRef.id;
-        if (brandKitId) {
-          try {
-            const kit = await adocGetBrandKitById(brandKitId);
-            if (kit && kit.id) {
-              art._adocRenderManifestOverride = await adocBuildRenderManifestForBrandKit(art._adocStructuredDoc, kit);
-              art._adocBrandKitName = kit.name || null;
-            } else {
-              art._adocRenderManifestOverride = null;
-              art._adocBrandKitName = null;
-            }
-          } catch (e) {
+  // Extraction pure (fusion de documents, ce lot) — RÉSOUT un objet "art" complet à partir d'un
+  // document_id déjà enregistré, SANS jamais l'assigner à _adocArtifacts ni toucher _adocWsState :
+  // c'est la partie 100% commune entre adocOpenSavedClinicalDocument (réouverture PLEIN ÉCRAN,
+  // remplace le document courant) et adocPreviewSavedClinicalDocument (aperçu EN PARALLÈLE,
+  // lecture seule, ne remplace jamais rien) — jamais deux implémentations divergentes de cette
+  // résolution (fetch + capacités + reconstruction du renderManifestOverride + charte réelle).
+  async function adocResolveSavedClinicalDocumentArt(documentId) {
+    const workerUrlClean = adocGetWorkerUrl().replace(/\/+$/, '');
+    const r = await fetch(workerUrlClean + '/clinical-documents/' + encodeURIComponent(documentId), {
+      headers: { 'X-API-Key': adocGetApiKey() },
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    if (!data.version || !data.version.document) throw new Error('Aucune version disponible pour ce document');
+    const engine = data.generation_engine || 'structured';
+    const art = { name: data.title || 'Document' };
+    art._adocClinicalDocumentId = data.document_id;
+    art._adocClinicalVersionId = data.version.version_id;
+    art._adocGenerationEngine = engine;
+    if (engine === 'legacy-html') {
+      art.html = data.version.document.html || '';
+      art._adocLegacySourceSnapshot = data.version.document.sourceSnapshot || null;
+      art._adocDocumentKind = data.document_kind;
+      // Même enveloppe de capacités que adocFinalizeGeneration pour un repli legacy-html
+      // (jamais fmt='xlsx' — art.xlsxData n'existe jamais pour un document rouvert depuis ici,
+      // adocOpenWorkspace retombe alors correctement sur le rendu HTML générique, cf. investigation).
+      art._adocCapabilities = { workspace: true, persist: true, fineCitations: false, blockEditing: false, legacyBlockEditing: true, transform: false, export: true, qualityControlledExport: false };
+    } else {
+      art._adocStructuredDoc = data.version.document.clinicalDocument;
+      art._adocStructuredSnapshot = data.version.document.sourceSnapshot || null;
+      // Même enveloppe de capacités que adocDeliverStructuredFicheArtifact, appliquée à TOUT
+      // documentKind structuré (fiche/carrousel/tableau/script/liens — un seul point de
+      // livraison réel, cf. investigation item 69/74), jamais une variante par type inventée ici.
+      art._adocCapabilities = { workspace: true, persist: true, fineCitations: true, blockEditing: true, transform: false, export: true, qualityControlledExport: true };
+      // Piège identifié pendant le test réel du lot "Mes créations" (pas dans l'investigation
+      // initiale) : le renderManifestOverride persisté référence un tokensSnapshotId qui ne vit
+      // QUE dans window.adocTokensSnapshots (cf. adocBuildRenderManifestForBrandKit) — un cache
+      // mémoire JAMAIS persisté lui-même, donc introuvable après un rechargement de page. Le
+      // réutiliser TEL QUEL ferait échouer le rendu (adocResolveTokens ne trouverait pas le
+      // snapshot). Reconstruit ICI via LE MÊME mécanisme qu'à la génération
+      // (adocBuildRenderManifestForBrandKit), à partir du SEUL brandKitRef.id conservé dans le
+      // manifeste persisté : résultat visuel fidèle (même charte) tant qu'elle n'a pas changé
+      // depuis — repli silencieux sur le manifeste par défaut si elle est introuvable/retirée
+      // (même esprit qu'adocResolveBrandKitForGeneration), jamais un rendu cassé ni un blocage.
+      const persistedOverride = data.version.document.renderManifestOverride || null;
+      const brandKitId = persistedOverride && persistedOverride.brandKitRef && persistedOverride.brandKitRef.id;
+      if (brandKitId) {
+        try {
+          const kit = await adocGetBrandKitById(brandKitId);
+          if (kit && kit.id) {
+            art._adocRenderManifestOverride = await adocBuildRenderManifestForBrandKit(art._adocStructuredDoc, kit);
+            art._adocBrandKitName = kit.name || null;
+          } else {
             art._adocRenderManifestOverride = null;
             art._adocBrandKitName = null;
           }
-        } else {
-          art._adocRenderManifestOverride = persistedOverride; // null la plupart du temps (charte par défaut du manifeste)
+        } catch (e) {
+          art._adocRenderManifestOverride = null;
+          art._adocBrandKitName = null;
         }
+      } else {
+        art._adocRenderManifestOverride = persistedOverride; // null la plupart du temps (charte par défaut du manifeste)
       }
+    }
+    return art;
+  }
+
+  window.adocOpenSavedClinicalDocument = async function (documentId) {
+    try {
+      const art = await adocResolveSavedClinicalDocumentArt(documentId);
+      const storeKey = 'adocArt_saved_' + documentId;
+      window._adocArtifacts = window._adocArtifacts || {};
+      window._adocArtifacts[storeKey] = art;
       const opened = await window.adocOpenWorkspace(storeKey);
       if (!opened) throw new Error('Ouverture impossible');
       return true;
@@ -12345,6 +12356,119 @@ ${recent}`;
       alert('Impossible de rouvrir cette création : ' + (e && e.message || 'erreur inconnue') + '.');
       return false;
     }
+  };
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // Fusion de documents depuis l'aperçu — panneau B en lecture seule, EN PARALLÈLE du document A
+  // actuellement ouvert (jamais à sa place). Investigation de ce soir : adocOpenSavedClinicalDocument
+  // ci-dessus ne convient PAS ici, elle appelle adocOpenWorkspace qui écraserait
+  // _adocWsState.storeKey (perdant la référence à A). Cette fonction-ci NE TOUCHE JAMAIS
+  // _adocWsState ni _adocArtifacts[storeKeyA] — B vit uniquement dans window._adocPreviewState,
+  // rendu dans son propre conteneur (#cc-preview-doc-card), sans AUCUN mécanisme d'édition
+  // (jamais adocWsSetupBlockEditing, jamais le glisser-déposer Item 63f, jamais le panneau de
+  // correction) : seul un bouton "Copier vers le document" est ajouté par bloc de premier niveau.
+  // ═══════════════════════════════════════════════════════════════════════
+  window._adocPreviewState = null;
+
+  window.adocPreviewSavedClinicalDocument = async function (documentId) {
+    const panel = document.getElementById('cc-preview-panel');
+    const cardEl = document.getElementById('cc-preview-doc-card');
+    const titleEl = document.getElementById('cc-preview-title');
+    if (!panel || !cardEl) return false;
+    panel.hidden = false;
+    cardEl.innerHTML = '<p class="cc-ws-empty">Chargement de l’aperçu…</p>';
+    if (titleEl) titleEl.textContent = 'Aperçu';
+    try {
+      const art = await adocResolveSavedClinicalDocumentArt(documentId);
+      let renderedHtml;
+      if (art._adocGenerationEngine === 'legacy-html') {
+        // Même source que celle affichée dans l'écran de travail (adocOpenWorkspace) — jamais une
+        // reconstruction séparée pour ce panneau.
+        renderedHtml = adocSanitizeLegacyHtmlForWorkspace(art.html || '');
+      } else {
+        const rendered = await window.adocRenderClinicalDocument(art._adocStructuredDoc, art._adocStructuredSnapshot, art._adocRenderManifestOverride || null);
+        renderedHtml = rendered.html;
+      }
+      window._adocPreviewState = { documentId: documentId, art: art };
+      if (titleEl) titleEl.textContent = art.name || 'Document';
+      cardEl.innerHTML = renderedHtml;
+      adocPreviewDecorateTopLevelBlocks(cardEl);
+      return true;
+    } catch (e) {
+      cardEl.innerHTML = '<p class="cc-ws-empty">Aperçu impossible : ' + adocEsc(e && e.message || 'erreur inconnue') + '.</p>';
+      console.warn('[Aperçu] impossible de charger le document :', e && e.message);
+      return false;
+    }
+  };
+
+  // Décoration APRÈS rendu, jamais dans adocRenderBlockHTML lui-même (qui sert aussi le document A
+  // principal — un bouton "Copier" y apparaîtrait à tort). Limite actée (décision 3, ce lot) :
+  // UNIQUEMENT les .adoc-sc-block ENFANTS DIRECTS de cardEl — exclut par construction la bannière
+  // (.adoc-sc-cover, un <div> séparé, jamais .adoc-sc-block) ET tout bloc imbriqué dans une carte
+  // Carrousel (.adoc-sc-card, jamais un enfant direct de cardEl) — cohérent avec la restriction
+  // déjà en place pour Item 63f (jamais une deuxième règle divergente).
+  function adocPreviewDecorateTopLevelBlocks(cardEl) {
+    // Correctif (test réel) — cardEl (#cc-preview-doc-card) n'a qu'UN SEUL enfant direct après le
+    // rendu : le conteneur racine du document (.adoc-sc-doc, quel que soit son type — fiche,
+    // carrousel, etc.), jamais les blocs eux-mêmes directement. Les .adoc-sc-block "premier niveau"
+    // sont enfants DIRECTS de CE conteneur, jamais de cardEl — même repère que le glisser-déposer
+    // Item 63f, qui résout toujours le parent réel du bloc, jamais #cc-ws-doc-card lui-même.
+    const container = cardEl.querySelector('.adoc-sc-doc') || cardEl;
+    const topBlocks = Array.prototype.filter.call(container.children, function (el) {
+      return el.classList && el.classList.contains('adoc-sc-block');
+    });
+    topBlocks.forEach(function (el) {
+      const row = document.createElement('div');
+      row.className = 'cc-preview-copy-row';
+      row.innerHTML = '<button type="button" class="cc-preview-copy-btn" data-preview-copy-block="' + adocEsc(el.id) + '">Copier vers le document</button>';
+      el.insertAdjacentElement('afterend', row);
+    });
+    cardEl.querySelectorAll('.cc-preview-copy-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () { window.adocPreviewCopyBlock(btn.getAttribute('data-preview-copy-block')); });
+    });
+  }
+
+  // Clic "Copier vers le document" — clone profond (décision 2 : une image copiée garde son
+  // assetId déjà persisté tel quel, aucun nouvel upload, jamais modifié ici), nouvel id RELATIF AU
+  // DOCUMENT A (adocNextBlockId, déjà existante — zéro connaissance de B nécessaire), citations
+  // retirées (décision 1 : citationId numéroté par document, cf. investigation — quasi certain que
+  // A et B partagent les mêmes "citation-1"/"citation-2" sans rapport l'un avec l'autre ; le texte
+  // reste, redevient un paragraphe non sourcé), ajouté en FIN de docA.blocks, reflet immédiat via
+  // adocOpenWorkspace (déjà existante, jamais une resynchronisation DOM manuelle inventée ici).
+  window.adocPreviewCopyBlock = async function (blockId) {
+    const preview = window._adocPreviewState;
+    if (!preview || !preview.art || preview.art._adocGenerationEngine !== 'structured') return;
+    const docB = preview.art._adocStructuredDoc;
+    const blockB = (docB.blocks || []).find(function (b) { return b.id === blockId; });
+    if (!blockB) return;
+    const storeKeyA = window._adocWsState.storeKey;
+    const artA = window._adocArtifacts && window._adocArtifacts[storeKeyA];
+    if (!artA || !artA._adocStructuredDoc) { alert('Aucun document ouvert pour recevoir ce bloc — ouvrez ou générez d’abord un document.'); return; }
+    const docA = artA._adocStructuredDoc;
+    const btn = document.querySelector('.cc-preview-copy-btn[data-preview-copy-block="' + blockId.replace(/"/g, '\\"') + '"]');
+    if (btn) { btn.disabled = true; btn.textContent = 'Copie…'; }
+    try {
+      const clone = JSON.parse(JSON.stringify(blockB));
+      clone.id = adocNextBlockId(docA, clone.type);
+      delete clone.citationIds;
+      if (clone.validation) delete clone.validation.citationLinks;
+      docA.blocks.push(clone);
+      const opened = await window.adocOpenWorkspace(storeKeyA);
+      if (btn) { btn.textContent = opened ? 'Copié ✓' : 'Copier vers le document'; btn.disabled = !!opened; }
+    } catch (e) {
+      alert('Copie impossible : ' + (e && e.message || 'erreur inconnue') + '.');
+      if (btn) { btn.disabled = false; btn.textContent = 'Copier vers le document'; }
+    }
+  };
+
+  // "Fermer l'aperçu" — EXPLICITE uniquement (décision actée : jamais de fermeture au clic
+  // extérieur, pour ne pas perdre une session de copie multi-blocs en cours).
+  window.adocPreviewClose = function () {
+    const panel = document.getElementById('cc-preview-panel');
+    if (panel) panel.hidden = true;
+    const cardEl = document.getElementById('cc-preview-doc-card');
+    if (cardEl) cardEl.innerHTML = '';
+    window._adocPreviewState = null;
   };
 
   document.addEventListener('keydown', function (e) {
@@ -14276,14 +14400,33 @@ ${recent}`;
       const thumbHtml = d.thumbnail_asset_id
         ? '<img class="cc-media-thumb" src="' + adocEsc(adocImageAssetUrl(d.thumbnail_asset_id)) + '" alt="' + adocEsc(d.title || 'Document') + '" loading="lazy">'
         : '<div class="cc-media-thumb cc-creations-thumb-fallback">' + adocEsc(kindLabel) + '</div>';
+      // Fusion de documents — bouton "Aperçu" UNIQUEMENT depuis le panneau latéral de l'écran de
+      // travail ('cc-ws-creations') : lui seul a "un document en cours d'édition" avec lequel
+      // fusionner — jamais depuis l'accueil ('cc-home-creations'), où la fusion n'a aucun sens
+      // (cf. investigation, point 1). Classe réutilisée (cc-media-delete-btn, même gabarit discret
+      // que "Effacer"), jamais un nouveau style pour ce simple ajout.
+      const previewBtn = mountId === 'cc-ws-creations'
+        ? '<button type="button" class="cc-media-delete-btn" data-creations-preview="' + i + '" onclick="event.stopPropagation();window.adocCreationsPreview(\'' + mountId + '\',' + i + ')">Aperçu</button>'
+        : '';
       return '<div class="cc-media-item" data-creations-item="' + i + '">' +
         thumbHtml +
         '<p class="cc-media-credit">' + adocEsc(d.title || 'Document') + ' — ' + adocEsc(kindLabel) + (dateLabel ? ' — ' + adocEsc(dateLabel) : '') + '</p>' +
         '<div class="cc-media-actions">' +
           '<button type="button" class="cc-media-insert-btn" data-creations-open="' + i + '" onclick="window.adocCreationsOpen(\'' + mountId + '\',' + i + ')">Ouvrir</button>' +
+          previewBtn +
         '</div>' +
       '</div>';
     }).join('');
+  };
+
+  // Fusion de documents — clic sur "Aperçu" : ouvre B dans le nouveau panneau de lecture seule,
+  // EN PARALLÈLE du document A actuellement ouvert (jamais à sa place, cf. adocPreviewSavedClinicalDocument
+  // ci-dessous, qui ne touche jamais _adocWsState/_adocArtifacts[storeKeyA]).
+  window.adocCreationsPreview = async function (mountId, idx) {
+    const state = window._adocCreationsState[mountId] || {};
+    const item = state.filtered && state.filtered[idx];
+    if (!item) return;
+    await window.adocPreviewSavedClinicalDocument(item.document_id);
   };
 
   // Clic → réouverture RÉELLE dans l'écran de travail, exactement comme un document fraîchement
