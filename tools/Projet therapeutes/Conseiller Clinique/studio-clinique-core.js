@@ -10479,7 +10479,10 @@ ${recent}`;
       // cf. adocGenerateStructuredFiche), citations fines déjà réelles. Jamais pour un repli
       // legacy-html (reste false ci-dessus, adocFinalizeGeneration) — pas de structure par bloc
       // ni de citations fines fiables à y reconstruire.
-      window._adocArtifacts[storeKey]._adocCapabilities = { workspace: true, persist: true, fineCitations: true, blockEditing: true, transform: false, export: true, qualityControlledExport: true };
+      // Item 20 — transform:true UNIQUEMENT pour ce moteur (jamais legacy-html, cf. ci-dessus,
+      // qui reste false) : blocs/citations/sourceSnapshot directement réutilisables tels quels
+      // par adocMagicSwitchTransform (cf. rapport d'investigation, Point 5).
+      window._adocArtifacts[storeKey]._adocCapabilities = { workspace: true, persist: true, fineCitations: true, blockEditing: true, transform: true, export: true, qualityControlledExport: true };
     }
     return storeKey;
   }
@@ -12144,6 +12147,123 @@ ${recent}`;
     return adocGenerateStructuredDocument('fiche', text, plan, ragResult, systemPrompt, workerUrl, typingId);
   };
 
+  // ═══════════════════════════════════════════════════════════════════════
+  // Item 20 — "Magic Switch" : transformer un document structuré déjà généré vers un autre type
+  // clinique, en réutilisant ses propres sources. Voir RAPPORT-INVESTIGATION-ITEM20-MAGIC-SWITCH
+  // pour la justification complète — décisions actées par Christophe, rappelées ici brièvement :
+  // - CONFIÉE AU MODÈLE, jamais une correspondance bloc-à-bloc mécanique (les 4 profils "à plat"
+  //   partagent la même forme de sortie mais un prompt radicalement différent — décider quel texte
+  //   devient quelle colonne d'un tableau est un vrai jugement de restructuration).
+  // - 6 paires retenues pour ce premier lot (Fiche en pivot dans les deux sens, jamais les 20
+  //   combinaisons) : cf. ADOC_MAGIC_SWITCH_PAIRS ci-dessous.
+  // - Sources RÉUTILISÉES STRICTEMENT (jamais une recherche RAG fraîche) : adocExecutePlan n'est
+  //   jamais appelé sur ce chemin — adocConvertSourceSnapshotToRagChunks reshape les entrées déjà
+  //   persistées du document source vers la forme attendue par adocBuildSourceSnapshotFromRAG, qui
+  //   régénère ses propres identifiants (nouveau document) à partir des MÊMES livre/auteur/page/
+  //   texte exact.
+  // - Résultat = NOUVEAU document (jamais une modification en place), derivedFrom renseigné,
+  //   persisté via adocCreateNewClinicalDocument (même route que "Enregistrer sous", jamais une
+  //   route de version) — l'original reste intact et consultable dans "Mes créations".
+  // - Images NON transportées (limitation assumée) : le contrat des 4 outils structurés n'expose
+  //   que imageQuery/imageAlt, jamais assetId — un bloc image du document cible, si le modèle en
+  //   produit un, sera nécessairement une nouvelle résolution Pexels.
+  // - Portée limitée au moteur STRUCTURÉ (jamais legacy-html dans ce lot, cf. garde en tête de
+  //   fonction et _adocCapabilities.transform, resté false pour ce moteur).
+  // ═══════════════════════════════════════════════════════════════════════
+  var ADOC_MAGIC_SWITCH_PAIRS = {
+    fiche: ['tableau', 'carrousel', 'liens'],
+    tableau: ['fiche'],
+    script: ['fiche'],
+    liens: ['fiche'],
+  };
+
+  // Simple renommage de champs (confirmé trivial par l'investigation) — jamais une nouvelle
+  // recherche bibliothèque : sourceSnapshot.entries[] (forme ClinicalDocument déjà persistée,
+  // exactText/book/locator.page/relevanceScore) porte EXACTEMENT les mêmes informations que
+  // ragResult.chunks[] (forme attendue par adocBuildSourceSnapshotFromRAG), sous des noms différents.
+  function adocConvertSourceSnapshotToRagChunks(sourceSnapshot) {
+    const entries = (sourceSnapshot && sourceSnapshot.entries) || [];
+    return entries.map(function (e) {
+      return {
+        content: e.exactText || '',
+        book_title: e.book || 'Référence',
+        author: e.author || '',
+        page_number: e.locator ? e.locator.page : null,
+        _score: typeof e.relevanceScore === 'number' ? e.relevanceScore : null,
+      };
+    });
+  }
+
+  async function adocMagicSwitchTransform(sourceArt, targetKind) {
+    if (sourceArt._adocGenerationEngine === 'legacy-html' || !sourceArt._adocStructuredDoc) {
+      throw new Error('La transformation de type est réservée aux documents du moteur structuré.');
+    }
+    const sourceDoc = sourceArt._adocStructuredDoc;
+    const sourceSnapshot = sourceArt._adocStructuredSnapshot;
+    const sourceKind = sourceDoc.documentKind;
+    const validTargets = ADOC_MAGIC_SWITCH_PAIRS[sourceKind] || [];
+    if (validTargets.indexOf(targetKind) === -1) {
+      throw new Error('Transformation "' + sourceKind + '" → "' + targetKind + '" non prise en charge.');
+    }
+    // derivedFrom doit référencer un documentId/versionId RÉELS (schéma) — le document source doit
+    // donc déjà être enregistré ; jamais construit avec une référence vide ou inventée.
+    if (!sourceArt._adocClinicalDocumentId || !sourceArt._adocClinicalVersionId) {
+      throw new Error('Enregistrez d’abord ce document avant de le transformer.');
+    }
+    const sourceLabel = ADOC_GENERATION_KIND_LABELS[sourceKind] || sourceKind;
+    const targetLabel = ADOC_GENERATION_KIND_LABELS[targetKind] || targetKind;
+
+    // Contexte source — MÊME mécanisme que docCtx pour un document joint (Item 63g) : titre + texte
+    // à plat des blocs, jamais un nouveau transport de contexte. adocBlockContentText couvre déjà
+    // heading/paragraph/callout/quote/list/table — les 4 profils source valides (fiche/tableau/
+    // script/liens) sont tous "à plat", jamais de card imbriquée à aplatir ici.
+    const flatText = (sourceDoc.blocks || []).map(function (b) {
+      if (b.type === 'heading') return '#'.repeat(b.content.level || 2) + ' ' + (b.content.text || '');
+      return adocBlockContentText(b.type, b.content);
+    }).filter(Boolean).join('\n\n');
+    const docCtx = '\n\n═══ DOCUMENT SOURCE (transformation « ' + sourceLabel + ' » → « ' + targetLabel + ' ») ═══\n'
+      + 'Titre : ' + (sourceDoc.title || 'Document') + '\n\n' + flatText + '\n';
+
+    const ragResult = { chunks: adocConvertSourceSnapshotToRagChunks(sourceSnapshot), chunkLen: 4000 };
+    const ragCtx = adocBuildRAGCtx(ragResult);
+
+    const plan = {
+      documentKind: targetKind, intent: targetKind, clinical_intent: 'production',
+      output_format: 'html', audience_type: 'praticien', registre: 'clinique',
+      topic_summary: (sourceDoc.title || 'Document').slice(0, 60),
+    };
+    const text = 'Transforme le document clinique ci-dessous, actuellement de type « ' + sourceLabel
+      + ' », en un nouveau document de type « ' + targetLabel + ' ». Conserve la substance clinique '
+      + 'du document source — ne réponds pas à une nouvelle question, restructure le contenu déjà '
+      + 'fourni ci-dessous vers le type cible.';
+    const systemPrompt = adocBuildSystemPrompt(ragCtx, docCtx, plan, null, { forStructuredTool: true });
+
+    const workerUrl = adocGetWorkerUrl();
+    const typingId = 'magicswitch-' + adocUUID();
+    const _struct = await adocGenerateStructuredDocument(targetKind, text, plan, ragResult, systemPrompt, workerUrl, typingId);
+
+    const brandKitResolved = await adocResolveBrandKitForGeneration(_struct.doc);
+    const rendered = await window.adocRenderClinicalDocument(_struct.doc, _struct.sourceSnapshot, brandKitResolved.renderManifestOverride);
+    if (rendered.qc.blocking.length) {
+      throw new Error('Document transformé bloqué par le contrôle qualité : ' + rendered.qc.blocking.join(' | '));
+    }
+
+    // Nouveau document DÉRIVÉ (décision actée, cf. investigation Point 3) — jamais une modification
+    // en place : l'original reste intact et consultable dans "Mes créations".
+    _struct.doc.derivedFrom = {
+      documentId: sourceArt._adocClinicalDocumentId,
+      versionId: sourceArt._adocClinicalVersionId,
+      operation: 'document-kind-change',
+    };
+
+    const newStoreKey = await adocDeliverStructuredFicheArtifact(_struct.doc, _struct.sourceSnapshot, rendered, brandKitResolved.brandKitName);
+    const newArt = window._adocArtifacts[newStoreKey];
+    await adocCreateNewClinicalDocument(workerUrl, adocGetApiKey(), newArt, adocBuildClinicalDocumentContent(newArt), _struct.doc.title, targetKind);
+    adocUpdateSaveStatusUI(newArt);
+    return newStoreKey;
+  }
+  window.adocMagicSwitchTransform = adocMagicSwitchTransform;
+
   // Injecte le HTML déjà rendu/assaini du moteur canonique tel quel dans une nouvelle bulle
   // assistant, sans repasser par adocFormatMd (markdown) qui casserait la structure.
   function adocAppendStructuredDocMsg(html) {
@@ -12390,7 +12510,10 @@ ${recent}`;
       // Même enveloppe de capacités que adocDeliverStructuredFicheArtifact, appliquée à TOUT
       // documentKind structuré (fiche/carrousel/tableau/script/liens — un seul point de
       // livraison réel, cf. investigation item 69/74), jamais une variante par type inventée ici.
-      art._adocCapabilities = { workspace: true, persist: true, fineCitations: true, blockEditing: true, transform: false, export: true, qualityControlledExport: true };
+      // Item 20 — transform:true ici aussi (même raisonnement que adocDeliverStructuredFicheArtifact) :
+      // cet adaptateur sert À LA FOIS la réouverture plein écran et l'aperçu Fusion, un document
+      // structuré rouvert doit pouvoir être transformé exactement comme un document fraîchement généré.
+      art._adocCapabilities = { workspace: true, persist: true, fineCitations: true, blockEditing: true, transform: true, export: true, qualityControlledExport: true };
       // Piège identifié pendant le test réel du lot "Mes créations" (pas dans l'investigation
       // initiale) : le renderManifestOverride persisté référence un tokensSnapshotId qui ne vit
       // QUE dans window.adocTokensSnapshots (cf. adocBuildRenderManifestForBrandKit) — un cache
@@ -14943,6 +15066,15 @@ ${recent}`;
     statusEl.textContent = art && art._ccEditorDirty ? 'Modifications non enregistrées' : saved ? 'Enregistré' : 'Non enregistré';
     statusEl.className = 'cc-ws-save-status ' + (saved && !art._ccEditorDirty ? 'saved' : 'unsaved');
     if (deleteBtn) deleteBtn.hidden = !saved;
+    // Item 20 — même garde que Supprimer ci-dessus (saved requis, derivedFrom doit référencer un
+    // document/version réels) + capacité transform (jamais legacy-html) + au moins une cible valide
+    // depuis le documentKind courant (ex. jamais pour Carrousel, absent de ADOC_MAGIC_SWITCH_PAIRS).
+    const transformBtn = document.getElementById('cc-ws-transform-btn');
+    if (transformBtn) {
+      const sourceKind = art && art._adocStructuredDoc && art._adocStructuredDoc.documentKind;
+      const hasTargets = !!(sourceKind && ADOC_MAGIC_SWITCH_PAIRS[sourceKind] && ADOC_MAGIC_SWITCH_PAIRS[sourceKind].length);
+      transformBtn.hidden = !(saved && art && art._adocCapabilities && art._adocCapabilities.transform && hasTargets);
+    }
     if (saveBtn) {
       const label = saveBtn.querySelector('span');
       if (label) label.textContent = saved ? 'Enregistrer une nouvelle version' : 'Enregistrer';
@@ -15845,6 +15977,50 @@ ${recent}`;
       alert('Impossible d’enregistrer sous un nouveau titre pour le moment : ' + (e && e.message || 'erreur inconnue') + '. Rien n’a été perdu, l’original reste inchangé, vous pouvez réessayer.');
     } finally {
       if (btn) btn.disabled = false;
+    }
+  };
+
+  // Item 20 — "Magic Switch" : ouverture du sélecteur, options peuplées dynamiquement d'après le
+  // documentKind du document ouvert (jamais un menu fixe à 20 entrées, cf. ADOC_MAGIC_SWITCH_PAIRS).
+  // Même patron d'ouverture/fermeture (.open) que #cc-ws-delete-confirm.
+  window.adocWsTransformRequest = function () {
+    const storeKey = window._adocWsState.storeKey;
+    const art = window._adocArtifacts?.[storeKey];
+    if (!art || !art._adocCapabilities || !art._adocCapabilities.transform) return;
+    if (!art._adocClinicalDocumentId) {
+      alert('Enregistrez d’abord ce document avant de le transformer — la transformation crée un nouveau document dérivé qui doit pouvoir référencer l’original enregistré.');
+      return;
+    }
+    const sourceKind = art._adocStructuredDoc && art._adocStructuredDoc.documentKind;
+    const targets = ADOC_MAGIC_SWITCH_PAIRS[sourceKind] || [];
+    if (!targets.length) return;
+    const select = document.getElementById('cc-ws-transform-select');
+    if (select) {
+      select.innerHTML = targets.map(function (k) {
+        return '<option value="' + k + '">' + adocEsc(ADOC_GENERATION_KIND_LABELS[k] || k) + '</option>';
+      }).join('');
+    }
+    document.getElementById('cc-ws-transform-confirm').classList.add('open');
+  };
+  window.adocWsTransformCancel = function () {
+    document.getElementById('cc-ws-transform-confirm').classList.remove('open');
+  };
+  window.adocWsTransformConfirmed = async function () {
+    const storeKey = window._adocWsState.storeKey;
+    const art = window._adocArtifacts?.[storeKey];
+    const select = document.getElementById('cc-ws-transform-select');
+    const targetKind = select && select.value;
+    if (!art || !targetKind) { window.adocWsTransformCancel(); return; }
+    const btn = document.getElementById('cc-ws-transform-confirm-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Transformation en cours…'; }
+    try {
+      const newStoreKey = await adocMagicSwitchTransform(art, targetKind);
+      window.adocWsTransformCancel();
+      await window.adocOpenWorkspace(newStoreKey);
+    } catch (e) {
+      alert('Transformation impossible : ' + (e && e.message || 'erreur inconnue') + '. Le document d’origine n’a pas été modifié.');
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'Transformer'; }
     }
   };
 
