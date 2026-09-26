@@ -7065,6 +7065,12 @@ ${recent}`;
     const templateRef = (baseManifest && baseManifest.templateRef) || { id: 'fiche-editoriale', version: 1 };
     const rendererVersion = (baseManifest && baseManifest.rendererVersion) || '1.0.0';
     const tokens = adocBrandKitToTokensSnapshot(brandKit);
+    // Chargement dynamique des polices — point d'appel UNIQUE pour le moteur structuré : les 4
+    // sites d'appel de adocBuildRenderManifestForBrandKit (génération, retheme structuré, Magic
+    // Switch, réouverture d'un document persisté) en bénéficient tous automatiquement, jamais un
+    // câblage séparé par site. Jamais attendu (fire-and-forget) : le calcul du manifeste/checksum
+    // ne dépend jamais du résultat du chargement de police.
+    adocEnsureBrandKitFontsLoaded(brandKit);
     // Item 63e construction — densité de texte, overlay optionnel posé ICI (jamais dans
     // adocBrandKitToTokensSnapshot : une densité de lecture n'est pas une propriété de charte,
     // même raisonnement que le choix de police côté ancien moteur, non plus stocké dans le brand
@@ -7260,6 +7266,9 @@ ${recent}`;
     // _adocBrandKitName ci-dessus : nécessaire pour retrouver les polices de CETTE charte précise
     // dans adocEditorRefreshControls (personnalisation par bloc), jamais une charte différente.
     art._adocBrandKitId = brandKit.id || null;
+    // Chargement dynamique des polices — jamais un échec silencieux : charge ce qui est
+    // réellement disponible sur Google Fonts, avertit honnêtement pour le reste.
+    adocEnsureBrandKitFontsLoaded(brandKit);
   }
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -8807,6 +8816,16 @@ ${recent}`;
     return '<link href="' + pair.googleFontsHref + '" rel="stylesheet">';
   }
 
+  // Chargement dynamique des polices de charte — extrait de l'ancien corps de
+  // adocEnsurePageGoogleFontLoaded ci-dessous, comportement IDENTIQUE, réutilisé tel quel par les
+  // 7 paires fixes ET par adocEnsureBrandKitFontLoaded plus bas. Idempotent par href exact —
+  // jamais posé deux fois pour le même href, quel que soit le mécanisme appelant.
+  function adocInsertGoogleFontLinkIfAbsent(href) {
+    if (!href) return;
+    if (document.head.querySelector('link[href="' + href + '"]')) return;
+    document.head.insertAdjacentHTML('beforeend', '<link href="' + href + '" rel="stylesheet">');
+  }
+
   // Les deux moteurs affichent leur document dans LA MÊME page hôte (jamais un iframe séparé) —
   // un aperçu immédiat, avant toute sauvegarde, exige donc que la police Google soit chargée ICI,
   // dans document.head, indépendamment de la persistance (traitée séparément selon le moteur
@@ -8814,9 +8833,132 @@ ${recent}`;
   function adocEnsurePageGoogleFontLoaded(fontPairId) {
     const pair = ADOC_LEGACY_FONT_PAIRS.find(function (f) { return f.id === fontPairId; });
     if (!pair || !pair.googleFontsHref) return;
-    if (document.head.querySelector('link[href="' + pair.googleFontsHref + '"]')) return;
-    document.head.insertAdjacentHTML('beforeend', adocGoogleFontLinkTag(pair));
+    adocInsertGoogleFontLinkIfAbsent(pair.googleFontsHref);
   }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // Chargement dynamique des polices d'une charte IMPORTÉE — jamais mélangé à
+  // ADOC_LEGACY_FONT_PAIRS (7 hrefs fixes, vérifiés une fois à l'écriture, jamais modifiés ici).
+  // Construit dynamiquement à partir du NOM stocké dans typography_json (headingFont/bodyFont/
+  // accentFont/availableFonts). Investigation préalable : l'API Google Fonts est strictement
+  // sensible à la casse et aux espaces (une police mal orthographiée échoue en 400, jamais un
+  // 200 partiel), mais tolère un poids de police demandé et indisponible pour cette police précise
+  // (renvoie alors seulement le sous-ensemble réellement disponible, jamais une erreur) — d'où la
+  // vérification RÉELLE par fetch avant toute insertion, contrairement aux 7 paires fixes dont les
+  // hrefs ne peuvent jamais échouer (vérifiés une fois pour toutes en dehors du code).
+  var _adocBrandKitFontUnavailable = new Set();
+  async function adocEnsureBrandKitFontLoaded(fontName) {
+    const name = (fontName || '').trim();
+    if (!name) return false;
+    const encoded = encodeURIComponent(name).replace(/%20/g, '+');
+    const href = 'https://fonts.googleapis.com/css2?family=' + encoded + ':wght@400;500;600;700&display=swap';
+    if (document.head.querySelector('link[href="' + href + '"]')) return true;
+    // Une police déjà confirmée absente n'est jamais re-testée dans la même session — jamais de
+    // requête réseau répétée pour un échec déjà connu.
+    if (_adocBrandKitFontUnavailable.has(name)) return false;
+    try {
+      const res = await fetch(href);
+      if (!res.ok) { _adocBrandKitFontUnavailable.add(name); return false; }
+      adocInsertGoogleFontLinkIfAbsent(href);
+      return true;
+    } catch (e) {
+      _adocBrandKitFontUnavailable.add(name);
+      return false;
+    }
+  }
+
+  // Rôles fonctionnels d'une charte, dans l'ordre où ils doivent apparaître dans un message
+  // d'avertissement — jamais un ordre arbitraire. Une police apparaissant dans plusieurs rôles
+  // (rare, jamais empêché) ne reçoit qu'UN seul avertissement, sur son premier rôle rencontré.
+  var ADOC_BRANDKIT_FONT_ROLE_LABELS = { heading: 'les titres', body: 'le corps', accent: "l'accent" };
+  function adocBrandKitFontRoleEntries(brandKit) {
+    const typography = (brandKit && brandKit.typography) || {};
+    const entries = [];
+    const seen = new Set();
+    function add(name, roleLabel) {
+      const trimmed = (name || '').trim();
+      if (!trimmed || seen.has(trimmed)) return;
+      seen.add(trimmed);
+      entries.push({ name: trimmed, roleLabel: roleLabel });
+    }
+    add(typography.headingFont, ADOC_BRANDKIT_FONT_ROLE_LABELS.heading);
+    add(typography.bodyFont, ADOC_BRANDKIT_FONT_ROLE_LABELS.body);
+    add(typography.accentFont, ADOC_BRANDKIT_FONT_ROLE_LABELS.accent);
+    (typography.availableFonts || []).forEach(function (f) {
+      add(f && f.candidate, 'police secondaire disponible pour la personnalisation par bloc');
+    });
+    return entries;
+  }
+
+  // Point d'appel UNIQUE côté application de charte (les 3 sites déjà instrumentés pour
+  // _adocBrandKitId : adocApplyBrandKitToLegacyArtifact, adocConfirmLegacyRetheme, et
+  // adocBuildRenderManifestForBrandKit pour le moteur structuré — les 4 sites d'appel de cette
+  // dernière en bénéficient donc tous automatiquement, jamais un câblage séparé par site). Charge
+  // ce qui peut l'être réellement, affiche un avertissement honnête pour le reste — jamais un
+  // échec silencieux comme avant ce lot.
+  async function adocEnsureBrandKitFontsLoaded(brandKit) {
+    const entries = adocBrandKitFontRoleEntries(brandKit);
+    const failures = [];
+    for (const entry of entries) {
+      const ok = await adocEnsureBrandKitFontLoaded(entry.name);
+      if (!ok) failures.push(entry);
+    }
+    adocRenderBrandKitFontWarnings(failures);
+  }
+
+  // Bandeau honnête — une ligne par police en échec, JAMAIS statique (reconstruit à chaque appel).
+  // Masqué si aucune police en échec (charte entièrement disponible, ou aucune charte active).
+  function adocRenderBrandKitFontWarnings(failures) {
+    const banner = document.getElementById('cc-ws-font-warning-banner');
+    if (!banner) return;
+    if (!failures || !failures.length) { banner.hidden = true; banner.innerHTML = ''; return; }
+    banner.hidden = false;
+    banner.innerHTML = failures.map(function (f) {
+      return '<div class="cc-ws-font-warning-row" data-font-name="' + adocEsc(f.name) + '">' +
+        '<svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-warning"></use></svg>' +
+        '<div class="cc-ws-font-warning-body">' +
+        '<span>Cette charte utilise « ' + adocEsc(f.name) + ' » pour ' + adocEsc(f.roleLabel) + ', mais cette police n\'a pas pu être confirmée sur Google Fonts.</span>' +
+        '<div class="cc-ws-font-warning-actions">' +
+        '<button type="button" class="cc-clarity-other-btn" onclick="window.adocCheckBrandKitFontLocally(\'' + adocEsc(f.name).replace(/'/g, "\\'") + '\')">Vérifier si cette police est installée sur cet ordinateur</button>' +
+        '<span class="cc-ws-font-warning-result"></span>' +
+        '</div></div></div>';
+    }).join('');
+  }
+
+  // Geste explicite UNIQUEMENT — jamais appelé automatiquement (queryLocalFonts() afficherait
+  // sinon une invite de permission intrusive et hors contexte à la simple ouverture d'un
+  // document). Chaque clic reste une tentative active de la thérapeute, jamais une boucle
+  // automatique — un second clic après un échec reste donc toujours possible, jamais bloqué.
+  window.adocCheckBrandKitFontLocally = async function (fontName) {
+    const row = document.querySelector('#cc-ws-font-warning-banner .cc-ws-font-warning-row[data-font-name="' + CSS.escape(fontName) + '"]');
+    if (!row) return;
+    const resultEl = row.querySelector('.cc-ws-font-warning-result');
+    const btn = row.querySelector('button');
+    if (btn) btn.disabled = true;
+    if (resultEl) resultEl.textContent = 'Vérification en cours…';
+    try {
+      if (!window.queryLocalFonts) {
+        if (resultEl) resultEl.textContent = 'Ce navigateur ne peut pas vérifier les polices installées (utilisez Chrome/Edge sur ordinateur).';
+        return;
+      }
+      const fonts = await window.queryLocalFonts();
+      const found = fonts.some(function (f) { return f.family.toLowerCase() === fontName.trim().toLowerCase(); });
+      if (found) {
+        // Une police installée localement est déjà utilisable directement par son nom en CSS,
+        // sans lien ni fichier à charger — le style déjà posé (headingFont/bodyFont/accentFont)
+        // s'applique de lui-même dès que le système la reconnaît, aucune mise à jour de style
+        // n'est donc nécessaire ici au-delà de cette confirmation visuelle.
+        if (resultEl) resultEl.textContent = 'Police trouvée sur cet ordinateur — appliquée.';
+        row.classList.add('resolved');
+      } else {
+        if (resultEl) resultEl.textContent = 'Police non disponible sur cet appareil — le texte s’affichera dans la police de secours.';
+      }
+    } catch (e) {
+      if (resultEl) resultEl.textContent = 'Vérification impossible (permission refusée ou indisponible) — le texte s’affichera dans la police de secours.';
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  };
 
   // Legacy uniquement : art.html est un document HTML autonome, reconstruit TEL QUEL à chaque
   // réouverture (jamais depuis la page hôte, qui ne réapparaît jamais dans un document rouvert
@@ -9001,6 +9143,9 @@ ${recent}`;
 
       window._adocLegacyReThemeCandidate = {
         storeKey: storeKey, html: finalHtml, brandKitId: brandKit.id, brandKitName: brandKit.name || null,
+        // Chargement dynamique des polices — objet complet conservé (pas seulement id/nom) pour
+        // que adocConfirmLegacyRetheme n'ait jamais besoin d'un second appel réseau.
+        brandKit: brandKit,
         fontPairId: fontResult.applied ? fontPairId : null, fontLabel: fontResult.applied ? fontPair.label : null,
         densityId: densityResult.applied ? densityId : null, densityLabel: densityResult.applied ? densityPreset.label : null,
       };
@@ -9040,6 +9185,8 @@ ${recent}`;
     art._adocBrandKitName = candidate.brandKitName;
     // Partie B (import charte) — même traçabilité que adocApplyBrandKitToLegacyArtifact ci-dessus.
     art._adocBrandKitId = candidate.brandKitId || null;
+    // Chargement dynamique des polices — même mécanisme, jamais un second système.
+    if (candidate.brandKit) adocEnsureBrandKitFontsLoaded(candidate.brandKit);
     // LOT 11 — traçabilité de la police appliquée, même patron que _adocBrandKitName ci-dessus.
     // Reste null si l'utilisatrice a choisi "keep" ou si le motif de police n'a pas été retrouvé.
     if (candidate.fontLabel) art._adocFontLabel = candidate.fontLabel;
@@ -12623,6 +12770,11 @@ ${recent}`;
     // Audit correctif, Partie B point 10 — l'écran de travail s'ouvre pour TOUT artefact dont les
     // capacités l'autorisent (structuré OU repli legacy-html), plus seulement le moteur structuré.
     if (!art || !art._adocCapabilities || !art._adocCapabilities.workspace) return false;
+    // Chargement dynamique des polices — jamais un avertissement qui survit d'un document à
+    // l'autre : masqué à chaque ouverture, un des 3 points d'application de charte le repeuplera
+    // s'il détecte une police en échec POUR CE document précis. Un document sans charte importée
+    // reste donc bandeau masqué, jamais pollué par un avertissement d'un document précédent.
+    adocRenderBrandKitFontWarnings([]);
     const isLegacy = art._adocGenerationEngine === 'legacy-html';
     const doc = art._adocStructuredDoc; // undefined pour un repli legacy-html — jamais utilisé alors
     const snapshot = isLegacy ? art._adocLegacySourceSnapshot : art._adocStructuredSnapshot;
