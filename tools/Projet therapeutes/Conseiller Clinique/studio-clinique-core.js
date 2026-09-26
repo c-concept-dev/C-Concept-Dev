@@ -8897,6 +8897,19 @@ ${recent}`;
   // ce qui peut l'être réellement, affiche un avertissement honnête pour le reste — jamais un
   // échec silencieux comme avant ce lot.
   async function adocEnsureBrandKitFontsLoaded(brandKit) {
+    // Correctif — confirmé par lecture des migrations 0001/0002 (Worker/migrations) : les 2
+    // chartes par défaut du Studio (adocIsDefaultBrandKitId) stockent typography.headingFont/
+    // bodyFont comme des piles CSS complètes (ex. '"IBM Plex Sans", system-ui, -apple-system,
+    // BlinkMacSystemFont, "Segoe UI", sans-serif'), jamais un simple nom de police — un choix
+    // légitime à l'origine puisque seul le rendu CSS (adocBrandKitToTokensSnapshot) les consommait,
+    // bien avant ce mécanisme de vérification dynamique. Passer une telle pile à ce mécanisme
+    // produit des requêtes Google Fonts invalides (virgules/guillemets dans l'URL) pour une
+    // vérification de toute façon redondante : ces 2 chartes sont déjà chargées en dur via des
+    // <link> statiques (studio-clinique.html), jamais via ce mécanisme. Aucune autre charte
+    // enregistrée (importée) ne porte cette confusion — vérifié : adocBrandKitImportSave n'y stocke
+    // jamais que des noms de police simples extraits du PDF. Détection par id CONNU
+    // (adocIsDefaultBrandKitId), jamais une comparaison de nom fragile.
+    if (!brandKit || adocIsDefaultBrandKitId(brandKit.id)) return;
     const entries = adocBrandKitFontRoleEntries(brandKit);
     const failures = [];
     for (const entry of entries) {
