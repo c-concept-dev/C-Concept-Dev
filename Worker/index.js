@@ -55683,6 +55683,16 @@ var Worker_default = {
     const mediaAssetIdMatch = p.match(/^\/media-assets\/([a-f0-9]{64})$/);
     if (mediaAssetIdMatch && request2.method === "DELETE")
       return handleMediaAssetDelete(env2, mediaAssetIdMatch[1]);
+    // Panneau "Médias", sous-onglet "Vidéos" — liens vidéo locaux (table video_links dédiée,
+    // jamais render_assets/R2 : cf. migration 0013). Protégées par défaut comme le reste
+    // (jamais ajoutées à ADOC_PUBLIC_ROUTES), même patron que /media-assets ci-dessus.
+    if (p === "/video-links" && request2.method === "GET")
+      return handleVideoLinksList(env2);
+    if (p === "/video-links" && request2.method === "POST")
+      return handleVideoLinkCreate(request2, env2);
+    const videoLinkIdMatch = p.match(/^\/video-links\/([^\/]+)$/);
+    if (videoLinkIdMatch && request2.method === "DELETE")
+      return handleVideoLinkDelete(env2, videoLinkIdMatch[1]);
     // Audit systémique (Priorité 8.7) — CONFIRMÉ : tout POST non reconnu par une route explicite
     // ci-dessus tombait silencieusement dans handleAnthropicProxy, tentant un appel LLM réel
     // avec un corps qui ne lui était pas destiné. Le seul appel légitime au proxy Anthropic est
@@ -56519,6 +56529,56 @@ async function handleMediaAssetDelete(env2, assetId) {
   }
 }
 __name(handleMediaAssetDelete, "handleMediaAssetDelete");
+
+// Panneau "Médias", sous-onglet "Vidéos" — CRUD minimal sur video_links (migration 0013). Jamais
+// de téléchargement serveur ici (contrairement à handleMediaAssetFromUrl) : un lien local
+// (http://localhost:...) n'est de toute façon pas joignable depuis le Worker, et il n'y a rien à
+// persister en R2 pour ce cas — seuls l'url et le titre donnés par l'utilisatrice sont stockés.
+async function handleVideoLinkCreate(request2, env2) {
+  if (!env2.DB) return jsonErr("D1 not configured", 500);
+  let body;
+  try { body = await request2.json(); } catch { return jsonErr("Invalid JSON", 400); }
+  const url = typeof body.url === "string" ? body.url.trim() : "";
+  const title = typeof body.title === "string" ? body.title.trim() : "";
+  if (!url) return jsonErr("url is required", 400);
+  if (!title) return jsonErr("title is required", 400);
+  const id = crypto.randomUUID();
+  try {
+    await env2.DB.prepare(
+      "INSERT INTO video_links (id, url, title) VALUES (?, ?, ?)"
+    ).bind(id, url, title).run();
+    return json({ id, url, title });
+  } catch (err2) {
+    return jsonErr(err2.message, 500);
+  }
+}
+__name(handleVideoLinkCreate, "handleVideoLinkCreate");
+
+async function handleVideoLinksList(env2) {
+  if (!env2.DB) return jsonErr("D1 not configured", 500);
+  try {
+    const { results } = await env2.DB.prepare(
+      "SELECT id, url, title, created_at FROM video_links ORDER BY created_at DESC LIMIT 200"
+    ).all();
+    return json({ videos: results || [] });
+  } catch (err2) {
+    return jsonErr(err2.message, 500);
+  }
+}
+__name(handleVideoLinksList, "handleVideoLinksList");
+
+async function handleVideoLinkDelete(env2, id) {
+  if (!env2.DB) return jsonErr("D1 not configured", 500);
+  const row = await env2.DB.prepare("SELECT id FROM video_links WHERE id = ?").bind(id).first();
+  if (!row) return jsonErr("Video link not found", 404);
+  try {
+    await env2.DB.prepare("DELETE FROM video_links WHERE id = ?").bind(id).run();
+    return json({ deleted: true });
+  } catch (err2) {
+    return jsonErr(err2.message, 500);
+  }
+}
+__name(handleVideoLinkDelete, "handleVideoLinkDelete");
 
 // LOT C (Studio Clinique) — sert les octets d'un asset déjà uploadé (handleBrandAssetUpload
 // ci-dessus). assetId déjà validé par le routeur (^[a-f0-9]{64}$, l'empreinte SHA-256 elle-même
@@ -57973,6 +58033,15 @@ async function adocRenderPptxNestedBlock(slide, prs, env2, block, box) {
     case "image": {
       const dataUri = await adocResolvePptxImageDataUri(env2, c.assetId);
       if (dataUri) slide.addImage(Object.assign({}, opts, { data: dataUri }));
+      break;
+    }
+    case "video": {
+      // Un lien vidéo local (http://localhost:...) n'a jamais d'octets à embarquer — aucune API
+      // vidéo native PptxGenJS utilisée ailleurs dans ce fichier pour s'y raccrocher de toute façon.
+      // Repli honnête : titre + lien affichés en texte (même traitement visuel que "quote"
+      // ci-dessus, seul précédent de texte simple sans fond ni image dans ce switch).
+      slide.addText(String(c.title || "") + (c.url ? " — " + String(c.url) : ""),
+        Object.assign({}, opts, { fontSize: 12, color: "5D6966", fontFace: "Montserrat", valign: "top" }));
       break;
     }
     default:

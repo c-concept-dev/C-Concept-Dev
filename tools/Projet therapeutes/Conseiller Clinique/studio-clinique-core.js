@@ -10517,6 +10517,26 @@ ${recent}`;
           '<img ' + imgAttr + onErrorAttr + ' alt="' + adocEsc(b.content.alt) + '" style="' + imgStyle + '">' +
           note + dragHandle + nestedResizeHandle + '</figure>';
       }
+      case 'video': {
+        // Panneau "Médias", sous-onglet "Vidéos" — content.url est TOUJOURS une URL concrète
+        // (jamais une requête à résoudre, contrairement à content.query pour 'image') : aucun
+        // passage par adocResolveImages, aucune vérification serveur possible (un lien
+        // localhost:NNNN n'est joignable que depuis l'ordinateur de l'utilisatrice, jamais depuis
+        // le Worker) — le <video> peut donc échouer silencieusement si le serveur vidéo local
+        // n'est pas lancé. Titre + lien affichés TOUJOURS en texte visible (jamais seulement en
+        // alt/repli caché) : ce même rendu partagé alimente aussi l'export PDF (Browser Rendering,
+        // capture d'écran serveur qui ne peut de toute façon jamais lire une vidéo locale) — un
+        // texte visible dégrade proprement dans les deux cas, sans nécessiter de second mode de
+        // rendu "export" séparé (cf. investigation).
+        const videoStyleAttr = nestedPosCSS ? ' style="' + adocEsc(nestedPosCSS) + '"' : '';
+        const videoUrl = adocEsc(b.content.url);
+        const videoTitle = adocEsc(b.content.title);
+        return '<figure class="adoc-sc-block adoc-sc-video' + statusClass + '" id="' + adocEsc(b.id) + '"' + videoStyleAttr + '>' +
+          '<video controls src="' + videoUrl + '" style="width:100%;border-radius:8px;display:block;background:#000;"></video>' +
+          '<figcaption class="adoc-sc-video-caption">' + videoTitle + ' — <a href="' + videoUrl + '" target="_blank" rel="noopener noreferrer">' + videoUrl + '</a></figcaption>' +
+          '<p class="adoc-sc-video-warning">Vidéo locale — nécessite que le serveur vidéo tourne sur cet ordinateur.</p>' +
+          dragHandle + nestedResizeHandle + '</figure>';
+      }
       default:
         return '';
     }
@@ -13913,6 +13933,9 @@ ${recent}`;
     { type: 'table', label: 'Tableau' },
     { type: 'quote', label: 'Citation' },
     { type: 'image', label: 'Image' },
+    // Panneau "Médias", sous-onglet "Vidéos" — même schéma que le catalogue de types ci-dessus,
+    // jamais un type inventé (block.schema.json, videoBlock/videoContent).
+    { type: 'video', label: 'Vidéo' },
   ];
 
   // New blocks retain descriptive placeholders; 57f also accepts empty text while editing.
@@ -14956,6 +14979,29 @@ ${recent}`;
       });
       return;
     }
+    // Panneau "Médias", sous-onglet "Vidéos" — un champ pour le lien, un champ pour le titre,
+    // bouton "Ajouter" (jamais de recherche automatique, rien à chercher pour un lien local déjà
+    // connu de l'utilisatrice). "Ajouter" persiste le lien dans la grille "Vidéos enregistrées"
+    // ci-dessous (même mécanisme que la barre latérale, cf. adocVideoRenderGrid) ; "Insérer" sur
+    // une ligne de cette grille crée le VRAI bloc vidéo (adocInsertVideoBlockWithLink), jamais
+    // "Ajouter" lui-même — même distinction que Photos entre "Rechercher" et "Insérer".
+    if (type === 'video') {
+      const resultEl = st.panelEl.querySelector('.cc-block-edit-result');
+      if (!resultEl) return;
+      resultEl.innerHTML =
+        '<div class="cc-block-edit-label">Lien de la vidéo (serveur vidéo local)</div>' +
+        '<input type="text" class="cc-block-edit-freetext adoc-textarea" id="cc-block-video-url-input" placeholder="http://localhost:47823/..." ' +
+          'onclick="event.stopPropagation();" onkeydown="event.stopPropagation();" />' +
+        '<div class="cc-block-edit-label" style="margin-top:6px;">Titre</div>' +
+        '<input type="text" class="cc-block-edit-freetext adoc-textarea" id="cc-block-video-title-input" placeholder="ex. Exercice de respiration" ' +
+          'onclick="event.stopPropagation();" onkeydown="event.stopPropagation();if(event.key===\'Enter\'){event.preventDefault();window.adocBlockVideoAdd(\'' + direction + '\');}" />' +
+        '<div style="margin-top:6px;"><button type="button" class="cc-clarity-reply-btn" onclick="event.stopPropagation();window.adocBlockVideoAdd(\'' + direction + '\')">Ajouter</button></div>' +
+        '<p class="cc-ws-panel-section-title cc-media-history-title">Vidéos enregistrées</p>' +
+        '<div id="cc-block-video-history" class="cc-media-grid" aria-live="polite"></div>' +
+        '<div style="margin-top:8px;"><button type="button" class="cc-clarity-other-btn" onclick="event.stopPropagation();window.adocCancelBlockCorrection()">Annuler</button></div>';
+      window.adocBlockVideoLoadHistory(direction);
+      return;
+    }
     window.adocConfirmBlockInsert(direction, type, '');
   };
 
@@ -15017,6 +15063,33 @@ ${recent}`;
       id: adocNextBlockId(doc, 'image'),
       type: 'image',
       content: { query: label, alt: label, assetId: assetId },
+      citationIds: [],
+      validation: {},
+    };
+    const insertIdx = direction === 'before' ? idx : idx + 1;
+    siblings.splice(insertIdx, 0, newBlock);
+    const storeKey = st.storeKey;
+    adocWsClearBlockSelection();
+    if (!await window.adocOpenWorkspace(storeKey)) { siblings.splice(insertIdx, 1); return false; }
+    return true;
+  }
+
+  // Panneau "Médias", sous-onglet "Vidéos" — même mécanisme EXACT que adocInsertImageBlockWithAsset
+  // ci-dessus (aucune deuxième implémentation d'insertion dans la séquence), content.url/title au
+  // lieu de assetId : un lien vidéo est déjà une adresse concrète, jamais un identifiant à résoudre.
+  async function adocInsertVideoBlockWithLink(direction, url, title) {
+    const st = window._adocBlockEditState;
+    if (!st.storeKey || !st.blockId) return false;
+    const art = window._adocArtifacts && window._adocArtifacts[st.storeKey];
+    if (!art || !art._adocStructuredDoc) return false;
+    const doc = art._adocStructuredDoc;
+    const siblings = adocEditorBlockContainer(doc, st.blockId) || [];
+    const idx = siblings.findIndex(function (b) { return b.id === st.blockId; });
+    if (idx === -1) { adocWsClearBlockSelection(); return false; }
+    const newBlock = {
+      id: adocNextBlockId(doc, 'video'),
+      type: 'video',
+      content: { url: url, title: title },
       citationIds: [],
       validation: {},
     };
@@ -15359,6 +15432,199 @@ ${recent}`;
       // boutons déjà rendus (data-media-history-*="i" pointeraient vers le mauvais item sans un
       // nouveau rendu complet). Un simple trou (null) laisse chaque item déjà affiché intact.
       window._adocMediaHistoryResults[idx] = null;
+    } catch (e) {
+      alert('Suppression impossible : ' + e.message);
+      if (btn) { btn.disabled = false; btn.textContent = 'Effacer'; }
+    }
+  };
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // Panneau "Médias", sous-onglet "Vidéos" — liens vidéo LOCAUX (servis par un programme séparé
+  // sur l'ordinateur de l'utilisatrice, ex. http://localhost:47823/...), jamais un fichier
+  // téléversé. Table dédiée video_links (migration 0013, cf. rapport d'investigation) : jamais
+  // render_assets/R2, qui exige des octets réellement détenus — un lien local n'en a jamais.
+  // Comportement d'insertion volontairement DIFFÉRENT de Photos (qui remplit le FOND du bloc
+  // sélectionné depuis la barre latérale, adocApplyMediaAssetToSelectedBlock) : une vidéo ne peut
+  // jamais être un fond CSS, "Insérer" crée donc TOUJOURS un vrai bloc video autonome
+  // (adocInsertVideoBlockWithLink), qu'il soit déclenché depuis la barre latérale (position
+  // 'after' le bloc sélectionné, même convention que Photos) ou depuis le sélecteur de type de
+  // bloc (adocChooseBlockInsertType, direction explicite). Un seul rendu de grille partagé
+  // (adocVideoRenderGrid), même patron que adocMediaRenderGrid — jamais un second système visuel.
+  // ═══════════════════════════════════════════════════════════════════════
+  window.adocMediaSwitchSubtab = function (prefix, subtab) {
+    const other = subtab === 'photos' ? 'videos' : 'photos';
+    const activeBtn = document.getElementById(prefix + '-subtab-' + subtab);
+    const otherBtn = document.getElementById(prefix + '-subtab-' + other);
+    const activePanel = document.getElementById(prefix + '-subpanel-' + subtab);
+    const otherPanel = document.getElementById(prefix + '-subpanel-' + other);
+    if (activeBtn) { activeBtn.classList.add('is-active'); activeBtn.setAttribute('aria-selected', 'true'); }
+    if (otherBtn) { otherBtn.classList.remove('is-active'); otherBtn.setAttribute('aria-selected', 'false'); }
+    if (activePanel) activePanel.hidden = false;
+    if (otherPanel) otherPanel.hidden = true;
+    if (subtab === 'videos') window.adocVideoLoadHistory();
+  };
+
+  async function adocVideoFetchList() {
+    const res = await fetch(adocGetWorkerUrl() + '/video-links', { headers: { 'X-API-Key': adocGetApiKey() } });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    return data.videos || [];
+  }
+
+  async function adocVideoCreate(url, title) {
+    const res = await fetch(adocGetWorkerUrl() + '/video-links', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
+      body: JSON.stringify({ url: url, title: title }),
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return res.json();
+  }
+
+  // Grille "Vidéos enregistrées" — icône générique (aucune vraie miniature possible sans le
+  // fichier, cf. rapport d'investigation) + titre, mêmes classes CSS que .cc-media-grid/.cc-media-item
+  // (cohérence visuelle avec Photos). "Effacer" toujours proposé ici (contrairement à Photos, où il
+  // est parfois masqué dans un simple sous-panneau de sélection) : la grille Vidéos EST toujours la
+  // bibliothèque elle-même, jamais un sous-panneau de sélection distinct.
+  function adocVideoRenderGrid(containerId, items, opts) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    opts = opts || {};
+    if (!items || !items.length) {
+      el.innerHTML = '<p class="cc-media-empty">Aucune vidéo enregistrée pour l’instant.</p>';
+      return;
+    }
+    const insertFn = opts.insertFn || 'adocVideoInsertFromSidebar';
+    const deleteFn = opts.deleteFn || 'adocVideoDeleteFromSidebar';
+    const argsPrefix = opts.insertArgs && opts.insertArgs.length ? opts.insertArgs.join(',') + ',' : '';
+    el.innerHTML = items.map(function (item, i) {
+      if (!item) return '';
+      return '<div class="cc-media-item" data-video-item="' + i + '">' +
+        '<div class="cc-media-thumb cc-media-video-thumb" aria-hidden="true">' +
+          '<svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-video"></use></svg>' +
+        '</div>' +
+        '<p class="cc-media-credit">' + adocEsc(item.title) + '</p>' +
+        '<div class="cc-media-actions">' +
+          '<button type="button" class="cc-media-insert-btn" data-video-insert="' + i + '" onclick="window.' + insertFn + '(' + argsPrefix + i + ')">Insérer</button>' +
+          '<button type="button" class="cc-media-delete-btn" data-video-delete="' + i + '" onclick="event.stopPropagation();window.' + deleteFn + '(' + argsPrefix + i + ')" title="Effacer">Effacer</button>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  // ── Barre latérale ("Médias" → sous-onglet "Vidéos") ──────────────────────────────────────
+  window.adocVideoLoadHistory = async function () {
+    const el = document.getElementById('cc-ws-video-history');
+    if (!el) return;
+    try {
+      window._adocVideoHistoryResults = await adocVideoFetchList();
+      adocVideoRenderGrid('cc-ws-video-history', window._adocVideoHistoryResults, {});
+    } catch (e) {
+      el.innerHTML = '<p class="cc-media-empty">Historique indisponible : ' + adocEsc(e.message) + '</p>';
+    }
+  };
+
+  window.adocVideoAdd = async function () {
+    const urlInput = document.getElementById('cc-ws-video-url-input');
+    const titleInput = document.getElementById('cc-ws-video-title-input');
+    const url = (urlInput && urlInput.value || '').trim();
+    const title = (titleInput && titleInput.value || '').trim();
+    if (!url || !title) { alert('Indiquez un lien ET un titre pour ajouter une vidéo.'); return; }
+    try {
+      await adocVideoCreate(url, title);
+      if (urlInput) urlInput.value = '';
+      if (titleInput) titleInput.value = '';
+      window.adocVideoLoadHistory();
+    } catch (e) {
+      alert('Ajout impossible : ' + e.message);
+    }
+  };
+
+  // Direction toujours 'after' (même convention que Photos, cf. adocApplyMediaAssetToSelectedBlock
+  // ci-dessus) : le bloc sélectionné juste avant l'ouverture du panneau Médias.
+  window.adocVideoInsertFromSidebar = async function (idx) {
+    const st = window._adocBlockEditState;
+    if (!st.storeKey || !st.blockId) {
+      alert('Sélectionnez d’abord un bloc du document pour choisir où insérer la vidéo.');
+      return;
+    }
+    const item = window._adocVideoHistoryResults && window._adocVideoHistoryResults[idx];
+    if (!item) return;
+    const btn = document.querySelector('#cc-ws-video-history [data-video-insert="' + idx + '"]');
+    if (btn) { btn.disabled = true; btn.textContent = 'Insertion…'; }
+    const created = await adocInsertVideoBlockWithLink('after', item.url, item.title);
+    if (!created && btn) { btn.disabled = false; btn.textContent = 'Insérer'; }
+  };
+
+  window.adocVideoDeleteFromSidebar = async function (idx) {
+    const item = window._adocVideoHistoryResults && window._adocVideoHistoryResults[idx];
+    if (!item) return;
+    if (!confirm('Supprimer ce lien vidéo ?')) return;
+    const btn = document.querySelector('#cc-ws-video-history [data-video-delete="' + idx + '"]');
+    if (btn) { btn.disabled = true; btn.textContent = 'Suppression…'; }
+    try {
+      const res = await fetch(adocGetWorkerUrl() + '/video-links/' + item.id, { method: 'DELETE', headers: { 'X-API-Key': adocGetApiKey() } });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const el = document.querySelector('#cc-ws-video-history [data-video-item="' + idx + '"]');
+      if (el) el.remove();
+      window._adocVideoHistoryResults[idx] = null;
+    } catch (e) {
+      alert('Suppression impossible : ' + e.message);
+      if (btn) { btn.disabled = false; btn.textContent = 'Effacer'; }
+    }
+  };
+
+  // ── Sous-panneau d'insertion de bloc ("Insérer un bloc" → "Vidéo", adocChooseBlockInsertType) ──
+  window.adocBlockVideoLoadHistory = async function (direction) {
+    const el = document.getElementById('cc-block-video-history');
+    if (!el) return;
+    try {
+      window._adocBlockVideoHistoryResults = await adocVideoFetchList();
+      adocVideoRenderGrid('cc-block-video-history', window._adocBlockVideoHistoryResults, {
+        insertFn: 'adocVideoInsertFromBlockPicker', deleteFn: 'adocVideoDeleteFromBlockHistory', insertArgs: ["'" + direction + "'"],
+      });
+    } catch (e) {
+      el.innerHTML = '<p class="cc-media-empty">Historique indisponible : ' + adocEsc(e.message) + '</p>';
+    }
+  };
+
+  window.adocBlockVideoAdd = async function (direction) {
+    const urlInput = document.getElementById('cc-block-video-url-input');
+    const titleInput = document.getElementById('cc-block-video-title-input');
+    const url = (urlInput && urlInput.value || '').trim();
+    const title = (titleInput && titleInput.value || '').trim();
+    if (!url || !title) { alert('Indiquez un lien ET un titre pour ajouter une vidéo.'); return; }
+    try {
+      await adocVideoCreate(url, title);
+      if (urlInput) urlInput.value = '';
+      if (titleInput) titleInput.value = '';
+      window.adocBlockVideoLoadHistory(direction);
+    } catch (e) {
+      alert('Ajout impossible : ' + e.message);
+    }
+  };
+
+  window.adocVideoInsertFromBlockPicker = async function (direction, idx) {
+    const item = window._adocBlockVideoHistoryResults && window._adocBlockVideoHistoryResults[idx];
+    if (!item) return;
+    const btn = document.querySelector('#cc-block-video-history [data-video-insert="' + idx + '"]');
+    if (btn) { btn.disabled = true; btn.textContent = 'Insertion…'; }
+    const created = await adocInsertVideoBlockWithLink(direction, item.url, item.title);
+    if (!created && btn) { btn.disabled = false; btn.textContent = 'Insérer'; }
+  };
+
+  window.adocVideoDeleteFromBlockHistory = async function (direction, idx) {
+    const item = window._adocBlockVideoHistoryResults && window._adocBlockVideoHistoryResults[idx];
+    if (!item) return;
+    if (!confirm('Supprimer ce lien vidéo ?')) return;
+    const btn = document.querySelector('#cc-block-video-history [data-video-delete="' + idx + '"]');
+    if (btn) { btn.disabled = true; btn.textContent = 'Suppression…'; }
+    try {
+      const res = await fetch(adocGetWorkerUrl() + '/video-links/' + item.id, { method: 'DELETE', headers: { 'X-API-Key': adocGetApiKey() } });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const el = document.querySelector('#cc-block-video-history [data-video-item="' + idx + '"]');
+      if (el) el.remove();
+      window._adocBlockVideoHistoryResults[idx] = null;
     } catch (e) {
       alert('Suppression impossible : ' + e.message);
       if (btn) { btn.disabled = false; btn.textContent = 'Effacer'; }
@@ -16221,8 +16487,10 @@ ${recent}`;
   // n'a pas de position "avant/après" sensée à côté d'un <td>/<th> unique sans casser <tr>/
   // <table>, et Phase 1 n'a jamais permis de corriger un tableau ENTIER non plus (seulement ses
   // cellules) : ce n'est donc pas un rétrécissement de périmètre, seulement sa continuité directe.
+  // Vidéo exclue pour la même raison exacte que l'image ci-dessus (item 57) : jamais câblée au
+  // moteur legacy, décision étendue sans nouvelle discussion (même principe de simplicité).
   var ADOC_LEGACY_BLOCK_INSERT_TYPES = ADOC_BLOCK_INSERT_TYPES.filter(function (t) {
-    return t.type !== 'image';
+    return t.type !== 'image' && t.type !== 'video';
   });
 
   // Contenu HTML minimal par défaut — même esprit que adocDefaultBlockContent (texte de
