@@ -1248,6 +1248,30 @@
     .cc-ws-delete-confirm-cancel { background: var(--paper); border: 1px solid var(--stone-400); color: var(--ink); }
     .cc-ws-delete-confirm-confirm { background: #A13327; border: 1px solid #A13327; color: #fff; font-weight: 600; }
 
+    /* Item 20 — "Magic Switch" : même patron EXACT que #cc-ws-delete-confirm ci-dessus (dialog
+       modal, .open pour afficher), jamais un second composant de dialog inventé. */
+    #cc-ws-transform-confirm {
+      display: none; position: fixed; inset: 0; z-index: 8500;
+      background: rgba(16,47,49,0.45); align-items: center; justify-content: center; padding: 2rem 1rem;
+    }
+    #cc-ws-transform-confirm.open { display: flex; }
+    .cc-ws-transform-confirm-panel {
+      background: var(--paper); border-radius: 1rem; max-width: 26rem; width: 100%;
+      padding: 1.4rem; box-shadow: 0 20px 60px rgba(16,47,49,0.35);
+    }
+    .cc-ws-transform-confirm-panel h2 { margin: 0 0 0.7rem; font-size: 1.05rem; color: var(--ink); }
+    .cc-ws-transform-confirm-panel p { margin: 0 0 0.9rem; font-size: 0.85rem; color: var(--ink); line-height: 1.5; }
+    #cc-ws-transform-select {
+      width: 100%; padding: 0.55rem 0.7rem; border-radius: 0.7rem; font: inherit; font-size: 0.85rem;
+      border: 1px solid var(--stone-400); background: var(--ivory); color: var(--ink); margin-bottom: 1.1rem;
+    }
+    .cc-ws-transform-confirm-row { display: flex; justify-content: flex-end; gap: 0.6rem; }
+    .cc-ws-transform-confirm-cancel, .cc-ws-transform-confirm-confirm {
+      padding: 0.55rem 1rem; border-radius: 0.7rem; font: inherit; font-size: 0.83rem; cursor: pointer;
+    }
+    .cc-ws-transform-confirm-cancel { background: var(--paper); border: 1px solid var(--stone-400); color: var(--ink); }
+    .cc-ws-transform-confirm-confirm { background: var(--petrol-800); border: 1px solid var(--petrol-800); color: #fff; font-weight: 600; }
+
     #cc-landing .question-field:hover { border-color: var(--petrol-800); }
 
     #cc-landing .question-field:focus {
@@ -3398,6 +3422,16 @@
       <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-trash"></use></svg>
       <span>Supprimer</span>
     </button>
+    <!-- Item 20 — "Magic Switch" : transformer ce document (structuré, déjà enregistré) vers un
+         autre type clinique parmi les paires retenues (cf. ADOC_MAGIC_SWITCH_PAIRS). Même patron
+         de révélation conditionnelle que le bouton Supprimer ci-dessus (hidden par défaut, géré
+         par adocUpdateSaveStatusUI) : jamais pour un repli legacy-html (_adocCapabilities.transform
+         reste false), jamais avant un premier enregistrement (derivedFrom doit référencer un
+         documentId/versionId réels), jamais si le type source n'a aucune cible valide (ex. Carrousel). -->
+    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-transform-btn" onclick="window.adocWsTransformRequest()" aria-label="Transformer ce document vers un autre type" hidden>
+      <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-transform"></use></svg>
+      <span>Transformer</span>
+    </button>
     <button type="button" class="cc-ws-topbar-btn primary" id="cc-ws-export-btn" onclick="window.adocWsExport()" aria-label="Exporter le document">
       <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-export"></use></svg>
       <span>Exporter</span>
@@ -3617,6 +3651,21 @@
         <button type="button" class="cc-ws-delete-confirm-cancel" onclick="window.adocWsDeleteCancel()">Annuler</button>
         <button type="button" class="cc-ws-delete-confirm-confirm" onclick="window.adocWsDeleteConfirmed()">Supprimer définitivement</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Item 20 — "Magic Switch" : sélecteur du type cible, limité aux paires valides depuis le type
+     du document ouvert (options peuplées dynamiquement par window.adocWsTransformRequest, jamais
+     un menu fixe à 20 entrées). Même patron de dialog que #cc-ws-delete-confirm ci-dessus. -->
+<div id="cc-ws-transform-confirm" role="dialog" aria-modal="true" aria-labelledby="cc-ws-transform-confirm-title">
+  <div class="cc-ws-transform-confirm-panel">
+    <h2 id="cc-ws-transform-confirm-title">Transformer ce document</h2>
+    <p>Crée un NOUVEAU document du type choisi, à partir du contenu et des sources de celui-ci — l'original reste inchangé et reste consultable dans "Mes créations". Les images éventuelles ne sont pas transportées (nouvelle recherche d'illustration si le type cible en prévoit une).</p>
+    <select id="cc-ws-transform-select" aria-label="Type de document cible"></select>
+    <div class="cc-ws-transform-confirm-row">
+      <button type="button" class="cc-ws-transform-confirm-cancel" onclick="window.adocWsTransformCancel()">Annuler</button>
+      <button type="button" class="cc-ws-transform-confirm-confirm" id="cc-ws-transform-confirm-btn" onclick="window.adocWsTransformConfirmed()">Transformer</button>
     </div>
   </div>
 </div>
