@@ -7256,6 +7256,10 @@ ${recent}`;
     art.html = colorResult.html;
     art.blobUrl = URL.createObjectURL(new Blob([art.html], { type: 'text/html;charset=utf-8' }));
     art._adocBrandKitName = brandKit.name || null;
+    // Partie B (import charte) — traçabilité de l'id (pas seulement le nom), même patron que
+    // _adocBrandKitName ci-dessus : nécessaire pour retrouver les polices de CETTE charte précise
+    // dans adocEditorRefreshControls (personnalisation par bloc), jamais une charte différente.
+    art._adocBrandKitId = brandKit.id || null;
   }
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -7739,6 +7743,19 @@ ${recent}`;
       '<div class="cc-editor-table-tools"><strong>Tableau — cellule active</strong><div class="cc-editor-row">' + button('row-before','Ligne avant') + button('row-after','Ligne après') + button('row-delete','Supprimer la ligne') + button('col-before','Colonne avant') + button('col-after','Colonne après') + button('col-delete','Supprimer la colonne') + button('merge-right','Fusionner à droite') + button('merge-down','Fusionner en dessous') + button('split','Dissocier') + button('sort-asc','Trier A → Z') + button('sort-desc','Trier Z → A') + '</div><details><summary>Mise en forme conditionnelle de la colonne active</summary><div class="cc-editor-row"><select aria-label="Condition" data-rule-op><option value="gt">Supérieur à</option><option value="lt">Inférieur à</option><option value="eq">Égal à</option></select><input type="number" aria-label="Seuil" data-rule-value value="0"><input type="color" aria-label="Couleur conditionnelle" data-rule-color value="#fff1b8">' + button('rule-add','Appliquer la règle') + button('rule-clear','Retirer les règles') + '</div></details></div>' +
       '<div class="cc-editor-row">' + button('reset','Réinitialiser le style') + '</div><p class="cc-editor-message" role="status" aria-live="polite"></p></div>';
   }
+  // Partie B (import charte) — id de la charte réellement appliquée à CE document précis, jamais
+  // une charte différente ni la préférence globale du sélecteur (adocActiveBrandKitId, qui ne
+  // concerne que la PROCHAINE génération). Structuré : déjà porté par renderManifestOverride
+  // (Item 61). Legacy : porté par _adocBrandKitId, posé par adocApplyBrandKitToLegacyArtifact
+  // (application automatique à la génération) et adocConfirmLegacyRetheme (rethématisation
+  // manuelle) — les deux seuls points qui appliquent réellement une charte à un document legacy.
+  function adocEditorActiveBrandKitId(art) {
+    if (!art) return null;
+    if (art._adocStructuredDoc) {
+      return (art._adocRenderManifestOverride && art._adocRenderManifestOverride.brandKitRef && art._adocRenderManifestOverride.brandKitRef.id) || null;
+    }
+    return art._adocBrandKitId || null;
+  }
   var _adocEditorRange = null, _adocEditorLeaf = null;
   function adocEditorRememberSelection() {
     const sel = window.getSelection(); if (!sel || !sel.rangeCount) return;
@@ -7774,6 +7791,17 @@ ${recent}`;
     if (addImageBtn) addImageBtn.hidden = !!(ctx.block && ctx.block.style && ctx.block.style.backgroundAssetId);
     const families = new Set(_adocEditorLocalFonts);
     ADOC_LEGACY_FONT_PAIRS.forEach(function (p) { if (p.bodyFont) families.add(p.bodyFont); if(p.headingFont) families.add(p.headingFont); });
+    // Partie B (import charte) — polices de la charte ACTIVE de CE document précis (défauts +
+    // secondaires availableFonts[]), jamais celles d'une autre charte : simples suggestions
+    // ajoutées à la même datalist, le champ reste du texte libre (comportement inchangé).
+    const activeBrandKitId = adocEditorActiveBrandKitId(ctx.art);
+    if (activeBrandKitId) {
+      const activeKit = (window._adocBrandKits || []).find(function (k) { return k.id === activeBrandKitId; });
+      if (activeKit && activeKit.typography) {
+        ['headingFont', 'bodyFont', 'accentFont'].forEach(function (k) { if (activeKit.typography[k]) families.add(activeKit.typography[k]); });
+        (activeKit.typography.availableFonts || []).forEach(function (f) { if (f && f.candidate) families.add(f.candidate); });
+      }
+    }
     tools.querySelector('datalist').innerHTML = Array.from(families).map(function (f) { return '<option value="' + adocEsc(f) + '"></option>'; }).join('');
     tools.querySelector('.cc-editor-swatches').innerHTML = adocEditorPalette().map(function (p) {
       return '<button type="button" title="' + adocEsc(p[0] + ' ' + p[1]) + '" aria-label="Couleur ' + adocEsc(p[0]) + '" data-editor-color="' + adocEsc(p[1]) + '" style="background:' + p[1] + '"></button>';
@@ -9010,6 +9038,8 @@ ${recent}`;
     art.html = candidate.html;
     art.blobUrl = URL.createObjectURL(new Blob([art.html], { type: 'text/html;charset=utf-8' }));
     art._adocBrandKitName = candidate.brandKitName;
+    // Partie B (import charte) — même traçabilité que adocApplyBrandKitToLegacyArtifact ci-dessus.
+    art._adocBrandKitId = candidate.brandKitId || null;
     // LOT 11 — traçabilité de la police appliquée, même patron que _adocBrandKitName ci-dessus.
     // Reste null si l'utilisatrice a choisi "keep" ou si le motif de police n'a pas été retrouvé.
     if (candidate.fontLabel) art._adocFontLabel = candidate.fontLabel;
@@ -9415,12 +9445,66 @@ ${recent}`;
       const i = parseInt(sel.dataset.brandkitIndex, 10);
       const f = _adocBrandKitImportState.fonts[i];
       map[sel.value] = map[sel.value] || [];
-      map[sel.value].push({ candidate: f.candidate, index: i });
+      // Partie B (import charte) — isDefault lu directement sur l'entrée (jamais un index [0]
+      // implicite) : plusieurs candidates peuvent désormais partager un même rôle.
+      map[sel.value].push({ candidate: f.candidate, index: i, isDefault: f.isDefault === true });
     });
     return map;
   }
+  // Partie B (import charte) — résout la candidate PAR DÉFAUT d'une liste déjà groupée par rôle :
+  // celle marquée isDefault, ou la seule entrée s'il n'y en a qu'une, ou repli sur la 1ʳᵉ (garde-fou,
+  // jamais atteint en pratique puisque adocBrandKitRefreshFontDefaultIndicators() garantit toujours
+  // un défaut dès que 2+ candidates existent pour un même rôle).
+  function adocBrandKitFontDefaultEntry(list) {
+    if (!list || !list.length) return null;
+    return list.find((f) => f.isDefault) || list[0];
+  }
+  // Partie B (import charte) — jamais un choix silencieux : dès qu'un rôle (heading/body/accent)
+  // porte 2+ candidates, la plus haute confiance devient le défaut AUTOMATIQUEMENT si aucune ne
+  // l'est déjà, mais reste toujours visible et modifiable via l'indicateur "Par défaut" avant
+  // Enregistrer. Un rôle à 1 seule candidate n'affiche jamais cet indicateur (non-régression).
+  function adocBrandKitRefreshFontDefaultIndicators() {
+    const state = _adocBrandKitImportState;
+    if (!state) return;
+    const draftFonts = adocBrandKitDraftFonts();
+    ['heading', 'body', 'accent'].forEach((role) => {
+      const list = draftFonts[role] || [];
+      if (list.length > 1 && !list.some((f) => f.isDefault)) {
+        let best = list[0];
+        list.forEach((f) => { if ((state.fonts[f.index].confidence || 0) > (state.fonts[best.index].confidence || 0)) best = f; });
+        state.fonts[best.index].isDefault = true;
+      }
+    });
+    document.querySelectorAll('#cc-brandkit-confirm-fonts .cc-brandkit-element-row').forEach((row, i) => {
+      const slot = row.querySelector('.cc-brandkit-font-default-slot');
+      if (!slot) return;
+      const sel = row.querySelector('[data-brandkit-role="font"]');
+      const role = sel ? sel.value : null;
+      const list = role ? (draftFonts[role] || []) : [];
+      if (list.length <= 1) { slot.innerHTML = ''; return; }
+      const isDefault = state.fonts[i].isDefault === true;
+      slot.innerHTML = '<button type="button" class="cc-brandkit-font-default-btn' + (isDefault ? ' active' : '') + '" data-brandkit-font-default-index="' + i + '">' + (isDefault ? '★ Par défaut' : 'Définir par défaut') + '</button>';
+    });
+  }
+  // Écouteur unique délégué (jamais réattaché à chaque rendu, contrairement aux écouteurs de rôle
+  // ci-dessous qui portent sur des éléments recréés) — clique sur l'indicateur "Par défaut".
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-brandkit-font-default-index]');
+    if (!btn || !_adocBrandKitImportState) return;
+    const i = parseInt(btn.dataset.brandkitFontDefaultIndex, 10);
+    const row = btn.closest('.cc-brandkit-element-row');
+    const sel = row && row.querySelector('[data-brandkit-role="font"]');
+    if (!sel) return;
+    const draftFonts = adocBrandKitDraftFonts();
+    (draftFonts[sel.value] || []).forEach((f) => { _adocBrandKitImportState.fonts[f.index].isDefault = (f.index === i); });
+    adocBrandKitRefreshFontDefaultIndicators();
+  });
   function adocRefreshBrandKitPreviewAndWarnings() {
     const draftColors = adocBrandKitDraftColors();
+    // Partie B (import charte) — recalculé AVANT de lire draftFonts ci-dessous : les indicateurs
+    // "Par défaut" (et leur repli automatique sur la plus haute confiance) doivent déjà être à
+    // jour pour que l'aperçu plus bas lise le bon isDefault, jamais un état obsolète.
+    adocBrandKitRefreshFontDefaultIndicators();
     const draftFonts = adocBrandKitDraftFonts();
     // Point 2 (import charte) — message immédiat dès l'ouverture (et à chaque changement de
     // rôle), jamais découvert seulement au clic "Enregistrer" (cf. adocBrandKitImportSave).
@@ -9461,8 +9545,12 @@ ${recent}`;
     // ── Aperçu réel : même moteur de rendu canonique que la génération, jamais un second moteur.
     const colorsForTokens = {};
     ADOC_BRANDKIT_FUNCTIONAL_COLOR_ROLES.forEach((role) => { colorsForTokens[role] = draftColors[role] && draftColors[role][0] ? draftColors[role][0].hex : undefined; });
-    const headingFont = draftFonts.heading && draftFonts.heading[0] ? draftFonts.heading[0].candidate : null;
-    const bodyFont = draftFonts.body && draftFonts.body[0] ? draftFonts.body[0].candidate : null;
+    // Partie B — l'aperçu reflète toujours la candidate PAR DÉFAUT (jamais un [0] arbitraire
+    // maintenant que plusieurs candidates peuvent partager un même rôle).
+    const headingDefaultForPreview = adocBrandKitFontDefaultEntry(draftFonts.heading);
+    const bodyDefaultForPreview = adocBrandKitFontDefaultEntry(draftFonts.body);
+    const headingFont = headingDefaultForPreview ? headingDefaultForPreview.candidate : null;
+    const bodyFont = bodyDefaultForPreview ? bodyDefaultForPreview.candidate : null;
     const previewBlock = document.getElementById('cc-brandkit-confirm-preview-block');
     const previewEl = document.getElementById('cc-brandkit-confirm-preview');
     if (!previewBlock || !previewEl) return;
@@ -9517,6 +9605,10 @@ ${recent}`;
         '<div class="cc-brandkit-element-info"><div class="cc-brandkit-element-name">' + adocEsc(f.candidate) + '</div>' +
         '<div class="cc-brandkit-element-detail">' + adocEsc(f.sizes || 'Tailles non précisées') + '</div></div>' +
         adocBrandKitRoleSelectHTML('font', i, ADOC_BRANDKIT_FONT_ROLES, f.proposedRole) +
+        // Partie B (import charte) — rempli/vidé par adocBrandKitRefreshFontDefaultIndicators(),
+        // jamais construit ici : sa visibilité dépend du nombre ACTUEL de candidates par rôle,
+        // recalculé à chaque changement de <select>, pas seulement au premier rendu.
+        '<div class="cc-brandkit-font-default-slot"></div>' +
         adocBrandKitConfidenceBadgeHTML(f.confidence) +
         '</div>'
       ).join('');
@@ -9586,14 +9678,30 @@ ${recent}`;
       return;
     }
     const draftFonts = adocBrandKitDraftFonts();
-    if (!draftFonts.heading || draftFonts.heading.length !== 1 || !draftFonts.body || draftFonts.body.length !== 1) {
-      alert('Attribuez exactement une police aux titres et une police au corps avant d’enregistrer.');
+    // Partie B (import charte) — au moins une police par rôle requis, jamais exactement une :
+    // plusieurs candidates légitimes restent désormais possibles, jamais un blocage arbitraire ni
+    // une réassignation forcée pour en écarter une.
+    if (!draftFonts.heading || !draftFonts.heading.length || !draftFonts.body || !draftFonts.body.length) {
+      alert('Attribuez au moins une police aux titres et une police au corps avant d’enregistrer.');
       return;
     }
     // Point 1 — "Accent" reste optionnel (0 police assignée est valide) ; seul un conflit
-    // (plusieurs polices sur ce même rôle) est bloquant, jamais son absence.
+    // (plusieurs polices sur ce même rôle) est bloquant, jamais son absence. Contrairement à
+    // heading/body, Accent ne porte pas de mécanisme "Par défaut" dans ce lot (hors périmètre).
     if (draftFonts.accent && draftFonts.accent.length > 1) {
       alert('Un seul rôle "Accent" par police. Corrigez avant d’enregistrer.');
+      return;
+    }
+    // Partie B — jamais un choix silencieux : bloquant seulement si un rôle à 2+ candidates n'a
+    // RÉELLEMENT aucun défaut marqué (garde-fou ; adocBrandKitRefreshFontDefaultIndicators() en
+    // pose déjà un automatiquement à chaque changement de rôle, donc ce cas n'est jamais atteint
+    // en usage normal).
+    const missingDefaultRoles = ['heading', 'body'].filter((role) => {
+      const list = draftFonts[role];
+      return list && list.length > 1 && !list.some((f) => f.isDefault);
+    });
+    if (missingDefaultRoles.length) {
+      alert('Choisissez une police par défaut pour : ' + missingDefaultRoles.join(', ') + '.');
       return;
     }
 
@@ -9650,8 +9758,24 @@ ${recent}`;
       ADOC_BRANDKIT_FUNCTIONAL_COLOR_ROLES.forEach((role) => {
         if (draftColors[role] && draftColors[role].length) colors[role] = draftColors[role][0].hex;
       });
-      const typography = { headingFont: draftFonts.heading[0].candidate, bodyFont: draftFonts.body[0].candidate };
-      if (draftFonts.accent && draftFonts.accent[0]) typography.accentFont = draftFonts.accent[0].candidate;
+      // Partie B (import charte) — la candidate PAR DÉFAUT de chaque rôle devient headingFont/
+      // bodyFont/accentFont ; les autres candidates du même rôle rejoignent availableFonts[]
+      // (champ additif, jamais perdues ni forcées vers un autre rôle) pour la personnalisation
+      // par bloc (adocEditorRefreshControls) — jamais un remplacement du défaut.
+      const headingDefault = adocBrandKitFontDefaultEntry(draftFonts.heading);
+      const bodyDefault = adocBrandKitFontDefaultEntry(draftFonts.body);
+      const accentDefault = adocBrandKitFontDefaultEntry(draftFonts.accent);
+      const typography = { headingFont: headingDefault.candidate, bodyFont: bodyDefault.candidate };
+      if (accentDefault) typography.accentFont = accentDefault.candidate;
+      const defaultIndicesByRole = { heading: headingDefault.index, body: bodyDefault.index, accent: accentDefault ? accentDefault.index : null };
+      const availableFonts = [];
+      ['heading', 'body', 'accent'].forEach((role) => {
+        (draftFonts[role] || []).forEach((f) => {
+          if (f.index === defaultIndicesByRole[role]) return;
+          availableFonts.push({ candidate: f.candidate, role: role, sizes: state.fonts[f.index].sizes || '' });
+        });
+      });
+      if (availableFonts.length) typography.availableFonts = availableFonts;
       // Les couleurs marquées 'decorative' (ex. laiton) ne rejoignent jamais colors_json — leur
       // règle d'usage est préservée en texte libre plutôt que perdue.
       const usedColorIndices = new Set(

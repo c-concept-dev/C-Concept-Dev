@@ -55899,7 +55899,7 @@ var BRAND_KIT_ANALYSIS_TOOL = {
           properties: {
             element: { type: "string", const: "font" },
             candidate: { type: "string", description: "Nom exact de la police." },
-            proposedRole: { type: "string", enum: ["heading", "body"] },
+            proposedRole: { type: "string", enum: ["heading", "body", "accent"] },
             sizes: { type: "string", description: "Tailles/hiérarchie mentionnées dans le texte pour cette police, en texte libre (ex. \"H1 28/32pt, H2 20/25pt, corps 14/18pt\") ; chaîne vide si aucune taille précisée." },
             confidence: { type: "number", minimum: 0, maximum: 0.99 },
             detectionMode: { type: "string", const: "text-extraction" },
@@ -55936,6 +55936,7 @@ async function handleBrandKitAnalyze(request2, env2) {
   const systemPrompt = "Tu analyses le texte extrait d'un document de charte graphique (identité visuelle) pour en extraire les couleurs et polices RÉELLEMENT nommées dans le texte — jamais devinées ni inventées. " +
     "Pour chaque couleur : reprends le code hexadécimal EXACTEMENT comme il apparaît dans le texte, au caractère près (ne corrige jamais, ne complète jamais, ne réinterprète jamais une valeur). " +
     "Propose un rôle fonctionnel (primary/accent/background/text/success/warning/critical) UNIQUEMENT s'il est raisonnablement déductible du nom ou de la description donnée dans le texte (ex. \"Fond principal\" → background, \"Structure · titres\" → primary) ; si le texte indique explicitement qu'une couleur n'est jamais utilisée pour du texte courant ou du contenu (décor uniquement), utilise le rôle 'decorative'. " +
+    "Pour une police, propose le rôle 'accent' UNIQUEMENT si le texte décrit explicitement un usage réservé à un mot ou une expression très courte (jamais du texte courant, jamais des titres de section) — même principe que 'decorative' pour les couleurs ; sinon, choisis heading ou body selon l'usage décrit. " +
     "confidence est TOUJOURS strictement inférieure à 1.0, même quand le code hex et le nom sont écrits noir sur blanc dans le texte — une ambiguïté de rôle ou d'usage reste toujours possible. " +
     "Capture aussi les règles qualitatives explicites (toneRules) et les interdictions explicites (visualProhibitions) trouvées dans le texte, en texte libre, sans les inventer ni les généraliser au-delà de ce qui est écrit. " +
     "Si le texte ne contient AUCUNE couleur ni police identifiable, retourne des tableaux vides et noBrandDataFound=true — ne fabrique JAMAIS une charte par défaut à la place.";

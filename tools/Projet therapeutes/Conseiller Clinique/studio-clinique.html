@@ -1191,6 +1191,14 @@
     }
     .cc-brandkit-confidence.high { background: var(--petrol-100); color: var(--petrol-950); }
     .cc-brandkit-confidence.low { background: var(--terracotta-100); color: var(--terracotta-700); }
+    /* Partie B (import charte) — vide (aucun style visible) tant qu'un rôle n'a qu'une seule
+       candidate ; adocBrandKitRefreshFontDefaultIndicators() y insère le bouton uniquement à
+       partir de 2 candidates sur le même rôle (jamais affiché inutilement). */
+    .cc-brandkit-font-default-btn {
+      flex: 0 0 auto; font: inherit; font-size: 0.72rem; padding: 0.3rem 0.6rem; border-radius: 999px;
+      border: 1px solid var(--stone-400); background: var(--paper); color: var(--muted); cursor: pointer; white-space: nowrap;
+    }
+    .cc-brandkit-font-default-btn.active { background: var(--petrol-100); color: var(--petrol-950); border-color: var(--petrol-800); font-weight: 700; }
     .cc-brandkit-wcag-warning {
       display: flex; align-items: center; gap: 0.4rem; font-size: 0.72rem; color: var(--terracotta-700);
       margin-top: 0.3rem;
