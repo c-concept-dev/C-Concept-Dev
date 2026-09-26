@@ -55704,6 +55704,14 @@ var Worker_default = {
 var BRAND_ASSET_ROLES = ["logo", "font", "image", "reference", "thumbnail"];
 var BRAND_SOURCE_TYPES = ["pptx", "pdf", "image", "font"];
 var BRAND_COLOR_KEYS = ["primary", "accent", "background", "text", "success", "warning", "critical"];
+// Point 1 (investigation import charte) — success/warning/critical sont des couleurs D'ÉTAT
+// D'INTERFACE, sans équivalent naturel dans une charte de marque professionnelle. Seuls les 4
+// rôles ci-dessous restent strictement obligatoires ; les 3 autres reçoivent le repli neutre
+// ci-dessous (mêmes valeurs déjà utilisées comme repli d'aperçu côté client) si la charte
+// importée n'en définit aucune — appliqué avant stockage dans handleBrandKitCreate, jamais au
+// moment de la lecture (colors_json reste toujours complet une fois persisté).
+var BRAND_COLOR_REQUIRED_KEYS = ["primary", "accent", "background", "text"];
+var BRAND_COLOR_OPTIONAL_FALLBACKS = { success: "#2F6E52", warning: "#8A3F29", critical: "#A13327" };
 
 function adocBrandKitRowToJSON(row) {
   return {
@@ -55730,7 +55738,7 @@ __name(adocBrandKitRowToJSON, "adocBrandKitRowToJSON");
 
 function adocValidateBrandKitColors(colors) {
   if (!colors || typeof colors !== "object" || Array.isArray(colors)) return "colors must be an object";
-  for (const k of BRAND_COLOR_KEYS) {
+  for (const k of BRAND_COLOR_REQUIRED_KEYS) {
     if (typeof colors[k] !== "string" || !colors[k]) return `colors.${k} is required and must be a non-empty string`;
   }
   return null;
@@ -55784,7 +55792,12 @@ async function handleBrandKitCreate(request2, env2) {
     visual_prohibitions, source_asset_id, source_checksum, source_type, provenance
   } = body || {};
   if (!name || typeof name !== "string") return jsonErr("Missing name", 400);
-  const colorsErr = adocValidateBrandKitColors(colors);
+  // Point 1 — repli appliqué AVANT validation/stockage : colors_json reste toujours complet une
+  // fois persisté (aucun lecteur en aval n'a besoin de connaître ce repli).
+  const colorsFilled = colors && typeof colors === "object" && !Array.isArray(colors)
+    ? Object.assign({}, BRAND_COLOR_OPTIONAL_FALLBACKS, colors)
+    : colors;
+  const colorsErr = adocValidateBrandKitColors(colorsFilled);
   if (colorsErr) return jsonErr(colorsErr, 400);
   const typoErr = adocValidateBrandKitTypography(typography);
   if (typoErr) return jsonErr(typoErr, 400);
@@ -55809,7 +55822,7 @@ async function handleBrandKitCreate(request2, env2) {
          imported_at, provenance_json, created_at)
        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
     ).bind(
-      id, name, 1, JSON.stringify(colors), JSON.stringify(typography),
+      id, name, 1, JSON.stringify(colorsFilled), JSON.stringify(typography),
       density || null, icon_style || null, photo_direction || null,
       tone_rules || null, visual_prohibitions || null, "active",
       source_asset_id || null, source_checksum || null, source_type || null,
@@ -55917,7 +55930,8 @@ async function handleBrandKitAnalyze(request2, env2) {
   if (!text || typeof text !== "string" || !text.trim()) return jsonErr("Missing text", 400);
   // Plafond défensif — un texte de charte structuré tient largement dans quelques dizaines de
   // milliers de caractères ; évite un envoi disproportionné si un PDF hors profil est déposé.
-  const clippedText = text.length > 40000 ? text.slice(0, 40000) : text;
+  const truncated = text.length > 40000;
+  const clippedText = truncated ? text.slice(0, 40000) : text;
 
   const systemPrompt = "Tu analyses le texte extrait d'un document de charte graphique (identité visuelle) pour en extraire les couleurs et polices RÉELLEMENT nommées dans le texte — jamais devinées ni inventées. " +
     "Pour chaque couleur : reprends le code hexadécimal EXACTEMENT comme il apparaît dans le texte, au caractère près (ne corrige jamais, ne complète jamais, ne réinterprète jamais une valeur). " +
@@ -55975,7 +55989,10 @@ async function handleBrandKitAnalyze(request2, env2) {
     fonts,
     toneRules: analysis.toneRules || [],
     visualProhibitions: analysis.visualProhibitions || [],
-    noBrandDataFound: !!analysis.noBrandDataFound
+    noBrandDataFound: !!analysis.noBrandDataFound,
+    // Point 4 (import charte) — jamais silencieux : le client affiche un avertissement visible à
+    // l'écran de revue quand une partie du document n'a pas pu être analysée.
+    truncated
   });
 }
 __name(handleBrandKitAnalyze, "handleBrandKitAnalyze");

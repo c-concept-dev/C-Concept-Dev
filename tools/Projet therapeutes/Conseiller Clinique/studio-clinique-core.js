@@ -9268,9 +9268,22 @@ ${recent}`;
     { value: 'decorative', label: 'Décorative (jamais du texte)' },
   ];
   const ADOC_BRANDKIT_FUNCTIONAL_COLOR_ROLES = ['primary', 'accent', 'background', 'text', 'success', 'warning', 'critical'];
+  // Point 1 (investigation import charte) — success/warning/critical sont des couleurs D'ÉTAT
+  // D'INTERFACE, sans équivalent naturel dans une charte de marque professionnelle (confirmé
+  // structurel, pas propre à une charte précise). Seuls les 4 rôles ci-dessous restent
+  // strictement obligatoires ; les 3 autres reçoivent un repli automatique côté Worker
+  // (ADOC_BRANDKIT_COLOR_FALLBACKS ci-dessous, mêmes valeurs neutres déjà utilisées comme repli
+  // d'aperçu dans adocRefreshBrandKitPreviewAndWarnings) si la charte importée n'en définit aucune.
+  const ADOC_BRANDKIT_REQUIRED_COLOR_ROLES = ['primary', 'accent', 'background', 'text'];
+  // Valeurs de repli — MÊMES valeurs déjà utilisées comme `fallback` dans
+  // adocRefreshBrandKitPreviewAndWarnings (jamais une seconde palette inventée ici).
+  const ADOC_BRANDKIT_COLOR_FALLBACKS = { success: '#2F6E52', warning: '#8A3F29', critical: '#A13327' };
   const ADOC_BRANDKIT_FONT_ROLES = [
     { value: 'heading', label: 'Titres' },
     { value: 'body', label: 'Corps' },
+    // Point 1 (investigation import charte) — même principe que "Décorative" pour les couleurs :
+    // jamais du texte courant, jamais obligatoire (0 ou 1 police assignée ici, jamais plus).
+    { value: 'accent', label: 'Accent (jamais du texte courant)' },
   ];
   // Seuil d'affichage "confiance élevée" vs "à vérifier" — le CDC (§UX-8B) exige un niveau de
   // confiance TOUJOURS visible, sans imposer de valeur numérique précise pour la bascule
@@ -9295,6 +9308,9 @@ ${recent}`;
   };
 
   let _adocBrandKitImportState = null;
+  // Point 3 (import charte) — sauvegarde mise en attente le temps que la thérapeute choisisse
+  // "Remplacer" ou "Créer séparée" ; jamais utilisée pour autre chose, remise à null dès résolution.
+  let _adocBrandKitPendingDuplicate = null;
 
   function adocBrandKitImportProgress(text, iconId) {
     const el = document.getElementById('cc-brandkit-import-progress');
@@ -9350,6 +9366,10 @@ ${recent}`;
         toneRules: analysis.toneRules || [],
         visualProhibitions: analysis.visualProhibitions || [],
         noBrandDataFound: !!analysis.noBrandDataFound,
+        // Point 4 (investigation import charte) — le Worker renvoie désormais si le texte a été
+        // tronqué à 40000 caractères avant analyse (handleBrandKitAnalyze), pour ne jamais
+        // laisser silencieuse une éventuelle perte de contenu (page de couleurs jamais atteinte).
+        truncated: !!analysis.truncated,
       };
       adocBrandKitImportProgress(null);
       adocRenderBrandKitConfirmModal();
@@ -9402,6 +9422,25 @@ ${recent}`;
   function adocRefreshBrandKitPreviewAndWarnings() {
     const draftColors = adocBrandKitDraftColors();
     const draftFonts = adocBrandKitDraftFonts();
+    // Point 2 (import charte) — message immédiat dès l'ouverture (et à chaque changement de
+    // rôle), jamais découvert seulement au clic "Enregistrer" (cf. adocBrandKitImportSave).
+    const missingRequiredNow = ADOC_BRANDKIT_REQUIRED_COLOR_ROLES.filter((role) => !draftColors[role] || !draftColors[role].length);
+    const missingBlock = document.getElementById('cc-brandkit-confirm-missing-colors');
+    const missingText = document.getElementById('cc-brandkit-confirm-missing-colors-text');
+    if (missingBlock && missingText) {
+      if (missingRequiredNow.length) {
+        missingBlock.hidden = false;
+        const missingLabels = missingRequiredNow.map((role) => {
+          const r = ADOC_BRANDKIT_COLOR_ROLES.find((x) => x.value === role);
+          return r ? r.label : role;
+        });
+        missingText.textContent = _adocBrandKitImportState.colors.length + ' couleur(s) détectée(s) dans le document, ' +
+          missingRequiredNow.length + ' rôle(s) essentiel(s) encore non couvert(s) (' + missingLabels.join(', ') +
+          ') — ajoutez-la directement ci-dessous, sans relancer l’analyse du PDF.';
+      } else {
+        missingBlock.hidden = true;
+      }
+    }
     // ── Alertes WCAG live (jamais bloquantes — l'utilisatrice reste décisionnaire) ──
     const bg = draftColors.background && draftColors.background[0] ? draftColors.background[0].hex : null;
     document.querySelectorAll('.cc-brandkit-element-row[data-brandkit-color-index]').forEach((row) => {
@@ -9444,6 +9483,11 @@ ${recent}`;
     const state = _adocBrandKitImportState;
     const nameInput = document.getElementById('cc-brandkit-confirm-name');
     if (nameInput) nameInput.value = state.suggestedName;
+
+    // Point 4 (import charte) — le Worker signale déjà quand le texte a été tronqué à 40000
+    // caractères avant analyse ; jamais silencieux, affiché dès l'ouverture de l'écran de revue.
+    const truncatedWarn = document.getElementById('cc-brandkit-confirm-truncated-warning');
+    if (truncatedWarn) truncatedWarn.hidden = !state.truncated;
 
     const emptyEl = document.getElementById('cc-brandkit-confirm-empty');
     const hasAnyElement = state.colors.length > 0 || state.fonts.length > 0;
@@ -9491,6 +9535,27 @@ ${recent}`;
     adocRefreshBrandKitPreviewAndWarnings();
   }
 
+  // Point 2 (import charte) — ajoute directement une couleur manquante sans relancer l'analyse
+  // du PDF ; rejoint le même tableau state.colors que les couleurs détectées par Claude, donc
+  // passe par le même rendu/rôle/validation, jamais un chemin parallèle.
+  window.adocBrandKitAddManualColor = function() {
+    const state = _adocBrandKitImportState;
+    if (!state) return;
+    const input = document.getElementById('cc-brandkit-confirm-manual-color-input');
+    const hex = input && input.value;
+    if (!hex) return;
+    const draftColors = adocBrandKitDraftColors();
+    const missingRequiredNow = ADOC_BRANDKIT_REQUIRED_COLOR_ROLES.filter((role) => !draftColors[role] || !draftColors[role].length);
+    state.colors.push({
+      candidate: 'Couleur ajoutée manuellement',
+      hexExact: hex.toUpperCase(),
+      proposedRole: missingRequiredNow[0] || 'accent',
+      confidence: 1,
+      detectionMode: 'manual',
+    });
+    adocRenderBrandKitConfirmModal();
+  };
+
   window.adocBrandKitImportCancel = function() {
     document.getElementById('cc-brandkit-confirm').classList.remove('open');
     _adocBrandKitImportState = null;
@@ -9506,12 +9571,16 @@ ${recent}`;
     if (!name) { alert('Donnez un nom à cette charte avant de l’enregistrer.'); return; }
 
     const draftColors = adocBrandKitDraftColors();
-    const missingColorRoles = ADOC_BRANDKIT_FUNCTIONAL_COLOR_ROLES.filter((role) => !draftColors[role] || !draftColors[role].length);
+    // Point 1 (import charte) — seuls les 4 rôles ci-dessous restent strictement obligatoires ;
+    // success/warning/critical reçoivent un repli automatique côté Worker si absents.
+    const missingColorRoles = ADOC_BRANDKIT_REQUIRED_COLOR_ROLES.filter((role) => !draftColors[role] || !draftColors[role].length);
     if (missingColorRoles.length) {
       alert('Attribuez une couleur à chaque rôle manquant avant d’enregistrer : ' + missingColorRoles.join(', ') + '.');
       return;
     }
-    const duplicateColorRoles = ADOC_BRANDKIT_FUNCTIONAL_COLOR_ROLES.filter((role) => draftColors[role].length > 1);
+    // Le conflit "même rôle attribué deux fois" reste vérifié sur les 7 rôles fonctionnels — un
+    // rôle optionnel non couvert n'est pas une erreur, mais deux couleurs sur ce même rôle en est une.
+    const duplicateColorRoles = ADOC_BRANDKIT_FUNCTIONAL_COLOR_ROLES.filter((role) => draftColors[role] && draftColors[role].length > 1);
     if (duplicateColorRoles.length) {
       alert('Un seul rôle par couleur : ' + duplicateColorRoles.join(', ') + ' ' + (duplicateColorRoles.length > 1 ? 'sont' : 'est') + ' attribué(s) à plusieurs couleurs à la fois. Corrigez avant d’enregistrer.');
       return;
@@ -9521,7 +9590,44 @@ ${recent}`;
       alert('Attribuez exactement une police aux titres et une police au corps avant d’enregistrer.');
       return;
     }
+    // Point 1 — "Accent" reste optionnel (0 police assignée est valide) ; seul un conflit
+    // (plusieurs polices sur ce même rôle) est bloquant, jamais son absence.
+    if (draftFonts.accent && draftFonts.accent.length > 1) {
+      alert('Un seul rôle "Accent" par police. Corrigez avant d’enregistrer.');
+      return;
+    }
 
+    const saveBtn = document.getElementById('cc-brandkit-confirm-save');
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Vérification…'; }
+    try {
+      // Point 3 (import charte) — recherche à chaque enregistrement (jamais un cache périmé) une
+      // charte active du même nom, comparaison insensible casse/espaces. Jamais de remplacement
+      // automatique silencieux : la thérapeute choisit toujours explicitement.
+      const kits = await adocFetchBrandKits();
+      const normalizedName = name.trim().toLowerCase();
+      const existing = (kits || []).find((k) => (k.name || '').trim().toLowerCase() === normalizedName);
+      if (existing) {
+        _adocBrandKitPendingDuplicate = { name, draftColors, draftFonts, existingId: existing.id };
+        const textEl = document.getElementById('cc-brandkit-duplicate-confirm-text');
+        if (textEl) textEl.textContent = 'Une charte nommée « ' + name + ' » est déjà active. Que voulez-vous faire ?';
+        const modal = document.getElementById('cc-brandkit-duplicate-confirm');
+        if (modal) modal.classList.add('open');
+        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Enregistrer la charte'; }
+        return;
+      }
+      await adocBrandKitProceedToSave(name, draftColors, draftFonts);
+    } catch (e) {
+      console.warn('[UX-8B Lot 3] Sauvegarde de charte en échec:', e);
+      alert('Impossible d’enregistrer cette charte pour le moment : ' + (e && e.message || 'erreur inconnue') + '. Rien n’a été perdu, vous pouvez réessayer.');
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Enregistrer la charte'; }
+    }
+  };
+
+  // Persistance réelle (upload PDF + POST /brand-kits) — extraite de adocBrandKitImportSave pour
+  // être réutilisée telle quelle après un choix explicite "Remplacer"/"Créer séparée" (Point 3).
+  async function adocBrandKitProceedToSave(name, draftColors, draftFonts) {
+    const state = _adocBrandKitImportState;
+    if (!state) return;
     const saveBtn = document.getElementById('cc-brandkit-confirm-save');
     if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Enregistrement…'; }
     try {
@@ -9537,12 +9643,22 @@ ${recent}`;
       if (!uploadRes.ok) throw new Error('Échec de l’upload du PDF (HTTP ' + uploadRes.status + ')');
       const uploadBody = await uploadRes.json();
 
+      // Point 1 — un rôle optionnel (success/warning/critical) sans couleur assignée ne rejoint
+      // jamais colors_json ici : c'est le Worker qui applique le repli neutre au stockage, jamais
+      // une seconde palette de repli inventée côté client.
       const colors = {};
-      ADOC_BRANDKIT_FUNCTIONAL_COLOR_ROLES.forEach((role) => { colors[role] = draftColors[role][0].hex; });
+      ADOC_BRANDKIT_FUNCTIONAL_COLOR_ROLES.forEach((role) => {
+        if (draftColors[role] && draftColors[role].length) colors[role] = draftColors[role][0].hex;
+      });
       const typography = { headingFont: draftFonts.heading[0].candidate, bodyFont: draftFonts.body[0].candidate };
+      if (draftFonts.accent && draftFonts.accent[0]) typography.accentFont = draftFonts.accent[0].candidate;
       // Les couleurs marquées 'decorative' (ex. laiton) ne rejoignent jamais colors_json — leur
       // règle d'usage est préservée en texte libre plutôt que perdue.
-      const usedColorIndices = new Set(ADOC_BRANDKIT_FUNCTIONAL_COLOR_ROLES.map((role) => draftColors[role][0].index));
+      const usedColorIndices = new Set(
+        ADOC_BRANDKIT_FUNCTIONAL_COLOR_ROLES
+          .filter((role) => draftColors[role] && draftColors[role].length)
+          .map((role) => draftColors[role][0].index)
+      );
       const decorativeNotes = state.colors
         .filter((c, i) => !usedColorIndices.has(i))
         .map((c) => c.candidate + ' (' + c.hexExact + ') : décorative uniquement, jamais pour du texte courant.');
@@ -9585,6 +9701,45 @@ ${recent}`;
     } finally {
       if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Enregistrer la charte'; }
     }
+  }
+
+  // Point 3 (import charte) — archive l'ancienne charte (même mécanisme que adocBrandKitRemove)
+  // PUIS enregistre la nouvelle ; jamais l'inverse (l'ancienne doit disparaître de la liste active
+  // au moment où la nouvelle apparaît, jamais avant en cas d'échec de la nouvelle sauvegarde).
+  window.adocBrandKitDuplicateReplace = async function() {
+    const pending = _adocBrandKitPendingDuplicate;
+    if (!pending) return;
+    const modal = document.getElementById('cc-brandkit-duplicate-confirm');
+    try {
+      const workerUrl = adocGetWorkerUrl();
+      const r = await fetch(workerUrl + '/brand-kits/' + encodeURIComponent(pending.existingId) + '/status', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
+        body: JSON.stringify({ status: 'archived' }),
+      });
+      if (!r.ok) { alert('Impossible d’archiver la charte existante pour le moment.'); return; }
+      if (modal) modal.classList.remove('open');
+      await adocBrandKitProceedToSave(pending.name, pending.draftColors, pending.draftFonts);
+    } catch (e) {
+      alert('Impossible d’archiver la charte existante pour le moment.');
+    } finally {
+      _adocBrandKitPendingDuplicate = null;
+    }
+  };
+
+  window.adocBrandKitDuplicateCreateSeparate = async function() {
+    const pending = _adocBrandKitPendingDuplicate;
+    if (!pending) return;
+    _adocBrandKitPendingDuplicate = null;
+    const modal = document.getElementById('cc-brandkit-duplicate-confirm');
+    if (modal) modal.classList.remove('open');
+    await adocBrandKitProceedToSave(pending.name, pending.draftColors, pending.draftFonts);
+  };
+
+  window.adocBrandKitDuplicateCancel = function() {
+    _adocBrandKitPendingDuplicate = null;
+    const modal = document.getElementById('cc-brandkit-duplicate-confirm');
+    if (modal) modal.classList.remove('open');
   };
 
   // ── 6. Retirer (archive, jamais de suppression définitive dans ce lot) — visible

@@ -1248,6 +1248,14 @@
     .cc-ws-delete-confirm-cancel { background: var(--paper); border: 1px solid var(--stone-400); color: var(--ink); }
     .cc-ws-delete-confirm-confirm { background: #A13327; border: 1px solid #A13327; color: #fff; font-weight: 600; }
 
+    /* Point 3 (investigation import charte) — même patron EXACT que #cc-ws-delete-confirm
+       ci-dessus (dialog modal, .open pour afficher), jamais un second composant inventé. */
+    #cc-brandkit-duplicate-confirm {
+      display: none; position: fixed; inset: 0; z-index: 8500;
+      background: rgba(16,47,49,0.45); align-items: center; justify-content: center; padding: 2rem 1rem;
+    }
+    #cc-brandkit-duplicate-confirm.open { display: flex; }
+
     /* Item 20 — "Magic Switch" : même patron EXACT que #cc-ws-delete-confirm ci-dessus (dialog
        modal, .open pour afficher), jamais un second composant de dialog inventé. */
     #cc-ws-transform-confirm {
@@ -3606,8 +3614,29 @@
       <label class="cc-brandkit-confirm-name-label" for="cc-brandkit-confirm-name">Nom de la charte</label>
       <input type="text" id="cc-brandkit-confirm-name" class="cc-brandkit-confirm-name-input" placeholder="Nom de la charte">
 
+      <!-- Point 4 (investigation import charte) — le Worker plafonne le texte analysé à 40000
+           caractères (handleBrandKitAnalyze) ; ce bandeau rend cette troncature visible au lieu
+           d'un silence qui masquerait une éventuelle page de couleurs jamais atteinte. -->
+      <div id="cc-brandkit-confirm-truncated-warning" class="cc-brandkit-wcag-warning" style="margin-bottom:0.8rem;" hidden>
+        Ce document est volumineux — son contenu au-delà des 40 000 premiers caractères n'a pas pu être analysé, certaines couleurs/polices situées plus loin dans le document ont pu être manquées.
+      </div>
+
       <h3 id="cc-brandkit-confirm-colors-title">Couleurs détectées</h3>
       <div id="cc-brandkit-confirm-colors"></div>
+
+      <!-- Point 2 (investigation import charte) — la détection de couleur est purement textuelle
+           (hex exact requis dans le texte du PDF) : une charte présentant ses couleurs en
+           planches visuelles sans hex écrit peut ne fournir qu'une poignée de couleurs pour les 4
+           rôles désormais obligatoires (cf. Point 1 ci-dessous). Message visible DÈS L'OUVERTURE
+           de cet écran (jamais seulement au clic "Enregistrer"), avec un sélecteur manuel qui
+           permet d'ajouter directement une couleur sans nouvelle extraction PDF. -->
+      <div id="cc-brandkit-confirm-missing-colors" style="margin:-0.4rem 0 0.8rem;font-size:0.72rem;color:var(--terracotta-700);" hidden>
+        <div id="cc-brandkit-confirm-missing-colors-text"></div>
+        <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.5rem;">
+          <input type="color" id="cc-brandkit-confirm-manual-color-input" value="#102F31" aria-label="Choisir une couleur à ajouter">
+          <button type="button" class="cc-brandkit-confirm-cancel" onclick="window.adocBrandKitAddManualColor()">Ajouter cette couleur</button>
+        </div>
+      </div>
 
       <h3 id="cc-brandkit-confirm-fonts-title">Polices détectées</h3>
       <div id="cc-brandkit-confirm-fonts"></div>
@@ -3631,6 +3660,27 @@
     <div class="cc-brandkit-confirm-footer">
       <button type="button" class="cc-brandkit-confirm-cancel" id="cc-brandkit-confirm-cancel" onclick="window.adocBrandKitImportCancel()">Annuler</button>
       <button type="button" class="cc-brandkit-confirm-save" id="cc-brandkit-confirm-save" onclick="window.adocBrandKitImportSave()">Enregistrer la charte</button>
+    </div>
+  </div>
+</div>
+
+<!-- Point 3 (investigation import charte) — une charte du même nom est déjà active : jamais un
+     doublon silencieux ni un remplacement automatique. Même patron de dialog que
+     #cc-ws-delete-confirm ci-dessous (jamais un second composant inventé). -->
+<div id="cc-brandkit-duplicate-confirm" role="dialog" aria-modal="true" aria-labelledby="cc-brandkit-duplicate-confirm-title">
+  <div class="cc-ws-delete-confirm-panel">
+    <h2 id="cc-brandkit-duplicate-confirm-title">Une charte du même nom existe déjà</h2>
+    <p id="cc-brandkit-duplicate-confirm-text"></p>
+    <div class="cc-ws-delete-confirm-actions">
+      <button type="button" class="cc-ws-delete-confirm-export" id="cc-brandkit-duplicate-replace-btn" onclick="window.adocBrandKitDuplicateReplace()">
+        Remplacer la charte existante
+      </button>
+      <button type="button" class="cc-ws-delete-confirm-export" id="cc-brandkit-duplicate-separate-btn" onclick="window.adocBrandKitDuplicateCreateSeparate()">
+        Créer comme charte séparée
+      </button>
+      <div class="cc-ws-delete-confirm-row">
+        <button type="button" class="cc-ws-delete-confirm-cancel" onclick="window.adocBrandKitDuplicateCancel()">Annuler</button>
+      </div>
     </div>
   </div>
 </div>
