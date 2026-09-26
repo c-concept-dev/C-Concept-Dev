@@ -8925,9 +8925,15 @@ ${recent}`;
     }).join('');
   }
 
-  // Geste explicite UNIQUEMENT — jamais appelé automatiquement (queryLocalFonts() afficherait
-  // sinon une invite de permission intrusive et hors contexte à la simple ouverture d'un
-  // document). Chaque clic reste une tentative active de la thérapeute, jamais une boucle
+  // Geste explicite UNIQUEMENT — jamais appelé automatiquement. Technique universelle
+  // (@font-face src:local() + document.fonts.load()/.check(), spécification CSS Font Loading
+  // Module Level 3, comportement identique sur Chrome/Edge/Safari/Firefox — investigation vérifiée
+  // par test réel Chromium ET par la spécification officielle), remplace ici window.queryLocalFonts()
+  // (absent de Safari/Firefox, décision de conception d'Apple/Mozilla) UNIQUEMENT pour cet usage
+  // précis ("vérifier UNE police nommée"). N'affecte jamais adocEditorRefreshControls ci-dessus
+  // (usage distinct "lister toutes les polices" pour les suggestions du champ d'édition de bloc),
+  // qui reste sur queryLocalFonts(), Chrome/Edge uniquement — aucune énumération complète possible
+  // sans cette API. Chaque clic reste une tentative active de la thérapeute, jamais une boucle
   // automatique — un second clic après un échec reste donc toujours possible, jamais bloqué.
   window.adocCheckBrandKitFontLocally = async function (fontName) {
     const row = document.querySelector('#cc-ws-font-warning-banner .cc-ws-font-warning-row[data-font-name="' + CSS.escape(fontName) + '"]');
@@ -8936,13 +8942,22 @@ ${recent}`;
     const btn = row.querySelector('button');
     if (btn) btn.disabled = true;
     if (resultEl) resultEl.textContent = 'Vérification en cours…';
+    // Nom exact tel que stocké dans la charte, jamais modifié/suffixé (investigation : un suffixe
+    // ajouté, même "Regular", casse le matching local() — cf. risque documenté plus bas).
+    const probeFamily = '__adoc_font_probe_' + Math.random().toString(36).slice(2);
+    const probeStyle = document.createElement('style');
+    probeStyle.textContent = '@font-face { font-family: "' + probeFamily.replace(/"/g, '') + '"; src: local("' + fontName.replace(/["\\]/g, '') + '"); }';
+    document.head.appendChild(probeStyle);
     try {
-      if (!window.queryLocalFonts) {
-        if (resultEl) resultEl.textContent = 'Ce navigateur ne peut pas vérifier les polices installées (utilisez Chrome/Edge sur ordinateur).';
-        return;
-      }
-      const fonts = await window.queryLocalFonts();
-      const found = fonts.some(function (f) { return f.family.toLowerCase() === fontName.trim().toLowerCase(); });
+      // Investigation : sans autre source (url()) de repli, document.fonts.load() REJETTE avec une
+      // NetworkError quand local() ne trouve rien — jamais un tableau vide. Catchée explicitement
+      // ici et traitée comme "non trouvée", jamais comme une erreur remontée à l'utilisatrice.
+      // Vérifié séparément (route.abort() intégral) : 0 requête réseau réelle n'est jamais déclenchée,
+      // quel que soit le résultat — cette NetworkError est un simple nom d'erreur du spec, inoffensif.
+      const loadPromise = document.fonts.load('16px "' + probeFamily + '"').then(function () { return true; }).catch(function () { return false; });
+      const timeoutPromise = new Promise(function (resolve) { setTimeout(function () { resolve('timeout'); }, 750); });
+      const raced = await Promise.race([loadPromise, timeoutPromise]);
+      const found = raced !== 'timeout' && raced && document.fonts.check('16px "' + probeFamily + '"');
       if (found) {
         // Une police installée localement est déjà utilisable directement par son nom en CSS,
         // sans lien ni fichier à charger — le style déjà posé (headingFont/bodyFont/accentFont)
@@ -8951,11 +8966,14 @@ ${recent}`;
         if (resultEl) resultEl.textContent = 'Police trouvée sur cet ordinateur — appliquée.';
         row.classList.add('resolved');
       } else {
-        if (resultEl) resultEl.textContent = 'Police non disponible sur cet appareil — le texte s’affichera dans la police de secours.';
+        // Message unique pour les 3 cas (non trouvée / timeout / rejet) — aucune distinction
+        // technique visible pour l'utilisatrice, mais mention honnête du risque de correspondance
+        // de nom (investigation : "Sinthya" vs "Sinthya Regular" ne matche jamais, faux négatif
+        // possible même si la police est réellement présente sous un nom légèrement différent).
+        if (resultEl) resultEl.textContent = 'Police non disponible sur cet appareil — le texte s’affichera dans la police de secours. Si cette police est installée sous un nom légèrement différent, elle pourrait ne pas être détectée.';
       }
-    } catch (e) {
-      if (resultEl) resultEl.textContent = 'Vérification impossible (permission refusée ou indisponible) — le texte s’affichera dans la police de secours.';
     } finally {
+      probeStyle.remove();
       if (btn) btn.disabled = false;
     }
   };
