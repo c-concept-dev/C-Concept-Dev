@@ -1615,6 +1615,10 @@
     .adoc-sc-callout-critical{ background: #fdeaea; border-color: #c0392b; }
     .adoc-sc-callout-success { background: #e8f5e9; border-color: #2e7d32; }
     .adoc-sc-list, .adoc-sc-table { margin: 0 0 1em; }
+    /* Audit capacités dormantes, Item 1 — .adoc-sc-image n'avait aucune marge basse (contrairement
+       à tous les autres types de bloc ci-dessus/ci-dessous) : le reset global `*{margin:0}` annule
+       la marge par défaut du <figure>, jamais restaurée depuis. */
+    .adoc-sc-image { margin: 0 0 1em; }
     .adoc-sc-list-el { margin: 0; padding-left: 1.4em; }
     .adoc-sc-list-el li { margin-bottom: 0.3em; }
     .adoc-sc-table-el { border-collapse: collapse; width: 100%; font-size: 13px; }
@@ -3101,7 +3105,37 @@
           </button>
           <div id="adoc-storage-result" style="font-size:9px;color:var(--muted);margin-top:4px;display:none;line-height:1.5;"></div>
         </div>
+        <!-- Audit capacités dormantes, Item 3 — bascule expérimentale vers la route Worker
+             /llm-proxy (provider:"openai"), déjà fonctionnelle mais jamais exposée. Investigation :
+             SEUL le PLANIFICATEUR (adocPlanQuery, appel non-streaming dont la réponse JSON
+             non-streaming du Worker a EXACTEMENT la même forme côté "content[0].text" que l'appel
+             Anthropic) peut basculer sans risque. La génération visible (chat ET documents) passe
+             TOUJOURS par du streaming SSE dont le parseur client n'entend que le vocabulaire
+             d'évènements Anthropic (content_block_delta/input_json_delta/...) — le relais Worker,
+             lui, renvoie le flux OpenAI BRUT sans conversion : un vrai bascule là romprait
+             silencieusement l'affichage. Réservé au mode développeur, jamais un choix proposé aux
+             thérapeutes (n'affecte que l'étape d'analyse interne de la demande, jamais le texte
+             généré lui-même). -->
+        <div style="margin-top:8px;" class="adoc-dev-only">
+          <label for="adoc-provider-select" style="display:block;font-size:9px;color:var(--muted);margin-bottom:3px;">Moteur de planification (expérimental)</label>
+          <select id="adoc-provider-select" onchange="window.adocSetProviderPreference(this.value)"
+            style="width:100%;padding:4px;font-size:10px;border:1px solid var(--stone-300);border-radius:5px;background:var(--ivory);color:var(--ink);">
+            <option value="anthropic">Claude (par défaut)</option>
+            <option value="openai">GPT-4o (expérimental)</option>
+          </select>
+        </div>
       </div>
+
+      <!-- Audit capacités dormantes, Item 4 — GET /rag-stats déjà prêt côté Worker (répartition
+           par approche, top-20 livres), jamais consommé côté client (seule /library-stats, route
+           différente et déjà affichée ci-dessus, l'est). Bloc ADDITIF — jamais un remplacement de
+           la carte "Bibliothèque thérapeutique" ci-dessus. <details> natif : repli/dépli sans
+           JS supplémentaire, cohérent avec le principe déjà établi ailleurs (mémoire patient) de
+           ne jamais alourdir la colonne par défaut. -->
+      <details class="adoc-sidebar-section" id="adoc-ragstats-details" style="padding:10px 18px;" ontoggle="if(this.open) window.adocLoadRagStats()">
+        <summary style="cursor:pointer;font-size:11px;font-weight:700;color:var(--ink);">Statistiques enrichies de la bibliothèque</summary>
+        <div id="adoc-ragstats-body" style="margin-top:8px;font-size:10px;color:var(--muted);">Chargement…</div>
+      </details>
 
       <!-- Changement purement visuel — l'usage réel de l'outil ne correspond plus à un suivi
            clinique approfondi entre séances, mais le mécanisme (adocKvPatientIdChange,
