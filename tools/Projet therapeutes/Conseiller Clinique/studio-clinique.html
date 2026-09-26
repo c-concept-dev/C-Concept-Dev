@@ -1905,6 +1905,23 @@
     }
     .cc-ws-legacy-banner[hidden] { display: none; }
     .cc-ws-legacy-banner .cc-ws-icon { flex-shrink: 0; width: 18px; height: 18px; margin-top: 1px; }
+    /* Chargement dynamique des polices de charte — même patron visuel que .cc-ws-legacy-banner,
+       jamais un second système de bandeau. Une ligne (.cc-ws-font-warning-row) par police en
+       échec, jamais un bloc unique fusionnant plusieurs polices. */
+    .cc-ws-font-warning-banner { background: var(--terracotta-100); }
+    .cc-ws-font-warning-banner[hidden] { display: none; }
+    .cc-ws-font-warning-row {
+      display: flex; align-items: flex-start; gap: 10px; padding: 10px 20px;
+      color: var(--terracotta-700); font-size: 13px; line-height: 1.5;
+      border-top: 1px solid rgba(0,0,0,0.06);
+    }
+    .cc-ws-font-warning-row:first-child { border-top: none; }
+    .cc-ws-font-warning-row .cc-ws-icon { flex-shrink: 0; width: 18px; height: 18px; margin-top: 1px; }
+    .cc-ws-font-warning-body { display: flex; flex-direction: column; gap: 6px; }
+    .cc-ws-font-warning-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .cc-ws-font-warning-result { font-size: 12px; color: var(--terracotta-700); }
+    .cc-ws-font-warning-row.resolved { color: var(--petrol-950); background: var(--petrol-100); }
+    .cc-ws-font-warning-row.resolved .cc-ws-font-warning-result { color: var(--petrol-950); font-weight: 600; }
     .cc-ws-body { flex: 1; display: flex; min-height: 0; }
     .cc-ws-panel {
       width: 280px; flex-shrink: 0; background: var(--paper); border-right: 1px solid var(--stone-200);
@@ -3494,6 +3511,10 @@
     <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-info"></use></svg>
     <span id="cc-ws-legacy-banner-text">Document HTML : l’édition directe, la correction IA, l’enregistrement et l’export sont disponibles. Les citations ne disposent pas du contrôle fin du moteur structuré.</span>
   </div>
+  <!-- Chargement dynamique des polices de charte — un bandeau par police de la charte active
+       introuvable sur Google Fonts, construit dynamiquement par adocRenderBrandKitFontWarnings
+       (jamais un contenu statique), jamais un échec silencieux comme avant ce lot. -->
+  <div class="cc-ws-font-warning-banner" id="cc-ws-font-warning-banner" role="status" hidden></div>
   <div class="cc-ws-body">
     <aside class="cc-ws-panel" id="cc-ws-panel">
       <div>
