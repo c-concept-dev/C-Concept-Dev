@@ -189,6 +189,12 @@
       e.preventDefault(); // sinon le navigateur ouvre son propre "Ajouter un favori"
       adocDevMode = !adocDevMode;
       document.body.classList.toggle('adoc-devmode-on', adocDevMode);
+      // Audit capacités dormantes, Item 3 — reflète la préférence déjà persistée (localStorage)
+      // à chaque ouverture du panneau, jamais réinitialisée silencieusement à "anthropic".
+      if (adocDevMode) {
+        const sel = document.getElementById('adoc-provider-select');
+        if (sel) sel.value = adocGetProviderPreference();
+      }
     }
   });
 
@@ -401,6 +407,21 @@
     if (!key) _adocWarnMissingApiKey();
     return key;
   }
+
+  // Audit capacités dormantes, Item 3 — préférence de moteur pour le PLANIFICATEUR uniquement
+  // (adocPlanQuery), jamais pour la génération visible (chat/documents), toujours en streaming
+  // SSE au vocabulaire Anthropic-only, incompatible avec le relais OpenAI brut du Worker (cf.
+  // commentaire d'investigation dans studio-clinique.html, bloc mode développeur). Persistée en
+  // localStorage comme les autres réglages légers de ce fichier (workerApiKey, etc.), jamais un
+  // choix par défaut différent d'"anthropic" (comportement historique inchangé sans action
+  // explicite en mode développeur).
+  function adocGetProviderPreference() {
+    try { return localStorage.getItem('adocProviderPreference') || 'anthropic'; }
+    catch (e) { return 'anthropic'; }
+  }
+  window.adocSetProviderPreference = function (value) {
+    try { localStorage.setItem('adocProviderPreference', value === 'openai' ? 'openai' : 'anthropic'); } catch (e) {}
+  };
 
   // ÉCRAN DE CONNEXION (construction, cf. rapport d'investigation) — seul point d'entrée qui
   // pose désormais 'workerApiKey' dans localStorage : jamais tapée à la main par l'utilisatrice
@@ -1322,11 +1343,18 @@ RÈGLES ABSOLUES :
   vector_angles ≤ 2 entrées). Ne jamais dépasser 800 tokens de sortie JSON.`;
 
     try {
+      // Audit capacités dormantes, Item 3 — seul point d'appel où la bascule provider:'openai'
+      // est réellement sans risque (non-streaming, réponse content[0].text de forme identique
+      // côté Worker pour les deux fournisseurs). Le champ model Anthropic ne doit JAMAIS être
+      // envoyé à OpenAI (nom de modèle invalide côté leur API) — omis, le Worker retombe sur son
+      // propre défaut ("gpt-4o").
+      const useOpenAI = adocGetProviderPreference() === 'openai';
       const r = await fetch(workerUrl, {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
         body: JSON.stringify({ payload: {
+          provider: useOpenAI ? 'openai' : undefined,
           // P2-4 : Sonnet pour supervision/analyse_cas, Haiku sinon
-          model: (() => {
+          model: useOpenAI ? undefined : (() => {
             const ci = (adocSessionContext + ' ' + userMessage).toLowerCase();
             return (ci.includes('supervision') || ci.includes('analyse de cas') || ci.includes('analyse_cas') || ci.includes('conceptualisation'))
               ? 'claude-sonnet-4-6'
@@ -4666,7 +4694,15 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
 
     const dlBtn = document.createElement('button');
     dlBtn.className = 'adoc-output-dl';
-    dlBtn.style.background = meta.color;
+    // Audit capacités dormantes, Item 2 — un style inline sur TOUTE couleur par format tuait
+    // silencieusement le seul hover réellement défini en CSS (.adoc-output-dl-pdf:hover), un style
+    // inline l'emportant toujours sur une classe non-!important. Confirmé par lecture (meta.color
+    // n'est utilisé nulle part ailleurs qu'ici pour CE bouton) : seul le format pdf porte une paire
+    // classe de base + hover dédiée (#C44/#A33) — les autres formats (docx/pptx/xlsx/...) n'ont
+    // aucune classe équivalente, donc gardent leur couleur via style inline, inchangé, pour ne
+    // jamais perdre leur teinte de marque au profit du fond par défaut de .adoc-output-dl.
+    if (ext === 'pdf') dlBtn.classList.add('adoc-output-dl-pdf');
+    else dlBtn.style.background = meta.color;
     dlBtn.title = 'Exporter ' + meta.label;
     dlBtn.setAttribute('aria-label', 'Exporter ' + meta.label);
     dlBtn.innerHTML = adocIconSvg('icon-download');
@@ -5893,6 +5929,51 @@ ${recent}`;
     } finally {
       btn.disabled = false;
       btn.innerHTML = adocIconSvg('icon-cloud') + ' Jauge d’usage D1/R2';
+    }
+  };
+
+  // Audit capacités dormantes, Item 4 — GET /rag-stats (répartition par approche + top-20 livres),
+  // ADDITIF à la carte "Bibliothèque thérapeutique" (adocLoadLibraryStats/#adoc-stats) déjà
+  // affichée juste au-dessus, jamais un remplacement. Chargé UNE SEULE FOIS à l'ouverture du
+  // <details> (jamais au chargement de la page, jargon technique hors du parcours normal), même
+  // principe de repli d'erreur explicite que adocRunStorageStats ci-dessus.
+  let adocRagStatsLoaded = false;
+  window.adocLoadRagStats = async function () {
+    if (adocRagStatsLoaded) return;
+    const body = document.getElementById('adoc-ragstats-body');
+    if (!body) return;
+    adocRagStatsLoaded = true;
+    try {
+      const workerUrl = adocGetWorkerUrl();
+      const resp = await fetch(workerUrl.replace(/\/+$/, '') + '/rag-stats', { headers: { 'X-API-Key': adocGetApiKey() } });
+      const data = await resp.json();
+      if (data.error) {
+        body.innerHTML = adocIconSvg('icon-error') + ' ' + adocEsc(data.error);
+        adocRagStatsLoaded = false; // une vraie erreur reste réessayable au prochain dépli
+        return;
+      }
+      const approachRows = (data.by_approach || []).map((a) =>
+        '<tr><td style="padding:1px 4px">' + adocEsc(a.approach || '—') + '</td>'
+        + '<td style="padding:1px 4px;text-align:right">' + (a.chunks || 0).toLocaleString('fr') + '</td>'
+        + '<td style="padding:1px 4px;text-align:right">' + (a.books || 0).toLocaleString('fr') + '</td></tr>'
+      ).join('');
+      const topBooksRows = (data.top_books || []).map((b) =>
+        '<tr><td style="padding:1px 4px">' + adocEsc(b.book_title || '—') + (b.author ? ' <span style="color:var(--muted)">— ' + adocEsc(b.author) + '</span>' : '') + '</td>'
+        + '<td style="padding:1px 4px;text-align:right">' + (b.chunks || 0).toLocaleString('fr') + '</td></tr>'
+      ).join('');
+      body.innerHTML =
+        '<div style="font-weight:600;color:var(--terracotta-700);margin-bottom:2px;">Répartition par approche</div>'
+        + '<table style="width:100%;font-size:9px;border-collapse:collapse;margin-bottom:8px;">'
+        + '<tr style="color:var(--muted);"><td>Approche</td><td style="text-align:right">Passages</td><td style="text-align:right">Livres</td></tr>'
+        + (approachRows || '<tr><td colspan="3">Aucune donnée.</td></tr>')
+        + '</table>'
+        + '<div style="font-weight:600;color:var(--terracotta-700);margin-bottom:2px;">Livres les plus utilisés</div>'
+        + '<table style="width:100%;font-size:9px;border-collapse:collapse;">'
+        + (topBooksRows || '<tr><td>Aucune donnée.</td></tr>')
+        + '</table>';
+    } catch (e) {
+      body.innerHTML = adocIconSvg('icon-error') + ' Erreur : ' + adocEsc(e.message);
+      adocRagStatsLoaded = false;
     }
   };
 
