@@ -1,3 +1,23 @@
+# ══════════════════════════════════════════════════════════════════
+# ATTENTION AU DÉPLOIEMENT
+#
+# Toujours déployer ainsi, depuis ce dossier :
+#
+#     npx wrangler deploy --config wrangler.toml
+#
+# SANS « --config », wrangler remonte à la racine du dépôt et prend
+# wrangler.jsonc (le site statique « c-concept-dev ») : il remplacerait
+# alors ce proxy de 3,1 Mo et ses cinq liaisons par un worker de
+# 18 Ko. Vérifié le 27/09/2026.
+#
+# Un essai à blanc correct annonce ~3 175 KiB, 22 modules, et les cinq
+# liaisons CLONE_KV, DB, VECTOR_INDEX, BRAND_ASSETS, AI :
+#
+#     npx wrangler deploy --config wrangler.toml --dry-run
+#
+# Si les chiffres diffèrent, ne pas déployer.
+# ══════════════════════════════════════════════════════════════════
+
 name = "clone-proxy"
 main = "index.js"
 compatibility_date = "2026-03-08"
@@ -29,5 +49,31 @@ binding = "AI"
 binding = "BRAND_ASSETS"
 bucket_name = "studio-clinique-brand-assets"
 
-# ── Secrets (via Dashboard ou wrangler secret put) ────────────────
-# ANTHROPIC_API_KEY, CF_ACCOUNT_ID, CF_API_TOKEN, PEXELS_API_KEY, GOOGLE_TTS_KEY, OPENAI_API_KEY
+# ── Secrets (via Dashboard ou `wrangler secret put`) ──────────────
+# Jamais déclarés ici : ce fichier est versionné. Un déploiement de code
+# ne les emporte pas — ils survivent à `wrangler deploy`.
+#
+# Liste relevée sur le Worker le 27/09/2026 :
+#   ADOC_LOGIN_PASSWORD      mot de passe de l'écran de connexion
+#   ANTHROPIC_API_KEY
+#   CF_ACCOUNT_ID
+#   CF_API_TOKEN
+#   GOOGLE_TTS_KEY
+#   OPENAI_API_KEY
+#   PEXELS_API_KEY           clé Pexels ; ne sort jamais de Cloudflare
+#   PEXELS_VIDEO_PROXY_KEY   portée réduite : N'OUVRE QUE les deux routes
+#                            /pexels/videos/… ci-dessous. Utilisable par
+#                            plusieurs logiciels, chacun la configurant de
+#                            son côté, et JAMAIS dans du JavaScript servi
+#                            à un navigateur.
+#   SERPAPI_KEY
+#   WORKER_API_KEY           clé maîtresse : ouvre toutes les routes
+#                            protégées. À ne confier à aucun poste client.
+
+# ── Routes vidéo Pexels (ajoutées le 27/09/2026) ──────────────────
+# Gardées par PEXELS_VIDEO_PROXY_KEY, en-tête X-API-Key, lecture seule :
+#   GET /pexels/videos/search?query=…&per_page=…&page=…
+#   GET /pexels/videos/<identifiant numérique>
+# Elles sont traitées avant la garde générique, comme /login, parce
+# qu'elles ont leur propre contrôle d'accès, plus étroit. Le quota Pexels
+# épuisé est relayé en 429 avec son en-tête Retry-After, jamais en 502.
