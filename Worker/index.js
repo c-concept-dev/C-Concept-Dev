@@ -55551,7 +55551,16 @@ async function adocPixabayVideos(request2, env2, identifiant) {
       const v = entrant.searchParams.get(nom);
       if (v !== null && v !== '') sortant.searchParams.set(nom, v.slice(0, 200));
     }
-    if (!sortant.searchParams.get('per_page')) sortant.searchParams.set('per_page', '15');
+    // Pixabay n'accepte per_page qu'entre 3 et 200 et répond 400 en dehors —
+    // un refus opaque une fois relayé. On borne ici plutôt que de laisser une
+    // valeur invalide atteindre leur API.
+    const demande = parseInt(sortant.searchParams.get('per_page') || '', 10);
+    const parPage = Number.isFinite(demande) ? Math.min(200, Math.max(3, demande)) : 15;
+    sortant.searchParams.set('per_page', String(parPage));
+    const pageDemandee = parseInt(sortant.searchParams.get('page') || '', 10);
+    if (Number.isFinite(pageDemandee)) {
+      sortant.searchParams.set('page', String(Math.max(1, pageDemandee)));
+    }
     // Par défaut on écarte ce qui ne convient pas à tous les publics : cet
     // outil sert à préparer des séances, et le réglage reste surchargeable.
     if (!sortant.searchParams.get('safesearch')) sortant.searchParams.set('safesearch', 'true');
@@ -55585,9 +55594,23 @@ async function adocPixabayVideos(request2, env2, identifiant) {
                  ...(reste ? { 'Retry-After': reste } : {}) },
     });
   }
+  if (reponse.status === 400) {
+    // Un 400 de Pixabay est un diagnostic utile — « per_page is out of valid
+    // range », « key is invalid » — et le taire oblige à deviner. On le
+    // relaie donc, mais expurgé : leur message pourrait recopier un
+    // paramètre, et le paramètre « key » en est un.
+    let detail = '';
+    try {
+      detail = (await reponse.text())
+        .replace(/[0-9]{6,10}-[a-zA-Z0-9]{20,40}/g, '<clé>')
+        .replace(/key=[^&\s"']*/gi, 'key=<clé>')
+        .slice(0, 200);
+    } catch (err) { /* sans corps lisible, le code suffit */ }
+    return jsonErr('Pixabay rejected the request' + (detail ? ': ' + detail : ''), 400);
+  }
   if (!reponse.ok) {
-    // Le corps d'erreur de Pixabay est du texte brut : il n'est pas relayé,
-    // il pourrait nommer la clé ou le compte.
+    // Les autres corps d'erreur ne sont pas relayés : ils pourraient nommer
+    // le compte.
     return jsonErr('Pixabay responded ' + reponse.status, 502);
   }
   const texte = await reponse.text();
