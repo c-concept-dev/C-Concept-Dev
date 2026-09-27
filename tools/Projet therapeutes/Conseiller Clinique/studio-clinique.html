@@ -1684,21 +1684,11 @@
     .adoc-sc-video-caption { font-size: 12px; color: var(--muted); margin-top: 4px; }
     .adoc-sc-video-caption a { color: inherit; }
     .adoc-sc-video-warning { font-size: 11px; color: var(--terracotta-700); margin-top: 2px; }
-    /* LOT 3 Présentation — quiz simple auto-rythmé. .adoc-sc-quiz-reveal masqué UNIQUEMENT ici
-       (contexte live/plein écran, cette feuille de style) — jamais dans le rendu lui-même : les
-       enveloppes d'export autonomes (adocClinicalDocumentWrapHTML, adocBuildCarrouselPdfPagesHTML)
-       ont leur PROPRE <style> qui ne définit jamais cette règle, donc la bonne réponse/explication
-       y reste visible par défaut, sans code d'export dédié (cf. rapport, investigation point 5). */
-    .adoc-sc-quiz { margin: 0 0 1em; border: 1px solid var(--adoc-sc-card-border, var(--stone-300)); border-radius: 8px; padding: 14px; }
-    .adoc-sc-quiz-question { font-weight: 600; margin: 0 0 0.6em; }
-    .adoc-sc-quiz-options { display: flex; flex-direction: column; gap: 6px; margin-bottom: 0.6em; }
-    .adoc-sc-quiz-option { text-align: left; padding: 8px 12px; border: 1px solid var(--adoc-sc-card-border, var(--stone-300)); border-radius: 6px; background: #fff; cursor: pointer; font: inherit; color: inherit; }
-    .adoc-sc-quiz-option:disabled { cursor: default; }
-    .adoc-sc-quiz-option.is-correct { background: #e8f5e9; border-color: #2e7d32; font-weight: 600; }
-    .adoc-sc-quiz-option.is-incorrect { background: #fdeaea; border-color: #c0392b; }
-    .adoc-sc-quiz-reveal { display: none; padding-top: 0.5em; border-top: 1px dashed var(--adoc-sc-card-border, var(--stone-300)); font-size: 0.92em; }
-    .adoc-sc-quiz-reveal.is-shown { display: block; }
-    .adoc-sc-quiz-reveal p { margin: 0.3em 0 0; }
+    /* LOT A (export Présentation autonome) — CSS du quiz déplacée en constantes JS partagées
+       (ADOC_QUIZ_STATIC_CSS/ADOC_QUIZ_INTERACTIVE_MASK_CSS, studio-clinique-core.js, injectées ici
+       au chargement) : une seule source, réutilisée aussi par l'export autonome interactif et par
+       les enveloppes d'export classiques (jamais deux copies à maintenir en parallèle). Comportement
+       visuel de CETTE page strictement inchangé. */
     .adoc-sc-list-el { margin: 0; padding-left: 1.4em; }
     .adoc-sc-list-el li { margin-bottom: 0.3em; }
     .adoc-sc-table-el { border-collapse: collapse; width: 100%; font-size: 13px; }
@@ -1824,26 +1814,11 @@
        positionnement libre — cette règle ne doit jamais s'y appliquer, même sans effet visuel
        réel (position:relative sans décalage n'a aucun rendu propre), par prudence explicite. */
     .adoc-sc-card .adoc-sc-block { position: relative; }
-    /* CORRECTIF couche visuelle Présentation (cf. audit visuel) — nouvelles classes DÉDIÉES,
-       jamais un réemploi de .adoc-sc-carrousel/.adoc-sc-card ci-dessus (qui restent STRICTEMENT
-       inchangées pour Carrousel). Empilement VERTICAL pleine largeur (comme une Fiche), jamais la
-       rangée horizontale défilante pensée pour des vignettes Carrousel — cf.
-       adocRenderPresentationHTML, studio-clinique-core.js. */
-    .adoc-sc-presentation { display: flex; flex-direction: column; gap: 28px; }
-    .adoc-sc-presentation-slide-num {
-      display: block; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
-      color: var(--adoc-presentation-accent, #8f6a1f); margin-bottom: 6px;
-    }
-    /* Ratio paysage explicite (cohérent avec le mode plein écran, aspect-ratio:4/3 déjà choisi au
-       Lot 1) — jamais deviné a posteriori en plein écran seulement (cause du rendu "façon
-       Instagram" en édition, cf. audit). `.adoc-sc-card` ci-dessus n'est plus un enfant direct
-       d'un conteneur flex ici (imbriqué sous .adoc-sc-presentation-slide) : sa règle générique
-       `flex:0 0 320px` devient un no-op, aucune neutralisation à écrire — la carte retombe sur
-       width:auto (pleine largeur de son parent). */
-    .adoc-sc-presentation-slide .adoc-sc-card {
-      aspect-ratio: 4 / 3; box-sizing: border-box; overflow: auto;
-      border-top: 4px solid var(--adoc-presentation-accent, #8f6a1f);
-    }
+    /* LOT A (export Présentation autonome) — mise en page de diapositive (.adoc-sc-presentation*)
+       déplacée en constante JS partagée (ADOC_PRESENTATION_SLIDE_CSS, studio-clinique-core.js,
+       injectée ici au chargement) : une seule source, réutilisée aussi par l'export autonome
+       interactif et les enveloppes d'export classiques. Comportement visuel de CETTE page
+       strictement inchangé — seule la SOURCE change. */
     /* Largeur pleine de la zone de travail pour ce documentKind uniquement (garde conditionnelle
        sur docKind dans adocOpenWorkspace, jamais un changement global qui affecterait les 5 autres
        types — cf. rapport). */
@@ -1893,7 +1868,9 @@
       font-family: var(--adoc-sc-heading-font, "Source Serif 4", Georgia, serif);
       margin: 0 0 10px; font-size: 1.1rem;
     }
-    .adoc-sc-card-img { width: 100%; border-radius: 8px; margin-bottom: 10px; display: block; }
+    /* LOT A (export Présentation autonome) — déplacée en constante JS partagée (ADOC_CARD_IMG_CSS,
+       studio-clinique-core.js, injectée ici au chargement) : une seule source, réutilisée aussi par
+       l'export autonome et les enveloppes d'export classiques. Comportement inchangé. */
     /* Item 68 — affordance discrète (curseur texte + soulignement pointillé au survol),
        jamais un panneau de style (Option A) : réutilise .cc-ws-block-editable, déjà posée
        par adocWsSetupBlockEditing, plutôt qu'une nouvelle classe d'activation. */
@@ -1916,81 +1893,13 @@
     }
     #cc-workspace.open { display: flex; }
 
-    /* LOT 1 Présentation (6e documentKind) — mode plein écran de navigation. z-index supérieur à
-       #cc-workspace (8200) : cette superposition s'affiche PAR-DESSUS l'espace de travail déjà
-       ouvert, jamais à sa place (le bouton "Fermer" ci-dessous quitte uniquement ce mode, revient
-       à l'espace de travail normal, jamais à la conversation). */
-    #cc-ws-present-overlay {
-      display: none; position: fixed; inset: 0; z-index: 8300; flex-direction: column;
-      background: #14211f; color: #fff;
-    }
-    #cc-ws-present-overlay.open { display: flex; }
-    .cc-ws-present-slide-wrap {
-      flex: 1; display: flex; align-items: center; justify-content: center; gap: 16px; padding: 24px; min-height: 0;
-    }
-    .cc-ws-present-slide-outer {
-      width: 100%; max-width: 1100px; aspect-ratio: 4 / 3; max-height: 82vh; display: flex; align-items: center; justify-content: center; overflow: hidden;
-    }
-    .cc-ws-present-slide-inner {
-      width: 100%; height: 100%; overflow: hidden; opacity: 1; transform: translateX(0);
-      transition: opacity 260ms ease, transform 260ms ease;
-    }
-    /* Une diapositive réutilise .adoc-sc-card TEL QUEL (adocRenderCardHTML) — variante plein-bleed,
-       même précédent que .cc-preview-body .cc-ws-doc-card { max-width: none; } (ligne ~2559).
-       CORRECTIF — la carte est désormais enveloppée dans .adoc-sc-doc (adocPresentRenderSlideHTML,
-       cf. studio-clinique-core.js) pour restaurer la couleur/police/interligne du CONTENU, jamais
-       héritées auparavant (cause du texte invisible, cf. audit visuel). Un div .adoc-sc-doc sans
-       hauteur propre resterait à height:auto (content-box) : height:100% ci-dessous sur
-      .adoc-sc-card deviendrait alors indéterminé (la chaîne de pourcentages exige une hauteur
-       EXPLICITE à CHAQUE ancêtre) — d'où cette règle dédiée, scopée au seul mode plein écran. */
-    .cc-ws-present-slide-inner .adoc-sc-doc { height: 100%; }
-    .cc-ws-present-slide-inner .adoc-sc-card {
-      width: 100%; height: 100%; max-width: none; box-sizing: border-box; overflow: auto;
-    }
-    .cc-ws-present-slide-inner.cc-ws-present-out { opacity: 0; }
-    /* LOT 2 Présentation, Partie C — mécanisme générique de révélation progressive : une SEULE
-       classe posée par JS (adocPresentApplyReveal) sur CHAQUE bloc de contenu d'une diapositive
-       en mode plein écran (jamais un mécanisme différent par type de bloc — paragraphe, liste,
-       image, tableau, callout traités identiquement). Portée à .cc-ws-present-slide-inner
-       uniquement : n'affecte jamais le rendu normal de l'espace de travail, l'export PDF, ni les
-       Carrousels (adocRenderCardHTML/adocRenderBlockHTML restent inchangés, cf. rapport). */
-    .cc-ws-present-slide-inner .adoc-sc-reveal {
-      opacity: 0; transform: translateY(10px); transition: opacity 220ms ease, transform 220ms ease;
-      /* pointer-events:none — un bloc pas encore révélé reste invisible MAIS resterait cliquable
-         sans cette règle (une opacité à 0 ne retire jamais un élément du flux d'interaction),
-         créant une zone cliquable invisible. Repéré en investiguant la compatibilité avec la
-         Partie D (interactions au clic) — corrigé ici, dans le périmètre de la Partie C elle-même,
-         avant toute construction de la Partie D (cf. rapport). */
-      pointer-events: none;
-    }
-    .cc-ws-present-slide-inner .adoc-sc-reveal.adoc-sc-reveal-shown { opacity: 1; transform: translateY(0); pointer-events: auto; }
-    .cc-ws-present-nav {
-      flex-shrink: 0; width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(255,255,255,.3);
-      background: rgba(255,255,255,.08); color: #fff; font-size: 22px; line-height: 1; cursor: pointer;
-    }
-    .cc-ws-present-nav:hover { background: rgba(255,255,255,.18); }
-    .cc-ws-present-nav:disabled { opacity: .3; cursor: default; }
-    .cc-ws-present-toolbar {
-      flex-shrink: 0; display: flex; align-items: center; justify-content: center; gap: 14px; padding: 10px 16px;
-      background: rgba(0,0,0,.25);
-    }
-    .cc-ws-present-counter { font-size: 13px; opacity: .8; }
-    .cc-ws-present-toolbar-btn {
-      background: rgba(255,255,255,.1); color: #fff; border: 1px solid rgba(255,255,255,.25); border-radius: 6px;
-      padding: 6px 14px; font-size: 13px; cursor: pointer;
-    }
-    .cc-ws-present-toolbar-btn:hover { background: rgba(255,255,255,.2); }
-    #cc-ws-present-toc {
-      position: absolute; right: 16px; bottom: 64px; max-height: 60vh; overflow-y: auto; width: 300px;
-      background: var(--ivory); color: var(--ink); border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,.4); padding: 8px;
-    }
-    .cc-ws-present-toc-item {
-      display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; border: none; background: none;
-      padding: 8px 10px; border-radius: 6px; cursor: pointer; font: inherit; color: inherit;
-    }
-    .cc-ws-present-toc-item:hover { background: var(--petrol-100); }
-    .cc-ws-present-toc-num { font-weight: 700; opacity: .6; min-width: 1.5em; }
-    .cc-ws-present-toc-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* LOT A (export Présentation autonome) — chrome du mode plein écran (#cc-ws-present-overlay et
+       tout son contenu) déplacé en constante JS partagée (ADOC_PRESENT_FULLSCREEN_CSS,
+       studio-clinique-core.js, injectée ici au chargement) : une seule source, réutilisée à
+       l'identique par l'export autonome interactif (jamais une seconde définition qui divergerait
+       avec le temps). Comportement visuel de CETTE page strictement inchangé — seule la SOURCE
+       change. z-index supérieur à #cc-workspace (8200) : cette superposition s'affiche PAR-DESSUS
+       l'espace de travail déjà ouvert, jamais à sa place. */
     .cc-ws-topbar {
       flex-shrink: 0; background: var(--petrol-950); color: #fff; padding: 12px 20px;
       display: flex; align-items: center; gap: 14px;
@@ -3724,6 +3633,16 @@
     <button type="button" class="cc-ws-topbar-btn primary" id="cc-ws-present-btn" onclick="window.adocPresentOpen()" aria-label="Présenter en plein écran" hidden>
       <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-file-slides"></use></svg>
       <span>Présenter</span>
+    </button>
+    <!-- LOT A (export Présentation autonome) — même garde-fou EXACT que le bouton "Présenter"
+         ci-dessus (visible UNIQUEMENT pour une Présentation du moteur structuré, jamais legacy,
+         jamais les 5 autres documentKind). Distinct de "Exporter" (HTML classique, non interactif,
+         nécessite Studio Clinique pour un rendu fidèle) : ce fichier est autonome, ouvrable par
+         file:// n'importe où, reproduisant le mode "Présenter" complet (plein écran, révélation
+         progressive, quiz cliquable, sommaire). -->
+    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-export-standalone-presentation-btn" onclick="window.adocWsExportStandalonePresentation()" aria-label="Exporter la présentation interactive autonome" hidden>
+      <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-file-html"></use></svg>
+      <span>Exporter — présentation interactive</span>
     </button>
     <button type="button" class="cc-ws-close" id="cc-ws-close-btn" onclick="window.adocCloseWorkspace()"
       aria-label="Fermer l'espace de travail et revenir à la conversation">
