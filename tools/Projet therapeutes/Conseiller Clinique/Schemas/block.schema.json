@@ -630,6 +630,123 @@
         }
       }
     },
+    "questionnaireContent": {
+      "$comment": "LOT 5 Présentation — questionnaire à score cumulé type magazine (remplace le quiz simple du Lot 3 comme outil de référence pour ce besoin, mis de côté par Christophe ; le quizBlock ci-dessus reste inchangé, jamais retouché). Structure À PLAT (mêmes principes que table headers/rows, card.blocks) : `questions[].options[]` porte le barème directement sur l'option (points), jamais une table de correspondance séparée qui obligerait à recouper deux tableaux par index. `profiles[]` couvre la plage de score par tranche (minScore/maxScore) — la garantie qu'aucun trou ni chevauchement ne subsiste entre profils n'est PAS portée par ce schéma (JSON Schema pur ne peut pas comparer dynamiquement les bornes de plusieurs éléments d'un tableau entre eux, même limite déjà documentée pour quizContent.correctIndex) : le filet défensif réel est au runtime (studio-clinique-core.js, convertBlock, adocRepairQuestionnaireProfiles) qui recalcule des bornes contiguës et totales à partir des profils produits, jamais une simple formalité de schéma. `allowTwoPartners` : décidé par le modèle à la génération selon que le sujet s'y prête (jamais un défaut imposé, cf. prompt système).",
+      "type": "object",
+      "required": [
+        "questions",
+        "profiles",
+        "allowTwoPartners"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "questions": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 20,
+          "items": {
+            "type": "object",
+            "required": [
+              "text",
+              "options"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "text": {
+                "type": "string",
+                "minLength": 1
+              },
+              "options": {
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 6,
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "text",
+                    "points"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "text": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "points": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 20
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "profiles": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 6,
+          "items": {
+            "type": "object",
+            "required": [
+              "label",
+              "minScore",
+              "maxScore",
+              "interpretation"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "label": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minScore": {
+                "type": "integer"
+              },
+              "maxScore": {
+                "type": "integer"
+              },
+              "interpretation": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "allowTwoPartners": {
+          "type": "boolean"
+        }
+      }
+    },
+    "questionnaireBlock": {
+      "$comment": "LOT 5 Présentation — mêmes contraintes que quizBlock/videoBlock/imageBlock (id/type/content requis, additionalProperties false, aucun `style`). Réservé à `nestedBlock` (diapositive de Présentation), jamais à `editorialBlock` ni `cardOnlyBlock`, exactement la même restriction que quizBlock ci-dessus et pour la même raison (n'a de sens qu'à l'intérieur d'une diapositive). C'est l'outil de génération structurée (ADOC_STRUCTURED_PRESENTATION_TOOL uniquement) qui réserve la PRODUCTION du bloc à Présentation, jamais une seconde branche de schéma dupliquée pour cette même restriction (même patron que quizBlock).",
+      "type": "object",
+      "required": [
+        "id",
+        "type",
+        "content"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "const": "questionnaire"
+        },
+        "content": {
+          "$ref": "#/$defs/questionnaireContent"
+        },
+        "citationIds": {
+          "$ref": "#/$defs/citationIds"
+        },
+        "validation": {
+          "$ref": "#/$defs/blockValidation"
+        }
+      }
+    },
     "editorialBlock": {
       "$comment": "Blocs éditoriaux autorisés au niveau racine d'une Fiche synthèse (documentKind:'fiche') : tous les types sauf `card`.",
       "oneOf": [
@@ -660,7 +777,7 @@
       ]
     },
     "nestedBlock": {
-      "$comment": "Blocs autorisés dans card.content.blocks[] (imbriqué) : mêmes types que l'ensemble éditorial, sauf `table` (non imbriquée) et `card` (jamais imbriquée dans une autre carte). LOT 3 Présentation — quizBlock ajouté ici (jamais à editorialBlock/cardOnlyBlock, cf. quizBlock.$comment) : un quiz n'a de sens qu'à l'intérieur d'une diapositive.",
+      "$comment": "Blocs autorisés dans card.content.blocks[] (imbriqué) : mêmes types que l'ensemble éditorial, sauf `table` (non imbriquée) et `card` (jamais imbriquée dans une autre carte). LOT 3 Présentation — quizBlock ajouté ici (jamais à editorialBlock/cardOnlyBlock, cf. quizBlock.$comment) : un quiz n'a de sens qu'à l'intérieur d'une diapositive. LOT 5 Présentation — questionnaireBlock ajouté selon le même principe (cf. questionnaireBlock.$comment).",
       "oneOf": [
         {
           "$ref": "#/$defs/headingBlock"
@@ -685,6 +802,9 @@
         },
         {
           "$ref": "#/$defs/quizBlock"
+        },
+        {
+          "$ref": "#/$defs/questionnaireBlock"
         }
       ]
     },
@@ -727,6 +847,9 @@
     },
     {
       "$ref": "#/$defs/quizBlock"
+    },
+    {
+      "$ref": "#/$defs/questionnaireBlock"
     }
   ]
 }

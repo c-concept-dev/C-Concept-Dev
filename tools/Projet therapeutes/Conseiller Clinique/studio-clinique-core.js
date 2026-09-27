@@ -10698,6 +10698,58 @@ ${recent}`;
           '<div class="adoc-sc-quiz-reveal"><strong>Bonne réponse : ' + adocEsc(options[correctIndex] || '') + '</strong><p>' + adocEsc(c.explanation) + '</p></div>' +
           dragHandle + nestedResizeHandle + '</div>';
       }
+      // LOT 5 Présentation — questionnaire à score cumulé type magazine. État ENTIÈREMENT porté par
+      // LE bloc DOM (même principe que 'quiz' ci-dessus, jamais une variable globale partagée) :
+      // chaque question est un groupe de boutons (une seule sélection à la fois, .is-selected),
+      // le score/profil sont calculés au clic sur "Voir mon résultat" en relisant le DOM. Mode
+      // "deux partenaires" (investigation point 4, cf. rapport) : DEUX panneaux de questions
+      // totalement indépendants dans le DOM (même patron que le vrai outil Big_5_Quizz.html
+      // examiné cette nuit — quizForm/quizForm2 séparés — jamais un seul jeu de réponses partagé),
+      // bascule par simple affichage/masquage, jamais une perte de réponses au changement d'onglet.
+      // Barème (points) et grille des profils TOUJOURS présents dans le balisage (jamais un second
+      // mécanisme d'export dédié, cf. investigation point 5) : visibles par défaut (permet un
+      // calcul manuel sur un document imprimé, convention réelle des quiz de magazine — les points
+      // y sont typiquement affichés à côté de chaque réponse) ; seule la grille des profils est
+      // masquée en contexte interactif (ADOC_QUESTIONNAIRE_INTERACTIVE_CSS ci-dessous) puisque le
+      // résultat personnalisé calculé au clic la rend redondante pour qui répond à l'écran.
+      case 'questionnaire': {
+        const c = b.content;
+        const questions = c.questions || [];
+        const profiles = c.profiles || [];
+        const twoPartners = !!c.allowTwoPartners;
+        const qStyleAttr = nestedPosCSS ? ' style="' + adocEsc(nestedPosCSS) + '"' : '';
+        function renderQuestionnairePanel(panelNum) {
+          const qsHtml = questions.map(function (q, qi) {
+            const optsHtml = (q.options || []).map(function (opt) {
+              const pts = Math.max(0, opt.points || 0);
+              return '<button type="button" class="adoc-sc-questionnaire-option" data-points="' + pts + '" onclick="window.adocQuestionnaireSelectOption(this)">' +
+                adocEsc(opt.text) + '<span class="adoc-sc-questionnaire-option-points">(+' + pts + ')</span></button>';
+            }).join('');
+            return '<div class="adoc-sc-questionnaire-question" data-question-index="' + qi + '">' +
+              '<p class="adoc-sc-questionnaire-question-text">' + (qi + 1) + '. ' + adocEsc(q.text) + '</p>' +
+              '<div class="adoc-sc-questionnaire-options">' + optsHtml + '</div></div>';
+          }).join('');
+          return '<div class="adoc-sc-questionnaire-partner-panel" data-partner-panel="' + panelNum + '"' + (panelNum === 2 ? ' hidden' : '') + '>' + qsHtml + '</div>';
+        }
+        const scaleHtml = profiles.map(function (p) {
+          return '<li><strong>' + adocEsc(p.label) + '</strong> — ' + adocEsc(p.interpretation) + '</li>';
+        }).join('');
+        const partnersSwitchHtml = twoPartners
+          ? '<div class="adoc-sc-questionnaire-partners">' +
+              '<button type="button" class="adoc-sc-questionnaire-partner-btn is-active" data-partner="1" onclick="window.adocQuestionnaireSwitchPartner(this,1)">Partenaire 1</button>' +
+              '<button type="button" class="adoc-sc-questionnaire-partner-btn" data-partner="2" onclick="window.adocQuestionnaireSwitchPartner(this,2)">Partenaire 2</button>' +
+            '</div>'
+          : '';
+        const profilesJSON = adocEsc(JSON.stringify(profiles));
+        return '<div class="adoc-sc-block adoc-sc-questionnaire' + statusClass + '" id="' + adocEsc(b.id) + '"' + qStyleAttr +
+          ' data-two-partners="' + (twoPartners ? 'true' : 'false') + '" data-profiles="' + profilesJSON + '" role="group" aria-label="Questionnaire à score">' +
+          partnersSwitchHtml +
+          renderQuestionnairePanel(1) + (twoPartners ? renderQuestionnairePanel(2) : '') +
+          '<button type="button" class="adoc-sc-questionnaire-submit" onclick="window.adocQuestionnaireCalculerResultat(this)">Voir mon résultat</button>' +
+          '<div class="adoc-sc-questionnaire-result" hidden></div>' +
+          '<ul class="adoc-sc-questionnaire-scale">' + scaleHtml + '</ul>' +
+          dragHandle + nestedResizeHandle + '</div>';
+      }
       default:
         return '';
     }
@@ -10723,6 +10775,95 @@ ${recent}`;
     });
     const reveal = blockEl.querySelector('.adoc-sc-quiz-reveal');
     if (reveal) reveal.classList.add('is-shown');
+  };
+
+  // LOT 5 Présentation — sélection d'une option de questionnaire : une seule réponse à la fois
+  // PAR QUESTION (jamais par bloc entier comme le quiz, qui n'a qu'une seule question) — le
+  // scope de désélection des boutons frères est donc `.adoc-sc-questionnaire-options` (le groupe
+  // de LA question cliquée), jamais tout le bloc. Peut être re-cliquée (contrairement au quiz) :
+  // un questionnaire d'auto-évaluation autorise raisonnablement de changer d'avis avant de voir
+  // son résultat, décision simple assumée (cf. rapport).
+  window.adocQuestionnaireSelectOption = function (buttonEl) {
+    const optionsEl = buttonEl.closest('.adoc-sc-questionnaire-options');
+    if (!optionsEl) return;
+    optionsEl.querySelectorAll('.adoc-sc-questionnaire-option').forEach(function (btn) { btn.classList.remove('is-selected'); });
+    buttonEl.classList.add('is-selected');
+  };
+
+  // LOT 5 Présentation — bascule entre les deux panneaux de réponses indépendants (mode deux
+  // partenaires, investigation point 4). Les DEUX panneaux restent en permanence dans le DOM
+  // (masqués via [hidden], jamais détruits/recréés) : aucune réponse n'est jamais perdue au
+  // changement d'onglet, chaque partenaire retrouve exactement ses sélections précédentes.
+  window.adocQuestionnaireSwitchPartner = function (buttonEl, partnerNum) {
+    const blockEl = buttonEl.closest('.adoc-sc-questionnaire');
+    if (!blockEl) return;
+    blockEl.querySelectorAll('.adoc-sc-questionnaire-partner-btn').forEach(function (btn) { btn.classList.toggle('is-active', btn === buttonEl); });
+    blockEl.querySelectorAll('.adoc-sc-questionnaire-partner-panel').forEach(function (panel) {
+      panel.hidden = String(partnerNum) !== panel.dataset.partnerPanel;
+    });
+  };
+
+  // LOT 5 Présentation — additionne les points des réponses cochées d'UN panneau. Renvoie null
+  // (jamais 0 ni un score partiel) si au moins une question du panneau n'a aucune option
+  // sélectionnée — un calcul partiel produirait un score/profil trompeur, jamais construit ici.
+  function adocQuestionnaireScorePanel(panelEl) {
+    const questions = panelEl.querySelectorAll('.adoc-sc-questionnaire-question');
+    let score = 0;
+    for (let i = 0; i < questions.length; i++) {
+      const selected = questions[i].querySelector('.adoc-sc-questionnaire-option.is-selected');
+      if (!selected) return null;
+      score += parseInt(selected.dataset.points, 10) || 0;
+    }
+    return score;
+  }
+
+  // LOT 5 Présentation — trouve le profil couvrant `score`. adocRepairQuestionnaireProfiles
+  // (côté génération, convertBlock) garantit déjà une couverture totale et contiguë de la plage
+  // de score (bornes ±1000000 aux extrémités) : ce filet `|| profiles[profiles.length-1]` ne
+  // devrait donc JAMAIS servir en pratique — conservé uniquement comme ultime garde-fou, jamais
+  // comme mécanisme de correction réel (cf. rapport, filet défensif réel = adocRepairQuestionnaireProfiles).
+  function adocQuestionnaireFindProfile(profiles, score) {
+    for (let i = 0; i < profiles.length; i++) {
+      if (score >= profiles[i].minScore && score <= profiles[i].maxScore) return profiles[i];
+    }
+    return profiles[profiles.length - 1] || null;
+  }
+
+  // LOT 5 Présentation — clic sur "Voir mon résultat" : additionne, trouve le profil, affiche.
+  // Mode deux partenaires : les deux panneaux sont scorés indépendamment et affichés côte à côte
+  // (investigation point 4 — "comparés côte à côte", décision retenue : deux résultats distincts
+  // plutôt qu'une fusion qui inventerait une lecture clinique non fondée) avec une seule ligne
+  // neutre signalant si les profils convergent ou diffèrent, jamais un diagnostic de couple fabriqué.
+  window.adocQuestionnaireCalculerResultat = function (buttonEl) {
+    const blockEl = buttonEl.closest('.adoc-sc-questionnaire');
+    if (!blockEl) return;
+    let profiles;
+    try { profiles = JSON.parse(blockEl.dataset.profiles || '[]'); } catch (_e) { profiles = []; }
+    const panels = Array.from(blockEl.querySelectorAll('.adoc-sc-questionnaire-partner-panel'));
+    const resultEl = blockEl.querySelector('.adoc-sc-questionnaire-result');
+    if (!resultEl) return;
+    const scores = panels.map(function (panel) { return adocQuestionnaireScorePanel(panel); });
+    if (scores.some(function (s) { return s === null; })) {
+      resultEl.innerHTML = '<p class="adoc-sc-questionnaire-incomplete">Merci de répondre à toutes les questions avant de voir le résultat' +
+        (panels.length > 1 ? ' (pour chaque partenaire)' : '') + '.</p>';
+      resultEl.hidden = false;
+      return;
+    }
+    const entries = scores.map(function (score, i) {
+      return { label: panels.length > 1 ? 'Partenaire ' + (i + 1) : null, score: score, profile: adocQuestionnaireFindProfile(profiles, score) };
+    });
+    let html = entries.map(function (e) {
+      return '<div class="adoc-sc-questionnaire-result-entry">' +
+        (e.label ? '<p class="adoc-sc-questionnaire-result-partner">' + adocEsc(e.label) + '</p>' : '') +
+        '<p><strong>Score : ' + e.score + '</strong> — ' + adocEsc(e.profile ? e.profile.label : '') + '</p>' +
+        '<p>' + adocEsc(e.profile ? e.profile.interpretation : '') + '</p></div>';
+    }).join('');
+    if (entries.length === 2) {
+      const same = entries[0].profile && entries[1].profile && entries[0].profile.label === entries[1].profile.label;
+      html += '<p class="adoc-sc-questionnaire-compare">' + (same ? 'Vous partagez le même profil.' : 'Vos profils diffèrent — cela peut ouvrir une discussion utile.') + '</p>';
+    }
+    resultEl.innerHTML = html;
+    resultEl.hidden = false;
   };
 
   // ── Pilote 1 : Fiche synthèse (modèle minimal unique) ──
@@ -11090,7 +11231,7 @@ ${recent}`;
     return '<!DOCTYPE html><html lang="' + adocEsc(doc.language || 'fr') + '"><head><meta charset="UTF-8">' +
       adocEditorExportFonts(doc) + '<title>' + adocEsc(doc.title) + ' — Studio Clinique</title>' +
       '<style>:root{' + cssVars + '}' + ADOC_DOC_CONTENT_CSS +
-      ADOC_PRESENTATION_SLIDE_CSS + ADOC_QUIZ_STATIC_CSS + ADOC_CARD_IMG_CSS +
+      ADOC_PRESENTATION_SLIDE_CSS + ADOC_QUIZ_STATIC_CSS + ADOC_QUESTIONNAIRE_STATIC_CSS + ADOC_CARD_IMG_CSS +
       '</style></head><body>' + bodyHtml + '</body></html>';
   }
 
@@ -11145,7 +11286,7 @@ ${recent}`;
       // Correctif Lot A (découverte incidente) — mêmes trois ajouts que adocClinicalDocumentWrapHTML
       // ci-dessus, jamais le CSS de base ci-dessus retouché (déjà volontairement dupliqué depuis
       // celui-ci pour des raisons de mise en page @page, cf. commentaire de cette fonction).
-      ADOC_PRESENTATION_SLIDE_CSS + ADOC_QUIZ_STATIC_CSS + ADOC_CARD_IMG_CSS +
+      ADOC_PRESENTATION_SLIDE_CSS + ADOC_QUIZ_STATIC_CSS + ADOC_QUESTIONNAIRE_STATIC_CSS + ADOC_CARD_IMG_CSS +
       '</style></head><body>' + pages + '</body></html>';
   }
 
@@ -11420,7 +11561,7 @@ ${recent}`;
                 items: {
                   type: 'object',
                   properties: {
-                    type: { type: 'string', enum: ['heading', 'paragraph', 'callout', 'list', 'quote', 'image', 'quiz'] },
+                    type: { type: 'string', enum: ['heading', 'paragraph', 'callout', 'list', 'quote', 'image', 'quiz', 'questionnaire'] },
                     text: { type: 'string', description: 'Texte pour heading/paragraph/callout/quote ; QUESTION du quiz pour quiz ; chaîne vide sinon.' },
                     level: { type: 'integer', enum: [1, 2, 3], description: 'Niveau de titre (heading uniquement) ; 2 sinon.' },
                     visualRole: { type: 'string', enum: ['info', 'warning', 'critical', 'success'], description: 'callout uniquement ; "info" sinon.' },
@@ -11431,9 +11572,55 @@ ${recent}`;
                     quizOptions: { type: 'array', items: { type: 'string' }, description: 'quiz uniquement — 2 à 6 choix de réponse ; liste vide sinon.' },
                     quizCorrectIndex: { type: 'integer', description: 'quiz uniquement — index (0-based) de la bonne réponse dans quizOptions ; 0 sinon.' },
                     quizExplanation: { type: 'string', description: 'quiz uniquement — explication affichée avec la bonne réponse, TOUJOURS renseignée pour un quiz (jamais vide) ; chaîne vide sinon.' },
+                    // LOT 5 Présentation — questionnaire à score cumulé type magazine, distinct du quiz
+                    // (Décision Christophe : remplace le quiz simple comme outil de référence pour ce
+                    // besoin, quiz laissé intact). Structure À PLAT (mêmes conventions que rows pour
+                    // table) : chaque question porte directement ses options ET leur barème de points —
+                    // jamais une table de correspondance séparée à recouper par index.
+                    questionnaireQuestions: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        properties: {
+                          text: { type: 'string', description: 'Texte de la question.' },
+                          options: {
+                            type: 'array',
+                            items: {
+                              type: 'object',
+                              properties: {
+                                text: { type: 'string', description: "Texte de l'option de réponse." },
+                                points: { type: 'integer', description: 'Points attribués à CETTE option — le barème lui-même, cohérent avec un sens de progression logique (jamais des valeurs arbitraires).' },
+                              },
+                              required: ['text', 'points'],
+                              additionalProperties: false,
+                            },
+                            description: '2 à 6 options par question, chacune avec son propre nombre de points.',
+                          },
+                        },
+                        required: ['text', 'options'],
+                        additionalProperties: false,
+                      },
+                      description: 'questionnaire uniquement — au moins 2 questions ; liste vide sinon.',
+                    },
+                    questionnaireProfiles: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        properties: {
+                          label: { type: 'string', description: 'Nom court du profil de résultat.' },
+                          minScore: { type: 'integer', description: 'Borne basse (incluse) de la tranche de score de ce profil.' },
+                          maxScore: { type: 'integer', description: 'Borne haute (incluse) de la tranche de score de ce profil.' },
+                          interpretation: { type: 'string', description: 'Texte interprétant ce profil pour la personne qui obtient ce score.' },
+                        },
+                        required: ['label', 'minScore', 'maxScore', 'interpretation'],
+                        additionalProperties: false,
+                      },
+                      description: 'questionnaire uniquement — au moins 2 profils, COUVRANT ENSEMBLE toute la plage de score atteignable (du score minimal possible au score maximal possible), sans trou ni chevauchement entre les tranches ; liste vide sinon.',
+                    },
+                    questionnaireTwoPartners: { type: 'boolean', description: "questionnaire uniquement — true si le sujet se prête réellement à ce que deux partenaires répondent chacun séparément et comparent leurs profils (ex. thème de couple) ; false si le sujet est individuel ou ne s'y prête pas. Jamais true par défaut." },
                     citationEntryIds: { type: 'array', items: { type: 'string' }, description: "sourceSnapshotEntryId (ex. 'entry-3') des passages fournis qui soutiennent ce bloc — choisis EXACTEMENT parmi les identifiants listés dans le prompt, jamais inventés ; liste vide si aucune affirmation sourcée dans ce bloc." },
                   },
-                  required: ['type', 'text', 'level', 'visualRole', 'items', 'ordered', 'imageQuery', 'imageAlt', 'quizOptions', 'quizCorrectIndex', 'quizExplanation', 'citationEntryIds'],
+                  required: ['type', 'text', 'level', 'visualRole', 'items', 'ordered', 'imageQuery', 'imageAlt', 'quizOptions', 'quizCorrectIndex', 'quizExplanation', 'questionnaireQuestions', 'questionnaireProfiles', 'questionnaireTwoPartners', 'citationEntryIds'],
                   additionalProperties: false,
                 },
               },
@@ -11892,6 +12079,30 @@ ${recent}`;
           'réflexion. quizCorrectIndex : index (0-based) du choix correct dans quizOptions. ' +
           'quizExplanation : TOUJOURS renseignée (jamais vide) — explique pourquoi la bonne réponse ' +
           "est correcte, en une ou deux phrases claires, utile même à qui s'est trompé.\n\n" +
+          // LOT 5 Présentation — questionnaire à score cumulé type magazine, JAMAIS un synonyme du
+          // quiz ci-dessus (quiz = une bonne réponse ; questionnaire = un score qui s'additionne).
+          // Fréquence bornée comme le quiz (jamais plus d'un par présentation sauf demande explicite)
+          // — c'est un outil de fond, pas un gadget répété.
+          '── QUESTIONNAIRE À SCORE (bloc type="questionnaire", à l\'intérieur d\'une diapositive) ──\n' +
+          'Un bloc type="questionnaire" est disponible pour un vrai outil d\'auto-évaluation à score ' +
+          'cumulé (plusieurs questions, chaque réponse valant des points, un score final qui détermine ' +
+          "un profil) — jamais un synonyme du quiz de vérification ci-dessus. Utilise-le au plus une " +
+          'fois par présentation, SAUF demande explicite de l\'utilisatrice, et seulement quand le sujet ' +
+          "s'y prête réellement (thème d'auto-évaluation, de personnalité, de qualité de vie ou de " +
+          'couple — jamais forcé sur un sujet qui ne s\'y prête pas).\n' +
+          'questionnaireQuestions : 5 à 15 questions, chacune avec 2 à 6 options ; CHAQUE option porte ' +
+          'un nombre de points (points) qui doit avoir un sens de progression logique cohérent avec ce ' +
+          'que mesure la question (jamais des valeurs arbitraires ou aléatoires) — les options d\'une ' +
+          'même question doivent être ordonnées par points croissants ou décroissants de façon lisible.\n' +
+          'questionnaireProfiles : 2 à 6 profils de résultat, chacun avec minScore/maxScore. Les profils ' +
+          'DOIVENT COUVRIR ENSEMBLE TOUTE LA PLAGE DE SCORE ATTEIGNABLE, sans trou ni chevauchement : ' +
+          'calcule d\'abord le score minimal possible (somme des points minimaux de chaque question) et ' +
+          'le score maximal possible (somme des points maximaux de chaque question), puis découpe cette ' +
+          'plage entière en tranches contiguës (le maxScore d\'un profil doit être immédiatement suivi ' +
+          'par le minScore du profil suivant, sans laisser de score sans profil correspondant).\n' +
+          'questionnaireTwoPartners : true UNIQUEMENT si le sujet se prête réellement à ce que deux ' +
+          'partenaires répondent chacun séparément et comparent ensuite leurs profils (ex. couple) ; ' +
+          "false pour un sujet individuel — jamais true par défaut.\n\n" +
           '── TEXTE ──\n' +
           "Aucun emoji, aucun caractère Unicode décoratif (cercles ou carrés de couleur, symboles, " +
           "pictogrammes, flèches décoratives) nulle part dans le texte produit — texte propre uniquement.";
@@ -13021,6 +13232,37 @@ ${recent}`;
     // carte sur card.blocks pour Carrousel (profile.convertRawToBlocks) — LA MÊME logique de
     // conversion par type de bloc, jamais une seconde copie (régression #6).
     let blockSeq = 0;
+    // LOT 5 Présentation — filet défensif RÉEL contre un barème de profils incohérent (trou ou
+    // chevauchement entre tranches de score), exactement le même esprit que le clamp de
+    // correctIndex du quiz ci-dessous : JSON Schema pur ne peut pas garantir dynamiquement que
+    // plusieurs éléments d'un tableau (minScore/maxScore de chaque profil) se recouvrent
+    // correctement entre eux. Plutôt que de REJETER le bloc entier (perte de tout le travail du
+    // modèle pour un problème de bornes uniquement), cette fonction RECALCULE des bornes
+    // garanties contiguës et couvrant l'intégralité de la plage de score, à partir des seuls
+    // maxScore déclarés (triés par minScore d'origine) : le premier profil absorbe tout score
+    // inférieur, le dernier absorbe tout score supérieur, jamais un score sans profil
+    // correspondant au moment du calcul (adocQuestionnaireFindProfile ci-dessous n'a alors plus
+    // JAMAIS besoin d'un repli "aucun profil trouvé"). ±1000000 sert de borne infinie persistable
+    // en JSON (Infinity devient null par JSON.stringify) — très au-delà de tout score réellement
+    // atteignable (au plus 20 questions × 20 points = 400).
+    function adocRepairQuestionnaireProfiles(rawProfiles) {
+      const QUESTIONNAIRE_SCORE_SENTINEL = 1000000;
+      const sorted = rawProfiles.slice().sort(function(a, b) {
+        return (a.minScore - b.minScore) || (a.maxScore - b.maxScore);
+      });
+      const repaired = sorted.map(function(p) {
+        return { label: p.label, interpretation: p.interpretation, minScore: p.minScore, maxScore: p.maxScore };
+      });
+      for (let i = 0; i < repaired.length; i++) {
+        repaired[i].minScore = (i === 0) ? -QUESTIONNAIRE_SCORE_SENTINEL : (repaired[i - 1].maxScore + 1);
+      }
+      for (let i = 0; i < repaired.length; i++) {
+        repaired[i].maxScore = (i === repaired.length - 1) ? QUESTIONNAIRE_SCORE_SENTINEL : repaired[i + 1].minScore - 1;
+        if (repaired[i].maxScore < repaired[i].minScore) repaired[i].maxScore = repaired[i].minScore; // garde-fou : jamais une tranche inversée
+      }
+      return repaired;
+    }
+
     function convertBlock(b) {
       blockSeq++;
       const id = (b.type || 'block') + '-' + String(blockSeq).padStart(2, '0');
@@ -13056,6 +13298,31 @@ ${recent}`;
           const rawIndex = typeof b.quizCorrectIndex === 'number' ? b.quizCorrectIndex : 0;
           const correctIndex = Math.min(Math.max(0, rawIndex), options.length - 1);
           content = { question: question, options: options, correctIndex: correctIndex, explanation: explanation };
+          break;
+        }
+        // LOT 5 Présentation — questionnaire à score cumulé. Même filet de sécurité que 'image'/
+        // 'quiz' ci-dessus au niveau structurel (moins de 2 questions exploitables ou aucun profil
+        // exploitable → bloc entier rejeté, jamais persisté à moitié rempli) ; le filet SPÉCIFIQUE
+        // au barème (trou/chevauchement entre profils) est délégué à
+        // adocRepairQuestionnaireProfiles ci-dessus, qui ne rejette jamais rien — elle recalcule.
+        case 'questionnaire': {
+          const rawQuestions = (b.questionnaireQuestions || []).map(function(q) {
+            const qText = adocStripEmoji((q && q.text || '').trim());
+            const options = (q && q.options || []).filter(function(o) { return o && (o.text || '').trim(); }).map(function(o) {
+              const pts = typeof o.points === 'number' && isFinite(o.points) ? Math.max(0, Math.round(o.points)) : 0;
+              return { text: adocStripEmoji(o.text.trim()), points: pts };
+            });
+            if (!qText || options.length < 2) return null;
+            return { text: qText, options: options };
+          }).filter(Boolean);
+          const rawProfiles = (b.questionnaireProfiles || []).filter(function(p) {
+            return p && (p.label || '').trim() && (p.interpretation || '').trim() &&
+              typeof p.minScore === 'number' && isFinite(p.minScore) && typeof p.maxScore === 'number' && isFinite(p.maxScore);
+          }).map(function(p) {
+            return { label: adocStripEmoji(p.label.trim()), interpretation: adocStripEmoji(p.interpretation.trim()), minScore: Math.round(p.minScore), maxScore: Math.round(p.maxScore) };
+          });
+          if (rawQuestions.length < 2 || !rawProfiles.length) return null;
+          content = { questions: rawQuestions, profiles: adocRepairQuestionnaireProfiles(rawProfiles), allowTwoPartners: !!b.questionnaireTwoPartners };
           break;
         }
         default: return null;
@@ -14044,6 +14311,34 @@ ${recent}`;
   const ADOC_QUIZ_INTERACTIVE_MASK_CSS =
     '.adoc-sc-quiz-reveal{display:none;}' +
     '.adoc-sc-quiz-reveal.is-shown{display:block;}';
+  // LOT 5 Présentation — questionnaire à score cumulé. Base STATIQUE (même principe que
+  // ADOC_QUIZ_STATIC_CSS ci-dessus) : options, points et grille des profils TOUS visibles par
+  // défaut, donc déjà exploitables sans aucun ajout dans les enveloppes d'export classiques
+  // (adocClinicalDocumentWrapHTML/adocBuildCarrouselPdfPagesHTML, cf. investigation point 5) —
+  // un document imprimé reste utilisable : chaque option affiche son propre barème
+  // (.adoc-sc-questionnaire-option-points), et la grille des profils (.adoc-sc-questionnaire-scale)
+  // permet un calcul manuel de la tranche correspondante.
+  const ADOC_QUESTIONNAIRE_STATIC_CSS =
+    '.adoc-sc-questionnaire{margin:0 0 1em;border:1px solid var(--adoc-sc-card-border,var(--stone-300));border-radius:8px;padding:14px;}' +
+    '.adoc-sc-questionnaire-partners{display:flex;gap:8px;margin-bottom:0.8em;}' +
+    '.adoc-sc-questionnaire-partner-btn{padding:6px 14px;border:1px solid var(--adoc-sc-card-border,var(--stone-300));border-radius:6px;background:#fff;cursor:pointer;font:inherit;color:inherit;}' +
+    '.adoc-sc-questionnaire-partner-btn.is-active{background:var(--adoc-presentation-accent,#8f6a1f);color:#fff;border-color:transparent;}' +
+    '.adoc-sc-questionnaire-question{margin-bottom:0.9em;}' +
+    '.adoc-sc-questionnaire-question-text{font-weight:600;margin:0 0 0.5em;}' +
+    '.adoc-sc-questionnaire-options{display:flex;flex-direction:column;gap:6px;}' +
+    '.adoc-sc-questionnaire-option{text-align:left;padding:8px 12px;border:1px solid var(--adoc-sc-card-border,var(--stone-300));border-radius:6px;background:#fff;cursor:pointer;font:inherit;color:inherit;}' +
+    '.adoc-sc-questionnaire-option.is-selected{background:var(--adoc-presentation-accent,#8f6a1f);color:#fff;border-color:transparent;}' +
+    '.adoc-sc-questionnaire-option-points{margin-left:6px;font-size:0.85em;opacity:0.75;}' +
+    '.adoc-sc-questionnaire-submit{margin-top:0.4em;padding:8px 16px;border:1px solid var(--adoc-sc-card-border,var(--stone-300));border-radius:6px;background:#fff;cursor:pointer;font:inherit;color:inherit;font-weight:600;}' +
+    '.adoc-sc-questionnaire-result{margin-top:0.8em;padding-top:0.6em;border-top:1px dashed var(--adoc-sc-card-border,var(--stone-300));}' +
+    '.adoc-sc-questionnaire-result-entry{margin-bottom:0.6em;}' +
+    '.adoc-sc-questionnaire-result-partner{font-weight:700;margin:0 0 0.2em;}' +
+    '.adoc-sc-questionnaire-scale{margin-top:0.8em;padding-top:0.6em;border-top:1px dashed var(--adoc-sc-card-border,var(--stone-300));font-size:0.9em;padding-left:1.2em;}';
+  // Masquage interactif — UNIQUEMENT pour un contexte doté du bouton "Voir mon résultat" (le
+  // résultat personnalisé calculé au clic rend la grille complète redondante) : la page vivante
+  // et l'export autonome interactif. JAMAIS ajouté aux enveloppes d'export classiques (cf.
+  // avertissement ci-dessus).
+  const ADOC_QUESTIONNAIRE_INTERACTIVE_CSS = '.adoc-sc-questionnaire-scale{display:none;}';
   const ADOC_PRESENT_FULLSCREEN_CSS =
     '#cc-ws-present-overlay{display:none;position:fixed;inset:0;z-index:8300;flex-direction:column;background:#14211f;color:#fff;}' +
     '#cc-ws-present-overlay.open{display:flex;}' +
@@ -14068,7 +14363,7 @@ ${recent}`;
     '.cc-ws-present-toc-num{font-weight:700;opacity:.6;min-width:1.5em;}' +
     '.cc-ws-present-toc-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}';
   // Bundle complet — page vivante (injection ci-dessous) ET export autonome interactif.
-  const ADOC_PRESENT_ENGINE_CSS = ADOC_PRESENT_FULLSCREEN_CSS + ADOC_PRESENTATION_SLIDE_CSS + ADOC_QUIZ_STATIC_CSS + ADOC_QUIZ_INTERACTIVE_MASK_CSS + ADOC_CARD_IMG_CSS;
+  const ADOC_PRESENT_ENGINE_CSS = ADOC_PRESENT_FULLSCREEN_CSS + ADOC_PRESENTATION_SLIDE_CSS + ADOC_QUIZ_STATIC_CSS + ADOC_QUIZ_INTERACTIVE_MASK_CSS + ADOC_QUESTIONNAIRE_STATIC_CSS + ADOC_QUESTIONNAIRE_INTERACTIVE_CSS + ADOC_CARD_IMG_CSS;
   // Jetons de chrome (jamais des jetons de DOCUMENT comme --adoc-sc-*, cf. adocTokensToCSSVars) —
   // valeurs copiées TELLES QUELLES depuis le :root de studio-clinique.html (--ivory/--ink/
   // --petrol-100/--stone-300), nécessaires UNIQUEMENT pour l'export autonome (la page vivante les
@@ -14417,6 +14712,11 @@ ${recent}`;
       adocEditorRenderList: adocEditorRenderList, adocEditorRenderTable: adocEditorRenderTable,
       adocEditorExportFonts: adocEditorExportFonts, adocRenderBlockHTML: adocRenderBlockHTML,
       adocIsLocalVideoUrl: adocIsLocalVideoUrl,
+      // LOT 5 Présentation — appelées par window.adocQuestionnaireCalculerResultat (windowFnNames
+      // ci-dessous) : sans elles, l'export autonome planterait à l'ouverture dès qu'un
+      // questionnaire est présent, exactement le même risque déjà documenté pour
+      // adocIsLocalVideoUrl ci-dessus (LOT VIDÉO-2).
+      adocQuestionnaireScorePanel: adocQuestionnaireScorePanel, adocQuestionnaireFindProfile: adocQuestionnaireFindProfile,
       adocRenderCardHTML: adocRenderCardHTML, adocPresentBuildTocHTML: adocPresentBuildTocHTML,
       adocPresentUpdateCounter: adocPresentUpdateCounter, adocPresentApplyReveal: adocPresentApplyReveal,
       adocPresentAnimateNumberIfEligible: adocPresentAnimateNumberIfEligible,
@@ -14426,7 +14726,7 @@ ${recent}`;
       adocPresentInstallKeydownHandler: adocPresentInstallKeydownHandler,
     };
     const fnsText = Object.keys(engineFnRefs).map(function (name) { return engineFnRefs[name].toString(); }).join('\n');
-    const windowFnNames = ['adocQuizSelectOption', 'adocPresentClose', 'adocPresentToggleToc', 'adocPresentGoTo', 'adocPresentNext', 'adocPresentPrev'];
+    const windowFnNames = ['adocQuizSelectOption', 'adocPresentClose', 'adocPresentToggleToc', 'adocPresentGoTo', 'adocPresentNext', 'adocPresentPrev', 'adocQuestionnaireSelectOption', 'adocQuestionnaireSwitchPartner', 'adocQuestionnaireCalculerResultat'];
     const windowFnsText = windowFnNames.map(function (name) { return 'window.' + name + ' = ' + window[name].toString() + ';'; }).join('\n');
     const dataText = 'var ADOC_LEGACY_FONT_PAIRS = ' + JSON.stringify(ADOC_LEGACY_FONT_PAIRS) + ';\n' +
       'var ADOC_BLOCK_FONT_SIZES = ' + JSON.stringify(ADOC_BLOCK_FONT_SIZES) + ';\n' +
