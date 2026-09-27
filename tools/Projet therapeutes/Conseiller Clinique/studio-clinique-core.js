@@ -5971,6 +5971,67 @@ ${recent}`;
     }
   };
 
+  // Avertissement honnête de seuil de stockage R2 (panneau "Médias", partagé Photos/Vidéos) —
+  // réutilise EXACTEMENT /storage-stats déjà existant (adocRunStorageStats ci-dessus, mode
+  // développeur Ctrl+D) : même source de vérité, jamais un second appel réseau ni une seconde
+  // route Worker pour la même donnée (cf. rapport d'investigation point 1 — adocComputeR2StorageUsage
+  // côté Worker, mise en cache 1h, réutilisée par les deux consommateurs). Seule la présentation
+  // diffère : ici, un message gradué honnête pour Christophe, jamais les chiffres bruts D1 (non
+  // pertinents dans ce panneau) ni une alerte binaire.
+  //
+  // Seuils (point 3) — décimal (1 Go = 10^9 octets), convention de facturation cloud standard,
+  // cf. rapport (non vérifiable ce soir par appel direct à la documentation Cloudflare, réseau
+  // bloqué — hypothèse de travail signalée) :
+  //   < 8 Go  : rien affiché (marge confortable, aucune information n'apporterait de valeur réelle).
+  //   8-10 Go : mention neutre du volume utilisé sur les 10 Go inclus gratuitement.
+  //   ≥ 10 Go : mention du dépassement réel et de son coût estimé (0,015 $/Go/mois, tarif R2
+  //             confirmé plus tôt cette nuit), jamais un chiffre alarmiste ou approximatif.
+  var ADOC_R2_FREE_TIER_GB = 10;
+  var ADOC_R2_WARN_THRESHOLD_GB = 8;
+  var ADOC_R2_OVERAGE_RATE_PER_GB_MONTH = 0.015;
+  window.adocCheckR2StorageUsage = async function () {
+    const btn = document.getElementById('cc-media-storage-check-btn');
+    const res = document.getElementById('cc-media-storage-check-result');
+    if (!btn || !res) return;
+    const originalLabel = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Vérification…';
+    res.hidden = true;
+    try {
+      const resp = await fetch(adocGetWorkerUrl() + '/storage-stats', { headers: { 'X-API-Key': adocGetApiKey() } });
+      const data = await resp.json();
+      const r2 = data.r2 || {};
+      if (!r2.available) {
+        res.hidden = false;
+        res.textContent = 'Espace non mesurable pour l’instant (' + (r2.note || data.error || 'raison inconnue') + ').';
+        return;
+      }
+      const usedGb = r2.totalSizeBytes / 1e9;
+      if (usedGb < ADOC_R2_WARN_THRESHOLD_GB) {
+        // Rien affiché (choix délibéré, cf. commentaire ci-dessus) — mais le bouton confirme
+        // brièvement l'action, jamais une interface qui semblerait n'avoir rien fait.
+        btn.textContent = 'Vérifié ✓';
+        setTimeout(function () { btn.textContent = originalLabel; }, 1500);
+        return;
+      }
+      if (usedGb < ADOC_R2_FREE_TIER_GB) {
+        res.hidden = false;
+        res.textContent = 'Espace utilisé : ' + usedGb.toLocaleString('fr', { maximumFractionDigits: 2 }) + ' Go sur les ' + ADOC_R2_FREE_TIER_GB + ' Go inclus gratuitement (Cloudflare R2).';
+      } else {
+        const overageGb = usedGb - ADOC_R2_FREE_TIER_GB;
+        const estimatedCost = overageGb * ADOC_R2_OVERAGE_RATE_PER_GB_MONTH;
+        res.hidden = false;
+        res.textContent = 'Espace utilisé : ' + usedGb.toLocaleString('fr', { maximumFractionDigits: 2 }) + ' Go — au-delà des ' + ADOC_R2_FREE_TIER_GB + ' Go inclus, le dépassement (' + overageGb.toLocaleString('fr', { maximumFractionDigits: 2 }) + ' Go) est facturé environ ' + estimatedCost.toLocaleString('fr', { maximumFractionDigits: 2 }) + ' $/mois (0,015 $/Go/mois, Cloudflare R2).';
+      }
+    } catch (e) {
+      res.hidden = false;
+      res.textContent = 'Vérification impossible : ' + e.message;
+    } finally {
+      btn.disabled = false;
+      if (btn.textContent === 'Vérification…') btn.textContent = originalLabel;
+    }
+  };
+
   // Audit capacités dormantes, Item 4 — GET /rag-stats (répartition par approche + top-20 livres),
   // ADDITIF à la carte "Bibliothèque thérapeutique" (adocLoadLibraryStats/#adoc-stats) déjà
   // affichée juste au-dessus, jamais un remplacement. Chargé UNE SEULE FOIS à l'ouverture du

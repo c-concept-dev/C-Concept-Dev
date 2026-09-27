@@ -56297,31 +56297,62 @@ async function handleStorageStats(env2) {
     d1.databaseSizeNote = "Taille de base non mesurable depuis le binding D1 de ce Worker (table dbstat indisponible) — seule l'API Cloudflare REST/GraphQL au niveau du compte (hors binding Worker, nécessite un jeton API séparé) expose ce chiffre.";
   }
 
-  let r2;
-  if (env2.BRAND_ASSETS) {
-    try {
-      let cursor, objectCount = 0, totalSizeBytes = 0, truncated = true, guard = 0;
-      while (truncated && guard < 1000) {
-        const page = await env2.BRAND_ASSETS.list(cursor ? { cursor } : {});
-        for (const obj of page.objects || []) { objectCount++; totalSizeBytes += obj.size || 0; }
-        truncated = !!page.truncated;
-        cursor = page.cursor;
-        guard++;
-      }
-      r2 = {
-        bucket: "studio-clinique-brand-assets", available: true,
-        objectCount, totalSizeBytes, totalSizeMb: Math.round((totalSizeBytes / (1024 * 1024)) * 100) / 100
-      };
-    } catch (err2) {
-      r2 = { bucket: "studio-clinique-brand-assets", available: false, note: err2.message };
-    }
-  } else {
-    r2 = { available: false, note: "Binding BRAND_ASSETS non configuré." };
-  }
-
+  const r2 = await adocGetCachedR2StorageUsage(env2);
   return json({ d1, r2 });
 }
 __name(handleStorageStats, "handleStorageStats");
+
+// LOT — Avertissement de seuil de stockage R2 : extraction PURE (aucun changement de comportement)
+// de la boucle de dénombrement R2 auparavant inline dans handleStorageStats ci-dessus — même
+// pagination `BRAND_ASSETS.list({cursor})`, mêmes champs de sortie, jamais une deuxième
+// implémentation parallèle. Réutilisée par les DEUX consommateurs (panneau développeur Ctrl+D déjà
+// existant, ET le nouvel avertissement du panneau "Médias" ci-dessous) — un seul calcul, jamais un
+// second système, cf. investigation (point 1) : l'API R2 Workers n'expose AUCUNE métrique agrégée
+// de taille de bucket au niveau du binding — seul `list()` + somme de `obj.size` par objet permet
+// d'obtenir ce chiffre, confirmé par cette implémentation déjà en service (UX-10A Étape 1).
+async function adocComputeR2StorageUsage(env2) {
+  if (!env2.BRAND_ASSETS) return { available: false, note: "Binding BRAND_ASSETS non configuré." };
+  try {
+    let cursor, objectCount = 0, totalSizeBytes = 0, truncated = true, guard = 0;
+    while (truncated && guard < 1000) {
+      const page = await env2.BRAND_ASSETS.list(cursor ? { cursor } : {});
+      for (const obj of page.objects || []) { objectCount++; totalSizeBytes += obj.size || 0; }
+      truncated = !!page.truncated;
+      cursor = page.cursor;
+      guard++;
+    }
+    return {
+      bucket: "studio-clinique-brand-assets", available: true,
+      objectCount, totalSizeBytes, totalSizeMb: Math.round((totalSizeBytes / (1024 * 1024)) * 100) / 100
+    };
+  } catch (err2) {
+    return { bucket: "studio-clinique-brand-assets", available: false, note: err2.message };
+  }
+}
+__name(adocComputeR2StorageUsage, "adocComputeR2StorageUsage");
+
+// Cache 1h (CLONE_KV, même patron que adocPixabayCachedGet) — investigation point 2 : une
+// énumération complète du bucket (pagination `list()`, jusqu'à 1000 pages) a un coût réel non
+// négligeable si répétée à chaque ouverture du panneau "Médias" ou chaque clic répété du bouton
+// "Vérifier l'espace utilisé" ci-dessous ; jamais justifié de la refaire plus d'une fois par heure
+// pour une métrique qui varie lentement (quelques vidéos/images ajoutées par session, jamais des
+// dizaines par minute). Best-effort, comme tous les caches déjà en place ce soir : CLONE_KV absent
+// ou en échec → calcul direct, jamais un blocage.
+async function adocGetCachedR2StorageUsage(env2) {
+  const cacheKey = "r2-storage-usage:v1";
+  if (env2.CLONE_KV) {
+    try {
+      const cached = await env2.CLONE_KV.get(cacheKey);
+      if (cached) return JSON.parse(cached);
+    } catch {}
+  }
+  const usage = await adocComputeR2StorageUsage(env2);
+  if (env2.CLONE_KV && usage.available) {
+    try { await env2.CLONE_KV.put(cacheKey, JSON.stringify(usage), { expirationTtl: 3600 }); } catch {}
+  }
+  return usage;
+}
+__name(adocGetCachedR2StorageUsage, "adocGetCachedR2StorageUsage");
 
 // ═══ UX-10A Étape 2 — persistance réelle d'un ClinicalDocument + historique de versions ═══
 // Avant ce lot, un document généré ne vivait que dans le navigateur (confirmé par

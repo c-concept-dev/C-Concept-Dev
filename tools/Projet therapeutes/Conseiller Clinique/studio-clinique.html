@@ -2544,6 +2544,11 @@
 }
 .cc-media-subtab:hover { color: var(--ink); }
 .cc-media-subtab.is-active { color: var(--petrol-950); border-bottom-color: var(--petrol-950); }
+/* Avertissement de seuil de stockage R2 — bouton "Vérifier l'espace utilisé" (à la demande
+   uniquement, cf. rapport d'investigation), réutilise .cc-media-search-btn/.cc-media-empty déjà
+   existantes (jamais un nouveau style de bouton pour une action de portée aussi réduite). */
+.cc-media-storage-check { margin-bottom: 8px; }
+.cc-media-storage-check .cc-media-empty { margin-top: 4px; }
 /* LOT VIDÉO-1 — repli UNIQUEMENT quand le <video> réel (adocVideoRenderGrid, désormais un vrai
    <video class="cc-media-thumb">, cf. studio-clinique-core.js) échoue à charger — un lien local
    dont VideoBox ne tourne pas au moment de consulter la grille, jamais un lien Cloudflare
@@ -3759,6 +3764,15 @@
           <div class="cc-media-subtabs" role="tablist" aria-label="Type de média">
             <button type="button" class="cc-media-subtab is-active" id="cc-ws-media-subtab-photos" role="tab" aria-selected="true" onclick="window.adocMediaSwitchSubtab('cc-ws-media', 'photos')">Photos</button>
             <button type="button" class="cc-media-subtab" id="cc-ws-media-subtab-videos" role="tab" aria-selected="false" onclick="window.adocMediaSwitchSubtab('cc-ws-media', 'videos')">Vidéos</button>
+          </div>
+          <!-- Avertissement de seuil de stockage R2 (bucket BRAND_ASSETS, partagé Photos/Vidéos) —
+               placé au-dessus des deux sous-onglets (jamais dupliqué dans chacun) : c'est le MÊME
+               bucket, quel que soit l'onglet actif. À la demande UNIQUEMENT (jamais un appel
+               automatique à chaque ouverture du panneau, cf. rapport d'investigation point 2) —
+               même patron que "Vérifier sync D1↔Vector" déjà existant dans ce panneau latéral. -->
+          <div class="cc-media-storage-check">
+            <button type="button" class="cc-media-search-btn" id="cc-media-storage-check-btn" onclick="window.adocCheckR2StorageUsage()">Vérifier l’espace utilisé</button>
+            <p class="cc-media-empty" id="cc-media-storage-check-result" hidden></p>
           </div>
           <div id="cc-ws-media-subpanel-photos">
             <div class="cc-media-search-row">
