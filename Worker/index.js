@@ -55297,8 +55297,18 @@ var ADOC_PUBLIC_ROUTES = ["/get-file/", "/library-stats", "/sync-check"];
 // préfixe aurait AUSSI rendu publique /brand-assets/upload (POST), qui doit impérativement
 // rester protégée — la méthode GET est donc vérifiée explicitement, pas seulement le chemin.
 var ADOC_PUBLIC_BRAND_ASSET_GET_RE = /^\/brand-assets\/[a-f0-9]{64}$/;
+// LOT VIDÉO-2 — MÊME cause, MÊME correctif que ADOC_PUBLIC_BRAND_ASSET_GET_RE ci-dessus, appris de
+// la citation du LOT C : GET /video-assets/:id est posé tel quel dans un <video src="...">
+// (adocRenderBlockHTML, case 'video') par le navigateur — structurellement incapable d'envoyer
+// X-API-Key — jamais découvert à nouveau par un futur 401 systématique. :id est un UUID
+// (crypto.randomUUID(), jamais l'empreinte SHA-256 elle-même, cf. handleVideoAssetFromUrl : la
+// ligne video_links a son propre id, le contenu R2 est adressé séparément par r2_key/checksum) —
+// motif dédié, jamais réutilisé du motif brand-assets ci-dessus. POST /video-assets/from-url reste
+// hors de cette regex (méthode GET uniquement vérifiée), donc toujours protégée.
+var ADOC_PUBLIC_VIDEO_ASSET_GET_RE = /^\/video-assets\/[0-9a-f-]{36}$/;
 function adocIsPublicRoute(pathname, method) {
   if (method === "GET" && ADOC_PUBLIC_BRAND_ASSET_GET_RE.test(pathname)) return true;
+  if (method === "GET" && ADOC_PUBLIC_VIDEO_ASSET_GET_RE.test(pathname)) return true;
   return ADOC_PUBLIC_ROUTES.some((r) => r.endsWith("/") ? pathname.startsWith(r) : pathname === r);
 }
 // SEC-HOTFIX-01/02 — limitation de débit basique par IP. Seuil VOLONTAIREMENT généreux
@@ -55924,6 +55934,18 @@ var Worker_default = {
     const videoLinkIdMatch = p.match(/^\/video-links\/([^\/]+)$/);
     if (videoLinkIdMatch && request2.method === "DELETE")
       return handleVideoLinkDelete(env2, videoLinkIdMatch[1]);
+    // LOT VIDÉO-2 — stockage Cloudflare réel pour les vidéos Pexels/Pixabay (bouton "Stockage
+    // Cloudflare", jusqu'ici désactivé). /video-assets/from-url vérifiée avant le motif générique
+    // /video-assets/:id ci-dessous (même discipline d'ordre que /brand-kits/analyze plus haut).
+    if (p === "/video-assets/from-url" && request2.method === "POST")
+      return handleVideoAssetFromUrl(request2, env2);
+    // GET seule rejoint l'exception publique via ADOC_PUBLIC_VIDEO_ASSET_GET_RE (cf.
+    // adocIsPublicRoute) : un <video src="…"> rendu par le navigateur, y compris via Browser
+    // Rendering pour l'export PDF, n'envoie jamais l'en-tête X-API-Key — même correctif déjà
+    // appliqué à GET /brand-assets/:sha256 (LOT C), jamais redécouvert par un futur 401.
+    const videoAssetIdMatch = p.match(/^\/video-assets\/([^\/]+)$/);
+    if (videoAssetIdMatch && request2.method === "GET")
+      return handleVideoAssetGet(env2, videoAssetIdMatch[1], request2);
     // Audit systémique (Priorité 8.7) — CONFIRMÉ : tout POST non reconnu par une route explicite
     // ci-dessus tombait silencieusement dans handleAnthropicProxy, tentant un appel LLM réel
     // avec un corps qui ne lui était pas destiné. Le seul appel légitime au proxy Anthropic est
@@ -56671,6 +56693,26 @@ __name(handleBrandAssetUpload, "handleBrandAssetUpload");
 // ci-dessus) : deux hôtes exacts, jamais un préfixe ni un joker (`*.pixabay.com`) qui élargirait la
 // portée au-delà du strict nécessaire — même discipline que le contrôle Pexels déjà en place.
 var ADOC_ALLOWED_IMAGE_SOURCE_HOSTS = ["images.pexels.com", "pixabay.com", "cdn.pixabay.com"];
+// LOT VIDÉO-2 — liste blanche SSRF DÉDIÉE au téléchargement serveur de vidéos, distincte de
+// ADOC_ALLOWED_IMAGE_SOURCE_HOSTS ci-dessus (investigation confirmée : les liens de téléchargement
+// vidéo Pexels/Pixabay ne vivent pas sur les mêmes hôtes que les images). `videos.pexels.com` —
+// hôte du champ `video_files[].link` de l'API Pexels Vidéos, déjà utilisé tel quel dans les
+// fixtures de test de ce projet ce soir (Lot Vidéo-1), jamais confondu avec `images.pexels.com`
+// (photos). `cdn.pixabay.com` — hypothèse de travail pour `videos.{palier}.url` (par analogie avec
+// le CDN d'images Pixabay, déjà whitelist ci-dessus) : AUCUN appel réseau réel n'a pu la confirmer
+// ce soir (pixabay.com bloqué par la politique réseau de cet environnement, comme toute la nuit) —
+// signalé explicitement dans le rapport, un smoke test réel après déploiement reste nécessaire.
+// Si cette hypothèse est fausse, la dégradation est honnête et sans risque : le téléchargement
+// échouerait avec l'erreur 400 explicite ci-dessous, jamais un plantage silencieux.
+var ADOC_ALLOWED_VIDEO_SOURCE_HOSTS = ["videos.pexels.com", "cdn.pixabay.com"];
+// Garde de taille — le dédup par empreinte (adocPersistVideoAsset ci-dessous) exige de charger
+// l'intégralité du fichier en mémoire (SubtleCrypto.digest ne propose aucune API incrémentale dans
+// l'environnement Workers, cf. rapport d'investigation point 2) : jamais un téléchargement illimité
+// qui risquerait le plafond mémoire de 128 Mo par isolate. 200 Mo — largement au-delà de toute
+// vidéo Pexels/Pixabay réelle observée ce soir (paliers ~360p/~1080p de courts clips, quelques Mo à
+// quelques dizaines de Mo) — reste un filet de sécurité, jamais une limite pensée pour être atteinte
+// en usage normal.
+var ADOC_MAX_VIDEO_DOWNLOAD_BYTES = 200 * 1024 * 1024;
 async function handleMediaAssetFromUrl(request2, env2) {
   if (!env2.DB) return jsonErr("D1 not configured", 500);
   if (!env2.BRAND_ASSETS) return jsonErr("R2 binding BRAND_ASSETS not configured", 500);
@@ -56809,18 +56851,182 @@ async function handleVideoLinksList(env2) {
 }
 __name(handleVideoLinksList, "handleVideoLinksList");
 
+// LOT VIDÉO-2 — un lien 'cloudflare' possède désormais de vrais octets en R2 (contrairement à
+// 'local', jamais rien à nettoyer côté serveur, cf. commentaire d'origine ci-dessus resté valable
+// pour ce cas). r2_key est adressé par contenu (= checksum, cf. adocPersistVideoAsset) et peut donc
+// être partagé par plusieurs lignes video_links (même vidéo ajoutée deux fois séparément, jamais un
+// ref_count dédié comme pour render_assets — cf. rapport, migration 0014 n'en ajoute pas) : avant
+// de supprimer l'objet R2, vérifie qu'AUCUNE autre ligne ne référence encore le même r2_key, sinon
+// l'objet resterait décrit par une ligne mais physiquement absent de R2.
 async function handleVideoLinkDelete(env2, id) {
   if (!env2.DB) return jsonErr("D1 not configured", 500);
-  const row = await env2.DB.prepare("SELECT id FROM video_links WHERE id = ?").bind(id).first();
+  const row = await env2.DB.prepare("SELECT id, storage_type, r2_key FROM video_links WHERE id = ?").bind(id).first();
   if (!row) return jsonErr("Video link not found", 404);
   try {
     await env2.DB.prepare("DELETE FROM video_links WHERE id = ?").bind(id).run();
+    if (row.storage_type === "cloudflare" && row.r2_key && env2.BRAND_ASSETS) {
+      const stillReferenced = await env2.DB.prepare("SELECT id FROM video_links WHERE r2_key = ? LIMIT 1").bind(row.r2_key).first();
+      if (!stillReferenced) await env2.BRAND_ASSETS.delete(row.r2_key);
+    }
     return json({ deleted: true });
   } catch (err2) {
     return jsonErr(err2.message, 500);
   }
 }
 __name(handleVideoLinkDelete, "handleVideoLinkDelete");
+
+// LOT VIDÉO-2 — persistance vidéo, MÊME PRINCIPE que adocPersistRenderAsset (empreinte SHA-256,
+// clé R2 = empreinte, dédup par contenu) mais écrite pour video_links, jamais un appel à
+// adocPersistRenderAsset lui-même (qui écrirait dans render_assets — table distincte, décision
+// actée par l'investigation de la migration 0013/0014, cf. commentaires de ces fichiers).
+// Contrairement à render_assets (une ligne par empreinte, ref_count), video_links reste une ligne
+// par ENTRÉE DE BIBLIOTHÈQUE (son propre id/titre) : la dédup porte ici sur l'objet R2 lui-même
+// (jamais réuploadé si son empreinte existe déjà sur une autre ligne), pas sur la ligne
+// video_links, qui reste toujours créée par l'appelant (cf. handleVideoAssetFromUrl ci-dessous).
+async function adocPersistVideoAsset(env2, arrayBuffer, mimeType) {
+  const checksum = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", arrayBuffer))).map((b) => b.toString(16).padStart(2, "0")).join("");
+  const existing = await env2.DB.prepare("SELECT r2_key FROM video_links WHERE checksum = ? AND r2_key IS NOT NULL LIMIT 1").bind(checksum).first();
+  if (!existing) {
+    await env2.BRAND_ASSETS.put(checksum, arrayBuffer, { httpMetadata: { contentType: mimeType } });
+  }
+  return { checksum, r2Key: checksum, deduplicated: !!existing, sizeBytes: arrayBuffer.byteLength };
+}
+__name(adocPersistVideoAsset, "adocPersistVideoAsset");
+
+// LOT VIDÉO-2 — active le bouton "Stockage Cloudflare" (Lot Vidéo-1, jusqu'ici désactivé) :
+// télécharge CÔTÉ SERVEUR le fichier de téléchargement Pexels/Pixabay déjà obtenu via /fetch-video
+// (jamais un octet transmis par le client, même principe que handleMediaAssetFromUrl pour les
+// photos), le persiste dans R2 (dédup par empreinte), puis crée une VRAIE ligne video_links
+// 'cloudflare' dont `url` pointe vers la nouvelle route de service GET /video-assets/:id — jamais
+// le lien Pexels/Pixabay brut conservé tel quel (celui-ci expire et n'a pas vocation à être stocké
+// durablement, cf. rapport). Investigation point 2 (CPU/mémoire) : le fetch + arrayBuffer() sont
+// dominés par de l'attente réseau (E/S), jamais du temps CPU réel — le seul coût CPU notable est le
+// digest SHA-256 lui-même, de l'ordre de quelques dizaines de ms même pour plusieurs dizaines de Mo,
+// sans commune mesure avec le budget CPU d'un Worker payant (jusqu'à 30s). La contrainte réelle est
+// la MÉMOIRE de l'isolate (128 Mo), pas le temps — d'où ADOC_MAX_VIDEO_DOWNLOAD_BYTES ci-dessus.
+async function handleVideoAssetFromUrl(request2, env2) {
+  if (!env2.DB) return jsonErr("D1 not configured", 500);
+  if (!env2.BRAND_ASSETS) return jsonErr("R2 binding BRAND_ASSETS not configured", 500);
+  let body;
+  try { body = await request2.json(); } catch { return jsonErr("Invalid JSON", 400); }
+  const sourceUrl = typeof body.url === "string" ? body.url : "";
+  const title = typeof body.title === "string" ? body.title.trim() : "";
+  const attribution = typeof body.attribution === "string" && body.attribution.trim() ? body.attribution.trim().slice(0, 200) : null;
+  if (!title) return jsonErr("title is required", 400);
+  let parsed;
+  try { parsed = new URL(sourceUrl); } catch { return jsonErr("Invalid url", 400); }
+  // SSRF — jamais un proxy de téléchargement ouvert : seuls les hôtes réellement utilisés par
+  // downloadUrl (/fetch-video, Pexels ET Pixabay indifféremment) sont acceptés (cf. investigation
+  // point 1, ADOC_ALLOWED_VIDEO_SOURCE_HOSTS ci-dessus).
+  if (!ADOC_ALLOWED_VIDEO_SOURCE_HOSTS.includes(parsed.hostname))
+    return jsonErr("url must be a videos.pexels.com or cdn.pixabay.com source", 400);
+  let resp;
+  try {
+    resp = await fetch(parsed.toString());
+  } catch (err2) {
+    return jsonErr("Video download failed: " + err2.message, 502);
+  }
+  if (!resp.ok) return jsonErr("Video download failed (HTTP " + resp.status + ")", 502);
+  // Garde de taille AVANT tout arrayBuffer() quand le serveur distant annonce Content-Length —
+  // jamais un octet chargé pour rien si la taille annoncée dépasse déjà la limite (cf. investigation
+  // point 2). Un Content-Length absent ou mensonger reste un angle mort documenté (cf. rapport) :
+  // arrayBuffer() lira alors jusqu'au bout, seul le plafond mémoire réel de l'isolate arrêterait un
+  // flux réellement démesuré — accepté comme limite connue plutôt que silencieusement ignorée.
+  const declaredLength = parseInt(resp.headers.get("Content-Length") || "0", 10);
+  if (declaredLength > ADOC_MAX_VIDEO_DOWNLOAD_BYTES)
+    return jsonErr("Video too large for server-side storage (" + declaredLength + " bytes)", 413);
+  const arrayBuffer = await resp.arrayBuffer();
+  if (!arrayBuffer.byteLength) return jsonErr("Empty video", 502);
+  if (arrayBuffer.byteLength > ADOC_MAX_VIDEO_DOWNLOAD_BYTES)
+    return jsonErr("Video too large for server-side storage (" + arrayBuffer.byteLength + " bytes)", 413);
+  const mimeType = resp.headers.get("Content-Type") || "video/mp4";
+  try {
+    const { r2Key, deduplicated, sizeBytes } = await adocPersistVideoAsset(env2, arrayBuffer, mimeType);
+    const id = crypto.randomUUID();
+    const servedUrl = new URL(request2.url).origin + "/video-assets/" + id;
+    await env2.DB.prepare(
+      `INSERT INTO video_links (id, url, title, attribution, storage_type, checksum, r2_key, mime_type, size_bytes)
+       VALUES (?,?,?,?,'cloudflare',?,?,?,?)`
+    ).bind(id, servedUrl, title, attribution, r2Key, r2Key, mimeType, sizeBytes).run();
+    return json({ id, url: servedUrl, title, attribution, storage_type: "cloudflare", size_bytes: sizeBytes, deduplicated });
+  } catch (err2) {
+    return jsonErr(err2.message, 500);
+  }
+}
+__name(handleVideoAssetFromUrl, "handleVideoAssetFromUrl");
+
+// LOT VIDÉO-2 — parse un en-tête HTTP Range (RFC 7233, forme "bytes=start-end") en {offset,length}
+// exploitable par R2Bucket.get(key, {range}). Gère les trois formes réelles envoyées par un
+// <video> : plage fermée (bytes=0-999), ouverte (bytes=1000-, jusqu'à la fin), et suffixe
+// (bytes=-500, les 500 derniers octets) — jamais seulement la première forme, qui aurait laissé le
+// curseur de lecture échouer sur un saut vers la fin (cf. leçon VideoBox de ce soir).
+function adocParseRangeHeader(rangeHeader, size) {
+  if (!rangeHeader) return null;
+  const m = /^bytes=(\d*)-(\d*)$/.exec(rangeHeader.trim());
+  if (!m || (!m[1] && !m[2])) return null;
+  let start, end;
+  if (m[1] === "") {
+    // Suffixe : "bytes=-500" → les 500 derniers octets.
+    const suffixLength = parseInt(m[2], 10);
+    start = Math.max(0, size - suffixLength);
+    end = size - 1;
+  } else {
+    start = parseInt(m[1], 10);
+    end = m[2] !== "" ? parseInt(m[2], 10) : size - 1;
+  }
+  if (start > end || start >= size) return null;
+  end = Math.min(end, size - 1);
+  return { offset: start, length: end - start + 1 };
+}
+__name(adocParseRangeHeader, "adocParseRangeHeader");
+
+// LOT VIDÉO-2 — sert une vidéo stockée dans R2 (video_links.storage_type = 'cloudflare') AVEC
+// support réel des requêtes Range (investigation point 3) : jamais un simple GET complet comme
+// handleBrandAssetGet ci-dessus (légitime pour une <img>, jamais pour un <video> dont le curseur de
+// lecture a besoin de sauter dans le fichier — même leçon que le chantier VideoBox de ce soir).
+// R2Object/R2ObjectBody : `.get(key, {range})` renvoie un objet dont `.range` décrit la plage
+// RÉELLEMENT servie (peut différer de la plage demandée si elle dépassait la taille réelle),
+// `.body` un ReadableStream de cette seule plage (jamais le fichier entier même en cas de Range),
+// `.writeHttpMetadata(headers)` pose Content-Type/Content-Disposition déjà connus, `.httpEtag` un
+// ETag fort. Chiffrage réel (point 3) non vérifiable ce soir par appel direct (developers.cloudflare.
+// com bloqué par la politique réseau, comme toute la nuit) — forme documentée avec confiance
+// raisonnable (API R2 stable, jamais sujette à la dérive rapide des API tierces déjà rencontrée
+// cette nuit pour Pixabay), smoke test réel recommandé après déploiement.
+async function handleVideoAssetGet(env2, id, request2) {
+  if (!env2.DB) return jsonErr("D1 not configured", 500);
+  if (!env2.BRAND_ASSETS) return jsonErr("R2 binding BRAND_ASSETS not configured", 500);
+  const row = await env2.DB.prepare(
+    "SELECT r2_key, mime_type, size_bytes FROM video_links WHERE id = ? AND storage_type = 'cloudflare'"
+  ).bind(id).first();
+  if (!row || !row.r2_key) return new Response("Video not found", { status: 404 });
+  const rangeHeader = request2.headers.get("Range");
+  const range = adocParseRangeHeader(rangeHeader, row.size_bytes);
+  // Une plage demandée mais invalide (hors bornes) reçoit honnêtement 416, jamais un 200 qui
+  // ferait croire au lecteur vidéo qu'il a reçu ce qu'il a demandé.
+  if (rangeHeader && !range) {
+    return new Response("Range not satisfiable", { status: 416, headers: { "Content-Range": "bytes */" + row.size_bytes } });
+  }
+  const object = range
+    ? await env2.BRAND_ASSETS.get(row.r2_key, { range })
+    : await env2.BRAND_ASSETS.get(row.r2_key);
+  if (!object) return new Response("Video not found in storage", { status: 404 });
+  const headers = new Headers();
+  object.writeHttpMetadata(headers);
+  if (!headers.get("Content-Type")) headers.set("Content-Type", row.mime_type || "video/mp4");
+  headers.set("ETag", object.httpEtag);
+  headers.set("Accept-Ranges", "bytes");
+  headers.set("Access-Control-Allow-Origin", ADOC_ALLOWED_ORIGIN);
+  if (range && object.range) {
+    const servedStart = object.range.offset;
+    const servedLength = object.range.length != null ? object.range.length : row.size_bytes - servedStart;
+    headers.set("Content-Range", "bytes " + servedStart + "-" + (servedStart + servedLength - 1) + "/" + row.size_bytes);
+    headers.set("Content-Length", String(servedLength));
+    return new Response(object.body, { status: 206, headers });
+  }
+  headers.set("Content-Length", String(row.size_bytes));
+  return new Response(object.body, { status: 200, headers });
+}
+__name(handleVideoAssetGet, "handleVideoAssetGet");
 
 // LOT C (Studio Clinique) — sert les octets d'un asset déjà uploadé (handleBrandAssetUpload
 // ci-dessus). assetId déjà validé par le routeur (^[a-f0-9]{64}$, l'empreinte SHA-256 elle-même

@@ -230,7 +230,7 @@
       }
     },
     "videoContent": {
-      "$comment": "Panneau « Médias », sous-onglet « Vidéos » — lien vidéo LOCAL (servi par un programme séparé sur l'ordinateur de l'utilisatrice, ex. http://localhost:47823/...), jamais un fichier téléversé : contrairement à imageContent, aucun assetId ne peut exister ici (rien n'est jamais envoyé à R2, cf. investigation — render_assets exige des octets réellement détenus, qu'un lien localhost non joignable par le Worker ne peut jamais fournir). `url` et `title` sont tous deux obligatoires et non vides : un lien sans titre n'est pas exploitable dans la grille « Vidéos enregistrées », un titre sans lien ne pointe vers rien.",
+      "$comment": "Panneau « Médias », sous-onglet « Vidéos » — `url` pointe soit vers un lien LOCAL (servi par un programme séparé sur l'ordinateur de l'utilisatrice, ex. http://localhost:47823/...), soit, depuis le Lot Vidéo-2, vers la route de service Worker /video-assets/:id (contenu réellement stocké dans R2, table video_links dédiée — jamais render_assets, cf. migrations 0013/0014). Dans les deux cas, contrairement à imageContent, aucun champ assetId ici : ce même champ `url`, une simple chaîne, suffit à distinguer les deux cas au rendu par inspection du hostname (adocIsLocalVideoUrl, studio-clinique-core.js) — jamais un second champ de schéma pour porter cette distinction. `url` et `title` sont tous deux obligatoires et non vides : un lien sans titre n'est pas exploitable dans la grille « Vidéos enregistrées », un titre sans lien ne pointe vers rien.",
       "type": "object",
       "required": [
         "url",

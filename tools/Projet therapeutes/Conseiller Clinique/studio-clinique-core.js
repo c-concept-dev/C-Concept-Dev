@@ -10424,6 +10424,23 @@ ${recent}`;
     };
   }
 
+  // LOT VIDÉO-2 — distingue une vidéo locale (servie par VideoBox sur l'ordinateur de
+  // l'utilisatrice, jamais joignable depuis ailleurs) d'une vidéo Cloudflare (nouvelle route de
+  // service /video-assets/:id, sur le MÊME domaine que le reste de l'application, toujours
+  // joignable) — jamais par un champ de plus sur content.url (schéma inchangé, cf. rapport :
+  // `additionalProperties: false` sur videoContent ne porte que url+title), uniquement par
+  // inspection du hostname au moment du rendu, exactement le mécanisme esquissé en investigation.
+  // `localhost`/`127.0.0.1`/`[::1]` couvrent VideoBox lancé nativement ; les plages privées
+  // (10.x, 172.16-31.x, 192.168.x) couvrent le cas, plus rare mais réel, d'un accès par IP locale
+  // plutôt que par `localhost` — jamais un simple `=== 'localhost'` qui manquerait ces cas.
+  function adocIsLocalVideoUrl(url) {
+    let hostname;
+    try { hostname = new URL(url).hostname; } catch { return false; }
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]' || hostname === '::1') return true;
+    const privateIPv4 = /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/;
+    return privateIPv4.test(hostname);
+  }
+
   // ── Rendu d'un bloc (utilisé à la racine ET imbriqué dans une card) ──
   // Point 6 : les citations s'affichent désormais sur TOUS les types de blocs porteurs de
   // texte (heading/paragraph/callout/list/table/quote), placement adapté à chaque type.
@@ -10573,21 +10590,24 @@ ${recent}`;
       case 'video': {
         // Panneau "Médias", sous-onglet "Vidéos" — content.url est TOUJOURS une URL concrète
         // (jamais une requête à résoudre, contrairement à content.query pour 'image') : aucun
-        // passage par adocResolveImages, aucune vérification serveur possible (un lien
-        // localhost:NNNN n'est joignable que depuis l'ordinateur de l'utilisatrice, jamais depuis
-        // le Worker) — le <video> peut donc échouer silencieusement si le serveur vidéo local
-        // n'est pas lancé. Titre + lien affichés TOUJOURS en texte visible (jamais seulement en
-        // alt/repli caché) : ce même rendu partagé alimente aussi l'export PDF (Browser Rendering,
-        // capture d'écran serveur qui ne peut de toute façon jamais lire une vidéo locale) — un
-        // texte visible dégrade proprement dans les deux cas, sans nécessiter de second mode de
-        // rendu "export" séparé (cf. investigation).
+        // passage par adocResolveImages. LOT VIDÉO-2 — deux cas désormais réels, distingués par
+        // simple inspection du hostname (adocIsLocalVideoUrl ci-dessus), jamais un second champ de
+        // schéma : un lien localhost/IP privée (VideoBox, jamais joignable depuis ailleurs que
+        // l'ordinateur de l'utilisatrice, y compris par le Worker au moment de l'export PDF/Browser
+        // Rendering) garde l'avertissement d'origine ; un lien Cloudflare (/video-assets/:id, sur
+        // le MÊME domaine que le reste de l'application, réellement joignable partout — y compris
+        // par Browser Rendering) n'affiche plus jamais cet avertissement devenu faux pour ce cas —
+        // absence de message plutôt qu'un texte neutre qui n'apporterait rien (cf. rapport).
         const videoStyleAttr = nestedPosCSS ? ' style="' + adocEsc(nestedPosCSS) + '"' : '';
         const videoUrl = adocEsc(b.content.url);
         const videoTitle = adocEsc(b.content.title);
+        const videoWarning = adocIsLocalVideoUrl(b.content.url)
+          ? '<p class="adoc-sc-video-warning">Vidéo locale — nécessite que le serveur vidéo tourne sur cet ordinateur.</p>'
+          : '';
         return '<figure class="adoc-sc-block adoc-sc-video' + statusClass + '" id="' + adocEsc(b.id) + '"' + videoStyleAttr + '>' +
           '<video controls src="' + videoUrl + '" style="width:100%;border-radius:8px;display:block;background:#000;"></video>' +
           '<figcaption class="adoc-sc-video-caption">' + videoTitle + ' — <a href="' + videoUrl + '" target="_blank" rel="noopener noreferrer">' + videoUrl + '</a></figcaption>' +
-          '<p class="adoc-sc-video-warning">Vidéo locale — nécessite que le serveur vidéo tourne sur cet ordinateur.</p>' +
+          videoWarning +
           dragHandle + nestedResizeHandle + '</figure>';
       }
       // LOT 3 Présentation — quiz simple auto-rythmé, un seul écran. Participe au mécanisme
@@ -14295,13 +14315,16 @@ ${recent}`;
   //     adocPresentOpenWithDoc, adocPresentGoToInternal, adocPresentInstallKeydownHandler.
   //   window.* du même cluster (6) : adocQuizSelectOption, adocPresentClose, adocPresentToggleToc,
   //     adocPresentGoTo, adocPresentNext, adocPresentPrev.
-  //   Rendu de carte (23), PARTAGÉ avec le Carrousel — jamais exclusif à Présentation :
+  //   Rendu de carte (24), PARTAGÉ avec le Carrousel — jamais exclusif à Présentation :
   //     adocRenderCardHTML, adocRenderBlockHTML, adocCardPositionCSSText, adocCiteFootnoteHTML,
   //     adocEnsurePageGoogleFontLoaded, adocEditorExportFonts, adocBlockStyleToCSSText, adocEsc,
   //     adocBlockOpacityLayerHTML, adocEditorTextHTML, adocEditorRenderList, adocEditorRenderTable,
   //     adocImageAssetUrl, adocEditorStyleCSS, adocEditorCleanHTML, adocEditorPlain,
   //     adocEditorReadStyle, adocEditorRules, adocEditorApplyRules, adocEditorTableGrid,
-  //     adocResolveBlockFontFamily, adocGoogleFontLinkTag, adocInsertGoogleFontLinkIfAbsent.
+  //     adocResolveBlockFontFamily, adocGoogleFontLinkTag, adocInsertGoogleFontLinkIfAbsent,
+  //     adocIsLocalVideoUrl (LOT VIDÉO-2 — appelée par adocRenderBlockHTML, case 'video' : sans
+  //     elle, le fichier autonome plante à l'ouverture dès qu'un bloc vidéo existe, "adocIsLocalVideoUrl
+  //     is not defined" — trouvé par régression réelle, pas par relecture, cf. rapport).
   //   Résolution d'image (4) : adocResolveImages, adocGetWorkerUrl, adocGetApiKey,
   //     _adocWarnMissingApiKey.
   //   Données (constantes, jamais des fonctions, sérialisées en JSON) : ADOC_LEGACY_FONT_PAIRS,
@@ -14332,6 +14355,7 @@ ${recent}`;
       adocEditorTableGrid: adocEditorTableGrid, adocEditorApplyRules: adocEditorApplyRules,
       adocEditorRenderList: adocEditorRenderList, adocEditorRenderTable: adocEditorRenderTable,
       adocEditorExportFonts: adocEditorExportFonts, adocRenderBlockHTML: adocRenderBlockHTML,
+      adocIsLocalVideoUrl: adocIsLocalVideoUrl,
       adocRenderCardHTML: adocRenderCardHTML, adocPresentBuildTocHTML: adocPresentBuildTocHTML,
       adocPresentUpdateCounter: adocPresentUpdateCounter, adocPresentApplyReveal: adocPresentApplyReveal,
       adocPresentAnimateNumberIfEligible: adocPresentAnimateNumberIfEligible,
@@ -16493,13 +16517,14 @@ ${recent}`;
         '<div class="cc-video-storage-choice" id="cc-video-storage-choice-' + i + '" hidden>' +
           '<div class="cc-media-search-row">' +
             '<button type="button" class="cc-media-search-btn" data-video-choose-local="' + i + '" onclick="window.adocVideoChooseLocal(' + i + ')">Stockage local</button>' +
-            '<button type="button" class="cc-media-search-btn" disabled title="Disponible prochainement (Lot Vidéo-2)">Stockage Cloudflare</button>' +
+            '<button type="button" class="cc-media-search-btn" data-video-choose-cloudflare="' + i + '" onclick="window.adocVideoChooseCloudflare(' + i + ')">Stockage Cloudflare</button>' +
           '</div>' +
           '<div id="cc-video-local-panel-' + i + '" hidden style="margin-top:6px;">' +
             '<input type="text" class="cc-ws-search-input" readonly id="cc-video-download-link-' + i + '" value="' + adocEsc(item.downloadUrl) + '">' +
             '<button type="button" class="cc-media-search-btn cc-video-copy-btn" data-video-copy="' + i + '" onclick="window.adocVideoCopyLink(' + i + ')">Copier ce lien</button>' +
             '<p class="cc-media-empty">Collez ce lien dans VideoBox pour la récupérer sur votre ordinateur, puis utilisez le lien qu’elle vous donne dans le champ ci-dessous pour l’ajouter à la bibliothèque.</p>' +
           '</div>' +
+          '<p class="cc-media-empty" id="cc-video-cloudflare-status-' + i + '" hidden></p>' +
         '</div>' +
       '</div>';
     }).join('');
@@ -16627,6 +16652,42 @@ ${recent}`;
     const urlInput = document.getElementById('cc-ws-video-url-input');
     if (titleInput && !titleInput.value) titleInput.value = window._adocVideoSearchQuery || '';
     if (urlInput) urlInput.focus();
+  };
+
+  // LOT VIDÉO-2 — "Stockage Cloudflare" (jusqu'ici désactivé) : contrairement à "Stockage local"
+  // ci-dessus, RIEN à coller manuellement — le téléchargement, le hachage et l'upload R2 ont lieu
+  // entièrement côté serveur (POST /video-assets/from-url, cf. Worker). Persiste directement une
+  // VRAIE ligne video_links 'cloudflare' : dès le succès, la vidéo apparaît dans "Vidéos
+  // enregistrées" comme n'importe quel autre lien, "Insérer" s'y comporte à l'identique — jamais un
+  // second mécanisme d'insertion. Un seul appel opaque (pas de progression en pourcentage possible
+  // avec un simple fetch()) : indicateur textuel honnête pendant l'attente plutôt qu'une interface
+  // figée sans retour (même exigence déjà tenue pour VideoBox ce soir), jamais une fausse
+  // progression chiffrée.
+  window.adocVideoChooseCloudflare = async function (idx) {
+    const item = window._adocVideoSearchResults && window._adocVideoSearchResults[idx];
+    if (!item) return;
+    const statusEl = document.getElementById('cc-video-cloudflare-status-' + idx);
+    const localBtn = document.querySelector('[data-video-choose-local="' + idx + '"]');
+    const cloudBtn = document.querySelector('[data-video-choose-cloudflare="' + idx + '"]');
+    if (localBtn) localBtn.disabled = true;
+    if (cloudBtn) { cloudBtn.disabled = true; cloudBtn.textContent = 'Envoi vers Cloudflare…'; }
+    if (statusEl) { statusEl.hidden = false; statusEl.textContent = 'Envoi vers Cloudflare en cours — cela peut prendre quelques instants selon la taille du fichier…'; }
+    const attribution = item.photographer ? ('Vidéo : ' + item.photographer) : null;
+    try {
+      const res = await fetch(adocGetWorkerUrl() + '/video-assets/from-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
+        body: JSON.stringify({ url: item.downloadUrl, title: window._adocVideoSearchQuery || 'Vidéo', attribution: attribution }),
+      });
+      const data = await res.json().catch(function () { return {}; });
+      if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+      if (statusEl) { statusEl.hidden = false; statusEl.textContent = 'Ajoutée ✓ — disponible dans « Vidéos enregistrées ».'; }
+      window.adocVideoLoadHistory();
+    } catch (e) {
+      if (statusEl) { statusEl.hidden = false; statusEl.textContent = 'Envoi impossible : ' + e.message; }
+      if (localBtn) localBtn.disabled = false;
+      if (cloudBtn) { cloudBtn.disabled = false; cloudBtn.textContent = 'Stockage Cloudflare'; }
+    }
   };
 
   window.adocVideoCopyLink = function (idx) {
