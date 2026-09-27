@@ -10642,10 +10642,25 @@ ${recent}`;
         // une boîte à hauteur elle-même non contrainte — une fois la figure dimensionnée en dur,
         // l'image doit réellement la remplir/recadrer, pas déborder ni laisser du vide.
         const imgPositionedFill = nestedPosCSS ? 'height:100%;' : '';
-        const imgStyle = 'width:' + imgWidth + '%;border-radius:8px;object-fit:cover;display:block;margin:0 auto;' + imgPositionedFill + (imgOpacity < 100 ? 'opacity:' + (imgOpacity / 100) + ';' : '') + (imgRotation ? 'transform:rotate(' + imgRotation + 'deg);' : '');
+        // PORTE PLEIN ÉCRAN (Présentation) — investigation : seule l'image a une vraie valeur
+        // d'agrandissement (contrainte à width:100% de sa carte aujourd'hui, jamais plus grande
+        // que la diapositive). adocRenderBlockHTML/adocRenderCardHTML restent PARTAGÉS par TOUS
+        // les contextes (Fiche, Carrousel, Présentation normale, export PDF/HTML, export
+        // autonome) — aucun paramètre de contexte n'existe ni n'est ajouté ici (aurait fallu le
+        // faire traverser tous les sites d'appel de la fonction la plus partagée du fichier,
+        // bien plus risqué). À la place : `_adocRenderingForPresentDoor`, un drapeau transitoire
+        // au niveau du module, positionné SEULEMENT autour de l'appel synchrone à
+        // adocRenderCardHTML depuis adocPresentRenderSlideHTML (mode plein écran) — jamais lu ni
+        // modifié ailleurs, donc jamais actif dans l'espace de travail normal ni dans les exports
+        // classiques (adocRenderCarrouselHTML, adocBuildCarrouselPdfPagesHTML), qui n'y touchent
+        // jamais. `this` transmis (jamais l'URL en chaîne) : évite tout ré-échappement, la
+        // fonction lit directement l'élément <img> réellement affiché.
+        const imgDoorOnclick = _adocRenderingForPresentDoor ? ' onclick="window.adocPresentOpenImageDoor(this)"' : '';
+        const imgDoorCursor = _adocRenderingForPresentDoor ? 'cursor:zoom-in;' : '';
+        const imgStyle = 'width:' + imgWidth + '%;border-radius:8px;object-fit:cover;display:block;margin:0 auto;' + imgPositionedFill + imgDoorCursor + (imgOpacity < 100 ? 'opacity:' + (imgOpacity / 100) + ';' : '') + (imgRotation ? 'transform:rotate(' + imgRotation + 'deg);' : '');
         const imgFigureStyleAttr = nestedPosCSS ? ' style="' + adocEsc(nestedPosCSS) + '"' : '';
         return '<figure class="adoc-sc-block adoc-sc-image' + statusClass + '" id="' + adocEsc(b.id) + '"' + imgFigureStyleAttr + '>' +
-          '<img ' + imgAttr + onErrorAttr + ' alt="' + adocEsc(b.content.alt) + '" style="' + imgStyle + '">' +
+          '<img ' + imgAttr + onErrorAttr + imgDoorOnclick + ' alt="' + adocEsc(b.content.alt) + '" style="' + imgStyle + '">' +
           note + dragHandle + nestedResizeHandle + '</figure>';
       }
       case 'video': {
@@ -14270,6 +14285,13 @@ ${recent}`;
   // uniforme — Décision 7 du CDC, jamais un catalogue d'effets).
   // ══════════════════════════════════════════════════════════════════════════════════════
   window._adocPresentState = null; // null quand fermé ; { doc, index } quand ouvert
+  // PORTE PLEIN ÉCRAN (image) — drapeau transitoire lu par adocRenderBlockHTML (case 'image')
+  // pour savoir si LE RENDU EN COURS a lieu en mode plein écran (jamais un paramètre de contexte
+  // ajouté à adocRenderCardHTML/adocRenderBlockHTML, fonctions partagées par tous les moteurs de
+  // document — cf. commentaire au site d'appel). Positionné/remis à false uniquement autour de
+  // l'appel synchrone à adocRenderCardHTML depuis adocPresentRenderSlideHTML ci-dessous — jamais
+  // lu ni modifié ailleurs.
+  let _adocRenderingForPresentDoor = false;
 
   // ═══ LOT A (export Présentation autonome) — CSS consolidée, une seule source ═══
   // Auparavant en dur dans le <style> de studio-clinique.html (jamais réutilisable ailleurs) —
@@ -14361,7 +14383,19 @@ ${recent}`;
     '.cc-ws-present-toc-item{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:none;background:none;padding:8px 10px;border-radius:6px;cursor:pointer;font:inherit;color:inherit;}' +
     '.cc-ws-present-toc-item:hover{background:var(--petrol-100);}' +
     '.cc-ws-present-toc-num{font-weight:700;opacity:.6;min-width:1.5em;}' +
-    '.cc-ws-present-toc-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}';
+    '.cc-ws-present-toc-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
+    // PORTE PLEIN ÉCRAN (image) — même précédent architectural que #cc-ws-present-toc ci-dessus
+    // (élément positionné à l'intérieur de #cc-ws-present-overlay déjà en position:fixed, jamais
+    // un second point d'ancrage), en plein viewport plutôt qu'en encadré de coin. z-index
+    // supérieur à celui, implicite, du sommaire/toolbar (aucun z-index déclaré pour eux — l'ordre
+    // dans le DOM suffit déjà, ce z-index explicite est une garantie supplémentaire, jamais un
+    // besoin strict). Jamais un remplacement de #cc-ws-present-slide-inner : élément FRÈRE
+    // uniquement, qui se contente de se superposer visuellement.
+    '#cc-ws-present-door{display:none;position:absolute;inset:0;z-index:20;flex-direction:column;align-items:center;justify-content:center;background:rgba(10,16,15,.96);padding:32px;}' +
+    '#cc-ws-present-door.open{display:flex;}' +
+    '#cc-ws-present-door img{max-width:100%;max-height:calc(100% - 60px);object-fit:contain;border-radius:8px;box-shadow:0 12px 40px rgba(0,0,0,.5);}' +
+    '#cc-ws-present-door-close{position:absolute;top:16px;right:16px;width:40px;height:40px;border-radius:50%;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.12);color:#fff;font-size:20px;line-height:1;cursor:pointer;}' +
+    '#cc-ws-present-door-close:hover{background:rgba(255,255,255,.24);}';
   // Bundle complet — page vivante (injection ci-dessous) ET export autonome interactif.
   const ADOC_PRESENT_ENGINE_CSS = ADOC_PRESENT_FULLSCREEN_CSS + ADOC_PRESENTATION_SLIDE_CSS + ADOC_QUIZ_STATIC_CSS + ADOC_QUIZ_INTERACTIVE_MASK_CSS + ADOC_QUESTIONNAIRE_STATIC_CSS + ADOC_QUESTIONNAIRE_INTERACTIVE_CSS + ADOC_CARD_IMG_CSS;
   // Jetons de chrome (jamais des jetons de DOCUMENT comme --adoc-sc-*, cf. adocTokensToCSSVars) —
@@ -14504,7 +14538,16 @@ ${recent}`;
   // blanc sur fond sombre), invisible sur le fond quasi-blanc de la carte. Fonction PARTAGÉE
   // (jamais dupliquée) pour les deux points d'injection.
   function adocPresentRenderSlideHTML(card, index, total) {
-    return '<div class="adoc-sc-doc">' + adocRenderCardHTML(card, index, total) + '</div>';
+    // PORTE PLEIN ÉCRAN (image) — drapeau positionné SEULEMENT autour de cet appel synchrone
+    // (aucun `await` entre les deux lignes suivantes : rien d'autre ne peut s'exécuter entre-
+    // temps en JS), remis à false immédiatement après, jamais laissé actif au-delà de ce rendu
+    // précis. adocRenderCardHTML/adocRenderBlockHTML restent des fonctions PURES par ailleurs
+    // (aucun autre site d'appel — Fiche, Carrousel, export PDF/HTML — ne positionne jamais ce
+    // drapeau, donc ne rend jamais d'image cliquable).
+    _adocRenderingForPresentDoor = true;
+    const html = '<div class="adoc-sc-doc">' + adocRenderCardHTML(card, index, total) + '</div>';
+    _adocRenderingForPresentDoor = false;
+    return html;
   }
 
   // CORRECTIF plein écran (images jamais résolues) — même défaut structurel que le correctif
@@ -14566,12 +14609,35 @@ ${recent}`;
     if (overlay) { overlay.classList.remove('open'); overlay.hidden = true; }
     const toc = document.getElementById('cc-ws-present-toc');
     if (toc) toc.hidden = true;
+    // Ferme aussi une porte restée ouverte — jamais un état résiduel visible à la réouverture
+    // du mode présentation (même précaution que pour le sommaire ci-dessus).
+    const door = document.getElementById('cc-ws-present-door');
+    if (door) { door.classList.remove('open'); door.hidden = true; }
     window._adocPresentState = null;
   };
 
   window.adocPresentToggleToc = function () {
     const toc = document.getElementById('cc-ws-present-toc');
     if (toc) toc.hidden = !toc.hidden;
+  };
+
+  // PORTE PLEIN ÉCRAN (image) — deuxième niveau de superposition, jamais une modification du
+  // mécanisme de navigation entre diapositives (adocPresentGoToInternal) : `imgEl` est L'ÉLÉMENT
+  // <img> déjà rendu et déjà affiché (jamais une URL en chaîne re-transmise, jamais de second
+  // échappement) — `#cc-ws-present-slide-inner` n'est ni lu ni modifié par ces deux fonctions, la
+  // diapositive de départ reste donc STRICTEMENT intacte à la fermeture (scroll, montage progressif
+  // déjà fait, réponses déjà cochées d'un questionnaire visité juste avant sur la même diapositive).
+  window.adocPresentOpenImageDoor = function (imgEl) {
+    const door = document.getElementById('cc-ws-present-door');
+    if (!door || !imgEl) return;
+    const img = door.querySelector('img');
+    if (img) { img.src = imgEl.currentSrc || imgEl.src; img.alt = imgEl.alt || ''; }
+    door.hidden = false;
+    door.classList.add('open');
+  };
+  window.adocPresentCloseImageDoor = function () {
+    const door = document.getElementById('cc-ws-present-door');
+    if (door) { door.classList.remove('open'); door.hidden = true; }
   };
 
   // Transition — fondu enchaîné + léger glissement horizontal, ~260ms, un seul style appliqué
@@ -14640,6 +14706,14 @@ ${recent}`;
       // jamais laissé remonter vers le gestionnaire de fermeture de l'espace de travail ci-dessous,
       // qui fermerait le document entier au lieu de quitter seulement le mode plein écran.
       if (window._adocPresentState && document.getElementById('cc-ws-present-overlay')?.classList.contains('open')) {
+        // PORTE PLEIN ÉCRAN (image) — intercepte Échap EN PREMIER si une porte est ouverte :
+        // ferme UNIQUEMENT la porte, jamais les deux niveaux (présentation + porte) d'un seul
+        // coup — l'utilisatrice doit pouvoir refermer une porte et rester sur sa diapositive.
+        const door = document.getElementById('cc-ws-present-door');
+        if (door && door.classList.contains('open')) {
+          if (e.key === 'Escape') { window.adocPresentCloseImageDoor(); }
+          return;
+        }
         if (e.key === 'Escape') { window.adocPresentClose(); return; }
         if (e.key === 'ArrowRight') { window.adocPresentNext(); return; }
         if (e.key === 'ArrowLeft') { window.adocPresentPrev(); return; }
@@ -14726,7 +14800,7 @@ ${recent}`;
       adocPresentInstallKeydownHandler: adocPresentInstallKeydownHandler,
     };
     const fnsText = Object.keys(engineFnRefs).map(function (name) { return engineFnRefs[name].toString(); }).join('\n');
-    const windowFnNames = ['adocQuizSelectOption', 'adocPresentClose', 'adocPresentToggleToc', 'adocPresentGoTo', 'adocPresentNext', 'adocPresentPrev', 'adocQuestionnaireSelectOption', 'adocQuestionnaireSwitchPartner', 'adocQuestionnaireCalculerResultat'];
+    const windowFnNames = ['adocQuizSelectOption', 'adocPresentClose', 'adocPresentToggleToc', 'adocPresentGoTo', 'adocPresentNext', 'adocPresentPrev', 'adocQuestionnaireSelectOption', 'adocQuestionnaireSwitchPartner', 'adocQuestionnaireCalculerResultat', 'adocPresentOpenImageDoor', 'adocPresentCloseImageDoor'];
     const windowFnsText = windowFnNames.map(function (name) { return 'window.' + name + ' = ' + window[name].toString() + ';'; }).join('\n');
     const dataText = 'var ADOC_LEGACY_FONT_PAIRS = ' + JSON.stringify(ADOC_LEGACY_FONT_PAIRS) + ';\n' +
       'var ADOC_BLOCK_FONT_SIZES = ' + JSON.stringify(ADOC_BLOCK_FONT_SIZES) + ';\n' +
@@ -14752,6 +14826,10 @@ ${recent}`;
           '<button type="button" class="cc-ws-present-toolbar-btn" onclick="window.adocPresentClose()">Fermer</button>' +
         '</div>' +
         '<div id="cc-ws-present-toc" hidden role="navigation" aria-label="Sommaire des diapositives"></div>' +
+        '<div id="cc-ws-present-door" hidden role="dialog" aria-modal="true" aria-label="Image en plein écran">' +
+          '<button type="button" id="cc-ws-present-door-close" aria-label="Fermer l\'image" onclick="window.adocPresentCloseImageDoor()">×</button>' +
+          '<img alt="">' +
+        '</div>' +
       '</div>' +
       '<script>' + script + '</script' + '>' +
       '</body></html>';
