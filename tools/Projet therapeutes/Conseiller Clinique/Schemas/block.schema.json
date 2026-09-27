@@ -229,6 +229,25 @@
         }
       }
     },
+    "videoContent": {
+      "$comment": "Panneau « Médias », sous-onglet « Vidéos » — lien vidéo LOCAL (servi par un programme séparé sur l'ordinateur de l'utilisatrice, ex. http://localhost:47823/...), jamais un fichier téléversé : contrairement à imageContent, aucun assetId ne peut exister ici (rien n'est jamais envoyé à R2, cf. investigation — render_assets exige des octets réellement détenus, qu'un lien localhost non joignable par le Worker ne peut jamais fournir). `url` et `title` sont tous deux obligatoires et non vides : un lien sans titre n'est pas exploitable dans la grille « Vidéos enregistrées », un titre sans lien ne pointe vers rien.",
+      "type": "object",
+      "required": [
+        "url",
+        "title"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "url": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
     "cardContent": {
       "$comment": "imageAlt : requis (non vide) dès que imageRef est renseigné — le contrat de contrôle qualité UX-8A traite un texte alternatif absent sur une image informative comme bloquant. Reste optionnel/null quand imageRef est null (pas d'image, rien à décrire).",
       "type": "object",
@@ -520,6 +539,97 @@
         }
       }
     },
+    "videoBlock": {
+      "$comment": "Panneau « Médias », sous-onglet « Vidéos » — mêmes contraintes que imageBlock (id/type/content requis, additionalProperties false, aucun `style` : décision suivie ici pour rester cohérent, jamais réinventée). Contenu via videoContent (url+title), jamais assetId — aucun fichier réel derrière un lien local (cf. commentaire de videoContent).",
+      "type": "object",
+      "required": [
+        "id",
+        "type",
+        "content"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "const": "video"
+        },
+        "content": {
+          "$ref": "#/$defs/videoContent"
+        },
+        "citationIds": {
+          "$ref": "#/$defs/citationIds"
+        },
+        "validation": {
+          "$ref": "#/$defs/blockValidation"
+        }
+      }
+    },
+    "quizContent": {
+      "$comment": "LOT 3 Présentation — quiz simple auto-rythmé, un seul écran (jamais de vote multi-appareils, décision actée). `question` réutilise la même idée que text pour heading/paragraph/callout/quote — le contenu textuel principal du bloc, jamais un second nom de champ pour la même notion. `options` : 2 à 6 choix, cohérent avec un quiz auto-rythmé qui reste lisible d'un coup d'œil sur une diapositive. `correctIndex` : index (0-based) dans `options` — la borne haute (5) suit maxItems ci-dessous mais ne peut pas garantir dynamiquement `correctIndex < options.length` en JSON Schema pur (contrainte inter-champs sur une longueur de tableau variable) ; le rendu (studio-clinique-core.js, convertBlock) borne défensivement cette valeur au moment de la conversion, jamais un crash ni une correction qui pointe sur rien. `explanation` obligatoire et non vide : un quiz sans explication laisserait une mauvaise réponse sans pédagogie, contraire à l'esprit clinique déjà établi pour ce projet (jamais optionnelle, décision actée).",
+      "type": "object",
+      "required": [
+        "question",
+        "options",
+        "correctIndex",
+        "explanation"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "question": {
+          "type": "string",
+          "minLength": 1
+        },
+        "options": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 6,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "correctIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5
+        },
+        "explanation": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "quizBlock": {
+      "$comment": "LOT 3 Présentation — mêmes contraintes que videoBlock/imageBlock (id/type/content requis, additionalProperties false, aucun `style` : décision suivie ici pour rester cohérent, jamais réinventée). Réservé à `nestedBlock` (diapositive de Présentation ou de Carrousel) — jamais à `editorialBlock` (Fiche/Script/Tableau/Liens, hors périmètre de ce lot) ni à `cardOnlyBlock` (une carte ne peut jamais être elle-même un quiz). Schéma volontairement permissif pour les deux documentKind qui partagent nestedBlock (même patron que videoBlock, jamais utilisé par Carrousel en pratique) : c'est l'outil de génération structurée (ADOC_STRUCTURED_PRESENTATION_TOOL uniquement) qui réserve la PRODUCTION du bloc à Présentation, jamais une seconde branche de schéma dupliquée pour cette même restriction.",
+      "type": "object",
+      "required": [
+        "id",
+        "type",
+        "content"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "const": "quiz"
+        },
+        "content": {
+          "$ref": "#/$defs/quizContent"
+        },
+        "citationIds": {
+          "$ref": "#/$defs/citationIds"
+        },
+        "validation": {
+          "$ref": "#/$defs/blockValidation"
+        }
+      }
+    },
     "editorialBlock": {
       "$comment": "Blocs éditoriaux autorisés au niveau racine d'une Fiche synthèse (documentKind:'fiche') : tous les types sauf `card`.",
       "oneOf": [
@@ -543,11 +653,14 @@
         },
         {
           "$ref": "#/$defs/imageBlock"
+        },
+        {
+          "$ref": "#/$defs/videoBlock"
         }
       ]
     },
     "nestedBlock": {
-      "$comment": "Blocs autorisés dans card.content.blocks[] (imbriqué) : mêmes types que l'ensemble éditorial, sauf `table` (non imbriquée) et `card` (jamais imbriquée dans une autre carte).",
+      "$comment": "Blocs autorisés dans card.content.blocks[] (imbriqué) : mêmes types que l'ensemble éditorial, sauf `table` (non imbriquée) et `card` (jamais imbriquée dans une autre carte). LOT 3 Présentation — quizBlock ajouté ici (jamais à editorialBlock/cardOnlyBlock, cf. quizBlock.$comment) : un quiz n'a de sens qu'à l'intérieur d'une diapositive.",
       "oneOf": [
         {
           "$ref": "#/$defs/headingBlock"
@@ -566,6 +679,12 @@
         },
         {
           "$ref": "#/$defs/imageBlock"
+        },
+        {
+          "$ref": "#/$defs/videoBlock"
+        },
+        {
+          "$ref": "#/$defs/quizBlock"
         }
       ]
     },
@@ -602,6 +721,12 @@
     },
     {
       "$ref": "#/$defs/imageBlock"
+    },
+    {
+      "$ref": "#/$defs/videoBlock"
+    },
+    {
+      "$ref": "#/$defs/quizBlock"
     }
   ]
 }

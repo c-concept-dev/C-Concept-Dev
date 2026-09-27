@@ -10576,10 +10576,59 @@ ${recent}`;
           '<p class="adoc-sc-video-warning">Vidéo locale — nécessite que le serveur vidéo tourne sur cet ordinateur.</p>' +
           dragHandle + nestedResizeHandle + '</figure>';
       }
+      // LOT 3 Présentation — quiz simple auto-rythmé, un seul écran. Participe au mécanisme
+      // générique de révélation progressive (Lot 2 Partie C) exactement comme tout autre bloc :
+      // class="adoc-sc-block adoc-sc-quiz" ci-dessous est ce qui suffit à ce que
+      // `.adoc-sc-card > .adoc-sc-block` (adocPresentApplyReveal) le prenne en charge — AUCUNE
+      // exemption, jamais un traitement différencié par type (cf. investigation point 2 : même
+      // choix déjà fait implicitement pour 'video' ci-dessus, qui participe déjà sans code dédié).
+      // La bonne réponse/explication (.adoc-sc-quiz-reveal) est TOUJOURS présente dans le balisage,
+      // masquée seulement par la feuille de style de CE fichier (studio-clinique.html, contexte
+      // live/plein écran) — jamais par le rendu lui-même : les enveloppes d'export autonomes
+      // (adocClinicalDocumentWrapHTML, adocBuildCarrouselPdfPagesHTML) ont leur PROPRE <style> qui
+      // ne définit jamais cette règle de masquage, donc la réponse y reste visible par défaut, sans
+      // aucun code d'export dédié (cf. investigation point 5 — même principe que 'video' ci-dessus,
+      // dont le texte visible dégrade déjà proprement dans les deux contextes).
+      case 'quiz': {
+        const c = b.content;
+        const options = c.options || [];
+        const correctIndex = Math.min(Math.max(0, c.correctIndex || 0), options.length - 1);
+        const quizStyleAttr = nestedPosCSS ? ' style="' + adocEsc(nestedPosCSS) + '"' : '';
+        const optionsHtml = options.map(function (opt, i) {
+          return '<button type="button" class="adoc-sc-quiz-option" onclick="window.adocQuizSelectOption(this,' + i + ')">' + adocEsc(opt) + '</button>';
+        }).join('');
+        return '<div class="adoc-sc-block adoc-sc-quiz' + statusClass + '" id="' + adocEsc(b.id) + '"' + quizStyleAttr + ' data-correct-index="' + correctIndex + '" role="group" aria-label="Question de vérification">' +
+          '<p class="adoc-sc-quiz-question">' + adocEsc(c.question) + '</p>' +
+          '<div class="adoc-sc-quiz-options">' + optionsHtml + '</div>' +
+          '<div class="adoc-sc-quiz-reveal"><strong>Bonne réponse : ' + adocEsc(options[correctIndex] || '') + '</strong><p>' + adocEsc(c.explanation) + '</p></div>' +
+          dragHandle + nestedResizeHandle + '</div>';
+      }
       default:
         return '';
     }
   }
+
+  // LOT 3 Présentation — clic sur une option de quiz : sélectionne, révèle la bonne réponse +
+  // l'explication, met en évidence correct/incorrect. État ENTIÈREMENT porté par LE bloc DOM
+  // concerné (closest('.adoc-sc-quiz') + son propre data-correct-index) — JAMAIS une variable
+  // globale partagée : plusieurs quiz sur des diapositives différentes (ou la même, en théorie)
+  // restent totalement indépendants les uns des autres, par construction. Une seule réponse par
+  // quiz (classe .is-answered) — décision simple assumée : reconsidérer sa réponse après coup
+  // n'est pas le comportement d'un quiz réel, jamais construit ici (cf. rapport).
+  window.adocQuizSelectOption = function (buttonEl, idx) {
+    const blockEl = buttonEl.closest('.adoc-sc-quiz');
+    if (!blockEl || blockEl.classList.contains('is-answered')) return;
+    blockEl.classList.add('is-answered');
+    const correctIndex = parseInt(blockEl.dataset.correctIndex, 10);
+    const options = blockEl.querySelectorAll('.adoc-sc-quiz-option');
+    options.forEach(function (opt, i) {
+      opt.disabled = true;
+      if (i === correctIndex) opt.classList.add('is-correct');
+      else if (i === idx) opt.classList.add('is-incorrect');
+    });
+    const reveal = blockEl.querySelector('.adoc-sc-quiz-reveal');
+    if (reveal) reveal.classList.add('is-shown');
+  };
 
   // ── Pilote 1 : Fiche synthèse (modèle minimal unique) ──
   // Bannière de couverture (lot streaming/parité, point 4) : catégorie (doc.purpose),
@@ -11178,6 +11227,14 @@ ${recent}`;
   // mise en scène/navigation, jamais sur le contenu) : une diapositive de Présentation EST une
   // carte de Carrousel, "cards" reste le nom de champ (convertRawToBlocks partagé, ci-dessous).
   // Seuls name/description changent, pour un outil distinct côté API Anthropic.
+  // LOT 3 Présentation — 'quiz' ajouté à l'enum UNIQUEMENT ici (jamais dans
+  // ADOC_STRUCTURED_CARROUSEL_TOOL ci-dessus) : réserve la PRODUCTION du bloc à Présentation
+  // (décision du point 6 de l'investigation) — le schéma JSON, lui, reste permissif pour les deux
+  // documentKind (nestedBlock partagé, même patron que videoBlock), seul cet outil restreint qui
+  // peut effectivement en générer. `text` porte la question (même convention que heading/
+  // paragraph/callout/quote — jamais un second nom de champ pour "le texte principal du bloc").
+  // quizOptions/quizCorrectIndex/quizExplanation : champs à plat, vides/0 par défaut quand
+  // type≠quiz, même patron que imageQuery/imageAlt ci-dessous.
   const ADOC_STRUCTURED_PRESENTATION_TOOL = {
     name: 'emit_presentation_document',
     description: "Produit le contenu d'une Présentation clinique structurée (format paysage, exposé oral devant un public de 1 à 200 personnes — conférence, cours, séance) en diapositives, chacune composée de blocs typés, sourcé exclusivement par les passages numérotés fournis dans le prompt système.",
@@ -11200,17 +11257,20 @@ ${recent}`;
                 items: {
                   type: 'object',
                   properties: {
-                    type: { type: 'string', enum: ['heading', 'paragraph', 'callout', 'list', 'quote', 'image'] },
-                    text: { type: 'string', description: 'Texte pour heading/paragraph/callout/quote ; chaîne vide sinon.' },
+                    type: { type: 'string', enum: ['heading', 'paragraph', 'callout', 'list', 'quote', 'image', 'quiz'] },
+                    text: { type: 'string', description: 'Texte pour heading/paragraph/callout/quote ; QUESTION du quiz pour quiz ; chaîne vide sinon.' },
                     level: { type: 'integer', enum: [1, 2, 3], description: 'Niveau de titre (heading uniquement) ; 2 sinon.' },
                     visualRole: { type: 'string', enum: ['info', 'warning', 'critical', 'success'], description: 'callout uniquement ; "info" sinon.' },
                     items: { type: 'array', items: { type: 'string' }, description: 'list uniquement ; liste vide sinon.' },
                     ordered: { type: 'boolean', description: 'list uniquement ; false sinon.' },
                     imageQuery: { type: 'string', description: "image uniquement — requête de recherche Pexels concrète et spécifique, en anglais, jamais générique ou caricaturale ; chaîne vide sinon." },
                     imageAlt: { type: 'string', description: 'image uniquement — texte alternatif descriptif, non vide dès que type=image ; chaîne vide sinon.' },
+                    quizOptions: { type: 'array', items: { type: 'string' }, description: 'quiz uniquement — 2 à 6 choix de réponse ; liste vide sinon.' },
+                    quizCorrectIndex: { type: 'integer', description: 'quiz uniquement — index (0-based) de la bonne réponse dans quizOptions ; 0 sinon.' },
+                    quizExplanation: { type: 'string', description: 'quiz uniquement — explication affichée avec la bonne réponse, TOUJOURS renseignée pour un quiz (jamais vide) ; chaîne vide sinon.' },
                     citationEntryIds: { type: 'array', items: { type: 'string' }, description: "sourceSnapshotEntryId (ex. 'entry-3') des passages fournis qui soutiennent ce bloc — choisis EXACTEMENT parmi les identifiants listés dans le prompt, jamais inventés ; liste vide si aucune affirmation sourcée dans ce bloc." },
                   },
-                  required: ['type', 'text', 'level', 'visualRole', 'items', 'ordered', 'imageQuery', 'imageAlt', 'citationEntryIds'],
+                  required: ['type', 'text', 'level', 'visualRole', 'items', 'ordered', 'imageQuery', 'imageAlt', 'quizOptions', 'quizCorrectIndex', 'quizExplanation', 'citationEntryIds'],
                   additionalProperties: false,
                 },
               },
@@ -11619,6 +11679,23 @@ ${recent}`;
           'de stock (ex. poignée de main souriante, couple anonyme qui se dispute face caméra) : ' +
           'imageQuery doit être une requête Pexels concrète et spécifique, en anglais. imageAlt est ' +
           "obligatoire et non vide dès que type=\"image\".\n\n" +
+          // LOT 3 Présentation — quiz simple auto-rythmé, un seul écran (jamais de vote multi-
+          // appareils). Fréquence bornée explicitement (jamais plus d'un quiz toutes les 4-5
+          // diapositives sauf demande explicite) pour éviter une présentation entièrement composée
+          // de quiz — jamais un défaut, seulement quand la vérification de compréhension apporte
+          // une réelle valeur pédagogique à CE contenu précis.
+          '── QUESTION DE VÉRIFICATION (bloc type="quiz", à l\'intérieur d\'une diapositive) ──\n' +
+          'Un bloc type="quiz" est disponible pour vérifier la compréhension du public sur un point ' +
+          "clé déjà exposé — jamais en ouverture d'un sujet non encore présenté. Utilise-le " +
+          "PARCIMONIEUSEMENT : jamais plus d'un quiz toutes les 4 à 5 diapositives, jamais une " +
+          "présentation entièrement composée de quiz, SAUF demande explicite de l'utilisatrice " +
+          '(ex. "avec un quiz pour vérifier la compréhension") qui autorise une fréquence plus ' +
+          'élevée. text porte la QUESTION (concise, sans citer directement la réponse). ' +
+          'quizOptions : 2 à 6 choix de réponse plausibles, un seul correct — jamais deux choix ' +
+          'trivialement identiques ou absurdes qui rendraient la bonne réponse évidente sans ' +
+          'réflexion. quizCorrectIndex : index (0-based) du choix correct dans quizOptions. ' +
+          'quizExplanation : TOUJOURS renseignée (jamais vide) — explique pourquoi la bonne réponse ' +
+          "est correcte, en une ou deux phrases claires, utile même à qui s'est trompé.\n\n" +
           '── TEXTE ──\n' +
           "Aucun emoji, aucun caractère Unicode décoratif (cercles ou carrés de couleur, symboles, " +
           "pictogrammes, flèches décoratives) nulle part dans le texte produit — texte propre uniquement.";
@@ -12750,6 +12827,22 @@ ${recent}`;
           const alt = adocStripEmoji((b.imageAlt || '').trim());
           if (!q || !alt) return null; // pas exploitable sans requête ET texte alternatif — jamais un bloc image à moitié rempli
           content = { query: q, alt: alt };
+          break;
+        }
+        // LOT 3 Présentation — même filet de sécurité que 'image' ci-dessus : un quiz inexploitable
+        // (question vide, moins de 2 options réelles, ou explication vide) est rejeté ENTIER plutôt
+        // que persisté à moitié rempli. correctIndex borné défensivement à [0, options.length-1] —
+        // JSON Schema seul ne peut pas garantir dynamiquement qu'un index reste valide pour un
+        // tableau de longueur variable (cf. $comment de quizContent, Schemas/block.schema.json) ;
+        // ce clamp est le filet de sécurité RÉEL, jamais une simple formalité de schéma.
+        case 'quiz': {
+          const question = adocStripEmoji((b.text || '').trim());
+          const options = (b.quizOptions || []).filter(Boolean).map(adocStripEmoji);
+          const explanation = adocStripEmoji((b.quizExplanation || '').trim());
+          if (!question || options.length < 2 || !explanation) return null;
+          const rawIndex = typeof b.quizCorrectIndex === 'number' ? b.quizCorrectIndex : 0;
+          const correctIndex = Math.min(Math.max(0, rawIndex), options.length - 1);
+          content = { question: question, options: options, correctIndex: correctIndex, explanation: explanation };
           break;
         }
         default: return null;
