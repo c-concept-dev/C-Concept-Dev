@@ -16370,21 +16370,42 @@ ${recent}`;
     return data.videos || [];
   }
 
-  async function adocVideoCreate(url, title) {
+  // LOT VIDÉO-1 — attribution optionnelle (3e paramètre) : `null` pour un lien tapé directement
+  // (jamais d'attribution pour un lien manuel) ; renseignée quand adocVideoAdd consomme
+  // window._adocVideoPendingAttribution, posée par adocVideoChooseLocal après un choix "Stockage
+  // local" sur un résultat Pexels (crédit vidéaste, obligation des conditions Pexels — même
+  // patron que render_assets.attribution pour les photos).
+  async function adocVideoCreate(url, title, attribution) {
     const res = await fetch(adocGetWorkerUrl() + '/video-links', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
-      body: JSON.stringify({ url: url, title: title }),
+      body: JSON.stringify({ url: url, title: title, attribution: attribution || null }),
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     return res.json();
   }
 
-  // Grille "Vidéos enregistrées" — icône générique (aucune vraie miniature possible sans le
-  // fichier, cf. rapport d'investigation) + titre, mêmes classes CSS que .cc-media-grid/.cc-media-item
-  // (cohérence visuelle avec Photos). "Effacer" toujours proposé ici (contrairement à Photos, où il
-  // est parfois masqué dans un simple sous-panneau de sélection) : la grille Vidéos EST toujours la
-  // bibliothèque elle-même, jamais un sous-panneau de sélection distinct.
+  // LOT VIDÉO-1 — recherche Pexels Vidéos, symétrique de adocMediaFetchSearch (Photos). Route
+  // Worker propre à Studio Clinique (/fetch-video), jamais le proxy VideoBox (cf. rapport
+  // d'investigation — deux logiciels distincts, décision confirmée par Christophe).
+  async function adocVideoFetchSearch(query) {
+    const res = await fetch(adocGetWorkerUrl() + '/fetch-video?q=' + encodeURIComponent(query) + '&per_page=8', {
+      headers: { 'X-API-Key': adocGetApiKey() },
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    return data.videos || [];
+  }
+
+  // Grille "Vidéos enregistrées" — LOT VIDÉO-1 : un vrai <video> (première frame décodée
+  // nativement dès que les métadonnées chargent, aucune miniature à générer/stocker séparément,
+  // cf. rapport d'investigation) réutilisant directement la classe .cc-media-thumb (mêmes
+  // dimensions que les vignettes Photos, jamais un second gabarit). Repli honnête vers l'icône
+  // générique + texte (adocVideoThumbFallback ci-dessous) UNIQUEMENT si le fichier échoue à
+  // charger — un lien local dont VideoBox ne tourne pas au moment de consulter la grille, jamais
+  // un lien Cloudflare (toujours joignable). "Effacer" toujours proposé ici (contrairement à
+  // Photos, où il est parfois masqué dans un simple sous-panneau de sélection) : la grille Vidéos
+  // EST toujours la bibliothèque elle-même, jamais un sous-panneau de sélection distinct.
   function adocVideoRenderGrid(containerId, items, opts) {
     const el = document.getElementById(containerId);
     if (!el) return;
@@ -16398,11 +16419,13 @@ ${recent}`;
     const argsPrefix = opts.insertArgs && opts.insertArgs.length ? opts.insertArgs.join(',') + ',' : '';
     el.innerHTML = items.map(function (item, i) {
       if (!item) return '';
+      // Attribution visible dès qu'elle existe (résultat Pexels) — jamais retirée ni minimisée,
+      // même obligation déjà tenue pour les photos (adocMediaRenderGrid ci-dessus).
+      const creditLine = item.attribution ? (item.title + ' — ' + item.attribution) : item.title;
       return '<div class="cc-media-item" data-video-item="' + i + '">' +
-        '<div class="cc-media-thumb cc-media-video-thumb" aria-hidden="true">' +
-          '<svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-video"></use></svg>' +
-        '</div>' +
-        '<p class="cc-media-credit">' + adocEsc(item.title) + '</p>' +
+        '<video class="cc-media-thumb" muted preload="metadata" playsinline src="' + adocEsc(item.url) + '" ' +
+          'onerror="window.adocVideoThumbFallback(this)"></video>' +
+        '<p class="cc-media-credit">' + adocEsc(creditLine) + '</p>' +
         '<div class="cc-media-actions">' +
           '<button type="button" class="cc-media-insert-btn" data-video-insert="' + i + '" onclick="window.' + insertFn + '(' + argsPrefix + i + ')">Insérer</button>' +
           '<button type="button" class="cc-media-delete-btn" data-video-delete="' + i + '" onclick="event.stopPropagation();window.' + deleteFn + '(' + argsPrefix + i + ')" title="Effacer">Effacer</button>' +
@@ -16410,6 +16433,115 @@ ${recent}`;
       '</div>';
     }).join('');
   }
+
+  // Repli honnête (jamais une vignette cassée silencieuse) — remplace le <video> en échec par le
+  // même bloc icône+texte qu'avant ce lot, enrichi d'un message expliquant la cause probable
+  // (lien local, VideoBox non lancé). Ne s'exécute jamais pour un lien Cloudflare (Lot Vidéo-2,
+  // toujours joignable, cf. rapport d'investigation).
+  window.adocVideoThumbFallback = function (videoEl) {
+    const fallback = document.createElement('div');
+    fallback.className = 'cc-media-thumb cc-media-video-thumb';
+    fallback.innerHTML = '<svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-video"></use></svg>' +
+      '<span class="cc-media-video-fallback-text">Aperçu indisponible — VideoBox est-il lancé ?</span>';
+    videoEl.replaceWith(fallback);
+  };
+
+  // ── Recherche Pexels + choix du stockage (LOT VIDÉO-1) ────────────────────────────────────
+  // Grille de résultats : aperçu réel à deux niveaux — image "poster" allégée (~480px, réécriture
+  // de paramètres d'URL sur le CDN Pexels, jamais un second appel réseau) affichée avant lecture,
+  // puis le fichier vidéo le plus proche de 360p (previewUrl, jamais downloadUrl ~1080p) joué en
+  // boucle au survol — jamais la définition la plus lourde pour un simple aperçu. Sélectionner un
+  // résultat ("Choisir") révèle le choix de stockage, jamais une modale (même patron de
+  // divulgation progressive que le reste de ce panneau, cf. rapport d'investigation).
+  function adocVideoRenderSearchGrid(containerId, items) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    if (!items || !items.length) {
+      el.innerHTML = '<p class="cc-media-empty">Aucun résultat.</p>';
+      return;
+    }
+    el.innerHTML = items.map(function (item, i) {
+      const credit = item.photographer ? ('Vidéo : ' + item.photographer + ' — Pexels') : 'Pexels';
+      return '<div class="cc-media-item" data-video-search-item="' + i + '">' +
+        '<video class="cc-media-thumb" muted loop preload="metadata" playsinline' +
+          (item.thumbUrl ? ' poster="' + adocEsc(item.thumbUrl) + '"' : '') +
+          ' src="' + adocEsc(item.previewUrl) + '" ' +
+          'onmouseenter="this.play()" onmouseleave="this.pause();this.currentTime=0;"></video>' +
+        '<p class="cc-media-credit">' + adocEsc(credit) + '</p>' +
+        '<div class="cc-media-actions">' +
+          '<button type="button" class="cc-media-insert-btn" data-video-search-choose="' + i + '" onclick="window.adocVideoSearchSelect(' + i + ')">Choisir</button>' +
+        '</div>' +
+        '<div class="cc-video-storage-choice" id="cc-video-storage-choice-' + i + '" hidden>' +
+          '<div class="cc-media-search-row">' +
+            '<button type="button" class="cc-media-search-btn" data-video-choose-local="' + i + '" onclick="window.adocVideoChooseLocal(' + i + ')">Stockage local</button>' +
+            '<button type="button" class="cc-media-search-btn" disabled title="Disponible prochainement (Lot Vidéo-2)">Stockage Cloudflare</button>' +
+          '</div>' +
+          '<div id="cc-video-local-panel-' + i + '" hidden style="margin-top:6px;">' +
+            '<input type="text" class="cc-ws-search-input" readonly id="cc-video-download-link-' + i + '" value="' + adocEsc(item.downloadUrl) + '">' +
+            '<button type="button" class="cc-media-search-btn cc-video-copy-btn" data-video-copy="' + i + '" onclick="window.adocVideoCopyLink(' + i + ')">Copier ce lien</button>' +
+            '<p class="cc-media-empty">Collez ce lien dans VideoBox pour la récupérer sur votre ordinateur, puis utilisez le lien qu’elle vous donne dans le champ ci-dessous pour l’ajouter à la bibliothèque.</p>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  window.adocVideoSearch = async function () {
+    const input = document.getElementById('cc-ws-video-search-input');
+    const q = (input && input.value || '').trim();
+    const resultsEl = document.getElementById('cc-ws-video-search-results');
+    if (!q) { if (resultsEl) resultsEl.innerHTML = ''; return; }
+    if (resultsEl) resultsEl.innerHTML = '<p class="cc-media-empty">Recherche…</p>';
+    // Une nouvelle recherche invalide tout choix de stockage en attente d'un résultat précédent —
+    // jamais une attribution qui traînerait au-delà de son propre résultat de recherche.
+    window._adocVideoPendingAttribution = null;
+    try {
+      window._adocVideoSearchResults = await adocVideoFetchSearch(q);
+      window._adocVideoSearchQuery = q;
+      adocVideoRenderSearchGrid('cc-ws-video-search-results', window._adocVideoSearchResults);
+    } catch (e) {
+      if (resultsEl) resultsEl.innerHTML = '<p class="cc-media-empty">Recherche impossible : ' + adocEsc(e.message) + '</p>';
+    }
+  };
+
+  // Bascule visible/masqué du choix de stockage — un seul résultat ouvert à la fois n'est jamais
+  // imposé (chaque résultat garde son propre état), cohérent avec une simple divulgation inline.
+  window.adocVideoSearchSelect = function (idx) {
+    const el = document.getElementById('cc-video-storage-choice-' + idx);
+    if (!el) return;
+    el.hidden = !el.hidden;
+  };
+
+  // "Stockage local" ne persiste RIEN par elle-même — le lien de téléchargement Pexels n'est
+  // qu'une adresse de récupération temporaire, jamais une vraie adresse locale jouable sans
+  // VideoBox (cf. rapport d'investigation) : le réutiliser tel quel comme `url` finale aurait
+  // contredit le message "Vidéo locale — nécessite que le serveur vidéo tourne sur cet ordinateur"
+  // (la vidéo serait alors jouable directement, sans jamais passer par VideoBox). Ce choix
+  // pré-remplit donc le titre du champ manuel EXISTANT (jamais un second champ) et met en attente
+  // l'attribution — l'ajout réel se fait par le bouton "Ajouter" déjà existant, une fois le lien
+  // localhost obtenu de VideoBox collé dans le champ lien déjà existant juste en dessous.
+  window.adocVideoChooseLocal = function (idx) {
+    const item = window._adocVideoSearchResults && window._adocVideoSearchResults[idx];
+    const panel = document.getElementById('cc-video-local-panel-' + idx);
+    if (panel) panel.hidden = false;
+    if (!item) return;
+    window._adocVideoPendingAttribution = item.photographer ? ('Vidéo : ' + item.photographer + ' — Pexels') : null;
+    const titleInput = document.getElementById('cc-ws-video-title-input');
+    const urlInput = document.getElementById('cc-ws-video-url-input');
+    if (titleInput && !titleInput.value) titleInput.value = window._adocVideoSearchQuery || '';
+    if (urlInput) urlInput.focus();
+  };
+
+  window.adocVideoCopyLink = function (idx) {
+    const input = document.getElementById('cc-video-download-link-' + idx);
+    const btn = document.querySelector('[data-video-copy="' + idx + '"]');
+    if (!input) return;
+    navigator.clipboard.writeText(input.value).then(function () {
+      if (btn) { const orig = btn.textContent; btn.textContent = 'Copié ✓'; setTimeout(function () { btn.textContent = orig; }, 1500); }
+    }).catch(function (e) {
+      alert('Copie impossible : ' + e.message);
+    });
+  };
 
   // ── Barre latérale ("Médias" → sous-onglet "Vidéos") ──────────────────────────────────────
   window.adocVideoLoadHistory = async function () {
@@ -16429,8 +16561,15 @@ ${recent}`;
     const url = (urlInput && urlInput.value || '').trim();
     const title = (titleInput && titleInput.value || '').trim();
     if (!url || !title) { alert('Indiquez un lien ET un titre pour ajouter une vidéo.'); return; }
+    // LOT VIDÉO-1 — attribution en attente, posée par adocVideoChooseLocal si "Stockage local" a
+    // été choisi pour un résultat Pexels juste avant ; jamais conservée au-delà de CET ajout
+    // (consommée puis remise à null), pour ne jamais créditer par erreur un lien totalement
+    // différent ajouté ensuite. Reste `null` pour le flux manuel pré-existant (lien tapé
+    // directement, sans passer par la recherche).
+    const attribution = window._adocVideoPendingAttribution || null;
+    window._adocVideoPendingAttribution = null;
     try {
-      await adocVideoCreate(url, title);
+      await adocVideoCreate(url, title, attribution);
       if (urlInput) urlInput.value = '';
       if (titleInput) titleInput.value = '';
       window.adocVideoLoadHistory();

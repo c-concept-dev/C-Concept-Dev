@@ -2544,10 +2544,27 @@
 }
 .cc-media-subtab:hover { color: var(--ink); }
 .cc-media-subtab.is-active { color: var(--petrol-950); border-bottom-color: var(--petrol-950); }
-/* Vidéo — jamais de vraie miniature possible sans le fichier (lien local, cf. rapport
-   d'investigation) : icône générique centrée, même gabarit que .cc-media-thumb. */
-.cc-media-video-thumb { display: flex; align-items: center; justify-content: center; color: var(--muted); }
-.cc-media-video-thumb .cc-ws-icon { width: 28px; height: 28px; }
+/* LOT VIDÉO-1 — repli UNIQUEMENT quand le <video> réel (adocVideoRenderGrid, désormais un vrai
+   <video class="cc-media-thumb">, cf. studio-clinique-core.js) échoue à charger — un lien local
+   dont VideoBox ne tourne pas au moment de consulter la grille, jamais un lien Cloudflare
+   (toujours joignable). Icône + texte honnête, jamais une vignette cassée silencieuse. Même
+   gabarit que .cc-media-thumb (dimensions identiques, remplace l'élément en place). */
+.cc-media-video-thumb { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: var(--muted); text-align: center; padding: 4px; }
+.cc-media-video-thumb .cc-ws-icon { width: 24px; height: 24px; }
+.cc-media-video-fallback-text { font-size: 9px; line-height: 1.2; }
+/* LOT VIDÉO-1 — sous-panneau "choix du stockage", révélé au clic sur "Choisir" d'un résultat de
+   recherche Pexels (adocVideoSearchSelect). Divulgation progressive inline, même patron déjà en
+   place partout dans ce panneau (jamais une modale, cf. rapport d'investigation). */
+.cc-video-storage-choice { padding: 8px; border-top: 1px dashed var(--stone-300); margin-top: 4px; }
+.cc-video-storage-choice .cc-ws-search-input { margin-bottom: 6px; }
+/* Correctif visuel (capture d'écran réelle) — .cc-video-storage-choice vit à l'intérieur d'une
+   cellule de .cc-media-grid (2 colonnes, chaque cellule déjà étroite dans une barre latérale
+   elle-même étroite) : "Stockage local"/"Stockage Cloudflare" côte à côte (flex-direction: row par
+   défaut sur .cc-media-search-row) tronquaient leur texte de façon illisible. Empilés
+   verticalement UNIQUEMENT ici (jamais .cc-media-search-row en général, qui reste inchangée
+   partout ailleurs — Photos/recherche manuelle, lignes déjà larges) : chaque bouton garde alors
+   toute la largeur, déjà étroite mais suffisante, de la cellule. */
+.cc-video-storage-choice .cc-media-search-row { flex-direction: column; }
 /* "Mes créations" (UX-10B) — repli textuel quand thumbnail_asset_id est absent (jamais un échec
    silencieux) : mêmes dimensions que .cc-media-thumb (réutilisée à côté, jamais dupliquée),
    simplement centré pour accueillir le libellé du type de document. */
@@ -3744,6 +3761,17 @@
                toujours un bloc vidéo autonome (jamais un fond, impossible pour une vidéo), à la
                différence du geste "Insérer" côté Photos ci-dessus. -->
           <div id="cc-ws-media-subpanel-videos" hidden>
+            <!-- LOT VIDÉO-1 — recherche Pexels, au-dessus (jamais à la place) du lien manuel
+                 ci-dessous, même esprit que la recherche Photos. Aperçu réel dans la grille de
+                 résultats (adocVideoRenderSearchGrid) : cf. studio-clinique-core.js. -->
+            <div class="cc-media-search-row">
+              <input type="text" class="cc-ws-search-input" id="cc-ws-video-search-input"
+                placeholder="Rechercher une vidéo (Pexels)…" aria-label="Rechercher une vidéo"
+                onkeydown="if(event.key==='Enter'){event.preventDefault();window.adocVideoSearch();}">
+              <button type="button" class="cc-media-search-btn" onclick="window.adocVideoSearch()">Rechercher</button>
+            </div>
+            <div id="cc-ws-video-search-results" class="cc-media-grid" aria-live="polite"></div>
+            <p class="cc-ws-panel-section-title cc-media-history-title">— ou collez un lien directement —</p>
             <div class="cc-media-search-row">
               <input type="text" class="cc-ws-search-input" id="cc-ws-video-url-input"
                 placeholder="Lien de la vidéo (http://localhost:...)" aria-label="Lien de la vidéo">
