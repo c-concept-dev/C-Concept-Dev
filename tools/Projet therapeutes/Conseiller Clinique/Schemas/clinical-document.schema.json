@@ -58,12 +58,12 @@
     "title": { "type": "string", "minLength": 1 },
     "purpose": { "type": "string", "minLength": 1 },
     "audience": { "type": "string", "minLength": 1 },
-    "documentKind": { "enum": ["fiche", "carrousel", "tableau", "script", "liens"] },
+    "documentKind": { "enum": ["fiche", "carrousel", "tableau", "script", "liens", "presentation"] },
     "renderManifestId": { "type": "string", "minLength": 1 },
     "derivedFrom": { "$ref": "#/$defs/derivedFrom" },
     "blocks": {
       "type": "array",
-      "$comment": "Type d'élément affiné par documentKind via les règles allOf/if/then ci-dessous : editorialBlock pour 'fiche', cardOnlyBlock (uniquement des `card`) pour 'carrousel'. tableau/script/liens ne sont pas encore migrés (UX-8M) — leurs blocs restent un union générique non contrainte à ce stade, aucun modèle de bloc n'étant encore défini pour eux."
+      "$comment": "Type d'élément affiné par documentKind via les règles allOf/if/then ci-dessous : editorialBlock pour 'fiche', cardOnlyBlock (uniquement des `card`) pour 'carrousel' ET 'presentation' (LOT 1 — une diapositive de Présentation réutilise telle quelle la structure `card` du Carrousel). tableau/script/liens ne sont pas encore migrés (UX-8M) — leurs blocs restent un union générique non contrainte à ce stade, aucun modèle de bloc n'étant encore défini pour eux."
     },
     "citations": {
       "type": "array",
@@ -85,21 +85,22 @@
       }
     },
     {
-      "if": { "properties": { "documentKind": { "const": "carrousel" } }, "required": ["documentKind"] },
+      "$comment": "LOT 1 Présentation (6e documentKind) — fusionne 'presentation' dans CETTE MÊME branche que 'carrousel' (jamais une seconde branche dupliquée, régression #6) : une diapositive de Présentation EST structurellement une carte de Carrousel (card/cardContent/nestedBlock réutilisés tels quels, cf. investigation — aucun nouveau niveau d'imbrication). Seule la contrainte de POSITION diverge (branche suivante) : presentation, contrairement à carrousel, n'autorise jamais x/y/width/height/zIndex sur ses blocs de premier niveau (ordre strictement séquentiel entre diapositives, décision Christophe — jamais un canevas façon Prezi).",
+      "if": { "properties": { "documentKind": { "enum": ["carrousel", "presentation"] } }, "required": ["documentKind"] },
       "then": {
         "properties": {
           "blocks": {
             "type": "array",
             "minItems": 1,
             "items": { "$ref": "block.schema.json#/$defs/cardOnlyBlock" },
-            "$comment": "Un document carrousel n'a QUE des blocs `card` au niveau racine — jamais un bloc éditorial orphelin. Chaque carte porte ses propres blocs enfants dans content.blocks[]."
+            "$comment": "Un document carrousel ou presentation n'a QUE des blocs `card` au niveau racine — jamais un bloc éditorial orphelin. Chaque carte (diapositive pour presentation) porte ses propres blocs enfants dans content.blocks[]."
           }
         }
       }
     },
     {
-      "$comment": "ITEM 75 Phase 1 (complément, 18 septembre 2026) — garde-fou décidé par Christophe : x/y/width/height/zIndex (block.schema.json#/$defs/blockStyle, ITEM 75 Phase 1 initial) réservés au documentKind carrousel, rejetés par AJV ailleurs (échec fermé, pas un simple avertissement — cohérence avec la posture A18). Même patron allOf/if/then que les deux branches ci-dessus, appliqué à l'inverse : fiche/tableau/script/liens (jamais carrousel) ne peuvent pas porter ces 5 champs sur un bloc de premier niveau. Ne s'applique qu'aux blocs de PREMIER NIVEAU (doc.blocks[]) — jamais aux blocs imbriqués de card.content.blocks[] (block.schema.json#/$defs/nestedBlock), seul endroit où ces champs ont un sens (une carte, elle, n'a pas de `style` — cardBlock ne le définit pas), donc aucune récursion n'est nécessaire ici : un document non-carrousel n'a jamais de bloc `card` à sa racine (branche `fiche` ci-dessus l'exclut déjà d'editorialBlock ; tableau/script/liens restent une union non contrainte, UX-8M, mais ce garde-fou n'élargit ni ne réduit cette lacune déjà documentée, il ferme seulement la fuite de position). Combine par ET (allOf) avec la contrainte de forme déjà posée pour 'fiche' ci-dessus — un bloc de Fiche doit rester conforme à editorialBlock ET ne jamais porter ces 5 champs.",
-      "if": { "properties": { "documentKind": { "enum": ["fiche", "tableau", "script", "liens"] } }, "required": ["documentKind"] },
+      "$comment": "ITEM 75 Phase 1 (complément, 18 septembre 2026) — garde-fou décidé par Christophe : x/y/width/height/zIndex (block.schema.json#/$defs/blockStyle, ITEM 75 Phase 1 initial) réservés au documentKind carrousel, rejetés par AJV ailleurs (échec fermé, pas un simple avertissement — cohérence avec la posture A18). Même patron allOf/if/then que les deux branches ci-dessus, appliqué à l'inverse : fiche/tableau/script/liens/presentation (jamais carrousel) ne peuvent pas porter ces 5 champs sur un bloc de premier niveau. Ne s'applique qu'aux blocs de PREMIER NIVEAU (doc.blocks[]) — jamais aux blocs imbriqués de card.content.blocks[] (block.schema.json#/$defs/nestedBlock), seul endroit où ces champs ont un sens (une carte, elle, n'a pas de `style` — cardBlock ne le définit pas), donc aucune récursion n'est nécessaire ici : un document non-carrousel n'a jamais de bloc `card` à sa racine (branche `fiche` ci-dessus l'exclut déjà d'editorialBlock ; tableau/script/liens restent une union non contrainte, UX-8M, mais ce garde-fou n'élargit ni ne réduit cette lacune déjà documentée, il ferme seulement la fuite de position). LOT 1 Présentation — 'presentation' rejoint cette liste interdite (jamais la branche carrousel ci-dessus) : décision explicite Christophe, une Présentation garde un ordre strictement séquentiel entre diapositives, contrairement au Carrousel qui autorise le positionnement libre de ses cartes. Combine par ET (allOf) avec la contrainte de forme déjà posée pour 'fiche' ci-dessus — un bloc de Fiche doit rester conforme à editorialBlock ET ne jamais porter ces 5 champs.",
+      "if": { "properties": { "documentKind": { "enum": ["fiche", "tableau", "script", "liens", "presentation"] } }, "required": ["documentKind"] },
       "then": {
         "properties": {
           "blocks": {
