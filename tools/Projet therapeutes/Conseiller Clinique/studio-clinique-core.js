@@ -10702,8 +10702,11 @@ ${recent}`;
   // ── Pilote 2 : Carrousel (modèle minimal unique, structure imbriquée card > blocks[]) ──
   function adocRenderCardHTML(card, index, total) {
     const nested = (card.content.blocks || []).map(adocRenderBlockHTML).join('\n');
+    // Couverture de carte — même convention que le bloc image inline (case 'image' ci-dessus) :
+    // data-pexels="<requête>" ici, JAMAIS un src résolu à la volée ; adocResolveImages (mécanisme
+    // déjà existant et éprouvé) le résout partout où le HTML de carte est réellement affiché/exporté.
     const img = card.content.imageRef
-      ? '<img class="adoc-sc-card-img" src="' + adocEsc(card.content.imageRef) + '" alt="' + adocEsc(card.content.imageAlt || '') + '">'
+      ? '<img class="adoc-sc-card-img" data-pexels="' + adocEsc(card.content.imageRef) + '" alt="' + adocEsc(card.content.imageAlt || '') + '">'
       : '';
     const posCSS = adocCardPositionCSSText(card.style);
     const styleAttr = posCSS ? ' style="' + adocEsc(posCSS) + '"' : '';
@@ -11216,6 +11219,14 @@ ${recent}`;
             type: 'object',
             properties: {
               title: { type: 'string', description: 'Titre court de la carte (diapositive) — une idée claire par carte.' },
+              // CORRECTIF couverture de carte — champs à plat au niveau de la CARTE (jamais un
+              // bloc parmi blocks[], jamais un second mécanisme de résolution : même patron que
+              // imageQuery/imageAlt du bloc image inline ci-dessous). Requis (non vides) sauf
+              // dans le cas honnête où le sujet ne s'y prête vraiment pas (cf. consigne de prompt,
+              // buildPromptSuffix) — convertRawToBlocks (partagé, adocResolveCardCoverFields)
+              // n'exploite la couverture QUE si les deux sont non vides, jamais l'un sans l'autre.
+              coverImageQuery: { type: 'string', description: "Image de couverture de CETTE carte — requête de recherche Pexels concrète, évocatrice et spécifique, en anglais ; chaîne vide UNIQUEMENT si aucune image ne convient vraiment au sujet de cette carte précise." },
+              coverImageAlt: { type: 'string', description: 'Texte alternatif descriptif de la couverture, non vide dès que coverImageQuery est renseignée ; chaîne vide sinon.' },
               blocks: {
                 type: 'array',
                 items: {
@@ -11236,7 +11247,7 @@ ${recent}`;
                 },
               },
             },
-            required: ['title', 'blocks'],
+            required: ['title', 'coverImageQuery', 'coverImageAlt', 'blocks'],
             additionalProperties: false,
           },
         },
@@ -11276,6 +11287,10 @@ ${recent}`;
             type: 'object',
             properties: {
               title: { type: 'string', description: 'Titre court de la diapositive — une idée claire par diapositive.' },
+              // CORRECTIF couverture de diapositive — mêmes champs, même garde-fou, même fonction
+              // partagée (adocResolveCardCoverFields) que ADOC_STRUCTURED_CARROUSEL_TOOL ci-dessus.
+              coverImageQuery: { type: 'string', description: "Image de couverture de CETTE diapositive — requête de recherche Pexels concrète, évocatrice et spécifique, en anglais ; chaîne vide UNIQUEMENT si aucune image ne convient vraiment au sujet de cette diapositive précise." },
+              coverImageAlt: { type: 'string', description: 'Texte alternatif descriptif de la couverture, non vide dès que coverImageQuery est renseignée ; chaîne vide sinon.' },
               blocks: {
                 type: 'array',
                 items: {
@@ -11299,7 +11314,7 @@ ${recent}`;
                 },
               },
             },
-            required: ['title', 'blocks'],
+            required: ['title', 'coverImageQuery', 'coverImageAlt', 'blocks'],
             additionalProperties: false,
           },
         },
@@ -11564,6 +11579,23 @@ ${recent}`;
     }
   }
 
+  // CORRECTIF couverture de carte/diapositive — fonction PARTAGÉE entre les profils carrousel et
+  // presentation (jamais deux logiques distinctes, régression #6), appelée par les deux
+  // convertRawToBlocks ci-dessous. Même garde-fou que le bloc image inline (case 'image' de
+  // convertBlock) : couverture inexploitable sans requête ET texte alternatif tous les deux non
+  // vides → aucune couverture, jamais une carte à moitié illustrée (imageRef:null reste un cas
+  // valide au rendu, cf. adocRenderCardHTML). imageRef stocke ici la REQUÊTE Pexels telle quelle
+  // (jamais une URL résolue — convertRawToBlocks reste synchrone, une résolution réseau ne peut
+  // pas s'y faire) : adocRenderCardHTML émet `data-pexels="..."` pour ce champ (même convention
+  // que le bloc image inline), résolu par adocResolveImages — le MÊME mécanisme déjà existant,
+  // jamais un second mécanisme de résolution inventé pour l'occasion (cf. investigation point 1).
+  function adocResolveCardCoverFields(rawCard) {
+    const q = ((rawCard && rawCard.coverImageQuery) || '').trim();
+    const alt = adocStripEmoji(((rawCard && rawCard.coverImageAlt) || '').trim());
+    if (!q || !alt) return { imageRef: null, imageAlt: null };
+    return { imageRef: q, imageAlt: alt };
+  }
+
   // Item 69 construction — un profil par documentKind câblé au structuré : SEULS les 4 points
   // identifiés par l'investigation varient (outil/nom d'outil, suffixe de prompt système,
   // conversion raw→blocks) ; tout le reste (orchestration réseau, minuteries, parsing SSE,
@@ -11619,6 +11651,13 @@ ${recent}`;
           '(ex. poignée de main souriante, couple anonyme qui se dispute face caméra) : imageQuery ' +
           'doit être une requête Pexels concrète et spécifique, en anglais. imageAlt est obligatoire ' +
           "et non vide dès que type=\"image\".\n\n" +
+          '── COUVERTURE DE CARTE (coverImageQuery/coverImageAlt) ──\n' +
+          "Choisis une image de couverture pertinente et évocatrice pour CHAQUE carte — coverImageQuery " +
+          "doit être une requête Pexels concrète et spécifique, en anglais, propre au sujet précis de " +
+          "CETTE carte (jamais une requête générique répétée d'une carte à l'autre). coverImageAlt est " +
+          "obligatoire et non vide dès que coverImageQuery est renseignée. Laisse les deux champs vides " +
+          "UNIQUEMENT dans les cas où le sujet de la carte ne se prête vraiment à aucune image (ex. " +
+          "carte purement chiffrée ou définitionnelle) — jamais par défaut.\n\n" +
           '── TEXTE (lot correctifs urgents) ──\n' +
           "Aucun emoji, aucun caractère Unicode décoratif (cercles ou carrés de couleur, symboles, " +
           "pictogrammes, flèches décoratives) nulle part dans le texte produit — texte propre uniquement.";
@@ -11626,8 +11665,9 @@ ${recent}`;
       // raw.cards est imbriqué (cardOnlyBlock/cardContent, block.schema.json) — une carte par
       // entrée, ses propres blocs convertis par LA MÊME fonction convertBlock que Fiche (jamais
       // une seconde logique de conversion par type). L'image de couverture de carte
-      // (cardContent.imageRef/imageAlt) reste hors périmètre de ce lot (item 63d) : toujours
-      // null ici, jamais renseignée par ce chemin.
+      // (cardContent.imageRef/imageAlt) est résolue par adocResolveCardCoverFields (même patron
+      // que le bloc image inline — cf. investigation transversale) depuis coverImageQuery/
+      // coverImageAlt (raw), jamais un second mécanisme de résolution.
       convertRawToBlocks: function(raw, convertBlock) {
         let cardSeq = 0;
         return (raw.cards || []).map(function(card) {
@@ -11637,11 +11677,11 @@ ${recent}`;
           return {
             id: 'card-' + String(cardSeq).padStart(2, '0'),
             type: 'card',
-            content: {
-              title: adocStripEmoji((card.title || '').trim()) || ('Diapositive ' + cardSeq),
-              imageRef: null, imageAlt: null,
-              blocks: cardBlocks,
-            },
+            content: Object.assign(
+              { title: adocStripEmoji((card.title || '').trim()) || ('Diapositive ' + cardSeq) },
+              adocResolveCardCoverFields(card),
+              { blocks: cardBlocks }
+            ),
             citationIds: [], validation: {},
           };
         }).filter(Boolean);
@@ -11703,6 +11743,14 @@ ${recent}`;
           'de stock (ex. poignée de main souriante, couple anonyme qui se dispute face caméra) : ' +
           'imageQuery doit être une requête Pexels concrète et spécifique, en anglais. imageAlt est ' +
           "obligatoire et non vide dès que type=\"image\".\n\n" +
+          '── COUVERTURE DE DIAPOSITIVE (coverImageQuery/coverImageAlt) ──\n' +
+          "Choisis une image de couverture pertinente et évocatrice pour CHAQUE diapositive — " +
+          "coverImageQuery doit être une requête Pexels concrète et spécifique, en anglais, propre au " +
+          "sujet précis de CETTE diapositive (jamais une requête générique répétée d'une diapositive à " +
+          "l'autre). coverImageAlt est obligatoire et non vide dès que coverImageQuery est renseignée. " +
+          "Laisse les deux champs vides UNIQUEMENT dans les cas où le sujet de la diapositive ne se " +
+          "prête vraiment à aucune image (ex. diapositive purement chiffrée ou définitionnelle) — " +
+          "jamais par défaut.\n\n" +
           // LOT 3 Présentation — quiz simple auto-rythmé, un seul écran (jamais de vote multi-
           // appareils). Fréquence bornée explicitement (jamais plus d'un quiz toutes les 4-5
           // diapositives sauf demande explicite) pour éviter une présentation entièrement composée
@@ -11736,11 +11784,11 @@ ${recent}`;
           return {
             id: 'slide-' + String(cardSeq).padStart(2, '0'),
             type: 'card',
-            content: {
-              title: adocStripEmoji((card.title || '').trim()) || ('Diapositive ' + cardSeq),
-              imageRef: null, imageAlt: null,
-              blocks: cardBlocks,
-            },
+            content: Object.assign(
+              { title: adocStripEmoji((card.title || '').trim()) || ('Diapositive ' + cardSeq) },
+              adocResolveCardCoverFields(card),
+              { blocks: cardBlocks }
+            ),
             citationIds: [], validation: {},
           };
         }).filter(Boolean);
