@@ -11633,9 +11633,28 @@ ${recent}`;
                       description: 'questionnaire uniquement — au moins 2 profils, COUVRANT ENSEMBLE toute la plage de score atteignable (du score minimal possible au score maximal possible), sans trou ni chevauchement entre les tranches ; liste vide sinon.',
                     },
                     questionnaireTwoPartners: { type: 'boolean', description: "questionnaire uniquement — true si le sujet se prête réellement à ce que deux partenaires répondent chacun séparément et comparent leurs profils (ex. thème de couple) ; false si le sujet est individuel ou ne s'y prête pas. Jamais true par défaut." },
+                    // Présentation ACTE 2, Phase 1 — désigne une expression EXACTE déjà présente dans
+                    // `text`/`items` de CE bloc qui ouvre une page d'approfondissement (deepDives
+                    // ci-dessous, référencée par targetId). Uniquement pertinent pour
+                    // heading/paragraph/callout/list/quote (même restriction que block.schema.json#/
+                    // $defs/deepDiveLinks) ; liste vide pour tout autre type, y compris image/quiz/
+                    // questionnaire — jamais une syntaxe de lien libre à l'intérieur de text lui-même.
+                    deepDiveLinks: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        properties: {
+                          text: { type: 'string', description: "Expression EXACTE (2 à 4 mots), telle qu'elle apparaît déjà dans le texte de ce bloc — jamais reformulée, jamais une paraphrase." },
+                          targetId: { type: 'string', description: "id d'une entrée de deepDives (racine du document) — choisi EXACTEMENT parmi les id produits dans ce même appel, jamais inventé." },
+                        },
+                        required: ['text', 'targetId'],
+                        additionalProperties: false,
+                      },
+                      description: 'heading/paragraph/callout/list/quote uniquement — au plus 1 lien par bloc en pratique ; liste vide sinon.',
+                    },
                     citationEntryIds: { type: 'array', items: { type: 'string' }, description: "sourceSnapshotEntryId (ex. 'entry-3') des passages fournis qui soutiennent ce bloc — choisis EXACTEMENT parmi les identifiants listés dans le prompt, jamais inventés ; liste vide si aucune affirmation sourcée dans ce bloc." },
                   },
-                  required: ['type', 'text', 'level', 'visualRole', 'items', 'ordered', 'imageQuery', 'imageAlt', 'quizOptions', 'quizCorrectIndex', 'quizExplanation', 'questionnaireQuestions', 'questionnaireProfiles', 'questionnaireTwoPartners', 'citationEntryIds'],
+                  required: ['type', 'text', 'level', 'visualRole', 'items', 'ordered', 'imageQuery', 'imageAlt', 'quizOptions', 'quizCorrectIndex', 'quizExplanation', 'questionnaireQuestions', 'questionnaireProfiles', 'questionnaireTwoPartners', 'deepDiveLinks', 'citationEntryIds'],
                   additionalProperties: false,
                 },
               },
@@ -11644,8 +11663,28 @@ ${recent}`;
             additionalProperties: false,
           },
         },
+        // Présentation ACTE 2, Phase 1 — pages d'approfondissement plein écran, produites dans LE
+        // MÊME appel que les diapositives (cohérence lien+contenu garantie par construction, jamais
+        // une réconciliation a posteriori). Sibling de `cards`, jamais imbriqué dans une diapositive
+        // (cf. investigation point 2 — structure calquée sur `citations`, jamais nestedBlock). v1
+        // sobre : titre + paragraphes uniquement (jamais de callout/liste/citation/image à
+        // l'intérieur d'une page d'approfondissement).
+        deepDives: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string', description: "Identifiant court choisi par le modèle (ex. 'deepdive-cortisol') — référencé tel quel par targetId depuis un bloc de diapositive." },
+              title: { type: 'string', description: "Titre de la page d'approfondissement." },
+              paragraphs: { type: 'array', items: { type: 'string' }, description: 'Un ou plusieurs paragraphes de texte pur — jamais de liste, callout, citation ni image dans cette version.' },
+            },
+            required: ['id', 'title', 'paragraphs'],
+            additionalProperties: false,
+          },
+          description: "Pages d'approfondissement référencées par deepDiveLinks[].targetId — liste vide si aucun lien d'approfondissement n'est utilisé dans cette présentation.",
+        },
       },
-      required: ['title', 'purpose', 'audience', 'cards'],
+      required: ['title', 'purpose', 'audience', 'cards', 'deepDives'],
       additionalProperties: false,
     },
   };
@@ -12118,6 +12157,28 @@ ${recent}`;
           'questionnaireTwoPartners : true UNIQUEMENT si le sujet se prête réellement à ce que deux ' +
           'partenaires répondent chacun séparément et comparent ensuite leurs profils (ex. couple) ; ' +
           "false pour un sujet individuel — jamais true par défaut.\n\n" +
+          // Présentation ACTE 2, Phase 1 — liens d'approfondissement plein écran. Fréquence bornée
+          // comme quiz/questionnaire ci-dessus (outil de fond, jamais une décoration systématique).
+          // deepDives et deepDiveLinks sont produits DANS CE MÊME appel (cohérence lien+contenu
+          // garantie par construction, jamais une réconciliation a posteriori).
+          '── APPROFONDISSEMENT (deepDives + deepDiveLinks, bloc heading/paragraph/callout/list/quote) ──\n' +
+          "Un mot ou une courte expression déjà présente dans le texte d'un bloc peut ouvrir une page " +
+          "d'approfondissement plein écran — jamais un synonyme du quiz ou du questionnaire ci-dessus " +
+          "(un approfondissement explique, il n'interroge ni ne note). Utilise-le au plus 1 fois par " +
+          'diapositive, jamais plus de 3 dans toute la présentation, SAUF demande explicite de ' +
+          "l'utilisatrice — un sujet qui mérite un approfondissement réel, jamais un réflexe " +
+          'systématique.\n' +
+          'deepDives (racine du document, sibling de cards) : chaque entrée porte un id court choisi ' +
+          "par toi (ex. \"deepdive-cortisol\"), un titre, et un ou plusieurs paragraphes de texte pur " +
+          '(jamais de liste, callout, citation ni image à l\'intérieur d\'une page d\'approfondissement ' +
+          'dans cette version) — un vrai complément clinique utile, jamais une simple redite du bloc ' +
+          "qui y renvoie.\n" +
+          'deepDiveLinks (sur le bloc heading/paragraph/callout/list/quote lui-même) : text doit être ' +
+          "une expression COURTE (2 à 4 mots) EXACTEMENT recopiée telle qu'elle apparaît déjà dans le " +
+          "texte de CE bloc — jamais reformulée, jamais une paraphrase — et si possible UNIQUE dans ce " +
+          "bloc (jamais un mot isolé trop générique qui apparaîtrait ailleurs sans lien). targetId doit " +
+          "correspondre EXACTEMENT à un id produit dans deepDives ci-dessus, jamais inventé. Liste vide " +
+          "sur tout bloc sans approfondissement (cas normal, très largement majoritaire).\n\n" +
           '── TEXTE ──\n' +
           "Aucun emoji, aucun caractère Unicode décoratif (cercles ou carrés de couleur, symboles, " +
           "pictogrammes, flèches décoratives) nulle part dans le texte produit — texte propre uniquement.";
@@ -13278,6 +13339,27 @@ ${recent}`;
       return repaired;
     }
 
+    // Présentation ACTE 2, Phase 1 — pages d'approfondissement plein écran (v1 sobre : titre +
+    // paragraphes uniquement). Même sévérité que les autres filets ci-dessus (image/quiz/
+    // questionnaire) : une entrée sans id/titre/paragraphe exploitable est rejetée ENTIÈRE plutôt
+    // que persistée à moitié remplie — jamais une page d'approfondissement vide ou sans titre.
+    // Calculé AVANT convertBlock (dont chaque appel doit pouvoir valider un targetId contre cet
+    // ensemble) — `raw` est dans la même portée que convertBlock ci-dessous, donc accessible par
+    // fermeture sans paramètre supplémentaire, même patron que citationsById au-dessus.
+    function convertDeepDive(d) {
+      const id = ((d && d.id) || '').trim();
+      const title = adocStripEmoji(((d && d.title) || '').trim());
+      const paragraphs = ((d && d.paragraphs) || []).map(function(p) { return adocStripEmoji((p || '').trim()); }).filter(Boolean);
+      if (!id || !title || !paragraphs.length) return null;
+      return { id: id, title: title, paragraphs: paragraphs };
+    }
+    const deepDives = (raw.deepDives || []).map(convertDeepDive).filter(Boolean);
+    const deepDiveIds = new Set(deepDives.map(function(d) { return d.id; }));
+    // Types de bloc porteurs de prose continue où une expression peut être désignée — même
+    // restriction EXACTE que block.schema.json#/$defs/deepDiveLinks (headingBlock/paragraphBlock/
+    // calloutBlock/listBlock/quoteBlock), jamais image/video/quiz/questionnaire/card/table.
+    const DEEPDIVE_ELIGIBLE_TYPES = ['heading', 'paragraph', 'callout', 'list', 'quote'];
+
     function convertBlock(b) {
       blockSeq++;
       const id = (b.type || 'block') + '-' + String(blockSeq).padStart(2, '0');
@@ -13352,7 +13434,28 @@ ${recent}`;
       const citationLinks = citationIds.length ? citationIds.map(function(cid) {
         return { citationId: cid, claimText: (b.text || (b.items && b.items[0]) || 'Affirmation du bloc.').slice(0, 200), claimSupport: 'needs-review' };
       }) : [];
-      return { id: id, type: b.type, content: content, citationIds: citationIds, validation: citationLinks.length ? { citationLinks: citationLinks } : {} };
+      // Présentation ACTE 2, Phase 1 — filet défensif RÉEL (jamais une simple formalité de schéma,
+      // même esprit qu'adocRepairQuestionnaireProfiles ci-dessus) : un lien vers un targetId qui ne
+      // correspond à AUCUNE entrée de deepDives est retiré SILENCIEUSEMENT ici, jamais laissé
+      // pointer nulle part, et jamais un rejet du bloc entier pour cette seule raison (le texte du
+      // bloc reste par ailleurs parfaitement exploitable). Uniquement pour les 5 types éligibles
+      // (block.schema.json#/$defs/deepDiveLinks) ET seulement si au moins un lien survit au filet —
+      // deepDiveLinks est entièrement OMIS (jamais une clé présente à vide) sinon, pour ne jamais
+      // ajouter le moindre champ à un document Fiche/Script/Tableau/Liens (dont les blocs bruts ne
+      // portent jamais cette clé) ni à un bloc Présentation sans approfondissement (cas normal,
+      // très largement majoritaire) — cohérent avec le principe additif à empreinte nulle déjà tenu
+      // partout ailleurs dans ce fichier.
+      let deepDiveLinks = [];
+      if (DEEPDIVE_ELIGIBLE_TYPES.indexOf(b.type) !== -1) {
+        deepDiveLinks = (b.deepDiveLinks || []).filter(function(l) {
+          return l && (l.text || '').trim() && (l.targetId || '').trim() && deepDiveIds.has(l.targetId);
+        }).map(function(l) {
+          return { text: adocStripEmoji(l.text.trim()), targetId: l.targetId };
+        });
+      }
+      const result = { id: id, type: b.type, content: content, citationIds: citationIds, validation: citationLinks.length ? { citationLinks: citationLinks } : {} };
+      if (deepDiveLinks.length) result.deepDiveLinks = deepDiveLinks;
+      return result;
     }
 
     const blocks = profile.convertRawToBlocks(raw, convertBlock);
@@ -13378,6 +13481,12 @@ ${recent}`;
       blocks: blocks, citations: citations,
       validation: { sourceIntegrity: 'pending', contentCompleteness: 'pending', layout: 'pending', accessibility: 'pending', humanClinicalReview: 'required' },
     };
+    // Présentation ACTE 2, Phase 1 — champ racine OMIS (jamais présent à vide) sauf s'il y a au
+    // moins une page d'approfondissement exploitable : `raw.deepDives` n'existe que pour le profil
+    // presentation (seul tool schema qui le déclare) — pour tout autre documentKind, `deepDives`
+    // vaut déjà [] ici et ce document reste construit à l'identique d'avant ce lot, aucun nouveau
+    // champ ajouté (même principe additif à empreinte nulle que deepDiveLinks ci-dessus).
+    if (deepDives.length) doc.deepDives = deepDives;
     return { doc: doc, sourceSnapshot: sourceSnapshot };
   }
   window.adocGenerateStructuredDocument = adocGenerateStructuredDocument;

@@ -48,6 +48,19 @@
         "minLength": 1
       }
     },
+    "deepDiveLinks": {
+      "$comment": "Présentation ACTE 2, Phase 1 — désigne, DANS le texte déjà généré du bloc, une expression exacte qui ouvre une page d'approfondissement plein écran (clinical-document.schema.json#/properties/deepDives, résolue par `targetId`). Champ plat, jamais une syntaxe de lien libre dans `text`/`items` eux-mêmes (le projet n'a jamais parsé de markdown, cf. investigation) : `text` est recherché tel quel au rendu (Phase 2, hors périmètre ici). Ajouté UNIQUEMENT à headingBlock/paragraphBlock/calloutBlock/listBlock/quoteBlock ci-dessous — mêmes types porteurs de prose continue que citationIds, jamais imageBlock/videoBlock/quizBlock/questionnaireBlock/cardBlock (aucune expression de texte à désigner). Optionnel, comme citationIds — un bloc sans ce champ reste en tout point inchangé.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["text", "targetId"],
+        "additionalProperties": false,
+        "properties": {
+          "text": { "type": "string", "minLength": 1 },
+          "targetId": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
     "blockStyle": {
       "$comment": "ITEM 75 Phase 1 (18 septembre 2026) — copie disque MINIMALE, scopée strictement aux 5 champs introduits par ce lot (x/y/width/height/zIndex, positionnement libre façon Canva, réservé au documentKind carrousel — CDC-ITEM-75-MISE-EN-PAGE-LIBRE.md §2.2). Le schéma réellement validé (embarqué dans studio-clinique.html) porte en plus de nombreux champs de style manuel historiques (fontPairId/color/backgroundAssetId/opacity/etc., Item 57c Lot 2 et Lot E) ABSENTS ICI — écart déjà documenté (A9), volontairement NON reconcilié dans ce lot (hors périmètre, ne pas aggraver : cette copie n'ajoute que les champs neufs, elle ne prétend pas au complet). x/y/width/height en pixels (cohérence avec le canevas Carrousel déjà existant : viewport de /browser-rendering/screenshot-slide, carte à largeur fixe en pixels). Tous optionnels — un bloc sans ces champs reste en flux normal. zIndex réservé dès maintenant même si les calques (Phase 2 du CDC) ne sont pas construits dans ce lot. AUCUN rendu ni AUCUNE UI ne consomme ces champs dans ce lot.",
       "type": "object",
@@ -323,6 +336,9 @@
         "citationIds": {
           "$ref": "#/$defs/citationIds"
         },
+        "deepDiveLinks": {
+          "$ref": "#/$defs/deepDiveLinks"
+        },
         "validation": {
           "$ref": "#/$defs/blockValidation"
         },
@@ -352,6 +368,9 @@
         },
         "citationIds": {
           "$ref": "#/$defs/citationIds"
+        },
+        "deepDiveLinks": {
+          "$ref": "#/$defs/deepDiveLinks"
         },
         "validation": {
           "$ref": "#/$defs/blockValidation"
@@ -383,6 +402,9 @@
         "citationIds": {
           "$ref": "#/$defs/citationIds"
         },
+        "deepDiveLinks": {
+          "$ref": "#/$defs/deepDiveLinks"
+        },
         "validation": {
           "$ref": "#/$defs/blockValidation"
         },
@@ -412,6 +434,9 @@
         },
         "citationIds": {
           "$ref": "#/$defs/citationIds"
+        },
+        "deepDiveLinks": {
+          "$ref": "#/$defs/deepDiveLinks"
         },
         "validation": {
           "$ref": "#/$defs/blockValidation"
@@ -472,6 +497,9 @@
         },
         "citationIds": {
           "$ref": "#/$defs/citationIds"
+        },
+        "deepDiveLinks": {
+          "$ref": "#/$defs/deepDiveLinks"
         },
         "validation": {
           "$ref": "#/$defs/blockValidation"
