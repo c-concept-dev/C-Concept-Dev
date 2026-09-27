@@ -10745,6 +10745,29 @@ ${recent}`;
     return '<div class="' + carrouselClass + '" data-document-id="' + adocEsc(doc.documentId) + "\" role=\"region\" aria-label=\"Carrousel\" style='" + adocTokensToCSSVars(tokens) + "'>" + cards + '</div>';
   }
 
+  // CORRECTIF — couche visuelle Présentation (cf. audit visuel + CDC correctif complet). Rendu
+  // DÉDIÉ, jamais un réemploi d'adocRenderCarrouselHTML pour l'apparence (celle-ci reste réservée
+  // au Carrousel classique, strictement inchangée) : conteneur empilé VERTICALEMENT (une
+  // diapositive à la fois, comme une Fiche), jamais la rangée horizontale défilante pensée pour
+  // des vignettes Carrousel. Réutilise adocRenderCardHTML TEL QUEL pour le CONTENU de chaque
+  // diapositive (jamais un second moteur de rendu de bloc, cf. rapport d'audit — "à conserver sans
+  // risque") : seule la coquille autour change. adocRenderCardHTML produit `.adoc-sc-card`, dont la
+  // règle générique `flex:0 0 320px` (pensée pour Carrousel) devient un no-op ici : cette carte
+  // n'est plus un enfant DIRECT d'un conteneur flex (elle est imbriquée dans
+  // `.adoc-sc-presentation-slide`), la propriété flex est donc simplement ignorée par le
+  // navigateur — aucune règle de neutralisation à écrire, la carte retombe naturellement sur
+  // `width:auto` (pleine largeur de son parent).
+  function adocRenderPresentationHTML(doc, tokens) {
+    const total = (doc.blocks || []).length;
+    const slides = (doc.blocks || []).map(function (c, i) {
+      return '<div class="adoc-sc-presentation-slide">' +
+        '<span class="adoc-sc-presentation-slide-num">Diapositive ' + (i + 1) + ' / ' + total + '</span>' +
+        adocRenderCardHTML(c, i, total) +
+        '</div>';
+    }).join('\n');
+    return '<div class="adoc-sc-doc adoc-sc-presentation" data-document-id="' + adocEsc(doc.documentId) + "\" role=\"region\" aria-label=\"Présentation\" style='" + adocTokensToCSSVars(tokens) + "'>" + slides + '</div>';
+  }
+
   // ── Pilote 3 : Script verbatim (item 72 construction) — DÉCISION CHRISTOPHE EXPLICITE : rendu
   // dédié avec sa propre identité visuelle (classe CSS racine adoc-sc-script, bannière terracotta
   // — cf. règles CSS dédiées ci-dessous), PAS un recyclage d'adocRenderFicheHTML malgré une
@@ -10884,12 +10907,13 @@ ${recent}`;
     let html;
     if (doc.documentKind === 'fiche') html = adocRenderFicheHTML(validated.doc, tokens);
     else if (doc.documentKind === 'carrousel') html = adocRenderCarrouselHTML(validated.doc, tokens);
-    // LOT 1 Présentation (6e documentKind) — réutilise adocRenderCarrouselHTML TEL QUEL (jamais un
-    // second moteur de rendu, cf. investigation point 3) : une diapositive de Présentation EST une
-    // carte de Carrousel structurellement (même schéma cardOnlyBlock/cardContent). Le mode plein
-    // écran de navigation (adocPresentOpen, plus bas) est une coquille de navigation séparée,
-    // autour de ce même rendu — pas un remplacement.
-    else if (doc.documentKind === 'presentation') html = adocRenderCarrouselHTML(validated.doc, tokens);
+    // CORRECTIF couche visuelle — adocRenderPresentationHTML dédié (jamais plus
+    // adocRenderCarrouselHTML pour l'APPARENCE, cf. audit visuel : la structure de donnée `card`
+    // reste partagée par nécessité, mais l'habillage — rangée horizontale 320px pensée pour
+    // Carrousel — ne l'a jamais été légitimement). Le mode plein écran de navigation
+    // (adocPresentOpen, plus bas) reste une coquille de navigation séparée, autour du même
+    // adocRenderCardHTML — pas un remplacement.
+    else if (doc.documentKind === 'presentation') html = adocRenderPresentationHTML(validated.doc, tokens);
     else if (doc.documentKind === 'script') html = adocRenderScriptHTML(validated.doc, tokens);
     else if (doc.documentKind === 'tableau') html = adocRenderTableauHTML(validated.doc, tokens);
     else if (doc.documentKind === 'liens') html = adocRenderLiensHTML(validated.doc, tokens);
@@ -13203,7 +13227,14 @@ ${recent}`;
 
     adocWsClearBlockSelection(); adocWsClearLegacyBlockSelection();
     _adocEditorRange = null; _adocEditorLeaf = null;
-    document.getElementById('cc-ws-doc-card').innerHTML = renderedHtml;
+    const wsDocCardEl = document.getElementById('cc-ws-doc-card');
+    // CORRECTIF couche visuelle — Présentation occupe la largeur utile de l'espace de travail
+    // (diapositives empilées verticalement au format paysage, cf. adocRenderPresentationHTML),
+    // jamais la largeur "page de lecture" (760px) pensée pour Fiche/Carrousel/Script/Tableau/
+    // Liens — ceux-ci gardent .cc-ws-doc-card strictement inchangé (garde conditionnelle sur
+    // docKind, jamais un changement global de largeur, cf. rapport correctif).
+    wsDocCardEl.classList.toggle('cc-ws-doc-card--presentation', !isLegacy && docKind === 'presentation');
+    wsDocCardEl.innerHTML = renderedHtml;
     adocWsSetupBlockEditing(art); // UX-11 — sélection/correction ciblée d'un bloc, uniquement si blockEditing est vrai
     adocWsSetupLegacyBlockEditing(art); // Phase 1 (monobloc) — équivalent pour un document HTML libre de l'ancien moteur, uniquement si legacyBlockEditing est vrai
     adocWsRenderSources(snapshot);
@@ -13895,6 +13926,18 @@ ${recent}`;
     return true;
   }
 
+  // CORRECTIF — cause racine du contenu invisible en plein écran (cf. audit visuel) :
+  // adocRenderCardHTML seul ne porte AUCUNE règle de couleur/police propre au CONTENU (seul le
+  // titre de carte, .adoc-sc-card-title, a sa propre couleur explicite) — le rendu normal
+  // (adocRenderCarrouselHTML) enveloppe TOUJOURS ses cartes dans `.adoc-sc-doc` pour cette raison
+  // précise. adocPresentOpen/adocPresentGoToInternal injectaient le rendu SANS cette enveloppe :
+  // le texte héritait alors du blanc de #cc-ws-present-overlay (chrome du mode, légitimement
+  // blanc sur fond sombre), invisible sur le fond quasi-blanc de la carte. Fonction PARTAGÉE
+  // (jamais dupliquée) pour les deux points d'injection.
+  function adocPresentRenderSlideHTML(card, index, total) {
+    return '<div class="adoc-sc-doc">' + adocRenderCardHTML(card, index, total) + '</div>';
+  }
+
   // Ouvre le mode présentation pour le document actuellement affiché dans l'espace de travail —
   // uniquement pour une Présentation du moteur structuré (garde-fou déjà posé au bouton lui-même,
   // cf. adocOpenWorkspace, mais revérifié ici — jamais une confiance aveugle dans l'état du DOM).
@@ -13908,7 +13951,7 @@ ${recent}`;
     if (!overlay) return;
     const inner = document.getElementById('cc-ws-present-slide-inner');
     if (inner) {
-      inner.innerHTML = adocRenderCardHTML(doc.blocks[0], 0, doc.blocks.length);
+      inner.innerHTML = adocPresentRenderSlideHTML(doc.blocks[0], 0, doc.blocks.length);
       // Partie C — la toute première diapositive se monte aussi progressivement (un seul bloc
       // visible au départ si elle en compte plusieurs), jamais un affichage complet d'emblée qui
       // romprait la cohérence avec le reste du diaporama.
@@ -13954,7 +13997,7 @@ ${recent}`;
     inner.style.transform = 'translateX(' + (direction * -16) + 'px)';
     setTimeout(function () {
       state.index = newIndex;
-      inner.innerHTML = adocRenderCardHTML(state.doc.blocks[newIndex], newIndex, total);
+      inner.innerHTML = adocPresentRenderSlideHTML(state.doc.blocks[newIndex], newIndex, total);
       adocPresentApplyReveal(inner, state.doc.blocks[newIndex], forceFullyRevealed || direction === -1);
       inner.style.transform = 'translateX(' + (direction * 16) + 'px)';
       void inner.offsetWidth; // force reflow — sans quoi la transition de retour ne rejouerait pas
