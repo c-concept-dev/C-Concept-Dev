@@ -1824,6 +1824,30 @@
        positionnement libre — cette règle ne doit jamais s'y appliquer, même sans effet visuel
        réel (position:relative sans décalage n'a aucun rendu propre), par prudence explicite. */
     .adoc-sc-card .adoc-sc-block { position: relative; }
+    /* CORRECTIF couche visuelle Présentation (cf. audit visuel) — nouvelles classes DÉDIÉES,
+       jamais un réemploi de .adoc-sc-carrousel/.adoc-sc-card ci-dessus (qui restent STRICTEMENT
+       inchangées pour Carrousel). Empilement VERTICAL pleine largeur (comme une Fiche), jamais la
+       rangée horizontale défilante pensée pour des vignettes Carrousel — cf.
+       adocRenderPresentationHTML, studio-clinique-core.js. */
+    .adoc-sc-presentation { display: flex; flex-direction: column; gap: 28px; }
+    .adoc-sc-presentation-slide-num {
+      display: block; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+      color: var(--adoc-presentation-accent, #8f6a1f); margin-bottom: 6px;
+    }
+    /* Ratio paysage explicite (cohérent avec le mode plein écran, aspect-ratio:4/3 déjà choisi au
+       Lot 1) — jamais deviné a posteriori en plein écran seulement (cause du rendu "façon
+       Instagram" en édition, cf. audit). `.adoc-sc-card` ci-dessus n'est plus un enfant direct
+       d'un conteneur flex ici (imbriqué sous .adoc-sc-presentation-slide) : sa règle générique
+       `flex:0 0 320px` devient un no-op, aucune neutralisation à écrire — la carte retombe sur
+       width:auto (pleine largeur de son parent). */
+    .adoc-sc-presentation-slide .adoc-sc-card {
+      aspect-ratio: 4 / 3; box-sizing: border-box; overflow: auto;
+      border-top: 4px solid var(--adoc-presentation-accent, #8f6a1f);
+    }
+    /* Largeur pleine de la zone de travail pour ce documentKind uniquement (garde conditionnelle
+       sur docKind dans adocOpenWorkspace, jamais un changement global qui affecterait les 5 autres
+       types — cf. rapport). */
+    .cc-ws-doc-card.cc-ws-doc-card--presentation { max-width: none; }
     /* Poignée de redimensionnement d'un élément imbriqué — même principe que la poignée de carte
        ci-dessus (coin bas-droit, masquée sauf sélection), mais un <span> (jamais un <div>) :
        h1-h6/p n'acceptent que du contenu phrasé, un <div> y serait invalide (vérifié avant
@@ -1912,7 +1936,14 @@
       transition: opacity 260ms ease, transform 260ms ease;
     }
     /* Une diapositive réutilise .adoc-sc-card TEL QUEL (adocRenderCardHTML) — variante plein-bleed,
-       même précédent que .cc-preview-body .cc-ws-doc-card { max-width: none; } (ligne ~2559). */
+       même précédent que .cc-preview-body .cc-ws-doc-card { max-width: none; } (ligne ~2559).
+       CORRECTIF — la carte est désormais enveloppée dans .adoc-sc-doc (adocPresentRenderSlideHTML,
+       cf. studio-clinique-core.js) pour restaurer la couleur/police/interligne du CONTENU, jamais
+       héritées auparavant (cause du texte invisible, cf. audit visuel). Un div .adoc-sc-doc sans
+       hauteur propre resterait à height:auto (content-box) : height:100% ci-dessous sur
+      .adoc-sc-card deviendrait alors indéterminé (la chaîne de pourcentages exige une hauteur
+       EXPLICITE à CHAQUE ancêtre) — d'où cette règle dédiée, scopée au seul mode plein écran. */
+    .cc-ws-present-slide-inner .adoc-sc-doc { height: 100%; }
     .cc-ws-present-slide-inner .adoc-sc-card {
       width: 100%; height: 100%; max-width: none; box-sizing: border-box; overflow: auto;
     }
