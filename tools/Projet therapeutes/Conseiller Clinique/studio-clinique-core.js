@@ -10963,39 +10963,53 @@ ${recent}`;
   // réutilisée à la fois par l'export réel (qc.exportAllowed respecté) ET par l'aperçu livré
   // dans la carte artifact (toujours affiché, même si l'export est bloqué — l'aperçu ne doit
   // jamais dépendre du contrôle qualité, seul l'export en dépend). ──
+  // Correctif Lot A — CSS de rendu de contenu extraite en constante PARTAGÉE (jamais un texte
+  // dupliqué) : réutilisée telle quelle ici ET par le nouvel export autonome interactif
+  // (adocBuildStandalonePresentationHTML, plus bas), qui a besoin des mêmes couleurs de titre/
+  // citation/quote pour un rendu fidèle. Comportement de CETTE fonction strictement inchangé —
+  // extraction pure, aucun texte CSS modifié.
+  const ADOC_DOC_CONTENT_CSS =
+    '[data-cc-editor-leaf]{white-space:pre-wrap}.adoc-sc-table-el{font:inherit;color:inherit}.adoc-sc-table[style*="color:"] th{color:inherit}' +
+    'body{max-width:760px;margin:40px auto;padding:0 20px;background:#fffdf9;}' +
+    '.adoc-sc-doc{font-family:var(--adoc-sc-body-font,Georgia,serif);color:var(--adoc-sc-body-color,#2a2a28);line-height:1.65;}' +
+    '.adoc-sc-heading{color:var(--adoc-sc-heading-color,#102f31);font-family:var(--adoc-sc-heading-font,Georgia,serif);}' +
+    '.adoc-sc-carrousel{display:flex;gap:16px;overflow-x:auto;}' +
+    '.adoc-sc-card{flex:0 0 320px;border:1px solid var(--adoc-sc-card-border,#c9c3b8);background:var(--adoc-sc-card-bg,#fff);border-radius:12px;padding:18px;}' +
+    '.adoc-sc-table-el{border-collapse:collapse;width:100%;}.adoc-sc-table-el th,.adoc-sc-table-el td{border:1px solid var(--adoc-sc-table-border,#c9c3b8);padding:6px 10px;}' +
+    '.adoc-sc-table-el th{background:var(--adoc-sc-table-header-bg,#dce8e6);color:var(--adoc-sc-table-header-color,#102f31);}' +
+    '.adoc-sc-cite{color:var(--adoc-sc-cite-color,#8a3f29);font-size:0.7em;}' +
+    '.adoc-sc-cite a{color:inherit;text-decoration:underline;cursor:pointer;}' +
+    '.adoc-sc-citations{margin-top:1.6em;padding-top:1em;border-top:1px solid var(--adoc-sc-table-border,#c9c3b8);font-size:13px;}' +
+    '.adoc-sc-citations-title{font-size:14px;margin:0 0 0.6em;color:var(--adoc-sc-heading-color,#102f31);}' +
+    '.adoc-sc-citations-list{margin:0;padding-left:1.4em;}' +
+    '.adoc-sc-citations-list li{margin-bottom:0.5em;scroll-margin-top:16px;}' +
+    '.adoc-sc-citation-excerpt{color:#5d6966;font-style:italic;}' +
+    '.adoc-cite-score{margin-left:4px;opacity:0.6;}' +
+    '.adoc-sc-quote{border-left:3px solid var(--adoc-sc-quote-border,#8a3f29);color:var(--adoc-sc-quote-color,#173f42);padding-left:12px;font-style:italic;}' +
+    '.adoc-sc-cover{position:relative;margin:-1px -1px 1.4em;border-radius:10px 10px 0 0;overflow:hidden;min-height:220px;display:flex;align-items:flex-end;background-size:cover;background-position:center;color:#fff;}' +
+    '.adoc-sc-cover::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(16,47,49,0.35),rgba(16,47,49,0.88));}' +
+    '.adoc-sc-cover-content{position:relative;padding:28px 26px 22px;}' +
+    '.adoc-sc-cover-category{font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;opacity:0.85;margin:0 0 8px;}' +
+    '.adoc-sc-cover-title{font-family:var(--adoc-sc-heading-font,Georgia,serif);font-size:26px;line-height:1.15;margin:0 0 8px;color:#fff;}' +
+    '.adoc-sc-cover-meta{font-size:12px;opacity:0.85;margin:0;}' +
+    '.adoc-sc-script .adoc-sc-cover{background-color:var(--terracotta-700,#8a3f29);}' +
+    '.adoc-sc-script .adoc-sc-cover::before{background:linear-gradient(180deg,rgba(138,63,41,0.35),rgba(138,63,41,0.88));}' +
+    '.adoc-sc-tableau .adoc-sc-cover{background-color:#3d5266;}' +
+    '.adoc-sc-tableau .adoc-sc-cover::before{background:linear-gradient(180deg,rgba(61,82,102,0.35),rgba(61,82,102,0.88));}' +
+    '.adoc-sc-liens .adoc-sc-cover{background-color:#3d5c47;}' +
+    '.adoc-sc-liens .adoc-sc-cover::before{background:linear-gradient(180deg,rgba(61,92,71,0.35),rgba(61,92,71,0.88));}';
   function adocClinicalDocumentWrapHTML(doc, bodyHtml, tokens) {
     const cssVars = adocTokensToCSSVars(tokens);
+    // Correctif Lot A (découverte incidente) — ajoute la mise en page Présentation, le style de
+    // couverture de carte et le quiz STATIQUE (réponse toujours visible, jamais le masquage
+    // interactif — cf. avertissement au-dessus de ADOC_QUIZ_STATIC_CSS) : cet export ne les
+    // embarquait jusqu'ici JAMAIS, produisant un rendu dégradé pour toute Présentation/Carrousel
+    // avec couverture ou quiz. Reste APPENDU, jamais mélangé au bloc CSS existant ci-dessus,
+    // strictement inchangé.
     return '<!DOCTYPE html><html lang="' + adocEsc(doc.language || 'fr') + '"><head><meta charset="UTF-8">' +
       adocEditorExportFonts(doc) + '<title>' + adocEsc(doc.title) + ' — Studio Clinique</title>' +
-      '<style>:root{' + cssVars + '}' + '[data-cc-editor-leaf]{white-space:pre-wrap}.adoc-sc-table-el{font:inherit;color:inherit}.adoc-sc-table[style*="color:"] th{color:inherit}' +
-      'body{max-width:760px;margin:40px auto;padding:0 20px;background:#fffdf9;}' +
-      '.adoc-sc-doc{font-family:var(--adoc-sc-body-font,Georgia,serif);color:var(--adoc-sc-body-color,#2a2a28);line-height:1.65;}' +
-      '.adoc-sc-heading{color:var(--adoc-sc-heading-color,#102f31);font-family:var(--adoc-sc-heading-font,Georgia,serif);}' +
-      '.adoc-sc-carrousel{display:flex;gap:16px;overflow-x:auto;}' +
-      '.adoc-sc-card{flex:0 0 320px;border:1px solid var(--adoc-sc-card-border,#c9c3b8);background:var(--adoc-sc-card-bg,#fff);border-radius:12px;padding:18px;}' +
-      '.adoc-sc-table-el{border-collapse:collapse;width:100%;}.adoc-sc-table-el th,.adoc-sc-table-el td{border:1px solid var(--adoc-sc-table-border,#c9c3b8);padding:6px 10px;}' +
-      '.adoc-sc-table-el th{background:var(--adoc-sc-table-header-bg,#dce8e6);color:var(--adoc-sc-table-header-color,#102f31);}' +
-      '.adoc-sc-cite{color:var(--adoc-sc-cite-color,#8a3f29);font-size:0.7em;}' +
-      '.adoc-sc-cite a{color:inherit;text-decoration:underline;cursor:pointer;}' +
-      '.adoc-sc-citations{margin-top:1.6em;padding-top:1em;border-top:1px solid var(--adoc-sc-table-border,#c9c3b8);font-size:13px;}' +
-      '.adoc-sc-citations-title{font-size:14px;margin:0 0 0.6em;color:var(--adoc-sc-heading-color,#102f31);}' +
-      '.adoc-sc-citations-list{margin:0;padding-left:1.4em;}' +
-      '.adoc-sc-citations-list li{margin-bottom:0.5em;scroll-margin-top:16px;}' +
-      '.adoc-sc-citation-excerpt{color:#5d6966;font-style:italic;}' +
-      '.adoc-cite-score{margin-left:4px;opacity:0.6;}' +
-      '.adoc-sc-quote{border-left:3px solid var(--adoc-sc-quote-border,#8a3f29);color:var(--adoc-sc-quote-color,#173f42);padding-left:12px;font-style:italic;}' +
-      '.adoc-sc-cover{position:relative;margin:-1px -1px 1.4em;border-radius:10px 10px 0 0;overflow:hidden;min-height:220px;display:flex;align-items:flex-end;background-size:cover;background-position:center;color:#fff;}' +
-      '.adoc-sc-cover::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(16,47,49,0.35),rgba(16,47,49,0.88));}' +
-      '.adoc-sc-cover-content{position:relative;padding:28px 26px 22px;}' +
-      '.adoc-sc-cover-category{font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;opacity:0.85;margin:0 0 8px;}' +
-      '.adoc-sc-cover-title{font-family:var(--adoc-sc-heading-font,Georgia,serif);font-size:26px;line-height:1.15;margin:0 0 8px;color:#fff;}' +
-      '.adoc-sc-cover-meta{font-size:12px;opacity:0.85;margin:0;}' +
-      '.adoc-sc-script .adoc-sc-cover{background-color:var(--terracotta-700,#8a3f29);}' +
-      '.adoc-sc-script .adoc-sc-cover::before{background:linear-gradient(180deg,rgba(138,63,41,0.35),rgba(138,63,41,0.88));}' +
-      '.adoc-sc-tableau .adoc-sc-cover{background-color:#3d5266;}' +
-      '.adoc-sc-tableau .adoc-sc-cover::before{background:linear-gradient(180deg,rgba(61,82,102,0.35),rgba(61,82,102,0.88));}' +
-      '.adoc-sc-liens .adoc-sc-cover{background-color:#3d5c47;}' +
-      '.adoc-sc-liens .adoc-sc-cover::before{background:linear-gradient(180deg,rgba(61,92,71,0.35),rgba(61,92,71,0.88));}' +
+      '<style>:root{' + cssVars + '}' + ADOC_DOC_CONTENT_CSS +
+      ADOC_PRESENTATION_SLIDE_CSS + ADOC_QUIZ_STATIC_CSS + ADOC_CARD_IMG_CSS +
       '</style></head><body>' + bodyHtml + '</body></html>';
   }
 
@@ -11047,6 +11061,10 @@ ${recent}`;
       '.adoc-sc-citation-excerpt{color:#5d6966;font-style:italic;}' +
       '.adoc-cite-score{margin-left:4px;opacity:0.6;}' +
       '.adoc-sc-quote{border-left:3px solid var(--adoc-sc-quote-border,#8a3f29);color:var(--adoc-sc-quote-color,#173f42);padding-left:12px;font-style:italic;}' +
+      // Correctif Lot A (découverte incidente) — mêmes trois ajouts que adocClinicalDocumentWrapHTML
+      // ci-dessus, jamais le CSS de base ci-dessus retouché (déjà volontairement dupliqué depuis
+      // celui-ci pour des raisons de mise en page @page, cf. commentaire de cette fonction).
+      ADOC_PRESENTATION_SLIDE_CSS + ADOC_QUIZ_STATIC_CSS + ADOC_CARD_IMG_CSS +
       '</style></head><body>' + pages + '</body></html>';
   }
 
@@ -13300,6 +13318,11 @@ ${recent}`;
     // jamais Carrousel — celui-ci n'a jamais demandé ce mode dans ce lot, cf. périmètre strict).
     const presentBtn = document.getElementById('cc-ws-present-btn');
     if (presentBtn) presentBtn.hidden = !(!isLegacy && docKind === 'presentation');
+    // Correctif Lot A (export Présentation autonome) — même garde-fou EXACT que le bouton
+    // "Présenter" ci-dessus (jamais une seconde règle divergente) : visible UNIQUEMENT pour une
+    // Présentation du moteur structuré, jamais legacy, jamais les 5 autres documentKind.
+    const exportStandalonePresentationBtn = document.getElementById('cc-ws-export-standalone-presentation-btn');
+    if (exportStandalonePresentationBtn) exportStandalonePresentationBtn.hidden = !(!isLegacy && docKind === 'presentation');
 
     // Statut calculé UNIQUEMENT à partir de ce que le pipeline existant sait déjà dire
     // (qc.blocking) — pas d'état "Brouillon" inventé : rien dans le pipeline actuel ne
@@ -13900,6 +13923,86 @@ ${recent}`;
   // ══════════════════════════════════════════════════════════════════════════════════════
   window._adocPresentState = null; // null quand fermé ; { doc, index } quand ouvert
 
+  // ═══ LOT A (export Présentation autonome) — CSS consolidée, une seule source ═══
+  // Auparavant en dur dans le <style> de studio-clinique.html (jamais réutilisable ailleurs) —
+  // extraite ICI en constantes JS pour que la page vivante (injection ci-dessous, comportement
+  // visuel STRICTEMENT inchangé) ET le nouvel export autonome interactif (adocBuildStandalonePresentationHTML,
+  // plus bas) partagent EXACTEMENT le même texte, jamais une resynchronisation manuelle possible.
+  //
+  // Découpage en constantes composables, jamais un bloc monolithique — nécessaire car TOUS les
+  // contextes n'ont pas besoin de tout : l'export HTML/PDF classique déjà existant
+  // (adocClinicalDocumentWrapHTML/adocBuildCarrouselPdfPagesHTML, découverte incidente de
+  // l'investigation — aucun des deux n'embarquait jusqu'ici .adoc-sc-quiz*/.adoc-sc-presentation*/
+  // .adoc-sc-card-img) a besoin de la mise en page de diapositive + du style de couverture + du
+  // quiz STATIQUE (réponse toujours visible, sans JS pour la révéler), mais JAMAIS du chrome plein
+  // écran (aucune superposition dans un export classique) NI du masquage interactif du quiz
+  // (`display:none` sur .adoc-sc-quiz-reveal) — un export classique n'a aucun clic pour le révéler
+  // ensuite ; l'y ajouter rendrait la réponse DÉFINITIVEMENT invisible, une régression du
+  // comportement déjà décidé et testé au Lot 3 ("la réponse reste visible par défaut, sans code
+  // d'export dédié") — jamais réintroduite ici par erreur.
+  const ADOC_PRESENTATION_SLIDE_CSS =
+    '.adoc-sc-presentation{display:flex;flex-direction:column;gap:28px;}' +
+    '.adoc-sc-presentation-slide-num{display:block;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--adoc-presentation-accent,#8f6a1f);margin-bottom:6px;}' +
+    '.adoc-sc-presentation-slide .adoc-sc-card{aspect-ratio:4/3;box-sizing:border-box;overflow:auto;border-top:4px solid var(--adoc-presentation-accent,#8f6a1f);}';
+  const ADOC_CARD_IMG_CSS = '.adoc-sc-card-img{width:100%;border-radius:8px;margin-bottom:10px;display:block;}';
+  // Base quiz — SANS le masquage de .adoc-sc-quiz-reveal (cf. avertissement ci-dessus) : la
+  // réponse/explication reste visible par défaut partout où seule cette constante est présente.
+  const ADOC_QUIZ_STATIC_CSS =
+    '.adoc-sc-quiz{margin:0 0 1em;border:1px solid var(--adoc-sc-card-border,var(--stone-300));border-radius:8px;padding:14px;}' +
+    '.adoc-sc-quiz-question{font-weight:600;margin:0 0 0.6em;}' +
+    '.adoc-sc-quiz-options{display:flex;flex-direction:column;gap:6px;margin-bottom:0.6em;}' +
+    '.adoc-sc-quiz-option{text-align:left;padding:8px 12px;border:1px solid var(--adoc-sc-card-border,var(--stone-300));border-radius:6px;background:#fff;cursor:pointer;font:inherit;color:inherit;}' +
+    '.adoc-sc-quiz-option:disabled{cursor:default;}' +
+    '.adoc-sc-quiz-option.is-correct{background:#e8f5e9;border-color:#2e7d32;font-weight:600;}' +
+    '.adoc-sc-quiz-option.is-incorrect{background:#fdeaea;border-color:#c0392b;}' +
+    '.adoc-sc-quiz-reveal{padding-top:0.5em;border-top:1px dashed var(--adoc-sc-card-border,var(--stone-300));font-size:0.92em;}' +
+    '.adoc-sc-quiz-reveal p{margin:0.3em 0 0;}';
+  // Masquage interactif — UNIQUEMENT pour un contexte qui possède le clic de révélation
+  // (window.adocQuizSelectOption) : la page vivante et l'export autonome interactif. JAMAIS ajouté
+  // aux enveloppes d'export classiques (cf. avertissement ci-dessus).
+  const ADOC_QUIZ_INTERACTIVE_MASK_CSS =
+    '.adoc-sc-quiz-reveal{display:none;}' +
+    '.adoc-sc-quiz-reveal.is-shown{display:block;}';
+  const ADOC_PRESENT_FULLSCREEN_CSS =
+    '#cc-ws-present-overlay{display:none;position:fixed;inset:0;z-index:8300;flex-direction:column;background:#14211f;color:#fff;}' +
+    '#cc-ws-present-overlay.open{display:flex;}' +
+    '.cc-ws-present-slide-wrap{flex:1;display:flex;align-items:center;justify-content:center;gap:16px;padding:24px;min-height:0;}' +
+    '.cc-ws-present-slide-outer{width:100%;max-width:1100px;aspect-ratio:4/3;max-height:82vh;display:flex;align-items:center;justify-content:center;overflow:hidden;}' +
+    '.cc-ws-present-slide-inner{width:100%;height:100%;overflow:hidden;opacity:1;transform:translateX(0);transition:opacity 260ms ease, transform 260ms ease;}' +
+    '.cc-ws-present-slide-inner .adoc-sc-doc{height:100%;}' +
+    '.cc-ws-present-slide-inner .adoc-sc-card{width:100%;height:100%;max-width:none;box-sizing:border-box;overflow:auto;}' +
+    '.cc-ws-present-slide-inner.cc-ws-present-out{opacity:0;}' +
+    '.cc-ws-present-slide-inner .adoc-sc-reveal{opacity:0;transform:translateY(10px);transition:opacity 220ms ease, transform 220ms ease;pointer-events:none;}' +
+    '.cc-ws-present-slide-inner .adoc-sc-reveal.adoc-sc-reveal-shown{opacity:1;transform:translateY(0);pointer-events:auto;}' +
+    '.cc-ws-present-nav{flex-shrink:0;width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.08);color:#fff;font-size:22px;line-height:1;cursor:pointer;}' +
+    '.cc-ws-present-nav:hover{background:rgba(255,255,255,.18);}' +
+    '.cc-ws-present-nav:disabled{opacity:.3;cursor:default;}' +
+    '.cc-ws-present-toolbar{flex-shrink:0;display:flex;align-items:center;justify-content:center;gap:14px;padding:10px 16px;background:rgba(0,0,0,.25);}' +
+    '.cc-ws-present-counter{font-size:13px;opacity:.8;}' +
+    '.cc-ws-present-toolbar-btn{background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:6px;padding:6px 14px;font-size:13px;cursor:pointer;}' +
+    '.cc-ws-present-toolbar-btn:hover{background:rgba(255,255,255,.2);}' +
+    '#cc-ws-present-toc{position:absolute;right:16px;bottom:64px;max-height:60vh;overflow-y:auto;width:300px;background:var(--ivory);color:var(--ink);border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,.4);padding:8px;}' +
+    '.cc-ws-present-toc-item{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:none;background:none;padding:8px 10px;border-radius:6px;cursor:pointer;font:inherit;color:inherit;}' +
+    '.cc-ws-present-toc-item:hover{background:var(--petrol-100);}' +
+    '.cc-ws-present-toc-num{font-weight:700;opacity:.6;min-width:1.5em;}' +
+    '.cc-ws-present-toc-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}';
+  // Bundle complet — page vivante (injection ci-dessous) ET export autonome interactif.
+  const ADOC_PRESENT_ENGINE_CSS = ADOC_PRESENT_FULLSCREEN_CSS + ADOC_PRESENTATION_SLIDE_CSS + ADOC_QUIZ_STATIC_CSS + ADOC_QUIZ_INTERACTIVE_MASK_CSS + ADOC_CARD_IMG_CSS;
+  // Jetons de chrome (jamais des jetons de DOCUMENT comme --adoc-sc-*, cf. adocTokensToCSSVars) —
+  // valeurs copiées TELLES QUELLES depuis le :root de studio-clinique.html (--ivory/--ink/
+  // --petrol-100/--stone-300), nécessaires UNIQUEMENT pour l'export autonome (la page vivante les
+  // définit déjà globalement, jamais redéfinies en double ici pour elle).
+  const ADOC_PRESENT_ROOT_VARS_CSS = ':root{--ivory:#f6f2ea;--ink:#273331;--petrol-100:#dce8e6;--stone-300:#c9c3b8;}';
+
+  // Injection dans la page vivante — remplace le texte auparavant en dur dans le <style> de
+  // studio-clinique.html : comportement visuel STRICTEMENT inchangé, seule la SOURCE change.
+  (function () {
+    const styleEl = document.createElement('style');
+    styleEl.id = 'adoc-present-engine-css';
+    styleEl.textContent = ADOC_PRESENT_ENGINE_CSS;
+    document.head.appendChild(styleEl);
+  })();
+
   function adocPresentBuildTocHTML(doc) {
     return (doc.blocks || []).map(function (card, i) {
       return '<button type="button" class="cc-ws-present-toc-item" data-idx="' + i + '" onclick="window.adocPresentGoTo(' + i + ')">' +
@@ -14028,20 +14131,39 @@ ${recent}`;
     return '<div class="adoc-sc-doc">' + adocRenderCardHTML(card, index, total) + '</div>';
   }
 
-  // Ouvre le mode présentation pour le document actuellement affiché dans l'espace de travail —
-  // uniquement pour une Présentation du moteur structuré (garde-fou déjà posé au bouton lui-même,
-  // cf. adocOpenWorkspace, mais revérifié ici — jamais une confiance aveugle dans l'état du DOM).
-  window.adocPresentOpen = function () {
-    const storeKey = window._adocWsState.storeKey;
-    const art = window._adocArtifacts?.[storeKey];
-    const doc = art && art._adocStructuredDoc;
+  // CORRECTIF plein écran (images jamais résolues) — même défaut structurel que le correctif
+  // visuel de couleur (.adoc-sc-doc manquant) : les deux points d'injection ci-dessous assignaient
+  // adocPresentRenderSlideHTML(...) directement à innerHTML SANS JAMAIS appeler adocResolveImages
+  // (mécanisme existant et éprouvé, déjà utilisé par adocRenderClinicalDocument ~L10930) — une
+  // couverture de carte ou une image inline restait donc `<img data-pexels="requête">` non résolue
+  // pour TOUTE diapositive en plein écran, jamais une seule exception. adocPresentRenderSlideHTML
+  // ne produit qu'un FRAGMENT (jamais un document complet) : enveloppé/désenveloppé avant/après
+  // résolution, MÊME patron déjà en place à L10930 (adocResolveImages attend un document complet,
+  // vérifié par lecture de son code — DOMParser + doc.documentElement.outerHTML en sortie — jamais
+  // supposé). Résolu AVANT assignation à innerHTML, jamais après coup (pas de flash d'image vide).
+  async function adocPresentResolveSlideHTML(card, index, total) {
+    const raw = adocPresentRenderSlideHTML(card, index, total);
+    if (typeof adocResolveImages !== 'function' || raw.indexOf('data-pexels=') === -1) return raw;
+    const wrapped = await adocResolveImages('<!DOCTYPE html><html><body>' + raw + '</body></html>');
+    const m = wrapped.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+    return m ? m[1].trim() : raw;
+  }
+
+  // Correctif Lot A (export Présentation autonome) — logique d'ouverture extraite du document lui-
+  // même (jamais de l'espace de travail), fonction PARTAGÉE (jamais deux copies) entre le mode
+  // "Présenter" en direct (adocPresentOpen ci-dessous, qui lit le document depuis l'espace de
+  // travail) et l'export autonome (adocBuildStandalonePresentationHTML, qui l'appelle directement
+  // avec le document embarqué au moment de l'export) — seul point de sortie du cluster hors de lui-
+  // même identifié par l'investigation (window._adocWsState/window._adocArtifacts), désormais isolé
+  // ICI, à ce seul site.
+  async function adocPresentOpenWithDoc(doc) {
     if (!doc || doc.documentKind !== 'presentation' || !Array.isArray(doc.blocks) || !doc.blocks.length) return;
     window._adocPresentState = { doc: doc, index: 0, revealIndex: null, revealTotal: 0 };
     const overlay = document.getElementById('cc-ws-present-overlay');
     if (!overlay) return;
     const inner = document.getElementById('cc-ws-present-slide-inner');
     if (inner) {
-      inner.innerHTML = adocPresentRenderSlideHTML(doc.blocks[0], 0, doc.blocks.length);
+      inner.innerHTML = await adocPresentResolveSlideHTML(doc.blocks[0], 0, doc.blocks.length);
       // Partie C — la toute première diapositive se monte aussi progressivement (un seul bloc
       // visible au départ si elle en compte plusieurs), jamais un affichage complet d'emblée qui
       // romprait la cohérence avec le reste du diaporama.
@@ -14052,6 +14174,15 @@ ${recent}`;
     adocPresentUpdateCounter();
     overlay.hidden = false;
     overlay.classList.add('open');
+  }
+  // Ouvre le mode présentation pour le document actuellement affiché dans l'espace de travail —
+  // uniquement pour une Présentation du moteur structuré (garde-fou déjà posé au bouton lui-même,
+  // cf. adocOpenWorkspace, mais revérifié ici — jamais une confiance aveugle dans l'état du DOM).
+  window.adocPresentOpen = async function () {
+    const storeKey = window._adocWsState.storeKey;
+    const art = window._adocArtifacts?.[storeKey];
+    const doc = art && art._adocStructuredDoc;
+    return adocPresentOpenWithDoc(doc);
   };
 
   window.adocPresentClose = function () {
@@ -14085,9 +14216,11 @@ ${recent}`;
     if (!inner) { state.index = newIndex; adocPresentUpdateCounter(); return; }
     inner.classList.add('cc-ws-present-out');
     inner.style.transform = 'translateX(' + (direction * -16) + 'px)';
-    setTimeout(function () {
+    setTimeout(async function () {
       state.index = newIndex;
-      inner.innerHTML = adocPresentRenderSlideHTML(state.doc.blocks[newIndex], newIndex, total);
+      // Correctif images plein écran — même résolution qu'à l'ouverture (adocPresentOpen), jamais
+      // un second mécanisme : résolue AVANT assignation à innerHTML, pas de flash d'image vide.
+      inner.innerHTML = await adocPresentResolveSlideHTML(state.doc.blocks[newIndex], newIndex, total);
       adocPresentApplyReveal(inner, state.doc.blocks[newIndex], forceFullyRevealed || direction === -1);
       inner.style.transform = 'translateX(' + (direction * 16) + 'px)';
       void inner.offsetWidth; // force reflow — sans quoi la transition de retour ne rejouerait pas
@@ -14120,20 +14253,138 @@ ${recent}`;
     adocPresentGoToInternal(state.index - 1, { forceFullyRevealed: true });
   };
 
-  document.addEventListener('keydown', function (e) {
-    // Le mode présentation, ouvert PAR-DESSUS #cc-workspace, intercepte Échap/flèches en premier —
-    // jamais laissé remonter vers le gestionnaire de fermeture de l'espace de travail ci-dessous,
-    // qui fermerait le document entier au lieu de quitter seulement le mode plein écran.
-    if (window._adocPresentState && document.getElementById('cc-ws-present-overlay')?.classList.contains('open')) {
-      if (e.key === 'Escape') { window.adocPresentClose(); return; }
-      if (e.key === 'ArrowRight') { window.adocPresentNext(); return; }
-      if (e.key === 'ArrowLeft') { window.adocPresentPrev(); return; }
-      return;
-    }
-    if (e.key === 'Escape' && document.getElementById('cc-workspace')?.classList.contains('open')) {
-      window.adocCloseWorkspace();
-    }
-  });
+  // Correctif Lot A (export Présentation autonome) — extrait en fonction nommée (jamais un
+  // addEventListener anonyme au chargement, désormais réutilisable telle quelle par l'export
+  // autonome). Le second `if` (repli #cc-workspace) reste inoffensif en contexte autonome : cet
+  // élément n'existe simplement jamais là, `document.getElementById('cc-workspace')` renvoie null,
+  // la condition échoue silencieusement — aucune adaptation nécessaire (vérifié par investigation).
+  function adocPresentInstallKeydownHandler() {
+    document.addEventListener('keydown', function (e) {
+      // Le mode présentation, ouvert PAR-DESSUS #cc-workspace, intercepte Échap/flèches en premier —
+      // jamais laissé remonter vers le gestionnaire de fermeture de l'espace de travail ci-dessous,
+      // qui fermerait le document entier au lieu de quitter seulement le mode plein écran.
+      if (window._adocPresentState && document.getElementById('cc-ws-present-overlay')?.classList.contains('open')) {
+        if (e.key === 'Escape') { window.adocPresentClose(); return; }
+        if (e.key === 'ArrowRight') { window.adocPresentNext(); return; }
+        if (e.key === 'ArrowLeft') { window.adocPresentPrev(); return; }
+        return;
+      }
+      if (e.key === 'Escape' && document.getElementById('cc-workspace')?.classList.contains('open')) {
+        window.adocCloseWorkspace();
+      }
+    });
+  }
+  adocPresentInstallKeydownHandler();
+
+  // ═══ LOT A — Export Présentation autonome, vivant et interactif ═══
+  // Assemble un fichier .html UNIQUE, ouvrable par file:// sans Studio Clinique — MÊME moteur que
+  // le mode "Présenter" en direct (adocPresentOpenWithDoc et tout le cluster adocPresent*, jamais
+  // une réécriture séparée), sérialisé par .toString() (Option A retenue par l'investigation —
+  // jamais l'extraction par marqueurs/fetch(), qui risquerait un blocage CORS en file://). Images
+  // ENCORE en ligne dans ce lot (data-pexels résolu à l'ouverture comme aujourd'hui, connexion
+  // internet supposée disponible) — l'embarquement base64 pour l'autonomie hors ligne réelle est
+  // le Lot C, hors périmètre ici.
+  //
+  // Graphe COMPLET et FERMÉ de fonctions embarquées, établi par grep exhaustif (jamais une
+  // supposition) depuis les deux points d'entrée réels (adocPresentOpenWithDoc, appelé au
+  // chargement ; adocRenderCardHTML/adocRenderBlockHTML, appelés en cascade pour chaque
+  // diapositive) — cf. rapport de lot pour le détail vérifié fonction par fonction :
+  //   Cluster présentation (13, hors les 6 window.*) : adocPresentBuildTocHTML,
+  //     adocPresentUpdateCounter, adocPresentApplyReveal, adocPresentAnimateNumberIfEligible,
+  //     adocPresentRevealNext/Prev, adocPresentRenderSlideHTML, adocPresentResolveSlideHTML,
+  //     adocPresentOpenWithDoc, adocPresentGoToInternal, adocPresentInstallKeydownHandler.
+  //   window.* du même cluster (6) : adocQuizSelectOption, adocPresentClose, adocPresentToggleToc,
+  //     adocPresentGoTo, adocPresentNext, adocPresentPrev.
+  //   Rendu de carte (23), PARTAGÉ avec le Carrousel — jamais exclusif à Présentation :
+  //     adocRenderCardHTML, adocRenderBlockHTML, adocCardPositionCSSText, adocCiteFootnoteHTML,
+  //     adocEnsurePageGoogleFontLoaded, adocEditorExportFonts, adocBlockStyleToCSSText, adocEsc,
+  //     adocBlockOpacityLayerHTML, adocEditorTextHTML, adocEditorRenderList, adocEditorRenderTable,
+  //     adocImageAssetUrl, adocEditorStyleCSS, adocEditorCleanHTML, adocEditorPlain,
+  //     adocEditorReadStyle, adocEditorRules, adocEditorApplyRules, adocEditorTableGrid,
+  //     adocResolveBlockFontFamily, adocGoogleFontLinkTag, adocInsertGoogleFontLinkIfAbsent.
+  //   Résolution d'image (4) : adocResolveImages, adocGetWorkerUrl, adocGetApiKey,
+  //     _adocWarnMissingApiKey.
+  //   Données (constantes, jamais des fonctions, sérialisées en JSON) : ADOC_LEGACY_FONT_PAIRS,
+  //     ADOC_BLOCK_FONT_SIZES, ADOC_DIRECT_STYLE_FIELDS.
+  //   Variable de fermeture DÉTECTÉE (jamais supposée absente, cf. investigation "aucune capture"
+  //     — vraie pour le seul cluster présentation, PAS pour ce graphe élargi) : _adocWarnMissingApiKey
+  //     capture _adocApiKeyWarningShown, un `let` privé au module — redéclarée explicitement
+  //     ci-dessous pour cette seule fonction, jamais oubliée.
+  //
+  // Volontairement HORS de ce graphe (décision de périmètre, jamais un oubli) : adocTokensToCSSVars/
+  // la charte graphique — cette fondation n'applique aucune charte au document exporté (couleurs par
+  // défaut du CSS ci-dessous), parité de branding non demandée pour ce lot ; adocRenderCitationsFooterHTML
+  // — le mode plein écran EN DIRECT ne l'affiche déjà pas non plus (les liens de citation [n] y sont
+  // déjà des ancres mortes aujourd'hui, comportement préexistant reproduit fidèlement, jamais une
+  // régression introduite par ce lot).
+  function adocBuildStandalonePresentationHTML(doc) {
+    const engineFnRefs = {
+      adocEsc: adocEsc, adocGetWorkerUrl: adocGetWorkerUrl, adocGetApiKey: adocGetApiKey,
+      _adocWarnMissingApiKey: _adocWarnMissingApiKey, adocResolveImages: adocResolveImages,
+      adocImageAssetUrl: adocImageAssetUrl, adocCiteFootnoteHTML: adocCiteFootnoteHTML,
+      adocBlockOpacityLayerHTML: adocBlockOpacityLayerHTML, adocCardPositionCSSText: adocCardPositionCSSText,
+      adocResolveBlockFontFamily: adocResolveBlockFontFamily, adocGoogleFontLinkTag: adocGoogleFontLinkTag,
+      adocInsertGoogleFontLinkIfAbsent: adocInsertGoogleFontLinkIfAbsent,
+      adocEnsurePageGoogleFontLoaded: adocEnsurePageGoogleFontLoaded, adocEditorStyleCSS: adocEditorStyleCSS,
+      adocBlockStyleToCSSText: adocBlockStyleToCSSText, adocEditorReadStyle: adocEditorReadStyle,
+      adocEditorCleanHTML: adocEditorCleanHTML, adocEditorPlain: adocEditorPlain,
+      adocEditorTextHTML: adocEditorTextHTML, adocEditorRules: adocEditorRules,
+      adocEditorTableGrid: adocEditorTableGrid, adocEditorApplyRules: adocEditorApplyRules,
+      adocEditorRenderList: adocEditorRenderList, adocEditorRenderTable: adocEditorRenderTable,
+      adocEditorExportFonts: adocEditorExportFonts, adocRenderBlockHTML: adocRenderBlockHTML,
+      adocRenderCardHTML: adocRenderCardHTML, adocPresentBuildTocHTML: adocPresentBuildTocHTML,
+      adocPresentUpdateCounter: adocPresentUpdateCounter, adocPresentApplyReveal: adocPresentApplyReveal,
+      adocPresentAnimateNumberIfEligible: adocPresentAnimateNumberIfEligible,
+      adocPresentRevealNext: adocPresentRevealNext, adocPresentRevealPrev: adocPresentRevealPrev,
+      adocPresentRenderSlideHTML: adocPresentRenderSlideHTML, adocPresentResolveSlideHTML: adocPresentResolveSlideHTML,
+      adocPresentOpenWithDoc: adocPresentOpenWithDoc, adocPresentGoToInternal: adocPresentGoToInternal,
+      adocPresentInstallKeydownHandler: adocPresentInstallKeydownHandler,
+    };
+    const fnsText = Object.keys(engineFnRefs).map(function (name) { return engineFnRefs[name].toString(); }).join('\n');
+    const windowFnNames = ['adocQuizSelectOption', 'adocPresentClose', 'adocPresentToggleToc', 'adocPresentGoTo', 'adocPresentNext', 'adocPresentPrev'];
+    const windowFnsText = windowFnNames.map(function (name) { return 'window.' + name + ' = ' + window[name].toString() + ';'; }).join('\n');
+    const dataText = 'var ADOC_LEGACY_FONT_PAIRS = ' + JSON.stringify(ADOC_LEGACY_FONT_PAIRS) + ';\n' +
+      'var ADOC_BLOCK_FONT_SIZES = ' + JSON.stringify(ADOC_BLOCK_FONT_SIZES) + ';\n' +
+      'var ADOC_DIRECT_STYLE_FIELDS = ' + JSON.stringify(ADOC_DIRECT_STYLE_FIELDS) + ';\n' +
+      'var _adocApiKeyWarningShown = false;\n' +
+      'window._adocPresentState = null;\n' +
+      'var ADOC_EXPORT_DOC = ' + JSON.stringify(doc) + ';';
+    const bootText = 'adocPresentInstallKeydownHandler();\nadocPresentOpenWithDoc(ADOC_EXPORT_DOC);';
+    const script = dataText + '\n' + fnsText + '\n' + windowFnsText + '\n' + bootText;
+    const css = ADOC_PRESENT_ROOT_VARS_CSS + ADOC_DOC_CONTENT_CSS + ADOC_PRESENT_ENGINE_CSS + 'body{margin:0;background:#14211f;}';
+    return '<!DOCTYPE html><html lang="' + adocEsc(doc.language || 'fr') + '"><head><meta charset="UTF-8">' +
+      '<title>' + adocEsc(doc.title) + ' — Présentation</title>' +
+      '<style>' + css + '</style></head><body>' +
+      '<div id="cc-ws-present-overlay" hidden role="dialog" aria-modal="true" aria-label="Mode présentation plein écran">' +
+        '<div class="cc-ws-present-slide-wrap">' +
+          '<button type="button" class="cc-ws-present-nav cc-ws-present-prev" id="cc-ws-present-prev" aria-label="Diapositive précédente" onclick="window.adocPresentPrev()">‹</button>' +
+          '<div class="cc-ws-present-slide-outer"><div class="cc-ws-present-slide-inner" id="cc-ws-present-slide-inner"></div></div>' +
+          '<button type="button" class="cc-ws-present-nav cc-ws-present-next" id="cc-ws-present-next" aria-label="Diapositive suivante" onclick="window.adocPresentNext()">›</button>' +
+        '</div>' +
+        '<div class="cc-ws-present-toolbar">' +
+          '<span class="cc-ws-present-counter" id="cc-ws-present-counter">1 / 1</span>' +
+          '<button type="button" class="cc-ws-present-toolbar-btn" onclick="window.adocPresentToggleToc()">Sommaire</button>' +
+          '<button type="button" class="cc-ws-present-toolbar-btn" onclick="window.adocPresentClose()">Fermer</button>' +
+        '</div>' +
+        '<div id="cc-ws-present-toc" hidden role="navigation" aria-label="Sommaire des diapositives"></div>' +
+      '</div>' +
+      '<script>' + script + '</script' + '>' +
+      '</body></html>';
+  }
+
+  // Point d'accès — visible UNIQUEMENT pour documentKind==='presentation' du moteur structuré
+  // (jamais legacy, jamais Carrousel — même garde-fou EXACT que le bouton "Présenter", cf.
+  // adocOpenWorkspace ci-dessous), jamais construit à l'aveugle : revérifié ici comme partout
+  // ailleurs (aucune confiance dans l'état du bouton seul).
+  window.adocWsExportStandalonePresentation = function () {
+    adocEditorSync();
+    const storeKey = window._adocWsState.storeKey;
+    const art = window._adocArtifacts?.[storeKey];
+    const doc = art && art._adocStructuredDoc;
+    if (!doc || doc.documentKind !== 'presentation') return;
+    const html = adocBuildStandalonePresentationHTML(doc);
+    adocDownloadArtifact(new Blob([html], { type: 'text/html;charset=utf-8' }), (doc.title || 'presentation').replace(/[\\/:*?"<>|]/g, '-') + '-interactive.html');
+  };
 
   window.adocWsExport = async function () {
     adocEditorSync();
