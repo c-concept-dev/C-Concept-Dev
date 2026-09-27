@@ -1044,6 +1044,13 @@
   function adocDetectIntentKeyword(text) {
     const ql = text.toLowerCase();
     return (ql.includes('excel') || ql.includes('comparatif') || ql.includes('tableau')) ? 'tableau'
+      // LOT 1 Présentation (6e documentKind) — vérifiée AVANT le test 'conf' générique ci-dessous
+      // (qui matcherait aussi "conférence" et la renverrait à tort vers 'document'/html-visual,
+      // même piège que le correctif planificateur ci-dessus, lignes ~1283). 'diaporama'/'slides'
+      // ajoutés pour la même raison que côté planner. Jamais 'cours' seul (document long existant,
+      // non concerné par ce nouveau type — même garde-fou que le planner LLM).
+      : (ql.includes('présentation') || ql.includes('presentation') || ql.includes('conférence')
+          || ql.includes('exposé') || ql.includes('diaporama') || ql.includes('slides')) ? 'presentation'
       : (ql.includes('support visuel') || ql.includes('conf') || ql.includes('page web')) ? 'document'
       : (ql.includes('cours') || ql.includes('formation')) ? 'cours'
       // Audit systémique (Priorité 8.1) — 'carrousel' est une intention distincte reconnue par
@@ -1073,7 +1080,7 @@
     // hasard de plan.output_format côté planner LLM.
     const _fT = _iT === 'tableau'
       ? (_explicitXlsxRequested ? 'xlsx' : 'html')
-      : ['script','liens','document','cours','carrousel','fiche'].includes(_iT)
+      : ['script','liens','document','cours','carrousel','fiche','presentation'].includes(_iT)
       ? 'html'
       : 'chat';
     const _tw = text.replace(/[^a-z0-9À-ɏ\s]/gi,'').trim().split(/\s+/).slice(0,4).join(' ');
@@ -1212,7 +1219,7 @@ TÂCHE — Analyser la demande et produire UNIQUEMENT un JSON valide (sans markd
   ],
   "vector_angles": ["formulation sémantique 1", "formulation sémantique 2"],
   "approach_filter": "valeur exacte issue de la bibliothèque ci-dessus, ou null",
-  "intent": "cours|conseil|document|analyse|chat|comparatif|script|carrousel|tableau|fiche|liens",
+  "intent": "cours|conseil|document|analyse|chat|comparatif|script|carrousel|tableau|fiche|liens|presentation",
   "clinical_intent": "supervision|analyse_cas|intervention|conceptualisation|bibliographie|production|chat",
   "output_format": "html|html-visual|pdf|docx|pptx|xlsx|zip|txt|chat",
   "audience_type": "praticien|etudiant_m2|grand_public|congres|patient",
@@ -1264,7 +1271,7 @@ RAISONNEMENT ATTENDU — tu penses comme un clinicien chercheur :
    - Document visuel riche sans PDF demandé → html-visual
    - "pdf", "fais-moi un pdf", "X pages pdf" mentionné → pdf obligatoirement
    - TABLEAU COMPARATIF, comparatif structuré, données en colonnes multiples → xlsx OBLIGATOIREMENT
-   - Fiche, carrousel, contenu web → html
+   - Fiche, carrousel, présentation, contenu web → html
    - Par défaut → chat
 
    LOT 30 — DEMANDE VISUELLE PURE (images_only) :
@@ -1280,9 +1287,20 @@ RAISONNEMENT ATTENDU — tu penses comme un clinicien chercheur :
    un verbe de production + un type de fichier, c'est un artefact — pas du chat.
    Mots-clés xlsx : "génère", "crée", "tableau comparatif", "Excel", "fichier Excel",
      "comparatif" + approches ou données structurées → output_format=xlsx.
-   Mots-clés html-visual : "support visuel", "page web complète", "conférence",
-     "présentation web", "crée un support", "document web" → output_format=html-visual.
-   Mots-clés pptx : "PowerPoint", "présentation slides", "deck" → output_format=pptx.
+   Mots-clés html-visual : "support visuel", "page web complète", "crée un support",
+     "document web" → output_format=html-visual.
+   LOT 1 Présentation (6e documentKind, correctif de routage indispensable — investigation
+   confirmée : ces mots-clés atterrissaient auparavant sur html-visual, un format legacy qui
+   n'atteint JAMAIS le moteur structuré, cf. rapport) :
+   Mots-clés presentation : "présentation", "conférence", "exposé", "diaporama", "slides",
+     "diapositives", "deck" (hors "présentation web"/"support visuel", qui restent html-visual
+     ci-dessus) — JAMAIS "cours" seul, qui reste le document long existant, non concerné par ce
+     nouveau type → intent="presentation", output_format="html" (moteur structuré, JAMAIS
+     html-visual). Ne bascule vers pptx (ci-dessous) QUE si un FICHIER PowerPoint réel est
+     explicitement demandé (ex. "au format PowerPoint", "en .pptx", "à exporter en PowerPoint") —
+     "diaporama"/"slides"/"deck" seuls désignent le document consultable dans l'outil, pas un
+     export de fichier.
+   Mots-clés pptx : "PowerPoint", "fichier .pptx" → output_format=pptx.
    Mots-clés docx : "Word", "document Word", "rapport .docx" → output_format=docx.
    RÈGLE ABSOLUE ARTEFACT : si output_format ≠ chat, alors clinical_intent="production"
    et intent prend la valeur correspondante (tableau→xlsx, document→html-visual, etc.).
@@ -1319,11 +1337,12 @@ RAISONNEMENT ATTENDU — tu penses comme un clinicien chercheur :
    needs_rag=false est INTERDIT pour ces trois intents.
 
 9. EXTRAIRE duree_minutes (item 60 — Option A, extraction par toi-même, jamais une regex)
-   Si la demande mentionne une durée cible pour le document (minutes, heures, "une demi-heure",
-   "2h30", "45 min", etc.), extrais-la et convertis-la en NOMBRE ENTIER DE MINUTES dans
-   "duree_minutes". Sinon, "duree_minutes": null — ne jamais inventer une durée absente de la
-   demande. Ce champ n'influence QUE le nombre de chapitres d'un document long (cours/document) ;
-   il n'a aucun effet sur max_tokens ni sur les autres champs.
+   Si la demande mentionne une durée cible (minutes, heures, "une demi-heure", "2h30", "45 min",
+   etc.), extrais-la et convertis-la en NOMBRE ENTIER DE MINUTES dans "duree_minutes". Sinon,
+   "duree_minutes": null — ne jamais inventer une durée absente de la demande. Ce champ influence
+   UNIQUEMENT le nombre de chapitres d'un document long (cours/document) OU la densité/le nombre
+   de diapositives d'une Présentation (LOT 1) ; il n'a aucun effet sur max_tokens ni sur les autres
+   champs.
 
 10. ÉVALUER format_confidence (item 70 Volet 2 — porte de clarté, palier FORMAT)
     Indique ta confiance (0.0 à 1.0) que le type de document choisi (intent/documentKind) est le
@@ -5038,7 +5057,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
   // document réellement en cours est connu (plan résolu), jamais avant, jamais inventé. Reprend
   // le vocabulaire déjà utilisé ailleurs pour documentKind (cf. adocOpenWorkspace) — étendu ici
   // aux 3 types qui n'y figuraient pas encore (tableau/script/liens), même esprit.
-  var ADOC_GENERATION_KIND_LABELS = { fiche: 'fiche synthèse', carrousel: 'carrousel', tableau: 'tableau', script: 'script', liens: 'liens transversaux' };
+  var ADOC_GENERATION_KIND_LABELS = { fiche: 'fiche synthèse', carrousel: 'carrousel', tableau: 'tableau', script: 'script', liens: 'liens transversaux', presentation: 'présentation' };
   function adocUpdateGenerationTitle(id, documentKind) {
     const el = document.getElementById(id);
     if (!el) return;
@@ -6862,7 +6881,9 @@ ${recent}`;
   // aussi : adocRenderLiensHTML existe et est branché (même vigilance que Script/Tableau —
   // vérifié avant ce flip). Aucun mécanisme d'export concurrent à exclure ici (contrairement à
   // Tableau/xlsx, confirmé par l'investigation item 74 point 4) — câblage aussi simple que Script.
-  window.rendererModeByDocumentKind = { fiche: 'structured', carrousel: 'structured', tableau: 'structured', script: 'structured', liens: 'structured' };
+  // LOT 1 Présentation — 'structured' aussi : adocRenderClinicalDocument réutilise
+  // adocRenderCarrouselHTML tel quel pour ce documentKind (structure card identique, cf. schéma).
+  window.rendererModeByDocumentKind = { fiche: 'structured', carrousel: 'structured', tableau: 'structured', script: 'structured', liens: 'structured', presentation: 'structured' };
   function adocGetRendererMode(documentKind) {
     return (window.rendererModeByDocumentKind && window.rendererModeByDocumentKind[documentKind]) || 'legacy';
   }
@@ -6881,7 +6902,9 @@ ${recent}`;
   // catalogue (ADOC_STRUCTURED_PROFILES.liens, adocRenderLiensHTML), ACTIVÉ EN MÊME TEMPS que
   // rendererModeByDocumentKind.liens ci-dessus — aucun garde-fou supplémentaire type xlsx requis
   // ici (confirmé par l'investigation item 74 point 4), câblage aussi direct que Script.
-  window.adocStructuredGenerationWiredByDocumentKind = { fiche: true, carrousel: true, tableau: true, script: true, liens: true };
+  // LOT 1 Présentation — ACTIVÉ EN MÊME TEMPS que rendererModeByDocumentKind.presentation
+  // ci-dessus, jamais l'un sans l'autre (même piège nommé par l'investigation item 72 point 5).
+  window.adocStructuredGenerationWiredByDocumentKind = { fiche: true, carrousel: true, tableau: true, script: true, liens: true, presentation: true };
 
   // ── Validation JSON Schema réelle (ajv, vendorisé localement — vendor/ajv2020.min.js) ──
   let _adocAjvValidators = null;
@@ -10796,6 +10819,12 @@ ${recent}`;
     let html;
     if (doc.documentKind === 'fiche') html = adocRenderFicheHTML(validated.doc, tokens);
     else if (doc.documentKind === 'carrousel') html = adocRenderCarrouselHTML(validated.doc, tokens);
+    // LOT 1 Présentation (6e documentKind) — réutilise adocRenderCarrouselHTML TEL QUEL (jamais un
+    // second moteur de rendu, cf. investigation point 3) : une diapositive de Présentation EST une
+    // carte de Carrousel structurellement (même schéma cardOnlyBlock/cardContent). Le mode plein
+    // écran de navigation (adocPresentOpen, plus bas) est une coquille de navigation séparée,
+    // autour de ce même rendu — pas un remplacement.
+    else if (doc.documentKind === 'presentation') html = adocRenderCarrouselHTML(validated.doc, tokens);
     else if (doc.documentKind === 'script') html = adocRenderScriptHTML(validated.doc, tokens);
     else if (doc.documentKind === 'tableau') html = adocRenderTableauHTML(validated.doc, tokens);
     else if (doc.documentKind === 'liens') html = adocRenderLiensHTML(validated.doc, tokens);
@@ -11098,6 +11127,58 @@ ${recent}`;
             type: 'object',
             properties: {
               title: { type: 'string', description: 'Titre court de la carte (diapositive) — une idée claire par carte.' },
+              blocks: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    type: { type: 'string', enum: ['heading', 'paragraph', 'callout', 'list', 'quote', 'image'] },
+                    text: { type: 'string', description: 'Texte pour heading/paragraph/callout/quote ; chaîne vide sinon.' },
+                    level: { type: 'integer', enum: [1, 2, 3], description: 'Niveau de titre (heading uniquement) ; 2 sinon.' },
+                    visualRole: { type: 'string', enum: ['info', 'warning', 'critical', 'success'], description: 'callout uniquement ; "info" sinon.' },
+                    items: { type: 'array', items: { type: 'string' }, description: 'list uniquement ; liste vide sinon.' },
+                    ordered: { type: 'boolean', description: 'list uniquement ; false sinon.' },
+                    imageQuery: { type: 'string', description: "image uniquement — requête de recherche Pexels concrète et spécifique, en anglais, jamais générique ou caricaturale ; chaîne vide sinon." },
+                    imageAlt: { type: 'string', description: 'image uniquement — texte alternatif descriptif, non vide dès que type=image ; chaîne vide sinon.' },
+                    citationEntryIds: { type: 'array', items: { type: 'string' }, description: "sourceSnapshotEntryId (ex. 'entry-3') des passages fournis qui soutiennent ce bloc — choisis EXACTEMENT parmi les identifiants listés dans le prompt, jamais inventés ; liste vide si aucune affirmation sourcée dans ce bloc." },
+                  },
+                  required: ['type', 'text', 'level', 'visualRole', 'items', 'ordered', 'imageQuery', 'imageAlt', 'citationEntryIds'],
+                  additionalProperties: false,
+                },
+              },
+            },
+            required: ['title', 'blocks'],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ['title', 'purpose', 'audience', 'cards'],
+      additionalProperties: false,
+    },
+  };
+
+  // LOT 1 Présentation (6e documentKind) — MÊME structure EXACTE que ADOC_STRUCTURED_CARROUSEL_TOOL
+  // ci-dessus (jamais une structure parallèle, cf. Décision 10 du CDC : la nouveauté porte sur la
+  // mise en scène/navigation, jamais sur le contenu) : une diapositive de Présentation EST une
+  // carte de Carrousel, "cards" reste le nom de champ (convertRawToBlocks partagé, ci-dessous).
+  // Seuls name/description changent, pour un outil distinct côté API Anthropic.
+  const ADOC_STRUCTURED_PRESENTATION_TOOL = {
+    name: 'emit_presentation_document',
+    description: "Produit le contenu d'une Présentation clinique structurée (format paysage, exposé oral devant un public de 1 à 200 personnes — conférence, cours, séance) en diapositives, chacune composée de blocs typés, sourcé exclusivement par les passages numérotés fournis dans le prompt système.",
+    strict: true,
+    eager_input_streaming: true,
+    input_schema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string' },
+        purpose: { type: 'string' },
+        audience: { type: 'string' },
+        cards: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              title: { type: 'string', description: 'Titre court de la diapositive — une idée claire par diapositive.' },
               blocks: {
                 type: 'array',
                 items: {
@@ -11466,6 +11547,74 @@ ${recent}`;
         }).filter(Boolean);
       },
     },
+    // LOT 1 Présentation (6e documentKind) — même patron EXACT que 'carrousel' ci-dessus (même
+    // convertRawToBlocks à l'identique, jamais une seconde logique de conversion, régression #6) :
+    // une diapositive de Présentation EST une carte de Carrousel structurellement. Seule différence
+    // réelle : buildPromptSuffix reçoit ici un second paramètre `plan` (jamais lu par les autres
+    // profils, qui ignorent silencieusement cet argument supplémentaire — aucune signature à
+    // changer ailleurs) pour lire plan.duree_minutes/plan.audience_type et ajuster la densité —
+    // ces deux champs existent déjà côté planificateur (item 60) mais n'étaient consommés par
+    // AUCUN profil structuré avant ce lot (cf. investigation).
+    presentation: {
+      tool: ADOC_STRUCTURED_PRESENTATION_TOOL,
+      toolName: 'emit_presentation_document',
+      defaultTitle: 'Présentation',
+      buildPromptSuffix: function(passagesListing, plan) {
+        const duree = plan && typeof plan.duree_minutes === 'number' && plan.duree_minutes > 0 ? plan.duree_minutes : null;
+        const audience = (plan && plan.audience_type) || 'praticien';
+        const densiteInstruction = duree
+          ? ('Durée cible : ' + duree + ' minutes. Vise environ 1 diapositive toutes les 1 à 2 ' +
+             'minutes de présentation orale (jamais un pavé de texte lu tel quel) — soit environ ' +
+             Math.max(3, Math.round(duree / 1.5)) + ' diapositives pour cette durée, à ajuster ' +
+             'selon la densité réelle du sujet.')
+          : 'Durée non précisée — vise 5 à 8 diapositives, une idée claire par diapositive.';
+        const publicInstruction = (audience === 'grand_public' || audience === 'patient')
+          ? ('Public : ' + audience + ' — moins de texte par diapositive, formulations concrètes, ' +
+             'vocabulaire accessible.')
+          : ('Public : ' + audience + ' — densité normale, vocabulaire clinique/technique assumé.');
+        return '\n\n---\nGÉNÉRATION STRUCTURÉE (Présentation)\n' +
+          "Réponds exclusivement via l'outil emit_presentation_document. Découpe le contenu en " +
+          'diapositives (format paysage, exposé oral) : chaque diapositive porte un titre court et ' +
+          'ses propres blocs de contenu — une idée claire par diapositive, jamais un pavé continu ' +
+          'réparti arbitrairement.\n\n' +
+          '── RYTHME ET DENSITÉ ──\n' + densiteInstruction + '\n' + publicInstruction + '\n\n' +
+          "Chaque affirmation clinique significative doit citer un ou plusieurs passages ci-dessous " +
+          'par leur identifiant exact (sourceSnapshotEntryId, ex. "entry-3") — jamais un identifiant ' +
+          'inventé, jamais une citation sans passage correspondant dans la liste. Passages ' +
+          'disponibles :\n\n' + passagesListing +
+          '\n\n── ILLUSTRATION (bloc type="image", à l\'intérieur d\'une diapositive) ──\n' +
+          'Un bloc type="image" est disponible à l\'intérieur des blocs d\'une diapositive. Ne ' +
+          "l'utilise QUE si une image apporte une valeur clinique ou pédagogique réelle au propos " +
+          "— jamais par défaut, jamais pour \"décorer\". Jamais de photo générique ou caricaturale " +
+          'de stock (ex. poignée de main souriante, couple anonyme qui se dispute face caméra) : ' +
+          'imageQuery doit être une requête Pexels concrète et spécifique, en anglais. imageAlt est ' +
+          "obligatoire et non vide dès que type=\"image\".\n\n" +
+          '── TEXTE ──\n' +
+          "Aucun emoji, aucun caractère Unicode décoratif (cercles ou carrés de couleur, symboles, " +
+          "pictogrammes, flèches décoratives) nulle part dans le texte produit — texte propre uniquement.";
+      },
+      // MÊME fonction que 'carrousel' ci-dessus, dupliquée ici (jamais partagée par référence) pour
+      // ne changer qu'un seul préfixe d'id ('slide-' plutôt que 'card-', simple confort de lecture
+      // en outil de développement — aucun effet de schéma, type reste 'card' dans les deux cas).
+      convertRawToBlocks: function(raw, convertBlock) {
+        let cardSeq = 0;
+        return (raw.cards || []).map(function(card) {
+          cardSeq++;
+          const cardBlocks = (card.blocks || []).map(convertBlock).filter(Boolean);
+          if (!cardBlocks.length) return null;
+          return {
+            id: 'slide-' + String(cardSeq).padStart(2, '0'),
+            type: 'card',
+            content: {
+              title: adocStripEmoji((card.title || '').trim()) || ('Diapositive ' + cardSeq),
+              imageRef: null, imageAlt: null,
+              blocks: cardBlocks,
+            },
+            citationIds: [], validation: {},
+          };
+        }).filter(Boolean);
+      },
+    },
     script: {
       tool: ADOC_STRUCTURED_SCRIPT_TOOL,
       toolName: 'emit_script_document',
@@ -11623,7 +11772,10 @@ ${recent}`;
     // Item 69 construction — le suffixe spécifique au type (nom d'outil, structure attendue)
     // vient désormais du profil ; systemPrompt/passagesListing restent construits ici, à
     // l'identique, pour les deux types (extraction pure, cf. profile.buildPromptSuffix).
-    const baseStructuredSystemPrompt = systemPrompt + profile.buildPromptSuffix(passagesListing);
+    // LOT 1 Présentation — `plan` passé en second paramètre (jamais lu par les profils qui ne le
+    // déclarent pas dans leur signature — JS ignore silencieusement un argument surnuméraire,
+    // aucun changement de comportement pour fiche/carrousel/script/tableau/liens).
+    const baseStructuredSystemPrompt = systemPrompt + profile.buildPromptSuffix(passagesListing, plan);
 
     // ── Premier appel — web_search en libre décision (récupère le trio bibliothèque + web + IA) ──
     // Même patron que le moteur legacy (tool_choice:'auto', cf. adocRunContinuationRound /
@@ -12866,7 +13018,7 @@ ${recent}`;
     window._adocWsState.storeKey = storeKey;
     window._adocWsState.lastFocus = document.activeElement;
 
-    const kindLabels = { fiche: 'Fiche synthèse', carrousel: 'Carrousel' };
+    const kindLabels = { fiche: 'Fiche synthèse', carrousel: 'Carrousel', presentation: 'Présentation' };
     const docKind = isLegacy ? art._adocDocumentKind : doc.documentKind;
     const docTitle = isLegacy ? (art.name || 'Document').replace(/-\d+$/, '').replace(/-/g, ' ') : (doc.title || 'Document');
     document.getElementById('cc-ws-title').textContent = docTitle;
@@ -12896,12 +13048,21 @@ ${recent}`;
     if (exportJpegBtn) exportJpegBtn.hidden = !(!isLegacy && docKind === 'carrousel');
     // ITEM 75 Phase 1 Lot 2 — même condition de visibilité EXACTE que le bouton JPEG ci-dessus
     // (même patron, jamais une seconde règle divergente).
+    // LOT 1 Présentation — rejoint carrousel ICI (Décision 9 du CDC : export PDF simple attendu
+    // pour ce type dès ce lot), jamais pour JPEG/PPTX ci-dessus/ci-dessous (hors périmètre de ce
+    // lot, non demandé — une carte/diapositive partage la même structure mais ces deux exports ne
+    // sont pas requis par la Décision 9, qui ne cite que le PDF).
     const exportPdfCarrouselBtn = document.getElementById('cc-ws-export-pdf-carrousel-btn');
-    if (exportPdfCarrouselBtn) exportPdfCarrouselBtn.hidden = !(!isLegacy && docKind === 'carrousel');
+    if (exportPdfCarrouselBtn) exportPdfCarrouselBtn.hidden = !(!isLegacy && (docKind === 'carrousel' || docKind === 'presentation'));
     // ITEM 75 — nettoyage de la dette (Sujet 2) — même condition de visibilité EXACTE que le
     // bouton PDF ci-dessus (même patron, jamais une seconde règle divergente).
     const exportPptxCarrouselBtn = document.getElementById('cc-ws-export-pptx-carrousel-btn');
     if (exportPptxCarrouselBtn) exportPptxCarrouselBtn.hidden = !(!isLegacy && docKind === 'carrousel');
+    // LOT 1 Présentation — bouton "Présenter" (mode plein écran de navigation, adocPresentOpen
+    // plus bas), visible UNIQUEMENT pour une Présentation du moteur structuré (jamais legacy,
+    // jamais Carrousel — celui-ci n'a jamais demandé ce mode dans ce lot, cf. périmètre strict).
+    const presentBtn = document.getElementById('cc-ws-present-btn');
+    if (presentBtn) presentBtn.hidden = !(!isLegacy && docKind === 'presentation');
 
     // Statut calculé UNIQUEMENT à partir de ce que le pipeline existant sait déjà dire
     // (qc.blocking) — pas d'état "Brouillon" inventé : rien dans le pipeline actuel ne
@@ -13486,7 +13647,115 @@ ${recent}`;
     window._adocPreviewState = null;
   };
 
+  // ══════════════════════════════════════════════════════════════════════════════════════
+  // LOT 1 Présentation (6e documentKind) — Mode plein écran de navigation.
+  // Réutilise adocRenderCardHTML TEL QUEL pour peindre chaque diapositive (jamais un second
+  // moteur de rendu, cf. investigation point 3). Coquille de navigation autour de ce rendu :
+  // sommaire cliquable, flèches clavier/clic, transition fondu+glissement (~260ms, un seul style
+  // uniforme — Décision 7 du CDC, jamais un catalogue d'effets).
+  // ══════════════════════════════════════════════════════════════════════════════════════
+  window._adocPresentState = null; // null quand fermé ; { doc, index } quand ouvert
+
+  function adocPresentBuildTocHTML(doc) {
+    return (doc.blocks || []).map(function (card, i) {
+      return '<button type="button" class="cc-ws-present-toc-item" data-idx="' + i + '" onclick="window.adocPresentGoTo(' + i + ')">' +
+        '<span class="cc-ws-present-toc-num">' + (i + 1) + '</span>' +
+        '<span class="cc-ws-present-toc-title">' + adocEsc(card.content.title) + '</span></button>';
+    }).join('\n');
+  }
+
+  function adocPresentUpdateCounter() {
+    const state = window._adocPresentState;
+    if (!state) return;
+    const counterEl = document.getElementById('cc-ws-present-counter');
+    if (counterEl) counterEl.textContent = (state.index + 1) + ' / ' + state.doc.blocks.length;
+    const prevBtn = document.getElementById('cc-ws-present-prev');
+    const nextBtn = document.getElementById('cc-ws-present-next');
+    if (prevBtn) prevBtn.disabled = state.index <= 0;
+    if (nextBtn) nextBtn.disabled = state.index >= state.doc.blocks.length - 1;
+  }
+
+  // Ouvre le mode présentation pour le document actuellement affiché dans l'espace de travail —
+  // uniquement pour une Présentation du moteur structuré (garde-fou déjà posé au bouton lui-même,
+  // cf. adocOpenWorkspace, mais revérifié ici — jamais une confiance aveugle dans l'état du DOM).
+  window.adocPresentOpen = function () {
+    const storeKey = window._adocWsState.storeKey;
+    const art = window._adocArtifacts?.[storeKey];
+    const doc = art && art._adocStructuredDoc;
+    if (!doc || doc.documentKind !== 'presentation' || !Array.isArray(doc.blocks) || !doc.blocks.length) return;
+    window._adocPresentState = { doc: doc, index: 0 };
+    const overlay = document.getElementById('cc-ws-present-overlay');
+    if (!overlay) return;
+    const inner = document.getElementById('cc-ws-present-slide-inner');
+    if (inner) inner.innerHTML = adocRenderCardHTML(doc.blocks[0], 0, doc.blocks.length);
+    const toc = document.getElementById('cc-ws-present-toc');
+    if (toc) { toc.innerHTML = adocPresentBuildTocHTML(doc); toc.hidden = true; }
+    adocPresentUpdateCounter();
+    overlay.hidden = false;
+    overlay.classList.add('open');
+  };
+
+  window.adocPresentClose = function () {
+    const overlay = document.getElementById('cc-ws-present-overlay');
+    if (overlay) { overlay.classList.remove('open'); overlay.hidden = true; }
+    const toc = document.getElementById('cc-ws-present-toc');
+    if (toc) toc.hidden = true;
+    window._adocPresentState = null;
+  };
+
+  window.adocPresentToggleToc = function () {
+    const toc = document.getElementById('cc-ws-present-toc');
+    if (toc) toc.hidden = !toc.hidden;
+  };
+
+  // Transition — fondu enchaîné + léger glissement horizontal, ~260ms, un seul style appliqué
+  // uniformément (Décision 7 du CDC : jamais un choix d'effet laissé à l'utilisatrice dans ce lot).
+  function adocPresentGoToInternal(newIndex) {
+    const state = window._adocPresentState;
+    if (!state) return;
+    const total = state.doc.blocks.length;
+    newIndex = Math.max(0, Math.min(total - 1, newIndex));
+    if (newIndex === state.index) return;
+    const direction = newIndex > state.index ? 1 : -1;
+    const inner = document.getElementById('cc-ws-present-slide-inner');
+    if (!inner) { state.index = newIndex; adocPresentUpdateCounter(); return; }
+    inner.classList.add('cc-ws-present-out');
+    inner.style.transform = 'translateX(' + (direction * -16) + 'px)';
+    setTimeout(function () {
+      state.index = newIndex;
+      inner.innerHTML = adocRenderCardHTML(state.doc.blocks[newIndex], newIndex, total);
+      inner.style.transform = 'translateX(' + (direction * 16) + 'px)';
+      void inner.offsetWidth; // force reflow — sans quoi la transition de retour ne rejouerait pas
+      inner.classList.remove('cc-ws-present-out');
+      inner.style.transform = 'translateX(0)';
+      adocPresentUpdateCounter();
+    }, 260);
+  }
+
+  window.adocPresentGoTo = function (index) {
+    adocPresentGoToInternal(index);
+    const toc = document.getElementById('cc-ws-present-toc');
+    if (toc) toc.hidden = true; // sauter depuis le sommaire referme le sommaire, jamais laissé ouvert par-dessus la diapositive
+  };
+  window.adocPresentNext = function () {
+    const state = window._adocPresentState;
+    if (state) adocPresentGoToInternal(state.index + 1);
+  };
+  window.adocPresentPrev = function () {
+    const state = window._adocPresentState;
+    if (state) adocPresentGoToInternal(state.index - 1);
+  };
+
   document.addEventListener('keydown', function (e) {
+    // Le mode présentation, ouvert PAR-DESSUS #cc-workspace, intercepte Échap/flèches en premier —
+    // jamais laissé remonter vers le gestionnaire de fermeture de l'espace de travail ci-dessous,
+    // qui fermerait le document entier au lieu de quitter seulement le mode plein écran.
+    if (window._adocPresentState && document.getElementById('cc-ws-present-overlay')?.classList.contains('open')) {
+      if (e.key === 'Escape') { window.adocPresentClose(); return; }
+      if (e.key === 'ArrowRight') { window.adocPresentNext(); return; }
+      if (e.key === 'ArrowLeft') { window.adocPresentPrev(); return; }
+      return;
+    }
     if (e.key === 'Escape' && document.getElementById('cc-workspace')?.classList.contains('open')) {
       window.adocCloseWorkspace();
     }
@@ -13790,7 +14059,10 @@ ${recent}`;
     const art = window._adocArtifacts?.[storeKey];
     if (!art || art._adocGenerationEngine === 'legacy-html') return;
     const doc = art._adocStructuredDoc;
-    if (!doc || doc.documentKind !== 'carrousel' || !Array.isArray(doc.blocks) || !doc.blocks.length) return;
+    // LOT 1 Présentation — rejoint carrousel ICI (Décision 9 : export PDF simple attendu dès ce
+    // lot, même mécanisme réutilisé tel quel, cf. adocBuildCarrouselPdfPagesHTML déjà agnostique
+    // au documentKind — aucun changement nécessaire côté construction du HTML des pages).
+    if (!doc || (doc.documentKind !== 'carrousel' && doc.documentKind !== 'presentation') || !Array.isArray(doc.blocks) || !doc.blocks.length) return;
     const btn = document.getElementById('cc-ws-export-pdf-carrousel-btn');
     const btnLabel = btn?.querySelector('span');
     const originalLabel = btnLabel?.textContent;
@@ -14233,7 +14505,9 @@ ${recent}`;
       if (purposeEl) doc.purpose = keep(plain(purposeEl), doc.purpose);
       const audienceEl = root.querySelector('.adoc-sc-cover-audience');
       if (audienceEl) doc.audience = keep(plain(audienceEl), doc.audience);
-    } else if (doc.documentKind === 'carrousel') {
+    } else if (doc.documentKind === 'carrousel' || doc.documentKind === 'presentation') {
+      // LOT 1 Présentation — même bloc EXACT que Carrousel (jamais une seconde copie) : une
+      // diapositive est une carte structurellement identique, même sélecteur .adoc-sc-card-title.
       root.querySelectorAll('.adoc-sc-card').forEach(function (cardEl) {
         const card = (doc.blocks || []).find(function (c) { return c.id === cardEl.id; });
         const titleEl = cardEl.querySelector('.adoc-sc-card-title');
