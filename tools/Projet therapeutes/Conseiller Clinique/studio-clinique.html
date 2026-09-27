@@ -3866,9 +3866,10 @@
         <button type="button" class="cc-ws-present-toolbar-btn" onclick="window.adocPresentClose()">Fermer</button>
       </div>
       <div id="cc-ws-present-toc" hidden role="navigation" aria-label="Sommaire des diapositives"></div>
-      <div id="cc-ws-present-door" hidden role="dialog" aria-modal="true" aria-label="Image en plein écran">
-        <button type="button" id="cc-ws-present-door-close" aria-label="Fermer l'image" onclick="window.adocPresentCloseImageDoor()">×</button>
+      <div id="cc-ws-present-door" hidden role="dialog" aria-modal="true" aria-label="Plein écran">
+        <button type="button" id="cc-ws-present-door-close" aria-label="Fermer" onclick="window.adocPresentCloseImageDoor()">×</button>
         <img alt="">
+        <div class="cc-ws-present-door-text" hidden></div>
       </div>
     </div>
     <!-- Fusion de documents depuis l'aperçu — panneau B, STRICTEMENT en lecture seule, jamais

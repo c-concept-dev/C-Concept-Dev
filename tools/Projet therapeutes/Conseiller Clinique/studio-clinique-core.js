@@ -7584,9 +7584,61 @@ ${recent}`;
     const html = clean != null && adocEditorPlain(clean) === text ? clean : adocEsc(text).replace(/\n/g, '<br>');
     return '<span class="adoc-sc-block-text" data-cc-editor-leaf="' + path + '">' + html + '</span>';
   }
+  // Présentation ACTE 2, Phase 2 — enveloppe, DANS un fragment de texte DÉJÀ ÉCHAPPÉ, chaque lien
+  // d'approfondissement de `pool` dont l'expression `text` y apparaît (correspondance exacte,
+  // repli insensible à la casse) — retire de `pool` (mutation, l'appelant doit toujours passer une
+  // COPIE, jamais b.deepDiveLinks lui-même) chaque lien effectivement enveloppé ici, pour ne
+  // jamais l'envelopper une seconde fois dans un autre fragment du même bloc (ex. un second élément
+  // de liste). Retourne null si aucun lien de `pool` n'apparaît dans ce fragment (l'appelant retombe
+  // alors sur le rendu normal, jamais un fragment à moitié modifié). `targetId` passé en dur dans
+  // l'attribut (jamais l'élément DOM comme pour la porte image — le contenu d'un approfondissement
+  // n'est pas déjà résolu dans l'élément cliqué, il doit être retrouvé dans doc.deepDives, cf.
+  // investigation point 5), `adocEsc` posé par défense en profondeur même si targetId vient
+  // toujours du modèle, jamais d'une saisie utilisateur directe.
+  function adocDeepDiveWrapInFragment(escapedText, pool) {
+    let cursor = 0, out = '', matched = false;
+    for (let i = 0; i < pool.length; i++) {
+      const link = pool[i];
+      const needle = adocEsc(link.text);
+      if (!needle) continue;
+      let idx = escapedText.indexOf(needle, cursor);
+      if (idx === -1) idx = escapedText.toLowerCase().indexOf(needle.toLowerCase(), cursor);
+      if (idx === -1) continue; // pas de correspondance pour CE lien — la puce (toujours rendue) reste son seul accès
+      out += escapedText.slice(cursor, idx);
+      out += '<span class="adoc-sc-deepdive-link" onclick="window.adocPresentOpenDeepDive(\'' + adocEsc(link.targetId) + '\')">' + escapedText.slice(idx, idx + needle.length) + '</span>';
+      cursor = idx + needle.length;
+      matched = true;
+      pool.splice(i, 1); i--; // consommé, jamais réutilisé dans un autre fragment du même bloc
+    }
+    if (!matched) return null;
+    return out + escapedText.slice(cursor);
+  }
+  // Présentation ACTE 2, Phase 2 — variante d'adocEditorTextHTML qui tente, en plus, l'enrichissement
+  // en ligne ci-dessus. Reproduit EXACTEMENT le même test qu'adocEditorTextHTML pour savoir si une
+  // mise en forme manuelle cohérente existe pour ce chemin (`b.editor.html[path]`) — si c'est le
+  // cas, ou si aucun lien de `linkPool` ne correspond, replie PUREMENT sur adocEditorTextHTML
+  // normal (jamais une tentative de modification d'un HTML déjà construit manuellement, jamais un
+  // second mécanisme qui diverge du premier pour le cas non enrichi). `linkPool` est TOUJOURS une
+  // copie (jamais b.deepDiveLinks lui-même) — voir adocDeepDiveWrapInFragment ci-dessus.
+  function adocDeepDiveTextHTML(b, path, text, linkPool) {
+    const rich = b.editor && b.editor.html && b.editor.html[path];
+    const clean = rich == null ? null : adocEditorCleanHTML(rich);
+    const hasRichOverride = clean != null && adocEditorPlain(clean) === text;
+    if (!hasRichOverride && linkPool && linkPool.length) {
+      const wrapped = adocDeepDiveWrapInFragment(adocEsc(text), linkPool);
+      if (wrapped != null) {
+        return '<span class="adoc-sc-block-text" data-cc-editor-leaf="' + path + '">' + wrapped.replace(/\n/g, '<br>') + '</span>';
+      }
+    }
+    return adocEditorTextHTML(b, path, text);
+  }
   function adocEditorRenderList(b) {
     const root = document.createElement(b.content.ordered ? 'ol' : 'ul'); root.className = 'adoc-sc-list-el';
     const levels = b.editor && b.editor.levels || [];
+    // Présentation ACTE 2, Phase 2 — jamais actif hors mode présentation (même garde-fou EXACT que
+    // l'onclick de la porte image, `_adocRenderingForPresentDoor`) : une copie fraîche à chaque
+    // appel, consommée item par item par adocDeepDiveTextHTML (jamais b.deepDiveLinks lui-même).
+    const linkPool = _adocRenderingForPresentDoor ? (b.deepDiveLinks || []).slice() : [];
     let stack = [root];
     b.content.items.forEach(function (text, i) {
       const level = Math.min(8, Math.max(0, levels[i] || 0), stack.length);
@@ -7594,7 +7646,7 @@ ${recent}`;
       while (stack.length <= level && stack[stack.length - 1].lastElementChild) {
         const nested = document.createElement(root.tagName); stack[stack.length - 1].lastElementChild.appendChild(nested); stack.push(nested);
       }
-      const li = document.createElement('li'); li.innerHTML = adocEditorTextHTML(b, 'item-' + i, text); stack[stack.length - 1].appendChild(li);
+      const li = document.createElement('li'); li.innerHTML = adocDeepDiveTextHTML(b, 'item-' + i, text, linkPool); stack[stack.length - 1].appendChild(li);
     });
     return root.outerHTML;
   }
@@ -10509,6 +10561,18 @@ ${recent}`;
     const statusClass = b._status === 'needs-review' ? ' adoc-sc-needs-review' : '';
     const links = (b.validation && b.validation.citationLinks) || [];
     const cites = adocCiteFootnoteHTML(links);
+    // Présentation ACTE 2, Phase 2 — jamais actif hors mode présentation, même garde-fou EXACT que
+    // `_adocRenderingForPresentDoor` pour l'onclick de la porte image (cf. cas 'image' plus bas) :
+    // hors présentation, deepDiveLinksActive est TOUJOURS vide, donc les 5 cas concernés
+    // (heading/paragraph/callout/list/quote) rendent EXACTEMENT comme avant ce lot, sans exception.
+    // La puce (adoc-sc-deepdive-chip) est TOUJOURS rendue pour chaque lien actif, quel que soit le
+    // résultat de l'enrichissement en ligne tenté séparément dans chaque cas ci-dessous — c'est ce
+    // mécanisme, jamais l'enrichissement, qui garantit qu'un lien n'est jamais silencieusement
+    // perdu (cf. investigation point 3).
+    const deepDiveLinksActive = _adocRenderingForPresentDoor ? (b.deepDiveLinks || []) : [];
+    const deepDiveChips = deepDiveLinksActive.map(function (l) {
+      return '<button type="button" class="adoc-sc-deepdive-chip" onclick="window.adocPresentOpenDeepDive(\'' + adocEsc(l.targetId) + '\')">↳ Approfondir</button>';
+    }).join('');
     if (b.style && b.style.fontPairId) adocEnsurePageGoogleFontLoaded(b.style.fontPairId);
     const linksToLoad = document.createElement('div'); linksToLoad.innerHTML = adocEditorExportFonts({blocks:[b]});
     linksToLoad.querySelectorAll('link').forEach(function(link) { if(!Array.from(document.head.querySelectorAll('link')).some(function(existing){return existing.href===link.href;}))document.head.appendChild(link); });
@@ -10560,7 +10624,7 @@ ${recent}`;
         // phrasé, un <div> y serait invalide et reparenté par le parseur HTML (vérifié avant
         // construction) — un <span> positionné en absolu reste valide ici comme dans les 4 autres
         // cas (callout/list/quote en <div>/<blockquote>, qui acceptent aussi bien un <span>).
-        return '<h' + lvl + ' class="adoc-sc-block adoc-sc-heading' + statusClass + '" id="' + adocEsc(b.id) + '"' + headingStyleAttr + '>' + headingLayer.overlay + headingLayer.wrapOpen + adocEditorTextHTML(b, 'text', b.content.text) + cites + headingLayer.wrapClose + dragHandle + nestedResizeHandle + '</h' + lvl + '>';
+        return '<h' + lvl + ' class="adoc-sc-block adoc-sc-heading' + statusClass + '" id="' + adocEsc(b.id) + '"' + headingStyleAttr + '>' + headingLayer.overlay + headingLayer.wrapOpen + adocDeepDiveTextHTML(b, 'text', b.content.text, deepDiveLinksActive.slice()) + cites + deepDiveChips + headingLayer.wrapClose + dragHandle + nestedResizeHandle + '</h' + lvl + '>';
       }
       case 'paragraph': {
         if (b.style && b.style.fontPairId) adocEnsurePageGoogleFontLoaded(b.style.fontPairId);
@@ -10568,13 +10632,13 @@ ${recent}`;
         const paragraphLayer = adocBlockOpacityLayerHTML(b.style);
         const paragraphCombinedCSS = paragraphLayer.outerStyle + paragraphStyleCSS + nestedPosCSS;
         const paragraphStyleAttr = paragraphCombinedCSS ? ' style="' + adocEsc(paragraphCombinedCSS) + '"' : '';
-        return '<p class="adoc-sc-block adoc-sc-paragraph' + statusClass + '" id="' + adocEsc(b.id) + '"' + paragraphStyleAttr + '>' + paragraphLayer.overlay + paragraphLayer.wrapOpen + adocEditorTextHTML(b, 'text', b.content.text) + cites + paragraphLayer.wrapClose + dragHandle + nestedResizeHandle + '</p>';
+        return '<p class="adoc-sc-block adoc-sc-paragraph' + statusClass + '" id="' + adocEsc(b.id) + '"' + paragraphStyleAttr + '>' + paragraphLayer.overlay + paragraphLayer.wrapOpen + adocDeepDiveTextHTML(b, 'text', b.content.text, deepDiveLinksActive.slice()) + cites + deepDiveChips + paragraphLayer.wrapClose + dragHandle + nestedResizeHandle + '</p>';
       }
       case 'callout': {
         const calloutLayer = adocBlockOpacityLayerHTML(b.style);
         const calloutCombinedCSS = calloutLayer.outerStyle + extraCSS + nestedPosCSS;
         const calloutStyleAttr = calloutCombinedCSS ? ' style="' + adocEsc(calloutCombinedCSS) + '"' : '';
-        return '<div class="adoc-sc-block adoc-sc-callout adoc-sc-callout-' + adocEsc(b.content.visualRole) + statusClass + '" id="' + adocEsc(b.id) + '"' + calloutStyleAttr + ' role="note">' + calloutLayer.overlay + calloutLayer.wrapOpen + adocEditorTextHTML(b, 'text', b.content.text) + cites + calloutLayer.wrapClose + dragHandle + nestedResizeHandle + '</div>';
+        return '<div class="adoc-sc-block adoc-sc-callout adoc-sc-callout-' + adocEsc(b.content.visualRole) + statusClass + '" id="' + adocEsc(b.id) + '"' + calloutStyleAttr + ' role="note">' + calloutLayer.overlay + calloutLayer.wrapOpen + adocDeepDiveTextHTML(b, 'text', b.content.text, deepDiveLinksActive.slice()) + cites + deepDiveChips + calloutLayer.wrapClose + dragHandle + nestedResizeHandle + '</div>';
       }
       case 'list': {
         const list = adocEditorRenderList(b);
@@ -10582,7 +10646,7 @@ ${recent}`;
         const listLayer = adocBlockOpacityLayerHTML(b.style);
         const listCombinedCSS = listLayer.outerStyle + extraCSS + nestedPosCSS;
         const listStyleAttr = listCombinedCSS ? ' style="' + adocEsc(listCombinedCSS) + '"' : '';
-        return '<div class="adoc-sc-block adoc-sc-list' + statusClass + '" id="' + adocEsc(b.id) + '"' + listStyleAttr + '>' + listLayer.overlay + listLayer.wrapOpen + list + note + listLayer.wrapClose + dragHandle + nestedResizeHandle + '</div>';
+        return '<div class="adoc-sc-block adoc-sc-list' + statusClass + '" id="' + adocEsc(b.id) + '"' + listStyleAttr + '>' + listLayer.overlay + listLayer.wrapOpen + list + note + deepDiveChips + listLayer.wrapClose + dragHandle + nestedResizeHandle + '</div>';
       }
       case 'table': {
         const table = adocEditorRenderTable(b);
@@ -10596,7 +10660,7 @@ ${recent}`;
         const quoteLayer = adocBlockOpacityLayerHTML(b.style);
         const quoteCombinedCSS = quoteLayer.outerStyle + extraCSS + nestedPosCSS;
         const quoteStyleAttr = quoteCombinedCSS ? ' style="' + adocEsc(quoteCombinedCSS) + '"' : '';
-        return '<blockquote class="adoc-sc-block adoc-sc-quote' + statusClass + '" id="' + adocEsc(b.id) + '"' + quoteStyleAttr + '>' + quoteLayer.overlay + quoteLayer.wrapOpen + adocEditorTextHTML(b, 'text', b.content.text) + cites + quoteLayer.wrapClose + dragHandle + nestedResizeHandle + '</blockquote>';
+        return '<blockquote class="adoc-sc-block adoc-sc-quote' + statusClass + '" id="' + adocEsc(b.id) + '"' + quoteStyleAttr + '>' + quoteLayer.overlay + quoteLayer.wrapOpen + adocDeepDiveTextHTML(b, 'text', b.content.text, deepDiveLinksActive.slice()) + cites + deepDiveChips + quoteLayer.wrapClose + dragHandle + nestedResizeHandle + '</blockquote>';
       }
       case 'image': {
         // data-pexels résolu ensuite par adocResolveImages (mécanisme existant et éprouvé,
@@ -14503,8 +14567,24 @@ ${recent}`;
     '#cc-ws-present-door{display:none;position:absolute;inset:0;z-index:20;flex-direction:column;align-items:center;justify-content:center;background:rgba(10,16,15,.96);padding:32px;}' +
     '#cc-ws-present-door.open{display:flex;}' +
     '#cc-ws-present-door img{max-width:100%;max-height:calc(100% - 60px);object-fit:contain;border-radius:8px;box-shadow:0 12px 40px rgba(0,0,0,.5);}' +
+    // Présentation ACTE 2, Phase 2 — slot de contenu texte, second contenu interchangeable de la
+    // même porte généralisée (cf. window.adocPresentOpenDeepDive) : jamais un second élément de
+    // superposition, jamais un second jeu de règles de chrome (fond/centrage/fermeture partagés).
+    '.cc-ws-present-door-text{max-width:640px;max-height:calc(100% - 60px);overflow-y:auto;color:#fff;text-align:left;}' +
+    '.cc-ws-present-door-text .cc-ws-present-door-title{margin:0 0 16px;font-size:1.4em;font-weight:700;line-height:1.3;}' +
+    '.cc-ws-present-door-text p{margin:0 0 12px;line-height:1.6;font-size:1.05em;}' +
+    '.cc-ws-present-door-text p:last-child{margin-bottom:0;}' +
     '#cc-ws-present-door-close{position:absolute;top:16px;right:16px;width:40px;height:40px;border-radius:50%;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.12);color:#fff;font-size:20px;line-height:1;cursor:pointer;}' +
-    '#cc-ws-present-door-close:hover{background:rgba(255,255,255,.24);}';
+    '#cc-ws-present-door-close:hover{background:rgba(255,255,255,.24);}' +
+    // Présentation ACTE 2, Phase 2 — distinction visuelle discrète (soulignement pointillé, jamais
+    // criard). Rendues DANS la diapositive elle-même (fond clair, `.adoc-sc-card{background:#fff}`
+    // par défaut, jamais le fond sombre du chrome de présentation) — couleur d'accent déjà utilisée
+    // ailleurs pour ce même fond clair (--petrol-800, bouton "Enregistrer PDF") ; jamais dans le CSS
+    // classique (ADOC_PRESENTATION_SLIDE_CSS, exports PDF) — ces deux classes ne sont d'ailleurs
+    // jamais rendues hors mode présentation (_adocRenderingForPresentDoor, cf. adocRenderBlockHTML).
+    '.adoc-sc-deepdive-link{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px;color:var(--petrol-800,#1f5053);}' +
+    '.adoc-sc-deepdive-chip{display:inline-block;margin:6px 6px 0 0;padding:2px 10px;border-radius:12px;border:1px dashed var(--petrol-800,#1f5053);background:none;color:var(--petrol-800,#1f5053);font-size:0.85em;cursor:pointer;}' +
+    '.adoc-sc-deepdive-chip:hover{background:rgba(31,80,83,.08);}';
   // Bundle complet — page vivante (injection ci-dessous) ET export autonome interactif.
   const ADOC_PRESENT_ENGINE_CSS = ADOC_PRESENT_FULLSCREEN_CSS + ADOC_PRESENTATION_SLIDE_CSS + ADOC_QUIZ_STATIC_CSS + ADOC_QUIZ_INTERACTIVE_MASK_CSS + ADOC_QUESTIONNAIRE_STATIC_CSS + ADOC_QUESTIONNAIRE_INTERACTIVE_CSS + ADOC_CARD_IMG_CSS;
   // Jetons de chrome (jamais des jetons de DOCUMENT comme --adoc-sc-*, cf. adocTokensToCSSVars) —
@@ -14730,17 +14810,27 @@ ${recent}`;
     if (toc) toc.hidden = !toc.hidden;
   };
 
-  // PORTE PLEIN ÉCRAN (image) — deuxième niveau de superposition, jamais une modification du
-  // mécanisme de navigation entre diapositives (adocPresentGoToInternal) : `imgEl` est L'ÉLÉMENT
-  // <img> déjà rendu et déjà affiché (jamais une URL en chaîne re-transmise, jamais de second
-  // échappement) — `#cc-ws-present-slide-inner` n'est ni lu ni modifié par ces deux fonctions, la
-  // diapositive de départ reste donc STRICTEMENT intacte à la fermeture (scroll, montage progressif
-  // déjà fait, réponses déjà cochées d'un questionnaire visité juste avant sur la même diapositive).
+  // PORTE PLEIN ÉCRAN (image + approfondissement) — deuxième niveau de superposition, jamais une
+  // modification du mécanisme de navigation entre diapositives (adocPresentGoToInternal) —
+  // `#cc-ws-present-slide-inner` n'est ni lu ni modifié par ces fonctions, la diapositive de départ
+  // reste donc STRICTEMENT intacte à la fermeture (scroll, montage progressif déjà fait, réponses
+  // déjà cochées d'un questionnaire visité juste avant sur la même diapositive).
+  // Présentation ACTE 2, Phase 2 — DÉCISION D'ARCHITECTURE (investigation point 1) : `#cc-ws-
+  // present-door` est GÉNÉRALISÉ en porte à contenu variable plutôt que dupliqué en un second
+  // élément — retenu parce que la généralisation reste effectivement simple : un slot de contenu
+  // interchangeable (l'`<img>` existant OU le nouveau `.cc-ws-present-door-text`, jamais les deux
+  // affichés en même temps), sans aucune logique conditionnelle interne à la porte elle-même —
+  // chaque fonction d'ouverture se contente de peupler SA partie du slot et de masquer l'autre.
+  // Jamais deux mécanismes de superposition qui divergeraient avec le temps (chrome/CSS/fermeture/
+  // interception Échap intégralement partagés, jamais dupliqués).
   window.adocPresentOpenImageDoor = function (imgEl) {
     const door = document.getElementById('cc-ws-present-door');
     if (!door || !imgEl) return;
     const img = door.querySelector('img');
-    if (img) { img.src = imgEl.currentSrc || imgEl.src; img.alt = imgEl.alt || ''; }
+    const textEl = door.querySelector('.cc-ws-present-door-text');
+    if (img) { img.src = imgEl.currentSrc || imgEl.src; img.alt = imgEl.alt || ''; img.hidden = false; }
+    if (textEl) textEl.hidden = true;
+    door.setAttribute('aria-label', 'Image en plein écran');
     door.hidden = false;
     door.classList.add('open');
   };
@@ -14748,6 +14838,39 @@ ${recent}`;
     const door = document.getElementById('cc-ws-present-door');
     if (door) { door.classList.remove('open'); door.hidden = true; }
   };
+  // Présentation ACTE 2, Phase 2 — `targetId` retrouve son contenu dans doc.deepDives (jamais un
+  // élément DOM déjà résolu comme pour la porte image, cf. investigation point 5 : le contenu d'un
+  // approfondissement n'est jamais déjà présent dans l'élément cliqué). Si `targetId` ne correspond
+  // à aucune entrée (ne devrait jamais arriver après le filet défensif de la Phase 1, jamais
+  // supposé pour autant) : rien ne s'ouvre, aucun crash, un simple avertissement en console pour le
+  // diagnostic. Chaque paragraphe dans son propre <p>, texte simple, cohérent avec la v1 sobre
+  // actée en Phase 1 (jamais de markdown ni de mise en forme riche à l'intérieur).
+  window.adocPresentOpenDeepDive = function (targetId) {
+    const state = window._adocPresentState;
+    const deepDives = (state && state.doc && state.doc.deepDives) || [];
+    const entry = deepDives.filter(function (d) { return d.id === targetId; })[0];
+    if (!entry) { console.warn('[Présentation] approfondissement introuvable pour targetId="' + targetId + '"'); return; }
+    const door = document.getElementById('cc-ws-present-door');
+    if (!door) return;
+    const img = door.querySelector('img');
+    const textEl = door.querySelector('.cc-ws-present-door-text');
+    if (img) img.hidden = true;
+    if (textEl) {
+      textEl.innerHTML = '<h2 class="cc-ws-present-door-title">' + adocEsc(entry.title) + '</h2>' +
+        entry.paragraphs.map(function (p) { return '<p>' + adocEsc(p) + '</p>'; }).join('');
+      textEl.hidden = false;
+    }
+    door.setAttribute('aria-label', 'Approfondissement : ' + entry.title);
+    door.hidden = false;
+    door.classList.add('open');
+  };
+  // Fermeture PARTAGÉE (généralisation retenue au point 1 ci-dessus) — un seul alias, jamais un
+  // second corps de fonction dupliqué : `adocPresentCloseImageDoor` referme déjà "la porte", quel
+  // que soit son contenu actuel, puisqu'elle ne fait que masquer l'élément lui-même. Alias plutôt
+  // qu'un renommage du nom historique : évite tout risque sur le graphe d'export déjà vérifié
+  // (windowFnNames, Phase 3 — hors périmètre ici), le bouton de fermeture et l'interception Échap
+  // continuent d'appeler le nom historique, inchangés.
+  window.adocPresentCloseDeepDive = window.adocPresentCloseImageDoor;
 
   // Transition — fondu enchaîné + léger glissement horizontal, ~260ms, un seul style appliqué
   // uniformément (Décision 7 du CDC : jamais un choix d'effet laissé à l'utilisatrice dans ce lot).
@@ -14891,6 +15014,13 @@ ${recent}`;
       adocBlockStyleToCSSText: adocBlockStyleToCSSText, adocEditorReadStyle: adocEditorReadStyle,
       adocEditorCleanHTML: adocEditorCleanHTML, adocEditorPlain: adocEditorPlain,
       adocEditorTextHTML: adocEditorTextHTML, adocEditorRules: adocEditorRules,
+      // Présentation ACTE 2, Phase 2 — appelées INCONDITIONNELLEMENT par adocRenderBlockHTML (cas
+      // heading/paragraph/callout/quote) ET par adocEditorRenderList (chaque item), déjà toutes
+      // deux dans ce graphe : sans elles, l'export autonome planterait à l'ouverture de TOUTE
+      // présentation exportée, même sans le moindre lien d'approfondissement — même risque déjà
+      // documenté pour adocIsLocalVideoUrl/adocQuestionnaireScorePanel ci-dessous, découvert ici
+      // par le test réel avant toute livraison (jamais supposé).
+      adocDeepDiveWrapInFragment: adocDeepDiveWrapInFragment, adocDeepDiveTextHTML: adocDeepDiveTextHTML,
       adocEditorTableGrid: adocEditorTableGrid, adocEditorApplyRules: adocEditorApplyRules,
       adocEditorRenderList: adocEditorRenderList, adocEditorRenderTable: adocEditorRenderTable,
       adocEditorExportFonts: adocEditorExportFonts, adocRenderBlockHTML: adocRenderBlockHTML,
