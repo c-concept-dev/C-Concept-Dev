@@ -3074,6 +3074,12 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       // dans adocBuildSystemPrompt) — seulement la structure imposée, lue par le système.
       if (adocClarityDocumentKind) plan.documentKind = adocClarityDocumentKind;
       adocClarityDocumentKind = null;
+      // LOT 2 Présentation — même patron EXACT que documentKind ci-dessus : simple métadonnée
+      // additive sur le plan, jamais lue par la recherche RAG ni le calcul de fmt. Consommée
+      // par ADOC_STRUCTURED_PROFILES.presentation.buildPromptSuffix(passagesListing, plan) —
+      // déjà réceptif à `plan` depuis le Lot 1 (les autres profils l'ignorent silencieusement).
+      if (adocClarityPresentationOptions) plan.presentation_options = adocClarityPresentationOptions;
+      adocClarityPresentationOptions = null;
       // Design enrichi — type de document réellement en cours, connu seulement maintenant que
       // documentKind est définitivement résolu (jamais avant, jamais deviné) : cf.
       // adocUpdateGenerationTitle. Reste "document" (générique) si aucun type explicite n'a été
@@ -6368,6 +6374,11 @@ ${recent}`;
     if (typeof openAssistDoc === 'function') openAssistDoc();
 
     window.adocPendingDocumentKind = documentKind;
+    // LOT 2 Présentation — options structurées de l'écran d'accueil (nombre de diapositives,
+    // conclusion), même patron EXACT que window.adocPendingDocumentKind ci-dessus (capturé une
+    // fois, consommé une fois par adocSend). null si aucune option renseignée ou si un autre type
+    // a été cliqué (cf. studio-clinique.html, jamais transmis hors du cas documentKind='presentation').
+    window.adocPendingPresentationOptions = detail.presentationOptions || null;
     const input = document.getElementById('adoc-input');
     if (input) {
       input.value = prompt;
@@ -6609,6 +6620,8 @@ ${recent}`;
   // survivre aux allers-retours de clarification) puis lu-et-effacé par adocSendOriginal, qui
   // l'attache à plan.documentKind. Jamais réappliqué à une demande ultérieure non liée.
   let adocClarityDocumentKind = null;
+  // LOT 2 Présentation — même patron EXACT que adocClarityDocumentKind ci-dessus.
+  let adocClarityPresentationOptions = null;
   let adocDefaultInputPlaceholder = null; // capturé au premier remplacement, pour pouvoir le restaurer
   // Correctif UX-2bis (terrain, v1.4.0) : l'instruction de bandeau "Hypothèses retenues"
   // ne doit jamais apparaître dans la bulle utilisateur ni dans l'historique de
@@ -6836,6 +6849,9 @@ ${recent}`;
     // (ex. bouton d'insertion rapide du chat, qui ne pose jamais cette variable).
     adocClarityDocumentKind = window.adocPendingDocumentKind || null;
     window.adocPendingDocumentKind = null;
+    // LOT 2 Présentation — même patron EXACT que window.adocPendingDocumentKind ci-dessus.
+    adocClarityPresentationOptions = window.adocPendingPresentationOptions || null;
+    window.adocPendingPresentationOptions = null;
     await adocRunClarityGate();
   };
 
@@ -11562,7 +11578,16 @@ ${recent}`;
       buildPromptSuffix: function(passagesListing, plan) {
         const duree = plan && typeof plan.duree_minutes === 'number' && plan.duree_minutes > 0 ? plan.duree_minutes : null;
         const audience = (plan && plan.audience_type) || 'praticien';
-        const densiteInstruction = duree
+        // LOT 2 Présentation — écran d'options structurées de l'écran d'accueil (studio-clinique.html,
+        // #cc-presentation-options). Un nombre explicite REMPLACE le calcul automatique (jamais les
+        // deux mélangés — une consigne de densité ambiguë produirait un résultat imprévisible) ;
+        // sans nombre explicite, comportement STRICTEMENT inchangé depuis le Lot 1.
+        const presOpts = plan && plan.presentation_options;
+        const explicitSlideCount = presOpts && typeof presOpts.slideCount === 'number' && presOpts.slideCount > 0 ? presOpts.slideCount : null;
+        const densiteInstruction = explicitSlideCount
+          ? ('Nombre de diapositives demandé explicitement par l\'utilisatrice : ' + explicitSlideCount +
+             ' — respecte ce nombre precisément (tolérance de ±1), jamais le calcul automatique ci-dessous.')
+          : duree
           ? ('Durée cible : ' + duree + ' minutes. Vise environ 1 diapositive toutes les 1 à 2 ' +
              'minutes de présentation orale (jamais un pavé de texte lu tel quel) — soit environ ' +
              Math.max(3, Math.round(duree / 1.5)) + ' diapositives pour cette durée, à ajuster ' +
@@ -11572,12 +11597,17 @@ ${recent}`;
           ? ('Public : ' + audience + ' — moins de texte par diapositive, formulations concrètes, ' +
              'vocabulaire accessible.')
           : ('Public : ' + audience + ' — densité normale, vocabulaire clinique/technique assumé.');
+        // Case à cocher "Terminer par une diapositive de conclusion / synthèse" — instruction
+        // additive, jamais un bloc/type de diapositive séparé (réutilise card/paragraph existants).
+        const conclusionInstruction = (presOpts && presOpts.conclusion)
+          ? '\nTermine impérativement par une dernière diapositive de conclusion/synthèse récapitulant les points clés abordés.'
+          : '';
         return '\n\n---\nGÉNÉRATION STRUCTURÉE (Présentation)\n' +
           "Réponds exclusivement via l'outil emit_presentation_document. Découpe le contenu en " +
           'diapositives (format paysage, exposé oral) : chaque diapositive porte un titre court et ' +
           'ses propres blocs de contenu — une idée claire par diapositive, jamais un pavé continu ' +
           'réparti arbitrairement.\n\n' +
-          '── RYTHME ET DENSITÉ ──\n' + densiteInstruction + '\n' + publicInstruction + '\n\n' +
+          '── RYTHME ET DENSITÉ ──\n' + densiteInstruction + '\n' + publicInstruction + conclusionInstruction + '\n\n' +
           "Chaque affirmation clinique significative doit citer un ou plusieurs passages ci-dessous " +
           'par leur identifiant exact (sourceSnapshotEntryId, ex. "entry-3") — jamais un identifiant ' +
           'inventé, jamais une citation sans passage correspondant dans la liste. Passages ' +
@@ -13671,8 +13701,105 @@ ${recent}`;
     if (counterEl) counterEl.textContent = (state.index + 1) + ' / ' + state.doc.blocks.length;
     const prevBtn = document.getElementById('cc-ws-present-prev');
     const nextBtn = document.getElementById('cc-ws-present-next');
-    if (prevBtn) prevBtn.disabled = state.index <= 0;
-    if (nextBtn) nextBtn.disabled = state.index >= state.doc.blocks.length - 1;
+    // LOT 2 Partie C — un clic sur "suivant" doit d'abord épuiser le montage progressif de LA
+    // diapositive courante (cf. adocPresentRevealNext) avant de désactiver le bouton en fin de
+    // diaporama ; sans ce correctif, le bouton se désactivait dès la dernière diapositive même si
+    // elle contenait encore des blocs non révélés (seule la flèche clavier restait fonctionnelle
+    // dans ce cas — incohérence corrigée ici, jamais tolérée).
+    const hasPendingReveal = state.revealIndex != null && state.revealIndex < state.revealTotal - 1;
+    const hasRevealedBefore = state.revealIndex != null && state.revealIndex > 0;
+    if (prevBtn) prevBtn.disabled = state.index <= 0 && !hasRevealedBefore;
+    if (nextBtn) nextBtn.disabled = state.index >= state.doc.blocks.length - 1 && !hasPendingReveal;
+  }
+
+  // LOT 2 Présentation, Partie C — révélation progressive des blocs d'une diapositive (mécanisme
+  // générique, une seule classe CSS posée sur CHAQUE bloc quel que soit son type — paragraphe,
+  // liste, image, tableau, callout — jamais un traitement différencié par type, cf. rapport).
+  // Peint l'état initial d'une diapositive fraîchement affichée : `fullyRevealed` distingue une
+  // ENTRÉE progressive (ouverture, avance depuis la diapositive précédente — un seul bloc visible,
+  // le montage se fait ensuite pas à pas) d'une entrée directe où tout doit apparaître d'emblée
+  // (retour en arrière depuis la diapositive suivante, saut direct via le sommaire — jamais un
+  // rejeu du montage que l'utilisatrice n'a pas demandé). Une diapositive à 0 ou 1 bloc n'a rien à
+  // révéler progressivement : revealIndex reste null, adocPresentRevealNext/Prev deviennent alors
+  // des no-op et Suivant/Précédent avancent directement de diapositive, comme au Lot 1.
+  function adocPresentApplyReveal(inner, card, fullyRevealed) {
+    const state = window._adocPresentState;
+    if (!state) return;
+    const blockEls = Array.from(inner.querySelectorAll('.adoc-sc-card > .adoc-sc-block'));
+    if (blockEls.length <= 1) { state.revealIndex = null; state.revealTotal = 0; return; }
+    blockEls.forEach(function (el) { el.classList.add('adoc-sc-reveal'); });
+    state.revealTotal = blockEls.length;
+    state.revealIndex = fullyRevealed ? blockEls.length - 1 : 0;
+    for (let i = 0; i <= state.revealIndex; i++) blockEls[i].classList.add('adoc-sc-reveal-shown');
+    // Une entrée progressive normale (jamais un affichage intégral forcé, cf. paramètre
+    // `fullyRevealed`) anime aussi le tout premier bloc montré ici, exactement comme
+    // adocPresentRevealNext anime chaque bloc suivant — sans quoi seul le 2e bloc et les suivants
+    // profiteraient de l'effet de comptage, jamais le premier (incohérence détectée par le test
+    // Playwright de cette Partie C, corrigée avant tout envoi du rapport).
+    if (!fullyRevealed) {
+      const blockData = card && card.content && card.content.blocks && card.content.blocks[0];
+      adocPresentAnimateNumberIfEligible(blockEls[0], blockData);
+    }
+  }
+
+  // Cas "un nombre qui s'anime jusqu'à sa valeur finale" (Partie C, point 3 du CDC) — UNIQUEMENT
+  // pour un bloc de texte SIMPLE (jamais de mise en forme riche déjà posée dessus, cf.
+  // adocEditorTextHTML/b.editor.html) commençant par un nombre : au-delà de ce cas précis, animer
+  // risquerait d'abîmer du HTML enrichi (gras, liens) ou les citations accolées — jamais tenté,
+  // choix de simplicité assumé plutôt qu'une construction à moitié (cf. rapport). Dégrade
+  // silencieusement (aucune animation, texte final affiché tel quel) dans tous les autres cas.
+  function adocPresentAnimateNumberIfEligible(blockEl, blockData) {
+    if (!blockData || (blockData.editor && blockData.editor.html && blockData.editor.html.text)) return;
+    const text = (blockData.content && blockData.content.text) || '';
+    const m = /^(\d+(?:[.,]\d+)?)([\s\S]*)$/.exec(text);
+    if (!m) return;
+    const target = parseFloat(m[1].replace(',', '.'));
+    if (!isFinite(target)) return;
+    const decimals = (m[1].split(/[.,]/)[1] || '').length;
+    const suffix = m[2] || '';
+    const span = blockEl.querySelector('.adoc-sc-block-text');
+    if (!span) return;
+    const duration = 700;
+    const start = performance.now();
+    (function step(now) {
+      // Math.max(0, …) — évite un éventuel "-0" au tout premier frame (now===start, arrondi
+      // flottant), jamais un nombre négatif affiché pour une progression qui ne fait que monter.
+      const t = Math.max(0, Math.min(1, (now - start) / duration));
+      span.textContent = (target * t).toFixed(decimals) + suffix;
+      if (t < 1) requestAnimationFrame(step);
+      else span.textContent = m[1] + suffix; // valeur finale exacte, jamais un arrondi de l'animation
+    })(start);
+  }
+
+  // Avance/recule d'UN pas de montage à l'intérieur de la diapositive courante, avant de changer
+  // de diapositive — retourne true si un pas a effectivement été consommé (l'appelant doit alors
+  // s'arrêter là), false si la diapositive est déjà entièrement montée/démontée (l'appelant passe
+  // alors à la diapositive suivante/précédente, comportement du Lot 1 strictement inchangé pour
+  // toute diapositive à 0 ou 1 bloc — jamais de régression sur les diapositives simples).
+  function adocPresentRevealNext() {
+    const state = window._adocPresentState;
+    if (!state || state.revealIndex == null || state.revealIndex >= state.revealTotal - 1) return false;
+    state.revealIndex++;
+    const inner = document.getElementById('cc-ws-present-slide-inner');
+    const blockEls = inner ? inner.querySelectorAll('.adoc-sc-card > .adoc-sc-block') : [];
+    const el = blockEls[state.revealIndex];
+    if (el) {
+      el.classList.add('adoc-sc-reveal-shown');
+      const card = state.doc.blocks[state.index];
+      const blockData = card && card.content && card.content.blocks && card.content.blocks[state.revealIndex];
+      adocPresentAnimateNumberIfEligible(el, blockData);
+    }
+    return true;
+  }
+  function adocPresentRevealPrev() {
+    const state = window._adocPresentState;
+    if (!state || state.revealIndex == null || state.revealIndex <= 0) return false;
+    const inner = document.getElementById('cc-ws-present-slide-inner');
+    const blockEls = inner ? inner.querySelectorAll('.adoc-sc-card > .adoc-sc-block') : [];
+    const el = blockEls[state.revealIndex];
+    if (el) el.classList.remove('adoc-sc-reveal-shown');
+    state.revealIndex--;
+    return true;
   }
 
   // Ouvre le mode présentation pour le document actuellement affiché dans l'espace de travail —
@@ -13683,11 +13810,17 @@ ${recent}`;
     const art = window._adocArtifacts?.[storeKey];
     const doc = art && art._adocStructuredDoc;
     if (!doc || doc.documentKind !== 'presentation' || !Array.isArray(doc.blocks) || !doc.blocks.length) return;
-    window._adocPresentState = { doc: doc, index: 0 };
+    window._adocPresentState = { doc: doc, index: 0, revealIndex: null, revealTotal: 0 };
     const overlay = document.getElementById('cc-ws-present-overlay');
     if (!overlay) return;
     const inner = document.getElementById('cc-ws-present-slide-inner');
-    if (inner) inner.innerHTML = adocRenderCardHTML(doc.blocks[0], 0, doc.blocks.length);
+    if (inner) {
+      inner.innerHTML = adocRenderCardHTML(doc.blocks[0], 0, doc.blocks.length);
+      // Partie C — la toute première diapositive se monte aussi progressivement (un seul bloc
+      // visible au départ si elle en compte plusieurs), jamais un affichage complet d'emblée qui
+      // romprait la cohérence avec le reste du diaporama.
+      adocPresentApplyReveal(inner, doc.blocks[0], false);
+    }
     const toc = document.getElementById('cc-ws-present-toc');
     if (toc) { toc.innerHTML = adocPresentBuildTocHTML(doc); toc.hidden = true; }
     adocPresentUpdateCounter();
@@ -13710,13 +13843,18 @@ ${recent}`;
 
   // Transition — fondu enchaîné + léger glissement horizontal, ~260ms, un seul style appliqué
   // uniformément (Décision 7 du CDC : jamais un choix d'effet laissé à l'utilisatrice dans ce lot).
-  function adocPresentGoToInternal(newIndex) {
+  // `opts.forceFullyRevealed` (Partie C) — un saut direct (sommaire) ou un retour à la
+  // diapositive précédente montrent celle-ci intégralement montée d'emblée (jamais un rejeu du
+  // montage progressif que l'utilisatrice n'a pas demandé) ; une avance normale (Suivant épuisé)
+  // repart au contraire du premier bloc, cf. adocPresentApplyReveal.
+  function adocPresentGoToInternal(newIndex, opts) {
     const state = window._adocPresentState;
     if (!state) return;
     const total = state.doc.blocks.length;
     newIndex = Math.max(0, Math.min(total - 1, newIndex));
     if (newIndex === state.index) return;
     const direction = newIndex > state.index ? 1 : -1;
+    const forceFullyRevealed = !!(opts && opts.forceFullyRevealed);
     const inner = document.getElementById('cc-ws-present-slide-inner');
     if (!inner) { state.index = newIndex; adocPresentUpdateCounter(); return; }
     inner.classList.add('cc-ws-present-out');
@@ -13724,6 +13862,7 @@ ${recent}`;
     setTimeout(function () {
       state.index = newIndex;
       inner.innerHTML = adocRenderCardHTML(state.doc.blocks[newIndex], newIndex, total);
+      adocPresentApplyReveal(inner, state.doc.blocks[newIndex], forceFullyRevealed || direction === -1);
       inner.style.transform = 'translateX(' + (direction * 16) + 'px)';
       void inner.offsetWidth; // force reflow — sans quoi la transition de retour ne rejouerait pas
       inner.classList.remove('cc-ws-present-out');
@@ -13733,17 +13872,26 @@ ${recent}`;
   }
 
   window.adocPresentGoTo = function (index) {
-    adocPresentGoToInternal(index);
+    // Saut direct depuis le sommaire — jamais un rejeu du montage progressif de la diapositive
+    // visée, cf. commentaire ci-dessus.
+    adocPresentGoToInternal(index, { forceFullyRevealed: true });
     const toc = document.getElementById('cc-ws-present-toc');
     if (toc) toc.hidden = true; // sauter depuis le sommaire referme le sommaire, jamais laissé ouvert par-dessus la diapositive
   };
   window.adocPresentNext = function () {
     const state = window._adocPresentState;
-    if (state) adocPresentGoToInternal(state.index + 1);
+    if (!state) return;
+    // Partie C — épuise d'abord le montage progressif de la diapositive courante (s'il y en a
+    // un) avant de changer de diapositive ; comportement du Lot 1 strictement inchangé pour une
+    // diapositive à 0 ou 1 bloc (adocPresentRevealNext y est alors systématiquement un no-op).
+    if (adocPresentRevealNext()) { adocPresentUpdateCounter(); return; }
+    adocPresentGoToInternal(state.index + 1);
   };
   window.adocPresentPrev = function () {
     const state = window._adocPresentState;
-    if (state) adocPresentGoToInternal(state.index - 1);
+    if (!state) return;
+    if (adocPresentRevealPrev()) { adocPresentUpdateCounter(); return; }
+    adocPresentGoToInternal(state.index - 1, { forceFullyRevealed: true });
   };
 
   document.addEventListener('keydown', function (e) {
