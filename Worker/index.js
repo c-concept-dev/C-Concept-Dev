@@ -56666,6 +56666,11 @@ __name(handleBrandAssetUpload, "handleBrandAssetUpload");
 // un second mécanisme de stockage. Le téléchargement de l'image a lieu ICI, côté serveur (jamais
 // le client ne transmet les octets) : l'appelant ne fournit que l'URL Pexels déjà obtenue via
 // /fetch-image et l'attribution photographe à conserver (obligation des conditions Pexels).
+// LOT PEXELS+PIXABAY TRANSPARENT (Partie A) — liste blanche SSRF étendue aux hôtes Pixabay
+// réellement utilisés par les champs largeImageURL/webformatURL/previewURL (adocFetchPixabayPhotos
+// ci-dessus) : deux hôtes exacts, jamais un préfixe ni un joker (`*.pixabay.com`) qui élargirait la
+// portée au-delà du strict nécessaire — même discipline que le contrôle Pexels déjà en place.
+var ADOC_ALLOWED_IMAGE_SOURCE_HOSTS = ["images.pexels.com", "pixabay.com", "cdn.pixabay.com"];
 async function handleMediaAssetFromUrl(request2, env2) {
   if (!env2.DB) return jsonErr("D1 not configured", 500);
   if (!env2.BRAND_ASSETS) return jsonErr("R2 binding BRAND_ASSETS not configured", 500);
@@ -56675,10 +56680,11 @@ async function handleMediaAssetFromUrl(request2, env2) {
   const attribution = typeof body.attribution === "string" ? body.attribution.slice(0, 200) : null;
   let parsed;
   try { parsed = new URL(sourceUrl); } catch { return jsonErr("Invalid url", 400); }
-  // Jamais un proxy de téléchargement ouvert (protection SSRF) : seule la source réellement
-  // utilisée par /fetch-image (champs src.* de l'API Pexels, hôte images.pexels.com) est acceptée.
-  if (parsed.hostname !== "images.pexels.com")
-    return jsonErr("url must be an images.pexels.com source", 400);
+  // Jamais un proxy de téléchargement ouvert (protection SSRF) : seules les sources réellement
+  // utilisées par /fetch-image (Pexels images.pexels.com ; Pixabay pixabay.com/cdn.pixabay.com,
+  // ajout Pexels+Pixabay transparent) sont acceptées.
+  if (!ADOC_ALLOWED_IMAGE_SOURCE_HOSTS.includes(parsed.hostname))
+    return jsonErr("url must be an images.pexels.com or pixabay.com/cdn.pixabay.com source", 400);
   let resp;
   try {
     resp = await fetch(parsed.toString());
@@ -58810,6 +58816,59 @@ async function handleGenerateImage(request2, env2) {
   }
 }
 __name(handleGenerateImage, "handleGenerateImage");
+
+// LOT PEXELS+PIXABAY TRANSPARENT — cache 24h dédié aux nouveaux appels Pixabay de Studio Clinique
+// (Photos et Vidéos), même patron déjà éprouvé côté proxy vidéo Pixabay de VideoBox
+// (adocPixabayVideos, jamais touchée ni réutilisée ici — portée/clé/route distinctes, jamais
+// mélangées). Best-effort : un cache indisponible ou une erreur réseau ne bloque jamais, l'appelant
+// reçoit simplement `null` et dégrade vers Pexels seul.
+async function adocPixabayCachedGet(env2, cacheKey, url) {
+  if (env2.CLONE_KV) {
+    try {
+      const cached = await env2.CLONE_KV.get(cacheKey);
+      if (cached) return JSON.parse(cached);
+    } catch {}
+  }
+  let resp;
+  try { resp = await fetch(url); } catch { return null; }
+  if (!resp.ok) return null;
+  let data;
+  try { data = await resp.json(); } catch { return null; }
+  if (env2.CLONE_KV) {
+    try { await env2.CLONE_KV.put(cacheKey, JSON.stringify(data), { expirationTtl: 86400 }); } catch {}
+  }
+  return data;
+}
+__name(adocPixabayCachedGet, "adocPixabayCachedGet");
+
+// LOT PEXELS+PIXABAY TRANSPARENT (Partie A) — recherche Pixabay Images, format de sortie RECONSTRUIT
+// à l'identique de celui de Pexels ci-dessous ({url, thumb, photographer, alt}) : le client
+// (adocMediaRenderGrid) ne voit jamais la différence entre les deux sources, jamais de sélecteur
+// visible. Mapping des champs Pixabay (hits[].largeImageURL/webformatURL/previewURL/user/tags) —
+// forme confirmée par Christophe (réseau Pixabay bloqué depuis cet environnement, cf. rapport),
+// jamais une supposition prise seule. safesearch par défaut, per_page borné [3,200] (même
+// contrainte déjà documentée pour le proxy vidéo Pixabay de VideoBox), best-effort : clé absente ou
+// appel en échec renvoie silencieusement zéro résultat, ne bloque jamais la recherche Pexels.
+async function adocFetchPixabayPhotos(env2, safeQ, perPage) {
+  const key = env2.PIXABAY_API_KEY;
+  if (!key) return [];
+  const parPage = Math.min(200, Math.max(3, perPage));
+  const cacheKey = `pixabay:photos:v1:q=${safeQ}:per_page=${parPage}`;
+  try {
+    const data = await adocPixabayCachedGet(env2, cacheKey, `https://pixabay.com/api/?key=${encodeURIComponent(key)}&q=${encodeURIComponent(safeQ)}&per_page=${parPage}&safesearch=true`);
+    if (!data) return [];
+    return (data.hits || []).map((h) => ({
+      url: h.largeImageURL || h.webformatURL || "",
+      thumb: h.previewURL || h.webformatURL || "",
+      photographer: h.user || "",
+      alt: h.tags || safeQ,
+    })).filter((p) => p.url);
+  } catch {
+    return [];
+  }
+}
+__name(adocFetchPixabayPhotos, "adocFetchPixabayPhotos");
+
 async function handleFetchImage(url, env2) {
   const key = env2.PEXELS_API_KEY;
   if (!key)
@@ -58834,13 +58893,18 @@ async function handleFetchImage(url, env2) {
       return jsonErr("Pexels API error (HTTP " + resp.status + ")" + (bodyText ? ": " + bodyText : ""), resp.status);
     }
     const data = await resp.json();
-    const photos = (data.photos || []).map((p) => ({
+    const pexelsPhotos = (data.photos || []).map((p) => ({
       url: p.src?.large || p.src?.original || "",
       thumb: p.src?.medium || p.src?.small || "",
       photographer: p.photographer || "",
       alt: p.alt || safeQ
     }));
-    return json({ photos, total: data.total_results || photos.length, query: safeQ });
+    // Fusion transparente Pexels + Pixabay (Partie A) — même format de sortie, jamais de champ
+    // distinguant la source renvoyé au client. Pixabay en échec/non configuré → liste vide,
+    // comportement Pexels seul strictement inchangé (non-régression garantie par construction).
+    const pixabayPhotos = await adocFetchPixabayPhotos(env2, safeQ, perPage);
+    const photos = pexelsPhotos.concat(pixabayPhotos);
+    return json({ photos, total: (data.total_results || pexelsPhotos.length) + pixabayPhotos.length, query: safeQ });
   } catch (err2) {
     return jsonErr("Pexels fetch failed: " + err2.message, 500);
   }
@@ -58866,6 +58930,73 @@ function adocPickPexelsVideoFile(files, targetHeight) {
 }
 __name(adocPickPexelsVideoFile, "adocPickPexelsVideoFile");
 
+// LOT PEXELS+PIXABAY TRANSPARENT (Partie B) — Pixabay Vidéos renvoie une forme FIXE à 4 paliers
+// nommés (hits[].videos.{large,medium,small,tiny}.{url,width,height}), jamais un tableau à
+// parcourir comme video_files chez Pexels (adocPickPexelsVideoFile ci-dessus) : forme confirmée par
+// Christophe (réseau Pixabay bloqué depuis cet environnement, cf. rapport), jamais une supposition
+// prise seule. La vignette, elle, vit AILLEURS (hits[].picture_id, cf. adocPixabayVideoThumbUrl
+// ci-dessous), jamais dans cet objet `videos`. preferOrder est une liste de paliers à essayer dans
+// l'ordre, le premier réellement présent est retenu (une vidéo basse résolution peut ne pas avoir
+// de palier 'large').
+function adocPickPixabayVideoFile(videos, preferOrder) {
+  if (!videos) return null;
+  for (const tier of preferOrder) {
+    const v = videos[tier];
+    if (v && v.url) return v;
+  }
+  return null;
+}
+__name(adocPickPixabayVideoFile, "adocPickPixabayVideoFile");
+
+// CORRECTIF (confirmé par Christophe, trois sources indépendantes dont la documentation officielle
+// des extensions Canva canva.dev) — la vignette d'une vidéo Pixabay ne vient PAS d'un champ
+// `thumbnail` par palier de qualité (jamais vérifié en direct dans cette session, réseau Pixabay
+// bloqué — hypothèse initiale erronée, signalée comme telle dans le rapport précédent, maintenant
+// corrigée) : elle se construit à partir de `hits[].picture_id` (champ au niveau du résultat, PAS
+// dans l'objet `videos`), sur le CDN Vimeo (Pixabay héberge ses aperçus vidéo chez Vimeo) :
+//   https://i.vimeocdn.com/video/{picture_id}_{largeur}x{hauteur}.jpg
+// Largeur/hauteur reprises du palier réellement choisi comme aperçu (ici 'small'), même principe
+// que Canva (qui utilise 'tiny' pour son propre besoin — seul le palier diffère, jamais le patron).
+function adocPixabayVideoThumbUrl(pictureId, width, height) {
+  if (!pictureId || !width || !height) return "";
+  return `https://i.vimeocdn.com/video/${pictureId}_${width}x${height}.jpg`;
+}
+__name(adocPixabayVideoThumbUrl, "adocPixabayVideoThumbUrl");
+
+// LOT PEXELS+PIXABAY TRANSPARENT (Partie B) — recherche Pixabay Vidéos, format de sortie
+// RECONSTRUIT à l'identique de celui de Pexels ci-dessous ({id, photographer, duration, previewUrl,
+// downloadUrl, thumbUrl}) : le client (adocVideoRenderSearchGrid) ne voit jamais la différence
+// entre les deux sources. Aperçu = palier le plus proche de ~360p (small, jamais large/medium),
+// téléchargement = le plus proche de ~1080p (large) — même principe que Pexels, jamais la même
+// valeur réutilisée deux fois. Vignette : construite via adocPixabayVideoThumbUrl (picture_id +
+// dimensions du palier d'aperçu, CDN Vimeo — cf. correctif ci-dessus), jamais un champ `thumbnail`
+// par palier (n'existe pas). safesearch par défaut, per_page borné [3,200], best-effort.
+async function adocFetchPixabayVideos(env2, safeQ, perPage) {
+  const key = env2.PIXABAY_API_KEY;
+  if (!key) return [];
+  const parPage = Math.min(200, Math.max(3, perPage));
+  const cacheKey = `pixabay:videos-studio:v1:q=${safeQ}:per_page=${parPage}`;
+  try {
+    const data = await adocPixabayCachedGet(env2, cacheKey, `https://pixabay.com/api/videos/?key=${encodeURIComponent(key)}&q=${encodeURIComponent(safeQ)}&per_page=${parPage}&safesearch=true`);
+    if (!data) return [];
+    return (data.hits || []).map((h) => {
+      const preview = adocPickPixabayVideoFile(h.videos, ["small", "tiny", "medium", "large"]);
+      const download = adocPickPixabayVideoFile(h.videos, ["large", "medium", "small", "tiny"]);
+      return {
+        id: h.id,
+        photographer: h.user || "",
+        duration: h.duration || 0,
+        previewUrl: preview?.url || "",
+        downloadUrl: download?.url || preview?.url || "",
+        thumbUrl: preview ? adocPixabayVideoThumbUrl(h.picture_id, preview.width, preview.height) : "",
+      };
+    }).filter((v) => v.previewUrl || v.downloadUrl);
+  } catch {
+    return [];
+  }
+}
+__name(adocFetchPixabayVideos, "adocFetchPixabayVideos");
+
 // LOT VIDÉO-1 — recherche Pexels Vidéos propre à Studio Clinique, réutilisant PEXELS_API_KEY déjà
 // configurée (même clé que handleFetchImage ci-dessus, jamais PEXELS_VIDEO_PROXY_KEY, réservée au
 // proxy VideoBox — deux logiciels distincts, cf. rapport d'investigation). Appelle
@@ -58886,7 +59017,7 @@ async function handleFetchVideo(url, env2) {
       return jsonErr("Pexels API error (HTTP " + resp.status + ")" + (bodyText ? ": " + bodyText : ""), resp.status);
     }
     const data = await resp.json();
-    const videos = (data.videos || []).map((v) => {
+    const pexelsVideos = (data.videos || []).map((v) => {
       const preview = adocPickPexelsVideoFile(v.video_files, 360);
       const download = adocPickPexelsVideoFile(v.video_files, 1080);
       const pictures = v.video_pictures || [];
@@ -58905,7 +59036,12 @@ async function handleFetchVideo(url, env2) {
         thumbUrl,
       };
     });
-    return json({ videos, total: data.total_results || videos.length, query: safeQ });
+    // Fusion transparente Pexels + Pixabay (Partie B) — même format de sortie, jamais de champ
+    // distinguant la source renvoyé au client. Pixabay en échec/non configuré → liste vide,
+    // comportement Pexels seul strictement inchangé (non-régression garantie par construction).
+    const pixabayVideos = await adocFetchPixabayVideos(env2, safeQ, perPage);
+    const videos = pexelsVideos.concat(pixabayVideos);
+    return json({ videos, total: (data.total_results || pexelsVideos.length) + pixabayVideos.length, query: safeQ });
   } catch (err2) {
     return jsonErr("Pexels video fetch failed: " + err2.message, 500);
   }
