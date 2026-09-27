@@ -16066,7 +16066,11 @@ ${recent}`;
       const credit = kind === 'search' ? (item.photographer || '') : (item.attribution || '');
       // Obligation des conditions Pexels — attribution jamais retirée ni minimisée, un simple
       // texte discret sous la vignette suffit (décision de Christophe, cf. rapport d'investigation).
-      const creditLine = credit ? ('Photo : ' + credit + ' — Pexels') : 'Pexels';
+      // FUSION PEXELS+PIXABAY TRANSPARENTE — jamais de nom de plateforme en dur ici : ce résultat
+      // peut venir de l'une ou l'autre source (le client ne le sait jamais, cf. rapport), un
+      // suffixe "— Pexels" fixe attribuerait FAUSSEMENT une photo Pixabay à Pexels. Seul le nom du
+      // photographe est affiché, correct quelle que soit la source réelle.
+      const creditLine = credit ? ('Photo : ' + credit) : '';
       // "Effacer" — UNIQUEMENT sur l'historique de la bibliothèque Médias (jamais dans un simple
       // sous-panneau de sélection) : un résultat de recherche n'est pas encore persisté tant que
       // "Insérer" n'a pas été cliqué, rien à effacer côté serveur.
@@ -16461,7 +16465,10 @@ ${recent}`;
       return;
     }
     el.innerHTML = items.map(function (item, i) {
-      const credit = item.photographer ? ('Vidéo : ' + item.photographer + ' — Pexels') : 'Pexels';
+      // FUSION PEXELS+PIXABAY TRANSPARENTE — jamais de nom de plateforme en dur (cf.
+      // adocMediaRenderGrid ci-dessus, même correctif) : ce résultat peut venir de l'une ou
+      // l'autre source, jamais visible côté client.
+      const credit = item.photographer ? ('Vidéo : ' + item.photographer) : '';
       return '<div class="cc-media-item" data-video-search-item="' + i + '">' +
         '<video class="cc-media-thumb" muted loop preload="metadata" playsinline' +
           (item.thumbUrl ? ' poster="' + adocEsc(item.thumbUrl) + '"' : '') +
@@ -16525,7 +16532,10 @@ ${recent}`;
     const panel = document.getElementById('cc-video-local-panel-' + idx);
     if (panel) panel.hidden = false;
     if (!item) return;
-    window._adocVideoPendingAttribution = item.photographer ? ('Vidéo : ' + item.photographer + ' — Pexels') : null;
+    // FUSION PEXELS+PIXABAY TRANSPARENTE — jamais de nom de plateforme en dur ici non plus :
+    // l'attribution persistée (video_links.attribution) doit rester correcte quelle que soit la
+    // source réelle du résultat choisi.
+    window._adocVideoPendingAttribution = item.photographer ? ('Vidéo : ' + item.photographer) : null;
     const titleInput = document.getElementById('cc-ws-video-title-input');
     const urlInput = document.getElementById('cc-ws-video-url-input');
     if (titleInput && !titleInput.value) titleInput.value = window._adocVideoSearchQuery || '';
