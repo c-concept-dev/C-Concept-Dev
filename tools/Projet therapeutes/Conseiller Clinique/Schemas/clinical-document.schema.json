@@ -70,7 +70,7 @@
       "items": { "$ref": "citation.schema.json" }
     },
     "deepDives": {
-      "$comment": "Présentation ACTE 2, Phase 1 — pages d'approfondissement plein écran (v1 sobre : titre + paragraphes uniquement, jamais de callout/liste/citation/image). Champ OPTIONNEL au niveau racine (absent des documents déjà générés avant ce lot, qui restent valides tels quels) — tableau racine calqué EXACTEMENT sur le patron déjà établi par `citations` ci-dessus : référencé par identifiant plat (`targetId`) depuis n'importe quel bloc porteur de prose (block.schema.json#/$defs/deepDiveLinks), jamais imbriqué dans un bloc. Profondeur volontairement limitée à 1 niveau, garantie par la structure elle-même : un élément de `deepDives` n'a aucun champ pouvant porter à son tour un `deepDiveLinks` — jamais une règle de prompt à faire respecter.",
+      "$comment": "Présentation ACTE 2, Phase 1 — pages d'approfondissement plein écran (v1 sobre : titre + paragraphes uniquement, jamais de callout/liste/citation/image). Champ OPTIONNEL au niveau racine (absent des documents déjà générés avant ce lot, qui restent valides tels quels) — tableau racine calqué EXACTEMENT sur le patron déjà établi par `citations` ci-dessus : référencé par identifiant plat (`targetId`) depuis n'importe quel bloc porteur de prose (block.schema.json#/$defs/deepDiveLinks), jamais imbriqué dans un bloc. ACTE 3 — la profondeur n'est plus structurellement limitée à 1 niveau : un paragraphe d'une page d'approfondissement peut à son tour porter `deepDiveLinks` et référencer une autre entrée de ce même tableau. La profondeur pertinente est jugée par le modèle à la génération, jamais plafonnée par un chiffre dans le code ; les CYCLES (A→B→A) sont coupés à la conversion par un parcours en profondeur à trois couleurs sur le graphe des liens survivants (convertDeepDive, studio-clinique-core.js), et une seconde fois en navigation (adocPresentOpenDeepDive vérifie la pile) — jamais une règle de prompt supposée respectée.",
       "type": "array",
       "items": {
         "type": "object",
@@ -82,7 +82,21 @@
           "paragraphs": {
             "type": "array",
             "minItems": 1,
-            "items": { "type": "string", "minLength": 1 }
+            "items": {
+              "$comment": "Présentation ACTE 3 — un paragraphe reste une simple chaîne dans le cas très largement majoritaire (aucun lien), et ne devient un objet {text, deepDiveLinks} que s'il porte effectivement un lien vers une AUTRE page d'approfondissement. Forme additive à empreinte nulle, strictement rétrocompatible : tout document produit en Phase 1/2 (paragraphes = tableau de chaînes) reste valide tel quel, sans conversion ni migration.",
+              "oneOf": [
+                { "type": "string", "minLength": 1 },
+                {
+                  "type": "object",
+                  "required": ["text"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "text": { "type": "string", "minLength": 1 },
+                    "deepDiveLinks": { "$ref": "block.schema.json#/$defs/deepDiveLinks" }
+                  }
+                }
+              ]
+            }
           }
         }
       }

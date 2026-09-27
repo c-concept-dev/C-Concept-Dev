@@ -7584,6 +7584,99 @@ ${recent}`;
     const html = clean != null && adocEditorPlain(clean) === text ? clean : adocEsc(text).replace(/\n/g, '<br>');
     return '<span class="adoc-sc-block-text" data-cc-editor-leaf="' + path + '">' + html + '</span>';
   }
+  // ═══ Présentation ACTE 3 — conversion des pages d'approfondissement ═══
+  // Regroupe ce qui doit impérativement se faire DANS CET ORDRE : normalisation des deux formes de
+  // paragraphe, filet d'existence sur les liens internes, puis coupe des cycles sur le graphe des
+  // liens SURVIVANTS (jamais avant — couper des cycles sur des arêtes qui vont de toute façon
+  // disparaître ferait supprimer des liens parfaitement valides). Fonction nommée et exposée plus
+  // bas pour que ce comportement soit éprouvé par un test réel, jamais seulement raisonné.
+  function adocConvertDeepDives(rawDeepDives) {
+    // Un paragraphe arrive sous DEUX formes (clinical-document.schema.json,
+    // deepDives[].paragraphs.items.oneOf) : une simple chaîne dans le cas très largement
+    // majoritaire, ou un objet {text, deepDiveLinks} quand il porte un lien vers une AUTRE page.
+    // Les deux sont acceptées ici, et la forme de SORTIE reste la plus légère qui convienne : une
+    // chaîne tant qu'aucun lien ne survit, un objet seulement sinon — même principe additif à
+    // empreinte nulle que deepDiveLinks sur les blocs (jamais une clé présente à vide, jamais un
+    // objet là où une chaîne suffit). Conséquence directe et voulue : une présentation SANS lien
+    // interne produit un document RIGOUREUSEMENT identique à celui d'avant ce lot.
+    function paragrapheEntrant(p) {
+      const estObjet = p && typeof p === 'object' && !Array.isArray(p);
+      const text = adocStripEmoji(((estObjet ? p.text : p) || '').trim());
+      if (!text) return null;
+      return { text: text, links: estObjet && Array.isArray(p.deepDiveLinks) ? p.deepDiveLinks : [] };
+    }
+    // Même sévérité que les autres filets du pipeline (image/quiz/questionnaire) : une entrée sans
+    // id/titre/paragraphe exploitable est rejetée ENTIÈRE plutôt que persistée à moitié remplie.
+    function convertDeepDive(d) {
+      const id = ((d && d.id) || '').trim();
+      const title = adocStripEmoji(((d && d.title) || '').trim());
+      const paragraphs = ((d && d.paragraphs) || []).map(paragrapheEntrant).filter(Boolean);
+      if (!id || !title || !paragraphs.length) return null;
+      return { id: id, title: title, paragraphs: paragraphs };
+    }
+    const liste = (rawDeepDives || []).map(convertDeepDive).filter(Boolean);
+    const connus = new Set(liste.map(function(d) { return d.id; }));
+
+    // MÊME filet défensif que pour les blocs de diapositive (convertBlock), étendu aux liens
+    // INTERNES : un targetId qui ne correspond à aucune entrée est retiré SILENCIEUSEMENT de son
+    // paragraphe, jamais laissé pointer nulle part, et jamais un rejet de l'entrée entière (le
+    // texte du paragraphe reste parfaitement exploitable). Un lien vers SOI-MÊME part ici aussi :
+    // c'est le cycle le plus court, inutile de le laisser au parcours ci-dessous.
+    liste.forEach(function(d) {
+      d.paragraphs.forEach(function(par) {
+        par.links = par.links.filter(function(l) {
+          return l && (l.text || '').trim() && (l.targetId || '').trim()
+            && connus.has(l.targetId) && l.targetId !== d.id;
+        }).map(function(l) {
+          return { text: adocStripEmoji(l.text.trim()), targetId: l.targetId };
+        });
+      });
+    });
+
+    // DÉTECTION DE CYCLE — filet RÉEL (le prompt en est la première ligne de défense, jamais la
+    // seule : un modèle qui reboucle produirait une navigation dont on ne ressortirait qu'en
+    // fermant la porte). Parcours en profondeur à trois couleurs sur le graphe dirigé
+    // deepDiveId → deepDiveId : blanc (jamais vu), gris (en cours d'exploration, donc ancêtre du
+    // nœud courant), noir (terminé). Toute arête vers un nœud GRIS est une arête de retour,
+    // c'est-à-dire un cycle : elle est retirée silencieusement de son paragraphe, jamais un rejet
+    // de l'entrée ni du document. UN SEUL parcours sur l'ensemble du graphe — jamais un test
+    // incrémental arête par arête, qui serait quadratique ET ne verrait pas les cycles longs.
+    // Les arêtes vers un nœud NOIR restent parfaitement légitimes : deux pages peuvent pointer
+    // vers une même troisième, c'est un losange, jamais un cycle.
+    const parId = {};
+    liste.forEach(function(d) { parId[d.id] = d; });
+    const BLANC = 0, GRIS = 1, NOIR = 2;
+    const couleur = {};
+    liste.forEach(function(d) { couleur[d.id] = BLANC; });
+    let coupes = 0;
+    function explorer(id) {
+      couleur[id] = GRIS;
+      parId[id].paragraphs.forEach(function(par) {
+        par.links = par.links.filter(function(l) {
+          const c = couleur[l.targetId];
+          if (c === GRIS) { coupes++; return false; } // arête de retour — le cycle est ici
+          if (c === BLANC) explorer(l.targetId);
+          return true;
+        });
+      });
+      couleur[id] = NOIR;
+    }
+    liste.forEach(function(d) { if (couleur[d.id] === BLANC) explorer(d.id); });
+    if (coupes) console.warn('[Présentation ACTE 3] ' + coupes + " lien(s) d'approfondissement retiré(s) : ils refermaient un cycle.");
+
+    // Forme de sortie — la plus légère qui convienne, cf. paragrapheEntrant ci-dessus.
+    liste.forEach(function(d) {
+      d.paragraphs = d.paragraphs.map(function(par) {
+        return par.links.length ? { text: par.text, deepDiveLinks: par.links } : par.text;
+      });
+    });
+    return liste;
+  }
+  // Exposée pour les tests — même patron que window.adocRunGenerationPipeline (parité des
+  // moteurs) : permet d'éprouver la coupe des cycles et la rétrocompatibilité des deux formes de
+  // paragraphe sans appel réel, donc payant, au modèle.
+  window.adocConvertDeepDives = adocConvertDeepDives;
+
   // Présentation ACTE 2, Phase 2 — enveloppe, DANS un fragment de texte DÉJÀ ÉCHAPPÉ, chaque lien
   // d'approfondissement de `pool` dont l'expression `text` y apparaît (correspondance exacte,
   // repli insensible à la casse) — retire de `pool` (mutation, l'appelant doit toujours passer une
@@ -11740,7 +11833,38 @@ ${recent}`;
             properties: {
               id: { type: 'string', description: "Identifiant court choisi par le modèle (ex. 'deepdive-cortisol') — référencé tel quel par targetId depuis un bloc de diapositive." },
               title: { type: 'string', description: "Titre de la page d'approfondissement." },
-              paragraphs: { type: 'array', items: { type: 'string' }, description: 'Un ou plusieurs paragraphes de texte pur — jamais de liste, callout, citation ni image dans cette version.' },
+              // Présentation ACTE 3 — un paragraphe d'une page d'approfondissement peut à son tour
+              // renvoyer vers une AUTRE page produite dans ce même appel : c'est ce qui rend la
+              // profondeur non plafonnée. Forme À PLAT, TOUJOURS un objet avec ses deux champs,
+              // deepDiveLinks à liste vide dans le cas très largement majoritaire — exactement le
+              // même idiome que les blocs de diapositive ci-dessus (jamais un oneOf, que le schéma
+              // d'outil n'emploie nulle part ; c'est le SCHÉMA DOCUMENT qui accepte les deux
+              // formes, pour que tout document produit avant ce lot reste valide sans migration).
+              paragraphs: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    text: { type: 'string', description: 'Un paragraphe de texte pur — jamais de liste, callout, citation ni image dans cette version.' },
+                    deepDiveLinks: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        properties: {
+                          text: { type: 'string', description: "Expression EXACTE (2 à 4 mots), telle qu'elle apparaît déjà dans le texte de CE paragraphe — jamais reformulée, jamais une paraphrase." },
+                          targetId: { type: 'string', description: "id d'une AUTRE entrée de deepDives — choisi EXACTEMENT parmi les id produits dans ce même appel, jamais inventé, jamais l'id de la page courante." },
+                        },
+                        required: ['text', 'targetId'],
+                        additionalProperties: false,
+                      },
+                      description: "Renvois vers d'autres pages d'approfondissement — au plus 1 à 2 par page entière ; liste vide dans le cas normal, très largement majoritaire.",
+                    },
+                  },
+                  required: ['text', 'deepDiveLinks'],
+                  additionalProperties: false,
+                },
+                description: "Un ou plusieurs paragraphes de texte pur, chacun pouvant renvoyer vers d'autres pages d'approfondissement.",
+              },
             },
             required: ['id', 'title', 'paragraphs'],
             additionalProperties: false,
@@ -12237,6 +12361,19 @@ ${recent}`;
           '(jamais de liste, callout, citation ni image à l\'intérieur d\'une page d\'approfondissement ' +
           'dans cette version) — un vrai complément clinique utile, jamais une simple redite du bloc ' +
           "qui y renvoie.\n" +
+          // Présentation ACTE 3 — profondeur non plafonnée par le code : c'est ici, à la
+          // génération, qu'elle se décide. Consigne QUALITATIVE (jamais un chiffre imposé), et
+          // anti-cycle en PREMIÈRE ligne de défense seulement — le vrai filet reste le parcours à
+          // trois couleurs d'adocConvertDeepDives, qui ne suppose jamais la consigne respectée.
+          "Une page d'approfondissement peut elle-même renvoyer vers d'AUTRES pages produites dans " +
+          'ce même appel : chacun de ses paragraphes porte son propre deepDiveLinks, exactement ' +
+          "comme un bloc de diapositive. La profondeur doit toujours servir la clarté du sujet, " +
+          "jamais être systématique — n'enchaîne un second niveau que lorsqu'une notion appelle " +
+          'réellement un développement à part, au plus 1 à 2 renvois par page entière (même esprit ' +
+          'que la borne posée ci-dessus pour les diapositives).\n' +
+          "Ne fais JAMAIS boucler un approfondissement vers une page déjà présente dans son propre " +
+          "chemin : si le propos y ramène, formule une nouvelle page plutôt que de refermer la " +
+          'boucle. Un renvoi vers la page courante elle-même est également proscrit.\n' +
           'deepDiveLinks (sur le bloc heading/paragraph/callout/list/quote lui-même) : text doit être ' +
           "une expression COURTE (2 à 4 mots) EXACTEMENT recopiée telle qu'elle apparaît déjà dans le " +
           "texte de CE bloc — jamais reformulée, jamais une paraphrase — et si possible UNIQUE dans ce " +
@@ -13410,14 +13547,11 @@ ${recent}`;
     // Calculé AVANT convertBlock (dont chaque appel doit pouvoir valider un targetId contre cet
     // ensemble) — `raw` est dans la même portée que convertBlock ci-dessous, donc accessible par
     // fermeture sans paramètre supplémentaire, même patron que citationsById au-dessus.
-    function convertDeepDive(d) {
-      const id = ((d && d.id) || '').trim();
-      const title = adocStripEmoji(((d && d.title) || '').trim());
-      const paragraphs = ((d && d.paragraphs) || []).map(function(p) { return adocStripEmoji((p || '').trim()); }).filter(Boolean);
-      if (!id || !title || !paragraphs.length) return null;
-      return { id: id, title: title, paragraphs: paragraphs };
-    }
-    const deepDives = (raw.deepDives || []).map(convertDeepDive).filter(Boolean);
+    // Présentation ACTE 2 Phase 1, étendu ACTE 3 — conversion, filet d'existence et coupe des
+    // cycles sont regroupés dans adocConvertDeepDives (portée module, cf. plus haut) : une seule
+    // fonction PARTAGÉE, exposée pour les tests comme window.adocRunGenerationPipeline plus bas —
+    // c'est ce qui permet d'éprouver réellement la coupe des cycles sans appel payant au modèle.
+    const deepDives = adocConvertDeepDives(raw.deepDives);
     const deepDiveIds = new Set(deepDives.map(function(d) { return d.id; }));
     // Types de bloc porteurs de prose continue où une expression peut être désignée — même
     // restriction EXACTE que block.schema.json#/$defs/deepDiveLinks (headingBlock/paragraphBlock/
@@ -14574,6 +14708,15 @@ ${recent}`;
     '.cc-ws-present-door-text .cc-ws-present-door-title{margin:0 0 16px;font-size:1.4em;font-weight:700;line-height:1.3;}' +
     '.cc-ws-present-door-text p{margin:0 0 12px;line-height:1.6;font-size:1.05em;}' +
     '.cc-ws-present-door-text p:last-child{margin-bottom:0;}' +
+    // Présentation ACTE 3 — fil d'Ariane et gestes de retour, À L'INTÉRIEUR de la porte texte
+    // (jamais dans le chrome partagé avec la porte image, qui n'a ni chemin ni profondeur).
+    '.cc-ws-present-door-path{font-size:.8em;opacity:.62;margin:0 0 10px;line-height:1.5;}' +
+    '.cc-ws-present-door-sep{opacity:.5;margin:0 4px;}' +
+    '.cc-ws-present-door-actions{display:flex;gap:8px;margin-top:20px;}' +
+    '.cc-ws-present-door-btn{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.28);border-radius:6px;padding:6px 14px;font:inherit;font-size:.9em;cursor:pointer;}' +
+    '.cc-ws-present-door-btn:hover{background:rgba(255,255,255,.22);}' +
+    '.cc-ws-present-door-btn:focus-visible{outline:2px solid #fff;outline-offset:2px;}' +
+    '.cc-ws-present-door-text .adoc-sc-deepdive-chip{margin-left:8px;}' +
     '#cc-ws-present-door-close{position:absolute;top:16px;right:16px;width:40px;height:40px;border-radius:50%;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.12);color:#fff;font-size:20px;line-height:1;cursor:pointer;}' +
     '#cc-ws-present-door-close:hover{background:rgba(255,255,255,.24);}' +
     // Présentation ACTE 2, Phase 2 — distinction visuelle discrète (soulignement pointillé, jamais
@@ -14766,7 +14909,11 @@ ${recent}`;
   // ICI, à ce seul site.
   async function adocPresentOpenWithDoc(doc) {
     if (!doc || doc.documentKind !== 'presentation' || !Array.isArray(doc.blocks) || !doc.blocks.length) return;
-    window._adocPresentState = { doc: doc, index: 0, revealIndex: null, revealTotal: 0 };
+    // Présentation ACTE 3 — `deepDiveStack` est une propriété de l'état existant, jamais un
+    // second global : elle est donc nettoyée par le mécanisme déjà en place (remise à null
+    // par adocPresentClose, réinitialisée à chaque ouverture ici) — aucun site de nettoyage
+    // séparé à retenir, aucun état résiduel possible d'une présentation à la suivante.
+    window._adocPresentState = { doc: doc, index: 0, revealIndex: null, revealTotal: 0, deepDiveStack: [] };
     const overlay = document.getElementById('cc-ws-present-overlay');
     if (!overlay) return;
     const inner = document.getElementById('cc-ws-present-slide-inner');
@@ -14783,6 +14930,12 @@ ${recent}`;
     overlay.hidden = false;
     overlay.classList.add('open');
   }
+  // Exposée pour les tests — même patron que window.adocRunGenerationPipeline / 
+  // window.adocConvertDeepDives : permet d'ouvrir le mode présentation sur un document forgé,
+  // sans passer par l'espace de travail ni par une génération réelle. Déjà présente dans le
+  // graphe d'export (engineFnRefs), aucun coût supplémentaire.
+  window.adocPresentOpenWithDoc = adocPresentOpenWithDoc;
+
   // Ouvre le mode présentation pour le document actuellement affiché dans l'espace de travail —
   // uniquement pour une Présentation du moteur structuré (garde-fou déjà posé au bouton lui-même,
   // cf. adocOpenWorkspace, mais revérifié ici — jamais une confiance aveugle dans l'état du DOM).
@@ -14837,6 +14990,12 @@ ${recent}`;
   window.adocPresentCloseImageDoor = function () {
     const door = document.getElementById('cc-ws-present-door');
     if (door) { door.classList.remove('open'); door.hidden = true; }
+    // Présentation ACTE 3 — fermer la porte, par le bouton × comme par Échap au premier niveau,
+    // abandonne le chemin parcouru : sans cela, une réouverture repartirait d'une pile fantôme et
+    // le garde-fou cycle refuserait des pages parfaitement légitimes. Vider une pile déjà vide
+    // (cas de la porte image) est sans effet.
+    const state = window._adocPresentState;
+    if (state && Array.isArray(state.deepDiveStack)) state.deepDiveStack.length = 0;
   };
   // Présentation ACTE 2, Phase 2 — `targetId` retrouve son contenu dans doc.deepDives (jamais un
   // élément DOM déjà résolu comme pour la porte image, cf. investigation point 5 : le contenu d'un
@@ -14845,24 +15004,112 @@ ${recent}`;
   // supposé pour autant) : rien ne s'ouvre, aucun crash, un simple avertissement en console pour le
   // diagnostic. Chaque paragraphe dans son propre <p>, texte simple, cohérent avec la v1 sobre
   // actée en Phase 1 (jamais de markdown ni de mise en forme riche à l'intérieur).
+  // Présentation ACTE 3 — fil d'Ariane, texte seul et NON cliquable : sauter directement à un
+  // niveau arbitraire serait un TROISIÈME geste, que personne n'a demandé — jamais construit sans
+  // demande explicite. Racine toujours la diapositive de départ, puis un titre par niveau de la
+  // pile. Au-delà de 4 segments, on élide le milieu plutôt que de laisser la ligne déborder.
+  function adocDeepDivePathHTML(state) {
+    const doc = state && state.doc;
+    const pile = (state && state.deepDiveStack) || [];
+    const titres = pile.map(function (id) {
+      const d = ((doc && doc.deepDives) || []).filter(function (x) { return x.id === id; })[0];
+      return d ? d.title : id;
+    });
+    let segments = ['Diapositive ' + (((state && state.index) || 0) + 1)].concat(titres);
+    if (segments.length > 4) segments = [segments[0], '…', segments[segments.length - 2], segments[segments.length - 1]];
+    return '<nav class="cc-ws-present-door-path" aria-label="Chemin parcouru">' +
+      segments.map(function (t) { return adocEsc(t); }).join(' <span class="cc-ws-present-door-sep">›</span> ') +
+      '</nav>';
+  }
+  // Les deux gestes de retour, TOUJOURS les deux, visuellement identiques à toute profondeur —
+  // jamais un style ni une présence conditionnels au niveau atteint : "Reculer" recule d'un cran,
+  // "Page maître" revient à la diapositive de départ en un seul geste, quelle que soit la
+  // profondeur accumulée.
+  function adocDeepDiveActionsHTML() {
+    return '<div class="cc-ws-present-door-actions">' +
+      '<button type="button" class="cc-ws-present-door-btn" onclick="window.adocPresentDeepDiveBack()">‹ Reculer</button>' +
+      '<button type="button" class="cc-ws-present-door-btn" onclick="window.adocPresentDeepDiveHome()">⌂ Page maître</button>' +
+      '</div>';
+  }
+  // Peuple la porte pour l'id en tête de pile — fonction PARTAGÉE par l'ouverture ET le recul,
+  // jamais deux constructions du même contenu qui finiraient par diverger. Chaque paragraphe est
+  // enrichi par adocDeepDiveWrapInFragment (jamais adocDeepDiveTextHTML, qui n'a de sens que pour
+  // un bloc de diapositive potentiellement mis en forme à la main — un paragraphe de deepDives
+  // reste toujours du texte simple), et porte de toute façon SA puce par lien : l'enrichissement
+  // en ligne est un confort, la puce est la garantie d'accès.
+  function adocDeepDivePopulateDoor(entry) {
+    const state = window._adocPresentState;
+    const door = document.getElementById('cc-ws-present-door');
+    if (!door || !entry) return;
+    const img = door.querySelector('img');
+    const textEl = door.querySelector('.cc-ws-present-door-text');
+    if (img) img.hidden = true;
+    // Absent d'une coquille d'export incomplète : on le dit plutôt que d'échouer en silence.
+    if (!textEl) { console.warn('[Présentation] .cc-ws-present-door-text absent de cette page — approfondissement non affichable.'); return; }
+    textEl.innerHTML = adocDeepDivePathHTML(state) +
+      '<h2 class="cc-ws-present-door-title">' + adocEsc(entry.title) + '</h2>' +
+      (entry.paragraphs || []).map(function (par) {
+        // ACTE 3 — deux formes possibles, cf. adocConvertDeepDives : chaîne simple, ou objet
+        // {text, deepDiveLinks}. Un document produit avant ce lot n'a que des chaînes.
+        const estObjet = par && typeof par === 'object' && !Array.isArray(par);
+        const texte = adocEsc((estObjet ? par.text : par) || '');
+        const liens = estObjet && Array.isArray(par.deepDiveLinks) ? par.deepDiveLinks : [];
+        // Copie pour l'enrichissement : adocDeepDiveWrapInFragment CONSOMME son pool.
+        const enrichi = liens.length ? adocDeepDiveWrapInFragment(texte, liens.slice()) : null;
+        const puces = liens.map(function (l) {
+          return '<button type="button" class="adoc-sc-deepdive-chip" onclick="window.adocPresentOpenDeepDive(\'' + adocEsc(l.targetId) + '\')">↳ Approfondir</button>';
+        }).join('');
+        return '<p>' + (enrichi || texte) + puces + '</p>';
+      }).join('') +
+      adocDeepDiveActionsHTML();
+    textEl.hidden = false;
+    door.setAttribute('aria-label', 'Approfondissement : ' + entry.title);
+    door.hidden = false;
+    door.classList.add('open');
+  }
+  // Présentation ACTE 2 Phase 2, étendu ACTE 3 — sert IDENTIQUEMENT l'ouverture depuis une
+  // diapositive ET depuis une page d'approfondissement déjà affichée : aucune branche "premier
+  // niveau vs suivant", c'est ce qui rend la profondeur non plafonnée sans code supplémentaire.
+  // `targetId` retrouve son contenu dans doc.deepDives (jamais un élément DOM déjà résolu comme
+  // pour la porte image, cf. investigation point 5). GARDE-FOU CYCLE EN NAVIGATION, avant tout
+  // empilement : rouvrir une page déjà présente dans le chemin parcouru est refusé — second filet,
+  // indépendant de celui de la conversion, parce qu'un document peut avoir été produit avant ce
+  // lot ou modifié à la main.
   window.adocPresentOpenDeepDive = function (targetId) {
     const state = window._adocPresentState;
     const deepDives = (state && state.doc && state.doc.deepDives) || [];
     const entry = deepDives.filter(function (d) { return d.id === targetId; })[0];
     if (!entry) { console.warn('[Présentation] approfondissement introuvable pour targetId="' + targetId + '"'); return; }
-    const door = document.getElementById('cc-ws-present-door');
-    if (!door) return;
-    const img = door.querySelector('img');
-    const textEl = door.querySelector('.cc-ws-present-door-text');
-    if (img) img.hidden = true;
-    if (textEl) {
-      textEl.innerHTML = '<h2 class="cc-ws-present-door-title">' + adocEsc(entry.title) + '</h2>' +
-        entry.paragraphs.map(function (p) { return '<p>' + adocEsc(p) + '</p>'; }).join('');
-      textEl.hidden = false;
+    if (!state) return;
+    // Défensif : un état créé avant ce lot n'a pas la pile.
+    if (!Array.isArray(state.deepDiveStack)) state.deepDiveStack = [];
+    if (state.deepDiveStack.indexOf(targetId) !== -1) {
+      console.warn('[Présentation] "' + targetId + '" est déjà dans le chemin parcouru — refusé pour ne jamais refermer une boucle.');
+      return;
     }
-    door.setAttribute('aria-label', 'Approfondissement : ' + entry.title);
-    door.hidden = false;
-    door.classList.add('open');
+    state.deepDiveStack.push(targetId);
+    adocDeepDivePopulateDoor(entry);
+  };
+  // Recule d'UN cran dans le chemin parcouru. Pile vidée → la porte se referme par la fermeture
+  // PARTAGÉE déjà existante (jamais un second corps de fermeture).
+  window.adocPresentDeepDiveBack = function () {
+    const state = window._adocPresentState;
+    const pile = (state && Array.isArray(state.deepDiveStack)) ? state.deepDiveStack : null;
+    if (!pile) { window.adocPresentCloseImageDoor(); return; }
+    pile.pop();
+    if (!pile.length) { window.adocPresentCloseImageDoor(); return; }
+    const id = pile[pile.length - 1];
+    const entry = ((state.doc && state.doc.deepDives) || []).filter(function (d) { return d.id === id; })[0];
+    if (!entry) { window.adocPresentCloseImageDoor(); return; }
+    adocDeepDivePopulateDoor(entry);
+  };
+  // Revient à la diapositive de départ en UN seul geste, quelle que soit la profondeur — la pile
+  // est vidée d'un coup, jamais par une boucle de pop() qui rejouerait des rendus intermédiaires
+  // que personne ne verrait.
+  window.adocPresentDeepDiveHome = function () {
+    const state = window._adocPresentState;
+    if (state && Array.isArray(state.deepDiveStack)) state.deepDiveStack.length = 0;
+    window.adocPresentCloseImageDoor();
   };
   // Fermeture PARTAGÉE (généralisation retenue au point 1 ci-dessus) — un seul alias, jamais un
   // second corps de fonction dupliqué : `adocPresentCloseImageDoor` referme déjà "la porte", quel
@@ -14943,7 +15190,16 @@ ${recent}`;
         // coup — l'utilisatrice doit pouvoir refermer une porte et rester sur sa diapositive.
         const door = document.getElementById('cc-ws-present-door');
         if (door && door.classList.contains('open')) {
-          if (e.key === 'Escape') { window.adocPresentCloseImageDoor(); }
+          // Présentation ACTE 3 — un niveau à la fois, exactement comme le bouton "Reculer" :
+          // jamais un comportement différent entre le clavier et la souris pour le même geste.
+          // Porte image ou premier niveau d'approfondissement (pile vide après le pop) : la porte
+          // se referme, la diapositive reste intacte dessous.
+          if (e.key === 'Escape') {
+            const state = window._adocPresentState;
+            const pile = (state && Array.isArray(state.deepDiveStack)) ? state.deepDiveStack : [];
+            if (pile.length > 0) window.adocPresentDeepDiveBack();
+            else window.adocPresentCloseImageDoor();
+          }
           return;
         }
         if (e.key === 'Escape') { window.adocPresentClose(); return; }
@@ -15021,6 +15277,15 @@ ${recent}`;
       // documenté pour adocIsLocalVideoUrl/adocQuestionnaireScorePanel ci-dessous, découvert ici
       // par le test réel avant toute livraison (jamais supposé).
       adocDeepDiveWrapInFragment: adocDeepDiveWrapInFragment, adocDeepDiveTextHTML: adocDeepDiveTextHTML,
+      // Présentation ACTE 3 — internes PARTAGÉES par les trois gestes de navigation
+      // (window.adocPresentOpenDeepDive / DeepDiveBack / DeepDiveHome, windowFnNames ci-dessous).
+      // Aucune n'est un onclick : le garde-fou générique ne les verrait JAMAIS. C'est exactement
+      // la classe d'oubli qui a déjà frappé trois fois (adocIsLocalVideoUrl, les fonctions
+      // questionnaire, adocDeepDiveWrapInFragment/adocDeepDiveTextHTML juste au-dessus) — seule
+      // l'ouverture RÉELLE du fichier exporté, et un clic dedans à la vraie profondeur, le
+      // démontre. C'est ce que fait tests/verify-acte3-export-standalone.cjs.
+      adocDeepDivePathHTML: adocDeepDivePathHTML, adocDeepDiveActionsHTML: adocDeepDiveActionsHTML,
+      adocDeepDivePopulateDoor: adocDeepDivePopulateDoor,
       adocEditorTableGrid: adocEditorTableGrid, adocEditorApplyRules: adocEditorApplyRules,
       adocEditorRenderList: adocEditorRenderList, adocEditorRenderTable: adocEditorRenderTable,
       adocEditorExportFonts: adocEditorExportFonts, adocRenderBlockHTML: adocRenderBlockHTML,
@@ -15039,7 +15304,11 @@ ${recent}`;
       adocPresentInstallKeydownHandler: adocPresentInstallKeydownHandler,
     };
     const fnsText = Object.keys(engineFnRefs).map(function (name) { return engineFnRefs[name].toString(); }).join('\n');
-    const windowFnNames = ['adocQuizSelectOption', 'adocPresentClose', 'adocPresentToggleToc', 'adocPresentGoTo', 'adocPresentNext', 'adocPresentPrev', 'adocQuestionnaireSelectOption', 'adocQuestionnaireSwitchPartner', 'adocQuestionnaireCalculerResultat', 'adocPresentOpenImageDoor', 'adocPresentCloseImageDoor'];
+    // Présentation ACTE 3 — adocPresentOpenDeepDive était ABSENTE de cette liste depuis la Phase 2
+    // alors qu'elle est appelée par chaque puce "↳ Approfondir" et par chaque lien enrichi en
+    // ligne : tout approfondissement d'une présentation exportée était donc mort au clic. Angle
+    // mort corrigé ici, en même temps que les deux gestes de retour ajoutés par ce lot.
+    const windowFnNames = ['adocQuizSelectOption', 'adocPresentClose', 'adocPresentToggleToc', 'adocPresentGoTo', 'adocPresentNext', 'adocPresentPrev', 'adocQuestionnaireSelectOption', 'adocQuestionnaireSwitchPartner', 'adocQuestionnaireCalculerResultat', 'adocPresentOpenImageDoor', 'adocPresentCloseImageDoor', 'adocPresentOpenDeepDive', 'adocPresentDeepDiveBack', 'adocPresentDeepDiveHome'];
     const windowFnsText = windowFnNames.map(function (name) { return 'window.' + name + ' = ' + window[name].toString() + ';'; }).join('\n');
     const dataText = 'var ADOC_LEGACY_FONT_PAIRS = ' + JSON.stringify(ADOC_LEGACY_FONT_PAIRS) + ';\n' +
       'var ADOC_BLOCK_FONT_SIZES = ' + JSON.stringify(ADOC_BLOCK_FONT_SIZES) + ';\n' +
@@ -15065,14 +15334,28 @@ ${recent}`;
           '<button type="button" class="cc-ws-present-toolbar-btn" onclick="window.adocPresentClose()">Fermer</button>' +
         '</div>' +
         '<div id="cc-ws-present-toc" hidden role="navigation" aria-label="Sommaire des diapositives"></div>' +
-        '<div id="cc-ws-present-door" hidden role="dialog" aria-modal="true" aria-label="Image en plein écran">' +
-          '<button type="button" id="cc-ws-present-door-close" aria-label="Fermer l\'image" onclick="window.adocPresentCloseImageDoor()">×</button>' +
+        // Présentation ACTE 3 — cette coquille et studio-clinique.html sont maintenues à la main,
+        // séparément : elles AVAIENT déjà divergé depuis la Phase 2, `.cc-ws-present-door-text`
+        // n'existant que dans la page vivante. Un approfondissement exporté n'avait donc nulle
+        // part où s'afficher. L'écart est comblé ici — le fil d'Ariane et les deux gestes de
+        // retour, eux, sont CONSTRUITS par adocDeepDivePopulateDoor (engineFnRefs ci-dessus) et
+        // n'ont besoin d'aucun élément statique supplémentaire.
+        '<div id="cc-ws-present-door" hidden role="dialog" aria-modal="true" aria-label="Plein écran">' +
+          '<button type="button" id="cc-ws-present-door-close" aria-label="Fermer" onclick="window.adocPresentCloseImageDoor()">×</button>' +
           '<img alt="">' +
+          '<div class="cc-ws-present-door-text" hidden></div>' +
         '</div>' +
       '</div>' +
       '<script>' + script + '</script' + '>' +
       '</body></html>';
   }
+
+  // Exposé pour les tests — même patron que window.adocConvertDeepDives / adocPresentOpenWithDoc :
+  // permet d'ÉCRIRE le fichier exporté puis de l'OUVRIR RÉELLEMENT dans un navigateur et d'y
+  // cliquer, seul test qui couvre la classe « élément absent de la coquille » et la classe
+  // « fonction interne partagée oubliée d'engineFnRefs » — que le garde-fou onclick ne voit
+  // jamais (cf. tests/verify-acte3-export-standalone.cjs).
+  window.adocBuildStandalonePresentationHTML = adocBuildStandalonePresentationHTML;
 
   // Point d'accès — visible UNIQUEMENT pour documentKind==='presentation' du moteur structuré
   // (jamais legacy, jamais Carrousel — même garde-fou EXACT que le bouton "Présenter", cf.
