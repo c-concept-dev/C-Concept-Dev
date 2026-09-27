@@ -1733,6 +1733,14 @@ RÈGLES ABSOLUES :
   // générée par adocBuildRAGCtx pour être utilisée lors du rendu des citations
   let adocLastRefMap = {};
 
+  // FIX-CHUNKLEN-GUARD — extrait en fonction PARTAGÉE (correctif investigation troncature, Point 3)
+  // : adocBuildSourceSnapshotFromRAG (plus bas, alimente passagesListing) appliquait un nombre de
+  // chunks totalement indépendant de celui-ci (jusqu'à 45, contre ~20 ici pour un chunkLen=900),
+  // dupliquant largement le même contenu dans le prompt final — jamais une seconde formule
+  // réinventée séparément pour ce second appelant, la même limite s'applique désormais aux deux.
+  function adocMaxRagChunksGuard(chunkLen) {
+    return Math.floor(18000 / Math.max(chunkLen, 100));
+  }
   function adocBuildRAGCtx(ragResult) {
     if (!ragResult?.chunks?.length) return '';
     // Construire la refMap pour les citations inline [REF:n]
@@ -1747,7 +1755,7 @@ RÈGLES ABSOLUES :
     });
     const { chunks: rawChunks, chunkLen, stats, isDeep } = ragResult;
     // FIX-CHUNKLEN-GUARD — limiter le nombre de chunks avant construction ragCtx
-    const maxChunksGuard = Math.floor(18000 / Math.max(chunkLen, 100));
+    const maxChunksGuard = adocMaxRagChunksGuard(chunkLen);
     const chunks = rawChunks.slice(0, maxChunksGuard);
 
     const statsLine = stats
@@ -3349,7 +3357,13 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
           // après retour de cet appel) ; `input` n'est plus en portée ici depuis l'extraction.
           return;
         } catch (_structErr) {
-          console.warn('[UX-8A.1] Génération structurée Fiche en échec (ou QC bloquant), repli automatique sur l\'ancien moteur:', _structErr && _structErr.name, _structErr && _structErr.message);
+          // Correctif investigation troncature, Point 4 — libellé auparavant en dur ("Fiche"),
+          // trompeur pour tout diagnostic futur dès que le type réellement en cours n'était pas
+          // Fiche (ex. presentation) : _structuredAttemptKind est déjà dans cette même portée
+          // (déclaré avant le bloc try/catch), ADOC_GENERATION_KIND_LABELS porte déjà la
+          // correspondance lisible pour tous les types — jamais une seconde table dupliquée ici.
+          const _fallbackKindLabel = ADOC_GENERATION_KIND_LABELS[_structuredAttemptKind] || _structuredAttemptKind;
+          console.warn('[UX-8A.1] Génération structurée (' + _fallbackKindLabel + ') en échec (ou QC bloquant), repli automatique sur l\'ancien moteur:', _structErr && _structErr.name, _structErr && _structErr.message);
           _structFellBack = true;
           // Correction rang 6 — légende mise à jour ICI, AU MOMENT PRÉCIS où le repli se
           // déclenche (jamais après, une fois la nouvelle requête réseau déjà en vol : le fetch
@@ -11113,7 +11127,18 @@ ${recent}`;
   // cette demande (ragResult.chunks) — jamais inventé par le modèle. contentChecksum est le
   // vrai SHA-256 du texte réellement injecté, recalculable et vérifié par le moteur canonique.
   async function adocBuildSourceSnapshotFromRAG(ragResult) {
-    const chunks = (ragResult && ragResult.chunks) || [];
+    const rawChunks = (ragResult && ragResult.chunks) || [];
+    // Correctif investigation troncature (Point 3) — MÊME garde-fou que adocBuildRAGCtx
+    // (adocMaxRagChunksGuard, FIX-CHUNKLEN-GUARD), jamais un second mécanisme réinventé
+    // séparément : avant ce correctif, cette fonction utilisait TOUS les chunks (jusqu'à 45,
+    // plafond du pipeline) pour bâtir passagesListing, alors que ragCtx (déjà injecté dans le
+    // MÊME prompt système, cf. adocGenerateStructuredDocument) n'en gardait qu'environ 20 pour un
+    // chunkLen=900 — duplication mesurée réelle (jusqu'à ~24 000 caractères de recouvrement,
+    // cf. rapport d'investigation). Réduire ICI, avant construction des entries : les
+    // sourceSnapshotEntryId restent contigus (entry-1..entry-N pour les N chunks conservés,
+    // jamais un trou d'index), donc toute citation du modèle (limité à ces mêmes N entrées listées
+    // dans passagesListing) reste par construction résolue correctement.
+    const chunks = rawChunks.slice(0, adocMaxRagChunksGuard((ragResult && ragResult.chunkLen) || 900));
     const entries = [];
     for (let i = 0; i < chunks.length; i++) {
       const c = chunks[i];
@@ -12260,7 +12285,24 @@ ${recent}`;
           const sourcesListing = resultEntries
             .filter(function(r) { return r && r.type === 'web_search_result'; })
             .map(function(r) { return '- ' + (r.title || r.url) + ' — ' + r.url; }).join('\n');
-          webFindings = [webFindings, _roundTextBlocks.join(''), sourcesListing ? 'Sources web consultées :\n' + sourcesListing : '']
+          // Correctif investigation troncature (Point 2) — `max_tokens:200` (ci-dessus) suffit pour
+          // un accusé court, mais un round où le modèle rédige une synthèse après web_search peut le
+          // dépasser et couper le texte en PLEIN MOT (stop_reason='max_tokens'). Ce fragment,
+          // injecté tel quel dans le prompt de l'appel 2 (COMPLÉMENT WEB, plus bas), contaminait
+          // silencieusement sa rédaction — cause confirmée d'un bloc callout tronqué observé en
+          // production (appel 2 dispose lui d'un filet anti-troncature dédié, emit_remaining_blocks ;
+          // ce round-ci n'en avait aucun). Option retenue : exclure UNIQUEMENT la prose narrative de
+          // CE round (jamais fiable si coupée en plein mot, jamais réparable ici sans un 2e appel),
+          // mais conserver sourcesListing (titres/URLs), qui reste complet et fiable quel que soit
+          // stop_reason — jamais une perte totale du round, qui jetterait aussi des sources web
+          // réellement trouvées. Jamais de marqueur "[texte interrompu...]" conservé à la place :
+          // un prompt jamais garanti suivi à la lettre par le modèle, contre un simple retrait sans
+          // ambiguïté possible.
+          if (_roundStopReason === 'max_tokens' && _roundTextBlocks.length) {
+            console.warn('[UX-8A.2] Round ' + _round1 + ' de l\'appel 1 tronqué par max_tokens après usage de web_search — texte narratif exclu de webFindings (sources conservées).');
+          }
+          const _roundNarrative = (_roundStopReason === 'max_tokens' && _roundTextBlocks.length) ? '' : _roundTextBlocks.join('');
+          webFindings = [webFindings, _roundNarrative, sourcesListing ? 'Sources web consultées :\n' + sourcesListing : '']
             .filter(Boolean).join('\n\n');
         }
         _m1.finalState = 'completed';
