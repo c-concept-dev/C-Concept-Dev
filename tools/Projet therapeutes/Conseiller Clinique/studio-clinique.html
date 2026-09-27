@@ -1082,6 +1082,18 @@
       opacity: 1;
     }
 
+    /* LOT 2 Présentation — écran d'options structurées, même famille visuelle que le fieldset
+       "Type de document" juste au-dessus (legend/field-label/p identiques, aucune règle dupliquée
+       propre à ce fieldset au-delà de la disposition des deux contrôles ci-dessous). */
+    #cc-presentation-options { margin-top: 1.2rem; }
+    .cc-presentation-options-row { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.6rem; }
+    .cc-presentation-options-row label { font-size: 0.85rem; color: var(--ink); }
+    .cc-presentation-options-row input[type="number"] {
+      width: 6rem; padding: 0.45rem 0.6rem; border: 1px solid var(--stone-400); border-radius: 0.5rem;
+      background: var(--paper); font-size: 0.85rem;
+    }
+    .cc-presentation-options-checkbox input[type="checkbox"] { width: 1.1rem; height: 1.1rem; }
+
     /* UX-8B Lot 2 — sélecteur de charte au moment de la demande. S'applique UNIQUEMENT au
        document produit (jamais au chrome de #cc-landing/#assistdoc-screen/#cc-workspace, qui
        reste toujours pétrole/terracotta/ivoire) — ce contrôle ne fait donc que choisir une
@@ -1304,6 +1316,11 @@
       display: grid;
       gap: 0.7rem;
     }
+    /* LOT 2 Présentation — #cc-landing fieldset { display:grid } ci-dessus a une spécificité
+       (1,0,1) supérieure à la règle UA [hidden]{display:none} (0,1,0) : sans cette redéclaration
+       explicite, un fieldset ici avec l'attribut hidden resterait visuellement affiché (même
+       piège déjà rencontré et corrigé ailleurs dans ce fichier, cf. .cc-ws-topbar-btn[hidden]). */
+    #cc-landing fieldset[hidden] { display: none; }
 
     #cc-landing legend {
       position: absolute;
@@ -1885,6 +1902,22 @@
       width: 100%; height: 100%; max-width: none; box-sizing: border-box; overflow: auto;
     }
     .cc-ws-present-slide-inner.cc-ws-present-out { opacity: 0; }
+    /* LOT 2 Présentation, Partie C — mécanisme générique de révélation progressive : une SEULE
+       classe posée par JS (adocPresentApplyReveal) sur CHAQUE bloc de contenu d'une diapositive
+       en mode plein écran (jamais un mécanisme différent par type de bloc — paragraphe, liste,
+       image, tableau, callout traités identiquement). Portée à .cc-ws-present-slide-inner
+       uniquement : n'affecte jamais le rendu normal de l'espace de travail, l'export PDF, ni les
+       Carrousels (adocRenderCardHTML/adocRenderBlockHTML restent inchangés, cf. rapport). */
+    .cc-ws-present-slide-inner .adoc-sc-reveal {
+      opacity: 0; transform: translateY(10px); transition: opacity 220ms ease, transform 220ms ease;
+      /* pointer-events:none — un bloc pas encore révélé reste invisible MAIS resterait cliquable
+         sans cette règle (une opacité à 0 ne retire jamais un élément du flux d'interaction),
+         créant une zone cliquable invisible. Repéré en investiguant la compatibilité avec la
+         Partie D (interactions au clic) — corrigé ici, dans le périmètre de la Partie C elle-même,
+         avant toute construction de la Partie D (cf. rapport). */
+      pointer-events: none;
+    }
+    .cc-ws-present-slide-inner .adoc-sc-reveal.adoc-sc-reveal-shown { opacity: 1; transform: translateY(0); pointer-events: auto; }
     .cc-ws-present-nav {
       flex-shrink: 0; width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(255,255,255,.3);
       background: rgba(255,255,255,.08); color: #fff; font-size: 22px; line-height: 1; cursor: pointer;
@@ -2891,6 +2924,54 @@
                 Le document montre ce qui rapproche ou distingue des concepts, auteurs et approches. Utile pour construire une compréhension intégrative.
               </div>
             </div>
+
+            <!-- LOT 2 Présentation (6e type) — même patron EXACT que les 5 cartes ci-dessus
+                 (bouton aria-pressed, infobulle "?", data-kind générique déjà consommé tel quel
+                 par la boucle kindButtons plus bas, aucune modification JS de cette boucle
+                 nécessaire). Icône dédiée (écran/vidéoprojecteur sur pied) : jamais la carte
+                 portrait de Carrousel, format paysage pensé pour un écran, décision actée. -->
+            <div class="format-option">
+              <button type="button" class="format-card" id="format-presentation" data-kind="presentation" aria-pressed="false">
+                <svg class="format-icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" aria-hidden="true">
+                  <rect x="3" y="6" width="26" height="16" rx="2"/><path d="M11 26h10M16 22v4"/>
+                </svg>
+                <span class="format-copy">
+                  <span class="format-name">Présentation</span>
+                  <span class="format-description">Préparez un exposé pour une conférence, un cours, ou une séance.</span>
+                </span>
+              </button>
+              <button class="format-help" type="button" aria-label="À quoi sert le format Présentation ?" aria-controls="help-presentation" aria-expanded="false">?</button>
+              <div class="format-tooltip" id="help-presentation" role="tooltip">
+                <strong>Pour parler devant un public</strong>
+                Le contenu est organisé en diapositives, pensées pour un écran ou un vidéoprojecteur — durée et densité adaptées à votre demande. Choisissez-le pour une conférence, un cours, ou une présentation en séance.
+              </div>
+            </div>
+          </div>
+        </fieldset>
+
+        <!-- LOT 2 Présentation — écran d'options structurées, visible UNIQUEMENT au clic explicite
+             sur la carte "Présentation" ci-dessus (jamais une détection anticipée sur le texte
+             libre, décision actée pour ce lot — voir rapport). En complément du texte libre,
+             jamais à sa place : deux contrôles honnêtes, chacun ayant un effet réel et vérifié sur
+             le document produit (cf. buildPromptSuffix du profil presentation) — aucune option
+             "questionnaires"/"vidéos" ici, ces capacités n'existent pas encore (Lots 3/4/5) et les
+             faire apparaître, même grisées, risquerait de laisser croire à un effet qui n'existe
+             pas encore. -->
+        <fieldset id="cc-presentation-options" hidden>
+          <legend>Options de la Présentation</legend>
+          <div class="section-heading">
+            <div class="heading-copy">
+              <div class="field-label" id="presentation-options-heading">Précisions (optionnel)</div>
+              <p>Vient compléter votre texte libre ci-dessus, jamais le remplacer.</p>
+            </div>
+          </div>
+          <div class="cc-presentation-options-row">
+            <label for="cc-presentation-slide-count">Nombre de diapositives souhaité</label>
+            <input type="number" id="cc-presentation-slide-count" min="3" max="60" placeholder="Estimation automatique si laissé vide">
+          </div>
+          <div class="cc-presentation-options-row cc-presentation-options-checkbox">
+            <input type="checkbox" id="cc-presentation-conclusion">
+            <label for="cc-presentation-conclusion">Terminer par une diapositive de conclusion / synthèse</label>
           </div>
         </fieldset>
 
@@ -2986,6 +3067,11 @@
       // présélection au chargement que ce lot supprime.
       let documentKind = null;
       const kindButtons = [...document.querySelectorAll('#cc-landing .format-card[data-kind]')];
+      // LOT 2 Présentation — écran d'options structurées, visible UNIQUEMENT quand la carte
+      // "Présentation" est effectivement sélectionnée (jamais une détection anticipée sur le
+      // texte libre, décision actée) : un seul point de vérité (documentKind ci-dessus), jamais
+      // un second état dupliqué pour piloter cette visibilité.
+      const presentationOptionsEl = document.getElementById('cc-presentation-options');
       kindButtons.forEach((button) => {
         button.addEventListener('click', () => {
           const kind = button.dataset.kind;
@@ -2995,6 +3081,7 @@
           if (!wasSelected) button.setAttribute('aria-pressed', 'true');
           // Le texte tapé et le libellé du bouton d'envoi ne changent JAMAIS ici — seul
           // documentKind (contrainte structurelle transmise séparément) est affecté.
+          if (presentationOptionsEl) presentationOptionsEl.hidden = (documentKind !== 'presentation');
         });
       });
 
@@ -3050,12 +3137,27 @@
         // d'une simple présélection mécanique du sélecteur (cf. window.cc_brandKitSelectionIsExplicit).
         const explicitBrandKit = !!window.cc_brandKitSelectionIsExplicit;
 
+        // LOT 2 Présentation — options structurées, UNIQUEMENT lues/transmises si la carte
+        // "Présentation" est effectivement sélectionnée (jamais pour les 5 autres types, jamais
+        // une donnée orpheline transmise sans documentKind correspondant). null si aucun champ
+        // renseigné — jamais un objet vide qui laisserait croire à un choix explicite.
+        let presentationOptions = null;
+        if (documentKind === 'presentation') {
+          const slideCountInput = document.getElementById('cc-presentation-slide-count');
+          const conclusionInput = document.getElementById('cc-presentation-conclusion');
+          const slideCount = slideCountInput && slideCountInput.value ? parseInt(slideCountInput.value, 10) : null;
+          const wantsConclusion = !!(conclusionInput && conclusionInput.checked);
+          if ((slideCount && slideCount > 0) || wantsConclusion) {
+            presentationOptions = { slideCount: (slideCount && slideCount > 0) ? slideCount : null, conclusion: wantsConclusion };
+          }
+        }
+
         // Point de raccord avec l’application hôte. documentKind (fiche|carrousel|tableau|
-        // script|liens|null) continue de voyager dans detail.format pour ne pas rompre le
-        // contrat de l'événement — mais désormais SANS aucun préfixe caché : voir le
+        // script|liens|presentation|null) continue de voyager dans detail.format pour ne pas
+        // rompre le contrat de l'événement — mais désormais SANS aucun préfixe caché : voir le
         // listener 'conseiller-clinique:start' plus bas, qui ne concatène plus rien au texte.
         window.dispatchEvent(new CustomEvent('conseiller-clinique:start', {
-          detail: { prompt, format: documentKind, brandKitId, explicitBrandKit }
+          detail: { prompt, format: documentKind, brandKitId, explicitBrandKit, presentationOptions }
         }));
       });
 
