@@ -55782,6 +55782,13 @@ var Worker_default = {
       return handleGenerateImage(request2, env2);
     if (p === "/fetch-image" && request2.method === "GET")
       return handleFetchImage(url, env2);
+    // Panneau "Médias", sous-onglet "Vidéos" — LOT VIDÉO-1 : recherche Pexels Vidéos, propre à
+    // Studio Clinique (jamais le proxy PEXELS_VIDEO_PROXY_KEY de VideoBox ci-dessus — deux
+    // logiciels distincts, deux mécanismes distincts, décision confirmée par Christophe). Passe
+    // par la garde générique X-API-Key comme le reste des routes Studio Clinique ci-dessous,
+    // jamais par adocPexelsProxyAutorise (portée réduite réservée à VideoBox).
+    if (p === "/fetch-video" && request2.method === "GET")
+      return handleFetchVideo(url, env2);
     if (p === "/session-save" && request2.method === "POST")
       return handleSessionSave(request2, env2);
     if (p === "/session-load" && request2.method === "POST")
@@ -56764,14 +56771,19 @@ async function handleVideoLinkCreate(request2, env2) {
   try { body = await request2.json(); } catch { return jsonErr("Invalid JSON", 400); }
   const url = typeof body.url === "string" ? body.url.trim() : "";
   const title = typeof body.title === "string" ? body.title.trim() : "";
+  // LOT VIDÉO-1 — crédit vidéaste Pexels (obligation des conditions Pexels, même patron que
+  // render_assets.attribution pour les photos) : optionnel (jamais renseigné pour un lien local
+  // saisi à la main), null par défaut plutôt qu'une chaîne vide. Colonne déjà ajoutée par la
+  // migration 0014, déjà appliquée en base.
+  const attribution = typeof body.attribution === "string" && body.attribution.trim() ? body.attribution.trim().slice(0, 200) : null;
   if (!url) return jsonErr("url is required", 400);
   if (!title) return jsonErr("title is required", 400);
   const id = crypto.randomUUID();
   try {
     await env2.DB.prepare(
-      "INSERT INTO video_links (id, url, title) VALUES (?, ?, ?)"
-    ).bind(id, url, title).run();
-    return json({ id, url, title });
+      "INSERT INTO video_links (id, url, title, attribution) VALUES (?, ?, ?, ?)"
+    ).bind(id, url, title, attribution).run();
+    return json({ id, url, title, attribution });
   } catch (err2) {
     return jsonErr(err2.message, 500);
   }
@@ -56782,7 +56794,7 @@ async function handleVideoLinksList(env2) {
   if (!env2.DB) return jsonErr("D1 not configured", 500);
   try {
     const { results } = await env2.DB.prepare(
-      "SELECT id, url, title, created_at FROM video_links ORDER BY created_at DESC LIMIT 200"
+      "SELECT id, url, title, attribution, storage_type, created_at FROM video_links ORDER BY created_at DESC LIMIT 200"
     ).all();
     return json({ videos: results || [] });
   } catch (err2) {
@@ -58834,6 +58846,72 @@ async function handleFetchImage(url, env2) {
   }
 }
 __name(handleFetchImage, "handleFetchImage");
+
+// LOT VIDÉO-1 — choisit, parmi les video_files d'une vidéo Pexels, celui dont la hauteur est la
+// plus proche de targetHeight (mp4 préféré quand plusieurs types existent — pptx/carrousel et
+// <video> HTML ne savent lire que ça de toute façon). Utilisé deux fois par vidéo : ~360p pour
+// l'aperçu léger de la vignette, ~1080p pour le lien de téléchargement réel copié vers VideoBox —
+// deux choix indépendants (même principe que VideoBox, HauteurApercu vs HauteurRechercheParDéfaut,
+// cf. rapport d'investigation), jamais la même valeur réutilisée deux fois.
+function adocPickPexelsVideoFile(files, targetHeight) {
+  const all = files || [];
+  const mp4 = all.filter((f) => !f.file_type || f.file_type === "video/mp4");
+  const pool = mp4.length ? mp4 : all;
+  let best = null;
+  for (const f of pool) {
+    if (!f.height) continue;
+    if (!best || Math.abs(f.height - targetHeight) < Math.abs(best.height - targetHeight)) best = f;
+  }
+  return best;
+}
+__name(adocPickPexelsVideoFile, "adocPickPexelsVideoFile");
+
+// LOT VIDÉO-1 — recherche Pexels Vidéos propre à Studio Clinique, réutilisant PEXELS_API_KEY déjà
+// configurée (même clé que handleFetchImage ci-dessus, jamais PEXELS_VIDEO_PROXY_KEY, réservée au
+// proxy VideoBox — deux logiciels distincts, cf. rapport d'investigation). Appelle
+// api.pexels.com/videos/search (endpoint Vidéos, distinct de /v1/search réservé aux photos).
+async function handleFetchVideo(url, env2) {
+  const key = env2.PEXELS_API_KEY;
+  if (!key)
+    return jsonErr("PEXELS_API_KEY secret not configured", 500);
+  const q = url.searchParams.get("q") || "therapy";
+  const perPage = Math.min(parseInt(url.searchParams.get("per_page") || "6"), 10);
+  const safeQ = q.replace(/[^a-zA-Z0-9 \-+éèàâêîôùûïë]/g, "").substring(0, 100);
+  try {
+    const pexelsUrl = `https://api.pexels.com/videos/search?query=${encodeURIComponent(safeQ)}&per_page=${perPage}`;
+    const resp = await fetch(pexelsUrl, { headers: { Authorization: key } });
+    if (!resp.ok) {
+      let bodyText = "";
+      try { bodyText = (await resp.text()).slice(0, 500); } catch {}
+      return jsonErr("Pexels API error (HTTP " + resp.status + ")" + (bodyText ? ": " + bodyText : ""), resp.status);
+    }
+    const data = await resp.json();
+    const videos = (data.videos || []).map((v) => {
+      const preview = adocPickPexelsVideoFile(v.video_files, 360);
+      const download = adocPickPexelsVideoFile(v.video_files, 1080);
+      const pictures = v.video_pictures || [];
+      const picture = pictures[Math.floor(pictures.length / 2)] || pictures[0] || null;
+      // Vignette allégée — mêmes paramètres d'URL réécrits sur le CDN d'images Pexels que pour les
+      // photos (jamais un second appel réseau), largeur réellement affichée par la grille (~480px).
+      const thumbUrl = picture && picture.picture
+        ? picture.picture + (picture.picture.includes("?") ? "&" : "?") + "w=480"
+        : "";
+      return {
+        id: v.id,
+        photographer: v.user?.name || "",
+        duration: v.duration || 0,
+        previewUrl: preview?.link || "",
+        downloadUrl: download?.link || preview?.link || "",
+        thumbUrl,
+      };
+    });
+    return json({ videos, total: data.total_results || videos.length, query: safeQ });
+  } catch (err2) {
+    return jsonErr("Pexels video fetch failed: " + err2.message, 500);
+  }
+}
+__name(handleFetchVideo, "handleFetchVideo");
+
 var SESSION_TTL = 30 * 24 * 3600;
 // Audit systémique (Priorité 6) — CONSTAT CONFIRMÉ : l'ancien stockage lisait l'historique
 // complet, le modifiait localement puis réécrivait L'INTÉGRALITÉ de la valeur sous une clé
