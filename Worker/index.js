@@ -55434,6 +55434,78 @@ function jsonErr(msg, status = 500) {
   return json({ error: msg }, status);
 }
 __name(jsonErr, "jsonErr");
+
+// ═══ Vidéos Pexels — accès de portée réduite ═══════════════════════════════
+// Ajouté pour VideoBox, mais utilisable par tout logiciel autorisé : la clé se
+// configure séparément dans chacun, côté serveur uniquement.
+//
+// PEXELS_VIDEO_PROXY_KEY n'ouvre QUE les deux routes vidéo ci-dessous.
+// WORKER_API_KEY, elle, déverrouille /d1-query, /llm-proxy,
+// /clinical-documents et le reste : la confier à un programme installé sur un
+// poste personnel serait disproportionné pour le seul besoin de chercher une
+// vidéo. En cas de fuite, le dommage se limite au quota Pexels.
+async function adocPexelsProxyAutorise(request2, env2) {
+  const fournie = request2.headers.get('X-API-Key') || request2.headers.get('x-api-key');
+  if (!fournie) return false;
+  // Fail closed, même posture que la garde générique : un secret non
+  // configuré bloque l'accès, il ne le désactive jamais.
+  for (const attendue of [env2.PEXELS_VIDEO_PROXY_KEY, env2.WORKER_API_KEY]) {
+    if (attendue && await adocConstantTimeEqual(fournie, attendue)) return true;
+  }
+  return false;
+}
+__name(adocPexelsProxyAutorise, "adocPexelsProxyAutorise");
+
+// Relaie une requête vers l'API vidéo de Pexels.
+//
+// La clé Pexels est ajoutée ici et ne figure dans aucune réponse : elle ne
+// quitte jamais Cloudflare. Seules les métadonnées et les adresses de
+// téléchargement sont renvoyées — les fichiers eux-mêmes ne transitent pas par
+// ce Worker, le client va les chercher directement.
+async function adocPexelsVideos(request2, env2, chemin) {
+  if (!env2.PEXELS_API_KEY) return jsonErr('Pexels API key not configured', 501);
+  const entrant = new URL(request2.url);
+  const sortant = new URL('https://api.pexels.com/v1/videos/' + chemin);
+  // Liste blanche stricte : aucun paramètre inattendu n'est relayé.
+  const permis = ['query', 'orientation', 'size', 'locale', 'page', 'per_page',
+                  'min_width', 'min_height', 'min_duration', 'max_duration'];
+  for (const nom of permis) {
+    const v = entrant.searchParams.get(nom);
+    if (v !== null && v !== '') sortant.searchParams.set(nom, v.slice(0, 200));
+  }
+  if (!sortant.searchParams.get('per_page')) sortant.searchParams.set('per_page', '15');
+  let reponse;
+  try {
+    reponse = await fetch(sortant.toString(), { headers: { Authorization: env2.PEXELS_API_KEY } });
+  } catch (err) {
+    return jsonErr('Pexels unreachable: ' + err.message, 502);
+  }
+  if (reponse.status === 429) {
+    // Le quota Pexels est épuisé — 200 requêtes par heure, partagées entre
+    // tous les logiciels qui passent par ce proxy. C'est une situation
+    // passagère et nommable, pas une panne : la relayer en 502 ferait dire
+    // « service indisponible » à des clients qui savent très bien annoncer
+    // « quota épuisé, réessayez plus tard ».
+    const patience = reponse.headers.get('Retry-After');
+    return new Response(JSON.stringify({ error: 'Pexels rate limit reached' }), {
+      status: 429,
+      headers: {
+        ...CORS, 'Content-Type': 'application/json',
+        ...(patience ? { 'Retry-After': patience } : {}),
+      },
+    });
+  }
+  if (!reponse.ok) {
+    // Le corps d'erreur de Pexels n'est pas relayé : il pourrait porter des
+    // détails de compte sans intérêt ici.
+    return jsonErr('Pexels responded ' + reponse.status, 502);
+  }
+  const data = await reponse.json();
+  return new Response(JSON.stringify(data), {
+    status: 200, headers: { ...CORS, 'Content-Type': 'application/json' },
+  });
+}
+__name(adocPexelsVideos, "adocPexelsVideos");
 var Worker_default = {
   async fetch(request2, env2, ctx) {
     if (request2.method === "OPTIONS")
@@ -55463,6 +55535,26 @@ var Worker_default = {
       if (!passwordOk)
         return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...CORS, 'Content-Type': 'application/json' } });
       return new Response(JSON.stringify({ apiKey: env2.WORKER_API_KEY }), { status: 200, headers: { ...CORS, 'Content-Type': 'application/json' } });
+    }
+    // ── Vidéos Pexels (PEXELS_VIDEO_PROXY_KEY) ──
+    // Traitées ICI, avant la garde générique X-API-Key, exactement comme
+    // /login : elles ont leur propre contrôle d'accès, plus étroit. Aucune
+    // route existante n'est touchée ; ADOC_PUBLIC_ROUTES reste inchangée,
+    // ces routes ne sont PAS publiques.
+    if (p === '/pexels/videos/search' && request2.method === 'GET') {
+      if (!await adocPexelsProxyAutorise(request2, env2))
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...CORS, 'Content-Type': 'application/json' } });
+      return adocPexelsVideos(request2, env2, 'search');
+    }
+    if (p.startsWith('/pexels/videos/') && request2.method === 'GET') {
+      if (!await adocPexelsProxyAutorise(request2, env2))
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...CORS, 'Content-Type': 'application/json' } });
+      const pexelsId = p.slice('/pexels/videos/'.length);
+      // Un identifiant Pexels est toujours numérique : tout le reste est
+      // refusé plutôt que relayé, pour que cette route ne devienne jamais un
+      // moyen d'atteindre autre chose chez Pexels.
+      if (!/^[0-9]{1,15}$/.test(pexelsId)) return jsonErr('Invalid video id', 400);
+      return adocPexelsVideos(request2, env2, 'videos/' + pexelsId);
     }
     // SEC-HOTFIX-01 — protégé par défaut (liste d'exceptions publiques ci-dessus), plutôt
     // que l'ancienne liste blanche de routes protégées : une route ajoutée plus tard au
