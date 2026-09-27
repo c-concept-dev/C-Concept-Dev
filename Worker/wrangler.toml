@@ -66,6 +66,11 @@ bucket_name = "studio-clinique-brand-assets"
 #                            plusieurs logiciels, chacun la configurant de
 #                            son côté, et JAMAIS dans du JavaScript servi
 #                            à un navigateur.
+#   PIXABAY_API_KEY          clé Pixabay ; ne sort jamais de Cloudflare
+#   PIXABAY_VIDEO_PROXY_KEY  même principe que celle de Pexels, mais pour
+#                            les routes /pixabay/videos/…. Distincte : une
+#                            fuite de l'une ne donne pas l'autre, et chacune
+#                            se retire sans toucher au reste.
 #   SERPAPI_KEY
 #   WORKER_API_KEY           clé maîtresse : ouvre toutes les routes
 #                            protégées. À ne confier à aucun poste client.
@@ -77,3 +82,20 @@ bucket_name = "studio-clinique-brand-assets"
 # Elles sont traitées avant la garde générique, comme /login, parce
 # qu'elles ont leur propre contrôle d'accès, plus étroit. Le quota Pexels
 # épuisé est relayé en 429 avec son en-tête Retry-After, jamais en 502.
+
+# ── Routes vidéo Pixabay (ajoutées le 27/09/2026) ─────────────────
+# Gardées par PIXABAY_VIDEO_PROXY_KEY, en-tête X-API-Key, lecture seule :
+#   GET /pixabay/videos/search?q=…&per_page=…&page=…
+#   GET /pixabay/videos/<identifiant numérique>
+# Paramètres relayés : q, lang, video_type, category, min_width,
+# min_height, editors_choice, safesearch, order, page, per_page.
+# « callback » est volontairement exclu : il produirait du JSONP, c'est-à-
+# dire du script exécutable renvoyé à l'appelant.
+#
+# safesearch vaut "true" par défaut, surchargeable.
+#
+# Pixabay impose de garder les réponses 24 h : elles sont donc mises en
+# cache dans CLONE_KV sous le préfixe « pixabay:v1: », avec un TTL de
+# 86400 s. Un cache indisponible n'empêche jamais l'appel.
+# Sa limite est de 100 requêtes par minute ; un 429 est relayé tel quel
+# avec le délai lu dans X-RateLimit-Reset.

@@ -55506,6 +55506,100 @@ async function adocPexelsVideos(request2, env2, chemin) {
   });
 }
 __name(adocPexelsVideos, "adocPexelsVideos");
+
+// ═══ Vidéos Pixabay — même principe que Pexels ═════════════════════════════
+// PIXABAY_VIDEO_PROXY_KEY n'ouvre QUE les deux routes vidéo Pixabay. Elle est
+// distincte de celle de Pexels : une fuite de l'une ne donne pas l'autre, et
+// chacune peut être retirée sans toucher au reste.
+async function adocPixabayProxyAutorise(request2, env2) {
+  const fournie = request2.headers.get('X-API-Key') || request2.headers.get('x-api-key');
+  if (!fournie) return false;
+  // Fail closed : un secret non configuré bloque, il n'ouvre jamais.
+  for (const attendue of [env2.PIXABAY_VIDEO_PROXY_KEY, env2.WORKER_API_KEY]) {
+    if (attendue && await adocConstantTimeEqual(fournie, attendue)) return true;
+  }
+  return false;
+}
+__name(adocPixabayProxyAutorise, "adocPixabayProxyAutorise");
+
+// Paramètres relayés à Pixabay. « callback » et « pretty » sont volontairement
+// exclus : le premier produirait du JSONP — du script exécutable renvoyé à
+// l'appelant — et le second ne sert qu'au confort de lecture.
+var ADOC_PIXABAY_PARAMS = ['q', 'lang', 'video_type', 'category', 'min_width',
+  'min_height', 'editors_choice', 'safesearch', 'order', 'page', 'per_page'];
+
+// Relaie une requête vers l'API vidéo de Pixabay.
+//
+// Deux exigences de Pixabay sont tenues ici, pas ailleurs :
+//   — « requests must be cached for 24 hours » : les réponses sont gardées
+//     dans CLONE_KV pendant 24 h, sous une empreinte des paramètres. Sans
+//     cela, chaque frappe dans un champ de recherche rejouerait l'appel.
+//   — la limite de 100 requêtes par minute : un 429 est relayé tel quel avec
+//     son délai, jamais transformé en 502.
+//
+// La clé Pixabay est ajoutée ici et ne figure dans aucune réponse : elle ne
+// quitte jamais Cloudflare.
+async function adocPixabayVideos(request2, env2, identifiant) {
+  if (!env2.PIXABAY_API_KEY) return jsonErr('Pixabay API key not configured', 501);
+  const entrant = new URL(request2.url);
+  const sortant = new URL('https://pixabay.com/api/videos/');
+
+  if (identifiant) {
+    sortant.searchParams.set('id', identifiant);
+  } else {
+    for (const nom of ADOC_PIXABAY_PARAMS) {
+      const v = entrant.searchParams.get(nom);
+      if (v !== null && v !== '') sortant.searchParams.set(nom, v.slice(0, 200));
+    }
+    if (!sortant.searchParams.get('per_page')) sortant.searchParams.set('per_page', '15');
+    // Par défaut on écarte ce qui ne convient pas à tous les publics : cet
+    // outil sert à préparer des séances, et le réglage reste surchargeable.
+    if (!sortant.searchParams.get('safesearch')) sortant.searchParams.set('safesearch', 'true');
+  }
+  sortant.searchParams.sort();
+
+  const empreinte = 'pixabay:v1:' + (identifiant ? 'id=' + identifiant : sortant.searchParams.toString());
+  if (env2.CLONE_KV) {
+    try {
+      const garde = await env2.CLONE_KV.get(empreinte);
+      if (garde) {
+        return new Response(garde, { status: 200, headers: {
+          ...CORS, 'Content-Type': 'application/json', 'X-Adoc-Cache': 'hit' } });
+      }
+    } catch (err) { /* un cache indisponible ne doit jamais empêcher l'appel */ }
+  }
+
+  sortant.searchParams.set('key', env2.PIXABAY_API_KEY);
+  let reponse;
+  try {
+    reponse = await fetch(sortant.toString(), { headers: { 'Accept': 'application/json' } });
+  } catch (err) {
+    return jsonErr('Pixabay unreachable: ' + err.message, 502);
+  }
+  if (reponse.status === 429) {
+    // Pixabay annonce le délai restant dans X-RateLimit-Reset, en secondes.
+    const reste = reponse.headers.get('X-RateLimit-Reset');
+    return new Response(JSON.stringify({ error: 'Pixabay rate limit reached' }), {
+      status: 429,
+      headers: { ...CORS, 'Content-Type': 'application/json',
+                 ...(reste ? { 'Retry-After': reste } : {}) },
+    });
+  }
+  if (!reponse.ok) {
+    // Le corps d'erreur de Pixabay est du texte brut : il n'est pas relayé,
+    // il pourrait nommer la clé ou le compte.
+    return jsonErr('Pixabay responded ' + reponse.status, 502);
+  }
+  const texte = await reponse.text();
+  if (env2.CLONE_KV) {
+    try {
+      await env2.CLONE_KV.put(empreinte, texte, { expirationTtl: 86400 });
+    } catch (err) { /* ne pas avoir pu garder n'est pas une raison d'échouer */ }
+  }
+  return new Response(texte, { status: 200, headers: {
+    ...CORS, 'Content-Type': 'application/json', 'X-Adoc-Cache': 'miss' } });
+}
+__name(adocPixabayVideos, "adocPixabayVideos");
 var Worker_default = {
   async fetch(request2, env2, ctx) {
     if (request2.method === "OPTIONS")
@@ -55555,6 +55649,21 @@ var Worker_default = {
       // moyen d'atteindre autre chose chez Pexels.
       if (!/^[0-9]{1,15}$/.test(pexelsId)) return jsonErr('Invalid video id', 400);
       return adocPexelsVideos(request2, env2, 'videos/' + pexelsId);
+    }
+    // ── Vidéos Pixabay (PIXABAY_VIDEO_PROXY_KEY) ──
+    // Mêmes règles que Pexels ci-dessus : lecture seule, garde propre, avant
+    // la garde générique. Les deux clés sont distinctes et indépendantes.
+    if (p === '/pixabay/videos/search' && request2.method === 'GET') {
+      if (!await adocPixabayProxyAutorise(request2, env2))
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...CORS, 'Content-Type': 'application/json' } });
+      return adocPixabayVideos(request2, env2, null);
+    }
+    if (p.startsWith('/pixabay/videos/') && request2.method === 'GET') {
+      if (!await adocPixabayProxyAutorise(request2, env2))
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...CORS, 'Content-Type': 'application/json' } });
+      const pixabayId = p.slice('/pixabay/videos/'.length);
+      if (!/^[0-9]{1,15}$/.test(pixabayId)) return jsonErr('Invalid video id', 400);
+      return adocPixabayVideos(request2, env2, pixabayId);
     }
     // SEC-HOTFIX-01 — protégé par défaut (liste d'exceptions publiques ci-dessus), plutôt
     // que l'ancienne liste blanche de routes protégées : une route ajoutée plus tard au
