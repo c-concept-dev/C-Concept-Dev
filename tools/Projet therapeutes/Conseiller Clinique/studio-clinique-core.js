@@ -7706,6 +7706,32 @@ ${recent}`;
   // paragraphe sans appel réel, donc payant, au modèle.
   window.adocConvertDeepDives = adocConvertDeepDives;
 
+  // Filtre des renvois portés par un BLOC (et non par une page d'approfondissement, cf.
+  // adocConvertDeepDives ci-dessus). Fonction pure sortie de convertBlock pour être éprouvable
+  // seule : son cas le plus subtil — le repli de libellé d'une image — ne se voit autrement que
+  // par une génération réelle, donc payante.
+  //   - un renvoi dont la cible n'existe pas est retiré silencieusement (même sévérité que
+  //     partout ailleurs dans ce pipeline : jamais un lien qui ne mène nulle part, jamais un
+  //     rejet du bloc, dont le contenu reste parfaitement exploitable) ;
+  //   - pour les types de PROSE, un `text` vide fait tomber le renvoi : `text` y désigne
+  //     l'expression à souligner dans la phrase, sans elle il n'y a rien à enrichir ;
+  //   - pour une IMAGE, il n'y a aucun texte porteur où retrouver une expression. Exiger `text`
+  //     supprimerait le renvoi EN SILENCE — exactement la perte muette que ce pipeline s'interdit.
+  //     D'où un repli : l'alt de l'image, puis le titre de la page visée (toujours connu, puisque
+  //     le renvoi ne survit que si sa cible existe).
+  function adocFilterBlockDeepDiveLinks(b, deepDiveIds, deepDiveTitres) {
+    const estImage = b && b.type === 'image';
+    return ((b && b.deepDiveLinks) || []).filter(function(l) {
+      if (!l || !(l.targetId || '').trim() || !deepDiveIds.has(l.targetId)) return false;
+      return estImage || !!(l.text || '').trim();
+    }).map(function(l) {
+      const brut = (l.text || '').trim()
+        || (estImage ? ((b.content && b.content.alt) || '').trim() || (deepDiveTitres || {})[l.targetId] || '' : '');
+      return { text: adocStripEmoji(brut), targetId: l.targetId };
+    }).filter(function(l) { return !!l.text; });
+  }
+  window.adocFilterBlockDeepDiveLinks = adocFilterBlockDeepDiveLinks;
+
   // Présentation ACTE 2, Phase 2 — enveloppe, DANS un fragment de texte DÉJÀ ÉCHAPPÉ, chaque lien
   // d'approfondissement de `pool` dont l'expression `text` y apparaît (correspondance exacte,
   // repli insensible à la casse) — retire de `pool` (mutation, l'appelant doit toujours passer une
@@ -10841,13 +10867,27 @@ ${recent}`;
         // classiques (adocRenderCarrouselHTML, adocBuildCarrouselPdfPagesHTML), qui n'y touchent
         // jamais. `this` transmis (jamais l'URL en chaîne) : évite tout ré-échappement, la
         // fonction lit directement l'élément <img> réellement affiché.
-        const imgDoorOnclick = _adocRenderingForPresentDoor ? ' onclick="window.adocPresentOpenImageDoor(this)"' : '';
-        const imgDoorCursor = _adocRenderingForPresentDoor ? 'cursor:zoom-in;' : '';
+        // Lot « site de poche » — une image peut désormais MENER quelque part. Quand elle porte un
+        // renvoi actif (donc uniquement en mode présentation, cf. deepDiveLinksActive), le clic
+        // ouvre la page d'approfondissement au lieu d'agrandir : les deux gestes sont le même
+        // clic, il faut choisir, et une page qui approfondit réellement ce que montre l'image vaut
+        // mieux qu'un agrandissement. Sans renvoi, l'agrandissement reste EXACTEMENT ce qu'il
+        // était. Hors présentation, rien ne change nulle part.
+        const imgLienActif = deepDiveLinksActive[0] || null;
+        const imgDoorOnclick = !_adocRenderingForPresentDoor ? ''
+          : imgLienActif
+            ? ' onclick="window.adocPresentOpenDeepDive(\'' + adocEsc(imgLienActif.targetId) + '\')"'
+            : ' onclick="window.adocPresentOpenImageDoor(this)"';
+        const imgDoorCursor = !_adocRenderingForPresentDoor ? '' : imgLienActif ? 'cursor:pointer;' : 'cursor:zoom-in;';
         const imgStyle = 'width:' + imgWidth + '%;border-radius:8px;object-fit:cover;display:block;margin:0 auto;' + imgPositionedFill + imgDoorCursor + (imgOpacity < 100 ? 'opacity:' + (imgOpacity / 100) + ';' : '') + (imgRotation ? 'transform:rotate(' + imgRotation + 'deg);' : '');
         const imgFigureStyleAttr = nestedPosCSS ? ' style="' + adocEsc(nestedPosCSS) + '"' : '';
+        // La puce « ↳ Approfondir » n'existait dans AUCUN cas image. Sans elle, le renvoi ne serait
+        // découvrable que par tâtonnement — rien ne distingue à l'œil une image cliquable d'une
+        // image ordinaire. Même mécanisme que pour les cinq cas texte : c'est la puce, jamais
+        // l'enrichissement, qui garantit qu'un lien n'est pas silencieusement perdu.
         return '<figure class="adoc-sc-block adoc-sc-image' + statusClass + '" id="' + adocEsc(b.id) + '"' + imgFigureStyleAttr + '>' +
           '<img ' + imgAttr + onErrorAttr + imgDoorOnclick + ' alt="' + adocEsc(b.content.alt) + '" style="' + imgStyle + '">' +
-          note + dragHandle + nestedResizeHandle + '</figure>';
+          note + deepDiveChips + dragHandle + nestedResizeHandle + '</figure>';
       }
       case 'video': {
         // Panneau "Médias", sous-onglet "Vidéos" — content.url est TOUJOURS une URL concrète
@@ -12402,12 +12442,21 @@ ${recent}`;
           "Ne fais JAMAIS boucler un approfondissement vers une page déjà présente dans son propre " +
           "chemin : si le propos y ramène, formule une nouvelle page plutôt que de refermer la " +
           'boucle. Un renvoi vers la page courante elle-même est également proscrit.\n' +
-          'deepDiveLinks (sur le bloc heading/paragraph/callout/list/quote lui-même) : text doit être ' +
+          'deepDiveLinks (sur le bloc heading/paragraph/callout/list/quote/image lui-même) : text doit être ' +
           "une expression COURTE (2 à 4 mots) EXACTEMENT recopiée telle qu'elle apparaît déjà dans le " +
           "texte de CE bloc — jamais reformulée, jamais une paraphrase — et si possible UNIQUE dans ce " +
           "bloc (jamais un mot isolé trop générique qui apparaîtrait ailleurs sans lien). targetId doit " +
           "correspondre EXACTEMENT à un id produit dans deepDives ci-dessus, jamais inventé. Liste vide " +
-          "sur tout bloc sans approfondissement (cas normal, très largement majoritaire).\n\n" +
+          "sur tout bloc sans approfondissement (cas normal, très largement majoritaire).\n" +
+          // Lot « site de poche » — le bloc image peut désormais porter un renvoi. Instruction
+          // placée ICI, dans le prompt, et NON dans le schéma d'outil : la grammaire compilée est
+          // au bord de sa taille maximale (cf. ADOC_STRUCTURED_PRESENTATION_TOOL), et le champ
+          // existe déjà sur tous les types de bloc — seul son emploi change.
+          'Un bloc type="image" peut lui aussi porter deepDiveLinks, au plus UN, et seulement si la ' +
+          "page visée approfondit vraiment CE QUE MONTRE l'image — jamais un renvoi décoratif posé " +
+          "sur la première illustration venue. Le clic sur l'image ouvre alors la page au lieu de " +
+          "l'agrandir : ne le fais que si cela vaut mieux que l'agrandissement. text peut simplement " +
+          "reprendre imageAlt (il ne sert ici que de libellé, il n'y a aucun texte où le retrouver).\n\n" +
           '── TEXTE ──\n' +
           "Aucun emoji, aucun caractère Unicode décoratif (cercles ou carrés de couleur, symboles, " +
           "pictogrammes, flèches décoratives) nulle part dans le texte produit — texte propre uniquement.";
@@ -13608,10 +13657,16 @@ ${recent}`;
     // c'est ce qui permet d'éprouver réellement la coupe des cycles sans appel payant au modèle.
     const deepDives = adocConvertDeepDives(raw.deepDives);
     const deepDiveIds = new Set(deepDives.map(function(d) { return d.id; }));
-    // Types de bloc porteurs de prose continue où une expression peut être désignée — même
-    // restriction EXACTE que block.schema.json#/$defs/deepDiveLinks (headingBlock/paragraphBlock/
-    // calloutBlock/listBlock/quoteBlock), jamais image/video/quiz/questionnaire/card/table.
-    const DEEPDIVE_ELIGIBLE_TYPES = ['heading', 'paragraph', 'callout', 'list', 'quote'];
+    // Types de bloc pouvant porter un renvoi — même liste EXACTE que
+    // block.schema.json#/$defs/deepDiveLinks, jamais video/quiz/questionnaire/card/table.
+    // 'image' s'y ajoute (lot « site de poche ») : une image est souvent ce qui appelle le plus
+    // le creusement, et elle était jusqu'ici le seul contenu visible d'une diapositive à ne
+    // pouvoir mener nulle part. Les cinq autres sont de la prose continue, où une EXPRESSION est
+    // désignée dans le texte ; l'image, elle, n'a pas de texte porteur — d'où le traitement
+    // distinct ci-dessous.
+    const DEEPDIVE_ELIGIBLE_TYPES = ['heading', 'paragraph', 'callout', 'list', 'quote', 'image'];
+    const deepDiveTitres = {};
+    deepDives.forEach(function(d) { deepDiveTitres[d.id] = d.title; });
 
     function convertBlock(b) {
       blockSeq++;
@@ -13700,11 +13755,7 @@ ${recent}`;
       // partout ailleurs dans ce fichier.
       let deepDiveLinks = [];
       if (DEEPDIVE_ELIGIBLE_TYPES.indexOf(b.type) !== -1) {
-        deepDiveLinks = (b.deepDiveLinks || []).filter(function(l) {
-          return l && (l.text || '').trim() && (l.targetId || '').trim() && deepDiveIds.has(l.targetId);
-        }).map(function(l) {
-          return { text: adocStripEmoji(l.text.trim()), targetId: l.targetId };
-        });
+        deepDiveLinks = adocFilterBlockDeepDiveLinks(b, deepDiveIds, deepDiveTitres);
       }
       const result = { id: id, type: b.type, content: content, citationIds: citationIds, validation: citationLinks.length ? { citationLinks: citationLinks } : {} };
       if (deepDiveLinks.length) result.deepDiveLinks = deepDiveLinks;

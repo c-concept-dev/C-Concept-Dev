@@ -49,7 +49,7 @@
       }
     },
     "deepDiveLinks": {
-      "$comment": "Présentation ACTE 2, Phase 1 — désigne, DANS le texte déjà généré du bloc, une expression exacte qui ouvre une page d'approfondissement plein écran (clinical-document.schema.json#/properties/deepDives, résolue par `targetId`). Champ plat, jamais une syntaxe de lien libre dans `text`/`items` eux-mêmes (le projet n'a jamais parsé de markdown, cf. investigation) : `text` est recherché tel quel au rendu (Phase 2, hors périmètre ici). Ajouté UNIQUEMENT à headingBlock/paragraphBlock/calloutBlock/listBlock/quoteBlock ci-dessous — mêmes types porteurs de prose continue que citationIds, jamais imageBlock/videoBlock/quizBlock/questionnaireBlock/cardBlock (aucune expression de texte à désigner). Optionnel, comme citationIds — un bloc sans ce champ reste en tout point inchangé.",
+      "$comment": "Présentation ACTE 2, Phase 1 — désigne, DANS le texte déjà généré du bloc, une expression exacte qui ouvre une page d'approfondissement plein écran (clinical-document.schema.json#/properties/deepDives, résolue par `targetId`). Champ plat, jamais une syntaxe de lien libre dans `text`/`items` eux-mêmes (le projet n'a jamais parsé de markdown, cf. investigation) : `text` est recherché tel quel au rendu (Phase 2, hors périmètre ici). Ajouté à headingBlock/paragraphBlock/calloutBlock/listBlock/quoteBlock — types porteurs de prose continue, où `text` désigne une expression réellement présente — ET à imageBlock (lot « site de poche »), seul cas où `text` ne désigne rien dans un texte : il n'y sert que de libellé de puce, et le client le remplace par l'alt de l'image ou le titre de la page visée s'il est vide, plutôt que de laisser tomber le renvoi en silence. Jamais videoBlock/quizBlock/questionnaireBlock/cardBlock. Optionnel, comme citationIds — un bloc sans ce champ reste en tout point inchangé.",
       "type": "array",
       "items": {
         "type": "object",
@@ -561,6 +561,9 @@
         },
         "citationIds": {
           "$ref": "#/$defs/citationIds"
+        },
+        "deepDiveLinks": {
+          "$ref": "#/$defs/deepDiveLinks"
         },
         "validation": {
           "$ref": "#/$defs/blockValidation"
