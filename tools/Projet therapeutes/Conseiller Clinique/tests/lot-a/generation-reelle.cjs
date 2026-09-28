@@ -29,7 +29,11 @@ const path = require('node:path');
 const WORKER = 'https://clone-proxy.11drumboy11.workers.dev';
 const CLE = (process.env.STUDIO_WORKER_API_KEY || '').trim();
 if (!CLE || /[^\x20-\x7E]/.test(CLE)) { console.error('Cle du Worker absente ou invalide. Aucun appel emis.'); process.exit(2); }
-const SUJET = process.argv.filter(a => !a.startsWith('--'))[2] || "le cortisol et le systeme nerveux dans le stress chronique du couple";
+// Plusieurs sujets en UNE seule execution : la cle n'est saisie qu'une fois, et une campagne de
+// quatre sujets ne coute plus quatre saisies. Chaque sujet part d'une page NEUVE, sans quoi la
+// conversation precedente influencerait la suivante.
+const SUJETS = process.argv.slice(2).filter(a => !a.startsWith('--'));
+if (!SUJETS.length) SUJETS.push("le cortisol et le systeme nerveux dans le stress chronique du couple");
 // --publie : ouvrir la version REELLEMENT SERVIE par GitHub Pages plutot que le fichier local.
 // C'est la seule facon de verifier ce que Christophe utilisera : un fichier local peut differer
 // de ce qui est publie, et l'a deja fait.
@@ -37,17 +41,18 @@ const PUBLIE = process.argv.includes('--publie');
 const PAGES = 'https://c-concept-dev.github.io/C-Concept-Dev/tools/Projet%20therapeutes/Conseiller%20Clinique/studio-clinique.html';
 const ORIGINE_PAGES = 'https://c-concept-dev.github.io';
 
-(async () => {
-  const browser = await chromium.launch(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
-    ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } : {});
-  try {
+async function mesurerUnSujet(browser, SUJET) {
+  {
     const page = await browser.newPage({ viewport: { width: 1280, height: 860 } });
-    const avertissements = [], erreurs = [], journal = [];
+    const avertissements = [], erreurs = [], journal = [], troncature = [];
     page.on('pageerror', e => erreurs.push(e.message));
     page.on('console', m => {
       const t = m.text();
       if (m.type() === 'warning') avertissements.push(t);
       if (/appel 2|HTTP|approfondissement/i.test(t)) journal.push(m.type() + ': ' + t.slice(0, 200));
+      // Troncature et continuation : les deux seuls signaux qui disent si max_tokens a ete
+      // atteint. Ils ne se devinent pas depuis le document produit.
+      if (/tronqu|max_tokens|continuation|emit_remaining/i.test(t)) troncature.push(t.replace(/\s+/g, ' ').slice(0, 160));
     });
     // Rien ne doit sortir ailleurs que vers le Worker. Blocage RÉEL, et tout hôte refusé est
     // rapporté : si un appel partait vers un tiers, ce test le dirait au lieu de le laisser passer.
@@ -250,8 +255,8 @@ const ORIGINE_PAGES = 'https://c-concept-dev.github.io';
       journal.forEach(l => console.error('  journal | ' + l));
       console.error('  adresses contactees : ' + ([...hotesContactes].join(', ') || 'aucune'));
       if (hotesBloques.size) console.error('  hotes bloques : ' + [...hotesBloques].join(', '));
-      process.exitCode = 1;
-      return;
+      await page.close().catch(() => {});
+      return { sujet: SUJET, ok: false, secondes, erreur: sortie.erreur };
     }
 
     const doc = sortie.doc;
@@ -321,5 +326,57 @@ const ORIGINE_PAGES = 'https://c-concept-dev.github.io';
       diapositives: (doc.blocks || []).length, pages: dives.length, liensDeBloc, niveaux,
       repartition, retrouves, replis, cyclesCoupes: coupes,
     }, null, 1));
+      const octets = Buffer.byteLength(JSON.stringify(doc));
+      console.log('  taille du JSON produit          : ' + Math.round(octets / 1024) + ' Ko');
+      console.log('  troncature / continuation       : ' + (troncature.length ? troncature.slice(0, 2).join(' | ') : 'aucune'));
+      await page.close().catch(() => {});
+      return { sujet: SUJET, ok: true, secondes, titre: doc.title,
+        diapositives: (doc.blocks || []).length, pages: dives.length,
+        renvoisDeBloc: liensDeBloc.length, renvoisInternes: repartition.length,
+        niveaux, retrouves, replis, octets,
+        cycles: coupes.length, troncature: troncature.length, clarifications: clarifications.length };
+    }
+}
+
+// ── CAMPAGNE ───────────────────────────────────────────────────────────────────────────────────
+// Un sujet par page NEUVE, en serie : une conversation precedente influencerait la suivante, et
+// une campagne dont les mesures se contaminent ne vaut rien. La cle n'est saisie qu'UNE fois.
+(async () => {
+  const browser = await chromium.launch(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+    ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } : {});
+  const resultats = [];
+  try {
+    for (let i = 0; i < SUJETS.length; i++) {
+      console.log('\n' + '='.repeat(78));
+      console.log('SUJET ' + (i + 1) + '/' + SUJETS.length + ' — ' + SUJETS[i]);
+      console.log('='.repeat(78));
+      try {
+        resultats.push(await mesurerUnSujet(browser, SUJETS[i]));
+      } catch (e) {
+        console.error('  ECHEC inattendu : ' + (e && e.message));
+        resultats.push({ sujet: SUJETS[i], ok: false, erreur: 'exception : ' + (e && e.message) });
+      }
+    }
   } finally { await browser.close(); }
-})().catch(e => { console.error('ECHEC : ' + e.message); process.exit(1); });
+
+  if (SUJETS.length > 1) {
+    console.log('\n' + '='.repeat(78));
+    console.log('TABLEAU DE CAMPAGNE');
+    console.log('='.repeat(78));
+    const col = (v, n) => String(v == null ? '-' : v).padStart(n);
+    console.log('  diapos pages renvois internes prof retrouv repli   Ko tronc  sujet');
+    resultats.forEach(r => {
+      if (!r.ok) { console.log('  ECHEC' + ' '.repeat(50) + r.sujet.slice(0, 38) + '  (' + r.erreur + ')'); return; }
+      console.log('  ' + col(r.diapositives, 6) + col(r.pages, 6) + col(r.renvoisDeBloc, 8)
+        + col(r.renvoisInternes, 8) + col(r.niveaux, 5) + col(r.retrouves, 8) + col(r.replis, 6)
+        + col(Math.round(r.octets / 1024), 5) + col(r.troncature, 6) + '  ' + r.sujet.slice(0, 38));
+    });
+    const reussis = resultats.filter(r => r.ok);
+    console.log('\n  ' + reussis.length + '/' + resultats.length + ' sujets aboutis'
+      + (reussis.length ? ' — renvois internes au total : ' + reussis.reduce((a, r) => a + r.renvoisInternes, 0) : ''));
+  }
+  fs.writeFileSync(path.join(__dirname, 'resultats-campagne.json'),
+    JSON.stringify({ date: new Date().toISOString(), publie: PUBLIE, resultats }, null, 1));
+  console.log('\nMesures ecrites dans tests/lot-a/resultats-campagne.json (jamais commitees).');
+  if (resultats.some(r => !r.ok)) process.exitCode = 1;
+})();
