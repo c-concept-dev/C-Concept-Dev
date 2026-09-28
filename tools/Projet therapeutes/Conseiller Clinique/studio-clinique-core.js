@@ -13554,7 +13554,16 @@ ${recent}`;
     const _payload2 = {
       provider: 'anthropic',
       model: 'claude-sonnet-4-6',
-      max_tokens: 8000,
+      // PLAFOND DE SORTIE — mesuré, jamais choisi. À 8000 jetons, une Présentation d'une durée
+      // demandée de 20 minutes tombait JUSTE au-dessus : la coupure est survenue à 26 452
+      // caractères (≈ 3,31 car./jeton) alors que le même sujet qui aboutit en fait 26 204 —
+      // 248 caractères d'écart. Autrement dit, une présentation de 20 minutes passait ou non
+      // selon la verbosité du modèle ce jour-là.
+      // Ce n'est pas un réglage de confort : sur une Présentation, dépasser max_tokens signifie
+      // REPLI TOTAL sur l'ancien moteur, parce que la continuation ne sait pas la traiter — elle
+      // dérive son outil de `properties.blocks`, absent d'un schéma dont la racine est `cards`
+      // (cf. _adocBuildRemainingBlocksTool). Le plafond est donc la seule protection réelle.
+      max_tokens: 16000,
       stream: true,
       system: structuredSystemPrompt,
       messages: [{ role: 'user', content: text }],
@@ -13629,7 +13638,8 @@ ${recent}`;
         const _contPayload = {
           provider: 'anthropic',
           model: 'claude-sonnet-4-6',
-          max_tokens: 8000,
+          max_tokens: 16000, // meme plafond que l'appel initial : un tour de continuation coupe a
+                             // son tour ne ferait que repousser le probleme d'un cran.
           stream: true,
           system: structuredSystemPrompt,
           messages: [
