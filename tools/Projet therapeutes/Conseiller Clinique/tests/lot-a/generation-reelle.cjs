@@ -37,7 +37,13 @@ if (!SUJETS.length) SUJETS.push("le cortisol et le systeme nerveux dans le stres
 // --publie : ouvrir la version REELLEMENT SERVIE par GitHub Pages plutot que le fichier local.
 // C'est la seule facon de verifier ce que Christophe utilisera : un fichier local peut differer
 // de ce qui est publie, et l'a deja fait.
-const PUBLIE = process.argv.includes('--publie');
+// --local : sert les fichiers LOCAUX sous l'adresse publiee. Indispensable pour mesurer une
+// version NON POUSSEE : le Worker n'accepte qu'une origine fixe
+// (https://c-concept-dev.github.io), et un fichier ouvert en file:// presente une origine `null`
+// que son CORS refuse — la campagne echouait entierement pour cette seule raison. On ne touche
+// JAMAIS au CORS du Worker pour contourner cela : c'est la page qui prend la bonne origine.
+const LOCAL_SOUS_ORIGINE = process.argv.includes('--local');
+const PUBLIE = process.argv.includes('--publie') || LOCAL_SOUS_ORIGINE;
 const PAGES = 'https://c-concept-dev.github.io/C-Concept-Dev/tools/Projet%20therapeutes/Conseiller%20Clinique/studio-clinique.html';
 const ORIGINE_PAGES = 'https://c-concept-dev.github.io';
 
@@ -58,11 +64,29 @@ async function mesurerUnSujet(browser, SUJET) {
     // rapporté : si un appel partait vers un tiers, ce test le dirait au lieu de le laisser passer.
     const hotesBloques = new Set();
     const hotesContactes = new Set();
+    const BASE_PAGES = ORIGINE_PAGES + '/C-Concept-Dev/tools/Projet%20therapeutes/Conseiller%20Clinique/';
+    const RACINE_LOCALE = path.join(__dirname, '..', '..');
+    const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'application/javascript; charset=utf-8',
+      '.json': 'application/json; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml' };
+    let serviesEnLocal = 0;
     await page.route('**/*', route => {
       const u = route.request().url();
       if (u.startsWith('file:') || u.startsWith('data:') || u.startsWith('blob:')) return route.continue();
       // En mode --publie, l'origine GitHub Pages doit evidemment etre jointe : c'est la page
       // elle-meme. Elle est relevee comme les autres, jamais laissee implicite.
+      if (LOCAL_SOUS_ORIGINE && u.startsWith(BASE_PAGES)) {
+        // La page garde l'origine publiee, mais son CONTENU vient du disque : c'est ainsi qu'on
+        // mesure une version non poussee sans rien publier ni assouplir le CORS du Worker.
+        const rel = decodeURIComponent(u.slice(BASE_PAGES.length).split('?')[0].split('#')[0]);
+        const fichier = path.join(RACINE_LOCALE, rel);
+        if (!fichier.startsWith(RACINE_LOCALE)) return route.abort();
+        try {
+          const corps = fs.readFileSync(fichier);
+          serviesEnLocal++;
+          return route.fulfill({ status: 200, body: corps,
+            contentType: TYPES[path.extname(fichier).toLowerCase()] || 'application/octet-stream' });
+        } catch (_) { return route.continue(); }
+      }
       if (PUBLIE && u.startsWith(ORIGINE_PAGES)) { hotesContactes.add(new URL(u).host); return route.continue(); }
       if (u.startsWith(WORKER)) { hotesContactes.add(new URL(u).host); return route.continue(); }
       // Dependances DECLAREES de l'application (jszip, pdf.js, mammoth, polices) : de simples GET
@@ -119,6 +143,7 @@ async function mesurerUnSujet(browser, SUJET) {
       form.requestSubmit ? form.requestSubmit() : form.querySelector('button[type="submit"]').click();
       return { via: 'accueil', typeChoisi: carte.getAttribute('aria-pressed') };
     }, SUJET);
+    if (LOCAL_SOUS_ORIGINE) console.log('  mode   : fichiers LOCAUX servis sous l\'adresse publiee (' + serviesEnLocal + ' fichier(s) servi(s))');
     console.log('  depart : ' + (depart.via === 'accueil'
       ? 'carte « Presentation » cliquee (aria-pressed=' + depart.typeChoisi + '), formulaire soumis'
       : 'repli sur la zone de chat — ' + depart.raison));
@@ -134,6 +159,21 @@ async function mesurerUnSujet(browser, SUJET) {
     // une carte de clarification. C'est son comportement normal, et un harnais qui se contente
     // d'attendre reste bloque sept minutes devant une question — c'est exactement ce qui s'est
     // produit. On y repond donc comme le ferait Christophe : en cliquant l'option « presentation ».
+    // Un refus d'origine (CORS) ou un fetch impossible condamne la generation : l'attendre douze
+    // minutes ne fait que retarder le meme constat. On l'attrape des qu'il apparait.
+    let refusOrigine = null;
+    page.on('console', m => {
+      const t = m.text();
+      if (!refusOrigine && /Access-Control-Allow-Origin|CORS policy|blocked by CORS|Failed to fetch|NetworkError/i.test(t)) {
+        refusOrigine = t.replace(/\s+/g, ' ').slice(0, 220);
+      }
+    });
+    page.on('requestfailed', r => {
+      const e = r.failure() && r.failure().errorText;
+      if (!refusOrigine && e && /CORS|ACCESS_CONTROL|FAILED/i.test(e) && r.url().startsWith(WORKER)) {
+        refusOrigine = e + ' sur ' + r.url().slice(0, 90);
+      }
+    });
     const clarifications = [];
     let derniereQuestion = null;
     let sortie = { ok: false, erreur: 'etat inconnu' };
@@ -151,6 +191,11 @@ async function mesurerUnSujet(browser, SUJET) {
     };
     const limite = Date.now() + 720000; // 12 min : clarifications ET generation se partagent ce budget
     while (Date.now() < limite) {
+      if (refusOrigine) {
+        sortie = { ok: false, erreur: 'refus d\'origine ou appel impossible : ' + refusOrigine
+          + (PUBLIE ? '' : ' — une page ouverte en file:// presente une origine `null` que le CORS du Worker refuse ; utiliser --publie ou --local') };
+        break;
+      }
       const etat = await page.evaluate(() => {
         const arts = window._adocArtifacts || {};
         for (const k of Object.keys(arts)) {
