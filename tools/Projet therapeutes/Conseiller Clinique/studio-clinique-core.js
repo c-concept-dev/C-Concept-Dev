@@ -7744,6 +7744,244 @@ ${recent}`;
     }).filter(function(l) { return !!l.text; });
   }
   window.adocFilterBlockDeepDiveLinks = adocFilterBlockDeepDiveLinks;
+  // ═══ COURS EN PUZZLE — ASSEMBLAGE DÉTERMINISTE ═══
+  // Un cours long ne peut pas être produit en un seul appel : 3 h de contenu réclament ~120
+  // diapositives, soit ~60 000 jetons de sortie, très au-delà de ce que le modèle rend en une fois
+  // (mesuré : 24 diapositives ≈ 11 900 jetons ; coupure à 16 000). Il est donc généré en MODULES
+  // autonomes — des présentations ordinaires de 8 à 12 diapositives — que cette fonction recolle.
+  //
+  // Elle est PURE et DÉTERMINISTE, et ces deux mots sont des exigences, pas des qualités :
+  //   — aucun réseau, aucun modèle, aucune horloge, aucun identifiant aléatoire. Les identifiants
+  //     volatils sont INJECTÉS par l'appelant (options.ids), sinon deux assemblages du même jeu de
+  //     modules différeraient et il deviendrait impossible de vérifier quoi que ce soit ;
+  //   — conséquence directe et voulue : remplacer le module 2 puis réassembler donne EXACTEMENT le
+  //     document qu'on aurait eu avec le bon module du premier coup. C'est tout l'intérêt du
+  //     puzzle, et c'est ce que le test d'idempotence éprouve.
+  //
+  // Entrées :
+  //   modules  [{ id?, doc, snapshot }] ou [doc] (doc portant _adocStructuredSnapshot) — l'ordre
+  //            fait foi, et `id` se lit sur l'entrée ou, à défaut, sur le plan.
+  //   plan     { courseId, titre, modules: [{ id, titre, notionsCles[], dureeMinutes }] }
+  //   options  { ids: { documentId, versionId, createdAt, requestId }, skip: [moduleId] }
+  // Sortie : { doc, snapshot, rapport }
+  function adocAssembleCourse(modules, plan, options) {
+    const opts = options || {};
+    const ids = opts.ids || {};
+    const skip = new Set(opts.skip || []);
+    if (!plan || !Array.isArray(plan.modules) || !plan.modules.length) {
+      throw new Error('adocAssembleCourse : plan de cours absent ou sans module.');
+    }
+    ['documentId', 'versionId', 'createdAt', 'requestId'].forEach(function (c) {
+      if (!ids[c]) throw new Error('adocAssembleCourse : options.ids.' + c + ' est requis — les identifiants volatils sont injectés, jamais tirés au sort, pour que deux assemblages identiques le restent.');
+    });
+
+    // ── Appariement plan ↔ modules fournis ────────────────────────────────────────────────────
+    // L'ordre du PLAN fait foi : c'est lui que l'utilisatrice a validé. Un module fourni sans
+    // entrée correspondante est une erreur nommée, jamais un ajout silencieux en fin de cours.
+    const parId = {};
+    (modules || []).forEach(function (m, i) {
+      const doc = m && m.doc ? m.doc : m;
+      const snapshot = (m && m.snapshot) || (doc && doc._adocStructuredSnapshot) || { entries: [] };
+      const id = (m && m.id) || (plan.modules[i] && plan.modules[i].id);
+      if (!id) throw new Error('adocAssembleCourse : module en position ' + (i + 1) + ' sans identifiant, et le plan n\'en fournit pas.');
+      parId[id] = { id: id, doc: doc, snapshot: snapshot };
+    });
+
+    const retenus = [];
+    const omis = [];
+    plan.modules.forEach(function (pm) {
+      if (skip.has(pm.id)) { omis.push({ id: pm.id, raison: 'demandé dans options.skip' }); return; }
+      const m = parId[pm.id];
+      if (!m) { omis.push({ id: pm.id, raison: 'aucun module fourni pour cette entrée du plan' }); return; }
+      if (!m.doc || !Array.isArray(m.doc.blocks) || !m.doc.blocks.length) {
+        throw new Error('adocAssembleCourse : le module « ' + pm.id + ' » n\'a aucune diapositive exploitable.');
+      }
+      if (!m.snapshot || !Array.isArray(m.snapshot.entries)) {
+        throw new Error('adocAssembleCourse : le module « ' + pm.id + ' » n\'a pas de relevé de sources (snapshot).');
+      }
+      retenus.push({ plan: pm, module: m });
+    });
+    if (!retenus.length) throw new Error('adocAssembleCourse : aucun module retenu — rien à assembler.');
+
+    // ── Relevé de sources FUSIONNÉ, dédoublonné ───────────────────────────────────────────────
+    // Huit modules d'un même cours interrogent la même bibliothèque et en rapportent largement les
+    // mêmes passages : sans dédoublonnage, le relevé enflerait de centaines d'entrées identiques et
+    // les références du cours deviendraient illisibles. L'identité est celle du passage lui-même —
+    // (sourceType, sourceId, passageId, contentChecksum) — jamais son identifiant, qui est propre à
+    // chaque génération. contentChecksum est déjà un sha256 du texte exact, requis par le schéma.
+    const cleEntree = function (e) {
+      return [e.sourceType, e.sourceId, e.passageId, e.contentChecksum].join('\u0000');
+    };
+    const entriesFusionnees = [];
+    const idEntreeParCle = {};
+    const traduireEntree = {}; // moduleId → { ancienId → nouvelId }
+    retenus.forEach(function (r) {
+      const table = {};
+      (r.module.snapshot.entries || []).forEach(function (e) {
+        const cle = cleEntree(e);
+        if (!(cle in idEntreeParCle)) {
+          const nouvel = 'entry-' + (entriesFusionnees.length + 1);
+          idEntreeParCle[cle] = nouvel;
+          entriesFusionnees.push(Object.assign({}, e, { sourceSnapshotEntryId: nouvel }));
+        }
+        table[e.sourceSnapshotEntryId] = idEntreeParCle[cle];
+      });
+      traduireEntree[r.plan.id] = table;
+    });
+
+    // ── Citations : une par entrée RETENUE, numérotées dans l'ordre de première apparition ────
+    const citations = [];
+    const idCitationParEntree = {};
+    const traduireCitation = {}; // moduleId → { ancienCitationId → nouveauCitationId }
+    retenus.forEach(function (r) {
+      const table = {};
+      (r.module.doc.citations || []).forEach(function (c) {
+        const nouvelleEntree = traduireEntree[r.plan.id][c.sourceSnapshotEntryId];
+        if (!nouvelleEntree) return; // citation orpheline : retirée, jamais laissée pointer nulle part
+        if (!(nouvelleEntree in idCitationParEntree)) {
+          const nouvel = 'citation-' + (citations.length + 1);
+          idCitationParEntree[nouvelleEntree] = nouvel;
+          citations.push({ citationId: nouvel, sourceSnapshotEntryId: nouvelleEntree, displayLabel: c.displayLabel });
+        }
+        table[c.citationId] = idCitationParEntree[nouvelleEntree];
+      });
+      traduireCitation[r.plan.id] = table;
+    });
+
+    // ── Diapositives ──────────────────────────────────────────────────────────────────────────
+    // Chaque module est précédé d'une diapositive de titre construite ICI, par le code : c'est elle
+    // qui donne au cours ses respirations, et c'est sur elle que pointe doc.modules.
+    const cards = [];
+    const entetes = [];
+    let seqCard = 0;
+    const idCarte = function () { seqCard++; return 'card-' + String(seqCard).padStart(2, '0'); };
+    let seqBloc = 0;
+    const idBloc = function (type) { seqBloc++; return type + '-' + String(seqBloc).padStart(2, '0'); };
+
+    const remapperBloc = function (bloc, moduleId) {
+      const clone = JSON.parse(JSON.stringify(bloc));
+      clone.id = idBloc(clone.type || 'block');
+      const tc = traduireCitation[moduleId] || {};
+      if (Array.isArray(clone.citationIds)) {
+        clone.citationIds = clone.citationIds.map(function (c) { return tc[c]; }).filter(Boolean);
+      }
+      if (clone.validation && Array.isArray(clone.validation.citationLinks)) {
+        clone.validation.citationLinks = clone.validation.citationLinks
+          .map(function (l) { return tc[l.citationId] ? Object.assign({}, l, { citationId: tc[l.citationId] }) : null; })
+          .filter(Boolean);
+      }
+      // Les renvois d'approfondissement d'un bloc visent une page du MÊME module : le préfixe suffit.
+      if (Array.isArray(clone.deepDiveLinks)) {
+        clone.deepDiveLinks = clone.deepDiveLinks.map(function (l) {
+          return Object.assign({}, l, { targetId: moduleId + '-' + l.targetId });
+        });
+      }
+      if (clone.content && Array.isArray(clone.content.blocks)) {
+        clone.content.blocks = clone.content.blocks.map(function (b) { return remapperBloc(b, moduleId); });
+      }
+      return clone;
+    };
+
+    retenus.forEach(function (r) {
+      const notions = (r.plan.notionsCles || []).filter(Boolean);
+      const contexte = notions.length
+        ? [{ id: idBloc('paragraph'), type: 'paragraph',
+             content: { text: 'Notions clés : ' + notions.join(', ') + '.' },
+             citationIds: [], validation: {} }]
+        : [];
+      const entete = {
+        id: idCarte(), type: 'card',
+        content: { title: r.plan.titre || r.module.doc.title || r.plan.id, imageRef: null, imageAlt: null, blocks: contexte },
+        citationIds: [], validation: {},
+      };
+      cards.push(entete);
+      entetes.push({ id: r.plan.id, title: entete.content.title, cardId: entete.id });
+      (r.module.doc.blocks || []).forEach(function (card) {
+        const clone = remapperBloc(card, r.plan.id);
+        clone.id = idCarte(); // une carte de diapositive garde la numérotation des cartes
+        cards.push(clone);
+      });
+    });
+
+    // ── Pages d'approfondissement ─────────────────────────────────────────────────────────────
+    // Les identifiants sont préfixés par module (m1-, m2-…) : deux modules peuvent parfaitement
+    // avoir produit « deepdive-cortisol » chacun de leur côté. Les renvois internes d'une page
+    // visent une page du même module, donc le même préfixe.
+    const deepDivesBruts = [];
+    retenus.forEach(function (r) {
+      (r.module.doc.deepDives || []).forEach(function (d) {
+        deepDivesBruts.push({
+          id: r.plan.id + '-' + d.id,
+          title: d.title,
+          paragraphs: (d.paragraphs || []).map(function (par) {
+            if (typeof par === 'string') return par;
+            const liens = (par.deepDiveLinks || []).map(function (l) {
+              return Object.assign({}, l, { targetId: r.plan.id + '-' + l.targetId });
+            });
+            return liens.length ? { text: par.text, deepDiveLinks: liens } : par.text;
+          }),
+        });
+      });
+    });
+    // REJOUÉE sur l'ensemble : filet d'existence (un renvoi vers une page d'un module écarté doit
+    // disparaître) et coupe des cycles à trois couleurs, cette fois sur le graphe du cours entier.
+    const deepDives = adocConvertDeepDives(deepDivesBruts);
+
+    // Les renvois des BLOCS visant une page disparue sont retirés à leur tour — même sévérité.
+    const idsPages = {};
+    deepDives.forEach(function (d) { idsPages[d.id] = 1; });
+    const nettoyerRenvoisBloc = function (b) {
+      if (Array.isArray(b.deepDiveLinks)) {
+        b.deepDiveLinks = b.deepDiveLinks.filter(function (l) { return idsPages[l.targetId]; });
+        if (!b.deepDiveLinks.length) delete b.deepDiveLinks;
+      }
+      if (b.content && Array.isArray(b.content.blocks)) b.content.blocks.forEach(nettoyerRenvoisBloc);
+    };
+    cards.forEach(nettoyerRenvoisBloc);
+
+    const premier = retenus[0].module.doc;
+    const doc = {
+      schemaVersion: 1,
+      documentId: ids.documentId,
+      versionId: ids.versionId,
+      previousVersionId: null,
+      requestId: ids.requestId,
+      sourceSnapshotId: ids.documentId + '-sources',
+      createdAt: ids.createdAt,
+      language: premier.language || 'fr',
+      status: 'draft',
+      title: plan.titre || premier.title,
+      purpose: premier.purpose,
+      audience: premier.audience,
+      documentKind: 'presentation',
+      renderManifestId: premier.renderManifestId,
+      derivedFrom: null,
+      blocks: cards,
+      citations: citations,
+      validation: { sourceIntegrity: 'pending', contentCompleteness: 'pending', layout: 'pending', accessibility: 'pending', humanClinicalReview: 'required' },
+    };
+    if (deepDives.length) doc.deepDives = deepDives;
+    doc.modules = entetes;
+
+    return {
+      doc: doc,
+      snapshot: { sourceSnapshotId: doc.sourceSnapshotId, entries: entriesFusionnees },
+      rapport: {
+        courseId: plan.courseId || null,
+        modulesAssembles: retenus.map(function (r) { return r.plan.id; }),
+        modulesOmis: omis,
+        diapositives: cards.length,
+        pages: deepDives.length,
+        entreesSources: entriesFusionnees.length,
+        entreesDedoublonnees: retenus.reduce(function (a, r) { return a + (r.module.snapshot.entries || []).length; }, 0) - entriesFusionnees.length,
+        citations: citations.length,
+      },
+    };
+  }
+  // Exposée pour les tests — même patron que window.adocConvertDeepDives : l'assembleur est
+  // entièrement vérifiable hors ligne, sur des modules forgés, sans le moindre appel au modèle.
+  window.adocAssembleCourse = adocAssembleCourse;
+
 
   // Présentation ACTE 2, Phase 2 — enveloppe, DANS un fragment de texte DÉJÀ ÉCHAPPÉ, chaque lien
   // d'approfondissement de `pool` dont l'expression `text` y apparaît (correspondance exacte,
