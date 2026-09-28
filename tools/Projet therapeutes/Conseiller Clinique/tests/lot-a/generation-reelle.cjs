@@ -383,7 +383,11 @@ async function mesurerUnSujet(browser, SUJET) {
       console.error('  adresses contactees : ' + ([...hotesContactes].join(', ') || 'aucune'));
       if (hotesBloques.size) console.error('  hotes bloques : ' + [...hotesBloques].join(', '));
       await page.close().catch(() => {});
-      return { sujet: SUJET, ok: false, secondes, erreur: sortie.erreur };
+      // Ces deux mesures existaient a l'ecran mais manquaient au fichier : un echec est
+      // precisement le cas ou l'on veut relire stop_reason et le volume atteint.
+      return { sujet: SUJET, ok: false, secondes, erreur: sortie.erreur,
+        stopReason: appel2.stopReason, caracteresJSON: appel2.caracteresJSON,
+        troncature: troncature.length, clarifications: clarifications.length };
     }
 
     const doc = sortie.doc;
