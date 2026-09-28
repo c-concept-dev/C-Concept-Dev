@@ -141,9 +141,16 @@ function forgerDoc(n, diapos) {
 
     // ── 3. NOMMAGE ───────────────────────────────────────────────────────────────────────────
     assert.deepEqual(a.modules.map(m => m.nom), [
-      'Cours — Les troubles de l\'attachement · Module 1/3 · Module 1',
-      'Cours — Les troubles de l\'attachement · Module 2/3 · Module 2',
-      'Cours — Les troubles de l\'attachement · Module 3/3 · Module 3']);
+      'Cours — Les troubles de l\'attachement · Module 1 sur 3 · Module 1',
+      'Cours — Les troubles de l\'attachement · Module 2 sur 3 · Module 2',
+      'Cours — Les troubles de l\'attachement · Module 3 sur 3 · Module 3']);
+    // « sur » et non « / » : adocDeliverArtifact dérive le nom de FICHIER de ce même libellé en
+    // retirant tout caractère non alphanumérique — « Module 1/12 » y devenait « Module-112 ».
+    // Le slug est recalculé ici avec la MÊME expression que la fonction de livraison.
+    const slug = n => n.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9\s-]/g, '').trim().replace(/\s+/g, '-');
+    assert.match(slug(a.modules[0].nom), /Module-1-sur-3/, 'le rang reste lisible dans le nom de fichier');
+    assert.doesNotMatch(slug(a.modules[0].nom), /Module-13/, 'jamais « Module-13 » pour un module 1 sur 3');
     assert.equal(await page.evaluate(p => window.adocCourseAssembledName(p), p3),
       'Cours — Les troubles de l\'attachement (assemblé)');
     console.log('PASS 3/9  nommage : rang, total et titre du module dans chaque nom ; le cours assemblé se distingue.');

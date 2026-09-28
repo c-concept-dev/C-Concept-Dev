@@ -2949,6 +2949,20 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
           return;
         }
       }
+      // Cours en modules — MÊME point d'ancrage et même patron que la clarté de format ci-dessus :
+      // juste après le plan finalisé, AVANT toute consultation RAG. Placer l'offre plus bas (là où
+      // vit déjà le message de plafond, une fois documentKind résolu) gaspillerait la recherche du
+      // cours ENTIER, que le découpage refait de toute façon module par module.
+      if (!plan?._courseOfferResolved) {
+        const _offreCours = adocCourseOfferBudget(plan);
+        if (_offreCours) {
+          adocPoseCourseOffer({ text: text, plan: plan, typingId: typingId, workerUrl: workerUrl,
+            _precomputedRag: _precomputedRag, budget: _offreCours });
+          // Même motif qu'au-dessus : pas de _adocResetSendState() ici, adocSendOriginal le fait
+          // une seule fois après le retour de cet appel.
+          return;
+        }
+      }
       // ── M1 : Enrichissement des recherches en parallèle — Unlimited Token System ──
       // Second Haiku propose 3 recherches structurées supplémentaires (angles différents)
       // lancé EN MÊME TEMPS que adocExecutePlan via Promise.all — zéro latence.
@@ -6870,6 +6884,13 @@ ${recent}`;
     // complet, seul le format manquait) : résolue à part, sans toucher au chemin ci-dessous
     // (inchangé pour toute carte de clarté de CONTENU, palier 1 — comportement STRICTEMENT
     // identique quand aucune clarté de format n'est en attente).
+    // Les deux paliers ne sont jamais actifs en même temps (la clarté de format se résout d'abord,
+    // et c'est en REPRENANT le pipeline que l'offre de cours est posée) — l'ordre de ces deux tests
+    // est donc sans effet, mais l'offre de cours est traitée d'abord pour rester lisible.
+    if (adocCourseOfferActiveId != null) {
+      _adocResolveCourseOffer(text);
+      return;
+    }
     if (adocFormatClarityActiveId != null) {
       _adocResolveFormatClarity(text);
       return;
@@ -8081,6 +8102,23 @@ ${recent}`;
   // Normalisation PURE de ce que le modèle a répondu. Séparée de l'appel pour être éprouvable sans
   // dépenser un centime : c'est ici que vivent toutes les bornes, et c'est ici que se joue la
   // robustesse face à une réponse partielle ou fantaisiste.
+  // La taille d'un module, en un seul endroit. Le plan initial et toute retouche de l'utilisatrice
+  // (module supprimé, durée changée) passent par ICI : deux formules séparées auraient divergé au
+  // premier ajustement, et l'écran de plan aurait annoncé un nombre que la génération n'aurait pas
+  // tenu.
+  function adocCourseModuleSizing(totalMinutes, nbModules) {
+    const n = Math.max(1, nbModules | 0);
+    const total = typeof totalMinutes === 'number' && totalMinutes > 0 ? totalMinutes : n * 15;
+    const parModule = Math.max(5, Math.round(total / n));
+    return {
+      total: total, dureeMinutes: parModule,
+      // 10 à 12 diapositives : en dessous un module n'a pas de corps, au-dessus on retrouve le
+      // problème que le découpage en modules existe précisément pour éviter.
+      slideCount: Math.min(12, Math.max(10, Math.round(parModule / 1.5) || 10)),
+    };
+  }
+  window.adocCourseModuleSizing = adocCourseModuleSizing;
+
   function adocNormalizeCoursePlan(brut, demande, dureeMinutes, courseId) {
     const nMax = adocCourseModuleCount(dureeMinutes);
     const liste = Array.isArray(brut) ? brut : (brut && Array.isArray(brut.modules) ? brut.modules : []);
@@ -8100,22 +8138,19 @@ ${recent}`;
     }
     // La durée se répartit sur les modules RÉELLEMENT retenus, jamais sur ceux qui étaient espérés :
     // un plan de 6 modules pour 3 h doit donner 30 minutes chacun, pas 15.
-    const total = typeof dureeMinutes === 'number' && dureeMinutes > 0 ? dureeMinutes : propres.length * 15;
-    const parModule = Math.max(5, Math.round(total / propres.length));
+    const taille = adocCourseModuleSizing(dureeMinutes, propres.length);
     return {
       courseId: courseId,
       titre: adocStripEmoji((((brut && brut.titre) || demande || 'Cours') + '').trim()).slice(0, 200),
-      dureeMinutes: total,
+      dureeMinutes: taille.total,
       modules: propres.map(function (m, i) {
         return {
           id: 'm' + (i + 1),
           titre: m.titre,
           objectifs: m.objectifs,
           notionsCles: m.notionsCles,
-          dureeMinutes: parModule,
-          // 10 à 12 diapositives : en dessous un module n'a pas de corps, au-dessus on retrouve le
-          // problème que le découpage en modules existe précisément pour éviter.
-          slideCount: Math.min(12, Math.max(10, Math.round(parModule / 1.5) || 10)),
+          dureeMinutes: taille.dureeMinutes,
+          slideCount: taille.slideCount,
           requeteBibliotheque: m.requete || (m.titre + (m.notionsCles.length ? ' ' + m.notionsCles.join(' ') : '')),
         };
       }),
@@ -8201,8 +8236,13 @@ ${recent}`;
   window.adocCourseModuleRequest = adocCourseModuleRequest;
 
   // Nom d'enregistrement — convention, faute de champ de regroupement dans « Mes créations ».
+  //
+  // « Module 3 sur 8 », et non « Module 3/8 » comme prévu au départ : adocDeliverArtifact dérive le
+  // nom de fichier téléchargé de ce même libellé en supprimant tout caractère non alphanumérique
+  // (`safeName`). « Module 3/8 » devenait « Module-38 », et « Module 1/12 » devenait « Module-112 » —
+  // un nom de fichier qu'on ne sait plus relire. Mesuré, pas supposé.
   function adocCourseModuleName(plan, i) {
-    return 'Cours — ' + plan.titre + ' · Module ' + (i + 1) + '/' + plan.modules.length + ' · ' + plan.modules[i].titre;
+    return 'Cours — ' + plan.titre + ' · Module ' + (i + 1) + ' sur ' + plan.modules.length + ' · ' + plan.modules[i].titre;
   }
   function adocCourseAssembledName(plan) { return 'Cours — ' + plan.titre + ' (assemblé)'; }
   window.adocCourseModuleName = adocCourseModuleName;
@@ -8292,8 +8332,14 @@ ${recent}`;
             // assemblé déborde la durée annoncée.
             dernierEchec = diapos + ' diapositives au lieu de ' + m.slideCount + ' (écart supérieur à 2)';
           } else {
-            retenu = { id: m.id, doc: r.doc, snapshot: r.snapshot, stopReason: r.stopReason,
-                       diapositives: diapos, essais: essai };
+            const cand = { id: m.id, doc: r.doc, snapshot: r.snapshot, stopReason: r.stopReason,
+                           diapositives: diapos, essais: essai };
+            // Dernier filtre, confié à l'appelant : c'est lui qui rend et enregistre le module, donc
+            // lui seul sait si le contrôle qualité l'a bloqué. Un module bloqué doit rejoindre la
+            // reprise ci-dessus — le découvrir après l'assemblage serait trop tard.
+            const verdict = opts.surModuleRetenu ? await opts.surModuleRetenu(cand, i, plan) : null;
+            if (verdict && verdict.refuse) dernierEchec = verdict.raison || 'module refusé à l\'enregistrement';
+            else retenu = Object.assign(cand, verdict && verdict.ajout ? verdict.ajout : {});
           }
         } catch (e) {
           dernierEchec = (e && e.message) || String(e);
@@ -8343,6 +8389,481 @@ ${recent}`;
   }
   window.adocRunCourseGeneration = adocRunCourseGeneration;
   window.adocGenerateCourseModule = adocGenerateCourseModule;
+  // ═══ COURS EN MODULES — L'INTERFACE ═══
+  // Trois écrans, tous dans le fil de conversation, tous sur le patron visuel déjà établi de la
+  // carte de clarification (cc-clarity-card) : jamais un composant réinventé.
+  //   1. l'offre — quand la demande dépasse ce qu'une seule présentation peut tenir ;
+  //   2. le plan — modifiable AVANT de dépenser le premier appel ;
+  //   3. la progression, puis le récapitulatif avec reprise module par module.
+
+  // Estimation de durée par module. ATTENTION : ce chiffre n'est PAS mesuré. Il sert seulement à
+  // ce que l'utilisatrice sache si elle en a pour trois minutes ou pour une demi-heure avant de
+  // lancer. À remplacer par la médiane réellement observée dès la première campagne réelle.
+  const ADOC_COURSE_MINUTES_PAR_MODULE = 3;
+
+  // ── 1. L'OFFRE ────────────────────────────────────────────────────────────────────────────
+  const ADOC_COURSE_CHOIX_MODULES = 'Cours en modules (recommandé)';
+  const ADOC_COURSE_CHOIX_CONDENSE = 'Présentation condensée en 20 diapositives';
+  window._adocPendingCourseOffer = {};
+  let adocCourseOfferActiveId = null;
+
+  // Le plafond s'apprécie AVANT le RAG, donc avant que documentKind et presentation_options
+  // n'aient été recopiés sur le plan (cela n'arrive que plus bas dans le pipeline) : les deux
+  // sources sont lues ici, exactement comme _hasExplicitKindEarly le fait pour le type.
+  function adocCourseOfferBudget(plan) {
+    const kind = (plan && plan.documentKind) || adocClarityDocumentKind;
+    if (kind !== 'presentation') return null;
+    const budget = adocPresentationSlideBudget({
+      duree_minutes: plan && plan.duree_minutes,
+      presentation_options: (plan && plan.presentation_options) || adocClarityPresentationOptions,
+    });
+    return budget.borne ? budget : null;
+  }
+  window.adocCourseOfferBudget = adocCourseOfferBudget;
+
+  function adocPoseCourseOffer(etat) {
+    const b = etat.budget;
+    window._adocPendingCourseOffer[etat.typingId] = etat;
+    adocCourseOfferActiveId = etat.typingId;
+    adocRemoveTyping(etat.typingId);
+    adocRenderClarityCard({
+      understood_so_far: 'Cette demande représente environ ' + b.brute + ' diapositives'
+        + (b.duree ? ' pour ' + b.duree + ' minutes' : '') + '. Une seule présentation ne peut en '
+        + 'tenir que ' + b.max + ' : au-delà, le modèle compense en tassant chaque diapositive.',
+      question: 'Comment veux-tu procéder ?',
+      quick_replies: [ADOC_COURSE_CHOIX_MODULES, ADOC_COURSE_CHOIX_CONDENSE],
+      assumptions_if_proceeding: [],
+    });
+  }
+
+  async function _adocResolveCourseOffer(choix) {
+    const id = adocCourseOfferActiveId;
+    const etat = id != null ? window._adocPendingCourseOffer[id] : null;
+    adocCourseOfferActiveId = null;
+    adocRemoveClarityCard();
+    if (!etat) return; // état perdu (session réouverte) — rien à reprendre, même filet que la clarté de format
+    delete window._adocPendingCourseOffer[id];
+    // Marqueur consommé une seule fois : sans lui, la même offre se reposerait indéfiniment sur ce
+    // plan, quelle que soit la réponse — exactement le piège déjà rencontré sur la clarté de format.
+    etat.plan._courseOfferResolved = true;
+    if (choix !== ADOC_COURSE_CHOIX_MODULES) {
+      const t = adocShowTyping();
+      adocRunGenerationPipeline(etat.text, etat.plan, t, etat.workerUrl, etat._precomputedRag)
+        .catch(function (e) { adocRemoveTyping(t); adocAddMsg('assistant', 'Erreur : ' + e.message, []); });
+      return;
+    }
+    const t = adocShowTyping();
+    adocUpdateTypingLabel(t, 'icon-structure', 'Découpage du cours en modules…');
+    try {
+      const plan = await adocBuildCoursePlan(etat.text, etat.plan.duree_minutes, etat.workerUrl, 'cours-' + adocUUID());
+      adocRemoveTyping(t);
+      adocRenderCoursePlanCard(plan, etat);
+    } catch (e) {
+      adocRemoveTyping(t);
+      // La cause réelle est dite. « Le découpage a échoué » sans plus laisserait choisir entre
+      // réessayer et abandonner sans aucun élément.
+      adocAddMsg('assistant', 'Le découpage en modules a échoué : ' + e.message
+        + '\n\nTu peux relancer la demande, ou choisir la présentation condensée en '
+        + adocPresentationSlideBudget({}).max + ' diapositives.', []);
+    }
+  }
+
+  // ── 2. L'ÉCRAN DE PLAN ────────────────────────────────────────────────────────────────────
+  // Recalcule les tailles après toute retouche. Les identifiants sont CONSERVÉS : un module
+  // renommé ou déplacé reste le même module, sinon l'assembleur — qui apparie sur l'identifiant —
+  // ne retrouverait plus la pièce qu'on vient de régénérer.
+  function adocCoursePlanRecompute(plan) {
+    const taille = adocCourseModuleSizing(plan.dureeMinutes, plan.modules.length);
+    return Object.assign({}, plan, {
+      dureeMinutes: taille.total,
+      modules: plan.modules.map(function (m) {
+        return Object.assign({}, m, { dureeMinutes: taille.dureeMinutes, slideCount: taille.slideCount,
+          // La requête bibliothèque suit le titre quand elle n'a jamais été écrite à part : renommer
+          // un module sans que sa recherche suive donnerait un module hors sujet.
+          requeteBibliotheque: m.requeteSurMesure ? m.requeteBibliotheque
+            : (m.titre + (m.notionsCles && m.notionsCles.length ? ' ' + m.notionsCles.join(' ') : '')) });
+      }),
+    });
+  }
+  window.adocCoursePlanRecompute = adocCoursePlanRecompute;
+
+  // Ce que l'écran annonce. Le total de diapositives compte les diapositives de TITRE ajoutées par
+  // l'assembleur : annoncer 96 puis en livrer 104 ferait douter de tout le reste.
+  function adocCoursePlanSummary(plan) {
+    const n = plan.modules.length;
+    const parModule = n ? plan.modules[0].slideCount : 0;
+    return {
+      modules: n, dureeMinutes: plan.dureeMinutes, parModule: parModule,
+      diapositives: plan.modules.reduce(function (a, m) { return a + m.slideCount + 1; }, 0),
+      minutesEstimees: n * ADOC_COURSE_MINUTES_PAR_MODULE,
+    };
+  }
+  window.adocCoursePlanSummary = adocCoursePlanSummary;
+
+  window._adocCourseUI = null;
+
+  function adocRenderCoursePlanCard(plan, etat) {
+    window._adocCourseUI = { plan: adocCoursePlanRecompute(plan), etat: etat, resultats: null };
+    adocRefreshCoursePlanCard();
+  }
+
+  function adocRefreshCoursePlanCard() {
+    const ui = window._adocCourseUI; if (!ui) return;
+    const area = document.getElementById('adoc-messages'); if (!area) return;
+    const s = adocCoursePlanSummary(ui.plan);
+    // La carte existante est REMPLIE À NOUVEAU, jamais détruite et recréée. Cette fonction est
+    // appelée depuis des gestionnaires portés par des éléments qui vivent DANS la carte (le champ
+    // de durée, les boutons de déplacement) : détruire le conteneur pendant que le navigateur
+    // déplace encore le focus fait lever une NotFoundError par `remove()` — reproduit, puis
+    // supprimé ici. Cela évite aussi que le fil de conversation saute à chaque retouche.
+    let card = document.getElementById('cc-course-plan-card');
+    const neuve = !card;
+    if (neuve) {
+      adocRemoveClarityCard(); // un seul écran actif à la fois — invariant de la carte de clarification
+      card = document.createElement('div');
+      card.className = 'cc-clarity-card sc-clarification-card';
+      card.setAttribute('role', 'group');
+      card.setAttribute('aria-label', 'Plan du cours, modifiable avant génération');
+      card.id = 'cc-course-plan-card';
+    }
+    const lignes = ui.plan.modules.map(function (m, i) {
+      return '<li class="cc-course-module" data-module="' + m.id + '" style="display:flex;align-items:center;gap:8px;padding:4px 0;">'
+        + '<span style="min-width:2.2em;color:var(--muted);">' + (i + 1) + '.</span>'
+        + '<input class="adoc-input cc-course-titre" style="flex:1;min-width:8em;" value="' + adocEsc(m.titre) + '" '
+          + 'aria-label="Titre du module ' + (i + 1) + '" '
+          + 'oninput="window.adocCoursePlanRename(\'' + m.id + '\', this.value)">'
+        + '<span style="color:var(--muted);white-space:nowrap;">' + m.dureeMinutes + ' min · ' + m.slideCount + ' diapos</span>'
+        + '<button type="button" class="cc-clarity-reply-btn" aria-label="Monter le module ' + (i + 1) + '"'
+          + (i === 0 ? ' disabled' : '') + ' onclick="window.adocCoursePlanMove(\'' + m.id + '\', -1)">↑</button>'
+        + '<button type="button" class="cc-clarity-reply-btn" aria-label="Descendre le module ' + (i + 1) + '"'
+          + (i === ui.plan.modules.length - 1 ? ' disabled' : '') + ' onclick="window.adocCoursePlanMove(\'' + m.id + '\', 1)">↓</button>'
+        + '<button type="button" class="cc-clarity-reply-btn" aria-label="Supprimer le module ' + (i + 1) + '"'
+          + (ui.plan.modules.length <= 2 ? ' disabled' : '') + ' onclick="window.adocCoursePlanRemove(\'' + m.id + '\')">✕</button>'
+        + '</li>';
+    }).join('');
+    card.innerHTML =
+      '<div class="cc-clarity-question sc-clarification-card__heading sc-icon-label">' + adocIconSvg('icon-structure')
+        + '<span>Plan du cours — ' + adocEsc(ui.plan.titre) + '</span></div>'
+      + '<div class="cc-clarity-understood sc-clarification-card__intro">'
+        + s.modules + ' modules · ' + s.dureeMinutes + ' minutes de cours · ' + s.diapositives
+        + ' diapositives au total (diapositive de titre de chaque module comprise).<br>'
+        + 'Génération estimée à environ ' + s.minutesEstimees + ' minutes — estimation, pas une mesure.'
+      + '</div>'
+      + '<label style="display:flex;align-items:center;gap:8px;margin:8px 0;">Durée totale du cours'
+        + '<input type="number" class="adoc-input" min="10" max="600" step="5" style="width:6em;" '
+          + 'value="' + ui.plan.dureeMinutes + '" aria-label="Durée totale du cours en minutes" '
+          + 'onchange="window.adocCoursePlanSetDuration(this.value)"> minutes</label>'
+      + '<ul style="list-style:none;padding:0;margin:8px 0;">' + lignes + '</ul>'
+      + '<div class="cc-clarity-replies sc-clarification-card__choices">'
+        + '<button type="button" class="cc-clarity-reply-btn sc-clarification-choice" onclick="window.adocCoursePlanLaunch()">'
+          + 'Générer les ' + s.modules + ' modules</button>'
+        + '<button type="button" class="cc-clarity-other-btn sc-clarification-choice" onclick="window.adocCoursePlanCancel()">'
+          + 'Annuler</button>'
+      + '</div>';
+    if (neuve) { area.appendChild(card); area.scrollTop = area.scrollHeight; }
+    adocClarityCardEl = card;
+  }
+
+  // Un renommage ne redessine PAS la carte : le champ perdrait le focus et le curseur à chaque
+  // frappe. Seul le modèle est mis à jour ; les tailles ne dépendent pas du titre.
+  window.adocCoursePlanRename = function (id, valeur) {
+    const ui = window._adocCourseUI; if (!ui) return;
+    const m = ui.plan.modules.find(function (x) { return x.id === id; });
+    if (m) { m.titre = valeur; m.requeteSurMesure = false; ui.plan = adocCoursePlanRecompute(ui.plan); }
+  };
+  window.adocCoursePlanMove = function (id, delta) {
+    const ui = window._adocCourseUI; if (!ui) return;
+    const i = ui.plan.modules.findIndex(function (x) { return x.id === id; });
+    const j = i + delta;
+    if (i < 0 || j < 0 || j >= ui.plan.modules.length) return;
+    const ms = ui.plan.modules.slice();
+    ms[i] = ui.plan.modules[j]; ms[j] = ui.plan.modules[i];
+    ui.plan = adocCoursePlanRecompute(Object.assign({}, ui.plan, { modules: ms }));
+    adocRefreshCoursePlanCard();
+  };
+  window.adocCoursePlanRemove = function (id) {
+    const ui = window._adocCourseUI; if (!ui) return;
+    // Jamais en dessous de 2 : un « cours en modules » d'un seul module n'est pas un cours, c'est
+    // la présentation condensée qu'on venait d'écarter.
+    if (ui.plan.modules.length <= 2) return;
+    ui.plan = adocCoursePlanRecompute(Object.assign({}, ui.plan,
+      { modules: ui.plan.modules.filter(function (x) { return x.id !== id; }) }));
+    adocRefreshCoursePlanCard();
+  };
+  window.adocCoursePlanSetDuration = function (valeur) {
+    const ui = window._adocCourseUI; if (!ui) return;
+    const d = Math.min(600, Math.max(10, parseInt(valeur, 10) || ui.plan.dureeMinutes));
+    ui.plan = adocCoursePlanRecompute(Object.assign({}, ui.plan, { dureeMinutes: d }));
+    adocRefreshCoursePlanCard();
+  };
+  window.adocCoursePlanCancel = function () {
+    window._adocCourseUI = null;
+    adocRemoveClarityCard();
+    adocAddMsg('assistant', 'Cours abandonné — aucun module n\'a été généré.', []);
+  };
+
+  // ── 3. PROGRESSION ET RÉCAPITULATIF ───────────────────────────────────────────────────────
+  const ADOC_COURSE_ETATS = { attente: '·', 'en-cours': '…', ok: '✓', 'a-regenerer': '✕', annule: '⦸' };
+
+  function adocRenderCourseProgressCard() {
+    const ui = window._adocCourseUI; if (!ui) return;
+    const area = document.getElementById('adoc-messages'); if (!area) return;
+    let card = document.getElementById('cc-course-progress-card');
+    if (!card) {
+      adocRemoveClarityCard();
+      card = document.createElement('div');
+      card.className = 'cc-clarity-card sc-clarification-card';
+      card.id = 'cc-course-progress-card';
+      card.setAttribute('role', 'status');
+      card.setAttribute('aria-live', 'polite');
+      area.appendChild(card);
+      adocClarityCardEl = card;
+    }
+    const etats = ui.etats || {};
+    const faits = ui.plan.modules.filter(function (m) { return etats[m.id] === 'ok'; }).length;
+    card.innerHTML =
+      '<div class="cc-clarity-question sc-clarification-card__heading sc-icon-label">' + adocIconSvg('icon-structure')
+        + '<span>' + adocEsc(ui.plan.titre) + ' — ' + faits + ' module' + (faits > 1 ? 's' : '') + ' sur '
+        + ui.plan.modules.length + '</span></div>'
+      + '<ul style="list-style:none;padding:0;margin:8px 0;">'
+      + ui.plan.modules.map(function (m, i) {
+          const e = etats[m.id] || 'attente';
+          return '<li data-module="' + m.id + '" data-etat="' + e + '" style="padding:2px 0;">'
+            + '<span aria-hidden="true" style="display:inline-block;min-width:1.4em;">' + ADOC_COURSE_ETATS[e] + '</span>'
+            + adocEsc((i + 1) + '. ' + m.titre)
+            + (ui.erreurs && ui.erreurs[m.id] ? '<span style="color:var(--muted);"> — ' + adocEsc(ui.erreurs[m.id]) + '</span>' : '')
+            + '</li>';
+        }).join('')
+      + '</ul>'
+      + (ui.termine ? '' : '<div class="cc-clarity-replies sc-clarification-card__choices">'
+          + '<button type="button" class="cc-clarity-other-btn sc-clarification-choice" onclick="window.adocCourseAbort()">'
+          + 'Arrêter — garder les modules déjà produits</button></div>');
+    area.scrollTop = area.scrollHeight;
+  }
+
+  window.adocCourseAbort = function () {
+    const ui = window._adocCourseUI;
+    if (ui && ui.ctrl) ui.ctrl.abort();
+  };
+
+  window.adocCoursePlanLaunch = function () {
+    const ui = window._adocCourseUI; if (!ui || ui.encours) return;
+    ui.encours = true; ui.etats = {}; ui.erreurs = {}; ui.termine = false;
+    ui.ctrl = new AbortController();
+    adocRemoveClarityCard();
+    adocRunCourseUI().catch(function (e) {
+      ui.termine = true;
+      adocRenderCourseProgressCard();
+      adocAddMsg('assistant', 'Le cours a été interrompu par une erreur : ' + e.message, []);
+    });
+  };
+
+  async function adocRunCourseUI() {
+    const ui = window._adocCourseUI;
+    const workerUrl = ui.etat.workerUrl || adocGetWorkerUrl();
+    adocRenderCourseProgressCard();
+    // La charte est résolue UNE fois pour tout le cours : un module rendu avec une autre charte
+    // que ses voisins donnerait un cours bariolé, et c'est un choix de rendu, pas de contenu.
+    const kit = await adocResolveBrandKitForGeneration({ documentKind: 'presentation' });
+
+    const r = await adocRunCourseGeneration(ui.plan, {
+      // Même raison que dans l'orchestrateur, et c'est la seule : sans générateur injectable,
+      // progression, récapitulatif et reprise ne seraient vérifiables qu'en payant des appels
+      // réels — donc, en pratique, ne seraient pas vérifiés. Toujours absent en production.
+      generateur: ui.etat.generateur,
+      workerUrl: workerUrl,
+      planOrigine: ui.etat.plan,
+      docCtx: ui.etat.docCtx || '',
+      signal: ui.ctrl.signal,
+      surProgression: function (e) {
+        const id = ui.plan.modules[e.index].id;
+        ui.etats[id] = e.etat;
+        if (e.erreur) ui.erreurs[id] = e.erreur;
+        adocRenderCourseProgressCard();
+      },
+      // Chaque module réussi est RENDU et ENREGISTRÉ tout de suite. Un cours de 3 h, c'est une
+      // douzaine d'appels réels : si l'onglet se ferme au neuvième, tout serait perdu — et
+      // réellement payé. Enregistrer au fil de l'eau ne demande aucune interface en plus,
+      // adocDeliverArtifact créant déjà l'entrée dans « Mes créations ».
+      surModuleRetenu: async function (cand, i, plan) {
+        const rendu = await window.adocRenderClinicalDocument(cand.doc, cand.snapshot,
+          kit.renderManifestOverride, { genereEnEntier: cand.stopReason === 'tool_use' });
+        if (rendu.qc.blocking.length) {
+          return { refuse: true, raison: 'contrôle qualité bloquant (' + rendu.qc.blocking.length + ') — '
+            + rendu.qc.blocking[0] };
+        }
+        const cle = await adocDeliverStructuredFicheArtifact(cand.doc, cand.snapshot, rendu,
+          kit.brandKitName, adocCourseModuleName(plan, i));
+        return { ajout: { storeKey: cle, qc: rendu.qc } };
+      },
+    });
+
+    ui.resultats = r;
+    ui.termine = true;
+    r.modules.forEach(function (m) {
+      ui.etats[m.id] = m.statut;
+      if (m.erreur) ui.erreurs[m.id] = m.erreur;
+    });
+    adocRenderCourseProgressCard();
+
+    const retenus = r.modules.filter(function (m) { return m.statut === 'ok'; })
+      .map(function (m) { return { id: m.id, doc: m.doc, snapshot: m.snapshot }; });
+    if (!retenus.length) {
+      adocAddMsg('assistant', 'Aucun module n\'a abouti — rien n\'a été assemblé. Les causes sont '
+        + 'indiquées module par module ci-dessus.', []);
+      adocRenderCourseRecapCard(null);
+      return;
+    }
+    // Les identifiants du cours assemblé sont tirés ICI et passés à l'assembleur, qui refuse de les
+    // inventer : deux assemblages du même plan doivent rester comparables.
+    const asm = adocAssembleCourse(retenus, ui.plan, {
+      skip: r.rapport.skip,
+      ids: { documentId: 'cours-' + adocUUID(), versionId: 'cours-' + adocUUID(),
+             createdAt: new Date().toISOString(), requestId: adocUUID() },
+    });
+    // genereEnEntier ne vaut vrai que si TOUS les modules retenus se sont arrêtés d'eux-mêmes :
+    // un seul document coupé et l'heuristique de troncature doit redevenir bloquante sur l'ensemble.
+    const renduCours = await window.adocRenderClinicalDocument(asm.doc, asm.snapshot,
+      kit.renderManifestOverride, { genereEnEntier: r.rapport.genereEnEntier });
+    const cle = await adocDeliverStructuredFicheArtifact(asm.doc, asm.snapshot, renduCours,
+      kit.brandKitName, adocCourseAssembledName(ui.plan));
+    ui.assemble = { storeKey: cle, rapport: asm.rapport, qc: renduCours.qc };
+    window._adocLastStructuredDoc = { doc: renduCours.validatedDoc, qc: renduCours.qc, storeKey: cle };
+    adocConversations.push({ role: 'assistant', content: '[Cours en modules assemblé : "' + asm.doc.title
+      + '" — ' + asm.rapport.modulesAssembles.length + ' modules, ' + asm.rapport.diapositives + ' diapositives]' });
+    adocExchangeCount++;
+    adocRenderCourseRecapCard(asm);
+  }
+
+  function adocRenderCourseRecapCard(asm) {
+    const ui = window._adocCourseUI; if (!ui) return;
+    const area = document.getElementById('adoc-messages'); if (!area) return;
+    const card = document.createElement('div');
+    card.className = 'cc-clarity-card sc-clarification-card';
+    card.id = 'cc-course-recap-card';
+    card.setAttribute('role', 'group');
+    card.setAttribute('aria-label', 'Récapitulatif du cours');
+    const r = ui.resultats;
+    const lignes = ui.plan.modules.map(function (m, i) {
+      const res = r.modules.find(function (x) { return x.id === m.id; });
+      const statut = res ? res.statut : 'non-genere';
+      const libelle = statut === 'ok' ? 'produit' : statut === 'annule' ? 'interrompu'
+        : statut === 'non-genere' ? 'non lancé' : 'à régénérer';
+      return '<li data-module="' + m.id + '" data-statut="' + statut + '" style="display:flex;align-items:center;gap:8px;padding:3px 0;">'
+        + '<span style="flex:1;">' + adocEsc((i + 1) + '. ' + m.titre) + ' — ' + libelle
+        + (res && res.erreur ? '<span style="color:var(--muted);"> (' + adocEsc(res.erreur) + ')</span>' : '') + '</span>'
+        + (statut === 'ok' ? '' : '<button type="button" class="cc-clarity-reply-btn" '
+            + 'onclick="window.adocCourseRegenerateModule(\'' + m.id + '\')">Régénérer</button>')
+        + '</li>';
+    }).join('');
+    card.innerHTML =
+      '<div class="cc-clarity-question sc-clarification-card__heading sc-icon-label">' + adocIconSvg('icon-structure')
+        + '<span>' + adocEsc(ui.plan.titre) + (asm ? ' — cours assemblé' : ' — rien à assembler') + '</span></div>'
+      + (asm ? '<div class="cc-clarity-understood sc-clarification-card__intro">'
+          + asm.rapport.modulesAssembles.length + ' modules assemblés · ' + asm.rapport.diapositives
+          + ' diapositives · ' + asm.rapport.entreesSources + ' passages sources'
+          + (asm.rapport.entreesDedoublonnees > 0 ? ' (' + asm.rapport.entreesDedoublonnees + ' dédoublonnés)' : '')
+          + (asm.rapport.modulesOmis.length ? '<br>Modules manquants : ' + asm.rapport.modulesOmis.length
+              + ' — le cours assemblé est INCOMPLET.' : '')
+          + '</div>' : '')
+      + '<ul style="list-style:none;padding:0;margin:8px 0;">' + lignes + '</ul>';
+    adocRemoveClarityCard();
+    area.appendChild(card);
+    adocClarityCardEl = card;
+    area.scrollTop = area.scrollHeight;
+  }
+
+  // Rejouer UNE pièce. L'assembleur est idempotent et apparie sur l'identifiant du module : le
+  // cours réassemblé est EXACTEMENT celui qu'on aurait eu avec le bon module du premier coup —
+  // c'est ce que verify-assemblage-cours vérifie, et c'est tout l'intérêt du puzzle.
+  window.adocCourseRegenerateModule = async function (id) {
+    const ui = window._adocCourseUI;
+    if (!ui || !ui.resultats || ui.encoursReprise) return;
+    const i = ui.plan.modules.findIndex(function (x) { return x.id === id; });
+    if (i < 0) return;
+    ui.encoursReprise = true;
+    ui.termine = false;
+    ui.etats[id] = 'en-cours'; delete ui.erreurs[id];
+    const recap = document.getElementById('cc-course-recap-card'); if (recap) recap.remove();
+    adocRenderCourseProgressCard();
+    // Un plan d'UN module : la reprise emprunte le MÊME orchestrateur, avec les mêmes garde-fous
+    // (arrêt spontané, densité, une reprise) — jamais un second chemin de génération.
+    const planUn = Object.assign({}, ui.plan, { modules: [ui.plan.modules[i]] });
+    try {
+      const kit = await adocResolveBrandKitForGeneration({ documentKind: 'presentation' });
+      const r1 = await adocRunCourseGeneration(planUn, {
+        generateur: ui.etat.generateur,
+        workerUrl: ui.etat.workerUrl || adocGetWorkerUrl(),
+        planOrigine: ui.etat.plan, docCtx: ui.etat.docCtx || '',
+        surProgression: function () {},
+        surModuleRetenu: async function (cand) {
+          const rendu = await window.adocRenderClinicalDocument(cand.doc, cand.snapshot,
+            kit.renderManifestOverride, { genereEnEntier: cand.stopReason === 'tool_use' });
+          if (rendu.qc.blocking.length) {
+            return { refuse: true, raison: 'contrôle qualité bloquant (' + rendu.qc.blocking.length + ')' };
+          }
+          const cle = await adocDeliverStructuredFicheArtifact(cand.doc, cand.snapshot, rendu,
+            kit.brandKitName, adocCourseModuleName(ui.plan, i));
+          return { ajout: { storeKey: cle, qc: rendu.qc } };
+        },
+      });
+      // Le résultat REMPLACE l'ancien à sa place dans la liste — jamais ajouté à la fin, sinon
+      // l'ordre du plan validé ne serait plus celui du cours.
+      const remplacant = Object.assign({}, r1.modules[0], { nom: adocCourseModuleName(ui.plan, i) });
+      const j = ui.resultats.modules.findIndex(function (x) { return x.id === id; });
+      if (j >= 0) ui.resultats.modules[j] = remplacant; else ui.resultats.modules.splice(i, 0, remplacant);
+      ui.resultats.rapport = adocCourseRecomputeReport(ui.plan, ui.resultats.modules);
+    } finally {
+      ui.encoursReprise = false;
+      ui.termine = true;
+    }
+    ui.resultats.modules.forEach(function (m) {
+      ui.etats[m.id] = m.statut;
+      if (m.erreur) ui.erreurs[m.id] = m.erreur; else delete ui.erreurs[m.id];
+    });
+    adocRenderCourseProgressCard();
+    const retenus = ui.resultats.modules.filter(function (m) { return m.statut === 'ok'; })
+      .map(function (m) { return { id: m.id, doc: m.doc, snapshot: m.snapshot }; });
+    if (!retenus.length) { adocRenderCourseRecapCard(null); return; }
+    const kit2 = await adocResolveBrandKitForGeneration({ documentKind: 'presentation' });
+    const asm = adocAssembleCourse(retenus, ui.plan, {
+      skip: ui.resultats.rapport.skip,
+      ids: { documentId: 'cours-' + adocUUID(), versionId: 'cours-' + adocUUID(),
+             createdAt: new Date().toISOString(), requestId: adocUUID() },
+    });
+    const rendu = await window.adocRenderClinicalDocument(asm.doc, asm.snapshot,
+      kit2.renderManifestOverride, { genereEnEntier: ui.resultats.rapport.genereEnEntier });
+    const cle = await adocDeliverStructuredFicheArtifact(asm.doc, asm.snapshot, rendu,
+      kit2.brandKitName, adocCourseAssembledName(ui.plan));
+    ui.assemble = { storeKey: cle, rapport: asm.rapport, qc: rendu.qc };
+    adocRenderCourseRecapCard(asm);
+  };
+
+  // Le rapport après reprise : recalculé depuis les résultats, jamais rafistolé en retirant une
+  // entrée de `skip` — un rapport et une liste de modules qui divergent, c'est un cours assemblé
+  // avec un trou sans que rien ne le dise.
+  function adocCourseRecomputeReport(plan, modules) {
+    const reussis = modules.filter(function (m) { return m.statut === 'ok'; });
+    const manquants = plan.modules.filter(function (m) {
+      return !modules.some(function (r) { return r.id === m.id; });
+    });
+    return {
+      total: plan.modules.length, reussis: reussis.length,
+      aRegenerer: modules.filter(function (m) { return m.statut === 'a-regenerer'; }).map(function (m) { return m.id; }),
+      annules: modules.filter(function (m) { return m.statut === 'annule'; }).map(function (m) { return m.id; }),
+      nonGeneres: manquants.map(function (m) { return m.id; }),
+      skip: modules.filter(function (m) { return m.statut !== 'ok'; }).map(function (m) { return m.id; })
+            .concat(manquants.map(function (m) { return m.id; })),
+      genereEnEntier: reussis.length > 0 && reussis.every(function (m) { return m.stopReason === 'tool_use'; }),
+    };
+  }
+  window.adocCourseRecomputeReport = adocCourseRecomputeReport;
+  window.adocRenderCoursePlanCard = adocRenderCoursePlanCard;
+  window.adocRenderCourseProgressCard = adocRenderCourseProgressCard;
+  window.adocRenderCourseRecapCard = adocRenderCourseRecapCard;
+  window._adocResolveCourseOffer = _adocResolveCourseOffer;
+  window.adocPoseCourseOffer = adocPoseCourseOffer;
+
 
 
 
@@ -12271,9 +12792,12 @@ ${recent}`;
   // TOUJOURS le HTML déjà rendu (même si qc.exportAllowed est false, cf. principe UX-1 :
   // l'aperçu doit rester visible pour corriger) ; seul le bouton Exporter (délégation de
   // clic dans adocShowArtifactCard) respecte le blocage qualité via adocExportClinicalDocumentHTML.
-  async function adocDeliverStructuredFicheArtifact(doc, sourceSnapshot, rendered, brandKitName) {
+  // `nomArtefact` : additif, jamais requis — seul le cours en modules s'en sert, pour que ses
+  // pièces portent leur rang dans « Mes créations » (« Cours — X · Module 3/8 · Y »). Le titre du
+  // document lui-même n'est JAMAIS réécrit : il est rendu à l'écran et dans l'export.
+  async function adocDeliverStructuredFicheArtifact(doc, sourceSnapshot, rendered, brandKitName, nomArtefact) {
     const previewHtml = adocClinicalDocumentWrapHTML(doc, rendered.html, rendered.tokens);
-    const storeKey = await adocDeliverArtifact({ html: previewHtml, topic: doc.title, fmt: 'html', citations: [], autoGenerate: false });
+    const storeKey = await adocDeliverArtifact({ html: previewHtml, topic: nomArtefact || doc.title, fmt: 'html', citations: [], autoGenerate: false });
     if (storeKey && window._adocArtifacts && window._adocArtifacts[storeKey]) {
       window._adocArtifacts[storeKey]._adocStructuredDoc = doc;
       window._adocArtifacts[storeKey]._adocStructuredSnapshot = sourceSnapshot;
