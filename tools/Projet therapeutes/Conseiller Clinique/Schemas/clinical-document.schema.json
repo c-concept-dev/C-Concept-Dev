@@ -101,6 +101,20 @@
         }
       }
     },
+    "modules": {
+      "$comment": "Cours en puzzle — un cours long est généré en MODULES autonomes (présentations ordinaires de 8 à 12 diapositives) puis assemblé par du code déterministe en un seul document. Ce tableau conserve la trace de cet assemblage : une entrée par module, dans l'ordre, pointant sur la diapositive de titre que l'assembleur a construite. Il sert au sommaire groupé (adocPresentBuildTocHTML) et au remplacement d'un module suivi d'un réassemblage. Champ OPTIONNEL au niveau racine, sur le patron exact de `deepDives` ci-dessus : un document qui n'en porte pas — c'est-à-dire toute présentation ordinaire, cas très largement majoritaire — reste valide et se rend STRICTEMENT comme avant. Jamais ajouté à `required`, jamais présent à vide.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "cardId"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "title": { "type": "string", "minLength": 1 },
+          "cardId": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
     "validation": { "$ref": "#/$defs/validation" }
   },
   "allOf": [
