@@ -4099,8 +4099,19 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       return d.dataUrl || null;
     };
 
+    // REPLI QUAND L'IMAGE N'A PAS PU ÊTRE OBTENUE.
+    // Il affichait la REQUÊTE — c'est-à-dire, en grand et en anglais, le rouage interne :
+    // « couple therapy session warm light therap » s'est retrouvé projeté devant un public, sur la
+    // première diapositive d'un export réel. Une requête de recherche n'est pas destinée à être
+    // lue par qui que ce soit d'autre que l'API.
+    // Deux replis désormais, dans cet ordre : le texte alternatif — écrit en français par le
+    // modèle, déjà obligatoire dès qu'une image existe (cf. le contrôle qualité sur imageRef sans
+    // imageAlt) — sinon un aplat neutre SANS AUCUN TEXTE. Jamais la requête, dans aucun cas.
+    const svgAplat = () =>
+      'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="250"><rect width="400" height="250" fill="%23e2e8f0"/></svg>';
     const svgPlaceholder = (label) =>
-      'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="250"><rect width="400" height="250" fill="%23e2e8f0"/><text x="50%" y="50%" fill="%2394a3b8" font-size="14" text-anchor="middle" dominant-baseline="middle">' + encodeURIComponent(label.substring(0, 40)) + '</text></svg>';
+      !label ? svgAplat()
+        : 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="250"><rect width="400" height="250" fill="%23e2e8f0"/><text x="50%" y="50%" fill="%2394a3b8" font-size="14" text-anchor="middle" dominant-baseline="middle">' + encodeURIComponent(label.substring(0, 60)) + '</text></svg>';
 
     const promises = allNodes.map(async ({ el, type, q, isGen }) => {
       try {
@@ -4123,11 +4134,13 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
         }
       } catch (e) {
         console.warn('[adocResolveImages]', e.message);
-        const label = q || 'illustration';
+        // `q` est la REQUÊTE : elle ne doit jamais devenir visible. Seul le texte alternatif peut
+        // l'être — et un fond sans image n'en a pas, d'où l'aplat nu dans ce cas.
         if (type === 'img') {
-          el.src = svgPlaceholder(label); el.removeAttribute('data-gen'); el.removeAttribute('data-pexels');
+          const alt = (el.getAttribute('alt') || '').trim();
+          el.src = svgPlaceholder(alt); el.removeAttribute('data-gen'); el.removeAttribute('data-pexels');
         } else {
-          el.style.backgroundImage = 'url(' + svgPlaceholder(label) + ')';
+          el.style.backgroundImage = 'url(' + svgAplat() + ')';
           el.removeAttribute('data-pexels-bg'); el.removeAttribute('data-pexels');
         }
       }
