@@ -1,8 +1,10 @@
 // LOT A0 — une génération RÉELLE de Présentation, de bout en bout, par le vrai pipeline.
 //
 // Jamais faite jusqu'ici : tout ce qui précède était éprouvé sur des documents forgés à la main.
-// Celle-ci appelle réellement le modèle, à travers adocGenerateStructuredDocument — la fonction
-// que l'application appelle elle-même — puis mesure ce qui en est sorti.
+// Celle-ci passe par window.adocSend(), l'entrée que l'application utilise elle-même : plan,
+// recherche RAG dans la bibliothèque, prompt système, puis génération. Elle mesure ensuite ce
+// qui en est sorti. Un repli sur le moteur legacy est compté comme un ÉCHEC, jamais comme un
+// succès partiel.
 //
 // Ce qui est rapporté, sans rien déduire :
 //   — l'appel a-t-il abouti (HTTP 200) ;
@@ -70,7 +72,7 @@ const ORIGINE_PAGES = 'https://c-concept-dev.github.io';
     console.log('Page ouverte : ' + (PUBLIE ? 'VERSION PUBLIEE — ' + adresse : 'fichier local'));
     await page.goto(adresse);
     await page.evaluate(() => document.getElementById('cc-login-screen')?.remove());
-    await page.waitForFunction(() => typeof window.adocGenerateStructuredDocument === 'function');
+    await page.waitForFunction(() => typeof window.adocSend === 'function' && !!document.getElementById('adoc-input'));
     // L'adresse n'est PAS vérifiée en interrogeant l'application : adocGetWorkerUrl est une
     // fonction de MODULE, pas une propriété de window — l'appeler faisait échouer A0 avant tout
     // appel (« window.adocGetWorkerUrl is not a function »). Elle est vérifiée par le
@@ -79,27 +81,49 @@ const ORIGINE_PAGES = 'https://c-concept-dev.github.io';
     console.log('Adresse imposee : ' + WORKER + ' (verifiee sur les requetes reellement emises)');
 
     console.log('Sujet : ' + SUJET);
-    console.log('Appel REEL en cours (le modele ecrit la presentation entiere)...\n');
+    console.log('Appel REEL en cours par le VRAI pipeline (plan, RAG sur la bibliotheque, puis');
+    console.log('generation structuree). Cela peut prendre plusieurs minutes...\n');
+
+    // On passe par window.adocSend(), l'entree que l'application utilise elle-meme : elle
+    // enchaine le plan, la recherche RAG dans la bibliotheque, la construction du prompt systeme
+    // et la generation. Appeler adocGenerateStructuredDocument directement ne marchait PAS — la
+    // generation structuree est sourcee exclusivement par les passages de la bibliotheque et
+    // refuse de produire sans eux (« Aucun passage RAG disponible »). C'etait un defaut de ce
+    // harnais, jamais du produit.
     const t0 = Date.now();
-    const sortie = await page.evaluate(async ([sujet, w]) => {
-      try {
-        const r = await window.adocGenerateStructuredDocument(
-          'presentation', sujet, { documentKind: 'presentation', audience_type: 'praticien', duree_minutes: 20 },
-          null, null, w, null);
-        return { ok: true, doc: r.doc };
-      } catch (e) {
-        return { ok: false, erreur: (e && e.message) || String(e), statut: e && e.httpStatus, corps: e && e.httpBody };
+    await page.evaluate(sujet => {
+      const champ = document.getElementById('adoc-input');
+      champ.value = sujet;
+      return window.adocSend();
+    }, SUJET).catch(e => { console.log('  (adocSend a leve : ' + (e && e.message) + ')'); });
+
+    // On attend qu'un artefact porte un document structure de type presentation, ou qu'un repli
+    // legacy survienne — les deux sont des resultats, et le second doit etre dit.
+    const sortie = await page.waitForFunction(() => {
+      const arts = window._adocArtifacts || {};
+      for (const k of Object.keys(arts)) {
+        const a = arts[k];
+        if (a && a._adocStructuredDoc && a._adocStructuredDoc.documentKind === 'presentation') {
+          return { ok: true, doc: a._adocStructuredDoc };
+        }
+        if (a && a._adocGenerationEngine === 'legacy-html') {
+          return { ok: false, repli: true, erreur: 'repli sur le moteur legacy-html : la generation structuree a echoue' };
+        }
       }
-    }, [SUJET, WORKER]);
+      return false;
+    }, { timeout: 420000, polling: 1500 }).then(h => h.jsonValue())
+      .catch(e => ({ ok: false, erreur: 'aucun document structure apres 7 minutes (' + (e && e.message) + ')' }));
     const secondes = Math.round((Date.now() - t0) / 1000);
 
     if (!sortie.ok) {
       console.error('ECHEC de la generation apres ' + secondes + ' s');
       console.error('  ' + sortie.erreur);
-      if (sortie.statut) console.error('  statut HTTP : ' + sortie.statut);
-      if (sortie.corps) console.error('  corps : ' + sortie.corps);
+      if (sortie.repli) console.error('  (un repli legacy est un ECHEC de ce que ce test mesure, jamais un succes partiel)');
       journal.forEach(l => console.error('  journal | ' + l));
-      process.exit(1);
+      console.error('  adresses contactees : ' + ([...hotesContactes].join(', ') || 'aucune'));
+      if (hotesBloques.size) console.error('  hotes bloques : ' + [...hotesBloques].join(', '));
+      process.exitCode = 1;
+      return;
     }
 
     const doc = sortie.doc;
