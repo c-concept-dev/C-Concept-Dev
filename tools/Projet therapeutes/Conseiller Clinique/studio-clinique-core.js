@@ -14954,6 +14954,38 @@ ${recent}`;
     document.head.appendChild(styleEl);
   })();
 
+  // ═══ BALISAGE DE LA PORTE — UNE SEULE SOURCE ═══
+  // Ce balisage existait en DEUX exemplaires maintenus à la main : dans studio-clinique.html et
+  // dans la coquille d'export. Ils avaient déjà divergé une fois — `.cc-ws-present-door-text`
+  // n'existait que dans la page vivante, si bien qu'un approfondissement exporté n'avait nulle
+  // part où s'afficher, et rien ne le signalait. Même remède que pour le CSS du moteur
+  // (ADOC_PRESENT_ENGINE_CSS ci-dessus) : une source, deux consommateurs.
+  function adocPresentDoorHTML() {
+    return '<div id="cc-ws-present-door" hidden role="dialog" aria-modal="true" aria-label="Plein écran">' +
+      '<button type="button" id="cc-ws-present-door-close" aria-label="Fermer" onclick="window.adocPresentCloseImageDoor()">×</button>' +
+      '<img alt="">' +
+      '<div class="cc-ws-present-door-text" hidden></div>' +
+    '</div>';
+  }
+  window.adocPresentDoorHTML = adocPresentDoorHTML; // exposé pour les tests, comme adocConvertDeepDives
+
+  // Injection dans la page vivante. ORDRE DE DÉMARRAGE : ce fichier est chargé bien AVANT que
+  // #cc-ws-present-overlay soit analysé (script en milieu de document, porte tout à la fin) —
+  // une injection immédiate ne trouverait rien et échouerait en silence. On tente donc tout de
+  // suite (cas d'un chargement différé) puis, à défaut, au DOMContentLoaded.
+  // Le garde-fou d'existence n'est pas décoratif : dans le fichier EXPORTÉ, la porte est déjà
+  // écrite dans la coquille, et une seconde injection créerait un doublon d'identifiant.
+  function adocPresentInstallDoor() {
+    if (document.getElementById('cc-ws-present-door')) return true;
+    const overlay = document.getElementById('cc-ws-present-overlay');
+    if (!overlay) return false;
+    overlay.insertAdjacentHTML('beforeend', adocPresentDoorHTML());
+    return true;
+  }
+  if (!adocPresentInstallDoor()) {
+    document.addEventListener('DOMContentLoaded', adocPresentInstallDoor, { once: true });
+  }
+
   function adocPresentBuildTocHTML(doc) {
     const diapositives = (doc.blocks || []).map(function (card, i) {
       return '<button type="button" class="cc-ws-present-toc-item" data-idx="' + i + '" onclick="window.adocPresentGoTo(' + i + ')">' +
@@ -15604,17 +15636,12 @@ ${recent}`;
           '<button type="button" class="cc-ws-present-toolbar-btn" onclick="window.adocPresentClose()">Fermer</button>' +
         '</div>' +
         '<div id="cc-ws-present-toc" hidden role="navigation" aria-label="Sommaire des diapositives"></div>' +
-        // Présentation ACTE 3 — cette coquille et studio-clinique.html sont maintenues à la main,
-        // séparément : elles AVAIENT déjà divergé depuis la Phase 2, `.cc-ws-present-door-text`
-        // n'existant que dans la page vivante. Un approfondissement exporté n'avait donc nulle
-        // part où s'afficher. L'écart est comblé ici — le fil d'Ariane et les deux gestes de
-        // retour, eux, sont CONSTRUITS par adocDeepDivePopulateDoor (engineFnRefs ci-dessus) et
-        // n'ont besoin d'aucun élément statique supplémentaire.
-        '<div id="cc-ws-present-door" hidden role="dialog" aria-modal="true" aria-label="Plein écran">' +
-          '<button type="button" id="cc-ws-present-door-close" aria-label="Fermer" onclick="window.adocPresentCloseImageDoor()">×</button>' +
-          '<img alt="">' +
-          '<div class="cc-ws-present-door-text" hidden></div>' +
-        '</div>' +
+        // MÊME source que la page vivante (adocPresentDoorHTML) — ces deux balisages étaient
+        // maintenus à la main séparément et avaient déjà divergé. Appelée ICI, à la CONSTRUCTION
+        // du fichier : le HTML part figé dans la coquille, donc cette fonction n'a aucune raison
+        // de figurer dans engineFnRefs — rien ne l'appelle à l'exécution dans le fichier exporté.
+        // Vérifié, jamais supposé : cf. verify-b5-porte-source-unique.
+        adocPresentDoorHTML() +
       '</div>' +
       '<script>' + script + '</script' + '>' +
       '</body></html>';
