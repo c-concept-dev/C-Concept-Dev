@@ -103,22 +103,70 @@ const ORIGINE_PAGES = 'https://c-concept-dev.github.io';
       return window.adocSend();
     }, SUJET).catch(e => { console.log('  (adocSend a leve : ' + (e && e.message) + ')'); });
 
-    // On attend qu'un artefact porte un document structure de type presentation, ou qu'un repli
-    // legacy survienne — les deux sont des resultats, et le second doit etre dit.
-    const sortie = await page.waitForFunction(() => {
-      const arts = window._adocArtifacts || {};
-      for (const k of Object.keys(arts)) {
-        const a = arts[k];
-        if (a && a._adocStructuredDoc && a._adocStructuredDoc.documentKind === 'presentation') {
-          return { ok: true, doc: a._adocStructuredDoc };
+    // L'application ne genere pas tout de suite : elle demande d'abord QUEL type de document, par
+    // une carte de clarification. C'est son comportement normal, et un harnais qui se contente
+    // d'attendre reste bloque sept minutes devant une question — c'est exactement ce qui s'est
+    // produit. On y repond donc comme le ferait Christophe : en cliquant l'option « presentation ».
+    const clarifications = [];
+    let sortie = { ok: false, erreur: 'etat inconnu' };
+    const limite = Date.now() + 420000;
+    while (Date.now() < limite) {
+      const etat = await page.evaluate(() => {
+        const arts = window._adocArtifacts || {};
+        for (const k of Object.keys(arts)) {
+          const a = arts[k];
+          if (a && a._adocStructuredDoc && a._adocStructuredDoc.documentKind === 'presentation') return { type: 'ok', doc: a._adocStructuredDoc };
+          if (a && a._adocGenerationEngine === 'legacy-html') return { type: 'repli' };
         }
-        if (a && a._adocGenerationEngine === 'legacy-html') {
-          return { ok: false, repli: true, erreur: 'repli sur le moteur legacy-html : la generation structuree a echoue' };
+        const carte = document.querySelector('.cc-clarity-card');
+        if (carte) {
+          const choix = [...carte.querySelectorAll('.cc-clarity-reply-btn')]
+            .map(b => b.textContent.replace(/\s+/g, ' ').trim()).filter(Boolean);
+          const question = carte.textContent.replace(/\s+/g, ' ').trim().slice(0, 300);
+          if (choix.length) return { type: 'clarification', choix, question };
         }
+        return { type: 'attente' };
+      });
+
+      if (etat.type === 'ok') { sortie = { ok: true, doc: etat.doc }; break; }
+      if (etat.type === 'repli') { sortie = { ok: false, repli: true, erreur: 'repli sur le moteur legacy-html : la generation structuree a echoue' }; break; }
+      if (etat.type === 'clarification') {
+        // Choix par PREFERENCE explicite, jamais « le premier venu » : un choix arbitraire
+        // produirait une fiche ou un carrousel, et ce test mesure une PRESENTATION.
+        const estTypeDeDocument = /type de document|quel type|quel format/i.test(etat.question || '');
+        const motif = /pr[ée]sentation|diaporama|expos[ée]|diapositive/i;
+        let vise = etat.choix.find(t => motif.test(t));
+        // Toutes les questions ne portent pas sur le TYPE : le public, la duree, l'angle sont
+        // d'autres tours possibles, ou n'importe quelle option convient. On n'exige « presentation »
+        // que lorsque la question porte effectivement sur le type de document.
+        if (!vise && !estTypeDeDocument) vise = etat.choix[0];
+        if (!vise) {
+          // Aucune option ne mene a une presentation : on repond en TEXTE LIBRE, exactement comme
+          // le ferait Christophe devant les memes propositions. Un echec ici ne dirait rien du
+          // produit, seulement de la liste proposee ce jour-la.
+          clarifications.push({ question: etat.question, propose: etat.choix, choisi: '(texte libre) une presentation' });
+          console.log('  clarification : aucune option « presentation » — reponse en texte libre');
+          await page.evaluate(() => {
+            const champ = document.getElementById('adoc-input');
+            champ.value = 'Une presentation, en diapositives, pour des praticiens.';
+            return window.adocSend();
+          }).catch(() => {});
+          await page.waitForTimeout(3000);
+          continue;
+        }
+        clarifications.push({ question: etat.question, propose: etat.choix, choisi: vise });
+        console.log('  clarification : « ' + vise.slice(0, 110) + ' »');
+        await page.evaluate(t => {
+          const b = [...document.querySelectorAll('.cc-clarity-card .cc-clarity-reply-btn')]
+            .find(x => x.textContent.replace(/\s+/g, ' ').trim() === t);
+          if (b) b.click();
+        }, vise);
+        await page.waitForTimeout(3000);
+        continue;
       }
-      return false;
-    }, null, { timeout: 420000, polling: 2000 }).then(h => h.jsonValue())
-      .catch(e => ({ ok: false, erreur: 'aucun document structure apres 7 minutes (' + (e && e.message) + ')' }));
+      await page.waitForTimeout(2500);
+    }
+    if (!sortie.ok && sortie.erreur === 'etat inconnu') sortie.erreur = 'aucun document structure apres 7 minutes';
     const secondes = Math.round((Date.now() - t0) / 1000);
 
     if (!sortie.ok) {
@@ -140,6 +188,7 @@ const ORIGINE_PAGES = 'https://c-concept-dev.github.io';
           return m ? m.textContent.replace(/\s+/g, ' ').trim().slice(0, 300) : null;
         })(),
       })).catch(() => null);
+      if (clarifications.length) console.error('  clarifications traversees : ' + JSON.stringify(clarifications, null, 1));
       if (etat) {
         console.error('  carte de clarification affichee : ' + etat.clarification + (etat.clarification ? '  <- l application ATTEND une reponse, elle ne genere pas' : ''));
         console.error('  generation encore en cours       : ' + etat.enCours);
@@ -192,6 +241,8 @@ const ORIGINE_PAGES = 'https://c-concept-dev.github.io';
     const coupes = avertissements.filter(a => /lien\(s\) d'approfondissement retire/i.test(a));
 
     console.log('RESULTAT — ' + secondes + ' s');
+    console.log('  clarifications traversees       : ' + (clarifications.length || 'aucune')
+      + (clarifications.length ? ' (' + clarifications.map(c => '« ' + String(c.choisi).slice(0, 60) + ' »').join(', ') + ')' : ''));
     console.log('  HTTP 200                        : oui (le document a ete produit)');
     console.log('  titre                           : ' + doc.title);
     console.log('  diapositives                    : ' + (doc.blocks || []).length);
