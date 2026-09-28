@@ -173,3 +173,11 @@ Worker/presentation_attachment.pptx
 # EvidenceForge : configuration locale (secrets) — jamais versionnée, jamais dans un zip ni un manifeste
 tools/EvidenceForge/.env.local
 tools/EvidenceForge/.env.local.*
+
+# ── Sorties des tests à VRAI appel au modèle ──────────────────────────────────
+# Ce dépôt est PUBLIC. Une génération réelle reprend des extraits de la
+# bibliothèque personnelle de Christophe (RAG) : le document produit et les
+# mesures qui l'accompagnent ne doivent jamais y entrer. Seuls les CHIFFRES et
+# une description structurelle (niveaux, nombre de liens, repli utilisé) sont
+# rapportés. Règle générale, valable pour tout futur test à vrai appel.
+**/tests/lot-a/*.json
