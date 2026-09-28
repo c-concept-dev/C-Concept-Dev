@@ -43,6 +43,15 @@ if (!SUJETS.length) SUJETS.push("le cortisol et le systeme nerveux dans le stres
 // que son CORS refuse — la campagne echouait entierement pour cette seule raison. On ne touche
 // JAMAIS au CORS du Worker pour contourner cela : c'est la page qui prend la bonne origine.
 const LOCAL_SOUS_ORIGINE = process.argv.includes('--local');
+// Essais d'hypothese, SANS modifier le moindre fichier de production :
+//   --max-tokens=N  reecrit max_tokens de l'appel structure EN VOL, sur la requete sortante ;
+//   --carte=<id>    part d'une autre carte de l'ecran d'accueil (format-summary, etc.) ;
+//   --type=<kind>   attend un autre documentKind que 'presentation'.
+// Rien n'est touche sur le disque : l'hypothese se teste et disparait avec le processus.
+const arg = (nom, def) => { const a = process.argv.find(x => x.startsWith('--' + nom + '=')); return a ? a.split('=').slice(1).join('=') : def; };
+const MAX_TOKENS = parseInt(arg('max-tokens', '0'), 10) || 0;
+const CARTE = arg('carte', 'format-presentation');
+const TYPE_ATTENDU = arg('type', 'presentation');
 const PUBLIE = process.argv.includes('--publie') || LOCAL_SOUS_ORIGINE;
 const PAGES = 'https://c-concept-dev.github.io/C-Concept-Dev/tools/Projet%20therapeutes/Conseiller%20Clinique/studio-clinique.html';
 const ORIGINE_PAGES = 'https://c-concept-dev.github.io';
@@ -50,7 +59,8 @@ const ORIGINE_PAGES = 'https://c-concept-dev.github.io';
 async function mesurerUnSujet(browser, SUJET) {
   {
     const page = await browser.newPage({ viewport: { width: 1280, height: 860 } });
-    const avertissements = [], erreurs = [], journal = [], troncature = [];
+    const avertissements = [], erreurs = [], journal = [], troncature = [], diagnostic = [];
+    let echecStructure = null;
     page.on('pageerror', e => erreurs.push(e.message));
     page.on('console', m => {
       const t = m.text();
@@ -59,6 +69,16 @@ async function mesurerUnSujet(browser, SUJET) {
       // Troncature et continuation : les deux seuls signaux qui disent si max_tokens a ete
       // atteint. Ils ne se devinent pas depuis le document produit.
       if (/tronqu|max_tokens|continuation|emit_remaining/i.test(t)) troncature.push(t.replace(/\s+/g, ' ').slice(0, 160));
+      // Les lignes qui DISENT pourquoi une generation echoue. Sans elles, un repli sur l'ancien
+      // moteur ne se distingue pas d'une lenteur, et l'on attend douze minutes pour rien.
+      if (/Génération structurée|QC bloquant|stop_reason|continuation|repli|duree_minutes|tool_use accumulé/i.test(t)) {
+        diagnostic.push(m.type() + ': ' + t.replace(/\s+/g, ' ').slice(0, 300));
+      }
+      // Le repli est ANNONCE en clair par l'application : signal bien plus sur que l'inspection des
+      // artefacts, qui ne voyait rien et laissait tourner le compteur douze minutes.
+      if (!echecStructure && /en échec \(ou QC bloquant\)|repli automatique sur l'ancien moteur/i.test(t)) {
+        echecStructure = t.replace(/\s+/g, ' ').slice(0, 400);
+      }
     });
     // Rien ne doit sortir ailleurs que vers le Worker. Blocage RÉEL, et tout hôte refusé est
     // rapporté : si un appel partait vers un tiers, ce test le dirait au lieu de le laisser passer.
@@ -69,6 +89,7 @@ async function mesurerUnSujet(browser, SUJET) {
     const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'application/javascript; charset=utf-8',
       '.json': 'application/json; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml' };
     let serviesEnLocal = 0;
+    let maxTokensReecrits = 0;
     await page.route('**/*', route => {
       const u = route.request().url();
       if (u.startsWith('file:') || u.startsWith('data:') || u.startsWith('blob:')) return route.continue();
@@ -88,7 +109,18 @@ async function mesurerUnSujet(browser, SUJET) {
         } catch (_) { return route.continue(); }
       }
       if (PUBLIE && u.startsWith(ORIGINE_PAGES)) { hotesContactes.add(new URL(u).host); return route.continue(); }
-      if (u.startsWith(WORKER)) { hotesContactes.add(new URL(u).host); return route.continue(); }
+      if (u.startsWith(WORKER)) {
+        hotesContactes.add(new URL(u).host);
+        // Releve du plafond de sortie : on reecrit la requete telle qu'elle part, jamais le code.
+        if (MAX_TOKENS && route.request().method() === 'POST') {
+          const brut = route.request().postData() || '';
+          if (/"max_tokens"\s*:\s*8000/.test(brut) && /tool_choice/.test(brut)) {
+            maxTokensReecrits++;
+            return route.continue({ postData: brut.replace(/"max_tokens"\s*:\s*8000/, '"max_tokens":' + MAX_TOKENS) });
+          }
+        }
+        return route.continue();
+      }
       // Dependances DECLAREES de l'application (jszip, pdf.js, mammoth, polices) : de simples GET
       // de fichiers statiques, qui n'emportent aucune donnee. Les bloquer ne protegeait rien et
       // risquait de casser le pipeline meme qu'on cherche a mesurer.
@@ -132,8 +164,8 @@ async function mesurerUnSujet(browser, SUJET) {
     // Passer directement par la zone de chat, comme le faisait ce harnais, laissait le type
     // indetermine : l'application posait la question, et une reponse mal choisie produisait un
     // carrousel — ce qui est arrive.
-    const depart = await page.evaluate(sujet => {
-      const carte = document.getElementById('format-presentation');
+    const depart = await page.evaluate(([sujet, idCarte]) => {
+      const carte = document.getElementById(idCarte);
       const champ = document.getElementById('clinical-question');
       const form = document.getElementById('clinical-home-form');
       if (!carte || !champ || !form) return { via: 'chat', raison: 'ecran d accueil indisponible' };
@@ -142,10 +174,12 @@ async function mesurerUnSujet(browser, SUJET) {
       champ.dispatchEvent(new Event('input', { bubbles: true }));
       form.requestSubmit ? form.requestSubmit() : form.querySelector('button[type="submit"]').click();
       return { via: 'accueil', typeChoisi: carte.getAttribute('aria-pressed') };
-    }, SUJET);
+    }, [SUJET, CARTE]);
+    if (MAX_TOKENS) console.log('  essai  : max_tokens releve a ' + MAX_TOKENS + ' (reecriture en vol, aucun fichier modifie)');
+    if (CARTE !== 'format-presentation' || TYPE_ATTENDU !== 'presentation') console.log('  essai  : carte ' + CARTE + ', type attendu ' + TYPE_ATTENDU);
     if (LOCAL_SOUS_ORIGINE) console.log('  mode   : fichiers LOCAUX servis sous l\'adresse publiee (' + serviesEnLocal + ' fichier(s) servi(s))');
     console.log('  depart : ' + (depart.via === 'accueil'
-      ? 'carte « Presentation » cliquee (aria-pressed=' + depart.typeChoisi + '), formulaire soumis'
+      ? 'carte ' + CARTE + ' cliquee (aria-pressed=' + depart.typeChoisi + '), formulaire soumis'
       : 'repli sur la zone de chat — ' + depart.raison));
     if (depart.via === 'chat') {
       await page.evaluate(sujet => {
@@ -191,16 +225,21 @@ async function mesurerUnSujet(browser, SUJET) {
     };
     const limite = Date.now() + 720000; // 12 min : clarifications ET generation se partagent ce budget
     while (Date.now() < limite) {
+      if (echecStructure) {
+        sortie = { ok: false, repli: true, erreur: 'generation structuree en echec, repli sur l ancien moteur — ' + echecStructure
+          + (refusOrigine ? '\n    CAUSE AMONT (refus d origine) : ' + refusOrigine : '') };
+        break;
+      }
       if (refusOrigine) {
         sortie = { ok: false, erreur: 'refus d\'origine ou appel impossible : ' + refusOrigine
           + (PUBLIE ? '' : ' — une page ouverte en file:// presente une origine `null` que le CORS du Worker refuse ; utiliser --publie ou --local') };
         break;
       }
-      const etat = await page.evaluate(() => {
+      const etat = await page.evaluate(attendu => {
         const arts = window._adocArtifacts || {};
         for (const k of Object.keys(arts)) {
           const a = arts[k];
-          if (a && a._adocStructuredDoc && a._adocStructuredDoc.documentKind === 'presentation') return { type: 'ok', doc: a._adocStructuredDoc };
+          if (a && a._adocStructuredDoc && a._adocStructuredDoc.documentKind === attendu) return { type: 'ok', doc: a._adocStructuredDoc };
           if (a && a._adocStructuredDoc) return { type: 'mauvaisType', kind: a._adocStructuredDoc.documentKind };
           if (a && a._adocGenerationEngine === 'legacy-html') return { type: 'repli' };
         }
@@ -212,7 +251,7 @@ async function mesurerUnSujet(browser, SUJET) {
           if (choix.length) return { type: 'clarification', choix, question };
         }
         return { type: 'attente' };
-      });
+      }, TYPE_ATTENDU);
 
       if (etat.type === 'ok') { sortie = { ok: true, doc: etat.doc }; break; }
       if (etat.type === 'mauvaisType') { sortie = { ok: false, erreur: 'document produit du MAUVAIS type : « ' + etat.kind +' » au lieu de « presentation »' }; break; }
@@ -290,6 +329,20 @@ async function mesurerUnSujet(browser, SUJET) {
           return m ? m.textContent.replace(/\s+/g, ' ').trim().slice(0, 300) : null;
         })(),
       })).catch(() => null);
+      // Tout ce que l'application a dit sur CETTE generation, dans l'ordre : c'est la piece qui
+      // permet de trancher entre troncature, QC bloquant et abandon de flux.
+      if (diagnostic.length) {
+        console.error('');
+        console.error('  JOURNAL DE LA GENERATION (' + diagnostic.length + ' ligne(s)) :');
+        diagnostic.slice(-30).forEach(l => console.error('    ' + l));
+      }
+      const traces = await page.evaluate(() => {
+        const m = window._adocLastStructAttemptMetrics;
+        if (!m) return null;
+        const r = t => ({ finalState: t.finalState, stopReason: t.stopReasonAtAbandon, payloadBytes: t.payloadBytes, httpErrorBody: t.httpErrorBody });
+        return { sources: m.sourceCount, appel1: (m.metrics1 || []).map(r), appel2: (m.metrics2 || []).map(r) };
+      }).catch(() => null);
+      if (traces) { console.error(''); console.error('  TRACEUR DES TENTATIVES : ' + JSON.stringify(traces)); }
       if (clarifications.length) console.error('  clarifications traversees : ' + JSON.stringify(clarifications, null, 1));
       if (etat) {
         console.error('  carte de clarification affichee : ' + etat.clarification + (etat.clarification ? '  <- l application ATTEND une reponse, elle ne genere pas' : ''));
@@ -373,6 +426,7 @@ async function mesurerUnSujet(browser, SUJET) {
     }, null, 1));
       const octets = Buffer.byteLength(JSON.stringify(doc));
       console.log('  taille du JSON produit          : ' + Math.round(octets / 1024) + ' Ko');
+      if (MAX_TOKENS) console.log('  requetes dont max_tokens releve  : ' + maxTokensReecrits);
       console.log('  troncature / continuation       : ' + (troncature.length ? troncature.slice(0, 2).join(' | ') : 'aucune'));
       await page.close().catch(() => {});
       return { sujet: SUJET, ok: true, secondes, titre: doc.title,
