@@ -67,6 +67,10 @@ async function mesurerUnSujet(browser, SUJET) {
     const page = await browser.newPage({ viewport: { width: 1280, height: 860 } });
     const avertissements = [], erreurs = [], journal = [], troncature = [], diagnostic = [];
     let echecStructure = null;
+    // Ce que l'appel 2 a REELLEMENT produit, lu sur la ligne que l'application emet a la fin du
+    // flux. C'est la seule source : sur un echec, le JSON partiel n'est expose nulle part, et un
+    // nombre de diapositives ne peut donc pas etre donne — mieux vaut le dire que l'inventer.
+    const appel2 = { stopReason: null, caracteresJSON: null, flux: 0 };
     page.on('pageerror', e => erreurs.push(e.message));
     page.on('console', m => {
       const t = m.text();
@@ -74,11 +78,18 @@ async function mesurerUnSujet(browser, SUJET) {
       if (/appel 2|HTTP|approfondissement/i.test(t)) journal.push(m.type() + ': ' + t.slice(0, 200));
       // Troncature et continuation : les deux seuls signaux qui disent si max_tokens a ete
       // atteint. Ils ne se devinent pas depuis le document produit.
-      if (/tronqu|max_tokens|continuation|emit_remaining/i.test(t)) troncature.push(t.replace(/\s+/g, ' ').slice(0, 160));
+      // TRONCATURE DE L'APPEL 2 SEULEMENT. L'appel 1 (recherche documentaire) tourne a
+      // max_tokens:200 et signale ses propres troncatures de round — les compter ici ferait croire
+      // a un debordement de la generation alors que c'est un accuse de reception coupe, sans effet.
+      if (/tronqu|max_tokens|continuation|emit_remaining/i.test(t) && !/appel 1|Round \d+ de l/i.test(t)) {
+        troncature.push(t.replace(/\s+/g, ' ').slice(0, 160));
+      }
       // Les lignes qui DISENT pourquoi une generation echoue. Sans elles, un repli sur l'ancien
       // moteur ne se distingue pas d'une lenteur, et l'on attend douze minutes pour rien.
       if (/Génération structurée|QC bloquant|stop_reason|continuation|repli|duree_minutes|tool_use accumulé/i.test(t)) {
         diagnostic.push(m.type() + ': ' + t.replace(/\s+/g, ' ').slice(0, 300));
+        const fin = t.match(/flux termin[eé][^(]*\(stop_reason=([^)]*)\)[^:]*:\s*(\d+)/i);
+        if (fin) { appel2.stopReason = fin[1]; appel2.caracteresJSON = parseInt(fin[2], 10); appel2.flux++; }
       }
       // Le repli est ANNONCE en clair par l'application : signal bien plus sur que l'inspection des
       // artefacts, qui ne voyait rien et laissait tourner le compteur douze minutes.
@@ -325,6 +336,12 @@ async function mesurerUnSujet(browser, SUJET) {
     if (!sortie.ok) {
       console.error('ECHEC de la generation apres ' + secondes + ' s');
       console.error('  ' + sortie.erreur);
+      console.error('');
+      console.error('  APPEL 2 (generation structuree) :');
+      console.error('    stop_reason              : ' + (appel2.stopReason || 'inconnu (le flux ne s est pas termine)'));
+      console.error('    JSON accumule            : ' + (appel2.caracteresJSON != null ? appel2.caracteresJSON + ' caracteres' : 'inconnu'));
+      console.error('    troncature appel 2       : ' + (troncature.length ? troncature.length + ' signal(aux)' : 'aucune'));
+      console.error('    diapositives produites   : indeterminable — le document n a pas ete construit, et le JSON partiel n est expose nulle part');
       if (sortie.repli) console.error('  (un repli legacy est un ECHEC de ce que ce test mesure, jamais un succes partiel)');
       // Un delai depasse ne dit rien par lui-meme. On rapporte OU le pipeline en etait : une
       // carte de clarification affichee (l'application attend une reponse, elle ne genere pas),
@@ -439,13 +456,16 @@ async function mesurerUnSujet(browser, SUJET) {
       const octets = Buffer.byteLength(JSON.stringify(doc));
       console.log('  taille du JSON produit          : ' + Math.round(octets / 1024) + ' Ko');
       if (MAX_TOKENS) console.log('  requetes dont max_tokens releve  : ' + maxTokensReecrits);
-      console.log('  troncature / continuation       : ' + (troncature.length ? troncature.slice(0, 2).join(' | ') : 'aucune'));
+      console.log('  appel 2 stop_reason             : ' + (appel2.stopReason || 'non releve'));
+      console.log('  appel 2 JSON accumule           : ' + (appel2.caracteresJSON != null ? appel2.caracteresJSON + ' caracteres' : 'non releve'));
+      console.log('  troncature appel 2 seulement    : ' + (troncature.length ? troncature.slice(0, 2).join(' | ') : 'aucune'));
       await page.close().catch(() => {});
       return { sujet: SUJET, ok: true, secondes, titre: doc.title,
         diapositives: (doc.blocks || []).length, pages: dives.length,
         renvoisDeBloc: liensDeBloc.length, renvoisInternes: repartition.length,
         niveaux, retrouves, replis, octets,
-        cycles: coupes.length, troncature: troncature.length, clarifications: clarifications.length };
+        cycles: coupes.length, troncature: troncature.length, clarifications: clarifications.length,
+          stopReason: appel2.stopReason, caracteresJSON: appel2.caracteresJSON };
     }
 }
 
@@ -475,12 +495,13 @@ async function mesurerUnSujet(browser, SUJET) {
     console.log('TABLEAU DE CAMPAGNE');
     console.log('='.repeat(78));
     const col = (v, n) => String(v == null ? '-' : v).padStart(n);
-    console.log('  diapos pages renvois internes prof retrouv repli   Ko tronc  sujet');
+    console.log('  diapos pages renvois internes prof retrouv repli   Ko tronc clarif stop_reason  sujet');
     resultats.forEach(r => {
       if (!r.ok) { console.log('  ECHEC' + ' '.repeat(50) + r.sujet.slice(0, 38) + '  (' + r.erreur + ')'); return; }
       console.log('  ' + col(r.diapositives, 6) + col(r.pages, 6) + col(r.renvoisDeBloc, 8)
         + col(r.renvoisInternes, 8) + col(r.niveaux, 5) + col(r.retrouves, 8) + col(r.replis, 6)
-        + col(Math.round(r.octets / 1024), 5) + col(r.troncature, 6) + '  ' + r.sujet.slice(0, 38));
+        + col(Math.round(r.octets / 1024), 5) + col(r.troncature, 6) + col(r.clarifications, 7)
+          + ' ' + String(r.stopReason || '-').padEnd(12) + ' ' + r.sujet.slice(0, 34));
     });
     const reussis = resultats.filter(r => r.ok);
     console.log('\n  ' + reussis.length + '/' + resultats.length + ' sujets aboutis'
