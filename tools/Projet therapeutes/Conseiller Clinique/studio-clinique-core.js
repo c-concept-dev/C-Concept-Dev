@@ -8059,6 +8059,118 @@ ${recent}`;
   // Exposée pour les tests — même patron que window.adocConvertDeepDives : l'assembleur est
   // entièrement vérifiable hors ligne, sur des modules forgés, sans le moindre appel au modèle.
   window.adocAssembleCourse = adocAssembleCourse;
+  // ═══ COURS EN MODULES — LE PLAN ═══
+  // Un cours long se prépare AVANT de coûter quoi que ce soit : un appel court produit un plan que
+  // l'utilisatrice relit, corrige et valide, et ce n'est qu'ensuite que les modules sont générés.
+  // L'inverse — générer d'abord, montrer ensuite — ferait payer plusieurs minutes et plusieurs
+  // appels pour un découpage qu'elle aurait refusé.
+  //
+  // Aucun outil strict n'est créé ici, et c'est délibéré : le budget de grammaire de
+  // emit_presentation_document est NUL, et un second outil strict, même dans un appel séparé,
+  // ajouterait une surface à mesurer pour rien. On demande du JSON en texte et on l'analyse
+  // défensivement — même patron que la planification de chapitres d'adocLongDoc, déjà éprouvé.
+
+  // Nombre de modules : ~15 minutes chacun, borné à 2..12. Au-delà de 12, ce n'est plus un cours
+  // mais plusieurs séances — l'interface le dit plutôt que de produire un objet ingérable.
+  function adocCourseModuleCount(dureeMinutes) {
+    const d = typeof dureeMinutes === 'number' && dureeMinutes > 0 ? dureeMinutes : 0;
+    return Math.min(12, Math.max(2, Math.round(d / 15) || 2));
+  }
+  window.adocCourseModuleCount = adocCourseModuleCount;
+
+  // Normalisation PURE de ce que le modèle a répondu. Séparée de l'appel pour être éprouvable sans
+  // dépenser un centime : c'est ici que vivent toutes les bornes, et c'est ici que se joue la
+  // robustesse face à une réponse partielle ou fantaisiste.
+  function adocNormalizeCoursePlan(brut, demande, dureeMinutes, courseId) {
+    const nMax = adocCourseModuleCount(dureeMinutes);
+    const liste = Array.isArray(brut) ? brut : (brut && Array.isArray(brut.modules) ? brut.modules : []);
+    const propres = liste.map(function (m) {
+      const titre = adocStripEmoji(((m && (m.titre || m.title)) || '').trim());
+      if (!titre) return null; // un module sans titre n'est pas rattrapable : on l'écarte
+      const notions = ((m && (m.notionsCles || m.notions_cles || m.notions)) || [])
+        .map(function (x) { return adocStripEmoji(String(x || '').trim()); }).filter(Boolean).slice(0, 8);
+      const objectifs = ((m && (m.objectifs || m.objectives)) || [])
+        .map(function (x) { return adocStripEmoji(String(x || '').trim()); }).filter(Boolean).slice(0, 5);
+      return { titre: titre, objectifs: objectifs, notionsCles: notions,
+               requete: adocStripEmoji(((m && (m.requeteBibliotheque || m.requete)) || '').trim()) };
+    }).filter(Boolean).slice(0, nMax);
+
+    if (!propres.length) {
+      throw new Error('Plan de cours : le modèle n\'a proposé aucun module exploitable.');
+    }
+    // La durée se répartit sur les modules RÉELLEMENT retenus, jamais sur ceux qui étaient espérés :
+    // un plan de 6 modules pour 3 h doit donner 30 minutes chacun, pas 15.
+    const total = typeof dureeMinutes === 'number' && dureeMinutes > 0 ? dureeMinutes : propres.length * 15;
+    const parModule = Math.max(5, Math.round(total / propres.length));
+    return {
+      courseId: courseId,
+      titre: adocStripEmoji((((brut && brut.titre) || demande || 'Cours') + '').trim()).slice(0, 200),
+      dureeMinutes: total,
+      modules: propres.map(function (m, i) {
+        return {
+          id: 'm' + (i + 1),
+          titre: m.titre,
+          objectifs: m.objectifs,
+          notionsCles: m.notionsCles,
+          dureeMinutes: parModule,
+          // 10 à 12 diapositives : en dessous un module n'a pas de corps, au-dessus on retrouve le
+          // problème que le découpage en modules existe précisément pour éviter.
+          slideCount: Math.min(12, Math.max(10, Math.round(parModule / 1.5) || 10)),
+          requeteBibliotheque: m.requete || (m.titre + (m.notionsCles.length ? ' ' + m.notionsCles.join(' ') : '')),
+        };
+      }),
+    };
+  }
+  window.adocNormalizeCoursePlan = adocNormalizeCoursePlan;
+
+  // L'appel court. `courseId` est INJECTÉ par l'appelant : comme pour l'assembleur, un identifiant
+  // tiré au sort ici rendrait le résultat invérifiable.
+  async function adocBuildCoursePlan(demande, dureeMinutes, workerUrl, courseId) {
+    if (!courseId) throw new Error('adocBuildCoursePlan : courseId est requis — injecté par l\'appelant, jamais tiré au sort ici.');
+    const n = adocCourseModuleCount(dureeMinutes);
+    const invite =
+      'Découpe ce cours en ' + n + ' modules autonomes, dans l\'ordre où ils seront enseignés.\n' +
+      'Demande : "' + String(demande || '').slice(0, 600) + '"\n' +
+      'Durée totale : ' + (dureeMinutes || '(non précisée)') + ' minutes.\n\n' +
+      'Chaque module doit pouvoir être exposé SEUL : un thème clair, sans dépendre de ce qui le ' +
+      'précède. Évite tout recouvrement entre modules — une notion traitée dans l\'un ne se ' +
+      'retraite pas dans un autre.\n\n' +
+      'Réponds UNIQUEMENT par un tableau JSON, sans texte autour, de la forme :\n' +
+      '[{"titre":"…","objectifs":["…"],"notionsCles":["…"],"requeteBibliotheque":"…"}]\n' +
+      'requeteBibliotheque : les mots-clés qui serviront à chercher les passages de ce module dans ' +
+      'une bibliothèque clinique — jamais une phrase, seulement des termes.';
+    const r = await fetch(String(workerUrl || '').replace(/\/+$/, ''), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
+      body: JSON.stringify({ payload: {
+        provider: 'anthropic',
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 2000,
+        messages: [{ role: 'user', content: invite }],
+      } }),
+    });
+    if (!r.ok) {
+      // Même exigence que l'appel 2 depuis le 28/09 : le CORPS de l'erreur, pas seulement le code.
+      let detail = '';
+      try {
+        const brutErr = await r.text();
+        try { const j = JSON.parse(brutErr); detail = (j.error && (j.error.message || j.error)) || j.message || brutErr; }
+        catch (_) { detail = brutErr; }
+        detail = String(detail).replace(/\s+/g, ' ').slice(0, 300);
+      } catch (_) {}
+      throw new Error('Plan de cours : HTTP ' + r.status + (detail ? ' — ' + detail : ''));
+    }
+    const data = await r.json();
+    const texte = (data && (data.content || []).map(function (c) { return c && c.text ? c.text : ''; }).join('')) || '';
+    const m = texte.match(/\[[\s\S]*\]/);
+    if (!m) throw new Error('Plan de cours : aucune liste JSON dans la réponse du modèle.');
+    let brut;
+    try { brut = JSON.parse(m[0]); }
+    catch (e) { throw new Error('Plan de cours : liste JSON illisible (' + e.message + ').'); }
+    return adocNormalizeCoursePlan(brut, demande, dureeMinutes, courseId);
+  }
+  window.adocBuildCoursePlan = adocBuildCoursePlan;
+
 
 
   // Présentation ACTE 2, Phase 2 — enveloppe, DANS un fragment de texte DÉJÀ ÉCHAPPÉ, chaque lien
