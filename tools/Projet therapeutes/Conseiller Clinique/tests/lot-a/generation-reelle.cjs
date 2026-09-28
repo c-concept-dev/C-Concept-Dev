@@ -97,11 +97,33 @@ const ORIGINE_PAGES = 'https://c-concept-dev.github.io';
     // refuse de produire sans eux (« Aucun passage RAG disponible »). C'etait un defaut de ce
     // harnais, jamais du produit.
     const t0 = Date.now();
-    await page.evaluate(sujet => {
-      const champ = document.getElementById('adoc-input');
+    // CHEMIN REEL DE L'UTILISATRICE : choisir la carte « Presentation » sur l'ecran d'accueil,
+    // puis decrire le sujet, puis envoyer. Cliquer cette carte pose le type EXPLICITEMENT
+    // (data-kind="presentation"), ce qui evite la question « quel type de document ? ».
+    // Passer directement par la zone de chat, comme le faisait ce harnais, laissait le type
+    // indetermine : l'application posait la question, et une reponse mal choisie produisait un
+    // carrousel — ce qui est arrive.
+    const depart = await page.evaluate(sujet => {
+      const carte = document.getElementById('format-presentation');
+      const champ = document.getElementById('clinical-question');
+      const form = document.getElementById('clinical-home-form');
+      if (!carte || !champ || !form) return { via: 'chat', raison: 'ecran d accueil indisponible' };
+      carte.click();
       champ.value = sujet;
-      return window.adocSend();
-    }, SUJET).catch(e => { console.log('  (adocSend a leve : ' + (e && e.message) + ')'); });
+      champ.dispatchEvent(new Event('input', { bubbles: true }));
+      form.requestSubmit ? form.requestSubmit() : form.querySelector('button[type="submit"]').click();
+      return { via: 'accueil', typeChoisi: carte.getAttribute('aria-pressed') };
+    }, SUJET);
+    console.log('  depart : ' + (depart.via === 'accueil'
+      ? 'carte « Presentation » cliquee (aria-pressed=' + depart.typeChoisi + '), formulaire soumis'
+      : 'repli sur la zone de chat — ' + depart.raison));
+    if (depart.via === 'chat') {
+      await page.evaluate(sujet => {
+        const champ = document.getElementById('adoc-input');
+        champ.value = sujet;
+        return window.adocSend();
+      }, SUJET).catch(e => { console.log('  (adocSend a leve : ' + (e && e.message) + ')'); });
+    }
 
     // L'application ne genere pas tout de suite : elle demande d'abord QUEL type de document, par
     // une carte de clarification. C'est son comportement normal, et un harnais qui se contente
@@ -116,6 +138,7 @@ const ORIGINE_PAGES = 'https://c-concept-dev.github.io';
         for (const k of Object.keys(arts)) {
           const a = arts[k];
           if (a && a._adocStructuredDoc && a._adocStructuredDoc.documentKind === 'presentation') return { type: 'ok', doc: a._adocStructuredDoc };
+          if (a && a._adocStructuredDoc) return { type: 'mauvaisType', kind: a._adocStructuredDoc.documentKind };
           if (a && a._adocGenerationEngine === 'legacy-html') return { type: 'repli' };
         }
         const carte = document.querySelector('.cc-clarity-card');
@@ -129,17 +152,29 @@ const ORIGINE_PAGES = 'https://c-concept-dev.github.io';
       });
 
       if (etat.type === 'ok') { sortie = { ok: true, doc: etat.doc }; break; }
+      if (etat.type === 'mauvaisType') { sortie = { ok: false, erreur: 'document produit du MAUVAIS type : « ' + etat.kind +' » au lieu de « presentation »' }; break; }
       if (etat.type === 'repli') { sortie = { ok: false, repli: true, erreur: 'repli sur le moteur legacy-html : la generation structuree a echoue' }; break; }
       if (etat.type === 'clarification') {
+        // Anti-boucle : au tour precedent, la meme option a ete cliquee CINQ fois sans que rien
+        // n'avance. Un harnais qui repete le meme geste en esperant un autre resultat ne mesure
+        // rien ; il doit changer de moyen, puis s'arreter en le disant.
+        if (clarifications.length >= 6) {
+          sortie = { ok: false, erreur: 'la carte de clarification revient sans fin (' + clarifications.length + ' tours)' };
+          break;
+        }
         // Choix par PREFERENCE explicite, jamais « le premier venu » : un choix arbitraire
         // produirait une fiche ou un carrousel, et ce test mesure une PRESENTATION.
-        const estTypeDeDocument = /type de document|quel type|quel format/i.test(etat.question || '');
         const motif = /pr[ée]sentation|diaporama|expos[ée]|diapositive/i;
+        // Un AUTRE type de document parmi les options suffit a dire que la question porte sur le
+        // type — bien plus fiable que de deviner d'apres la formulation, qui m'a fait choisir
+        // « Carrousel » au tour precedent. Dans ce cas, seule « presentation » convient.
+        const autreType = /^(carrousel|tableau|fiche|script|liens)\b|^une? (fiche|carrousel|tableau|script)/i;
+        const estTypeDeDocument = etat.choix.some(t => autreType.test(t))
+          || /type de document|quel type|quel format/i.test(etat.question || '');
         let vise = etat.choix.find(t => motif.test(t));
-        // Toutes les questions ne portent pas sur le TYPE : le public, la duree, l'angle sont
-        // d'autres tours possibles, ou n'importe quelle option convient. On n'exige « presentation »
-        // que lorsque la question porte effectivement sur le type de document.
-        if (!vise && !estTypeDeDocument) vise = etat.choix[0];
+        // Hors question de type, n'importe quelle option convient (public, duree, angle) — mais
+        // jamais une option qui nommerait un autre type.
+        if (!vise && !estTypeDeDocument) vise = etat.choix.find(t => !autreType.test(t));
         if (!vise) {
           // Aucune option ne mene a une presentation : on repond en TEXTE LIBRE, exactement comme
           // le ferait Christophe devant les memes propositions. Un echec ici ne dirait rien du
