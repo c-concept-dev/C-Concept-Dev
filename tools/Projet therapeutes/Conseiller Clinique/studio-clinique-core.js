@@ -15273,25 +15273,53 @@ ${recent}`;
     document.addEventListener('DOMContentLoaded', adocPresentInstallDoor, { once: true });
   }
 
+  // Une entrée de diapositive du sommaire — extraite pour être partagée par le sommaire plat et le
+  // sommaire groupé, jamais deux constructions du même bouton qui finiraient par diverger.
+  function adocPresentTocItemHTML(card, i) {
+    return '<button type="button" class="cc-ws-present-toc-item" data-idx="' + i + '" onclick="window.adocPresentGoTo(' + i + ')">' +
+      '<span class="cc-ws-present-toc-num">' + (i + 1) + '</span>' +
+      '<span class="cc-ws-present-toc-title">' + adocEsc(card.content.title) + '</span></button>';
+  }
   function adocPresentBuildTocHTML(doc) {
-    const diapositives = (doc.blocks || []).map(function (card, i) {
-      return '<button type="button" class="cc-ws-present-toc-item" data-idx="' + i + '" onclick="window.adocPresentGoTo(' + i + ')">' +
-        '<span class="cc-ws-present-toc-num">' + (i + 1) + '</span>' +
-        '<span class="cc-ws-present-toc-title">' + adocEsc(card.content.title) + '</span></button>';
-    }).join('\n');
+    // COURS EN PUZZLE — un document assemblé porte `doc.modules` : le sommaire est alors regroupé
+    // par module. Sur 120 diapositives, une liste plate est inutilisable ; sur une présentation
+    // ordinaire — cas très largement majoritaire — il ne se passe RIEN de nouveau : le champ est
+    // absent, et le sommaire reste celui d'avant, au caractère près.
+    // La NUMÉROTATION RESTE GLOBALE (1…N) et adocPresentGoTo reçoit le même index : le regroupement
+    // est un habillage, jamais une seconde façon de désigner une diapositive.
+    const mods = (doc.modules || []).filter(function (m) { return m && m.cardId; });
+    if (mods.length) {
+      const debutParCarte = {};
+      mods.forEach(function (m) { debutParCarte[m.cardId] = m; });
+      const morceaux = [];
+      (doc.blocks || []).forEach(function (card, i) {
+        const m = debutParCarte[card.id];
+        if (m) {
+          if (morceaux.length) morceaux.push('<div class="cc-ws-present-toc-sep" role="separator"></div>');
+          morceaux.push('<div class="cc-ws-present-toc-titre">' + adocEsc(m.title) + '</div>');
+        }
+        morceaux.push(adocPresentTocItemHTML(card, i));
+      });
+      return morceaux.join('\n') + adocPresentTocDeepDivesHTML(doc);
+    }
+    const diapositives = (doc.blocks || []).map(adocPresentTocItemHTML).join('\n');
     // Les pages d'approfondissement n'étaient atteignables QUE par la puce du bloc qui y renvoie :
     // une page produite par le modèle mais dont le renvoi est passé inaperçu restait invisible
     // pour toute la présentation. Le sommaire en donne la liste, sans rien changer à la
     // navigation séquentielle. Section ENTIÈREMENT ABSENTE quand il n'y a aucune page — cas
     // normal, très largement majoritaire : jamais un intitulé vide sous une liste vide.
+    return diapositives + adocPresentTocDeepDivesHTML(doc);
+  }
+  // Section « Approfondissements » — partagée par le sommaire plat et le sommaire groupé.
+  function adocPresentTocDeepDivesHTML(doc) {
     const pages = doc.deepDives || [];
-    if (!pages.length) return diapositives;
+    if (!pages.length) return '';
     const liste = pages.map(function (d) {
       return '<button type="button" class="cc-ws-present-toc-item cc-ws-present-toc-dive" data-dive="' + adocEsc(d.id) + '" onclick="window.adocPresentOpenDeepDiveFromToc(\'' + adocEsc(d.id) + '\')">' +
         '<span class="cc-ws-present-toc-num" aria-hidden="true">↳</span>' +
         '<span class="cc-ws-present-toc-title">' + adocEsc(d.title) + '</span></button>';
     }).join('\n');
-    return diapositives + '\n<div class="cc-ws-present-toc-sep" role="separator"></div>' +
+    return '\n<div class="cc-ws-present-toc-sep" role="separator"></div>' +
       '<div class="cc-ws-present-toc-titre">Approfondissements</div>\n' + liste;
   }
 
@@ -15902,6 +15930,11 @@ ${recent}`;
       // que les onclick="window.X(", et celle-ci n'en est pas un. Quatrième occurrence de ce
       // piège exact ; seul le test qui ouvre l'export et clique dedans le voit.
       adocPresentMemoriserFocus: adocPresentMemoriserFocus,
+      // Appelées par adocPresentBuildTocHTML, elle-même appelée à l'ouverture de TOUTE présentation
+      // exportée : sans elles ici, le sommaire lèverait une ReferenceError dès le premier affichage.
+      // Le garde-fou générique ne les verrait pas — ce ne sont pas des onclick.
+      adocPresentTocItemHTML: adocPresentTocItemHTML,
+      adocPresentTocDeepDivesHTML: adocPresentTocDeepDivesHTML,
       adocEditorTableGrid: adocEditorTableGrid, adocEditorApplyRules: adocEditorApplyRules,
       adocEditorRenderList: adocEditorRenderList, adocEditorRenderTable: adocEditorRenderTable,
       adocEditorExportFonts: adocEditorExportFonts, adocRenderBlockHTML: adocRenderBlockHTML,
