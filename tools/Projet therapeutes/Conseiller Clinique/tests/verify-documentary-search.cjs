@@ -13,7 +13,17 @@ await page.route('**/*',async route=>{
  if(url.endsWith('/passage-full')){fullCalls++;data={full_content:original+' Suite originale.',full_translated_content:translated+' Suite traduite.',is_machine_translated:true};}
  return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(data)});
 });
+// Toutes les requêtes de ce test sont interceptées plus haut : aucune ne sort. Il faut néanmoins
+// que la clé d'accès paraisse configurée AVANT le chargement — l'application avertit dès le
+// démarrage (« Clé d'accès non configurée »), et cet avertissement, parfaitement légitime, fait
+// échouer l'assertion finale sur l'absence de message. Valeur factice, jamais un secret.
+await page.addInitScript(() => { try { localStorage.setItem('workerApiKey', 'valeur-factice-de-test'); } catch (_) {} });
 await page.goto('file://'+base+'/studio-clinique.html');
+// L'écran de connexion (#cc-login-screen) est modal et intercepte TOUS les clics de souris.
+// Ce test a été écrit avant qu'il s'affiche au chargement, d'où des délais d'attente dépassés
+// qui n'avaient rien d'un aléa d'environnement. Il est retiré du chemin : ce test ne porte pas
+// sur l'authentification, et aucune connexion n'est simulée ici.
+await page.evaluate(() => document.getElementById('cc-login-screen')?.remove());
 await page.evaluate(async()=>{
  adocHomeSearchTogglePanel();
  document.getElementById('cc-home-search-input').value='slow';document.getElementById('cc-ws-search-input').value='fast';

@@ -10,7 +10,11 @@ const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 
-const source = readFileSync(path.join(__dirname, '../index.js'), 'utf8');
+// Le code du Worker, jamais un index.js voisin : ce test lit Worker/index.js, il est
+// seulement RANGÉ dans ce dossier-ci. Le chemin « ../index.js » désignait
+// « Conseiller Clinique/index.js », qui n'a jamais existé — d'où un ENOENT immédiat au
+// chargement, et non un aléa d'environnement.
+const source = readFileSync(path.join(__dirname, '../../../../Worker/index.js'), 'utf8');
 function extract(startMarker, endMarker) {
   const start = source.indexOf(startMarker);
   const end = source.indexOf(endMarker, start);

@@ -17,6 +17,11 @@ const {fixture}=require('../../../../Worker/tests/verify-library-facets.cjs');
   return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(result)});
  });
  await page.goto('file://'+path.join(__dirname,'../studio-clinique.html'));
+ // L'écran de connexion (#cc-login-screen) est modal et intercepte TOUS les clics de souris.
+ // Ce test a été écrit avant qu'il s'affiche au chargement, d'où des délais d'attente dépassés
+ // qui n'avaient rien d'un aléa d'environnement. Il est retiré du chemin : ce test ne porte pas
+ // sur l'authentification, et aucune connexion n'est simulée ici.
+ await page.evaluate(() => document.getElementById('cc-login-screen')?.remove());
  await page.locator('#clinical-question').fill('Ne pas modifier cette demande.');
  await page.locator('#cc-home-search-toggle').click();await page.locator('#cc-home-search-filters-toggle').click();
  const facet=(dimension,value)=>page.locator('#cc-home-search-facet-values [data-dimension="'+dimension+'"] button[data-value="'+value+'"]');

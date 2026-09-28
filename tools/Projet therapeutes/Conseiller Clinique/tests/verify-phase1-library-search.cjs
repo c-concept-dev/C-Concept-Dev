@@ -66,6 +66,11 @@ const IFS_CHUNK_TRANSLATED = {
   });
 
   await page.goto('file://' + FILE);
+  // L'écran de connexion (#cc-login-screen) est modal et intercepte TOUS les clics de souris.
+  // Ce test a été écrit avant qu'il s'affiche au chargement, d'où des délais d'attente dépassés
+  // qui n'avaient rien d'un aléa d'environnement. Il est retiré du chemin : ce test ne porte pas
+  // sur l'authentification, et aucune connexion n'est simulée ici.
+  await page.evaluate(() => document.getElementById('cc-login-screen')?.remove());
   await page.waitForTimeout(300);
 
   // ═══════════════════════ 1. ÉCRAN D'ACCUEIL (avant tout document) ═══════════════════════

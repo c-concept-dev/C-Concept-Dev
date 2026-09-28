@@ -17,7 +17,11 @@ const os = require('node:os');
 
 // PDF générés à titre de preuve — écrits hors dépôt (répertoire temporaire), jamais committés.
 const OUT_DIR = os.tmpdir();
-const source = readFileSync(path.join(__dirname, '../index.js'), 'utf8');
+// Le code du Worker, jamais un index.js voisin : ce test lit Worker/index.js, il est
+// seulement RANGÉ dans ce dossier-ci. Le chemin « ../index.js » désignait
+// « Conseiller Clinique/index.js », qui n'a jamais existé — d'où un ENOENT immédiat au
+// chargement, et non un aléa d'environnement.
+const source = readFileSync(path.join(__dirname, '../../../../Worker/index.js'), 'utf8');
 function extract(startMarker, endMarker) {
   const start = source.indexOf(startMarker);
   const end = source.indexOf(endMarker, start);
