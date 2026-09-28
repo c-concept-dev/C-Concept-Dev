@@ -60,6 +60,12 @@ const ORIGINE_PAGES = 'https://c-concept-dev.github.io';
       // elle-meme. Elle est relevee comme les autres, jamais laissee implicite.
       if (PUBLIE && u.startsWith(ORIGINE_PAGES)) { hotesContactes.add(new URL(u).host); return route.continue(); }
       if (u.startsWith(WORKER)) { hotesContactes.add(new URL(u).host); return route.continue(); }
+      // Dependances DECLAREES de l'application (jszip, pdf.js, mammoth, polices) : de simples GET
+      // de fichiers statiques, qui n'emportent aucune donnee. Les bloquer ne protegeait rien et
+      // risquait de casser le pipeline meme qu'on cherche a mesurer.
+      if (/^https:\/\/(cdnjs\.cloudflare\.com|fonts\.(googleapis|gstatic)\.com)\//.test(u)) {
+        hotesContactes.add(new URL(u).host); return route.continue();
+      }
       try { hotesBloques.add(new URL(u).host); } catch (_) { hotesBloques.add(u.slice(0, 40)); }
       return route.abort();
     });
@@ -111,7 +117,7 @@ const ORIGINE_PAGES = 'https://c-concept-dev.github.io';
         }
       }
       return false;
-    }, { timeout: 420000, polling: 1500 }).then(h => h.jsonValue())
+    }, null, { timeout: 420000, polling: 2000 }).then(h => h.jsonValue())
       .catch(e => ({ ok: false, erreur: 'aucun document structure apres 7 minutes (' + (e && e.message) + ')' }));
     const secondes = Math.round((Date.now() - t0) / 1000);
 
@@ -119,6 +125,27 @@ const ORIGINE_PAGES = 'https://c-concept-dev.github.io';
       console.error('ECHEC de la generation apres ' + secondes + ' s');
       console.error('  ' + sortie.erreur);
       if (sortie.repli) console.error('  (un repli legacy est un ECHEC de ce que ce test mesure, jamais un succes partiel)');
+      // Un delai depasse ne dit rien par lui-meme. On rapporte OU le pipeline en etait : une
+      // carte de clarification affichee (l'application attend une reponse, elle ne genere pas),
+      // les artefacts deja poses, et le dernier message visible dans la conversation.
+      const etat = await page.evaluate(() => ({
+        artefacts: Object.keys(window._adocArtifacts || {}).map(k => ({
+          cle: k, moteur: (window._adocArtifacts[k] || {})._adocGenerationEngine || null,
+          structure: !!(window._adocArtifacts[k] || {})._adocStructuredDoc,
+        })),
+        clarification: !!document.querySelector('.cc-clarity-card'),
+        enCours: !!document.querySelector('.adoc-typing, [id^="typing"]'),
+        dernierMessage: (() => {
+          const m = [...document.querySelectorAll('#adoc-messages > *')].pop();
+          return m ? m.textContent.replace(/\s+/g, ' ').trim().slice(0, 300) : null;
+        })(),
+      })).catch(() => null);
+      if (etat) {
+        console.error('  carte de clarification affichee : ' + etat.clarification + (etat.clarification ? '  <- l application ATTEND une reponse, elle ne genere pas' : ''));
+        console.error('  generation encore en cours       : ' + etat.enCours);
+        console.error('  artefacts                        : ' + (JSON.stringify(etat.artefacts) || '[]'));
+        console.error('  dernier message                  : ' + (etat.dernierMessage || '(aucun)'));
+      }
       journal.forEach(l => console.error('  journal | ' + l));
       console.error('  adresses contactees : ' + ([...hotesContactes].join(', ') || 'aucune'));
       if (hotesBloques.size) console.error('  hotes bloques : ' + [...hotesBloques].join(', '));
