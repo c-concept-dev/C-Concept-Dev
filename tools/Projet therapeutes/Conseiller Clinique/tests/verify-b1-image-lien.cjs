@@ -171,7 +171,19 @@ async function revelerJusqua(page, selecteur) {
     assert.equal(etat.avecLien.curseur, 'pointer', 'curseur pointeur : le geste annoncé est un lien');
     assert.equal(etat.avecLien.puces.length, 1, "la puce « ↳ Approfondir » doit exister sous l'image");
     assert.match(etat.avecLien.puces[0], /adocPresentOpenDeepDive\('n1'\)/);
-    console.log('PASS  7/12 image porteuse : clic vers la page, curseur pointeur, puce présente.');
+    // Présente ne suffit pas : elle doit être VUE. Une image de diapositive déborde la hauteur
+    // utile de la carte, et une puce placée après elle — ou en bas de l'image — tombe sous le
+    // pli : dans le DOM, atteignable au clavier, jamais aperçue. Mesuré, pas supposé.
+    const puceVue = await page.evaluate(() => {
+      const c = document.querySelector('#cc-ws-present-slide-inner #image-01 .adoc-sc-deepdive-chip');
+      const carte = document.querySelector('#cc-ws-present-slide-inner .adoc-sc-card');
+      if (!c || !carte) return null;
+      const r = c.getBoundingClientRect(), rc = carte.getBoundingClientRect();
+      return { dedans: r.top >= rc.top && r.bottom <= rc.bottom + 1, puce: Math.round(r.top) + '-' + Math.round(r.bottom), carte: Math.round(rc.top) + '-' + Math.round(rc.bottom) };
+    });
+    assert.ok(puceVue && puceVue.dedans,
+      'la puce doit tomber DANS la zone visible de la carte ; mesuré ' + JSON.stringify(puceVue));
+    console.log('PASS  7/12 image porteuse : clic vers la page, curseur pointeur, puce présente ET visible.');
 
     assert.match(etat.sansLien.onclick, /adocPresentOpenImageDoor/, "sans renvoi, l'agrandissement est intact");
     assert.equal(etat.sansLien.curseur, 'zoom-in');

@@ -10879,6 +10879,24 @@ ${recent}`;
             ? ' onclick="window.adocPresentOpenDeepDive(\'' + adocEsc(imgLienActif.targetId) + '\')"'
             : ' onclick="window.adocPresentOpenImageDoor(this)"';
         const imgDoorCursor = !_adocRenderingForPresentDoor ? '' : imgLienActif ? 'cursor:pointer;' : 'cursor:zoom-in;';
+        // ACCESSIBILITÉ CLAVIER — l'image porte un onclick depuis l'Acte 2 sans jamais être
+        // atteignable autrement qu'à la souris : ni tabulation, ni Entrée, ni annonce par un
+        // lecteur d'écran. En vidéoprojection, la présentatrice n'a souvent qu'un clavier ou une
+        // télécommande. Posé UNIQUEMENT en mode présentation, comme l'onclick lui-même.
+        //   — le gestionnaire est une EXPRESSION en ligne, jamais un appel à window.X : le
+        //     garde-fou d'export ne surveille que les onclick, et une fonction oubliée
+        //     d'engineFnRefs ne se manifesterait qu'en ReferenceError au premier appui (trois
+        //     précédents). Sans fonction, ce risque n'existe pas ;
+        //   — this.click() réutilise EXACTEMENT le chemin du clic (porte image ou page
+        //     d'approfondissement selon le cas), jamais une seconde logique à tenir à jour ;
+        //   — Espace est intercepté (preventDefault) sinon la page défilerait sous la diapositive.
+        const imgA11yLabel = !_adocRenderingForPresentDoor ? ''
+          : imgLienActif
+            ? "Ouvrir la page d'approfondissement : " + (imgLienActif.text || b.content.alt || '')
+            : "Agrandir l'image" + (b.content.alt ? ' : ' + b.content.alt : '');
+        const imgDoorA11y = !_adocRenderingForPresentDoor ? ''
+          : ' tabindex="0" role="button" aria-label="' + adocEsc(imgA11yLabel) + '"'
+            + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click();}"';
         const imgStyle = 'width:' + imgWidth + '%;border-radius:8px;object-fit:cover;display:block;margin:0 auto;' + imgPositionedFill + imgDoorCursor + (imgOpacity < 100 ? 'opacity:' + (imgOpacity / 100) + ';' : '') + (imgRotation ? 'transform:rotate(' + imgRotation + 'deg);' : '');
         const imgFigureStyleAttr = nestedPosCSS ? ' style="' + adocEsc(nestedPosCSS) + '"' : '';
         // La puce « ↳ Approfondir » n'existait dans AUCUN cas image. Sans elle, le renvoi ne serait
@@ -10886,7 +10904,7 @@ ${recent}`;
         // image ordinaire. Même mécanisme que pour les cinq cas texte : c'est la puce, jamais
         // l'enrichissement, qui garantit qu'un lien n'est pas silencieusement perdu.
         return '<figure class="adoc-sc-block adoc-sc-image' + statusClass + '" id="' + adocEsc(b.id) + '"' + imgFigureStyleAttr + '>' +
-          '<img ' + imgAttr + onErrorAttr + imgDoorOnclick + ' alt="' + adocEsc(b.content.alt) + '" style="' + imgStyle + '">' +
+          '<img ' + imgAttr + onErrorAttr + imgDoorOnclick + imgDoorA11y + ' alt="' + adocEsc(b.content.alt) + '" style="' + imgStyle + '">' +
           note + deepDiveChips + dragHandle + nestedResizeHandle + '</figure>';
       }
       case 'video': {
@@ -14783,8 +14801,29 @@ ${recent}`;
     '.cc-ws-present-slide-inner .adoc-sc-doc{height:100%;}' +
     '.cc-ws-present-slide-inner .adoc-sc-card{width:100%;height:100%;max-width:none;box-sizing:border-box;overflow:auto;}' +
     '.cc-ws-present-slide-inner.cc-ws-present-out{opacity:0;}' +
-    '.cc-ws-present-slide-inner .adoc-sc-reveal{opacity:0;transform:translateY(10px);transition:opacity 220ms ease, transform 220ms ease;pointer-events:none;}' +
-    '.cc-ws-present-slide-inner .adoc-sc-reveal.adoc-sc-reveal-shown{opacity:1;transform:translateY(0);pointer-events:auto;}' +
+    // `visibility` en plus de l'opacité : un bloc non encore révélé était RETIRÉ DU CLIC
+    // (pointer-events) mais restait dans l'ordre de TABULATION et lisible par un lecteur d'écran.
+    // On tabulait donc sur du contenu invisible — déjà vrai des puces « ↳ Approfondir » depuis
+    // l'Acte 2, et l'ajout du clavier sur les images l'aurait aggravé. Le délai de 220 ms sur la
+    // disparition préserve exactement le fondu existant ; l'apparition est immédiate. Seule
+    // propriété ajoutée, aucune valeur existante modifiée.
+    '.cc-ws-present-slide-inner .adoc-sc-reveal{opacity:0;transform:translateY(10px);transition:opacity 220ms ease, transform 220ms ease, visibility 0s linear 220ms;pointer-events:none;visibility:hidden;}' +
+    '.cc-ws-present-slide-inner .adoc-sc-reveal.adoc-sc-reveal-shown{opacity:1;transform:translateY(0);pointer-events:auto;visibility:visible;transition:opacity 220ms ease, transform 220ms ease, visibility 0s;}' +
+    // Focus VISIBLE — sans cela, tabuler dans une diapositive projetée revient à déplacer un
+    // curseur invisible : la présentatrice ne sait plus où elle en est. Contour clair et net,
+    // lisible de loin sur le fond sombre de la présentation, et posé seulement sur :focus-visible
+    // pour ne jamais apparaître après un simple clic de souris.
+    '.cc-ws-present-slide-inner img:focus-visible,.cc-ws-present-slide-inner .adoc-sc-deepdive-chip:focus-visible{outline:3px solid #7dd3c0;outline-offset:3px;border-radius:8px;}' +
+    // La puce d'une IMAGE se pose SUR l'image, en HAUT, jamais à la suite ni en bas. Mesuré sur
+    // une diapositive ordinaire (un paragraphe + une image) : l'image déborde la hauteur utile de
+    // la carte, si bien qu'une puce placée après elle — ou même en bas de l'image — tombe sous le
+    // pli : présente dans le DOM, atteignable au clavier, mais JAMAIS vue. Or toute sa raison
+    // d'être est de rendre le renvoi découvrable à l'œil. Le haut de l'image, lui, est
+    // nécessairement à l'écran au moment où elle se révèle. Fond opaque pour rester lisible
+    // quelle que soit l'image dessous. Ne concerne que le cas image : les puces de prose suivent
+    // un texte court et restent naturellement visibles.
+    '.cc-ws-present-slide-inner .adoc-sc-image{position:relative;}' +
+    '.cc-ws-present-slide-inner .adoc-sc-image .adoc-sc-deepdive-chip{position:absolute;right:14px;top:14px;z-index:2;background:rgba(20,33,31,.92);color:#e8f5f1;border:1px solid rgba(232,245,241,.45);box-shadow:0 2px 10px rgba(0,0,0,.35);}' +
     '.cc-ws-present-nav{flex-shrink:0;width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.08);color:#fff;font-size:22px;line-height:1;cursor:pointer;}' +
     '.cc-ws-present-nav:hover{background:rgba(255,255,255,.18);}' +
     '.cc-ws-present-nav:disabled{opacity:.3;cursor:default;}' +
@@ -15082,9 +15121,24 @@ ${recent}`;
   // chaque fonction d'ouverture se contente de peupler SA partie du slot et de masquer l'autre.
   // Jamais deux mécanismes de superposition qui divergeraient avec le temps (chrome/CSS/fermeture/
   // interception Échap intégralement partagés, jamais dupliqués).
+  // Mémorise l'élément d'où la porte a été ouverte, pour lui rendre le focus à la fermeture.
+  // Sans cela, refermer une porte ouverte au clavier renvoie le focus au <body> : la tabulation
+  // suivante repart du tout début de la diapositive, et le fil est perdu. Aucune écriture dans le
+  // DOM de la diapositive — seulement une référence gardée en mémoire, puis un .focus().
+  function adocPresentMemoriserFocus() {
+    const state = window._adocPresentState;
+    if (!state) return;
+    const actif = document.activeElement;
+    const dans = document.getElementById('cc-ws-present-slide-inner');
+    // On n'ÉCRASE jamais une origine déjà mémorisée par un « rien » : en descendant d'un niveau
+    // depuis l'intérieur de la porte, le focus n'est plus dans la diapositive, et remettre null
+    // ici ferait perdre le point de départ pour toute la descente.
+    if (actif && dans && dans.contains(actif)) state._retourFocus = actif;
+  }
   window.adocPresentOpenImageDoor = function (imgEl) {
     const door = document.getElementById('cc-ws-present-door');
     if (!door || !imgEl) return;
+    adocPresentMemoriserFocus();
     const img = door.querySelector('img');
     const textEl = door.querySelector('.cc-ws-present-door-text');
     if (img) { img.src = imgEl.currentSrc || imgEl.src; img.alt = imgEl.alt || ''; img.hidden = false; }
@@ -15096,6 +15150,15 @@ ${recent}`;
   window.adocPresentCloseImageDoor = function () {
     const door = document.getElementById('cc-ws-present-door');
     if (door) { door.classList.remove('open'); door.hidden = true; }
+    // Rend le focus à l'élément d'origine s'il est toujours dans la page. Vérification explicite :
+    // une diapositive peut avoir été re-rendue entre-temps, et redonner le focus à un élément
+    // détaché ne ferait rien tout en le laissant croire fait.
+    const _st = window._adocPresentState;
+    if (_st && _st._retourFocus) {
+      const cible = _st._retourFocus;
+      _st._retourFocus = null;
+      if (cible.isConnected && typeof cible.focus === 'function') cible.focus();
+    }
     // Présentation ACTE 3 — fermer la porte, par le bouton × comme par Échap au premier niveau,
     // abandonne le chemin parcouru : sans cela, une réouverture repartirait d'une pile fantôme et
     // le garde-fou cycle refuserait des pages parfaitement légitimes. Vider une pile déjà vide
@@ -15182,6 +15245,7 @@ ${recent}`;
   // indépendant de celui de la conversion, parce qu'un document peut avoir été produit avant ce
   // lot ou modifié à la main.
   window.adocPresentOpenDeepDive = function (targetId) {
+    adocPresentMemoriserFocus();
     const state = window._adocPresentState;
     const deepDives = (state && state.doc && state.doc.deepDives) || [];
     const entry = deepDives.filter(function (d) { return d.id === targetId; })[0];
@@ -15392,6 +15456,12 @@ ${recent}`;
       // démontre. C'est ce que fait tests/verify-acte3-export-standalone.cjs.
       adocDeepDivePathHTML: adocDeepDivePathHTML, adocDeepDiveActionsHTML: adocDeepDiveActionsHTML,
       adocDeepDivePopulateDoor: adocDeepDivePopulateDoor,
+      // Appelée par adocPresentOpenImageDoor ET adocPresentOpenDeepDive, toutes deux exportées :
+      // sans elle ici, le premier clic sur une image ou une puce dans le fichier exporté
+      // lèverait une ReferenceError. Le garde-fou générique ne la verrait JAMAIS — il n'inspecte
+      // que les onclick="window.X(", et celle-ci n'en est pas un. Quatrième occurrence de ce
+      // piège exact ; seul le test qui ouvre l'export et clique dedans le voit.
+      adocPresentMemoriserFocus: adocPresentMemoriserFocus,
       adocEditorTableGrid: adocEditorTableGrid, adocEditorApplyRules: adocEditorApplyRules,
       adocEditorRenderList: adocEditorRenderList, adocEditorRenderTable: adocEditorRenderTable,
       adocEditorExportFonts: adocEditorExportFonts, adocRenderBlockHTML: adocRenderBlockHTML,
