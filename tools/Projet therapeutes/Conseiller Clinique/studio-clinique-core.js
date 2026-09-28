@@ -3326,7 +3326,13 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
           // appliqué après coup sur le _struct.doc déjà produit ci-dessus. Ne relit ni ne
           // relance jamais ragResult/sourceSnapshot — donc jamais de nouvelle recherche RAG.
           const _brandKitResolved = await adocResolveBrandKitForGeneration(_struct.doc);
-          const _rendered = await window.adocRenderClinicalDocument(_struct.doc, _struct.sourceSnapshot, _brandKitResolved.renderManifestOverride);
+          // Le modèle s'est-il arrêté DE LUI-MÊME ? Si oui, rien n'a été coupé, et l'heuristique
+          // lexicale de troncature du contrôle qualité ne peut pas avoir raison : elle n'avertit alors
+          // plus que d'un défaut de ponctuation, sans bloquer. Mesuré : une présentation de 60 minutes
+          // terminée en tool_use, complète, a été rejetée pour un callout sans point final — et
+          // l'utilisatrice a reçu à la place un document de l'ancien moteur.
+          const _rendered = await window.adocRenderClinicalDocument(_struct.doc, _struct.sourceSnapshot, _brandKitResolved.renderManifestOverride,
+            { genereEnEntier: _struct.stopReason === 'tool_use' });
           // Correctif BUG 1 (lot correctifs urgents) : un document techniquement rendu mais
           // qualité bloquante (qc.blocking non vide) n'est JAMAIS présenté comme acceptable —
           // on déclenche le repli déjà existant (catch ci-dessous) vers l'ancien moteur plutôt
@@ -10803,7 +10809,11 @@ ${recent}`;
   // orphelin (jamais validé — même risque qu'une citation invalide), contenu tronqué, texte
   // alternatif absent sur une image informative. Le contraste AA est garanti par
   // construction (jetons déjà audités), jamais recalculé dynamiquement.
-  function adocRunQualityContract(doc, invalidCitationIds, checksumMismatchIds, orphanCitationIds) {
+  function adocRunQualityContract(doc, invalidCitationIds, checksumMismatchIds, orphanCitationIds, opts) {
+    // `genereEnEntier` : le modèle a terminé DE LUI-MÊME (stop_reason 'tool_use'), donc rien n'a
+    // été coupé. Dans ce cas l'heuristique lexicale de troncature ne peut pas avoir raison — voir
+    // son usage plus bas. Absent (document rouvert, import, test) : comportement inchangé.
+    const genereEnEntier = !!(opts && opts.genereEnEntier);
     const blocking = [];
     const nonBlocking = [];
 
@@ -10883,7 +10893,20 @@ ${recent}`;
       (blocks || []).forEach(b => {
         if (b.type === 'paragraph' || b.type === 'quote' || b.type === 'callout') {
           if (looksTruncated(b.content.text)) {
-            blocking.push('Bloc ' + b.id + ' : contenu apparemment tronqué (ne se termine pas par une ponctuation finale).');
+            // Les 60 derniers caractères sont CITÉS : sans eux, ce message oblige à rouvrir le document
+            // pour comprendre ce que la règle a vu, et l'on ne peut ni la corriger ni lui donner tort.
+            const _fin = (b.content.text || '').trim().slice(-60);
+            const _msg = 'Bloc ' + b.id + ' : ne se termine pas par une ponctuation finale — fin du texte : « …'
+              + _fin + ' »';
+            if (genereEnEntier) {
+              // Le modèle a produit son bloc tool_use en entier : le texte n'est PAS tronqué, quoi qu'en
+              // dise une règle purement lexicale. Un callout, un titre de rubrique ou une formule brève
+              // se terminent légitimement sans point. On avertit, on ne bloque pas : bloquer ici revenait
+              // à jeter un document complet et à rendre celui de l'ancien moteur à la place.
+              nonBlocking.push(_msg + ' (génération complète : signalé, non bloquant).');
+            } else {
+              blocking.push(_msg + ' — contenu apparemment tronqué.');
+            }
           }
         }
         if (b.type === 'card') {
@@ -11693,7 +11716,10 @@ ${recent}`;
   // Retourne { html, qc, validatedDoc, renderManifest, tokens } — qc.exportAllowed===false
   // n'empêche PAS l'aperçu (l'utilisatrice doit voir ce qui cloche pour le corriger), mais
   // bloque l'export (voir adocExportClinicalDocumentHTML ci-dessous, correctif point 2).
-  window.adocRenderClinicalDocument = async function(doc, sourceSnapshot, renderManifestOverride) {
+  // `opts` (4e paramètre, optionnel) transporte ce que le rendu ne peut pas deviner du document
+  // seul — aujourd'hui `genereEnEntier`, qui dit si le modèle s'est arrêté de lui-même. Un
+  // appelant qui l'ignore obtient le comportement d'avant, à l'identique.
+  window.adocRenderClinicalDocument = async function(doc, sourceSnapshot, renderManifestOverride, opts) {
     const mode = adocGetRendererMode(doc.documentKind);
     if (mode !== 'structured') {
       throw new Error('adocRenderClinicalDocument: documentKind "' + doc.documentKind + '" est en mode "' + mode + '" (ancien moteur), pas encore migré vers le rendu canonique (voir UX-8M).');
@@ -11713,7 +11739,7 @@ ${recent}`;
     const tokens = adocResolveTokens(renderManifest);
 
     const validated = await adocValidateClinicalDocument(doc, sourceSnapshot);
-    const qc = adocRunQualityContract(validated.doc, validated.invalidCitationIds, validated.checksumMismatchIds, validated.orphanCitationIds);
+    const qc = adocRunQualityContract(validated.doc, validated.invalidCitationIds, validated.checksumMismatchIds, validated.orphanCitationIds, opts);
 
     let html;
     if (doc.documentKind === 'fiche') html = adocRenderFicheHTML(validated.doc, tokens);
@@ -12877,7 +12903,15 @@ ${recent}`;
           "reprendre imageAlt (il ne sert ici que de libellé, il n'y a aucun texte où le retrouver).\n\n" +
           '── TEXTE ──\n' +
           "Aucun emoji, aucun caractère Unicode décoratif (cercles ou carrés de couleur, symboles, " +
-          "pictogrammes, flèches décoratives) nulle part dans le texte produit — texte propre uniquement.";
+          "pictogrammes, flèches décoratives) nulle part dans le texte produit — texte propre uniquement.\n" +
+          // Un contrôle qualité en aval signale tout paragraphe, callout ou citation qui ne se
+          // termine pas par une ponctuation finale : il ne sait pas distinguer un texte coupé d'un
+          // texte qui finit sans point. Le lui dire ici coûte deux phrases et évite un
+          // avertissement sur chaque bloc bref.
+          "Termine CHAQUE paragraphe, callout et citation par une ponctuation finale (point, point " +
+          "d'interrogation, point d'exclamation, points de suspension ou guillemet fermant). Une " +
+          "formule brève ou un intitulé en portent une aussi : sans elle, le texte est signalé comme " +
+          "possiblement coupé.";
       },
       // MÊME fonction que 'carrousel' ci-dessus, dupliquée ici (jamais partagée par référence) pour
       // ne changer qu'un seul préfixe d'id ('slide-' plutôt que 'card-', simple confort de lecture
@@ -14219,7 +14253,10 @@ ${recent}`;
     // vaut déjà [] ici et ce document reste construit à l'identique d'avant ce lot, aucun nouveau
     // champ ajouté (même principe additif à empreinte nulle que deepDiveLinks ci-dessus).
     if (deepDives.length) doc.deepDives = deepDives;
-    return { doc: doc, sourceSnapshot: sourceSnapshot };
+    // stopReason remonte jusqu'à l'appelant : c'est lui qui dit si le modèle s'est arrêté DE
+    // LUI-MÊME (tool_use) ou s'il a été coupé (max_tokens). Le contrôle qualité en a besoin — voir
+    // adocRunQualityContract, heuristique de troncature.
+    return { doc: doc, sourceSnapshot: sourceSnapshot, stopReason: _genStopReason };
   }
   window.adocGenerateStructuredDocument = adocGenerateStructuredDocument;
   // Parité des moteurs (HAL) — exposée pour les tests, même patron que
