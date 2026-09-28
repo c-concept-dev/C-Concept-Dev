@@ -27,7 +27,13 @@ const path = require('node:path');
 const WORKER = 'https://clone-proxy.11drumboy11.workers.dev';
 const CLE = (process.env.STUDIO_WORKER_API_KEY || '').trim();
 if (!CLE || /[^\x20-\x7E]/.test(CLE)) { console.error('Cle du Worker absente ou invalide. Aucun appel emis.'); process.exit(2); }
-const SUJET = process.argv[2] || "le cortisol et le systeme nerveux dans le stress chronique du couple";
+const SUJET = process.argv.filter(a => !a.startsWith('--'))[2] || "le cortisol et le systeme nerveux dans le stress chronique du couple";
+// --publie : ouvrir la version REELLEMENT SERVIE par GitHub Pages plutot que le fichier local.
+// C'est la seule facon de verifier ce que Christophe utilisera : un fichier local peut differer
+// de ce qui est publie, et l'a deja fait.
+const PUBLIE = process.argv.includes('--publie');
+const PAGES = 'https://c-concept-dev.github.io/C-Concept-Dev/tools/Projet%20therapeutes/Conseiller%20Clinique/studio-clinique.html';
+const ORIGINE_PAGES = 'https://c-concept-dev.github.io';
 
 (async () => {
   const browser = await chromium.launch(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
@@ -48,6 +54,9 @@ const SUJET = process.argv[2] || "le cortisol et le systeme nerveux dans le stre
     await page.route('**/*', route => {
       const u = route.request().url();
       if (u.startsWith('file:') || u.startsWith('data:') || u.startsWith('blob:')) return route.continue();
+      // En mode --publie, l'origine GitHub Pages doit evidemment etre jointe : c'est la page
+      // elle-meme. Elle est relevee comme les autres, jamais laissee implicite.
+      if (PUBLIE && u.startsWith(ORIGINE_PAGES)) { hotesContactes.add(new URL(u).host); return route.continue(); }
       if (u.startsWith(WORKER)) { hotesContactes.add(new URL(u).host); return route.continue(); }
       try { hotesBloques.add(new URL(u).host); } catch (_) { hotesBloques.add(u.slice(0, 40)); }
       return route.abort();
@@ -57,7 +66,9 @@ const SUJET = process.argv[2] || "le cortisol et le systeme nerveux dans le stre
     await page.addInitScript(o => {
       try { localStorage.setItem('workerApiKey', o.c); localStorage.setItem('workerUrl', o.w); } catch (_) {}
     }, { c: CLE, w: WORKER });
-    await page.goto('file://' + path.join(__dirname, '..', '..', 'studio-clinique.html'));
+    const adresse = PUBLIE ? PAGES : 'file://' + path.join(__dirname, '..', '..', 'studio-clinique.html');
+    console.log('Page ouverte : ' + (PUBLIE ? 'VERSION PUBLIEE — ' + adresse : 'fichier local'));
+    await page.goto(adresse);
     await page.evaluate(() => document.getElementById('cc-login-screen')?.remove());
     await page.waitForFunction(() => typeof window.adocGenerateStructuredDocument === 'function');
     // L'adresse n'est PAS vérifiée en interrogeant l'application : adocGetWorkerUrl est une
