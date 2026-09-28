@@ -1659,6 +1659,16 @@ RÈGLES ABSOLUES :
   }
 
 
+  // Exposée pour le mode « cours en modules » — même patron que window.adocGenerateStructuredDocument
+  // et window.adocBuildSystemPrompt, déjà exposées : l'orchestrateur doit pouvoir faire UNE recherche
+  // par module, avec sa propre requête, sans passer par la conversation. C'est la SEULE exposition de
+  // production que demande la phase B.
+  // À savoir en l'appelant : les paramètres dépendent de plan.intent — 'cours'/'document' cherchent
+  // 90 passages (lourd), 'comparatif'/'tableau'/'fiche' 50, tout le reste 45. Un module part donc de
+  // 'presentation' (45), et rien d'autre tant que la mesure ne dit pas le contraire.
+  window.adocExecutePlan = adocExecutePlan;
+
+
   // ── P1-2 : Re-ranking post-RAG par Haiku ──────────────────────────────────
   // Reçoit les finalChunks bruts (triés par score mécanique)
   // Haiku lit les titres + premières lignes et retourne les IDs vraiment utiles
