@@ -73,6 +73,32 @@ function retirer(noeud, champs) {
   if (Array.isArray(noeud.required)) noeud.required = noeud.required.filter(r => champs.indexOf(r) === -1);
 }
 
+// ── A3 — PROTOTYPES D'ENCODAGE EN CHAÎNES (mesure uniquement, aucun fichier de production) ─────
+// Deux familles coûtent cher parce qu'elles sont décrites comme des OBJETS IMBRIQUÉS dans la
+// grammaire. L'hypothèse à mesurer : les décrire comme un simple tableau de CHAÎNES, que le client
+// analyse ensuite, coûte beaucoup moins. C'est exactement le détour déjà imposé aux renvois d'une
+// page d'approfondissement (« expression → id ») après l'incident du 28/09.
+//
+// (a) QUESTIONNAIRE — trois champs imbriqués remplacés par UN tableau de lignes préfixées :
+//       « Q | texte de la question | choix:points | choix:points | ... »
+//       « P | libellé du profil | minScore-maxScore | interprétation »
+//       « D | deux partenaires »        (ligne facultative, absente = un seul partenaire)
+// (b) RENVOIS DE BLOC — tableau d'objets {text,targetId} remplacé par « expression → id ».
+const VARIANTES_A3 = {
+  'questionnaire en lignes': t => {
+    const b = NIVEAUX.bloc(t);
+    retirer(b, ['questionnaireQuestions', 'questionnaireProfiles', 'questionnaireTwoPartners']);
+    b.properties.questionnaireLignes = { type: 'array', items: { type: 'string' },
+      description: "questionnaire uniquement — une ligne par element, au format « Q | question | choix:points | choix:points », « P | libelle | min-max | interpretation », « D | deux partenaires » ; liste vide sinon." };
+    if (Array.isArray(b.required)) b.required.push('questionnaireLignes');
+  },
+  'renvois de bloc en chaines': t => {
+    const b = NIVEAUX.bloc(t);
+    b.properties.deepDiveLinks = { type: 'array', items: { type: 'string' },
+      description: "Renvois de CE bloc vers une page d'approfondissement, au format exact « expression → id » ; liste vide sinon." };
+  },
+};
+
 // ── L'appel réel ───────────────────────────────────────────────────────────────────────────────
 let appels = 0;
 const dormir = ms => new Promise(r => setTimeout(r, ms));
@@ -158,11 +184,33 @@ async function marge(construire, borne = 24) {
     console.log('  ' + nom.padEnd(16) + ' : ' + String(r.max).padStart(3) + ' (gain ' + (r.max - base >= 0 ? '+' : '') + (r.max - base) + ')   -' + (taille(REFERENCE) - taille(tSansRien)) + ' octets   [' + appels + ' appels]');
   }
 
+  // ── A3 ─────────────────────────────────────────────────────────────────────────────────────
+  const resultatsA3 = [];
+  if (process.argv.includes('--a3')) {
+    console.log('\nA3 — encodages en chaines (prototypes, aucun fichier de production)');
+    // Référence : la marge au niveau du BLOC avec le schéma tel qu'il est aujourd'hui.
+    const ref = sauterA1 ? (await marge(n => { const t = copie(); if (n) ajouterChaines(NIVEAUX.bloc(t), n); return t; })).max : resultatsA1.bloc;
+    console.log('  reference (bloc, schema actuel) : ' + ref);
+    for (const [nom, appliquer] of Object.entries(VARIANTES_A3)) {
+      if (appels + 8 > PLAFOND) { console.log('  ' + nom.padEnd(28) + ' : non mesure (plafond)'); continue; }
+      const r = await marge(n => { const t = copie(); appliquer(t); if (n) ajouterChaines(NIVEAUX.bloc(t), n); return t; });
+      const tSeul = copie(); appliquer(tSeul);
+      resultatsA3.push({ nom, max: r.max, gain: r.max - ref, octets: taille(REFERENCE) - taille(tSeul) });
+      console.log('  ' + nom.padEnd(28) + ' : ' + String(r.max).padStart(3) + ' (gain ' + (r.max - ref >= 0 ? '+' : '') + (r.max - ref) + ')   ' + (taille(REFERENCE) - taille(tSeul) >= 0 ? '-' : '+') + Math.abs(taille(REFERENCE) - taille(tSeul)) + ' octets   [' + appels + ' appels]');
+    }
+    // Et la marge au niveau d'une ENTRÉE DE deepDives, demandee explicitement.
+    if (appels + 8 <= PLAFOND) {
+      const rd = await marge(n => { const t = copie(); if (n) ajouterChaines(NIVEAUX.deepDive(t), n); return t; });
+      resultatsA1.deepDive = rd.max;
+      console.log('  marge au niveau deepDives       : ' + rd.max + '   [' + appels + ' appels]');
+    }
+  }
+
   resultatsA2.sort((a, b) => b.gain - a.gain);
   console.log('\nLes plus gros consommateurs, par gain de marge :');
   resultatsA2.forEach((r, i) => console.log('  ' + (i + 1) + '. ' + r.nom.padEnd(16) + ' +' + r.gain + ' chaine(s)   (-' + r.octets + ' octets)'));
   console.log('\nTotal : ' + appels + ' appels reels.');
   fs.writeFileSync(path.join(__dirname, 'resultats-a1-a2.json'),
-    JSON.stringify({ date: new Date().toISOString(), tailleReference: taille(REFERENCE), a1: resultatsA1, a2: resultatsA2, appels }, null, 1));
+    JSON.stringify({ date: new Date().toISOString(), tailleReference: taille(REFERENCE), a1: resultatsA1, a2: resultatsA2, a3: resultatsA3, appels }, null, 1));
   console.log('Resultats ecrits dans tests/lot-a/resultats-a1-a2.json');
 })().catch(e => { console.error('ECHEC : ' + e.message + '  (apres ' + appels + ' appels)'); process.exit(1); });
