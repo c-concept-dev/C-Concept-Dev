@@ -11479,8 +11479,67 @@ ${recent}`;
     '.adoc-sc-tableau .adoc-sc-cover::before{background:linear-gradient(180deg,rgba(61,82,102,0.35),rgba(61,82,102,0.88));}' +
     '.adoc-sc-liens .adoc-sc-cover{background-color:#3d5c47;}' +
     '.adoc-sc-liens .adoc-sc-cover::before{background:linear-gradient(180deg,rgba(61,92,71,0.35),rgba(61,92,71,0.88));}';
+  // ═══ ANNEXE « Approfondissements » pour les exports NON INTERACTIFS ═══
+  // Un export HTML statique ou un PDF n'a pas de porte plein écran : les pages d'approfondissement
+  // y disparaissaient purement et simplement — écrites, payées, puis perdues à l'export. Elles sont
+  // désormais reportées en annexe, à la fin, une fois chacune.
+  //
+  // Deux règles qui tiennent tout :
+  //   — CHAQUE page apparaît UNE SEULE FOIS. Les renvois internes deviennent une ligne « Voir
+  //     aussi » qui NOMME les pages visées, jamais leur contenu recopié : une expansion récursive
+  //     dupliquerait le texte autant de fois qu'il y a de chemins qui y mènent, et ne terminerait
+  //     pas sur un graphe dense.
+  //   — aucun style de l'application n'est présumé. Les deux enveloppes ne partagent pas leur CSS
+  //     (cf. le commentaire d'adocBuildCarrouselPdfPagesHTML) : le balisage est donc neutre et
+  //     chaque enveloppe apporte ses propres règles.
+  function adocDeepDiveAppendixHTML(doc) {
+    const pages = (doc && doc.documentKind === 'presentation' && doc.deepDives) || [];
+    if (!pages.length) return '';
+    const titres = {};
+    pages.forEach(function (d) { titres[d.id] = d.title; });
+    const corps = pages.map(function (d) {
+      const paragraphes = (d.paragraphs || []).map(function (par) {
+        const texte = (typeof par === 'string' ? par : (par && par.text)) || '';
+        return texte ? '<p class="adoc-dd-p">' + adocEsc(texte) + '</p>' : '';
+      }).join('');
+      // Les renvois de CETTE page, dédoublonnés : deux paragraphes peuvent viser la même page, et
+      // la nommer deux fois dans « Voir aussi » n'apporterait rien.
+      const vus = {};
+      const cibles = [];
+      (d.paragraphs || []).forEach(function (par) {
+        ((typeof par === 'string' ? [] : (par && par.deepDiveLinks)) || []).forEach(function (l) {
+          const t = titres[l && l.targetId];
+          if (t && !vus[l.targetId]) { vus[l.targetId] = 1; cibles.push(t); }
+        });
+      });
+      const voirAussi = cibles.length
+        ? '<p class="adoc-dd-voir">Voir aussi : ' + cibles.map(function (t) { return '« ' + adocEsc(t) + ' »'; }).join(', ') + '</p>'
+        : '';
+      return '<section class="adoc-dd-page"><h3 class="adoc-dd-titre">' + adocEsc(d.title) + '</h3>' + paragraphes + voirAussi + '</section>';
+    }).join('');
+    return '<section class="adoc-dd-annexe" aria-label="Approfondissements">' +
+      '<h2 class="adoc-dd-annexe-titre">Approfondissements</h2>' + corps + '</section>';
+  }
+  // Règles de pagination, communes aux deux enveloppes. Volontairement PERMISSIVES à l'intérieur
+  // d'une page : un `break-inside:avoid` sur une page d'approfondissement longue la ferait
+  // déborder d'une feuille et disparaître (le gabarit PDF est à hauteur fixe et masque le
+  // débordement). On empêche donc seulement un titre de rester seul en bas de page, et on
+  // interdit les lignes orphelines.
+  const ADOC_DEEPDIVE_APPENDIX_CSS =
+    '.adoc-dd-annexe{margin-top:2.4em;padding-top:1.2em;border-top:2px solid var(--adoc-sc-table-border,#c9c3b8);}' +
+    '.adoc-dd-annexe-titre{font-size:1.2em;margin:0 0 1em;color:var(--adoc-sc-heading-color,#102f31);font-family:var(--adoc-sc-heading-font,Georgia,serif);}' +
+    '.adoc-dd-page{margin:0 0 1.6em;}' +
+    '.adoc-dd-titre{font-size:1.02em;margin:0 0 .4em;color:var(--adoc-sc-heading-color,#102f31);font-family:var(--adoc-sc-heading-font,Georgia,serif);break-after:avoid;page-break-after:avoid;}' +
+    '.adoc-dd-p{margin:0 0 .6em;orphans:2;widows:2;}' +
+    '.adoc-dd-voir{margin:.4em 0 0;font-size:.88em;opacity:.75;font-style:italic;}';
+
   function adocClinicalDocumentWrapHTML(doc, bodyHtml, tokens) {
     const cssVars = adocTokensToCSSVars(tokens);
+    // Calculée d'abord : son CSS n'est ajouté que si elle existe réellement. Un document sans
+    // page d'approfondissement — la totalité des Fiches, Scripts, Tableaux, Liens, et la plupart
+    // des Présentations — doit ressortir RIGOUREUSEMENT identique à avant ce lot, sans même
+    // quelques centaines d'octets de règles inutilisées.
+    const annexe = adocDeepDiveAppendixHTML(doc);
     // Correctif Lot A (découverte incidente) — ajoute la mise en page Présentation, le style de
     // couverture de carte et le quiz STATIQUE (réponse toujours visible, jamais le masquage
     // interactif — cf. avertissement au-dessus de ADOC_QUIZ_STATIC_CSS) : cet export ne les
@@ -11491,7 +11550,8 @@ ${recent}`;
       adocEditorExportFonts(doc) + '<title>' + adocEsc(doc.title) + ' — Studio Clinique</title>' +
       '<style>:root{' + cssVars + '}' + ADOC_DOC_CONTENT_CSS +
       ADOC_PRESENTATION_SLIDE_CSS + ADOC_QUIZ_STATIC_CSS + ADOC_QUESTIONNAIRE_STATIC_CSS + ADOC_CARD_IMG_CSS +
-      '</style></head><body>' + bodyHtml + '</body></html>';
+      (annexe ? ADOC_DEEPDIVE_APPENDIX_CSS : '') +
+      '</style></head><body>' + bodyHtml + annexe + '</body></html>';
   }
 
   // ITEM 75 Phase 1 Lot 2 — enveloppe HTML DÉDIÉE pour l'export PDF Carrousel (une carte = une
@@ -11511,6 +11571,8 @@ ${recent}`;
   // correctement (cf. rapport de lot).
   function adocBuildCarrouselPdfPagesHTML(doc, tokens) {
     const cssVars = adocTokensToCSSVars(tokens);
+    // Même principe que pour l'enveloppe HTML ci-dessus : aucun octet ajouté sans annexe réelle.
+    const annexe = adocDeepDiveAppendixHTML(doc);
     const pages = (doc.blocks || []).map(function (card, i) {
       return '<div class="adoc-pdf-page">' + adocRenderCardHTML(card, i, doc.blocks.length) + '</div>';
     }).join('\n');
@@ -11546,7 +11608,14 @@ ${recent}`;
       // ci-dessus, jamais le CSS de base ci-dessus retouché (déjà volontairement dupliqué depuis
       // celui-ci pour des raisons de mise en page @page, cf. commentaire de cette fonction).
       ADOC_PRESENTATION_SLIDE_CSS + ADOC_QUIZ_STATIC_CSS + ADOC_QUESTIONNAIRE_STATIC_CSS + ADOC_CARD_IMG_CSS +
-      '</style></head><body>' + pages + '</body></html>';
+      (annexe ? ADOC_DEEPDIVE_APPENDIX_CSS +
+      // L'annexe NE PEUT PAS vivre dans un .adoc-pdf-page : ce gabarit fait 768 px de haut avec
+      // overflow:hidden, donc tout ce qui dépasse serait purement PERDU — et une page
+      // d'approfondissement dépasse très vite. Elle reçoit donc un conteneur à hauteur LIBRE, qui
+      // commence sur une nouvelle feuille et se répartit ensuite naturellement sur autant de
+      // feuilles qu'il en faut. C'est la seule façon qu'un texte long y survive en entier.
+      '.adoc-dd-annexe{page-break-before:always;break-before:page;padding:48px 64px;border-top:none;margin-top:0;}' : '') +
+      '</style></head><body>' + pages + annexe + '</body></html>';
   }
 
   // ── Export HTML autonome — même moteur, même fragment que l'aperçu (principe UX-1 :
