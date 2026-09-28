@@ -128,8 +128,13 @@ const DOC = {
     // ── 4. FIL D'ARIANE et BOUTONS présents dans l'export ──
     const c = await chemin();
     assert.ok(c && c.includes('Diapositive 1') && c.includes('Niveau 3'), 'fil d\'Ariane absent ou incomplet : ' + c);
-    const boutons = await page.evaluate(() => [...document.querySelectorAll('.cc-ws-present-door-btn')].map(b => b.textContent.trim()));
+    // Depuis le passage aux icônes (B6), textContent est VIDE : lire le texte ne dirait plus rien
+    // et cette assertion se serait vidée de sens sans échouer. C'est le nom ACCESSIBLE qui porte
+    // désormais l'information — et c'est lui que la présentatrice entend si elle utilise un
+    // lecteur d'écran.
+    const boutons = await page.evaluate(() => [...document.querySelectorAll('.cc-ws-present-door-btn')].map(b => (b.getAttribute('aria-label') || b.textContent).trim()));
     assert.equal(boutons.length, 2, 'les deux gestes de retour doivent être présents : ' + JSON.stringify(boutons));
+    assert.ok(boutons.every(Boolean), 'chaque geste doit porter un nom accessible non vide : ' + JSON.stringify(boutons));
     console.log('PASS 4/6  fil d\'Ariane « ' + c.replace(/\s+/g, ' ').trim() + ' » et boutons ' + JSON.stringify(boutons) + '.');
 
     // ── 5. RECULER ×3 depuis le niveau 3, par les VRAIS boutons ──

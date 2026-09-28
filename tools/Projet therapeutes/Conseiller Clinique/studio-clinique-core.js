@@ -14925,6 +14925,10 @@ ${recent}`;
     '.cc-ws-present-door-btn{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.28);border-radius:6px;padding:6px 14px;font:inherit;font-size:.9em;cursor:pointer;}' +
     '.cc-ws-present-door-btn:hover{background:rgba(255,255,255,.22);}' +
     '.cc-ws-present-door-btn:focus-visible{outline:2px solid #fff;outline-offset:2px;}' +
+    // Cible de 44 px de côté — au-delà des 40 demandés, et bien au-delà de ce que donnait le
+    // bouton textuel. Le trait de l'icône est légèrement épaissi pour rester net à distance.
+    '.cc-ws-present-door-btn-ico{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;padding:0;}' +
+    '.cc-ws-present-door-ico{display:block;}' +
     '.cc-ws-present-door-text .adoc-sc-deepdive-chip{margin-left:8px;}' +
     '#cc-ws-present-door-close{position:absolute;top:16px;right:16px;width:40px;height:40px;border-radius:50%;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.12);color:#fff;font-size:20px;line-height:1;cursor:pointer;}' +
     '#cc-ws-present-door-close:hover{background:rgba(255,255,255,.24);}' +
@@ -15320,10 +15324,32 @@ ${recent}`;
   // jamais un style ni une présence conditionnels au niveau atteint : "Reculer" recule d'un cran,
   // "Page maître" revient à la diapositive de départ en un seul geste, quelle que soit la
   // profondeur accumulée.
+  // Les DEUX gestes de retour, toujours les deux, en icônes. Le texte « ‹ Reculer » / « ⌂ Page
+  // maître » se lisait mal en vidéoprojection — petit, sur fond sombre, à plusieurs mètres — et
+  // « ⌂ » est un caractère typographique dont le dessin varie d'une police à l'autre.
+  // Deux icônes dessinées, donc, identiques partout :
+  //   — une flèche vers la gauche pour reculer d'un cran ;
+  //   — une maison pour revenir à la diapositive de départ.
+  // Le libellé ne disparaît pas pour autant : il passe en aria-label ET en title, si bien qu'un
+  // lecteur d'écran l'annonce toujours en toutes lettres et qu'une infobulle le donne à la souris.
+  // aria-hidden sur le SVG : sans lui, certains lecteurs d'écran annoncent le dessin EN PLUS du
+  // libellé. Cible de 44 px, au-delà des 40 demandés, pour rester atteignable au doigt comme à la
+  // télécommande. Échap reste inchangé : un niveau à la fois, exactement comme « Reculer ».
+  function adocDeepDiveIconeHTML(chemin) {
+    return '<svg class="cc-ws-present-door-ico" viewBox="0 0 24 24" width="22" height="22" fill="none" ' +
+      'stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' +
+      chemin + '</svg>';
+  }
   function adocDeepDiveActionsHTML() {
+    const flecheGauche = '<path d="M15 5l-7 7 7 7"/>';
+    const maison = '<path d="M4 11l8-7 8 7"/><path d="M6 10v9h12v-9"/>';
     return '<div class="cc-ws-present-door-actions">' +
-      '<button type="button" class="cc-ws-present-door-btn" onclick="window.adocPresentDeepDiveBack()">‹ Reculer</button>' +
-      '<button type="button" class="cc-ws-present-door-btn" onclick="window.adocPresentDeepDiveHome()">⌂ Page maître</button>' +
+      '<button type="button" class="cc-ws-present-door-btn cc-ws-present-door-btn-ico" ' +
+        'aria-label="Reculer d\'un niveau" title="Reculer d\'un niveau" ' +
+        'onclick="window.adocPresentDeepDiveBack()">' + adocDeepDiveIconeHTML(flecheGauche) + '</button>' +
+      '<button type="button" class="cc-ws-present-door-btn cc-ws-present-door-btn-ico" ' +
+        'aria-label="Revenir à la diapositive" title="Revenir à la diapositive" ' +
+        'onclick="window.adocPresentDeepDiveHome()">' + adocDeepDiveIconeHTML(maison) + '</button>' +
       '</div>';
   }
   // Peuple la porte pour l'id en tête de pile — fonction PARTAGÉE par l'ouverture ET le recul,
@@ -15581,6 +15607,11 @@ ${recent}`;
       // l'ouverture RÉELLE du fichier exporté, et un clic dedans à la vraie profondeur, le
       // démontre. C'est ce que fait tests/verify-acte3-export-standalone.cjs.
       adocDeepDivePathHTML: adocDeepDivePathHTML, adocDeepDiveActionsHTML: adocDeepDiveActionsHTML,
+      // Appelée par adocDeepDiveActionsHTML à CHAQUE ouverture de porte : sans elle ici, le
+      // premier approfondissement ouvert dans un fichier exporté lèverait une ReferenceError.
+      // Le garde-fou générique ne la verrait pas — ce n'est pas un onclick. Cinquième occurrence
+      // de ce piège ; seul le test qui ouvre l'export et clique dedans le voit.
+      adocDeepDiveIconeHTML: adocDeepDiveIconeHTML,
       adocDeepDivePopulateDoor: adocDeepDivePopulateDoor,
       // Appelée par adocPresentOpenImageDoor ET adocPresentOpenDeepDive, toutes deux exportées :
       // sans elle ici, le premier clic sur une image ou une puce dans le fichier exporté
