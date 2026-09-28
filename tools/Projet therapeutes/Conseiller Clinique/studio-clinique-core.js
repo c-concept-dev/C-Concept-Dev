@@ -12427,15 +12427,37 @@ ${recent}`;
         // deux mélangés — une consigne de densité ambiguë produirait un résultat imprévisible) ;
         // sans nombre explicite, comportement STRICTEMENT inchangé depuis le Lot 1.
         const presOpts = plan && plan.presentation_options;
-        const explicitSlideCount = presOpts && typeof presOpts.slideCount === 'number' && presOpts.slideCount > 0 ? presOpts.slideCount : null;
+        // PLAFOND DE 24 DIAPOSITIVES — mesuré, jamais choisi. Une présentation de 35 minutes demandées
+        // produit 24 diapositives et 39 366 caractères, soit ~11 900 jetons : elle aboutit. À 45 minutes,
+        // la densité en réclame 30 et la génération est coupée à max_tokens (51 414 caractères,
+        // ~15 500 jetons) — et sur une Présentation, être coupé signifie REPLI TOTAL sur l'ancien moteur,
+        // la continuation ne sachant pas traiter une racine `cards`. Au-delà de 24, on ne produit donc
+        // pas une présentation plus riche : on n'en produit AUCUNE.
+        // Le plafond s'applique aux DEUX chemins — calcul automatique et nombre explicite — car rien ne
+        // bornait le second (seul `> 0` était testé, et le max=60 du champ HTML se contourne par
+        // adocClarityPresentationOptions).
+        const ADOC_PRESENTATION_MAX_SLIDES = 24;
+        const slideCountDemande = presOpts && typeof presOpts.slideCount === 'number' && presOpts.slideCount > 0 ? presOpts.slideCount : null;
+        const explicitSlideCount = slideCountDemande === null ? null : Math.min(ADOC_PRESENTATION_MAX_SLIDES, Math.max(3, slideCountDemande));
+        const slideCountBorne = slideCountDemande !== null && slideCountDemande > ADOC_PRESENTATION_MAX_SLIDES;
+        const densiteBrute = duree ? Math.max(3, Math.round(duree / 1.5)) : null;
+        const densiteCible = densiteBrute === null ? null : Math.min(ADOC_PRESENTATION_MAX_SLIDES, densiteBrute);
+        const densiteBornee = densiteBrute !== null && densiteBrute > ADOC_PRESENTATION_MAX_SLIDES;
         const densiteInstruction = explicitSlideCount
           ? ('Nombre de diapositives demandé explicitement par l\'utilisatrice : ' + explicitSlideCount +
-             ' — respecte ce nombre precisément (tolérance de ±1), jamais le calcul automatique ci-dessous.')
+             ' — respecte ce nombre precisément (tolérance de ±1), jamais le calcul automatique ci-dessous.'
+           + (slideCountBorne ? ' (Nombre ramené de ' + slideCountDemande + ' à ' + explicitSlideCount
+             + ', maximum tenable en une seule production.)' : ''))
           : duree
           ? ('Durée cible : ' + duree + ' minutes. Vise environ 1 diapositive toutes les 1 à 2 ' +
              'minutes de présentation orale (jamais un pavé de texte lu tel quel) — soit environ ' +
-             Math.max(3, Math.round(duree / 1.5)) + ' diapositives pour cette durée, à ajuster ' +
-             'selon la densité réelle du sujet.')
+             densiteCible + ' diapositives pour cette durée, à ajuster ' +
+             'selon la densité réelle du sujet.'
+           + (densiteBornee
+             ? ' La durée demandée appellerait davantage de diapositives, mais 24 est le maximum '
+               + 'tenable en une seule production : couvre le sujet EN ENTIER dans ces 24, en '
+               + 'choisissant les points essentiels, jamais en survolant puis en t\'arrêtant net.'
+             : ''))
           : 'Durée non précisée — vise 5 à 8 diapositives, une idée claire par diapositive.';
         const publicInstruction = (audience === 'grand_public' || audience === 'patient')
           ? ('Public : ' + audience + ' — moins de texte par diapositive, formulations concrètes, ' +
