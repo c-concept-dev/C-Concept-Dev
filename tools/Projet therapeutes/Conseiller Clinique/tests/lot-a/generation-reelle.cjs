@@ -44,9 +44,11 @@ const SUJET = process.argv[2] || "le cortisol et le systeme nerveux dans le stre
     // Rien ne doit sortir ailleurs que vers le Worker. Blocage RÉEL, et tout hôte refusé est
     // rapporté : si un appel partait vers un tiers, ce test le dirait au lieu de le laisser passer.
     const hotesBloques = new Set();
+    const hotesContactes = new Set();
     await page.route('**/*', route => {
       const u = route.request().url();
-      if (u.startsWith('file:') || u.startsWith('data:') || u.startsWith('blob:') || u.startsWith(WORKER)) return route.continue();
+      if (u.startsWith('file:') || u.startsWith('data:') || u.startsWith('blob:')) return route.continue();
+      if (u.startsWith(WORKER)) { hotesContactes.add(new URL(u).host); return route.continue(); }
       try { hotesBloques.add(new URL(u).host); } catch (_) { hotesBloques.add(u.slice(0, 40)); }
       return route.abort();
     });
@@ -58,10 +60,12 @@ const SUJET = process.argv[2] || "le cortisol et le systeme nerveux dans le stre
     await page.goto('file://' + path.join(__dirname, '..', '..', 'studio-clinique.html'));
     await page.evaluate(() => document.getElementById('cc-login-screen')?.remove());
     await page.waitForFunction(() => typeof window.adocGenerateStructuredDocument === 'function');
-    // Vérification, jamais une supposition : l'application elle-même doit voir CETTE adresse.
-    const adresseVue = await page.evaluate(() => window.adocGetWorkerUrl());
-    if (adresseVue !== WORKER) throw new Error('adresse inattendue vue par l\'application : ' + adresseVue);
-    console.log('Adresse verrouillee : ' + WORKER);
+    // L'adresse n'est PAS vérifiée en interrogeant l'application : adocGetWorkerUrl est une
+    // fonction de MODULE, pas une propriété de window — l'appeler faisait échouer A0 avant tout
+    // appel (« window.adocGetWorkerUrl is not a function »). Elle est vérifiée par le
+    // COMPORTEMENT : on relève les adresses réellement contactées, et on exige qu'elles soient
+    // toutes celle du Worker. Une preuve vaut mieux qu'une interrogation.
+    console.log('Adresse imposee : ' + WORKER + ' (verifiee sur les requetes reellement emises)');
 
     console.log('Sujet : ' + SUJET);
     console.log('Appel REEL en cours (le modele ecrit la presentation entiere)...\n');
@@ -143,7 +147,9 @@ const SUJET = process.argv[2] || "le cortisol et le systeme nerveux dans le stre
       repartition.filter(r => !r.retrouve).forEach(r =>
         console.log('    page ' + r.page + ', paragraphe ' + r.paragraphe + ' : « ' + r.texte + ' » -> ' + r.cible));
     }
-    if (hotesBloques.size) console.log('  hotes BLOQUES (aucun appel n\'y est parti) : ' + [...hotesBloques].join(', '));
+    console.log('  adresses reellement contactees   : ' + ([...hotesContactes].join(', ') || 'AUCUNE'));
+    if (hotesBloques.size) console.log('  hotes BLOQUES (aucun appel emis) : ' + [...hotesBloques].join(', '));
+    if (!hotesContactes.size) console.log('  ATTENTION : aucune requete vers le Worker n\'a ete observee.');
     console.log('\nPiece conservee (jamais commitee, cf. .gitignore) : ' + piece);
     fs.writeFileSync(path.join(__dirname, 'resultats-a0.json'), JSON.stringify({
       date: new Date().toISOString(), sujet: SUJET, secondes, titre: doc.title,

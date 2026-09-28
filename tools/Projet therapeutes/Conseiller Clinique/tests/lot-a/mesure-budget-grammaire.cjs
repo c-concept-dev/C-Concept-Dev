@@ -75,7 +75,9 @@ function retirer(noeud, champs) {
 
 // ── L'appel réel ───────────────────────────────────────────────────────────────────────────────
 let appels = 0;
-async function compile(outil) {
+const dormir = ms => new Promise(r => setTimeout(r, ms));
+async function compile(outil, essai) {
+  essai = essai || 1;
   if (appels >= PLAFOND) throw new Error('plafond de ' + PLAFOND + ' appels atteint');
   appels++;
   const r = await fetch(WORKER, {
@@ -87,6 +89,7 @@ async function compile(outil) {
       tools: [outil], tool_choice: { type: 'tool', name: outil.name },
     } }),
   });
+  await dormir(700); // respiration entre deux appels : mieux vaut ne pas declencher le plafond
   if (r.status === 200) return { ok: true };
   const brut = await r.text();
   let msg = brut;
@@ -94,6 +97,15 @@ async function compile(outil) {
   msg = String(msg).replace(/\s+/g, ' ').slice(0, 140);
   // Seul un 400 est un verdict sur le schéma. Un 401/429/5xx dit que la question n'a pas été
   // posée : poursuivre la dichotomie sur une telle réponse produirait un chiffre inventé.
+  // 429/5xx : la question n'a pas ete posee, mais ce n'est pas non plus une raison d'abandonner
+  // toute la campagne. Ces appels partent en rafale et un plafond de debit est le cas NORMAL,
+  // pas l'exception — c'est trois essais espaces, puis seulement un arret.
+  if ((r.status === 429 || r.status >= 500) && essai < 3) {
+    const attente = 5000 * essai;
+    console.log('    (HTTP ' + r.status + ' — nouvelle tentative dans ' + (attente / 1000) + ' s)');
+    await dormir(attente);
+    return compile(outil, essai + 1);
+  }
   if (r.status !== 400) throw new Error('reponse non concluante (HTTP ' + r.status + ') : ' + msg);
   return { ok: false, msg: msg };
 }
@@ -116,9 +128,13 @@ async function marge(construire, borne = 24) {
   const taille = o => Buffer.byteLength(JSON.stringify(o.input_schema));
   console.log('Schema de reference : ' + taille(REFERENCE) + ' octets\n');
 
-  console.log('A1 — marge par niveau d\'insertion');
-  const resultatsA1 = {};
-  for (const [nom, cible] of Object.entries(NIVEAUX)) {
+  // --sauter-a1 : A2 seul. A1 coute 21 appels ; le refaire pour rien quand seule la suite de A2
+  // manque est du gaspillage pur.
+  const sauterA1 = process.argv.includes('--sauter-a1');
+  const depuis = (process.argv.find(a => a.startsWith('--depuis=')) || '').split('=')[1] || null;
+  console.log('A1 — marge par niveau d\'insertion' + (sauterA1 ? ' (SAUTE)' : ''));
+  const resultatsA1 = { deepDive: 0, carte: 0, bloc: 0 };
+  for (const [nom, cible] of (sauterA1 ? [] : Object.entries(NIVEAUX))) {
     const r = await marge(n => { const t = copie(); if (n) ajouterChaines(cible(t), n); return t; });
     resultatsA1[nom] = r.max;
     console.log('  ' + nom.padEnd(10) + ' : ' + String(r.max).padStart(3) + ' chaine(s) supplementaire(s) ' + (r.note ? '— ' + r.note : '') + '   [' + appels + ' appels]');
@@ -128,8 +144,10 @@ async function marge(construire, borne = 24) {
   const base = resultatsA1.bloc;
   console.log('  (reference sans retrait : ' + base + ')');
   const resultatsA2 = [];
+  let commence = !depuis;
   for (const [nom, retirerFamille] of Object.entries(FAMILLES)) {
-    if (appels + 6 > PLAFOND) { console.log('  ' + nom.padEnd(16) + ' : non mesure (plafond d\'appels)'); continue; }
+    if (!commence) { if (nom === depuis) commence = true; else { console.log('  ' + nom.padEnd(16) + ' : saute (--depuis=' + depuis + ')'); continue; } }
+    if (appels + 8 > PLAFOND) { console.log('  ' + nom.padEnd(16) + ' : non mesure (plafond d\'appels)'); continue; }
     const r = await marge(n => {
       const t = copie(); retirerFamille(t);
       if (n) ajouterChaines(NIVEAUX.bloc(t), n);
