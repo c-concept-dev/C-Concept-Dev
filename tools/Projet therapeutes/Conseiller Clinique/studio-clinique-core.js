@@ -3093,6 +3093,10 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       // adocUpdateGenerationTitle. Reste "document" (générique) si aucun type explicite n'a été
       // cliqué — jamais un type inventé à partir du seul intent classifié automatiquement.
       adocUpdateGenerationTitle(typingId, plan.documentKind);
+      // Quand la demande dépasse ce qu'une seule production peut tenir, l'utilisatrice doit le
+      // savoir SUR LE MOMENT, pas le découvrir en comptant les diapositives reçues. Le message
+      // dit aussi quoi faire — plusieurs modules — plutôt que de constater une limite.
+      if (plan.documentKind === 'presentation') adocUpdateGenerationNotice(typingId, plan);
 
       // Correction rang 1 — documentKind (choix explicite sur l'écran d'accueil) devient
       // l'AUTORITÉ DE ROUTAGE prioritaire ci-dessous, pas seulement une influence de texte en
@@ -5098,6 +5102,28 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     if (!titleEl) return;
     titleEl.textContent = 'Création de votre ' + (ADOC_GENERATION_KIND_LABELS[documentKind] || 'document');
   }
+  // Avertissement de plafonnement, posé sous le titre de l'écran de génération. Rendu et RETIRÉ
+  // selon le cas : une génération suivante qui ne plafonne pas ne doit pas hériter du message de
+  // la précédente. Le texte vient d'adocPresentationBudgetNotice, la même source que la consigne
+  // réellement envoyée au modèle — jamais un second libellé qui finirait par diverger.
+  function adocUpdateGenerationNotice(id, plan) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const entete = el.querySelector('.sc-gen-header');
+    if (!entete) return;
+    let noticeEl = entete.querySelector('.sc-gen-budget-notice');
+    const texte = adocPresentationBudgetNotice(plan);
+    if (!texte) { if (noticeEl) noticeEl.remove(); return; }
+    if (!noticeEl) {
+      noticeEl = document.createElement('p');
+      noticeEl.className = 'sc-gen-budget-notice';
+      noticeEl.setAttribute('role', 'status');
+      noticeEl.style.cssText = 'margin:6px 0 0;font-size:12px;color:var(--petrol-800,#1f5053);background:var(--petrol-100,#dce8e6);border-radius:6px;padding:6px 10px;';
+      entete.appendChild(noticeEl);
+    }
+    noticeEl.textContent = texte;
+  }
+  window.adocUpdateGenerationNotice = adocUpdateGenerationNotice;
 
   // Design enrichi — encadré "Demande en cours" : la question originale telle que tapée (ou
   // reformulée après clarification — `text` est déjà cette version finale à ce stade du
@@ -7744,6 +7770,42 @@ ${recent}`;
     }).filter(function(l) { return !!l.text; });
   }
   window.adocFilterBlockDeepDiveLinks = adocFilterBlockDeepDiveLinks;
+
+  // ═══ BUDGET DE DIAPOSITIVES D'UNE PRÉSENTATION ═══
+  // Fonction PURE, partagée par le prompt (buildPromptSuffix) et par l'interface : le message qui
+  // annonce un plafonnement doit dire EXACTEMENT ce que le modèle a reçu comme consigne, et deux
+  // calculs séparés finiraient par diverger.
+  //
+  // PLAFOND DE 20, mesuré par appels réels — abaissé de 24 après une campagne qui a montré le
+  // plafond seul insuffisant :
+  //     18 min → 13 diapositives, 27 811 car., abouti
+  //     45 min → 26 diapositives (plafond de 24 DÉPASSÉ), 51 460 car., abouti de justesse
+  //     60 min → 23 diapositives, 46 504 car.
+  //     90 min → TRONQUÉ à 53 222 car. (16 000 jetons)
+  // Deux enseignements. Le modèle ne respecte pas strictement le plafond ; et surtout il COMPENSE
+  // le nombre par le poids — ~2 000 caractères par diapositive au lieu des ~1 640 observés sans
+  // plafond. Borner le nombre sans borner la densité ne protège donc rien : d'où la consigne de
+  // densité par diapositive, posée avec ce plafond et inséparable de lui.
+  function adocPresentationSlideBudget(plan) {
+    const MAX = 20;
+    const presOpts = plan && plan.presentation_options;
+    const demande = presOpts && typeof presOpts.slideCount === 'number' && presOpts.slideCount > 0 ? presOpts.slideCount : null;
+    const duree = plan && typeof plan.duree_minutes === 'number' && plan.duree_minutes > 0 ? plan.duree_minutes : null;
+    const brute = demande !== null ? demande : (duree ? Math.max(3, Math.round(duree / 1.5)) : null);
+    const cible = brute === null ? null : Math.min(MAX, Math.max(3, brute));
+    return { max: MAX, demande: demande, duree: duree, brute: brute, cible: cible,
+             borne: brute !== null && brute > MAX };
+  }
+  window.adocPresentationSlideBudget = adocPresentationSlideBudget;
+
+  // Message à l'utilisatrice quand sa demande est ramenée au plafond. Rendu vide dans tous les
+  // autres cas : on n'annonce jamais une limite qui n'a pas mordu.
+  function adocPresentationBudgetNotice(plan) {
+    const b = adocPresentationSlideBudget(plan);
+    if (!b.borne) return '';
+    return 'Présentation condensée en ' + b.cible + ' diapositives ; pour un cours long, prévois plusieurs modules.';
+  }
+  window.adocPresentationBudgetNotice = adocPresentationBudgetNotice;
   // ═══ COURS EN PUZZLE — ASSEMBLAGE DÉTERMINISTE ═══
   // Un cours long ne peut pas être produit en un seul appel : 3 h de contenu réclament ~120
   // diapositives, soit ~60 000 jetons de sortie, très au-delà de ce que le modèle rend en une fois
@@ -12674,29 +12736,33 @@ ${recent}`;
         // Le plafond s'applique aux DEUX chemins — calcul automatique et nombre explicite — car rien ne
         // bornait le second (seul `> 0` était testé, et le max=60 du champ HTML se contourne par
         // adocClarityPresentationOptions).
-        const ADOC_PRESENTATION_MAX_SLIDES = 24;
-        const slideCountDemande = presOpts && typeof presOpts.slideCount === 'number' && presOpts.slideCount > 0 ? presOpts.slideCount : null;
-        const explicitSlideCount = slideCountDemande === null ? null : Math.min(ADOC_PRESENTATION_MAX_SLIDES, Math.max(3, slideCountDemande));
-        const slideCountBorne = slideCountDemande !== null && slideCountDemande > ADOC_PRESENTATION_MAX_SLIDES;
-        const densiteBrute = duree ? Math.max(3, Math.round(duree / 1.5)) : null;
-        const densiteCible = densiteBrute === null ? null : Math.min(ADOC_PRESENTATION_MAX_SLIDES, densiteBrute);
-        const densiteBornee = densiteBrute !== null && densiteBrute > ADOC_PRESENTATION_MAX_SLIDES;
-        const densiteInstruction = explicitSlideCount
-          ? ('Nombre de diapositives demandé explicitement par l\'utilisatrice : ' + explicitSlideCount +
+        const b = adocPresentationSlideBudget(plan);
+        const densiteInstruction = b.demande !== null
+          ? ('Nombre de diapositives demandé explicitement par l\'utilisatrice : ' + b.cible +
              ' — respecte ce nombre precisément (tolérance de ±1), jamais le calcul automatique ci-dessous.'
-           + (slideCountBorne ? ' (Nombre ramené de ' + slideCountDemande + ' à ' + explicitSlideCount
+           + (b.borne ? ' (Nombre ramené de ' + b.demande + ' à ' + b.cible
              + ', maximum tenable en une seule production.)' : ''))
           : duree
           ? ('Durée cible : ' + duree + ' minutes. Vise environ 1 diapositive toutes les 1 à 2 ' +
              'minutes de présentation orale (jamais un pavé de texte lu tel quel) — soit environ ' +
-             densiteCible + ' diapositives pour cette durée, à ajuster ' +
+             b.cible + ' diapositives pour cette durée, à ajuster ' +
              'selon la densité réelle du sujet.'
-           + (densiteBornee
-             ? ' La durée demandée appellerait davantage de diapositives, mais 24 est le maximum '
-               + 'tenable en une seule production : couvre le sujet EN ENTIER dans ces 24, en '
+           + (b.borne
+             ? ' La durée demandée appellerait davantage de diapositives, mais ' + b.max + ' est le maximum '
+               + 'tenable en une seule production : couvre le sujet EN ENTIER dans ces ' + b.max + ', en '
                + 'choisissant les points essentiels, jamais en survolant puis en t\'arrêtant net.'
              : ''))
           : 'Durée non précisée — vise 5 à 8 diapositives, une idée claire par diapositive.';
+        // BORNE DE DENSITÉ PAR DIAPOSITIVE — sans elle, le plafond ne protège rien. Mesuré : à 45 minutes
+        // plafonnées, le modèle a produit 26 diapositives de ~2 000 caractères (51 460 au total) ; à 90
+        // minutes, la génération a été coupée malgré le plafond. Il compense le nombre par le poids. Une
+        // diapositive de 2 000 caractères n'est de toute façon pas une diapositive : c'est une page lue à
+        // voix haute, ce que le prompt interdit déjà par ailleurs.
+        const densiteParDiapositive =
+          ' Chaque diapositive porte AU PLUS 4 blocs et reste brève : des phrases courtes, une idée par ' +
+          'bloc, jamais un pavé de texte. Une diapositive dense n\'est pas une diapositive riche — elle ' +
+          'devient illisible en projection et ne se dit pas à l\'oral. Si le contenu déborde, préfère ' +
+          'renvoyer le détail vers une page d\'approfondissement plutôt que d\'alourdir la diapositive.';
         const publicInstruction = (audience === 'grand_public' || audience === 'patient')
           ? ('Public : ' + audience + ' — moins de texte par diapositive, formulations concrètes, ' +
              'vocabulaire accessible.')
@@ -12711,7 +12777,7 @@ ${recent}`;
           'diapositives (format paysage, exposé oral) : chaque diapositive porte un titre court et ' +
           'ses propres blocs de contenu — une idée claire par diapositive, jamais un pavé continu ' +
           'réparti arbitrairement.\n\n' +
-          '── RYTHME ET DENSITÉ ──\n' + densiteInstruction + '\n' + publicInstruction + conclusionInstruction + '\n\n' +
+          '── RYTHME ET DENSITÉ ──\n' + densiteInstruction + densiteParDiapositive + '\n' + publicInstruction + conclusionInstruction + '\n\n' +
           "Chaque affirmation clinique significative doit citer un ou plusieurs passages ci-dessous " +
           'par leur identifiant exact (sourceSnapshotEntryId, ex. "entry-3") — jamais un identifiant ' +
           'inventé, jamais une citation sans passage correspondant dans la liste. Passages ' +
