@@ -18,9 +18,12 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 
-// Empreinte relevée le 28/09/2026, schéma mesuré à 6841 octets, confirmé HTTP 200 par appel réel.
-const EMPREINTE = 'f1284c2f7eb7ded1';
-const TAILLE = 6841;
+// Empreinte mise à jour VOLONTAIREMENT le 28/09/2026 après le retrait du bloc quiz de la
+// génération (enum + trois champs). Valeur précédente : f1284c2f7eb7ded1, 6841 octets — schéma
+// pour lequel la mesure par appels réels avait montré une marge NULLE aux trois niveaux
+// d'insertion. Le retrait rend 523 octets et rouvre de la marge.
+const EMPREINTE = '918126ddfddc2276';
+const TAILLE = 6289;
 
 function extraire(source, nom) {
   const debut = source.indexOf('  const ' + nom + ' = {');

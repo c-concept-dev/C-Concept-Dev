@@ -11855,14 +11855,18 @@ ${recent}`;
   // mise en scène/navigation, jamais sur le contenu) : une diapositive de Présentation EST une
   // carte de Carrousel, "cards" reste le nom de champ (convertRawToBlocks partagé, ci-dessous).
   // Seuls name/description changent, pour un outil distinct côté API Anthropic.
-  // LOT 3 Présentation — 'quiz' ajouté à l'enum UNIQUEMENT ici (jamais dans
-  // ADOC_STRUCTURED_CARROUSEL_TOOL ci-dessus) : réserve la PRODUCTION du bloc à Présentation
-  // (décision du point 6 de l'investigation) — le schéma JSON, lui, reste permissif pour les deux
-  // documentKind (nestedBlock partagé, même patron que videoBlock), seul cet outil restreint qui
-  // peut effectivement en générer. `text` porte la question (même convention que heading/
-  // paragraph/callout/quote — jamais un second nom de champ pour "le texte principal du bloc").
-  // quizOptions/quizCorrectIndex/quizExplanation : champs à plat, vides/0 par défaut quand
-  // type≠quiz, même patron que imageQuery/imageAlt ci-dessous.
+  // LOT 3 Présentation — le bloc 'quiz' N'EST PLUS PRODUIT par cet outil (retiré de l'enum, avec
+  // ses trois champs). Non parce qu'il serait mauvais, mais parce qu'il était trop cher : la
+  // grammaire compilée par Anthropic à partir de ce schéma est au bord de sa taille maximale, et
+  // la mesure par appels réels a montré qu'il ne restait AUCUNE marge — ni au niveau d'une carte,
+  // ni d'un bloc, ni d'une page d'approfondissement — tant que le quiz était là. Son retrait
+  // libère la place de 5 chaînes scalaires (-516 octets de schéma).
+  //
+  // CE QUI RESTE INTACT, et doit le rester : le rendu du bloc quiz (adocRenderBlockHTML, quiz
+  // interactif comme statique), sa conversion (convertBlock), son schéma de DOCUMENT
+  // (block.schema.json#/$defs/quizBlock) et la saisie manuelle. Les présentations déjà produites
+  // qui en contiennent continuent de s'afficher, de s'exporter et de se rouvrir exactement comme
+  // avant — seule la GÉNÉRATION automatique cesse d'en proposer.
   const ADOC_STRUCTURED_PRESENTATION_TOOL = {
     name: 'emit_presentation_document',
     description: "Produit le contenu d'une Présentation clinique structurée (format paysage, exposé oral devant un public de 1 à 200 personnes — conférence, cours, séance) en diapositives, chacune composée de blocs typés, sourcé exclusivement par les passages numérotés fournis dans le prompt système.",
@@ -11889,20 +11893,17 @@ ${recent}`;
                 items: {
                   type: 'object',
                   properties: {
-                    type: { type: 'string', enum: ['heading', 'paragraph', 'callout', 'list', 'quote', 'image', 'quiz', 'questionnaire'] },
-                    text: { type: 'string', description: 'Texte pour heading/paragraph/callout/quote ; QUESTION du quiz pour quiz ; chaîne vide sinon.' },
+                    type: { type: 'string', enum: ['heading', 'paragraph', 'callout', 'list', 'quote', 'image', 'questionnaire'] },
+                    text: { type: 'string', description: 'Texte pour heading/paragraph/callout/quote ; chaîne vide sinon.' },
                     level: { type: 'integer', enum: [1, 2, 3], description: 'Niveau de titre (heading uniquement) ; 2 sinon.' },
                     visualRole: { type: 'string', enum: ['info', 'warning', 'critical', 'success'], description: 'callout uniquement ; "info" sinon.' },
                     items: { type: 'array', items: { type: 'string' }, description: 'list uniquement ; liste vide sinon.' },
                     ordered: { type: 'boolean', description: 'list uniquement ; false sinon.' },
                     imageQuery: { type: 'string', description: "image uniquement — requête de recherche Pexels concrète et spécifique, en anglais, jamais générique ou caricaturale ; chaîne vide sinon." },
                     imageAlt: { type: 'string', description: 'image uniquement — texte alternatif descriptif, non vide dès que type=image ; chaîne vide sinon.' },
-                    quizOptions: { type: 'array', items: { type: 'string' }, description: 'quiz uniquement — 2 à 6 choix de réponse ; liste vide sinon.' },
-                    quizCorrectIndex: { type: 'integer', description: 'quiz uniquement — index (0-based) de la bonne réponse dans quizOptions ; 0 sinon.' },
-                    quizExplanation: { type: 'string', description: 'quiz uniquement — explication affichée avec la bonne réponse, TOUJOURS renseignée pour un quiz (jamais vide) ; chaîne vide sinon.' },
-                    // LOT 5 Présentation — questionnaire à score cumulé type magazine, distinct du quiz
-                    // (Décision Christophe : remplace le quiz simple comme outil de référence pour ce
-                    // besoin, quiz laissé intact). Structure À PLAT (mêmes conventions que rows pour
+                    // LOT 5 Présentation — questionnaire à score cumulé type magazine. Il était
+                    // « distinct du quiz » ; depuis le retrait de celui-ci de la génération, il est
+                    // le seul bloc interrogatif produit. Structure À PLAT (mêmes conventions que rows pour
                     // table) : chaque question porte directement ses options ET leur barème de points —
                     // jamais une table de correspondance séparée à recouper par index.
                     questionnaireQuestions: {
@@ -11967,7 +11968,7 @@ ${recent}`;
                     },
                     citationEntryIds: { type: 'array', items: { type: 'string' }, description: "sourceSnapshotEntryId (ex. 'entry-3') des passages fournis qui soutiennent ce bloc — choisis EXACTEMENT parmi les identifiants listés dans le prompt, jamais inventés ; liste vide si aucune affirmation sourcée dans ce bloc." },
                   },
-                  required: ['type', 'text', 'level', 'visualRole', 'items', 'ordered', 'imageQuery', 'imageAlt', 'quizOptions', 'quizCorrectIndex', 'quizExplanation', 'questionnaireQuestions', 'questionnaireProfiles', 'questionnaireTwoPartners', 'deepDiveLinks', 'citationEntryIds'],
+                  required: ['type', 'text', 'level', 'visualRole', 'items', 'ordered', 'imageQuery', 'imageAlt', 'questionnaireQuestions', 'questionnaireProfiles', 'questionnaireTwoPartners', 'deepDiveLinks', 'citationEntryIds'],
                   additionalProperties: false,
                 },
               },
@@ -12457,31 +12458,22 @@ ${recent}`;
           "Laisse les deux champs vides UNIQUEMENT dans les cas où le sujet de la diapositive ne se " +
           "prête vraiment à aucune image (ex. diapositive purement chiffrée ou définitionnelle) — " +
           "jamais par défaut.\n\n" +
-          // LOT 3 Présentation — quiz simple auto-rythmé, un seul écran (jamais de vote multi-
-          // appareils). Fréquence bornée explicitement (jamais plus d'un quiz toutes les 4-5
-          // diapositives sauf demande explicite) pour éviter une présentation entièrement composée
-          // de quiz — jamais un défaut, seulement quand la vérification de compréhension apporte
-          // une réelle valeur pédagogique à CE contenu précis.
-          '── QUESTION DE VÉRIFICATION (bloc type="quiz", à l\'intérieur d\'une diapositive) ──\n' +
-          'Un bloc type="quiz" est disponible pour vérifier la compréhension du public sur un point ' +
-          "clé déjà exposé — jamais en ouverture d'un sujet non encore présenté. Utilise-le " +
-          "PARCIMONIEUSEMENT : jamais plus d'un quiz toutes les 4 à 5 diapositives, jamais une " +
-          "présentation entièrement composée de quiz, SAUF demande explicite de l'utilisatrice " +
-          '(ex. "avec un quiz pour vérifier la compréhension") qui autorise une fréquence plus ' +
-          'élevée. text porte la QUESTION (concise, sans citer directement la réponse). ' +
-          'quizOptions : 2 à 6 choix de réponse plausibles, un seul correct — jamais deux choix ' +
-          'trivialement identiques ou absurdes qui rendraient la bonne réponse évidente sans ' +
-          'réflexion. quizCorrectIndex : index (0-based) du choix correct dans quizOptions. ' +
-          'quizExplanation : TOUJOURS renseignée (jamais vide) — explique pourquoi la bonne réponse ' +
-          "est correcte, en une ou deux phrases claires, utile même à qui s'est trompé.\n\n" +
-          // LOT 5 Présentation — questionnaire à score cumulé type magazine, JAMAIS un synonyme du
-          // quiz ci-dessus (quiz = une bonne réponse ; questionnaire = un score qui s'additionne).
-          // Fréquence bornée comme le quiz (jamais plus d'un par présentation sauf demande explicite)
-          // — c'est un outil de fond, pas un gadget répété.
+          // LOT 3 Présentation — la section « QUESTION DE VÉRIFICATION » a été retirée en même
+          // temps que les champs quiz du schéma d'outil : décrire au modèle un bloc qu'il ne peut
+          // plus produire ne ferait que gaspiller du contexte et l'inviter à une impasse.
+          // LOT 5 Présentation — questionnaire à score cumulé type magazine. Depuis le retrait du
+          // bloc quiz de la génération, c'est le SEUL bloc interrogatif productible : d'où
+          // l'instruction de report ci-dessous, sans laquelle une demande de « quiz » se solderait
+          // par rien du tout. Fréquence bornée (jamais plus d'un par présentation sauf demande
+          // explicite) — c'est un outil de fond, pas un gadget répété.
           '── QUESTIONNAIRE À SCORE (bloc type="questionnaire", à l\'intérieur d\'une diapositive) ──\n' +
           'Un bloc type="questionnaire" est disponible pour un vrai outil d\'auto-évaluation à score ' +
           'cumulé (plusieurs questions, chaque réponse valant des points, un score final qui détermine ' +
-          "un profil) — jamais un synonyme du quiz de vérification ci-dessus. Utilise-le au plus une " +
+          "un profil). Si l'utilisatrice demande un « quiz », un « questionnaire à choix multiples » " +
+          "ou une « vérification de la compréhension », c'est CE bloc qu'il faut produire — il n'en " +
+          "existe aucun autre depuis le retrait du quiz : ne réponds jamais qu'un quiz est impossible, " +
+          "et ne rends jamais une présentation sans rien là où une vérification était demandée. " +
+          "Utilise-le au plus une " +
           'fois par présentation, SAUF demande explicite de l\'utilisatrice, et seulement quand le sujet ' +
           "s'y prête réellement (thème d'auto-évaluation, de personnalité, de qualité de vie ou de " +
           'couple — jamais forcé sur un sujet qui ne s\'y prête pas).\n' +
@@ -12504,7 +12496,7 @@ ${recent}`;
           // garantie par construction, jamais une réconciliation a posteriori).
           '── APPROFONDISSEMENT (deepDives + deepDiveLinks, bloc heading/paragraph/callout/list/quote) ──\n' +
           "Un mot ou une courte expression déjà présente dans le texte d'un bloc peut ouvrir une page " +
-          "d'approfondissement plein écran — jamais un synonyme du quiz ou du questionnaire ci-dessus " +
+          "d'approfondissement plein écran — jamais un synonyme du questionnaire ci-dessus " +
           "(un approfondissement explique, il n'interroge ni ne note). Utilise-le au plus 1 fois par " +
           'diapositive, jamais plus de 3 dans toute la présentation, SAUF demande explicite de ' +
           "l'utilisatrice — un sujet qui mérite un approfondissement réel, jamais un réflexe " +
