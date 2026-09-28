@@ -7605,6 +7605,34 @@ ${recent}`;
       if (!text) return null;
       return { text: text, links: estObjet && Array.isArray(p.deepDiveLinks) ? p.deepDiveLinks : [] };
     }
+    // Le modèle, lui, ne renvoie PAS cette forme imbriquée : l'outil strict lui fait produire, au
+    // niveau de la PAGE, un simple tableau de chaînes « expression → id ». Ce détour n'est pas un
+    // choix d'élégance mais une contrainte MESURÉE contre l'API : la grammaire compilée à partir
+    // d'un schéma strict a une taille maximale, et il ne restait la place que d'un tableau de
+    // chaînes (cf. le commentaire de ADOC_STRUCTURED_PRESENTATION_TOOL). On rend donc ici à
+    // chaque paragraphe les liens qui le concernent, et le DOCUMENT reprend sa forme imbriquée —
+    // celle que le schéma du document, la navigation et l'export attendent, inchangée.
+    function repartirLiensDePage(d, paragraphs) {
+      const brut = (d && Array.isArray(d.deepDiveLinks)) ? d.deepDiveLinks : [];
+      brut.forEach(function(entree) {
+        if (typeof entree !== 'string') return;
+        // Tolérance sur le séparateur : le modèle écrit « → » comme demandé, mais une flèche
+        // ASCII ne doit pas faire perdre le lien. Découpe sur la DERNIÈRE occurrence : un id ne
+        // contient jamais d'espace, une expression peut contenir presque tout.
+        const m = entree.match(/^([\s\S]*)(?:→|->|—>|=>)([^→>]*)$/);
+        if (!m) return;
+        const texte = adocStripEmoji(m[1].trim());
+        const targetId = m[2].trim();
+        if (!texte || !targetId) return;
+        // Le lien se pose sur le paragraphe où l'expression apparaît RÉELLEMENT — c'est là que la
+        // pastille a un sens. À défaut (reformulation du modèle), sur le premier : mieux vaut une
+        // pastille légèrement mal placée qu'une page d'approfondissement inatteignable.
+        const cible = paragraphs.filter(function(par) {
+          return par.text.toLowerCase().indexOf(texte.toLowerCase()) !== -1;
+        })[0] || paragraphs[0];
+        cible.links.push({ text: texte, targetId: targetId });
+      });
+    }
     // Même sévérité que les autres filets du pipeline (image/quiz/questionnaire) : une entrée sans
     // id/titre/paragraphe exploitable est rejetée ENTIÈRE plutôt que persistée à moitié remplie.
     function convertDeepDive(d) {
@@ -7612,6 +7640,7 @@ ${recent}`;
       const title = adocStripEmoji(((d && d.title) || '').trim());
       const paragraphs = ((d && d.paragraphs) || []).map(paragrapheEntrant).filter(Boolean);
       if (!id || !title || !paragraphs.length) return null;
+      repartirLiensDePage(d, paragraphs);
       return { id: id, title: title, paragraphs: paragraphs };
     }
     const liste = (rawDeepDives || []).map(convertDeepDive).filter(Boolean);
@@ -11833,40 +11862,37 @@ ${recent}`;
             properties: {
               id: { type: 'string', description: "Identifiant court choisi par le modèle (ex. 'deepdive-cortisol') — référencé tel quel par targetId depuis un bloc de diapositive." },
               title: { type: 'string', description: "Titre de la page d'approfondissement." },
-              // Présentation ACTE 3 — un paragraphe d'une page d'approfondissement peut à son tour
-              // renvoyer vers une AUTRE page produite dans ce même appel : c'est ce qui rend la
-              // profondeur non plafonnée. Forme À PLAT, TOUJOURS un objet avec ses deux champs,
-              // deepDiveLinks à liste vide dans le cas très largement majoritaire — exactement le
-              // même idiome que les blocs de diapositive ci-dessus (jamais un oneOf, que le schéma
-              // d'outil n'emploie nulle part ; c'est le SCHÉMA DOCUMENT qui accepte les deux
-              // formes, pour que tout document produit avant ce lot reste valide sans migration).
-              paragraphs: {
+              // Présentation ACTE 3 — CORRECTIF du 28/09, MESURÉ contre l'API réelle.
+              // La première version imbriquait les liens DANS chaque paragraphe (tableau d'objets
+              // contenant un tableau d'objets). Schéma strict et conforme par toutes les mesures
+              // locales — 0 optionnel, 0 union, profondeur d'objets inchangée — mais Anthropic
+              // compile tout schéma `strict` en grammaire, et refuse au-delà d'une certaine TAILLE
+              // DE GRAMMAIRE COMPILÉE, indépendamment des limites explicites documentées. Message
+              // exact renvoyé par l'API : « The compiled grammar is too large, which would cause
+              // performance issues. Simplify your tool schemas or reduce the number of strict
+              // tools. » → HTTP 400 déterministe sur TOUTE génération de Présentation.
+              //
+              // La marge restante a été mesurée en appelant réellement l'API, une variable à la
+              // fois, sur le schéma d'avant le lot :
+              //     + un tableau de CHAÎNES .................... 200  ← retenu
+              //     + deux tableaux de chaînes ................. 400
+              //     + un tableau d'OBJETS {text,targetId} ...... 400
+              // Autrement dit : il restait exactement la place d'UN tableau de chaînes. Ce schéma
+              // est au bord de la limite — toute addition future devra être mesurée de la même
+              // façon, jamais seulement raisonnée (cf. tests/smoke-tool-schema-reel.cjs).
+              //
+              // D'où cette forme, la moins coûteuse possible à compiler : un tableau de chaînes
+              // « expression → id », au niveau de la PAGE et non du paragraphe. La conversion
+              // (adocConvertDeepDives) les répartit ensuite sur le paragraphe où l'expression
+              // apparaît réellement — la structure du DOCUMENT, elle, ne change pas.
+              paragraphs: { type: 'array', items: { type: 'string' }, description: 'Un ou plusieurs paragraphes de texte pur — jamais de liste, callout, citation ni image dans cette version.' },
+              deepDiveLinks: {
                 type: 'array',
-                items: {
-                  type: 'object',
-                  properties: {
-                    text: { type: 'string', description: 'Un paragraphe de texte pur — jamais de liste, callout, citation ni image dans cette version.' },
-                    deepDiveLinks: {
-                      type: 'array',
-                      items: {
-                        type: 'object',
-                        properties: {
-                          text: { type: 'string', description: "Expression EXACTE (2 à 4 mots), telle qu'elle apparaît déjà dans le texte de CE paragraphe — jamais reformulée, jamais une paraphrase." },
-                          targetId: { type: 'string', description: "id d'une AUTRE entrée de deepDives — choisi EXACTEMENT parmi les id produits dans ce même appel, jamais inventé, jamais l'id de la page courante." },
-                        },
-                        required: ['text', 'targetId'],
-                        additionalProperties: false,
-                      },
-                      description: "Renvois vers d'autres pages d'approfondissement — au plus 1 à 2 par page entière ; liste vide dans le cas normal, très largement majoritaire.",
-                    },
-                  },
-                  required: ['text', 'deepDiveLinks'],
-                  additionalProperties: false,
-                },
-                description: "Un ou plusieurs paragraphes de texte pur, chacun pouvant renvoyer vers d'autres pages d'approfondissement.",
+                items: { type: 'string' },
+                description: "Renvois de CETTE page vers d'AUTRES pages d'approfondissement. Une entrée par renvoi, au format exact « expression → id », où l'expression (2 à 4 mots) est recopiée TELLE QUELLE depuis l'un des paragraphes ci-dessus et où id est celui d'une autre entrée de deepDives, jamais celui de cette page. Exemple : « boucle de retour → deepdive-cortisol ». Au plus 1 à 2 par page ; liste vide dans le cas normal, très largement majoritaire.",
               },
             },
-            required: ['id', 'title', 'paragraphs'],
+            required: ['id', 'title', 'paragraphs', 'deepDiveLinks'],
             additionalProperties: false,
           },
           description: "Pages d'approfondissement référencées par deepDiveLinks[].targetId — liste vide si aucun lien d'approfondissement n'est utilisé dans cette présentation.",
@@ -12366,8 +12392,10 @@ ${recent}`;
           // anti-cycle en PREMIÈRE ligne de défense seulement — le vrai filet reste le parcours à
           // trois couleurs d'adocConvertDeepDives, qui ne suppose jamais la consigne respectée.
           "Une page d'approfondissement peut elle-même renvoyer vers d'AUTRES pages produites dans " +
-          'ce même appel : chacun de ses paragraphes porte son propre deepDiveLinks, exactement ' +
-          "comme un bloc de diapositive. La profondeur doit toujours servir la clarté du sujet, " +
+          "ce même appel : son champ deepDiveLinks liste ces renvois, une chaîne par renvoi, au " +
+          "format exact « expression → id » — l'expression recopiée telle quelle depuis l'un de " +
+          'ses paragraphes, l\'id étant celui d\'une autre entrée de deepDives (ex. ' +
+          '« boucle de retour → deepdive-cortisol »). La profondeur doit toujours servir la clarté du sujet, ' +
           "jamais être systématique — n'enchaîne un second niveau que lorsqu'une notion appelle " +
           'réellement un développement à part, au plus 1 à 2 renvois par page entière (même esprit ' +
           'que la borne posée ci-dessus pour les diapositives).\n' +
@@ -13174,8 +13202,26 @@ ${recent}`;
         if (!resp.ok) {
           clearTimeout(_genTid); clearTimeout(_genSemTid);
           _adocGenRemoveVisibilityListener();
-          _fetchOrHttpErr = new Error('HTTP ' + resp.status);
+          // Le CORPS de la réponse, pas seulement le code. Sans lui, le 28/09/2026, une panne
+          // TOTALE de la génération structurée n'a laissé dans le journal que « HTTP 400 » : il a
+          // fallu rejouer l'appel hors application pour apprendre que l'API refusait la TAILLE de
+          // la grammaire compilée à partir du schéma d'outil. Ce message existait dès la première
+          // seconde ; il était simplement jeté ici. Lecture au mieux — un corps illisible ou déjà
+          // consommé ne doit jamais masquer l'erreur HTTP elle-même, qui reste l'information
+          // principale.
+          let _detail = '';
+          try {
+            const _brut = await resp.text();
+            let _msg = _brut;
+            try {
+              const _j = JSON.parse(_brut);
+              _msg = (_j && _j.error && _j.error.message) || (_j && _j.message) || _brut;
+            } catch (_) { /* corps non-JSON : on garde le texte brut */ }
+            _detail = String(_msg || '').trim().replace(/\s+/g, ' ').slice(0, 500);
+          } catch (_) { /* corps illisible : on s'en tient au code HTTP */ }
+          _fetchOrHttpErr = new Error('HTTP ' + resp.status + (_detail ? ' — ' + _detail : ''));
           _fetchOrHttpErr.httpStatus = resp.status;
+          _fetchOrHttpErr.httpBody = _detail || null;
           throw _fetchOrHttpErr;
         }
         _progressedPastHttp200_2 = true;
@@ -13322,7 +13368,13 @@ ${recent}`;
         // Partie A, point 5 — même niveau de détail chronométrique sur un abandon PENDANT la
         // lecture du flux que sur un échec initial du fetch (auparavant asymétrique : seul
         // l'échec de fetch était chronométré ici).
-        _logTiming('appel 2 en échec/timeout (' + (_genErr && _genErr.name) + ')' + (_progressedPastHttp200_2 ? ', après démarrage du flux' : ', avant toute réponse'));
+        // Le MESSAGE, pas seulement le nom de la classe d'erreur : c'est cette ligne qui, le
+        // 28/09/2026, n'a laissé dans le journal navigateur que « HTTP 400 » alors que l'API
+        // avait dit exactement ce qui n'allait pas. Le détail lu plus haut (err.httpBody)
+        // transite désormais jusqu'ici.
+        _logTiming('appel 2 en échec/timeout (' + (_genErr && _genErr.name) + ')'
+          + ((_genErr && _genErr.message) ? ' : ' + _genErr.message : '')
+          + (_progressedPastHttp200_2 ? ', après démarrage du flux' : ', avant toute réponse'));
         _m2.finalState = _genErr && _genErr.name === 'AdocSSEStreamError' ? 'sse-error'
           : _genErr && _genErr.name === 'AbortError' ? (_abortReason2 || 'transport-timeout')
           : _genErr && _genErr.httpStatus ? 'http-error'
@@ -13331,6 +13383,9 @@ ${recent}`;
         // timeout — le flux s'arrête avant tout message_delta portant stop_reason — mais capturé
         // honnêtement tel quel, jamais deviné, pour les cas où il serait déjà connu).
         _m2.stopReasonAtAbandon = _genStopReason;
+        // Conservé aussi dans le traceur persistant (window._adocLastStructAttemptMetrics), pour
+        // qu'un rapport d'incident rédigé APRÈS coup porte la cause, pas seulement le symptôme.
+        if (_genErr && _genErr.httpBody) _m2.httpErrorBody = _genErr.httpBody;
         _adocLogCallMetrics(metricsLabel, _m2);
         _m2.durationMs = Math.round(performance.now() - _tCall2Start); // Correction rang 4 — durée propre à CETTE tentative
         window._adocLastStructAttemptMetrics.metrics2.push(_m2); // traceur persistant — une entrée par tentative, jamais un remplacement (cf. commentaire en tête de fonction)
