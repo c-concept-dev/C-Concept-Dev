@@ -52,6 +52,12 @@ const arg = (nom, def) => { const a = process.argv.find(x => x.startsWith('--' +
 const MAX_TOKENS = parseInt(arg('max-tokens', '0'), 10) || 0;
 const CARTE = arg('carte', 'format-presentation');
 const TYPE_ATTENDU = arg('type', 'presentation');
+// --reponse=<libelle> : choisir une reponse de clarification par son libelle, pour isoler une
+// variable. Exemple : --reponse="Document de reference" force le 3e choix de la question sur
+// l'usage, afin de voir si duree_minutes est ce qui fait deborder la generation.
+// Ne s'applique JAMAIS a la question du TYPE de document : celle-la doit rester « presentation »,
+// sans quoi on comparerait deux documents differents et la mesure ne voudrait plus rien dire.
+const REPONSE = arg('reponse', '');
 const PUBLIE = process.argv.includes('--publie') || LOCAL_SOUS_ORIGINE;
 const PAGES = 'https://c-concept-dev.github.io/C-Concept-Dev/tools/Projet%20therapeutes/Conseiller%20Clinique/studio-clinique.html';
 const ORIGINE_PAGES = 'https://c-concept-dev.github.io';
@@ -176,6 +182,7 @@ async function mesurerUnSujet(browser, SUJET) {
       return { via: 'accueil', typeChoisi: carte.getAttribute('aria-pressed') };
     }, [SUJET, CARTE]);
     if (MAX_TOKENS) console.log('  essai  : max_tokens releve a ' + MAX_TOKENS + ' (reecriture en vol, aucun fichier modifie)');
+    if (REPONSE) console.log('  essai  : reponse de clarification forcee sur « ' + REPONSE + ' » (hors question de type)');
     if (CARTE !== 'format-presentation' || TYPE_ATTENDU !== 'presentation') console.log('  essai  : carte ' + CARTE + ', type attendu ' + TYPE_ATTENDU);
     if (LOCAL_SOUS_ORIGINE) console.log('  mode   : fichiers LOCAUX servis sous l\'adresse publiee (' + serviesEnLocal + ' fichier(s) servi(s))');
     console.log('  depart : ' + (depart.via === 'accueil'
@@ -276,6 +283,11 @@ async function mesurerUnSujet(browser, SUJET) {
         const estTypeDeDocument = etat.choix.some(t => autreType.test(t))
           || /type de document|quel type|quel format/i.test(etat.question || '');
         let vise = etat.choix.find(t => motif.test(t));
+        // Une preference explicite l'emporte, hors question de type.
+        if (REPONSE && !estTypeDeDocument) {
+          const force = etat.choix.find(t => t.toLowerCase().includes(REPONSE.toLowerCase()));
+          if (force) vise = force;
+        }
         // Hors question de type, n'importe quelle option convient (public, duree, angle) — mais
         // jamais une option qui nommerait un autre type.
         if (!vise && !estTypeDeDocument) vise = etat.choix.find(t => !autreType.test(t));
