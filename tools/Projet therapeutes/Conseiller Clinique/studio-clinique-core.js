@@ -11879,7 +11879,7 @@ ${recent}`;
               //     + un tableau d'OBJETS {text,targetId} ...... 400
               // Autrement dit : il restait exactement la place d'UN tableau de chaînes. Ce schéma
               // est au bord de la limite — toute addition future devra être mesurée de la même
-              // façon, jamais seulement raisonnée (cf. tests/smoke-tool-schema-reel.cjs).
+              // façon, jamais seulement raisonnée (cf. tests/smoke-schema-outil-reel.cjs).
               //
               // D'où cette forme, la moins coûteuse possible à compiler : un tableau de chaînes
               // « expression → id », au niveau de la PAGE et non du paragraphe. La conversion
