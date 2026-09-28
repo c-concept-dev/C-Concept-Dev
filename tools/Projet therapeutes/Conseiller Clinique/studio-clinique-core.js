@@ -8170,6 +8170,180 @@ ${recent}`;
     return adocNormalizeCoursePlan(brut, demande, dureeMinutes, courseId);
   }
   window.adocBuildCoursePlan = adocBuildCoursePlan;
+  // ═══ COURS EN MODULES — L'ORCHESTRATEUR ═══
+  // Génère les modules du plan, UN PAR UN. Le séquentiel n'est pas une facilité : un échec au
+  // milieu d'un lot parallèle serait ingérable pour l'utilisatrice, qui ne saurait pas quoi
+  // reprendre, et les limites de débit du Worker ne sont pas connues.
+  //
+  // Le générateur est INJECTABLE (options.generateur) : c'est ce qui rend tout l'enchaînement —
+  // séquence, reprise, échec, annulation, nommage — vérifiable sans dépenser un seul appel. Par
+  // défaut, le vrai pipeline.
+  //
+  // Un module n'est ACCEPTÉ que si le modèle s'est arrêté de lui-même (stopReason 'tool_use').
+  // Tout le reste — repli sur l'ancien moteur, coupure à max_tokens, blocage qualité — est un
+  // échec, jamais un demi-succès qu'on assemblerait quand même.
+
+  // Le texte de demande d'un module. Il porte la LISTE DES AUTRES MODULES, et c'est le point qui
+  // évite les recouvrements : sans elle, chaque module rouvre le sujet depuis le début et le cours
+  // se répète trois fois.
+  function adocCourseModuleRequest(plan, moduleIndex) {
+    const m = plan.modules[moduleIndex];
+    const autres = plan.modules.filter(function (x, i) { return i !== moduleIndex; })
+      .map(function (x, i) { return (i + 1) + '. ' + x.titre; }).join('\n');
+    return 'Module « ' + m.titre +' » du cours « ' + plan.titre + ' ».\n'
+      + (m.objectifs && m.objectifs.length ? 'Objectifs : ' + m.objectifs.join(' ; ') + '.\n' : '')
+      + (m.notionsCles && m.notionsCles.length ? 'Notions clés : ' + m.notionsCles.join(', ') + '.\n' : '')
+      + 'Durée de ce module : ' + m.dureeMinutes + ' minutes.\n\n'
+      + 'Ce module fait partie d\'un cours dont voici les AUTRES modules :\n' + autres + '\n\n'
+      + 'Traite UNIQUEMENT le sujet de ce module. Ne reprends pas ce qui relève des autres : ils '
+      + 'sont enseignés séparément, et une notion traitée deux fois fait perdre du temps au public.';
+  }
+  window.adocCourseModuleRequest = adocCourseModuleRequest;
+
+  // Nom d'enregistrement — convention, faute de champ de regroupement dans « Mes créations ».
+  function adocCourseModuleName(plan, i) {
+    return 'Cours — ' + plan.titre + ' · Module ' + (i + 1) + '/' + plan.modules.length + ' · ' + plan.modules[i].titre;
+  }
+  function adocCourseAssembledName(plan) { return 'Cours — ' + plan.titre + ' (assemblé)'; }
+  window.adocCourseModuleName = adocCourseModuleName;
+  window.adocCourseAssembledName = adocCourseAssembledName;
+
+  // Découpe une requête bibliothèque en termes de recherche. `adocExecutePlan` ÉCARTE en silence
+  // toute entrée `searches` qui n'est pas un objet porteur de `terms`/`authors`/`approaches` —
+  // passer la chaîne brute aurait supprimé la recherche structurée du module sans aucun message.
+  function adocCourseModuleSearch(requete) {
+    const termes = String(requete || '').split(/[\s,;·]+/)
+      .map(function (t) { return t.trim(); }).filter(function (t) { return t.length > 2; }).slice(0, 10);
+    return termes.length ? [{ terms: termes, term_match: 'any', authors: [], approaches: [], limit: 10 }] : [];
+  }
+  window.adocCourseModuleSearch = adocCourseModuleSearch;
+
+  // Le plan synthétique d'un module. Pur et exposé : c'est lui qui décide ce que la recherche
+  // rapportera, et il doit être vérifiable sans appel.
+  function adocCourseModulePlan(plan, i, planOrigine) {
+    const m = plan.modules[i];
+    const o = planOrigine || {};
+    return {
+      needs_rag: true,
+      intent: 'presentation',
+      // 'presentation' et non 'cours' : le budget de recherche de 'cours' (90 passages) couvrirait
+      // le cours ENTIER, alors qu'un module n'en traite qu'une part. 45 passages ciblés valent mieux.
+      documentKind: 'presentation',
+      output_format: 'html-visual',
+      topic_summary: m.titre.slice(0, 120),
+      // Les notions clés servent d'angles sémantiques : c'est le levier qui fait que deux modules
+      // du même cours ne ramènent pas les mêmes passages.
+      vector_angles: (m.notionsCles || []).slice(0, 4),
+      searches: adocCourseModuleSearch(m.requeteBibliotheque),
+      approach_filter: o.approach_filter || null,
+      audience_type: o.audience_type || 'praticien',
+      registre: o.registre || 'pedagogique',
+      duree_minutes: m.dureeMinutes,
+      // Le nombre explicite REMPLACE le calcul de densité par la durée : c'est lui qui garantit
+      // qu'un module reste sous le plafond, quelle que soit la durée annoncée pour le cours.
+      presentation_options: { slideCount: m.slideCount },
+    };
+  }
+  window.adocCourseModulePlan = adocCourseModulePlan;
+
+  // Générateur RÉEL d'un module : recherche dédiée, prompt système, génération structurée.
+  async function adocGenerateCourseModule(plan, i, ctx) {
+    const planModule = adocCourseModulePlan(plan, i, ctx && ctx.planOrigine);
+    const ragResult = await adocExecutePlan(planModule);
+    const ragCtx = adocBuildRAGCtx(ragResult);
+    // docCtx : le document joint éventuel, transmis tel quel par l'interface. Un cours bâti sur un
+    // document de l'utilisatrice doit le voir à chaque module, pas seulement au premier.
+    const systemPrompt = adocBuildSystemPrompt(ragCtx, (ctx && ctx.docCtx) || '', planModule, null,
+      { forStructuredTool: true });
+    const r = await adocGenerateStructuredDocument('presentation', adocCourseModuleRequest(plan, i),
+      planModule, ragResult, systemPrompt, ctx.workerUrl, ctx.typingId);
+    return { doc: r.doc, snapshot: r.sourceSnapshot, stopReason: r.stopReason };
+  }
+
+  async function adocRunCourseGeneration(plan, options) {
+    const opts = options || {};
+    const generateur = opts.generateur || adocGenerateCourseModule;
+    const surProgression = opts.surProgression || function () {};
+    const n = plan.modules.length;
+    const resultats = [];
+    let annule = false;
+
+    for (let i = 0; i < n; i++) {
+      if (opts.signal && opts.signal.aborted) { annule = true; break; }
+      const m = plan.modules[i];
+      const etiquette = 'Module ' + (i + 1) + ' sur ' + n + ' — ' + m.titre;
+      surProgression({ index: i, total: n, titre: m.titre, etiquette: etiquette, etat: 'en-cours' });
+      if (opts.typingId) adocUpdateTypingLabel(opts.typingId, 'icon-structure', etiquette);
+
+      let retenu = null, dernierEchec = null;
+      // UNE reprise, pas davantage : au-delà, on s'acharne sur un module qui ne passe pas et on
+      // fait attendre l'utilisatrice pour rien. Mieux vaut le marquer et assembler le reste.
+      for (let essai = 1; essai <= 2 && !retenu; essai++) {
+        if (opts.signal && opts.signal.aborted) { annule = true; break; }
+        try {
+          const r = await generateur(plan, i, { workerUrl: opts.workerUrl, typingId: opts.typingId,
+            planOrigine: opts.planOrigine, docCtx: opts.docCtx, essai: essai, signal: opts.signal });
+          const diapos = ((r && r.doc && r.doc.blocks) || []).length;
+          if (!r || r.stopReason !== 'tool_use') {
+            dernierEchec = 'le modèle ne s\'est pas arrêté de lui-même (stop_reason « '
+              + ((r && r.stopReason) || 'inconnu') + ' ») — document écarté';
+          } else if (Math.abs(diapos - m.slideCount) > 2) {
+            // ±2 : au-delà, le module ne tient plus la place que le plan lui a donnée, et le cours
+            // assemblé déborde la durée annoncée.
+            dernierEchec = diapos + ' diapositives au lieu de ' + m.slideCount + ' (écart supérieur à 2)';
+          } else {
+            retenu = { id: m.id, doc: r.doc, snapshot: r.snapshot, stopReason: r.stopReason,
+                       diapositives: diapos, essais: essai };
+          }
+        } catch (e) {
+          dernierEchec = (e && e.message) || String(e);
+        }
+      }
+
+      if (retenu) {
+        resultats.push(Object.assign({ statut: 'ok', titre: m.titre, nom: adocCourseModuleName(plan, i) }, retenu));
+        surProgression({ index: i, total: n, titre: m.titre, etat: 'ok', diapositives: retenu.diapositives });
+      } else {
+        // Un module interrompu n'est pas un module en échec : dire « à régénérer » d'un module que
+        // l'utilisatrice a elle-même annulé lui ferait chercher un problème qui n'existe pas.
+        const statut = annule ? 'annule' : 'a-regenerer';
+        // Marqué, jamais abandonné en silence : l'assemblage partiel reste possible et l'interface
+        // propose de rejouer CE module, l'assembleur étant idempotent.
+        resultats.push({ id: m.id, statut: statut, titre: m.titre,
+                         nom: adocCourseModuleName(plan, i), erreur: dernierEchec, essais: 2 });
+        surProgression({ index: i, total: n, titre: m.titre, etat: statut === 'annule' ? 'annule' : 'echec',
+                         erreur: dernierEchec });
+      }
+      if (annule) break;
+    }
+
+    const reussis = resultats.filter(function (r) { return r.statut === 'ok'; });
+    const manquants = plan.modules.filter(function (m) {
+      return !resultats.some(function (r) { return r.id === m.id; });
+    });
+    return {
+      modules: resultats,
+      annule: annule,
+      rapport: {
+        total: n,
+        reussis: reussis.length,
+        aRegenerer: resultats.filter(function (r) { return r.statut === 'a-regenerer'; }).map(function (r) { return r.id; }),
+        annules: resultats.filter(function (r) { return r.statut === 'annule'; }).map(function (r) { return r.id; }),
+        nonGeneres: manquants.map(function (m) { return m.id; }),
+        // `skip` se passe tel quel à adocAssembleCourse : les modules en échec ET ceux jamais
+        // lancés (annulation) sont omis, et l'assemblage partiel est annoncé dans son rapport.
+        skip: resultats.filter(function (r) { return r.statut !== 'ok'; }).map(function (r) { return r.id; })
+              .concat(manquants.map(function (m) { return m.id; })),
+        // Le contrat qualité ne peut se détendre que si TOUS les modules retenus se sont terminés
+        // d'eux-mêmes — un seul document coupé et l'heuristique de troncature doit redevenir
+        // bloquante sur l'ensemble.
+        genereEnEntier: reussis.length > 0 && reussis.every(function (r) { return r.stopReason === 'tool_use'; }),
+      },
+    };
+  }
+  window.adocRunCourseGeneration = adocRunCourseGeneration;
+  window.adocGenerateCourseModule = adocGenerateCourseModule;
+
 
 
 
