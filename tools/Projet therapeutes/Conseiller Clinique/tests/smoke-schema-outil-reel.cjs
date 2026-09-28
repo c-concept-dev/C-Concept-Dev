@@ -23,18 +23,36 @@
 // suite, pour un coût négligeable.
 //
 // Usage (la clé n'est jamais écrite dans le dépôt ni affichée) :
-//     STUDIO_WORKER_API_KEY=… node tests/smoke-schema-outil-reel.cjs
+//     export STUDIO_WORKER_API_KEY='votre-clé'       # une seule fois par terminal
+//     node tests/smoke-schema-outil-reel.cjs
 // C'est la même clé que celle posée dans le navigateur par
-// localStorage.setItem('workerApiKey', …).
+// localStorage.setItem('workerApiKey', 'votre-clé').
+//
+// Ne PAS recopier un exemple contenant « … » ou « <…> » : ces caractères sont impossibles dans un
+// en-tête HTTP, aucun appel ne partirait, et le test le dit explicitement plutôt que de conclure à
+// tort que les schémas sont refusés.
 
 const fs = require('node:fs');
 const path = require('node:path');
 
 const WORKER = 'https://clone-proxy.11drumboy11.workers.dev';
-const CLE = process.env.STUDIO_WORKER_API_KEY;
+const CLE = (process.env.STUDIO_WORKER_API_KEY || '').trim();
+// Une clé inutilisable doit être dite TOUT DE SUITE, et jamais confondue avec un refus de l'API.
+// Un en-tête HTTP n'accepte que de l'ASCII : le « … » d'une ligne de commande recopiée telle
+// quelle fait échouer fetch AVANT tout appel — et un test qui conclurait « refusé par l'API »
+// là-dessus mentirait sur la seule chose qu'on lui demande.
+const placeholder = CLE === '…' || CLE === '...' || /^[<'"].*[>'"]$/.test(CLE) || /^votre/i.test(CLE);
+if (CLE && (placeholder || /[^\x20-\x7E]/.test(CLE))) {
+  console.error("La valeur de STUDIO_WORKER_API_KEY n'est pas une clé utilisable" +
+    (placeholder ? " : c'est l'exemple de la documentation, à remplacer par la vraie clé."
+                 : ' : elle contient un caractère non-ASCII, impossible dans un en-tête HTTP.') +
+    "\nAucun appel n'a été émis. Les schémas ne sont NI validés NI invalidés.");
+  process.exit(2);
+}
 if (!CLE) {
   console.error("Ce test fait de VRAIS appels : il lui faut la clé du Worker.\n" +
-    "  STUDIO_WORKER_API_KEY=… node tests/smoke-schema-outil-reel.cjs\n" +
+    "  export STUDIO_WORKER_API_KEY='votre-clé'\n" +
+    "  node tests/smoke-schema-outil-reel.cjs\n" +
     "(la même que localStorage.getItem('workerApiKey') dans le navigateur ; " +
     "ne la place jamais dans un fichier du dépôt.)");
   process.exit(2);
@@ -76,7 +94,7 @@ const OUTILS = ['ADOC_STRUCTURED_FICHE_TOOL', 'ADOC_STRUCTURED_CARROUSEL_TOOL',
   'ADOC_STRUCTURED_TABLEAU_TOOL', 'ADOC_STRUCTURED_LIENS_TOOL'];
 
 (async function () {
-  let echecs = 0;
+  let refuses = 0, indetermines = 0;
   console.log('Appels RÉELS à Anthropic via le Worker, max_tokens:1 — un par schéma.\n');
   for (const nom of OUTILS) {
     const outil = extraire(nom);
@@ -90,7 +108,7 @@ const OUTILS = ['ADOC_STRUCTURED_FICHE_TOOL', 'ADOC_STRUCTURED_CARROUSEL_TOOL',
       tools: [outil],
       tool_choice: { type: 'tool', name: outil.name },
     };
-    let statut = 0, detail = '';
+    let statut = 0, detail = '', joint = true;
     try {
       const r = await fetch(WORKER, {
         method: 'POST',
@@ -100,22 +118,51 @@ const OUTILS = ['ADOC_STRUCTURED_FICHE_TOOL', 'ADOC_STRUCTURED_CARROUSEL_TOOL',
       statut = r.status;
       if (!r.ok) {
         const brut = await r.text();
-        try { detail = JSON.parse(brut).error.message; } catch (_) { detail = brut; }
-        detail = String(detail).replace(/\s+/g, ' ').slice(0, 300);
+        // Le corps d'erreur n'a pas une forme unique : {error:{message}} chez Anthropic,
+        // {error:"Unauthorized"} chez le Worker, parfois du texte brut. Une extraction qui
+        // suppose une seule de ces formes affiche « undefined » — c'est-à-dire qu'elle perd
+        // précisément le message pour lequel ce test existe.
+        let msg = brut;
+        try {
+          const j = JSON.parse(brut);
+          const e = j && j.error;
+          msg = (e && typeof e === 'object' ? e.message : e) || j.message || brut;
+        } catch (_) { /* corps non-JSON : on garde le texte brut */ }
+        detail = String(msg == null ? brut : msg).replace(/\s+/g, ' ').slice(0, 300) || '(corps vide)';
       }
     } catch (e) {
-      detail = 'appel impossible : ' + (e && e.message);
+      joint = false;
+      detail = (e && e.message) || String(e);
     }
     // max_tokens:1 fait forcément buter sur la limite de jetons : c'est attendu, et cela prouve
     // justement que la grammaire a été compilée. Seul un refus AVANT génération nous intéresse.
-    const ok = statut === 200;
-    if (!ok) echecs++;
-    console.log((ok ? 'PASS  ' : 'ÉCHEC ') + nom.replace('ADOC_STRUCTURED_', '').replace('_TOOL', '').padEnd(13)
-      + String(taille).padStart(6) + ' o   HTTP ' + statut + (detail ? '  | ' + detail : ''));
+    // SEULS 200 et 400 sont des verdicts sur le schéma. Un 401 (clé), un 429 (quota), un 5xx
+    // (panne) disent que la question n'a pas été posée, pas que la réponse est non — les traiter
+    // en échec ferait crier à la régression sur une clé mal collée, et, dans l'autre sens,
+    // habituerait à ignorer un vrai refus. C'est la même confusion que « HTTP 400 » sans corps.
+    const ok = joint && statut === 200;
+    const verdict = joint && (statut === 200 || statut === 400);
+    if (!verdict) indetermines++; else if (!ok) refuses++;
+    const etiquette = ok ? 'PASS   ' : verdict ? 'REFUSÉ ' : 'INDÉT. ';
+    console.log(etiquette + ' ' + nom.replace('ADOC_STRUCTURED_', '').replace('_TOOL', '').padEnd(13)
+      + String(taille).padStart(6) + ' o   ' + (joint ? 'HTTP ' + statut : 'aucun appel émis')
+      + (detail ? '  | ' + detail : ''));
   }
   console.log('');
-  if (echecs) {
-    console.error('ÉCHEC — ' + echecs + ' schéma(s) refusé(s) par l\'API. NE PAS POUSSER.');
+  // Deux issues NÉGATIVES bien distinctes, jamais confondues : « l'API a refusé le schéma » est
+  // un verdict sur le code ; « je n'ai joint personne » n'en est pas un et ne doit surtout pas en
+  // prendre l'apparence — sans quoi une panne de réseau ou une clé mal collée ferait croire à une
+  // régression, ou, pire, une vraie régression passerait pour un souci de connexion.
+  if (indetermines) {
+    console.error('INDÉTERMINÉ — ' + indetermines + ' appel(s) n\'ont pas obtenu de verdict.');
+    console.error("Les schémas ne sont NI validés NI invalidés : ce test n'a rien prouvé.");
+    console.error('Un 401 vient de la clé, un 429 du quota, un 5xx du service — jamais du schéma.');
+    console.error('Corriger la cause puis relancer : tant que ce test ne dit pas PASS, ne pas pousser');
+    console.error("de modification d'un schéma d'outil.");
+    process.exit(2);
+  }
+  if (refuses) {
+    console.error('ÉCHEC — ' + refuses + ' schéma(s) refusé(s) par l\'API. NE PAS POUSSER.');
     console.error('Si le message parle de « compiled grammar is too large » : le schéma doit être');
     console.error('ALLÉGÉ, pas seulement rendu valide. Mesurer chaque variante par un appel réel.');
     process.exit(1);
