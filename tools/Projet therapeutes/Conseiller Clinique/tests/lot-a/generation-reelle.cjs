@@ -130,8 +130,21 @@ const ORIGINE_PAGES = 'https://c-concept-dev.github.io';
     // d'attendre reste bloque sept minutes devant une question — c'est exactement ce qui s'est
     // produit. On y repond donc comme le ferait Christophe : en cliquant l'option « presentation ».
     const clarifications = [];
+    let derniereQuestion = null;
     let sortie = { ok: false, erreur: 'etat inconnu' };
-    const limite = Date.now() + 420000;
+    // Apres un clic, on attend que la carte CHANGE ou disparaisse — jamais un delai fixe, qui
+    // faisait recliquer la meme option avant que l'application ait traite la precedente.
+    const attendreChangement = async (q) => {
+      for (let i = 0; i < 20; i++) {
+        await page.waitForTimeout(1500);
+        const encore = await page.evaluate(() => {
+          const c = document.querySelector('.cc-clarity-card');
+          return c ? c.textContent.replace(/\s+/g, ' ').trim().slice(0, 300) : null;
+        });
+        if (encore !== q) return;
+      }
+    };
+    const limite = Date.now() + 720000; // 12 min : clarifications ET generation se partagent ce budget
     while (Date.now() < limite) {
       const etat = await page.evaluate(() => {
         const arts = window._adocArtifacts || {};
@@ -155,11 +168,13 @@ const ORIGINE_PAGES = 'https://c-concept-dev.github.io';
       if (etat.type === 'mauvaisType') { sortie = { ok: false, erreur: 'document produit du MAUVAIS type : « ' + etat.kind +' » au lieu de « presentation »' }; break; }
       if (etat.type === 'repli') { sortie = { ok: false, repli: true, erreur: 'repli sur le moteur legacy-html : la generation structuree a echoue' }; break; }
       if (etat.type === 'clarification') {
-        // Anti-boucle : au tour precedent, la meme option a ete cliquee CINQ fois sans que rien
-        // n'avance. Un harnais qui repete le meme geste en esperant un autre resultat ne mesure
-        // rien ; il doit changer de moyen, puis s'arreter en le disant.
-        if (clarifications.length >= 6) {
-          sortie = { ok: false, erreur: 'la carte de clarification revient sans fin (' + clarifications.length + ' tours)' };
+        // Anti-boucle. Version precedente : elle comptait les RE-CLICS comme des tours et a
+        // interrompu une generation qui venait de demarrer. On ne compte donc que les questions
+        // DISTINCTES, et une question deja repondue n'est jamais recliquee — on attend qu'elle
+        // change ou disparaisse.
+        if (etat.question && etat.question === derniereQuestion) { await page.waitForTimeout(2500); continue; }
+        if (clarifications.length >= 8) {
+          sortie = { ok: false, erreur: 'la carte de clarification revient sans fin (' + clarifications.length + ' questions distinctes)' };
           break;
         }
         // Choix par PREFERENCE explicite, jamais « le premier venu » : un choix arbitraire
@@ -186,9 +201,11 @@ const ORIGINE_PAGES = 'https://c-concept-dev.github.io';
             champ.value = 'Une presentation, en diapositives, pour des praticiens.';
             return window.adocSend();
           }).catch(() => {});
-          await page.waitForTimeout(3000);
+          derniereQuestion = etat.question;
+          await attendreChangement(etat.question);
           continue;
         }
+        derniereQuestion = etat.question;
         clarifications.push({ question: etat.question, propose: etat.choix, choisi: vise });
         console.log('  clarification : « ' + vise.slice(0, 110) + ' »');
         await page.evaluate(t => {
@@ -196,12 +213,12 @@ const ORIGINE_PAGES = 'https://c-concept-dev.github.io';
             .find(x => x.textContent.replace(/\s+/g, ' ').trim() === t);
           if (b) b.click();
         }, vise);
-        await page.waitForTimeout(3000);
+        await attendreChangement(etat.question);
         continue;
       }
       await page.waitForTimeout(2500);
     }
-    if (!sortie.ok && sortie.erreur === 'etat inconnu') sortie.erreur = 'aucun document structure apres 7 minutes';
+    if (!sortie.ok && sortie.erreur === 'etat inconnu') sortie.erreur = 'aucun document structure apres ' + Math.round((Date.now() - t0) / 1000) + ' s';
     const secondes = Math.round((Date.now() - t0) / 1000);
 
     if (!sortie.ok) {
