@@ -14836,6 +14836,9 @@ ${recent}`;
     '.cc-ws-present-toc-item:hover{background:var(--petrol-100);}' +
     '.cc-ws-present-toc-num{font-weight:700;opacity:.6;min-width:1.5em;}' +
     '.cc-ws-present-toc-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
+    '.cc-ws-present-toc-sep{height:1px;background:var(--stone-300);margin:8px 10px;}' +
+    '.cc-ws-present-toc-titre{font-size:.78rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;opacity:.55;padding:2px 10px 6px;}' +
+    '.cc-ws-present-toc-dive .cc-ws-present-toc-num{opacity:.5;}' +
     // PORTE PLEIN ÉCRAN (image) — même précédent architectural que #cc-ws-present-toc ci-dessus
     // (élément positionné à l'intérieur de #cc-ws-present-overlay déjà en position:fixed, jamais
     // un second point d'ancrage), en plein viewport plutôt qu'en encadré de coin. z-index
@@ -14891,11 +14894,25 @@ ${recent}`;
   })();
 
   function adocPresentBuildTocHTML(doc) {
-    return (doc.blocks || []).map(function (card, i) {
+    const diapositives = (doc.blocks || []).map(function (card, i) {
       return '<button type="button" class="cc-ws-present-toc-item" data-idx="' + i + '" onclick="window.adocPresentGoTo(' + i + ')">' +
         '<span class="cc-ws-present-toc-num">' + (i + 1) + '</span>' +
         '<span class="cc-ws-present-toc-title">' + adocEsc(card.content.title) + '</span></button>';
     }).join('\n');
+    // Les pages d'approfondissement n'étaient atteignables QUE par la puce du bloc qui y renvoie :
+    // une page produite par le modèle mais dont le renvoi est passé inaperçu restait invisible
+    // pour toute la présentation. Le sommaire en donne la liste, sans rien changer à la
+    // navigation séquentielle. Section ENTIÈREMENT ABSENTE quand il n'y a aucune page — cas
+    // normal, très largement majoritaire : jamais un intitulé vide sous une liste vide.
+    const pages = doc.deepDives || [];
+    if (!pages.length) return diapositives;
+    const liste = pages.map(function (d) {
+      return '<button type="button" class="cc-ws-present-toc-item cc-ws-present-toc-dive" data-dive="' + adocEsc(d.id) + '" onclick="window.adocPresentOpenDeepDiveFromToc(\'' + adocEsc(d.id) + '\')">' +
+        '<span class="cc-ws-present-toc-num" aria-hidden="true">↳</span>' +
+        '<span class="cc-ws-present-toc-title">' + adocEsc(d.title) + '</span></button>';
+    }).join('\n');
+    return diapositives + '\n<div class="cc-ws-present-toc-sep" role="separator"></div>' +
+      '<div class="cc-ws-present-toc-titre">Approfondissements</div>\n' + liste;
   }
 
   function adocPresentUpdateCounter() {
@@ -15106,6 +15123,22 @@ ${recent}`;
   window.adocPresentToggleToc = function () {
     const toc = document.getElementById('cc-ws-present-toc');
     if (toc) toc.hidden = !toc.hidden;
+  };
+  // Ouverture d'une page DEPUIS LE SOMMAIRE. Trois différences avec un clic sur une puce, et
+  // c'est pourquoi cette fonction existe plutôt qu'un appel direct :
+  //   — le sommaire se referme d'abord : sommaire et porte ne doivent jamais être ouverts
+  //     ensemble, sans quoi le sommaire flotterait par-dessus la page qu'il vient d'ouvrir ;
+  //   — le chemin repart de ZÉRO. On n'arrive pas ici « depuis » une page : la racine du fil
+  //     d'Ariane est la diapositive courante, et une pile héritée d'une visite précédente ferait
+  //     refuser par le garde-fou cycle une page parfaitement légitime ;
+  //   — la diapositive, elle, ne change pas : le sommaire des diapositives déplace la
+  //     présentation, celui-ci ouvre une porte par-dessus. Deux gestes distincts, jamais confondus.
+  window.adocPresentOpenDeepDiveFromToc = function (targetId) {
+    const toc = document.getElementById('cc-ws-present-toc');
+    if (toc) toc.hidden = true;
+    const state = window._adocPresentState;
+    if (state && Array.isArray(state.deepDiveStack)) state.deepDiveStack.length = 0;
+    window.adocPresentOpenDeepDive(targetId);
   };
 
   // PORTE PLEIN ÉCRAN (image + approfondissement) — deuxième niveau de superposition, jamais une
@@ -15484,7 +15517,7 @@ ${recent}`;
     // alors qu'elle est appelée par chaque puce "↳ Approfondir" et par chaque lien enrichi en
     // ligne : tout approfondissement d'une présentation exportée était donc mort au clic. Angle
     // mort corrigé ici, en même temps que les deux gestes de retour ajoutés par ce lot.
-    const windowFnNames = ['adocQuizSelectOption', 'adocPresentClose', 'adocPresentToggleToc', 'adocPresentGoTo', 'adocPresentNext', 'adocPresentPrev', 'adocQuestionnaireSelectOption', 'adocQuestionnaireSwitchPartner', 'adocQuestionnaireCalculerResultat', 'adocPresentOpenImageDoor', 'adocPresentCloseImageDoor', 'adocPresentOpenDeepDive', 'adocPresentDeepDiveBack', 'adocPresentDeepDiveHome'];
+    const windowFnNames = ['adocQuizSelectOption', 'adocPresentClose', 'adocPresentToggleToc', 'adocPresentGoTo', 'adocPresentNext', 'adocPresentPrev', 'adocQuestionnaireSelectOption', 'adocQuestionnaireSwitchPartner', 'adocQuestionnaireCalculerResultat', 'adocPresentOpenImageDoor', 'adocPresentCloseImageDoor', 'adocPresentOpenDeepDive', 'adocPresentDeepDiveBack', 'adocPresentDeepDiveHome', 'adocPresentOpenDeepDiveFromToc'];
     const windowFnsText = windowFnNames.map(function (name) { return 'window.' + name + ' = ' + window[name].toString() + ';'; }).join('\n');
     const dataText = 'var ADOC_LEGACY_FONT_PAIRS = ' + JSON.stringify(ADOC_LEGACY_FONT_PAIRS) + ';\n' +
       'var ADOC_BLOCK_FONT_SIZES = ' + JSON.stringify(ADOC_BLOCK_FONT_SIZES) + ';\n' +

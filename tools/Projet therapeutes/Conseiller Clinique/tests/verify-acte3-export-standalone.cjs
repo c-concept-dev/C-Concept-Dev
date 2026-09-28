@@ -25,12 +25,34 @@ const DOC = {
     id: 'card-01', type: 'card',
     content: {
       title: 'Diapositive de départ', imageRef: null, imageAlt: '',
-      blocks: [{
-        id: 'paragraph-01', type: 'paragraph',
-        content: { text: 'Le stress chronique agit sur le corps entier.' },
-        citationIds: [], validation: {},
-        deepDiveLinks: [lien('stress chronique', 'n1')],
-      }],
+      // Jeu de blocs ÉLARGI : le garde-fou ci-dessous inspecte le HTML exporté, où figure le code
+      // source sérialisé — il verrait donc un onclick même non rendu. Mais seul un rendu RÉEL de
+      // chaque type éprouve les fonctions internes qu'il appelle en cascade (rendu de liste, de
+      // quiz, de questionnaire, d'image) : une seule d'entre elles oubliée d'engineFnRefs suffit
+      // à casser l'export, sans qu'aucun onclick ne manque. Tous les types produits par le
+      // générateur sont donc représentés ici.
+      blocks: [
+        { id: 'heading-01', type: 'heading', content: { text: 'Le corps sous tension', level: 2 }, citationIds: [], validation: {} },
+        { id: 'paragraph-01', type: 'paragraph',
+          content: { text: 'Le stress chronique agit sur le corps entier.' },
+          citationIds: [], validation: {}, deepDiveLinks: [lien('stress chronique', 'n1')] },
+        { id: 'list-01', type: 'list', content: { items: ['Sommeil', 'Appétit', 'Attention'], ordered: false }, citationIds: [], validation: {} },
+        { id: 'callout-01', type: 'callout', content: { text: 'À rappeler en séance.', visualRole: 'info' }, citationIds: [], validation: {} },
+        { id: 'quote-01', type: 'quote', content: { text: 'Le corps garde le compte.' }, citationIds: [], validation: {} },
+        { id: 'image-01', type: 'image', content: { query: 'cortisol', alt: 'Coupe du cerveau' }, citationIds: [], validation: {}, deepDiveLinks: [lien('Coupe du cerveau', 'n2')] },
+        { id: 'quiz-01', type: 'quiz', content: { question: 'Le cortisol est-il un neurotransmetteur ?', options: ['Oui', 'Non'], correctIndex: 1, explanation: "C'est une hormone." }, citationIds: [], validation: {} },
+        { id: 'questionnaire-01', type: 'questionnaire', content: {
+            questions: [
+              { text: 'Sommeil rÃ©parateur ?'.replace('Ã©', 'é'), options: [{ text: 'Souvent', points: 0 }, { text: 'Rarement', points: 2 }] },
+              { text: 'Tensions au réveil ?', options: [{ text: 'Non', points: 0 }, { text: 'Oui', points: 2 }] },
+            ],
+            profiles: [
+              { label: 'Charge basse', minScore: 0, maxScore: 1, interpretation: 'Rien de notable.' },
+              { label: 'Charge élevée', minScore: 2, maxScore: 4, interpretation: 'À explorer en séance.' },
+            ],
+            allowTwoPartners: true,
+          }, citationIds: [], validation: {} },
+      ],
     },
     citationIds: [], validation: {},
   }],
