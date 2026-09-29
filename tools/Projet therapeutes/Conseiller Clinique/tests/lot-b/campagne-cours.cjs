@@ -22,7 +22,7 @@ if (!CLE || /[^\x20-\x7E]/.test(CLE) || /^[.…]+$/.test(CLE)) {
 }
 const arg = (n, d) => { const a = process.argv.find(x => x.startsWith('--' + n + '=')); return a ? a.split('=').slice(1).join('=') : d; };
 const PHASE = arg('phase', '');
-if (PHASE !== 'a' && PHASE !== 'b') { console.error('Preciser --phase=a ou --phase=b.'); process.exit(2); }
+if (!['a', 'b', 'c'].includes(PHASE)) { console.error('Preciser --phase=a, --phase=b ou --phase=c.'); process.exit(2); }
 // --local : sert les fichiers LOCAUX sous l'adresse publiee. Le CORS du Worker n'accepte qu'une
 // origine fixe ; un fichier ouvert en file:// presente une origine `null` qu'il refuse. On ne
 // touche JAMAIS au CORS du Worker pour cela : c'est la page qui prend la bonne origine.
@@ -39,6 +39,10 @@ const DEMANDE_A = "un cours de 3 heures pour des etudiants de Master 2 en psycho
   + "interventions";
 const DEMANDE_B = "un cours de 45 minutes pour des praticiens sur les styles d'attachement dans le "
   + "couple adulte";
+// Phase c : le cours ENTIER, sur la demande exacte de la phase a — 12 modules attendus.
+const COURS = PHASE === 'c'
+  ? { demande: DEMANDE_A, minutes: 180, modulesAttendus: 12, plafondMinutes: 60 }
+  : { demande: DEMANDE_B, minutes: 45, modulesAttendus: 3, plafondMinutes: 20 };
 const SORTIE = f => path.join(__dirname, f);
 
 // Tout ce qui sera écrit dans le fichier de résultats. JAMAIS la clé, jamais un extrait de livre.
@@ -71,7 +75,10 @@ async function preparer(browser) {
     if (!LOCAL && u.startsWith(ORIGINE)) { contactes.add(new URL(u).host); return route.continue(); }
     if (u.startsWith(WORKER)) { contactes.add(new URL(u).host); return route.continue(); }
     // Dependances DECLAREES de l'application : de simples GET statiques, qui n'emportent rien.
-    if (/^https:\/\/(cdnjs\.cloudflare\.com|fonts\.(googleapis|gstatic)\.com|images\.pexels\.com)\//.test(u)) {
+    // pixabay.com est legitime au meme titre que pexels : le Worker l'autorise
+    // (ADOC_ALLOWED_IMAGE_SOURCE_HOSTS) et /fetch-image melange les deux fournisseurs. L'URL vient
+    // donc de la REPONSE du Worker, jamais du client — d'ou le fait qu'elle soit introuvable ici.
+    if (/^https:\/\/(cdnjs\.cloudflare\.com|fonts\.(googleapis|gstatic)\.com|images\.pexels\.com|(?:[a-z0-9-]+\.)?pixabay\.com)\//.test(u)) {
       contactes.add(new URL(u).host); return route.continue();
     }
     try { bloques.add(new URL(u).host); } catch (_) { bloques.add(u.slice(0, 40)); }
@@ -149,9 +156,15 @@ function finir(ctx, code) {
     try {
       releve.commit = require('node:child_process').execSync('git rev-parse --short HEAD',
         { cwd: RACINE, encoding: 'utf8' }).trim();
-      releve.arbreModifie = require('node:child_process').execSync('git status --porcelain -- studio-clinique-core.js',
-        { cwd: RACINE, encoding: 'utf8' }).trim().length > 0;
-      console.log('Code mesure : ' + releve.commit + (releve.arbreModifie ? ' + modifications NON COMMITEES' : ''));
+      // Le coeur mesure ET le banc lui-meme : une campagne lancee avec un script de mesure non
+      // commite est aussi difficile a relire apres coup qu'une campagne sur un coeur perime.
+      const sale = require('node:child_process').execSync(
+        'git status --porcelain -- studio-clinique-core.js tests/lot-b/campagne-cours.cjs',
+        { cwd: RACINE, encoding: 'utf8' }).trim();
+      releve.arbreModifie = sale.length > 0;
+      releve.fichiersModifies = sale ? sale.split('\n').map(l => l.trim()) : [];
+      console.log('Code mesure : ' + releve.commit
+        + (releve.arbreModifie ? ' + NON COMMITE : ' + releve.fichiersModifies.join(', ') : ' (arbre propre)'));
     } catch (_) { releve.commit = '(inconnu)'; }
 
     // ── PHASE A — le plan seul ────────────────────────────────────────────────────────────────
@@ -202,21 +215,22 @@ function finir(ctx, code) {
     }
 
     // ── PHASE B — 3 modules de bout en bout ───────────────────────────────────────────────────
-    console.log('\n=== PHASE B — 3 modules x 10 diapositives, de bout en bout ===\n');
-    console.log('Demande : ' + DEMANDE_B + '\n');
+    console.log('\n=== PHASE ' + PHASE.toUpperCase() + ' — ' + COURS.modulesAttendus
+      + ' modules, de bout en bout ===\n');
+    console.log('Demande : ' + COURS.demande + '\n');
 
     // 1) Le plan du cours, et le plan du PLANIFICATEUR (approach_filter) : la campagne doit partir
     //    du meme etat que la production, sinon elle ne mesure pas la meme chose.
     console.log('[1/5] plan du cours + plan du planificateur…');
-    const prep = await page.evaluate(async ([dem, w]) => {
+    const prep = await page.evaluate(async ([dem, min, w, ph]) => {
       try {
         // adocPlanQuery rend `null` en cas d'echec, jamais un plan par defaut : c'est ce qui
         // permet de refuser de mesurer une campagne partie d'un plan degrade.
         const planOrigine = await window.adocPlanQuery(dem);
-        const plan = await window.adocBuildCoursePlan(dem, 45, w, 'cours-campagne-b');
+        const plan = await window.adocBuildCoursePlan(dem, min, w, 'cours-campagne-' + ph);
         return { ok: true, plan: plan, planOrigine: planOrigine };
       } catch (e) { return { ok: false, erreur: (e && e.message) || String(e) }; }
-    }, [DEMANDE_B, WORKER]);
+    }, [COURS.demande, COURS.minutes, WORKER, PHASE]);
     if (!prep.ok) { console.error('ECHEC en preparation : ' + prep.erreur); releve.echec = prep.erreur; return finir(ctx, 1); }
     if (!prep.planOrigine) {
       // Sans plan du planificateur, la campagne mesurerait un parcours que l'utilisatrice ne prend
@@ -231,9 +245,15 @@ function finir(ctx, code) {
       + plan.modules[0].slideCount + ' diapositives (' + plan.modules[0].dureeMinutes + ' min chacun)');
     console.log('  approach_filter du planificateur : ' + (prep.planOrigine.approach_filter || '(aucun)'));
     plan.modules.forEach((m, i) => console.log('    ' + (i + 1) + '. ' + m.titre));
-    if (plan.modules.length !== 3) {
-      console.error('ECHEC : ' + plan.modules.length + ' modules au lieu de 3 — la phase B ne mesurerait pas ce qui etait prevu.');
+    // Phase b : le nombre doit etre EXACT, sinon elle ne mesure pas ce qui etait prevu. Phase c :
+    // le decoupage est l'objet meme de la mesure — un ecart est rapporte, jamais un motif d'arret.
+    if (PHASE === 'b' && plan.modules.length !== COURS.modulesAttendus) {
+      console.error('ECHEC : ' + plan.modules.length + ' modules au lieu de ' + COURS.modulesAttendus + '.');
       releve.echec = 'plan de ' + plan.modules.length + ' modules'; return finir(ctx, 1);
+    }
+    if (plan.modules.length !== COURS.modulesAttendus) {
+      console.log('  NOTE : ' + plan.modules.length + ' modules la ou ' + COURS.modulesAttendus
+        + ' etaient attendus — rapporte, la suite continue sur le plan reel.');
     }
 
     // 2) La generation, par le VRAI chemin de l'interface (adocCoursePlanLaunch) : rendu par
@@ -261,10 +281,11 @@ function finir(ctx, code) {
     // 20 minutes de plafond : au-dela, quelque chose ne repond plus et il vaut mieux le dire que
     // d'attendre indefiniment.
     try {
-      await page.waitForFunction(() => !!document.getElementById('cc-course-recap-card'), null, { timeout: 20 * 60 * 1000 });
+      await page.waitForFunction(() => !!document.getElementById('cc-course-recap-card'), null,
+        { timeout: COURS.plafondMinutes * 60 * 1000 });
     } catch (e) {
-      console.error('ECHEC : aucun recapitulatif apres 20 minutes.');
-      releve.echec = 'delai depasse (20 min) sans recapitulatif';
+      console.error('ECHEC : aucun recapitulatif apres ' + COURS.plafondMinutes + ' minutes.');
+      releve.echec = 'delai depasse (' + COURS.plafondMinutes + ' min) sans recapitulatif';
       const partiel = await page.evaluate(() => {
         const ui = window._adocCourseUI;
         return ui ? { etats: ui.etats, erreurs: ui.erreurs } : null;
@@ -281,9 +302,14 @@ function finir(ctx, code) {
       const ui = window._adocCourseUI;
       return {
         jalons: window.__jalons,
+        qcCours: ui.assemble ? { bloquant: ui.assemble.qc.blocking.slice(0, 6),
+                                 nonBloquant: ui.assemble.qc.nonBlocking.slice(0, 6) } : null,
         modules: ui.resultats.modules.map(x => ({ id: x.id, statut: x.statut, stopReason: x.stopReason,
           diapositives: x.diapositives, essais: x.essais, nom: x.nom, erreur: x.erreur || null,
-          qcBloquant: x.qc ? x.qc.blocking.length : null, qcNonBloquant: x.qc ? x.qc.nonBlocking.length : null })),
+          qcBloquant: x.qc ? x.qc.blocking.length : null, qcNonBloquant: x.qc ? x.qc.nonBlocking.length : null,
+          // Les messages EN TOUTES LETTRES : un compte ne dit pas ce qui a ete signale, et c'est
+          // precisement ce que la phase b n'a pas pu montrer faute d'incident.
+          qcMessages: x.qc ? { bloquant: x.qc.blocking.slice(0, 4), nonBloquant: x.qc.nonBlocking.slice(0, 4) } : null })),
         rapport: ui.resultats.rapport,
         assemble: ui.assemble ? { rapport: ui.assemble.rapport, qcBloquant: ui.assemble.qc.blocking.length,
           qcNonBloquant: ui.assemble.qc.nonBlocking.length } : null,
@@ -309,8 +335,40 @@ function finir(ctx, code) {
       else if (x.stopReason !== 'tool_use') echecs.push(x.id + ' : stop_reason « ' + x.stopReason + ' », pas tool_use');
       else if (ecart > 2) echecs.push(x.id + ' : ' + x.diapositives + ' diapositives pour ' + cible + ' visees (ecart ' + ecart + ')');
     });
+    // Ce que la phase b n'a jamais pu montrer : une reprise, un ecart de densite, un blocage
+    // qualite. S'il s'en produit un, il est RACONTE ici — module, tentative, cause exacte — plutot
+    // que compte comme un simple echec de plus.
+    const incidents = [];
+    m.modules.forEach((x, i) => {
+      const cible = plan.modules[i] ? plan.modules[i].slideCount : null;
+      if (x.essais > 1) incidents.push({ module: x.id, titre: x.titre || plan.modules[i].titre,
+        genre: 'reprise', tentatives: x.essais, issue: x.statut, cause: x.erreur });
+      if (x.statut === 'ok' && cible != null && x.diapositives !== cible) {
+        incidents.push({ module: x.id, genre: 'ecart-densite', mesure: x.diapositives, cible: cible,
+          ecart: Math.abs(x.diapositives - cible), accepte: true });
+      }
+      if (x.statut !== 'ok') incidents.push({ module: x.id, genre: x.statut, cause: x.erreur,
+        tentatives: x.essais, stopReason: x.stopReason });
+      if (x.qcBloquant) incidents.push({ module: x.id, genre: 'qc-bloquant', messages: x.qcMessages.bloquant });
+    });
+    if (incidents.length) {
+      console.log('\n  INCIDENTS (' + incidents.length + ') — le detail, pas le decompte :');
+      incidents.forEach(inc => console.log('    · ' + JSON.stringify(inc)));
+    } else {
+      console.log('  incidents : AUCUN — ni reprise, ni ecart de densite, ni blocage qualite.');
+      console.log('              (les chemins de reprise et de refus restent donc non eprouves sur du reel)');
+    }
+    releve.incidents = incidents;
+    // Le contrôle qualité non bloquant se produit à chaque module : ce qu'il DIT vaut d'être lu.
+    const exemplesQC = m.modules.filter(x => x.qcMessages && x.qcMessages.nonBloquant.length)
+      .slice(0, 3).map(x => x.id + ' → ' + x.qcMessages.nonBloquant[0]);
+    if (exemplesQC.length) {
+      console.log('  contrôle qualité non bloquant, exemples :');
+      exemplesQC.forEach(e => console.log('    · ' + e));
+    }
     const dureesModules = m.jalons.map((j, i) => i === 0 ? j.secondes : j.secondes - m.jalons[i - 1].secondes);
     if (dureesModules.length) {
+      console.log('  duree cumulee : ' + minutes + ' min pour ' + m.modules.length + ' module(s)');
       console.log('  duree par module : ' + dureesModules.map(s => s.toFixed(0) + ' s').join(' · ')
         + ' — mediane ' + [...dureesModules].sort((a, b) => a - b)[Math.floor(dureesModules.length / 2)].toFixed(0) + ' s');
     }
@@ -390,14 +448,17 @@ function finir(ctx, code) {
       if (v.renvoisOrphelins.length) echecs.push('renvois dans le vide : ' + v.renvoisOrphelins.join(', '));
       if (v.cycle) echecs.push('un cycle subsiste entre pages d\'approfondissement');
       console.log('  sommaire groupe : modules ' + JSON.stringify(v.modules) + ' — ' + JSON.stringify(v.titresModules));
-      if (v.modules.length !== 3) echecs.push('doc.modules porte ' + v.modules.length + ' entrees au lieu de 3');
+      const attendusAssembles = m.assemble ? m.assemble.rapport.modulesAssembles.length : plan.modules.length;
+      if (v.modules.length !== attendusAssembles) {
+        echecs.push('doc.modules porte ' + v.modules.length + ' entrees au lieu de ' + attendusAssembles);
+      }
     }
     console.log('  noms dans « Mes creations » (du plus recent au plus ancien) :');
-    m.nomsSidebar.slice(0, 5).forEach(n => console.log('    ' + n));
+    m.nomsSidebar.slice(0, plan.modules.length + 1).forEach(n => console.log('    ' + n));
     const attenduCours = 'Cours — ' + plan.titre + ' (assemblé)';
     if (m.nomsSidebar[0] !== attenduCours) echecs.push('nom du cours assemble : « ' + m.nomsSidebar[0] + ' » au lieu de « ' + attenduCours + ' »');
     plan.modules.forEach((mod, i) => {
-      const attendu = 'Cours — ' + plan.titre + ' · Module ' + (i + 1) + ' sur 3 · ' + mod.titre;
+      const attendu = 'Cours — ' + plan.titre + ' · Module ' + (i + 1) + ' sur ' + plan.modules.length + ' · ' + mod.titre;
       if (!m.nomsSidebar.includes(attendu)) echecs.push('nom de module absent : « ' + attendu + ' »');
     });
 
@@ -427,16 +488,18 @@ function finir(ctx, code) {
           intitules: toc ? [...toc.querySelectorAll('.cc-ws-present-toc-titre')].map(e => e.textContent.trim()) : [],
           diapositives: toc ? toc.querySelectorAll('.cc-ws-present-toc-item:not(.cc-ws-present-toc-dive)').length : 0,
           approfondissements: toc ? toc.querySelectorAll('.cc-ws-present-toc-dive').length : 0,
+          entreesTotales: toc ? toc.querySelectorAll('.cc-ws-present-toc-item').length : 0,
           chips: document.querySelectorAll('#cc-ws-present-slide-inner .adoc-sc-deepdive-chip').length };
       });
-      console.log('  ouverture : ' + ouverture + ' ms · sommaire : ' + exp.diapositives + ' diapositives, '
-        + exp.approfondissements + ' approfondissement(s)');
+      console.log('  ouverture : ' + ouverture + ' ms · sommaire : ' + exp.entreesTotales + ' entrees ('
+        + exp.diapositives + ' diapositives, ' + exp.approfondissements + ' approfondissement(s))');
       console.log('  intitules dans le sommaire : ' + JSON.stringify(exp.intitules));
       // Le sommaire groupe porte un intitule par module, PLUS la section « Approfondissements »
       // quand le cours en contient (lot B3). Exiger exactement 3 etait une erreur de ce test.
       const intitulesModules = exp.intitules.filter(t => !/^approfondissement/i.test(t));
-      if (intitulesModules.length !== 3) {
-        echecs.push('sommaire groupe : ' + intitulesModules.length + ' intitule(s) de module au lieu de 3');
+      if (intitulesModules.length !== plan.modules.length) {
+        echecs.push('sommaire groupe : ' + intitulesModules.length + ' intitule(s) de module au lieu de '
+          + plan.modules.length);
       }
       const sectionAppro = exp.intitules.some(t => /^approfondissement/i.test(t));
       if (exp.approfondissements > 0 && !sectionAppro) {
