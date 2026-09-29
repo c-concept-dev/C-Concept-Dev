@@ -8129,11 +8129,37 @@ ${recent}`;
   }
   window.adocCourseModuleSizing = adocCourseModuleSizing;
 
+  // Le modèle recopie souvent le rang dans le titre (« Module 1 : Définition… ») : mesuré sur un
+  // plan réel de 12 modules, les 12 l'ont fait. L'interface affiche déjà le rang à part et le nom
+  // d'enregistrement le porte aussi — sans ce nettoyage on lisait « 1. Module 1 : … » à l'écran et
+  // « Cours — X · Module 1 sur 12 · Module 1 : … » dans « Mes créations ».
+  function adocStripCourseRank(titre) {
+    return String(titre || '')
+      .replace(/^\s*(?:module|partie|chapitre|séance|seance)\s*n?°?\s*\d+\s*(?:\/\s*\d+\s*)?[:.．\-–—)]\s*/i, '')
+      .replace(/^\s*\d+\s*[:.．\-–—)]\s*/, '')
+      .trim();
+  }
+  window.adocStripCourseRank = adocStripCourseRank;
+
+  // Repli de titre de cours, quand le modèle n'en donne pas. BORNÉ : mesuré sur un plan réel, la
+  // demande entière (180 caractères) devenait le titre, et se retrouvait recopiée dans le nom de
+  // chacune des 12 pièces. On coupe à 60 caractères sur une frontière de mot — jamais au milieu
+  // d'un mot, et jamais une reformulation devinée ici.
+  function adocCourseFallbackTitle(demande) {
+    const t = adocStripEmoji(String(demande || '').trim()).replace(/\s+/g, ' ');
+    if (!t) return 'Cours';
+    if (t.length <= 60) return t;
+    const coupe = t.slice(0, 60);
+    const espace = coupe.lastIndexOf(' ');
+    return (espace > 30 ? coupe.slice(0, espace) : coupe) + '…';
+  }
+  window.adocCourseFallbackTitle = adocCourseFallbackTitle;
+
   function adocNormalizeCoursePlan(brut, demande, dureeMinutes, courseId) {
     const nMax = adocCourseModuleCount(dureeMinutes);
     const liste = Array.isArray(brut) ? brut : (brut && Array.isArray(brut.modules) ? brut.modules : []);
     const propres = liste.map(function (m) {
-      const titre = adocStripEmoji(((m && (m.titre || m.title)) || '').trim());
+      const titre = adocStripCourseRank(adocStripEmoji(((m && (m.titre || m.title)) || '').trim()));
       if (!titre) return null; // un module sans titre n'est pas rattrapable : on l'écarte
       const notions = ((m && (m.notionsCles || m.notions_cles || m.notions)) || [])
         .map(function (x) { return adocStripEmoji(String(x || '').trim()); }).filter(Boolean).slice(0, 8);
@@ -8151,7 +8177,11 @@ ${recent}`;
     const taille = adocCourseModuleSizing(dureeMinutes, propres.length);
     return {
       courseId: courseId,
-      titre: adocStripEmoji((((brut && brut.titre) || demande || 'Cours') + '').trim()).slice(0, 200),
+      // Le titre du modèle est préféré ; il est lui aussi débarrassé d'un « Cours : » recopié, et
+      // borné, parce qu'il est ensuite préfixé au nom de chacune des pièces.
+      titre: ((brut && brut.titre)
+        ? adocStripEmoji(String(brut.titre).trim()).replace(/^\s*cours\s*[:\-–—]\s*/i, '').slice(0, 100)
+        : '') || adocCourseFallbackTitle(demande) || 'Cours',
       dureeMinutes: taille.total,
       modules: propres.map(function (m, i) {
         return {
@@ -8180,8 +8210,12 @@ ${recent}`;
       'Chaque module doit pouvoir être exposé SEUL : un thème clair, sans dépendre de ce qui le ' +
       'précède. Évite tout recouvrement entre modules — une notion traitée dans l\'un ne se ' +
       'retraite pas dans un autre.\n\n' +
-      'Réponds UNIQUEMENT par un tableau JSON, sans texte autour, de la forme :\n' +
-      '[{"titre":"…","objectifs":["…"],"notionsCles":["…"],"requeteBibliotheque":"…"}]\n' +
+      'Réponds UNIQUEMENT par un objet JSON, sans texte autour, de la forme :\n' +
+      '{"titre":"…","modules":[{"titre":"…","objectifs":["…"],"notionsCles":["…"],"requeteBibliotheque":"…"}]}\n' +
+      'titre (du cours) : 3 à 8 mots, le SUJET seulement. Jamais la demande recopiée, jamais la durée ' +
+      'ni le public, jamais le mot « cours » ni « module ».\n' +
+      'titre (d\'un module) : le sujet du module seul, sans « Module 1 : » devant — le rang est ' +
+      'affiché à part, et le répéter le ferait apparaître deux fois.\n' +
       'requeteBibliotheque : les mots-clés qui serviront à chercher les passages de ce module dans ' +
       'une bibliothèque clinique — jamais une phrase, seulement des termes.';
     const r = await fetch(String(workerUrl || '').replace(/\/+$/, ''), {
