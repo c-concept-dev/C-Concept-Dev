@@ -16333,6 +16333,30 @@ ${recent}`;
     '.cc-ws-present-door-list{margin:0 0 12px;padding-left:1.4em;}' +
     '.cc-ws-present-door-list li{margin:0 0 6px;line-height:1.6;font-size:1.05em;}' +
     '.cc-ws-present-door-list:last-child{margin-bottom:0;}' +
+    // Illustration d'une page. 260 px NOMINAL, et non les 45 % d'une carte de diapositive : la
+    // porte est un autre contexte — plus étroite, verticale, et sa colonne est déjà mise à
+    // l'échelle, de sorte qu'une valeur fixe grandit avec l'écran (260 px rendus 319 à
+    // 1920×1080, 670 en 4K) tout en restant prévisible.
+    //
+    // MESURÉ sur une vraie image 3:2, pages de 4 et 10 paragraphes, aux trois résolutions. Le
+    // critère qui tranche est le DÉFILEMENT d'une page courte : une page illustrée de 4
+    // paragraphes doit se lire d'un seul coup d'œil sur un portable.
+    //   180 px, 220 px, 260 px → page courte SANS défilement dès 1280×800
+    //   300 px et 45 %         → une page de 4 paragraphes se met à défiler dès 1280×800
+    // 260 px est donc le plus grand plafond qui tienne ce critère. Avec lui, 72 % de l'image
+    // source reste visible (mesuré sur le rendu réel, en `cover`), et la boîte fait 260, 319 et
+    // 670 px aux trois résolutions — elle grandit avec l'écran par la mise à l'échelle de la
+    // colonne, tout en restant prévisible, ce qu'un pourcentage ne serait pas.
+    // Aucun plafond ne faisait sortir la colonne de l'écran : ce point-là est tenu par le
+    // correctif de max-height, pas par cette valeur.
+    //
+    // object-position:center 15% — même mesure que pour une couverture de carte : le défaut
+    // « center » ne laisse voir le centre du sujet que dans 11 cas sur 24, contre 22 à 15 %.
+    // Sélecteur porté par l'identifiant de la porte, et non par la seule classe : la règle
+    // existante « #cc-ws-present-door img » (object-fit:contain, max-height:calc(100% - 60px),
+    // faite pour la porte IMAGE plein cadre) l'emporterait sinon en spécificité, et
+    // l'illustration s'afficherait en pleine porte au lieu d'être une illustration.
+    '#cc-ws-present-door img.cc-ws-present-door-illus{width:100%;max-height:260px;object-fit:cover;object-position:center 15%;border-radius:8px;margin:0 0 14px;display:block;}' +
     // Présentation ACTE 3 — fil d'Ariane et gestes de retour, À L'INTÉRIEUR de la porte texte
     // (jamais dans le chrome partagé avec la porte image, qui n'a ni chemin ni profondeur).
     '.cc-ws-present-door-path{font-size:.8em;opacity:.62;margin:0 0 10px;line-height:1.5;}' +
@@ -16940,6 +16964,21 @@ ${recent}`;
   }
   window.adocDeepDiveParagraphesHTML = adocDeepDiveParagraphesHTML;
 
+  // L'illustration d'une page. `imageQuery` est une REQUÊTE, jamais une URL : elle est résolue
+  // exactement comme une couverture de carte — `<img data-pexels="…">` que adocResolveImages
+  // remplace, en consultant d'abord le dictionnaire embarqué (adocEmbeddedImage) et donc sans
+  // aucun réseau dans un fichier exporté.
+  //
+  // `alt` porte imageAlt : c'est lui qui sert de repli lisible si le téléchargement échoue, et la
+  // requête — en anglais, destinée à une API — ne doit JAMAIS devenir visible.
+  function adocDeepDiveImageHTML(entry) {
+    const q = (entry && entry.imageQuery ? String(entry.imageQuery) : '').trim();
+    if (!q) return '';
+    const alt = (entry && entry.imageAlt ? String(entry.imageAlt) : '').trim();
+    return '<img class="cc-ws-present-door-illus" data-pexels="' + adocEsc(q) + '" alt="' + adocEsc(alt) + '">';
+  }
+  window.adocDeepDiveImageHTML = adocDeepDiveImageHTML;
+
   function adocDeepDivePopulateDoor(entry) {
     const state = window._adocPresentState;
     const door = document.getElementById('cc-ws-present-door');
@@ -16953,8 +16992,26 @@ ${recent}`;
       '<h2 class="cc-ws-present-door-title">' + adocEsc(entry.title) + '</h2>' +
       // Rendu extrait dans adocDeepDiveParagraphesHTML : une fonction PURE, éprouvable sans ouvrir
       // de porte, et qui porte désormais le regroupement des puces.
+      adocDeepDiveImageHTML(entry) +
       adocDeepDiveParagraphesHTML(entry.paragraphs) +
       adocDeepDiveActionsHTML();
+    // La porte n'emprunte PAS adocPresentResolveSlideHTML : elle a son propre remplissage, et doit
+    // donc appeler la résolution elle-même. Asynchrone et volontairement NON attendue — la page
+    // s'affiche tout de suite, l'image apparaît quand elle est prête, et un échec ne retarde ni
+    // n'empêche rien. Sans image, aucun appel n'est même tenté (adocResolveImages rend le HTML tel
+    // quel s'il n'y a aucune référence).
+    if (textEl.querySelector('img[data-pexels]')) {
+      adocResolveImages('<!DOCTYPE html><html><body>' + textEl.innerHTML + '</body></html>')
+        .then(function (html) {
+          const m = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+          // La porte a pu être refermée, ou une AUTRE page ouverte, pendant la résolution : on ne
+          // réécrit que si c'est toujours cette page-ci qui est affichée.
+          const etat = window._adocPresentState;
+          const pile = etat && Array.isArray(etat.deepDiveStack) ? etat.deepDiveStack : [];
+          if (m && pile.length && pile[pile.length - 1] === entry.id) textEl.innerHTML = m[1];
+        })
+        .catch(function () {});
+    }
     textEl.hidden = false;
     door.setAttribute('aria-label', 'Approfondissement : ' + entry.title);
     door.hidden = false;
@@ -17323,6 +17380,8 @@ ${recent}`;
       // Appelée par adocDeepDivePopulateDoor, elle-même embarquée : sans elle ici, la première
       // page d'approfondissement ouverte dans un export lèverait une ReferenceError.
       adocDeepDiveParagraphesHTML: adocDeepDiveParagraphesHTML,
+      // Appelée par adocDeepDivePopulateDoor au même titre que la précédente.
+      adocDeepDiveImageHTML: adocDeepDiveImageHTML,
       adocDeepDivePopulateDoor: adocDeepDivePopulateDoor,
       // Appelée par adocPresentOpenImageDoor ET adocPresentOpenDeepDive, toutes deux exportées :
       // sans elle ici, le premier clic sur une image ou une puce dans le fichier exporté
@@ -17527,6 +17586,17 @@ ${recent}`;
   // alternatif de chacune (il sert de repli lisible si le téléchargement échoue).
   function adocCollectExportImageQueries(doc) {
     const vues = new Map();
+    // Les PAGES d'approfondissement, et pas seulement les diapositives. Angle mort relevé par
+    // l'investigation : cette fonction ne parcourait que doc.blocks. Sans ces quelques lignes,
+    // chaque image de page d'un fichier exporté retomberait sur l'aplat gris, EN SILENCE —
+    // exactement le défaut déjà corrigé sur les cartes, et invisible tant qu'on n'ouvre pas une
+    // page dans un export réellement produit.
+    (doc.deepDives || []).forEach(function (page) {
+      const q = (page && page.imageQuery ? String(page.imageQuery) : '').trim();
+      if (!q || vues.has(q)) return;
+      vues.set(q, { q: q, isGen: false, type: 'img',
+                    alt: (page.imageAlt ? String(page.imageAlt) : '').trim() });
+    });
     (doc.blocks || []).forEach(function (card, i) {
       let html;
       try { html = adocPresentRenderSlideHTML(card, i, (doc.blocks || []).length); }
