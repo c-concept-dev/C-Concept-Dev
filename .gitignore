@@ -181,3 +181,5 @@ tools/EvidenceForge/.env.local.*
 # une description structurelle (niveaux, nombre de liens, repli utilisé) sont
 # rapportés. Règle générale, valable pour tout futur test à vrai appel.
 **/tests/lot-a/*.json
+**/tests/lot-b/*.json
+**/tests/lot-b/*.html

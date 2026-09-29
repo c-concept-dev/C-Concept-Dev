@@ -1667,6 +1667,16 @@ RÈGLES ABSOLUES :
   // 90 passages (lourd), 'comparatif'/'tableau'/'fiche' 50, tout le reste 45. Un module part donc de
   // 'presentation' (45), et rien d'autre tant que la mesure ne dit pas le contraire.
   window.adocExecutePlan = adocExecutePlan;
+  // Exposé pour la MÊME raison, et seulement pour elle : une campagne réelle qui partirait d'un
+  // plan bricolé ne mesurerait pas ce que l'utilisatrice obtient. En production, le cours en
+  // modules reçoit le plan du planificateur via `planOrigine` — notamment `approach_filter`, qui
+  // décide du balayage de la bibliothèque.
+  //
+  // adocPlanQuery et non adocMultiPlan : cette dernière renvoie { plan, ragResult } et lance DÉJÀ
+  // une recherche complète pour le cours entier — recherche que chaque module refait ensuite pour
+  // son propre compte, et qui serait donc jetée. adocPlanQuery rend le plan seul, et rend `null`
+  // en cas d'échec : un plan dégradé se voit, au lieu de se mesurer sans le savoir.
+  window.adocPlanQuery = adocPlanQuery;
 
 
   // ── P1-2 : Re-ranking post-RAG par Haiku ──────────────────────────────────
