@@ -1,6 +1,6 @@
 // Plafond de l'image de couverture — le chiffre central de ce lot, éprouvé sur un document RÉEL.
 //
-// Ce que ce test protège : sans plafond, 118 diapositives sur 132 débordaient, et TOUTES avaient une
+// Ce que ce test protège : sans plafond, 120 diapositives sur 132 débordaient, et TOUTES avaient une
 // image. La cause n'était ni le format 4:3, ni la densité du texte, mais une image qui prenait 80 %
 // de la hauteur de la diapositive. Le jour où quelqu'un retire `max-height` de ADOC_CARD_IMG_CSS
 // pour « laisser respirer les images », ce test doit tomber.

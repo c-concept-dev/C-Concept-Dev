@@ -16116,14 +16116,21 @@ ${recent}`;
     '.adoc-sc-presentation-slide-num{display:block;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--adoc-presentation-accent,#8f6a1f);margin-bottom:6px;}' +
     '.adoc-sc-presentation-slide .adoc-sc-card{aspect-ratio:4/3;box-sizing:border-box;overflow:auto;border-top:4px solid var(--adoc-presentation-accent,#8f6a1f);}';
   // MESURÉ le 29/09/2026 sur les 132 diapositives réelles d'un cours de 12 modules, à 1920×1080,
-  // chaque diapositive ouverte par adocPresentGoTo(i) : 118 débordaient, et TOUTES avaient une image
-  // de couverture — aucune des 14 sans image ne débordait. Cause unique : cette règle ne portait ni
-  // hauteur, ni max-height, ni object-fit, donc l'image prenait sa hauteur naturelle à 100 % de la
-  // largeur — médiane 664 px sur une boîte de 825 px, soit 80 % de la diapositive.
+  // chaque diapositive ouverte par adocPresentGoTo(i), avec 320 ms de stabilisation : 120 débordaient,
+  // et TOUTES avaient une image de couverture — aucune des 12 sans image ne débordait. Cause unique :
+  // cette règle ne portait ni hauteur, ni max-height, ni object-fit, donc l'image prenait sa hauteur
+  // naturelle à 100 % de la largeur — médiane 664 px sur une boîte de 825 px, soit 80 % de la
+  // diapositive. Après ce plafond : 6 en débordement (5 questionnaires et 1 autre).
   //
-  // max-height:45% — mesuré contre 30 %, 38 % et 50 % sur le même corpus : 45 % laisse 5 diapositives
-  // en débordement (30 % : 5, 38 % : 6, 50 % : 7) tout en gardant l'image la plus grande possible,
-  // 43 % de la hauteur — une image présente, pas un bandeau. Le pourcentage ne se résout que là où la
+  // Les 320 ms ne sont pas une marge de confort : la transition de diapositive dure 260 ms et le DOM
+  // ne bascule qu'à la fin. Mesuré — à 110 ms, UNE SEULE diapositive sur 14 était celle demandée.
+  // Toute mesure plus rapide relève la diapositive précédente et rend des comptes faux sans rien
+  // signaler ; c'est ce qui a d'abord fait écrire ici 118 au lieu de 120.
+  //
+  // max-height:45% — mesuré contre 30 %, 38 % et 50 % sur le même corpus, à 320 ms : 30 %, 38 % et
+  // 45 % laissent le MÊME résidu de 6 diapositives, 50 % en laisse 7. À résultat égal, 45 % garde
+  // l'image la plus grande possible, 43 % de la hauteur — une image présente, pas un bandeau.
+  // Le pourcentage ne se résout que là où la
   // carte a une hauteur définie : en présentation (height:100%) et en aperçu de diapositive
   // (.adoc-sc-presentation-slide .adoc-sc-card{aspect-ratio:4/3}). Ailleurs, la page défile et rien
   // ne déborde : la règle y reste sans effet, ce qui est le comportement voulu.
