@@ -16564,6 +16564,20 @@ ${recent}`;
   // uniquement pour une Présentation du moteur structuré (garde-fou déjà posé au bouton lui-même,
   // cf. adocOpenWorkspace, mais revérifié ici — jamais une confiance aveugle dans l'état du DOM).
   window.adocPresentOpen = async function () {
+    // PREMIÈRE INSTRUCTION, avant toute autre — et surtout avant tout `await`. Cette fonction est
+    // `async`, et adocPresentOpenWithDoc qu'elle appelle contient un `await`
+    // (adocPresentResolveSlideHTML) : l'activation par geste utilisateur ne survit pas au premier
+    // point de suspension d'une fonction async, donc une demande faite après serait refusée par le
+    // navigateur. La position n'est pas cosmétique.
+    //
+    // NON ÉPROUVÉ par le banc : Chromium sans interface accepte aussi la demande APRÈS un await —
+    // il n'applique pas la règle d'activation. Cette place vient donc de la spécification, pas
+    // d'une mesure ; le test ne peut vérifier que l'ORDRE, pas le refus qu'un vrai navigateur
+    // opposerait.
+    //
+    // Un refus ne bloque JAMAIS la présentation : la promesse est avalée, et l'ouverture se poursuit
+    // exactement comme avant ce lot.
+    adocDemanderPleinEcran(document.getElementById('cc-ws-present-overlay')).catch(function () {});
     const storeKey = window._adocWsState.storeKey;
     const art = window._adocArtifacts?.[storeKey];
     const doc = art && art._adocStructuredDoc;
@@ -16571,6 +16585,10 @@ ${recent}`;
   };
 
   window.adocPresentClose = function () {
+    // Quitter le plein écran fait partie de la fermeture. La branche Échap du gestionnaire clavier
+    // appelle DÉJÀ cette fonction (vérifié, jamais supposé) : elle n'a donc rien à modifier pour
+    // que Échap sorte aussi du plein écran. Sans effet si aucun plein écran n'est actif.
+    adocQuitterPleinEcran();
     const overlay = document.getElementById('cc-ws-present-overlay');
     if (overlay) { overlay.classList.remove('open'); overlay.hidden = true; }
     const toc = document.getElementById('cc-ws-present-toc');
@@ -16866,6 +16884,68 @@ ${recent}`;
   // autonome). Le second `if` (repli #cc-workspace) reste inoffensif en contexte autonome : cet
   // élément n'existe simplement jamais là, `document.getElementById('cc-workspace')` renvoie null,
   // la condition échoue silencieusement — aucune adaptation nécessaire (vérifié par investigation).
+  // ═══ PLEIN ÉCRAN NATIF — MODE LIVE ═══
+  //
+  // Trois fonctions et rien d'autre. Safari n'expose les variantes non préfixées que depuis la
+  // version 16.4 (mars 2023) : l'adaptation se fait ICI, une fois, jamais par une branche de code
+  // dupliquée ailleurs.
+  //
+  // CIBLE : #cc-ws-present-overlay, et non document.documentElement. Vérifié dans le balisage : la
+  // diapositive, la barre d'outils, le sommaire et la porte d'approfondissement vivent TOUS dans cet
+  // overlay — rien de la présentation n'en sort. Le plein écran se limite donc à la présentation, et
+  // l'application reste hors du cadre. Mesuré au passage : demander le plein écran sur un élément
+  // encore `hidden` est accepté (l'overlay ne se démasque qu'ensuite, dans adocPresentOpenWithDoc).
+  function adocDemanderPleinEcran(el) {
+    if (!el) return Promise.reject(new Error('élément absent'));
+    const demander = el.requestFullscreen || el.webkitRequestFullscreen;
+    if (!demander) return Promise.reject(new Error('plein écran non pris en charge'));
+    // try/catch EN PLUS du .catch de l'appelant : certaines implémentations lèvent de façon
+    // synchrone au lieu de rendre une promesse rejetée.
+    try { return Promise.resolve(demander.call(el)); } catch (e) { return Promise.reject(e); }
+  }
+  function adocPleinEcranActif() {
+    return !!(document.fullscreenElement || document.webkitFullscreenElement);
+  }
+  function adocQuitterPleinEcran() {
+    // Sortir quand on n'y est pas n'est pas une erreur à remonter : la promesse serait rejetée à
+    // tous les coups, et adocPresentClose l'appelle à CHAQUE fermeture, plein écran ou non.
+    if (!adocPleinEcranActif()) return Promise.resolve();
+    const quitter = document.exitFullscreen || document.webkitExitFullscreen;
+    if (!quitter) return Promise.resolve();
+    try { return Promise.resolve(quitter.call(document)).catch(function () {}); }
+    catch (e) { return Promise.resolve(); }
+  }
+
+  // DÉCISION : sortir du plein écran ne ferme PAS la présentation.
+  //
+  // Le plein écran est un mode d'AFFICHAGE, pas la présentation elle-même. Une présentatrice qui
+  // appuie sur F11 par mégarde au milieu d'un cours de 132 diapositives ne doit pas perdre sa place.
+  // Et l'overlay est déjà position:fixed sur tout le viewport : sortir du plein écran redonne
+  // exactement le comportement d'avant ce lot, jamais un écran cassé.
+  //
+  // L'inverse aurait un effet pervers : en plein écran, c'est le NAVIGATEUR qui intercepte Échap
+  // pour en sortir, avant notre gestionnaire. Fermer la présentation à ce moment ferait faire deux
+  // choses à une seule touche — quitter le plein écran ET perdre la diapositive courante.
+  //
+  // Ce que l'écouteur fait donc : il tient `window._adocPleinEcranActif` à jour, et rien de plus.
+  // Sans lui, toute future indication à l'écran (bouton bascule, repère) divergerait en silence dès
+  // qu'on sort par une touche système. Son effet OBSERVABLE dans ce lot est volontairement limité —
+  // je préfère le dire que lui inventer un rôle.
+  let _adocPleinEcranEcouteurPose = false;
+  function adocInstallerEcouteurPleinEcran() {
+    // Une seule fois. adocPresentInstallKeydownHandler n'est appelée qu'au chargement, mais ce
+    // garde-fou rend la fonction sûre où qu'on l'appelle — et il est éprouvé par le test.
+    if (_adocPleinEcranEcouteurPose) return;
+    _adocPleinEcranEcouteurPose = true;
+    const surChangement = function () {
+      window._adocPleinEcranActif = adocPleinEcranActif();
+      // Volontairement : AUCUNE action sur la présentation. Cf. la décision ci-dessus.
+    };
+    document.addEventListener('fullscreenchange', surChangement);
+    // Safari < 16.4. Poser les deux est sans risque : un navigateur n'émet que celui qu'il connaît.
+    document.addEventListener('webkitfullscreenchange', surChangement);
+  }
+
   function adocPresentInstallKeydownHandler() {
     document.addEventListener('keydown', function (e) {
       // Le mode présentation, ouvert PAR-DESSUS #cc-workspace, intercepte Échap/flèches en premier —
@@ -16900,6 +16980,12 @@ ${recent}`;
     });
   }
   adocPresentInstallKeydownHandler();
+  // L'écouteur de plein écran s'installe ICI, et NON dans adocPresentInstallKeydownHandler : cette
+  // dernière figure dans engineFnRefs et est rappelée au démarrage de tout fichier exporté, qui
+  // n'embarque PAS adocInstallerEcouteurPleinEcran — l'y appeler aurait levé une ReferenceError à
+  // l'ouverture de chaque présentation exportée. Ce point d'appel-ci est propre au mode live.
+  // Exécuté une seule fois au chargement du module ; le garde-fou interne couvre le reste.
+  adocInstallerEcouteurPleinEcran();
 
   // ═══ LOT A — Export Présentation autonome, vivant et interactif ═══
   // Assemble un fichier .html UNIQUE, ouvrable par file:// sans Studio Clinique — MÊME moteur que
@@ -16980,6 +17066,13 @@ ${recent}`;
     const engineFnRefs = {
       adocEsc: adocEsc, adocGetWorkerUrl: adocGetWorkerUrl, adocGetApiKey: adocGetApiKey,
       _adocWarnMissingApiKey: _adocWarnMissingApiKey, adocResolveImages: adocResolveImages,
+      // window.adocPresentClose figure dans windowFnNames, donc part dans tout export — et depuis le
+      // lot « plein écran » elle appelle adocQuitterPleinEcran. Sans ces deux fonctions ici, le
+      // bouton « Fermer » d'une présentation exportée lèverait une ReferenceError au premier clic.
+      // Le brief supposait qu'aucun ajout à engineFnRefs ne serait nécessaire : il l'est, et pour
+      // cette raison précise. Ce sont les deux SEULES ajoutées ; la demande de plein écran et son
+      // écouteur restent hors de l'export, qui n'en fait rien avant la phase 3.
+      adocQuitterPleinEcran: adocQuitterPleinEcran, adocPleinEcranActif: adocPleinEcranActif,
       // Les deux fonctions dont adocResolveImages dépend désormais. Sans elles, toute présentation
       // exportée lèverait une ReferenceError à l'ouverture de sa première diapositive à image —
       // exactement la classe d'oubli que le garde-fou onclick ne voit jamais.
