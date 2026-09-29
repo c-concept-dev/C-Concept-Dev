@@ -4084,44 +4084,67 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
   }
 
   // ── Orchestrateur : génère le fichier et affiche la carte artifact ──
-    async function adocResolveImages(htmlContent) {
-    const workerUrl = adocGetWorkerUrl();
-    if (!workerUrl || !htmlContent) return htmlContent;
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(htmlContent, 'text/html');
-
-    // ── 1. Résoudre background-image: url('data-pexels="..."') dans les styles inline et <style>
-    // Convertir en <img data-pexels="..."> injectés dans les éléments concernés
+  // ── LES QUATRE FORMES DE RÉFÉRENCE D'IMAGE, EN UN SEUL ENDROIT ──────────────────────────────
+  // Elles étaient jusqu'ici décrites uniquement dans le corps d'adocResolveImages. L'embarquement
+  // à l'export doit trouver EXACTEMENT les mêmes, sans quoi une forme oubliée donnerait un aplat
+  // gris dans le fichier livré sans que rien ne le signale. Une seule source, deux appelants.
+  //
+  // `doc` est un Document déjà analysé. La fonction le MODIFIE : les fonds de style inline sont
+  // convertis en attribut data-pexels-bg et les url() des blocs <style> neutralisées — c'est le
+  // prétraitement d'origine, conservé tel quel.
+  function adocCollectImageNodes(doc) {
     const bgPexelsRe = /url\(['"]?data-pexels="([^"]+)"['"]?\)/g;
-
-    // Traitement des éléments avec style inline
-    doc.querySelectorAll('[style]').forEach(el => {
+    doc.querySelectorAll('[style]').forEach(function (el) {
       const style = el.getAttribute('style');
       let match;
       bgPexelsRe.lastIndex = 0;
       while ((match = bgPexelsRe.exec(style)) !== null) {
-        // Ajouter l'attribut data-pexels-bg pour traitement ultérieur
         el.setAttribute('data-pexels-bg', match[1]);
-        el.style.backgroundImage = ''; // reset temporaire
+        el.style.backgroundImage = '';
       }
     });
-
-    // Traitement des blocs <style> — remplacer data-pexels par placeholder
-    doc.querySelectorAll('style').forEach(styleEl => {
+    doc.querySelectorAll('style').forEach(function (styleEl) {
       styleEl.textContent = styleEl.textContent.replace(bgPexelsRe, 'url("")');
     });
-
-    // ── 2. Collecter tous les éléments à résoudre
     const imgNodes = Array.from(doc.querySelectorAll('img[data-gen], img[data-pexels]'));
-    const bgNodes  = Array.from(doc.querySelectorAll('[data-pexels-bg]'));
+    const bgNodes = Array.from(doc.querySelectorAll('[data-pexels-bg]'));
     const divNodes = Array.from(doc.querySelectorAll('div[data-pexels], section[data-pexels], figure[data-pexels]'));
-
-    const allNodes = [
-      ...imgNodes.map(el => ({ el, type: 'img', q: el.dataset.pexels || el.dataset.gen, isGen: !!el.dataset.gen })),
-      ...bgNodes.map(el  => ({ el, type: 'bg',  q: el.getAttribute('data-pexels-bg'), isGen: false })),
-      ...divNodes.map(el => ({ el, type: 'div', q: el.getAttribute('data-pexels'), isGen: false })),
+    return [
+      ...imgNodes.map(function (el) { return { el: el, type: 'img', q: el.dataset.pexels || el.dataset.gen, isGen: !!el.dataset.gen }; }),
+      ...bgNodes.map(function (el) { return { el: el, type: 'bg', q: el.getAttribute('data-pexels-bg'), isGen: false }; }),
+      ...divNodes.map(function (el) { return { el: el, type: 'div', q: el.getAttribute('data-pexels'), isGen: false }; }),
     ];
+  }
+  window.adocCollectImageNodes = adocCollectImageNodes;
+  // Exposée pour les tests, comme adocConvertDeepDives : la garantie centrale de ce lot —
+  // « aucun appel réseau à l'ouverture d'un export » — se vérifie sur CETTE fonction, celle
+  // qui décide de partir ou non sur le réseau. La vérifier autrement serait la deviner.
 
+  // Les images embarquées dans un fichier exporté. Écrites en clair dans son script, sous la forme
+  // { requête → data:image/... }. Consultées AVANT tout réseau : c'est ce qui fait qu'un cours
+  // exporté s'ouvre sur un autre poste, hors ligne, ou après rotation de la clé.
+  // Dans l'application vivante, cette variable n'existe pas et la fonction rend null — le
+  // comportement en ligne est alors STRICTEMENT celui d'avant ce lot.
+  function adocEmbeddedImage(query) {
+    const cache = (typeof window !== 'undefined' && window.ADOC_EXPORT_IMAGES) || null;
+    if (!cache) return null;
+    const k = String(query || '').trim();
+    return Object.prototype.hasOwnProperty.call(cache, k) ? cache[k] : null;
+  }
+  window.adocEmbeddedImage = adocEmbeddedImage;
+
+    async function adocResolveImages(htmlContent) {
+    // L'adresse du Worker n'est plus une condition d'entrée : un fichier exporté porte ses images
+    // en clair et n'a aucun Worker à joindre. Exiger cette adresse ici faisait rendre le HTML tel
+    // quel — donc des <img data-pexels> sans src — sur tout poste sans clé configurée.
+    const workerUrl = adocGetWorkerUrl();
+    if (!htmlContent) return htmlContent;
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(htmlContent, 'text/html');
+
+    // Prétraitement des fonds et collecte des quatre formes : adocCollectImageNodes, partagée avec
+    // l'embarquement à l'export — une forme ajoutée ici l'est donc pour les deux, jamais pour un seul.
+    const allNodes = adocCollectImageNodes(doc);
     if (!allNodes.length) return htmlContent;
 
     const fetchPexels = async (query) => {
@@ -4160,7 +4183,17 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     const promises = allNodes.map(async ({ el, type, q, isGen }) => {
       try {
         let url = null;
-        if (isGen) {
+        // L'image embarquée d'abord, TOUJOURS : c'est elle qui rend le fichier exporté autonome,
+        // et elle évite aussi un aller-retour réseau quand elle existe. Une requête présente dans
+        // le cache mais dont l'embarquement a échoué y porte déjà son aplat de repli : rien ne
+        // repart sur le réseau, ce qui est précisément la garantie attendue d'un export.
+        const embarquee = adocEmbeddedImage(q);
+        if (embarquee) {
+          url = embarquee;
+        } else if (!workerUrl) {
+          // Ni image embarquée ni Worker : inutile de tenter, le repli est immédiat.
+          throw new Error('aucune source d\'image disponible');
+        } else if (isGen) {
           url = await fetchFlux(q);
         } else {
           const photo = await fetchPexels(q);
@@ -4192,6 +4225,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     await Promise.all(promises);
     return '<!DOCTYPE html>' + doc.documentElement.outerHTML;
   }
+  window.adocResolveImages = adocResolveImages;
 
 
   // FIX-XLSX-SECTION-DOUBLON : le modèle inclut parfois le titre de section à deux endroits —
@@ -16883,10 +16917,45 @@ ${recent}`;
   // — le mode plein écran EN DIRECT ne l'affiche déjà pas non plus (les liens de citation [n] y sont
   // déjà des ancres mortes aujourd'hui, comportement préexistant reproduit fidèlement, jamais une
   // régression introduite par ce lot).
-  function adocBuildStandalonePresentationHTML(doc) {
+  // Les crédits, en un seul endroit. Rien du tout quand aucune image n'a pu être créditée —
+  // jamais un bandeau vide, jamais une mention inventée pour un aplat de repli.
+  function adocPresentCreditsHTML(credits) {
+    if (!credits || !credits.length) return '';
+    const noms = credits.map(function (c) { return adocEsc(c.auteur); }).join(', ');
+    const sources = Array.from(new Set(credits.map(function (c) { return c.source; }))).map(adocEsc).join(' et ');
+    return '<p class="cc-ws-present-credits" style="position:absolute;left:16px;bottom:6px;margin:0;'
+      + 'font-size:11px;line-height:1.4;color:rgba(255,255,255,.45);max-width:60%;pointer-events:none;">'
+      + 'Photographies : ' + noms + ' — ' + sources + '.</p>';
+  }
+  window.adocPresentCreditsHTML = adocPresentCreditsHTML;
+
+  // ASYNC depuis le lot d'embarquement des images. C'est ICI qu'il est branché, et non dans le
+  // seul window.adocWsExportStandalonePresentation : c'est le point de passage OBLIGÉ de tout
+  // export autonome — le bouton de l'interface, le cours assemblé (un document presentation
+  // ordinaire, même chemin) et les bancs de mesure qui l'appellent directement. Brancher plus haut
+  // aurait laissé ces derniers produire des fichiers sans images sans que rien ne le dise.
+  //
+  // opts.embedImages === false : construit sans embarquer, pour les tests qui n'éprouvent que la
+  // coquille et n'ont aucune image à télécharger.
+  async function adocBuildStandalonePresentationHTML(doc, opts) {
+    const embarquer = !(opts && opts.embedImages === false);
+    let embarquement = { images: {}, credits: [], rapport: { requetes: 0, telecharges: 0, echecs: [], koBase64: 0 } };
+    if (embarquer) {
+      try { embarquement = await adocResolveImagesForExport(doc, opts || {}); }
+      catch (e) {
+        // Un embarquement impossible EN BLOC (pas d'adresse, pas de clé) ne doit pas empêcher
+        // d'exporter : le fichier reste celui d'avant ce lot, images résolues à l'ouverture.
+        console.warn('[export] embarquement des images impossible, export sans images embarquées :', e && e.message);
+      }
+    }
+    window._adocLastExportImageReport = embarquement.rapport;
     const engineFnRefs = {
       adocEsc: adocEsc, adocGetWorkerUrl: adocGetWorkerUrl, adocGetApiKey: adocGetApiKey,
       _adocWarnMissingApiKey: _adocWarnMissingApiKey, adocResolveImages: adocResolveImages,
+      // Les deux fonctions dont adocResolveImages dépend désormais. Sans elles, toute présentation
+      // exportée lèverait une ReferenceError à l'ouverture de sa première diapositive à image —
+      // exactement la classe d'oubli que le garde-fou onclick ne voit jamais.
+      adocCollectImageNodes: adocCollectImageNodes, adocEmbeddedImage: adocEmbeddedImage,
       adocImageAssetUrl: adocImageAssetUrl, adocCiteFootnoteHTML: adocCiteFootnoteHTML,
       adocBlockOpacityLayerHTML: adocBlockOpacityLayerHTML, adocCardPositionCSSText: adocCardPositionCSSText,
       adocResolveBlockFontFamily: adocResolveBlockFontFamily, adocGoogleFontLinkTag: adocGoogleFontLinkTag,
@@ -16955,6 +17024,11 @@ ${recent}`;
       'var ADOC_BLOCK_FONT_SIZES = ' + JSON.stringify(ADOC_BLOCK_FONT_SIZES) + ';\n' +
       'var ADOC_DIRECT_STYLE_FIELDS = ' + JSON.stringify(ADOC_DIRECT_STYLE_FIELDS) + ';\n' +
       'var _adocApiKeyWarningShown = false;\n' +
+      // Le dictionnaire des images embarquées, écrit en clair. C'est lui qui rend le fichier
+      // autonome : adocEmbeddedImage le consulte avant tout réseau, et toute requête y figure —
+      // y compris celles dont le téléchargement a échoué, qui y portent leur aplat de repli.
+      // Aucune requête ne peut donc déclencher un appel au Worker à l'ouverture.
+      'window.ADOC_EXPORT_IMAGES = ' + JSON.stringify(embarquement.images) + ';\n' +
       'window._adocPresentState = null;\n' +
       'var ADOC_EXPORT_DOC = ' + JSON.stringify(doc) + ';';
     const bootText = 'adocPresentInstallKeydownHandler();\nadocPresentOpenWithDoc(ADOC_EXPORT_DOC);';
@@ -16974,6 +17048,10 @@ ${recent}`;
           '<button type="button" class="cc-ws-present-toolbar-btn" onclick="window.adocPresentToggleToc()">Sommaire</button>' +
           '<button type="button" class="cc-ws-present-toolbar-btn" onclick="window.adocPresentClose()">Fermer</button>' +
         '</div>' +
+        // Attribution Pexels — obligation de leurs conditions d'API, absente de tout export produit
+        // jusqu'ici. UNE ligne groupée, dédoublonnée par auteur, dans la barre d'outils où elle ne
+        // recouvre aucune diapositive : une mention par image aurait défiguré la présentation.
+        adocPresentCreditsHTML(embarquement.credits) +
         '<div id="cc-ws-present-toc" hidden role="navigation" aria-label="Sommaire des diapositives"></div>' +
         // MÊME source que la page vivante (adocPresentDoorHTML) — ces deux balisages étaient
         // maintenus à la main séparément et avaient déjà divergé. Appelée ICI, à la CONSTRUCTION
@@ -16991,20 +17069,197 @@ ${recent}`;
   // cliquer, seul test qui couvre la classe « élément absent de la coquille » et la classe
   // « fonction interne partagée oubliée d'engineFnRefs » — que le garde-fou onclick ne voit
   // jamais (cf. tests/verify-acte3-export-standalone.cjs).
+
+  // ═══ EMBARQUEMENT DES IMAGES DANS L'EXPORT AUTONOME ═══
+  //
+  // POURQUOI LE HTML CONSTRUIT NE SUFFIT PAS. Le fichier exporté n'embarque pas des diapositives :
+  // il embarque le DOCUMENT en JSON (ADOC_EXPORT_DOC) et rend chaque diapositive À L'OUVERTURE
+  // (adocPresentResolveSlideHTML). Le HTML rendu par adocBuildStandalonePresentationHTML ne
+  // contient donc AUCUNE référence d'image — mesuré sur un cours réel de 12 modules : 120
+  // `imageRef` dans les données, zéro dans le balisage. Parcourir ce HTML pour y remplacer des
+  // références, c'est parcourir un fichier qui n'en a pas.
+  //
+  // CE QUI MARCHE : rendre chaque diapositive ICI, exactement comme l'ouverture le fera, y chercher
+  // les quatre formes (adocCollectImageNodes, la même fonction), télécharger, encoder, et embarquer
+  // un dictionnaire { requête → data:image } que adocResolveImages consulte avant tout réseau.
+  // Aucune forme ne peut être manquée : c'est littéralement le même rendu.
+
+  // Largeur maximale d'une image embarquée. 1600 px couvre un vidéoprojecteur ; au-delà on paie
+  // des octets que personne ne voit. Recompressée en JPEG : le base64 gonfle déjà de 33 %, et un
+  // cours de 12 modules porte plus de cent couvertures.
+  const ADOC_EXPORT_IMG_MAX_W = 1600;
+  const ADOC_EXPORT_IMG_QUALITY = 0.82;
+
+  // Octets → data:image, avec réduction quand elle est possible. Si le redimensionnement échoue
+  // (format exotique, image non décodable), on garde les octets d'origine plutôt que rien.
+  async function adocBlobToEmbeddedImage(blob) {
+    const brut = await new Promise(function (resolve, reject) {
+      const fr = new FileReader();
+      fr.onload = function () { resolve(fr.result); };
+      fr.onerror = function () { reject(new Error('lecture des octets impossible')); };
+      fr.readAsDataURL(blob);
+    });
+    try {
+      const bitmap = await createImageBitmap(blob);
+      if (bitmap.width <= ADOC_EXPORT_IMG_MAX_W) { bitmap.close && bitmap.close(); return brut; }
+      const h = Math.round(bitmap.height * (ADOC_EXPORT_IMG_MAX_W / bitmap.width));
+      const canvas = document.createElement('canvas');
+      canvas.width = ADOC_EXPORT_IMG_MAX_W; canvas.height = h;
+      canvas.getContext('2d').drawImage(bitmap, 0, 0, ADOC_EXPORT_IMG_MAX_W, h);
+      bitmap.close && bitmap.close();
+      const reduit = canvas.toDataURL('image/jpeg', ADOC_EXPORT_IMG_QUALITY);
+      // Jamais une « réduction » qui alourdit : certains PNG plats grossissent en JPEG.
+      return reduit.length < brut.length ? reduit : brut;
+    } catch (e) {
+      return brut;
+    }
+  }
+
+  // Le repli, IDENTIQUE à celui d'adocResolveImages : jamais la requête à l'écran, jamais un texte
+  // anglais destiné à une API projeté devant un public.
+  function adocExportFallbackImage(alt) {
+    const a = (alt || '').trim();
+    return !a
+      ? 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="250"><rect width="400" height="250" fill="%23e2e8f0"/></svg>'
+      : 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="250"><rect width="400" height="250" fill="%23e2e8f0"/><text x="50%" y="50%" fill="%2394a3b8" font-size="14" text-anchor="middle" dominant-baseline="middle">'
+        + encodeURIComponent(a.substring(0, 60)) + '</text></svg>';
+  }
+
+  // Toutes les requêtes d'image d'un document, dans l'ordre des diapositives, avec le texte
+  // alternatif de chacune (il sert de repli lisible si le téléchargement échoue).
+  function adocCollectExportImageQueries(doc) {
+    const vues = new Map();
+    (doc.blocks || []).forEach(function (card, i) {
+      let html;
+      try { html = adocPresentRenderSlideHTML(card, i, (doc.blocks || []).length); }
+      catch (e) { return; }
+      const d = new DOMParser().parseFromString('<!DOCTYPE html><html><body>' + html + '</body></html>', 'text/html');
+      adocCollectImageNodes(d).forEach(function (n) {
+        const q = String(n.q || '').trim();
+        if (!q || vues.has(q)) return;
+        vues.set(q, { q: q, isGen: n.isGen, type: n.type,
+                      alt: (n.el.getAttribute && n.el.getAttribute('alt')) || '' });
+      });
+    });
+    return Array.from(vues.values());
+  }
+  window.adocCollectExportImageQueries = adocCollectExportImageQueries;
+
+  // Le cœur du lot. Rend { images, credits, rapport } — jamais d'exception pour une image ratée :
+  // un export ne doit pas échouer parce qu'un CDN a bronché sur une couverture.
+  async function adocResolveImagesForExport(doc, options) {
+    const opts = options || {};
+    const workerUrl = opts.workerUrl || adocGetWorkerUrl();
+    const surProgression = opts.surProgression || function () {};
+    // Les deux portes réseau sont INJECTABLES, pour la même raison que le générateur de modules :
+    // sans cela, éprouver le dédoublonnage, l'échec isolé et le repli coûterait de vrais appels à
+    // chaque assertion — donc, en pratique, ils ne seraient pas éprouvés. Absentes en production.
+    const chercherPhoto = opts.fetchPhoto || adocExportFetchPhoto;
+    const genererImage = opts.fetchGenerated || adocExportFetchGenerated;
+    const requetes = adocCollectExportImageQueries(doc);
+    const images = {}, credits = [], echecs = [];
+    let octets = 0, telecharges = 0;
+
+    for (let i = 0; i < requetes.length; i++) {
+      const r = requetes[i];
+      surProgression({ index: i, total: requetes.length });
+      try {
+        if (r.isGen) {
+          // Image générée : ses octets arrivent DÉJÀ en data: depuis /generate-image, rien à
+          // télécharger ensuite.
+          const gen = await genererImage(workerUrl, r.q);
+          if (!gen) throw new Error('génération sans résultat');
+          images[r.q] = gen; octets += gen.length; telecharges++;
+          continue;
+        }
+        const photo = await chercherPhoto(workerUrl, r.q);
+        if (!photo || !photo.url) throw new Error('aucune photo pour cette requête');
+        // Téléchargement DIRECT depuis le CDN, sans la clé : le Worker n'a rien à voir avec des
+        // octets publics, et l'y faire transiter doublerait le trafic sans rien protéger.
+        const rep = await fetch(photo.url);
+        if (!rep.ok) throw new Error('CDN ' + rep.status);
+        const blob = await rep.blob();
+        if (!/^image\//.test(blob.type || '')) throw new Error('type inattendu : ' + (blob.type || 'inconnu'));
+        const data = await adocBlobToEmbeddedImage(blob);
+        images[r.q] = data; octets += data.length; telecharges++;
+        if (photo.photographer) {
+          credits.push({ auteur: photo.photographer, source: photo.source || 'Pexels' });
+        }
+      } catch (e) {
+        // Une image perdue ne perd pas l'export. Le repli est écrit DANS le cache : à l'ouverture,
+        // la requête est trouvée et aucun appel réseau n'est tenté — c'est la garantie du lot.
+        images[r.q] = adocExportFallbackImage(r.alt);
+        echecs.push({ requete: r.q.slice(0, 60), cause: (e && e.message) || String(e) });
+      }
+    }
+    // Dédoublonnage des crédits : quinze photos du même auteur donnent une ligne, pas quinze.
+    const parAuteur = new Map();
+    credits.forEach(function (c) { parAuteur.set(c.auteur + ' · ' + c.source, c); });
+    return {
+      images: images,
+      credits: Array.from(parAuteur.values()).sort(function (a, b) { return a.auteur.localeCompare(b.auteur); }),
+      rapport: { requetes: requetes.length, telecharges: telecharges, echecs: echecs,
+                 octetsBase64: octets, koBase64: Math.round(octets / 1024) },
+    };
+  }
+  window.adocResolveImagesForExport = adocResolveImagesForExport;
+
+  // Les deux accès réseau, isolés pour être remplaçables dans les tests sans toucher au reste.
+  async function adocExportFetchPhoto(workerUrl, query) {
+    if (!workerUrl) throw new Error('adresse du Worker absente');
+    const q = encodeURIComponent(String(query).trim().substring(0, 100));
+    const r = await fetch(workerUrl + '/fetch-image?q=' + q + '&per_page=1', { headers: { 'X-API-Key': adocGetApiKey() } });
+    if (!r.ok) throw new Error('/fetch-image ' + r.status);
+    const d = await r.json();
+    return (d.photos && d.photos[0]) || null;
+  }
+  async function adocExportFetchGenerated(workerUrl, prompt) {
+    if (!workerUrl) throw new Error('adresse du Worker absente');
+    const r = await fetch(workerUrl + '/generate-image', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
+      body: JSON.stringify({ prompt: prompt }),
+    });
+    if (!r.ok) throw new Error('/generate-image ' + r.status);
+    const d = await r.json();
+    return d.dataUrl || null;
+  }
+  window.adocExportFetchPhoto = adocExportFetchPhoto;
+  window.adocExportFetchGenerated = adocExportFetchGenerated;
+
   window.adocBuildStandalonePresentationHTML = adocBuildStandalonePresentationHTML;
 
   // Point d'accès — visible UNIQUEMENT pour documentKind==='presentation' du moteur structuré
   // (jamais legacy, jamais Carrousel — même garde-fou EXACT que le bouton "Présenter", cf.
   // adocOpenWorkspace ci-dessous), jamais construit à l'aveugle : revérifié ici comme partout
   // ailleurs (aucune confiance dans l'état du bouton seul).
-  window.adocWsExportStandalonePresentation = function () {
+  // ASYNC depuis l'embarquement des images : un cours de douze modules télécharge plus de cent
+  // couvertures avant d'écrire le fichier. Le bouton se désactive et dit où en est la préparation —
+  // sans cela, l'utilisatrice cliquerait plusieurs fois sur un bouton qui paraît inerte et
+  // lancerait autant d'exports en parallèle.
+  window.adocWsExportStandalonePresentation = async function () {
     adocEditorSync();
     const storeKey = window._adocWsState.storeKey;
     const art = window._adocArtifacts?.[storeKey];
     const doc = art && art._adocStructuredDoc;
     if (!doc || doc.documentKind !== 'presentation') return;
-    const html = adocBuildStandalonePresentationHTML(doc);
-    adocDownloadArtifact(new Blob([html], { type: 'text/html;charset=utf-8' }), (doc.title || 'presentation').replace(/[\\/:*?"<>|]/g, '-') + '-interactive.html');
+    const btn = document.getElementById('cc-ws-export-standalone-presentation-btn');
+    const libelleInitial = btn ? btn.textContent : null;
+    if (btn) { btn.disabled = true; btn.textContent = 'Préparation de l\'export…'; }
+    try {
+      const html = await adocBuildStandalonePresentationHTML(doc, {
+        surProgression: function (e) {
+          if (btn) btn.textContent = 'Préparation de l\'export… image ' + (e.index + 1) + ' sur ' + e.total;
+        },
+      });
+      adocDownloadArtifact(new Blob([html], { type: 'text/html;charset=utf-8' }), (doc.title || 'presentation').replace(/[\\/:*?"<>|]/g, '-') + '-interactive.html');
+    } catch (e) {
+      console.warn('[export] échec de l\'export autonome :', e && e.message);
+      adocAddMsg('assistant', 'L\'export de la présentation a échoué : ' + (e && e.message) + '.', []);
+    } finally {
+      // Le bouton est TOUJOURS rendu, réussite ou échec : un bouton resté désactivé aurait laissé
+      // l'écran de travail sans aucun moyen de réessayer.
+      if (btn) { btn.disabled = false; if (libelleInitial !== null) btn.textContent = libelleInitial; }
+    }
   };
 
   window.adocWsExport = async function () {

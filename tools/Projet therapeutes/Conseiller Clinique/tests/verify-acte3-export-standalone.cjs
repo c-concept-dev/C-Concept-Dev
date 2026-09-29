@@ -71,9 +71,22 @@ const DOC = {
   try {
     // ── Construction du fichier exporté, par la vraie fonction d'export ──
     const atelier = await browser.newPage();
+    // Réseau COUPÉ et relevé. Depuis que l'export embarque ses images, le constructeur cherche à
+    // résoudre chaque référence : sans cette coupure, cette suite émettrait de vrais appels vers le
+    // Worker — ce qu'elle n'a jamais fait et ne doit pas faire.
+    const sortiesReseau = [];
+    await atelier.route('**/*', route => {
+      const u = route.request().url();
+      if (/^file:/.test(u)) return route.continue();
+      sortiesReseau.push(u); return route.abort();
+    });
     await atelier.goto('file://' + path.join(__dirname, '../studio-clinique.html'));
     await atelier.waitForFunction(() => typeof window.adocBuildStandalonePresentationHTML === 'function');
-    const html = await atelier.evaluate(d => window.adocBuildStandalonePresentationHTML(d), DOC);
+    // embedImages:false — cette suite éprouve la COQUILLE et les gestes, pas les images. Le
+    // téléchargement est couvert par verify-export-images-embarquees.
+    const html = await atelier.evaluate(d => window.adocBuildStandalonePresentationHTML(d, { embedImages: false }), DOC);
+    const sortiesImages = sortiesReseau.filter(u => /fetch-image|generate-image|pexels|pixabay/.test(u));
+    assert.deepEqual(sortiesImages, [], 'aucune porte d\'image ne doit être empruntée ici : ' + sortiesImages.join(', '));
     fs.writeFileSync(fichier, html, 'utf8');
     await atelier.close();
     console.log('       fichier exporté : ' + (html.length / 1024).toFixed(0) + ' Ko');
