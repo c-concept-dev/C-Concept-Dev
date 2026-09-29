@@ -16274,7 +16274,18 @@ ${recent}`;
     // Présentation ACTE 2, Phase 2 — slot de contenu texte, second contenu interchangeable de la
     // même porte généralisée (cf. window.adocPresentOpenDeepDive) : jamais un second élément de
     // superposition, jamais un second jeu de règles de chrome (fond/centrage/fermeture partagés).
-    '.cc-ws-present-door-text{max-width:640px;max-height:calc(100% - 60px);overflow-y:auto;color:#fff;text-align:left;}' +
+    // max-height DIVISÉE par le facteur d'échelle — le correctif d'une régression que la mise à
+    // l'échelle de la présentation avait introduite. Le plafond est résolu en pixels CSS AVANT le
+    // transform ; celui-ci multipliait ensuite la hauteur rendue, et transform-origin:center faisait
+    // déborder la colonne des deux côtés de l'écran. MESURÉ sur une page de 14 paragraphes : à
+    // 1920×1080 elle s'étendait de −47 à 1127 sur un écran de 1080 ; en 3840×2160, de −792 à 2952.
+    // Pire, en 4K le défilement interne disparaissait aussi (scrollHeight === clientHeight) : le
+    // début et la fin de la page devenaient inatteignables, sans même une barre pour y remédier.
+    //
+    // Diviser plutôt que renoncer à l'échelle : n'agrandir que la police ferait dériver marges,
+    // espacements et rayons, c'est-à-dire exactement ce que la référence fixe existe pour éviter.
+    // Même variable que le transform juste au-dessus — un seul facteur, jamais deux réglages.
+    '.cc-ws-present-door-text{max-width:640px;max-height:calc((100% - 60px) / var(--adoc-present-echelle-agrandir,1));overflow-y:auto;color:#fff;text-align:left;}' +
     '.cc-ws-present-door-text .cc-ws-present-door-title{margin:0 0 16px;font-size:1.4em;font-weight:700;line-height:1.3;}' +
     '.cc-ws-present-door-text p{margin:0 0 12px;line-height:1.6;font-size:1.05em;}' +
     '.cc-ws-present-door-text p:last-child{margin-bottom:0;}' +
