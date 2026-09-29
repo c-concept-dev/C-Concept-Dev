@@ -32,8 +32,14 @@ const path = require('node:path');
 // Valeurs précédentes :
 //   918126ddfddc2276, 6289 o — après le retrait du bloc quiz (28/09), qui rendait 523 octets ;
 //   f1284c2f7eb7ded1, 6841 o — schéma dont les appels réels montraient une marge NULLE.
-const EMPREINTE = '2c4f1bba7858e736';
-const TAILLE = 6544;
+// Mise à jour à nouveau le 29/09/2026 : la description de `paragraphs` disait encore « jamais de
+// liste, callout, citation ni image dans cette version », devenue FAUSSE avec les puces par préfixe
+// — et surtout elle contredisait, au plus près du champ, la consigne de génération qui les demande.
+// Remplacée par une phrase PLUS COURTE : le schéma RÉTRÉCIT (6544 → 6516) et ne gagne aucune
+// chaîne. Revalidé malgré tout par appel réel, parce que la règle ne souffre pas d'exception même
+// quand le raisonnement paraît sûr : HTTP 200 sur PRESENTATION à 6516 octets.
+const EMPREINTE = '4fa4c56605d03b65';
+const TAILLE = 6516;
 
 function extraire(source, nom) {
   const debut = source.indexOf('  const ' + nom + ' = {');

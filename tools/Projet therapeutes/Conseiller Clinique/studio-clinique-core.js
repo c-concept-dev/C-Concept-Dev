@@ -13297,7 +13297,7 @@ ${recent}`;
               // « expression → id », au niveau de la PAGE et non du paragraphe. La conversion
               // (adocConvertDeepDives) les répartit ensuite sur le paragraphe où l'expression
               // apparaît réellement — la structure du DOCUMENT, elle, ne change pas.
-              paragraphs: { type: 'array', items: { type: 'string' }, description: 'Un ou plusieurs paragraphes de texte pur — jamais de liste, callout, citation ni image dans cette version.' },
+              paragraphs: { type: 'array', items: { type: 'string' }, description: 'Paragraphes de la page ; un paragraphe commençant par « - » devient une puce.' },
               deepDiveLinks: {
                 type: 'array',
                 items: { type: 'string' },
@@ -13813,9 +13813,27 @@ ${recent}`;
           'systématique.\n' +
           'deepDives (racine du document, sibling de cards) : chaque entrée porte un id court choisi ' +
           "par toi (ex. \"deepdive-cortisol\"), un titre, et un ou plusieurs paragraphes de texte pur " +
-          '(jamais de liste, callout, citation ni image à l\'intérieur d\'une page d\'approfondissement ' +
-          'dans cette version) — un vrai complément clinique utile, jamais une simple redite du bloc ' +
+          '— un vrai complément clinique utile, jamais une simple redite du bloc ' +
           "qui y renvoie.\n" +
+          // Lot « site de poche », point A — la liste par PRÉFIXE. Zéro champ de schéma, donc zéro
+          // octet de grammaire compilée : c'est pour cela que la consigne vit ici et nulle part
+          // ailleurs. Le marqueur est imposé explicitement, parce que la convention est implicite
+          // et qu'un paragraphe commençant par un tiret deviendrait une puce sans le vouloir.
+          "Un paragraphe de page peut être une PUCE : commence-le alors par « - » suivi d'une " +
+          "espace, et le rendu le présentera comme un élément de liste ; les puces qui se suivent " +
+          'sont regroupées. Sers-t\'en pour une énumération réelle (des critères, des étapes, des ' +
+          'signes) — jamais pour découper en tirets un raisonnement qui se tient en prose. Un ' +
+          "paragraphe ordinaire ne commence donc JAMAIS par un tiret.\n" +
+          // Point A — l'illustration d'une page. Les deux champs existent dans le schéma d'outil
+          // (validé par appel réel) mais leurs descriptions y sont volontairement courtes : la
+          // grammaire compilée est au bord de sa taille maximale, et cette consigne-ci ne lui coûte
+          // rien. Registre INVERSE de coverImageQuery : le défaut d'une page est l'ABSENCE d'image.
+          'imageQuery / imageAlt (sur une entrée deepDives) : laisse-les VIDES par défaut. Ne ' +
+          "renseigne imageQuery que si la page explique une notion OBSERVABLE qu'une image rend " +
+          'réellement plus claire — un dispositif, un geste clinique, une situation, un support ' +
+          "matériel. Une page qui développe un raisonnement, une nuance théorique ou une définition " +
+          "n'a RIEN à illustrer : une photographie y ajouterait du décor, pas du sens. Au plus une " +
+          'page illustrée sur trois. imageAlt décrit alors l\'image en français, et reste vide sinon.\n' +
           // Présentation ACTE 3 — profondeur non plafonnée par le code : c'est ici, à la
           // génération, qu'elle se décide. Consigne QUALITATIVE (jamais un chiffre imposé), et
           // anti-cycle en PREMIÈRE ligne de défense seulement — le vrai filet reste le parcours à
@@ -16311,6 +16329,10 @@ ${recent}`;
     '.cc-ws-present-door-text .cc-ws-present-door-title{margin:0 0 16px;font-size:1.4em;font-weight:700;line-height:1.3;}' +
     '.cc-ws-present-door-text p{margin:0 0 12px;line-height:1.6;font-size:1.05em;}' +
     '.cc-ws-present-door-text p:last-child{margin-bottom:0;}' +
+    // Puces d'une page — mêmes marges que ses paragraphes, jamais un habillage à part.
+    '.cc-ws-present-door-list{margin:0 0 12px;padding-left:1.4em;}' +
+    '.cc-ws-present-door-list li{margin:0 0 6px;line-height:1.6;font-size:1.05em;}' +
+    '.cc-ws-present-door-list:last-child{margin-bottom:0;}' +
     // Présentation ACTE 3 — fil d'Ariane et gestes de retour, À L'INTÉRIEUR de la porte texte
     // (jamais dans le chrome partagé avec la porte image, qui n'a ni chemin ni profondeur).
     '.cc-ws-present-door-path{font-size:.8em;opacity:.62;margin:0 0 10px;line-height:1.5;}' +
@@ -16873,6 +16895,51 @@ ${recent}`;
   // un bloc de diapositive potentiellement mis en forme à la main — un paragraphe de deepDives
   // reste toujours du texte simple), et porte de toute façon SA puce par lien : l'enrichissement
   // en ligne est un confort, la puce est la garantie d'accès.
+  // ── PARAGRAPHES D'UNE PAGE D'APPROFONDISSEMENT ─────────────────────────────────────────────
+  // Un paragraphe qui commence par « - » ou « • » suivi d'une espace devient une PUCE, et les
+  // puces consécutives sont regroupées dans une seule liste. C'est la forme la moins chère qui
+  // existe : ZÉRO champ de schéma, donc ZÉRO octet de grammaire compilée — et la grammaire de cet
+  // outil vit au bord de sa taille maximale (cf. ADOC_STRUCTURED_PRESENTATION_TOOL).
+  //
+  // Contrepartie assumée : c'est une convention implicite. Un paragraphe qui commencerait par un
+  // tiret sans vouloir être une puce deviendrait une puce. L'espace après le marqueur est exigée
+  // précisément pour écarter les cas ordinaires (« -30 % », « — dit-elle »), et la consigne de
+  // génération est explicite sur le marqueur à employer.
+  //
+  // PURE et partagée : le rendu de la porte l'appelle, et le test l'éprouve sans ouvrir de porte.
+  function adocDeepDiveParagraphesHTML(paragraphes) {
+    const MARQUEUR = /^\s*[-•]\s+/;
+    const morceaux = [];
+    let puces = null;
+    const fermer = function () {
+      if (puces && puces.length) morceaux.push('<ul class="cc-ws-present-door-list">' + puces.join('') + '</ul>');
+      puces = null;
+    };
+    (paragraphes || []).forEach(function (par) {
+      // Deux formes possibles, cf. adocConvertDeepDives : chaîne simple, ou objet {text,
+      // deepDiveLinks}. Un document produit avant l'ACTE 3 n'a que des chaînes.
+      const estObjet = par && typeof par === 'object' && !Array.isArray(par);
+      const brut = (estObjet ? par.text : par) || '';
+      const liens = estObjet && Array.isArray(par.deepDiveLinks) ? par.deepDiveLinks : [];
+      const estPuce = MARQUEUR.test(brut);
+      // Le marqueur est retiré du texte AVANT tout échappement et tout enrichissement : sans quoi
+      // un renvoi dont l'expression commence le paragraphe ne serait plus retrouvé.
+      const texte = adocEsc(estPuce ? brut.replace(MARQUEUR, '') : brut);
+      // Copie : adocDeepDiveWrapInFragment CONSOMME son pool.
+      const enrichi = liens.length ? adocDeepDiveWrapInFragment(texte, liens.slice()) : null;
+      const chips = liens.map(function (l) {
+        return '<button type="button" class="adoc-sc-deepdive-chip" onclick="window.adocPresentOpenDeepDive(\''
+          + adocEsc(l.targetId) + '\')">↳ Approfondir</button>';
+      }).join('');
+      const corps = (enrichi || texte) + chips;
+      if (estPuce) { if (!puces) puces = []; puces.push('<li>' + corps + '</li>'); }
+      else { fermer(); morceaux.push('<p>' + corps + '</p>'); }
+    });
+    fermer();
+    return morceaux.join('');
+  }
+  window.adocDeepDiveParagraphesHTML = adocDeepDiveParagraphesHTML;
+
   function adocDeepDivePopulateDoor(entry) {
     const state = window._adocPresentState;
     const door = document.getElementById('cc-ws-present-door');
@@ -16884,19 +16951,9 @@ ${recent}`;
     if (!textEl) { console.warn('[Présentation] .cc-ws-present-door-text absent de cette page — approfondissement non affichable.'); return; }
     textEl.innerHTML = adocDeepDivePathHTML(state) +
       '<h2 class="cc-ws-present-door-title">' + adocEsc(entry.title) + '</h2>' +
-      (entry.paragraphs || []).map(function (par) {
-        // ACTE 3 — deux formes possibles, cf. adocConvertDeepDives : chaîne simple, ou objet
-        // {text, deepDiveLinks}. Un document produit avant ce lot n'a que des chaînes.
-        const estObjet = par && typeof par === 'object' && !Array.isArray(par);
-        const texte = adocEsc((estObjet ? par.text : par) || '');
-        const liens = estObjet && Array.isArray(par.deepDiveLinks) ? par.deepDiveLinks : [];
-        // Copie pour l'enrichissement : adocDeepDiveWrapInFragment CONSOMME son pool.
-        const enrichi = liens.length ? adocDeepDiveWrapInFragment(texte, liens.slice()) : null;
-        const puces = liens.map(function (l) {
-          return '<button type="button" class="adoc-sc-deepdive-chip" onclick="window.adocPresentOpenDeepDive(\'' + adocEsc(l.targetId) + '\')">↳ Approfondir</button>';
-        }).join('');
-        return '<p>' + (enrichi || texte) + puces + '</p>';
-      }).join('') +
+      // Rendu extrait dans adocDeepDiveParagraphesHTML : une fonction PURE, éprouvable sans ouvrir
+      // de porte, et qui porte désormais le regroupement des puces.
+      adocDeepDiveParagraphesHTML(entry.paragraphs) +
       adocDeepDiveActionsHTML();
     textEl.hidden = false;
     door.setAttribute('aria-label', 'Approfondissement : ' + entry.title);
@@ -17263,6 +17320,9 @@ ${recent}`;
       // Le garde-fou générique ne la verrait pas — ce n'est pas un onclick. Cinquième occurrence
       // de ce piège ; seul le test qui ouvre l'export et clique dedans le voit.
       adocDeepDiveIconeHTML: adocDeepDiveIconeHTML,
+      // Appelée par adocDeepDivePopulateDoor, elle-même embarquée : sans elle ici, la première
+      // page d'approfondissement ouverte dans un export lèverait une ReferenceError.
+      adocDeepDiveParagraphesHTML: adocDeepDiveParagraphesHTML,
       adocDeepDivePopulateDoor: adocDeepDivePopulateDoor,
       // Appelée par adocPresentOpenImageDoor ET adocPresentOpenDeepDive, toutes deux exportées :
       // sans elle ici, le premier clic sur une image ou une puce dans le fichier exporté
