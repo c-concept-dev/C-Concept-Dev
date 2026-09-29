@@ -35,7 +35,7 @@ const mod = (t, extra) => Object.assign({ titre: t, objectifs: ['o'], notionsCle
     assert.equal(await compte(600), 12, 'plafond à 12 : au-delà ce sont plusieurs séances');
     assert.equal(await compte(null), 2, 'durée inconnue : plancher, jamais une exception');
     assert.equal(await compte(0), 2);
-    console.log('PASS 1/11  nombre de modules : ~15 min chacun, borné 2..12, robuste à l\'absence de durée.');
+    console.log('PASS 1/12  nombre de modules : ~15 min chacun, borné 2..12, robuste à l\'absence de durée.');
 
     // ── 2. CAS NOMINAL ────────────────────────────────────────────────────────────────────────
     const a = await norm([mod('Attachement'), mod('Schémas précoces'), mod('Cycles du couple')], 'Cours', 180);
@@ -43,24 +43,24 @@ const mod = (t, extra) => Object.assign({ titre: t, objectifs: ['o'], notionsCle
     assert.deepEqual(a.p.modules.map(m => m.id), ['m1', 'm2', 'm3'], 'identifiants séquentiels');
     assert.equal(a.p.courseId, 'c1');
     assert.equal(a.p.dureeMinutes, 180);
-    console.log('PASS 2/11  cas nominal : identifiants séquentiels, durée totale conservée.');
+    console.log('PASS 2/12  cas nominal : identifiants séquentiels, durée totale conservée.');
 
     // ── 3. LA DURÉE SE RÉPARTIT SUR LES MODULES RETENUS ───────────────────────────────────────
     // 3 modules pour 3 h font 60 min chacun, jamais 15 : sinon le plan annonce 45 min pour un
     // cours de 180, et l'utilisatrice valide un découpage qui ne tient pas.
     assert.deepEqual(a.p.modules.map(m => m.dureeMinutes), [60, 60, 60]);
-    console.log('PASS 3/11  la durée se répartit sur les modules RÉELLEMENT retenus.');
+    console.log('PASS 3/12  la durée se répartit sur les modules RÉELLEMENT retenus.');
 
     // ── 4. slideCount BORNÉ 10..12 ────────────────────────────────────────────────────────────
     a.p.modules.forEach(m => assert.ok(m.slideCount >= 10 && m.slideCount <= 12, 'slideCount hors bornes : ' + m.slideCount));
     const court = await norm([mod('A'), mod('B')], 'Cours', 20);
     assert.ok(court.p.modules.every(m => m.slideCount >= 10), 'même un module court garde un corps : 10 minimum');
-    console.log('PASS 4/11  slideCount borné 10..12 dans tous les cas.');
+    console.log('PASS 4/12  slideCount borné 10..12 dans tous les cas.');
 
     // ── 5. TROP DE MODULES : tronqué au plafond ───────────────────────────────────────────────
     const vingt = await norm(Array.from({ length: 20 }, (_, i) => mod('M' + (i + 1))), 'Cours', 180);
     assert.equal(vingt.p.modules.length, 12, 'jamais plus de 12, quoi que réponde le modèle');
-    console.log('PASS 5/11  20 modules proposés : ramenés à 12.');
+    console.log('PASS 5/12  20 modules proposés : ramenés à 12.');
 
     // ── 6. RÉPONSES ABÎMÉES ───────────────────────────────────────────────────────────────────
     const sales = await norm([mod('Bon'), { titre: '   ' }, { objectifs: ['x'] }, mod('Autre')], 'Cours', 60);
@@ -68,7 +68,7 @@ const mod = (t, extra) => Object.assign({ titre: t, objectifs: ['o'], notionsCle
     const vide = await norm([{ objectifs: [] }], 'Cours', 60);
     assert.equal(vide.ok, false);
     assert.match(vide.erreur, /aucun module exploitable/, 'un plan vide doit être refusé NOMMÉMENT');
-    console.log('PASS 6/11  modules sans titre écartés ; plan entièrement vide refusé nommément.');
+    console.log('PASS 6/12  modules sans titre écartés ; plan entièrement vide refusé nommément.');
 
     // ── 7. VOCABULAIRE ALTERNATIF et enveloppe {modules:[…]} ──────────────────────────────────
     const alt = await norm({ titre: 'Mon cours', modules: [{ title: 'En anglais', notions: ['n1', 'n2'], objectives: ['o1'] }] }, 'Cours', 30);
@@ -76,7 +76,7 @@ const mod = (t, extra) => Object.assign({ titre: t, objectifs: ['o'], notionsCle
     assert.deepEqual(alt.p.modules[0].notionsCles, ['n1', 'n2'], 'notions comme notionsCles');
     assert.deepEqual(alt.p.modules[0].objectifs, ['o1']);
     assert.equal(alt.p.titre, 'Mon cours', 'le titre du plan est repris s\'il existe');
-    console.log('PASS 7/11  vocabulaire alternatif et enveloppe {modules:[…]} acceptés.');
+    console.log('PASS 7/12  vocabulaire alternatif et enveloppe {modules:[…]} acceptés.');
 
     // ── 8. REQUÊTE DE BIBLIOTHÈQUE toujours renseignée ────────────────────────────────────────
     // Sans elle, la recherche du module part de rien et le module sort creux.
@@ -86,7 +86,7 @@ const mod = (t, extra) => Object.assign({ titre: t, objectifs: ['o'], notionsCle
     const avecRequete = await norm([mod('A', { requeteBibliotheque: 'termes choisis' })], 'Cours', 30);
     assert.equal(avecRequete.p.modules[0].requeteBibliotheque, 'termes choisis', 'celle du modèle l\'emporte');
     assert.deepEqual(erreurs, [], 'aucune erreur de page : ' + erreurs.join(' | '));
-    console.log('PASS 8/11  requête de bibliothèque toujours renseignée, celle du modèle prioritaire.');
+    console.log('PASS 8/12  requête de bibliothèque toujours renseignée, celle du modèle prioritaire.');
 
     // ── 9. TITRES : le rang recopié et la demande recopiée, tous deux mesurés sur un plan RÉEL ──
     // Campagne du 29/09/2026, plan de 3 h pour un Master 2 : les 12 modules ont été rendus sous la
@@ -103,7 +103,7 @@ const mod = (t, extra) => Object.assign({ titre: t, objectifs: ['o'], notionsCle
     assert.equal(await tRang('Module de psychoéducation'), 'Module de psychoéducation',
       '« Module » sans numéro n\'est pas un rang');
     assert.equal(await tRang('Bowlby et Ainsworth'), 'Bowlby et Ainsworth');
-    console.log('PASS 9/11 titres de module : rang recopié retiré, jamais un chiffre légitime.');
+    console.log('PASS 9/12 titres de module : rang recopié retiré, jamais un chiffre légitime.');
 
     // ── 10. TITRE DU COURS : celui du modèle, sinon un repli BORNÉ ───────────────────────────
     const tDEM = 'un cours de 3 heures pour des etudiants de Master 2 en psychologie clinique sur '
@@ -131,7 +131,7 @@ const mod = (t, extra) => Object.assign({ titre: t, objectifs: ['o'], notionsCle
     assert.ok(tModeleRecopie.p.titre.length <= 61, 'une demande recopiée par le modèle est bornée aussi : '
       + tModeleRecopie.p.titre.length);
     assert.ok(tModeleRecopie.p.titre.endsWith('…'));
-    console.log('PASS 10/11 titre du cours : celui du modèle, sinon un repli borné et visible.');
+    console.log('PASS 10/12 titre du cours : celui du modèle, sinon un repli borné et visible.');
 
     // ── 11. LES DEUX ENSEMBLE, sur la forme EXACTE rendue par le modèle en campagne ──────────
     const tPlanReel = await norm({ modules: [
@@ -154,10 +154,68 @@ const mod = (t, extra) => Object.assign({ titre: t, objectifs: ['o'], notionsCle
     ] }, tDEM, 30);
     const tNomNormal = await page.evaluate(p => window.adocCourseModuleName(p, 0), tPlanTitre.p);
     assert.ok(tNomNormal.length <= 120, 'cas normal : ' + tNomNormal.length + ' caractères — ' + tNomNormal);
-    console.log('PASS 11/11 cas réel de campagne — ' + tNomNormal.length + ' car. avec titre, '
+    console.log('PASS 11/12 cas réel de campagne — ' + tNomNormal.length + ' car. avec titre, '
       + tNom.length + ' car. en repli :\n            « ' + tNomNormal + ' »');
 
-    console.log('\nPASS verify-plan-cours — 11/11.');
+    // ── 12. L'APPEL LUI-MÊME : plafond de sortie, forme de la réponse, troncature nommée ─────
+    // `fetch` est simulé : on éprouve la lecture de la réponse, jamais le réseau. Mesuré le
+    // 29/09/2026 en campagne réelle — à 12 modules la réponse arrivait coupée, et le message
+    // parlait d'un « JSON illisible », ce qui envoyait chercher un défaut de format inexistant.
+    const appel = (reponse, duree) => page.evaluate(async ([rep, d]) => {
+      const vrai = window.fetch;
+      let envoye = null;
+      window.fetch = async (url, opts) => {
+        // Le corps réel est { payload: { model, max_tokens, messages } } — le plafond ne vit PAS
+        // à la racine, et le lire à la racine donnait `undefined` sans que rien ne soit faux.
+        envoye = (JSON.parse(opts.body) || {}).payload;
+        return { ok: true, status: 200, json: async () => rep };
+      };
+      try {
+        const plan = await window.adocBuildCoursePlan('une demande', d, 'https://exemple', 'c1');
+        return { ok: true, plan: plan, envoye: envoye };
+      } catch (e) { return { ok: false, erreur: e.message, envoye: envoye }; }
+      finally { window.fetch = vrai; }
+    }, [reponse, duree]);
+    const rep = (texte, stop) => ({ content: [{ text: texte }], stop_reason: stop || 'end_turn' });
+
+    // Le plafond suit le nombre de modules — 12 modules ne peuvent pas tenir dans le plafond de 2.
+    const p12 = await appel(rep('[{"titre":"A"},{"titre":"B"}]'), 180);
+    const p2 = await appel(rep('[{"titre":"A"},{"titre":"B"}]'), 20);
+    assert.ok(p12.ok, 'appel simulé 12 modules : ' + p12.erreur);
+    assert.ok(p2.ok, 'appel simulé 2 modules : ' + p2.erreur);
+    assert.ok(p12.envoye.max_tokens > p2.envoye.max_tokens,
+      'le plafond doit croître avec le nombre de modules : ' + p12.envoye.max_tokens + ' vs ' + p2.envoye.max_tokens);
+    assert.ok(p12.envoye.max_tokens >= 6000, '12 modules : ' + p12.envoye.max_tokens
+      + ' jetons — la réponse coupée en campagne faisait déjà ~1 900 jetons');
+    assert.ok(p12.envoye.max_tokens <= 8000, 'jamais illimité : ' + p12.envoye.max_tokens);
+
+    // Forme OBJET : le titre du modèle est lu. La chercher seulement sous forme de tableau, comme
+    // le faisait ce code, jetait ce titre en silence.
+    const pObjet = await appel(rep('{"titre":"Attachement adulte","modules":[{"titre":"A"},{"titre":"B"}]}'), 30);
+    assert.ok(pObjet.ok, pObjet.erreur);
+    assert.equal(pObjet.plan.titre, 'Attachement adulte', 'le titre de la forme objet doit être lu');
+    assert.equal(pObjet.plan.modules.length, 2);
+
+    // Forme TABLEAU : toujours acceptée, le modèle la rend encore souvent.
+    const pTableau = await appel(rep('[{"titre":"A"},{"titre":"B"}]'), 30);
+    assert.ok(pTableau.ok, pTableau.erreur);
+    assert.equal(pTableau.plan.modules.length, 2);
+    assert.ok(pTableau.plan.titre.startsWith('une demande'), 'sans titre du modèle : repli sur la demande');
+
+    // TRONCATURE : la cause réelle est nommée la première, jamais « JSON illisible » tout court.
+    const pCoupe = await appel(rep('{"titre":"X","modules":[{"titre":"A"},{"titre":"B"', 'max_tokens'), 180);
+    assert.equal(pCoupe.ok, false);
+    assert.match(pCoupe.erreur, /COUPÉE/, 'la troncature doit être dite : ' + pCoupe.erreur);
+    assert.match(pCoupe.erreur, /max_tokens/);
+    assert.match(pCoupe.erreur, /pas un défaut de format/, 'et doit écarter la fausse piste du format');
+
+    // Illisible SANS troncature : le message ne doit PAS accuser une coupure qui n'a pas eu lieu.
+    const pCasse = await appel(rep('{ ceci n\'est pas du JSON }'), 30);
+    assert.equal(pCasse.ok, false);
+    assert.doesNotMatch(pCasse.erreur, /COUPÉE/, 'aucune troncature ici : ' + pCasse.erreur);
+    console.log('PASS 12/12 appel du plan : plafond proportionnel, objet ou tableau, troncature nommée.');
+
+    console.log('\nPASS verify-plan-cours — 12/12.');
   } finally {
     await browser.close();
   }

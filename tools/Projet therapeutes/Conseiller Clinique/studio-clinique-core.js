@@ -8228,7 +8228,11 @@ ${recent}`;
       body: JSON.stringify({ payload: {
         provider: 'anthropic',
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 2000,
+        // MESURÉ le 29/09/2026 : à 12 modules, la réponse s'est arrêtée à ~6 330 caractères et le
+        // JSON est arrivé coupé en plein milieu. 2 000 jetons suffisaient à 3 modules et pas à 12 —
+        // exactement le piège déjà rencontré sur la génération (8 000 → 16 000). Le plafond suit
+        // donc le nombre de modules demandés, avec une marge d'environ trois fois le besoin observé.
+        max_tokens: Math.min(8000, 1000 + n * 450),
         messages: [{ role: 'user', content: invite }],
       } }),
     });
@@ -8245,11 +8249,28 @@ ${recent}`;
     }
     const data = await r.json();
     const texte = (data && (data.content || []).map(function (c) { return c && c.text ? c.text : ''; }).join('')) || '';
-    const m = texte.match(/\[[\s\S]*\]/);
-    if (!m) throw new Error('Plan de cours : aucune liste JSON dans la réponse du modèle.');
-    let brut;
-    try { brut = JSON.parse(m[0]); }
-    catch (e) { throw new Error('Plan de cours : liste JSON illisible (' + e.message + ').'); }
+    // La réponse est arrivée coupée ? C'est la PREMIÈRE chose à dire. Sans cela, une troncature se
+    // présente comme un « JSON illisible » et l'on cherche un défaut de format là où il n'y en a pas
+    // — c'est ce qui est arrivé le 29/09/2026.
+    const coupee = data && data.stop_reason === 'max_tokens';
+    const fin = coupee ? ' — la réponse du modèle a été COUPÉE (stop_reason « max_tokens ») : '
+      + 'le plan était trop long pour le plafond de sortie, ce n\'est pas un défaut de format.' : '';
+    // Objet { titre, modules } d'abord — la forme demandée depuis que le cours a besoin d'un titre —
+    // puis le tableau nu, que le modèle rend encore souvent. Chercher SEULEMENT le tableau, comme
+    // ici auparavant, faisait jeter en silence le titre rendu par le modèle.
+    const mo = texte.match(/\{[\s\S]*\}/);
+    const ma = texte.match(/\[[\s\S]*\]/);
+    if (!mo && !ma) {
+      throw new Error('Plan de cours : aucun JSON dans la réponse du modèle' + (fin || '.'));
+    }
+    let brut = null, derniere = null;
+    for (const cand of [mo, ma]) {
+      if (!cand) continue;
+      try { brut = JSON.parse(cand[0]); break; } catch (e) { derniere = e; }
+    }
+    if (brut === null) {
+      throw new Error('Plan de cours : JSON illisible (' + (derniere && derniere.message) + ')' + (fin || '.'));
+    }
     return adocNormalizeCoursePlan(brut, demande, dureeMinutes, courseId);
   }
   window.adocBuildCoursePlan = adocBuildCoursePlan;
