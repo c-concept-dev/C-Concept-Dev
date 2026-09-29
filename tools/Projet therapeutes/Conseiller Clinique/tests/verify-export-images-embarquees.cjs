@@ -89,7 +89,7 @@ const DOC_SANS_IMAGE = Object.assign({}, DOC, { title: 'Sans image',
     assert.deepEqual(requetes.sort(), ['REQUETE-QUI-ECHOUE', 'attachment infant', 'couple therapy session', 'therapist office'],
       'les couvertures de carte ET les blocs image doivent être trouvés : ' + JSON.stringify(requetes));
     assert.equal(requetes.length, 4, 'la requête présente sur deux cartes n\'est comptée qu\'une fois');
-    console.log('PASS 1/12 collecte : couvertures et blocs image trouvés dans le RENDU, dédoublonnés.');
+    console.log('PASS 1/13 collecte : couvertures et blocs image trouvés dans le RENDU, dédoublonnés.');
 
     // ── 2. UN SEUL TÉLÉCHARGEMENT PAR REQUÊTE ────────────────────────────────────────────────
     const r = await page.evaluate(async d => {
@@ -102,7 +102,7 @@ const DOC_SANS_IMAGE = Object.assign({}, DOC, { title: 'Sans image',
     assert.equal(r.telechargements, 3, 'trois téléchargements : la 4e requête a échoué avant');
     assert.equal(r.rapport.telecharges, 3);
     assert.equal(r.rapport.requetes, 4);
-    console.log('PASS 2/12 dédoublonnage : 5 cartes, 4 requêtes, 3 téléchargements.');
+    console.log('PASS 2/13 dédoublonnage : 5 cartes, 4 requêtes, 3 téléchargements.');
 
     // ── 3. UN ÉCHEC N'EMPORTE PAS LES AUTRES, ET NE MONTRE JAMAIS LA REQUÊTE ─────────────────
     assert.equal(r.rapport.echecs.length, 1);
@@ -120,26 +120,26 @@ const DOC_SANS_IMAGE = Object.assign({}, DOC, { title: 'Sans image',
       'le texte alternatif sert de repli lisible : ' + repli.slice(0, 200));
     assert.ok(!repli.includes('REQUETE-QUI-ECHOUE') && !repli.includes(encodeURIComponent('REQUETE-QUI-ECHOUE')),
       'la REQUÊTE ne doit JAMAIS devenir visible — elle l\'a déjà été devant un public');
-    console.log('PASS 3/12 échec isolé : les 3 autres images passent, repli lisible, requête jamais affichée.');
+    console.log('PASS 3/13 échec isolé : les 3 autres images passent, repli lisible, requête jamais affichée.');
 
     // ── 4. LES CRÉDITS, GROUPÉS ET DÉDOUBLONNÉS ──────────────────────────────────────────────
     assert.deepEqual(r.credits.map(c => c.auteur), ['Alice Martin', 'Bob Durand'],
       'deux auteurs, triés, jamais un doublon par image');
-    console.log('PASS 4/12 crédits : un auteur = une entrée, ordre stable.');
+    console.log('PASS 4/13 crédits : un auteur = une entrée, ordre stable.');
 
     // ── 5. LE FICHIER EXPORTÉ PORTE SES IMAGES ───────────────────────────────────────────────
     const html = await page.evaluate(d => window.__construire(d), DOC);
     assert.ok(html.includes('window.ADOC_EXPORT_IMAGES = '), 'le dictionnaire doit être écrit dans le fichier');
     assert.ok(html.includes('data:image/'), 'des octets d\'image doivent figurer dans le fichier');
     assert.match(html, /Photographies : Alice Martin, Bob Durand — Pexels\./, 'la mention de crédits doit être présente');
-    console.log('PASS 5/12 fichier exporté : dictionnaire écrit, octets présents, crédits mentionnés (' + Math.round(html.length / 1024) + ' Ko).');
+    console.log('PASS 5/13 fichier exporté : dictionnaire écrit, octets présents, crédits mentionnés (' + Math.round(html.length / 1024) + ' Ko).');
 
     // ── 6. AUCUNE CLÉ DANS LE FICHIER — le test qui doit échouer si une clé fuit ─────────────
     const hex64 = html.match(/\b[0-9a-fA-F]{64}\b/g) || [];
     assert.deepEqual(hex64, [], 'chaîne de 64 caractères hexadécimaux trouvée dans l\'export : ' + hex64.slice(0, 2));
     assert.ok(!/["'][A-Za-z0-9_\-]{40,}["']\s*\)?\s*;?\s*$/m.test(html.split('ADOC_EXPORT_IMAGES')[0]),
       'aucun jeton long ne doit précéder le dictionnaire');
-    console.log('PASS 6/12 sécurité : aucune chaîne de 64 caractères hexadécimaux dans le fichier exporté.');
+    console.log('PASS 6/13 sécurité : aucune chaîne de 64 caractères hexadécimaux dans le fichier exporté.');
 
     // ── 7. UN DOCUMENT SANS IMAGE RESTE IDENTIQUE, ET NE TÉLÉCHARGE RIEN ─────────────────────
     const sans = await page.evaluate(async d => {
@@ -151,7 +151,7 @@ const DOC_SANS_IMAGE = Object.assign({}, DOC, { title: 'Sans image',
     assert.equal(sans.photos, 0, 'aucun appel de résolution pour un document sans image');
     assert.equal(sans.tel, 0, 'aucun téléchargement — donc aucune latence ajoutée');
     assert.equal(sans.dictionnaireVide, true, 'le dictionnaire est vide, jamais absent');
-    console.log('PASS 7/12 document sans image : zéro appel, zéro téléchargement, dictionnaire vide (' + sans.ko + ' Ko).');
+    console.log('PASS 7/13 document sans image : zéro appel, zéro téléchargement, dictionnaire vide (' + sans.ko + ' Ko).');
 
     // ── 8. À L'OUVERTURE, LE CACHE PASSE AVANT TOUT RÉSEAU ───────────────────────────────────
     const lecture = await page.evaluate(async () => {
@@ -175,7 +175,7 @@ const DOC_SANS_IMAGE = Object.assign({}, DOC, { title: 'Sans image',
     assert.equal(lecture.srcImg, 'data:image/jpeg;base64,AAAA');
     assert.match(lecture.fond, /data:image\/svg\+xml/, 'le fond aussi est servi depuis le cache');
     assert.equal(lecture.restantsEnAttente, 0, 'aucune référence ne doit rester non résolue');
-    console.log('PASS 8/12 ouverture : les deux formes servies depuis le cache, ZÉRO appel réseau.');
+    console.log('PASS 8/13 ouverture : les deux formes servies depuis le cache, ZÉRO appel réseau.');
 
 
     // ── 9. LES REPRISES SUR 429 — le remède, éprouvé sans attendre ni payer ──────────────────
@@ -223,7 +223,7 @@ const DOC_SANS_IMAGE = Object.assign({}, DOC, { title: 'Sans image',
     }, DOC);
     assert.equal(abandon.length, 4);
     assert.match(abandon[0].cause, /429 — Too Many Requests/, 'le corps de l\'erreur est conservé, pas seulement le code');
-    console.log('PASS 9/12 reprises : 429 rejoué jusqu\'au succès, 401 jamais rejoué, abandon avec sa cause réelle.');
+    console.log('PASS 9/13 reprises : 429 rejoué jusqu\'au succès, 401 jamais rejoué, abandon avec sa cause réelle.');
 
     // ── 10. L'ESPACEMENT EST RÉEL ───────────────────────────────────────────────────────────
     const espacement = await page.evaluate(async d => {
@@ -235,7 +235,7 @@ const DOC_SANS_IMAGE = Object.assign({}, DOC, { title: 'Sans image',
     }, DOC);
     assert.ok(espacement.length >= 3, 'plusieurs intervalles doivent être mesurables');
     assert.ok(espacement.every(x => x >= 110), 'chaque requête est espacée de la précédente : ' + JSON.stringify(espacement));
-    console.log('PASS 10/12 espacement : ' + JSON.stringify(espacement) + ' ms entre requêtes (consigne 120).');
+    console.log('PASS 10/13 espacement : ' + JSON.stringify(espacement) + ' ms entre requêtes (consigne 120).');
 
 
     // ── 11. QUOTA DU FOURNISSEUR : reconnu, jamais combattu ──────────────────────────────────
@@ -261,7 +261,7 @@ const DOC_SANS_IMAGE = Object.assign({}, DOC, { title: 'Sans image',
     assert.equal(quota.rapport.quotaAtteintALaRequete, 2, 'et situé à la requête où il commence');
     assert.equal(quota.rapport.echecs.length, 3, 'les 3 requêtes suivantes échouent, proprement');
     assert.ok(quota.rapport.echecs.every(e => e.quotaExterne), 'chaque échec porte sa nature');
-    console.log('PASS 11/12 quota externe : reconnu, jamais réessayé, nommé et situé dans le rapport.');
+    console.log('PASS 11/13 quota externe : reconnu, jamais réessayé, nommé et situé dans le rapport.');
 
     // ── 12. LE RANG DE CHAQUE ÉCHEC — ce qui distingue une rafale d'un quota ─────────────────
     const rangs = await page.evaluate(async d => {
@@ -276,8 +276,27 @@ const DOC_SANS_IMAGE = Object.assign({}, DOC, { title: 'Sans image',
     assert.equal(typeof rangs[0].rang, 'number', 'le rang doit être conservé');
     assert.ok(rangs[0].rang >= 1 && rangs[0].rang <= 4, 'rang plausible : ' + rangs[0].rang);
     assert.equal(rangs[0].quotaExterne, false, 'un 500 n\'est pas un quota de fournisseur');
-    console.log('PASS 12/12 rang conservé : un échec dispersé se distingue d\'un quota groupé sans archéologie.');
+    console.log('PASS 12/13 rang conservé : un échec dispersé se distingue d\'un quota groupé sans archéologie.');
 
+
+    // ── 13. L'AVIS DE QUOTA — dit AVANT l'attente, jamais après ──────────────────────────────
+    // MESURÉ le 29/09/2026 : 121 images en 172,6 s quota reposé ; le même cours une heure plus tôt,
+    // compteur déjà entamé, a vu 21 puis 59 images refusées. L'utilisatrice doit connaître les deux
+    // faits — la durée et la contrainte partagée — pendant qu'il est encore temps de renoncer.
+    const avis = n => page.evaluate(x => window.adocExportImageNotice(x), n);
+    assert.equal(await avis(0), null, 'aucun avis sans image');
+    assert.equal(await avis(12), null, 'aucun avis pour une présentation courte — ce serait du bruit');
+    assert.equal(await avis(59), null, 'le seuil est à 60');
+    const a121 = await avis(121);
+    assert.ok(a121, 'un cours de 12 modules doit être annoncé');
+    assert.match(a121, /121 images/, 'le nombre réel, jamais un ordre de grandeur vague');
+    assert.match(a121, /3 minutes/, '121 × 1,4 s ≈ 3 min — la durée mesurée, pas devinée');
+    assert.match(a121, /estimation/, 'annoncée comme une estimation');
+    assert.match(a121, /200 par heure/, 'la contrainte de quota est chiffrée');
+    assert.match(a121, /toutes productions confondues/, 'et dite PARTAGÉE — c\'est ce qui surprend');
+    assert.match(a121, /restent dans le fichier/, 'et ce qui est acquis est dit acquis');
+    assert.doesNotMatch(a121, /€|\$|coût|crédit/i, 'jamais d\'argent');
+    console.log('PASS 13/13 avis de quota : « ' + a121.slice(0, 96) + '… »');
 
     assert.deepEqual(erreurs, [], 'erreurs de page : ' + erreurs.join(' | '));
     // Les requêtes d'OUVERTURE de la page (statistiques de bibliothèque, chartes) sont
@@ -286,7 +305,7 @@ const DOC_SANS_IMAGE = Object.assign({}, DOC, { title: 'Sans image',
     assert.deepEqual(versImages, [], 'appels d\'image réels alors que tout est simulé : ' + versImages.join(', '));
     console.log('\n  Réseau relevé (ouverture de la page uniquement, tout coupé) :\n'
       + reseau.map(u => '    ' + u.replace(/\?.*$/, '')).join('\n'));
-    console.log('\nTOUT PASSE — 12/12, réseau simulé, aucun appel réel.');
+    console.log('\nTOUT PASSE — 13/13, réseau simulé, aucun appel réel.');
   } finally {
     await browser.close();
   }

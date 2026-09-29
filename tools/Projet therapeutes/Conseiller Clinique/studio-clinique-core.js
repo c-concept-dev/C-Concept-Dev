@@ -17317,6 +17317,29 @@ ${recent}`;
   // (jamais legacy, jamais Carrousel — même garde-fou EXACT que le bouton "Présenter", cf.
   // adocOpenWorkspace ci-dessous), jamais construit à l'aveugle : revérifié ici comme partout
   // ailleurs (aucune confiance dans l'état du bouton seul).
+  // Le quota du fournisseur d'images est HORAIRE et PARTAGÉ par toute la clé. MESURÉ le
+  // 29/09/2026 : un cours de 12 modules demande 121 images, et deux exports de cette taille dans la
+  // même heure ne passent pas — le second s'est vu refuser 21 puis 59 images selon le remplissage
+  // du compteur. L'utilisatrice doit le savoir AVANT trois minutes d'attente, pas après.
+  //
+  // 1,4 s par image : 172,6 s mesurées pour 121 images, quota reposé. Annoncé comme une estimation.
+  const ADOC_EXPORT_IMG_SECONDES_PAR_IMAGE = 1.4;
+  const ADOC_EXPORT_IMG_QUOTA_HORAIRE = 200;
+  // En dessous, l'attente est courte et le quota hors de portée : un avertissement y serait du bruit.
+  const ADOC_EXPORT_IMG_SEUIL_AVIS = 60;
+
+  function adocExportImageNotice(nbImages) {
+    if (!nbImages || nbImages < ADOC_EXPORT_IMG_SEUIL_AVIS) return null;
+    const minutes = Math.max(1, Math.round(nbImages * ADOC_EXPORT_IMG_SECONDES_PAR_IMAGE / 60));
+    return 'Préparation de l\'export : ' + nbImages + ' images à télécharger, environ ' + minutes
+      + ' minute' + (minutes > 1 ? 's' : '') + ' (estimation). '
+      + 'La banque d\'images limite les recherches à ' + ADOC_EXPORT_IMG_QUOTA_HORAIRE + ' par heure, '
+      + 'toutes productions confondues : un second export de cette taille dans l\'heure qui suit '
+      + 'verrait une partie de ses illustrations remplacées par un aplat. Les images déjà obtenues, '
+      + 'elles, restent dans le fichier.';
+  }
+  window.adocExportImageNotice = adocExportImageNotice;
+
   // ASYNC depuis l'embarquement des images : un cours de douze modules télécharge plus de cent
   // couvertures avant d'écrire le fichier. Le bouton se désactive et dit où en est la préparation —
   // sans cela, l'utilisatrice cliquerait plusieurs fois sur un bouton qui paraît inerte et
@@ -17330,6 +17353,13 @@ ${recent}`;
     const btn = document.getElementById('cc-ws-export-standalone-presentation-btn');
     const libelleInitial = btn ? btn.textContent : null;
     if (btn) { btn.disabled = true; btn.textContent = 'Préparation de l\'export…'; }
+    // Le compte des images est PUR et local (aucun appel) : il peut donc être annoncé avant de
+    // lancer quoi que ce soit, ce qui est tout l'intérêt — dire l'attente et la contrainte de quota
+    // pendant qu'il est encore temps de renoncer.
+    try {
+      const avis = adocExportImageNotice(adocCollectExportImageQueries(doc).length);
+      if (avis) adocAddMsg('assistant', avis, []);
+    } catch (e) { console.warn('[export] avis de quota non affiché :', e && e.message); }
     try {
       const html = await adocBuildStandalonePresentationHTML(doc, {
         surProgression: function (e) {
