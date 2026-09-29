@@ -18,12 +18,22 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 
-// Empreinte mise à jour VOLONTAIREMENT le 28/09/2026 après le retrait du bloc quiz de la
-// génération (enum + trois champs). Valeur précédente : f1284c2f7eb7ded1, 6841 octets — schéma
-// pour lequel la mesure par appels réels avait montré une marge NULLE aux trois niveaux
-// d'insertion. Le retrait rend 523 octets et rouvre de la marge.
-const EMPREINTE = '918126ddfddc2276';
-const TAILLE = 6289;
+// Empreinte mise à jour VOLONTAIREMENT le 29/09/2026 après l'ajout d'imageQuery et imageAlt à une
+// entrée deepDives (illustration d'une page d'approfondissement) — VALIDÉ PAR APPEL RÉEL avant ce
+// changement : smoke-schema-outil-reel.cjs rend HTTP 200 sur PRESENTATION à 6544 octets. La marge
+// tient donc à +2 chaînes scalaires (23 → 25).
+//
+// Les descriptions de ces deux champs sont volontairement COURTES. Écrites en entier, elles
+// portaient le schéma à 6916 octets — AU-DESSUS des 6841 d'un schéma dont la marge était mesurée
+// nulle. Rien ne dit que les descriptions comptent dans la grammaire compilée, mais brûler de la
+// marge pour du texte explicatif serait absurde : le détail vit dans buildPromptSuffix, hors
+// grammaire et donc sans coût.
+//
+// Valeurs précédentes :
+//   918126ddfddc2276, 6289 o — après le retrait du bloc quiz (28/09), qui rendait 523 octets ;
+//   f1284c2f7eb7ded1, 6841 o — schéma dont les appels réels montraient une marge NULLE.
+const EMPREINTE = '2c4f1bba7858e736';
+const TAILLE = 6544;
 
 function extraire(source, nom) {
   const debut = source.indexOf('  const ' + nom + ' = {');

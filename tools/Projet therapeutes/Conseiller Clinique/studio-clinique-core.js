@@ -13252,6 +13252,28 @@ ${recent}`;
             properties: {
               id: { type: 'string', description: "Identifiant court choisi par le modèle (ex. 'deepdive-cortisol') — référencé tel quel par targetId depuis un bloc de diapositive." },
               title: { type: 'string', description: "Titre de la page d'approfondissement." },
+              // POINT A — illustration d'une page. Deux chaînes plates, calquées sur
+              // coverImageQuery/coverImageAlt d'une carte : le patron est déjà éprouvé, et sa
+              // résolution différée (adocResolveImages) fonctionne sur les quatre formes de
+              // référence que connaît adocCollectImageNodes.
+              //
+              // Coût MESURÉ sur le schéma source : +2 chaînes scalaires (23 → 25), +173 octets
+              // (6289 → 6462). La marge n'avait plus été mesurée depuis le retrait du bloc quiz,
+              // qui avait rendu 523 octets sur un schéma dont la marge était NULLE — d'où la
+              // validation par appel réel, seule preuve possible.
+              //
+              // REQUISES comme les quatre autres : additionalProperties vaut false et tous les
+              // champs de cette entrée sont requis. Le modèle doit donc les émettre sur CHAQUE
+              // page, vides quand aucune image n'a lieu d'être — même convention que
+              // coverImageQuery, mais avec le défaut INVERSE : pour une couverture de carte le
+              // défaut est l'image, pour une page c'est l'absence d'image.
+              // Descriptions VOLONTAIREMENT COURTES. Elles comptent peut-être dans la grammaire
+              // compilée — rien ne le dit, et la seule mesure disponible (6841 octets = marge nulle)
+              // portait sur un schéma de structure différente. Le détail de la consigne vit donc
+              // dans le prompt (buildPromptSuffix), qui ne coûte RIEN en grammaire : c'est là qu'on
+              // explique QUAND une image a de la valeur sur une page.
+              imageQuery: { type: 'string', description: "Requête Pexels en anglais, ou chaîne vide si la page n'a rien à illustrer." },
+              imageAlt: { type: 'string', description: "Texte alternatif en français ; vide si imageQuery est vide." },
               // Présentation ACTE 3 — CORRECTIF du 28/09, MESURÉ contre l'API réelle.
               // La première version imbriquait les liens DANS chaque paragraphe (tableau d'objets
               // contenant un tableau d'objets). Schéma strict et conforme par toutes les mesures
@@ -13282,7 +13304,7 @@ ${recent}`;
                 description: "Renvois de CETTE page vers d'AUTRES pages d'approfondissement. Une entrée par renvoi, au format exact « expression → id », où l'expression (2 à 4 mots) est recopiée TELLE QUELLE depuis l'un des paragraphes ci-dessus et où id est celui d'une autre entrée de deepDives, jamais celui de cette page. Exemple : « boucle de retour → deepdive-cortisol ». Au plus 1 à 2 par page ; liste vide dans le cas normal, très largement majoritaire.",
               },
             },
-            required: ['id', 'title', 'paragraphs', 'deepDiveLinks'],
+            required: ['id', 'title', 'imageQuery', 'imageAlt', 'paragraphs', 'deepDiveLinks'],
             additionalProperties: false,
           },
           description: "Pages d'approfondissement référencées par deepDiveLinks[].targetId — liste vide si aucun lien d'approfondissement n'est utilisé dans cette présentation.",
