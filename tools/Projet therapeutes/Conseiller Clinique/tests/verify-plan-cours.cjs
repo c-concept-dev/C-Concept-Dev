@@ -99,9 +99,9 @@ const mod = (t, extra) => Object.assign({ titre: t, objectifs: ['o'], notionsCle
     assert.equal(await tRang('Séance 2 — Évaluation'), 'Évaluation');
     assert.equal(await tRang('4) Interventions'), 'Interventions');
     assert.equal(await tRang('Les 4 styles d\'attachement'), 'Les 4 styles d\'attachement',
-      'un chiffre DANS le titre n\'est pas un tRang : jamais amputé');
+      'un chiffre DANS le titre n\'est pas un rang : jamais amputé');
     assert.equal(await tRang('Module de psychoéducation'), 'Module de psychoéducation',
-      '« Module » sans numéro n\'est pas un tRang');
+      '« Module » sans numéro n\'est pas un rang');
     assert.equal(await tRang('Bowlby et Ainsworth'), 'Bowlby et Ainsworth');
     console.log('PASS 9/11 titres de module : rang recopié retiré, jamais un chiffre légitime.');
 
@@ -121,9 +121,16 @@ const mod = (t, extra) => Object.assign({ titre: t, objectifs: ['o'], notionsCle
     const tPrefixe = await norm({ titre: 'Cours : Attachement adulte', modules: [mod('A'), mod('B')] }, tDEM, 60);
     assert.equal(tPrefixe.p.titre, 'Attachement adulte', '« Cours : » recopié est retiré — il est déjà dans le nom');
     const tTitreVide = await norm({ titre: '   ', modules: [mod('A'), mod('B')] }, tDEM, 60);
-    assert.ok(tTitreVide.p.titre.endsWith('…'), 'un titre tTitreVide retombe sur le repli, jamais sur une chaîne tTitreVide');
+    assert.ok(tTitreVide.p.titre.endsWith('…'), 'un titre fait d\'espaces retombe sur le repli, jamais sur « Cours »');
     const tLongModele = await norm({ titre: 'x'.repeat(300), modules: [mod('A'), mod('B')] }, tDEM, 60);
-    assert.equal(tLongModele.p.titre.length, 100, 'le titre du modèle est borné lui aussi');
+    assert.equal(tLongModele.p.titre.length, 61, 'le titre du modèle subit la MÊME borne que le repli');
+    assert.ok(tLongModele.p.titre.endsWith('…'));
+    // Mesuré le 29/09/2026 : interrogé avec l'invite qui demande « 3 à 8 mots », le modèle a rendu
+    // la demande ENTIÈRE comme titre. Une consigne d'invite ne remplace pas une borne.
+    const tModeleRecopie = await norm({ titre: tDEM, modules: [mod('A'), mod('B')] }, tDEM, 60);
+    assert.ok(tModeleRecopie.p.titre.length <= 61, 'une demande recopiée par le modèle est bornée aussi : '
+      + tModeleRecopie.p.titre.length);
+    assert.ok(tModeleRecopie.p.titre.endsWith('…'));
     console.log('PASS 10/11 titre du cours : celui du modèle, sinon un repli borné et visible.');
 
     // ── 11. LES DEUX ENSEMBLE, sur la forme EXACTE rendue par le modèle en campagne ──────────

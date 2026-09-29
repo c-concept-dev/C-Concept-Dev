@@ -48,6 +48,7 @@ const releve = { phase: PHASE, debut: new Date().toISOString(), mode: LOCAL ? 'l
 async function preparer(browser) {
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
   let servies = 0;
+  const serviesListe = [], lecturesRatees = [];
   const contactes = new Set(), bloques = new Set();
   await page.route('**/*', route => {
     const u = route.request().url();
@@ -57,15 +58,20 @@ async function preparer(browser) {
       const f = path.join(RACINE, rel);
       if (!f.startsWith(RACINE)) return route.abort();
       try {
-        const corps = fs.readFileSync(f); servies++;
+        const corps = fs.readFileSync(f); servies++; serviesListe.push(rel);
         return route.fulfill({ status: 200, body: corps,
           contentType: TYPES[path.extname(f).toLowerCase()] || 'application/octet-stream' });
-      } catch (_) { return route.continue(); }
+      } catch (e) {
+        // Jamais un repli silencieux vers la version PUBLIEE : la campagne mesurerait alors un
+        // autre code que celui du disque, et son rapport serait faux sans que rien ne le dise.
+        lecturesRatees.push(rel + ' (' + e.code + ')');
+        return route.abort();
+      }
     }
     if (!LOCAL && u.startsWith(ORIGINE)) { contactes.add(new URL(u).host); return route.continue(); }
     if (u.startsWith(WORKER)) { contactes.add(new URL(u).host); return route.continue(); }
     // Dependances DECLAREES de l'application : de simples GET statiques, qui n'emportent rien.
-    if (/^https:\/\/(cdnjs\.cloudflare\.com|fonts\.(googleapis|gstatic)\.com)\//.test(u)) {
+    if (/^https:\/\/(cdnjs\.cloudflare\.com|fonts\.(googleapis|gstatic)\.com|images\.pexels\.com)\//.test(u)) {
       contactes.add(new URL(u).host); return route.continue();
     }
     try { bloques.add(new URL(u).host); } catch (_) { bloques.add(u.slice(0, 40)); }
@@ -91,10 +97,24 @@ async function preparer(browser) {
   });
   await page.waitForFunction(() => typeof window.adocRunCourseGeneration === 'function'
     && typeof window.adocBuildCoursePlan === 'function');
-  return { page, contactes, bloques, servies: () => servies };
+  return { page, contactes, bloques, serviesListe: serviesListe, lecturesRatees: lecturesRatees,
+           servies: () => servies };
+}
+
+// Verifie, AVANT le premier appel paye, que le code mesure est bien celui du disque. Le 29/09/2026
+// une campagne a tourne sur la version d'avant un correctif pousse quatre minutes plus tard : rien
+// ne le disait, et il a fallu comparer des horodatages apres coup pour le comprendre.
+function verifierFraicheur(ctx) {
+  if (!LOCAL) return null;
+  if (ctx.lecturesRatees.length) return 'fichiers illisibles sur le disque : ' + ctx.lecturesRatees.join(', ');
+  const requis = ['studio-clinique.html', 'studio-clinique-core.js'];
+  const manquants = requis.filter(f => !ctx.serviesListe.includes(f));
+  if (manquants.length) return 'non servis depuis le disque : ' + manquants.join(', ');
+  return null;
 }
 
 function finir(ctx, code) {
+  releve.fichiersServisDepuisLeDisque = ctx.serviesListe;
   releve.hotesContactes = [...ctx.contactes].sort();
   releve.hotesBloques = [...ctx.bloques].sort();
   releve.fin = new Date().toISOString();
@@ -115,6 +135,24 @@ function finir(ctx, code) {
     const page = ctx.page;
     console.log('Adresse imposee : ' + WORKER + ' (verifiee sur les requetes reellement emises)');
     console.log('Mode : ' + (LOCAL ? 'fichiers LOCAUX servis sous l\'adresse publiee' : 'VERSION PUBLIEE'));
+    const pasFrais = verifierFraicheur(ctx);
+    if (pasFrais) {
+      console.error('ECHEC AVANT TOUT APPEL — ' + pasFrais);
+      console.error('  La campagne ne mesurerait pas le code du disque. Aucun appel emis.');
+      releve.echec = 'fraicheur : ' + pasFrais;
+      return finir(ctx, 2);
+    }
+    if (LOCAL) console.log('Fraicheur : ' + ctx.serviesListe.length + ' fichier(s) servi(s) depuis le disque ('
+      + ctx.serviesListe.join(', ') + ')');
+    // Repere de version : ce que git a sous la main au moment du lancement, pour que le releve dise
+    // sur QUEL code il porte — jamais deduit apres coup.
+    try {
+      releve.commit = require('node:child_process').execSync('git rev-parse --short HEAD',
+        { cwd: RACINE, encoding: 'utf8' }).trim();
+      releve.arbreModifie = require('node:child_process').execSync('git status --porcelain -- studio-clinique-core.js',
+        { cwd: RACINE, encoding: 'utf8' }).trim().length > 0;
+      console.log('Code mesure : ' + releve.commit + (releve.arbreModifie ? ' + modifications NON COMMITEES' : ''));
+    } catch (_) { releve.commit = '(inconnu)'; }
 
     // ── PHASE A — le plan seul ────────────────────────────────────────────────────────────────
     if (PHASE === 'a') {
@@ -303,9 +341,18 @@ function finir(ctx, code) {
       if (m.assemble.rapport.modulesOmis.length) echecs.push('modules omis : ' + m.assemble.rapport.modulesOmis.join(', '));
     }
     const v = await page.evaluate(() => {
-      const d = window._adocLastStructuredDoc;
+      const ui = window._adocCourseUI;
+      const art = ui && ui.assemble && window._adocArtifacts ? window._adocArtifacts[ui.assemble.storeKey] : null;
+      // Le document BRUT, celui que l'artefact conserve — JAMAIS validatedDoc. Mesure du 29/09/2026 :
+      // adocValidateClinicalDocument annote chaque bloc d'un champ interne `_status` que le schema
+      // interdit (additionalProperties:false), et valider cet objet-la faisait accuser a tort le
+      // document assemble. Reproduit hors ligne sur un document forge : brut valide, validatedDoc
+      // refuse, seul champ ajoute `_status`.
+      const d = art && art._adocStructuredDoc ? { doc: art._adocStructuredDoc } : null;
       if (!d) return null;
       const vd = window.adocValidateSchema('clinicalDocument', d.doc);
+      const annote = window._adocLastStructuredDoc
+        ? window.adocValidateSchema('clinicalDocument', window._adocLastStructuredDoc.doc) : null;
       // Les approfondissements du cours assemble sont le rejeu d'adocConvertDeepDives : verifie
       // par le FAIT qu'aucun renvoi ne pointe dans le vide et qu'aucun cycle ne subsiste.
       const pages = d.doc.deepDives || [];
@@ -323,14 +370,19 @@ function finir(ctx, code) {
         while (cur && chaine[cur] && chaine[cur].length) { if (vus.has(cur)) { cycle = true; return; } vus.add(cur); cur = chaine[cur][0]; }
       });
       return { valide: !!vd.valid, ignore: !!vd.skipped, erreurs: (vd.errors || []).slice(0, 5).map(String),
+        annoteValide: annote ? !!annote.valid : null,
         pages: pages.length, renvois: renvois.length,
         renvoisOrphelins: renvois.filter(t => !ids.has(t)), cycle: cycle,
         modules: (d.doc.modules || []).map(x => x.id), titresModules: (d.doc.modules || []).map(x => x.title) };
     });
     if (!v) { echecs.push('aucun document assemble en memoire'); }
     else {
-      console.log('  schema clinicalDocument : ' + (v.ignore ? 'AJV INACTIF — rien n\'est prouve'
+      console.log('  schema clinicalDocument (document BRUT) : ' + (v.ignore ? 'AJV INACTIF — rien n\'est prouve'
         : v.valide ? 'valide' : 'INVALIDE — ' + v.erreurs.join(' | ')));
+      // Rapporte pour memoire, jamais compte comme un echec : validatedDoc porte `_status` par
+      // construction, et c'est le document BRUT qui est conserve, exporte et re-valide.
+      console.log('  (pour memoire, la copie annotee validatedDoc : '
+        + (v.annoteValide === null ? 'absente' : v.annoteValide ? 'valide' : 'refusee — normal, elle porte _status') + ')');
       if (v.ignore) echecs.push('AJV inactif : la validation du schema ne prouve rien');
       if (!v.valide && !v.ignore) echecs.push('document assemble invalide au schema');
       console.log('  approfondissements : ' + v.pages + ' page(s), ' + v.renvois + ' renvoi(s), '
@@ -379,8 +431,23 @@ function finir(ctx, code) {
       });
       console.log('  ouverture : ' + ouverture + ' ms · sommaire : ' + exp.diapositives + ' diapositives, '
         + exp.approfondissements + ' approfondissement(s)');
-      console.log('  intitules de module dans le sommaire : ' + JSON.stringify(exp.intitules));
-      if (exp.intitules.length !== 3) echecs.push('sommaire groupe : ' + exp.intitules.length + ' intitule(s) au lieu de 3');
+      console.log('  intitules dans le sommaire : ' + JSON.stringify(exp.intitules));
+      // Le sommaire groupe porte un intitule par module, PLUS la section « Approfondissements »
+      // quand le cours en contient (lot B3). Exiger exactement 3 etait une erreur de ce test.
+      const intitulesModules = exp.intitules.filter(t => !/^approfondissement/i.test(t));
+      if (intitulesModules.length !== 3) {
+        echecs.push('sommaire groupe : ' + intitulesModules.length + ' intitule(s) de module au lieu de 3');
+      }
+      const sectionAppro = exp.intitules.some(t => /^approfondissement/i.test(t));
+      if (exp.approfondissements > 0 && !sectionAppro) {
+        echecs.push('des pages d\'approfondissement existent mais le sommaire n\'en annonce aucune section');
+      }
+      plan.modules.forEach((mod, i) => {
+        if (!intitulesModules[i] || intitulesModules[i] !== mod.titre) {
+          echecs.push('sommaire, intitule ' + (i + 1) + ' : « ' + (intitulesModules[i] || '(absent)')
+            + ' » au lieu de « ' + mod.titre + ' »');
+        }
+      });
       // Un lien d'approfondissement REELLEMENT clique : c'est la seule facon de voir une fonction
       // interne oubliee d'engineFnRefs, qui ne se manifeste qu'en ReferenceError au clic.
       const gestes = await vue.evaluate(async () => {

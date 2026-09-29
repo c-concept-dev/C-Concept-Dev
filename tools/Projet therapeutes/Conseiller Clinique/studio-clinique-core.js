@@ -8177,11 +8177,15 @@ ${recent}`;
     const taille = adocCourseModuleSizing(dureeMinutes, propres.length);
     return {
       courseId: courseId,
-      // Le titre du modèle est préféré ; il est lui aussi débarrassé d'un « Cours : » recopié, et
-      // borné, parce qu'il est ensuite préfixé au nom de chacune des pièces.
-      titre: ((brut && brut.titre)
-        ? adocStripEmoji(String(brut.titre).trim()).replace(/^\s*cours\s*[:\-–—]\s*/i, '').slice(0, 100)
-        : '') || adocCourseFallbackTitle(demande) || 'Cours',
+      // Le titre du modèle est préféré, débarrassé d'un « Cours : » recopié — puis soumis à la MÊME
+      // borne que le repli. Mesuré deux fois sur des réponses réelles : le modèle ignore « 3 à 8
+      // mots » et recopie volontiers la demande entière. Une consigne d'invite ne se substitue pas
+      // à une borne, et ce titre préfixe le nom de chacune des pièces.
+      // Le `.trim()` avant le `||` n'est pas cosmétique : un titre fait d'espaces est TRUTHY, il
+      // court-circuiterait le repli sur la demande et le cours s'appellerait « Cours ».
+      titre: adocCourseFallbackTitle(
+        ((brut && brut.titre) ? String(brut.titre).replace(/^\s*cours\s*[:\-–—]\s*/i, '').trim() : '')
+        || demande) || 'Cours',
       dureeMinutes: taille.total,
       modules: propres.map(function (m, i) {
         return {
@@ -8440,10 +8444,10 @@ ${recent}`;
   //   2. le plan — modifiable AVANT de dépenser le premier appel ;
   //   3. la progression, puis le récapitulatif avec reprise module par module.
 
-  // Estimation de durée par module. ATTENTION : ce chiffre n'est PAS mesuré. Il sert seulement à
-  // ce que l'utilisatrice sache si elle en a pour trois minutes ou pour une demi-heure avant de
-  // lancer. À remplacer par la médiane réellement observée dès la première campagne réelle.
-  const ADOC_COURSE_MINUTES_PAR_MODULE = 3;
+  // Durée par module. MESURÉE, campagne du 29/09/2026 : 3 modules de 10 diapositives en 96 s,
+  // 117 s et 128 s — médiane 117 s. Arrondi à 2 minutes, en sachant que la mesure porte sur trois
+  // modules seulement et que les modules plus longs n'ont pas encore été chronométrés.
+  const ADOC_COURSE_MINUTES_PAR_MODULE = 2;
 
   // ── 1. L'OFFRE ────────────────────────────────────────────────────────────────────────────
   const ADOC_COURSE_CHOIX_MODULES = 'Cours en modules (recommandé)';
