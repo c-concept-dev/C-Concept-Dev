@@ -114,8 +114,26 @@ const releve = { debut: new Date().toISOString(), source: path.basename(SOURCE),
       const ko = n => Math.round(n / 1024);
       console.log('  poids : ' + ko(avant) + ' Ko → ' + ko(r.octets) + ' Ko (+' + ko(r.octets - avant) + ' Ko)');
       console.log('  préparation : ' + secondes.toFixed(1) + ' s pour ' + r.rapport.requetes + ' requête(s), '
-        + r.rapport.telecharges + ' téléchargée(s), ' + r.rapport.echecs.length + ' échec(s)');
-      r.rapport.echecs.slice(0, 6).forEach(e => console.log('    échec : « ' + e.requete + ' » — ' + e.cause));
+        + r.rapport.telecharges + ' téléchargée(s), ' + r.rapport.echecs.length + ' échec(s), '
+        + (r.rapport.reprises || 0) + ' reprise(s) · espacement ' + r.rapport.delaiMs + ' ms');
+      r.rapport.echecs.slice(0, 4).forEach(e => console.log('    échec (requête ' + e.rang + ') : « '
+        + e.requete + ' » — ' + e.cause.slice(0, 120)));
+      // La RÉPARTITION des échecs dans le parcours : groupés en fin = quota epuise en cours de
+      // route ; disperses = rafale. C'est la seule lecture qui distingue les deux, et elle a
+      // demande une archeologie dans le fichier produit la premiere fois.
+      if (r.rapport.echecs.length) {
+        const n = r.rapport.requetes, rangs = r.rapport.echecs.map(e => e.rang);
+        const tranches = [0, 1, 2, 3, 4].map(q => {
+          const a = q * n / 5, b = (q + 1) * n / 5;
+          return rangs.filter(x => x > a && x <= b).length;
+        });
+        console.log('  répartition des échecs par cinquième : ' + tranches.join(' · ')
+          + '  (premier au rang ' + rangs[0] + ' sur ' + n + ')');
+        if (r.rapport.quotaExterneAtteint) {
+          console.log('  QUOTA DU FOURNISSEUR D\'IMAGES atteint à partir de la requête '
+            + r.rapport.quotaAtteintALaRequete + ' — contrainte EXTERNE, aucun réglage ne la contourne.');
+        }
+      }
 
       // ── SÉCURITÉ : aucune clé dans le fichier ──
       // Cohérence du dictionnaire : autant d'aplats de repli DANS LE CACHE que d'échecs relevés.
@@ -156,13 +174,20 @@ const releve = { debut: new Date().toISOString(), source: path.basename(SOURCE),
       const bilan = { embarquee: 0, 'aplat SVG': 0, 'AUCUN src': 0, distante: 0 };
       let avecImage = 0;
       const total = (c.doc.blocks || []).length;
+      // adocPresentGoTo, JAMAIS la touche flèche : ArrowRight epuise d'abord le montage progressif
+      // de la diapositive courante (window.adocPresentNext → adocPresentRevealNext), donc N pressions
+      // ne visitent PAS N diapositives. La mesure precedente a ainsi porte sur un sous-ensemble
+      // biaise — les premieres diapositives, celles dont les images avaient abouti — et annoncait
+      // « 0 aplat » sur un cours qui en comptait 59.
       for (let i = 0; i < total; i++) {
-        const etats = await vue.evaluate(() => [...document.querySelectorAll('#cc-ws-present-slide-inner img')]
-          .map(x => { const s = x.getAttribute('src');
-            return !s ? 'AUCUN src' : s.startsWith('data:image/svg') ? 'aplat SVG' : s.startsWith('data:') ? 'embarquee' : 'distante'; }));
+        const etats = await vue.evaluate(async (idx) => {
+          window.adocPresentGoTo(idx);
+          await new Promise(r => setTimeout(r, 70));
+          return [...document.querySelectorAll('#cc-ws-present-slide-inner img')]
+            .map(x => { const s = x.getAttribute('src');
+              return !s ? 'AUCUN src' : s.startsWith('data:image/svg') ? 'aplat SVG' : s.startsWith('data:') ? 'embarquee' : 'distante'; });
+        }, i);
         if (etats.length) { avecImage++; etats.forEach(e => { bilan[e] = (bilan[e] || 0) + 1; }); }
-        await vue.keyboard.press('ArrowRight');
-        await vue.waitForTimeout(90);
       }
       const credits = await vue.evaluate(() => {
         const el = document.querySelector('.cc-ws-present-credits');

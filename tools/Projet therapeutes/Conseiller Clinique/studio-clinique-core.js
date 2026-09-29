@@ -17090,6 +17090,44 @@ ${recent}`;
   const ADOC_EXPORT_IMG_MAX_W = 1600;
   const ADOC_EXPORT_IMG_QUALITY = 0.82;
 
+  // Espacement entre deux appels à /fetch-image, et reprises sur 429/5xx. MESURÉ le 29/09/2026 :
+  // 121 requêtes enchaînées sans pause (≈2,2 par seconde) ont rendu 59 refus 429 ; 10 requêtes au
+  // même rythme, aucun. Le remède est celui déjà éprouvé sur le banc de mesure de grammaire :
+  // espacer, puis réessayer en laissant le délai grandir.
+  //
+  // La préparation d'un export en devient plus longue — pour un cours, elle se paie UNE fois, et
+  // une image manquante se paie à chaque projection.
+  const ADOC_EXPORT_IMG_DELAI_MS = 700;
+  const ADOC_EXPORT_IMG_TENTATIVES = 3;
+  const ADOC_EXPORT_IMG_ATTENTES_MS = [1200, 3000];
+
+  const adocPause = (ms) => new Promise(function (r) { setTimeout(r, ms); });
+
+  // Une seule porte pour tout appel au Worker pendant un export : espacement AVANT chaque tentative,
+  // reprise sur 429 et 5xx uniquement. Un 401 ou un 404 ne se réessaie pas — c'est du temps perdu
+  // et une erreur qu'on connaît déjà.
+  async function adocExportAvecReprises(appel, surAttente, sansReprise) {
+    let derniere = null;
+    const max = sansReprise ? 1 : ADOC_EXPORT_IMG_TENTATIVES;
+    for (let t = 1; t <= max; t++) {
+      try { return await appel(); }
+      catch (e) {
+        derniere = e;
+        const st = e && e.status;
+        // Un quota de fournisseur épuisé n'est PAS reprenable : mesuré, 56 reprises ont coûté
+        // 118 secondes et 56 requêtes de plus contre un quota déjà à sec, sans en sauver une seule.
+        const reprenable = (st === 429 && !e.quotaExterne) || (st >= 500 && st < 600);
+        if (!reprenable || t === max) throw e;
+        // Retry-After du serveur s'il le donne : c'est LUI qui sait, jamais notre estimation.
+        const attente = (e && e.retryAfterMs) || ADOC_EXPORT_IMG_ATTENTES_MS[t - 1] || 3000;
+        if (surAttente) surAttente({ tentative: t, attenteMs: attente, cause: e.message });
+        await adocPause(attente);
+      }
+    }
+    throw derniere;
+  }
+  window.adocExportAvecReprises = adocExportAvecReprises;
+
   // Octets → data:image, avec réduction quand elle est possible. Si le redimensionnement échoue
   // (format exotique, image non décodable), on garde les octets d'origine plutôt que rien.
   async function adocBlobToEmbeddedImage(blob) {
@@ -17160,19 +17198,36 @@ ${recent}`;
     const images = {}, credits = [], echecs = [];
     let octets = 0, telecharges = 0;
 
+    // L'espacement peut être réglé à 0 par les tests, qui n'ont aucune limite de débit à ménager
+    // et n'ont pas à attendre 85 secondes pour éprouver un dédoublonnage.
+    const delai = typeof opts.delaiMs === 'number' ? opts.delaiMs : ADOC_EXPORT_IMG_DELAI_MS;
+    let reprises = 0;
+    // Trois refus de quota d'affilée : ce n'est plus un incident, c'est l'état du compte pour
+    // l'heure en cours. On cesse de réessayer pour le reste de l'export — les requêtes suivantes
+    // sont tentées une fois, proprement, et retombent sur leur aplat.
+    let quotaConsecutifs = 0, quotaAtteintA = null;
+    const surAttente = function (e) {
+      reprises++;
+      surProgression({ attente: true, tentative: e.tentative, attenteMs: e.attenteMs, cause: e.cause });
+    };
+
     for (let i = 0; i < requetes.length; i++) {
       const r = requetes[i];
       surProgression({ index: i, total: requetes.length });
       try {
+        // Espacement AVANT chaque requête sauf la première : c'est la rafale qui déclenche les
+        // refus, pas le volume. Mesuré sur 121 requêtes enchaînées.
+        if (i > 0 && delai) await adocPause(delai);
         if (r.isGen) {
           // Image générée : ses octets arrivent DÉJÀ en data: depuis /generate-image, rien à
           // télécharger ensuite.
-          const gen = await genererImage(workerUrl, r.q);
+          const gen = await adocExportAvecReprises(function () { return genererImage(workerUrl, r.q); }, surAttente);
           if (!gen) throw new Error('génération sans résultat');
           images[r.q] = gen; octets += gen.length; telecharges++;
           continue;
         }
-        const photo = await chercherPhoto(workerUrl, r.q);
+        const photo = await adocExportAvecReprises(function () { return chercherPhoto(workerUrl, r.q); },
+          surAttente, quotaAtteintA !== null);
         if (!photo || !photo.url) throw new Error('aucune photo pour cette requête');
         // Téléchargement DIRECT depuis le CDN, sans la clé : le Worker n'a rien à voir avec des
         // octets publics, et l'y faire transiter doublerait le trafic sans rien protéger.
@@ -17186,10 +17241,18 @@ ${recent}`;
           credits.push({ auteur: photo.photographer, source: photo.source || 'Pexels' });
         }
       } catch (e) {
+        if (e && e.quotaExterne) {
+          quotaConsecutifs++;
+          if (quotaConsecutifs >= 3 && quotaAtteintA === null) quotaAtteintA = i + 1 - 2;
+        } else { quotaConsecutifs = 0; }
         // Une image perdue ne perd pas l'export. Le repli est écrit DANS le cache : à l'ouverture,
         // la requête est trouvée et aucun appel réseau n'est tenté — c'est la garantie du lot.
         images[r.q] = adocExportFallbackImage(r.alt);
-        echecs.push({ requete: r.q.slice(0, 60), cause: (e && e.message) || String(e) });
+        // Le RANG de la requête est conservé : c'est lui qui distingue une rafale (échecs dispersés)
+        // d'un quota épuisé (échecs groupés en fin de parcours). Sans lui, il a fallu reconstituer
+        // l'ordre depuis le fichier produit pour trancher.
+        echecs.push({ rang: i + 1, requete: r.q.slice(0, 60), cause: (e && e.message) || String(e),
+                      quotaExterne: !!(e && e.quotaExterne) });
       }
     }
     // Dédoublonnage des crédits : quinze photos du même auteur donnent une ligne, pas quinze.
@@ -17199,6 +17262,11 @@ ${recent}`;
       images: images,
       credits: Array.from(parAuteur.values()).sort(function (a, b) { return a.auteur.localeCompare(b.auteur); }),
       rapport: { requetes: requetes.length, telecharges: telecharges, echecs: echecs,
+                 reprises: reprises, delaiMs: delai,
+                 // Contrainte EXTERNE, nommée : le quota horaire de la clé du fournisseur d'images,
+                 // pas un défaut du client. Aucun réglage d'espacement ne la contourne.
+                 quotaExterneAtteint: quotaAtteintA !== null,
+                 quotaAtteintALaRequete: quotaAtteintA,
                  octetsBase64: octets, koBase64: Math.round(octets / 1024) },
     };
   }
@@ -17209,7 +17277,24 @@ ${recent}`;
     if (!workerUrl) throw new Error('adresse du Worker absente');
     const q = encodeURIComponent(String(query).trim().substring(0, 100));
     const r = await fetch(workerUrl + '/fetch-image?q=' + q + '&per_page=1', { headers: { 'X-API-Key': adocGetApiKey() } });
-    if (!r.ok) throw new Error('/fetch-image ' + r.status);
+    if (!r.ok) {
+      // Le CORPS de l'erreur, et l'en-tête Retry-After. Sans eux, « /fetch-image 429 » ne dit pas
+      // si c'est le Worker qui se protège ou un 429 relayé depuis Pexels — deux causes qui
+      // n'appellent pas le même remède. Mesuré 59 fois sur un cours de 12 modules sans pouvoir
+      // trancher, faute d'avoir lu ce corps.
+      let detail = '';
+      try { detail = (await r.text()).replace(/\s+/g, ' ').slice(0, 160); } catch (_) {}
+      const err = new Error('/fetch-image ' + r.status + (detail ? ' — ' + detail : ''));
+      err.status = r.status;
+      // MESURÉ le 29/09/2026 : le corps disait « Pexels API error (HTTP 429) ». Ce n'est donc pas
+      // le Worker qui se protège d'une rafale, mais le QUOTA HORAIRE de la clé Pexels (200/heure)
+      // relayé tel quel. La distinction change tout : une rafale se réessaie, un quota épuisé non —
+      // chaque reprise consomme le quota qui manque déjà et ne peut pas aboutir.
+      err.quotaExterne = r.status === 429 && /pexels|pixabay/i.test(detail);
+      const ra = r.headers && r.headers.get && r.headers.get('Retry-After');
+      if (ra) err.retryAfterMs = (parseFloat(ra) || 0) * 1000;
+      throw err;
+    }
     const d = await r.json();
     return (d.photos && d.photos[0]) || null;
   }
