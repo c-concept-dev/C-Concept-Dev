@@ -121,6 +121,10 @@ const PLAN = { courseId: 'c-120', titre: 'Cours complet en 12 modules',
     exp.on('pageerror', e => expErreurs.push(e.message));
     const tOuvre = Date.now();
     await exp.goto('file://' + fichier);
+    // Depuis la phase 3, un fichier exporté ne s'ouvre PLUS tout seul : il attend le geste
+    // « ▶ Démarrer », sans lequel aucun navigateur n'accorde le plein écran à un fichier ouvert
+    // au double-clic. Sans effet sur une page live, qui n'a pas cet écran.
+    await exp.evaluate(() => document.querySelector('#cc-ws-present-start button')?.click());
     await exp.waitForSelector('#cc-ws-present-slide-inner .adoc-sc-card');
     const msOuverture = Date.now() - tOuvre;
     console.log('PASS 3/8  fichier ouvert et première diapositive rendue en ' + msOuverture + ' ms.');

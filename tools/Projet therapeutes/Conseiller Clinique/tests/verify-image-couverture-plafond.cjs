@@ -74,6 +74,9 @@ async function ouvrirEtRelever(browser, url, prep, cssAnnulation) {
   page.on('pageerror', e => erreurs.push(e.message));
   await page.route('**/*', r => /^file:/.test(r.request().url()) ? r.continue() : r.abort());
   await page.goto(url);
+  // Depuis la phase 3, un fichier exporté attend le geste « ▶ Démarrer » et ne s'ouvre plus
+  // seul. Sans effet sur une page live, qui n'a pas cet écran.
+  await page.evaluate(() => document.querySelector('#cc-ws-present-start button')?.click());
   if (prep) await prep(page);
   await page.waitForFunction(() => document.getElementById('cc-ws-present-overlay')?.classList.contains('open'), null, { timeout: 60000 });
   // L'annulation du plafond sert de CONTRE-PREUVE : elle doit faire réapparaître le débordement.

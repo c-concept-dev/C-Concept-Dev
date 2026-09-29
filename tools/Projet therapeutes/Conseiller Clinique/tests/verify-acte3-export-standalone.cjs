@@ -117,6 +117,10 @@ const DOC = {
     const erreurs = [];
     page.on('pageerror', e => erreurs.push(e.message));
     await page.goto('file://' + fichier);
+    // Depuis la phase 3, un fichier exporté ne s'ouvre PLUS tout seul : il attend le geste
+    // « ▶ Démarrer », sans lequel aucun navigateur n'accorde le plein écran à un fichier ouvert
+    // au double-clic. Sans effet sur une page live, qui n'a pas cet écran.
+    await page.evaluate(() => document.querySelector('#cc-ws-present-start button')?.click());
     await page.waitForFunction(() => document.getElementById('cc-ws-present-overlay')?.classList.contains('open'));
     assert.equal(erreurs.length, 0, 'erreur dès l\'ouverture : ' + erreurs.join(' | '));
 

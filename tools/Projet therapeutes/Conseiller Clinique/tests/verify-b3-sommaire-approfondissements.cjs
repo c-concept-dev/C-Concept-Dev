@@ -49,6 +49,9 @@ const CAPTURES = path.join(os.tmpdir(), 'cc-b3-captures');
 
 async function preparer(page, url, doc) {
   await page.goto(url);
+  // Depuis la phase 3, un fichier exporté attend le geste « ▶ Démarrer » et ne s'ouvre plus
+  // seul. Sans effet sur une page live, qui n'a pas cet écran.
+  await page.evaluate(() => document.querySelector('#cc-ws-present-start button')?.click());
   await page.bringToFront();
   await page.evaluate(() => {
     document.getElementById('cc-login-screen')?.remove();

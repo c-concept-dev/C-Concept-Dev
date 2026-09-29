@@ -184,6 +184,10 @@ async function ouvrir(browser, avecEspion) {
     exp.on('pageerror', e => errExp.push(e.message));
     await exp.route('**/*', r => /^file:/.test(r.request().url()) ? r.continue() : r.abort());
     await exp.goto('file://' + fichier);
+    // Depuis la phase 3, un fichier exporté ne s'ouvre PLUS tout seul : il attend le geste
+    // « ▶ Démarrer », sans lequel aucun navigateur n'accorde le plein écran à un fichier ouvert
+    // au double-clic. Sans effet sur une page live, qui n'a pas cet écran.
+    await exp.evaluate(() => document.querySelector('#cc-ws-present-start button')?.click());
     await exp.waitForFunction(() => document.getElementById('cc-ws-present-overlay')?.classList.contains('open'), null, { timeout: 60000 });
     // LE clic qui aurait cassé.
     await exp.evaluate(() => { window.adocPresentClose(); });

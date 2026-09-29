@@ -16194,7 +16194,31 @@ ${recent}`;
     '#cc-ws-present-overlay{display:none;position:fixed;inset:0;z-index:8300;flex-direction:column;background:#14211f;color:#fff;}' +
     '#cc-ws-present-overlay.open{display:flex;}' +
     '.cc-ws-present-slide-wrap{flex:1;display:flex;align-items:center;justify-content:center;gap:16px;padding:24px;min-height:0;}' +
-    '.cc-ws-present-slide-outer{width:100%;max-width:1100px;aspect-ratio:4/3;max-height:82vh;display:flex;align-items:center;justify-content:center;overflow:hidden;}' +
+    // Référence FIXE puis mise à l'échelle (cf. adocPresentCalculerEchelle). `overflow:hidden` sur
+    // le conteneur : la boîte garde sa taille NOMINALE dans la mise en page — transform n'agit pas
+    // sur elle — et déborderait visuellement sans cette coupe.
+    // Écran de démarrage — EXPORT UNIQUEMENT. Il vit dans la constante partagée plutôt que dans la
+    // coquille d'export : une seconde feuille de style divergerait le jour où l'habillage change.
+    // Le mode live n'a pas cet écran (il a déjà un geste : le bouton « Présenter »).
+    '#cc-ws-present-start{position:fixed;inset:0;z-index:30;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:#14211f;color:var(--ivory);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;text-align:center;padding:32px;}' +
+    '#cc-ws-present-start h1{margin:0;font-size:clamp(22px,3.2vw,44px);font-weight:600;line-height:1.25;max-width:22em;}' +
+    '#cc-ws-present-start p{margin:0;font-size:clamp(13px,1.3vw,19px);opacity:.62;}' +
+    '#cc-ws-present-start button{margin-top:10px;font:inherit;font-size:clamp(15px,1.5vw,22px);padding:.7em 1.8em;border-radius:999px;border:1px solid rgba(246,242,234,.35);background:rgba(246,242,234,.08);color:inherit;cursor:pointer;}' +
+    '#cc-ws-present-start button:hover{background:rgba(246,242,234,.16);}' +
+    '.cc-ws-present-slide-wrap{overflow:hidden;}' +
+    '.cc-ws-present-slide-outer{width:1422px;height:800px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;overflow:hidden;' +
+      'transform:scale(var(--adoc-present-echelle,1));transform-origin:center center;}' +
+    // Le sommaire est ancré en bas à droite : il doit grandir DEPUIS ce coin, sinon il sort de
+    // l'écran. Mesuré avant ce lot : 300 px de large et 16 px de texte, identiques en 4K.
+    // `--adoc-present-echelle-agrandir` et non le facteur brut : ces deux éléments sont FLUIDES
+    // (ancrés, ou en inset:0), ils n'ont donc jamais besoin de rétrécir pour tenir — contrairement à
+    // la diapositive, dessinée dans une référence fixe. Les rétrécir n'apportait rien et coûtait
+    // cher : MESURÉ, les deux boutons de retour de la porte tombaient à 38 px de côté sur une
+    // fenêtre étroite, sous le minimum de 40 px qu'exige une cible tactile accessible.
+    '#cc-ws-present-toc{transform:scale(var(--adoc-present-echelle-agrandir,1));transform-origin:bottom right;}' +
+    // La porte est un calque inset:0 — la mettre à l'échelle entière la ferait déborder. Seule sa
+    // COLONNE DE TEXTE, elle aussi figée (640 px, 16 px), suit le facteur.
+    '.cc-ws-present-door-text{transform:scale(var(--adoc-present-echelle-agrandir,1));transform-origin:center center;}' +
     '.cc-ws-present-slide-inner{width:100%;height:100%;overflow:hidden;opacity:1;transform:translateX(0);transition:opacity 260ms ease, transform 260ms ease;}' +
     '.cc-ws-present-slide-inner .adoc-sc-doc{height:100%;}' +
     '.cc-ws-present-slide-inner .adoc-sc-card{width:100%;height:100%;max-width:none;box-sizing:border-box;overflow:auto;}' +
@@ -16531,6 +16555,77 @@ ${recent}`;
   // avec le document embarqué au moment de l'export) — seul point de sortie du cluster hors de lui-
   // même identifié par l'investigation (window._adocWsState/window._adocArtifacts), désormais isolé
   // ICI, à ce seul site.
+  // ═══ RÉFÉRENCE FIXE ET MISE À L'ÉCHELLE ═══
+  //
+  // La diapositive était dessinée à 1100×825 au plus, quel que soit l'écran : 57 % de la largeur à
+  // 1920×1080, 29 % à 3840×2160, et un texte à 15 px qui ne grandissait JAMAIS. Elle est désormais
+  // dessinée dans une référence FIXE, puis mise à l'échelle d'un seul facteur — jamais des unités
+  // relatives séparées, qui feraient dériver les proportions entre texte, image et espacements.
+  //
+  // 1422×800, et non 1280×720 comme envisagé. MESURÉ sur les 132 diapositives réelles du cours de
+  // 12 modules, adocPresentGoTo(i) + 320 ms, contre l'état post-plafonnement d'image (6 débordements) :
+  //
+  //   référence        échelle   débordent   police effective   sous 11 px
+  //   1280×720 (16:9)   1,50      13/132 ✗      22,5 px             3
+  //   1422×800 (16:9)   1,35       6/132 ✓      20,3 px             5
+  //
+  // C'est la HAUTEUR NOMINALE qui gouverne le débordement, pas le format : à 720 unités, huit
+  // diapositives qui tenaient depuis le plafonnement d'image se remettent à déborder. 800 est la
+  // hauteur qui garde le 16:9 demandé SANS dégrader ce qui marchait. En 3840×2160, la même référence
+  // donne une échelle de 2,70, une police effective de 40,5 px et AUCUNE diapositive sous le plancher.
+  const ADOC_PRESENT_REF_W = 1422;
+  const ADOC_PRESENT_REF_H = 800;
+
+  // Pur : le facteur seul, sans DOM. C'est lui que le test éprouve.
+  function adocPresentCalculerEchelle(dispoW, dispoH) {
+    if (!(dispoW > 0) || !(dispoH > 0)) return 1;
+    // Plancher à 0,2 : en dessous, plus rien n'est lisible et mieux vaut laisser déborder que
+    // produire une image de timbre-poste. Plafond à 4 : au-delà, l'écran est si grand que le flou
+    // d'agrandissement se verrait plus que le gain.
+    return Math.max(0.2, Math.min(4, Math.min(dispoW / ADOC_PRESENT_REF_W, dispoH / ADOC_PRESENT_REF_H)));
+  }
+
+  // Applique le facteur à l'overlay, d'où il descend par variable CSS sur la diapositive, le
+  // sommaire et le texte de la porte — un seul facteur pour les trois, jamais trois réglages qui
+  // divergeraient. Mesuré avant ce lot : le sommaire (300 px, texte 16 px) et la porte (texte 16 px,
+  // colonne 640 px) étaient figés EXACTEMENT comme la diapositive, identiques à 1080p et en 4K.
+  function adocPresentAppliquerEchelle() {
+    const overlay = document.getElementById('cc-ws-present-overlay');
+    if (!overlay) return 1;
+    const wrap = overlay.querySelector('.cc-ws-present-slide-wrap');
+    let w = overlay.clientWidth, h = overlay.clientHeight;
+    if (wrap) {
+      // L'espace RÉELLEMENT disponible : la boîte de contenu du conteneur, marges intérieures
+      // déduites. Les inclure ferait dessiner une diapositive plus grande que la place qu'elle a.
+      const cs = getComputedStyle(wrap);
+      w = wrap.clientWidth - parseFloat(cs.paddingLeft || 0) - parseFloat(cs.paddingRight || 0);
+      h = wrap.clientHeight - parseFloat(cs.paddingTop || 0) - parseFloat(cs.paddingBottom || 0);
+    }
+    const e = adocPresentCalculerEchelle(w, h);
+    overlay.style.setProperty('--adoc-present-echelle', e);
+    // Variante qui n'agrandit JAMAIS vers le bas — cf. la règle du sommaire et de la porte.
+    overlay.style.setProperty('--adoc-present-echelle-agrandir', Math.max(1, e));
+    return e;
+  }
+
+  // Recalcul quand l'espace change : redimensionnement de la fenêtre, et entrée ou sortie de plein
+  // écran (qui change la place disponible sans déclencher de `resize` sur tous les navigateurs).
+  // Installé depuis adocPresentOpenWithDoc — qui part DANS l'export, contrairement au point
+  // d'installation live du lot précédent : la mise à l'échelle doit servir aux deux.
+  // Le garde-fou vit sur `window`, JAMAIS dans une variable de module. Seules les FONCTIONS sont
+  // sérialisées dans un fichier exporté : une variable de module référencée par une fonction
+  // embarquée lève une ReferenceError à l'ouverture. Piège rencontré ici même — l'export affichait
+  // « _adocEcouteursEchellePoses is not defined » et aucune mise à l'échelle ne s'appliquait.
+  // C'est une classe distincte des oublis d'engineFnRefs : le garde-fou onclick ne la voit pas non
+  // plus, et seule l'ouverture d'un vrai export la révèle.
+  function adocPresentInstallerEcouteursEchelle() {
+    if (window._adocEcouteursEchellePoses) return;
+    window._adocEcouteursEchellePoses = true;
+    window.addEventListener('resize', adocPresentAppliquerEchelle);
+    document.addEventListener('fullscreenchange', adocPresentAppliquerEchelle);
+    document.addEventListener('webkitfullscreenchange', adocPresentAppliquerEchelle);
+  }
+
   async function adocPresentOpenWithDoc(doc) {
     if (!doc || doc.documentKind !== 'presentation' || !Array.isArray(doc.blocks) || !doc.blocks.length) return;
     // Présentation ACTE 3 — `deepDiveStack` est une propriété de l'état existant, jamais un
@@ -16553,6 +16648,10 @@ ${recent}`;
     adocPresentUpdateCounter();
     overlay.hidden = false;
     overlay.classList.add('open');
+    // APRÈS le démasquage : un élément encore `hidden` a une boîte de taille nulle, et le facteur
+    // calculé dessus vaudrait son plancher. L'ordre n'est pas cosmétique.
+    adocPresentInstallerEcouteursEchelle();
+    adocPresentAppliquerEchelle();
   }
   // Exposée pour les tests — même patron que window.adocRunGenerationPipeline / 
   // window.adocConvertDeepDives : permet d'ouvrir le mode présentation sur un document forgé,
@@ -17049,6 +17148,22 @@ ${recent}`;
   // ordinaire, même chemin) et les bancs de mesure qui l'appellent directement. Brancher plus haut
   // aurait laissé ces derniers produire des fichiers sans images sans que rien ne le dise.
   //
+  // Le geste que le fichier exporté n'avait pas. Un fichier ouvert au double-clic ne dispose
+  // d'AUCUNE activation utilisateur au chargement : y demander le plein écran serait refusé par
+  // tout navigateur. Ce bouton EST ce geste.
+  //
+  // Comme en mode live : la demande est la TOUTE PREMIÈRE instruction, avant le moindre await
+  // (adocPresentOpenWithDoc en contient un), et son refus est avalé — la présentation s'ouvre dans
+  // tous les cas. L'écran de démarrage n'est retiré qu'APRÈS le lancement de l'ouverture : le
+  // retirer avant laisserait un écran noir sans issue si l'ouverture échouait.
+  window.adocPresentDemarrerExport = function () {
+    adocDemanderPleinEcran(document.getElementById('cc-ws-present-overlay')).catch(function () {});
+    const ouverture = adocPresentOpenWithDoc(window.ADOC_EXPORT_DOC);
+    const ecran = document.getElementById('cc-ws-present-start');
+    if (ecran) ecran.remove();
+    return ouverture;
+  };
+
   // opts.embedImages === false : construit sans embarquer, pour les tests qui n'éprouvent que la
   // coquille et n'ont aucune image à télécharger.
   async function adocBuildStandalonePresentationHTML(doc, opts) {
@@ -17073,6 +17188,16 @@ ${recent}`;
       // cette raison précise. Ce sont les deux SEULES ajoutées ; la demande de plein écran et son
       // écouteur restent hors de l'export, qui n'en fait rien avant la phase 3.
       adocQuitterPleinEcran: adocQuitterPleinEcran, adocPleinEcranActif: adocPleinEcranActif,
+      // Ajoutée par la phase 3 : window.adocPresentDemarrerExport, le bouton « Démarrer » de
+      // l'écran d'accueil de l'export, l'appelle. Le lot précédent n'avait embarqué que la SORTIE,
+      // la demande restant alors propre au mode live. Sans elle ici, le premier clic sur
+      // « Démarrer » d'un export lèverait une ReferenceError — attrapé par le test, pas par lecture.
+      adocDemanderPleinEcran: adocDemanderPleinEcran,
+      // Appelées par adocPresentOpenWithDoc, qui s'exécute au démarrage de tout export : sans elles
+      // ici, aucune présentation exportée ne s'ouvrirait — ReferenceError dès la première ligne.
+      adocPresentCalculerEchelle: adocPresentCalculerEchelle,
+      adocPresentAppliquerEchelle: adocPresentAppliquerEchelle,
+      adocPresentInstallerEcouteursEchelle: adocPresentInstallerEcouteursEchelle,
       // Les deux fonctions dont adocResolveImages dépend désormais. Sans elles, toute présentation
       // exportée lèverait une ReferenceError à l'ouverture de sa première diapositive à image —
       // exactement la classe d'oubli que le garde-fou onclick ne voit jamais.
@@ -17139,20 +17264,33 @@ ${recent}`;
     // alors qu'elle est appelée par chaque puce "↳ Approfondir" et par chaque lien enrichi en
     // ligne : tout approfondissement d'une présentation exportée était donc mort au clic. Angle
     // mort corrigé ici, en même temps que les deux gestes de retour ajoutés par ce lot.
-    const windowFnNames = ['adocQuizSelectOption', 'adocPresentClose', 'adocPresentToggleToc', 'adocPresentGoTo', 'adocPresentNext', 'adocPresentPrev', 'adocQuestionnaireSelectOption', 'adocQuestionnaireSwitchPartner', 'adocQuestionnaireCalculerResultat', 'adocPresentOpenImageDoor', 'adocPresentCloseImageDoor', 'adocPresentOpenDeepDive', 'adocPresentDeepDiveBack', 'adocPresentDeepDiveHome', 'adocPresentOpenDeepDiveFromToc'];
+    const windowFnNames = ['adocQuizSelectOption', 'adocPresentClose', 'adocPresentToggleToc', 'adocPresentGoTo', 'adocPresentNext', 'adocPresentPrev', 'adocQuestionnaireSelectOption', 'adocQuestionnaireSwitchPartner', 'adocQuestionnaireCalculerResultat', 'adocPresentOpenImageDoor', 'adocPresentCloseImageDoor', 'adocPresentOpenDeepDive', 'adocPresentDeepDiveBack', 'adocPresentDeepDiveHome', 'adocPresentOpenDeepDiveFromToc',
+      // Le bouton « Démarrer » de l'écran d'accueil de l'export : c'est un onclick, donc ici.
+      'adocPresentDemarrerExport'];
     const windowFnsText = windowFnNames.map(function (name) { return 'window.' + name + ' = ' + window[name].toString() + ';'; }).join('\n');
     const dataText = 'var ADOC_LEGACY_FONT_PAIRS = ' + JSON.stringify(ADOC_LEGACY_FONT_PAIRS) + ';\n' +
       'var ADOC_BLOCK_FONT_SIZES = ' + JSON.stringify(ADOC_BLOCK_FONT_SIZES) + ';\n' +
       'var ADOC_DIRECT_STYLE_FIELDS = ' + JSON.stringify(ADOC_DIRECT_STYLE_FIELDS) + ';\n' +
       'var _adocApiKeyWarningShown = false;\n' +
+      // La référence fixe, par le MÊME mécanisme que les autres constantes embarquées ci-dessus.
+      // adocPresentCalculerEchelle les lit et part dans l'export : sans ces deux lignes, elle lève
+      // « ADOC_PRESENT_REF_W is not defined » et aucune mise à l'échelle ne s'applique — constaté
+      // sur un export réellement ouvert, jamais deviné.
+      'var ADOC_PRESENT_REF_W = ' + ADOC_PRESENT_REF_W + ';\n' +
+      'var ADOC_PRESENT_REF_H = ' + ADOC_PRESENT_REF_H + ';\n' +
       // Le dictionnaire des images embarquées, écrit en clair. C'est lui qui rend le fichier
       // autonome : adocEmbeddedImage le consulte avant tout réseau, et toute requête y figure —
       // y compris celles dont le téléchargement a échoué, qui y portent leur aplat de repli.
       // Aucune requête ne peut donc déclencher un appel au Worker à l'ouverture.
       'window.ADOC_EXPORT_IMAGES = ' + JSON.stringify(embarquement.images) + ';\n' +
       'window._adocPresentState = null;\n' +
-      'var ADOC_EXPORT_DOC = ' + JSON.stringify(doc) + ';';
-    const bootText = 'adocPresentInstallKeydownHandler();\nadocPresentOpenWithDoc(ADOC_EXPORT_DOC);';
+      // Sur window : adocPresentDemarrerExport est définie DANS le module puis sérialisée dans le
+      // fichier ; elle ne capture donc pas une variable locale de la coquille. La lire sur window
+      // est ce qui la rend accessible au clic.
+      'window.ADOC_EXPORT_DOC = ' + JSON.stringify(doc) + ';';
+    // AUCUNE ouverture automatique : c'est tout l'objet de ce lot. Le fichier s'arrête sur son
+    // écran de démarrage et attend le clic, seul moment où le navigateur accorde le plein écran.
+    const bootText = 'adocPresentInstallKeydownHandler();';
     const script = dataText + '\n' + fnsText + '\n' + windowFnsText + '\n' + bootText;
     const css = ADOC_PRESENT_ROOT_VARS_CSS + ADOC_DOC_CONTENT_CSS + ADOC_PRESENT_ENGINE_CSS + 'body{margin:0;background:#14211f;}';
     return '<!DOCTYPE html><html lang="' + adocEsc(doc.language || 'fr') + '"><head><meta charset="UTF-8">' +
@@ -17180,6 +17318,14 @@ ${recent}`;
         // de figurer dans engineFnRefs — rien ne l'appelle à l'exécution dans le fichier exporté.
         // Vérifié, jamais supposé : cf. verify-b5-porte-source-unique.
         adocPresentDoorHTML() +
+      '</div>' +
+      // L'écran de démarrage, en dernier : il recouvre l'overlay (z-index 30) et disparaît au clic.
+      '<div id="cc-ws-present-start" role="group" aria-label="Démarrer la présentation">' +
+        '<h1>' + adocEsc(doc.title || 'Présentation') + '</h1>' +
+        '<p>' + (doc.blocks || []).length + ' diapositive' + ((doc.blocks || []).length > 1 ? 's' : '') +
+          ((doc.deepDives || []).length ? ' · ' + doc.deepDives.length + ' approfondissement'
+            + (doc.deepDives.length > 1 ? 's' : '') : '') + '</p>' +
+        '<button type="button" onclick="window.adocPresentDemarrerExport()">▶ Démarrer</button>' +
       '</div>' +
       '<script>' + script + '</script' + '>' +
       '</body></html>';

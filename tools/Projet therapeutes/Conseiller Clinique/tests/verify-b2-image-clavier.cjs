@@ -75,6 +75,9 @@ async function tabulerJusqua(page, id, max = 30) {
 
 async function ouvrir(page, url, evaluerDoc) {
   await page.goto(url);
+  // Depuis la phase 3, un fichier exporté attend le geste « ▶ Démarrer » et ne s'ouvre plus
+  // seul. Sans effet sur une page live, qui n'a pas cet écran.
+  await page.evaluate(() => document.querySelector('#cc-ws-present-start button')?.click());
   // Un onglet qui n'est pas au premier plan ne reçoit pas les touches : la tabulation semblerait
   // ne mener nulle part alors que la page est parfaitement navigable. Piège du test, jamais du
   // code éprouvé — d'où ce passage explicite au premier plan avant toute frappe.

@@ -88,6 +88,10 @@ const normaliser = h => h.replace(/\s+/g, ' ').replace(/=""/g, '').trim();
     const expErreurs = [];
     exp.on('pageerror', e => expErreurs.push(e.message));
     await exp.goto('file://' + fichier);
+    // Depuis la phase 3, un fichier exporté ne s'ouvre PLUS tout seul : il attend le geste
+    // « ▶ Démarrer », sans lequel aucun navigateur n'accorde le plein écran à un fichier ouvert
+    // au double-clic. Sans effet sur une page live, qui n'a pas cet écran.
+    await exp.evaluate(() => document.querySelector('#cc-ws-present-start button')?.click());
     await exp.waitForSelector('#cc-ws-present-slide-inner #paragraph-01');
     assert.equal(await exp.evaluate(() => document.querySelectorAll('#cc-ws-present-door').length), 1,
       'une seule porte DANS L\'EXPORT après chargement complet');
