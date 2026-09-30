@@ -7288,6 +7288,83 @@ ${recent}`;
     return '{' + keys.map((k) => JSON.stringify(k) + ':' + adocCanonicalJSONStringify(value[k])).join(',') + '}';
   }
 
+  // ── THÈME → SURCHARGE DE MANIFESTE ──────────────────────────────────────────────────────────
+  // Un thème est présenté à adocBrandKitToTokensSnapshot sous la forme MINIMALE d'une charte : cette
+  // fonction dérive déjà tous les jetons depuis quatre couleurs, et écrire un second convertisseur
+  // ferait diverger les deux dérivations au premier ajustement.
+  // La paire de polices est résolue par son id dans ADOC_LEGACY_FONT_PAIRS — jamais recopiée dans le
+  // thème, qui ne porte donc aucune donnée de police.
+  function adocThemeToBrandKitShape(theme) {
+    const paire = ADOC_LEGACY_FONT_PAIRS.find(function (p) { return p.id === theme.fontPairId; });
+    return {
+      // L'id sert à nommer le tokensSnapshotId et le brandKitRef : il doit désigner le THÈME, seule
+      // source réelle de ces jetons.
+      id: 'theme-' + theme.id,
+      version: 1,
+      colors: Object.assign({}, theme.colors),
+      typography: { headingFont: paire && paire.headingFont, bodyFont: paire && paire.bodyFont },
+    };
+  }
+
+  // Miroir de adocBuildRenderManifestForBrandKit, à une différence près, imposée par le schéma :
+  // render-manifest.schema.json exige brandKitRef et le contraint à un OBJET {id, version} —
+  // `null` y est refusé. Le thème s'y nomme donc lui-même (« theme-<id> »), ce qui est honnête : il
+  // EST la source des jetons. Effet de bord vérifié : adocEditorActiveBrandKitId renverra cet id, et
+  // la recherche dans window._adocBrandKits ne trouvera rien, donc aucune suggestion de police
+  // fantôme — le code y est déjà gardé par `if (activeKit && activeKit.typography)`.
+  async function adocBuildRenderManifestForTheme(doc, theme) {
+    const baseManifest = window.adocRenderManifests && window.adocRenderManifests[doc.renderManifestId];
+    const templateRef = (baseManifest && baseManifest.templateRef) || { id: 'fiche-editoriale', version: 1 };
+    const rendererVersion = (baseManifest && baseManifest.rendererVersion) || '1.0.0';
+    const forme = adocThemeToBrandKitShape(theme);
+    const tokens = adocBrandKitToTokensSnapshot(forme);
+    window.adocTokensSnapshots = window.adocTokensSnapshots || {};
+    window.adocTokensSnapshots[tokens.tokensSnapshotId] = tokens;
+    const manifestBase = {
+      id: 'manifest-theme-' + theme.id + '-' + Date.now(),
+      schemaVersion: 1,
+      rendererVersion: rendererVersion,
+      templateRef: templateRef,
+      brandKitRef: { id: forme.id, version: forme.version },
+      tokensSnapshotId: tokens.tokensSnapshotId,
+      assetsSnapshotId: null,
+      createdAt: new Date().toISOString(),
+    };
+    // Somme RÉELLEMENT calculée sur la sérialisation canonique, jamais une valeur figée : le schéma
+    // impose le motif ^sha256:[0-9a-f]{64}$ et un manifeste dont la somme ne correspond pas à son
+    // contenu est un manifeste qui mentira au premier contrôle.
+    const checksumHex = await adocComputeSHA256Hex(adocCanonicalJSONStringify(manifestBase));
+    return Object.assign({}, manifestBase, { manifestChecksum: 'sha256:' + checksumHex });
+  }
+  window.adocBuildRenderManifestForTheme = adocBuildRenderManifestForTheme;
+
+  // Application : MÊME séquence que adocApplyStructuredReTheme pour une charte — surcharge posée,
+  // ré-affichage par adocOpenWorkspace, retour arrière si le ré-affichage échoue, puis sauvegarde.
+  // Jamais un second mécanisme d'application : la surcharge est déjà lue par le rendu direct (5
+  // sites adocRenderClinicalDocument), par l'export (3 sites adocExportClinicalDocumentHTML) et par
+  // la persistance — un seul point d'application, vivant et exporté.
+  window.adocApplyTheme = async function (storeKey, themeId) {
+    const art = window._adocArtifacts && window._adocArtifacts[storeKey];
+    if (!art || !art._adocStructuredDoc) return false;
+    const theme = ADOC_THEMES.find(function (t) { return t.id === themeId; });
+    if (!theme) return false;
+    const precedent = art._adocRenderManifestOverride || null;
+    const precedentNom = art._adocBrandKitName || null;
+    art._adocRenderManifestOverride = await adocBuildRenderManifestForTheme(art._adocStructuredDoc, theme);
+    art._adocBrandKitName = theme.label;
+    const ouvert = await window.adocOpenWorkspace(storeKey);
+    if (!ouvert) {
+      art._adocRenderManifestOverride = precedent;
+      art._adocBrandKitName = precedentNom;
+      return false;
+    }
+    if (typeof window.adocWsSave === 'function') await window.adocWsSave();
+    return true;
+  };
+  // Exposée pour les tests et pour l'interface en vignettes (phase C), même patron que
+  // window.adocConvertDeepDives : la table est la source unique, jamais recopiée côté interface.
+  window.adocThemes = function () { return ADOC_THEMES.map(function (t) { return Object.assign({}, t, { colors: Object.assign({}, t.colors) }); }); };
+
   // Construit un RenderManifest réel (checksum réellement calculé, pas de valeur figée) pour
   // une charte choisie au moment de la demande. Reprend templateRef/rendererVersion du
   // manifeste déjà associé au document (jamais réinventés ici) — seuls brandKitRef,
@@ -7542,6 +7619,29 @@ ${recent}`;
   // et valid qui écartent les polices désactivées ou cassées.
   // RAFRAÎCHIR après installation d'une police : tests/LISTER-POLICES.sh (13 s, à recoller ici).
   // 227 familles, relevées le 2026-09-30.
+  // ═══ THÈMES : UNE PAIRE DE POLICES + UNE PALETTE, EN UN SEUL RÉGLAGE ═══
+  // Un thème ne duplique AUCUNE donnée de police : il désigne une paire existante par son id
+  // (ADOC_LEGACY_FONT_PAIRS), et n'ajoute que quatre couleurs.
+  //
+  // QUATRE TONS, et pas davantage : adocBrandKitToTokensSnapshot dérive à lui seul une quinzaine de
+  // jetons (petrol950/900/800/100, terracotta700/600/100, ink, muted, stone400/300/200, ivory, paper)
+  // à partir de primary/accent/background/text, tout le reste étant calculé par adocMixHexColor. En
+  // fournir plus reviendrait à recopier à la main ce que cette fonction calcule mieux.
+  //
+  // Palette de départ alignée sur les jetons déjà en place dans ce fichier (--mer #1f5053,
+  // --violet #8a3f29, --sable #f6f2ea, --text #273331) : le premier thème EST la charte du Studio,
+  // afin qu'appliquer un thème ne soit jamais un saut dans l'inconnu.
+  const ADOC_THEMES = [
+    { id: 'studio', label: 'Studio — pétrole et sable', fontPairId: 'default',
+      colors: { primary: '#1f5053', accent: '#8a3f29', background: '#f6f2ea', text: '#273331' } },
+    { id: 'ardoise', label: 'Ardoise — froid et neutre', fontPairId: 'inter-lora',
+      colors: { primary: '#2f3e46', accent: '#52796f', background: '#f4f4f2', text: '#22292b' } },
+    { id: 'argile', label: 'Argile — chaud et éditorial', fontPairId: 'public-merriweather',
+      colors: { primary: '#5a4634', accent: '#a2674c', background: '#faf6f0', text: '#2c241d' } },
+    { id: 'encre', label: 'Encre — académique sobre', fontPairId: 'work-crimson',
+      colors: { primary: '#1f2a44', accent: '#6b7a99', background: '#f7f7fa', text: '#20242e' } },
+  ];
+
   const ADOC_MAC_FONT_FAMILIES = [
     'Academy Engraved LET', 'Al Bayan', 'Al Nile', 'Al Tarikh', 'American Typewriter',
     'Amsterdam Handwriting', 'Andale Mono', 'Apple Braille', 'Apple Chancery', 'Apple Color Emoji',
