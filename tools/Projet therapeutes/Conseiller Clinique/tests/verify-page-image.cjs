@@ -136,8 +136,63 @@ const DOC = {
     await exp.close();
     console.log('PASS 6/6  export construit, ouvert, page ouverte : illustration rendue, 0 ReferenceError.');
 
+    // ── 7 — LE CHEMIN RÉEL DE GÉNÉRATION : la conversion doit REPORTER l'illustration ──────────
+    // C'est l'assertion qui manquait, et son absence a laissé passer un défaut de production entier :
+    // adocConvertDeepDives ne reportait ni imageQuery ni imageAlt, si bien qu'aucune page issue d'une
+    // VRAIE génération ne pouvait s'illustrer. Les tests 1 à 6 forgeaient des documents portant déjà
+    // imageQuery et ne traversaient donc jamais la conversion. Tout test d'un champ de deepDives doit
+    // passer par ici, jamais seulement par un document fabriqué à la main.
+    const atelier2 = await browser.newPage();
+    await atelier2.route('**/*', r => /^file:/.test(r.request().url()) ? r.continue() : r.abort());
+    await atelier2.goto('file://' + path.join(__dirname, '../studio-clinique.html'));
+    await atelier2.waitForFunction(() => typeof window.adocConvertDeepDives === 'function');
+    const conv = await atelier2.evaluate(() => {
+      const brut = [
+        { id: 'n1', title: 'Illustrée', imageQuery: 'therapist office chairs', imageAlt: 'Un cabinet 🙂',
+          paragraphs: ['Un paragraphe assez long pour être conservé.'], deepDiveLinks: [] },
+        { id: 'n2', title: 'Sans image', imageQuery: '', imageAlt: '',
+          paragraphs: ['Un paragraphe assez long pour être conservé.'], deepDiveLinks: [] },
+      ];
+      const out = window.adocConvertDeepDives(brut);
+      return { avec: out[0], sans: out[1],
+        htmlAvec: window.adocDeepDiveImageHTML(out[0]), htmlSans: window.adocDeepDiveImageHTML(out[1]) };
+    });
+    assert.equal(conv.avec.imageQuery, 'therapist office chairs',
+      "adocConvertDeepDives DOIT reporter imageQuery — sans quoi aucune page réellement générée ne s'illustre");
+    assert.equal(conv.avec.imageAlt, 'Un cabinet',
+      'imageAlt est reporté ET passé par adocStripEmoji, comme tout texte visible de ce document');
+    assert.ok(/data-pexels="therapist office chairs"/.test(conv.htmlAvec),
+      "l'illustration doit être rendue à partir du document CONVERTI, pas seulement d'un document forgé");
+    assert.ok(!('imageQuery' in conv.sans),
+      "une page sans requête n'emporte AUCUNE clé vide — même principe additif que deepDiveLinks");
+    assert.equal(conv.htmlSans, '', 'une page sans requête ne produit rien');
+    await atelier2.close();
+    console.log("PASS 7/8  adocConvertDeepDives reporte imageQuery/imageAlt (et rien quand il n'y a rien).");
+
+    // ── 8 — LE COURS EN PUZZLE : l'assemblage repasse par la conversion, et reperdait tout ─────────
+    const atelier3 = await browser.newPage();
+    await atelier3.route('**/*', r => /^file:/.test(r.request().url()) ? r.continue() : r.abort());
+    await atelier3.goto('file://' + path.join(__dirname, '../studio-clinique.html'));
+    await atelier3.waitForFunction(() => typeof window.adocAssembleCourse === 'function');
+    const assemble = await atelier3.evaluate(() => {
+      const doc = { documentKind: 'presentation', title: 'M1', citations: [],
+        blocks: [{ id: 'c1', type: 'card', content: { title: 'D', imageRef: null, imageAlt: null,
+          blocks: [{ id: 'p1', type: 'paragraph', content: { text: 'T' }, citationIds: [], validation: {},
+            deepDiveLinks: [{ text: 'T', targetId: 'n1' }] }] } }],
+        deepDives: [{ id: 'n1', title: 'Illustrée', imageQuery: 'therapist office chairs',
+          imageAlt: 'Un cabinet', paragraphs: ['Un paragraphe assez long pour être conservé.'] }] };
+      const out = window.adocAssembleCourse([{ id: 'm1', doc: doc, snapshot: { entries: [] } }],
+        { courseId: 'c', titre: 'Cours', modules: [{ id: 'm1', titre: 'Module 1' }] },
+        { ids: { documentId: 'd', versionId: 'v', createdAt: '2026-01-01', requestId: 'r' } });
+      return (out.doc.deepDives || [])[0] || {};
+    });
+    assert.equal(assemble.imageQuery, 'therapist office chairs',
+      "un cours assemblé DOIT garder l'illustration de chaque page — adocAssembleCourse reconstruit les pages et les reperdait");
+    await atelier3.close();
+    console.log("PASS 8/8  cours assemblé : l'illustration survit à adocAssembleCourse.");
+
     assert.deepEqual(erreurs, [], 'erreurs de page : ' + erreurs.join(' | '));
-    console.log('\nTOUT PASSE — 6/6, aucun appel réseau.');
+    console.log('\nTOUT PASSE — 8/8, aucun appel réseau.');
   } finally {
     fs.rmSync(dossier, { recursive: true, force: true });
     await browser.close();

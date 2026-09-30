@@ -7761,7 +7761,22 @@ ${recent}`;
       const paragraphs = ((d && d.paragraphs) || []).map(paragrapheEntrant).filter(Boolean);
       if (!id || !title || !paragraphs.length) return null;
       repartirLiensDePage(d, paragraphs);
-      return { id: id, title: title, paragraphs: paragraphs };
+      // L'ILLUSTRATION DE PAGE ÉTAIT PERDUE ICI. Le schéma d'outil exige imageQuery/imageAlt sur
+      // chaque entrée deepDives, adocDeepDiveImageHTML et adocCollectExportImageQueries les lisent,
+      // mais cette conversion ne les reportait pas : sur le chemin RÉEL de génération, toute page
+      // repartait sans illustration et adocDeepDiveImageHTML renvoyait la chaîne vide. Le défaut
+      // était invisible parce que les tests forgeaient des documents portant déjà imageQuery, donc
+      // sans traverser cette fonction — d'où l'assertion ajoutée à verify-page-image, qui la
+      // traverse désormais.
+      // Champs OMIS plutôt que posés à vide quand il n'y a rien à illustrer : même principe additif
+      // à empreinte nulle que deepDiveLinks, qui n'apparaît jamais comme clé vide.
+      const resultat = { id: id, title: title, paragraphs: paragraphs };
+      const requete = (((d && d.imageQuery) || '') + '').trim();
+      if (requete) {
+        resultat.imageQuery = requete;
+        resultat.imageAlt = adocStripEmoji((((d && d.imageAlt) || '') + '').trim());
+      }
+      return resultat;
     }
     const liste = (rawDeepDives || []).map(convertDeepDive).filter(Boolean);
     const connus = new Set(liste.map(function(d) { return d.id; }));
@@ -8056,6 +8071,11 @@ ${recent}`;
         deepDivesBruts.push({
           id: r.plan.id + '-' + d.id,
           title: d.title,
+          // Reportés explicitement : cette reconstruction repasse par adocConvertDeepDives, et
+          // omettre ces deux champs ici reperdrait l'illustration de chaque page du cours assemblé
+          // — le même défaut que celui corrigé dans convertDeepDive, une seconde fois.
+          imageQuery: d.imageQuery,
+          imageAlt: d.imageAlt,
           paragraphs: (d.paragraphs || []).map(function (par) {
             if (typeof par === 'string') return par;
             const liens = (par.deepDiveLinks || []).map(function (l) {
