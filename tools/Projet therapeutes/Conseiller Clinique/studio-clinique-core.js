@@ -16345,7 +16345,18 @@ ${recent}`;
     // La porte est un calque inset:0 — la mettre à l'échelle entière la ferait déborder. Seule sa
     // COLONNE DE TEXTE, elle aussi figée (640 px, 16 px), suit le facteur.
     '.cc-ws-present-door-text{transform:scale(var(--adoc-present-echelle-agrandir,1));transform-origin:center center;}' +
-    '.cc-ws-present-slide-inner{width:100%;height:100%;overflow:hidden;opacity:1;transform:translateX(0);transition:opacity 260ms ease, transform 260ms ease;}' +
+    '.cc-ws-present-slide-inner{position:relative;width:100%;height:100%;overflow:hidden;opacity:1;transform:translateX(0);transition:opacity 260ms ease, transform 260ms ease;}' +
+    // REPÈRE DE DÉFILEMENT — porté par l'ENVELOPPE et non par la carte : c'est la carte qui défile
+    // (.cc-ws-present-slide-inner .adoc-sc-card{overflow:auto}), donc un ::after posé sur elle
+    // descendrait avec le contenu au lieu de rester au bord bas. L'enveloppe, en overflow:hidden, ne
+    // bouge pas.
+    // pointer-events:none est indispensable, pas décoratif : sans lui le dégradé intercepterait la
+    // molette et le clic dans la bande basse de la diapositive — le repère empêcherait de faire ce
+    // qu'il invite à faire.
+    // Palette de présentation déjà en place (fond rgba(20,33,31,…), texte #e8f5f1, cf. la puce
+    // d'approfondissement en plein écran) : aucun ton nouveau.
+    '.cc-ws-present-slide-inner::after{content:"↓";position:absolute;left:0;right:0;bottom:0;height:54px;display:none;align-items:flex-end;justify-content:center;padding-bottom:6px;font-size:20px;line-height:1;color:#e8f5f1;background:linear-gradient(to bottom,rgba(20,33,31,0) 0%,rgba(20,33,31,.5) 65%,rgba(20,33,31,.76) 100%);pointer-events:none;border-radius:0 0 12px 12px;}' +
+    '.cc-ws-present-slide-inner.cc-ws-present-suite::after{display:flex;}' +
     '.cc-ws-present-slide-inner .adoc-sc-doc{height:100%;}' +
     '.cc-ws-present-slide-inner .adoc-sc-card{width:100%;height:100%;max-width:none;box-sizing:border-box;overflow:auto;}' +
     '.cc-ws-present-slide-inner.cc-ws-present-out{opacity:0;}' +
@@ -16694,6 +16705,36 @@ ${recent}`;
   // rejeu du montage que l'utilisatrice n'a pas demandé). Une diapositive à 0 ou 1 bloc n'a rien à
   // révéler progressivement : revealIndex reste null, adocPresentRevealNext/Prev deviennent alors
   // des no-op et Suivant/Précédent avancent directement de diapositive, comme au Lot 1.
+  // ── REPÈRE DE DÉFILEMENT D'UNE DIAPOSITIVE ──────────────────────────────────────────────────
+  // La carte défile déjà (overflow:auto) : rien n'est perdu, mais rien ne signalait qu'il restait du
+  // contenu sous la ligne de flottaison. Indicateur PASSIF, jamais un mécanisme d'interaction : la
+  // diapositive se parcourt à la molette et au clavier, elle n'a pas besoin d'un clic dédié.
+  //
+  // MESURE qui justifie un seul contrôle au montage : la hauteur d'une diapositive ne bouge PAS pendant
+  // son montage progressif. .adoc-sc-reveal masque par opacity:0 + visibility:hidden, qui conservent la
+  // place dans le flux — vérifié sur 12 diapositives en débordement et 5 questionnaires de tailles
+  // différentes, 0 changement de scrollHeight entre « premier bloc révélé » et « tout révélé ». Une
+  // réinstallation après chaque révélation serait donc du travail pour rien. C'est l'inverse du
+  // masquage de la PORTE, qui emploie display:none précisément pour libérer la place.
+  function adocPresentMajRepereDefilement() {
+    const inner = document.getElementById('cc-ws-present-slide-inner');
+    const carte = inner ? inner.querySelector('.adoc-sc-card') : null;
+    if (!inner || !carte) return;
+    const restant = carte.scrollHeight - carte.clientHeight - carte.scrollTop;
+    inner.classList.toggle('cc-ws-present-suite', restant > ADOC_PRESENT_REPERE_MARGE);
+  }
+
+  // Le gestionnaire est posé sur la CARTE, remplacée à chaque changement de diapositive (l'innerHTML de
+  // l'enveloppe est réécrit) : les écouteurs meurent avec le noeud, il n'y a donc ni accumulation ni
+  // retrait à faire. Le poser sur l'enveloppe, elle-même jamais remplacée, l'aurait accumulé.
+  function adocPresentInstallerRepereDefilement() {
+    const inner = document.getElementById('cc-ws-present-slide-inner');
+    const carte = inner ? inner.querySelector('.adoc-sc-card') : null;
+    if (!carte) { if (inner) inner.classList.remove('cc-ws-present-suite'); return; }
+    carte.addEventListener('scroll', adocPresentMajRepereDefilement, { passive: true });
+    adocPresentMajRepereDefilement();
+  }
+
   function adocPresentApplyReveal(inner, card, fullyRevealed) {
     const state = window._adocPresentState;
     if (!state) return;
@@ -16845,6 +16886,13 @@ ${recent}`;
   // Comme ADOC_PRESENT_REF_W ci-dessous, cette constante DOIT être émise dans dataText : une
   // variable de portée de module n'est jamais sérialisée dans un export autonome.
   const ADOC_DOOR_REVEAL_SEUIL = 9;
+
+  // Tolérance du repère de défilement, en pixels. Un écart de 1 px entre scrollHeight et clientHeight
+  // vient des arrondis de mise en page et de la mise à l'échelle (transform:scale), pas d'un contenu
+  // réellement caché : sans marge, le repère clignoterait sur des diapositives qui tiennent.
+  // Émise dans dataText comme ADOC_PRESENT_REF_W/H et ADOC_DOOR_REVEAL_SEUIL — une constante de portée
+  // de module n'est jamais sérialisée dans un export.
+  const ADOC_PRESENT_REPERE_MARGE = 2;
   const ADOC_PRESENT_REF_W = 1422;
   const ADOC_PRESENT_REF_H = 800;
 
@@ -16920,6 +16968,12 @@ ${recent}`;
     adocPresentUpdateCounter();
     overlay.hidden = false;
     overlay.classList.add('open');
+    // APRÈS l'ouverture de l'enveloppe, jamais avant : tant que l'overlay est masqué, la carte mesure
+    // 0×0 et scrollHeight vaut clientHeight — le repère ne se poserait jamais sur la première
+    // diapositive. Mesuré : appelé six lignes plus haut, il relevait 798/798 sur une diapositive qui
+    // déborde en réalité de 2 500 px. Le chemin de changement de diapositive
+    // (adocPresentGoToInternal) n'a pas ce problème, l'enveloppe y étant déjà ouverte.
+    adocPresentInstallerRepereDefilement();
     // APRÈS le démasquage : un élément encore `hidden` a une boîte de taille nulle, et le facteur
     // calculé dessus vaudrait son plancher. L'ordre n'est pas cosmétique.
     adocPresentInstallerEcouteursEchelle();
@@ -17356,6 +17410,7 @@ ${recent}`;
       // un second mécanisme : résolue AVANT assignation à innerHTML, pas de flash d'image vide.
       inner.innerHTML = await adocPresentResolveSlideHTML(state.doc.blocks[newIndex], newIndex, total);
       adocPresentApplyReveal(inner, state.doc.blocks[newIndex], forceFullyRevealed || direction === -1);
+      adocPresentInstallerRepereDefilement();
       inner.style.transform = 'translateX(' + (direction * 16) + 'px)';
       void inner.offsetWidth; // force reflow — sans quoi la transition de retour ne rejouerait pas
       inner.classList.remove('cc-ws-present-out');
@@ -17676,6 +17731,10 @@ ${recent}`;
       // construction du sommaire dans l'export : sans elle, ouvrir le sommaire d'un fichier exporté
       // lèverait « adocPresentTocDeepDiveOrdre is not defined ».
       adocPresentTocDeepDiveOrdre: adocPresentTocDeepDiveOrdre,
+      // REPÈRE DE DÉFILEMENT — appelées au montage de chaque diapositive et sur son événement scroll.
+      // Aucune n'est un onclick : rien à ajouter à windowFnNames, ce que l'export vérifie réellement.
+      adocPresentMajRepereDefilement: adocPresentMajRepereDefilement,
+      adocPresentInstallerRepereDefilement: adocPresentInstallerRepereDefilement,
       adocPresentUpdateCounter: adocPresentUpdateCounter, adocPresentApplyReveal: adocPresentApplyReveal,
       adocPresentAnimateNumberIfEligible: adocPresentAnimateNumberIfEligible,
       adocPresentRevealNext: adocPresentRevealNext, adocPresentRevealPrev: adocPresentRevealPrev,
@@ -17710,6 +17769,7 @@ ${recent}`;
       // engineFnRefs (qui ne transporte que des fonctions). Sans cette ligne, l'export lèverait
       // « ADOC_DOOR_REVEAL_SEUIL is not defined » à l'ouverture de la première page longue.
       'var ADOC_DOOR_REVEAL_SEUIL = ' + ADOC_DOOR_REVEAL_SEUIL + ';\n' +
+      'var ADOC_PRESENT_REPERE_MARGE = ' + ADOC_PRESENT_REPERE_MARGE + ';\n' +
       'var ADOC_PRESENT_REF_W = ' + ADOC_PRESENT_REF_W + ';\n' +
       'var ADOC_PRESENT_REF_H = ' + ADOC_PRESENT_REF_H + ';\n' +
       // Le dictionnaire des images embarquées, écrit en clair. C'est lui qui rend le fichier
