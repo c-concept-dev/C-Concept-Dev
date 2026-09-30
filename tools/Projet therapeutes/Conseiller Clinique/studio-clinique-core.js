@@ -7530,6 +7530,62 @@ ${recent}`;
   // avec l'identité pétrole/terracotta déjà établie : une police de titre serif éditoriale +
   // une police de corps sans-serif humaniste, jamais l'inverse. 'keep' n'applique aucun
   // remplacement (la police du document reste exactement ce qu'elle était).
+  // POLICES RÉELLEMENT INSTALLÉES SUR LE MAC — liste FIGÉE, relevée par le terminal.
+  // Safari n'expose pas window.queryLocalFonts() (choix d'Apple contre le pistage, jamais
+  // contournable en JavaScript) : aucune énumération n'est possible depuis la page. Cette liste
+  // est donc relevée hors navigateur, par system_profiler, et figée ici.
+  // Pourquoi system_profiler et pas autre chose, mesuré : fc-list traite les STYLES comme des
+  // familles (Avenir Black, Avenir Book, Avenir Heavy… au lieu du seul Avenir : 640 entrées contre
+  // 227) et dépend de Homebrew ; lire les dossiers de polices donne des noms de FICHIERS, or un
+  // .ttc contient plusieurs familles et trois fichiers SourceCodePro-* forment la seule famille
+  // « Source Code Pro ». system_profiler expose le vrai champ `family`, avec les drapeaux enabled
+  // et valid qui écartent les polices désactivées ou cassées.
+  // RAFRAÎCHIR après installation d'une police : tests/LISTER-POLICES.sh (13 s, à recoller ici).
+  // 227 familles, relevées le 2026-09-30.
+  const ADOC_MAC_FONT_FAMILIES = [
+    'Academy Engraved LET', 'Al Bayan', 'Al Nile', 'Al Tarikh', 'American Typewriter',
+    'Amsterdam Handwriting', 'Andale Mono', 'Apple Braille', 'Apple Chancery', 'Apple Color Emoji',
+    'Apple SD Gothic Neo', 'Apple Symbols', 'AppleGothic', 'AppleMyungjo', 'Arial', 'Arial Black',
+    'Arial Hebrew', 'Arial Hebrew Scholar', 'Arial Narrow', 'Arial Rounded MT Bold', 'Arial Unicode MS',
+    'Autography', 'Avenir', 'Avenir Next', 'Avenir Next Condensed', 'Ayuthaya', 'Baghdad', 'Bangla MN',
+    'Bangla Sangam MN', 'Baskerville', 'Beirut', 'Big Caslon', 'Bodoni 72', 'Bodoni 72 Oldstyle',
+    'Bodoni 72 Smallcaps', 'Bodoni Ornaments', 'Bradley Hand', 'Brush Script MT', 'Chalkboard',
+    'Chalkboard SE', 'Chalkduster', 'Charter', 'Cochin', 'Comic Sans MS', 'Copperplate', 'Corsiva Hebrew',
+    'Courier New', 'Damascus', 'DecoType Naskh', 'Devanagari MT', 'Devanagari Sangam MN', 'Didot',
+    'DIN Alternate', 'DIN Condensed', 'Diwan Kufi', 'Diwan Thuluth', 'Euphemia UCAS', 'Farah', 'Farisi',
+    'Futura', 'Galvji', 'GB18030 Bitmap', 'Geeza Pro', 'Geneva', 'Georgia', 'Gill Sans', 'Gistesy',
+    'Grantha Sangam MN', 'Gujarati MT', 'Gujarati Sangam MN', 'Gurmukhi MN', 'Gurmukhi MT',
+    'Gurmukhi Sangam MN', 'Heiti SC', 'Heiti TC', 'Helsinki Metronome Std', 'Helsinki Special Std',
+    'Helsinki Std', 'Helsinki Text Std', 'Helvetica', 'Helvetica Neue', 'Herculanum',
+    'Hiragino Maru Gothic ProN', 'Hiragino Mincho ProN', 'Hiragino Sans', 'Hiragino Sans GB',
+    'Hoefler Text', 'Impact', 'InaiMathi', 'Inkpen2 Chords Std', 'Inkpen2 Metronome Std',
+    'Inkpen2 Script Std', 'Inkpen2 Special Std', 'Inkpen2 Std', 'Inkpen2 Text Std', 'ITF Devanagari',
+    'ITF Devanagari Marathi', 'Kailasa', 'Kannada MN', 'Kannada Sangam MN', 'Kefa III', 'Khmer MN',
+    'Khmer Sangam MN', 'Kohinoor Bangla', 'Kohinoor Devanagari', 'Kohinoor Gujarati', 'Kohinoor Telugu',
+    'Kokonor', 'Krungthep', 'KufiStandardGK', 'Lao MN', 'Lao Sangam MN', 'Lucida Grande', 'Luminari',
+    'Maestro', 'Malayalam MN', 'Malayalam Sangam MN', 'Marker Felt', 'Menlo', 'Microsoft Sans Serif',
+    'Mishafi', 'Mishafi Gold', 'Monaco', 'Mshtakan', 'Mukta Mahee', 'Muna', 'Myanmar MN',
+    'Myanmar Sangam MN', 'Nadeem', 'New Peninim MT', 'Noteworthy', 'Noto Nastaliq Urdu', 'Noto Sans Batak',
+    'Noto Sans Kannada', 'Noto Sans Myanmar', 'Noto Sans NKo', 'Noto Sans Oriya', 'Noto Sans Syriac',
+    'Noto Sans Tagalog', 'Noto Serif Myanmar', 'Optima', 'Opus Big Time Std',
+    'Opus Chords Sans Condensed Std', 'Opus Chords Sans Std', 'Opus Chords Std',
+    'Opus Figured Bass Extras Std', 'Opus Figured Bass Std', 'Opus Function Symbols Std',
+    'Opus Metronome Std', 'Opus Note Names Std', 'Opus Ornaments Std', 'Opus Percussion Std',
+    'Opus PlainChords Std', 'Opus Roman Chords Std', 'Opus Special Extra Std', 'Opus Special Std',
+    'Opus Std', 'Opus Text Std', 'Oriya MN', 'Oriya Sangam MN', 'Palatino', 'Papyrus', 'Party LET',
+    'Phosphate', 'PingFang HK', 'PingFang MO', 'PingFang SC', 'PingFang TC', 'Plantagenet Cherokee',
+    'Police système', 'Pompiere', 'PT Mono', 'PT Sans', 'PT Sans Caption', 'PT Sans Narrow', 'PT Serif',
+    'PT Serif Caption', 'Quicksand', 'Raanana', 'Reprise Big Time Std', 'Reprise Chords Std',
+    'Reprise Metronome Std', 'Reprise Rehearsal Std', 'Reprise Script Std', 'Reprise Special Std',
+    'Reprise Stamp Std', 'Reprise Std', 'Reprise Text Std', 'Reprise Title Std', 'Rockwell', 'Sana',
+    'Sathu', 'Savoye LET', 'Shree Devanagari 714', 'SignPainter', 'Silom', 'Sinhala MN',
+    'Sinhala Sangam MN', 'Sinthya', 'Skia', 'Snell Roundhand', 'Songti SC', 'Songti TC', 'Source Code Pro',
+    'STIX Two Math', 'STIX Two Text', 'STSong', 'Sukhumvit Set', 'Symbol', 'Synthia', 'Tahoma', 'Tamil MN',
+    'Tamil Sangam MN', 'Telugu MN', 'Telugu Sangam MN', 'Thonburi', 'Times New Roman', 'Trattatello',
+    'Trebuchet MS', 'Verdana', 'Waseem', 'Webdings', 'Wingdings', 'Wingdings 2', 'Wingdings 3',
+    'Zapf Dingbats', 'Zapfino',
+  ];
+
   const ADOC_LEGACY_FONT_PAIRS = [
     { id: 'keep', label: 'Ne pas changer la police', bodyFont: null, headingFont: null, googleFontsHref: null },
     { id: 'default', label: 'Police par défaut du Studio — IBM Plex Sans / Source Serif 4', bodyFont: 'IBM Plex Sans', headingFont: 'Source Serif 4',
@@ -9295,12 +9351,12 @@ ${recent}`;
   }
   var _adocEditorLocalFonts = [];
   window.adocEditorLoadLocalFonts = async function () {
-    if (!window.queryLocalFonts) { adocEditorMessage('Ce navigateur ne peut pas lister les polices locales. Saisissez leur nom, ou utilisez Chrome/Edge sur ordinateur pour les charger.'); return; }
+    if (!window.queryLocalFonts) { adocEditorMessage('Ce navigateur ne peut pas lister les polices installées (Safari ne le permet pas). La liste des polices de cet ordinateur est déjà proposée : elle est relevée hors navigateur, par tests/LISTER-POLICES.sh.'); return; }
     try {
       const fonts = await window.queryLocalFonts();
       _adocEditorLocalFonts = Array.from(new Set(fonts.map(function (f) { return f.family; }))).sort(function (a,b) {return a.localeCompare(b);});
       adocEditorRefreshControls(); adocEditorMessage(_adocEditorLocalFonts.length + ' familles de polices disponibles sur cet ordinateur.');
-    } catch (_) { adocEditorMessage('Accès aux polices non accordé. Vous pouvez réessayer ou saisir le nom de la police.'); }
+    } catch (_) { adocEditorMessage('Accès aux polices non accordé. Vous pouvez réessayer ; la liste des polices de cet ordinateur reste proposée par ailleurs.'); }
   };
   function adocEditorControlsHTML() {
     function button(action, label) { return '<button type="button" class="cc-clarity-other-btn" data-editor-action="' + action + '">' + label + '</button>'; }
@@ -9316,7 +9372,12 @@ ${recent}`;
       // ce bloc et donc jamais affectées par ce repli.
       '<details class="cc-editor-text-format"><summary>Texte et mise en forme</summary><div class="cc-editor-row">' + button('undo','Annuler') + button('redo','Rétablir') +
       '<label>Appliquer à<select data-editor-scope><option value="block">Tout le bloc</option><option value="selection">Texte sélectionné</option><option value="cell">Cellule active</option></select></label></div>' +
-      '<div class="cc-editor-row"><label>Police<input data-editor-style="fontFamily" list="cc-editor-fonts" placeholder="Police de la charte"></label><datalist id="cc-editor-fonts"></datalist>' + button('local-fonts','Polices de cet ordinateur') + number('fontSizePt','Taille (pt)',6,144) + '</div>' +
+      // LISTE FERMÉE — <select> et non plus <input>+<datalist>. La datalist ne donnait que des
+      // SUGGESTIONS : le champ restait du texte libre, donc une faute de frappe produisait une police
+      // inexistante, silencieusement ignorée par le navigateur. Un <select> rend la valeur hors liste
+      // impossible. Le gestionnaire est inchangé — il écoute 'change' sur [data-editor-style] et lit
+      // .value, exactement comme <select data-editor-style="textAlign"> juste en dessous.
+      '<div class="cc-editor-row"><label>Police<select data-editor-style="fontFamily"><option value="">Police de la charte</option></select></label>' + button('local-fonts','Polices de cet ordinateur') + number('fontSizePt','Taille (pt)',6,144) + '</div>' +
       '<div class="cc-editor-row">' + button('bold','Gras') + button('italic','Italique') + button('underline','Souligné') + button('strike','Barré') +
       '<label>Alignement<select data-editor-style="textAlign"><option value="">Charte</option><option value="left">Gauche</option><option value="center">Centré</option><option value="right">Droite</option><option value="justify">Justifié</option></select></label>' +
       '<label>Casse<select data-editor-style="textTransform"><option value="none">Originale</option><option value="uppercase">MAJUSCULES</option><option value="lowercase">minuscules</option><option value="capitalize">Initiales</option></select></label></div>' +
@@ -9398,7 +9459,35 @@ ${recent}`;
         (activeKit.typography.availableFonts || []).forEach(function (f) { if (f && f.candidate) families.add(f.candidate); });
       }
     }
-    tools.querySelector('datalist').innerHTML = Array.from(families).map(function (f) { return '<option value="' + adocEsc(f) + '"></option>'; }).join('');
+    // Les options sont construites ICI et non dans le balisage : les sources ne sont connues qu'au
+    // rafraîchissement (charte active du document, polices chargées par queryLocalFonts).
+    // ORDRE : les polices réellement installées sur ce Mac d'abord, puisque ce sont les seules qui
+    // s'afficheront vraiment chez l'utilisatrice ; les autres ensuite, dans un groupe distinct.
+    const selectPolice = tools.querySelector('select[data-editor-style="fontFamily"]');
+    if (selectPolice) {
+      const mac = (typeof ADOC_MAC_FONT_FAMILIES !== 'undefined' ? ADOC_MAC_FONT_FAMILIES : []);
+      const macSet = new Set(mac);
+      const autres = Array.from(families).filter(function (f) { return !macSet.has(f); })
+        .sort(function (a, b) { return a.toLowerCase().localeCompare(b.toLowerCase()); });
+      const opt = function (f) { return '<option value="' + adocEsc(f) + '">' + adocEsc(f) + '</option>'; };
+      let html = '<option value="">Police de la charte</option>';
+      if (mac.length) html += '<optgroup label="Polices de cet ordinateur">' + mac.map(opt).join('') + '</optgroup>';
+      if (autres.length) html += '<optgroup label="Polices des chartes et des paires">' + autres.map(opt).join('') + '</optgroup>';
+      // VALEUR HÉRITÉE INCONNUE — un document venu d'un autre poste peut porter une police absente
+      // d'ici. Sans cette option, affecter select.value la remettrait silencieusement à vide, et le
+      // premier réglage suivant EFFACERAIT la police du document. Elle est donc conservée, montrée
+      // pour ce qu'elle est, et `disabled` : visible et préservée, jamais re-choisissable.
+      const actuelle = style.fontFamily;
+      if (actuelle && !macSet.has(actuelle) && !families.has(actuelle)) {
+        html += '<optgroup label="Valeur du document, absente de cet ordinateur">'
+          + '<option value="' + adocEsc(actuelle) + '" disabled>' + adocEsc(actuelle) + '</option></optgroup>';
+      }
+      selectPolice.innerHTML = html;
+      // La boucle générique [data-editor-style] a déjà posé les valeurs PLUS HAUT, alors que ce
+      // <select> n'avait pas encore ses options : sans cette ligne, sa valeur retomberait à vide à
+      // chaque rafraîchissement, quelle que soit la police du bloc.
+      if (document.activeElement !== selectPolice) selectPolice.value = actuelle == null ? '' : actuelle;
+    }
     tools.querySelector('.cc-editor-swatches').innerHTML = adocEditorPalette().map(function (p) {
       return '<button type="button" title="' + adocEsc(p[0] + ' ' + p[1]) + '" aria-label="Couleur ' + adocEsc(p[0]) + '" data-editor-color="' + adocEsc(p[1]) + '" style="background:' + p[1] + '"></button>';
     }).join('');
