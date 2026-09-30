@@ -71,11 +71,16 @@ const state = {
     afterSpeakingCallback: null,
     
     // ═══════════════════════════════════════════════════════════════════════════
-    // v17.3.2: API GOOGLE CLOUD TTS - HARDCODÉE (Pour Christophe uniquement)
+    // API GOOGLE CLOUD TTS — lue depuis localStorage, JAMAIS codée en dur
     // ═══════════════════════════════════════════════════════════════════════════
-    // ⚠️ REMPLACER PAR TA VRAIE CLÉ ICI ⬇️
-    googleTTSApiKey: 'AIzaSyCo8nfkrMZWv5-7Ns1kaBlJ_0APMjeu4Ok', // 🔑 METTRE TA CLÉ ICI
-    // Pour changer rapidement : Cmd+Shift+K dans le navigateur
+    // Ce dépôt est public et cloné en continu : une clé écrite ici est publiée. Text-to-Speech
+    // étant facturé, la valeur qui s'y trouvait auparavant exposait le compte de facturation.
+    // La clé se saisit dans l'interface, qui la persiste sous localStorage['googleTTSApiKey'].
+    // La relecture se fait ICI, à l'initialisation de state : les setItem existants l'écrivaient
+    // sans que rien ne la relise, si bien qu'un rechargement la perdait et retombait sur la
+    // valeur en dur. Le try/catch est nécessaire, pas décoratif — l'accès à localStorage lève
+    // dans un document bac à sable sans allow-same-origin.
+    googleTTSApiKey: (() => { try { return localStorage.getItem('googleTTSApiKey') || ''; } catch { return ''; } })(),
     // ═══════════════════════════════════════════════════════════════════════════
     
     googleTTSVoice: 'fr-FR-Neural2-B', // Voix masculine Neural2
