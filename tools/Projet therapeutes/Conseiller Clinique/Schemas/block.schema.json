@@ -92,6 +92,105 @@
         "zIndex": {
           "type": "integer",
           "minimum": 0
+        },
+        "fontPairId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "color": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "fontSize": {
+          "enum": [
+            "small",
+            "normal",
+            "large",
+            "xlarge"
+          ]
+        },
+        "fontFamily": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "backgroundColor": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "fontWeight": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "fontStyle": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "textDecoration": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "textAlign": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "textTransform": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "borderColor": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "fontSizePt": {
+          "type": "number",
+          "minimum": 6,
+          "maximum": 144
+        },
+        "lineHeight": {
+          "type": "number",
+          "minimum": 0.5,
+          "maximum": 4
+        },
+        "letterSpacing": {
+          "type": "number",
+          "minimum": -2,
+          "maximum": 20
+        },
+        "marginTop": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 160
+        },
+        "marginBottom": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 160
+        },
+        "textIndent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 160
+        },
+        "borderWidth": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 12
+        },
+        "backgroundAssetId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "backgroundOpacity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "textOpacity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
         }
       }
     },
@@ -349,14 +448,17 @@
         "citationIds": {
           "$ref": "#/$defs/citationIds"
         },
-        "deepDiveLinks": {
-          "$ref": "#/$defs/deepDiveLinks"
-        },
         "validation": {
           "$ref": "#/$defs/blockValidation"
         },
         "style": {
           "$ref": "#/$defs/blockStyle"
+        },
+        "editor": {
+          "$ref": "#/$defs/editorPresentation"
+        },
+        "deepDiveLinks": {
+          "$ref": "#/$defs/deepDiveLinks"
         }
       }
     },
@@ -382,14 +484,17 @@
         "citationIds": {
           "$ref": "#/$defs/citationIds"
         },
-        "deepDiveLinks": {
-          "$ref": "#/$defs/deepDiveLinks"
-        },
         "validation": {
           "$ref": "#/$defs/blockValidation"
         },
         "style": {
           "$ref": "#/$defs/blockStyle"
+        },
+        "editor": {
+          "$ref": "#/$defs/editorPresentation"
+        },
+        "deepDiveLinks": {
+          "$ref": "#/$defs/deepDiveLinks"
         }
       }
     },
@@ -415,14 +520,17 @@
         "citationIds": {
           "$ref": "#/$defs/citationIds"
         },
-        "deepDiveLinks": {
-          "$ref": "#/$defs/deepDiveLinks"
-        },
         "validation": {
           "$ref": "#/$defs/blockValidation"
         },
         "style": {
           "$ref": "#/$defs/blockStyle"
+        },
+        "editor": {
+          "$ref": "#/$defs/editorPresentation"
+        },
+        "deepDiveLinks": {
+          "$ref": "#/$defs/deepDiveLinks"
         }
       }
     },
@@ -448,14 +556,17 @@
         "citationIds": {
           "$ref": "#/$defs/citationIds"
         },
-        "deepDiveLinks": {
-          "$ref": "#/$defs/deepDiveLinks"
-        },
         "validation": {
           "$ref": "#/$defs/blockValidation"
         },
         "style": {
           "$ref": "#/$defs/blockStyle"
+        },
+        "editor": {
+          "$ref": "#/$defs/editorPresentation"
+        },
+        "deepDiveLinks": {
+          "$ref": "#/$defs/deepDiveLinks"
         }
       }
     },
@@ -486,6 +597,9 @@
         },
         "style": {
           "$ref": "#/$defs/blockStyle"
+        },
+        "editor": {
+          "$ref": "#/$defs/editorPresentation"
         }
       }
     },
@@ -511,14 +625,17 @@
         "citationIds": {
           "$ref": "#/$defs/citationIds"
         },
-        "deepDiveLinks": {
-          "$ref": "#/$defs/deepDiveLinks"
-        },
         "validation": {
           "$ref": "#/$defs/blockValidation"
         },
         "style": {
           "$ref": "#/$defs/blockStyle"
+        },
+        "editor": {
+          "$ref": "#/$defs/editorPresentation"
+        },
+        "deepDiveLinks": {
+          "$ref": "#/$defs/deepDiveLinks"
         }
       }
     },
@@ -859,6 +976,79 @@
           "$ref": "#/$defs/cardBlock"
         }
       ]
+    },
+    "editorPresentation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "html": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "column",
+              "op",
+              "value",
+              "color"
+            ],
+            "properties": {
+              "column": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "op": {
+                "enum": [
+                  "gt",
+                  "lt",
+                  "eq"
+                ]
+              },
+              "value": {
+                "type": "number"
+              },
+              "color": {
+                "type": "string",
+                "pattern": "^#[0-9a-fA-F]{6}$"
+              }
+            }
+          }
+        },
+        "levels": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 8
+          }
+        },
+        "cells": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "rowSpan": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "colSpan": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "style": {
+                "$ref": "#/$defs/blockStyle"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "oneOf": [
