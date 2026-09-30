@@ -16720,6 +16720,28 @@ ${recent}`;
     // uniquement, qui se contente de se superposer visuellement.
     '#cc-ws-present-door{display:none;position:absolute;inset:0;z-index:20;flex-direction:column;align-items:center;justify-content:center;background:rgba(10,16,15,.96);padding:32px;}' +
     '#cc-ws-present-door.open{display:flex;}' +
+    // AMORCES DE LECTURE — même registre que la puce d'approfondissement et la pastille d'image
+    // (fond sombre translucide, texte ivoire) : c'est une indication, jamais un avertissement, donc
+    // aucune couleur d'alerte.
+    // pointer-events:none, pour la même raison que la pastille d'image : une phrase qui explique un
+    // geste ne doit jamais pouvoir l'empêcher. Constaté à l'occasion d'une falsification — posée par
+    // erreur au milieu de la porte, elle interceptait le clic sur les deux icônes de retour, donc
+    // exactement le geste qu'elle décrit.
+    '.adoc-amorce{max-width:560px;padding:10px 18px;border-radius:999px;background:rgba(20,33,31,.86);'
+      + 'color:#e8f5f1;border:1px solid rgba(232,245,241,.28);box-shadow:0 2px 10px rgba(0,0,0,.3);'
+      + 'font-size:14px;line-height:1.45;text-align:center;pointer-events:none;}' +
+    // Hors du flux : la diapositive est mise à l'échelle depuis une référence fixe, sa mise en page
+    // ne doit pas bouger. z-index INFÉRIEUR à celui de la porte (20) — ouvrir une page doit la
+    // recouvrir, jamais la laisser flotter par-dessus. En HAUT : la barre d'outils est un bandeau
+    // pleine largeur épinglé en bas, mesuré à 49 px, qui recouvrirait tout ce qui s'y poserait.
+    '#cc-ws-present-overlay > .adoc-amorce-diapo{position:absolute;top:14px;left:50%;'
+      + 'transform:translateX(-50%);z-index:15;}' +
+    // Hors du flux de la colonne (cf. adocPresentMajAmorce) : dans la bande libre au-dessus d'elle,
+    // que son plafond de hauteur (100% - 60px, centrée) laisse toujours vide. z-index : la colonne
+    // porte un transform, donc son propre contexte d'empilement à z-index 0 — 1 suffit à passer
+    // au-dessus, et rien de plus n'est utile.
+    '#cc-ws-present-door > .adoc-amorce-porte{position:absolute;top:14px;left:50%;'
+      + 'transform:translateX(-50%);z-index:1;}' +
     '#cc-ws-present-door img{max-width:100%;max-height:calc(100% - 60px);object-fit:contain;border-radius:8px;box-shadow:0 12px 40px rgba(0,0,0,.5);}' +
     // Présentation ACTE 2, Phase 2 — slot de contenu texte, second contenu interchangeable de la
     // même porte généralisée (cf. window.adocPresentOpenDeepDive) : jamais un second élément de
@@ -17062,6 +17084,87 @@ ${recent}`;
     carte.addEventListener('scroll', adocPresentMajRepereDefilement, { passive: true });
     adocPresentMajRepereDefilement();
   }
+  // ── AMORCES DE LECTURE (onboarding) ───────────────────────────────────────────────────────────
+  // Deux phrases, chacune posée là où son sujet se VOIT, et qui s'effacent au premier geste qu'elles
+  // décrivent. Aucun bouton de fermeture : la phrase s'en va parce que le geste a eu lieu, ce qui est
+  // la seule preuve qu'elle a servi.
+  //
+  // PORTÉE = LA SESSION DE PRÉSENTATION, jamais localStorage — tranché, et pour une raison mesurée :
+  // sur file://, l'origine "file://" est PARTAGÉE par tous les fichiers locaux, donc une clé naïve
+  // ferait qu'une présentation en taise une autre. Et le coût est asymétrique : revoir l'amorce coûte
+  // un regard, l'avoir masquée peut laisser quelqu'un bloqué devant un document qu'il croit plat. Les
+  // drapeaux vivent donc sur window._adocPresentState — refait à neuf à chaque ouverture, remis à
+  // null à la fermeture — jamais dans une variable de module, qui ne serait pas sérialisée dans un
+  // export autonome (même règle que doorRevealIndex, cf. la remarque de la révélation de porte).
+  //
+  // DEUX TEXTES, et non un seul répété : les icônes Reculer et Maison vivent dans
+  // adocDeepDiveActionsHTML, donc DANS la page d'approfondissement. Une amorce sur la diapositive ne
+  // pourrait pas parler d'une maison invisible. La porte IMAGE, elle, masque .cc-ws-present-door-text
+  // et n'affiche donc aucune de ces deux icônes : la seconde amorce ne s'y montre jamais.
+  const ADOC_AMORCE_DIAPO = 'Certaines images et certains mots soulignés ouvrent une page plus détaillée. Un clic suffit.';
+  const ADOC_AMORCE_PORTE = 'Les deux icônes en bas ramènent : la flèche à la page précédente, la maison à la diapositive.';
+
+  // Source UNIQUE du balisage des deux amorces — jamais deux constructions qui finiraient par
+  // diverger (précédent : le balisage de la porte, tenu à la main en double, avait déjà divergé).
+  // role="note" + aria-live="polite" : la phrase est annoncée sans interrompre la lecture en cours.
+  function adocPresentAmorceHTML(texte, classeSupp) {
+    return '<div class="adoc-amorce' + (classeSupp ? ' ' + classeSupp : '') + '" role="note" aria-live="polite">'
+      + adocEsc(texte) + '</div>';
+  }
+
+  // L'amorce de diapositive est un FRÈRE de la carte dans l'enveloppe du plein écran, jamais un enfant
+  // de #cc-ws-present-slide-inner : la diapositive est mise à l'échelle depuis une référence fixe de
+  // 1422×800, et y ajouter un bloc changerait sa mise en page — donc son débordement, déjà mesuré sur
+  // 12 diapositives. Même précédent architectural que #cc-ws-present-toc et #cc-ws-present-door : un
+  // élément positionné dans #cc-ws-present-overlay, déjà en position:fixed, jamais un second ancrage.
+  // Montage COMMUN aux deux amorces — un seul corps, jamais deux qui finiraient par diverger.
+  // « hote » est l'élément positionné qui la porte : #cc-ws-present-overlay (position:fixed) ou
+  // #cc-ws-present-door (position:absolute), tous deux déjà des ancrages existants.
+  //
+  // HORS DU FLUX dans les deux cas, et ce n'est pas une préférence esthétique : posée DANS le flux
+  // de la colonne de la porte, l'amorce lui coûtait 56 px et invalidait le seuil de révélation, qui
+  // est une CALIBRATION MESURÉE (652 px de contenu pour 652 visibles à 8 paragraphes, 676 pour 718 à
+  // 9 — d'où ADOC_DOOR_REVEAL_SEUIL = 9). Une page de 8 paragraphes se mettait donc à défiler, et le
+  // seuil devenait faux dès que l'amorce était affichée. Constaté en régression sur
+  // verify-porte-revelation, jamais deviné : c'est le test qui l'a dit, pas une relecture.
+  function adocPresentMajAmorce(hote, classe, texte, montrer) {
+    if (!hote) return;
+    const existant = hote.querySelector(':scope > .' + classe);
+    if (!montrer) { if (existant) existant.remove(); return; }
+    if (existant) return;   // déjà posée : ne pas la recréer inutilement
+    hote.insertAdjacentHTML('afterbegin', adocPresentAmorceHTML(texte, classe));
+  }
+
+  // L'amorce de diapositive n'est jamais un enfant de #cc-ws-present-slide-inner : la diapositive est
+  // mise à l'échelle depuis une référence fixe de 1422×800, et y ajouter un bloc changerait sa mise
+  // en page — donc son débordement, déjà mesuré sur 12 diapositives. Même précédent architectural que
+  // #cc-ws-present-toc et #cc-ws-present-door.
+  function adocPresentMajAmorceDiapo() {
+    const state = window._adocPresentState;
+    adocPresentMajAmorce(document.getElementById('cc-ws-present-overlay'), 'adoc-amorce-diapo',
+      ADOC_AMORCE_DIAPO, !!state && state.index === 0 && !state.amorceDiapoFaite);
+  }
+
+  // Appelée explicitement à false par la porte IMAGE (qui masque .cc-ws-present-door-text et
+  // n'affiche donc NI la flèche NI la maison) et par la fermeture partagée — de sorte qu'aucun
+  // balisage consommé ne subsiste dans une porte refermée.
+  function adocPresentMajAmorcePorte(montrer) {
+    adocPresentMajAmorce(document.getElementById('cc-ws-present-door'), 'adoc-amorce-porte',
+      ADOC_AMORCE_PORTE, !!montrer);
+  }
+
+  // Le geste a eu lieu : l'amorce correspondante ne reviendra plus de toute la session. UN seul point
+  // d'écriture des drapeaux, appelé par les cinq fonctions de navigation, plutôt que cinq affectations
+  // dispersées qui finiraient par ne plus dire la même chose. Le rafraîchissement se fait ICI et pas
+  // seulement au changement de diapositive : refermer une porte ne change pas d'index, et l'amorce
+  // resterait affichée alors que le geste qu'elle décrit est déjà accompli.
+  function adocPresentAmorceVue(cle) {
+    const state = window._adocPresentState;
+    if (!state) return;
+    state[cle] = true;
+    if (cle === 'amorceDiapoFaite') adocPresentMajAmorceDiapo();
+  }
+
 
   function adocPresentApplyReveal(inner, card, fullyRevealed) {
     const state = window._adocPresentState;
@@ -17280,7 +17383,8 @@ ${recent}`;
     // second global : elle est donc nettoyée par le mécanisme déjà en place (remise à null
     // par adocPresentClose, réinitialisée à chaque ouverture ici) — aucun site de nettoyage
     // séparé à retenir, aucun état résiduel possible d'une présentation à la suivante.
-    window._adocPresentState = { doc: doc, index: 0, revealIndex: null, revealTotal: 0, deepDiveStack: [] };
+    window._adocPresentState = { doc: doc, index: 0, revealIndex: null, revealTotal: 0, deepDiveStack: [],
+      amorceDiapoFaite: false, amorcePorteFaite: false };
     const overlay = document.getElementById('cc-ws-present-overlay');
     if (!overlay) return;
     const inner = document.getElementById('cc-ws-present-slide-inner');
@@ -17302,6 +17406,9 @@ ${recent}`;
     // déborde en réalité de 2 500 px. Le chemin de changement de diapositive
     // (adocPresentGoToInternal) n'a pas ce problème, l'enveloppe y étant déjà ouverte.
     adocPresentInstallerRepereDefilement();
+    // Même crochet que le repère : posé APRÈS l'ouverture de l'enveloppe, et rejoué à chaque
+    // changement de diapositive, l'amorce n'étant liée qu'à la PREMIÈRE.
+    adocPresentMajAmorceDiapo();
     // Accent du thème, posé sur l'enveloppe du plein écran : les quatre règles qui le lisent vivent
     // toutes à l'intérieur. Retiré plutôt que forcé quand il n'est pas résoluble, pour que le repli
     // CSS reprenne la main au lieu d'une valeur vide. Une seule pose, à l'ouverture : l'enveloppe
@@ -17411,6 +17518,10 @@ ${recent}`;
   window.adocPresentOpenImageDoor = function (imgEl) {
     const door = document.getElementById('cc-ws-present-door');
     if (!door || !imgEl) return;
+    // Le geste décrit par l'amorce de diapositive vient d'avoir lieu : elle a servi.
+    adocPresentAmorceVue('amorceDiapoFaite');
+    // La porte image n'affiche ni la flèche ni la maison : l'amorce de page n'y a rien à dire.
+    adocPresentMajAmorcePorte(false);
     adocPresentMemoriserFocus();
     const img = door.querySelector('img');
     const textEl = door.querySelector('.cc-ws-present-door-text');
@@ -17421,6 +17532,10 @@ ${recent}`;
     door.classList.add('open');
   };
   window.adocPresentCloseImageDoor = function () {
+    // Fermer par × ou par Échap ramène à la diapositive tout comme la maison : le geste de retour
+    // est acquis, l'amorce de porte n'a plus rien à apprendre.
+    adocPresentAmorceVue('amorcePorteFaite');
+    adocPresentMajAmorcePorte(false);
     const door = document.getElementById('cc-ws-present-door');
     if (door) { door.classList.remove('open'); door.hidden = true; }
     // Rend le focus à l'élément d'origine s'il est toujours dans la page. Vérification explicite :
@@ -17644,6 +17759,10 @@ ${recent}`;
     // quel s'il n'y a aucune référence).
     // Révélation appliquée AVANT la résolution d'image : une page longue ne doit jamais s'afficher
     // en entier le temps qu'une image arrive, puis se replier — ce serait un clignotement.
+    // Amorce de lecture, posée sur la PORTE et non dans sa colonne : hors du flux, elle ne coûte
+    // aucun pixel au plafond de hauteur, donc ne déplace pas le seuil de révélation. Relue à chaque
+    // peuplement — c'est ce qui la fait disparaître dès que le geste de retour a eu lieu.
+    adocPresentMajAmorcePorte(!!state && !state.amorcePorteFaite);
     adocDoorRevealApply(textEl, (entry.paragraphs || []).length, false);
     if (textEl.querySelector('img[data-pexels]')) {
       adocResolveImages('<!DOCTYPE html><html><body>' + textEl.innerHTML + '</body></html>')
@@ -17678,6 +17797,7 @@ ${recent}`;
   // lot ou modifié à la main.
   window.adocPresentOpenDeepDive = function (targetId) {
     adocPresentMemoriserFocus();
+    adocPresentAmorceVue('amorceDiapoFaite');
     const state = window._adocPresentState;
     const deepDives = (state && state.doc && state.doc.deepDives) || [];
     const entry = deepDives.filter(function (d) { return d.id === targetId; })[0];
@@ -17695,6 +17815,9 @@ ${recent}`;
   // Recule d'UN cran dans le chemin parcouru. Pile vidée → la porte se referme par la fermeture
   // PARTAGÉE déjà existante (jamais un second corps de fermeture).
   window.adocPresentDeepDiveBack = function () {
+    // AVANT adocDeepDivePopulateDoor plus bas : ce repeuplement relit le drapeau, et le poser après
+    // réafficherait l'amorce sur la page où l'on vient de reculer.
+    adocPresentAmorceVue('amorcePorteFaite');
     const state = window._adocPresentState;
     const pile = (state && Array.isArray(state.deepDiveStack)) ? state.deepDiveStack : null;
     if (!pile) { window.adocPresentCloseImageDoor(); return; }
@@ -17709,6 +17832,7 @@ ${recent}`;
   // est vidée d'un coup, jamais par une boucle de pop() qui rejouerait des rendus intermédiaires
   // que personne ne verrait.
   window.adocPresentDeepDiveHome = function () {
+    adocPresentAmorceVue('amorcePorteFaite');
     const state = window._adocPresentState;
     if (state && Array.isArray(state.deepDiveStack)) state.deepDiveStack.length = 0;
     window.adocPresentCloseImageDoor();
@@ -17746,6 +17870,7 @@ ${recent}`;
       inner.innerHTML = await adocPresentResolveSlideHTML(state.doc.blocks[newIndex], newIndex, total);
       adocPresentApplyReveal(inner, state.doc.blocks[newIndex], forceFullyRevealed || direction === -1);
       adocPresentInstallerRepereDefilement();
+      adocPresentMajAmorceDiapo();
       inner.style.transform = 'translateX(' + (direction * 16) + 'px)';
       void inner.offsetWidth; // force reflow — sans quoi la transition de retour ne rejouerait pas
       inner.classList.remove('cc-ws-present-out');
@@ -18075,6 +18200,16 @@ ${recent}`;
       adocPresentAccentColor: adocPresentAccentColor,
       adocPresentMajRepereDefilement: adocPresentMajRepereDefilement,
       adocPresentInstallerRepereDefilement: adocPresentInstallerRepereDefilement,
+      // Amorces de lecture. adocPresentMajAmorceDiapo est appelée par adocPresentOpenWithDoc et par
+      // adocPresentGoToInternal, adocPresentAmorceVue par les cinq fonctions de navigation (déjà
+      // dans windowFnNames), adocPresentAmorceHTML par les deux. Aucune n'est atteinte par un
+      // onclick : le garde-fou onclick ne les verrait donc jamais manquer — seul un export
+      // réellement ouvert le montre, en ReferenceError au premier geste.
+      adocPresentAmorceHTML: adocPresentAmorceHTML,
+      adocPresentMajAmorce: adocPresentMajAmorce,
+      adocPresentMajAmorceDiapo: adocPresentMajAmorceDiapo,
+      adocPresentMajAmorcePorte: adocPresentMajAmorcePorte,
+      adocPresentAmorceVue: adocPresentAmorceVue,
       adocPresentUpdateCounter: adocPresentUpdateCounter, adocPresentApplyReveal: adocPresentApplyReveal,
       adocPresentAnimateNumberIfEligible: adocPresentAnimateNumberIfEligible,
       adocPresentRevealNext: adocPresentRevealNext, adocPresentRevealPrev: adocPresentRevealPrev,
@@ -18109,6 +18244,13 @@ ${recent}`;
       // engineFnRefs (qui ne transporte que des fonctions). Sans cette ligne, l'export lèverait
       // « ADOC_DOOR_REVEAL_SEUIL is not defined » à l'ouverture de la première page longue.
       'var ADOC_DOOR_REVEAL_SEUIL = ' + ADOC_DOOR_REVEAL_SEUIL + ';\n' +
+      // Les deux amorces de lecture : constantes de portée de module, donc JAMAIS transportées par
+      // engineFnRefs (qui ne sérialise que des fonctions). Sans ces deux lignes, tout export lèverait
+      // « ADOC_AMORCE_DIAPO is not defined » dès l'ouverture de sa première diapositive.
+      // JSON.stringify et non des quotes à la main : les deux textes contiennent des apostrophes
+      // typographiques et des deux-points, et une échappée manuelle casserait le fichier produit.
+      'var ADOC_AMORCE_DIAPO = ' + JSON.stringify(ADOC_AMORCE_DIAPO) + ';\n' +
+      'var ADOC_AMORCE_PORTE = ' + JSON.stringify(ADOC_AMORCE_PORTE) + ';\n' +
       'var ADOC_PRESENT_REPERE_MARGE = ' + ADOC_PRESENT_REPERE_MARGE + ';\n' +
       'var ADOC_PRESENT_REF_W = ' + ADOC_PRESENT_REF_W + ';\n' +
       'var ADOC_PRESENT_REF_H = ' + ADOC_PRESENT_REF_H + ';\n' +
