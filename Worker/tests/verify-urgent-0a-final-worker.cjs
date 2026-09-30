@@ -110,6 +110,13 @@ function req(body) {
       DB: {
         prepare(sql) {
           return {
+            // Recherche interlingue (lot ultérieur, hors périmètre de ce test) — neutralisée à
+            // une seule langue ('fr') : zéro passe additionnelle, ce fichier reste dédié au
+            // correctif RRF mono-passe déjà existant.
+            async all() {
+              if (sql.includes('SELECT DISTINCT language FROM chunks')) return { results: [{ language: 'fr' }] };
+              return { results: [] };
+            },
             bind(...args) {
               return {
                 async all() {

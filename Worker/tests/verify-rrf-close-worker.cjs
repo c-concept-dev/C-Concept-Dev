@@ -52,6 +52,13 @@ function req(body) {
     DB: {
       prepare(sql) {
         return {
+          // Recherche interlingue (lot ultérieur, hors périmètre de ce test) — neutralisée à une
+          // seule langue ('fr') : zéro passe additionnelle, ce fichier reste dédié à la fusion
+          // RRF/dédup mono-passe déjà existante.
+          async all() {
+            if (sql.includes('SELECT DISTINCT language FROM chunks')) return { results: [{ language: 'fr' }] };
+            return { results: [] };
+          },
           bind(...args) {
             return {
               async all() {

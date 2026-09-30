@@ -75,6 +75,13 @@ function makeEnv() {
     DB: {
       prepare(sql) {
         return {
+          // Recherche interlingue (lot ultérieur) — `handleRagSearch` interroge désormais aussi
+          // "SELECT DISTINCT language FROM chunks" via `.all()` SANS `.bind()` (aucun paramètre).
+          // Corpus mono-langue ici : aucune langue additionnelle, comportement de CE lot inchangé.
+          async all() {
+            if (sql.includes('SELECT DISTINCT language FROM chunks')) return { results: [{ language: 'fr' }] };
+            return { results: [] };
+          },
           bind(...args) {
             sqlLog.push({ sql, args });
             return {

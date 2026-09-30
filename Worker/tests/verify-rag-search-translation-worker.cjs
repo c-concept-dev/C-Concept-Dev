@@ -73,6 +73,14 @@ function makeEnv({ translateImpl, chunksMeta }) {
     DB: {
       prepare(sql) {
         return {
+          // Recherche interlingue (lot ultérieur, hors périmètre de ce test) — neutralisée à une
+          // seule langue ('fr') : zéro passe additionnelle, ce fichier reste dédié à la traduction
+          // d'affichage par résultat (déjà existante), jamais mélangé avec la recherche interlingue
+          // (couverte par verify-cross-lingual-search-worker.cjs).
+          async all() {
+            if (sql.includes('SELECT DISTINCT language FROM chunks')) return { results: [{ language: 'fr' }] };
+            return { results: [] };
+          },
           bind(...args) {
             return {
               async all() {
@@ -211,6 +219,10 @@ function makeEnv({ translateImpl, chunksMeta }) {
     DB: {
       prepare(sql) {
         return {
+          async all() {
+            if (sql.includes('SELECT DISTINCT language FROM chunks')) return { results: [{ language: 'fr' }] };
+            return { results: [] };
+          },
           bind(...args) {
             return {
               async all() {
