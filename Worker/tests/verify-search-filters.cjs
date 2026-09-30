@@ -3,7 +3,9 @@ const {DatabaseSync}=require('node:sqlite');
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),path=require('node:path');
 const source=fs.readFileSync(path.join(__dirname,'../index.js'),'utf8');
 const extract=(a,b)=>source.slice(source.indexOf(a),source.indexOf(b,source.indexOf(a)));
-const ctx=vm.createContext({Response,Request,console,__name(){},json:o=>Response.json(o),jsonErr:(e,status)=>Response.json({error:e},{status})});
+// CORRECTIF URGENT (motif LIKE trop complexe) — l'extrait `D1_SEARCH_ALLOWED_KEYS`→`handleStoreFile`
+// contient désormais d1SearchLikeParam/d1SearchLikePrefixParam, qui utilisent TextEncoder.
+const ctx=vm.createContext({Response,Request,console,TextEncoder,__name(){},json:o=>Response.json(o),jsonErr:(e,status)=>Response.json({error:e},{status})});
 vm.runInContext(extract('const D1_SEARCH_ALLOWED_KEYS','async function handleStoreFile(')+extract('async function handleRagSearch(','async function handleRagStats('),ctx);
 const db=new DatabaseSync(':memory:');
 db.exec('CREATE TABLE chunks(id TEXT,book_id TEXT,book_title TEXT,author TEXT,chapter TEXT,page_number INTEGER,chunk_index INTEGER,content TEXT,approach TEXT,language TEXT,page_end INTEGER); CREATE VIRTUAL TABLE chunks_fts USING fts5(content);');
@@ -17,12 +19,23 @@ add('accent','Développer','ifs','fr');
 let failFTS=false,translateFail=false;
 const env = {
   DB: { prepare(sql) {
-    return { bind(...args) {
-      return { async all() {
-        if (failFTS && sql.includes('MATCH')) throw Error('forced fallback');
-        return { results: db.prepare(sql).all(...args) };
-      }};
-    }};
+    return {
+      // Recherche interlingue (lot ultérieur, hors périmètre de ce test) — `handleRagSearch`
+      // interroge désormais aussi "SELECT DISTINCT language FROM chunks" via `.all()` SANS
+      // `.bind()`. Neutralisée ici à une seule langue ('fr') : zéro passe additionnelle, ce
+      // fichier reste un test dédié au filtrage existant, jamais mélangé avec la fonctionnalité
+      // interlingue (déjà couverte par son propre test verify-cross-lingual-search-worker.cjs).
+      async all() {
+        if (sql.includes('SELECT DISTINCT language FROM chunks')) return { results: [{ language: 'fr' }] };
+        return { results: db.prepare(sql).all() };
+      },
+      bind(...args) {
+        return { async all() {
+          if (failFTS && sql.includes('MATCH')) throw Error('forced fallback');
+          return { results: db.prepare(sql).all(...args) };
+        }};
+      },
+    };
   }},
   AI: { async run(model) {
     if (model.includes('bge')) return {data:[[1]]};
