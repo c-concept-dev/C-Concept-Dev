@@ -1,0 +1,54 @@
+{
+ "date": "2026-09-28T17:23:12.415Z",
+ "publie": true,
+ "resultats": [
+  {
+   "sujet": "Prepare une presentation clinique sur l attachement et les schemas precoces dans le couple, destinee a des praticiens en formation. Duree : 45 minutes.",
+   "ok": true,
+   "secondes": 218,
+   "titre": "Attachement et schémas précoces dans le couple — Ce que l'enfance fait à l'amour",
+   "diapositives": 19,
+   "pages": 1,
+   "renvoisDeBloc": 1,
+   "renvoisInternes": 0,
+   "niveaux": 1,
+   "retrouves": 0,
+   "replis": 0,
+   "octets": 43131,
+   "cycles": 0,
+   "troncature": 0,
+   "clarifications": 2,
+   "stopReason": "tool_use",
+   "caracteresJSON": 34096
+  },
+  {
+   "sujet": "Prepare une presentation clinique sur l attachement et les schemas precoces dans le couple, destinee a des praticiens en formation. Duree : 60 minutes.",
+   "ok": false,
+   "secondes": 221,
+   "erreur": "generation structuree en echec, repli sur l ancien moteur — [UX-8A.1] Génération structurée (présentation) en échec (ou QC bloquant), repli automatique sur l'ancien moteur: Error QC bloquant (1) — Bloc callout-36 : contenu apparemment tronqué (ne se termine pas par une ponctuation finale).",
+   "stopReason": "tool_use",
+   "caracteresJSON": 34726,
+   "troncature": 1,
+   "clarifications": 2
+  },
+  {
+   "sujet": "Prepare une presentation clinique sur l attachement et les schemas precoces dans le couple, destinee a des praticiens en formation. Duree : 90 minutes.",
+   "ok": true,
+   "secondes": 208,
+   "titre": "Attachement et schémas précoces dans le couple — Premiers repères cliniques",
+   "diapositives": 20,
+   "pages": 2,
+   "renvoisDeBloc": 2,
+   "renvoisInternes": 0,
+   "niveaux": 1,
+   "retrouves": 0,
+   "replis": 0,
+   "octets": 45102,
+   "cycles": 0,
+   "troncature": 0,
+   "clarifications": 2,
+   "stopReason": "tool_use",
+   "caracteresJSON": 32868
+  }
+ ]
+}

@@ -1,0 +1,27 @@
+{
+ "date": "2026-09-28T17:23:12.258Z",
+ "sujet": "Prepare une presentation clinique sur l attachement et les schemas precoces dans le couple, destinee a des praticiens en formation. Duree : 90 minutes.",
+ "secondes": 208,
+ "titre": "Attachement et schémas précoces dans le couple — Premiers repères cliniques",
+ "diapositives": 20,
+ "pages": 2,
+ "liensDeBloc": [
+  {
+   "bloc": "paragraph-05",
+   "type": "paragraph",
+   "text": "base sécure",
+   "targetId": "deepdive-base-secure"
+  },
+  {
+   "bloc": "paragraph-20",
+   "type": "paragraph",
+   "text": "triade de perpétuation",
+   "targetId": "deepdive-perpetuation"
+  }
+ ],
+ "niveaux": 1,
+ "repartition": [],
+ "retrouves": 0,
+ "replis": 0,
+ "cyclesCoupes": []
+}

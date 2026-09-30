@@ -395,7 +395,7 @@
       // réelle avec de vraies données patientes en continu — remplacer par un vrai mécanisme
       // d'authentification (écran de connexion, jeton temporaire) à ce moment-là, pas remettre
       // cette valeur en dur indéfiniment.
-      '7005f3fe8b04dfde1299be47d75a6648f65c4f06c178b2c8' ||
+      // repli sur clé en dur retiré : la valeur était publiée dans un dépôt public, et elle est morte
       null
     );
     if (!key) _adocWarnMissingApiKey();

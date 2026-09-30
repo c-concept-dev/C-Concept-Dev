@@ -1,0 +1,1407 @@
+{
+ "schemaVersion": 1,
+ "documentId": "doc-b4e18a9d-adce-496b-900b-e6dcbffb3278",
+ "versionId": "doc-b4e18a9d-adce-496b-900b-e6dcbffb3278-v1",
+ "previousVersionId": null,
+ "requestId": "request-6e764100-d54c-4b40-b11a-74ddb03372c8",
+ "sourceSnapshotId": "snapshot-269a316d-5c76-4c9e-a8b3-085c95779cb3",
+ "createdAt": "2026-09-28T17:23:09.640Z",
+ "language": "fr",
+ "status": "draft",
+ "title": "Attachement et schémas précoces dans le couple — Premiers repères cliniques",
+ "purpose": "Formation de sensibilisation destinée à des praticiens débutants : poser les bases théoriques de la théorie de l'attachement et des schémas précoces inadaptés, puis montrer comment ces deux cadres s'articulent dans la compréhension et le traitement des couples en souffrance. Progression : théorie d'abord, cas cliniques en fin.",
+ "audience": "Praticiens en formation, niveau débutant — sensibilisation aux concepts clés et premiers repères cliniques",
+ "documentKind": "presentation",
+ "renderManifestId": "manifest-default-001",
+ "derivedFrom": null,
+ "blocks": [
+  {
+   "id": "slide-01",
+   "type": "card",
+   "content": {
+    "title": "Ce que vous entendrez dans cette salle dans 90 minutes",
+    "imageRef": "couple sitting together silhouette warm light therapy room",
+    "imageAlt": "Silhouettes d'un couple assis face à face dans une pièce éclairée chaleureusement, évoquant un espace thérapeutique",
+    "blocks": [
+     {
+      "id": "paragraph-01",
+      "type": "paragraph",
+      "content": {
+       "text": "Derrière chaque couple en crise, il y a deux histoires d'enfance qui se percutent. Cette formation vous donne les outils conceptuels pour voir ce qui se passe vraiment — et commencer à intervenir avec justesse."
+      },
+      "citationIds": [],
+      "validation": {}
+     },
+     {
+      "id": "list-02",
+      "type": "list",
+      "content": {
+       "items": [
+        "Partie 1 — Théorie de l'attachement : du berceau au couple",
+        "Partie 2 — Schémas précoces inadaptés : mémoires en action",
+        "Partie 3 — Articulation des deux cadres : la chimie des blessures",
+        "Partie 4 — Cas cliniques et premiers repères d'intervention"
+       ],
+       "ordered": true
+      },
+      "citationIds": [],
+      "validation": {}
+     }
+    ]
+   },
+   "citationIds": [],
+   "validation": {}
+  },
+  {
+   "id": "slide-02",
+   "type": "card",
+   "content": {
+    "title": "Pourquoi deux cadres pour un seul couple ?",
+    "imageRef": "two puzzle pieces fitting together close up",
+    "imageAlt": "Deux pièces de puzzle s'emboîtant, évoquant la complémentarité de deux cadres théoriques",
+    "blocks": [
+     {
+      "id": "paragraph-03",
+      "type": "paragraph",
+      "content": {
+       "text": "L'attachement décrit comment nous nous lions. Les schémas décrivent ce que nous croyons mériter. Ensemble, ils expliquent pourquoi deux personnes qui s'aiment peuvent se faire du mal de manière répétée, prévisible — et pourtant incompréhensible pour elles."
+      },
+      "citationIds": [
+       "citation-1"
+      ],
+      "validation": {
+       "citationLinks": [
+        {
+         "citationId": "citation-1",
+         "claimText": "L'attachement décrit comment nous nous lions. Les schémas décrivent ce que nous croyons mériter. Ensemble, ils expliquent pourquoi deux personnes qui s'aiment peuvent se faire du mal de manière répété",
+         "claimSupport": "needs-review"
+        }
+       ]
+      }
+     },
+     {
+      "id": "callout-04",
+      "type": "callout",
+      "content": {
+       "text": "Idée centrale : le couple n'est pas le lieu du problème. C'est le révélateur d'un problème plus ancien, plus profond, plus intime.",
+       "visualRole": "info"
+      },
+      "citationIds": [
+       "citation-2"
+      ],
+      "validation": {
+       "citationLinks": [
+        {
+         "citationId": "citation-2",
+         "claimText": "Idée centrale : le couple n'est pas le lieu du problème. C'est le révélateur d'un problème plus ancien, plus profond, plus intime.",
+         "claimSupport": "needs-review"
+        }
+       ]
+      }
+     }
+    ]
+   },
+   "citationIds": [],
+   "validation": {}
+  },
+  {
+   "id": "slide-03",
+   "type": "card",
+   "content": {
+    "title": "L'attachement : une boussole pour toute la vie",
+    "imageRef": "mother holding newborn baby close skin contact maternity",
+    "imageAlt": "Mère tenant son nouveau-né contre elle, peau contre peau, premier lien d'attachement",
+    "blocks": [
+     {
+      "id": "paragraph-05",
+      "type": "paragraph",
+      "content": {
+       "text": "John Bowlby a posé le fondement : l'attachement est pertinent du berceau à la tombe. L'enfant ne cherche pas seulement nourriture ou confort — il cherche une base sécure, un refuge, une présence fiable face au danger."
+      },
+      "citationIds": [
+       "citation-3"
+      ],
+      "validation": {
+       "citationLinks": [
+        {
+         "citationId": "citation-3",
+         "claimText": "John Bowlby a posé le fondement : l'attachement est pertinent du berceau à la tombe. L'enfant ne cherche pas seulement nourriture ou confort — il cherche une base sécure, un refuge, une présence fiabl",
+         "claimSupport": "needs-review"
+        }
+       ]
+      },
+      "deepDiveLinks": [
+       {
+        "text": "base sécure",
+        "targetId": "deepdive-base-secure"
+       }
+      ]
+     },
+     {
+      "id": "list-06",
+      "type": "list",
+      "content": {
+       "items": [
+        "Maintien de la proximité avec la figure d'attachement",
+        "Détresse à la séparation",
+        "Recherche d'un refuge en situation de menace",
+        "Exploration depuis une base sécure"
+       ],
+       "ordered": false
+      },
+      "citationIds": [
+       "citation-3"
+      ],
+      "validation": {
+       "citationLinks": [
+        {
+         "citationId": "citation-3",
+         "claimText": "Les quatre caractéristiques du lien d'attachement (Bowlby) :",
+         "claimSupport": "needs-review"
+        }
+       ]
+      }
+     }
+    ]
+   },
+   "citationIds": [],
+   "validation": {}
+  },
+  {
+   "id": "slide-04",
+   "type": "card",
+   "content": {
+    "title": "Les modèles internes opérants : la carte du monde relationnelle",
+    "imageRef": "child looking at adult caregiver eyes trust developmental psychology",
+    "imageAlt": "Enfant regardant un adulte dans les yeux, illustrant la construction des modèles internes d'attachement",
+    "blocks": [
+     {
+      "id": "paragraph-07",
+      "type": "paragraph",
+      "content": {
+       "text": "Dès les premières années, l'enfant construit un modèle opérant interne — une représentation de lui-même et des autres. Si la figure d'attachement est disponible et fiable, l'enfant se vit comme valable et le monde comme sûr."
+      },
+      "citationIds": [
+       "citation-4",
+       "citation-5"
+      ],
+      "validation": {
+       "citationLinks": [
+        {
+         "citationId": "citation-4",
+         "claimText": "Dès les premières années, l'enfant construit un modèle opérant interne — une représentation de lui-même et des autres. Si la figure d'attachement est disponible et fiable, l'enfant se vit comme valabl",
+         "claimSupport": "needs-review"
+        },
+        {
+         "citationId": "citation-5",
+         "claimText": "Dès les premières années, l'enfant construit un modèle opérant interne — une représentation de lui-même et des autres. Si la figure d'attachement est disponible et fiable, l'enfant se vit comme valabl",
+         "claimSupport": "needs-review"
+        }
+       ]
+      }
+     },
+     {
+      "id": "callout-08",
+      "type": "callout",
+      "content": {
+       "text": "Point clé : ces modèles guident les anticipations relationnelles tout au long de la vie. Ils ne sont pas des convictions conscientes — ce sont des réflexes profonds.",
+       "visualRole": "info"
+      },
+      "citationIds": [
+       "citation-5"
+      ],
+      "validation": {
+       "citationLinks": [
+        {
+         "citationId": "citation-5",
+         "claimText": "Point clé : ces modèles guident les anticipations relationnelles tout au long de la vie. Ils ne sont pas des convictions conscientes — ce sont des réflexes profonds.",
+         "claimSupport": "needs-review"
+        }
+       ]
+      }
+     }
+    ]
+   },
+   "citationIds": [],
+   "validation": {}
+  },
+  {
+   "id": "slide-05",
+   "type": "card",
+   "content": {
+    "title": "Styles d'attachement adulte : quatre positions relationnelles",
+    "imageRef": "four different emotional expressions adults faces psychology study",
+    "imageAlt": "Quatre visages adultes exprimant des états émotionnels différents, représentant les styles d'attachement",
+    "blocks": [
+     {
+      "id": "list-09",
+      "type": "list",
+      "content": {
+       "items": [
+        "Sécure : confiance en soi et en l'autre, tolérance à la séparation",
+        "Anxieux-préoccupé : hyperactivation du système d'attachement, peur de l'abandon",
+        "Évitant-détaché : désactivation des besoins d'attachement, surinvestissement de l'autonomie",
+        "Désorganisé : le partenaire est à la fois source de sécurité et de peur"
+       ],
+       "ordered": false
+      },
+      "citationIds": [
+       "citation-6",
+       "citation-7"
+      ],
+      "validation": {
+       "citationLinks": [
+        {
+         "citationId": "citation-6",
+         "claimText": "Les styles d'attachement adulte — issus des travaux de Ainsworth, Main, et Bartholomew :",
+         "claimSupport": "needs-review"
+        },
+        {
+         "citationId": "citation-7",
+         "claimText": "Les styles d'attachement adulte — issus des travaux de Ainsworth, Main, et Bartholomew :",
+         "claimSupport": "needs-review"
+        }
+       ]
+      }
+     },
+     {
+      "id": "callout-10",
+      "type": "callout",
+      "content": {
+       "text": "Repère clinique : le style d'attachement n'est pas un trait figé. Il s'exprime de manière contextuelle et peut évoluer — notamment en thérapie.",
+       "visualRole": "info"
+      },
+      "citationIds": [
+       "citation-8",
+       "citation-9"
+      ],
+      "validation": {
+       "citationLinks": [
+        {
+         "citationId": "citation-8",
+         "claimText": "Repère clinique : le style d'attachement n'est pas un trait figé. Il s'exprime de manière contextuelle et peut évoluer — notamment en thérapie.",
+         "claimSupport": "needs-review"
+        },
+        {
+         "citationId": "citation-9",
+         "claimText": "Repère clinique : le style d'attachement n'est pas un trait figé. Il s'exprime de manière contextuelle et peut évoluer — notamment en thérapie.",
+         "claimSupport": "needs-review"
+        }
+       ]
+      }
+     }
+    ]
+   },
+   "citationIds": [],
+   "validation": {}
+  },
+  {
+   "id": "slide-06",
+   "type": "card",
+   "content": {
+    "title": "L'attachement dans le couple adulte : un lien réciproque",
+    "imageRef": "adult couple holding hands close up emotional bond",
+    "imageAlt": "Couple adulte se tenant la main, illustrant le lien d'attachement réciproque",
+    "blocks": [
+     {
+      "id": "paragraph-11",
+      "type": "paragraph",
+      "content": {
+       "text": "Dans la relation amoureuse, chaque partenaire devient figure d'attachement pour l'autre. Le couple active donc deux systèmes d'attachement simultanément — avec leurs forces et leurs fragilités respectives."
+      },
+      "citationIds": [
+       "citation-3"
+      ],
+      "validation": {
+       "citationLinks": [
+        {
+         "citationId": "citation-3",
+         "claimText": "Dans la relation amoureuse, chaque partenaire devient figure d'attachement pour l'autre. Le couple active donc deux systèmes d'attachement simultanément — avec leurs forces et leurs fragilités respect",
+         "claimSupport": "needs-review"
+        }
+       ]
+      }
+     },
+     {
+      "id": "list-12",
+      "type": "list",
+      "content": {
+       "items": [
+        "Pré-attachement : attirance, séduction, pas encore de lien",
+        "Attachement en constitution : intimité croissante, au-delà du physique",
+        "Lien visible : échanges émotionnels qui produisent de la sécurité",
+        "Partenariat corrigé : sécurité acquise, énergie libérée vers l'extérieur"
+       ],
+       "ordered": false
+      },
+      "citationIds": [
+       "citation-10"
+      ],
+      "validation": {
+       "citationLinks": [
+        {
+         "citationId": "citation-10",
+         "claimText": "Le lien amoureux se construit en plusieurs étapes (Cassidy et Shaver, 1999) :",
+         "claimSupport": "needs-review"
+        }
+       ]
+      }
+     },
+     {
+      "id": "callout-13",
+      "type": "callout",
+      "content": {
+       "text": "Ce qu'on appelle « tomber amoureux » est aussi un processus d'activation du système d'attachement — avec tout ce qu'il réveille du passé.",
+       "visualRole": "info"
+      },
+      "citationIds": [
+       "citation-10"
+      ],
+      "validation": {
+       "citationLinks": [
+        {
+         "citationId": "citation-10",
+         "claimText": "Ce qu'on appelle « tomber amoureux » est aussi un processus d'activation du système d'attachement — avec tout ce qu'il réveille du passé.",
+         "claimSupport": "needs-review"
+        }
+       ]
+      }
+     }
+    ]
+   },
+   "citationIds": [],
+   "validation": {}
+  },
+  {
+   "id": "slide-07",
+   "type": "card",
+   "content": {
+    "title": "L'attachement sécure : ce qu'il permet, ce qu'il protège",
+    "imageRef": "secure child playing confidently caregiver nearby psychology",
+    "imageAlt": "Enfant jouant avec confiance pendant qu'un adulte est présent à proximité — base sécure en action",
+    "blocks": [
+     {
+      "id": "paragraph-14",
+      "type": "paragraph",
+      "content": {
+       "text": "Un attachement sécure dans l'enfance ne garantit pas une vie sans conflit — il donne les ressources pour y faire face. Estime de soi plus solide, meilleure résistance aux traumatismes, compétences sociales plus développées."
+      },
+      "citationIds": [
+       "citation-11"
+      ],
+      "validation": {
+       "citationLinks": [
+        {
+         "citationId": "citation-11",
+         "claimText": "Un attachement sécure dans l'enfance ne garantit pas une vie sans conflit — il donne les ressources pour y faire face. Estime de soi plus solide, meilleure résistance aux traumatismes, compétences soc",
+         "claimSupport": "needs-review"
+        }
+       ]
+      }
+     },
+     {
+      "id": "paragraph-15",
+      "type": "paragraph",
+      "content": {
+       "text": "Dans le couple, l'attachement sécure permet de tolérer le désaccord, de résister à un refus sans catastrophisme, d'attendre que les besoins soient satisfaits sans effondrement — ou de chercher un autre chemin sans rompre le lien."
+      },
+      "citationIds": [
+       "citation-3"
+      ],
+      "validation": {
+       "citationLinks": [
+        {
+         "citationId": "citation-3",
+         "claimText": "Dans le couple, l'attachement sécure permet de tolérer le désaccord, de résister à un refus sans catastrophisme, d'attendre que les besoins soient satisfaits sans effondrement — ou de chercher un autr",
+         "claimSupport": "needs-review"
+        }
+       ]
+      }
+     }
+    ]
+   },
+   "citationIds": [],
+   "validation": {}
+  },
+  {
+   "id": "slide-08",
+   "type": "card",
+   "content": {
+    "title": "Les schémas précoces inadaptés : de quoi parle-t-on ?",
+    "imageRef": "child alone window sad reflection childhood memory",
+    "imageAlt": "Enfant seul devant une fenêtre, regard pensif, évoquant des expériences précoces marquantes",
+    "blocks": [
+     {
+      "id": "paragraph-16",
+      "type": "paragraph",
+      "content": {
+       "text": "Jeffrey Young définit les schémas précoces inadaptés comme des patterns émotionnels et cognitifs autosubversifs qui prennent racine dans l'enfance et se répètent tout au long de la vie. Ce sont des mémoires d'expériences traumatiques ou nocives — des généralisations démesurées qui fonctionnent comme des automatismes."
+      },
+      "citationIds": [
+       "citation-12",
+       "citation-13"
+      ],
+      "validation": {
+       "citationLinks": [
+        {
+         "citationId": "citation-12",
+         "claimText": "Jeffrey Young définit les schémas précoces inadaptés comme des patterns émotionnels et cognitifs autosubversifs qui prennent racine dans l'enfance et se répètent tout au long de la vie. Ce sont des mé",
+         "claimSupport": "needs-review"
+        },
+        {
+         "citationId": "citation-13",
+         "claimText": "Jeffrey Young définit les schémas précoces inadaptés comme des patterns émotionnels et cognitifs autosubversifs qui prennent racine dans l'enfance et se répètent tout au long de la vie. Ce sont des mé",
+         "claimSupport": "needs-review"
+        }
+       ]
+      }
+     },
+     {
+      "id": "callout-17",
+      "type": "callout",
+      "content": {
+       "text": "Un schéma n'est pas une pensée consciente. C'est un filtre perceptif — il sélectionne, déforme, confirme. Il ne se change pas par la seule volonté ou la seule psychoéducation.",
+       "visualRole": "warning"
+      },
+      "citationIds": [
+       "citation-14"
+      ],
+      "validation": {
+       "citationLinks": [
+        {
+         "citationId": "citation-14",
+         "claimText": "Un schéma n'est pas une pensée consciente. C'est un filtre perceptif — il sélectionne, déforme, confirme. Il ne se change pas par la seule volonté ou la seule psychoéducation.",
+         "claimSupport": "needs-review"
+        }
+       ]
+      }
+     }
+    ]
+   },
+   "citationIds": [],
+   "validation": {}
+  },
+  {
+   "id": "slide-09",
+   "type": "card",
+   "content": {
+    "title": "Les cinq domaines de schémas : repères pour le clinicien",
+    "imageRef": "clinical psychology diagram schema domains concept map",
+    "imageAlt": "Représentation schématique des cinq domaines de besoins psychologiques fondamentaux en thérapie des schémas",
+    "blocks": [
+     {
+      "id": "list-18",
+      "type": "list",
+      "content": {
+       "items": [
+        "Domaine 1 — Déconnexion et rejet : abandon, méfiance, manque affectif, imperfection, isolement social",
+        "Domaine 2 — Autonomie et performance altérées : dépendance, vulnérabilité, enchevêtrement, échec",
+        "Domaine 3 — Manque de limites : droits personnels exagérés, manque de maîtrise de soi",
+        "Domaine 4 — Orientation vers les autres : soumission, abnégation, recherche d'approbation",
+        "Domaine 5 — Survigilance et inhibition : négativité, surcontrôle émotionnel, idéaux exigeants, punition"
+       ],
+       "ordered": false
+      },
+      "citationIds": [
+       "citation-15",
+       "citation-13"
+      ],
+      "validation": {
+       "citationLinks": [
+        {
+         "citationId": "citation-15",
+         "claimText": "Les 18 schémas de Young se regroupent en 5 domaines — chacun lié à un besoin fondamental non satisfait :",
+         "claimSupport": "needs-review"
+        },
+        {
+         "citationId": "citation-13",
+         "claimText": "Les 18 schémas de Young se regroupent en 5 domaines — chacun lié à un besoin fondamental non satisfait :",
+         "claimSupport": "needs-review"
+        }
+       ]
+      }
+     },
+     {
+      "id": "callout-19",
+      "type": "callout",
+      "content": {
+       "text": "Pour les débutants : retenez surtout le domaine 1. Il est le plus fréquemment en jeu dans les couples en souffrance.",
+       "visualRole": "info"
+      },
+      "citationIds": [],
+      "validation": {}
+     }
+    ]
+   },
+   "citationIds": [],
+   "validation": {}
+  },
+  {
+   "id": "slide-10",
+   "type": "card",
+   "content": {
+    "title": "Comment un schéma se maintient : la triade de perpétuation",
+    "imageRef": "thought pattern cycle brain loop psychology cognitive",
+    "imageAlt": "Représentation d'une boucle cognitive illustrant la perpétuation des schémas précoces",
+    "blocks": [
+     {
+      "id": "paragraph-20",
+      "type": "paragraph",
+      "content": {
+       "text": "Un schéma ne se maintient pas par hasard. Il s'auto-entretient via trois mécanismes qui font que le changement est difficile même quand il est désiré."
+      },
+      "citationIds": [
+       "citation-14"
+      ],
+      "validation": {
+       "citationLinks": [
+        {
+         "citationId": "citation-14",
+         "claimText": "Un schéma ne se maintient pas par hasard. Il s'auto-entretient via trois mécanismes qui font que le changement est difficile même quand il est désiré.",
+         "claimSupport": "needs-review"
+        }
+       ]
+      },
+      "deepDiveLinks": [
+       {
+        "text": "triade de perpétuation",
+        "targetId": "deepdive-perpetuation"
+       }
+      ]
+     },
+     {
+      "id": "list-21",
+      "type": "list",
+      "content": {
+       "items": [
+        "Soumission au schéma : le patient agit comme si le schéma était vrai et se retrouve dans des situations qui le confirment",
+        "Évitement du schéma : il évite tout ce qui pourrait activer la douleur liée au schéma — au prix d'un appauvrissement de vie",
+        "Compensation du schéma : il fait l'exact opposé de ce que le schéma dicterait — souvent de manière rigide et excessive"
+       ],
+       "ordered": false
+      },
+      "citationIds": [
+       "citation-14",
+       "citation-15"
+      ],
+      "validation": {
+       "citationLinks": [
+        {
+         "citationId": "citation-14",
+         "claimText": "Soumission au schéma : le patient agit comme si le schéma était vrai et se retrouve dans des situations qui le confirment",
+         "claimSupport": "needs-review"
+        },
+        {
+         "citationId": "citation-15",
+         "claimText": "Soumission au schéma : le patient agit comme si le schéma était vrai et se retrouve dans des situations qui le confirment",
+         "claimSupport": "needs-review"
+        }
+       ]
+      }
+     }
+    ]
+   },
+   "citationIds": [],
+   "validation": {}
+  },
+  {
+   "id": "slide-11",
+   "type": "card",
+   "content": {
+    "title": "Le lien entre attachement et schémas : la même racine",
+    "imageRef": "tree roots underground growth development nature psychology metaphor",
+    "imageAlt": "Racines d'un arbre sous terre, métaphore des origines précoces des schémas et de l'attachement",
+    "blocks": [
+     {
+      "id": "paragraph-22",
+      "type": "paragraph",
+      "content": {
+       "text": "Les schémas précoces inadaptés sont des modèles opérants internes dysfonctionnels. Les styles d'adaptation aux figures d'attachement dans l'enfance deviennent les comportements schématiques de l'adulte. Les deux cadres parlent du même phénomène — avec des langages différents."
+      },
+      "citationIds": [
+       "citation-4"
+      ],
+      "validation": {
+       "citationLinks": [
+        {
+         "citationId": "citation-4",
+         "claimText": "Les schémas précoces inadaptés sont des modèles opérants internes dysfonctionnels. Les styles d'adaptation aux figures d'attachement dans l'enfance deviennent les comportements schématiques de l'adult",
+         "claimSupport": "needs-review"
+        }
+       ]
+      }
+     },
+     {
+      "id": "callout-23",
+      "type": "callout",
+      "content": {
+       "text": "En pratique : un attachement anxieux-préoccupé se traduit souvent par des schémas d'abandon ou de manque affectif. Un attachement évitant s'exprime via des schémas d'isolement ou de surcontrôle émotionnel.",
+       "visualRole": "info"
+      },
+      "citationIds": [
+       "citation-4",
+       "citation-7"
+      ],
+      "validation": {
+       "citationLinks": [
+        {
+         "citationId": "citation-4",
+         "claimText": "En pratique : un attachement anxieux-préoccupé se traduit souvent par des schémas d'abandon ou de manque affectif. Un attachement évitant s'exprime via des schémas d'isolement ou de surcontrôle émotio",
+         "claimSupport": "needs-review"
+        },
+        {
+         "citationId": "citation-7",
+         "claimText": "En pratique : un attachement anxieux-préoccupé se traduit souvent par des schémas d'abandon ou de manque affectif. Un attachement évitant s'exprime via des schémas d'isolement ou de surcontrôle émotio",
+         "claimSupport": "needs-review"
+        }
+       ]
+      }
+     }
+    ]
+   },
+   "citationIds": [],
+   "validation": {}
+  },
+  {
+   "id": "slide-12",
+   "type": "card",
+   "content": {
+    "title": "La chimie des blessures : pourquoi on choisit ce partenaire-là",
+    "imageRef": "magnetic attraction couple psychology unconscious bond",
+    "imageAlt": "Image évoquant l'attraction magnétique entre deux personnes, illustrant la chimie des schémas dans le choix amoureux",
+    "blocks": [
+     {
+      "id": "paragraph-24",
+      "type": "paragraph",
+      "content": {
+       "text": "Young introduit la notion de chimie schématique : l'attraction initiale entre deux partenaires est souvent portée par une résonance entre leurs schémas respectifs. Ce n'est pas nécessairement un choix pathologique — mais c'est rarement un hasard."
+      },
+      "citationIds": [
+       "citation-16"
+      ],
+      "validation": {
+       "citationLinks": [
+        {
+         "citationId": "citation-16",
+         "claimText": "Young introduit la notion de chimie schématique : l'attraction initiale entre deux partenaires est souvent portée par une résonance entre leurs schémas respectifs. Ce n'est pas nécessairement un choix",
+         "claimSupport": "needs-review"
+        }
+       ]
+      }
+     },
+     {
+      "id": "paragraph-25",
+      "type": "paragraph",
+      "content": {
+       "text": "Un partenaire avec un schéma d'abandon intense peut être attiré par quelqu'un de distant, qui active précisément cette peur — et donc ce sentiment d'être vivant, désirant, en alerte. La relation est stable, parfois satisfaisante, mais structurellement blessante."
+      },
+      "citationIds": [
+       "citation-16",
+       "citation-2"
+      ],
+      "validation": {
+       "citationLinks": [
+        {
+         "citationId": "citation-16",
+         "claimText": "Un partenaire avec un schéma d'abandon intense peut être attiré par quelqu'un de distant, qui active précisément cette peur — et donc ce sentiment d'être vivant, désirant, en alerte. La relation est s",
+         "claimSupport": "needs-review"
+        },
+        {
+         "citationId": "citation-2",
+         "claimText": "Un partenaire avec un schéma d'abandon intense peut être attiré par quelqu'un de distant, qui active précisément cette peur — et donc ce sentiment d'être vivant, désirant, en alerte. La relation est s",
+         "claimSupport": "needs-review"
+        }
+       ]
+      }
+     },
+     {
+      "id": "callout-26",
+      "type": "callout",
+      "content": {
+       "text": "Harville Hendrix le formule ainsi : on choisit inconsciemment quelqu'un qui nous permettra de rejouer et — espère-t-on — de réparer les blessures de l'enfance.",
+       "visualRole": "info"
+      },
+      "citationIds": [
+       "citation-17"
+      ],
+      "validation": {
+       "citationLinks": [
+        {
+         "citationId": "citation-17",
+         "claimText": "Harville Hendrix le formule ainsi : on choisit inconsciemment quelqu'un qui nous permettra de rejouer et — espère-t-on — de réparer les blessures de l'enfance.",
+         "claimSupport": "needs-review"
+        }
+       ]
+      }
+     }
+    ]
+   },
+   "citationIds": [],
+   "validation": {}
+  },
+  {
+   "id": "slide-13",
+   "type": "card",
+   "content": {
+    "title": "La plaie non guérie : ce que le conjoint est appelé à réparer",
+    "imageRef": "bandage wound healing metaphor emotional repair close up",
+    "imageAlt": "Pansement appliqué sur une plaie en cours de guérison, métaphore de la réparation émotionnelle dans le couple",
+    "blocks": [
+     {
+      "id": "paragraph-27",
+      "type": "paragraph",
+      "content": {
+       "text": "Les blessures non réparées de l'enfance génèrent chez l'adulte des besoins de réparation du passé — souvent inconscients. Le conjoint est appelé à combler ces manques, sans que ni lui ni l'autre n'en ait conscience."
+      },
+      "citationIds": [
+       "citation-2"
+      ],
+      "validation": {
+       "citationLinks": [
+        {
+         "citationId": "citation-2",
+         "claimText": "Les blessures non réparées de l'enfance génèrent chez l'adulte des besoins de réparation du passé — souvent inconscients. Le conjoint est appelé à combler ces manques, sans que ni lui ni l'autre n'en ",
+         "claimSupport": "needs-review"
+        }
+       ]
+      }
+     },
+     {
+      "id": "callout-28",
+      "type": "callout",
+      "content": {
+       "text": "Le drame clinique : certains besoins de réparation sont impossibles à satisfaire dans le présent. Le partenaire a beau faire, ce n'est jamais assez. C'est un puits sans fond — et souvent la source du conflit chronique.",
+       "visualRole": "critical"
+      },
+      "citationIds": [
+       "citation-2"
+      ],
+      "validation": {
+       "citationLinks": [
+        {
+         "citationId": "citation-2",
+         "claimText": "Le drame clinique : certains besoins de réparation sont impossibles à satisfaire dans le présent. Le partenaire a beau faire, ce n'est jamais assez. C'est un puits sans fond — et souvent la source du ",
+         "claimSupport": "needs-review"
+        }
+       ]
+      }
+     }
+    ]
+   },
+   "citationIds": [],
+   "validation": {}
+  },
+  {
+   "id": "slide-14",
+   "type": "card",
+   "content": {
+    "title": "Les deux danseurs et leur chorégraphie inconnue",
+    "imageRef": "couple arguing repeating conflict dance living room body language",
+    "imageAlt": "Couple en tension dans un salon, postures corporelles révélant une dynamique relationnelle répétitive",
+    "blocks": [
+     {
+      "id": "paragraph-29",
+      "type": "paragraph",
+      "content": {
+       "text": "Quand deux schémas se rencontrent dans le conflit, chacun réagit à l'autre avec ses propres mécanismes d'adaptation — soumission, évitement, compensation. Le résultat est une chorégraphie répétitive que le couple rejoue à l'identique, souvent sans comprendre pourquoi."
+      },
+      "citationIds": [
+       "citation-1",
+       "citation-18"
+      ],
+      "validation": {
+       "citationLinks": [
+        {
+         "citationId": "citation-1",
+         "claimText": "Quand deux schémas se rencontrent dans le conflit, chacun réagit à l'autre avec ses propres mécanismes d'adaptation — soumission, évitement, compensation. Le résultat est une chorégraphie répétitive q",
+         "claimSupport": "needs-review"
+        },
+        {
+         "citationId": "citation-18",
+         "claimText": "Quand deux schémas se rencontrent dans le conflit, chacun réagit à l'autre avec ses propres mécanismes d'adaptation — soumission, évitement, compensation. Le résultat est une chorégraphie répétitive q",
+         "claimSupport": "needs-review"
+        }
+       ]
+      }
+     },
+     {
+      "id": "paragraph-30",
+      "type": "paragraph",
+      "content": {
+       "text": "La douleur de l'intimité est inévitable — ce qui détruit le couple, ce ne sont pas les conflits mais les stratégies destructrices pour les éviter : repli, attaque, contrôle, fuite émotionnelle."
+      },
+      "citationIds": [
+       "citation-1",
+       "citation-18"
+      ],
+      "validation": {
+       "citationLinks": [
+        {
+         "citationId": "citation-1",
+         "claimText": "La douleur de l'intimité est inévitable — ce qui détruit le couple, ce ne sont pas les conflits mais les stratégies destructrices pour les éviter : repli, attaque, contrôle, fuite émotionnelle.",
+         "claimSupport": "needs-review"
+        },
+        {
+         "citationId": "citation-18",
+         "claimText": "La douleur de l'intimité est inévitable — ce qui détruit le couple, ce ne sont pas les conflits mais les stratégies destructrices pour les éviter : repli, attaque, contrôle, fuite émotionnelle.",
+         "claimSupport": "needs-review"
+        }
+       ]
+      }
+     }
+    ]
+   },
+   "citationIds": [],
+   "validation": {}
+  },
+  {
+   "id": "slide-15",
+   "type": "card",
+   "content": {
+    "title": "Cas clinique 1 — Abandon et évitement : la danse classique",
+    "imageRef": "woman sitting alone by window man leaving room emotional distance",
+    "imageAlt": "Femme assise seule près d'une fenêtre, homme s'éloignant — illustrant la dynamique abandon-évitement dans un couple",
+    "blocks": [
+     {
+      "id": "paragraph-31",
+      "type": "paragraph",
+      "content": {
+       "text": "Marie, 38 ans, schéma d'abandon dominant. Thomas, 41 ans, schéma de surcontrôle émotionnel et d'isolement social. Plus Marie se rapproche avec insistance, plus Thomas se retire. Plus Thomas se retire, plus Marie intensifie. Chacun active le schéma de l'autre — sans le savoir."
+      },
+      "citationIds": [
+       "citation-16",
+       "citation-1"
+      ],
+      "validation": {
+       "citationLinks": [
+        {
+         "citationId": "citation-16",
+         "claimText": "Marie, 38 ans, schéma d'abandon dominant. Thomas, 41 ans, schéma de surcontrôle émotionnel et d'isolement social. Plus Marie se rapproche avec insistance, plus Thomas se retire. Plus Thomas se retire,",
+         "claimSupport": "needs-review"
+        },
+        {
+         "citationId": "citation-1",
+         "claimText": "Marie, 38 ans, schéma d'abandon dominant. Thomas, 41 ans, schéma de surcontrôle émotionnel et d'isolement social. Plus Marie se rapproche avec insistance, plus Thomas se retire. Plus Thomas se retire,",
+         "claimSupport": "needs-review"
+        }
+       ]
+      }
+     },
+     {
+      "id": "callout-32",
+      "type": "callout",
+      "content": {
+       "text": "Repère clinique : identifier d'abord la dynamique interactionnelle, avant d'entrer dans le contenu du conflit. Ce n'est pas « la belle-mère » ou « l'argent » — c'est la danse schématique qui se joue à travers ces objets.",
+       "visualRole": "info"
+      },
+      "citationIds": [],
+      "validation": {}
+     }
+    ]
+   },
+   "citationIds": [],
+   "validation": {}
+  },
+  {
+   "id": "slide-16",
+   "type": "card",
+   "content": {
+    "title": "Cas clinique 2 — Manque affectif et abnégation : l'épuisement silencieux",
+    "imageRef": "woman looking exhausted emotionally drained couple therapy session",
+    "imageAlt": "Femme à l'air émotionnellement épuisé, illustrant le schéma d'abnégation et de manque affectif dans un couple",
+    "blocks": [
+     {
+      "id": "paragraph-33",
+      "type": "paragraph",
+      "content": {
+       "text": "Sophie, 44 ans, schéma d'abnégation — toujours disponible pour l'autre, incapable de formuler ses propres besoins. Paul, 47 ans, schéma de droits personnels exagérés — attend d'être servi, s'étonne que Sophie ne soit jamais « assez ». Sophie consulte pour dépression. Le couple ne vient pas en thérapie — elle seule est identifiée comme le problème."
+      },
+      "citationIds": [
+       "citation-15",
+       "citation-19"
+      ],
+      "validation": {
+       "citationLinks": [
+        {
+         "citationId": "citation-15",
+         "claimText": "Sophie, 44 ans, schéma d'abnégation — toujours disponible pour l'autre, incapable de formuler ses propres besoins. Paul, 47 ans, schéma de droits personnels exagérés — attend d'être servi, s'étonne qu",
+         "claimSupport": "needs-review"
+        },
+        {
+         "citationId": "citation-19",
+         "claimText": "Sophie, 44 ans, schéma d'abnégation — toujours disponible pour l'autre, incapable de formuler ses propres besoins. Paul, 47 ans, schéma de droits personnels exagérés — attend d'être servi, s'étonne qu",
+         "claimSupport": "needs-review"
+        }
+       ]
+      }
+     },
+     {
+      "id": "callout-34",
+      "type": "callout",
+      "content": {
+       "text": "Repère clinique : quand un seul partenaire est adressé, demandez-vous toujours : quel schéma l'autre apporte-t-il dans la danse ? La souffrance individuelle est souvent codéterminée.",
+       "visualRole": "warning"
+      },
+      "citationIds": [
+       "citation-20"
+      ],
+      "validation": {
+       "citationLinks": [
+        {
+         "citationId": "citation-20",
+         "claimText": "Repère clinique : quand un seul partenaire est adressé, demandez-vous toujours : quel schéma l'autre apporte-t-il dans la danse ? La souffrance individuelle est souvent codéterminée.",
+         "claimSupport": "needs-review"
+        }
+       ]
+      }
+     }
+    ]
+   },
+   "citationIds": [],
+   "validation": {}
+  },
+  {
+   "id": "slide-17",
+   "type": "card",
+   "content": {
+    "title": "L'évaluation clinique : ce qu'on cherche à comprendre",
+    "imageRef": "clinical intake assessment therapist notepad couple formulation",
+    "imageAlt": "Thérapeute prenant des notes lors d'un entretien d'évaluation clinique avec un couple",
+    "blocks": [
+     {
+      "id": "list-35",
+      "type": "list",
+      "content": {
+       "items": [
+        "Quels sont les styles d'attachement de chaque partenaire ? (histoire familiale, régulation émotionnelle, réponses à la séparation)",
+        "Quels schémas précoces semblent dominants chez chacun ?",
+        "Comment les schémas interagissent-ils dans les conflits récurrents ?",
+        "Y a-t-il une plainte commune sous-jacente aux plaintes de surface ?",
+        "Quelles ressources et valeurs partagées peuvent servir de levier ?"
+       ],
+       "ordered": false
+      },
+      "citationIds": [
+       "citation-16",
+       "citation-20"
+      ],
+      "validation": {
+       "citationLinks": [
+        {
+         "citationId": "citation-16",
+         "claimText": "Premiers axes d'exploration avec un couple :",
+         "claimSupport": "needs-review"
+        },
+        {
+         "citationId": "citation-20",
+         "claimText": "Premiers axes d'exploration avec un couple :",
+         "claimSupport": "needs-review"
+        }
+       ]
+      }
+     },
+     {
+      "id": "callout-36",
+      "type": "callout",
+      "content": {
+       "text": "La formulation de cas en thérapie des schémas couple inclut : histoire développementale, schémas identifiés, dynamique interactionnelle, besoins non satisfaits et objectifs thérapeutiques partagés.",
+       "visualRole": "info"
+      },
+      "citationIds": [
+       "citation-16"
+      ],
+      "validation": {
+       "citationLinks": [
+        {
+         "citationId": "citation-16",
+         "claimText": "La formulation de cas en thérapie des schémas couple inclut : histoire développementale, schémas identifiés, dynamique interactionnelle, besoins non satisfaits et objectifs thérapeutiques partagés.",
+         "claimSupport": "needs-review"
+        }
+       ]
+      }
+     }
+    ]
+   },
+   "citationIds": [],
+   "validation": {}
+  },
+  {
+   "id": "slide-18",
+   "type": "card",
+   "content": {
+    "title": "Premiers axes d'intervention — Ce que vous pouvez commencer à faire",
+    "imageRef": "therapist couple session active listening empathy intervention",
+    "imageAlt": "Thérapeute en posture d'écoute active lors d'une séance avec un couple, illustrant les premières interventions cliniques",
+    "blocks": [
+     {
+      "id": "list-37",
+      "type": "list",
+      "content": {
+       "items": [
+        "Psychoéducation sur les schémas : nommer, sans juger — 'Ce n'est pas vous, c'est votre schéma qui parle'",
+        "Identifier le moment d'activation schématique : 'Qu'est-ce qui vient de se passer entre vous deux ?'",
+        "Favoriser l'empathie croisée : chaque partenaire comprend ce que l'autre ressent sous sa défense",
+        "Travailler les valeurs communes pour dépasser les stratégies d'évitement opposées",
+        "Ne pas traiter le contenu du conflit avant la dynamique interactionnelle"
+       ],
+       "ordered": false
+      },
+      "citationIds": [
+       "citation-20",
+       "citation-18"
+      ],
+      "validation": {
+       "citationLinks": [
+        {
+         "citationId": "citation-20",
+         "claimText": "Repères pratiques pour débuter :",
+         "claimSupport": "needs-review"
+        },
+        {
+         "citationId": "citation-18",
+         "claimText": "Repères pratiques pour débuter :",
+         "claimSupport": "needs-review"
+        }
+       ]
+      }
+     },
+     {
+      "id": "callout-38",
+      "type": "callout",
+      "content": {
+       "text": "L'évolution des styles d'attachement est possible — notamment via une relation thérapeutique sécurisante. Le thérapeute est lui-même une figure d'attachement corrective.",
+       "visualRole": "success"
+      },
+      "citationIds": [
+       "citation-8"
+      ],
+      "validation": {
+       "citationLinks": [
+        {
+         "citationId": "citation-8",
+         "claimText": "L'évolution des styles d'attachement est possible — notamment via une relation thérapeutique sécurisante. Le thérapeute est lui-même une figure d'attachement corrective.",
+         "claimSupport": "needs-review"
+        }
+       ]
+      }
+     }
+    ]
+   },
+   "citationIds": [],
+   "validation": {}
+  },
+  {
+   "id": "slide-19",
+   "type": "card",
+   "content": {
+    "title": "Auto-évaluation : reconnaître les dynamiques d'attachement et de schémas",
+    "imageRef": "self assessment reflection psychology questionnaire professional",
+    "imageAlt": "Praticien réfléchissant à une grille d'auto-évaluation clinique",
+    "blocks": [
+     {
+      "id": "questionnaire-39",
+      "type": "questionnaire",
+      "content": {
+       "questions": [
+        {
+         "text": "Lors d'un conflit de couple en séance, votre première réaction est de :",
+         "options": [
+          {
+           "text": "Chercher à comprendre les faits et arbitrer entre les deux récits",
+           "points": 0
+          },
+          {
+           "text": "Observer la dynamique interactionnelle avant d'intervenir",
+           "points": 1
+          },
+          {
+           "text": "Explorer ce que chaque partenaire ressent sous sa position défensive",
+           "points": 2
+          }
+         ]
+        },
+        {
+         "text": "Vous voyez un couple où l'un poursuit et l'autre se retire. Vous pensez :",
+         "options": [
+          {
+           "text": "L'un est trop envahissant, l'autre a besoin de plus d'espace",
+           "points": 0
+          },
+          {
+           "text": "C'est probablement une dynamique anxieux/évitant d'attachement",
+           "points": 1
+          },
+          {
+           "text": "Deux schémas interagissent — il faut cartographier les besoins non satisfaits de chacun",
+           "points": 2
+          }
+         ]
+        },
+        {
+         "text": "Un patient vous dit qu'il veut changer mais ne change pas. Vous envisagez :",
+         "options": [
+          {
+           "text": "Un manque de motivation ou de volonté",
+           "points": 0
+          },
+          {
+           "text": "Une ambivalence au changement à explorer en entretien motivationnel",
+           "points": 1
+          },
+          {
+           "text": "Un mécanisme d'évitement ou de soumission schématique qui s'auto-entretient",
+           "points": 2
+          }
+         ]
+        },
+        {
+         "text": "Quelle est selon vous la principale source des conflits chroniques dans un couple ?",
+         "options": [
+          {
+           "text": "Des incompatibilités de personnalité ou de valeurs",
+           "points": 0
+          },
+          {
+           "text": "Des modes de communication défaillants",
+           "points": 1
+          },
+          {
+           "text": "Des schémas d'attachement non conscients qui s'activent mutuellement",
+           "points": 2
+          }
+         ]
+        },
+        {
+         "text": "Face à un partenaire qui dit que son conjoint 'ne change jamais', vous :",
+         "options": [
+          {
+           "text": "Validez la frustration et aidez à formuler une demande claire",
+           "points": 0
+          },
+          {
+           "text": "Explorez ce que cette attente révèle de ses propres schémas",
+           "points": 1
+          },
+          {
+           "text": "Formulez une hypothèse sur la dynamique schématique partagée et la soumettez au couple",
+           "points": 2
+          }
+         ]
+        }
+       ],
+       "profiles": [
+        {
+         "label": "Débutant intuitif",
+         "interpretation": "Vos réflexes sont encore largement centrés sur le contenu et la surface du conflit. C'est tout à fait normal à ce stade. Cette formation vous donne les lunettes conceptuelles pour voir plus loin — la dynamique sous le discours.",
+         "minScore": -1000000,
+         "maxScore": 3
+        },
+        {
+         "label": "Praticien en transition",
+         "interpretation": "Vous sentez qu'il se passe quelque chose de plus profond dans les conflits de couple, et vous commencez à le chercher. Les cadres de l'attachement et des schémas vont vous donner un langage précis pour ce que vous percevez intuitivement.",
+         "minScore": 4,
+         "maxScore": 7
+        },
+        {
+         "label": "Clinicien orienté système",
+         "interpretation": "Vous raisonnez déjà en termes de dynamiques interactionnelles et de patterns sous-jacents. Cette formation va consolider et affiner votre cadre conceptuel — et vous donner des outils d'intervention plus ciblés.",
+         "minScore": 8,
+         "maxScore": 1000000
+        }
+       ],
+       "allowTwoPartners": false
+      },
+      "citationIds": [],
+      "validation": {}
+     }
+    ]
+   },
+   "citationIds": [],
+   "validation": {}
+  },
+  {
+   "id": "slide-20",
+   "type": "card",
+   "content": {
+    "title": "Ce que vous emportez : trois phrases pour six mois",
+    "imageRef": "open door light horizon transformation mindset learning",
+    "imageAlt": "Porte ouverte sur un horizon lumineux, évoquant la transformation de la pensée et l'ouverture vers de nouvelles perspectives cliniques",
+    "blocks": [
+     {
+      "id": "list-40",
+      "type": "list",
+      "content": {
+       "items": [
+        "Le conflit de couple n'est pas le problème — c'est l'adresse à laquelle se trouve le problème.",
+        "Derrière chaque attaque ou chaque retrait, il y a un enfant qui avait peur et qui n'a pas été suffisamment répondu.",
+        "Votre rôle n'est pas de réconcilier deux personnes — c'est d'aider deux histoires à se comprendre."
+       ],
+       "ordered": false
+      },
+      "citationIds": [],
+      "validation": {}
+     },
+     {
+      "id": "callout-41",
+      "type": "callout",
+      "content": {
+       "text": "La thérapie du couple n'est pas une médiation. C'est une archéologie relationnelle — menée avec deux personnes qui ont chacune des strates qu'elles ignorent encore.",
+       "visualRole": "info"
+      },
+      "citationIds": [
+       "citation-13",
+       "citation-4"
+      ],
+      "validation": {
+       "citationLinks": [
+        {
+         "citationId": "citation-13",
+         "claimText": "La thérapie du couple n'est pas une médiation. C'est une archéologie relationnelle — menée avec deux personnes qui ont chacune des strates qu'elles ignorent encore.",
+         "claimSupport": "needs-review"
+        },
+        {
+         "citationId": "citation-4",
+         "claimText": "La thérapie du couple n'est pas une médiation. C'est une archéologie relationnelle — menée avec deux personnes qui ont chacune des strates qu'elles ignorent encore.",
+         "claimSupport": "needs-review"
+        }
+       ]
+      }
+     }
+    ]
+   },
+   "citationIds": [],
+   "validation": {}
+  }
+ ],
+ "citations": [
+  {
+   "citationId": "citation-1",
+   "sourceSnapshotEntryId": "entry-7",
+   "displayLabel": "Avigail Lev, Acceptance and Commitment Therapy for Couples"
+  },
+  {
+   "citationId": "citation-2",
+   "sourceSnapshotEntryId": "entry-16",
+   "displayLabel": "Marie Andersen, L_Emprise-familiale-Marie-Andersen"
+  },
+  {
+   "citationId": "citation-3",
+   "sourceSnapshotEntryId": "entry-2",
+   "displayLabel": "Unknown, Attachement - Les différents types"
+  },
+  {
+   "citationId": "citation-4",
+   "sourceSnapshotEntryId": "entry-12",
+   "displayLabel": "Bernard Pascal, p. 43"
+  },
+  {
+   "citationId": "citation-5",
+   "sourceSnapshotEntryId": "entry-13",
+   "displayLabel": "Firouzeh Mehran, Therapie des schemas et des emotions pour les couples"
+  },
+  {
+   "citationId": "citation-6",
+   "sourceSnapshotEntryId": "entry-34",
+   "displayLabel": "Fatemeh Zekriyazdi, L'attachement chez l'adulte à travers une double approche catégorielle et dimensionnelle : lien avec la régulation cognitive des émotions et l'impulsivité en fonction du genre"
+  },
+  {
+   "citationId": "citation-7",
+   "sourceSnapshotEntryId": "entry-33",
+   "displayLabel": "Matthieu Reynaud, Le modèle de l'attachement adulte dans la perturbation de la régulation émotionnelle et des liens affectifs des femmes hospitalisées souffrant de dépression"
+  },
+  {
+   "citationId": "citation-8",
+   "sourceSnapshotEntryId": "entry-32",
+   "displayLabel": "Slimane Djillali, Attachement au thérapeute, alliance thérapeutique et évolution des styles d'attachement adulte après une psychothérapie"
+  },
+  {
+   "citationId": "citation-9",
+   "sourceSnapshotEntryId": "entry-35",
+   "displayLabel": "Slimane Djillali, Attachement au thérapeute, alliance thérapeutique et évolution des styles d'attachement adulte après une psychothérapie : une étude empirique en Algérie"
+  },
+  {
+   "citationId": "citation-10",
+   "sourceSnapshotEntryId": "entry-14",
+   "displayLabel": "Firouzeh Mehran, Therapie des schemas et des emotions pour les couples"
+  },
+  {
+   "citationId": "citation-11",
+   "sourceSnapshotEntryId": "entry-10",
+   "displayLabel": "Unknown, Attachement - Les différents types"
+  },
+  {
+   "citationId": "citation-12",
+   "sourceSnapshotEntryId": "entry-3",
+   "displayLabel": "Unknown, p. 1"
+  },
+  {
+   "citationId": "citation-13",
+   "sourceSnapshotEntryId": "entry-5",
+   "displayLabel": "Chiara Simeone-Difrancesco, p. 11"
+  },
+  {
+   "citationId": "citation-14",
+   "sourceSnapshotEntryId": "entry-4",
+   "displayLabel": "J.E Young, p. 5"
+  },
+  {
+   "citationId": "citation-15",
+   "sourceSnapshotEntryId": "entry-9",
+   "displayLabel": "(Arnoud Arntz Gitta Jacob), Schema Therapy in Practice An Introductory Guide to the Schema Mode Approach (Arnoud Arntz Gitta Jacob)"
+  },
+  {
+   "citationId": "citation-16",
+   "sourceSnapshotEntryId": "entry-1",
+   "displayLabel": "Chiara Simeone-Difrancesco, Schema therapy with couples"
+  },
+  {
+   "citationId": "citation-17",
+   "sourceSnapshotEntryId": "entry-17",
+   "displayLabel": "Harville Hendrix, De la solitude au couple"
+  },
+  {
+   "citationId": "citation-18",
+   "sourceSnapshotEntryId": "entry-8",
+   "displayLabel": "Avigail Lev, Acceptance and Commitment Therapy for Couples"
+  },
+  {
+   "citationId": "citation-19",
+   "sourceSnapshotEntryId": "entry-28",
+   "displayLabel": "Nathalie André, Dysfunctional Schemas from Preadolescence as One Major Avenue by Which Meaning Has Impact on Mental Health"
+  },
+  {
+   "citationId": "citation-20",
+   "sourceSnapshotEntryId": "entry-6",
+   "displayLabel": "john wright, p. 514"
+  }
+ ],
+ "validation": {
+  "sourceIntegrity": "pending",
+  "contentCompleteness": "pending",
+  "layout": "pending",
+  "accessibility": "pending",
+  "humanClinicalReview": "required"
+ },
+ "deepDives": [
+  {
+   "id": "deepdive-base-secure",
+   "title": "La base sécure : concept fondateur de Bowlby",
+   "paragraphs": [
+    "John Bowlby a développé le concept de base sécure pour désigner la fonction essentielle de la figure d'attachement : permettre à l'enfant d'explorer le monde avec confiance, en sachant qu'il peut revenir vers un refuge fiable en cas de danger ou de détresse. Cette fonction n'est pas un luxe du développement — c'est une nécessité biologique. L'absence d'une base sécure fiable génère un état chronique d'alerte qui consomme des ressources cognitives et émotionnelles ordinairement dévolues à l'exploration, à l'apprentissage, au jeu.",
+    "Dans le couple adulte, chaque partenaire peut — et idéalement devrait — remplir cette fonction pour l'autre. Mais quand les deux partenaires portent des histoires d'attachement insécure, leur capacité à offrir cette base est elle-même compromise. Le paradoxe clinique fréquent : la personne qui a le plus besoin d'un refuge est souvent la moins capable d'en accepter un, parce que toute proximité réactive une anticipation de trahison ou d'abandon.",
+    "En thérapie, l'objectif n'est pas d'effacer le passé mais de créer progressivement, dans la relation thérapeutique et dans la relation de couple, des expériences correctives de base sécure — des moments où la proximité ne mène pas à la blessure. Ces expériences répétées sont ce qui permet, à terme, de réviser les modèles internes opérants."
+   ]
+  },
+  {
+   "id": "deepdive-perpetuation",
+   "title": "La triade de perpétuation des schémas",
+   "paragraphs": [
+    "La perpétuation des schémas est le phénomène le plus déroutant pour les patients — et souvent pour les thérapeutes débutants. Pourquoi une personne qui souffre de son schéma ferait-elle tout pour le maintenir ? La réponse réside dans la fonction d'anticipation du schéma : mieux vaut un monde prévisible et douloureux qu'un monde inconnu. Le schéma offre une cohérence narrative à l'expérience de soi — le remettre en question, c'est remettre en question son identité profonde.",
+    "La soumission au schéma est la voie la plus directe : le patient sélectionne inconsciemment des partenaires, des situations, des interprétations qui confirment son schéma. Madeleine, attirée par des hommes qui l'exploitent malgré sa conscience que des hommes affectueux existent, illustre ce mécanisme — le schéma filtre la réalité relationnelle disponible.",
+    "L'évitement du schéma préserve le patient de la douleur à court terme, au prix d'un appauvrissement progressif de son champ relationnel. Le schéma de manque affectif, par exemple, peut conduire à éviter toute intimité émotionnelle profonde — ce qui prive le sujet précisément de ce dont il aurait besoin pour guérir.",
+    "La compensation est la plus trompeuse des stratégies : en surface, le comportement semble opposé au schéma. Quelqu'un avec un schéma d'imperfection peut développer un perfectionnisme rigide, une exigence envers lui-même et les autres qui génère des tensions relationnelles chroniques. La compensation ne résout pas le schéma — elle l'enfouit sous une armure.",
+    "En thérapie de couple, identifier le mécanisme de perpétuation dominant chez chaque partenaire est crucial avant d'intervenir. Travailler le contenu du conflit sans toucher aux mécanismes de perpétuation revient à repeindre les murs d'une maison dont les fondations sont fissurées."
+   ]
+  }
+ ]
+}

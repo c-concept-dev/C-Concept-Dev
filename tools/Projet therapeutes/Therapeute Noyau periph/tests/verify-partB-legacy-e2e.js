@@ -164,7 +164,7 @@ const LEGACY_HTML = '<!DOCTYPE html><html><body><h1>Fiche (moteur de secours)</h
   // contrat de persistance : ce que le serveur a stocké se relit et se rouvre à l'identique.
   const reload = await page.evaluate(async (sk) => {
     const workerUrl = 'https://clone-proxy.11drumboy11.workers.dev';
-    const r = await fetch(workerUrl + '/clinical-documents/clindoc-legacy-e2e-001', { headers: { 'X-API-Key': localStorage.getItem('workerApiKey') || '7005f3fe8b04dfde1299be47d75a6648f65c4f06c178b2c8' } });
+    const r = await fetch(workerUrl + '/clinical-documents/clindoc-legacy-e2e-001', { headers: { 'X-API-Key': localStorage.getItem('workerApiKey') } });
     const body = await r.json();
     // adocDeliverArtifact n'est pas exposée sur window (fonction interne) — reconstruction
     // manuelle de l'entrée artefact avec EXACTEMENT la même forme qu'elle produit pour fmt='html'

@@ -1,0 +1,29 @@
+{
+  "phase": "b",
+  "debut": "2026-09-29T08:49:52.715Z",
+  "mode": "local-sous-origine",
+  "hotesContactes": [
+    "cdnjs.cloudflare.com",
+    "clone-proxy.11drumboy11.workers.dev",
+    "fonts.googleapis.com",
+    "fonts.gstatic.com"
+  ],
+  "hotesBloques": [],
+  "journal": [
+    "warning: [UX-8B] GET /brand-kits indisponible, charte par défaut utilisée au besoin. Error: HTTP 401 at https://c-concept-dev.github.io/C-Concept-Dev/tools/Projet%20therapeutes/Conseiller%20Clinique/studio-clinique-core.js:7319:54"
+  ],
+  "erreursPage": [],
+  "resultat": null,
+  "echec": "Plan de cours : HTTP 401 — Unauthorized",
+  "commit": "56bcb377",
+  "arbreModifie": true,
+  "fichiersModifies": [
+    "M \"tools/Projet therapeutes/Conseiller Clinique/tests/lot-b/campagne-cours.cjs\""
+  ],
+  "fichiersServisDepuisLeDisque": [
+    "studio-clinique.html",
+    "vendor/ajv2020.min.js",
+    "studio-clinique-core.js"
+  ],
+  "fin": "2026-09-29T08:49:55.152Z"
+}

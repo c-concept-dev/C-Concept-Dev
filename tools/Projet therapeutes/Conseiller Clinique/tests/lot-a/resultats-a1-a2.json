@@ -1,0 +1,25 @@
+{
+ "date": "2026-09-28T10:09:03.483Z",
+ "tailleReference": 6318,
+ "a1": {
+  "deepDive": 5,
+  "carte": 0,
+  "bloc": 0
+ },
+ "a2": [],
+ "a3": [
+  {
+   "nom": "questionnaire en lignes",
+   "max": 18,
+   "gain": 13,
+   "octets": 1665
+  },
+  {
+   "nom": "renvois de bloc en chaines",
+   "max": 7,
+   "gain": 2,
+   "octets": 424
+  }
+ ],
+ "appels": 27
+}

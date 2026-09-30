@@ -1,0 +1,560 @@
+{
+  "phase": "c",
+  "debut": "2026-09-29T09:03:34.110Z",
+  "mode": "local-sous-origine",
+  "hotesContactes": [
+    "cdnjs.cloudflare.com",
+    "clone-proxy.11drumboy11.workers.dev",
+    "fonts.googleapis.com",
+    "fonts.gstatic.com",
+    "images.pexels.com"
+  ],
+  "hotesBloques": [],
+  "journal": [
+    "log: [UX-8A.2][timing] réponse appel 1 reçue (HTTP 200), début du flux, round 1 — t+1120ms",
+    "log: [UX-8A.2][timing] flux appel 1 terminé, round 1, stop_reason=tool_use — t+3279ms",
+    "log: [UX-8A.2][timing] réponse appel 1 reçue (HTTP 200), début du flux, round 2 — t+4947ms",
+    "log: [UX-8A.2][timing] flux appel 1 terminé, round 2, stop_reason=max_tokens — t+9536ms",
+    "log: [UX-8A.2][timing] avant envoi appel 2 (génération structurée forcée, streamée) — t+9539ms",
+    "log: [UX-8A.2][timing] réponse appel 2 reçue (HTTP 200), début du flux — t+13629ms",
+    "log: [UX-8A.2][timing] flux terminé (stop_reason=tool_use), JSON tool_use accumulé: 17652 caractères — t+100927ms",
+    "log: [UX-8A.2][timing] JSON tool_use parsé avec succès — t+100928ms",
+    "log: [UX-8A.2][timing] réponse appel 1 reçue (HTTP 200), début du flux, round 1 — t+1215ms",
+    "log: [UX-8A.2][timing] flux appel 1 terminé, round 1, stop_reason=tool_use — t+3427ms",
+    "log: [UX-8A.2][timing] réponse appel 1 reçue (HTTP 200), début du flux, round 2 — t+5212ms",
+    "log: [UX-8A.2][timing] flux appel 1 terminé, round 2, stop_reason=tool_use — t+7094ms",
+    "log: [UX-8A.2][timing] réponse appel 1 reçue (HTTP 200), début du flux, round 3 — t+8439ms",
+    "log: [UX-8A.2][timing] flux appel 1 terminé, round 3, stop_reason=max_tokens — t+12743ms",
+    "log: [UX-8A.2][timing] avant envoi appel 2 (génération structurée forcée, streamée) — t+12746ms",
+    "log: [UX-8A.2][timing] réponse appel 2 reçue (HTTP 200), début du flux — t+15654ms",
+    "log: [UX-8A.2][timing] flux terminé (stop_reason=tool_use), JSON tool_use accumulé: 20628 caractères — t+115506ms",
+    "log: [UX-8A.2][timing] JSON tool_use parsé avec succès — t+115507ms",
+    "log: [UX-8A.2][timing] réponse appel 1 reçue (HTTP 200), début du flux, round 1 — t+3776ms",
+    "log: [UX-8A.2][timing] flux appel 1 terminé, round 1, stop_reason=tool_use — t+5517ms",
+    "log: [UX-8A.2][timing] réponse appel 1 reçue (HTTP 200), début du flux, round 2 — t+7598ms",
+    "log: [UX-8A.2][timing] flux appel 1 terminé, round 2, stop_reason=max_tokens — t+12565ms",
+    "log: [UX-8A.2][timing] avant envoi appel 2 (génération structurée forcée, streamée) — t+12568ms",
+    "log: [UX-8A.2][timing] réponse appel 2 reçue (HTTP 200), début du flux — t+14898ms",
+    "log: [UX-8A.2][timing] flux terminé (stop_reason=tool_use), JSON tool_use accumulé: 16245 caractères — t+97233ms",
+    "log: [UX-8A.2][timing] JSON tool_use parsé avec succès — t+97234ms",
+    "log: [UX-8A.2][timing] réponse appel 1 reçue (HTTP 200), début du flux, round 1 — t+1196ms",
+    "log: [UX-8A.2][timing] flux appel 1 terminé, round 1, stop_reason=tool_use — t+2760ms",
+    "log: [UX-8A.2][timing] réponse appel 1 reçue (HTTP 200), début du flux, round 2 — t+4886ms",
+    "log: [UX-8A.2][timing] flux appel 1 terminé, round 2, stop_reason=tool_use — t+7240ms",
+    "log: [UX-8A.2][timing] réponse appel 1 reçue (HTTP 200), début du flux, round 3 — t+8555ms",
+    "log: [UX-8A.2][timing] flux appel 1 terminé, round 3, stop_reason=max_tokens — t+12720ms",
+    "log: [UX-8A.2][timing] avant envoi appel 2 (génération structurée forcée, streamée) — t+12722ms",
+    "log: [UX-8A.2][timing] réponse appel 2 reçue (HTTP 200), début du flux — t+15435ms",
+    "log: [UX-8A.2][timing] flux terminé (stop_reason=tool_use), JSON tool_use accumulé: 23208 caractères — t+132777ms",
+    "log: [UX-8A.2][timing] JSON tool_use parsé avec succès — t+132777ms",
+    "log: [UX-8A.2][timing] réponse appel 1 reçue (HTTP 200), début du flux, round 1 — t+1532ms",
+    "log: [UX-8A.2][timing] flux appel 1 terminé, round 1, stop_reason=tool_use — t+3267ms",
+    "log: [UX-8A.2][timing] réponse appel 1 reçue (HTTP 200), début du flux, round 2 — t+5599ms",
+    "log: [UX-8A.2][timing] flux appel 1 terminé, round 2, stop_reason=tool_use — t+6238ms",
+    "log: [UX-8A.2][timing] réponse appel 1 reçue (HTTP 200), début du flux, round 3 — t+8746ms",
+    "log: [UX-8A.2][timing] flux appel 1 terminé, round 3, stop_reason=max_tokens — t+12935ms",
+    "log: [UX-8A.2][timing] avant envoi appel 2 (génération structurée forcée, streamée) — t+12938ms",
+    "log: [UX-8A.2][timing] réponse appel 2 reçue (HTTP 200), début du flux — t+15251ms",
+    "log: [UX-8A.2][timing] flux terminé (stop_reason=tool_use), JSON tool_use accumulé: 16216 caractères — t+95311ms",
+    "log: [UX-8A.2][timing] JSON tool_use parsé avec succès — t+95311ms",
+    "log: [UX-8A.2][timing] réponse appel 1 reçue (HTTP 200), début du flux, round 1 — t+1201ms",
+    "log: [UX-8A.2][timing] flux appel 1 terminé, round 1, stop_reason=tool_use — t+2863ms",
+    "log: [UX-8A.2][timing] réponse appel 1 reçue (HTTP 200), début du flux, round 2 — t+4678ms",
+    "log: [UX-8A.2][timing] flux appel 1 terminé, round 2, stop_reason=tool_use — t+5062ms",
+    "log: [UX-8A.2][timing] réponse appel 1 reçue (HTTP 200), début du flux, round 3 — t+6645ms",
+    "log: [UX-8A.2][timing] flux appel 1 terminé, round 3, stop_reason=max_tokens — t+10759ms",
+    "log: [UX-8A.2][timing] avant envoi appel 2 (génération structurée forcée, streamée) — t+10759ms",
+    "log: [UX-8A.2][timing] réponse appel 2 reçue (HTTP 200), début du flux — t+13412ms",
+    "log: [UX-8A.2][timing] flux terminé (stop_reason=tool_use), JSON tool_use accumulé: 17651 caractères — t+96372ms",
+    "log: [UX-8A.2][timing] JSON tool_use parsé avec succès — t+96372ms",
+    "log: [UX-8A.2][timing] réponse appel 1 reçue (HTTP 200), début du flux, round 1 — t+2788ms",
+    "log: [UX-8A.2][timing] flux appel 1 terminé, round 1, stop_reason=tool_use — t+4827ms",
+    "log: [UX-8A.2][timing] réponse appel 1 reçue (HTTP 200), début du flux, round 2 — t+8026ms",
+    "log: [UX-8A.2][timing] flux appel 1 terminé, round 2, stop_reason=tool_use — t+9074ms",
+    "log: [UX-8A.2][timing] réponse appel 1 reçue (HTTP 200), début du flux, round 3 — t+10894ms",
+    "log: [UX-8A.2][timing] flux appel 1 terminé, round 3, stop_reason=max_tokens — t+15667ms",
+    "log: [UX-8A.2][timing] avant envoi appel 2 (génération structurée forcée, streamée) — t+15672ms",
+    "log: [UX-8A.2][timing] réponse appel 2 reçue (HTTP 200), début du flux — t+21961ms",
+    "log: [UX-8A.2][timing] flux terminé (stop_reason=tool_use), JSON tool_use accumulé: 21758 caractères — t+128004ms",
+    "log: [UX-8A.2][timing] JSON tool_use parsé avec succès — t+128005ms",
+    "log: [UX-8A.2][timing] réponse appel 1 reçue (HTTP 200), début du flux, round 1 — t+1861ms",
+    "log: [UX-8A.2][timing] flux appel 1 terminé, round 1, stop_reason=tool_use — t+3436ms",
+    "log: [UX-8A.2][timing] réponse appel 1 reçue (HTTP 200), début du flux, round 2 — t+6145ms",
+    "log: [UX-8A.2][timing] flux appel 1 terminé, round 2, stop_reason=tool_use — t+6627ms",
+    "log: [UX-8A.2][timing] réponse appel 1 reçue (HTTP 200), début du flux, round 3 — t+8775ms",
+    "log: [UX-8A.2][timing] flux appel 1 terminé, round 3, stop_reason=max_tokens — t+13061ms",
+    "log: [UX-8A.2][timing] avant envoi appel 2 (génération structurée forcée, streamée) — t+13062ms",
+    "log: [UX-8A.2][timing] réponse appel 2 reçue (HTTP 200), début du flux — t+14713ms",
+    "log: [UX-8A.2][timing] flux terminé (stop_reason=tool_use), JSON tool_use accumulé: 22058 caractères — t+124180ms",
+    "log: [UX-8A.2][timing] JSON tool_use parsé avec succès — t+124181ms",
+    "log: [UX-8A.2][timing] réponse appel 1 reçue (HTTP 200), début du flux, round 1 — t+2866ms",
+    "log: [UX-8A.2][timing] flux appel 1 terminé, round 1, stop_reason=tool_use — t+4570ms",
+    "log: [UX-8A.2][timing] réponse appel 1 reçue (HTTP 200), début du flux, round 2 — t+7264ms",
+    "log: [UX-8A.2][timing] flux appel 1 terminé, round 2, stop_reason=tool_use — t+7403ms",
+    "log: [UX-8A.2][timing] réponse appel 1 reçue (HTTP 200), début du flux, round 3 — t+10025ms",
+    "log: [UX-8A.2][timing] flux appel 1 terminé, round 3, stop_reason=max_tokens — t+14361ms",
+    "log: [UX-8A.2][timing] avant envoi appel 2 (génération structurée forcée, streamée) — t+14363ms",
+    "log: [UX-8A.2][timing] réponse appel 2 reçue (HTTP 200), début du flux — t+15970ms",
+    "log: [UX-8A.2][timing] flux terminé (stop_reason=tool_use), JSON tool_use accumulé: 22973 caractères — t+126970ms",
+    "log: [UX-8A.2][timing] JSON tool_use parsé avec succès — t+126971ms",
+    "log: [UX-8A.2][timing] réponse appel 1 reçue (HTTP 200), début du flux, round 1 — t+1489ms",
+    "log: [UX-8A.2][timing] flux appel 1 terminé, round 1, stop_reason=tool_use — t+3332ms",
+    "log: [UX-8A.2][timing] réponse appel 1 reçue (HTTP 200), début du flux, round 2 — t+5585ms",
+    "log: [UX-8A.2][timing] flux appel 1 terminé, round 2, stop_reason=tool_use — t+6001ms",
+    "log: [UX-8A.2][timing] réponse appel 1 reçue (HTTP 200), début du flux, round 3 — t+7836ms",
+    "log: [UX-8A.2][timing] flux appel 1 terminé, round 3, stop_reason=max_tokens — t+12357ms",
+    "log: [UX-8A.2][timing] avant envoi appel 2 (génération structurée forcée, streamée) — t+12358ms",
+    "log: [UX-8A.2][timing] réponse appel 2 reçue (HTTP 200), début du flux — t+14033ms",
+    "log: [UX-8A.2][timing] flux terminé (stop_reason=tool_use), JSON tool_use accumulé: 19008 caractères — t+110433ms",
+    "log: [UX-8A.2][timing] JSON tool_use parsé avec succès — t+110434ms",
+    "log: [UX-8A.2][timing] réponse appel 1 reçue (HTTP 200), début du flux, round 1 — t+1087ms",
+    "log: [UX-8A.2][timing] flux appel 1 terminé, round 1, stop_reason=tool_use — t+3115ms",
+    "log: [UX-8A.2][timing] réponse appel 1 reçue (HTTP 200), début du flux, round 2 — t+5048ms",
+    "log: [UX-8A.2][timing] flux appel 1 terminé, round 2, stop_reason=max_tokens — t+9118ms",
+    "log: [UX-8A.2][timing] avant envoi appel 2 (génération structurée forcée, streamée) — t+9120ms",
+    "log: [UX-8A.2][timing] réponse appel 2 reçue (HTTP 200), début du flux — t+10986ms",
+    "log: [UX-8A.2][timing] flux terminé (stop_reason=tool_use), JSON tool_use accumulé: 20267 caractères — t+112946ms",
+    "log: [UX-8A.2][timing] JSON tool_use parsé avec succès — t+112947ms",
+    "log: [UX-8A.2][timing] réponse appel 1 reçue (HTTP 200), début du flux, round 1 — t+1306ms",
+    "log: [UX-8A.2][timing] flux appel 1 terminé, round 1, stop_reason=tool_use — t+3148ms",
+    "log: [UX-8A.2][timing] réponse appel 1 reçue (HTTP 200), début du flux, round 2 — t+5219ms",
+    "log: [UX-8A.2][timing] flux appel 1 terminé, round 2, stop_reason=tool_use — t+5810ms",
+    "log: [UX-8A.2][timing] réponse appel 1 reçue (HTTP 200), début du flux, round 3 — t+7359ms",
+    "log: [UX-8A.2][timing] flux appel 1 terminé, round 3, stop_reason=max_tokens — t+12572ms",
+    "log: [UX-8A.2][timing] avant envoi appel 2 (génération structurée forcée, streamée) — t+12573ms",
+    "log: [UX-8A.2][timing] réponse appel 2 reçue (HTTP 200), début du flux — t+15747ms",
+    "log: [UX-8A.2][timing] flux terminé (stop_reason=tool_use), JSON tool_use accumulé: 20651 caractères — t+117186ms",
+    "log: [UX-8A.2][timing] JSON tool_use parsé avec succès — t+117188ms"
+  ],
+  "erreursPage": [],
+  "resultat": {
+    "minutes": 23.6,
+    "dureesModules": [
+      104.502,
+      138.00099999999998,
+      99,
+      134.507,
+      98.00400000000002,
+      99.49900000000002,
+      130.00099999999998,
+      126.00099999999998,
+      131.00200000000007,
+      112.5,
+      116.50099999999998,
+      119.00199999999995
+    ],
+    "export": {
+      "ko": 407,
+      "ouvertureMs": 95,
+      "sommaire": {
+        "ouverture": true,
+        "tocPresent": true,
+        "intitules": [
+          "Fondements de la théorie de l'attachement adulte",
+          "Styles d'attachement : modèles dimensionnels et catégoriques",
+          "Représentations mentales et modèles internes opérants",
+          "Évaluation clinique des styles d'attachement adulte",
+          "Transmission intergénérationnelle et histoire développementale",
+          "Dynamiques dysfonctionnelles dans le couple : patterns critiques",
+          "Conséquences cliniques des attachements insécures en couple",
+          "Diagnostic différentiel : attachement insécure vs troubles personnalité",
+          "Principes d'intervention fondés sur l'attachement",
+          "Thérapie émotionnelle focalisée (EFT) pour le couple",
+          "Interventions psycho-éducatives et restructuration cognitive",
+          "Cas cliniques complexes : trauma, deuil et transitions",
+          "Approfondissements"
+        ],
+        "diapositives": 132,
+        "approfondissements": 21,
+        "entreesTotales": 153,
+        "chips": 0
+      },
+      "gestes": {
+        "trouve": true,
+        "niveau1": "Le système comportemental d'attachement : architecture fonctionnelle",
+        "noms": [
+          "Reculer d'un niveau",
+          "Revenir à la diapositive"
+        ],
+        "apresReculer": {
+          "porteOuverte": false,
+          "titre": "Le système comportemental d'attachement : architecture fonctionnelle"
+        },
+        "apresMaitre": {
+          "porteOuverte": false,
+          "pile": []
+        },
+        "diapoIntacte": true
+      },
+      "erreursExport": []
+    },
+    "jalons": [
+      {
+        "id": "m1",
+        "secondes": 104.502
+      },
+      {
+        "id": "m2",
+        "secondes": 242.503
+      },
+      {
+        "id": "m3",
+        "secondes": 341.503
+      },
+      {
+        "id": "m4",
+        "secondes": 476.01
+      },
+      {
+        "id": "m5",
+        "secondes": 574.014
+      },
+      {
+        "id": "m6",
+        "secondes": 673.513
+      },
+      {
+        "id": "m7",
+        "secondes": 803.514
+      },
+      {
+        "id": "m8",
+        "secondes": 929.515
+      },
+      {
+        "id": "m9",
+        "secondes": 1060.517
+      },
+      {
+        "id": "m10",
+        "secondes": 1173.017
+      },
+      {
+        "id": "m11",
+        "secondes": 1289.518
+      },
+      {
+        "id": "m12",
+        "secondes": 1408.52
+      }
+    ],
+    "qcCours": {
+      "bloquant": [],
+      "nonBloquant": [
+        "Contraste : garanti par les jetons de charte par défaut déjà audités AA (aucun calcul dynamique requis tant qu'aucune charte externe n'est en jeu — UX-8B)."
+      ]
+    },
+    "modules": [
+      {
+        "id": "m1",
+        "statut": "ok",
+        "stopReason": "tool_use",
+        "diapositives": 10,
+        "essais": 1,
+        "nom": "Cours — Troubles de l'attachement dans le couple adulte · Module 1 sur 12 · Fondements de la théorie de l'attachement adulte",
+        "erreur": null,
+        "qcBloquant": 0,
+        "qcNonBloquant": 1,
+        "qcMessages": {
+          "bloquant": [],
+          "nonBloquant": [
+            "Contraste : garanti par les jetons de charte par défaut déjà audités AA (aucun calcul dynamique requis tant qu'aucune charte externe n'est en jeu — UX-8B)."
+          ]
+        }
+      },
+      {
+        "id": "m2",
+        "statut": "ok",
+        "stopReason": "tool_use",
+        "diapositives": 10,
+        "essais": 1,
+        "nom": "Cours — Troubles de l'attachement dans le couple adulte · Module 2 sur 12 · Styles d'attachement : modèles dimensionnels et catégoriques",
+        "erreur": null,
+        "qcBloquant": 0,
+        "qcNonBloquant": 1,
+        "qcMessages": {
+          "bloquant": [],
+          "nonBloquant": [
+            "Contraste : garanti par les jetons de charte par défaut déjà audités AA (aucun calcul dynamique requis tant qu'aucune charte externe n'est en jeu — UX-8B)."
+          ]
+        }
+      },
+      {
+        "id": "m3",
+        "statut": "ok",
+        "stopReason": "tool_use",
+        "diapositives": 10,
+        "essais": 1,
+        "nom": "Cours — Troubles de l'attachement dans le couple adulte · Module 3 sur 12 · Représentations mentales et modèles internes opérants",
+        "erreur": null,
+        "qcBloquant": 0,
+        "qcNonBloquant": 1,
+        "qcMessages": {
+          "bloquant": [],
+          "nonBloquant": [
+            "Contraste : garanti par les jetons de charte par défaut déjà audités AA (aucun calcul dynamique requis tant qu'aucune charte externe n'est en jeu — UX-8B)."
+          ]
+        }
+      },
+      {
+        "id": "m4",
+        "statut": "ok",
+        "stopReason": "tool_use",
+        "diapositives": 10,
+        "essais": 1,
+        "nom": "Cours — Troubles de l'attachement dans le couple adulte · Module 4 sur 12 · Évaluation clinique des styles d'attachement adulte",
+        "erreur": null,
+        "qcBloquant": 0,
+        "qcNonBloquant": 1,
+        "qcMessages": {
+          "bloquant": [],
+          "nonBloquant": [
+            "Contraste : garanti par les jetons de charte par défaut déjà audités AA (aucun calcul dynamique requis tant qu'aucune charte externe n'est en jeu — UX-8B)."
+          ]
+        }
+      },
+      {
+        "id": "m5",
+        "statut": "ok",
+        "stopReason": "tool_use",
+        "diapositives": 10,
+        "essais": 1,
+        "nom": "Cours — Troubles de l'attachement dans le couple adulte · Module 5 sur 12 · Transmission intergénérationnelle et histoire développementale",
+        "erreur": null,
+        "qcBloquant": 0,
+        "qcNonBloquant": 1,
+        "qcMessages": {
+          "bloquant": [],
+          "nonBloquant": [
+            "Contraste : garanti par les jetons de charte par défaut déjà audités AA (aucun calcul dynamique requis tant qu'aucune charte externe n'est en jeu — UX-8B)."
+          ]
+        }
+      },
+      {
+        "id": "m6",
+        "statut": "ok",
+        "stopReason": "tool_use",
+        "diapositives": 10,
+        "essais": 1,
+        "nom": "Cours — Troubles de l'attachement dans le couple adulte · Module 6 sur 12 · Dynamiques dysfonctionnelles dans le couple : patterns critiques",
+        "erreur": null,
+        "qcBloquant": 0,
+        "qcNonBloquant": 1,
+        "qcMessages": {
+          "bloquant": [],
+          "nonBloquant": [
+            "Contraste : garanti par les jetons de charte par défaut déjà audités AA (aucun calcul dynamique requis tant qu'aucune charte externe n'est en jeu — UX-8B)."
+          ]
+        }
+      },
+      {
+        "id": "m7",
+        "statut": "ok",
+        "stopReason": "tool_use",
+        "diapositives": 10,
+        "essais": 1,
+        "nom": "Cours — Troubles de l'attachement dans le couple adulte · Module 7 sur 12 · Conséquences cliniques des attachements insécures en couple",
+        "erreur": null,
+        "qcBloquant": 0,
+        "qcNonBloquant": 1,
+        "qcMessages": {
+          "bloquant": [],
+          "nonBloquant": [
+            "Contraste : garanti par les jetons de charte par défaut déjà audités AA (aucun calcul dynamique requis tant qu'aucune charte externe n'est en jeu — UX-8B)."
+          ]
+        }
+      },
+      {
+        "id": "m8",
+        "statut": "ok",
+        "stopReason": "tool_use",
+        "diapositives": 10,
+        "essais": 1,
+        "nom": "Cours — Troubles de l'attachement dans le couple adulte · Module 8 sur 12 · Diagnostic différentiel : attachement insécure vs troubles personnalité",
+        "erreur": null,
+        "qcBloquant": 0,
+        "qcNonBloquant": 1,
+        "qcMessages": {
+          "bloquant": [],
+          "nonBloquant": [
+            "Contraste : garanti par les jetons de charte par défaut déjà audités AA (aucun calcul dynamique requis tant qu'aucune charte externe n'est en jeu — UX-8B)."
+          ]
+        }
+      },
+      {
+        "id": "m9",
+        "statut": "ok",
+        "stopReason": "tool_use",
+        "diapositives": 10,
+        "essais": 1,
+        "nom": "Cours — Troubles de l'attachement dans le couple adulte · Module 9 sur 12 · Principes d'intervention fondés sur l'attachement",
+        "erreur": null,
+        "qcBloquant": 0,
+        "qcNonBloquant": 1,
+        "qcMessages": {
+          "bloquant": [],
+          "nonBloquant": [
+            "Contraste : garanti par les jetons de charte par défaut déjà audités AA (aucun calcul dynamique requis tant qu'aucune charte externe n'est en jeu — UX-8B)."
+          ]
+        }
+      },
+      {
+        "id": "m10",
+        "statut": "ok",
+        "stopReason": "tool_use",
+        "diapositives": 10,
+        "essais": 1,
+        "nom": "Cours — Troubles de l'attachement dans le couple adulte · Module 10 sur 12 · Thérapie émotionnelle focalisée (EFT) pour le couple",
+        "erreur": null,
+        "qcBloquant": 0,
+        "qcNonBloquant": 1,
+        "qcMessages": {
+          "bloquant": [],
+          "nonBloquant": [
+            "Contraste : garanti par les jetons de charte par défaut déjà audités AA (aucun calcul dynamique requis tant qu'aucune charte externe n'est en jeu — UX-8B)."
+          ]
+        }
+      },
+      {
+        "id": "m11",
+        "statut": "ok",
+        "stopReason": "tool_use",
+        "diapositives": 10,
+        "essais": 1,
+        "nom": "Cours — Troubles de l'attachement dans le couple adulte · Module 11 sur 12 · Interventions psycho-éducatives et restructuration cognitive",
+        "erreur": null,
+        "qcBloquant": 0,
+        "qcNonBloquant": 1,
+        "qcMessages": {
+          "bloquant": [],
+          "nonBloquant": [
+            "Contraste : garanti par les jetons de charte par défaut déjà audités AA (aucun calcul dynamique requis tant qu'aucune charte externe n'est en jeu — UX-8B)."
+          ]
+        }
+      },
+      {
+        "id": "m12",
+        "statut": "ok",
+        "stopReason": "tool_use",
+        "diapositives": 10,
+        "essais": 1,
+        "nom": "Cours — Troubles de l'attachement dans le couple adulte · Module 12 sur 12 · Cas cliniques complexes : trauma, deuil et transitions",
+        "erreur": null,
+        "qcBloquant": 0,
+        "qcNonBloquant": 1,
+        "qcMessages": {
+          "bloquant": [],
+          "nonBloquant": [
+            "Contraste : garanti par les jetons de charte par défaut déjà audités AA (aucun calcul dynamique requis tant qu'aucune charte externe n'est en jeu — UX-8B)."
+          ]
+        }
+      }
+    ],
+    "rapport": {
+      "total": 12,
+      "reussis": 12,
+      "aRegenerer": [],
+      "annules": [],
+      "nonGeneres": [],
+      "skip": [],
+      "genereEnEntier": true
+    },
+    "assemble": {
+      "rapport": {
+        "courseId": "cours-campagne-c",
+        "modulesAssembles": [
+          "m1",
+          "m2",
+          "m3",
+          "m4",
+          "m5",
+          "m6",
+          "m7",
+          "m8",
+          "m9",
+          "m10",
+          "m11",
+          "m12"
+        ],
+        "modulesOmis": [],
+        "diapositives": 132,
+        "pages": 21,
+        "entreesSources": 350,
+        "entreesDedoublonnees": 5,
+        "citations": 145
+      },
+      "qcBloquant": 0,
+      "qcNonBloquant": 1
+    },
+    "cartesClarification": 1,
+    "clarificationEnAttente": false,
+    "idsCartesPresentes": [
+      "cc-course-recap-card"
+    ],
+    "nomsSidebar": [
+      "Cours — Troubles de l'attachement dans le couple adulte (assemblé)",
+      "Cours — Troubles de l'attachement dans le couple adulte · Module 12 sur 12 · Cas cliniques complexes : trauma, deuil et transitions",
+      "Cours — Troubles de l'attachement dans le couple adulte · Module 11 sur 12 · Interventions psycho-éducatives et restructuration cognitive",
+      "Cours — Troubles de l'attachement dans le couple adulte · Module 10 sur 12 · Thérapie émotionnelle focalisée (EFT) pour le couple",
+      "Cours — Troubles de l'attachement dans le couple adulte · Module 9 sur 12 · Principes d'intervention fondés sur l'attachement",
+      "Cours — Troubles de l'attachement dans le couple adulte · Module 8 sur 12 · Diagnostic différentiel : attachement insécure vs troubles personnalité",
+      "Cours — Troubles de l'attachement dans le couple adulte · Module 7 sur 12 · Conséquences cliniques des attachements insécures en couple",
+      "Cours — Troubles de l'attachement dans le couple adulte · Module 6 sur 12 · Dynamiques dysfonctionnelles dans le couple : patterns critiques",
+      "Cours — Troubles de l'attachement dans le couple adulte · Module 5 sur 12 · Transmission intergénérationnelle et histoire développementale",
+      "Cours — Troubles de l'attachement dans le couple adulte · Module 4 sur 12 · Évaluation clinique des styles d'attachement adulte",
+      "Cours — Troubles de l'attachement dans le couple adulte · Module 3 sur 12 · Représentations mentales et modèles internes opérants",
+      "Cours — Troubles de l'attachement dans le couple adulte · Module 2 sur 12 · Styles d'attachement : modèles dimensionnels et catégoriques",
+      "Cours — Troubles de l'attachement dans le couple adulte · Module 1 sur 12 · Fondements de la théorie de l'attachement adulte"
+    ],
+    "validation": {
+      "valide": true,
+      "ignore": false,
+      "erreurs": [],
+      "annoteValide": false,
+      "pages": 21,
+      "renvois": 19,
+      "renvoisOrphelins": [],
+      "cycle": false,
+      "modules": [
+        "m1",
+        "m2",
+        "m3",
+        "m4",
+        "m5",
+        "m6",
+        "m7",
+        "m8",
+        "m9",
+        "m10",
+        "m11",
+        "m12"
+      ],
+      "titresModules": [
+        "Fondements de la théorie de l'attachement adulte",
+        "Styles d'attachement : modèles dimensionnels et catégoriques",
+        "Représentations mentales et modèles internes opérants",
+        "Évaluation clinique des styles d'attachement adulte",
+        "Transmission intergénérationnelle et histoire développementale",
+        "Dynamiques dysfonctionnelles dans le couple : patterns critiques",
+        "Conséquences cliniques des attachements insécures en couple",
+        "Diagnostic différentiel : attachement insécure vs troubles personnalité",
+        "Principes d'intervention fondés sur l'attachement",
+        "Thérapie émotionnelle focalisée (EFT) pour le couple",
+        "Interventions psycho-éducatives et restructuration cognitive",
+        "Cas cliniques complexes : trauma, deuil et transitions"
+      ]
+    }
+  },
+  "echec": null,
+  "commit": "7745f564",
+  "arbreModifie": false,
+  "fichiersModifies": [],
+  "incidents": [],
+  "echecs": [],
+  "fichiersServisDepuisLeDisque": [
+    "studio-clinique.html",
+    "vendor/ajv2020.min.js",
+    "studio-clinique-core.js"
+  ],
+  "fin": "2026-09-29T09:27:42.316Z"
+}
