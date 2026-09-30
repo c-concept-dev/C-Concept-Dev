@@ -2,8 +2,12 @@ const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),asse
 const {DatabaseSync}=require('node:sqlite');
 function fixture(){
  const source=fs.readFileSync(path.join(__dirname,'../index.js'),'utf8');
- const ctx=vm.createContext({Request,Response,URL,console,CORS:{},__name(){}});
- vm.runInContext(source.slice(source.indexOf('var ADOC_PUBLIC_ROUTES'),source.indexOf('var BRAND_ASSET_ROLES'))+source.slice(source.indexOf('async function handleLibraryFacets('),source.indexOf('// Recherche documentaire : lookup au clic uniquement')),ctx);
+ const ctx=vm.createContext({Request,Response,URL,console,CORS:{},TextEncoder,__name(){}});
+ // CORRECTIF URGENT (motif LIKE trop complexe) — handleLibraryFacets appelle désormais
+ // d1SearchLikeParam/d1SearchLikePrefixParam (définies bien plus haut dans le fichier, près de
+ // handleD1Query) ; incluses ici en plus des deux extraits déjà présents, sinon
+ // ReferenceError à l'exécution.
+ vm.runInContext(source.slice(source.indexOf('const D1_LIKE_HARD_BYTE_LIMIT'),source.indexOf('async function handleD1Query('))+source.slice(source.indexOf('var ADOC_PUBLIC_ROUTES'),source.indexOf('var BRAND_ASSET_ROLES'))+source.slice(source.indexOf('async function handleLibraryFacets('),source.indexOf('// Recherche documentaire : lookup au clic uniquement')),ctx);
  const db=new DatabaseSync(':memory:');
  db.exec(`CREATE TABLE chunks(id TEXT PRIMARY KEY,book_id TEXT,book_title TEXT,author TEXT,approach TEXT,language TEXT,content TEXT);
  CREATE VIRTUAL TABLE chunks_fts USING fts5(content,book_title,author,approach,content='chunks',content_rowid='rowid');
