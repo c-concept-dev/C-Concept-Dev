@@ -18599,6 +18599,44 @@ ${recent}`;
   }
   window.adocExportImageNotice = adocExportImageNotice;
 
+  // MESSAGE DE FIN D'EMBARQUEMENT. adocResolveImagesForExport produit déjà un rapport complet —
+  // requêtes, téléchargements, échecs avec leur rang et leur cause, quota externe atteint ou non —
+  // et adocBuildStandalonePresentationHTML l'affecte à window._adocLastExportImageReport. RIEN ne
+  // le lisait en production : seul un banc de mesure le consultait. L'utilisatrice découvrait donc
+  // les aplats en ouvrant son fichier et en défilant, après trois minutes d'attente.
+  //
+  // PURE et sans effet de bord, comme adocExportImageNotice : le message s'éprouve sans lancer
+  // d'export, ce qui est la seule façon d'en couvrir les cas rares (quota atteint à mi-parcours,
+  // échecs dispersés) sans dépenser un quota qui manque déjà.
+  function adocExportImageRapportMessage(rapport) {
+    const r = rapport;
+    // Aucun embarquement demandé (embedImages:false) : rien à raconter.
+    if (!r || !r.requetes) return null;
+    const total = r.requetes;
+    const echecs = Array.isArray(r.echecs) ? r.echecs : [];
+    const obtenues = Math.max(0, total - echecs.length);
+    const parQuota = echecs.filter(function (e) { return e && e.quotaExterne; }).length;
+    const mo = r.koBase64 ? (r.koBase64 / 1024) : 0;
+    // Le poids est dit dès qu'il devient un critère d'envoi — au-dessous, il n'apprend rien.
+    const poids = mo >= 1 ? ' (' + mo.toFixed(1).replace('.', ',') + ' Mo d\'images)' : '';
+    let m = 'Export terminé : ' + obtenues + ' image' + (obtenues > 1 ? 's' : '') + ' sur ' + total
+      + ' embarquée' + (obtenues > 1 ? 's' : '') + poids + '.';
+    if (!echecs.length) return m;
+    m += ' ' + echecs.length + (echecs.length > 1 ? ' sont remplacées' : ' est remplacée')
+      + ' par un aplat portant son texte alternatif.';
+    if (parQuota) {
+      // La cause NOMMÉE, et son conséquent pratique : sans cela, « une image manque » laisse croire
+      // à un défaut du document, alors que c'est une limite externe qui se rouvrira d'elle-même.
+      m += ' Dont ' + parQuota + ' faute de quota : la banque d\'images limite les recherches à '
+        + ADOC_EXPORT_IMG_QUOTA_HORAIRE + ' par heure, toutes productions confondues'
+        + (r.quotaAtteintALaRequete ? ', atteint à la requête ' + r.quotaAtteintALaRequete : '')
+        + '. Un nouvel export dans l\'heure qui suit rencontrerait la même limite ; les images déjà '
+        + 'obtenues, elles, restent dans le fichier.';
+    }
+    return m;
+  }
+  window.adocExportImageRapportMessage = adocExportImageRapportMessage;
+
   // ASYNC depuis l'embarquement des images : un cours de douze modules télécharge plus de cent
   // couvertures avant d'écrire le fichier. Le bouton se désactive et dit où en est la préparation —
   // sans cela, l'utilisatrice cliquerait plusieurs fois sur un bouton qui paraît inerte et
@@ -18620,13 +18658,38 @@ ${recent}`;
       if (avis) adocAddMsg('assistant', avis, []);
     } catch (e) { console.warn('[export] avis de quota non affiché :', e && e.message); }
     try {
+      // DEUX formes d'événement arrivent ici, et une seule était traitée : l'avancement
+      // ({index, total}) et l'attente d'une reprise ({attente:true, tentative, attenteMs, cause}),
+      // qui ne porte NI index NI total. Les lire sans distinction affichait
+      // « Préparation de l'export… image NaN sur undefined » à chaque reprise — donc précisément
+      // pendant un incident de rafale ou de quota, au moment où le libellé compte le plus.
+      // Le dernier rang connu est conservé pour que la reprise garde son contexte au lieu de le
+      // perdre : c'est la même image qu'on retente, pas une autre.
+      let rangCourant = 0, totalCourant = 0;
       const html = await adocBuildStandalonePresentationHTML(doc, {
         accentPresentation: adocPresentAccentColor(),
         surProgression: function (e) {
-          if (btn) btn.textContent = 'Préparation de l\'export… image ' + (e.index + 1) + ' sur ' + e.total;
+          if (!btn || !e) return;
+          if (e.attente) {
+            const s = Math.max(1, Math.round((e.attenteMs || 0) / 1000));
+            btn.textContent = 'Préparation de l\'export… '
+              + (totalCourant ? 'image ' + rangCourant + ' sur ' + totalCourant + ', ' : '')
+              + 'nouvelle tentative dans ' + s + ' s';
+            return;
+          }
+          rangCourant = (e.index || 0) + 1;
+          totalCourant = e.total || 0;
+          btn.textContent = 'Préparation de l\'export… image ' + rangCourant + ' sur ' + totalCourant;
         },
       });
       adocDownloadArtifact(new Blob([html], { type: 'text/html;charset=utf-8' }), (doc.title || 'presentation').replace(/[\\/:*?"<>|]/g, '-') + '-interactive.html');
+      // APRÈS le téléchargement, jamais avant : le fichier est le livrable, le bilan n'est qu'un
+      // compte rendu et ne doit pas pouvoir retarder ni empêcher sa remise. Enveloppé pour la même
+      // raison que l'avis d'avant-export : un bilan qui échoue ne perd pas un export réussi.
+      try {
+        const bilan = adocExportImageRapportMessage(window._adocLastExportImageReport);
+        if (bilan) adocAddMsg('assistant', bilan, []);
+      } catch (e) { console.warn('[export] bilan des images non affiché :', e && e.message); }
     } catch (e) {
       console.warn('[export] échec de l\'export autonome :', e && e.message);
       adocAddMsg('assistant', 'L\'export de la présentation a échoué : ' + (e && e.message) + '.', []);
