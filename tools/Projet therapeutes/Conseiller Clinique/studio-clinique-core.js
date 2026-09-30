@@ -16321,6 +16321,20 @@ ${recent}`;
     '.cc-ws-present-toc-sep{height:1px;background:var(--stone-300);margin:8px 10px;}' +
     '.cc-ws-present-toc-titre{font-size:.78rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;opacity:.55;padding:2px 10px 6px;}' +
     '.cc-ws-present-toc-dive .cc-ws-present-toc-num{opacity:.5;}' +
+    // Indentation des approfondissements par PROFONDEUR RÉELLE, dérivée du graphe des renvois — le
+    // sommaire montre ainsi la structure avant toute exploration, au lieu d'une liste à plat.
+    // Valeurs calées sur le retrait de BASE d'une entrée de sommaire, mesuré à 10 px : écrire 14 px
+    // pour le niveau 1 ne creusait que de 4 px, un décalage qui ne se lit pas. Chaque niveau ajoute
+    // donc 14 px aux 10 px de base. Plafonné à 3 niveaux (data-niveau) : le panneau est étroit, et
+    // au-delà le titre serait tronqué.
+    '.cc-ws-present-toc-dive[data-niveau="1"]{padding-left:24px;}' +
+    '.cc-ws-present-toc-dive[data-niveau="2"]{padding-left:38px;}' +
+    '.cc-ws-present-toc-dive[data-niveau="3"]{padding-left:52px;}' +
+    // La flèche s'efface avec la profondeur : elle marque l'entrée dans la section, pas chaque
+    // niveau, et trois flèches identiques alignées verticalement brouilleraient la lecture.
+    '.cc-ws-present-toc-dive[data-niveau="1"] .cc-ws-present-toc-num,'
+    + '.cc-ws-present-toc-dive[data-niveau="2"] .cc-ws-present-toc-num,'
+    + '.cc-ws-present-toc-dive[data-niveau="3"] .cc-ws-present-toc-num{opacity:.28;}' +
     // PORTE PLEIN ÉCRAN (image) — même précédent architectural que #cc-ws-present-toc ci-dessus
     // (élément positionné à l'intérieur de #cc-ws-present-overlay déjà en position:fixed, jamais
     // un second point d'ancrage), en plein viewport plutôt qu'en encadré de coin. z-index
@@ -16495,11 +16509,87 @@ ${recent}`;
     return diapositives + adocPresentTocDeepDivesHTML(doc);
   }
   // Section « Approfondissements » — partagée par le sommaire plat et le sommaire groupé.
+  // ── HIÉRARCHIE DES APPROFONDISSEMENTS, DÉRIVÉE ─────────────────────────────────────────────
+  // doc.deepDives est un tableau PLAT : aucune relation page→page n'y figure. Mais le graphe existe
+  // déjà, éparpillé dans les renvois : une diapositive pointe vers ses pages (block.deepDiveLinks),
+  // et une page pointe vers d'autres pages (paragraphe.links, posés par adocConvertDeepDives).
+  // Cette fonction ne fait que le PARCOURIR. Aucun champ de document n'est ajouté, aucun schéma
+  // touché : le coût de grammaire est nul, comme pour la révélation progressive.
+  //
+  // Parcours en PROFONDEUR depuis les pages atteintes d'une diapositive : l'ordre obtenu est celui
+  // de l'exploration réelle, jamais l'ordre de stockage — une page apparaît juste sous celle qui y
+  // mène. Une page n'apparaît QU'UNE FOIS : deux occurrences gonfleraient le sommaire et
+  // laisseraient croire à deux pages distinctes.
+  // Conséquence assumée du choix de la profondeur : une page atteignable par PLUSIEURS chemins est
+  // placée là où l'exploration la rencontre d'abord, ce qui n'est pas forcément sa profondeur
+  // minimale. Un parcours en largeur donnerait la profondeur minimale mais séparerait chaque page de
+  // celle qui y mène, et c'est précisément cette adjacence qui rend le sommaire lisible. Le test
+  // porte ce comportement plutôt que de le laisser à l'interprétation.
+  //
+  // Une page atteinte UNIQUEMENT depuis une autre page garde toute sa place : elle est simplement
+  // indentée sous celle qui y mène. Une page qu'AUCUN renvoi n'atteint (anomalie de génération)
+  // n'est jamais escamotée : elle est listée à plat en fin de section, au niveau 0, car elle reste
+  // ouvrable depuis le sommaire et la masquer serait une perte muette.
+  function adocPresentTocDeepDiveOrdre(doc) {
+    const pages = (doc && doc.deepDives) || [];
+    if (!pages.length) return [];
+    const parId = {};
+    pages.forEach(function (d) { if (d && d.id) parId[d.id] = d; });
+
+    const sortants = {};
+    pages.forEach(function (d) {
+      const cibles = [];
+      ((d && d.paragraphs) || []).forEach(function (par) {
+        ((par && par.links) || []).forEach(function (l) {
+          const t = l && l.targetId;
+          if (t && parId[t] && t !== d.id && cibles.indexOf(t) === -1) cibles.push(t);
+        });
+      });
+      sortants[d.id] = cibles;
+    });
+
+    const racines = [];
+    ((doc && doc.blocks) || []).forEach(function (carte) {
+      ((carte && carte.content && carte.content.blocks) || []).forEach(function (b) {
+        ((b && b.deepDiveLinks) || []).forEach(function (l) {
+          const t = l && l.targetId;
+          if (t && parId[t] && racines.indexOf(t) === -1) racines.push(t);
+        });
+      });
+    });
+
+    const ordre = [];
+    const vus = {};
+    // `vus` sert AUSSI de coupe-cycle : adocConvertDeepDives casse déjà les cycles à la conversion,
+    // mais ce parcours ne doit pas en dépendre — un document chargé depuis D1 et écrit par une
+    // version antérieure passerait ici sans être reconverti.
+    function descendre(id, niveau) {
+      if (vus[id] || !parId[id]) return;
+      vus[id] = true;
+      ordre.push({ page: parId[id], niveau: niveau });
+      (sortants[id] || []).forEach(function (t) { descendre(t, niveau + 1); });
+    }
+    racines.forEach(function (id) { descendre(id, 0); });
+    pages.forEach(function (d) {
+      if (d && d.id && !vus[d.id]) { vus[d.id] = true; ordre.push({ page: d, niveau: 0 }); }
+    });
+    return ordre;
+  }
+
   function adocPresentTocDeepDivesHTML(doc) {
     const pages = doc.deepDives || [];
     if (!pages.length) return '';
-    const liste = pages.map(function (d) {
-      return '<button type="button" class="cc-ws-present-toc-item cc-ws-present-toc-dive" data-dive="' + adocEsc(d.id) + '" onclick="window.adocPresentOpenDeepDiveFromToc(\'' + adocEsc(d.id) + '\')">' +
+    // L'ordre et les niveaux viennent du graphe déjà présent (cf. adocPresentTocDeepDiveOrdre) :
+    // la section n'est plus une liste à plat mais l'arborescence réelle des approfondissements.
+    // aria-level porte la profondeur pour les lecteurs d'écran : l'indentation seule est invisible
+    // pour qui n'a pas l'affichage. Le retrait visuel est PLAFONNÉ à 3 niveaux (data-niveau), sans
+    // quoi une chaîne profonde pousserait le titre hors du panneau, déjà étroit.
+    const liste = adocPresentTocDeepDiveOrdre(doc).map(function (entree) {
+      const d = entree.page;
+      const niveauVisuel = Math.min(entree.niveau, 3);
+      return '<button type="button" class="cc-ws-present-toc-item cc-ws-present-toc-dive" data-niveau="' + niveauVisuel + '"'
+        + ' aria-level="' + (entree.niveau + 1) + '"'
+        + ' data-dive="' + adocEsc(d.id) + '" onclick="window.adocPresentOpenDeepDiveFromToc(\'' + adocEsc(d.id) + '\')">' +
         '<span class="cc-ws-present-toc-num" aria-hidden="true">↳</span>' +
         '<span class="cc-ws-present-toc-title">' + adocEsc(d.title) + '</span></button>';
     }).join('\n');
@@ -17513,6 +17603,10 @@ ${recent}`;
       // adocIsLocalVideoUrl ci-dessus (LOT VIDÉO-2).
       adocQuestionnaireScorePanel: adocQuestionnaireScorePanel, adocQuestionnaireFindProfile: adocQuestionnaireFindProfile,
       adocRenderCardHTML: adocRenderCardHTML, adocPresentBuildTocHTML: adocPresentBuildTocHTML,
+      // HIÉRARCHIE DU SOMMAIRE — appelée par adocPresentTocDeepDivesHTML, elle-même appelée à la
+      // construction du sommaire dans l'export : sans elle, ouvrir le sommaire d'un fichier exporté
+      // lèverait « adocPresentTocDeepDiveOrdre is not defined ».
+      adocPresentTocDeepDiveOrdre: adocPresentTocDeepDiveOrdre,
       adocPresentUpdateCounter: adocPresentUpdateCounter, adocPresentApplyReveal: adocPresentApplyReveal,
       adocPresentAnimateNumberIfEligible: adocPresentAnimateNumberIfEligible,
       adocPresentRevealNext: adocPresentRevealNext, adocPresentRevealPrev: adocPresentRevealPrev,
