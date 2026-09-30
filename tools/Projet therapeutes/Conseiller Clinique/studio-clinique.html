@@ -2423,6 +2423,10 @@
     .adoc-sc-table-el { font:inherit; color:inherit; }
     .adoc-sc-table[style*="color:"] th { color:inherit; }
     .cc-editor-message { margin:0;min-height:1em; }
+    /* Note contextuelle du panneau — même sobriété que .cc-editor-message, en plus discret :
+       c'est une précision, pas un statut d'action. */
+    .cc-editor-note { margin:2px 0 0;font-size:.85em;opacity:.78;line-height:1.35; }
+    .cc-editor-note[hidden] { display:none; }
     /* CORRECTIF Lot C cas 4 (investigation réelle à l'appui, mesures : 578ms de blocage +
        aucun indice visuel pendant l'upload) — voile "Envoi en cours…" partagé par les deux
        points d'entrée de glisser-déposer d'image (adocSetImageDropBusy) : recouvre l'élément

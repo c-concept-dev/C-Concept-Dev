@@ -9378,6 +9378,15 @@ ${recent}`;
       // impossible. Le gestionnaire est inchangé — il écoute 'change' sur [data-editor-style] et lit
       // .value, exactement comme <select data-editor-style="textAlign"> juste en dessous.
       '<div class="cc-editor-row"><label>Police<select data-editor-style="fontFamily"><option value="">Police de la charte</option></select></label>' + button('local-fonts','Polices de cet ordinateur') + number('fontSizePt','Taille (pt)',6,144) + '</div>' +
+      // NOTE SUR UNE POLICE LOCALE — une police installée sur cet ordinateur s'affiche ici, mais pas
+      // dans un export ouvert ailleurs : le navigateur y retombe sur une police de repli. Les paires
+      // Google (googleFontsHref) n'ont pas ce défaut, leur feuille partant avec le fichier.
+      // Masquage piloté par l'ÉTAT, dans adocEditorRefreshControls, exactement comme
+      // .cc-editor-list-tools et .cc-editor-table-tools : aucun patron nouveau, et les deux
+      // déclencheurs demandés viennent gratuitement puisque adocEditorApplyStyle termine par ce même
+      // rafraîchissement (donc à l'ouverture du panneau ET à chaque changement).
+      '<p class="cc-editor-note cc-editor-police-locale" role="note" hidden>Police installée sur cet '
+      + 'ordinateur : elle s\'affiche ici, mais un export ouvert ailleurs utilisera une police de repli.</p>' +
       '<div class="cc-editor-row">' + button('bold','Gras') + button('italic','Italique') + button('underline','Souligné') + button('strike','Barré') +
       '<label>Alignement<select data-editor-style="textAlign"><option value="">Charte</option><option value="left">Gauche</option><option value="center">Centré</option><option value="right">Droite</option><option value="justify">Justifié</option></select></label>' +
       '<label>Casse<select data-editor-style="textTransform"><option value="none">Originale</option><option value="uppercase">MAJUSCULES</option><option value="lowercase">minuscules</option><option value="capitalize">Initiales</option></select></label></div>' +
@@ -9487,6 +9496,11 @@ ${recent}`;
       // <select> n'avait pas encore ses options : sans cette ligne, sa valeur retomberait à vide à
       // chaque rafraîchissement, quelle que soit la police du bloc.
       if (document.activeElement !== selectPolice) selectPolice.value = actuelle == null ? '' : actuelle;
+      // La note ne s'affiche QUE si la police active est une police locale : jamais pour une paire
+      // Google, qui survit à l'export, et jamais en permanence — un avertissement toujours visible
+      // cesse d'être lu.
+      const note = tools.querySelector('.cc-editor-police-locale');
+      if (note) note.hidden = !(actuelle && macSet.has(actuelle));
     }
     tools.querySelector('.cc-editor-swatches').innerHTML = adocEditorPalette().map(function (p) {
       return '<button type="button" title="' + adocEsc(p[0] + ' ' + p[1]) + '" aria-label="Couleur ' + adocEsc(p[0]) + '" data-editor-color="' + adocEsc(p[1]) + '" style="background:' + p[1] + '"></button>';

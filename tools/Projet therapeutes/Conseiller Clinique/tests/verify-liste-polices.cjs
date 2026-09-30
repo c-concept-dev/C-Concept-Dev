@@ -58,6 +58,10 @@ const lireSelect = (page) => page.evaluate(() => {
     groupes: Array.from(s.querySelectorAll('optgroup')).map((g) => g.label),
     champLibre: !!document.querySelector('input[data-editor-style="fontFamily"]'),
     datalist: !!document.querySelector('#cc-editor-fonts'),
+    note: (function () {
+      const p = document.querySelector('.cc-editor-police-locale');
+      return p ? { presente: true, visible: !p.hidden, texte: p.textContent } : { presente: false };
+    })(),
   };
 });
 
@@ -81,7 +85,7 @@ const lireSelect = (page) => page.evaluate(() => {
       'plus aucun <input> pour la police : un champ texte laisse taper n\'importe quoi, et une police '
       + 'inexistante est ignorée en silence par le navigateur');
     assert.equal(s1.datalist, false, 'la datalist de suggestions a disparu avec le champ libre');
-    console.log('PASS ' + (++n) + '/5 — le panneau réel rend un <select>, sans champ libre ni datalist.');
+    console.log('PASS ' + (++n) + '/7 — le panneau réel rend un <select>, sans champ libre ni datalist.');
 
     // ── 2 — les polices du Mac priment, et la liste est saine ──
     const mac = s1.options.filter((o) => o.groupe === 'Polices de cet ordinateur').map((o) => o.v);
@@ -95,7 +99,7 @@ const lireSelect = (page) => page.evaluate(() => {
       + 'déplace le point initial et en laisse passer un si le filtre ne les retire pas');
     assert.equal(mac.length - new Set(mac).size, 0, 'aucun doublon');
     assert.equal(s1.options[0].v, '', 'la première option reste « Police de la charte », soit aucun réglage');
-    console.log('PASS ' + (++n) + '/5 — ' + mac.length + ' polices de cet ordinateur, en tête, sans famille interne ni doublon.');
+    console.log('PASS ' + (++n) + '/7 — ' + mac.length + ' polices de cet ordinateur, en tête, sans famille interne ni doublon.');
 
     // ── 3 — AUCUNE valeur hors liste n'est atteignable ──
     const horsListe = await page.evaluate(() => {
@@ -116,7 +120,7 @@ const lireSelect = (page) => page.evaluate(() => {
     });
     assert.equal(apresEvenement, null,
       'et le document ne retient RIEN d\'une valeur hors liste, même après un événement change forcé');
-    console.log('PASS ' + (++n) + '/5 — valeur hors liste refusée par le select ET absente du document.');
+    console.log('PASS ' + (++n) + '/7 — valeur hors liste refusée par le select ET absente du document.');
 
     // ── 4 — un choix RÉEL de la liste atteint bien le document ──
     const choisie = mac[0];
@@ -127,7 +131,34 @@ const lireSelect = (page) => page.evaluate(() => {
       return (d.blocks.find((x) => x.id === 'blk-a').style || {}).fontFamily || null;
     });
     assert.equal(retenue, choisie, 'choisir « ' + choisie + '  » dans la liste doit l\'écrire dans le document');
-    console.log('PASS ' + (++n) + '/5 — un choix de la liste atteint réellement le document (« ' + choisie + ' »).');
+    console.log('PASS ' + (++n) + '/7 — un choix de la liste atteint réellement le document (« ' + choisie + ' »).');
+
+    // ── 5 — LA NOTE SUR UNE POLICE LOCALE, déclenchée AU CHANGEMENT ──
+    // Une police locale s'affiche ici mais pas dans un export ouvert ailleurs : le navigateur y
+    // retombe sur une police de repli. La note le dit, sans alarmer, et seulement quand c'est le cas.
+    const apresChoixLocal = await lireSelect(page);
+    assert.equal(apresChoixLocal.note.presente, true, 'la note doit exister dans le panneau');
+    assert.equal(apresChoixLocal.note.visible, true,
+      'après avoir choisi une police de CET ordinateur, la note doit apparaître — c\'est le cas où '
+      + 'l\'export perdra la police');
+    assert.ok(/police de repli/.test(apresChoixLocal.note.texte),
+      'et dire ce qui se passera réellement ailleurs : ' + JSON.stringify(apresChoixLocal.note.texte));
+    // Une police de paire Google survit à l'export : aucune note.
+    const paire = apresChoixLocal.options.find(function (o) { return o.groupe === 'Polices des chartes et des paires'; });
+    if (paire) {
+      await page.selectOption('select[data-editor-style="fontFamily"]', paire.v);
+      await page.waitForTimeout(150);
+      const apresPaire = await lireSelect(page);
+      assert.equal(apresPaire.note.visible, false,
+        'aucune note pour une police de paire (« ' + paire.v + ' ») : sa feuille Google part avec le '
+        + 'fichier exporté, la police ne se perd pas');
+    }
+    // Revenir à « Police de la charte » retire la note aussi.
+    await page.selectOption('select[data-editor-style="fontFamily"]', '');
+    await page.waitForTimeout(150);
+    assert.equal((await lireSelect(page)).note.visible, false,
+      'sans police choisie, aucune note — un avertissement permanent cesse d\'être lu');
+    console.log('PASS ' + (++n) + '/7 — note affichée pour une police locale, absente pour une paire et sans réglage.');
 
     // ── 5 — UNE POLICE HÉRITÉE ABSENTE D'ICI N'EST JAMAIS PERDUE ──
     // Sans son option, affecter select.value la remettrait à vide et le premier réglage suivant
@@ -142,10 +173,23 @@ const lireSelect = (page) => page.evaluate(() => {
     assert.equal(o.desactivee, true, 'montrée pour ce qu\'elle est, jamais re-choisissable : disabled');
     assert.equal(o.groupe, 'Valeur du document, absente de cet ordinateur', 'et annoncée comme telle');
     assert.deepEqual(erreurs, [], 'aucune erreur JS : ' + erreurs.join(' | '));
-    console.log('PASS ' + (++n) + '/5 — police héritée inconnue : conservée, sélectionnée, non re-choisissable.');
+    console.log('PASS ' + (++n) + '/7 — police héritée inconnue : conservée, sélectionnée, non re-choisissable.');
+
+    // ── 7 — LA NOTE, déclenchée À L'OUVERTURE du panneau sur un bloc déjà réglé ──
+    // Second déclencheur demandé. Il vient gratuitement : adocEditorApplyStyle termine par le même
+    // adocEditorRefreshControls que l'ouverture du panneau, donc un seul point de bascule suffit.
+    const docLocal = ficheDoc([para('blk-a', 'Un paragraphe.')]);
+    docLocal.blocks[0].style = { fontFamily: mac[3] };
+    await ouvrirPanneau(page, docLocal, 'blk-a');
+    const s3 = await lireSelect(page);
+    assert.equal(s3.valeur, mac[3], 'préalable : le bloc porte bien une police locale');
+    assert.equal(s3.note.visible, true,
+      'à l\'OUVERTURE du panneau sur un bloc déjà réglé avec une police locale, la note doit être '
+      + 'visible sans qu\'aucun changement n\'ait eu lieu');
+    console.log('PASS ' + (++n) + '/7 — note visible dès l\'ouverture sur un bloc déjà réglé en police locale.');
     await page.close();
 
-    console.log('\nTOUS LES TESTS LISTE DE POLICES PASSENT (' + n + '/5)');
+    console.log('\nTOUS LES TESTS LISTE DE POLICES PASSENT (' + n + '/7)');
   } finally {
     await browser.close();
   }
