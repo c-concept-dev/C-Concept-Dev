@@ -475,7 +475,7 @@ function getWorkerUrl() {
 // Même clé que Studio Clinique — voir studio-clinique.html, adocGetApiKey(), même valeur en
 // dernier recours pendant la phase de test/construction active.
 function getAdminApiKey() {
-    return '7005f3fe8b04dfde1299be47d75a6648f65c4f06c178b2c8';
+    return localStorage.getItem('workerApiKey') || '';
 }
 
 // Helper: échapper les apostrophes pour les attributs onclick
