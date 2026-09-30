@@ -7710,6 +7710,25 @@ ${recent}`;
   // liens SURVIVANTS (jamais avant — couper des cycles sur des arêtes qui vont de toute façon
   // disparaître ferait supprimer des liens parfaitement valides). Fonction nommée et exposée plus
   // bas pour que ce comportement soit éprouvé par un test réel, jamais seulement raisonné.
+  // ANALYSEUR UNIQUE de la forme « expression → id », partagé par les renvois de PAGE
+  // (deepDives[].deepDiveLinks) et par les renvois de COUVERTURE de diapositive
+  // (cards[].coverDeepDiveLinks). Un second analyseur finirait par accepter d'autres séparateurs que
+  // le premier, et le modèle n'enverrait plus la même chose selon l'endroit.
+  //
+  // Tolérance sur le séparateur : le modèle écrit « → » comme demandé, mais une variante ASCII ne
+  // doit pas faire perdre le lien. Découpe sur la DERNIÈRE occurrence : un id ne contient jamais
+  // d'espace, une expression peut contenir presque tout.
+  function adocParseLienFleche(entree) {
+    if (typeof entree !== 'string') return null;
+    const m = entree.match(/^([\s\S]*)(?:→|->|—>|=>)([^→>]*)$/);
+    if (!m) return null;
+    const text = adocStripEmoji(m[1].trim());
+    const targetId = m[2].trim();
+    if (!text || !targetId) return null;
+    return { text: text, targetId: targetId };
+  }
+  window.adocParseLienFleche = adocParseLienFleche;
+
   function adocConvertDeepDives(rawDeepDives) {
     // Un paragraphe arrive sous DEUX formes (clinical-document.schema.json,
     // deepDives[].paragraphs.items.oneOf) : une simple chaîne dans le cas très largement
@@ -7735,22 +7754,17 @@ ${recent}`;
     function repartirLiensDePage(d, paragraphs) {
       const brut = (d && Array.isArray(d.deepDiveLinks)) ? d.deepDiveLinks : [];
       brut.forEach(function(entree) {
-        if (typeof entree !== 'string') return;
-        // Tolérance sur le séparateur : le modèle écrit « → » comme demandé, mais une flèche
-        // ASCII ne doit pas faire perdre le lien. Découpe sur la DERNIÈRE occurrence : un id ne
-        // contient jamais d'espace, une expression peut contenir presque tout.
-        const m = entree.match(/^([\s\S]*)(?:→|->|—>|=>)([^→>]*)$/);
-        if (!m) return;
-        const texte = adocStripEmoji(m[1].trim());
-        const targetId = m[2].trim();
-        if (!texte || !targetId) return;
+        // Analyse déléguée à adocParseLienFleche — un seul analyseur pour les renvois de page ET de
+        // couverture ; la tolérance de séparateur y est décrite.
+        const lien = adocParseLienFleche(entree);
+        if (!lien) return;
         // Le lien se pose sur le paragraphe où l'expression apparaît RÉELLEMENT — c'est là que la
         // pastille a un sens. À défaut (reformulation du modèle), sur le premier : mieux vaut une
         // pastille légèrement mal placée qu'une page d'approfondissement inatteignable.
         const cible = paragraphs.filter(function(par) {
-          return par.text.toLowerCase().indexOf(texte.toLowerCase()) !== -1;
+          return par.text.toLowerCase().indexOf(lien.text.toLowerCase()) !== -1;
         })[0] || paragraphs[0];
-        cible.links.push({ text: texte, targetId: targetId });
+        cible.links.push(lien);
       });
     }
     // Même sévérité que les autres filets du pipeline (image/quiz/questionnaire) : une entrée sans
@@ -12479,6 +12493,20 @@ ${recent}`;
     const img = card.content.imageRef
       ? '<img class="adoc-sc-card-img" data-pexels="' + adocEsc(card.content.imageRef) + '" alt="' + adocEsc(card.content.imageAlt || '') + '">'
       : '';
+    // PUCE « ↳ Approfondir » SOUS LA COUVERTURE — le clic sur l'image reste l'agrandissement
+    // (adocPresentOpenImageDoor), strictement inchangé : les deux gestes coexistent, il n'y a jamais
+    // deux sens possibles pour le même clic.
+    // Rendue UNIQUEMENT en mode présentation (_adocRenderingForPresentDoor), comme toutes les autres
+    // puces de ce chantier : dans l'atelier ou un export classique, un renvoi de page ne mène nulle
+    // part. Même balisage et même onclick que la puce de bloc — window.adocPresentOpenDeepDive est déjà
+    // dans windowFnNames, donc aucune fonction nouvelle à sérialiser pour l'export.
+    const coverChips = (_adocRenderingForPresentDoor && Array.isArray(card.content.coverDeepDiveLinks))
+      ? card.content.coverDeepDiveLinks.map(function (l) {
+          return '<button type="button" class="adoc-sc-deepdive-chip adoc-sc-card-cover-chip" onclick="window.adocPresentOpenDeepDive(\''
+            + adocEsc(l.targetId) + '\')">↳ Approfondir</button>';
+        }).join('')
+      : '';
+    const coverChipsHTML = coverChips ? '<div class="adoc-sc-card-cover-chips">' + coverChips + '</div>' : '';
     const posCSS = adocCardPositionCSSText(card.style);
     const styleAttr = posCSS ? ' style="' + adocEsc(posCSS) + '"' : '';
     // ITEM 75 Phase 1 UI — poignée de redimensionnement, toujours présente dans le balisage
@@ -12490,7 +12518,7 @@ ${recent}`;
       // Item 68 — même mécanisme d'édition directe que la bannière Fiche (data-cc-editor-leaf
       // générique, jamais .adoc-sc-block : un titre de carte reste une DÉCORATION de card.content,
       // synchronisé par adocSyncEditedRootFieldsToDoc, jamais par adocEditorSyncStructured).
-      img + '<h2 class="adoc-sc-card-title" id="' + adocEsc('root:card-title:' + card.id) + '" data-cc-editor-leaf="card-title">' + adocEsc(card.content.title) + '</h2>' + nested + resizeHandle + '</section>';
+      img + coverChipsHTML + '<h2 class="adoc-sc-card-title" id="' + adocEsc('root:card-title:' + card.id) + '" data-cc-editor-leaf="card-title">' + adocEsc(card.content.title) + '</h2>' + nested + resizeHandle + '</section>';
   }
   // CORRECTIF ITEM 75 (effondrement du Carrousel) — `.adoc-sc-carrousel` est en display:flex, sa
   // hauteur dépend normalement de ses cartes en flux normal ; une carte avec x/y/width/height
@@ -13170,6 +13198,14 @@ ${recent}`;
               // partagée (adocResolveCardCoverFields) que ADOC_STRUCTURED_CARROUSEL_TOOL ci-dessus.
               coverImageQuery: { type: 'string', description: "Image de couverture de CETTE diapositive — requête de recherche Pexels concrète, évocatrice et spécifique, en anglais ; chaîne vide UNIQUEMENT si aucune image ne convient vraiment au sujet de cette diapositive précise." },
               coverImageAlt: { type: 'string', description: 'Texte alternatif descriptif de la couverture, non vide dès que coverImageQuery est renseignée ; chaîne vide sinon.' },
+              // LIEN SUR L'IMAGE DE COUVERTURE — le clic sur l'image reste l'agrandissement, inchangé :
+              // ce champ ajoute une puce « ↳ Approfondir » SOUS la couverture, jamais un second
+              // arbitrage sur le même geste. Forme CHAÎNE « expression → id », identique aux renvois de
+              // page déjà éprouvés : elle coûte UNE chaîne scalaire à la grammaire, là où la forme objet
+              // {text, targetId} des renvois de bloc en coûterait deux — seule la première tient dans la
+              // marge mesurée. OPTIONNEL, jamais dans `required` : une diapositive sans renvoi de
+              // couverture ne porte aucune clé vide (principe additif tenu partout ailleurs).
+              coverDeepDiveLinks: { type: 'array', items: { type: 'string' }, description: 'Facultatif. Renvois de la couverture, format « expression → id de deepDives ».' },
               blocks: {
                 type: 'array',
                 items: {
@@ -13787,7 +13823,15 @@ ${recent}`;
           "l'autre). coverImageAlt est obligatoire et non vide dès que coverImageQuery est renseignée. " +
           "Laisse les deux champs vides UNIQUEMENT dans les cas où le sujet de la diapositive ne se " +
           "prête vraiment à aucune image (ex. diapositive purement chiffrée ou définitionnelle) — " +
-          "jamais par défaut.\n\n" +
+          "jamais par défaut.\n" +
+          // Instruction COURTE et volontairement restrictive : un renvoi de couverture sur chaque
+          // diapositive banaliserait le geste et ferait de l'image un bouton de plus. La condition
+          // porte sur le rapport réel entre l'image et la page, pas sur l'existence d'une page.
+          "coverDeepDiveLinks (facultatif) : une diapositive peut renvoyer depuis SON IMAGE DE " +
+          "COUVERTURE vers une page d'approfondissement, au format « expression → id de deepDives ». " +
+          "À n'utiliser que si l'image illustre vraiment une notion que cette page développe — jamais " +
+          "sur chaque diapositive, jamais quand le lien n'apporte rien de plus que les renvois déjà " +
+          "posés dans le texte.\n\n" +
           // LOT 3 Présentation — la section « QUESTION DE VÉRIFICATION » a été retirée en même
           // temps que les champs quiz du schéma d'outil : décrire au modèle un bloc qu'il ne peut
           // plus produire ne ferait que gaspiller du contexte et l'inviter à une impasse.
@@ -13899,18 +13943,25 @@ ${recent}`;
       // MÊME fonction que 'carrousel' ci-dessus, dupliquée ici (jamais partagée par référence) pour
       // ne changer qu'un seul préfixe d'id ('slide-' plutôt que 'card-', simple confort de lecture
       // en outil de développement — aucun effet de schéma, type reste 'card' dans les deux cas).
-      convertRawToBlocks: function(raw, convertBlock) {
+      convertRawToBlocks: function(raw, convertBlock, resoudreLiensCouverture) {
         let cardSeq = 0;
         return (raw.cards || []).map(function(card) {
           cardSeq++;
           const cardBlocks = (card.blocks || []).map(convertBlock).filter(Boolean);
           if (!cardBlocks.length) return null;
+          const couverture = adocResolveCardCoverFields(card);
+          // Un renvoi de couverture n'a de sens que s'il Y A une couverture : la puce se place SOUS
+          // l'image. Sans image, la clé n'est pas portée, plutôt qu'une puce flottant sans support.
+          // Le profil Carrousel ne reçoit jamais ce troisième argument — il n'a pas de pages.
+          const liensCouverture = couverture.imageRef && resoudreLiensCouverture
+            ? resoudreLiensCouverture(card) : null;
           return {
             id: 'slide-' + String(cardSeq).padStart(2, '0'),
             type: 'card',
             content: Object.assign(
               { title: adocStripEmoji((card.title || '').trim()) || ('Diapositive ' + cardSeq) },
-              adocResolveCardCoverFields(card),
+              couverture,
+              liensCouverture ? { coverDeepDiveLinks: liensCouverture } : {},
               { blocks: cardBlocks }
             ),
             citationIds: [], validation: {},
@@ -15207,7 +15258,22 @@ ${recent}`;
       return result;
     }
 
-    const blocks = profile.convertRawToBlocks(raw, convertBlock);
+    // RENVOIS DE COUVERTURE — résolus ICI et non dans le profil, parce que deepDiveIds et
+    // deepDiveTitres n'existent qu'à cette portée : filtrer ailleurs demanderait de les y recopier.
+    // Le filtrage passe par adocFilterBlockDeepDiveLinks, le mécanisme DÉJÀ éprouvé pour les renvois de
+    // bloc (cible inexistante retirée en silence, texte vide refusé, emoji retiré) — jamais un second
+    // filtre parallèle, qui finirait par en diverger.
+    function resoudreLiensCouverture(rawCard) {
+      const brut = (rawCard && Array.isArray(rawCard.coverDeepDiveLinks)) ? rawCard.coverDeepDiveLinks : [];
+      if (!brut.length) return null;
+      const analyses = brut.map(adocParseLienFleche).filter(Boolean);
+      if (!analyses.length) return null;
+      const liens = adocFilterBlockDeepDiveLinks(
+        { type: 'paragraph', deepDiveLinks: analyses }, deepDiveIds, deepDiveTitres);
+      return liens.length ? liens : null;
+    }
+
+    const blocks = profile.convertRawToBlocks(raw, convertBlock, resoudreLiensCouverture);
 
     if (!blocks.length) throw new Error('Le modèle a produit un document structuré sans bloc exploitable.');
     if (_adocEmojiStrippedCount) console.log('[UX-8A.2] emoji(s)/pictogramme(s) retiré(s) du texte produit — ' + _adocEmojiStrippedCount + ' champ(s) concerné(s).');
@@ -16421,7 +16487,10 @@ ${recent}`;
     // jamais rendues hors mode présentation (_adocRenderingForPresentDoor, cf. adocRenderBlockHTML).
     '.adoc-sc-deepdive-link{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px;color:var(--petrol-800,#1f5053);}' +
     '.adoc-sc-deepdive-chip{display:inline-block;margin:6px 6px 0 0;padding:2px 10px;border-radius:12px;border:1px dashed var(--petrol-800,#1f5053);background:none;color:var(--petrol-800,#1f5053);font-size:0.85em;cursor:pointer;}' +
-    '.adoc-sc-deepdive-chip:hover{background:rgba(31,80,83,.08);}';
+    '.adoc-sc-deepdive-chip:hover{background:rgba(31,80,83,.08);}' +
+    // Le conteneur de la puce de couverture : collé sous l'image, aligné à gauche comme les puces de
+    // bloc. Aucune marge haute — l'image porte déjà la sienne (margin-bottom de .adoc-sc-card-img).
+    '.adoc-sc-card-cover-chips{display:block;margin:0 0 6px 0;}';
   // Bundle complet — page vivante (injection ci-dessous) ET export autonome interactif.
   const ADOC_PRESENT_ENGINE_CSS = ADOC_PRESENT_FULLSCREEN_CSS + ADOC_PRESENTATION_SLIDE_CSS + ADOC_QUIZ_STATIC_CSS + ADOC_QUIZ_INTERACTIVE_MASK_CSS + ADOC_QUESTIONNAIRE_STATIC_CSS + ADOC_QUESTIONNAIRE_INTERACTIVE_CSS + ADOC_CARD_IMG_CSS;
   // Jetons de chrome (jamais des jetons de DOCUMENT comme --adoc-sc-*, cf. adocTokensToCSSVars) —

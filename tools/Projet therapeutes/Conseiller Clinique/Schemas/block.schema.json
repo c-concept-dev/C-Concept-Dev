@@ -53,11 +53,20 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["text", "targetId"],
+        "required": [
+          "text",
+          "targetId"
+        ],
         "additionalProperties": false,
         "properties": {
-          "text": { "type": "string", "minLength": 1 },
-          "targetId": { "type": "string", "minLength": 1 }
+          "text": {
+            "type": "string",
+            "minLength": 1
+          },
+          "targetId": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       }
     },
@@ -293,6 +302,10 @@
           "items": {
             "$ref": "#/$defs/nestedBlock"
           }
+        },
+        "coverDeepDiveLinks": {
+          "$comment": "Présentation — renvois depuis l'IMAGE DE COUVERTURE d'une diapositive. Réutilise $defs/deepDiveLinks TEL QUEL, jamais une seconde définition : même forme que les renvois de bloc, même filtrage (adocFilterBlockDeepDiveLinks). OPTIONNEL et jamais dans `required` — une diapositive sans renvoi de couverture ne porte aucune clé vide. Le clic sur l'image reste l'agrandissement : ce champ n'ajoute qu'une puce sous la couverture.",
+          "$ref": "#/$defs/deepDiveLinks"
         }
       },
       "if": {

@@ -38,8 +38,8 @@ const path = require('node:path');
 // Remplacée par une phrase PLUS COURTE : le schéma RÉTRÉCIT (6544 → 6516) et ne gagne aucune
 // chaîne. Revalidé malgré tout par appel réel, parce que la règle ne souffre pas d'exception même
 // quand le raisonnement paraît sûr : HTTP 200 sur PRESENTATION à 6516 octets.
-const EMPREINTE = '4fa4c56605d03b65';
-const TAILLE = 6516;
+const EMPREINTE = 'b1b0155cb8eba26c';
+const TAILLE = 6679;
 
 function extraire(source, nom) {
   const debut = source.indexOf('  const ' + nom + ' = {');
