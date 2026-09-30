@@ -12464,6 +12464,22 @@ ${recent}`;
           : ' tabindex="0" role="button" aria-label="' + adocEsc(imgA11yLabel) + '"'
             + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click();}"';
         const imgStyle = 'width:' + imgWidth + '%;border-radius:8px;object-fit:cover;display:block;margin:0 auto;' + imgPositionedFill + imgDoorCursor + (imgOpacity < 100 ? 'opacity:' + (imgOpacity / 100) + ';' : '') + (imgRotation ? 'transform:rotate(' + imgRotation + 'deg);' : '');
+        // PASTILLE « AGRANDIR » — le seul indice qu'une image zoomable est cliquable était jusqu'ici
+        // le curseur (cursor:zoom-in), invisible au tactile et facile à manquer à la souris.
+        // UNIQUEMENT sur l'image SANS lien : celle qui porte un renvoi affiche déjà sa puce
+        // « ↳ Approfondir » en haut à droite (deepDiveChips), qui joue ce rôle. Deux signaux sur la
+        // même image diraient deux choses pour un seul geste.
+        // En haut à droite, aux retraits exacts de cette puce : les deux étant mutuellement exclusives,
+        // elles partagent ce coin sans jamais se croiser. Le bas à droite, d'abord retenu, est
+        // inutilisable : .cc-ws-present-toolbar est un bandeau pleine largeur épinglé au bas de la
+        // fenêtre (mesuré [0,1001,1600,49] en 1600×1050) qui recouvre les DEUX coins bas de toute
+        // photo descendant jusque-là — pastille cachée ET clic intercepté avant l'image.
+        // aria-hidden : l'image porte déjà aria-label="Agrandir l'image : …" et role=button —
+        // l'annoncer deux fois serait du bruit.
+        const loupe = '<circle cx="11" cy="11" r="6"/><path d="M15.5 15.5L20 20"/>';
+        const imgZoomBadge = (_adocRenderingForPresentDoor && !imgLienActif)
+          ? '<span class="adoc-sc-image-zoom-badge" aria-hidden="true">' + adocDeepDiveIconeHTML(loupe) + '</span>'
+          : '';
         const imgFigureStyleAttr = nestedPosCSS ? ' style="' + adocEsc(nestedPosCSS) + '"' : '';
         // La puce « ↳ Approfondir » n'existait dans AUCUN cas image. Sans elle, le renvoi ne serait
         // découvrable que par tâtonnement — rien ne distingue à l'œil une image cliquable d'une
@@ -12471,7 +12487,7 @@ ${recent}`;
         // l'enrichissement, qui garantit qu'un lien n'est pas silencieusement perdu.
         return '<figure class="adoc-sc-block adoc-sc-image' + statusClass + '" id="' + adocEsc(b.id) + '"' + imgFigureStyleAttr + '>' +
           '<img ' + imgAttr + onErrorAttr + imgDoorOnclick + imgDoorA11y + ' alt="' + adocEsc(b.content.alt) + '" style="' + imgStyle + '">' +
-          note + deepDiveChips + dragHandle + nestedResizeHandle + '</figure>';
+          note + deepDiveChips + imgZoomBadge + dragHandle + nestedResizeHandle + '</figure>';
       }
       case 'video': {
         // Panneau "Médias", sous-onglet "Vidéos" — content.url est TOUJOURS une URL concrète
@@ -16659,6 +16675,13 @@ ${recent}`;
     // un texte court et restent naturellement visibles.
     '.cc-ws-present-slide-inner .adoc-sc-image{position:relative;}' +
     '.cc-ws-present-slide-inner .adoc-sc-image .adoc-sc-deepdive-chip{position:absolute;right:14px;top:14px;z-index:2;background:rgba(20,33,31,.92);color:#e8f5f1;border:1px solid rgba(232,245,241,.45);box-shadow:0 2px 10px rgba(0,0,0,.35);}' +
+    // Même palette que la puce ci-dessus — fond sombre translucide, texte ivoire — pour rester dans
+    // le registre déjà tenu et ne jamais dénaturer la photo : un disque de 30 px dans un coin.
+    // pointer-events:none est INDISPENSABLE, pas décoratif : c'est l'IMAGE qui porte l'onclick
+    // (adocPresentOpenImageDoor), et une pastille qui intercepterait le clic empêcherait exactement
+    // le geste qu'elle annonce.
+    '.cc-ws-present-slide-inner .adoc-sc-image .adoc-sc-image-zoom-badge{position:absolute;right:14px;top:14px;z-index:2;display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;background:rgba(20,33,31,.86);color:#e8f5f1;border:1px solid rgba(232,245,241,.4);box-shadow:0 2px 8px rgba(0,0,0,.3);pointer-events:none;}' +
+    '.cc-ws-present-slide-inner .adoc-sc-image .adoc-sc-image-zoom-badge svg{width:16px;height:16px;}' +
     '.cc-ws-present-nav{flex-shrink:0;width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.08);color:#fff;font-size:22px;line-height:1;cursor:pointer;}' +
     '.cc-ws-present-nav:hover{background:rgba(255,255,255,.18);}' +
     '.cc-ws-present-nav:disabled{opacity:.3;cursor:default;}' +
