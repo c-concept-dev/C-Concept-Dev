@@ -7199,6 +7199,14 @@ ${recent}`;
       '--adoc-sc-table-border': c.stone300,
       '--adoc-sc-card-border': c.stone300,
       '--adoc-sc-card-bg': c.paper,
+      // ACCENT DE PRÉSENTATION — les règles .adoc-sc-presentation-slide-num (couleur du numéro) et
+      // .adoc-sc-presentation-slide .adoc-sc-card (bordure haute) ne sont émises QUE par le rendu
+      // d'atelier, à l'intérieur de l'élément que cette fonction style : c'est donc ici, et nulle part
+      // ailleurs, qu'elles peuvent recevoir l'accent. Le plein écran, qui rend ses diapositives hors
+      // de cet élément, le reçoit par l'enveloppe (adocPresentAccentColor) et par une règle :root à
+      // l'export — deux portées distinctes pour une même couleur, jamais deux sources : toutes deux
+      // lisent le même jeton terracotta600.
+      '--adoc-presentation-accent': c.terracotta600,
       '--adoc-sc-heading-font': t.headingFontFamily,
       '--adoc-sc-body-font': t.bodyFontFamily,
       // Item 63e construction — densité de texte (interligne), overlay optionnel posé par
@@ -16711,6 +16719,35 @@ ${recent}`;
   // valeurs copiées TELLES QUELLES depuis le :root de studio-clinique.html (--ivory/--ink/
   // --petrol-100/--stone-300), nécessaires UNIQUEMENT pour l'export autonome (la page vivante les
   // définit déjà globalement, jamais redéfinies en double ici pour elle).
+  // ── COULEUR D'ACCENT DE LA PRÉSENTATION ─────────────────────────────────────────────────────
+  // --adoc-presentation-accent était LU par quatre règles et DÉFINI nulle part : seul son repli
+  // #8f6a1f s'appliquait, quels que soient le thème ou la charte du document.
+  //
+  // Le jeton s'appelle `terracotta600`, jamais `accent` : adocBrandKitToTokensSnapshot range la
+  // couleur d'accent sous ce nom (terracotta700 recevant `warning`). Un snapshot résolu ne porte
+  // aucune clé `accent`.
+  //
+  // Pourquoi ce n'est PAS adocTokensToCSSVars qui s'en charge : cette fonction pose ses variables en
+  // style= sur l'élément racine du DOCUMENT, or le plein écran rend ses diapositives dans un
+  // `<div class="adoc-sc-doc">` nu (adocPresentRenderSlideHTML), hors de cet élément — aucune
+  // variable de document ne l'atteint. Les couleurs du plein écran sont des jetons de CHROME, figés
+  // par choix (cf. ADOC_PRESENT_ROOT_VARS_CSS). On n'en fait donc entrer qu'UNE, portée par
+  // l'enveloppe du plein écran en direct et par une règle :root à l'export.
+  function adocPresentAccentColor() {
+    try {
+      const art = window._adocArtifacts && window._adocArtifacts[window._adocWsState && window._adocWsState.storeKey];
+      const doc = art && art._adocStructuredDoc;
+      if (!doc) return null;
+      const manifeste = adocResolveRenderManifest(doc, art._adocRenderManifestOverride || null);
+      const couleurs = adocResolveTokens(manifeste).colors || {};
+      return couleurs.terracotta600 || null;
+    } catch (_) {
+      // Un snapshot introuvable fait lever adocResolveTokens : on retombe alors sur le repli CSS,
+      // jamais sur une exception qui empêcherait d'ouvrir la présentation.
+      return null;
+    }
+  }
+
   const ADOC_PRESENT_ROOT_VARS_CSS = ':root{--ivory:#f6f2ea;--ink:#273331;--petrol-100:#dce8e6;--stone-300:#c9c3b8;}';
 
   // Injection dans la page vivante — remplace le texte auparavant en dur dans le <style> de
@@ -17177,6 +17214,13 @@ ${recent}`;
     // déborde en réalité de 2 500 px. Le chemin de changement de diapositive
     // (adocPresentGoToInternal) n'a pas ce problème, l'enveloppe y étant déjà ouverte.
     adocPresentInstallerRepereDefilement();
+    // Accent du thème, posé sur l'enveloppe du plein écran : les quatre règles qui le lisent vivent
+    // toutes à l'intérieur. Retiré plutôt que forcé quand il n'est pas résoluble, pour que le repli
+    // CSS reprenne la main au lieu d'une valeur vide. Une seule pose, à l'ouverture : l'enveloppe
+    // n'est pas remplacée d'une diapositive à l'autre.
+    const accent = adocPresentAccentColor();
+    if (accent) overlay.style.setProperty('--adoc-presentation-accent', accent);
+    else overlay.style.removeProperty('--adoc-presentation-accent');
     // APRÈS le démasquage : un élément encore `hidden` a une boîte de taille nulle, et le facteur
     // calculé dessus vaudrait son plancher. L'ordre n'est pas cosmétique.
     adocPresentInstallerEcouteursEchelle();
@@ -17936,6 +17980,11 @@ ${recent}`;
       adocPresentTocDeepDiveOrdre: adocPresentTocDeepDiveOrdre,
       // REPÈRE DE DÉFILEMENT — appelées au montage de chaque diapositive et sur son événement scroll.
       // Aucune n'est un onclick : rien à ajouter à windowFnNames, ce que l'export vérifie réellement.
+      // ACCENT DE PRÉSENTATION — appelée par adocPresentOpenWithDoc, elle-même sérialisée : sans
+      // elle, l'export lève « adocPresentAccentColor is not defined » à l'ouverture. Dans un fichier
+      // exporté elle renvoie null (ni _adocArtifacts ni _adocWsState n'y existent, et son try/catch
+      // le couvre) — sans conséquence, la couleur y étant déjà figée par la règle :root.
+      adocPresentAccentColor: adocPresentAccentColor,
       adocPresentMajRepereDefilement: adocPresentMajRepereDefilement,
       adocPresentInstallerRepereDefilement: adocPresentInstallerRepereDefilement,
       adocPresentUpdateCounter: adocPresentUpdateCounter, adocPresentApplyReveal: adocPresentApplyReveal,
@@ -17989,7 +18038,12 @@ ${recent}`;
     // écran de démarrage et attend le clic, seul moment où le navigateur accorde le plein écran.
     const bootText = 'adocPresentInstallKeydownHandler();';
     const script = dataText + '\n' + fnsText + '\n' + windowFnsText + '\n' + bootText;
-    const css = ADOC_PRESENT_ROOT_VARS_CSS + ADOC_DOC_CONTENT_CSS + ADOC_PRESENT_ENGINE_CSS + 'body{margin:0;background:#14211f;}';
+    // L'accent est FIGÉ ici, à la construction : le fichier exporté n'a ni manifeste ni snapshot de
+    // jetons à résoudre, et n'a donc aucune fonction à embarquer pour cela. Absent, le repli des
+    // quatre règles s'applique — comportement d'avant ce lot, strictement inchangé.
+    const accentExport = (opts && opts.accentPresentation) || null;
+    const accentCSS = accentExport ? ':root{--adoc-presentation-accent:' + String(accentExport).replace(/[^#\w(),.% -]/g, '') + ';}' : '';
+    const css = ADOC_PRESENT_ROOT_VARS_CSS + accentCSS + ADOC_DOC_CONTENT_CSS + ADOC_PRESENT_ENGINE_CSS + 'body{margin:0;background:#14211f;}';
     return '<!DOCTYPE html><html lang="' + adocEsc(doc.language || 'fr') + '"><head><meta charset="UTF-8">' +
       '<title>' + adocEsc(doc.title) + ' — Présentation</title>' +
       '<style>' + css + '</style></head><body>' +
@@ -18337,6 +18391,7 @@ ${recent}`;
     } catch (e) { console.warn('[export] avis de quota non affiché :', e && e.message); }
     try {
       const html = await adocBuildStandalonePresentationHTML(doc, {
+        accentPresentation: adocPresentAccentColor(),
         surProgression: function (e) {
           if (btn) btn.textContent = 'Préparation de l\'export… image ' + (e.index + 1) + ' sur ' + e.total;
         },
