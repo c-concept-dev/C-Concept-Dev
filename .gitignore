@@ -183,3 +183,8 @@ tools/EvidenceForge/.env.local.*
 **/tests/lot-a/*.json
 **/tests/lot-b/*.json
 **/tests/lot-b/*.html
+
+# Fixtures vidéo générées au lancement par tests/fixtures-video.cjs (WebM réels, ~700 Ko au total).
+# Jamais commitées : le dépôt est public et aucun binaire média n'y a jamais été versé ; elles se
+# régénèrent seules si absentes.
+**/tests/fixtures-video/
