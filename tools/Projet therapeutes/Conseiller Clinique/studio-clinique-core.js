@@ -11078,7 +11078,13 @@ ${recent}`;
     if (!modal || !body) return;
     modal.dataset.storeKey = storeKey;
     modal.classList.add('open');
-    body.innerHTML = '<div style="padding:8px 0;color:var(--muted);font-size:12px;">Chargement des chartes…</div>';
+    // LES THÈMES D'ABORD, avant toute attente réseau : ils ne dépendent d'aucune charte. Les
+    // afficher après la récupération des chartes les ferait disparaître hors ligne ou en cas
+    // d'échec de cette récupération — alors qu'un thème reste parfaitement applicable.
+    body.innerHTML = adocThemesTilesHTML()
+      + '<div style="border-top:1px solid var(--stone-300,#c9c3b8);margin-bottom:12px;"></div>'
+      + '<div id="cc-retheme-chartes"><div style="padding:8px 0;color:var(--muted);font-size:12px;">Chargement des chartes…</div></div>';
+    const zoneChartes = document.getElementById('cc-retheme-chartes');
     let kits = window._adocBrandKits;
     if (!kits || !kits.length) kits = await adocFetchBrandKits();
     // Décision 2 de Christophe (item 61) — seules les chartes internes/auditées sont proposées
@@ -11089,11 +11095,12 @@ ${recent}`;
     // l'investigation (QC hardcodé UX-8B assumant une charte par défaut déjà vérifiée AA).
     const eligibleKits = (kits || []).filter(function (k) { return adocIsDefaultBrandKitId(k.id); });
     if (!eligibleKits.length) {
-      body.innerHTML = '<div style="padding:8px 0;color:var(--terracotta-700);font-size:12px;">Aucune charte interne disponible pour le moment.</div>'
+      // Seule la zone des chartes est remplacée : les vignettes de thèmes restent utilisables.
+      zoneChartes.innerHTML = '<div style="padding:8px 0;color:var(--terracotta-700);font-size:12px;">Aucune charte interne disponible pour le moment.</div>'
         + '<div style="margin-top:10px;"><button type="button" class="cc-clarity-other-btn" onclick="window.adocCloseStructuredReThemePanel()">Fermer</button></div>';
       return;
     }
-    body.innerHTML =
+    zoneChartes.innerHTML =
       '<div style="font-size:11px;color:var(--muted);margin-bottom:8px;">Choisissez une charte à appliquer — un aperçu réel vous sera montré avant toute confirmation. Seule l’apparence (couleurs, police, jetons visuels) change, jamais le contenu ni les citations.</div>' +
       // Item 63e construction — densité de texte ajoutée au même panneau, même geste (jamais un
       // second flux séparé), lue au même moment que la charte choisie ci-dessous (parité avec le
@@ -11108,6 +11115,64 @@ ${recent}`;
       }).join('') +
       '</div>' +
       '<div style="margin-top:10px;"><button type="button" class="cc-clarity-other-btn" onclick="window.adocCloseStructuredReThemePanel()">Annuler</button></div>';
+  };
+
+  // ── VIGNETTES DE THÈMES ─────────────────────────────────────────────────────────────────────
+  // EMPLACEMENT : le modal de re-thème (#cc-legacy-retheme-modal), et non le panneau d'édition de
+  // bloc. Un thème change le DOCUMENT entier ; le proposer dans un panneau qui règle un bloc
+  // sélectionné laisserait croire qu'il ne touche que lui. Le modal est déjà le lieu des décisions
+  // de mise en forme d'ensemble (chartes, densité), ouvert depuis la carte du document.
+  //
+  // Posées dans le panneau STRUCTURÉ seulement : le panneau de l'ancien moteur sert des documents
+  // sans document structuré, auxquels adocApplyTheme ne s'applique pas.
+  //
+  // Patron visuel repris tel quel des choix de charte : des boutons .cc-clarity-reply-btn en
+  // colonne. La seule addition est la pastille de couleurs — aucun composant nouveau.
+  function adocThemeSwatchHTML(theme) {
+    const c = theme.colors;
+    // L'accent en premier et le plus large : c'est la couleur qui se voit le plus dans le rendu
+    // (numéro de diapositive, bordure de carte, options de questionnaire).
+    return '<span aria-hidden="true" style="display:inline-flex;flex:0 0 auto;border-radius:4px;overflow:hidden;'
+      + 'border:1px solid rgba(0,0,0,.18);margin-right:8px;">'
+      + '<span style="width:22px;height:16px;background:' + adocEsc(c.accent) + ';"></span>'
+      + '<span style="width:12px;height:16px;background:' + adocEsc(c.primary) + ';"></span>'
+      + '<span style="width:12px;height:16px;background:' + adocEsc(c.background) + ';"></span>'
+      + '</span>';
+  }
+
+  // window.adocThemes() est la SOURCE UNIQUE : la table n'est jamais recopiée ici.
+  function adocThemesTilesHTML() {
+    return '<div style="font-size:11px;font-weight:600;color:var(--ink);margin-bottom:4px;">Thèmes — police et couleurs en un clic</div>'
+      + '<div style="font-size:11px;color:var(--muted);margin-bottom:8px;">Un clic applique la paire de polices et la palette au document entier.</div>'
+      + '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;">'
+      + window.adocThemes().map(function (t) {
+          return '<button type="button" class="cc-clarity-reply-btn" style="justify-content:flex-start;text-align:left;width:100%;align-items:center;"'
+            + ' data-theme-id="' + adocEsc(t.id) + '"'
+            + ' onclick="window.adocChoisirTheme(\'' + adocEsc(t.id) + '\')">'
+            + adocThemeSwatchHTML(t) + adocEsc(t.label) + '</button>';
+        }).join('')
+      + '</div>';
+  }
+
+  // Application depuis les vignettes. adocApplyTheme (phase A) porte déjà la séquence complète —
+  // surcharge posée, ré-affichage, RETOUR ARRIÈRE si le ré-affichage échoue, sauvegarde : on ne
+  // réimplémente rien, on rend compte du résultat.
+  window.adocChoisirTheme = async function (themeId) {
+    const modal = document.getElementById('cc-legacy-retheme-modal');
+    const body = document.getElementById('cc-legacy-retheme-body');
+    const storeKey = modal && modal.dataset.storeKey;
+    if (!storeKey || !body) return false;
+    const theme = window.adocThemes().find(function (t) { return t.id === themeId; });
+    if (!theme) return false;
+    body.innerHTML = '<div style="padding:8px 0;color:var(--muted);font-size:12px;">Application du thème « ' + adocEsc(theme.label) + ' »…</div>';
+    const ok = await window.adocApplyTheme(storeKey, themeId);
+    if (ok) { window.adocCloseStructuredReThemePanel(); return true; }
+    // Échec : adocApplyTheme a DÉJÀ remis la surcharge précédente. On le dit, et on laisse le modal
+    // ouvert pour qu'un autre choix reste possible — jamais une fermeture qui masquerait l'échec.
+    body.innerHTML = '<div style="padding:8px 0;color:var(--terracotta-700);font-size:12px;">Ce thème n\'a pas pu être appliqué. '
+      + 'La mise en forme précédente a été rétablie.</div>'
+      + '<div style="margin-top:10px;"><button type="button" class="cc-clarity-other-btn" onclick="window.adocCloseStructuredReThemePanel()">Fermer</button></div>';
+    return false;
   };
 
   window.adocPreviewStructuredRetheme = async function (brandKitId) {
