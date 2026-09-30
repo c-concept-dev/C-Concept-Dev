@@ -1,0 +1,10 @@
+<testsuites id="" name="" tests="3" failures="0" skipped="0" errors="0" time="23.64825">
+<testsuite name="app.spec.mjs" timestamp="2026-08-14T21:46:35.023Z" hostname="chromium-desktop" tests="3" failures="0" skipped="0" time="23.189" errors="0">
+<testcase name="D091 ANOM-001 garde les résultats consultables et ignore un aller-retour rapide" classname="app.spec.mjs" time="8.7">
+</testcase>
+<testcase name="D091 ANOM-001 n’interrompt pas le GPS et attend le retour volontaire au formulaire" classname="app.spec.mjs" time="8.029">
+</testcase>
+<testcase name="D091 ANOM-001 confirme une action engageante avec deux choix explicites" classname="app.spec.mjs" time="6.46">
+</testcase>
+</testsuite>
+</testsuites>
