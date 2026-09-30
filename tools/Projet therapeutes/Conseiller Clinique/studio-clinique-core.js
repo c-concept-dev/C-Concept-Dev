@@ -16326,6 +16326,13 @@ ${recent}`;
     // espacements et rayons, c'est-à-dire exactement ce que la référence fixe existe pour éviter.
     // Même variable que le transform juste au-dessus — un seul facteur, jamais deux réglages.
     '.cc-ws-present-door-text{max-width:640px;max-height:calc((100% - 60px) / var(--adoc-present-echelle-agrandir,1));overflow-y:auto;color:#fff;text-align:left;}' +
+    // display:none, et JAMAIS visibility/opacity comme la révélation de diapositive
+    // (.adoc-sc-reveal) : mesuré sur une page de 14 paragraphes, visibility:hidden laisse le
+    // contenu à 1047 px — aucune place libérée, la colonne défile toujours autant, et la lectrice
+    // voit un paragraphe entouré de vide réservé. display:none ramène la même page à la hauteur du
+    // seul préfixe révélé. Une transition est impossible sur display, et c'est assumé : libérer la
+    // place est le but, l'animation ne l'est pas.
+    '.cc-ws-present-door-text .adoc-door-cache{display:none;}' +
     '.cc-ws-present-door-text .cc-ws-present-door-title{margin:0 0 16px;font-size:1.4em;font-weight:700;line-height:1.3;}' +
     '.cc-ws-present-door-text p{margin:0 0 12px;line-height:1.6;font-size:1.05em;}' +
     '.cc-ws-present-door-text p:last-child{margin-bottom:0;}' +
@@ -16652,6 +16659,13 @@ ${recent}`;
   // diapositives qui tenaient depuis le plafonnement d'image se remettent à déborder. 800 est la
   // hauteur qui garde le 16:9 demandé SANS dégrader ce qui marchait. En 3840×2160, la même référence
   // donne une échelle de 2,70, une police effective de 40,5 px et AUCUNE diapositive sous le plancher.
+  // RÉVÉLATION PROGRESSIVE DANS UNE PAGE D'APPROFONDISSEMENT — seuil MESURÉ, jamais choisi.
+  // La colonne de la porte ne déborde qu'à partir de 9 paragraphes : mesuré à 1280×800 (676 px
+  // visibles pour 718 px de contenu à k=9, contre 652/652 à k=8). En dessous, tout tient à l'écran
+  // et la révélation n'ajouterait qu'un clic sans rien résoudre.
+  // Comme ADOC_PRESENT_REF_W ci-dessous, cette constante DOIT être émise dans dataText : une
+  // variable de portée de module n'est jamais sérialisée dans un export autonome.
+  const ADOC_DOOR_REVEAL_SEUIL = 9;
   const ADOC_PRESENT_REF_W = 1422;
   const ADOC_PRESENT_REF_H = 800;
 
@@ -16979,6 +16993,66 @@ ${recent}`;
   }
   window.adocDeepDiveImageHTML = adocDeepDiveImageHTML;
 
+  // ── RÉVÉLATION PROGRESSIVE DANS LA PORTE ────────────────────────────────────────────────────
+  // Curseur PROPRE à la porte (doorRevealIndex / doorRevealTotal), jamais revealIndex : celui-ci
+  // appartient à la diapositive sous la porte, et le partager ferait perdre son montage dès qu'une
+  // page s'ouvre. Les deux vivent côte à côte sur window._adocPresentState, jamais dans une
+  // variable de module (qui ne serait pas sérialisée dans un export autonome).
+  // Les unités révélées sont exactement ce que produit adocDeepDiveParagraphesHTML : des <p> et des
+  // <ul class="cc-ws-present-door-list"> de PREMIER niveau. Le chemin (<nav>), le titre (<h2>),
+  // l'image (<img>) et les actions (<div>) ne peuvent donc pas être masqués par erreur.
+  function adocDoorRevealUnites(textEl) {
+    if (!textEl) return [];
+    return Array.from(textEl.querySelectorAll(':scope > p, :scope > ul.cc-ws-present-door-list'));
+  }
+
+  // conserverIndex : à la réécriture asynchrone du contenu (résolution d'image), on ne repart PAS de
+  // zéro — sans quoi une image qui arrive tard annulerait les révélations déjà demandées.
+  function adocDoorRevealApply(textEl, nbParagraphes, conserverIndex) {
+    const state = window._adocPresentState;
+    if (!state) return;
+    const unites = (nbParagraphes >= ADOC_DOOR_REVEAL_SEUIL) ? adocDoorRevealUnites(textEl) : [];
+    // Une page sous le seuil, ou d'une seule unité, n'a rien à révéler : le curseur reste null et
+    // adocDoorRevealNext/Prev deviennent des no-op — même patron que adocPresentApplyReveal.
+    if (unites.length <= 1) { state.doorRevealIndex = null; state.doorRevealTotal = 0; return; }
+    state.doorRevealTotal = unites.length;
+    const precedent = (conserverIndex && state.doorRevealIndex != null) ? state.doorRevealIndex : 0;
+    state.doorRevealIndex = Math.min(precedent, unites.length - 1);
+    unites.forEach(function (el, i) {
+      if (i > state.doorRevealIndex) el.classList.add('adoc-door-cache');
+      else el.classList.remove('adoc-door-cache');
+    });
+  }
+
+  // Les unités sont relues à CHAQUE appel plutôt que mémorisées : le contenu de la porte est
+  // reconstruit par innerHTML à chaque ouverture, et réécrit une seconde fois quand une image
+  // arrive — toute référence DOM conservée pointerait alors sur des noeuds détachés.
+  function adocDoorRevealNext() {
+    const state = window._adocPresentState;
+    if (!state || state.doorRevealIndex == null) return false;
+    const unites = adocDoorRevealUnites(document.querySelector('.cc-ws-present-door-text'));
+    // Garde-fou : une porte d'IMAGE n'a pas de colonne de texte. Sans ce contrôle, un curseur resté
+    // d'une page précédente ferait consommer la flèche sans rien révéler.
+    if (unites.length <= 1) return false;
+    state.doorRevealTotal = unites.length;
+    if (state.doorRevealIndex >= unites.length - 1) return false;
+    state.doorRevealIndex++;
+    unites[state.doorRevealIndex].classList.remove('adoc-door-cache');
+    return true;
+  }
+
+  function adocDoorRevealPrev() {
+    const state = window._adocPresentState;
+    if (!state || state.doorRevealIndex == null) return false;
+    const unites = adocDoorRevealUnites(document.querySelector('.cc-ws-present-door-text'));
+    if (unites.length <= 1) return false;
+    state.doorRevealTotal = unites.length;
+    if (state.doorRevealIndex <= 0) return false;
+    unites[state.doorRevealIndex].classList.add('adoc-door-cache');
+    state.doorRevealIndex--;
+    return true;
+  }
+
   function adocDeepDivePopulateDoor(entry) {
     const state = window._adocPresentState;
     const door = document.getElementById('cc-ws-present-door');
@@ -17000,6 +17074,9 @@ ${recent}`;
     // s'affiche tout de suite, l'image apparaît quand elle est prête, et un échec ne retarde ni
     // n'empêche rien. Sans image, aucun appel n'est même tenté (adocResolveImages rend le HTML tel
     // quel s'il n'y a aucune référence).
+    // Révélation appliquée AVANT la résolution d'image : une page longue ne doit jamais s'afficher
+    // en entier le temps qu'une image arrive, puis se replier — ce serait un clignotement.
+    adocDoorRevealApply(textEl, (entry.paragraphs || []).length, false);
     if (textEl.querySelector('img[data-pexels]')) {
       adocResolveImages('<!DOCTYPE html><html><body>' + textEl.innerHTML + '</body></html>')
         .then(function (html) {
@@ -17008,7 +17085,13 @@ ${recent}`;
           // réécrit que si c'est toujours cette page-ci qui est affichée.
           const etat = window._adocPresentState;
           const pile = etat && Array.isArray(etat.deepDiveStack) ? etat.deepDiveStack : [];
-          if (m && pile.length && pile[pile.length - 1] === entry.id) textEl.innerHTML = m[1];
+          if (m && pile.length && pile[pile.length - 1] === entry.id) {
+            textEl.innerHTML = m[1];
+            // innerHTML vient d'être REMPLACÉ : sans cette réapplication, tout le masquage posé au
+            // montage disparaît et la page longue s'affiche d'un coup. conserverIndex=true pour ne
+            // pas annuler les révélations déjà demandées pendant que l'image chargeait.
+            adocDoorRevealApply(textEl, (entry.paragraphs || []).length, true);
+          }
         })
         .catch(function () {});
     }
@@ -17213,6 +17296,12 @@ ${recent}`;
             if (pile.length > 0) window.adocPresentDeepDiveBack();
             else window.adocPresentCloseImageDoor();
           }
+          // RÉVÉLATION DE PAGE — les flèches étaient jusqu'ici AVALÉES par le `return` ci-dessous dès
+          // qu'une porte était ouverte : aucun geste existant n'est donc repris, et il n'y a aucun
+          // risque de faire avancer la diapositive sous la porte. Sur une page courte, les deux
+          // appels sont des no-op et les flèches restent sans effet, exactement comme avant.
+          if (e.key === 'ArrowRight') { adocDoorRevealNext(); return; }
+          if (e.key === 'ArrowLeft') { adocDoorRevealPrev(); return; }
           return;
         }
         if (e.key === 'Escape') { window.adocPresentClose(); return; }
@@ -17410,6 +17499,12 @@ ${recent}`;
       adocPresentRenderSlideHTML: adocPresentRenderSlideHTML, adocPresentResolveSlideHTML: adocPresentResolveSlideHTML,
       adocPresentOpenWithDoc: adocPresentOpenWithDoc, adocPresentGoToInternal: adocPresentGoToInternal,
       adocPresentInstallKeydownHandler: adocPresentInstallKeydownHandler,
+      // RÉVÉLATION DE PAGE — appelées depuis adocDeepDivePopulateDoor (au montage ET dans le .then()
+      // de résolution d'image) et depuis le gestionnaire de touches : sans elles, l'export autonome
+      // planterait à l'ouverture de toute page longue. Même risque déjà payé pour
+      // adocPresentOpenDeepDive, absente de cette liste depuis la Phase 2.
+      adocDoorRevealUnites: adocDoorRevealUnites, adocDoorRevealApply: adocDoorRevealApply,
+      adocDoorRevealNext: adocDoorRevealNext, adocDoorRevealPrev: adocDoorRevealPrev,
     };
     const fnsText = Object.keys(engineFnRefs).map(function (name) { return engineFnRefs[name].toString(); }).join('\n');
     // Présentation ACTE 3 — adocPresentOpenDeepDive était ABSENTE de cette liste depuis la Phase 2
@@ -17428,6 +17523,10 @@ ${recent}`;
       // adocPresentCalculerEchelle les lit et part dans l'export : sans ces deux lignes, elle lève
       // « ADOC_PRESENT_REF_W is not defined » et aucune mise à l'échelle ne s'applique — constaté
       // sur un export réellement ouvert, jamais deviné.
+      // Seuil de révélation de page : constante de portée de module, donc JAMAIS sérialisée par
+      // engineFnRefs (qui ne transporte que des fonctions). Sans cette ligne, l'export lèverait
+      // « ADOC_DOOR_REVEAL_SEUIL is not defined » à l'ouverture de la première page longue.
+      'var ADOC_DOOR_REVEAL_SEUIL = ' + ADOC_DOOR_REVEAL_SEUIL + ';\n' +
       'var ADOC_PRESENT_REF_W = ' + ADOC_PRESENT_REF_W + ';\n' +
       'var ADOC_PRESENT_REF_H = ' + ADOC_PRESENT_REF_H + ';\n' +
       // Le dictionnaire des images embarquées, écrit en clair. C'est lui qui rend le fichier

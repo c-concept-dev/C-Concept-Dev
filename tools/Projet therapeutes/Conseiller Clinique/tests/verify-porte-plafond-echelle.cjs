@@ -56,6 +56,14 @@ async function mesurer(browser, t, cssAnnulation) {
     // intermédiaire et les chiffres sont faux sans rien signaler.
     await new Promise(x => setTimeout(x, 400));
     const txt = document.querySelector('.cc-ws-present-door-text');
+    // RÉVÉLATION PROGRESSIVE (lot « site de poche ») : une page de 14 paragraphes n'affiche plus que
+    // sa première unité à l'ouverture, puisqu'elle dépasse le seuil de 9. Ce test porte sur le
+    // PLAFOND DE HAUTEUR, dont le rôle est justement de borner la colonne une fois TOUT révélé —
+    // c'est le pire cas, et c'est celui qu'il faut mesurer. On révèle donc avant de mesurer, plutôt
+    // que de relever un état partiel : l'assertion « une page de 14 paragraphes DOIT défiler » garde
+    // exactement son sens, et le test devient plus strict puisqu'il ne dépend plus de l'état
+    // d'affichage par défaut.
+    txt.querySelectorAll('.adoc-door-cache').forEach(function (e) { e.classList.remove('adoc-door-cache'); });
     const b = txt.getBoundingClientRect();
     const m = getComputedStyle(txt).transform;
     return { haut: Math.round(b.top), bas: Math.round(b.bottom),
