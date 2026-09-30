@@ -74,7 +74,7 @@ const state = {
     // v17.3.2: API GOOGLE CLOUD TTS - HARDCODÉE (Pour Christophe uniquement)
     // ═══════════════════════════════════════════════════════════════════════════
     // ⚠️ REMPLACER PAR TA VRAIE CLÉ ICI ⬇️
-    googleTTSApiKey: 'AIzaSyCo8nfkrMZWv5-7Ns1kaBlJ_0APMjeu4Ok', // 🔑 METTRE TA CLÉ ICI
+    googleTTSApiKey: (() => { try { return localStorage.getItem('googleTTSApiKey') || ''; } catch { return ''; } })(), // jamais en dur : dépôt public, Text-to-Speech facturé
     // Pour changer rapidement : Cmd+Shift+K dans le navigateur
     // ═══════════════════════════════════════════════════════════════════════════
     
