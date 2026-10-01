@@ -114,15 +114,40 @@ async function ouvrir(page, url, evaluerDoc) {
         return i ? { tabindex: i.getAttribute('tabindex'), role: i.getAttribute('role'),
                      label: i.getAttribute('aria-label'), keydown: i.getAttribute('onkeydown') } : null;
       };
-      return { avecLien: lire('image-01'), sansLien: lire('image-02') };
+      // La PUCE est désormais le seul accès au renvoi : c'est donc elle qui doit annoncer la
+      // destination, et elle doit être atteignable au clavier. Un <button> l'est nativement.
+      const puce = document.querySelector('#cc-ws-present-slide-inner #image-01 .adoc-sc-deepdive-chip');
+      return { avecLien: lire('image-01'), sansLien: lire('image-02'),
+               puce: puce ? { balise: puce.tagName.toLowerCase(), type: puce.getAttribute('type'),
+                              texte: (puce.textContent || '').trim(),
+                              onclick: puce.getAttribute('onclick') || '',
+                              tabindexExplicite: puce.getAttribute('tabindex'),
+                              focusable: !puce.disabled } : null };
     });
     assert.equal(attrs.avecLien.tabindex, '0');
     assert.equal(attrs.avecLien.role, 'button');
-    assert.match(attrs.avecLien.label, /^Ouvrir la page d'approfondissement : Coupe du cerveau$/,
-      "l'annonce doit dire où l'on va, pas seulement « image » ; obtenue : " + attrs.avecLien.label);
+    // ALIGNEMENT (option 4) — l'image AGRANDIT désormais même en portant un renvoi, donc son
+    // annonce doit dire CELA : une étiquette qui promettrait une page mentirait sur le geste. Cette
+    // assertion n'est pas affaiblie mais DÉPLACÉE sur la puce, qui est le seul accès au renvoi — et
+    // renforcée, puisqu'on y vérifie en plus qu'elle est atteignable au clavier.
+    assert.match(attrs.avecLien.label, /^Agrandir l'image : Coupe du cerveau$/,
+      "l'annonce de l'image doit dire l'agrandissement, le geste qu'elle porte réellement ; "
+      + 'obtenue : ' + attrs.avecLien.label);
     assert.match(attrs.avecLien.keydown, /Enter/);
     assert.match(attrs.avecLien.keydown, /preventDefault/);
-    console.log('PASS  1/10 image porteuse : tabindex, role, aria-label explicite, Entrée/Espace.');
+    console.log('PASS  1/10 image porteuse : tabindex, role, annonce de l\'agrandissement, Entrée/Espace.');
+
+    // La destination, elle, est annoncée par la puce — et atteignable sans souris.
+    assert.ok(attrs.puce, 'préalable : la puce « ↳ Approfondir » doit exister sur l\'image porteuse');
+    assert.equal(attrs.puce.balise, 'button',
+      'la puce doit être un <button> : c\'est ce qui la rend atteignable au clavier et actionnable à '
+      + 'Entrée comme à Espace SANS aucun attribut ajouté — un <span> aurait exigé tabindex, role et '
+      + 'un gestionnaire de touches, trois choses à ne pas oublier');
+    assert.equal(attrs.puce.type, 'button', 'de type button, jamais un bouton de soumission');
+    assert.equal(attrs.puce.focusable, true, 'et non désactivée');
+    assert.match(attrs.puce.onclick, /adocPresentOpenDeepDive\('n1'\)/,
+      'pointant vers la bonne page : ' + attrs.puce.onclick);
+    assert.match(attrs.puce.texte, /Approfondir/, 'et son libellé dit où elle mène : ' + attrs.puce.texte);
 
     assert.equal(attrs.sansLien.tabindex, '0');
     assert.match(attrs.sansLien.label, /^Agrandir l'image : Deux mains$/,
@@ -158,14 +183,24 @@ async function ouvrir(page, url, evaluerDoc) {
     await page.screenshot({ path: path.join(CAPTURES, 'b2-01-focus-sur-image.png') });
     console.log('PASS  5/10 la tabulation atteint réellement l\'image (' + nbTab + ' tabulation(s)).');
 
+    // ALIGNEMENT (option 4) — Entrée sur l'IMAGE ouvre désormais l'agrandissement, et c'est Entrée
+    // sur la PUCE qui ouvre la page. Les deux sont éprouvées ici : l'assertion n'est pas retirée,
+    // elle est doublée, puisque le clavier doit atteindre les DEUX gestes et non plus un seul.
+    //
+    // La sorte de porte se lit sur `hidden`, jamais sur la présence d'un titre :
+    // adocPresentOpenImageDoor masque .cc-ws-present-door-text sans réécrire son contenu.
+    const sorteDePorte = () => page.evaluate(() => {
+      const t = document.querySelector('#cc-ws-present-door .cc-ws-present-door-text');
+      return (t && !t.hidden) ? 'PAGE' : 'AGRANDISSEMENT';
+    });
     await page.keyboard.press('Enter');
     await page.waitForFunction(() => document.getElementById('cc-ws-present-door')?.classList.contains('open'));
-    let titre = await page.evaluate(() => document.querySelector('#cc-ws-present-door .cc-ws-present-door-title')?.textContent || '');
-    assert.match(titre, /Niveau 1/, 'Entrée doit ouvrir la page ; obtenu : ' + titre);
+    assert.equal(await sorteDePorte(), 'AGRANDISSEMENT',
+      "Entrée sur l'image ouvre l'AGRANDISSEMENT — le geste que son étiquette annonce");
     assert.equal(await page.evaluate(() => window._adocPresentState.index), index0,
       'aucun changement de diapositive : Entrée ne doit pas être confondue avec une avance');
-    await page.screenshot({ path: path.join(CAPTURES, 'b2-02-porte-ouverte-au-clavier.png') });
-    console.log('PASS  6/10 Entrée ouvre la page ; la diapositive ne bouge pas.');
+    await page.screenshot({ path: path.join(CAPTURES, 'b2-02-agrandissement-au-clavier.png') });
+    console.log('PASS  6/10 Entrée sur l\'image ouvre l\'agrandissement ; la diapositive ne bouge pas.');
 
     // ── 5. ÉCHAP REFERME ET REND LE FOCUS ──────────────────────────────────────────────────────
     await page.keyboard.press('Escape');
@@ -184,6 +219,20 @@ async function ouvrir(page, url, evaluerDoc) {
     console.log('PASS  8/10 Espace ouvre aussi, sans faire défiler la page.');
 
     // ── 7. DESCENTE AU CLAVIER, PUIS RETOUR ────────────────────────────────────────────────────
+    // ALIGNEMENT (option 4) — la descente part de la PUCE de diapositive, seul accès au renvoi :
+    // Entrée sur l'image ouvre l'agrandissement, donc la porte n'aurait aucune puce à focaliser.
+    // Entrée sur cette puce éprouve du même coup qu'un <button> est actionnable au clavier sans
+    // aucun attribut ajouté — l'assertion déplacée depuis l'étiquette de l'image, et renforcée.
+    // La section 6 a laissé l'agrandissement ouvert ; cette porte est en position:absolute;inset:0 et
+    // recouvre la diapositive, donc la puce n'y est pas actionnable. On referme par Échap, le geste
+    // réel, plutôt que par un appel de fonction.
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => !document.getElementById('cc-ws-present-door')?.classList.contains('open'));
+    await page.locator('#cc-ws-present-slide-inner #image-01 .adoc-sc-deepdive-chip').focus();
+    assert.equal(await page.evaluate(() => (document.activeElement.className || '').includes('adoc-sc-deepdive-chip')), true,
+      'la puce doit recevoir le focus sans aucun attribut ajouté — c\'est l\'intérêt d\'un <button>');
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(() => (document.querySelector('#cc-ws-present-door .cc-ws-present-door-title')?.textContent || '').includes('Niveau 1'));
     for (const attendu of ['Niveau 2', 'Niveau 3']) {
       await page.locator('#cc-ws-present-door .adoc-sc-deepdive-chip').first().focus();
       await page.keyboard.press('Enter');
@@ -208,8 +257,23 @@ async function ouvrir(page, url, evaluerDoc) {
     await ouvrir(exp, 'file://' + fichier, false);
     await revelerTout(exp);
     await tabulerJusqua(exp, 'image-01');
+    // ALIGNEMENT (option 4) — DANS L'EXPORT aussi : Entrée sur l'image agrandit, et le focus revient
+    // à l'image après Échap. Les deux gestes sont donc éprouvés ici, pas seulement un.
     await exp.keyboard.press('Enter');
     await exp.waitForFunction(() => document.getElementById('cc-ws-present-door')?.classList.contains('open'));
+    assert.equal(await exp.evaluate(() => {
+      const t = document.querySelector('#cc-ws-present-door .cc-ws-present-door-text');
+      return (t && !t.hidden) ? 'PAGE' : 'AGRANDISSEMENT';
+    }), 'AGRANDISSEMENT', "dans l'export, Entrée sur l'image ouvre l'agrandissement");
+    await exp.keyboard.press('Escape');
+    await exp.waitForFunction(() => !document.getElementById('cc-ws-present-door')?.classList.contains('open'));
+    const expFocusImage = await actif(exp);
+    assert.equal(expFocusImage && expFocusImage.id, 'image-01',
+      "focus rendu à l'image après l'agrandissement, DANS L'EXPORT ; obtenu : " + JSON.stringify(expFocusImage));
+    // Puis la descente à trois niveaux, désormais amorcée par la PUCE de diapositive.
+    await exp.locator('#cc-ws-present-slide-inner #image-01 .adoc-sc-deepdive-chip').focus();
+    await exp.keyboard.press('Enter');
+    await exp.waitForFunction(() => (document.querySelector('#cc-ws-present-door .cc-ws-present-door-title')?.textContent || '').includes('Niveau 1'));
     for (const attendu of ['Niveau 2', 'Niveau 3']) {
       await exp.locator('#cc-ws-present-door .adoc-sc-deepdive-chip').first().focus();
       await exp.keyboard.press('Enter');
@@ -219,6 +283,8 @@ async function ouvrir(page, url, evaluerDoc) {
     await exp.keyboard.press('Escape'); await exp.keyboard.press('Escape'); await exp.keyboard.press('Escape');
     await exp.waitForFunction(() => !document.getElementById('cc-ws-present-door')?.classList.contains('open'));
     const expFocus = await actif(exp);
+    // La puce vit dans <figure id="image-01"> et actif() résout l'id par closest('[id]') : rendre le
+    // focus à la puce d'origine satisfait donc cette assertion tout autant que le rendre à l'image.
     assert.equal(expFocus && expFocus.id, 'image-01', 'focus rendu DANS L\'EXPORT ; obtenu : ' + JSON.stringify(expFocus));
     assert.deepEqual(expErreurs, [], 'aucune erreur dans le fichier exporté : ' + expErreurs.join(' | '));
     console.log('PASS 10/10 export réellement ouvert : 3 niveaux AU CLAVIER, focus rendu, 0 erreur.');

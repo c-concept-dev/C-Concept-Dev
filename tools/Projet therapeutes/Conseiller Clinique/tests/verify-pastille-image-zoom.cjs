@@ -52,7 +52,13 @@ const lire = (page) => page.evaluate(() => {
     return {
       pastille: !!badge, puce: !!chip,
       clics: st ? st.pointerEvents : null,
-      position: st ? { droite: st.right, haut: st.top, place: st.position } : null,
+      position: st ? { gauche: st.left, haut: st.top, place: st.position } : null,
+      // Les deux signaux cohabitent désormais : on mesure qu'ils ne se croisent pas.
+      pastilleXpuce: (function () {
+        if (!badge || !chip) return null;
+        const a = badge.getBoundingClientRect(), c = chip.getBoundingClientRect();
+        return !(a.right <= c.left || a.left >= c.right || a.bottom <= c.top || a.top >= c.bottom);
+      })(),
       visible: badge ? (badge.getBoundingClientRect().width > 0) : false,
       surLaPhoto: (function () {
         if (!badge || !image) return null;
@@ -124,8 +130,13 @@ async function ouvrirPresentation(page, url) {
     assert.equal(live.zoom.visible, true, 'et la pastille doit avoir une boîte réelle, pas un élément à 0×0');
     assert.equal(live.zoom.svg, true, 'elle porte une icône SVG (adocDeepDiveIconeHTML), jamais du texte');
     assert.equal(live.zoom.position.place, 'absolute', 'positionnée dans le conteneur .adoc-sc-image');
-    assert.equal(live.zoom.position.droite, '14px', 'en haut à droite : right, au retrait de la puce');
-    assert.equal(live.zoom.position.haut, '14px', 'en haut à droite : top, au retrait de la puce');
+    // ALIGNEMENT (option 4) — la pastille passe en haut à GAUCHE. Le haut-droit appartient à la puce
+    // « ↳ Approfondir », qui cohabite désormais avec elle sur la même image : depuis que le clic
+    // agrandit TOUJOURS, les deux signaux sont présents en même temps et ne peuvent plus partager un
+    // coin. Les deux coins bas restent exclus par .cc-ws-present-toolbar (bandeau pleine largeur
+    // épinglé au bas de la fenêtre, mesuré [0,1001,1600,49]).
+    assert.equal(live.zoom.position.gauche, '14px', 'en haut à gauche : left, au retrait de la puce');
+    assert.equal(live.zoom.position.haut, '14px', 'en haut à gauche : top, au retrait de la puce');
     assert.equal(live.zoom.ariaCache, 'true',
       'aria-hidden : l\'image porte déjà aria-label « ' + live.zoom.ariaImage.slice(0, 40)
       + '… » et role=button — annoncer deux fois serait du bruit');
@@ -170,10 +181,22 @@ async function ouvrirPresentation(page, url) {
     // ── 3 — JAMAIS sur une image qui porte déjà une puce ──
     assert.ok(live.lien, 'préalable : l\'image avec renvoi doit être rendue');
     assert.equal(live.lien.puce, true, 'préalable : elle porte bien sa puce « ↳ Approfondir »');
-    assert.equal(live.lien.pastille, false,
-      'AUCUNE pastille sur une image déjà signalée par une puce : deux signaux diraient deux choses '
-      + 'pour un seul geste');
-    console.log('PASS ' + (++n) + '/5 — aucune pastille là où une puce d\'approfondissement existe déjà.');
+    // CET INVARIANT EST RETOURNÉ par l'alignement (option 4), et c'est délibéré. « Deux signaux
+    // diraient deux choses pour un seul geste » était vrai TANT QUE le renvoi remplaçait
+    // l'agrandissement : il n'y avait qu'un geste. Depuis que le clic agrandit toujours, il y a
+    // réellement DEUX gestes — l'image agrandit, la puce mène à la page — et chacun mérite son
+    // signal. La condition !imgLienActif n'était pas un choix de conception mais la conséquence de
+    // la disparition de l'agrandissement.
+    //
+    // Ce qui reste non négociable, et qui remplace l'ancienne assertion : les deux signaux ne
+    // doivent JAMAIS se recouvrir, sinon l'un cacherait l'autre.
+    assert.equal(live.lien.pastille, true,
+      'la pastille s\'affiche AUSSI sur une image porteuse de renvoi : l\'agrandissement y existe '
+      + 'désormais, et un geste disponible sans indice n\'est pas découvrable');
+    assert.equal(live.lien.pastilleXpuce, false,
+      'mais les deux signaux ne doivent à AUCUN endroit se croiser — pastille en haut à GAUCHE, puce '
+      + 'en haut à DROITE. Mesuré sur les boîtes réelles, aucune tolérance.');
+    console.log('PASS ' + (++n) + '/5 — pastille ET puce sur la même image, sans jamais se croiser.');
 
     // ── 4 — RIEN hors mode présentation ──
     const horsPresentation = await page.evaluate(() => {
@@ -218,7 +241,8 @@ async function ouvrirPresentation(page, url) {
     }
     assert.equal(dansExport.zoom.sousLaPastille, 'img',
       'et le clic y traverser jusqu\'à l\'image. Reçu : ' + dansExport.zoom.sousLaPastille);
-    assert.equal(dansExport.lien.pastille, false, 'et toujours aucune pastille là où une puce existe');
+    assert.equal(dansExport.lien.pastille, true, 'et la pastille y cohabite aussi avec la puce');
+    assert.equal(dansExport.lien.pastilleXpuce, false, 'sans s\'y croiser davantage');
     assert.deepEqual(errExp, [], 'aucune erreur JS dans l\'export : ' + errExp.join(' | '));
     console.log('PASS ' + (++n) + '/5 — export construit et ouvert : pastille présente, clic traversant, 0 erreur.');
     await exp.close();

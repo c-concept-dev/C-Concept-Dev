@@ -12469,12 +12469,15 @@ ${recent}`;
         // clic, il faut choisir, et une page qui approfondit réellement ce que montre l'image vaut
         // mieux qu'un agrandissement. Sans renvoi, l'agrandissement reste EXACTEMENT ce qu'il
         // était. Hors présentation, rien ne change nulle part.
-        const imgLienActif = deepDiveLinksActive[0] || null;
+        // ALIGNEMENT (option 4) — le clic AGRANDIT toujours, la puce est le SEUL accès au renvoi.
+        // Avant, un renvoi faisait disparaître l'agrandissement : le même clic changeait donc de
+        // sens selon la présence d'un lien, invisible au lecteur, alors que la règle tenue partout
+        // ailleurs est « jamais deux sens possibles pour le même clic ». Et la puce était redondante
+        // — elle et toute l'image ouvraient la même page : deux affordances pour une seule action.
+        // Rien n'est retiré : seule l'exclusivité disparaît.
         const imgDoorOnclick = !_adocRenderingForPresentDoor ? ''
-          : imgLienActif
-            ? ' onclick="window.adocPresentOpenDeepDive(\'' + adocEsc(imgLienActif.targetId) + '\')"'
-            : ' onclick="window.adocPresentOpenImageDoor(this)"';
-        const imgDoorCursor = !_adocRenderingForPresentDoor ? '' : imgLienActif ? 'cursor:pointer;' : 'cursor:zoom-in;';
+          : ' onclick="window.adocPresentOpenImageDoor(this)"';
+        const imgDoorCursor = !_adocRenderingForPresentDoor ? '' : 'cursor:zoom-in;';
         // ACCESSIBILITÉ CLAVIER — l'image porte un onclick depuis l'Acte 2 sans jamais être
         // atteignable autrement qu'à la souris : ni tabulation, ni Entrée, ni annonce par un
         // lecteur d'écran. En vidéoprojection, la présentatrice n'a souvent qu'un clavier ou une
@@ -12486,10 +12489,10 @@ ${recent}`;
         //   — this.click() réutilise EXACTEMENT le chemin du clic (porte image ou page
         //     d'approfondissement selon le cas), jamais une seconde logique à tenir à jour ;
         //   — Espace est intercepté (preventDefault) sinon la page défilerait sous la diapositive.
+        // L'étiquette suit le geste : l'image agrandit, et le renvoi est annoncé par SA puce, qui
+        // est un <button> déjà atteignable au clavier avec son propre libellé.
         const imgA11yLabel = !_adocRenderingForPresentDoor ? ''
-          : imgLienActif
-            ? "Ouvrir la page d'approfondissement : " + (imgLienActif.text || b.content.alt || '')
-            : "Agrandir l'image" + (b.content.alt ? ' : ' + b.content.alt : '');
+          : "Agrandir l'image" + (b.content.alt ? ' : ' + b.content.alt : '');
         const imgDoorA11y = !_adocRenderingForPresentDoor ? ''
           : ' tabindex="0" role="button" aria-label="' + adocEsc(imgA11yLabel) + '"'
             + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click();}"';
@@ -12506,9 +12509,12 @@ ${recent}`;
         // photo descendant jusque-là — pastille cachée ET clic intercepté avant l'image.
         // aria-hidden : l'image porte déjà aria-label="Agrandir l'image : …" et role=button —
         // l'annoncer deux fois serait du bruit.
-        const loupe = '<circle cx="11" cy="11" r="6"/><path d="M15.5 15.5L20 20"/>';
-        const imgZoomBadge = (_adocRenderingForPresentDoor && !imgLienActif)
-          ? '<span class="adoc-sc-image-zoom-badge" aria-hidden="true">' + adocDeepDiveIconeHTML(loupe) + '</span>'
+        // Plus de condition sur le renvoi : l'agrandissement existe TOUJOURS, donc son indice aussi.
+        // La condition `!imgLienActif` d'origine n'était pas un choix de conception — c'était la
+        // conséquence du fait que l'agrandissement disparaissait. En HAUT À GAUCHE (cf. CSS) : le
+        // haut-droit reste à la puce, les deux coins bas à la barre d'outils.
+        const imgZoomBadge = _adocRenderingForPresentDoor
+          ? '<span class="adoc-sc-image-zoom-badge" aria-hidden="true">' + adocIconeLoupeHTML() + '</span>'
           : '';
         const imgFigureStyleAttr = nestedPosCSS ? ' style="' + adocEsc(nestedPosCSS) + '"' : '';
         // La puce « ↳ Approfondir » n'existait dans AUCUN cas image. Sans elle, le renvoi ne serait
@@ -12819,8 +12825,37 @@ ${recent}`;
     // traversait intacte. Couverture de CARTE, donc sur le chemin de l'export de présentation —
     // c'est elle, et non le bloc image en ligne, qu'un document de cours porte le plus souvent.
     const _qCouv = adocRequeteImageUtilisable(card.content.imageRef);
+    // ALIGNEMENT (option 4) — la couverture de carte n'était PAS cliquable du tout : aucun onclick,
+    // curseur `auto`, hors tabulation, avec ou sans renvoi. Mesuré, contre le commentaire qui
+    // affirmait ici même que « le clic sur l'image reste l'agrandissement, strictement inchangé » :
+    // cette intention n'avait jamais été implémentée pour la couverture. Une illustration pleine
+    // largeur ne pouvait donc pas être agrandie, alors que le bloc image en ligne, lui, le permet.
+    // Le contrat est désormais le MÊME partout : le clic agrandit, la puce mène ailleurs.
+    //
+    // Accès clavier posé en même temps que l'onclick, jamais après : c'est l'oubli exact qu'il a
+    // fallu rattraper pour le bloc en ligne (onclick depuis l'Acte 2, clavier seulement au lot B2),
+    // et en vidéoprojection la présentatrice n'a souvent qu'un clavier ou une télécommande.
+    // `this` transmis, jamais l'URL : adocPresentOpenImageDoor lit l'élément réellement affiché.
+    const couvDoorAttrs = (_adocRenderingForPresentDoor && _qCouv)
+      ? ' onclick="window.adocPresentOpenImageDoor(this)" tabindex="0" role="button"'
+        + ' aria-label="' + adocEsc("Agrandir l'image" + (card.content.imageAlt ? ' : ' + card.content.imageAlt : '')) + '"'
+        + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click();}"'
+        + ' style="cursor:zoom-in;"'
+      : '';
     const img = _qCouv
-      ? '<img class="adoc-sc-card-img" data-pexels="' + adocEsc(_qCouv) + '" alt="' + adocEsc(card.content.imageAlt || '') + '">'
+      ? '<img class="adoc-sc-card-img" data-pexels="' + adocEsc(_qCouv) + '" alt="' + adocEsc(card.content.imageAlt || '') + '"' + couvDoorAttrs + '>'
+      : '';
+    // Pastille « agrandir », même icône et même palette que celle du bloc en ligne
+    // (adocIconeLoupeHTML, source unique). Ancrée sur .adoc-sc-card, déjà en position:relative, et
+    // NON sur une enveloppe de l'image : .adoc-sc-card-img porte max-height:45%, un pourcentage du
+    // bloc conteneur — l'envelopper le rendrait indéfini et casserait ce plafond, qui a son propre
+    // test (verify-image-couverture-plafond). Le retrait de 32px vaut donc le padding de 18px de la
+    // carte plus les 14px de retrait de la puce ; l'image étant son PREMIER enfant, son coin
+    // haut-gauche est exactement l'origine de la boîte de contenu. Cette dépendance au padding est
+    // assumée et surveillée : le test mesure que la pastille repose bien SUR l'image, de sorte qu'un
+    // changement de padding échoue au lieu de la déplacer en silence.
+    const couvZoomBadge = (_adocRenderingForPresentDoor && _qCouv)
+      ? '<span class="adoc-sc-image-zoom-badge adoc-sc-card-zoom-badge" aria-hidden="true">' + adocIconeLoupeHTML() + '</span>'
       : '';
     // PUCE « ↳ Approfondir » SOUS LA COUVERTURE — le clic sur l'image reste l'agrandissement
     // (adocPresentOpenImageDoor), strictement inchangé : les deux gestes coexistent, il n'y a jamais
@@ -12847,7 +12882,7 @@ ${recent}`;
       // Item 68 — même mécanisme d'édition directe que la bannière Fiche (data-cc-editor-leaf
       // générique, jamais .adoc-sc-block : un titre de carte reste une DÉCORATION de card.content,
       // synchronisé par adocSyncEditedRootFieldsToDoc, jamais par adocEditorSyncStructured).
-      img + coverChipsHTML + '<h2 class="adoc-sc-card-title" id="' + adocEsc('root:card-title:' + card.id) + '" data-cc-editor-leaf="card-title">' + adocEsc(card.content.title) + '</h2>' + nested + resizeHandle + '</section>';
+      img + couvZoomBadge + coverChipsHTML + '<h2 class="adoc-sc-card-title" id="' + adocEsc('root:card-title:' + card.id) + '" data-cc-editor-leaf="card-title">' + adocEsc(card.content.title) + '</h2>' + nested + resizeHandle + '</section>';
   }
   // CORRECTIF ITEM 75 (effondrement du Carrousel) — `.adoc-sc-carrousel` est en display:flex, sa
   // hauteur dépend normalement de ses cartes en flux normal ; une carte avec x/y/width/height
@@ -16726,8 +16761,18 @@ ${recent}`;
     // pointer-events:none est INDISPENSABLE, pas décoratif : c'est l'IMAGE qui porte l'onclick
     // (adocPresentOpenImageDoor), et une pastille qui intercepterait le clic empêcherait exactement
     // le geste qu'elle annonce.
-    '.cc-ws-present-slide-inner .adoc-sc-image .adoc-sc-image-zoom-badge{position:absolute;right:14px;top:14px;z-index:2;display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;background:rgba(20,33,31,.86);color:#e8f5f1;border:1px solid rgba(232,245,241,.4);box-shadow:0 2px 8px rgba(0,0,0,.3);pointer-events:none;}' +
-    '.cc-ws-present-slide-inner .adoc-sc-image .adoc-sc-image-zoom-badge svg{width:16px;height:16px;}' +
+    // APPARENCE partagée par les deux porteurs — bloc image en ligne ET couverture de carte :
+    // les deux pastilles portent .adoc-sc-image-zoom-badge mais n'ont pas le même ancêtre, et
+    // l'ancienne règle, scopée à .adoc-sc-image, n'aurait jamais atteint celle de la couverture.
+    '.cc-ws-present-slide-inner .adoc-sc-image-zoom-badge{position:absolute;z-index:2;display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;background:rgba(20,33,31,.86);color:#e8f5f1;border:1px solid rgba(232,245,241,.4);box-shadow:0 2px 8px rgba(0,0,0,.3);pointer-events:none;}' +
+    '.cc-ws-present-slide-inner .adoc-sc-image-zoom-badge svg{width:16px;height:16px;}' +
+    // POSITION, par porteur. EN HAUT À GAUCHE sur les deux : le haut-droit appartient à la puce
+    // « ↳ Approfondir » (right:14px;top:14px), et les deux coins BAS à .cc-ws-present-toolbar,
+    // bandeau pleine largeur épinglé au bas de la fenêtre (mesuré [0,1001,1600,49] en 1600×1050).
+    '.cc-ws-present-slide-inner .adoc-sc-image .adoc-sc-image-zoom-badge{left:14px;top:14px;}' +
+    // 32px = le padding de 18px de .adoc-sc-card plus les 14px de retrait de la puce : la
+    // pastille est ancrée sur la CARTE, pas sur une enveloppe de l'image (cf. adocRenderCardHTML).
+    '.cc-ws-present-slide-inner .adoc-sc-card-zoom-badge{left:32px;top:32px;}' +
     '.cc-ws-present-nav{flex-shrink:0;width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.08);color:#fff;font-size:22px;line-height:1;cursor:pointer;}' +
     '.cc-ws-present-nav:hover{background:rgba(255,255,255,.18);}' +
     '.cc-ws-present-nav:disabled{opacity:.3;cursor:default;}' +
@@ -17722,6 +17767,13 @@ ${recent}`;
   }
   window.adocDeepDiveImageHTML = adocDeepDiveImageHTML;
 
+  // Loupe de la pastille « agrandir ». Source UNIQUE, désormais partagée par le bloc image en ligne
+  // ET la couverture de carte. Une fonction, non une constante de module : engineFnRefs sérialise
+  // les fonctions et JAMAIS les constantes, ce qui évite le piège dataText déjà rencontré trois fois.
+  function adocIconeLoupeHTML() {
+    return adocDeepDiveIconeHTML('<circle cx="11" cy="11" r="6"/><path d="M15.5 15.5L20 20"/>');
+  }
+
   // ── RÉVÉLATION PROGRESSIVE DANS LA PORTE ────────────────────────────────────────────────────
   // Curseur PROPRE à la porte (doorRevealIndex / doorRevealTotal), jamais revealIndex : celui-ci
   // appartient à la diapositive sous la porte, et le partager ferait perdre son montage dès qu'une
@@ -18256,6 +18308,10 @@ ${recent}`;
       // dans windowFnNames), adocPresentAmorceHTML par les deux. Aucune n'est atteinte par un
       // onclick : le garde-fou onclick ne les verrait donc jamais manquer — seul un export
       // réellement ouvert le montre, en ReferenceError au premier geste.
+      // Appelée au rendu de chaque diapositive dans l'export (pastille d'agrandissement du bloc
+      // image en ligne ET de la couverture de carte). Son absence lèverait une ReferenceError à
+      // l'ouverture de la première diapositive à image.
+      adocIconeLoupeHTML: adocIconeLoupeHTML,
       adocPresentAmorceHTML: adocPresentAmorceHTML,
       adocPresentMajAmorce: adocPresentMajAmorce,
       adocPresentMajAmorceDiapo: adocPresentMajAmorceDiapo,

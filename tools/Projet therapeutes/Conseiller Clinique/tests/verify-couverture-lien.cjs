@@ -1,15 +1,16 @@
 // LIEN SUR L'IMAGE DE COUVERTURE D'UNE DIAPOSITIVE.
 //
-// CORRECTION DE PRÉMISSE, établie par ce test : la couverture d'une diapositive ne porte AUCUN onclick
-// aujourd'hui — l'agrandissement (adocPresentOpenImageDoor) vit sur les blocs image EN LIGNE, pas sur
-// la couverture. Et sur un bloc image en ligne, un renvoi REMPLACE l'agrandissement
-// (imgLienActif ? adocPresentOpenDeepDive : adocPresentOpenImageDoor). L'invariant réellement tenu ici
-// est donc : le geste de la couverture reste EXACTEMENT ce qu'il était (rien), et la puce est le seul
-// élément interactif ajouté. C'est plus fort que « l'agrandissement est préservé » : on vérifie que le
-// renvoi n'a pas capté l'image, ce qu'aucun contrôle de présence de puce ne verrait.
-// Le renvoi se manifeste par une puce « ↳ Approfondir » SOUS la couverture — jamais un second sens
-// pour le même geste. Ce test éprouve la coexistence des deux gestes, pas seulement la présence de la
-// puce : une puce qui aurait volé le clic de l'image passerait tous les autres contrôles.
+// ÉTAT PRÉCÉDENT, établi par ce test et conservé ici pour mémoire : la couverture ne portait AUCUN
+// onclick — ni agrandissement, ni renvoi. Ce test l'affirmait, en prévenant que « si cette assertion
+// tombe un jour parce que la couverture devient cliquable, il faudra décider explicitement ce que fait
+// ce clic face à la puce ». Elle est tombée, et la décision a été prise explicitement (alignement,
+// option 4) : UN SEUL CONTRAT sur les deux porteurs — le clic AGRANDIT, la puce mène à la page.
+//
+// L'invariant tenu ici reste donc le même, et c'est lui qui compte : le renvoi ne doit JAMAIS être
+// capté par l'image, ce qu'aucun contrôle de présence de puce ne verrait. Ce qui change, c'est que
+// l'image porte désormais un geste à elle — l'agrandissement — au lieu de n'en porter aucun. Le
+// renvoi se manifeste toujours par une puce « ↳ Approfondir » SOUS la couverture, et ce test éprouve
+// la coexistence des DEUX gestes par de vrais clics, pas seulement la présence de la puce.
 const { chromium } = require('playwright');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -126,11 +127,20 @@ async function entrerEnPresentation(page, doc) {
     assert.ok(!/adocPresentOpenDeepDive/.test(s1.onclickImage),
       'le renvoi ne doit JAMAIS être capté par l\'image de couverture — ce serait deux sens pour un seul '
       + 'geste, et cela retirerait silencieusement le comportement existant. Reçu : ' + JSON.stringify(s1.onclickImage));
-    assert.equal(s1.onclickImage, '',
-      'le geste de la couverture reste EXACTEMENT ce qu\'il était : aucun onclick. Si cette assertion '
-      + 'tombe un jour parce que la couverture devient cliquable, il faudra décider explicitement ce que '
-      + 'fait ce clic face à la puce — jamais le laisser se décider par accident.');
-    console.log('PASS ' + (++n) + ' — la puce n\'a pas capté l\'image : le geste de la couverture est inchangé.');
+    // CETTE ASSERTION EST TOMBÉE, et c'était prévu ici même : « il faudra décider explicitement ce
+    // que fait ce clic face à la puce — jamais le laisser se décider par accident ». La décision a
+    // été prise explicitement (alignement, option 4) : le clic AGRANDIT, la puce mène à la page.
+    // L'assertion est donc remplacée par celle du geste décidé, et NON retirée — l'assertion qui la
+    // protège, juste au-dessus (le renvoi ne doit jamais être capté par l'image), reste intacte.
+    //
+    // Ce que l'état d'avant cachait : la couverture n'était pas « inchangée », elle n'avait AUCUN
+    // geste. Mesuré — clic AUCUN, curseur auto, hors tabulation — alors qu'un commentaire de
+    // adocRenderCardHTML affirmait que « le clic sur l'image reste l'agrandissement ». Une
+    // illustration de couverture pleine largeur ne pouvait donc pas être agrandie du tout.
+    assert.equal(s1.onclickImage, 'window.adocPresentOpenImageDoor(this)',
+      'le clic sur la couverture ouvre désormais l\'AGRANDISSEMENT : un seul contrat sur les deux '
+      + 'porteurs, « le clic agrandit, la puce mène ailleurs ». Reçu : ' + JSON.stringify(s1.onclickImage));
+    console.log('PASS ' + (++n) + ' — la puce n\'a pas capté l\'image : celle-ci agrandit, la puce mène à la page.');
 
     const s2 = await etatSlide(1);
     assert.equal(s2.image, true, 'la diapositive 2 a une couverture');
@@ -155,11 +165,21 @@ async function entrerEnPresentation(page, doc) {
       // et lire ce résidu ferait croire à une page ouverte alors que rien ne s'affiche.
       return { porte: ouverte, titre: ouverte ? (porte.querySelector('.cc-ws-present-door-title')?.textContent || null) : null };
     });
-    assert.equal(apresImage.porte, false,
-      'la couverture n\'étant pas cliquable, un clic dessus n\'ouvre RIEN — et surtout pas la page du renvoi');
-    assert.equal(apresImage.titre, null, 'aucune page ne doit s\'ouvrir par un clic sur la couverture');
+    assert.equal(apresImage.porte, true,
+      'un clic sur la couverture ouvre désormais une porte : l\'AGRANDISSEMENT');
+    // Le titre n'est pas lu pour trancher la SORTE de porte : adocPresentOpenImageDoor masque
+    // .cc-ws-present-door-text sans réécrire son contenu, donc un titre de page précédemment ouverte
+    // y reste lisible alors qu'il n'est plus affiché. C'est `hidden` qui le dit — ici la page du
+    // renvoi vient justement d'être ouverte deux lignes plus haut, ce résidu existe donc vraiment.
+    const sorte = await page.evaluate(() => {
+      const t = document.querySelector('#cc-ws-present-door .cc-ws-present-door-text');
+      return (t && !t.hidden) ? 'PAGE' : 'AGRANDISSEMENT';
+    });
+    assert.equal(sorte, 'AGRANDISSEMENT',
+      'et c\'est bien l\'agrandissement, JAMAIS la page du renvoi : l\'image ne doit pas capter le '
+      + 'renvoi, c\'est l\'invariant que ce test protège depuis l\'origine');
     assert.deepEqual(erreurs, [], 'erreurs JS : ' + erreurs.join(' | '));
-    console.log('PASS ' + (++n) + ' — clics RÉELS : la puce ouvre la page, l\'image n\'ouvre rien (inchangé).');
+    console.log('PASS ' + (++n) + ' — clics RÉELS : la puce ouvre la page, l\'image ouvre l\'agrandissement.');
 
     // ── 5 — HORS mode présentation : aucune puce ──
     await page.close();
@@ -183,14 +203,17 @@ async function entrerEnPresentation(page, doc) {
       return { puces: chips.length, onclickImage: img ? (img.getAttribute('onclick') || '') : '' };
     });
     assert.equal(dansExport.puces, 1, 'la puce doit être rendue DANS le fichier exporté');
-    assert.equal(dansExport.onclickImage, '',
-      'dans l\'export non plus, la couverture ne doit porter aucun onclick — la puce n\'a pas capté l\'image');
+    assert.equal(dansExport.onclickImage, 'window.adocPresentOpenImageDoor(this)',
+      'DANS L\'EXPORT aussi, la couverture porte l\'agrandissement — et jamais le renvoi : c\'est la '
+      + 'puce qui y mène. Reçu : ' + JSON.stringify(dansExport.onclickImage));
+    assert.ok(!/adocPresentOpenDeepDive/.test(dansExport.onclickImage),
+      'le renvoi ne doit pas être capté par l\'image, dans l\'export non plus');
     await exp.evaluate(() => document.querySelector('#cc-ws-present-slide-inner .adoc-sc-card-cover-chips .adoc-sc-deepdive-chip').click());
     await exp.waitForTimeout(450);
     const titreExport = await exp.evaluate(() => document.querySelector('.cc-ws-present-door-title')?.textContent);
     assert.equal(titreExport, 'La page de couverture', 'la puce ouvre la bonne page DANS l\'export');
     assert.deepEqual(errExp, [], 'aucune erreur JS dans l\'export : ' + errExp.join(' | '));
-    console.log('PASS ' + (++n) + ' — export construit et ouvert : puce rendue, page ouverte, couverture inchangée, 0 erreur.');
+    console.log('PASS ' + (++n) + ' — export construit et ouvert : puce rendue, page ouverte, couverture agrandissable, 0 erreur.');
 
     // ── 7 — LA GARDE DE MODE PRÉSENTATION, éprouvée là où adocRenderCardHTML est accessible ──
     // Dans un fichier exporté, les fonctions de engineFnRefs sont des globales : on peut donc rendre la

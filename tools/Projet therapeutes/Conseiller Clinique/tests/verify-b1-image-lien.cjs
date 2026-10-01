@@ -166,9 +166,16 @@ async function revelerJusqua(page, selecteur) {
       };
       return { avecLien: lire('image-01'), sansLien: lire('image-02') };
     });
-    assert.match(etat.avecLien.onclick, /adocPresentOpenDeepDive\('n1'\)/,
-      "l'image porteuse doit ouvrir la PAGE, pas l'agrandissement");
-    assert.equal(etat.avecLien.curseur, 'pointer', 'curseur pointeur : le geste annoncé est un lien');
+    // ALIGNEMENT (option 4, décision explicite) — l'exclusivité est LEVÉE : l'image agrandit
+    // toujours, la puce est le seul accès au renvoi. Ce test affirmait l'inverse, et c'était le
+    // contrat d'alors : le même clic changeait de sens selon la présence d'un lien, invisible au
+    // lecteur, alors que la règle tenue partout ailleurs est « jamais deux sens pour un seul geste ».
+    // L'assertion n'est pas retirée mais RETOURNÉE, et renforcée du négatif correspondant.
+    assert.match(etat.avecLien.onclick, /adocPresentOpenImageDoor\(this\)/,
+      "l'image porteuse AGRANDIT désormais, même en portant un renvoi : " + etat.avecLien.onclick);
+    assert.doesNotMatch(etat.avecLien.onclick, /adocPresentOpenDeepDive/,
+      "et le renvoi ne doit JAMAIS être capté par l'image : c'est la puce qui y mène, elle seule");
+    assert.equal(etat.avecLien.curseur, 'zoom-in', 'curseur zoom-in : le geste annoncé est l\'agrandissement');
     assert.equal(etat.avecLien.puces.length, 1, "la puce « ↳ Approfondir » doit exister sous l'image");
     assert.match(etat.avecLien.puces[0], /adocPresentOpenDeepDive\('n1'\)/);
     // Présente ne suffit pas : elle doit être VUE. Une image de diapositive déborde la hauteur
@@ -205,12 +212,31 @@ async function revelerJusqua(page, selecteur) {
 
     const revelations = await revelerJusqua(page, '#cc-ws-present-slide-inner #image-01 img');
     const avant = await page.evaluate(() => document.getElementById('cc-ws-present-slide-inner').innerHTML);
+    // ALIGNEMENT (option 4) — le clic sur l'image AGRANDIT désormais, quel que soit le renvoi. On
+    // l'éprouve ici, puis on referme et on repart de la PUCE, seul accès au renvoi, pour le parcours
+    // de pages qui suit (niveaux 2 et 3, inchangé).
+    //
+    // La sorte de porte se lit sur `hidden` de .cc-ws-present-door-text, JAMAIS sur la présence d'un
+    // titre : adocPresentOpenImageDoor masque cet élément sans réécrire son contenu, si bien qu'un
+    // titre de page déjà ouverte y reste lisible par querySelector alors qu'il n'est plus affiché.
+    const sorteDePorte = () => page.evaluate(() => {
+      const t = document.querySelector('#cc-ws-present-door .cc-ws-present-door-text');
+      return (t && !t.hidden) ? 'PAGE' : 'AGRANDISSEMENT';
+    });
     await page.click('#cc-ws-present-slide-inner #image-01 img');
     await page.waitForFunction(() => document.getElementById('cc-ws-present-door')?.classList.contains('open'));
+    assert.equal(await sorteDePorte(), 'AGRANDISSEMENT',
+      "le clic RÉEL sur l'image ouvre l'AGRANDISSEMENT, jamais une page — c'est la puce qui y mène");
+    await page.evaluate(() => window.adocPresentCloseImageDoor());
+    await page.waitForFunction(() => !document.getElementById('cc-ws-present-door')?.classList.contains('open'));
+
+    await page.click('#cc-ws-present-slide-inner #image-01 .adoc-sc-deepdive-chip');
+    await page.waitForFunction(() => document.getElementById('cc-ws-present-door')?.classList.contains('open'));
     let titre = await page.evaluate(() => document.querySelector('#cc-ws-present-door .cc-ws-present-door-title')?.textContent || '');
-    assert.match(titre, /Niveau 1/, "le clic RÉEL sur l'image doit ouvrir la page de niveau 1 ; obtenu : " + titre);
-    await page.screenshot({ path: path.join(CAPTURES, 'b1-01-niveau1-depuis-image.png') });
-    console.log('PASS 10/12 clic RÉEL sur l\'image (après ' + revelations + ' révélation(s)) : niveau 1 s\'ouvre.');
+    assert.equal(await sorteDePorte(), 'PAGE', 'et le clic sur la puce ouvre bien une PAGE');
+    assert.match(titre, /Niveau 1/, "le clic RÉEL sur la PUCE doit ouvrir la page de niveau 1 ; obtenu : " + titre);
+    await page.screenshot({ path: path.join(CAPTURES, 'b1-01-niveau1-depuis-puce.png') });
+    console.log('PASS 10/12 clics RÉELS (après ' + revelations + ' révélation(s)) : l\'image agrandit, la puce ouvre le niveau 1.');
 
     for (const attendu of [/Niveau 2/, /Niveau 3/]) {
       await page.click('#cc-ws-present-door .adoc-sc-deepdive-chip, #cc-ws-present-door .cc-ws-deepdive-link');
@@ -242,8 +268,18 @@ async function revelerJusqua(page, selecteur) {
     await revelerJusqua(expPage, '#cc-ws-present-slide-inner #image-01 img');
 
     const expAvant = await expPage.evaluate(() => document.getElementById('cc-ws-present-slide-inner').innerHTML);
+    // ALIGNEMENT (option 4) — dans l'export aussi, le clic sur l'image AGRANDIT : on l'éprouve, on
+    // referme, puis on part de la PUCE pour la descente à trois niveaux qui suit.
     await expPage.click('#cc-ws-present-slide-inner #image-01 img');
     await expPage.waitForFunction(() => document.getElementById('cc-ws-present-door')?.classList.contains('open'));
+    assert.equal(await expPage.evaluate(() => {
+      const t = document.querySelector('#cc-ws-present-door .cc-ws-present-door-text');
+      return (t && !t.hidden) ? 'PAGE' : 'AGRANDISSEMENT';
+    }), 'AGRANDISSEMENT', "dans l'export, le clic sur l'image ouvre l'agrandissement");
+    await expPage.evaluate(() => window.adocPresentCloseImageDoor());
+    await expPage.waitForFunction(() => !document.getElementById('cc-ws-present-door')?.classList.contains('open'));
+    await expPage.click('#cc-ws-present-slide-inner #image-01 .adoc-sc-deepdive-chip');
+    await expPage.waitForFunction(() => (document.querySelector('#cc-ws-present-door .cc-ws-present-door-title')?.textContent || '').includes('Niveau 1'));
     for (const attendu of ['Niveau 2', 'Niveau 3']) {
       await expPage.click('#cc-ws-present-door .adoc-sc-deepdive-chip, #cc-ws-present-door .cc-ws-deepdive-link');
       await expPage.waitForFunction(t => (document.querySelector('#cc-ws-present-door .cc-ws-present-door-title')?.textContent || '').includes(t), attendu);
