@@ -12496,7 +12496,7 @@ ${recent}`;
         const imgDoorA11y = !_adocRenderingForPresentDoor ? ''
           : ' tabindex="0" role="button" aria-label="' + adocEsc(imgA11yLabel) + '"'
             + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click();}"';
-        const imgStyle = 'width:' + imgWidth + '%;border-radius:8px;object-fit:cover;display:block;margin:0 auto;' + imgPositionedFill + imgDoorCursor + (imgOpacity < 100 ? 'opacity:' + (imgOpacity / 100) + ';' : '') + (imgRotation ? 'transform:rotate(' + imgRotation + 'deg);' : '');
+        const imgStyle = 'width:100%;border-radius:8px;object-fit:cover;display:block;' + imgPositionedFill + imgDoorCursor + (imgOpacity < 100 ? 'opacity:' + (imgOpacity / 100) + ';' : '') + (imgRotation ? 'transform:rotate(' + imgRotation + 'deg);' : '');
         // PASTILLE « AGRANDIR » — le seul indice qu'une image zoomable est cliquable était jusqu'ici
         // le curseur (cursor:zoom-in), invisible au tactile et facile à manquer à la souris.
         // UNIQUEMENT sur l'image SANS lien : celle qui porte un renvoi affiche déjà sa puce
@@ -12517,13 +12517,35 @@ ${recent}`;
           ? '<span class="adoc-sc-image-zoom-badge" aria-hidden="true">' + adocIconeLoupeHTML() + '</span>'
           : '';
         const imgFigureStyleAttr = nestedPosCSS ? ' style="' + adocEsc(nestedPosCSS) + '"' : '';
+        // ENVELOPPE À LA LARGEUR RÉELLE DE L'IMAGE — correctif d'un défaut antérieur, mesuré : les
+        // deux signaux (pastille, puce) étaient ancrés à 14px du <figure>, qui occupe TOUTE la
+        // largeur de la diapositive, alors que l'image y est centrée dès que widthPercent < 100.
+        // Ils tombaient donc hors de la photo pour toute largeur inférieure à ~98 % — la marge
+        // (figure − image)/2 dépasse 14px dès 95 % (38px mesurés), et vaut 680px à 10 %.
+        //
+        // L'enveloppe porte désormais la largeur et le centrage, l'image la remplit à 100 %, et les
+        // signaux s'ancrent sur elle. La géométrie RENDUE est inchangée : enveloppe à N% du figure,
+        // image à 100% de l'enveloppe. Le <figure> garde sa pleine largeur, donc aucune mesure de
+        // débordement ne bouge — vérifié par le test de débordement existant, jamais supposé.
+        //
+        // Style EN LIGNE, comme celui que portait l'image : l'enveloppe n'exige ainsi aucune règle
+        // CSS, donc aucun risque qu'elle manque dans l'un des deux chemins (application / export).
+        // height:100% n'est repris que pour un bloc positionné, où l'image le portait déjà : sans
+        // cela, le height:100% de l'image se résoudrait contre une enveloppe de hauteur auto.
+        // Les poignées (glisser, redimensionner) et la note de sources restent ancrées au FIGURE,
+        // jamais à l'enveloppe : elles ne concernent pas la photo mais le bloc.
+        const cadreStyle = 'display:block;position:relative;margin:0 auto;width:' + imgWidth + '%;'
+          + (nestedPosCSS ? 'height:100%;' : '');
         // La puce « ↳ Approfondir » n'existait dans AUCUN cas image. Sans elle, le renvoi ne serait
         // découvrable que par tâtonnement — rien ne distingue à l'œil une image cliquable d'une
         // image ordinaire. Même mécanisme que pour les cinq cas texte : c'est la puce, jamais
         // l'enrichissement, qui garantit qu'un lien n'est pas silencieusement perdu.
         return '<figure class="adoc-sc-block adoc-sc-image' + statusClass + '" id="' + adocEsc(b.id) + '"' + imgFigureStyleAttr + '>' +
-          '<img ' + imgAttr + onErrorAttr + imgDoorOnclick + imgDoorA11y + ' alt="' + adocEsc(b.content.alt) + '" style="' + imgStyle + '">' +
-          note + deepDiveChips + imgZoomBadge + dragHandle + nestedResizeHandle + '</figure>';
+          '<span class="adoc-sc-image-cadre" style="' + cadreStyle + '">' +
+            '<img ' + imgAttr + onErrorAttr + imgDoorOnclick + imgDoorA11y + ' alt="' + adocEsc(b.content.alt) + '" style="' + imgStyle + '">' +
+            deepDiveChips + imgZoomBadge +
+          '</span>' +
+          note + dragHandle + nestedResizeHandle + '</figure>';
       }
       case 'video': {
         // Panneau "Médias", sous-onglet "Vidéos" — content.url est TOUJOURS une URL concrète
@@ -16770,6 +16792,18 @@ ${recent}`;
     // « ↳ Approfondir » (right:14px;top:14px), et les deux coins BAS à .cc-ws-present-toolbar,
     // bandeau pleine largeur épinglé au bas de la fenêtre (mesuré [0,1001,1600,49] en 1600×1050).
     '.cc-ws-present-slide-inner .adoc-sc-image .adoc-sc-image-zoom-badge{left:14px;top:14px;}' +
+    // CONSÉQUENCE DU CORRECTIF D'ANCRAGE, et elle est arithmétique : en ramenant les deux signaux
+    // SUR la photo, ils se disputent désormais sa largeur. Mesuré sur la gamme complète, ils ne se
+    // croisent qu'à 10 % (151 px) : la pastille occupe 14→44, la puce 24→137. Il faut
+    // 14 + 30 + 8 + 113 + 14 = 179 px pour les deux, et 200 px laisse la marge d'un libellé de puce
+    // un peu plus long. Dès 20 % (302 px), aucun croisement.
+    //
+    // C'est la PASTILLE qui s'efface, jamais la puce : la puce porte une information (une
+    // destination), la pastille n'est qu'un indice pour un geste qui reste disponible — le clic
+    // agrandit toujours. Requête de CONTENEUR et non de fenêtre : c'est la largeur réelle de la
+    // photo qui décide, à toute résolution et sous n'importe quelle mise à l'échelle.
+    '.cc-ws-present-slide-inner .adoc-sc-image-cadre{container-type:inline-size;}' +
+    '@container (max-width:200px){.cc-ws-present-slide-inner .adoc-sc-image-cadre .adoc-sc-image-zoom-badge{display:none;}}' +
     // 32px = le padding de 18px de .adoc-sc-card plus les 14px de retrait de la puce : la
     // pastille est ancrée sur la CARTE, pas sur une enveloppe de l'image (cf. adocRenderCardHTML).
     '.cc-ws-present-slide-inner .adoc-sc-card-zoom-badge{left:32px;top:32px;}' +
