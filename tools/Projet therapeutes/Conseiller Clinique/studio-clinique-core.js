@@ -4116,6 +4116,24 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     ];
   }
   window.adocCollectImageNodes = adocCollectImageNodes;
+
+  // Une requête d'image EXPLOITABLE — un seul corps, aux deux bouts de la chaîne : les sites qui
+  // ÉMETTENT data-pexels (pour qu'un attribut malformé ne naisse jamais) et les deux consommateurs
+  // qui dépensent du quota en le lisant — adocResolveImages en direct, adocCollectExportImageQueries
+  // à l'export. Deux gardes séparés finiraient par ne plus dire la même chose.
+  //
+  // « undefined » et « null » sont traités comme des chaînes VIDES, et ce n'est pas une précaution
+  // décorative : adocEsc(undefined) renvoie littéralement "undefined" (String(undefined)), si bien
+  // qu'un contenu sans `query` produisait un attribut TRUTHY que tous les gardes en aval laissaient
+  // passer — `String(n.q || '').trim()` ne retient que le vide. Une vraie recherche du mot
+  // « undefined » partait donc vers la banque d'images, dépensant une requête d'un quota horaire de
+  // 200 pour rien, et rendant un aplat là où une illustration était attendue. Aucune requête
+  // clinique légitime n'est le mot « undefined » ou « null ».
+  function adocRequeteImageUtilisable(q) {
+    const s = (q === undefined || q === null) ? '' : String(q).trim();
+    return (!s || /^(undefined|null)$/i.test(s)) ? '' : s;
+  }
+  window.adocRequeteImageUtilisable = adocRequeteImageUtilisable;
   // Exposée pour les tests, comme adocConvertDeepDives : la garantie centrale de ce lot —
   // « aucun appel réseau à l'ouverture d'un export » — se vérifie sur CETTE fonction, celle
   // qui décide de partir ou non sur le réseau. La vérifier autrement serait la deviner.
@@ -4182,6 +4200,12 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
 
     const promises = allNodes.map(async ({ el, type, q, isGen }) => {
       try {
+        // Même garde que l'export, et pour la même raison : ce chemin appelle /fetch-image EN DIRECT
+        // pendant la génération et l'aperçu, sur le même quota. Jetée ICI, dans le try, pour
+        // emprunter le repli déjà existant (aplat + texte alternatif) — remettre q à '' ne suffirait
+        // PAS : rien ne teste q plus bas, et fetchPexels('') partirait quand même, dépensant
+        // exactement la requête qu'on cherche à éviter. Vérifié avant d'écrire, pas après.
+        if (!isGen && !adocRequeteImageUtilisable(q)) throw new Error('requête d\'image inexploitable');
         let url = null;
         // L'image embarquée d'abord, TOUJOURS : c'est elle qui rend le fichier exporté autonome,
         // et elle évite aussi un aller-retour réseau quand elle existe. Une requête présente dans
@@ -12384,9 +12408,15 @@ ${recent}`;
         // via Pexels — les deux mécanismes restent mutuellement exclusifs sur un même bloc,
         // jamais superposés (data-pexels absent dès qu'un assetId existe).
         const note = cites ? '<div class="adoc-sc-cite-note">Sources :' + cites + '</div>' : '';
+        // Troisième branche : ni asset ni requête exploitable. Sans elle, adocEsc(undefined)
+        // produisait data-pexels="undefined", que les deux consommateurs de quota prenaient pour
+        // une requête réelle. Le schéma exige pourtant query (minLength 1) et convertBlock rejette
+        // un bloc image incomplet : seul un document n'ayant pas traversé cette validation — tenu à
+        // la main, ou persisté par une version antérieure — peut arriver ici dans cet état.
+        const _qBloc = adocRequeteImageUtilisable(b.content.query);
         const imgAttr = b.content.assetId
           ? 'src="' + adocEsc(adocImageAssetUrl(b.content.assetId)) + '"'
-          : 'data-pexels="' + adocEsc(b.content.query) + '"';
+          : (_qBloc ? 'data-pexels="' + adocEsc(_qBloc) + '"' : '');
         // CORRECTIF (Lot C cas 4, investigation réelle à l'appui) — repli visuel si le
         // chargement de l'image échoue RÉELLEMENT (assetId uniquement : le chemin data-pexels
         // a déjà son propre repli SVG via adocResolveImages, jamais dupliqué ici). Point
@@ -12739,7 +12769,10 @@ ${recent}`;
     const coverAttrs = coverBlock
       ? (coverBlock.content.assetId
           ? ' style="background-image:url(' + adocEsc(adocImageAssetUrl(coverBlock.content.assetId)) + ')"'
-          : ' data-pexels="' + adocEsc(coverBlock.content.query) + '"')
+          // Le ternaire externe ne teste que l'EXISTENCE du bloc de couverture, jamais sa requête.
+          : (adocRequeteImageUtilisable(coverBlock.content.query)
+              ? ' data-pexels="' + adocEsc(adocRequeteImageUtilisable(coverBlock.content.query)) + '"'
+              : ''))
       : '';
     const cover = '<div class="adoc-sc-cover"' + coverAttrs + '>' +
       '<div class="adoc-sc-cover-content">' +
@@ -12782,8 +12815,12 @@ ${recent}`;
     // Couverture de carte — même convention que le bloc image inline (case 'image' ci-dessus) :
     // data-pexels="<requête>" ici, JAMAIS un src résolu à la volée ; adocResolveImages (mécanisme
     // déjà existant et éprouvé) le résout partout où le HTML de carte est réellement affiché/exporté.
-    const img = card.content.imageRef
-      ? '<img class="adoc-sc-card-img" data-pexels="' + adocEsc(card.content.imageRef) + '" alt="' + adocEsc(card.content.imageAlt || '') + '">'
+    // Le garde de véracité seul ne suffit pas : la chaîne littérale "undefined" est truthy et le
+    // traversait intacte. Couverture de CARTE, donc sur le chemin de l'export de présentation —
+    // c'est elle, et non le bloc image en ligne, qu'un document de cours porte le plus souvent.
+    const _qCouv = adocRequeteImageUtilisable(card.content.imageRef);
+    const img = _qCouv
+      ? '<img class="adoc-sc-card-img" data-pexels="' + adocEsc(_qCouv) + '" alt="' + adocEsc(card.content.imageAlt || '') + '">'
       : '';
     // PUCE « ↳ Approfondir » SOUS LA COUVERTURE — le clic sur l'image reste l'agrandissement
     // (adocPresentOpenImageDoor), strictement inchangé : les deux gestes coexistent, il n'y a jamais
@@ -12886,7 +12923,10 @@ ${recent}`;
     const coverAttrs = coverBlock
       ? (coverBlock.content.assetId
           ? ' style="background-image:url(' + adocEsc(adocImageAssetUrl(coverBlock.content.assetId)) + ')"'
-          : ' data-pexels="' + adocEsc(coverBlock.content.query) + '"')
+          // Le ternaire externe ne teste que l'EXISTENCE du bloc de couverture, jamais sa requête.
+          : (adocRequeteImageUtilisable(coverBlock.content.query)
+              ? ' data-pexels="' + adocEsc(adocRequeteImageUtilisable(coverBlock.content.query)) + '"'
+              : ''))
       : '';
     const cover = '<div class="adoc-sc-cover"' + coverAttrs + '>' +
       '<div class="adoc-sc-cover-content">' +
@@ -12921,7 +12961,10 @@ ${recent}`;
     const coverAttrs = coverBlock
       ? (coverBlock.content.assetId
           ? ' style="background-image:url(' + adocEsc(adocImageAssetUrl(coverBlock.content.assetId)) + ')"'
-          : ' data-pexels="' + adocEsc(coverBlock.content.query) + '"')
+          // Le ternaire externe ne teste que l'EXISTENCE du bloc de couverture, jamais sa requête.
+          : (adocRequeteImageUtilisable(coverBlock.content.query)
+              ? ' data-pexels="' + adocEsc(adocRequeteImageUtilisable(coverBlock.content.query)) + '"'
+              : ''))
       : '';
     const cover = '<div class="adoc-sc-cover"' + coverAttrs + '>' +
       '<div class="adoc-sc-cover-content">' +
@@ -12956,7 +12999,10 @@ ${recent}`;
     const coverAttrs = coverBlock
       ? (coverBlock.content.assetId
           ? ' style="background-image:url(' + adocEsc(adocImageAssetUrl(coverBlock.content.assetId)) + ')"'
-          : ' data-pexels="' + adocEsc(coverBlock.content.query) + '"')
+          // Le ternaire externe ne teste que l'EXISTENCE du bloc de couverture, jamais sa requête.
+          : (adocRequeteImageUtilisable(coverBlock.content.query)
+              ? ' data-pexels="' + adocEsc(adocRequeteImageUtilisable(coverBlock.content.query)) + '"'
+              : ''))
       : '';
     const cover = '<div class="adoc-sc-cover"' + coverAttrs + '>' +
       '<div class="adoc-sc-cover-content">' +
@@ -17669,7 +17715,7 @@ ${recent}`;
   // `alt` porte imageAlt : c'est lui qui sert de repli lisible si le téléchargement échoue, et la
   // requête — en anglais, destinée à une API — ne doit JAMAIS devenir visible.
   function adocDeepDiveImageHTML(entry) {
-    const q = (entry && entry.imageQuery ? String(entry.imageQuery) : '').trim();
+    const q = adocRequeteImageUtilisable(entry && entry.imageQuery);
     if (!q) return '';
     const alt = (entry && entry.imageAlt ? String(entry.imageAlt) : '').trim();
     return '<img class="cc-ws-present-door-illus" data-pexels="' + adocEsc(q) + '" alt="' + adocEsc(alt) + '">';
@@ -18132,6 +18178,11 @@ ${recent}`;
       // exportée lèverait une ReferenceError à l'ouverture de sa première diapositive à image —
       // exactement la classe d'oubli que le garde-fou onclick ne voit jamais.
       adocCollectImageNodes: adocCollectImageNodes, adocEmbeddedImage: adocEmbeddedImage,
+      // Appelée par adocResolveImages, qui s'exécute DANS tout export autonome (résolution des
+      // images d'une page d'approfondissement). Sans elle ici, la première porte à image lèverait
+      // « adocRequeteImageUtilisable is not defined » — classe d'oubli que le garde-fou onclick ne
+      // voit jamais, et que seul un export réellement ouvert révèle.
+      adocRequeteImageUtilisable: adocRequeteImageUtilisable,
       adocImageAssetUrl: adocImageAssetUrl, adocCiteFootnoteHTML: adocCiteFootnoteHTML,
       adocBlockOpacityLayerHTML: adocBlockOpacityLayerHTML, adocCardPositionCSSText: adocCardPositionCSSText,
       adocResolveBlockFontFamily: adocResolveBlockFontFamily, adocGoogleFontLinkTag: adocGoogleFontLinkTag,
@@ -18421,7 +18472,7 @@ ${recent}`;
     // exactement le défaut déjà corrigé sur les cartes, et invisible tant qu'on n'ouvre pas une
     // page dans un export réellement produit.
     (doc.deepDives || []).forEach(function (page) {
-      const q = (page && page.imageQuery ? String(page.imageQuery) : '').trim();
+      const q = adocRequeteImageUtilisable(page && page.imageQuery);
       if (!q || vues.has(q)) return;
       vues.set(q, { q: q, isGen: false, type: 'img',
                     alt: (page.imageAlt ? String(page.imageAlt) : '').trim() });
@@ -18432,7 +18483,9 @@ ${recent}`;
       catch (e) { return; }
       const d = new DOMParser().parseFromString('<!DOCTYPE html><html><body>' + html + '</body></html>', 'text/html');
       adocCollectImageNodes(d).forEach(function (n) {
-        const q = String(n.q || '').trim();
+        // Défense en profondeur : les sites d'émission sont désormais gardés, mais un document
+        // chargé tel quel peut porter un attribut malformé écrit par une version antérieure.
+        const q = adocRequeteImageUtilisable(n.q);
         if (!q || vues.has(q)) return;
         vues.set(q, { q: q, isGen: n.isGen, type: n.type,
                       alt: (n.el.getAttribute && n.el.getAttribute('alt')) || '' });

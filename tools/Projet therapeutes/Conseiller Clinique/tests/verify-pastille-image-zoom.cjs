@@ -19,8 +19,15 @@ const os = require('node:os');
 const path = require('node:path');
 
 const PAGE = 'file://' + path.join(__dirname, '..', 'studio-clinique.html');
+  // content.query, et NON imageRef : `query` est le champ d'un BLOC image (le schéma l'exige,
+  // minLength 1), `imageRef` celui de la COUVERTURE d'une carte. Avec imageRef, content.query
+  // est absente et le rendu n'émet plus aucune référence d'image — l'image perd son src, donc
+  // sa hauteur, et la géométrie mesurée ici s'effondre. Ce test passait AVANT le garde des
+  // requêtes inexploitables parce que data-pexels="undefined" partait réellement vers la
+  // banque d'images et retombait sur un aplat, ce qui donnait une boîte à l'image : il tenait
+  // debout grâce au défaut même que ce garde corrige.
 const img = (id, q, liens) => {
-  const b = { id, type: 'image', content: { imageRef: q, alt: 'Une scène clinique', widthPercent: 100 },
+  const b = { id, type: 'image', content: { query: q, alt: 'Une scène clinique', widthPercent: 100 },
               citationIds: [], validation: {} };
   if (liens) b.deepDiveLinks = liens;
   return b;

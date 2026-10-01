@@ -44,7 +44,10 @@ const DOC = {
       para('p1', 'Un texte avec un renvoi.', [{ text: 'un renvoi', targetId: 'n1' }]),
       // Image SANS renvoi : c'est elle qui ouvre la porte IMAGE, laquelle masque
       // .cc-ws-present-door-text et n'affiche donc aucune des deux icônes de retour.
-      { id: 'img-zoom', type: 'image', content: { imageRef: 'calm room', alt: 'Une scène clinique', widthPercent: 100 },
+      // content.query, et NON imageRef : `query` est le champ d'un BLOC image (exigé par le schéma),
+      // `imageRef` celui de la COUVERTURE d'une carte. Avec imageRef, aucune référence d'image n'est
+      // plus émise depuis le garde des requêtes inexploitables, et l'image perd son src.
+      { id: 'img-zoom', type: 'image', content: { query: 'calm room', alt: 'Une scène clinique', widthPercent: 100 },
         citationIds: [], validation: {} },
     ] } },
     { id: 'c2', type: 'card', content: { title: 'D2', imageRef: null, imageAlt: null, blocks: [
