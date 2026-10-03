@@ -1,0 +1,26 @@
+.ln-depot {
+  min-height: calc(var(--ln-grid) * 19);
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: var(--ln-grid);
+  text-align: center;
+  border: 1px dashed var(--ln-action-background);
+  border-radius: var(--ln-radius);
+  padding: calc(var(--ln-grid) * 2);
+  color: var(--ln-action-background);
+}
+
+.ln-depot:focus-within {
+  outline: 2px solid var(--ln-focus);
+  outline-offset: 3px;
+}
+
+.ln-depot__titre {
+  margin: 0;
+  font-weight: 600;
+}
+
+.ln-depot .ln-muted {
+  margin: 0;
+}

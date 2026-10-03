@@ -1,0 +1,10 @@
+.ln-icone {
+  width: calc(var(--ln-grid) * 2.5);
+  height: calc(var(--ln-grid) * 2.5);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex: none;
+}

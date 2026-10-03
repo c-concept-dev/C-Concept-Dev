@@ -1,0 +1,18 @@
+.ln-progression__piste {
+  height: var(--ln-progress-height);
+  background: var(--ln-progress-track);
+  border-radius: var(--ln-radius);
+  overflow: visible;
+  margin: calc(var(--ln-grid) * 1.5) 0;
+}
+
+.ln-progression__trait {
+  height: var(--ln-progress-height);
+  background: var(--ln-progress-fill);
+  outline: 1px solid var(--ln-progress-outline);
+  border-radius: var(--ln-radius);
+}
+
+.ln-progression__legende {
+  margin: 0;
+}

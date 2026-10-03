@@ -1,0 +1,21 @@
+.ln-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ln-grid);
+  padding: calc(var(--ln-grid) / 2) var(--ln-grid);
+  border-radius: var(--ln-radius);
+  background: var(--ln-surface-hover);
+  font-size: 13px;
+}
+
+.ln-badge--avertissement {
+  background: var(--ln-warning-background);
+  color: var(--ln-warning-text);
+}
+
+.ln-etat {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ln-grid);
+  font-size: 13px;
+}

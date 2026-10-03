@@ -39,10 +39,26 @@ describe("règle 3 de CLAUDE.md : aucune couleur en dur (UX-07)", () => {
     }
   });
 
-  it("n'utilise que des variables préfixées --ln-", () => {
+  /** Seules les déclarations et les lectures de propriétés personnalisées comptent :
+   *  un modificateur de classe comme « ln-badge--avertissement » n'en est pas une. */
+  it("n'utilise que des propriétés personnalisées préfixées --ln-", () => {
+    const declarees = /(?:^|[;{]|\s)(--[\w-]+)\s*:/gm;
+    const lues = /var\(\s*(--[\w-]+)/g;
+
     for (const chemin of sources) {
-      const autres = readFileSync(chemin, "utf8").match(/--(?!ln-)[a-zA-Z][\w-]*/g) ?? [];
-      expect(autres, relatif(chemin)).toEqual([]);
+      const contenu = readFileSync(chemin, "utf8");
+      const noms = [
+        ...[...contenu.matchAll(declarees)].map((m) => m[1]),
+        ...[...contenu.matchAll(lues)].map((m) => m[1]),
+      ];
+      const horsCharte = [...new Set(noms)].filter((nom) => nom !== undefined && !nom.startsWith("--ln-"));
+      expect(horsCharte, relatif(chemin)).toEqual([]);
     }
+  });
+
+  it("repérerait bien une propriété personnalisée hors charte", () => {
+    const sonde = ":root { --rouge: 1; }\n.a { color: var(--rouge); }";
+    const noms = [...sonde.matchAll(/(?:^|[;{]|\s)(--[\w-]+)\s*:/gm)].map((m) => m[1]);
+    expect(noms.filter((nom) => nom !== undefined && !nom.startsWith("--ln-"))).toEqual(["--rouge"]);
   });
 });
