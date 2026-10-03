@@ -313,7 +313,7 @@ test('T-PERFNOMINAL01-11 : le HTML canonique est inchangé', () => {
      silencieux quand une actualisation depuis /v1/models fait disparaître le modèle retenu. Aucune
      règle, aucun prompt, aucun schéma, aucun comportement d'interface visible n'a changé. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    'eb9b9f0c81ed0dac95d651832ceeb8e1029c16d0d3979fd4e640bfe524bc2c0f', 'CANONICAL_HTML_CHANGED = NO');
+    'efdf1d6df1b82a717021beadf5fa8bf0eeb19912015e226030447e30c277da56', 'CANONICAL_HTML_CHANGED = NO');
   assert.equal(R.invariants.canonical_html_changed, false);
 });
 

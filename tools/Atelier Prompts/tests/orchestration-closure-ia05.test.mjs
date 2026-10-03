@@ -485,7 +485,7 @@ test('T-IA05-FROZEN : les sept plages gelées sont référencées et intactes', 
      portait « Évite … », et api.valider arrêtait tout le parcours après un appel #1 en 200. La valeur du modèle n'est
      jamais réécrite ; une citation absente reste refusée. Baseline régénérée par frozen-guard --write-baseline ; les six
      autres plages sont inchangées (voir tests/continuite-conversation-longue-cont05.test.mjs, T05-25). */
-  assert.equal(baseline.hashes['moteur Architecte'], '8668de58c928afaf010d37aa3b3f1c57a280f32e916cf483ad100c2784debc39');
+  assert.equal(baseline.hashes['moteur Architecte'], '6ad0431459ef4cfaf4c3d1b797972b8328c73589994597f0250b1dded171b8c8');
   assert.equal(Object.keys(baseline.hashes).length, 7);
 });
 
