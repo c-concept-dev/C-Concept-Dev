@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { Confiance, NumeroVersion } from "./commun.js";
+import { CotePage } from "./redressement.js";
 
 /** Repères lus sur une page et ce que l'interpréteur en tire (OUT-07, REC-02, REC-03).
  *
@@ -14,6 +15,9 @@ export const LectureRepere = z
     y: z.number().min(0).max(1),
     numero: z.number().int().positive(),
     pisteLue: z.number().int().positive().optional(),
+    /** À quel point une pastille semble présente, qu'on ait su lire son chiffre ou non. Une
+     *  pastille présente et illisible est une information : elle dit qu'une piste commence là. */
+    presencePiste: Confiance.default(0),
     suite: z.boolean(),
   })
   .strict();
@@ -25,6 +29,7 @@ export const ElementRepere = z
     y: z.number().min(0).max(1),
     numero: z.number().int().positive(),
     pisteLue: z.number().int().positive().optional(),
+    presencePiste: Confiance.default(0),
     suite: z.boolean(),
     accordNumero: Confiance,
     accordPiste: Confiance,
@@ -39,6 +44,12 @@ export type StatutPageReperee = z.infer<typeof StatutPageReperee>;
 export const PageReperee = z
   .object({
     index: z.number().int().nonnegative(),
+    /** Rang attendu de la page dans la numérotation imprimée, avant tout décalage. Vaut l'index
+     *  pour un document d'une page par image ; pour un livre photographié en doubles pages, il
+     *  compte deux pages par cliché. */
+    rang: z.number().int().nonnegative(),
+    /** Côté du cliché dont la page est tirée, quand il y a eu coupe (OUT-03). */
+    cote: CotePage.optional(),
     pageLue: z.number().int().positive().optional(),
     pageImprimee: z.number().int().positive().optional(),
     statut: StatutPageReperee,

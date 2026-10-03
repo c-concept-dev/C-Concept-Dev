@@ -1,7 +1,8 @@
 import { readFile, readdir } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { basename, join } from "node:path";
-import type { Recette, ResultatRecette } from "@lienotheque/contrats";
+import { ReglagesRedressement, type CotePage, type Recette, type ResultatRecette } from "@lienotheque/contrats";
+import { redresser, type OptionsRedressement } from "@lienotheque/redresseur";
 import { objetsPdf, octetsImage, pagesPdf } from "@lienotheque/formats";
 import { decoderJpeg, enGris, type ImageGrise } from "@lienotheque/images";
 import { associer, pisteDuNom, type Association, type Media } from "./associateur.js";
@@ -19,7 +20,43 @@ import { consolider, lecturesDePage, lireNumeroPage, type OptionsReperes } from 
 export type OptionsBanc = OptionsReperes & {
   /** Ne traiter que les premières pages : pour un essai rapide pendant la mise au point. */
   readonly pages?: number;
+  readonly redressement?: OptionsRedressement;
 };
+
+/** Prépare les pages d'un lot selon ce que la recette déclare (OUT-03).
+ *
+ *  Un document d'une page par image passe tel quel. Un livre photographié en doubles pages est
+ *  remis d'aplomb et coupé : chaque cliché donne deux pages, qui savent de quel côté elles
+ *  viennent et quel rang elles occupent dans la numérotation imprimée. */
+export async function preparerLot(chemin: string, recette: Recette, options: OptionsBanc = {}): Promise<PageAlire[]> {
+  const images = await pagesEnGris(chemin, options.pages);
+  const preparation = recette.preparation;
+
+  if (!preparation.double_page && preparation.redressement === "aucun")
+    return images.map((image, index) => ({ image, index }));
+
+  const reglages = ReglagesRedressement.parse({
+    rotation: preparation.redressement,
+    doublePage: preparation.double_page,
+    ...(preparation.page_gauche === undefined ? {} : { pageGauche: preparation.page_gauche }),
+    effacerVerso: true,
+    binarisation: "adaptative",
+  });
+
+  const pages: PageAlire[] = [];
+  images.forEach((image, index) => {
+    for (const produite of redresser(image, index, reglages, options.redressement ?? {})) {
+      const cote = produite.descripteur.cote;
+      pages.push({
+        image: produite.image,
+        index,
+        rang: preparation.double_page ? index * 2 + (cote === "droite" ? 1 : 0) : index,
+        ...(cote === undefined ? {} : { cote }),
+      });
+    }
+  });
+  return pages;
+}
 
 /** Pages d'un PDF numérisé, en gris, dans l'ordre du document et à leur résolution d'origine. */
 export async function pagesEnGris(chemin: string, limite?: number): Promise<ImageGrise[]> {
@@ -40,16 +77,26 @@ export async function pagesEnGris(chemin: string, limite?: number): Promise<Imag
 
 /** Lit les repères de chaque page, puis interprète selon la recette. */
 export function lireEtInterpreter(pages: readonly ImageGrise[], recette: Recette, options: OptionsBanc = {}): ResultatRecette {
+  return interpreter(reperer(pages.map((image, index) => ({ image, index })), recette, options), recette);
+}
+
+/** Une page à lire, avec ce que le redresseur en sait déjà. */
+export type PageAlire = { readonly image: ImageGrise; readonly index: number; readonly rang?: number; readonly cote?: CotePage };
+
+/** Lit les repères de chaque page. Le côté, quand il est connu, dit où est la marge extérieure. */
+export function reperer(pages: readonly PageAlire[], recette: Recette, options: OptionsBanc = {}): PageLue[] {
   const bord = recette.lectures.find((lecture) => lecture.ancre === "page_imprimee")?.zone;
-  const lues: PageLue[] = pages.map((image, index) => {
-    const pageLue = bord !== undefined && bord.type === "coins" ? lireNumeroPage(image, bord.bord, options) : undefined;
+  return pages.map((page) => {
+    const avecCote = { ...options, ...(page.cote === undefined ? {} : { cote: page.cote }) };
+    const pageLue = bord !== undefined && bord.type === "coins" ? lireNumeroPage(page.image, bord.bord, avecCote) : undefined;
     return {
-      index,
+      index: page.index,
+      ...(page.rang === undefined ? {} : { rang: page.rang }),
+      ...(page.cote === undefined ? {} : { cote: page.cote }),
       ...(pageLue === undefined ? {} : { pageLue }),
-      elements: consolider(lecturesDePage(image, recette, options)),
+      elements: consolider(lecturesDePage(page.image, recette, avecCote)),
     };
   });
-  return interpreter(lues, recette);
 }
 
 /** Médias d'un dossier, pris récursivement, repérés par leur empreinte et numérotés par leur nom.
@@ -77,8 +124,7 @@ export async function mediasDuDossier(dossier: string, extension = ".mp3"): Prom
 export type Rejeu = { readonly resultat: ResultatRecette; readonly association: Association };
 
 export async function rejouer(pdf: string, dossierMedias: string, recette: Recette, options: OptionsBanc = {}): Promise<Rejeu> {
-  const pages = await pagesEnGris(pdf, options.pages);
-  const resultat = lireEtInterpreter(pages, recette, options);
+  const resultat = interpreter(reperer(await preparerLot(pdf, recette, options), recette, options), recette);
   return { resultat, association: associer(resultat.lignes, await mediasDuDossier(dossierMedias), recette) };
 }
 

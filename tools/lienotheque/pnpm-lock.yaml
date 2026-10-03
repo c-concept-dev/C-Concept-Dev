@@ -212,6 +212,9 @@ importers:
       '@lienotheque/lecteur-texte':
         specifier: workspace:*
         version: link:../lecteur-texte
+      '@lienotheque/redresseur':
+        specifier: workspace:*
+        version: link:../redresseur
       zod:
         specifier: ^4.1.13
         version: 4.6.5

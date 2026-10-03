@@ -12,6 +12,7 @@ const element = (numero: number, sur: Partial<ElementRepere> = {}): ElementReper
   y: 0.1 * numero,
   numero,
   suite: false,
+  presencePiste: 0,
   accordNumero: 1,
   accordPiste: 0,
   ...sur,
@@ -91,14 +92,23 @@ describe("enchaînement des éléments et des pistes (REC-02)", () => {
 
   it("écarte un élément qui rompt l'ordre, et dit pourquoi", () => {
     const { lignes, ecartes } = sequencer(numerote([page(0, 3, [element(1), element(40)])]), RECETTE);
-    expect(lignes).toHaveLength(1);
+    expect(lignes.map((l) => l.numero)).toEqual([1]);
     expect(ecartes[0]?.numero).toBe(40);
-    expect(ecartes[0]?.motif).toContain("saut de 39");
+    expect(ecartes[0]?.motif).toContain("suite croissante");
   });
 
   it("écarte un retour en arrière", () => {
-    const { ecartes } = sequencer(numerote([page(0, 3, [element(5), element(2)])]), RECETTE);
-    expect(ecartes[0]).toMatchObject({ numero: 2, motif: "ne suit pas 5" });
+    const { lignes, ecartes } = sequencer(numerote([page(0, 3, [element(5), element(2)])]), RECETTE);
+    expect(lignes.map((l) => l.numero)).toEqual([5]);
+    expect(ecartes[0]?.numero).toBe(2);
+  });
+
+  it("garde la plus longue suite, pas la première venue", () => {
+    // Un 90 isolé au milieu d'une suite régulière : c'est lui qui saute, pas le reste.
+    const pages = numerote([page(0, 3, [element(1), element(2), element(90), element(3), element(4)])]);
+    const { lignes, ecartes } = sequencer(pages, RECETTE);
+    expect(lignes.map((l) => l.numero)).toEqual([1, 2, 3, 4]);
+    expect(ecartes.map((e) => e.numero)).toEqual([90]);
   });
 
   it("élargit le saut permis à proportion des pages traversées", () => {

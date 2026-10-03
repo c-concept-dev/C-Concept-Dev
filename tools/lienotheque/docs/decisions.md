@@ -11,6 +11,8 @@
 | 2026-10-03 | Kit UI v1.1 adopté comme référence ; logo vectoriel validé (IoU 0,977 avec la planche) ; jetons du kit fusionnés dans tokens.json | docs/ui-kit |
 | 2026-10-03 | **Tauri 2 retenu le 3 octobre 2026 sur mesures Mac** (paquet 24,75 Mio dont 13,54 Mio de moteurs ; 4 critères tenus). Réserve : validation Windows obligatoire avant toute version livrée sous Windows | Lot 0, mesures ci-dessous |
 | 2026-10-03 | Réserve Windows **levée sur les quatre critères** : ils passent tous sur `windows-latest` (exécution 37120499122). Reste ouvert : l'agencement d'un paquet Windows **installé**, non mesuré | Lot 0, mesures Windows ci-dessous |
+| 2026-10-04 | Le **décalage des pages s'appuie sur tout le lot**, le vote local ne s'en écartant que de quatre | Section ci-dessous |
+| 2026-10-04 | **La forme du repère commande le recadrage** : losange recadré en son cœur, bloc pris entier. C'est la recette qui la déclare | Section ci-dessous |
 | 2026-10-03 | Recette F3 : la pastille est **à droite** du libellé, pas à gauche — relevé sur la page, corrigé en **v2** (REC-03) | Section ci-dessous |
 | 2026-10-03 | `saut_max` compte désormais **les pages traversées** : un trou connu dans le lot ne fait plus écarter ce qui le suit | Section ci-dessous |
 | 2026-10-03 | **Échantillon F7 mesuré** : le critère ×5 d'OPT-01 tient sur un scan non optimisé (F4, ×8,7), pas sur des sources déjà comprimées (F2 ×2,6, F3 ×1,9) | Section ci-dessous |
@@ -396,3 +398,70 @@ un pas de page : entre deux éléments séparés de trois pages, le saut permis 
 `saut_max`. L'interpréteur sait déjà quelles pages manquent — il n'y a aucune raison qu'il
 s'étonne ensuite de ce que leur absence provoque. Sur une page consécutive, rien ne change : un
 saut de 40 reste un saut de 40.
+
+## Deuxième corpus : ce que Westwood a appris à l'interpréteur
+
+F4 est une méthode photographiée en doubles pages, posée de travers, sans couche texte et sans
+libellé devant ses numéros. La porter n'a demandé aucune branche de code : la recette v4 la
+décrivait déjà. Elle a en revanche révélé trois choses que F3 cachait.
+
+### Le décalage des pages se vote sur tout le lot
+
+Mesuré sur les 143 clichés : le décalage entre le numéro imprimé et le rang attendu vaut **0 sur
+112 pages**, et toutes les autres valeurs sont des accidents isolés — dont un à −200, qui donnait
+une page négative et faisait refuser le résultat par son propre contrat.
+
+Un livre n'a qu'un décalage, ou presque. Il est donc voté d'abord sur le lot entier, puis affiné
+page par page sur une fenêtre, mais **seulement à quatre près du décalage général**. Une lecture
+isolée et aberrante ne renumérote plus un chapitre. L'exception reste le décalage qui augmente
+durablement : celui-là veut dire que des pages manquent au lot, et on dit lesquelles.
+
+### Une pastille est une surface, pas une ligne
+
+La première mesure de présence regardait la profondeur du sombre et son étalement en largeur.
+Une ligne de portée traversant la zone passait donc pour un bloc. Elle compare maintenant
+l'assombrissement **moyen** de la zone — une ligne n'y pèse presque rien, un bloc beaucoup — et
+le plus petit des deux étalements, en largeur et en hauteur. Une barre verticale ne passe pas
+davantage.
+
+### La forme du repère commande le recadrage
+
+C'est le défaut le plus instructif de ce lot. En généralisant le lecteur pour le bloc de
+Westwood, j'avais perdu un geste propre au losange de F3 : **les coins d'un losange sont du
+fond**, et les garder entoure les chiffres de pointes noires que l'OCR ne sait plus lire.
+
+F3 est alors tombé de 78 pastilles lues à 6 — **sans que son résultat bouge d'un élément**, parce
+que sa recette fait coïncider numéro de piste et numéro d'élément : le repli donnait la même
+réponse. Le défaut était invisible sur le corpus qui l'a produit, et aurait été fatal sur celui
+où les deux numéros divergent.
+
+Le recadrage suit désormais le `motif` déclaré par la recette : `losange_sombre_chiffres_clairs`
+est recadré en son cœur, `bloc_sombre_chiffres_clairs` est pris entier, et sa partie droite seule
+quand une `etiquette_disque` occupe sa gauche.
+
+### Ce que la lecture de F4 donne
+
+Sur les 143 clichés, soit 286 pages après coupe :
+
+| Mesure | Valeur |
+|---|---:|
+| Pages préparées (rotation, coupe, verso, binarisation) | 286 en 105 s |
+| Pages dont le numéro imprimé est lu | 171 / 286 |
+| Décalage dominant | **0**, sur 112 pages |
+| Éléments lus puis numérotés | 661 |
+| Éléments écartés, faute d'une place forcée | 65 |
+| **Éléments sur la bonne page**, comparés au relevé du prototype | **447 / 460** |
+| Pastilles vues / lues | 172 / 113 |
+| Pages absentes du lot | 0 |
+
+Le numéro de page n'est lu que sur six pages sur dix, et cela suffit : le décalage est voté sur
+tout le lot, et il est unique. Les treize éléments mal placés se répartissent en deux groupes,
+l'un à −21 pages et l'autre à −1, signe de deux lectures de numéro égarées plutôt que d'un défaut
+de méthode.
+
+### Un numéro réparé n'est pas un numéro lu
+
+Les numéros rétablis par interpolation ou par leur fin portent une confiance réduite de trois
+dixièmes. Ils restent reliés, mais passent sous le seuil de la recette et vont à « Vérifier » —
+c'est précisément ce que cet écran est là pour recevoir. Le prototype, lui, les comptait
+automatiques.

@@ -4,14 +4,24 @@
   "private": true,
   "type": "module",
   "description": "Interpréteur de recettes (REC-01 à 06), lecteur de repères (OUT-07), associateur média (OUT-10) et banc d'essai (OUT-15).",
-  "exports": { ".": "./src/index.ts" },
-  "scripts": { "test": "vitest run", "typecheck": "tsc --noEmit" },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
   "dependencies": {
     "@lienotheque/contrats": "workspace:*",
     "@lienotheque/formats": "workspace:*",
     "@lienotheque/images": "workspace:*",
     "@lienotheque/lecteur-texte": "workspace:*",
-    "zod": "^4.1.13"
+    "zod": "^4.1.13",
+    "@lienotheque/redresseur": "workspace:*"
   },
-  "devDependencies": { "typescript": "^5.6.0", "vitest": "^3.2.0", "@types/node": "^22.0.0" }
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "vitest": "^3.2.0",
+    "@types/node": "^22.0.0"
+  }
 }
