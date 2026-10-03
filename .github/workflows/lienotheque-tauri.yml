@@ -110,12 +110,12 @@ jobs:
       # Construits même si un critère a échoué : la taille fait partie des mesures attendues.
       - name: Construire le paquet (macOS)
         if: ${{ !cancelled() && runner.os == 'macOS' }}
-        run: pnpm --filter @lienotheque/app tauri build
+        run: pnpm --filter @lienotheque/app run tauri build
 
       - name: Construire l'exécutable (Windows)
         if: ${{ !cancelled() && runner.os == 'Windows' }}
         # Pas d'installateur : on mesure l'exécutable et ses moteurs, sans dépendre de NSIS.
-        run: pnpm --filter @lienotheque/app tauri build --no-bundle
+        run: pnpm --filter @lienotheque/app run tauri build --no-bundle
 
       - name: Publier les mesures
         if: ${{ !cancelled() }}

@@ -6,6 +6,7 @@
   "description": "Application Liénothèque : React 19, Vite, TypeScript strict. Jetons et polices du kit UI v1.1.",
   "scripts": {
     "dev": "vite",
+    "tauri": "tauri",
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",

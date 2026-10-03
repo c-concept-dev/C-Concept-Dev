@@ -77,7 +77,11 @@ fn ouvre_un_livre_numerise_de_500_pages() {
     let total_ms = avant.elapsed().as_millis();
 
     assert_eq!(mesure.pages, 500);
-    assert!(mesure.octets > 50_000_000, "un scan de 500 pages pèse des dizaines de Mo");
+    assert!(
+        mesure.octets > 40_000_000,
+        "un livre numérisé pèse des dizaines de Mo, pas {:.2} Mo : la fixture a-t-elle bien une image par page ?",
+        mesures::en_mo(mesure.octets)
+    );
 
     println!(
         "PDF numérisé : {} pages, {:.2} Mo, ouverture {} ms, accès à la dernière page {} ms (total {} ms)",

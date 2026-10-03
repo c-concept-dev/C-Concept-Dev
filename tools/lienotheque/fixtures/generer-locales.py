@@ -140,13 +140,28 @@ def pdf_500_pages_scan(chemin: pathlib.Path) -> None:
     chemin.write_bytes(_assembler(objets, catalogue))
 
 
+# Une vraie police vectorielle, sinon les fixtures ne valent rien : avec la police bitmap de
+# repli de Pillow, l'image d'OCR devient illisible et les pages numérisées pèsent trois fois moins.
+POLICES = (
+    "/System/Library/Fonts/Supplemental/Arial.ttf",
+    "/Library/Fonts/Arial.ttf",
+    r"C:\Windows\Fonts\arial.ttf",
+    r"C:\Windows\Fonts\segoeui.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    "/usr/share/fonts/TTF/DejaVuSans.ttf",
+)
+
+
 def _police(taille: int):
     from PIL import ImageFont
 
-    for candidat in ("/System/Library/Fonts/Supplemental/Arial.ttf", "/Library/Fonts/Arial.ttf"):
+    for candidat in POLICES:
         if pathlib.Path(candidat).exists():
             return ImageFont.truetype(candidat, taille)
-    return ImageFont.load_default()
+    raise SystemExit(
+        "aucune police vectorielle trouvée parmi :\n  " + "\n  ".join(POLICES) + "\n"
+        "Installez-en une, ou ajoutez son chemin à POLICES : les fixtures seraient fausses sans elle."
+    )
 
 
 def image_ocr(chemin: pathlib.Path) -> None:
