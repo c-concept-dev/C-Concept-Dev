@@ -7,6 +7,7 @@ export * from "./document.js";
 export * from "./version.js";
 export * from "./ancre.js";
 export * from "./lecture.js";
+export * from "./optimisation.js";
 export * from "./lien.js";
 export * from "./recette.js";
 export * from "./travail.js";

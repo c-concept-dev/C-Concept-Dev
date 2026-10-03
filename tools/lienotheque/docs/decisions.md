@@ -11,6 +11,7 @@
 | 2026-10-03 | Kit UI v1.1 adopté comme référence ; logo vectoriel validé (IoU 0,977 avec la planche) ; jetons du kit fusionnés dans tokens.json | docs/ui-kit |
 | 2026-10-03 | **Tauri 2 retenu le 3 octobre 2026 sur mesures Mac** (paquet 24,75 Mio dont 13,54 Mio de moteurs ; 4 critères tenus). Réserve : validation Windows obligatoire avant toute version livrée sous Windows | Lot 0, mesures ci-dessous |
 | 2026-10-03 | Réserve Windows **levée sur les quatre critères** : ils passent tous sur `windows-latest` (exécution 37120499122). Reste ouvert : l'agencement d'un paquet Windows **installé**, non mesuré | Lot 0, mesures Windows ci-dessous |
+| 2026-10-03 | **Échantillon F7 mesuré** : le critère ×5 d'OPT-01 tient sur un scan non optimisé (F4, ×8,7), pas sur des sources déjà comprimées (F2 ×2,6, F3 ×1,9) | Section ci-dessous |
 | 2026-10-03 | Noir et blanc 1 bit : **CCITT groupe 4**, encodeur écrit ici, libtiff comme oracle. JBIG2 en mode symboles refusé | Section ci-dessous |
 | 2026-10-03 | **Playwright** retenu pour les tests de rendu : trois moteurs (Chromium, Firefox, WebKit), hors de `pnpm check`, dans un job d'intégration continue à part | Section ci-dessous |
 | 2026-10-03 | Le port de dépôt aura **trois implémentations** : `node:sqlite` (tests et outillage), hôte Rust (application Tauri), SQLite en WebAssembly (version en ligne). Aucun code hors de l'adaptateur ne dépend de `node:sqlite` | Section ci-dessous |
@@ -327,3 +328,35 @@ métier est la fidélité à l'original, c'est inacceptable. Le mode générique
 défendable, mais il demanderait jbig2enc (C++, Leptonica) en WebAssembly **et** un décodeur dans
 la visionneuse, pour un gain réel mais modeste sur le groupe 4 : à reconsidérer au lot E si le
 poids des pages devient la contrainte qui commande.
+
+## Échantillon F7 : ce que l'optimiseur gagne vraiment
+
+Le CDC ne fournit pas F7. Il a été prélevé sur les fixtures, cinq pages par nature, et mesuré par
+`outils/optimiseur/test/mesures-f7.test.ts` — qui échoue si le gain s'effondre, et dont la sortie
+est recopiée ici.
+
+| Fixture | Nature | Source | Après | Gain |
+|---|---|---:|---:|---:|
+| F2 | Scan noir et blanc, déjà en Flate | 459 213 o | 177 210 o | **×2,59** |
+| F3 | Scan gris, déjà en JPEG, 1275 × 1754 | 1 851 000 o | 987 214 o | **×1,87** |
+| F4 | Scan lourd, JPEG 1786 × 2410, 1,1 Mo la page | 5 377 831 o | 616 399 o | **×8,72** |
+| F1 | PDF natif, couche texte | — | — | **×1** |
+
+**Le critère d'OPT-01 — gain ≥ ×5 sur les scans de référence — tient sur F4 et pas sur F2 ni F3.**
+Et la raison n'est pas l'encodeur : notre groupe 4 sort **7 % plus petit que celui de libtiff** sur
+les mêmes pages, au pixel près. Elle est dans les sources. F4 est un scan lavé de toute
+compression sérieuse, 1,1 Mo la page : il y a du gras à retirer, et on en retire ×8,7. F2 est déjà
+du 1 bit comprimé, F3 déjà du JPEG : ils sont près de leur plancher, et aucun encodeur n'en tirera
+×5 sans abîmer la page.
+
+Autrement dit, le ×5 mesure la prodigalité de la source autant que le travail de l'outil. Il est
+tenu là où il y a du mou. Là où il n'y en a pas, le forcer voudrait dire binariser un gris ou
+descendre une résolution — ce que l'optimiseur ne fait pas : OPT-04 l'interdit, et la binarisation
+appartient au Redresseur (OUT-03, lot D), sous l'œil d'OPT-03.
+
+Les rapports estimés affichés avant envoi (OPT-06) vivent dans `packages/contrats/src/optimisation.ts`,
+une seule table pour l'Inspecteur et l'Optimiseur, et volontairement prudents : annoncer un poids
+trop lourd vaut mieux qu'une facture trop légère.
+
+**F4 n'a pas de couche texte** : 143 images JPEG 8 bits et pas une police. C'est un scan, pas un
+PDF natif — relevé en mesurant, contre l'attente.

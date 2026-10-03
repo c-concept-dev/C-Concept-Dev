@@ -1,0 +1,28 @@
+{
+  "name": "@lienotheque/optimiseur",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Optimiseur (OUT-02) et générateur de dérivés (OUT-04) : format par page, couche texte préservée, vignettes, aperçus, formes d'onde.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@jsquash/avif": "^2.1.1",
+    "@jsquash/jpeg": "^1.6.0",
+    "@jsquash/resize": "^2.1.1",
+    "@jsquash/webp": "^1.5.0",
+    "@lienotheque/contrats": "workspace:*",
+    "@lienotheque/formats": "workspace:*",
+    "@lienotheque/inspecteur": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^3.2.0"
+  }
+}

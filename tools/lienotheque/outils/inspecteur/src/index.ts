@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { RapportInspecteur, type PageInspectee } from "@lienotheque/contrats";
+import { RAPPORTS_ESTIMES, RapportInspecteur, type PageInspectee } from "@lienotheque/contrats";
 import { empreinteDe, objetsPdf, octetsImage, pagesPdf, type ImagePdf } from "@lienotheque/formats";
 
 /** Inspecteur (OUT-01). Il dit ce qu'un document est, avant tout traitement : natif ou numérisé,
@@ -85,10 +85,11 @@ export async function inspecterPdf(chemin: string, options: OptionsInspection = 
   });
 }
 
-/** Estimation grossière du poids après optimisation, par classe de page (OPT-01, OPT-06).
- *  Ce sont des rapports mesurés sur l'échantillon F7, pas une promesse : l'Optimiseur mesure. */
-const RAPPORTS: Readonly<Record<Couleur, number>> = { noir_et_blanc: 0.12, gris: 0.45, couleur: 0.6 };
-
+/** Estimation du poids après optimisation (OPT-01, OPT-06). Les rapports viennent des contrats,
+ *  relevés sur l'échantillon F7 : une seule table, pour que l'Inspecteur et l'Optimiseur
+ *  n'annoncent jamais deux chiffres différents. Ce n'est pas une promesse — l'Optimiseur mesure. */
 export function estimerOptimise(pages: readonly PageInspectee[]): number {
-  return Math.round(pages.reduce((somme, page) => somme + page.octets * (page.couleur === undefined ? 1 : RAPPORTS[page.couleur]), 0));
+  return Math.round(
+    pages.reduce((somme, page) => somme + page.octets * (page.couleur === undefined ? 1 : RAPPORTS_ESTIMES[page.couleur]), 0),
+  );
 }

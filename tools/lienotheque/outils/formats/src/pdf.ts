@@ -173,6 +173,57 @@ export function octetsImage(objets: Map<number, ObjetPdf>, numero: number): { ex
 }
 
 /** Texte brut de la couche texte, s'il y en a une. Sert à savoir si le PDF est natif. */
+/** Une page bilevel reconstituée à partir des images 1 bit qui la composent.
+ *
+ *  Un scan est souvent découpé en bandes dans le PDF : les empiler rend la page. Les bits
+ *  sortent dans la convention de travail — **bit levé = encre** — quelle que soit celle du PDF :
+ *  en `DeviceGray`, 0 vaut noir, et un tableau `/Decode [1 0]` retourne encore la lecture. */
+export type RasterBilevel = {
+  readonly largeur: number;
+  readonly hauteur: number;
+  readonly donnees: Buffer;
+  readonly bandes: number;
+  /** Ce que les bandes pèsent dans le PDF, compressées comme il les range. */
+  readonly octetsOrigine: number;
+};
+
+const decodeInverse = (dictionnaire: string): boolean => /\/Decode\s*\[\s*1\s+0\s*\]/.test(dictionnaire);
+
+export function rasterBilevel(objets: Map<number, ObjetPdf>, page: PagePdf): RasterBilevel | undefined {
+  const bandes = page.images.filter((image) => image.bits === 1);
+  if (bandes.length === 0) return undefined;
+
+  const largeur = bandes[0]!.largeur;
+  if (!bandes.every((bande) => bande.largeur === largeur)) return undefined;
+
+  const parLigne = Math.ceil(largeur / 8);
+  const morceaux: Buffer[] = [];
+  let hauteur = 0;
+  let octetsOrigine = 0;
+
+  for (const bande of bandes) {
+    const objet = objets.get(bande.numero);
+    if (objet?.flux === undefined) return undefined;
+    if (nom(objet.dictionnaire, "Filter") !== "FlateDecode") return undefined;
+
+    let brut: Buffer;
+    try {
+      brut = inflateSync(objet.flux);
+    } catch {
+      return undefined;
+    }
+    if (brut.length !== parLigne * bande.hauteur) return undefined;
+
+    // Convention de travail : bit levé = encre. Le PDF dit l'inverse, sauf /Decode [1 0].
+    const retourne = !decodeInverse(objet.dictionnaire);
+    morceaux.push(retourne ? Buffer.from(brut.map((octet) => octet ^ 0xff)) : brut);
+    hauteur += bande.hauteur;
+    octetsOrigine += bande.octets;
+  }
+
+  return { largeur, hauteur, donnees: Buffer.concat(morceaux), bandes: bandes.length, octetsOrigine };
+}
+
 export function aUneCoucheTexte(objets: Map<number, ObjetPdf>): boolean {
   for (const objet of objets.values()) if (/\/Type\s*\/Font/.test(objet.dictionnaire)) return true;
   return false;
