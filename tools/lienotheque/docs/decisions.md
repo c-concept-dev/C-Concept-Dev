@@ -11,6 +11,8 @@
 | 2026-10-03 | Kit UI v1.1 adopté comme référence ; logo vectoriel validé (IoU 0,977 avec la planche) ; jetons du kit fusionnés dans tokens.json | docs/ui-kit |
 | 2026-10-03 | **Tauri 2 retenu le 3 octobre 2026 sur mesures Mac** (paquet 24,75 Mio dont 13,54 Mio de moteurs ; 4 critères tenus). Réserve : validation Windows obligatoire avant toute version livrée sous Windows | Lot 0, mesures ci-dessous |
 | 2026-10-03 | Réserve Windows **levée sur les quatre critères** : ils passent tous sur `windows-latest` (exécution 37120499122). Reste ouvert : l'agencement d'un paquet Windows **installé**, non mesuré | Lot 0, mesures Windows ci-dessous |
+| 2026-10-03 | Le port de dépôt aura **trois implémentations** : `node:sqlite` (tests et outillage), hôte Rust (application Tauri), SQLite en WebAssembly (version en ligne). Aucun code hors de l'adaptateur ne dépend de `node:sqlite` | Section ci-dessous |
+| 2026-10-03 | Siegfried **téléchargé depuis la version publiée par son auteur**, version et empreintes figées dans le script des moteurs ; aucun tap Homebrew | Section ci-dessous |
 | 2026-10-03 | Dépôt local sur **`node:sqlite`**, intégré à Node, plutôt qu'un module natif : `better-sqlite3` ne se construit pas sur le runner Windows (pas de Visual Studio). Node passe à **24** partout | Section ci-dessous |
 | 2026-10-03 | **Stratégie de plateformes** : multiplateforme par conception, bêta macOS d'abord, transposition Windows ensuite, Linux hors périmètre | Section ci-dessous |
 | 2026-10-03 | Moteurs Windows à 55,8 Mo **acceptés en l'état** ; leur optimisation attend la phase 2 | Mesures Windows |
@@ -229,3 +231,30 @@ Deux conséquences assumées :
 
 `node:sqlite` n'offre pas d'aide aux transactions : le dépôt en a une, de six lignes, qui
 enveloppe `BEGIN`, `COMMIT` et `ROLLBACK`.
+
+### Trois implémentations pour un seul port
+
+`node:sqlite` n'est pas le stockage de Liénothèque : c'est celui des tests et de l'outillage. Le
+port de dépôt du noyau en aura trois, et c'est pour cela qu'il existe :
+
+| Implémentation | Pour | Lot |
+|---|---|---|
+| `node:sqlite` | Tests, bancs d'essai, outils en ligne de commande | C |
+| Hôte Rust | Application de bureau Tauri, qui porte déjà SQLite | C, D |
+| SQLite en WebAssembly | Version en ligne, dans le navigateur | E |
+
+**Aucun code hors de l'adaptateur ne dépend de `node:sqlite`.** Le garde-fou
+`packages/banc/test/architecture.test.ts` le vérifie à chaque `pnpm check` : il refuse tout import
+du module hors de `packages/depot-sqlite`, s'assure que l'adaptateur l'emploie bien — sinon il
+ne garderait rien — et que le noyau n'importe aucun paquet de stockage.
+
+### Siegfried : version publiée, empreinte figée
+
+Pas de tap Homebrew. `outils/preparer-moteurs.py` télécharge la version publiée par l'auteur sur
+GitHub (**1.11.9**), refuse tout ce dont l'empreinte SHA-256 ne correspond pas à celle inscrite
+dans le script, et embarque le binaire avec le fichier de signatures PRONOM `default.sig`
+(216 Ko, extrait de l'archive de données). Même procédé en local et en intégration continue —
+macOS, Windows et Linux ont chacun leur archive et leur empreinte.
+
+Changer de version, c'est relever les nouvelles empreintes et les inscrire : rien n'est jamais
+téléchargé sans contrôle.
