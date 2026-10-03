@@ -7,7 +7,9 @@ import type {
   Fichier,
   Identifiant,
   Lien,
+  LigneJournalIndexation,
   SchemaBibliotheque,
+  Travail,
   VersionDocument,
 } from "@lienotheque/contrats";
 
@@ -45,6 +47,15 @@ export type Depot = {
   readonly liens: (ancreId: Identifiant) => Promise<readonly Lien[]>;
   readonly enregistrerCarte: (carte: CarteSynchro) => Promise<void>;
   readonly carte: (versionId: Identifiant) => Promise<CarteSynchro | undefined>;
+
+  /** File de travaux (JOB-01 : persistée avant de commencer, JOB-09 : elle survit à l'arrêt). */
+  readonly enregistrerTravail: (travail: Travail) => Promise<void>;
+  readonly travail: (id: Identifiant) => Promise<Travail | undefined>;
+  readonly travaux: () => Promise<readonly Travail[]>;
+
+  /** Journal d'indexation par identifiant (JOB-07). */
+  readonly journaliserIndexation: (ligne: LigneJournalIndexation) => Promise<void>;
+  readonly journalIndexation: (index: string) => Promise<readonly LigneJournalIndexation[]>;
 
   /** Nomenclature et classement (CLA). */
   readonly enregistrerSchema: (schema: SchemaBibliotheque) => Promise<void>;

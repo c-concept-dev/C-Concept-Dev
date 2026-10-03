@@ -40,6 +40,7 @@ export const TRAVAIL_EN_COURS = {
   outil: { nom: "transcripteur", version: "1.0.0" },
   versionCible: id(34),
   etat: "en_cours",
+  lieu: "application",
   tentative: 1,
   pointReprise: { unite: "lot", valeur: 6 },
   progression: 0.6,

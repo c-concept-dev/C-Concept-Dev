@@ -3,8 +3,8 @@ import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DOSSIERS_BIBLIOTHEQUE, type Depot } from "@lienotheque/noyau";
-import Base from "better-sqlite3";
-import { VersionDocument } from "@lienotheque/contrats";
+import { DatabaseSync } from "node:sqlite";
+import { LigneJournalIndexation, Travail, VersionDocument, ecartsDIndexation } from "@lienotheque/contrats";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { MIGRATIONS, migrer, ouvrirDepot, ouvrirRegistre } from "../src/index.js";
 
@@ -60,7 +60,7 @@ describe("dossier portable d'une bibliothèque", () => {
   });
 
   it("rouvre une bibliothèque existante sans rejouer ses migrations", () => {
-    const base = new Base(join(dossier, DOSSIERS_BIBLIOTHEQUE.base, "bibliotheque.sqlite"));
+    const base = new DatabaseSync(join(dossier, DOSSIERS_BIBLIOTHEQUE.base, "bibliotheque.sqlite"));
     expect(migrer(base, MIGRATIONS)).toBe(0);
     const faites = base.prepare("SELECT COUNT(*) AS n FROM migration").get() as { n: number };
     expect(faites.n).toBe(MIGRATIONS.length);
@@ -221,7 +221,7 @@ describe("nomenclature et classement (CLA)", () => {
 
 describe("HEB-02 : aucun binaire en base", () => {
   it("ne déclare aucune colonne qui puisse accueillir des octets", () => {
-    const base = new Base(join(dossier, DOSSIERS_BIBLIOTHEQUE.base, "bibliotheque.sqlite"), { readonly: true });
+    const base = new DatabaseSync(join(dossier, DOSSIERS_BIBLIOTHEQUE.base, "bibliotheque.sqlite"), { readOnly: true });
     const tables = (base.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as { name: string }[]).map((t) => t.name);
     const binaires: string[] = [];
     for (const table of tables) {
@@ -236,7 +236,7 @@ describe("HEB-02 : aucun binaire en base", () => {
 
   it("n'écrit aucun octet brut, même si on le lui demande", async () => {
     await depot.enregistrerFichier(fichier("a", "source.pdf"));
-    const base = new Base(join(dossier, DOSSIERS_BIBLIOTHEQUE.base, "bibliotheque.sqlite"), { readonly: true });
+    const base = new DatabaseSync(join(dossier, DOSSIERS_BIBLIOTHEQUE.base, "bibliotheque.sqlite"), { readOnly: true });
     const valeurs = (base.prepare("SELECT * FROM fichier").all() as Record<string, unknown>[]).flatMap(Object.values);
     base.close();
     expect(valeurs.filter((v) => v instanceof Uint8Array)).toEqual([]);
@@ -254,5 +254,98 @@ describe("registre des bibliothèques", () => {
     expect(toutes).toHaveLength(2);
     expect(toutes.find((b) => b.cle === "une")?.dossier).toBe("/ailleurs");
     registre.fermer();
+  });
+});
+
+describe("file de travaux durable (JOB-01, JOB-04, JOB-06, JOB-07, JOB-09)", () => {
+  const travail = (n: number, extra: Record<string, unknown> = {}) =>
+    Travail.parse({
+      id: id(n),
+      outil: { nom: "lecteur-texte", version: "1.0.0" },
+      versionCible: id(20),
+      etat: "en_file",
+      tentative: 1,
+      progression: 0,
+      creeLe: LE,
+      majLe: LE,
+      ...extra,
+    });
+
+  beforeEach(async () => {
+    await depot.enregistrerFichier(fichier("a", "source.pdf"));
+    await depot.enregistrerDocument(document(10));
+    await depot.enregistrerVersion(version(20, 10));
+    await depot.enregistrerVersion(version(21, 10, { numero: 2 }));
+  });
+
+  it("persiste un travail avant qu'il ne commence, et le retrouve après réouverture (JOB-01, JOB-09)", async () => {
+    await depot.enregistrerTravail(travail(30, { empreinteEntree: "entree-a" }));
+    depot.fermer();
+
+    const rouvert = ouvrirDepot(dossier);
+    const lu = await rouvert.travail(id(30));
+    expect(lu?.etat).toBe("en_file");
+    expect(lu?.empreinteEntree).toBe("entree-a");
+    expect(lu?.lieu).toBe("application");
+    rouvert.fermer();
+    depot = ouvrirDepot(dossier);
+  });
+
+  it("garde le bail, le point de reprise et l'erreur tels quels", async () => {
+    await depot.enregistrerTravail(
+      travail(31, {
+        etat: "en_echec_recuperable",
+        progression: 0.25,
+        pointReprise: { unite: "page", valeur: 25 },
+        erreur: { cause: "page illisible", elements: ["page 26"], reprisePossible: true },
+      }),
+    );
+    const lu = await depot.travail(id(31));
+    expect(lu?.pointReprise).toEqual({ unite: "page", valeur: 25 });
+    expect(lu?.erreur?.cause).toBe("page illisible");
+    expect(lu?.verrou).toBeUndefined();
+  });
+
+  it("refuse deux fois la même demande en file (JOB-04)", async () => {
+    await depot.enregistrerTravail(travail(32, { empreinteEntree: "meme-entree" }));
+    await expect(depot.enregistrerTravail(travail(33, { empreinteEntree: "meme-entree" }))).rejects.toThrow(/UNIQUE|contrainte|constraint/i);
+
+    // Une fois le premier terminé, la même demande peut repartir.
+    await depot.enregistrerTravail(travail(32, { empreinteEntree: "meme-entree", etat: "termine", progression: 1 }));
+    await depot.enregistrerTravail(travail(33, { empreinteEntree: "meme-entree" }));
+    expect(await depot.travaux()).toHaveLength(2);
+  });
+
+  it("travaille sur la version cible sans toucher à la version active (JOB-06)", async () => {
+    await depot.activerVersion(id(20));
+    await depot.enregistrerTravail(travail(34, { versionCible: id(21), etat: "en_cours", progression: 0.5 }));
+
+    expect((await depot.versionActive(id(10)))?.id, "la version active ne bouge pas pendant le travail").toBe(id(20));
+
+    await depot.enregistrerTravail(travail(34, { versionCible: id(21), etat: "termine", progression: 1 }));
+    expect((await depot.versionActive(id(10)))?.id, "terminer un travail n'active rien tout seul").toBe(id(20));
+
+    await depot.activerVersion(id(21));
+    expect((await depot.versionActive(id(10)))?.id).toBe(id(21));
+  });
+
+  it("tient le journal d'indexation et laisse voir les écarts (JOB-07)", async () => {
+    const lignes = [
+      { index: "passages", objetId: id(20), etape: "prevu", majLe: "2026-10-03T10:00:00Z" },
+      { index: "passages", objetId: id(20), etape: "envoye", majLe: "2026-10-03T10:00:05Z" },
+      { index: "passages", objetId: id(20), etape: "confirme", majLe: "2026-10-03T10:00:09Z" },
+      { index: "passages", objetId: id(21), etape: "prevu", majLe: "2026-10-03T10:00:01Z" },
+      { index: "passages", objetId: id(21), etape: "envoye", majLe: "2026-10-03T10:00:06Z" },
+    ];
+    for (const ligne of lignes) await depot.journaliserIndexation(LigneJournalIndexation.parse(ligne));
+
+    const journal = await depot.journalIndexation("passages");
+    expect(journal).toHaveLength(5);
+    expect(ecartsDIndexation(journal), "un objet envoyé mais jamais confirmé est un écart").toEqual([`passages/${id(21)}`]);
+
+    await depot.journaliserIndexation(
+      LigneJournalIndexation.parse({ index: "passages", objetId: id(21), etape: "confirme", majLe: "2026-10-03T10:00:12Z" }),
+    );
+    expect(ecartsDIndexation(await depot.journalIndexation("passages"))).toEqual([]);
   });
 });

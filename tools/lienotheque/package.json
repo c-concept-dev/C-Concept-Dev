@@ -5,7 +5,7 @@
   "description": "Liénothèque — vos documents et médias, enfin reliés.",
   "packageManager": "pnpm@10.34.6",
   "engines": {
-    "node": ">=22"
+    "node": ">=24"
   },
   "scripts": {
     "test": "pnpm -r test",
@@ -15,7 +15,6 @@
   },
   "pnpm": {
     "onlyBuiltDependencies": [
-      "better-sqlite3",
       "esbuild"
     ]
   }

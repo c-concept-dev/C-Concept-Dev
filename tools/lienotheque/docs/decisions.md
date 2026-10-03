@@ -11,6 +11,7 @@
 | 2026-10-03 | Kit UI v1.1 adopté comme référence ; logo vectoriel validé (IoU 0,977 avec la planche) ; jetons du kit fusionnés dans tokens.json | docs/ui-kit |
 | 2026-10-03 | **Tauri 2 retenu le 3 octobre 2026 sur mesures Mac** (paquet 24,75 Mio dont 13,54 Mio de moteurs ; 4 critères tenus). Réserve : validation Windows obligatoire avant toute version livrée sous Windows | Lot 0, mesures ci-dessous |
 | 2026-10-03 | Réserve Windows **levée sur les quatre critères** : ils passent tous sur `windows-latest` (exécution 37120499122). Reste ouvert : l'agencement d'un paquet Windows **installé**, non mesuré | Lot 0, mesures Windows ci-dessous |
+| 2026-10-03 | Dépôt local sur **`node:sqlite`**, intégré à Node, plutôt qu'un module natif : `better-sqlite3` ne se construit pas sur le runner Windows (pas de Visual Studio). Node passe à **24** partout | Section ci-dessous |
 | 2026-10-03 | **Stratégie de plateformes** : multiplateforme par conception, bêta macOS d'abord, transposition Windows ensuite, Linux hors périmètre | Section ci-dessous |
 | 2026-10-03 | Moteurs Windows à 55,8 Mo **acceptés en l'état** ; leur optimisation attend la phase 2 | Mesures Windows |
 | 2026-10-03 | Version minimale de macOS **alignée sur 26.0 pendant la bêta**, pour que l'application refuse proprement un Mac où Tesseract ne pourrait pas se charger. Avant toute sortie publique : Tesseract et ses dépendances compilés avec `MACOSX_DEPLOYMENT_TARGET=13.0` dans le workflow Tauri, puis retour du minimum à 13.0 | Section ci-dessous |
@@ -206,3 +207,25 @@ Le centrage tient à trois règles : largeur bornée, `margin-inline: auto` et u
 `test/mise-en-page.test.ts` les garde à toutes les largeurs, requêtes de média comprises — jsdom
 ne calculant aucune mise en page, c'est la règle qui est tenue, pas le pixel. Un test au pixel
 près demanderait un vrai navigateur (Playwright), non installé.
+
+## Stockage local : `node:sqlite` plutôt qu'un module natif
+
+Le dépôt local a d'abord été écrit sur `better-sqlite3`. Il se construit sans peine sur ce Mac,
+mais l'intégration continue l'a refusé sur `windows-latest` : `node-gyp` n'y trouve aucune
+installation de Visual Studio et le paquet se replie sur une compilation depuis les sources.
+
+Plutôt que d'installer une chaîne de compilation C++ sur trois systèmes, le dépôt emploie
+**`node:sqlite`**, livré avec Node : même moteur SQLite, aucune dépendance à installer, aucune
+compilation. C'est la même logique que la stratégie de plateformes — rien de propre à un système
+sans son équivalent prévu — appliquée aux outils de construction.
+
+Deux conséquences assumées :
+
+- **Node 24 partout.** `node:sqlite` n'est utilisable sans drapeau qu'à partir de Node 23.4 ;
+  les deux workflows et `engines` passent donc de 22 à 24. Node 24 est la version d'appui courante.
+- **Une interface marquée expérimentale.** Le module reste annoncé comme tel par Node : son
+  interface peut bouger. Le dépôt ne l'emploie qu'à un endroit, derrière le port du noyau — en
+  changer ne toucherait que `packages/depot-sqlite`.
+
+`node:sqlite` n'offre pas d'aide aux transactions : le dépôt en a une, de six lignes, qui
+enveloppe `BEGIN`, `COMMIT` et `ROLLBACK`.

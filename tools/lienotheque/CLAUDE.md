@@ -81,6 +81,7 @@ outils/*            Outils de traitement (lot C)
 recettes/           Recettes typées (fixtures dans fixtures/recettes)
 fixtures/           Vérités attendues F1 à F8
 ```
+Node 24 ou plus (le dépôt emploie `node:sqlite`).
 Commandes : `pnpm install`, `pnpm check` (typage + tests), `pnpm build` (schémas JSON, CSS et
 application web). Les tests du prototype bureau sont à part : voir `apps/app/src-tauri/README.md`
 (ils demandent Rust et Tesseract, absents de l'intégration continue).

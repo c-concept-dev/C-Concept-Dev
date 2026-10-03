@@ -48,10 +48,10 @@ jobs:
         with:
           version: 10
 
-      - name: Installer Node 22
+      - name: Installer Node 24
         uses: actions/setup-node@v5
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
           cache-dependency-path: tools/lienotheque/pnpm-lock.yaml
 

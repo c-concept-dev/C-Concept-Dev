@@ -6,34 +6,47 @@ import {
   ClassementDocument,
   Document,
   Fichier,
+  LigneJournalIndexation,
   SchemaBibliotheque,
+  Travail,
   VersionDocument,
   type Empreinte,
   type Identifiant,
   type Lien,
 } from "@lienotheque/contrats";
 import { DOSSIERS_BIBLIOTHEQUE, type Depot } from "@lienotheque/noyau";
-import Base from "better-sqlite3";
+import { DatabaseSync } from "node:sqlite";
 import { MIGRATIONS, MIGRATIONS_REGISTRE, type Migration } from "./migrations.js";
 
 type Lignes = Record<string, unknown>;
 
+/** `node:sqlite` est livré avec Node : aucune compilation native, donc rien à installer sur
+ *  macOS, Windows ni Linux. Il n'offre pas d'aide aux transactions : la voici. */
+function transaction<T>(base: DatabaseSync, travail: () => T): T {
+  base.exec("BEGIN");
+  try {
+    const resultat = travail();
+    base.exec("COMMIT");
+    return resultat;
+  } catch (erreur) {
+    base.exec("ROLLBACK");
+    throw erreur;
+  }
+}
+
 /** Applique les migrations manquantes, dans l'ordre, une seule fois chacune. */
-export function migrer(base: Base.Database, migrations: readonly Migration[]): number {
+export function migrer(base: DatabaseSync, migrations: readonly Migration[]): number {
   base.exec("CREATE TABLE IF NOT EXISTS migration (version INTEGER PRIMARY KEY, nom TEXT NOT NULL, appliquee_le TEXT NOT NULL)");
   const faites = new Set((base.prepare("SELECT version FROM migration").all() as { version: number }[]).map((l) => l.version));
   let appliquees = 0;
-  const poser = base.transaction((migration: Migration) => {
-    base.exec(migration.sql);
-    base.prepare("INSERT INTO migration (version, nom, appliquee_le) VALUES (?, ?, ?)").run(
-      migration.version,
-      migration.nom,
-      new Date().toISOString(),
-    );
-  });
   for (const migration of [...migrations].sort((a, b) => a.version - b.version)) {
     if (faites.has(migration.version)) continue;
-    poser(migration);
+    transaction(base, () => {
+      base.exec(migration.sql);
+      base
+        .prepare("INSERT INTO migration (version, nom, appliquee_le) VALUES (?, ?, ?)")
+        .run(migration.version, migration.nom, new Date().toISOString());
+    });
     appliquees += 1;
   }
   return appliquees;
@@ -44,9 +57,9 @@ const json = (valeur: unknown): string => JSON.stringify(valeur);
 /** Dépôt local d'une bibliothèque. Le dossier est portable : `sources/`, `derives/`, `base/`. */
 export function ouvrirDepot(dossier: string): Depot {
   for (const sous of Object.values(DOSSIERS_BIBLIOTHEQUE)) mkdirSync(join(dossier, sous), { recursive: true });
-  const base = new Base(join(dossier, DOSSIERS_BIBLIOTHEQUE.base, "bibliotheque.sqlite"));
-  base.pragma("journal_mode = WAL");
-  base.pragma("foreign_keys = ON");
+  const base = new DatabaseSync(join(dossier, DOSSIERS_BIBLIOTHEQUE.base, "bibliotheque.sqlite"));
+  base.exec("PRAGMA journal_mode = WAL");
+  base.exec("PRAGMA foreign_keys = ON");
   migrer(base, MIGRATIONS);
 
   const unique = <T>(requete: string, ...args: unknown[]): T | undefined =>
@@ -80,11 +93,31 @@ export function ouvrirDepot(dossier: string): Depot {
     });
   };
 
+  const lireTravail = (ligne: Lignes | undefined): Travail | undefined => {
+    if (ligne === undefined) return undefined;
+    const peutEtreNul = (valeur: unknown) => (valeur === null ? undefined : JSON.parse(valeur as string));
+    return Travail.parse({
+      id: ligne["id"],
+      outil: { nom: ligne["outil_nom"], version: ligne["outil_version"] },
+      versionCible: ligne["version_cible"],
+      etat: ligne["etat"],
+      lieu: ligne["lieu"],
+      ...(ligne["empreinte_entree"] === null ? {} : { empreinteEntree: ligne["empreinte_entree"] }),
+      tentative: ligne["tentative"],
+      progression: ligne["progression"],
+      ...(ligne["verrou"] === null ? {} : { verrou: peutEtreNul(ligne["verrou"]) }),
+      ...(ligne["point_reprise"] === null ? {} : { pointReprise: peutEtreNul(ligne["point_reprise"]) }),
+      ...(ligne["erreur"] === null ? {} : { erreur: peutEtreNul(ligne["erreur"]) }),
+      creeLe: ligne["cree_le"],
+      majLe: ligne["maj_le"],
+    });
+  };
+
   const lireDocument = (ligne: Lignes | undefined): Document | undefined => {
     if (ligne === undefined) return undefined;
-    const alias = (base.prepare("SELECT alias FROM document_alias WHERE document_id = ?").all(ligne["id"]) as Lignes[]).map(
-      (l) => l["alias"] as string,
-    );
+    const alias = (
+      base.prepare("SELECT alias FROM document_alias WHERE document_id = ?").all(ligne["id"] as string) as Lignes[]
+    ).map((l) => l["alias"] as string);
     return Document.parse({
       id: ligne["id"],
       bibliothequeId: ligne["bibliotheque_id"],
@@ -94,7 +127,8 @@ export function ouvrirDepot(dossier: string): Depot {
     });
   };
 
-  const enregistrerVersion = base.transaction((version: VersionDocument) => {
+  const enregistrerVersion = (version: VersionDocument): void =>
+    transaction(base, () => {
     base
       .prepare(
         `INSERT INTO version (id, document_id, numero, etat, active, recette_id, recette_ver, precedente_id, cree_le)
@@ -120,18 +154,19 @@ export function ouvrirDepot(dossier: string): Depot {
     for (const outil of version.outils)
       base.prepare("INSERT INTO version_outil (version_id, nom, version) VALUES (?, ?, ?)").run(version.id, outil.nom, outil.version);
     base.prepare("DELETE FROM version_manque WHERE version_id = ?").run(version.id);
-    for (const manque of version.manques)
-      base.prepare("INSERT INTO version_manque (version_id, manque) VALUES (?, ?)").run(version.id, manque);
-  });
+      for (const manque of version.manques)
+        base.prepare("INSERT INTO version_manque (version_id, manque) VALUES (?, ?)").run(version.id, manque);
+    });
 
   /** Activation atomique et réversible : l'ancienne et la nouvelle changent dans la même
    *  transaction, et l'ancienne reste là pour qu'on puisse revenir (ID-04, ID-05, JOB-06). */
-  const activerVersion = base.transaction((id: string) => {
-    const ligne = unique<Lignes>("SELECT document_id FROM version WHERE id = ?", id);
-    if (ligne === undefined) throw new Error(`Version inconnue : ${id}`);
-    base.prepare("UPDATE version SET active = 0 WHERE document_id = ?").run(ligne["document_id"]);
-    base.prepare("UPDATE version SET active = 1 WHERE id = ?").run(id);
-  });
+  const activerVersion = (id: string): void =>
+    transaction(base, () => {
+      const ligne = unique<Lignes>("SELECT document_id FROM version WHERE id = ?", id);
+      if (ligne === undefined) throw new Error(`Version inconnue : ${id}`);
+      base.prepare("UPDATE version SET active = 0 WHERE document_id = ?").run(ligne["document_id"] as string);
+      base.prepare("UPDATE version SET active = 1 WHERE id = ?").run(id);
+    });
 
   return {
     async enregistrerFichier(fichier) {
@@ -262,6 +297,56 @@ export function ouvrirDepot(dossier: string): Depot {
           });
     },
 
+    async enregistrerTravail(travail) {
+      base
+        .prepare(
+          `INSERT INTO travail (id, outil_nom, outil_version, version_cible, etat, lieu, empreinte_entree,
+                                tentative, progression, verrou, point_reprise, erreur, cree_le, maj_le)
+           VALUES (@id, @outilNom, @outilVersion, @versionCible, @etat, @lieu, @empreinteEntree,
+                   @tentative, @progression, @verrou, @pointReprise, @erreur, @creeLe, @majLe)
+           ON CONFLICT(id) DO UPDATE SET etat = @etat, tentative = @tentative, progression = @progression,
+             verrou = @verrou, point_reprise = @pointReprise, erreur = @erreur, maj_le = @majLe`,
+        )
+        .run({
+          id: travail.id,
+          outilNom: travail.outil.nom,
+          outilVersion: travail.outil.version,
+          versionCible: travail.versionCible,
+          etat: travail.etat,
+          lieu: travail.lieu,
+          empreinteEntree: travail.empreinteEntree ?? null,
+          tentative: travail.tentative,
+          progression: travail.progression,
+          verrou: travail.verrou === undefined ? null : json(travail.verrou),
+          pointReprise: travail.pointReprise === undefined ? null : json(travail.pointReprise),
+          erreur: travail.erreur === undefined ? null : json(travail.erreur),
+          creeLe: travail.creeLe,
+          majLe: travail.majLe,
+        });
+    },
+    async travail(id: Identifiant) {
+      return lireTravail(unique<Lignes>("SELECT * FROM travail WHERE id = ?", id));
+    },
+    async travaux() {
+      const lignes = base.prepare("SELECT * FROM travail ORDER BY cree_le").all() as Lignes[];
+      return lignes.map(lireTravail).filter((t): t is Travail => t !== undefined);
+    },
+
+    async journaliserIndexation(ligne) {
+      base
+        .prepare(
+          `INSERT INTO journal_indexation (index_nom, objet_id, etape, maj_le) VALUES (?, ?, ?, ?)
+           ON CONFLICT(index_nom, objet_id, etape) DO UPDATE SET maj_le = excluded.maj_le`,
+        )
+        .run(ligne.index, ligne.objetId, ligne.etape, ligne.majLe);
+    },
+    async journalIndexation(index: string) {
+      const lignes = base.prepare("SELECT * FROM journal_indexation WHERE index_nom = ? ORDER BY maj_le").all(index) as Lignes[];
+      return lignes.map((l) =>
+        LigneJournalIndexation.parse({ index: l["index_nom"], objetId: l["objet_id"], etape: l["etape"], majLe: l["maj_le"] }),
+      );
+    },
+
     async enregistrerSchema(schema) {
       base
         .prepare(
@@ -309,7 +394,7 @@ export type Registre = {
 };
 
 export function ouvrirRegistre(chemin: string): Registre {
-  const base = new Base(chemin);
+  const base = new DatabaseSync(chemin);
   migrer(base, MIGRATIONS_REGISTRE);
   return {
     inscrire({ cle, nom, dossier }) {

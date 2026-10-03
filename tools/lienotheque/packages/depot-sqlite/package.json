@@ -3,16 +3,19 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Dépôt local sur SQLite : une base par bibliothèque, plus un registre. Schéma repris tel quel sur D1 au lot E.",
-  "exports": { ".": "./src/index.ts" },
-  "scripts": { "test": "vitest run", "typecheck": "tsc --noEmit" },
+  "description": "Dépôt local sur SQLite (node:sqlite, sans compilation native) : une base par bibliothèque, migrations versionnées.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
   "dependencies": {
     "@lienotheque/contrats": "workspace:*",
-    "@lienotheque/noyau": "workspace:*",
-    "better-sqlite3": "^13.0.3"
+    "@lienotheque/noyau": "workspace:*"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.11",
     "@types/node": "^22.0.0",
     "typescript": "^5.6.0",
     "vitest": "^3.2.0"
