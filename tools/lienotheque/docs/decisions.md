@@ -186,3 +186,23 @@ l'exécutable et ses moteurs, pas un installateur.
 - L'installateur Windows (NSIS ou MSI) et l'emplacement des DLL dans le paquet installé : phase 2.
 - La signature et la notarisation, qui changent la taille et la procédure de distribution.
 - Les autres moteurs du lot C : ONNX (OUT-06), Whisper (OUT-09).
+
+## Centrage du premier lancement — mesures du 3 octobre 2026
+
+Mesuré dans le navigateur, écart entre le centre du contenu et le centre de la fenêtre :
+
+| Largeur de fenêtre | Panneau d'accroche | Zone de dépôt |
+|---|---|---|
+| 820 px | 0 px | 0 px |
+| 1024 px | 0 px | 0 px |
+| 1600 px | 0 px | 0 px |
+
+Le décalage visible sur les captures livrées le 3 octobre venait de la capture, pas de la mise en
+page : le volet avait repris sa largeur propre (1024 px) après une émulation à 1400 px, et l'image
+figée de l'ancienne disposition s'y retrouvait réduite — 700 × 800 ÷ 1024 = 547, exactement le
+centre observé. Les mesures DOM n'ont jamais montré d'écart.
+
+Le centrage tient à trois règles : largeur bornée, `margin-inline: auto` et une colonne unique.
+`test/mise-en-page.test.ts` les garde à toutes les largeurs, requêtes de média comprises — jsdom
+ne calculant aucune mise en page, c'est la règle qui est tenue, pas le pixel. Un test au pixel
+près demanderait un vrai navigateur (Playwright), non installé.

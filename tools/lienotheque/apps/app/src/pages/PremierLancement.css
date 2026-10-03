@@ -1,8 +1,12 @@
+/* Centré dans la fenêtre : largeur bornée, marges automatiques égales, une seule colonne.
+   Le test « premier lancement » vérifie que rien ne vient rompre ces trois règles. */
 .ln-premier {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   justify-items: center;
   gap: calc(var(--ln-grid) * 3);
   max-width: 640px;
+  margin-inline: auto;
   padding-top: calc(var(--ln-grid) * 10);
   text-align: center;
 }
@@ -10,9 +14,9 @@
 .ln-premier__accroche {
   display: grid;
   justify-items: center;
-  gap: calc(var(--ln-grid) * 2);
+  gap: calc(var(--ln-grid) * 3);
   width: 100%;
-  padding: calc(var(--ln-grid) * 3);
+  padding: calc(var(--ln-grid) * 4) calc(var(--ln-grid) * 3);
 }
 
 .ln-premier__titre {

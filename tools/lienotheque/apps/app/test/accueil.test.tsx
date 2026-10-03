@@ -174,3 +174,21 @@ describe("accueil garni : composition des maquettes", () => {
     expect(container.querySelectorAll('[tabindex]:not([tabindex="-1"]):not([tabindex="0"])')).toHaveLength(0);
   });
 });
+
+describe("le premier lancement n'emprunte pas la mise en page de l'accueil garni", () => {
+  it("rend une page à une seule colonne, jamais la grille à deux colonnes", () => {
+    const { container } = render(<App />);
+    const principal = container.querySelector("main");
+    expect(principal).toHaveClass("ln-premier");
+    expect(principal).not.toHaveClass("ln-accueil");
+  });
+
+  it("regroupe le logo, la signature et l'action unique dans un seul panneau", () => {
+    const { container } = render(<App />);
+    const accroche = container.querySelector(".ln-premier__accroche");
+    expect(accroche).toHaveClass("ln-panneau-titre");
+    expect(accroche?.querySelector("h1 img")).toHaveAttribute("alt", "Liénothèque");
+    expect(accroche).toHaveTextContent("Vos documents et médias, enfin reliés.");
+    expect(accroche?.querySelector(".ln-btn--principal")).toHaveTextContent("Créer ma première bibliothèque");
+  });
+});
