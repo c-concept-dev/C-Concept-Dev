@@ -11,6 +11,7 @@
 | 2026-10-03 | Kit UI v1.1 adopté comme référence ; logo vectoriel validé (IoU 0,977 avec la planche) ; jetons du kit fusionnés dans tokens.json | docs/ui-kit |
 | 2026-10-03 | **Tauri 2 retenu le 3 octobre 2026 sur mesures Mac** (paquet 24,75 Mio dont 13,54 Mio de moteurs ; 4 critères tenus). Réserve : validation Windows obligatoire avant toute version livrée sous Windows | Lot 0, mesures ci-dessous |
 | 2026-10-03 | Réserve Windows **levée sur les quatre critères** : ils passent tous sur `windows-latest` (exécution 37120499122). Reste ouvert : l'agencement d'un paquet Windows **installé**, non mesuré | Lot 0, mesures Windows ci-dessous |
+| 2026-10-03 | Noir et blanc 1 bit : **CCITT groupe 4**, encodeur écrit ici, libtiff comme oracle. JBIG2 en mode symboles refusé | Section ci-dessous |
 | 2026-10-03 | **Playwright** retenu pour les tests de rendu : trois moteurs (Chromium, Firefox, WebKit), hors de `pnpm check`, dans un job d'intégration continue à part | Section ci-dessous |
 | 2026-10-03 | Le port de dépôt aura **trois implémentations** : `node:sqlite` (tests et outillage), hôte Rust (application Tauri), SQLite en WebAssembly (version en ligne). Aucun code hors de l'adaptateur ne dépend de `node:sqlite` | Section ci-dessous |
 | 2026-10-03 | Siegfried **téléchargé depuis la version publiée par son auteur**, version et empreintes figées dans le script des moteurs ; aucun tap Homebrew | Section ci-dessous |
@@ -284,3 +285,45 @@ porte désormais une largeur explicite, et un test mesure la boîte du logo dans
 Le centrage, lui, est mesuré à **un demi-pixel** près — les moteurs arrondissent, ils ne
 décentrent pas — sur trois largeurs de fenêtre (820, 1024, 1600 px) et dans les deux thèmes qui
 ont une mise en page propre, clair et hybride.
+
+## Noir et blanc 1 bit : groupe 4, et pourquoi pas JBIG2
+
+@jsquash couvre AVIF, WebP, JPEG et PNG — rien pour le bilevel compressé. Mesuré sur cinq pages
+réelles de F2, reconstituées à partir des bandes du PDF d'origine (2465 × 3520, environ 9 %
+d'encre ; la reconstitution a été vérifiée à l'œil, elle rend des pages exactes) :
+
+| Encodage | Cinq pages | Rapport au groupe 4 |
+|---|---:|---:|
+| Flate, tel que le PDF d'origine le stocke | 459 213 o | 2,41 |
+| PNG 1 bit | 341 097 o | 1,79 |
+| WebP sans perte | 272 994 o | 1,43 |
+| **CCITT groupe 4 (TIFF)** | **190 816 o** | **1,00** |
+
+Le groupe 4 n'est pas marginalement meilleur : il tient en **1,79 fois moins** que le PNG 1 bit et
+**2,41 fois moins** que l'original. Sur les 508 pages de F2, cela ferait environ 19 Mo contre 67 Mo
+aujourd'hui. L'aller-retour est identique au bit près sur les cinq pages — le groupe 4 est sans
+perte par construction, et c'est vérifié, pas supposé.
+
+**Retenu : CCITT groupe 4 (ITU-T T.6), à l'intérieur du PDF.** C'est le filtre 1 bit natif du
+format, ce qui règle l'affichage sans rien ajouter : pdf.js, déjà présent pour la couche texte,
+décode `CCITTFaxDecode` quand il rend la page. Vignettes et aperçus continuent de sortir en
+WebP ou AVIF par @jsquash, à partir du raster décodé.
+
+Il ne manque donc que **l'encodeur**. Deux voies :
+
+1. **L'écrire ici.** T.6 est figé depuis 1988 et l'encodeur est la moitié simple du codec : c'est
+   nous qui choisissons les modes de codage. libtiff sert d'oracle — notre sortie doit se
+   redécoder en pixels identiques et rester à quelques pour cent de la sienne en taille.
+2. **libtiff en WebAssembly.** Un binaire de plus à produire, à livrer et à suivre sur trois
+   plateformes, pour n'obtenir que l'encodeur.
+
+**Je retiens la première**, et la version en ligne n'aura pas de WebAssembly à télécharger pour
+cela.
+
+**JBIG2 en mode symboles est refusé.** Il gagnerait deux à quatre fois sur le groupe 4, mais en
+remplaçant chaque forme reconnue par un représentant : c'est ce qui a interverti des chiffres dans
+des documents numérisés, sans que rien ne le signale à l'écran. Pour une bibliothèque dont le
+métier est la fidélité à l'original, c'est inacceptable. Le mode générique sans perte, lui, est
+défendable, mais il demanderait jbig2enc (C++, Leptonica) en WebAssembly **et** un décodeur dans
+la visionneuse, pour un gain réel mais modeste sur le groupe 4 : à reconsidérer au lot E si le
+poids des pages devient la contrainte qui commande.
