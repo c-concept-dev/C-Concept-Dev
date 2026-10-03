@@ -1,0 +1,21 @@
+{
+  "name": "lienotheque",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Liénothèque — vos documents et médias, enfin reliés.",
+  "packageManager": "pnpm@10.0.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "build": "pnpm -r build",
+    "check": "pnpm typecheck && pnpm test"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}

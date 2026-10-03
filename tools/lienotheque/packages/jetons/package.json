@@ -1,0 +1,14 @@
+{
+  "name": "@lienotheque/jetons",
+  "version": "3.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Jetons de la charte graphite et cuivre v3 (source unique) et générateur de variables CSS.",
+  "exports": { ".": "./src/index.ts", "./tokens.json": "./src/tokens.json" },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "build": "tsx scripts/build-css.ts"
+  },
+  "devDependencies": { "typescript": "^5.6.0", "vitest": "^3.2.0", "tsx": "^4.19.0", "@types/node": "^22.0.0" }
+}
