@@ -249,3 +249,33 @@ describe("zone de dépôt (UX-06 : tout glisser-déposer a une alternative clavi
     expect(screen.getByText("2 fichiers retenus.")).toBeInTheDocument();
   });
 });
+
+describe("fil de reprise : un trait net, jamais un glyphe de repli", () => {
+  const reprise = () =>
+    render(
+      <CarteReprise
+        titre="Méthode d'instrument"
+        href="#lecteur-1"
+        origine="Page 127"
+        cible="piste 41"
+        quand="il y a 2 h"
+      />,
+    );
+
+  it("est dessiné et porte le cuivre de la charte", () => {
+    const { container } = reprise();
+    const fil = container.querySelector(".ln-reprise__fil");
+    expect(fil?.tagName.toLowerCase()).toBe("svg");
+    expect(fil?.querySelector("path")).not.toBeNull();
+    expect(fil).toHaveAttribute("aria-hidden", "true");
+  });
+
+  it("n'emploie plus aucune flèche typographique", () => {
+    const { container } = reprise();
+    expect(container.textContent ?? "").not.toMatch(/[⟶→➝➞⇒]/u);
+  });
+
+  it("laisse le lien se dire en toutes lettres pour qui n'y voit pas", () => {
+    expect(reprise().container.textContent ?? "").toContain("relié à");
+  });
+});

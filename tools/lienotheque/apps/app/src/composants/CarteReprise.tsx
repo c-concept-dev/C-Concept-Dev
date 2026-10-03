@@ -1,6 +1,17 @@
 import type { JSX } from "react";
 import "./CarteReprise.css";
 
+/** Le fil est dessiné, pas écrit : le glyphe « ⟶ » tombe dans une police de repli et rend un
+ *  trait maigre et pâle à 13 px. Trait continu et pointe franche, au style des icônes du kit
+ *  (1,6 d'épaisseur, bouts arrondis), dans le cuivre clair de la charte (--ln-thread). */
+function Fil(): JSX.Element {
+  return (
+    <svg className="ln-reprise__fil" viewBox="0 0 32 12" aria-hidden="true">
+      <path d="M1 6h26M22.5 1.5 27 6l-4.5 4.5" />
+    </svg>
+  );
+}
+
 type Props = {
   readonly titre: string;
   readonly href: string;
@@ -23,14 +34,12 @@ export function CarteReprise({ titre, href, origine, cible, quand }: Props): JSX
           </a>
         </h3>
         <p className="ln-muted ln-reprise__position">
-          {origine}
+          <span>{origine}</span>
           {cible === undefined ? null : (
             <>
-              <span className="ln-reprise__fil" aria-hidden="true">
-                {" ⟶ "}
-              </span>
-              <span className="ln-sr-only"> relié à </span>
-              {cible}
+              <Fil />
+              <span className="ln-sr-only">relié à</span>
+              <span>{cible}</span>
             </>
           )}
         </p>

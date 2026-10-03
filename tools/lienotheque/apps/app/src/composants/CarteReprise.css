@@ -26,11 +26,22 @@
 }
 
 .ln-reprise__position {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--ln-grid);
   margin: calc(var(--ln-grid) / 2) 0 0;
 }
 
 .ln-reprise__fil {
-  color: var(--ln-thread);
+  width: calc(var(--ln-grid) * 4);
+  height: calc(var(--ln-grid) * 1.5);
+  flex: none;
+  fill: none;
+  stroke: var(--ln-thread);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .ln-reprise__quand {
