@@ -4,3 +4,6 @@ dist/
 .DS_Store
 fixtures/fichiers/
 *.zip
+target/
+**/src-tauri/moteurs/
+**/src-tauri/gen/

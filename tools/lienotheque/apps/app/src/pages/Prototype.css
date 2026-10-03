@@ -1,0 +1,25 @@
+.ln-prototype {
+  margin-top: calc(var(--ln-grid) * 4);
+  padding: calc(var(--ln-grid) * 2);
+  background: var(--ln-surface);
+  border: 1px solid var(--ln-border-decorative);
+  border-radius: var(--ln-radius);
+}
+
+.ln-prototype__lecteur {
+  margin: calc(var(--ln-grid) * 2) 0 0;
+}
+
+.ln-prototype__mesures {
+  display: grid;
+  gap: var(--ln-grid);
+  margin: calc(var(--ln-grid) * 2) 0 0;
+}
+
+.ln-prototype__mesures dt {
+  font-weight: 600;
+}
+
+.ln-prototype__mesures dd {
+  margin: 0;
+}

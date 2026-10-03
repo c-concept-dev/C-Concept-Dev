@@ -1,0 +1,40 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Liénothèque",
+  "version": "0.1.0",
+  "identifier": "fr.c-concept.lienotheque.prototype",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:5173",
+    "beforeDevCommand": "pnpm dev",
+    "beforeBuildCommand": "pnpm build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Liénothèque",
+        "width": 1320,
+        "height": 900,
+        "minWidth": 960,
+        "minHeight": 600
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost data:; media-src 'self' http://127.0.0.1:*; style-src 'self' 'unsafe-inline'; font-src 'self'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["app"],
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/icon.icns"],
+    "externalBin": ["moteurs/bin/tesseract"],
+    "resources": {
+      "moteurs/lib": "moteurs/lib",
+      "moteurs/tessdata": "moteurs/tessdata"
+    },
+    "copyright": "C-Concept",
+    "category": "Productivity",
+    "shortDescription": "Prototype bureau du lot 0",
+    "longDescription": "Prototype de mesure : PDF de 500 pages, sidecar Tesseract, reprise après arrêt forcé, lecture d'un MP3 par plages."
+  }
+}

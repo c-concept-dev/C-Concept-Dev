@@ -1,6 +1,7 @@
 import { useState, type JSX } from "react";
 import { EnTete } from "./EnTete.js";
 import { Accueil } from "./pages/Accueil.js";
+import { Prototype, estBureau } from "./pages/Prototype.js";
 import { useTheme } from "./theme/useTheme.js";
 
 export function App(): JSX.Element {
@@ -21,6 +22,11 @@ export function App(): JSX.Element {
         traitements={1}
       />
       <Accueil onFichiers={(fichiers) => setDepots(fichiers.map((fichier) => fichier.name))} />
+      {estBureau() ? (
+        <div className="ln-layout">
+          <Prototype />
+        </div>
+      ) : null}
     </>
   );
 }

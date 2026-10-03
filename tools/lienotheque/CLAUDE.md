@@ -53,21 +53,24 @@ retrouve documents, audio, vidéos et images, toujours sur la vraie page ou au v
 ```
 packages/contrats   Contrats Zod + export JSON Schema (fait)
 packages/jetons     Jetons v3.0.1 + générateur CSS + tests de contraste (fait)
-apps/app            Application Tauri 2 + React 19 + Vite (à créer)
-apps/worker         API Hono sur Workers (à créer, sans déploiement au lot 0)
+apps/app            React 19 + Vite + TypeScript strict : composants du kit, accueil statique (fait)
+apps/app/src-tauri  Prototype bureau Tauri 2 : mesures du lot 0 (fait, décision en attente)
+apps/worker         API Hono (squelette fait, aucun déploiement au lot 0)
 outils/*            Outils de traitement (lot C)
 recettes/           Recettes typées (fixtures dans fixtures/recettes)
 fixtures/           Vérités attendues F1 à F8
 ```
-Commandes : `pnpm install`, `pnpm check` (typage + tests), `pnpm build` (schémas JSON et CSS).
+Commandes : `pnpm install`, `pnpm check` (typage + tests), `pnpm build` (schémas JSON, CSS et
+application web). Les tests du prototype bureau sont à part : voir `apps/app/src-tauri/README.md`
+(ils demandent Rust et Tesseract, absents de l'intégration continue).
 
 ## Lot 0 — ce qui reste à faire
 | Tâche | Critère d'acceptation |
 |---|---|
-| Prototype Tauri 2, Mac et Windows | Ouvre un PDF de 500 pages, lance un sidecar (Tesseract), reprend un travail après arrêt forcé (JOB-02), lit un MP3 par plages via un serveur local ; taille d'installation mesurée avec les moteurs embarqués. Décision Tauri consignée dans `docs/decisions.md` |
-| `apps/app` : squelette React 19 + Vite + TypeScript strict | Charge `lienotheque.css`, polices Inter et Source Serif 4, bascule clair / hybride / sombre intégral |
-| Page d'accueil statique | Reproduit la composition des maquettes avec des données factices typées par les contrats ; Inter partout sauf logo et « Bonjour » ; contrôle clavier complet |
-| `apps/worker` : squelette Hono | Route de santé, tests ; aucun déploiement |
-| Intégration continue | GitHub Actions : `pnpm check` sur Mac et Windows |
+| Prototype Tauri 2 : **Mac mesuré, Windows à faire** | Les quatre critères sont tenus sur Mac et la taille d'installation est mesurée moteurs compris (`docs/decisions.md`). **La décision Tauri reste à prendre** et Windows n'a rien vérifié |
+| ~~`apps/app` : squelette React 19 + Vite + TypeScript strict~~ **fait** | Charge la feuille des jetons, polices Inter et Source Serif 4, bascule clair / hybride / sombre intégral |
+| ~~Page d'accueil statique~~ **fait** | Reproduit la composition des maquettes avec des données factices typées par les contrats ; Inter partout sauf logo et « Bonjour » ; contrôle clavier complet |
+| ~~`apps/worker` : squelette Hono~~ **fait** | Route de santé validée par `EtatService`, tests ; aucun déploiement |
+| ~~Intégration continue~~ **fait** | GitHub Actions `lienotheque-ci.yml` : `pnpm check` sur Linux, Mac et Windows |
 | Empreintes des fixtures F1 à F4 | Calculées depuis les fichiers privés et inscrites dans `fixtures/README.md` |
-| Composants React | Portage des familles du kit UI v1.1 nécessaires à l'accueil (boutons, cartes, badges, progression, dépôt, recherche), même rendu et mêmes comportements clavier que le catalogue, styles uniquement via `--ln-*` |
+| ~~Composants React~~ **fait** | Portage des familles du kit UI v1.1 nécessaires à l'accueil (boutons, cartes, badges, progression, dépôt, recherche), même rendu et mêmes comportements clavier que le catalogue, styles uniquement via `--ln-*` |
