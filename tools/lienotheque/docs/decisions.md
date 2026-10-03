@@ -11,6 +11,8 @@
 | 2026-10-03 | Kit UI v1.1 adopté comme référence ; logo vectoriel validé (IoU 0,977 avec la planche) ; jetons du kit fusionnés dans tokens.json | docs/ui-kit |
 | 2026-10-03 | **Tauri 2 retenu le 3 octobre 2026 sur mesures Mac** (paquet 24,75 Mio dont 13,54 Mio de moteurs ; 4 critères tenus). Réserve : validation Windows obligatoire avant toute version livrée sous Windows | Lot 0, mesures ci-dessous |
 | 2026-10-03 | Réserve Windows **levée sur les quatre critères** : ils passent tous sur `windows-latest` (exécution 37120499122). Reste ouvert : l'agencement d'un paquet Windows **installé**, non mesuré | Lot 0, mesures Windows ci-dessous |
+| 2026-10-03 | Recette F3 : la pastille est **à droite** du libellé, pas à gauche — relevé sur la page, corrigé en **v2** (REC-03) | Section ci-dessous |
+| 2026-10-03 | `saut_max` compte désormais **les pages traversées** : un trou connu dans le lot ne fait plus écarter ce qui le suit | Section ci-dessous |
 | 2026-10-03 | **Échantillon F7 mesuré** : le critère ×5 d'OPT-01 tient sur un scan non optimisé (F4, ×8,7), pas sur des sources déjà comprimées (F2 ×2,6, F3 ×1,9) | Section ci-dessous |
 | 2026-10-03 | Noir et blanc 1 bit : **CCITT groupe 4**, encodeur écrit ici, libtiff comme oracle. JBIG2 en mode symboles refusé | Section ci-dessous |
 | 2026-10-03 | **Playwright** retenu pour les tests de rendu : trois moteurs (Chromium, Firefox, WebKit), hors de `pnpm check`, dans un job d'intégration continue à part | Section ci-dessous |
@@ -360,3 +362,37 @@ trop lourd vaut mieux qu'une facture trop légère.
 
 **F4 n'a pas de couche texte** : 143 images JPEG 8 bits et pas une police. C'est un scan, pas un
 PDF natif — relevé en mesurant, contre l'attente.
+
+## Port du prototype de lecture de repères : 95 sur 95
+
+`docs/prototypes/ocr_methode.py` a servi d'oracle, étape par étape. Dès les quatre premières
+pages de F3, le port rend exactement ce que lui rend : mêmes numéros, mêmes pastilles, mêmes
+provenances, mêmes confiances. Sur les 29 pages :
+
+| Critère | Référence | Port |
+|---|---|---|
+| Éléments reliés à la bonne piste | 95 | **95** |
+| Éléments reliés à la mauvaise piste | 0 | **0** |
+| Pages imprimées absentes du lot | 30 et 31 | **30 et 31** |
+| Médias sans page | 93 à 98 | **93 à 98** |
+
+REC-06 demande des scores au moins égaux aux prototypes : ils le sont.
+
+### Deux choses ont changé en route, et pour de bonnes raisons
+
+**La recette disait la pastille à gauche du libellé ; la page la montre à droite.** Vérifié sur
+la page 5 de F3 : le libellé, puis le losange sombre à chiffres clairs, à sa droite. Le prototype
+lisait bien à droite — c'est la recette qui se trompait. Comme REC-03 veut qu'une modification
+crée une version, la v1 reste au dépôt telle qu'elle était et la **v2** porte la correction ;
+l'historique est ainsi consultable, et un résultat produit par la v1 reste lisible comme tel.
+L'interpréteur, lui, honore `position` à la lettre : la recette est une donnée, et une donnée
+fausse doit donner un résultat faux, sans quoi elle ne servirait à rien.
+
+**`saut_max` compte maintenant les pages traversées.** Le prototype autorisait un saut de 8
+numéros, en dur. La recette dit 6, et avec 6 les trois derniers éléments de F3 étaient écartés :
+le saut de 92 à 99 enjambe les pages 30 et 31, absentes du lot. Un écart en entraînait deux
+autres, et les médias 99 passaient pour orphelins. La règle retenue est que `saut_max` vaut pour
+un pas de page : entre deux éléments séparés de trois pages, le saut permis vaut trois fois
+`saut_max`. L'interpréteur sait déjà quelles pages manquent — il n'y a aucune raison qu'il
+s'étonne ensuite de ce que leur absence provoque. Sur une page consécutive, rien ne change : un
+saut de 40 reste un saut de 40.

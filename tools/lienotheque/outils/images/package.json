@@ -1,0 +1,16 @@
+{
+  "name": "@lienotheque/images",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Primitives d'image : codecs @jsquash amorcés hors navigateur, gris, recadrage, seuil, boîte englobante.",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "test": "vitest run", "typecheck": "tsc --noEmit" },
+  "dependencies": {
+    "@jsquash/avif": "^2.1.1",
+    "@jsquash/jpeg": "^1.6.0",
+    "@jsquash/resize": "^2.1.1",
+    "@jsquash/webp": "^1.5.0"
+  },
+  "devDependencies": { "typescript": "^5.6.0", "vitest": "^3.2.0", "@types/node": "^22.0.0" }
+}

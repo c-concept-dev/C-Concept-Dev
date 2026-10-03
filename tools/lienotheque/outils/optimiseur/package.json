@@ -12,13 +12,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@jsquash/avif": "^2.1.1",
-    "@jsquash/jpeg": "^1.6.0",
-    "@jsquash/resize": "^2.1.1",
-    "@jsquash/webp": "^1.5.0",
     "@lienotheque/contrats": "workspace:*",
     "@lienotheque/formats": "workspace:*",
-    "@lienotheque/inspecteur": "workspace:*"
+    "@lienotheque/inspecteur": "workspace:*",
+    "@lienotheque/images": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

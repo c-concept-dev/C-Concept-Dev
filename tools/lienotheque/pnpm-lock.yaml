@@ -107,6 +107,31 @@ importers:
         specifier: ^3.2.0
         version: 3.2.7(@types/node@22.20.5)(jsdom@30.1.1)(tsx@4.23.15)
 
+  outils/images:
+    dependencies:
+      '@jsquash/avif':
+        specifier: ^2.1.1
+        version: 2.1.1
+      '@jsquash/jpeg':
+        specifier: ^1.6.0
+        version: 1.6.0
+      '@jsquash/resize':
+        specifier: ^2.1.1
+        version: 2.1.1
+      '@jsquash/webp':
+        specifier: ^1.5.0
+        version: 1.5.0
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.0
+        version: 3.2.7(@types/node@22.20.5)(jsdom@30.1.1)(tsx@4.23.15)
+
   outils/inspecteur:
     dependencies:
       '@lienotheque/contrats':
@@ -150,27 +175,46 @@ importers:
 
   outils/optimiseur:
     dependencies:
-      '@jsquash/avif':
-        specifier: ^2.1.1
-        version: 2.1.1
-      '@jsquash/jpeg':
-        specifier: ^1.6.0
-        version: 1.6.0
-      '@jsquash/resize':
-        specifier: ^2.1.1
-        version: 2.1.1
-      '@jsquash/webp':
-        specifier: ^1.5.0
-        version: 1.5.0
       '@lienotheque/contrats':
         specifier: workspace:*
         version: link:../../packages/contrats
       '@lienotheque/formats':
         specifier: workspace:*
         version: link:../formats
+      '@lienotheque/images':
+        specifier: workspace:*
+        version: link:../images
       '@lienotheque/inspecteur':
         specifier: workspace:*
         version: link:../inspecteur
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.0
+        version: 3.2.7(@types/node@22.20.5)(jsdom@30.1.1)(tsx@4.23.15)
+
+  outils/recettes:
+    dependencies:
+      '@lienotheque/contrats':
+        specifier: workspace:*
+        version: link:../../packages/contrats
+      '@lienotheque/formats':
+        specifier: workspace:*
+        version: link:../formats
+      '@lienotheque/images':
+        specifier: workspace:*
+        version: link:../images
+      '@lienotheque/lecteur-texte':
+        specifier: workspace:*
+        version: link:../lecteur-texte
+      zod:
+        specifier: ^4.1.13
+        version: 4.6.5
     devDependencies:
       '@types/node':
         specifier: ^22.0.0

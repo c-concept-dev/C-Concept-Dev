@@ -1,0 +1,20 @@
+{
+  "id": "methode-pastille-piste",
+  "version": 2,
+  "derivee_de": { "id": "methode-pastilles-cd", "version": 4 },
+  "preparation": { "redressement": "auto", "double_page": false },
+  "lectures": [
+    { "ancre": "page_imprimee", "zone": { "type": "coins", "bord": "bas" }, "alphabet": "chiffres" },
+    { "ancre": "element", "zone": { "type": "marges_exterieures", "largeur_rel": 0.25 },
+      "hauteur_rel": { "min": 0.012, "max": 0.04 }, "alphabet": "chiffres", "libelle": "Pattern" },
+    { "ancre": "piste", "outil": "pastilles", "relatif_a": "element", "position": "droite",
+      "motif": "losange_sombre_chiffres_clairs", "etiquette_disque": false }
+  ],
+  "regles": {
+    "elements": { "ordre": "strictement_croissant", "saut_max": 6 },
+    "pistes": { "ordre": "croissant", "pas_autorises": [0, 1], "egale_numero_element": true },
+    "plusieurs_elements_par_piste": true,
+    "mention_suite": "cont'd"
+  },
+  "validation": { "seuil_confiance": 0.6 }
+}

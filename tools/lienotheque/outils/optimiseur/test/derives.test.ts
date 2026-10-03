@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { Derive, PLAFONDS_DERIVE } from "@lienotheque/contrats";
+import type { ImageRvba } from "@lienotheque/images";
 import {
   POINTS_FORME_ONDE,
   SIGNATURE_FORME_ONDE,
@@ -10,7 +11,6 @@ import {
   pcmDeWav,
   rvbaDepuisBilevel,
   vignette,
-  type ImageRvba,
 } from "../src/index.js";
 
 const EMPREINTE = "c".repeat(64);

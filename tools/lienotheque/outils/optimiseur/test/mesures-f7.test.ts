@@ -4,7 +4,8 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { aUneCoucheTexte, objetsPdf, octetsImage, pagesPdf, rasterBilevel, type RasterBilevel } from "@lienotheque/formats";
-import { decoderJpeg, encoderAvif, encoderGroupe4 } from "../src/index.js";
+import { decoderJpeg, encoderAvif } from "@lienotheque/images";
+import { encoderGroupe4 } from "../src/index.js";
 
 /** Échantillon F7 (OPT-01, OPT-06). Le CDC ne le fournit pas : on le prélève sur les fixtures,
  *  quelques pages de chaque nature, et on mesure ce que l'optimiseur rend vraiment.

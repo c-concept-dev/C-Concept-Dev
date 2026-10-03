@@ -10,6 +10,7 @@ export * from "./lecture.js";
 export * from "./optimisation.js";
 export * from "./lien.js";
 export * from "./recette.js";
+export * from "./repere.js";
 export * from "./travail.js";
 export * from "./operation.js";
 export * from "./resultat-outil.js";

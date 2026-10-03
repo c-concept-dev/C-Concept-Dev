@@ -1,5 +1,5 @@
 import { LARGEURS_DERIVE, PLAFONDS_DERIVE, type Derive, type Empreinte } from "@lienotheque/contrats";
-import { encoderAvif, encoderWebp, redimensionner, type ImageRvba } from "./codecs.js";
+import { encoderAvif, encoderWebp, redimensionner, type ImageRvba } from "@lienotheque/images";
 
 /** Générateur de dérivés (OUT-04, OPT-05).
  *
