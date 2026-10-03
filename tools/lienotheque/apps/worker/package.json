@@ -1,0 +1,21 @@
+{
+  "name": "@lienotheque/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Squelette de l'API Liénothèque (Hono). Lot 0 : route de santé, aucun déploiement.",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@lienotheque/contrats": "workspace:*",
+    "hono": "^4.13.12"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^3.2.0"
+  }
+}

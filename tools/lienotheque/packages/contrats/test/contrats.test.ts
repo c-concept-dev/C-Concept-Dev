@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import {
-  Ancre, CarteSynchro, Empreinte, Identifiant, Lien, Operation, Recette, ResultatOutil, Travail, VersionDocument,
+  Ancre, CarteSynchro, Empreinte, EtatService, Identifiant, Lien, Operation, Recette, ResultatOutil, Travail, VersionDocument,
   arbitrer, transitionVersionAutorisee, versFragment,
 } from "../src/index.js";
 
@@ -114,5 +114,34 @@ describe("résultat d'outil", () => {
     const r = { outil: { nom: "pastilles", version: "1.0.0" }, source: sha, ancres: [{ cle: "e400", selecteur: { type: "element", page: 127, valeur: "400" }, confiance: 0.95 }], liens: [{ de: "e401", vers: "piste-41", nature: "piste_de", preuve: "lu", confiance: 0.9 }], textes: [] };
     expect(ResultatOutil.safeParse(r).success).toBe(false);
     expect(ResultatOutil.safeParse({ ...r, liens: [{ ...r.liens[0], de: "e400" }] }).success).toBe(true);
+  });
+});
+
+describe("état d'un service (HEB-01, SEC-01)", () => {
+  const sain = {
+    service: "lienotheque-worker",
+    version: "0.1.0",
+    etat: "pret",
+    horodatage: now,
+    capacites: ["sante"],
+  };
+
+  it("accepte une réponse de santé complète", () => {
+    expect(EtatService.safeParse(sain).success).toBe(true);
+  });
+
+  it("refuse un champ supplémentaire : aucune clé ne peut se glisser dans la réponse", () => {
+    expect(EtatService.safeParse({ ...sain, apiKey: "secret" }).success).toBe(false);
+    expect(EtatService.safeParse({ ...sain, chemin: "/Users/…" }).success).toBe(false);
+  });
+
+  it("exige une version sémantique et au moins une capacité annoncée", () => {
+    expect(EtatService.safeParse({ ...sain, version: "dev" }).success).toBe(false);
+    expect(EtatService.safeParse({ ...sain, capacites: [] }).success).toBe(false);
+  });
+
+  it("n'annonce que des capacités du vocabulaire fermé", () => {
+    expect(EtatService.safeParse({ ...sain, capacites: ["sante", "recherche"] }).success).toBe(true);
+    expect(EtatService.safeParse({ ...sain, capacites: ["tout"] }).success).toBe(false);
   });
 });
