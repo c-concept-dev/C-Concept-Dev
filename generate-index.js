@@ -55,6 +55,11 @@ function scanDirectory(dir, baseDir = ROOT_DIR) {
         continue;
       }
 
+      // Liénothèque est une application, pas une page du site.
+      if (relativePath === path.join('tools', 'lienotheque')) {
+        continue;
+      }
+
       if (relativePath === 'index.html') {
         continue;
       }
