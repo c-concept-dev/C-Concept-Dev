@@ -2,6 +2,7 @@ export * from "./commun.js";
 export * from "./classement.js";
 export * from "./nomenclature.js";
 export * from "./fichier.js";
+export * from "./format.js";
 export * from "./document.js";
 export * from "./version.js";
 export * from "./ancre.js";

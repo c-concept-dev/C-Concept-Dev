@@ -77,7 +77,8 @@ packages/jetons     Jetons v3.0.1 + générateur CSS + tests de contraste (fait)
 apps/app            React 19 + Vite + TypeScript strict : composants du kit, accueil statique (fait)
 apps/app/src-tauri  Prototype bureau Tauri 2 : mesures du lot 0 (fait, décision en attente)
 apps/worker         API Hono (squelette fait, aucun déploiement au lot 0)
-outils/*            Outils de traitement (lot C)
+outils/formats      Identification par le contenu, lecteurs de format, lecteur PDF (FMT)
+outils/inspecteur   Inspecteur : natif ou numérisé, résolution, couleur, poids (OUT-01)
 recettes/           Recettes typées (fixtures dans fixtures/recettes)
 fixtures/           Vérités attendues F1 à F8
 ```

@@ -1,0 +1,11 @@
+{
+  "name": "@lienotheque/inspecteur",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Inspecteur (OUT-01) : natif ou numérisé, résolution, couleur, poids, pages manquantes, doublons.",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "test": "vitest run", "typecheck": "tsc --noEmit" },
+  "dependencies": { "@lienotheque/contrats": "workspace:*", "@lienotheque/formats": "workspace:*" },
+  "devDependencies": { "typescript": "^5.6.0", "vitest": "^3.2.0", "@types/node": "^22.0.0" }
+}

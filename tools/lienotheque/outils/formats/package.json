@@ -1,0 +1,11 @@
+{
+  "name": "@lienotheque/formats",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Identification des fichiers par leur contenu et lecteurs de format (FMT-01, FMT-02, FMT-04, FMT-08).",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "test": "vitest run", "typecheck": "tsc --noEmit" },
+  "dependencies": { "@lienotheque/contrats": "workspace:*" },
+  "devDependencies": { "typescript": "^5.6.0", "vitest": "^3.2.0", "@types/node": "^22.0.0" }
+}
