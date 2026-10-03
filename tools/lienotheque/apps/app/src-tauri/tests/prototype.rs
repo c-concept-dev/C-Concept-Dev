@@ -9,7 +9,7 @@
 //! Les fixtures sont locales et régénérables : `python3 fixtures/generer-locales.py`.
 //! Les moteurs embarqués : `python3 src-tauri/outils/preparer-moteurs.py`.
 
-use lienotheque_bureau::{media, mesures, ocr, pdf, travail, NOM_MOTEUR};
+use lienotheque_bureau::{media, mesures, ocr, pdf, plateforme, travail, NOM_MOTEUR};
 use std::{
     io::{Read, Write},
     net::TcpStream,
@@ -70,6 +70,46 @@ fn ouvre_un_pdf_de_500_pages() {
         mesures::en_mo(mesure.octets),
         mesure.ms_ouverture,
         mesure.ms_page
+    );
+}
+
+/// Un moteur qui exige un macOS plus récent que l'application ne se chargerait pas là où
+/// l'application s'installe : la reconnaissance de texte échouerait sans rien annoncer.
+#[cfg(target_os = "macos")]
+#[test]
+fn aucun_moteur_n_exige_un_macos_plus_recent_que_l_application() {
+    let configuration = Path::new(env!("CARGO_MANIFEST_DIR")).join("tauri.conf.json");
+    let declare = plateforme::minimum_declare(&configuration)
+        .expect("bundle.macOS.minimumSystemVersion dans tauri.conf.json");
+
+    let racine = moteurs();
+    exiger(&racine.join("bin"), "lancez `python3 src-tauri/outils/preparer-moteurs.py`");
+
+    let mut peses = 0_usize;
+    let mut plus_haut = (0_u32, 0_u32);
+    for dossier in ["bin", "lib"] {
+        let Ok(entrees) = std::fs::read_dir(racine.join(dossier)) else { continue };
+        for entree in entrees.flatten() {
+            let chemin = entree.path();
+            let Some(exige) = plateforme::minimum_binaire(&chemin) else { continue };
+            peses += 1;
+            plus_haut = plus_haut.max(exige);
+            assert!(
+                exige <= declare,
+                "{} exige macOS {}.{}, l'application n'en déclare que {}.{}",
+                chemin.file_name().unwrap_or_default().to_string_lossy(),
+                exige.0,
+                exige.1,
+                declare.0,
+                declare.1
+            );
+        }
+    }
+
+    assert!(peses > 0, "aucun moteur Mach-O trouvé dans {}", racine.display());
+    println!(
+        "Versions : application macOS {}.{} ; {peses} moteurs embarqués, le plus exigeant demande {}.{}",
+        declare.0, declare.1, plus_haut.0, plus_haut.1
     );
 }
 

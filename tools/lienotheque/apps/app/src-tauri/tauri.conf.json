@@ -33,7 +33,7 @@
       "moteurs/tessdata": "moteurs/tessdata"
     },
     "macOS": {
-      "minimumSystemVersion": "13.0"
+      "minimumSystemVersion": "26.0"
     },
     "copyright": "C-Concept",
     "category": "Productivity",

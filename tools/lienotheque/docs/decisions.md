@@ -13,7 +13,7 @@
 | 2026-10-03 | Réserve Windows **levée sur les quatre critères** : ils passent tous sur `windows-latest` (exécution 37120499122). Reste ouvert : l'agencement d'un paquet Windows **installé**, non mesuré | Lot 0, mesures Windows ci-dessous |
 | 2026-10-03 | **Stratégie de plateformes** : multiplateforme par conception, bêta macOS d'abord, transposition Windows ensuite, Linux hors périmètre | Section ci-dessous |
 | 2026-10-03 | Moteurs Windows à 55,8 Mo **acceptés en l'état** ; leur optimisation attend la phase 2 | Mesures Windows |
-| 2026-10-03 | macOS 13 fixé comme version minimale dans `tauri.conf.json` (`color-mix` du kit absent avant). **Réserve** : les moteurs Homebrew embarqués sont compilés pour macOS 26 | Section ci-dessous |
+| 2026-10-03 | Version minimale de macOS **alignée sur 26.0 pendant la bêta**, pour que l'application refuse proprement un Mac où Tesseract ne pourrait pas se charger. Avant toute sortie publique : Tesseract et ses dépendances compilés avec `MACOSX_DEPLOYMENT_TARGET=13.0` dans le workflow Tauri, puis retour du minimum à 13.0 | Section ci-dessous |
 | 2026-10-03 | `tools/lienotheque/.gitignore` passe de 6 à 9 lignes : `target/`, `**/src-tauri/moteurs/`, `**/src-tauri/gen/`. Sans elles, la cible Rust et les binaires Tesseract entraient dans un dépôt public | Écart accepté |
 | 2026-10-03 | Les tests Rust du prototype restent hors de `pnpm check` et tournent dans `lienotheque-tauri.yml` (Mac et Windows) : l'intégration continue ordinaire n'a ni Rust ni Tesseract | Écart accepté |
 
@@ -96,21 +96,25 @@ signature sur macOS, fermeture de la table d'imports PE sur Windows).
 
 ### Version minimale de macOS
 
-`tauri.conf.json` fixe `bundle.macOS.minimumSystemVersion` à **13.0** : les styles du kit emploient
-`color-mix`, absent des WebKit antérieurs. Vérifié sur le paquet construit — le binaire porte
-`minos 13.0` et l'`Info.plist` `LSMinimumSystemVersion 13.0`.
+Le besoin propre de l'interface est **macOS 13** : les styles du kit emploient `color-mix`, absent
+des WebKit antérieurs. Mais les moteurs embarqués viennent de Homebrew, qui compile ses bouteilles
+pour le macOS de la machine : `tesseract` et ses bibliothèques portent tous `minos 26.0`. Une
+application déclarant 13.0 s'installerait sur un Mac où la reconnaissance de texte échouerait au
+chargement du sidecar, sans rien annoncer.
 
-**Une dépendance impose plus récent.** Les moteurs embarqués viennent de Homebrew, qui compile ses
-bouteilles pour le macOS de la machine : `tesseract` et ses quinze bibliothèques portent tous
-`minos 26.0`. Sur un Mac antérieur à macOS 26, l'application s'ouvrirait mais la reconnaissance de
-texte échouerait au chargement du sidecar. Trois sorties possibles, à trancher avant la bêta :
+**Pendant la bêta**, `bundle.macOS.minimumSystemVersion` vaut donc **26.0** : l'application refuse
+proprement de s'installer là où elle ne pourrait pas tenir sa promesse. C'est une contrainte des
+moteurs, pas de l'interface.
 
-1. compiler Tesseract depuis les sources avec `MACOSX_DEPLOYMENT_TARGET=13.0` ;
-2. reprendre une distribution de Tesseract visant une cible plus ancienne ;
-3. aligner la version minimale de l'application sur celle des moteurs.
+**Avant toute sortie publique**, Tesseract et ses dépendances seront compilés avec
+`MACOSX_DEPLOYMENT_TARGET=13.0` dans le workflow Tauri, sur le runner macOS — c'est là que la
+chaîne de compilation est déjà en place et reproductible. Le minimum redescendra alors à **13.0**,
+le besoin réel de l'interface.
 
-Tant que la bêta se valide sur macOS 26.3, le sujet n'est pas bloquant : il le devient dès qu'un
-Mac plus ancien est visé.
+Un test tient les deux bouts : `aucun_moteur_n_exige_un_macos_plus_recent_que_l_application` lit
+`minimumSystemVersion` dans `tauri.conf.json`, puis le `minos` de chaque moteur embarqué, et refuse
+tout moteur plus exigeant que l'application. Abaisser le minimum sans avoir recompilé les moteurs
+fait échouer la construction, pas la bêta d'un utilisateur.
 
 ### Mesures Windows du 3 octobre 2026
 
