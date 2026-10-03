@@ -5,6 +5,7 @@ on:
     paths:
       - '**/*.html'
       - '!index.html'
+      - '!tools/lienotheque/**'
       - 'generate-index.js'
     branches:
       - main
@@ -57,7 +58,12 @@ jobs:
           echo "═══════════════════════════════════════════════════"
           echo "🔄 Génération de l'index C Concept&Dev"
           echo "═══════════════════════════════════════════════════"
+          # tools/lienotheque est une application, pas une page du site : on l'écarte le temps
+          # de la génération, puis on la remet. (Une ligne dans generate-index.js, à côté de
+          # l'exclusion EvidenceForge, ferait la même chose plus simplement.)
+          mv tools/lienotheque "$RUNNER_TEMP/lienotheque"
           node generate-index.js
+          mv "$RUNNER_TEMP/lienotheque" tools/lienotheque
       
       - name: 📊 Verify generated index
         run: |
@@ -103,9 +109,11 @@ jobs:
                 # Pull avec rebase
                 git pull --rebase origin main || {
                   echo "⚠️ Conflit durant rebase, résolution..."
-                  # Prendre la version remote et régénérer
+                  # Prendre la version remote et régénérer, toujours sans tools/lienotheque
                   git checkout --theirs index.html 2>/dev/null || true
+                  mv tools/lienotheque "$RUNNER_TEMP/lienotheque"
                   node generate-index.js
+                  mv "$RUNNER_TEMP/lienotheque" tools/lienotheque
                   git add index.html
                   git rebase --continue || git rebase --skip
                 }
