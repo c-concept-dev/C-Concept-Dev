@@ -96,6 +96,10 @@ jobs:
         shell: bash
         run: python fixtures/generer-locales.py
 
+      - name: Contrôler le lecteur de table d'imports
+        shell: bash
+        run: python apps/app/src-tauri/outils/preparer-moteurs.py --autotest
+
       - name: Embarquer les moteurs
         shell: bash
         run: python apps/app/src-tauri/outils/preparer-moteurs.py
@@ -121,6 +125,7 @@ jobs:
         if: ${{ !cancelled() }}
         shell: bash
         run: |
+          # tee : les mesures vont au résumé d'exécution et restent lisibles dans le journal.
           python apps/app/src-tauri/outils/resumer-mesures.py \
             --journal "$RUNNER_TEMP/mesures.txt" \
-            --systeme "${{ matrix.os }}" >> "$GITHUB_STEP_SUMMARY"
+            --systeme "${{ matrix.os }}" | tee -a "$GITHUB_STEP_SUMMARY"
