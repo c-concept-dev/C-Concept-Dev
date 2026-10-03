@@ -1,6 +1,19 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { agrandir, border, boiteSombre, enGris, inverser, recadrer, seuiller, versPgm, type ImageGrise } from "../src/index.js";
+import {
+  agrandir,
+  border,
+  boiteSombre,
+  enGris,
+  imageIntegrale,
+  inverser,
+  moyennesParColonne,
+  recadrer,
+  seuiller,
+  tourner,
+  versPgm,
+  type ImageGrise,
+} from "../src/index.js";
 
 const grise = (largeur: number, hauteur: number, ton: (x: number, y: number) => number): ImageGrise => ({
   largeur,
@@ -91,5 +104,61 @@ describe("écriture PGM", () => {
     const pgm = versPgm(grise(2, 2, () => 42));
     expect(pgm.toString("latin1", 0, 11)).toBe("P5\n2 2\n255\n");
     expect([...pgm.subarray(11)]).toEqual([42, 42, 42, 42]);
+  });
+});
+
+describe("quart de tour", () => {
+  // 1 2
+  // 3 4
+  const carre: ImageGrise = { largeur: 2, hauteur: 2, pixels: Uint8Array.from([1, 2, 3, 4]) };
+
+  it("tourne dans le sens des aiguilles d'une montre", () => {
+    expect([...tourner(carre, 90).pixels]).toEqual([3, 1, 4, 2]);
+    expect([...tourner(carre, 180).pixels]).toEqual([4, 3, 2, 1]);
+    expect([...tourner(carre, 270).pixels]).toEqual([2, 4, 1, 3]);
+  });
+
+  it("échange largeur et hauteur sur un quart de tour, pas sur un demi", () => {
+    const bande: ImageGrise = { largeur: 3, hauteur: 1, pixels: Uint8Array.from([7, 8, 9]) };
+    expect(tourner(bande, 90)).toMatchObject({ largeur: 1, hauteur: 3 });
+    expect(tourner(bande, 180)).toMatchObject({ largeur: 3, hauteur: 1 });
+  });
+
+  it("quatre quarts de tour ramènent à l'image de départ", () => {
+    const image = grise(5, 3, (x, y) => (x * 17 + y * 31) % 256);
+    let tournee = image;
+    for (let fois = 0; fois < 4; fois += 1) tournee = tourner(tournee, 90);
+    expect([...tournee.pixels]).toEqual([...image.pixels]);
+    expect(tournee.largeur).toBe(image.largeur);
+  });
+
+  it("ne touche à rien à zéro degré", () => {
+    expect(tourner(carre, 0)).toBe(carre);
+  });
+});
+
+describe("moyennes par colonne", () => {
+  it("rend une moyenne par colonne", () => {
+    const image = grise(3, 2, (x) => [0, 128, 255][x]!);
+    expect([...moyennesParColonne(image)]).toEqual([0, 128, 255]);
+  });
+});
+
+describe("image intégrale", () => {
+  it("rend la somme d'un rectangle en quatre lectures", () => {
+    const image = grise(4, 4, () => 10);
+    const { sommes } = imageIntegrale(image);
+    const pas = 5;
+    const rectangle = (x0: number, y0: number, x1: number, y1: number) =>
+      sommes[y1 * pas + x1]! - sommes[y0 * pas + x1]! - sommes[y1 * pas + x0]! + sommes[y0 * pas + x0]!;
+    expect(rectangle(0, 0, 4, 4)).toBe(160);
+    expect(rectangle(1, 1, 3, 3)).toBe(40);
+  });
+
+  it("porte aussi les carrés, de quoi tirer un écart-type", () => {
+    const image = grise(2, 1, (x) => (x === 0 ? 0 : 10));
+    const { sommes, carres } = imageIntegrale(image);
+    expect(sommes[1 * 3 + 2]).toBe(10);
+    expect(carres[1 * 3 + 2]).toBe(100);
   });
 });

@@ -96,3 +96,56 @@ export function versPgm(image: ImageGrise): Buffer {
   const entete = Buffer.from(`P5\n${image.largeur} ${image.hauteur}\n255\n`, "latin1");
   return Buffer.concat([entete, Buffer.from(image.pixels)]);
 }
+
+/** Quart de tour dans le sens des aiguilles d'une montre. Les photos de livres arrivent posées
+ *  dans un sens ou dans un autre ; un quart de tour suffit à les remettre d'aplomb. */
+export function tourner(image: ImageGrise, degres: 0 | 90 | 180 | 270): ImageGrise {
+  if (degres === 0) return image;
+  const { largeur, hauteur, pixels } = image;
+  const quartDeTour = degres === 90 || degres === 270;
+  const l = quartDeTour ? hauteur : largeur;
+  const h = quartDeTour ? largeur : hauteur;
+  const sortie = new Uint8Array(pixels.length);
+
+  for (let y = 0; y < hauteur; y += 1)
+    for (let x = 0; x < largeur; x += 1) {
+      const ton = pixels[y * largeur + x]!;
+      const [xa, ya] =
+        degres === 90 ? [hauteur - 1 - y, x] : degres === 180 ? [largeur - 1 - x, hauteur - 1 - y] : [y, largeur - 1 - x];
+      sortie[ya * l + xa] = ton;
+    }
+  return { largeur: l, hauteur: h, pixels: sortie };
+}
+
+/** Moyenne des tons d'une colonne. Sert à trouver la pliure d'un livre ouvert : elle est sombre
+ *  sur toute la hauteur, là où le papier plonge vers la reliure. */
+export function moyennesParColonne(image: ImageGrise): Float64Array {
+  const moyennes = new Float64Array(image.largeur);
+  for (let x = 0; x < image.largeur; x += 1) {
+    let somme = 0;
+    for (let y = 0; y < image.hauteur; y += 1) somme += image.pixels[y * image.largeur + x]!;
+    moyennes[x] = somme / image.hauteur;
+  }
+  return moyennes;
+}
+
+/** Image intégrale : chaque case porte la somme de tout ce qui est en haut à gauche d'elle.
+ *  Elle rend la moyenne d'un rectangle en quatre lectures, quelle que soit sa taille — c'est ce
+ *  qui rend une binarisation locale abordable sur une page entière. */
+export function imageIntegrale(image: ImageGrise): { sommes: Float64Array; carres: Float64Array } {
+  const { largeur, hauteur, pixels } = image;
+  const sommes = new Float64Array((largeur + 1) * (hauteur + 1));
+  const carres = new Float64Array((largeur + 1) * (hauteur + 1));
+
+  for (let y = 0; y < hauteur; y += 1)
+    for (let x = 0; x < largeur; x += 1) {
+      const ton = pixels[y * largeur + x]!;
+      const ici = (y + 1) * (largeur + 1) + (x + 1);
+      const haut = y * (largeur + 1) + (x + 1);
+      const gauche = (y + 1) * (largeur + 1) + x;
+      const coin = y * (largeur + 1) + x;
+      sommes[ici] = ton + sommes[haut]! + sommes[gauche]! - sommes[coin]!;
+      carres[ici] = ton * ton + carres[haut]! + carres[gauche]! - carres[coin]!;
+    }
+  return { sommes, carres };
+}

@@ -1,0 +1,24 @@
+{
+  "name": "@lienotheque/redresseur",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Redresseur (OUT-03) : rotation, coupe des doubles pages, effacement du verso visible, binarisation adaptative. Ne produit que des dérivés.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@lienotheque/contrats": "workspace:*",
+    "@lienotheque/images": "workspace:*",
+    "@lienotheque/formats": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "vitest": "^3.2.0",
+    "@types/node": "^22.0.0"
+  }
+}
