@@ -569,10 +569,10 @@ test('T05-24 · FROZEN : les sept plages gelées portent exactement les empreint
   assert.equal(verdict.status, 'OK');
   const baseline = JSON.parse(fs.readFileSync(path.join(root, 'anti-regression-baseline.json'), 'utf8'));
   assert.deepEqual(verdict.hashes, baseline.hashes);
-  /* CONTINUITE-05 clôture — la plage « moteur Architecte » a été rouverte pour UNE ligne (archCitationPresente plie casse
-     et diacritiques pour la comparaison, T05-25) ; baseline régénérée par frozen-guard --write-baseline : 7ec1abaa… →
-     8668de58…. Les six autres plages portent leurs empreintes de CONTINUITE-04B, inchangées. */
-  assert.equal(baseline.hashes['moteur Architecte'], '8668de58c928afaf010d37aa3b3f1c57a280f32e916cf483ad100c2784debc39');
+  /* OPENAI-PROVIDER-01 — la plage « moteur Architecte » est volontairement rouverte pour ajouter le second
+     fournisseur navigateur derrière la façade fournisseur déjà existante : adaptateur Responses API, catalogue/modèle
+     OpenAI et isolation clé/modèle par fournisseur. Les six autres plages gelées restent octet-identiques. */
+  assert.equal(baseline.hashes['moteur Architecte'], '6ad0431459ef4cfaf4c3d1b797972b8328c73589994597f0250b1dded171b8c8');
   assert.equal(baseline.hashes['moteur Rapide'], '3725f2c9335cb176084cf62c51472b5f02a1faa5bed496c424954c841a689664');
   assert.equal(baseline.hashes['moteur Atelier'], '8c3511538a96d4be3953270c4a5463da6b8d4807187a0b7d4b1c31c0e4589802');
   assert.equal(baseline.hashes.ARCH_SYSTEM, '7fc7b736f6b80049c42a39d74a0fae76eee26d9e2af8249c7761de1ec3236317');
