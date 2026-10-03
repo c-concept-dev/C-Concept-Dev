@@ -11,6 +11,7 @@
 | 2026-10-03 | Kit UI v1.1 adopté comme référence ; logo vectoriel validé (IoU 0,977 avec la planche) ; jetons du kit fusionnés dans tokens.json | docs/ui-kit |
 | 2026-10-03 | **Tauri 2 retenu le 3 octobre 2026 sur mesures Mac** (paquet 24,75 Mio dont 13,54 Mio de moteurs ; 4 critères tenus). Réserve : validation Windows obligatoire avant toute version livrée sous Windows | Lot 0, mesures ci-dessous |
 | 2026-10-03 | Réserve Windows **levée sur les quatre critères** : ils passent tous sur `windows-latest` (exécution 37120499122). Reste ouvert : l'agencement d'un paquet Windows **installé**, non mesuré | Lot 0, mesures Windows ci-dessous |
+| 2026-10-03 | **Playwright** retenu pour les tests de rendu : trois moteurs (Chromium, Firefox, WebKit), hors de `pnpm check`, dans un job d'intégration continue à part | Section ci-dessous |
 | 2026-10-03 | Le port de dépôt aura **trois implémentations** : `node:sqlite` (tests et outillage), hôte Rust (application Tauri), SQLite en WebAssembly (version en ligne). Aucun code hors de l'adaptateur ne dépend de `node:sqlite` | Section ci-dessous |
 | 2026-10-03 | Siegfried **téléchargé depuis la version publiée par son auteur**, version et empreintes figées dans le script des moteurs ; aucun tap Homebrew | Section ci-dessous |
 | 2026-10-03 | Dépôt local sur **`node:sqlite`**, intégré à Node, plutôt qu'un module natif : `better-sqlite3` ne se construit pas sur le runner Windows (pas de Visual Studio). Node passe à **24** partout | Section ci-dessous |
@@ -258,3 +259,28 @@ macOS, Windows et Linux ont chacun leur archive et leur empreinte.
 
 Changer de version, c'est relever les nouvelles empreintes et les inscrire : rien n'est jamais
 téléchargé sans contrôle.
+
+## Tests de rendu : Playwright et trois moteurs
+
+jsdom n'a pas de moteur de mise en page : il sait qu'un élément existe, pas où il tombe à
+l'écran. Toute exigence de placement — contenu centré, rien qui déborde — y est invérifiable.
+Playwright mesure.
+
+Trois moteurs, qui sont ceux des trois cibles : **WebKit** est celui de la vue intégrée de
+macOS, **Chromium** celui de Windows, **Firefox** le témoin indépendant qui attrape ce que les
+deux autres pardonnent (PLT-09). Les tests tournent sur la version construite servie par
+`vite preview`, pas sur le serveur de développement : c'est ce qui est livré qu'on mesure.
+
+Hors de `pnpm check`, qui doit rester rapide et tourner sur trois systèmes : job séparé
+`navigateurs` dans `lienotheque-ci.yml`, un seul système, les moteurs en cache sur la version de
+Playwright. En local, `pnpm --filter @lienotheque/app run test:navigateurs`.
+
+**Premier résultat : Firefox a trouvé un défaut que Chromium cachait.** Le logo du premier
+lancement y était large de 0 pixel, donc invisible. Le titre est un élément de grille sous
+`justify-items: center`, donc de largeur indéfinie, et le `width: 100%` de l'image n'avait rien à
+quoi se rapporter ; Chromium s'en tirait par la taille intrinsèque du SVG, Firefox non. Le titre
+porte désormais une largeur explicite, et un test mesure la boîte du logo dans les trois moteurs.
+
+Le centrage, lui, est mesuré à **un demi-pixel** près — les moteurs arrondissent, ils ne
+décentrent pas — sur trois largeurs de fenêtre (820, 1024, 1600 px) et dans les deux thèmes qui
+ont une mise en page propre, clair et hybride.

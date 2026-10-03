@@ -56,3 +56,61 @@ jobs:
 
       - name: Typage et tests
         run: pnpm check
+
+  # Séparé de la vérification : ces tests-là mesurent le rendu dans de vrais moteurs, ce que
+  # jsdom ne sait pas faire (PLT-09). Un seul système suffit : les trois moteurs y tournent.
+  navigateurs:
+    name: Rendu (Chromium, Firefox, WebKit)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Récupérer le dossier Liénothèque
+        uses: actions/checkout@v5
+        with:
+          sparse-checkout: tools/lienotheque
+
+      - name: Installer pnpm
+        uses: pnpm/action-setup@v5
+        with:
+          version: 10
+
+      - name: Installer Node 24
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: tools/lienotheque/pnpm-lock.yaml
+
+      - name: Installer les dépendances
+        run: pnpm install --frozen-lockfile
+
+      # La version de Playwright commande celle des moteurs : elle sert de clef de cache.
+      - name: Relever la version de Playwright
+        id: playwright
+        run: echo "version=$(pnpm --filter @lienotheque/app exec playwright --version | tr -dc '0-9.')" >> "$GITHUB_OUTPUT"
+
+      - name: Reprendre les moteurs en cache
+        id: cache-moteurs
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      - name: Installer les moteurs
+        if: steps.cache-moteurs.outputs.cache-hit != 'true'
+        run: pnpm --filter @lienotheque/app exec playwright install --with-deps chromium firefox webkit
+
+      # Les dépendances système ne sont pas dans le cache : à réinstaller même sur reprise.
+      - name: Installer les dépendances système des moteurs
+        if: steps.cache-moteurs.outputs.cache-hit == 'true'
+        run: pnpm --filter @lienotheque/app exec playwright install-deps chromium firefox webkit
+
+      - name: Mesurer le rendu
+        run: pnpm --filter @lienotheque/app run test:navigateurs
+
+      - name: Conserver le rapport en cas d'échec
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rendu-navigateurs
+          path: tools/lienotheque/apps/app/playwright-report/
+          retention-days: 7

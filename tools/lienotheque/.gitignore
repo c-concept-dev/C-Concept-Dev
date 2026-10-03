@@ -7,3 +7,5 @@ fixtures/fichiers/
 target/
 **/src-tauri/moteurs/
 **/src-tauri/gen/
+test-results/
+playwright-report/

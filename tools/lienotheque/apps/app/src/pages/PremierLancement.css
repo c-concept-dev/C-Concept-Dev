@@ -19,14 +19,21 @@
   padding: calc(var(--ln-grid) * 4) calc(var(--ln-grid) * 3);
 }
 
+/* Largeur explicite : élément de grille sous `justify-items: center`, le titre serait sinon de
+   largeur indéfinie, et le `width: 100%` du logo n'aurait rien à quoi se rapporter. Chromium
+   s'en tire par la taille intrinsèque du SVG, Firefox rend une image de 0 pixel — logo invisible.
+   Mesuré par navigateurs/centrage.spec.ts dans les trois moteurs. */
 .ln-premier__titre {
   margin: 0;
+  width: 100%;
 }
 
 .ln-premier__logo {
+  display: block;
   width: 100%;
   max-width: 420px;
   height: auto;
+  margin-inline: auto;
 }
 
 /* Inter, comme tout le reste : la charte v3 ne permet le serif que pour le logo
