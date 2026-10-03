@@ -446,9 +446,11 @@ test('T16 · NO_SECRET_PERSISTENCE : aucune clé API dans la photographie, et la
   }
   assert.equal(/sessionStorage|localStorage/.test(code), false, 'aucun accès direct : tout passe par le coffre existant');
   assert.match(code, /coffre/);
-  /* La mécanique existante des clés (chargerConfigApi / enregistrerCle) est intacte. */
-  assert.match(html, /const zone = coffre\.lire\('session','atelier\.cle'\) \? 'session' : 'local';/);
-  assert.match(html, /const ok = coffre\.ecrire\(zone,'atelier\.cle', cle\);/);
+  /* La photographie reste sans secret ; OPENAI-PROVIDER-01 fait évoluer la mécanique de clé existante
+     vers un espace isolé par fournisseur, toujours derrière le coffre et hors photographie. */
+  assert.match(html, /const cleKey='atelier\.cle\.'\+fournisseur,modeleKey='atelier\.modele\.'\+fournisseur;/);
+  assert.match(html, /const ok = coffre\.ecrire\(zone,cleKey, cle\);/);
+  assert.match(html, /if\(!permanent\) coffre\.effacer\('local',cleKey\);/);
 });
 
 /* ==========================================================================

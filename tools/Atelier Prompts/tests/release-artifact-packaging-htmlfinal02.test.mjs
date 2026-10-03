@@ -269,8 +269,8 @@ test('T-HTMLFINAL02-15 : aucune ressource statique distante, donc aucune ne peut
   /* BROKEN_STATIC_RESOURCE_REFERENCE_COUNT = 0 : il n'y a aucune ressource à casser.
      Les hôtes distants qui subsistent sont des fournisseurs à l'exécution, voulus. */
   const hotes = [...new Set([...html.matchAll(/https?:\/\/([a-zA-Z0-9.-]+)/g)].map((m) => m[1]))].sort();
-  assert.deepEqual(hotes, ['api.anthropic.com', 'atelier-decision-groq.11drumboy11.workers.dev',
-    'atelier-decision-workers-ai.11drumboy11.workers.dev', 'console.anthropic.com', 'json-schema.org']);
+  assert.deepEqual(hotes, ['api.anthropic.com', 'api.openai.com', 'atelier-decision-groq.11drumboy11.workers.dev',
+    'atelier-decision-workers-ai.11drumboy11.workers.dev', 'console.anthropic.com', 'json-schema.org', 'platform.openai.com']);
 });
 
 test('T-HTMLFINAL02-16 : aucun drapeau de débogage ni de test dans l’artefact', () => {
