@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Liénothèque</title>
+    <script>
+      // Pose le thème avant le premier rendu : évite un clignotement au démarrage.
+      // Même ordre que themeInitial() dans src/theme/theme.ts : choix mémorisé, puis système.
+      try {
+        var memorise = localStorage.getItem("lienotheque.theme");
+        var systeme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        var theme = ["light", "hybrid", "dark"].indexOf(memorise) >= 0 ? memorise : systeme;
+        document.documentElement.dataset.theme = theme;
+      } catch (erreur) {
+        document.documentElement.dataset.theme = "light";
+      }
+    </script>
+  </head>
+  <body>
+    <div id="racine"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

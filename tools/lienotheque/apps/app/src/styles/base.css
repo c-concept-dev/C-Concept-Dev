@@ -1,0 +1,213 @@
+/* Styles communs portés de docs/ui-kit/components.css (kit UI v1.1).
+   Règle 3 de CLAUDE.md : aucune couleur ni rayon écrit ici, uniquement les variables --ln-*.
+   Les espacements sont des multiples de --ln-grid. Classes préfixées « ln- » pour éviter
+   toute collision avec le catalogue du kit. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font: 15px / 1.5 var(--ln-font-ui);
+  background: var(--ln-background);
+  color: var(--ln-text-primary);
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button,
+a,
+input,
+select,
+textarea,
+summary {
+  touch-action: manipulation;
+}
+
+a {
+  color: var(--ln-link);
+  text-decoration: underline;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ln-focus);
+  outline-offset: 3px;
+}
+
+::selection {
+  background: var(--ln-selection-background);
+  color: var(--ln-selection-text);
+}
+
+h1 {
+  font-size: 28px;
+  margin: 0 0 var(--ln-grid);
+}
+
+h2 {
+  font-size: 20px;
+  margin: 0 0 var(--ln-grid);
+}
+
+p {
+  margin: 0 0 calc(var(--ln-grid) * 2);
+}
+
+/* « Bonjour » et le logo sont les seules exceptions au tout-Inter (charte v3). */
+.ln-bonjour {
+  font: 500 30px var(--ln-font-brand);
+  margin: 0;
+}
+
+.ln-muted {
+  color: var(--ln-text-secondary);
+  font-size: 13px;
+}
+
+.ln-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 2);
+}
+
+.ln-shell {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--ln-shell);
+  border-bottom: 1px solid var(--ln-border-decorative);
+  padding: calc(var(--ln-grid) * 2) calc(var(--ln-grid) * 4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--ln-grid) * 3);
+}
+
+.ln-brand {
+  font: 500 24px var(--ln-font-brand);
+  display: flex;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 1.5);
+}
+
+.ln-brand img {
+  width: 28px;
+  height: 28px;
+}
+
+.ln-layout {
+  max-width: 1320px;
+  margin: auto;
+  padding: calc(var(--ln-grid) * 4);
+}
+
+.ln-skip {
+  position: fixed;
+  top: -100px;
+  left: var(--ln-grid);
+  z-index: 20;
+  background: var(--ln-surface);
+  color: var(--ln-text-primary);
+  padding: calc(var(--ln-grid) * 1.5);
+  border-radius: var(--ln-radius);
+}
+
+.ln-skip:focus {
+  top: var(--ln-grid);
+}
+
+.ln-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* Hybride photographique : voile sur la photo, barre et panneaux de titre graphite. */
+[data-theme="hybrid"] {
+  background:
+    linear-gradient(
+      color-mix(in srgb, var(--ln-photo-overlay) calc(var(--ln-photo-overlay-opacity) * 100%), transparent),
+      color-mix(in srgb, var(--ln-photo-overlay) calc(var(--ln-photo-overlay-opacity) * 100%), transparent)
+    ),
+    url("@kit/assets/background.png") center / cover fixed;
+}
+
+[data-theme="hybrid"] body {
+  background: transparent;
+}
+
+[data-theme="hybrid"] .ln-shell {
+  --ln-surface: var(--ln-shell-surface);
+  --ln-control-border: var(--ln-shell-control-border);
+  --ln-surface-hover: var(--ln-shell-surface-hover);
+  --ln-text-primary: var(--ln-shell-text);
+  --ln-text-secondary: var(--ln-shell-text-secondary);
+  --ln-link: var(--ln-shell-link);
+  --ln-focus: var(--ln-shell-focus);
+  color: var(--ln-shell-text);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+[data-theme="light"],
+[data-theme="hybrid"] {
+  color-scheme: light;
+}
+
+@media (max-width: 800px) {
+  .ln-shell {
+    position: static;
+    padding: calc(var(--ln-grid) * 2);
+    flex-wrap: wrap;
+  }
+
+  .ln-layout {
+    padding: calc(var(--ln-grid) * 2);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* Contrôles natifs : mêmes dimensions que le kit (grille de 8 px). */
+select,
+input,
+textarea {
+  min-height: calc(var(--ln-grid) * 5);
+  border: 1px solid var(--ln-control-border);
+  background: var(--ln-surface);
+  color: var(--ln-text-primary);
+  padding: var(--ln-grid) calc(var(--ln-grid) * 1.5);
+  border-radius: var(--ln-radius);
+}
