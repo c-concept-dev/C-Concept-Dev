@@ -1,7 +1,8 @@
 // @vitest-environment node
 import { Ancre, Document, Travail } from "@lienotheque/contrats";
 import { describe, expect, it } from "vitest";
-import { ANCRES, BIBLIOTHEQUES, DOCUMENTS, REPRISES, TRAVAIL_EN_COURS, decrireCompteur } from "../src/donnees/accueil.js";
+import { ANCRES, BIBLIOTHEQUES, DEMONSTRATION, DOCUMENTS, REPRISES, TRAVAIL_EN_COURS } from "../src/donnees/demonstration.js";
+import { decrireCompteur } from "../src/donnees/modele.js";
 import { decrireParcours, decrirePosition, minutage } from "../src/donnees/positions.js";
 
 describe("données factices de l'accueil : validées par les contrats", () => {
@@ -80,5 +81,14 @@ describe("compteurs des bibliothèques", () => {
   it("décrit les quatre bibliothèques des maquettes", () => {
     expect(BIBLIOTHEQUES).toHaveLength(4);
     expect(BIBLIOTHEQUES.map((b) => b.collection)).toEqual(["method", "research", "video", "photos"]);
+  });
+});
+
+describe("jeu de démonstration complet", () => {
+  it("porte les quatre parties que l'accueil sait afficher", () => {
+    expect(DEMONSTRATION.bibliotheques).toHaveLength(4);
+    expect(DEMONSTRATION.reprises).toHaveLength(3);
+    expect(DEMONSTRATION.aVerifier?.nombre).toBe(9);
+    expect(DEMONSTRATION.traitement?.progression).toBe(TRAVAIL_EN_COURS.progression);
   });
 });

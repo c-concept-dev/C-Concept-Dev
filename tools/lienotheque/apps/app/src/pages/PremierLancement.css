@@ -1,0 +1,36 @@
+.ln-premier {
+  display: grid;
+  justify-items: center;
+  gap: calc(var(--ln-grid) * 3);
+  max-width: 640px;
+  padding-top: calc(var(--ln-grid) * 10);
+  text-align: center;
+}
+
+.ln-premier__titre {
+  margin: 0;
+}
+
+.ln-premier__logo {
+  width: 100%;
+  max-width: 420px;
+  height: auto;
+}
+
+/* Inter, comme tout le reste : la charte v3 ne permet le serif que pour le logo
+   et « Bonjour », et le logo est déjà vectoriel. */
+.ln-premier__signature {
+  font-size: 20px;
+  color: var(--ln-text-secondary);
+  margin: 0;
+}
+
+.ln-premier .ln-depot {
+  width: 100%;
+}
+
+@media (max-width: 700px) {
+  .ln-premier {
+    padding-top: calc(var(--ln-grid) * 4);
+  }
+}

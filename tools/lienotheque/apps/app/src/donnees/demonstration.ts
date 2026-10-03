@@ -1,9 +1,11 @@
 import type { Ancre, Document as DocumentLn, Travail } from "@lienotheque/contrats";
-import type { Collection, NomIcone } from "../composants/index.js";
-import type { Position } from "./positions.js";
+import type { BibliothequeAffichee, DonneesAccueil, Reprise } from "./modele.js";
 
-/** Données de démonstration du lot 0 : aucune donnée réelle, aucune œuvre.
- *  Tout est typé par @lienotheque/contrats ; le test « accueil » les revalide à l'exécution. */
+/** Jeu de démonstration. Il ne sert qu'au développement : `?demonstration` dans l'adresse,
+ *  jamais dans la construction de production (voir chargement.ts).
+ *
+ *  Aucune donnée réelle, aucune œuvre. Tout est typé par @lienotheque/contrats et le test
+ *  « données » le revalide à l'exécution. */
 
 const id = (n: number): string => `0190f0a0-0000-7000-8000-${String(n).padStart(12, "0")}`;
 const LE = "2026-10-03T09:00:00+02:00";
@@ -45,15 +47,6 @@ export const TRAVAIL_EN_COURS = {
   majLe: LE,
 } as const satisfies Travail;
 
-export type Reprise = {
-  readonly documentId: string;
-  readonly titre: string;
-  readonly href: string;
-  readonly origine: readonly Position[];
-  readonly cible?: Position;
-  readonly quand: string;
-};
-
 /** « Reprendre où vous en étiez » (Accueil du CDC). Les mots « piste » et « diapositive »
  *  viennent du schéma de chaque bibliothèque, pas du composant. */
 export const REPRISES: readonly Reprise[] = [
@@ -81,22 +74,6 @@ export const REPRISES: readonly Reprise[] = [
     quand: "lundi",
   },
 ];
-
-export type Compteur = { readonly nombre: number; readonly mot: string };
-
-export type BibliothequeAffichee = {
-  readonly id: string;
-  readonly nom: string;
-  readonly href: string;
-  readonly collection: Collection;
-  readonly icones: readonly NomIcone[];
-  readonly compteurs: readonly Compteur[];
-  readonly aVerifier?: number;
-  readonly hebergement: { readonly libelle: string; readonly icones: readonly NomIcone[] };
-  readonly etat: { readonly libelle: string; readonly icone?: NomIcone; readonly enCours?: boolean };
-  readonly ouverte: string;
-  readonly partages?: number;
-};
 
 export const BIBLIOTHEQUES: readonly BibliothequeAffichee[] = [
   {
@@ -166,6 +143,11 @@ export const TRAITEMENT = { libelle: "Cours vidéo nº 4 · transcription", rest
 
 export const COMPTE = { initiales: "CB", nom: "Votre compte" } as const;
 
-export const nombreFrancais = (nombre: number): string => nombre.toLocaleString("fr-FR");
-
-export const decrireCompteur = ({ nombre, mot }: Compteur): string => `${nombreFrancais(nombre)} ${mot}`;
+/** Le tout, tel que l'accueil le reçoit. */
+export const DEMONSTRATION: DonneesAccueil = {
+  bibliotheques: BIBLIOTHEQUES,
+  reprises: REPRISES,
+  aVerifier: A_VERIFIER,
+  traitement: { ...TRAITEMENT, progression: TRAVAIL_EN_COURS.progression },
+  compte: COMPTE,
+};

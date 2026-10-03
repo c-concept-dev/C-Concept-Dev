@@ -6,12 +6,17 @@ type Props = {
   readonly titre: string;
   readonly aide: string;
   readonly libelleBouton: string;
+  /** Choisir un dossier entier plutôt que des fichiers (premier lancement). */
+  readonly dossier?: boolean | undefined;
   readonly onFichiers: (fichiers: readonly File[]) => void;
 };
 
+/** `webkitdirectory` n'est pas dans les types React : c'est un attribut de la plateforme. */
+const CHOIX_DOSSIER = { webkitdirectory: "", directory: "" } as Record<string, string>;
+
 /** Dépôt universel (HER-01) avec son alternative clavier obligatoire (UX-06) :
  *  le champ de fichiers natif reste focalisable, la zone montre son focus. */
-export function ZoneDepot({ titre, aide, libelleBouton, onFichiers }: Props): JSX.Element {
+export function ZoneDepot({ titre, aide, libelleBouton, dossier = false, onFichiers }: Props): JSX.Element {
   const id = useId();
   const [compte, setCompte] = useState<number | null>(null);
 
@@ -39,6 +44,7 @@ export function ZoneDepot({ titre, aide, libelleBouton, onFichiers }: Props): JS
         className="ln-sr-only"
         type="file"
         multiple
+        {...(dossier ? CHOIX_DOSSIER : {})}
         onChange={(evenement) => recevoir(evenement.target.files)}
       />
       <output className="ln-muted" aria-live="polite">
