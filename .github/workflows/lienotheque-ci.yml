@@ -1,0 +1,58 @@
+name: Liénothèque — intégration continue
+
+# Ce dépôt est un monorepo hétérogène : cette intégration continue ne concerne que
+# tools/lienotheque. Elle ne déploie rien (voir deploy-worker.yml et deploy-pages.yml).
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'tools/lienotheque/**'
+      - '.github/workflows/lienotheque-ci.yml'
+  pull_request:
+    paths:
+      - 'tools/lienotheque/**'
+      - '.github/workflows/lienotheque-ci.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lienotheque-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: tools/lienotheque
+
+jobs:
+  check:
+    name: Vérification (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - name: Récupérer le dossier Liénothèque
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: tools/lienotheque
+
+      # pnpm avant setup-node : le cache « pnpm » de setup-node a besoin de pnpm sur le PATH.
+      - name: Installer pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Installer Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: tools/lienotheque/pnpm-lock.yaml
+
+      - name: Installer les dépendances
+        run: pnpm install --frozen-lockfile
+
+      - name: Typage et tests
+        run: pnpm check

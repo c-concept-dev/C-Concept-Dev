@@ -1,0 +1,93 @@
+{
+  "version": "3.0",
+  "status": "validated_design_reference",
+  "themes": {
+    "light": {
+      "background": "#F4F1EB",
+      "shell": "#F4F1EB",
+      "surface": "#FBF9F5",
+      "surface_hover": "#EDE7DF",
+      "text_primary": "#202327",
+      "text_secondary": "#62666B",
+      "border_decorative": "#D8D0C5",
+      "control_border": "#62666B",
+      "action_background": "#875638",
+      "action_text": "#FFFFFF",
+      "action_hover": "#70452D",
+      "link": "#875638",
+      "focus": "#875638",
+      "thread": "#B88B62",
+      "progress_fill": "#B88B62",
+      "progress_track": "#D8D0C5",
+      "progress_outline": "#202327",
+      "selection_background": "#F3E1C6",
+      "selection_text": "#202327",
+      "warning_background": "#F3E1C6",
+      "warning_text": "#75451F",
+      "error_text": "#9F3434",
+      "disabled_background": "#E6E0D7",
+      "disabled_text": "#62666B"
+    },
+    "dark": {
+      "background": "#181A1D",
+      "shell": "#202327",
+      "surface": "#202327",
+      "surface_hover": "#2B2F34",
+      "text_primary": "#F4F1EB",
+      "text_secondary": "#B8B6B1",
+      "border_decorative": "#44494F",
+      "control_border": "#8B9198",
+      "action_background": "#B88B62",
+      "action_text": "#202327",
+      "action_hover": "#C99E78",
+      "link": "#D2A77F",
+      "focus": "#D2A77F",
+      "thread": "#B88B62",
+      "progress_fill": "#B88B62",
+      "progress_track": "#44494F",
+      "progress_outline": "#B88B62",
+      "selection_background": "#493425",
+      "selection_text": "#F4F1EB",
+      "warning_background": "#493425",
+      "warning_text": "#F1C58E",
+      "error_text": "#F0A59E",
+      "disabled_background": "#2B2F34",
+      "disabled_text": "#B8B6B1"
+    },
+    "hybrid": {
+      "cards_theme": "light",
+      "shell_theme": "dark",
+      "heading_panel": "#202327",
+      "heading_panel_opacity": 1,
+      "photo_overlay": "#202327",
+      "photo_overlay_opacity": 0.55
+    }
+  },
+  "collections": {
+    "method": "#202327",
+    "research": "#555A60",
+    "video": "#654A36",
+    "photos": "#8A7B6A"
+  },
+  "typography": {
+    "ui": "Inter",
+    "brand": "Source Serif 4",
+    "serif_allowed": [
+      "logo",
+      "Bonjour"
+    ],
+    "section_size_px": 13,
+    "library_name_size_px": 17,
+    "counter_font": "Inter"
+  },
+  "geometry": {
+    "grid_px": 8,
+    "radius_px": 8,
+    "progress_height_px": 3,
+    "resume_border_px": 3
+  },
+  "logo": {
+    "concept": "two interlocking document frames with negative-space L",
+    "thread": false
+  }
+}

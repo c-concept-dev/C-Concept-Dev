@@ -188,3 +188,5 @@ tools/EvidenceForge/.env.local.*
 # Jamais commitées : le dépôt est public et aucun binaire média n'y a jamais été versé ; elles se
 # régénèrent seules si absentes.
 **/tests/fixtures-video/
+
+!tools/lienotheque/**/*token*
