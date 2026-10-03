@@ -3,24 +3,26 @@
 //! C'est un **exemple** Cargo, pas un binaire du projet : `cargo test` le construit, mais Tauri
 //! ne l'embarque pas dans le paquet livré (il ne reprend que les cibles `[[bin]]`).
 //!
-//!     cargo run --release --example travail-long -- <fichier-d-etat> [total] [ms-par-pas] [verrou-s]
+//!     cargo run --release --example travail-long -- <fichier-d-etat> [total] [ms-par-pas] [expiration-s]
 //!
 //! Il persiste son état avant de commencer (JOB-01), prend un verrou à expiration (JOB-02) et
 //! enregistre un point de reprise à chaque pas (JOB-03). Tué par `kill -9`, il reprend au pas
 //! suivant au prochain lancement, sans retraiter ce qui est fait.
 
-use lienotheque_bureau::travail::{charger, enregistrer, maintenant, Travail, VERROU_SECONDES};
+use lienotheque_bureau::travail::{
+    charger, enregistrer, maintenant, Travail, BATTEMENT_SECONDES, EXPIRATION_SECONDES,
+};
 use std::{env, path::PathBuf, process, thread, time::Duration};
 
 fn main() {
     let arguments: Vec<String> = env::args().collect();
     let Some(chemin) = arguments.get(1).map(PathBuf::from) else {
-        eprintln!("usage : travail-long <fichier-d-etat> [total] [ms-par-pas] [secondes-de-verrou]");
+        eprintln!("usage : travail-long <fichier-d-etat> [total] [ms-par-pas] [secondes-d-expiration]");
         process::exit(2);
     };
     let total: u32 = arguments.get(2).and_then(|a| a.parse().ok()).unwrap_or(500);
     let pas_ms: u64 = arguments.get(3).and_then(|a| a.parse().ok()).unwrap_or(20);
-    let verrou_s: u64 = arguments.get(4).and_then(|a| a.parse().ok()).unwrap_or(VERROU_SECONDES);
+    let expiration_s: u64 = arguments.get(4).and_then(|a| a.parse().ok()).unwrap_or(EXPIRATION_SECONDES);
 
     let mut travail = match charger(&chemin) {
         Ok(Some(existant)) => existant,
@@ -32,7 +34,7 @@ fn main() {
     };
 
     if !travail.reprenable(maintenant()) {
-        eprintln!("verrou encore valide : rien à reprendre");
+        eprintln!("bail encore valide : rien à reprendre");
         process::exit(3);
     }
 
@@ -40,14 +42,16 @@ fn main() {
     if depart > 0 {
         travail.tentative += 1;
     }
-    travail.verrouiller("prototype", maintenant(), verrou_s);
+    travail.battre("prototype", maintenant(), expiration_s);
     enregistrer(&chemin, &travail).expect("état persisté avant de commencer (JOB-01)");
     println!("reprise au pas {depart} sur {total} (tentative {})", travail.tentative);
 
     for pas in (depart + 1)..=total {
         thread::sleep(Duration::from_millis(pas_ms));
-        // Le verrou est renouvelé avant d'avancer : au dernier pas, `avancer` le libère.
-        travail.verrouiller("prototype", maintenant(), verrou_s);
+        // Le bail est renouvelé quand le battement est dû ; au dernier pas, `avancer` le libère.
+        if travail.battre_si_du("prototype", maintenant(), BATTEMENT_SECONDES, expiration_s) {
+            println!("battement");
+        }
         travail.avancer(pas, "lot");
         enregistrer(&chemin, &travail).expect("point de reprise enregistré (JOB-03)");
         println!("pas {pas}/{total}");

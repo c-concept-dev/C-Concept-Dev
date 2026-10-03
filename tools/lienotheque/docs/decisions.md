@@ -31,7 +31,7 @@ autre » ; ils ne la remplacent pas.
 |---|---|---|
 | Ouvre un PDF de 500 pages | Oui | PDF natif (0,17 Mo) : ouverture **2 ms**. Livre numérisé, une image par page (76,8 Mo) : ouverture **322 ms**, accès à la dernière page **< 1 ms** |
 | Lance un sidecar (Tesseract) | Oui | Moteur **réellement embarqué**, lancé depuis le paquet. Page A4 à 150 ppp en français : **107 ms** |
-| Reprend un travail après arrêt forcé (JOB-02) | Oui | `kill -9` au pas 30/200 ; le verrou survit, expire, puis reprise **au pas 31**, aucun pas rejoué, tentative 2 |
+| Reprend un travail après arrêt forcé (JOB-02) | Oui | `kill -9` en cours de route ; le bail survit, expire 15 s après le dernier battement, puis reprise **au pas suivant**, aucun pas rejoué, tentative 2 |
 | Lit un MP3 par plages via un serveur local | Oui | `206 Partial Content` avec `Content-Range` ; 64 Kio servis en **1 ms** sur une piste de 2,88 Mo |
 
 ### Taille d'installation, moteurs embarqués compris
@@ -70,9 +70,12 @@ compris dans cette mesure.
   piste. Corrigé en forçant le seuil, mais c'est un piège à retenir pour tout serveur local.
 - **La reprise tient à l'écriture atomique.** L'état est écrit dans un fichier temporaire puis
   renommé : un `kill -9` ne laisse jamais un état tronqué. Sans cela, JOB-02 ne tient pas.
-- **Le verrou se comporte comme prévu.** Après un arrêt forcé, le travail reste bloqué jusqu'à
-  l'expiration du verrou. Les 30 secondes par défaut sont un choix à régler : c'est le délai pendant
-  lequel un travail interrompu paraît figé à l'utilisateur.
+- **Le verrou est devenu un bail renouvelé.** Un verrou à durée fixe oblige à choisir entre un
+  délai long (un travail interrompu paraît figé longtemps) et un délai court (un travail bien
+  vivant se fait voler son verrou). Le travail bat donc toutes les 5 secondes et son bail expire
+  15 secondes après le dernier battement : un processus tué cesse de battre et libère le travail en
+  15 secondes, tandis qu'un processus vivant garde le sien indéfiniment. Deux battements peuvent
+  être manqués avant que le bail ne tombe.
 
 ### Mesures Windows du 3 octobre 2026
 

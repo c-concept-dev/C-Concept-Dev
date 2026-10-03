@@ -1,8 +1,12 @@
 //! Travaux reprenables (JOB-01, JOB-02, JOB-03).
 //!
-//! Un travail est écrit sur disque **avant** de commencer, prend un verrou à expiration et
-//! enregistre un point de reprise à chaque pas. L'écriture est atomique (fichier temporaire
-//! puis renommage) : un arrêt forcé ne laisse jamais un état tronqué.
+//! Un travail est écrit sur disque **avant** de commencer, tient un bail qu'il renouvelle en
+//! battant, et enregistre un point de reprise à chaque pas. L'écriture est atomique (fichier
+//! temporaire puis renommage) : un arrêt forcé ne laisse jamais un état tronqué.
+//!
+//! Le bail remplace le verrou à durée fixe : un processus vivant bat toutes les
+//! [`BATTEMENT_SECONDES`], le bail expire [`EXPIRATION_SECONDES`] après le dernier battement.
+//! Un processus tué cesse de battre, donc son bail finit par expirer de lui-même.
 
 use serde::{Deserialize, Serialize};
 use std::{
@@ -12,13 +16,18 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-/// Durée d'un verrou par défaut. Passé ce délai sans renouvellement, le travail redevient
-/// reprenable : c'est ce qui permet de repartir après un arrêt forcé (JOB-02).
-pub const VERROU_SECONDES: u64 = 30;
+/// Cadence du battement : le travail renouvelle son bail à ce rythme tant qu'il vit.
+pub const BATTEMENT_SECONDES: u64 = 5;
+
+/// Durée du bail à partir du dernier battement. Passé ce délai, le travail redevient reprenable :
+/// c'est ce qui permet de repartir après un arrêt forcé (JOB-02).
+pub const EXPIRATION_SECONDES: u64 = 15;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct Verrou {
     pub appareil: String,
+    /// Dernier battement : c'est lui qui repousse l'expiration.
+    pub battu_le: u64,
     pub expire_le: u64,
 }
 
@@ -66,17 +75,32 @@ impl Travail {
         self.point_reprise.as_ref().map_or(0, |p| p.valeur)
     }
 
-    /// Un travail sans verrou, ou dont le verrou a expiré, est reprenable (JOB-02).
+    /// Un travail sans bail, ou dont le bail a expiré, est reprenable (JOB-02).
     pub fn reprenable(&self, maintenant: u64) -> bool {
         self.etat != "termine" && self.verrou.as_ref().is_none_or(|v| v.expire_le <= maintenant)
     }
 
-    pub fn verrouiller(&mut self, appareil: &str, maintenant: u64, duree: u64) {
+    /// Prend le bail, ou le renouvelle sans condition.
+    pub fn battre(&mut self, appareil: &str, maintenant: u64, expiration: u64) {
         self.verrou = Some(Verrou {
             appareil: appareil.to_owned(),
-            expire_le: maintenant + duree,
+            battu_le: maintenant,
+            expire_le: maintenant + expiration,
         });
         self.etat = "en_cours".to_owned();
+    }
+
+    /// Renouvelle le bail seulement si le battement est dû. Rend `true` s'il a battu : le travail
+    /// n'écrit son état sur disque que dans ce cas, inutile de le faire à chaque pas.
+    pub fn battre_si_du(&mut self, appareil: &str, maintenant: u64, battement: u64, expiration: u64) -> bool {
+        let du = self
+            .verrou
+            .as_ref()
+            .is_none_or(|v| maintenant.saturating_sub(v.battu_le) >= battement);
+        if du {
+            self.battre(appareil, maintenant, expiration);
+        }
+        du
     }
 
     pub fn avancer(&mut self, valeur: u32, unite: &str) {
@@ -127,12 +151,36 @@ mod tests {
     use super::*;
 
     #[test]
-    fn un_verrou_expire_rend_le_travail_reprenable() {
+    fn un_bail_expire_quinze_secondes_apres_le_dernier_battement() {
         let mut t = Travail::neuf("t1", "transcripteur", 10);
-        assert!(t.reprenable(1_000));
-        t.verrouiller("appareil-a", 1_000, VERROU_SECONDES);
-        assert!(!t.reprenable(1_000));
-        assert!(t.reprenable(1_000 + VERROU_SECONDES));
+        assert!(t.reprenable(1_000), "sans bail, rien ne retient le travail");
+
+        t.battre("appareil-a", 1_000, EXPIRATION_SECONDES);
+        assert!(!t.reprenable(1_000 + EXPIRATION_SECONDES - 1));
+        assert!(t.reprenable(1_000 + EXPIRATION_SECONDES));
+    }
+
+    #[test]
+    fn un_battement_repousse_l_expiration_d_autant() {
+        let mut t = Travail::neuf("t1", "transcripteur", 10);
+        t.battre("appareil-a", 1_000, EXPIRATION_SECONDES);
+
+        // Battement dû au bout de cinq secondes, pas avant.
+        assert!(!t.battre_si_du("appareil-a", 1_004, BATTEMENT_SECONDES, EXPIRATION_SECONDES));
+        assert!(t.battre_si_du("appareil-a", 1_005, BATTEMENT_SECONDES, EXPIRATION_SECONDES));
+
+        let verrou = t.verrou.as_ref().expect("bail en cours");
+        assert_eq!(verrou.battu_le, 1_005);
+        assert_eq!(verrou.expire_le, 1_005 + EXPIRATION_SECONDES);
+        assert!(!t.reprenable(1_019), "le bail court jusqu'à quinze secondes après le battement");
+        assert!(t.reprenable(1_020));
+    }
+
+    #[test]
+    fn la_cadence_laisse_deux_battements_de_marge_avant_l_expiration() {
+        assert_eq!(BATTEMENT_SECONDES, 5);
+        assert_eq!(EXPIRATION_SECONDES, 15);
+        assert!(EXPIRATION_SECONDES > BATTEMENT_SECONDES * 2, "un battement manqué ne doit pas suffire");
     }
 
     #[test]

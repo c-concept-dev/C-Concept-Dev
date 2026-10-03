@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import {
-  Ancre, CarteSynchro, Empreinte, EtatService, Identifiant, Lien, Operation, Recette, ResultatOutil, Travail, VersionDocument,
+  Ancre, BATTEMENT_VERROU_S, CarteSynchro, Empreinte, EtatService, EXPIRATION_VERROU_S, Identifiant, Lien, Operation, Recette,
+  ResultatOutil, Travail, Verrou, VersionDocument,
   arbitrer, transitionVersionAutorisee, versFragment,
 } from "../src/index.js";
 
@@ -143,5 +144,40 @@ describe("état d'un service (HEB-01, SEC-01)", () => {
   it("n'annonce que des capacités du vocabulaire fermé", () => {
     expect(EtatService.safeParse({ ...sain, capacites: ["sante", "recherche"] }).success).toBe(true);
     expect(EtatService.safeParse({ ...sain, capacites: ["tout"] }).success).toBe(false);
+  });
+});
+
+describe("bail des travaux (JOB-02)", () => {
+  const bail = (battuLe: string, expireLe: string) => ({ appareilId: id(9), battuLe, expireLe });
+
+  it("bat toutes les 5 s et expire 15 s après le dernier battement", () => {
+    expect(BATTEMENT_VERROU_S).toBe(5);
+    expect(EXPIRATION_VERROU_S).toBe(15);
+    expect(EXPIRATION_VERROU_S).toBeGreaterThan(BATTEMENT_VERROU_S * 2);
+  });
+
+  it("accepte un bail dont l'expiration suit le battement", () => {
+    expect(Verrou.safeParse(bail("2026-10-03T10:00:00+02:00", "2026-10-03T10:00:15+02:00")).success).toBe(true);
+  });
+
+  it("refuse un bail déjà expiré au moment où il est battu", () => {
+    expect(Verrou.safeParse(bail("2026-10-03T10:00:15+02:00", "2026-10-03T10:00:00+02:00")).success).toBe(false);
+    expect(Verrou.safeParse(bail("2026-10-03T10:00:00+02:00", "2026-10-03T10:00:00+02:00")).success).toBe(false);
+  });
+
+  it("exige l'instant du dernier battement : sans lui, rien ne dit quand le bail a été renouvelé", () => {
+    expect(Verrou.safeParse({ appareilId: id(9), expireLe: "2026-10-03T10:00:15+02:00" }).success).toBe(false);
+  });
+
+  it("un travail verrouillé porte son bail", () => {
+    const base = { id: id(1), outil: { nom: "transcripteur", version: "1.0.0" }, versionCible: id(2), tentative: 1, progression: 0.2, creeLe: now, majLe: now };
+    expect(Travail.safeParse({ ...base, etat: "verrouille" }).success).toBe(false);
+    expect(
+      Travail.safeParse({
+        ...base,
+        etat: "verrouille",
+        verrou: bail("2026-10-03T10:00:00+02:00", "2026-10-03T10:00:15+02:00"),
+      }).success,
+    ).toBe(true);
   });
 });

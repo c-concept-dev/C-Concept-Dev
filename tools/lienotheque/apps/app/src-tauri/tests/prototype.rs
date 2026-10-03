@@ -193,33 +193,35 @@ fn sert_un_mp3_par_plages() {
 
 #[test]
 fn reprend_un_travail_apres_un_arret_force() {
+    let exemple = travail_long();
+    exiger(&exemple, "lancez `cargo test --release` (il construit les exemples)");
+
     let dossier = std::env::temp_dir().join(format!("lienotheque-job-{}", std::process::id()));
     std::fs::create_dir_all(&dossier).expect("dossier de travail");
     let etat = dossier.join("travail.json");
     let _ = std::fs::remove_file(&etat);
 
-    let total = 200_u32;
-    let verrou_s = 1_u64;
-
-    // Premier essai : on tue le processus en plein travail, sans le laisser finir.
-    let exemple = travail_long();
-    exiger(&exemple, "lancez `cargo test --release` (il construit les exemples)");
+    // Assez long pour que le bail soit renouvelé au moins une fois avant l'arrêt forcé.
+    let total = 2_000_u32;
+    let pris_le = travail::maintenant();
 
     let mut enfant = Command::new(&exemple)
-        .args([etat.to_str().unwrap(), &total.to_string(), "10", &verrou_s.to_string()])
+        .args([etat.to_str().unwrap(), &total.to_string(), "5"])
         .stdout(Stdio::null())
         .spawn()
         .expect("travail lancé");
 
+    // On attend un battement, pas un nombre de pas : c'est lui qui prolonge le bail.
     let limite = Instant::now();
     loop {
         if let Ok(Some(t)) = travail::charger(&etat) {
-            if t.reprise_a() >= 30 {
+            let battu = t.verrou.as_ref().is_some_and(|v| v.battu_le >= pris_le + travail::BATTEMENT_SECONDES);
+            if battu && t.reprise_a() > 0 {
                 break;
             }
         }
-        assert!(limite.elapsed() < Duration::from_secs(20), "le travail n'a jamais démarré");
-        thread::sleep(Duration::from_millis(20));
+        assert!(limite.elapsed() < Duration::from_secs(60), "aucun battement observé");
+        thread::sleep(Duration::from_millis(50));
     }
 
     enfant.kill().expect("arrêt forcé"); // SIGKILL : aucune chance de ranger quoi que ce soit
@@ -227,16 +229,19 @@ fn reprend_un_travail_apres_un_arret_force() {
 
     let interrompu = travail::charger(&etat).expect("état lisible").expect("état présent");
     let reprise = interrompu.reprise_a();
+    let bail = interrompu.verrou.clone().expect("le bail survit à l'arrêt : c'est lui qui expire");
     assert!(reprise > 0 && reprise < total, "arrêté en cours de route : {reprise}/{total}");
-    assert!(interrompu.verrou.is_some(), "le verrou survit à l'arrêt : c'est lui qui expire (JOB-02)");
-    assert!(!interrompu.reprenable(travail::maintenant()), "verrou encore valide : pas de reprise immédiate");
+    assert!(bail.battu_le > pris_le, "le bail avait bien été renouvelé avant l'arrêt");
+    assert_eq!(bail.expire_le, bail.battu_le + travail::EXPIRATION_SECONDES);
+    assert!(!interrompu.reprenable(travail::maintenant()), "bail encore valide : pas de reprise immédiate");
 
-    // Le verrou expire : le travail redevient reprenable.
-    thread::sleep(Duration::from_millis(verrou_s * 1000 + 300));
-    assert!(interrompu.reprenable(travail::maintenant()), "verrou expiré : le travail est reprenable");
+    // Plus personne ne bat : le bail expire de lui-même.
+    let reste = bail.expire_le.saturating_sub(travail::maintenant());
+    thread::sleep(Duration::from_secs(reste) + Duration::from_millis(500));
+    assert!(interrompu.reprenable(travail::maintenant()), "bail expiré : le travail est reprenable");
 
     let sortie = Command::new(&exemple)
-        .args([etat.to_str().unwrap(), &total.to_string(), "2", &verrou_s.to_string()])
+        .args([etat.to_str().unwrap(), &total.to_string(), "0"])
         .output()
         .expect("reprise lancée");
     assert!(sortie.status.success(), "reprise en échec : {}", String::from_utf8_lossy(&sortie.stderr));
@@ -244,7 +249,8 @@ fn reprend_un_travail_apres_un_arret_force() {
     let journal = String::from_utf8_lossy(&sortie.stdout);
     assert!(
         journal.contains(&format!("reprise au pas {reprise} sur {total}")),
-        "le journal doit dire d'où il repart :\n{journal}"
+        "le journal doit dire d'où il repart :\n{}",
+        journal.lines().take(3).collect::<Vec<_>>().join("\n")
     );
     assert!(!journal.contains(&format!("pas {reprise}/{total}")), "aucun pas déjà fait n'est refait");
 
@@ -252,8 +258,12 @@ fn reprend_un_travail_apres_un_arret_force() {
     assert_eq!(fini.etat, "termine");
     assert_eq!(fini.tentative, 2, "la reprise compte une seconde tentative");
     assert_eq!(fini.progression(), 1.0);
-    assert!(fini.verrou.is_none(), "un travail terminé ne garde pas son verrou");
+    assert!(fini.verrou.is_none(), "un travail terminé ne garde pas son bail");
 
-    println!("Reprise : arrêt forcé au pas {reprise}/{total}, reprise au pas suivant, aucun pas rejoué");
+    println!(
+        "Reprise : bail battu toutes les {} s, arrêt forcé au pas {reprise}/{total}, bail expiré {} s plus tard, reprise au pas suivant",
+        travail::BATTEMENT_SECONDES,
+        travail::EXPIRATION_SECONDES
+    );
     let _ = std::fs::remove_dir_all(&dossier);
 }
