@@ -16,6 +16,8 @@ type Props = {
 
 /** Barre permanente : chaque commande y garde sa place (UX-09), mais n'apparaît que si elle a
  *  un objet — au premier lancement il n'y a rien à chercher, rien à synchroniser, rien à vérifier.
+ *  Le thème se règle dans les réglages, pas ici : la barre ne le montre qu'en développement, où
+ *  l'on bascule sans cesse entre les trois variantes.
  *  Le logo est le vectoriel validé du kit ; l'hybride garde la barre graphite, donc l'emblème sombre. */
 export function EnTete({ theme, onThemeChange, onRecherche, donnees }: Props): JSX.Element {
   const embleme = theme === "light" ? emblemeClair : emblemeSombre;
@@ -51,7 +53,7 @@ export function EnTete({ theme, onThemeChange, onRecherche, donnees }: Props): J
             <span className="ln-sr-only">{donnees.compte.nom}</span>
           </Bouton>
         )}
-        <SelecteurTheme theme={theme} onChange={onThemeChange} />
+        {import.meta.env.DEV ? <SelecteurTheme theme={theme} onChange={onThemeChange} /> : null}
       </div>
     </header>
   );

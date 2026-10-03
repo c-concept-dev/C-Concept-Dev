@@ -13,7 +13,7 @@ permet de tout retrouver, sur la vraie page ou au vrai minutage.
 - `@lienotheque/jetons` : jetons de la charte graphite et cuivre v3.0.1, feuille CSS générée pour les
   trois variantes, tests de contraste WCAG 2.2.
 - `@lienotheque/app` : React 19, Vite, TypeScript strict. Composants portés du kit UI v1.1, accueil
-  piloté par les données, bascule clair / hybride / sombre intégral. L'accueil part vide ; pour voir
+  piloté par les données, bascule clair / hybride / sombre intégral depuis `/#reglages`. L'accueil part vide ; pour voir
   la composition des maquettes en développement, ouvrez `/?demonstration` — ce jeu de démonstration
   n'entre jamais dans la construction de production.
 - `@lienotheque/worker` : squelette Hono, route de santé. Aucun déploiement au lot 0.

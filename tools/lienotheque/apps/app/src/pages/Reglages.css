@@ -1,0 +1,17 @@
+.ln-reglages {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: calc(var(--ln-grid) * 3);
+  max-width: 800px;
+  margin-inline: auto;
+}
+
+.ln-reglages__titre {
+  font-size: 28px;
+  margin: 0;
+}
+
+.ln-reglages__section {
+  font-size: 20px;
+  margin: 0 0 var(--ln-grid);
+}
