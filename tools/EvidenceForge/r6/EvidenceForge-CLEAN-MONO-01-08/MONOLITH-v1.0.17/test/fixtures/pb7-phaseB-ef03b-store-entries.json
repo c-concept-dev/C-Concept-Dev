@@ -1,0 +1,529 @@
+{
+ "schema": "EvidenceForge.PB7.PhaseBStoreFixture",
+ "source": "run efm-20260923-78fd8c4b (smoke reel phase B, MONOLITH-v1.0.15) : les 20 entrees EF-03B du magasin llm-reuse-store.jsonl, TELLES QUELLES (seul cachePath est reduit a son nom de fichier ; aucun corps de reponse, aucun prompt)",
+ "measuredIdentityNote": "measuredIdentity = cible et empreinte de l autorite MESUREES hors ligne sur le prompt reel de chaque entree (audit PB-B7, 20/20 egales a l autorite du registre du run). Elle N EST PAS ecrite dans l entree : une entree historique reste sans identite (NON_REUSABLE_FOR_EF03B_V3). Elle sert seulement a construire, dans le test, la variante qu une entree v1.0.16 porterait.",
+ "runtimeSealSha256": "110db4de24709926d4a5fb6d0e951530f0afc2c1c807a09127852a92aa182c3d",
+ "validationContract": "MONO-11-v3",
+ "entries": [
+  {
+   "entry": {
+    "validationStatus": "VALID",
+    "validationErrors": [],
+    "promptSha256": "689042ce90d09dd96e3e2bd08c63dd024ec3dea015aa035680c7138dfaf4a15f",
+    "responseSha256": "e3a3cc07906e120d2d0c88e116c85a6e279f1ebd68b806e2e89237692394e70e",
+    "sourceRunId": "efm-20260923-78fd8c4b",
+    "sourceCallId": "msg_011CfLbK8Pf6LBACg4GbJgYN",
+    "providerRequestId": "msg_011CfLbK8Pf6LBACg4GbJgYN",
+    "providerId": "anthropic",
+    "modelId": "claude-sonnet-4-6",
+    "completedAt": "2026-09-23T15:17:23.728Z",
+    "httpStatus": 200,
+    "purpose": "EF-03B review",
+    "sourceSealHash": "110db4de24709926d4a5fb6d0e951530f0afc2c1c807a09127852a92aa182c3d",
+    "validationContract": "MONO-11-v3",
+    "cachePath": "e3a3cc07906e120d2d0c88e116c85a6e279f1ebd68b806e2e89237692394e70e.response.json",
+    "kind": "REAL_CALL",
+    "validatedBy": "EF-03B-local",
+    "validatedAt": "2026-09-23T15:17:23.767Z"
+   },
+   "measuredIdentity": {
+    "targetId": "target-01",
+    "documentAuthoritySha256": "113b0798c3e1d61e62267f1e1bcab24ac293d25ea0f3b6ab5802d5b2340eb125"
+   }
+  },
+  {
+   "entry": {
+    "validationStatus": "VALID",
+    "validationErrors": [],
+    "promptSha256": "320cd651fe4de334bc49467df717e8515177b72e6dcac6073fc7001261ac30d4",
+    "responseSha256": "49451eba4c7586f36d543ff9e6cd5cd9e0e256ac582cf3bd79dead64cf29a102",
+    "sourceRunId": "efm-20260923-78fd8c4b",
+    "sourceCallId": "msg_011CfLbNM7U1tx6UoCUyZuq2",
+    "providerRequestId": "msg_011CfLbNM7U1tx6UoCUyZuq2",
+    "providerId": "anthropic",
+    "modelId": "claude-sonnet-4-6",
+    "completedAt": "2026-09-23T15:18:10.032Z",
+    "httpStatus": 200,
+    "purpose": "EF-03B review",
+    "sourceSealHash": "110db4de24709926d4a5fb6d0e951530f0afc2c1c807a09127852a92aa182c3d",
+    "validationContract": "MONO-11-v3",
+    "cachePath": "49451eba4c7586f36d543ff9e6cd5cd9e0e256ac582cf3bd79dead64cf29a102.response.json",
+    "kind": "REAL_CALL",
+    "validatedBy": "EF-03B-local",
+    "validatedAt": "2026-09-23T15:18:10.085Z"
+   },
+   "measuredIdentity": {
+    "targetId": "target-01",
+    "documentAuthoritySha256": "113b0798c3e1d61e62267f1e1bcab24ac293d25ea0f3b6ab5802d5b2340eb125"
+   }
+  },
+  {
+   "entry": {
+    "validationStatus": "VALID",
+    "validationErrors": [],
+    "promptSha256": "bc2d1ce0ad5f96a361d8210f534bb79b9b0936873df68f5a2cb8a84bdaa7732b",
+    "responseSha256": "a6947696121aafb91e65fcd7d861229dbe5d776408ad8604ceb9de2edc579011",
+    "sourceRunId": "efm-20260923-78fd8c4b",
+    "sourceCallId": "msg_011CfLbRmzWZ14FFWAy2WNzi",
+    "providerRequestId": "msg_011CfLbRmzWZ14FFWAy2WNzi",
+    "providerId": "anthropic",
+    "modelId": "claude-sonnet-4-6",
+    "completedAt": "2026-09-23T15:18:54.137Z",
+    "httpStatus": 200,
+    "purpose": "EF-03B review",
+    "sourceSealHash": "110db4de24709926d4a5fb6d0e951530f0afc2c1c807a09127852a92aa182c3d",
+    "validationContract": "MONO-11-v3",
+    "cachePath": "a6947696121aafb91e65fcd7d861229dbe5d776408ad8604ceb9de2edc579011.response.json",
+    "kind": "REAL_CALL",
+    "validatedBy": "EF-03B-local",
+    "validatedAt": "2026-09-23T15:18:54.161Z"
+   },
+   "measuredIdentity": {
+    "targetId": "target-01",
+    "documentAuthoritySha256": "113b0798c3e1d61e62267f1e1bcab24ac293d25ea0f3b6ab5802d5b2340eb125"
+   }
+  },
+  {
+   "entry": {
+    "validationStatus": "VALID",
+    "validationErrors": [],
+    "promptSha256": "59d6f575a0ba4db5b3b0b2e03b98c7a94cffdde3e1c5e48c0803924d3de0e460",
+    "responseSha256": "98d568e442a7a0fb391f2c5a0ad1203e0d64cb052e5d40078a115c68fe98d669",
+    "sourceRunId": "efm-20260923-78fd8c4b",
+    "sourceCallId": "msg_011CfLbV2Dck1pESF5ezMzna",
+    "providerRequestId": "msg_011CfLbV2Dck1pESF5ezMzna",
+    "providerId": "anthropic",
+    "modelId": "claude-sonnet-4-6",
+    "completedAt": "2026-09-23T15:19:40.691Z",
+    "httpStatus": 200,
+    "purpose": "EF-03B review",
+    "sourceSealHash": "110db4de24709926d4a5fb6d0e951530f0afc2c1c807a09127852a92aa182c3d",
+    "validationContract": "MONO-11-v3",
+    "cachePath": "98d568e442a7a0fb391f2c5a0ad1203e0d64cb052e5d40078a115c68fe98d669.response.json",
+    "kind": "REAL_CALL",
+    "validatedBy": "EF-03B-local",
+    "validatedAt": "2026-09-23T15:19:40.735Z"
+   },
+   "measuredIdentity": {
+    "targetId": "target-01",
+    "documentAuthoritySha256": "113b0798c3e1d61e62267f1e1bcab24ac293d25ea0f3b6ab5802d5b2340eb125"
+   }
+  },
+  {
+   "entry": {
+    "validationStatus": "VALID",
+    "validationErrors": [],
+    "promptSha256": "0885551f853c4c2310f813dbd74ed1f972aab4da5961289b6f06b91f8dd1bc6d",
+    "responseSha256": "b275008460d3b7e3223e1f1c1663b6191a7c6748885ebf05d60ffd3aad830358",
+    "sourceRunId": "efm-20260923-78fd8c4b",
+    "sourceCallId": "msg_011CfLbYTeeGHz3zpLAKKbyb",
+    "providerRequestId": "msg_011CfLbYTeeGHz3zpLAKKbyb",
+    "providerId": "anthropic",
+    "modelId": "claude-sonnet-4-6",
+    "completedAt": "2026-09-23T15:20:25.058Z",
+    "httpStatus": 200,
+    "purpose": "EF-03B review",
+    "sourceSealHash": "110db4de24709926d4a5fb6d0e951530f0afc2c1c807a09127852a92aa182c3d",
+    "validationContract": "MONO-11-v3",
+    "cachePath": "b275008460d3b7e3223e1f1c1663b6191a7c6748885ebf05d60ffd3aad830358.response.json",
+    "kind": "REAL_CALL",
+    "validatedBy": "EF-03B-local",
+    "validatedAt": "2026-09-23T15:20:25.090Z"
+   },
+   "measuredIdentity": {
+    "targetId": "target-01",
+    "documentAuthoritySha256": "113b0798c3e1d61e62267f1e1bcab24ac293d25ea0f3b6ab5802d5b2340eb125"
+   }
+  },
+  {
+   "entry": {
+    "validationStatus": "VALID",
+    "validationErrors": [],
+    "promptSha256": "fcda7a5892a4e8860b693582c53b5491aaa154f979ac5f985be73cc8be81db20",
+    "responseSha256": "0deaab02ed7e38b4b8ab8faf9f53cdd178f6024c4fb1a7aff03d9361bc4113c8",
+    "sourceRunId": "efm-20260923-78fd8c4b",
+    "sourceCallId": "msg_011CfLbbiQVg1wM9R5SyJu6j",
+    "providerRequestId": "msg_011CfLbbiQVg1wM9R5SyJu6j",
+    "providerId": "anthropic",
+    "modelId": "claude-sonnet-4-6",
+    "completedAt": "2026-09-23T15:21:04.256Z",
+    "httpStatus": 200,
+    "purpose": "EF-03B review",
+    "sourceSealHash": "110db4de24709926d4a5fb6d0e951530f0afc2c1c807a09127852a92aa182c3d",
+    "validationContract": "MONO-11-v3",
+    "cachePath": "0deaab02ed7e38b4b8ab8faf9f53cdd178f6024c4fb1a7aff03d9361bc4113c8.response.json",
+    "kind": "REAL_CALL",
+    "validatedBy": "EF-03B-local",
+    "validatedAt": "2026-09-23T15:21:04.298Z"
+   },
+   "measuredIdentity": {
+    "targetId": "target-01",
+    "documentAuthoritySha256": "113b0798c3e1d61e62267f1e1bcab24ac293d25ea0f3b6ab5802d5b2340eb125"
+   }
+  },
+  {
+   "entry": {
+    "validationStatus": "VALID",
+    "validationErrors": [],
+    "promptSha256": "95a4002e718f9e257fe4ac78f72ce105bc0f6607ed2f579cd3278ea59cea2d18",
+    "responseSha256": "aabc6ece1fd441bbc1568872e49f0ffd188644d8cda6263eeb30ff3da9bd7444",
+    "sourceRunId": "efm-20260923-78fd8c4b",
+    "sourceCallId": "msg_011CfLbec468YF3dcbHmzM1x",
+    "providerRequestId": "msg_011CfLbec468YF3dcbHmzM1x",
+    "providerId": "anthropic",
+    "modelId": "claude-sonnet-4-6",
+    "completedAt": "2026-09-23T15:21:50.660Z",
+    "httpStatus": 200,
+    "purpose": "EF-03B review",
+    "sourceSealHash": "110db4de24709926d4a5fb6d0e951530f0afc2c1c807a09127852a92aa182c3d",
+    "validationContract": "MONO-11-v3",
+    "cachePath": "aabc6ece1fd441bbc1568872e49f0ffd188644d8cda6263eeb30ff3da9bd7444.response.json",
+    "kind": "REAL_CALL",
+    "validatedBy": "EF-03B-local",
+    "validatedAt": "2026-09-23T15:21:50.713Z"
+   },
+   "measuredIdentity": {
+    "targetId": "target-01",
+    "documentAuthoritySha256": "113b0798c3e1d61e62267f1e1bcab24ac293d25ea0f3b6ab5802d5b2340eb125"
+   }
+  },
+  {
+   "entry": {
+    "validationStatus": "VALID",
+    "validationErrors": [],
+    "promptSha256": "a0bb95f7666087cbd4ce1a141e5d84eb611d968399f22e911f3fda7d4c56abb6",
+    "responseSha256": "865f04d4c20786d2fcf3149bc499dadb537fff74b1db9aeac0a5f2f3c06dee17",
+    "sourceRunId": "efm-20260923-78fd8c4b",
+    "sourceCallId": "msg_011CfLbi2nCUUYNktKnhyJkD",
+    "providerRequestId": "msg_011CfLbi2nCUUYNktKnhyJkD",
+    "providerId": "anthropic",
+    "modelId": "claude-sonnet-4-6",
+    "completedAt": "2026-09-23T15:22:36.530Z",
+    "httpStatus": 200,
+    "purpose": "EF-03B review",
+    "sourceSealHash": "110db4de24709926d4a5fb6d0e951530f0afc2c1c807a09127852a92aa182c3d",
+    "validationContract": "MONO-11-v3",
+    "cachePath": "865f04d4c20786d2fcf3149bc499dadb537fff74b1db9aeac0a5f2f3c06dee17.response.json",
+    "kind": "REAL_CALL",
+    "validatedBy": "EF-03B-local",
+    "validatedAt": "2026-09-23T15:22:36.575Z"
+   },
+   "measuredIdentity": {
+    "targetId": "target-02",
+    "documentAuthoritySha256": "5ee54dce438d3054bfc225cc0a03545b28c69fe9b677195b9305e441df6f2926"
+   }
+  },
+  {
+   "entry": {
+    "validationStatus": "VALID",
+    "validationErrors": [],
+    "promptSha256": "e3cd0ccec6d0318ccf76919fb990911ab8e6a3878e945ad6bbf9f1dd319eb282",
+    "responseSha256": "b63fc82e0f3796b35dc53cb30742e5a8d482b6de8eb3f05c3e9b8d92ecd60a63",
+    "sourceRunId": "efm-20260923-78fd8c4b",
+    "sourceCallId": "msg_011CfLbmQHMG2jss1ZMUqgvc",
+    "providerRequestId": "msg_011CfLbmQHMG2jss1ZMUqgvc",
+    "providerId": "anthropic",
+    "modelId": "claude-sonnet-4-6",
+    "completedAt": "2026-09-23T15:23:20.750Z",
+    "httpStatus": 200,
+    "purpose": "EF-03B review",
+    "sourceSealHash": "110db4de24709926d4a5fb6d0e951530f0afc2c1c807a09127852a92aa182c3d",
+    "validationContract": "MONO-11-v3",
+    "cachePath": "b63fc82e0f3796b35dc53cb30742e5a8d482b6de8eb3f05c3e9b8d92ecd60a63.response.json",
+    "kind": "REAL_CALL",
+    "validatedBy": "EF-03B-local",
+    "validatedAt": "2026-09-23T15:23:20.791Z"
+   },
+   "measuredIdentity": {
+    "targetId": "target-02",
+    "documentAuthoritySha256": "5ee54dce438d3054bfc225cc0a03545b28c69fe9b677195b9305e441df6f2926"
+   }
+  },
+  {
+   "entry": {
+    "validationStatus": "VALID",
+    "validationErrors": [],
+    "promptSha256": "f7973ad395b17405481f3a595f83e33d1ec1319a6986541fae6cb159dada4d93",
+    "responseSha256": "815740d70051db3e72eef8bf16a68d958aee6d2c5bd982bd2607b41a65b2a835",
+    "sourceRunId": "efm-20260923-78fd8c4b",
+    "sourceCallId": "msg_011CfLbpg6wxrvkzhePKLVHV",
+    "providerRequestId": "msg_011CfLbpg6wxrvkzhePKLVHV",
+    "providerId": "anthropic",
+    "modelId": "claude-sonnet-4-6",
+    "completedAt": "2026-09-23T15:23:59.372Z",
+    "httpStatus": 200,
+    "purpose": "EF-03B review",
+    "sourceSealHash": "110db4de24709926d4a5fb6d0e951530f0afc2c1c807a09127852a92aa182c3d",
+    "validationContract": "MONO-11-v3",
+    "cachePath": "815740d70051db3e72eef8bf16a68d958aee6d2c5bd982bd2607b41a65b2a835.response.json",
+    "kind": "REAL_CALL",
+    "validatedBy": "EF-03B-local",
+    "validatedAt": "2026-09-23T15:23:59.410Z"
+   },
+   "measuredIdentity": {
+    "targetId": "target-02",
+    "documentAuthoritySha256": "5ee54dce438d3054bfc225cc0a03545b28c69fe9b677195b9305e441df6f2926"
+   }
+  },
+  {
+   "entry": {
+    "validationStatus": "VALID",
+    "validationErrors": [],
+    "promptSha256": "378fb6edb75e3083531715f7ba7cffe9b91d2a0c570f4a029183cc581f0184e9",
+    "responseSha256": "388557fe565488c9f9579b17fa43e97a8df105b282b95fa2716726a6f8a179e8",
+    "sourceRunId": "efm-20260923-78fd8c4b",
+    "sourceCallId": "msg_011CfLbsWKfagrDg9SBjSifh",
+    "providerRequestId": "msg_011CfLbsWKfagrDg9SBjSifh",
+    "providerId": "anthropic",
+    "modelId": "claude-sonnet-4-6",
+    "completedAt": "2026-09-23T15:24:48.947Z",
+    "httpStatus": 200,
+    "purpose": "EF-03B review",
+    "sourceSealHash": "110db4de24709926d4a5fb6d0e951530f0afc2c1c807a09127852a92aa182c3d",
+    "validationContract": "MONO-11-v3",
+    "cachePath": "388557fe565488c9f9579b17fa43e97a8df105b282b95fa2716726a6f8a179e8.response.json",
+    "kind": "REAL_CALL",
+    "validatedBy": "EF-03B-local",
+    "validatedAt": "2026-09-23T15:24:48.988Z"
+   },
+   "measuredIdentity": {
+    "targetId": "target-02",
+    "documentAuthoritySha256": "5ee54dce438d3054bfc225cc0a03545b28c69fe9b677195b9305e441df6f2926"
+   }
+  },
+  {
+   "entry": {
+    "validationStatus": "VALID",
+    "validationErrors": [],
+    "promptSha256": "a18de05a7acb19d39eac2dc50d2bdd5e8dc850940f67ca42087f2755f42af9ae",
+    "responseSha256": "94118a5b5384bf0b6ac3c4bc4642b36dfe15bb4b46905853723fd27b1501f18a",
+    "sourceRunId": "efm-20260923-78fd8c4b",
+    "sourceCallId": "msg_011CfLbwAqFhvg1w1vCsynRJ",
+    "providerRequestId": "msg_011CfLbwAqFhvg1w1vCsynRJ",
+    "providerId": "anthropic",
+    "modelId": "claude-sonnet-4-6",
+    "completedAt": "2026-09-23T15:25:34.446Z",
+    "httpStatus": 200,
+    "purpose": "EF-03B review",
+    "sourceSealHash": "110db4de24709926d4a5fb6d0e951530f0afc2c1c807a09127852a92aa182c3d",
+    "validationContract": "MONO-11-v3",
+    "cachePath": "94118a5b5384bf0b6ac3c4bc4642b36dfe15bb4b46905853723fd27b1501f18a.response.json",
+    "kind": "REAL_CALL",
+    "validatedBy": "EF-03B-local",
+    "validatedAt": "2026-09-23T15:25:34.498Z"
+   },
+   "measuredIdentity": {
+    "targetId": "target-02",
+    "documentAuthoritySha256": "5ee54dce438d3054bfc225cc0a03545b28c69fe9b677195b9305e441df6f2926"
+   }
+  },
+  {
+   "entry": {
+    "validationStatus": "VALID",
+    "validationErrors": [],
+    "promptSha256": "130e6f077e0d28e3e9957728e4ad16c80b3b0749d6dfccd0cf988a953b1e8fac",
+    "responseSha256": "5b1677d059f76a1f2f90263121152ae16abf74b85665c0c718dbba0510466cbf",
+    "sourceRunId": "efm-20260923-78fd8c4b",
+    "sourceCallId": "msg_011CfLbzXeye31apzSCGwADD",
+    "providerRequestId": "msg_011CfLbzXeye31apzSCGwADD",
+    "providerId": "anthropic",
+    "modelId": "claude-sonnet-4-6",
+    "completedAt": "2026-09-23T15:26:19.468Z",
+    "httpStatus": 200,
+    "purpose": "EF-03B review",
+    "sourceSealHash": "110db4de24709926d4a5fb6d0e951530f0afc2c1c807a09127852a92aa182c3d",
+    "validationContract": "MONO-11-v3",
+    "cachePath": "5b1677d059f76a1f2f90263121152ae16abf74b85665c0c718dbba0510466cbf.response.json",
+    "kind": "REAL_CALL",
+    "validatedBy": "EF-03B-local",
+    "validatedAt": "2026-09-23T15:26:19.512Z"
+   },
+   "measuredIdentity": {
+    "targetId": "target-02",
+    "documentAuthoritySha256": "5ee54dce438d3054bfc225cc0a03545b28c69fe9b677195b9305e441df6f2926"
+   }
+  },
+  {
+   "entry": {
+    "validationStatus": "VALID",
+    "validationErrors": [],
+    "promptSha256": "008168d074f74efba8e5aa05231b44a7a87a72d9d6ead4929b4de2e38aa33090",
+    "responseSha256": "e582764cb1ecd3d31a119f5c0c1a539bfb29a37a281ce30757d6adcd0ab39360",
+    "sourceRunId": "efm-20260923-78fd8c4b",
+    "sourceCallId": "msg_011CfLc3qy8LyJzoWaS9VW7L",
+    "providerRequestId": "msg_011CfLc3qy8LyJzoWaS9VW7L",
+    "providerId": "anthropic",
+    "modelId": "claude-sonnet-4-6",
+    "completedAt": "2026-09-23T15:27:06.162Z",
+    "httpStatus": 200,
+    "purpose": "EF-03B review",
+    "sourceSealHash": "110db4de24709926d4a5fb6d0e951530f0afc2c1c807a09127852a92aa182c3d",
+    "validationContract": "MONO-11-v3",
+    "cachePath": "e582764cb1ecd3d31a119f5c0c1a539bfb29a37a281ce30757d6adcd0ab39360.response.json",
+    "kind": "REAL_CALL",
+    "validatedBy": "EF-03B-local",
+    "validatedAt": "2026-09-23T15:27:06.201Z"
+   },
+   "measuredIdentity": {
+    "targetId": "target-02",
+    "documentAuthoritySha256": "5ee54dce438d3054bfc225cc0a03545b28c69fe9b677195b9305e441df6f2926"
+   }
+  },
+  {
+   "entry": {
+    "validationStatus": "VALID",
+    "validationErrors": [],
+    "promptSha256": "28719e8f3c857a79b24cb21b6657a9266c5d047a6edbc0139bbb4636777b4bc5",
+    "responseSha256": "80f92994bd65fdb2aea0a64e3b291fbdb07e34f90acc445beab3c276badae51b",
+    "sourceRunId": "efm-20260923-78fd8c4b",
+    "sourceCallId": "msg_011CfLc7HBGgUBF3mdCaDUgF",
+    "providerRequestId": "msg_011CfLc7HBGgUBF3mdCaDUgF",
+    "providerId": "anthropic",
+    "modelId": "claude-sonnet-4-6",
+    "completedAt": "2026-09-23T15:27:50.992Z",
+    "httpStatus": 200,
+    "purpose": "EF-03B review",
+    "sourceSealHash": "110db4de24709926d4a5fb6d0e951530f0afc2c1c807a09127852a92aa182c3d",
+    "validationContract": "MONO-11-v3",
+    "cachePath": "80f92994bd65fdb2aea0a64e3b291fbdb07e34f90acc445beab3c276badae51b.response.json",
+    "kind": "REAL_CALL",
+    "validatedBy": "EF-03B-local",
+    "validatedAt": "2026-09-23T15:27:51.047Z"
+   },
+   "measuredIdentity": {
+    "targetId": "target-03",
+    "documentAuthoritySha256": "a3efc73e94cddb301b5bb8818be1db22b94a0b843cd3fa8dbfccded9e26fb952"
+   }
+  },
+  {
+   "entry": {
+    "validationStatus": "VALID",
+    "validationErrors": [],
+    "promptSha256": "d6aa2d9bb081434b55207f4fe07a6daeb7ce5db22886230eeef52ce707f04f67",
+    "responseSha256": "f48e2bc92c88914f7c9298bf223658e817ced54e081337339c3625753c08b744",
+    "sourceRunId": "efm-20260923-78fd8c4b",
+    "sourceCallId": "msg_011CfLcAbnJZyox89MvYak85",
+    "providerRequestId": "msg_011CfLcAbnJZyox89MvYak85",
+    "providerId": "anthropic",
+    "modelId": "claude-sonnet-4-6",
+    "completedAt": "2026-09-23T15:28:33.046Z",
+    "httpStatus": 200,
+    "purpose": "EF-03B review",
+    "sourceSealHash": "110db4de24709926d4a5fb6d0e951530f0afc2c1c807a09127852a92aa182c3d",
+    "validationContract": "MONO-11-v3",
+    "cachePath": "f48e2bc92c88914f7c9298bf223658e817ced54e081337339c3625753c08b744.response.json",
+    "kind": "REAL_CALL",
+    "validatedBy": "EF-03B-local",
+    "validatedAt": "2026-09-23T15:28:33.093Z"
+   },
+   "measuredIdentity": {
+    "targetId": "target-03",
+    "documentAuthoritySha256": "a3efc73e94cddb301b5bb8818be1db22b94a0b843cd3fa8dbfccded9e26fb952"
+   }
+  },
+  {
+   "entry": {
+    "validationStatus": "VALID",
+    "validationErrors": [],
+    "promptSha256": "6ece7a0f4f1b145ee067cb94e88df7dd3e6a340e871804dbdad4ae09ddc3b101",
+    "responseSha256": "5641a6b14c9a1312de0c6252ea739a7d22c2ec59e4b2ef5ca766b462af2397c7",
+    "sourceRunId": "efm-20260923-78fd8c4b",
+    "sourceCallId": "msg_011CfLcDgJF7Qrvi3NJ8oZ3b",
+    "providerRequestId": "msg_011CfLcDgJF7Qrvi3NJ8oZ3b",
+    "providerId": "anthropic",
+    "modelId": "claude-sonnet-4-6",
+    "completedAt": "2026-09-23T15:29:11.698Z",
+    "httpStatus": 200,
+    "purpose": "EF-03B review",
+    "sourceSealHash": "110db4de24709926d4a5fb6d0e951530f0afc2c1c807a09127852a92aa182c3d",
+    "validationContract": "MONO-11-v3",
+    "cachePath": "5641a6b14c9a1312de0c6252ea739a7d22c2ec59e4b2ef5ca766b462af2397c7.response.json",
+    "kind": "REAL_CALL",
+    "validatedBy": "EF-03B-local",
+    "validatedAt": "2026-09-23T15:29:11.738Z"
+   },
+   "measuredIdentity": {
+    "targetId": "target-03",
+    "documentAuthoritySha256": "a3efc73e94cddb301b5bb8818be1db22b94a0b843cd3fa8dbfccded9e26fb952"
+   }
+  },
+  {
+   "entry": {
+    "validationStatus": "VALID",
+    "validationErrors": [],
+    "promptSha256": "a5db04fb0d679a76da6177c2abee1287219a0cda212eaec41394feaa4226f7fa",
+    "responseSha256": "26c53938baf3541ec66872de9e8bf50d9cb250be5b6e7ed9829d192aab8e5e65",
+    "sourceRunId": "efm-20260923-78fd8c4b",
+    "sourceCallId": "msg_011CfLcGY2jhMx2pHdxWg26u",
+    "providerRequestId": "msg_011CfLcGY2jhMx2pHdxWg26u",
+    "providerId": "anthropic",
+    "modelId": "claude-sonnet-4-6",
+    "completedAt": "2026-09-23T15:29:49.878Z",
+    "httpStatus": 200,
+    "purpose": "EF-03B review",
+    "sourceSealHash": "110db4de24709926d4a5fb6d0e951530f0afc2c1c807a09127852a92aa182c3d",
+    "validationContract": "MONO-11-v3",
+    "cachePath": "26c53938baf3541ec66872de9e8bf50d9cb250be5b6e7ed9829d192aab8e5e65.response.json",
+    "kind": "REAL_CALL",
+    "validatedBy": "EF-03B-local",
+    "validatedAt": "2026-09-23T15:29:49.916Z"
+   },
+   "measuredIdentity": {
+    "targetId": "target-03",
+    "documentAuthoritySha256": "a3efc73e94cddb301b5bb8818be1db22b94a0b843cd3fa8dbfccded9e26fb952"
+   }
+  },
+  {
+   "entry": {
+    "validationStatus": "VALID",
+    "validationErrors": [],
+    "promptSha256": "3b3bfef61d161cf55e8cbf52f59adf05456d567e692d23a7be029afd7d8498ce",
+    "responseSha256": "1e781ab7c2d9386f2392a6b8f8bf081aed195f71d41bffbca6b8152aa68f1fe4",
+    "sourceRunId": "efm-20260923-78fd8c4b",
+    "sourceCallId": "msg_011CfLcKMFwC8hTjPkWiQY5C",
+    "providerRequestId": "msg_011CfLcKMFwC8hTjPkWiQY5C",
+    "providerId": "anthropic",
+    "modelId": "claude-sonnet-4-6",
+    "completedAt": "2026-09-23T15:30:33.442Z",
+    "httpStatus": 200,
+    "purpose": "EF-03B review",
+    "sourceSealHash": "110db4de24709926d4a5fb6d0e951530f0afc2c1c807a09127852a92aa182c3d",
+    "validationContract": "MONO-11-v3",
+    "cachePath": "1e781ab7c2d9386f2392a6b8f8bf081aed195f71d41bffbca6b8152aa68f1fe4.response.json",
+    "kind": "REAL_CALL",
+    "validatedBy": "EF-03B-local",
+    "validatedAt": "2026-09-23T15:30:33.462Z"
+   },
+   "measuredIdentity": {
+    "targetId": "target-03",
+    "documentAuthoritySha256": "a3efc73e94cddb301b5bb8818be1db22b94a0b843cd3fa8dbfccded9e26fb952"
+   }
+  },
+  {
+   "entry": {
+    "validationStatus": "VALID",
+    "validationErrors": [],
+    "promptSha256": "69bf02ce6ba1e152c6634768ee693198bd32e830130928a0a41e3a1e284f921a",
+    "responseSha256": "61591c3e0767a5c72cf0f3cda2b9b08e136a1c3349db067c5913cf5eb8966384",
+    "sourceRunId": "efm-20260923-78fd8c4b",
+    "sourceCallId": "msg_011CfLcNaRmm36gRa3LCDpNe",
+    "providerRequestId": "msg_011CfLcNaRmm36gRa3LCDpNe",
+    "providerId": "anthropic",
+    "modelId": "claude-sonnet-4-6",
+    "completedAt": "2026-09-23T15:31:17.899Z",
+    "httpStatus": 200,
+    "purpose": "EF-03B review",
+    "sourceSealHash": "110db4de24709926d4a5fb6d0e951530f0afc2c1c807a09127852a92aa182c3d",
+    "validationContract": "MONO-11-v3",
+    "cachePath": "61591c3e0767a5c72cf0f3cda2b9b08e136a1c3349db067c5913cf5eb8966384.response.json",
+    "kind": "REAL_CALL",
+    "validatedBy": "EF-03B-local",
+    "validatedAt": "2026-09-23T15:31:17.942Z"
+   },
+   "measuredIdentity": {
+    "targetId": "target-03",
+    "documentAuthoritySha256": "a3efc73e94cddb301b5bb8818be1db22b94a0b843cd3fa8dbfccded9e26fb952"
+   }
+  }
+ ]
+}

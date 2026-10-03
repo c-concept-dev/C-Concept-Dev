@@ -1,0 +1,364 @@
+{
+  "schema": "EvidenceForge.IndependentFreezeAudit",
+  "schemaVersion": "MONOLITH-v1.0.15",
+  "version": "MONOLITH-v1.0.15",
+  "auditedAt": "2026-09-22",
+  "auditor": {
+    "role": "INDEPENDENT_AUDITOR",
+    "participatedInDevelopment": false,
+    "mode": "READ_ONLY_ON_REPOSITORY",
+    "mutationsAppliedTo": "COPIE_HORS_DEPOT_DE_L_ARBRE_COMPLET_tools/EvidenceForge",
+    "providerCalls": 0,
+    "networkEvidence": "harnais complet reexecute sous blocage actif de toute connexion sortante non locale : 332/332, 0 tentative comptee ; aucune cle fournisseur dans l'environnement"
+  },
+  "subject": {
+    "bundle": "/Users/christophebonnet/Documents/GitHub/C-Concept-Dev/tools/EvidenceForge/r6/EvidenceForge-CLEAN-MONO-01-08",
+    "candidate": "MONOLITH-v1.0.15",
+    "baseline": "MONOLITH-v1.0.14",
+    "activeVersionMeasured": "MONOLITH-v1.0.10",
+    "activeVersionUnchanged": true,
+    "candidateStatus": "NON_ACTIVE_NON_FUMEE",
+    "smokeRun": false,
+    "activated": false
+  },
+
+  "verdict": "V1_0_15_FREEZE_AUDIT_PASS_WITH_RESERVATIONS",
+  "recommendationFreeze": "GELER",
+  "recommendationFreezeDetail": "GELER avec les 11 reserves inscrites au dossier de gel, sans activation ; ACTIVE_VERSION reste MONOLITH-v1.0.10 jusqu'au smoke.",
+  "recommendationSmoke": "SMOKE_AUTHORIZED_WITH_CONDITIONS",
+  "smokeScopeProposed": {
+    "launched": false,
+    "conditions": [
+      "run NEUF uniquement : jamais une reprise ni un replay d'un run cree sous <= v1.0.14 (reserve A4)",
+      "mode PER_DOCUMENT avec au moins 3 documents cibles distincts (seul chemin exercant le cablage non couvert, reserve A1)",
+      "budget plafonne bas, arret budgetaire arme, un seul jumeau si possible"
+    ],
+    "acceptanceCriteria": [
+      "ef03b-resilience.json : authorityIdentityVerified > 0",
+      "ef03b-resilience.json : authorityContextDivergences == 0",
+      "ef03b-resilience.json : registryRefusedForeignTarget == 0",
+      "reviews-valid.jsonl : chaque entree porte un targetId",
+      "par cible : sha256(autorite) == sha256(document normalise remis au lot gele)"
+    ],
+    "noActivationBeforeOwnerReview": true
+  },
+
+  "blockers": [],
+
+  "statuses": {
+    "R1": "TARGET_DOCUMENT_IDENTITY_PASS",
+    "R1_closed": true,
+    "R2": "DOCUMENT_AUTHORITY_IDENTITY_GUARDS_PASS",
+    "R2_closed": true,
+    "R4": "REGISTRY_IMPORT_BEHAVIOURAL_COVERAGE_PASS",
+    "R4_closed": true,
+    "R-A1": "TRACE_PARITY_PASS",
+    "R5": "STILL_CLOSED",
+    "R6": "STILL_CLOSED",
+    "fallbackR1_06": "FALLBACK_AUTHORITY_IDENTITY_PASS",
+    "globalLineage": "GLOBAL_LINEAGE_PRESERVATION_GUARANTEED_FOR_KNOWN_REPAIR_REUSE_AUTHORITY_AND_TARGET_IDENTITY_PATHS",
+    "mono11v04": "NOT_REOPENED",
+    "semanticDrift": false,
+    "scientificLogicChanged": false,
+    "aggregationChanged": false,
+    "frozenLotsChanged": false
+  },
+
+  "diff": {
+    "method": "diff -rq MONOLITH-v1.0.14 MONOLITH-v1.0.15 + shasum -a 256 fichier par fichier",
+    "runtimeFilesChanged": [
+      { "file": "lib/target-identity.js", "state": "NOUVEAU", "role": "source unique de l'identifiant target-NN et de la carte canonique des documents normalises", "sha256Before": null, "sha256After": "02f6d2e90bf846359f3ba6163c022e0391d8b832570f29c5939f8509b6cf16ad" },
+      { "file": "lib/ef03b-resilience.js", "state": "MODIFIE", "role": "adaptateur EF-03B : autorite derivee, 3 gardes d'identite, registre lie a la cible", "sha256Before": "ea86f11528beb1b779b98d02ae241b9658b752b165a91b1321b56c573b1c3d99", "sha256After": "f3fd0fa14675afc9f840cddc9ac1df23f6e7405c029585db075f280cd57d504f" },
+      { "file": "lib/pipeline.js", "state": "MODIFIE", "role": "cablage : remet targetDocuments: targetDocs a l'adaptateur (plus de lambda ni de table d'autorite)", "sha256Before": "de4049c453940dc32fc573c45971e57c64947c214504e65a96b71f9bad0e5a9f", "sha256After": "b7a5d5e6e6cf63989992a5049504402fd8ac863228ad940c32f06c9dd0b89abd" },
+      { "file": "lib/stage-report.js", "state": "MODIFIE", "role": "une ligne : cle de targetLabels derivee par TI.targetIdOf(d, i) ; NON annonce par le mandat, semantiquement inerte (mesure de parite)", "sha256Before": "0e67295b65583537f71799b02f8c9df2fe54ce33137bc799d8efc57c88664beb", "sha256After": "ae1dec38d2b3870af49cc71172969773904c5bf0600a54693fc0286b04021b9d", "declaredByAuthor": true, "declaredByOwnerMandate": false }
+    ],
+    "criticalFilesByteIdentical": [
+      { "file": "lib/stage-professionals.js", "sha256": "46f2b48f63ee268b7fdbe4c44098204948d2f53b6e439caec46dfb36e481b085", "byteIdentical": true },
+      { "file": "tools/ef03b-registry-import.js", "sha256": "70502a66a14134c41f2c0f2aae63b85f47f469b8fa32a267a2de14ab69d7b1c5", "byteIdentical": true },
+      { "file": "lib/llm.js", "sha256": "34816352ef0ef5dc63ea66998b259d1532d2a079972669e7fdde864828f8fac2", "byteIdentical": true },
+      { "file": "lib/run-store.js", "sha256": "ab41ebc31f4505ff2f9825ea09767e76af091150df323346514655ff63a5be7d", "byteIdentical": true },
+      { "file": "lib/document-chunker.js", "sha256": "6a7953968a7d7472273ef2a09869b8f4813af3606ae19e482ac6295d164e9935", "byteIdentical": true },
+      { "file": "lib/economic-panel.js", "sha256": "cbf4307cddb74569b1aceff98e08fc10d72c5f5c11707db9dfeda3e67cf54ebb", "byteIdentical": true },
+      { "file": "lib/panel-sufficiency.js", "sha256": "fd05e26b708c4d4cdc59595838145669d05a267393629dbd922827c289bf7a3e", "byteIdentical": true },
+      { "file": "server.js", "sha256": "8f567af101b7a4d444eb04938a28a8575aa60d75c0ec1587d625b59ef17f073b", "byteIdentical": true },
+      { "file": "test/test-v1014-normalized-authority.js", "sha256": "3b0938fe4b0dd3f33f02df66eb1d4249fb568f476868e8acd9f1b8c83eafe7da", "byteIdentical": true }
+    ],
+    "otherFilesChanged": [
+      "test/test-v1015-authority-identity.js (NOUVEAU, sha256 1cdbc59ba9848987b2b310d995273183fce958e1bb4c62d25c283e62db2497e5)",
+      "test/test-v1014-e2e-wiring.js", "test/test-ef03b.js", "test/test-ef03b-lineage.js",
+      "test/test-v1012-lineage-parity.js", "test/test-stream.js", "test/results.json", "test/results-chunking.json",
+      "config/monolith.config.json", "tools/build-manifest.js", "tools/package.sh", "tools/ef03b-autopsy.js",
+      "README.md", "MANIFEST.json", "SHA256SUMS.txt"
+    ],
+    "frozenLots": { "MONO-01": { "files": 106, "divergences": 0 }, "MONO-09": { "files": 9, "divergences": 0 }, "MONO-10": { "files": 79, "divergences": 0, "canonicalZipMatches": true }, "MONO-11": { "files": 55, "divergences": 0, "sealSha256Prefix": "110db4de24709926" }, "totalDivergences": 0 },
+    "gitScopeSinceV1014FreezeCommit": { "from": "c12da200", "to": "HEAD", "filesChanged": 173, "insertions": 31234, "deletions": 0, "allAdditionsUnder": "MONOLITH-v1.0.15/", "modifiedFiles": 0, "deletedFiles": 0 }
+  },
+
+  "r1": {
+    "method": "sonde independante : pipeline -> EF3.createReviewAdapter({targetDocuments}) -> RE.runEnforcedReview du lot GELE MONO-11 v0.4 -> registre ; LLM factice scripte, 0 reseau",
+    "fixtures": { "documents": 3, "distinctHashes": true, "distinctLengths": [90, 106, 86], "distinctNormalizationTransforms": ["APOSTROPHE+LINE_ENDINGS", "NBSP", "DOUBLE_QUOTE"] },
+    "perTarget": [
+      { "targetId": "target-01", "requestedEqualsCanonical": true, "authoritySha256Prefix": "349be9901ccb", "canonicalNormalizedSha256Prefix": "349be9901ccb", "frozenLotDocumentSha256Prefix": "349be9901ccb", "registryTargetId": "target-01", "noCrossContamination": true, "reviewStatus": "complete" },
+      { "targetId": "target-02", "requestedEqualsCanonical": true, "authoritySha256Prefix": "6a67d275d6c4", "canonicalNormalizedSha256Prefix": "6a67d275d6c4", "frozenLotDocumentSha256Prefix": "6a67d275d6c4", "registryTargetId": "target-02", "noCrossContamination": true, "reviewStatus": "complete" },
+      { "targetId": "target-03", "requestedEqualsCanonical": true, "authoritySha256Prefix": "ccc9661a6a17", "canonicalNormalizedSha256Prefix": "ccc9661a6a17", "frozenLotDocumentSha256Prefix": "ccc9661a6a17", "registryTargetId": "target-03", "noCrossContamination": true, "reviewStatus": "complete" }
+    ],
+    "cases": {
+      "A_target01_recoit_target01": "PASS",
+      "B_target02_recoit_target02": "PASS",
+      "C_target03_recoit_target03": "PASS",
+      "D_mutant_target01_pour_toutes": "REFUS FATAL DOCUMENT_AUTHORITY_IDENTITY_MISMATCH (target-02 et target-03)",
+      "E_permutation_target01_target02": "REFUS FATAL DOCUMENT_AUTHORITY_IDENTITY_MISMATCH (les deux)",
+      "F_target_inexistant": "REFUS FATAL DOCUMENT_AUTHORITY_UNKNOWN_TARGET (fatal=true)"
+    },
+    "silentPermutationPossible": false,
+    "classification": "TARGET_DOCUMENT_IDENTITY_PASS"
+  },
+
+  "fallbackR1_06": {
+    "reachableOffline": true,
+    "method": "EP.buildReviewTargets execute reellement (fonction pure) puis carte canonique + traversee complete jusqu'au lot gele",
+    "modeReel": "PER_DOCUMENT",
+    "fallbackReason": "DOSSIER_TOO_LARGE: 282 caracteres > dossierMaxChars 50 — repli PER_DOCUMENT (explicite, journalise)",
+    "targetsProduced": 3,
+    "targetIdAssignment": "positionnelle : target-01, target-02, target-03",
+    "authorityPerTarget": "document normalise de CETTE cible (verifie pour les 3)",
+    "endToEndOnTarget02": { "authorityEqualsCanonical": true, "reviewStatus": "complete" },
+    "missionDossierModeControl": { "targets": 1, "authorityEqualsNormalizedDossier": true },
+    "identityGuaranteePreserved": true,
+    "classification": "FALLBACK_AUTHORITY_IDENTITY_PASS"
+  },
+
+  "r2": {
+    "guards": ["DOCUMENT_AUTHORITY_UNKNOWN_TARGET", "DOCUMENT_AUTHORITY_REQUIRED", "DOCUMENT_AUTHORITY_EMPTY", "DOCUMENT_AUTHORITY_NOT_NORMALIZED", "DOCUMENT_AUTHORITY_IDENTITY_MISMATCH", "DOCUMENT_AUTHORITY_TARGET_MISMATCH", "DOCUMENT_AUTHORITY_CONTEXT_DIVERGENCE"],
+    "independentAndNonRedundant": true,
+    "matrixWithCanonicalMap": [
+      { "case": "document correct", "guard": null, "accepted": true },
+      { "case": "document tronque mais normalise", "guard": "DOCUMENT_AUTHORITY_IDENTITY_MISMATCH" },
+      { "case": "autre document normalise", "guard": "DOCUMENT_AUTHORITY_IDENTITY_MISMATCH" },
+      { "case": "meme longueur, contenu different", "guard": "DOCUMENT_AUTHORITY_IDENTITY_MISMATCH" },
+      { "case": "autorite portant un mauvais targetId", "guard": "DOCUMENT_AUTHORITY_TARGET_MISMATCH" },
+      { "case": "contenu brut non normalise", "guard": "DOCUMENT_AUTHORITY_NOT_NORMALIZED" },
+      { "case": "document correct + suffixe (plus long)", "guard": "DOCUMENT_AUTHORITY_IDENTITY_MISMATCH" },
+      { "case": "prompt gele portant target-02, passe declarant target-01", "guard": "DOCUMENT_AUTHORITY_TARGET_MISMATCH", "promptTargetId": "target-02" },
+      { "case": "cible hors du jeu du run", "guard": "DOCUMENT_AUTHORITY_UNKNOWN_TARGET" }
+    ],
+    "matrixWithoutCanonicalMap": [
+      { "case": "tronque", "guard": "DOCUMENT_AUTHORITY_CONTEXT_DIVERGENCE" },
+      { "case": "autre document", "guard": "DOCUMENT_AUTHORITY_CONTEXT_DIVERGENCE" },
+      { "case": "meme longueur, contenu different", "guard": "DOCUMENT_AUTHORITY_CONTEXT_DIVERGENCE" },
+      { "case": "correct", "guard": null, "accepted": true },
+      { "case": "correct + suffixe (plus long)", "guard": null, "accepted": true, "reservation": "A2" }
+    ],
+    "fixpointIsNotIdentity": { "truncatedIsFixpoint": true, "otherDocumentIsFixpoint": true, "bothRefusedByIdentityOnProductionPath": true },
+    "classification": "CLOSED_WITH_SCOPE_RESERVATION_A2"
+  },
+
+  "targetIdentityModule": {
+    "file": "lib/target-identity.js",
+    "deterministicTargetIdConstruction": true,
+    "sameOrderAsMono11": true,
+    "sameNormalizationAsMono11": "module GELE MONO-11/v0.4/core/target-normalizer.js, exclusivement",
+    "parityAgainstIndependentConstruction": { "documentSets": 4, "targetsCompared": 13, "divergences": 0 },
+    "noTargetCountHardcoding": { "documents": 13, "lastTargetId": "target-13" },
+    "noHistoricalRunAssumption": true,
+    "failClosedCodesVerified": ["TARGET_DOCUMENT_SET_EMPTY", "TARGET_ID_DUPLICATE", "TARGET_DOCUMENT_CONTENT_MISSING", "TARGET_ID_MALFORMED"],
+    "latentDivergence": { "reservation": "A6", "detail": "TI.targetIdOf honore un targetId porte par le document, lib/stage-professionals.js (gele par contrat) ne l'honore pas ; mesure : target-05 contre target-01", "reachableInProduction": false, "evidence": "les 9 executionMission.targetDocuments du run reel efm-20260918-a64167c0 ne portent aucun targetId ; EP.buildReviewTargets n'en produit jamais" }
+  },
+
+  "mutationMatrix": {
+    "method": "mutation appliquee a la COPIE de l'arbre complet, harnais complet reexecute, fichier restaure a l'octet pres ; ligne de base de la copie verifiee avant toute mutation : 332/332",
+    "baselineOnCopy": "332/332",
+    "numbering": "numerotation du PROPRIETAIRE ; correspondance avec la numerotation de l'auteur indiquee",
+    "mutants": [
+      { "id": "M1", "authorEquivalent": "M7 (= mutant X1 survivant de l'audit v1.0.14)", "mutation": "autorite de la PREMIERE cible rendue pour TOUTES les cibles", "file": "lib/ef03b-resilience.js", "score": "329/332", "killed": true, "failedTests": ["RA2-E2E-07", "R1-01", "R1-04"] },
+      { "id": "M2", "authorEquivalent": "M2", "mutation": "index de cible decale (target-NN -> target-NN+1) dans la source unique", "file": "lib/target-identity.js", "score": "317/332", "killed": true, "failedTests": ["P2", "T-STREAM-21", "RA2-E2E-01", "RA2-E2E-02", "RA2-E2E-03", "RA2-E2E-04", "RA2-E2E-05", "RA2-E2E-06", "RA2-E2E-07", "RA2-E2E-08", "R1-03", "R1-04", "R1-05", "R1-06", "R2-07"] },
+      { "id": "M3", "authorEquivalent": "M3", "mutation": "autorite tronquee mais normalisee dans la carte canonique", "file": "lib/target-identity.js", "score": "283/332", "killed": true, "failedTestsCount": 49, "failedTestsSample": ["T-EF03B-01", "T-EF03B-27", "T-EF03B-33", "V12-02", "V12-16", "RA2-E2E-01", "R1-01", "R2-02", "R2-08"] },
+      { "id": "M4", "authorEquivalent": "NOUVEAU (l'auteur mutait le contenu BRUT)", "mutation": "AUTRE document normalise servi comme autorite (decalage circulaire dans la carte)", "file": "lib/target-identity.js", "score": "324/332", "killed": true, "failedTests": ["RA2-E2E-07", "R1-01", "R1-02", "R1-04", "R1-05", "R2-02", "R2-03", "R2-08"] },
+      { "id": "M5", "authorEquivalent": "M6", "mutation": "comparaison d'identite supprimee (retour a la seule garde de point fixe de v1.0.14)", "file": "lib/ef03b-resilience.js", "score": "326/332", "killed": true, "failedTests": ["RA2-E2E-08", "R1-02", "R2-01", "R2-02", "R2-03", "R2-08"] },
+      { "id": "M6", "authorEquivalent": "M4c (mutant survivant de l'audit v1.0.14)", "mutation": "garde d'import de registre neutralisee en CONSERVANT son texte source (if (false && ...))", "file": "tools/ef03b-registry-import.js", "score": "330/332", "killed": true, "failedTests": ["R4-02", "R4-03"] },
+      { "id": "M7", "authorEquivalent": "NOUVEAU", "mutation": "documentAuthoritySha256 calcule sur la MAUVAISE cible", "file": "lib/ef03b-resilience.js", "score": "331/332", "killed": true, "failedTests": ["R1-01"], "note": "tue par UN SEUL test — reserve A3" },
+      { "id": "M8", "authorEquivalent": "NOUVEAU (demande par le proprietaire)", "mutation": "targetId correct mais document d'une AUTRE cible ajuste a la MEME LONGUEUR", "file": "lib/target-identity.js", "score": "324/332", "killed": true, "failedTests": ["RA2-E2E-07", "R1-01", "R1-02", "R1-04", "R1-05", "R2-02", "R2-03", "R2-08"], "dataLevelVariant": "autorite de meme longueur (85 vs 85) et point fixe verifie : refusee par DOCUMENT_AUTHORITY_IDENTITY_MISMATCH ; document d'une autre cible rogne a la meme longueur : refuse egalement" },
+      { "id": "XPIPE", "authorEquivalent": "NOUVEAU — mutant de l'AUDITEUR, non prevu par le chantier", "mutation": "apres construction de l'adaptateur, le LOT GELE recoit un ORDRE de cibles DIFFERENT ; le texte des deux lignes de cablage de lib/pipeline.js est INCHANGE (les deux regex de R1-06 passent toujours)", "file": "lib/pipeline.js", "score": "332/332", "killed": false, "survived": true, "failedTests": [], "runtimeConsequenceMeasured": "REFUS FATAL DOCUMENT_AUTHORITY_CONTEXT_DIVERGENCE (fatal=true) — aucune permutation silencieuse", "reservation": "A1" }
+    ],
+    "allOwnerMutantsM1toM8Killed": true,
+    "criticalMutantSurvivors": 0,
+    "testCoverageMutantSurvivors": ["XPIPE"]
+  },
+
+  "registryIdentity": {
+    "effectiveIdentityKeys": ["basePromptSha256", "sourceSealHash", "validationContract", "documentAuthoritySha256", "targetId", "status=VALID"],
+    "cases": [
+      { "case": "meme empreinte d'autorite + mauvaise cible", "result": "REFUSEE" },
+      { "case": "meme cible + mauvaise empreinte d'autorite", "result": "REFUSEE" },
+      { "case": "meme cible + meme empreinte + ancien contrat (MONO-11-v2)", "result": "REFUSEE" },
+      { "case": "meme cible + meme empreinte + ancien sceau", "result": "REFUSEE" },
+      { "case": "tout correct", "result": "SERVIE" },
+      { "case": "entree sans targetId (ere <= v1.0.14), cible exigee", "result": "REFUSEE" },
+      { "case": "entree sans targetId, cible non exigee (find a 4 arguments)", "result": "SERVIE" }
+    ],
+    "foreignTargetRefusalCounted": "registryRefusedForeignTarget",
+    "foreignTargetRefusalTraced": "REGISTRY_REFUSED / FOREIGN_TARGET",
+    "backwardCompatibilityBreak": { "reservation": "A4", "detail": "toute entree ecrite avant v1.0.15 est sans targetId et ne sera jamais servie sur le chemin de production ; une reprise ou un replay d'un run existant regenererait toutes les revues, avec appels fournisseur reels", "failClosed": true }
+  },
+
+  "r4": {
+    "importToolByteIdentical": true,
+    "importToolSha256": "70502a66a14134c41f2c0f2aae63b85f47f469b8fa32a267a2de14ab69d7b1c5",
+    "behaviouralTests": ["R4-01", "R4-02", "R4-03", "R4-04", "R4-05"],
+    "behaviouralTestsVerifiedAsNonSourceText": true,
+    "sourceTextAssertionsRelabelled": ["RI-01", "RI-02", "RI-03"],
+    "sourceTextAssertionsHaveNoBehaviouralValue": true,
+    "m4cMutantKilled": true,
+    "m4cScore": "330/332",
+    "m4cKilledBy": ["R4-02", "R4-03"],
+    "classification": "REGISTRY_IMPORT_BEHAVIOURAL_COVERAGE_PASS"
+  },
+
+  "tests": {
+    "monolith": { "expected": "332/332", "measured": "332/332", "exitCode": 0 },
+    "monolithV1014ForComparison": { "measured": "313/313" },
+    "idsBefore": 313,
+    "idsAfter": 332,
+    "idsAdded": ["R1-01", "R1-02", "R1-03", "R1-04", "R1-05", "R1-06", "R2-01", "R2-02", "R2-03", "R2-04", "R2-05", "R2-06", "R2-07", "R2-08", "R4-01", "R4-02", "R4-03", "R4-04", "R4-05"],
+    "idsAddedCount": 19,
+    "idsRemoved": [],
+    "idsRemovedCount": 0,
+    "chunking": { "expected": "21/21", "measured": "21/21" },
+    "secretScan": { "expected": 0, "measured": { "ok": true, "filesScanned": 173, "hits": 0 }, "authorAnnounced": 171, "discrepancyExplained": "les deux fichiers de rapport de l'auteur ont ete ecrits apres son scan (171 + 2 = 173)" },
+    "antiHardcoding": { "expected": 0, "measured": { "ok": true, "filesScanned": 79, "caseTokens": 0, "hits": 0 } },
+    "manifestVerify": { "expected": "169 fichiers", "measured": { "ok": true, "files": 169, "bad": [] }, "contentHash": "1e2196504aa217fbb5bb654e4e8529bee6f732a74a7b15daec732d509f356ea4", "productVersion": "MONOLITH-v1.0.15" },
+    "verifyFrozenLots": { "expected": "0 divergence", "measured": "MONO-10=0 MONO-11=0 MONO-09=0 MONO-01=0, total 0" },
+    "offlineEvidence": { "harnessUnderOutboundNetworkBlock": "332/332", "blockedConnectionAttempts": 0, "providerKeysInEnvironment": 0 }
+  },
+
+  "mono11": {
+    "version": "v0.4",
+    "contractVersion": "MONO-11-v3",
+    "sha256sumsCheck": "55/55 OK",
+    "ownSuite": "83/83 (tests 83, pass 83, fail 0)",
+    "sealSha256Prefix": "110db4de24709926",
+    "sealUnchanged": true,
+    "gitModificationsSinceV1014Freeze": 0,
+    "invariants": {
+      "lineageMonotonicity": "COUVERT (83/83 du lot + V12-16 : 24 combinaisons brut x reparation, FINAL(miroir) == FINAL(lot))",
+      "casA": "COUVERT (V12-04, suite du lot)",
+      "casB": "COUVERT (V12-05, fail-closed, registre reste vide)",
+      "stableDedup": "COUVERT (V12-07)",
+      "validRefsPreserved": "COUVERT (V12-02, V12-03, V12-06, V12-16)",
+      "onlyInvalidRefsRejected": "COUVERT (V12-06, T-EF03B-29)"
+    },
+    "reopened": false,
+    "freezeRecordJsonPresent": false,
+    "freezeRecordNote": "MONO-11/v0.4 contient MONO-11-v0.4-INDEPENDENT-FREEZE-AUDIT.json/.md, MANIFEST.json, SHA256SUMS.txt et core/run-seal-guard.js (assertSealedRuntime) ; il n'y a PAS de MONO-11-v0.4-FREEZE-RECORD.json (ecart factuel du mandat, reserve A11)"
+  },
+
+  "shadow": {
+    "artefact": "/Users/christophebonnet/evidenceforge-work/reports/a10-lineage-restoration/reviews-restored.json",
+    "runDir": "/Users/christophebonnet/evidenceforge-work/reports/h1-v105-runs/efm-20260918-a64167c0",
+    "testsExecutedNotSkipped": ["T-EF03B-35", "V12-13"],
+    "reviewsInSet": { "expected": 18, "measured": 18, "ok": true },
+    "reviewsConcerned": { "expected": 7, "measured": 7, "ok": true, "basis": "SCOPE.length === 7 dans T-EF03B-35, dont 4 reparees et 3 intactes" },
+    "findingsTotal": { "expected": 180, "measured": 180, "ok": true },
+    "findingsVerifiedInTargetedSubset": { "expected": 70, "measured": 70, "ok": true },
+    "citationsRestored": { "expected": 12, "measured": 12, "ok": true },
+    "emptiedFindingsRestored": { "expected": 3, "measured": 3, "ok": true },
+    "reviewsChangedByRestoration": 3,
+    "refsRemoved": 0,
+    "otherSubstantiveFieldChanges": 0,
+    "substantiveDrift": false,
+    "runtimeWrites": 0,
+    "networkCalls": 0,
+    "parallelArtefact": true
+  },
+
+  "aggregation": {
+    "runId": "efm-20260918-a64167c0",
+    "counts": { "etabli": 13, "convergent": 9, "divergent": 7, "provisoire": 0, "nonEtabli": 67, "reservations": 10 },
+    "expected": { "etabli": 13, "convergent": 9, "divergent": 7, "provisoire": 0, "nonEtabli": 67, "reservations": 10 },
+    "match": true,
+    "PROCESS_QUALIFICATION": "QUALIFIED_WITH_RESERVATIONS",
+    "SCIENTIFICALLY_USABLE": "NO",
+    "reportParityV1014VsV1015": {
+      "method": "buildUserReport execute deux fois sur les MEMES intrants reels du run A10 (9 executionMission.targetDocuments, dont 0 portant un targetId)",
+      "countsIdentical": true,
+      "headlineIdentical": true,
+      "reportHashIdentical": true,
+      "reportHashRecomputed": "54cacfa2d5ebfc1add44c3ab20d6ea06a05a09c98d17b7ec0d2ecc6ceca392a4",
+      "normalisedBodyIdentical": true,
+      "note": "ce reportHash est celui de la reconstruction hors ligne de l'auditeur (quelques intrants secondaires — cout, compteurs LLM, lineageRefs — ne sont pas reconstituables hors run) ; il differe du reportHash stocke a962d5ee... ce qui compte est l'egalite stricte v1.0.14 == v1.0.15 sur les memes intrants, et les counts stockes dans le run, identiques"
+    },
+    "semanticDrift": false,
+    "scientificDrift": false
+  },
+
+  "globalLineage": {
+    "paths": {
+      "A_literalization": { "status": "PRESERVED", "evidence": ["T-EF03B-27..35", "V12-15"] },
+      "B_targetedRepair": { "status": "PRESERVED", "evidence": ["V12-02..08", "V12-16"] },
+      "C_registryImport": { "status": "PRESERVED", "evidence": ["R4-01..05", "mutant M6 tue"] },
+      "D_registryReuse": { "status": "PRESERVED", "evidence": ["R1-04", "RI-04..07", "V12-10", "table registryIdentity"] },
+      "E_replayReuse": { "status": "PRESERVED_FAIL_CLOSED", "evidence": ["replayReviews archive et remet a PENDING", "registre recle sur targetId"], "reservation": "A4" },
+      "F_documentAuthorityNormalization": { "status": "PRESERVED", "evidence": ["RA2-01..08", "RA2-E2E-01..08", "R2-04"] },
+      "G_targetDocumentIdentity": { "status": "PRESERVED", "evidence": ["sonde R1", "mutants M1, M4, M5, M7, M8 tues"] },
+      "H_multiTargetMapping": { "status": "PRESERVED", "evidence": ["cas A-F", "mutants M1, M2 tues", "XPIPE arrete au runtime"], "reservation": "A1" }
+    },
+    "R11_informedRegeneration": "HORS GARANTIE MONOTONE (inchange)",
+    "answer": "GLOBAL_LINEAGE_PRESERVATION_GUARANTEED_FOR_KNOWN_REPAIR_REUSE_AUTHORITY_AND_TARGET_IDENTITY_PATHS",
+    "caveat": "garanties de CODE et de TEST uniquement : aucun run reel, aucun smoke"
+  },
+
+  "reservations": [
+    { "id": "A1", "severity": "MEDIUM", "title": "Le cablage de production de lib/pipeline.js n'a aucune couverture comportementale", "detail": "Mutant XPIPE (ordre de cibles divergent entre l'adaptateur et le lot gele, texte des deux lignes de cablage inchange) : 332/332, SURVIVANT. R1-06 est une assertion de texte source et ne peut rien prouver (lecon de M4c). Mitigation MESUREE : au runtime le defaut est arrete fail closed par DOCUMENT_AUTHORITY_CONTEXT_DIVERGENCE (fatal) — aucune permutation silencieuse. Correctif possible, non fait ici : un test qui execute reellement le chemin aval de lib/pipeline.js avec au moins 2 cibles." },
+    { "id": "A2", "severity": "MEDIUM", "title": "Mode « autorite fournie sans carte canonique » : garde d'identite inactive", "detail": "Si createReviewAdapter recoit documentAuthority SANS targetDocuments, seules subsistent la garde de point fixe et la garde de prefixe. Mesure : une autorite SURLONGUE (document canonique + suffixe) est alors ACCEPTEE, sans aucune garde. Non atteignable depuis lib/pipeline.js (unique site d'appel runtime, qui ne passe jamais documentAuthority) ; atteignable par tout appelant tiers, outil, ou test/test-v1014-normalized-authority.js." },
+    { "id": "A3", "severity": "LOW", "title": "Couverture mince du mutant M7", "detail": "documentAuthoritySha256 calcule sur la mauvaise cible : 331/332, tue par UN SEUL test (R1-01). L'invariant « empreinte de registre == autorite reellement utilisee » ne tient qu'a une assertion." },
+    { "id": "A4", "severity": "LOW", "title": "Rupture de compatibilite du registre avec les runs <= v1.0.14 (consequence economique reelle)", "detail": "Toute entree sans targetId est refusee quand la cible est exigee (mesure). Une reprise ou un replay d'un run existant sous v1.0.15 regenererait TOUTES les revues, avec appels fournisseur factures. Comportement fail closed correct, mais non annonce par l'auteur." },
+    { "id": "A5", "severity": "LOW", "title": "lib/stage-report.js est un 4e fichier runtime modifie, hors de la liste du mandat", "detail": "Declare par l'auteur, absent de la liste attendue par le proprietaire. Mesure : semantiquement inerte — rapport utilisateur byte-identique v1.0.14 / v1.0.15 sur les intrants reels du run A10 (memes counts 13/9/7/0/67/10, meme headline, meme reportHash recalcule)." },
+    { "id": "A6", "severity": "LOW", "title": "Divergence latente d'attribution d'identifiant de cible", "detail": "TI.targetIdOf honore un targetId porte par le document ; lib/stage-professionals.js (gele par contrat) ne l'honore pas. Mesure : target-05 contre target-01. Non atteignable aujourd'hui (aucun document cible ne porte de targetId en production, verifie sur le run reel efm-20260918-a64167c0). A rouvrir si un jour un document cible en portait un." },
+    { "id": "A7", "severity": "LOW", "title": "Etiquetage des cibles dans le rapport — defaut PREEXISTANT, non introduit par v1.0.15", "detail": "stage-report indexe targetLabels sur executionMission.targetDocuments (9 documents bruts au run A10), alors que les cibles de revue viennent de buildReviewTargets (1 cible dossier). En mode MISSION_DOSSIER, target-01 porte le titre du premier document brut au lieu de « Dossier de mission (N documents) ». Cosmetique, identique en v1.0.14." },
+    { "id": "A8", "severity": "LOW", "title": "Reserves heritees, transportees et non traitees", "detail": "R5 v1.0.14 (REGISTRY_IMPORT_AUTHORITY_MISSING pratiquement inatteignable) ; R6 v1.0.14 — VERIFIE TOUJOURS OUVERT : dans reviewCall, la branche if (isTargeted || !st.ctx) n'appelle requireAuthority que si isTargeted && st.ctx, donc une passe ni base ni ciblee avec contexte illisible ne verifie pas l'autorite (inatteignable depuis le pipeline de production) ; R7 (comptage d'identifiants : RI-01..RI-03 et RI-04..RI-07 sont 2 lignes pour 7 identifiants annonces — le total 332 reste honnete) ; R-A3, R-A5, R-A6." },
+    { "id": "A9", "severity": "EXPECTED", "title": "Limites reconnues", "detail": "Aucun run reel, aucun smoke, aucun zip canonique produit pour v1.0.15. Les garanties sont de code et de test." },
+    { "id": "A10", "severity": "GOVERNANCE", "title": "La candidate a ete commitee et poussee PENDANT l'audit", "detail": "Commit 6bccae02e905b81d17e762ce10f78f0483a4437c « audit », auteur 11drumboy11 <11drumboy11@gmail.com>, Tue Sep 22 22:10:40 2026 +0200, 173 fichiers, uniquement le dossier MONOLITH-v1.0.15/ ; origin/main pointe dessus. La premisse « non commitee » du mandat n'est plus vraie. Ce commit n'est PAS le fait de l'auditeur ; le contenu commite est byte-identique a ce qui a ete audite (arbre de travail propre sur tools/EvidenceForge). Par ailleurs une modification non commitee et sans rapport avec EvidenceForge preexiste dans le depot : ' M Worker/index.js' (code Cloudflare Worker / RAG), non touchee par l'audit." },
+    { "id": "A11", "severity": "COSMETIC", "title": "Ecarts factuels mineurs", "detail": "(a) MONO-11/v0.4 ne contient PAS de MONO-11-v0.4-FREEZE-RECORD.json (seulement MONO-11-v0.4-INDEPENDENT-FREEZE-AUDIT.json/.md) ; MANIFEST.json, SHA256SUMS.txt et core/run-seal-guard.js (assertSealedRuntime) sont bien presents. (b) Ecart 171 / 173 fichiers du secret scan, explique par les deux fichiers de rapport de l'auteur ecrits apres son scan." }
+  ],
+
+  "constraintsRespected": {
+    "zeroProviderCalls": true,
+    "zeroNetworkToLLM": true,
+    "noPermanentModificationInRepository": true,
+    "onlyWritesInRepository": [
+      "MONOLITH-v1.0.15/EVIDENCEFORGE-v1.0.15-INDEPENDENT-FREEZE-AUDIT.md",
+      "MONOLITH-v1.0.15/EVIDENCEFORGE-v1.0.15-INDEPENDENT-FREEZE-AUDIT.json"
+    ],
+    "nothingRepaired": true,
+    "notCommittedByAuditor": true,
+    "notPushedByAuditor": true,
+    "noRealSmokeRun": true,
+    "notActivated": true,
+    "activeVersionUntouched": true,
+    "frozenLotsUntouched": true,
+    "d103Untouched": true,
+    "historicalRunUntouched": "efm-20260918-a64167c0 : 0 ecriture (assertion de mtimes dans T-EF03B-35 et git status propre)",
+    "mutationsAppliedOnlyToCopy": true,
+    "copyBaselineVerifiedBeforeMutation": "332/332",
+    "frozenStatusWordNotUsedForCandidate": true
+  },
+
+  "hashesVerified": {
+    "activeVersionFile": "MONOLITH-v1.0.10",
+    "manifestContentHash": "1e2196504aa217fbb5bb654e4e8529bee6f732a74a7b15daec732d509f356ea4",
+    "manifestFileCount": 169,
+    "mono11SealSha256Prefix": "110db4de24709926",
+    "mono10SealSha256": "e050af0545ab5b902eb710b2308914523125b784dc27a9a2d387040dced48227",
+    "mono10CanonicalZipSha256": "f5a4165414f4aacc32f48f50eb14d59c87a09e3f138e24f8bd14b956972c2e04",
+    "mono10CanonicalZipMatches": true,
+    "mono09SealSha256Prefix": "f1f1e94bdcca4402",
+    "mono01SealSha256Prefix": "4ba8903ceaeb7e24",
+    "targetIdentityJs": "02f6d2e90bf846359f3ba6163c022e0391d8b832570f29c5939f8509b6cf16ad",
+    "ef03bResilienceJs": "f3fd0fa14675afc9f840cddc9ac1df23f6e7405c029585db075f280cd57d504f",
+    "pipelineJs": "b7a5d5e6e6cf63989992a5049504402fd8ac863228ad940c32f06c9dd0b89abd",
+    "stageReportJs": "ae1dec38d2b3870af49cc71172969773904c5bf0600a54693fc0286b04021b9d",
+    "stageProfessionalsJs": "46f2b48f63ee268b7fdbe4c44098204948d2f53b6e439caec46dfb36e481b085",
+    "ef03bRegistryImportJs": "70502a66a14134c41f2c0f2aae63b85f47f469b8fa32a267a2de14ab69d7b1c5",
+    "testV1015AuthorityIdentityJs": "1cdbc59ba9848987b2b310d995273183fce958e1bb4c62d25c283e62db2497e5"
+  }
+}
