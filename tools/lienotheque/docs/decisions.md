@@ -10,6 +10,7 @@
 | 2026-10-03 | Jetons v3.0.1 : piste de progression sombre #3C4046, texte désactivé clair #5A5E63, liseré et pourcentage obligatoires sur la progression claire | Réserves CDC |
 | 2026-10-03 | Kit UI v1.1 adopté comme référence ; logo vectoriel validé (IoU 0,977 avec la planche) ; jetons du kit fusionnés dans tokens.json | docs/ui-kit |
 | 2026-10-03 | **Tauri 2 retenu le 3 octobre 2026 sur mesures Mac** (paquet 24,75 Mio dont 13,54 Mio de moteurs ; 4 critères tenus). Réserve : validation Windows obligatoire avant toute version livrée sous Windows | Lot 0, mesures ci-dessous |
+| 2026-10-03 | Réserve Windows **levée sur les quatre critères** : ils passent tous sur `windows-latest` (exécution 37120499122). Reste ouvert : l'agencement d'un paquet Windows **installé**, non mesuré | Lot 0, mesures Windows ci-dessous |
 | 2026-10-03 | `tools/lienotheque/.gitignore` passe de 6 à 9 lignes : `target/`, `**/src-tauri/moteurs/`, `**/src-tauri/gen/`. Sans elles, la cible Rust et les binaires Tesseract entraient dans un dépôt public | Écart accepté |
 | 2026-10-03 | Les tests Rust du prototype restent hors de `pnpm check` et tournent dans `lienotheque-tauri.yml` (Mac et Windows) : l'intégration continue ordinaire n'a ni Rust ni Tesseract | Écart accepté |
 
@@ -73,12 +74,52 @@ compris dans cette mesure.
   l'expiration du verrou. Les 30 secondes par défaut sont un choix à régler : c'est le délai pendant
   lequel un travail interrompu paraît figé à l'utilisateur.
 
+### Mesures Windows du 3 octobre 2026
+
+Obtenues par `.github/workflows/lienotheque-tauri.yml` sur `windows-latest` (x86-64), face aux
+mêmes mesures sur `macos-latest` (arm64), à la même exécution. **Les quatre critères passent des
+deux côtés : 10 tests réussis, 0 en échec.**
+
+| Critère du CDC | Windows | macOS |
+|---|---|---|
+| PDF natif de 500 pages | ouverture 6 ms | ouverture 5 ms |
+| Livre numérisé de 500 pages (77 Mo) | ouverture 1 357 ms | ouverture 1 121 ms |
+| Sidecar Tesseract embarqué | v5.5.3, OCR français 192 ms | 5.5.3, OCR français 141 ms |
+| Reprise après arrêt forcé (JOB-02) | reprise au pas suivant, aucun pas rejoué | identique |
+| Lecture d'un MP3 par plages | 64 Kio en 2 ms | 64 Kio en 1 ms |
+
+| Taille | Windows | macOS |
+|---|---|---|
+| Moteurs embarqués | 55,81 Mo (37 fichiers) | 14,17 Mo (19 fichiers) |
+| Binaire de l'application | 14,23 Mo | 10,57 Mo |
+| Icônes | 0,92 Mo | 0,67 Mo |
+| **Total** | **70,96 Mo** (exécutable + moteurs + icônes) | **25,90 Mo** (paquet `.app`) |
+
+Deux écarts à retenir :
+
+- **Les moteurs pèsent quatre fois plus sous Windows.** La première exécution en embarquait même
+  99,5 Mo : le script copiait tout le dossier d'installation de Tesseract. Il suit désormais la
+  table d'imports des fichiers PE et n'en retient que la fermeture réelle, ce qui ramène à 55,8 Mo.
+  L'écart qui reste vient du paquet lui-même : la distribution Windows de Tesseract lie des
+  bibliothèques plus grosses que celles de Homebrew. Le réduire encore relève du choix de la
+  distribution de Tesseract, pas du socle.
+- **Les deux totaux ne se comparent pas tout à fait.** macOS mesure un paquet `.app` complet ;
+  Windows mesure l'exécutable et ses moteurs, sans installateur. Un paquet NSIS ou MSI reste à
+  construire et à peser, et c'est là que se tranchera l'emplacement des DLL.
+
 ### Lever la réserve Windows
 
-Aucune machine Windows n'était disponible le 3 octobre 2026. La vérification passe donc par
+Aucune machine Windows n'était disponible le 3 octobre 2026. La vérification est passée par
 `.github/workflows/lienotheque-tauri.yml`, déclenchable à la main, qui refait sur `windows-latest`
 exactement ce qui a été fait ici : fixtures fabriquées à la volée, moteurs embarqués, quatre
-critères éprouvés, paquet construit et pesé. Son résumé d'exécution porte les chiffres.
+critères éprouvés, paquet construit et pesé. Son résumé d'exécution porte les chiffres, repris
+ci-dessus.
+
+Sa première exécution a échoué des deux côtés, pour trois raisons qui valaient d'être trouvées :
+sans police vectorielle, Pillow retombait sur sa police bitmap de repli et fabriquait des fixtures
+fausses en silence (OCR illisible, livre numérisé trois fois trop léger) ; `pnpm --filter … tauri`
+cherchait un script qui n'existait pas ; et le seuil de poids du scan était trop serré. Le
+générateur de fixtures s'arrête désormais net s'il ne trouve aucune police.
 
 L'embarquement des moteurs y suit l'autre voie : sous Windows le chargeur cherche les DLL dans le
 dossier de l'exécutable, donc `preparer-moteurs.py` les y pose sans rien réécrire — ni `@rpath`,
@@ -87,6 +128,7 @@ range le binaire annexe à côté de l'exécutable et les ressources ailleurs. L
 l'exécutable et ses moteurs, pas un installateur.
 
 ### Ce qui n'est pas mesuré
+
 - **Linux**, hors périmètre du CDC mais utile à savoir.
 - L'installateur Windows (NSIS ou MSI) et l'emplacement des DLL dans le paquet installé.
 - La signature et la notarisation, qui changent la taille et la procédure de distribution.

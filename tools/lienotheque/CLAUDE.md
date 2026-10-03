@@ -72,10 +72,10 @@ Commandes : `pnpm install`, `pnpm check` (typage + tests), `pnpm build` (schéma
 application web). Les tests du prototype bureau sont à part : voir `apps/app/src-tauri/README.md`
 (ils demandent Rust et Tesseract, absents de l'intégration continue).
 
-## Lot 0 — ce qui reste à faire
+## Lot 0 — état
 | Tâche | Critère d'acceptation |
 |---|---|
-| Prototype Tauri 2 : **Mac mesuré, Windows à faire** | Les quatre critères sont tenus sur Mac et la taille d'installation est mesurée moteurs compris (`docs/decisions.md`). **La décision Tauri reste à prendre** et Windows n'a rien vérifié |
+| ~~Prototype Tauri 2, Mac et Windows~~ **fait** | Les quatre critères passent sur les deux systèmes et les tailles sont mesurées moteurs compris (`docs/decisions.md`). **Tauri 2 retenu**, réserve levée sur les critères ; reste à trancher l'agencement d'un paquet Windows installé |
 | ~~`apps/app` : squelette React 19 + Vite + TypeScript strict~~ **fait** | Charge la feuille des jetons, polices Inter et Source Serif 4, bascule clair / hybride / sombre intégral |
 | ~~Page d'accueil statique~~ **fait** | Reproduit la composition des maquettes avec des données factices typées par les contrats ; Inter partout sauf logo et « Bonjour » ; contrôle clavier complet |
 | ~~`apps/worker` : squelette Hono~~ **fait** | Route de santé validée par `EtatService`, tests ; aucun déploiement |
