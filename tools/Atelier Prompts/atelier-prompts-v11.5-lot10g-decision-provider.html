@@ -998,6 +998,7 @@ body.v11-normal #v11-shell{display:block}
   --ds-focus-ring:0 0 0 4px rgba(184,115,70,.14);
   --ds-transition:160ms ease;
   --ds-control-min:44px;
+
   /* Alias de compatibilité UI */
   --ui-bg:var(--ds-bg);
   --ui-bg-soft:var(--ds-bg-soft);
@@ -1996,7 +1997,8 @@ pre,.sortie,#ui-rapid-output{overflow-wrap:anywhere;word-break:break-word}
     </div>
 
     <div id="rapide-resultat" class="rapide-result-card cache">
-      <div class="rapide-result-head"><div class="rapide-result-title">Prompt préparé</div><div class="rapide-result-state">Prêt à utiliser</div></div>      <div class="sortie" id="rapide-sortie"></div>
+      <div class="rapide-result-head"><div class="rapide-result-title">Prompt préparé</div><div class="rapide-result-state">Prêt à utiliser</div></div>
+      <div class="sortie" id="rapide-sortie"></div>
       <div class="aide" id="rapide-tokens"></div>
     </div>
   </div>
@@ -2995,7 +2997,8 @@ pre,.sortie,#ui-rapid-output{overflow-wrap:anywhere;word-break:break-word}
       <button type="button" class="bouton cache" id="qualite-amelioration-generer-api">Générer par API</button>
     </div>
     <div id="qualite-amelioration-bloc" class="cache">
-      <label class="etiquette" for="qualite-amelioration-message">Message à copier dans Claude, ChatGPT ou un autre LLM</label>      <textarea id="qualite-amelioration-message" rows="8" readonly></textarea>
+      <label class="etiquette" for="qualite-amelioration-message">Message à copier dans Claude, ChatGPT ou un autre LLM</label>
+      <textarea id="qualite-amelioration-message" rows="8" readonly></textarea>
       <div class="barre-actions"><button type="button" class="bouton" id="qualite-amelioration-copier">Copier le message</button></div>
       <label class="etiquette" for="qualite-amelioration-reponse">Prompt amélioré obtenu — collez-le ici</label>
       <textarea id="qualite-amelioration-reponse" rows="6" placeholder="Collez ici le nouveau prompt proposé par le LLM."></textarea>
@@ -3994,7 +3997,8 @@ const SECTIONS = {
                      la moitié. Sur les profils courts, la même concaténation produisait « aussi
                      court que le sujet le permet, sans remplissage mots », parce que le mot d'unité
                      était collé à une phrase qui n'est pas un nombre : la coquille était le symptôme
-                     visible du même défaut de provenance, et elle disparaît avec lui.                     Ce qui reste est une DISCIPLINE, qui n'affirme aucun chiffre. La quantité que la
+                     visible du même défaut de provenance, et elle disparaît avec lui.
+                     Ce qui reste est une DISCIPLINE, qui n'affirme aucun chiffre. La quantité que la
                      personne a réellement donnée, elle, est énoncée juste au-dessus par
                      `ligneQuantite()`, et vérifiée nommément plus bas. */
                   '- Volume : celui que le sujet exige, sans remplissage.\n' +
@@ -4993,7 +4997,8 @@ function majFicheModele(){
     echapper(m.note || '') +
     (m.zdr === false
       ? '<div class="note alerte" style="margin-top:10px">' +
-        '<strong>Conservation obligatoire de 30 jours.</strong> Anthropic classe ce modèle parmi ' +        'les Covered Models : les requêtes et les réponses sont conservées au moins trente jours ' +
+        '<strong>Conservation obligatoire de 30 jours.</strong> Anthropic classe ce modèle parmi ' +
+        'les Covered Models : les requêtes et les réponses sont conservées au moins trente jours ' +
         'à des fins de surveillance, et l\u2019accord Zero Data Retention ne s\u2019y applique pas, ' +
         'quel que soit votre contrat. Un contenu signalé peut faire l\u2019objet d\u2019une revue ' +
         'humaine. <strong>Ne transmettez aucune donnée clinique identifiante par ce modèle</strong> ' +
@@ -5992,7 +5997,8 @@ function violationsContreSchema(schema,valeur,chemin,racine){
   return v;
 }
 function schemaResoudreRef(ref,racine){
-  if(!ref.startsWith('#/'))return null;  let noeud=racine;
+  if(!ref.startsWith('#/'))return null;
+  let noeud=racine;
   for(const segment of ref.slice(2).split('/')){
     const cle=segment.replace(/~1/g,'/').replace(/~0/g,'~');
     if(!noeud||typeof noeud!=='object'||!(cle in noeud))return null;
@@ -6991,7 +6997,8 @@ async function bancAppel(prompt, modele, signal){
       modele: res.modele
     };
   }catch(err){
-    if(err.categorie === 'refus'){      const tok = err.tokens || {entree:0, sortie:0};
+    if(err.categorie === 'refus'){
+      const tok = err.tokens || {entree:0, sortie:0};
       return {
         texte: err.texte_partiel || '', stop_reason: 'refusal',
         refus: true, categorie_refus: (err.detail && err.detail.refus_categorie) || null,
@@ -7990,7 +7997,8 @@ function brancher(){
         $('#arch-preparer').click();
       }
     }
-  });  $('#lien-accueil-affiner').addEventListener('click', e => {
+  });
+  $('#lien-accueil-affiner').addEventListener('click', e => {
     e.preventDefault();
     appliquerEspace('avance'); ecrire('atelier10.espace', 'avance');
     ouvrirVue('generation');
@@ -8989,7 +8997,8 @@ function qMigrerStructure({structure, versionCourante, migrations, cleVersion}){
     s[cleVersion] = v+1;
     v = v+1;
     etapes++;
-  }  return {structure:s, migree:etapes>0, erreur:null, versionOrigine, sauvegarde};
+  }
+  return {structure:s, migree:etapes>0, erreur:null, versionOrigine, sauvegarde};
 }
 window.qMigrerStructure = qMigrerStructure;
 
@@ -9988,7 +9997,8 @@ function archNouvelleDemande(){
  * OPRIE, et T-VALARCH02-06 le vérifie. Faire dépendre son déclencheur d'oprieState briserait cette
  * autonomie — l'onglet cesserait de fonctionner seul. Le garde n'a besoin de rien d'autre que de
  * savoir si LUI-MÊME est déjà en cours.
- * * Enveloppe le moteur GELÉ sans le modifier : le moteur reste l'unique implémentation, on ne fait
+ *
+ * Enveloppe le moteur GELÉ sans le modifier : le moteur reste l'unique implémentation, on ne fait
  * qu'interdire d'y entrer deux fois de suite. Une reprise fournisseur ou une bascule reste DANS
  * l'appel enveloppé — elle ne repasse pas par ici, et ne compte donc pas comme une seconde
  * exécution. Le drapeau retombe quoi qu'il arrive, y compris sur échec : un cycle qui s'est terminé
@@ -10987,7 +10997,8 @@ function v11KeyTestClassifier(err){
   if(statut===429||cat==='limitation')return 'limitation';
   if((statut!==null&&statut>=500)||cat==='indisponibilite')return 'indisponibilite';
   if(statut===null&&(cat==='delai_depasse'||cat==='annulation'||cat==='inconnue'||!cat))return 'reseau';
-  return 'autre';}
+  return 'autre';
+}
 function v11KeyTestAfficher(cle,complement){
   const b=$('#v11-api-test'),n=$('#v11-api-test-note'),v=V11_KEY_TEST_VERDICTS[cle]||V11_KEY_TEST_VERDICTS.neutre;
   if(!b||!n)return;
@@ -11986,7 +11997,8 @@ function normalizeObligations(items, constraints) {
     /* L'obligation promue depuis une contrainte HÉRITE de la source de cette contrainte : elle ne la
        requalifie pas. Une contrainte dérivée promue reste dérivée. */
     ...constraints.map((constraint) => ({ text: constraint.text, source: constraint.source, mandatory: true, verifiable: true, constraint_id: constraint.id })),
-    ...list(items)  ];
+    ...list(items)
+  ];
   const seen = new Set();
   const result = [];
   for (const item of candidates) {
@@ -12986,6 +12998,7 @@ function contractForContractualization(contract) {
   };
   return result;
 }
+
 /**
  * Évalue uniquement des primitives universelles déjà produites par Architecte.
  * Aucun domaine, mot-clé métier ni quantité arbitraire n'est utilisé.
@@ -13984,7 +13997,8 @@ function mergePostOprieSignals(...groups) {
           /* FAIL CLOSED : un signal sans type ou sans preuve reste un arrêt. */
           signal: 'TECHNICAL_STOP',
           canonical_field: canonicalField,
-          arch_source_field: archField || 'signals',          detail: `Signal post-OPRIE invalide, converti en arrêt technique : ${JSON.stringify(candidate ?? null)}.`,
+          arch_source_field: archField || 'signals',
+          detail: `Signal post-OPRIE invalide, converti en arrêt technique : ${JSON.stringify(candidate ?? null)}.`,
           return_to_oprie: false,
           block_execution: true
         };
@@ -14983,7 +14997,8 @@ function validateOriginalRequestRecord(record) {
        corriger l'oubli n'est pas une mémoire.
        Cette clé la porte. Elle TRANSPORTE des identités que l'autorité a établies : l'historique
        n'en produit aucune, n'en interprète aucune, et ne lit jamais un mot de la personne. */
-    const clesTour = ["turn", "question", "answer", "provenance"];    if (Object.prototype.hasOwnProperty.call(turn || {}, "missing_determinant_id")) clesTour.push("missing_determinant_id");
+    const clesTour = ["turn", "question", "answer", "provenance"];
+    if (Object.prototype.hasOwnProperty.call(turn || {}, "missing_determinant_id")) clesTour.push("missing_determinant_id");
     if (Object.prototype.hasOwnProperty.call(turn || {}, "explicit_unknown_determinant_ids")) clesTour.push("explicit_unknown_determinant_ids");
     exactKeys(turn, clesTour, `clarification_history[${index}]`);
     if (Object.prototype.hasOwnProperty.call(turn, "missing_determinant_id")) {
@@ -15983,6 +15998,7 @@ const CONFIRMATION_TRIGGERS = Object.freeze([...CONFIRMATION_SIGNAL_KEYS, "signi
 // jamais partie : un modèle ne s'auto-déclare pas techniquement en panne, cet état n'est produit
 // que par le code appelant lorsque les deux providers d'un rôle sont indisponibles (CDC §22).
 const ARBITER_STATES = Object.freeze(["clarification_required", "confirmation_required", "operational_request_ready", "blocked"]);
+
 function clone(value) {
   return value === undefined ? undefined : JSON.parse(JSON.stringify(value));
 }
@@ -16981,7 +16997,8 @@ const QUESTION_CANDIDATE_JSON_SCHEMA = Object.freeze({
   }
 });
 
-// 3F.3.3-P1 : "value" était déjà dans required (la CLÉ est déjà garantie présente par le mode strict// Groq/OpenAI) — le défaut reproduit (parseAnalystOutput -> "ProvenanceRecord.value est obligatoire")
+// 3F.3.3-P1 : "value" était déjà dans required (la CLÉ est déjà garantie présente par le mode strict
+// Groq/OpenAI) — le défaut reproduit (parseAnalystOutput -> "ProvenanceRecord.value est obligatoire")
 // venait d'une divergence de CONTENU, pas de présence : type:"string" seul autorise une chaîne vide,
 // que le validateur (core/adn/operational-request-state.js, validateProvenanceRecord) rejette à juste
 // titre — un enregistrement de provenance sans contenu réel n'a aucun sens. minLength:1 documente et
@@ -17980,7 +17997,8 @@ function applySubstitutionGate(assembledReviews, { vetoes = [], semantic_drift_d
  *
  * candidateFamilyGroups (MICRO-PREUVE-DECOUPAGE-CANDIDATES, optionnel) : tableau de sous-ensembles de
  * familles (ex. [["research","decide","estimate"],["scenario","condition","leave_unknown"]] pour un
- * découpage 2×3). Par défaut (omis), un seul groupe = les 6 familles — comportement STRICTEMENT * inchangé, un seul appel executeBatch par batch d'issues, byte-identique à avant ce lot. Quand
+ * découpage 2×3). Par défaut (omis), un seul groupe = les 6 familles — comportement STRICTEMENT
+ * inchangé, un seul appel executeBatch par batch d'issues, byte-identique à avant ce lot. Quand
  * plusieurs groupes sont fournis, executeBatch est appelé une fois PAR GROUPE pour CHAQUE batch
  * d'issues (toujours séquentiellement), et reçoit en plus `familyGroup`/`groupIndex` ; les résultats
  * bruts des groupes d'un même batch sont fusionnés par mergeCandidateGroups (PURE, ci-dessus) avant
@@ -18979,7 +18997,8 @@ function isGroundedInRequest(candidate, { originalRequest = null, currentAnswer 
   return paroles.some((parole) => parole.includes(citation));
 }
 
-/* Interrogatifs français. Grammaire, pas domaine. `où` garde son accent : sans lui, il deviendrait * la conjonction `ou` et tout choix binaire serait compté comme une seconde question.
+/* Interrogatifs français. Grammaire, pas domaine. `où` garde son accent : sans lui, il deviendrait
+ * la conjonction `ou` et tout choix binaire serait compté comme une seconde question.
  *
  * `que`, `qui` et `quoi` sont ABSENTS, et c'est mesuré : « Quel texte souhaitez-vous QUE je
  * corrige ? » était refusée comme portant deux interrogations. Ces trois mots sont aussi des
@@ -19978,7 +19997,8 @@ async function runCoreFirstTurn(input, { executeRole, log = () => {}, corrective
       turn,
       escalation_reason: sortie.escalation.reason
     }, { log });
-    appels.core_critic += 1;    log({ event: "v2_critic_verdict", verdict: critique.verdict, blocks: critique.defect_blocks_delivery });
+    appels.core_critic += 1;
+    log({ event: "v2_critic_verdict", verdict: critique.verdict, blocks: critique.defect_blocks_delivery });
 
     if (critique.verdict === "CORRECT") {
       turn = critique.corrected_turn;
@@ -20977,6 +20997,7 @@ function deriveQuantityFromRequest(request, { counting_units = '', number_words 
   /* Ce qui suit le nombre d'abord ; à défaut, ce que « nombre de … » nomme. */
   const cible = (m, k) => (text(motOrigine(m.indices && m.indices[k])) || text(nomCompte) || null);
   let m;
+
   if ((m = n.match(new RegExp(`\\bexactement\\s+(${N})${QUANTITY_TARGET}`, 'd')))) {
     const v = num(m[1]);
     if (v !== null) return { exact: v, min: null, max: null, target: cible(m, 2), rule: 'exact_explicit' };
@@ -21976,7 +21997,8 @@ function validateOutputAgainstCanonicalContract({
     verifications,
     unverifiable: verifications
       .filter((v) => v.status === 'NOT_VERIFIABLE' || v.status === 'DEFERRED')
-      .map((v) => ({ id: v.id, verifiability: v.verifiability, status: v.status, required: v.required, reason: v.reason })),    coverage: {
+      .map((v) => ({ id: v.id, verifiability: v.verifiability, status: v.status, required: v.required, reason: v.reason })),
+    coverage: {
       total: verifications.length,
       verifiable_here: verifiees.length,
       passed: verifiees.filter((v) => v.status === 'PASS').length,
@@ -22975,7 +22997,8 @@ const MODES=(()=>{
  *
  * Un mode dit COMMENT on accompagne quelqu'un. Il ne dit jamais CE QUI EST VRAI
  * de sa demande.
- * * Cette table est donc délibérément pauvre en sémantique, et le restera : elle
+ *
+ * Cette table est donc délibérément pauvre en sémantique, et le restera : elle
  * ne contient aucune politique de readiness, aucun seuil, aucune règle de
  * clarification. Un même état OPRIE produit la même action dans tous les modes —
  * c'est vérifié ailleurs, et rien ici ne peut le contredire, parce qu'il n'y a
@@ -23974,7 +23997,8 @@ function validateFastInteraction(candidate, snapshot) {
  * LE MODE RAPIDE N'A PAS DE BOUCLE DE DIALOGUE.
  *
  * Invariant R1, antérieur à ce lot : Rapide ne converse pas. Une clarification
- * y devient donc une ORIENTATION — on dit à la personne où poursuivre, on ne * lui ouvre pas un échange que ce mode ne sait pas tenir.
+ * y devient donc une ORIENTATION — on dit à la personne où poursuivre, on ne
+ * lui ouvre pas un échange que ce mode ne sait pas tenir.
  * ------------------------------------------------------------------------ */
 /* ATELIER-RAPIDE-CONVERSATIONAL-FIX-01 — « RAPIDE NE CONVERSE PAS » ÉTAIT UNE RÈGLE, PAS UN FAIT.
  *
@@ -24973,7 +24997,8 @@ const OPRIE_ENDPOINT=(document.querySelector('meta[name="atelier-operational-req
  *
  * Ces cinq-là sont la trace du tour. Ce qui les lit, ce sont les PREUVES : qu'un tour périmé
  * n'a rien appliqué, qu'une candidate a bien été réconciliée et selon quel verdict, qu'un
- * cycle d'exécution ne s'est ouvert qu'une fois. Les retirer ne retirerait pas du bruit, mais * la capacité de démontrer ces trois faits — et aucun mark de télémétrie ne porte les mêmes
+ * cycle d'exécution ne s'est ouvert qu'une fois. Les retirer ne retirerait pas du bruit, mais
+ * la capacité de démontrer ces trois faits — et aucun mark de télémétrie ne porte les mêmes
  * champs qu'eux : la trace dit QUAND, le champ dit QUOI. Ils sont donc conservés, et nommés
  * ici pour qu'on ne les confonde jamais avec une autorité. Une trace n'en est pas une : rien
  * dans le produit ne les lit pour décider d'un état, d'une route, d'une readiness ou d'un
@@ -25972,7 +25997,8 @@ function v11StartAtelier(){
   if(am){am.value=mat;am.dispatchEvent(new Event('input',{bubbles:true}))}
   if(typeof majCompteurDemande==='function')majCompteurDemande();
   const cm=$('#compteur-materiau');if(cm)cm.textContent=mat.length.toLocaleString('fr-FR');
-  if(typeof proposerFormat==='function')proposerFormat();  setNormal(false);
+  if(typeof proposerFormat==='function')proposerFormat();
+  setNormal(false);
   if(typeof ouvrirVue==='function')ouvrirVue('generation');
   if(ad)ad.focus();
   return true;
