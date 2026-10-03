@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { createReadStream, readFileSync } from "node:fs";
+import { createReadStream, readFileSync, realpathSync } from "node:fs";
 import { extname } from "node:path";
 import { IdentificationFormat, type Empreinte } from "@lienotheque/contrats";
 import { CONTENEURS_ZIP, SIGNATURES } from "./signatures.js";
@@ -39,28 +39,56 @@ export function formatParSignature(entete: Buffer): { nom: string; typeMime: str
 
 type Dit = { pronom?: string | undefined; nom: string; typeMime: string; preuve: "signature" | "conteneur" | "extension" };
 
-/** Interroge Siegfried s'il est joignable. `undefined` sinon : ce n'est pas une erreur. */
-export function parSiegfried(chemin: string, binaire = "sf"): Dit | undefined {
+/** Comment Siegfried a tranché. Une correspondance d'octets l'emporte toujours sur l'extension :
+ *  « extension match pdf; byte match at … » est une preuve de contenu, pas de nom (FMT-01). */
+export function preuveDepuisBase(base: string): "signature" | "conteneur" | "extension" {
+  if (/container/i.test(base)) return "conteneur";
+  if (/byte match|signature/i.test(base)) return "signature";
+  if (/extension/i.test(base)) return "extension";
+  return "signature";
+}
+
+export type OptionsSiegfried = { readonly binaire?: string; readonly signature?: string | undefined };
+
+/** Siegfried reçoit le chemin réel, liens symboliques résolus : sur macOS `/tmp` est un lien vers
+ *  `/private/tmp`, et un processus fils n'a pas forcément le droit de le suivre. */
+function cheminReel(chemin: string): string {
   try {
-    const sortie = execFileSync(binaire, ["-json", chemin], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+    return realpathSync(chemin);
+  } catch {
+    return chemin;
+  }
+}
+
+/** Interroge Siegfried s'il est joignable. `undefined` sinon : ce n'est pas une erreur. */
+export function parSiegfried(chemin: string, options: OptionsSiegfried = {}): Dit | undefined {
+  const binaire = options.binaire ?? "sf";
+  try {
+    const reel = cheminReel(chemin);
+    const arguments_ = options.signature === undefined ? ["-json", reel] : ["-sig", options.signature, "-json", reel];
+    const sortie = execFileSync(binaire, arguments_, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
     const rapport = JSON.parse(sortie) as {
       files?: { matches?: { ns?: string; id?: string; format?: string; mime?: string; basis?: string }[] }[];
     };
     const trouve = rapport.files?.[0]?.matches?.find((m) => m.ns === "pronom" && m.id !== undefined && m.id !== "UNKNOWN");
     if (trouve === undefined) return undefined;
-    const preuve = /container/i.test(trouve.basis ?? "") ? "conteneur" : /extension/i.test(trouve.basis ?? "") ? "extension" : "signature";
     return {
       pronom: trouve.id,
       nom: trouve.format ?? trouve.id ?? "inconnu",
       typeMime: trouve.mime !== undefined && trouve.mime !== "" ? trouve.mime : "application/octet-stream",
-      preuve,
+      preuve: preuveDepuisBase(trouve.basis ?? ""),
     };
   } catch {
     return undefined;
   }
 }
 
-export type OptionsIdentification = { readonly siegfried?: string | undefined };
+export type OptionsIdentification = {
+  /** Binaire Siegfried embarqué ; par défaut celui du système, s'il y en a un. */
+  readonly siegfried?: string | undefined;
+  /** Fichier de signatures PRONOM embarqué avec lui. */
+  readonly signatureSiegfried?: string | undefined;
+};
 
 export async function identifier(chemin: string, options: OptionsIdentification = {}): Promise<IdentificationFormat> {
   const empreinte = await empreinteDe(chemin);
@@ -72,7 +100,10 @@ export async function identifier(chemin: string, options: OptionsIdentification 
 
   const extension = extname(chemin).replace(".", "").toLowerCase();
   const signature = formatParSignature(debut);
-  const registre = parSiegfried(chemin, options.siegfried ?? "sf");
+  const registre = parSiegfried(chemin, {
+    ...(options.siegfried === undefined ? {} : { binaire: options.siegfried }),
+    ...(options.signatureSiegfried === undefined ? {} : { signature: options.signatureSiegfried }),
+  });
 
   const dit: Dit | undefined = registre ?? (signature === undefined ? undefined : { ...signature, preuve: "signature" });
   const attendues = signature?.extensions ?? [];
@@ -90,13 +121,22 @@ export async function identifier(chemin: string, options: OptionsIdentification 
 }
 
 /** Siegfried est-il joignable ? Sert à annoncer ce que l'on sait faire, pas à refuser. */
-export function siegfriedDisponible(binaire = "sf"): boolean {
+export function siegfriedDisponible(options: OptionsSiegfried = {}): boolean {
   try {
-    execFileSync(binaire, ["-version"], { stdio: "ignore" });
+    const binaire = options.binaire ?? "sf";
+    const arguments_ = options.signature === undefined ? ["-version"] : ["-sig", options.signature, "-version"];
+    execFileSync(binaire, arguments_, { stdio: "ignore" });
     return true;
   } catch {
     return false;
   }
+}
+
+/** Moteurs embarqués par `preparer-moteurs.py`, s'ils sont là. */
+export function moteursEmbarques(racine: string): OptionsIdentification {
+  const binaire = `${racine}/bin/${process.platform === "win32" ? "sf.exe" : "sf"}`;
+  const signature = `${racine}/siegfried/default.sig`;
+  return siegfriedDisponible({ binaire, signature }) ? { siegfried: binaire, signatureSiegfried: signature } : {};
 }
 
 export const lireEntete = (chemin: string): Buffer => readFileSync(chemin).subarray(0, TAILLE_ENTETE);

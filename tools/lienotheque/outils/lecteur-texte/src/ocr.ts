@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { realpathSync } from "node:fs";
 import { PageLue, type MotLu } from "@lienotheque/contrats";
 
 /** OCR d'une page numérisée, avec la boîte de chaque mot (OUT-05).
@@ -57,8 +58,18 @@ export function analyserTsv(tsv: string): readonly MotLu[] {
   return mots;
 }
 
+/** Les binaires externes reçoivent le chemin réel, liens symboliques résolus : sur macOS `/tmp`
+ *  est un lien vers `/private/tmp`, et un processus fils n'a pas forcément le droit de le suivre. */
+export function cheminReel(chemin: string): string {
+  try {
+    return realpathSync(chemin);
+  } catch {
+    return chemin;
+  }
+}
+
 export function lireParOcr(image: string, largeur: number, hauteur: number, index: number, options: OptionsOcr = {}): PageLue {
-  const arguments_ = [image, "stdout", "-l", options.langue ?? "eng", "--psm", String(options.segmentation ?? 3), "tsv"];
+  const arguments_ = [cheminReel(image), "stdout", "-l", options.langue ?? "eng", "--psm", String(options.segmentation ?? 3), "tsv"];
   if (options.alphabet !== undefined) arguments_.push("-c", `tessedit_char_whitelist=${options.alphabet}`);
 
   const tsv = execFileSync(options.binaire ?? "tesseract", arguments_, {

@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { TexteLu, texteDePage } from "@lienotheque/contrats";
 import { objetsPdf, octetsImage, pagesPdf } from "@lienotheque/formats";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { analyserTsv, decouperEnMots, lireCoucheTexte, lireParOcr, tesseractDisponible } from "../src/index.js";
+import { analyserTsv, cheminReel, decouperEnMots, lireCoucheTexte, lireParOcr, tesseractDisponible } from "../src/index.js";
 
 const RACINE = join(import.meta.dirname, "../../..");
 const F1 = join(RACINE, "fixtures/fichiers/F1/aebersold-FRENCH.pdf");
@@ -105,6 +105,21 @@ describe("lecture d'un tableau Tesseract", () => {
     expect(analyserTsv(tsv).map((m) => m.texte)).not.toContain("");
     expect(analyserTsv("")).toEqual([]);
     expect(analyserTsv("rien d'utile")).toEqual([]);
+  });
+});
+
+describe("chemin passé aux binaires externes", () => {
+  it("résout les liens symboliques : un fils n'a pas forcément le droit de les suivre", () => {
+    const vrai = join(dossier, "vrai.txt");
+    writeFileSync(vrai, "x");
+    const lien = join(dossier, "lien");
+    symlinkSync(dossier, lien);
+    expect(cheminReel(join(lien, "vrai.txt"))).toBe(realpathSync(vrai));
+  });
+
+  it("rend le chemin tel quel quand il n'existe pas : à Tesseract de le dire", () => {
+    const absent = join(dossier, "absent.jpg");
+    expect(cheminReel(absent)).toBe(absent);
   });
 });
 

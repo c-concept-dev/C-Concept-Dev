@@ -1,7 +1,14 @@
 #!/usr/bin/env python3
-"""Embarque Tesseract et ses bibliothèques dans src-tauri/moteurs/ (dossier ignoré par Git).
+"""Embarque les moteurs dans src-tauri/moteurs/ (dossier ignoré par Git).
 
     python3 outils/preparer-moteurs.py [langues…]      par défaut : fra eng
+
+Deux moteurs :
+
+* **Tesseract**, repris de l'installation du système (voir plus bas) ;
+* **Siegfried**, téléchargé depuis la version publiée par son auteur sur GitHub, à version et
+  empreinte fixées ici même. Même procédé en local et en intégration continue : rien n'est pris
+  sur le système, rien n'est accepté sans que son empreinte corresponde.
 
 Les deux systèmes ne se ressemblent pas :
 
@@ -31,6 +38,17 @@ import sys
 SYSTEME = ("/usr/lib/", "/System/")
 RACINE = pathlib.Path(__file__).resolve().parent.parent
 MOTEURS = RACINE / "moteurs"
+
+# Siegfried : version et empreintes figées. Pour en changer, on relève les empreintes de la
+# nouvelle version publiée et on les inscrit ici — jamais de téléchargement non vérifié.
+SIEGFRIED_VERSION = "1.11.9"
+SIEGFRIED_BASE = f"https://github.com/richardlehane/siegfried/releases/download/v{SIEGFRIED_VERSION}"
+SIEGFRIED_ARCHIVES = {
+    "darwin": ("siegfried_1-11-9_mac64.zip", "808ca10eef7311748b4f8aa0c3263363e464b73920b0c2ad52abda97d2e8c353"),
+    "win32": ("siegfried_1-11-9_win64.zip", "d9a6e284d888f7c04d56b43b4f495101dfa99c45b8cf451e5cea44823c4d93e0"),
+    "linux": ("siegfried_1-11-9_linux64.zip", "a282f1cdec1fc9c3b50aa8ab20588f5a16ba60b730ff39b37b2020721e41dee4"),
+}
+SIEGFRIED_DONNEES = ("data_1-11-9.zip", "1a284a57d102996ab99e393dc40e7e213039ab44e1573c55fa9d9935840515cf")
 
 
 def executer(*commande: str) -> str:
@@ -273,6 +291,58 @@ def autotest() -> int:
     return 0
 
 
+def telecharger(url: str, empreinte_attendue: str, vers: pathlib.Path) -> pathlib.Path:
+    """Télécharge et refuse tout ce dont l'empreinte ne correspond pas."""
+    import hashlib
+    import urllib.request
+
+    with urllib.request.urlopen(url) as reponse:  # noqa: S310 — adresse figée ci-dessus
+        octets = reponse.read()
+    empreinte = hashlib.sha256(octets).hexdigest()
+    if empreinte != empreinte_attendue:
+        raise SystemExit(f"empreinte inattendue pour {url}\n  attendue : {empreinte_attendue}\n  obtenue  : {empreinte}")
+    vers.write_bytes(octets)
+    return vers
+
+
+def embarquer_siegfried() -> str:
+    """Télécharge Siegfried et son fichier de signatures PRONOM dans moteurs/."""
+    import tempfile
+    import zipfile
+
+    cle = "win32" if sys.platform == "win32" else "darwin" if sys.platform == "darwin" else "linux"
+    archive, empreinte = SIEGFRIED_ARCHIVES.get(cle, (None, None))
+    if archive is None:
+        raise SystemExit(f"aucune version publiée de Siegfried pour {sys.platform}")
+
+    binaire = "sf.exe" if cle == "win32" else "sf"
+    (MOTEURS / "siegfried").mkdir(parents=True, exist_ok=True)
+
+    with tempfile.TemporaryDirectory() as temporaire:
+        dossier = pathlib.Path(temporaire)
+        with zipfile.ZipFile(telecharger(f"{SIEGFRIED_BASE}/{archive}", empreinte, dossier / archive)) as zip_:
+            zip_.extract(binaire, dossier)
+        cible = MOTEURS / "bin" / binaire
+        shutil.copy(dossier / binaire, cible)
+        cible.chmod(0o755)
+        if cle == "darwin":
+            signer(cible)
+
+        nom_donnees, empreinte_donnees = SIEGFRIED_DONNEES
+        with zipfile.ZipFile(telecharger(f"{SIEGFRIED_BASE}/{nom_donnees}", empreinte_donnees, dossier / nom_donnees)) as zip_:
+            with zip_.open("siegfried/default.sig") as source:
+                (MOTEURS / "siegfried" / "default.sig").write_bytes(source.read())
+
+    controle = subprocess.run(
+        [str(MOTEURS / "bin" / binaire), "-sig", str(MOTEURS / "siegfried" / "default.sig"), "-version"],
+        capture_output=True,
+        text=True,
+    )
+    if controle.returncode != 0:
+        raise SystemExit(f"Siegfried embarqué ne démarre pas :\n{controle.stderr.strip()}")
+    return controle.stdout.splitlines()[0]
+
+
 def main(argv: list[str]) -> int:
     if "--autotest" in argv:
         return autotest()
@@ -305,6 +375,8 @@ def main(argv: list[str]) -> int:
 
     modeles(langues, source)
 
+    siegfried = embarquer_siegfried()
+
     controle = subprocess.run(
         [str(cible), "--version"],
         env={**os.environ, "TESSDATA_PREFIX": str(MOTEURS / "tessdata")},
@@ -317,6 +389,7 @@ def main(argv: list[str]) -> int:
     print(controle.stdout.splitlines()[0])
     print(f"{nombre} bibliothèques embarquées, langues : {', '.join(langues)}")
     print(f"binaire annexe : {sidecar.name}")
+    print(siegfried)
     for sous in ("bin", "lib", "tessdata"):
         octets = sum(f.stat().st_size for f in (MOTEURS / sous).rglob("*") if f.is_file())
         print(f"  {sous:<9} {octets / 1_000_000:7.2f} Mo")
