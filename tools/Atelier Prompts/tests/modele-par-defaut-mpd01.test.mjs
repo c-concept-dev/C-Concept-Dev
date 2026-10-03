@@ -146,7 +146,7 @@ test('T3 · PERSISTED_SELECTION_SURVIVES_RELOAD : Haiku choisi et enregistré �
   h1.el('api-modele').value = 'claude-haiku-4-5-20251001';
   h1.el('api-cle').value = 'sk-ant-persist-test';
   h1.w.enregistrerCle();
-  assert.equal(zones.local.has('atelier.modele') || zones.session.has('atelier.modele'), true, 'le modèle est écrit quelque part');
+  assert.equal(zones.local.has('atelier.modele.anthropic') || zones.session.has('atelier.modele.anthropic'), true, 'le modèle Anthropic est écrit dans son espace fournisseur');
   const h2 = chargerPage({ zones });
   assert.equal(h2.el('api-modele').value, 'claude-haiku-4-5-20251001', 'la sélection explicite survit au rechargement');
 });
