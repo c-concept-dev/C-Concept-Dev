@@ -7,6 +7,14 @@
   text-align: center;
 }
 
+.ln-premier__accroche {
+  display: grid;
+  justify-items: center;
+  gap: calc(var(--ln-grid) * 2);
+  width: 100%;
+  padding: calc(var(--ln-grid) * 3);
+}
+
 .ln-premier__titre {
   margin: 0;
 }

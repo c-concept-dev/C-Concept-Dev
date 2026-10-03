@@ -17,10 +17,14 @@ export function PremierLancement({ theme, onCreer, onFichiers }: Props): JSX.Ele
   const logo = theme === "light" ? logoClair : logoSombre;
   return (
     <main id="contenu" className="ln-layout ln-premier" tabIndex={-1}>
-      <h1 className="ln-premier__titre">
-        <img className="ln-premier__logo" src={logo} alt="Liénothèque" />
-      </h1>
-      <p className="ln-premier__signature">Vos documents et médias, enfin reliés.</p>
+      {/* Panneau de titre de la charte : invisible en clair, opaque sur la photo, où un texte
+          sombre deviendrait illisible. */}
+      <div className="ln-premier__accroche ln-panneau-titre">
+        <h1 className="ln-premier__titre">
+          <img className="ln-premier__logo" src={logo} alt="Liénothèque" />
+        </h1>
+        <p className="ln-premier__signature">Vos documents et médias, enfin reliés.</p>
+      </div>
 
       <Bouton variante="principal" icone={<Icone nom="plus" />} onClick={onCreer}>
         Créer ma première bibliothèque
