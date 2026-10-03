@@ -1,0 +1,202 @@
+{
+  "modele": {
+    "cle": "therapie",
+    "nom": "Bibliothèque de thérapie",
+    "langue": "fr",
+    "version": 1,
+    "description": "Approches, champs d'application et types de documents d'une pratique thérapeutique.",
+    "axes": [
+      {
+        "cle": "approche",
+        "nom": "Approche",
+        "nature": "referentiel",
+        "cardinalite": "principale_et_secondaires",
+        "structure": "hierarchique",
+        "roleCommun": "categorie",
+        "obligatoire": true,
+        "valeurs": [
+          {
+            "cle": "humaniste",
+            "nom": "Humaniste",
+            "definition": "Centrée sur l'expérience de la personne."
+          },
+          {
+            "cle": "gestalt",
+            "nom": "Gestalt-thérapie",
+            "parent": "humaniste",
+            "synonymes": [
+              "Gestalt"
+            ]
+          },
+          {
+            "cle": "psychanalytique",
+            "nom": "Psychanalytique"
+          },
+          {
+            "cle": "systemique",
+            "nom": "Systémique",
+            "synonymes": [
+              "Thérapie familiale"
+            ]
+          },
+          {
+            "cle": "comportementale",
+            "nom": "Cognitivo-comportementale",
+            "synonymes": [
+              "TCC"
+            ]
+          },
+          {
+            "cle": "emdr",
+            "nom": "EMDR",
+            "parent": "comportementale",
+            "definition": "Désensibilisation par mouvements oculaires."
+          }
+        ]
+      },
+      {
+        "cle": "champ",
+        "nom": "Champ d'application",
+        "nature": "referentiel",
+        "cardinalite": "plusieurs",
+        "roleCommun": "sujet",
+        "valeurs": [
+          {
+            "cle": "anxiete",
+            "nom": "Anxiété"
+          },
+          {
+            "cle": "depression",
+            "nom": "Dépression"
+          },
+          {
+            "cle": "trauma",
+            "nom": "Trauma",
+            "synonymes": [
+              "Psychotraumatisme"
+            ]
+          },
+          {
+            "cle": "couple",
+            "nom": "Couple"
+          }
+        ]
+      },
+      {
+        "cle": "type-document",
+        "nom": "Type de document",
+        "nature": "referentiel",
+        "cardinalite": "une",
+        "valeurs": [
+          {
+            "cle": "article",
+            "nom": "Article"
+          },
+          {
+            "cle": "manuel",
+            "nom": "Manuel"
+          },
+          {
+            "cle": "fiche",
+            "nom": "Fiche pratique"
+          }
+        ]
+      },
+      {
+        "cle": "parution",
+        "nom": "Parution",
+        "nature": "date",
+        "cardinalite": "une",
+        "roleCommun": "date"
+      }
+    ]
+  },
+  "fiches": [
+    {
+      "documentId": "0190f0a0-0001-7000-8000-000000000001",
+      "axes": {
+        "approche": {
+          "type": "reference",
+          "valeurs": [
+            "gestalt",
+            "humaniste"
+          ],
+          "principale": "gestalt"
+        },
+        "champ": {
+          "type": "reference",
+          "valeurs": [
+            "anxiete",
+            "trauma"
+          ]
+        },
+        "type-document": {
+          "type": "reference",
+          "valeurs": [
+            "manuel"
+          ]
+        },
+        "parution": {
+          "type": "date",
+          "valeur": "2019-04-01"
+        }
+      }
+    },
+    {
+      "documentId": "0190f0a0-0001-7000-8000-000000000002",
+      "axes": {
+        "approche": {
+          "type": "reference",
+          "valeurs": [
+            "emdr"
+          ],
+          "principale": "emdr"
+        },
+        "champ": {
+          "type": "reference",
+          "valeurs": [
+            "trauma"
+          ]
+        },
+        "type-document": {
+          "type": "reference",
+          "valeurs": [
+            "article"
+          ]
+        },
+        "parution": {
+          "type": "date",
+          "valeur": "2023-11-20"
+        }
+      }
+    },
+    {
+      "documentId": "0190f0a0-0001-7000-8000-000000000003",
+      "axes": {
+        "approche": {
+          "type": "reference",
+          "valeurs": [
+            "systemique"
+          ],
+          "principale": "systemique"
+        },
+        "champ": {
+          "type": "reference",
+          "valeurs": [
+            "couple"
+          ]
+        },
+        "type-document": {
+          "type": "reference",
+          "valeurs": [
+            "fiche"
+          ]
+        },
+        "parution": {
+          "type": "date",
+          "valeur": "2021-02-15"
+        }
+      }
+    }
+  ]
+}

@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import {
-  Ancre, BATTEMENT_VERROU_S, CarteSynchro, Empreinte, EtatService, EXPIRATION_VERROU_S, Identifiant, Lien, Operation, Recette,
-  ResultatOutil, Travail, Verrou, VersionDocument,
+  Ancre, Axe, BATTEMENT_VERROU_S, CarteSynchro, Empreinte, EtatService, EXPIRATION_VERROU_S, Identifiant, Lien, Operation,
+  Recette, ResultatOutil, SchemaBibliotheque, Travail, ValeurReferentiel, ValeursAxe, Verrou, VersionDocument,
   arbitrer, transitionVersionAutorisee, versFragment,
 } from "../src/index.js";
 
@@ -179,5 +179,65 @@ describe("bail des travaux (JOB-02)", () => {
         verrou: bail("2026-10-03T10:00:00+02:00", "2026-10-03T10:00:15+02:00"),
       }).success,
     ).toBe(true);
+  });
+});
+
+describe("classement universel (CLA-02, CLA-03)", () => {
+  const axe = (extra: Record<string, unknown> = {}) => ({
+    cle: "axe-a",
+    nom: "Axe A",
+    nature: "referentiel",
+    cardinalite: "une",
+    valeurs: [{ cle: "v1", nom: "Valeur 1" }, { cle: "v2", nom: "Valeur 2" }],
+    ...extra,
+  });
+
+  it("décrit un axe par sa nature, sa cardinalité et sa structure", () => {
+    expect(Axe.safeParse(axe()).success).toBe(true);
+    expect(Axe.safeParse(axe({ cardinalite: "principale_et_secondaires" })).success).toBe(true);
+    expect(Axe.safeParse(axe({ nature: "inventee" })).success).toBe(false);
+    expect(Axe.safeParse(axe({ inconnu: 1 })).success).toBe(false);
+  });
+
+  it("exige un référentiel là où il en faut un, et pas ailleurs", () => {
+    expect(Axe.safeParse(axe({ valeurs: [] })).success).toBe(false);
+    expect(Axe.safeParse({ cle: "n", nom: "N", nature: "nombre", cardinalite: "une" }).success).toBe(true);
+    expect(Axe.safeParse({ cle: "n", nom: "N", nature: "nombre", cardinalite: "une", valeurs: [{ cle: "x", nom: "X" }] }).success).toBe(false);
+  });
+
+  it("refuse une hiérarchie sur un axe à plat et un parent inconnu", () => {
+    expect(Axe.safeParse(axe({ valeurs: [{ cle: "v1", nom: "V1" }, { cle: "v2", nom: "V2", parent: "v1" }] })).success).toBe(false);
+    expect(
+      Axe.safeParse(axe({ structure: "hierarchique", valeurs: [{ cle: "v1", nom: "V1" }, { cle: "v2", nom: "V2", parent: "v1" }] })).success,
+    ).toBe(true);
+    expect(
+      Axe.safeParse(axe({ structure: "hierarchique", valeurs: [{ cle: "v1", nom: "V1", parent: "absent" }] })).success,
+    ).toBe(false);
+  });
+
+  it("refuse deux fois la même clé, alias compris : une clé identifie une seule valeur", () => {
+    expect(Axe.safeParse(axe({ valeurs: [{ cle: "v1", nom: "A" }, { cle: "v1", nom: "B" }] })).success).toBe(false);
+    expect(Axe.safeParse(axe({ valeurs: [{ cle: "v1", nom: "A" }, { cle: "v2", nom: "B", alias: ["v1"] }] })).success).toBe(false);
+  });
+
+  it("n'efface jamais une valeur : elle se retire en redirigeant (CLA-03)", () => {
+    expect(ValeurReferentiel.safeParse({ cle: "v1", nom: "V1", retiree: true }).success).toBe(false);
+    expect(ValeurReferentiel.safeParse({ cle: "v1", nom: "V1", retiree: true, redirigeVers: "v2" }).success).toBe(true);
+    expect(ValeurReferentiel.safeParse({ cle: "v1", nom: "V1", retiree: true, redirigeVers: "v1" }).success).toBe(false);
+  });
+
+  it("encadre ce qu'un document porte sur un axe", () => {
+    expect(ValeursAxe.safeParse({ type: "reference", valeurs: ["v1"] }).success).toBe(true);
+    expect(ValeursAxe.safeParse({ type: "reference", valeurs: ["v1", "v1"] }).success).toBe(false);
+    expect(ValeursAxe.safeParse({ type: "reference", valeurs: ["v1"], principale: "v2" }).success).toBe(false);
+    expect(ValeursAxe.safeParse({ type: "reference", valeurs: [] }).success).toBe(false);
+    expect(ValeursAxe.safeParse({ type: "etiquettes", valeurs: ["libre"] }).success).toBe(true);
+  });
+
+  it("refuse un schéma sans axe, et deux axes de même clé", () => {
+    const base = { cle: "b", nom: "B", langue: "fr", version: 1 };
+    expect(SchemaBibliotheque.safeParse({ ...base, axes: [] }).success).toBe(false);
+    expect(SchemaBibliotheque.safeParse({ ...base, axes: [axe(), axe()] }).success).toBe(false);
+    expect(SchemaBibliotheque.safeParse({ ...base, axes: [axe()] }).success).toBe(true);
   });
 });

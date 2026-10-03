@@ -1,0 +1,157 @@
+{
+  "modele": {
+    "cle": "cuisine",
+    "nom": "Carnet de recettes",
+    "langue": "fr",
+    "version": 1,
+    "description": "Plats, origines, ingrédients et régimes d'un carnet de cuisine.",
+    "axes": [
+      {
+        "cle": "type-plat",
+        "nom": "Type de plat",
+        "nature": "referentiel",
+        "cardinalite": "une",
+        "roleCommun": "categorie",
+        "obligatoire": true,
+        "valeurs": [
+          {
+            "cle": "entree",
+            "nom": "Entrée"
+          },
+          {
+            "cle": "plat",
+            "nom": "Plat"
+          },
+          {
+            "cle": "dessert",
+            "nom": "Dessert"
+          }
+        ]
+      },
+      {
+        "cle": "origine",
+        "nom": "Cuisine d'origine",
+        "nature": "referentiel",
+        "cardinalite": "une",
+        "valeurs": [
+          {
+            "cle": "francaise",
+            "nom": "Française"
+          },
+          {
+            "cle": "italienne",
+            "nom": "Italienne"
+          },
+          {
+            "cle": "japonaise",
+            "nom": "Japonaise"
+          }
+        ]
+      },
+      {
+        "cle": "ingredient",
+        "nom": "Ingrédient principal",
+        "nature": "liste_semi_ouverte",
+        "cardinalite": "plusieurs",
+        "roleCommun": "sujet",
+        "valeurs": [
+          {
+            "cle": "boeuf",
+            "nom": "Bœuf"
+          },
+          {
+            "cle": "poisson",
+            "nom": "Poisson"
+          },
+          {
+            "cle": "legumes",
+            "nom": "Légumes"
+          }
+        ]
+      },
+      {
+        "cle": "regime",
+        "nom": "Régime",
+        "nature": "etiquettes",
+        "cardinalite": "plusieurs"
+      },
+      {
+        "cle": "difficulte",
+        "nom": "Difficulté",
+        "nature": "nombre",
+        "cardinalite": "une",
+        "roleCommun": "niveau"
+      }
+    ]
+  },
+  "fiches": [
+    {
+      "documentId": "0190f0a0-0003-7000-8000-000000000001",
+      "axes": {
+        "type-plat": {
+          "type": "reference",
+          "valeurs": [
+            "plat"
+          ]
+        },
+        "origine": {
+          "type": "reference",
+          "valeurs": [
+            "francaise"
+          ]
+        },
+        "ingredient": {
+          "type": "reference",
+          "valeurs": [
+            "boeuf"
+          ]
+        },
+        "regime": {
+          "type": "etiquettes",
+          "valeurs": [
+            "sans gluten"
+          ]
+        },
+        "difficulte": {
+          "type": "nombre",
+          "valeur": 2
+        }
+      }
+    },
+    {
+      "documentId": "0190f0a0-0003-7000-8000-000000000002",
+      "axes": {
+        "type-plat": {
+          "type": "reference",
+          "valeurs": [
+            "entree"
+          ]
+        },
+        "origine": {
+          "type": "reference",
+          "valeurs": [
+            "japonaise"
+          ]
+        },
+        "ingredient": {
+          "type": "reference",
+          "valeurs": [
+            "poisson",
+            "legumes"
+          ]
+        },
+        "regime": {
+          "type": "etiquettes",
+          "valeurs": [
+            "sans lactose",
+            "léger"
+          ]
+        },
+        "difficulte": {
+          "type": "nombre",
+          "valeur": 3
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "description": "Garde-fou CLA-01 : aucun mot de domaine dans le code générique. Cette liste est une donnée, pas du code : on l'allonge à chaque nouveau domaine du banc d'universalité, sans toucher au garde-fou.",
+  "zones": [
+    { "chemin": "packages/contrats/src" },
+    { "chemin": "packages/jetons/src" },
+    { "chemin": "apps/worker/src" },
+    { "chemin": "apps/app/src", "sauf": ["apps/app/src/donnees"] }
+  ],
+  "termes": [
+    "thérapie", "thérapeutique", "psychanalyse", "psychothérapie", "gestalt", "emdr",
+    "jurisprudence", "juridiction", "cassation", "décret", "doctrine juridique",
+    "ingrédient", "entrée froide", "dessert", "gastronomie",
+    "philatélie", "oblitéré", "timbre-poste",
+    "pokémon", "rareté",
+    "exercice", "partition", "solfège", "tonalité", "accord mineur", "accord majeur",
+    "aebersold", "realbook", "westwood"
+  ],
+  "exceptions": [
+    {
+      "chemin": "packages/contrats/src/recette.ts",
+      "raison": "Les recettes typées décrivent comment lire un document : leur vocabulaire (pastille, disque, piste, élément) vient des deux recettes prouvées et reste des paramètres de données, pas des axes de classement. À revoir si une troisième famille de documents impose un autre vocabulaire."
+    }
+  ]
+}

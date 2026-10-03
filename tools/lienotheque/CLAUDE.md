@@ -16,8 +16,12 @@ retrouve documents, audio, vidéos et images, toujours sur la vraie page ou au v
 - En cas de doute entre une maquette, un ancien document et le CDC, **le CDC gagne**.
 
 ## Règles non négociables
-1. **Rien en dur pour le domaine.** Champs, filtres, vocabulaire, types d'éléments viennent du schéma de
-   la bibliothèque. Aucun mot « exercice », « partition », « thérapie » dans un composant générique.
+1. **Rien en dur pour le domaine (CLA-01).** Champs, filtres, vocabulaire, types d'éléments viennent
+   du schéma de la bibliothèque. Aucun mot de domaine dans le code générique — ni dans le code, ni
+   dans les commentaires, ni dans les exemples. La liste des mots interdits est une donnée,
+   `fixtures/termes-de-domaine.json` ; le garde-fou `packages/banc` la vérifie à chaque `pnpm check`
+   et on l'allonge à chaque nouveau domaine, sans toucher au code. Un nouveau domaine s'ajoute en
+   déposant un modèle dans `fixtures/modeles/` : le banc d'universalité le parcourt sans branche.
 2. **Contrats d'abord.** Toute donnée qui traverse une frontière (outil, base, réseau, sidecar) est
    validée par un contrat de `@lienotheque/contrats`. On modifie le contrat et ses tests avant le code.
 3. **Aucune couleur, taille ou durée écrite dans un composant** : uniquement les variables `--ln-*`
@@ -66,6 +70,7 @@ Windows. Linux hors périmètre. Détail et réserves : `docs/decisions.md`.
 ## Organisation
 ```
 packages/contrats   Contrats Zod + export JSON Schema (fait)
+packages/banc       Banc d'universalité (CLA-12) et garde-fou du vocabulaire (CLA-01)
 packages/jetons     Jetons v3.0.1 + générateur CSS + tests de contraste (fait)
 apps/app            React 19 + Vite + TypeScript strict : composants du kit, accueil statique (fait)
 apps/app/src-tauri  Prototype bureau Tauri 2 : mesures du lot 0 (fait, décision en attente)

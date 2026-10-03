@@ -1,0 +1,13 @@
+{
+  "name": "@lienotheque/banc",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Banc d'universalité (CLA-12) et garde-fou du vocabulaire de domaine (CLA-01).",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": { "@lienotheque/contrats": "workspace:*" },
+  "devDependencies": { "typescript": "^5.6.0", "vitest": "^3.2.0", "@types/node": "^22.0.0" }
+}

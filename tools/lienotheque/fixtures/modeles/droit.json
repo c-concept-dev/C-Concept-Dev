@@ -1,0 +1,161 @@
+{
+  "modele": {
+    "cle": "droit",
+    "nom": "Fonds juridique",
+    "langue": "fr",
+    "version": 1,
+    "description": "Branches, juridictions et types de sources d'un fonds de droit.",
+    "axes": [
+      {
+        "cle": "branche",
+        "nom": "Branche du droit",
+        "nature": "referentiel",
+        "cardinalite": "une",
+        "structure": "hierarchique",
+        "roleCommun": "categorie",
+        "obligatoire": true,
+        "valeurs": [
+          {
+            "cle": "prive",
+            "nom": "Droit privé"
+          },
+          {
+            "cle": "civil",
+            "nom": "Droit civil",
+            "parent": "prive"
+          },
+          {
+            "cle": "commercial",
+            "nom": "Droit commercial",
+            "parent": "prive"
+          },
+          {
+            "cle": "public",
+            "nom": "Droit public"
+          },
+          {
+            "cle": "administratif",
+            "nom": "Droit administratif",
+            "parent": "public"
+          },
+          {
+            "cle": "constitutionnel",
+            "nom": "Droit constitutionnel",
+            "parent": "public"
+          }
+        ]
+      },
+      {
+        "cle": "juridiction",
+        "nom": "Juridiction",
+        "nature": "referentiel",
+        "cardinalite": "plusieurs",
+        "valeurs": [
+          {
+            "cle": "cassation",
+            "nom": "Cour de cassation"
+          },
+          {
+            "cle": "conseil-etat",
+            "nom": "Conseil d'État",
+            "synonymes": [
+              "CE"
+            ]
+          },
+          {
+            "cle": "appel",
+            "nom": "Cour d'appel"
+          }
+        ]
+      },
+      {
+        "cle": "type-source",
+        "nom": "Type de source",
+        "nature": "referentiel",
+        "cardinalite": "une",
+        "valeurs": [
+          {
+            "cle": "loi",
+            "nom": "Loi"
+          },
+          {
+            "cle": "decret",
+            "nom": "Décret"
+          },
+          {
+            "cle": "arret",
+            "nom": "Arrêt"
+          },
+          {
+            "cle": "doctrine",
+            "nom": "Doctrine"
+          }
+        ]
+      },
+      {
+        "cle": "version-date",
+        "nom": "Date de version",
+        "nature": "date",
+        "cardinalite": "une",
+        "roleCommun": "date"
+      }
+    ]
+  },
+  "fiches": [
+    {
+      "documentId": "0190f0a0-0002-7000-8000-000000000001",
+      "axes": {
+        "branche": {
+          "type": "reference",
+          "valeurs": [
+            "civil"
+          ]
+        },
+        "juridiction": {
+          "type": "reference",
+          "valeurs": [
+            "cassation"
+          ]
+        },
+        "type-source": {
+          "type": "reference",
+          "valeurs": [
+            "arret"
+          ]
+        },
+        "version-date": {
+          "type": "date",
+          "valeur": "2024-06-12"
+        }
+      }
+    },
+    {
+      "documentId": "0190f0a0-0002-7000-8000-000000000002",
+      "axes": {
+        "branche": {
+          "type": "reference",
+          "valeurs": [
+            "administratif"
+          ]
+        },
+        "juridiction": {
+          "type": "reference",
+          "valeurs": [
+            "conseil-etat",
+            "appel"
+          ]
+        },
+        "type-source": {
+          "type": "reference",
+          "valeurs": [
+            "doctrine"
+          ]
+        },
+        "version-date": {
+          "type": "date",
+          "valeur": "2022-09-30"
+        }
+      }
+    }
+  ]
+}

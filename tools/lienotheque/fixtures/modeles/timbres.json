@@ -1,0 +1,171 @@
+{
+  "modele": {
+    "cle": "timbres",
+    "nom": "Collection de timbres",
+    "langue": "fr",
+    "version": 1,
+    "description": "Pays, périodes, thématiques, références de catalogue et états de conservation.",
+    "axes": [
+      {
+        "cle": "pays",
+        "nom": "Pays émetteur",
+        "nature": "referentiel",
+        "cardinalite": "une",
+        "roleCommun": "categorie",
+        "obligatoire": true,
+        "valeurs": [
+          {
+            "cle": "france",
+            "nom": "France"
+          },
+          {
+            "cle": "suisse",
+            "nom": "Suisse"
+          },
+          {
+            "cle": "japon",
+            "nom": "Japon"
+          }
+        ]
+      },
+      {
+        "cle": "emission",
+        "nom": "Année d'émission",
+        "nature": "date",
+        "cardinalite": "une",
+        "roleCommun": "date"
+      },
+      {
+        "cle": "thematique",
+        "nom": "Thématique",
+        "nature": "referentiel",
+        "cardinalite": "plusieurs",
+        "roleCommun": "sujet",
+        "valeurs": [
+          {
+            "cle": "faune",
+            "nom": "Faune"
+          },
+          {
+            "cle": "aviation",
+            "nom": "Aviation"
+          },
+          {
+            "cle": "art",
+            "nom": "Art"
+          }
+        ]
+      },
+      {
+        "cle": "catalogue",
+        "nom": "Référence de catalogue",
+        "nature": "liste_semi_ouverte",
+        "cardinalite": "une",
+        "roleCommun": "identifiant",
+        "valeurs": [
+          {
+            "cle": "yt",
+            "nom": "Yvert et Tellier",
+            "synonymes": [
+              "Y&T"
+            ]
+          },
+          {
+            "cle": "mi",
+            "nom": "Michel"
+          }
+        ]
+      },
+      {
+        "cle": "etat",
+        "nom": "État",
+        "nature": "referentiel",
+        "cardinalite": "une",
+        "roleCommun": "etat",
+        "valeurs": [
+          {
+            "cle": "neuf",
+            "nom": "Neuf"
+          },
+          {
+            "cle": "oblitere",
+            "nom": "Oblitéré"
+          },
+          {
+            "cle": "defectueux",
+            "nom": "Défectueux"
+          }
+        ]
+      }
+    ]
+  },
+  "fiches": [
+    {
+      "documentId": "0190f0a0-0004-7000-8000-000000000001",
+      "axes": {
+        "pays": {
+          "type": "reference",
+          "valeurs": [
+            "france"
+          ]
+        },
+        "emission": {
+          "type": "date",
+          "valeur": "1936-01-01"
+        },
+        "thematique": {
+          "type": "reference",
+          "valeurs": [
+            "aviation"
+          ]
+        },
+        "catalogue": {
+          "type": "reference",
+          "valeurs": [
+            "yt"
+          ]
+        },
+        "etat": {
+          "type": "reference",
+          "valeurs": [
+            "neuf"
+          ]
+        }
+      }
+    },
+    {
+      "documentId": "0190f0a0-0004-7000-8000-000000000002",
+      "axes": {
+        "pays": {
+          "type": "reference",
+          "valeurs": [
+            "japon"
+          ]
+        },
+        "emission": {
+          "type": "date",
+          "valeur": "1971-07-01"
+        },
+        "thematique": {
+          "type": "reference",
+          "valeurs": [
+            "faune",
+            "art"
+          ]
+        },
+        "catalogue": {
+          "type": "reference",
+          "valeurs": [
+            "mi"
+          ]
+        },
+        "etat": {
+          "type": "reference",
+          "valeurs": [
+            "oblitere"
+          ]
+        }
+      }
+    }
+  ]
+}

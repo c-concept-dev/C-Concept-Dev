@@ -17,6 +17,9 @@ permet de tout retrouver, sur la vraie page ou au vrai minutage.
   la composition des maquettes en développement, ouvrez `/?demonstration` — ce jeu de démonstration
   n'entre jamais dans la construction de production.
 - `@lienotheque/worker` : squelette Hono, route de santé. Aucun déploiement au lot 0.
+- `@lienotheque/banc` : banc d'universalité — cinq modèles de domaines très différents, dans
+  `fixtures/modeles/`, parcourus par un test unique sans aucune branche spécifique (CLA-12), et
+  garde-fou qui refuse tout mot de domaine dans le code générique (CLA-01).
 - `apps/app/src-tauri` : prototype bureau mesuré, décision du socle en attente
   (voir `docs/decisions.md`).
 

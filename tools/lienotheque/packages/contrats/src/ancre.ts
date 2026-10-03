@@ -30,7 +30,7 @@ export const SelecteurTexte = z
   .strict()
   .refine((s) => s.fin > s.debut, { message: "La fin doit suivre le début", path: ["fin"] });
 
-/** Élément numéroté (exercice, pattern, morceau…) : le mot vient du schéma de la bibliothèque. */
+/** Élément numéroté. Le mot qui le désigne vient du schéma de la bibliothèque, jamais d'ici (CLA-01). */
 export const SelecteurElement = z
   .object({ type: z.literal("element"), page: z.number().int().min(1), valeur: z.string().min(1) })
   .strict();

@@ -1,0 +1,186 @@
+{
+  "modele": {
+    "cle": "cartes",
+    "nom": "Collection de cartes",
+    "langue": "fr",
+    "version": 1,
+    "description": "Séries, types, raretés, numéros et états d'une collection de cartes à jouer.",
+    "axes": [
+      {
+        "cle": "serie",
+        "nom": "Série",
+        "nature": "referentiel",
+        "cardinalite": "une",
+        "roleCommun": "categorie",
+        "obligatoire": true,
+        "valeurs": [
+          {
+            "cle": "base",
+            "nom": "Set de base"
+          },
+          {
+            "cle": "jungle",
+            "nom": "Jungle"
+          },
+          {
+            "cle": "fossile",
+            "nom": "Fossile"
+          }
+        ]
+      },
+      {
+        "cle": "type",
+        "nom": "Type",
+        "nature": "referentiel",
+        "cardinalite": "plusieurs",
+        "roleCommun": "sujet",
+        "valeurs": [
+          {
+            "cle": "feu",
+            "nom": "Feu"
+          },
+          {
+            "cle": "eau",
+            "nom": "Eau"
+          },
+          {
+            "cle": "plante",
+            "nom": "Plante"
+          },
+          {
+            "cle": "electrik",
+            "nom": "Électrique"
+          }
+        ]
+      },
+      {
+        "cle": "rarete",
+        "nom": "Rareté",
+        "nature": "referentiel",
+        "cardinalite": "une",
+        "roleCommun": "niveau",
+        "valeurs": [
+          {
+            "cle": "commune",
+            "nom": "Commune"
+          },
+          {
+            "cle": "peu-commune",
+            "nom": "Peu commune"
+          },
+          {
+            "cle": "rare",
+            "nom": "Rare"
+          }
+        ]
+      },
+      {
+        "cle": "numero",
+        "nom": "Numéro de carte",
+        "nature": "liste_semi_ouverte",
+        "cardinalite": "une",
+        "roleCommun": "identifiant",
+        "valeurs": [
+          {
+            "cle": "num",
+            "nom": "Numéro dans la série"
+          }
+        ]
+      },
+      {
+        "cle": "etat",
+        "nom": "État",
+        "nature": "referentiel",
+        "cardinalite": "une",
+        "roleCommun": "etat",
+        "valeurs": [
+          {
+            "cle": "impeccable",
+            "nom": "Impeccable"
+          },
+          {
+            "cle": "bon",
+            "nom": "Bon"
+          },
+          {
+            "cle": "abime",
+            "nom": "Abîmé"
+          }
+        ]
+      }
+    ]
+  },
+  "fiches": [
+    {
+      "documentId": "0190f0a0-0005-7000-8000-000000000001",
+      "axes": {
+        "serie": {
+          "type": "reference",
+          "valeurs": [
+            "base"
+          ]
+        },
+        "type": {
+          "type": "reference",
+          "valeurs": [
+            "feu"
+          ]
+        },
+        "rarete": {
+          "type": "reference",
+          "valeurs": [
+            "rare"
+          ]
+        },
+        "numero": {
+          "type": "reference",
+          "valeurs": [
+            "num"
+          ]
+        },
+        "etat": {
+          "type": "reference",
+          "valeurs": [
+            "impeccable"
+          ]
+        }
+      }
+    },
+    {
+      "documentId": "0190f0a0-0005-7000-8000-000000000002",
+      "axes": {
+        "serie": {
+          "type": "reference",
+          "valeurs": [
+            "jungle"
+          ]
+        },
+        "type": {
+          "type": "reference",
+          "valeurs": [
+            "eau",
+            "plante"
+          ]
+        },
+        "rarete": {
+          "type": "reference",
+          "valeurs": [
+            "commune"
+          ]
+        },
+        "numero": {
+          "type": "reference",
+          "valeurs": [
+            "num"
+          ]
+        },
+        "etat": {
+          "type": "reference",
+          "valeurs": [
+            "bon"
+          ]
+        }
+      }
+    }
+  ]
+}
