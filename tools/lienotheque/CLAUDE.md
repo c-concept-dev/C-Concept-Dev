@@ -79,6 +79,7 @@ apps/app/src-tauri  Prototype bureau Tauri 2 : mesures du lot 0 (fait, décision
 apps/worker         API Hono (squelette fait, aucun déploiement au lot 0)
 outils/formats      Identification par le contenu, lecteurs de format, lecteur PDF (FMT)
 outils/inspecteur   Inspecteur : natif ou numérisé, résolution, couleur, poids (OUT-01)
+outils/lecteur-texte  Couche texte d'un PDF natif et OCR d'une page numérisée (OUT-05)
 recettes/           Recettes typées (fixtures dans fixtures/recettes)
 fixtures/           Vérités attendues F1 à F8
 ```

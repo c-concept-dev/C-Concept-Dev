@@ -1,0 +1,15 @@
+{
+  "name": "@lienotheque/lecteur-texte",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Lecteur de texte (OUT-05) : couche texte d'un PDF natif avec la position de chaque mot, OCR d'une page numérisée.",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "test": "vitest run", "typecheck": "tsc --noEmit" },
+  "dependencies": {
+    "@lienotheque/contrats": "workspace:*",
+    "@lienotheque/formats": "workspace:*",
+    "pdfjs-dist": "^5.4.149"
+  },
+  "devDependencies": { "typescript": "^5.6.0", "vitest": "^3.2.0", "@types/node": "^22.0.0" }
+}

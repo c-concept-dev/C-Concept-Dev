@@ -1,0 +1,343 @@
+{
+  "fixture": "F1",
+  "fichier": "aebersold-FRENCH.pdf",
+  "empreinte": "d1092737675108ce78fa0999b5a3de02126397e6c15dbb568ccad452aa3d9a08",
+  "description": "Vérité attendue de la couche texte : aucune œuvre ici, seulement des comptes et des empreintes (règle des fixtures du CDC).",
+  "outil": "pdfjs-dist 5.7.284",
+  "releveLe": "2026-10-03",
+  "pages": 55,
+  "caracteres": 149481,
+  "pagesAvecTexte": 55,
+  "detail": [
+    {
+      "index": 1,
+      "caracteres": 19,
+      "mots": 3,
+      "empreinteTexte": "693e8a27f643a21e"
+    },
+    {
+      "index": 2,
+      "caracteres": 3493,
+      "mots": 468,
+      "empreinteTexte": "a6c1749f0ca03c1c"
+    },
+    {
+      "index": 3,
+      "caracteres": 4397,
+      "mots": 702,
+      "empreinteTexte": "f8071b2692533fc9"
+    },
+    {
+      "index": 4,
+      "caracteres": 4808,
+      "mots": 766,
+      "empreinteTexte": "24896a43fb4aa0bb"
+    },
+    {
+      "index": 5,
+      "caracteres": 3792,
+      "mots": 617,
+      "empreinteTexte": "1a9ddc501f4baef8"
+    },
+    {
+      "index": 6,
+      "caracteres": 4239,
+      "mots": 740,
+      "empreinteTexte": "d636ba0885ee93d5"
+    },
+    {
+      "index": 7,
+      "caracteres": 4700,
+      "mots": 780,
+      "empreinteTexte": "d7b8407b097f08d2"
+    },
+    {
+      "index": 8,
+      "caracteres": 3371,
+      "mots": 583,
+      "empreinteTexte": "d1cce990e80c0f2e"
+    },
+    {
+      "index": 9,
+      "caracteres": 2008,
+      "mots": 330,
+      "empreinteTexte": "2920eb90f0ed1b0b"
+    },
+    {
+      "index": 10,
+      "caracteres": 8070,
+      "mots": 1161,
+      "empreinteTexte": "bf578d3b45053080"
+    },
+    {
+      "index": 11,
+      "caracteres": 4673,
+      "mots": 895,
+      "empreinteTexte": "3b297c0bae5b1b9b"
+    },
+    {
+      "index": 12,
+      "caracteres": 3661,
+      "mots": 619,
+      "empreinteTexte": "da8f4efcc93ec67d"
+    },
+    {
+      "index": 13,
+      "caracteres": 1352,
+      "mots": 219,
+      "empreinteTexte": "73d6adc5c9678ff5"
+    },
+    {
+      "index": 14,
+      "caracteres": 2344,
+      "mots": 431,
+      "empreinteTexte": "736a56c0239e841c"
+    },
+    {
+      "index": 15,
+      "caracteres": 1541,
+      "mots": 401,
+      "empreinteTexte": "f23caf5b2a77c3a2"
+    },
+    {
+      "index": 16,
+      "caracteres": 4741,
+      "mots": 775,
+      "empreinteTexte": "1dbc77676ead1855"
+    },
+    {
+      "index": 17,
+      "caracteres": 4416,
+      "mots": 1068,
+      "empreinteTexte": "dbd28f0e85b1de15"
+    },
+    {
+      "index": 18,
+      "caracteres": 4982,
+      "mots": 911,
+      "empreinteTexte": "396ab72d1c38c57c"
+    },
+    {
+      "index": 19,
+      "caracteres": 3084,
+      "mots": 608,
+      "empreinteTexte": "7af28dc00b157e64"
+    },
+    {
+      "index": 20,
+      "caracteres": 929,
+      "mots": 144,
+      "empreinteTexte": "2385b412b458e9e7"
+    },
+    {
+      "index": 21,
+      "caracteres": 878,
+      "mots": 135,
+      "empreinteTexte": "7941fb858a2d5025"
+    },
+    {
+      "index": 22,
+      "caracteres": 108,
+      "mots": 16,
+      "empreinteTexte": "5364e65664010f42"
+    },
+    {
+      "index": 23,
+      "caracteres": 108,
+      "mots": 20,
+      "empreinteTexte": "1ee2d32b0fa515a4"
+    },
+    {
+      "index": 24,
+      "caracteres": 5294,
+      "mots": 873,
+      "empreinteTexte": "34f4637dd8b416ac"
+    },
+    {
+      "index": 25,
+      "caracteres": 3746,
+      "mots": 713,
+      "empreinteTexte": "81eeb5cf7b7f12af"
+    },
+    {
+      "index": 26,
+      "caracteres": 903,
+      "mots": 182,
+      "empreinteTexte": "6a6b3adfdd5da444"
+    },
+    {
+      "index": 27,
+      "caracteres": 1753,
+      "mots": 294,
+      "empreinteTexte": "f5437e52a8aa3cc2"
+    },
+    {
+      "index": 28,
+      "caracteres": 2834,
+      "mots": 465,
+      "empreinteTexte": "d077b2d4096a7173"
+    },
+    {
+      "index": 29,
+      "caracteres": 3432,
+      "mots": 605,
+      "empreinteTexte": "9984328d906daf46"
+    },
+    {
+      "index": 30,
+      "caracteres": 4996,
+      "mots": 814,
+      "empreinteTexte": "b488ff5c0c51eda7"
+    },
+    {
+      "index": 31,
+      "caracteres": 685,
+      "mots": 108,
+      "empreinteTexte": "746c97860d695bbc"
+    },
+    {
+      "index": 32,
+      "caracteres": 1829,
+      "mots": 344,
+      "empreinteTexte": "407c977447493a28"
+    },
+    {
+      "index": 33,
+      "caracteres": 297,
+      "mots": 64,
+      "empreinteTexte": "9e890d756b6d0fd3"
+    },
+    {
+      "index": 34,
+      "caracteres": 6713,
+      "mots": 1139,
+      "empreinteTexte": "afdabb1ac38416b0"
+    },
+    {
+      "index": 35,
+      "caracteres": 4200,
+      "mots": 714,
+      "empreinteTexte": "69a5bc671af8934b"
+    },
+    {
+      "index": 36,
+      "caracteres": 5131,
+      "mots": 919,
+      "empreinteTexte": "c2bdf4c3df331d2c"
+    },
+    {
+      "index": 37,
+      "caracteres": 1724,
+      "mots": 284,
+      "empreinteTexte": "43f748472042df9d"
+    },
+    {
+      "index": 38,
+      "caracteres": 3011,
+      "mots": 476,
+      "empreinteTexte": "6f5685ded097ebb4"
+    },
+    {
+      "index": 39,
+      "caracteres": 2568,
+      "mots": 486,
+      "empreinteTexte": "105ed5cb4a726957"
+    },
+    {
+      "index": 40,
+      "caracteres": 2493,
+      "mots": 435,
+      "empreinteTexte": "d50f7004a3bddeb3"
+    },
+    {
+      "index": 41,
+      "caracteres": 3865,
+      "mots": 713,
+      "empreinteTexte": "ddd7274e03f1d418"
+    },
+    {
+      "index": 42,
+      "caracteres": 1412,
+      "mots": 309,
+      "empreinteTexte": "5f0b87be45650842"
+    },
+    {
+      "index": 43,
+      "caracteres": 298,
+      "mots": 61,
+      "empreinteTexte": "e412fa126aeb2d8c"
+    },
+    {
+      "index": 44,
+      "caracteres": 1420,
+      "mots": 379,
+      "empreinteTexte": "fd61132fa0e20e75"
+    },
+    {
+      "index": 45,
+      "caracteres": 1251,
+      "mots": 264,
+      "empreinteTexte": "1211e52b72254a5f"
+    },
+    {
+      "index": 46,
+      "caracteres": 1567,
+      "mots": 268,
+      "empreinteTexte": "142c111c66cea896"
+    },
+    {
+      "index": 47,
+      "caracteres": 63,
+      "mots": 12,
+      "empreinteTexte": "656edb05b0433513"
+    },
+    {
+      "index": 48,
+      "caracteres": 416,
+      "mots": 102,
+      "empreinteTexte": "1c73ce2cdb5deab4"
+    },
+    {
+      "index": 49,
+      "caracteres": 28,
+      "mots": 6,
+      "empreinteTexte": "ac884764966fae95"
+    },
+    {
+      "index": 50,
+      "caracteres": 79,
+      "mots": 31,
+      "empreinteTexte": "e8c3dc4c57a078fe"
+    },
+    {
+      "index": 51,
+      "caracteres": 2,
+      "mots": 1,
+      "empreinteTexte": "1a6562590ef19d10"
+    },
+    {
+      "index": 52,
+      "caracteres": 2,
+      "mots": 1,
+      "empreinteTexte": "031b4af5197ec30a"
+    },
+    {
+      "index": 53,
+      "caracteres": 5053,
+      "mots": 883,
+      "empreinteTexte": "cad84bea7ff0cb9e"
+    },
+    {
+      "index": 54,
+      "caracteres": 5835,
+      "mots": 1023,
+      "empreinteTexte": "5553ac5bbfcc04b6"
+    },
+    {
+      "index": 55,
+      "caracteres": 4867,
+      "mots": 859,
+      "empreinteTexte": "8473c032d6312bd9"
+    }
+  ]
+}
