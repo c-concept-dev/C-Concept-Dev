@@ -1,0 +1,93 @@
+piste,mp3,style,exercices_detectes_sur_la_piste,premier_exercice_detecte,exercice_selon_nom_mp3,page_selon_nom_mp3,accord
+1,1-01 12_8 Blues And R&B - 123 Pg.67.mp3,12/8 Blues And R&B,123 124,123,123,67,oui
+2,1-02 12_8 Blues And R&B - 126 Pg.67.mp3,12/8 Blues And R&B,126 128,126,126,67,oui
+3,1-03 12_8 Blues And R&B - 130 Pg.68.mp3,12/8 Blues And R&B,130 132,130,130,68,oui
+4,1-04 12_8 Blues And R&B - 133 Pg.69.mp3,12/8 Blues And R&B,135,135,133,69,non
+5,1-05 4_4 Blues And R&B - 136 Pg.69.mp3,4/4 Blues And R&B,136 137,136,136,69,oui
+6,1-06 4_4 Blues And R&B - 138 Pg.70.mp3,4/4 Blues And R&B,138 140,138,138,70,oui
+7,1-07 4_4 Blues And R&B - 145 Pg.71.mp3,4/4 Blues And R&B,145 147,145,145,71,oui
+8,1-08 4_4 Blues And R&B - 148 Pg.71.mp3,4/4 Blues And R&B,148 150,148,148,71,oui
+9,1-09 Soul - 154 Pg.73.mp3,Soul,154 155,154,154,73,oui
+10,1-10 Soul - 156 Pg.74.mp3,Soul,156 157,156,156,74,oui
+11,1-11 Soul - 160 Pg.74.mp3,Soul,160 161,160,160,74,oui
+12,1-12 Soul - 168 Pg.76.mp3,Soul,168 174,168,168,76,oui
+13,1-13 James Jamerson _ Motown - 183 Pg.79.mp3,James Jamerson / Motown,183 187,183,183,79,oui
+14,1-14 James Jamerson _ Motown - 191 Pg.81.mp3,James Jamerson / Motown,189 191,189,191,81,non
+15,1-15 James Jamerson _ Motown - 194 Pg.82.mp3,James Jamerson / Motown,194 197,194,194,82,oui
+16,1-16 James Jamerson _ Motown - 198 Pg.82.mp3,James Jamerson / Motown,198 200,198,198,82,oui
+17,1-17 Chuck Rainey _ Atlantic - 215 Pg.86.mp3,Chuck Rainey / Atlantic,215 219,215,215,86,oui
+18,1-18 Chuck Rainey _ Atlantic - 220 Pg.87.mp3,Chuck Rainey / Atlantic,220 221,220,220,87,oui
+19,1-19 Chuck Rainey _ Atlantic - 223 Pg.88.mp3,Chuck Rainey / Atlantic,223 224,223,223,88,oui
+20,1-20 Chuck Rainey _ Atlantic - 227 Pg.88.mp3,Chuck Rainey / Atlantic,227 229,227,227,88,oui
+21,1-21 James Brown _ Funk - 230 Pg.91.mp3,James Brown / Funk,230 232,230,230,91,oui
+22,1-22 James Brown _ Funk - 237 Pg.92.mp3,James Brown / Funk,237 240,237,237,92,oui
+23,1-23 James Brown _ Funk - 251 Pg.94.mp3,James Brown / Funk,251 253,251,251,94,oui
+24,1-24 James Brown _ Funk - 255 Pg.95.mp3,James Brown / Funk,255 257,255,255,95,oui
+25,1-25 Stanley Clarke - 258 Pg.96.mp3,Stanley Clarke,258,258,258,96,oui
+26,1-26 Stanley Clarke - 260 Pg.97.mp3,Stanley Clarke,260 261,260,260,97,oui
+27,1-27 Stanley Clarke - 262 Pg.98.mp3,Stanley Clarke,262 263,262,262,98,oui
+28,1-28 Stanley Clarke - 264 Pg.98.mp3,Stanley Clarke,264 265,264,264,98,oui
+29,1-29 Rock - 266 Pg.101.mp3,Rock,266 271,266,266,101,oui
+30,1-30 Rock - 274 Pg.102.mp3,Rock,274 278,274,274,102,oui
+31,1-31 Rock - 283 Pg.103.mp3,Rock,283 284,283,283,103,oui
+32,1-32 Rock - 290 Pg.105.mp3,Rock,290 291,290,290,105,oui
+33,1-33 Rock - 292 Pg.105.mp3,Rock,292 293,292,292,105,oui
+34,1-34 Rock - 299 Pg.106.mp3,Rock,299 305,299,299,106,oui
+35,1-35 Rock - 314 Pg.109.mp3,Rock,314 316,314,314,109,oui
+36,1-36 Rock - 320 Pg.110.mp3,Rock,320 326,320,320,110,oui
+37,1-37 Rock - 331 Pg.112.mp3,Rock,331 335,331,331,112,oui
+38,1-38 Rock - 337 Pg.113.mp3,Rock,337 341,337,337,113,oui
+39,1-39 Rock - 342 Pg.113.mp3,Rock,342 345,342,342,113,oui
+40,1-40 Rock - 346 Pg.114.mp3,Rock,346,346,346,114,oui
+41,1-41 Latin Riffs - 400 Pg.127.mp3,Latin Riffs,348 400 401,348,400,127,non
+42,1-42 Latin Riffs - 402 Pg.127.mp3,Latin Riffs,402 404 405,402,402,127,oui
+43,1-43 Latin Riffs - 405 Pg.128.mp3,Latin Riffs,407,407,405,128,non
+44,1-44 Latin Riffs - 409 Pg.128.mp3,Latin Riffs,409 411,409,409,128,oui
+45,1-45 Latin Riffs - 416 Pg.130.mp3,Latin Riffs,416 418,416,416,130,oui
+46,1-46 Latin Riffs - 419 Pg.130.mp3,Latin Riffs,419 420,419,419,130,oui
+47,1-47 Latin Riffs - 421 Pg.130.mp3,Latin Riffs,421 422,421,421,130,oui
+48,1-48 Latin Riffs - 425 Pg.131.mp3,Latin Riffs,425 426,425,425,131,oui
+49,1-49 Latin Riffs - 430 Pg.132.mp3,Latin Riffs,430 432,430,430,132,oui
+50,1-50 Latin Riffs - 436 Pg.133.mp3,Latin Riffs,436 439,436,436,133,oui
+51,1-51 Latin Riffs - 442 Pg.134.mp3,Latin Riffs,442 443,442,442,134,oui
+52,1-52 Latin Riffs - 445 Pg.134.mp3,Latin Riffs,445 446,445,445,134,oui
+53,1-53 Cuban Mambo - 482 Pg.143.mp3,Cuban Mambo,482 486,482,482,143,oui
+54,1-54 Cuban Mambo - 488 Pg.144.mp3,Cuban Mambo,488 489,488,488,144,oui
+55,1-55 Cuban Mambo - 491 Pg.145.mp3,Cuban Mambo,491 498,491,491,145,oui
+56,1-56 Cuban Mambo - 505 Pg.147.mp3,Cuban Mambo,505 508,505,505,147,oui
+57,1-57 Cuban Rock - 512 Pg.149.mp3,Cuban Rock,,,512,149,non
+58,1-58 Cuban Rock - 517 Pg.150.mp3,Cuban Rock,517 518,517,517,150,oui
+59,1-59 Cuban Rock - 520 Pg.150.mp3,Cuban Rock,520,520,520,150,oui
+60,1-60 Cuban Rock - 533 Pg.153.mp3,Cuban Rock,533 536,533,533,153,oui
+61,1-61 Jamaican Reggae - 538 Pg.155.mp3,Jamaican Reggae,538 542,538,538,155,oui
+62,1-62 Jamaican Reggae - 545 Pg.156.mp3,Jamaican Reggae,545 550,545,545,156,oui
+63,1-63 Jamaican Reggae - 551 Pg.158.mp3,Jamaican Reggae,551 560,551,551,158,oui
+64,1-64 Jamaican Reggae - 564 Pg.160.mp3,Jamaican Reggae,564 569,564,564,160,oui
+65,1-65 Jamaican Reggae - 573 Pg.163.mp3,Jamaican Reggae,573 576,573,573,163,oui
+66,1-66 Jamaican Reggae - 577 Pg.164.mp3,Jamaican Reggae,577 580,577,577,164,oui
+67,1-67 Jamaican Reggae - 581 Pg.164.mp3,Jamaican Reggae,581 582,581,581,164,oui
+68,1-68 Jamaican Reggae - 584 Pg.165.mp3,Jamaican Reggae,584 585,584,584,165,oui
+69,1-69 Jamaican Reggae - 586 Pg.166.mp3,Jamaican Reggae,586 587,586,586,166,oui
+70,1-70 Jamaican Reggae - 589 Pg.166.mp3,Jamaican Reggae,589 590,589,589,166,oui
+71,1-71 Jamaican Reggae - 591 Pg.167.mp3,Jamaican Reggae,591 592,591,591,167,oui
+72,1-72 Jamaican Reggae - 593 Pg.167.mp3,Jamaican Reggae,593 595,593,593,167,oui
+73,1-73 Jamaican Reggae - 596 Pg.168.mp3,Jamaican Reggae,596 597,596,596,168,oui
+74,1-74 Jamaican Reggae - 598 Pg.168.mp3,Jamaican Reggae,599,599,598,168,non
+75,1-75 Jamaican Reggae - 600 Pg.168.mp3,Jamaican Reggae,601,601,600,168,non
+76,1-76 Jamaican Reggae - 603 Pg.169.mp3,Jamaican Reggae,603 604,603,603,169,oui
+77,1-77 Brazilian Samba - 620 Pg.173.mp3,Brazilian Samba,620 622,620,620,173,oui
+78,1-78 Brazilian Samba - 624 Pg.174.mp3,Brazilian Samba,624 625,624,624,174,oui
+79,1-79 Brazilian Samba - 626 Pg.174.mp3,Brazilian Samba,626 627,626,626,174,oui
+80,1-80 Brazilian Samba - 629 Pg.175.mp3,Brazilian Samba,629 631,629,629,175,oui
+81,1-81 African Riffs - 647 Pg.181.mp3,African Riffs,647 650,647,647,181,oui
+82,1-82 African Riffs - 655 Pg.182.mp3,African Riffs,655 660,655,655,182,oui
+83,1-83 African Riffs - 667 Pg.185.mp3,African Riffs,667 670,667,667,185,oui
+84,1-84 African Riffs - 686 Pg.189.mp3,African Riffs,686 689,686,686,189,oui
+85,1-85 North Africa _ Middle East - 697 Pg.191.mp3,North Africa / Middle East,697 698,697,697,191,oui
+86,1-86 North Africa _ Middle East - 699 Pg.192.mp3,North Africa / Middle East,699 700,699,699,192,oui
+87,1-87 North Africa _ Middle East - 701 Pg.192.mp3,North Africa / Middle East,701 702,701,701,192,oui
+88,1-88 North Africa _ Middle East - 703 Pg.192.mp3,North Africa / Middle East,703,703,703,192,oui
+89,1-89 Somalia - 706 Pg.194.mp3,Somalia,704 706 707,704,706,194,non
+90,1-90 Somalia - 709 Pg.195.mp3,Somalia,709,709,709,195,oui
+91,1-91 Somalia - 713 Pg.195.mp3,Somalia,712 713 714,712,713,195,non
+92,1-92 Somalia - 715 Pg.196.mp3,Somalia,715 717 718 726 728,715,715,196,oui

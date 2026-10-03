@@ -1,0 +1,2293 @@
+{
+ "pages_absentes_du_scan": [
+  [
+   30,
+   31
+  ]
+ ],
+ "pages": [
+  {
+   "index_image": 0,
+   "fichier": "p-000.jpg",
+   "page_lue": 4,
+   "exercices": [],
+   "page_imprimee": null,
+   "page_statut": "couverture"
+  },
+  {
+   "index_image": 1,
+   "fichier": "p-001.jpg",
+   "page_lue": 3,
+   "exercices": [
+    {
+     "exercice": 1,
+     "piste_lue": null,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 0,
+     "y": 0.047
+    },
+    {
+     "exercice": 2,
+     "piste_lue": null,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 0,
+     "y": 0.266
+    },
+    {
+     "exercice": 3,
+     "piste_lue": null,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 0,
+     "y": 0.5
+    },
+    {
+     "exercice": 4,
+     "piste_lue": null,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 0,
+     "y": 0.748
+    }
+   ],
+   "page_imprimee": 3,
+   "page_statut": "lue"
+  },
+  {
+   "index_image": 2,
+   "fichier": "p-002.jpg",
+   "page_lue": 4,
+   "exercices": [
+    {
+     "exercice": 5,
+     "piste_lue": null,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 0,
+     "y": 0.041
+    },
+    {
+     "exercice": 6,
+     "piste_lue": null,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 0,
+     "y": 0.249
+    },
+    {
+     "exercice": 7,
+     "piste_lue": null,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 0,
+     "y": 0.483
+    },
+    {
+     "exercice": 8,
+     "piste_lue": null,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 0,
+     "y": 0.722
+    }
+   ],
+   "page_imprimee": 4,
+   "page_statut": "lue"
+  },
+  {
+   "index_image": 3,
+   "fichier": "p-003.jpg",
+   "page_lue": 5,
+   "exercices": [
+    {
+     "exercice": 9,
+     "piste_lue": null,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 0,
+     "y": 0.049
+    },
+    {
+     "exercice": 10,
+     "piste_lue": 10,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.249
+    },
+    {
+     "exercice": 11,
+     "piste_lue": 11,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.436
+    },
+    {
+     "exercice": 12,
+     "piste_lue": 12,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.636
+    }
+   ],
+   "page_imprimee": 5,
+   "page_statut": "lue"
+  },
+  {
+   "index_image": 4,
+   "fichier": "p-004.jpg",
+   "page_lue": 8,
+   "exercices": [
+    {
+     "exercice": 13,
+     "piste_lue": 13,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.043
+    },
+    {
+     "exercice": 14,
+     "piste_lue": 14,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.283
+    },
+    {
+     "exercice": 15,
+     "piste_lue": 15,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.522
+    },
+    {
+     "exercice": 16,
+     "piste_lue": 16,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.762
+    }
+   ],
+   "page_imprimee": 6,
+   "page_statut": "deduite"
+  },
+  {
+   "index_image": 5,
+   "fichier": "p-005.jpg",
+   "page_lue": 7,
+   "exercices": [
+    {
+     "exercice": 17,
+     "piste_lue": 17,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.042
+    },
+    {
+     "exercice": 18,
+     "piste_lue": 1,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.243
+    },
+    {
+     "exercice": 19,
+     "piste_lue": 19,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.445
+    },
+    {
+     "exercice": 20,
+     "piste_lue": 20,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.647
+    }
+   ],
+   "page_imprimee": 7,
+   "page_statut": "lue"
+  },
+  {
+   "index_image": 6,
+   "fichier": "p-006.jpg",
+   "page_lue": 8,
+   "exercices": [
+    {
+     "exercice": 21,
+     "piste_lue": 21,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 0.67,
+     "y": 0.047
+    },
+    {
+     "exercice": 22,
+     "piste_lue": 22,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.287
+    },
+    {
+     "exercice": 23,
+     "piste_lue": 23,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.527
+    },
+    {
+     "exercice": 24,
+     "piste_lue": 24,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.767
+    }
+   ],
+   "page_imprimee": 8,
+   "page_statut": "lue"
+  },
+  {
+   "index_image": 7,
+   "fichier": "p-007.jpg",
+   "page_lue": 9,
+   "exercices": [
+    {
+     "exercice": 25,
+     "piste_lue": null,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 0,
+     "y": 0.047
+    },
+    {
+     "exercice": 26,
+     "piste_lue": 26,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.312
+    },
+    {
+     "exercice": 27,
+     "piste_lue": 27,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.577
+    }
+   ],
+   "page_imprimee": 9,
+   "page_statut": "lue"
+  },
+  {
+   "index_image": 8,
+   "fichier": "p-008.jpg",
+   "page_lue": 10,
+   "exercices": [
+    {
+     "exercice": 28,
+     "piste_lue": 28,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.031
+    },
+    {
+     "exercice": 29,
+     "piste_lue": 29,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.476
+    },
+    {
+     "exercice": 30,
+     "piste_lue": 30,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.737
+    }
+   ],
+   "page_imprimee": 10,
+   "page_statut": "lue"
+  },
+  {
+   "index_image": 9,
+   "fichier": "p-009.jpg",
+   "page_lue": 1,
+   "exercices": [
+    {
+     "exercice": 31,
+     "piste_lue": 31,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.048
+    },
+    {
+     "exercice": 32,
+     "piste_lue": 32,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.525
+    }
+   ],
+   "page_imprimee": 11,
+   "page_statut": "deduite"
+  },
+  {
+   "index_image": 10,
+   "fichier": "p-010.jpg",
+   "page_lue": 12,
+   "exercices": [
+    {
+     "exercice": 33,
+     "piste_lue": 33,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.044
+    },
+    {
+     "exercice": 34,
+     "piste_lue": 34,
+     "suite_de_piste": false,
+     "accord_ex": 0.67,
+     "accord_piste": 1.0,
+     "y": 0.523
+    }
+   ],
+   "page_imprimee": 12,
+   "page_statut": "lue"
+  },
+  {
+   "index_image": 11,
+   "fichier": "p-011.jpg",
+   "page_lue": 13,
+   "exercices": [
+    {
+     "exercice": 35,
+     "piste_lue": 35,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.05
+    },
+    {
+     "exercice": 36,
+     "piste_lue": 36,
+     "suite_de_piste": false,
+     "accord_ex": 0.67,
+     "accord_piste": 1.0,
+     "y": 0.526
+    }
+   ],
+   "page_imprimee": 13,
+   "page_statut": "lue"
+  },
+  {
+   "index_image": 12,
+   "fichier": "p-012.jpg",
+   "page_lue": 14,
+   "exercices": [
+    {
+     "exercice": 37,
+     "piste_lue": 37,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.044
+    },
+    {
+     "exercice": 38,
+     "piste_lue": 38,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.544
+    }
+   ],
+   "page_imprimee": 14,
+   "page_statut": "lue"
+  },
+  {
+   "index_image": 13,
+   "fichier": "p-013.jpg",
+   "page_lue": 15,
+   "exercices": [
+    {
+     "exercice": 39,
+     "piste_lue": 39,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.049
+    },
+    {
+     "exercice": 40,
+     "piste_lue": 40,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.405
+    },
+    {
+     "exercice": 41,
+     "piste_lue": 41,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.603
+    }
+   ],
+   "page_imprimee": 15,
+   "page_statut": "lue"
+  },
+  {
+   "index_image": 14,
+   "fichier": "p-014.jpg",
+   "page_lue": 16,
+   "exercices": [
+    {
+     "exercice": 42,
+     "piste_lue": 42,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.047
+    },
+    {
+     "exercice": 43,
+     "piste_lue": 43,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.225
+    },
+    {
+     "exercice": 44,
+     "piste_lue": 44,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.41
+    },
+    {
+     "exercice": 45,
+     "piste_lue": 45,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.6
+    },
+    {
+     "exercice": 46,
+     "piste_lue": 46,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.789
+    }
+   ],
+   "page_imprimee": 16,
+   "page_statut": "lue"
+  },
+  {
+   "index_image": 15,
+   "fichier": "p-015.jpg",
+   "page_lue": 17,
+   "exercices": [
+    {
+     "exercice": 47,
+     "piste_lue": 47,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.043
+    },
+    {
+     "exercice": 48,
+     "piste_lue": 48,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.23
+    },
+    {
+     "exercice": 49,
+     "piste_lue": 49,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.416
+    },
+    {
+     "exercice": 50,
+     "piste_lue": 50,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.602
+    },
+    {
+     "exercice": 51,
+     "piste_lue": 51,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.788
+    }
+   ],
+   "page_imprimee": 17,
+   "page_statut": "lue"
+  },
+  {
+   "index_image": 16,
+   "fichier": "p-016.jpg",
+   "page_lue": 18,
+   "exercices": [
+    {
+     "exercice": 52,
+     "piste_lue": 52,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.042
+    },
+    {
+     "exercice": 53,
+     "piste_lue": 53,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.291
+    },
+    {
+     "exercice": 54,
+     "piste_lue": 54,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.727
+    }
+   ],
+   "page_imprimee": 18,
+   "page_statut": "lue"
+  },
+  {
+   "index_image": 17,
+   "fichier": "p-017.jpg",
+   "page_lue": 19,
+   "exercices": [
+    {
+     "exercice": 55,
+     "piste_lue": null,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 0,
+     "y": 0.045
+    },
+    {
+     "exercice": 56,
+     "piste_lue": 56,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.303
+    },
+    {
+     "exercice": 57,
+     "piste_lue": 57,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.567
+    }
+   ],
+   "page_imprimee": 19,
+   "page_statut": "lue"
+  },
+  {
+   "index_image": 18,
+   "fichier": "p-018.jpg",
+   "page_lue": 20,
+   "exercices": [
+    {
+     "exercice": 58,
+     "piste_lue": 58,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.043
+    },
+    {
+     "exercice": 59,
+     "piste_lue": 59,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.298
+    },
+    {
+     "exercice": 60,
+     "piste_lue": 60,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.554
+    }
+   ],
+   "page_imprimee": 20,
+   "page_statut": "lue"
+  },
+  {
+   "index_image": 19,
+   "fichier": "p-019.jpg",
+   "page_lue": 21,
+   "exercices": [
+    {
+     "exercice": 61,
+     "piste_lue": 61,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.042
+    },
+    {
+     "exercice": 62,
+     "piste_lue": 62,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.303
+    },
+    {
+     "exercice": 63,
+     "piste_lue": 63,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.75
+    }
+   ],
+   "page_imprimee": 21,
+   "page_statut": "lue"
+  },
+  {
+   "index_image": 20,
+   "fichier": "p-020.jpg",
+   "page_lue": 22,
+   "exercices": [
+    {
+     "exercice": 64,
+     "piste_lue": 64,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.043
+    },
+    {
+     "exercice": 65,
+     "piste_lue": 65,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.503
+    },
+    {
+     "exercice": 66,
+     "piste_lue": 66,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.757
+    }
+   ],
+   "page_imprimee": 22,
+   "page_statut": "lue"
+  },
+  {
+   "index_image": 21,
+   "fichier": "p-021.jpg",
+   "page_lue": 23,
+   "exercices": [
+    {
+     "exercice": 67,
+     "piste_lue": 67,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.044
+    },
+    {
+     "exercice": 68,
+     "piste_lue": 68,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.274
+    },
+    {
+     "exercice": 69,
+     "piste_lue": 69,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.504
+    },
+    {
+     "exercice": 70,
+     "piste_lue": 70,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.753
+    }
+   ],
+   "page_imprimee": 23,
+   "page_statut": "lue"
+  },
+  {
+   "index_image": 22,
+   "fichier": "p-022.jpg",
+   "page_lue": 24,
+   "exercices": [
+    {
+     "exercice": 71,
+     "piste_lue": 71,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.048
+    },
+    {
+     "exercice": 72,
+     "piste_lue": 72,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.282
+    },
+    {
+     "exercice": 73,
+     "piste_lue": 73,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.516
+    },
+    {
+     "exercice": 74,
+     "piste_lue": 74,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.75
+    }
+   ],
+   "page_imprimee": 24,
+   "page_statut": "lue"
+  },
+  {
+   "index_image": 23,
+   "fichier": "p-023.jpg",
+   "page_lue": 25,
+   "exercices": [
+    {
+     "exercice": 75,
+     "piste_lue": 75,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.037
+    },
+    {
+     "exercice": 76,
+     "piste_lue": 76,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.379
+    },
+    {
+     "exercice": 77,
+     "piste_lue": 77,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.716
+    }
+   ],
+   "page_imprimee": 25,
+   "page_statut": "lue"
+  },
+  {
+   "index_image": 24,
+   "fichier": "p-024.jpg",
+   "page_lue": 26,
+   "exercices": [
+    {
+     "exercice": 78,
+     "piste_lue": 78,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.04
+    },
+    {
+     "exercice": 79,
+     "piste_lue": 73,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.487
+    },
+    {
+     "exercice": 80,
+     "piste_lue": 80,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.742
+    }
+   ],
+   "page_imprimee": 26,
+   "page_statut": "lue"
+  },
+  {
+   "index_image": 25,
+   "fichier": "p-025.jpg",
+   "page_lue": 27,
+   "exercices": [
+    {
+     "exercice": 81,
+     "piste_lue": 81,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.048
+    },
+    {
+     "exercice": 82,
+     "piste_lue": 82,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.285
+    },
+    {
+     "exercice": 83,
+     "piste_lue": 83,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.518
+    },
+    {
+     "exercice": 84,
+     "piste_lue": null,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 0,
+     "y": 0.751
+    }
+   ],
+   "page_imprimee": 27,
+   "page_statut": "lue"
+  },
+  {
+   "index_image": 26,
+   "fichier": "p-026.jpg",
+   "page_lue": null,
+   "exercices": [
+    {
+     "exercice": 85,
+     "piste_lue": 85,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.045
+    },
+    {
+     "exercice": 86,
+     "piste_lue": null,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 0,
+     "y": 0.279
+    },
+    {
+     "exercice": 87,
+     "piste_lue": 87,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.513
+    },
+    {
+     "exercice": 88,
+     "piste_lue": 88,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.747
+    }
+   ],
+   "page_imprimee": 28,
+   "page_statut": "deduite"
+  },
+  {
+   "index_image": 27,
+   "fichier": "p-027.jpg",
+   "page_lue": 29,
+   "exercices": [
+    {
+     "exercice": 89,
+     "piste_lue": 89,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.048
+    },
+    {
+     "exercice": 90,
+     "piste_lue": 90,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.282
+    },
+    {
+     "exercice": 91,
+     "piste_lue": 91,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.516
+    },
+    {
+     "exercice": 92,
+     "piste_lue": 92,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.751
+    }
+   ],
+   "page_imprimee": 29,
+   "page_statut": "lue"
+  },
+  {
+   "index_image": 28,
+   "fichier": "p-028.jpg",
+   "page_lue": 32,
+   "exercices": [
+    {
+     "exercice": 99,
+     "piste_lue": 99,
+     "suite_de_piste": false,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.044
+    },
+    {
+     "exercice": 100,
+     "piste_lue": 999,
+     "suite_de_piste": true,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.502
+    },
+    {
+     "exercice": 101,
+     "piste_lue": 999,
+     "suite_de_piste": true,
+     "accord_ex": 1.0,
+     "accord_piste": 1.0,
+     "y": 0.753
+    }
+   ],
+   "page_imprimee": 32,
+   "page_statut": "lue"
+  }
+ ],
+ "appariements": [
+  {
+   "exercice": 1,
+   "page_imprimee": 3,
+   "piste": 1,
+   "source_piste": "numero_exercice",
+   "confiance": 1.0,
+   "mp3": "Track 01.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 2,
+   "page_imprimee": 3,
+   "piste": 2,
+   "source_piste": "numero_exercice",
+   "confiance": 1.0,
+   "mp3": "Track 02.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 3,
+   "page_imprimee": 3,
+   "piste": 3,
+   "source_piste": "numero_exercice",
+   "confiance": 1.0,
+   "mp3": "Track 03.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 4,
+   "page_imprimee": 3,
+   "piste": 4,
+   "source_piste": "numero_exercice",
+   "confiance": 1.0,
+   "mp3": "Track 04.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 5,
+   "page_imprimee": 4,
+   "piste": 5,
+   "source_piste": "numero_exercice",
+   "confiance": 1.0,
+   "mp3": "Track 05.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 6,
+   "page_imprimee": 4,
+   "piste": 6,
+   "source_piste": "numero_exercice",
+   "confiance": 1.0,
+   "mp3": "Track 06.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 7,
+   "page_imprimee": 4,
+   "piste": 7,
+   "source_piste": "numero_exercice",
+   "confiance": 1.0,
+   "mp3": "Track 07.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 8,
+   "page_imprimee": 4,
+   "piste": 8,
+   "source_piste": "numero_exercice",
+   "confiance": 1.0,
+   "mp3": "Track 08.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 9,
+   "page_imprimee": 5,
+   "piste": 9,
+   "source_piste": "numero_exercice",
+   "confiance": 1.0,
+   "mp3": "Track 09.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 10,
+   "page_imprimee": 5,
+   "piste": 10,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 10.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 11,
+   "page_imprimee": 5,
+   "piste": 11,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 11.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 12,
+   "page_imprimee": 5,
+   "piste": 12,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 12.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 13,
+   "page_imprimee": 6,
+   "piste": 13,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 13.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 14,
+   "page_imprimee": 6,
+   "piste": 14,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 14.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 15,
+   "page_imprimee": 6,
+   "piste": 15,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 15.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 16,
+   "page_imprimee": 6,
+   "piste": 16,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 16.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 17,
+   "page_imprimee": 7,
+   "piste": 17,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 17.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 18,
+   "page_imprimee": 7,
+   "piste": 18,
+   "source_piste": "numero_exercice",
+   "confiance": 1.0,
+   "mp3": "Track 18.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 19,
+   "page_imprimee": 7,
+   "piste": 19,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 19.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 20,
+   "page_imprimee": 7,
+   "piste": 20,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 20.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 21,
+   "page_imprimee": 8,
+   "piste": 21,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 21.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 22,
+   "page_imprimee": 8,
+   "piste": 22,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 22.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 23,
+   "page_imprimee": 8,
+   "piste": 23,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 23.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 24,
+   "page_imprimee": 8,
+   "piste": 24,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 24.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 25,
+   "page_imprimee": 9,
+   "piste": 25,
+   "source_piste": "numero_exercice",
+   "confiance": 1.0,
+   "mp3": "Track 25.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 26,
+   "page_imprimee": 9,
+   "piste": 26,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 26.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 27,
+   "page_imprimee": 9,
+   "piste": 27,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 27.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 28,
+   "page_imprimee": 10,
+   "piste": 28,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 28.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 29,
+   "page_imprimee": 10,
+   "piste": 29,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 29.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 30,
+   "page_imprimee": 10,
+   "piste": 30,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 30.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 31,
+   "page_imprimee": 11,
+   "piste": 31,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 31.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 32,
+   "page_imprimee": 11,
+   "piste": 32,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 32.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 33,
+   "page_imprimee": 12,
+   "piste": 33,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 33.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 34,
+   "page_imprimee": 12,
+   "piste": 34,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 34.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 35,
+   "page_imprimee": 13,
+   "piste": 35,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 35.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 36,
+   "page_imprimee": 13,
+   "piste": 36,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 36.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 37,
+   "page_imprimee": 14,
+   "piste": 37,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 37.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 38,
+   "page_imprimee": 14,
+   "piste": 38,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 38.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 39,
+   "page_imprimee": 15,
+   "piste": 39,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 39.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 40,
+   "page_imprimee": 15,
+   "piste": 40,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 40.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 41,
+   "page_imprimee": 15,
+   "piste": 41,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 41.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 42,
+   "page_imprimee": 16,
+   "piste": 42,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 42.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 43,
+   "page_imprimee": 16,
+   "piste": 43,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 43.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 44,
+   "page_imprimee": 16,
+   "piste": 44,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 44.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 45,
+   "page_imprimee": 16,
+   "piste": 45,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 45.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 46,
+   "page_imprimee": 16,
+   "piste": 46,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 46.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 47,
+   "page_imprimee": 17,
+   "piste": 47,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 47.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 48,
+   "page_imprimee": 17,
+   "piste": 48,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 48.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 49,
+   "page_imprimee": 17,
+   "piste": 49,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 49.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 50,
+   "page_imprimee": 17,
+   "piste": 50,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 50.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 51,
+   "page_imprimee": 17,
+   "piste": 51,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 51.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 52,
+   "page_imprimee": 18,
+   "piste": 52,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 52.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 53,
+   "page_imprimee": 18,
+   "piste": 53,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 53.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 54,
+   "page_imprimee": 18,
+   "piste": 54,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 54.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 55,
+   "page_imprimee": 19,
+   "piste": 55,
+   "source_piste": "numero_exercice",
+   "confiance": 1.0,
+   "mp3": "Track 55.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 56,
+   "page_imprimee": 19,
+   "piste": 56,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 56.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 57,
+   "page_imprimee": 19,
+   "piste": 57,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 57.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 58,
+   "page_imprimee": 20,
+   "piste": 58,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 58.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 59,
+   "page_imprimee": 20,
+   "piste": 59,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 59.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 60,
+   "page_imprimee": 20,
+   "piste": 60,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 60.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 61,
+   "page_imprimee": 21,
+   "piste": 61,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 61.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 62,
+   "page_imprimee": 21,
+   "piste": 62,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 62.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 63,
+   "page_imprimee": 21,
+   "piste": 63,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 63.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 64,
+   "page_imprimee": 22,
+   "piste": 64,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 64.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 65,
+   "page_imprimee": 22,
+   "piste": 65,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 65.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 66,
+   "page_imprimee": 22,
+   "piste": 66,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 66.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 67,
+   "page_imprimee": 23,
+   "piste": 67,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 67.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 68,
+   "page_imprimee": 23,
+   "piste": 68,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 68.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 69,
+   "page_imprimee": 23,
+   "piste": 69,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 69.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 70,
+   "page_imprimee": 23,
+   "piste": 70,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 70.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 71,
+   "page_imprimee": 24,
+   "piste": 71,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 71.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 72,
+   "page_imprimee": 24,
+   "piste": 72,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 72.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 73,
+   "page_imprimee": 24,
+   "piste": 73,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 73.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 74,
+   "page_imprimee": 24,
+   "piste": 74,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 74.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 75,
+   "page_imprimee": 25,
+   "piste": 75,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 75.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 76,
+   "page_imprimee": 25,
+   "piste": 76,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 76.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 77,
+   "page_imprimee": 25,
+   "piste": 77,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 77.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 78,
+   "page_imprimee": 26,
+   "piste": 78,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 78.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 79,
+   "page_imprimee": 26,
+   "piste": 79,
+   "source_piste": "numero_exercice",
+   "confiance": 1.0,
+   "mp3": "Track 79.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 80,
+   "page_imprimee": 26,
+   "piste": 80,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 80.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 81,
+   "page_imprimee": 27,
+   "piste": 81,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 81.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 82,
+   "page_imprimee": 27,
+   "piste": 82,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 82.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 83,
+   "page_imprimee": 27,
+   "piste": 83,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 83.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 84,
+   "page_imprimee": 27,
+   "piste": 84,
+   "source_piste": "numero_exercice",
+   "confiance": 1.0,
+   "mp3": "Track 84.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 85,
+   "page_imprimee": 28,
+   "piste": 85,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 85.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 86,
+   "page_imprimee": 28,
+   "piste": 86,
+   "source_piste": "numero_exercice",
+   "confiance": 1.0,
+   "mp3": "Track 86.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 87,
+   "page_imprimee": 28,
+   "piste": 87,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 87.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 88,
+   "page_imprimee": 28,
+   "piste": 88,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 88.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 89,
+   "page_imprimee": 29,
+   "piste": 89,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 89.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 90,
+   "page_imprimee": 29,
+   "piste": 90,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 90.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 91,
+   "page_imprimee": 29,
+   "piste": 91,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 91.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 92,
+   "page_imprimee": 29,
+   "piste": 92,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 92.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 99,
+   "page_imprimee": 32,
+   "piste": 99,
+   "source_piste": "pastille",
+   "confiance": 1,
+   "mp3": "Track 99.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 100,
+   "page_imprimee": 32,
+   "piste": 99,
+   "source_piste": "suite (cont'd)",
+   "confiance": 1.0,
+   "mp3": "Track 99.mp3",
+   "statut": "auto"
+  },
+  {
+   "exercice": 101,
+   "page_imprimee": 32,
+   "piste": 99,
+   "source_piste": "suite (cont'd)",
+   "confiance": 1.0,
+   "mp3": "Track 99.mp3",
+   "statut": "auto"
+  }
+ ],
+ "mp3_orphelins": [
+  93,
+  94,
+  95,
+  96,
+  97,
+  98
+ ],
+ "mp3": {
+  "24": {
+   "fichier": "Track 24.mp3",
+   "duree_s": 19.5
+  },
+  "26": {
+   "fichier": "Track 26.mp3",
+   "duree_s": 19.4
+  },
+  "81": {
+   "fichier": "Track 81.mp3",
+   "duree_s": 21.3
+  },
+  "96": {
+   "fichier": "Track 96.mp3",
+   "duree_s": 19.8
+  },
+  "49": {
+   "fichier": "Track 49.mp3",
+   "duree_s": 20.5
+  },
+  "62": {
+   "fichier": "Track 62.mp3",
+   "duree_s": 17.8
+  },
+  "61": {
+   "fichier": "Track 61.mp3",
+   "duree_s": 19.8
+  },
+  "86": {
+   "fichier": "Track 86.mp3",
+   "duree_s": 20.5
+  },
+  "55": {
+   "fichier": "Track 55.mp3",
+   "duree_s": 18.9
+  },
+  "23": {
+   "fichier": "Track 23.mp3",
+   "duree_s": 19.0
+  },
+  "54": {
+   "fichier": "Track 54.mp3",
+   "duree_s": 19.0
+  },
+  "57": {
+   "fichier": "Track 57.mp3",
+   "duree_s": 19.0
+  },
+  "3": {
+   "fichier": "Track 03.mp3",
+   "duree_s": 18.3
+  },
+  "59": {
+   "fichier": "Track 59.mp3",
+   "duree_s": 19.9
+  },
+  "5": {
+   "fichier": "Track 05.mp3",
+   "duree_s": 19.7
+  },
+  "75": {
+   "fichier": "Track 75.mp3",
+   "duree_s": 21.1
+  },
+  "10": {
+   "fichier": "Track 10.mp3",
+   "duree_s": 22.2
+  },
+  "43": {
+   "fichier": "Track 43.mp3",
+   "duree_s": 19.2
+  },
+  "33": {
+   "fichier": "Track 33.mp3",
+   "duree_s": 17.8
+  },
+  "16": {
+   "fichier": "Track 16.mp3",
+   "duree_s": 20.5
+  },
+  "4": {
+   "fichier": "Track 04.mp3",
+   "duree_s": 21.1
+  },
+  "17": {
+   "fichier": "Track 17.mp3",
+   "duree_s": 19.3
+  },
+  "50": {
+   "fichier": "Track 50.mp3",
+   "duree_s": 19.0
+  },
+  "90": {
+   "fichier": "Track 90.mp3",
+   "duree_s": 19.0
+  },
+  "53": {
+   "fichier": "Track 53.mp3",
+   "duree_s": 19.3
+  },
+  "21": {
+   "fichier": "Track 21.mp3",
+   "duree_s": 19.7
+  },
+  "47": {
+   "fichier": "Track 47.mp3",
+   "duree_s": 20.5
+  },
+  "8": {
+   "fichier": "Track 08.mp3",
+   "duree_s": 24.4
+  },
+  "27": {
+   "fichier": "Track 27.mp3",
+   "duree_s": 19.3
+  },
+  "60": {
+   "fichier": "Track 60.mp3",
+   "duree_s": 19.8
+  },
+  "18": {
+   "fichier": "Track 18.mp3",
+   "duree_s": 19.4
+  },
+  "63": {
+   "fichier": "Track 63.mp3",
+   "duree_s": 17.8
+  },
+  "73": {
+   "fichier": "Track 73.mp3",
+   "duree_s": 21.3
+  },
+  "29": {
+   "fichier": "Track 29.mp3",
+   "duree_s": 17.8
+  },
+  "45": {
+   "fichier": "Track 45.mp3",
+   "duree_s": 20.3
+  },
+  "95": {
+   "fichier": "Track 95.mp3",
+   "duree_s": 19.8
+  },
+  "7": {
+   "fichier": "Track 07.mp3",
+   "duree_s": 21.1
+  },
+  "28": {
+   "fichier": "Track 28.mp3",
+   "duree_s": 20.9
+  },
+  "78": {
+   "fichier": "Track 78.mp3",
+   "duree_s": 21.1
+  },
+  "12": {
+   "fichier": "Track 12.mp3",
+   "duree_s": 23.3
+  },
+  "20": {
+   "fichier": "Track 20.mp3",
+   "duree_s": 19.0
+  },
+  "2": {
+   "fichier": "Track 02.mp3",
+   "duree_s": 18.3
+  },
+  "76": {
+   "fichier": "Track 76.mp3",
+   "duree_s": 21.1
+  },
+  "88": {
+   "fichier": "Track 88.mp3",
+   "duree_s": 19.0
+  },
+  "36": {
+   "fichier": "Track 36.mp3",
+   "duree_s": 21.3
+  },
+  "15": {
+   "fichier": "Track 15.mp3",
+   "duree_s": 21.0
+  },
+  "93": {
+   "fichier": "Track 93.mp3",
+   "duree_s": 19.8
+  },
+  "74": {
+   "fichier": "Track 74.mp3",
+   "duree_s": 21.1
+  },
+  "71": {
+   "fichier": "Track 71.mp3",
+   "duree_s": 21.3
+  },
+  "38": {
+   "fichier": "Track 38.mp3",
+   "duree_s": 21.3
+  },
+  "98": {
+   "fichier": "Track 98.mp3",
+   "duree_s": 19.8
+  },
+  "41": {
+   "fichier": "Track 41.mp3",
+   "duree_s": 21.1
+  },
+  "40": {
+   "fichier": "Track 40.mp3",
+   "duree_s": 21.1
+  },
+  "35": {
+   "fichier": "Track 35.mp3",
+   "duree_s": 39.5
+  },
+  "25": {
+   "fichier": "Track 25.mp3",
+   "duree_s": 19.4
+  },
+  "9": {
+   "fichier": "Track 09.mp3",
+   "duree_s": 24.4
+  },
+  "82": {
+   "fichier": "Track 82.mp3",
+   "duree_s": 21.0
+  },
+  "42": {
+   "fichier": "Track 42.mp3",
+   "duree_s": 21.1
+  },
+  "19": {
+   "fichier": "Track 19.mp3",
+   "duree_s": 20.3
+  },
+  "1": {
+   "fichier": "Track 01.mp3",
+   "duree_s": 19.7
+  },
+  "94": {
+   "fichier": "Track 94.mp3",
+   "duree_s": 19.8
+  },
+  "84": {
+   "fichier": "Track 84.mp3",
+   "duree_s": 20.4
+  },
+  "80": {
+   "fichier": "Track 80.mp3",
+   "duree_s": 19.4
+  },
+  "99": {
+   "fichier": "Track 99.mp3",
+   "duree_s": 49.9
+  },
+  "14": {
+   "fichier": "Track 14.mp3",
+   "duree_s": 19.4
+  },
+  "68": {
+   "fichier": "Track 68.mp3",
+   "duree_s": 21.3
+  },
+  "85": {
+   "fichier": "Track 85.mp3",
+   "duree_s": 20.5
+  },
+  "11": {
+   "fichier": "Track 11.mp3",
+   "duree_s": 22.2
+  },
+  "39": {
+   "fichier": "Track 39.mp3",
+   "duree_s": 21.3
+  },
+  "70": {
+   "fichier": "Track 70.mp3",
+   "duree_s": 21.3
+  },
+  "89": {
+   "fichier": "Track 89.mp3",
+   "duree_s": 19.0
+  },
+  "67": {
+   "fichier": "Track 67.mp3",
+   "duree_s": 17.8
+  },
+  "22": {
+   "fichier": "Track 22.mp3",
+   "duree_s": 17.8
+  },
+  "30": {
+   "fichier": "Track 30.mp3",
+   "duree_s": 17.8
+  },
+  "66": {
+   "fichier": "Track 66.mp3",
+   "duree_s": 17.8
+  },
+  "6": {
+   "fichier": "Track 06.mp3",
+   "duree_s": 21.7
+  },
+  "97": {
+   "fichier": "Track 97.mp3",
+   "duree_s": 19.9
+  },
+  "44": {
+   "fichier": "Track 44.mp3",
+   "duree_s": 20.5
+  },
+  "51": {
+   "fichier": "Track 51.mp3",
+   "duree_s": 19.0
+  },
+  "92": {
+   "fichier": "Track 92.mp3",
+   "duree_s": 18.9
+  },
+  "48": {
+   "fichier": "Track 48.mp3",
+   "duree_s": 20.4
+  },
+  "37": {
+   "fichier": "Track 37.mp3",
+   "duree_s": 21.3
+  },
+  "69": {
+   "fichier": "Track 69.mp3",
+   "duree_s": 21.4
+  },
+  "83": {
+   "fichier": "Track 83.mp3",
+   "duree_s": 20.5
+  },
+  "65": {
+   "fichier": "Track 65.mp3",
+   "duree_s": 17.8
+  },
+  "31": {
+   "fichier": "Track 31.mp3",
+   "duree_s": 17.8
+  },
+  "46": {
+   "fichier": "Track 46.mp3",
+   "duree_s": 20.3
+  },
+  "34": {
+   "fichier": "Track 34.mp3",
+   "duree_s": 21.3
+  },
+  "91": {
+   "fichier": "Track 91.mp3",
+   "duree_s": 19.0
+  },
+  "77": {
+   "fichier": "Track 77.mp3",
+   "duree_s": 21.2
+  },
+  "72": {
+   "fichier": "Track 72.mp3",
+   "duree_s": 21.2
+  },
+  "64": {
+   "fichier": "Track 64.mp3",
+   "duree_s": 17.8
+  },
+  "79": {
+   "fichier": "Track 79.mp3",
+   "duree_s": 21.1
+  },
+  "52": {
+   "fichier": "Track 52.mp3",
+   "duree_s": 19.0
+  },
+  "13": {
+   "fichier": "Track 13.mp3",
+   "duree_s": 18.3
+  },
+  "58": {
+   "fichier": "Track 58.mp3",
+   "duree_s": 19.9
+  },
+  "56": {
+   "fichier": "Track 56.mp3",
+   "duree_s": 19.0
+  },
+  "32": {
+   "fichier": "Track 32.mp3",
+   "duree_s": 17.8
+  },
+  "87": {
+   "fichier": "Track 87.mp3",
+   "duree_s": 20.5
+  }
+ }
+}
