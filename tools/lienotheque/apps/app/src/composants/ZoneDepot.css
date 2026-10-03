@@ -24,3 +24,9 @@
 .ln-depot .ln-muted {
   margin: 0;
 }
+
+/* Sur la photo, la zone a besoin de son propre fond pour rester lisible ;
+   en clair et en sombre elle reste posée sur le fond de page, comme dans les maquettes. */
+[data-theme="hybrid"] .ln-depot {
+  background: var(--ln-surface);
+}

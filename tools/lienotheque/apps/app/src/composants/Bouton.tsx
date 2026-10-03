@@ -8,6 +8,8 @@ type Props = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "className"> & {
   /** Affiche le rouage et neutralise le bouton, sans changer sa largeur de place. */
   readonly chargement?: boolean | undefined;
   readonly icone?: ReactNode | undefined;
+  /** Carré à la taille d'une icône : le libellé reste lisible par les lecteurs d'écran. */
+  readonly compact?: boolean | undefined;
   readonly children: ReactNode;
 };
 
@@ -17,6 +19,7 @@ export function Bouton({
   variante = "secondaire",
   chargement = false,
   icone,
+  compact = false,
   children,
   disabled = false,
   type = "button",
@@ -26,7 +29,7 @@ export function Bouton({
     <button
       {...reste}
       type={type}
-      className={`ln-btn ln-btn--${variante}`}
+      className={`ln-btn ln-btn--${variante}${compact ? " ln-btn--compact" : ""}`}
       disabled={disabled || chargement}
       aria-busy={chargement ? true : undefined}
     >

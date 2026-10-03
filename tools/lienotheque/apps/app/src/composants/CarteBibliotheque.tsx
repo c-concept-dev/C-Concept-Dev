@@ -49,7 +49,9 @@ export function CarteBibliotheque({
       </div>
       <div className="ln-carte__corps">
         <h3 className="ln-carte__titre">
-          <a href={href}>{nom}</a>
+          <a href={href} aria-label={`Ouvrir la bibliothèque ${nom}`}>
+            {nom}
+          </a>
         </h3>
         <div className="ln-row ln-carte__compteurs">
           {compteurs.map((compteur) => (

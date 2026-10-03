@@ -1,19 +1,26 @@
-import type { JSX } from "react";
+import { useState, type JSX } from "react";
 import { EnTete } from "./EnTete.js";
+import { Accueil } from "./pages/Accueil.js";
 import { useTheme } from "./theme/useTheme.js";
 
 export function App(): JSX.Element {
   const [theme, changerTheme] = useTheme();
+  const [, setDepots] = useState<readonly string[]>([]);
+
   return (
     <>
       <a className="ln-skip" href="#contenu">
         Aller au contenu
       </a>
-      <EnTete theme={theme} onThemeChange={changerTheme} />
-      <main id="contenu" className="ln-layout" tabIndex={-1}>
-        <h1 className="ln-bonjour">Bonjour</h1>
-        <p className="ln-muted">Squelette du lot 0 : jetons, polices et bascule de thème en place.</p>
-      </main>
+      <EnTete
+        theme={theme}
+        onThemeChange={changerTheme}
+        onRecherche={() => {
+          // Lot 0 : l'accueil est statique, la recherche arrive avec le lot C (UX-02).
+        }}
+        traitements={1}
+      />
+      <Accueil onFichiers={(fichiers) => setDepots(fichiers.map((fichier) => fichier.name))} />
     </>
   );
 }

@@ -1,0 +1,87 @@
+.ln-accueil {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: calc(var(--ln-grid) * 4);
+  align-items: start;
+}
+
+.ln-accueil__principal {
+  display: grid;
+  gap: calc(var(--ln-grid) * 3);
+  min-width: 0;
+}
+
+.ln-accueil__resume {
+  margin: 0;
+}
+
+.ln-accueil__titre {
+  font-size: 20px;
+  margin: 0 0 calc(var(--ln-grid) * 1.5);
+}
+
+.ln-accueil__titre.ln-panneau-titre {
+  margin-bottom: calc(var(--ln-grid) * 1.5);
+}
+
+.ln-accueil__entete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--ln-grid) * 2);
+  margin-bottom: calc(var(--ln-grid) * 1.5);
+}
+
+.ln-accueil__entete .ln-accueil__titre {
+  margin: 0;
+}
+
+.ln-pile {
+  display: grid;
+  gap: calc(var(--ln-grid) * 1.5);
+}
+
+.ln-grille {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: calc(var(--ln-grid) * 3);
+}
+
+.ln-accueil__cote {
+  display: grid;
+  gap: calc(var(--ln-grid) * 3);
+  min-width: 0;
+}
+
+.ln-panneau {
+  background: var(--ln-surface);
+  border: 1px solid var(--ln-border-decorative);
+  border-radius: var(--ln-radius);
+  padding: calc(var(--ln-grid) * 2);
+}
+
+/* Inter, comme tout le reste : seuls le logo et « Bonjour » emploient le serif (charte v3). */
+.ln-accueil__nombre {
+  font-size: 56px;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--ln-link);
+  margin: var(--ln-grid) 0;
+}
+
+.ln-accueil__precision {
+  margin: 0 0 var(--ln-grid);
+}
+
+@media (max-width: 1000px) {
+  .ln-accueil {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 700px) {
+  .ln-grille {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

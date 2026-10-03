@@ -117,10 +117,11 @@ describe("carte de bibliothèque (UX-09 et charte v3)", () => {
     />
   );
 
-  it("nomme son lien par la bibliothèque, jamais « Ouvrir »", () => {
-    render(carte);
-    expect(screen.getByRole("link", { name: "Méthode d'instrument" })).toHaveAttribute("href", "#bibliotheque-1");
-    expect(screen.queryByRole("link", { name: /ouvrir/i })).not.toBeInTheDocument();
+  it("donne à son lien un nom qui dit l'action et la bibliothèque", () => {
+    const { container } = render(carte);
+    const lien = screen.getByRole("link", { name: "Ouvrir la bibliothèque Méthode d'instrument" });
+    expect(lien).toHaveAttribute("href", "#bibliotheque-1");
+    expect(container.querySelector(".ln-carte__titre")).toHaveTextContent("Méthode d'instrument");
   });
 
   it("ne met aucun texte dans le bandeau de collection (taupe sous 4,5:1)", () => {
@@ -152,7 +153,7 @@ describe("carte « Reprendre » (UX-01, ANC-02)", () => {
       />,
     );
     const article = screen.getByRole("article");
-    expect(within(article).getByRole("link", { name: "Méthode d'instrument" })).toBeInTheDocument();
+    expect(within(article).getByRole("link", { name: "Reprendre Méthode d'instrument" })).toBeInTheDocument();
     expect(article).toHaveTextContent("Page 127");
     expect(article).toHaveTextContent("piste 41");
     expect(article).toHaveTextContent("relié à");

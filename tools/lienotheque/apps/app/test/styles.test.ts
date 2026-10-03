@@ -62,3 +62,37 @@ describe("règle 3 de CLAUDE.md : aucune couleur en dur (UX-07)", () => {
     expect(noms.filter((nom) => nom !== undefined && !nom.startsWith("--ln-"))).toEqual(["--rouge"]);
   });
 });
+
+/** Charte v3 : `serif_allowed` ne contient que le logo et « Bonjour ». */
+describe("typographie : Inter partout sauf le logo et « Bonjour »", () => {
+  const feuilles = fichiers(SRC, [".css"]);
+  const sansCommentaires = (contenu: string): string => contenu.replace(/\/\*[\s\S]*?\*\//g, "");
+  /** @font-face est le seul endroit où une police se nomme : c'est sa déclaration. */
+  const sansFontFace = (contenu: string): string => contenu.replace(/@font-face\s*\{[^}]*\}/g, "");
+  const regles = (contenu: string): [string, string][] =>
+    [...sansCommentaires(contenu).matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => [(m[1] ?? "").trim(), m[2] ?? ""]);
+
+  it("n'emploie le serif de marque que sur .ln-brand et .ln-bonjour", () => {
+    const porteurs = feuilles.flatMap((chemin) =>
+      regles(readFileSync(chemin, "utf8"))
+        .filter(([, corps]) => corps.includes("--ln-font-brand"))
+        .map(([selecteur]) => selecteur),
+    );
+    expect(porteurs.sort()).toEqual([".ln-bonjour", ".ln-brand"]);
+  });
+
+  it("habille le reste de l'interface avec la famille d'interface", () => {
+    const base = readFileSync(join(SRC, "styles", "base.css"), "utf8");
+    expect(base).toMatch(/body\s*\{[^}]*--ln-font-ui/);
+  });
+
+  it("ne nomme aucune police en dur : les familles viennent des jetons", () => {
+    for (const chemin of feuilles) {
+      const contenu = sansFontFace(sansCommentaires(readFileSync(chemin, "utf8")));
+      const declarations = [...contenu.matchAll(/^\s*(?:font|font-family)\s*:\s*([^;]+);/gm)].map((m) => m[1] ?? "");
+      for (const valeur of declarations) {
+        expect(valeur, `${relatif(chemin)} : ${valeur}`).toMatch(/var\(--ln-font-(ui|brand)\)|inherit/);
+      }
+    }
+  });
+});

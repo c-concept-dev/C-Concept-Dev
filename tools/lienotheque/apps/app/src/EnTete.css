@@ -1,0 +1,18 @@
+.ln-shell__etats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 2);
+}
+
+@media (max-width: 1100px) {
+  .ln-shell {
+    flex-wrap: wrap;
+  }
+
+  .ln-recherche {
+    order: 3;
+    max-width: none;
+    flex-basis: 100%;
+  }
+}

@@ -34,13 +34,16 @@ describe("thèmes de la charte v3 (UX-05 : un écran validé par état)", () => 
     expect(localStorage.getItem(CLE_THEME)).toBe("hybrid");
   });
 
-  it("se règle au clavier seul, sans souris (UX-06)", async () => {
+  it("s'atteint à la tabulation, sans souris (UX-06)", async () => {
     const utilisateur = userEvent.setup();
     render(<App />);
     const selecteur = screen.getByLabelText("Thème");
 
-    await utilisateur.tab(); // lien d'évitement
-    await utilisateur.tab(); // sélecteur de thème
+    let pas = 0;
+    while (document.activeElement !== selecteur && pas < 20) {
+      await utilisateur.tab();
+      pas += 1;
+    }
     expect(selecteur).toHaveFocus();
   });
 });

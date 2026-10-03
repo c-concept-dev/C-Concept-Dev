@@ -12,13 +12,15 @@ type Props = {
 };
 
 /** « Reprendre où vous en étiez » de l'Accueil (UX-01).
- *  Le lien porte le nom du document : jamais quatre liens « Reprendre » identiques. */
+ *  Le lien dit son action et nomme le document : deux liens ne portent jamais le même nom. */
 export function CarteReprise({ titre, href, origine, cible, quand }: Props): JSX.Element {
   return (
     <article className="ln-reprise">
       <div className="ln-reprise__texte">
         <h3 className="ln-reprise__titre">
-          <a href={href}>{titre}</a>
+          <a href={href} aria-label={`Reprendre ${titre}`}>
+            {titre}
+          </a>
         </h3>
         <p className="ln-muted ln-reprise__position">
           {origine}

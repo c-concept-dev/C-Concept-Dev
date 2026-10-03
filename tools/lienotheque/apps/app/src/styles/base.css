@@ -145,6 +145,21 @@ p {
   display: none !important;
 }
 
+/* Panneau de titre du kit : invisible en clair (même valeur que le fond de page),
+   opaque et graphite sur la photo, où le texte sombre deviendrait illisible. */
+.ln-panneau-titre {
+  background: var(--ln-heading-panel);
+  border-radius: var(--ln-radius);
+  padding: calc(var(--ln-grid) * 1.5) calc(var(--ln-grid) * 2);
+}
+
+[data-theme="hybrid"] .ln-panneau-titre {
+  --ln-text-primary: var(--ln-heading-text);
+  --ln-text-secondary: var(--ln-heading-text-secondary);
+  --ln-link: var(--ln-heading-link);
+  color: var(--ln-heading-text);
+}
+
 /* Hybride photographique : voile sur la photo, barre et panneaux de titre graphite. */
 [data-theme="hybrid"] {
   background:
