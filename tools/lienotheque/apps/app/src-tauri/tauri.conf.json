@@ -32,6 +32,9 @@
       "moteurs/lib": "moteurs/lib",
       "moteurs/tessdata": "moteurs/tessdata"
     },
+    "macOS": {
+      "minimumSystemVersion": "13.0"
+    },
     "copyright": "C-Concept",
     "category": "Productivity",
     "shortDescription": "Prototype bureau du lot 0",

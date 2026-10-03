@@ -11,6 +11,9 @@
 | 2026-10-03 | Kit UI v1.1 adopté comme référence ; logo vectoriel validé (IoU 0,977 avec la planche) ; jetons du kit fusionnés dans tokens.json | docs/ui-kit |
 | 2026-10-03 | **Tauri 2 retenu le 3 octobre 2026 sur mesures Mac** (paquet 24,75 Mio dont 13,54 Mio de moteurs ; 4 critères tenus). Réserve : validation Windows obligatoire avant toute version livrée sous Windows | Lot 0, mesures ci-dessous |
 | 2026-10-03 | Réserve Windows **levée sur les quatre critères** : ils passent tous sur `windows-latest` (exécution 37120499122). Reste ouvert : l'agencement d'un paquet Windows **installé**, non mesuré | Lot 0, mesures Windows ci-dessous |
+| 2026-10-03 | **Stratégie de plateformes** : multiplateforme par conception, bêta macOS d'abord, transposition Windows ensuite, Linux hors périmètre | Section ci-dessous |
+| 2026-10-03 | Moteurs Windows à 55,8 Mo **acceptés en l'état** ; leur optimisation attend la phase 2 | Mesures Windows |
+| 2026-10-03 | macOS 13 fixé comme version minimale dans `tauri.conf.json` (`color-mix` du kit absent avant). **Réserve** : les moteurs Homebrew embarqués sont compilés pour macOS 26 | Section ci-dessous |
 | 2026-10-03 | `tools/lienotheque/.gitignore` passe de 6 à 9 lignes : `target/`, `**/src-tauri/moteurs/`, `**/src-tauri/gen/`. Sans elles, la cible Rust et les binaires Tesseract entraient dans un dépôt public | Écart accepté |
 | 2026-10-03 | Les tests Rust du prototype restent hors de `pnpm check` et tournent dans `lienotheque-tauri.yml` (Mac et Windows) : l'intégration continue ordinaire n'a ni Rust ni Tesseract | Écart accepté |
 
@@ -77,6 +80,38 @@ compris dans cette mesure.
   15 secondes, tandis qu'un processus vivant garde le sien indéfiniment. Deux battements peuvent
   être manqués avant que le bail ne tombe.
 
+## Stratégie de plateformes
+
+**Liénothèque est multiplateforme par conception.** macOS et Windows sont tous deux visés : aucun
+code ni outil propre à un seul système n'entre dans le projet sans que son équivalent soit prévu.
+C'est déjà le cas de `preparer-moteurs.py`, qui couvre les deux voies (réécriture `@rpath` et
+signature sur macOS, fermeture de la table d'imports PE sur Windows).
+
+| Phase | Ce qui est livré | Ce qui est seulement vérifié |
+|---|---|---|
+| **1 — tests et bêta** | macOS uniquement. Système de référence : **macOS Tahoe 26.3 (25D125), Apple Silicon** ; la bêta est validée sur cette version | Windows, par `lienotheque-ci.yml` à chaque poussée et par `lienotheque-tauri.yml` à la demande, pour que la portabilité ne régresse jamais |
+| **2 — après la bêta Mac** | Transposition Windows menée en parallèle : installateur NSIS ou MSI, emplacement des DLL dans le paquet installé, optimisation des moteurs Windows (55,8 Mo aujourd'hui) | — |
+
+**Linux reste hors périmètre**, comme dans le CDC.
+
+### Version minimale de macOS
+
+`tauri.conf.json` fixe `bundle.macOS.minimumSystemVersion` à **13.0** : les styles du kit emploient
+`color-mix`, absent des WebKit antérieurs. Vérifié sur le paquet construit — le binaire porte
+`minos 13.0` et l'`Info.plist` `LSMinimumSystemVersion 13.0`.
+
+**Une dépendance impose plus récent.** Les moteurs embarqués viennent de Homebrew, qui compile ses
+bouteilles pour le macOS de la machine : `tesseract` et ses quinze bibliothèques portent tous
+`minos 26.0`. Sur un Mac antérieur à macOS 26, l'application s'ouvrirait mais la reconnaissance de
+texte échouerait au chargement du sidecar. Trois sorties possibles, à trancher avant la bêta :
+
+1. compiler Tesseract depuis les sources avec `MACOSX_DEPLOYMENT_TARGET=13.0` ;
+2. reprendre une distribution de Tesseract visant une cible plus ancienne ;
+3. aligner la version minimale de l'application sur celle des moteurs.
+
+Tant que la bêta se valide sur macOS 26.3, le sujet n'est pas bloquant : il le devient dès qu'un
+Mac plus ancien est visé.
+
 ### Mesures Windows du 3 octobre 2026
 
 Obtenues par `.github/workflows/lienotheque-tauri.yml` sur `windows-latest` (x86-64), face aux
@@ -132,7 +167,7 @@ l'exécutable et ses moteurs, pas un installateur.
 
 ### Ce qui n'est pas mesuré
 
-- **Linux**, hors périmètre du CDC mais utile à savoir.
-- L'installateur Windows (NSIS ou MSI) et l'emplacement des DLL dans le paquet installé.
+- **Linux**, hors périmètre.
+- L'installateur Windows (NSIS ou MSI) et l'emplacement des DLL dans le paquet installé : phase 2.
 - La signature et la notarisation, qui changent la taille et la procédure de distribution.
 - Les autres moteurs du lot C : ONNX (OUT-06), Whisper (OUT-09).

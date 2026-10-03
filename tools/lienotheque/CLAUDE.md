@@ -57,6 +57,12 @@ retrouve documents, audio, vidéos et images, toujours sur la vraie page ou au v
   les installer sur les trois systèmes de `lienotheque-ci.yml` l'alourdirait pour rien, puisque
   `lienotheque-tauri.yml` les couvre là où ils ont un sens.
 
+## Plateformes
+Multiplateforme par conception : rien de propre à un seul système sans son équivalent prévu.
+**Phase 1** (tests et bêta) : macOS seul, référence macOS Tahoe 26.3 (25D125) Apple Silicon ;
+Windows reste vérifié par l'intégration continue. **Phase 2**, après la bêta : transposition
+Windows. Linux hors périmètre. Détail et réserves : `docs/decisions.md`.
+
 ## Organisation
 ```
 packages/contrats   Contrats Zod + export JSON Schema (fait)
