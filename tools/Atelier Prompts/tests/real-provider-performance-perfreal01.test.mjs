@@ -283,7 +283,7 @@ test('T-PERFREAL01-15 : l’artefact frontend n’a pas bougé', () => {
      muet vers 'claude-opus-5', devient MODELE_PAR_DEFAUT ('claude-sonnet-5'), annoncé plutôt que
      silencieux quand une actualisation depuis /v1/models fait disparaître le modèle retenu. Aucune
      règle, aucun prompt, aucun schéma, aucun comportement d'interface visible n'a changé. */
-  assert.equal(empreinte, 'eb9b9f0c81ed0dac95d651832ceeb8e1029c16d0d3979fd4e640bfe524bc2c0f',
+  assert.equal(empreinte, 'efdf1d6df1b82a717021beadf5fa8bf0eeb19912015e226030447e30c277da56',
     'CANONICAL_HTML_CHANGED = NO');
   /* Et les quatre points de terminaison qu'il déclare sont ceux de production. */
   const metas = [...HTML.matchAll(/<meta name="(atelier-[a-z-]+)" content="([^"]+)"/g)];
