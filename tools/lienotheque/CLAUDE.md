@@ -71,6 +71,8 @@ Windows. Linux hors périmètre. Détail et réserves : `docs/decisions.md`.
 ```
 packages/contrats   Contrats Zod + export JSON Schema (fait)
 packages/banc       Banc d'universalité (CLA-12) et garde-fou du vocabulaire (CLA-01)
+packages/noyau      Ports du noyau (dépôt, outils) et logique pure, sans hébergement
+packages/depot-sqlite  Dépôt local SQLite : une base par bibliothèque, migrations versionnées
 packages/jetons     Jetons v3.0.1 + générateur CSS + tests de contraste (fait)
 apps/app            React 19 + Vite + TypeScript strict : composants du kit, accueil statique (fait)
 apps/app/src-tauri  Prototype bureau Tauri 2 : mesures du lot 0 (fait, décision en attente)
