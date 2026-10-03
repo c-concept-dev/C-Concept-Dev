@@ -37,14 +37,14 @@ autre » ; ils ne la remplacent pas.
 ### Taille d'installation, moteurs embarqués compris
 
 Paquet `Liénothèque.app` (macOS arm64, profil `release`, `strip` et LTO activés) : **24,73 Mio**
-(25,9 Mo décimaux).
+(25,9 Mo décimaux). Depuis, `travail-long` est devenu un exemple Cargo et ne part plus dans le
+paquet : **24,38 Mio**.
 
 | Partie | Taille |
 |---|---|
 | Moteurs embarqués (15 bibliothèques + modèles `fra` et `eng`) | 13,54 Mio |
 | Binaire de l'application | 10,08 Mio |
 | Icône `.icns` | 0,64 Mio |
-| `travail-long` (binaire de test — Tauri empaquette tous les binaires du projet, à exclure d'une vraie livraison) | 0,39 Mio |
 | Sidecar `tesseract` | 0,09 Mio |
 
 Au lancement, l'application empaquetée occupe **83 Mo de mémoire résidente** et reste stable.

@@ -37,7 +37,7 @@ Le panneau « Prototype bureau » n'apparaît que dans la fenêtre de bureau, ja
 | `src/pdf.rs` | Ouvre un PDF et atteint une page précise | ANC-01 |
 | `src/ocr.rs` | Lance le moteur embarqué sur une image | OUT-05 |
 | `src/travail.rs` | Travail persisté, verrou à expiration, point de reprise | JOB-01, JOB-02, JOB-03 |
-| `src/bin/travail-long.rs` | Travail volontairement tuable, pour éprouver la reprise | JOB-02 |
+| `examples/travail-long.rs` | Travail volontairement tuable, pour éprouver la reprise. **Exemple** Cargo : construit par `cargo test`, jamais embarqué dans le paquet | JOB-02 |
 | `src/media.rs` | Serveur local de médias par plages d'octets | lecture par plages |
 | `src/mesures.rs` | Pesée d'une installation | taille d'installation |
 | `outils/preparer-moteurs.py` | Embarque Tesseract et ses bibliothèques (macOS et Windows) | — |
@@ -51,5 +51,4 @@ Le panneau « Prototype bureau » n'apparaît que dans la fenêtre de bureau, ja
 - **Paquet Windows.** Les DLL des moteurs sont posées à côté du binaire pour le développement et
   les tests. Leur emplacement dans un paquet Windows **installé** reste à trancher : Tauri range
   le binaire annexe à côté de l'exécutable et les ressources ailleurs.
-- `travail-long` est un binaire de test ; il ne doit pas partir dans un paquet livré.
 - Aucune signature ni notarisation : le paquet mesuré est ad hoc.

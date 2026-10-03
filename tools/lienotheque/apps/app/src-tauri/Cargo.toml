@@ -5,8 +5,6 @@ description = "Prototype bureau Liénothèque (lot 0) : PDF, sidecar, reprise, l
 edition = "2021"
 rust-version = "1.82"
 publish = false
-# Deux binaires : l'application et le travail long tuable des tests de reprise.
-default-run = "lienotheque-bureau"
 
 [lib]
 name = "lienotheque_bureau"

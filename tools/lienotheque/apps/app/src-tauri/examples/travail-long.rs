@@ -1,6 +1,9 @@
 //! Travail long, volontairement tuable : sert à éprouver la reprise après arrêt forcé (JOB-02).
 //!
-//!     travail-long <fichier-d-etat> [total] [ms-par-pas] [secondes-de-verrou]
+//! C'est un **exemple** Cargo, pas un binaire du projet : `cargo test` le construit, mais Tauri
+//! ne l'embarque pas dans le paquet livré (il ne reprend que les cibles `[[bin]]`).
+//!
+//!     cargo run --release --example travail-long -- <fichier-d-etat> [total] [ms-par-pas] [verrou-s]
 //!
 //! Il persiste son état avant de commencer (JOB-01), prend un verrou à expiration (JOB-02) et
 //! enregistre un point de reprise à chaque pas (JOB-03). Tué par `kill -9`, il reprend au pas

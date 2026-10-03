@@ -42,6 +42,13 @@ fn langue_disponible(tessdata: &Path) -> &'static str {
     }
 }
 
+/// Chemin de l'exemple `travail-long`, à côté du binaire de test : `target/<profil>/examples/`.
+fn travail_long() -> PathBuf {
+    let binaire = std::env::current_exe().expect("binaire de test"); // target/<profil>/deps/<test>
+    let profil = binaire.parent().and_then(Path::parent).expect("dossier du profil");
+    profil.join("examples").join(format!("travail-long{}", std::env::consts::EXE_SUFFIX))
+}
+
 fn exiger(chemin: &Path, remede: &str) {
     assert!(chemin.exists(), "{} manque — {remede}", chemin.display());
 }
@@ -195,7 +202,10 @@ fn reprend_un_travail_apres_un_arret_force() {
     let verrou_s = 1_u64;
 
     // Premier essai : on tue le processus en plein travail, sans le laisser finir.
-    let mut enfant = Command::new(env!("CARGO_BIN_EXE_travail-long"))
+    let exemple = travail_long();
+    exiger(&exemple, "lancez `cargo test --release` (il construit les exemples)");
+
+    let mut enfant = Command::new(&exemple)
         .args([etat.to_str().unwrap(), &total.to_string(), "10", &verrou_s.to_string()])
         .stdout(Stdio::null())
         .spawn()
@@ -225,7 +235,7 @@ fn reprend_un_travail_apres_un_arret_force() {
     thread::sleep(Duration::from_millis(verrou_s * 1000 + 300));
     assert!(interrompu.reprenable(travail::maintenant()), "verrou expiré : le travail est reprenable");
 
-    let sortie = Command::new(env!("CARGO_BIN_EXE_travail-long"))
+    let sortie = Command::new(&exemple)
         .args([etat.to_str().unwrap(), &total.to_string(), "2", &verrou_s.to_string()])
         .output()
         .expect("reprise lancée");
