@@ -9,7 +9,9 @@
 | 2026-10-03 | Nom Liénothèque ; charte graphite et cuivre v3 validée ; logo géométrique (deux documents, L en réserve) | Charte v3 |
 | 2026-10-03 | Jetons v3.0.1 : piste de progression sombre #3C4046, texte désactivé clair #5A5E63, liseré et pourcentage obligatoires sur la progression claire | Réserves CDC |
 | 2026-10-03 | Kit UI v1.1 adopté comme référence ; logo vectoriel validé (IoU 0,977 avec la planche) ; jetons du kit fusionnés dans tokens.json | docs/ui-kit |
-| à décider | Socle de l'application locale (Tauri 2 ou autre) : prototype mesuré le 3 octobre 2026, **décision en attente** | Lot 0, voir ci-dessous |
+| 2026-10-03 | **Tauri 2 retenu le 3 octobre 2026 sur mesures Mac** (paquet 24,75 Mio dont 13,54 Mio de moteurs ; 4 critères tenus). Réserve : validation Windows obligatoire avant toute version livrée sous Windows | Lot 0, mesures ci-dessous |
+| 2026-10-03 | `tools/lienotheque/.gitignore` passe de 6 à 9 lignes : `target/`, `**/src-tauri/moteurs/`, `**/src-tauri/gen/`. Sans elles, la cible Rust et les binaires Tesseract entraient dans un dépôt public | Écart accepté |
+| 2026-10-03 | Les tests Rust du prototype restent hors de `pnpm check` et tournent dans `lienotheque-tauri.yml` (Mac et Windows) : l'intégration continue ordinaire n'a ni Rust ni Tesseract | Écart accepté |
 
 
 ## Prototype du socle local — mesures du 3 octobre 2026
@@ -71,11 +73,21 @@ compris dans cette mesure.
   l'expiration du verrou. Les 30 secondes par défaut sont un choix à régler : c'est le délai pendant
   lequel un travail interrompu paraît figé à l'utilisateur.
 
-### Ce qui n'est pas mesuré
+### Lever la réserve Windows
 
-- **Windows.** Le CDC demande un prototype Mac **et** Windows. Seul le Mac était disponible.
-  Rien n'a été vérifié sur Windows : ni la taille, ni l'embarquement des moteurs (qui y passe par
-  des DLL et non par `install_name_tool`), ni la reprise.
+Aucune machine Windows n'était disponible le 3 octobre 2026. La vérification passe donc par
+`.github/workflows/lienotheque-tauri.yml`, déclenchable à la main, qui refait sur `windows-latest`
+exactement ce qui a été fait ici : fixtures fabriquées à la volée, moteurs embarqués, quatre
+critères éprouvés, paquet construit et pesé. Son résumé d'exécution porte les chiffres.
+
+L'embarquement des moteurs y suit l'autre voie : sous Windows le chargeur cherche les DLL dans le
+dossier de l'exécutable, donc `preparer-moteurs.py` les y pose sans rien réécrire — ni `@rpath`,
+ni signature. Reste ouvert : **où poser ces DLL dans un paquet Windows installé**, puisque Tauri
+range le binaire annexe à côté de l'exécutable et les ressources ailleurs. Le workflow mesure
+l'exécutable et ses moteurs, pas un installateur.
+
+### Ce qui n'est pas mesuré
 - **Linux**, hors périmètre du CDC mais utile à savoir.
+- L'installateur Windows (NSIS ou MSI) et l'emplacement des DLL dans le paquet installé.
 - La signature et la notarisation, qui changent la taille et la procédure de distribution.
 - Les autres moteurs du lot C : ONNX (OUT-06), Whisper (OUT-09).

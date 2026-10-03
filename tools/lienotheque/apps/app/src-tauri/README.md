@@ -15,9 +15,11 @@ python3 apps/app/src-tauri/outils/preparer-moteurs.py        # embarque Tesserac
 cargo test --release --manifest-path apps/app/src-tauri/Cargo.toml -- --nocapture
 ```
 
-Les quatre tests d'intégration de `tests/prototype.rs` impriment leurs mesures. Ils ne font pas
-partie de `pnpm check` : l'intégration continue tourne sur trois systèmes sans Rust ni Tesseract,
-et son rôle est de vérifier le code partagé, pas de refaire le prototype.
+Les tests d'intégration de `tests/prototype.rs` impriment leurs mesures. Ils ne font pas partie de
+`pnpm check` : `lienotheque-ci.yml` tourne sur trois systèmes sans Rust ni Tesseract, et son rôle
+est de vérifier le code partagé. Ces tests tournent dans
+[`lienotheque-tauri.yml`](../../../../../.github/workflows/lienotheque-tauri.yml), sur macOS et
+Windows, où ils sont suivis de la construction du paquet et de sa pesée.
 
 Pour l'application elle-même :
 
@@ -38,10 +40,16 @@ Le panneau « Prototype bureau » n'apparaît que dans la fenêtre de bureau, ja
 | `src/bin/travail-long.rs` | Travail volontairement tuable, pour éprouver la reprise | JOB-02 |
 | `src/media.rs` | Serveur local de médias par plages d'octets | lecture par plages |
 | `src/mesures.rs` | Pesée d'une installation | taille d'installation |
+| `outils/preparer-moteurs.py` | Embarque Tesseract et ses bibliothèques (macOS et Windows) | — |
+| `outils/resumer-mesures.py` | Écrit les mesures dans le résumé d'exécution de l'intégration continue | — |
 
 ## Limites connues
 
-- **macOS seulement.** `outils/preparer-moteurs.py` emploie `otool`, `install_name_tool` et
-  `codesign` : l'équivalent Windows (DLL) et Linux (`patchelf`) reste à écrire.
+- **Linux.** `outils/preparer-moteurs.py` couvre macOS (`otool`, `install_name_tool`, `codesign`)
+  et Windows (DLL posées à côté du binaire, rien à réécrire). L'équivalent Linux (`patchelf`)
+  reste à écrire.
+- **Paquet Windows.** Les DLL des moteurs sont posées à côté du binaire pour le développement et
+  les tests. Leur emplacement dans un paquet Windows **installé** reste à trancher : Tauri range
+  le binaire annexe à côté de l'exécutable et les ressources ailleurs.
 - `travail-long` est un binaire de test ; il ne doit pas partir dans un paquet livré.
 - Aucune signature ni notarisation : le paquet mesuré est ad hoc.

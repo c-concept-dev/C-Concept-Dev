@@ -9,7 +9,7 @@ Produit :
   500-pages.pdf        PDF natif de 500 pages, une ligne de texte par page
   500-pages-scan.pdf   PDF de 500 pages numérisées (JPEG gris 100 ppp) — cas réel du CDC (F2)
   page-ocr.png         Image 1240 x 1754 (A4 à 150 ppp) avec du texte français à reconnaître
-  piste.mp3            MP3 de trois minutes, 128 kb/s (nécessite `lame`)
+  piste.mp3            MP3 de trois minutes, 128 kb/s (`lame` s'il est là, sinon silence synthétique)
 """
 
 from __future__ import annotations
@@ -160,9 +160,25 @@ def image_ocr(chemin: pathlib.Path) -> None:
     image.save(chemin)
 
 
+# MPEG-1 couche III, 44,1 kHz, 128 kb/s, mono : en-tête de trame et longueur fixes.
+EN_TETE_MP3 = b"\xff\xfb\x90\xc4"
+TRAME_MP3 = 144 * 128_000 // 44_100  # 417 octets
+TRAMES_PAR_SECONDE = 44_100 / 1152
+
+
+def mp3_silencieux(chemin: pathlib.Path, secondes: int) -> None:
+    """Repli sans encodeur : des trames MPEG valides à charge nulle.
+
+    Suffisant pour éprouver la lecture par plages, qui ne décode rien ; l'intégration continue
+    n'a pas à installer un encodeur pour cela."""
+    trame = EN_TETE_MP3 + bytes(TRAME_MP3 - len(EN_TETE_MP3))
+    chemin.write_bytes(trame * round(secondes * TRAMES_PAR_SECONDE))
+
+
 def mp3_trois_minutes(chemin: pathlib.Path) -> None:
     if shutil.which("lame") is None:
-        raise SystemExit("lame est absent : `brew install lame`")
+        mp3_silencieux(chemin, 180)
+        return
     brut = chemin.with_suffix(".wav")
     taux, secondes = 44_100, 180
     with wave.open(str(brut), "wb") as piste:

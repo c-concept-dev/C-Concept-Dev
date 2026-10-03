@@ -1,0 +1,126 @@
+name: Liénothèque — prototype bureau
+
+# Mesure le prototype Tauri : il construit le paquet, publie sa taille et celle des moteurs
+# embarqués, puis éprouve les quatre critères du CDC. Il ne déploie rien.
+# Les fixtures (PDF de 500 pages, image, MP3) sont fabriquées à la volée : aucun fichier sous
+# droits, rien de versionné.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'tools/lienotheque/apps/app/src-tauri/**'
+      - 'tools/lienotheque/fixtures/generer-locales.py'
+      - '.github/workflows/lienotheque-tauri.yml'
+  pull_request:
+    paths:
+      - 'tools/lienotheque/apps/app/src-tauri/**'
+      - 'tools/lienotheque/fixtures/generer-locales.py'
+      - '.github/workflows/lienotheque-tauri.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lienotheque-tauri-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: tools/lienotheque
+
+jobs:
+  mesurer:
+    name: Mesures (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    steps:
+      - name: Récupérer le dossier Liénothèque
+        uses: actions/checkout@v5
+        with:
+          sparse-checkout: tools/lienotheque
+
+      - name: Installer pnpm
+        uses: pnpm/action-setup@v5
+        with:
+          version: 10
+
+      - name: Installer Node 22
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: tools/lienotheque/pnpm-lock.yaml
+
+      - name: Installer Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Mettre la cible Rust en cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: tools/lienotheque/apps/app/src-tauri
+
+      - name: Installer Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Installer Pillow
+        shell: bash
+        run: python -m pip install --disable-pip-version-check --quiet Pillow
+
+      - name: Installer Tesseract (macOS)
+        if: runner.os == 'macOS'
+        run: brew install tesseract tesseract-lang
+
+      - name: Installer Tesseract (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install tesseract --no-progress -y
+          # L'installateur ne livre que l'anglais : on ajoute le modèle français officiel.
+          $tessdata = "C:\Program Files\Tesseract-OCR\tessdata"
+          $fra = Join-Path $tessdata "fra.traineddata"
+          if (-not (Test-Path $fra)) {
+            Invoke-WebRequest -Uri "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/main/fra.traineddata" -OutFile $fra
+          }
+          Add-Content $env:GITHUB_PATH "C:\Program Files\Tesseract-OCR"
+
+      - name: Installer les dépendances
+        run: pnpm install --frozen-lockfile
+
+      - name: Fabriquer les fixtures locales
+        shell: bash
+        run: python fixtures/generer-locales.py
+
+      - name: Embarquer les moteurs
+        shell: bash
+        run: python apps/app/src-tauri/outils/preparer-moteurs.py
+
+      - name: Éprouver les quatre critères
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo test --release --manifest-path apps/app/src-tauri/Cargo.toml -- --nocapture --test-threads=1 \
+            | tee "$RUNNER_TEMP/mesures.txt"
+
+      # Construits même si un critère a échoué : la taille fait partie des mesures attendues.
+      - name: Construire le paquet (macOS)
+        if: ${{ !cancelled() && runner.os == 'macOS' }}
+        run: pnpm --filter @lienotheque/app tauri build
+
+      - name: Construire l'exécutable (Windows)
+        if: ${{ !cancelled() && runner.os == 'Windows' }}
+        # Pas d'installateur : on mesure l'exécutable et ses moteurs, sans dépendre de NSIS.
+        run: pnpm --filter @lienotheque/app tauri build --no-bundle
+
+      - name: Publier les mesures
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: |
+          python apps/app/src-tauri/outils/resumer-mesures.py \
+            --journal "$RUNNER_TEMP/mesures.txt" \
+            --systeme "${{ matrix.os }}" >> "$GITHUB_STEP_SUMMARY"

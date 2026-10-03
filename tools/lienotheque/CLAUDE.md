@@ -46,8 +46,16 @@ retrouve documents, audio, vidéos et images, toujours sur la vraie page ou au v
   et `dist/` ne doivent jamais être commités.
 - Le workflow `generate-index.yml` indexe tous les fichiers `*.html` du dépôt ; les `index.html` de
   Vite apparaîtront dans cet index tant qu'il n'exclut pas `tools/lienotheque/`.
-- L'intégration continue de Liénothèque est dans `.github/workflows/lienotheque-ci.yml` à la racine du
-  dépôt, filtrée sur `tools/lienotheque/**`.
+- Deux intégrations continues, toutes deux à la racine du dépôt et filtrées sur nos chemins :
+
+| Workflow | Déclenchement | Ce qu'il vérifie |
+|---|---|---|
+| `.github/workflows/lienotheque-ci.yml` | push sur `main` et pull request touchant `tools/lienotheque/**` | `pnpm check` sur Linux, macOS et Windows : typage strict et tests JavaScript et TypeScript (contrats, jetons, application, worker). Il **n'a ni Rust ni Tesseract** |
+| `.github/workflows/lienotheque-tauri.yml` | à la main (`workflow_dispatch`), plus push et pull request touchant `apps/app/src-tauri/**` ou `fixtures/generer-locales.py` | macOS et Windows : fabrique les fixtures, embarque les moteurs, lance les **tests Rust du prototype** (les quatre critères du CDC), construit le paquet et publie sa taille et celle des moteurs dans le résumé d'exécution |
+
+  Aucun des deux ne déploie quoi que ce soit. Les tests Rust ne sont donc **pas** dans `pnpm check` :
+  les installer sur les trois systèmes de `lienotheque-ci.yml` l'alourdirait pour rien, puisque
+  `lienotheque-tauri.yml` les couvre là où ils ont un sens.
 
 ## Organisation
 ```

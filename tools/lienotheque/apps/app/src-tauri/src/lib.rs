@@ -24,10 +24,13 @@ pub struct Moteurs {
     pub tessdata: PathBuf,
 }
 
+/// Nom du moteur selon le système : Windows veut l'extension, pas les autres.
+pub const NOM_MOTEUR: &str = if cfg!(windows) { "tesseract.exe" } else { "tesseract" };
+
 impl Moteurs {
     pub fn depuis(racine: &Path) -> Self {
         Self {
-            binaire: racine.join("bin").join("tesseract"),
+            binaire: racine.join("bin").join(NOM_MOTEUR),
             tessdata: racine.join("tessdata"),
         }
     }
@@ -37,7 +40,7 @@ impl Moteurs {
     pub fn installes(ressources: &Path) -> Self {
         let a_cote = std::env::current_exe()
             .ok()
-            .and_then(|exe| exe.parent().map(|d| d.join("tesseract")))
+            .and_then(|exe| exe.parent().map(|d| d.join(NOM_MOTEUR)))
             .filter(|c| c.exists());
         let developpement = Self::depuis(ressources);
         Self {

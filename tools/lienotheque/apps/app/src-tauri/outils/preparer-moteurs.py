@@ -3,9 +3,17 @@
 
     python3 outils/preparer-moteurs.py [langues…]      par défaut : fra eng
 
-macOS : les binaires Homebrew citent leurs bibliothèques par chemin absolu ou par @rpath.
-On copie la fermeture des dépendances, on réécrit chaque référence en @executable_path/..
-ou @loader_path/.., puis on resigne — toute modification invalide la signature sur arm64.
+Les deux systèmes ne se ressemblent pas :
+
+* **macOS** — les binaires Homebrew citent leurs bibliothèques par chemin absolu ou par @rpath.
+  On copie la fermeture des dépendances, on réécrit chaque référence en @rpath/.., on ajoute deux
+  LC_RPATH (développement et agencement du paquet), puis on resigne : toute modification invalide
+  la signature sur arm64.
+* **Windows** — le chargeur cherche d'abord dans le dossier de l'exécutable. Aucune réécriture
+  n'est nécessaire, mais les DLL doivent être posées à côté du binaire. On reprend celles que
+  l'installateur livre avec Tesseract : c'est son environnement d'exécution.
+
+Résultat identique des deux côtés : moteurs/bin, moteurs/lib (macOS) et moteurs/tessdata.
 """
 
 from __future__ import annotations
@@ -80,11 +88,13 @@ def signer(fichier: pathlib.Path) -> None:
     subprocess.run(["codesign", "--force", "--sign", "-", str(fichier)], check=False, capture_output=True)
 
 
-def modeles(langues: list[str], source: pathlib.Path, brew: pathlib.Path | None) -> None:
+def modeles(langues: list[str], source: pathlib.Path) -> None:
+    brew = prefixe_brew()
     candidats = [
         pathlib.Path(os.environ["TESSDATA_PREFIX"]) if "TESSDATA_PREFIX" in os.environ else None,
         (brew / "share" / "tessdata") if brew else None,
         source.parent.parent / "share" / "tessdata",
+        source.parent / "tessdata",  # agencement de l'installateur Windows
     ]
     for langue in langues:
         for dossier in candidats:
@@ -93,25 +103,15 @@ def modeles(langues: list[str], source: pathlib.Path, brew: pathlib.Path | None)
                 shutil.copy((dossier / f"{langue}.traineddata").resolve(), MOTEURS / "tessdata")
                 break
         else:
-            raise SystemExit(f"modèle introuvable pour « {langue} » : brew install tesseract-lang")
+            raise SystemExit(
+                f"modèle introuvable pour « {langue} » : `brew install tesseract-lang`, "
+                f"ou déposez {langue}.traineddata dans le dossier tessdata de Tesseract"
+            )
 
 
-def main(argv: list[str]) -> int:
-    langues = argv[1:] or ["fra", "eng"]
-    binaire = shutil.which("tesseract")
-    if binaire is None:
-        raise SystemExit("tesseract absent : brew install tesseract")
-    source = pathlib.Path(binaire).resolve()
+def embarquer_macos(source: pathlib.Path, cible: pathlib.Path) -> int:
     brew = prefixe_brew()
     recherche = [p for p in [brew / "lib" if brew else None, source.parent.parent / "lib"] if p and p.exists()]
-
-    shutil.rmtree(MOTEURS, ignore_errors=True)
-    for sous in ("bin", "lib", "tessdata"):
-        (MOTEURS / sous).mkdir(parents=True)
-
-    cible = MOTEURS / "bin" / "tesseract"
-    shutil.copy(source, cible)
-    cible.chmod(0o755)
 
     bibliotheques = fermeture(source, recherche)
     for nom, reel in bibliotheques.items():
@@ -133,15 +133,46 @@ def main(argv: list[str]) -> int:
         reecrire(copie, "@loader_path", connues)
     for fichier in [cible, *(MOTEURS / "lib" / n for n in connues)]:
         signer(fichier)
+    return len(connues)
+
+
+def embarquer_windows(source: pathlib.Path, cible: pathlib.Path) -> int:
+    """Les DLL livrées avec Tesseract vont à côté du binaire : c'est là que Windows les cherche."""
+    dlls = sorted(source.parent.glob("*.dll"))
+    for dll in dlls:
+        shutil.copy(dll, cible.parent / dll.name)
+    return len(dlls)
+
+
+def main(argv: list[str]) -> int:
+    langues = argv[1:] or ["fra", "eng"]
+    windows = sys.platform == "win32"
+    binaire = shutil.which("tesseract")
+    if binaire is None:
+        raise SystemExit(
+            "tesseract absent : `choco install tesseract` sous Windows, `brew install tesseract` sinon"
+        )
+    source = pathlib.Path(binaire).resolve()
+
+    shutil.rmtree(MOTEURS, ignore_errors=True)
+    for sous in ("bin", "lib", "tessdata"):
+        (MOTEURS / sous).mkdir(parents=True)
+
+    cible = MOTEURS / "bin" / ("tesseract.exe" if windows else "tesseract")
+    shutil.copy(source, cible)
+    cible.chmod(0o755)
+
+    nombre = embarquer_windows(source, cible) if windows else embarquer_macos(source, cible)
 
     # Tauri cherche un binaire annexe suffixé par la cible de compilation.
     triplet = executer("rustc", "-vV").split("host: ")[1].split("\n")[0].strip()
-    sidecar = MOTEURS / "bin" / f"tesseract-{triplet}"
+    sidecar = cible.with_name(f"tesseract-{triplet}" + (".exe" if windows else ""))
     shutil.copy(cible, sidecar)
     sidecar.chmod(0o755)
-    signer(sidecar)
+    if not windows:
+        signer(sidecar)
 
-    modeles(langues, source, brew)
+    modeles(langues, source)
 
     controle = subprocess.run(
         [str(cible), "--version"],
@@ -153,7 +184,7 @@ def main(argv: list[str]) -> int:
         raise SystemExit(f"le moteur embarqué ne démarre pas :\n{controle.stderr.strip()}")
 
     print(controle.stdout.splitlines()[0])
-    print(f"{len(connues)} bibliothèques embarquées, langues : {', '.join(langues)}")
+    print(f"{nombre} bibliothèques embarquées, langues : {', '.join(langues)}")
     print(f"binaire annexe : {sidecar.name}")
     for sous in ("bin", "lib", "tessdata"):
         octets = sum(f.stat().st_size for f in (MOTEURS / sous).rglob("*") if f.is_file())

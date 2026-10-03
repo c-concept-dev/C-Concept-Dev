@@ -9,7 +9,7 @@
 //! Les fixtures sont locales et régénérables : `python3 fixtures/generer-locales.py`.
 //! Les moteurs embarqués : `python3 src-tauri/outils/preparer-moteurs.py`.
 
-use lienotheque_bureau::{media, mesures, ocr, pdf, travail};
+use lienotheque_bureau::{media, mesures, ocr, pdf, travail, NOM_MOTEUR};
 use std::{
     io::{Read, Write},
     net::TcpStream,
@@ -30,6 +30,16 @@ fn fixture(nom: &str) -> PathBuf {
 
 fn moteurs() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("moteurs")
+}
+
+/// Le français si son modèle est embarqué, sinon l'anglais : l'installateur Windows de
+/// Tesseract ne livre pas toujours `fra.traineddata`.
+fn langue_disponible(tessdata: &Path) -> &'static str {
+    if tessdata.join("fra.traineddata").exists() {
+        "fra"
+    } else {
+        "eng"
+    }
 }
 
 fn exiger(chemin: &Path, remede: &str) {
@@ -81,23 +91,28 @@ fn ouvre_un_livre_numerise_de_500_pages() {
 
 #[test]
 fn lance_le_sidecar_tesseract_embarque() {
-    let binaire = moteurs().join("bin/tesseract");
+    let binaire = moteurs().join("bin").join(NOM_MOTEUR);
     let tessdata = moteurs().join("tessdata");
     exiger(&binaire, "lancez `python3 src-tauri/outils/preparer-moteurs.py`");
 
     let image = fixture("page-ocr.png");
     exiger(&image, "lancez `python3 fixtures/generer-locales.py`");
 
-    let mesure = ocr::reconnaitre(&binaire, &tessdata, &image, "fra").expect("moteur embarqué utilisable");
+    let langue = langue_disponible(&tessdata);
+    let mesure = ocr::reconnaitre(&binaire, &tessdata, &image, langue).expect("moteur embarqué utilisable");
 
     assert!(mesure.version.starts_with("tesseract"), "version : {}", mesure.version);
-    assert!(mesure.texte.contains("Liénothèque"), "texte reconnu : {}", mesure.texte);
+    // « piste 41 » se lit dans toutes les langues ; les accents demandent le modèle français.
     assert!(mesure.texte.contains("piste 41"), "texte reconnu : {}", mesure.texte);
+    if langue == "fra" {
+        assert!(mesure.texte.contains("Liénothèque"), "texte reconnu : {}", mesure.texte);
+    }
 
     let poids = mesures::peser(&moteurs());
     println!(
-        "Sidecar : {} — {} ms — moteurs embarqués {:.2} Mo en {} fichiers",
+        "Sidecar : {} ({}) — {} ms — moteurs embarqués {:.2} Mo en {} fichiers",
         mesure.version,
+        langue,
         mesure.ms,
         mesures::en_mo(poids.octets),
         poids.fichiers
