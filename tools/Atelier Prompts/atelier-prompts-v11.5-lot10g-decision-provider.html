@@ -998,7 +998,6 @@ body.v11-normal #v11-shell{display:block}
   --ds-focus-ring:0 0 0 4px rgba(184,115,70,.14);
   --ds-transition:160ms ease;
   --ds-control-min:44px;
-
   /* Alias de compatibilité UI */
   --ui-bg:var(--ds-bg);
   --ui-bg-soft:var(--ds-bg-soft);
@@ -1997,8 +1996,7 @@ pre,.sortie,#ui-rapid-output{overflow-wrap:anywhere;word-break:break-word}
     </div>
 
     <div id="rapide-resultat" class="rapide-result-card cache">
-      <div class="rapide-result-head"><div class="rapide-result-title">Prompt préparé</div><div class="rapide-result-state">Prêt à utiliser</div></div>
-      <div class="sortie" id="rapide-sortie"></div>
+      <div class="rapide-result-head"><div class="rapide-result-title">Prompt préparé</div><div class="rapide-result-state">Prêt à utiliser</div></div>      <div class="sortie" id="rapide-sortie"></div>
       <div class="aide" id="rapide-tokens"></div>
     </div>
   </div>
@@ -2667,10 +2665,10 @@ pre,.sortie,#ui-rapid-output{overflow-wrap:anywhere;word-break:break-word}
     <div class="champ">
       <label class="etiquette" for="api-cle">Clé API</label>
       <div style="display:flex;gap:10px">
-        <input type="password" id="api-cle" class="code" placeholder="sk-ant-…" style="flex:1">
+        <input type="password" id="api-cle" class="code" placeholder="Clé API du fournisseur sélectionné" style="flex:1">
         <button type="button" class="bouton" id="btn-api-voir">Afficher</button>
       </div>
-      <div class="aide"><a href="https://console.anthropic.com/" target="_blank" rel="noopener">console.anthropic.com</a></div>
+      <div class="aide"><a id="lien-console-fournisseur" href="https://console.anthropic.com/" target="_blank" rel="noopener">console.anthropic.com</a></div>
     </div>
     <div class="duo">
       <div class="champ">
@@ -2997,8 +2995,7 @@ pre,.sortie,#ui-rapid-output{overflow-wrap:anywhere;word-break:break-word}
       <button type="button" class="bouton cache" id="qualite-amelioration-generer-api">Générer par API</button>
     </div>
     <div id="qualite-amelioration-bloc" class="cache">
-      <label class="etiquette" for="qualite-amelioration-message">Message à copier dans Claude, ChatGPT ou un autre LLM</label>
-      <textarea id="qualite-amelioration-message" rows="8" readonly></textarea>
+      <label class="etiquette" for="qualite-amelioration-message">Message à copier dans Claude, ChatGPT ou un autre LLM</label>      <textarea id="qualite-amelioration-message" rows="8" readonly></textarea>
       <div class="barre-actions"><button type="button" class="bouton" id="qualite-amelioration-copier">Copier le message</button></div>
       <label class="etiquette" for="qualite-amelioration-reponse">Prompt amélioré obtenu — collez-le ici</label>
       <textarea id="qualite-amelioration-reponse" rows="6" placeholder="Collez ici le nouveau prompt proposé par le LLM."></textarea>
@@ -3459,6 +3456,23 @@ const MODELES = {
   'claude-haiku-4-5-20251001':{nom:'Claude Haiku 4.5', entree:1,  sortie:5,  contexte:200000,  sortieMax:64000, prefill:false, schema:true,
                                retention:'selon votre contrat', zdr:true, note:'Le plus rapide. Fenêtre de contexte de 200 000 tokens.'}
 };
+
+/* OPENAI-PROVIDER-01 — catalogue de démarrage uniquement. La liste peut être actualisée depuis
+   GET /v1/models avec la clé de la personne. Les tarifs ci-dessous suivent la grille OpenAI
+   consultée le 3 octobre 2026 ; l'API /v1/models ne renvoie pas les prix, donc un modèle découvert
+   dynamiquement conserve un tarif inconnu plutôt qu'un zéro trompeur. */
+const MODELES_OPENAI = {
+  'gpt-6-astra':   {nom:'GPT-6 Astra',   entree:10, sortie:50, contexte:1000000, sortieMax:128000, schema:true, note:'Modèle OpenAI haut de gamme pour les tâches complexes.'},
+  'gpt-6.1-sol':   {nom:'GPT-6.1 Sol',   entree:2,  sortie:10, contexte:1000000, sortieMax:128000, schema:true, note:'Équilibre principal qualité/coût pour le pipeline automatique.'},
+  'gpt-6-luna':    {nom:'GPT-6 Luna',    entree:0.10, sortie:0.50, contexte:1000000, sortieMax:128000, schema:true, note:'Modèle rapide et économique.'},
+  'gpt-5.6-sol':   {nom:'GPT-5.6 Sol',   entree:4,  sortie:20, contexte:1000000, sortieMax:128000, schema:true, note:'Modèle de raisonnement OpenAI encore disponible ; tarif standard affiché.'}
+};
+const MODELE_OPENAI_PAR_DEFAUT = 'gpt-6.1-sol';
+function tarifOpenAIDuJour(id){
+  const m=MODELES_OPENAI[id];
+  if(!m||m.entree==null||m.sortie==null)return {entree:null,sortie:null,connu:false};
+  return {entree:m.entree,sortie:m.sortie,connu:true};
+}
 
 /* Modèle proposé par défaut quand rien n'est encore sélectionné (identifiant API, jamais le libellé
    d'affichage). Seul point de vérité pour ce choix : peuplerModelesApi() et son repli après une
@@ -3980,8 +3994,7 @@ const SECTIONS = {
                      la moitié. Sur les profils courts, la même concaténation produisait « aussi
                      court que le sujet le permet, sans remplissage mots », parce que le mot d'unité
                      était collé à une phrase qui n'est pas un nombre : la coquille était le symptôme
-                     visible du même défaut de provenance, et elle disparaît avec lui.
-                     Ce qui reste est une DISCIPLINE, qui n'affirme aucun chiffre. La quantité que la
+                     visible du même défaut de provenance, et elle disparaît avec lui.                     Ce qui reste est une DISCIPLINE, qui n'affirme aucun chiffre. La quantité que la
                      personne a réellement donnée, elle, est énoncée juste au-dessus par
                      `ligneQuantite()`, et vérifiée nommément plus bas. */
                   '- Volume : celui que le sujet exige, sans remplissage.\n' +
@@ -4904,10 +4917,12 @@ function peuplerModeles(){
    reçoit de quoi le signaler (rien n'est décidé « silencieusement » ici, seulement rapporté). */
 function peuplerModelesApi(retenu, cibleId){
   const sel = $('#' + (cibleId || 'api-modele'));
-  const demande = retenu || sel.value || MODELE_PAR_DEFAUT;
+  const fournisseurActif = FOURNISSEURS_API[obtenirFournisseurActif()];
+  const modeleDefaut = (fournisseurActif && fournisseurActif.modeleParDefaut) || MODELE_PAR_DEFAUT;
+  const demande = retenu || sel.value || modeleDefaut;
   const modelesActifs = obtenirModelesFournisseur();
   const cle = modelesActifs[demande] ? demande
-            : modelesActifs[MODELE_PAR_DEFAUT] ? MODELE_PAR_DEFAUT
+            : modelesActifs[modeleDefaut] ? modeleDefaut
             : Object.keys(modelesActifs)[0];
   sel.innerHTML = Object.keys(modelesActifs).map(k => {
     const m = modelesActifs[k], t = obtenirTarifFournisseur(undefined, k);
@@ -4978,8 +4993,7 @@ function majFicheModele(){
     echapper(m.note || '') +
     (m.zdr === false
       ? '<div class="note alerte" style="margin-top:10px">' +
-        '<strong>Conservation obligatoire de 30 jours.</strong> Anthropic classe ce modèle parmi ' +
-        'les Covered Models : les requêtes et les réponses sont conservées au moins trente jours ' +
+        '<strong>Conservation obligatoire de 30 jours.</strong> Anthropic classe ce modèle parmi ' +        'les Covered Models : les requêtes et les réponses sont conservées au moins trente jours ' +
         'à des fins de surveillance, et l\u2019accord Zero Data Retention ne s\u2019y applique pas, ' +
         'quel que soit votre contrat. Un contenu signalé peut faire l\u2019objet d\u2019une revue ' +
         'humaine. <strong>Ne transmettez aucune donnée clinique identifiante par ce modèle</strong> ' +
@@ -5978,8 +5992,7 @@ function violationsContreSchema(schema,valeur,chemin,racine){
   return v;
 }
 function schemaResoudreRef(ref,racine){
-  if(!ref.startsWith('#/'))return null;
-  let noeud=racine;
+  if(!ref.startsWith('#/'))return null;  let noeud=racine;
   for(const segment of ref.slice(2).split('/')){
     const cle=segment.replace(/~1/g,'/').replace(/~0/g,'~');
     if(!noeud||typeof noeud!=='object'||!(cle in noeud))return null;
@@ -6153,11 +6166,120 @@ async function testerConnexionAnthropic({cle, modele}){
   return transportAnthropic({cle, modele, maxTokens:16, systeme:'', contenuUtilisateur:'Répondez uniquement : OK'});
 }
 
+/* OPENAI-PROVIDER-01 — adaptateur navigateur OpenAI. Le reste d'Atelier ne connaît ni l'URL,
+   ni l'en-tête Authorization, ni la forme de Responses : il reste derrière appelFournisseur().
+   Pour l'analyse structurée, on force une fonction non stricte avec le schéma canonique comme
+   paramètres puis on applique EXACTEMENT la même validation canonique locale que pour Anthropic.
+   `strict:false` est intentionnel : le canonique complet contient des constructions qui ne doivent
+   pas être réécrites pour satisfaire un sous-ensemble fournisseur. Une correction complète au plus
+   est demandée si la première sortie viole le canonique. */
+function entetesOpenAI(cle){
+  return {'Content-Type':'application/json','Authorization':'Bearer '+cle};
+}
+function schemaPourOpenAI(schema){
+  if(!schema||typeof schema!=='object'||Array.isArray(schema))return schema;
+  const out=JSON.parse(JSON.stringify(schema));
+  for(const key of ['$schema','$id','$comment'])delete out[key];
+  return out;
+}
+function texteReponseOpenAI(data){
+  const morceaux=[];
+  for(const item of (data&&data.output)||[]){
+    if(item&&item.type==='message')for(const c of item.content||[]){
+      if(c&&c.type==='output_text'&&typeof c.text==='string')morceaux.push(c.text);
+    }
+  }
+  return morceaux.join('');
+}
+function refusReponseOpenAI(data){
+  for(const item of (data&&data.output)||[])if(item&&item.type==='message')for(const c of item.content||[]){
+    if(c&&c.type==='refusal')return typeof c.refusal==='string'?c.refusal:'refus';
+  }
+  return '';
+}
+async function transportOpenAI({cle, modele, maxTokens, systeme, contenuUtilisateur, schema, effort, delaiMs, essaisMax, signal}){
+  essaisMax=essaisMax||3;delaiMs=delaiMs||90000;
+  let corrige=false;
+  let demandeUtilisateur=contenuUtilisateur;
+  const tokensCumules={entree:0,sortie:0};
+  let tentative=0;
+  while(tentative<essaisMax){
+    tentative++;
+    if(signal&&signal.aborted)throw creerErreurApi({categorie:'annulation',fournisseur:'openai',statut_http:null,recuperable:false,message_utilisateur:'Annulé.'});
+    const body={model:modele,input:demandeUtilisateur,max_output_tokens:maxTokens,store:false};
+    if(systeme)body.instructions=systeme;
+    if(effort)body.reasoning={effort};
+    if(schema){
+      body.tools=[{type:'function',name:NOM_OUTIL_SORTIE_STRUCTUREE,description:DESCRIPTION_OUTIL_SORTIE_STRUCTUREE,parameters:schemaPourOpenAI(schema),strict:false}];
+      body.tool_choice={type:'function',name:NOM_OUTIL_SORTIE_STRUCTUREE};
+    }
+    const ctrl=new AbortController();
+    const relais=()=>ctrl.abort();
+    if(signal)signal.addEventListener('abort',relais);
+    const minuteur=setTimeout(()=>ctrl.abort(),delaiMs);
+    try{
+      const r=await fetch('https://api.openai.com/v1/responses',{method:'POST',headers:entetesOpenAI(cle),body:JSON.stringify(body),signal:ctrl.signal});
+      clearTimeout(minuteur);if(signal)signal.removeEventListener('abort',relais);
+      if([429,500,502,503,504].includes(r.status)&&tentative<essaisMax){await attendre(500*tentative);continue}
+      const data=await r.json().catch(()=>({}));
+      if(!r.ok)throw creerErreurApi({categorie:qCategorieDepuisStatutHttp(r.status),fournisseur:'openai',statut_http:r.status,recuperable:[429,500,502,503,504].includes(r.status),message_utilisateur:(data.error&&data.error.message)||('code '+r.status)});
+      tokensCumules.entree+=(data.usage&&data.usage.input_tokens)||0;tokensCumules.sortie+=(data.usage&&data.usage.output_tokens)||0;
+      const tokens={entree:tokensCumules.entree,sortie:tokensCumules.sortie};
+      const refus=refusReponseOpenAI(data);
+      if(refus)throw creerErreurApi({categorie:'refus',fournisseur:'openai',statut_http:r.status,recuperable:false,message_utilisateur:'Le modèle a refusé cette demande.',tokens});
+      if(data.status==='incomplete'&&data.incomplete_details&&/max_output_tokens|length/i.test(String(data.incomplete_details.reason||'')))
+        throw creerErreurApi({categorie:'troncature',fournisseur:'openai',statut_http:r.status,recuperable:false,message_utilisateur:'Réponse tronquée : augmentez la longueur maximale.',tokens});
+      let objet=null,txt='';
+      if(schema){
+        const appel=(data.output||[]).find(x=>x&&x.type==='function_call'&&x.name===NOM_OUTIL_SORTIE_STRUCTUREE);
+        if(appel&&typeof appel.arguments==='string'){try{objet=JSON.parse(appel.arguments)}catch(e){objet=null}}
+        txt=objet?JSON.stringify(objet):'';
+      }else txt=texteReponseOpenAI(data);
+      if(!txt)throw creerErreurApi({categorie:'sortie_invalide',fournisseur:'openai',statut_http:r.status,recuperable:false,message_utilisateur:schema?'L’API OpenAI n’a renvoyé aucune sortie structurée.':'L’API OpenAI n’a renvoyé aucun texte.',tokens});
+      if(schema){
+        const violations=violationsContreSchema(schema,objet);
+        if(violations.length&&!corrige){
+          corrige=true;
+          demandeUtilisateur=contenuUtilisateur+'\n\nCORRECTION OBLIGATOIRE. La tentative précédente ne respecte pas le schéma canonique. Violations :\n'+violations.map(v=>'- '+v).join('\n')+'\nRappelez la fonction avec l’objet COMPLET corrigé, jamais seulement les champs en défaut.';
+          tentative=0;
+          continue;
+        }
+        if(violations.length)throw creerErreurApi({categorie:'sortie_invalide',fournisseur:'openai',statut_http:r.status,recuperable:false,message_utilisateur:'Réponse structurée non conforme au schéma canonique : '+violations.slice(0,3).join(' ; ')+(violations.length>3?' ; +'+(violations.length-3)+' autre(s)':'')+'.',tokens,texte_partiel:txt,detail:{violations,corrections:corrige?1:0}});
+      }
+      return {fournisseur:'openai',modele,texte:txt,tokens,raison_arret:data.status||null,structure_validee:schema?true:null,detail:{corrections:corrige?1:0}};
+    }catch(err){
+      clearTimeout(minuteur);if(signal)signal.removeEventListener('abort',relais);
+      if(signal&&signal.aborted)throw creerErreurApi({categorie:'annulation',fournisseur:'openai',statut_http:null,recuperable:false,message_utilisateur:'Annulé.'});
+      if(err&&err.categorie)throw err;
+      if(tentative>=essaisMax||err.name==='AbortError'){
+        if(err.name==='AbortError')throw creerErreurApi({categorie:'delai_depasse',fournisseur:'openai',statut_http:null,recuperable:true,message_utilisateur:'Délai API dépassé.'});
+        throw creerErreurApi({categorie:'inconnue',fournisseur:'openai',statut_http:null,recuperable:false,message_utilisateur:err.message});
+      }
+    }
+  }
+}
+async function listerModelesOpenAI(cle){
+  const r=await fetch('https://api.openai.com/v1/models',{method:'GET',headers:entetesOpenAI(cle)});
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok)throw creerErreurApi({categorie:qCategorieDepuisStatutHttp(r.status),fournisseur:'openai',statut_http:r.status,recuperable:false,message_utilisateur:(d.error&&d.error.message)||('code '+r.status)});
+  const compatibles=(d.data||[]).filter(m=>m&&typeof m.id==='string'&&/^gpt-(?:6|5\.|4\.)/i.test(m.id)&&!/(image|realtime|audio|transcribe|tts|codex|rosalind)/i.test(m.id));
+  if(!compatibles.length)throw creerErreurApi({categorie:'sortie_invalide',fournisseur:'openai',statut_http:r.status,recuperable:false,message_utilisateur:'Aucun modèle texte OpenAI compatible n’a été retourné.'});
+  const connus=Object.assign({},MODELES_OPENAI);Object.keys(MODELES_OPENAI).forEach(k=>delete MODELES_OPENAI[k]);
+  compatibles.sort((a,b)=>a.id.localeCompare(b.id)).forEach(m=>{const a=connus[m.id]||{};MODELES_OPENAI[m.id]={nom:a.nom||m.id,entree:a.entree==null?null:a.entree,sortie:a.sortie==null?null:a.sortie,contexte:a.contexte||1000000,sortieMax:a.sortieMax||128000,schema:true,note:a.note||'Modèle retourné par l’API OpenAI ; tarif non renseigné localement.'}});
+  return {nombre:compatibles.length,avant:Object.keys(connus).length};
+}
+async function testerConnexionOpenAI({cle,modele}){return transportOpenAI({cle,modele,maxTokens:16,systeme:'',contenuUtilisateur:'Répondez uniquement : OK',essaisMax:1,delaiMs:30000})}
+
 const FOURNISSEURS_API = {
   anthropic: {
-    id:'anthropic', nom:'Anthropic', transport:transportAnthropic, modeles:MODELES, tarifDuJour:tarifDuJour,
+    id:'anthropic', nom:'Anthropic', transport:transportAnthropic, modeles:MODELES, modeleParDefaut:MODELE_PAR_DEFAUT, tarifDuJour:tarifDuJour,
     capacites:{ sortie_structuree:true, effort_raisonnement:true, annulation:true, prefill_assistant:true, limites:{} },
     listerModeles:listerModelesAnthropic, compterTokens:compterTokensAnthropic, testerConnexion:testerConnexionAnthropic
+  },
+  openai: {
+    id:'openai', nom:'OpenAI', transport:transportOpenAI, modeles:MODELES_OPENAI, modeleParDefaut:MODELE_OPENAI_PAR_DEFAUT, tarifDuJour:tarifOpenAIDuJour,
+    capacites:{ sortie_structuree:true, effort_raisonnement:true, annulation:true, prefill_assistant:false, limites:{} },
+    listerModeles:listerModelesOpenAI, testerConnexion:testerConnexionOpenAI
   }
 };
 window.FOURNISSEURS_API = FOURNISSEURS_API;
@@ -6273,7 +6395,11 @@ function surChangementFournisseurActif(){
   const champ = document.getElementById('api-cle');
   if(champ){
     if(_fournisseurCleAffichee && _fournisseurCleAffichee !== nouveau) _clesSessionParFournisseur[_fournisseurCleAffichee] = champ.value;
-    if(_fournisseurCleAffichee !== nouveau) champ.value = _clesSessionParFournisseur[nouveau] || '';
+    if(_fournisseurCleAffichee !== nouveau){
+      const cleKey='atelier.cle.'+nouveau;
+      const zone=coffre.lire('session',cleKey)?'session':'local';
+      champ.value=_clesSessionParFournisseur[nouveau]||coffre.lire(zone,cleKey)||'';
+    }
   }
   _fournisseurCleAffichee = nouveau;
   repeuplerTousLesSelectsModeles();
@@ -6296,6 +6422,10 @@ function majTextesFournisseurDynamiques(){
   if(chapo) chapo.textContent = 'Exécution du prompt via ' + nom + ', depuis ce navigateur.';
   const noteCle = document.getElementById('note-cle-fournisseur');
   if(noteCle) noteCle.textContent = 'Elle reste dans ce navigateur et n\u2019est transmise qu\u2019à ' + nom + '.';
+  const champCle=document.getElementById('api-cle');
+  if(champCle)champCle.placeholder=obtenirFournisseurActif()==='anthropic'?'sk-ant-…':'sk-… / sk-proj-…';
+  const lien=document.getElementById('lien-console-fournisseur');
+  if(lien){const openai=obtenirFournisseurActif()==='openai';lien.href=openai?'https://platform.openai.com/api-keys':'https://console.anthropic.com/';lien.textContent=openai?'platform.openai.com/api-keys':'console.anthropic.com';}
 }
 window.majTextesFournisseurDynamiques = majTextesFournisseurDynamiques;
 const QUALITE_CARTE_FINALITES_MODELE = {
@@ -6333,10 +6463,12 @@ function etatApi(message, type){
 }
 
 function chargerConfigApi(){
-  const zone = coffre.lire('session','atelier.cle') ? 'session' : 'local';
-  const cle = coffre.lire(zone,'atelier.cle');
+  const fournisseur=obtenirFournisseurActif();
+  const cleKey='atelier.cle.'+fournisseur,modeleKey='atelier.modele.'+fournisseur;
+  const zone = coffre.lire('session',cleKey) ? 'session' : 'local';
+  const cle = coffre.lire(zone,cleKey) || (fournisseur==='anthropic' ? coffre.lire(zone,'atelier.cle') : null);
   if(cle) $('#api-cle').value = cle;
-  const m = coffre.lire(zone,'atelier.modele');
+  const m = coffre.lire(zone,modeleKey) || (fournisseur==='anthropic' ? coffre.lire(zone,'atelier.modele') : null);
   if(m && obtenirModelesFournisseur()[m]){ $('#api-modele').value = m; majFicheModele(); }
   const x = coffre.lire(zone,'atelier.max');
   if(x) $('#api-max').value = x;
@@ -6344,7 +6476,8 @@ function chargerConfigApi(){
 
 function enregistrerCle(){
   const cle = $('#api-cle').value.trim();
-  if(!cle.startsWith('sk-ant-')){ signaler('Clé invalide : elle commence par sk-ant-', 'alerte'); return; }
+  if(!cle){ signaler('Saisissez une clé API avant de l’enregistrer.', 'alerte'); return; }
+  const fournisseur=obtenirFournisseurActif();
   /* La clé passait par coffre.ecrire et contournait donc le mode sensible,
      que le bandeau annonçait pourtant comme sans écriture. */
   if(modeSensible){
@@ -6357,10 +6490,11 @@ function enregistrerCle(){
     'Valider : stockage permanent. La clé reste lisible par tout script chargé dans cette page.\n' +
     'Annuler : stockage de session seulement. Recommandé.');
   const zone = permanent ? 'local' : 'session';
-  const ok = coffre.ecrire(zone,'atelier.cle', cle);
-  coffre.ecrire(zone,'atelier.modele', $('#api-modele').value);
+  const cleKey='atelier.cle.'+fournisseur,modeleKey='atelier.modele.'+fournisseur;
+  const ok = coffre.ecrire(zone,cleKey, cle);
+  coffre.ecrire(zone,modeleKey, $('#api-modele').value);
   coffre.ecrire(zone,'atelier.max', $('#api-max').value);
-  if(!permanent) coffre.effacer('local','atelier.cle');
+  if(!permanent) coffre.effacer('local',cleKey);
   signaler(!ok ? 'Stockage indisponible : la clé ne vaut que pour cette page'
     : permanent ? 'Clé conservée sur ce poste' : 'Clé conservée pour cette session');
 }
@@ -6857,8 +6991,7 @@ async function bancAppel(prompt, modele, signal){
       modele: res.modele
     };
   }catch(err){
-    if(err.categorie === 'refus'){
-      const tok = err.tokens || {entree:0, sortie:0};
+    if(err.categorie === 'refus'){      const tok = err.tokens || {entree:0, sortie:0};
       return {
         texte: err.texte_partiel || '', stop_reason: 'refusal',
         refus: true, categorie_refus: (err.detail && err.detail.refus_categorie) || null,
@@ -7857,8 +7990,7 @@ function brancher(){
         $('#arch-preparer').click();
       }
     }
-  });
-  $('#lien-accueil-affiner').addEventListener('click', e => {
+  });  $('#lien-accueil-affiner').addEventListener('click', e => {
     e.preventDefault();
     appliquerEspace('avance'); ecrire('atelier10.espace', 'avance');
     ouvrirVue('generation');
@@ -8857,8 +8989,7 @@ function qMigrerStructure({structure, versionCourante, migrations, cleVersion}){
     s[cleVersion] = v+1;
     v = v+1;
     etapes++;
-  }
-  return {structure:s, migree:etapes>0, erreur:null, versionOrigine, sauvegarde};
+  }  return {structure:s, migree:etapes>0, erreur:null, versionOrigine, sauvegarde};
 }
 window.qMigrerStructure = qMigrerStructure;
 
@@ -9688,7 +9819,7 @@ async function archApiCoeur(){
 async function archApi(){
   const c=archContexte();if(!c.demande){archEtat('Saisissez une demande avant l\u2019analyse.','alerte');return false}
   if(!aq('#api-cle').value.trim()){archEtat('Aucune clé API. Utilisez le parcours copier-coller, ou configurez la clé dans Envoi direct.','alerte');return false}
-  if(modeSensible&&!confirm('La demande sera transmise à l\u2019API Anthropic. Continuer ?'))return false;
+  if(modeSensible){const f=FOURNISSEURS_API[obtenirFournisseurActif()];if(!confirm('La demande sera transmise à l\u2019API '+(f?f.nom:'sélectionnée')+'. Continuer ?'))return false}
   return archApiCoeur();
 }
 
@@ -9857,8 +9988,7 @@ function archNouvelleDemande(){
  * OPRIE, et T-VALARCH02-06 le vérifie. Faire dépendre son déclencheur d'oprieState briserait cette
  * autonomie — l'onglet cesserait de fonctionner seul. Le garde n'a besoin de rien d'autre que de
  * savoir si LUI-MÊME est déjà en cours.
- *
- * Enveloppe le moteur GELÉ sans le modifier : le moteur reste l'unique implémentation, on ne fait
+ * * Enveloppe le moteur GELÉ sans le modifier : le moteur reste l'unique implémentation, on ne fait
  * qu'interdire d'y entrer deux fois de suite. Une reprise fournisseur ou une bascule reste DANS
  * l'appel enveloppé — elle ne repasse pas par ici, et ne compte donc pas comme une seconde
  * exécution. Le drapeau retombe quoi qu'il arrive, y compris sur échec : un cycle qui s'est terminé
@@ -10857,8 +10987,7 @@ function v11KeyTestClassifier(err){
   if(statut===429||cat==='limitation')return 'limitation';
   if((statut!==null&&statut>=500)||cat==='indisponibilite')return 'indisponibilite';
   if(statut===null&&(cat==='delai_depasse'||cat==='annulation'||cat==='inconnue'||!cat))return 'reseau';
-  return 'autre';
-}
+  return 'autre';}
 function v11KeyTestAfficher(cle,complement){
   const b=$('#v11-api-test'),n=$('#v11-api-test-note'),v=V11_KEY_TEST_VERDICTS[cle]||V11_KEY_TEST_VERDICTS.neutre;
   if(!b||!n)return;
@@ -11857,8 +11986,7 @@ function normalizeObligations(items, constraints) {
     /* L'obligation promue depuis une contrainte HÉRITE de la source de cette contrainte : elle ne la
        requalifie pas. Une contrainte dérivée promue reste dérivée. */
     ...constraints.map((constraint) => ({ text: constraint.text, source: constraint.source, mandatory: true, verifiable: true, constraint_id: constraint.id })),
-    ...list(items)
-  ];
+    ...list(items)  ];
   const seen = new Set();
   const result = [];
   for (const item of candidates) {
@@ -12858,7 +12986,6 @@ function contractForContractualization(contract) {
   };
   return result;
 }
-
 /**
  * Évalue uniquement des primitives universelles déjà produites par Architecte.
  * Aucun domaine, mot-clé métier ni quantité arbitraire n'est utilisé.
@@ -13857,8 +13984,7 @@ function mergePostOprieSignals(...groups) {
           /* FAIL CLOSED : un signal sans type ou sans preuve reste un arrêt. */
           signal: 'TECHNICAL_STOP',
           canonical_field: canonicalField,
-          arch_source_field: archField || 'signals',
-          detail: `Signal post-OPRIE invalide, converti en arrêt technique : ${JSON.stringify(candidate ?? null)}.`,
+          arch_source_field: archField || 'signals',          detail: `Signal post-OPRIE invalide, converti en arrêt technique : ${JSON.stringify(candidate ?? null)}.`,
           return_to_oprie: false,
           block_execution: true
         };
@@ -14857,8 +14983,7 @@ function validateOriginalRequestRecord(record) {
        corriger l'oubli n'est pas une mémoire.
        Cette clé la porte. Elle TRANSPORTE des identités que l'autorité a établies : l'historique
        n'en produit aucune, n'en interprète aucune, et ne lit jamais un mot de la personne. */
-    const clesTour = ["turn", "question", "answer", "provenance"];
-    if (Object.prototype.hasOwnProperty.call(turn || {}, "missing_determinant_id")) clesTour.push("missing_determinant_id");
+    const clesTour = ["turn", "question", "answer", "provenance"];    if (Object.prototype.hasOwnProperty.call(turn || {}, "missing_determinant_id")) clesTour.push("missing_determinant_id");
     if (Object.prototype.hasOwnProperty.call(turn || {}, "explicit_unknown_determinant_ids")) clesTour.push("explicit_unknown_determinant_ids");
     exactKeys(turn, clesTour, `clarification_history[${index}]`);
     if (Object.prototype.hasOwnProperty.call(turn, "missing_determinant_id")) {
@@ -15858,7 +15983,6 @@ const CONFIRMATION_TRIGGERS = Object.freeze([...CONFIRMATION_SIGNAL_KEYS, "signi
 // jamais partie : un modèle ne s'auto-déclare pas techniquement en panne, cet état n'est produit
 // que par le code appelant lorsque les deux providers d'un rôle sont indisponibles (CDC §22).
 const ARBITER_STATES = Object.freeze(["clarification_required", "confirmation_required", "operational_request_ready", "blocked"]);
-
 function clone(value) {
   return value === undefined ? undefined : JSON.parse(JSON.stringify(value));
 }
@@ -16857,8 +16981,7 @@ const QUESTION_CANDIDATE_JSON_SCHEMA = Object.freeze({
   }
 });
 
-// 3F.3.3-P1 : "value" était déjà dans required (la CLÉ est déjà garantie présente par le mode strict
-// Groq/OpenAI) — le défaut reproduit (parseAnalystOutput -> "ProvenanceRecord.value est obligatoire")
+// 3F.3.3-P1 : "value" était déjà dans required (la CLÉ est déjà garantie présente par le mode strict// Groq/OpenAI) — le défaut reproduit (parseAnalystOutput -> "ProvenanceRecord.value est obligatoire")
 // venait d'une divergence de CONTENU, pas de présence : type:"string" seul autorise une chaîne vide,
 // que le validateur (core/adn/operational-request-state.js, validateProvenanceRecord) rejette à juste
 // titre — un enregistrement de provenance sans contenu réel n'a aucun sens. minLength:1 documente et
@@ -17857,8 +17980,7 @@ function applySubstitutionGate(assembledReviews, { vetoes = [], semantic_drift_d
  *
  * candidateFamilyGroups (MICRO-PREUVE-DECOUPAGE-CANDIDATES, optionnel) : tableau de sous-ensembles de
  * familles (ex. [["research","decide","estimate"],["scenario","condition","leave_unknown"]] pour un
- * découpage 2×3). Par défaut (omis), un seul groupe = les 6 familles — comportement STRICTEMENT
- * inchangé, un seul appel executeBatch par batch d'issues, byte-identique à avant ce lot. Quand
+ * découpage 2×3). Par défaut (omis), un seul groupe = les 6 familles — comportement STRICTEMENT * inchangé, un seul appel executeBatch par batch d'issues, byte-identique à avant ce lot. Quand
  * plusieurs groupes sont fournis, executeBatch est appelé une fois PAR GROUPE pour CHAQUE batch
  * d'issues (toujours séquentiellement), et reçoit en plus `familyGroup`/`groupIndex` ; les résultats
  * bruts des groupes d'un même batch sont fusionnés par mergeCandidateGroups (PURE, ci-dessus) avant
@@ -18857,8 +18979,7 @@ function isGroundedInRequest(candidate, { originalRequest = null, currentAnswer 
   return paroles.some((parole) => parole.includes(citation));
 }
 
-/* Interrogatifs français. Grammaire, pas domaine. `où` garde son accent : sans lui, il deviendrait
- * la conjonction `ou` et tout choix binaire serait compté comme une seconde question.
+/* Interrogatifs français. Grammaire, pas domaine. `où` garde son accent : sans lui, il deviendrait * la conjonction `ou` et tout choix binaire serait compté comme une seconde question.
  *
  * `que`, `qui` et `quoi` sont ABSENTS, et c'est mesuré : « Quel texte souhaitez-vous QUE je
  * corrige ? » était refusée comme portant deux interrogations. Ces trois mots sont aussi des
@@ -19857,8 +19978,7 @@ async function runCoreFirstTurn(input, { executeRole, log = () => {}, corrective
       turn,
       escalation_reason: sortie.escalation.reason
     }, { log });
-    appels.core_critic += 1;
-    log({ event: "v2_critic_verdict", verdict: critique.verdict, blocks: critique.defect_blocks_delivery });
+    appels.core_critic += 1;    log({ event: "v2_critic_verdict", verdict: critique.verdict, blocks: critique.defect_blocks_delivery });
 
     if (critique.verdict === "CORRECT") {
       turn = critique.corrected_turn;
@@ -20857,7 +20977,6 @@ function deriveQuantityFromRequest(request, { counting_units = '', number_words 
   /* Ce qui suit le nombre d'abord ; à défaut, ce que « nombre de … » nomme. */
   const cible = (m, k) => (text(motOrigine(m.indices && m.indices[k])) || text(nomCompte) || null);
   let m;
-
   if ((m = n.match(new RegExp(`\\bexactement\\s+(${N})${QUANTITY_TARGET}`, 'd')))) {
     const v = num(m[1]);
     if (v !== null) return { exact: v, min: null, max: null, target: cible(m, 2), rule: 'exact_explicit' };
@@ -21857,8 +21976,7 @@ function validateOutputAgainstCanonicalContract({
     verifications,
     unverifiable: verifications
       .filter((v) => v.status === 'NOT_VERIFIABLE' || v.status === 'DEFERRED')
-      .map((v) => ({ id: v.id, verifiability: v.verifiability, status: v.status, required: v.required, reason: v.reason })),
-    coverage: {
+      .map((v) => ({ id: v.id, verifiability: v.verifiability, status: v.status, required: v.required, reason: v.reason })),    coverage: {
       total: verifications.length,
       verifiable_here: verifiees.length,
       passed: verifiees.filter((v) => v.status === 'PASS').length,
@@ -22857,8 +22975,7 @@ const MODES=(()=>{
  *
  * Un mode dit COMMENT on accompagne quelqu'un. Il ne dit jamais CE QUI EST VRAI
  * de sa demande.
- *
- * Cette table est donc délibérément pauvre en sémantique, et le restera : elle
+ * * Cette table est donc délibérément pauvre en sémantique, et le restera : elle
  * ne contient aucune politique de readiness, aucun seuil, aucune règle de
  * clarification. Un même état OPRIE produit la même action dans tous les modes —
  * c'est vérifié ailleurs, et rien ici ne peut le contredire, parce qu'il n'y a
@@ -23857,8 +23974,7 @@ function validateFastInteraction(candidate, snapshot) {
  * LE MODE RAPIDE N'A PAS DE BOUCLE DE DIALOGUE.
  *
  * Invariant R1, antérieur à ce lot : Rapide ne converse pas. Une clarification
- * y devient donc une ORIENTATION — on dit à la personne où poursuivre, on ne
- * lui ouvre pas un échange que ce mode ne sait pas tenir.
+ * y devient donc une ORIENTATION — on dit à la personne où poursuivre, on ne * lui ouvre pas un échange que ce mode ne sait pas tenir.
  * ------------------------------------------------------------------------ */
 /* ATELIER-RAPIDE-CONVERSATIONAL-FIX-01 — « RAPIDE NE CONVERSE PAS » ÉTAIT UNE RÈGLE, PAS UN FAIT.
  *
@@ -24857,8 +24973,7 @@ const OPRIE_ENDPOINT=(document.querySelector('meta[name="atelier-operational-req
  *
  * Ces cinq-là sont la trace du tour. Ce qui les lit, ce sont les PREUVES : qu'un tour périmé
  * n'a rien appliqué, qu'une candidate a bien été réconciliée et selon quel verdict, qu'un
- * cycle d'exécution ne s'est ouvert qu'une fois. Les retirer ne retirerait pas du bruit, mais
- * la capacité de démontrer ces trois faits — et aucun mark de télémétrie ne porte les mêmes
+ * cycle d'exécution ne s'est ouvert qu'une fois. Les retirer ne retirerait pas du bruit, mais * la capacité de démontrer ces trois faits — et aucun mark de télémétrie ne porte les mêmes
  * champs qu'eux : la trace dit QUAND, le champ dit QUOI. Ils sont donc conservés, et nommés
  * ici pour qu'on ne les confonde jamais avec une autorité. Une trace n'en est pas une : rien
  * dans le produit ne les lit pour décider d'un état, d'une route, d'une readiness ou d'un
@@ -25857,8 +25972,7 @@ function v11StartAtelier(){
   if(am){am.value=mat;am.dispatchEvent(new Event('input',{bubbles:true}))}
   if(typeof majCompteurDemande==='function')majCompteurDemande();
   const cm=$('#compteur-materiau');if(cm)cm.textContent=mat.length.toLocaleString('fr-FR');
-  if(typeof proposerFormat==='function')proposerFormat();
-  setNormal(false);
+  if(typeof proposerFormat==='function')proposerFormat();  setNormal(false);
   if(typeof ouvrirVue==='function')ouvrirVue('generation');
   if(ad)ad.focus();
   return true;
