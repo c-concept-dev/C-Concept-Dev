@@ -104,6 +104,14 @@ jobs:
         shell: bash
         run: python apps/app/src-tauri/outils/preparer-moteurs.py
 
+      # Les bouteilles Homebrew visent le macOS du runner, pas celui de la machine de
+      # développement : le paquet construit ici doit déclarer ce que SES moteurs exigent.
+      # Modification locale au runner, jamais commitée. Voir docs/decisions.md.
+      - name: Aligner le minimum macOS sur les moteurs du runner
+        if: runner.os == 'macOS'
+        shell: bash
+        run: python apps/app/src-tauri/outils/minimum-macos.py --ecrire
+
       - name: Éprouver les quatre critères
         shell: bash
         run: |

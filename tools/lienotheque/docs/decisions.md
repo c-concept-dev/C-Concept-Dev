@@ -116,6 +116,17 @@ Un test tient les deux bouts : `aucun_moteur_n_exige_un_macos_plus_recent_que_l_
 tout moteur plus exigeant que l'application. Abaisser le minimum sans avoir recompilé les moteurs
 fait échouer la construction, pas la bêta d'un utilisateur.
 
+**Le minimum des moteurs suit la machine qui construit.** Le test l'a montré dès sa première
+exécution : sur ce Mac (macOS 26.3), les bouteilles Homebrew portent `minos 26.0` ; sur le runner
+de l'intégration continue, elles portent `26.4`. Un paquet construit là-bas qui déclarerait 26.0
+promettrait donc plus qu'il ne peut tenir. `outils/minimum-macos.py --ecrire` relève la déclaration
+au niveau des moteurs réellement présents, et le workflow Tauri l'appelle avant de construire —
+modification locale au runner, jamais commitée. Sur la machine de développement, les deux valeurs
+coïncident et le fichier n'est pas touché.
+
+C'est un pansement, et il disparaîtra avec la compilation à cible fixe : une fois Tesseract bâti
+avec `MACOSX_DEPLOYMENT_TARGET=13.0`, son minimum ne dépendra plus de rien.
+
 ### Mesures Windows du 3 octobre 2026
 
 Obtenues par `.github/workflows/lienotheque-tauri.yml` sur `windows-latest` (x86-64), face aux

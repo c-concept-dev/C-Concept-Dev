@@ -92,6 +92,17 @@ def main(argv: list[str]) -> int:
     if noms:
         lignes += ["", "En échec :"] + [f"- `{nom}`" for nom in noms]
 
+    minimum = ""
+    configuration = SRC_TAURI / "tauri.conf.json"
+    if configuration.is_file():
+        import json
+
+        declare = json.loads(configuration.read_text(encoding="utf-8")).get("bundle", {}).get("macOS", {})
+        if "minimumSystemVersion" in declare:
+            minimum = declare["minimumSystemVersion"]
+    if minimum:
+        lignes += ["", f"**Minimum macOS déclaré pour cette construction** : {minimum}."]
+
     intitule, total, parties = paquet()
     lignes += ["", f"### Taille d'installation — {intitule}", ""]
     if total:
