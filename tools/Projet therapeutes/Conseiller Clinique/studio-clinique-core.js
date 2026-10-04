@@ -1167,6 +1167,26 @@
     return { plan: mergedPlan, ragResult };
   }
 
+  // Même vocabulaire pour le planificateur et le type explicite issu du chat.
+  const ADOC_PRESENTATION_KEYWORDS = Object.freeze([
+    'présentation', 'conférence', 'exposé', 'diaporama', 'slides', 'diapositives', 'deck',
+  ]);
+
+  function _adocHasPresentationKeyword(rawText) {
+    const text = (rawText || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    if (/\bpresentation\s+web\b|\bsupport\s+visuel\b/.test(text)) return false;
+    return ADOC_PRESENTATION_KEYWORDS.some(word => {
+      const normalized = word.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      return new RegExp('(?:^|[^a-z])' + normalized + '(?:$|[^a-z])').test(text);
+    });
+  }
+
+  function _adocDetectExplicitDocumentKind(rawText) {
+    if (!_adocHasPresentationKeyword(rawText)) return null;
+    const concurrent = /\b(carrousel|fiche|tableau|script|verbatim|liens|article)\b/i;
+    return concurrent.test(rawText || '') ? null : 'presentation';
+  }
+
   async function adocPlanQuery(userMessage) {
     const workerUrl = adocGetWorkerUrl();
     if (!workerUrl) return null;
@@ -1292,8 +1312,7 @@ RAISONNEMENT ATTENDU — tu penses comme un clinicien chercheur :
    LOT 1 Présentation (6e documentKind, correctif de routage indispensable — investigation
    confirmée : ces mots-clés atterrissaient auparavant sur html-visual, un format legacy qui
    n'atteint JAMAIS le moteur structuré, cf. rapport) :
-   Mots-clés presentation : "présentation", "conférence", "exposé", "diaporama", "slides",
-     "diapositives", "deck" (hors "présentation web"/"support visuel", qui restent html-visual
+   Mots-clés presentation : ${ADOC_PRESENTATION_KEYWORDS.map(word => '"' + word + '"').join(', ')} (hors "présentation web"/"support visuel", qui restent html-visual
      ci-dessus) — JAMAIS "cours" seul, qui reste le document long existant, non concerné par ce
      nouveau type → intent="presentation", output_format="html" (moteur structuré, JAMAIS
      html-visual). Ne bascule vers pptx (ci-dessous) QUE si un FICHIER PowerPoint réel est
@@ -1348,8 +1367,8 @@ RAISONNEMENT ATTENDU — tu penses comme un clinicien chercheur :
     Indique ta confiance (0.0 à 1.0) que le type de document choisi (intent/documentKind) est le
     bon pour cette demande. 1.0 si aucun doute raisonnable ; une valeur plus basse UNIQUEMENT si
     la demande pourrait légitimement correspondre à plusieurs types différents (ex. "comparatif"
-    qui pourrait être un tableau ou une fiche, "présentation" qui pourrait être un carrousel ou un
-    export autonome). Ne jamais sous-évaluer par prudence excessive — une valeur artificiellement
+    qui pourrait être un tableau ou une fiche). Un format nommé est déjà choisi ; le public visé
+    règle le registre et la densité, jamais le format. Ne jamais sous-évaluer par prudence excessive — une valeur artificiellement
     basse déclencherait une question de clarification inutile. Ce champ n'a aucun effet sur les
     autres champs ni sur needs_rag/max_tokens.
 
@@ -2782,17 +2801,30 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
   // Règles déterministes sur le texte/plan déjà disponibles, aucun appel réseau. Les 3 motifs de
   // départ correspondent chacun à un incident réel déjà documenté (cf. investigation complémentaire) ;
   // liste volontairement limitée à ces 3 cas — à enrichir avec l'usage réel, jamais inventée ici.
-  // candidates : 2-3 formats plausibles ; kind=null signifie "continuer sans type explicite"
+  // candidates : formats plausibles ; kind=null signifie "continuer sans type explicite"
   // (laisse le routage automatique existant — intent classifié, _isLongDoc, etc. — décider comme
   // si le palier 2 n'existait pas).
   function _adocDetectFormatAmbiguity(rawText, basePlan) {
     const ql = (rawText || '').toLowerCase();
+    if (_adocDetectExplicitDocumentKind(rawText)) return null;
+    if (_adocHasPresentationKeyword(rawText)) {
+      return {
+        question: 'Souhaitez-vous une présentation, un carrousel de diapositives ou une fiche à exporter ?',
+        candidates: [
+          { label: 'Présentation', kind: 'presentation' },
+          { label: 'Carrousel', kind: 'carrousel' },
+          { label: 'Fiche', kind: 'fiche' },
+        ],
+      };
+    }
     if (ql.includes('comparatif') && !/(tableau|liste|colonnes?)/.test(ql)) {
       return {
         question: 'Souhaitez-vous un tableau comparatif, ou une fiche de synthèse ?',
         candidates: [{ label: 'Tableau', kind: 'tableau' }, { label: 'Fiche', kind: 'fiche' }],
       };
     }
+    // Les demandes exclues de la Présentation (notamment « présentation web » /
+    // « support visuel ») conservent leur clarification historique et leur routage.
     if (/pr[ée]sentation/.test(ql)) {
       return {
         question: 'Souhaitez-vous un carrousel de diapositives dans l’application, ou une fiche à exporter ?',
@@ -2813,7 +2845,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     if (typeof basePlan?.format_confidence === 'number' && basePlan.format_confidence < 0.6) {
       return {
         question: 'Quel format souhaitez-vous pour ce document ?',
-        candidates: [{ label: 'Fiche', kind: 'fiche' }, { label: 'Tableau', kind: 'tableau' }, { label: 'Carrousel', kind: 'carrousel' }],
+        candidates: [{ label: 'Fiche', kind: 'fiche' }, { label: 'Tableau', kind: 'tableau' }, { label: 'Carrousel', kind: 'carrousel' }, { label: 'Présentation', kind: 'presentation' }],
       };
     }
     return null;
@@ -6730,7 +6762,13 @@ ${recent}`;
   const ADOC_CLARITY_SYSTEM_PROMPT =
     "Tu es l'évaluateur de clarté d'un conseiller clinique qui produit des documents " +
     "thérapeutiques (fiche synthèse, tableau comparatif, script verbatim, carrousel, carte " +
-    "de liens transversaux) à partir d'une bibliothèque de référence.\n\n" +
+    "de liens transversaux, présentation) à partir d'une bibliothèque de référence.\n" +
+    "Présentation : diaporama structuré avec visuels, projeté en séance, conférence ou atelier, distinct du carrousel.\n\n" +
+    "Le demandeur est toujours le thérapeute. Quand la demande nomme un type de document, " +
+    "ce choix est acquis : ne pose jamais de question de format. Si plusieurs formats sont " +
+    "explicitement en concurrence, conserve-les parmi les options, y compris la Présentation. " +
+    "Le public visé règle le registre et la densité, JAMAIS le format ; il ne justifie jamais " +
+    "de questionner ou de changer ce choix.\n\n" +
     "Ta mission : juge si la demande fournie contient assez d'information pour produire un " +
     "document clinique de qualité, utile et bien ciblé. Un document trop générique parce que " +
     "la demande était ambiguë est un échec ; poser une question de clarification pour une " +
@@ -7066,7 +7104,7 @@ ${recent}`;
     // clarification) puis consommé par adocSendOriginal ; window.adocPendingDocumentKind est
     // remis à null tout de suite pour ne jamais fuiter vers un envoi ultérieur sans rapport
     // (ex. bouton d'insertion rapide du chat, qui ne pose jamais cette variable).
-    adocClarityDocumentKind = window.adocPendingDocumentKind || null;
+    adocClarityDocumentKind = window.adocPendingDocumentKind || _adocDetectExplicitDocumentKind(raw);
     window.adocPendingDocumentKind = null;
     // LOT 2 Présentation — même patron EXACT que window.adocPendingDocumentKind ci-dessus.
     adocClarityPresentationOptions = window.adocPendingPresentationOptions || null;
