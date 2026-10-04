@@ -26,6 +26,8 @@ export type Entree = {
   readonly seuil: number;
   /** Titre de page, quand on en connaît un. */
   readonly titreDePage?: (page: number) => string | undefined;
+  /** Image de la page et ses dimensions, quand le lot en a exporté une. */
+  readonly imageDePage?: (page: number) => { readonly image: string; readonly largeur: number; readonly hauteur: number } | undefined;
 };
 
 /** La phrase qui explique un lien, en français, construite une fois pour toutes (ANC-02). */
@@ -94,7 +96,15 @@ export function construireVue(entree: Entree): VueBibliotheque {
     .sort((a, b) => a[0] - b[0])
     .map(([numero, elements]) => {
       const titre = entree.titreDePage?.(numero);
-      return { numero, ...(titre === undefined ? {} : { titre }), elements, texte: [], traduction: [] };
+      const vue = entree.imageDePage?.(numero);
+      return {
+        numero,
+        ...(titre === undefined ? {} : { titre }),
+        ...(vue === undefined ? {} : vue),
+        elements,
+        texte: [],
+        traduction: [],
+      };
     });
 
   const relies = entree.lignes.filter((ligne) => ligne.piste !== undefined).length;

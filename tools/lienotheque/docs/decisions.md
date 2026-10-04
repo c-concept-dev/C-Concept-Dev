@@ -657,3 +657,76 @@ chaque passage, et leurs résultats sont consignés ici.
 Le banc des recettes, lui, reste dans la vérification courante : le cache de lecture l'a ramené de
 quatre minutes à onze secondes. C'est la bonne réponse quand elle est possible — un test de quatre
 minutes finit par être désactivé, et un test désactivé ne protège plus rien.
+
+## Un instantané ne passe pas par `public/`
+
+`public/` est recopié tel quel dans la construction et publié avec elle. L'instantané y était
+écrit, dans un sous-dossier ignoré par Git : le dépôt était protégé, la construction ne l'était
+pas — un `pnpm build` l'emportait dans `dist/`, et avec lui des numéros de page et des empreintes
+tirés d'un document sous droits.
+
+**Retenu : l'instantané et les images de page vivent au cache de travail, et un greffon de Vite les
+sert.** Le même greffon en développement et sur la version construite, à la même adresse ; l'absence
+d'instantané rend un 404, que l'application lit comme un dépôt vide — c'est l'état de quiconque n'a
+rien importé. Un contrôle refuse tout fichier de données dans `public/`, parce que la règle est
+facile à défaire par distraction.
+
+Le jeu de démonstration suit le même chemin : il reste réservé au développement, mais il ne passe
+plus par `public/` non plus.
+
+## Lire un lot en flux, pas en tableau
+
+La préparation d'un lot chargeait toutes les pages décodées avant d'en lire une seule. Mesuré sur
+F3 : 15 Mo d'images pour 4 pages, 68 Mo pour 29 — deux mégaoctets et demi la page, soit plus d'un
+gigaoctet pour le scan de cinq cents pages qui dort dans les fixtures.
+
+**Retenu : un flux.** `pagesEnGris` et `preparerLot` rendent une page à la fois ; ce qui
+s'accumule tient en numéros et en positions, jamais en pixels. Une seule page est vivante à la
+fois — 9 Mo — quel que soit le document. L'export des images de page suit la même règle : décoder,
+réduire, encoder, écrire, et passer à la suivante.
+
+Vérifié en relisant F3 sans cache et en comparant au relevé que la version en tableau avait écrit :
+identique, octet pour octet. Un changement de forme qui change un résultat n'est pas un changement
+de forme.
+
+Le contrôle qui garde cette propriété garde la **forme** — c'est un flux, il se consomme page par
+page, il s'abandonne en cours de route — et non le chiffre : une mesure de mémoire vive dépend du
+ramasse-miettes et de la machine, et un contrôle qui vacille finit ignoré.
+
+## Deux numérotations pour un même document finissent par diverger
+
+Pour donner à chaque page son image, il fallait relier le rang d'une page dans le document à son
+numéro imprimé. Le décalage majoritaire semblait suffire : il valait +2 sur tout F3.
+
+Il ne suffit pas. Une page dont le numéro est mal lu — l'index 4 lisait « 5 » au lieu de « 6 » — et
+un scan qui saute deux pages — après la 29 vient la 32 — font deux cas où un décalage constant
+donne l'image d'une autre page. L'interprète sait déjà traiter les deux, avec son vote par fenêtre.
+
+**Retenu : ne pas renumeroter.** Le lien se fait par les éléments — une page porte des numéros
+d'élément, et l'interprète dit sur quelle page imprimée chacun tombe. Une page sans élément reconnu
+n'a pas d'image : mieux vaut pas d'image qu'une image attribuée à la mauvaise page.
+
+## Ce que F3 réel a montré des écrans
+
+**Un écran peut n'avoir aucune action principale.** Les 95 liens de F3 passent tous le seuil de la
+recette : la file de Vérifier est vide, et l'écran n'a donc pas de bouton cuivre plein. Le contrôle
+exigeait « exactement un » par écran et échouait. La règle est « un seul » (UX-09) : deux actions
+principales, c'est une hésitation ; zéro, c'est un écran qui n'a rien à faire faire. Le contrôle
+interdit maintenant la deuxième, et exige la première là où elle existe toujours.
+
+**Un cadre vide se lit comme une panne.** La planche de Vérifier se dessinait quand même, bordure
+comprise, autour de rien. Elle ne se dessine plus.
+
+**Le seuil de confiance vient de la recette.** Il était redéclaré dans la description de la
+bibliothèque — deux seuils pour un même lot, et celui qu'on oublie de changer.
+
+### Deux réserves, qui demandent le contrat
+
+**Les filtres du schéma ne filtrent rien.** `PageAffichee` ne porte aucune valeur d'axe : l'écran
+affiche les cases, et n'a rien sur quoi comparer. Leurs comptes viennent d'ailleurs en dur à zéro.
+Seul l'axe de l'état du lien filtre, parce que l'application sait ce que « validé » veut dire.
+
+**Les zones d'élément n'arrivent pas jusqu'aux écrans.** La lecture connaît la position de chaque
+repère, `LigneInterpretee` ne la transporte pas. Le Lecteur montre donc la vraie page sans ses
+zones cliquables. Les deux demandent d'étendre le contrat, l'instantané et l'ingestion : ce sont
+des fonctionnalités, pas des corrections.

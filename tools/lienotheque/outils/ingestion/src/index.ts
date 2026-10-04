@@ -199,3 +199,5 @@ export async function ingerer(depot: Depot, lot: Lot): Promise<Bilan> {
 }
 
 export * from "./instantane.js";
+export * from "./lot.js";
+export * from "./pages-images.js";

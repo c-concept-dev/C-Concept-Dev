@@ -11,9 +11,11 @@ type Theme = (typeof THEMES)[number];
  *  posé sur la photo. jsdom ne sait rien de tout cela. */
 
 const ECRANS = [
-  { nom: "catalogue", adresse: "#catalogue", marque: ".ln-catalogue" },
-  { nom: "lecteur", adresse: "#lecteur/page=127", marque: ".ln-lecteur" },
-  { nom: "verifier", adresse: "#verifier", marque: ".ln-verifier" },
+  { nom: "catalogue", adresse: "#catalogue", marque: ".ln-catalogue", toujoursUnePrincipale: true },
+  { nom: "lecteur", adresse: "#lecteur/page=127", marque: ".ln-lecteur", toujoursUnePrincipale: false },
+  // La file de Vérifier peut être vide : un écran qui n'a rien à faire faire n'a pas d'action
+  // principale, et n'a donc pas de cuivre plein.
+  { nom: "verifier", adresse: "#verifier", marque: ".ln-verifier", toujoursUnePrincipale: false },
 ] as const;
 
 /** Pose un écran et attend qu'il soit là. L'instantané se charge après le premier rendu : sans
@@ -36,7 +38,7 @@ async function poser(page: Page, theme: Theme, adresse: string, marque = "#conte
 test.describe("chaque écran, dans les deux thèmes", () => {
   for (const theme of ["light", "hybrid"] as const) {
     for (const ecran of ECRANS) {
-      test(`${ecran.nom} — ${theme} : un seul élément cuivre plein`, async ({ page }) => {
+      test(`${ecran.nom} — ${theme} : jamais deux éléments cuivre plein`, async ({ page }) => {
         await poser(page, theme, ecran.adresse, ecran.marque);
 
         // Le cuivre plein est réservé au bouton principal : « --ln-action-background ». On
@@ -62,8 +64,13 @@ test.describe("chaque écran, dans les deux thèmes", () => {
               .map((noeud) => (noeud.textContent ?? "").trim().slice(0, 30)),
           };
         });
+        // La règle est « un seul », pas « exactement un » (UX-09) : deux actions principales sur
+        // un écran, c'est une hésitation ; zéro, c'est un écran qui n'a rien à faire faire — la
+        // file de Vérifier vide, par exemple. Ce que le contrôle interdit, c'est la deuxième.
         expect(pleins.marque, "la couleur du bouton principal est définie").not.toBe("");
-        expect(pleins.pleins, "un seul élément cuivre plein par écran").toHaveLength(1);
+        expect(pleins.pleins.length, `au plus un cuivre plein : ${pleins.pleins.join(" / ")}`).toBeLessThanOrEqual(1);
+        if (ecran.toujoursUnePrincipale)
+          expect(pleins.pleins, "cet écran porte toujours une action principale").toHaveLength(1);
       });
 
       test(`${ecran.nom} — ${theme} : rien ne déborde`, async ({ page }) => {

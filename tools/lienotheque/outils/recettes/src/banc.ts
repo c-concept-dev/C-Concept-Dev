@@ -48,52 +48,58 @@ export type OptionsBanc = OptionsReperes & {
  *
  *  Un document d'une page par image passe tel quel. Un livre photographié en doubles pages est
  *  remis d'aplomb et coupé : chaque cliché donne deux pages, qui savent de quel côté elles
- *  viennent et quel rang elles occupent dans la numérotation imprimée. */
-export async function preparerLot(chemin: string, recette: Recette, options: OptionsBanc = {}): Promise<PageAlire[]> {
-  const images = await pagesEnGris(chemin, options.pages);
+ *  viennent et quel rang elles occupent dans la numérotation imprimée.
+ *
+ *  En flux, une image à la fois : c'est la seule façon de traiter trois cents pages sans que la
+ *  mémoire suive le nombre de pages. Chaque page sort dès qu'elle est prête, et l'image d'où elle
+ *  vient n'est plus retenue par personne. */
+export async function* preparerLot(chemin: string, recette: Recette, options: OptionsBanc = {}): AsyncGenerator<PageAlire> {
   const preparation = recette.preparation;
+  const telle = !preparation.double_page && preparation.redressement === "aucun";
 
-  if (!preparation.double_page && preparation.redressement === "aucun")
-    return images.map((image, index) => ({ image, index }));
-
-  const reglages = ReglagesRedressement.parse({
-    rotation: preparation.redressement,
-    doublePage: preparation.double_page,
-    ...(preparation.page_gauche === undefined ? {} : { pageGauche: preparation.page_gauche }),
-    effacerVerso: true,
-    binarisation: "adaptative",
-  });
-
-  const pages: PageAlire[] = [];
-  images.forEach((image, index) => {
-    for (const produite of redresser(image, index, reglages, options.redressement ?? {})) {
-      const cote = produite.descripteur.cote;
-      pages.push({
-        image: produite.image,
-        index,
-        rang: preparation.double_page ? index * 2 + (cote === "droite" ? 1 : 0) : index,
-        ...(cote === undefined ? {} : { cote }),
+  const reglages = telle
+    ? undefined
+    : ReglagesRedressement.parse({
+        rotation: preparation.redressement,
+        doublePage: preparation.double_page,
+        ...(preparation.page_gauche === undefined ? {} : { pageGauche: preparation.page_gauche }),
+        effacerVerso: true,
+        binarisation: "adaptative",
       });
-    }
-  });
-  return pages;
+
+  let index = 0;
+  for await (const image of pagesEnGris(chemin, options.pages)) {
+    if (reglages === undefined) yield { image, index };
+    else
+      for (const produite of redresser(image, index, reglages, options.redressement ?? {})) {
+        const cote = produite.descripteur.cote;
+        yield {
+          image: produite.image,
+          index,
+          rang: preparation.double_page ? index * 2 + (cote === "droite" ? 1 : 0) : index,
+          ...(cote === undefined ? {} : { cote }),
+        };
+      }
+    index += 1;
+  }
 }
 
-/** Pages d'un PDF numérisé, en gris, dans l'ordre du document et à leur résolution d'origine. */
-export async function pagesEnGris(chemin: string, limite?: number): Promise<ImageGrise[]> {
+/** Pages d'un PDF numérisé, en gris, dans l'ordre du document et à leur résolution d'origine.
+ *
+ *  Un flux, pas un tableau : le tableau gardait les trois cents pages décodées en mémoire en même
+ *  temps — deux mégaoctets et demi la page, et la mémoire croissait avec le document. */
+export async function* pagesEnGris(chemin: string, limite?: number): AsyncGenerator<ImageGrise> {
   const objets = objetsPdf(await readFile(chemin));
   const pages = pagesPdf(objets);
   const retenues = limite === undefined ? pages : pages.slice(0, limite);
 
-  const grises: ImageGrise[] = [];
   for (const page of retenues) {
     const image = page.images[0];
     if (image === undefined) continue;
     const octets = octetsImage(objets, image.numero);
     if (octets === undefined || octets.extension !== "jpg") continue;
-    grises.push(enGris(await decoderJpeg(octets.octets)));
+    yield enGris(await decoderJpeg(octets.octets));
   }
-  return grises;
 }
 
 /** Lit les repères de chaque page, puis interprète selon la recette. */
@@ -160,7 +166,9 @@ export async function lireLot(pdf: string, recette: Recette, options: OptionsBan
       // Cache illisible : on relit. Un cache n'est jamais une raison d'échouer.
     }
 
-  const lues = reperer(await preparerLot(pdf, recette, options), recette, options);
+  // Page par page : ce qui s'accumule, ce sont des numéros et des positions, pas des pixels.
+  const lues: PageLue[] = [];
+  for await (const page of preparerLot(pdf, recette, options)) lues.push(...reperer([page], recette, options));
   if (fichier !== undefined)
     try {
       writeFileSync(fichier, JSON.stringify(lues));

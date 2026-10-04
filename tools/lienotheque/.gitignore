@@ -10,4 +10,3 @@ target/
 test-results/
 playwright-report/
 .cache/
-apps/app/public/donnees/

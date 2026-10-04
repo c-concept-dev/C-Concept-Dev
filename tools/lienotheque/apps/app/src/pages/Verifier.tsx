@@ -115,6 +115,9 @@ export function Verifier({ vue, onDecision, onAnnuler, derniere }: Props): JSX.E
       </div>
 
       <div className="ln-verifier__corps">
+        {/* File vide : pas de planche du tout. Un cadre vide se lit comme un chargement qui
+            n'aboutit pas, là où il n'y a simplement rien à vérifier. */}
+        {cas.length === 0 ? null : (
         <ol className="ln-planche" aria-label="Cas à vérifier">
           {cas.map((c) => (
             <li key={c.id}>
@@ -147,6 +150,7 @@ export function Verifier({ vue, onDecision, onAnnuler, derniere }: Props): JSX.E
             </li>
           ))}
         </ol>
+        )}
 
         <aside className="ln-cas ln-panneau" aria-label="Cas ouvert">
           {actif === undefined ? (

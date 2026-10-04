@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { tesseractDisponible } from "@lienotheque/lecteur-texte";
 import { coin, ouvrirCache } from "@lienotheque/cache";
-import { PRESENCE_MINIMALE, appui, chargerRecette, interpreter, lireLot, preparerLot } from "../src/index.js";
+import { PRESENCE_MINIMALE, appui, chargerRecette, interpreter, lireLot, preparerLot, type PageAlire } from "../src/index.js";
 
 /** Redresser et lire 42 clichés prend deux minutes : on garde les lectures entre deux exécutions.
  *  Le cache ne contient que des numéros et des positions — rien du document lui-même. */
@@ -28,7 +28,9 @@ describe("préparation du lot selon la recette (OUT-03, A2)", () => {
   siF4(
     "rend deux pages par cliché, chacune sachant son côté et son rang",
     async () => {
-      const pages = await preparerLot(F4, RECETTE, { pages: 3 });
+      // La préparation est un flux : on le rassemble ici, trois pages tiennent en mémoire.
+      const pages: PageAlire[] = [];
+      for await (const page of preparerLot(F4, RECETTE, { pages: 3 })) pages.push(page);
       expect(pages).toHaveLength(6);
       expect(pages.map((page) => page.cote)).toEqual(["gauche", "droite", "gauche", "droite", "gauche", "droite"]);
       expect(pages.map((page) => page.rang)).toEqual([0, 1, 2, 3, 4, 5]);
