@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
-import { basename, dirname, join } from "node:path";
+import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { emplacementInstantane } from "./emplacement-instantane.js";
 import react from "@vitejs/plugin-react";
 import { feuilleCss } from "@lienotheque/jetons";
 import type { IncomingMessage, ServerResponse } from "node:http";
@@ -27,14 +28,11 @@ function jetonsCss(): Plugin {
  *  Il est produit depuis des fichiers sous droits : il n'a rien à faire dans `public/`, qui est un
  *  dossier publiable et recopié tel quel dans la construction. Il vit au cache de travail, hors du
  *  dépôt, et c'est ce greffon qui le sert — en développement comme sur la version construite. */
-const INSTANTANE =
-  process.env["LIENOTHEQUE_INSTANTANE"] ??
-  join(process.env["LIENOTHEQUE_CACHE"] ?? "/Volumes/Macbook Pro/lienotheque-cache", "instantane", "bibliotheque.json");
+const { instantane: INSTANTANE, pages: DOSSIER_PAGES } = emplacementInstantane();
 
 const ADRESSE_INSTANTANE = "/donnees/bibliotheque.json";
 /** Images de page, à côté de l'instantané et servies de la même façon. */
 const ADRESSE_PAGES = "/donnees/pages";
-const DOSSIER_PAGES = process.env["LIENOTHEQUE_PAGES"] ?? join(dirname(INSTANTANE), "pages");
 
 function instantaneServi(): Plugin {
   const servir = (serveur: { middlewares: { use: (chemin: string, gestion: (requete: unknown, reponse: ServerResponse) => void) => void } }): void => {

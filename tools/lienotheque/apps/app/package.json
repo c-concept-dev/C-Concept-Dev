@@ -14,6 +14,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@lienotheque/cache": "workspace:*",
     "@lienotheque/contrats": "workspace:*",
     "@lienotheque/jetons": "workspace:*",
     "@tauri-apps/api": "^2.12.1",

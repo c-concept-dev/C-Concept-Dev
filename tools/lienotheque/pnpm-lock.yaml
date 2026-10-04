@@ -10,6 +10,9 @@ importers:
 
   apps/app:
     dependencies:
+      '@lienotheque/cache':
+        specifier: workspace:*
+        version: link:../../outils/cache
       '@lienotheque/contrats':
         specifier: workspace:*
         version: link:../../packages/contrats

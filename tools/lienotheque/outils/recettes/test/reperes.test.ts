@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import type { LectureRepere, MotLu } from "@lienotheque/contrats";
+import { tesseractDisponible } from "@lienotheque/lecteur-texte";
 import {
   PRESENCE_MINIMALE,
   amorceDeSuite,
@@ -259,7 +260,12 @@ describe("ton clair d'une zone", () => {
 });
 
 describe("fichiers de travail (OUT-07)", () => {
-  it("ne laisse aucune image derrière lui", async () => {
+  // Ce contrôle passe par l'OCR : sans Tesseract, il n'y a pas d'image de travail à ne pas
+  // laisser derrière soi. L'intégration continue n'installe pas Tesseract (CLAUDE.md), et un
+  // contrôle qui ne trouve pas son outil doit se sauter, jamais échouer.
+  const siTesseract = tesseractDisponible() ? it : it.skip;
+
+  siTesseract("ne laisse aucune image derrière lui", async () => {
     const { mkdtempSync, readdirSync, rmSync } = await import("node:fs");
     const { tmpdir } = await import("node:os");
     const { join } = await import("node:path");
