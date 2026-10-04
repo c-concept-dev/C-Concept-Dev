@@ -92,7 +92,7 @@ export async function instantaneDeLot(lot: Lot): Promise<VueBibliotheque> {
   // Les images, une par une, écrites au passage. Le numéro imprimé d'une page n'est pas son rang
   // dans le document : c'est le décalage lu qui fait le lien entre les deux.
   const imprimes = numerosImprimes(lues, resultat.lignes);
-  const parPageImprimee = new Map<number, { image: string; largeur: number; hauteur: number }>();
+  const parPageImprimee = new Map<number, { image: string; largeur: number; hauteur: number; vignette?: string }>();
   if (lot.images !== undefined) {
     const adresse = lot.adresseImages ?? "/donnees/pages";
     for (const page of await exporterPages(lot.pdf, lot.images))
@@ -102,6 +102,7 @@ export async function instantaneDeLot(lot: Lot): Promise<VueBibliotheque> {
         image: `${adresse}/${page.fichier}`,
         largeur: page.largeur,
         hauteur: page.hauteur,
+        ...(page.vignette === undefined ? {} : { vignette: `${adresse}/${page.vignette}` }),
       });
   }
 

@@ -26,8 +26,10 @@ export type Entree = {
   readonly seuil: number;
   /** Titre de page, quand on en connaît un. */
   readonly titreDePage?: (page: number) => string | undefined;
-  /** Image de la page et ses dimensions, quand le lot en a exporté une. */
-  readonly imageDePage?: (page: number) => { readonly image: string; readonly largeur: number; readonly hauteur: number } | undefined;
+  /** Image de la page, sa vignette et ses dimensions, quand le lot en a exporté. */
+  readonly imageDePage?: (
+    page: number,
+  ) => { readonly image: string; readonly largeur: number; readonly hauteur: number; readonly vignette?: string } | undefined;
 };
 
 /** La phrase qui explique un lien, en français, construite une fois pour toutes (ANC-02). */

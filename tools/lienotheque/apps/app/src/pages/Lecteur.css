@@ -438,3 +438,11 @@
     flex: none;
   }
 }
+
+/* Vignette réelle (OUT-04). Même boîte que la feuille vide qu'elle remplace : la bande ne
+   change pas de largeur selon qu'un lot porte ses dérivés ou non. `contain` plutôt que
+   `cover` — une page rognée pour tenir dans un rapport fixe cache ce qu'on y cherche. */
+img.ln-vignettes__feuille {
+  object-fit: contain;
+  background: var(--ln-surface);
+}

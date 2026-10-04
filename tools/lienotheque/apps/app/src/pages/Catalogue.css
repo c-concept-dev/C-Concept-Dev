@@ -310,3 +310,17 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Vignettes réelles (OUT-04). Elles prennent la place exacte des aperçus au numéro : une
+   bibliothèque dont le lot n'a pas produit de dérivés garde la même grille. */
+img.ln-pages__apercu,
+.ln-detail__apercu--image {
+  display: block;
+  width: 100%;
+  object-fit: contain;
+}
+
+.ln-pages--liste img.ln-pages__apercu {
+  width: calc(var(--ln-grid) * 6);
+  flex: none;
+}

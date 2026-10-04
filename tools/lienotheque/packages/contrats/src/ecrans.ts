@@ -73,6 +73,13 @@ export const PageAffichee = z
     image: z.string().min(1).optional(),
     largeur: z.number().int().positive().optional(),
     hauteur: z.number().int().positive().optional(),
+    /** Vignette de la page, dérivé produit à l'ingestion (OUT-04).
+     *
+     *  Séparée de l'image : une bande de vingt-huit vignettes qui charge vingt-huit pages à
+     *  pleine largeur, c'est trente mégaoctets pour une colonne de cent pixels de large. Elle
+     *  manque quand le lot n'a pas produit de dérivés — les écrans retombent alors sur le
+     *  numéro seul, qui reste une cible cliquable. */
+    vignette: z.string().min(1).optional(),
     elements: z.array(ElementAffiche),
     /** Lignes du texte reconnu, pour le panneau repliable (B1). */
     texte: z.array(z.string()).default([]),

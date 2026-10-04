@@ -137,7 +137,13 @@ export function Lecteur({ vue, page, element, onPage, onElement }: Props): JSX.E
                   aria-current={p.numero === pageCourante?.numero ? "page" : undefined}
                   aria-label={`${nommer(vue.mots.page, p.numero)}${p.elements.some((e) => e.media !== undefined) ? `, avec des ${vue.mots.element.plusieurs}` : ""}`}
                 >
-                  <span className="ln-vignettes__feuille" aria-hidden="true" />
+                  {/* La vraie vignette quand l'ingestion en a produit une (OUT-04) ; la feuille
+                      vide sinon — un lot sans dérivés garde une bande cliquable. */}
+                  {p.vignette === undefined ? (
+                    <span className="ln-vignettes__feuille" aria-hidden="true" />
+                  ) : (
+                    <img className="ln-vignettes__feuille" src={p.vignette} alt="" loading="lazy" decoding="async" />
+                  )}
                   <span className="ln-vignettes__numero ln-sur-photo">{p.numero}</span>
                   {p.elements.some((e) => e.media !== undefined) ? <span className="ln-vignettes__repere" aria-hidden="true" /> : null}
                 </button>

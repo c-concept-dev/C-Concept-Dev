@@ -1,59 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { VueBibliotheque, type LigneInterpretee, type MotsBibliotheque, type SchemaBibliotheque } from "@lienotheque/contrats";
-import type { Association } from "@lienotheque/recettes";
-import { construireVue, phraseDuLien, type Entree, type MediaIngere } from "../src/index.js";
-
-const MOTS: MotsBibliotheque = {
-  element: { un: "clause", plusieurs: "clauses" },
-  piste: { un: "plage", plusieurs: "plages" },
-  page: { un: "feuillet", plusieurs: "feuillets" },
-};
-
-const SCHEMA: SchemaBibliotheque = {
-  cle: "recueil",
-  nom: "Recueil",
-  langue: "fr",
-  version: 1,
-  axes: [
-    {
-      cle: "niveau",
-      nom: "Niveau",
-      nature: "referentiel",
-      cardinalite: "une",
-      structure: "plat",
-      obligatoire: false,
-      alias: [],
-      valeurs: [
-        { cle: "debutant", nom: "Débutant", alias: [], synonymes: [], retiree: false },
-        { cle: "ancien", nom: "Ancien", alias: [], synonymes: [], retiree: true },
-      ],
-    },
-  ],
-};
-
-const ligne = (numero: number, sur: Partial<LigneInterpretee> = {}): LigneInterpretee => ({
-  numero,
-  pageImprimee: 100 + Math.floor(numero / 3),
-  piste: numero,
-  disque: 1,
-  sourcePiste: "pastille",
-  confiance: 1,
-  ...sur,
-});
-
-const media = (piste: number): MediaIngere => ({ empreinte: String(piste).padStart(64, "0"), piste, disque: 1, nom: `Plage ${piste}.mp3` });
-
-const entree = (sur: Partial<Entree> = {}): Entree => ({
-  id: "recueil",
-  nom: "Recueil de procédures",
-  schema: SCHEMA,
-  mots: MOTS,
-  lignes: [ligne(1), ligne(2), ligne(3)],
-  association: { appariements: [], orphelins: [], manquants: [] } satisfies Association,
-  medias: [media(1), media(2), media(3)],
-  seuil: 0.6,
-  ...sur,
-});
+import { VueBibliotheque, type LigneInterpretee } from "@lienotheque/contrats";
+import { construireVue, phraseDuLien } from "../src/index.js";
+import { MOTS, entreeMinimale as entree, ligne } from "./aide-instantane.js";
 
 describe("phrase d'un lien (ANC-02)", () => {
   it("dit en français d'où vient la piste, avec les mots de la bibliothèque", () => {

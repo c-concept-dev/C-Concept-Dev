@@ -166,9 +166,15 @@ export function Catalogue({ vue, page, onPage, onLecteur, onAjouter }: Props): J
                   aria-current={p.numero === detail?.numero ? "true" : undefined}
                   aria-label={nommer(vue.mots.page, p.numero)}
                 >
-                  <span className="ln-pages__apercu" aria-hidden="true">
-                    {p.numero}
-                  </span>
+                  {/* La vignette de la page quand le lot en porte une (OUT-04) ; son numéro
+                      sinon. Décorative dans les deux cas : le nom accessible est sur le bouton. */}
+                  {p.vignette === undefined ? (
+                    <span className="ln-pages__apercu" aria-hidden="true">
+                      {p.numero}
+                    </span>
+                  ) : (
+                    <img className="ln-pages__apercu" src={p.vignette} alt="" loading="lazy" decoding="async" />
+                  )}
                   <span className="ln-pages__nom">
                     {nommer(vue.mots.page, p.numero)}
                   </span>
@@ -197,10 +203,20 @@ export function Catalogue({ vue, page, onPage, onLecteur, onAjouter }: Props): J
               <h2 className="ln-detail__titre">
                 {nommer(vue.mots.page, detail.numero)}
               </h2>
-              <div className="ln-detail__apercu" role="img" aria-label={nommer(vue.mots.page, detail.numero)}>
-                <span>{detail.numero}</span>
-                {detail.titre === undefined ? null : <span className="ln-detail__sous-titre">{detail.titre}</span>}
-              </div>
+              {detail.vignette === undefined ? (
+                <div className="ln-detail__apercu" role="img" aria-label={nommer(vue.mots.page, detail.numero)}>
+                  <span>{detail.numero}</span>
+                  {detail.titre === undefined ? null : <span className="ln-detail__sous-titre">{detail.titre}</span>}
+                </div>
+              ) : (
+                <img
+                  className="ln-detail__apercu ln-detail__apercu--image"
+                  src={detail.vignette}
+                  alt={nommer(vue.mots.page, detail.numero)}
+                  loading="lazy"
+                  decoding="async"
+                />
+              )}
 
               <h3 className="ln-detail__sous">
                 {enTete(vue.mots.element.plusieurs)}
