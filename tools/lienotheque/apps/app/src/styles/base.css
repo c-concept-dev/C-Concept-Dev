@@ -307,9 +307,11 @@ p {
   }
 }
 
-/* Contrôles natifs : mêmes dimensions que le kit (grille de 8 px). */
+/* Contrôles natifs de saisie : mêmes dimensions que le kit (grille de 8 px).
+   Les cases et les boutons radio sont exclus : ce ne sont pas des champs. Une hauteur de 40 px
+   leur donnait une rangée de 58 px, et une liste de filtres deux fois trop haute (correction 7). */
 select,
-input,
+input:not([type="checkbox"]):not([type="radio"]),
 textarea {
   min-height: calc(var(--ln-grid) * 5);
   border: 1px solid var(--ln-control-border);

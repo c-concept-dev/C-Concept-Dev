@@ -56,13 +56,15 @@
 /* ---- Filtres ---- */
 
 .ln-filtres__titre {
-  margin: 0 0 calc(var(--ln-grid) * 1.5) 0;
+  margin: 0 0 calc(var(--ln-grid)) 0;
   font-size: 18px;
   font-weight: 600;
 }
 
+/* Correction 7 : les filtres resserrés. Les axes se suivent de près, et une rangée ne fait plus
+   que la hauteur de son texte — assez pour rester cliquable, sans étirer la colonne. */
 .ln-filtres__axe + .ln-filtres__axe {
-  margin-block-start: calc(var(--ln-grid) * 2);
+  margin-block-start: calc(var(--ln-grid) * 1.5);
 }
 
 .ln-filtres__nom {
@@ -73,7 +75,7 @@
 
 .ln-filtres__valeurs {
   display: grid;
-  gap: calc(var(--ln-grid) * 0.5);
+  gap: calc(var(--ln-grid) * 0.25);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -83,8 +85,9 @@
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: calc(var(--ln-grid));
-  padding: calc(var(--ln-grid) * 0.75) calc(var(--ln-grid));
+  gap: calc(var(--ln-grid) * 0.75);
+  min-height: calc(var(--ln-grid) * 3.5);
+  padding: calc(var(--ln-grid) * 0.25) calc(var(--ln-grid) * 0.75);
   border-radius: var(--ln-radius);
   font-size: 14px;
   cursor: pointer;

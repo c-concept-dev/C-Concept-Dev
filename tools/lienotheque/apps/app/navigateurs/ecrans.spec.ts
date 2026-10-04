@@ -208,3 +208,40 @@ test.describe("contrastes (UX-07)", () => {
     }
   }
 });
+
+/** Correction 7 : les filtres resserrés. jsdom ne mesure rien ; seul un vrai moteur dit la
+ *  hauteur d'une rangée. Elle valait 58 px parce que la feuille de base donnait aux cases la
+ *  hauteur d'un champ de saisie — et la colonne des filtres en devenait deux fois trop longue. */
+test.describe("Catalogue : les filtres sont resserrés (correction 7)", () => {
+  test("une rangée de filtre tient dans la hauteur de son texte, sans cesser d’être cliquable", async ({ page }) => {
+    await poser(page, "light", "#catalogue", ".ln-catalogue");
+    const mesures = await page.evaluate(() => {
+      const rangees = [...document.querySelectorAll<HTMLElement>(".ln-filtres__valeur")];
+      const cases = [...document.querySelectorAll<HTMLElement>(".ln-filtres__valeur input")];
+      return {
+        rangees: rangees.map((n) => Math.round(n.getBoundingClientRect().height)),
+        cases: cases.map((n) => Math.round(n.getBoundingClientRect().height)),
+      };
+    });
+    expect(mesures.rangees.length, "des rangées à mesurer").toBeGreaterThan(0);
+    for (const hauteur of mesures.rangees) {
+      // 24 px est la cible de pointage exigée par WCAG 2.5.8 ; 32 px la borne au-delà de laquelle
+      // la colonne redevient une liste étirée.
+      expect(hauteur, "rangée resserrée mais pointable").toBeGreaterThanOrEqual(24);
+      expect(hauteur, "rangée resserrée").toBeLessThanOrEqual(32);
+    }
+    for (const hauteur of mesures.cases) {
+      expect(hauteur, "la case n’est pas dimensionnée comme un champ de saisie").toBeLessThan(24);
+    }
+  });
+
+  test("le groupe « Validé / À vérifier » est là, et chaque axe est un groupe, pas un repère", async ({ page }) => {
+    await poser(page, "light", "#catalogue", ".ln-catalogue");
+    await expect(page.getByRole("group", { name: /état du lien/i })).toBeVisible();
+    await expect(page.getByRole("checkbox", { name: /validé/i })).toBeVisible();
+    await expect(page.getByRole("checkbox", { name: /à vérifier/i })).toBeVisible();
+    // Un repère par axe encombrerait la liste des repères : les axes n'en sont pas.
+    const reperes = await page.locator(".ln-filtres [role='region']").count();
+    expect(reperes, "aucun axe n’est un point de repère").toBe(0);
+  });
+});

@@ -18,6 +18,26 @@ type Props = {
 
 type Vue = "grille" | "liste";
 
+/** L'état du lien est le seul axe que l'écran connaît de lui-même.
+ *
+ *  Les autres viennent du schéma de la bibliothèque (CLA-01) : l'écran les affiche sans savoir ce
+ *  qu'ils veulent dire. Celui-ci est différent — « validé » et « à vérifier » sont des mots de
+ *  l'application, pas du domaine, et c'est elle qui décide ce qu'ils désignent. D'où le fait
+ *  qu'elle puisse, elle, filtrer dessus. */
+const ETAT = {
+  cle: "etat",
+  nom: "État du lien",
+  valeurs: [
+    { cle: "valide", nom: "Validé" },
+    { cle: "a-verifier", nom: "À vérifier" },
+  ],
+} as const;
+
+type CleEtat = (typeof ETAT.valeurs)[number]["cle"];
+
+/** L'état d'une page : elle est à vérifier dès qu'un seul de ses éléments l'est. */
+const etatDe = (p: PageAffichee): CleEtat => (p.elements.some((e) => e.aVerifier) ? "a-verifier" : "valide");
+
 export function Catalogue({ vue, page, onPage, onLecteur, onAjouter }: Props): JSX.Element {
   const [mode, setMode] = useState<Vue>("grille");
   const [choisis, setChoisis] = useState<ReadonlySet<string>>(new Set());
@@ -29,7 +49,12 @@ export function Catalogue({ vue, page, onPage, onLecteur, onAjouter }: Props): J
     setChoisis(suivant);
   };
 
-  const pages = useMemo(() => vue.pages, [vue.pages]);
+  const pages = useMemo(() => {
+    const etats = ETAT.valeurs.map((v) => v.cle).filter((cle) => choisis.has(`${ETAT.cle}/${cle}`));
+    // Aucun état coché vaut tous les états : une liste vide n'est pas un filtre, c'est l'absence
+    // de filtre — et un écran qui se vide au premier clic de décochage se lit comme un bogue.
+    return etats.length === 0 ? vue.pages : vue.pages.filter((p) => etats.includes(etatDe(p)));
+  }, [vue.pages, choisis]);
   const detail: PageAffichee | undefined = pages.find((p) => p.numero === page) ?? pages[0];
 
   const relies = (p: PageAffichee): number => p.elements.filter((e) => e.media !== undefined).length;
@@ -63,8 +88,32 @@ export function Catalogue({ vue, page, onPage, onLecteur, onAjouter }: Props): J
       <div className="ln-catalogue__corps">
         <nav className="ln-filtres ln-panneau ln-panneau-titre" aria-label="Filtres">
           <h2 className="ln-filtres__titre">Filtres</h2>
+
+          <section className="ln-filtres__axe" role="group" aria-labelledby={`axe-${ETAT.cle}`}>
+            <h3 id={`axe-${ETAT.cle}`} className="ln-filtres__nom">
+              {ETAT.nom}
+            </h3>
+            <ul className="ln-filtres__valeurs">
+              {ETAT.valeurs.map((valeur) => {
+                const clef = `${ETAT.cle}/${valeur.cle}`;
+                // Le compte porte sur toutes les pages, pas sur celles que le filtre laisse
+                // passer : un nombre qui tombe à zéro dès qu'on coche ne renseigne plus.
+                const nombre = vue.pages.filter((p) => etatDe(p) === valeur.cle).length;
+                return (
+                  <li key={clef}>
+                    <label className={choisis.has(clef) ? "ln-filtres__valeur ln-filtres__valeur--choisi" : "ln-filtres__valeur"}>
+                      <input type="checkbox" checked={choisis.has(clef)} onChange={() => basculer(clef)} />
+                      <span className="ln-filtres__libelle">{valeur.nom}</span>
+                      <span className="ln-filtres__nombre">{nombre}</span>
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+
           {vue.filtres.map((filtre) => (
-            <section key={filtre.cle} className="ln-filtres__axe" aria-labelledby={`axe-${filtre.cle}`}>
+            <section key={filtre.cle} className="ln-filtres__axe" role="group" aria-labelledby={`axe-${filtre.cle}`}>
               <h3 id={`axe-${filtre.cle}`} className="ln-filtres__nom">
                 {filtre.nom}
               </h3>

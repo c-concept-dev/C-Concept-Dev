@@ -158,3 +158,42 @@ describe("Catalogue : les mots viennent du schéma (CLA-01)", () => {
     expect(texte).not.toMatch(/\bélements?\b/);
   });
 });
+
+/** Correction 7 : le groupe « Validé / À vérifier », et un filtre qui filtre vraiment. */
+describe("Catalogue : filtrer par état du lien (correction 7)", () => {
+  it("porte le groupe « État du lien » avec ses deux valeurs et leurs comptes", () => {
+    poser();
+    const axe = screen.getByRole("group", { name: /état du lien/i });
+    const valide = within(axe).getByRole("checkbox", { name: /validé/i });
+    const aVerifier = within(axe).getByRole("checkbox", { name: /à vérifier/i });
+    expect(valide).not.toBeChecked();
+    expect(aVerifier).not.toBeChecked();
+    // Une page sur deux porte un élément à vérifier dans le jeu d'essai : chaque état en compte une.
+    expect(valide.closest("label")?.textContent).toMatch(/Validé\s*1/);
+    expect(aVerifier.closest("label")?.textContent).toMatch(/À vérifier\s*1/);
+  });
+
+  it("ne montre que les pages à vérifier quand on coche « À vérifier »", async () => {
+    poser();
+    expect(screen.getAllByRole("button", { name: /^Feuillet \d+$/ })).toHaveLength(2);
+    await userEvent.click(screen.getByRole("checkbox", { name: /à vérifier/i }));
+    const restantes = screen.getAllByRole("button", { name: /^Feuillet \d+$/ });
+    expect(restantes).toHaveLength(1);
+    expect(restantes[0]).toHaveAccessibleName("Feuillet 127");
+  });
+
+  it("revient à toutes les pages quand on décoche : aucun choix n’est pas un filtre vide", async () => {
+    poser();
+    const aVerifier = screen.getByRole("checkbox", { name: /à vérifier/i });
+    await userEvent.click(aVerifier);
+    await userEvent.click(aVerifier);
+    expect(screen.getAllByRole("button", { name: /^Feuillet \d+$/ })).toHaveLength(2);
+  });
+
+  it("cocher les deux états revient à ne rien exclure", async () => {
+    poser();
+    await userEvent.click(screen.getByRole("checkbox", { name: /à vérifier/i }));
+    await userEvent.click(screen.getByRole("checkbox", { name: /validé/i }));
+    expect(screen.getAllByRole("button", { name: /^Feuillet \d+$/ })).toHaveLength(2);
+  });
+});
