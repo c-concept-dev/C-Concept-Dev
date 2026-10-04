@@ -314,8 +314,18 @@ test('T-PERFREAL01B-17 : l’artefact frontend n’a pas bougé', () => {
      muet vers 'claude-opus-5', devient MODELE_PAR_DEFAUT ('claude-sonnet-5'), annoncé plutôt que
      silencieux quand une actualisation depuis /v1/models fait disparaître le modèle retenu. Aucune
      règle, aucun prompt, aucun schéma, aucun comportement d'interface visible n'a changé. */
+  /* PROVIDER-OPENAI-01 — L'EMPREINTE A BOUGÉ, ET C'EST LE SUJET MÊME DU LOT : le pipeline API
+     automatique n'avait qu'un fournisseur. OpenAI entre dans FOURNISSEURS_API avec son transport
+     (/v1/responses, outil de fonction non strict forcé, schéma canonique en paramètres), son
+     catalogue et sa tarification ; le registre sort de la zone de garde d'Anthropic puisqu'il en
+     porte deux, et les deux textes d'interface qui nommaient un fournisseur en dur (gabarit de
+     clé, lien de console) se lisent désormais sur le registre. CE QUI N'A PAS CHANGÉ : aucune
+     règle, aucun prompt, aucun schéma canonique, aucune plage gelée (FROZEN identique), aucun
+     appel existant — l'Architecte, le compilateur, le banc d'essai et le module Qualité passent
+     par la même façade appelFournisseur() qu'avant, inchangée, et Anthropic reste le
+     fournisseur par défaut. Mesuré en réel avant d'être écrit : cf. docs/PROVIDER-OPENAI-01.md. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    'eb9b9f0c81ed0dac95d651832ceeb8e1029c16d0d3979fd4e640bfe524bc2c0f', 'CANONICAL_HTML_CHANGED = NO');
+    '13e305e611f9626f67fe38295822d87422ce4785de78ac7b16fb21873e94ace0', 'CANONICAL_HTML_CHANGED = NO');
   /* Et aucune mesure navigateur n’a été inventée à la place de celle qu’on ne peut pas prendre. */
   assert.equal(M.navigateur.statut, 'NOT_AVAILABLE');
   assert.match(M.navigateur.raison, /n admet que https:\/\/c-concept-dev\.github\.io/);
