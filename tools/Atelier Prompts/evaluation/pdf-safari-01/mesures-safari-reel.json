@@ -1,0 +1,95 @@
+{
+  "lot": "PDF-SAFARI-01",
+  "date": "2026-10-04",
+  "note_methode": "Appels RÉELS dans le Safari de la personne, piloté par /usr/bin/safaridriver (WebDriver). Les documents sont ceux qu'elle a signalés. « avant » sert le reader.js de HEAD, « après » celui du correctif ; tout le reste du produit est le même arbre.",
+  "navigateur": {
+    "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.3 Safari/605.1.15",
+    "version_safari": "26.3"
+  },
+  "plateforme": {
+    "safari": "26.3",
+    "note": "macOS, safaridriver"
+  },
+  "moteur_releve": {
+    "ReadableStream.prototype[Symbol.asyncIterator]": "undefined",
+    "ReadableStream.prototype.values": "undefined",
+    "ReadableStream.prototype.getReader": "function",
+    "conclusion": "Safari n'itère pas un ReadableStream : c'est la cause racine. getReader existe, ce qui rend le correctif possible sans toucher la bibliothèque."
+  },
+  "resultats": [
+    {
+      "document": "pdf_utilisateur_charte_irc",
+      "fichier": "Charte_graphique_Institut_Relation_Couple_v6.pdf",
+      "etat": "avant",
+      "latence_ms": 138,
+      "erreur": "TypeError: undefined is not a function (near '...value of readableStream...')",
+      "ok": false,
+      "pile": [
+        "getTextContent@http://127.0.0.1:8901/avant/core/documents/vendor/pdf/pdf.mjs:16040:28",
+        "getTextContent@http://127.0.0.1:8901/avant/core/documents/vendor/pdf/pdf.mjs:16030:26",
+        "extractDocument@http://127.0.0.1:8901/avant/core/documents/reader.js:116:52"
+      ]
+    },
+    {
+      "document": "pdf_utilisateur_charte_irc",
+      "fichier": "Charte_graphique_Institut_Relation_Couple_v6.pdf",
+      "etat": "apres",
+      "latence_ms": 146,
+      "pages": 7,
+      "notice": "Texte extrait ; la mise en page, les schémas et les images ne sont pas interprétés.",
+      "ocrPages": 0,
+      "ok": true,
+      "caracteres": 7085,
+      "debut": "[Page 1/7] Institut de la Relation et du Couple - Charte graphique v6 - page 1 CHARTE GRAPHIQUE In"
+    },
+    {
+      "document": "pdf_depot_charte_c_concept",
+      "fichier": "Charte graphique C-Concept-Dev.pdf",
+      "etat": "avant",
+      "latence_ms": 130,
+      "erreur": "TypeError: undefined is not a function (near '...value of readableStream...')",
+      "ok": false,
+      "pile": [
+        "getTextContent@http://127.0.0.1:8901/avant/core/documents/vendor/pdf/pdf.mjs:16040:28",
+        "getTextContent@http://127.0.0.1:8901/avant/core/documents/vendor/pdf/pdf.mjs:16030:26",
+        "extractDocument@http://127.0.0.1:8901/avant/core/documents/reader.js:116:52"
+      ]
+    },
+    {
+      "document": "pdf_depot_charte_c_concept",
+      "fichier": "Charte graphique C-Concept-Dev.pdf",
+      "etat": "apres",
+      "latence_ms": 154,
+      "pages": 8,
+      "notice": "Texte extrait ; la mise en page, les schémas et les images ne sont pas interprétés.",
+      "ocrPages": 0,
+      "ok": true,
+      "caracteres": 7916,
+      "debut": "[Page 1/8] C H A R T E G R A P H I Q U E · V E R S I O N 2 . 0 · A O Û T 2 0 2 6 C-Concept&Dev Ide"
+    },
+    {
+      "document": "docx_utilisateur_synthese",
+      "fichier": "IRC_BCC_Synthese_fictive_Paul_et_Pauline.docx",
+      "etat": "avant",
+      "latence_ms": 47,
+      "pages": null,
+      "notice": "Texte extrait ; la mise en page, les schémas et les images ne sont pas interprétés.",
+      "ocrPages": 0,
+      "ok": true,
+      "caracteres": 14991,
+      "debut": "[word/document.xml] BILAN DE COMPÉTENCES DU COUPLE© Document de synthèse PAUL ET PAULINE 27 septembr"
+    },
+    {
+      "document": "docx_utilisateur_synthese",
+      "fichier": "IRC_BCC_Synthese_fictive_Paul_et_Pauline.docx",
+      "etat": "apres",
+      "latence_ms": 32,
+      "pages": null,
+      "notice": "Texte extrait ; la mise en page, les schémas et les images ne sont pas interprétés.",
+      "ocrPages": 0,
+      "ok": true,
+      "caracteres": 14991,
+      "debut": "[word/document.xml] BILAN DE COMPÉTENCES DU COUPLE© Document de synthèse PAUL ET PAULINE 27 septembr"
+    }
+  ]
+}
