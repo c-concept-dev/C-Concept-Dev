@@ -267,10 +267,19 @@ test('T-HTMLFINAL02-15 : aucune ressource statique distante, donc aucune ne peut
   assert.deepEqual(images.filter((s) => !s.startsWith('data:')), [], 'toutes les images sont embarquées');
   assert.deepEqual([...html.matchAll(/url\(([^)]*(?:https?:)?\/\/[^)]*)\)/g)].map((m) => m[1]), []);
   /* BROKEN_STATIC_RESOURCE_REFERENCE_COUNT = 0 : il n'y a aucune ressource à casser.
-     Les hôtes distants qui subsistent sont des fournisseurs à l'exécution, voulus. */
+     Les hôtes distants qui subsistent sont des fournisseurs à l'exécution, voulus.
+     PROVIDER-OPENAI-01 — DEUX HÔTES DE PLUS, DE LA MÊME NATURE QUE LES PRÉCÉDENTS :
+     api.openai.com est le point d'appel du second fournisseur du registre, et
+     platform.openai.com la page où l'on obtient sa clé — exactement ce que sont
+     déjà api.anthropic.com et console.anthropic.com pour le premier. Aucune
+     ressource STATIQUE n'est ajoutée : les quatre assertions ci-dessus, qui sont
+     celles qui interdisent script, feuille de style, police et image distantes,
+     restent vides à l'identique. */
   const hotes = [...new Set([...html.matchAll(/https?:\/\/([a-zA-Z0-9.-]+)/g)].map((m) => m[1]))].sort();
-  assert.deepEqual(hotes, ['api.anthropic.com', 'atelier-decision-groq.11drumboy11.workers.dev',
-    'atelier-decision-workers-ai.11drumboy11.workers.dev', 'console.anthropic.com', 'json-schema.org']);
+  assert.deepEqual(hotes, ['api.anthropic.com', 'api.openai.com',
+    'atelier-decision-groq.11drumboy11.workers.dev',
+    'atelier-decision-workers-ai.11drumboy11.workers.dev', 'console.anthropic.com',
+    'json-schema.org', 'platform.openai.com']);
 });
 
 test('T-HTMLFINAL02-16 : aucun drapeau de débogage ni de test dans l’artefact', () => {

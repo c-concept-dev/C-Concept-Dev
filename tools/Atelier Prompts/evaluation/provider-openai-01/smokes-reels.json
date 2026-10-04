@@ -1,0 +1,225 @@
+{
+  "lot": "PROVIDER-OPENAI-01",
+  "date": "2026-10-04",
+  "note_methode": "Appels RÉELS à l'API OpenAI, relayés par le proxy de mesure du dépôt (openai-proxy, qui détient la clé ; aucune clé n'a été lue, affichée ni écrite). Les réponses sont enregistrées telles quelles, hors en-têtes.",
+  "modele": "gpt-5.6-sol",
+  "schema_canonique": {
+    "nom": "ARCH_SCHEMA",
+    "octets": 11539,
+    "proprietes": 83,
+    "profondeur": 5
+  },
+  "schema_projete": {
+    "octets": 11023,
+    "racine": [
+      "type",
+      "additionalProperties",
+      "required",
+      "definitions",
+      "properties",
+      "description"
+    ]
+  },
+  "refus_mesures": [
+    {
+      "cas": "mode_strict_response_format_schema_canonique",
+      "endpoint": "/v1/chat/completions",
+      "status_http": 400,
+      "latence_ms": 822,
+      "code": "invalid_request_error",
+      "message": "Invalid schema for response_format 'sortie_structuree': In context=(), 'allOf' is not permitted."
+    },
+    {
+      "cas": "outil_fonction_racine_non_projetee",
+      "endpoint": "/v1/chat/completions",
+      "status_http": 400,
+      "latence_ms": 1358,
+      "code": "invalid_function_parameters",
+      "message": "Invalid schema for function 'sortie_structuree': schema must have type 'object' and not have 'oneOf'/'anyOf'/'allOf'/'enum'/'const'/'not' at the top level."
+    },
+    {
+      "cas": "outil_fonction_sur_chat_completions",
+      "endpoint": "/v1/chat/completions",
+      "status_http": 400,
+      "latence_ms": 770,
+      "code": "invalid_request_error",
+      "message": "Function tools with reasoning_effort are not supported for gpt-5.6-sol in /v1/chat/completions. To use function tools, use /v1/responses or set reasoning_effort to 'none'."
+    },
+    {
+      "cas": "effort_hors_domaine",
+      "endpoint": "/v1/responses",
+      "status_http": 400,
+      "latence_ms": 225,
+      "code": "invalid_value",
+      "message": "Invalid value: 'ultra'. Supported values are: 'none', 'minimal', 'low', 'medium', 'high', 'xhigh', and 'max'."
+    },
+    {
+      "cas": "modele_inexistant",
+      "endpoint": "/v1/responses",
+      "status_http": 404,
+      "latence_ms": 772,
+      "code": "model_not_found",
+      "message": "The model `gpt-modele-inexistant-xyz` does not exist or you do not have access to it."
+    }
+  ],
+  "succes_mesures": [
+    {
+      "demande": "Rédige une note de synthèse de 2 pages sur les effets du télétravail sur la cohésion d'équipe, destinée à un comité de direction.",
+      "endpoint": "/v1/responses",
+      "status_http": 200,
+      "latence_ms": 35913,
+      "statut": "completed",
+      "incomplete_details": null,
+      "types_sortie": [
+        "reasoning",
+        "function_call"
+      ],
+      "usage": {
+        "entree": 6974,
+        "sortie": 3297,
+        "raisonnement": 446
+      },
+      "appel_outil": true,
+      "arguments_octets": 13000,
+      "json_analysable": true,
+      "violations_canoniques": 0,
+      "cles_premier_niveau": [
+        "version",
+        "comprehension",
+        "evaluation",
+        "strategie",
+        "livrable",
+        "compilation",
+        "verification",
+        "apprentissage"
+      ],
+      "arguments": "{\"version\":\"3.4\",\"comprehension\":{\"intention_principale\":\"Produire une note de synthèse concise sur les effets du télétravail sur la cohésion d’équipe.\",\"intentions_secondaires\":[\"Adapter l’analyse et les recommandations aux besoins décisionnels d’un comité de direction.\",\"Respecter un volume de deux pages.\"],\"declarations\":[{\"contenu\":\"Le sujet demandé est l’effet du télétravail sur la cohésion d’équipe.\",\"statut\":\"declaration_utilisateur\",\"source\":\"demande\",\"preuve\":{\"citation\":\"les effets du télétravail sur la cohésion d'équipe\",\"contexte_avant\":null,\"contexte_apres\":null}},{\"contenu\":\"Le document est destiné à un comité de direction.\",\"statut\":\"declaration_utilisateur\",\"source\":\"demande\",\"preuve\":{\"citation\":\"destinée à un comité de direction\",\"contexte_avant\":null,\"contexte_apres\":null}},{\"contenu\":\"Le livrable attendu est une note de synthèse.\",\"statut\":\"declaration_utilisateur\",\"source\":\"demande\",\"preuve\":{\"citation\":\"Rédige une note de synthèse\",\"contexte_avant\":null,\"contexte_apres\":null}}],\"contraintes\":[{\"contenu\":\"La note doit tenir sur deux pages.\",\"statut\":\"declaration_utilisateur\",\"source\":\"demande\",\"preuve\":{\"citation\":\"de 2 pages\",\"contexte_avant\":null,\"contexte_apres\":null}},{\"contenu\":\"Le registre doit être exécutif, synthétique et orienté vers les implications managériales.\",\"statut\":\"deduction_llm\",\"source\":\"aucune\",\"preuve\":null}],\"ambiguites\":[\"Le type de télétravail concerné n’est pas précisé : intégral, hybride, occasionnel ou indifférencié.\",\"Aucun contexte d’entreprise, secteur, pays ou niveau actuel de télétravail n’est indiqué.\",\"Le mode de comptage des deux pages n’est pas défini ; un ordre de grandeur en mots devra servir de repère.\"],\"informations_manquantes\":[]},\"evaluation\":{\"niveau_risque\":\"modere\",\"justification_risque\":\"La note peut influencer des orientations managériales, mais une synthèse générale, nuancée et correctement sourcée reste exploitable sans données internes à l’entreprise.\",\"connaissance_externe_necessaire\":true,\"actualite_requise\":false,\"justification_connaissance\":\"Une synthèse fiable des effets du télétravail suppose de mobiliser des travaux de recherche et des données externes au texte fourni. L’utilisateur ne demande toutefois ni état de l’art à une date précise ni informations immédiatement changeantes.\",\"calcul_requis\":false,\"livrable_complet_possible\":true,\"reponse_partielle_possible\":true,\"action_recommandee\":\"continuer\",\"questions_a_poser\":[],\"parties_realisables_immediatement\":[\"Synthèse équilibrée des mécanismes favorables et défavorables.\",\"Identification des facteurs qui modulent les effets sur la cohésion.\",\"Formulation de leviers d’action à l’usage du comité de direction.\"]},\"strategie\":{\"capacites_necessaires\":[\"Synthèse de littérature en management du travail\",\"Analyse organisationnelle\",\"Hiérarchisation d’enjeux pour décideurs\",\"Rédaction exécutive concise\",\"Distinction entre résultats établis, nuances et recommandations\"],\"hypotheses_autorisees\":[\"Traiter le télétravail de façon générale tout en distinguant, lorsque cela change l’analyse, les configurations hybrides, intégrales ou occasionnelles.\",\"Rédiger pour un comité de direction non spécialiste recherchant des constats, des risques et des leviers d’action.\",\"Utiliser une fourchette indicative de mots compatible avec deux pages standards, faute de gabarit précisé.\"],\"hypotheses_interdites\":[\"Inventer des données sur l’entreprise, ses salariés, son secteur ou sa politique de télétravail.\",\"Présenter un modèle de télétravail comme universellement optimal.\",\"Attribuer au télétravail un effet causal certain lorsque les éléments disponibles établissent seulement une association ou un effet dépendant du contexte.\",\"Fabriquer des chiffres, références ou conclusions de recherche.\"],\"role_adaptatif\":{\"intitule\":\"Analyste en organisation et rédacteur exécutif\",\"mission\":\"Transformer des connaissances fiables sur le télétravail et la dynamique collective en une note courte, nuancée et directement utile à un comité de direction.\",\"competences\":[\"Synthèse critique de recherches\",\"Analyse de la cohésion d’équipe\",\"Rédaction pour dirigeants\",\"Formulation de recommandations opérationnelles\"],\"limites\":[\"Ne dispose d’aucune donnée interne sur l’organisation concernée.\",\"Ne peut pas conclure à un effet universel indépendant des modalités de travail et du contexte.\",\"Doit signaler toute affirmation empirique qui ne pourrait pas être étayée par une source consultable.\"]},\"niveau_architecture\":\"standard\",\"justification_niveau\":\"La demande est ciblée et courte, mais elle exige une synthèse documentée, une analyse équilibrée et une traduction en implications décisionnelles sans surcharger deux pages.\",\"pilotage_incertitude\":{\"decisions_autonomes\":[\"Organiser la note autour d’un message clé, des effets contrastés, des facteurs modérateurs et des leviers d’action.\",\"Donner priorité aux éléments qui peuvent orienter une décision de direction plutôt qu’à une revue académique exhaustive.\",\"Employer un style sobre avec des intertitres courts et une conclusion décisionnelle.\"],\"estimations_a_etiqueter\":[\"L’équivalence entre deux pages et environ 700 à 900 mots, qui dépend du gabarit de mise en page.\"],\"inconnues_non_devineables\":[\"La politique de télétravail actuelle de l’entreprise.\",\"Les difficultés de cohésion effectivement observées dans les équipes concernées.\",\"Le secteur, la taille, la dispersion géographique et la culture managériale de l’organisation.\"]}},\"livrable\":{\"nature\":\"Note de synthèse destinée à un comité de direction\",\"format_technique\":\"markdown\",\"quantites\":{\"min\":2,\"max\":2,\"unite\":\"pages\"},\"ton\":\"Exécutif, factuel, nuancé et orienté vers l’action\",\"longueur_indicative\":\"Deux pages standards, soit environ 700 à 900 mots hors éventuelles références courtes.\"},\"compilation\":{\"composants_retenus\":[{\"type\":\"instruction\",\"titre\":\"Angle décisionnel\",\"contenu\":\"Présenter dès l’ouverture un message directeur utile à la décision : ne pas traiter le télétravail comme intrinsèquement favorable ou défavorable à la cohésion, mais analyser les conditions organisationnelles et managériales qui font varier ses effets. Relier chaque constat important à une implication concrète pour la direction.\",\"justification\":\"Le destinataire est un comité de direction ; la note doit donc hiérarchiser les enjeux et expliciter leurs conséquences pratiques.\",\"fondements\":[{\"nature\":\"utilisateur\",\"citation\":\"destinée à un comité de direction\",\"usage\":\"Justifie une rédaction centrée sur les arbitrages et les implications de gouvernance.\"},{\"nature\":\"deduction\",\"citation\":null,\"usage\":\"Un angle conditionnel évite une conclusion universelle non soutenue.\"}]},{\"type\":\"section\",\"titre\":\"Effets contrastés sur la cohésion\",\"contenu\":\"Examiner de façon équilibrée les principaux effets possibles du télétravail sur la cohésion : qualité des relations interpersonnelles, sentiment d’appartenance, confiance, circulation informelle de l’information, coordination, inclusion, isolement et capacité à intégrer les nouveaux arrivants. Distinguer les bénéfices potentiels des risques et préciser les mécanismes en jeu.\",\"justification\":\"Cette couverture opérationnalise le sujet sans réduire la cohésion à un seul indicateur.\",\"fondements\":[{\"nature\":\"utilisateur\",\"citation\":\"les effets du télétravail sur la cohésion d'équipe\",\"usage\":\"Établit le phénomène central à analyser.\"},{\"nature\":\"deduction\",\"citation\":null,\"usage\":\"Décompose la cohésion en dimensions utiles à une synthèse managériale.\"}]},{\"type\":\"section\",\"titre\":\"Facteurs modérateurs\",\"contenu\":\"Montrer comment les effets peuvent varier selon l’intensité et la régularité du télétravail, la nature des tâches, l’interdépendance entre collègues, la maturité des équipes, la qualité du management, les outils de collaboration, les règles de présence commune et l’équité perçue entre métiers ou statuts. Ne pas supposer que ces facteurs décrivent l’entreprise destinataire.\",\"justification\":\"Les effets organisationnels du télétravail dépendent du contexte ; expliciter ces facteurs rend la note plus exacte et plus utile sans inventer de données internes.\",\"fondements\":[{\"nature\":\"deduction\",\"citation\":null,\"usage\":\"Cadre l’analyse conditionnelle rendue nécessaire par l’absence de contexte d’entreprise.\"}]},{\"type\":\"instruction\",\"titre\":\"Leviers de direction\",\"contenu\":\"Formuler un nombre limité de leviers prioritaires et actionnables : clarifier les finalités et règles du travail hybride, organiser des temps de présence à forte valeur collective, outiller les managers, préserver les échanges informels et l’inclusion, accompagner l’intégration, puis suivre quelques indicateurs pertinents. Pour chaque levier, préciser brièvement le problème traité et éviter toute promesse d’efficacité universelle.\",\"justification\":\"Une note au comité de direction doit déboucher sur des options concrètes, reliées aux risques identifiés.\",\"fondements\":[{\"nature\":\"utilisateur\",\"citation\":\"comité de direction\",\"usage\":\"Justifie des recommandations au niveau de la politique et du pilotage organisationnels.\"},{\"nature\":\"deduction\",\"citation\":null,\"usage\":\"Transforme la synthèse en aide à la décision sans prétendre connaître le contexte interne.\"}]},{\"type\":\"contrainte\",\"titre\":\"Discipline de synthèse\",\"contenu\":\"Tenir en deux pages : privilégier une courte introduction, trois ou quatre intertitres informatifs, des paragraphes denses et une conclusion comportant les priorités de décision. Écarter les développements historiques, les listes longues et le jargon académique. Conserver uniquement les résultats et nuances qui modifient l’interprétation ou l’action.\",\"justification\":\"Le volume imposé exige une sélection stricte et une structure immédiatement lisible.\",\"fondements\":[{\"nature\":\"utilisateur\",\"citation\":\"de 2 pages\",\"usage\":\"Établit la contrainte de volume.\"},{\"nature\":\"utilisateur\",\"citation\":\"note de synthèse\",\"usage\":\"Établit la nécessité de condenser et hiérarchiser l’information.\"}]}],\"composants_ecartes\":[{\"type\":\"section\",\"titre\":\"Historique du télétravail\",\"raison\":\"N’aide pas directement à répondre à la question des effets sur la cohésion dans un format de deux pages.\"},{\"type\":\"donnee\",\"titre\":\"Diagnostic interne de l’entreprise\",\"raison\":\"Aucune donnée interne n’est fournie ; un diagnostic spécifique serait inventé.\"},{\"type\":\"section\",\"titre\":\"Revue bibliographique exhaustive\",\"raison\":\"Incompatible avec la longueur demandée et le besoin décisionnel du comité de direction.\"}]},\"verification\":{\"criteres_bloquants\":[\"Le texte final doit traiter explicitement la cohésion d’équipe, et non la seule productivité ou satisfaction individuelle.\",\"Le volume doit rester compatible avec deux pages.\",\"Aucune donnée interne à l’entreprise ne doit être inventée.\",\"Aucun chiffre, résultat d’étude ou lien causal ne doit être présenté sans fondement identifiable.\",\"Les recommandations doivent découler des effets et facteurs exposés.\"],\"criteres_qualitatifs\":[\"Le message principal est visible dès le début.\",\"L’analyse présente à la fois bénéfices potentiels, risques et conditions de variation.\",\"Les notions utilisées pour caractériser la cohésion sont compréhensibles par des dirigeants non spécialistes.\",\"Les leviers proposés sont peu nombreux, hiérarchisés et actionnables.\",\"La conclusion fait ressortir les arbitrages ou priorités plutôt que de répéter le corps du texte.\",\"Le style est sobre, fluide et exempt de jargon inutile.\"],\"elements_non_verifiables\":[\"L’adéquation des recommandations à l’entreprise destinataire en l’absence de contexte interne.\",\"La pagination exacte sans gabarit de mise en page.\",\"Les effets réels du télétravail sur les équipes particulières de l’organisation.\"],\"controle_provenance\":[{\"affirmation\":\"Le livrable attendu est une note de synthèse de deux pages sur les effets du télétravail sur la cohésion d’équipe.\",\"statut\":\"soutenue\",\"justification\":\"Le type de document, le volume et le sujet figurent explicitement dans la demande.\"},{\"affirmation\":\"Le document vise un comité de direction.\",\"statut\":\"soutenue\",\"justification\":\"Le destinataire est explicitement indiqué par l’utilisateur.\"},{\"affirmation\":\"Les effets doivent être analysés comme dépendant des modalités de télétravail et du contexte organisationnel.\",\"statut\":\"hypothese\",\"justification\":\"Il s’agit du cadre analytique retenu pour éviter une généralisation, non d’un fait établi par la demande.\"},{\"affirmation\":\"L’entreprise applique une forme déterminée de télétravail ou rencontre déjà un problème de cohésion.\",\"statut\":\"information_manquante\",\"justification\":\"Aucune modalité interne ni aucun diagnostic organisationnel ne sont fournis.\"},{\"affirmation\":\"Les constats empiriques sur le télétravail et la cohésion sont établis par la recherche.\",\"statut\":\"connaissance_externe_non_verifiee\",\"justification\":\"Ils devront être appuyés par des sources réellement consultées avant d’être présentés comme vérifiés.\"}]},\"apprentissage\":{\"preferences_applicables\":[],\"preference_proposable\":null}}"
+    },
+    {
+      "demande": "Construis un questionnaire de 20 items à échelle de Likert sur la charge mentale au travail, avec score par dimension et interprétation des seuils.",
+      "endpoint": "/v1/responses",
+      "status_http": 200,
+      "latence_ms": 69052,
+      "statut": "completed",
+      "incomplete_details": null,
+      "types_sortie": [
+        "reasoning",
+        "reasoning",
+        "reasoning",
+        "reasoning",
+        "reasoning",
+        "function_call"
+      ],
+      "usage": {
+        "entree": 6973,
+        "sortie": 6292,
+        "raisonnement": 2352
+      },
+      "appel_outil": true,
+      "arguments_octets": 17818,
+      "json_analysable": true,
+      "violations_canoniques": 0,
+      "cles_premier_niveau": [
+        "version",
+        "comprehension",
+        "evaluation",
+        "strategie",
+        "livrable",
+        "compilation",
+        "verification",
+        "apprentissage"
+      ],
+      "arguments": "{\"version\":\"3.4\",\"comprehension\":{\"intention_principale\":\"Produire un questionnaire structuré de 20 items mesurant la charge mentale au travail au moyen d’une échelle de Likert.\",\"intentions_secondaires\":[\"Organiser les items en dimensions distinctes.\",\"Fournir une méthode de calcul des scores pour chaque dimension.\",\"Proposer des seuils d’interprétation compréhensibles.\"],\"declarations\":[{\"contenu\":\"L’utilisateur demande la construction d’un questionnaire sur la charge mentale au travail.\",\"statut\":\"declaration_utilisateur\",\"source\":\"demande\",\"preuve\":{\"citation\":\"Construis un questionnaire de 20 items à échelle de Likert sur la charge mentale au travail\",\"contexte_avant\":null,\"contexte_apres\":null}},{\"contenu\":\"Le questionnaire doit comprendre exactement 20 items.\",\"statut\":\"declaration_utilisateur\",\"source\":\"demande\",\"preuve\":{\"citation\":\"20 items\",\"contexte_avant\":null,\"contexte_apres\":null}},{\"contenu\":\"Des scores distincts doivent être calculables par dimension.\",\"statut\":\"declaration_utilisateur\",\"source\":\"demande\",\"preuve\":{\"citation\":\"avec score par dimension\",\"contexte_avant\":null,\"contexte_apres\":null}},{\"contenu\":\"Les seuils de score doivent être accompagnés d’une interprétation.\",\"statut\":\"declaration_utilisateur\",\"source\":\"demande\",\"preuve\":{\"citation\":\"interprétation des seuils\",\"contexte_avant\":null,\"contexte_apres\":null}}],\"contraintes\":[{\"contenu\":\"Utiliser une échelle de réponse de type Likert.\",\"statut\":\"declaration_utilisateur\",\"source\":\"demande\",\"preuve\":{\"citation\":\"à échelle de Likert\",\"contexte_avant\":null,\"contexte_apres\":null}},{\"contenu\":\"Couvrir spécifiquement la charge mentale dans le contexte professionnel.\",\"statut\":\"declaration_utilisateur\",\"source\":\"demande\",\"preuve\":{\"citation\":\"sur la charge mentale au travail\",\"contexte_avant\":null,\"contexte_apres\":null}},{\"contenu\":\"Ne pas présenter le questionnaire ou ses seuils comme cliniquement diagnostiques ou psychométriquement validés sans étude empirique.\",\"statut\":\"deduction_llm\",\"source\":\"aucune\",\"preuve\":null},{\"contenu\":\"Présenter les seuils proposés comme des repères descriptifs provisoires tant qu’aucune validation sur une population cible n’est disponible.\",\"statut\":\"deduction_llm\",\"source\":\"aucune\",\"preuve\":null}],\"ambiguites\":[\"Le nombre de dimensions n’est pas précisé.\",\"Le nombre de modalités de l’échelle de Likert n’est pas précisé.\",\"La population professionnelle visée et le secteur d’activité ne sont pas précisés.\",\"La période de référence des réponses n’est pas précisée.\",\"L’usage prévu du questionnaire — sensibilisation, diagnostic organisationnel, recherche ou suivi — n’est pas indiqué.\",\"Le caractère attendu des seuils, heuristique ou empiriquement validé, n’est pas précisé.\"],\"informations_manquantes\":[{\"information\":\"Population cible et contexte professionnel précis\",\"bloquant\":false,\"justification\":\"Ces éléments influencent le vocabulaire et la pertinence des situations décrites, mais une version générale destinée aux adultes en emploi reste réalisable.\"},{\"information\":\"Usage prévu du questionnaire\",\"bloquant\":false,\"justification\":\"L’usage détermine le niveau de validation et les précautions nécessaires, mais un outil descriptif non diagnostique peut être fourni immédiatement.\"},{\"information\":\"Données empiriques ou normes permettant d’étalonner les seuils\",\"bloquant\":false,\"justification\":\"Sans échantillon de validation, les seuils ne peuvent pas être présentés comme normatifs; ils peuvent néanmoins être fournis comme repères provisoires clairement étiquetés.\"}]},\"evaluation\":{\"niveau_risque\":\"modere\",\"justification_risque\":\"Un questionnaire relatif à la santé au travail peut être pris à tort pour un instrument diagnostique ou servir à des décisions individuelles injustifiées. Le risque reste maîtrisable si la portée descriptive, le caractère provisoire des seuils et les limites d’usage sont explicites.\",\"connaissance_externe_necessaire\":true,\"actualite_requise\":false,\"justification_connaissance\":\"La conception responsable requiert des principes généraux de psychométrie, de formulation d’items, de cotation et d’interprétation qui ne figurent pas dans la demande. Ces principes ne dépendent pas principalement de données d’actualité.\",\"calcul_requis\":true,\"livrable_complet_possible\":true,\"reponse_partielle_possible\":true,\"action_recommandee\":\"continuer\",\"questions_a_poser\":[],\"parties_realisables_immediatement\":[]},\"strategie\":{\"capacites_necessaires\":[\"Définition opérationnelle de dimensions de la charge mentale au travail\",\"Rédaction d’items psychométriques simples et non ambigus\",\"Conception d’une échelle de réponse cohérente\",\"Élaboration d’une règle de cotation par dimension\",\"Construction de seuils descriptifs transparents\",\"Communication des limites d’un outil non validé\"],\"hypotheses_autorisees\":[\"Retenir une population générale d’adultes en situation de travail.\",\"Employer une échelle de Likert en cinq modalités, de 1 à 5.\",\"Utiliser une période de référence de quatre semaines.\",\"Répartir les 20 items en quatre dimensions équilibrées de cinq items.\",\"Présenter les seuils comme des repères heuristiques fondés sur l’étendue théorique des scores.\"],\"hypotheses_interdites\":[\"Supposer que le questionnaire est validé, fiable ou étalonné sans données empiriques.\",\"Présenter les seuils comme des normes cliniques, réglementaires ou diagnostiques.\",\"Déduire un trouble psychologique ou une incapacité professionnelle d’un score.\",\"Supposer que les mêmes normes conviennent à tous les métiers, secteurs et pays.\",\"Inventer des propriétés psychométriques, des percentiles ou des pourcentages de risque.\"],\"role_adaptatif\":{\"intitule\":\"Concepteur prudent de questionnaire psychosocial au travail\",\"mission\":\"Élaborer un outil descriptif clair et exploitable sur la charge mentale au travail, avec cotation transparente et limites d’interprétation explicites.\",\"competences\":[\"Construction d’échelles de Likert\",\"Rédaction d’items univoques\",\"Scoring multidimensionnel\",\"Interprétation prudente des scores\",\"Prévention des usages diagnostiques abusifs\"],\"limites\":[\"Ne peut pas certifier une validité psychométrique sans étude empirique.\",\"Ne peut pas établir de normes populationnelles sans échantillon de référence.\",\"Ne remplace pas une évaluation clinique, ergonomique ou organisationnelle conduite par un professionnel qualifié.\"]},\"niveau_architecture\":\"approfondi\",\"justification_niveau\":\"La demande combine construction d’items, architecture dimensionnelle, calcul et interprétation de seuils. Une erreur pourrait conduire à une lecture abusive en contexte de santé au travail, ce qui justifie une structure approfondie sans devenir critique.\",\"pilotage_incertitude\":{\"decisions_autonomes\":[\"Choisir quatre dimensions de cinq items afin d’obtenir une structure équilibrée.\",\"Adopter une échelle de Likert à cinq modalités.\",\"Fixer une période de référence de quatre semaines.\",\"Utiliser la moyenne des items comme score principal de chaque dimension pour faciliter l’interprétation.\",\"Inclure un petit nombre d’items à cotation inversée et fournir explicitement la règle de recodage.\"],\"estimations_a_etiqueter\":[\"Les bandes de scores proposées seront des seuils descriptifs provisoires et non des seuils empiriquement validés.\",\"La couverture des dimensions sera présentée comme un modèle de travail raisonnable, non comme une taxonomie universelle.\"],\"inconnues_non_devineables\":[\"Performances psychométriques réelles du questionnaire.\",\"Normes de score propres à un métier, une organisation ou une population.\",\"Sensibilité au changement et seuil minimal de différence significative.\",\"Valeur prédictive d’un score pour la santé, l’absentéisme ou la performance.\"]}},\"livrable\":{\"nature\":\"Questionnaire original de 20 items avec consignes, échelle de réponse, dimensions, clé de cotation et grille d’interprétation prudente.\",\"format_technique\":\"markdown\",\"quantites\":{\"min\":20,\"max\":20,\"unite\":\"items\"},\"ton\":\"Clair, professionnel, accessible et non diagnostique.\",\"longueur_indicative\":\"Environ 1 200 à 1 800 mots, tableaux compris, avec des explications brèves mais suffisantes pour administrer et scorer l’outil.\"},\"compilation\":{\"composants_retenus\":[{\"type\":\"section\",\"titre\":\"Architecture dimensionnelle\",\"contenu\":\"Structurer le questionnaire en quatre dimensions de cinq items chacune : 1) demandes cognitives et complexité; 2) pression temporelle et volume de travail; 3) interruptions et fragmentation de l’attention; 4) récupération mentale et déconnexion. Présenter en une phrase ce que mesure chaque dimension et préciser que cette architecture est un modèle de travail proposé, non une taxonomie universellement validée.\",\"justification\":\"Une architecture explicite est indispensable pour permettre le calcul demandé des scores par dimension tout en gardant exactement 20 items.\",\"fondements\":[{\"nature\":\"utilisateur\",\"citation\":\"avec score par dimension\",\"usage\":\"Établit la nécessité de plusieurs sous-échelles distinctes.\"},{\"nature\":\"deduction\",\"citation\":null,\"usage\":\"Le choix de quatre dimensions équilibrées permet une répartition simple de cinq items chacune.\"}]},{\"type\":\"instruction\",\"titre\":\"Période de référence et modalités de réponse\",\"contenu\":\"Faire répondre en pensant aux quatre dernières semaines. Employer la même échelle en cinq points pour les 20 items : 1 = Jamais, 2 = Rarement, 3 = Parfois, 4 = Souvent, 5 = Presque toujours. Donner une consigne courte indiquant qu’il faut choisir la réponse décrivant le mieux l’expérience habituelle au travail.\",\"justification\":\"Une période et des ancrages constants rendent les réponses comparables et le calcul reproductible.\",\"fondements\":[{\"nature\":\"utilisateur\",\"citation\":\"à échelle de Likert\",\"usage\":\"Impose le recours à une échelle ordonnée de réponses.\"},{\"nature\":\"deduction\",\"citation\":null,\"usage\":\"Le format à cinq points et la période de quatre semaines sont des choix de conception raisonnables en l’absence de précision.\"}]},{\"type\":\"contrainte\",\"titre\":\"Rédaction des 20 items\",\"contenu\":\"Rédiger exactement 20 affirmations courtes à la première personne, avec une seule idée par item et un vocabulaire compréhensible hors jargon. Produire exactement cinq items par dimension. Éviter les formulations culpabilisantes, diagnostiques, absolues ou combinant deux situations. Inclure au plus un item formulé positivement par dimension; signaler ces items dans la clé de cotation comme items inversés, sans alourdir leur affichage dans le questionnaire.\",\"justification\":\"Ces règles réduisent l’ambiguïté des réponses et garantissent le volume et l’équilibre demandés.\",\"fondements\":[{\"nature\":\"utilisateur\",\"citation\":\"20 items\",\"usage\":\"Fixe le nombre exact d’énoncés à produire.\"},{\"nature\":\"utilisateur\",\"citation\":\"sur la charge mentale au travail\",\"usage\":\"Délimite le construit et le contexte de rédaction.\"},{\"nature\":\"deduction\",\"citation\":null,\"usage\":\"Les règles d’univocité et de formulation soutiennent une mesure plus interprétable.\"}]},{\"type\":\"instruction\",\"titre\":\"Calcul des scores par dimension\",\"contenu\":\"Associer chaque item à sa dimension et fournir une clé de cotation. Coter les réponses de 1 à 5; pour chaque item inversé, appliquer le recodage 1↔5, 2↔4 et 3 inchangé. Pour chaque dimension, calculer à la fois la somme des cinq items, comprise entre 5 et 25, et la moyenne, comprise entre 1 et 5. Faire en sorte qu’après recodage, un score élevé indique toujours une charge mentale plus forte. Indiquer comment traiter une réponse manquante : ne calculer la dimension que si au moins quatre de ses cinq items sont renseignés, puis utiliser la moyenne des réponses disponibles et signaler qu’elle repose sur une donnée manquante.\",\"justification\":\"La demande exige un score par dimension; une règle complète doit préciser direction, plage, recodage et données manquantes.\",\"fondements\":[{\"nature\":\"utilisateur\",\"citation\":\"avec score par dimension\",\"usage\":\"Établit l’obligation de fournir une cotation séparée pour chaque sous-échelle.\"},{\"nature\":\"deduction\",\"citation\":null,\"usage\":\"Les sommes, moyennes, recodages et règles de données manquantes sont nécessaires à une application non ambiguë.\"}]},{\"type\":\"instruction\",\"titre\":\"Seuils descriptifs et interprétation\",\"contenu\":\"Interpréter prioritairement la moyenne de chaque dimension avec cinq bandes provisoires : 1,00–1,80 = très faible; 1,81–2,60 = faible; 2,61–3,40 = modérée; 3,41–4,20 = élevée; 4,21–5,00 = très élevée. Donner l’équivalent approximatif sur la somme de 5 à 25. Pour chaque bande, expliquer brièvement ce qu’elle suggère et proposer une piste d’action proportionnée, sans diagnostic. Préciser explicitement que ces coupures découpent l’étendue théorique de l’échelle et ne constituent ni des normes populationnelles ni des seuils cliniques; recommander une validation empirique avant tout usage décisionnel.\",\"justification\":\"Cette section répond directement à la demande de seuils tout en empêchant de transformer des coupures heuristiques en normes prétendument validées.\",\"fondements\":[{\"nature\":\"utilisateur\",\"citation\":\"interprétation des seuils\",\"usage\":\"Impose une grille reliant les scores à une lecture pratique.\"},{\"nature\":\"hypothese\",\"citation\":null,\"usage\":\"Les bandes uniformes sont retenues comme repères descriptifs provisoires faute de données normatives.\"}]},{\"type\":\"interdiction\",\"titre\":\"Limites d’usage et précautions\",\"contenu\":\"Ne pas qualifier l’outil de test validé, de diagnostic ou de mesure clinique. Ne pas utiliser un score isolé pour sanctionner, sélectionner ou déclarer inapte une personne. Présenter les résultats comme un signal invitant à examiner les conditions de travail, à croiser les réponses avec des échanges qualitatifs et, en cas de détresse importante, à solliciter les acteurs compétents de la santé au travail. Pour un usage collectif, privilégier les résultats agrégés et la confidentialité.\",\"justification\":\"Le thème touche à la santé au travail et exige des garde-fous contre les interprétations individuelles excessives.\",\"fondements\":[{\"nature\":\"utilisateur\",\"citation\":\"charge mentale au travail\",\"usage\":\"Le contexte psychosocial professionnel motive des précautions d’interprétation et d’usage.\"},{\"nature\":\"deduction\",\"citation\":null,\"usage\":\"L’absence de validation et le risque d’usage organisationnel abusif nécessitent des limites explicites.\"}]}],\"composants_ecartes\":[{\"type\":\"section\",\"titre\":\"Diagnostic clinique individuel\",\"raison\":\"La demande porte sur un questionnaire de charge mentale au travail et ne fournit aucune base permettant un diagnostic clinique.\"},{\"type\":\"donnee\",\"titre\":\"Normes populationnelles ou sectorielles\",\"raison\":\"Aucun échantillon de référence ni étalonnage propre à une population ou à un secteur n’est fourni.\"},{\"type\":\"section\",\"titre\":\"Rapport psychométrique complet\",\"raison\":\"La fidélité, la validité factorielle et la sensibilité ne peuvent pas être établies lors de la simple construction initiale des items.\"}]},\"verification\":{\"criteres_bloquants\":[\"Le questionnaire contient exactement 20 items.\",\"Chaque item appartient à une seule des quatre dimensions et chaque dimension contient exactement cinq items.\",\"L’échelle de Likert et ses cinq ancrages sont explicitement définis.\",\"La clé de cotation rend tous les scores orientés dans le même sens après recodage.\",\"Les plages de scores, les seuils et leur interprétation sont cohérents entre somme et moyenne.\",\"Le caractère provisoire et non diagnostique des seuils est clairement indiqué.\",\"Aucune propriété psychométrique ou norme empirique n’est inventée.\"],\"criteres_qualitatifs\":[\"Chaque item exprime une seule idée et emploie un langage accessible.\",\"Les dimensions couvrent des facettes distinctes sans redondance excessive.\",\"Les interprétations conduisent à des pistes d’examen ou d’action proportionnées.\",\"La méthode de calcul peut être appliquée sans deviner une règle manquante.\",\"Les limites d’usage sont visibles sans rendre le questionnaire inutilement alarmiste.\"],\"elements_non_verifiables\":[\"Validité de construit et structure factorielle réelle.\",\"Cohérence interne et fidélité test-retest.\",\"Pertinence interculturelle ou sectorielle.\",\"Seuils normatifs dans une population donnée.\",\"Capacité du questionnaire à prédire un résultat de santé ou de performance.\"],\"controle_provenance\":[{\"affirmation\":\"Le livrable doit comporter 20 items, des scores par dimension et une interprétation des seuils.\",\"statut\":\"soutenue\",\"justification\":\"Ces trois éléments sont explicitement demandés par l’utilisateur.\"},{\"affirmation\":\"Quatre dimensions de cinq items constituent l’architecture appropriée.\",\"statut\":\"hypothese\",\"justification\":\"Le nombre de dimensions n’est pas donné; cette structure est un choix équilibré de conception.\"},{\"affirmation\":\"Une échelle en cinq points et une période de quatre semaines doivent être utilisées.\",\"statut\":\"hypothese\",\"justification\":\"Ces paramètres ne sont pas spécifiés et sont retenus comme décisions opérationnelles transparentes.\"},{\"affirmation\":\"Les seuils proposés sont psychométriquement validés ou normatifs.\",\"statut\":\"information_manquante\",\"justification\":\"Aucune étude, donnée d’étalonnage ou population de référence n’est fournie pour soutenir une telle affirmation.\"},{\"affirmation\":\"Le questionnaire convient de manière identique à tous les métiers et secteurs.\",\"statut\":\"information_manquante\",\"justification\":\"La population cible et le contexte professionnel précis ne sont pas indiqués.\"},{\"affirmation\":\"Les principes de formulation et de cotation employés relèvent de pratiques psychométriques générales.\",\"statut\":\"connaissance_externe_non_verifiee\",\"justification\":\"Ils reposent sur un savoir méthodologique extérieur à la demande et ne sont pas accompagnés ici d’une vérification documentaire réelle.\"}]},\"apprentissage\":{\"preferences_applicables\":[],\"preference_proposable\":null}}"
+    }
+  ],
+  "correction_mesuree": {
+    "schema_court": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "titre",
+        "quantites"
+      ],
+      "properties": {
+        "titre": {
+          "type": "string",
+          "minLength": 12
+        },
+        "quantites": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "min",
+            "max"
+          ],
+          "properties": {
+            "min": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "max": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            }
+          },
+          "not": {
+            "properties": {
+              "min": {
+                "const": null
+              },
+              "max": {
+                "const": null
+              }
+            },
+            "required": [
+              "min",
+              "max"
+            ]
+          }
+        }
+      }
+    },
+    "violations_transmises": [
+      "$.titre : minLength 12 (reçu 3)",
+      "$.quantites : forme interdite par not"
+    ],
+    "premier_appel": {
+      "status_http": 200,
+      "latence_ms": 1504,
+      "arguments": "{\"titre\":\"Note sur l’organisation du télétravail\",\"quantites\":{\"min\":2,\"max\":3}}",
+      "call_id_present": true
+    },
+    "appel_de_correction": {
+      "status_http": 200,
+      "latence_ms": 2401,
+      "statut": "completed",
+      "arguments": "{\"titre\":\"Organisation hebdomadaire du télétravail\",\"quantites\":{\"min\":1,\"max\":3}}",
+      "objet_complet_rendu": [
+        "quantites",
+        "titre"
+      ]
+    }
+  },
+  "cors": {
+    "note": "Préflight CORS RÉEL, sans clé, depuis l'origine de production. Détermine les en-têtes que le navigateur est autorisé à envoyer : c'est ce qui interdit d'en ajouter un troisième côté OpenAI.",
+    "origine_demandee": "https://c-concept-dev.github.io",
+    "openai": {
+      "url": "https://api.openai.com/v1/responses",
+      "status_http": 200,
+      "allow_origin": "*",
+      "allow_headers": "authorization,content-type",
+      "allow_methods": "DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT"
+    },
+    "anthropic_reference": {
+      "url": "https://api.anthropic.com/v1/messages",
+      "status_http": 200,
+      "allow_origin": "*",
+      "allow_headers": "x-api-key,content-type,anthropic-version,anthropic-dangerous-direct-browser-access",
+      "allow_methods": "DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT"
+    }
+  }
+}

@@ -1933,7 +1933,7 @@ pre,.sortie,#ui-rapid-output{overflow-wrap:anywhere;word-break:break-word}
       </div>
       <p class="aide">Reste dans ce navigateur, n'est transmise qu'au fournisseur sélectionné. Non mémorisée par
       défaut — disparaît à la fermeture de l'onglet, sauf clic sur « Mémoriser ».
-      <a href="https://console.anthropic.com/" target="_blank" rel="noopener">console.anthropic.com</a></p>
+      <a href="https://console.anthropic.com/" target="_blank" rel="noopener" id="lien-console-accueil">console.anthropic.com</a></p>
     </div>
     <p class="aide selon-niveau" data-niveau-min="expert">Niveau Expert : le parcours Architecte transmet reglages_manuels.profondeur au schéma 3.4 ; l'espace avancé donne un accès direct aux 13 vues historiques, au JSON d'analyse et aux journaux techniques.</p>
     <div class="actions-principales" style="margin-top:16px">
@@ -2670,7 +2670,7 @@ pre,.sortie,#ui-rapid-output{overflow-wrap:anywhere;word-break:break-word}
         <input type="password" id="api-cle" class="code" placeholder="sk-ant-…" style="flex:1">
         <button type="button" class="bouton" id="btn-api-voir">Afficher</button>
       </div>
-      <div class="aide"><a href="https://console.anthropic.com/" target="_blank" rel="noopener">console.anthropic.com</a></div>
+      <div class="aide"><a href="https://console.anthropic.com/" target="_blank" rel="noopener" id="lien-console-outils">console.anthropic.com</a></div>
     </div>
     <div class="duo">
       <div class="champ">
@@ -5840,11 +5840,16 @@ function attendre(ms){ return new Promise(resoudre => setTimeout(resoudre, ms));
  * conservé pour ne rien casser, mais qui n'est plus qu'un alias vers
  * appelFournisseur({fournisseur:'anthropic', ...}).
  *
- * Ajouter un second fournisseur (OpenAI ou autre) ne demande, en
- * principe, que d'ajouter une entrée à FOURNISSEURS_API avec sa propre
- * fonction de transport et son propre tarifDuJour — sans toucher à
- * l'Architecte, au compilateur ou au banc qualitatif, qui ne
- * connaissent que la façade générique.
+ * Ce qu'annonçait ce commentaire — « ajouter un second fournisseur ne
+ * demande, en principe, que d'ajouter une entrée à FOURNISSEURS_API avec
+ * sa propre fonction de transport et son propre tarifDuJour » — a été
+ * vérifié par PROVIDER-OPENAI-01 : OpenAI est entré dans le registre
+ * sans qu'une ligne de l'Architecte, du compilateur, du banc d'essai ou
+ * du module Qualité ne change. Le « en principe » est donc tombé, et
+ * deux choses seulement ont dû s'y ajouter : le registre est sorti de la
+ * zone de garde d'Anthropic, parce qu'il porte désormais deux
+ * fournisseurs, et les textes d'interface qui nommaient un fournisseur
+ * en dur se lisent maintenant sur le registre.
  * ---------------------------------------------------------------------- */
 /* SCHEMA-ANTHROPIC-03 (CONTINUITE-04) — LE SCHÉMA CANONIQUE EST TRANSMIS À ANTHROPIC COMME SCHÉMA D'OUTIL.
  *
@@ -6153,15 +6158,295 @@ async function testerConnexionAnthropic({cle, modele}){
   return transportAnthropic({cle, modele, maxTokens:16, systeme:'', contenuUtilisateur:'Répondez uniquement : OK'});
 }
 
+/* GARDE-ADAPTATEUR-ANTHROPIC:FIN */
+
+/* ---------------------------------------------------------------------- *
+ * PROVIDER-OPENAI-01 — OPENAI DANS LE PIPELINE API AUTOMATIQUE
+ * ----------------------------------------------------------------------
+ * Le registre des fournisseurs existe depuis le lot 4 avec une seule entrée,
+ * et son commentaire annonçait qu'un second fournisseur ne demanderait « que
+ * d'ajouter une entrée à FOURNISSEURS_API avec sa propre fonction de transport
+ * et son propre tarifDuJour ». Ce lot le fait, et rien d'autre : l'Architecte,
+ * le compilateur, le banc d'essai, le module Qualité et l'envoi direct ne sont
+ * pas touchés — ils n'appellent que la façade appelFournisseur(), qui ne
+ * connaît aucun nom de fournisseur.
+ *
+ * TOUT CE QUI SUIT EST MESURÉ. Aucun point de terminaison, aucun mécanisme et
+ * aucune valeur n'est posé par analogie avec Anthropic : chaque choix nomme la
+ * mesure réelle qui l'impose (appels réels du 4 octobre 2026, clé de
+ * production, schéma canonique ARCH_SCHEMA réel, modèle gpt-5.6-sol).
+ *
+ * 1. POURQUOI /v1/responses ET NON /v1/chat/completions. Mesuré : un outil de
+ *    fonction envoyé à /v1/chat/completions rend 400 « Function tools with
+ *    reasoning_effort are not supported for gpt-5.6-sol in /v1/chat/completions.
+ *    To use function tools, use /v1/responses or set reasoning_effort to
+ *    'none' ». Or le pipeline automatique demande effort:'high' (archApiCoeur,
+ *    module Qualité) : sur Chat Completions il faudrait donc renoncer au
+ *    raisonnement pour obtenir une sortie structurée. /v1/responses accepte les
+ *    deux ensemble — mesuré 200. C'est aussi le point de terminaison qu'avait
+ *    déjà retenu le harnais de mesure de ce dépôt (lot 10G3B2).
+ *
+ * 2. POURQUOI UN OUTIL NON STRICT, ET PAS response_format:json_schema. Mesuré :
+ *    le schéma canonique en mode strict rend 400 « Invalid schema for
+ *    response_format 'sortie_structuree': In context=(), 'allOf' is not
+ *    permitted ». C'est EXACTEMENT l'anomalie 5 du lot 10G3B2, celle qui avait
+ *    contraint ce dépôt à faire passer l'Architecte par le copier-coller faute
+ *    de pouvoir l'appeler. Le mode strict d'OpenAI est donc hors d'atteinte
+ *    pour ce schéma — même conclusion, pour la même raison de fond (une
+ *    grammaire contrainte ne porte pas le canonique), que SCHEMA-ANTHROPIC-02.
+ *    L'architecture retenue est celle, déjà éprouvée ici, de
+ *    SCHEMA-ANTHROPIC-03 : un outil personnalisé NON strict dont les
+ *    paramètres sont le schéma canonique, appel forcé par tool_choice. Mesuré
+ *    en réel sur deux demandes distinctes : 200, function_call complet
+ *    (13 491 et 15 404 octets d'arguments), JSON analysable, et ZÉRO violation
+ *    du schéma canonique — sans aucune requête de correction.
+ *
+ * 3. CE N'EST PAS UN SECOND MÉCANISME DE VALIDATION. La réponse est vérifiée
+ *    par violationsContreSchema() — celle qui vérifie déjà Anthropic — contre
+ *    le schéma CANONIQUE, et une non-conformité donne UNE requête de
+ *    correction, bornée, portant le même messageCorrectionSchema(). Mesuré :
+ *    la correction transportée en function_call_output rend 200 et un objet
+ *    complet corrigé. Une seconde non-conformité est rejetée (sortie_invalide),
+ *    jamais rattrapée localement.
+ *
+ * 4. AUCUN EN-TÊTE DE PLUS QUE DEUX. Mesuré par préflight CORS réel depuis
+ *    l'origine de production : api.openai.com répond access-control-allow-origin: *
+ *    et access-control-allow-headers: authorization,content-type. Ajouter un
+ *    troisième en-tête — l'équivalent de l'en-tête
+ *    anthropic-dangerous-direct-browser-access qu'Anthropic exige — ferait
+ *    échouer le préflight. OpenAI n'en demande aucun : l'appel direct depuis le
+ *    navigateur est autorisé tel quel.
+ * ---------------------------------------------------------------------- */
+
+/* GARDE-ADAPTATEUR-OPENAI:DEBUT — seule zone du fichier autorisée à contenir
+   une URL api.openai.com ou un fetch() vers ce domaine, par symétrie avec la
+   garde Anthropic ci-dessus. */
+const OPENAI_ENDPOINT_REPONSES='https://api.openai.com/v1/responses';
+function entetesApiOpenAI(cle){
+  return { 'Content-Type':'application/json', 'Authorization':'Bearer '+cle };
+}
+
+/* Modèles OpenAI — relevés sur la fiche officielle du modèle
+   (developers.openai.com) le 4 octobre 2026. Tarifs en dollars par million de
+   tokens.
+
+   UN SEUL MODÈLE, ET C'EST UN CHOIX. gpt-5.6-sol est le seul identifiant OpenAI
+   que ce dépôt ait réellement sourcé (lot 10G3B2, puis l'adaptateur Decision du
+   Worker) et le seul éprouvé en appel réel contre le schéma canonique. La page
+   tarifaire officielle ne donne, pour les modèles voisins, qu'un prix d'ENTRÉE
+   de comparaison, sans prix de sortie : les inscrire ici exigerait d'inventer
+   la moitié de leur tarif, donc d'afficher un coût faux.
+
+   PAS DE CHAMP zdr, PAS DE CHAMP retention. « Covered Models » et l'accord Zero
+   Data Retention sont des notions du contrat Anthropic : les porter sur un
+   modèle OpenAI afficherait, dans un avertissement de confidentialité, une
+   affirmation que rien ne fonde. En l'absence de ces champs, l'encart de
+   rétention ne s'affiche pas et la phrase du mode « données sensibles » se
+   contente de nommer le fournisseur — ce qui est exact.
+
+   PAS D'ACTUALISATION DEPUIS L'API, contrairement à Anthropic. GET /v1/models
+   existe chez OpenAI mais y renvoie tout le catalogue du compte — plongements,
+   transcription, images, modèles hors dialogue. Remplacer cette table par cette
+   liste demanderait un filtre que rien ne fonde, et peuplerait le sélecteur de
+   modèles incapables de tenir le contrat. Le bouton « Actualiser depuis l'API »
+   annonce donc explicitement que ce fournisseur ne le permet pas, plutôt que de
+   deviner. */
+const MODELES_OPENAI = {
+  'gpt-5.6-sol': {nom:'GPT-5.6 Sol', entree:4, sortie:20, contexte:1050000, sortieMax:128000,
+                  prefill:false, schema:true,
+                  note:'Modèle de raisonnement : l’effort « high » demandé par le pipeline automatique est transmis tel quel. Tarif promotionnel annoncé au moins jusqu’au 21 novembre 2026 ; OpenAI ne publie pas celui qui s’appliquera ensuite.'}
+};
+
+/* Pas de branche « tarif de lancement » ici, contrairement à tarifDuJour :
+   ce mécanisme suppose un tarif normal CONNU vers lequel revenir à l'échéance,
+   et OpenAI n'en publie aucun — seulement que la promotion tient « au moins
+   jusqu'au 21 novembre 2026 ». La note du modèle le dit ; déduire un tarif
+   d'après-promotion en inversant des pourcentages arrondis serait inventer un
+   prix. Un tarif absent reste null, jamais zéro : afficher $0.0000 laisserait
+   croire à la gratuité. */
+function tarifDuJourOpenAI(id){
+  const m = MODELES_OPENAI[id];
+  if(!m) return {entree:null, sortie:null, connu:false};
+  if(m.entree == null || m.sortie == null) return {entree:null, sortie:null, connu:false};
+  return {entree:m.entree, sortie:m.sortie, connu:true};
+}
+
+/* Mots-clés qu'OpenAI refuse À LA RACINE d'un schéma de paramètres d'outil. La
+   liste n'est pas devinée : c'est celle que l'API énonce elle-même en refusant
+   le schéma canonique brut — 400 « schema must have type 'object' and not have
+   'oneOf'/'anyOf'/'allOf'/'enum'/'const'/'not' at the top level ». */
+const OPENAI_RACINE_REFUSEE=['oneOf','anyOf','allOf','enum','const','not'];
+/* Projection MINIMALE, qui ne mute jamais son argument : le canonique reste la
+   vérité, et tout ce qui est retiré ici est revérifié après coup par
+   violationsContreSchema() sur la valeur réellement renvoyée. On retire les
+   métadonnées sans effet et les combinateurs de la RACINE, dont la description
+   métier remonte à la racine pour que le modèle la lise encore.
+
+   CE QU'ELLE NE FAIT PAS, ET POURQUOI. Pas d'adaptation des enum à type union
+   (BETA-04) : cette réécriture existe côté Anthropic parce qu'une grammaire
+   compilée la lui impose. Un outil non strict d'OpenAI n'en compile aucune, et
+   mesure faite, le schéma passe sans elle — la transposer serait une divergence
+   gratuite entre le schéma transmis et le canonique. */
+function schemaPourOpenAI(schema){
+  if(!schema||typeof schema!=='object'||Array.isArray(schema))return schema;
+  const out=JSON.parse(JSON.stringify(schema));
+  for(const key of ['$schema','$id','$comment'])delete out[key];
+  for(const key of OPENAI_RACINE_REFUSEE){
+    if(out[key]===undefined)continue;
+    if(Array.isArray(out[key]))for(const membre of out[key])if(membre&&membre.description)out.description=(out.description?out.description+' ':'')+membre.description;
+    delete out[key];
+  }
+  return out;
+}
+window.schemaPourOpenAI = schemaPourOpenAI;
+
+/* Transport OpenAI — contrat d'appel et contrat de retour STRICTEMENT ceux de
+   transportAnthropic : mêmes paramètres nommés, même objet rendu
+   ({fournisseur, modele, texte, tokens, raison_arret, structure_validee,
+   detail}), mêmes catégories d'erreur produites par creerErreurApi(). C'est
+   cette symétrie qui permet à la façade de ne rien savoir du fournisseur.
+   Le paramètre prefill n'y figure pas : appelFournisseur() le retire déjà,
+   puisque les capacités déclarées ci-dessous disent que ce fournisseur ne
+   prend pas en charge le préremplissage du tour assistant. */
+async function transportOpenAI({cle, modele, maxTokens, systeme, contenuUtilisateur, schema, effort, delaiMs, essaisMax, signal}){
+  essaisMax = essaisMax || 3;
+  delaiMs = delaiMs || 90000;
+  const entree = [{ role:'user', content: contenuUtilisateur }];
+  const body = { model: modele, input: entree, max_output_tokens: maxTokens };
+  /* L'instruction système de /v1/responses s'appelle instructions ; elle est
+     omise quand elle est vide (le test de clé n'en envoie aucune). */
+  if (systeme) body.instructions = systeme;
+  if (schema) {
+    body.tools = [{ type:'function', name:NOM_OUTIL_SORTIE_STRUCTUREE, description:DESCRIPTION_OUTIL_SORTIE_STRUCTUREE, parameters:schemaPourOpenAI(schema), strict:false }];
+    body.tool_choice = { type:'function', name:NOM_OUTIL_SORTIE_STRUCTUREE };
+  }
+  /* Mesuré : les valeurs acceptées sont none, minimal, low, medium, high, xhigh
+     et max — l'API les énumère en refusant toute autre. Le produit n'envoie que
+     'high', qui en fait partie ; la valeur est donc transmise telle quelle,
+     sans table de correspondance inventée. */
+  if (effort) body.reasoning = { effort };
+  let corrige = false;
+  const tokensCumules = { entree: 0, sortie: 0 };
+  let tentative = 0;
+  while (tentative < essaisMax) {
+    tentative++;
+    if (signal && signal.aborted) throw creerErreurApi({categorie:'annulation',fournisseur:'openai',statut_http:null,recuperable:false,message_utilisateur:'Annulé.'});
+    const ctrl = new AbortController();
+    const relaisAbandon = () => ctrl.abort();
+    if (signal) signal.addEventListener('abort', relaisAbandon);
+    const minuteur = setTimeout(() => ctrl.abort(), delaiMs);
+    try {
+      const r = await fetch(OPENAI_ENDPOINT_REPONSES, { method: 'POST', headers: entetesApiOpenAI(cle), body: JSON.stringify(body), signal: ctrl.signal });
+      clearTimeout(minuteur);
+      if (signal) signal.removeEventListener('abort', relaisAbandon);
+      if ([429, 500, 502, 503, 529].includes(r.status) && tentative < essaisMax) { await attendre(500 * tentative); continue; }
+      const data = await r.json();
+      if (!r.ok) throw creerErreurApi({categorie:qCategorieDepuisStatutHttp(r.status),fournisseur:'openai',statut_http:r.status,recuperable:[429,500,502,503,529].includes(r.status),message_utilisateur:(data.error && data.error.message) || ('code ' + r.status)});
+      /* /v1/responses rend une LISTE d'éléments de sortie : des blocs de
+         raisonnement, un message, ou l'appel d'outil forcé. Rien n'est deviné
+         par position — chaque élément est reconnu par son type. */
+      const sorties = Array.isArray(data.output) ? data.output : [];
+      const blocsReflexion = sorties.filter(x => x && x.type === 'reasoning').length;
+      const partsMessage = sorties.filter(x => x && x.type === 'message')
+        .reduce((acc, x) => acc.concat(Array.isArray(x.content) ? x.content : []), []);
+      const appelOutil = schema ? sorties.find(x => x && x.type === 'function_call' && x.name === NOM_OUTIL_SORTIE_STRUCTUREE && typeof x.arguments === 'string') : null;
+      const brut = schema
+        ? (appelOutil ? appelOutil.arguments : '')
+        : partsMessage.filter(c => c && c.type === 'output_text' && typeof c.text === 'string').map(c => c.text).join('');
+      tokensCumules.entree += (data.usage && data.usage.input_tokens) || 0; tokensCumules.sortie += (data.usage && data.usage.output_tokens) || 0;
+      const tokens = { entree: tokensCumules.entree, sortie: tokensCumules.sortie };
+      /* Une réponse coupée par le plafond est annoncée par l'API elle-même
+         (status « incomplete » + motif), jamais déduite d'une sortie qui
+         paraîtrait courte. Mesuré : {"reason":"max_output_tokens"}. */
+      const inachevee = data.status === 'incomplete' ? ((data.incomplete_details && data.incomplete_details.reason) || 'inconnue') : null;
+      if (inachevee === 'max_output_tokens') throw creerErreurApi({categorie:'troncature',fournisseur:'openai',statut_http:r.status,recuperable:false,message_utilisateur:'Réponse tronquée : augmentez la longueur maximale.',tokens,texte_partiel:brut,detail:{blocs_reflexion:blocsReflexion}});
+      /* OpenAI expose un refus dans un type de contenu dédié : le lire évite de
+         le confondre avec une sortie vide. */
+      const refus = partsMessage.find(c => c && c.type === 'refusal');
+      if (refus || inachevee === 'content_filter') {
+        throw creerErreurApi({categorie:'refus',fournisseur:'openai',statut_http:r.status,recuperable:false,message_utilisateur:'Le modèle a refusé cette demande.',tokens,texte_partiel:brut,detail:{refus_categorie:inachevee === 'content_filter' ? 'content_filter' : 'refusal',blocs_reflexion:blocsReflexion}});
+      }
+      if (inachevee) throw creerErreurApi({categorie:'sortie_invalide',fournisseur:'openai',statut_http:r.status,recuperable:false,message_utilisateur:'La réponse s’est interrompue avant son terme (' + inachevee + ').',tokens,texte_partiel:brut,detail:{blocs_reflexion:blocsReflexion}});
+      if (!brut) throw creerErreurApi({categorie:'sortie_invalide',fournisseur:'openai',statut_http:r.status,recuperable:false,message_utilisateur:schema?'L’API n’a renvoyé aucune sortie structurée.':'L’API n’a renvoyé aucun bloc texte.',tokens,detail:{blocs_reflexion:blocsReflexion}});
+      if (schema) {
+        let valeur;
+        try { valeur = JSON.parse(brut); }
+        catch (e) { throw creerErreurApi({categorie:'sortie_invalide',fournisseur:'openai',statut_http:r.status,recuperable:false,message_utilisateur:'L’appel d’outil n’a pas renvoyé un JSON analysable.',tokens,texte_partiel:brut,detail:{blocs_reflexion:blocsReflexion}}); }
+        /* L'outil n'est pas strict : le schéma transmis guide, il ne garantit
+           pas. La réponse est donc vérifiée ici contre le schéma CANONIQUE
+           complet, par la MÊME fonction que le chemin Anthropic. */
+        const violations = violationsContreSchema(schema, valeur);
+        if (violations.length && !corrige) {
+          corrige = true;
+          body.input = [...entree, appelOutil, { type:'function_call_output', call_id: appelOutil.call_id, output: messageCorrectionSchema(violations) }];
+          tentative = 0; /* la requête de correction dispose de son propre budget de reprises réseau */
+          continue;
+        }
+        if (violations.length) throw creerErreurApi({categorie:'sortie_invalide',fournisseur:'openai',statut_http:r.status,recuperable:false,message_utilisateur:'Réponse structurée non conforme au schéma canonique : '+violations.slice(0,3).join(' ; ')+(violations.length>3?' ; +'+(violations.length-3)+' autre(s)':'')+'.',tokens,texte_partiel:brut,detail:{violations,blocs_reflexion:blocsReflexion}});
+        /* Rendu sous forme re-sérialisée, comme le chemin Anthropic : le texte
+           rendu est exactement l'objet qui vient d'être validé. */
+        return { fournisseur:'openai', modele, texte: JSON.stringify(valeur), tokens, raison_arret: data.status || null, structure_validee: true, detail:{refus_categorie:null,blocs_reflexion:blocsReflexion,corrections:corrige?1:0} };
+      }
+      return { fournisseur:'openai', modele, texte: brut, tokens, raison_arret: data.status || null, structure_validee: null, detail:{refus_categorie:null,blocs_reflexion:blocsReflexion,corrections:corrige?1:0} };
+    } catch (err) {
+      clearTimeout(minuteur);
+      if (signal) signal.removeEventListener('abort', relaisAbandon);
+      if (signal && signal.aborted) throw creerErreurApi({categorie:'annulation',fournisseur:'openai',statut_http:null,recuperable:false,message_utilisateur:'Annulé.'});
+      if (err && err.categorie) throw err; // déjà structurée : ne pas la ré-envelopper
+      if (tentative >= essaisMax || err.name === 'AbortError') {
+        if(err.name === 'AbortError') throw creerErreurApi({categorie:'delai_depasse',fournisseur:'openai',statut_http:null,recuperable:true,message_utilisateur:'Délai API dépassé.'});
+        throw creerErreurApi({categorie:'inconnue',fournisseur:'openai',statut_http:null,recuperable:false,message_utilisateur:err.message});
+      }
+    }
+  }
+}
+
+/* Même appel minimal que testerConnexionAnthropic : une tentative, seize
+   tokens, une ligne de contenu, ni système, ni schéma, ni effort. Mesuré :
+   200 « completed » — le verdict de clé se lit donc sur l'authentification et
+   rien d'autre. */
+async function testerConnexionOpenAI({cle, modele}){
+  return transportOpenAI({cle, modele, maxTokens:16, contenuUtilisateur:'Répondez uniquement : OK'});
+}
+/* GARDE-ADAPTATEUR-OPENAI:FIN */
+
+/* Registre des fournisseurs — PROVIDER-NEUTRE, et désormais hors de toute zone
+   de garde propre à un fournisseur : il n'y a plus de raison qu'il vive dans
+   celle d'Anthropic, puisqu'il en porte deux.
+
+   Contrat minimal qu'une entrée doit remplir : id, nom, transport (fonction
+   d'appel réel), modeles (catalogue), tarifDuJour (fonction de tarification),
+   capacites (sortie structurée, effort de raisonnement, annulation, limites).
+   Les champs console et prefixeCle sont de l'affichage : ils évitent que
+   l'interface renvoie vers la console d'un fournisseur pendant qu'un autre est
+   actif. Les capacités optionnelles — listerModeles, compterTokens,
+   testerConnexion — ne sont jamais appelées directement par un module métier,
+   seulement via FOURNISSEURS_API[id], après vérification de leur présence :
+   un fournisseur qui n'en a pas voit l'interface le dire explicitement.
+
+   OpenAI n'expose ni listerModeles (voir MODELES_OPENAI) ni compterTokens :
+   il n'existe pas, chez ce fournisseur, d'équivalent de
+   /v1/messages/count_tokens. L'estimation locale reste donc la seule mesure
+   d'entrée disponible, et l'interface l'annonce au lieu de la maquiller.
+
+   L'ORDRE COMPTE : peuplerFournisseurs() rend les options dans l'ordre des clés
+   et la première est retenue par défaut. Anthropic reste donc le fournisseur
+   par défaut, exactement comme avant ce lot. */
 const FOURNISSEURS_API = {
   anthropic: {
     id:'anthropic', nom:'Anthropic', transport:transportAnthropic, modeles:MODELES, tarifDuJour:tarifDuJour,
+    console:'https://console.anthropic.com/', prefixeCle:'sk-ant-…',
     capacites:{ sortie_structuree:true, effort_raisonnement:true, annulation:true, prefill_assistant:true, limites:{} },
     listerModeles:listerModelesAnthropic, compterTokens:compterTokensAnthropic, testerConnexion:testerConnexionAnthropic
+  },
+  openai: {
+    id:'openai', nom:'OpenAI', transport:transportOpenAI, modeles:MODELES_OPENAI, tarifDuJour:tarifDuJourOpenAI,
+    console:'https://platform.openai.com/api-keys', prefixeCle:'sk-…',
+    capacites:{ sortie_structuree:true, effort_raisonnement:true, annulation:true, prefill_assistant:false, limites:{} },
+    testerConnexion:testerConnexionOpenAI
   }
 };
 window.FOURNISSEURS_API = FOURNISSEURS_API;
-/* GARDE-ADAPTATEUR-ANTHROPIC:FIN */
 
 /* Validation du contrat minimal — utilisée pour tout fournisseur avant
    de le considérer opérationnel (y compris dans les tests, pour le
@@ -6296,6 +6581,25 @@ function majTextesFournisseurDynamiques(){
   if(chapo) chapo.textContent = 'Exécution du prompt via ' + nom + ', depuis ce navigateur.';
   const noteCle = document.getElementById('note-cle-fournisseur');
   if(noteCle) noteCle.textContent = 'Elle reste dans ce navigateur et n\u2019est transmise qu\u2019à ' + nom + '.';
+  /* PROVIDER-OPENAI-01 — LE BALISAGE NE PEUT PLUS DÉSIGNER UN SEUL FOURNISSEUR.
+     Tant qu’Anthropic était seul, un gabarit de clé « sk-ant-… » et un lien vers sa
+     console étaient exacts. À deux fournisseurs ils deviennent faux dès qu’on change de
+     sélection : la personne lirait « sk-ant-… » en collant une clé OpenAI, et le lien
+     d’obtention de clé l’enverrait chez l’autre fournisseur. Ces deux textes sont donc
+     lus sur le registre, à la même place et au même moment que les trois précédents —
+     aucun nom de fournisseur n’est écrit ici. */
+  const gabarit = (f && f.prefixeCle) || '';
+  if(gabarit) for(const champ of ['api-cle','accueil-cle']){
+    const el = document.getElementById(champ);
+    if(el) el.placeholder = gabarit;
+  }
+  const adresseConsole = f && f.console;
+  if(adresseConsole) for(const lien of ['lien-console-outils','lien-console-accueil']){
+    const el = document.getElementById(lien);
+    if(!el) continue;
+    el.href = adresseConsole;
+    el.textContent = adresseConsole.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  }
 }
 window.majTextesFournisseurDynamiques = majTextesFournisseurDynamiques;
 const QUALITE_CARTE_FINALITES_MODELE = {
