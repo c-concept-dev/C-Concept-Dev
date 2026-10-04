@@ -21328,7 +21328,7 @@ ${recent}`;
     if (willOpen) window.adocCreationsLoad(mountId);
   };
 
-  var ADOC_CREATIONS_KIND_LABELS = { fiche: 'Fiche synthèse', carrousel: 'Carrousel', tableau: 'Tableau', script: 'Script', liens: 'Liens transversaux' };
+  var ADOC_CREATIONS_KIND_LABELS = { fiche: 'Fiche synthèse', carrousel: 'Carrousel', tableau: 'Tableau', script: 'Script', liens: 'Liens transversaux', presentation: 'Présentation' };
 
   window.adocCreationsLoad = async function (mountId) {
     const el = document.getElementById(mountId + '-results');
@@ -22252,13 +22252,29 @@ ${recent}`;
   // window.adocWsSaveAs ci-dessous sans dupliquer la création (route POST /clinical-documents,
   // JAMAIS .../versions) — l'original n'est jamais touché par cette fonction, elle crée
   // toujours un enregistrement neuf et réassigne les deux ids sur `art`.
+  async function adocClinicalSaveError(response) {
+    let message = '';
+    try {
+      const body = await response.json();
+      const value = typeof body.error === 'string' ? body.error : body.error?.message || body.message;
+      if (typeof value === 'string') message = value;
+    } catch (_) { /* Ne pas afficher un corps HTML ou une trace brute. */ }
+    // Seul le message métier, borné ; jamais les en-têtes ni le corps complet.
+    const key = adocGetApiKey();
+    if (key) message = message.split(key).join('[secret masqué]');
+    message = message.replace(/(?:Bearer\s+|sk-ant-)[A-Za-z0-9_.-]+/gi, '[secret masqué]')
+      .replace(/((?:api[_-]?key|token|authorization|secret|password)\s*[:=]\s*)[^\s,;]+/gi, '$1[secret masqué]')
+      .replace(/[\r\n\t]+/g, ' ').slice(0, 500);
+    return new Error('HTTP ' + response.status + (message ? ' — ' + message : ''));
+  }
+
   async function adocCreateNewClinicalDocument(workerUrl, apiKey, art, content, title, kind) {
     const r = await fetch(workerUrl + '/clinical-documents', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
       body: JSON.stringify({ document: content, title: title, documentKind: kind, generationEngine: art._adocGenerationEngine || 'structured' }),
     });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
+    if (!r.ok) throw await adocClinicalSaveError(r);
     const data = await r.json();
     art._adocClinicalDocumentId = data.document_id;
     art._adocClinicalVersionId = data.version_id;
@@ -22317,7 +22333,7 @@ ${recent}`;
           art._adocClinicalVersionId = null;
           await adocCreateNewClinicalDocument(workerUrl, apiKey, art, content, saveTitle, saveKind);
         } else {
-          if (!r.ok) throw new Error('HTTP ' + r.status);
+          if (!r.ok) throw await adocClinicalSaveError(r);
           const data = await r.json();
           art._adocClinicalVersionId = data.version_id;
         }

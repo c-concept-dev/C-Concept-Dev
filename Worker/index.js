@@ -56362,7 +56362,7 @@ __name(adocGetCachedR2StorageUsage, "adocGetCachedR2StorageUsage");
 // politique déjà tranchée avec Christophe, non rouverte ici. Chaque version est immuable une
 // fois créée : aucune route de ce lot ne fait d'UPDATE sur une ligne existante de
 // clinical_document_versions, seulement des INSERT + un pointeur current_version_id déplacé.
-var CLINICAL_DOCUMENT_KINDS = ["fiche", "carrousel", "tableau", "script", "liens"];
+var CLINICAL_DOCUMENT_KINDS = ["fiche", "carrousel", "tableau", "script", "liens", "presentation"];
 // Audit correctif, Partie B point 9 — enveloppe generationEngine. 'structured' : document =
 // {schemaVersion, clinicalDocument, sourceSnapshot, renderManifestOverride} (contrat UX-8A
 // inchangé). 'legacy-html' : document = {html, sourceSnapshot} — HTML figé du moteur legacy au
