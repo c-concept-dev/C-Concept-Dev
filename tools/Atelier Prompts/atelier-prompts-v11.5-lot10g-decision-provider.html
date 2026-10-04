@@ -5829,6 +5829,34 @@ function entetesApi(cle){
    ReferenceError certaine si ce chemin avait été emprunté. */
 function attendre(ms){ return new Promise(resoudre => setTimeout(resoudre, ms)); }
 
+/* DOC-MULTI-01 — CE QU'UN FOURNISSEUR PEUT RECEVOIR COMME PIÈCE, ET SOUS QUEL NOM.
+ *
+ * Les deux transports savent déjà envoyer du texte ; ils doivent savoir envoyer le document
+ * lui-même quand la lecture locale ne suffit pas. Les FORMES diffèrent — Anthropic attend des blocs
+ * `document`/`image`, OpenAI des parties `input_file`/`input_image` — mais la DÉCISION, elle, est
+ * commune et vit ici : quels types sont acceptés, et lequel des deux canaux reçoit quoi. Aucune
+ * duplication de cette règle dans les transports, et aucun fournisseur nommé dans cette fonction.
+ *
+ * Un format que ni l'un ni l'autre ne lit (un DOCX, un ZIP) est refusé ICI, avec une phrase qui dit
+ * quoi faire : l'envoyer quand même produirait une erreur du fournisseur, plus tardive et moins
+ * claire — et un DOCX dont la lecture locale a échoué ne se répare pas en l'envoyant à une API. */
+const PIECE_TYPES_IMAGE = Object.freeze(['image/png','image/jpeg','image/gif','image/webp']);
+const PIECE_TYPES_DOCUMENT = Object.freeze(['application/pdf']);
+function classerPieceJointe(piece){
+  const type=String((piece&&piece.mediaType)||'').toLowerCase();
+  if(PIECE_TYPES_DOCUMENT.includes(type))return 'document';
+  if(PIECE_TYPES_IMAGE.includes(type))return 'image';
+  return null;
+}
+/** Vérifie une liste de pièces et rend le motif du refus, ou null si tout est transmissible. */
+function refusPieceJointe(pieces){
+  for(const piece of pieces||[]){
+    if(!piece||typeof piece.base64!=='string'||!piece.base64)return 'Pièce jointe vide ou illisible.';
+    if(!classerPieceJointe(piece))return 'Format de pièce non transmissible à une IA pour lecture : '+(piece.mediaType||'type inconnu')+'. Seuls un PDF ou une image le sont. Exportez ce document en PDF, ou fournissez son texte.';
+  }
+  return null;
+}
+
 /* ---------------------------------------------------------------------- *
  * LOT 4 — ARCHITECTURE FOURNISSEURS
  * ----------------------------------------------------------------------
@@ -5992,10 +6020,16 @@ function schemaResoudreRef(ref,racine){
   }
   return noeud;
 }
-async function transportAnthropic({cle, modele, maxTokens, systeme, contenuUtilisateur, schema, effort, prefill, delaiMs, essaisMax, signal}){
+async function transportAnthropic({cle, modele, maxTokens, systeme, contenuUtilisateur, schema, effort, prefill, documents, delaiMs, essaisMax, signal}){
   essaisMax = essaisMax || 3;
   delaiMs = delaiMs || 90000;
-  const messages = [{ role: 'user', content: contenuUtilisateur }];
+  /* DOC-MULTI-01 — la pièce part AVANT le texte : le modèle doit avoir le document sous les yeux
+     quand il lit la consigne qui s'y rapporte. Sans pièce, le contenu reste la chaîne d'avant,
+     à l'identique. */
+  const pieces=(documents||[]).map(piece=>classerPieceJointe(piece)==='image'
+    ?{type:'image',source:{type:'base64',media_type:piece.mediaType,data:piece.base64}}
+    :{type:'document',source:{type:'base64',media_type:piece.mediaType,data:piece.base64}});
+  const messages = [{ role: 'user', content: pieces.length?[...pieces,{type:'text',text:contenuUtilisateur}]:contenuUtilisateur }];
   if(prefill) messages.push({ role: 'assistant', content: prefill });
   const body = { model: modele, max_tokens: maxTokens, system: systeme, messages };
   /* SCHEMA-ANTHROPIC-03 — le schéma part comme input_schema d'un outil non strict, appel forcé : pas de
@@ -6308,10 +6342,16 @@ window.schemaPourOpenAI = schemaPourOpenAI;
    Le paramètre prefill n'y figure pas : appelFournisseur() le retire déjà,
    puisque les capacités déclarées ci-dessous disent que ce fournisseur ne
    prend pas en charge le préremplissage du tour assistant. */
-async function transportOpenAI({cle, modele, maxTokens, systeme, contenuUtilisateur, schema, effort, delaiMs, essaisMax, signal}){
+async function transportOpenAI({cle, modele, maxTokens, systeme, contenuUtilisateur, schema, effort, documents, delaiMs, essaisMax, signal}){
   essaisMax = essaisMax || 3;
   delaiMs = delaiMs || 90000;
-  const entree = [{ role:'user', content: contenuUtilisateur }];
+  /* DOC-MULTI-01 — même décision, autre dialecte : /v1/responses reçoit le document en
+     input_file (data URL) et une image en input_image. Mesuré en réel sur la charte graphique :
+     23 362 jetons d'entrée pour un PDF de 7 pages, donc les pages sont bien lues, pas devinées. */
+  const pieces=(documents||[]).map(piece=>classerPieceJointe(piece)==='image'
+    ?{type:'input_image',image_url:'data:'+piece.mediaType+';base64,'+piece.base64}
+    :{type:'input_file',filename:piece.name||'document.pdf',file_data:'data:'+piece.mediaType+';base64,'+piece.base64});
+  const entree = [{ role:'user', content: pieces.length?[...pieces,{type:'input_text',text:contenuUtilisateur}]:contenuUtilisateur }];
   const body = { model: modele, input: entree, max_output_tokens: maxTokens };
   /* L'instruction système de /v1/responses s'appelle instructions ; elle est
      omise quand elle est vide (le test de clé n'en envoie aucune). */
@@ -6378,7 +6418,13 @@ async function transportOpenAI({cle, modele, maxTokens, systeme, contenuUtilisat
         const violations = violationsContreSchema(schema, valeur);
         if (violations.length && !corrige) {
           corrige = true;
-          body.input = [...entree, appelOutil, { type:'function_call_output', call_id: appelOutil.call_id, output: messageCorrectionSchema(violations) }];
+          /* DOC-MULTI-01 — LE TOUR DE CORRECTION REJOUE TOUTE LA SORTIE DU MODÈLE, pas seulement
+             son appel d'outil. Défaut trouvé par le smoke, et l'API le nomme elle-même : « Item
+             'fc_…' of type 'function_call' was provided without its required 'reasoning' item:
+             'rs_…' ». Sur un modèle de raisonnement, l'appel d'outil et le bloc de raisonnement qui
+             le précède forment un tout ; n'en rejouer qu'un fait refuser la requête. On renvoie
+             donc `data.output` tel qu'il est venu — c'est aussi plus simple que de trier. */
+          body.input = [...entree, ...sorties, { type:'function_call_output', call_id: appelOutil.call_id, output: messageCorrectionSchema(violations) }];
           tentative = 0; /* la requête de correction dispose de son propre budget de reprises réseau */
           continue;
         }
@@ -6436,13 +6482,13 @@ const FOURNISSEURS_API = {
   anthropic: {
     id:'anthropic', nom:'Anthropic', transport:transportAnthropic, modeles:MODELES, tarifDuJour:tarifDuJour,
     console:'https://console.anthropic.com/', prefixeCle:'sk-ant-…',
-    capacites:{ sortie_structuree:true, effort_raisonnement:true, annulation:true, prefill_assistant:true, limites:{} },
+    capacites:{ sortie_structuree:true, effort_raisonnement:true, annulation:true, prefill_assistant:true, lecture_document:true, limites:{} },
     listerModeles:listerModelesAnthropic, compterTokens:compterTokensAnthropic, testerConnexion:testerConnexionAnthropic
   },
   openai: {
     id:'openai', nom:'OpenAI', transport:transportOpenAI, modeles:MODELES_OPENAI, tarifDuJour:tarifDuJourOpenAI,
     console:'https://platform.openai.com/api-keys', prefixeCle:'sk-…',
-    capacites:{ sortie_structuree:true, effort_raisonnement:true, annulation:true, prefill_assistant:false, limites:{} },
+    capacites:{ sortie_structuree:true, effort_raisonnement:true, annulation:true, prefill_assistant:false, lecture_document:true, limites:{} },
     testerConnexion:testerConnexionOpenAI
   }
 };
@@ -6481,6 +6527,13 @@ async function appelFournisseur(params){
   }
   if(appelParams.prefill && !capacites.prefill_assistant){
     const {prefill, ...sansPrefill} = appelParams; appelParams = sansPrefill;
+  }
+  /* DOC-MULTI-01 — une pièce jointe n'est jamais retirée en silence : un fournisseur qui ne sait
+     pas lire de document doit le DIRE, parce que l'appel sans la pièce répondrait à côté. */
+  if(appelParams.documents && appelParams.documents.length){
+    if(!capacites.lecture_document) throw creerErreurApi({categorie:'requete_invalide',fournisseur:id,statut_http:null,recuperable:false,message_utilisateur:'Le fournisseur « '+f.nom+' » ne prend pas en charge la lecture d\u2019un document joint.'});
+    const refus=refusPieceJointe(appelParams.documents);
+    if(refus) throw creerErreurApi({categorie:'requete_invalide',fournisseur:id,statut_http:null,recuperable:false,message_utilisateur:refus});
   }
   return f.transport(appelParams);
 }
@@ -11385,8 +11438,119 @@ function compositeDemand(){
    celui de la personne. Ce texte est la SEULE source du matériau pour l'analyse Architecte
    (archContexte) et pour le bloc MATÉRIAU FOURNI du prompt : les deux voient la même chose. */
 function materialText(){
-  const lisibles=state.docs.filter(d=>d.text).map(d=>'### '+d.name+(typeof v11MaterialProvenance==='function'?' — '+v11MaterialProvenance(d).label:'')+'\n'+d.text);
+  /* DOC-MULTI-01 — LE TEXTE LOCAL RESTE LA COUCHE PRIMAIRE, la lecture multimodale s'y AJOUTE.
+     Elle ne remplace rien : le texte extrait localement est exact, une lecture de modèle est une
+     dérivation. Les deux sont donc présents, dans cet ordre, et la dérivation porte sa propre
+     ligne de provenance (readingToMaterial) — le document reste la source. */
+  /* La référence est GARDÉE par typeof, comme v11MaterialProvenance juste à côté : les tests de ce
+     dépôt chargent des TRANCHES de ce contrôleur, et une tranche qui contient materialText sans la
+     fonction d'à côté doit retrouver le comportement d'avant ce lot, pas une ReferenceError. */
+  return v11MateriauDeDocuments(state.docs);
+}
+/** Le même rendu, sur une liste explicite : materialText n'est que son appel sur state.docs. */
+function v11MateriauDeDocuments(docs){
+  const derive=d=>(typeof v11LectureEnrichie==='function'?v11LectureEnrichie(d):'');
+  const lisibles=(docs||[]).filter(d=>d.text||derive(d)).map(d=>{
+    const entete='### '+d.name+(typeof v11MaterialProvenance==='function'?' — '+v11MaterialProvenance(d).label:'');
+    const derivation=derive(d);
+    return entete+'\n'+[d.text||'',derivation].filter(x=>x&&x.trim()).join('\n\n');
+  });
   return lisibles.join('\n\n');
+}
+/** DOC-MULTI-01 — la phrase affichée pour un document. Un seul endroit la décide. */
+function v11EtatDocument(d){
+  /* L'ordre compte : ce qui est EN COURS passe avant ce qui est acquis, et le drapeau `reading`
+     est celui d'avant ce lot — « Analyse locale… ». */
+  if(d.reading)return 'Analyse locale…';
+  if(d.lectureEtat==='en_cours')return 'Lecture avec '+(v11FournisseurLecture().nom||'le fournisseur')+'…';
+  if(d.lectureEtat==='enrichi')return 'Document prêt — enrichi par '+(d.lectureProvider||'une lecture IA')+'.';
+  if(d.lectureEtat==='erreur')return 'Lecture IA impossible : '+(d.lectureErreur||'motif inconnu')+' — le texte local reste disponible.';
+  const motif=(d.lecture&&d.lecture.reasons&&d.lecture.reasons[0])||'';
+  if(d.lectureEtat==='lecture_requise')return 'Lecture visuelle nécessaire. '+motif;
+  if(d.lectureEtat==='lecture_possible')return 'Texte extrait localement. '+motif;
+  if(d.error)return 'Lecture impossible : '+d.error;
+  if(d.lectureEtat==='local')return d.notice||'Texte extrait localement.';
+  return d.text?(d.notice||'Texte pris en compte'):'Document non lu — retirez-le ou fournissez une version lisible';
+}
+
+/* DOC-MULTI-01 — LES GESTES SUIVENT LA CLÉ, PAS SEULEMENT LES DOCUMENTS.
+ *
+ * DÉFAUT TROUVÉ PAR LE SMOKE, pas par un raisonnement : les rangées n'étaient rendues qu'au
+ * changement de documents. Quelqu'un qui dépose ses pièces PUIS colle sa clé — l'ordre naturel —
+ * ne voyait jamais apparaître « Lecture visuelle » : le geste existait, l'affichage datait d'avant
+ * la clé. Un seul rendu de plus, et seulement quand la disponibilité a RÉELLEMENT changé et qu'un
+ * document attend quelque chose : ni boucle, ni rendu à chaque frappe. */
+let v11DernierAccesLecture=null;
+function v11RafraichirGestesDocuments(){
+  if(typeof v11FournisseurLecture!=='function')return;
+  const acces=v11FournisseurLecture();
+  const empreinte=(acces.possible?'oui':'non')+':'+(acces.id||'')+':'+(acces.raison||'');
+  if(empreinte===v11DernierAccesLecture)return;
+  v11DernierAccesLecture=empreinte;
+  if(state.docs.some(d=>d.lectureEtat==='lecture_requise'||d.lectureEtat==='lecture_possible'||d.lectureEtat==='erreur'))renderFiles();
+}
+
+/** DOC-MULTI-01 — le parcours manuel, entier, dans le bloc du document : rien d'autre à ouvrir. */
+function v11PanneauLectureManuelle(doc){
+  const panneau=document.createElement('div');panneau.className='v11-file-manual';
+  const prompt=(typeof v11Reading!=='undefined'&&v11Reading)?v11Reading.buildManualPrompt(doc):'';
+  const etapes=['Ouvrez l’IA que vous utilisez déjà.','Joignez-y le document original : '+doc.name,
+    'Copiez le prompt ci-dessous et collez-le dans cette IA.','Copiez le JSON qu’elle renvoie.',
+    'Revenez ici, collez-le, puis validez.'];
+  panneau.innerHTML='<p><strong>Lecture manuelle</strong> — ce document demande une lecture visuelle, et aucune clé API n’est nécessaire pour ce parcours.</p><ol>'
+    +etapes.map(e=>'<li>'+escapeHtml(e)+'</li>').join('')+'</ol>';
+  const zonePrompt=document.createElement('textarea');
+  zonePrompt.readOnly=true;zonePrompt.rows=6;zonePrompt.value=prompt;
+  zonePrompt.setAttribute('aria-label','Prompt à copier dans votre IA');
+  panneau.appendChild(zonePrompt);
+  const actions=document.createElement('div');actions.className='v11-file-actions';
+  const ajouter=(libelle,action)=>{const b=document.createElement('button');b.type='button';b.textContent=libelle;if(typeof b.addEventListener==='function')b.addEventListener('click',action);actions.appendChild(b);return b};
+  ajouter('Copier le prompt',async()=>{try{await navigator.clipboard.writeText(prompt);toast('Prompt copié')}catch(e){zonePrompt.select();toast('Copie automatique indisponible : le prompt est sélectionné.')}});
+  panneau.appendChild(actions);
+  const zoneJson=document.createElement('textarea');
+  zoneJson.rows=5;zoneJson.placeholder='Collez ici le JSON renvoyé par votre IA';
+  zoneJson.setAttribute('aria-label','JSON renvoyé par votre IA');
+  zoneJson.value=(doc.manuel&&doc.manuel.collage)||'';
+  if(typeof zoneJson.addEventListener==='function')zoneJson.addEventListener('input',()=>{doc.manuel.collage=zoneJson.value});
+  panneau.appendChild(zoneJson);
+  const actions2=document.createElement('div');actions2.className='v11-file-actions';
+  const ajouter2=(libelle,action)=>{const b=document.createElement('button');b.type='button';b.textContent=libelle;if(typeof b.addEventListener==='function')b.addEventListener('click',action);actions2.appendChild(b);return b};
+  ajouter2('Valider et intégrer',()=>v11ValiderLectureManuelle(doc));
+  ajouter2('Fermer',()=>{doc.manuel.ouvert=false;renderFiles()});
+  panneau.appendChild(actions2);
+  if(doc.manuel&&doc.manuel.erreur){
+    const erreur=document.createElement('p');erreur.className='v11-file-manual-error';
+    erreur.textContent=doc.manuel.erreur;panneau.appendChild(erreur);
+  }
+  return panneau;
+}
+
+/**
+ * DOC-MULTI-01 — CE QUE LES OCTETS ÉTABLISSENT, ET RIEN DE PLUS.
+ *
+ * La classification vit dans core/documents/reading.js et ne rend que trois verdicts, dont deux
+ * seulement autorisent un appel : « local suffisant » (on s'arrête là), « lecture visuelle
+ * REQUISE » (fait établi : rien d'extractible, ou le fichier est une image) et « lecture visuelle
+ * POSSIBLE » (observation : du texte est sorti ET des visuels sont présents à côté). Le troisième
+ * n'est jamais joué tout seul — il est proposé, la personne décide. La mesure qui a imposé cette
+ * prudence est dans docs/DOC-MULTI-01.md : aucune règle simple ne sépare un document visuel d'un
+ * document textuel sur de vrais fichiers.
+ */
+async function v11ClasserLecture(doc){
+  const lecture=await v11ChargerLecture();
+  doc.lecture=lecture.classifyReading(doc);
+  doc.lectureCanonique=lecture.localReading(doc);
+  doc.lectureEtat=doc.lecture.level==='local_sufficient'?'local'
+    :doc.lecture.level==='visual_required'?'lecture_requise':'lecture_possible';
+  return doc.lecture;
+}
+
+/** Le rendu de la lecture dérivée d'un document, ou '' s'il n'en a pas. Une seule mise en forme. */
+function v11LectureEnrichie(doc){
+  const lecture=doc&&doc.lectureCanonique;
+  if(!lecture||!lecture.reading||lecture.reading.method==='local')return '';
+  return (typeof v11Reading!=='undefined'&&v11Reading&&typeof v11Reading.readingToMaterial==='function')
+    ?v11Reading.readingToMaterial(lecture,{name:doc.name}):'';
 }
 function syncLegacy(){
   const demande=compositeDemand();
@@ -11399,13 +11563,161 @@ function renderFiles(){
   const z=$('#v11-filelist');z.innerHTML='';
   state.docs.forEach((d,i)=>{
     const row=document.createElement('div');row.className='v11-file';
-    const status=d.reading?'Lecture en cours…':d.error?('Lecture impossible : '+d.error):d.text?(d.notice||'Texte pris en compte'):'Document non lu — retirez-le ou fournissez une version lisible';
-    row.innerHTML='<div><strong>'+escapeHtml(d.name)+'</strong><span>'+escapeHtml(status)+'</span></div><button type="button" aria-label="Retirer '+escapeHtml(d.name)+'">Retirer</button>';
-    row.querySelector('button').addEventListener('click',()=>{d.controller?.abort();state.docs.splice(i,1);if(typeof v11AbandonGovernedTurn==='function')v11AbandonGovernedTurn();renderFiles()});z.appendChild(row);
+    const status=typeof v11EtatDocument==='function'?v11EtatDocument(d)
+      :(d.reading?'Lecture en cours…':d.error?('Lecture impossible : '+d.error):d.text?(d.notice||'Texte pris en compte'):'Document non lu — retirez-le ou fournissez une version lisible');
+    /* DOC-MULTI-01 — LES GESTES, ET PAS UN DE PLUS. Ils n'apparaissent que là où ils ont un sens :
+       la lecture visuelle seulement si elle est requise ou possible, la lecture manuelle seulement
+       si une lecture visuelle est en jeu, « Réessayer » seulement après un échec. Hors de la page
+       complète (tranche de test), aucun n'apparaît et la rangée retrouve son contenu d'avant.
+       Ils sont posés dans le BALISAGE puis reliés par querySelectorAll, comme « Retirer » l'était
+       déjà : createElement n'est pas une surface sur laquelle ce fichier s'appuie. */
+    const lectureDisponible=typeof v11FournisseurLecture==='function';
+    const visuelEnJeu=lectureDisponible&&(d.lectureEtat==='lecture_requise'||d.lectureEtat==='lecture_possible'||d.lectureEtat==='erreur');
+    const acces=lectureDisponible?v11FournisseurLecture():{possible:false};
+    const gestes=[];
+    if(visuelEnJeu&&acces.possible)gestes.push({cle:'fournisseur',libelle:(d.lectureEtat==='erreur'?'Réessayer la lecture ':'Lecture visuelle avec ')+acces.nom});
+    if(visuelEnJeu&&!acces.possible&&typeof v11OpenApiPanel==='function')gestes.push({cle:'connecter',libelle:'Connecter une IA'});
+    if(visuelEnJeu&&!(d.manuel&&d.manuel.ouvert))gestes.push({cle:'manuel',libelle:'Utiliser mon IA manuellement'});
+    gestes.push({cle:'retirer',libelle:'Retirer',aria:'Retirer '+d.name});
+    row.innerHTML='<div><strong>'+escapeHtml(d.name)+'</strong><span>'+escapeHtml(status)+'</span></div>'
+      +gestes.map(g=>'<button type="button" data-geste="'+g.cle+'"'+(g.aria?' aria-label="'+escapeHtml(g.aria)+'"':'')+'>'+escapeHtml(g.libelle)+'</button>').join('');
+    /* querySelector, au singulier et par attribut : c'est la seule forme sur laquelle « Retirer »
+       s'appuyait déjà avant ce lot, donc la seule que ce fichier peut supposer. */
+    const relier=(cle,action)=>{
+      const b=typeof row.querySelector==='function'?row.querySelector('button[data-geste="'+cle+'"]'):null;
+      if(b&&typeof b.addEventListener==='function')b.addEventListener('click',action);
+    };
+    relier('fournisseur',()=>v11DemanderLectureFournisseur(d));
+    relier('connecter',()=>v11OpenApiPanel());
+    relier('manuel',()=>v11OuvrirLectureManuelle(d));
+    relier('retirer',()=>{d.controller?.abort();state.docs.splice(i,1);if(typeof v11AbandonGovernedTurn==='function')v11AbandonGovernedTurn();renderFiles()});
+    if(d.manuel&&d.manuel.ouvert&&typeof v11PanneauLectureManuelle==='function')row.appendChild(v11PanneauLectureManuelle(d));
+    z.appendChild(row);
   });
   /* CONTINUITE-02 — tout changement de documents passe ici : un seul point de sauvegarde. */
   if(typeof v11SessionSave==='function')v11SessionSave();
 }
+/* DOC-MULTI-01 — LE MODULE DE LECTURE CANONIQUE : un seul format, un seul validateur, un seul
+ * prompt, pour les trois chemins (local, fournisseur, IA externe par copier-coller). Il est chargé
+ * à la demande, comme le lecteur, et mémorisé : rien n'est téléchargé tant qu'aucun document
+ * n'arrive. */
+/* `var` et non `let` : hoisté sans zone morte, une tranche partielle qui le lit avant sa ligne y
+   trouve undefined au lieu de lever. C'est la même prudence que les gardes typeof du fichier. */
+var v11Reading=null;
+async function v11ChargerLecture(){
+  if(!v11Reading)v11Reading=await import('./core/documents/reading.js');
+  return v11Reading;
+}
+
+/* DOC-MULTI-01 — CE QUE LE FOURNISSEUR ACTIF PERMET, SANS JAMAIS CHANGER DE FOURNISSEUR.
+ * Lit le registre déjà en place : le fournisseur sélectionné, SA clé, et sa capacité déclarée.
+ * Ne bascule jamais vers l'autre, n'invente aucune clé, n'appelle aucun service intermédiaire. */
+function v11FournisseurLecture(){
+  if(typeof obtenirFournisseurActif!=='function')return {possible:false,raison:'aucun fournisseur'};
+  const id=obtenirFournisseurActif();
+  const fiche=(typeof FOURNISSEURS_API==='object'&&FOURNISSEURS_API[id])||null;
+  const cle=typeof obtenirCleFournisseur==='function'?(obtenirCleFournisseur(id)||'').trim():'';
+  if(!fiche)return {possible:false,raison:'aucun fournisseur'};
+  if(!cle)return {possible:false,id,nom:fiche.nom,raison:'aucune clé'};
+  if(!fiche.capacites||!fiche.capacites.lecture_document)return {possible:false,id,nom:fiche.nom,raison:'fournisseur sans lecture de document'};
+  return {possible:true,id,nom:fiche.nom,cle};
+}
+
+/** Les octets du document, en base64, pour la pièce jointe. Le fichier n'est jamais conservé. */
+async function v11PieceJointe(doc){
+  if(!doc||!doc.sourceFile)return null;
+  const octets=new Uint8Array(await doc.sourceFile.arrayBuffer());
+  let binaire='';
+  for(let i=0;i<octets.length;i+=8192)binaire+=String.fromCharCode.apply(null,octets.subarray(i,i+8192));
+  const type=doc.type||(/\.pdf$/i.test(doc.name)?'application/pdf':'');
+  return {name:doc.name,mediaType:type,base64:btoa(binaire)};
+}
+
+/**
+ * DOC-MULTI-01 — LA LECTURE PAR LE FOURNISSEUR ACTIF.
+ *
+ * Le texte déjà extrait localement part avec la consigne : le modèle est explicitement chargé de ne
+ * pas le paraphraser mais de lire ce que ce texte NE PORTE PAS. La sortie passe par la sortie
+ * structurée du transport (schéma canonique), puis par le MÊME validateur que le chemin manuel.
+ * Un refus de validation n'est jamais intégré : il est dit.
+ */
+async function v11LireAvecFournisseur(doc){
+  const acces=v11FournisseurLecture();
+  if(!acces.possible)return {ok:false,raison:acces.raison};
+  const lecture=await v11ChargerLecture();
+  const piece=await v11PieceJointe(doc);
+  if(!piece)return {ok:false,raison:'document original indisponible'};
+  const modele=typeof obtenirModeleActif==='function'?obtenirModeleActif('architecte-analyse'):'';
+  doc.lectureEtat='en_cours';renderFiles();
+  try{
+    const reponse=await appelFournisseur({
+      fournisseur:acces.id,cle:acces.cle,modele,maxTokens:16000,
+      systeme:lecture.READING_INSTRUCTION,
+      contenuUtilisateur:lecture.buildProviderPrompt({name:doc.name},{localText:doc.text||''}),
+      schema:lecture.READING_JSON_SCHEMA,
+      documents:[piece]
+    });
+    const extrait=lecture.extractReadingJson(reponse.texte);
+    if(!extrait.ok)return {ok:false,raison:extrait.error};
+    const verdict=lecture.validateReading(extrait.value,{name:doc.name,method:'provider_multimodal',provider:acces.id});
+    if(!verdict.valid)return {ok:false,raison:'Lecture non conforme : '+verdict.violations.slice(0,2).join(' ; ')};
+    return {ok:true,reading:extrait.value,provider:acces.id,nom:acces.nom};
+  }catch(error){
+    return {ok:false,raison:String((error&&error.message)||'Lecture impossible.')};
+  }
+}
+
+/** Le geste : lire ce document avec le fournisseur actif, et le dire quoi qu'il arrive. */
+async function v11DemanderLectureFournisseur(doc){
+  if(!state.docs.includes(doc))return false;
+  const acces=v11FournisseurLecture();
+  if(!acces.possible){v11OuvrirLectureManuelle(doc);return false}
+  /* Le document part chez le fournisseur : en mode « données sensibles », la personne le confirme,
+     avec le nom de celui qui va le recevoir — le même mécanisme que partout ailleurs. */
+  if(typeof modeSensible!=='undefined'&&modeSensible
+     &&!confirm('Mode données sensibles.\n\nLe document « '+doc.name+' » va être transmis à l\u2019API '+acces.nom+' pour y être lu.\n\nContinuer ?'))return false;
+  const resultat=await v11LireAvecFournisseur(doc);
+  if(!state.docs.includes(doc))return false;
+  if(resultat.ok){
+    doc.lectureCanonique=resultat.reading;doc.lectureEtat='enrichi';doc.lectureProvider=resultat.nom;
+    delete doc.lectureErreur;delete doc.error;doc.external=false;
+    if(typeof v11AbandonGovernedTurn==='function')v11AbandonGovernedTurn();
+    renderFiles();if(typeof syncLegacy==='function')syncLegacy();
+    toast('Document enrichi par '+resultat.nom);return true;
+  }
+  doc.lectureEtat='erreur';doc.lectureErreur=resultat.raison;renderFiles();return false;
+}
+
+/* DOC-MULTI-01 — LE PLAN B, QUI N'EST PAS UN PIS-ALLER. Sans clé, le parcours complet reste
+ * disponible : Atelier écrit le prompt, la personne l'emploie avec l'IA qu'elle a déjà, et recolle
+ * le JSON. Le format, le validateur et l'intégration sont EXACTEMENT ceux du chemin fournisseur. */
+function v11OuvrirLectureManuelle(doc){
+  doc.manuel=doc.manuel||{ouvert:true,collage:'',erreur:''};
+  doc.manuel.ouvert=true;
+  v11ChargerLecture().then(()=>renderFiles());
+  renderFiles();
+}
+async function v11ValiderLectureManuelle(doc){
+  const lecture=await v11ChargerLecture();
+  const collage=(doc.manuel&&doc.manuel.collage)||'';
+  if(!collage.trim()){doc.manuel.erreur='Collez d\u2019abord le JSON renvoyé par votre IA.';renderFiles();return false}
+  const extrait=lecture.extractReadingJson(collage);
+  if(!extrait.ok){doc.manuel.erreur=extrait.error;renderFiles();return false}
+  const verdict=lecture.validateReading(extrait.value,{name:doc.name,method:'external_llm_manual',provider:null});
+  if(!verdict.valid){
+    doc.manuel.erreur='JSON manuel invalide — '+verdict.violations.length+' problème(s) : '+verdict.violations.slice(0,3).join(' ; ')+(verdict.violations.length>3?' ; …':'');
+    renderFiles();return false;
+  }
+  doc.lectureCanonique=extrait.value;doc.lectureEtat='enrichi';doc.lectureProvider='votre IA, manuellement';
+  /* Un document lu — par un fournisseur ou à la main — n'est plus une pièce non lue : il cesse de
+     bloquer le tour et rejoint le matériau. C'est la MÊME porte que la lecture locale franchit. */
+  delete doc.error;doc.external=false;
+  doc.manuel={ouvert:false,collage:'',erreur:''};delete doc.lectureErreur;
+  if(typeof v11AbandonGovernedTurn==='function')v11AbandonGovernedTurn();
+  renderFiles();if(typeof syncLegacy==='function')syncLegacy();
+  toast('Lecture manuelle intégrée');return true;
+}
+
 function looksLikeAnalysis(obj){return !!(obj&&obj.version==='3.4'&&obj.comprehension&&obj.evaluation&&obj.strategie&&obj.compilation)}
 function looksLikeOutgoingEnvelope(obj){return !!(obj&&obj.version_echange&&obj.requete_complete&&obj.fichier_retour_attendu)}
 async function processIncomingFiles(files){
@@ -11465,7 +11777,25 @@ async function addFiles(files){
       if(!state.docs.includes(doc)||controller.signal.aborted)continue;
       Object.assign(doc,result,{external:false});
       if(doc.archiveNotice)doc.notice=doc.archiveNotice+' '+doc.notice;
-    }catch(error){doc.error=controller.signal.aborted?'Lecture annulée ou trop longue. Réessayez avec un document plus petit.':String(error.message||'Document illisible.');}
+      /* DOC-MULTI-01 — l'original est gardé en mémoire le temps de la session, et SEULEMENT là :
+         il n'est ni stocké, ni photographié en session (v11SessionSave ne retient qu'une liste de
+         champs nommés), ni envoyé nulle part sans un geste. C'est lui que la lecture multimodale
+         joindra, si elle a lieu. */
+      doc.sourceFile=file;
+      if(typeof v11ClasserLecture==='function')await v11ClasserLecture(doc);
+    }catch(error){
+      doc.error=controller.signal.aborted?'Lecture annulée ou trop longue. Réessayez avec un document plus petit.':String(error.message||'Document illisible.');
+      /* DOC-MULTI-01 — UN SCAN ÉCHOUE ICI, et c'est le cas qui demande le plus une lecture
+         visuelle : le lecteur local a bien travaillé, il n'y avait simplement pas de texte. Ce
+         n'est donc pas une impasse mais une orientation, à condition de ne le dire que lorsque
+         l'échec est bien celui-là — un document chiffré ou tronqué reste une impasse. */
+      doc.sourceFile=file;
+      if(/Aucun texte (reconnu|lisible)/.test(doc.error)&&typeof v11ChargerLecture==='function'){
+        const lecture=await v11ChargerLecture();
+        doc.lecture=lecture.classifyReading({name:doc.name,type:doc.type,text:'',pages:null,images:null});
+        doc.lectureEtat='lecture_requise';
+      }
+    }
     finally{clearTimeout(timeout);doc.reading=false;delete doc.controller;renderFiles()}
   }
   if(!documents.some(({doc})=>state.docs.includes(doc)))return;
@@ -26264,8 +26594,8 @@ function init(){
   apiToggle.addEventListener('click',()=>{const open=apiPanel.hidden;apiPanel.hidden=!open;apiToggle.setAttribute('aria-expanded',String(open));if(open){v11SyncApiUi();setTimeout(()=>$('#v11-api-key').focus(),0)}});
   $('#v11-api-provider').addEventListener('change',()=>{v11PushApiUi();setTimeout(v11SyncApiUi,0)});$('#v11-api-key').addEventListener('input',v11PushApiUi);
   /* API-KEY-TEST-01 — clé, fournisseur ou modèle modifié → verdict effacé ; un clic → un test. */
-  $('#v11-api-key').addEventListener('input',v11KeyTestReset);$('#api-cle').addEventListener('input',v11KeyTestReset);
-  $('#fournisseur-actif').addEventListener('change',v11KeyTestReset);$('#api-modele').addEventListener('change',v11KeyTestReset);
+  $('#v11-api-key').addEventListener('input',v11KeyTestReset);$('#api-cle').addEventListener('input',()=>{v11KeyTestReset();v11RafraichirGestesDocuments()});
+  $('#fournisseur-actif').addEventListener('change',()=>{v11KeyTestReset();v11RafraichirGestesDocuments()});$('#api-modele').addEventListener('change',v11KeyTestReset);
   $('#v11-api-test').addEventListener('click',v11KeyTestRun);
   $('#v11-api-show').addEventListener('click',()=>{const k=$('#v11-api-key'),show=k.type==='password';k.type=show?'text':'password';$('#v11-api-show').textContent=show?'Masquer':'Afficher'});
   $('#v11-expert').addEventListener('click',()=>{if(typeof appliquerEspace==='function')appliquerEspace('avance');if(typeof ecrire==='function')ecrire('atelier10.espace','avance');setNormal(false);if(typeof ouvrirVue==='function')ouvrirVue('architecte')});

@@ -152,7 +152,7 @@ export async function extractDocument(file, { signal, progress = () => {}, pdfLo
     return result.data.text.trim();
   };
   try {
-    let text = '', pages = null, ocrPages = 0;
+    let text = '', pages = null, ocrPages = 0, images = null;
     if (extension === 'pdf' || file.type === 'application/pdf') {
       const pdfjs = await pdfLoader();
       aborted(signal);
@@ -165,11 +165,25 @@ export async function extractDocument(file, { signal, progress = () => {}, pdfLo
       pages = doc.numPages;
       if (pages > DOCUMENT_LIMITS.pages) fail('PDF supérieur à 300 pages. Séparez-le en parties.');
       const parts = []; let readable = false;
+      /* DOC-MULTI-01 — COMBIEN D'IMAGES, ET RIEN DE PLUS. Ce compte sert à DIRE à la personne que
+         le document porte des visuels que cette lecture n'interprète pas ; il ne décide rien.
+         Il est relevé dans la boucle de pages déjà ouverte, sur la liste d'opérateurs que PDF.js
+         produit de toute façon pour rendre la page — aucune seconde passe sur le document. Un
+         chargeur injecté qui n'expose pas getOperatorList (les tests historiques) laisse `images`
+         à null, et « non établi » n'est pas « zéro » : la classification les distingue. */
+      const operateursImage = pdfjs.OPS ? [pdfjs.OPS.paintImageXObject, pdfjs.OPS.paintInlineImageXObject,
+        pdfjs.OPS.paintImageMaskXObject, pdfjs.OPS.paintImageXObjectRepeat].filter(op => op !== undefined) : [];
       for (let n = 1; n <= pages; n++) {
         aborted(signal); progress(`Lecture du PDF : page ${n}/${pages}`);
         const page = await doc.getPage(n);
         try {
           const content = await page.getTextContent();
+          if (operateursImage.length && typeof page.getOperatorList === 'function') {
+            try {
+              const operateurs = await page.getOperatorList();
+              images = (images || 0) + (operateurs.fnArray || []).filter(op => operateursImage.includes(op)).length;
+            } catch (error) { /* Une page dont les opérateurs ne se lisent pas ne rend pas le texte faux. */ }
+          }
           let pageText = content.items.map(item => typeof item.str === 'string' ? item.str + (item.hasEOL ? '\n' : ' ') : '').join('').trim();
           // Sparse pages can contain an image plus a page number: OCR the entire page too.
           if (pageText.length < 80) {
@@ -211,7 +225,7 @@ export async function extractDocument(file, { signal, progress = () => {}, pdfLo
     } else fail('Format non pris en charge automatiquement. Exportez en PDF, DOCX, OpenDocument ou texte UTF-8.');
     aborted(signal); checkText(text);
     if (!text.trim()) fail('Aucun texte lisible trouvé. Fournissez le texte ou un scan plus net.');
-    return { text, pages, ocrPages, notice: ocrPages ? 'Texte reconnu automatiquement (OCR), à vérifier. Les schémas et images ne sont pas interprétés.' : 'Texte extrait ; la mise en page, les schémas et les images ne sont pas interprétés.' };
+    return { text, pages, ocrPages, images, notice: ocrPages ? 'Texte reconnu automatiquement (OCR), à vérifier. Les schémas et images ne sont pas interprétés.' : 'Texte extrait ; la mise en page, les schémas et les images ne sont pas interprétés.' };
   } catch (error) {
     aborted(signal);
     if (/password|Password|destroyed/.test(error?.message || '')) fail('PDF protégé par mot de passe ou interrompu. Fournissez une copie déverrouillée.');
