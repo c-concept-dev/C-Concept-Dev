@@ -1,5 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
 
+/** Les trois variantes de la charte v3 : le contraste se mesure dans les trois, pas dans deux. */
+const THEMES = ["light", "hybrid", "dark"] as const;
+type Theme = (typeof THEMES)[number];
+
 /** Les trois écrans dans les trois moteurs (B6, PLT-09).
  *
  *  Ce qui se mesure ici ne se mesure pas ailleurs : le parcours au clavier de bout en bout, le
@@ -14,7 +18,7 @@ const ECRANS = [
 
 /** Pose un écran et attend qu'il soit là. L'instantané se charge après le premier rendu : sans
  *  cette attente, on mesurerait l'accueil en croyant mesurer le catalogue. */
-async function poser(page: Page, theme: "light" | "hybrid", adresse: string, marque = "#contenu"): Promise<void> {
+async function poser(page: Page, theme: Theme, adresse: string, marque = "#contenu"): Promise<void> {
   await page.addInitScript(
     ([clef, valeur]) => globalThis.localStorage.setItem(clef as string, valeur as string),
     ["lienotheque.theme", theme],
@@ -131,51 +135,76 @@ test.describe("parcours au clavier (B6)", () => {
 });
 
 test.describe("contrastes (UX-07)", () => {
-  for (const theme of ["light", "hybrid"] as const) {
-    test(`${theme} : le texte courant tient le rapport de 4,5`, async ({ page }) => {
-      await poser(page, theme, "#catalogue", ".ln-catalogue");
+  for (const theme of THEMES) {
+    for (const ecran of ECRANS) {
+      test(`${ecran.nom} — ${theme} : tout texte tient le rapport exigé`, async ({ page }) => {
+        await poser(page, theme, ecran.adresse, ecran.marque);
 
-      const faibles = await page.evaluate(() => {
-        const canal = (valeur: number): number => (valeur <= 0.03928 ? valeur / 12.92 : ((valeur + 0.055) / 1.055) ** 2.4);
-        const luminance = (couleur: string): number | undefined => {
-          const canaux = /rgba?\(([^)]+)\)/.exec(couleur)?.[1]?.split(",").map((n) => Number(n.trim()));
-          if (canaux === undefined || canaux.length < 3) return undefined;
-          const [r, v, b] = canaux as [number, number, number];
-          return 0.2126 * canal(r / 255) + 0.7152 * canal(v / 255) + 0.0722 * canal(b / 255);
-        };
-        const fondDe = (noeud: Element): string => {
-          for (let courant: Element | null = noeud; courant !== null; courant = courant.parentElement) {
-            const fond = getComputedStyle(courant).backgroundColor;
-            const canaux = /rgba?\(([^)]+)\)/.exec(fond)?.[1]?.split(",").map((n) => Number(n.trim()));
-            if (canaux !== undefined && (canaux[3] ?? 1) > 0.9) return fond;
-          }
-          return "rgb(255, 255, 255)";
-        };
+        const faibles = await page.evaluate(() => {
+          const canal = (valeur: number): number => (valeur <= 0.03928 ? valeur / 12.92 : ((valeur + 0.055) / 1.055) ** 2.4);
+          const canaux = (couleur: string): readonly number[] | undefined => {
+            const trouve = /rgba?\(([^)]+)\)/.exec(couleur)?.[1]?.split(",").map((n) => Number(n.trim()));
+            return trouve === undefined || trouve.length < 3 ? undefined : trouve;
+          };
+          const luminance = (couleur: string): number | undefined => {
+            const c = canaux(couleur);
+            return c === undefined ? undefined : 0.2126 * canal(c[0]! / 255) + 0.7152 * canal(c[1]! / 255) + 0.0722 * canal(c[2]! / 255);
+          };
 
-        // Le texte qu'un nœud porte lui-même, sans celui de ses descendants : un `li` qui n'encadre
-        // qu'un bouton n'écrit rien sur le fond de la page, c'est le bouton qui porte son propre
-        // panneau. Compter le texte des descendants faisait lire le fond de la fenêtre là où
-        // l'œil voit celui de la carte.
-        const texteDirect = (noeud: Element): string =>
-          [...noeud.childNodes]
-            .filter((enfant) => enfant.nodeType === 3)
-            .map((enfant) => enfant.textContent ?? "")
-            .join("")
-            .trim();
+          /** Le premier fond opaque au-dessus du nœud : c'est lui que l'œil voit derrière le texte. */
+          const fondDe = (noeud: Element): string => {
+            for (let courant: Element | null = noeud; courant !== null; courant = courant.parentElement) {
+              const fond = getComputedStyle(courant).backgroundColor;
+              const c = canaux(fond);
+              if (c !== undefined && (c[3] ?? 1) > 0.9) return fond;
+            }
+            return getComputedStyle(document.documentElement).backgroundColor;
+          };
 
-        return [...document.querySelectorAll("p, li, h1, h2, h3, label, kbd")]
-          .filter((noeud) => texteDirect(noeud).length > 2)
-          .flatMap((noeud) => {
-            const style = getComputedStyle(noeud);
-            const texte = luminance(style.color);
-            const fond = luminance(fondDe(noeud));
-            if (texte === undefined || fond === undefined) return [];
-            const rapport = (Math.max(texte, fond) + 0.05) / (Math.min(texte, fond) + 0.05);
-            const grand = Number.parseFloat(style.fontSize) >= 24;
-            return rapport < (grand ? 3 : 4.5) ? [`${texteDirect(noeud).slice(0, 30)} : ${rapport.toFixed(2)}`] : [];
-          });
+          /** Le texte qu'un nœud porte lui-même : celui de ses descendants repose sur leur propre
+           *  fond, pas sur le sien. */
+          const texteDirect = (noeud: Element): string =>
+            [...noeud.childNodes]
+              .filter((enfant) => enfant.nodeType === 3)
+              .map((enfant) => enfant.textContent ?? "")
+              .join("")
+              .trim();
+
+          const chemin = (noeud: Element): string => {
+            const classes = typeof noeud.className === "string" && noeud.className !== "" ? `.${noeud.className.trim().split(/\s+/).join(".")}` : "";
+            return `${noeud.tagName.toLowerCase()}${classes}`;
+          };
+
+          // Tout élément qui porte du texte, pas une liste de balises choisies d'avance : un libellé
+          // illisible dans un « span » ou un « output » compte autant que dans un « p ».
+          return [...document.querySelectorAll("body *")]
+            .filter((noeud) => {
+              if (texteDirect(noeud).length <= 2) return false;
+              const style = getComputedStyle(noeud);
+              if (style.visibility === "hidden" || style.display === "none" || style.opacity === "0") return false;
+              // Les textes réservés aux lecteurs d'écran ne sont pas regardés.
+              const boite = noeud.getBoundingClientRect();
+              return boite.width > 1 && boite.height > 1;
+            })
+            .flatMap((noeud) => {
+              const style = getComputedStyle(noeud);
+              const texte = luminance(style.color);
+              const fond = luminance(fondDe(noeud));
+              if (texte === undefined || fond === undefined) return [];
+              const rapport = (Math.max(texte, fond) + 0.05) / (Math.min(texte, fond) + 0.05);
+              // WCAG : 3 pour un grand texte — 24 px, ou 18,66 px en gras —, 4,5 pour le reste.
+              const taille = Number.parseFloat(style.fontSize);
+              const gras = Number.parseFloat(style.fontWeight) >= 700;
+              const grand = taille >= 24 || (gras && taille >= 18.66);
+              const exige = grand ? 3 : 4.5;
+              return rapport < exige
+                ? [`${chemin(noeud)} « ${texteDirect(noeud).slice(0, 24)} » : ${rapport.toFixed(2)} au lieu de ${exige}`]
+                : [];
+            });
+        });
+
+        expect(faibles, `${ecran.nom} en ${theme} : tout texte lisible`).toEqual([]);
       });
-      expect(faibles, "tout texte lisible").toEqual([]);
-    });
+    }
   }
 });

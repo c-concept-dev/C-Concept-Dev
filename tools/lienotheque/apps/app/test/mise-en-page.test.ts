@@ -162,3 +162,28 @@ describe("Vérifier : trois gestes sur une ligne, l'annulation en lien (correcti
     expect(regles.some((corps) => declaration(corps, "border") === "0")).toBe(true);
   });
 });
+
+/** Correction 1 : le panneau des filtres du Catalogue était crème sur crème en hybride.
+ *
+ *  L'intégration continue ne lance pas Playwright : ce contrôle-ci garde la règle dans `pnpm
+ *  check`, là où le contrôle de contraste réel ne va pas. */
+describe("Hybride : un panneau de contenu qui sert aussi de panneau de titre (correction 1)", () => {
+  it("pose le fond graphite sous le texte clair, dans la feuille de base", () => {
+    const regles = reglesPour(FEUILLES.base, '[data-theme="hybrid"] .ln-panneau.ln-panneau-titre');
+    expect(regles.length, "la combinaison des deux panneaux est tranchée").toBeGreaterThan(0);
+    expect(regles.some((corps) => declaration(corps, "background") === "var(--ln-heading-panel)")).toBe(true);
+  });
+
+  it("donne au panneau de titre le texte clair qui va avec ce fond", () => {
+    const regles = reglesPour(FEUILLES.base, '[data-theme="hybrid"] .ln-panneau-titre');
+    expect(regles.some((corps) => declaration(corps, "color") === "var(--ln-heading-text)")).toBe(true);
+  });
+
+  it("ne laisse aucun écran réaffirmer ce fond de son côté", () => {
+    // Deux endroits qui décident la même couleur, c'est l'un des deux qui finit par l'oublier.
+    for (const [nom, feuille] of Object.entries(FEUILLES)) {
+      if (nom === "base") continue;
+      expect(sansCommentaires(feuille), nom).not.toMatch(/\.ln-panneau-titre\s*\{[^}]*--ln-heading-panel/);
+    }
+  });
+});

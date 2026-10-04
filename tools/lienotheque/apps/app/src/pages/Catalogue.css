@@ -55,14 +55,6 @@
 
 /* ---- Filtres ---- */
 
-/* Le panneau des filtres est une carte crème en clair et un panneau graphite en hybride.
-   « ln-panneau » pose la carte, « ln-panneau-titre » les couleurs de texte : il faut réaffirmer
-   le fond graphite, sans quoi le texte clair se poserait sur la carte crème. */
-[data-theme="hybrid"] .ln-filtres.ln-panneau-titre {
-  background: var(--ln-heading-panel);
-  border-color: transparent;
-}
-
 .ln-filtres__titre {
   margin: 0 0 calc(var(--ln-grid) * 1.5) 0;
   font-size: 18px;
