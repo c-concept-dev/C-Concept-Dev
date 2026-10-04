@@ -79,6 +79,32 @@ export function suites(nombres: readonly number[]): { readonly debut: number; re
   return sortie;
 }
 
+/** Les valeurs qu'une page porte sur les axes du schéma (CLA-10).
+ *
+ *  L'application ne connaît aucun domaine, et ne remplit donc qu'un axe : celui dont le schéma
+ *  dit le rôle — « etat » — et dont les valeurs disent ce qu'elles désignent — « present » ou
+ *  « absent ». Elle sait si une page a un lien ; ce que ce lien veut dire dans cette
+ *  bibliothèque ne la regarde pas, et le nom de l'axe comme celui des valeurs restent des
+ *  données (CLA-01).
+ *
+ *  Tout autre axe reste vide ici. Il le restera tant que personne ne l'aura rempli — à la main,
+ *  ou par la suggestion à l'import (CLA-05) — et son groupe ne s'affichera pas d'ici là. */
+export function valeursDePage(
+  schema: SchemaBibliotheque,
+  elements: readonly ElementAffiche[],
+): Record<string, string[]> {
+  const valeurs: Record<string, string[]> = {};
+  const relie = elements.some((element) => element.media !== undefined);
+
+  for (const axe of schema.axes) {
+    if (axe.roleCommun !== "etat") continue;
+    const voulu = relie ? "present" : "absent";
+    const valeur = axe.valeurs.find((candidate) => !candidate.retiree && candidate.roleValeur === voulu);
+    if (valeur !== undefined) valeurs[axe.cle] = [valeur.cle];
+  }
+  return valeurs;
+}
+
 /** Ce qui met un cas en attente, quand il y a lieu. */
 function doute(ligne: LigneInterpretee, seuil: number): CasDouteux["etat"] | undefined {
   if (ligne.piste === undefined) return undefined;
@@ -100,6 +126,8 @@ export function construireVue(entree: Entree): VueBibliotheque {
       ancreId,
       numero: String(ligne.numero),
       page: ligne.pageImprimee,
+      // Où l'élément a été lu, quand la lecture l'a su : c'est le cadre cliquable du Lecteur.
+      ...(ligne.zone === undefined ? {} : { zone: ligne.zone }),
       ...(media === undefined
         ? {}
         : {
@@ -188,8 +216,23 @@ export function construireVue(entree: Entree): VueBibliotheque {
         elements,
         texte: [],
         traduction: [],
+        valeurs: valeursDePage(entree.schema, elements),
       };
     });
+
+  // Les filtres, comptés sur ce que les pages portent vraiment. Un axe que personne ne porte
+  // n'est pas filtrable : son groupe reste masqué, et il reparaîtra le jour où l'application
+  // saura le remplir.
+  const filtres = entree.schema.axes.map((axe) => {
+    const valeurs = axe.valeurs
+      .filter((valeur) => !valeur.retiree)
+      .map((valeur) => ({
+        cle: valeur.cle,
+        nom: valeur.nom,
+        nombre: pages.filter((page) => (page.valeurs[axe.cle] ?? []).includes(valeur.cle)).length,
+      }));
+    return { cle: axe.cle, nom: axe.nom, valeurs, filtrable: pages.some((page) => (page.valeurs[axe.cle] ?? []).length > 0) };
+  });
 
   const relies = entree.lignes.filter((ligne) => ligne.piste !== undefined).length;
 
@@ -203,15 +246,7 @@ export function construireVue(entree: Entree): VueBibliotheque {
       { nombre: pages.length, mot: entree.mots.page.plusieurs },
     ],
     aVerifier: douteux.length,
-    // Les axes du schéma, déclarés mais pas encore comptés : rien ici ne sait quelle valeur
-    // porte une page. Ils partent donc « filtrable: false », et les écrans n'en montrent pas le
-    // groupe. Les annoncer avec des comptes à zéro, c'était promettre un tri inexistant.
-    filtres: entree.schema.axes.map((axe) => ({
-      cle: axe.cle,
-      nom: axe.nom,
-      valeurs: axe.valeurs.filter((valeur) => !valeur.retiree).map((valeur) => ({ cle: valeur.cle, nom: valeur.nom, nombre: 0 })),
-      filtrable: false,
-    })),
+    filtres,
     pages,
     douteux,
   });

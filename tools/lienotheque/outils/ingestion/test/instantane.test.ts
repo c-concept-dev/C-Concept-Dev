@@ -46,20 +46,21 @@ describe("instantané pour les écrans (B5)", () => {
     expect(vue.douteux[0]?.element?.aVerifier).toBe(true);
   });
 
-  it("tire ses filtres de la nomenclature, sans les valeurs retirées", () => {
+  it("tire ses filtres de la nomenclature, un par axe, sans les valeurs retirées", () => {
     const vue = construireVue(entree());
-    expect(vue.filtres).toHaveLength(1);
-    expect(vue.filtres[0]?.valeurs.map((valeur) => valeur.cle)).toEqual(["debutant"]);
+    expect(vue.filtres.map((filtre) => filtre.cle)).toEqual(["niveau", "ecoute"]);
+    expect(vue.filtres[0]?.valeurs.map((valeur) => valeur.cle), "« ancien » est retirée").toEqual(["debutant"]);
   });
 
-  it("ne déclare filtrable aucun axe qu'il n'a pas compté (CLA-10)", () => {
+  it("ne déclare filtrable qu'un axe qu'il a su compter (CLA-10)", () => {
     const vue = construireVue(entree());
-    // Rien ici ne sait quelle valeur porte une page : annoncer l'axe avec des comptes à zéro,
-    // c'était promettre aux écrans un tri qui n'existe pas.
-    for (const filtre of vue.filtres) {
-      expect(filtre.filtrable, filtre.cle).toBe(false);
-      expect(filtre.valeurs.every((valeur) => valeur.nombre === 0), filtre.cle).toBe(true);
-    }
+    // « niveau » : rien ici ne sait quelle valeur une page y porte. L'annoncer avec des comptes
+    // à zéro, c'était promettre aux écrans un tri qui n'existe pas.
+    const niveau = vue.filtres.find((filtre) => filtre.cle === "niveau");
+    expect(niveau?.filtrable).toBe(false);
+    expect(niveau?.valeurs.every((valeur) => valeur.nombre === 0)).toBe(true);
+    // « ecoute » porte un rôle que l'application sait remplir : lui, il filtre.
+    expect(vue.filtres.find((filtre) => filtre.cle === "ecoute")?.filtrable).toBe(true);
   });
 
   it("compte ce qu'il y a, avec les mots de la bibliothèque", () => {

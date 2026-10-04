@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { Confiance, NumeroVersion } from "./commun.js";
+import { Confiance, NumeroVersion, ZoneRelative } from "./commun.js";
 import { CotePage } from "./redressement.js";
 
 /** Repères lus sur une page et ce que l'interpréteur en tire (OUT-07, REC-02, REC-03).
@@ -13,6 +13,12 @@ export const LectureRepere = z
   .object({
     /** Hauteur sur la page, de 0 en haut à 1 en bas : la seule chose comparable entre passes. */
     y: z.number().min(0).max(1),
+    /** Où le numéro a été lu sur la page, en part de ses dimensions.
+     *
+     *  La lecture a toujours su où elle regardait ; c'est le transport qui manquait, et les
+     *  écrans montraient donc la vraie page sans ses zones. Facultatif parce qu'une passe peut
+     *  travailler sur une image dont les dimensions ne sont pas celles de la page. */
+    zone: ZoneRelative.optional(),
     numero: z.number().int().positive(),
     pisteLue: z.number().int().positive().optional(),
     /** À quel point une pastille semble présente, qu'on ait su lire son chiffre ou non. Une
@@ -27,6 +33,9 @@ export type LectureRepere = z.infer<typeof LectureRepere>;
 export const ElementRepere = z
   .object({
     y: z.number().min(0).max(1),
+    /** Zone retenue pour cet élément : celle de la lecture qui a emporté le vote. On ne moyenne
+     *  pas deux rectangles — la moyenne de deux lectures qui se contredisent ne désigne rien. */
+    zone: ZoneRelative.optional(),
     numero: z.number().int().positive(),
     pisteLue: z.number().int().positive().optional(),
     presencePiste: Confiance.default(0),
@@ -83,6 +92,8 @@ export const LigneInterpretee = z
      *  partir de 1 sur chaque support : la piste 3 du disque 2 n'est pas la piste 3 du disque 1. */
     disque: z.number().int().positive().default(1),
     sourcePiste: SourcePiste.optional(),
+    /** Où l'élément se trouve sur sa page, quand la lecture l'a su (B1). */
+    zone: ZoneRelative.optional(),
     confiance: Confiance,
   })
   .strict()

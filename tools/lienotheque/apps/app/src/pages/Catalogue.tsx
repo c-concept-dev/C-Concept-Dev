@@ -50,11 +50,34 @@ export function Catalogue({ vue, page, onPage, onLecteur, onAjouter }: Props): J
   };
 
   const pages = useMemo(() => {
-    const etats = ETAT.valeurs.map((v) => v.cle).filter((cle) => choisis.has(`${ETAT.cle}/${cle}`));
+    // Coché dans un même axe : l'un ou l'autre. D'un axe à l'autre : les deux à la fois. C'est
+    // ce qu'on attend d'une liste de cases, et c'est vrai de l'axe de l'application comme de
+    // ceux du schéma — l'écran ne sait pas ce qu'ils veulent dire, il compare des clés.
+    const retenues = (cleAxe: string, possibles: readonly string[]): readonly string[] =>
+      possibles.filter((cle) => choisis.has(`${cleAxe}/${cle}`));
+
     // Aucun état coché vaut tous les états : une liste vide n'est pas un filtre, c'est l'absence
     // de filtre — et un écran qui se vide au premier clic de décochage se lit comme un bogue.
-    return etats.length === 0 ? vue.pages : vue.pages.filter((p) => etats.includes(etatDe(p)));
-  }, [vue.pages, choisis]);
+    const etats = retenues(
+      ETAT.cle,
+      ETAT.valeurs.map((v) => v.cle),
+    );
+
+    return vue.pages.filter((page) => {
+      if (etats.length > 0 && !etats.includes(etatDe(page))) return false;
+      for (const filtre of vue.filtres) {
+        if (!filtre.filtrable) continue;
+        const voulues = retenues(
+          filtre.cle,
+          filtre.valeurs.map((v) => v.cle),
+        );
+        if (voulues.length === 0) continue;
+        const portees = page.valeurs[filtre.cle] ?? [];
+        if (!voulues.some((cle) => portees.includes(cle))) return false;
+      }
+      return true;
+    });
+  }, [vue.pages, vue.filtres, choisis]);
   const detail: PageAffichee | undefined = pages.find((p) => p.numero === page) ?? pages[0];
 
   // Ce qui attend un arbitrage et ce qui attend seulement d'être lu ne se comptent pas ensemble.

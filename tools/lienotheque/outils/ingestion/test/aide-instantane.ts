@@ -29,7 +29,24 @@ export const SCHEMA: SchemaBibliotheque = {
       alias: [],
       valeurs: [
         { cle: "debutant", nom: "Débutant", alias: [], synonymes: [], retiree: false },
-        { cle: "ancien", nom: "Ancien", alias: [], synonymes: [], retiree: true },
+        { cle: "ancien", nom: "Ancien", alias: [], synonymes: [], retiree: true, redirigeVers: "debutant" },
+      ],
+    },
+    // Un axe que l'application sait remplir elle-même : son rôle dit « etat », ses valeurs
+    // disent « present » et « absent ». Le reste — les noms — est une donnée de la
+    // bibliothèque, et pourrait être n'importe quoi dans un autre domaine.
+    {
+      cle: "ecoute",
+      nom: "Avec écoute",
+      nature: "referentiel",
+      cardinalite: "une",
+      structure: "plat",
+      roleCommun: "etat",
+      obligatoire: false,
+      alias: [],
+      valeurs: [
+        { cle: "oui", nom: "Oui", alias: [], synonymes: [], retiree: false, roleValeur: "present" },
+        { cle: "non", nom: "Non", alias: [], synonymes: [], retiree: false, roleValeur: "absent" },
       ],
     },
   ],

@@ -10,7 +10,7 @@ import { associer, lireNomMedia, type Association, type Media } from "./associat
 import { interpreter, type PageLue } from "./interprete.js";
 import { lireCoucheTexte } from "@lienotheque/lecteur-texte";
 import { texteDePage } from "@lienotheque/contrats";
-import { consolider, lecturesDePage, lireNumeroPage, type OptionsReperes } from "./reperes.js";
+import { VERSION_LECTURE, consolider, lecturesDePage, lireNumeroPage, type OptionsReperes } from "./reperes.js";
 
 /** Banc d'essai (OUT-15) : rejoue les fixtures après chaque changement d'outil ou de recette.
  *
@@ -23,7 +23,10 @@ import { consolider, lecturesDePage, lireNumeroPage, type OptionsReperes } from 
  *  Lire trois cents pages prend un quart d'heure. Rejouer un lot pour éprouver un réglage de
  *  l'interpréteur ne doit pas le repayer : la lecture dépend du document et de la recette, pas de
  *  ce qu'on en fait ensuite. La clef les désigne tous les deux — et la date du fichier, pour
- *  qu'un document remplacé soit relu. */
+ *  qu'un document remplacé soit relu.
+ *
+ *  Et la version de la lecture : sans elle, un lecteur qui apprend à rapporter quelque chose de
+ *  neuf se fait resservir des lectures qui l'ignorent, sans que rien ne le signale. */
 export function clefDeLecture(chemin: string, recette: Recette, limite?: number): string {
   const etat = statSync(chemin, { throwIfNoEntry: false });
   return createHash("sha256")
@@ -32,6 +35,7 @@ export function clefDeLecture(chemin: string, recette: Recette, limite?: number)
     .update(String(etat?.mtimeMs ?? 0))
     .update(`${recette.id}@${recette.version}`)
     .update(String(limite ?? "tout"))
+    .update(`lecture@${VERSION_LECTURE}`)
     .digest("hex")
     .slice(0, 32);
 }

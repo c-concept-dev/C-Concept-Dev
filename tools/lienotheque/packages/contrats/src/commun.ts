@@ -19,3 +19,18 @@ export const RefOutil = z.object({ nom: z.string().min(1), version: z.string().m
 
 /** Référence à une recette et à sa version (ID-06, REC-03). */
 export const RefRecette = z.object({ id: z.string().min(1), version: NumeroVersion }).strict();
+
+/** Une zone d'une page, en part de ses dimensions : 0 à 1 en largeur comme en hauteur.
+ *
+ *  Relative, et pas en pixels : l'image lue, l'image affichée et l'image agrandie n'ont pas les
+ *  mêmes dimensions, et seule la part est comparable entre les trois. C'est ce qui permet de
+ *  lire une position sur une page à pleine résolution et de la montrer sur une vignette. */
+export const ZoneRelative = z
+  .object({
+    x: z.number().min(0).max(1),
+    y: z.number().min(0).max(1),
+    l: z.number().gt(0).max(1),
+    h: z.number().gt(0).max(1),
+  })
+  .strict();
+export type ZoneRelative = z.infer<typeof ZoneRelative>;

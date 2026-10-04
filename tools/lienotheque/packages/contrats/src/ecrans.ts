@@ -1,7 +1,9 @@
 import { z } from "zod";
-import { Confiance, Empreinte, Identifiant } from "./commun.js";
+import { Confiance, Empreinte, Identifiant, ZoneRelative } from "./commun.js";
 import { Preuve } from "./lien.js";
 import { PositionDansPiste } from "./segment.js";
+
+export { ZoneRelative } from "./commun.js";
 
 /** Ce que les écrans lisent (B1 à B5).
  *
@@ -20,12 +22,6 @@ export const MotsBibliotheque = z
   })
   .strict();
 export type MotsBibliotheque = z.infer<typeof MotsBibliotheque>;
-
-/** Une zone de la page, en part de ses dimensions : l'affichage ne dépend pas du zoom. */
-export const ZoneRelative = z
-  .object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1), l: z.number().gt(0).max(1), h: z.number().gt(0).max(1) })
-  .strict();
-export type ZoneRelative = z.infer<typeof ZoneRelative>;
 
 /** Pourquoi un élément est relié à ce qu'il est relié (ANC-02). L'interface doit pouvoir le dire
  *  partout, et en français — d'où la phrase, construite une fois, pas dans la vue. */
@@ -84,6 +80,12 @@ export const PageAffichee = z
     /** Lignes du texte reconnu, pour le panneau repliable (B1). */
     texte: z.array(z.string()).default([]),
     traduction: z.array(z.string()).default([]),
+    /** Ce que la page porte sur chaque axe du schéma : clé d'axe, clés de valeurs (CLA-10).
+     *
+     *  C'est ce qui manquait pour filtrer. L'écran n'a pas à savoir ce qu'un axe veut dire : il
+     *  compare des clés, et le schéma lui donne les noms à afficher. Une page absente d'un axe
+     *  n'y porte simplement rien — ce n'est pas une valeur vide, c'est une absence. */
+    valeurs: z.record(z.string().min(1), z.array(z.string().min(1))).default({}),
   })
   .strict();
 export type PageAffichee = z.infer<typeof PageAffichee>;

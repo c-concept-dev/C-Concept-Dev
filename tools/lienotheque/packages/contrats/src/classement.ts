@@ -25,6 +25,15 @@ export type StructureAxe = z.infer<typeof StructureAxe>;
 export const RoleCommun = z.enum(["categorie", "createur", "date", "sujet", "niveau", "duree", "identifiant", "etat"]);
 export type RoleCommun = z.infer<typeof RoleCommun>;
 
+/** Ce qu'une valeur désigne, quand l'application peut le déterminer elle-même.
+ *
+ *  Le pendant du rôle d'axe, un cran plus bas. Un axe de rôle « etat » dont les valeurs portent
+ *  « present » et « absent » peut être rempli sans rien savoir du domaine : l'application sait
+ *  si une page a un lien, pas ce que ce lien veut dire. Tout le reste — le nom de l'axe, le nom
+ *  des valeurs, leur ordre — reste une donnée de la bibliothèque (CLA-01). */
+export const RoleValeur = z.enum(["present", "absent"]);
+export type RoleValeur = z.infer<typeof RoleValeur>;
+
 export const Provenance = z
   .object({ nom: z.string().min(1), url: z.string().url().optional(), licence: z.string().min(1).optional() })
   .strict();
@@ -41,6 +50,7 @@ export const ValeurReferentiel = z
     source: Provenance.optional(),
     parent: Cle.optional(),
     alias: z.array(Cle).default([]),
+    roleValeur: RoleValeur.optional(),
     /** Une valeur utilisée n'est jamais supprimée : elle est retirée et redirige (CLA-03). */
     retiree: z.boolean().default(false),
     redirigeVers: Cle.optional(),

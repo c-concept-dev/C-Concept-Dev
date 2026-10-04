@@ -198,6 +198,18 @@
   cursor: pointer;
 }
 
+/* La cible, au moins 24 px de côté (WCAG 2.2 AA, 2.5.8).
+   Un numéro d'élément dans la marge mesure moins d'un pour cent de la page : sur la page affichée,
+   le cadre lu fait huit pixels sur seize. Le cadre reste à l'endroit exact où le numéro a été lu —
+   c'est ce qu'il annonce —, et la surface qui reçoit le clic s'étend autour de son centre sans le
+   déplacer. On n'agrandit pas le dessin pour agrandir la prise. */
+.ln-page__zone::before {
+  content: "";
+  position: absolute;
+  inset: 50%;
+  margin: -12px;
+}
+
 .ln-page__zone:hover {
   border-color: var(--ln-control-border);
 }
