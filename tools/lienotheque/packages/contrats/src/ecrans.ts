@@ -93,8 +93,19 @@ export const NatureDoute = z.enum(["lien", "page", "information"]);
 export type NatureDoute = z.infer<typeof NatureDoute>;
 
 /** Pourquoi un cas est en attente. Un conflit entre deux appareils et un recalcul en cours ne se
- *  traitent pas comme une lecture incertaine. */
-export const EtatDoute = z.enum(["confiance", "conflit_appareils", "a_rattacher", "segment_inconnu"]);
+ *  traitent pas comme une lecture incertaine.
+ *
+ *  Les deux derniers ne sont pas des décisions à prendre mais des faits à connaître : une page
+ *  que la numérotation annonce et dont rien n'a été lu, un média qu'aucun élément ne réclame. Ils
+ *  n'attendent qu'un œil, pas un arbitrage — d'où « information » comme nature. */
+export const EtatDoute = z.enum([
+  "confiance",
+  "conflit_appareils",
+  "a_rattacher",
+  "segment_inconnu",
+  "page_absente",
+  "media_orphelin",
+]);
 export type EtatDoute = z.infer<typeof EtatDoute>;
 
 export const CasDouteux = z
@@ -102,12 +113,23 @@ export const CasDouteux = z
     id: Identifiant,
     nature: NatureDoute,
     etat: EtatDoute,
-    element: ElementAffiche,
+    /** L'élément concerné, quand le cas en a un. Une information n'en a pas : une page absente
+     *  n'a justement rien porté, et un média orphelin n'est réclamé par personne. */
+    element: ElementAffiche.optional(),
+    /** De quoi parle le cas, à défaut d'élément. Écrit avec les mots de la bibliothèque, par qui
+     *  les connaît — un écran n'a pas à les recomposer. */
+    libelle: z.string().min(1).optional(),
     /** Ce que le système propose, en toutes lettres. */
     proposition: z.string().min(1),
     motif: z.string().min(1),
   })
-  .strict();
+  .strict()
+  .superRefine((cas, ctx) => {
+    if (cas.element === undefined && cas.libelle === undefined)
+      ctx.addIssue({ code: "custom", path: ["libelle"], message: "Un cas sans élément doit dire de quoi il parle" });
+    if (cas.nature === "lien" && cas.element === undefined)
+      ctx.addIssue({ code: "custom", path: ["element"], message: "Un doute sur un lien porte sur un élément" });
+  });
 export type CasDouteux = z.infer<typeof CasDouteux>;
 
 /** Un axe du schéma, avec ses compteurs (CLA-10).

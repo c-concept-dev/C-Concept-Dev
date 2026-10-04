@@ -43,7 +43,7 @@ describe("instantané pour les écrans (B5)", () => {
     const vue = construireVue(entree({ lignes: [ligne(1, { confiance: 0.4 }), ligne(2)] }));
     expect(vue.aVerifier).toBe(1);
     expect(vue.douteux[0]?.proposition).toBe("clause 1 → plage 1");
-    expect(vue.douteux[0]?.element.aVerifier).toBe(true);
+    expect(vue.douteux[0]?.element?.aVerifier).toBe(true);
   });
 
   it("tire ses filtres de la nomenclature, sans les valeurs retirées", () => {

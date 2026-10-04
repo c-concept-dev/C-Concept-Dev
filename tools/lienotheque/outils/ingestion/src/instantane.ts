@@ -1,5 +1,7 @@
 import {
   VueBibliotheque,
+  enTete,
+  nommer,
   type CasDouteux,
   type ElementAffiche,
   type LigneInterpretee,
@@ -44,6 +46,22 @@ export function phraseDuLien(ligne: LigneInterpretee, mots: MotsBibliotheque): s
     default:
       return "Déduit de la suite des repères alentour";
   }
+}
+
+/** Suites de nombres consécutifs manquants dans une liste triée.
+ *
+ *  Un lot sauté se lit mieux d'un bloc : « pages 30 et 31 » plutôt que deux fiches. Et sur un
+ *  livre de cinq cents pages, un trou de quarante pages ne doit pas remplir la file de quarante
+ *  cartes identiques. */
+export function trous(presents: readonly number[]): { readonly debut: number; readonly fin: number }[] {
+  const tries = [...new Set(presents)].sort((a, b) => a - b);
+  const sortie: { debut: number; fin: number }[] = [];
+  for (let rang = 1; rang < tries.length; rang += 1) {
+    const avant = tries[rang - 1]!;
+    const apres = tries[rang]!;
+    if (apres - avant > 1) sortie.push({ debut: avant + 1, fin: apres - 1 });
+  }
+  return sortie;
 }
 
 /** Ce qui met un cas en attente, quand il y a lieu. */
@@ -92,6 +110,47 @@ export function construireVue(entree: Entree): VueBibliotheque {
         proposition: `${entree.mots.element.un} ${ligne.numero} → ${entree.mots.piste.un} ${ligne.piste}`,
         motif: phraseDuLien(ligne, entree.mots).toLowerCase(),
       });
+  }
+
+  // Les informations : ce qu'on a constaté et que personne n'a encore regardé (OUT-01, OUT-10).
+  //
+  // Elles ne demandent pas d'arbitrage — rien à confirmer, rien à corriger — mais elles ne
+  // doivent pas disparaître pour autant. Un lot dont tous les liens passent le seuil affichait
+  // « Rien à vérifier », alors que deux pages n'avaient rien donné et que six médias n'étaient
+  // réclamés par personne. C'est précisément ce qu'on veut savoir après un import.
+  const numerosDePage = [...parPage.keys()];
+  for (const trou of trous(numerosDePage)) {
+    const plusieurs = trou.fin > trou.debut;
+    const libelle = plusieurs
+      ? `${enTete(entree.mots.page.plusieurs)} ${trou.debut} à ${trou.fin}`
+      : nommer(entree.mots.page, trou.debut);
+    douteux.push({
+      id: identifiantDe(`${entree.id}/page-absente-${trou.debut}-${trou.fin}`),
+      nature: "information",
+      etat: "page_absente",
+      libelle,
+      proposition: `${libelle} : rien de lu`,
+      // Aucune cause avancée : une page peut manquer au document comme n'avoir rien donné à
+      // lire, et d'ici on ne sait pas laquelle des deux.
+      motif: `la numérotation passe de ${trou.debut - 1} à ${trou.fin + 1}`,
+    });
+  }
+
+  for (const piste of [...entree.association.orphelins].sort((a, b) => a - b)) {
+    const media = entree.medias.find((candidat) => candidat.piste === piste);
+    const libelle = nommer(entree.mots.piste, piste);
+    douteux.push({
+      id: identifiantDe(`${entree.id}/media-orphelin-${piste}`),
+      nature: "information",
+      etat: "media_orphelin",
+      libelle,
+      // Aucune tournure qui demande le genre : le schéma donne les mots, pas leur genre. « 0
+      // exercice relié » devient « 0 clause relié » dès qu'on change de domaine, et « ne la
+      // réclame » ne vaut que si le mot est féminin. « Aucun lien » et « n'y renvoie » valent
+      // partout.
+      proposition: `${libelle} — aucun lien`,
+      motif: media?.nom === undefined ? "aucun repère lu n'y renvoie" : `aucun repère lu n'y renvoie — fichier « ${media.nom} »`,
+    });
   }
 
   const pages: PageAffichee[] = [...parPage.entries()]

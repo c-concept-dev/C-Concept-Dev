@@ -177,3 +177,80 @@ describe("Vérifier : les mots viennent du schéma (CLA-01)", () => {
     expect(texte).not.toMatch(/\bpiste\b/);
   });
 });
+
+/** Les informations (OUT-01, OUT-10, UX-03).
+ *
+ *  Un lot dont tous les liens passent le seuil n'a rien à trancher, et pourtant il peut avoir
+ *  deux pages sans rien de lu et six médias que personne ne réclame. Ces cas-là n'ont pas
+ *  d'élément : rien ne les porte, et c'est justement ce qu'ils disent. */
+const information = (n: number, etat: "page_absente" | "media_orphelin", libelle: string): unknown => ({
+  id: ID(n),
+  nature: "information",
+  etat,
+  libelle,
+  proposition: etat === "page_absente" ? `${libelle} : rien de lu` : `${libelle} — aucun lien`,
+  motif: etat === "page_absente" ? "la numérotation passe de 29 à 32" : "aucun repère lu n'y renvoie",
+});
+
+const VUE_INFORMATIONS = VueBibliotheque.parse({
+  ...VUE,
+  aVerifier: 2,
+  douteux: [information(30, "page_absente", "Feuillets 30 à 31"), information(93, "media_orphelin", "Plage 93")],
+});
+
+describe("Vérifier : les informations, qu'on ne tranche pas mais qu'on lit", () => {
+  const poser = (vue = VUE_INFORMATIONS, onDecision = vi.fn()) => {
+    render(<Verifier vue={vue} onDecision={onDecision} onAnnuler={vi.fn()} />);
+    return onDecision;
+  };
+
+  it("ne dit plus « Rien à vérifier » quand des informations attendent", () => {
+    poser();
+    expect(screen.queryByText(/rien à vérifier/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /feuillets 30 à 31/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /plage 93/i })).toBeInTheDocument();
+  });
+
+  it("constate au lieu de proposer : il n'y a rien à quoi répondre", () => {
+    poser();
+    expect(screen.getByText(/constat/i)).toBeInTheDocument();
+    expect(screen.queryByText(/le système propose/i)).not.toBeInTheDocument();
+  });
+
+  it("n'offre qu'un geste : marquer comme vu", () => {
+    poser();
+    expect(screen.getByRole("button", { name: /marquer comme vu/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^confirmer/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /corriger/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /ignorer/i })).not.toBeInTheDocument();
+  });
+
+  it("rend la décision « vu » au clic comme à la touche Entrée", async () => {
+    const onDecision = poser();
+    await userEvent.click(screen.getByRole("button", { name: /marquer comme vu/i }));
+    expect(onDecision).toHaveBeenCalledTimes(1);
+    expect(onDecision.mock.calls[0]?.[1]).toBe("vu");
+
+    await userEvent.keyboard("{Enter}");
+    expect(onDecision.mock.calls[1]?.[1] as Decision).toBe("vu");
+  });
+
+  it("ne montre ni vue agrandie ni zoom : il n'y a pas d'élément à regarder", () => {
+    poser();
+    expect(screen.queryByRole("group", { name: "Zoom" })).not.toBeInTheDocument();
+    expect(document.querySelector(".ln-cas__image")).toBeNull();
+  });
+
+  it("garde « Rien à vérifier » pour une file vraiment vide", () => {
+    poser(VueBibliotheque.parse({ ...VUE, aVerifier: 0, douteux: [] }));
+    expect(screen.getByText(/rien à vérifier/i)).toBeInTheDocument();
+  });
+
+  it("dit que le filtre est vide, et non que tout est fini, quand des cas attendent ailleurs", async () => {
+    poser();
+    await userEvent.click(screen.getByRole("button", { name: "Liens" }));
+    expect(screen.queryByText(/rien à vérifier/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/rien sous ce filtre/i)).toBeInTheDocument();
+    expect(screen.getByText(/2 cas attendent ailleurs/i)).toBeInTheDocument();
+  });
+});
