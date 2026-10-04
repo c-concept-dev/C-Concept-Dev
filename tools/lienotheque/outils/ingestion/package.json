@@ -1,0 +1,15 @@
+{
+  "name": "@lienotheque/ingestion",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "D'un rejeu de recette au dépôt réel : fichiers, document, version, ancres, cartes de synchronisation et liens.",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "test": "vitest run", "typecheck": "tsc --noEmit" },
+  "dependencies": {
+    "@lienotheque/contrats": "workspace:*",
+    "@lienotheque/noyau": "workspace:*",
+    "@lienotheque/recettes": "workspace:*"
+  },
+  "devDependencies": { "typescript": "^5.6.0", "vitest": "^3.2.0", "@types/node": "^22.0.0", "@lienotheque/depot-sqlite": "workspace:*" }
+}

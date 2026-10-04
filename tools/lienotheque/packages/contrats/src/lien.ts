@@ -44,6 +44,8 @@ export const PaireSynchro = z.discriminatedUnion("segment", [
   z.object({ segment: z.literal("inconnu"), ancre: Identifiant }).strict(),
 ]);
 
+export type PaireSynchro = z.infer<typeof PaireSynchro>;
+
 /** Carte indépendante de l'emplacement des fichiers : elle cite des empreintes (ANC-05). */
 export const CarteSynchro = z
   .object({
