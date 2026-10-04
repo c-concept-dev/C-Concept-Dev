@@ -52,6 +52,16 @@ describe("instantané pour les écrans (B5)", () => {
     expect(vue.filtres[0]?.valeurs.map((valeur) => valeur.cle)).toEqual(["debutant"]);
   });
 
+  it("ne déclare filtrable aucun axe qu'il n'a pas compté (CLA-10)", () => {
+    const vue = construireVue(entree());
+    // Rien ici ne sait quelle valeur porte une page : annoncer l'axe avec des comptes à zéro,
+    // c'était promettre aux écrans un tri qui n'existe pas.
+    for (const filtre of vue.filtres) {
+      expect(filtre.filtrable, filtre.cle).toBe(false);
+      expect(filtre.valeurs.every((valeur) => valeur.nombre === 0), filtre.cle).toBe(true);
+    }
+  });
+
   it("compte ce qu'il y a, avec les mots de la bibliothèque", () => {
     const vue = construireVue(entree());
     expect(vue.compteurs[0]).toEqual({ nombre: 3, mot: "clauses" });

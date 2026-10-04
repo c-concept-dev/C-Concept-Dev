@@ -110,12 +110,19 @@ export const CasDouteux = z
   .strict();
 export type CasDouteux = z.infer<typeof CasDouteux>;
 
-/** Un axe du schéma, prêt à filtrer, avec ses compteurs (CLA-10). */
+/** Un axe du schéma, avec ses compteurs (CLA-10).
+ *
+ *  `filtrable` dit si cet axe peut vraiment servir : les pages portent des valeurs dessus, les
+ *  comptes ont été calculés, et l'écran a donc de quoi comparer. Un axe que l'instantané déclare
+ *  sans pouvoir le compter se présentait avec des comptes à zéro et des cases qui ne faisaient
+ *  rien — l'écran promettait un tri qui n'existait pas. Mieux vaut ne pas montrer le groupe :
+ *  une case inerte use la confiance plus qu'une absence. */
 export const FiltreAffiche = z
   .object({
     cle: z.string().min(1),
     nom: z.string().min(1),
     valeurs: z.array(z.object({ cle: z.string().min(1), nom: z.string().min(1), nombre: z.number().int().nonnegative() }).strict()),
+    filtrable: z.boolean().default(false),
   })
   .strict();
 export type FiltreAffiche = z.infer<typeof FiltreAffiche>;

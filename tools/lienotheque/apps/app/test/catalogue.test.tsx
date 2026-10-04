@@ -21,8 +21,10 @@ const VUE = VueBibliotheque.parse({
   ],
   aVerifier: 9,
   filtres: [
-    { cle: "niveau", nom: "Niveau", valeurs: [{ cle: "debutant", nom: "Débutant", nombre: 146 }, { cle: "avance", nom: "Avancé", nombre: 82 }] },
-    { cle: "audio", nom: "Avec audio", valeurs: [{ cle: "oui", nom: "Oui", nombre: 380 }] },
+    { cle: "niveau", nom: "Niveau", valeurs: [{ cle: "debutant", nom: "Débutant", nombre: 146 }, { cle: "avance", nom: "Avancé", nombre: 82 }], filtrable: true },
+    { cle: "audio", nom: "Avec audio", valeurs: [{ cle: "oui", nom: "Oui", nombre: 380 }], filtrable: true },
+    // Déclaré par le schéma, jamais compté : son groupe ne doit pas apparaître.
+    { cle: "periode", nom: "Période", valeurs: [{ cle: "ancienne", nom: "Ancienne", nombre: 0 }], filtrable: false },
   ],
   pages: [
     {
@@ -88,6 +90,21 @@ describe("Catalogue : filtres tirés de la nomenclature (CLA-10)", () => {
     expect(screen.getByRole("heading", { name: "Niveau", level: 3 })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Avec audio", level: 3 })).toBeInTheDocument();
     expect(screen.getByText("146")).toBeInTheDocument();
+  });
+
+  it("masque l'axe qu'il ne peut pas trier, au lieu d'afficher des comptes à zéro", () => {
+    poser();
+    // « Période » est déclaré par le schéma mais jamais compté : des cases inertes et des zéros
+    // valent moins qu'une absence — l'écran promettrait un tri qu'il n'a pas.
+    expect(screen.queryByRole("heading", { name: "Période", level: 3 })).not.toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: /ancienne/i })).not.toBeInTheDocument();
+  });
+
+  it("garde l'état du lien, que l'application sait trier d'elle-même", () => {
+    poser();
+    // Celui-là n'est pas du domaine : « validé » et « à vérifier » sont des mots de
+    // l'application, et c'est elle qui décide ce qu'ils désignent.
+    expect(screen.getByRole("heading", { name: "État du lien", level: 3 })).toBeInTheDocument();
   });
 
   it("se cochent et se décochent", async () => {

@@ -112,7 +112,11 @@ export function Catalogue({ vue, page, onPage, onLecteur, onAjouter }: Props): J
             </ul>
           </section>
 
-          {vue.filtres.map((filtre) => (
+          {/* Seuls les axes qui peuvent vraiment trier se montrent (CLA-10). Un axe que
+              l'instantané déclare sans l'avoir compté s'affichait avec des comptes à zéro et des
+              cases sans effet : l'écran promettait un tri qui n'existait pas. Le groupe
+              reparaîtra de lui-même le jour où les pages porteront leurs valeurs. */}
+          {vue.filtres.filter((filtre) => filtre.filtrable).map((filtre) => (
             <section key={filtre.cle} className="ln-filtres__axe" role="group" aria-labelledby={`axe-${filtre.cle}`}>
               <h3 id={`axe-${filtre.cle}`} className="ln-filtres__nom">
                 {filtre.nom}

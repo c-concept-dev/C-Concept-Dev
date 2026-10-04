@@ -121,10 +121,14 @@ export function construireVue(entree: Entree): VueBibliotheque {
       { nombre: pages.length, mot: entree.mots.page.plusieurs },
     ],
     aVerifier: douteux.length,
+    // Les axes du schéma, déclarés mais pas encore comptés : rien ici ne sait quelle valeur
+    // porte une page. Ils partent donc « filtrable: false », et les écrans n'en montrent pas le
+    // groupe. Les annoncer avec des comptes à zéro, c'était promettre un tri inexistant.
     filtres: entree.schema.axes.map((axe) => ({
       cle: axe.cle,
       nom: axe.nom,
       valeurs: axe.valeurs.filter((valeur) => !valeur.retiree).map((valeur) => ({ cle: valeur.cle, nom: valeur.nom, nombre: 0 })),
+      filtrable: false,
     })),
     pages,
     douteux,
