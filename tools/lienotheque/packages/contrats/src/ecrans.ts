@@ -122,3 +122,18 @@ export type VueBibliotheque = z.infer<typeof VueBibliotheque>;
 /** Accord du mot au nombre. « 1 élément », « 2 éléments » : l'interface compte en français. */
 export const accorder = (nombre: number, mot: { un: string; plusieurs: string }): string =>
   `${nombre} ${nombre <= 1 ? mot.un : mot.plusieurs}`;
+
+/** Majuscule en tête.
+ *
+ *  Les mots du schéma arrivent en minuscule — c'est ainsi qu'on les écrit au milieu d'une phrase.
+ *  En tête de titre ou de phrase, ils prennent la majuscule comme n'importe quel mot français.
+ *  Une seule fonction pour tous les écrans : sans quoi l'un écrit « Page 127 » et l'autre
+ *  « page 127 », et c'est le genre d'écart qu'on ne voit qu'une fois livré. */
+export const enTete = (texte: string): string =>
+  texte.length === 0 ? texte : texte.charAt(0).toLocaleUpperCase("fr-FR") + texte.slice(1);
+
+/** « Page 127 », « Élément 405 », « Piste 45 » : le mot du schéma et le numéro qu'il désigne.
+ *
+ *  Un numéro, jamais un compte : c'est `accorder` qui compte. Et aucune tournure qui demande le
+ *  genre — le schéma ne le donne pas. */
+export const nommer = (mot: { un: string }, numero: string | number): string => `${enTete(mot.un)} ${numero}`;

@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { CasDouteux, ElementAffiche, MotsBibliotheque, PageAffichee, VueBibliotheque, ZoneRelative, accorder } from "../src/index.js";
+import {
+  CasDouteux,
+  ElementAffiche,
+  MotsBibliotheque,
+  PageAffichee,
+  VueBibliotheque,
+  ZoneRelative,
+  accorder,
+  enTete,
+  nommer,
+} from "../src/index.js";
 
 const MOTS = {
   element: { un: "élément", plusieurs: "éléments" },
@@ -123,5 +133,39 @@ describe("vue d'une bibliothèque (CLA-10)", () => {
   it("refuse une vue sans mots : aucun écran ne doit inventer son vocabulaire", () => {
     const { mots: _sans, ...sansMots } = vue;
     expect(VueBibliotheque.safeParse(sansMots).success).toBe(false);
+  });
+});
+
+describe("affichage des mots du schéma (B4, correction 4)", () => {
+  /** Un vocabulaire féminin : c'est là que les fautes d'accord et de genre se voient. */
+  const FEMININS = {
+    element: { un: "clause", plusieurs: "clauses" },
+    piste: { un: "plage", plusieurs: "plages" },
+    page: { un: "feuillet", plusieurs: "feuillets" },
+  };
+
+  it("met la majuscule en tête, sans toucher au reste", () => {
+    expect(enTete("page")).toBe("Page");
+    expect(enTete("clause")).toBe("Clause");
+    expect(enTete("élément"), "les accents prennent la majuscule aussi").toBe("Élément");
+    expect(enTete("Déjà majuscule")).toBe("Déjà majuscule");
+    expect(enTete("")).toBe("");
+  });
+
+  it("nomme un numéro avec le mot du schéma", () => {
+    expect(nommer(MOTS.page, 127)).toBe("Page 127");
+    expect(nommer(MOTS.element, "405")).toBe("Élément 405");
+    expect(nommer(MOTS.piste, 45)).toBe("Piste 45");
+  });
+
+  it("vaut pour un vocabulaire féminin sans rien changer", () => {
+    expect(nommer(FEMININS.page, 127)).toBe("Feuillet 127");
+    expect(nommer(FEMININS.element, 405)).toBe("Clause 405");
+    expect(nommer(FEMININS.piste, 45)).toBe("Plage 45");
+  });
+
+  it("nomme un numéro, ne compte pas : c'est accorder qui compte", () => {
+    expect(nommer(FEMININS.piste, 45)).toBe("Plage 45");
+    expect(accorder(45, FEMININS.piste)).toBe("45 plages");
   });
 });
