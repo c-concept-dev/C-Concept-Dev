@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { JETONS } from "@lienotheque/jetons";
 import { describe, expect, it } from "vitest";
-import { CHEMINS, SYMBOLES_DU_KIT, type NomIcone } from "../src/composants/Icone.js";
+import { CHEMINS, CHEMINS_APPLICATION, SYMBOLES_DU_KIT, TOUS_CHEMINS } from "../src/composants/Icone.js";
 import { COLLECTIONS } from "../src/composants/CarteBibliotheque.js";
 
 const COMPOSANTS = fileURLToPath(new URL("../src/composants", import.meta.url));
@@ -12,11 +12,29 @@ const SPRITE = readFileSync(fileURLToPath(new URL("../../../docs/ui-kit/assets/i
 
 describe("fidélité au kit UI v1.1", () => {
   it("reprend exactement les tracés du sprite du kit", () => {
-    for (const [nom, chemin] of Object.entries(CHEMINS) as [NomIcone, string][]) {
-      const symbole = SYMBOLES_DU_KIT[nom];
+    for (const [nom, chemin] of Object.entries(CHEMINS)) {
+      const symbole = SYMBOLES_DU_KIT[nom as keyof typeof SYMBOLES_DU_KIT];
       const bloc = new RegExp(`<symbol id="${symbole}"[^>]*>\\s*<path d="([^"]+)"`).exec(SPRITE);
       expect(bloc, `symbole « ${symbole} » absent du sprite`).not.toBeNull();
       expect(bloc?.[1], nom).toBe(chemin);
+    }
+  });
+
+  it("ne prétend pas que les icônes de l'application viennent du kit", () => {
+    // Le kit v1.1 ne couvre ni lecteur de média ni écran de vérification. Ces tracés-là sont
+    // tenus à part, et aucun ne revendique un symbole du sprite.
+    for (const nom of Object.keys(CHEMINS_APPLICATION)) {
+      expect(Object.keys(CHEMINS), `« ${nom} » ne doit pas être dans les tracés du kit`).not.toContain(nom);
+      expect(SYMBOLES_DU_KIT, nom).not.toHaveProperty(nom);
+    }
+    expect(Object.keys(TOUS_CHEMINS)).toHaveLength(Object.keys(CHEMINS).length + Object.keys(CHEMINS_APPLICATION).length);
+  });
+
+  it("les icônes de l'application tiennent dans la grille du kit", () => {
+    // Même grille de 24, mêmes commandes de tracé : rien qui jure à côté d'une icône du kit.
+    for (const [nom, chemin] of Object.entries(CHEMINS_APPLICATION)) {
+      expect(chemin, nom).toMatch(/^[MmLlHhVvCcSsQqTtAaZz0-9 .,-]+$/);
+      for (const nombre of chemin.match(/-?\d+(\.\d+)?/g) ?? []) expect(Math.abs(Number(nombre)), `${nom} : ${nombre}`).toBeLessThanOrEqual(24);
     }
   });
 

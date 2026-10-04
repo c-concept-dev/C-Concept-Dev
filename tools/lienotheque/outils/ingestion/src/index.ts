@@ -40,6 +40,7 @@ export function preuveDe(source: SourcePiste | undefined): Preuve {
 export type MediaIngere = {
   readonly empreinte: Empreinte;
   readonly piste: number;
+  readonly nom?: string | undefined;
   readonly disque?: number | undefined;
   readonly dureeS?: number | undefined;
   readonly decoupe?: DecoupeMedia | undefined;
@@ -196,3 +197,5 @@ export async function ingerer(depot: Depot, lot: Lot): Promise<Bilan> {
 
   return { ancres, liens, cartes, sansPiste, segmentsInconnus };
 }
+
+export * from "./instantane.js";

@@ -9,8 +9,15 @@ import { defineConfig, devices } from "@playwright/test";
 const PORT = 4317;
 
 export default defineConfig({
+  // Deux à la fois, partout : ces tests mesurent une mise en page, et une machine saturée rend
+  // des mesures bruyantes. Mieux vaut une minute de plus qu'un contrôle qui vacille.
+  workers: 2,
   testDir: "navigateurs",
-  fullyParallel: true,
+  globalSetup: "./navigateurs/preparer.ts",
+  // Ces tests mesurent une mise en page. Trois moteurs qui se disputent la machine rendent des
+  // mesures bruyantes : les fichiers tournent en parallèle, les tests d'un fichier à la file.
+  fullyParallel: false,
+  expect: { timeout: 10_000 },
   forbidOnly: process.env["CI"] !== undefined,
   retries: 0,
   reporter: process.env["CI"] !== undefined ? [["github"], ["list"]] : [["list"]],

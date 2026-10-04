@@ -598,3 +598,62 @@ Les numéros rétablis par interpolation ou par leur fin portent une confiance r
 dixièmes. Ils restent reliés, mais passent sous le seuil de la recette et vont à « Vérifier » —
 c'est précisément ce que cet écran est là pour recevoir. Le prototype, lui, les comptait
 automatiques.
+
+## Les mots du schéma n'ont pas de genre
+
+Le schéma d'une bibliothèque fournit les mots — « élément », « clause », « diapositive » — au
+singulier et au pluriel, mais pas leur genre. Toute tournure qui en demande un est donc fautive
+dès qu'on change de domaine : « cet élément » devient « cet clause ».
+
+Règle retenue pour tous les écrans : **aucune construction qui demande le genre**. On écrit
+« Note — clause 401 » et non « Note sur cette clause », « Aucun enregistrement relié » et non
+« Cet élément n'a pas d'enregistrement ». Un contrôle du Lecteur monte une bibliothèque dont les
+mots sont féminins (« clause », « plage ») précisément pour que ces fautes apparaissent.
+
+C'est la contrepartie de la règle 1 : si le vocabulaire vient des données, la grammaire qui
+l'entoure doit s'en passer.
+
+## Les écrans : ce que les trois moteurs ont trouvé
+
+Les tests de rendu ne doublent pas les tests de composants : ils mesurent ce que jsdom ignore —
+contrastes réels, fonds calculés, mise en page sous contrainte. Quatre défauts qu'eux seuls
+pouvaient voir.
+
+**Un contrôle qui ne vérifiait rien.** Le test « un seul élément cuivre plein par écran »
+interrogeait `--ln-accent`, une variable qui n'existe pas : il rendait donc toujours un verdict
+favorable. Il lit maintenant `--ln-action-background`, **exige que la couleur existe**, et compte
+exactement un porteur. Un contrôle qui ne trouve pas sa référence doit échouer, jamais passer.
+
+**Du texte posé sur la photo.** En hybride, le titre de la liste et le panneau des filtres
+reposaient directement sur l'image de fond. Corrigé — et la règle de mesure affinée : on ne
+regarde que le texte réellement dessiné par un nœud, car un `li` qui n'enveloppe qu'un bouton
+opaque ne pose rien sur la photo.
+
+**Deux classes qui se marchent dessus.** `ln-panneau` pose une carte crème, `ln-panneau-titre`
+pose les couleurs de texte du graphite. Les combiner donnait un texte clair sur une carte crème :
+contraste insuffisant. Le fond graphite est désormais réaffirmé là où les deux se rencontrent.
+
+**Un numéro au pluriel.** Le panneau d'écoute affichait « pistes 43 ». C'est un numéro, pas un
+compte.
+
+### Mesurer une mise en page demande une machine calme
+
+Trois moteurs en parallèle saturaient la machine, et les mesures vacillaient — un test différent
+échouait à chaque exécution, et tout passait en série. Le parallélisme est donc limité à deux, et
+chaque mesure attend que les polices soient posées avant de lire une largeur. Une minute de plus
+vaut mieux qu'un contrôle qui vacille : un test instable finit toujours par être ignoré.
+
+## Les bancs de mesure sortent de la vérification courante
+
+Deux bancs encodent ou décodent des fichiers entiers : l'échantillon F7 et la justesse du
+découpage. Chacun dure des minutes, et le rapporteur de vitest abandonne quand un seul test occupe
+un ouvrier aussi longtemps — « Timeout calling onTaskUpdate » —, rendant la vérification rouge
+alors que tous les contrôles passent.
+
+Ce ne sont pas des contrôles de non-régression mais des **mesures**. Elles se relancent en les
+demandant (`pnpm --filter @lienotheque/optimiseur run mesures`), le workflow Tauri les relance à
+chaque passage, et leurs résultats sont consignés ici.
+
+Le banc des recettes, lui, reste dans la vérification courante : le cache de lecture l'a ramené de
+quatre minutes à onze secondes. C'est la bonne réponse quand elle est possible — un test de quatre
+minutes finit par être désactivé, et un test désactivé ne protège plus rien.

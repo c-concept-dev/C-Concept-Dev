@@ -1,0 +1,343 @@
+/* Vérifier (B2). Une planche de cas, un cas ouvert, trois décisions.
+   Fil d'Ariane « Accueil › bibliothèque › Vérifier ». Inter partout, y compris pour le grand
+   compteur et le titre. Un seul cuivre plein : « Confirmer ». En hybride, l'en-tête, les filtres
+   et le compteur sont sur panneau graphite opaque — rien d'écrit sur la photo. */
+
+.ln-verifier {
+  display: grid;
+  gap: calc(var(--ln-grid) * 2);
+  padding: calc(var(--ln-grid) * 2) calc(var(--ln-grid) * 3);
+}
+
+.ln-verifier__entete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: calc(var(--ln-grid) * 3);
+  padding: calc(var(--ln-grid) * 2);
+  border-radius: var(--ln-radius-m, 10px);
+}
+
+.ln-verifier__titre {
+  margin: calc(var(--ln-grid)) 0 0 0;
+  font-size: 40px;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.ln-verifier__reste {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 1.5);
+  margin: 0;
+  font-size: 14px;
+  color: var(--ln-text-secondary);
+  text-align: start;
+}
+
+.ln-verifier__nombre {
+  font-size: 44px;
+  font-weight: 600;
+  color: var(--ln-text-primary);
+  line-height: 1;
+}
+
+.ln-verifier__filtres {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--ln-border);
+  border-radius: var(--ln-radius-s, 8px);
+  width: fit-content;
+}
+
+.ln-verifier__corps {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 28rem);
+  gap: calc(var(--ln-grid) * 2);
+  align-items: start;
+}
+
+/* ---- Planche ---- */
+
+.ln-planche {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: calc(var(--ln-grid) * 1.5);
+  margin: 0;
+  padding: calc(var(--ln-grid) * 2);
+  list-style: none;
+  border: 1px solid var(--ln-border);
+  border-radius: var(--ln-radius-m, 10px);
+  background: var(--ln-surface);
+}
+
+.ln-planche__carte {
+  display: grid;
+  grid-template-areas:
+    "apercu apercu"
+    "nom page"
+    "vers vers"
+    "etiquette etiquette";
+  gap: calc(var(--ln-grid) * 0.5);
+  width: 100%;
+  padding: calc(var(--ln-grid));
+  border: 1px solid var(--ln-border);
+  border-radius: var(--ln-radius-s, 8px);
+  background: var(--ln-background);
+  color: var(--ln-text-primary);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.ln-planche__carte--ouvert {
+  border-color: var(--ln-thread);
+  background: var(--ln-selection-background);
+  color: var(--ln-selection-text);
+}
+
+.ln-planche__apercu {
+  grid-area: apercu;
+  display: grid;
+  place-items: center;
+  height: calc(var(--ln-grid) * 7);
+  border-radius: 4px;
+  background: var(--ln-surface);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--ln-text-secondary);
+}
+
+
+
+.ln-planche__nom {
+  grid-area: nom;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.ln-planche__page,
+.ln-planche__vers {
+  font-size: 13px;
+  color: var(--ln-text-secondary);
+}
+
+.ln-planche__page {
+  grid-area: page;
+  text-align: end;
+}
+
+.ln-planche__vers {
+  grid-area: vers;
+}
+
+.ln-etiquette {
+  grid-area: etiquette;
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 0.75);
+  padding: calc(var(--ln-grid) * 0.5) calc(var(--ln-grid));
+  border-radius: 999px;
+  background: var(--ln-surface);
+  font-size: 12px;
+  color: var(--ln-text-secondary);
+  width: fit-content;
+}
+
+.ln-etiquette--conflit_appareils {
+  background: var(--ln-selection-background);
+  color: var(--ln-selection-text);
+}
+
+/* ---- Cas ouvert ---- */
+
+.ln-cas {
+  display: grid;
+  gap: calc(var(--ln-grid) * 1.5);
+}
+
+.ln-cas__entete {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: calc(var(--ln-grid) * 2);
+}
+
+.ln-cas__titre {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.ln-cas__page {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ln-text-secondary);
+}
+
+.ln-cas__vue {
+  display: grid;
+  justify-items: center;
+  overflow: auto;
+}
+
+.ln-cas__image {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 16 / 7;
+  border: 1px solid var(--ln-border);
+  border-radius: var(--ln-radius-s, 8px);
+  background: var(--ln-surface);
+}
+
+.ln-cas__image-numero {
+  font-size: 36px;
+  font-weight: 600;
+  color: var(--ln-text-secondary);
+}
+
+.ln-cas__zoom {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--ln-grid));
+  font-size: 13px;
+  color: var(--ln-text-secondary);
+}
+
+.ln-cas__zoom button {
+  display: grid;
+  place-items: center;
+  width: calc(var(--ln-grid) * 4);
+  height: calc(var(--ln-grid) * 4);
+  border: 1px solid var(--ln-border);
+  border-radius: var(--ln-radius-s, 8px);
+  background: var(--ln-surface);
+  color: inherit;
+  cursor: pointer;
+}
+
+.ln-cas__proposition,
+.ln-cas__motif {
+  margin: 0;
+  font-size: 14px;
+}
+
+.ln-cas__motif {
+  color: var(--ln-text-secondary);
+}
+
+.ln-cas__apercu-titre {
+  margin: 0 0 calc(var(--ln-grid)) 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.ln-cas__onde {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 1.5);
+}
+
+.ln-cas__ecouter {
+  display: grid;
+  place-items: center;
+  width: calc(var(--ln-grid) * 6);
+  height: calc(var(--ln-grid) * 6);
+  border: 1px solid var(--ln-thread);
+  border-radius: 50%;
+  background: var(--ln-surface);
+  color: var(--ln-text-primary);
+  cursor: pointer;
+}
+
+.ln-cas__onde-trace {
+  flex: 1;
+  min-width: calc(var(--ln-grid) * 10);
+  height: calc(var(--ln-grid) * 4);
+  border-radius: 4px;
+  background: repeating-linear-gradient(
+    to right,
+    var(--ln-text-secondary) 0 2px,
+    transparent 2px 6px
+  );
+  opacity: 0.6;
+}
+
+.ln-cas__decisions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--ln-grid));
+}
+
+.ln-cas__decision {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--ln-grid));
+  padding: calc(var(--ln-grid) * 1.25) calc(var(--ln-grid) * 2);
+  border: 1px solid var(--ln-border);
+  border-radius: var(--ln-radius-s, 8px);
+  background: var(--ln-surface);
+  color: var(--ln-text-primary);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.ln-cas__decision kbd {
+  padding: 1px calc(var(--ln-grid) * 0.75);
+  border: 1px solid var(--ln-border);
+  border-radius: 4px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--ln-text-secondary);
+}
+
+/* Sur le bouton principal, la touche emprunte la couleur du bouton : une mention grise sur le
+   cuivre ne se lirait pas. */
+.ln-cas__decisions .ln-bouton kbd {
+  padding: 1px calc(var(--ln-grid) * 0.75);
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  font: inherit;
+  font-size: 12px;
+  color: inherit;
+  opacity: 0.8;
+}
+
+.ln-cas__annuler {
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ln-text-primary);
+  font: inherit;
+  font-size: 14px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.ln-cas__annuler:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  text-decoration: none;
+}
+
+.ln-cas__garantie,
+.ln-cas__fini {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--ln-grid));
+  margin: 0;
+  font-size: 13px;
+  color: var(--ln-text-secondary);
+}
+
+@media (max-width: 1100px) {
+  .ln-verifier__corps {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

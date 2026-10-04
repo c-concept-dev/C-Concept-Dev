@@ -1,0 +1,458 @@
+/* Lecteur (B1). Trois colonnes : les pages, la page, l'écoute.
+   Corrections appliquées : Inter partout dans l'interface — le serif de la page scannée est le
+   document lui-même ; un seul élément cuivre plein par écran, le bouton de lecture ; en hybride,
+   aucun texte posé sur la photo, tout sur panneau graphite opaque. */
+
+.ln-lecteur {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: calc(var(--ln-grid) * 2);
+  min-height: calc(100vh - var(--ln-shell-hauteur, 72px));
+  padding: calc(var(--ln-grid) * 2) calc(var(--ln-grid) * 3);
+}
+
+.ln-lecteur__entete,
+.ln-lecteur__pied {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 3);
+  padding: calc(var(--ln-grid) * 1.5) calc(var(--ln-grid) * 2);
+  border-radius: var(--ln-radius-m, 10px);
+}
+
+.ln-lecteur__pied {
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--ln-text-secondary);
+}
+
+.ln-lecteur__pas {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--ln-grid));
+  margin-inline-start: auto;
+}
+
+.ln-lecteur__rang {
+  margin: 0;
+  font-size: 14px;
+  color: var(--ln-text-secondary);
+}
+
+.ln-lecteur__rang strong {
+  color: var(--ln-text-primary);
+  font-weight: 600;
+}
+
+.ln-lecteur__fleche,
+.ln-lecteur__zoom button,
+.ln-ecoute__pas {
+  display: grid;
+  place-items: center;
+  width: calc(var(--ln-grid) * 4.5);
+  height: calc(var(--ln-grid) * 4.5);
+  border: 1px solid var(--ln-border);
+  border-radius: var(--ln-radius-s, 8px);
+  background: var(--ln-surface);
+  color: var(--ln-text-primary);
+  cursor: pointer;
+}
+
+.ln-lecteur__fleche:hover,
+.ln-lecteur__zoom button:hover,
+.ln-ecoute__pas:hover {
+  background: var(--ln-surface-hover, var(--ln-surface));
+}
+
+/* Bascule choisie : style de sélection, jamais le cuivre plein. */
+.ln-ecoute__pas--choisi {
+  background: var(--ln-selection-background);
+  color: var(--ln-selection-text);
+  border-color: transparent;
+}
+
+.ln-lecteur__corps {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 7rem) minmax(0, 1fr) minmax(0, 24rem);
+  gap: calc(var(--ln-grid) * 2);
+  align-items: start;
+}
+
+/* ---- Bande des vignettes ---- */
+
+.ln-vignettes__liste {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--ln-grid) * 1.5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ln-vignettes__page {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: calc(var(--ln-grid) * 0.5);
+  width: 100%;
+  padding: calc(var(--ln-grid));
+  border: 1px solid transparent;
+  border-radius: var(--ln-radius-s, 8px);
+  background: none;
+  color: var(--ln-text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.ln-vignettes__feuille {
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  border: 1px solid var(--ln-border);
+  border-radius: 3px;
+  background: var(--ln-surface);
+}
+
+.ln-vignettes__page--actif {
+  border-color: var(--ln-thread);
+  background: var(--ln-selection-background);
+  color: var(--ln-selection-text);
+}
+
+/* Repère sur les pages reliées : un point cuivre, pas un glyphe. */
+.ln-vignettes__repere {
+  position: absolute;
+  inset-block-start: calc(var(--ln-grid) * 0.5);
+  inset-inline-end: calc(var(--ln-grid) * 0.5);
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ln-thread);
+}
+
+/* ---- La page ---- */
+
+.ln-lecteur__page {
+  display: grid;
+  justify-items: center;
+  overflow: auto;
+}
+
+.ln-page {
+  max-width: 100%;
+}
+
+.ln-page__feuille {
+  position: relative;
+  border: 1px solid var(--ln-border);
+  border-radius: var(--ln-radius-s, 8px);
+  background: var(--ln-surface);
+  overflow: hidden;
+}
+
+.ln-page__image {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.ln-page__attente {
+  display: grid;
+  place-items: center;
+  gap: calc(var(--ln-grid));
+  aspect-ratio: 3 / 4;
+  color: var(--ln-text-secondary);
+}
+
+.ln-page__numero {
+  font-size: 48px;
+  font-weight: 600;
+}
+
+.ln-page__zone {
+  position: absolute;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+}
+
+.ln-page__zone:hover {
+  border-color: var(--ln-border);
+}
+
+.ln-page__zone--actif {
+  border-color: var(--ln-thread);
+  background: color-mix(in srgb, var(--ln-selection-background) 55%, transparent);
+}
+
+.ln-page__zone-numero {
+  position: absolute;
+  inset-block-start: 2px;
+  inset-inline-start: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ln-text-secondary);
+}
+
+/* ---- Fil entre la zone et son segment ---- */
+
+.ln-fil-segment {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  fill: var(--ln-thread);
+  stroke: var(--ln-thread);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+
+.ln-fil-segment path {
+  fill: none;
+}
+
+/* ---- Colonne de droite ---- */
+
+.ln-lecteur__cote {
+  display: grid;
+  gap: calc(var(--ln-grid) * 2);
+}
+
+.ln-panneau {
+  padding: calc(var(--ln-grid) * 2);
+  border: 1px solid var(--ln-border);
+  border-radius: var(--ln-radius-m, 10px);
+  background: var(--ln-surface);
+}
+
+.ln-ecoute__titre,
+.ln-pourquoi__titre,
+.ln-note__titre,
+.ln-texte__titre {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--ln-grid));
+  margin: 0 0 calc(var(--ln-grid)) 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.ln-ecoute__piste {
+  margin: 0 0 calc(var(--ln-grid) * 1.5) 0;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.ln-ecoute__onde {
+  position: relative;
+  margin-block-end: calc(var(--ln-grid));
+}
+
+.ln-onde {
+  display: block;
+  width: 100%;
+  height: calc(var(--ln-grid) * 7);
+}
+
+.ln-onde__barre {
+  fill: var(--ln-border);
+}
+
+.ln-onde__barre--actif {
+  fill: var(--ln-thread);
+}
+
+.ln-ecoute__segments {
+  position: absolute;
+  inset: 0;
+  display: block;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ln-ecoute__segment {
+  position: absolute;
+  inset-block: 0;
+  border-radius: 4px;
+}
+
+.ln-ecoute__segment--actif {
+  background: color-mix(in srgb, var(--ln-selection-background) 45%, transparent);
+  outline: 1px solid var(--ln-thread);
+}
+
+.ln-ecoute__segment-nom {
+  position: absolute;
+  inset-block-end: 2px;
+  inset-inline-start: 4px;
+  font-size: 11px;
+  color: var(--ln-text-secondary);
+}
+
+.ln-ecoute__temps,
+.ln-ecoute__sans,
+.ln-ecoute__inconnu {
+  margin: 0 0 calc(var(--ln-grid)) 0;
+  font-size: 13px;
+  color: var(--ln-text-secondary);
+}
+
+.ln-ecoute__inconnu {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--ln-grid));
+}
+
+.ln-ecoute__transport {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 1.5);
+  margin-block: calc(var(--ln-grid) * 1.5);
+}
+
+.ln-ecoute__tempo {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: calc(var(--ln-grid));
+  font-size: 13px;
+  color: var(--ln-text-secondary);
+}
+
+.ln-ecoute__tempo input {
+  width: 100%;
+  accent-color: var(--ln-thread);
+}
+
+.ln-pourquoi__confiance {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--ln-grid));
+  margin: 0 0 calc(var(--ln-grid) * 0.5) 0;
+  font-size: 13px;
+  color: var(--ln-text-secondary);
+}
+
+.ln-pourquoi__phrase {
+  margin: 0 0 calc(var(--ln-grid)) 0;
+  font-size: 14px;
+}
+
+.ln-pourquoi__corriger {
+  font-size: 14px;
+  color: var(--ln-text-primary);
+}
+
+/* ---- Texte de la page ---- */
+
+.ln-texte__entete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.ln-bascule {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  margin-block: calc(var(--ln-grid));
+  border: 1px solid var(--ln-border);
+  border-radius: var(--ln-radius-s, 8px);
+}
+
+.ln-bascule__choix {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 0.75);
+  padding: calc(var(--ln-grid) * 0.75) calc(var(--ln-grid) * 2);
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--ln-text-secondary);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* Choisi : style de sélection. Le seul cuivre plein de l'écran est le bouton de lecture. */
+.ln-bascule__choix--choisi {
+  background: var(--ln-selection-background);
+  color: var(--ln-selection-text);
+  font-weight: 500;
+}
+
+.ln-bascule__choix:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ln-texte__lignes {
+  display: grid;
+  gap: calc(var(--ln-grid) * 0.5);
+  margin: 0;
+  padding-inline-start: calc(var(--ln-grid) * 3);
+  font-size: 13px;
+  color: var(--ln-text-secondary);
+}
+
+.ln-texte__ligne--lue {
+  background: color-mix(in srgb, var(--ln-selection-background) 50%, transparent);
+  border-radius: 4px;
+}
+
+.ln-note__champ {
+  width: 100%;
+  min-height: calc(var(--ln-grid) * 8);
+  padding: calc(var(--ln-grid));
+  border: 1px solid var(--ln-border);
+  border-radius: var(--ln-radius-s, 8px);
+  background: var(--ln-background);
+  color: var(--ln-text-primary);
+  font: inherit;
+  font-size: 13px;
+  resize: vertical;
+}
+
+.ln-lecteur__raccourcis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--ln-grid) * 2);
+  margin: 0;
+}
+
+.ln-lecteur__raccourci kbd {
+  font: inherit;
+  font-weight: 600;
+  color: var(--ln-text-primary);
+}
+
+.ln-lecteur__zoom {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--ln-grid));
+}
+
+@media (max-width: 1100px) {
+  .ln-lecteur__corps {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ln-vignettes__liste {
+    flex-direction: row;
+    overflow-x: auto;
+  }
+
+  .ln-vignettes__page {
+    width: calc(var(--ln-grid) * 9);
+    flex: none;
+  }
+}

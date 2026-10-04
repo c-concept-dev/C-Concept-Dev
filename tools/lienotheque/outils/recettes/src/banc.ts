@@ -1,3 +1,4 @@
+import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { readFile, readdir } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { basename, join } from "node:path";
@@ -17,7 +18,27 @@ import { consolider, lecturesDePage, lireNumeroPage, type OptionsReperes } from 
  *  rejoués différemment ne se comparent pas : le banc fixe donc l'ordre des pages et celui des
  *  médias, et ne laisse rien au hasard. */
 
+/** Cache de lecture : un lot déjà lu ne se relit pas.
+ *
+ *  Lire trois cents pages prend un quart d'heure. Rejouer un lot pour éprouver un réglage de
+ *  l'interpréteur ne doit pas le repayer : la lecture dépend du document et de la recette, pas de
+ *  ce qu'on en fait ensuite. La clef les désigne tous les deux — et la date du fichier, pour
+ *  qu'un document remplacé soit relu. */
+export function clefDeLecture(chemin: string, recette: Recette, limite?: number): string {
+  const etat = statSync(chemin, { throwIfNoEntry: false });
+  return createHash("sha256")
+    .update(chemin)
+    .update(String(etat?.size ?? 0))
+    .update(String(etat?.mtimeMs ?? 0))
+    .update(`${recette.id}@${recette.version}`)
+    .update(String(limite ?? "tout"))
+    .digest("hex")
+    .slice(0, 32);
+}
+
 export type OptionsBanc = OptionsReperes & {
+  /** Dossier où garder les lectures. Absent, rien n'est gardé. */
+  readonly cache?: string | undefined;
   /** Ne traiter que les premières pages : pour un essai rapide pendant la mise au point. */
   readonly pages?: number;
   readonly redressement?: OptionsRedressement;
@@ -125,12 +146,34 @@ export async function mediasDuDossier(dossier: string, recette?: Recette, extens
 
 export type Rejeu = { readonly resultat: ResultatRecette; readonly association: Association };
 
+/** Lit un lot, en passant par le cache quand il est offert.
+ *
+ *  Le cache ne garde que des lectures : des numéros, des positions, des confiances. Aucun pixel,
+ *  aucun extrait du document — ce qui est sous droits reste là où il est. */
+export async function lireLot(pdf: string, recette: Recette, options: OptionsBanc = {}): Promise<PageLue[]> {
+  const fichier = options.cache === undefined ? undefined : join(options.cache, `${clefDeLecture(pdf, recette, options.pages)}.json`);
+
+  if (fichier !== undefined && existsSync(fichier))
+    try {
+      return JSON.parse(readFileSync(fichier, "utf8")) as PageLue[];
+    } catch {
+      // Cache illisible : on relit. Un cache n'est jamais une raison d'échouer.
+    }
+
+  const lues = reperer(await preparerLot(pdf, recette, options), recette, options);
+  if (fichier !== undefined)
+    try {
+      writeFileSync(fichier, JSON.stringify(lues));
+    } catch {
+      // Cache non inscriptible : tant pis, on a la lecture.
+    }
+  return lues;
+}
+
 export async function rejouer(pdf: string, dossierMedias: string, recette: Recette, options: OptionsBanc = {}): Promise<Rejeu> {
   const medias = await mediasDuDossier(dossierMedias, recette);
   // Combien de pistes le support compte est un fait sur le média, pas sur son nom (REC-05).
-  const resultat = interpreter(reperer(await preparerLot(pdf, recette, options), recette, options), recette, {
-    nombreDePistes: medias.length,
-  });
+  const resultat = interpreter(await lireLot(pdf, recette, options), recette, { nombreDePistes: medias.length });
   return { resultat, association: associer(resultat.lignes, medias, recette) };
 }
 

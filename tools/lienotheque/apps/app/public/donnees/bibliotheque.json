@@ -1,0 +1,709 @@
+{
+ "id": "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c01",
+ "nom": "Méthode d’instrument",
+ "mots": {
+  "element": {
+   "un": "élément",
+   "plusieurs": "éléments"
+  },
+  "piste": {
+   "un": "piste",
+   "plusieurs": "pistes"
+  },
+  "page": {
+   "un": "page",
+   "plusieurs": "pages"
+  }
+ },
+ "compteurs": [
+  {
+   "nombre": 412,
+   "mot": "éléments"
+  },
+  {
+   "nombre": 380,
+   "mot": "liens"
+  }
+ ],
+ "aVerifier": 2,
+ "filtres": [
+  {
+   "cle": "style",
+   "nom": "Style",
+   "valeurs": [
+    {
+     "cle": "lecture",
+     "nom": "Lecture",
+     "nombre": 128
+    },
+    {
+     "cle": "articulation",
+     "nom": "Articulation",
+     "nombre": 96
+    },
+    {
+     "cle": "expression",
+     "nom": "Expression",
+     "nombre": 72
+    }
+   ]
+  },
+  {
+   "cle": "niveau",
+   "nom": "Niveau",
+   "valeurs": [
+    {
+     "cle": "debutant",
+     "nom": "Débutant",
+     "nombre": 146
+    },
+    {
+     "cle": "intermediaire",
+     "nom": "Intermédiaire",
+     "nombre": 184
+    },
+    {
+     "cle": "avance",
+     "nom": "Avancé",
+     "nombre": 82
+    }
+   ]
+  },
+  {
+   "cle": "audio",
+   "nom": "Avec audio",
+   "valeurs": [
+    {
+     "cle": "oui",
+     "nom": "Oui",
+     "nombre": 380
+    },
+    {
+     "cle": "non",
+     "nom": "Sans audio",
+     "nombre": 32
+    }
+   ]
+  }
+ ],
+ "pages": [
+  {
+   "numero": 125,
+   "titre": "Lecture simple",
+   "elements": [
+    {
+     "ancreId": "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c07",
+     "numero": "397",
+     "page": 125,
+     "zone": {
+      "x": 0.07,
+      "y": 0.18,
+      "l": 0.86,
+      "h": 0.2
+     },
+     "media": {
+      "empreinte": "0000000000000000000000000000000000000000000000000000000000000037",
+      "nom": "Piste 37.mp3",
+      "piste": 37,
+      "position": {
+       "segment": "connu",
+       "debut": 0,
+       "fin": 23,
+       "confiance": 0.9
+      }
+     },
+     "pourquoi": {
+      "preuve": "lu",
+      "confiance": 1,
+      "phrase": "Repère « Piste 37 » lu à côté du numéro"
+     },
+     "aVerifier": false
+    },
+    {
+     "ancreId": "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c08",
+     "numero": "398",
+     "page": 125,
+     "zone": {
+      "x": 0.07,
+      "y": 0.44,
+      "l": 0.86,
+      "h": 0.2
+     },
+     "media": {
+      "empreinte": "0000000000000000000000000000000000000000000000000000000000000038",
+      "nom": "Piste 38.mp3",
+      "piste": 38,
+      "position": {
+       "segment": "inconnu"
+      }
+     },
+     "pourquoi": {
+      "preuve": "sequence",
+      "confiance": 0.75,
+      "phrase": "Repère partiellement lu, déduit de la séquence"
+     },
+     "aVerifier": false
+    },
+    {
+     "ancreId": "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c09",
+     "numero": "399",
+     "page": 125,
+     "zone": {
+      "x": 0.07,
+      "y": 0.7,
+      "l": 0.86,
+      "h": 0.2
+     },
+     "media": {
+      "empreinte": "0000000000000000000000000000000000000000000000000000000000000039",
+      "nom": "Piste 39.mp3",
+      "piste": 39,
+      "position": {
+       "segment": "inconnu"
+      }
+     },
+     "pourquoi": {
+      "preuve": "sequence",
+      "confiance": 0.75,
+      "phrase": "Repère partiellement lu, déduit de la séquence"
+     },
+     "aVerifier": false
+    }
+   ],
+   "texte": [
+    "Ces exercices visent à développer une lecture fluide et une articulation précise.",
+    "Jouer lentement, en respectant les liaisons et les valeurs,",
+    "puis augmenter progressivement le tempo."
+   ],
+   "traduction": [
+    "These exercises aim to develop fluent reading and precise articulation."
+   ]
+  },
+  {
+   "numero": 126,
+   "titre": "Gammes en legato",
+   "elements": [
+    {
+     "ancreId": "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c10",
+     "numero": "400",
+     "page": 126,
+     "zone": {
+      "x": 0.07,
+      "y": 0.18,
+      "l": 0.86,
+      "h": 0.2
+     },
+     "media": {
+      "empreinte": "0000000000000000000000000000000000000000000000000000000000000040",
+      "nom": "Piste 40.mp3",
+      "piste": 40,
+      "position": {
+       "segment": "connu",
+       "debut": 0,
+       "fin": 23,
+       "confiance": 0.9
+      }
+     },
+     "pourquoi": {
+      "preuve": "lu",
+      "confiance": 1,
+      "phrase": "Repère « Piste 40 » lu à côté du numéro"
+     },
+     "aVerifier": false
+    },
+    {
+     "ancreId": "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c11",
+     "numero": "401",
+     "page": 126,
+     "zone": {
+      "x": 0.07,
+      "y": 0.44,
+      "l": 0.86,
+      "h": 0.2
+     },
+     "media": {
+      "empreinte": "0000000000000000000000000000000000000000000000000000000000000041",
+      "nom": "Piste 41.mp3",
+      "piste": 41,
+      "position": {
+       "segment": "inconnu"
+      }
+     },
+     "pourquoi": {
+      "preuve": "sequence",
+      "confiance": 0.75,
+      "phrase": "Repère partiellement lu, déduit de la séquence"
+     },
+     "aVerifier": false
+    },
+    {
+     "ancreId": "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c12",
+     "numero": "402",
+     "page": 126,
+     "zone": {
+      "x": 0.07,
+      "y": 0.7,
+      "l": 0.86,
+      "h": 0.2
+     },
+     "media": {
+      "empreinte": "0000000000000000000000000000000000000000000000000000000000000042",
+      "nom": "Piste 42.mp3",
+      "piste": 42,
+      "position": {
+       "segment": "inconnu"
+      }
+     },
+     "pourquoi": {
+      "preuve": "sequence",
+      "confiance": 0.75,
+      "phrase": "Repère partiellement lu, déduit de la séquence"
+     },
+     "aVerifier": false
+    }
+   ],
+   "texte": [
+    "Ces exercices visent à développer une lecture fluide et une articulation précise.",
+    "Jouer lentement, en respectant les liaisons et les valeurs,",
+    "puis augmenter progressivement le tempo."
+   ],
+   "traduction": [
+    "These exercises aim to develop fluent reading and precise articulation."
+   ]
+  },
+  {
+   "numero": 127,
+   "titre": "Lecture et articulation",
+   "elements": [
+    {
+     "ancreId": "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c13",
+     "numero": "403",
+     "page": 127,
+     "zone": {
+      "x": 0.07,
+      "y": 0.18,
+      "l": 0.86,
+      "h": 0.2
+     },
+     "media": {
+      "empreinte": "0000000000000000000000000000000000000000000000000000000000000043",
+      "nom": "Piste 43.mp3",
+      "piste": 43,
+      "position": {
+       "segment": "connu",
+       "debut": 0,
+       "fin": 23,
+       "confiance": 0.9
+      }
+     },
+     "pourquoi": {
+      "preuve": "lu",
+      "confiance": 1,
+      "phrase": "Repère « Piste 43 » lu à côté du numéro"
+     },
+     "aVerifier": false
+    },
+    {
+     "ancreId": "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c14",
+     "numero": "404",
+     "page": 127,
+     "zone": {
+      "x": 0.07,
+      "y": 0.44,
+      "l": 0.86,
+      "h": 0.2
+     },
+     "media": {
+      "empreinte": "0000000000000000000000000000000000000000000000000000000000000044",
+      "nom": "Piste 44.mp3",
+      "piste": 44,
+      "position": {
+       "segment": "inconnu"
+      }
+     },
+     "pourquoi": {
+      "preuve": "sequence",
+      "confiance": 0.75,
+      "phrase": "Repère partiellement lu, déduit de la séquence"
+     },
+     "aVerifier": false
+    },
+    {
+     "ancreId": "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c15",
+     "numero": "405",
+     "page": 127,
+     "zone": {
+      "x": 0.07,
+      "y": 0.7,
+      "l": 0.86,
+      "h": 0.2
+     },
+     "media": {
+      "empreinte": "0000000000000000000000000000000000000000000000000000000000000045",
+      "nom": "Piste 45.mp3",
+      "piste": 45,
+      "position": {
+       "segment": "inconnu"
+      }
+     },
+     "pourquoi": {
+      "preuve": "sequence",
+      "confiance": 0.55,
+      "phrase": "Repère partiellement lu, déduit de la séquence"
+     },
+     "aVerifier": true
+    }
+   ],
+   "texte": [
+    "Ces exercices visent à développer une lecture fluide et une articulation précise.",
+    "Jouer lentement, en respectant les liaisons et les valeurs,",
+    "puis augmenter progressivement le tempo."
+   ],
+   "traduction": [
+    "These exercises aim to develop fluent reading and precise articulation."
+   ]
+  },
+  {
+   "numero": 128,
+   "titre": "Études rythmiques",
+   "elements": [
+    {
+     "ancreId": "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c16",
+     "numero": "406",
+     "page": 128,
+     "zone": {
+      "x": 0.07,
+      "y": 0.18,
+      "l": 0.86,
+      "h": 0.2
+     },
+     "media": {
+      "empreinte": "0000000000000000000000000000000000000000000000000000000000000046",
+      "nom": "Piste 46.mp3",
+      "piste": 46,
+      "position": {
+       "segment": "connu",
+       "debut": 0,
+       "fin": 23,
+       "confiance": 0.9
+      }
+     },
+     "pourquoi": {
+      "preuve": "lu",
+      "confiance": 1,
+      "phrase": "Repère « Piste 46 » lu à côté du numéro"
+     },
+     "aVerifier": false
+    },
+    {
+     "ancreId": "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c17",
+     "numero": "407",
+     "page": 128,
+     "zone": {
+      "x": 0.07,
+      "y": 0.44,
+      "l": 0.86,
+      "h": 0.2
+     },
+     "media": {
+      "empreinte": "0000000000000000000000000000000000000000000000000000000000000047",
+      "nom": "Piste 47.mp3",
+      "piste": 47,
+      "position": {
+       "segment": "inconnu"
+      }
+     },
+     "pourquoi": {
+      "preuve": "sequence",
+      "confiance": 0.55,
+      "phrase": "Repère partiellement lu, déduit de la séquence"
+     },
+     "aVerifier": true
+    },
+    {
+     "ancreId": "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c18",
+     "numero": "408",
+     "page": 128,
+     "zone": {
+      "x": 0.07,
+      "y": 0.7,
+      "l": 0.86,
+      "h": 0.2
+     },
+     "media": {
+      "empreinte": "0000000000000000000000000000000000000000000000000000000000000048",
+      "nom": "Piste 48.mp3",
+      "piste": 48,
+      "position": {
+       "segment": "inconnu"
+      }
+     },
+     "pourquoi": {
+      "preuve": "sequence",
+      "confiance": 0.75,
+      "phrase": "Repère partiellement lu, déduit de la séquence"
+     },
+     "aVerifier": false
+    }
+   ],
+   "texte": [
+    "Ces exercices visent à développer une lecture fluide et une articulation précise.",
+    "Jouer lentement, en respectant les liaisons et les valeurs,",
+    "puis augmenter progressivement le tempo."
+   ],
+   "traduction": [
+    "These exercises aim to develop fluent reading and precise articulation."
+   ]
+  },
+  {
+   "numero": 129,
+   "titre": "Nuances et phrasé",
+   "elements": [
+    {
+     "ancreId": "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c19",
+     "numero": "409",
+     "page": 129,
+     "zone": {
+      "x": 0.07,
+      "y": 0.18,
+      "l": 0.86,
+      "h": 0.2
+     },
+     "media": {
+      "empreinte": "0000000000000000000000000000000000000000000000000000000000000049",
+      "nom": "Piste 49.mp3",
+      "piste": 49,
+      "position": {
+       "segment": "connu",
+       "debut": 0,
+       "fin": 23,
+       "confiance": 0.9
+      }
+     },
+     "pourquoi": {
+      "preuve": "lu",
+      "confiance": 1,
+      "phrase": "Repère « Piste 49 » lu à côté du numéro"
+     },
+     "aVerifier": false
+    },
+    {
+     "ancreId": "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c20",
+     "numero": "410",
+     "page": 129,
+     "zone": {
+      "x": 0.07,
+      "y": 0.44,
+      "l": 0.86,
+      "h": 0.2
+     },
+     "media": {
+      "empreinte": "0000000000000000000000000000000000000000000000000000000000000050",
+      "nom": "Piste 50.mp3",
+      "piste": 50,
+      "position": {
+       "segment": "inconnu"
+      }
+     },
+     "pourquoi": {
+      "preuve": "sequence",
+      "confiance": 0.75,
+      "phrase": "Repère partiellement lu, déduit de la séquence"
+     },
+     "aVerifier": false
+    },
+    {
+     "ancreId": "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c21",
+     "numero": "411",
+     "page": 129,
+     "zone": {
+      "x": 0.07,
+      "y": 0.7,
+      "l": 0.86,
+      "h": 0.2
+     },
+     "media": {
+      "empreinte": "0000000000000000000000000000000000000000000000000000000000000051",
+      "nom": "Piste 51.mp3",
+      "piste": 51,
+      "position": {
+       "segment": "inconnu"
+      }
+     },
+     "pourquoi": {
+      "preuve": "sequence",
+      "confiance": 0.75,
+      "phrase": "Repère partiellement lu, déduit de la séquence"
+     },
+     "aVerifier": false
+    }
+   ],
+   "texte": [
+    "Ces exercices visent à développer une lecture fluide et une articulation précise.",
+    "Jouer lentement, en respectant les liaisons et les valeurs,",
+    "puis augmenter progressivement le tempo."
+   ],
+   "traduction": [
+    "These exercises aim to develop fluent reading and precise articulation."
+   ]
+  },
+  {
+   "numero": 130,
+   "titre": "Jeu lié et détaché",
+   "elements": [
+    {
+     "ancreId": "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c22",
+     "numero": "412",
+     "page": 130,
+     "zone": {
+      "x": 0.07,
+      "y": 0.18,
+      "l": 0.86,
+      "h": 0.2
+     },
+     "media": {
+      "empreinte": "0000000000000000000000000000000000000000000000000000000000000052",
+      "nom": "Piste 52.mp3",
+      "piste": 52,
+      "position": {
+       "segment": "connu",
+       "debut": 0,
+       "fin": 23,
+       "confiance": 0.9
+      }
+     },
+     "pourquoi": {
+      "preuve": "lu",
+      "confiance": 1,
+      "phrase": "Repère « Piste 52 » lu à côté du numéro"
+     },
+     "aVerifier": false
+    },
+    {
+     "ancreId": "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c23",
+     "numero": "413",
+     "page": 130,
+     "zone": {
+      "x": 0.07,
+      "y": 0.44,
+      "l": 0.86,
+      "h": 0.2
+     },
+     "media": {
+      "empreinte": "0000000000000000000000000000000000000000000000000000000000000053",
+      "nom": "Piste 53.mp3",
+      "piste": 53,
+      "position": {
+       "segment": "inconnu"
+      }
+     },
+     "pourquoi": {
+      "preuve": "sequence",
+      "confiance": 0.75,
+      "phrase": "Repère partiellement lu, déduit de la séquence"
+     },
+     "aVerifier": false
+    },
+    {
+     "ancreId": "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c24",
+     "numero": "414",
+     "page": 130,
+     "zone": {
+      "x": 0.07,
+      "y": 0.7,
+      "l": 0.86,
+      "h": 0.2
+     },
+     "media": {
+      "empreinte": "0000000000000000000000000000000000000000000000000000000000000054",
+      "nom": "Piste 54.mp3",
+      "piste": 54,
+      "position": {
+       "segment": "inconnu"
+      }
+     },
+     "pourquoi": {
+      "preuve": "sequence",
+      "confiance": 0.75,
+      "phrase": "Repère partiellement lu, déduit de la séquence"
+     },
+     "aVerifier": false
+    }
+   ],
+   "texte": [
+    "Ces exercices visent à développer une lecture fluide et une articulation précise.",
+    "Jouer lentement, en respectant les liaisons et les valeurs,",
+    "puis augmenter progressivement le tempo."
+   ],
+   "traduction": [
+    "These exercises aim to develop fluent reading and precise articulation."
+   ]
+  }
+ ],
+ "douteux": [
+  {
+   "id": "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c80",
+   "nature": "lien",
+   "etat": "confiance",
+   "element": {
+    "ancreId": "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c15",
+    "numero": "405",
+    "page": 127,
+    "zone": {
+     "x": 0.07,
+     "y": 0.7,
+     "l": 0.86,
+     "h": 0.2
+    },
+    "media": {
+     "empreinte": "0000000000000000000000000000000000000000000000000000000000000045",
+     "nom": "Piste 45.mp3",
+     "piste": 45,
+     "position": {
+      "segment": "inconnu"
+     }
+    },
+    "pourquoi": {
+     "preuve": "sequence",
+     "confiance": 0.55,
+     "phrase": "Repère partiellement lu, déduit de la séquence"
+    },
+    "aVerifier": true
+   },
+   "proposition": "élément 405 → piste 45",
+   "motif": "repère partiellement lu, déduit de la séquence"
+  },
+  {
+   "id": "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c81",
+   "nature": "lien",
+   "etat": "conflit_appareils",
+   "element": {
+    "ancreId": "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c17",
+    "numero": "407",
+    "page": 128,
+    "zone": {
+     "x": 0.07,
+     "y": 0.44,
+     "l": 0.86,
+     "h": 0.2
+    },
+    "media": {
+     "empreinte": "0000000000000000000000000000000000000000000000000000000000000047",
+     "nom": "Piste 47.mp3",
+     "piste": 47,
+     "position": {
+      "segment": "inconnu"
+     }
+    },
+    "pourquoi": {
+     "preuve": "sequence",
+     "confiance": 0.55,
+     "phrase": "Repère partiellement lu, déduit de la séquence"
+    },
+    "aVerifier": true
+   },
+   "proposition": "élément 407 → piste 47",
+   "motif": "repère partiellement lu, déduit de la séquence"
+  }
+ ]
+}

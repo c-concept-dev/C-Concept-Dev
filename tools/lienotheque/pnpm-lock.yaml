@@ -237,6 +237,9 @@ importers:
 
   outils/recettes:
     dependencies:
+      '@lienotheque/cache':
+        specifier: workspace:*
+        version: link:../cache
       '@lienotheque/contrats':
         specifier: workspace:*
         version: link:../../packages/contrats

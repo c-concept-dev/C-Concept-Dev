@@ -9,7 +9,8 @@
   },
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "mesures": "vitest run --config vitest.mesures.config.ts"
   },
   "dependencies": {
     "@lienotheque/contrats": "workspace:*",
