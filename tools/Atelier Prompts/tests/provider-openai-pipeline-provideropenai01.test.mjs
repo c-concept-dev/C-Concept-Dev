@@ -17,6 +17,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import fs from 'node:fs';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { html } from './perf04-frontend-harness.helper.mjs';
 
@@ -638,4 +639,163 @@ test('T-PROVOPENAI01-28 · PLAGES_GELEES : aucune des sept plages FROZEN n’a �
   /* Et le pipeline automatique appelle toujours la façade, jamais un fournisseur nommé. */
   const appels = [...html.matchAll(/appelFournisseur\(\{fournisseur[,:]/g)];
   assert.ok(appels.length >= 5, 'les appels du pipeline passent par la façade avec le fournisseur actif');
+});
+
+// =================================================================================================
+// LE CHOIX DU FOURNISSEUR DANS « CONNEXION IA » — LES DEUX CLÉS NE SE MÉLANGENT JAMAIS
+//
+// Cette section couvre point par point ce que la mission « Connexion IA multi-provider » exige :
+// les deux fournisseurs apparaissent, chacun n'emploie QUE sa propre clé, un aller-retour entre
+// les deux ne les mélange pas, le bouton « Tester » rend son verdict sur l'un comme sur l'autre,
+// et le pipeline Atelier aboutit avec l'un comme avec l'autre.
+// =================================================================================================
+
+test('T-PROVOPENAI01-29 · CLES_ISOLEES : Anthropic → OpenAI → Anthropic, et aucune requête ne porte la clé de l’autre', async () => {
+  const CLE_A = 'sk-ant-cle-anthropic-de-la-personne';
+  const CLE_O = 'sk-proj-cle-openai-de-la-personne';
+  const h = chargerPage({ repondre: (e) => (e.url === ENDPOINT
+    ? reponse(200, enveloppeTexte('OK'))
+    : reponse(200, { content: [{ type: 'text', text: 'OK' }], usage: { input_tokens: 1, output_tokens: 1 }, stop_reason: 'end_turn' })) });
+  const champ = h.el('api-cle');
+  const basculer = (id) => { h.el('fournisseur-actif').value = id; h.w.surChangementFournisseurActif(); };
+
+  /* 1. Anthropic actif : la personne colle sa clé Anthropic. */
+  assert.equal(h.w.obtenirFournisseurActif(), 'anthropic');
+  champ.value = CLE_A;
+  assert.equal(h.w.obtenirCleFournisseur('anthropic'), CLE_A);
+  await h.w.appelFournisseur({ fournisseur: 'anthropic', cle: h.w.obtenirCleFournisseur(), modele: 'claude-sonnet-5', maxTokens: 16, contenuUtilisateur: 'x' });
+
+  /* 2. Bascule vers OpenAI : le champ est vidé, PAS prérempli avec la clé Anthropic. */
+  basculer('openai');
+  assert.equal(champ.value, '', 'le champ ne présente jamais la clé d’un autre fournisseur');
+  assert.equal(h.w.obtenirCleFournisseur('anthropic'), CLE_A, 'la clé Anthropic est mise de côté, pas perdue');
+  champ.value = CLE_O;
+  assert.equal(h.w.obtenirCleFournisseur('openai'), CLE_O);
+  assert.equal(h.w.obtenirCleFournisseur('anthropic'), CLE_A, 'et les deux coexistent sans se recouvrir');
+  await h.w.appelFournisseur({ fournisseur: 'openai', cle: h.w.obtenirCleFournisseur(), modele: MODELE, maxTokens: 16, contenuUtilisateur: 'x' });
+
+  /* 3. Retour à Anthropic : sa clé revient, celle d'OpenAI est rangée. */
+  basculer('anthropic');
+  assert.equal(champ.value, CLE_A, 'la clé Anthropic revient telle quelle');
+  assert.equal(h.w.obtenirCleFournisseur('openai'), CLE_O, 'celle d’OpenAI reste disponible pour lui seul');
+  await h.w.appelFournisseur({ fournisseur: 'anthropic', cle: h.w.obtenirCleFournisseur(), modele: 'claude-sonnet-5', maxTokens: 16, contenuUtilisateur: 'x' });
+
+  /* LA PREUVE EST SUR LE RÉSEAU, pas sur l'état interne : chaque requête est inspectée, et aucune
+     ne porte la clé de l'autre fournisseur — ni dans un en-tête, ni ailleurs dans la requête. */
+  assert.equal(h.journal.reseau.length, 3);
+  const [un, deux, trois] = h.journal.reseau;
+  assert.equal(un.url, 'https://api.anthropic.com/v1/messages');
+  assert.equal(un.headers['x-api-key'], CLE_A);
+  assert.equal(deux.url, ENDPOINT);
+  assert.equal(deux.headers.Authorization, 'Bearer ' + CLE_O);
+  assert.equal(trois.url, 'https://api.anthropic.com/v1/messages');
+  assert.equal(trois.headers['x-api-key'], CLE_A);
+  for (const [requete, etrangere] of [[un, CLE_O], [deux, CLE_A], [trois, CLE_O]]) {
+    const surface = JSON.stringify(requete.headers) + JSON.stringify(requete.body);
+    assert.equal(surface.includes(etrangere), false, `aucune fuite croisée vers ${requete.url}`);
+  }
+  /* Et aucune des deux clés n'est écrite où que ce soit de persistant. */
+  for (const cle of [CLE_A, CLE_O]) {
+    assert.equal([...h.zones.session.values(), ...h.zones.local.values()].some((v) => v.includes(cle)), false, 'stockage');
+    assert.equal(h.journal.console.some((l) => l.includes(cle)), false, 'console');
+  }
+  /* La mémoire des clés est en mémoire JS, jamais dans un stockage navigateur — contrat d'origine. */
+  const bloc = html.slice(html.indexOf('const _clesSessionParFournisseur'), html.indexOf('function repeuplerTousLesSelectsModeles'));
+  assert.equal(/localStorage|sessionStorage|coffre\./.test(bloc), false, 'l’échange de clés ne stocke rien');
+});
+
+test('T-PROVOPENAI01-30 · TESTER_ANTHROPIC : le même bouton rend son verdict sur le premier fournisseur, inchangé', async () => {
+  const flush = async (n = 6) => { for (let i = 0; i < n; i += 1) await new Promise((r) => setImmediate(r)); };
+  const h = chargerPage({ repondre: () => reponse(200, { content: [{ type: 'text', text: 'OK' }], usage: { input_tokens: 9, output_tokens: 1 }, stop_reason: 'end_turn' }) });
+  const k = h.el('v11-api-key'); k.value = 'sk-ant-xxx'; k.dispatchEvent({ type: 'input' });
+  h.el('api-modele').value = 'claude-sonnet-5';
+  const b = h.el('v11-api-test');
+  b.click();
+  for (let i = 0; i < 50 && b.dataset.etat === 'en-cours'; i += 1) await flush(2);
+  assert.equal(h.journal.reseau[0].url, 'https://api.anthropic.com/v1/messages');
+  assert.equal(b.dataset.etat, 'ok');
+  assert.equal(b.textContent, '✓ Clé valide');
+});
+
+/** L'analyse canonique RÉELLE rendue par OpenAI, telle que la campagne du lot l'a enregistrée. */
+const ANALYSE_REELLE = JSON.parse(REEL.arguments);
+
+/** Pilote le pipeline Atelier réel : la demande est saisie, puis l'analyse est demandée à l'API. */
+async function pipelineAtelier(h, cle, modele) {
+  const arch = h.w.__ARCHITECTE_V10__;
+  assert.ok(arch && typeof arch.api === 'function', 'le moteur Architecte expose son entrée API');
+  /* LA DEMANDE EST EXACTEMENT CELLE DE LA MESURE RÉELLE, et ce n'est pas un détail : archValider()
+     vérifie que chaque citation de l'analyse se retrouve dans la source. Une demande tronquée fait
+     refuser l'import — ce test porte donc aussi sur la chaîne de provenance, bout en bout. */
+  h.el('arch-demande').value = REEL.demande;
+  h.el('api-cle').value = cle;
+  h.el('api-modele').value = modele;
+  const ok = await arch.api();
+  return { ok, analyse: arch.analyse, composants: arch.composants, etat: h.el('arch-statut').textContent };
+}
+
+test('T-PROVOPENAI01-31 · PIPELINE_ATELIER_ANTHROPIC : l’analyse est importée, le moteur la retient, les composants sont construits', async () => {
+  const h = chargerPage({ repondre: () => reponse(200, {
+    content: [{ type: 'tool_use', name: 'sortie_structuree', id: 'tu_1', input: ANALYSE_REELLE }],
+    usage: { input_tokens: 7000, output_tokens: 3300 }, stop_reason: 'tool_use' }) });
+  const r = await pipelineAtelier(h, 'sk-ant-xxx', 'claude-sonnet-5');
+  assert.equal(h.journal.reseau[0].url, 'https://api.anthropic.com/v1/messages');
+  assert.equal(r.ok, true, 'ARCHITECTE_IMPORT = YES — état du moteur : ' + r.etat);
+  assert.equal(r.analyse.version, '3.4');
+  assert.ok(r.composants.length > 0, 'des composants spécifiques sont construits');
+});
+
+test('T-PROVOPENAI01-32 · PIPELINE_ATELIER_OPENAI : le MÊME pipeline aboutit, sur la réponse OpenAI réellement mesurée', async () => {
+  const h = chargerPage({ repondre: () => reponse(200, enveloppeOutil(REEL.arguments, { reflexions: 2 })) });
+  h.el('fournisseur-actif').value = 'openai';
+  h.w.surChangementFournisseurActif();
+  const r = await pipelineAtelier(h, 'sk-proj-xxx', MODELE);
+  /* Le pipeline part bien chez OpenAI, avec l'outil forcé et l'effort que l'Architecte demande. */
+  assert.equal(h.journal.reseau.length, 1);
+  assert.equal(h.journal.reseau[0].url, ENDPOINT);
+  assert.deepEqual(h.journal.reseau[0].body.reasoning, { effort: 'high' });
+  assert.equal(h.journal.reseau[0].body.tools[0].strict, false);
+  assert.equal(h.journal.reseau[0].body.max_output_tokens >= 8000, true, 'le plafond de l’Architecte est transmis');
+  /* Et il aboutit exactement comme sur Anthropic : même analyse retenue, mêmes composants. */
+  assert.equal(r.ok, true, 'ARCHITECTE_IMPORT = YES — état du moteur : ' + r.etat);
+  assert.equal(r.analyse.version, '3.4');
+  assert.ok(r.composants.length > 0);
+  assert.deepEqual(brut(r.analyse), ANALYSE_REELLE, 'rien n’est perdu ni réécrit entre le transport et le moteur');
+});
+
+test('T-PROVOPENAI01-33 · MODE_SENSIBLE_ARCHITECTE : limite connue et épinglée — la confirmation nomme Anthropic en dur, dans un moteur GELÉ', () => {
+  /* CE TEST NE VALIDE PAS UN COMPORTEMENT SOUHAITABLE, IL L'EMPÊCHE D'ÊTRE OUBLIÉ.
+     archApi() demande, en mode « données sensibles » uniquement, « La demande sera transmise à
+     l'API Anthropic. Continuer ? » — quel que soit le fournisseur actif. La phrase est fausse si
+     OpenAI est sélectionné. Elle n'est PAS corrigée par ce lot : archApi() vit à l'intérieur de la
+     plage gelée « moteur Architecte », et la corriger casserait FROZEN, que ce lot doit garder vert.
+     Le mode sensible est désactivé par défaut (`let modeSensible = false`), donc cette phrase
+     n'apparaît qu'après une activation explicite par la personne.
+     La confirmation de l'ENVOI DIRECT, elle, nomme déjà correctement le fournisseur actif. */
+  const debutGele = html.indexOf('function archContexte(){');
+  const finGelee = html.indexOf('const ARCH_SAUVEGARDE_VERSION=', debutGele);
+  /* La phrase est cherchée sous sa forme LITTÉRALE dans la source : l'apostrophe y est écrite
+     en séquence d'échappement, pas en caractère. */
+  const phrase = 'La demande sera transmise à l' + String.raw`\u2019` + 'API Anthropic. Continuer ?';
+  const position = html.indexOf(phrase);
+  assert.ok(position > 0, 'la phrase existe');
+  assert.ok(position > debutGele && position < finGelee, 'et elle est DANS la plage gelée : hors de portée de ce lot');
+  assert.equal(html.indexOf('let modeSensible = false;') > 0, true, 'le mode sensible est désactivé par défaut');
+  /* L'autre confirmation, hors plage gelée, est bien pilotée par le registre. */
+  const envoiDirect = html.slice(html.indexOf('Ce prompt va être transmis à'), html.indexOf('Ce prompt va être transmis à') + 200);
+  assert.match(envoiDirect, /nomFournisseur/, 'l’envoi direct nomme le fournisseur réellement actif');
+});
+
+test('T-PROVOPENAI01-34 · CONTINUITE_NON_REGRESSEE : les suites de continuité conversationnelle passent inchangées', () => {
+  /* CONTINUITE-05 et son prolongement CONTINUITE-04B portent la mémoire du fil et la fidélité des
+     citations — ce que ce lot ne doit toucher en aucune façon. Elles sont relancées dans leur
+     propre processus, et le compte attendu est EXACT : une assertion qui disparaîtrait, pas
+     seulement une qui échouerait, ferait échouer ce test. */
+  const suites = ['tests/continuite-conversation-longue-cont05.test.mjs', 'tests/continuite-api-citation-cont04b.test.mjs'];
+  const env = { ...process.env }; delete env.NODE_TEST_CONTEXT;
+  const sortie = execFileSync(process.execPath, ['--test', '--test-reporter=spec', ...suites],
+    { encoding: 'utf8', env, cwd: racine, timeout: 120000 });
+  const n = (k) => Number((sortie.match(new RegExp(`^\u2139 ${k} (\\d+)`, 'm')) || [])[1]);
+  assert.equal(n('fail'), 0, sortie.slice(-2000));
+  assert.equal(n('pass'), 30, 'CONTINUITE_PASS_COUNT = 30');
 });
