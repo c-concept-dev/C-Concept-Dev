@@ -485,8 +485,12 @@ export function lecturesDePage(image: ImageGrise, recette: Recette, options: Opt
  *  document et la recette — pas ce que le lecteur en tire. Ajouter la zone de chaque repère n'a
  *  donc rien changé : les lectures gardées, qui n'en portaient pas, continuaient d'être servies,
  *  et les zones n'arrivaient nulle part sans qu'une seule erreur ne le dise. Un cache qui ne
- *  connaît pas la forme de ce qu'il garde finit par servir le passé. */
-export const VERSION_LECTURE = 2;
+ *  connaît pas la forme de ce qu'il garde finit par servir le passé.
+ *
+ *  3 : l'orientation du lot est désormais votée au lieu d'être crue sur parole. Ce n'est pas la
+ *  forme d'une lecture qui change, c'est ce qu'elle lit — une page remise à l'endroit rend six
+ *  éléments là où elle n'en rendait aucun. La version compte donc aussi pour cela. */
+export const VERSION_LECTURE = 3;
 
 /** Hauteur en deçà de laquelle deux lectures parlent du même élément. */
 const MEME_HAUTEUR = 0.03;

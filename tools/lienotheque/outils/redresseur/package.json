@@ -14,12 +14,14 @@
   "dependencies": {
     "@lienotheque/contrats": "workspace:*",
     "@lienotheque/images": "workspace:*",
-    "@lienotheque/formats": "workspace:*"
+    "@lienotheque/formats": "workspace:*",
+    "@lienotheque/lecteur-texte": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.6.0",
-    "@lienotheque/lecteur-texte": "workspace:*",
     "vitest": "^3.2.0",
-    "@types/node": "^22.0.0"
+    "@types/node": "^22.0.0",
+    "tsx": "^4.20.0",
+    "@lienotheque/recettes": "workspace:*"
   }
 }
