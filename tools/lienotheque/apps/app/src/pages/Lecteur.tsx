@@ -5,6 +5,7 @@ import { FilAriane } from "../composants/FilAriane.js";
 import { FilVersSegment } from "./lecteur/FilVersSegment.js";
 import { PageZoomable } from "./lecteur/PageZoomable.js";
 import { PanneauEcoute, type Segment } from "./lecteur/PanneauEcoute.js";
+import { useEcoute } from "../ecoute/useEcoute.js";
 import { TextePage } from "./lecteur/TextePage.js";
 import { LEGENDE, actionDe, tempoSuivant } from "./lecteur/raccourcis.js";
 import "./Lecteur.css";
@@ -26,10 +27,11 @@ type Props = {
   readonly onElement: (ancreId: string) => void;
 };
 
+/** Durée retenue quand ni le dépôt ni le navigateur ne la donnent : il faut bien une échelle
+ *  pour dessiner une forme d'onde. Dès que l'une des deux est connue, c'est elle qui vaut. */
 const DUREE_SUPPOSEE = 44;
 
 export function Lecteur({ vue, page, element, onPage, onElement }: Props): JSX.Element {
-  const [enLecture, setEnLecture] = useState(false);
   const [boucle, setBoucle] = useState(false);
   const [tempo, setTempo] = useState(75);
   const [zoom, setZoom] = useState(100);
@@ -54,12 +56,26 @@ export function Lecteur({ vue, page, element, onPage, onElement }: Props): JSX.E
     [elements, rang, onElement],
   );
 
+  const position = actif?.media?.position;
+  const connu = position?.segment === "connu" ? position : undefined;
+  // Sans segment vérifié, la lecture commence au début de la piste et court jusqu'au bout : on
+  // ne pose pas un curseur là où l'on ne sait pas (ANC-03).
+  const departS = connu?.debut ?? 0;
+
+  const ecoute = useEcoute({
+    source: actif?.media?.source,
+    debutS: departS,
+    ...(connu === undefined ? {} : { finS: connu.fin }),
+    boucle,
+    ...(actif?.media?.duree === undefined ? {} : { dureeAnnonceeS: actif.media.duree }),
+  });
+
   useEffect(() => {
     const ecouter = (evenement: KeyboardEvent): void => {
       const action = actionDe(evenement.key, evenement.target);
       if (action === undefined) return;
       evenement.preventDefault();
-      if (action === "lecture") setEnLecture((avant) => !avant);
+      if (action === "lecture") ecoute.basculer();
       if (action === "precedent") aller(-1);
       if (action === "suivant") aller(1);
       if (action === "boucle") setBoucle((avant) => !avant);
@@ -69,26 +85,25 @@ export function Lecteur({ vue, page, element, onPage, onElement }: Props): JSX.E
     };
     globalThis.addEventListener("keydown", ecouter);
     return () => globalThis.removeEventListener("keydown", ecouter);
-  }, [aller]);
+  }, [aller, ecoute]);
+
+  const dureeS = ecoute.dureeS > 0 ? ecoute.dureeS : DUREE_SUPPOSEE;
 
   /** Les segments de la piste de l'élément actif : le sien, et ceux de ses voisins sur la même
    *  piste. Faute de segment vérifié, on montre la piste entière et on le dit. */
   const segments: readonly Segment[] = useMemo(() => {
     if (actif?.media === undefined) return [];
     const surLaMemePiste = elements.filter((e) => e.media?.piste === actif.media?.piste);
-    const duree = DUREE_SUPPOSEE;
-    return surLaMemePiste.map((e, position) => {
-      const connu = e.media?.position.segment === "connu" ? e.media.position : undefined;
+    return surLaMemePiste.map((e, rang) => {
+      const sien = e.media?.position.segment === "connu" ? e.media.position : undefined;
       return {
-        debut: connu?.debut ?? (position * duree) / Math.max(1, surLaMemePiste.length),
-        fin: connu?.fin ?? ((position + 1) * duree) / Math.max(1, surLaMemePiste.length),
+        debut: sien?.debut ?? (rang * dureeS) / Math.max(1, surLaMemePiste.length),
+        fin: sien?.fin ?? ((rang + 1) * dureeS) / Math.max(1, surLaMemePiste.length),
         libelle: e.numero,
         actif: e.ancreId === actif.ancreId,
       };
     });
-  }, [actif, elements]);
-
-  const departS = actif?.media?.position.segment === "connu" ? actif.media.position.debut : 0;
+  }, [actif, elements, dureeS]);
 
   return (
     <main id="contenu" className="ln-lecteur" tabIndex={-1}>
@@ -165,12 +180,12 @@ export function Lecteur({ vue, page, element, onPage, onElement }: Props): JSX.E
               element={actif}
               mots={vue.mots}
               segments={segments}
-              dureeS={DUREE_SUPPOSEE}
-              positionS={departS}
-              enLecture={enLecture}
+              dureeS={dureeS}
+              positionS={ecoute.positionS}
+              ecoute={ecoute}
               boucle={boucle}
               tempo={tempo}
-              onLecture={() => setEnLecture(!enLecture)}
+              onLecture={ecoute.basculer}
               onBoucle={() => setBoucle(!boucle)}
               onTempo={setTempo}
               onPrecedent={() => aller(-1)}

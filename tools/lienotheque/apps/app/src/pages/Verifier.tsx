@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState, type JSX } from "react";
 import { accorder, nommer, type CasDouteux, type EtatDoute, type NatureDoute, type VueBibliotheque } from "@lienotheque/contrats";
 import { Bouton, FilAriane, Icone } from "../composants/index.js";
 import type { NomIcone } from "../composants/Icone.js";
+import { useEcoute } from "../ecoute/useEcoute.js";
+import { minutage } from "../donnees/positions.js";
 import "./Verifier.css";
 
 /** Vérifier (B2 — UX-03, SYN-04, SYN-05, SYN-07).
@@ -57,14 +59,26 @@ export function Verifier({ vue, onDecision, onAnnuler, derniere }: Props): JSX.E
   const cas = useMemo(() => vue.douteux.filter((c) => filtre === "tous" || c.nature === filtre), [vue.douteux, filtre]);
   const actif = cas.find((c) => c.id === ouvert) ?? cas[0];
 
+  // Le segment proposé, écouté avec le lecteur du Lecteur. Sans segment vérifié, on part du
+  // début de la piste et on le dit : on ne pose pas un curseur là où l'on ne sait pas (ANC-03).
+  const position = actif?.element?.media?.position;
+  const segmentConnu = position?.segment === "connu" ? position : undefined;
+  const ecoute = useEcoute({
+    source: actif?.element?.media?.source,
+    debutS: segmentConnu?.debut ?? 0,
+    ...(segmentConnu === undefined ? {} : { finS: segmentConnu.fin }),
+    ...(actif?.element?.media?.duree === undefined ? {} : { dureeAnnonceeS: actif.element.media.duree }),
+  });
+
   const decider = useCallback(
     (decision: Decision) => {
       if (actif === undefined) return;
+      ecoute.arreter();
       onDecision(actif, decision);
       const rang = cas.indexOf(actif);
       setOuvert(cas[rang + 1]?.id ?? cas[rang - 1]?.id);
     },
-    [actif, cas, onDecision],
+    [actif, cas, onDecision, ecoute],
   );
 
   useEffect(() => {
@@ -249,11 +263,34 @@ export function Verifier({ vue, onDecision, onAnnuler, derniere }: Props): JSX.E
                     {nommer(vue.mots.piste, actif.element.media.piste)} · Segment proposé
                   </h3>
                   <div className="ln-cas__onde">
-                    <button type="button" className="ln-cas__ecouter" aria-label="Écouter le segment proposé">
-                      <Icone nom="lecture" />
+                    {/* Le même lecteur qu'au Lecteur : on décide d'un lien en l'écoutant comme
+                        on l'écoutera ensuite. Un aperçu qui sonnerait autrement ferait trancher
+                        sur autre chose que ce qui sera livré. */}
+                    <button
+                      type="button"
+                      className="ln-cas__ecouter"
+                      onClick={ecoute.basculer}
+                      aria-pressed={ecoute.enLecture}
+                      disabled={!ecoute.disponible || ecoute.enPanne}
+                      aria-label={ecoute.enLecture ? "Interrompre le segment proposé" : "Écouter le segment proposé"}
+                    >
+                      <Icone nom={ecoute.enLecture ? "pause" : "lecture"} />
                     </button>
                     <span className="ln-cas__onde-trace" aria-hidden="true" />
+                    <span className="ln-cas__onde-temps">{minutage(ecoute.positionS)}</span>
                   </div>
+                  {segmentConnu ? null : (
+                    <p className="ln-cas__onde-note">
+                      <Icone nom="info" />
+                      Segment inconnu : la lecture commence au début — {vue.mots.piste.un} {actif.element.media.piste}.
+                    </p>
+                  )}
+                  {ecoute.disponible && !ecoute.enPanne ? null : (
+                    <p className="ln-cas__onde-note">
+                      <Icone nom="info" />
+                      {ecoute.disponible ? "Média illisible ici." : "Média non disponible ici."}
+                    </p>
+                  )}
                 </section>
               )}
 

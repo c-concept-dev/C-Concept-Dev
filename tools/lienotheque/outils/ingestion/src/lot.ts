@@ -46,6 +46,9 @@ export type Lot = {
   readonly images?: string | undefined;
   /** Adresse à laquelle ces images seront servies. */
   readonly adresseImages?: string | undefined;
+  /** Adresse à laquelle les médias seront servis. Absente, l'instantané n'en porte aucune, et
+   *  les écrans disent « média non disponible ici » plutôt que de faire semblant (ANC-05). */
+  readonly adresseMedias?: string | undefined;
 };
 
 /** Quel numéro imprimé porte chaque rang du document, d'après l'interprète.
@@ -118,5 +121,9 @@ export async function instantaneDeLot(lot: Lot): Promise<VueBibliotheque> {
     // redéclarer ailleurs, c'est se donner deux seuils et finir par en oublier un.
     seuil: recette.validation.seuil_confiance,
     imageDePage: (page) => parPageImprimee.get(page),
+    // L'emplacement se résout à la lecture, pas à l'ingestion : la carte ne dit pas où le
+    // fichier habite, elle dit lequel c'est (ANC-05).
+    sourceDuMedia: (media) =>
+      lot.adresseMedias === undefined || media.nom === undefined ? undefined : `${lot.adresseMedias}/${encodeURIComponent(media.nom)}`,
   });
 }

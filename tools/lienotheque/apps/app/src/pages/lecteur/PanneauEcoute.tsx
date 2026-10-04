@@ -1,6 +1,7 @@
 import { forwardRef, type JSX } from "react";
 import { nommer, type ElementAffiche, type MotsBibliotheque } from "@lienotheque/contrats";
 import { Bouton, Icone } from "../../composants/index.js";
+import type { Ecoute } from "../../ecoute/useEcoute.js";
 import { minutage } from "../../donnees/positions.js";
 import { TEMPO_MAX, TEMPO_MIN, TEMPO_PAS } from "./raccourcis.js";
 
@@ -18,7 +19,7 @@ type Props = {
   readonly segments: readonly Segment[];
   readonly dureeS: number;
   readonly positionS: number;
-  readonly enLecture: boolean;
+  readonly ecoute: Ecoute;
   readonly boucle: boolean;
   readonly tempo: number;
   readonly onLecture: () => void;
@@ -56,7 +57,7 @@ function Onde({ segments, dureeS }: { segments: readonly Segment[]; dureeS: numb
 }
 
 export const PanneauEcoute = forwardRef<HTMLDivElement, Props>(function PanneauEcoute(
-  { element, mots, segments, dureeS, positionS, enLecture, boucle, tempo, onLecture, onBoucle, onTempo, onPrecedent, onSuivant },
+  { element, mots, segments, dureeS, positionS, ecoute, boucle, tempo, onLecture, onBoucle, onTempo, onPrecedent, onSuivant },
   refSegmentActif,
 ): JSX.Element {
   const media = element.media;
@@ -104,13 +105,27 @@ export const PanneauEcoute = forwardRef<HTMLDivElement, Props>(function PanneauE
             </p>
           ) : null}
 
+          {/* Un des états prévus, pas une panne : le fichier est ailleurs, et on le dit plutôt
+              que d'offrir un bouton qui ne ferait rien. */}
+          {ecoute.disponible && !ecoute.enPanne ? null : (
+            <p className="ln-ecoute__absent">
+              <Icone nom="info" />
+              {ecoute.disponible ? "Média illisible ici." : "Média non disponible ici."}
+            </p>
+          )}
+
           <div className="ln-ecoute__transport">
             <button type="button" className="ln-ecoute__pas" onClick={onPrecedent} aria-label="Segment précédent">
               <Icone nom="precedent" />
             </button>
-            <Bouton variante="principal" onClick={onLecture} aria-pressed={enLecture}>
-              <Icone nom={enLecture ? "pause" : "lecture"} />
-              <span className="ln-sr-only">{enLecture ? "Interrompre" : "Lire"}</span>
+            <Bouton
+              variante="principal"
+              onClick={onLecture}
+              aria-pressed={ecoute.enLecture}
+              disabled={!ecoute.disponible || ecoute.enPanne}
+            >
+              <Icone nom={ecoute.enLecture ? "pause" : "lecture"} />
+              <span className="ln-sr-only">{ecoute.enLecture ? "Interrompre" : "Lire"}</span>
             </Bouton>
             <button type="button" className="ln-ecoute__pas" onClick={onSuivant} aria-label="Segment suivant">
               <Icone nom="suivant" />

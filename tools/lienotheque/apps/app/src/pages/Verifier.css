@@ -360,3 +360,21 @@
   font-size: 14px;
   line-height: 1.6;
 }
+
+/* Minutage et notes de l'aperçu : même ton que « segment inconnu » au Lecteur. */
+.ln-cas__onde-temps {
+  margin-inline-start: auto;
+  padding-inline-end: calc(var(--ln-grid));
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ln-text-secondary);
+}
+
+.ln-cas__onde-note {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 0.75);
+  margin: calc(var(--ln-grid)) 0 0 0;
+  font-size: 13px;
+  color: var(--ln-text-secondary);
+}

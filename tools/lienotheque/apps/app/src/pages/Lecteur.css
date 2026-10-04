@@ -463,3 +463,14 @@ img.ln-vignettes__feuille {
   object-fit: contain;
   background: var(--ln-surface);
 }
+
+/* Média hors d'atteinte : un état prévu par le CDC, pas une erreur. Même ton que « segment
+   inconnu » — on renseigne, on n'alarme pas. */
+.ln-ecoute__absent {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 0.75);
+  margin: 0 0 calc(var(--ln-grid)) 0;
+  font-size: 13px;
+  color: var(--ln-text-secondary);
+}

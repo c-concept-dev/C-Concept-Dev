@@ -47,6 +47,12 @@ export const ElementAffiche = z
         /** Durée de la piste, en secondes, quand le dépôt la connaît : sans elle, un segment ne
          *  peut pas se situer sur une forme d'onde. */
         duree: z.number().positive().optional(),
+        /** Où le média est servi, quand il est joignable d'ici (ANC-05).
+         *
+         *  L'emplacement se résout à la lecture, jamais à l'ingestion : la même carte vaut pour
+         *  un fichier local et pour le même fichier ailleurs. Absente, c'est l'état « média non
+         *  disponible ici » — on le dit, on ne fait pas semblant de pouvoir lire. */
+        source: z.string().min(1).optional(),
       })
       .strict()
       .optional(),

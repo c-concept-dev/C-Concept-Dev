@@ -28,6 +28,8 @@ export type Entree = {
   readonly seuil: number;
   /** Titre de page, quand on en connaît un. */
   readonly titreDePage?: (page: number) => string | undefined;
+  /** Où un média est servi, quand il est joignable depuis les écrans (ANC-05). */
+  readonly sourceDuMedia?: (media: MediaIngere) => string | undefined;
   /** Image de la page, sa vignette et ses dimensions, quand le lot en a exporté. */
   readonly imageDePage?: (
     page: number,
@@ -119,6 +121,7 @@ export function construireVue(entree: Entree): VueBibliotheque {
 
   for (const ligne of entree.lignes) {
     const media = ligne.piste === undefined ? undefined : parPiste.get(`${ligne.disque}/${ligne.piste}`);
+    const source = media === undefined ? undefined : entree.sourceDuMedia?.(media);
     const ancreId = identifiantDe(`${entree.id}/element-${ligne.numero}`);
     const etat = doute(ligne, entree.seuil);
 
@@ -136,6 +139,8 @@ export function construireVue(entree: Entree): VueBibliotheque {
               nom: media.nom ?? `${entree.mots.piste.un} ${media.piste}`,
               piste: media.piste,
               position: media.decoupe === undefined ? { segment: "inconnu" } : { segment: "inconnu" },
+              ...(media.dureeS === undefined ? {} : { duree: media.dureeS }),
+              ...(source === undefined ? {} : { source }),
             },
             pourquoi: { preuve: ligne.sourcePiste === "pastille" ? "lu" : "sequence", confiance: ligne.confiance, phrase: phraseDuLien(ligne, entree.mots) },
           }),
