@@ -43,7 +43,15 @@ export const ElementAffiche = z
     zone: ZoneRelative.optional(),
     /** Le média relié, quand il y en a un. Beaucoup d'éléments n'en ont pas. */
     media: z
-      .object({ empreinte: Empreinte, nom: z.string().min(1), piste: z.number().int().positive(), position: PositionDansPiste })
+      .object({
+        empreinte: Empreinte,
+        nom: z.string().min(1),
+        piste: z.number().int().positive(),
+        position: PositionDansPiste,
+        /** Durée de la piste, en secondes, quand le dépôt la connaît : sans elle, un segment ne
+         *  peut pas se situer sur une forme d'onde. */
+        duree: z.number().positive().optional(),
+      })
       .strict()
       .optional(),
     pourquoi: Pourquoi.optional(),

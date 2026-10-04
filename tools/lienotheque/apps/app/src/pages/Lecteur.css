@@ -1,0 +1,387 @@
+/* Lecteur (B1). Correction 3 : l'écran tient dans la hauteur de la fenêtre — barre en haut,
+   vignettes, feuille et panneaux sur une ligne — et c'est la feuille qui défile, pas l'écran. */
+
+.ln-lecteur {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: calc(var(--ln-grid) * 2);
+  padding: calc(var(--ln-grid) * 3) calc(var(--ln-grid) * 4);
+  overflow: hidden;
+}
+
+.ln-lecteur--vide {
+  display: block;
+  overflow: auto;
+}
+
+.ln-lecteur__barre {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: calc(var(--ln-grid) * 2);
+}
+
+.ln-lecteur__situation {
+  display: grid;
+  gap: calc(var(--ln-grid) * 0.5);
+}
+
+.ln-lecteur__titre {
+  font-size: 22px;
+  margin: 0;
+}
+
+.ln-lecteur__zoom,
+.ln-tempo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ln-grid);
+}
+
+.ln-lecteur__facteur,
+.ln-tempo__valeur {
+  min-width: calc(var(--ln-grid) * 7);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: var(--ln-text-primary);
+}
+
+/* Trois colonnes : les vignettes, la feuille, les panneaux. Chacune a sa propre hauteur
+   disponible et son propre défilement : `min-height: 0` est ce qui l'autorise dans une grille. */
+.ln-lecteur__corps {
+  position: relative;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: calc(var(--ln-grid) * 14) minmax(0, 1fr) minmax(320px, 26rem);
+  gap: calc(var(--ln-grid) * 2);
+}
+
+.ln-vignettes {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.ln-vignettes__liste {
+  display: grid;
+  gap: var(--ln-grid);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ln-vignette {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 1px solid var(--ln-border-decorative);
+  border-radius: var(--ln-radius);
+  background: var(--ln-surface);
+  overflow: hidden;
+}
+
+.ln-vignette--courante {
+  border-color: var(--ln-action-background);
+  box-shadow: 0 0 0 1px var(--ln-action-background);
+}
+
+.ln-vignette__feuille {
+  display: block;
+  /* Proportion d'une page : la vignette dit déjà de quoi il s'agit sans l'image. */
+  aspect-ratio: 3 / 4;
+  background: var(--ln-progress-track);
+}
+
+/* Correction 2 : le numéro est posé sur son propre panneau — graphite et opaque en hybride. */
+.ln-vignette__numero {
+  position: absolute;
+  inset-block-end: var(--ln-grid);
+  inset-inline-end: var(--ln-grid);
+  min-width: calc(var(--ln-grid) * 3.5);
+  padding: calc(var(--ln-grid) * 0.25) calc(var(--ln-grid) * 0.75);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: var(--ln-text-primary);
+  border: 1px solid var(--ln-border-decorative);
+}
+
+.ln-lecteur__feuille {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border-radius: var(--ln-radius);
+  background: var(--ln-surface);
+  border: 1px solid var(--ln-border-decorative);
+  padding: calc(var(--ln-grid) * 2);
+}
+
+.ln-lecteur__cote {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: grid;
+  align-content: start;
+  gap: calc(var(--ln-grid) * 2);
+}
+
+/* La page et ses zones. Les zones se posent en parts de la feuille : le zoom ne les déplace pas. */
+.ln-page {
+  margin-inline: auto;
+}
+
+.ln-page__feuille {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  background: var(--ln-print-background);
+  border: 1px solid var(--ln-border-decorative);
+  border-radius: var(--ln-radius);
+  overflow: hidden;
+}
+
+.ln-page__image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.ln-page__attente {
+  display: grid;
+  place-content: center;
+  gap: var(--ln-grid);
+  height: 100%;
+  color: var(--ln-print-secondary);
+}
+
+.ln-page__numero {
+  font-size: 44px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.ln-page__titre {
+  text-align: center;
+  font-size: 13px;
+}
+
+/* Correction 5 : chaque zone porte un cadre fin, l'active un cadre cuivre. On voit ce qui est
+   cliquable sans avoir à le survoler. */
+.ln-page__zone {
+  position: absolute;
+  display: block;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--ln-border-decorative);
+  border-radius: calc(var(--ln-radius) / 2);
+}
+
+.ln-page__zone:hover {
+  border-color: var(--ln-control-border);
+  background: var(--ln-selection-background);
+}
+
+.ln-page__zone--actif {
+  border: 2px solid var(--ln-thread);
+  background: var(--ln-selection-background);
+}
+
+.ln-page__zone-numero {
+  position: absolute;
+  inset-block-start: calc(var(--ln-grid) * -1.25);
+  inset-inline-start: calc(var(--ln-grid) * -0.5);
+  padding: 0 calc(var(--ln-grid) * 0.5);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ln-print-text);
+  background: var(--ln-print-background);
+  border: 1px solid var(--ln-border-decorative);
+  border-radius: calc(var(--ln-radius) / 2);
+}
+
+.ln-page__zone--actif .ln-page__zone-numero {
+  border-color: var(--ln-thread);
+}
+
+/* Le fil : un tracé continu, en cuivre clair, du bord de la zone au segment de l'onde. */
+.ln-fil-segment {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.ln-fil-segment path {
+  fill: none;
+  stroke: var(--ln-thread);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
+.ln-fil-segment circle {
+  fill: var(--ln-thread);
+}
+
+/* Panneau d'écoute. */
+.ln-ecoute__entete {
+  display: grid;
+  gap: calc(var(--ln-grid) * 0.25);
+  margin-block-end: var(--ln-grid);
+}
+
+.ln-ecoute__titre {
+  font-size: 16px;
+  margin: 0;
+}
+
+.ln-ecoute__fichier {
+  overflow-wrap: anywhere;
+}
+
+/* Correction 5 : l'onde est en gris pierre, le segment proposé en cuivre clair. */
+.ln-onde {
+  display: block;
+  width: 100%;
+  height: calc(var(--ln-grid) * 8);
+}
+
+.ln-onde__barre {
+  fill: var(--ln-progress-track);
+}
+
+.ln-onde__barre--actif {
+  fill: var(--ln-thread);
+}
+
+.ln-onde__segment {
+  fill: var(--ln-selection-background);
+}
+
+.ln-onde__tete {
+  fill: var(--ln-progress-outline);
+}
+
+.ln-ecoute__bornes {
+  margin: var(--ln-grid) 0 calc(var(--ln-grid) * 2);
+  font-variant-numeric: tabular-nums;
+}
+
+.ln-ecoute__commandes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ln-grid);
+}
+
+.ln-pourquoi {
+  margin-block-start: calc(var(--ln-grid) * 2);
+  padding-block-start: calc(var(--ln-grid) * 2);
+  border-block-start: 1px solid var(--ln-border-decorative);
+}
+
+.ln-pourquoi__phrase {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ln-grid);
+  margin: 0 0 calc(var(--ln-grid) * 0.5);
+  color: var(--ln-text-primary);
+}
+
+.ln-pourquoi__confiance {
+  margin: 0;
+}
+
+.ln-legende {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--ln-grid) * 1.5);
+  margin: calc(var(--ln-grid) * 2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ln-legende__item {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 0.5);
+}
+
+.ln-legende__touche {
+  font: inherit;
+  padding: 0 calc(var(--ln-grid) * 0.75);
+  border: 1px solid var(--ln-border-decorative);
+  border-radius: calc(var(--ln-radius) / 2);
+  color: var(--ln-text-primary);
+}
+
+/* Texte de la page. */
+.ln-texte__entete {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ln-grid);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ln-text-primary);
+}
+
+.ln-texte__titre {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.ln-texte .ln-bascule {
+  margin-block: calc(var(--ln-grid) * 1.5);
+}
+
+.ln-texte__lignes {
+  display: grid;
+  gap: calc(var(--ln-grid) * 0.5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--ln-text-primary);
+}
+
+.ln-texte__ligne--lue {
+  background: var(--ln-selection-background);
+  color: var(--ln-selection-text);
+  border-radius: calc(var(--ln-radius) / 2);
+  padding-inline: calc(var(--ln-grid) * 0.5);
+}
+
+/* Fenêtre étroite : les trois colonnes passent en deux, puis en une, et l'écran se remet à
+   défiler d'un bloc — tenir dans la hauteur n'a plus de sens quand il n'y a plus de place. */
+@media (max-width: 1100px) {
+  .ln-lecteur {
+    height: auto;
+    overflow: visible;
+    padding: calc(var(--ln-grid) * 2);
+  }
+
+  .ln-lecteur__corps {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ln-vignettes,
+  .ln-lecteur__feuille,
+  .ln-lecteur__cote {
+    overflow: visible;
+  }
+
+  .ln-vignettes__liste {
+    grid-auto-flow: column;
+    grid-auto-columns: calc(var(--ln-grid) * 9);
+    overflow-x: auto;
+  }
+
+  .ln-fil-segment {
+    display: none;
+  }
+}
