@@ -13,8 +13,8 @@
 | --- | --- |
 | Lot | HTML-FINAL-02 |
 | Artefact | Atelier de prompts — V11.5 LOT 10G Adaptive Decision Pipeline |
-| Commit local | `b923bac9ddd5a5f6a5a712a9171f6840658ccee2` |
-| Date du commit | 2026-10-04T09:43:45+02:00 |
+| Commit local | `75fa3e0bf1361bab783e67ba39e1787bc4da147c` |
+| Date du commit | 2026-10-04T11:30:30+02:00 |
 
 ## Artefact canonique
 
@@ -54,12 +54,12 @@ Le bloc embarqué dans la page et le fichier généré sont comparés octet pour
 
 ## Jeu de release
 
-342 fichiers. C'est ce qui doit exister pour **servir** la page,
+343 fichiers. C'est ce qui doit exister pour **servir** la page,
 **redéployer** les workers qui la soutiennent, et **reconstruire puis vérifier**
 l'artefact. Le manifeste lui-même en est exclu : un document ne peut pas contenir
 sa propre empreinte.
 
-| Empreinte du jeu | `ad705bcac7cd5ec233633492e2e79f76663dec555c90c62d19424f54496fec14` |
+| Empreinte du jeu | `3fba5898f30fb51f9720fe667fa1b44f61f3bdc80af9ca31134280d4e2eaeffd` |
 | --- | --- |
 
 | Classe | Fichier | SHA-256 |
@@ -85,7 +85,7 @@ sa propre empreinte.
 | REQUIRED_BUILD | `core/adn/rapide-canonical-enrichment.js` | `f40a80b2afa34fb74cdf83a13e0ec450d342b80839e58dd5662da29f2dc93a39` |
 | REQUIRED_BUILD | `core/adn/routing-engine.js` | `529a73614a5ebf8262367bb1b2facc3fcedd40df73bd6c4ed16048a825a9930c` |
 | REQUIRED_RUNTIME | `core/documents/archive.js` | `55c27f7fec7eaf965fe95b78be9bdbba01b601bcfdb50257c0567f3086fe979d` |
-| REQUIRED_RUNTIME | `core/documents/reader.js` | `61ba7f99ec881333c00317a5bdc92fd56bb89ad6d856b01ce33ed5436999e009` |
+| REQUIRED_RUNTIME | `core/documents/reader.js` | `65aed40a368085a0ae5feef34c257395c1e6fc5979d133d21366e8fe867340ff` |
 | REQUIRED_RUNTIME | `core/documents/vendor/fflate-LICENSE` | `0a1df3a083d0c010560aa342e87959c8c1070e6fd54545741f083f22d0c8b551` |
 | REQUIRED_RUNTIME | `core/documents/vendor/fflate.mjs` | `b7ca4450b19559a1d50eb381adcee94b82449674be4cd17789d9beba7e6122a1` |
 | REQUIRED_RUNTIME | `core/documents/vendor/pdf/LICENSE` | `0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594` |
@@ -380,6 +380,7 @@ sa propre empreinte.
 | REQUIRED_DOC | `docs/OPRIE-MATERIAL-PROVENANCE-CONFORMANCE-01.md` | `4ddff6fe8e24a8cd1eae2bfcc5798ac4b7d6fccd02542148602fb3291bae63f9` |
 | REQUIRED_DOC | `docs/OPRIE-QUALITY-PARITY-01.md` | `d46a60a86d4883e935e575e0ec8e1ce9f177614942903ee64ec88560d6eb1a2b` |
 | REQUIRED_DOC | `docs/OPRIE-REFERENCE-ORACLE-01.md` | `e09e87dd9092a3e98f59aa1773dc19ede0cda8fbf63fdd8be226c8d127a8814f` |
+| REQUIRED_DOC | `docs/PDF-SAFARI-01.md` | `3e7cf8bc82a1cb49c7cf5c3e7cad99820e122e2b23c498cf15be1d9bd3948963` |
 | REQUIRED_DOC | `docs/PERF-CAPACITY-DECISION-01.md` | `6a0e659414e4d3e28c320646b8a8f839a619f80455a037ba823bc8329eb7c553` |
 | REQUIRED_DOC | `docs/PERF-NOMINAL-PROVIDER-01.md` | `2bd66e87aedf0b0e29fe095db6177a503bb29d5928d222befa87012378eea0fd` |
 | REQUIRED_DOC | `docs/PERF-REAL-01-REPORT.md` | `4d3b16bf400738cffb21995deb9302788dc67dd8da25649cecc7592b345bd77e` |
@@ -411,8 +412,8 @@ sa propre empreinte.
 
 | Classe | Fichiers | Raison |
 | --- | --- | --- |
-| REQUIRED_TEST_ONLY | 222 | preuves ; ne sont pas servies |
-| EVALUATION_ONLY | 377 | bancs et campagnes, dont le worker `…-local-only` |
+| REQUIRED_TEST_ONLY | 223 | preuves ; ne sont pas servies |
+| EVALUATION_ONLY | 378 | bancs et campagnes, dont le worker `…-local-only` |
 | AUDIT_ONLY | 76 | relevés des lots passés |
 | PROVENANCE | 2 | trace de la dérivation de l'artefact courant |
 
@@ -437,7 +438,7 @@ par ce script.*
 | EXEC-PHASE-INSTRUMENT-01 | CLOSED |
 | FC01b FINAL | CLOSED |
 | HTML-FINAL-01 / 01A | CLOSED |
-| Tests au vert | 3768 |
+| Tests au vert | 3778 |
 
 ## Dette encore ouverte
 

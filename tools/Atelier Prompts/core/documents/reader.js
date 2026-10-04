@@ -3,6 +3,62 @@
 export const DOCUMENT_LIMITS = Object.freeze({ fileBytes: 40 * 1024 * 1024, pages: 300,
   textChars: 180000, archiveBytes: 32 * 1024 * 1024, imagePixels: 20000000 });
 const asset = path => new URL(`./vendor/${path}`, import.meta.url).href;
+
+/* PDF-SAFARI-01 — Safari does not iterate a ReadableStream, and PDF.js assumes it does.
+ *
+ * MEASURED, in the user's own Safari 26.3 (WebKit 605.1.15), on their own files:
+ *   ReadableStream.prototype[Symbol.asyncIterator] -> undefined
+ *   ReadableStream.prototype.values                -> undefined
+ *   ReadableStream.prototype.getReader             -> function
+ * Every PDF therefore died on its first page with
+ *   TypeError: undefined is not a function (near '...value of readableStream...')
+ *   at getTextContent (vendor/pdf/pdf.mjs:16040) <- extractDocument (reader.js)
+ * because PDFPageProxy.getTextContent() consumes its own stream with
+ * `for await (const value of readableStream)`. Chromium, Firefox and the WebKit build that
+ * Playwright bundles all implement that iteration, which is exactly why the fault was invisible
+ * to every automated engine and only ever showed up in real Safari.
+ *
+ * WHY A SHIM AND NOT A CHANGE OF CALL SITE. The alternative was to stop calling getTextContent()
+ * and drain page.streamTextContent() ourselves. That would have moved the reader onto a less
+ * public PDF.js method, duplicated the lang/styles assembly that getTextContent() already does,
+ * and changed the contract every existing test of this reader is written against — a lot of
+ * surface for a gap that is one missing standard method. Nothing is patched in the vendored
+ * library, and no dependency is added or upgraded.
+ *
+ * WHAT IT INSTALLS. Exactly the WHATWG ReadableStream async iteration, and only when the engine
+ * lacks it: a reader-backed iterator that releases its lock when the stream ends or throws, and
+ * cancels on early exit unless preventCancel was asked for. On an engine that already has it this
+ * function does nothing at all, so Chromium and Firefox keep their native implementation. */
+export function installStreamAsyncIteration(target = typeof ReadableStream === 'function' ? ReadableStream : null) {
+  if (!target || target.prototype[Symbol.asyncIterator]) return false;
+  const values = function ({ preventCancel = false } = {}) {
+    const reader = this.getReader();
+    const iterator = {
+      async next() {
+        try {
+          const result = await reader.read();
+          if (result.done) reader.releaseLock();
+          return result;
+        } catch (error) { reader.releaseLock(); throw error; }
+      },
+      async return(value) {
+        /* An early `break`, `return` or `throw` inside `for await` lands here: the stream must not
+           stay locked, and it is cancelled unless the caller asked to keep it. */
+        if (preventCancel) reader.releaseLock();
+        else { const cancelled = reader.cancel(value); reader.releaseLock(); await cancelled; }
+        return { done: true, value };
+      },
+      [Symbol.asyncIterator]() { return this; }
+    };
+    return iterator;
+  };
+  target.prototype.values = values;
+  target.prototype[Symbol.asyncIterator] = values;
+  return true;
+}
+/* Installed on import, before any PDF is loaded: PDF.js reads the method off the prototype at the
+   moment it iterates, so the shim only has to exist by then. */
+installStreamAsyncIteration();
 const fail = message => { throw new Error(message); };
 function checkText(text) {
   if (text.length > DOCUMENT_LIMITS.textChars) fail('Texte trop long pour une analyse complète en un tour (180 000 caractères). Séparez le document en parties. Aucun extrait tronqué n’a été utilisé.');
