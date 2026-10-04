@@ -19546,7 +19546,7 @@ ${recent}`;
   // Boutons d'intention + champ libre AU MÊME NIVEAU VISUEL (jamais les boutons seuls) — même
   // patron que la carte de clarification déjà établie (cc-clarity-card/cc-clarity-reply-btn/
   // cc-clarity-other-btn), jamais un nouveau style réinventé pour ce panneau.
-  function adocBuildBlockEditPanelHTML(blockType) {
+  function adocBuildBlockEditPanelHTML(blockType, blockId) {
     const btn = function (key) {
       return '<button type="button" class="cc-clarity-reply-btn" onclick="window.adocRequestBlockCorrectionByIntent(\'' + key + '\')">' +
         adocEsc(ADOC_BLOCK_EDIT_INTENTS[key].label) + '</button>';
@@ -19572,7 +19572,7 @@ ${recent}`;
       '<div class="cc-block-edit-controls" style="display:flex;flex-wrap:wrap;align-items:flex-start;gap:8px;">' +
         btn('rewrite') + btn('shorten') + btn('expand') + btn('verifySources') +
         '<div style="width:1px;align-self:stretch;background:var(--stone-300);"></div>' +
-        insertBtn('before', 'Insérer un bloc avant') + insertBtn('after', 'Insérer un bloc après') + addImageBtn +
+        ((blockType === 'card' || (blockId || '').startsWith('root:card-title:')) ? '' : insertBtn('before', 'Insérer un bloc avant')) + insertBtn('after', 'Insérer un bloc après') + addImageBtn +
         '<div style="display:flex;gap:6px;flex:1 1 240px;min-width:240px;">' +
           '<textarea class="cc-block-edit-freetext adoc-textarea" style="flex:1;min-height:34px;max-height:120px;" ' +
             'placeholder="Ou décrivez la correction souhaitée…" rows="1" ' +
@@ -19732,7 +19732,7 @@ ${recent}`;
       // .is-selected une fois contextuel, mais garde un rappel textuel utile si le bloc défile
       // hors champ pendant que le panneau reste ouvert.
       const preview = adocEsc(adocBlockPreviewText(block)) || '(bloc sans texte)';
-      panel.innerHTML = adocBlockEditPanelHeaderHTML(preview) + adocBuildBlockEditPanelHTML(block.type);
+      panel.innerHTML = adocBlockEditPanelHeaderHTML(preview) + adocBuildBlockEditPanelHTML(block.type, blockId);
       adocMountContextualBlockEditPanel(panel, blockEl);
       window._adocBlockEditState = { storeKey: storeKey, blockId: blockId, panelEl: panel, pendingBlock: null, originalBlock: block, zone: 'text' };
       // Item 57c Lot 1 — ne vole plus le focus vers le champ libre pour un bloc directement
@@ -20411,89 +20411,62 @@ ${recent}`;
   // pipeline de rendu déjà partagé par adocOpenWorkspace) s'exécute de lui-même, sans nouveau
   // code de recherche — l'image n'est jamais sélectionnable via ce panneau (hors périmètre,
   // comme pour la correction de bloc).
-  window.adocConfirmBlockInsert = async function (direction, type, imageDescription) {
-    if (type === 'image' && !(imageDescription || '').trim()) return; // jamais de bloc image sans description
-    const st = window._adocBlockEditState;
-    if (!st.storeKey || !st.blockId) return;
-    const art = window._adocArtifacts && window._adocArtifacts[st.storeKey];
-    if (!art || !art._adocStructuredDoc) return;
-    const doc = art._adocStructuredDoc;
-    const siblings = adocEditorBlockContainer(doc, st.blockId) || [];
-    const idx = siblings.findIndex(function (b) { return b.id === st.blockId; });
-    if (idx === -1) { adocWsClearBlockSelection(); return; }
-    const newBlock = {
-      id: adocNextBlockId(doc, type),
-      type: type,
-      content: adocDefaultBlockContent(type, imageDescription),
-      citationIds: [], // jamais rattaché à un passage sourcé réel (cf. demande)
-      validation: {},
-    };
-    const insertIdx = direction === 'before' ? idx : idx + 1;
-    siblings.splice(insertIdx, 0, newBlock);
-    const storeKey = st.storeKey;
-    const newId = newBlock.id;
-    adocWsClearBlockSelection();
-    if (!await window.adocOpenWorkspace(storeKey)) { siblings.splice(insertIdx, 1); return; }
-    if (ADOC_BLOCK_EDIT_TYPES.indexOf(type) !== -1) {
-      const el = document.getElementById(newId);
-      if (el) el.click(); // même sélection que si l'utilisatrice venait de cliquer ce bloc
+  // Une résolution pour TOUS les parcours : texte, Pexels, fichier, Médias et vidéo.
+  function adocResolveBlockInsertion(doc, blockId, direction) {
+    if (direction !== 'before' && direction !== 'after') throw new Error('Position d’insertion invalide.');
+    if (!doc || !blockId) throw new Error('Sélectionnez un bloc avant d’insérer.');
+    const id = blockId.startsWith('root:card-title:') ? blockId.slice('root:card-title:'.length) : blockId;
+    const block = adocFindEditableBlock(doc, id);
+    if (block && block.type === 'card') {
+      if (direction === 'before') throw new Error('Un bloc ne peut pas précéder le titre d’une diapositive. Choisissez « après ».');
+      return { siblings: block.content.blocks, index: 0 };
     }
-  };
-
-  // Extraite d'adocConfirmBlockInsertFromFile (comportement identique, jamais réécrit) pour être
-  // réutilisée par le 3ᵉ mode « Choisir dans Médias » du sous-panneau d'insertion d'image
-  // (ci-dessous) SANS repasser par un upload local : cette fonction ne fait aucune hypothèse sur
-  // la provenance de assetId (fichier tout juste envoyé, ou déjà persisté par le panneau Médias)
-  // — une seule vraie logique de création de bloc image, jamais une troisième implémentation.
-  async function adocInsertImageBlockWithAsset(direction, assetId, label) {
-    const st = window._adocBlockEditState;
-    if (!st.storeKey || !st.blockId) return false;
-    const art = window._adocArtifacts && window._adocArtifacts[st.storeKey];
-    if (!art || !art._adocStructuredDoc) return false;
-    const doc = art._adocStructuredDoc;
-    const siblings = adocEditorBlockContainer(doc, st.blockId) || [];
-    const idx = siblings.findIndex(function (b) { return b.id === st.blockId; });
-    if (idx === -1) { adocWsClearBlockSelection(); return false; }
-    const newBlock = {
-      id: adocNextBlockId(doc, 'image'),
-      type: 'image',
-      content: { query: label, alt: label, assetId: assetId },
-      citationIds: [],
-      validation: {},
-    };
-    const insertIdx = direction === 'before' ? idx : idx + 1;
-    siblings.splice(insertIdx, 0, newBlock);
-    const storeKey = st.storeKey;
-    adocWsClearBlockSelection();
-    if (!await window.adocOpenWorkspace(storeKey)) { siblings.splice(insertIdx, 1); return false; }
-    return true;
+    if (blockId === 'root:doc-title') throw new Error('Le titre du document n’est pas un bloc. Sélectionnez un bloc de contenu pour insérer avant ou après.');
+    const siblings = adocEditorBlockContainer(doc, id);
+    const index = siblings ? siblings.findIndex(b => b.id === id) : -1;
+    if (index < 0) throw new Error('Le bloc sélectionné est introuvable. Sélectionnez-le à nouveau.');
+    return { siblings: siblings, index: direction === 'before' ? index : index + 1 };
   }
 
-  // Panneau "Médias", sous-onglet "Vidéos" — même mécanisme EXACT que adocInsertImageBlockWithAsset
-  // ci-dessus (aucune deuxième implémentation d'insertion dans la séquence), content.url/title au
-  // lieu de assetId : un lien vidéo est déjà une adresse concrète, jamais un identifiant à résoudre.
+  async function adocInsertStructuredBlock(direction, type, content) {
+    let target = null, inserted = null;
+    try {
+      const st = window._adocBlockEditState || {};
+      const art = window._adocArtifacts && window._adocArtifacts[st.storeKey];
+      if (!art || !art._adocStructuredDoc) throw new Error('Document ou sélection indisponible. Rouvrez le document et sélectionnez un bloc.');
+      const doc = art._adocStructuredDoc;
+      target = adocResolveBlockInsertion(doc, st.blockId, direction);
+      inserted = { id: adocNextBlockId(doc, type), type: type, content: content, citationIds: [], validation: {} };
+      target.siblings.splice(target.index, 0, inserted);
+      const storeKey = st.storeKey;
+      adocWsClearBlockSelection();
+      if (!await window.adocOpenWorkspace(storeKey)) throw new Error('Le rendu a refusé ce type de bloc à cet emplacement ; l’insertion a été annulée.');
+      adocEditorMarkDirty();
+      if (ADOC_BLOCK_EDIT_TYPES.includes(type)) document.getElementById(inserted.id)?.click();
+      return true;
+    } catch (e) {
+      if (target && inserted) {
+        const index = target.siblings.indexOf(inserted);
+        if (index >= 0) target.siblings.splice(index, 1);
+      }
+      alert('Insertion impossible : ' + (e && e.message || 'erreur inconnue'));
+      return false;
+    }
+  }
+
+  window.adocConfirmBlockInsert = async function (direction, type, imageDescription) {
+    if (type === 'image' && !adocRequeteImageUtilisable(imageDescription)) {
+      alert('Insertion impossible : décrivez l’image à rechercher.'); return false;
+    }
+    return adocInsertStructuredBlock(direction, type, adocDefaultBlockContent(type, imageDescription));
+  };
+
+  async function adocInsertImageBlockWithAsset(direction, assetId, label) {
+    return adocInsertStructuredBlock(direction, 'image', { query: label, alt: label, assetId: assetId });
+  }
+
   async function adocInsertVideoBlockWithLink(direction, url, title) {
-    const st = window._adocBlockEditState;
-    if (!st.storeKey || !st.blockId) return false;
-    const art = window._adocArtifacts && window._adocArtifacts[st.storeKey];
-    if (!art || !art._adocStructuredDoc) return false;
-    const doc = art._adocStructuredDoc;
-    const siblings = adocEditorBlockContainer(doc, st.blockId) || [];
-    const idx = siblings.findIndex(function (b) { return b.id === st.blockId; });
-    if (idx === -1) { adocWsClearBlockSelection(); return false; }
-    const newBlock = {
-      id: adocNextBlockId(doc, 'video'),
-      type: 'video',
-      content: { url: url, title: title },
-      citationIds: [],
-      validation: {},
-    };
-    const insertIdx = direction === 'before' ? idx : idx + 1;
-    siblings.splice(insertIdx, 0, newBlock);
-    const storeKey = st.storeKey;
-    adocWsClearBlockSelection();
-    if (!await window.adocOpenWorkspace(storeKey)) { siblings.splice(insertIdx, 1); return false; }
-    return true;
+    return adocInsertStructuredBlock(direction, 'video', { url: url, title: title });
   }
 
   // LOT C (cas 4, insertion par glisser-déposer) — variante d'adocConfirmBlockInsert ci-dessus
@@ -20505,7 +20478,7 @@ ${recent}`;
   // nouveau bloc diffère (assetId au lieu de query).
   window.adocConfirmBlockInsertFromFile = async function (direction, file) {
     const st = window._adocBlockEditState;
-    if (!st.storeKey || !st.blockId) return;
+    if (!st.storeKey || !st.blockId) { alert('Insertion impossible : sélectionnez un bloc.'); return; }
     // CORRECTIF (Lot C cas 4) — même retour visuel que adocHandleImageDrop ci-dessus
     // (adocSetImageDropBusy), posé ici sur la petite zone de dépôt du panneau d'insertion
     // (0B précisé — un seul .cc-block-edit-panel existe à la fois sur toute la page, cf.
@@ -21751,7 +21724,7 @@ ${recent}`;
     };
     const insertHTML = kind === 'cell' ? '' :
       '<div style="width:1px;align-self:stretch;background:var(--stone-300);"></div>' +
-      insertBtn('before', 'Insérer un bloc avant') + insertBtn('after', 'Insérer un bloc après');
+      ((blockType === 'card' || (blockId || '').startsWith('root:card-title:')) ? '' : insertBtn('before', 'Insérer un bloc avant')) + insertBtn('after', 'Insérer un bloc après');
     return '<div class="cc-clarity-question sc-icon-label">' + adocIconSvg('icon-clarify') + '<span>Corriger ce passage</span></div>' +
       '<div class="cc-block-edit-controls" style="display:flex;flex-wrap:wrap;align-items:flex-start;gap:8px;">' +
         btn('rewrite') + btn('shorten') + btn('expand') + btn('verifySources') + insertHTML +
