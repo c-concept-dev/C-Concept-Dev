@@ -137,12 +137,14 @@ function para(id, text) { return { id: id, type: 'paragraph', content: { text: t
 
   // ── Test 1 : sauvegarde réelle → miniature réelle capturée et persistée (jamais un texte
   // générique), le tout SANS bloquer la réactivation du bouton "Enregistrer" ──
+  // Armer l’attente avant le clic : une réponse locale peut précéder le retour de click().
+  const thumbnailSaved = page.waitForResponse((r) => r.url().endsWith('/clinical-documents/' + DOCUMENT_ID + '/thumbnail') && r.request().method() === 'POST');
   await page.click('#cc-ws-save-btn');
   await page.waitForFunction(() => !document.getElementById('cc-ws-save-btn').disabled);
   assert.equal(createCalls, 1, 'la sauvegarde doit créer réellement le document (POST /clinical-documents)');
   // La capture de miniature est fire-and-forget (jamais attendue par le bouton) : on attend ICI
   // spécifiquement la fin de la chaîne capture→upload→association, preuve qu'elle a bien lieu.
-  await page.waitForResponse((r) => r.url().endsWith('/clinical-documents/' + DOCUMENT_ID + '/thumbnail') && r.request().method() === 'POST');
+  await thumbnailSaved;
   assert.equal(screenshotCalls, 1, 'une vraie capture (POST /browser-rendering/screenshot-slide) doit avoir eu lieu');
   // CORRECTIF miniature (cause confirmée : fullPage:true capturait la page ENTIÈRE du document,
   // recadrée ensuite par le CSS autour de son centre vertical, jamais du bandeau titre+couverture

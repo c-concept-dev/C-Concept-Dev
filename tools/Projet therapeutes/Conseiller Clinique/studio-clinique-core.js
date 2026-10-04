@@ -20434,9 +20434,10 @@ ${recent}`;
 
   window.adocRequestBlockInsert = function (direction) {
     const st = window._adocBlockEditState;
-    if (!st.storeKey || !st.panelEl) return;
+    if (!st.storeKey || !st.panelEl) { alert('Insertion impossible : sélectionnez un bloc à nouveau.'); return; }
     const controlsEl = st.panelEl.querySelector('.cc-block-edit-controls');
     const resultEl = st.panelEl.querySelector('.cc-block-edit-result');
+    if (!resultEl) { alert('Insertion impossible : panneau indisponible. Sélectionnez le bloc à nouveau.'); return; }
     if (controlsEl) controlsEl.hidden = true;
     // LOT 3 — controlsEl.hidden ne suffit PAS seul ici : son style inline display:flex (posé au
     // rendu, cf. adocBuildBlockEditPanelHTML) prime sur la règle [hidden] de la feuille de style
@@ -20457,7 +20458,7 @@ ${recent}`;
   // panneau de correction déjà existant prend le relais juste après (étape 3).
   window.adocChooseBlockInsertType = function (direction, type) {
     const st = window._adocBlockEditState;
-    if (!st.storeKey || !st.panelEl) return;
+    if (!st.storeKey || !st.panelEl) { alert('Insertion impossible : sélectionnez un bloc à nouveau.'); return; }
     if (type === 'image') {
       const resultEl = st.panelEl.querySelector('.cc-block-edit-result');
       if (!resultEl) { alert('Le panneau d’image est indisponible. Sélectionnez l’image à nouveau.'); return; }
@@ -20511,7 +20512,7 @@ ${recent}`;
     // "Ajouter" lui-même — même distinction que Photos entre "Rechercher" et "Insérer".
     if (type === 'video') {
       const resultEl = st.panelEl.querySelector('.cc-block-edit-result');
-      if (!resultEl) return;
+      if (!resultEl) { alert('Insertion impossible : panneau indisponible. Sélectionnez le bloc à nouveau.'); return; }
       resultEl.innerHTML =
         '<div class="cc-block-edit-label">Lien de la vidéo (serveur vidéo local)</div>' +
         '<input type="text" class="cc-block-edit-freetext adoc-textarea" id="cc-block-video-url-input" placeholder="http://localhost:47823/..." ' +
@@ -20783,7 +20784,7 @@ ${recent}`;
 
   window.adocMediaBlockInsertFromSearch = async function (direction, idx) {
     const item = window._adocBlockMediaSearchResults && window._adocBlockMediaSearchResults[idx];
-    if (!item) return;
+    if (!item) { alert('Insertion impossible : ce média est introuvable. Relancez la recherche ou l’historique.'); return false; }
     const btn = document.querySelector('#cc-block-media-search-results [data-media-search-insert="' + idx + '"]');
     if (btn) { btn.disabled = true; btn.textContent = 'Insertion…'; }
     try {
@@ -20804,7 +20805,7 @@ ${recent}`;
 
   window.adocMediaBlockInsertFromHistory = async function (direction, idx) {
     const item = window._adocBlockMediaHistoryResults && window._adocBlockMediaHistoryResults[idx];
-    if (!item) return;
+    if (!item) { alert('Insertion impossible : ce média est introuvable. Relancez la recherche ou l’historique.'); return false; }
     const btn = document.querySelector('#cc-block-media-history [data-media-history-insert="' + idx + '"]');
     if (btn) { btn.disabled = true; btn.textContent = 'Insertion…'; }
     try {
@@ -21380,7 +21381,7 @@ ${recent}`;
 
   window.adocVideoInsertFromBlockPicker = async function (direction, idx) {
     const item = window._adocBlockVideoHistoryResults && window._adocBlockVideoHistoryResults[idx];
-    if (!item) return;
+    if (!item) { alert('Insertion impossible : ce média est introuvable. Relancez la recherche ou l’historique.'); return false; }
     const btn = document.querySelector('#cc-block-video-history [data-video-insert="' + idx + '"]');
     if (btn) { btn.disabled = true; btn.textContent = 'Insertion…'; }
     const created = await adocInsertVideoBlockWithLink(direction, item.url, item.title);
@@ -21857,7 +21858,7 @@ ${recent}`;
     };
     const insertHTML = kind === 'cell' ? '' :
       '<div style="width:1px;align-self:stretch;background:var(--stone-300);"></div>' +
-      ((blockType === 'card' || (blockId || '').startsWith('root:card-title:')) ? '' : insertBtn('before', 'Insérer un bloc avant')) + insertBtn('after', 'Insérer un bloc après');
+      insertBtn('before', 'Insérer un bloc avant') + insertBtn('after', 'Insérer un bloc après');
     return '<div class="cc-clarity-question sc-icon-label">' + adocIconSvg('icon-clarify') + '<span>Corriger ce passage</span></div>' +
       '<div class="cc-block-edit-controls" style="display:flex;flex-wrap:wrap;align-items:flex-start;gap:8px;">' +
         btn('rewrite') + btn('shorten') + btn('expand') + btn('verifySources') + insertHTML +
