@@ -141,9 +141,12 @@ describe("Vérifier : les trois décisions (UX-03)", () => {
 });
 
 describe("Vérifier : défaire et garantir", () => {
-  it("n’offre d’annuler que s’il y a eu une décision", () => {
+  // Correction 6 : avant la première décision, l'écran dit qu'il n'y a rien à annuler. Un bouton
+  // inerte au même rang que « Confirmer » proposait un geste qui n'existait pas encore.
+  it("dit qu’il n’y a rien à annuler avant la première décision, sans bouton inerte (correction 6)", () => {
     poser();
-    expect(screen.getByRole("button", { name: /annuler la dernière décision/i })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: /annuler la dernière décision/i })).toBeNull();
+    expect(screen.getByText(/aucune décision à annuler/i)).toBeInTheDocument();
   });
 
   it("annule la dernière décision quand il y en a une", async () => {

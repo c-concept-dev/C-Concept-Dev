@@ -152,8 +152,19 @@ test.describe("contrastes (UX-07)", () => {
           return "rgb(255, 255, 255)";
         };
 
+        // Le texte qu'un nœud porte lui-même, sans celui de ses descendants : un `li` qui n'encadre
+        // qu'un bouton n'écrit rien sur le fond de la page, c'est le bouton qui porte son propre
+        // panneau. Compter le texte des descendants faisait lire le fond de la fenêtre là où
+        // l'œil voit celui de la carte.
+        const texteDirect = (noeud: Element): string =>
+          [...noeud.childNodes]
+            .filter((enfant) => enfant.nodeType === 3)
+            .map((enfant) => enfant.textContent ?? "")
+            .join("")
+            .trim();
+
         return [...document.querySelectorAll("p, li, h1, h2, h3, label, kbd")]
-          .filter((noeud) => (noeud.textContent ?? "").trim().length > 2)
+          .filter((noeud) => texteDirect(noeud).length > 2)
           .flatMap((noeud) => {
             const style = getComputedStyle(noeud);
             const texte = luminance(style.color);
@@ -161,7 +172,7 @@ test.describe("contrastes (UX-07)", () => {
             if (texte === undefined || fond === undefined) return [];
             const rapport = (Math.max(texte, fond) + 0.05) / (Math.min(texte, fond) + 0.05);
             const grand = Number.parseFloat(style.fontSize) >= 24;
-            return rapport < (grand ? 3 : 4.5) ? [`${(noeud.textContent ?? "").trim().slice(0, 30)} : ${rapport.toFixed(2)}`] : [];
+            return rapport < (grand ? 3 : 4.5) ? [`${texteDirect(noeud).slice(0, 30)} : ${rapport.toFixed(2)}`] : [];
           });
       });
       expect(faibles, "tout texte lisible").toEqual([]);

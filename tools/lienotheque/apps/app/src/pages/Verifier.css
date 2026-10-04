@@ -16,7 +16,7 @@
   justify-content: space-between;
   gap: calc(var(--ln-grid) * 3);
   padding: calc(var(--ln-grid) * 2);
-  border-radius: var(--ln-radius-m, 10px);
+  border-radius: var(--ln-radius);
 }
 
 .ln-verifier__titre {
@@ -48,14 +48,16 @@
   flex-wrap: wrap;
   gap: 2px;
   padding: 2px;
-  border: 1px solid var(--ln-border);
-  border-radius: var(--ln-radius-s, 8px);
+  border: 1px solid var(--ln-border-decorative);
+  border-radius: var(--ln-radius);
   width: fit-content;
 }
 
 .ln-verifier__corps {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 28rem);
+  /* Correction 6 : la colonne du cas doit tenir les trois gestes sur une ligne. Les boutons
+     portent leur raccourci, ce qui les élargit : à 28rem la ligne débordait de la fenêtre. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 36rem);
   gap: calc(var(--ln-grid) * 2);
   align-items: start;
 }
@@ -69,8 +71,8 @@
   margin: 0;
   padding: calc(var(--ln-grid) * 2);
   list-style: none;
-  border: 1px solid var(--ln-border);
-  border-radius: var(--ln-radius-m, 10px);
+  border: 1px solid var(--ln-border-decorative);
+  border-radius: var(--ln-radius);
   background: var(--ln-surface);
 }
 
@@ -84,8 +86,8 @@
   gap: calc(var(--ln-grid) * 0.5);
   width: 100%;
   padding: calc(var(--ln-grid));
-  border: 1px solid var(--ln-border);
-  border-radius: var(--ln-radius-s, 8px);
+  border: 1px solid var(--ln-border-decorative);
+  border-radius: var(--ln-radius);
   background: var(--ln-background);
   color: var(--ln-text-primary);
   font: inherit;
@@ -188,8 +190,8 @@
   display: grid;
   place-items: center;
   aspect-ratio: 16 / 7;
-  border: 1px solid var(--ln-border);
-  border-radius: var(--ln-radius-s, 8px);
+  border: 1px solid var(--ln-border-decorative);
+  border-radius: var(--ln-radius);
   background: var(--ln-surface);
 }
 
@@ -213,8 +215,8 @@
   place-items: center;
   width: calc(var(--ln-grid) * 4);
   height: calc(var(--ln-grid) * 4);
-  border: 1px solid var(--ln-border);
-  border-radius: var(--ln-radius-s, 8px);
+  border: 1px solid var(--ln-control-border);
+  border-radius: var(--ln-radius);
   background: var(--ln-surface);
   color: inherit;
   cursor: pointer;
@@ -267,10 +269,25 @@
   opacity: 0.6;
 }
 
+/* Correction 6 : une seule ligne pour les trois gestes. `nowrap` tant qu'il y a la place, et le
+   repli vertical seulement en fenêtre étroite — trois boutons sur trois lignes se lisaient comme
+   trois décisions séparées là où il n'y en a qu'une. */
 .ln-cas__decisions {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  align-items: center;
   gap: calc(var(--ln-grid));
+}
+
+.ln-cas__decisions .ln-btn,
+.ln-cas__decision {
+  white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+  .ln-cas__decisions {
+    flex-wrap: wrap;
+  }
 }
 
 .ln-cas__decision {
@@ -278,8 +295,8 @@
   align-items: center;
   gap: calc(var(--ln-grid));
   padding: calc(var(--ln-grid) * 1.25) calc(var(--ln-grid) * 2);
-  border: 1px solid var(--ln-border);
-  border-radius: var(--ln-radius-s, 8px);
+  border: 1px solid var(--ln-control-border);
+  border-radius: var(--ln-radius);
   background: var(--ln-surface);
   color: var(--ln-text-primary);
   font: inherit;
@@ -289,7 +306,7 @@
 
 .ln-cas__decision kbd {
   padding: 1px calc(var(--ln-grid) * 0.75);
-  border: 1px solid var(--ln-border);
+  border: 1px solid var(--ln-border-decorative);
   border-radius: 4px;
   font: inherit;
   font-size: 12px;
@@ -308,24 +325,6 @@
   opacity: 0.8;
 }
 
-.ln-cas__annuler {
-  justify-self: start;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--ln-text-primary);
-  font: inherit;
-  font-size: 14px;
-  text-decoration: underline;
-  cursor: pointer;
-}
-
-.ln-cas__annuler:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-  text-decoration: none;
-}
-
 .ln-cas__garantie,
 .ln-cas__fini {
   display: flex;
@@ -340,4 +339,10 @@
   .ln-verifier__corps {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* Correction 6 : l'annulation est un lien cuivre sombre souligné, posé sous la ligne des gestes. */
+.ln-cas__annuler {
+  margin-block-start: calc(var(--ln-grid) * 0.5);
+  font-size: 14px;
 }

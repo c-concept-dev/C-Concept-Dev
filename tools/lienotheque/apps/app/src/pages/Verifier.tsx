@@ -219,9 +219,18 @@ export function Verifier({ vue, onDecision, onAnnuler, derniere }: Props): JSX.E
                 </button>
               </div>
 
-              <button type="button" className="ln-cas__annuler" onClick={onAnnuler} disabled={derniere === undefined}>
-                Annuler la dernière décision
-              </button>
+              {/* Correction 6 : un lien cuivre souligné sous la ligne, jamais un quatrième bouton au
+                  même rang que « Confirmer ». Avant la première décision, l'écran le dit au lieu
+                  d'offrir un bouton inerte. */}
+              <p className="ln-cas__annuler">
+                {derniere === undefined ? (
+                  <span className="ln-muted">Aucune décision à annuler</span>
+                ) : (
+                  <button type="button" className="ln-lien-action" onClick={onAnnuler}>
+                    Annuler la dernière décision
+                  </button>
+                )}
+              </p>
 
               <p className="ln-cas__garantie">
                 <Icone nom="info" />

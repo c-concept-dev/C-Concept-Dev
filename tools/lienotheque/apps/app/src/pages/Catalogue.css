@@ -16,7 +16,7 @@
   justify-content: space-between;
   gap: calc(var(--ln-grid) * 3);
   padding: calc(var(--ln-grid) * 2);
-  border-radius: var(--ln-radius-m, 10px);
+  border-radius: var(--ln-radius);
 }
 
 .ln-catalogue__titre {
@@ -93,7 +93,7 @@
   align-items: center;
   gap: calc(var(--ln-grid));
   padding: calc(var(--ln-grid) * 0.75) calc(var(--ln-grid));
-  border-radius: var(--ln-radius-s, 8px);
+  border-radius: var(--ln-radius);
   font-size: 14px;
   cursor: pointer;
 }
@@ -127,7 +127,7 @@
 .ln-catalogue__barre {
   display: flex;
   padding: calc(var(--ln-grid)) calc(var(--ln-grid) * 1.5);
-  border-radius: var(--ln-radius-s, 8px);
+  border-radius: var(--ln-radius);
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
@@ -161,8 +161,8 @@
   gap: calc(var(--ln-grid) * 0.5);
   width: 100%;
   padding: calc(var(--ln-grid) * 1.5);
-  border: 1px solid var(--ln-border);
-  border-radius: var(--ln-radius-m, 10px);
+  border: 1px solid var(--ln-border-decorative);
+  border-radius: var(--ln-radius);
   background: var(--ln-surface);
   color: var(--ln-text-primary);
   font: inherit;
@@ -230,8 +230,8 @@
   gap: calc(var(--ln-grid));
   aspect-ratio: 3 / 4;
   margin-block-end: calc(var(--ln-grid) * 2);
-  border: 1px solid var(--ln-border);
-  border-radius: var(--ln-radius-s, 8px);
+  border: 1px solid var(--ln-border-decorative);
+  border-radius: var(--ln-radius);
   background: var(--ln-background);
   font-size: 32px;
   font-weight: 600;
@@ -263,7 +263,7 @@
   align-items: center;
   gap: calc(var(--ln-grid));
   padding: calc(var(--ln-grid) * 0.75);
-  border-radius: var(--ln-radius-s, 8px);
+  border-radius: var(--ln-radius);
   font-size: 13px;
 }
 

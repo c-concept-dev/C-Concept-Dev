@@ -220,8 +220,25 @@ test('T-MCNT01-11 : HTML canonique inchangé, dette ouverte', () => {
      muet vers 'claude-opus-5', devient MODELE_PAR_DEFAUT ('claude-sonnet-5'), annoncé plutôt que
      silencieux quand une actualisation depuis /v1/models fait disparaître le modèle retenu. Aucune
      règle, aucun prompt, aucun schéma, aucun comportement d'interface visible n'a changé. */
+  /* PROVIDER-OPENAI-01 — L'EMPREINTE A BOUGÉ, ET C'EST LE SUJET MÊME DU LOT : le pipeline API
+     automatique n'avait qu'un fournisseur. OpenAI entre dans FOURNISSEURS_API avec son transport
+     (/v1/responses, outil de fonction non strict forcé, schéma canonique en paramètres), son
+     catalogue et sa tarification ; le registre sort de la zone de garde d'Anthropic puisqu'il en
+     porte deux, et les deux textes d'interface qui nommaient un fournisseur en dur (gabarit de
+     clé, lien de console) se lisent désormais sur le registre. CE QUI N'A PAS CHANGÉ : aucune
+     règle, aucun prompt, aucun schéma canonique, aucune plage gelée (FROZEN identique), aucun
+     appel existant — l'Architecte, le compilateur, le banc d'essai et le module Qualité passent
+     par la même façade appelFournisseur() qu'avant, inchangée, et Anthropic reste le
+     fournisseur par défaut. Mesuré en réel avant d'être écrit : cf. docs/PROVIDER-OPENAI-01.md. */
+  /* PROVIDER-OPENAI-01B — L'EMPREINTE BOUGE UNE SECONDE FOIS, POUR UNE PHRASE. En mode « données
+     sensibles », archApi() disait « La demande sera transmise à l'API Anthropic » quel que soit le
+     fournisseur retenu — faux dès qu'OpenAI est sélectionné, et précisément dans la phrase qui dit
+     où part la demande. Le nom vient maintenant du registre. La plage gelée « moteur Architecte » a
+     été rouverte pour cette SEULE ligne et la baseline régénérée (8668de58… → 3f0878c8…) ; les six
+     autres plages sont inchangées à l'octet. Rien d'autre : ni règle, ni prompt, ni schéma, ni
+     transport, ni UX hors cette phrase. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    'eb9b9f0c81ed0dac95d651832ceeb8e1029c16d0d3979fd4e640bfe524bc2c0f',
+    '5f33a55a4ecfa64808d934b688ecab8bcb9101640e9956dd6da10da10e99b1f1',
     'CANONICAL_HTML_CHANGED = NO — l’empreinte est celle que le lot précédent a laissée');
   const registre = lire('docs/OPEN-DEBTS.md');
   const ouvertes = registre.slice(registre.indexOf('## Ouvertes'), registre.indexOf('## Fermées'));

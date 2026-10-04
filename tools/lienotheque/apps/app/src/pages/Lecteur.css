@@ -7,8 +7,13 @@
   display: grid;
   grid-template-rows: auto 1fr auto;
   gap: calc(var(--ln-grid) * 2);
-  min-height: calc(100vh - var(--ln-shell-hauteur, 72px));
+  /* Correction 3 : la coque `.ln-application--pleine` donne la hauteur ; l'écran prend ce qu'elle
+     lui laisse et fait défiler sa feuille dedans. Retrancher une hauteur de barre devinée laissait
+     une bande vide en bas dès que la barre changeait de hauteur. */
+  min-height: 0;
+  height: 100%;
   padding: calc(var(--ln-grid) * 2) calc(var(--ln-grid) * 3);
+  overflow: hidden;
 }
 
 .ln-lecteur__entete,
@@ -18,7 +23,7 @@
   align-items: center;
   gap: calc(var(--ln-grid) * 3);
   padding: calc(var(--ln-grid) * 1.5) calc(var(--ln-grid) * 2);
-  border-radius: var(--ln-radius-m, 10px);
+  border-radius: var(--ln-radius);
 }
 
 .ln-lecteur__pied {
@@ -45,22 +50,18 @@
   font-weight: 600;
 }
 
-.ln-lecteur__fleche,
-.ln-lecteur__zoom button,
 .ln-ecoute__pas {
   display: grid;
   place-items: center;
   width: calc(var(--ln-grid) * 4.5);
   height: calc(var(--ln-grid) * 4.5);
-  border: 1px solid var(--ln-border);
-  border-radius: var(--ln-radius-s, 8px);
+  border: 1px solid var(--ln-border-decorative);
+  border-radius: var(--ln-radius);
   background: var(--ln-surface);
   color: var(--ln-text-primary);
   cursor: pointer;
 }
 
-.ln-lecteur__fleche:hover,
-.ln-lecteur__zoom button:hover,
 .ln-ecoute__pas:hover {
   background: var(--ln-surface-hover, var(--ln-surface));
 }
@@ -74,6 +75,7 @@
 
 .ln-lecteur__corps {
   position: relative;
+  min-height: 0;
   display: grid;
   grid-template-columns: minmax(0, 7rem) minmax(0, 1fr) minmax(0, 24rem);
   gap: calc(var(--ln-grid) * 2);
@@ -81,6 +83,12 @@
 }
 
 /* ---- Bande des vignettes ---- */
+
+.ln-vignettes {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
 
 .ln-vignettes__liste {
   display: flex;
@@ -99,7 +107,7 @@
   width: 100%;
   padding: calc(var(--ln-grid));
   border: 1px solid transparent;
-  border-radius: var(--ln-radius-s, 8px);
+  border-radius: var(--ln-radius);
   background: none;
   color: var(--ln-text-secondary);
   font-size: 12px;
@@ -110,7 +118,7 @@
   display: block;
   width: 100%;
   aspect-ratio: 3 / 4;
-  border: 1px solid var(--ln-border);
+  border: 1px solid var(--ln-border-decorative);
   border-radius: 3px;
   background: var(--ln-surface);
 }
@@ -134,10 +142,13 @@
 
 /* ---- La page ---- */
 
+/* La feuille défile, pas l'écran (correction 3). */
 .ln-lecteur__page {
   display: grid;
   justify-items: center;
+  min-height: 0;
   overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .ln-page {
@@ -146,8 +157,8 @@
 
 .ln-page__feuille {
   position: relative;
-  border: 1px solid var(--ln-border);
-  border-radius: var(--ln-radius-s, 8px);
+  border: 1px solid var(--ln-border-decorative);
+  border-radius: var(--ln-radius);
   background: var(--ln-surface);
   overflow: hidden;
 }
@@ -171,20 +182,23 @@
   font-weight: 600;
 }
 
+/* Correction 5 : chaque zone porte un cadre fin, l'active un cadre cuivre. On voit ce qui est
+   cliquable sans avoir à le survoler — un cadre transparent ne se révélait qu'à la souris, donc
+   jamais au clavier ni au premier regard. */
 .ln-page__zone {
   position: absolute;
-  border: 1px solid transparent;
-  border-radius: 6px;
+  border: 1px solid var(--ln-border-decorative);
+  border-radius: calc(var(--ln-radius) / 2);
   background: none;
   cursor: pointer;
 }
 
 .ln-page__zone:hover {
-  border-color: var(--ln-border);
+  border-color: var(--ln-control-border);
 }
 
 .ln-page__zone--actif {
-  border-color: var(--ln-thread);
+  border: 2px solid var(--ln-thread);
   background: color-mix(in srgb, var(--ln-selection-background) 55%, transparent);
 }
 
@@ -192,9 +206,15 @@
   position: absolute;
   inset-block-start: 2px;
   inset-inline-start: 4px;
+  padding: 0 calc(var(--ln-grid) * 0.5);
   font-size: 12px;
   font-weight: 600;
-  color: var(--ln-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.ln-page__zone--actif .ln-page__zone-numero {
+  border: 1px solid var(--ln-thread);
+  border-radius: calc(var(--ln-radius) / 2);
 }
 
 /* ---- Fil entre la zone et son segment ---- */
@@ -217,14 +237,11 @@
 
 .ln-lecteur__cote {
   display: grid;
+  align-content: start;
   gap: calc(var(--ln-grid) * 2);
-}
-
-.ln-panneau {
-  padding: calc(var(--ln-grid) * 2);
-  border: 1px solid var(--ln-border);
-  border-radius: var(--ln-radius-m, 10px);
-  background: var(--ln-surface);
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .ln-ecoute__titre,
@@ -257,7 +274,7 @@
 }
 
 .ln-onde__barre {
-  fill: var(--ln-border);
+  fill: var(--ln-progress-track);
 }
 
 .ln-onde__barre--actif {
@@ -360,41 +377,6 @@
   cursor: pointer;
 }
 
-.ln-bascule {
-  display: inline-flex;
-  gap: 2px;
-  padding: 2px;
-  margin-block: calc(var(--ln-grid));
-  border: 1px solid var(--ln-border);
-  border-radius: var(--ln-radius-s, 8px);
-}
-
-.ln-bascule__choix {
-  display: inline-flex;
-  align-items: center;
-  gap: calc(var(--ln-grid) * 0.75);
-  padding: calc(var(--ln-grid) * 0.75) calc(var(--ln-grid) * 2);
-  border: 0;
-  border-radius: 6px;
-  background: none;
-  color: var(--ln-text-secondary);
-  font: inherit;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-/* Choisi : style de sélection. Le seul cuivre plein de l'écran est le bouton de lecture. */
-.ln-bascule__choix--choisi {
-  background: var(--ln-selection-background);
-  color: var(--ln-selection-text);
-  font-weight: 500;
-}
-
-.ln-bascule__choix:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 .ln-texte__lignes {
   display: grid;
   gap: calc(var(--ln-grid) * 0.5);
@@ -413,8 +395,8 @@
   width: 100%;
   min-height: calc(var(--ln-grid) * 8);
   padding: calc(var(--ln-grid));
-  border: 1px solid var(--ln-border);
-  border-radius: var(--ln-radius-s, 8px);
+  border: 1px solid var(--ln-control-border);
+  border-radius: var(--ln-radius);
   background: var(--ln-background);
   color: var(--ln-text-primary);
   font: inherit;

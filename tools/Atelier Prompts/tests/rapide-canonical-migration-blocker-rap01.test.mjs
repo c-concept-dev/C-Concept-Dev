@@ -289,6 +289,14 @@ test('T-RAP01-LIFT-06 [MISE À JOUR ADN-RAPIDE-01] le moteur Rapide porte le suc
      portait « Évite … », et api.valider arrêtait tout le parcours après un appel #1 en 200. La valeur du modèle n'est
      jamais réécrite ; une citation absente reste refusée. Baseline régénérée par frozen-guard --write-baseline ; les six
      autres plages sont inchangées (voir tests/continuite-conversation-longue-cont05.test.mjs, T05-25). */
-  assert.equal(baseline['moteur Architecte'], '8668de58c928afaf010d37aa3b3f1c57a280f32e916cf483ad100c2784debc39',
+  /* PROVIDER-OPENAI-01B — LA PLAGE « MOTEUR ARCHITECTE » EST ROUVERTE UNE SECONDE FOIS, POUR UNE
+     LIGNE. En mode « données sensibles », archApi() annonçait « La demande sera transmise à l'API
+     Anthropic » quel que soit le fournisseur retenu : la phrase est fausse dès qu'OpenAI est
+     sélectionné, et c'est précisément une phrase qui dit à la personne où part sa demande. Le nom
+     vient désormais du registre des fournisseurs. Baseline régénérée par frozen-guard
+     --write-baseline : 8668de58… → 3f0878c8…, et les SIX autres plages sont inchangées à l'octet
+     (le guard les a toutes recalculées et n'a nommé que celle-ci). Aucune règle, aucun prompt, aucun
+     schéma, aucun comportement : un nom de fournisseur, dans un texte d'information. */
+  assert.equal(baseline['moteur Architecte'], '3f0878c887d61218768ba6f11db15a0d0af511496a770fb5f7f1322610e0c181',
     'ARCH_FROZEN_HASH_CHANGED = NO');
 });

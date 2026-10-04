@@ -14,8 +14,15 @@ import { Verifier, type Decision } from "./pages/Verifier.js";
 import { Prototype, estBureau } from "./pages/Prototype.js";
 import { useTheme } from "./theme/useTheme.js";
 
+/** Les écrans qui tiennent dans la fenêtre au lieu de la faire défiler (correction 3). */
+const PLEINE_HAUTEUR: ReadonlySet<Route["ecran"]> = new Set(["lecteur"]);
+
 /** Navigation entre les écrans du lot C (B4). Chaque écran a son adresse : on y revient, on la
- *  partage, et le clavier y arrive comme la souris puisque ce sont des liens. */
+ *  partage, et le clavier y arrive comme la souris puisque ce sont des liens.
+ *
+ *  La coque `.ln-application` est une colonne de la hauteur de la fenêtre ; un écran qui doit y
+ *  tenir — le Lecteur — le demande par `.ln-application--pleine` et fait défiler son contenu à
+ *  l'intérieur (correction 3). */
 export function App(): JSX.Element {
   const [theme, changerTheme] = useTheme();
   const [donnees, setDonnees] = useState<DonneesAccueil>(ACCUEIL_VIDE);
@@ -104,7 +111,7 @@ export function App(): JSX.Element {
   })();
 
   return (
-    <>
+    <div className={`ln-application${PLEINE_HAUTEUR.has(route.ecran) ? " ln-application--pleine" : ""}`}>
       <a className="ln-skip" href="#contenu">
         Aller au contenu
       </a>
@@ -116,12 +123,12 @@ export function App(): JSX.Element {
         }}
         donnees={donnees}
       />
-      {ecran}
+      <div className="ln-application__vue">{ecran}</div>
       {estBureau() ? (
         <div className="ln-layout">
           <Prototype />
         </div>
       ) : null}
-    </>
+    </div>
   );
 }

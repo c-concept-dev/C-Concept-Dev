@@ -146,28 +146,110 @@ p {
 }
 
 /* Panneau de titre du kit : invisible en clair (même valeur que le fond de page),
-   opaque et graphite sur la photo, où le texte sombre deviendrait illisible. */
-.ln-panneau-titre {
+   opaque et graphite sur la photo, où le texte sombre deviendrait illisible.
+   `.ln-sur-photo` fait la même chose sans la marge intérieure, pour un numéro ou une pastille
+   qui, sans elle, tomberait directement sur la photographie. */
+.ln-panneau-titre,
+.ln-sur-photo {
   background: var(--ln-heading-panel);
   border-radius: var(--ln-radius);
+}
+
+.ln-panneau-titre {
   padding: calc(var(--ln-grid) * 1.5) calc(var(--ln-grid) * 2);
 }
 
-[data-theme="hybrid"] .ln-panneau-titre {
+[data-theme="hybrid"] .ln-panneau-titre,
+[data-theme="hybrid"] .ln-sur-photo {
   --ln-text-primary: var(--ln-heading-text);
   --ln-text-secondary: var(--ln-heading-text-secondary);
   --ln-link: var(--ln-heading-link);
   color: var(--ln-heading-text);
 }
 
-/* Hybride photographique : voile sur la photo, barre et panneaux de titre graphite. */
+/* Panneau de contenu : il porte son propre fond, donc son texte ne dépend jamais de ce qu'il y a
+   derrière. C'est ce qui rend les écrans lisibles sur la photo comme sur l'ivoire. */
+.ln-panneau {
+  background: var(--ln-surface);
+  color: var(--ln-text-primary);
+  border: 1px solid var(--ln-border-decorative);
+  border-radius: var(--ln-radius);
+  padding: calc(var(--ln-grid) * 2);
+}
+
+/* Bascule à deux ou trois choix. Le choix retenu prend le fond de sélection, pas le cuivre
+   plein : un écran n'a qu'un seul cuivre plein, et c'est son bouton principal (UX-09). */
+.ln-bascule {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: calc(var(--ln-grid) * 0.5);
+  padding: calc(var(--ln-grid) * 0.5);
+  border: 1px solid var(--ln-border-decorative);
+  border-radius: var(--ln-radius);
+}
+
+.ln-bascule__choix {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 0.75);
+  min-height: calc(var(--ln-grid) * 4);
+  padding: calc(var(--ln-grid) * 0.5) calc(var(--ln-grid) * 1.5);
+  border: 1px solid transparent;
+  border-radius: var(--ln-radius);
+  background: transparent;
+  color: var(--ln-text-primary);
+}
+
+.ln-bascule__choix:hover:not(:disabled) {
+  background: var(--ln-surface-hover);
+}
+
+.ln-bascule__choix--choisi {
+  background: var(--ln-selection-background);
+  color: var(--ln-selection-text);
+  border-color: var(--ln-control-border);
+}
+
+.ln-bascule__choix:disabled {
+  color: var(--ln-disabled-text);
+  cursor: not-allowed;
+}
+
+/* Action secondaire qui se lit comme un lien : cuivre sombre et souligné, jamais un bouton de
+   plus à côté du bouton principal. */
+.ln-lien-action {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--ln-link);
+  text-decoration: underline;
+}
+
+.ln-lien-action:hover {
+  color: var(--ln-action-hover);
+}
+
+/* Hybride photographique : voile sur la photo, barre et panneaux de titre graphite.
+
+   Les deux couches sont arrimées à la fenêtre (`fixed`) et dimensionnées en `cover` : le voile
+   couvre donc exactement la même surface que la photographie, quelle que soit la hauteur du
+   contenu. Avec un voile arrimé au document — ce qu'écrivait la forme abrégée, où `fixed` ne
+   portait que sur la dernière couche — une page plus courte que la fenêtre laissait une bande de
+   photographie nue en bas. La couleur de fond dessous est la dernière garantie : jamais de bande
+   claire, même le temps que l'image arrive. */
 [data-theme="hybrid"] {
-  background:
+  min-height: 100dvh;
+  background-color: var(--ln-photo-overlay);
+  background-image:
     linear-gradient(
       color-mix(in srgb, var(--ln-photo-overlay) calc(var(--ln-photo-overlay-opacity) * 100%), transparent),
       color-mix(in srgb, var(--ln-photo-overlay) calc(var(--ln-photo-overlay-opacity) * 100%), transparent)
     ),
-    url("@kit/assets/background.png") center / cover fixed;
+    url("@kit/assets/background.png");
+  background-repeat: no-repeat, no-repeat;
+  background-attachment: fixed, fixed;
+  background-position: center center, center center;
+  background-size: cover, cover;
 }
 
 [data-theme="hybrid"] body {
@@ -225,4 +307,26 @@ textarea {
   color: var(--ln-text-primary);
   padding: var(--ln-grid) calc(var(--ln-grid) * 1.5);
   border-radius: var(--ln-radius);
+}
+
+/* Coque de l'application : une colonne de la hauteur de la fenêtre. Les écrans qui défilent
+   s'allongent dessous ; ceux qui doivent tenir dans la fenêtre — le Lecteur — demandent
+   `.ln-application--pleine` et font défiler leur contenu à l'intérieur (correction 3). */
+.ln-application {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+.ln-application__vue {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ln-application--pleine {
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
 }

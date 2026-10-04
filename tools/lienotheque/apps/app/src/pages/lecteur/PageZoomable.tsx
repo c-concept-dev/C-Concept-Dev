@@ -51,7 +51,7 @@ export const PageZoomable = forwardRef<HTMLButtonElement, Props>(function PageZo
               aria-label={nom(element)}
               {...(element.ancreId === actif ? { ref: refZoneActive } : {})}
             >
-              <span className="ln-page__zone-numero">{element.numero}</span>
+              <span className="ln-page__zone-numero ln-sur-photo">{element.numero}</span>
             </button>
           ),
         )}

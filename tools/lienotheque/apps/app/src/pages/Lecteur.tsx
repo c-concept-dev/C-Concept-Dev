@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
 import type { ElementAffiche, VueBibliotheque } from "@lienotheque/contrats";
-import { Icone } from "../composants/index.js";
+import { Bouton, Icone } from "../composants/index.js";
 import { FilAriane } from "../composants/FilAriane.js";
 import { FilVersSegment } from "./lecteur/FilVersSegment.js";
 import { PageZoomable } from "./lecteur/PageZoomable.js";
@@ -101,15 +101,27 @@ export function Lecteur({ vue, page, element, onPage, onElement }: Props): JSX.E
           ]}
         />
         <div className="ln-lecteur__pas">
-          <button type="button" className="ln-lecteur__fleche" onClick={() => aller(-1)} aria-label={`${vue.mots.element.un} précédent`}>
-            <Icone nom="chevronGauche" />
-          </button>
+          <Bouton
+            compact
+            icone={<Icone nom="chevronGauche" />}
+            onClick={() => aller(-1)}
+            disabled={rang <= 0}
+            aria-label={`${vue.mots.element.un} précédent`}
+          >
+            <span className="ln-sr-only">{`${vue.mots.element.un} précédent`}</span>
+          </Bouton>
           <p className="ln-lecteur__rang">
             {vue.mots.element.un} <strong>{rang + 1}</strong> sur <strong>{elements.length}</strong> sur cette {vue.mots.page.un}
           </p>
-          <button type="button" className="ln-lecteur__fleche" onClick={() => aller(1)} aria-label={`${vue.mots.element.un} suivant`}>
-            <Icone nom="chevronDroite" />
-          </button>
+          <Bouton
+            compact
+            icone={<Icone nom="chevronDroite" />}
+            onClick={() => aller(1)}
+            disabled={rang >= elements.length - 1}
+            aria-label={`${vue.mots.element.un} suivant`}
+          >
+            <span className="ln-sr-only">{`${vue.mots.element.un} suivant`}</span>
+          </Bouton>
         </div>
       </div>
 
@@ -126,7 +138,7 @@ export function Lecteur({ vue, page, element, onPage, onElement }: Props): JSX.E
                   aria-label={`${vue.mots.page.un} ${p.numero}${p.elements.some((e) => e.media !== undefined) ? `, ${vue.mots.element.plusieurs} reliés` : ""}`}
                 >
                   <span className="ln-vignettes__feuille" aria-hidden="true" />
-                  <span className="ln-vignettes__numero">{p.numero}</span>
+                  <span className="ln-vignettes__numero ln-sur-photo">{p.numero}</span>
                   {p.elements.some((e) => e.media !== undefined) ? <span className="ln-vignettes__repere" aria-hidden="true" /> : null}
                 </button>
               </li>
@@ -207,16 +219,16 @@ export function Lecteur({ vue, page, element, onPage, onElement }: Props): JSX.E
           {vue.mots.page.un} {pageCourante?.numero ?? "—"} sur {vue.pages.length}
         </p>
         <div className="ln-lecteur__zoom" role="group" aria-label="Zoom">
-          <button type="button" onClick={() => setZoom(Math.max(50, zoom - 10))} aria-label="Réduire">
-            <Icone nom="moins" />
-          </button>
-          <span className="ln-lecteur__zoom-valeur">{zoom} %</span>
-          <button type="button" onClick={() => setZoom(Math.min(200, zoom + 10))} aria-label="Agrandir">
-            <Icone nom="plus" />
-          </button>
-          <button type="button" aria-label="Plein écran">
-            <Icone nom="pleinEcran" />
-          </button>
+          <Bouton compact icone={<Icone nom="moins" />} onClick={() => setZoom(Math.max(50, zoom - 10))} disabled={zoom <= 50} aria-label="Réduire">
+            <span className="ln-sr-only">Réduire</span>
+          </Bouton>
+          <output className="ln-lecteur__zoom-valeur">{zoom} %</output>
+          <Bouton compact icone={<Icone nom="plus" />} onClick={() => setZoom(Math.min(200, zoom + 10))} disabled={zoom >= 200} aria-label="Agrandir">
+            <span className="ln-sr-only">Agrandir</span>
+          </Bouton>
+          <Bouton compact icone={<Icone nom="pleinEcran" />} onClick={() => setZoom(100)} disabled={zoom === 100} aria-label="Ajuster à la fenêtre">
+            <span className="ln-sr-only">Ajuster à la fenêtre</span>
+          </Bouton>
         </div>
         <p className="ln-lecteur__raccourcis">
           {LEGENDE.map((entree) => (
