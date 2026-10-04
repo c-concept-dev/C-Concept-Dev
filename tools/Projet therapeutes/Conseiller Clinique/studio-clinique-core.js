@@ -490,7 +490,7 @@
   // URL de lecture — GET /brand-assets/:assetId (nouvelle route Worker, LOT C), jamais une
   // URL R2 en dur (le Worker reste le seul point d'accès, comme pour toute autre ressource).
   function adocImageAssetUrl(assetId) {
-    return adocGetWorkerUrl() + '/brand-assets/' + assetId;
+    return adocEmbeddedImage('asset:' + assetId) || adocGetWorkerUrl() + '/brand-assets/' + encodeURIComponent(assetId);
   }
 
   // N2 — Charger dossier patient depuis le système thérapeutique
@@ -4159,11 +4159,11 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     doc.querySelectorAll('style').forEach(function (styleEl) {
       styleEl.textContent = styleEl.textContent.replace(bgPexelsRe, 'url("")');
     });
-    const imgNodes = Array.from(doc.querySelectorAll('img[data-gen], img[data-pexels]'));
+    const imgNodes = Array.from(doc.querySelectorAll('img[data-gen], img[data-pexels], img[data-asset-id]'));
     const bgNodes = Array.from(doc.querySelectorAll('[data-pexels-bg]'));
     const divNodes = Array.from(doc.querySelectorAll('div[data-pexels], section[data-pexels], figure[data-pexels]'));
     return [
-      ...imgNodes.map(function (el) { return { el: el, type: 'img', q: el.dataset.pexels || el.dataset.gen, isGen: !!el.dataset.gen }; }),
+      ...imgNodes.map(function (el) { return { el: el, type: 'img', q: el.dataset.assetId ? 'asset:' + el.dataset.assetId : el.dataset.pexels || el.dataset.gen, assetId: el.dataset.assetId || null, isGen: !!el.dataset.gen }; }),
       ...bgNodes.map(function (el) { return { el: el, type: 'bg', q: el.getAttribute('data-pexels-bg'), isGen: false }; }),
       ...divNodes.map(function (el) { return { el: el, type: 'div', q: el.getAttribute('data-pexels'), isGen: false }; }),
     ];
@@ -4215,7 +4215,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
 
     // Prétraitement des fonds et collecte des quatre formes : adocCollectImageNodes, partagée avec
     // l'embarquement à l'export — une forme ajoutée ici l'est donc pour les deux, jamais pour un seul.
-    const allNodes = adocCollectImageNodes(doc);
+    const allNodes = adocCollectImageNodes(doc).filter(function (n) { return !n.assetId; });
     if (!allNodes.length) return htmlContent;
 
     const fetchPexels = async (query) => {
@@ -9843,8 +9843,59 @@ ${recent}`;
     return '<div class="cc-block-style-controls cc-editor-tools" role="group" aria-label="Réglages de l’image">' +
       '<div class="cc-editor-row"><label>Opacité<input type="range" min="0" max="100" step="1" value="100" ' + opacityAttr + '></label></div>' +
       sizeRow + rotationRow + addTextBtn +
-    '</div>';
+      (isPureImage ? adocImageReplacementButtonsHTML(false) : '') +
+    '</div>' + (isPureImage ? '<div class="cc-block-edit-result" hidden></div>' : '');
   }
+  function adocImageReplacementButtonsHTML(isCover) {
+    return '<button type="button" class="cc-clarity-reply-btn" onclick="event.stopPropagation();window.adocChooseBlockInsertType(\'replace\',\'image\')">Changer l’image</button>' +
+      (isCover ? '<button type="button" class="cc-clarity-other-btn" onclick="event.stopPropagation();window.adocRemoveCardImage()">Retirer l’image</button>' : '');
+  }
+
+  // Une mutation commune aux trois modes du sélecteur et au dépôt direct.
+  function adocSetEditableImage(block, image) {
+    if (!block || !['card', 'image'].includes(block.type)) throw new Error('Cette sélection ne porte pas d’image remplaçable.');
+    if (block.type === 'card') {
+      block.content.imageRef = image ? (image.assetId ? null : image.query) : null;
+      block.content.imageAlt = image ? image.alt : null;
+      delete block.content.imageAssetId;
+      if (image && image.assetId) block.content.imageAssetId = image.assetId;
+    } else {
+      if (!image) throw new Error('Sélectionnez une couverture pour retirer son image.');
+      block.content.query = image.query || image.alt;
+      block.content.alt = image.alt;
+      delete block.content.assetId;
+      if (image.assetId) block.content.assetId = image.assetId;
+    }
+  }
+
+  async function adocReplaceSelectedImage(image) {
+    let block, previous;
+    try {
+      const st = window._adocBlockEditState || {};
+      const art = window._adocArtifacts && window._adocArtifacts[st.storeKey];
+      if (!art || !art._adocStructuredDoc) throw new Error('Rouvrez le document et sélectionnez son image.');
+      const id = (st.blockId || '').replace(/^root:card-title:/, '');
+      block = adocFindEditableBlock(art._adocStructuredDoc, id);
+      if (!block) throw new Error('Image introuvable : sélectionnez-la à nouveau.');
+      previous = JSON.parse(JSON.stringify(block.content));
+      adocSetEditableImage(block, image);
+      const key = st.storeKey;
+      adocWsClearBlockSelection();
+      if (!await window.adocOpenWorkspace(key)) throw new Error('Le rendu a refusé cette modification ; elle a été annulée.');
+      adocEditorMarkDirty();
+      // La modification reste dans le document même si sa sauvegarde échoue : adocWsSave
+      // affiche l’erreur et permet de réessayer. Ne pas annuler une modification valide.
+      previous = null;
+      await window.adocWsSave();
+      return true;
+    } catch (e) {
+      if (block && previous) block.content = previous;
+      alert('Changement d’image impossible : ' + (e && e.message || 'erreur inconnue'));
+      return false;
+    }
+  }
+  window.adocRemoveCardImage = function () { return adocReplaceSelectedImage(null); };
+
   // Valeurs initiales des curseurs à l'ouverture — même garde-fou que
   // adocEditorRefreshControls (LOT E) : jamais vide (retomberait sur le minimum, ex. 10% pour
   // la taille, à tort pour une image jamais réglée). Ne réutilise PAS
@@ -12224,8 +12275,8 @@ ${recent}`;
           }
         }
         if (b.type === 'card') {
-          if (b.content.imageRef && !(b.content.imageAlt && b.content.imageAlt.trim())) {
-            blocking.push('Bloc ' + b.id + ' : image informative (imageRef) sans texte alternatif.');
+          if ((b.content.imageRef || b.content.imageAssetId) && !(b.content.imageAlt && b.content.imageAlt.trim())) {
+            blocking.push('Bloc ' + b.id + ' : image informative (imageRef/imageAssetId) sans texte alternatif.');
           }
           walk(b.content.blocks);
         }
@@ -12475,7 +12526,7 @@ ${recent}`;
         // la main, ou persisté par une version antérieure — peut arriver ici dans cet état.
         const _qBloc = adocRequeteImageUtilisable(b.content.query);
         const imgAttr = b.content.assetId
-          ? 'src="' + adocEsc(adocImageAssetUrl(b.content.assetId)) + '"'
+          ? 'data-asset-id="' + adocEsc(b.content.assetId) + '" src="' + adocEsc(adocImageAssetUrl(b.content.assetId)) + '"'
           : (_qBloc ? 'data-pexels="' + adocEsc(_qBloc) + '"' : '');
         // CORRECTIF (Lot C cas 4, investigation réelle à l'appui) — repli visuel si le
         // chargement de l'image échoue RÉELLEMENT (assetId uniquement : le chemin data-pexels
@@ -12907,6 +12958,8 @@ ${recent}`;
     // traversait intacte. Couverture de CARTE, donc sur le chemin de l'export de présentation —
     // c'est elle, et non le bloc image en ligne, qu'un document de cours porte le plus souvent.
     const _qCouv = adocRequeteImageUtilisable(card.content.imageRef);
+    const _assetCouv = card.content.imageAssetId;
+    const _hasCouv = !!(_assetCouv || _qCouv);
     // ALIGNEMENT (option 4) — la couverture de carte n'était PAS cliquable du tout : aucun onclick,
     // curseur `auto`, hors tabulation, avec ou sans renvoi. Mesuré, contre le commentaire qui
     // affirmait ici même que « le clic sur l'image reste l'agrandissement, strictement inchangé » :
@@ -12918,14 +12971,14 @@ ${recent}`;
     // fallu rattraper pour le bloc en ligne (onclick depuis l'Acte 2, clavier seulement au lot B2),
     // et en vidéoprojection la présentatrice n'a souvent qu'un clavier ou une télécommande.
     // `this` transmis, jamais l'URL : adocPresentOpenImageDoor lit l'élément réellement affiché.
-    const couvDoorAttrs = (_adocRenderingForPresentDoor && _qCouv)
+    const couvDoorAttrs = (_adocRenderingForPresentDoor && _hasCouv)
       ? ' onclick="window.adocPresentOpenImageDoor(this)" tabindex="0" role="button"'
         + ' aria-label="' + adocEsc("Agrandir l'image" + (card.content.imageAlt ? ' : ' + card.content.imageAlt : '')) + '"'
         + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click();}"'
         + ' style="cursor:zoom-in;"'
       : '';
-    const img = _qCouv
-      ? '<img class="adoc-sc-card-img" data-pexels="' + adocEsc(_qCouv) + '" alt="' + adocEsc(card.content.imageAlt || '') + '"' + couvDoorAttrs + '>'
+    const img = _hasCouv
+      ? '<img class="adoc-sc-card-img" ' + (_assetCouv ? 'data-asset-id="' + adocEsc(_assetCouv) + '" src="' + adocEsc(adocImageAssetUrl(_assetCouv)) + '"' : 'data-pexels="' + adocEsc(_qCouv) + '"') + ' alt="' + adocEsc(card.content.imageAlt || '') + '"' + couvDoorAttrs + '>'
       : '';
     // Pastille « agrandir », même icône et même palette que celle du bloc en ligne
     // (adocIconeLoupeHTML, source unique). Ancrée sur .adoc-sc-card, déjà en position:relative, et
@@ -12936,7 +12989,7 @@ ${recent}`;
     // haut-gauche est exactement l'origine de la boîte de contenu. Cette dépendance au padding est
     // assumée et surveillée : le test mesure que la pastille repose bien SUR l'image, de sorte qu'un
     // changement de padding échoue au lieu de la déplacer en silence.
-    const couvZoomBadge = (_adocRenderingForPresentDoor && _qCouv)
+    const couvZoomBadge = (_adocRenderingForPresentDoor && _hasCouv)
       ? '<span class="adoc-sc-image-zoom-badge adoc-sc-card-zoom-badge" aria-hidden="true">' + adocIconeLoupeHTML() + '</span>'
       : '';
     // PUCE « ↳ Approfondir » SOUS LA COUVERTURE — le clic sur l'image reste l'agrandissement
@@ -13388,7 +13441,7 @@ ${recent}`;
     if (!result.qc.exportAllowed) {
       return { html: null, qc: result.qc, blocked: true };
     }
-    const html = adocClinicalDocumentWrapHTML(doc, result.html, result.tokens);
+    const html = await adocEmbedAssetImagesHTML(adocClinicalDocumentWrapHTML(doc, result.html, result.tokens));
     return { html: html, qc: result.qc, blocked: false };
   };
 
@@ -18637,7 +18690,7 @@ ${recent}`;
         // chargé tel quel peut porter un attribut malformé écrit par une version antérieure.
         const q = adocRequeteImageUtilisable(n.q);
         if (!q || vues.has(q)) return;
-        vues.set(q, { q: q, isGen: n.isGen, type: n.type,
+        vues.set(q, { q: q, assetId: n.assetId, isGen: n.isGen, type: n.type,
                       alt: (n.el.getAttribute && n.el.getAttribute('alt')) || '' });
       });
     });
@@ -18647,6 +18700,30 @@ ${recent}`;
 
   // Le cœur du lot. Rend { images, credits, rapport } — jamais d'exception pour une image ratée :
   // un export ne doit pas échouer parce qu'un CDN a bronché sur une couverture.
+  async function adocExportFetchAsset(workerUrl, assetId) {
+    const rep = await fetch(workerUrl + '/brand-assets/' + encodeURIComponent(assetId), {
+      headers: { 'X-API-Key': adocGetApiKey() }
+    });
+    if (!rep.ok) throw new Error('Image personnalisée HTTP ' + rep.status);
+    const blob = await rep.blob();
+    if (!/^image\//.test(blob.type || '')) throw new Error('Format d’image personnalisée inattendu');
+    return adocBlobToEmbeddedImage(blob);
+  }
+
+  // L’export HTML classique du Carrousel et des autres formats reçoit aussi les octets,
+  // sans dépendre du cache de l’export interactif ni des identifiants de session.
+  async function adocEmbedAssetImagesHTML(html) {
+    const parsed = new DOMParser().parseFromString(html, 'text/html');
+    const nodes = adocCollectImageNodes(parsed).filter(function (n) { return n.assetId; });
+    if (!nodes.length) return html;
+    const cache = new Map();
+    for (const n of nodes) {
+      if (!cache.has(n.assetId)) cache.set(n.assetId, await adocExportFetchAsset(adocGetWorkerUrl(), n.assetId));
+      n.el.src = cache.get(n.assetId);
+    }
+    return '<!DOCTYPE html>' + parsed.documentElement.outerHTML;
+  }
+
   async function adocResolveImagesForExport(doc, options) {
     const opts = options || {};
     const workerUrl = opts.workerUrl || adocGetWorkerUrl();
@@ -18679,6 +18756,11 @@ ${recent}`;
       try {
         // Espacement AVANT chaque requête sauf la première : c'est la rafale qui déclenche les
         // refus, pas le volume. Mesuré sur 121 requêtes enchaînées.
+        if (r.assetId) {
+          const data = await adocExportFetchAsset(workerUrl, r.assetId);
+          images[r.q] = data; octets += data.length; telecharges++;
+          continue;
+        }
         if (i > 0 && delai) await adocPause(delai);
         if (r.isGen) {
           // Image générée : ses octets arrivent DÉJÀ en data: depuis /generate-image, rien à
@@ -19554,7 +19636,7 @@ ${recent}`;
     adocUnmountBlockEditPanel(st.panelEl);
     const docCard = document.getElementById('cc-ws-doc-card');
     if (docCard) {
-      const sel = docCard.querySelector('.adoc-sc-block.is-selected, .adoc-sc-cover-title.is-selected, .adoc-sc-card-title.is-selected, .adoc-sc-card.is-selected');
+      const sel = docCard.querySelector('.adoc-sc-block.is-selected, .adoc-sc-cover-title.is-selected, .adoc-sc-card-title.is-selected, .adoc-sc-card.is-selected, .adoc-sc-card-img.is-selected');
       // ITEM 75 Phase 2 — is-position-selected (poignée de redimensionnement d'un élément
       // imbriqué, cf. adocSelectNestedBlockForPosition) toujours retirée ICI aussi, même point
       // unique de nettoyage (régression #6) — jamais une poignée qui reste visible après
@@ -19594,6 +19676,7 @@ ${recent}`;
         btn('rewrite') + btn('shorten') + btn('expand') + btn('verifySources') +
         '<div style="width:1px;align-self:stretch;background:var(--stone-300);"></div>' +
         ((blockType === 'card' || (blockId || '').startsWith('root:card-title:')) ? '' : insertBtn('before', 'Insérer un bloc avant')) + insertBtn('after', 'Insérer un bloc après') + addImageBtn +
+        ((blockId || '').startsWith('root:card-title:') ? adocImageReplacementButtonsHTML(true) : '') +
         '<div style="display:flex;gap:6px;flex:1 1 240px;min-width:240px;">' +
           '<textarea class="cc-block-edit-freetext adoc-textarea" style="flex:1;min-height:34px;max-height:120px;" ' +
             'placeholder="Ou décrivez la correction souhaitée…" rows="1" ' +
@@ -19667,7 +19750,25 @@ ${recent}`;
     // 57f — each textual leaf is prepared after the delegated click handler.
     docCard.onclick = function (e) {
       if (e.target.closest('.cc-block-edit-panel')) return; // clic dans le panneau — jamais réinterprété comme une (dé)sélection
-      if (e.target.closest('.adoc-sc-cite')) return; // note de bas de page — laisse naviguer normalement
+      if (e.target.closest('.adoc-sc-cite')) return;
+      const cover = e.target.closest('.adoc-sc-card-img');
+      if (cover) {
+        const key = window._adocWsState.storeKey;
+        const art = window._adocArtifacts && window._adocArtifacts[key];
+        const card = art && adocFindEditableBlock(art._adocStructuredDoc, cover.closest('.adoc-sc-card').id);
+        if (!card) { alert('La diapositive sélectionnée est introuvable.'); return; }
+        adocWsClearBlockSelection();
+        cover.classList.add('is-selected');
+        const panel = document.createElement('div');
+        panel.className = 'cc-clarity-card cc-block-edit-panel';
+        panel.setAttribute('role', 'group');
+        panel.setAttribute('aria-label', 'Image de couverture sélectionnée');
+        panel.innerHTML = adocBlockEditPanelHeaderHTML(adocEsc(card.content.imageAlt || card.content.title)) +
+          adocImageReplacementButtonsHTML(true) + '<div class="cc-block-edit-result" hidden></div>';
+        adocMountContextualBlockEditPanel(panel, cover);
+        window._adocBlockEditState = { storeKey: key, blockId: card.id, panelEl: panel, originalBlock: card, zone: 'cover' };
+        return;
+      } // note de bas de page — laisse naviguer normalement
       // ITEM 75 Phase 1 UI — un clic sur la SURFACE PROPRE d'une carte Carrousel (jamais son
       // titre, jamais un bloc imbriqué, qui restent gérés plus bas exactement comme avant) est
       // entièrement pris en charge par docCard.onmousedown ci-dessous (sélection + panneau
@@ -19776,10 +19877,10 @@ ${recent}`;
     // (adocHandleImageDrop ci-dessous décide de la branche selon l'élément visé), jamais un
     // second gestionnaire dragover/drop.
     docCard.ondragover = function (e) {
-      if (e.target.closest('.adoc-sc-image, .adoc-sc-cover, .adoc-sc-block')) e.preventDefault();
+      if (e.target.closest('.adoc-sc-card-img, .adoc-sc-image, .adoc-sc-cover, .adoc-sc-block')) e.preventDefault();
     };
     docCard.ondrop = function (e) {
-      const dropEl = e.target.closest('.adoc-sc-image, .adoc-sc-cover, .adoc-sc-block');
+      const dropEl = e.target.closest('.adoc-sc-card-img, .adoc-sc-image, .adoc-sc-cover, .adoc-sc-block');
       if (!dropEl) return;
       e.preventDefault();
       const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
@@ -19811,6 +19912,7 @@ ${recent}`;
       if (hoverReorderBlockEl) { hoverReorderBlockEl.classList.remove('cc-drag-edge-hover'); hoverReorderBlockEl = null; }
     };
     docCard.onmousedown = function (e) {
+      if (e.target.closest('.adoc-sc-card-img, .cc-block-edit-panel')) return;
       // Fusion Phase 2 — verrou global partagé avec le glissement B→A (adocFusionSetupDragSource,
       // cf. plus bas) : bloque le DÉMARRAGE d'un des trois glissements ci-dessous (réordonnancement,
       // positionnement imbriqué, positionnement de carte) tant qu'un glissement B→A est réellement
@@ -20174,7 +20276,12 @@ ${recent}`;
     catch (e) { alert(e.message); return; }
     finally { adocSetImageDropBusy(dropEl, false); }
     const label = file.name.replace(/\.[^.]+$/, '') || 'Image importée';
-    if (!adocApplyImageAssetToDropTarget(dropEl, doc, assetId, label)) return;
+    if (dropEl.matches('.adoc-sc-card-img, .adoc-sc-image')) {
+      const id = dropEl.matches('.adoc-sc-card-img') ? dropEl.closest('.adoc-sc-card').id : dropEl.id;
+      window._adocBlockEditState = Object.assign({}, window._adocBlockEditState, { storeKey: storeKey, blockId: id });
+      return adocReplaceSelectedImage({ assetId: assetId, alt: label });
+    }
+    if (!adocApplyImageAssetToDropTarget(dropEl, doc, assetId, label)) { alert('Cette zone n’accepte pas d’image.'); return; }
     if (!await window.adocOpenWorkspace(storeKey)) return;
     await window.adocWsSave();
   }
@@ -20353,7 +20460,8 @@ ${recent}`;
     if (!st.storeKey || !st.panelEl) return;
     if (type === 'image') {
       const resultEl = st.panelEl.querySelector('.cc-block-edit-result');
-      if (!resultEl) return;
+      if (!resultEl) { alert('Le panneau d’image est indisponible. Sélectionnez l’image à nouveau.'); return; }
+      resultEl.hidden = false;
       // LOT C (cas 4, insertion) — glisser-déposer AJOUTÉ à côté de la description texte déjà
       // existante (Pexels), jamais à sa place : les deux entrées créent le même type de bloc
       // 'image', juste via une source différente (assetId vs query).
@@ -20479,10 +20587,12 @@ ${recent}`;
     if (type === 'image' && !adocRequeteImageUtilisable(imageDescription)) {
       alert('Insertion impossible : décrivez l’image à rechercher.'); return false;
     }
+    if (direction === 'replace' && type === 'image') return adocReplaceSelectedImage({ query: imageDescription.trim(), alt: imageDescription.trim() });
     return adocInsertStructuredBlock(direction, type, adocDefaultBlockContent(type, imageDescription));
   };
 
   async function adocInsertImageBlockWithAsset(direction, assetId, label) {
+    if (direction === 'replace') return adocReplaceSelectedImage({ assetId: assetId, alt: label || 'Image importée' });
     return adocInsertStructuredBlock(direction, 'image', { query: label, alt: label, assetId: assetId });
   }
 
@@ -20730,6 +20840,8 @@ ${recent}`;
     const art = window._adocArtifacts && window._adocArtifacts[st.storeKey];
     if (!art || !art._adocStructuredDoc) return false;
     const doc = art._adocStructuredDoc;
+    const imageTarget = adocFindEditableBlock(doc, st.blockId.replace(/^root:card-title:/, ''));
+    if (imageTarget && ['card', 'image'].includes(imageTarget.type)) return adocReplaceSelectedImage({ assetId: assetId, alt: label || 'Image importée' });
     const dropEl = document.getElementById(st.blockId);
     if (!dropEl) {
       alert('Le bloc sélectionné est introuvable — sélectionnez-le à nouveau.');
