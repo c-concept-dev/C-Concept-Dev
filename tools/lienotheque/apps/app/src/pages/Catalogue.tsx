@@ -50,12 +50,39 @@ export function Catalogue({ vue, page, onPage, onLecteur, onAjouter }: Props): J
   };
 
   const pages = useMemo(() => {
-    const etats = ETAT.valeurs.map((v) => v.cle).filter((cle) => choisis.has(`${ETAT.cle}/${cle}`));
+    // Coché dans un même axe : l'un ou l'autre. D'un axe à l'autre : les deux à la fois. C'est
+    // ce qu'on attend d'une liste de cases, et c'est vrai de l'axe de l'application comme de
+    // ceux du schéma — l'écran ne sait pas ce qu'ils veulent dire, il compare des clés.
+    const retenues = (cleAxe: string, possibles: readonly string[]): readonly string[] =>
+      possibles.filter((cle) => choisis.has(`${cleAxe}/${cle}`));
+
     // Aucun état coché vaut tous les états : une liste vide n'est pas un filtre, c'est l'absence
     // de filtre — et un écran qui se vide au premier clic de décochage se lit comme un bogue.
-    return etats.length === 0 ? vue.pages : vue.pages.filter((p) => etats.includes(etatDe(p)));
-  }, [vue.pages, choisis]);
+    const etats = retenues(
+      ETAT.cle,
+      ETAT.valeurs.map((v) => v.cle),
+    );
+
+    return vue.pages.filter((page) => {
+      if (etats.length > 0 && !etats.includes(etatDe(page))) return false;
+      for (const filtre of vue.filtres) {
+        if (!filtre.filtrable) continue;
+        const voulues = retenues(
+          filtre.cle,
+          filtre.valeurs.map((v) => v.cle),
+        );
+        if (voulues.length === 0) continue;
+        const portees = page.valeurs[filtre.cle] ?? [];
+        if (!voulues.some((cle) => portees.includes(cle))) return false;
+      }
+      return true;
+    });
+  }, [vue.pages, vue.filtres, choisis]);
   const detail: PageAffichee | undefined = pages.find((p) => p.numero === page) ?? pages[0];
+
+  // Ce qui attend un arbitrage et ce qui attend seulement d'être lu ne se comptent pas ensemble.
+  const informations = vue.douteux.filter((cas) => cas.nature === "information").length;
+  const aTrancher = vue.douteux.length - informations;
 
   const relies = (p: PageAffichee): number => p.elements.filter((e) => e.media !== undefined).length;
   const aVerifier = (p: PageAffichee): number => p.elements.filter((e) => e.aVerifier).length;
@@ -72,10 +99,19 @@ export function Catalogue({ vue, page, onPage, onLecteur, onAjouter }: Props): J
                 {compteur.nombre} {compteur.mot}
               </span>
             ))}
-            {vue.aVerifier > 0 ? (
+            {/* Deux comptes, pas un seul. « 7 à vérifier » en tête pendant que le filtre
+                annonçait « À vérifier : 0 », c'était l'écran qui se contredisait : les sept
+                étaient des informations, qui ne se tranchent pas. Chacune son compte. */}
+            {aTrancher > 0 ? (
               <a className="ln-catalogue__averifier" href="#verifier">
                 <Icone nom="alerte" />
-                {accorder(vue.aVerifier, { un: "à vérifier", plusieurs: "à vérifier" })}
+                {accorder(aTrancher, { un: "à vérifier", plusieurs: "à vérifier" })}
+              </a>
+            ) : null}
+            {informations > 0 ? (
+              <a className="ln-catalogue__informations" href="#verifier">
+                <Icone nom="info" />
+                {accorder(informations, { un: "information", plusieurs: "informations" })}
               </a>
             ) : null}
           </p>
@@ -112,7 +148,11 @@ export function Catalogue({ vue, page, onPage, onLecteur, onAjouter }: Props): J
             </ul>
           </section>
 
-          {vue.filtres.map((filtre) => (
+          {/* Seuls les axes qui peuvent vraiment trier se montrent (CLA-10). Un axe que
+              l'instantané déclare sans l'avoir compté s'affichait avec des comptes à zéro et des
+              cases sans effet : l'écran promettait un tri qui n'existait pas. Le groupe
+              reparaîtra de lui-même le jour où les pages porteront leurs valeurs. */}
+          {vue.filtres.filter((filtre) => filtre.filtrable).map((filtre) => (
             <section key={filtre.cle} className="ln-filtres__axe" role="group" aria-labelledby={`axe-${filtre.cle}`}>
               <h3 id={`axe-${filtre.cle}`} className="ln-filtres__nom">
                 {filtre.nom}
@@ -166,9 +206,15 @@ export function Catalogue({ vue, page, onPage, onLecteur, onAjouter }: Props): J
                   aria-current={p.numero === detail?.numero ? "true" : undefined}
                   aria-label={nommer(vue.mots.page, p.numero)}
                 >
-                  <span className="ln-pages__apercu" aria-hidden="true">
-                    {p.numero}
-                  </span>
+                  {/* La vignette de la page quand le lot en porte une (OUT-04) ; son numéro
+                      sinon. Décorative dans les deux cas : le nom accessible est sur le bouton. */}
+                  {p.vignette === undefined ? (
+                    <span className="ln-pages__apercu" aria-hidden="true">
+                      {p.numero}
+                    </span>
+                  ) : (
+                    <img className="ln-pages__apercu" src={p.vignette} alt="" loading="lazy" decoding="async" />
+                  )}
                   <span className="ln-pages__nom">
                     {nommer(vue.mots.page, p.numero)}
                   </span>
@@ -197,10 +243,20 @@ export function Catalogue({ vue, page, onPage, onLecteur, onAjouter }: Props): J
               <h2 className="ln-detail__titre">
                 {nommer(vue.mots.page, detail.numero)}
               </h2>
-              <div className="ln-detail__apercu" role="img" aria-label={nommer(vue.mots.page, detail.numero)}>
-                <span>{detail.numero}</span>
-                {detail.titre === undefined ? null : <span className="ln-detail__sous-titre">{detail.titre}</span>}
-              </div>
+              {detail.vignette === undefined ? (
+                <div className="ln-detail__apercu" role="img" aria-label={nommer(vue.mots.page, detail.numero)}>
+                  <span>{detail.numero}</span>
+                  {detail.titre === undefined ? null : <span className="ln-detail__sous-titre">{detail.titre}</span>}
+                </div>
+              ) : (
+                <img
+                  className="ln-detail__apercu ln-detail__apercu--image"
+                  src={detail.vignette}
+                  alt={nommer(vue.mots.page, detail.numero)}
+                  loading="lazy"
+                  decoding="async"
+                />
+              )}
 
               <h3 className="ln-detail__sous">
                 {enTete(vue.mots.element.plusieurs)}
@@ -219,9 +275,11 @@ export function Catalogue({ vue, page, onPage, onLecteur, onAjouter }: Props): J
                         → {nommer(vue.mots.piste, element.media.piste)}
                       </span>
                     )}
+                    {/* Une étiquette commence par une majuscule comme n'importe quel libellé :
+                        c'est `enTete` qui la pose, la même fonction partout. */}
                     <span className={element.aVerifier ? "ln-detail__etat ln-detail__etat--doute" : "ln-detail__etat"}>
                       <Icone nom={element.aVerifier ? "alerte" : "valide"} />
-                      {element.aVerifier ? "à vérifier" : "lien validé"}
+                      {enTete(element.aVerifier ? "à vérifier" : "lien validé")}
                     </span>
                   </li>
                 ))}

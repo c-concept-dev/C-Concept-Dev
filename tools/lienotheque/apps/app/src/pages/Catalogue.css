@@ -35,7 +35,10 @@
   color: var(--ln-text-secondary);
 }
 
-.ln-catalogue__averifier {
+/* Les deux pastilles de l'en-tête ont la même forme : ce qui les distingue est leur icône et
+   leur fond. Celle des informations reste sobre — elle ne réclame rien, elle renseigne. */
+.ln-catalogue__averifier,
+.ln-catalogue__informations {
   display: inline-flex;
   align-items: center;
   gap: calc(var(--ln-grid) * 0.75);
@@ -44,6 +47,20 @@
   background: var(--ln-selection-background);
   color: var(--ln-selection-text);
   text-decoration: none;
+}
+
+/* Sans fond à elle : elle est posée sur le panneau de titre, et prend donc l'encre de ce
+   panneau — claire sur le graphite en hybride, sombre sur l'ivoire en clair. Une bordure suffit
+   à la détacher. Lui donner une surface crème, c'était retomber sur la confusion corrigée au
+   Lecteur : l'encre du panneau sur un fond qui n'est pas le sien, rapport 1,07.
+
+   L'encre se reprend explicitement : « --ln-selection-text » de la règle commune va avec le fond
+   de sélection, et sans ce fond elle tombait pile sur la couleur du graphite — rapport 1,00, du
+   texte invisible. Un fond et son encre se tiennent, on ne retire pas l'un sans l'autre. */
+.ln-catalogue__informations {
+  background: transparent;
+  color: var(--ln-text-primary);
+  border: 1px solid var(--ln-border-decorative);
 }
 
 .ln-catalogue__corps {
@@ -309,4 +326,18 @@
   .ln-catalogue__corps {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* Vignettes réelles (OUT-04). Elles prennent la place exacte des aperçus au numéro : une
+   bibliothèque dont le lot n'a pas produit de dérivés garde la même grille. */
+img.ln-pages__apercu,
+.ln-detail__apercu--image {
+  display: block;
+  width: 100%;
+  object-fit: contain;
+}
+
+.ln-pages--liste img.ln-pages__apercu {
+  width: calc(var(--ln-grid) * 6);
+  flex: none;
 }

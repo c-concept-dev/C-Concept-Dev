@@ -39,6 +39,7 @@ const vue = await instantaneDeLot({
   cache: coin(cache, "lectures"),
   images,
   adresseImages: "/donnees/pages",
+  adresseMedias: "/donnees/medias",
 });
 
 mkdirSync(dirname(sortie), { recursive: true });

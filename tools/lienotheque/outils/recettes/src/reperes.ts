@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { CotePage, ElementRepere, LectureRepere, MotLu, Recette } from "@lienotheque/contrats";
+import type { CotePage, ElementRepere, LectureRepere, MotLu, Recette, ZoneRelative } from "@lienotheque/contrats";
 import {
   agrandir,
   boiteSombre,
@@ -431,6 +431,15 @@ export function lecturesDePage(image: ImageGrise, recette: Recette, options: Opt
 
       lectures.push({
         y,
+        // La boîte du numéro, ramenée en part de la page. Elle est mesurée sur l'image agrandie
+        // de cette passe : ses pixels ne veulent rien dire ailleurs, sa part si. C'est elle que
+        // le Lecteur cadre, et c'est de là que part le fil vers le segment.
+        zone: {
+          x: Math.min(1, Math.max(0, boite.x / agrandie.largeur)),
+          y: Math.min(1, Math.max(0, boite.y / agrandie.hauteur)),
+          l: Math.min(1, Math.max(Number.EPSILON, boite.l / agrandie.largeur)),
+          h: Math.min(1, Math.max(Number.EPSILON, boite.h / agrandie.hauteur)),
+        },
         numero,
         ...(piste === undefined ? {} : { pisteLue: piste.valeur }),
         presencePiste: bloc?.presence ?? 0,
@@ -470,23 +479,40 @@ export function lecturesDePage(image: ImageGrise, recette: Recette, options: Opt
   return lectures;
 }
 
+/** Ce que porte une lecture. À incrémenter dès qu'une lecture dit quelque chose de nouveau.
+ *
+ *  Le cache de lecture garde un lot lu pendant un quart d'heure d'OCR, et sa clef désignait le
+ *  document et la recette — pas ce que le lecteur en tire. Ajouter la zone de chaque repère n'a
+ *  donc rien changé : les lectures gardées, qui n'en portaient pas, continuaient d'être servies,
+ *  et les zones n'arrivaient nulle part sans qu'une seule erreur ne le dise. Un cache qui ne
+ *  connaît pas la forme de ce qu'il garde finit par servir le passé. */
+export const VERSION_LECTURE = 2;
+
 /** Hauteur en deçà de laquelle deux lectures parlent du même élément. */
 const MEME_HAUTEUR = 0.03;
 
 /** Regroupe les lectures par hauteur et vote. Deux votes séparés : le numéro d'élément et celui
  *  de la piste — l'un peut être sûr quand l'autre ne l'est pas. */
 export function consolider(lectures: readonly LectureRepere[]): ElementRepere[] {
-  const groupes: { y: number; numeros: number[]; pistes: number[]; presences: number[]; suite: boolean }[] = [];
+  const groupes: {
+    y: number;
+    numeros: number[];
+    pistes: number[];
+    presences: number[];
+    suite: boolean;
+    zones: { numero: number; zone: ZoneRelative }[];
+  }[] = [];
 
   for (const lecture of [...lectures].sort((a, b) => a.y - b.y || a.numero - b.numero)) {
     const dernier = groupes[groupes.length - 1];
     if (dernier === undefined || Math.abs(dernier.y - lecture.y) >= MEME_HAUTEUR)
-      groupes.push({ y: lecture.y, numeros: [], pistes: [], presences: [], suite: false });
+      groupes.push({ y: lecture.y, numeros: [], pistes: [], presences: [], suite: false, zones: [] });
     const groupe = groupes[groupes.length - 1]!;
     groupe.numeros.push(lecture.numero);
     groupe.suite ||= lecture.suite;
     groupe.presences.push(lecture.presencePiste);
     if (lecture.pisteLue !== undefined) groupe.pistes.push(lecture.pisteLue);
+    if (lecture.zone !== undefined) groupe.zones.push({ numero: lecture.numero, zone: lecture.zone });
   }
 
   return groupes.flatMap((groupe) => {
@@ -494,9 +520,14 @@ export function consolider(lectures: readonly LectureRepere[]): ElementRepere[] 
     if (numero === undefined) return [];
     const piste = vote(groupe.pistes);
     const presence = groupe.presences.length === 0 ? 0 : Math.max(...groupe.presences);
+    // La zone de la lecture qui a emporté le vote, pas la moyenne des zones : deux passes qui
+    // ne lisent pas le même numéro ne désignent pas le même endroit, et leur milieu ne désigne
+    // rien du tout.
+    const zone = groupe.zones.find((candidate) => candidate.numero === numero.valeur)?.zone;
     return [
       {
         y: Math.round(groupe.y * 1000) / 1000,
+        ...(zone === undefined ? {} : { zone }),
         numero: numero.valeur,
         ...(piste === undefined ? {} : { pisteLue: piste.valeur }),
         presencePiste: Math.round(presence * 100) / 100,

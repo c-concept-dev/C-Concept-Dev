@@ -108,6 +108,20 @@ describe("Lecteur : l'écran tient dans la hauteur de la fenêtre (correction 3)
     const feuille = reglesPour(FEUILLES.lecteur, ".ln-lecteur__page");
     expect(feuille.some((corps) => declaration(corps, "overflow") === "auto")).toBe(true);
   });
+
+  /** Une colonne a besoin des deux : pouvoir être plus courte que son contenu, et une hauteur à
+   *  respecter. Calées sur leur contenu, les colonnes grandissaient avec la page et venaient
+   *  couvrir la ligne des raccourcis — `min-height: 0` et `overflow: auto` n'y changeaient rien,
+   *  faute d'une hauteur à borner. C'est la mesure dans les moteurs qui le dit vraiment ; ici on
+   *  garde seulement que personne ne recale les colonnes en haut de leur rangée. */
+  it("fait prendre à chaque colonne la hauteur de sa rangée, et jamais celle de son contenu", () => {
+    const corps = reglesPour(FEUILLES.lecteur, ".ln-lecteur__corps");
+    expect(corps.length, "la règle du corps est là").toBeGreaterThan(0);
+    for (const regle of corps) {
+      const alignement = declaration(regle, "align-items");
+      expect(["stretch", undefined], `align-items : ${alignement}`).toContain(alignement);
+    }
+  });
 });
 
 /** Correction 3, deuxième moitié : en hybride le fond photographique couvre toute la fenêtre,
@@ -184,6 +198,44 @@ describe("Hybride : un panneau de contenu qui sert aussi de panneau de titre (co
     for (const [nom, feuille] of Object.entries(FEUILLES)) {
       if (nom === "base") continue;
       expect(sansCommentaires(feuille), nom).not.toMatch(/\.ln-panneau-titre\s*\{[^}]*--ln-heading-panel/);
+    }
+  });
+});
+
+/** La même confusion, un cran plus bas : un contrôle posé dans un panneau de titre hybride porte
+ *  son propre fond crème, et doit donc garder l'encre de ce fond. La redéfinition qui sert au
+ *  texte du panneau lui donnait l'encre claire : rapport 1,07, l'icône du bouton « suivant »
+ *  invisible. */
+describe("Hybride : un contrôle garde l'encre de sa surface", () => {
+  const regles = reglesPour(FEUILLES.base, '[data-theme="hybrid"] .ln-panneau-titre .ln-btn');
+
+  it("rend au bouton l'encre de contenu, par le jeton prévu", () => {
+    expect(regles.length, "la règle existe").toBeGreaterThan(0);
+    expect(regles.some((corps) => declaration(corps, "--ln-text-primary") === "var(--ln-text-on-surface)")).toBe(true);
+  });
+
+  it("ne pose aucune couleur : elle s'imposerait au cuivre plein et au bouton désactivé", () => {
+    // Ce sélecteur est plus spécifique que « .ln-btn--principal » et que « .ln-btn:disabled ».
+    // Poser « color » ici repeignait l'encre du cuivre — 2,57 — et réveillait le désactivé.
+    for (const corps of regles) expect(declaration(corps, "color"), "aucune couleur directe").toBeUndefined();
+  });
+});
+
+/** Une zone d'élément est petite par nature : un numéro dans la marge fait moins d'un pour cent
+ *  de la page. Le cadre dit où le numéro a été lu ; la cible, elle, doit rester attrapable. */
+describe("Lecteur : la cible d'une zone tient les 24 px de WCAG 2.2 (UX-07)", () => {
+  const regles = reglesPour(FEUILLES.lecteur, ".ln-page__zone::before");
+
+  it("étend la surface de clic autour du centre de la zone", () => {
+    expect(regles.length, "la règle existe").toBeGreaterThan(0);
+    expect(regles.some((corps) => declaration(corps, "inset") === "50%")).toBe(true);
+    expect(regles.some((corps) => declaration(corps, "margin") === "-12px"), "24 px de côté").toBe(true);
+  });
+
+  it("ne touche pas au cadre lui-même : il dit où le numéro a été lu", () => {
+    for (const corps of reglesPour(FEUILLES.lecteur, ".ln-page__zone")) {
+      expect(declaration(corps, "min-width"), "aucune taille minimale sur le cadre").toBeUndefined();
+      expect(declaration(corps, "padding"), "aucun remplissage qui l'agrandirait").toBeUndefined();
     }
   });
 });

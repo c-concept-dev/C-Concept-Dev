@@ -164,6 +164,9 @@ importers:
       '@lienotheque/noyau':
         specifier: workspace:*
         version: link:../../packages/noyau
+      '@lienotheque/optimiseur':
+        specifier: workspace:*
+        version: link:../optimiseur
       '@lienotheque/recettes':
         specifier: workspace:*
         version: link:../recettes

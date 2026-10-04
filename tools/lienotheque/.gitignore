@@ -2,7 +2,7 @@ node_modules/
 dist/
 *.log
 .DS_Store
-fixtures/fichiers/
+fixtures/fichiers
 *.zip
 target/
 **/src-tauri/moteurs/

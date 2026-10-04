@@ -46,6 +46,9 @@ export type Lot = {
   readonly images?: string | undefined;
   /** Adresse à laquelle ces images seront servies. */
   readonly adresseImages?: string | undefined;
+  /** Adresse à laquelle les médias seront servis. Absente, l'instantané n'en porte aucune, et
+   *  les écrans disent « média non disponible ici » plutôt que de faire semblant (ANC-05). */
+  readonly adresseMedias?: string | undefined;
 };
 
 /** Quel numéro imprimé porte chaque rang du document, d'après l'interprète.
@@ -92,7 +95,7 @@ export async function instantaneDeLot(lot: Lot): Promise<VueBibliotheque> {
   // Les images, une par une, écrites au passage. Le numéro imprimé d'une page n'est pas son rang
   // dans le document : c'est le décalage lu qui fait le lien entre les deux.
   const imprimes = numerosImprimes(lues, resultat.lignes);
-  const parPageImprimee = new Map<number, { image: string; largeur: number; hauteur: number }>();
+  const parPageImprimee = new Map<number, { image: string; largeur: number; hauteur: number; vignette?: string }>();
   if (lot.images !== undefined) {
     const adresse = lot.adresseImages ?? "/donnees/pages";
     for (const page of await exporterPages(lot.pdf, lot.images))
@@ -102,6 +105,7 @@ export async function instantaneDeLot(lot: Lot): Promise<VueBibliotheque> {
         image: `${adresse}/${page.fichier}`,
         largeur: page.largeur,
         hauteur: page.hauteur,
+        ...(page.vignette === undefined ? {} : { vignette: `${adresse}/${page.vignette}` }),
       });
   }
 
@@ -117,5 +121,9 @@ export async function instantaneDeLot(lot: Lot): Promise<VueBibliotheque> {
     // redéclarer ailleurs, c'est se donner deux seuils et finir par en oublier un.
     seuil: recette.validation.seuil_confiance,
     imageDePage: (page) => parPageImprimee.get(page),
+    // L'emplacement se résout à la lecture, pas à l'ingestion : la carte ne dit pas où le
+    // fichier habite, elle dit lequel c'est (ANC-05).
+    sourceDuMedia: (media) =>
+      lot.adresseMedias === undefined || media.nom === undefined ? undefined : `${lot.adresseMedias}/${encodeURIComponent(media.nom)}`,
   });
 }

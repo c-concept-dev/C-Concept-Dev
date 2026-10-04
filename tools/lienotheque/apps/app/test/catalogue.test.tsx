@@ -21,8 +21,10 @@ const VUE = VueBibliotheque.parse({
   ],
   aVerifier: 9,
   filtres: [
-    { cle: "niveau", nom: "Niveau", valeurs: [{ cle: "debutant", nom: "Débutant", nombre: 146 }, { cle: "avance", nom: "Avancé", nombre: 82 }] },
-    { cle: "audio", nom: "Avec audio", valeurs: [{ cle: "oui", nom: "Oui", nombre: 380 }] },
+    { cle: "niveau", nom: "Niveau", valeurs: [{ cle: "debutant", nom: "Débutant", nombre: 146 }, { cle: "avance", nom: "Avancé", nombre: 82 }], filtrable: true },
+    { cle: "audio", nom: "Avec audio", valeurs: [{ cle: "oui", nom: "Oui", nombre: 380 }], filtrable: true },
+    // Déclaré par le schéma, jamais compté : son groupe ne doit pas apparaître.
+    { cle: "periode", nom: "Période", valeurs: [{ cle: "ancienne", nom: "Ancienne", nombre: 0 }], filtrable: false },
   ],
   pages: [
     {
@@ -50,7 +52,34 @@ const VUE = VueBibliotheque.parse({
       traduction: [],
     },
   ],
-  douteux: [],
+  // Deux cas à trancher et sept informations : l'en-tête doit les compter à part, sinon il
+  // annonce « 9 à vérifier » pendant que le filtre dit « À vérifier : 0 ».
+  douteux: [
+    {
+      id: ID(60),
+      nature: "lien",
+      etat: "confiance",
+      element: { ancreId: ID(22), numero: "401", page: 127, aVerifier: true },
+      proposition: "clause 401 → plage 41",
+      motif: "repère partiellement lu",
+    },
+    {
+      id: ID(61),
+      nature: "lien",
+      etat: "conflit_appareils",
+      element: { ancreId: ID(23), numero: "402", page: 127, aVerifier: true },
+      proposition: "clause 402 → plage 42",
+      motif: "deux appareils ne disent pas la même chose",
+    },
+    ...Array.from({ length: 7 }, (_, rang) => ({
+      id: ID(70 + rang),
+      nature: "information",
+      etat: "media_orphelin",
+      libelle: `Plage ${90 + rang}`,
+      proposition: `Plage ${90 + rang} : aucun lien`,
+      motif: "aucun repère lu n'y renvoie",
+    })),
+  ],
 });
 
 function poser() {
@@ -72,7 +101,22 @@ describe("Catalogue : en-tête (CLA-10, UX-01)", () => {
 
   it("mène à Vérifier quand il reste des cas", () => {
     poser();
-    expect(screen.getByRole("link", { name: /9 à vérifier/i })).toHaveAttribute("href", "#verifier");
+    expect(screen.getByRole("link", { name: /2 à vérifier/i })).toHaveAttribute("href", "#verifier");
+    expect(screen.getByRole("link", { name: /7 informations/i })).toHaveAttribute("href", "#verifier");
+  });
+
+  it("ne compte pas les informations parmi ce qui est à vérifier", () => {
+    poser();
+    // L'en-tête annonçait « 9 à vérifier » pendant que le filtre disait « À vérifier : 0 » :
+    // les sept informations ne se tranchent pas, elles se lisent.
+    expect(screen.queryByRole("link", { name: /9 à vérifier/i })).not.toBeInTheDocument();
+  });
+
+  it("n'affiche une pastille que si elle compte quelque chose", () => {
+    const sansRien = VueBibliotheque.parse({ ...VUE, aVerifier: 0, douteux: [] });
+    render(<Catalogue vue={sansRien} onPage={vi.fn()} onLecteur={vi.fn()} onAjouter={vi.fn()} />);
+    expect(screen.queryByRole("link", { name: /à vérifier/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /information/i })).not.toBeInTheDocument();
   });
 
   it("le fil d’Ariane s’arrête à la bibliothèque", () => {
@@ -88,6 +132,21 @@ describe("Catalogue : filtres tirés de la nomenclature (CLA-10)", () => {
     expect(screen.getByRole("heading", { name: "Niveau", level: 3 })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Avec audio", level: 3 })).toBeInTheDocument();
     expect(screen.getByText("146")).toBeInTheDocument();
+  });
+
+  it("masque l'axe qu'il ne peut pas trier, au lieu d'afficher des comptes à zéro", () => {
+    poser();
+    // « Période » est déclaré par le schéma mais jamais compté : des cases inertes et des zéros
+    // valent moins qu'une absence — l'écran promettrait un tri qu'il n'a pas.
+    expect(screen.queryByRole("heading", { name: "Période", level: 3 })).not.toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: /ancienne/i })).not.toBeInTheDocument();
+  });
+
+  it("garde l'état du lien, que l'application sait trier d'elle-même", () => {
+    poser();
+    // Celui-là n'est pas du domaine : « validé » et « à vérifier » sont des mots de
+    // l'application, et c'est elle qui décide ce qu'ils désignent.
+    expect(screen.getByRole("heading", { name: "État du lien", level: 3 })).toBeInTheDocument();
   });
 
   it("se cochent et se décochent", async () => {
@@ -135,8 +194,9 @@ describe("Catalogue : panneau de détail (B3)", () => {
     const detail = screen.getByRole("complementary", { name: /détail — feuillet 127/i });
     expect(within(detail).getByText("Clause 400")).toBeInTheDocument();
     expect(within(detail).getByText(/→ Plage 40/)).toBeInTheDocument();
-    expect(within(detail).getByText(/lien validé/)).toBeInTheDocument();
-    expect(within(detail).getByText(/à vérifier/)).toBeInTheDocument();
+    // Une étiquette commence par une majuscule, comme n'importe quel libellé.
+    expect(within(detail).getByText("Lien validé")).toBeInTheDocument();
+    expect(within(detail).getByText("À vérifier")).toBeInTheDocument();
     expect(within(detail).getByText(/Sans plage/)).toBeInTheDocument();
   });
 

@@ -242,6 +242,10 @@ export function sequencer(
       ...(piste === undefined ? {} : { piste }),
       disque,
       ...(sourcePiste === undefined ? {} : { sourcePiste }),
+      // Où l'élément a été lu sur sa page. L'interprétation ne la touche pas : elle vient de la
+      // lecture, et c'est elle que le Lecteur cadre. Un numéro réparé n'en a pas — il n'a été lu
+      // nulle part, et cadrer un endroit où rien n'a été vu désignerait n'importe quoi.
+      ...(element.zone === undefined || element.repare !== undefined ? {} : { zone: element.zone }),
       confiance: Math.round(confiance * 100) / 100,
     });
     if (piste !== undefined) {

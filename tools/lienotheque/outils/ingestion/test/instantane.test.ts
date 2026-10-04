@@ -1,59 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { VueBibliotheque, type LigneInterpretee, type MotsBibliotheque, type SchemaBibliotheque } from "@lienotheque/contrats";
-import type { Association } from "@lienotheque/recettes";
-import { construireVue, phraseDuLien, type Entree, type MediaIngere } from "../src/index.js";
-
-const MOTS: MotsBibliotheque = {
-  element: { un: "clause", plusieurs: "clauses" },
-  piste: { un: "plage", plusieurs: "plages" },
-  page: { un: "feuillet", plusieurs: "feuillets" },
-};
-
-const SCHEMA: SchemaBibliotheque = {
-  cle: "recueil",
-  nom: "Recueil",
-  langue: "fr",
-  version: 1,
-  axes: [
-    {
-      cle: "niveau",
-      nom: "Niveau",
-      nature: "referentiel",
-      cardinalite: "une",
-      structure: "plat",
-      obligatoire: false,
-      alias: [],
-      valeurs: [
-        { cle: "debutant", nom: "Débutant", alias: [], synonymes: [], retiree: false },
-        { cle: "ancien", nom: "Ancien", alias: [], synonymes: [], retiree: true },
-      ],
-    },
-  ],
-};
-
-const ligne = (numero: number, sur: Partial<LigneInterpretee> = {}): LigneInterpretee => ({
-  numero,
-  pageImprimee: 100 + Math.floor(numero / 3),
-  piste: numero,
-  disque: 1,
-  sourcePiste: "pastille",
-  confiance: 1,
-  ...sur,
-});
-
-const media = (piste: number): MediaIngere => ({ empreinte: String(piste).padStart(64, "0"), piste, disque: 1, nom: `Plage ${piste}.mp3` });
-
-const entree = (sur: Partial<Entree> = {}): Entree => ({
-  id: "recueil",
-  nom: "Recueil de procédures",
-  schema: SCHEMA,
-  mots: MOTS,
-  lignes: [ligne(1), ligne(2), ligne(3)],
-  association: { appariements: [], orphelins: [], manquants: [] } satisfies Association,
-  medias: [media(1), media(2), media(3)],
-  seuil: 0.6,
-  ...sur,
-});
+import { VueBibliotheque, type LigneInterpretee } from "@lienotheque/contrats";
+import { construireVue, phraseDuLien } from "../src/index.js";
+import { MOTS, entreeMinimale as entree, ligne } from "./aide-instantane.js";
 
 describe("phrase d'un lien (ANC-02)", () => {
   it("dit en français d'où vient la piste, avec les mots de la bibliothèque", () => {
@@ -95,13 +43,24 @@ describe("instantané pour les écrans (B5)", () => {
     const vue = construireVue(entree({ lignes: [ligne(1, { confiance: 0.4 }), ligne(2)] }));
     expect(vue.aVerifier).toBe(1);
     expect(vue.douteux[0]?.proposition).toBe("clause 1 → plage 1");
-    expect(vue.douteux[0]?.element.aVerifier).toBe(true);
+    expect(vue.douteux[0]?.element?.aVerifier).toBe(true);
   });
 
-  it("tire ses filtres de la nomenclature, sans les valeurs retirées", () => {
+  it("tire ses filtres de la nomenclature, un par axe, sans les valeurs retirées", () => {
     const vue = construireVue(entree());
-    expect(vue.filtres).toHaveLength(1);
-    expect(vue.filtres[0]?.valeurs.map((valeur) => valeur.cle)).toEqual(["debutant"]);
+    expect(vue.filtres.map((filtre) => filtre.cle)).toEqual(["niveau", "ecoute"]);
+    expect(vue.filtres[0]?.valeurs.map((valeur) => valeur.cle), "« ancien » est retirée").toEqual(["debutant"]);
+  });
+
+  it("ne déclare filtrable qu'un axe qu'il a su compter (CLA-10)", () => {
+    const vue = construireVue(entree());
+    // « niveau » : rien ici ne sait quelle valeur une page y porte. L'annoncer avec des comptes
+    // à zéro, c'était promettre aux écrans un tri qui n'existe pas.
+    const niveau = vue.filtres.find((filtre) => filtre.cle === "niveau");
+    expect(niveau?.filtrable).toBe(false);
+    expect(niveau?.valeurs.every((valeur) => valeur.nombre === 0)).toBe(true);
+    // « ecoute » porte un rôle que l'application sait remplir : lui, il filtre.
+    expect(vue.filtres.find((filtre) => filtre.cle === "ecoute")?.filtrable).toBe(true);
   });
 
   it("compte ce qu'il y a, avec les mots de la bibliothèque", () => {

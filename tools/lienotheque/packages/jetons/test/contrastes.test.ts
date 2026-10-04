@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { JETONS, contraste } from "../src/index.js";
+import { JETONS, contraste, feuilleCss, variablesCss } from "../src/index.js";
 
 const T = 4.5; // texte courant (WCAG 2.2 AA)
 const C = 3; // composants et éléments graphiques
@@ -36,6 +36,10 @@ const PAIRES: [string, string, string, number][] = [
   ["sombre · focus", D.focus, D.surface, C],
   ["sombre · progression (réserve)", D.progress_fill, D.progress_track, C],
   ["hybride · titre sur panneau", D.text_primary, JETONS.themes.hybrid.heading_panel, T],
+  // Un contrôle posé dans un panneau de titre hybride garde son fond crème : c'est l'encre de
+  // cette surface qu'il doit prendre, pas celle du graphite derrière. La paire fautive est
+  // gardée juste en dessous, pour que la correction ne se reperde pas.
+  ["hybride · contrôle sur sa surface", L.text_primary, L.surface, T],
   ...Object.entries(JETONS.collections).map(([k, v]): [string, string, string, number] => [`bandeau ${k} · icône ivoire`, L.background, v, C]),
 ];
 
@@ -57,6 +61,42 @@ describe("contrastes WCAG 2.2 AA des jetons (UX-07)", () => {
   it("réserve le serif au logo et à « Bonjour »", () => {
     expect(JETONS.typography.serif_allowed).toEqual(["logo", "Bonjour"]);
     expect(JETONS.typography.counter_font).toBe("Inter");
+  });
+});
+
+describe("l'encre d'une surface est un jeton à part (UX-07)", () => {
+  /** `--ln-text-on-surface` fige l'encre du contenu au moment où le thème est écrit.
+   *
+   *  En hybride, un panneau de titre redéfinit `--ln-text-primary` pour tout son contenu — il
+   *  faut bien que son texte se lise sur le graphite. Un bouton, lui, porte son propre fond
+   *  crème : il héritait donc d'une encre claire sur une surface claire, rapport 1,07. Ce jeton
+   *  est ce qu'il relit pour retrouver la sienne. */
+  const feuille = feuilleCss();
+
+  it("est écrit dans les trois variantes", () => {
+    for (const variante of ["light", "dark", "hybrid"] as const)
+      expect(variablesCss(variante), variante).toContain("--ln-text-on-surface:");
+  });
+
+  it("vaut l'encre de contenu de sa variante, jamais celle d'un panneau de titre", () => {
+    expect(variablesCss("light")).toContain(`--ln-text-on-surface: ${L.text_primary}`);
+    expect(variablesCss("dark")).toContain(`--ln-text-on-surface: ${D.text_primary}`);
+    // L'hybride reprend les jetons clairs pour ses surfaces : son encre de contenu est la claire.
+    expect(variablesCss("hybrid")).toContain(`--ln-text-on-surface: ${L.text_primary}`);
+    expect(variablesCss("hybrid"), "et surtout pas le crème du panneau de titre").not.toContain(
+      `--ln-text-on-surface: ${JETONS.themes.hybrid.heading_text}`,
+    );
+  });
+
+  it("tient 4,5:1 sur la surface de chaque variante", () => {
+    expect(contraste(L.text_primary, L.surface)).toBeGreaterThanOrEqual(T);
+    expect(contraste(D.text_primary, D.surface)).toBeGreaterThanOrEqual(T);
+    // L'hybride : encre claire sur surface claire héritée.
+    expect(contraste(L.text_primary, L.surface)).toBeGreaterThanOrEqual(T);
+  });
+
+  it("sort de la feuille complète, pas seulement d'un bloc", () => {
+    expect(feuille.match(/--ln-text-on-surface:/g) ?? [], "une fois par variante").toHaveLength(3);
   });
 });
 

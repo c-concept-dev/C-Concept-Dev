@@ -79,7 +79,12 @@
   display: grid;
   grid-template-columns: minmax(0, 7rem) minmax(0, 1fr) minmax(0, 24rem);
   gap: calc(var(--ln-grid) * 2);
-  align-items: start;
+  /* Les trois colonnes prennent la hauteur de leur rangée, et font défiler ce qui dépasse.
+     Calées sur leur contenu — « align-items: start » —, elles grandissaient avec la page : une
+     page haute poussait la colonne hors de sa rangée et venait couvrir la ligne des raccourcis.
+     Chaque colonne porte déjà « min-height: 0 » et son propre défilement ; il ne leur manquait
+     qu'une hauteur à respecter. Le contenu reste en haut, par « align-content » chez chacune. */
+  align-items: stretch;
 }
 
 /* ---- Bande des vignettes ---- */
@@ -191,6 +196,18 @@
   border-radius: calc(var(--ln-radius) / 2);
   background: none;
   cursor: pointer;
+}
+
+/* La cible, au moins 24 px de côté (WCAG 2.2 AA, 2.5.8).
+   Un numéro d'élément dans la marge mesure moins d'un pour cent de la page : sur la page affichée,
+   le cadre lu fait huit pixels sur seize. Le cadre reste à l'endroit exact où le numéro a été lu —
+   c'est ce qu'il annonce —, et la surface qui reçoit le clic s'étend autour de son centre sans le
+   déplacer. On n'agrandit pas le dessin pour agrandir la prise. */
+.ln-page__zone::before {
+  content: "";
+  position: absolute;
+  inset: 50%;
+  margin: -12px;
 }
 
 .ln-page__zone:hover {
@@ -437,4 +454,23 @@
     width: calc(var(--ln-grid) * 9);
     flex: none;
   }
+}
+
+/* Vignette réelle (OUT-04). Même boîte que la feuille vide qu'elle remplace : la bande ne
+   change pas de largeur selon qu'un lot porte ses dérivés ou non. `contain` plutôt que
+   `cover` — une page rognée pour tenir dans un rapport fixe cache ce qu'on y cherche. */
+img.ln-vignettes__feuille {
+  object-fit: contain;
+  background: var(--ln-surface);
+}
+
+/* Média hors d'atteinte : un état prévu par le CDC, pas une erreur. Même ton que « segment
+   inconnu » — on renseigne, on n'alarme pas. */
+.ln-ecoute__absent {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 0.75);
+  margin: 0 0 calc(var(--ln-grid)) 0;
+  font-size: 13px;
+  color: var(--ln-text-secondary);
 }

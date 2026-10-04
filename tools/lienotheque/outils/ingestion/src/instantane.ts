@@ -1,5 +1,7 @@
 import {
   VueBibliotheque,
+  nommer,
+  nommerSuite,
   type CasDouteux,
   type ElementAffiche,
   type LigneInterpretee,
@@ -26,8 +28,12 @@ export type Entree = {
   readonly seuil: number;
   /** Titre de page, quand on en connaît un. */
   readonly titreDePage?: (page: number) => string | undefined;
-  /** Image de la page et ses dimensions, quand le lot en a exporté une. */
-  readonly imageDePage?: (page: number) => { readonly image: string; readonly largeur: number; readonly hauteur: number } | undefined;
+  /** Où un média est servi, quand il est joignable depuis les écrans (ANC-05). */
+  readonly sourceDuMedia?: (media: MediaIngere) => string | undefined;
+  /** Image de la page, sa vignette et ses dimensions, quand le lot en a exporté. */
+  readonly imageDePage?: (
+    page: number,
+  ) => { readonly image: string; readonly largeur: number; readonly hauteur: number; readonly vignette?: string } | undefined;
 };
 
 /** La phrase qui explique un lien, en français, construite une fois pour toutes (ANC-02). */
@@ -44,6 +50,63 @@ export function phraseDuLien(ligne: LigneInterpretee, mots: MotsBibliotheque): s
   }
 }
 
+/** Suites de nombres consécutifs manquants dans une liste triée.
+ *
+ *  Un lot sauté se lit mieux d'un bloc : « pages 30 et 31 » plutôt que deux fiches. Et sur un
+ *  livre de cinq cents pages, un trou de quarante pages ne doit pas remplir la file de quarante
+ *  cartes identiques. */
+export function trous(presents: readonly number[]): { readonly debut: number; readonly fin: number }[] {
+  const tries = [...new Set(presents)].sort((a, b) => a - b);
+  const sortie: { debut: number; fin: number }[] = [];
+  for (let rang = 1; rang < tries.length; rang += 1) {
+    const avant = tries[rang - 1]!;
+    const apres = tries[rang]!;
+    if (apres - avant > 1) sortie.push({ debut: avant + 1, fin: apres - 1 });
+  }
+  return sortie;
+}
+
+/** Suites de nombres consécutifs dans une liste.
+ *
+ *  L'envers de `trous`. Six médias à la suite que personne ne réclame, c'est un seul fait : les
+ *  présenter en six fiches identiques, c'est six fois le même geste pour la même chose. */
+export function suites(nombres: readonly number[]): { readonly debut: number; readonly fin: number }[] {
+  const tries = [...new Set(nombres)].sort((a, b) => a - b);
+  const sortie: { debut: number; fin: number }[] = [];
+  for (const nombre of tries) {
+    const derniere = sortie[sortie.length - 1];
+    if (derniere !== undefined && nombre === derniere.fin + 1) sortie[sortie.length - 1] = { debut: derniere.debut, fin: nombre };
+    else sortie.push({ debut: nombre, fin: nombre });
+  }
+  return sortie;
+}
+
+/** Les valeurs qu'une page porte sur les axes du schéma (CLA-10).
+ *
+ *  L'application ne connaît aucun domaine, et ne remplit donc qu'un axe : celui dont le schéma
+ *  dit le rôle — « etat » — et dont les valeurs disent ce qu'elles désignent — « present » ou
+ *  « absent ». Elle sait si une page a un lien ; ce que ce lien veut dire dans cette
+ *  bibliothèque ne la regarde pas, et le nom de l'axe comme celui des valeurs restent des
+ *  données (CLA-01).
+ *
+ *  Tout autre axe reste vide ici. Il le restera tant que personne ne l'aura rempli — à la main,
+ *  ou par la suggestion à l'import (CLA-05) — et son groupe ne s'affichera pas d'ici là. */
+export function valeursDePage(
+  schema: SchemaBibliotheque,
+  elements: readonly ElementAffiche[],
+): Record<string, string[]> {
+  const valeurs: Record<string, string[]> = {};
+  const relie = elements.some((element) => element.media !== undefined);
+
+  for (const axe of schema.axes) {
+    if (axe.roleCommun !== "etat") continue;
+    const voulu = relie ? "present" : "absent";
+    const valeur = axe.valeurs.find((candidate) => !candidate.retiree && candidate.roleValeur === voulu);
+    if (valeur !== undefined) valeurs[axe.cle] = [valeur.cle];
+  }
+  return valeurs;
+}
+
 /** Ce qui met un cas en attente, quand il y a lieu. */
 function doute(ligne: LigneInterpretee, seuil: number): CasDouteux["etat"] | undefined {
   if (ligne.piste === undefined) return undefined;
@@ -58,6 +121,7 @@ export function construireVue(entree: Entree): VueBibliotheque {
 
   for (const ligne of entree.lignes) {
     const media = ligne.piste === undefined ? undefined : parPiste.get(`${ligne.disque}/${ligne.piste}`);
+    const source = media === undefined ? undefined : entree.sourceDuMedia?.(media);
     const ancreId = identifiantDe(`${entree.id}/element-${ligne.numero}`);
     const etat = doute(ligne, entree.seuil);
 
@@ -65,6 +129,8 @@ export function construireVue(entree: Entree): VueBibliotheque {
       ancreId,
       numero: String(ligne.numero),
       page: ligne.pageImprimee,
+      // Où l'élément a été lu, quand la lecture l'a su : c'est le cadre cliquable du Lecteur.
+      ...(ligne.zone === undefined ? {} : { zone: ligne.zone }),
       ...(media === undefined
         ? {}
         : {
@@ -73,6 +139,8 @@ export function construireVue(entree: Entree): VueBibliotheque {
               nom: media.nom ?? `${entree.mots.piste.un} ${media.piste}`,
               piste: media.piste,
               position: media.decoupe === undefined ? { segment: "inconnu" } : { segment: "inconnu" },
+              ...(media.dureeS === undefined ? {} : { duree: media.dureeS }),
+              ...(source === undefined ? {} : { source }),
             },
             pourquoi: { preuve: ligne.sourcePiste === "pastille" ? "lu" : "sequence", confiance: ligne.confiance, phrase: phraseDuLien(ligne, entree.mots) },
           }),
@@ -89,7 +157,56 @@ export function construireVue(entree: Entree): VueBibliotheque {
         element,
         proposition: `${entree.mots.element.un} ${ligne.numero} → ${entree.mots.piste.un} ${ligne.piste}`,
         motif: phraseDuLien(ligne, entree.mots).toLowerCase(),
+        details: [],
       });
+  }
+
+  // Les informations : ce qu'on a constaté et que personne n'a encore regardé (OUT-01, OUT-10).
+  //
+  // Elles ne demandent pas d'arbitrage — rien à confirmer, rien à corriger — mais elles ne
+  // doivent pas disparaître pour autant. Un lot dont tous les liens passent le seuil affichait
+  // « Rien à vérifier », alors que deux pages n'avaient rien donné et que six médias n'étaient
+  // réclamés par personne. C'est précisément ce qu'on veut savoir après un import.
+  const numerosDePage = [...parPage.keys()];
+  for (const trou of trous(numerosDePage)) {
+    const libelle = nommerSuite(entree.mots.page, trou.debut, trou.fin);
+    douteux.push({
+      id: identifiantDe(`${entree.id}/page-absente-${trou.debut}-${trou.fin}`),
+      nature: "information",
+      etat: "page_absente",
+      libelle,
+      // « manquent au » plutôt que « absentes du » : le schéma donne les mots, jamais leur
+      // genre, et « absentes » ne vaut que pour un mot féminin. Un verbe s'accorde en nombre,
+      // qu'on connaît, et pas en genre, qu'on ne connaîtra jamais.
+      proposition: `${libelle} ${trou.fin > trou.debut ? "manquent" : "manque"} au document`,
+      // Aucune cause avancée : une page peut manquer au document comme n'avoir rien donné à
+      // lire, et d'ici on ne sait pas laquelle des deux.
+      motif: `la numérotation passe de ${trou.debut - 1} à ${trou.fin + 1}`,
+      // Un trou se lit d'un coup : il n'y a rien à déplier derrière.
+      details: [],
+    });
+  }
+
+  // Les médias que personne ne réclame, par suites : « Pistes 93 à 98 » plutôt que six fiches.
+  // Le détail reste là, à déplier — on regroupe le geste, pas l'information.
+  for (const suite of suites(entree.association.orphelins)) {
+    const pistes = Array.from({ length: suite.fin - suite.debut + 1 }, (_, pas) => suite.debut + pas);
+    const libelle = nommerSuite(entree.mots.piste, suite.debut, suite.fin);
+    douteux.push({
+      id: identifiantDe(`${entree.id}/media-orphelin-${suite.debut}-${suite.fin}`),
+      nature: "information",
+      etat: "media_orphelin",
+      libelle,
+      // Aucune tournure qui demande le genre : « aucun élément relié » devient « aucun clause
+      // relié » dès qu'on change de domaine. « Aucun lien » et « n'y renvoie » valent partout.
+      proposition: `${libelle} : aucun lien`,
+      motif: `aucun repère lu n'y renvoie`,
+      details: pistes.map((piste) => {
+        const media = entree.medias.find((candidat) => candidat.piste === piste);
+        const nom = nommer(entree.mots.piste, piste);
+        return media?.nom === undefined ? nom : `${nom} — fichier « ${media.nom} »`;
+      }),
+    });
   }
 
   const pages: PageAffichee[] = [...parPage.entries()]
@@ -104,8 +221,23 @@ export function construireVue(entree: Entree): VueBibliotheque {
         elements,
         texte: [],
         traduction: [],
+        valeurs: valeursDePage(entree.schema, elements),
       };
     });
+
+  // Les filtres, comptés sur ce que les pages portent vraiment. Un axe que personne ne porte
+  // n'est pas filtrable : son groupe reste masqué, et il reparaîtra le jour où l'application
+  // saura le remplir.
+  const filtres = entree.schema.axes.map((axe) => {
+    const valeurs = axe.valeurs
+      .filter((valeur) => !valeur.retiree)
+      .map((valeur) => ({
+        cle: valeur.cle,
+        nom: valeur.nom,
+        nombre: pages.filter((page) => (page.valeurs[axe.cle] ?? []).includes(valeur.cle)).length,
+      }));
+    return { cle: axe.cle, nom: axe.nom, valeurs, filtrable: pages.some((page) => (page.valeurs[axe.cle] ?? []).length > 0) };
+  });
 
   const relies = entree.lignes.filter((ligne) => ligne.piste !== undefined).length;
 
@@ -119,11 +251,7 @@ export function construireVue(entree: Entree): VueBibliotheque {
       { nombre: pages.length, mot: entree.mots.page.plusieurs },
     ],
     aVerifier: douteux.length,
-    filtres: entree.schema.axes.map((axe) => ({
-      cle: axe.cle,
-      nom: axe.nom,
-      valeurs: axe.valeurs.filter((valeur) => !valeur.retiree).map((valeur) => ({ cle: valeur.cle, nom: valeur.nom, nombre: 0 })),
-    })),
+    filtres,
     pages,
     douteux,
   });

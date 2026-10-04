@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
-import { basename, join } from "node:path";
+import { basename, extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { emplacementInstantane } from "./emplacement-instantane.js";
 import react from "@vitejs/plugin-react";
@@ -28,11 +28,23 @@ function jetonsCss(): Plugin {
  *  Il est produit depuis des fichiers sous droits : il n'a rien à faire dans `public/`, qui est un
  *  dossier publiable et recopié tel quel dans la construction. Il vit au cache de travail, hors du
  *  dépôt, et c'est ce greffon qui le sert — en développement comme sur la version construite. */
-const { instantane: INSTANTANE, pages: DOSSIER_PAGES } = emplacementInstantane();
+const { instantane: INSTANTANE, pages: DOSSIER_PAGES, medias: DOSSIER_MEDIAS } = emplacementInstantane();
 
 const ADRESSE_INSTANTANE = "/donnees/bibliotheque.json";
 /** Images de page, à côté de l'instantané et servies de la même façon. */
 const ADRESSE_PAGES = "/donnees/pages";
+/** Médias, servis là où ils sont : ils ne passent ni par le cache ni par `public/`. */
+const ADRESSE_MEDIAS = "/donnees/medias";
+/** Ce qu'on accepte de servir comme média, et le type qu'on annonce. Une liste close : un
+ *  dossier de médias n'a pas à pouvoir servir n'importe quel fichier de la machine. */
+const TYPES_MEDIA: Readonly<Record<string, string>> = {
+  ".mp3": "audio/mpeg",
+  ".m4a": "audio/mp4",
+  ".wav": "audio/wav",
+  ".flac": "audio/flac",
+  ".ogg": "audio/ogg",
+  ".opus": "audio/opus",
+};
 
 function instantaneServi(): Plugin {
   const servir = (serveur: { middlewares: { use: (chemin: string, gestion: (requete: unknown, reponse: ServerResponse) => void) => void } }): void => {
@@ -65,15 +77,41 @@ function instantaneServi(): Plugin {
     });
   };
 
+  const servirMedias = (serveur: { middlewares: { use: (chemin: string, gestion: (requete: IncomingMessage, reponse: ServerResponse) => void) => void } }): void => {
+    serveur.middlewares.use(ADRESSE_MEDIAS, (requete, reponse) => {
+      // Un nom de fichier, rien d'autre : jamais de chemin qui remonte hors du dossier. Et une
+      // extension connue : ce dossier sert des médias, pas ce qui s'y trouve par hasard.
+      const nom = decodeURIComponent(basename((requete.url ?? "").split("?")[0] ?? ""));
+      const type = TYPES_MEDIA[extname(nom).toLowerCase()];
+      const chemin = DOSSIER_MEDIAS === undefined ? undefined : join(DOSSIER_MEDIAS, nom);
+      if (nom === "" || type === undefined || chemin === undefined || !existsSync(chemin)) {
+        // 404 : c'est l'état « média non disponible ici », pas une panne. L'écran le dit.
+        reponse.statusCode = 404;
+        reponse.end();
+        return;
+      }
+      // En entier, sans intervalles : un segment se joue en se plaçant dedans, pas en
+      // redécoupant le fichier. Le jour où les lots se compteront en heures, il faudra les
+      // intervalles — pas avant.
+      const octets = readFileSync(chemin);
+      reponse.setHeader("Content-Type", type);
+      reponse.setHeader("Content-Length", String(octets.length));
+      reponse.setHeader("Cache-Control", "no-store");
+      reponse.end(octets);
+    });
+  };
+
   return {
     name: "lienotheque:instantane",
     configureServer: (serveur) => {
       servir(serveur);
       servirPages(serveur);
+      servirMedias(serveur);
     },
     configurePreviewServer: (serveur) => {
       servir(serveur);
       servirPages(serveur);
+      servirMedias(serveur);
     },
   };
 }
