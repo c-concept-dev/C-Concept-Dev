@@ -83,7 +83,9 @@ describe("Lecteur : la page et ses éléments (B1, UX-01)", () => {
 
   it("dit où l’on est dans la page : l’élément tant sur tant", () => {
     poser(ID(12));
-    expect(screen.getByText(/sur cette feuillet/i).textContent).toMatch(/Clause\s*2\s*sur\s*2/);
+    // Le rang est coupé par les « strong » du compte : on relit la phrase entière.
+    const rang = screen.getByText((_, noeud) => noeud?.className === "ln-lecteur__rang");
+    expect(rang.textContent).toMatch(/Clause\s*2\s*sur\s*2/);
   });
 
   it("surligne la zone de l’élément actif, et elle seule", () => {
@@ -96,13 +98,13 @@ describe("Lecteur : la page et ses éléments (B1, UX-01)", () => {
 
   it("marque les feuillets reliés dans la bande des vignettes", () => {
     poser();
-    expect(screen.getByRole("button", { name: /feuillet 127, clauses reliés/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /feuillet 127, avec des clauses/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^feuillet 126$/i })).toBeInTheDocument();
   });
 
   it("navigue d’un élément à l’autre à la souris", async () => {
     const { elements } = poser();
-    await userEvent.click(screen.getByRole("button", { name: /^clause suivant$/i }));
+    await userEvent.click(screen.getByRole("button", { name: /^suivant : clause$/i }));
     expect(elements).toContain(ID(12));
   });
 });

@@ -126,7 +126,7 @@ export function Catalogue({ vue, page, onPage, onLecteur, onAjouter }: Props): J
                   {p.titre === undefined ? null : <span className="ln-pages__titre">{p.titre}</span>}
                   <span className="ln-pages__relies">
                     <Icone nom="lien" />
-                    {accorder(relies(p), { un: `${vue.mots.element.un} relié`, plusieurs: `${vue.mots.element.plusieurs} reliés` })}
+                    {enTete(vue.mots.element.plusieurs)} : {relies(p)}
                   </span>
                   {aVerifier(p) > 0 ? (
                     <span className="ln-pages__averifier">
@@ -142,7 +142,7 @@ export function Catalogue({ vue, page, onPage, onLecteur, onAjouter }: Props): J
 
         <aside className="ln-detail ln-panneau" aria-label={`Détail — ${nommer(vue.mots.page, detail?.numero ?? "")}`}>
           {detail === undefined ? (
-            <p>Aucune {vue.mots.page.un} dans cette bibliothèque.</p>
+            <p>Aucun résultat dans cette bibliothèque.</p>
           ) : (
             <>
               <h2 className="ln-detail__titre">
@@ -154,7 +154,7 @@ export function Catalogue({ vue, page, onPage, onLecteur, onAjouter }: Props): J
               </div>
 
               <h3 className="ln-detail__sous">
-                {enTete(vue.mots.element.plusieurs)} de la {vue.mots.page.un}
+                {enTete(vue.mots.element.plusieurs)}
               </h3>
               <ul className="ln-detail__elements">
                 {detail.elements.map((element: ElementAffiche) => (
@@ -164,7 +164,7 @@ export function Catalogue({ vue, page, onPage, onLecteur, onAjouter }: Props): J
                       {nommer(vue.mots.element, element.numero)}
                     </span>
                     {element.media === undefined ? (
-                      <span className="ln-detail__sans">pas d’enregistrement</span>
+                      <span className="ln-detail__sans">Sans {vue.mots.piste.un}</span>
                     ) : (
                       <span className="ln-detail__vers">
                         → {nommer(vue.mots.piste, element.media.piste)}

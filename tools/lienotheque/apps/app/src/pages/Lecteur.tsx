@@ -106,21 +106,21 @@ export function Lecteur({ vue, page, element, onPage, onElement }: Props): JSX.E
             icone={<Icone nom="chevronGauche" />}
             onClick={() => aller(-1)}
             disabled={rang <= 0}
-            aria-label={`${vue.mots.element.un} précédent`}
+            aria-label={`Précédent : ${vue.mots.element.un}`}
           >
-            <span className="ln-sr-only">{`${vue.mots.element.un} précédent`}</span>
+            <span className="ln-sr-only">{`Précédent : ${vue.mots.element.un}`}</span>
           </Bouton>
           <p className="ln-lecteur__rang">
-            {enTete(vue.mots.element.un)} <strong>{rang + 1}</strong> sur <strong>{elements.length}</strong> sur cette {vue.mots.page.un}
+            {enTete(vue.mots.element.un)} <strong>{rang + 1}</strong> sur <strong>{elements.length}</strong>
           </p>
           <Bouton
             compact
             icone={<Icone nom="chevronDroite" />}
             onClick={() => aller(1)}
             disabled={rang >= elements.length - 1}
-            aria-label={`${vue.mots.element.un} suivant`}
+            aria-label={`Suivant : ${vue.mots.element.un}`}
           >
-            <span className="ln-sr-only">{`${vue.mots.element.un} suivant`}</span>
+            <span className="ln-sr-only">{`Suivant : ${vue.mots.element.un}`}</span>
           </Bouton>
         </div>
       </div>
@@ -135,7 +135,7 @@ export function Lecteur({ vue, page, element, onPage, onElement }: Props): JSX.E
                   className={p.numero === pageCourante?.numero ? "ln-vignettes__page ln-vignettes__page--actif" : "ln-vignettes__page"}
                   onClick={() => onPage(p.numero)}
                   aria-current={p.numero === pageCourante?.numero ? "page" : undefined}
-                  aria-label={`${nommer(vue.mots.page, p.numero)}${p.elements.some((e) => e.media !== undefined) ? `, ${vue.mots.element.plusieurs} reliés` : ""}`}
+                  aria-label={`${nommer(vue.mots.page, p.numero)}${p.elements.some((e) => e.media !== undefined) ? `, avec des ${vue.mots.element.plusieurs}` : ""}`}
                 >
                   <span className="ln-vignettes__feuille" aria-hidden="true" />
                   <span className="ln-vignettes__numero ln-sur-photo">{p.numero}</span>

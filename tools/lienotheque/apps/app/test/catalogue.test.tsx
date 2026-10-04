@@ -113,8 +113,8 @@ describe("Catalogue : grille et liste", () => {
   it("montre chaque feuillet avec ce qui y est relié", () => {
     poser();
     expect(screen.getByRole("button", { name: "Feuillet 127" })).toBeInTheDocument();
-    expect(screen.getByText(/1 clause relié/)).toBeInTheDocument();
-    expect(screen.getByText(/0 clause relié/)).toBeInTheDocument();
+    expect(screen.getByText(/Clauses : 1/)).toBeInTheDocument();
+    expect(screen.getByText(/Clauses : 0/)).toBeInTheDocument();
   });
 
   it("signale les feuillets qui portent un cas à vérifier", () => {
@@ -137,7 +137,7 @@ describe("Catalogue : panneau de détail (B3)", () => {
     expect(within(detail).getByText(/→ Plage 40/)).toBeInTheDocument();
     expect(within(detail).getByText(/lien validé/)).toBeInTheDocument();
     expect(within(detail).getByText(/à vérifier/)).toBeInTheDocument();
-    expect(within(detail).getByText(/pas d’enregistrement/)).toBeInTheDocument();
+    expect(within(detail).getByText(/Sans plage/)).toBeInTheDocument();
   });
 
   it("ouvre dans le Lecteur, sur le bon feuillet", async () => {

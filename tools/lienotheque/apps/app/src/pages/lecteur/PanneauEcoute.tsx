@@ -68,7 +68,7 @@ export const PanneauEcoute = forwardRef<HTMLDivElement, Props>(function PanneauE
         Écoute
       </h2>
       {media === undefined ? (
-        <p className="ln-ecoute__sans">Aucun enregistrement relié.</p>
+        <p className="ln-ecoute__sans">Sans {mots.piste.un}.</p>
       ) : (
         <>
           {/* Un numéro, pas un compte : « Piste 43 », jamais « pistes 43 ». */}

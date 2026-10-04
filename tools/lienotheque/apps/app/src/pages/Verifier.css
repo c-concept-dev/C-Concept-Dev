@@ -210,18 +210,6 @@
   color: var(--ln-text-secondary);
 }
 
-.ln-cas__zoom button {
-  display: grid;
-  place-items: center;
-  width: calc(var(--ln-grid) * 4);
-  height: calc(var(--ln-grid) * 4);
-  border: 1px solid var(--ln-control-border);
-  border-radius: var(--ln-radius);
-  background: var(--ln-surface);
-  color: inherit;
-  cursor: pointer;
-}
-
 .ln-cas__proposition,
 .ln-cas__motif {
   margin: 0;

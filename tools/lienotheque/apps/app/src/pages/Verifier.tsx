@@ -168,17 +168,20 @@ export function Verifier({ vue, onDecision, onAnnuler, derniere }: Props): JSX.E
                 </div>
               </div>
 
+              {/* Les mêmes commandes qu'au Lecteur, et le même bouton du kit : icône en
+                  currentColor, nom accessible, état désactivé aux bornes. « Plein écran » n'était
+                  relié à rien ; il ramène la vue à sa taille d'origine. */}
               <div className="ln-cas__zoom" role="group" aria-label="Zoom">
-                <button type="button" onClick={() => setZoom(Math.max(50, zoom - 10))} aria-label="Réduire">
-                  <Icone nom="moins" />
-                </button>
-                <span>{zoom} %</span>
-                <button type="button" onClick={() => setZoom(Math.min(200, zoom + 10))} aria-label="Agrandir">
-                  <Icone nom="plus" />
-                </button>
-                <button type="button" aria-label="Plein écran">
-                  <Icone nom="pleinEcran" />
-                </button>
+                <Bouton compact icone={<Icone nom="moins" />} onClick={() => setZoom(Math.max(50, zoom - 10))} disabled={zoom <= 50} aria-label="Réduire">
+                  <span className="ln-sr-only">Réduire</span>
+                </Bouton>
+                <output>{zoom} %</output>
+                <Bouton compact icone={<Icone nom="plus" />} onClick={() => setZoom(Math.min(200, zoom + 10))} disabled={zoom >= 200} aria-label="Agrandir">
+                  <span className="ln-sr-only">Agrandir</span>
+                </Bouton>
+                <Bouton compact icone={<Icone nom="pleinEcran" />} onClick={() => setZoom(100)} disabled={zoom === 100} aria-label="Ajuster à la fenêtre">
+                  <span className="ln-sr-only">Ajuster à la fenêtre</span>
+                </Bouton>
               </div>
 
               <p className="ln-cas__proposition">
