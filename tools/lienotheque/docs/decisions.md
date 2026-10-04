@@ -459,6 +459,91 @@ tout le lot, et il est unique. Les treize éléments mal placés se répartissen
 l'un à −21 pages et l'autre à −1, signe de deux lectures de numéro égarées plutôt que d'un défaut
 de méthode.
 
+### Attribution des pistes : la suite entière, pas une pastille à la fois
+
+Un repère lu n'est pas une vérité : un chiffre clair sur fond sombre se lit mal, et deux éléments
+voisins peuvent porter la même piste. On ne décide donc pas repère par repère, mais sur toute la
+suite à la fois — la meilleure attribution est celle qui explique le mieux l'ensemble des
+lectures, sous les pas que la recette autorise. Une lecture isolément fausse se trouve corrigée
+par ses voisines.
+
+Trois choses se sont révélées en route, chacune corrigeant une erreur de principe.
+
+**Ce que la recette déclare doit peser dans la décision, pas seulement servir de repli.** F3
+déclare que la piste porte le numéro de l'élément. Tant que ses repères n'étaient lus qu'à moitié,
+cette règle s'appliquait en repli et donnait le bon résultat ; dès que tous les repères ont été
+lus, le repli n'était plus jamais atteint et la connaissance était perdue. Le numéro d'élément
+compte désormais comme une lecture supplémentaire, de poids moitié : une indication forte, mais
+indirecte.
+
+**Un écart entre deux numéros est un pas de piste légitime.** F3 n'autorise qu'un pas de 1, mais
+les pages 30 et 31 manquent au lot, et avec elles six éléments et les six pistes qu'ils ouvraient.
+La suite doit pouvoir les enjamber — sans quoi les trois derniers éléments du livre se retrouvent
+six pistes trop bas, et six médias passent pour orphelins. La règle vaut quand la recette déclare
+la coïncidence entre piste et numéro, et pas autrement.
+
+**Un élément sans repère et sans piste précédente n'a pas de piste.** Lui donner la piste 1 par
+défaut inventerait un lien : les quatre-vingts pages de F4 antérieures au premier repère se
+retrouvaient attachées à la piste 1. `piste` est donc facultative dans une ligne interprétée, et
+une ligne sans piste n'entre pas dans les appariements — elle n'est pas douteuse, il n'y a
+simplement rien à apparier.
+
+### Lire un repère : la forme la plus pleine, puis les autres
+
+Sur F4, l'étiquette « CD1 Piste » est imprimée en sombre sur clair **à côté** du pavé qui porte le
+chiffre, lui clair sur sombre. Prendre la plus grande forme sombre de la fenêtre les réunit et
+noie le chiffre ; n'en prendre qu'une, si bien choisie soit-elle, fait manquer les pages où le
+découpage tombe autrement.
+
+On propose donc trois formes et on les lit toutes : la plus **pleine** à la taille du numéro — un
+pavé occupe sa boîte, une lettre ou un trait de portée non —, la plus **grande** d'un seul tenant,
+et la boîte de tout ce qui est sombre. C'est le vote qui tranche. Mieux vaut trois lectures dont
+deux fausses qu'une seule qui manque.
+
+**À égalité de voix, la lecture la plus longue l'emporte** quand l'autre en est la fin. Les votes
+sur un repère de F4 donnaient exactement `[13, 13, 13, 3, 3, 3]`, et départager par la plus petite
+valeur choisissait 3. Perdre le chiffre de tête, collé au bord du pavé, est l'échec courant d'un
+moteur d'OCR ; en inventer un est rare. Et un chiffre de tête perdu reste utile : « 4 » lu pour
+« 14 » appuie encore la piste 14, là où un repère illisible n'appuie rien.
+
+### Un lot de trois cents pages ne doit rien laisser derrière lui
+
+Le lecteur de repères créait un dossier temporaire et une image par appel d'OCR, sans jamais rien
+effacer : **58 598 dossiers et 41 Gio**, et le disque de la machine rempli. Un seul dossier par
+exécution désormais, et chaque image effacée dès qu'elle a été lue. Un contrôle l'exige : il lance
+une lecture et vérifie que le dossier est rendu vide.
+
+### Segments : un décompte annonce ce qui suit
+
+Découper un média à ses silences permet de situer chaque élément dans sa piste, donc de commencer
+la lecture au bon endroit. Tout se mesure sur l'énergie du signal par tranches de cinquante
+millisecondes, et le seuil est **relatif au morceau** : un disque gravé fort et un disque gravé
+bas n'ont pas le même silence.
+
+Les médias de F4 ont montré un motif que je n'attendais pas. Chaque piste s'ouvre sur un fragment
+sonore très bref — un décompte —, puis le premier élément, puis un second décompte, puis le second
+élément. Rattacher les fragments trop courts à ce qui les précède donnait **trois segments sur
+toutes les pistes**, quelle que soit la piste. Un décompte n'appartient pas à ce qu'il suit : il
+**annonce ce qui vient**. Rattaché au segment suivant, le découpage tombe juste.
+
+Mesuré sur un média sur six du disque 1 de F4, comparé au nombre d'éléments que le prototype
+attribue à chaque piste :
+
+| Mesure | Valeur |
+|---|---:|
+| Pistes découpées au bon nombre de segments | **12 / 16 (75 %)** |
+| Pistes où un élément se scinde en deux | 3 |
+| Pistes où cinq éléments n'en font que deux | 1 |
+
+Le décodage audio n'appartient pas au produit : `decouper` ne prend que du PCM et ne sait rien des
+formats. L'application de bureau le tirera de son hôte, comme le dépôt tire sa base du sien. Le
+contrôle décode par l'outil du système, et se saute proprement là où celui-ci ne peut pas servir —
+un bac à sable lui refuse volontiers les services audio.
+
+**Et quoi qu'il arrive, aucune position de départ n'est inventée** (ANC-03). Le contrat ne connaît
+que deux cas : le segment est connu, avec ses bornes, ou il est inconnu — et la lecture commence
+alors au début de la piste, en le disant. Il n'y a pas de place pour une position approchée.
+
 ### Un numéro réparé n'est pas un numéro lu
 
 Les numéros rétablis par interpolation ou par leur fin portent une confiance réduite de trois

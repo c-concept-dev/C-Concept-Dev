@@ -7,8 +7,10 @@ import {
   coinsDePage,
   consolider,
   dansLaZone,
+  formesCandidates,
+  lireNumeroPage,
   motifLibelle,
-  presenceDeBloc,
+  presenceDeForme,
   tonClair,
   vote,
   zonePastille,
@@ -147,31 +149,67 @@ describe("zone des éléments selon la recette (OUT-07)", () => {
   });
 });
 
-describe("présence d'un bloc de piste (OUT-07)", () => {
+describe("présence d'un repère (OUT-07)", () => {
   const zone = (encre: (x: number, y: number) => boolean) => ({
     largeur: 60,
     hauteur: 30,
     pixels: Uint8Array.from({ length: 60 * 30 }, (_, rang) => (encre(rang % 60, Math.floor(rang / 60)) ? 20 : 240)),
   });
 
-  it("reconnaît un bloc sombre large", () => {
-    expect(presenceDeBloc(zone((x, y) => x >= 10 && x < 50 && y >= 5 && y < 25))).toBeGreaterThan(0.8);
+  it("reconnaît un bloc plein, à la taille du numéro", () => {
+    const image = zone((x, y) => x >= 10 && x < 40 && y >= 5 && y < 25);
+    expect(presenceDeForme(image, { x: 10, y: 5, l: 30, h: 20 }, 18)).toBeGreaterThan(PRESENCE_MINIMALE);
   });
 
-  it("ne confond pas un trait fin avec un bloc, même s'il traverse toute la zone", () => {
-    expect(presenceDeBloc(zone((_x, y) => y === 15))).toBeLessThan(PRESENCE_MINIMALE);
+  it("reconnaît un losange, à demi plein de son cadre", () => {
+    const image = zone((x, y) => Math.abs(x - 25) + Math.abs(y - 15) < 10);
+    expect(presenceDeForme(image, { x: 15, y: 5, l: 20, h: 20 }, 18)).toBeGreaterThan(PRESENCE_MINIMALE);
   });
 
-  it("ne confond pas une barre verticale avec un bloc", () => {
-    expect(presenceDeBloc(zone((x) => x === 30))).toBeLessThan(PRESENCE_MINIMALE);
+  it("ne confond pas des portées avec un repère : leur boîte est large et vide", () => {
+    const image = zone((_x, y) => y % 7 === 0);
+    expect(presenceDeForme(image, { x: 0, y: 0, l: 60, h: 29 }, 18)).toBeLessThan(PRESENCE_MINIMALE);
   });
 
-  it("ne voit rien sur du papier", () => {
-    expect(presenceDeBloc(zone(() => false))).toBe(0);
+  it("écarte une forme démesurée par rapport au numéro", () => {
+    const image = zone(() => true);
+    expect(presenceDeForme(image, { x: 0, y: 0, l: 60, h: 30 }, 5)).toBe(0);
   });
 
-  it("ne voit rien dans une zone vide", () => {
-    expect(presenceDeBloc({ largeur: 0, hauteur: 0, pixels: new Uint8Array(0) })).toBe(0);
+  it("ne voit rien quand aucune forme n'a été trouvée", () => {
+    expect(presenceDeForme(zone(() => false), undefined, 18)).toBe(0);
+  });
+});
+
+describe("formes candidates d'un repère (OUT-07)", () => {
+  const binaire = (encre: (x: number, y: number) => boolean) => ({
+    largeur: 60,
+    hauteur: 30,
+    pixels: Uint8Array.from({ length: 60 * 30 }, (_, rang) => (encre(rang % 60, Math.floor(rang / 60)) ? 0 : 255)),
+  });
+
+  it("propose d'abord le pavé plein, même s'il n'est pas le plus grand", () => {
+    // Un pavé compact à droite, une longue lettre creuse à gauche : le pavé passe devant.
+    const image = binaire((x, y) => (x >= 40 && x < 55 && y >= 8 && y < 22) || (x < 30 && y >= 5 && y < 25 && (x === 0 || x === 29 || y === 5 || y === 24)));
+    const candidates = formesCandidates(image, 14);
+    expect(candidates[0]).toEqual({ x: 40, y: 8, l: 15, h: 14 });
+  });
+
+  it("propose aussi la plus grande forme et la boîte de tout le sombre", () => {
+    const image = binaire((x, y) => (x >= 40 && x < 55 && y >= 8 && y < 22) || y === 0);
+    const candidates = formesCandidates(image, 14);
+    expect(candidates.length).toBeGreaterThanOrEqual(2);
+    expect(candidates.some((c) => c.x === 0 && c.l === 60), "la boîte de tout le sombre est proposée").toBe(true);
+  });
+
+  it("ne propose jamais deux fois la même", () => {
+    const image = binaire((x, y) => x >= 20 && x < 35 && y >= 8 && y < 22);
+    const candidates = formesCandidates(image, 14);
+    expect(candidates).toHaveLength(1);
+  });
+
+  it("ne propose rien sur une image claire", () => {
+    expect(formesCandidates(binaire(() => false), 14)).toEqual([]);
   });
 });
 
@@ -180,8 +218,18 @@ describe("vote", () => {
     expect(vote([5, 5, 7])).toEqual({ valeur: 5, accord: 2 / 3 });
   });
 
-  it("à égalité, la plus petite : une règle, pas un hasard", () => {
+  it("à égalité, la plus longue quand l'autre en est la fin : l'OCR perd le chiffre de tête", () => {
+    expect(vote([13, 13, 13, 3, 3, 3])?.valeur).toBe(13);
+    expect(vote([3, 13])?.valeur).toBe(13);
+  });
+
+  it("à égalité sans rapport entre les valeurs, la plus petite : une règle, pas un hasard", () => {
     expect(vote([8, 3])?.valeur).toBe(3);
+    expect(vote([27, 41])?.valeur).toBe(27);
+  });
+
+  it("la majorité l'emporte sur la longueur", () => {
+    expect(vote([3, 3, 3, 13])?.valeur).toBe(3);
   });
 
   it("ne rend rien sans voix", () => {
@@ -197,5 +245,23 @@ describe("ton clair d'une zone", () => {
 
   it("rend du blanc sur une image vide", () => {
     expect(tonClair({ largeur: 0, hauteur: 0, pixels: new Uint8Array(0) })).toBe(255);
+  });
+});
+
+describe("fichiers de travail (OUT-07)", () => {
+  it("ne laisse aucune image derrière lui", async () => {
+    const { mkdtempSync, readdirSync, rmSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const dossier = mkdtempSync(join(tmpdir(), "lienotheque-essai-"));
+
+    // Une page blanche : l'OCR ne trouvera rien, mais il aura écrit puis effacé ses images.
+    const blanche = { largeur: 200, hauteur: 60, pixels: new Uint8Array(200 * 60).fill(255) };
+    lireNumeroPage(blanche, "bas", { dossier });
+
+    // Un lot de trois cents pages demande des dizaines de milliers de lectures : en garder les
+    // images remplirait le disque.
+    expect(readdirSync(dossier), "le dossier de travail est rendu vide").toEqual([]);
+    rmSync(dossier, { recursive: true, force: true });
   });
 });

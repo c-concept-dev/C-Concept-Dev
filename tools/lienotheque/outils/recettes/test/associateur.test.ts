@@ -2,16 +2,17 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { LigneInterpretee } from "@lienotheque/contrats";
-import { associer, chargerRecette, dureeReliee, pisteDuNom, type Media } from "../src/index.js";
+import { associer, chargerRecette, dureeReliee, lireNomMedia, pisteDuNom, type Media } from "../src/index.js";
 
 const RECETTE = chargerRecette(
   JSON.parse(readFileSync(join(import.meta.dirname, "../../../fixtures/recettes/methode-pastille-piste.v2.json"), "utf8")),
 );
 
-const ligne = (numero: number, piste: number, confiance = 1): LigneInterpretee => ({
+const ligne = (numero: number, piste: number, confiance = 1, disque = 1): LigneInterpretee => ({
   numero,
   pageImprimee: 3,
   piste,
+  disque,
   sourcePiste: "pastille",
   confiance,
 });
@@ -23,11 +24,48 @@ const media = (piste: number, nom: string, dureeS?: number): Media => ({
   ...(dureeS === undefined ? {} : { dureeS }),
 });
 
-describe("numéro tiré d'un nom de fichier (REC-05)", () => {
-  it("prend le premier nombre, espaces et apostrophes compris", () => {
+describe("ce qu'un nom de fichier laisse deviner (REC-05)", () => {
+  it("sans motif, prend le premier nombre", () => {
     expect(pisteDuNom("Track 45")).toBe(45);
     expect(pisteDuNom("70's Funk 12")).toBe(70);
     expect(pisteDuNom("sans numéro")).toBeUndefined();
+  });
+
+  it("avec le motif de la recette, lit chaque champ à sa place", () => {
+    const lu = lireNomMedia("1-41 Latin Riffs - 400 Pg.127", "{disque}-{piste} {style} - {element} Pg.{page}");
+    expect(lu).toEqual({ disque: 1, piste: 41, element: 400, page: 127 });
+  });
+
+  it("le motif l'emporte sur le premier nombre venu", () => {
+    // Sans motif, « 1-14 … » donnerait la piste 1 : c'est le numéro de disque.
+    expect(pisteDuNom("1-14 James Jamerson - 191 Pg.81")).toBe(1);
+    expect(lireNomMedia("1-14 James Jamerson - 191 Pg.81", "{disque}-{piste} {style} - {element} Pg.{page}").piste).toBe(14);
+  });
+
+  it("ne devine rien quand le nom ne suit pas le motif", () => {
+    expect(lireNomMedia("Track 45", "{disque}-{piste} {style} - {element} Pg.{page}")).toEqual({});
+  });
+
+  it("supporte les caractères que les noms d'origine contiennent", () => {
+    const lu = lireNomMedia("1-05 4_4 Blues And R&B - 136 Pg.69", "{disque}-{piste} {style} - {element} Pg.{page}");
+    expect(lu).toMatchObject({ disque: 1, piste: 5, element: 136, page: 69 });
+  });
+});
+
+describe("supports multiples (A3)", () => {
+  it("la piste 3 du disque 2 n'est pas la piste 3 du disque 1", () => {
+    const medias = [media(3, "disque1.mp3"), { ...media(3, "disque2.mp3"), disque: 2 }];
+    const association = associer([ligne(1, 3, 1, 1), ligne(2, 3, 1, 2)], medias, RECETTE);
+    expect(association.appariements[0]?.media?.nom).toBe("disque1.mp3");
+    expect(association.appariements[1]?.media?.nom).toBe("disque2.mp3");
+    expect(association.orphelins).toEqual([]);
+  });
+
+  it("un élément d'un support dont on n'a pas le média reste sans média", () => {
+    const association = associer([ligne(1, 3, 1, 2)], [media(3, "disque1.mp3")], RECETTE);
+    expect(association.appariements[0]?.media).toBeUndefined();
+    expect(association.orphelins, "le média du disque 1 n'est réclamé par personne").toEqual([3]);
+    expect(association.manquants).toEqual([3]);
   });
 });
 

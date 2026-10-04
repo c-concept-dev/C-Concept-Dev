@@ -12,6 +12,7 @@ export * from "./lien.js";
 export * from "./recette.js";
 export * from "./redressement.js";
 export * from "./repere.js";
+export * from "./segment.js";
 export * from "./travail.js";
 export * from "./operation.js";
 export * from "./resultat-outil.js";

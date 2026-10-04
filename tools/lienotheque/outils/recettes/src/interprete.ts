@@ -7,6 +7,8 @@ import {
   type Recette,
   type SourcePiste,
 } from "@lienotheque/contrats";
+import { PRESENCE_MINIMALE } from "./reperes.js";
+import { appui, attribuerPistes, changementDeSupport, reglesDePistes } from "./pistes.js";
 import { numeroterElements, type ElementPlace, type Ecart } from "./sequence.js";
 
 /** Interpréteur de recettes (REC-02) : des repères lus à des éléments numérotés et reliés.
@@ -149,16 +151,22 @@ export function numeroterPages(
 
 export type { Ecart };
 
+export type OptionsSequence = {
+  /** Combien de pistes le support compte, su du média et non de son nom (REC-05). */
+  readonly nombreDePistes?: number;
+};
+
 /** Enchaîne les éléments et leurs pistes, selon les règles de la recette.
  *
  *  Les numéros sont d'abord mis en suite par ancrage (voir `sequence.ts`) : une lecture fautive
- *  est écartée ou réparée, jamais propagée. La piste vient ensuite de la pastille quand elle est
- *  lisible et que son pas est permis ; d'une mention de suite quand la recette en déclare une ;
- *  du numéro d'élément quand la recette dit qu'ils coïncident. Jamais du nom d'un fichier
- *  (REC-05). */
+ *  est écartée ou réparée, jamais propagée. Les pistes viennent ensuite, et pas une par une : les
+ *  éléments qui portent un repère sont attribués tous ensemble, par la suite qui explique le
+ *  mieux l'ensemble des lectures (voir `pistes.ts`). Les autres héritent, ou prennent leur propre
+ *  numéro quand la recette dit que les deux coïncident. Jamais le nom d'un fichier (REC-05). */
 export function sequencer(
   pages: readonly PageNumerotee[],
   recette: Recette,
+  options: OptionsSequence = {},
 ): { lignes: LigneInterpretee[]; ecartes: Ecart[] } {
   const places: ElementPlace[] = [];
   for (const page of pages) {
@@ -167,54 +175,88 @@ export function sequencer(
   }
 
   const { numerotes, ecartes } = numeroterElements(places, recette.regles.elements.saut_max);
-  const pas = recette.regles.pistes?.pas_autorises ?? [0, 1];
-  const pisteSuitElement = recette.regles.pistes?.egale_numero_element === true;
 
+  // Les porteurs de repère, dans l'ordre : ce sont eux qui commandent la suite des pistes.
+  // Un repère vu mais illisible ne suffit pas — la présence seule donne des faux positifs, et
+  // chacun d'eux consommerait une piste au détriment de toutes les suivantes.
+  const porteurs: number[] = [];
+  numerotes.forEach((element, rang) => {
+    if (element.pisteLue !== undefined) porteurs.push(rang);
+  });
+  const lectures = porteurs.map((rang) => ({ ...numerotes[rang]!, numero: numerotes[rang]!.numeroRetenu }));
+
+  const estimation = Math.max(1, lectures.length, ...lectures.map((lecture) => lecture.pisteLue ?? 0));
+  const regles = reglesDePistes(recette, options.nombreDePistes ?? estimation);
+
+  // Un support qui change renumérote ses pistes à partir de 1 : on attribue tranche par tranche.
+  const coupure = changementDeSupport(lectures, regles);
+  const tranches = coupure === undefined ? [lectures] : [lectures.slice(0, coupure), lectures.slice(coupure)];
+  const attributions: { piste: number; disque: number }[] = [];
+  tranches.forEach((tranche, support) => {
+    for (const piste of attribuerPistes(tranche, regles)) attributions.push({ piste, disque: support + 1 });
+  });
+  const parRang = new Map(porteurs.map((rang, position) => [rang, attributions[position]!]));
+
+  const pisteSuitElement = recette.regles.pistes?.egale_numero_element === true;
+  const heritage = recette.regles.plusieurs_elements_par_piste;
   const lignes: LigneInterpretee[] = [];
   let dernierePiste = 0;
+  let dernierDisque = 1;
 
-  for (const element of numerotes) {
-    let piste: number;
-    let sourcePiste: SourcePiste;
+  numerotes.forEach((element, rang) => {
+    const attribution = parRang.get(rang);
+    let piste: number | undefined;
+    let disque = dernierDisque;
+    let sourcePiste: SourcePiste | undefined;
+
     if (element.suite && recette.regles.mention_suite !== undefined && dernierePiste > 0) {
       piste = dernierePiste;
       sourcePiste = "suite";
-    } else if (element.pisteLue !== undefined && pas.includes(element.pisteLue - dernierePiste)) {
-      piste = element.pisteLue;
-      sourcePiste = "pastille";
+    } else if (attribution !== undefined) {
+      piste = attribution.piste;
+      disque = attribution.disque;
+      // La pastille fait foi quand elle appuie la piste retenue ; sinon c'est la suite qui décide.
+      sourcePiste = element.pisteLue !== undefined && appui(element.pisteLue, piste) >= 1 ? "pastille" : "sequence";
     } else if (pisteSuitElement) {
       piste = element.numeroRetenu;
       sourcePiste = "numero_element";
-    } else {
-      piste = Math.max(1, dernierePiste);
+    } else if (heritage && dernierePiste > 0) {
+      piste = dernierePiste;
       sourcePiste = "suite";
     }
+    // Sinon : aucun repère n'a encore été vu. L'élément n'a pas de piste, et on n'en invente pas.
 
-    const confiance =
+    const brute =
       sourcePiste === "pastille"
         ? Math.min(1, (element.accordNumero + element.accordPiste) / 2 + (element.pisteLue === element.numeroRetenu ? 0.25 : 0))
-        : element.repare === undefined
-          ? element.accordNumero
-          : // Un numéro réparé est tenu, mais pas lu : la confiance le dit.
-            Math.round(element.accordNumero * 0.7 * 100) / 100;
+        : sourcePiste === "sequence"
+          ? // Tenue par la suite, pas lue sur la page : la confiance le dit.
+            element.accordNumero * 0.8
+          : element.accordNumero;
+    // Un numéro réparé est tenu, pas lu : la confiance le dit aussi.
+    const confiance = element.repare === undefined ? brute : brute * 0.7;
 
     lignes.push({
       numero: element.numeroRetenu,
       pageImprimee: element.pageImprimee,
-      piste,
-      sourcePiste,
+      ...(piste === undefined ? {} : { piste }),
+      disque,
+      ...(sourcePiste === undefined ? {} : { sourcePiste }),
       confiance: Math.round(confiance * 100) / 100,
     });
-    dernierePiste = piste;
-  }
+    if (piste !== undefined) {
+      dernierePiste = piste;
+      dernierDisque = disque;
+    }
+  });
 
   return { lignes, ecartes };
 }
 
 /** Le résultat complet, qui porte la recette l'ayant produit (REC-03). */
-export function interpreter(pages: readonly PageLue[], recette: Recette): ResultatRecette {
+export function interpreter(pages: readonly PageLue[], recette: Recette, options: OptionsSequence = {}): ResultatRecette {
   const numerotees = numeroterPages(pages, pariteDuDecalage(recette.preparation.page_gauche));
-  const { lignes, ecartes } = sequencer(numerotees.pages, recette);
+  const { lignes, ecartes } = sequencer(numerotees.pages, recette, options);
   return ResultatRecette.parse({
     recette: { id: recette.id, version: recette.version },
     pages: numerotees.pages,

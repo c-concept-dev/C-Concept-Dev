@@ -5,7 +5,7 @@ import { ReglagesRedressement, type CotePage, type Recette, type ResultatRecette
 import { redresser, type OptionsRedressement } from "@lienotheque/redresseur";
 import { objetsPdf, octetsImage, pagesPdf } from "@lienotheque/formats";
 import { decoderJpeg, enGris, type ImageGrise } from "@lienotheque/images";
-import { associer, pisteDuNom, type Association, type Media } from "./associateur.js";
+import { associer, lireNomMedia, type Association, type Media } from "./associateur.js";
 import { interpreter, type PageLue } from "./interprete.js";
 import { lireCoucheTexte } from "@lienotheque/lecteur-texte";
 import { texteDePage } from "@lienotheque/contrats";
@@ -103,29 +103,35 @@ export function reperer(pages: readonly PageAlire[], recette: Recette, options: 
  *
  *  Le nom ne sert qu'à ça — retrouver quel numéro un média porte (REC-05). Rien ici ne renomme
  *  quoi que ce soit : les noms d'origine, espaces et apostrophes compris, restent intacts. */
-export async function mediasDuDossier(dossier: string, extension = ".mp3"): Promise<Media[]> {
+export async function mediasDuDossier(dossier: string, recette?: Recette, extension = ".mp3"): Promise<Media[]> {
   const entrees = await readdir(dossier, { recursive: true, withFileTypes: true });
+  const motif = recette?.audio?.motif_nom;
   const medias: Media[] = [];
 
   for (const entree of entrees) {
     if (!entree.isFile() || !entree.name.toLowerCase().endsWith(extension) || entree.name.startsWith(".")) continue;
     const chemin = join(entree.parentPath, entree.name);
-    const piste = pisteDuNom(basename(entree.name, extension));
-    if (piste === undefined) continue;
+    const indices = lireNomMedia(basename(entree.name, extension), motif);
+    if (indices.piste === undefined) continue;
     medias.push({
-      piste,
+      piste: indices.piste,
+      ...(indices.disque === undefined ? {} : { disque: indices.disque }),
       nom: entree.name,
       empreinte: createHash("sha256").update(await readFile(chemin)).digest("hex"),
     });
   }
-  return medias.sort((a, b) => a.piste - b.piste || a.nom.localeCompare(b.nom, "fr"));
+  return medias.sort((a, b) => (a.disque ?? 1) - (b.disque ?? 1) || a.piste - b.piste || a.nom.localeCompare(b.nom, "fr"));
 }
 
 export type Rejeu = { readonly resultat: ResultatRecette; readonly association: Association };
 
 export async function rejouer(pdf: string, dossierMedias: string, recette: Recette, options: OptionsBanc = {}): Promise<Rejeu> {
-  const resultat = interpreter(reperer(await preparerLot(pdf, recette, options), recette, options), recette);
-  return { resultat, association: associer(resultat.lignes, await mediasDuDossier(dossierMedias), recette) };
+  const medias = await mediasDuDossier(dossierMedias, recette);
+  // Combien de pistes le support compte est un fait sur le média, pas sur son nom (REC-05).
+  const resultat = interpreter(reperer(await preparerLot(pdf, recette, options), recette, options), recette, {
+    nombreDePistes: medias.length,
+  });
+  return { resultat, association: associer(resultat.lignes, medias, recette) };
 }
 
 /** Ce qu'un rejeu vaut face à une référence : combien d'éléments tombent sur la bonne piste. */
@@ -138,8 +144,11 @@ export type Score = {
 
 /** Compare piste à piste, par numéro d'élément. Un élément absent du rejeu compte comme manquant,
  *  jamais comme juste. */
-export function comparer(lignes: readonly { numero: number; piste: number }[], reference: readonly { numero: number; piste: number }[]): Score {
-  const obtenu = new Map(lignes.map((ligne) => [ligne.numero, ligne.piste]));
+export function comparer(
+  lignes: readonly { numero: number; piste?: number | undefined }[],
+  reference: readonly { numero: number; piste: number }[],
+): Score {
+  const obtenu = new Map(lignes.flatMap((ligne) => (ligne.piste === undefined ? [] : [[ligne.numero, ligne.piste] as const])));
   const manquants: number[] = [];
   const fautifs: { numero: number; attendu: number; obtenu: number }[] = [];
   let justes = 0;

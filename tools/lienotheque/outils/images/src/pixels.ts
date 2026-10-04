@@ -149,3 +149,114 @@ export function imageIntegrale(image: ImageGrise): { sommes: Float64Array; carre
     }
   return { sommes, carres };
 }
+
+/** Fermeture morphologique du sombre : dilatation puis érosion, voisinage à huit.
+ *
+ *  Elle recolle ce qu'un seuil a séparé à tort. Un repère imprimé en deux parties — une étiquette
+ *  et un chiffre, côte à côte — se lit comme deux formes distinctes tant qu'on ne les a pas
+ *  rejointes ; après fermeture, c'en est une seule. L'érosion rend ensuite aux formes leur
+ *  épaisseur d'origine, de sorte que rien n'est grossi, seulement réuni. */
+export function fermer(image: ImageGrise, passes = 1, seuil = 128): ImageGrise {
+  const { largeur, hauteur } = image;
+  let sombre = new Uint8Array(image.pixels.length);
+  for (let rang = 0; rang < sombre.length; rang += 1) sombre[rang] = image.pixels[rang]! < seuil ? 1 : 0;
+
+  const passer = (source: Uint8Array<ArrayBuffer>, dilater: boolean): Uint8Array<ArrayBuffer> => {
+    const sortie = new Uint8Array(source.length);
+    for (let y = 0; y < hauteur; y += 1)
+      for (let x = 0; x < largeur; x += 1) {
+        let voisinSombre = false;
+        let voisinClair = false;
+        for (let dy = -1; dy <= 1; dy += 1)
+          for (let dx = -1; dx <= 1; dx += 1) {
+            const vx = x + dx;
+            const vy = y + dy;
+            // Hors cadre : traité comme clair, pour ne pas faire déborder les formes des bords.
+            if (vx < 0 || vy < 0 || vx >= largeur || vy >= hauteur) {
+              voisinClair = true;
+              continue;
+            }
+            if (source[vy * largeur + vx] === 1) voisinSombre = true;
+            else voisinClair = true;
+          }
+        sortie[y * largeur + x] = dilater ? (voisinSombre ? 1 : 0) : voisinClair ? 0 : 1;
+      }
+    return sortie;
+  };
+
+  for (let fois = 0; fois < passes; fois += 1) sombre = passer(sombre, true);
+  for (let fois = 0; fois < passes; fois += 1) sombre = passer(sombre, false);
+  const pixels = new Uint8Array(sombre.length);
+  for (let rang = 0; rang < pixels.length; rang += 1) pixels[rang] = sombre[rang] === 1 ? 0 : 255;
+  return { largeur, hauteur, pixels };
+}
+
+/** Une forme sombre d'un seul tenant : sa boîte, et combien de pixels elle occupe dedans. */
+export type FormeSombre = { readonly boite: Boite; readonly pixels: number };
+
+/** Toutes les formes sombres d'un seul tenant.
+ *
+ *  `boiteSombre` cadre *tout* ce qui est sombre : une ligne de portée qui traverse la zone et un
+ *  repère voisin n'y font qu'une seule boîte, immense et inutile. Ici on sépare les formes qui ne
+ *  se touchent pas, et l'appelant choisit — la plus grosse n'est pas toujours la bonne.
+ *
+ *  Parcours en largeur, voisinage à huit : deux pixels sombres en diagonale appartiennent au même
+ *  trait, et une forme imprimée a toujours quelques pixels de guingois sur ses bords. */
+export function formesSombres(image: ImageGrise, seuil = 128): FormeSombre[] {
+  const { largeur, hauteur, pixels } = image;
+  if (largeur === 0 || hauteur === 0) return [];
+
+  const vus = new Uint8Array(largeur * hauteur);
+  const file = new Int32Array(largeur * hauteur);
+  const formes: FormeSombre[] = [];
+
+  for (let depart = 0; depart < pixels.length; depart += 1) {
+    if (vus[depart] === 1 || pixels[depart]! >= seuil) continue;
+
+    let tete = 0;
+    let queue = 0;
+    file[queue++] = depart;
+    vus[depart] = 1;
+
+    let gauche = largeur;
+    let droite = -1;
+    let haut = hauteur;
+    let bas = -1;
+    let taille = 0;
+
+    while (tete < queue) {
+      const rang = file[tete++]!;
+      const x = rang % largeur;
+      const y = (rang - x) / largeur;
+      taille += 1;
+      if (x < gauche) gauche = x;
+      if (x > droite) droite = x;
+      if (y < haut) haut = y;
+      if (y > bas) bas = y;
+
+      for (let dy = -1; dy <= 1; dy += 1)
+        for (let dx = -1; dx <= 1; dx += 1) {
+          const vx = x + dx;
+          const vy = y + dy;
+          if (vx < 0 || vy < 0 || vx >= largeur || vy >= hauteur) continue;
+          const voisin = vy * largeur + vx;
+          if (vus[voisin] === 1 || pixels[voisin]! >= seuil) continue;
+          vus[voisin] = 1;
+          file[queue++] = voisin;
+        }
+    }
+    formes.push({ boite: { x: gauche, y: haut, l: droite - gauche + 1, h: bas - haut + 1 }, pixels: taille });
+  }
+  return formes;
+}
+
+/** Boîte de la plus grande forme sombre d'un seul tenant, par le nombre de pixels. */
+export function plusGrandeFormeSombre(image: ImageGrise, seuil = 128): Boite | undefined {
+  let meilleure: FormeSombre | undefined;
+  for (const forme of formesSombres(image, seuil)) if (meilleure === undefined || forme.pixels > meilleure.pixels) meilleure = forme;
+  return meilleure?.boite;
+}
+
+/** Part de la boîte d'une forme que la forme occupe réellement. Un pavé plein approche 1, un
+ *  trait ou une lettre reste bas. */
+export const remplissage = (forme: FormeSombre): number => forme.pixels / (forme.boite.l * forme.boite.h);

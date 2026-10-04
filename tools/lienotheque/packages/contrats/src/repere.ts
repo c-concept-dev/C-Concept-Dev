@@ -65,19 +65,35 @@ export const PageReperee = z
 export type PageReperee = z.infer<typeof PageReperee>;
 
 /** Comment le numéro de piste a été obtenu. Jamais « d'après le nom du fichier » : un nom de
- *  fichier ne vaut qu'indice de recoupement (REC-05). */
-export const SourcePiste = z.enum(["pastille", "suite", "numero_element"]);
+ *  fichier ne vaut qu'indice de recoupement (REC-05).
+ *
+ *  `sequence` : aucune pastille lisible ici, mais la suite des pistes alentour impose celle-ci. */
+export const SourcePiste = z.enum(["pastille", "suite", "numero_element", "sequence"]);
 export type SourcePiste = z.infer<typeof SourcePiste>;
 
 export const LigneInterpretee = z
   .object({
     numero: z.number().int().positive(),
     pageImprimee: z.number().int().positive(),
-    piste: z.number().int().positive(),
-    sourcePiste: SourcePiste,
+    /** Piste du média, quand l'élément en a une. Tout un livre peut n'avoir aucun enregistrement,
+     *  et dans un livre qui en a, les pages antérieures au premier repère n'en ont pas non plus :
+     *  leur attribuer la piste 1 par défaut inventerait un lien. */
+    piste: z.number().int().positive().optional(),
+    /** Support dont la piste est tirée. Une méthode à plusieurs disques renumérote ses pistes à
+     *  partir de 1 sur chaque support : la piste 3 du disque 2 n'est pas la piste 3 du disque 1. */
+    disque: z.number().int().positive().default(1),
+    sourcePiste: SourcePiste.optional(),
     confiance: Confiance,
   })
-  .strict();
+  .strict()
+  .superRefine((ligne, ctx) => {
+    if ((ligne.piste === undefined) !== (ligne.sourcePiste === undefined))
+      ctx.addIssue({
+        code: "custom",
+        path: ["sourcePiste"],
+        message: "Une piste dit toujours d'où elle vient ; sans piste, il n'y a rien à dire",
+      });
+  });
 export type LigneInterpretee = z.infer<typeof LigneInterpretee>;
 
 /** Le résultat porte la recette qui l'a produit : changer la recette ne réécrit pas le passé

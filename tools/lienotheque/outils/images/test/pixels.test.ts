@@ -5,10 +5,14 @@ import {
   border,
   boiteSombre,
   enGris,
+  fermer,
+  formesSombres,
   imageIntegrale,
   inverser,
   moyennesParColonne,
+  plusGrandeFormeSombre,
   recadrer,
+  remplissage,
   seuiller,
   tourner,
   versPgm,
@@ -160,5 +164,84 @@ describe("image intégrale", () => {
     const { sommes, carres } = imageIntegrale(image);
     expect(sommes[1 * 3 + 2]).toBe(10);
     expect(carres[1 * 3 + 2]).toBe(100);
+  });
+});
+
+describe("plus grande forme sombre d'un seul tenant", () => {
+  it("sépare deux formes qui ne se touchent pas et garde la plus grosse", () => {
+    const image = grise(20, 10, (x, y) => (x >= 2 && x < 5 && y >= 2 && y < 5 ? 0 : x >= 10 && x < 18 && y >= 1 && y < 8 ? 0 : 255));
+    expect(plusGrandeFormeSombre(image)).toEqual({ x: 10, y: 1, l: 8, h: 7 });
+  });
+
+  it("là où la boîte englobante de tout le sombre couvrirait l'image entière", () => {
+    // Une ligne de portée en haut, un repère plus bas : ils ne se touchent pas.
+    const image = grise(20, 10, (x, y) => (y === 0 || (x >= 10 && x < 18 && y >= 2 && y < 9) ? 0 : 255));
+    expect(boiteSombre(image), "tout le sombre d'un coup").toEqual({ x: 0, y: 0, l: 20, h: 9 });
+    expect(plusGrandeFormeSombre(image), "la seule forme qui compte").toEqual({ x: 10, y: 2, l: 8, h: 7 });
+  });
+
+  it("relie les pixels en diagonale : une forme imprimée a les bords de guingois", () => {
+    const image = grise(6, 4, (x, y) => (x === y ? 0 : 255));
+    expect(plusGrandeFormeSombre(image)).toEqual({ x: 0, y: 0, l: 4, h: 4 });
+  });
+
+  it("ne rend rien sur une image claire ou vide", () => {
+    expect(plusGrandeFormeSombre(grise(5, 5, () => 255))).toBeUndefined();
+    expect(plusGrandeFormeSombre({ largeur: 0, hauteur: 0, pixels: new Uint8Array(0) })).toBeUndefined();
+  });
+
+  it("cadre un seul pixel sombre", () => {
+    expect(plusGrandeFormeSombre(grise(4, 4, (x, y) => (x === 2 && y === 1 ? 0 : 255)))).toEqual({ x: 2, y: 1, l: 1, h: 1 });
+  });
+});
+
+describe("fermeture morphologique", () => {
+  it("recolle deux formes que le seuil a séparées", () => {
+    // Deux carrés sombres séparés d'une colonne claire : une fermeture les réunit.
+    const image = grise(12, 6, (x, y) => (y >= 1 && y < 5 && (x >= 2 && x < 5) ? 0 : y >= 1 && y < 5 && x >= 6 && x < 9 ? 0 : 255));
+    expect(plusGrandeFormeSombre(image)!.l, "séparées, la plus grosse ne fait que trois").toBe(3);
+    expect(plusGrandeFormeSombre(fermer(image))!.l, "réunies, elle en fait sept").toBe(7);
+  });
+
+  it("rend aux formes leur épaisseur : rien n'est grossi, seulement réuni", () => {
+    const image = grise(10, 6, (x, y) => (x >= 3 && x < 6 && y >= 2 && y < 4 ? 0 : 255));
+    expect(plusGrandeFormeSombre(fermer(image))).toEqual({ x: 3, y: 2, l: 3, h: 2 });
+  });
+
+  it("ne crée rien sur une image claire", () => {
+    expect(new Set(fermer(grise(8, 8, () => 255)).pixels)).toEqual(new Set([255]));
+  });
+
+  it("plusieurs passes réunissent de plus loin", () => {
+    // Deux formes de trois colonnes séparées de trois : une passe ne les joint pas, deux les joignent.
+    const image = grise(14, 6, (x, y) => (y >= 1 && y < 5 && (x < 3 || x >= 6) && x < 9 ? 0 : 255));
+    expect(plusGrandeFormeSombre(fermer(image, 1))!.l, "encore deux formes").toBe(3);
+    expect(plusGrandeFormeSombre(fermer(image, 2))!.l, "n'en font plus qu'une").toBeGreaterThan(5);
+  });
+});
+
+describe("toutes les formes sombres", () => {
+  it("les sépare et dit ce que chacune occupe", () => {
+    // Un pavé plein à gauche, un trait fin à droite.
+    const image = grise(20, 8, (x, y) => (x >= 1 && x < 6 && y >= 1 && y < 6 ? 0 : x >= 12 && x < 18 && y === 4 ? 0 : 255));
+    const formes = formesSombres(image);
+    expect(formes).toHaveLength(2);
+    const pave = formes.find((f) => f.boite.x === 1)!;
+    const trait = formes.find((f) => f.boite.x === 12)!;
+    expect(remplissage(pave), "un pavé plein occupe toute sa boîte").toBe(1);
+    expect(remplissage(trait), "un trait aussi, mais sa boîte est plate").toBe(1);
+    expect(pave.pixels).toBe(25);
+    expect(trait.pixels).toBe(6);
+  });
+
+  it("une lettre n'occupe qu'une part de sa boîte", () => {
+    // Un « O » : un cadre creux.
+    const image = grise(10, 10, (x, y) => (x >= 2 && x < 8 && y >= 2 && y < 8 && (x === 2 || x === 7 || y === 2 || y === 7) ? 0 : 255));
+    const forme = formesSombres(image)[0]!;
+    expect(remplissage(forme)).toBeLessThan(0.7);
+  });
+
+  it("ne rend rien sur une image claire", () => {
+    expect(formesSombres(grise(5, 5, () => 255))).toEqual([]);
   });
 });

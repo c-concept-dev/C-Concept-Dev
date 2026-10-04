@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, realpathSync, writeFileSync } from "node:fs";
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Rotation, SourceRotation } from "@lienotheque/contrats";
@@ -32,11 +32,14 @@ export function rotationDansOsd(sortie: string): Rotation | undefined {
 /** Déduction de dernier recours : une double page est plus large que haute. */
 export const rotationDeForme = (image: ImageGrise): Rotation => (image.hauteur > image.largeur ? 90 : 0);
 
+/** Un seul dossier par exécution, et l'image effacée dès qu'elle a servi : un lot de trois cents
+ *  clichés ne doit rien laisser derrière lui. */
+let dossierDeTravail: string | undefined;
 let compteur = 0;
 
 export function detecterRotation(image: ImageGrise, options: OptionsRotation = {}): RotationTrouvee {
-  const dossier = options.dossier ?? mkdtempSync(join(tmpdir(), "lienotheque-rotation-"));
-  const chemin = join(dossier, `orientation-${(compteur += 1)}.pgm`);
+  dossierDeTravail ??= mkdtempSync(join(tmpdir(), "lienotheque-rotation-"));
+  const chemin = join(options.dossier ?? dossierDeTravail, `orientation-${(compteur += 1)}.pgm`);
   writeFileSync(chemin, versPgm(image));
 
   try {
@@ -50,6 +53,8 @@ export function detecterRotation(image: ImageGrise, options: OptionsRotation = {
     if (rotation !== undefined) return { rotation, source: "reconnue" };
   } catch {
     // Tesseract refuse volontiers une page qui porte trop peu de texte : ce n'est pas une erreur.
+  } finally {
+    rmSync(chemin, { force: true });
   }
   return { rotation: rotationDeForme(image), source: "deduite" };
 }

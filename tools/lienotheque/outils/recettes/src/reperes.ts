@@ -1,4 +1,4 @@
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { CotePage, ElementRepere, LectureRepere, MotLu, Recette } from "@lienotheque/contrats";
@@ -6,11 +6,14 @@ import {
   agrandir,
   boiteSombre,
   border,
+  formesSombres,
   inverser,
   recadrer,
+  remplissage,
   seuiller,
   versPgm,
   type Boite,
+  type FormeSombre,
   type ImageGrise,
 } from "@lienotheque/images";
 import { lireParOcr } from "@lienotheque/lecteur-texte";
@@ -75,20 +78,31 @@ export function motifLibelle(libelle: string): RegExp {
 /** Ce qui annonce une suite, réduit à ses lettres de tête : une apostrophe ne survit pas à l'OCR. */
 export const amorceDeSuite = (mention: string): string => (/^[\p{L}]+/u.exec(mention)?.[0] ?? mention).toLowerCase();
 
+/** Un seul dossier de travail par exécution, et chaque image effacée dès qu'elle a été lue.
+ *
+ *  Un lot de trois cents pages demande des dizaines de milliers de lectures ; en garder les
+ *  images remplirait le disque, et c'est arrivé. Le dossier se crée à la première lecture et pas
+ *  avant : un programme qui ne lit rien ne laisse rien. */
+let dossierDeTravail: string | undefined;
 let compteur = 0;
+
 function ocr(image: ImageGrise, segmentation: number, options: OptionsReperes, alphabet?: string): readonly MotLu[] {
   if (image.largeur === 0 || image.hauteur === 0) return [];
-  const dossier = options.dossier ?? mkdtempSync(join(tmpdir(), "lienotheque-reperes-"));
-  const chemin = join(dossier, `repere-${(compteur += 1)}.pgm`);
+  dossierDeTravail ??= mkdtempSync(join(tmpdir(), "lienotheque-reperes-"));
+  const chemin = join(options.dossier ?? dossierDeTravail, `repere-${(compteur += 1)}.pgm`);
   writeFileSync(chemin, versPgm(image));
-  // L'index de page ne veut rien dire sur un recadrage : 1 suffit au contrat.
-  return lireParOcr(chemin, image.largeur, image.hauteur, 1, {
-    segmentation,
-    ...(options.binaire === undefined ? {} : { binaire: options.binaire }),
-    ...(options.tessdata === undefined ? {} : { tessdata: options.tessdata }),
-    ...(options.langue === undefined ? {} : { langue: options.langue }),
-    ...(alphabet === undefined ? {} : { alphabet }),
-  }).mots;
+  try {
+    // L'index de page ne veut rien dire sur un recadrage : 1 suffit au contrat.
+    return lireParOcr(chemin, image.largeur, image.hauteur, 1, {
+      segmentation,
+      ...(options.binaire === undefined ? {} : { binaire: options.binaire }),
+      ...(options.tessdata === undefined ? {} : { tessdata: options.tessdata }),
+      ...(options.langue === undefined ? {} : { langue: options.langue }),
+      ...(alphabet === undefined ? {} : { alphabet }),
+    }).mots;
+  } finally {
+    rmSync(chemin, { force: true });
+  }
 }
 
 const premierEntier = (texte: string): number | undefined => {
@@ -202,45 +216,50 @@ export function tonClair(image: ImageGrise, part = 0.9): number {
 
 /** À quel point une pastille semble présente sous le numéro, qu'on sache ou non lire son chiffre.
  *
- *  Une pastille est une **surface** sombre. Deux choses la distinguent donc : l'assombrissement
- *  moyen de la zone — une ligne de portée qui la traverse ne pèse presque rien dans la moyenne,
- *  un bloc beaucoup —, et l'étendue du sombre dans les deux sens. On prend le plus petit des
- *  deux étalements : une ligne couvre toute la largeur et une seule hauteur, un bloc couvre les
- *  deux. */
-export function presenceDeBloc(zone: ImageGrise): number {
-  if (zone.largeur === 0 || zone.hauteur === 0) return 0;
+ *  On ne mesure pas la fenêtre de recherche — sa taille est arbitraire et varie d'une recette à
+ *  l'autre — mais **la forme sombre qu'on y trouve**. Deux choses la caractérisent : elle est
+ *  pleine, et elle est à la taille du numéro qu'elle accompagne.
+ *
+ *  Un losange est à demi plein de son cadre, un bloc presque entièrement ; des portées et des
+ *  notes donnent au contraire une boîte très large et presque vide. C'est ce qui les sépare, et
+ *  cela ne dépend pas de la largeur qu'on a bien voulu regarder. */
+export function presenceDeForme(zone: ImageGrise, forme: Boite | undefined, hauteurNumero: number): number {
+  if (forme === undefined || forme.l === 0 || forme.h === 0) return 0;
+  // Une forme démesurée par rapport au numéro n'est pas un repère, c'est le document.
+  if (forme.h > hauteurNumero * 3.5 || forme.l > hauteurNumero * 7) return 0;
+
   const clair = Math.max(1, tonClair(zone));
-  const sombre = clair * 0.45;
+  const sombre = clair * 0.55;
+  let pleins = 0;
+  for (let y = forme.y; y < forme.y + forme.h; y += 1)
+    for (let x = forme.x; x < forme.x + forme.l; x += 1)
+      if (zone.pixels[y * zone.largeur + x]! < sombre) pleins += 1;
 
-  let somme = 0;
-  const colonnes = new Uint8Array(zone.largeur);
-  const lignes = new Uint8Array(zone.hauteur);
-  for (let y = 0; y < zone.hauteur; y += 1)
-    for (let x = 0; x < zone.largeur; x += 1) {
-      const ton = zone.pixels[y * zone.largeur + x]!;
-      somme += ton;
-      if (ton < sombre) {
-        colonnes[x] = 1;
-        lignes[y] = 1;
-      }
-    }
-
-  const moyenne = somme / zone.pixels.length;
-  const profondeur = Math.min(1, Math.max(0, (clair - moyenne) / (clair * 0.55)));
-  const partColonnes = colonnes.reduce((total, marque) => total + marque, 0) / zone.largeur;
-  const partLignes = lignes.reduce((total, marque) => total + marque, 0) / zone.hauteur;
-  const etendue = Math.min(1, Math.min(partColonnes, partLignes) / 0.35);
-
-  return Math.round((profondeur * 0.5 + etendue * 0.5) * 100) / 100;
+  const remplissage = pleins / (forme.l * forme.h);
+  const taille = Math.min(1, forme.h / (hauteurNumero * 1.1));
+  return Math.round(Math.min(1, remplissage * taille) * 100) / 100;
 }
 
-/** Vote majoritaire ; à égalité, la plus petite valeur, pour que deux exécutions s'accordent. */
+/** Vote majoritaire sur des lectures de chiffres.
+ *
+ *  À égalité de voix, la valeur la plus longue l'emporte quand l'autre en est la fin : « 13 » lu
+ *  « 3 » est l'échec courant d'un moteur d'OCR — il perd le chiffre de tête, collé au bord du
+ *  pavé —, tandis qu'inventer un chiffre est rare. Hors de ce cas, la plus petite, pour que deux
+ *  exécutions s'accordent toujours. */
 export function vote(valeurs: readonly number[]): { valeur: number; accord: number } | undefined {
   if (valeurs.length === 0) return undefined;
   const comptes = new Map<number, number>();
   for (const valeur of valeurs) comptes.set(valeur, (comptes.get(valeur) ?? 0) + 1);
-  const [valeur, voix] = [...comptes.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0]!;
-  return { valeur, accord: voix / valeurs.length };
+
+  const tries = [...comptes.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0]);
+  const voix = tries[0]![1];
+  const exaequo = tries.filter(([, nombre]) => nombre === voix).map(([valeur]) => valeur);
+
+  let retenue = exaequo[0]!;
+  for (const valeur of exaequo)
+    if (valeur !== retenue && String(valeur).endsWith(String(retenue))) retenue = valeur;
+
+  return { valeur: retenue, accord: voix / valeurs.length };
 }
 
 export type BlocPiste = { readonly presence: number; readonly votes: readonly number[] };
@@ -248,12 +267,67 @@ export type BlocPiste = { readonly presence: number; readonly votes: readonly nu
 /** Seuils tentés sur le bloc, en part du ton clair local. Plusieurs seuils, plusieurs lectures :
  *  un chiffre clair sur fond sombre ne se détache pas au même endroit selon la lumière. */
 const SEUILS = [0.45, 0.6, 0.75] as const;
-/** Parts du bloc, prises depuis la droite, quand une étiquette occupe sa gauche. */
-const PARTS_ETIQUETTE = [0.6, 0.5, 0.42] as const;
+/** En deçà, une forme est un trait ou une lettre, pas un pavé. Un losange occupe la moitié de sa
+ *  boîte, un bloc les trois quarts ; un « C », un « D » ou une ligne de portée, bien moins. */
+const REMPLISSAGE_MINIMAL = 0.45;
 
-/** En deçà, il n'y a pas de bloc à lire : inutile de faire travailler l'OCR sur du papier.
- *  La plupart des éléments n'ouvrent pas une piste, et c'est ce seuil qui rend le lot abordable. */
-export const PRESENCE_MINIMALE = 0.5;
+/** Parts du repère, prises depuis la droite, quand une étiquette l'accompagne.
+ *
+ *  Le pavé entier d'abord : l'étiquette est une forme à part, et le choix de forme l'a déjà
+ *  écartée. Les parts qui suivent ne servent que si elle s'est collée au pavé malgré tout. */
+const PARTS_ETIQUETTE = [1, 0.75, 0.6] as const;
+
+/** En deçà, il n'y a pas de repère à lire : inutile de faire travailler l'OCR sur du papier.
+ *
+ *  Relevé sur les deux corpus : là où un repère existe, la mesure donne 0,33 à 0,48 selon qu'il
+ *  est losange ou bloc ; là où il n'y en a pas, elle donne 0. La séparation est franche, et ce
+ *  seuil se tient au milieu. C'est aussi lui qui rend un lot de 286 pages abordable : la plupart
+ *  des éléments n'ouvrent aucune piste. */
+export const PRESENCE_MINIMALE = 0.25;
+
+/** Les formes qui peuvent porter le chiffre, de la plus probable à la moins.
+ *
+ *  On ne parie pas sur une seule. À côté du chiffre il y a souvent une étiquette — « CD1 Piste »
+ *  — imprimée en sombre sur clair, et des portées qui traversent la fenêtre ; selon la page, le
+ *  chiffre est une forme à part, ou collé à son voisinage. On propose donc, dans l'ordre :
+ *
+ *  1. la plus **pleine** des formes à la taille du numéro — un pavé occupe sa boîte, une lettre
+ *     ou un trait non ;
+ *  2. la plus **grande** d'un seul tenant ;
+ *  3. la boîte de tout ce qui est sombre, en dernier ressort.
+ *
+ *  Chacune est lue, et c'est le vote qui tranche. Mieux vaut trois lectures dont deux fausses
+ *  qu'une seule qui manque. */
+export function formesCandidates(binaire: ImageGrise, hauteurNumero: number): Boite[] {
+  const formes = formesSombres(binaire);
+  const candidates: Boite[] = [];
+  const ajouter = (boite: Boite | undefined): void => {
+    if (boite === undefined || boite.l === 0 || boite.h === 0) return;
+    if (candidates.some((vue) => vue.x === boite.x && vue.y === boite.y && vue.l === boite.l && vue.h === boite.h)) return;
+    candidates.push(boite);
+  };
+
+  let laPlusPleine: { forme: FormeSombre; plein: number } | undefined;
+  let laPlusGrande: FormeSombre | undefined;
+  for (const forme of formes) {
+    if (laPlusGrande === undefined || forme.pixels > laPlusGrande.pixels) laPlusGrande = forme;
+    const { h, l } = forme.boite;
+    if (h < hauteurNumero * 0.5 || h > hauteurNumero * 3 || l > hauteurNumero * 7) continue;
+    const plein = remplissage(forme);
+    if (plein < REMPLISSAGE_MINIMAL) continue;
+    if (
+      laPlusPleine === undefined ||
+      plein > laPlusPleine.plein + 0.05 ||
+      (Math.abs(plein - laPlusPleine.plein) <= 0.05 && forme.pixels > laPlusPleine.forme.pixels)
+    )
+      laPlusPleine = { forme, plein };
+  }
+
+  ajouter(laPlusPleine?.forme.boite);
+  ajouter(laPlusGrande?.boite);
+  ajouter(boiteSombre(binaire));
+  return candidates;
+}
 
 /** Lit le bloc de piste : une forme sombre, des chiffres clairs dedans.
  *
@@ -273,41 +347,40 @@ export function lireBlocPiste(
   const zone = recadrer(image, zonePastille(boite, position, marge));
   if (zone.largeur === 0 || zone.hauteur === 0) return { presence: 0, votes: [] };
 
-  const presence = presenceDeBloc(zone);
+  const clair = Math.max(1, tonClair(zone));
+  const binaire = seuiller(zone, Math.round(clair * 0.55));
+  const candidates = formesCandidates(binaire, boite.h);
+  const presence = presenceDeForme(zone, candidates[0], boite.h);
   if (presence < PRESENCE_MINIMALE) return { presence, votes: [] };
 
-  const clair = Math.max(1, tonClair(zone));
-  const forme = boiteSombre(seuiller(zone, Math.round(clair * 0.55)));
-  if (forme === undefined || forme.l < boite.h * 0.6) return { presence, votes: [] };
-
-  // La forme du repère commande le recadrage. Les coins d'un losange sont du fond : les garder
-  // mettrait des pointes noires autour des chiffres. Un bloc rectangulaire se prend entier.
-  const bloc =
-    motif === "losange_sombre_chiffres_clairs"
-      ? recadrer(zone, {
-          x: forme.x + Math.round(forme.l * 0.2),
-          y: forme.y + Math.round(forme.h * 0.22),
-          l: forme.l - Math.round(forme.l * 0.2) * 2,
-          h: forme.h - Math.round(forme.h * 0.22) * 2,
-        })
-      : recadrer(zone, forme);
-  if (bloc.largeur === 0 || bloc.hauteur === 0) return { presence, votes: [] };
-
+  const losange = motif === "losange_sombre_chiffres_clairs";
   const votes: number[] = [];
-  for (const part of etiquette ? PARTS_ETIQUETTE : [1]) {
-    const depart = Math.round(bloc.largeur * (1 - part));
-    const morceau = recadrer(bloc, { x: depart, y: 0, l: bloc.largeur - depart, h: bloc.hauteur });
-    if (morceau.largeur === 0 || morceau.hauteur === 0) continue;
 
-    for (const seuil of SEUILS) {
-      const net = border(agrandir(inverser(seuiller(morceau, Math.round(clair * seuil))), 5), 25);
-      for (const segmentation of [7, 8]) {
-        const lu = premierEntier(
-          ocr(net, segmentation, options, CHIFFRES)
-            .map((mot) => mot.texte)
-            .join(""),
-        );
-        if (lu !== undefined && lu > 0 && lu < 100) votes.push(lu);
+  for (const forme of candidates) {
+    if (forme.l < boite.h * 0.6) continue;
+    // Les coins d'un losange sont du fond : les garder mettrait des pointes noires autour des
+    // chiffres. Un pavé se prend entier — le rogner fait perdre les chiffres qui touchent sa
+    // bordure, et un chiffre de tête perdu reste un appui partiel pour la suite.
+    const dx = losange ? Math.round(forme.l * 0.2) : 0;
+    const dy = losange ? Math.round(forme.h * 0.22) : 0;
+    const bloc = recadrer(zone, { x: forme.x + dx, y: forme.y + dy, l: forme.l - dx * 2, h: forme.h - dy * 2 });
+    if (bloc.largeur === 0 || bloc.hauteur === 0) continue;
+
+    for (const part of etiquette ? PARTS_ETIQUETTE : [1]) {
+      const depart = Math.round(bloc.largeur * (1 - part));
+      const morceau = recadrer(bloc, { x: depart, y: 0, l: bloc.largeur - depart, h: bloc.hauteur });
+      if (morceau.largeur === 0 || morceau.hauteur === 0) continue;
+
+      for (const seuil of SEUILS) {
+        const net = border(agrandir(inverser(seuiller(morceau, Math.round(clair * seuil))), 5), 25);
+        for (const segmentation of [7, 8]) {
+          const lu = premierEntier(
+            ocr(net, segmentation, options, CHIFFRES)
+              .map((mot) => mot.texte)
+              .join(""),
+          );
+          if (lu !== undefined && lu > 0 && lu < 100) votes.push(lu);
+        }
       }
     }
   }
