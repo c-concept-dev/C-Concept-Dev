@@ -838,5 +838,5 @@ test('T-PROVOPENAI01-34 · CONTINUITE_NON_REGRESSEE : les suites de continuité 
     { encoding: 'utf8', env, cwd: racine, timeout: 120000 });
   const n = (k) => Number((sortie.match(new RegExp(`^\u2139 ${k} (\\d+)`, 'm')) || [])[1]);
   assert.equal(n('fail'), 0, sortie.slice(-2000));
-  assert.equal(n('pass'), 30, 'CONTINUITE_PASS_COUNT = 30');
+  assert.equal(n('pass'), 32, 'CONTINUITE_PASS_COUNT = 32');
 });

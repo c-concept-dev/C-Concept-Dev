@@ -11372,28 +11372,38 @@ async function beginApiAnalysis(){
   const modeDemandeur=(($('#ui-mode-select')||{}).value)||null;
   const contexteDemandeurPerdu=()=>tourDemandeur!==oprieState.seq||modeDemandeur!==((($('#ui-mode-select')||{}).value)||null);
   let parsed;
+  const contexteAnalyse=JSON.stringify(api.contexte(),null,2);
+  let contenuAnalyse=contexteAnalyse;
+  /* Le schéma du transport ne vérifie pas les citations contre les sources. Une analyse
+     structurellement valide peut donc encore être refusée par le validateur Architecte.
+     Réutiliser son prompt de correction, une seule fois, avec le contexte original complet.
+     Aucune citation n'est réparée localement et aucun verdict n'est assoupli. */
   try{
-    const r=await window.appelFournisseur({
-      fournisseur,
-      cle,
-      modele,
-      maxTokens:maxAnalyse,
-      systeme:api.systeme+(readinessInstruction?'\n\n'+readinessInstruction:''),
-      contenuUtilisateur:JSON.stringify(api.contexte(),null,2),
-      schema:api.schema,
-      effort:'high',
-      delaiMs:delaiAnalyseMs
-    });
-    if(contexteDemandeurPerdu())return false;
-    const brut=String(r&&r.texte||'').trim().replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'').trim();
-    parsed=JSON.parse(brut);
+    for(let correction=0;correction<2;correction++){
+      const r=await window.appelFournisseur({
+        fournisseur,
+        cle,
+        modele,
+        maxTokens:maxAnalyse,
+        systeme:api.systeme+(readinessInstruction?'\n\n'+readinessInstruction:''),
+        contenuUtilisateur:contenuAnalyse,
+        schema:api.schema,
+        effort:'high',
+        delaiMs:delaiAnalyseMs
+      });
+      if(contexteDemandeurPerdu())return false;
+      const brut=String(r&&r.texte||'').trim().replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'').trim();
+      parsed=JSON.parse(brut);
+      const erreurs=typeof api.valider==='function'?api.valider(parsed):[];
+      if(!erreurs||!erreurs.length)break;
+      if(correction===1||typeof api.promptCorrection!=='function')throw new Error('L’analyse API ne respecte pas le contrat attendu : '+erreurs.join(' · '));
+      contenuAnalyse=contexteAnalyse+'\n\n'+api.promptCorrection(brut,erreurs);
+    }
   }catch(error){
     if(contexteDemandeurPerdu())return false;
     show(null,'#v11-demande');
     throw new Error('L’analyse API n’a pas abouti : '+error.message);
   }
-  const erreurs=typeof api.valider==='function'?api.valider(parsed):[];
-  if(erreurs&&erreurs.length)throw new Error('L’analyse API ne respecte pas le contrat attendu : '+erreurs.join(' · '));
   const ok=api.importer(parsed);if(!ok)throw new Error('L’analyse API a été reçue mais n’a pas pu être importée.');
   const obj=api.analyse||parsed;
   /* READINESS-00 : plus aucune décision de readiness ici. Le validateur post-OPRIE
@@ -11869,7 +11879,7 @@ async function copyText(text){
 }
 async function beginExchange(){
   const d=$('#v11-demande').value.trim();if(!d){toast('Expliquez d’abord ce que vous voulez obtenir.');$('#v11-demande').focus();return}
-  v11PushApiUi();if($('#api-cle')&&$('#api-cle').value.trim()){try{await beginApiAnalysis()}catch(e){toast(e.message);show(null,'#v11-demande')}return}
+  v11PushApiUi();if($('#api-cle')&&$('#api-cle').value.trim()){try{await beginApiAnalysis()}catch(e){toast(e.message);adnShowPostOprieStop([{signal:'TECHNICAL_STOP'}])}return}
   state.exchangeId=newExchangeId();setExchangeNames();
   const rf=$('#v11-response-file');if(rf)rf.value='';const pr=$('#v11-paste-response');if(pr)pr.value='';
   try{const env=makeEnvelope();

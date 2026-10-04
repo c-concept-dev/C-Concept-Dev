@@ -231,7 +231,7 @@ test('T-DEEPTOK01-09 : aucun contrat de production n’a été touché', () => {
      Deep, OPRIE, les rôles, les Workers, CONTINUITE-05, le multi-provider, et le correctif
      PDF-SAFARI-01. Mesuré avant d'être écrit : cf. docs/DOC-MULTI-01.md. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    '388cc4c803609ad33d39b8c5ab1208a0b4b96b397b3bfef77ee56c10400f94a2', 'CANONICAL_HTML_CHANGED = NO');
+    'c1f6ab79752ad348703617da511b2b1de9577905a249f2bc322d176f677f1664', 'CANONICAL_HTML_CHANGED = NO');
 });
 
 /* T-DEEPTOK01-10 — le rapport cite les chiffres mesurés, et la dette reste ouverte. */

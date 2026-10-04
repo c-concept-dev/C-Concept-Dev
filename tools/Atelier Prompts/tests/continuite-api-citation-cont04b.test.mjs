@@ -46,7 +46,7 @@ const reponse = (status, body) => ({ status, ok: status >= 200 && status < 300, 
 const OK_BODY = { content: [{ type: 'text', text: 'OK' }], usage: { input_tokens: 9, output_tokens: 1 }, stop_reason: 'end_turn' };
 
 /** La page entière, à froid, avec un réseau qui répond selon `repondre(url, opts)`. */
-function chargerPage({ repondre } = {}) {
+function chargerPage({ repondre, docs = [] } = {}) {
   const elements = new Map();
   const journal = { reseau: [], console: [], domReady: [], crees: [] };
   function makeElement(id, tag = 'div') {
@@ -83,6 +83,7 @@ function chargerPage({ repondre } = {}) {
   };
   document.documentElement.dataset = {};
   const zones = { session: new Map(), local: new Map() };
+  if(docs.length)zones.session.set('atelier.v11.session',JSON.stringify({version:1,state:{answers:[],docs},ui:{demande:''}}));
   const storage = (z) => ({ getItem: (k) => (zones[z].has(k) ? zones[z].get(k) : null), setItem: (k, v) => zones[z].set(k, String(v)), removeItem: (k) => zones[z].delete(k), clear: () => zones[z].clear(), get length() { return zones[z].size; }, key: (i) => [...zones[z].keys()][i] });
   const fetch = async (url, opts = {}) => {
     const entree = { url: String(url), method: opts.method || 'GET', body: opts.body ? JSON.parse(opts.body) : null, headers: opts.headers || {}, signal: opts.signal || null };
@@ -130,13 +131,14 @@ const texte = (t) => reponse(200, { content: [{ type: 'text', text: t }], usage:
 const json = (o) => ({ status: 200, ok: true, headers: { get: () => null }, json: async () => o });
 
 /** La page entière en mode API : clé dans le panneau V11, Fast/Deep/Anthropic par fixtures, parcours lancé par le routeur. */
-async function parcours({ analyse = ANALYSE, demande = DEMANDE } = {}) {
+async function parcours({ analyse = ANALYSE, demande = DEMANDE, analyses = null, docs = [] } = {}) {
   const appels = [];
-  const h = chargerPage({ repondre: (e) => {
+  let analyseIndex=0;
+  const h = chargerPage({ docs, repondre: (e) => {
     appels.push({ url: e.url, outil: e.body && e.body.tools ? e.body.tools[0].name : null, schema: !!(e.body && e.body.tools), system: e.body && e.body.system });
     if (/fast-interaction/.test(e.url)) return json({ type: 'ACKNOWLEDGE', text: 'Bien reçu.', question_focus: null, missing_determinant_id: null, explicit_unknown_determinant_ids: [] });
     if (/operational-request/.test(e.url)) return json(arbiterTurn('operational_request_ready'));
-    if (e.body && e.body.tools) return outil(analyse);
+    if (e.body && e.body.tools) return outil(analyses ? analyses[Math.min(analyseIndex++, analyses.length-1)] : analyse);
     return texte('Objet : proposition de refonte\n\nBonjour,\nVoici une proposition.');
   } });
   const w = h.ctx.window, $ = (id) => h.el(id);
@@ -177,9 +179,61 @@ test('T2 · CITATION_PUNCTUATION_FOLDED_ONLY_FOR_COMPARISON : apostrophes, guill
   assert.ok(api.valider(avecCitation('ton chaleureux')).some((m) => /Citation introuvable/.test(m)), 'une citation absente est toujours refusée');
 });
 
-test('T3 · REAL_FAILURE_STILL_VISIBLE_NOT_SILENT : une analyse qu’api.valider refuse (citation absente) arrête le parcours sans appel #2, prompt final vide, message porté par le toast', async () => {
+test('T3 · REAL_FAILURE_STILL_VISIBLE_NOT_SILENT : après une correction bornée, citation absente toujours refusée et erreur durable', async () => {
   const p = await parcours({ analyse: avecCitation('ton chaleureux et familier') });
-  assert.equal(p.appels.filter((a) => /api.anthropic.com/.test(a.url)).length, 1);
+  // L'ancienne assertion « un seul appel + toast » décrivait l'implémentation défaillante,
+  // pas l'invariant : aucune exécution d'une analyse refusée, et un arrêt visible durablement.
+  assert.equal(p.appels.filter((a) => /api.anthropic.com/.test(a.url)).length, 2);
   assert.equal(p.$('v11-final').value, ''); assert.equal(p.snap.state.docs.length, 0);
   assert.match(p.toast, /Citation introuvable/);
+  assert.equal(p.$('v11-api-progress').hidden, true);
+  assert.equal(p.$('ui-rapid-gate').hidden, false);
+  assert.equal(p.$('ui-rapid-gate').dataset.state, 'technical');
+  assert.match(p.$('ui-rapid-gate-text').textContent, /réessayer/i);
+  await attendre(1500);
+  assert.equal(p.$('ui-rapid-gate').hidden, false, 'le bandeau survit au toast');
+  assert.equal(p.$('v11-answer-continue').disabled, false);
+});
+
+test('LAUNCH-01 : vraie validation des citations, correction avec les sources, compilation puis exécution', async () => {
+  // Matériau restauré par le produit, pas remplacement du validateur ou du contexte.
+  // Reproduit le motif réel : une citation assemble deux fragments séparés par « ... ».
+  const source='Teal action · #3d8d94\nTexte intermédiaire documenté.\nFooter · #5d5d5d — jamais noir';
+  const initial=structuredClone(ANALYSE), corrige=structuredClone(ANALYSE);
+  initial.compilation.composants_retenus[0].fondements.push({nature:'materiau',citation:'Teal action · #3d8d94 ... Footer · #5d5d5d — jamais noir',usage:'Référence de la pièce jointe.'});
+  corrige.compilation.composants_retenus[0].fondements.push({nature:'materiau',citation:'Footer · #5d5d5d — jamais noir',usage:'Référence de la pièce jointe.'});
+  const p=await parcours({docs:[{name:'charte-test.pdf',type:'application/pdf',size:100,text:source,external:false}],analyses:[initial,corrige]});
+  const calls=p.h.journal.reseau.filter(a=>/api.anthropic.com/.test(a.url));
+  assert.equal(calls.length,3,'analyse, une correction, puis livrable');
+  assert.ok(calls[0].body.tools&&calls[1].body.tools);
+  assert.equal(calls[2].body.tools,undefined);
+  const correction=calls[1].body.messages[0].content;
+  assert.ok(correction.startsWith(calls[0].body.messages[0].content+'\n\n'), 'la correction conserve le contexte initial, avant ingestion du livrable');
+  assert.match(correction,/ERREURS EXACTES DU VALIDATEUR/);
+  assert.match(correction,/Citation introuvable/);
+  assert.ok(correction.includes('Texte intermédiaire documenté.'),'le matériau complet accompagne la correction');
+  assert.equal(p.$('v11-ready').hidden,false);
+  assert.ok(p.$('v11-final').value.length>200);
+  assert.ok(p.$('v11-execution-output').value.length>0);
+  assert.equal(calls[0].body.model,calls[1].body.model);
+  assert.equal(calls[0].body.max_tokens,calls[1].body.max_tokens);
+  assert.equal(p.appels.filter(a=>/operational-request/.test(a.url)).length,1);
+});
+
+test('LAUNCH-02 : une panne fournisseur laisse un message durable et permet un nouveau lancement', async () => {
+  const h=chargerPage({repondre:e=>{
+    if(/fast-interaction/.test(e.url))return json({type:'ACKNOWLEDGE',text:'Bien reçu.',question_focus:null,missing_determinant_id:null,explicit_unknown_determinant_ids:[]});
+    if(/operational-request/.test(e.url))return json(arbiterTurn('operational_request_ready'));
+    return reponse(401,{error:{message:'Clé refusée.'}});
+  }});
+  h.el('v11-api-key').value='sk-test';h.el('v11-api-provider').value='anthropic';
+  h.el('ui-mode-select').value='architecte';h.el('v11-demande').value=DEMANDE;
+  await h.ctx.__V11_ROUTER__.start('architecte');
+  assert.equal(h.el('ui-rapid-gate').dataset.state,'technical');
+  assert.equal(h.el('ui-rapid-gate').hidden,false);
+  assert.equal(h.el('v11-api-progress').hidden,true);
+  assert.equal(h.el('v11-final').value,'');
+  assert.equal(h.el('v11-demande').value,DEMANDE);
+  await h.ctx.__V11_ROUTER__.start('architecte');
+  assert.equal(h.journal.reseau.filter(e=>/operational-request/.test(e.url)).length,2,'pas de verrou abandonné');
 });

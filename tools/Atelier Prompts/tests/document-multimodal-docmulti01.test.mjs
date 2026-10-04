@@ -475,7 +475,7 @@ const suiteExterne = (fichiers, attendu, etiquette) => {
 };
 
 test('DOCMULTI-20 · CONTINUITE-05 non régressée', () => {
-  suiteExterne(['tests/continuite-conversation-longue-cont05.test.mjs', 'tests/continuite-api-citation-cont04b.test.mjs'], 30, 'CONTINUITE');
+  suiteExterne(['tests/continuite-conversation-longue-cont05.test.mjs', 'tests/continuite-api-citation-cont04b.test.mjs'], 32, 'CONTINUITE');
 });
 
 test('DOCMULTI-21 · MULTI-PROVIDER non régressé', () => {
