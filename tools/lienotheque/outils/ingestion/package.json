@@ -5,7 +5,7 @@
   "type": "module",
   "description": "D'un rejeu de recette au dépôt réel : fichiers, document, version, ancres, cartes de synchronisation et liens.",
   "exports": { ".": "./src/index.ts" },
-  "scripts": { "test": "vitest run", "typecheck": "tsc --noEmit" },
+  "scripts": { "test": "vitest run --maxWorkers=2", "typecheck": "tsc --noEmit" },
   "dependencies": {
     "@lienotheque/contrats": "workspace:*",
     "@lienotheque/noyau": "workspace:*",

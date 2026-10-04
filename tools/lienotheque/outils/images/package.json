@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Primitives d'image : codecs @jsquash amorcés hors navigateur, gris, recadrage, seuil, boîte englobante.",
   "exports": { ".": "./src/index.ts" },
-  "scripts": { "test": "vitest run", "typecheck": "tsc --noEmit" },
+  "scripts": { "test": "vitest run --maxWorkers=2", "typecheck": "tsc --noEmit" },
   "dependencies": {
     "@jsquash/avif": "^2.1.1",
     "@jsquash/jpeg": "^1.6.0",

@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Lecteur de texte (OUT-05) : couche texte d'un PDF natif avec la position de chaque mot, OCR d'une page numérisée.",
   "exports": { ".": "./src/index.ts" },
-  "scripts": { "test": "vitest run", "typecheck": "tsc --noEmit" },
+  "scripts": { "test": "vitest run --maxWorkers=2", "typecheck": "tsc --noEmit" },
   "dependencies": {
     "@lienotheque/contrats": "workspace:*",
     "@lienotheque/formats": "workspace:*",

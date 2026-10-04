@@ -6,7 +6,7 @@
   "description": "Jetons de la charte graphite et cuivre v3 (source unique) et générateur de variables CSS.",
   "exports": { ".": "./src/index.ts", "./tokens.json": "./src/tokens.json" },
   "scripts": {
-    "test": "vitest run",
+    "test": "vitest run --maxWorkers=2",
     "typecheck": "tsc --noEmit",
     "build": "tsx scripts/build-css.ts"
   },

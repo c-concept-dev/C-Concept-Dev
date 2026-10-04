@@ -9,7 +9,7 @@
     "tauri": "tauri",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest run",
+    "test": "vitest run --maxWorkers=2",
     "test:navigateurs": "playwright test",
     "typecheck": "tsc --noEmit"
   },
