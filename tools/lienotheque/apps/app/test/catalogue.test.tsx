@@ -52,7 +52,34 @@ const VUE = VueBibliotheque.parse({
       traduction: [],
     },
   ],
-  douteux: [],
+  // Deux cas à trancher et sept informations : l'en-tête doit les compter à part, sinon il
+  // annonce « 9 à vérifier » pendant que le filtre dit « À vérifier : 0 ».
+  douteux: [
+    {
+      id: ID(60),
+      nature: "lien",
+      etat: "confiance",
+      element: { ancreId: ID(22), numero: "401", page: 127, aVerifier: true },
+      proposition: "clause 401 → plage 41",
+      motif: "repère partiellement lu",
+    },
+    {
+      id: ID(61),
+      nature: "lien",
+      etat: "conflit_appareils",
+      element: { ancreId: ID(23), numero: "402", page: 127, aVerifier: true },
+      proposition: "clause 402 → plage 42",
+      motif: "deux appareils ne disent pas la même chose",
+    },
+    ...Array.from({ length: 7 }, (_, rang) => ({
+      id: ID(70 + rang),
+      nature: "information",
+      etat: "media_orphelin",
+      libelle: `Plage ${90 + rang}`,
+      proposition: `Plage ${90 + rang} : aucun lien`,
+      motif: "aucun repère lu n'y renvoie",
+    })),
+  ],
 });
 
 function poser() {
@@ -74,7 +101,22 @@ describe("Catalogue : en-tête (CLA-10, UX-01)", () => {
 
   it("mène à Vérifier quand il reste des cas", () => {
     poser();
-    expect(screen.getByRole("link", { name: /9 à vérifier/i })).toHaveAttribute("href", "#verifier");
+    expect(screen.getByRole("link", { name: /2 à vérifier/i })).toHaveAttribute("href", "#verifier");
+    expect(screen.getByRole("link", { name: /7 informations/i })).toHaveAttribute("href", "#verifier");
+  });
+
+  it("ne compte pas les informations parmi ce qui est à vérifier", () => {
+    poser();
+    // L'en-tête annonçait « 9 à vérifier » pendant que le filtre disait « À vérifier : 0 » :
+    // les sept informations ne se tranchent pas, elles se lisent.
+    expect(screen.queryByRole("link", { name: /9 à vérifier/i })).not.toBeInTheDocument();
+  });
+
+  it("n'affiche une pastille que si elle compte quelque chose", () => {
+    const sansRien = VueBibliotheque.parse({ ...VUE, aVerifier: 0, douteux: [] });
+    render(<Catalogue vue={sansRien} onPage={vi.fn()} onLecteur={vi.fn()} onAjouter={vi.fn()} />);
+    expect(screen.queryByRole("link", { name: /à vérifier/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /information/i })).not.toBeInTheDocument();
   });
 
   it("le fil d’Ariane s’arrête à la bibliothèque", () => {
@@ -152,8 +194,9 @@ describe("Catalogue : panneau de détail (B3)", () => {
     const detail = screen.getByRole("complementary", { name: /détail — feuillet 127/i });
     expect(within(detail).getByText("Clause 400")).toBeInTheDocument();
     expect(within(detail).getByText(/→ Plage 40/)).toBeInTheDocument();
-    expect(within(detail).getByText(/lien validé/)).toBeInTheDocument();
-    expect(within(detail).getByText(/à vérifier/)).toBeInTheDocument();
+    // Une étiquette commence par une majuscule, comme n'importe quel libellé.
+    expect(within(detail).getByText("Lien validé")).toBeInTheDocument();
+    expect(within(detail).getByText("À vérifier")).toBeInTheDocument();
     expect(within(detail).getByText(/Sans plage/)).toBeInTheDocument();
   });
 

@@ -183,19 +183,28 @@ describe("Vérifier : les mots viennent du schéma (CLA-01)", () => {
  *  Un lot dont tous les liens passent le seuil n'a rien à trancher, et pourtant il peut avoir
  *  deux pages sans rien de lu et six médias que personne ne réclame. Ces cas-là n'ont pas
  *  d'élément : rien ne les porte, et c'est justement ce qu'ils disent. */
-const information = (n: number, etat: "page_absente" | "media_orphelin", libelle: string): unknown => ({
+const information = (
+  n: number,
+  etat: "page_absente" | "media_orphelin",
+  libelle: string,
+  details: readonly string[] = [],
+): unknown => ({
   id: ID(n),
   nature: "information",
   etat,
   libelle,
-  proposition: etat === "page_absente" ? `${libelle} : rien de lu` : `${libelle} — aucun lien`,
+  details,
+  proposition: etat === "page_absente" ? `${libelle} manquent au document` : `${libelle} : aucun lien`,
   motif: etat === "page_absente" ? "la numérotation passe de 29 à 32" : "aucun repère lu n'y renvoie",
 });
 
 const VUE_INFORMATIONS = VueBibliotheque.parse({
   ...VUE,
   aVerifier: 2,
-  douteux: [information(30, "page_absente", "Feuillets 30 à 31"), information(93, "media_orphelin", "Plage 93")],
+  douteux: [
+    information(30, "page_absente", "Feuillets 30 et 31"),
+    information(93, "media_orphelin", "Plages 93 à 95", ["Plage 93 — fichier « a.mp3 »", "Plage 94", "Plage 95"]),
+  ],
 });
 
 describe("Vérifier : les informations, qu'on ne tranche pas mais qu'on lit", () => {
@@ -207,8 +216,8 @@ describe("Vérifier : les informations, qu'on ne tranche pas mais qu'on lit", ()
   it("ne dit plus « Rien à vérifier » quand des informations attendent", () => {
     poser();
     expect(screen.queryByText(/rien à vérifier/i)).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /feuillets 30 à 31/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /plage 93/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /feuillets 30 et 31/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /plages 93 à 95/i })).toBeInTheDocument();
   });
 
   it("constate au lieu de proposer : il n'y a rien à quoi répondre", () => {
@@ -239,6 +248,36 @@ describe("Vérifier : les informations, qu'on ne tranche pas mais qu'on lit", ()
     poser();
     expect(screen.queryByRole("group", { name: "Zoom" })).not.toBeInTheDocument();
     expect(document.querySelector(".ln-cas__image")).toBeNull();
+  });
+
+  it("regroupe les médias consécutifs en un seul geste, sans perdre le détail", async () => {
+    const onDecision = poser();
+    await userEvent.click(screen.getByRole("button", { name: /plages 93 à 95/i }));
+
+    // Une seule fiche, un seul « vu » — et ce qu'elle recouvre reste à portée, au clavier
+    // comme à la souris, parce que c'est l'élément « details » du balisage.
+    const detail = screen.getByText(/voir le détail/i);
+    expect(detail).toBeInTheDocument();
+    expect(detail.textContent).toContain("3");
+    await userEvent.click(detail);
+    expect(screen.getByText(/Plage 93 — fichier/)).toBeVisible();
+    expect(screen.getByText("Plage 95")).toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: /marquer comme vu/i }));
+    expect(onDecision).toHaveBeenCalledTimes(1);
+    expect(onDecision.mock.calls[0]?.[0]?.libelle).toBe("Plages 93 à 95");
+  });
+
+  it("ne déplie rien quand il n'y a qu'un fait", async () => {
+    poser();
+    await userEvent.click(screen.getByRole("button", { name: /feuillets 30 et 31/i }));
+    expect(screen.queryByText(/voir le détail/i)).not.toBeInTheDocument();
+  });
+
+  it("ne dit plus « rien de lu » : une page peut manquer au scan comme au livre", () => {
+    poser();
+    expect(screen.queryByText(/rien de lu/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/manquent au document/i)).toBeInTheDocument();
   });
 
   it("garde « Rien à vérifier » pour une file vraiment vide", () => {

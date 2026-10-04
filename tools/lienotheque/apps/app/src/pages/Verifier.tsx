@@ -40,7 +40,7 @@ const ETATS: Readonly<Record<EtatDoute, { readonly libelle: string; readonly ico
   conflit_appareils: { libelle: "Conflit entre deux appareils", icone: "appareils" },
   a_rattacher: { libelle: "À rattacher après recalcul", icone: "horloge" },
   segment_inconnu: { libelle: "Segment inconnu", icone: "lien" },
-  page_absente: { libelle: "Rien de lu", icone: "document" },
+  page_absente: { libelle: "Hors du document", icone: "document" },
   media_orphelin: { libelle: "Aucun lien", icone: "audio" },
 };
 
@@ -228,6 +228,20 @@ export function Verifier({ vue, onDecision, onAnnuler, derniere }: Props): JSX.E
               <p className="ln-cas__motif">
                 Pourquoi : <span>{actif.motif}</span>
               </p>
+
+              {/* Un cas qui en regroupe plusieurs garde son détail à portée. « details » est un
+                  élément de balisage, pas un composant à écrire : il s'ouvre au clavier comme à
+                  la souris, et un lecteur d'écran annonce son état sans qu'on ait à le dire. */}
+              {actif.details.length === 0 ? null : (
+                <details className="ln-cas__detail">
+                  <summary className="ln-cas__detail-titre">Voir le détail ({actif.details.length})</summary>
+                  <ul className="ln-cas__detail-liste">
+                    {actif.details.map((ligne) => (
+                      <li key={ligne}>{ligne}</li>
+                    ))}
+                  </ul>
+                </details>
+              )}
 
               {actif.element?.media === undefined ? null : (
                 <section className="ln-cas__apercu" aria-label="Aperçu du segment proposé">

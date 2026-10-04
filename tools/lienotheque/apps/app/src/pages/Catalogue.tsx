@@ -57,6 +57,10 @@ export function Catalogue({ vue, page, onPage, onLecteur, onAjouter }: Props): J
   }, [vue.pages, choisis]);
   const detail: PageAffichee | undefined = pages.find((p) => p.numero === page) ?? pages[0];
 
+  // Ce qui attend un arbitrage et ce qui attend seulement d'être lu ne se comptent pas ensemble.
+  const informations = vue.douteux.filter((cas) => cas.nature === "information").length;
+  const aTrancher = vue.douteux.length - informations;
+
   const relies = (p: PageAffichee): number => p.elements.filter((e) => e.media !== undefined).length;
   const aVerifier = (p: PageAffichee): number => p.elements.filter((e) => e.aVerifier).length;
 
@@ -72,10 +76,19 @@ export function Catalogue({ vue, page, onPage, onLecteur, onAjouter }: Props): J
                 {compteur.nombre} {compteur.mot}
               </span>
             ))}
-            {vue.aVerifier > 0 ? (
+            {/* Deux comptes, pas un seul. « 7 à vérifier » en tête pendant que le filtre
+                annonçait « À vérifier : 0 », c'était l'écran qui se contredisait : les sept
+                étaient des informations, qui ne se tranchent pas. Chacune son compte. */}
+            {aTrancher > 0 ? (
               <a className="ln-catalogue__averifier" href="#verifier">
                 <Icone nom="alerte" />
-                {accorder(vue.aVerifier, { un: "à vérifier", plusieurs: "à vérifier" })}
+                {accorder(aTrancher, { un: "à vérifier", plusieurs: "à vérifier" })}
+              </a>
+            ) : null}
+            {informations > 0 ? (
+              <a className="ln-catalogue__informations" href="#verifier">
+                <Icone nom="info" />
+                {accorder(informations, { un: "information", plusieurs: "informations" })}
               </a>
             ) : null}
           </p>
@@ -239,9 +252,11 @@ export function Catalogue({ vue, page, onPage, onLecteur, onAjouter }: Props): J
                         → {nommer(vue.mots.piste, element.media.piste)}
                       </span>
                     )}
+                    {/* Une étiquette commence par une majuscule comme n'importe quel libellé :
+                        c'est `enTete` qui la pose, la même fonction partout. */}
                     <span className={element.aVerifier ? "ln-detail__etat ln-detail__etat--doute" : "ln-detail__etat"}>
                       <Icone nom={element.aVerifier ? "alerte" : "valide"} />
-                      {element.aVerifier ? "à vérifier" : "lien validé"}
+                      {enTete(element.aVerifier ? "à vérifier" : "lien validé")}
                     </span>
                   </li>
                 ))}

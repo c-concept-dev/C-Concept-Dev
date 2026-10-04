@@ -119,6 +119,12 @@ export const CasDouteux = z
     /** De quoi parle le cas, à défaut d'élément. Écrit avec les mots de la bibliothèque, par qui
      *  les connaît — un écran n'a pas à les recomposer. */
     libelle: z.string().min(1).optional(),
+    /** Le détail d'un cas qui en regroupe plusieurs : une ligne par membre, à déplier.
+     *
+     *  Six médias à la suite que personne ne réclame, c'est un seul fait — et six fiches
+     *  identiques à marquer vues une à une. Regroupées, elles tiennent en une décision, sans
+     *  qu'on perde de vue ce qu'elles recouvrent. */
+    details: z.array(z.string().min(1)).default([]),
     /** Ce que le système propose, en toutes lettres. */
     proposition: z.string().min(1),
     motif: z.string().min(1),
@@ -181,3 +187,12 @@ export const enTete = (texte: string): string =>
  *  Un numéro, jamais un compte : c'est `accorder` qui compte. Et aucune tournure qui demande le
  *  genre — le schéma ne le donne pas. */
 export const nommer = (mot: { un: string }, numero: string | number): string => `${enTete(mot.un)} ${numero}`;
+
+/** Une suite de numéros consécutifs : « Page 30 », « Pages 30 et 31 », « Pages 30 à 35 ».
+ *
+ *  Deux se lisent « et », trois et plus « à ». Comme `nommer`, aucune tournure qui demande le
+ *  genre : le schéma donne les mots, jamais leur genre. */
+export const nommerSuite = (mot: { un: string; plusieurs: string }, debut: number, fin: number): string => {
+  if (fin <= debut) return nommer(mot, debut);
+  return `${enTete(mot.plusieurs)} ${debut} ${fin === debut + 1 ? "et" : "à"} ${fin}`;
+};

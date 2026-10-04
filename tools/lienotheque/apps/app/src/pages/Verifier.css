@@ -334,3 +334,29 @@
   margin-block-start: calc(var(--ln-grid) * 0.5);
   font-size: 14px;
 }
+
+/* Détail d'un cas qui en regroupe plusieurs. Six médias à la suite tiennent en une décision,
+   et ce qu'elle recouvre reste à un clic — ou à une touche. */
+.ln-cas__detail {
+  margin-block-end: calc(var(--ln-grid) * 2);
+}
+
+.ln-cas__detail-titre {
+  cursor: pointer;
+  color: var(--ln-link);
+  font-size: 14px;
+}
+
+.ln-cas__detail-titre:focus-visible {
+  outline: 2px solid var(--ln-focus);
+  outline-offset: 2px;
+  border-radius: var(--ln-radius);
+}
+
+.ln-cas__detail-liste {
+  margin: var(--ln-grid) 0 0;
+  padding-inline-start: calc(var(--ln-grid) * 3);
+  color: var(--ln-text-secondary);
+  font-size: 14px;
+  line-height: 1.6;
+}
