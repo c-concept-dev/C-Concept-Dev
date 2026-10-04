@@ -167,6 +167,23 @@ p {
   color: var(--ln-heading-text);
 }
 
+/* Même confusion que la correction 1, d'un cran plus bas : la redéfinition ci-dessus vaut pour le
+   texte du panneau, posé sur le graphite — pas pour un contrôle qui porte son propre fond crème.
+   Le bouton « suivant » du Lecteur prenait donc l'encre claire sur sa surface claire : rapport
+   1,07, une icône qu'on ne voyait pas. Il retrouve ici l'encre de sa surface ; la bascule garde
+   celle du panneau, parce qu'elle est bien transparente, elle.
+
+   On rend la variable, jamais la couleur. Poser « color » ici l'imposerait aux deux boutons qui
+   tiennent la leur d'ailleurs — le cuivre plein, qui prend l'encre de son action, et le bouton
+   désactivé, qui prend la sienne —, et ce sélecteur est plus spécifique que les leurs : le
+   contrôle de contraste du catalogue l'a montré tout de suite, 2,57 sur le cuivre. En rendant la
+   variable, chaque règle de bouton continue de choisir son encre. */
+[data-theme="hybrid"] .ln-panneau-titre .ln-btn,
+[data-theme="hybrid"] .ln-sur-photo .ln-btn {
+  --ln-text-primary: var(--ln-text-on-surface);
+  --ln-text-secondary: var(--ln-text-on-surface);
+}
+
 /* Les deux panneaux se contredisent : `.ln-panneau` pose une carte crème au texte sombre,
    `.ln-panneau-titre` un texte clair pour le graphite. Sur un même élément, en hybride, le texte
    clair tombait donc sur la carte crème — crème sur crème, rapport 1,07 (correction 1). C'est le

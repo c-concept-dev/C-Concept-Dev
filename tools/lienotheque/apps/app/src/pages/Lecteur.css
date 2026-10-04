@@ -79,7 +79,12 @@
   display: grid;
   grid-template-columns: minmax(0, 7rem) minmax(0, 1fr) minmax(0, 24rem);
   gap: calc(var(--ln-grid) * 2);
-  align-items: start;
+  /* Les trois colonnes prennent la hauteur de leur rangée, et font défiler ce qui dépasse.
+     Calées sur leur contenu — « align-items: start » —, elles grandissaient avec la page : une
+     page haute poussait la colonne hors de sa rangée et venait couvrir la ligne des raccourcis.
+     Chaque colonne porte déjà « min-height: 0 » et son propre défilement ; il ne leur manquait
+     qu'une hauteur à respecter. Le contenu reste en haut, par « align-content » chez chacune. */
+  align-items: stretch;
 }
 
 /* ---- Bande des vignettes ---- */

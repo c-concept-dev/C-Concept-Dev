@@ -38,8 +38,16 @@ export function valeursTheme(theme: Theme | "hybrid"): Record<string, string | n
 /** Variables CSS d'un thème : `--ln-text-primary`, etc. Aucune couleur n'est écrite dans un composant. */
 export function variablesCss(theme: Theme | "hybrid"): string {
   const collections = Object.entries(jetons.collections).map(([k, v]) => `  --ln-collection-${k}: ${v};`);
+  const valeurs = valeursTheme(theme);
   return [
-    ...Object.entries(valeursTheme(theme)).map(([k, v]) => `  --ln-${enKebab(k)}: ${v};`),
+    ...Object.entries(valeurs).map(([k, v]) => `  --ln-${enKebab(k)}: ${v};`),
+    // L'encre qui va avec « --ln-surface », gardée à part.
+    //
+    // En hybride, un panneau de titre redéfinit « --ln-text-primary » pour tout ce qu'il
+    // contient : c'est juste pour son texte, posé sur le graphite. Mais un contrôle qui porte
+    // son propre fond crème héritait de cette encre claire — crème sur crème, rapport 1,07.
+    // Celle-ci ne bouge pas, parce qu'elle est figée ici et non relue chez l'enfant.
+    `  --ln-text-on-surface: ${valeurs["text_primary"]};`,
     `  --ln-collection: ${jetons.collections.method};`,
     ...collections,
   ].join("\n");
