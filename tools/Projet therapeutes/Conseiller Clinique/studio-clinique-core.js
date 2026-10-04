@@ -5297,6 +5297,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
   window.adocUseHint = function(el) { document.getElementById('adoc-input').value = el.textContent; document.getElementById('adoc-input').focus(); };
   window.adocInsert  = function(type) {
     const f = {
+      presentation: 'Fais-moi une présentation sur : ',
       carrousel: 'Fais-moi un carrousel sur : ',
       tableau:   'Fais-moi un tableau comparatif sur : ',
       fiche:     'Fais-moi une fiche synthèse sur : ',
