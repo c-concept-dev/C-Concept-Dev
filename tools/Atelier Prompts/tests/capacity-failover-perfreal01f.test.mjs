@@ -355,8 +355,18 @@ test('T-PERFREAL01F-15/16/17 : artefact intact, observation sans secret, transit
      été rouverte pour cette SEULE ligne et la baseline régénérée (8668de58… → 3f0878c8…) ; les six
      autres plages sont inchangées à l'octet. Rien d'autre : ni règle, ni prompt, ni schéma, ni
      transport, ni UX hors cette phrase. */
+  /* DOC-MULTI-01 — L'EMPREINTE BOUGE POUR LA LECTURE DOCUMENTAIRE MULTIMODALE. Un document joint
+     pouvait être lu localement, et rien de plus : « Texte extrait » valait pour « document
+     exploité », y compris sur une charte graphique dont la substance est visuelle. Ce lot ajoute
+     deux chemins qui aboutissent au MÊME format canonique que le local — une lecture par le
+     fournisseur actif, et une lecture par l'IA que la personne utilise déjà, par copier-coller —
+     avec un seul validateur et une seule provenance. Le texte local reste la couche primaire ; la
+     lecture visuelle s'y AJOUTE, nommée comme une dérivation du document, qui reste la source.
+     CE QUI N'A PAS CHANGÉ : les sept plages gelées (FROZEN identique, aucune réouverture), Fast,
+     Deep, OPRIE, les rôles, les Workers, CONTINUITE-05, le multi-provider, et le correctif
+     PDF-SAFARI-01. Mesuré avant d'être écrit : cf. docs/DOC-MULTI-01.md. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    '5f33a55a4ecfa64808d934b688ecab8bcb9101640e9956dd6da10da10e99b1f1', 'CANONICAL_HTML_CHANGED = NO');
+    '2f5f3f54a210be9df3245863c05349ec9f225d96d602f65db3c7c17bf67c25e2', 'CANONICAL_HTML_CHANGED = NO');
   /* Aucun secret, aucun contenu utilisateur dans les journaux ajoutés. */
   for (const motif of [/sk-[A-Za-z0-9]{16,}/, /gsk_[A-Za-z0-9]{20,}/, /BEGIN [A-Z ]*PRIVATE KEY/]) {
     assert.equal(motif.test(WORKER), false);

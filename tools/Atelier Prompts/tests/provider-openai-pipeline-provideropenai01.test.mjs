@@ -184,7 +184,10 @@ test('T-PROVOPENAI01-01 · REGISTRE : OpenAI remplit le contrat minimal, et Anth
   assert.deepEqual(brut(h.w.validerConfigurationFournisseur(reg.openai)), { valide: true, manquants: [] });
   assert.equal(h.w.obtenirFournisseurActif(), 'anthropic', 'sans sélection explicite, rien ne change pour qui utilisait le produit avant ce lot');
   assert.equal(reg.openai.nom, 'OpenAI');
-  assert.deepEqual(brut(reg.openai.capacites), { sortie_structuree: true, effort_raisonnement: true, annulation: true, prefill_assistant: false, limites: {} });
+  /* DOC-MULTI-01 — `lecture_document` s'est ajoutée ici, et cette assertion la reconnaît plutôt que
+     de l'ignorer : c'est la capacité par laquelle la façade refuse d'envoyer un document joint à un
+     fournisseur qui ne saurait pas le lire. Les cinq autres capacités sont inchangées. */
+  assert.deepEqual(brut(reg.openai.capacites), { sortie_structuree: true, effort_raisonnement: true, annulation: true, prefill_assistant: false, lecture_document: true, limites: {} });
   /* Les deux capacités qu'OpenAI n'offre pas sont ABSENTES, pas stubées : l'interface teste leur
      présence et le dit à la personne au lieu de deviner. */
   assert.equal('listerModeles' in reg.openai, false, 'GET /v1/models mêle chez OpenAI des modèles hors dialogue : aucun filtre n’est fondé');
@@ -344,16 +347,20 @@ test('T-PROVOPENAI01-10 · CORRECTION : une non-conformité donne UNE requête d
   const res = await appeler(h, { schema, effort: 'low' });
   assert.equal(h.journal.reseau.length, 2, 'exactement un tour de correction, jamais deux');
   const deuxieme = h.journal.reseau[1].body.input;
-  assert.equal(deuxieme.length, 3, 'la demande d’origine, l’appel d’outil du modèle, puis le résultat en erreur');
+  /* DOC-MULTI-01 — la sortie du modèle est rejouée EN ENTIER : sur un modèle de raisonnement,
+     l'API refuse un function_call fourni sans l'item reasoning qui le précède (« was provided
+     without its required 'reasoning' item »), défaut trouvé par le smoke documentaire. */
   assert.deepEqual(deuxieme[0], { role: 'user', content: 'Demande.' });
-  assert.equal(deuxieme[1].type, 'function_call');
-  assert.equal(deuxieme[2].type, 'function_call_output');
-  assert.equal(deuxieme[2].call_id, 'call_mesure', 'le résultat est rattaché à l’appel qu’il corrige');
+  assert.equal(deuxieme[1].type, 'reasoning', 'le bloc de raisonnement est rejoué, avant l’appel');
+  assert.equal(deuxieme[2].type, 'function_call');
+  assert.equal(deuxieme[3].type, 'function_call_output');
+  assert.equal(deuxieme[3].call_id, 'call_mesure', 'le résultat est rattaché à l’appel qu’il corrige');
+  assert.equal(deuxieme.length, 4, 'la demande, le raisonnement, l’appel, puis le résultat en erreur');
   /* Ce qui est renvoyé au modèle : des CHEMINS et des ATTENTES de schéma, jamais une valeur reçue. */
-  assert.match(deuxieme[2].output, /Violations \(chemin : attente du schéma\)/);
-  assert.match(deuxieme[2].output, /minLength 12/);
-  assert.match(deuxieme[2].output, /l’objet COMPLET corrigé/);
-  assert.equal(deuxieme[2].output.includes('Note'), false, 'la valeur fautive n’est pas rejouée au modèle');
+  assert.match(deuxieme[3].output, /Violations \(chemin : attente du schéma\)/);
+  assert.match(deuxieme[3].output, /minLength 12/);
+  assert.match(deuxieme[3].output, /l’objet COMPLET corrigé/);
+  assert.equal(deuxieme[3].output.includes('Note'), false, 'la valeur fautive n’est pas rejouée au modèle');
   assert.equal(res.structure_validee, true);
   assert.equal(res.detail.corrections, 1);
   assert.deepEqual(Object.keys(JSON.parse(res.texte)).sort(), CORR.appel_de_correction.objet_complet_rendu);
