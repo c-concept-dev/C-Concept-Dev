@@ -1,0 +1,72 @@
+{
+  "lot": "SAF-MULTI-01",
+  "date": "2026-10-04",
+  "symptome_rapporte": "« Lecture IA impossible : Délai API dépassé. — le texte local reste disponible. » en Safari, là où Chrome aboutissait.",
+  "note_methode": "Safari RÉEL (26.3, WebKit livré — pas le WebKit de Playwright, qui est en avance), page réelle, PDF réel de 8 pages et 16 images. La lecture est pilotée et observée par le DOM : ce lot n'expose aucune poignée globale. La clé Anthropic est celle de la personne, dans SON onglet : elle n'a jamais été lue, transportée ni journalisée — seules des tailles, des durées et des états d'interface sont relevés. L'instrumentation enveloppe window.fetch pour mesurer, et window.appelFournisseur pour relever le budget transmis.",
+  "diagnostic": {
+    "ce_que_la_mesure_a_renverse": "Aucun délai n'a été dépassé. Les deux appels ont abouti en HTTP 200, à 50,8 s et 52,0 s, pour un budget de 90 s. La lecture était complète — 140 908 caractères — et elle a été REFUSÉE par le validateur de l'Atelier sur deux champs de provenance que le modèle ne pouvait pas deviner, le prompt fournisseur ne les mentionnant pas (à la différence du prompt manuel, qui les impose).",
+    "mesure_dans_le_safari_de_la_personne": {
+      "safari": "26.3",
+      "budget_impose_pour_la_mesure_ms": 600000,
+      "pourquoi_ce_budget": "Volontaire : porté à 10 min pour connaître la durée VRAIE de chaque appel. Les deux appels tenaient de toute façon sous les 90 s d'origine — ce document n'a donc jamais dépassé le délai.",
+      "local": {
+        "etat": "Texte extrait localement. Le texte est lisible, et ce document contient aussi 16 image(s) sur 8 page(s) que la lecture locale n’interprète pas.",
+        "gestes": ["fournisseur", "manuel", "retirer"]
+      },
+      "appels": [
+        { "appel": 1, "octets_envoyes": 647604, "status": 200, "ms_jusqu_aux_entetes": 50827, "ms_total": 50828 },
+        { "appel": 2, "octets_envoyes": 662957, "status": 200, "ms_jusqu_aux_entetes": 51989, "ms_total": 51991 }
+      ],
+      "resultat": {
+        "ms_total": 103034,
+        "etat": "Lecture IA impossible : Lecture non conforme : $.reading.method : doit valoir « provider_multimodal » ; $.reading.provider : doit valoir « anthropic » — le texte local reste disponible.",
+        "materiau_caracteres": 140908,
+        "visuels": false,
+        "codes_couleur": 0
+      }
+    },
+    "hypotheses_ecartees_par_la_mesure": {
+      "methode": "Safari 26.3 contre Chromium, page sans clé, sur les mêmes octets.",
+      "preparation_pdf_113ko_ms": { "safari": 8, "chromium": 7 },
+      "preparation_pdf_5400ko_ms": { "safari": 50, "chromium": 44 },
+      "envoi_150ko_ms": { "safari": 7, "chromium": 11 },
+      "envoi_7mo_ms": { "safari": 32, "chromium": 91 },
+      "abortcontroller_3s_8s_ms": { "safari": [3006, 8004], "chromium": [3003, 8008] },
+      "attente_100s_sans_octet": { "safari": "réponse reçue (100 016 ms)", "chromium": "réponse reçue (100 005 ms)" },
+      "conclusion": "Ni la préparation du PDF, ni l'envoi, ni l'AbortController, ni un délai réseau implicite ne distinguent Safari de Chromium. Le moteur n'était pas en cause : le refus de provenance l'était, et il est indépendant du navigateur."
+    }
+  },
+  "temoin_avant_apres": {
+    "note_methode": "Même navigateur, même PDF, même charge utile de réponse — seul le code change. L'origine étant partagée, le stockage a été purgé entre les deux : sans cela, #arch-materiau du second essai contaminait le premier (13 862 caractères hérités, constatés puis écartés). Le saut réseau est simulé par la provenance fautive exacte qu'Anthropic avait rendue ; tout le reste — pdf.js, lecture locale, construction de la requête, validation, intégration — est réel.",
+    "avant": {
+      "version": "HEAD, empreinte 2f5f3f54a210be9d",
+      "appels": [{ "appel": 1, "octets_envoyes": 647604 }],
+      "budget_transmis": { "delaiMs": null, "maxTokens": 16000 },
+      "etat_final": "Lecture IA impossible : Lecture non conforme : $.document.name : doit valoir exactement « Charte graphique C-Concept-Dev.pdf » ; $.reading.method : doit valoir « provider_multimodal » — le texte local reste disponible.",
+      "materiau_caracteres": 0
+    },
+    "apres": {
+      "version": "corrigée, empreinte 388cc4c803609ad3",
+      "appels": [{ "appel": 1, "octets_envoyes": 647944 }],
+      "budget_transmis": { "delaiMs": 180000, "maxTokens": 16000 },
+      "etat_final": "Document prêt — enrichi par Anthropic.",
+      "gestes_restants": ["retirer"],
+      "materiau_caracteres": 13862,
+      "codes_couleur": 30,
+      "nomme_anthropic": true
+    }
+  },
+  "correctifs": [
+    {
+      "quoi": "La provenance est posée par l'Atelier (stampProvenance), au lieu d'être demandée au modèle puis refusée.",
+      "pourquoi": "document.name, document.source, reading.method et reading.provider décrivent l'APPEL, pas le document : l'Atelier sait quel fichier il a joint et qui il a appelé. Les demander au modèle, puis jeter une lecture juste quand il les écrit autrement, coûtait deux appels et 103 s pour rien.",
+      "limite_assumee": "Le chemin manuel n'est PAS estampillé : là, la déclaration de la personne est le seul garde-fou contre une lecture collée pour un autre document, et validateReading la contrôle strictement."
+    },
+    {
+      "quoi": "Le budget de la lecture documentaire est dérivé de la règle déjà en place pour l'analyse : 90 s pour 8 000 jetons de sortie, au prorata au-delà. 16 000 jetons donnent 180 s.",
+      "pourquoi": "Les 50,8 s mesurées tenaient dans 90 s, mais à 56 % du budget : la marge manquait pour un document plus lourd, et c'est là le « Délai API dépassé » que la personne avait vu passer. Le nombre n'est pas choisi — c'est la formule du produit appliquée au plafond réel de cet appel.",
+      "limite_assumee": "Le transport texte garde ses 90 s : il n'a pas à devenir plus lent à détecter une panne pour accommoder un PDF."
+    }
+  ],
+  "ce_qui_reste_a_la_personne": "Le navigateur Chrome où la lecture aboutissait n'a pas été mesuré de ce côté : il aurait fallu transporter la clé Anthropic de la personne hors de son navigateur, ce qui n'a pas été fait."
+}

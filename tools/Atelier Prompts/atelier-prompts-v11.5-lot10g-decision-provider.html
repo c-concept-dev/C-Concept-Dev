@@ -11649,16 +11649,28 @@ async function v11LireAvecFournisseur(doc){
   if(!piece)return {ok:false,raison:'document original indisponible'};
   const modele=typeof obtenirModeleActif==='function'?obtenirModeleActif('architecte-analyse'):'';
   doc.lectureEtat='en_cours';renderFiles();
+  /* Le budget de cet appel, dérivé comme celui de l'analyse (delaiAnalyseMs) : 90 s pour
+     8 000 jetons de sortie, au prorata au-delà. Une lecture documentaire en demande 16 000,
+     d'où 180 s. Le transport texte garde ses 90 s : il n'a pas à devenir plus lent à détecter
+     une panne parce qu'un PDF est long. Mesuré en Safari 26.3 : 50,8 s pour un PDF de 8 pages
+     (requête de 647 604 octets), soit 56 % des 90 s d'origine — la marge manquait. */
+  const maxJetonsLecture=16000;
+  const delaiLectureMs=Math.max(90000,Math.round(maxJetonsLecture*90000/8000));
   try{
     const reponse=await appelFournisseur({
-      fournisseur:acces.id,cle:acces.cle,modele,maxTokens:16000,
+      fournisseur:acces.id,cle:acces.cle,modele,maxTokens:maxJetonsLecture,
       systeme:lecture.READING_INSTRUCTION,
       contenuUtilisateur:lecture.buildProviderPrompt({name:doc.name},{localText:doc.text||''}),
       schema:lecture.READING_JSON_SCHEMA,
-      documents:[piece]
+      documents:[piece],
+      delaiMs:delaiLectureMs
     });
     const extrait=lecture.extractReadingJson(reponse.texte);
     if(!extrait.ok)return {ok:false,raison:extrait.error};
+    /* La provenance est posée ici, pas demandée au modèle : l'Atelier sait quel fichier il a
+       joint et qui il a appelé. Sans cela, une lecture juste était refusée sur ces deux champs
+       seuls, après deux appels aboutis et 103 s. */
+    lecture.stampProvenance(extrait.value,{name:doc.name,mimeType:doc.type||'',method:'provider_multimodal',provider:acces.id});
     const verdict=lecture.validateReading(extrait.value,{name:doc.name,method:'provider_multimodal',provider:acces.id});
     if(!verdict.valid)return {ok:false,raison:'Lecture non conforme : '+verdict.violations.slice(0,2).join(' ; ')};
     return {ok:true,reading:extrait.value,provider:acces.id,nom:acces.nom};

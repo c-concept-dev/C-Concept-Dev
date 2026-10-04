@@ -248,7 +248,7 @@ test('T-MCNT01-11 : HTML canonique inchangé, dette ouverte', () => {
      Deep, OPRIE, les rôles, les Workers, CONTINUITE-05, le multi-provider, et le correctif
      PDF-SAFARI-01. Mesuré avant d'être écrit : cf. docs/DOC-MULTI-01.md. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    '2f5f3f54a210be9df3245863c05349ec9f225d96d602f65db3c7c17bf67c25e2',
+    '388cc4c803609ad33d39b8c5ab1208a0b4b96b397b3bfef77ee56c10400f94a2',
     'CANONICAL_HTML_CHANGED = NO — l’empreinte est celle que le lot précédent a laissée');
   const registre = lire('docs/OPEN-DEBTS.md');
   const ouvertes = registre.slice(registre.indexOf('## Ouvertes'), registre.indexOf('## Fermées'));

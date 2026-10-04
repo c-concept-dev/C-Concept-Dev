@@ -231,7 +231,15 @@ export function buildProviderPrompt(doc = {}, { localText = '' } = {}) {
     dejaLu,
     '',
     'RELEVEZ, uniquement s’ils sont présents :',
-    ...VISUAL_OBSERVABLES.map(x => '- ' + x)
+    ...VISUAL_OBSERVABLES.map(x => '- ' + x),
+    /* « document » et « reading.method/provider » décrivent l’appel, pas le document : l’Atelier
+       les pose lui-même après la lecture (stampProvenance). On les dit quand même, pour que la
+       sortie brute du modèle soit déjà juste et qu’un tour de correction ne porte jamais sur eux. */
+    ['', 'Règles de sortie :',
+     '- la provenance ne vous concerne pas : « document.name », « document.source »,',
+     '  « reading.method » et « reading.provider » sont posés par l’outil qui vous appelle, et ce',
+     '  que vous y mettriez serait remplacé — consacrez tout votre effort à la lecture elle-même',
+     '- un tableau vide si vous n’avez rien à y mettre, jamais une valeur inventée'].join('\n')
   ].filter(x => x !== '').join('\n');
 }
 
@@ -272,6 +280,39 @@ export function extractReadingJson(raw) {
 
 const estTexte = v => typeof v === 'string';
 const estTableau = v => Array.isArray(v);
+
+/**
+ * Pose la provenance que l’Atelier connaît déjà. Elle n’est pas une observation du document :
+ * l’Atelier sait quel fichier il a joint et quel fournisseur il a appelé. La demander au modèle,
+ * puis refuser la lecture entière quand il l’écrit autrement, perd une lecture juste.
+ *
+ * Mesuré en Safari 26.3 le 2026-10-04 sur un PDF de 8 pages (requête de 647 604 octets) :
+ * Anthropic rend une lecture complète en 50,8 s — refusée sur ces deux champs seuls
+ * (`$.reading.method`, `$.reading.provider`) —, puis le tour de correction de 52,0 s échoue de la
+ * même façon. Deux appels aboutis, 103 s, et aucune lecture : le modèle ne pouvait pas deviner
+ * des champs qui ne décrivent pas le document mais l’appel.
+ *
+ * Le chemin manuel ne passe PAS par ici, et c’est voulu : là, la déclaration de la personne est le
+ * seul garde-fou contre une lecture collée pour un autre document, et `validateReading` la
+ * contrôle strictement. Ici l’Atelier a joint le fichier lui-même ; il n’y a rien à vérifier.
+ *
+ * Ne touche que ces cinq champs. Tout le reste — types, plafonds, propriétés non prévues — reste
+ * à la charge de `validateReading`, et un objet qui n’a pas la bonne forme n’est pas réparé : il
+ * est laissé tel quel pour être refusé.
+ */
+export function stampProvenance(objet, { name = '', mimeType = '', method, provider = null } = {}) {
+  if (!objet || typeof objet !== 'object' || Array.isArray(objet)) return objet;
+  if (objet.document && typeof objet.document === 'object' && !Array.isArray(objet.document)) {
+    objet.document.name = String(name);
+    objet.document.mime_type = String(mimeType || objet.document.mime_type || '');
+    objet.document.source = 'user_document';
+  }
+  if (objet.reading && typeof objet.reading === 'object' && !Array.isArray(objet.reading)) {
+    objet.reading.method = method;
+    objet.reading.provider = provider;
+  }
+  return objet;
+}
 
 /**
  * Admits a reading, or says exactly why not. Returns the list of violations — a path and what was

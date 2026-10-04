@@ -332,7 +332,7 @@ test('T-FASTCAPADM-12 : le HTML canonique est inchangé', () => {
      Deep, OPRIE, les rôles, les Workers, CONTINUITE-05, le multi-provider, et le correctif
      PDF-SAFARI-01. Mesuré avant d'être écrit : cf. docs/DOC-MULTI-01.md. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    '2f5f3f54a210be9df3245863c05349ec9f225d96d602f65db3c7c17bf67c25e2', 'CANONICAL_HTML_CHANGED = NO');
+    '388cc4c803609ad33d39b8c5ab1208a0b4b96b397b3bfef77ee56c10400f94a2', 'CANONICAL_HTML_CHANGED = NO');
   /* Et rien du mécanisme n'a fui vers le navigateur. */
   const html = lire('atelier-prompts-v11.5-lot10g-decision-provider.html');
   for (const interdit of ['admissionRapide', 'REFROIDISSEMENT_RAPIDE', FAST_CAPACITY_UNAVAILABLE_CODE,
