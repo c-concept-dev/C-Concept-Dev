@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
-import type { ElementAffiche, VueBibliotheque } from "@lienotheque/contrats";
+import { enTete, nommer, type ElementAffiche, type VueBibliotheque } from "@lienotheque/contrats";
 import { Bouton, Icone } from "../composants/index.js";
 import { FilAriane } from "../composants/FilAriane.js";
 import { FilVersSegment } from "./lecteur/FilVersSegment.js";
@@ -97,7 +97,7 @@ export function Lecteur({ vue, page, element, onPage, onElement }: Props): JSX.E
           chemin={[
             { libelle: "Accueil", href: "#" },
             { libelle: vue.nom, href: "#catalogue" },
-            { libelle: `${vue.mots.page.un} ${pageCourante?.numero ?? ""}` },
+            { libelle: nommer(vue.mots.page, pageCourante?.numero ?? "") },
           ]}
         />
         <div className="ln-lecteur__pas">
@@ -111,7 +111,7 @@ export function Lecteur({ vue, page, element, onPage, onElement }: Props): JSX.E
             <span className="ln-sr-only">{`${vue.mots.element.un} précédent`}</span>
           </Bouton>
           <p className="ln-lecteur__rang">
-            {vue.mots.element.un} <strong>{rang + 1}</strong> sur <strong>{elements.length}</strong> sur cette {vue.mots.page.un}
+            {enTete(vue.mots.element.un)} <strong>{rang + 1}</strong> sur <strong>{elements.length}</strong> sur cette {vue.mots.page.un}
           </p>
           <Bouton
             compact
@@ -135,7 +135,7 @@ export function Lecteur({ vue, page, element, onPage, onElement }: Props): JSX.E
                   className={p.numero === pageCourante?.numero ? "ln-vignettes__page ln-vignettes__page--actif" : "ln-vignettes__page"}
                   onClick={() => onPage(p.numero)}
                   aria-current={p.numero === pageCourante?.numero ? "page" : undefined}
-                  aria-label={`${vue.mots.page.un} ${p.numero}${p.elements.some((e) => e.media !== undefined) ? `, ${vue.mots.element.plusieurs} reliés` : ""}`}
+                  aria-label={`${nommer(vue.mots.page, p.numero)}${p.elements.some((e) => e.media !== undefined) ? `, ${vue.mots.element.plusieurs} reliés` : ""}`}
                 >
                   <span className="ln-vignettes__feuille" aria-hidden="true" />
                   <span className="ln-vignettes__numero ln-sur-photo">{p.numero}</span>
@@ -198,7 +198,7 @@ export function Lecteur({ vue, page, element, onPage, onElement }: Props): JSX.E
             {/* Le schéma donne les mots sans leur genre : aucune tournure ne doit en demander un.
                 « Note — clause 401 » vaut pour tous les domaines, « cette clause » non. */}
             <label className="ln-sr-only" htmlFor="note">
-              Note — {vue.mots.element.un} {actif?.numero ?? ""}
+              Note — {nommer(vue.mots.element, actif?.numero ?? "")}
             </label>
             <textarea
               id="note"
@@ -216,7 +216,7 @@ export function Lecteur({ vue, page, element, onPage, onElement }: Props): JSX.E
       <div className="ln-lecteur__pied ln-panneau-titre">
         <p className="ln-lecteur__compte">
           <span className="ln-sr-only">Position dans le document : </span>
-          {vue.mots.page.un} {pageCourante?.numero ?? "—"} sur {vue.pages.length}
+          {nommer(vue.mots.page, pageCourante?.numero ?? "—")} sur {vue.pages.length}
         </p>
         <div className="ln-lecteur__zoom" role="group" aria-label="Zoom">
           <Bouton compact icone={<Icone nom="moins" />} onClick={() => setZoom(Math.max(50, zoom - 10))} disabled={zoom <= 50} aria-label="Réduire">

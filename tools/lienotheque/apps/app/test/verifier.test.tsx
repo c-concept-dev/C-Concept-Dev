@@ -86,9 +86,9 @@ describe("Vérifier : la planche (UX-03)", () => {
 
   it("filtre par nature", async () => {
     poser();
-    expect(screen.getAllByRole("button", { name: /^clause \d+$/ })).toHaveLength(4);
+    expect(screen.getAllByRole("button", { name: /^Clause \d+$/ })).toHaveLength(4);
     await userEvent.click(screen.getByRole("button", { name: "Informations" }));
-    expect(screen.getAllByRole("button", { name: /^clause \d+$/ })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: /^Clause \d+$/ })).toHaveLength(1);
   });
 
   it("n’affiche aucun chronomètre ni score de vitesse", () => {
@@ -131,10 +131,10 @@ describe("Vérifier : les trois décisions (UX-03)", () => {
 
   it("avance au cas suivant après une décision", async () => {
     poser();
-    const premier = screen.getAllByRole("button", { name: /^clause \d+$/ })[0]!;
+    const premier = screen.getAllByRole("button", { name: /^Clause \d+$/ })[0]!;
     expect(premier).toHaveAttribute("aria-current", "true");
     await userEvent.keyboard("{Enter}");
-    const apres = screen.getAllByRole("button", { name: /^clause \d+$/ });
+    const apres = screen.getAllByRole("button", { name: /^Clause \d+$/ });
     expect(apres[0]).not.toHaveAttribute("aria-current");
     expect(apres[1]).toHaveAttribute("aria-current", "true");
   });

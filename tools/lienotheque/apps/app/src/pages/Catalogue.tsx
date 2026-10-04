@@ -1,5 +1,5 @@
 import { useMemo, useState, type JSX } from "react";
-import { accorder, type ElementAffiche, type PageAffichee, type VueBibliotheque } from "@lienotheque/contrats";
+import { accorder, enTete, nommer, type ElementAffiche, type PageAffichee, type VueBibliotheque } from "@lienotheque/contrats";
 import { Bouton, FilAriane, Icone } from "../composants/index.js";
 import "./Catalogue.css";
 
@@ -89,7 +89,7 @@ export function Catalogue({ vue, page, onPage, onLecteur, onAjouter }: Props): J
         <section className="ln-catalogue__liste" aria-labelledby="titre-pages">
           <div className="ln-catalogue__barre ln-panneau-titre">
             <h2 id="titre-pages" className="ln-catalogue__sous-titre">
-              {vue.mots.page.plusieurs[0]!.toUpperCase() + vue.mots.page.plusieurs.slice(1)}
+              {enTete(vue.mots.page.plusieurs)}
             </h2>
             <div className="ln-bascule" role="group" aria-label="Affichage">
               {(["grille", "liste"] as const).map((lequel) => (
@@ -115,13 +115,13 @@ export function Catalogue({ vue, page, onPage, onLecteur, onAjouter }: Props): J
                   className={p.numero === detail?.numero ? "ln-pages__carte ln-pages__carte--ouvert" : "ln-pages__carte"}
                   onClick={() => onPage(p.numero)}
                   aria-current={p.numero === detail?.numero ? "true" : undefined}
-                  aria-label={`${vue.mots.page.un} ${p.numero}`}
+                  aria-label={nommer(vue.mots.page, p.numero)}
                 >
                   <span className="ln-pages__apercu" aria-hidden="true">
                     {p.numero}
                   </span>
                   <span className="ln-pages__nom">
-                    {vue.mots.page.un} {p.numero}
+                    {nommer(vue.mots.page, p.numero)}
                   </span>
                   {p.titre === undefined ? null : <span className="ln-pages__titre">{p.titre}</span>}
                   <span className="ln-pages__relies">
@@ -140,34 +140,34 @@ export function Catalogue({ vue, page, onPage, onLecteur, onAjouter }: Props): J
           </ol>
         </section>
 
-        <aside className="ln-detail ln-panneau" aria-label={`Détail — ${vue.mots.page.un} ${detail?.numero ?? ""}`}>
+        <aside className="ln-detail ln-panneau" aria-label={`Détail — ${nommer(vue.mots.page, detail?.numero ?? "")}`}>
           {detail === undefined ? (
             <p>Aucune {vue.mots.page.un} dans cette bibliothèque.</p>
           ) : (
             <>
               <h2 className="ln-detail__titre">
-                {vue.mots.page.un} {detail.numero}
+                {nommer(vue.mots.page, detail.numero)}
               </h2>
-              <div className="ln-detail__apercu" role="img" aria-label={`${vue.mots.page.un} ${detail.numero}`}>
+              <div className="ln-detail__apercu" role="img" aria-label={nommer(vue.mots.page, detail.numero)}>
                 <span>{detail.numero}</span>
                 {detail.titre === undefined ? null : <span className="ln-detail__sous-titre">{detail.titre}</span>}
               </div>
 
               <h3 className="ln-detail__sous">
-                {vue.mots.element.plusieurs[0]!.toUpperCase() + vue.mots.element.plusieurs.slice(1)} de la {vue.mots.page.un}
+                {enTete(vue.mots.element.plusieurs)} de la {vue.mots.page.un}
               </h3>
               <ul className="ln-detail__elements">
                 {detail.elements.map((element: ElementAffiche) => (
                   <li key={element.ancreId} className="ln-detail__element">
                     <Icone nom="document" />
                     <span className="ln-detail__nom">
-                      {vue.mots.element.un} {element.numero}
+                      {nommer(vue.mots.element, element.numero)}
                     </span>
                     {element.media === undefined ? (
                       <span className="ln-detail__sans">pas d’enregistrement</span>
                     ) : (
                       <span className="ln-detail__vers">
-                        → {vue.mots.piste.un} {element.media.piste}
+                        → {nommer(vue.mots.piste, element.media.piste)}
                       </span>
                     )}
                     <span className={element.aVerifier ? "ln-detail__etat ln-detail__etat--doute" : "ln-detail__etat"}>

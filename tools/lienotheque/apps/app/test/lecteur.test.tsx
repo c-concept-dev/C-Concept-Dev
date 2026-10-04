@@ -83,15 +83,15 @@ describe("Lecteur : la page et ses éléments (B1, UX-01)", () => {
 
   it("dit où l’on est dans la page : l’élément tant sur tant", () => {
     poser(ID(12));
-    expect(screen.getByText(/sur cette feuillet/i).textContent).toMatch(/clause\s*2\s*sur\s*2/);
+    expect(screen.getByText(/sur cette feuillet/i).textContent).toMatch(/Clause\s*2\s*sur\s*2/);
   });
 
   it("surligne la zone de l’élément actif, et elle seule", () => {
     poser(ID(12));
-    const zones = screen.getAllByRole("button", { name: /^clause \d+/ });
+    const zones = screen.getAllByRole("button", { name: /^Clause \d+/ });
     const actives = zones.filter((zone) => zone.getAttribute("aria-current") === "true");
     expect(actives).toHaveLength(1);
-    expect(actives[0]).toHaveAccessibleName(/clause 401/);
+    expect(actives[0]).toHaveAccessibleName(/Clause 401/);
   });
 
   it("marque les feuillets reliés dans la bande des vignettes", () => {

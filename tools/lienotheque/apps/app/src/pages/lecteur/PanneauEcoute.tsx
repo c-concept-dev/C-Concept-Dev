@@ -1,5 +1,5 @@
 import { forwardRef, type JSX } from "react";
-import type { ElementAffiche, MotsBibliotheque } from "@lienotheque/contrats";
+import { nommer, type ElementAffiche, type MotsBibliotheque } from "@lienotheque/contrats";
 import { Bouton, Icone } from "../../composants/index.js";
 import { minutage } from "../../donnees/positions.js";
 import { TEMPO_MAX, TEMPO_MIN, TEMPO_PAS } from "./raccourcis.js";
@@ -73,7 +73,7 @@ export const PanneauEcoute = forwardRef<HTMLDivElement, Props>(function PanneauE
         <>
           {/* Un numéro, pas un compte : « Piste 43 », jamais « pistes 43 ». */}
           <p className="ln-ecoute__piste">
-            {mots.piste.un[0]!.toUpperCase() + mots.piste.un.slice(1)} {media.piste}
+            {nommer(mots.piste, media.piste)}
           </p>
 
           <div className="ln-ecoute__onde">

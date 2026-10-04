@@ -1,5 +1,5 @@
 import { forwardRef, type JSX } from "react";
-import type { ElementAffiche, MotsBibliotheque, PageAffichee } from "@lienotheque/contrats";
+import { nommer, type ElementAffiche, type MotsBibliotheque, type PageAffichee } from "@lienotheque/contrats";
 
 /** La page elle-même, avec les zones de ses éléments (B1, UX-01).
  *
@@ -20,18 +20,18 @@ export const PageZoomable = forwardRef<HTMLButtonElement, Props>(function PageZo
   refZoneActive,
 ): JSX.Element {
   const nom = (element: ElementAffiche): string =>
-    `${mots.element.un} ${element.numero}${element.titre === undefined ? "" : ` — ${element.titre}`}`;
+    `${nommer(mots.element, element.numero)}${element.titre === undefined ? "" : ` — ${element.titre}`}`;
 
   return (
     <div className="ln-page" style={{ width: `${zoom}%` }}>
       <div className="ln-page__feuille">
         {page.image === undefined ? (
-          <div className="ln-page__attente" role="img" aria-label={`${mots.page.un} ${page.numero}`}>
+          <div className="ln-page__attente" role="img" aria-label={nommer(mots.page, page.numero)}>
             <span className="ln-page__numero">{page.numero}</span>
             {page.titre === undefined ? null : <span className="ln-page__titre">{page.titre}</span>}
           </div>
         ) : (
-          <img className="ln-page__image" src={page.image} alt={`${mots.page.un} ${page.numero}`} />
+          <img className="ln-page__image" src={page.image} alt={nommer(mots.page, page.numero)} />
         )}
 
         {page.elements.map((element) =>

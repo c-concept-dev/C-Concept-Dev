@@ -112,7 +112,7 @@ describe("Catalogue : grille et liste", () => {
 
   it("montre chaque feuillet avec ce qui y est relié", () => {
     poser();
-    expect(screen.getByRole("button", { name: "feuillet 127" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Feuillet 127" })).toBeInTheDocument();
     expect(screen.getByText(/1 clause relié/)).toBeInTheDocument();
     expect(screen.getByText(/0 clause relié/)).toBeInTheDocument();
   });
@@ -124,7 +124,7 @@ describe("Catalogue : grille et liste", () => {
 
   it("choisit un feuillet", async () => {
     const { pages } = poser();
-    await userEvent.click(screen.getByRole("button", { name: "feuillet 126" }));
+    await userEvent.click(screen.getByRole("button", { name: "Feuillet 126" }));
     expect(pages).toContain(126);
   });
 });
@@ -133,8 +133,8 @@ describe("Catalogue : panneau de détail (B3)", () => {
   it("liste les clauses de la page, leurs liens et leur état", () => {
     poser();
     const detail = screen.getByRole("complementary", { name: /détail — feuillet 127/i });
-    expect(within(detail).getByText("clause 400")).toBeInTheDocument();
-    expect(within(detail).getByText(/→ plage 40/)).toBeInTheDocument();
+    expect(within(detail).getByText("Clause 400")).toBeInTheDocument();
+    expect(within(detail).getByText(/→ Plage 40/)).toBeInTheDocument();
     expect(within(detail).getByText(/lien validé/)).toBeInTheDocument();
     expect(within(detail).getByText(/à vérifier/)).toBeInTheDocument();
     expect(within(detail).getByText(/pas d’enregistrement/)).toBeInTheDocument();

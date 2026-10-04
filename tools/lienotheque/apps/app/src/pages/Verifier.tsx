@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type JSX } from "react";
-import { accorder, type CasDouteux, type NatureDoute, type VueBibliotheque } from "@lienotheque/contrats";
+import { accorder, nommer, type CasDouteux, type NatureDoute, type VueBibliotheque } from "@lienotheque/contrats";
 import { Bouton, FilAriane, Icone } from "../composants/index.js";
 import "./Verifier.css";
 
@@ -123,20 +123,20 @@ export function Verifier({ vue, onDecision, onAnnuler, derniere }: Props): JSX.E
                 className={c.id === actif?.id ? "ln-planche__carte ln-planche__carte--ouvert" : "ln-planche__carte"}
                 onClick={() => setOuvert(c.id)}
                 aria-current={c.id === actif?.id ? "true" : undefined}
-                aria-label={`${vue.mots.element.un} ${c.element.numero}`}
+                aria-label={nommer(vue.mots.element, c.element.numero)}
               >
                 <span className="ln-planche__apercu" aria-hidden="true">
                   {c.element.numero}
                 </span>
                 <span className="ln-planche__nom">
-                  {vue.mots.element.un} {c.element.numero}
+                  {nommer(vue.mots.element, c.element.numero)}
                 </span>
                 <span className="ln-planche__page">
-                  {vue.mots.page.un[0]!.toLowerCase()}. {c.element.page}
+                  {vue.mots.page.un[0]}. {c.element.page}
                 </span>
                 {c.element.media === undefined ? null : (
                   <span className="ln-planche__vers">
-                    → {vue.mots.piste.un} {c.element.media.piste}
+                    → {nommer(vue.mots.piste, c.element.media.piste)}
                   </span>
                 )}
                 <span className={`ln-etiquette ln-etiquette--${c.etat}`}>
@@ -155,15 +155,15 @@ export function Verifier({ vue, onDecision, onAnnuler, derniere }: Props): JSX.E
             <>
               <header className="ln-cas__entete">
                 <h2 className="ln-cas__titre">
-                  {vue.mots.element.un} {actif.element.numero}
+                  {nommer(vue.mots.element, actif.element.numero)}
                 </h2>
                 <p className="ln-cas__page">
-                  {vue.mots.page.un} {actif.element.page}
+                  {nommer(vue.mots.page, actif.element.page)}
                 </p>
               </header>
 
               <div className="ln-cas__vue">
-                <div className="ln-cas__image" style={{ width: `${zoom}%` }} role="img" aria-label={`Vue agrandie — ${vue.mots.element.un} ${actif.element.numero}`}>
+                <div className="ln-cas__image" style={{ width: `${zoom}%` }} role="img" aria-label={`Vue agrandie — ${nommer(vue.mots.element, actif.element.numero)}`}>
                   <span className="ln-cas__image-numero">{actif.element.numero}</span>
                 </div>
               </div>
@@ -191,7 +191,7 @@ export function Verifier({ vue, onDecision, onAnnuler, derniere }: Props): JSX.E
               {actif.element.media === undefined ? null : (
                 <section className="ln-cas__apercu" aria-label="Aperçu du segment proposé">
                   <h3 className="ln-cas__apercu-titre">
-                    {vue.mots.piste.un} {actif.element.media.piste} · Segment proposé
+                    {nommer(vue.mots.piste, actif.element.media.piste)} · Segment proposé
                   </h3>
                   <div className="ln-cas__onde">
                     <button type="button" className="ln-cas__ecouter" aria-label="Écouter le segment proposé">
