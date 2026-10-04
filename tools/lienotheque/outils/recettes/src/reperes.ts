@@ -166,7 +166,10 @@ type ZoneRecette = Extract<Recette["lectures"][number], { ancre: "element" }>["z
 export function dansLaZone(mot: MotLu, zone: ZoneRecette, image: ImageGrise, cote?: CotePage): boolean {
   switch (zone.type) {
     case "marges_exterieures": {
-      const large = image.largeur * zone.largeur_rel;
+      // La recette décrit la page telle que le document la présente — pour un livre photographié
+      // en doubles pages, c'est le cliché entier. Une page coupée en est la moitié : la même
+      // marge y occupe donc deux fois la part de largeur.
+      const large = image.largeur * zone.largeur_rel * (cote === undefined ? 1 : 2);
       const aGauche = mot.x < large;
       const aDroite = mot.x + mot.l > image.largeur - large;
       if (cote === "gauche") return aGauche;
@@ -192,10 +195,12 @@ export function zonePastille(boite: Boite, position: "dessous" | "dessus" | "gau
       return { x: boite.x + boite.l + marge, y: boite.y - h * 1.5, l: h * 5, h: h * 4 };
     case "gauche":
       return { x: boite.x - marge - h * 5, y: boite.y - h * 1.5, l: h * 5, h: h * 4 };
+    // Sous le numéro, la fenêtre s'aligne sur son **bord droit** et s'étend vers la gauche : les
+    // numéros sont composés fer à droite dans leur marge, et le repère suit leur alignement.
     case "dessous":
-      return { x: boite.x - h * 1.6, y: boite.y + boite.h + marge, l: h * 4.4, h: h * 2.2 };
+      return { x: boite.x + boite.l - h * 2.6, y: boite.y + h * 1.05, l: h * 2.9, h: h * 1.65 };
     case "dessus":
-      return { x: boite.x - h * 1.6, y: boite.y - marge - h * 2.2, l: h * 4.4, h: h * 2.2 };
+      return { x: boite.x + boite.l - h * 2.6, y: boite.y - marge - h * 1.65, l: h * 2.9, h: h * 1.65 };
   }
 }
 

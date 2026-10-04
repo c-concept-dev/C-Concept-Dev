@@ -544,6 +544,54 @@ un bac à sable lui refuse volontiers les services audio.
 que deux cas : le segment est connu, avec ses bornes, ou il est inconnu — et la lecture commence
 alors au début de la piste, en le disant. Il n'y a pas de place pour une position approchée.
 
+## F4 : état du critère et écarts relevés
+
+Le critère d'A5 — au moins 83 premiers éléments sur 92 et 89 pages sur 92 — **n'est pas tenu**. Il
+a été approché par deux itérations guidées par l'oracle, selon la méthode convenue : faire tourner
+`docs/prototypes/westwood_*.py` sur les mêmes clichés, relever ce qu'ils détectent élément par
+élément, et comparer.
+
+### Ce que l'oracle a appris, et qui contredisait mes hypothèses
+
+**Chaque élément d'une piste porte son repère, pas seulement le premier.** La piste 1 couvre les
+éléments 123 et 124, et tous deux portent « CD1 Piste 1 ». Il y a donc environ deux fois plus de
+repères que de pistes, et c'est le pas de 0 — deux éléments sur la même piste — qui les réunit.
+J'attribuais implicitement un repère à un début de piste.
+
+**La fenêtre de recherche s'aligne sur le bord droit du numéro**, et s'étend vers la gauche sur
+2,6 fois sa hauteur. Les numéros sont composés fer à droite dans leur marge, et le repère suit
+leur alignement. Ma fenêtre, centrée sur le bord gauche et deux fois plus large, ramassait le
+voisinage.
+
+**La recette décrit le cliché entier, pas la demi-page.** `marges_exterieures: 0,2` vaut pour la
+double page ; sur une page coupée, la même marge occupe deux fois la part de largeur. Mon filtre
+de marge était deux fois trop étroit et écartait des numéros d'élément parfaitement lisibles.
+
+### Où cela mène
+
+Mesuré sur treize clichés, pages imprimées 66 à 92, où l'oracle relève 27 repères :
+
+| Itération | Repères retrouvés | Faux positifs |
+|---|---:|---:|
+| Avant | 17 / 27 (63 %) | 3 |
+| 1 — fenêtre alignée sur l'oracle | 20 / 27 (74 %) | 3 |
+| 2 — marge de la demi-page corrigée | **21 / 27 (78 %)** | 8 |
+
+Et un fait qui change la nature du problème : **les repères manquants ne sont pas des repères
+ratés, ce sont des numéros d'élément que je ne lis pas du tout**. Sur les éléments que je lis, la
+détection de repère est complète. Ce qui manque est le rendement de lecture des numéros dans la
+marge, là où l'oracle emploie une passe dédiée à pleine résolution.
+
+Sur le livre entier, la dernière mesure complète donne 16 premiers éléments justes sur 92 et
+21 pages sur 92. Les deux itérations convenues sont faites ; la suite demanderait de porter les
+trois passes successives du prototype, ce qui sort du cadre fixé.
+
+### Ce qui marche, et qu'il faut garder en tête
+
+La chaîne elle-même est juste : elle rend **95 sur 95 sur F3**, sans une seule branche propre à un
+document, et sur F4 elle place correctement la piste 14 sur l'élément 189 — contre le nom du
+fichier, qui dit 191. C'est le critère de REC-05, et il est tenu.
+
 ### Un numéro réparé n'est pas un numéro lu
 
 Les numéros rétablis par interpolation ou par leur fin portent une confiance réduite de trois

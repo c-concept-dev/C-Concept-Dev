@@ -65,8 +65,11 @@ describe("où chercher les repères", () => {
     const boite = { x: 300, y: 100, l: 40, h: 20 };
     expect(zonePastille(boite, "droite", 6).x).toBe(346);
     expect(zonePastille(boite, "gauche", 6).x).toBe(300 - 6 - 100);
-    expect(zonePastille(boite, "dessous", 6).y).toBe(126);
-    expect(zonePastille(boite, "dessus", 6).y).toBe(100 - 6 - 44);
+    // Sous le numéro, la fenêtre s'aligne sur son bord droit : les numéros sont composés fer à
+    // droite dans leur marge, et le repère suit leur alignement.
+    expect(zonePastille(boite, "dessous", 6).x).toBe(300 + 40 - 52);
+    expect(zonePastille(boite, "dessous", 6).y).toBe(121);
+    expect(zonePastille(boite, "dessus", 6).y).toBe(100 - 6 - 33);
   });
 
   it("met la zone à l'échelle du numéro, pas à celle de la page", () => {
@@ -140,6 +143,13 @@ describe("zone des éléments selon la recette (OUT-07)", () => {
     expect(dansLaZone(mot(950), marges, image, "gauche"), "à droite, c'est la reliure").toBe(false);
     expect(dansLaZone(mot(950), marges, image, "droite")).toBe(true);
     expect(dansLaZone(mot(10), marges, image, "droite")).toBe(false);
+  });
+
+  it("sur une page coupée, la marge vaut deux fois la part déclarée", () => {
+    // La recette décrit le cliché entier ; une page coupée en est la moitié.
+    expect(dansLaZone(mot(300), marges, image), "sur une page entière, 300 est hors marge").toBe(false);
+    expect(dansLaZone(mot(300), marges, image, "gauche"), "sur une demi-page, il y est").toBe(true);
+    expect(dansLaZone(mot(450), marges, image, "gauche"), "mais pas au-delà").toBe(false);
   });
 
   it("un rectangle relatif se lit en parts de la page", () => {
