@@ -1,45 +1,52 @@
 import { describe, expect, it } from "vitest";
-import { ACCUEIL, adresseDe, destinationDe, type Destination } from "../src/navigation.js";
+import { ACCUEIL, ecrireRoute, lireRoute, type Route } from "../src/navigation.js";
 
-/** B4 : l'adresse dit où l'on est. Elle survit au rechargement, se copie et se met en favori —
- *  c'est ce qui permet de reprendre une lecture (SYN-03) et de partager un cas à vérifier. */
+describe("lecture d'une adresse (B4)", () => {
+  it("l'adresse vide est l'accueil", () => {
+    expect(lireRoute("")).toEqual(ACCUEIL);
+    expect(lireRoute("#")).toEqual(ACCUEIL);
+  });
 
-const BIB = "0190f0a0-0000-7000-8000-0000000000c1";
-const ANCRE = "0190f0a0-0000-7000-8000-000000000901";
+  it("reconnaît les écrans sans paramètre", () => {
+    expect(lireRoute("#reglages")).toEqual({ ecran: "reglages" });
+    expect(lireRoute("#verifier")).toEqual({ ecran: "verifier" });
+    expect(lireRoute("#catalogue")).toEqual({ ecran: "catalogue" });
+  });
 
-describe("navigation : une adresse par écran (B4)", () => {
-  const destinations: readonly Destination[] = [
-    { ecran: "accueil" },
+  it("lit la page du catalogue et du Lecteur", () => {
+    expect(lireRoute("#catalogue/page=127")).toEqual({ ecran: "catalogue", page: 127 });
+    expect(lireRoute("#lecteur/page=127")).toEqual({ ecran: "lecteur", page: 127 });
+  });
+
+  it("lit l'élément ouvert dans le Lecteur", () => {
+    expect(lireRoute("#lecteur/page=127&element=abc-123")).toEqual({ ecran: "lecteur", page: 127, element: "abc-123" });
+  });
+
+  it("ramène à l'accueil plutôt que de laisser l'écran vide", () => {
+    expect(lireRoute("#inconnu")).toEqual(ACCUEIL);
+    expect(lireRoute("#lecteur"), "un Lecteur sans page n'ouvre rien").toEqual(ACCUEIL);
+    expect(lireRoute("#lecteur/page=zero")).toEqual(ACCUEIL);
+    expect(lireRoute("#catalogue/page=-3"), "une page négative n'existe pas").toEqual({ ecran: "catalogue" });
+  });
+});
+
+describe("écriture d'une adresse (B4)", () => {
+  const routes: readonly Route[] = [
+    ACCUEIL,
     { ecran: "reglages" },
-    { ecran: "catalogue", bibliothequeId: BIB },
-    { ecran: "verifier", bibliothequeId: BIB },
-    { ecran: "verifier", bibliothequeId: BIB, casId: "0190f0a0-0000-7000-8000-000000000d01" },
-    { ecran: "lecteur", bibliothequeId: BIB, page: 12 },
-    { ecran: "lecteur", bibliothequeId: BIB, page: 12, ancreId: ANCRE },
+    { ecran: "verifier" },
+    { ecran: "catalogue" },
+    { ecran: "catalogue", page: 127 },
+    { ecran: "lecteur", page: 127 },
+    { ecran: "lecteur", page: 127, element: "abc-123" },
   ];
 
-  it("relit ce qu'elle écrit, pour chaque écran", () => {
-    for (const destination of destinations) expect(destinationDe(adresseDe(destination)), adresseDe(destination)).toEqual(destination);
+  it("l'aller-retour est fidèle : ce qu'on écrit se relit à l'identique", () => {
+    for (const route of routes) expect(lireRoute(ecrireRoute(route)), ecrireRoute(route)).toEqual(route);
   });
 
-  it("écrit une adresse lisible, pas un jeton opaque", () => {
-    expect(adresseDe({ ecran: "lecteur", bibliothequeId: BIB, page: 127, ancreId: ANCRE })).toBe(
-      `#bibliotheque/${BIB}/page/127/element/${ANCRE}`,
-    );
-    expect(adresseDe({ ecran: "verifier", bibliothequeId: BIB })).toBe(`#bibliotheque/${BIB}/verifier`);
-  });
-
-  it("ramène à l'accueil ce qu'elle ne comprend pas, au lieu d'afficher une erreur", () => {
-    for (const fragment of ["", "#", "#n’importe quoi", "#bibliotheque", "#bibliotheque/"])
-      expect(destinationDe(fragment), fragment).toEqual(ACCUEIL);
-  });
-
-  it("tombe sur le catalogue quand le numéro de page n'en est pas un", () => {
-    expect(destinationDe(`#bibliotheque/${BIB}/page/zéro`)).toEqual({ ecran: "catalogue", bibliothequeId: BIB });
-    expect(destinationDe(`#bibliotheque/${BIB}/page/0`)).toEqual({ ecran: "catalogue", bibliothequeId: BIB });
-  });
-
-  it("accepte le fragment avec ou sans dièse : c'est la même adresse", () => {
-    expect(destinationDe(`bibliotheque/${BIB}/page/12`)).toEqual(destinationDe(`#bibliotheque/${BIB}/page/12`));
+  it("rend des adresses partageables, pas un état caché", () => {
+    expect(ecrireRoute({ ecran: "lecteur", page: 127, element: "abc" })).toBe("#lecteur/page=127&element=abc");
+    expect(ecrireRoute({ ecran: "catalogue", page: 12 })).toBe("#catalogue/page=12");
   });
 });

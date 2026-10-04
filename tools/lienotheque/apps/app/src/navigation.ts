@@ -1,68 +1,78 @@
-/** Navigation (B4) : une adresse dit où l'on est, et rien d'autre ne le dit.
+/** Navigation entre les écrans (B4).
  *
- *  Tout tient dans le fragment — l'application est servie depuis un fichier dans la coquille
- *  Tauri, où il n'y a pas de serveur pour router des chemins. Le fragment survit au rechargement,
- *  se copie, se met en favori : c'est ce qui permet de reprendre une lecture là où on l'a laissée
- *  (SYN-03) et de partager un lien vers un cas à vérifier. */
+ *  Une adresse par écran, lisible et partageable : un fragment, pas un état caché. On peut
+ *  revenir en arrière, ouvrir dans un autre onglet, envoyer un lien à quelqu'un — et le clavier
+ *  y arrive comme la souris, puisque ce sont des liens.
+ *
+ *  Le routeur du lot C tient en un fragment. Les écrans du CDC en demanderont davantage ; ce
+ *  module changera, pas eux. */
 
-export type Destination =
+export type Route =
   | { readonly ecran: "accueil" }
   | { readonly ecran: "reglages" }
-  | { readonly ecran: "catalogue"; readonly bibliothequeId: string }
-  | { readonly ecran: "verifier"; readonly bibliothequeId: string; readonly casId?: string }
-  | { readonly ecran: "lecteur"; readonly bibliothequeId: string; readonly page: number; readonly ancreId?: string };
+  | { readonly ecran: "catalogue"; readonly page?: number }
+  | { readonly ecran: "lecteur"; readonly page: number; readonly element?: string }
+  | { readonly ecran: "verifier" };
 
-export const ACCUEIL: Destination = { ecran: "accueil" };
+export const ACCUEIL: Route = { ecran: "accueil" };
 
-/** Adresse d'une destination, fragment compris. Une seule fonction l'écrit : un lien du Catalogue
- *  et un lien de Vérifier ne peuvent pas pointer deux endroits différents pour la même chose. */
-export function adresseDe(destination: Destination): string {
-  switch (destination.ecran) {
+/** Lit un fragment d'adresse. Tout ce qui n'est pas reconnu ramène à l'accueil : une adresse
+ *  fausse ne doit jamais laisser l'écran vide. */
+export function lireRoute(fragment: string): Route {
+  const propre = fragment.replace(/^#/, "");
+  if (propre === "") return ACCUEIL;
+
+  const [ecran, ...reste] = propre.split("/");
+  const parametres = new Map(
+    reste
+      .join("/")
+      .split("&")
+      .filter((morceau) => morceau !== "")
+      .map((morceau) => {
+        const [clef, valeur] = morceau.split("=");
+        return [clef ?? "", valeur ?? ""] as const;
+      }),
+  );
+  const entier = (clef: string): number | undefined => {
+    const brut = parametres.get(clef);
+    const nombre = brut === undefined ? Number.NaN : Number(brut);
+    return Number.isInteger(nombre) && nombre > 0 ? nombre : undefined;
+  };
+
+  switch (ecran) {
+    case "reglages":
+      return { ecran: "reglages" };
+    case "verifier":
+      return { ecran: "verifier" };
+    case "catalogue": {
+      const page = entier("page");
+      return page === undefined ? { ecran: "catalogue" } : { ecran: "catalogue", page };
+    }
+    case "lecteur": {
+      const page = entier("page");
+      if (page === undefined) return ACCUEIL;
+      const element = parametres.get("element");
+      return element === undefined || element === "" ? { ecran: "lecteur", page } : { ecran: "lecteur", page, element };
+    }
+    default:
+      return ACCUEIL;
+  }
+}
+
+/** Écrit l'adresse d'une route. Aller-retour fidèle : `lireRoute(ecrireRoute(r))` rend `r`. */
+export function ecrireRoute(route: Route): string {
+  switch (route.ecran) {
     case "accueil":
-      return "#accueil";
+      return "#";
     case "reglages":
       return "#reglages";
-    case "catalogue":
-      return `#bibliotheque/${destination.bibliothequeId}`;
     case "verifier":
-      return `#bibliotheque/${destination.bibliothequeId}/verifier${destination.casId === undefined ? "" : `/${destination.casId}`}`;
+      return "#verifier";
+    case "catalogue":
+      return route.page === undefined ? "#catalogue" : `#catalogue/page=${route.page}`;
     case "lecteur":
-      return `#bibliotheque/${destination.bibliothequeId}/page/${destination.page}${
-        destination.ancreId === undefined ? "" : `/element/${destination.ancreId}`
-      }`;
+      return route.element === undefined
+        ? `#lecteur/page=${route.page}`
+        : `#lecteur/page=${route.page}&element=${route.element}`;
   }
-}
-
-const entier = (valeur: string | undefined): number | undefined => {
-  if (valeur === undefined || !/^\d+$/.test(valeur)) return undefined;
-  const nombre = Number.parseInt(valeur, 10);
-  return nombre > 0 ? nombre : undefined;
-};
-
-/** Destination lue dans un fragment. Une adresse qu'on ne comprend pas ramène à l'accueil :
- *  mieux vaut un écran qui existe qu'un message d'erreur. */
-export function destinationDe(fragment: string): Destination {
-  const morceaux = fragment.replace(/^#/, "").split("/").filter((morceau) => morceau.length > 0);
-  const [tete, bibliothequeId, quoi, valeur, puis, apres] = morceaux;
-
-  if (tete === "reglages") return { ecran: "reglages" };
-  if (tete !== "bibliotheque" || bibliothequeId === undefined) return ACCUEIL;
-
-  if (quoi === "verifier") return valeur === undefined ? { ecran: "verifier", bibliothequeId } : { ecran: "verifier", bibliothequeId, casId: valeur };
-
-  if (quoi === "page") {
-    const page = entier(valeur);
-    if (page === undefined) return { ecran: "catalogue", bibliothequeId };
-    return puis === "element" && apres !== undefined
-      ? { ecran: "lecteur", bibliothequeId, page, ancreId: apres }
-      : { ecran: "lecteur", bibliothequeId, page };
-  }
-
-  return { ecran: "catalogue", bibliothequeId };
-}
-
-/** Aller quelque part, sans recharger : l'adresse change, l'événement « hashchange » suit. */
-export function aller(destination: Destination): void {
-  const adresse = adresseDe(destination);
-  if (globalThis.location !== undefined && globalThis.location.hash !== adresse) globalThis.location.hash = adresse;
 }

@@ -1,3 +1,4 @@
+import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { readFile, readdir } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { basename, join } from "node:path";
@@ -17,7 +18,27 @@ import { consolider, lecturesDePage, lireNumeroPage, type OptionsReperes } from 
  *  rejoués différemment ne se comparent pas : le banc fixe donc l'ordre des pages et celui des
  *  médias, et ne laisse rien au hasard. */
 
+/** Cache de lecture : un lot déjà lu ne se relit pas.
+ *
+ *  Lire trois cents pages prend un quart d'heure. Rejouer un lot pour éprouver un réglage de
+ *  l'interpréteur ne doit pas le repayer : la lecture dépend du document et de la recette, pas de
+ *  ce qu'on en fait ensuite. La clef les désigne tous les deux — et la date du fichier, pour
+ *  qu'un document remplacé soit relu. */
+export function clefDeLecture(chemin: string, recette: Recette, limite?: number): string {
+  const etat = statSync(chemin, { throwIfNoEntry: false });
+  return createHash("sha256")
+    .update(chemin)
+    .update(String(etat?.size ?? 0))
+    .update(String(etat?.mtimeMs ?? 0))
+    .update(`${recette.id}@${recette.version}`)
+    .update(String(limite ?? "tout"))
+    .digest("hex")
+    .slice(0, 32);
+}
+
 export type OptionsBanc = OptionsReperes & {
+  /** Dossier où garder les lectures. Absent, rien n'est gardé. */
+  readonly cache?: string | undefined;
   /** Ne traiter que les premières pages : pour un essai rapide pendant la mise au point. */
   readonly pages?: number;
   readonly redressement?: OptionsRedressement;
@@ -27,52 +48,58 @@ export type OptionsBanc = OptionsReperes & {
  *
  *  Un document d'une page par image passe tel quel. Un livre photographié en doubles pages est
  *  remis d'aplomb et coupé : chaque cliché donne deux pages, qui savent de quel côté elles
- *  viennent et quel rang elles occupent dans la numérotation imprimée. */
-export async function preparerLot(chemin: string, recette: Recette, options: OptionsBanc = {}): Promise<PageAlire[]> {
-  const images = await pagesEnGris(chemin, options.pages);
+ *  viennent et quel rang elles occupent dans la numérotation imprimée.
+ *
+ *  En flux, une image à la fois : c'est la seule façon de traiter trois cents pages sans que la
+ *  mémoire suive le nombre de pages. Chaque page sort dès qu'elle est prête, et l'image d'où elle
+ *  vient n'est plus retenue par personne. */
+export async function* preparerLot(chemin: string, recette: Recette, options: OptionsBanc = {}): AsyncGenerator<PageAlire> {
   const preparation = recette.preparation;
+  const telle = !preparation.double_page && preparation.redressement === "aucun";
 
-  if (!preparation.double_page && preparation.redressement === "aucun")
-    return images.map((image, index) => ({ image, index }));
-
-  const reglages = ReglagesRedressement.parse({
-    rotation: preparation.redressement,
-    doublePage: preparation.double_page,
-    ...(preparation.page_gauche === undefined ? {} : { pageGauche: preparation.page_gauche }),
-    effacerVerso: true,
-    binarisation: "adaptative",
-  });
-
-  const pages: PageAlire[] = [];
-  images.forEach((image, index) => {
-    for (const produite of redresser(image, index, reglages, options.redressement ?? {})) {
-      const cote = produite.descripteur.cote;
-      pages.push({
-        image: produite.image,
-        index,
-        rang: preparation.double_page ? index * 2 + (cote === "droite" ? 1 : 0) : index,
-        ...(cote === undefined ? {} : { cote }),
+  const reglages = telle
+    ? undefined
+    : ReglagesRedressement.parse({
+        rotation: preparation.redressement,
+        doublePage: preparation.double_page,
+        ...(preparation.page_gauche === undefined ? {} : { pageGauche: preparation.page_gauche }),
+        effacerVerso: true,
+        binarisation: "adaptative",
       });
-    }
-  });
-  return pages;
+
+  let index = 0;
+  for await (const image of pagesEnGris(chemin, options.pages)) {
+    if (reglages === undefined) yield { image, index };
+    else
+      for (const produite of redresser(image, index, reglages, options.redressement ?? {})) {
+        const cote = produite.descripteur.cote;
+        yield {
+          image: produite.image,
+          index,
+          rang: preparation.double_page ? index * 2 + (cote === "droite" ? 1 : 0) : index,
+          ...(cote === undefined ? {} : { cote }),
+        };
+      }
+    index += 1;
+  }
 }
 
-/** Pages d'un PDF numérisé, en gris, dans l'ordre du document et à leur résolution d'origine. */
-export async function pagesEnGris(chemin: string, limite?: number): Promise<ImageGrise[]> {
+/** Pages d'un PDF numérisé, en gris, dans l'ordre du document et à leur résolution d'origine.
+ *
+ *  Un flux, pas un tableau : le tableau gardait les trois cents pages décodées en mémoire en même
+ *  temps — deux mégaoctets et demi la page, et la mémoire croissait avec le document. */
+export async function* pagesEnGris(chemin: string, limite?: number): AsyncGenerator<ImageGrise> {
   const objets = objetsPdf(await readFile(chemin));
   const pages = pagesPdf(objets);
   const retenues = limite === undefined ? pages : pages.slice(0, limite);
 
-  const grises: ImageGrise[] = [];
   for (const page of retenues) {
     const image = page.images[0];
     if (image === undefined) continue;
     const octets = octetsImage(objets, image.numero);
     if (octets === undefined || octets.extension !== "jpg") continue;
-    grises.push(enGris(await decoderJpeg(octets.octets)));
+    yield enGris(await decoderJpeg(octets.octets));
   }
-  return grises;
 }
 
 /** Lit les repères de chaque page, puis interprète selon la recette. */
@@ -125,12 +152,36 @@ export async function mediasDuDossier(dossier: string, recette?: Recette, extens
 
 export type Rejeu = { readonly resultat: ResultatRecette; readonly association: Association };
 
+/** Lit un lot, en passant par le cache quand il est offert.
+ *
+ *  Le cache ne garde que des lectures : des numéros, des positions, des confiances. Aucun pixel,
+ *  aucun extrait du document — ce qui est sous droits reste là où il est. */
+export async function lireLot(pdf: string, recette: Recette, options: OptionsBanc = {}): Promise<PageLue[]> {
+  const fichier = options.cache === undefined ? undefined : join(options.cache, `${clefDeLecture(pdf, recette, options.pages)}.json`);
+
+  if (fichier !== undefined && existsSync(fichier))
+    try {
+      return JSON.parse(readFileSync(fichier, "utf8")) as PageLue[];
+    } catch {
+      // Cache illisible : on relit. Un cache n'est jamais une raison d'échouer.
+    }
+
+  // Page par page : ce qui s'accumule, ce sont des numéros et des positions, pas des pixels.
+  const lues: PageLue[] = [];
+  for await (const page of preparerLot(pdf, recette, options)) lues.push(...reperer([page], recette, options));
+  if (fichier !== undefined)
+    try {
+      writeFileSync(fichier, JSON.stringify(lues));
+    } catch {
+      // Cache non inscriptible : tant pis, on a la lecture.
+    }
+  return lues;
+}
+
 export async function rejouer(pdf: string, dossierMedias: string, recette: Recette, options: OptionsBanc = {}): Promise<Rejeu> {
   const medias = await mediasDuDossier(dossierMedias, recette);
   // Combien de pistes le support compte est un fait sur le média, pas sur son nom (REC-05).
-  const resultat = interpreter(reperer(await preparerLot(pdf, recette, options), recette, options), recette, {
-    nombreDePistes: medias.length,
-  });
+  const resultat = interpreter(await lireLot(pdf, recette, options), recette, { nombreDePistes: medias.length });
   return { resultat, association: associer(resultat.lignes, medias, recette) };
 }
 

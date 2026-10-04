@@ -92,12 +92,12 @@ describe("Lecteur : l'écran tient dans la hauteur de la fenêtre (correction 3)
 
   it("donne au corps du Lecteur la rangée qui reste, et rien de plus", () => {
     const lecteur = reglesPour(FEUILLES.lecteur, ".ln-lecteur");
-    expect(lecteur.some((corps) => declaration(corps, "grid-template-rows")?.endsWith("1fr") === true)).toBe(true);
+    expect(lecteur.some((corps) => declaration(corps, "grid-template-rows")?.includes("1fr") === true)).toBe(true);
     expect(lecteur.some((corps) => declaration(corps, "overflow") === "hidden")).toBe(true);
   });
 
   it("autorise chaque colonne à être plus courte que son contenu", () => {
-    for (const selecteur of [".ln-lecteur__corps", ".ln-lecteur__feuille", ".ln-lecteur__cote", ".ln-vignettes"]) {
+    for (const selecteur of [".ln-lecteur__corps", ".ln-lecteur__page", ".ln-lecteur__cote", ".ln-vignettes"]) {
       const regles = reglesPour(FEUILLES.lecteur, selecteur);
       expect(regles.length, selecteur).toBeGreaterThan(0);
       expect(regles.some((corps) => declaration(corps, "min-height") === "0"), selecteur).toBe(true);
@@ -105,7 +105,7 @@ describe("Lecteur : l'écran tient dans la hauteur de la fenêtre (correction 3)
   });
 
   it("fait défiler la feuille, pas l'écran", () => {
-    const feuille = reglesPour(FEUILLES.lecteur, ".ln-lecteur__feuille");
+    const feuille = reglesPour(FEUILLES.lecteur, ".ln-lecteur__page");
     expect(feuille.some((corps) => declaration(corps, "overflow") === "auto")).toBe(true);
   });
 });
@@ -148,7 +148,7 @@ describe("Hybride : le fond photographique couvre toute la fenêtre (correction 
  *  « Valider ». Trois boutons sur trois lignes se lisaient comme trois décisions séparées. */
 describe("Vérifier : trois gestes sur une ligne, l'annulation en lien (correction 6)", () => {
   it("interdit le repli de la ligne des gestes, sauf en fenêtre étroite", () => {
-    const regles = reglesPour(FEUILLES.verifier, ".ln-cas__gestes");
+    const regles = reglesPour(FEUILLES.verifier, ".ln-cas__decisions");
     expect(regles.length).toBeGreaterThan(1);
     expect(declaration(regles[0]!, "flex-wrap")).toBe("nowrap");
     expect(declaration(regles.at(-1)!, "flex-wrap")).toBe("wrap");
@@ -160,5 +160,30 @@ describe("Vérifier : trois gestes sur une ligne, l'annulation en lien (correcti
     expect(regles.some((corps) => declaration(corps, "color") === "var(--ln-link)")).toBe(true);
     expect(regles.some((corps) => declaration(corps, "text-decoration") === "underline")).toBe(true);
     expect(regles.some((corps) => declaration(corps, "border") === "0")).toBe(true);
+  });
+});
+
+/** Correction 1 : le panneau des filtres du Catalogue était crème sur crème en hybride.
+ *
+ *  L'intégration continue ne lance pas Playwright : ce contrôle-ci garde la règle dans `pnpm
+ *  check`, là où le contrôle de contraste réel ne va pas. */
+describe("Hybride : un panneau de contenu qui sert aussi de panneau de titre (correction 1)", () => {
+  it("pose le fond graphite sous le texte clair, dans la feuille de base", () => {
+    const regles = reglesPour(FEUILLES.base, '[data-theme="hybrid"] .ln-panneau.ln-panneau-titre');
+    expect(regles.length, "la combinaison des deux panneaux est tranchée").toBeGreaterThan(0);
+    expect(regles.some((corps) => declaration(corps, "background") === "var(--ln-heading-panel)")).toBe(true);
+  });
+
+  it("donne au panneau de titre le texte clair qui va avec ce fond", () => {
+    const regles = reglesPour(FEUILLES.base, '[data-theme="hybrid"] .ln-panneau-titre');
+    expect(regles.some((corps) => declaration(corps, "color") === "var(--ln-heading-text)")).toBe(true);
+  });
+
+  it("ne laisse aucun écran réaffirmer ce fond de son côté", () => {
+    // Deux endroits qui décident la même couleur, c'est l'un des deux qui finit par l'oublier.
+    for (const [nom, feuille] of Object.entries(FEUILLES)) {
+      if (nom === "base") continue;
+      expect(sansCommentaires(feuille), nom).not.toMatch(/\.ln-panneau-titre\s*\{[^}]*--ln-heading-panel/);
+    }
   });
 });

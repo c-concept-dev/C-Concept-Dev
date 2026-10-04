@@ -8,8 +8,9 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "test": "vitest run --maxWorkers=2",
+    "typecheck": "tsc --noEmit",
+    "mesures": "vitest run --config vitest.mesures.config.ts"
   },
   "dependencies": {
     "@lienotheque/contrats": "workspace:*",

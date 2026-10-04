@@ -31,6 +31,7 @@ describe("fidélité au kit UI v1.1", () => {
   });
 
   it("les icônes de l'application tiennent dans la grille du kit", () => {
+    // Même grille de 24, mêmes commandes de tracé : rien qui jure à côté d'une icône du kit.
     for (const [nom, chemin] of Object.entries(CHEMINS_APPLICATION)) {
       expect(chemin, nom).toMatch(/^[MmLlHhVvCcSsQqTtAaZz0-9 .,-]+$/);
       for (const nombre of chemin.match(/-?\d+(\.\d+)?/g) ?? []) expect(Math.abs(Number(nombre)), `${nom} : ${nombre}`).toBeLessThanOrEqual(24);

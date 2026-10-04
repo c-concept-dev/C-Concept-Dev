@@ -1,116 +1,109 @@
-import { ElementAffiche, VueBibliotheque, type PageAffichee } from "@lienotheque/contrats";
+import { VueBibliotheque } from "@lienotheque/contrats";
 
-/** Jeu de démonstration des écrans du lot C. Développement seulement — `?demonstration` dans
- *  l'adresse, jamais dans la construction de production (voir vue.ts).
+/** Jeu de démonstration des écrans (B5).
  *
- *  Aucune œuvre, aucun titre réel : des numéros et des mots du schéma. Le but est de faire
- *  travailler les écrans, pas de montrer un contenu. */
+ *  Réservé au mode développement et à l'adresse `?demonstration` : une bibliothèque réelle vient
+ *  du dépôt, jamais d'ici. Il sert à montrer les écrans sans rien importer, et à les éprouver
+ *  dans les trois moteurs là où les fixtures sous droits sont absentes.
+ *
+ *  Ce fichier est dans `donnees/` : c'est la seule zone où un mot de métier est admis, parce que
+ *  ce sont des données et non du code (CLA-01). */
 
-const ID = "0190f0a0-0000-7000-8000-0000000000c1";
-const empreinte = (n: number): string => (n % 256).toString(16).padStart(2, "0").repeat(32);
+const ID = (n: number): string => `0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c${String(n).padStart(2, "0")}`;
+const EMPREINTE = (n: number): string => String(n).padStart(64, "0");
 
-const element = (n: number, page: number, options: Partial<ElementAffiche> = {}): ElementAffiche =>
-  ElementAffiche.parse({
-    ancreId: `0190f0a0-0000-7000-8000-${String(900 + n).padStart(12, "0")}`,
-    numero: String(n),
-    page,
-    zone: { x: 0.1, y: 0.12 + ((n % 4) * 0.2), l: 0.8, h: 0.16 },
-    ...options,
-  });
+const TITRES = ["Lecture simple", "Gammes en legato", "Lecture et articulation", "Études rythmiques", "Nuances et phrasé", "Jeu lié et détaché"];
 
-const avecMedia = (n: number, page: number, piste: number, debut: number, fin: number, confiance: number, preuve: "lu" | "sequence" | "nom_de_fichier"): ElementAffiche =>
-  element(n, page, {
-    media: { empreinte: empreinte(n), nom: `piste-${String(piste).padStart(2, "0")}.mp3`, piste, position: { segment: "connu", debut, fin, confiance }, duree: fin + 25 },
-    pourquoi: {
-      preuve,
-      confiance,
-      phrase:
-        preuve === "lu"
-          ? `Numéro lu sur la page et pastille présente en marge : piste ${piste}.`
-          : preuve === "sequence"
-            ? `Position déduite de la suite des pistes : piste ${piste}.`
-            : `Numéro trouvé dans le nom du fichier : piste ${piste}.`,
-    },
-    aVerifier: confiance < 0.8,
-  });
+const page = (numero: number, rang: number) => {
+  const premier = 397 + rang * 3;
+  return {
+    numero,
+    titre: TITRES[rang],
+    elements: [0, 1, 2].map((decalage) => {
+      const numeroElement = premier + decalage;
+      const douteux = numeroElement === 405 || numeroElement === 407;
+      return {
+        ancreId: ID(numeroElement - 390),
+        numero: String(numeroElement),
+        page: numero,
+        zone: { x: 0.07, y: 0.18 + decalage * 0.26, l: 0.86, h: 0.2 },
+        media: {
+          empreinte: EMPREINTE(numeroElement - 360),
+          nom: `Piste ${numeroElement - 360}.mp3`,
+          piste: numeroElement - 360,
+          position:
+            decalage === 0
+              ? { segment: "connu" as const, debut: 0, fin: 23, confiance: 0.9 }
+              : { segment: "inconnu" as const },
+        },
+        pourquoi: {
+          preuve: decalage === 0 ? ("lu" as const) : ("sequence" as const),
+          confiance: douteux ? 0.55 : decalage === 0 ? 1 : 0.75,
+          phrase:
+            decalage === 0
+              ? `Repère « Piste ${numeroElement - 360} » lu à côté du numéro`
+              : "Repère partiellement lu, déduit de la séquence",
+        },
+        aVerifier: douteux,
+      };
+    }),
+    texte: [
+      "Ces exercices visent à développer une lecture fluide et une articulation précise.",
+      "Jouer lentement, en respectant les liaisons et les valeurs,",
+      "puis augmenter progressivement le tempo.",
+    ],
+    traduction: ["These exercises aim to develop fluent reading and precise articulation."],
+  };
+};
 
-const page = (numero: number, elements: readonly ElementAffiche[], texte: readonly string[]): PageAffichee => ({
-  numero,
-  elements: [...elements],
-  texte: [...texte],
-  traduction: [],
-});
+const pages = [125, 126, 127, 128, 129, 130].map((numero, rang) => page(numero, rang));
+
+const douteux = pages
+  .flatMap((p) => p.elements)
+  .filter((element) => element.aVerifier)
+  .map((element, rang) => ({
+    id: ID(80 + rang),
+    nature: "lien" as const,
+    etat: (rang === 0 ? "confiance" : "conflit_appareils") as "confiance" | "conflit_appareils",
+    element,
+    proposition: `élément ${element.numero} → piste ${element.media.piste}`,
+    motif: "repère partiellement lu, déduit de la séquence",
+  }));
 
 export const VUE_DEMONSTRATION = VueBibliotheque.parse({
-  id: ID,
-  nom: "Bibliothèque de démonstration",
+  id: ID(1),
+  nom: "Méthode d’instrument",
   mots: {
     element: { un: "élément", plusieurs: "éléments" },
     piste: { un: "piste", plusieurs: "pistes" },
     page: { un: "page", plusieurs: "pages" },
   },
   compteurs: [
-    { nombre: 3, mot: "pages" },
-    { nombre: 7, mot: "éléments" },
-    { nombre: 5, mot: "pistes" },
+    { nombre: 412, mot: "éléments" },
+    { nombre: 380, mot: "liens" },
   ],
-  aVerifier: 2,
+  aVerifier: douteux.length,
   filtres: [
     {
-      cle: "etat",
-      nom: "État",
+      cle: "style",
+      nom: "Style",
       valeurs: [
-        { cle: "valide", nom: "Validé", nombre: 5 },
-        { cle: "a_verifier", nom: "À vérifier", nombre: 2 },
+        { cle: "lecture", nom: "Lecture", nombre: 128 },
+        { cle: "articulation", nom: "Articulation", nombre: 96 },
+        { cle: "expression", nom: "Expression", nombre: 72 },
       ],
     },
     {
-      cle: "preuve",
-      nom: "Pourquoi",
+      cle: "niveau",
+      nom: "Niveau",
       valeurs: [
-        { cle: "lu", nom: "Numéro lu", nombre: 4 },
-        { cle: "sequence", nom: "Suite des pistes", nombre: 2 },
-        { cle: "nom_de_fichier", nom: "Nom du fichier", nombre: 1 },
+        { cle: "debutant", nom: "Débutant", nombre: 146 },
+        { cle: "intermediaire", nom: "Intermédiaire", nombre: 184 },
+        { cle: "avance", nom: "Avancé", nombre: 82 },
       ],
     },
-    {
-      cle: "media",
-      nom: "Média",
-      valeurs: [
-        { cle: "avec", nom: "Avec média", nombre: 6 },
-        { cle: "sans", nom: "Sans média", nombre: 1 },
-      ],
-    },
+    { cle: "audio", nom: "Avec audio", valeurs: [{ cle: "oui", nom: "Oui", nombre: 380 }, { cle: "non", nom: "Sans audio", nombre: 32 }] },
   ],
-  pages: [
-    page(
-      12,
-      [avecMedia(188, 12, 13, 0, 42, 0.93, "lu"), avecMedia(189, 12, 14, 0, 51, 0.71, "sequence")],
-      ["Exercice en deux temps", "Garder le tempo au métronome", "Reprendre la mesure 4"],
-    ),
-    page(
-      13,
-      [avecMedia(190, 13, 15, 0, 38, 0.88, "lu"), avecMedia(191, 13, 16, 12, 64, 0.64, "nom_de_fichier"), element(192, 13)],
-      ["Variante sur deux octaves", "Lier les deux dernières notes"],
-    ),
-    page(14, [avecMedia(193, 14, 17, 0, 47, 0.9, "lu"), avecMedia(194, 14, 18, 0, 55, 0.85, "sequence")], ["Enchaîner sans reprendre souffle"]),
-  ],
-  douteux: [
-    {
-      id: "0190f0a0-0000-7000-8000-000000000d01",
-      nature: "lien",
-      etat: "confiance",
-      element: avecMedia(189, 12, 14, 0, 51, 0.71, "sequence"),
-      proposition: "Relier à la piste 14, du début à 51 s",
-      motif: "Le numéro lu en marge et la suite des pistes ne disent pas la même chose.",
-    },
-    {
-      id: "0190f0a0-0000-7000-8000-000000000d02",
-      nature: "lien",
-      etat: "segment_inconnu",
-      element: avecMedia(191, 13, 16, 12, 64, 0.64, "nom_de_fichier"),
-      proposition: "Relier à la piste 16, de 12 s à 1 min 04 s",
-      motif: "Le segment a été trouvé au silence le plus proche, pas sur un repère.",
-    },
-  ],
+  pages,
+  douteux,
 });

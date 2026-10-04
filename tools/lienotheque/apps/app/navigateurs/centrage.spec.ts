@@ -21,6 +21,11 @@ async function poser(page: Page, theme: "light" | "hybrid"): Promise<void> {
   );
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Liénothèque" })).toBeVisible();
+  // Les polices changent les largeurs : on ne mesure qu'une fois la page posée.
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+    await new Promise((suite) => requestAnimationFrame(() => requestAnimationFrame(suite)));
+  });
 }
 
 for (const theme of ["light", "hybrid"] as const) {

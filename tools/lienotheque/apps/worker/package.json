@@ -6,7 +6,7 @@
   "description": "Squelette de l'API Liénothèque (Hono). Lot 0 : route de santé, aucun déploiement.",
   "exports": { ".": "./src/index.ts" },
   "scripts": {
-    "test": "vitest run",
+    "test": "vitest run --maxWorkers=2",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

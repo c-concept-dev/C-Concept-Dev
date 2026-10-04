@@ -2,8 +2,13 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { chargerRecette, comparer, lireEtInterpreter, mediasDuDossier, pagesEnGris, rejouer, releverCoucheTexte } from "../src/index.js";
+import { coin, ouvrirCache } from "@lienotheque/cache";
+import { chargerRecette, comparer, interpreter, lireLot, mediasDuDossier, rejouer, releverCoucheTexte } from "../src/index.js";
 import { tesseractDisponible } from "@lienotheque/lecteur-texte";
+
+/** Lire trois cents pages prend un quart d'heure : on garde les lectures entre deux exécutions.
+ *  Le cache ne contient que des numéros et des positions — rien du document lui-même. */
+const CACHE = coin(ouvrirCache({ avertir: (message) => console.warn(message) }), "lectures");
 
 /** Banc d'essai (OUT-15) : rejoue les fixtures et compare à la référence.
  *
@@ -56,7 +61,7 @@ describe("rejeu de F3, méthode numérisée (OUT-15, REC-06, critère F3)", () =
     "relie les 95 éléments à la bonne piste, repère les deux pages absentes et les six médias sans page",
     async () => {
       const reference = JSON.parse(readFileSync(REFERENCE_F3, "utf8")) as Reference;
-      const { resultat, association } = await rejouer(F3, F3_MEDIAS, RECETTE);
+      const { resultat, association } = await rejouer(F3, F3_MEDIAS, RECETTE, { cache: CACHE });
 
       const score = comparer(
         resultat.lignes,
@@ -92,9 +97,9 @@ describe("rejeu de F3, méthode numérisée (OUT-15, REC-06, critère F3)", () =
     "rejoué deux fois, rend exactement le même résultat (REC-02)",
     async () => {
       // Quatre pages suffisent à éprouver le déterminisme de bout en bout, OCR compris.
-      const pages = await pagesEnGris(F3, 4);
-      const premier = lireEtInterpreter(pages, RECETTE);
-      const second = lireEtInterpreter(pages, RECETTE);
+      const lues = await lireLot(F3, RECETTE, { pages: 4, cache: CACHE });
+      const premier = interpreter(lues, RECETTE);
+      const second = interpreter(lues, RECETTE);
       expect(JSON.stringify(second)).toBe(JSON.stringify(premier));
       expect(premier.lignes.length).toBeGreaterThan(8);
     },
@@ -113,4 +118,16 @@ describe("rejeu de F3, méthode numérisée (OUT-15, REC-06, critère F3)", () =
     },
     600_000,
   );
+});
+
+describe("cache de lecture (décision 4)", () => {
+  it("désigne le document et la recette, et change si l'un des deux change", async () => {
+    const { clefDeLecture } = await import("../src/index.js");
+    if (!existsSync(F3)) return;
+    const v2 = RECETTE;
+    const v1 = chargerRecette(JSON.parse(readFileSync(join(RACINE, "fixtures/recettes/methode-pastille-piste.v1.json"), "utf8")));
+    expect(clefDeLecture(F3, v2)).toBe(clefDeLecture(F3, v2));
+    expect(clefDeLecture(F3, v1), "une autre version de recette, une autre lecture").not.toBe(clefDeLecture(F3, v2));
+    expect(clefDeLecture(F3, v2, 4), "un lot tronqué n'est pas le lot entier").not.toBe(clefDeLecture(F3, v2));
+  });
 });

@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Banc d'universalité (CLA-12) et garde-fou du vocabulaire de domaine (CLA-01).",
   "scripts": {
-    "test": "vitest run",
+    "test": "vitest run --maxWorkers=2",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": { "@lienotheque/contrats": "workspace:*" },

@@ -1,170 +1,228 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
-import { VUE_DEMONSTRATION } from "../src/donnees/vue-demonstration.js";
+import { VueBibliotheque } from "@lienotheque/contrats";
 import { Lecteur } from "../src/pages/Lecteur.js";
-import { TEMPO_MIN } from "../src/pages/lecteur/raccourcis.js";
+import { LEGENDE, actionDe, tempoSuivant } from "../src/pages/lecteur/raccourcis.js";
 
-/** Lecteur (B1, UX-01) et corrections 2, 4 et 5 du deuxième passage. */
+const ID = (n: number): string => `6f0d7b18-5a2c-4c5e-9f3a-1d7b2e8c4a${String(n).padStart(2, "0")}`;
+const EMPREINTE = "a".repeat(64);
 
-const VUE = VUE_DEMONSTRATION;
-const PREMIER = VUE.pages[0]!.elements[0]!;
+/** Une vue de bibliothèque dont les mots ne sont pas ceux d'une méthode de musique : si l'écran
+ *  les affiche, c'est qu'il les prend bien du schéma et non de son code (CLA-01). */
+const VUE = VueBibliotheque.parse({
+  id: ID(1),
+  nom: "Recueil de procédures",
+  mots: {
+    element: { un: "clause", plusieurs: "clauses" },
+    piste: { un: "plage", plusieurs: "plages" },
+    page: { un: "feuillet", plusieurs: "feuillets" },
+  },
+  compteurs: [{ nombre: 3, mot: "clauses" }],
+  aVerifier: 1,
+  pages: [
+    {
+      numero: 126,
+      elements: [{ ancreId: ID(10), numero: "399", page: 126, aVerifier: false }],
+      texte: [],
+      traduction: [],
+    },
+    {
+      numero: 127,
+      titre: "Lecture et articulation",
+      elements: [
+        {
+          ancreId: ID(11),
+          numero: "400",
+          page: 127,
+          zone: { x: 0.08, y: 0.2, l: 0.84, h: 0.14 },
+          media: { empreinte: EMPREINTE, nom: "Plage 40.mp3", piste: 40, position: { segment: "connu", debut: 0, fin: 23, confiance: 0.9 } },
+          pourquoi: { preuve: "lu", confiance: 1, phrase: "Repère « Plage 40 » lu à côté du numéro" },
+          aVerifier: false,
+        },
+        {
+          ancreId: ID(12),
+          numero: "401",
+          page: 127,
+          zone: { x: 0.08, y: 0.4, l: 0.84, h: 0.14 },
+          media: { empreinte: EMPREINTE, nom: "Plage 41.mp3", piste: 41, position: { segment: "inconnu" } },
+          pourquoi: { preuve: "sequence", confiance: 0.7, phrase: "Déduit de la suite des plages" },
+          aVerifier: false,
+        },
+      ],
+      texte: ["Ces clauses visent à développer une lecture fluide.", "Jouer lentement, en respectant les liaisons."],
+      traduction: ["These clauses aim to develop fluent reading."],
+    },
+  ],
+  douteux: [],
+});
 
-function poser(options: { page?: number; ancreId?: string } = {}) {
+function poser(element = ID(11)) {
   const pages: number[] = [];
   const elements: string[] = [];
   const rendu = render(
-    <Lecteur
-      vue={VUE}
-      page={options.page ?? VUE.pages[0]!.numero}
-      {...(options.ancreId === undefined ? {} : { ancreId: options.ancreId })}
-      onPage={(numero) => pages.push(numero)}
-      onElement={(ancreId) => elements.push(ancreId)}
-    />,
+    <Lecteur vue={VUE} page={127} element={element} onPage={(n) => pages.push(n)} onElement={(a) => elements.push(a)} />,
   );
-  return { rendu, pages, elements };
+  return { ...rendu, pages, elements };
 }
 
-describe("Lecteur : la page, l'écoute et le fil entre les deux (B1)", () => {
-  it("annonce le chemin « Accueil › bibliothèque › Lecteur »", () => {
+describe("Lecteur : la page et ses éléments (B1, UX-01)", () => {
+  it("emploie les mots de la bibliothèque, jamais les siens (CLA-01)", () => {
     poser();
-    const fil = screen.getByRole("navigation", { name: /ariane/i });
-    expect(within(fil).getByRole("link", { name: "Accueil" })).toBeInTheDocument();
-    expect(within(fil).getByRole("link", { name: VUE.nom })).toBeInTheDocument();
-    expect(within(fil).getByText("Lecteur")).toHaveAttribute("aria-current", "page");
+    expect(screen.getAllByText(/feuillet 127/i).length).toBeGreaterThan(0);
+    expect(screen.getByRole("navigation", { name: /feuillets du document/i })).toBeInTheDocument();
+    expect(screen.queryByText(/\bpage 127\b/i), "le mot « page » ne vient pas du code").not.toBeInTheDocument();
   });
 
-  it("titre la page avec le mot du schéma en majuscule (correction 4)", () => {
-    poser({ page: 12 });
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Page 12");
-  });
-
-  it("nomme le segment « Piste 13 · Segment proposé » (correction 4)", () => {
+  it("montre le fil d’Ariane « Accueil › bibliothèque › feuillet »", () => {
     poser();
-    expect(screen.getByRole("heading", { level: 2, name: /^Piste 13 · Segment proposé$/ })).toBeInTheDocument();
+    const ariane = screen.getByRole("navigation", { name: /fil d’ariane/i });
+    expect(within(ariane).getByRole("link", { name: "Accueil" })).toBeInTheDocument();
+    expect(within(ariane).getByRole("link", { name: "Recueil de procédures" })).toBeInTheDocument();
   });
 
-  it("n'a qu'un seul élément cuivre plein (UX-09)", () => {
-    const { rendu } = poser();
-    expect(rendu.container.querySelectorAll(".ln-btn--principal")).toHaveLength(1);
-  });
-});
-
-describe("Lecteur : les zones de la page portent un cadre (correction 5)", () => {
-  it("dessine une zone par élément repéré, à sa place en parts de la page", () => {
-    const { rendu } = poser();
-    const zones = [...rendu.container.querySelectorAll<HTMLElement>(".ln-page__zone")];
-    expect(zones).toHaveLength(VUE.pages[0]!.elements.length);
-    expect(zones[0]!.style.left).toBe("10%");
-    expect(zones[0]!.style.width).toBe("80%");
+  it("dit où l’on est dans la page : l’élément tant sur tant", () => {
+    poser(ID(12));
+    // Le rang est coupé par les « strong » du compte : on relit la phrase entière.
+    const rang = screen.getByText((_, noeud) => noeud?.className === "ln-lecteur__rang");
+    expect(rang.textContent).toMatch(/Clause\s*2\s*sur\s*2/);
   });
 
-  it("marque l'active, et elle seule", () => {
-    const { rendu } = poser({ ancreId: VUE.pages[0]!.elements[1]!.ancreId });
-    const actives = [...rendu.container.querySelectorAll(".ln-page__zone--actif")];
+  it("surligne la zone de l’élément actif, et elle seule", () => {
+    poser(ID(12));
+    const zones = screen.getAllByRole("button", { name: /^Clause \d+/ });
+    const actives = zones.filter((zone) => zone.getAttribute("aria-current") === "true");
     expect(actives).toHaveLength(1);
-    expect(actives[0]).toHaveAttribute("aria-label", expect.stringContaining("Élément 189"));
+    expect(actives[0]).toHaveAccessibleName(/Clause 401/);
   });
 
-  it("ouvre l'élément qu'on désigne sur la page", async () => {
+  it("marque les feuillets reliés dans la bande des vignettes", () => {
+    poser();
+    expect(screen.getByRole("button", { name: /feuillet 127, avec des clauses/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^feuillet 126$/i })).toBeInTheDocument();
+  });
+
+  it("navigue d’un élément à l’autre à la souris", async () => {
     const { elements } = poser();
-    await userEvent.click(screen.getByRole("button", { name: /Élément 189/ }));
-    expect(elements).toEqual([VUE.pages[0]!.elements[1]!.ancreId]);
+    await userEvent.click(screen.getByRole("button", { name: /^suivant : clause$/i }));
+    expect(elements).toContain(ID(12));
   });
 });
 
-describe("Lecteur : la forme d'onde situe le segment (correction 5)", () => {
-  it("met en cuivre les barres du segment et laisse les autres en gris", () => {
-    const { rendu } = poser({ ancreId: VUE.pages[1]!.elements[1]!.ancreId });
-    const barres = [...rendu.container.querySelectorAll(".ln-onde__barre")];
-    const dedans = barres.filter((barre) => barre.classList.contains("ln-onde__barre--actif"));
-    expect(dedans.length).toBeGreaterThan(0);
-    expect(dedans.length).toBeLessThan(barres.length);
+describe("Lecteur : écoute et segment (ANC-03)", () => {
+  it("nomme la plage par son numéro, jamais au pluriel", () => {
+    poser(ID(11));
+    expect(screen.getByText("Plage 40")).toBeInTheDocument();
+    expect(screen.queryByText(/plages 40/i)).not.toBeInTheDocument();
   });
 
-  it("dessine la même onde deux fois de suite : un son qui n'a pas changé ne change pas de forme", () => {
-    const premier = poser();
-    const formes = (rendu: { container: HTMLElement }) =>
-      [...rendu.container.querySelectorAll(".ln-onde__barre")].map((barre) => barre.getAttribute("height"));
-    const avant = formes(premier.rendu);
-    premier.rendu.unmount();
-    expect(formes(poser().rendu)).toEqual(avant);
+  it("annonce un segment inconnu et dit où la lecture commencera", () => {
+    poser(ID(12));
+    expect(screen.getByText(/segment inconnu/i)).toBeInTheDocument();
+    expect(screen.getByText(/commence au début/i)).toBeInTheDocument();
   });
-});
 
-describe("Lecteur : les commandes montrent ce qu'elles font (correction 2)", () => {
-  it("donne un nom et une icône aux boutons de zoom", () => {
+  it("ne l’annonce pas quand le segment est connu", () => {
+    poser(ID(11));
+    expect(screen.queryByText(/segment inconnu/i)).not.toBeInTheDocument();
+  });
+
+  it("montre le tempo, de 50 à 100 %, hauteur conservée", () => {
     poser();
-    for (const nom of ["Réduire", "Agrandir", "Ajuster à la fenêtre"]) {
-      const bouton = screen.getByRole("button", { name: nom });
-      expect(bouton.querySelector(".ln-icone"), nom).not.toBeNull();
-    }
-  });
-
-  it("donne un nom et une icône aux boutons d'élément précédent et suivant", () => {
-    poser();
-    for (const nom of ["Précédent", "Suivant"]) {
-      const bouton = screen.getByRole("button", { name: nom });
-      expect(bouton.querySelector(".ln-icone"), nom).not.toBeNull();
-    }
-  });
-
-  it("pose le numéro de vignette sur son propre panneau, pour qu'il ne tombe pas sur la photo", () => {
-    const { rendu } = poser();
-    const numeros = [...rendu.container.querySelectorAll(".ln-vignette__numero")];
-    expect(numeros).toHaveLength(VUE.pages.length);
-    for (const numero of numeros) expect(numero.classList.contains("ln-sur-photo")).toBe(true);
+    const tempo = screen.getByRole("slider", { name: /tempo/i });
+    expect(tempo).toHaveAttribute("min", "50");
+    expect(tempo).toHaveAttribute("max", "100");
+    expect(screen.getByText(/hauteur conservée/i)).toBeInTheDocument();
   });
 });
 
-describe("Lecteur : clavier et déplacement d'élément (UX-01, A3)", () => {
-  it("passe à l'élément suivant avec la flèche droite", async () => {
+describe("Lecteur : pourquoi ce lien (ANC-02)", () => {
+  it("dit la confiance et la raison, en toutes lettres", () => {
+    poser(ID(11));
+    expect(screen.getByRole("heading", { name: /pourquoi ce lien/i })).toBeInTheDocument();
+    expect(screen.getByText(/confiance haute/i)).toBeInTheDocument();
+    expect(screen.getByText(/repère « plage 40 » lu/i)).toBeInTheDocument();
+  });
+
+  it("baisse le ton quand la piste est déduite", () => {
+    poser(ID(12));
+    expect(screen.getByText(/confiance moyenne/i)).toBeInTheDocument();
+    expect(screen.getByText(/déduit de la suite/i)).toBeInTheDocument();
+  });
+});
+
+describe("Lecteur : texte de la page (B1)", () => {
+  it("se replie et se déplie", async () => {
+    poser();
+    const entete = screen.getByRole("button", { name: /texte de la page/i });
+    expect(entete).toHaveAttribute("aria-expanded", "true");
+    await userEvent.click(entete);
+    expect(entete).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("bascule entre original et traduction, sans cuivre plein", async () => {
+    poser();
+    const original = screen.getByRole("button", { name: "Original" });
+    expect(original).toHaveAttribute("aria-pressed", "true");
+    await userEvent.click(screen.getByRole("button", { name: "Traduction" }));
+    expect(screen.getByRole("button", { name: "Traduction" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText(/these clauses aim/i)).toBeInTheDocument();
+  });
+});
+
+describe("Lecteur : raccourcis (B1)", () => {
+  it("la ligne annoncée et les touches écoutées ne divergent pas", () => {
+    poser();
+    for (const entree of LEGENDE) expect(screen.getByText(entree.touches)).toBeInTheDocument();
+  });
+
+  it("← et → changent d’élément", async () => {
     const { elements } = poser();
     await userEvent.keyboard("{ArrowRight}");
-    expect(elements).toEqual([VUE.pages[0]!.elements[1]!.ancreId]);
+    expect(elements).toContain(ID(12));
   });
 
-  it("traverse les pages : le dernier élément d'une page mène au premier de la suivante", async () => {
-    const dernier = VUE.pages[0]!.elements.at(-1)!;
-    const { elements, pages } = poser({ ancreId: dernier.ancreId });
-    await userEvent.keyboard("{ArrowRight}");
-    expect(elements).toEqual([VUE.pages[1]!.elements[0]!.ancreId]);
-    expect(pages).toEqual([VUE.pages[1]!.numero]);
-  });
-
-  it("ne sort pas de la suite : la flèche gauche sur le premier élément ne fait rien", async () => {
-    const { elements, pages } = poser({ ancreId: PREMIER.ancreId });
-    await userEvent.keyboard("{ArrowLeft}");
-    expect(elements).toEqual([]);
-    expect(pages).toEqual([]);
-  });
-
-  it("change le tempo avec [ et ], sans descendre sous la borne", async () => {
+  it("[ et ] changent le tempo, sans sortir des bornes", async () => {
     poser();
-    // « [[ » est la façon d'écrire un crochet littéral dans la syntaxe du clavier simulé.
-    const valeur = () => within(screen.getByRole("group", { name: "Tempo" })).getByRole("status").textContent;
-    await userEvent.keyboard("[[");
-    expect(valeur()).toContain("95");
-    for (let coup = 0; coup < 20; coup += 1) await userEvent.keyboard("[[");
-    expect(valeur()).toContain(String(TEMPO_MIN));
-    await userEvent.keyboard("]");
-    expect(valeur()).toContain(String(TEMPO_MIN + 5));
+    const tempo = () => (screen.getByRole("slider", { name: /tempo/i }) as HTMLInputElement).value;
+    expect(tempo()).toBe("75");
+    await userEvent.keyboard("{]}{]}{]}{]}{]}{]}");
+    expect(tempo(), "la borne haute tient").toBe("100");
+    await userEvent.keyboard("{[}{[}");
+    expect(tempo()).toBe("90");
+  }, 20_000);
+
+  it("D annonce le mode à distance", async () => {
+    poser();
+    expect(screen.queryByText(/mode à distance actif/i)).not.toBeInTheDocument();
+    await userEvent.keyboard("d");
+    expect(screen.getByText(/mode à distance actif/i)).toBeInTheDocument();
   });
 
-  it("lance et arrête l'écoute avec la barre d'espace", async () => {
+  it("ne vole pas les touches de quelqu’un qui écrit une note", async () => {
     poser();
-    expect(screen.getByRole("button", { name: "Écouter" })).toBeInTheDocument();
-    await userEvent.keyboard(" ");
-    expect(screen.getByRole("button", { name: "Pause" })).toBeInTheDocument();
+    const note = screen.getByRole("textbox", { name: /note — clause/i });
+    await userEvent.click(note);
+    await userEvent.type(note, "l");
+    expect((note as HTMLTextAreaElement).value).toBe("l");
+  });
+});
+
+describe("raccourcis : les règles, sans écran", () => {
+  it("rend l’action d’une touche connue", () => {
+    expect(actionDe(" ", null)).toBe("lecture");
+    expect(actionDe("L", null)).toBe("boucle");
+    expect(actionDe("x", null)).toBeUndefined();
   });
 
-  it("laisse écrire : une touche frappée dans un champ ne commande pas le lecteur", async () => {
-    poser();
-    const champ = document.createElement("input");
-    document.body.append(champ);
-    champ.focus();
-    await userEvent.keyboard(" ");
-    expect(screen.getByRole("button", { name: "Écouter" })).toBeInTheDocument();
-    champ.remove();
+  it("se tait dans un champ de saisie", () => {
+    const champ = document.createElement("textarea");
+    expect(actionDe(" ", champ)).toBeUndefined();
+  });
+
+  it("le tempo reste entre 50 et 100, par pas de 5", () => {
+    expect(tempoSuivant(75, 1)).toBe(80);
+    expect(tempoSuivant(100, 1)).toBe(100);
+    expect(tempoSuivant(50, -1)).toBe(50);
   });
 });

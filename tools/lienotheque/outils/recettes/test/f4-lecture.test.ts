@@ -3,7 +3,13 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { tesseractDisponible } from "@lienotheque/lecteur-texte";
-import { PRESENCE_MINIMALE, appui, chargerRecette, interpreter, preparerLot, reperer } from "../src/index.js";
+import { coin, ouvrirCache } from "@lienotheque/cache";
+import { PRESENCE_MINIMALE, appui, chargerRecette, interpreter, lireLot, preparerLot, type PageAlire } from "../src/index.js";
+
+/** Redresser et lire 42 clichés prend deux minutes : on garde les lectures entre deux exécutions.
+ *  Le cache ne contient que des numéros et des positions — rien du document lui-même. */
+const CACHE = coin(ouvrirCache({ avertir: (message) => console.warn(message) }), "lectures");
+const LOT = { pages: 42, cache: CACHE } as const;
 
 /** Lecture de F4, méthode photographiée en doubles pages (A2).
  *
@@ -22,7 +28,9 @@ describe("préparation du lot selon la recette (OUT-03, A2)", () => {
   siF4(
     "rend deux pages par cliché, chacune sachant son côté et son rang",
     async () => {
-      const pages = await preparerLot(F4, RECETTE, { pages: 3 });
+      // La préparation est un flux : on le rassemble ici, trois pages tiennent en mémoire.
+      const pages: PageAlire[] = [];
+      for await (const page of preparerLot(F4, RECETTE, { pages: 3 })) pages.push(page);
       expect(pages).toHaveLength(6);
       expect(pages.map((page) => page.cote)).toEqual(["gauche", "droite", "gauche", "droite", "gauche", "droite"]);
       expect(pages.map((page) => page.rang)).toEqual([0, 1, 2, 3, 4, 5]);
@@ -37,8 +45,7 @@ describe("lecture d'une double page de F4 (OUT-07, A2)", () => {
     "lit les numéros sans libellé, dans la marge extérieure de chaque page",
     async () => {
       // Clichés 39 à 41 : les pages imprimées 78 à 83, que l'on sait porter 179 à 193.
-      const pages = (await preparerLot(F4, RECETTE, { pages: 42 })).slice(78, 84);
-      const lues = reperer(pages, RECETTE);
+      const lues = (await lireLot(F4, RECETTE, LOT)).slice(78, 84);
 
       const numeros = lues.flatMap((page) => page.elements.map((element) => element.numero));
       for (const attendu of [184, 185, 186, 187, 189, 190, 191, 192, 193])
@@ -50,8 +57,7 @@ describe("lecture d'une double page de F4 (OUT-07, A2)", () => {
   siF4(
     "trouve la pastille sous le numéro et lit son chiffre, étiquette de disque comprise",
     async () => {
-      const pages = (await preparerLot(F4, RECETTE, { pages: 42 })).slice(80, 82);
-      const lues = reperer(pages, RECETTE);
+      const lues = (await lireLot(F4, RECETTE, LOT)).slice(80, 82);
       const parNumero = new Map(lues.flatMap((page) => page.elements).map((element) => [element.numero, element]));
 
       // Sur ces deux pages, trois éléments portent un repère : 187 pour la piste 13, 189 et 191
@@ -87,8 +93,7 @@ describe("lecture d'une double page de F4 (OUT-07, A2)", () => {
   siF4(
     "numérote les pages du cliché, la gauche portant le pair",
     async () => {
-      const pages = (await preparerLot(F4, RECETTE, { pages: 42 })).slice(76, 84);
-      const resultat = interpreter(reperer(pages, RECETTE), RECETTE);
+      const resultat = interpreter((await lireLot(F4, RECETTE, LOT)).slice(76, 84), RECETTE);
 
       const parNumero = new Map(resultat.lignes.map((ligne) => [ligne.numero, ligne.pageImprimee]));
       expect(parNumero.get(187), "187 est sur la page 80, à gauche").toBe(80);
@@ -106,8 +111,7 @@ describe("lecture d'une double page de F4 (OUT-07, A2)", () => {
     "répare un numéro mal lu quand la suite le force",
     async () => {
       // 183 revient parfois en « 13 » : entre 182 et 184 il n'y a qu'une place et qu'un numéro.
-      const pages = (await preparerLot(F4, RECETTE, { pages: 42 })).slice(76, 84);
-      const resultat = interpreter(reperer(pages, RECETTE), RECETTE);
+      const resultat = interpreter((await lireLot(F4, RECETTE, LOT)).slice(76, 84), RECETTE);
       const numeros = resultat.lignes.map((ligne) => ligne.numero);
       expect(numeros).toContain(183);
       expect(numeros, "la suite reste croissante").toEqual([...numeros].sort((a, b) => a - b));

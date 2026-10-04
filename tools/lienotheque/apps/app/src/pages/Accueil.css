@@ -54,13 +54,6 @@
   min-width: 0;
 }
 
-.ln-panneau {
-  background: var(--ln-surface);
-  border: 1px solid var(--ln-border-decorative);
-  border-radius: var(--ln-radius);
-  padding: calc(var(--ln-grid) * 2);
-}
-
 /* Inter, comme tout le reste : seuls le logo et « Bonjour » emploient le serif (charte v3). */
 .ln-accueil__nombre {
   font-size: 56px;

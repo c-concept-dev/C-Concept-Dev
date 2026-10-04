@@ -5,6 +5,6 @@
   "type": "module",
   "description": "Cache de travail sur disque : lectures d'OCR, images intermédiaires, sorties de mesure. Plafonné, nettoyable, jamais dans le dépôt.",
   "exports": { ".": "./src/index.ts" },
-  "scripts": { "test": "vitest run", "typecheck": "tsc --noEmit" },
+  "scripts": { "test": "vitest run --maxWorkers=2", "typecheck": "tsc --noEmit" },
   "devDependencies": { "typescript": "^5.6.0", "vitest": "^3.2.0", "@types/node": "^22.0.0" }
 }

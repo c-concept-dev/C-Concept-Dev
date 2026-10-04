@@ -1,10 +1,11 @@
 import { forwardRef, type JSX } from "react";
 import { nommer, type ElementAffiche, type MotsBibliotheque, type PageAffichee } from "@lienotheque/contrats";
 
-/** La page elle-même, avec les zones de ses éléments (B1, UX-01, correction 5).
+/** La page elle-même, avec les zones de ses éléments (B1, UX-01).
  *
- *  Les zones se disent en parts de la page : le zoom ne les déplace pas. Chacune porte un cadre
- *  fin — on doit voir ce qui est cliquable sans le chercher — et l'active un cadre cuivre. */
+ *  Les zones se disent en parts de la page : le zoom ne les déplace pas. L'élément actif est
+ *  surligné et cadré ; les autres restent discrets, assez pour qu'on les voie sans qu'ils
+ *  disputent la page au document. */
 
 type Props = {
   readonly page: PageAffichee;
@@ -50,7 +51,7 @@ export const PageZoomable = forwardRef<HTMLButtonElement, Props>(function PageZo
               aria-label={nom(element)}
               {...(element.ancreId === actif ? { ref: refZoneActive } : {})}
             >
-              <span className="ln-page__zone-numero">{element.numero}</span>
+              <span className="ln-page__zone-numero ln-sur-photo">{element.numero}</span>
             </button>
           ),
         )}

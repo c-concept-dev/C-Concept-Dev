@@ -9,11 +9,12 @@
     "tauri": "tauri",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest run",
+    "test": "vitest run --maxWorkers=2",
     "test:navigateurs": "playwright test",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@lienotheque/cache": "workspace:*",
     "@lienotheque/contrats": "workspace:*",
     "@lienotheque/jetons": "workspace:*",
     "@tauri-apps/api": "^2.12.1",

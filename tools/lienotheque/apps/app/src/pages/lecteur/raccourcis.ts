@@ -1,7 +1,8 @@
 /** Raccourcis du Lecteur (UX-01, B1).
  *
- *  Déclarés ici, en données, pour que la ligne qui les annonce et le gestionnaire qui les écoute
- *  ne puissent pas diverger. Un raccourci affiché mais inopérant est pire que pas de raccourci. */
+ *  Déclarés ici, en données, pour que la ligne qui les annonce en bas de l'écran et le gestionnaire
+ *  qui les écoute ne puissent pas diverger. Un raccourci affiché mais inopérant est pire que pas de
+ *  raccourci du tout. */
 
 export type Action = "lecture" | "precedent" | "suivant" | "boucle" | "ralentir" | "accelerer" | "distance";
 

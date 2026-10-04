@@ -6,7 +6,7 @@
   "description": "Contrats Zod partagés (CDC normatif v2.0 : ID, JOB, ANC, REC, SYN).",
   "exports": { ".": "./src/index.ts" },
   "scripts": {
-    "test": "vitest run",
+    "test": "vitest run --maxWorkers=2",
     "typecheck": "tsc --noEmit",
     "build": "tsx scripts/export-json-schema.ts"
   },

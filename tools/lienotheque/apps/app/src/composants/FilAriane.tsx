@@ -1,9 +1,10 @@
 import type { JSX } from "react";
 import "./FilAriane.css";
 
-/** Fil d'Ariane (B1 à B4). Le dernier maillon est la page où l'on est : il ne mène nulle part.
+/** Fil d'Ariane (B1 à B4). Le dernier maillon est la page où l'on est : il ne cliquera nulle part.
  *
- *  Une seule implémentation pour tous les écrans, pour qu'aucun n'invente son chemin. */
+ *  Une seule implémentation pour tous les écrans, pour qu'aucun n'invente son chemin : « Accueil ›
+ *  <bibliothèque> › Vérifier », et non « Accueil › <bibliothèque> › Page 127 › Vérifier ». */
 
 export type Maillon = { readonly libelle: string; readonly href?: string };
 

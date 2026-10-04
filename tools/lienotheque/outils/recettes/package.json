@@ -8,7 +8,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "test": "vitest run",
+    "test": "vitest run --maxWorkers=2",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -17,7 +17,8 @@
     "@lienotheque/images": "workspace:*",
     "@lienotheque/lecteur-texte": "workspace:*",
     "zod": "^4.1.13",
-    "@lienotheque/redresseur": "workspace:*"
+    "@lienotheque/redresseur": "workspace:*",
+    "@lienotheque/cache": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.6.0",

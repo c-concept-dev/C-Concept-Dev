@@ -112,6 +112,12 @@ jobs:
         shell: bash
         run: python apps/app/src-tauri/outils/minimum-macos.py --ecrire
 
+      # Les bancs de mesure sont hors de « pnpm check » : ils durent des minutes. Ici on a le
+      # temps, et ils se sautent proprement là où les fixtures sous droits manquent.
+      - name: Relancer les bancs de mesure
+        shell: bash
+        run: pnpm --filter @lienotheque/optimiseur run mesures
+
       - name: Éprouver les quatre critères
         shell: bash
         run: |

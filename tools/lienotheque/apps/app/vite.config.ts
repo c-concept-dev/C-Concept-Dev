@@ -1,6 +1,10 @@
+import { existsSync, readFileSync } from "node:fs";
+import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { emplacementInstantane } from "./emplacement-instantane.js";
 import react from "@vitejs/plugin-react";
 import { feuilleCss } from "@lienotheque/jetons";
+import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Plugin } from "vite";
 import { defineConfig } from "vitest/config";
 import { ID_JETONS } from "./src/jetons-virtuels.js";
@@ -19,8 +23,63 @@ function jetonsCss(): Plugin {
   };
 }
 
+/** Chemin de l'instantané de bibliothèque servi à l'application.
+ *
+ *  Il est produit depuis des fichiers sous droits : il n'a rien à faire dans `public/`, qui est un
+ *  dossier publiable et recopié tel quel dans la construction. Il vit au cache de travail, hors du
+ *  dépôt, et c'est ce greffon qui le sert — en développement comme sur la version construite. */
+const { instantane: INSTANTANE, pages: DOSSIER_PAGES } = emplacementInstantane();
+
+const ADRESSE_INSTANTANE = "/donnees/bibliotheque.json";
+/** Images de page, à côté de l'instantané et servies de la même façon. */
+const ADRESSE_PAGES = "/donnees/pages";
+
+function instantaneServi(): Plugin {
+  const servir = (serveur: { middlewares: { use: (chemin: string, gestion: (requete: unknown, reponse: ServerResponse) => void) => void } }): void => {
+    serveur.middlewares.use(ADRESSE_INSTANTANE, (_requete, reponse) => {
+      if (!existsSync(INSTANTANE)) {
+        // Pas d'instantané : l'application montre l'accueil d'un dépôt vide. Ce n'est pas une
+        // erreur — c'est l'état de quiconque n'a encore rien importé.
+        reponse.statusCode = 404;
+        reponse.end();
+        return;
+      }
+      reponse.setHeader("Content-Type", "application/json; charset=utf-8");
+      reponse.setHeader("Cache-Control", "no-store");
+      reponse.end(readFileSync(INSTANTANE));
+    });
+  };
+  const servirPages = (serveur: { middlewares: { use: (chemin: string, gestion: (requete: IncomingMessage, reponse: ServerResponse) => void) => void } }): void => {
+    serveur.middlewares.use(ADRESSE_PAGES, (requete, reponse) => {
+      // Un nom de fichier, rien d'autre : jamais de chemin qui remonte hors du dossier.
+      const nom = basename((requete.url ?? "").split("?")[0] ?? "");
+      const chemin = join(DOSSIER_PAGES, nom);
+      if (nom === "" || !nom.endsWith(".webp") || !existsSync(chemin)) {
+        reponse.statusCode = 404;
+        reponse.end();
+        return;
+      }
+      reponse.setHeader("Content-Type", "image/webp");
+      reponse.setHeader("Cache-Control", "no-store");
+      reponse.end(readFileSync(chemin));
+    });
+  };
+
+  return {
+    name: "lienotheque:instantane",
+    configureServer: (serveur) => {
+      servir(serveur);
+      servirPages(serveur);
+    },
+    configurePreviewServer: (serveur) => {
+      servir(serveur);
+      servirPages(serveur);
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), jetonsCss()],
+  plugins: [react(), jetonsCss(), instantaneServi()],
   resolve: { alias: { "@kit": KIT } },
   test: {
     environment: "jsdom",

@@ -167,6 +167,16 @@ p {
   color: var(--ln-heading-text);
 }
 
+/* Les deux panneaux se contredisent : `.ln-panneau` pose une carte crème au texte sombre,
+   `.ln-panneau-titre` un texte clair pour le graphite. Sur un même élément, en hybride, le texte
+   clair tombait donc sur la carte crème — crème sur crème, rapport 1,07 (correction 1). C'est le
+   panneau de titre qui gagne : il porte son fond graphite, et le texte clair retrouve le sien.
+   Réaffirmé ici une fois pour toutes, et non dans chaque écran qui combine les deux. */
+[data-theme="hybrid"] .ln-panneau.ln-panneau-titre {
+  background: var(--ln-heading-panel);
+  border-color: transparent;
+}
+
 /* Panneau de contenu : il porte son propre fond, donc son texte ne dépend jamais de ce qu'il y a
    derrière. C'est ce qui rend les écrans lisibles sur la photo comme sur l'ivoire. */
 .ln-panneau {
@@ -297,9 +307,11 @@ p {
   }
 }
 
-/* Contrôles natifs : mêmes dimensions que le kit (grille de 8 px). */
+/* Contrôles natifs de saisie : mêmes dimensions que le kit (grille de 8 px).
+   Les cases et les boutons radio sont exclus : ce ne sont pas des champs. Une hauteur de 40 px
+   leur donnait une rangée de 58 px, et une liste de filtres deux fois trop haute (correction 7). */
 select,
-input,
+input:not([type="checkbox"]):not([type="radio"]),
 textarea {
   min-height: calc(var(--ln-grid) * 5);
   border: 1px solid var(--ln-control-border);

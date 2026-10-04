@@ -598,3 +598,135 @@ Les numéros rétablis par interpolation ou par leur fin portent une confiance r
 dixièmes. Ils restent reliés, mais passent sous le seuil de la recette et vont à « Vérifier » —
 c'est précisément ce que cet écran est là pour recevoir. Le prototype, lui, les comptait
 automatiques.
+
+## Les mots du schéma n'ont pas de genre
+
+Le schéma d'une bibliothèque fournit les mots — « élément », « clause », « diapositive » — au
+singulier et au pluriel, mais pas leur genre. Toute tournure qui en demande un est donc fautive
+dès qu'on change de domaine : « cet élément » devient « cet clause ».
+
+Règle retenue pour tous les écrans : **aucune construction qui demande le genre**. On écrit
+« Note — clause 401 » et non « Note sur cette clause », « Aucun enregistrement relié » et non
+« Cet élément n'a pas d'enregistrement ». Un contrôle du Lecteur monte une bibliothèque dont les
+mots sont féminins (« clause », « plage ») précisément pour que ces fautes apparaissent.
+
+C'est la contrepartie de la règle 1 : si le vocabulaire vient des données, la grammaire qui
+l'entoure doit s'en passer.
+
+## Les écrans : ce que les trois moteurs ont trouvé
+
+Les tests de rendu ne doublent pas les tests de composants : ils mesurent ce que jsdom ignore —
+contrastes réels, fonds calculés, mise en page sous contrainte. Quatre défauts qu'eux seuls
+pouvaient voir.
+
+**Un contrôle qui ne vérifiait rien.** Le test « un seul élément cuivre plein par écran »
+interrogeait `--ln-accent`, une variable qui n'existe pas : il rendait donc toujours un verdict
+favorable. Il lit maintenant `--ln-action-background`, **exige que la couleur existe**, et compte
+exactement un porteur. Un contrôle qui ne trouve pas sa référence doit échouer, jamais passer.
+
+**Du texte posé sur la photo.** En hybride, le titre de la liste et le panneau des filtres
+reposaient directement sur l'image de fond. Corrigé — et la règle de mesure affinée : on ne
+regarde que le texte réellement dessiné par un nœud, car un `li` qui n'enveloppe qu'un bouton
+opaque ne pose rien sur la photo.
+
+**Deux classes qui se marchent dessus.** `ln-panneau` pose une carte crème, `ln-panneau-titre`
+pose les couleurs de texte du graphite. Les combiner donnait un texte clair sur une carte crème :
+contraste insuffisant. Le fond graphite est désormais réaffirmé là où les deux se rencontrent.
+
+**Un numéro au pluriel.** Le panneau d'écoute affichait « pistes 43 ». C'est un numéro, pas un
+compte.
+
+### Mesurer une mise en page demande une machine calme
+
+Trois moteurs en parallèle saturaient la machine, et les mesures vacillaient — un test différent
+échouait à chaque exécution, et tout passait en série. Le parallélisme est donc limité à deux, et
+chaque mesure attend que les polices soient posées avant de lire une largeur. Une minute de plus
+vaut mieux qu'un contrôle qui vacille : un test instable finit toujours par être ignoré.
+
+## Les bancs de mesure sortent de la vérification courante
+
+Deux bancs encodent ou décodent des fichiers entiers : l'échantillon F7 et la justesse du
+découpage. Chacun dure des minutes, et le rapporteur de vitest abandonne quand un seul test occupe
+un ouvrier aussi longtemps — « Timeout calling onTaskUpdate » —, rendant la vérification rouge
+alors que tous les contrôles passent.
+
+Ce ne sont pas des contrôles de non-régression mais des **mesures**. Elles se relancent en les
+demandant (`pnpm --filter @lienotheque/optimiseur run mesures`), le workflow Tauri les relance à
+chaque passage, et leurs résultats sont consignés ici.
+
+Le banc des recettes, lui, reste dans la vérification courante : le cache de lecture l'a ramené de
+quatre minutes à onze secondes. C'est la bonne réponse quand elle est possible — un test de quatre
+minutes finit par être désactivé, et un test désactivé ne protège plus rien.
+
+## Un instantané ne passe pas par `public/`
+
+`public/` est recopié tel quel dans la construction et publié avec elle. L'instantané y était
+écrit, dans un sous-dossier ignoré par Git : le dépôt était protégé, la construction ne l'était
+pas — un `pnpm build` l'emportait dans `dist/`, et avec lui des numéros de page et des empreintes
+tirés d'un document sous droits.
+
+**Retenu : l'instantané et les images de page vivent au cache de travail, et un greffon de Vite les
+sert.** Le même greffon en développement et sur la version construite, à la même adresse ; l'absence
+d'instantané rend un 404, que l'application lit comme un dépôt vide — c'est l'état de quiconque n'a
+rien importé. Un contrôle refuse tout fichier de données dans `public/`, parce que la règle est
+facile à défaire par distraction.
+
+Le jeu de démonstration suit le même chemin : il reste réservé au développement, mais il ne passe
+plus par `public/` non plus.
+
+## Lire un lot en flux, pas en tableau
+
+La préparation d'un lot chargeait toutes les pages décodées avant d'en lire une seule. Mesuré sur
+F3 : 15 Mo d'images pour 4 pages, 68 Mo pour 29 — deux mégaoctets et demi la page, soit plus d'un
+gigaoctet pour le scan de cinq cents pages qui dort dans les fixtures.
+
+**Retenu : un flux.** `pagesEnGris` et `preparerLot` rendent une page à la fois ; ce qui
+s'accumule tient en numéros et en positions, jamais en pixels. Une seule page est vivante à la
+fois — 9 Mo — quel que soit le document. L'export des images de page suit la même règle : décoder,
+réduire, encoder, écrire, et passer à la suivante.
+
+Vérifié en relisant F3 sans cache et en comparant au relevé que la version en tableau avait écrit :
+identique, octet pour octet. Un changement de forme qui change un résultat n'est pas un changement
+de forme.
+
+Le contrôle qui garde cette propriété garde la **forme** — c'est un flux, il se consomme page par
+page, il s'abandonne en cours de route — et non le chiffre : une mesure de mémoire vive dépend du
+ramasse-miettes et de la machine, et un contrôle qui vacille finit ignoré.
+
+## Deux numérotations pour un même document finissent par diverger
+
+Pour donner à chaque page son image, il fallait relier le rang d'une page dans le document à son
+numéro imprimé. Le décalage majoritaire semblait suffire : il valait +2 sur tout F3.
+
+Il ne suffit pas. Une page dont le numéro est mal lu — l'index 4 lisait « 5 » au lieu de « 6 » — et
+un scan qui saute deux pages — après la 29 vient la 32 — font deux cas où un décalage constant
+donne l'image d'une autre page. L'interprète sait déjà traiter les deux, avec son vote par fenêtre.
+
+**Retenu : ne pas renumeroter.** Le lien se fait par les éléments — une page porte des numéros
+d'élément, et l'interprète dit sur quelle page imprimée chacun tombe. Une page sans élément reconnu
+n'a pas d'image : mieux vaut pas d'image qu'une image attribuée à la mauvaise page.
+
+## Ce que F3 réel a montré des écrans
+
+**Un écran peut n'avoir aucune action principale.** Les 95 liens de F3 passent tous le seuil de la
+recette : la file de Vérifier est vide, et l'écran n'a donc pas de bouton cuivre plein. Le contrôle
+exigeait « exactement un » par écran et échouait. La règle est « un seul » (UX-09) : deux actions
+principales, c'est une hésitation ; zéro, c'est un écran qui n'a rien à faire faire. Le contrôle
+interdit maintenant la deuxième, et exige la première là où elle existe toujours.
+
+**Un cadre vide se lit comme une panne.** La planche de Vérifier se dessinait quand même, bordure
+comprise, autour de rien. Elle ne se dessine plus.
+
+**Le seuil de confiance vient de la recette.** Il était redéclaré dans la description de la
+bibliothèque — deux seuils pour un même lot, et celui qu'on oublie de changer.
+
+### Deux réserves, qui demandent le contrat
+
+**Les filtres du schéma ne filtrent rien.** `PageAffichee` ne porte aucune valeur d'axe : l'écran
+affiche les cases, et n'a rien sur quoi comparer. Leurs comptes viennent d'ailleurs en dur à zéro.
+Seul l'axe de l'état du lien filtre, parce que l'application sait ce que « validé » veut dire.
+
+**Les zones d'élément n'arrivent pas jusqu'aux écrans.** La lecture connaît la position de chaque
+repère, `LigneInterpretee` ne la transporte pas. Le Lecteur montre donc la vraie page sans ses
+zones cliquables. Les deux demandent d'étendre le contrat, l'instantané et l'ingestion : ce sont
+des fonctionnalités, pas des corrections.

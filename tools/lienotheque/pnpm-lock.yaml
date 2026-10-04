@@ -10,6 +10,9 @@ importers:
 
   apps/app:
     dependencies:
+      '@lienotheque/cache':
+        specifier: workspace:*
+        version: link:../../outils/cache
       '@lienotheque/contrats':
         specifier: workspace:*
         version: link:../../packages/contrats
@@ -146,9 +149,18 @@ importers:
 
   outils/ingestion:
     dependencies:
+      '@lienotheque/cache':
+        specifier: workspace:*
+        version: link:../cache
       '@lienotheque/contrats':
         specifier: workspace:*
         version: link:../../packages/contrats
+      '@lienotheque/formats':
+        specifier: workspace:*
+        version: link:../formats
+      '@lienotheque/images':
+        specifier: workspace:*
+        version: link:../images
       '@lienotheque/noyau':
         specifier: workspace:*
         version: link:../../packages/noyau
@@ -162,6 +174,9 @@ importers:
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
+      tsx:
+        specifier: ^4.20.0
+        version: 4.23.15
       typescript:
         specifier: ^5.6.0
         version: 5.9.3
@@ -237,6 +252,9 @@ importers:
 
   outils/recettes:
     dependencies:
+      '@lienotheque/cache':
+        specifier: workspace:*
+        version: link:../cache
       '@lienotheque/contrats':
         specifier: workspace:*
         version: link:../../packages/contrats
@@ -278,6 +296,9 @@ importers:
         specifier: workspace:*
         version: link:../images
     devDependencies:
+      '@lienotheque/lecteur-texte':
+        specifier: workspace:*
+        version: link:../lecteur-texte
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5

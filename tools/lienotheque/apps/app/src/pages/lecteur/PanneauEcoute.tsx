@@ -1,136 +1,148 @@
 import { forwardRef, type JSX } from "react";
-import { departDeLecture, nommer, type ElementAffiche, type MotsBibliotheque } from "@lienotheque/contrats";
+import { nommer, type ElementAffiche, type MotsBibliotheque } from "@lienotheque/contrats";
 import { Bouton, Icone } from "../../composants/index.js";
-import { FormeOnde } from "./FormeOnde.js";
-import { LEGENDE, TEMPO_MAX, TEMPO_MIN } from "./raccourcis.js";
+import { minutage } from "../../donnees/positions.js";
+import { TEMPO_MAX, TEMPO_MIN, TEMPO_PAS } from "./raccourcis.js";
 
-/** Panneau d'écoute du Lecteur (B1, UX-01).
+/** Panneau d'écoute du Lecteur (B1, UX-01, ANC-03).
  *
- *  Il ne lit pas le son lui-même : il montre où l'on en est et il commande. Le segment proposé
- *  est en cuivre clair, le reste de l'onde en gris pierre (correction 5), et le fil parti de la
- *  zone de la page arrive ici.
- *
- *  Les libellés n'accordent aucun adjectif aux mots du schéma : le schéma ne donne pas le genre,
- *  et « élément précédente » est le genre d'erreur qu'on ne peut pas rattraper après coup. */
+ *  La forme d'onde montre les segments de la piste ; celui de l'élément actif est marqué. Quand
+ *  le segment n'a pas été vérifié, on le dit et la lecture commence au début de la piste — on ne
+ *  pose pas un curseur là où l'on ne sait pas. */
+
+export type Segment = { readonly debut: number; readonly fin: number; readonly libelle: string; readonly actif: boolean };
 
 type Props = {
   readonly element: ElementAffiche;
   readonly mots: MotsBibliotheque;
+  readonly segments: readonly Segment[];
+  readonly dureeS: number;
+  readonly positionS: number;
   readonly enLecture: boolean;
   readonly boucle: boolean;
   readonly tempo: number;
-  readonly avancement: number;
   readonly onLecture: () => void;
   readonly onBoucle: () => void;
-  readonly onTempo: (sens: 1 | -1) => void;
+  readonly onTempo: (tempo: number) => void;
   readonly onPrecedent: () => void;
   readonly onSuivant: () => void;
 };
 
-const minutes = (secondes: number): string =>
-  `${Math.floor(secondes / 60)} min ${String(Math.round(secondes % 60)).padStart(2, "0")} s`;
+/** Forme d'onde dessinée à partir des segments : une barre par tranche, celles du segment actif
+ *  en relief. Sans mesure réelle, on dessine une enveloppe régulière — la forme d'onde du dépôt
+ *  la remplacera sans changer la mise en page. */
+function Onde({ segments, dureeS }: { segments: readonly Segment[]; dureeS: number }): JSX.Element {
+  const barres = 96;
+  return (
+    <svg className="ln-onde" viewBox={`0 0 ${barres} 24`} preserveAspectRatio="none" aria-hidden="true">
+      {Array.from({ length: barres }, (_, rang) => {
+        const t = (rang / barres) * dureeS;
+        const dans = segments.find((segment) => t >= segment.debut && t < segment.fin);
+        const hauteur = 4 + ((rang * 37) % 17);
+        return (
+          <rect
+            key={rang}
+            className={dans?.actif === true ? "ln-onde__barre ln-onde__barre--actif" : "ln-onde__barre"}
+            x={rang}
+            y={12 - hauteur / 2}
+            width={0.7}
+            height={hauteur}
+            rx={0.35}
+          />
+        );
+      })}
+    </svg>
+  );
+}
 
-/** Graine de la forme d'onde : le début de l'empreinte du média. Même fichier, même onde,
- *  d'une session à l'autre. */
-const graineDe = (empreinte: string): number => Number.parseInt(empreinte.slice(0, 8), 16) % 10_000;
-
-export const PanneauEcoute = forwardRef<SVGRectElement, Props>(function PanneauEcoute(
-  { element, mots, enLecture, boucle, tempo, avancement, onLecture, onBoucle, onTempo, onPrecedent, onSuivant },
-  refSegment,
+export const PanneauEcoute = forwardRef<HTMLDivElement, Props>(function PanneauEcoute(
+  { element, mots, segments, dureeS, positionS, enLecture, boucle, tempo, onLecture, onBoucle, onTempo, onPrecedent, onSuivant },
+  refSegmentActif,
 ): JSX.Element {
   const media = element.media;
-  if (media === undefined)
-    return (
-      <section className="ln-ecoute ln-panneau" aria-label="Écoute">
-        <p className="ln-ecoute__rien ln-muted">{nommer(mots.element, element.numero)} n’a pas de média relié.</p>
-      </section>
-    );
-
-  const position = media.position;
-  const duree = media.duree ?? (position.segment === "connu" ? position.fin * 1.2 : 1);
-  const debut = position.segment === "connu" ? Math.min(1, position.debut / duree) : 0;
-  const fin = position.segment === "connu" ? Math.min(1, position.fin / duree) : 1;
-  const titre = `${nommer(mots.piste, media.piste)} · ${position.segment === "connu" ? "Segment proposé" : "Segment à situer"}`;
+  const inconnu = media?.position.segment === "inconnu";
 
   return (
-    <section className="ln-ecoute ln-panneau" aria-labelledby="ln-ecoute-titre">
-      <header className="ln-ecoute__entete">
-        <h2 id="ln-ecoute-titre" className="ln-ecoute__titre">
-          {titre}
-        </h2>
-        <span className="ln-ecoute__fichier ln-muted">{media.nom}</span>
-      </header>
-
-      <FormeOnde
-        ref={refSegment}
-        graine={graineDe(media.empreinte)}
-        debut={debut}
-        fin={fin}
-        avancement={avancement}
-        etiquette={titre}
-      />
-
-      <p className="ln-ecoute__bornes ln-muted">
-        {position.segment === "connu"
-          ? `De ${minutes(position.debut)} à ${minutes(position.fin)}`
-          : `Départ de lecture à ${minutes(departDeLecture(position))}`}
-      </p>
-
-      <div className="ln-ecoute__commandes">
-        <Bouton compact icone={<Icone nom="precedent" />} onClick={onPrecedent} aria-label="Précédent">
-          <span className="ln-sr-only">Précédent</span>
-        </Bouton>
-
-        {/* Seul élément cuivre plein de l'écran (UX-09) : ce qu'on vient faire ici, c'est écouter. */}
-        <Bouton variante="principal" icone={<Icone nom={enLecture ? "pause" : "lecture"} />} onClick={onLecture} aria-pressed={enLecture}>
-          {enLecture ? "Pause" : "Écouter"}
-        </Bouton>
-
-        <Bouton compact icone={<Icone nom="suivant" />} onClick={onSuivant} aria-label="Suivant">
-          <span className="ln-sr-only">Suivant</span>
-        </Bouton>
-
-        <button
-          type="button"
-          className={boucle ? "ln-bascule__choix ln-bascule__choix--choisi" : "ln-bascule__choix"}
-          onClick={onBoucle}
-          aria-pressed={boucle}
-        >
-          <Icone nom="boucle" />
-          <span>Boucle</span>
-        </button>
-
-        <div className="ln-tempo" role="group" aria-label="Tempo">
-          <Bouton compact icone={<Icone nom="moins" />} onClick={() => onTempo(-1)} disabled={tempo <= TEMPO_MIN} aria-label="Ralentir">
-            <span className="ln-sr-only">Ralentir</span>
-          </Bouton>
-          <output className="ln-tempo__valeur">{tempo}&nbsp;%</output>
-          <Bouton compact icone={<Icone nom="plus" />} onClick={() => onTempo(1)} disabled={tempo >= TEMPO_MAX} aria-label="Accélérer">
-            <span className="ln-sr-only">Accélérer</span>
-          </Bouton>
-        </div>
-      </div>
-
-      {element.pourquoi === undefined ? null : (
-        <div className="ln-pourquoi">
-          <p className="ln-pourquoi__phrase">
-            <Icone nom="lien" />
-            {element.pourquoi.phrase}
+    <section className="ln-ecoute ln-panneau" aria-labelledby="titre-ecoute">
+      <h2 id="titre-ecoute" className="ln-ecoute__titre">
+        Écoute
+      </h2>
+      {media === undefined ? (
+        <p className="ln-ecoute__sans">Sans {mots.piste.un}.</p>
+      ) : (
+        <>
+          {/* Un numéro, pas un compte : « Piste 43 », jamais « pistes 43 ». */}
+          <p className="ln-ecoute__piste">
+            {nommer(mots.piste, media.piste)}
           </p>
-          <p className="ln-pourquoi__confiance ln-muted">
-            Confiance&nbsp;{Math.round(element.pourquoi.confiance * 100)}&nbsp;%
-            {element.aVerifier ? " · demande un œil" : ""}
+
+          <div className="ln-ecoute__onde">
+            <Onde segments={segments} dureeS={dureeS} />
+            <ol className="ln-ecoute__segments">
+              {segments.map((segment) => (
+                <li
+                  key={segment.libelle}
+                  className={segment.actif ? "ln-ecoute__segment ln-ecoute__segment--actif" : "ln-ecoute__segment"}
+                  style={{ left: `${(segment.debut / dureeS) * 100}%`, width: `${((segment.fin - segment.debut) / dureeS) * 100}%` }}
+                  {...(segment.actif ? { ref: refSegmentActif as never } : {})}
+                >
+                  <span className="ln-ecoute__segment-nom">{segment.libelle}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+
+          <p className="ln-ecoute__temps">
+            <span className="ln-sr-only">Position : </span>
+            {minutage(positionS)} / {minutage(dureeS)}
           </p>
-        </div>
+
+          {inconnu ? (
+            <p className="ln-ecoute__inconnu">
+              <Icone nom="info" />
+              Segment inconnu : la lecture commence au début — {mots.piste.un} {media.piste}.
+            </p>
+          ) : null}
+
+          <div className="ln-ecoute__transport">
+            <button type="button" className="ln-ecoute__pas" onClick={onPrecedent} aria-label="Segment précédent">
+              <Icone nom="precedent" />
+            </button>
+            <Bouton variante="principal" onClick={onLecture} aria-pressed={enLecture}>
+              <Icone nom={enLecture ? "pause" : "lecture"} />
+              <span className="ln-sr-only">{enLecture ? "Interrompre" : "Lire"}</span>
+            </Bouton>
+            <button type="button" className="ln-ecoute__pas" onClick={onSuivant} aria-label="Segment suivant">
+              <Icone nom="suivant" />
+            </button>
+            <button
+              type="button"
+              className={boucle ? "ln-ecoute__pas ln-ecoute__pas--choisi" : "ln-ecoute__pas"}
+              onClick={onBoucle}
+              aria-pressed={boucle}
+              aria-label="Boucler sur le segment"
+            >
+              <Icone nom="boucle" />
+            </button>
+          </div>
+
+          <div className="ln-ecoute__tempo">
+            <label className="ln-ecoute__tempo-titre" htmlFor="tempo">
+              Tempo {tempo} %
+            </label>
+            <input
+              id="tempo"
+              type="range"
+              min={TEMPO_MIN}
+              max={TEMPO_MAX}
+              step={TEMPO_PAS}
+              value={tempo}
+              onChange={(evenement) => onTempo(Number(evenement.currentTarget.value))}
+            />
+            <span className="ln-ecoute__tempo-note">hauteur conservée</span>
+          </div>
+        </>
       )}
-
-      <ul className="ln-legende ln-muted">
-        {LEGENDE.map(({ touches, quoi }) => (
-          <li key={touches} className="ln-legende__item">
-            <kbd className="ln-legende__touche">{touches}</kbd> {quoi}
-          </li>
-        ))}
-      </ul>
     </section>
   );
 });

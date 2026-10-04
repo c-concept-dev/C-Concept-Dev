@@ -1,0 +1,312 @@
+/* Catalogue d'une bibliothèque (B3). En-tête avec compteurs et bouton principal, filtres tirés
+   de la nomenclature, grille ou liste, panneau de détail.
+   Un seul cuivre plein : « Ajouter des fichiers ». Les bascules et les filtres choisis prennent
+   le style de sélection. En hybride, en-tête et filtres sur panneau graphite opaque. */
+
+.ln-catalogue {
+  display: grid;
+  gap: calc(var(--ln-grid) * 2);
+  padding: calc(var(--ln-grid) * 2) calc(var(--ln-grid) * 3);
+}
+
+.ln-catalogue__entete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--ln-grid) * 3);
+  padding: calc(var(--ln-grid) * 2);
+  border-radius: var(--ln-radius);
+}
+
+.ln-catalogue__titre {
+  margin: calc(var(--ln-grid) * 0.5) 0 0 0;
+  font-size: 32px;
+  font-weight: 600;
+}
+
+.ln-catalogue__compteurs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 2);
+  margin: calc(var(--ln-grid) * 0.5) 0 0 0;
+  font-size: 14px;
+  color: var(--ln-text-secondary);
+}
+
+.ln-catalogue__averifier {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 0.75);
+  padding: calc(var(--ln-grid) * 0.5) calc(var(--ln-grid) * 1.5);
+  border-radius: 999px;
+  background: var(--ln-selection-background);
+  color: var(--ln-selection-text);
+  text-decoration: none;
+}
+
+.ln-catalogue__corps {
+  display: grid;
+  grid-template-columns: minmax(0, 16rem) minmax(0, 1fr) minmax(0, 24rem);
+  gap: calc(var(--ln-grid) * 2);
+  align-items: start;
+}
+
+/* ---- Filtres ---- */
+
+.ln-filtres__titre {
+  margin: 0 0 calc(var(--ln-grid)) 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+/* Correction 7 : les filtres resserrés. Les axes se suivent de près, et une rangée ne fait plus
+   que la hauteur de son texte — assez pour rester cliquable, sans étirer la colonne. */
+.ln-filtres__axe + .ln-filtres__axe {
+  margin-block-start: calc(var(--ln-grid) * 1.5);
+}
+
+.ln-filtres__nom {
+  margin: 0 0 calc(var(--ln-grid)) 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.ln-filtres__valeurs {
+  display: grid;
+  gap: calc(var(--ln-grid) * 0.25);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ln-filtres__valeur {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 0.75);
+  min-height: calc(var(--ln-grid) * 3.5);
+  padding: calc(var(--ln-grid) * 0.25) calc(var(--ln-grid) * 0.75);
+  border-radius: var(--ln-radius);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* Filtre choisi : style de sélection, pas de cuivre plein. */
+.ln-filtres__valeur--choisi {
+  background: var(--ln-selection-background);
+  color: var(--ln-selection-text);
+}
+
+.ln-filtres__valeur input {
+  accent-color: var(--ln-thread);
+}
+
+.ln-filtres__nombre {
+  font-size: 13px;
+  color: var(--ln-text-secondary);
+}
+
+.ln-filtres__valeur--choisi .ln-filtres__nombre {
+  color: inherit;
+}
+
+/* ---- Liste des pages ---- */
+
+.ln-catalogue__liste {
+  display: grid;
+  gap: calc(var(--ln-grid) * 1.5);
+}
+
+.ln-catalogue__barre {
+  display: flex;
+  padding: calc(var(--ln-grid)) calc(var(--ln-grid) * 1.5);
+  border-radius: var(--ln-radius);
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--ln-grid) * 2);
+}
+
+.ln-catalogue__sous-titre {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.ln-pages {
+  display: grid;
+  gap: calc(var(--ln-grid) * 1.5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ln-pages--grille {
+  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+}
+
+.ln-pages--liste {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.ln-pages__carte {
+  display: grid;
+  gap: calc(var(--ln-grid) * 0.5);
+  width: 100%;
+  padding: calc(var(--ln-grid) * 1.5);
+  border: 1px solid var(--ln-border-decorative);
+  border-radius: var(--ln-radius);
+  background: var(--ln-surface);
+  color: var(--ln-text-primary);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.ln-pages--liste .ln-pages__carte {
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 2);
+}
+
+.ln-pages__carte--ouvert {
+  border-color: var(--ln-thread);
+}
+
+.ln-pages__apercu {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 3 / 4;
+  border-radius: 6px;
+  background: var(--ln-background);
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--ln-text-secondary);
+}
+
+.ln-pages--liste .ln-pages__apercu {
+  width: calc(var(--ln-grid) * 6);
+  aspect-ratio: 3 / 4;
+  font-size: 16px;
+}
+
+.ln-pages__nom {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.ln-pages__titre,
+.ln-pages__relies,
+.ln-pages__averifier {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 0.75);
+  font-size: 13px;
+  color: var(--ln-text-secondary);
+}
+
+.ln-pages__averifier {
+  color: var(--ln-selection-text);
+}
+
+/* ---- Détail ---- */
+
+.ln-detail__titre {
+  margin: 0 0 calc(var(--ln-grid) * 1.5) 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.ln-detail__apercu {
+  display: grid;
+  place-items: center;
+  gap: calc(var(--ln-grid));
+  aspect-ratio: 3 / 4;
+  margin-block-end: calc(var(--ln-grid) * 2);
+  border: 1px solid var(--ln-border-decorative);
+  border-radius: var(--ln-radius);
+  background: var(--ln-background);
+  font-size: 32px;
+  font-weight: 600;
+  color: var(--ln-text-secondary);
+}
+
+.ln-detail__sous-titre {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.ln-detail__sous {
+  margin: 0 0 calc(var(--ln-grid)) 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.ln-detail__elements {
+  display: grid;
+  gap: calc(var(--ln-grid) * 0.5);
+  margin: 0 0 calc(var(--ln-grid) * 2) 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ln-detail__element {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: calc(var(--ln-grid));
+  padding: calc(var(--ln-grid) * 0.75);
+  border-radius: var(--ln-radius);
+  font-size: 13px;
+}
+
+.ln-detail__element:nth-child(odd) {
+  background: var(--ln-background);
+}
+
+.ln-detail__nom {
+  font-weight: 500;
+}
+
+.ln-detail__vers,
+.ln-detail__sans,
+.ln-detail__etat {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 0.5);
+  color: var(--ln-text-secondary);
+}
+
+.ln-detail__etat--doute {
+  color: var(--ln-selection-text);
+}
+
+.ln-detail__ouvrir {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--ln-grid));
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ln-text-primary);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+
+.ln-detail__ouvrir:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  text-decoration: none;
+}
+
+@media (max-width: 1200px) {
+  .ln-catalogue__corps {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

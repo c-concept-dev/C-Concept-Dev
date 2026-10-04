@@ -1,126 +1,179 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
-import { VUE_DEMONSTRATION } from "../src/donnees/vue-demonstration.js";
-import { TOUS_CHEMINS } from "../src/composants/index.js";
-import { Verifier } from "../src/pages/Verifier.js";
+import { describe, expect, it, vi } from "vitest";
+import { VueBibliotheque, type CasDouteux } from "@lienotheque/contrats";
+import { Verifier, type Decision } from "../src/pages/Verifier.js";
 
-/** Vérifier (B2, UX-03, SYN-04) et correction 6 du deuxième passage. */
+const ID = (n: number): string => `6f0d7b18-5a2c-4c5e-9f3a-1d7b2e8c4a${String(n).padStart(2, "0")}`;
+const EMPREINTE = "a".repeat(64);
 
-const VUE = VUE_DEMONSTRATION;
+const cas = (n: number, sur: Partial<CasDouteux> = {}): unknown => ({
+  id: ID(n),
+  nature: "lien",
+  etat: "confiance",
+  element: {
+    ancreId: ID(n + 50),
+    numero: String(400 + n),
+    page: 127,
+    media: { empreinte: EMPREINTE, nom: "Plage 43.mp3", piste: 43, position: { segment: "inconnu" } },
+    pourquoi: { preuve: "sequence", confiance: 0.6, phrase: "Déduit de la suite" },
+    aVerifier: true,
+  },
+  proposition: `clause ${400 + n} → plage 43`,
+  motif: "repère partiellement lu, déduit de la séquence",
+  ...sur,
+});
 
-function poser(casId?: string) {
-  const cas: string[] = [];
-  const ouverts: [number, string][] = [];
-  const rendu = render(
+const VUE = VueBibliotheque.parse({
+  id: ID(1),
+  nom: "Recueil de procédures",
+  mots: {
+    element: { un: "clause", plusieurs: "clauses" },
+    piste: { un: "plage", plusieurs: "plages" },
+    page: { un: "feuillet", plusieurs: "feuillets" },
+  },
+  compteurs: [],
+  aVerifier: 4,
+  pages: [],
+  douteux: [
+    cas(5),
+    cas(6, { etat: "conflit_appareils" }),
+    cas(7, { etat: "a_rattacher" }),
+    cas(8, { nature: "information", etat: "segment_inconnu" }),
+  ],
+});
+
+function poser(derniere?: { cas: CasDouteux; decision: Decision }) {
+  const decisions: { cas: CasDouteux; decision: Decision }[] = [];
+  const annuler = vi.fn();
+  render(
     <Verifier
       vue={VUE}
-      {...(casId === undefined ? {} : { casId })}
-      onCas={(id) => cas.push(id)}
-      onOuvrir={(page, ancreId) => ouverts.push([page, ancreId])}
+      onDecision={(c, d) => decisions.push({ cas: c, decision: d })}
+      onAnnuler={annuler}
+      {...(derniere === undefined ? {} : { derniere })}
     />,
   );
-  return { rendu, cas, ouverts };
+  return { decisions, annuler };
 }
 
-describe("Vérifier : un cas à la fois, dit en toutes lettres (B2)", () => {
-  it("annonce le chemin « Accueil › bibliothèque › Vérifier » (correction 5 du premier passage)", () => {
+describe("Vérifier : la planche (UX-03)", () => {
+  it("porte le fil d’Ariane « Accueil › bibliothèque › Vérifier »", () => {
     poser();
-    const fil = screen.getByRole("navigation", { name: /ariane/i });
-    expect(within(fil).getByRole("link", { name: "Accueil" })).toBeInTheDocument();
-    expect(within(fil).getByRole("link", { name: VUE.nom })).toBeInTheDocument();
-    expect(within(fil).getByText("Vérifier")).toHaveAttribute("aria-current", "page");
+    const ariane = screen.getByRole("navigation", { name: /fil d’ariane/i });
+    const maillons = within(ariane).getAllByRole("listitem").map((item) => item.textContent);
+    expect(maillons).toEqual(["Accueil", "Recueil de procédures", "Vérifier"]);
   });
 
-  it("nomme l'élément avec le mot du schéma en majuscule (correction 4)", () => {
+  it("dit combien de cas restent, et dans quelle bibliothèque", () => {
     poser();
-    expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("Élément 189");
+    expect(screen.getByText("4")).toBeInTheDocument();
+    expect(screen.getByText(/restants dans/i)).toBeInTheDocument();
   });
 
-  it("dit la proposition et le motif qui l'a produite (ANC-02, UX-03)", () => {
+  it("montre chaque cas avec sa proposition et sa confiance", () => {
     poser();
-    const premier = VUE.douteux[0]!;
-    expect(screen.getByText(premier.proposition)).toBeInTheDocument();
-    expect(screen.getByText(premier.motif)).toBeInTheDocument();
+    expect(screen.getAllByText(/confiance moyenne/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/clause 405 → plage 43/i)).toBeInTheDocument();
   });
 
-  it("montre l'avancement de la file", () => {
+  it("distingue le conflit entre appareils et le rattachement après recalcul (SYN-04, SYN-05)", () => {
     poser();
-    expect(screen.getByRole("progressbar", { name: /vérification/i })).toHaveAttribute("aria-valuenow", "0");
-    expect(screen.getByText(`${VUE.douteux.length} cas en attente`)).toBeInTheDocument();
+    expect(screen.getByText(/conflit entre deux appareils/i)).toBeInTheDocument();
+    expect(screen.getByText(/à rattacher après recalcul/i)).toBeInTheDocument();
+    expect(screen.getByText(/segment inconnu/i)).toBeInTheDocument();
+  });
+
+  it("filtre par nature", async () => {
+    poser();
+    expect(screen.getAllByRole("button", { name: /^Clause \d+$/ })).toHaveLength(4);
+    await userEvent.click(screen.getByRole("button", { name: "Informations" }));
+    expect(screen.getAllByRole("button", { name: /^Clause \d+$/ })).toHaveLength(1);
+  });
+
+  it("n’affiche aucun chronomètre ni score de vitesse", () => {
+    const { container } = render(<Verifier vue={VUE} onDecision={() => {}} onAnnuler={() => {}} />);
+    const texte = container.textContent ?? "";
+    for (const interdit of ["chrono", "secondes", "score", "vitesse", "/min", "record"])
+      expect(texte.toLowerCase(), interdit).not.toContain(interdit);
   });
 });
 
-describe("Vérifier : les trois gestes sur une seule ligne (correction 6)", () => {
-  it("n'offre que trois actions, et dans cet ordre", () => {
-    const { rendu } = poser();
-    const gestes = rendu.container.querySelector(".ln-cas__gestes")!;
-    expect([...gestes.querySelectorAll("button")].map((bouton) => bouton.textContent)).toEqual(["Valider", "Corriger", "Ignorer"]);
+describe("Vérifier : les trois décisions (UX-03)", () => {
+  it("confirme, corrige et ignore, à la souris", async () => {
+    const { decisions } = poser();
+    await userEvent.click(screen.getByRole("button", { name: /confirmer/i }));
+    expect(decisions.at(-1)?.decision).toBe("confirme");
+    await userEvent.click(screen.getByRole("button", { name: /corriger/i }));
+    expect(decisions.at(-1)?.decision).toBe("corrige");
+    await userEvent.click(screen.getByRole("button", { name: /ignorer/i }));
+    expect(decisions.at(-1)?.decision).toBe("ignore");
   });
 
-  it("garde les trois sur une ligne : aucun repli tant qu'il y a la place", () => {
-    const { rendu } = poser();
-    const gestes = rendu.container.querySelector<HTMLElement>(".ln-cas__gestes")!;
-    // jsdom ne calcule pas la mise en page ; c'est la règle qui est gardée, et les mesures en
-    // navigateur sont faites par navigateurs/ecrans.spec.ts.
-    expect(gestes.className).toContain("ln-cas__gestes");
-    expect(rendu.container.querySelectorAll(".ln-cas__gestes")).toHaveLength(1);
+  it("et au clavier : Entrée, C, Échap", async () => {
+    const { decisions } = poser();
+    await userEvent.keyboard("{Enter}");
+    expect(decisions.at(-1)?.decision).toBe("confirme");
+    await userEvent.keyboard("c");
+    expect(decisions.at(-1)?.decision).toBe("corrige");
+    await userEvent.keyboard("{Escape}");
+    expect(decisions.at(-1)?.decision).toBe("ignore");
   });
 
-  it("n'a qu'un seul cuivre plein : valider (UX-09)", () => {
-    const { rendu } = poser();
-    const principaux = [...rendu.container.querySelectorAll(".ln-btn--principal")];
-    expect(principaux).toHaveLength(1);
-    expect(principaux[0]).toHaveTextContent("Valider");
+  it("« Ignorer » passe au suivant : une icône de passage, jamais une corbeille", () => {
+    const { container } = render(<Verifier vue={VUE} onDecision={() => {}} onAnnuler={() => {}} />);
+    const ignorer = screen.getByRole("button", { name: /ignorer/i });
+    const trace = ignorer.querySelector("path")?.getAttribute("d") ?? "";
+    // Le tracé « passer » : deux chevrons vers l'avant. Rien d'une corbeille.
+    expect(trace).toBe("M4 5l8 7-8 7zM13 5l8 7-8 7z");
+    expect(container.innerHTML.toLowerCase()).not.toContain("corbeille");
   });
 
-  it("donne à « Ignorer » une icône de saut, jamais une corbeille (SYN-04)", () => {
+  it("avance au cas suivant après une décision", async () => {
     poser();
-    const trace = screen.getByRole("button", { name: "Ignorer" }).querySelector("path")?.getAttribute("d");
-    expect(trace).toBe(TOUS_CHEMINS.passer);
-  });
-
-  it("envoie « Corriger » sur l'élément dans le Lecteur, au lieu de décider à la place de l'œil", async () => {
-    const { ouverts, cas } = poser();
-    await userEvent.click(screen.getByRole("button", { name: "Corriger" }));
-    const premier = VUE.douteux[0]!;
-    expect(ouverts).toEqual([[premier.element.page, premier.element.ancreId]]);
-    expect(cas).toEqual([]);
+    const premier = screen.getAllByRole("button", { name: /^Clause \d+$/ })[0]!;
+    expect(premier).toHaveAttribute("aria-current", "true");
+    await userEvent.keyboard("{Enter}");
+    const apres = screen.getAllByRole("button", { name: /^Clause \d+$/ });
+    expect(apres[0]).not.toHaveAttribute("aria-current");
+    expect(apres[1]).toHaveAttribute("aria-current", "true");
   });
 });
 
-describe("Vérifier : l'annulation est un lien, pas un quatrième bouton (correction 6)", () => {
-  it("laisse l'annulation hors de la ligne des gestes", () => {
-    const { rendu } = poser();
-    const gestes = rendu.container.querySelector(".ln-cas__gestes")!;
-    expect(gestes.textContent).not.toContain("Annuler");
-    expect(rendu.container.querySelector(".ln-cas__annuler")).not.toBeNull();
-  });
-
-  it("dit qu'il n'y a rien à annuler avant la première décision", () => {
+describe("Vérifier : défaire et garantir", () => {
+  // Correction 6 : avant la première décision, l'écran dit qu'il n'y a rien à annuler. Un bouton
+  // inerte au même rang que « Confirmer » proposait un geste qui n'existait pas encore.
+  it("dit qu’il n’y a rien à annuler avant la première décision, sans bouton inerte (correction 6)", () => {
     poser();
-    expect(screen.getByText("Aucune décision à annuler")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Annuler/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /annuler la dernière décision/i })).toBeNull();
+    expect(screen.getByText(/aucune décision à annuler/i)).toBeInTheDocument();
   });
 
-  it("revient sur la dernière décision et remet le cas dans la file", async () => {
-    const { rendu, cas } = poser();
-    await userEvent.click(screen.getByRole("button", { name: "Valider" }));
-    expect(cas).toEqual([VUE.douteux[1]!.id]);
-    expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("Élément 191");
-
-    const annuler = screen.getByRole("button", { name: "Annuler la dernière décision" });
-    expect(annuler.className).toContain("ln-lien-action");
-    await userEvent.click(annuler);
-
-    expect(cas.at(-1)).toBe(VUE.douteux[0]!.id);
-    expect(rendu.container.querySelector(".ln-cas__titre")).toHaveTextContent("Élément 189");
+  it("annule la dernière décision quand il y en a une", async () => {
+    const { annuler } = poser({ cas: VueBibliotheque.parse(VUE).douteux[0]!, decision: "confirme" });
+    const bouton = screen.getByRole("button", { name: /annuler la dernière décision/i });
+    expect(bouton).toBeEnabled();
+    await userEvent.click(bouton);
+    expect(annuler).toHaveBeenCalledOnce();
   });
 
-  it("une fois la file vide, elle le dit et l'annulation reste offerte", async () => {
+  it("promet que les corrections survivent à un recalcul", () => {
     poser();
-    for (const _ of VUE.douteux) await userEvent.click(screen.getByRole("button", { name: "Ignorer" }));
-    expect(screen.getByText(/Plus rien à vérifier/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Annuler la dernière décision" })).toBeInTheDocument();
+    expect(screen.getByText(/conservées même après un nouveau traitement/i)).toBeInTheDocument();
+  });
+
+  it("le dit aussi quand il ne reste rien", () => {
+    render(<Verifier vue={{ ...VUE, douteux: [] }} onDecision={() => {}} onAnnuler={() => {}} />);
+    expect(screen.getByText(/rien à vérifier/i)).toBeInTheDocument();
+  });
+});
+
+describe("Vérifier : les mots viennent du schéma (CLA-01)", () => {
+  it("n’écrit jamais « élément » ni « piste » de son propre chef", () => {
+    const { container } = render(<Verifier vue={VUE} onDecision={() => {}} onAnnuler={() => {}} />);
+    const texte = (container.textContent ?? "").toLowerCase();
+    expect(texte).toContain("clause");
+    expect(texte).not.toContain("élément");
+    expect(texte).not.toMatch(/\bpiste\b/);
   });
 });

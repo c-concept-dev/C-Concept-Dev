@@ -1,0 +1,43 @@
+{
+  "description": "Description de la bibliothèque F3 pour les écrans. C'est une donnée, pas du code : les mots du domaine n'ont le droit d'être écrits que dans un fichier comme celui-ci (CLA-01). Le document et les médias eux-mêmes sont sous droits et restent hors du dépôt. Le seuil de confiance n'est pas ici : il vient de la recette, qui le fixe avec ses règles de lecture.",
+  "id": "f3-70s-funk-disco-bass",
+  "nom": "70s Funk & Disco Bass",
+  "mots": {
+    "element": {
+      "un": "exercice",
+      "plusieurs": "exercices"
+    },
+    "piste": {
+      "un": "piste",
+      "plusieurs": "pistes"
+    },
+    "page": {
+      "un": "page",
+      "plusieurs": "pages"
+    }
+  },
+  "schema": {
+    "cle": "methode-instrument",
+    "nom": "Méthode d'instrument",
+    "langue": "fr",
+    "version": 1,
+    "axes": [
+      {
+        "cle": "etat-du-lien",
+        "nom": "Avec enregistrement",
+        "nature": "referentiel",
+        "cardinalite": "une",
+        "valeurs": [
+          {
+            "cle": "avec",
+            "nom": "Oui"
+          },
+          {
+            "cle": "sans",
+            "nom": "Non"
+          }
+        ]
+      }
+    ]
+  }
+}
