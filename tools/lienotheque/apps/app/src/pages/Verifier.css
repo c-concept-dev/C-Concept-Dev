@@ -1,0 +1,93 @@
+/* Vérifier (B2). Un cas par écran, et trois gestes sur une ligne (correction 6). */
+
+.ln-verifier {
+  display: grid;
+  gap: calc(var(--ln-grid) * 3);
+  max-width: 820px;
+  align-content: start;
+}
+
+.ln-verifier__barre {
+  display: grid;
+  gap: var(--ln-grid);
+}
+
+.ln-verifier__titre {
+  font-size: 24px;
+  margin: 0;
+}
+
+.ln-cas {
+  display: grid;
+  gap: var(--ln-grid);
+}
+
+.ln-cas__titre {
+  font-size: 20px;
+  margin: 0;
+}
+
+.ln-cas__situation,
+.ln-cas__motif,
+.ln-cas__annuler {
+  margin: 0;
+}
+
+.ln-cas__proposition {
+  margin: var(--ln-grid) 0 0;
+  padding: calc(var(--ln-grid) * 1.5) calc(var(--ln-grid) * 2);
+  background: var(--ln-selection-background);
+  color: var(--ln-selection-text);
+  border-radius: var(--ln-radius);
+  font-size: 17px;
+}
+
+.ln-cas__motif {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ln-grid);
+}
+
+/* Correction 6 : une seule ligne pour les trois gestes. `nowrap` tant qu'il y a la place, et le
+   repli vertical seulement en fenêtre étroite — trois boutons sur trois lignes, c'était trois
+   décisions séparées là où il n'y en a qu'une. */
+.ln-cas__gestes {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: var(--ln-grid);
+  margin-block-start: var(--ln-grid);
+}
+
+.ln-cas__gestes .ln-btn {
+  white-space: nowrap;
+}
+
+/* Correction 6 : l'annulation est un lien cuivre sombre souligné, pas un quatrième bouton. */
+.ln-cas__annuler {
+  margin-block-start: calc(var(--ln-grid) * 0.5);
+  font-size: 14px;
+}
+
+.ln-verifier__fini {
+  display: grid;
+  gap: var(--ln-grid);
+  justify-items: start;
+}
+
+.ln-verifier__fini-phrase {
+  display: flex;
+  align-items: center;
+  gap: var(--ln-grid);
+  margin: 0;
+}
+
+.ln-verifier__file {
+  margin: 0;
+}
+
+@media (max-width: 560px) {
+  .ln-cas__gestes {
+    flex-wrap: wrap;
+  }
+}

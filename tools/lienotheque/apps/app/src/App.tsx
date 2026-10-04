@@ -8,6 +8,7 @@ import { Accueil } from "./pages/Accueil.js";
 import { Lecteur } from "./pages/Lecteur.js";
 import { PremierLancement } from "./pages/PremierLancement.js";
 import { Reglages } from "./pages/Reglages.js";
+import { Verifier } from "./pages/Verifier.js";
 import { Prototype, estBureau } from "./pages/Prototype.js";
 import { useTheme } from "./theme/useTheme.js";
 
@@ -63,8 +64,32 @@ export function App(): JSX.Element {
 
   const deposer = (fichiers: readonly File[]): void => setDepots(fichiers.map((fichier) => fichier.name));
 
+  /** Une bibliothèque que cet appareil n'a pas : ce n'est pas une erreur, c'est un état. */
+  const indisponible = (): JSX.Element => (
+    <main className="ln-layout" id="contenu">
+      <p className="ln-muted">
+        {vue.etat === "illisible"
+          ? `Cette bibliothèque n’a pas pu être lue : ${vue.motif}.`
+          : "Cette bibliothèque n’est pas encore disponible sur cet appareil."}
+      </p>
+    </main>
+  );
+
   const ecran = (): JSX.Element => {
     if (destination.ecran === "reglages") return <Reglages theme={theme} onThemeChange={changerTheme} />;
+
+    if (destination.ecran === "verifier") {
+      if (vue.etat === "chargee")
+        return (
+          <Verifier
+            vue={vue.vue}
+            {...(destination.casId === undefined ? {} : { casId: destination.casId })}
+            onCas={(casId) => aller({ ecran: "verifier", bibliothequeId: destination.bibliothequeId, casId })}
+            onOuvrir={(page, ancreId) => aller({ ecran: "lecteur", bibliothequeId: destination.bibliothequeId, page, ancreId })}
+          />
+        );
+      return indisponible();
+    }
 
     if (destination.ecran === "lecteur") {
       if (vue.etat === "chargee")
@@ -79,13 +104,7 @@ export function App(): JSX.Element {
             }
           />
         );
-      return (
-        <main className="ln-layout" id="contenu">
-          <p className="ln-muted">
-            {vue.etat === "illisible" ? `Cette bibliothèque n’a pas pu être lue : ${vue.motif}.` : "Cette bibliothèque n’est pas encore disponible sur cet appareil."}
-          </p>
-        </main>
-      );
+      return indisponible();
     }
 
     if (donnees.bibliotheques.length === 0)

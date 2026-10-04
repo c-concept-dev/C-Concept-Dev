@@ -9,6 +9,7 @@ const FEUILLES = {
   premier: lire("../src/pages/PremierLancement.css"),
   base: lire("../src/styles/base.css"),
   lecteur: lire("../src/pages/Lecteur.css"),
+  verifier: lire("../src/pages/Verifier.css"),
 };
 
 const sansCommentaires = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, "");
@@ -139,5 +140,25 @@ describe("Hybride : le fond photographique couvre toute la fenêtre (correction 
 
   it("n'écrit plus la forme abrégée, qui n'arrimait qu'une couche", () => {
     for (const corps of fond) expect(declaration(corps, "background"), corps).toBeUndefined();
+  });
+});
+
+/** Correction 6 : les trois gestes de Vérifier tiennent sur une ligne, et « Annuler la dernière
+ *  décision » est un lien cuivre sombre souligné — pas un quatrième bouton au même rang que
+ *  « Valider ». Trois boutons sur trois lignes se lisaient comme trois décisions séparées. */
+describe("Vérifier : trois gestes sur une ligne, l'annulation en lien (correction 6)", () => {
+  it("interdit le repli de la ligne des gestes, sauf en fenêtre étroite", () => {
+    const regles = reglesPour(FEUILLES.verifier, ".ln-cas__gestes");
+    expect(regles.length).toBeGreaterThan(1);
+    expect(declaration(regles[0]!, "flex-wrap")).toBe("nowrap");
+    expect(declaration(regles.at(-1)!, "flex-wrap")).toBe("wrap");
+  });
+
+  it("habille l'annulation en lien cuivre sombre souligné", () => {
+    const regles = reglesPour(FEUILLES.base, ".ln-lien-action");
+    expect(regles.length).toBeGreaterThan(0);
+    expect(regles.some((corps) => declaration(corps, "color") === "var(--ln-link)")).toBe(true);
+    expect(regles.some((corps) => declaration(corps, "text-decoration") === "underline")).toBe(true);
+    expect(regles.some((corps) => declaration(corps, "border") === "0")).toBe(true);
   });
 });
