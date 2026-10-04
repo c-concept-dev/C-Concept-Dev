@@ -13,8 +13,8 @@
 | --- | --- |
 | Lot | HTML-FINAL-02 |
 | Artefact | Atelier de prompts — V11.5 LOT 10G Adaptive Decision Pipeline |
-| Commit local | `051ff18fb11e966f13d804de113fe4224fef41aa` |
-| Date du commit | 2026-10-04T08:13:45+02:00 |
+| Commit local | `b923bac9ddd5a5f6a5a712a9171f6840658ccee2` |
+| Date du commit | 2026-10-04T09:43:45+02:00 |
 
 ## Artefact canonique
 
@@ -24,8 +24,8 @@ aucune police et aucune image ne sont chargés depuis un tiers.
 | Champ | Valeur |
 | --- | --- |
 | Chemin | `atelier-prompts-v11.5-lot10g-decision-provider.html` |
-| Taille | 1686809 octets |
-| SHA-256 | `13e305e611f9626f67fe38295822d87422ce4785de78ac7b16fb21873e94ace0` |
+| Taille | 1687664 octets |
+| SHA-256 | `5f33a55a4ecfa64808d934b688ecab8bcb9101640e9956dd6da10da10e99b1f1` |
 
 ## Runtime compilé
 
@@ -45,7 +45,7 @@ Le bloc embarqué dans la page et le fichier généré sont comparés octet pour
 | Plage | SHA-256 |
 | --- | --- |
 | moteur Rapide | `3725f2c9335cb176084cf62c51472b5f02a1faa5bed496c424954c841a689664` |
-| moteur Architecte | `8668de58c928afaf010d37aa3b3f1c57a280f32e916cf483ad100c2784debc39` |
+| moteur Architecte | `3f0878c887d61218768ba6f11db15a0d0af511496a770fb5f7f1322610e0c181` |
 | moteur Atelier | `8c3511538a96d4be3953270c4a5463da6b8d4807187a0b7d4b1c31c0e4589802` |
 | FORMATS | `f4c9f1da5a14ecbe28d3cd0853871aa621909360ab6475bebeb76bc2191e141b` |
 | VERROUS | `0019d7e26efab37164b435667d89494135cc4ae7f9f8206e95472435d1dd63ff` |
@@ -59,13 +59,13 @@ Le bloc embarqué dans la page et le fichier généré sont comparés octet pour
 l'artefact. Le manifeste lui-même en est exclu : un document ne peut pas contenir
 sa propre empreinte.
 
-| Empreinte du jeu | `e6b8411d0a1fbaf6d1be414e58e1aebad7045d7ace1dd3be2733b7abc8fb043a` |
+| Empreinte du jeu | `ad705bcac7cd5ec233633492e2e79f76663dec555c90c62d19424f54496fec14` |
 | --- | --- |
 
 | Classe | Fichier | SHA-256 |
 | --- | --- | --- |
-| REQUIRED_BUILD | `anti-regression-baseline.json` | `50fa51876930feeace1e8cb1fa40512a629f59692f075060f3da7849a32a0719` |
-| REQUIRED_HTML | `atelier-prompts-v11.5-lot10g-decision-provider.html` | `13e305e611f9626f67fe38295822d87422ce4785de78ac7b16fb21873e94ace0` |
+| REQUIRED_BUILD | `anti-regression-baseline.json` | `c302832c7905fe1b54918301316370858b5e3d3e7623b14e93c2a29342bdf0f4` |
+| REQUIRED_HTML | `atelier-prompts-v11.5-lot10g-decision-provider.html` | `5f33a55a4ecfa64808d934b688ecab8bcb9101640e9956dd6da10da10e99b1f1` |
 | REQUIRED_BUILD | `core/adn/adaptive-lock-selector.js` | `15d3154d639b761747a26215f2ec59eb6b121e6072187b6a2dd611eefe5b65ea` |
 | REQUIRED_BUILD | `core/adn/adn-state.js` | `814bbc8318cd2e20d1964c0930809e9997e00bf1cfe8f474aa8f3f39af767d8b` |
 | REQUIRED_BUILD | `core/adn/arch-canonical-enrichment.js` | `159140c46266a8fe6cb35995f53addbfb8fe9802b6ef427d3c0589c449cc0aaa` |

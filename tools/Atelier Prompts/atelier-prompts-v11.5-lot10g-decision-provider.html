@@ -9992,7 +9992,15 @@ async function archApiCoeur(){
 async function archApi(){
   const c=archContexte();if(!c.demande){archEtat('Saisissez une demande avant l\u2019analyse.','alerte');return false}
   if(!aq('#api-cle').value.trim()){archEtat('Aucune clé API. Utilisez le parcours copier-coller, ou configurez la clé dans Envoi direct.','alerte');return false}
-  if(modeSensible&&!confirm('La demande sera transmise à l\u2019API Anthropic. Continuer ?'))return false;
+  /* PROVIDER-OPENAI-01B — CETTE PHRASE DISAIT « Anthropic » QUEL QUE SOIT LE FOURNISSEUR.
+     Elle informe la personne, en mode « données sensibles », de OÙ part sa demande : la nommer
+     en dur était exact tant qu'il n'y avait qu'un fournisseur, et faux dès qu'OpenAI est
+     sélectionné. Le nom est donc lu sur le registre, par le MÊME motif que la confirmation de
+     l'envoi direct (voir nomFournisseur, plan Envoi direct) : aucune fonction nouvelle, aucun
+     second mécanisme. Ce motif reste écrit deux fois, ici et là-bas, et c'est délibéré — le
+     factoriser demanderait de toucher l'autre plan, hors du périmètre de cette correction.
+     C'est la SEULE ligne pour laquelle la plage gelée « moteur Architecte » a été réouverte. */
+  if(modeSensible&&!confirm('La demande sera transmise à l\u2019API '+((FOURNISSEURS_API[obtenirFournisseurActif()]||{}).nom||obtenirFournisseurActif())+'. Continuer ?'))return false;
   return archApiCoeur();
 }
 

@@ -572,7 +572,15 @@ test('T05-24 · FROZEN : les sept plages gelées portent exactement les empreint
   /* CONTINUITE-05 clôture — la plage « moteur Architecte » a été rouverte pour UNE ligne (archCitationPresente plie casse
      et diacritiques pour la comparaison, T05-25) ; baseline régénérée par frozen-guard --write-baseline : 7ec1abaa… →
      8668de58…. Les six autres plages portent leurs empreintes de CONTINUITE-04B, inchangées. */
-  assert.equal(baseline.hashes['moteur Architecte'], '8668de58c928afaf010d37aa3b3f1c57a280f32e916cf483ad100c2784debc39');
+  /* PROVIDER-OPENAI-01B — LA PLAGE « MOTEUR ARCHITECTE » EST ROUVERTE UNE SECONDE FOIS, POUR UNE
+     LIGNE. En mode « données sensibles », archApi() annonçait « La demande sera transmise à l'API
+     Anthropic » quel que soit le fournisseur retenu : la phrase est fausse dès qu'OpenAI est
+     sélectionné, et c'est précisément une phrase qui dit à la personne où part sa demande. Le nom
+     vient désormais du registre des fournisseurs. Baseline régénérée par frozen-guard
+     --write-baseline : 8668de58… → 3f0878c8…, et les SIX autres plages sont inchangées à l'octet
+     (le guard les a toutes recalculées et n'a nommé que celle-ci). Aucune règle, aucun prompt, aucun
+     schéma, aucun comportement : un nom de fournisseur, dans un texte d'information. */
+  assert.equal(baseline.hashes['moteur Architecte'], '3f0878c887d61218768ba6f11db15a0d0af511496a770fb5f7f1322610e0c181');
   assert.equal(baseline.hashes['moteur Rapide'], '3725f2c9335cb176084cf62c51472b5f02a1faa5bed496c424954c841a689664');
   assert.equal(baseline.hashes['moteur Atelier'], '8c3511538a96d4be3953270c4a5463da6b8d4807187a0b7d4b1c31c0e4589802');
   assert.equal(baseline.hashes.ARCH_SYSTEM, '7fc7b736f6b80049c42a39d74a0fae76eee26d9e2af8249c7761de1ec3236317');

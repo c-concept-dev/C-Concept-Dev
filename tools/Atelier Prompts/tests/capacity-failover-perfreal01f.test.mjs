@@ -348,8 +348,15 @@ test('T-PERFREAL01F-15/16/17 : artefact intact, observation sans secret, transit
      appel existant — l'Architecte, le compilateur, le banc d'essai et le module Qualité passent
      par la même façade appelFournisseur() qu'avant, inchangée, et Anthropic reste le
      fournisseur par défaut. Mesuré en réel avant d'être écrit : cf. docs/PROVIDER-OPENAI-01.md. */
+  /* PROVIDER-OPENAI-01B — L'EMPREINTE BOUGE UNE SECONDE FOIS, POUR UNE PHRASE. En mode « données
+     sensibles », archApi() disait « La demande sera transmise à l'API Anthropic » quel que soit le
+     fournisseur retenu — faux dès qu'OpenAI est sélectionné, et précisément dans la phrase qui dit
+     où part la demande. Le nom vient maintenant du registre. La plage gelée « moteur Architecte » a
+     été rouverte pour cette SEULE ligne et la baseline régénérée (8668de58… → 3f0878c8…) ; les six
+     autres plages sont inchangées à l'octet. Rien d'autre : ni règle, ni prompt, ni schéma, ni
+     transport, ni UX hors cette phrase. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    '13e305e611f9626f67fe38295822d87422ce4785de78ac7b16fb21873e94ace0', 'CANONICAL_HTML_CHANGED = NO');
+    '5f33a55a4ecfa64808d934b688ecab8bcb9101640e9956dd6da10da10e99b1f1', 'CANONICAL_HTML_CHANGED = NO');
   /* Aucun secret, aucun contenu utilisateur dans les journaux ajoutés. */
   for (const motif of [/sk-[A-Za-z0-9]{16,}/, /gsk_[A-Za-z0-9]{20,}/, /BEGIN [A-Z ]*PRIVATE KEY/]) {
     assert.equal(motif.test(WORKER), false);

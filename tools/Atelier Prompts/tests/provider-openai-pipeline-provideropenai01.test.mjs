@@ -628,14 +628,22 @@ test('T-PROVOPENAI01-27 · ANTHROPIC_INCHANGE : le premier fournisseur part exac
   assert.equal(h2.journal.reseau[0].url, 'https://api.anthropic.com/v1/messages');
 });
 
-test('T-PROVOPENAI01-28 · PLAGES_GELEES : aucune des sept plages FROZEN n’a été touchée par ce lot', () => {
+test('T-PROVOPENAI01-28 · PLAGES_GELEES : six plages intactes, une seule rouverte — pour la phrase du mode sensible', () => {
   const baseline = JSON.parse(fs.readFileSync(path.join(racine, 'anti-regression-baseline.json'), 'utf8'));
   assert.deepEqual(Object.keys(baseline.hashes).sort(),
     ['ARCH_SCHEMA', 'ARCH_SYSTEM', 'FORMATS', 'VERROUS', 'moteur Architecte', 'moteur Atelier', 'moteur Rapide'].sort());
   /* La preuve est produite par le garde lui-même, lancé par `npm run guard` dans la chaîne
      `npm run check` : ce test vérifie que la baseline n'a pas été réécrite pour le faire taire. */
   assert.equal(baseline.hashes.ARCH_SCHEMA, 'a976687cf6412be80f74eac88762f8c4a4115fe30697bdefd0ea5e6e318fd84b');
-  assert.equal(baseline.hashes['moteur Architecte'], '8668de58c928afaf010d37aa3b3f1c57a280f32e916cf483ad100c2784debc39');
+  /* PROVIDER-OPENAI-01B — LA PLAGE « MOTEUR ARCHITECTE » EST ROUVERTE UNE SECONDE FOIS, POUR UNE
+     LIGNE. En mode « données sensibles », archApi() annonçait « La demande sera transmise à l'API
+     Anthropic » quel que soit le fournisseur retenu : la phrase est fausse dès qu'OpenAI est
+     sélectionné, et c'est précisément une phrase qui dit à la personne où part sa demande. Le nom
+     vient désormais du registre des fournisseurs. Baseline régénérée par frozen-guard
+     --write-baseline : 8668de58… → 3f0878c8…, et les SIX autres plages sont inchangées à l'octet
+     (le guard les a toutes recalculées et n'a nommé que celle-ci). Aucune règle, aucun prompt, aucun
+     schéma, aucun comportement : un nom de fournisseur, dans un texte d'information. */
+  assert.equal(baseline.hashes['moteur Architecte'], '3f0878c887d61218768ba6f11db15a0d0af511496a770fb5f7f1322610e0c181');
   /* Et le pipeline automatique appelle toujours la façade, jamais un fournisseur nommé. */
   const appels = [...html.matchAll(/appelFournisseur\(\{fournisseur[,:]/g)];
   assert.ok(appels.length >= 5, 'les appels du pipeline passent par la façade avec le fournisseur actif');
@@ -763,27 +771,53 @@ test('T-PROVOPENAI01-32 · PIPELINE_ATELIER_OPENAI : le MÊME pipeline aboutit, 
   assert.deepEqual(brut(r.analyse), ANALYSE_REELLE, 'rien n’est perdu ni réécrit entre le transport et le moteur');
 });
 
-test('T-PROVOPENAI01-33 · MODE_SENSIBLE_ARCHITECTE : limite connue et épinglée — la confirmation nomme Anthropic en dur, dans un moteur GELÉ', () => {
-  /* CE TEST NE VALIDE PAS UN COMPORTEMENT SOUHAITABLE, IL L'EMPÊCHE D'ÊTRE OUBLIÉ.
-     archApi() demande, en mode « données sensibles » uniquement, « La demande sera transmise à
-     l'API Anthropic. Continuer ? » — quel que soit le fournisseur actif. La phrase est fausse si
-     OpenAI est sélectionné. Elle n'est PAS corrigée par ce lot : archApi() vit à l'intérieur de la
-     plage gelée « moteur Architecte », et la corriger casserait FROZEN, que ce lot doit garder vert.
-     Le mode sensible est désactivé par défaut (`let modeSensible = false`), donc cette phrase
-     n'apparaît qu'après une activation explicite par la personne.
-     La confirmation de l'ENVOI DIRECT, elle, nomme déjà correctement le fournisseur actif. */
-  const debutGele = html.indexOf('function archContexte(){');
-  const finGelee = html.indexOf('const ARCH_SAUVEGARDE_VERSION=', debutGele);
-  /* La phrase est cherchée sous sa forme LITTÉRALE dans la source : l'apostrophe y est écrite
-     en séquence d'échappement, pas en caractère. */
-  const phrase = 'La demande sera transmise à l' + String.raw`\u2019` + 'API Anthropic. Continuer ?';
-  const position = html.indexOf(phrase);
-  assert.ok(position > 0, 'la phrase existe');
-  assert.ok(position > debutGele && position < finGelee, 'et elle est DANS la plage gelée : hors de portée de ce lot');
-  assert.equal(html.indexOf('let modeSensible = false;') > 0, true, 'le mode sensible est désactivé par défaut');
-  /* L'autre confirmation, hors plage gelée, est bien pilotée par le registre. */
+test('T-PROVOPENAI01-33 · MODE_SENSIBLE : la confirmation nomme le fournisseur RÉELLEMENT actif, et pas un autre', async () => {
+  /* CE QUE CE TEST A D'ABORD CONSTATÉ, PUIS FAIT CORRIGER. archApi() annonçait, en mode « données
+     sensibles », « La demande sera transmise à l'API Anthropic » quel que soit le fournisseur
+     retenu. C'est la phrase qui dit à la personne OÙ part sa demande : fausse sous OpenAI, elle
+     l'était au pire endroit. La plage « moteur Architecte » a été rouverte pour cette seule ligne,
+     et le nom vient maintenant du registre.
+     LA PREUVE EST COMPORTEMENTALE, pas textuelle : la confirmation est interceptée pendant un vrai
+     parcours Architecte, une fois par fournisseur. Lire la source ne prouverait que la source. */
+  const messages = [];
+  const jouer = async (fournisseur, cle, modele, enveloppe) => {
+    const h = chargerPage({ repondre: () => reponse(200, enveloppe) });
+    dans(h, 'modeSensible = true');
+    h.ctx.confirm = (message) => { messages.push({ fournisseur, message }); return true; };
+    h.el('fournisseur-actif').value = fournisseur;
+    h.w.surChangementFournisseurActif();
+    h.el('api-cle').value = cle;
+    h.el('api-modele').value = modele;
+    h.el('arch-demande').value = REEL.demande;
+    const ok = await h.w.__ARCHITECTE_V10__.api();
+    return { ok, url: h.journal.reseau[0] && h.journal.reseau[0].url };
+  };
+
+  const a = await jouer('anthropic', 'sk-ant-x', 'claude-sonnet-5', {
+    content: [{ type: 'tool_use', name: 'sortie_structuree', id: 't', input: ANALYSE_REELLE }],
+    usage: { input_tokens: 7000, output_tokens: 3300 }, stop_reason: 'tool_use' });
+  const o = await jouer('openai', 'sk-proj-x', MODELE, enveloppeOutil(REEL.arguments, { reflexions: 1 }));
+
+  /* Le parcours est réellement allé au bout, chez le bon fournisseur : la confirmation n'a pas
+     seulement été affichée, elle a précédé un envoi qui a abouti. */
+  assert.equal(a.ok, true); assert.equal(a.url, 'https://api.anthropic.com/v1/messages');
+  assert.equal(o.ok, true); assert.equal(o.url, ENDPOINT);
+
+  const dite = (f) => (messages.find((m) => m.fournisseur === f && /transmise/.test(m.message)) || {}).message;
+  assert.equal(dite('anthropic'), 'La demande sera transmise à l’API Anthropic. Continuer ?',
+    'Anthropic continue d’afficher Anthropic — aucune régression');
+  assert.equal(dite('openai'), 'La demande sera transmise à l’API OpenAI. Continuer ?',
+    'et OpenAI affiche OpenAI');
+  assert.equal(/Anthropic/.test(dite('openai')), false, 'surtout : plus aucune mention d’Anthropic sous OpenAI');
+
+  /* Et la phrase en dur a bien disparu de l'artefact, sous sa forme littérale. */
+  const enDur = 'La demande sera transmise à l' + String.raw`\u2019` + 'API Anthropic. Continuer ?';
+  assert.equal(html.includes(enDur), false, 'aucun nom de fournisseur n’est plus écrit en dur dans cette phrase');
+  /* Le mode sensible reste désactivé par défaut : cette phrase n'apparaît qu'après activation. */
+  assert.ok(html.includes('let modeSensible = false;'));
+  /* La confirmation de l'ENVOI DIRECT, elle, n'a pas été touchée : elle nommait déjà le fournisseur. */
   const envoiDirect = html.slice(html.indexOf('Ce prompt va être transmis à'), html.indexOf('Ce prompt va être transmis à') + 200);
-  assert.match(envoiDirect, /nomFournisseur/, 'l’envoi direct nomme le fournisseur réellement actif');
+  assert.match(envoiDirect, /nomFournisseur/, 'l’envoi direct nomme toujours le fournisseur actif, par son propre chemin');
 });
 
 test('T-PROVOPENAI01-34 · CONTINUITE_NON_REGRESSEE : les suites de continuité conversationnelle passent inchangées', () => {
