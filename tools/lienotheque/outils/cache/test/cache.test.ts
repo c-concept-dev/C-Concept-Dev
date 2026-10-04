@@ -15,6 +15,17 @@ afterEach(() => {
   for (const dossier of dossiers.splice(0)) rmSync(dossier, { recursive: true, force: true });
 });
 
+/** Un chemin qu'aucun système ne peut créer : il descend sous un fichier ordinaire, et un fichier
+ *  ne devient pas un dossier — ENOTDIR partout.
+ *
+ *  Un chemin de volume absent ne vaut que sur macOS : sous Windows il se crée sans bruit sur le
+ *  disque courant, le cache se croyait joignable, et ni le repli ni l'échec n'arrivaient. */
+const injoignable = (): string => {
+  const fichier = join(neuf(), "un-fichier");
+  writeFileSync(fichier, "");
+  return join(fichier, "cache");
+};
+
 /** Écrit un fichier de `octets` octets, vu à la date donnée. */
 function poser(dossier: string, nom: string, octets: number, vuLe = Date.now()): string {
   const chemin = join(dossier, nom);
@@ -37,7 +48,7 @@ describe("ouverture du cache (décision 6)", () => {
     const repli = join(neuf(), "repli");
     const avertissements: string[] = [];
     const cache = ouvrirCache({
-      dossier: "/Volumes/Un-volume-qui-n-existe-pas/cache",
+      dossier: injoignable(),
       repli,
       avertir: (message) => avertissements.push(message),
     });
@@ -51,8 +62,8 @@ describe("ouverture du cache (décision 6)", () => {
   it("échoue avant de commencer, jamais au milieu, quand rien n'est utilisable", () => {
     expect(() =>
       ouvrirCache({
-        dossier: "/Volumes/Absent/cache",
-        repli: "/Volumes/Absent-aussi/cache",
+        dossier: injoignable(),
+        repli: injoignable(),
         avertir: () => {},
       }),
     ).toThrow(/Aucun cache utilisable/);

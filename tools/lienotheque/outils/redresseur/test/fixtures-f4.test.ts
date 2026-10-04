@@ -6,12 +6,18 @@ import { describe, expect, it } from "vitest";
 import { ReglagesRedressement } from "@lienotheque/contrats";
 import { objetsPdf, octetsImage, pagesPdf } from "@lienotheque/formats";
 import { decoderJpeg, enGris, type ImageGrise } from "@lienotheque/images";
+import { tesseractDisponible } from "@lienotheque/lecteur-texte";
 import { redresser } from "../src/index.js";
 
 /** Fixture sous droits : F4 est une méthode photographiée en doubles pages, posée de travers.
- *  Absente ailleurs, ces contrôles se sautent proprement. */
+ *  Absente ailleurs, ces contrôles se sautent proprement.
+ *
+ *  Le redressement reconnaît l'orientation par Tesseract : sans lui, il n'y a pas d'orientation à
+ *  reconnaître. La fixture ne suffit donc pas — il faut aussi l'outil. La combinaison n'arrive pas
+ *  en intégration continue, qui n'a ni l'une ni l'autre, mais bien sur une machine à demi outillée,
+ *  et un contrôle qui ne trouve pas son outil doit se sauter, jamais échouer. */
 const F4 = join(import.meta.dirname, "../../../fixtures/fichiers/F4/Paul westwood.pdf");
-const siF4 = existsSync(F4) ? it : it.skip;
+const siF4 = existsSync(F4) && tesseractDisponible() ? it : it.skip;
 
 async function cliche(index: number): Promise<ImageGrise> {
   const objets = objetsPdf(await readFile(F4));

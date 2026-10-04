@@ -296,6 +296,9 @@ importers:
         specifier: workspace:*
         version: link:../images
     devDependencies:
+      '@lienotheque/lecteur-texte':
+        specifier: workspace:*
+        version: link:../lecteur-texte
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
