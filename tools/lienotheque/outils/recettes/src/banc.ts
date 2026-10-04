@@ -43,6 +43,13 @@ export function clefDeLecture(chemin: string, recette: Recette, limite?: number)
 export type OptionsBanc = OptionsReperes & {
   /** Dossier où garder les lectures. Absent, rien n'est gardé. */
   readonly cache?: string | undefined;
+  /** Rend les pages redressées et coupées, mais sans binarisation.
+   *
+   *  La lecture veut du noir et blanc : un moteur d'OCR y lit mieux. Une relecture ciblée veut
+   *  l'inverse — un chiffre que le seuil a mangé ne se retrouve pas dans ce qu'il en reste, et
+   *  envoyer une image déjà dégradée, c'est perdre ce qu'on venait chercher (OUT-08).
+   *  La géométrie ne bouge pas : même rotation, même coupe, mêmes coordonnées. */
+  readonly sansBinarisation?: boolean;
   /** Ne traiter que les premières pages : pour un essai rapide pendant la mise au point. */
   readonly pages?: number;
   readonly redressement?: OptionsRedressement;
@@ -68,7 +75,7 @@ export async function* preparerLot(chemin: string, recette: Recette, options: Op
         doublePage: preparation.double_page,
         ...(preparation.page_gauche === undefined ? {} : { pageGauche: preparation.page_gauche }),
         effacerVerso: true,
-        binarisation: "adaptative",
+        binarisation: options.sansBinarisation === true ? "aucune" : "adaptative",
       });
 
   let index = 0;
