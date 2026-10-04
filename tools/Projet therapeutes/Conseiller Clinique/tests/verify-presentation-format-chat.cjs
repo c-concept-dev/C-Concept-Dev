@@ -30,7 +30,7 @@ for (const audience of ['grand public', 'patient', 'couple', 'praticiens', 'étu
  const text = capture.replace('grand public', audience);
  assert.equal(explicit(text), 'presentation'); assert.equal(ambiguous(text, {format_confidence: 0.2}), null); count++;
 }
-for (const text of ['diaporama pour des patients', 'Fais-moi une présentation sur : X', 'Une conférence pour les couples', 'Un exposé pour les étudiants', 'Des slides sur X', 'Des diapositives sur X', 'Un deck sur X', 'PRÉSENTATION sur X', 'Une presentation sur X', 'Présentation comparative : comparatif de deux approches', 'Présentation de cours']) {
+for (const text of ['diaporama pour des patients', 'Fais-moi une présentation sur : X', 'Une conférence pour les couples', 'Un exposé pour les étudiants', 'Des slides sur X', 'Des diapositives sur X', 'Un deck sur X', 'Crée une PRÉSENTATION sur X', 'Une presentation sur X', 'Crée une présentation sur un comparatif de deux approches', 'Crée une présentation de cours']) {
  assert.equal(explicit(text), 'presentation'); assert.equal(ambiguous(text, {}), null); count++;
 }
 for (const word of ['carrousel', 'fiche', 'tableau', 'script', 'verbatim', 'liens', 'article']) {

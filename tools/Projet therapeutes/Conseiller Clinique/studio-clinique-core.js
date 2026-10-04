@@ -1183,8 +1183,29 @@
 
   function _adocDetectExplicitDocumentKind(rawText) {
     if (!_adocHasPresentationKeyword(rawText)) return null;
-    const concurrent = /\b(carrousel|fiche|tableau|script|verbatim|liens|article)\b/i;
-    return concurrent.test(rawText || '') ? null : 'presentation';
+    const text = (rawText || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    if (/\b(carrousel|fiche|tableau|script|verbatim|liens|article)\b/.test(text)) return null;
+    // Les trois premiers termes de la liste partagée ont aussi un sens clinique/oral.
+    // Les suivants désignent directement des diapositives. Aucun second catalogue.
+    for (let i = 0; i < ADOC_PRESENTATION_KEYWORDS.length; i++) {
+      const word = ADOC_PRESENTATION_KEYWORDS[i].normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const pattern = new RegExp('\\b' + word + '\\b', 'g');
+      let match;
+      while ((match = pattern.exec(text))) {
+        if (i >= 3) return 'presentation';
+        const before = text.slice(0, match.index);
+        const after = text.slice(match.index + word.length);
+        // Exclusions lexicales, pas des listes de diagnostics cliniques.
+        if (/^\s+(?:clinique|atypique|typique)\b/.test(after) ||
+            /^\s+(?:du|des|de la|de l['’]|d['’]un(?:e)?\s+)\s*(?:cas|patient|patiente|symptomes)\b/.test(after) ||
+            /\btexte\s+de\s+$/.test(before)) continue;
+        if (/\b(?:pas|sans)\s+(?:de\s+)?(?:un|une|ma|mon|notre|votre)?\s*$/.test(before)) continue;
+        const production = /\b(?:cree[rz]?|fais|faites|prepare[rz]?|genere[rz]?|construis|construire|construisez|realise[rz]?|concois|concevoir|concevez|elabore[rz]?|produis|produire|produisez|monte[rz]?)(?:[-\s]+(?:moi|nous))?\s+(?:(?:un|une|ma|mon|notre|votre)\s+)?(?:(?:courte?|breve?|nouvelle?|professionnelle?)\s+){0,2}$/;
+        const article = /\b(?:un|une|mon|ma|ton|ta|son|sa|notre|votre|leur)\s+$/;
+        if (production.test(before) || (article.test(before) && /^\s+(?:de|pour|sur|destinee?|a)\b/.test(after))) return 'presentation';
+      }
+    }
+    return null;
   }
 
   async function adocPlanQuery(userMessage) {
