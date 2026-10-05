@@ -2421,6 +2421,15 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     // coût est donc calculé avant que la bulle ne disparaisse, sans effet visible (même tick
     // JS synchrone que l'ajout du nouveau contenu, aucun scintillement).
     document.getElementById(streamMsgId)?.remove();
+    // APRÈS la livraison, jamais avant : le document est le livrable, ce message n'est qu'un
+    // avertissement et ne doit pas pouvoir retarder ni empêcher sa remise. Enveloppé pour la même
+    // raison que les avis d'export : un avertissement qui échoue ne perd pas un document réussi.
+    if (fellBackFromStructured) {
+      try {
+        const avis = adocReplyFallbackNotice(plan);
+        if (avis) adocAddMsg('assistant', avis, []);
+      } catch (_avisErr) { console.warn('[UX-8A.1] signal de repli non affiché :', _avisErr && _avisErr.message); }
+    }
     adocConversations.push({ role: 'assistant', content: reply });
     adocExchangeCount++;
     if (adocExchangeCount % 4 === 0 && adocExchangeCount > 0) {
@@ -5246,6 +5255,39 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
   // le vocabulaire déjà utilisé ailleurs pour documentKind (cf. adocOpenWorkspace) — étendu ici
   // aux 3 types qui n'y figuraient pas encore (tableau/script/liens), même esprit.
   var ADOC_GENERATION_KIND_LABELS = { fiche: 'fiche synthèse', carrousel: 'carrousel', tableau: 'tableau', script: 'script', liens: 'liens transversaux', presentation: 'présentation' };
+  // SIGNAL VISIBLE DU REPLI structuré → ancien moteur.
+  //
+  // MESURÉ avant d'écrire : quand le repli se déclenche, l'ancien moteur n'échoue PAS. Il livre un
+  // artefact HTML complet, exportable, avec aperçu — étiqueté legacy-html, fmt html, sur les trois
+  // intentions éprouvées (chat, cours, document). L'utilisatrice reçoit donc un document PLAUSIBLE
+  // et ne peut pas savoir qu'elle a perdu le format demandé : c'est le pire profil de défaut,
+  // silencieux et crédible. Seuls une légende transitoire (« Passage à la génération standard… »,
+  // qui disparaît à la livraison), un avertissement de console et un traceur de diagnostic
+  // (ADOC_FALLBACK_TRACE_KEY) en gardaient trace — rien de durable à l'écran.
+  //
+  // Ce que le message dit, et rien de plus : le format n'a pas abouti, et ce qui est perdu. Pas de
+  // conseil (« relancez ») : un repli peut venir d'un refus de validation, déterministe, qu'une
+  // relance ne corrigerait pas — promettre l'inverse serait faux. Les pertes nommées sont celles
+  // que _adocCapabilities déclare réellement à la ligne du dessous : fineCitations:false,
+  // blockEditing:false, qualityControlledExport absent.
+  //
+  // PURE et sans effet de bord : s'éprouve sans lancer de génération.
+  function adocReplyFallbackNotice(plan) {
+    const kind = (plan && (plan.documentKind || plan.intent)) || null;
+    if (!kind) return null;
+    const libelle = ADOC_GENERATION_KIND_LABELS[kind] || null;
+    if (!libelle) return null;
+    let m = 'Le format ' + libelle + ' n\'a pas abouti : ce document a été produit par le moteur '
+      + 'standard. Il reste consultable et exportable, mais sans les citations fines, sans '
+      + 'l\'édition par blocs et sans contrôle qualité à l\'export.';
+    // La présentation perd en plus tout son mode de lecture — c'est sa raison d'être, pas un détail.
+    if (kind === 'presentation') {
+      m += ' Il n\'a pas non plus de diapositives, de pages d\'approfondissement ni de mode plein écran.';
+    }
+    return m;
+  }
+  window.adocReplyFallbackNotice = adocReplyFallbackNotice;
+
   function adocUpdateGenerationTitle(id, documentKind) {
     const el = document.getElementById(id);
     if (!el) return;
