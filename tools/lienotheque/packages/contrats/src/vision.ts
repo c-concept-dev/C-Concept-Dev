@@ -126,3 +126,19 @@ export const EstimationVision = z
   })
   .strict();
 export type EstimationVision = z.infer<typeof EstimationVision>;
+
+/** Une réponse gardée, par empreinte de recadrage (REC-02).
+ *
+ *  Un appel à un modèle n'est pas déterministe ; l'interpréteur, lui, doit l'être. Ce qui a été lu
+ *  est donc gardé sous l'empreinte de l'image qui l'a produit, et un rejeu lit le cache sans
+ *  rappeler personne — le banc d'essai tourne sans réseau.
+ *
+ *  L'outil voyage avec la réponse : un lien doit pouvoir dire de quelle version vient son numéro,
+ *  et une entrée écrite par une version plus ancienne reste lisible sans mentir sur sa provenance. */
+export const EntreeCacheVision = z
+  .object({
+    zone: ZoneLue,
+    outil: z.object({ nom: z.string().min(1), version: z.string().min(1) }).strict(),
+  })
+  .strict();
+export type EntreeCacheVision = z.infer<typeof EntreeCacheVision>;
