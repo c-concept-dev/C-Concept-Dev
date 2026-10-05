@@ -30,6 +30,55 @@ const CIBLE = { l: 1920, h: 1080 };
 const REF_MOTEUR = { densite: 0.208, moyen: 162.5, pic: 232 };
 const PAGE = '/entrees/nombres-nettete.html';
 
+// COMPARABILITÉ — ajouté au complément 4, après une alerte réelle.
+// La propriété CSS zoom a donné un gradient de 153 contre 92,5, ce qui ressemblait à un gain.
+// C'en était un sur le papier et un leurre en fait : zoom agissant sur la MISE EN PAGE, la capture
+// ne montrait plus la même diapositive (corrélation -0,02 avec le moteur, 59 % d'encre en plus).
+// Une raideur de contours ne vaut donc RIEN tant qu'on n'a pas établi qu'on mesure la même image.
+// Le profil d'encre par ligne le dit : identique si le texte est au même endroit à la même taille.
+const CORREL_MIN = 0.5;
+
+function profilEncre(p) {
+  const M = 30;   // on rogne la bordure, qui touche les quatre bords et saturerait le profil
+  const out = [];
+  for (let y = M; y < p.height - M; y++) {
+    let s = 0;
+    for (let x = M; x < p.width - M; x++) {
+      const i = (y * p.width + x) * 4;
+      if ((p.data[i] + p.data[i+1] + p.data[i+2]) / 3 < 170) s++;
+    }
+    out.push(s);
+  }
+  return out;
+}
+function correlation(a, b) {
+  const n = Math.min(a.length, b.length);
+  let ma = 0, mb = 0;
+  for (let i = 0; i < n; i++) { ma += a[i]; mb += b[i]; }
+  ma /= n; mb /= n;
+  let num = 0, da = 0, db = 0;
+  for (let i = 0; i < n; i++) { const u = a[i] - ma, v = b[i] - mb; num += u * v; da += u * u; db += v * v; }
+  return (da === 0 || db === 0) ? 0 : +(num / Math.sqrt(da * db)).toFixed(4);
+}
+
+// ÉCHELLE DU CONTENU — dire POURQUOI un chemin n'est pas comparable, pas seulement qu'il ne l'est
+// pas. L'étendue de l'encre sombre donne la taille réelle à laquelle le texte a été rendu. La
+// référence ne peut pas servir d'étalon ici : la capture du moteur porte un fond sombre qui touche
+// les quatre bords et sature la boîte. On rapporte donc l'étendue à celle de (a), dont la
+// géométrie est validée par ailleurs par la corrélation d'encre.
+function etendueEncre(p) {
+  let x0 = 1e9, x1 = -1, y0 = 1e9, y1 = -1, encre = 0;
+  for (let y = 0; y < p.height; y++) for (let x = 0; x < p.width; x++) {
+    const i = (y * p.width + x) * 4;
+    if ((p.data[i] + p.data[i+1] + p.data[i+2]) / 3 < 170) {
+      encre++;
+      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+    }
+  }
+  return (x1 < 0) ? { vide: true, l: 0, h: 0, encre: 0 }
+                  : { x0, y0, l: x1 - x0 + 1, h: y1 - y0 + 1, encre };
+}
+
 function mesurerPng(fichier) {
   const p = PNG.sync.read(fs.readFileSync(fichier));
   return Object.assign(contoursPixels(p.data, p.width, p.height),
@@ -74,6 +123,9 @@ async function ouvrir(nav, fenetre) {
   const prep = await p.evaluate(() => window.__netteteApi.preparer());
   const a = await p.evaluate(() => window.__netteteApi.candidatA());
   const b = await p.evaluate(() => window.__netteteApi.candidatB());
+  // (c) et (d) : complément 4. Ne pas conclure « voie fermée » sans les avoir mesurés tous deux.
+  const c = await p.evaluate(() => window.__netteteApi.candidatC());
+  const d = await p.evaluate(() => window.__netteteApi.candidatD());
   const ua = await p.evaluate(() => navigator.userAgent);
   await p.close();
   await nav.close(); serveur.close();
@@ -94,14 +146,19 @@ async function ouvrir(nav, fenetre) {
   if (!pariteMoteur) rouges++;
 
   const lignes = [];
-  const ajoute = (etiquette, m, extra) => lignes.push({ etiquette, m, extra: extra || '' });
+  const ajoute = (etiquette, m, extra, comparable) => lignes.push({ etiquette, m, extra: extra || '',
+    comparable: comparable === undefined ? true : comparable });
+  const profilRef = profilEncre(PNG.sync.read(fs.readFileSync(IMG('n3-c-moteur-1920.png'))));
+  let etendueA = null;
   ajoute('(c) le MOTEUR rendant à 1920', moteur);
   ajoute('(c) + flou de boîte 1 px', mesurerPngFloute(IMG('n3-c-moteur-1920.png'), 1));
 
   // ── parité 1 : la métrique de la page contre celle de Node, sur le même PNG ──
   const parites = [];
   for (const [cle, r, nom] of [['a', a, '(a) SnapDOM toSvg → drawImage 1920'],
-                               ['b', b, '(b) html-to-image pixelRatio 1,3502']]) {
+                               ['b', b, '(b) html-to-image pixelRatio 1,3502'],
+                               ['c', c, '(c) CSS zoom 1,3502 puis SnapDOM'],
+                               ['d', d, '(d) SVG width 1920 viewBox 1422x800']]) {
     if (r.refus) {
       console.log('  ' + nom + ' : ' + r.refus);
       console.log('    → REFUS DE SAFARI/WebKit sur foreignObject vers canvas, à signaler tel quel.');
@@ -112,11 +169,27 @@ async function ouvrir(nav, fenetre) {
     ecrirePng(f, r.png);
     const node = mesurerPng(f);
     const parite = Math.abs(node.moyen - r.moyen) < 0.5 && node.pic === r.pic;
-    parites.push({ cle, page: { densite: r.densite, moyen: r.moyen, pic: r.pic }, node, parite });
+    const imgCand = PNG.sync.read(fs.readFileSync(f));
+    const corr = correlation(profilRef, profilEncre(imgCand));
+    const etendue = etendueEncre(imgCand);
+    if (cle === 'a') etendueA = etendue;
+    const comparable = corr >= CORREL_MIN;
+    const echelle = (etendueA && etendueA.l) ? +(etendue.l / etendueA.l).toFixed(3) : null;
+    parites.push({ cle, page: { densite: r.densite, moyen: r.moyen, pic: r.pic }, node, parite,
+                   correlation: corr, comparable, etendue_encre: etendue.l + 'x' + etendue.h,
+                   echelle_contenu_contre_a: echelle });
     if (!parite) rouges++;
+    if (!comparable) {
+      console.log('  ' + nom + ' : corrélation d\'encre ' + corr + ' avec le moteur (seuil '
+        + CORREL_MIN + ') → AUTRE MISE EN PAGE, gradient NON comparable');
+    }
     ajoute(nom, node, r.ms + ' ms'
+      + (r.zoom ? ', zoom ' + r.zoom + ', mise en page vue ' + r.mise_en_page_vue : '')
+      + (r.svg_origine ? ', SVG écrit depuis ' + r.svg_origine : '')
       + (r.svg_naturel ? ', SVG ' + r.svg_naturel : '')
-      + (r.rendu ? ', rendu ' + r.rendu + (r.redimensionne ? ' puis redimensionné' : '') : ''));
+      + (r.rendu ? ', rendu ' + r.rendu + (r.redimensionne ? ' puis redimensionné' : '') : '')
+      + '  [corr ' + corr + ', encre ' + etendue.l + 'x' + etendue.h
+      + (echelle && cle !== 'a' ? ', échelle ' + echelle : '') + ']', comparable);
   }
   for (const x of parites) {
     console.log('  parité de la métrique (' + x.cle + ') : page ' + x.page.moyen + '/' + x.page.pic
@@ -126,7 +199,7 @@ async function ouvrir(nav, fenetre) {
   console.log('');
   console.log('  chemin                                          taille      densité   gradient  pic   détail');
   for (const l of lignes) {
-    console.log('  ' + l.etiquette.padEnd(46).slice(0, 46) + '  ' + String(l.m.taille).padEnd(11)
+    console.log('  ' + (l.comparable ? '' : '✗ ') + l.etiquette.padEnd(l.comparable ? 46 : 44).slice(0, 46) + '  ' + String(l.m.taille).padEnd(11)
       + ' ' + String(l.m.densite + ' %').padEnd(9) + ' ' + String(l.m.moyen).padEnd(9)
       + ' ' + String(l.m.pic).padEnd(5) + ' ' + l.extra);
   }
@@ -146,8 +219,38 @@ async function ouvrir(nav, fenetre) {
     JSON.stringify({ navigateur: ua, boite_moteur: boite, reference_publiee: REF_MOTEUR,
                      parite_reference: pariteMoteur, parites_metrique: parites,
                      lignes: lignes.map((l) => ({ chemin: l.etiquette, mesure: l.m, detail: l.extra })),
-                     brut: { a, b: Object.assign({}, b, { png: undefined }) } }, null, 2), 'utf8');
+                     brut: { a: Object.assign({}, a, { png: undefined }),
+                             b: Object.assign({}, b, { png: undefined }),
+                             c: Object.assign({}, c, { png: undefined }),
+                             d: Object.assign({}, d, { png: undefined }) } }, null, 2), 'utf8');
   console.log('');
+  const capt = lignes.slice(2);
+  const nonComparables = capt.filter((l) => !l.comparable);
+  const mesures = capt.filter((l) => l.comparable).map((l) => l.m.moyen);
+  const tousEgaux = mesures.length > 1 && mesures.every((x) => Math.abs(x - mesures[0]) < 0.6);
+  console.log('');
+  console.log('  ' + capt.length + ' chemin(s) mesuré(s) sur 4 attendu(s) au complément 4, dont '
+    + mesures.length + ' comparable(s).');
+  for (const l of nonComparables) {
+    const p = parites.find((x) => l.etiquette.indexOf('(' + x.cle + ')') === 0);
+    console.log('  ✗ ' + l.etiquette + ' : écarté, autre mise en page.'
+      + (p && p.echelle_contenu_contre_a
+          ? ' Contenu rendu à ' + p.echelle_contenu_contre_a + ' fois la taille de (a)'
+            + ' (' + p.etendue_encre + ' d\'encre).' : ''));
+    console.log('    Un gradient plus élevé y est le signe d\'une image différente, pas d\'un texte plus net.');
+  }
+  if (capt.length < 4) {
+    console.log('  Conclusion SUSPENDUE : un chemin manque, « voie fermée » ne peut pas être écrit.');
+  } else if (tousEgaux) {
+    console.log('  Les ' + mesures.length + ' chemins COMPARABLES donnent le même gradient ('
+      + mesures[0] + ') : la rastérisation se fait à la taille intrinsèque du contenu, quel que');
+    console.log('  soit le levier. Les ' + nonComparables.length + ' autres n\'infirment rien : ils');
+    console.log('  rendent le contenu à une autre échelle, donc une autre image. Voie fermée.');
+  } else {
+    const best = Math.max.apply(null, mesures);
+    console.log('  ÉCART CONSTATÉ : meilleur gradient ' + best + ' contre ' + mesures[0]
+      + ' — un chemin se détache, à instruire.');
+  }
   console.log('  ' + (rouges ? rouges + ' ROUGE(S)' : 'verts : ' + (2 + parites.length) + '   rouges : 0'));
   process.exit(rouges ? 1 : 0);
 })();

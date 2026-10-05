@@ -135,6 +135,90 @@ const HARNAIS = `
                          contours(p.px, c.width, c.height));
   }
 
+  // (c) la propriété CSS zoom, qui agit sur la MISE EN PAGE, au lieu de transform: scale, qui
+  // n'agit que sur le rendu. SnapDOM lisant la mise en page, c'est le seul levier CSS qui puisse
+  // lui faire voir 1920x1080. On repose l'état d'origine dans tous les cas, succès comme échec.
+  async function candidatC() {
+    var el = cible(); if (!el) return { erreur: "diapositive introuvable" };
+    var ancien = el.getAttribute("style") || "";
+    var t0 = performance.now();
+    var facteur = CIBLE.l / el.offsetWidth;
+    el.style.zoom = String(facteur);
+    // Laisser la mise en page se refaire avant de lire quoi que ce soit.
+    await new Promise(function (r) { requestAnimationFrame(function () { requestAnimationFrame(r); }); });
+    var vue = el.offsetWidth + "x" + el.offsetHeight;
+    var res, img;
+    try {
+      var mod = await import("./../vendeur/snapdom.mjs");
+      res = await mod.snapdom(el, {});
+      img = await res.toSvg();
+      if (!img.complete) { await img.decode().catch(function () {}); }
+    } catch (e) {
+      el.setAttribute("style", ancien);
+      return { erreur: "snapdom a échoué sous zoom : " + String(e && e.message || e), mise_en_page_vue: vue };
+    }
+    var naturel = (img.naturalWidth || 0) + "x" + (img.naturalHeight || 0);
+    el.setAttribute("style", ancien);
+    var c = cadre(), ctx = c.getContext("2d", { alpha: false });
+    ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height);
+    try { ctx.drawImage(img, 0, 0, CIBLE.l, CIBLE.h); }
+    catch (e) { return { erreur: "drawImage refusé : " + String(e && e.message || e), svg_naturel: naturel }; }
+    var ms = +(performance.now() - t0).toFixed(0);
+    var p = pixels(c);
+    if (p.refus) return { refus: p.refus, souille: p.souille, svg_naturel: naturel, ms: ms };
+    return Object.assign({ zoom: +facteur.toFixed(4), mise_en_page_vue: vue, svg_naturel: naturel,
+                           ms: ms, png: c.toDataURL("image/png") },
+                         contours(p.px, c.width, c.height));
+  }
+
+  // (d) un SVG écrit ICI : on reprend la sérialisation de SnapDOM (qui inline styles, polices et
+  // images) mais on remplace sa balise <svg> par width=1920 height=1080 viewBox="0 0 1422 800",
+  // le foreignObject restant à 1422x800. Le navigateur doit alors rastériser le contenu du
+  // foreignObject à 1920x1080 par le viewBox, au lieu de l'étirer après coup.
+  async function candidatD() {
+    var el = cible(); if (!el) return { erreur: "diapositive introuvable" };
+    var t0 = performance.now();
+    var mod = await import("./../vendeur/snapdom.mjs");
+    var res = await mod.snapdom(el, {});
+    var brut = await res.toRaw();
+    var prefixe = "data:image/svg+xml;charset=utf-8,";
+    if (String(brut).indexOf(prefixe) !== 0) return { erreur: "toRaw inattendu" };
+    var svg = decodeURIComponent(String(brut).slice(prefixe.length));
+    var ouvrante = (svg.match(/<svg[^>]*>/) || [null])[0];
+    if (!ouvrante) return { erreur: "balise <svg> introuvable" };
+    var l0 = (ouvrante.match(/width="([0-9]+(?:[.][0-9]+)?)"/) || [])[1];
+    var h0 = (ouvrante.match(/height="([0-9]+(?:[.][0-9]+)?)"/) || [])[1];
+    if (!l0 || !h0) return { erreur: "dimensions du SVG illisibles : " + ouvrante.slice(0, 120) };
+    // viewBox sur les dimensions D ORIGINE, width/height sur la cible : c'est tout le ressort.
+    var neuve = ouvrante
+      .replace(/width="[^"]*"/, 'width="' + CIBLE.l + '"')
+      .replace(/height="[^"]*"/, 'height="' + CIBLE.h + '"');
+    if (!/viewBox=/.test(neuve)) {
+      neuve = neuve.replace("<svg", '<svg viewBox="0 0 ' + l0 + " " + h0 + '"');
+    } else {
+      neuve = neuve.replace(/viewBox="[^"]*"/, 'viewBox="0 0 ' + l0 + " " + h0 + '"');
+    }
+    var svg2 = svg.replace(ouvrante, neuve);
+    var img = new Image();
+    var charge = await new Promise(function (ok) {
+      img.onload = function () { ok(true); };
+      img.onerror = function () { ok(false); };
+      img.src = prefixe + encodeURIComponent(svg2);
+    });
+    if (!charge) return { erreur: "le SVG réécrit ne se charge pas", svg_ecrit: neuve.slice(0, 160) };
+    var naturel = (img.naturalWidth || 0) + "x" + (img.naturalHeight || 0);
+    var c = cadre(), ctx = c.getContext("2d", { alpha: false });
+    ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height);
+    try { ctx.drawImage(img, 0, 0, CIBLE.l, CIBLE.h); }
+    catch (e) { return { erreur: "drawImage refusé : " + String(e && e.message || e), svg_naturel: naturel }; }
+    var ms = +(performance.now() - t0).toFixed(0);
+    var p = pixels(c);
+    if (p.refus) return { refus: p.refus, souille: p.souille, svg_naturel: naturel, ms: ms };
+    return Object.assign({ svg_origine: l0 + "x" + h0, svg_naturel: naturel,
+                           svg_ecrit: neuve.slice(0, 160), ms: ms, png: c.toDataURL("image/png") },
+                         contours(p.px, c.width, c.height));
+  }
+
   // (b) html-to-image avec pixelRatio = 1920/1422.
   async function candidatB() {
     var el = cible(); if (!el) return { erreur: 'diapositive introuvable' };
@@ -171,7 +255,8 @@ const HARNAIS = `
   function resume(r) {
     var l = [];
     l.push('préparation : ' + (r.preparation.pret ? 'OK, mise en page ' + r.preparation.mise_en_page : 'ÉCHEC'));
-    [['(a) SnapDOM toSvg → drawImage', r.a], ['(b) html-to-image pixelRatio', r.b]].forEach(function (p) {
+    [['(a) SnapDOM toSvg → drawImage', r.a], ['(b) html-to-image pixelRatio', r.b],
+     ['(c) CSS zoom + SnapDOM', r.c], ['(d) SVG viewBox écrit ici', r.d]].forEach(function (p) {
       var x = p[1];
       if (x.refus) { l.push(p[0] + ' : ' + x.refus); return; }
       if (x.erreur) { l.push(p[0] + ' : ' + x.erreur); return; }
@@ -197,27 +282,29 @@ const HARNAIS = `
   document.getElementById('bn-tout').addEventListener('click', async function () {
     this.disabled = true; dire('Mesure en cours…');
     resultats = { navigateur: navigator.userAgent, preparation: window.__netteteEtat || { pret: true },
-                  a: await candidatA(), b: await candidatB() };
+                  a: await candidatA(), b: await candidatB(),
+                  c: await candidatC(), d: await candidatD() };
     dire(resume(resultats));
     document.getElementById('bn-tel').disabled = false;
   });
 
   document.getElementById('bn-tel').addEventListener('click', function () {
     if (!resultats) return;
-    ['a', 'b'].forEach(function (k) {
+    ['a', 'b', 'c', 'd'].forEach(function (k) {
       if (!resultats[k] || !resultats[k].png) return;
       var a = document.createElement('a');
       a.href = resultats[k].png; a.download = 'nettete-' + k + '-safari.png'; a.click();
     });
     var sansPng = JSON.parse(JSON.stringify(resultats));
-    delete sansPng.a.png; delete sansPng.b.png;
+    ['a', 'b', 'c', 'd'].forEach(function (k) { if (sansPng[k]) delete sansPng[k].png; });
     var b = new Blob([JSON.stringify(sansPng, null, 2)], { type: 'application/json' });
     var a = document.createElement('a');
     a.href = URL.createObjectURL(b); a.download = 'nettete-safari.json'; a.click();
   });
 
   // Pilotage automatisé : mêmes fonctions, sans le panneau.
-  window.__netteteApi = { preparer: preparer, candidatA: candidatA, candidatB: candidatB };
+  window.__netteteApi = { preparer: preparer, candidatA: candidatA, candidatB: candidatB,
+                          candidatC: candidatC, candidatD: candidatD };
 })();
 </script>
 `;
@@ -232,6 +319,15 @@ const HARNAIS = `
   const js = morceaux[1].split('</scr' + 'ipt>')[0];
   try { new vm.Script(js); }
   catch (e) { console.error('harnais REFUSÉ, erreur de syntaxe : ' + e.message); process.exit(1); }
+  // Un antislash qui survit au gabarit signale une séquence d'échappement mal maîtrisée : soit
+  // elle a été consommée et le code est devenu faux sans cesser d'être valide, soit elle traîne.
+  // Seul « \n » est admis, parce qu'il est voulu dans le résumé affiché.
+  const restants = (js.match(/\\./g) || []).filter((x) => x !== '\\n');
+  if (restants.length) {
+    console.error('harnais REFUSÉ : séquences d\'échappement suspectes ' + JSON.stringify(restants));
+    console.error('  Écrire les regex sans antislash ([0-9] au lieu de \\d) : le gabarit les mange.');
+    process.exit(1);
+  }
   console.log('contrôle de syntaxe du script injecté : OK (' + js.length + ' caractères)');
 }
 fs.writeFileSync(SORTIE, source.slice(0, ancreAt) + HARNAIS + ANCRE, 'utf8');
