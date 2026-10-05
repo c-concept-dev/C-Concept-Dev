@@ -1220,8 +1220,10 @@ pistes restantes étaient perdues pour un support qui n'existe pas.
 | **Avec l'inventaire, avec relecture** | **73 / 92** | **83 / 92** |
 | Critère | 83 | 89 |
 
-Il manque 10 premiers éléments et 6 pages. F3 reste à 95 / 95 — sa recette ne déclare aucun
-changement de support, et l'inventaire ne lui change donc rien.
+**L'état de F4, pour mémoire : 73 premiers éléments sur 92 et 83 pages sur 92**, pour un critère de
+83 et 89. Il manque 10 éléments et 6 pages. Depuis le vrai point de départ — 55 et 67 — le gain
+cumulé de la relecture ciblée et de l'inventaire est de **+18 éléments et +16 pages**. F3 reste à
+95 / 95 : sa recette ne déclare aucun changement de support, et l'inventaire ne lui change rien.
 
 ### Ce que l'inventaire ne décide jamais
 
