@@ -100,17 +100,38 @@ async function mesurer(fichier) {
   const flashsVus = flashs.filter((f) => f.images_presentees > 0).length;
 
   // ── images de transition par fondu, et durée apparente ──
+  // DEUX MÉTHODES DE COMPTAGE, parce qu'une seule ne prouve rien (régression #10).
+  //   A — le nombre de RAPPELS dont le mediaTime tombe dans la fenêtre du fondu ;
+  //   B — l'écart du compteur presentedFrames DU NAVIGATEUR entre le premier et le dernier
+  //       rappel de la fenêtre. Si B > A, le navigateur a présenté des images sans déclencher
+  //       un rappel pour chacune : requestVideoFrameCallback COALESCE, et A sous-compte.
+  // Sans ce contrôle, un « 10 sur 12 » peut être une image perdue comme une mesure incomplète.
   const fondus = PLAN.fondus.map((f) => {
     const dedans = images.filter((im) => im.mediaTime >= f[0] - 1e-6 && im.mediaTime < f[1] - 1e-6);
     let apparente = null;
     if (dedans.length >= 2) {
       apparente = +(dedans[dedans.length - 1].expectedDisplayTime - dedans[0].expectedDisplayTime).toFixed(1);
     }
-    return { debut: f[0], fin: f[1], images_presentees: dedans.length,
+    const A = dedans.length;
+    const B = (dedans.length >= 2)
+      ? (dedans[dedans.length - 1].presentedFrames - dedans[0].presentedFrames + 1) : A;
+    let sautMax = 0;
+    for (let i = 1; i < dedans.length; i++) {
+      const d = dedans[i].presentedFrames - dedans[i - 1].presentedFrames;
+      if (d > sautMax) sautMax = d;
+    }
+    return { debut: f[0], fin: f[1], images_presentees: A,
+             compteur_navigateur: B, saut_max_compteur: sautMax,
+             rappels_coalesces: B > A,
              duree_apparente_ms: apparente };
   });
+  // Et sur toute la lecture : le compteur du navigateur contre le nombre de rappels.
+  const totalCompteur = (images.length >= 2)
+    ? (images[images.length - 1].presentedFrames - images[0].presentedFrames + 1) : images.length;
 
   const r = { fichier, supporte: true, images_presentees_total: images.length,
+              total_compteur_navigateur: totalCompteur,
+              rappels_manques_sur_toute_la_lecture: Math.max(0, totalCompteur - images.length),
               duree_lecture_ms: mursMs,
               qualite: q ? { totalVideoFrames: q.totalVideoFrames, droppedVideoFrames: q.droppedVideoFrames } : null,
               flashs, flashs_vus: flashsVus, flashs_total: PLAN.instantsFlash.length,
@@ -121,8 +142,13 @@ async function mesurer(fichier) {
   ligne('flashs présentés', flashsVus + ' sur ' + PLAN.instantsFlash.length);
   ligne('détail par flash', flashs.map((f) => f.instant + 's:' + f.images_presentees).join('  '));
   fondus.forEach((f, i) => ligne('fondu ' + (i + 1) + ' (' + f.debut + '→' + f.fin + ' s)',
-    f.images_presentees + ' image(s) présentée(s) sur 12'
-      + (f.duree_apparente_ms !== null ? ', durée apparente ' + f.duree_apparente_ms + ' ms' : '')));
+    f.images_presentees + ' rappel(s) sur 12'
+      + ' ; compteur du navigateur ' + f.compteur_navigateur
+      + (f.rappels_coalesces ? ' — RAPPELS COALESCÉS, le compte par rappels sous-estime' : '')
+      + (f.duree_apparente_ms !== null ? ' ; durée apparente ' + f.duree_apparente_ms + ' ms' : '')));
+  ligne('rappels contre compteur du navigateur',
+    images.length + ' rappels pour ' + totalCompteur + ' images comptées par le navigateur'
+      + (totalCompteur > images.length ? '  → ' + (totalCompteur - images.length) + ' rappel(s) manqué(s)' : '  → aucun écart'));
   if (q) ligne('images décodées / écartées', q.totalVideoFrames + ' / ' + q.droppedVideoFrames);
   ligne('durée de lecture (horloge)', (mursMs / 1000).toFixed(2) + ' s');
   $('journal').textContent = images.map((im) => im.mediaTime.toFixed(4) + '  n=' + im.presentedFrames).join('\n');

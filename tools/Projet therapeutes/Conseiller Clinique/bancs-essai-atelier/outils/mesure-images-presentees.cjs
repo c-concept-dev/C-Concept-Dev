@@ -26,13 +26,23 @@ const RACINE = path.join(__dirname, '..');
 const PAQUET = path.join(RACINE, 'controle-humain');
 const MESURES = path.join(RACINE, 'mesures');
 const PAGE = 'G-images-presentees.html';
-const VARIANTES = [
+// Répétitions et filtre, passés en arguments : « 3 V2 » relit V2 trois fois. Une mesure unique ne
+// distingue pas une image perdue d'un aléa de lecture — c'est la répétition qui le dit.
+const REPET = Math.max(1, parseInt(process.argv[2] || '1', 10) || 1);
+const FILTRE = process.argv.slice(3).filter((x) => /^V[1-5]$/.test(x));
+// Poids et durée d'encodage, relevés à la production.
+const PROD = (() => {
+  try { return JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'mesures', 'variantes.json'), 'utf8')).variantes; }
+  catch (e) { return []; }
+})();
+const VARIANTES_TOUTES = [
   ['V1', 'V1-images-tenues-plage-pleine.mp4'],
   ['V2', 'V2-cadence-constante-30ips.mp4'],
   ['V3', 'V3-images-tenues-plus-une-par-seconde.mp4'],
   ['V4', 'V4-cadence-constante-plage-limitee-reetiquetee.mp4'],
   ['V5', 'V5-temoin-ffmpeg-libx264.mp4'],
 ];
+const VARIANTES = FILTRE.length ? VARIANTES_TOUTES.filter((v) => FILTRE.includes(v[0])) : VARIANTES_TOUTES;
 const TYPES = { '.html': 'text/html; charset=utf-8', '.mp4': 'video/mp4' };
 
 // Serveur avec plages d'octets : sans Range, un <video> ne peut pas chercher dans le fichier.
@@ -91,21 +101,33 @@ function servirPaquet() {
     await page.goto(base);
     const ua = await page.evaluate(() => navigator.userAgent);
     for (const [cle, fichier] of VARIANTES) {
-      let r;
-      try { r = await page.evaluate((f) => window.__bancApi.mesurer(f), fichier); }
-      catch (e) { r = { fichier, erreur: String(e.message).slice(0, 140) }; }
-      if (r.erreur || r.supporte === false) {
-        console.log('  ' + cle + '  ' + (r.erreur || 'requestVideoFrameCallback absent'));
-      } else {
-        const f1 = r.fondus[0], f2 = r.fondus[1];
-        console.log('  ' + cle + '  flashs ' + String(r.flashs_vus).padStart(2) + '/9'
-          + '   fondu1 ' + String(f1.images_presentees).padStart(2) + '/12 (' + (f1.duree_apparente_ms === null ? '—' : f1.duree_apparente_ms + ' ms') + ')'
-          + '   fondu2 ' + String(f2.images_presentees).padStart(2) + '/12 (' + (f2.duree_apparente_ms === null ? '—' : f2.duree_apparente_ms + ' ms') + ')'
-          + '   présentées ' + String(r.images_presentees_total).padStart(4)
-          + '   écartées ' + (r.qualite ? r.qualite.droppedVideoFrames : '?'));
+      const prod = PROD.find((p) => p.cle === cle) || {};
+      const ko = prod.octets ? Math.round(prod.octets / 1024) : null;
+      const encMs = prod.encodage_ms || null;
+      for (let essai = 1; essai <= REPET; essai++) {
+        let r;
+        try { r = await page.evaluate((f) => window.__bancApi.mesurer(f), fichier); }
+        catch (e) { r = { fichier, erreur: String(e.message).slice(0, 140) }; }
+        if (r.erreur || r.supporte === false) {
+          console.log('  ' + cle + ' #' + essai + '  ' + (r.erreur || 'requestVideoFrameCallback absent'));
+        } else {
+          const f1 = r.fondus[0], f2 = r.fondus[1];
+          const co = (x) => String(x.images_presentees).padStart(2) + '/' + String(x.compteur_navigateur).padStart(2)
+            + (x.rappels_coalesces ? '*' : ' ');
+          console.log('  ' + cle + ' #' + essai
+            + '  flashs ' + String(r.flashs_vus).padStart(2) + '/9'
+            + '   fondu1 ' + co(f1) + '  fondu2 ' + co(f2)
+            + '   rappels ' + String(r.images_presentees_total).padStart(4)
+            + '  compteur ' + String(r.total_compteur_navigateur).padStart(4)
+            + '  manqués ' + String(r.rappels_manques_sur_toute_la_lecture).padStart(3)
+            + '   écartées ' + String(r.qualite ? r.qualite.droppedVideoFrames : '?').padStart(3)
+            + (ko ? '   ' + String(ko).padStart(5) + ' Ko' : '')
+            + (encMs ? '   ' + (encMs / 1000).toFixed(1) + ' s' : ''));
+        }
+        tout.push(Object.assign({ navigateur: c.nom, ua, variante: cle, essai,
+                                  poids_ko: ko, encodage_ms: encMs },
+          r.images ? Object.assign({}, r, { images: undefined, nb_images_journalisees: r.images.length }) : r));
       }
-      tout.push(Object.assign({ navigateur: c.nom, ua, variante: cle },
-        r.images ? Object.assign({}, r, { images: undefined, nb_images_journalisees: r.images.length }) : r));
     }
     await nav.close();
   }
