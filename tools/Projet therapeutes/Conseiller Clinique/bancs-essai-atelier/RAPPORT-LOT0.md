@@ -296,6 +296,54 @@ panneau distingue un refus de sécurité de toute autre panne.
 html-to-image, soit **6,5 fois plus lent** pour le même résultat. Si l'un des deux devait servir,
 ce serait SnapDOM.
 
+### Les deux derniers leviers — un faux gain démasqué, puis la voie close
+
+Le complément 3 concluait « voie fermée » sur quatre chemins. Deux leviers n'avaient pas été
+éprouvés, et il fallait les mesurer avant de clore : **(c)** la propriété CSS `zoom`, qui agit sur
+la **mise en page** là où `transform: scale` n'agit que sur le rendu, et **(d)** un SVG écrit par
+l'outil, `width=1920 height=1080 viewBox="0 0 1422 800"` autour du `foreignObject` de 1422×800.
+
+**Les deux ont d'abord paru gagner, et les deux perdent.**
+
+| Chemin | Gradient | Pic | Corrélation d'encre au moteur | Échelle du contenu |
+|---|---|---|---|---|
+| **(c) le MOTEUR à 1920** | **162,5** | 232 | 1 | 1 |
+| (c) + flou de boîte 1 px | 89 | 108 | — | — |
+| (a) SnapDOM `toSvg` → `drawImage` | 92,5 | 120 | **0,868** | 1 |
+| (b) `html-to-image`, `pixelRatio` | 92,5 | 120 | **0,869** | 0,994 |
+| ✗ (c) CSS `zoom` puis SnapDOM | ~~153~~ | 153 | **−0,022** | **1,350** |
+| ✗ (d) SVG `viewBox` écrit ici | ~~181,9~~ | 185 | **−0,020** | **0,740** |
+
+**153 puis 181,9 : j'ai failli rapporter deux gains qui n'existent pas.** (d) dépassait même le
+moteur. La métrique de contours ne sait pas si elle mesure la même image : un texte rendu plus gros
+a des contours plus raides, et c'est tout. Ce qui a arrêté la fausse conclusion, c'est que le
+**pic égalait la moyenne** pour (c) — signature d'une image dont tous les contours ont la même
+raideur, donc d'autre chose que du texte antialiasé.
+
+**Les causes, mesurées au pixel :**
+
+- **(c) `zoom` grossit le contenu de 1,350 fois** — exactement le facteur appliqué. L'étendue de
+  l'encre passe de 689×98 à 930×132, l'encre totale de 7 753 à 13 885 (+79 %), et le profil par
+  ligne se décorrèle complètement (−0,022). `zoom` refait la mise en page : la diapositive n'est
+  plus la même, elle est plus grande. Au passage, `offsetWidth` sous `zoom` renvoie **1053×593**
+  et non 1920×1080, donc SnapDOM sérialise un SVG de 1053×593.
+- **(d) WebKit IGNORE mon `viewBox`** et rend le `foreignObject` à sa taille d'unités traitée
+  comme des pixels : le contenu occupe 1422/1920 du cadre, soit **0,740**. Vérification
+  arithmétique : 689 × 1422/1920 = **510,3**, mesuré **510**. L'encre tombe à 4 269 et il n'y a
+  plus rien sous la ligne 120.
+
+**Garde-fou installé, et éprouvé dans les deux sens.** `mesure-nettete-candidats.cjs` calcule
+désormais la corrélation du profil d'encre avec la référence et **écarte** tout chemin sous 0,5,
+en imprimant l'échelle réelle du contenu. Le détecteur est validé : **1** contre lui-même,
+**−0,0003** sur la même image décalée de 40 px, **0,007** contre du bruit. Sans lui, deux faux
+gains entraient au rapport.
+
+**Conclusion, les deux leviers demandés ayant été éprouvés : la voie est close.** Les quatre
+chemins comparables donnent tous **92,5**, et les deux leviers qui semblaient monter rendent une
+autre image. Le navigateur rastérise le contenu du `foreignObject` à sa taille intrinsèque, et
+aucun levier côté page ne le déplace. **Je m'arrête là**, comme demandé. Reste la seule question
+ouverte, de jugement et non de mesure : l'écart gêne-t-il en vidéoprojection ?
+
 ### Le questionnaire qui déborde — oui, la hauteur complète est capturable
 
 La carte mesure **2507 px de contenu pour 798 px visibles** : **1709 px hors champ**. Quatre cibles
@@ -346,9 +394,10 @@ lecture.** Mon premier jet en annonçait deux ; le décodage par CoreAudio en a 
 | MP4 H.264 + AAC produit | `ftyp isom`, `moov`, `mdat` ; pistes `avc1` + `mp4a` | **tenu** | script (les deux moteurs) |
 | Lisible dans QuickTime Player | — | **non éprouvé** | **Christophe** |
 | Durée vidéo = durée audio à une image près | **−0,075 s** (Chromium) / **−0,056 s** (WebKit) ; cause établie = 2112 éch. d'amorce AAC non déclarée | **hors critère DANS LE CONTENEUR**, sans effet à la lecture (voir plus bas) | script + `afinfo` |
-| Écart flash / bip ≤ 40 ms, lecteur Apple | **+4,2 ms** décodé par `afconvert` (CoreAudio), aux deux fréquences et aux trois instants. Les −48,8 ms venaient du décodeur de Mediabunny, les −69 ms y ajoutaient 20 ms d'artefact de ma mesure | **TENU** | script + `afconvert` |
-| Écart flash / bip ≤ 40 ms, lecteur non-Apple | **+48,2 ms** (48 kHz) et **+52,1 ms** (44,1 kHz) décodés par ffmpeg 6.0 : l'amorce n'est PAS retirée | **HORS critère**, et **corrigé** par la ligne ci-dessous | script + ffmpeg |
-| Même critère, avec liste d'édition | **+4,2 ms** chez ffmpeg **ET** chez `afconvert` : pas de double compensation | **TENU des deux côtés** | script + ffmpeg + `afconvert` |
+| Écart flash / bip ≤ 40 ms, **décodage** `afconvert` | **+4,2 ms**, aux deux fréquences et aux trois instants. Les −48,8 ms venaient du décodeur de Mediabunny, les −69 ms y ajoutaient 20 ms d'artefact de ma mesure | **TENU au décodage** | script + `afconvert` |
+| Écart flash / bip ≤ 40 ms, **décodage** ffmpeg | **+48,2 ms** (48 kHz) et **+52,1 ms** (44,1 kHz) : l'amorce n'est PAS retirée | **HORS critère**, et **corrigé** par la ligne ci-dessous | script + ffmpeg |
+| Même critère, avec liste d'édition | **+4,2 ms** chez ffmpeg **ET** chez `afconvert` | **TENU aux deux décodages** | script + ffmpeg + `afconvert` |
+| Le bip tombe-t-il avec le flash **dans QuickTime Player** ? | — | **NON MESURÉ** : aucun lecteur n'a été éprouvé, seuls des décodeurs | **Christophe** (4 MP4 fournis) |
 | Export de 10 min sans plantage | **8,2 s** d'encodage, **17,5 Mo**, 508 images, aucun plantage | **tenu** | script (Chromium) |
 
 ### D'où vient le décalage — décomposition, et trois corrections à mon premier jet
@@ -388,7 +437,7 @@ amorce exprimée en **échantillons** : 2112 valent 44,00 ms à 48 kHz et 47,89 
 l'écart mesuré suit (−48,8 contre −53,1 ms, soit 4,3 ms de différence pour 3,9 ms prédits).
 **Côté vidéo, rien** : la première image est à t = 0.
 **Mais ce « décalage réel » n'en est pas un à la lecture** : le décodage par CoreAudio, plus bas,
-montre que les lecteurs Apple le compensent intégralement. Ce qui suit dans cette section décrit ce
+montre que le décodeur CoreAudio le compense intégralement (ce qui ne dit rien de QuickTime). Ce qui suit dans cette section décrit ce
 que voit le décodeur de Mediabunny, non ce qu'entend un auditeur.
 
 Reste un résidu de **~5 ms** après l'amorce, et un **supplément d'environ 8 ms au seul instant
@@ -396,10 +445,15 @@ Reste un résidu de **~5 ms** après l'amorce, et un **supplément d'environ 8 m
 l'ordre d'une trame AAC (1024 échantillons = 21 ms) et pourrait venir d'une quantisation de
 frontière. **Non élucidé, et je ne le comble pas d'une hypothèse.**
 
-#### Décodé par CoreAudio : les lecteurs Apple compensent l'amorce — et ma correction est RETIRÉE
+#### Décodé par CoreAudio : `afconvert` compense l'amorce — et ma correction est RETIRÉE
+
+**Portée de ce qui suit, à ne pas élargir.** `afconvert` est le décodeur en ligne de commande de
+CoreAudio, **pas** QuickTime Player. Tout ce qui est établi ici porte sur des **décodeurs**. Le
+comportement d'un lecteur Apple réel n'est **pas** mesuré par ce lot : il est à vérifier dans
+QuickTime, et les fichiers sont fournis pour cela (voir « Contrôle humain »).
 
 Le décalage mesuré plus haut l'était par les décodeurs de Mediabunny. Décodé avec **`afconvert`**
-(CoreAudio, le décodeur même des lecteurs Apple) en WAV PCM, puis relu par
+(CoreAudio, la pile de décodage audio d'Apple — un décodeur, pas un lecteur) en WAV PCM, puis relu par
 `outils/mesure-afconvert.cjs`, le bip prévu à 1,000 s, 5 s et 9 s attaque à :
 
 | Fréquence | t = 1 s | t = 5 s | t = 9 s | Écart |
@@ -407,14 +461,16 @@ Le décalage mesuré plus haut l'était par les décodeurs de Mediabunny. Décod
 | 48 kHz | 1,00421 s | 5,00421 s | 9,00421 s | **+4,2 ms** |
 | 44,1 kHz | 1,00422 s | 5,00422 s | 9,00424 s | **+4,2 ms** |
 
-**Conclusion : oui, les lecteurs Apple compensent l'amorce.** Les 44 à 53 ms disparaissent
-entièrement ; il ne reste que **+4,2 ms**, soit exactement la montée jusqu'au seuil de détection
-d'attaque déjà tabulée ci-dessus — autrement dit **zéro décalage réel**. Le critère de 40 ms est
-**tenu** sur un lecteur Apple, sans aucune correction. Le supplément de ~8 ms à l'instant 9 s
+**Conclusion, strictement bornée : `afconvert` compense l'amorce.** Les 44 à 53 ms
+disparaissent entièrement au décodage ; il ne reste que **+4,2 ms**, soit exactement la montée
+jusqu'au seuil de détection d'attaque déjà tabulée ci-dessus — autrement dit **zéro décalage** dans
+le PCM rendu. Le critère de 40 ms est donc **tenu au décodage CoreAudio**, sans correction.
+**Ce qui n'est PAS établi : que QuickTime Player se comporte comme son décodeur en ligne de
+commande.** C'est plausible, ce n'est pas mesuré, et ce lot ne le dira pas. Le supplément de ~8 ms à l'instant 9 s
 disparaît également : il appartenait au décodeur de Mediabunny, pas au fichier.
 
 **Je retire donc la correction que j'avais proposée.** Avancer l'audio de 2112 échantillons
-n'aurait pas corrigé un décalage : il en aurait **introduit un de 44 ms** sur tout lecteur Apple.
+n'aurait pas corrigé un décalage : il en aurait **introduit un de 44 ms** au décodage CoreAudio.
 C'est le cas précis où appliquer une correction « mesurée » sans avoir vérifié le comportement du
 lecteur aurait cassé ce qui marchait.
 
@@ -424,7 +480,7 @@ l'alignement du début.
 
 #### Un décodeur non-Apple ne retire PAS l'amorce — et une liste d'édition corrige les deux
 
-Le complément 2 laissait ouvert, en le disant, le comportement d'un lecteur non-Apple. ffmpeg 6.0,
+Le complément 2 laissait ouvert, en le disant, le comportement d'un décodeur non-Apple. ffmpeg 6.0,
 obtenu par le paquet npm `ffmpeg-static` dans `ffmpeg-externe/` — dossier ignoré par git, rien
 installé au système — tranche (`outils/mesure-ffmpeg.cjs`, qui relance **les deux** décodeurs sur
 les mêmes fichiers avec la détection partagée de `outils/attaque.cjs`) :
@@ -437,8 +493,8 @@ les mêmes fichiers avec la détection partagée de `outils/attaque.cjs`) :
 
 La différence entre décodeurs vaut **exactement l'amorce**, aux deux fréquences, et les comptes
 d'échantillons le confirment au sample près : 578 560 = 576 448 + 2112. **ffmpeg conserve les
-2112 échantillons d'amorce ; CoreAudio les retire.** Un lecteur non-Apple est donc **hors du
-critère de 40 ms**. La parité de méthode est exigée avant toute comparaison : le banc refuse de
+2112 échantillons d'amorce ; CoreAudio les retire.** Un **décodeur** non-Apple est donc **hors
+du critère de 40 ms**. La parité de méthode est exigée avant toute comparaison : le banc refuse de
 conclure si `afconvert` ne redonne pas les +4,2 ms publiés.
 
 **La liste d'édition corrige ffmpeg sans casser afconvert.** Le levier est dans Mediabunny, sans
@@ -455,7 +511,8 @@ Mesuré par `outils/mesure-liste-edition.cjs`, qui produit les deux variantes et
 | sans (44,1 kHz) | aucun | +52,1 ms | +4,2 ms |
 | **avec (44,1 kHz)** | **v0, 1 entrée, media_time 2112** | **+4,2 ms** | **+4,2 ms** |
 
-**Pas de double compensation**, et la raison est mesurée, non supposée. En falsifiant le
+**Pas de double compensation AU DÉCODAGE `afconvert`** — et seulement là : rien n'est affirmé
+pour QuickTime Player. La raison est mesurée, non supposée. En falsifiant le
 `media_time` directement dans les octets du MP4 produit, chaque valeur prédite est atteinte au
 dixième de milliseconde **chez ffmpeg**, tandis qu'`afconvert` **ne bouge pas d'un dixième** :
 
@@ -467,12 +524,17 @@ dixième de milliseconde **chez ffmpeg**, tandis qu'`afconvert` **ne bouge pas d
 | 1056 (la moitié) | +26,2 ms | +26,2 ms | +4,2 ms |
 
 `afconvert` **ignore purement et simplement la liste d'édition de la piste audio** : il retire
-l'amorce depuis le train AAC, quoi que dise le conteneur. C'est pourquoi ajouter l'`elst` est
-sans risque de son côté — c'est un mécanisme établi, pas une coïncidence favorable.
+l'amorce depuis le train AAC, quoi que dise le conteneur. C'est pourquoi ajouter l'`elst` est sans
+effet sur **lui** — mécanisme établi, pas coïncidence favorable. **Mais un lecteur, lui, peut très
+bien honorer l'`elst` ET trimer l'amorce**, ce qui donnerait les −39,8 ms visibles dans le tableau
+ci-dessus. C'est exactement le risque que le contrôle dans QuickTime doit lever, et c'est pourquoi
+les quatre MP4 sont fournis.
 
-**Recommandation, les deux résultats étant en main :** poser `startTimestamp: -2112/SE` sur la
-piste audio. Une ligne, aucune modification de bibliothèque, les deux familles de lecteurs à
-+4,2 ms. **Rien n'est appliqué ici** : le module de montage n'existe pas encore, et ce lot ne
+**Recommandation, les deux résultats de décodage étant en main, et sous réserve du contrôle dans
+QuickTime :** poser `startTimestamp: -2112/SE` sur la piste audio. Une ligne, aucune modification
+de bibliothèque, les deux **décodeurs** à +4,2 ms. Si l'écoute dans QuickTime montrait un décalage
+sur la variante AVEC, c'est cette recommandation qui tomberait, pas la mesure. **Rien n'est
+appliqué ici** : le module de montage n'existe pas encore, et ce lot ne
 modifie aucun fichier existant.
 
 **Ce qui n'est PAS prouvé.** La valeur 2112 est l'amorce AAC-LC d'Apple telle que `afinfo` la
@@ -496,7 +558,7 @@ impossible et signalait un script cassé, non un fichier vide :
 
 L'amorce n'est donc **déclarée nulle part dans le conteneur** : CoreAudio la compense parce qu'elle
 est inscrite dans le train AAC lui-même, pas parce que le MP4 l'annonce. **Ce qui n'est pas prouvé :
-qu'un lecteur non-Apple la compense aussi.** Rien dans ce banc ne le dit, et le fichier ne lui donne
+qu'un décodeur non-Apple la compense aussi, ni qu'un LECTEUR, Apple ou non, se comporte comme le décodeur qu'il embarque.** Rien dans ce banc ne le dit, et le fichier ne lui donne
 aucune indication pour le faire.
 
 **Mediabunny SAIT écrire une liste d'édition — il ne le fait simplement pas ici.** Vérifié dans le
@@ -505,7 +567,7 @@ confirmant la présence des littéraux `stts`, `stsd`, `mvhd`, `mdhd`, `moov`, `
 `edts` et `elst` apparaissent **3 fois chacun** — une occurrence d'**analyseur** (`case "elst":`)
 et deux d'**écriture** (`box("edts", void 0, [ fullBox("elst", …`, avec `mediaTime`,
 `mediaDuration`, `startOffset` et des replis 64 bits). `sgpd`, `sbgp` et `roll` : **aucun
-littéral**. Si un jour un lecteur non-Apple devait être visé, la voie existe donc dans la
+littéral**. Si un jour un décodeur non-Apple devait être visé, la voie existe donc dans la
 bibliothèque ; elle n'est **pas** nécessaire pour Safari.
 
 **Le critère « durée vidéo = durée audio à une image près » tombe pour la même cause** : la durée
@@ -585,6 +647,59 @@ prendre — aucune API ne la donne à une page.
     deux. L'outil prend la **dernière** occurrence et **exige qu'elle termine le document**, sans
     quoi il s'arrête. Les deux fautes se sont manifestées par la même erreur de navigateur, ce qui
     rendait la seconde invisible tant que la première n'était pas corrigée.
+12. **Troisième faute de la même famille : le gabarit a mangé mes `\d`.** Le harnais est écrit
+    depuis un littéral gabarit, qui consomme les séquences d'échappement : `/width="(\d+)"/`
+    arrivait dans la page en `/width="(d+)"/`. Le candidat (d) échouait donc sur « dimensions
+    illisibles » alors que la balise les portait. **Le contrôle de syntaxe ne pouvait pas le voir** :
+    le code restait valide, il était seulement devenu faux. `forger-page-nettete.cjs` **refuse
+    maintenant tout antislash survivant** dans le harnais hormis `\n`, et les regex y sont
+    écrites en `[0-9]`. Les trois fautes du lot viennent de la même cause : du code JavaScript
+    produit depuis un gabarit JavaScript.
+13. **J'ai failli rapporter deux gains de netteté inexistants** (153 et 181,9 contre 92,5). Voir
+    ci-dessus : la métrique ne sait pas si elle mesure la même image. Un garde-fou de comparabilité
+    a été ajouté et validé dans les deux sens. **C'est l'insistance du brief à éprouver les deux
+    leviers avant de conclure qui a produit à la fois le faux gain et sa réfutation.**
+
+---
+
+## Contrôle humain — le paquet, et la frontière de ce qui est prouvé
+
+```bash
+node "outils/paquet-controle-humain.cjs"
+```
+
+Bâtit `controle-humain/`, **ignoré par git** et **autonome** : une fois produit, il ne dépend
+d'aucun fichier suivi, donc il s'ouvre encore après un changement de branche (vérifié). L'outil
+imprime le **chemin absolu** du dossier et la **commande unique** à copier-coller ; les deux sont
+aussi écrits dans `controle-humain/INSTRUCTIONS.md`, une page.
+
+Contenu : quatre MP4 de 12 s (`A-SANS-` et `A-AVEC-liste-edition-` × 48 000 et 44 100 Hz), une
+vidéo de comparaison de 20 s (`B-…-moteur-haut-snapdom-bas.mp4`) et la page de netteté
+(`C-nettete-dans-safari.html`). Les MP4 sortent du **même code** que ceux mesurés par ffmpeg et
+`afconvert` (`outils/produire-mp4-essai.cjs`), parité revérifiée après la factorisation : sinon
+l'écoute ne porterait pas sur ce qui a été mesuré. La présence ou l'absence de `elst` est
+contrôlée dans chaque fichier avant livraison.
+
+**La vidéo de comparaison est un partage HAUT/BAS, et c'est délibéré.** Deux moitiés côte à côte
+feraient 960 px de large chacune, ce qui obligerait à réduire les images de moitié — exactement
+l'opération qui détruit ce qu'il s'agit de juger. Le partage horizontal garde la largeur entière et
+les **pixels d'origine** : chaque moitié est la bande des 540 premières lignes de sa source, sans
+aucun rééchantillonnage, et un **seul** encodage libx264 crf 14 couvre les deux côtés. Limite
+assumée : cet encodeur n'est pas celui du module réel (WebCodecs) ; le jugement porte donc sur les
+**images**, le chemin WebCodecs étant couvert par l'essai 3.
+
+### La frontière, explicitement
+
+| Question | Statut |
+|---|---|
+| Le PCM rendu par `afconvert` place-t-il le bip à l'heure ? | **vérifié avec afconvert** : +4,2 ms, avec et sans `elst` |
+| Le PCM rendu par ffmpeg place-t-il le bip à l'heure ? | **vérifié avec ffmpeg** : +48,2 / +52,1 ms sans `elst`, +4,2 ms avec |
+| L'`elst` écrit porte-t-il bien `media_time` = 2112 ? | **vérifié** dans les octets du MP4 |
+| **QuickTime Player** joue-t-il le bip avec le flash ? | **à vérifier dans QuickTime** — aucun lecteur n'a été éprouvé |
+| Un lecteur honore-t-il l'`elst` **et** trime l'amorce (double compensation) ? | **à vérifier dans QuickTime** — la variante AVEC le dirait |
+| Le gradient sur contours de SnapDOM vaut-il 92,5 ? | **vérifié par script**, sur six chemins, en WebKit piloté |
+| **Safari réel** refuse-t-il `foreignObject` vers canvas ? | **à vérifier dans Safari** — WebKit piloté n'oppose aucun refus |
+| L'écart de netteté gêne-t-il en vidéoprojection ? | **à vérifier à l'œil** — ce n'est pas une question de mesure |
 
 ---
 
