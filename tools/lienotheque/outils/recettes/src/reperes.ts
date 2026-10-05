@@ -17,6 +17,7 @@ import {
   type ImageGrise,
 } from "@lienotheque/images";
 import { lireParOcr } from "@lienotheque/lecteur-texte";
+import { chiffresDuMorceau } from "./chiffres.js";
 
 /** Lecteur de repères (OUT-07) : numéros de page, numéros d'élément, pastilles, séquence.
  *
@@ -36,6 +37,26 @@ export type OptionsReperes = {
   readonly dossier?: string;
   /** Côté du cliché dont la page est tirée : il dit où est la marge extérieure. */
   readonly cote?: CotePage;
+  /** Où déposer les chiffres découpés d'un repère, quand le lot veut les relire ensemble.
+   *
+   *  Les modèles d'un chiffre viennent des lectures sûres du document entier, et une page n'en
+   *  contient pas assez. Le lecteur dépose donc ce qu'il a découpé, et c'est le lot qui décide —
+   *  une page seule ne complète rien. */
+  readonly recueillir?: (depot: DepotDeChiffres) => void;
+};
+
+/** Ce qu'une lecture de repère dépose pour que le lot puisse la relire : ce que l'OCR a voté, et
+ *  l'image du repère avec les formes de la taille d'un chiffre qu'on y a comptées.
+ *
+ *  L'image et non les glyphes : le lot sait des choses que la page ignore — les modèles du
+ *  document —, et il doit pouvoir redécouper si la règle de comptage évolue. L'image en question
+ *  est un recadrage du repère, quelques milliers de pixels, pas une page. */
+export type DepotDeChiffres = {
+  readonly numero: number;
+  readonly y: number;
+  readonly lu?: number | undefined;
+  readonly morceau: ImageGrise;
+  readonly chiffres: readonly Boite[];
 };
 
 /** Les trois passes : échelle et mode de segmentation. Trois lectures d'une même page valent
@@ -274,7 +295,14 @@ export function vote(valeurs: readonly number[]): { valeur: number; accord: numb
 
 /** Ce qu'une fenêtre de repère a donné. `boite` est celle de la forme retenue, dans le repère de
  *  l'image sondée : c'est elle que le Lecteur englobe dans la bande de l'élément. */
-export type BlocPiste = { readonly presence: number; readonly votes: readonly number[]; readonly boite?: Boite };
+export type BlocPiste = {
+  readonly presence: number;
+  readonly votes: readonly number[];
+  readonly boite?: Boite;
+  /** Le repère seuillé et les formes de la taille d'un chiffre qu'on y a comptées, de gauche à
+   *  droite, pris du seuillage qui en a isolé le plus. */
+  readonly decoupe?: { readonly morceau: ImageGrise; readonly chiffres: readonly Boite[] };
+};
 
 /** Seuils tentés sur le bloc, en part du ton clair local. Plusieurs seuils, plusieurs lectures :
  *  un chiffre clair sur fond sombre ne se détache pas au même endroit selon la lumière. */
@@ -391,6 +419,7 @@ export function lireBlocPiste(
 
   const losange = motif === "losange_sombre_chiffres_clairs";
   const votes: number[] = [];
+  let decoupe: { morceau: ImageGrise; chiffres: readonly Boite[] } | undefined;
 
   for (const forme of candidates) {
     if (forme.l < boite.h * 0.6) continue;
@@ -414,7 +443,15 @@ export function lireBlocPiste(
         ...SEUILS_PERCENTILE.map((part) => tonClair(morceau, part)),
       ];
       for (const ton of new Set(tons)) {
-        const net = border(agrandir(inverser(seuiller(morceau, Math.max(1, ton))), 5), 25);
+        const brut = inverser(seuiller(morceau, Math.max(1, ton)));
+
+        // Compter avant de lire. Un seuillage qui isole deux chiffres là où l'OCR n'en rend qu'un
+        // dit que la lecture est incomplète — et il fournit du même coup la forme à reconnaître.
+        // On garde le découpage le plus fin obtenu sur ce repère, tous seuils confondus.
+        const formes = chiffresDuMorceau(brut);
+        if (decoupe === undefined || formes.length > decoupe.chiffres.length) decoupe = { morceau: brut, chiffres: formes };
+
+        const net = border(agrandir(brut, 5), 25);
         for (const segmentation of [7, 8]) {
           const lu = premierEntier(
             ocr(net, segmentation, options, CHIFFRES)
@@ -426,7 +463,12 @@ export function lireBlocPiste(
       }
     }
   }
-  return { presence, votes, ...(repere === undefined ? {} : { boite: repere }) };
+  return {
+    presence,
+    votes,
+    ...(repere === undefined ? {} : { boite: repere }),
+    ...(decoupe === undefined || decoupe.chiffres.length === 0 ? {} : { decoupe }),
+  };
 }
 
 /** Toutes les lectures d'une page : plusieurs passes, aucune consolidation encore.
@@ -461,6 +503,8 @@ export function lecturesDePage(image: ImageGrise, recette: Recette, options: Opt
               options,
             );
       const piste = bloc === undefined ? undefined : vote(bloc.votes);
+      if (options.recueillir !== undefined && bloc?.decoupe !== undefined)
+        options.recueillir({ numero, y, ...(piste === undefined ? {} : { lu: piste.valeur }), ...bloc.decoupe });
       const apres = mots
         .slice(rang + 1, rang + 4)
         .map((autre) => autre.texte.toLowerCase())
