@@ -399,7 +399,7 @@ export function lireBlocPiste(
   marge: number,
   etiquette: boolean,
   options: OptionsReperes = {},
-  recueille = false,
+  compte = false,
 ): BlocPiste {
   const fenetre = zonePastille(boite, position, marge);
   const zone = recadrer(image, fenetre);
@@ -447,9 +447,10 @@ export function lireBlocPiste(
       for (const ton of new Set(tons)) {
         const brut = inverser(seuiller(morceau, Math.max(1, ton)));
 
-        // Le comptage des chiffres, uniquement si quelqu'un l'a demandé : il ne sert plus qu'à
-        // la mesure, et une lecture de lot n'a pas à le payer.
-        if (recueille) {
+        // Le comptage des chiffres, uniquement si quelqu'un en a besoin : la recette qui déclare
+        // une relecture ciblée, ou une mesure. Il coûte quelques pour cent de la lecture, et un
+        // lot qui s'en passe n'a pas à les payer.
+        if (compte) {
           const formes = chiffresDuMorceau(brut);
           if (decoupe === undefined || formes.length > decoupe.chiffres.length) decoupe = { morceau: brut, chiffres: formes };
         }
@@ -484,6 +485,10 @@ export function lecturesDePage(image: ImageGrise, recette: Recette, options: Opt
   const lecturePiste = recette.lectures.find((lecture) => lecture.ancre === "piste");
   if (lectureElement === undefined) return [];
 
+  // Compter les chiffres d'un repère sert à la relecture ciblée : c'est lui qui désigne les
+  // lectures incomplètes. Une recette qui ne la déclare pas n'en a pas l'usage.
+  const compte = recette.vision !== undefined || options.recueillir !== undefined;
+
   const motif = lectureElement.libelle === undefined ? undefined : motifLibelle(lectureElement.libelle);
   const amorce = recette.regles.mention_suite === undefined ? undefined : amorceDeSuite(recette.regles.mention_suite);
   const lectures: LectureRepere[] = [];
@@ -504,9 +509,10 @@ export function lecturesDePage(image: ImageGrise, recette: Recette, options: Opt
               6 * facteur,
               lecturePiste.etiquette_disque,
               options,
-              options.recueillir !== undefined,
+              compte,
             );
       const piste = bloc === undefined ? undefined : vote(bloc.votes);
+      const chiffresComptes = bloc?.decoupe?.chiffres.length;
       if (options.recueillir !== undefined && bloc?.decoupe !== undefined)
         options.recueillir({ numero, y, ...(piste === undefined ? {} : { lu: piste.valeur }), ...bloc.decoupe });
       const apres = mots
@@ -538,6 +544,7 @@ export function lecturesDePage(image: ImageGrise, recette: Recette, options: Opt
         },
         numero,
         ...(piste === undefined ? {} : { pisteLue: piste.valeur }),
+        ...(chiffresComptes === undefined ? {} : { chiffresComptes }),
         presencePiste: bloc?.presence ?? 0,
         suite: amorce !== undefined && apres.includes(amorce),
       });
@@ -577,9 +584,12 @@ export function lecturesDePage(image: ImageGrise, recette: Recette, options: Opt
 
 /** Ce que porte une lecture. À incrémenter dès qu'une lecture dit quelque chose de nouveau.
  *
- *  Une lecture a porté un temps le fait d'avoir laissé un chiffre de côté. C'était juste et cela
- *  n'a rien donné : voir `appui` dans `pistes.ts` et `docs/decisions.md`. La version est donc
- *  revenue à 5, et le contenu d'une lecture avec elle.
+ *  6 : une lecture rapporte combien de formes de la taille d'un chiffre son repère montrait, quand
+ *  la recette déclare une relecture ciblée. C'est ce compte qui désigne les repères à relire.
+ *
+ *  Une lecture a porté un temps le fait d'avoir laissé un chiffre de côté, et l'attribution s'en
+ *  servait. C'était juste et cela n'a rien donné : voir `appui` dans `pistes.ts` et
+ *  `docs/decisions.md`. Le compte est resté, son usage par l'attribution non.
  *
  *  Le cache de lecture garde un lot lu pendant un quart d'heure d'OCR, et sa clef désignait le
  *  document et la recette — pas ce que le lecteur en tire. Ajouter la zone de chaque repère n'a
@@ -596,7 +606,7 @@ export function lecturesDePage(image: ImageGrise, recette: Recette, options: Opt
  *  3 : l'orientation du lot est désormais votée au lieu d'être crue sur parole. Ce n'est pas la
  *  forme d'une lecture qui change, c'est ce qu'elle lit — une page remise à l'endroit rend six
  *  éléments là où elle n'en rendait aucun. La version compte donc aussi pour cela. */
-export const VERSION_LECTURE = 5;
+export const VERSION_LECTURE = 6;
 
 /** Hauteur en deçà de laquelle deux lectures parlent du même élément. */
 const MEME_HAUTEUR = 0.03;
@@ -608,6 +618,7 @@ export function consolider(lectures: readonly LectureRepere[]): ElementRepere[] 
     y: number;
     numeros: number[];
     pistes: number[];
+    comptes: number[];
     presences: number[];
     suite: boolean;
     zones: { numero: number; zone: ZoneRelative }[];
@@ -617,12 +628,13 @@ export function consolider(lectures: readonly LectureRepere[]): ElementRepere[] 
   for (const lecture of [...lectures].sort((a, b) => a.y - b.y || a.numero - b.numero)) {
     const dernier = groupes[groupes.length - 1];
     if (dernier === undefined || Math.abs(dernier.y - lecture.y) >= MEME_HAUTEUR)
-      groupes.push({ y: lecture.y, numeros: [], pistes: [], presences: [], suite: false, zones: [], reperes: [] });
+      groupes.push({ y: lecture.y, numeros: [], pistes: [], comptes: [], presences: [], suite: false, zones: [], reperes: [] });
     const groupe = groupes[groupes.length - 1]!;
     groupe.numeros.push(lecture.numero);
     groupe.suite ||= lecture.suite;
     groupe.presences.push(lecture.presencePiste);
     if (lecture.pisteLue !== undefined) groupe.pistes.push(lecture.pisteLue);
+    if (lecture.chiffresComptes !== undefined) groupe.comptes.push(lecture.chiffresComptes);
     if (lecture.zone !== undefined) groupe.zones.push({ numero: lecture.numero, zone: lecture.zone });
     if (lecture.zoneRepere !== undefined) groupe.reperes.push({ numero: lecture.numero, zone: lecture.zoneRepere });
   }
@@ -635,6 +647,10 @@ export function consolider(lectures: readonly LectureRepere[]): ElementRepere[] 
     // La zone de la lecture qui a emporté le vote, pas la moyenne des zones : deux passes qui
     // ne lisent pas le même numéro ne désignent pas le même endroit, et leur milieu ne désigne
     // rien du tout.
+    // Le compte le plus fin obtenu, toutes passes confondues : c'est une propriété du repère, et
+    // sous-compter laisserait passer une lecture incomplète pour entière.
+    const chiffresComptes = groupe.comptes.length === 0 ? undefined : Math.max(...groupe.comptes);
+
     const zone = groupe.zones.find((candidate) => candidate.numero === numero.valeur)?.zone;
     const zoneRepere = groupe.reperes.find((candidate) => candidate.numero === numero.valeur)?.zone;
     return [
@@ -644,6 +660,7 @@ export function consolider(lectures: readonly LectureRepere[]): ElementRepere[] 
         ...(zoneRepere === undefined ? {} : { zoneRepere }),
         numero: numero.valeur,
         ...(piste === undefined ? {} : { pisteLue: piste.valeur }),
+        ...(chiffresComptes === undefined ? {} : { chiffresComptes }),
         presencePiste: Math.round(presence * 100) / 100,
         suite: groupe.suite,
         accordNumero: Math.round(numero.accord * 100) / 100,

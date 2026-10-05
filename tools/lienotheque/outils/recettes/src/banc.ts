@@ -115,10 +115,14 @@ export async function* preparerLot(chemin: string, recette: Recette, options: Op
       for (const produite of redresser(image, index, reglages, {
         ...(options.redressement ?? {}),
         ...(rotationDuLot === undefined ? {} : { rotationImposee: rotationDuLot.rotation }),
+        // Le gris n'est gardé que si quelqu'un en a l'usage : une relecture ciblée déclarée par
+        // la recette. Sans cela, une page de plus en mémoire pour personne.
+        garderGris: recette.vision !== undefined,
       })) {
         const cote = produite.descripteur.cote;
         yield {
           image: produite.image,
+          ...(produite.grise === undefined ? {} : { grise: produite.grise }),
           index,
           rang: preparation.double_page ? index * 2 + (cote === "droite" ? 1 : 0) : index,
           ...(cote === undefined ? {} : { cote }),
@@ -152,7 +156,15 @@ export function lireEtInterpreter(pages: readonly ImageGrise[], recette: Recette
 }
 
 /** Une page à lire, avec ce que le redresseur en sait déjà. */
-export type PageAlire = { readonly image: ImageGrise; readonly index: number; readonly rang?: number; readonly cote?: CotePage };
+export type PageAlire = {
+  readonly image: ImageGrise;
+  /** La même page en gris, quand la recette déclare une relecture ciblée : c'est de là que les
+   *  recadrages sont pris, et non de la page binarisée que l'OCR préfère. */
+  readonly grise?: ImageGrise;
+  readonly index: number;
+  readonly rang?: number;
+  readonly cote?: CotePage;
+};
 
 /** Lit les repères de chaque page. Le côté, quand il est connu, dit où est la marge extérieure. */
 export function reperer(pages: readonly PageAlire[], recette: Recette, options: OptionsBanc = {}): PageLue[] {

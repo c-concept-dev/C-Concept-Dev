@@ -28,6 +28,15 @@ export const LectureRepere = z
     pisteLue: z.number().int().positive().optional(),
     /** À quel point une pastille semble présente, qu'on ait su lire son chiffre ou non. Une
      *  pastille présente et illisible est une information : elle dit qu'une piste commence là. */
+    /** Combien de formes de la taille d'un chiffre le repère montrait.
+     *
+     *  C'est ce qui dit qu'une lecture est incomplète : plus de formes que de chiffres rendus, et
+     *  un chiffre a été perdu. Un moteur d'OCR ne le signale jamais — « 4 » est pour lui une
+     *  réponse complète, même quand le repère porte 14.
+     *
+     *  Absent quand personne ne l'a demandé : le comptage ne tourne que si la recette déclare une
+     *  relecture ciblée, et une lecture ordinaire ne le paie pas. */
+    chiffresComptes: z.number().int().nonnegative().optional(),
     presencePiste: Confiance.default(0),
     suite: z.boolean(),
   })
@@ -45,6 +54,8 @@ export const ElementRepere = z
     zoneRepere: ZoneRelative.optional(),
     numero: z.number().int().positive(),
     pisteLue: z.number().int().positive().optional(),
+    /** Voir `LectureRepere.chiffresComptes` : le compte le plus fin obtenu sur ce repère. */
+    chiffresComptes: z.number().int().nonnegative().optional(),
     presencePiste: Confiance.default(0),
     suite: z.boolean(),
     accordNumero: Confiance,
@@ -104,7 +115,9 @@ export type PageLueBrute = z.infer<typeof PageLueBrute>;
  *  fichier ne vaut qu'indice de recoupement (REC-05).
  *
  *  `sequence` : aucune pastille lisible ici, mais la suite des pistes alentour impose celle-ci. */
-export const SourcePiste = z.enum(["pastille", "suite", "numero_element", "sequence"]);
+/** D'où vient la piste retenue. `vision` est une relecture ciblée du repère, corroborée par la
+ *  suite — jamais appliquée sans elle (ANC-02, OUT-08). */
+export const SourcePiste = z.enum(["pastille", "suite", "numero_element", "sequence", "vision"]);
 export type SourcePiste = z.infer<typeof SourcePiste>;
 
 export const LigneInterpretee = z

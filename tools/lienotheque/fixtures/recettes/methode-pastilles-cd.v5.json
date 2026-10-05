@@ -1,0 +1,75 @@
+{
+  "id": "methode-pastilles-cd",
+  "version": 5,
+  "derivee_de": {
+    "id": "methode-pastilles-cd",
+    "version": 4
+  },
+  "preparation": {
+    "redressement": "auto",
+    "double_page": true,
+    "page_gauche": "paire"
+  },
+  "lectures": [
+    {
+      "ancre": "page_imprimee",
+      "zone": {
+        "type": "coins",
+        "bord": "haut"
+      },
+      "alphabet": "chiffres"
+    },
+    {
+      "ancre": "element",
+      "zone": {
+        "type": "marges_exterieures",
+        "largeur_rel": 0.2
+      },
+      "hauteur_rel": {
+        "min": 0.012,
+        "max": 0.032
+      },
+      "alphabet": "chiffres"
+    },
+    {
+      "ancre": "piste",
+      "outil": "pastilles",
+      "relatif_a": "element",
+      "position": "dessous",
+      "motif": "bloc_sombre_chiffres_clairs",
+      "etiquette_disque": true
+    }
+  ],
+  "regles": {
+    "elements": {
+      "ordre": "strictement_croissant",
+      "saut_max": 12
+    },
+    "pistes": {
+      "ordre": "croissant",
+      "pas_autorises": [
+        0,
+        1
+      ],
+      "penalite_pas_2": 1.5
+    },
+    "changement_disque": {
+      "lectures_sures_consecutives": 3,
+      "valeur_max": 5
+    },
+    "plusieurs_elements_par_piste": true
+  },
+  "audio": {
+    "motif_nom": "{disque}-{piste} {style} - {element} Pg.{page}",
+    "usage": "indice"
+  },
+  "vision": {
+    "zones_max_par_lot": 300,
+    "zones_max_par_page": 6,
+    "cout_max_eur": 0.2,
+    "agrandissement": 2
+  },
+  "validation": {
+    "seuil_confiance": 0.6
+  }
+}

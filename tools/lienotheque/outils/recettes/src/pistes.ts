@@ -14,6 +14,10 @@ export type LecturePiste = {
   readonly pisteLue?: number | undefined;
   readonly accordPiste: number;
   readonly presencePiste: number;
+  /** Combien de formes de la taille d'un chiffre le repère montrait. Plus que la lecture n'en
+   *  rend, et c'est qu'un chiffre a été perdu. Seul le changement de support s'en sert, et pour
+   *  une raison précise : voir `changementDeSupport`. */
+  readonly chiffresComptes?: number | undefined;
   /** Numéro de l'élément. Il ne compte que si la recette déclare que piste et élément coïncident. */
   readonly numero?: number | undefined;
 };
@@ -102,11 +106,25 @@ export function reglesDePistes(recette: Recette, nombreDePistes: number): Regles
   };
 }
 
+/** Une lecture dont on sait qu'il lui manque un chiffre : le repère en montrait plus qu'elle n'en
+ *  rend. Elle peut valoir pour l'attribution, qui pèse tout l'ensemble, mais pas pour fonder un
+ *  changement de support — c'est la leçon de F4, et elle a coûté vingt et un éléments. */
+const tronquee = (lecture: LecturePiste): boolean =>
+  lecture.pisteLue !== undefined && (lecture.chiffresComptes ?? 0) > String(lecture.pisteLue).length;
+
 /** Où le support change, s'il change.
  *
  *  Un disque suivant renumérote ses pistes à partir de 1. On cherche donc des lectures sûres et
  *  petites, alors que la numérotation était bien engagée — plusieurs de suite, car une seule
- *  serait un chiffre mal lu. L'indice retourné est celui du premier élément du support suivant. */
+ *  serait un chiffre mal lu. L'indice retourné est celui du premier élément du support suivant.
+ *
+ *  **Et une lecture tronquée ne compte pas comme petite.** Un « 2 » tiré d'un repère qui porte 82
+ *  n'est pas un retour au début, c'est un chiffre perdu, et trois de suite ressemblent exactement
+ *  à ce qu'on cherche. Mesuré sur F4 : la relecture ciblée établissait la numérotation à 81-82,
+ *  puis trois lectures tronquées déclenchaient un faux changement de disque qui coupait le
+ *  premier support en deux et emportait vingt et un éléments. Compter les chiffres du repère dit
+ *  précisément ce qu'il faut ici — c'est le seul endroit où ce comptage décide de quelque chose,
+ *  et il y décide à bon escient. */
 export function changementDeSupport(lectures: readonly LecturePiste[], regles: ReglesPistes): number | undefined {
   const regle = regles.changementDisque;
   if (regle === undefined) return undefined;
@@ -115,7 +133,7 @@ export function changementDeSupport(lectures: readonly LecturePiste[], regles: R
   let consecutives = 0;
 
   for (const [rang, lecture] of lectures.entries()) {
-    const sure = lecture.pisteLue !== undefined && lecture.accordPiste >= ACCORD_SUR;
+    const sure = lecture.pisteLue !== undefined && lecture.accordPiste >= ACCORD_SUR && !tronquee(lecture);
     const petite = lecture.pisteLue !== undefined && lecture.pisteLue <= regle.valeurMax;
 
     if (sure && petite && engagement >= regle.valeurMax * FACTEUR_ENGAGEMENT) {

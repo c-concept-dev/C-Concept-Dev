@@ -160,3 +160,31 @@ describe("changement de support (A3)", () => {
     expect(changementDeSupport(lectures, avecChangement)).toBeUndefined();
   });
 });
+
+describe("une lecture tronquée ne fonde pas un changement de support (A5, OUT-08)", () => {
+  const avecChangement = regles({ changementDisque: { lecturesSuresConsecutives: 3, valeurMax: 5 } });
+  const engagee = () => Array.from({ length: 25 }, (_, rang) => lu(rang + 1));
+
+  it("ignore trois petites lectures dont le repère montrait deux chiffres", () => {
+    // « 2 », « 3 », « 4 » tirés de repères à deux chiffres : ce sont 82, 83, 84, pas un retour au
+    // début. C'est le cas mesuré sur F4, qui coupait le premier support en deux.
+    const tronquees = [2, 3, 4].map((valeur) => ({ ...lu(valeur), chiffresComptes: 2 }));
+    expect(changementDeSupport([...engagee(), ...tronquees], avecChangement)).toBeUndefined();
+  });
+
+  it("mais voit toujours un vrai retour au début", () => {
+    const vraies = [1, 2, 3].map((valeur) => ({ ...lu(valeur), chiffresComptes: 1 }));
+    expect(changementDeSupport([...engagee(), ...vraies], avecChangement)).toBe(25);
+  });
+
+  it("ne change rien quand le comptage n'a pas eu lieu", () => {
+    expect(changementDeSupport([...engagee(), lu(1), lu(2), lu(3)], avecChangement)).toBe(25);
+  });
+
+  it("n'empêche pas une lecture complète de compter, même à deux chiffres", () => {
+    // Un support qui reprendrait à 11, 12, 13 avec une valeur maximale de 15.
+    const large = regles({ changementDisque: { lecturesSuresConsecutives: 3, valeurMax: 15 } });
+    const completes = [11, 12, 13].map((valeur) => ({ ...lu(valeur), chiffresComptes: 2 }));
+    expect(changementDeSupport([...Array.from({ length: 70 }, (_, rang) => lu(rang + 1)), ...completes], large)).toBe(70);
+  });
+});

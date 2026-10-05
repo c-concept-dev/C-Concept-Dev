@@ -14,7 +14,7 @@ import { chargerRecette, interpreter, lireLot } from "../src/index.js";
 const RACINE = join(import.meta.dirname, "../../..");
 const F4 = join(RACINE, "fixtures/fichiers/F4/Paul westwood.pdf");
 const ORACLE = join(RACINE, "docs/prototypes/Westwood_Vol1_CD1_pistes.csv");
-const RECETTE = chargerRecette(JSON.parse(readFileSync(join(RACINE, "fixtures/recettes/methode-pastilles-cd.v4.json"), "utf8")));
+const RECETTE = chargerRecette(JSON.parse(readFileSync(join(RACINE, "fixtures/recettes/methode-pastilles-cd.v5.json"), "utf8")));
 
 if (!existsSync(F4) || !existsSync(ORACLE)) {
   console.log("Clichés ou oracle absents : rien à mesurer ici.");
@@ -45,6 +45,11 @@ console.log(`Interprétation : ${resultat.lignes.length} lignes`);
 const parPiste = new Map<number, { premier: number; page: number }>();
 for (const ligne of resultat.lignes) {
   if (ligne.piste === undefined) continue;
+  // Le critère porte sur le premier support : l'oracle est celui de CD1, et une piste 50 du
+  // deuxième disque n'est pas la piste 50 de l'oracle. Ce filtre manquait, et son absence rendait
+  // les chiffres de F4 dépendants de l'endroit où la coupure de support tombait — les mesures
+  // antérieures confondaient donc les deux disques.
+  if (ligne.disque !== 1) continue;
   const vu = parPiste.get(ligne.piste);
   if (vu === undefined || ligne.numero < vu.premier) parPiste.set(ligne.piste, { premier: ligne.numero, page: ligne.pageImprimee });
 }

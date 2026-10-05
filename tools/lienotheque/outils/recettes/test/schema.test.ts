@@ -8,7 +8,7 @@ const lire = (nom: string): unknown => JSON.parse(readFileSync(join(RECETTES, no
 
 describe("chargement d'une recette (REC-01)", () => {
   it("accepte les recettes prouvées du dépôt", () => {
-    for (const nom of ["methode-pastille-piste.v1.json", "methode-pastille-piste.v2.json", "methode-pastilles-cd.v4.json"])
+    for (const nom of ["methode-pastille-piste.v1.json", "methode-pastille-piste.v2.json", "methode-pastilles-cd.v4.json", "methode-pastilles-cd.v5.json"])
       expect(() => chargerRecette(lire(nom)), nom).not.toThrow();
   });
 
@@ -78,5 +78,55 @@ describe("filiation d'une recette (REC-03)", () => {
     const positionDe = (recette: typeof v1) => recette.lectures.find((l) => l.ancre === "piste")?.position;
     expect(positionDe(v1)).toBe("gauche");
     expect(positionDe(v2)).toBe("droite");
+  });
+});
+
+describe("relecture ciblée déclarée par la recette (REC-01, OUT-08)", () => {
+  const v5 = () => chargerRecette(lire("methode-pastilles-cd.v5.json"));
+
+  it("se déclare avec ses plafonds, et c'est ce qui change de la v4", () => {
+    // Les trois plafonds sont mesurés : 184 pavés relevés sur les clichés de référence pour un
+    // plafond de 300, 1,4 par page pour un plafond de 6, et 0,045 $ pour le lot entier — d'où
+    // 0,20 € de plafond de dépense, environ cinq fois ce qu'un lot coûte.
+    expect(v5().vision).toEqual({ zones_max_par_lot: 300, zones_max_par_page: 6, cout_max_eur: 0.2, agrandissement: 2 });
+    expect(chargerRecette(lire("methode-pastilles-cd.v4.json")).vision).toBeUndefined();
+    expect(filiation(v5())).toBe("methode-pastilles-cd v5 (dérivée de methode-pastilles-cd v4)");
+  });
+
+  it("reste facultative : la plupart des recettes n'en auront jamais", () => {
+    expect(chargerRecette(lire("methode-pastille-piste.v2.json")).vision).toBeUndefined();
+  });
+
+  it("porte l'agrandissement que la mesure a imposé", () => {
+    // 15 pavés justes sur 18 à l'échelle d'origine, 18 sur 18 au double : c'est la mesure qui a
+    // tranché, contre le plan qui disait de ne jamais agrandir.
+    expect(v5().vision?.agrandissement).toBe(2);
+    const recette = lire("methode-pastilles-cd.v5.json") as Record<string, unknown>;
+    expect(() => chargerRecette({ ...recette, vision: { zones_max_par_lot: 300, zones_max_par_page: 6, agrandissement: 0 } })).toThrow(RecetteInvalide);
+    expect(() => chargerRecette({ ...recette, vision: { zones_max_par_lot: 300, zones_max_par_page: 6, agrandissement: 1.5 } })).toThrow(RecetteInvalide);
+  });
+
+  it("refuse un plafond absent : une recette qui envoie des images dit combien", () => {
+    const recette = lire("methode-pastilles-cd.v5.json") as Record<string, unknown>;
+    expect(() => chargerRecette({ ...recette, vision: { zones_max_par_page: 6 } })).toThrow(RecetteInvalide);
+    expect(() => chargerRecette({ ...recette, vision: { zones_max_par_lot: 300 } })).toThrow(RecetteInvalide);
+  });
+
+  it("refuse un plafond qui n'en est pas un", () => {
+    const recette = lire("methode-pastilles-cd.v5.json") as Record<string, unknown>;
+    for (const vision of [
+      { zones_max_par_lot: 0, zones_max_par_page: 6 },
+      { zones_max_par_lot: 300, zones_max_par_page: -1 },
+      { zones_max_par_lot: 300, zones_max_par_page: 6, cout_max_eur: 0 },
+    ])
+      expect(() => chargerRecette({ ...recette, vision }), JSON.stringify(vision)).toThrow(RecetteInvalide);
+  });
+
+  it("porte un coût qui a été mesuré, et accepte de ne pas en porter du tout", () => {
+    const recette = lire("methode-pastilles-cd.v5.json") as Record<string, unknown>;
+    // Il a été mesuré, il est donc écrit. Avant la mesure il était absent, et le schéma le permet
+    // toujours : on ne plafonne pas une estimation, et une recette neuve n'a rien à plafonner.
+    expect(v5().vision?.cout_max_eur).toBe(0.2);
+    expect(chargerRecette({ ...recette, vision: { zones_max_par_lot: 300, zones_max_par_page: 6 } }).vision?.cout_max_eur).toBeUndefined();
   });
 });

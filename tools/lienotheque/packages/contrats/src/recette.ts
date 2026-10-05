@@ -81,6 +81,15 @@ export const Recette = z
         /** Plafond de dépense, quand il a été mesuré. On ne pose pas un plafond sur une
          *  estimation : il s'écrit après le comptage des jetons sur de vrais recadrages. */
         cout_max_eur: z.number().positive().optional(),
+        /** De combien agrandir un recadrage avant de l'envoyer.
+         *
+         *  Agrandir n'ajoute aucune information, et la première version de ce plan disait donc de
+         *  ne jamais le faire. La mesure a tranché autrement : un repère de ce document fait
+         *  80 × 80 pixels, ce qu'un modèle découpe en deux tuiles sur deux, et à cette taille il
+         *  perd des chiffres — 15 pavés justes sur 18 à l'échelle d'origine, 18 sur 18 au double.
+         *  Un document photographié de plus près n'en aurait pas besoin : c'est donc une donnée de
+         *  la recette, pas une constante du code. */
+        agrandissement: z.number().int().min(1).max(8).optional(),
       })
       .strict()
       .optional(),

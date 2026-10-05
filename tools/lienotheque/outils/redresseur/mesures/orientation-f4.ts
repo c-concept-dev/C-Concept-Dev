@@ -10,7 +10,7 @@ import { detecterRotation, noterLesQuatreSens, rotationParOsd, redresser } from 
 
 const RACINE = join(import.meta.dirname, "../../..");
 const F4 = join(RACINE, "fixtures/fichiers/F4/Paul westwood.pdf");
-const RECETTE = chargerRecette(JSON.parse(readFileSync(join(RACINE, "fixtures/recettes/methode-pastilles-cd.v4.json"), "utf8")));
+const RECETTE = chargerRecette(JSON.parse(readFileSync(join(RACINE, "fixtures/recettes/methode-pastilles-cd.v5.json"), "utf8")));
 
 if (!existsSync(F4)) {
   console.log("Clichés absents : rien à mesurer ici.");

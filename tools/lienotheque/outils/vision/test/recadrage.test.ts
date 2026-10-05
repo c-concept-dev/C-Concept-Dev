@@ -15,11 +15,13 @@ const page = (largeur: number, hauteur: number): ImageGrise => {
 
 const candidat = (recadrage: { x: number; y: number; l: number; h: number }): Candidat => ({
   page: 0,
-  encre: { x: recadrage.x, y: recadrage.y, l: 30, h: 40 },
+  numero: 160,
+  motif: "lecture_incomplete",
+  repere: { x: recadrage.x, y: recadrage.y, l: 30, h: 40 },
   recadrage,
 });
 
-describe("un recadrage est un bout de marge, et le contrat le garantit", () => {
+describe("un recadrage est le pavé d'un repère, et le contrat le garantit", () => {
   it("rend une zone conforme, à la taille demandée", async () => {
     const produit = await recadrerPour(page(800, 2000), candidat({ x: 0, y: 860, l: 160, h: 120 }));
     expect(produit).toBeDefined();
@@ -68,5 +70,33 @@ describe("l'empreinte identifie l'image, pas son emplacement", () => {
     const un = await recadrerPour(image, candidat({ x: 0, y: 0, l: 160, h: 120 }));
     const deux = await recadrerPour(image, candidat({ x: 0, y: 500, l: 160, h: 120 }));
     expect(un!.zone.empreinte).not.toBe(deux!.zone.empreinte);
+  }, 30_000);
+});
+
+describe("agrandir un recadrage quand la recette le demande (OUT-08)", () => {
+  it("rend une image au multiple demandé, même contenu, même proportions", async () => {
+    const un = await recadrerPour(page(800, 2000), candidat({ x: 0, y: 860, l: 80, h: 85 }));
+    const deux = await recadrerPour(page(800, 2000), candidat({ x: 0, y: 860, l: 80, h: 85 }), undefined, 2);
+    expect(un!.zone.largeur).toBe(80);
+    expect(deux!.zone.largeur).toBe(160);
+    expect(deux!.zone.hauteur).toBe(170);
+  }, 30_000);
+
+  it("change l'empreinte : une autre image n'est pas la même, et son cache non plus", async () => {
+    const un = await recadrerPour(page(800, 2000), candidat({ x: 0, y: 860, l: 80, h: 85 }));
+    const deux = await recadrerPour(page(800, 2000), candidat({ x: 0, y: 860, l: 80, h: 85 }), undefined, 2);
+    expect(deux!.zone.empreinte).not.toBe(un!.zone.empreinte);
+  }, 30_000);
+
+  it("renonce quand l'agrandissement ferait dépasser ce que le contrat accepte", async () => {
+    // 300 × 8 passe le plafond de 1024 : on refuse avant d'encoder, pas après.
+    expect(await recadrerPour(page(800, 2000), candidat({ x: 0, y: 0, l: 300, h: 300 }), undefined, 8)).toBeUndefined();
+    expect(await recadrerPour(page(800, 2000), candidat({ x: 0, y: 0, l: 300, h: 300 }), undefined, 2)).toBeDefined();
+  }, 30_000);
+
+  it("ne touche à rien au multiple de un", async () => {
+    const sans = await recadrerPour(page(800, 2000), candidat({ x: 0, y: 860, l: 80, h: 85 }));
+    const avecUn = await recadrerPour(page(800, 2000), candidat({ x: 0, y: 860, l: 80, h: 85 }), undefined, 1);
+    expect(avecUn!.zone.empreinte).toBe(sans!.zone.empreinte);
   }, 30_000);
 });
