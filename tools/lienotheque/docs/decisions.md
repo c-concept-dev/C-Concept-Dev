@@ -582,9 +582,13 @@ ratés, ce sont des numéros d'élément que je ne lis pas du tout**. Sur les é
 détection de repère est complète. Ce qui manque est le rendement de lecture des numéros dans la
 marge, là où l'oracle emploie une passe dédiée à pleine résolution.
 
-Sur le livre entier, la dernière mesure complète donne 16 premiers éléments justes sur 92 et
-21 pages sur 92. Les deux itérations convenues sont faites ; la suite demanderait de porter les
-trois passes successives du prototype, ce qui sort du cadre fixé.
+Sur le livre entier, la mesure complète d'alors donnait 16 premiers éléments justes sur 92 et
+21 pages sur 92. Les deux itérations convenues étaient faites ; la suite demandait de porter les
+trois passes successives du prototype, ce qui sortait du cadre fixé.
+
+**Cette conclusion était fausse, et c'est la mesure du 4 octobre qui l'a montré.** Les numéros
+n'étaient pas durs à lire : une partie des clichés était simplement mal orientée. Voir
+« L'orientation d'un lot se vote » plus bas.
 
 ### Ce qui marche, et qu'il faut garder en tête
 
@@ -730,3 +734,84 @@ Seul l'axe de l'état du lien filtre, parce que l'application sait ce que « val
 repère, `LigneInterpretee` ne la transporte pas. Le Lecteur montre donc la vraie page sans ses
 zones cliquables. Les deux demandent d'étendre le contrat, l'instantané et l'ingestion : ce sont
 des fonctionnalités, pas des corrections.
+
+## L'orientation d'un lot se vote, elle ne se croit pas sur parole
+
+En préparant la relecture ciblée des numéros illisibles de F4, les recadrages ont montré autre
+chose que ce qu'on cherchait : les pages dont la lecture ne rendait rien n'étaient pas illisibles.
+Elles étaient **couchées ou retournées**. « 227 — CD 1 Piste 20 » s'y lit parfaitement, de travers.
+
+### Tesseract répond toujours, et c'est le piège
+
+`detecterRotation` demandait son avis à Tesseract en mode orientation (`--psm 0`), et le suivait
+dès qu'il se prononçait. Il se prononce toujours. Sur les quatorze clichés de référence de F4 il
+s'est trompé quatre fois : deux pages rendues à l'envers, deux laissées couchées. Comme il
+répondait, on ne regardait pas plus loin — et une page mal tournée ne donne plus rien à lire,
+zéro élément là où elle en portait six.
+
+### Noter les quatre sens ne suffit pas
+
+Premier geste : essayer les quatre orientations et garder celle qui donne le plus à lire — somme
+des confiances des mots d'au moins deux caractères, sur une image réduite de moitié.
+
+Mesuré, cela tranche nettement là où la page porte du texte : 255 contre 107, 294 contre 113.
+Mais une page de musique n'en porte presque pas, et trois points séparent alors les quatre sens.
+Laisser décider ce bruit se trompait une fois sur trois — et retournait même un cliché qui était
+juste.
+
+### Un livre est photographié dans un sens
+
+L'orientation est une propriété du lot, pas du cliché. C'est le même raisonnement que pour le
+décalage des numéros de page, voté d'abord sur l'ensemble : les clichés bavards décident pour les
+muets, pondérés par l'écart entre leurs deux meilleurs sens. Sur F4, 270° l'emporte par 460 contre
+13 et 2.
+
+Seize clichés échantillonnés suffisent : la réponse est acquise bien avant d'avoir tout sondé.
+
+### Ce que cela a donné
+
+| | avant | après | critère |
+|---|---:|---:|---:|
+| F4 — premiers éléments justes | 16 / 92 | **52 / 92** | 83 |
+| F4 — pages justes | 21 / 92 | **67 / 92** | 89 |
+| F3 | 95 / 95 | **95 / 95** | 95 |
+
+Sur les treize clichés de référence : 122 éléments lus contre 93, et 26 pages comparables à
+l'oracle contre 18. F3 ne bouge pas, rejeu identique compris.
+
+**Le critère de F4 n'est pas tenu.** Il a gagné 36 premiers éléments et 46 pages par une
+correction qui ne coûte rien et ne connaît aucun document.
+
+### Un cache qui ignore ce qui change finit par servir le passé
+
+`VERSION_LECTURE` passe à 3. L'orientation ne change pas la forme d'une lecture, elle change ce
+qu'elle lit. Sans cette version, la mesure aurait resservi les lectures d'avant et n'aurait rien
+montré — c'est exactement ce qui était arrivé aux zones d'élément quelques jours plus tôt.
+
+## Le reliquat de F4 ne relève pas d'un manque de lecture
+
+Quarante écarts restent après la correction d'orientation. Leur analyse contredit l'hypothèse qui
+avait conduit à proposer la vision ciblée.
+
+| Cas | Nombre |
+|---|---:|
+| Piste sans rien attribué | 2 |
+| Premier élément faux, mais appartenant bien à la piste | 8 |
+| Premier élément appartenant à une **autre** piste | 30 |
+
+Parmi ces 30, **27 ont une dérive d'exactement −1 piste** : l'élément attribué à la piste N
+appartient à la piste N−1. Nous donnons 187 à la piste 14 alors que 187 est le second élément de
+la piste 13 ; nous donnons 181 à la piste 13, qui commence à 183. Les frontières de piste avancent
+d'un cran trop tôt.
+
+C'est cohérent avec ce qui est consigné plus haut : chaque élément d'une piste porte son repère, et
+c'est le pas de 0 — deux éléments sur la même piste — qui les réunit. Un pas de 0 manqué sépare
+deux éléments qui n'en font qu'un, et tout glisse ensuite.
+
+**Conséquence pour la vision ciblée (OUT-08) :** elle traiterait les dix premiers cas, pas les
+trente autres. Elle lit un numéro ; elle ne répare pas une frontière de piste. Les contrats
+(`DemandeVision`, `ReponseVision`, preuve `vision`, budget en recette) et la sélection des
+candidats sont faits et mesurés — 59 recadrages sur 28 pages, 497 × 135 px, environ 85 jetons
+l'image, de l'ordre de 0,16 USD pour le lot entier — mais rien n'est appelé : **l'outil reste en
+réserve**, sans Worker, sans clé, et sans plafond écrit dans une recette tant qu'il n'est pas
+mesuré par `count_tokens`.

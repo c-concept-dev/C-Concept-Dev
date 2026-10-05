@@ -2,8 +2,8 @@ import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { readFile, readdir } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { basename, join } from "node:path";
-import { ReglagesRedressement, type CotePage, type Recette, type ResultatRecette } from "@lienotheque/contrats";
-import { redresser, type OptionsRedressement } from "@lienotheque/redresseur";
+import { ReglagesRedressement, type CotePage, type Recette, type ResultatRecette, type Rotation } from "@lienotheque/contrats";
+import { noterLesQuatreSens, orientationDuLot, redresser, type OptionsRedressement, type RotationTrouvee } from "@lienotheque/redresseur";
 import { objetsPdf, octetsImage, pagesPdf } from "@lienotheque/formats";
 import { decoderJpeg, enGris, type ImageGrise } from "@lienotheque/images";
 import { associer, lireNomMedia, type Association, type Media } from "./associateur.js";
@@ -43,10 +43,38 @@ export function clefDeLecture(chemin: string, recette: Recette, limite?: number)
 export type OptionsBanc = OptionsReperes & {
   /** Dossier où garder les lectures. Absent, rien n'est gardé. */
   readonly cache?: string | undefined;
+  /** Rend les pages redressées et coupées, mais sans binarisation.
+   *
+   *  La lecture veut du noir et blanc : un moteur d'OCR y lit mieux. Une relecture ciblée veut
+   *  l'inverse — un chiffre que le seuil a mangé ne se retrouve pas dans ce qu'il en reste, et
+   *  envoyer une image déjà dégradée, c'est perdre ce qu'on venait chercher (OUT-08).
+   *  La géométrie ne bouge pas : même rotation, même coupe, mêmes coordonnées. */
+  readonly sansBinarisation?: boolean;
   /** Ne traiter que les premières pages : pour un essai rapide pendant la mise au point. */
   readonly pages?: number;
   readonly redressement?: OptionsRedressement;
 };
+
+/** Un cliché sur combien, et combien au plus, pour voter l'orientation du lot.
+ *
+ *  Seize clichés suffisent : l'orientation est une propriété de la séance de photographie, pas
+ *  une qualité de chaque page. Les sonder tous coûterait quatre lectures par cliché pour une
+ *  réponse qu'on a déjà au seizième. */
+const PAS_ECHANTILLON = 8;
+const ECHANTILLON_MAX = 16;
+
+/** Vote l'orientation du lot sur un échantillon de ses clichés. */
+async function voterOrientation(chemin: string, options: OptionsBanc): Promise<RotationTrouvee | undefined> {
+  const notes: (readonly { rotation: Rotation; note: number }[])[] = [];
+  let index = -1;
+  for await (const image of pagesEnGris(chemin, options.pages)) {
+    index += 1;
+    if (index % PAS_ECHANTILLON !== 0) continue;
+    notes.push(noterLesQuatreSens(image, options.redressement ?? {}));
+    if (notes.length >= ECHANTILLON_MAX) break;
+  }
+  return orientationDuLot(notes);
+}
 
 /** Prépare les pages d'un lot selon ce que la recette déclare (OUT-03).
  *
@@ -68,14 +96,25 @@ export async function* preparerLot(chemin: string, recette: Recette, options: Op
         doublePage: preparation.double_page,
         ...(preparation.page_gauche === undefined ? {} : { pageGauche: preparation.page_gauche }),
         effacerVerso: true,
-        binarisation: "adaptative",
+        binarisation: options.sansBinarisation === true ? "aucune" : "adaptative",
       });
+
+  // L'orientation du lot, votée une fois sur un échantillon.
+  //
+  // Elle vaut pour tous les clichés : un livre est photographié dans un sens. La chercher cliché
+  // par cliché, c'est laisser décider les pages muettes — et sur F4 elles se trompaient une fois
+  // sur trois, rendant deux pages à l'envers et deux couchées. Une page mal tournée ne donne
+  // plus rien à lire : zéro élément là où il y en avait six.
+  const rotationDuLot = reglages === undefined || reglages.rotation !== "auto" ? undefined : await voterOrientation(chemin, options);
 
   let index = 0;
   for await (const image of pagesEnGris(chemin, options.pages)) {
     if (reglages === undefined) yield { image, index };
     else
-      for (const produite of redresser(image, index, reglages, options.redressement ?? {})) {
+      for (const produite of redresser(image, index, reglages, {
+        ...(options.redressement ?? {}),
+        ...(rotationDuLot === undefined ? {} : { rotationImposee: rotationDuLot.rotation }),
+      })) {
         const cote = produite.descripteur.cote;
         yield {
           image: produite.image,

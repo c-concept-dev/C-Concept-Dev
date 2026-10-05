@@ -80,6 +80,21 @@ export function agrandir(image: ImageGrise, facteur: number): ImageGrise {
   return { largeur, hauteur, pixels };
 }
 
+/** Réduit par un facteur entier, en prenant un pixel sur `facteur`.
+ *
+ *  Le pendant d'`agrandir`, et aussi grossier : on ne cherche pas une belle image, on cherche
+ *  une image quatre fois plus rapide à sonder. Pour juger de quel côté une page est posée, le
+ *  détail ne sert à rien — la disposition du texte suffit, et elle survit à la réduction. */
+export function reduire(image: ImageGrise, facteur: number): ImageGrise {
+  if (facteur <= 1) return image;
+  const largeur = Math.max(1, Math.floor(image.largeur / facteur));
+  const hauteur = Math.max(1, Math.floor(image.hauteur / facteur));
+  const pixels = new Uint8Array(largeur * hauteur);
+  for (let y = 0; y < hauteur; y += 1)
+    for (let x = 0; x < largeur; x += 1) pixels[y * largeur + x] = image.pixels[y * facteur * image.largeur + x * facteur]!;
+  return { largeur, hauteur, pixels };
+}
+
 /** Entoure l'image d'une marge claire : un chiffre collé au bord se lit mal. */
 export function border(image: ImageGrise, marge: number, ton = 255): ImageGrise {
   const largeur = image.largeur + marge * 2;

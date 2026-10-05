@@ -64,6 +64,26 @@ export const Recette = z
       })
       .strict(),
     audio: z.object({ motif_nom: z.string().min(1), usage: z.literal("indice") }).strict().optional(),
+    /** Relecture ciblée des zones que la lecture locale n'a pas rendues (OUT-08).
+     *
+     *  Facultative — un lot qui se lit entièrement n'en a pas besoin, et la plupart n'en auront
+     *  jamais. Mais déclarée, elle porte son budget : une recette qui demande d'envoyer des
+     *  images sans dire combien est refusée ici, pas découverte à la centième zone.
+     *
+     *  Le budget est une donnée de la recette, comme le reste. Un autre domaine, un autre lot,
+     *  un autre plafond, et rien à recompiler. */
+    vision: z
+      .object({
+        /** Plafond ferme pour un lot entier. Atteint, on s'arrête net. */
+        zones_max_par_lot: z.number().int().positive(),
+        /** Plafond par page : il borne les dégâts d'une page qui ne se lit pas du tout. */
+        zones_max_par_page: z.number().int().positive(),
+        /** Plafond de dépense, quand il a été mesuré. On ne pose pas un plafond sur une
+         *  estimation : il s'écrit après le comptage des jetons sur de vrais recadrages. */
+        cout_max_eur: z.number().positive().optional(),
+      })
+      .strict()
+      .optional(),
     validation: z.object({ seuil_confiance: z.number().min(0).max(1) }).strict(),
   })
   .strict();

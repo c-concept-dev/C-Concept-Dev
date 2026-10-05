@@ -18,3 +18,4 @@ export * from "./travail.js";
 export * from "./operation.js";
 export * from "./resultat-outil.js";
 export * from "./service.js";
+export * from "./vision.js";

@@ -7,7 +7,13 @@ export const NatureLien = z.union([
   z.string().regex(/^x-[a-z0-9_]+$/, "Nature personnalisée : préfixe x-"),
 ]);
 
-export const Preuve = z.enum(["lu", "sequence", "nom_de_fichier", "manuel"]);
+/** D'où vient un lien (ANC-02).
+ *
+ *  `vision` : un numéro que la lecture locale n'a pas rendu et qu'une relecture ciblée a lu sur
+ *  l'image (OUT-08). Le CDC l'assortit d'une règle qui n'est pas un réglage : un numéro de cette
+ *  provenance n'est **jamais appliqué automatiquement sans corroboration par la séquence**. Ce
+ *  n'est pas une confiance basse qu'un seuil pourrait rattraper — c'est une interdiction. */
+export const Preuve = z.enum(["lu", "sequence", "nom_de_fichier", "manuel", "vision"]);
 export type Preuve = z.infer<typeof Preuve>;
 
 export const Auteur = z.discriminatedUnion("type", [
