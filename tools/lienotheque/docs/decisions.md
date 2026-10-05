@@ -1168,6 +1168,12 @@ Avec la notation ramenée au premier support :
 La garde ne change rien au résultat avec relecture : elle redresse le témoin, et c'est bien le
 témoin qui était faux. Le critère — 83 et 89 — n'est pas tenu.
 
+**Le point de départ et le résultat, pour mémoire.** Avec la notation juste, F4 part de **55
+premiers éléments sur 92 et 67 pages sur 92**, et la relecture ciblée le porte à **67 et 74**, soit
+**+12 éléments et +7 pages**. Le critère reste à 83 et 89 : il manque 16 éléments et 15 pages. Ce
+sont ces quatre nombres qui font foi ; tout chiffre de F4 antérieur à cette correction confondait
+les deux disques et ne leur est pas comparable.
+
 ### Ce que la relecture coûte, en vrai
 
 139 pavés pour le lot, 7 appels, 17 429 jetons d'entrée et 5 752 de sortie, **0,0428 €** pour un
