@@ -413,8 +413,9 @@ lecture.** Mon premier jet en annonçait deux ; le décodage par CoreAudio en a 
 | Durée vidéo = durée audio à une image près | **−0,075 s** (Chromium) / **−0,056 s** (WebKit) ; cause établie = 2112 éch. d'amorce AAC non déclarée | **hors critère DANS LE CONTENEUR**, sans effet à la lecture (voir plus bas) | script + `afinfo` |
 | Écart flash / bip ≤ 40 ms, **décodage** `afconvert` | **+4,2 ms**, aux deux fréquences et aux trois instants. Les −48,8 ms venaient du décodeur de Mediabunny, les −69 ms y ajoutaient 20 ms d'artefact de ma mesure | **TENU au décodage** | script + `afconvert` |
 | Écart flash / bip ≤ 40 ms, **décodage** ffmpeg | **+48,2 ms** (48 kHz) et **+52,1 ms** (44,1 kHz) : l'amorce n'est PAS retirée | **HORS critère**, et **corrigé** par la ligne ci-dessous | script + ffmpeg |
-| Même critère, avec liste d'édition | **+4,2 ms** chez ffmpeg **ET** chez `afconvert` | **TENU aux deux décodages** | script + ffmpeg + `afconvert` |
-| Le bip tombe-t-il avec le flash **dans QuickTime Player** ? | — | **NON MESURÉ** : aucun lecteur n'a été éprouvé, seuls des décodeurs | **Christophe** (4 MP4 fournis) |
+| Écart flash / bip ≤ 40 ms, **décodage** AVFoundation | **+4,2 ms** sans liste d'édition | **TENU au décodage** | script + Swift/AVFoundation |
+| Même critère, avec liste d'édition | **+4,2 ms** chez ffmpeg et `afconvert`, mais **−39,8 ms** (48 kHz) et **−43,7 ms** (44,1 kHz) chez AVFoundation | **HORS critère à 44,1 kHz sur la pile Apple** : la correction dégrade ce qui marchait | script + 3 décodeurs |
+| Le bip tombe-t-il avec le flash **dans QuickTime Player, Safari, Chrome** ? | — | **NON MESURÉ** : aucun lecteur n'a été éprouvé, seulement trois décodeurs | **Christophe** (5 MP4 fournis) |
 | Export de 10 min sans plantage | **8,2 s** d'encodage, **17,5 Mo**, 508 images, aucun plantage | **tenu** | script (Chromium) |
 
 ### D'où vient le décalage — décomposition, et trois corrections à mon premier jet
@@ -547,12 +548,57 @@ bien honorer l'`elst` ET trimer l'amorce**, ce qui donnerait les −39,8 ms visi
 ci-dessus. C'est exactement le risque que le contrôle dans QuickTime doit lever, et c'est pourquoi
 les quatre MP4 sont fournis.
 
-**Recommandation, les deux résultats de décodage étant en main, et sous réserve du contrôle dans
-QuickTime :** poser `startTimestamp: -2112/SE` sur la piste audio. Une ligne, aucune modification
-de bibliothèque, les deux **décodeurs** à +4,2 ms. Si l'écoute dans QuickTime montrait un décalage
-sur la variante AVEC, c'est cette recommandation qui tomberait, pas la mesure. **Rien n'est
-appliqué ici** : le module de montage n'existe pas encore, et ce lot ne
+#### CETTE RECOMMANDATION EST RETIRÉE — AVFoundation double-compense (complément 5)
+
+**Ce que je recommandais** : poser `startTimestamp: -2112/SE` sur la piste audio, puisque ffmpeg
+et `afconvert` donnaient alors tous deux +4,2 ms. **C'était insuffisant, et faux pour la pile
+Apple.** Mesuré au complément 5 avec AVFoundation — la pile sur laquelle QuickTime Player et le
+`<video>` de Safari sont bâtis — par `outils/mesure-avfoundation.swift` :
+
+| Décodeur | `A-SANS` 48 kHz | `A-AVEC` 48 kHz | `A-AVEC` 44,1 kHz | `F-CALIBRATION` (8448) |
+|---|---|---|---|---|
+| **AVFoundation** | **+4,2 ms** | **−39,8 ms** | **−43,7 ms** | **−171,8 ms** |
+| `afconvert` | +4,2 ms | +4,2 ms | +4,2 ms | +4,2 ms |
+| ffmpeg 6.0 | +48,2 ms | +4,2 ms | +4,2 ms | −127,8 ms |
+
+**AVFoundation retire l'amorce ET applique la liste d'édition** : c'est exactement la double
+compensation que le complément 3 avait écartée sur la seule foi d'`afconvert`. L'erreur de méthode
+était là : `afconvert` ignore la liste d'édition, mais ce n'est pas lui qui joue les fichiers.
+
+Preuve directe, lue dans `AVAssetTrack.segments` : **même sans liste d'édition**, AVFoundation
+rapporte un `timeMapping` dont la source commence à **2112/48000 = 44,00 ms** (et 2112/44100 =
+47,89 ms), la présentation commençant à 0. Elle connaît donc l'amorce par elle-même, depuis le
+train AAC. Ajouter un `elst` de 2112 lui fait retrancher deux fois la même chose. La piste vidéo,
+elle, a toujours un `timeMapping` à décalage nul.
+
+**Trois modèles, chacun vérifié sur cinq fichiers :**
+
+- ffmpeg : écart = 44,00 (amorce conservée) + 4,2 (montée au seuil) − `media_time`/48
+- `afconvert` : écart = 4,2 (amorce retirée, liste d'édition ignorée)
+- AVFoundation : écart = 4,2 − `media_time`/48 (amorce retirée, liste d'édition appliquée)
+
+Le modèle ffmpeg redonne les quatre points de la falsification du complément 3 (`media_time` 0 →
++48,2 ; 1056 → +26,2 ; 2112 → +4,2 ; 4224 → −39,8) et le point de calibration (8448 → −127,8).
+
+**Le compromis, et il n'a pas de bonne réponse par mesure seule :**
+
+| | pile Apple | ffmpeg |
+|---|---|---|
+| **sans** liste d'édition (état actuel) | **+4,2 ms, juste** | +48,2 ms, hors critère |
+| **avec** liste d'édition à 2112 | −39,8 ms (−43,7 à 44,1 kHz), **hors critère à 44,1 kHz** | +4,2 ms, juste |
+
+Aucune des deux colonnes ne tient les 40 ms des deux côtés. **Recommandation révisée : ne rien
+écrire, et garder l'état actuel** — la plate-forme visée est Safari, elle est déjà juste, et la
+correction la dégraderait. Mais c'est un arbitrage, pas un résultat de mesure, et il revient à
+Christophe : le paquet contient les quatre fichiers et un fichier de calibration exagéré pour qu'il
+l'entende lui-même. **Rien n'est appliqué ici** : le module de montage n'existe pas encore, et ce lot ne
 modifie aucun fichier existant.
+
+**Ce qu'AVFoundation ne démontre PAS, et c'est important.** `AVAssetReader` est un décodeur de
+composition, pas un lecteur. QuickTime Player, le `<video>` de Safari et celui de Chrome ont leur
+propre chaîne de rendu et leur propre synchronisation audio-vidéo. Le résultat ci-dessus rend très
+plausible un décalage audible sur la variante AVEC dans QuickTime — il ne le démontre pas. C'est
+pour cela, et pour cela seulement, que le fichier de calibration existe.
 
 **Ce qui n'est PAS prouvé.** La valeur 2112 est l'amorce AAC-LC d'Apple telle que `afinfo` la
 déclare, vérifiée identique sur les MP4 des **deux** moteurs (Chromium : 2112, WebKit : 2112). Un
@@ -701,9 +747,13 @@ d'aucun fichier suivi, donc il s'ouvre encore après un changement de branche (v
 imprime le **chemin absolu** du dossier et la **commande unique** à copier-coller ; les deux sont
 aussi écrits dans `controle-humain/INSTRUCTIONS.md`, une page.
 
-Contenu : quatre MP4 de 12 s (`A-SANS-` et `A-AVEC-liste-edition-` × 48 000 et 44 100 Hz), une
-vidéo de comparaison de 20 s (`B-…-moteur-haut-snapdom-bas.mp4`) et la page de netteté
-(`C-nettete-dans-safari.html`). Les MP4 sortent du **même code** que ceux mesurés par ffmpeg et
+Contenu : quatre MP4 de 12 s (`A-SANS-` et `A-AVEC-liste-edition-` × 48 000 et 44 100 Hz), un
+cinquième de **calibration** (`F-CALIBRATION-liste-edition-exageree-48000Hz.mp4`, `media_time`
+8448 = quatre fois l'amorce, soit 176 ms — relu dans les octets avant livraison), la vidéo de
+comparaison de 20 s (`B-…-moteur-haut-snapdom-bas.mp4`, conservée pour mémoire, la netteté étant
+acceptée) et trois pages autonomes : netteté (`C`), micro (`D`, avec son worklet) et exports MP4
+(`E`). Le fichier de calibration est exagéré **pour être audible sans appareil** : c'est le seul
+moyen de savoir si un lecteur applique la liste d'édition. Les MP4 sortent du **même code** que ceux mesurés par ffmpeg et
 `afconvert` (`outils/produire-mp4-essai.cjs`), parité revérifiée après la factorisation : sinon
 l'écoute ne porterait pas sur ce qui a été mesuré. La présence ou l'absence de `elst` est
 contrôlée dans chaque fichier avant livraison.
@@ -716,18 +766,61 @@ aucun rééchantillonnage, et un **seul** encodage libx264 crf 14 couvre les deu
 assumée : cet encodeur n'est pas celui du module réel (WebCodecs) ; le jugement porte donc sur les
 **images**, le chemin WebCodecs étant couvert par l'essai 3.
 
+### La page du micro interprète désormais la prise elle-même
+
+Une prise de 5 minutes dans Safari ne vaut que si l'on sait la lire. Quatre diagnostics ont été
+ajoutés à `essai1-micro.html`, éprouvés par `test-essai1-diagnostics.cjs` (4/4), le test
+existant restant à 4/4 :
+
+| Diagnostic | Ce qu'il tranche | Mesuré en Chromium (micro factice) |
+|---|---|---|
+| RMS par canal + corrélation | si les deux canaux sont **identiques** | 2 canaux, **−17,2 dBFS chacun**, corrélation **1**, écart maximal **0** → identiques au bit près |
+| Niveau par demi-seconde sur le silence | si quelqu'un a parlé pendant les 3 s | 6 tranches, de −17,0 à −17,0 dBFS, amplitude **0 dB** → fenêtre homogène |
+| Journal de tous les appuis | « aucun appui » contre « appui non capté » | 5 appuis reçus, 3 posant un repère, 2 non (`b`, `Escape`) → 3 repères |
+| Durée et repères dans `mesures.json` | — | durée 5,7644 s, 3 repères, 5 appuis |
+
+**Le cas des canaux identiques méritait d'être nommé** : le micro factice de Chromium livre deux
+canaux rigoureusement identiques, et une corrélation de 1 n'y signifie qu'une duplication. La page
+le dit maintenant en clair plutôt que d'afficher un 1 trompeur, et elle dit aussi « sans objet »
+quand un seul canal est livré, au lieu de masquer la ligne.
+
+**Le journal des appuis est le seul diagnostic qui permette de conclure sur la télécommande.** Sans
+lui, une télécommande muette et une télécommande dont la touche n'est pas interprétée produisent la
+même page vide. La falsification du test envoie exprès deux touches qui ne posent pas de repère et
+exige que le journal les montre tout en laissant le compte de repères à 3.
+
+**Ce qui n'est pas prouvé** : le micro factice de Chromium n'est pas le micro du Mac. Les valeurs
+ci-dessus montrent que les diagnostics fonctionnent, pas ce que livrera le matériel réel.
+
 ### La frontière, explicitement
+
+**Vérifié avec un décodeur** — et trois décodeurs ne s'accordent pas, ce qui est le résultat le
+plus important du lot :
 
 | Question | Statut |
 |---|---|
-| Le PCM rendu par `afconvert` place-t-il le bip à l'heure ? | **vérifié avec afconvert** : +4,2 ms, avec et sans `elst` |
-| Le PCM rendu par ffmpeg place-t-il le bip à l'heure ? | **vérifié avec ffmpeg** : +48,2 / +52,1 ms sans `elst`, +4,2 ms avec |
-| L'`elst` écrit porte-t-il bien `media_time` = 2112 ? | **vérifié** dans les octets du MP4 |
-| **QuickTime Player** joue-t-il le bip avec le flash ? | **à vérifier dans QuickTime** — aucun lecteur n'a été éprouvé |
-| Un lecteur honore-t-il l'`elst` **et** trime l'amorce (double compensation) ? | **à vérifier dans QuickTime** — la variante AVEC le dirait |
+| `afconvert` place-t-il le bip à l'heure ? | **vérifié avec afconvert** : +4,2 ms, avec et sans `elst` — il ignore la liste d'édition |
+| ffmpeg place-t-il le bip à l'heure ? | **vérifié avec ffmpeg** : +48,2 / +52,1 ms sans `elst`, +4,2 ms avec — il conserve l'amorce et applique la liste |
+| AVFoundation place-t-elle le bip à l'heure ? | **vérifié avec Swift/AVFoundation** : +4,2 ms sans `elst`, **−39,8 / −43,7 ms avec** — elle retire l'amorce ET applique la liste |
+| AVFoundation connaît-elle l'amorce sans `elst` ? | **vérifié** : `AVAssetTrack.segments` donne un `timeMapping` de source 2112/48000 = 44,00 ms, présentation 0 |
+| L'`elst` écrit porte-t-il la valeur annoncée ? | **vérifié** dans les octets : 2112 pour `A-AVEC`, 8448 pour `F-CALIBRATION` |
 | Le gradient sur contours de SnapDOM vaut-il 92,5 ? | **vérifié par script**, sur six chemins, en WebKit piloté |
-| **Safari réel** refuse-t-il `foreignObject` vers canvas ? | **à vérifier dans Safari** — WebKit piloté n'oppose aucun refus |
-| L'écart de netteté gêne-t-il en vidéoprojection ? | **à vérifier à l'œil** — ce n'est pas une question de mesure |
+
+**À vérifier par Christophe**, parce qu'aucun script ne le peut :
+
+| Question | Où |
+|---|---|
+| Le bip tombe-t-il avec le flash sur les cinq MP4 ? | **QuickTime Player, Safari, Chrome** — les trois, car rien ne dit qu'ils s'accordent |
+| Un lecteur applique-t-il la liste d'édition ? | `F-CALIBRATION` : bip nettement en avance = appliquée ; aucun écart = ignorée |
+| Safari réel refuse-t-il `foreignObject` vers canvas ? | page `C` — WebKit piloté n'oppose aucun refus |
+| Le « Mode micro » (Voix isolée) apparaît-il ? | page `D`, Centre de contrôle pendant une prise de 5 min |
+| Une prise survit-elle à l'arrière-plan et à la fermeture d'onglet ? | page `D`, étapes 5 et 6 |
+| Quelle mémoire Safari consomme-t-il pendant l'export de 10 min ? | page `E` + Moniteur d'activité — aucune API ne la donne à une page |
+| Les durées d'export et la taille des fichiers | page `E`, affichées par la page pour les deux exports |
+| Le micro du Mac livre-t-il un ou deux canaux, et identiques ? | page `D`, tableau « Canaux livrés » — le micro factice en livre deux identiques, le matériel réel reste à voir |
+| La fenêtre de silence est-elle vraiment silencieuse ? | page `D`, niveau par demi-seconde |
+| La télécommande envoie-t-elle quelque chose à la page ? | page `D`, journal des appuis — « aucun appui » et « appui non capté » y sont distincts |
+| L'écart de netteté gêne-t-il en vidéoprojection ? | **acquis : accepté par Christophe, SnapDOM est retenu** |
 
 ---
 
