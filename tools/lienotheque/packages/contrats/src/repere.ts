@@ -19,6 +19,11 @@ export const LectureRepere = z
      *  écrans montraient donc la vraie page sans ses zones. Facultatif parce qu'une passe peut
      *  travailler sur une image dont les dimensions ne sont pas celles de la page. */
     zone: ZoneRelative.optional(),
+    /** Où le repère lui-même a été trouvé, quand il l'a été (B1).
+     *
+     *  Distinct de `zone`, qui est celle du numéro : un repère se pose à côté, et la bande que le
+     *  Lecteur rend cliquable doit les contenir tous les deux — sans quoi elle le coupe en deux. */
+    zoneRepere: ZoneRelative.optional(),
     numero: z.number().int().positive(),
     pisteLue: z.number().int().positive().optional(),
     /** À quel point une pastille semble présente, qu'on ait su lire son chiffre ou non. Une
@@ -36,6 +41,8 @@ export const ElementRepere = z
     /** Zone retenue pour cet élément : celle de la lecture qui a emporté le vote. On ne moyenne
      *  pas deux rectangles — la moyenne de deux lectures qui se contredisent ne désigne rien. */
     zone: ZoneRelative.optional(),
+    /** Où son repère a été trouvé, quand il l'a été. */
+    zoneRepere: ZoneRelative.optional(),
     numero: z.number().int().positive(),
     pisteLue: z.number().int().positive().optional(),
     presencePiste: Confiance.default(0),
@@ -114,6 +121,8 @@ export const LigneInterpretee = z
     sourcePiste: SourcePiste.optional(),
     /** Où l'élément se trouve sur sa page, quand la lecture l'a su (B1). */
     zone: ZoneRelative.optional(),
+    /** Où son repère a été trouvé : la bande du Lecteur les contient tous deux. */
+    zoneRepere: ZoneRelative.optional(),
     confiance: Confiance,
   })
   .strict()

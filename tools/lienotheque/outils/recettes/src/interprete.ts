@@ -246,6 +246,7 @@ export function sequencer(
       // lecture, et c'est elle que le Lecteur cadre. Un numéro réparé n'en a pas — il n'a été lu
       // nulle part, et cadrer un endroit où rien n'a été vu désignerait n'importe quoi.
       ...(element.zone === undefined || element.repare !== undefined ? {} : { zone: element.zone }),
+      ...(element.zoneRepere === undefined || element.repare !== undefined ? {} : { zoneRepere: element.zoneRepere }),
       confiance: Math.round(confiance * 100) / 100,
     });
     if (piste !== undefined) {

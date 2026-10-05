@@ -267,7 +267,9 @@ export function vote(valeurs: readonly number[]): { valeur: number; accord: numb
   return { valeur: retenue, accord: voix / valeurs.length };
 }
 
-export type BlocPiste = { readonly presence: number; readonly votes: readonly number[] };
+/** Ce qu'une fenêtre de repère a donné. `boite` est celle de la forme retenue, dans le repère de
+ *  l'image sondée : c'est elle que le Lecteur englobe dans la bande de l'élément. */
+export type BlocPiste = { readonly presence: number; readonly votes: readonly number[]; readonly boite?: Boite };
 
 /** Seuils tentés sur le bloc, en part du ton clair local. Plusieurs seuils, plusieurs lectures :
  *  un chiffre clair sur fond sombre ne se détache pas au même endroit selon la lumière. */
@@ -349,7 +351,8 @@ export function lireBlocPiste(
   etiquette: boolean,
   options: OptionsReperes = {},
 ): BlocPiste {
-  const zone = recadrer(image, zonePastille(boite, position, marge));
+  const fenetre = zonePastille(boite, position, marge);
+  const zone = recadrer(image, fenetre);
   if (zone.largeur === 0 || zone.hauteur === 0) return { presence: 0, votes: [] };
 
   const clair = Math.max(1, tonClair(zone));
@@ -357,6 +360,14 @@ export function lireBlocPiste(
   const candidates = formesCandidates(binaire, boite.h);
   const presence = presenceDeForme(zone, candidates[0], boite.h);
   if (presence < PRESENCE_MINIMALE) return { presence, votes: [] };
+
+  // La forme retenue, ramenée dans le repère de l'image sondée. `recadrer` rabote ce qui dépasse,
+  // donc la fenêtre peut avoir été rognée : on repart de ses bords réels.
+  const trouvee = candidates[0];
+  const repere: Boite | undefined =
+    trouvee === undefined
+      ? undefined
+      : { x: Math.max(0, fenetre.x) + trouvee.x, y: Math.max(0, fenetre.y) + trouvee.y, l: trouvee.l, h: trouvee.h };
 
   const losange = motif === "losange_sombre_chiffres_clairs";
   const votes: number[] = [];
@@ -389,7 +400,7 @@ export function lireBlocPiste(
       }
     }
   }
-  return { presence, votes };
+  return { presence, votes, ...(repere === undefined ? {} : { boite: repere }) };
 }
 
 /** Toutes les lectures d'une page : plusieurs passes, aucune consolidation encore.
@@ -429,8 +440,19 @@ export function lecturesDePage(image: ImageGrise, recette: Recette, options: Opt
         .map((autre) => autre.texte.toLowerCase())
         .join(" ");
 
+      const zoneRepere =
+        bloc?.boite === undefined
+          ? undefined
+          : {
+              x: Math.min(1, Math.max(0, bloc.boite.x / agrandie.largeur)),
+              y: Math.min(1, Math.max(0, bloc.boite.y / agrandie.hauteur)),
+              l: Math.min(1, Math.max(Number.EPSILON, bloc.boite.l / agrandie.largeur)),
+              h: Math.min(1, Math.max(Number.EPSILON, bloc.boite.h / agrandie.hauteur)),
+            };
+
       lectures.push({
         y,
+        ...(zoneRepere === undefined ? {} : { zoneRepere }),
         // La boîte du numéro, ramenée en part de la page. Elle est mesurée sur l'image agrandie
         // de cette passe : ses pixels ne veulent rien dire ailleurs, sa part si. C'est elle que
         // le Lecteur cadre, et c'est de là que part le fil vers le segment.
@@ -487,10 +509,13 @@ export function lecturesDePage(image: ImageGrise, recette: Recette, options: Opt
  *  et les zones n'arrivaient nulle part sans qu'une seule erreur ne le dise. Un cache qui ne
  *  connaît pas la forme de ce qu'il garde finit par servir le passé.
  *
+ *  4 : une lecture rapporte aussi où le repère a été trouvé, pour que la bande du Lecteur le
+ *  contienne au lieu de le couper.
+ *
  *  3 : l'orientation du lot est désormais votée au lieu d'être crue sur parole. Ce n'est pas la
  *  forme d'une lecture qui change, c'est ce qu'elle lit — une page remise à l'endroit rend six
  *  éléments là où elle n'en rendait aucun. La version compte donc aussi pour cela. */
-export const VERSION_LECTURE = 3;
+export const VERSION_LECTURE = 4;
 
 /** Hauteur en deçà de laquelle deux lectures parlent du même élément. */
 const MEME_HAUTEUR = 0.03;
@@ -505,18 +530,20 @@ export function consolider(lectures: readonly LectureRepere[]): ElementRepere[] 
     presences: number[];
     suite: boolean;
     zones: { numero: number; zone: ZoneRelative }[];
+    reperes: { numero: number; zone: ZoneRelative }[];
   }[] = [];
 
   for (const lecture of [...lectures].sort((a, b) => a.y - b.y || a.numero - b.numero)) {
     const dernier = groupes[groupes.length - 1];
     if (dernier === undefined || Math.abs(dernier.y - lecture.y) >= MEME_HAUTEUR)
-      groupes.push({ y: lecture.y, numeros: [], pistes: [], presences: [], suite: false, zones: [] });
+      groupes.push({ y: lecture.y, numeros: [], pistes: [], presences: [], suite: false, zones: [], reperes: [] });
     const groupe = groupes[groupes.length - 1]!;
     groupe.numeros.push(lecture.numero);
     groupe.suite ||= lecture.suite;
     groupe.presences.push(lecture.presencePiste);
     if (lecture.pisteLue !== undefined) groupe.pistes.push(lecture.pisteLue);
     if (lecture.zone !== undefined) groupe.zones.push({ numero: lecture.numero, zone: lecture.zone });
+    if (lecture.zoneRepere !== undefined) groupe.reperes.push({ numero: lecture.numero, zone: lecture.zoneRepere });
   }
 
   return groupes.flatMap((groupe) => {
@@ -528,10 +555,12 @@ export function consolider(lectures: readonly LectureRepere[]): ElementRepere[] 
     // ne lisent pas le même numéro ne désignent pas le même endroit, et leur milieu ne désigne
     // rien du tout.
     const zone = groupe.zones.find((candidate) => candidate.numero === numero.valeur)?.zone;
+    const zoneRepere = groupe.reperes.find((candidate) => candidate.numero === numero.valeur)?.zone;
     return [
       {
         y: Math.round(groupe.y * 1000) / 1000,
         ...(zone === undefined ? {} : { zone }),
+        ...(zoneRepere === undefined ? {} : { zoneRepere }),
         numero: numero.valeur,
         ...(piste === undefined ? {} : { pisteLue: piste.valeur }),
         presencePiste: Math.round(presence * 100) / 100,

@@ -117,3 +117,52 @@ test.describe("le bouton « suivant » montre son icône dans les trois variante
     });
   }
 });
+
+test.describe("la bande d'un élément contient son repère (B1)", () => {
+  for (const theme of ["light", "hybrid"] as const) {
+    test(`${theme} : sur F3 réel, aucun repère n'est coupé`, async ({ page, browserName }) => {
+      await poser(page, theme);
+
+      const mesure = await page.evaluate(() => {
+        const feuille = document.querySelector<HTMLElement>(".ln-page__feuille");
+        if (feuille === null) return undefined;
+        const cadre = feuille.getBoundingClientRect();
+        // L'instantané dit où chaque repère a été trouvé ; la bande, elle, se mesure à l'écran.
+        return {
+          cadre: { top: cadre.top, height: cadre.height },
+          bandes: [...document.querySelectorAll<HTMLElement>(".ln-page__zone")].map((zone) => {
+            const boite = zone.getBoundingClientRect();
+            return { nom: zone.getAttribute("aria-label"), haut: boite.top, bas: boite.bottom };
+          }),
+        };
+      });
+      test.skip(mesure === undefined || mesure.bandes.length === 0, "aucune bande sur cette page");
+
+      const reponse = await page.request.get("/donnees/bibliotheque.json");
+      test.skip(!reponse.ok(), "aucun instantané à lire");
+      const vue = (await reponse.json()) as {
+        mots: { element: { un: string } };
+        pages: { numero: number; elements: { numero: string; zoneRepere?: { y: number; h: number } }[] }[];
+      };
+      const feuille = vue.pages[0];
+      test.skip(feuille === undefined, "instantané vide");
+
+      const avecRepere = feuille!.elements.filter((element) => element.zoneRepere !== undefined);
+      test.skip(avecRepere.length === 0, "aucun repère trouvé sur cette page");
+
+      const coupes: string[] = [];
+      for (const element of avecRepere) {
+        const bande = mesure!.bandes.find((entree) => entree.nom?.endsWith(` ${element.numero}`) === true);
+        if (bande === undefined) continue;
+        const hautRepere = mesure!.cadre.top + element.zoneRepere!.y * mesure!.cadre.height;
+        const basRepere = hautRepere + element.zoneRepere!.h * mesure!.cadre.height;
+        // Un pixel de tolérance : les moteurs arrondissent les sous-pixels autrement.
+        if (hautRepere < bande.haut - 1 || basRepere > bande.bas + 1)
+          coupes.push(`${element.numero} : repère ${hautRepere.toFixed(1)}–${basRepere.toFixed(1)}, bande ${bande.haut.toFixed(1)}–${bande.bas.toFixed(1)}`);
+      }
+
+      expect(coupes, `${browserName} : ${coupes.length} repère(s) hors de leur bande`).toEqual([]);
+      expect(avecRepere.length, "le contrôle a bien vu des repères").toBeGreaterThan(0);
+    });
+  }
+});
