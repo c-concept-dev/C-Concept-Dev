@@ -45,6 +45,11 @@ console.log(`Interprétation : ${resultat.lignes.length} lignes`);
 const parPiste = new Map<number, { premier: number; page: number }>();
 for (const ligne of resultat.lignes) {
   if (ligne.piste === undefined) continue;
+  // Le critère porte sur le premier support : l'oracle est celui de CD1, et une piste 50 du
+  // deuxième disque n'est pas la piste 50 de l'oracle. Ce filtre manquait, et son absence rendait
+  // les chiffres de F4 dépendants de l'endroit où la coupure de support tombait — les mesures
+  // antérieures confondaient donc les deux disques.
+  if (ligne.disque !== 1) continue;
   const vu = parPiste.get(ligne.piste);
   if (vu === undefined || ligne.numero < vu.premier) parPiste.set(ligne.piste, { premier: ligne.numero, page: ligne.pageImprimee });
 }

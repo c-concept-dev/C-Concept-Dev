@@ -1055,3 +1055,121 @@ Et le constat qui compte pour la suite : **les réglages locaux sont épuisés, 
 bon.** Nous savons maintenant dire quand une lecture est tronquée, nous ne savons pas dire ce qui
 lui manque, et le savoir ne suffit pas à l'attribution. F4 reste à 61 premiers éléments sur 92 et
 77 pages sur 92, pour un critère de 83 et 89.
+
+## La relecture ciblée : ce que la mesure a imposé contre le plan
+
+Le plan `docs/plan-vision-ciblee-f4.md` a été écrit avant d'avoir une seule image sous les yeux.
+Trois de ses affirmations étaient fausses, et elles l'étaient de façons instructives.
+
+### La taille des pavés : quatre fois plus petits que prévu
+
+Le plan annonçait des recadrages de 200 × 150 pixels. Mesurés sur les clichés de référence, les
+repères font **31 à 49 pixels de large sur 42 à 49 de haut**, et leur recadrage — marge claire
+comprise — **65 à 89 pixels de côté**, pour 2,3 Kio chacun. L'estimation du plan venait d'un
+raisonnement sur la hauteur d'un numéro d'élément, pas d'une mesure.
+
+### Agrandir : le plan l'interdisait, la mesure l'impose
+
+Le plan disait de ne jamais agrandir, au motif qu'agrandir n'ajoute aucune information. C'est vrai
+et c'est hors sujet. Un modèle découpe une image en tuiles de quelques dizaines de pixels : un
+repère de 80 pixels en occupe deux sur deux, et à cette taille il perd des chiffres.
+
+| Échelle | Justesse sur 18 pavés | Coût |
+|---|---:|---:|
+| ×1 | 15 / 18 — 1 illisible, 2 faux | 0,0052 € |
+| **×2** | **18 / 18** | **0,0055 €** |
+| ×4 | 18 / 18 | 0,0071 € |
+
+On retient ×2 : justesse parfaite, et à égalité la moins chère. L'agrandissement est une donnée de
+la recette et non une constante du code — un document photographié de plus près n'en aurait pas
+besoin.
+
+### Le coût : ce n'est pas la taille des images qui compte
+
+| Échelle | Jetons par pavé | Lot de 184 | Coût du lot |
+|---|---:|---:|---:|
+| ×1 | 93,4 | 17 200 | 0,045 $ |
+| ×2 | 118,3 | 21 800 | 0,049 $ |
+| ×4 | 212,6 | 39 100 | 0,067 $ |
+
+Le chiffre qui explique les autres : **1058 jetons de coût fixe par appel**, pour la consigne et le
+schéma de l'outil. Un pavé ne coûte qu'une trentaine de jetons de plus à l'échelle d'origine, une
+soixantaine au double. **Grouper vingt zones par appel compte donc davantage que la taille des
+images** — et c'est pourquoi doubler l'échelle ne coûte que 10 % de plus.
+
+### La sélection : angle mort nul, et 20 % de gaspillage assumé
+
+Sur les treize clichés, 122 éléments lus donnent **18 pavés retenus** — 13 pour lecture incomplète,
+5 sans lecture. L'oracle en juge 14 vraiment à relire et 4 déjà justes. **Aucune lecture fausse
+dont le repère est localisé n'échappe à la sélection.** Les quatre pavés inutiles sont le prix de
+cette couverture, et c'est le bon côté du marché. Extrapolé : environ 184 pavés pour le lot, pour
+un plafond déclaré de 300.
+
+### Deux défauts trouvés en chemin, qui valaient d'être trouvés
+
+**Les éclats pris pour des repères.** Deux pavés sur vingt mesuraient 3 × 18 pixels : des éclats du
+seuillage, dont le recadrage ne contient rien de lisible. Le lecteur les accepte parce que son test
+de présence juge le remplissage et la hauteur, pas la largeur. La sélection s'en protège — les
+vrais pavés vont de 0,71 à 1,07 en largeur sur hauteur, les éclats 0,10 et 0,17 — mais **le lecteur
+reste à resserrer**, ce qui changera les lectures donc les mesures, et se fera à part.
+
+**Une projection qui majorait à l'envers.** J'avais écrit la projection de sortie à 40 jetons par
+zone « majorée à dessein ». Mesurée, elle vaut 42,6 à 43,8. Une projection qui sous-estime laisse
+passer l'appel qu'on voulait refuser, c'est-à-dire exactement ce qu'on lui demande de ne pas faire.
+Corrigée à 50, avec une mesure derrière.
+
+### Ce que le budget garantit, et ce qu'il ne garantit pas
+
+L'arrêt se fait **avant** l'appel qui ferait dépasser : un plafond qu'on constate après coup n'en
+est pas un. D'où deux chiffres distincts — la projection décide, la dépense comptée sur les jetons
+rendus fait foi. Et l'arrêt est net, non poreux : dès qu'un appel est refusé, tout ce qui suit l'est
+aussi, sans quoi un appel plus petit passerait là où un plus grand a été refusé.
+
+Une entrée gardée ne consomme aucun plafond, sans quoi un rejeu coûterait plus cher que la première
+lecture. Et l'empreinte d'un recadrage dépend de l'agrandissement : en changer invalide le cache,
+ce qui est juste — une autre image n'est pas la même.
+
+### Le faux changement de disque, et un chiffre de F4 qu'il faut corriger
+
+La première mesure complète de F4 avec relecture a donné 67 premiers éléments et 74 pages, contre
+61 et 77 sans elle : un gain sur l'un, une perte sur l'autre. Le diagnostic a montré autre chose
+que ce que ces chiffres disaient.
+
+**Ce que le modèle lit.** Sur les 59 pavés dont l'oracle connaît la piste, **56 justes et 3 faux** —
+95 %. Il déclare 45 pavés illisibles, dont 41 portent sur des éléments que l'oracle ignore, c'est-
+à-dire le second disque. Décliner là est juste.
+
+**Ce qui abîmait.** Vingt et un éléments passaient de leur piste juste — 82 à 92 — à la piste 2 du
+disque 2. La cause est un faux changement de support, et le mécanisme mérite d'être écrit : la
+relecture établissait la numérotation à 81-82, puis les lectures locales qui suivaient étaient des
+chiffres perdus — « 2 » pour 82, « 3 » pour 83, « 4 » pour 84 — et trois petites lectures sûres de
+suite ressemblent exactement à un retour au début. Le premier support était coupé en deux.
+
+La correction est à l'endroit juste : **une lecture dont le repère montrait plus de chiffres qu'elle
+n'en rend ne fonde pas un changement de support.** C'est le seul endroit où compter les chiffres
+décide de quelque chose — l'essai sur l'attribution avait échoué, celui-ci était la bonne cible.
+Elle fait passer les dégâts de vingt et un éléments à deux.
+
+**Et le chiffre à corriger.** La notation du critère de F4 ignorait le disque : une piste 50 du
+deuxième support était comptée comme la piste 50 de l'oracle, qui ne couvre que CD1. Les chiffres
+de F4 dépendaient donc de l'endroit où la coupure tombait, sans que rien ne le dise. Le filtre
+manquait dans les deux bancs, il y est maintenant, et les mesures antérieures de F4 — dont le
+« 61 / 92 et 77 / 92 » rapporté plusieurs fois — confondaient les deux disques.
+
+Avec la notation ramenée au premier support :
+
+| | Premiers éléments | Pages | Éléments abîmés |
+|---|---:|---:|---:|
+| Sans la garde, sans relecture | 29 / 92 | 32 / 92 | — |
+| Sans la garde, avec relecture | 67 / 92 | 74 / 92 | 21 |
+| **Avec la garde, sans relecture** | 55 / 92 | 67 / 92 | — |
+| **Avec la garde, avec relecture** | **67 / 92** | **74 / 92** | **2** |
+
+La garde ne change rien au résultat avec relecture : elle redresse le témoin, et c'est bien le
+témoin qui était faux. Le critère — 83 et 89 — n'est pas tenu.
+
+### Ce que la relecture coûte, en vrai
+
+139 pavés pour le lot, 7 appels, 17 429 jetons d'entrée et 5 752 de sortie, **0,0428 €** pour un
+plafond de 0,20. Un rejeu complet ne dépense **rien** : les 139 réponses viennent du cache, et la
+mesure entière retombe à soixante secondes de rendu.
