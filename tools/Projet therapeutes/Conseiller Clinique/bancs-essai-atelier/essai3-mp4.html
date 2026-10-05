@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Essai 3 — petit MP4 avec AAC (Mediabunny)</title>
+<style>
+  body{margin:0;padding:24px;font:15px/1.5 -apple-system,BlinkMacSystemFont,sans-serif;background:#f6f2ea;color:#1b2a28}
+  h1{font-size:21px;margin:0 0 4px} h2{font-size:16px;margin:22px 0 8px;color:#1f5053}
+  .avis{background:#fff;border:1px solid #c9c3b8;border-radius:10px;padding:14px 16px;margin:12px 0}
+  table{border-collapse:collapse;width:100%;background:#fff;border:1px solid #c9c3b8;border-radius:8px}
+  th,td{padding:6px 10px;border-bottom:1px solid #eee;text-align:left;font-variant-numeric:tabular-nums}
+  th{width:44%;font-weight:600;color:#4a5a57}
+  button{font:inherit;padding:8px 14px;border-radius:8px;border:1px solid #1f5053;background:#1f5053;color:#fff;cursor:pointer;margin:0 6px 6px 0}
+  button.second{background:#fff;color:#1f5053} button:disabled{opacity:.45;cursor:default}
+  .ko{color:#8a3f29;font-weight:600} .ok{color:#1f5053;font-weight:600}
+  #apercu{width:480px;border:1px solid #c9c3b8;border-radius:8px;background:#000}
+  progress{width:320px}
+</style>
+</head>
+<body>
+<h1>Essai 3 — MP4 H.264 + AAC fabriqué dans le navigateur</h1>
+<p>Banc <strong>jetable</strong>, avec <strong>Mediabunny</strong> (MPL-2.0), servi depuis
+<code>vendeur/</code> — aucun CDN, aucune donnée qui sort.</p>
+
+<h2>1. Ce que le navigateur sait encoder</h2>
+<p><button id="btnCapacites">Interroger les encodeurs</button></p>
+<table id="tblCap"><tbody><tr><th>état</th><td>pas encore interrogé</td></tr></tbody></table>
+
+<h2>2. Export court (environ 20 s)</h2>
+<div class="avis">
+Trois images sur un canvas <strong>1920×1080</strong> à <strong>30 i/s</strong>. Une image tenue est
+écrite comme <strong>une seule image avec une durée</strong>, jamais trente fois par seconde. Un
+<strong>fondu enchaîné de 0,4 s</strong> entre deux images. Un <strong>flash blanc</strong> et un
+<strong>bip</strong> aux mêmes instants — 1 s, 5 s et 9 s — pour mesurer la synchronisation
+<em>dans le fichier produit</em>, en le relisant.
+</div>
+<p><button id="btnCourt" disabled>Produire l'export court</button>
+   <progress id="progCourt" value="0" max="1" hidden></progress></p>
+<table id="tblCourt"><tbody></tbody></table>
+<video id="apercu" controls hidden></video>
+
+<h2>3. Export long (10 minutes)</h2>
+<div class="avis">
+40 images, transitions de 0,4 s, audio mono de 10 minutes. Mesure la <strong>durée d'encodage</strong>
+et la <strong>taille</strong> du fichier. Pendant l'encodage, ouvrez le <strong>Moniteur d'activité</strong>
+et notez la mémoire de Safari : c'est la seule mesure que cette page ne peut pas prendre elle-même.
+</div>
+<p><button id="btnLong" disabled>Produire l'export long</button>
+   <progress id="progLong" value="0" max="1" hidden></progress></p>
+<table id="tblLong"><tbody></tbody></table>
+
+<h2>Téléchargements et mesures</h2>
+<p>
+  <button id="btnDlCourt" class="second" disabled>Télécharger court.mp4</button>
+  <button id="btnDlLong" class="second" disabled>Télécharger long.mp4</button>
+  <button id="btnJson" class="second" disabled>Télécharger mesures.json</button>
+</p>
+<p><small>Téléchargement par lien Blob : <code>showSaveFilePicker</code> est absent de Safari.</small></p>
+
+<script type="module">
+'use strict';
+import { Output, Mp4OutputFormat, BufferTarget, CanvasSource, AudioBufferSource,
+         QUALITY_HIGH, canEncodeVideo, canEncodeAudio, Input, BlobSource, ALL_FORMATS,
+         VideoSampleSink, AudioBufferSink } from './vendeur/mediabunny.mjs';
+
+const $ = (s) => document.querySelector(s);
+const ligne = (t, k, v, cl) => { const tr = document.createElement('tr');
+  const th = document.createElement('th'); th.textContent = k;
+  const td = document.createElement('td'); td.innerHTML = cl ? '<span class="' + cl + '">' + v + '</span>' : String(v);
+  tr.append(th, td); t.querySelector('tbody').appendChild(tr); };
+const vider = (t) => { t.querySelector('tbody').innerHTML = ''; };
+const MESURES = { environnement: {}, capacites: null, court: null, long: null };
+
+const L = 1920, H = 1080, IPS = 30, SE = 48000;
+const INSTANTS = [1, 5, 9];          // flash blanc ET bip, aux mêmes instants
+const FLASH_IMAGES = 1;              // un flash = une image, soit 1/30 s
+const BIP_S = 0.05, BIP_HZ = 1000;
+
+// ── 1. CAPACITÉS ────────────────────────────────────────────────────────────────────────────
+async function capacites() {
+  const t = $('#tblCap'); vider(t);
+  const res = { video: [], audio: [], mediabunny: {} };
+  if (typeof VideoEncoder === 'undefined') {
+    ligne(t, 'VideoEncoder', 'ABSENT — WebCodecs indisponible', 'ko');
+  } else {
+    for (const codec of ['avc1.42001f', 'avc1.4d0028', 'avc1.640028']) {
+      let s;
+      try { s = await VideoEncoder.isConfigSupported({ codec, width: L, height: H, framerate: IPS, bitrate: 6e6 }); }
+      catch (e) { s = { supported: false, erreur: String(e && e.message) }; }
+      res.video.push({ codec, supporte: !!s.supported, erreur: s.erreur || null });
+      ligne(t, 'H.264 ' + codec, s.supported ? 'pris en charge' : 'refusé' + (s.erreur ? ' (' + s.erreur + ')' : ''),
+        s.supported ? 'ok' : 'ko');
+    }
+  }
+  if (typeof AudioEncoder === 'undefined') {
+    ligne(t, 'AudioEncoder', 'ABSENT — WebCodecs audio indisponible', 'ko');
+  } else {
+    for (const canaux of [1, 2]) {
+      let s;
+      try { s = await AudioEncoder.isConfigSupported({ codec: 'mp4a.40.2', sampleRate: SE, numberOfChannels: canaux, bitrate: 128000 }); }
+      catch (e) { s = { supported: false, erreur: String(e && e.message) }; }
+      res.audio.push({ codec: 'mp4a.40.2', echantillonnage: SE, canaux, supporte: !!s.supported, erreur: s.erreur || null });
+      ligne(t, 'AAC-LC 48 kHz ' + (canaux === 1 ? 'mono' : 'stéréo'),
+        s.supported ? 'pris en charge' : 'refusé' + (s.erreur ? ' (' + s.erreur + ')' : ''), s.supported ? 'ok' : 'ko');
+    }
+  }
+  // L'avis de Mediabunny lui-même : c'est lui qui choisira l'encodeur.
+  try { res.mediabunny.avc = await canEncodeVideo('avc', { width: L, height: H }); } catch (e) { res.mediabunny.avc = String(e && e.message); }
+  try { res.mediabunny.aac = await canEncodeAudio('aac', { numberOfChannels: 1, sampleRate: SE }); } catch (e) { res.mediabunny.aac = String(e && e.message); }
+  ligne(t, 'Mediabunny — avc', String(res.mediabunny.avc), res.mediabunny.avc === true ? 'ok' : 'ko');
+  ligne(t, 'Mediabunny — aac', String(res.mediabunny.aac), res.mediabunny.aac === true ? 'ok' : 'ko');
+  MESURES.capacites = res;
+  const pret = res.mediabunny.avc === true && res.mediabunny.aac === true;
+  $('#btnCourt').disabled = !pret; $('#btnLong').disabled = !pret;
+  if (!pret) ligne(t, 'conclusion', 'encodage impossible sur ce navigateur — les exports restent désactivés', 'ko');
+  return res;
+}
+
+// ── dessin ──────────────────────────────────────────────────────────────────────────────────
+function peindre(ctx, numero, blanc) {
+  if (blanc) { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, L, H); return; }
+  const fonds = ['#1f5053', '#8a3f29', '#2f3e46', '#5a4634'];
+  ctx.fillStyle = fonds[numero % fonds.length]; ctx.fillRect(0, 0, L, H);
+  ctx.fillStyle = '#f6f2ea'; ctx.font = '700 160px -apple-system, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('Image ' + (numero + 1), L / 2, H / 2);
+  ctx.font = '400 56px -apple-system, sans-serif';
+  ctx.fillText('1920 × 1080 — 30 i/s', L / 2, H / 2 + 140);
+}
+function fondu(ctx, a, b, part) {
+  peindre(ctx, a, false);
+  ctx.save(); ctx.globalAlpha = part; peindre(ctx, b, false); ctx.restore();
+}
+
+// ── audio : voix générée + bips aux instants connus ─────────────────────────────────────────
+function fabriquerAudio(ctxAudio, duree) {
+  const n = Math.round(duree * SE);
+  const buf = ctxAudio.createBuffer(1, n, SE);
+  const d = buf.getChannelData(0);
+  // Un souffle doux plutôt que le silence : un fichier muet ne prouverait pas que l'audio est là.
+  for (let i = 0; i < n; i++) d[i] = 0.02 * Math.sin(2 * Math.PI * 160 * i / SE);
+  for (const t of INSTANTS) {
+    const d0 = Math.round(t * SE), d1 = Math.min(n, d0 + Math.round(BIP_S * SE));
+    for (let i = d0; i < d1; i++) {
+      // Enveloppe courte, pour que le pic soit net à la mesure.
+      const p = (i - d0) / (d1 - d0);
+      d[i] = 0.85 * Math.sin(2 * Math.PI * BIP_HZ * (i - d0) / SE) * Math.sin(Math.PI * p);
+    }
+  }
+  return buf;
+}
+
+// ── production d'un export ──────────────────────────────────────────────────────────────────
+async function produire(opts) {
+  const { nbImages, dureeTotale, avecFlashs, surProgression } = opts;
+  const t0 = performance.now();
+  const sortie = new Output({ format: new Mp4OutputFormat(), target: new BufferTarget() });
+  const canvas = document.createElement('canvas'); canvas.width = L; canvas.height = H;
+  const ctx = canvas.getContext('2d', { alpha: false });
+  const videoSrc = new CanvasSource(canvas, { codec: 'avc', bitrate: QUALITY_HIGH });
+  sortie.addVideoTrack(videoSrc, { frameRate: IPS });
+  const ctxAudio = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: SE });
+  const audioBuf = fabriquerAudio(ctxAudio, dureeTotale);
+  const audioSrc = new AudioBufferSource({ codec: 'aac', bitrate: 128000 });
+  sortie.addAudioTrack(audioSrc);
+  await sortie.start();
+  await audioSrc.add(audioBuf);
+  audioSrc.close();
+
+  const DUREE_FONDU = 0.4;
+  const parImage = dureeTotale / nbImages;
+  const flashs = avecFlashs ? INSTANTS.slice() : [];
+  let t = 0, imagesEcrites = 0;
+  for (let i = 0; i < nbImages; i++) {
+    const finImage = (i + 1) * parImage;
+    const debutFondu = Math.max(t, finImage - (i < nbImages - 1 ? DUREE_FONDU : 0));
+    // Segments TENUS, coupés seulement par les flashs : une image tenue = UNE image avec une durée.
+    const coupures = flashs.filter((f) => f > t && f < debutFondu).sort((a, b) => a - b);
+    let curseur = t;
+    for (const f of coupures) {
+      if (f > curseur) { peindre(ctx, i, false); await videoSrc.add(curseur, f - curseur); imagesEcrites++; }
+      peindre(ctx, i, true);                                  // le flash : une image
+      const dFlash = FLASH_IMAGES / IPS;
+      await videoSrc.add(f, dFlash); imagesEcrites++;
+      curseur = f + dFlash;
+    }
+    if (debutFondu > curseur) { peindre(ctx, i, false); await videoSrc.add(curseur, debutFondu - curseur); imagesEcrites++; }
+    if (i < nbImages - 1) {
+      const pas = 1 / IPS, n = Math.max(1, Math.round(DUREE_FONDU / pas));
+      for (let k = 0; k < n; k++) {
+        fondu(ctx, i, i + 1, (k + 1) / n);
+        await videoSrc.add(debutFondu + k * pas, pas); imagesEcrites++;
+      }
+    }
+    t = finImage;
+    if (surProgression) surProgression((i + 1) / nbImages);
+  }
+  videoSrc.close();
+  await sortie.finalize();
+  const ms = Math.round(performance.now() - t0);
+  const octets = sortie.target.buffer.byteLength;
+  return { blob: new Blob([sortie.target.buffer], { type: 'video/mp4' }),
+           duree_encodage_ms: ms, octets, images_ecrites: imagesEcrites, duree_visee_s: dureeTotale };
+}
+
+// ── relecture : l'écart flash/bip MESURÉ dans le fichier produit ────────────────────────────
+async function mesurerSynchro(blob) {
+  const entree = new Input({ source: new BlobSource(blob), formats: ALL_FORMATS });
+  const pisteV = await entree.getPrimaryVideoTrack();
+  const pisteA = await entree.getPrimaryAudioTrack();
+  const res = { duree_video_s: null, duree_audio_s: null, flashs: [], bips: [], ecarts_ms: [] };
+  if (pisteV) res.duree_video_s = +(await pisteV.computeDuration()).toFixed(4);
+  if (pisteA) res.duree_audio_s = +(await pisteA.computeDuration()).toFixed(4);
+  // Les flashs : l'image la plus CLAIRE dans une fenêtre de ±0,3 s autour de chaque instant.
+  if (pisteV) {
+    const sink = new VideoSampleSink(pisteV);
+    const c = document.createElement('canvas'); c.width = 48; c.height = 27;
+    const g = c.getContext('2d', { willReadFrequently: true });
+    for (const inst of INSTANTS) {
+      let meilleur = null;
+      for (let dt = -0.3; dt <= 0.3001; dt += 1 / IPS) {
+        const ech = await sink.getSample(Math.max(0, inst + dt));
+        if (!ech) continue;
+        g.drawImage(ech.toCanvasImageSource ? await ech.toCanvasImageSource() : ech, 0, 0, c.width, c.height);
+        const d = g.getImageData(0, 0, c.width, c.height).data;
+        let somme = 0; for (let i = 0; i < d.length; i += 4) somme += d[i] + d[i + 1] + d[i + 2];
+        const lum = somme / (d.length / 4 * 3);
+        if (!meilleur || lum > meilleur.lum) meilleur = { lum, t: +ech.timestamp.toFixed(4) };
+        if (ech.close) ech.close();
+      }
+      res.flashs.push({ instant_demande: inst, instant_trouve: meilleur ? meilleur.t : null,
+                        luminance: meilleur ? Math.round(meilleur.lum) : null });
+    }
+  }
+  // Les bips : le pic d'amplitude dans la même fenêtre.
+  if (pisteA) {
+    const sink = new AudioBufferSink(pisteA);
+    for (const inst of INSTANTS) {
+      let pic = 0, tPic = null;
+      for await (const { buffer, timestamp } of sink.buffers(Math.max(0, inst - 0.3), inst + 0.3)) {
+        const d = buffer.getChannelData(0);
+        for (let i = 0; i < d.length; i++) {
+          const a = Math.abs(d[i]);
+          if (a > pic) { pic = a; tPic = +(timestamp + i / buffer.sampleRate).toFixed(4); }
+        }
+      }
+      res.bips.push({ instant_demande: inst, instant_trouve: tPic, pic: +pic.toFixed(3) });
+    }
+  }
+  for (let i = 0; i < INSTANTS.length; i++) {
+    const f = res.flashs[i], b = res.bips[i];
+    res.ecarts_ms.push(f && b && f.instant_trouve != null && b.instant_trouve != null
+      ? +((f.instant_trouve - b.instant_trouve) * 1000).toFixed(1) : null);
+  }
+  return res;
+}
+
+// ── commandes ───────────────────────────────────────────────────────────────────────────────
+let COURT = null, LONG = null;
+$('#btnCapacites').onclick = capacites;
+
+$('#btnCourt').onclick = async () => {
+  $('#btnCourt').disabled = true; $('#progCourt').hidden = false; vider($('#tblCourt'));
+  try {
+    const r = await produire({ nbImages: 3, dureeTotale: 20, avecFlashs: true,
+      surProgression: (p) => { $('#progCourt').value = p; } });
+    COURT = r;
+    const t = $('#tblCourt');
+    ligne(t, 'durée d\'encodage', r.duree_encodage_ms + ' ms');
+    ligne(t, 'taille du fichier', (r.octets / 1024).toFixed(0) + ' Ko');
+    ligne(t, 'images écrites', r.images_ecrites + ' (pour 20 s à 30 i/s, soit 600 si l\'on peignait chaque image)');
+    const s = await mesurerSynchro(r.blob);
+    ligne(t, 'durée vidéo (relue)', s.duree_video_s + ' s');
+    ligne(t, 'durée audio (relue)', s.duree_audio_s + ' s');
+    const ecartVA = (s.duree_video_s != null && s.duree_audio_s != null) ? +(s.duree_video_s - s.duree_audio_s).toFixed(4) : null;
+    ligne(t, 'écart vidéo − audio', ecartVA + ' s (une image = ' + (1 / IPS).toFixed(4) + ' s)',
+      ecartVA != null && Math.abs(ecartVA) <= 1 / IPS ? 'ok' : 'ko');
+    s.flashs.forEach((f, i) => ligne(t, 'flash demandé à ' + f.instant_demande + ' s',
+      'trouvé à ' + f.instant_trouve + ' s (luminance ' + f.luminance + ')'));
+    s.bips.forEach((b, i) => ligne(t, 'bip demandé à ' + b.instant_demande + ' s',
+      'trouvé à ' + b.instant_trouve + ' s (pic ' + b.pic + ')'));
+    s.ecarts_ms.forEach((e, i) => ligne(t, 'écart flash − bip à ' + INSTANTS[i] + ' s',
+      e === null ? 'non mesurable' : e + ' ms', e !== null && Math.abs(e) <= 40 ? 'ok' : 'ko'));
+    MESURES.court = { ...r, blob: undefined, synchro: s, ecart_video_audio_s: ecartVA };
+    const v = $('#apercu'); v.hidden = false; v.src = URL.createObjectURL(r.blob);
+    $('#btnDlCourt').disabled = false; $('#btnJson').disabled = false;
+  } catch (e) {
+    ligne($('#tblCourt'), 'échec', String(e && e.message || e), 'ko');
+    MESURES.court = { erreur: String(e && e.message || e) };
+  }
+  $('#progCourt').hidden = true; $('#btnCourt').disabled = false;
+  window.__essai3 = MESURES;
+};
+
+$('#btnLong').onclick = async () => {
+  $('#btnLong').disabled = true; $('#progLong').hidden = false; vider($('#tblLong'));
+  try {
+    const r = await produire({ nbImages: 40, dureeTotale: 600, avecFlashs: false,
+      surProgression: (p) => { $('#progLong').value = p; } });
+    LONG = r;
+    const t = $('#tblLong');
+    ligne(t, 'durée d\'encodage', (r.duree_encodage_ms / 1000).toFixed(1) + ' s');
+    ligne(t, 'taille du fichier', (r.octets / 1048576).toFixed(1) + ' Mo');
+    ligne(t, 'images écrites', String(r.images_ecrites));
+    const s = await mesurerSynchro(r.blob);
+    ligne(t, 'durée vidéo (relue)', s.duree_video_s + ' s');
+    ligne(t, 'durée audio (relue)', s.duree_audio_s + ' s');
+    ligne(t, 'mémoire de Safari', 'à relever dans le Moniteur d\'activité — cette page ne peut pas la lire');
+    MESURES.long = { ...r, blob: undefined, synchro: s };
+    $('#btnDlLong').disabled = false; $('#btnJson').disabled = false;
+  } catch (e) {
+    ligne($('#tblLong'), 'échec', String(e && e.message || e), 'ko');
+    MESURES.long = { erreur: String(e && e.message || e) };
+  }
+  $('#progLong').hidden = true; $('#btnLong').disabled = false;
+  window.__essai3 = MESURES;
+};
+
+const dl = (blob, nom) => { const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = nom; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000); };
+$('#btnDlCourt').onclick = () => dl(COURT.blob, 'court.mp4');
+$('#btnDlLong').onclick = () => dl(LONG.blob, 'long.mp4');
+$('#btnJson').onclick = () => dl(new Blob([JSON.stringify(MESURES, null, 2)], { type: 'application/json' }), 'essai3-mesures.json');
+
+MESURES.environnement = { userAgent: navigator.userAgent, plateforme: navigator.platform,
+                          pixelRatio: window.devicePixelRatio, origine: location.origin };
+window.__essai3Api = { capacites, produire, mesurerSynchro, MESURES,
+                       get court() { return COURT; }, get long() { return LONG; } };
+</script>
+</body>
+</html>

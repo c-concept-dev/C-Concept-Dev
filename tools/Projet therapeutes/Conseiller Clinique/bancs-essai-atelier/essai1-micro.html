@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Essai 1 — micro intégré, WAV, marqueurs</title>
+<style>
+  :root { --encre:#1b2a28; --fond:#f6f2ea; --trait:#c9c3b8; --petrole:#1f5053; --terre:#8a3f29; }
+  body { margin:0; padding:24px; font:15px/1.5 -apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif;
+         background:var(--fond); color:var(--encre); }
+  h1 { font-size:21px; margin:0 0 4px; } h2 { font-size:16px; margin:22px 0 8px; color:var(--petrole); }
+  .avis { background:#fff; border:1px solid var(--trait); border-radius:10px; padding:14px 16px; margin:12px 0; }
+  .avis.alerte { border-color:var(--terre); background:#fdf4f1; }
+  table { border-collapse:collapse; width:100%; background:#fff; border:1px solid var(--trait); border-radius:8px; }
+  th,td { text-align:left; padding:6px 10px; border-bottom:1px solid #eee; font-variant-numeric:tabular-nums; }
+  th { width:42%; font-weight:600; color:#4a5a57; } tr:last-child td,tr:last-child th { border-bottom:none; }
+  button { font:inherit; padding:8px 14px; border-radius:8px; border:1px solid var(--petrole);
+           background:var(--petrole); color:#fff; cursor:pointer; margin:0 6px 6px 0; }
+  button.second { background:#fff; color:var(--petrole); }
+  button:disabled { opacity:.45; cursor:default; }
+  #vu { height:18px; background:#e6e1d8; border-radius:9px; overflow:hidden; border:1px solid var(--trait); }
+  #vuBarre { height:100%; width:0; background:var(--petrole); transition:width 60ms linear; }
+  ol li { margin-bottom:6px; } code { background:#eee; padding:1px 4px; border-radius:3px; }
+  .grand { font-size:28px; font-variant-numeric:tabular-nums; }
+</style>
+</head>
+<body>
+<h1>Essai 1 — micro intégré, WAV 16 bits, marqueurs à l'échantillon</h1>
+<p>Banc d'essai <strong>jetable</strong>. Rien n'est envoyé : tout reste dans cet onglet et sur ce disque.</p>
+
+<div class="avis" id="avisHttp"></div>
+
+<h2>Consignes pour Christophe <small>(dans cet ordre)</small></h2>
+<div class="avis">
+<ol>
+  <li><strong>Prise de 5 minutes</strong> en lisant un texte à voix haute, en commençant par
+      <strong>3 secondes de silence</strong> (le compte à rebours vous le rappelle).</li>
+  <li><strong>5 marqueurs au clavier</strong> (flèche droite ou Page suivante), puis
+      <strong>5 marqueurs avec la télécommande de présentation</strong> si vous en avez une.</li>
+  <li>Pendant la prise, ouvrez le <strong>Centre de contrôle</strong> et notez si
+      « <strong>Mode micro</strong> » (Voix isolée) s'affiche, et sur quelle valeur.</li>
+  <li>Passez l'onglet <strong>en arrière-plan 60 secondes</strong>, puis revenez : notez si la durée
+      en échantillons a continué d'avancer au même rythme que l'horloge.</li>
+  <li><strong>Fermez l'onglet sans arrêter la prise</strong>, rouvrez cette page, et cliquez
+      « Récupérer la dernière prise ».</li>
+</ol>
+</div>
+
+<h2>Ce que le micro livre réellement</h2>
+<table id="tblPeriph"><tbody><tr><th>état</th><td>micro non demandé</td></tr></tbody></table>
+<p><button id="btnPermission">Demander le micro</button>
+   <button id="btnPeripheriques" class="second">Lister les entrées</button></p>
+
+<h2>Prise</h2>
+<div id="vu"><div id="vuBarre"></div></div>
+<p class="grand" id="horloge">—</p>
+<p>
+  <button id="btnDemarrer" disabled>Démarrer (compte à rebours 3 s)</button>
+  <button id="btnPause" class="second" disabled>Pause (espace)</button>
+  <button id="btnArreter" class="second" disabled>Arrêter</button>
+</p>
+<table id="tblPrise"><tbody></tbody></table>
+
+<h2>Marqueurs</h2>
+<p>Prochaine diapositive : <strong id="numCourant">1</strong> —
+   flèche droite / Page suivante pose, flèche gauche / Page précédente recule sans effacer.</p>
+<table id="tblMarqueurs"><tbody></tbody></table>
+
+<h2>Mesures</h2>
+<table id="tblMesures"><tbody><tr><th>état</th><td>aucune prise terminée</td></tr></tbody></table>
+
+<h2>Export</h2>
+<p>
+  <button id="btnWav" disabled>Télécharger voix.wav</button>
+  <button id="btnJson" disabled class="second">Télécharger marqueurs.json</button>
+  <button id="btnRapport" disabled class="second">Télécharger mesures.json</button>
+  <button id="btnRecup" class="second">Récupérer la dernière prise</button>
+</p>
+
+<script>
+'use strict';
+// ── Rien n'est supposé : tout ce qui s'affiche est lu de l'API ou calculé sur les échantillons. ──
+const $ = (id) => document.getElementById(id);
+const ligne = (tbody, cle, valeur) => {
+  const tr = document.createElement('tr');
+  const th = document.createElement('th'); th.textContent = cle;
+  const td = document.createElement('td'); td.textContent = valeur;
+  tr.append(th, td); tbody.appendChild(tr); return tr;
+};
+const vider = (t) => { t.querySelector('tbody').innerHTML = ''; };
+
+// L'origine décide de l'accès au micro : on le DIT, au lieu de laisser un échec sans explication.
+(function avisOrigine() {
+  const s = location.protocol, h = location.hostname;
+  const sur = (s === 'https:') || h === 'localhost' || h === '127.0.0.1' || h === '[::1]';
+  const el = $('avisHttp');
+  if (s === 'file:') {
+    el.className = 'avis alerte';
+    el.innerHTML = '<strong>Ouvert en file://</strong> — getUserMedia y est refusé par Safari. '
+      + 'Servez ce dossier : <code>python3 -m http.server 8000</code>, puis ouvrez '
+      + '<code>http://localhost:8000/essai1-micro.html</code>.';
+  } else if (!sur) {
+    el.className = 'avis alerte';
+    el.innerHTML = '<strong>Origine non sûre</strong> (' + s + '//' + h + ') — le micro sera refusé. '
+      + 'Utilisez localhost, ou HTTPS.';
+  } else {
+    el.innerHTML = 'Origine <strong>' + s + '//' + h + '</strong> — considérée comme sûre pour le micro. '
+      + 'Si Safari refuse malgré tout, c\'est le point à consigner dans le rapport.';
+  }
+})();
+
+const ETAT = {
+  ctx:null, flux:null, noeud:null, source:null,
+  echantillonnage:0, canauxLivres:0, quantum:0, repliScriptProcessor:false,
+  morceaux:[], totalEchantillons:0, enCours:false, enPause:false,
+  debutMurMs:0, marqueurs:[], numCourant:1,
+  // Corrélation gauche/droite : accumulée en ligne, jamais sur une copie entière en mémoire.
+  corr:{ sxy:0, sxx:0, syy:0, n:0 },
+  wav:null, mesures:null, derniereSauvegarde:0,
+};
+
+// ── IndexedDB : sauvegarde progressive, pour qu'une fermeture d'onglet ne perde pas 5 minutes ──
+const DB_NOM = 'essai1-atelier', DB_MAG = 'prises';
+function ouvrirDb() {
+  return new Promise((ok, ko) => {
+    const rq = indexedDB.open(DB_NOM, 1);
+    rq.onupgradeneeded = () => { if (!rq.result.objectStoreNames.contains(DB_MAG)) rq.result.createObjectStore(DB_MAG); };
+    rq.onsuccess = () => ok(rq.result); rq.onerror = () => ko(rq.error);
+  });
+}
+async function sauvegarder() {
+  try {
+    const db = await ouvrirDb();
+    // On stocke les morceaux TELS QUELS (Float32Array) : IndexedDB les sérialise sans perte,
+    // contrairement à un JSON qui les transformerait en texte et multiplierait la taille.
+    const paquet = { horodatage: Date.now(), echantillonnage: ETAT.echantillonnage,
+                     total: ETAT.totalEchantillons, morceaux: ETAT.morceaux.slice(),
+                     marqueurs: ETAT.marqueurs.slice(), quantum: ETAT.quantum };
+    await new Promise((ok, ko) => {
+      const t = db.transaction(DB_MAG, 'readwrite');
+      t.objectStore(DB_MAG).put(paquet, 'derniere');
+      t.oncomplete = ok; t.onerror = () => ko(t.error);
+    });
+    db.close();
+    ETAT.derniereSauvegarde = Date.now();
+    return true;
+  } catch (e) { console.warn('[essai1] sauvegarde impossible :', e && e.message); return false; }
+}
+async function recuperer() {
+  try {
+    const db = await ouvrirDb();
+    const p = await new Promise((ok, ko) => {
+      const t = db.transaction(DB_MAG, 'readonly');
+      const r = t.objectStore(DB_MAG).get('derniere');
+      r.onsuccess = () => ok(r.result || null); r.onerror = () => ko(r.error);
+    });
+    db.close();
+    return p;
+  } catch (e) { console.warn('[essai1] récupération impossible :', e && e.message); return null; }
+}
+
+// ── WAV 16 bits mono, en-tête écrit octet par octet (44 octets, aucune bibliothèque) ──
+function construireWav(mono, echantillonnage) {
+  const n = mono.length, octetsDonnees = n * 2;
+  const tampon = new ArrayBuffer(44 + octetsDonnees), v = new DataView(tampon);
+  const txt = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  txt(0, 'RIFF');  v.setUint32(4, 36 + octetsDonnees, true);  txt(8, 'WAVE');
+  txt(12, 'fmt '); v.setUint32(16, 16, true);                 // taille du bloc fmt
+  v.setUint16(20, 1, true);                                   // 1 = PCM entier
+  v.setUint16(22, 1, true);                                   // 1 canal
+  v.setUint32(24, echantillonnage, true);
+  v.setUint32(28, echantillonnage * 2, true);                 // octets par seconde
+  v.setUint16(32, 2, true);                                   // octets par trame
+  v.setUint16(34, 16, true);                                  // bits par échantillon
+  txt(36, 'data'); v.setUint32(40, octetsDonnees, true);
+  // Conversion flottant → entier 16 bits avec écrêtage explicite : sans lui, un échantillon à
+  // 1.0001 repart à -32768 et produit un claquement.
+  for (let i = 0; i < n; i++) {
+    let s = mono[i]; s = s < -1 ? -1 : (s > 1 ? 1 : s);
+    v.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+  }
+  return new Blob([tampon], { type: 'audio/wav' });
+}
+function assembler(morceaux, total) {
+  const mono = new Float32Array(total); let o = 0;
+  for (const m of morceaux) { mono.set(m, o); o += m.length; }
+  return mono;
+}
+
+// ── Mesures, toutes calculées sur les échantillons, jamais estimées ──
+const dBFS = (rms) => rms > 0 ? 20 * Math.log10(rms) : -Infinity;
+function calculerMesures(mono, se, marqueurs, dureeMurS) {
+  const n3 = Math.min(mono.length, Math.round(3 * se));
+  let s2 = 0; for (let i = 0; i < n3; i++) s2 += mono[i] * mono[i];
+  const bruitRms = n3 ? Math.sqrt(s2 / n3) : 0;
+  const bruitDb = dBFS(bruitRms);
+  const parMarqueur = marqueurs.map((m) => {
+    const d = m.echantillon, f = Math.min(mono.length, d + Math.round(0.080 * se));
+    let pic = 0; for (let i = d; i < f; i++) { const a = Math.abs(mono[i]); if (a > pic) pic = a; }
+    const picDb = dBFS(pic);
+    return { diapositive: m.diapositive, echantillon: d, debut_s: +(d / se).toFixed(4),
+             pic_dbfs: +picDb.toFixed(1),
+             // « Au-dessus du bruit de fond » = le claquement de touche s'entend.
+             au_dessus_du_bruit_db: +(picDb - bruitDb).toFixed(1) };
+  });
+  const dureeEch = mono.length / se;
+  return {
+    echantillonnage: se, duree_echantillons_s: +dureeEch.toFixed(4),
+    duree_horloge_s: +dureeMurS.toFixed(4),
+    ecart_s: +(dureeEch - dureeMurS).toFixed(4),
+    bruit_de_fond_dbfs: +bruitDb.toFixed(1),
+    quantum_echantillons: ETAT.quantum,
+    granularite_marqueur_ms: ETAT.quantum ? +((ETAT.quantum / se) * 1000).toFixed(3) : null,
+    canaux_livres: ETAT.canauxLivres,
+    correlation_gauche_droite: ETAT.corr.n > 0 && ETAT.canauxLivres > 1
+      ? +(ETAT.corr.sxy / Math.sqrt(ETAT.corr.sxx * ETAT.corr.syy)).toFixed(4) : null,
+    repli_script_processor: ETAT.repliScriptProcessor,
+    marqueurs: parMarqueur,
+  };
+}
+
+function afficherMesures(m) {
+  vider($('tblMesures'));
+  const t = $('tblMesures').querySelector('tbody');
+  ligne(t, 'durée (échantillons)', m.duree_echantillons_s + ' s');
+  ligne(t, 'durée (horloge murale)', m.duree_horloge_s + ' s');
+  ligne(t, 'écart échantillons − horloge', m.ecart_s + ' s');
+  ligne(t, 'bruit de fond (3 premières s)', m.bruit_de_fond_dbfs + ' dBFS');
+  ligne(t, 'quantum de rendu', m.quantum_echantillons + ' échantillons');
+  ligne(t, 'granularité d\'un marqueur', m.granularite_marqueur_ms + ' ms');
+  ligne(t, 'canaux livrés', String(m.canaux_livres));
+  if (m.correlation_gauche_droite !== null) ligne(t, 'corrélation gauche/droite', String(m.correlation_gauche_droite));
+  ligne(t, 'repli ScriptProcessor', m.repli_script_processor ? 'OUI (signalé)' : 'non');
+  m.marqueurs.forEach((x) => ligne(t, 'marqueur ' + x.diapositive + ' — pic 80 ms',
+    x.pic_dbfs + ' dBFS (' + (x.au_dessus_du_bruit_db >= 0 ? '+' : '') + x.au_dessus_du_bruit_db + ' dB sur le bruit)'));
+}
+
+async function demanderMicro() {
+  try {
+    // Les trois traitements à false : c'est une voix à monter, pas un appel téléphonique. On
+    // DEMANDE, puis on affiche ce qui est réellement livré — Safari n'honore pas toujours.
+    const flux = await navigator.mediaDevices.getUserMedia({ audio: {
+      echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 } });
+    ETAT.flux = flux;
+    const piste = flux.getAudioTracks()[0];
+    const r = piste.getSettings ? piste.getSettings() : {};
+    const c = piste.getConstraints ? piste.getConstraints() : {};
+    vider($('tblPeriph'));
+    const t = $('tblPeriph').querySelector('tbody');
+    ligne(t, 'périphérique', piste.label || '(non communiqué)');
+    ligne(t, 'canaux livrés (getSettings)', r.channelCount !== undefined ? String(r.channelCount) : '(non communiqué)');
+    ligne(t, 'fréquence d\'échantillonnage', r.sampleRate !== undefined ? r.sampleRate + ' Hz' : '(non communiqué)');
+    ligne(t, 'echoCancellation', r.echoCancellation !== undefined ? String(r.echoCancellation) : '(non communiqué)');
+    ligne(t, 'noiseSuppression', r.noiseSuppression !== undefined ? String(r.noiseSuppression) : '(non communiqué)');
+    ligne(t, 'autoGainControl', r.autoGainControl !== undefined ? String(r.autoGainControl) : '(non communiqué)');
+    ligne(t, 'contraintes demandées', JSON.stringify(c));
+    ligne(t, 'réglages complets', JSON.stringify(r));
+    $('btnDemarrer').disabled = false;
+    return true;
+  } catch (e) {
+    vider($('tblPeriph'));
+    ligne($('tblPeriph').querySelector('tbody'), 'micro refusé', (e && e.name) + ' — ' + (e && e.message));
+    return false;
+  }
+}
+
+async function listerPeripheriques() {
+  const t = $('tblPeriph').querySelector('tbody');
+  try {
+    const l = await navigator.mediaDevices.enumerateDevices();
+    const e = l.filter((d) => d.kind === 'audioinput');
+    ligne(t, 'entrées audio', String(e.length));
+    e.forEach((d, i) => ligne(t, 'entrée ' + (i + 1), (d.label || '(étiquette masquée — micro non encore accordé)')));
+  } catch (err) { ligne(t, 'énumération impossible', String(err && err.message)); }
+}
+
+async function demarrer() {
+  $('btnDemarrer').disabled = true;
+  // Compte à rebours : les 3 s de silence demandées servent au calcul du bruit de fond.
+  for (let k = 3; k > 0; k--) { $('horloge').textContent = 'départ dans ' + k + '…'; await new Promise((r) => setTimeout(r, 1000)); }
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  ETAT.ctx = ctx; ETAT.echantillonnage = ctx.sampleRate;
+  const source = ctx.createMediaStreamSource(ETAT.flux);
+  ETAT.source = source;
+  ETAT.canauxLivres = source.channelCount || 1;
+  let noeud = null;
+  try {
+    await ctx.audioWorklet.addModule('essai1-worklet.js');
+    noeud = new AudioWorkletNode(ctx, 'capture-processor', { numberOfInputs: 1, numberOfOutputs: 0 });
+    noeud.port.onmessage = (ev) => recevoir(ev.data);
+  } catch (e) {
+    // REPLI SIGNALÉ, jamais silencieux : ScriptProcessor est déprécié et tourne sur le fil
+    // principal, donc sensible aux à-coups — à savoir si le rapport s'appuie sur lui.
+    ETAT.repliScriptProcessor = true;
+    console.warn('[essai1] AudioWorklet indisponible, repli ScriptProcessor :', e && e.message);
+    noeud = ctx.createScriptProcessor(4096, Math.max(1, ETAT.canauxLivres), 1);
+    noeud.onaudioprocess = (ev) => {
+      const n = ev.inputBuffer.length;
+      if (!ETAT.quantum) ETAT.quantum = n;
+      if (ETAT.enPause) return;
+      const canaux = [];
+      for (let c = 0; c < ev.inputBuffer.numberOfChannels; c++) canaux.push(new Float32Array(ev.inputBuffer.getChannelData(c)));
+      ETAT.totalEchantillons += n;
+      recevoir({ type: 'audio', canaux: canaux, total: ETAT.totalEchantillons });
+    };
+    noeud.connect(ctx.destination);
+  }
+  ETAT.noeud = noeud;
+  source.connect(noeud);
+  ETAT.enCours = true; ETAT.debutMurMs = performance.now();
+  ETAT.morceaux = []; ETAT.totalEchantillons = 0; ETAT.marqueurs = []; ETAT.numCourant = 1;
+  ETAT.corr = { sxy:0, sxx:0, syy:0, n:0 };
+  $('btnPause').disabled = false; $('btnArreter').disabled = false;
+  vider($('tblPrise'));
+  const tb = $('tblPrise').querySelector('tbody');
+  ligne(tb, 'fréquence du contexte', ctx.sampleRate + ' Hz');
+  ligne(tb, 'mécanisme de capture', ETAT.repliScriptProcessor ? 'ScriptProcessor (repli signalé)' : 'AudioWorklet');
+  boucleAffichage();
+}
+
+function recevoir(m) {
+  if (!m) return;
+  if (m.type === 'quantum') { ETAT.quantum = m.valeur; return; }
+  if (m.type === 'marqueur') {
+    // Le numéro courant est celui du moment où le marqueur est DATÉ, jamais celui de la frappe.
+    ETAT.marqueurs.push({ diapositive: ETAT.numCourant, echantillon: m.echantillon });
+    ETAT.numCourant++;
+    rendreMarqueurs();
+    return;
+  }
+  if (m.type !== 'audio') return;
+  const canaux = m.canaux;
+  let mono;
+  if (canaux.length > 1) {
+    const g = canaux[0], d = canaux[1];
+    mono = new Float32Array(g.length);
+    for (let i = 0; i < g.length; i++) {
+      mono[i] = (g[i] + d[i]) / 2;
+      ETAT.corr.sxy += g[i] * d[i]; ETAT.corr.sxx += g[i] * g[i]; ETAT.corr.syy += d[i] * d[i];
+    }
+    ETAT.corr.n += g.length;
+  } else { mono = canaux[0]; }
+  ETAT.morceaux.push(mono);
+  if (ETAT.repliScriptProcessor) { /* total déjà incrémenté par le gestionnaire */ }
+  else ETAT.totalEchantillons = m.total;
+  // Vu-mètre sur le morceau courant.
+  let pic = 0; for (let i = 0; i < mono.length; i++) { const a = Math.abs(mono[i]); if (a > pic) pic = a; }
+  $('vuBarre').style.width = Math.min(100, Math.round(pic * 140)) + '%';
+  if (Date.now() - ETAT.derniereSauvegarde > 10000) sauvegarder();
+}
+
+function rendreMarqueurs() {
+  $('numCourant').textContent = String(ETAT.numCourant);
+  vider($('tblMarqueurs'));
+  const t = $('tblMarqueurs').querySelector('tbody');
+  if (!ETAT.marqueurs.length) { ligne(t, 'aucun marqueur', '—'); return; }
+  ETAT.marqueurs.forEach((m, i) => ligne(t, 'marqueur ' + (i + 1) + ' → diapositive ' + m.diapositive,
+    'échantillon ' + m.echantillon + '  (' + (m.echantillon / (ETAT.echantillonnage || 48000)).toFixed(4) + ' s)'));
+}
+
+function boucleAffichage() {
+  if (!ETAT.enCours) return;
+  const se = ETAT.echantillonnage || 48000;
+  const ech = ETAT.totalEchantillons / se;
+  const mur = (performance.now() - ETAT.debutMurMs) / 1000;
+  $('horloge').textContent = ech.toFixed(2) + ' s (échantillons) · ' + mur.toFixed(2) + ' s (horloge) · écart '
+    + (ech - mur >= 0 ? '+' : '') + (ech - mur).toFixed(3) + ' s';
+  requestAnimationFrame(boucleAffichage);
+}
+
+async function arreter() {
+  ETAT.enCours = false;
+  $('btnPause').disabled = true; $('btnArreter').disabled = true;
+  const dureeMurS = (performance.now() - ETAT.debutMurMs) / 1000;
+  try { if (ETAT.source) ETAT.source.disconnect(); if (ETAT.noeud) ETAT.noeud.disconnect(); } catch (_) {}
+  const mono = assembler(ETAT.morceaux, ETAT.totalEchantillons);
+  ETAT.wav = construireWav(mono, ETAT.echantillonnage);
+  ETAT.mesures = calculerMesures(mono, ETAT.echantillonnage, ETAT.marqueurs, dureeMurS);
+  afficherMesures(ETAT.mesures);
+  await sauvegarder();
+  $('btnWav').disabled = false; $('btnJson').disabled = false; $('btnRapport').disabled = false;
+  $('btnDemarrer').disabled = false;
+  window.__essai1 = { mesures: ETAT.mesures, marqueurs: ETAT.marqueurs, octetsWav: ETAT.wav.size };
+}
+
+function telecharger(blob, nom) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = nom;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+}
+function jsonMarqueurs() {
+  const se = ETAT.echantillonnage || 48000;
+  return {
+    version: 1, voix: 'voix.wav', echantillonnage: se,
+    duree_s: +(ETAT.totalEchantillons / se).toFixed(4),
+    decalage_s: 0,
+    marqueurs: ETAT.marqueurs.map((m) => ({ diapositive: m.diapositive, debut_s: +(m.echantillon / se).toFixed(4) })),
+  };
+}
+
+// ── Clavier : pose, recul sans effacer, pause ──
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight' || e.key === 'PageDown') {
+    e.preventDefault();
+    if (!ETAT.enCours) return;
+    if (ETAT.noeud && ETAT.noeud.port) ETAT.noeud.port.postMessage({ type: 'marqueur' });
+    else if (ETAT.repliScriptProcessor) recevoir({ type: 'marqueur', echantillon: ETAT.totalEchantillons });
+  } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+    e.preventDefault();
+    // RECULE D'UN NUMÉRO SANS EFFACER : une présentatrice qui revient en arrière ne détruit pas
+    // les marqueurs déjà posés — le prochain reprendra simplement le numéro précédent.
+    ETAT.numCourant = Math.max(1, ETAT.numCourant - 1);
+    $('numCourant').textContent = String(ETAT.numCourant);
+  } else if (e.key === ' ') {
+    e.preventDefault();
+    if (!ETAT.enCours) return;
+    ETAT.enPause = !ETAT.enPause;
+    if (ETAT.noeud && ETAT.noeud.port) ETAT.noeud.port.postMessage({ type: 'pause', valeur: ETAT.enPause });
+    $('btnPause').textContent = ETAT.enPause ? 'Reprendre (espace)' : 'Pause (espace)';
+  }
+});
+
+$('btnPermission').onclick = demanderMicro;
+$('btnPeripheriques').onclick = listerPeripheriques;
+$('btnDemarrer').onclick = demarrer;
+$('btnArreter').onclick = arreter;
+$('btnPause').onclick = () => document.dispatchEvent(new KeyboardEvent('keydown', { key: ' ' }));
+$('btnWav').onclick = () => telecharger(ETAT.wav, 'voix.wav');
+$('btnJson').onclick = () => telecharger(new Blob([JSON.stringify(jsonMarqueurs(), null, 2)], { type: 'application/json' }), 'marqueurs.json');
+$('btnRapport').onclick = () => telecharger(new Blob([JSON.stringify(ETAT.mesures, null, 2)], { type: 'application/json' }), 'mesures.json');
+$('btnRecup').onclick = async () => {
+  const p = await recuperer();
+  const t = $('tblPrise').querySelector('tbody');
+  if (!p) { ligne(t, 'récupération', 'aucune prise en réserve'); return; }
+  ETAT.echantillonnage = p.echantillonnage; ETAT.morceaux = p.morceaux;
+  ETAT.totalEchantillons = p.total; ETAT.marqueurs = p.marqueurs; ETAT.quantum = p.quantum;
+  const mono = assembler(ETAT.morceaux, ETAT.totalEchantillons);
+  ETAT.wav = construireWav(mono, ETAT.echantillonnage);
+  ETAT.mesures = calculerMesures(mono, ETAT.echantillonnage, ETAT.marqueurs, ETAT.totalEchantillons / ETAT.echantillonnage);
+  vider($('tblPrise'));
+  ligne($('tblPrise').querySelector('tbody'), 'prise récupérée',
+    (ETAT.totalEchantillons / ETAT.echantillonnage).toFixed(2) + ' s, ' + ETAT.marqueurs.length + ' marqueur(s), enregistrée le '
+    + new Date(p.horodatage).toLocaleString('fr-FR'));
+  rendreMarqueurs(); afficherMesures(ETAT.mesures);
+  $('btnWav').disabled = false; $('btnJson').disabled = false; $('btnRapport').disabled = false;
+  window.__essai1 = { mesures: ETAT.mesures, marqueurs: ETAT.marqueurs, octetsWav: ETAT.wav.size, recupere: true };
+};
+// Exposé pour le test automatique, jamais utilisé par la page elle-même.
+window.__essai1Api = { demanderMicro, demarrer, arreter, recuperer, jsonMarqueurs, ETAT };
+rendreMarqueurs();
+</script>
+</body>
+</html>

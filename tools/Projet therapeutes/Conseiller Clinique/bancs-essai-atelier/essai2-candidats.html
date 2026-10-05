@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Essai 2 — SnapDOM et html-to-image dans le Safari réel</title>
+<style>
+  body{margin:0;padding:24px;font:15px/1.5 -apple-system,BlinkMacSystemFont,sans-serif;background:#f6f2ea;color:#1b2a28}
+  h1{font-size:21px;margin:0 0 4px} h2{font-size:16px;margin:22px 0 8px;color:#1f5053}
+  .avis{background:#fff;border:1px solid #c9c3b8;border-radius:10px;padding:14px 16px;margin:12px 0}
+  table{border-collapse:collapse;width:100%;background:#fff;border:1px solid #c9c3b8;border-radius:8px}
+  th,td{padding:6px 10px;border-bottom:1px solid #eee;text-align:left;font-variant-numeric:tabular-nums}
+  th{background:#eceae4;font-weight:600}
+  button{font:inherit;padding:8px 14px;border-radius:8px;border:1px solid #1f5053;background:#1f5053;color:#fff;cursor:pointer;margin:0 6px 6px 0}
+  button.second{background:#fff;color:#1f5053} button:disabled{opacity:.45;cursor:default}
+  iframe{width:1596px;height:898px;border:1px solid #c9c3b8;border-radius:8px;transform:scale(.42);transform-origin:top left}
+  #cadre{height:380px;overflow:hidden}
+  .vign img{width:200px;border:1px solid #ddd;border-radius:4px;margin:0 6px 6px 0}
+  .ko{color:#8a3f29;font-weight:600}
+</style>
+</head>
+<body>
+<h1>Essai 2 — les deux candidats, dans votre Safari</h1>
+<p>Banc <strong>jetable</strong>. Tout reste dans cet onglet : aucune donnée ne sort.</p>
+
+<div class="avis" id="avisOrigine"></div>
+
+<div class="avis">
+<strong>Ce que cette page fait</strong>, en un clic : elle ouvre chacun des trois exports dans le
+cadre ci-dessous, pilote le <em>vrai</em> lecteur étape par étape, et capture chaque étape
+<strong>deux fois</strong> avec SnapDOM puis avec html-to-image. Elle mesure, pour chaque prise, si
+l'image est vide, sa taille, et sa durée. Comptez environ une minute.
+<p style="margin:8px 0 0"><em>Automatisation possible à la place :</em> Safari &gt; Réglages &gt;
+Avancé &gt; « Afficher les fonctionnalités pour les développeurs web », puis Développement &gt;
+« Autoriser l'automatisation à distance », et <code>safaridriver --enable</code> au Terminal. La
+page ci-dessous ne l'exige pas.</p>
+</div>
+
+<p>
+  <button id="btnLancer">Lancer la mesure</button>
+  <button id="btnJson" class="second" disabled>Télécharger mesures.json</button>
+</p>
+<table id="tbl"><thead><tr><th>candidat</th><th>jeu</th><th>étape</th><th>prise</th>
+<th>taille</th><th>vide ?</th><th>durée</th></tr></thead><tbody></tbody></table>
+
+<h2>Cadre de travail <small>(réduit à 42 % pour tenir dans la page ; la capture, elle, est à taille réelle)</small></h2>
+<div id="cadre"><iframe id="scene" src="about:blank"></iframe></div>
+
+<h2>Captures</h2>
+<div class="vign" id="vignettes"></div>
+
+<script type="module">
+'use strict';
+const $ = (s) => document.querySelector(s);
+const JEUX = ['couverture', 'dense', 'questionnaire'];
+const RESULTATS = [];
+
+(function origine() {
+  const el = $('#avisOrigine');
+  if (location.protocol === 'file:') {
+    el.innerHTML = '<strong class="ko">Ouvert en file://</strong> — le cadre et l\'injection de '
+      + 'module ne fonctionneront pas. Servez ce dossier : <code>python3 -m http.server 8000</code>, '
+      + 'puis ouvrez <code>http://localhost:8000/essai2-candidats.html</code>.';
+  } else {
+    el.innerHTML = 'Servi depuis <strong>' + location.origin + '</strong> — même origine que les '
+      + 'exports, donc le contenu du cadre est accessible. C\'est ce qui permet d\'injecter les '
+      + 'bibliothèques dans la page capturée.';
+  }
+})();
+
+const attendre = (ms) => new Promise((r) => setTimeout(r, ms));
+function estVide(canvasOuUrl) {
+  // Une image « vide » = une ou deux couleurs à l'échantillonnage. C'est le symptôme du bug WebKit
+  // de première capture, qu'on MESURE au lieu de le contourner en silence.
+  return new Promise((ok) => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = Math.min(160, img.width); c.height = Math.min(90, img.height);
+      const g = c.getContext('2d'); g.drawImage(img, 0, 0, c.width, c.height);
+      const d = g.getImageData(0, 0, c.width, c.height).data;
+      const vus = new Set();
+      for (let i = 0; i < d.length && vus.size < 12; i += 4 * 7) vus.add(d[i] + ',' + d[i+1] + ',' + d[i+2]);
+      ok({ vide: vus.size <= 2, couleurs: vus.size, largeur: img.width, hauteur: img.height });
+    };
+    img.onerror = () => ok({ vide: true, couleurs: 0, largeur: 0, hauteur: 0 });
+    img.src = canvasOuUrl;
+  });
+}
+
+async function chargerScene(jeu) {
+  const f = $('#scene');
+  await new Promise((ok) => { f.onload = ok; f.src = 'entrees/' + jeu + '.html'; });
+  const w = f.contentWindow, d = f.contentDocument;
+  d.querySelector('#cc-ws-present-start button')?.click();
+  for (let i = 0; i < 60 && !d.getElementById('cc-ws-present-overlay')?.classList.contains('open'); i++) await attendre(100);
+  if (d.fonts) await d.fonts.ready;
+  await attendre(320);
+  return { w, d };
+}
+
+async function mesurerUnJeu(candidat, jeu) {
+  const { w, d } = await chargerScene(jeu);
+  // Injection dans la page CAPTURÉE (même origine) : c'est là que la bibliothèque doit vivre.
+  let capturer;
+  if (candidat === 'snapdom') {
+    const m = await import('./vendeur/snapdom.mjs');
+    capturer = (el) => m.snapdom(el, { scale: 1 }).then((s) => s.toPng()).then((i) => i.src);
+  } else {
+    await new Promise((ok, ko) => {
+      const s = d.createElement('script'); s.src = '/vendeur/html-to-image.js';
+      s.onload = ok; s.onerror = ko; d.head.appendChild(s);
+    });
+    capturer = (el) => w.htmlToImage.toPng(el, { pixelRatio: 1 });
+  }
+  let precedent = null, etape = 0, garde = 0;
+  for (;;) {
+    const s = w._adocPresentState;
+    if (!s) break;
+    const cle = s.index + ':' + s.revealIndex;
+    if (precedent === cle) break;
+    precedent = cle;
+    const el = d.querySelector('#cc-ws-present-slide-inner');
+    for (const rang of [1, 2]) {
+      const t0 = performance.now();
+      let url = null, erreur = null;
+      try { url = await capturer(el); } catch (e) { erreur = String(e && e.message || e); }
+      const ms = Math.round(performance.now() - t0);
+      const etat = url ? await estVide(url) : { vide: true, couleurs: 0, largeur: 0, hauteur: 0 };
+      RESULTATS.push({ candidat, jeu, etape, prise: rang, duree_ms: ms, erreur,
+                       taille: etat.largeur + 'x' + etat.hauteur, vide: etat.vide, couleurs: etat.couleurs });
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + candidat + '</td><td>' + jeu + '</td><td>' + etape + '</td><td>' + rang
+        + '</td><td>' + etat.largeur + 'x' + etat.hauteur + '</td><td>'
+        + (etat.vide ? '<span class="ko">VIDE</span>' : 'non') + '</td><td>' + ms + ' ms</td>';
+      $('#tbl tbody').appendChild(tr);
+      if (url && rang === 2) {
+        const a = document.createElement('a');
+        a.href = url; a.download = jeu + '-' + candidat + '-' + etape + '.png';
+        a.innerHTML = '<img src="' + url + '" alt="">';
+        a.title = jeu + ' / ' + candidat + ' / étape ' + etape + ' — cliquer pour enregistrer';
+        $('#vignettes').appendChild(a);
+      }
+    }
+    etape++;
+    if (++garde > 40) break;
+    w.adocPresentNext();
+    if (d.fonts) await d.fonts.ready;
+    await attendre(320);
+  }
+}
+
+$('#btnLancer').onclick = async () => {
+  $('#btnLancer').disabled = true;
+  $('#tbl tbody').innerHTML = ''; $('#vignettes').innerHTML = ''; RESULTATS.length = 0;
+  for (const c of ['snapdom', 'html-to-image']) {
+    for (const j of JEUX) {
+      try { await mesurerUnJeu(c, j); }
+      catch (e) {
+        RESULTATS.push({ candidat: c, jeu: j, erreur: String(e && e.message || e) });
+        const tr = document.createElement('tr');
+        tr.innerHTML = '<td>' + c + '</td><td>' + j + '</td><td colspan="5" class="ko">échec : '
+          + String(e && e.message || e) + '</td>';
+        $('#tbl tbody').appendChild(tr);
+      }
+    }
+  }
+  $('#btnJson').disabled = false; $('#btnLancer').disabled = false;
+};
+$('#btnJson').onclick = () => {
+  const paquet = { environnement: { userAgent: navigator.userAgent, plateforme: navigator.platform,
+                     pixelRatio: window.devicePixelRatio, origine: location.origin },
+                   note: 'prises relevées dans le Safari réel ; comparer aux références WebKit de mesures/essai2-references.json',
+                   resultats: RESULTATS };
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(paquet, null, 2)], { type: 'application/json' }));
+  a.download = 'essai2-safari.json'; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+};
+</script>
+</body>
+</html>
