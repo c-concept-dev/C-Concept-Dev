@@ -280,6 +280,23 @@ export function sequencer(
     for (const piste of attribuerPistes(tranche, reglesDuSupport)) attributions.push({ piste, disque: support });
   });
 
+  // **Une règle essayée et réfutée, pour qu'on ne la refasse pas.**
+  //
+  // L'attribution optimise sur toute la suite : un élément qui lit « 3 » soutient partiellement la
+  // piste 38, et si ses voisines le permettent elle l'y place — ce qui est juste, « 3 » est bien un
+  // 38 tronqué. Mais il arrive qu'un élément **plus loin** porte une lecture franche de 38, et on a
+  // donc essayé de faire de celui-là le début de la piste, en repoussant le précédent sur la piste
+  // d'avant. C'est le sens d'un repère : il marque un début.
+  //
+  // Mesuré sur F4 : **5 pistes redressées, 12 abîmées.** Dans chaque cas abîmé, le bon premier
+  // élément portait une lecture partielle et un élément plus loin lisait la piste franchement — le
+  // signal est faux aussi souvent qu'il est juste, parce que plusieurs éléments partagent une piste
+  // et que rien ne distingue, dans la lecture seule, un vrai repère d'une forme qui lui ressemble.
+  // 73 premiers éléments sont tombés à 66.
+  //
+  // Ce qui manquerait pour trancher : savoir lequel des deux porte vraiment le repère, ce que ni la
+  // présence (0,26 à 0,51 des deux côtés) ni l'accord ne disent.
+
   const parRang = new Map(porteurs.map((rang, position) => [rang, attributions[position]]));
   /** Les rangs qui relèvent d'un support absent : ils n'héritent de rien. */
   const sansSupport = new Set(porteurs.filter((_, position) => attributions[position] === undefined));
