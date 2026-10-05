@@ -54,10 +54,14 @@ export const TARIF_PAR_DEFAUT: Tarif = { entreeParMillion: 1 / DOLLARS_PAR_EURO,
  *  Une estimation, donc, et assumée comme telle : elle sert à décider d'un appel, pas à compter ce
  *  qui a été dépensé. Ce qui est dépensé vient des réponses. */
 const JETONS_FIXES_PAR_APPEL = 1058;
-const JETONS_ENTREE_PAR_ZONE = 37;
-/** Le formulaire rendu est court — une empreinte, un nombre, une confiance. Majoré à dessein :
- *  une projection qui sous-estime laisserait passer l'appel qu'on voulait refuser. */
-const JETONS_SORTIE_PAR_ZONE = 40;
+/** Par zone, à l'agrandissement retenu — 37 à l'échelle d'origine, 60 au double. On prend le
+ *  second : c'est celui qu'on envoie. */
+const JETONS_ENTREE_PAR_ZONE = 60;
+/** Le formulaire rendu est court — une empreinte, un nombre, une confiance. J'avais écrit 40 en
+ *  le disant majoré ; mesuré, il vaut 42,6 à 43,8, donc je majorais à l'envers. Corrigé à 50, et
+ *  cette fois la mesure est derrière le chiffre : une projection qui sous-estime laisserait passer
+ *  l'appel qu'on voulait refuser, et c'est tout ce qu'on lui demande de ne pas faire. */
+const JETONS_SORTIE_PAR_ZONE = 50;
 
 export const coutEnEuros = (jetons: { readonly entree: number; readonly sortie: number }, tarif: Tarif = TARIF_PAR_DEFAUT): number =>
   (jetons.entree / 1e6) * tarif.entreeParMillion + (jetons.sortie / 1e6) * tarif.sortieParMillion;
@@ -209,7 +213,7 @@ export async function relire(
       nonRelus.push({ candidat, raison: "recadrage" });
       continue;
     }
-    const produit = await recadrerPour(image, candidat, options.attendu);
+    const produit = await recadrerPour(image, candidat, options.attendu, recette.vision?.agrandissement ?? 1);
     if (produit === undefined) {
       nonRelus.push({ candidat, raison: "recadrage" });
       continue;

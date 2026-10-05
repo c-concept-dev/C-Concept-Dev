@@ -222,9 +222,12 @@ describe("le plafond de dépense s'arrête avant l'appel qui le dépasserait (RE
     return fonction;
   };
 
+  /** On garde l'agrandissement de la recette : l'empreinte d'un recadrage en dépend, donc le
+   *  changer ferait manquer le cache — ce qui est juste, et ce qu'un test a d'abord pris pour un
+   *  défaut du budget. */
   const avecPlafondCout = (euros: number | undefined): Recette => ({
     ...RECETTE,
-    vision: { zones_max_par_lot: 300, zones_max_par_page: 6, ...(euros === undefined ? {} : { cout_max_eur: euros }) },
+    vision: { ...RECETTE.vision!, ...(euros === undefined ? { cout_max_eur: undefined } : { cout_max_eur: euros }) },
   });
 
   it("compte ce qui a été dépensé sur les jetons rapportés, pas sur l'estimation", async () => {
