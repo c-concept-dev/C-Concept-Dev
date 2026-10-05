@@ -125,8 +125,7 @@ console.log(
     `${relecture.appels} appel(s), ${relecture.depuisLeCache} depuis le cache (${gardeesAvant} entrées gardées avant)`,
 );
 console.log(`Jetons : ${relecture.jetons.entree} en entrée, ${relecture.jetons.sortie} en sortie`);
-const dollars = (relecture.jetons.entree / 1e6) * 1 + (relecture.jetons.sortie / 1e6) * 5;
-console.log(`Coût au tarif affiché de Haiku 4.5 : ${dollars.toFixed(4)} $`);
+console.log(`Coût réel, compté sur les jetons rapportés : ${relecture.cout.toFixed(4)} € (plafond ${RECETTE.vision?.cout_max_eur ?? "aucun"})`);
 if (relecture.nonRelus.length > 0) {
   const parRaison = new Map<string, number>();
   for (const reste of relecture.nonRelus) parRaison.set(reste.raison, (parRaison.get(reste.raison) ?? 0) + 1);
@@ -177,5 +176,5 @@ console.log(`\nPistes appliquées par relecture : ${sourcesVision} / ${vision.si
 
 writeFileSync(
   join(coin(cache, "vision"), "f4-vision.json"),
-  JSON.stringify({ avant, apres, jetons: relecture.jetons, dollars, candidats: candidats.length, rendus: vision.size, appliquees: sourcesVision }, null, 1),
+  JSON.stringify({ avant, apres, jetons: relecture.jetons, cout: relecture.cout, candidats: candidats.length, rendus: vision.size, appliquees: sourcesVision }, null, 1),
 );

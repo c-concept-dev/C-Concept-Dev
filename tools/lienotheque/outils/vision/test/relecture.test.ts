@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { DemandeVision, Recette, ReponseVision, ZONES_MAX_PAR_APPEL, type ZoneLue } from "@lienotheque/contrats";
 import type { ImageGrise } from "@lienotheque/images";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { cacheDansDossier, entreesGardees, relire, type Candidat, type Transport } from "../src/index.js";
+import { cacheDansDossier, coutEnEuros, coutProjete, entreesGardees, relire, TARIF_PAR_DEFAUT, type Candidat, type Transport } from "../src/index.js";
 
 const RECETTES = join(import.meta.dirname, "../../../fixtures/recettes");
 const lire = (nom: string): Recette => Recette.parse(JSON.parse(readFileSync(join(RECETTES, nom), "utf8")));
@@ -204,5 +204,91 @@ describe("le cache ne sert jamais une entrée douteuse (REC-02)", () => {
     writeFileSync(join(dossier, `${empreinte}.json`), JSON.stringify({ zone: { empreinte, numero: -1, confiance: 2 } }));
     expect(cache.lire(empreinte)).toBeUndefined();
     expect(entreesGardees(dossier)).toBe(0);
+  });
+});
+
+describe("le plafond de dépense s'arrête avant l'appel qui le dépasserait (REC-04)", () => {
+  /** Un transport qui rapporte des jetons réalistes : le coût fixe d'un appel, plus les zones. */
+  const transportFacture = (): Transport & { appels: number } => {
+    const fonction = (async (demande: DemandeVision) => {
+      fonction.appels += 1;
+      return ReponseVision.parse({
+        zones: demande.zones.map((zone, rang) => ({ empreinte: zone.empreinte, numero: 10 + rang, confiance: 0.8 })),
+        jetons: { entree: 1058 + demande.zones.length * 37, sortie: demande.zones.length * 30 },
+        outil: { nom: "vision-ciblee", version: "0.1.0" },
+      });
+    }) as Transport & { appels: number };
+    fonction.appels = 0;
+    return fonction;
+  };
+
+  const avecPlafondCout = (euros: number | undefined): Recette => ({
+    ...RECETTE,
+    vision: { zones_max_par_lot: 300, zones_max_par_page: 6, ...(euros === undefined ? {} : { cout_max_eur: euros }) },
+  });
+
+  it("compte ce qui a été dépensé sur les jetons rapportés, pas sur l'estimation", async () => {
+    const transport = transportFacture();
+    const vue = await relire([candidat(1), candidat(2)], (c) => page(c.numero), RECETTE, transport);
+    expect(vue.cout).toBeCloseTo(coutEnEuros(vue.jetons, TARIF_PAR_DEFAUT), 10);
+    expect(vue.cout).toBeGreaterThan(0);
+  });
+
+  it("refuse l'appel qui ferait dépasser, et n'en fait aucun quand le plafond est minuscule", async () => {
+    const transport = transportFacture();
+    const vue = await relire([candidat(1), candidat(2)], (c) => page(c.numero), avecPlafondCout(0.0000001), transport);
+    expect(transport.appels).toBe(0);
+    expect(vue.relues).toEqual([]);
+    expect(vue.cout).toBe(0);
+    expect(vue.nonRelus.map((reste) => reste.raison)).toEqual(["cout", "cout"]);
+  });
+
+  it("laisse passer le premier appel et refuse le second quand le plafond tient entre les deux", async () => {
+    const transport = transportFacture();
+    // Vingt zones par appel : le plafond est posé juste au-dessus d'un appel plein.
+    const candidats = Array.from({ length: 40 }, (_, rang) => candidat(rang + 1));
+    const unAppel = coutProjete(20, TARIF_PAR_DEFAUT);
+    const vue = await relire(candidats, (c) => page(c.numero), avecPlafondCout(unAppel * 1.5), transport);
+
+    expect(transport.appels).toBe(1);
+    expect(vue.relues).toHaveLength(20);
+    expect(vue.nonRelus).toHaveLength(20);
+    expect(vue.nonRelus.every((reste) => reste.raison === "cout")).toBe(true);
+    expect(vue.cout).toBeLessThanOrEqual(unAppel * 1.5);
+  });
+
+  it("ne reprend pas un appel plus petit après un refus : l'arrêt est net, pas poreux", async () => {
+    const transport = transportFacture();
+    // 25 candidats : un appel de 20, puis un de 5. Si l'arrêt était poreux, le petit passerait.
+    const candidats = Array.from({ length: 25 }, (_, rang) => candidat(rang + 1));
+    const vue = await relire(candidats, (c) => page(c.numero), avecPlafondCout(0.0000001), transport);
+    expect(transport.appels).toBe(0);
+    expect(vue.nonRelus).toHaveLength(25);
+  });
+
+  it("ne plafonne rien quand la recette ne déclare aucun coût maximal", async () => {
+    const transport = transportFacture();
+    const vue = await relire([candidat(1), candidat(2)], (c) => page(c.numero), avecPlafondCout(undefined), transport);
+    expect(transport.appels).toBe(1);
+    expect(vue.relues).toHaveLength(2);
+  });
+
+  it("prend le tarif qu'on lui donne : un prix affiché change sans nous", async () => {
+    const transport = transportFacture();
+    const cher = { entreeParMillion: 1000, sortieParMillion: 5000 };
+    const vue = await relire([candidat(1)], (c) => page(c.numero), avecPlafondCout(0.2), transport, { tarif: cher });
+    expect(transport.appels).toBe(0);
+    expect(vue.nonRelus[0]?.raison).toBe("cout");
+  });
+
+  it("ne fait pas payer une entrée gardée : un rejeu ne consomme aucun plafond", async () => {
+    const cache = cacheDansDossier(dossier);
+    const candidats = [candidat(1), candidat(2)];
+    await relire(candidats, (c) => page(c.numero), RECETTE, transportFacture(), { cache });
+
+    const rejeu = await relire(candidats, (c) => page(c.numero), avecPlafondCout(0.0000001), jamais, { cache });
+    expect(rejeu.relues).toHaveLength(2);
+    expect(rejeu.cout).toBe(0);
+    expect(rejeu.nonRelus).toEqual([]);
   });
 });

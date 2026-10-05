@@ -65,7 +65,8 @@
   },
   "vision": {
     "zones_max_par_lot": 300,
-    "zones_max_par_page": 6
+    "zones_max_par_page": 6,
+    "cout_max_eur": 0.2
   },
   "validation": {
     "seuil_confiance": 0.6

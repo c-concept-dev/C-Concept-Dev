@@ -21,8 +21,12 @@ import { recadrerPour } from "./recadrage.js";
  *  1. **Un rejeu ne rappelle personne.** Ce qui a été lu est gardé sous l'empreinte de son image.
  *     Relire le même lot ne fait aucun appel — un test le prouve en passant un transport qui lève
  *     dès qu'on le touche.
- *  2. **Le budget s'arrête net.** Le plafond vient de la recette. Atteint, les pavés restants ne
- *     sont pas lus et ne disparaissent pas : ils remontent, et c'est à Vérifier de les montrer.
+ *  2. **Le budget s'arrête net.** Deux plafonds, tous deux venus de la recette : un nombre de
+ *     zones, et une dépense. Atteints, les pavés restants ne sont pas lus et ne disparaissent
+ *     pas : ils remontent avec leur raison, et c'est à Vérifier de les montrer. La dépense est
+ *     comptée sur les jetons que les réponses rapportent, jamais sur une estimation — mais c'est
+ *     bien une estimation qui décide d'un appel, puisqu'on arrête **avant** celui qui ferait
+ *     dépasser, pas après.
  *  3. **Rien n'entre sans contrat.** La demande est validée avant de partir, la réponse après être
  *     revenue, et le recoupement zone par zone est fait ici aussi — l'appelant d'un réseau ne
  *     fait jamais confiance à ce qui en revient. */
@@ -30,6 +34,40 @@ import { recadrerPour } from "./recadrage.js";
 /** Le transport. Ce que l'application met derrière est un appel au Worker ; ce que les tests
  *  mettent derrière est ce qu'ils veulent éprouver. Aucune clé ne passe par ici. */
 export type Transport = (demande: DemandeVision) => Promise<ReponseVision>;
+
+/** Ce qu'un million de jetons coûte, en euros.
+ *
+ *  Ces nombres ne viennent d'aucune mesure : c'est un prix affiché, et il change sans nous. Il est
+ *  donc remplaçable par l'appelant, et la valeur par défaut dit de quoi elle est tirée — le tarif
+ *  en dollars de Claude Haiku 4.5, converti au taux nommé ci-dessous. Si l'un des trois bouge, il
+ *  bouge ici et nulle part ailleurs. */
+export type Tarif = { readonly entreeParMillion: number; readonly sortieParMillion: number };
+const DOLLARS_PAR_EURO = 1.08;
+export const TARIF_PAR_DEFAUT: Tarif = { entreeParMillion: 1 / DOLLARS_PAR_EURO, sortieParMillion: 5 / DOLLARS_PAR_EURO };
+
+/** Ce qu'un appel coûtera, à peu près, avant de le faire.
+ *
+ *  Mesuré sur de vrais pavés : un appel coûte 1058 jetons d'entrée quelle que soit sa taille — la
+ *  consigne et le schéma de l'outil pèsent presque tout — et une trentaine de jetons de plus par
+ *  zone. C'est ce qui rend le groupement par vingt plus décisif que la taille des images.
+ *
+ *  Une estimation, donc, et assumée comme telle : elle sert à décider d'un appel, pas à compter ce
+ *  qui a été dépensé. Ce qui est dépensé vient des réponses. */
+const JETONS_FIXES_PAR_APPEL = 1058;
+const JETONS_ENTREE_PAR_ZONE = 37;
+/** Le formulaire rendu est court — une empreinte, un nombre, une confiance. Majoré à dessein :
+ *  une projection qui sous-estime laisserait passer l'appel qu'on voulait refuser. */
+const JETONS_SORTIE_PAR_ZONE = 40;
+
+export const coutEnEuros = (jetons: { readonly entree: number; readonly sortie: number }, tarif: Tarif = TARIF_PAR_DEFAUT): number =>
+  (jetons.entree / 1e6) * tarif.entreeParMillion + (jetons.sortie / 1e6) * tarif.sortieParMillion;
+
+/** Ce qu'un appel de `zones` zones coûterait, selon la mesure. */
+export const coutProjete = (zones: number, tarif: Tarif = TARIF_PAR_DEFAUT): number =>
+  coutEnEuros(
+    { entree: JETONS_FIXES_PAR_APPEL + zones * JETONS_ENTREE_PAR_ZONE, sortie: zones * JETONS_SORTIE_PAR_ZONE },
+    tarif,
+  );
 
 export type CacheVision = {
   lire(empreinte: string): EntreeCacheVision | undefined;
@@ -84,14 +122,18 @@ export type Relecture = {
   readonly relues: readonly ZoneRelue[];
   /** Les pavés que le budget a laissés de côté, ou dont le recadrage n'a pas pu être fait. Ils ne
    *  disparaissent pas : l'appelant les porte à Vérifier. */
-  readonly nonRelus: readonly { readonly candidat: Candidat; readonly raison: "budget" | "recadrage" }[];
+  readonly nonRelus: readonly { readonly candidat: Candidat; readonly raison: "budget" | "cout" | "recadrage" }[];
   readonly jetons: { readonly entree: number; readonly sortie: number };
+  /** Ce qui a réellement été dépensé, d'après les jetons que les réponses ont rapportés. */
+  readonly cout: number;
   readonly appels: number;
   readonly depuisLeCache: number;
 };
 
 export type OptionsRelecture = {
   readonly cache?: CacheVision;
+  /** Prix du million de jetons. Par défaut, le tarif affiché converti en euros. */
+  readonly tarif?: Tarif;
   /** Intervalle que la recette autorise : de 1 au nombre de pistes du support (REC-05). */
   readonly attendu?: { readonly min: number; readonly max: number };
 };
@@ -109,12 +151,19 @@ export async function relire(
   options: OptionsRelecture = {},
 ): Promise<Relecture> {
   const plafond = recette.vision?.zones_max_par_lot ?? 0;
+  const plafondCout = recette.vision?.cout_max_eur;
+  const tarif = options.tarif ?? TARIF_PAR_DEFAUT;
   const relues: ZoneRelue[] = [];
-  const nonRelus: { candidat: Candidat; raison: "budget" | "recadrage" }[] = [];
+  const nonRelus: { candidat: Candidat; raison: "budget" | "cout" | "recadrage" }[] = [];
   const jetons = { entree: 0, sortie: 0 };
   let appels = 0;
   let depuisLeCache = 0;
   let payees = 0;
+  let cout = 0;
+  /** Vrai dès qu'un appel a été refusé par le plafond de dépense : tout ce qui suit l'est aussi.
+   *  Sans cela on continuerait d'essayer, et un appel plus petit passerait là où un plus grand a
+   *  été refusé — l'arrêt serait net pour les uns et poreux pour les autres. */
+  let coutEpuise = false;
 
   /** Ce qui attend un appel : le pavé recadré, et le candidat qui l'a produit. */
   const enAttente: { candidat: Candidat; zone: ZoneAlire }[] = [];
@@ -122,12 +171,22 @@ export async function relire(
   const vider = async (): Promise<void> => {
     if (enAttente.length === 0) return;
     const lot = enAttente.splice(0, enAttente.length);
-    const demande = DemandeVision.parse({ alphabet: "chiffres", zones: lot.map((entree) => entree.zone) });
 
+    // On s'arrête **avant** l'appel qui ferait dépasser, pas après : un plafond qu'on constate
+    // après coup n'est pas un plafond. La projection est mesurée, et la dépense comptée sur les
+    // réponses — la première décide, la seconde fait foi.
+    if (plafondCout !== undefined && cout + coutProjete(lot.length, tarif) > plafondCout) {
+      coutEpuise = true;
+      for (const { candidat } of lot) nonRelus.push({ candidat, raison: "cout" });
+      return;
+    }
+
+    const demande = DemandeVision.parse({ alphabet: "chiffres", zones: lot.map((entree) => entree.zone) });
     const reponse = await transport(demande);
     appels += 1;
     jetons.entree += reponse.jetons.entree;
     jetons.sortie += reponse.jetons.sortie;
+    cout += coutEnEuros(reponse.jetons, tarif);
 
     // On ne fait pas confiance à ce qui revient d'un réseau, même validé par son contrat : il
     // reste à vérifier que cela répond bien à ce qu'on a demandé.
@@ -164,6 +223,10 @@ export async function relire(
     }
 
     // Arrêt net : au plafond, on ne lit plus, et on ne perd rien de ce qui restait.
+    if (coutEpuise) {
+      nonRelus.push({ candidat, raison: "cout" });
+      continue;
+    }
     if (payees >= plafond) {
       nonRelus.push({ candidat, raison: "budget" });
       continue;
@@ -174,5 +237,5 @@ export async function relire(
   }
   await vider();
 
-  return { relues, nonRelus, jetons, appels, depuisLeCache };
+  return { relues, nonRelus, jetons, cout, appels, depuisLeCache };
 }

@@ -85,7 +85,10 @@ describe("relecture ciblée déclarée par la recette (REC-01, OUT-08)", () => {
   const v5 = () => chargerRecette(lire("methode-pastilles-cd.v5.json"));
 
   it("se déclare avec ses plafonds, et c'est ce qui change de la v4", () => {
-    expect(v5().vision).toEqual({ zones_max_par_lot: 300, zones_max_par_page: 6 });
+    // Les trois plafonds sont mesurés : 184 pavés relevés sur les clichés de référence pour un
+    // plafond de 300, 1,4 par page pour un plafond de 6, et 0,045 $ pour le lot entier — d'où
+    // 0,20 € de plafond de dépense, environ cinq fois ce qu'un lot coûte.
+    expect(v5().vision).toEqual({ zones_max_par_lot: 300, zones_max_par_page: 6, cout_max_eur: 0.2 });
     expect(chargerRecette(lire("methode-pastilles-cd.v4.json")).vision).toBeUndefined();
     expect(filiation(v5())).toBe("methode-pastilles-cd v5 (dérivée de methode-pastilles-cd v4)");
   });
@@ -110,9 +113,11 @@ describe("relecture ciblée déclarée par la recette (REC-01, OUT-08)", () => {
       expect(() => chargerRecette({ ...recette, vision }), JSON.stringify(vision)).toThrow(RecetteInvalide);
   });
 
-  it("laisse le coût de côté tant qu'il n'est pas mesuré : on ne plafonne pas une estimation", () => {
+  it("porte un coût qui a été mesuré, et accepte de ne pas en porter du tout", () => {
     const recette = lire("methode-pastilles-cd.v5.json") as Record<string, unknown>;
-    expect(v5().vision?.cout_max_eur).toBeUndefined();
-    expect(chargerRecette({ ...recette, vision: { zones_max_par_lot: 300, zones_max_par_page: 6, cout_max_eur: 0.5 } }).vision?.cout_max_eur).toBe(0.5);
+    // Il a été mesuré, il est donc écrit. Avant la mesure il était absent, et le schéma le permet
+    // toujours : on ne plafonne pas une estimation, et une recette neuve n'a rien à plafonner.
+    expect(v5().vision?.cout_max_eur).toBe(0.2);
+    expect(chargerRecette({ ...recette, vision: { zones_max_par_lot: 300, zones_max_par_page: 6 } }).vision?.cout_max_eur).toBeUndefined();
   });
 });
