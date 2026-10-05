@@ -14,6 +14,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { coin, ouvrirCache } from "@lienotheque/cache";
 import { chargerRecette, preparerLot, reperer } from "@lienotheque/recettes";
+import { recadrer } from "@lienotheque/images";
 import { candidatsDePage, recadrerPour, type Candidat, type ElementAsonder } from "../src/index.js";
 
 const RACINE = join(import.meta.dirname, "../../..");
@@ -48,6 +49,9 @@ const jugements = new Map<number, Jugement>();
 const taille = (valeur: number | undefined): number => (valeur === undefined ? 0 : String(valeur).length);
 
 const retenus: (Candidat & { octets: number; jugement: Jugement })[] = [];
+/** Les pavés en gris, gardés tels quels : la mesure des jetons les reprendra sans relire les
+ *  clichés, et pourra les agrandir pour éprouver plusieurs échelles. */
+const paves: { numero: number; cliche: number; cote: string; motif: string; largeur: number; hauteur: number; pixels: string }[] = [];
 const manques: { numero: number; lu: number | undefined; oracle: number }[] = [];
 let elementsVus = 0;
 let pagesSansGris = 0;
@@ -93,6 +97,17 @@ for await (const page of preparerLot(F4, RECETTE, { pages: dernier + 1, cache: l
     }
     writeFileSync(join(sortie, `c${candidat.page}-${candidat.cote ?? "x"}-n${candidat.numero}-${candidat.motif}.webp`), produit.octets);
     retenus.push({ ...candidat, octets: produit.octets.length, jugement: jugements.get(candidat.numero) ?? "inconnu_de_loracle" });
+
+    const gris = recadrer(source, candidat.recadrage);
+    paves.push({
+      numero: candidat.numero,
+      cliche: candidat.page,
+      cote: candidat.cote ?? "—",
+      motif: candidat.motif,
+      largeur: gris.largeur,
+      hauteur: gris.hauteur,
+      pixels: Buffer.from(gris.pixels).toString("base64"),
+    });
   }
 }
 
@@ -128,4 +143,5 @@ writeFileSync(
   join(sortie, "candidats.json"),
   JSON.stringify({ premier, dernier, elementsVus, retenus: retenus.map(({ octets, ...reste }) => ({ ...reste, octets })), manques }, null, 1),
 );
-console.log(`\nRecadrages et relevé écrits dans ${sortie}`);
+writeFileSync(join(sortie, "paves.json"), JSON.stringify(paves));
+console.log(`\nRecadrages, pavés en gris et relevé écrits dans ${sortie}`);
