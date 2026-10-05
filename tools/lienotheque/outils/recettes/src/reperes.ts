@@ -250,7 +250,12 @@ export function presenceDeForme(zone: ImageGrise, forme: Boite | undefined, haut
  *  À égalité de voix, la valeur la plus longue l'emporte quand l'autre en est la fin : « 13 » lu
  *  « 3 » est l'échec courant d'un moteur d'OCR — il perd le chiffre de tête, collé au bord du
  *  pavé —, tandis qu'inventer un chiffre est rare. Hors de ce cas, la plus petite, pour que deux
- *  exécutions s'accordent toujours. */
+ *  exécutions s'accordent toujours.
+ *
+ *  Étendre cette préférence au-delà de l'égalité — la forme complète l'emportant dès un tiers des
+ *  voix — a été essayé et n'a **rien** changé : sur les treize clichés de référence, les dix
+ *  lectures fausses restantes ne contiennent jamais la forme complète dans leurs voix. Le chiffre
+ *  manquant n'est pas mal élu, il n'est pas lu. La règle est donc restée telle quelle. */
 export function vote(valeurs: readonly number[]): { valeur: number; accord: number } | undefined {
   if (valeurs.length === 0) return undefined;
   const comptes = new Map<number, number>();
@@ -274,6 +279,16 @@ export type BlocPiste = { readonly presence: number; readonly votes: readonly nu
 /** Seuils tentés sur le bloc, en part du ton clair local. Plusieurs seuils, plusieurs lectures :
  *  un chiffre clair sur fond sombre ne se détache pas au même endroit selon la lumière. */
 const SEUILS = [0.45, 0.6, 0.75] as const;
+
+/** Seuils pris sur le morceau lui-même, à son propre percentile.
+ *
+ *  Portés du prototype de référence, qui les calcule sur la vignette qu'il va lire plutôt que
+ *  sur la zone entière. La différence compte : une pastille est un petit bloc sombre dans une
+ *  zone majoritairement claire, et un seuil tiré de la zone tombe souvent trop haut pour
+ *  détacher ses chiffres. Mesuré sur les clichés de référence, le prototype redresse ainsi onze
+ *  de nos dix-huit échecs — mais il en manque dix que nous lisons. Les deux familles sont donc
+ *  gardées : ce sont des voix de plus, pas un remplacement. */
+const SEUILS_PERCENTILE = [0.45, 0.6] as const;
 /** En deçà, une forme est un trait ou une lettre, pas un pavé. Un losange occupe la moitié de sa
  *  boîte, un bloc les trois quarts ; un « C », un « D » ou une ligne de portée, bien moins. */
 const REMPLISSAGE_MINIMAL = 0.45;
@@ -282,7 +297,12 @@ const REMPLISSAGE_MINIMAL = 0.45;
  *
  *  Le pavé entier d'abord : l'étiquette est une forme à part, et le choix de forme l'a déjà
  *  écartée. Les parts qui suivent ne servent que si elle s'est collée au pavé malgré tout. */
-const PARTS_ETIQUETTE = [1, 0.75, 0.6] as const;
+/** Parts du bloc tentées quand une étiquette en occupe la gauche.
+ *
+ *  Les trois premières sont les nôtres, les deux dernières viennent du prototype, qui coupe plus
+ *  court. Ensemble elles couvrent du bloc entier à ses deux cinquièmes droits : l'étiquette
+ *  n'occupe pas la même part selon la taille du repère, et c'est le vote qui tranche. */
+const PARTS_ETIQUETTE = [1, 0.75, 0.6, 0.5, 0.42] as const;
 
 /** En deçà, il n'y a pas de repère à lire : inutile de faire travailler l'OCR sur du papier.
  *
@@ -387,8 +407,14 @@ export function lireBlocPiste(
       const morceau = recadrer(bloc, { x: depart, y: 0, l: bloc.largeur - depart, h: bloc.hauteur });
       if (morceau.largeur === 0 || morceau.hauteur === 0) continue;
 
-      for (const seuil of SEUILS) {
-        const net = border(agrandir(inverser(seuiller(morceau, Math.round(clair * seuil))), 5), 25);
+      // Deux familles de seuils : une part du ton clair de la zone, et le propre percentile du
+      // morceau. Elles ne se trompent pas aux mêmes endroits, et c'est tout l'intérêt.
+      const tons = [
+        ...SEUILS.map((seuil) => Math.round(clair * seuil)),
+        ...SEUILS_PERCENTILE.map((part) => tonClair(morceau, part)),
+      ];
+      for (const ton of new Set(tons)) {
+        const net = border(agrandir(inverser(seuiller(morceau, Math.max(1, ton))), 5), 25);
         for (const segmentation of [7, 8]) {
           const lu = premierEntier(
             ocr(net, segmentation, options, CHIFFRES)
@@ -509,13 +535,16 @@ export function lecturesDePage(image: ImageGrise, recette: Recette, options: Opt
  *  et les zones n'arrivaient nulle part sans qu'une seule erreur ne le dise. Un cache qui ne
  *  connaît pas la forme de ce qu'il garde finit par servir le passé.
  *
+ *  5 : la relecture d'un repère tente deux familles de seuils et cinq parts du bloc, au lieu
+ *  d'une famille et de trois parts.
+ *
  *  4 : une lecture rapporte aussi où le repère a été trouvé, pour que la bande du Lecteur le
  *  contienne au lieu de le couper.
  *
  *  3 : l'orientation du lot est désormais votée au lieu d'être crue sur parole. Ce n'est pas la
  *  forme d'une lecture qui change, c'est ce qu'elle lit — une page remise à l'endroit rend six
  *  éléments là où elle n'en rendait aucun. La version compte donc aussi pour cela. */
-export const VERSION_LECTURE = 4;
+export const VERSION_LECTURE = 5;
 
 /** Hauteur en deçà de laquelle deux lectures parlent du même élément. */
 const MEME_HAUTEUR = 0.03;
