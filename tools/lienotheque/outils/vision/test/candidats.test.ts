@@ -143,3 +143,30 @@ describe("candidats d'une page (OUT-08, REC-04)", () => {
     expect(candidatsDePage(donnee, AVEC)).toEqual(candidatsDePage(donnee, AVEC));
   });
 });
+
+describe("un éclat n'est pas un repère (OUT-08)", () => {
+  /** Relevé sur les clichés : le lecteur rend parfois une forme de trois pixels de large pour
+   *  dix-huit de haut. Son recadrage ne contient rien, et l'envoyer serait payer pour rien. */
+  const eclat: ZoneRelative = { x: 0.2, y: 0.4, l: 3 / 1786, h: 18 / 2410 };
+
+  it("ne part pas, quel que soit le motif", () => {
+    const proportions = { largeur: 1786, hauteur: 2410 };
+    expect(motifDeRelecture(element({ zoneRepere: eclat, pisteLue: undefined }), proportions)).toBeUndefined();
+    expect(motifDeRelecture(element({ zoneRepere: eclat, pisteLue: 1, chiffresComptes: 2 }), proportions)).toBeUndefined();
+  });
+
+  it("et les vrais pavés passent : ils sont à peu près aussi larges que hauts", () => {
+    const proportions = { largeur: 1786, hauteur: 2410 };
+    // Le plus étroit des vrais repères mesurés : 31 × 42 px.
+    const etroit: ZoneRelative = { x: 0.2, y: 0.4, l: 31 / 1786, h: 42 / 2410 };
+    expect(motifDeRelecture(element({ zoneRepere: etroit, pisteLue: 1, chiffresComptes: 2 }), proportions)).toBe("lecture_incomplete");
+  });
+
+  it("la sélection d'une page l'écarte d'elle-même", () => {
+    expect(candidatsDePage(page([element({ zoneRepere: eclat, pisteLue: undefined })]), AVEC)).toEqual([]);
+  });
+
+  it("sans proportions, la règle ne s'applique pas : une zone relative seule ne dit rien", () => {
+    expect(motifDeRelecture(element({ zoneRepere: eclat, pisteLue: undefined }))).toBe("sans_lecture");
+  });
+});

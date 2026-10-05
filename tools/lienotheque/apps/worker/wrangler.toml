@@ -1,0 +1,40 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# ATTENTION AU DÉPLOIEMENT
+#
+# Toujours déployer ainsi, depuis ce dossier, avec « --config » :
+#
+#     npx wrangler deploy --config wrangler.toml
+#
+# SANS « --config », wrangler remonte à la racine du dépôt et prend
+# wrangler.jsonc, qui est le site statique « c-concept-dev » : il le
+# remplacerait par cette API. Le même piège est documenté dans
+# « Worker/wrangler.toml », qui l'a rencontré.
+#
+# Et jamais depuis la racine : « Worker/ » appartient à clone-proxy, dont
+# Studio Clinique dépend, et tout changement dans ce dossier le redéploie
+# automatiquement. Ce fichier-ci ne le concerne pas.
+#
+# Un essai à blanc montre ce qui partirait, sans rien envoyer :
+#
+#     npx wrangler deploy --config wrangler.toml --dry-run
+#
+# ══════════════════════════════════════════════════════════════════════════════
+
+name = "lienotheque-api"
+main = "src/index.ts"
+compatibility_date = "2026-03-08"
+
+# ── Les secrets ne sont pas ici, et n'y seront jamais ─────────────────────────
+#
+# « ANTHROPIC_API_KEY » et « JETON_ACCES » sont posés à la main sur le Worker,
+# hors du dépôt, et n'apparaissent dans aucun fichier, journal ni réponse :
+#
+#     npx wrangler secret put ANTHROPIC_API_KEY --config wrangler.toml
+#     npx wrangler secret put JETON_ACCES       --config wrangler.toml
+#
+# Pour une mise au point locale, « wrangler dev » lit « .dev.vars », qui est
+# ignoré par git et ne doit jamais y entrer.
+#
+# Aucune section [vars] : une variable déclarée ici serait en clair dans le
+# dépôt public. Les deux secrets sont lus par le code depuis les liaisons de
+# l'hébergeur, et la route refuse d'ouvrir si l'un manque.

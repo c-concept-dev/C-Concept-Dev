@@ -68,6 +68,19 @@ export type Candidat = {
  *  bordure du pavé ne soit plus le bord de l'image, pas assez pour y faire entrer le voisin. */
 const MARGE_RELATIVE = 0.4;
 
+/** Largeur minimale d'un repère, en parts de sa hauteur.
+ *
+ *  Un repère qui porte un ou deux chiffres est à peu près aussi large que haut. Mesuré sur les
+ *  clichés de référence : les vrais pavés vont de 0,71 à 1,07, et les deux éclats que le lecteur
+ *  avait pris pour des repères font 0,10 et 0,17 — trois pixels de large pour dix-huit de haut.
+ *  Leur recadrage ne contenait rien de lisible, et l'envoyer aurait été payer pour rien.
+ *
+ *  Le lecteur, lui, les accepte : une forme pleine et étroite passe son test de présence, qui
+ *  juge le remplissage et la hauteur mais pas la largeur. Le resserrer changerait les lectures,
+ *  donc les mesures, donc cela se fera à part ; d'ici là la sélection se protège elle-même, et
+ *  c'est de toute façon à elle de ne pas envoyer ce qui ne peut pas être lu. */
+const LARGEUR_MINIMALE = 0.35;
+
 const chiffresDe = (valeur: number | undefined): number => (valeur === undefined ? 0 : String(valeur).length);
 
 /** Ce repère mérite-t-il une relecture, et pourquoi ?
@@ -75,8 +88,15 @@ const chiffresDe = (valeur: number | undefined): number => (valeur === undefined
  *  `undefined` veut dire non, et c'est le cas de la plupart. Noter qu'aucun seuil de présence
  *  n'apparaît ici : `zoneRepere` n'est rendu par le lecteur que lorsqu'il a vu une forme franche,
  *  si bien que son existence porte déjà ce jugement. Le redoubler ici le ferait diverger. */
-export function motifDeRelecture(element: ElementAsonder): MotifDeRelecture | undefined {
+export function motifDeRelecture(element: ElementAsonder, proportions?: { largeur: number; hauteur: number }): MotifDeRelecture | undefined {
   if (element.zoneRepere === undefined) return undefined;
+  // Un repère trop étroit pour porter un chiffre n'est pas un repère : c'est un éclat du
+  // seuillage, et son image ne dirait rien à personne.
+  if (proportions !== undefined) {
+    const large = element.zoneRepere.l * proportions.largeur;
+    const haut = element.zoneRepere.h * proportions.hauteur;
+    if (large < haut * LARGEUR_MINIMALE) return undefined;
+  }
   if (element.pisteLue === undefined) return "sans_lecture";
   if ((element.chiffresComptes ?? 0) > chiffresDe(element.pisteLue)) return "lecture_incomplete";
   return undefined;
@@ -120,9 +140,10 @@ export function recadrageDuRepere(zone: ZoneRelative, image: ImageGrise): Boite 
 export function candidatsDePage(page: PageAsonder, recette: Recette): Candidat[] {
   if (recette.vision === undefined) return [];
 
+  const proportions = { largeur: page.image.largeur, hauteur: page.image.hauteur };
   const trouves: Candidat[] = [];
   for (const element of [...page.elements].sort((a, b) => a.y - b.y || a.numero - b.numero)) {
-    const motif = motifDeRelecture(element);
+    const motif = motifDeRelecture(element, proportions);
     if (motif === undefined) continue;
 
     const recadrage = recadrageDuRepere(element.zoneRepere!, page.image);
