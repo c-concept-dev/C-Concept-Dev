@@ -868,3 +868,85 @@ des candidats sont déjà faits.
 
 La partie corrective a donc été arrêtée sans toucher à la fenêtre : corriger ce qui n'est pas
 cassé aurait coûté une régression pour rien.
+
+## Les pastilles à deux chiffres, et ce que le prototype avait de plus
+
+Le reliquat de F4 tenait au rendement de lecture des pastilles. Restait à savoir où exactement.
+
+### Ce n'est pas la couverture
+
+Sur les treize clichés de référence, 87 éléments lus sur 122 ne portent aucune pastille lue par
+nous. Comparé à l'oracle élément par élément : **82 n'en portent aucune** — il ne la trouve pas
+davantage. Sur les cinq qui en ont une, il n'en a réellement lu que trois, les deux autres étant
+déduites par la séquence.
+
+Nous en manquons donc trois, pas quatre-vingt-sept. La formulation « 87 éléments sans pastille
+lisible », employée dans un rapport précédent, confondait l'absence de repère avec un échec de
+lecture.
+
+### Le prototype n'est pas meilleur, il est complémentaire
+
+Comparé à voix égales — tous ses votes consolidés contre les nôtres — sur 39 éléments :
+
+| | justes |
+|---|---:|
+| Notre lecteur | 21 / 39 |
+| Prototype, trois passes | 22 / 39 |
+| **Au moins l'un des deux** | **32 / 39** |
+
+Il redresse onze de nos dix-huit échecs, et échoue sur dix que nous lisons. Le porter en
+remplacement aurait été un échange nul ; c'est l'union qui vaut.
+
+Deux différences expliquent la complémentarité, et toutes deux ont été portées **en voix
+supplémentaires** : il tire ses seuils du percentile du petit morceau qu'il s'apprête à lire, là
+où nous les tirions du ton clair de la zone entière ; et il coupe l'étiquette plus court — deux
+cinquièmes du bloc — là où nous nous arrêtions aux trois cinquièmes.
+
+### Le défaut réel : deux chiffres, un seul lu
+
+| | justes |
+|---|---:|
+| Pistes à **un** chiffre | **13 / 13** |
+| Pistes à **deux** chiffres | **9 / 19** |
+
+Les dix erreurs restantes sont toutes des pistes à deux chiffres dont un seul est lu — 11 lu 1,
+12 lu 2, 19 lu 1 — et la même valeur réussit ailleurs : ce n'est pas le nombre, c'est l'image.
+
+### Ce que cela a donné
+
+| | avant | après | critère |
+|---|---:|---:|---:|
+| F4 — premiers éléments justes | 52 / 92 | **61 / 92** | 83 |
+| F4 — pages justes | 67 / 92 | **77 / 92** | 89 |
+| F3 | 95 / 95 | **95 / 95** | 95 |
+
+Lecture du lot : 3308 s contre 2931, soit treize pour cent de plus — la relecture ne concerne que
+les éléments portant une pastille.
+
+Le gain ne vient pas du nombre de lectures justes, qui ne monte que d'une sur trente-deux. Il
+vient de leur **nature** : les inventions de chiffre ont disparu. Une lecture « 41 » là où la
+piste est 1 donne un faux soutien à la piste 41 ; une troncature « 1 » pour 11 n'en donne qu'un
+partiel, que l'attribution pondère. Changer la nature des erreurs valait plus que d'en changer le
+nombre.
+
+Reliquat : 32 écarts, dont **16 dérives de −1** (contre 27), 10 à la bonne piste mais au mauvais
+premier élément, 1 à +1, 5 inconnus de l'oracle.
+
+### Une idée essayée et retirée
+
+Le vote préfère la forme complète quand l'autre en est la fin, à égalité de voix. L'étendre
+au-delà de l'égalité — la forme complète l'emportant dès un tiers des voix — paraissait fondé :
+les recadrages étroits ne montrent qu'une partie du bloc et lisent tous la forme tronquée.
+
+Mesuré : **aucun effet**. Les lectures fausses ne contiennent jamais la forme complète dans leurs
+voix. Le chiffre manquant n'est pas mal élu, il n'est pas lu. La règle est revenue telle quelle,
+et le raisonnement reste en commentaire pour qu'on ne le retente pas.
+
+### Ce que la vision ciblée doit viser
+
+Le plan initial visait les numéros d'élément dans la marge. La mesure dit autre chose : ces
+numéros se lisent, et les pastilles à un chiffre aussi. **La seule zone difficile qui reste est le
+bloc d'une pastille à deux chiffres** — un pavé sombre de quelques dizaines de pixels, chiffres
+clairs, parfois flanqué d'une étiquette. Il y en a environ dix-neuf pour quatorze clichés, soit de
+l'ordre de deux cents pour le lot : moins que les neuf cents zones du plan initial, et bien mieux
+ciblées.
