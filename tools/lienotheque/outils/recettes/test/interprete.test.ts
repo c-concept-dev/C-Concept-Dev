@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { ElementRepere } from "@lienotheque/contrats";
-import { chargerRecette, interpreter, numeroterPages, sequencer, type PageLue } from "../src/index.js";
+import { chargerRecette, clefDeVision, interpreter, numeroterPages, sequencer, type LectureParVision, type PageLue, type PageNumerotee } from "../src/index.js";
 
 const RECETTE = chargerRecette(
   JSON.parse(readFileSync(join(import.meta.dirname, "../../../fixtures/recettes/methode-pastille-piste.v2.json"), "utf8")),
@@ -159,5 +159,67 @@ describe("déterminisme (REC-02)", () => {
       JSON.parse(readFileSync(join(import.meta.dirname, "../../../fixtures/recettes/methode-pastille-piste.v1.json"), "utf8")),
     );
     expect(interpreter(lot, v1).recette.version).toBe(1);
+  });
+});
+
+describe("un numéro relu n'est appliqué que si la suite le confirme (ANC-02, OUT-08)", () => {
+  const V5 = chargerRecette(
+    JSON.parse(readFileSync(join(import.meta.dirname, "../../../fixtures/recettes/methode-pastilles-cd.v5.json"), "utf8")),
+  );
+
+  /** Trois éléments sur trois pages, celui du milieu ayant un repère illisible. */
+  const pages = (sur: Partial<ElementRepere> = {}): PageNumerotee[] => [
+    { index: 10, rang: 20, cote: "gauche", pageImprimee: 70, statut: "lue", elements: [element(1, { pisteLue: 11, accordPiste: 1 })] },
+    { index: 11, rang: 22, cote: "gauche", pageImprimee: 71, statut: "lue", elements: [element(2, sur)] },
+    { index: 12, rang: 24, cote: "gauche", pageImprimee: 72, statut: "lue", elements: [element(3, { pisteLue: 13, accordPiste: 1 })] },
+  ];
+
+  const relu = (numero: number, confiance = 0.9): Map<string, LectureParVision> =>
+    new Map([[clefDeVision(11, "gauche", 2), { numero, confiance, outil: { nom: "vision-ciblee", version: "0.1.0" } }]]);
+
+  const deuxieme = (sur: Partial<ElementRepere>, vision?: Map<string, LectureParVision>) =>
+    sequencer(pages(sur), V5, { nombreDePistes: 92, ...(vision === undefined ? {} : { vision }) }).lignes.find((ligne) => ligne.numero === 2)!;
+
+  it("l'applique et le dit quand la suite le confirme", () => {
+    const ligne = deuxieme({}, relu(12));
+    expect(ligne.piste).toBe(12);
+    expect(ligne.sourcePiste).toBe("vision");
+    expect(ligne.confiance).toBeGreaterThanOrEqual(V5.validation.seuil_confiance);
+  });
+
+  it("ne l'applique pas quand la suite tranche ailleurs, et le fait passer sous le seuil", () => {
+    // 47 ne tient pas entre 11 et 13 : la suite impose 12, et la relecture est donc contredite.
+    const ligne = deuxieme({}, relu(47));
+    expect(ligne.piste).not.toBe(47);
+    expect(ligne.sourcePiste).not.toBe("vision");
+    expect(ligne.confiance).toBeLessThan(V5.validation.seuil_confiance);
+  });
+
+  it("reste sous une pastille lue sur place : un seul témoin, pas deux", () => {
+    const parVision = deuxieme({}, relu(12, 1));
+    const surPlace = deuxieme({ pisteLue: 12, accordPiste: 1 });
+    expect(parVision.sourcePiste).toBe("vision");
+    expect(surPlace.sourcePiste).toBe("pastille");
+    expect(parVision.confiance).toBeLessThan(surPlace.confiance);
+  });
+
+  it("l'emporte sur une lecture locale tronquée : c'est pour cela que le pavé est parti", () => {
+    const ligne = deuxieme({ pisteLue: 2, accordPiste: 1 }, relu(12));
+    expect(ligne.piste).toBe(12);
+    expect(ligne.sourcePiste).toBe("vision");
+  });
+
+  it("devient porteur de repère alors que rien n'avait été lu sur la page", () => {
+    expect(deuxieme({}).sourcePiste).not.toBe("vision");
+    expect(deuxieme({}, relu(12)).sourcePiste).toBe("vision");
+  });
+
+  it("ne change rien quand aucune relecture n'est fournie", () => {
+    expect(sequencer(pages(), V5, { nombreDePistes: 92 })).toEqual(sequencer(pages(), V5, { nombreDePistes: 92, vision: new Map() }));
+  });
+
+  it("distingue les deux côtés d'un même cliché", () => {
+    expect(clefDeVision(11, "gauche", 2)).not.toBe(clefDeVision(11, "droite", 2));
+    expect(clefDeVision(11, undefined, 2)).not.toBe(clefDeVision(11, "gauche", 2));
   });
 });

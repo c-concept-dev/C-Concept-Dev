@@ -10,6 +10,25 @@ describe("phrase d'un lien (ANC-02)", () => {
     expect(phraseDuLien(ligne(41, { sourcePiste: "suite" }), MOTS)).toMatch(/reprend la plage/i);
     expect(phraseDuLien(ligne(41, { sourcePiste: "numero_element" }), MOTS)).toMatch(/^Plage et numéro coïncident/);
   });
+
+  it("dit la relecture ciblée, et qu'elle a été confirmée (ANC-02, OUT-08)", () => {
+    const phrase = phraseDuLien(ligne(41, { sourcePiste: "vision" }), MOTS);
+    expect(phrase).toMatch(/relu sur l'image/i);
+    expect(phrase, "la corroboration doit se voir, pas seulement la relecture").toMatch(/confirmé/i);
+    // Règle 8 : aucun jargon visible. Ni « vision », ni « modèle », ni « IA ».
+    expect(phrase).not.toMatch(/vision|modèle|IA\b|OCR/i);
+  });
+});
+
+describe("la preuve d'un lien relu (ANC-02)", () => {
+  it("porte « vision » dans « Pourquoi ce lien », distincte de « lu » et de « sequence »", () => {
+    const preuveDe = (sourcePiste: LigneInterpretee["sourcePiste"]) =>
+      // La piste 1, parce qu'un média doit exister pour qu'il y ait un lien à expliquer.
+      construireVue(entree({ lignes: [ligne(1, { sourcePiste })] })).pages.flatMap((page) => page.elements)[0]?.pourquoi?.preuve;
+    expect(preuveDe("vision")).toBe("vision");
+    expect(preuveDe("pastille")).toBe("lu");
+    expect(preuveDe("sequence")).toBe("sequence");
+  });
 });
 
 describe("instantané pour les écrans (B5)", () => {

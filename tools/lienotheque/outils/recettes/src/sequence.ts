@@ -1,4 +1,4 @@
-import type { ElementRepere } from "@lienotheque/contrats";
+import type { CotePage, ElementRepere } from "@lienotheque/contrats";
 
 /** Mise en séquence des éléments lus (REC-02).
  *
@@ -9,7 +9,13 @@ import type { ElementRepere } from "@lienotheque/contrats";
  *
  *  Porté de `docs/prototypes/westwood_apparier.py`, qui reste l'oracle. */
 
-export type ElementPlace = ElementRepere & { readonly pageImprimee: number; readonly cliche: number };
+export type ElementPlace = ElementRepere & {
+  readonly pageImprimee: number;
+  readonly cliche: number;
+  /** Côté du cliché, quand il a été coupé : deux demi-pages portent le même index, et il faut
+   *  pouvoir les distinguer pour retrouver une relecture ciblée. */
+  readonly cote?: CotePage | undefined;
+};
 
 /** Combien d'éléments en arrière on cherche une ancre. Au-delà, une page entière manquerait. */
 const PORTEE = 40;

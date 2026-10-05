@@ -41,6 +41,11 @@ export function phraseDuLien(ligne: LigneInterpretee, mots: MotsBibliotheque): s
   switch (ligne.sourcePiste) {
     case "pastille":
       return `Repère « ${mots.piste.un} ${ligne.piste} » lu à côté du numéro`;
+    case "vision":
+      // Sans jargon (règle 8) : on dit ce qui s'est passé, pas comment. Et on dit les deux temps,
+      // parce que ANC-02 demande que la corroboration se voie — le numéro ne vient pas d'un seul
+      // regard, il vient d'un regard que la suite a confirmé.
+      return `Repère relu sur l'image, et confirmé par la suite des repères alentour`;
     case "numero_element":
       return `${mots.piste.un[0]!.toUpperCase()}${mots.piste.un.slice(1)} et numéro coïncident dans ce document`;
     case "suite":
@@ -144,7 +149,11 @@ export function construireVue(entree: Entree): VueBibliotheque {
               ...(media.dureeS === undefined ? {} : { duree: media.dureeS }),
               ...(source === undefined ? {} : { source }),
             },
-            pourquoi: { preuve: ligne.sourcePiste === "pastille" ? "lu" : "sequence", confiance: ligne.confiance, phrase: phraseDuLien(ligne, entree.mots) },
+            pourquoi: {
+              preuve: ligne.sourcePiste === "pastille" ? "lu" : ligne.sourcePiste === "vision" ? "vision" : "sequence",
+              confiance: ligne.confiance,
+              phrase: phraseDuLien(ligne, entree.mots),
+            },
           }),
       aVerifier: etat !== undefined,
     };

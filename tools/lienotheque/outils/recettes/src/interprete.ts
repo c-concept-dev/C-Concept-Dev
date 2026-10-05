@@ -151,9 +151,32 @@ export function numeroterPages(
 
 export type { Ecart };
 
+/** Ce qu'une relecture ciblée a lu sur un repère (OUT-08, ANC-02). */
+export type LectureParVision = {
+  readonly numero: number;
+  readonly confiance: number;
+  readonly outil: { readonly nom: string; readonly version: string };
+};
+
+/** Clef d'une relecture : le cliché, son côté, et le numéro que la lecture avait rendu. C'est ce
+ *  triplet que la sélection des pavés connaît, et il doit se retrouver ici sans ambiguïté — deux
+ *  demi-pages d'un même cliché portent le même index. */
+export const clefDeVision = (cliche: number, cote: string | undefined, numero: number): string =>
+  `${cliche}/${cote ?? "—"}:${numero}`;
+
+/** Plafond de confiance d'une piste venue d'une relecture ciblée.
+ *
+ *  Une pastille lue sur place peut atteindre 1 : deux passes d'OCR qui s'accordent sur les mêmes
+ *  chiffres, c'est deux témoins. Une relecture ciblée n'en a qu'un, et rien sur la page ne
+ *  corrobore les chiffres eux-mêmes — c'est le résultat que la suite corrobore, pas la lecture.
+ *  Elle reste donc sous une pastille, tout en passant largement un seuil de recette. */
+const PLAFOND_VISION = 0.85;
+
 export type OptionsSequence = {
   /** Combien de pistes le support compte, su du média et non de son nom (REC-05). */
   readonly nombreDePistes?: number;
+  /** Ce qu'une relecture ciblée a lu, par clef d'élément. Absent, rien ne change. */
+  readonly vision?: ReadonlyMap<string, LectureParVision>;
 };
 
 /** Enchaîne les éléments et leurs pistes, selon les règles de la recette.
@@ -171,7 +194,8 @@ export function sequencer(
   const places: ElementPlace[] = [];
   for (const page of pages) {
     if (page.pageImprimee === undefined) continue;
-    for (const element of page.elements) places.push({ ...element, pageImprimee: page.pageImprimee, cliche: page.index });
+    for (const element of page.elements)
+      places.push({ ...element, pageImprimee: page.pageImprimee, cliche: page.index, ...(page.cote === undefined ? {} : { cote: page.cote }) });
   }
 
   const { numerotes, ecartes } = numeroterElements(places, recette.regles.elements.saut_max);
@@ -179,11 +203,26 @@ export function sequencer(
   // Les porteurs de repère, dans l'ordre : ce sont eux qui commandent la suite des pistes.
   // Un repère vu mais illisible ne suffit pas — la présence seule donne des faux positifs, et
   // chacun d'eux consommerait une piste au détriment de toutes les suivantes.
+  // Ce qu'une relecture ciblée a lu, retrouvé par élément. Elle ne remplace pas la lecture
+  // locale : elle devient une lecture de plus, que l'attribution pèsera comme les autres.
+  const relu = (element: (typeof places)[number]): LectureParVision | undefined =>
+    options.vision?.get(clefDeVision(element.cliche, element.cote, element.numero));
+
   const porteurs: number[] = [];
   numerotes.forEach((element, rang) => {
-    if (element.pisteLue !== undefined) porteurs.push(rang);
+    if (element.pisteLue !== undefined || relu(element) !== undefined) porteurs.push(rang);
   });
-  const lectures = porteurs.map((rang) => ({ ...numerotes[rang]!, numero: numerotes[rang]!.numeroRetenu }));
+  const lectures = porteurs.map((rang) => {
+    const element = numerotes[rang]!;
+    const vision = relu(element);
+    // Quand les deux existent, la relecture l'emporte comme lecture : la locale était tronquée,
+    // c'est précisément pourquoi le pavé est parti.
+    return {
+      ...element,
+      numero: element.numeroRetenu,
+      ...(vision === undefined ? {} : { pisteLue: vision.numero, accordPiste: vision.confiance }),
+    };
+  });
 
   const estimation = Math.max(1, lectures.length, ...lectures.map((lecture) => lecture.pisteLue ?? 0));
   const regles = reglesDePistes(recette, options.nombreDePistes ?? estimation);
@@ -217,6 +256,11 @@ export function sequencer(
       disque = attribution.disque;
       // La pastille fait foi quand elle appuie la piste retenue ; sinon c'est la suite qui décide.
       sourcePiste = element.pisteLue !== undefined && appui(element.pisteLue, piste) >= 1 ? "pastille" : "sequence";
+      // ANC-02 : un numéro relu n'est appliqué que si la suite le confirme. Elle l'a vu comme une
+      // lecture de plus, et si elle a tranché ailleurs c'est qu'elle la contredit — on ne
+      // l'applique pas, et l'élément ira se faire vérifier.
+      const vision = relu(element);
+      if (vision !== undefined) sourcePiste = vision.numero === piste ? "vision" : "sequence";
     } else if (pisteSuitElement) {
       piste = element.numeroRetenu;
       sourcePiste = "numero_element";
@@ -226,15 +270,23 @@ export function sequencer(
     }
     // Sinon : aucun repère n'a encore été vu. L'élément n'a pas de piste, et on n'en invente pas.
 
+    const vision = relu(element);
     const brute =
-      sourcePiste === "pastille"
-        ? Math.min(1, (element.accordNumero + element.accordPiste) / 2 + (element.pisteLue === element.numeroRetenu ? 0.25 : 0))
-        : sourcePiste === "sequence"
-          ? // Tenue par la suite, pas lue sur la page : la confiance le dit.
-            element.accordNumero * 0.8
-          : element.accordNumero;
+      sourcePiste === "vision"
+        ? Math.min(PLAFOND_VISION, vision!.confiance * element.accordNumero)
+        : sourcePiste === "pastille"
+          ? Math.min(1, (element.accordNumero + element.accordPiste) / 2 + (element.pisteLue === element.numeroRetenu ? 0.25 : 0))
+          : sourcePiste === "sequence"
+            ? // Tenue par la suite, pas lue sur la page : la confiance le dit.
+              element.accordNumero * 0.8
+            : element.accordNumero;
     // Un numéro réparé est tenu, pas lu : la confiance le dit aussi.
-    const confiance = element.repare === undefined ? brute : brute * 0.7;
+    const tenue = element.repare === undefined ? brute : brute * 0.7;
+    // Et un numéro relu que la suite n'a pas confirmé passe sous le seuil de la recette, pour
+    // que Vérifier le montre. Ce n'est pas un artifice d'affichage : une relecture contredite
+    // par ses voisines est exactement un cas qu'un œil doit trancher (ANC-02, CLA-05).
+    const confiance =
+      vision !== undefined && sourcePiste !== "vision" ? Math.min(tenue, recette.validation.seuil_confiance * 0.9) : tenue;
 
     lignes.push({
       numero: element.numeroRetenu,
