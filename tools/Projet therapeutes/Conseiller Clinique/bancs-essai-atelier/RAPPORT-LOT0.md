@@ -792,6 +792,62 @@ exige que le journal les montre tout en laissant le compte de repères à 3.
 **Ce qui n'est pas prouvé** : le micro factice de Chromium n'est pas le micro du Mac. Les valeurs
 ci-dessus montrent que les diagnostics fonctionnent, pas ce que livrera le matériel réel.
 
+### Chrome perd les flashs — c'est NOTRE export, pas Chrome
+
+Constat de Christophe : dans Chrome, les flashs d'une seule image sont perdus après le premier, et
+les fondus paraissent plus lents et plus flous que dans QuickTime. Le fichier, lui, est correct.
+
+**Méthode.** Cinq variantes d'un contenu rigoureusement identique de 40 s — 3 diapositives, fondus
+de 0,4 s (12 images à 30 i/s), 9 flashs de 150 ms avec bip toutes les 3 s — produites par
+`outils/produire-variantes.cjs`, puis lues à **vitesse réelle** dans chaque navigateur, chaque
+image réellement affichée étant journalisée par `requestVideoFrameCallback`
+(`outils/mesure-images-presentees.cjs`). Le plan est vérifié avant production : les fondus tombent
+à **1,150 s** du flash le plus proche, sans recouvrement (un premier jeu de bornes les plaçait à
+0,300 s — trouvé et corrigé par le contrôle de plan).
+
+| Variante | Chrome installé | Chromium | WebKit | Poids | Images écrites | Encodage |
+|---|---|---|---|---|---|---|
+| **V1 images tenues (export actuel)** | **4/9 flashs, 0/12 fondu, 21 écartées** | **2/9, 0/12, 23 écartées** | 9/9, 12/12 | 491 Ko | 45 | 0,5 s |
+| **V2 cadence constante 30 i/s** | **9/9, 12/12, 366,6 ms** | 9/9, 12/12 | 9/9, 10-11/12 | 1074 Ko | 1200 | 6,1 s |
+| V3 tenues + 1 image/seconde | 6/9, 1/12 | 3/9, 2/12 | 9/9, 12/12 | 865 Ko | 75 | 0,5 s |
+| V4 V2 réétiquetée plage limitée | 9/9, 12/12 | 9/9, 12/12 | 9/9, 12/12 | 1095 Ko | — | 0,1 s |
+| **V5 témoin ffmpeg libx264** | **9/9, 12/12** | 9/9, 12/12 | 9/9, 12/12 | 511 Ko | — | 2,8 s |
+
+**Conclusion, et elle est sans ambiguïté : V5 ne perd AUCUN flash.** Le témoin fabriqué par
+ffmpeg, lu par le même Chrome, présente les 9 flashs et les 12 images de chaque fondu. **Ce n'est
+donc pas Chrome** — c'est l'écriture de notre export en **images tenues**. WebKit, lui, présente
+tout même sur V1, ce qui explique exactement pourquoi QuickTime et Safari paraissaient corrects.
+
+**Quelle variante règle le problème : V2, la cadence constante.** V4 la règle aussi, mais V4 n'est
+que V2 réétiquetée : le flux binaire est identique, octet pour octet, seule l'étiquette change
+(débit identique, 201 kbit/s). Le mérite revient donc à la cadence, **pas à la plage de couleur** —
+V2 est en plage pleine et présente déjà 9/9. **V3 ne règle rien** : borner une image tenue à une
+seconde laisse Chrome à 6/9 et 1/12.
+
+**Le « plus flou » n'est pas une image abîmée, et c'est mesuré dans les deux sens.** En **recherche**
+manuelle à 13,5 s, Chrome affiche parfaitement l'image de fondu de V1 — gradient sur contours
+**104,4** contre **96,0** pour V5, donc même un peu plus nette, V5 étant un réencodage à crf 20.
+Sur le fichier, l'image extraite de V1 et celle de V5 ne diffèrent que de **0,38 %** des pixels
+(écart moyen 1,69 par canal). Le défaut est donc entièrement un défaut de **présentation pendant
+la lecture** : Chrome ne montre jamais ces images, il ne les abîme pas.
+
+**Correction minimale proposée, NON APPLIQUÉE.** Écrire la piste vidéo à **cadence constante de
+30 images par seconde** au lieu d'images tenues. Coût mesuré sur 40 s : poids ×2,2 (491 → 1074 Ko)
+et encodage ×12 (0,5 → 6,1 s). **Ce qui n'est PAS mesuré** : le coût sur un export de 10 minutes,
+et une cadence constante appliquée **seulement** autour des flashs et des fondus — plus économe,
+plausible, mais non éprouvée. Je ne la propose donc pas comme acquise.
+
+**Une erreur de mesure à moi, écartée avant de conclure.** Une première sonde de 2 secondes donnait
+34 images présentées sur V2 dans Chrome, avec des sauts (0 → 0,1 → 0,2) : j'en avais tiré un
+« signal fort » de bridage. Sur 3 secondes, le même Chrome présente **90 images, 0 écartée, pas
+régulier de 33 ms**, avec comme sans fenêtre. C'était l'amorçage du tampon, pas un défaut. Les
+flashs commençant à 3 s sont hors de cette zone ; le compte total d'images, lui, l'inclut.
+
+**Ce que ce banc ne dit pas.** Il pilote Chrome, Chromium et WebKit par Playwright. Le **Safari
+réel** n'est pas éprouvé (`safaridriver` exige une autorisation manuelle), et un navigateur piloté
+n'est pas une lecture humaine. Les cinq variantes et la page de mesure sont dans
+`controle-humain/` pour cela.
+
 ### La frontière, explicitement
 
 **Vérifié avec un décodeur** — et trois décodeurs ne s'accordent pas, ce qui est le résultat le
