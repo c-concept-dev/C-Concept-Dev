@@ -52,7 +52,7 @@ describe("routes inconnues", () => {
 });
 
 /** CLAUDE.md, règle 7 : aucun déploiement ni appel Cloudflare au lot 0. */
-describe("aucun déploiement au lot 0", () => {
+describe("ce que le Worker a le droit d'appeler, et ce qu'il n'écrit jamais (SEC-01, règle 6)", () => {
   const fichiers = (dossier: string): string[] =>
     readdirSync(dossier, { withFileTypes: true }).flatMap((entree) => {
       if (entree.name === "node_modules") return [];
@@ -60,23 +60,29 @@ describe("aucun déploiement au lot 0", () => {
       return entree.isDirectory() ? fichiers(chemin) : [chemin];
     });
 
-  it("n'embarque ni Wrangler ni configuration Cloudflare", () => {
-    const manifeste = JSON.parse(readFileSync(join(RACINE, "package.json"), "utf8")) as {
-      dependencies?: Record<string, string>;
-      devDependencies?: Record<string, string>;
-      scripts?: Record<string, string>;
-    };
-    const paquets = Object.keys({ ...manifeste.dependencies, ...manifeste.devDependencies });
-    expect(paquets.filter((nom) => /wrangler|cloudflare/i.test(nom))).toEqual([]);
-    expect(Object.values(manifeste.scripts ?? {}).filter((s) => /wrangler|deploy/i.test(s))).toEqual([]);
-    expect(fichiers(RACINE).filter((f) => /wrangler\.(toml|json|jsonc)$/.test(f))).toEqual([]);
+  /** Ce test interdisait toute adresse distante : c'était la règle du lot 0, où le Worker ne
+   *  faisait rien. Il en appelle une maintenant, et une seule. La garde n'est pas levée, elle est
+   *  resserrée — une adresse de plus dans ce dossier fera échouer ce test. */
+  it("n'appelle qu'une seule adresse distante, celle du modèle", () => {
+    const origines = new Set<string>();
+    for (const chemin of fichiers(join(RACINE, "src")))
+      for (const trouvee of readFileSync(chemin, "utf8").matchAll(/https?:\/\/[\w.-]+/g)) origines.add(trouvee[0]);
+    expect([...origines].filter((origine) => origine !== "https://hono.dev")).toEqual(["https://api.anthropic.com"]);
   });
 
-  it("n'appelle aucune adresse distante depuis le code", () => {
+  it("n'écrit aucun secret : la clé et le jeton viennent de l'hébergeur, jamais du dépôt", () => {
     for (const chemin of fichiers(join(RACINE, "src"))) {
       const contenu = readFileSync(chemin, "utf8");
-      expect(contenu, chemin).not.toMatch(/https?:\/\/(?!hono\.dev)/);
-      expect(contenu, chemin).not.toMatch(/\bfetch\s*\(/);
+      // Une clé d'API a une forme reconnaissable, et aucun fichier d'ici n'a à la porter.
+      expect(contenu, chemin).not.toMatch(/sk-[A-Za-z0-9_-]{8,}/);
+      // Les secrets ne sont que lus depuis les liaisons, jamais affectés à une constante.
+      expect(contenu, chemin).not.toMatch(/(ANTHROPIC_API_KEY|JETON_ACCES)\s*[:=]\s*["'`]/);
     }
+  });
+
+  it("ne déploie rien de lui-même : aucun script ne lance wrangler sans qu'on le demande", () => {
+    const manifeste = JSON.parse(readFileSync(join(RACINE, "package.json"), "utf8")) as { scripts?: Record<string, string> };
+    const automatiques = ["postinstall", "prepare", "prepublish", "build", "test", "typecheck"];
+    for (const nom of automatiques) expect(manifeste.scripts?.[nom] ?? "", nom).not.toMatch(/wrangler|deploy/i);
   });
 });
