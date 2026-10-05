@@ -668,6 +668,17 @@ prendre — aucune API ne la donne à une page.
 node "outils/paquet-controle-humain.cjs"
 ```
 
+L'arbre de travail durable de cette branche, créé pour que le paquet ait un chemin stable :
+
+    /Users/christophebonnet/Documents/GitHub/C-Concept-Dev-lot0-propre-wt
+
+Le paquet s'y trouve sous `tools/Projet therapeutes/Conseiller Clinique/bancs-essai-atelier/controle-humain`.
+La commande unique, les chemins absolus et la marche à suivre dans Safari sont dans
+`INSTRUCTIONS.md`. **Vérifié** : la commande fonctionne lancée depuis `/Users/christophebonnet`
+(page, bibliothèques, MP4 et feuille tous en HTTP 200), aucun `cd` relatif n'est nécessaire ; et
+après bascule de l'arbre sur `origin/main`, `outils/` disparaît tandis que le paquet reste intact
+et que la page mesure encore les mêmes 92,5/120.
+
 Bâtit `controle-humain/`, **ignoré par git** et **autonome** : une fois produit, il ne dépend
 d'aucun fichier suivi, donc il s'ouvre encore après un changement de branche (vérifié). L'outil
 imprime le **chemin absolu** du dossier et la **commande unique** à copier-coller ; les deux sont
