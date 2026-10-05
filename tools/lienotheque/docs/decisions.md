@@ -1179,3 +1179,52 @@ les deux disques et ne leur est pas comparable.
 139 pavés pour le lot, 7 appels, 17 429 jetons d'entrée et 5 752 de sortie, **0,0428 €** pour un
 plafond de 0,20. Un rejeu complet ne dépense **rien** : les 139 réponses viennent du cache, et la
 mesure entière retombe à soixante secondes de rendu.
+
+## L'inventaire des médias présents comme indice (REC-05)
+
+Après la relecture ciblée, il restait 25 pistes de F4 hors du compte. Le diagnostic les a séparées :
+
+| Cause | Pistes |
+|---|---:|
+| L'élément attendu est mis sur le **second support** | **10** |
+| Piste juste, mais un autre élément la précède | 8 |
+| L'élément attendu n'est pas lu du tout | 4 |
+| Piste fausse sur le bon support | 3 |
+
+Et l'inventaire des médias tranche la première cause : **le support 1 compte 92 pistes, et aucun
+second support n'est présent.** Pourtant 327 lignes sur 982 étaient placées hors du support 1 — la
+chaîne inventait un support qui n'a aucun enregistrement.
+
+L'inventaire se tire des médias eux-mêmes : leur nombre, et le motif de nom que la recette déclare
+en « indice », disent quels supports sont là et jusqu'où ils vont. C'est un fait sur les médias et
+non sur leur nom (REC-05) ; le nom ne sert qu'à les ranger.
+
+### Deux règles, et seulement la seconde a payé
+
+**Un support absent ne reçoit rien.** Les éléments d'un support que l'inventaire ne connaît pas
+restent sans piste, et n'héritent pas non plus de la précédente : relier au hasard est pire que ne
+pas relier. C'est juste, et c'est ce que Vérifier doit montrer — mais mesuré seul, **cela ne change
+aucun chiffre** : les éléments concernés étaient déjà hors du support 1, et le critère ne compte que
+celui-là. La règle corrige ce que la chaîne affirme, pas ce qu'elle trouve.
+
+**Un support ne se termine pas avant sa dernière piste connue.** Celle-ci paie. L'inventaire dit 92
+pistes ; tant que les lectures n'y sont pas parvenues, un retour au début est plus probablement une
+suite de chiffres mal lus qu'un disque suivant. La coupure tombait après la piste 82, et les dix
+pistes restantes étaient perdues pour un support qui n'existe pas.
+
+| | Premiers éléments | Pages |
+|---|---:|---:|
+| Avant, sans relecture | 55 / 92 | 67 / 92 |
+| Avant, avec relecture | 67 / 92 | 74 / 92 |
+| **Avec l'inventaire, sans relecture** | 60 / 92 | 76 / 92 |
+| **Avec l'inventaire, avec relecture** | **73 / 92** | **83 / 92** |
+| Critère | 83 | 89 |
+
+Il manque 10 premiers éléments et 6 pages. F3 reste à 95 / 95 — sa recette ne déclare aucun
+changement de support, et l'inventaire ne lui change donc rien.
+
+### Ce que l'inventaire ne décide jamais
+
+Un repère lu le contredit toujours. Si une pastille donne une piste au-delà de ce que l'inventaire
+connaît, c'est l'inventaire qui est incomplet, pas la page : la piste lue est attribuée. Un test le
+retient, parce que c'est la différence entre un indice et une vérité.

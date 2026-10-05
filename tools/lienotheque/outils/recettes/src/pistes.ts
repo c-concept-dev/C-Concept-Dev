@@ -84,6 +84,9 @@ export type ReglesPistes = {
   readonly egaleNumeroElement: boolean;
   /** Combien de pistes le support compte. Un fait sur le média, pas sur son nom (REC-05). */
   readonly nombreDePistes: number;
+  /** Jusqu'où va le support en cours, quand l'inventaire des médias le dit. Voir
+   *  `changementDeSupport` : un support ne se termine pas avant sa dernière piste connue. */
+  readonly pistesDuSupport?: number | undefined;
 };
 
 /** Lit les règles de pistes d'une recette, avec les valeurs par défaut du schéma. */
@@ -118,6 +121,12 @@ const tronquee = (lecture: LecturePiste): boolean =>
  *  petites, alors que la numérotation était bien engagée — plusieurs de suite, car une seule
  *  serait un chiffre mal lu. L'indice retourné est celui du premier élément du support suivant.
  *
+ *  **Et un support ne se termine pas avant sa dernière piste connue.** L'inventaire des médias dit
+ *  combien de pistes le support en cours compte ; tant que les lectures n'y sont pas parvenues, un
+ *  retour au début est plus probablement une suite de chiffres mal lus qu'un disque suivant.
+ *  Mesuré sur F4 : le support compte 92 pistes, la coupure tombait après la 82, et les dix pistes
+ *  qui restaient étaient perdues pour un support qui n'existe pas dans les médias.
+ *
  *  **Et une lecture tronquée ne compte pas comme petite.** Un « 2 » tiré d'un repère qui porte 82
  *  n'est pas un retour au début, c'est un chiffre perdu, et trois de suite ressemblent exactement
  *  à ce qu'on cherche. Mesuré sur F4 : la relecture ciblée établissait la numérotation à 81-82,
@@ -136,7 +145,11 @@ export function changementDeSupport(lectures: readonly LecturePiste[], regles: R
     const sure = lecture.pisteLue !== undefined && lecture.accordPiste >= ACCORD_SUR && !tronquee(lecture);
     const petite = lecture.pisteLue !== undefined && lecture.pisteLue <= regle.valeurMax;
 
-    if (sure && petite && engagement >= regle.valeurMax * FACTEUR_ENGAGEMENT) {
+    // Le support en cours est-il allé jusqu'au bout de ce qu'on lui connaît ? Sans inventaire, on
+    // s'en remet au seul facteur d'engagement, comme avant.
+    const acheve = regles.pistesDuSupport === undefined ? true : engagement >= regles.pistesDuSupport;
+
+    if (sure && petite && acheve && engagement >= regle.valeurMax * FACTEUR_ENGAGEMENT) {
       consecutives += 1;
       if (consecutives >= regle.lecturesSuresConsecutives) return rang - (regle.lecturesSuresConsecutives - 1);
       continue;

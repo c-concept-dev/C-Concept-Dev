@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { ElementRepere } from "@lienotheque/contrats";
-import { chargerRecette, clefDeVision, interpreter, numeroterPages, sequencer, type LectureParVision, type PageLue, type PageNumerotee } from "../src/index.js";
+import { chargerRecette, clefDeVision, interpreter, numeroterPages, sequencer, type LectureParVision, type PageLue, type PageNumerotee, supportsPresents } from "../src/index.js";
 
 const RECETTE = chargerRecette(
   JSON.parse(readFileSync(join(import.meta.dirname, "../../../fixtures/recettes/methode-pastille-piste.v2.json"), "utf8")),
@@ -221,5 +221,72 @@ describe("un numéro relu n'est appliqué que si la suite le confirme (ANC-02, O
   it("distingue les deux côtés d'un même cliché", () => {
     expect(clefDeVision(11, "gauche", 2)).not.toBe(clefDeVision(11, "droite", 2));
     expect(clefDeVision(11, undefined, 2)).not.toBe(clefDeVision(11, "gauche", 2));
+  });
+});
+
+describe("un support absent ne reçoit pas les éléments du précédent (REC-05, A5)", () => {
+  const V5 = chargerRecette(
+    JSON.parse(readFileSync(join(import.meta.dirname, "../../../fixtures/recettes/methode-pastilles-cd.v5.json"), "utf8")),
+  );
+
+  /** Une suite bien engagée sur le premier support, puis un retour franc au début : c'est ce que
+   *  la recette appelle un changement de disque. */
+  const lot = (): PageNumerotee[] =>
+    Array.from({ length: 28 }, (_, rang) => ({
+      index: rang,
+      rang,
+      cote: "gauche" as const,
+      pageImprimee: 60 + rang,
+      statut: "lue" as const,
+      elements: [element(rang + 1, { pisteLue: rang < 25 ? rang + 1 : rang - 24, accordPiste: 1, chiffresComptes: 1 })],
+    }));
+
+  it("sans inventaire, les derniers éléments vont sur un second support, comme avant", () => {
+    const { lignes } = sequencer(lot(), V5, { nombreDePistes: 25 });
+    expect(lignes.filter((ligne) => ligne.disque === 2)).toHaveLength(3);
+  });
+
+  it("avec un inventaire qui ne connaît qu'un support, ils restent sans piste", () => {
+    const { lignes } = sequencer(lot(), V5, { nombreDePistes: 25, supports: new Map([[1, 25]]) });
+    const derniers = lignes.slice(-3);
+    expect(derniers.every((ligne) => ligne.piste === undefined)).toBe(true);
+    expect(derniers.every((ligne) => ligne.sourcePiste === undefined)).toBe(true);
+  });
+
+  it("et ils n'héritent de rien : relier au hasard est pire que ne pas relier", () => {
+    const { lignes } = sequencer(lot(), V5, { nombreDePistes: 25, supports: new Map([[1, 25]]) });
+    expect(lignes.filter((ligne) => ligne.piste === 25)).toHaveLength(1);
+  });
+
+  it("le premier support garde les siens", () => {
+    const { lignes } = sequencer(lot(), V5, { nombreDePistes: 25, supports: new Map([[1, 25]]) });
+    const premiers = lignes.slice(0, 25);
+    expect(premiers.every((ligne) => ligne.disque === 1 && ligne.piste !== undefined)).toBe(true);
+    expect(premiers.map((ligne) => ligne.piste)).toEqual(Array.from({ length: 25 }, (_, rang) => rang + 1));
+  });
+
+  it("quand le second support est là, il reçoit bien ses éléments", () => {
+    const { lignes } = sequencer(lot(), V5, { nombreDePistes: 25, supports: new Map([[1, 25], [2, 10]]) });
+    expect(lignes.filter((ligne) => ligne.disque === 2 && ligne.piste !== undefined)).toHaveLength(3);
+  });
+
+  it("un repère lu contredit l'inventaire : c'est la page qui fait foi", () => {
+    // L'inventaire ne connaît que 20 pistes, mais une pastille en annonce 25 : c'est l'inventaire
+    // qui est incomplet, et la piste lue doit pouvoir être attribuée.
+    const { lignes } = sequencer(lot(), V5, { nombreDePistes: 25, supports: new Map([[1, 20]]) });
+    expect(lignes.some((ligne) => ligne.piste === 25)).toBe(true);
+  });
+
+  it("l'inventaire se tire des médias rangés, support par support", () => {
+    const inventaire = supportsPresents([
+      { piste: 1, disque: 1 },
+      { piste: 92, disque: 1 },
+      { piste: 3, disque: 2 },
+    ]);
+    expect([...inventaire]).toEqual([[1, 92], [2, 3]]);
+  });
+
+  it("un média sans support déclaré compte pour le premier", () => {
+    expect([...supportsPresents([{ piste: 7 }])]).toEqual([[1, 7]]);
   });
 });
