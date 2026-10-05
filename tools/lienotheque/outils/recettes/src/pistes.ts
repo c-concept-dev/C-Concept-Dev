@@ -14,9 +14,6 @@ export type LecturePiste = {
   readonly pisteLue?: number | undefined;
   readonly accordPiste: number;
   readonly presencePiste: number;
-  /** La lecture a-t-elle laissé un chiffre de côté ? Le repère en montrait plus qu'elle n'en a
-   *  rendu, et elle ne peut donc pas être la piste entière. */
-  readonly pisteIncomplete?: boolean | undefined;
   /** Numéro de l'élément. Il ne compte que si la recette déclare que piste et élément coïncident. */
   readonly numero?: number | undefined;
 };
@@ -50,7 +47,16 @@ const PRIME_DERNIERE = 2;
  *
  *  Identiques, l'appui est entier. Sinon, un chiffre a pu être perdu — « 14 » lu « 4 » — ou
  *  ajouté — une bordure lue comme un « 1 ». On accorde alors un appui partiel, plus faible quand
- *  la lecture en dit plus que la piste : inventer un chiffre est plus suspect qu'en manquer un. */
+ *  la lecture en dit plus que la piste : inventer un chiffre est plus suspect qu'en manquer un.
+ *
+ *  Ce 0,45 a été éprouvé et il est un plafond, pas un réglage prudent. Compter les chiffres du
+ *  repère permet de savoir qu'une lecture est tronquée — dix fois sur dix sur les clichés de
+ *  référence — et on a donc essayé de renverser la préférence dans ce cas : soutenir la piste qui
+ *  contient la lecture plutôt que celle qui lui est égale. Balayé sur le lot entier, de 0,45 à 1
+ *  pour la contenance et de 0,45 à 1 pour l'égalité, **aucun couple ne fait mieux que 0,45** :
+ *  61 premiers éléments sur 92 au témoin, 59 ou 60 partout ailleurs. La suite des pistes faisait
+ *  déjà ce travail, et le signal de troncature n'apporte que ses faux positifs. Le détail est
+ *  dans `docs/decisions.md`. */
 export function appui(lu: number, piste: number): number {
   if (lu === piste) return 1;
   const texteLu = String(lu);
@@ -60,28 +66,8 @@ export function appui(lu: number, piste: number): number {
   return 0;
 }
 
-/** Appui d'une lecture dont on sait qu'il lui manque un chiffre.
- *
- *  C'est `appui` à l'envers. Une lecture ordinaire soutient d'abord la piste qui lui est égale ;
- *  une lecture tronquée, elle, ne peut pas être la piste entière — elle en est un bout. Son appui
- *  va donc à la piste qui la contient, et l'égalité ne garde qu'un reste : le comptage peut se
- *  tromper, et il ne doit pas pouvoir écarter ce que la lecture dit.
- *
- *  Mesuré sur les clichés de référence : sur dix lectures à un chiffre perdu, le comptage les
- *  signale dix fois ; sur vingt-deux lectures justes, il en croit deux incomplètes à tort. C'est
- *  ce rapport qui autorise à renverser la préférence, et le reste laissé à l'égalité qui en
- *  limite le coût. */
-export function appuiTronque(lu: number, piste: number): number {
-  const texteLu = String(lu);
-  const textePiste = String(piste);
-  if (textePiste.length > texteLu.length && (textePiste.endsWith(texteLu) || textePiste.startsWith(texteLu))) return 1;
-  if (lu === piste) return 0.45;
-  return 0;
-}
-
 const score = (lecture: LecturePiste, piste: number, egaleNumeroElement: boolean): number => {
-  const soutien = lecture.pisteIncomplete === true ? appuiTronque : appui;
-  const repere = lecture.pisteLue === undefined ? 0 : lecture.accordPiste * soutien(lecture.pisteLue, piste) * POIDS_LECTURE;
+  const repere = lecture.pisteLue === undefined ? 0 : lecture.accordPiste * appui(lecture.pisteLue, piste) * POIDS_LECTURE;
   const element = egaleNumeroElement && lecture.numero !== undefined ? appui(lecture.numero, piste) * POIDS_ELEMENT : 0;
   return repere + element;
 };

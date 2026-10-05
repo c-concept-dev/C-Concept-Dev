@@ -978,20 +978,39 @@ Les éclats du seuillage font un à trois pixels de large pour trente à quarant
 éclat devenait la forme la plus haute du repère et faisait taire les vrais chiffres : le comptage
 tombait à 19 sur 37 et douze lectures justes sur vingt-deux passaient pour incomplètes.
 
-### La conséquence : une lecture tronquée ne vaut plus la vérité entière
+### Ce qu'on en a tiré pour l'attribution : rien, et c'est mesuré
 
-Compter ne sert à rien si personne n'écoute. `appuiTronque` est `appui` à l'envers : quand la
-lecture est connue incomplète, son soutien va au nombre qui **contient** la lecture plutôt qu'à
-celui qui lui est égal. L'égalité garde un reste, parce que le comptage se trompe deux fois sur
-vingt-deux et ne doit pas pouvoir écarter ce que la lecture dit.
+Compter ne sert à rien si personne n'écoute, et la suite logique était claire : une lecture connue
+incomplète ne peut pas être la piste entière, donc son appui devrait aller au nombre qui
+**contient** la lecture plutôt qu'à celui qui lui est égal — `appui` à l'envers.
 
-Là où cela change quelque chose : une lecture tronquée entraînait sa voisine vers le bas. « 19 »
-suivi d'un « 2 » tiré d'un repère portant 20 donnait `[1, 2]` — la suite abandonnait le 19 plutôt
-que de contredire le 2 ; elle rend `[19, 20]`. De même `[9, 1, 1]` donnait `[1, 1, 1]` et rend
-`[9, 10, 11]`. C'est la signature des seize dérives de −1 relevées sur le lot.
+Sur des suites construites, cela se démontrait bien. « 19 » suivi d'un « 2 » tiré d'un repère
+portant 20 donnait `[1, 2]` — la suite abandonnait le 19 plutôt que de contredire le 2 — et rendait
+`[19, 20]` avec le drapeau. De même `[9, 1, 1]` passait de `[1, 1, 1]` à `[9, 10, 11]`. C'est
+exactement la signature des seize dérives de −1 du lot.
 
-Là où cela ne change rien, à dessein : encadrée par 12 et 14, la lecture « 1 » donnait déjà 13 —
-l'appui partiel d'une lecture ordinaire y suffisait. Le drapeau ne défait pas ce qui marchait.
+Sur le lot, cela ne donne rien. Et comme la lecture était en cache, le balayage a pu être complet :
+seize couples de poids, de 0,45 à 1 pour la contenance et de 0,45 à 1 pour l'égalité.
+
+| Contenance | Premiers éléments | Pages |
+|---|---:|---:|
+| **0,45 — le témoin, c'est-à-dire la valeur qu'`appui` donne déjà** | **61 / 92** | **77 / 92** |
+| 0,6 | 60 / 92 | 76 / 92 |
+| 0,8 | 59 ou 60 / 92 | 76 / 92 |
+| 1,0 | 60 / 92 | 76 / 92 |
+
+Le poids de l'égalité, lui, ne change rien du tout. **Aucun couple ne fait mieux que le témoin**,
+et le témoin est l'état antérieur : le drapeau ne peut que dégrader.
+
+Pourquoi, alors que le raisonnement se tenait et que le comptage est juste 33 fois sur 37 ? Deux
+choses se conjuguent. D'abord l'appui partiel d'`appui` — ce 0,45 accordé à « 4 » pour la piste 14
+— faisait déjà le travail : là où les voisines encadrent la piste, la programmation dynamique
+retrouve 13 entre 12 et 14 sans qu'on lui dise rien. Ensuite, le signal se paie : deux lectures
+justes sur vingt-deux sont tenues pour incomplètes à tort, soit près d'une sur dix, et sur deux
+cent quatre-vingt-quatre repères cela fait plus de faux signaux que de vrais cas à redresser.
+
+Le drapeau est donc retiré, VERSION_LECTURE revenue à 5, et le 0,45 d'`appui` porte désormais le
+commentaire qui dit qu'il est un plafond éprouvé et non un réglage prudent.
 
 ### Les modèles tirés du document : réfuté
 
@@ -1023,4 +1042,16 @@ besoin de rien et pauvre là où tout se joue.
 
 La reconnaissance est donc retirée de la bibliothèque et vit dans la mesure qui l'a réfutée,
 `outils/recettes/mesures/comptage-chiffres-f4.ts`, pour qu'on puisse refaire le calcul sans la
-porter à nouveau. Le comptage, lui, reste : il est utile sans elle.
+porter à nouveau.
+
+### Ce qui reste de cette tentative
+
+Le comptage lui-même, `chiffresDuMorceau`, et le crochet qui dépose les repères découpés. Ni l'un
+ni l'autre ne décide de quoi que ce soit : ils ne tournent que si une mesure les demande, et une
+lecture de lot ne les paie pas. Ils sont là parce qu'ils rendent la réfutation rejouable — on peut
+éprouver une autre règle de comptage ou un autre comparateur sans relire trois cents clichés.
+
+Et le constat qui compte pour la suite : **les réglages locaux sont épuisés, cette fois pour de
+bon.** Nous savons maintenant dire quand une lecture est tronquée, nous ne savons pas dire ce qui
+lui manque, et le savoir ne suffit pas à l'attribution. F4 reste à 61 premiers éléments sur 92 et
+77 pages sur 92, pour un critère de 83 et 89.
