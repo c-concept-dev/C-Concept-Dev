@@ -1310,3 +1310,50 @@ sommes donnée, utile mais non normative : c'est le premier chiffre qui décide 
 Il manque **10 premiers éléments**. Aucune des causes restantes n'est un défaut de lecture de
 repère : elles butent sur la distinction entre un vrai repère et une forme qui lui ressemble, et sur
 des éléments que la lecture ne voit pas du tout.
+
+## La dette du test de présence : une correction, et une erreur de ma part
+
+Le lecteur acceptait encore des éclats du seuillage — trois pixels de large pour dix-huit de haut —
+parce que son test de présence jugeait le remplissage et la hauteur, jamais la largeur. La sélection
+des pavés s'en protégeait de son côté, ce qui soignait le symptôme.
+
+### La règle, et où elle appartient
+
+Elle est la même que celle du comptage des chiffres et de la sélection : une forme qui porte un
+chiffre est à peu près aussi large que haute. Mesurée sur les clichés de référence, les vrais pavés
+vont de 0,71 à 1,07, les éclats 0,10 et 0,17 ; le seuil se tient à **0,35**. Elle est maintenant
+définie une seule fois, dans le lecteur, et la sélection l'importe — trois copies d'un nombre mesuré
+finissent par diverger.
+
+**Mais la poser dans la présence seule ne suffisait pas, et dégradait.** Un éclat est plus plein
+qu'un pavé, dont les chiffres clairs font des trous : 1,0 contre 0,7. Il était donc proposé comme
+« la plus pleine des formes », et la présence ne jugeant que cette première forme, l'écarter faisait
+abandonner **tout le repère** alors que le pavé était là, à côté. Cinq premiers éléments perdus.
+
+La correction appartient au **choix de forme** : un éclat n'y est plus proposé, et le pavé redevient
+la première forme. Un test porte le cas réaliste — éclat plein à 1, pavé troué à 0,7 — parce qu'un
+premier essai avec deux formes également pleines ne reproduisait rien, la plus grande gagnant déjà.
+
+### Une erreur de cache, à consigner
+
+La première mesure de la correction a porté sur les **anciennes** lectures : changer le choix de
+forme modifie ce qu'une lecture rend, et je n'avais pas remonté `VERSION_LECTURE`. Le cache de la
+version 7 — celle qui avait le défaut — a donc été servi, et le chiffre lu était faux.
+
+C'est exactement ce que cette version existe pour éviter, et le dépôt le documentait déjà depuis le
+lot C. La version 8 porte la règle entière ; la 7 n'a jamais été mesurée pour elle-même.
+
+### L'effet, mesuré séparément
+
+| | Premiers éléments | Pages |
+|---|---:|---:|
+| Témoin, avant | 60 / 92 | 76 / 92 |
+| Témoin, après | **61 / 92** | **77 / 92** |
+| Avec relecture, avant | 73 / 92 | 83 / 92 |
+| Avec relecture, après | **74 / 92** | **84 / 92** |
+
+Sur les treize clichés de référence : **19 pavés retenus** au lieu de 18, dont 15 que l'oracle juge
+à relire, et l'angle mort reste **nul**. Les deux pavés supplémentaires ont coûté 0,0016 €.
+
+Un élément et une page. La dette était réelle — deux faux repères sur 141 — mais ce n'est pas elle
+qui tiendra le critère : il manque encore 9 premiers éléments.

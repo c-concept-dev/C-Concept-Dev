@@ -1,6 +1,7 @@
 import type { CotePage, Recette, ZoneRelative } from "@lienotheque/contrats";
 import { COTE_MAX_RECADRAGE } from "@lienotheque/contrats";
 import type { Boite, ImageGrise } from "@lienotheque/images";
+import { LARGEUR_MINIMALE_REPERE } from "@lienotheque/recettes";
 
 /** Quels repères méritent une relecture ciblée, et quel rectangle en part (OUT-08).
  *
@@ -68,18 +69,13 @@ export type Candidat = {
  *  bordure du pavé ne soit plus le bord de l'image, pas assez pour y faire entrer le voisin. */
 const MARGE_RELATIVE = 0.4;
 
-/** Largeur minimale d'un repère, en parts de sa hauteur.
+/** Largeur minimale d'un repère, en parts de sa hauteur — la même que celle du lecteur.
  *
- *  Un repère qui porte un ou deux chiffres est à peu près aussi large que haut. Mesuré sur les
- *  clichés de référence : les vrais pavés vont de 0,71 à 1,07, et les deux éclats que le lecteur
- *  avait pris pour des repères font 0,10 et 0,17 — trois pixels de large pour dix-huit de haut.
- *  Leur recadrage ne contenait rien de lisible, et l'envoyer aurait été payer pour rien.
- *
- *  Le lecteur, lui, les accepte : une forme pleine et étroite passe son test de présence, qui
- *  juge le remplissage et la hauteur mais pas la largeur. Le resserrer changerait les lectures,
- *  donc les mesures, donc cela se fera à part ; d'ici là la sélection se protège elle-même, et
- *  c'est de toute façon à elle de ne pas envoyer ce qui ne peut pas être lu. */
-const LARGEUR_MINIMALE = 0.35;
+ *  Elle y est définie et mesurée, et elle est importée plutôt que recopiée : le lecteur la
+ *  applique maintenant dans son propre jugement de présence, et deux copies d'un nombre mesuré
+ *  finissent par diverger. La sélection la garde tout de même, parce que c'est à elle de ne pas
+ *  envoyer ce qui ne peut pas être lu, quelle que soit l'indulgence de ce qui précède. */
+const LARGEUR_MINIMALE = LARGEUR_MINIMALE_REPERE;
 
 const chiffresDe = (valeur: number | undefined): number => (valeur === undefined ? 0 : String(valeur).length);
 
