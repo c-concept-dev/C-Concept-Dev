@@ -1,0 +1,13 @@
+node_modules/
+cache-npm/
+ffmpeg-externe/
+# Sorties de mesure : le dépôt est public, rien de produit ne doit y entrer.
+# Attention : git continue de suivre les fichiers DÉJÀ indexés ; ces motifs ne
+# retiennent que les nouvelles sorties.
+images/
+mesures/
+# entrees/ : les présentations à mesurer. Aujourd'hui des fixtures forgées depuis
+# les schémas du dépôt, reproductibles par outils/produire-exports.cjs. Ignoré
+# PRÉVENTIVEMENT, avant tout dépôt de fichier réel : un export réel peut contenir
+# des extraits de la bibliothèque de livres de Christophe, et le dépôt est public.
+entrees/

@@ -1,0 +1,13 @@
+{
+  "name": "bancs-essai-atelier",
+  "private": true,
+  "description": "Bancs d'essai JETABLES pour l'atelier de montage — jamais du code de production.",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "mediabunny": "*",
+    "@zumer/snapdom": "*",
+    "html-to-image": "*",
+    "pixelmatch": "^5.3.0",
+    "pngjs": "^7.0.0"
+  }
+}
