@@ -34,6 +34,21 @@ if (typeof HTMLMediaElement !== "undefined") {
     joue.delete(this);
   });
 
+  // jsdom ne connaît ni la vitesse de lecture ni la conservation de la hauteur : on les laisse
+  // s'écrire et se relire, c'est tout ce que les contrôles demandent.
+  for (const nom of ["playbackRate", "preservesPitch", "mozPreservesPitch", "webkitPreservesPitch"]) {
+    const valeurs = new WeakMap<object, unknown>();
+    Object.defineProperty(HTMLMediaElement.prototype, nom, {
+      configurable: true,
+      get(this: HTMLMediaElement) {
+        return valeurs.get(this) ?? (nom === "playbackRate" ? 1 : false);
+      },
+      set(this: HTMLMediaElement, valeur: unknown) {
+        valeurs.set(this, valeur);
+      },
+    });
+  }
+
   Object.defineProperty(HTMLMediaElement.prototype, "currentTime", {
     configurable: true,
     get(this: HTMLMediaElement) {

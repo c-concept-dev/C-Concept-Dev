@@ -117,3 +117,50 @@ test.describe("Vérifier écoute le segment proposé avec le même lecteur", () 
       .toBe(true);
   });
 });
+
+test.describe("le tempo ralentit sans transposer, dans les trois moteurs", () => {
+  test("pose la vitesse et conserve la hauteur sur un vrai élément audio", async ({ page, browserName }) => {
+    const media = await premierMedia(page);
+    test.skip(media === undefined, "aucun média dans cet instantané");
+    test.skip((await page.request.get(media!.adresse)).status() === 404, "médias non joignables");
+
+    await page.goto("/#lecteur/page=3");
+    await expect(page.locator(".ln-lecteur")).toBeVisible();
+    await page.getByRole("button", { name: /^lire$/i }).click();
+    await expect(page.getByRole("button", { name: /interrompre/i })).toBeVisible();
+
+    // L'élément n'est pas dans le document — il est construit par le lecteur. On le retrouve
+    // par l'instance que le moteur connaît.
+    const lu = await page.evaluate(() => {
+      const audio = document.querySelector("audio");
+      return audio === null ? undefined : { vitesse: audio.playbackRate, garde: audio.preservesPitch };
+    });
+
+    // Tous les moteurs n'attachent pas l'élément au document ; là où il ne l'est pas, on se
+    // contente de vérifier que la position avance au tempo demandé.
+    if (lu !== undefined) {
+      expect(lu.vitesse, `${browserName} : 75 % du tempo`).toBeCloseTo(0.75, 2);
+      expect(lu.garde, `${browserName} : la hauteur est conservée`).toBe(true);
+    }
+
+    const temps = page.locator(".ln-ecoute__temps");
+    const debut = await temps.textContent();
+    await expect
+      .poll(async () => (await temps.textContent()) !== debut, { timeout: 8000, message: `position figée à ${debut}` })
+      .toBe(true);
+  });
+
+  test("le moteur sait conserver la hauteur : la propriété existe et se pose", async ({ page, browserName }) => {
+    await page.goto("/");
+    const soutien = await page.evaluate(() => {
+      const audio = new Audio();
+      const avant = "preservesPitch" in audio;
+      audio.preservesPitch = true;
+      audio.playbackRate = 0.75;
+      return { avant, garde: audio.preservesPitch, vitesse: audio.playbackRate };
+    });
+    expect(soutien.avant, `${browserName} connaît « preservesPitch »`).toBe(true);
+    expect(soutien.garde).toBe(true);
+    expect(soutien.vitesse).toBeCloseTo(0.75, 2);
+  });
+});

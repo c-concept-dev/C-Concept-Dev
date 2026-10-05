@@ -45,14 +45,45 @@ const VUE_LECTEUR = VueBibliotheque.parse({
 });
 
 describe("B1 : le Lecteur cadre les zones lues sur la vraie page", () => {
-  it("pose une zone cliquable par élément lu, aux parts de la page", () => {
+  it("pose une bande cliquable par élément lu, du numéro jusqu'au suivant", () => {
     render(<Lecteur vue={VUE_LECTEUR} page={126} element={ID(20)} onPage={vi.fn()} onElement={vi.fn()} />);
 
     const zones = document.querySelectorAll<HTMLElement>(".ln-page__zone");
-    expect(zones, "deux éléments lus, deux zones ; le réparé n'en a pas").toHaveLength(2);
-    expect(zones[0]?.style.left, "en pourcentage : le zoom ne déplace pas une zone").toBe("8%");
-    expect(zones[0]?.style.top).toBe("20%");
-    expect(zones[0]?.style.width).toBe("5%");
+    expect(zones, "deux éléments lus, deux bandes ; le réparé n'en a pas").toHaveLength(2);
+
+    // Toute la largeur : c'est la bande de l'élément qu'on désigne, pas son numéro.
+    expect(zones[0]?.style.left, "en pourcentage : le zoom ne déplace pas une bande").toBe("0%");
+    expect(zones[0]?.style.width).toBe("100%");
+
+    // La première coiffe son numéro — un titre se pose souvent juste au-dessus — et s'arrête où
+    // commence la coiffe du suivant : 0,2 − 0,03 × 0,75 = 0,1775, jusqu'à 0,6 − 0,0225.
+    // Un flottant reste un flottant : on compare le nombre, pas sa dernière décimale.
+    expect(Number.parseFloat(zones[0]!.style.top)).toBeCloseTo(17.75, 2);
+    expect(Number.parseFloat(zones[0]!.style.height)).toBeCloseTo(40, 1);
+    // La dernière descend jusqu'au bas de la page.
+    expect(Number.parseFloat(zones[1]!.style.top) + Number.parseFloat(zones[1]!.style.height)).toBeCloseTo(100, 1);
+  });
+
+  it("fait partir le fil de l'endroit où le numéro a été lu, pas du bord de la bande", () => {
+    render(<Lecteur vue={VUE_LECTEUR} page={126} element={ID(20)} onPage={vi.fn()} onElement={vi.fn()} />);
+    const ancres = document.querySelectorAll<HTMLElement>(".ln-page__zone-ancre");
+    expect(ancres).toHaveLength(2);
+    // Bord droit du numéro : 0,08 + 0,05 = 0,13 de la page.
+    expect(ancres[0]?.style.left).toBe("13%");
+  });
+
+  it("ne redouble pas le numéro que la page imprime déjà", () => {
+    render(<Lecteur vue={VUE_LECTEUR} page={126} element={ID(20)} onPage={vi.fn()} onElement={vi.fn()} />);
+    expect(document.querySelectorAll(".ln-page__zone-numero"), "la vraie page porte ses numéros").toHaveLength(0);
+  });
+
+  it("le rappelle en revanche quand la page n'a pas d'image à montrer", () => {
+    const sansImage = VueBibliotheque.parse({
+      ...VUE_LECTEUR,
+      pages: VUE_LECTEUR.pages.map(({ image: _absente, ...reste }) => reste),
+    });
+    render(<Lecteur vue={sansImage} page={126} element={ID(20)} onPage={vi.fn()} onElement={vi.fn()} />);
+    expect(document.querySelectorAll(".ln-page__zone-numero")).toHaveLength(2);
   });
 
   it("nomme chaque zone avec les mots de la bibliothèque", () => {

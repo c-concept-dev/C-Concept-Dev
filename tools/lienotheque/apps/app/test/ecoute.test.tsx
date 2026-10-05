@@ -1,8 +1,9 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { VueBibliotheque } from "@lienotheque/contrats";
 import { Lecteur } from "../src/pages/Lecteur.js";
+import { appliquerTempo } from "../src/ecoute/useEcoute.js";
 import { Verifier } from "../src/pages/Verifier.js";
 
 /** Un seul lecteur pour les deux écrans (ANC-03, ANC-05, UX-02).
@@ -190,5 +191,39 @@ describe("Vérifier écoute le segment proposé, avec le même lecteur", () => {
 
     expect(screen.getByText(/média non disponible ici/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /écouter le segment proposé/i })).toBeDisabled();
+  });
+});
+
+describe("le tempo ralentit sans transposer (CDC, écran du Lecteur)", () => {
+  it("pose la vitesse et demande au moteur de garder la hauteur", async () => {
+    construits = [];
+    render(<Lecteur vue={vueLecteur()} page={126} element={ID(20)} onPage={vi.fn()} onElement={vi.fn()} />);
+
+    // Le Lecteur ouvre à 75 % : c'est le réglage de travail d'une méthode.
+    const element = dernierAudio() as HTMLAudioElement & { mozPreservesPitch?: boolean; webkitPreservesPitch?: boolean };
+    expect(element.playbackRate).toBeCloseTo(0.75, 2);
+    expect(element.preservesPitch, "sans cela, ralentir transpose").toBe(true);
+    expect(element.mozPreservesPitch, "le nom que comprennent les moteurs plus anciens").toBe(true);
+    expect(element.webkitPreservesPitch).toBe(true);
+  });
+
+  it("suit le réglage quand il change, sans redémarrer le passage", async () => {
+    construits = [];
+    render(<Lecteur vue={vueLecteur()} page={126} element={ID(20)} onPage={vi.fn()} onElement={vi.fn()} />);
+    const avant = construits.length;
+
+    const reglage = screen.getByRole("slider", { name: /tempo/i });
+    fireEvent.change(reglage, { target: { value: "50" } });
+
+    expect(dernierAudio().playbackRate).toBeCloseTo(0.5, 2);
+    expect(construits.length, "le même élément : on ne recharge pas la piste pour changer de tempo").toBe(avant);
+  });
+
+  it("ne sort jamais des bornes du réglage", () => {
+    const element = new Audio("/x.mp3");
+    appliquerTempo(element, 500);
+    expect(element.playbackRate).toBeCloseTo(1, 2);
+    appliquerTempo(element, 5);
+    expect(element.playbackRate).toBeCloseTo(0.5, 2);
   });
 });
