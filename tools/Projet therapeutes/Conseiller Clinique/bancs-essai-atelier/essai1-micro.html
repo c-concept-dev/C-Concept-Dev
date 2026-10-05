@@ -65,6 +65,26 @@
    flèche droite / Page suivante pose, flèche gauche / Page précédente recule sans effacer.</p>
 <table id="tblMarqueurs"><tbody></tbody></table>
 
+<h2>Canaux livrés</h2>
+<p class="note">Niveau RMS de chaque canal et corrélation entre eux. Si le micro ne livre qu'un
+canal, ou deux canaux identiques, c'est dit explicitement : une corrélation de 1 sur deux canaux
+identiques ne prouve rien d'autre que la duplication.</p>
+<table id="tblCanaux"><tbody></tbody></table>
+
+<h2>Fenêtre de silence — niveau par demi-seconde</h2>
+<p class="note">Les 3 premières secondes servent à mesurer le bruit de fond. Découpées en
+demi-secondes, elles montrent si quelqu'un a parlé pendant ce silence : une tranche nettement
+au-dessus des autres invalide la mesure du bruit de fond.</p>
+<table id="tblSilence"><tbody></tbody></table>
+
+<h2>Appuis de touche reçus</h2>
+<p class="note">Journal de TOUS les appuis reçus par la page, y compris ceux qui ne posent pas de
+repère. C'est ce qui distingue « aucun appui » (la télécommande n'envoie rien) de « appui non
+capté » (la touche arrive mais le repère ne se pose pas). L'instant est le compteur
+d'échantillons au moment de la frappe côté page : il sert à situer, non à mesurer — seul le
+worklet date un repère à l'échantillon.</p>
+<table id="tblFrappes"><tbody></tbody></table>
+
 <h2>Mesures</h2>
 <table id="tblMesures"><tbody><tr><th>état</th><td>aucune prise terminée</td></tr></tbody></table>
 
@@ -112,7 +132,8 @@ const ETAT = {
   ctx:null, flux:null, noeud:null, source:null,
   echantillonnage:0, canauxLivres:0, quantum:0, repliScriptProcessor:false,
   morceaux:[], totalEchantillons:0, enCours:false, enPause:false,
-  debutMurMs:0, marqueurs:[], numCourant:1,
+  debutMurMs:0, marqueurs:[], numCourant:1, frappes:[],
+  rmsCanaux:[], ecartCanalMax:0,
   // Corrélation gauche/droite : accumulée en ligne, jamais sur une copie entière en mémoire.
   corr:{ sxy:0, sxx:0, syy:0, n:0 },
   wav:null, mesures:null, derniereSauvegarde:0,
@@ -202,33 +223,111 @@ function calculerMesures(mono, se, marqueurs, dureeMurS) {
              // « Au-dessus du bruit de fond » = le claquement de touche s'entend.
              au_dessus_du_bruit_db: +(picDb - bruitDb).toFixed(1) };
   });
+  // NIVEAU PAR DEMI-SECONDE sur la fenêtre de silence : une tranche nettement plus forte que la
+  // plus calme signale une parole, donc un bruit de fond mesuré sur autre chose que du silence.
+  const pas = Math.round(0.5 * se);
+  const silence = [];
+  for (let d = 0; d + 1 <= n3; d += pas) {
+    const fin = Math.min(n3, d + pas);
+    let e2 = 0; for (let i = d; i < fin; i++) e2 += mono[i] * mono[i];
+    const r = (fin > d) ? Math.sqrt(e2 / (fin - d)) : 0;
+    silence.push({ debut_s: +(d / se).toFixed(2), rms_dbfs: +dBFS(r).toFixed(1) });
+  }
+  const dbs = silence.map((x) => x.rms_dbfs).filter((x) => isFinite(x));
+  const plusCalme = dbs.length ? Math.min.apply(null, dbs) : null;
+  const plusFort = dbs.length ? Math.max.apply(null, dbs) : null;
+
+  const rmsCanaux = ETAT.rmsCanaux.map((a, i) => ({
+    canal: i, rms_dbfs: +dBFS(a.n ? Math.sqrt(a.s2 / a.n) : 0).toFixed(1),
+    pic_dbfs: +dBFS(a.pic).toFixed(1) }));
+  const correl = (ETAT.corr.n > 0 && ETAT.canauxLivres > 1 && ETAT.corr.sxx > 0 && ETAT.corr.syy > 0)
+    ? +(ETAT.corr.sxy / Math.sqrt(ETAT.corr.sxx * ETAT.corr.syy)).toFixed(4) : null;
+  const canauxIdentiques = (ETAT.canauxLivres > 1) ? (ETAT.ecartCanalMax === 0) : null;
+
   const dureeEch = mono.length / se;
   return {
     echantillonnage: se, duree_echantillons_s: +dureeEch.toFixed(4),
+    duree_prise_s: +dureeEch.toFixed(4),
+    nombre_de_reperes: marqueurs.length,
+    frappes_recues: ETAT.frappes.length,
+    frappes: ETAT.frappes.slice(),
+    rms_par_canal: rmsCanaux,
+    ecart_max_entre_canaux: (ETAT.canauxLivres > 1) ? ETAT.ecartCanalMax : null,
+    canaux_identiques: canauxIdentiques,
+    silence_rms_par_demi_seconde: silence,
+    silence_plus_calme_dbfs: plusCalme, silence_plus_fort_dbfs: plusFort,
+    silence_amplitude_db: (plusCalme !== null && plusFort !== null)
+      ? +(plusFort - plusCalme).toFixed(1) : null,
     duree_horloge_s: +dureeMurS.toFixed(4),
     ecart_s: +(dureeEch - dureeMurS).toFixed(4),
     bruit_de_fond_dbfs: +bruitDb.toFixed(1),
     quantum_echantillons: ETAT.quantum,
     granularite_marqueur_ms: ETAT.quantum ? +((ETAT.quantum / se) * 1000).toFixed(3) : null,
     canaux_livres: ETAT.canauxLivres,
-    correlation_gauche_droite: ETAT.corr.n > 0 && ETAT.canauxLivres > 1
-      ? +(ETAT.corr.sxy / Math.sqrt(ETAT.corr.sxx * ETAT.corr.syy)).toFixed(4) : null,
+    correlation_gauche_droite: correl,
     repli_script_processor: ETAT.repliScriptProcessor,
     marqueurs: parMarqueur,
   };
 }
 
+function rendreFrappes() {
+  vider($('tblFrappes'));
+  const t = $('tblFrappes').querySelector('tbody');
+  if (!ETAT.frappes.length) {
+    ligne(t, 'aucun appui reçu', ETAT.enCours ? 'la page écoute' : '—');
+    return;
+  }
+  ETAT.frappes.forEach((x, i) => ligne(t, 'appui ' + (i + 1) + ' — ' + x.touche
+    + (x.code && x.code !== x.touche ? ' (' + x.code + ')' : ''),
+    x.instant_echantillons + ' échantillons'
+      + (x.pose_un_repere ? ' — pose un repère' : ' — ne pose pas de repère')));
+}
+
+function rendreCanaux(m) {
+  vider($('tblCanaux'));
+  const t = $('tblCanaux').querySelector('tbody');
+  ligne(t, 'canaux livrés', String(m.canaux_livres));
+  (m.rms_par_canal || []).forEach((c) => ligne(t, 'canal ' + c.canal + ' — RMS',
+    c.rms_dbfs + ' dBFS (pic ' + c.pic_dbfs + ' dBFS)'));
+  if (m.canaux_livres <= 1) {
+    ligne(t, 'corrélation gauche/droite', 'sans objet : un seul canal livré');
+  } else {
+    ligne(t, 'corrélation gauche/droite', m.correlation_gauche_droite === null
+      ? 'incalculable (canal muet)' : String(m.correlation_gauche_droite));
+    ligne(t, 'écart maximal entre canaux', String(m.ecart_max_entre_canaux));
+    ligne(t, 'les deux canaux sont-ils identiques ?', m.canaux_identiques
+      ? 'OUI, identiques au bit près — la corrélation de 1 ne dit alors rien de plus'
+      : 'non : les canaux diffèrent');
+  }
+}
+
+function rendreSilence(m) {
+  vider($('tblSilence'));
+  const t = $('tblSilence').querySelector('tbody');
+  (m.silence_rms_par_demi_seconde || []).forEach((x) => ligne(t,
+    'de ' + x.debut_s + ' s à ' + (x.debut_s + 0.5).toFixed(2) + ' s',
+    (isFinite(x.rms_dbfs) ? x.rms_dbfs + ' dBFS' : 'silence absolu')));
+  if (m.silence_amplitude_db !== null) {
+    ligne(t, 'amplitude sur la fenêtre', m.silence_amplitude_db + ' dB'
+      + (m.silence_amplitude_db > 12
+          ? ' — écart marqué : quelqu\'un a probablement parlé, le bruit de fond est à reprendre'
+          : ' — fenêtre homogène'));
+  }
+}
+
 function afficherMesures(m) {
+  rendreCanaux(m); rendreSilence(m);
   vider($('tblMesures'));
   const t = $('tblMesures').querySelector('tbody');
+  ligne(t, 'durée de la prise', m.duree_prise_s + ' s');
+  ligne(t, 'repères posés', String(m.nombre_de_reperes)
+    + ' (pour ' + m.frappes_recues + ' appui(s) reçu(s))');
   ligne(t, 'durée (échantillons)', m.duree_echantillons_s + ' s');
   ligne(t, 'durée (horloge murale)', m.duree_horloge_s + ' s');
   ligne(t, 'écart échantillons − horloge', m.ecart_s + ' s');
   ligne(t, 'bruit de fond (3 premières s)', m.bruit_de_fond_dbfs + ' dBFS');
   ligne(t, 'quantum de rendu', m.quantum_echantillons + ' échantillons');
   ligne(t, 'granularité d\'un marqueur', m.granularite_marqueur_ms + ' ms');
-  ligne(t, 'canaux livrés', String(m.canaux_livres));
-  if (m.correlation_gauche_droite !== null) ligne(t, 'corrélation gauche/droite', String(m.correlation_gauche_droite));
   ligne(t, 'repli ScriptProcessor', m.repli_script_processor ? 'OUI (signalé)' : 'non');
   m.marqueurs.forEach((x) => ligne(t, 'marqueur ' + x.diapositive + ' — pic 80 ms',
     x.pic_dbfs + ' dBFS (' + (x.au_dessus_du_bruit_db >= 0 ? '+' : '') + x.au_dessus_du_bruit_db + ' dB sur le bruit)'));
@@ -309,6 +408,8 @@ async function demarrer() {
   ETAT.enCours = true; ETAT.debutMurMs = performance.now();
   ETAT.morceaux = []; ETAT.totalEchantillons = 0; ETAT.marqueurs = []; ETAT.numCourant = 1;
   ETAT.corr = { sxy:0, sxx:0, syy:0, n:0 };
+  ETAT.frappes = []; ETAT.rmsCanaux = []; ETAT.ecartCanalMax = 0;
+  rendreFrappes(); vider($('tblCanaux')); vider($('tblSilence'));
   $('btnPause').disabled = false; $('btnArreter').disabled = false;
   vider($('tblPrise'));
   const tb = $('tblPrise').querySelector('tbody');
@@ -329,6 +430,16 @@ function recevoir(m) {
   }
   if (m.type !== 'audio') return;
   const canaux = m.canaux;
+  // RMS PAR CANAL, accumulé en continu : on ne peut pas le recalculer après coup, puisque seul
+  // le mélange mono est conservé pour le WAV.
+  for (let c = 0; c < canaux.length; c++) {
+    if (!ETAT.rmsCanaux[c]) ETAT.rmsCanaux[c] = { s2: 0, n: 0, pic: 0 };
+    const a = ETAT.rmsCanaux[c], x = canaux[c];
+    for (let i = 0; i < x.length; i++) {
+      const v = x[i]; a.s2 += v * v; const av = Math.abs(v); if (av > a.pic) a.pic = av;
+    }
+    a.n += x.length;
+  }
   let mono;
   if (canaux.length > 1) {
     const g = canaux[0], d = canaux[1];
@@ -336,6 +447,9 @@ function recevoir(m) {
     for (let i = 0; i < g.length; i++) {
       mono[i] = (g[i] + d[i]) / 2;
       ETAT.corr.sxy += g[i] * d[i]; ETAT.corr.sxx += g[i] * g[i]; ETAT.corr.syy += d[i] * d[i];
+      // Écart maximal entre canaux : à zéro, ils sont identiques au bit près, et la corrélation
+      // de 1 n'est alors qu'une tautologie.
+      const e = Math.abs(g[i] - d[i]); if (e > ETAT.ecartCanalMax) ETAT.ecartCanalMax = e;
     }
     ETAT.corr.n += g.length;
   } else { mono = canaux[0]; }
@@ -400,6 +514,14 @@ function jsonMarqueurs() {
 
 // ── Clavier : pose, recul sans effacer, pause ──
 document.addEventListener('keydown', (e) => {
+  // JOURNAL DE TOUS LES APPUIS, posé avant tout filtrage : une télécommande qui envoie une touche
+  // inattendue laisse ainsi une trace, au lieu de ressembler à une absence d'appui.
+  if (ETAT.enCours) {
+    ETAT.frappes.push({ touche: e.key, code: e.code || null,
+                        instant_echantillons: ETAT.totalEchantillons,
+                        pose_un_repere: (e.key === 'ArrowRight' || e.key === 'PageDown') });
+    rendreFrappes();
+  }
   if (e.key === 'ArrowRight' || e.key === 'PageDown') {
     e.preventDefault();
     if (!ETAT.enCours) return;
