@@ -950,3 +950,108 @@ bloc d'une pastille à deux chiffres** — un pavé sombre de quelques dizaines 
 clairs, parfois flanqué d'une étiquette. Il y en a environ dix-neuf pour quatorze clichés, soit de
 l'ordre de deux cents pour le lot : moins que les neuf cents zones du plan initial, et bien mieux
 ciblées.
+
+## Compter les chiffres d'un repère, et ce que les modèles du document ne savent pas faire
+
+Dernière tentative locale avant la vision ciblée, d'une autre nature que les réglages d'OCR : ne
+plus chercher à mieux lire, mais à savoir **quand on a mal lu**.
+
+### Le comptage : retenu
+
+Un moteur d'OCR rend un texte ou rien. Quand il rend « 4 » là où le repère porte 14, il ne signale
+aucune difficulté — sa réponse est complète de son point de vue. L'image dit le contraire : deux
+formes de la taille d'un chiffre, une seule lue.
+
+`chiffresDuMorceau` compte ces formes dans le pavé que le lecteur isole déjà, en prenant pour
+mesure la plus haute d'entre elles. Rien d'absolu : un repère de vingt pixels et un de deux cents
+se comptent pareil.
+
+| Sur les 37 repères des clichés de référence que l'oracle connaît | |
+|---|---:|
+| Comptage juste (formes comptées = chiffres de l'oracle) | **33 / 37** |
+| Lectures à un chiffre perdu, toutes signalées | **10 / 10** |
+| Lectures justes que le comptage croirait incomplètes | **2 / 22** |
+
+Ce qui a fait la différence vient de la mesure, pas d'une intuition : un **filtre d'étroitesse**.
+Les éclats du seuillage font un à trois pixels de large pour trente à quarante de haut ; le plus
+étroit des chiffres de cette fonte, un « 1 », en fait sept pour trente-cinq. Sans ce filtre, un
+éclat devenait la forme la plus haute du repère et faisait taire les vrais chiffres : le comptage
+tombait à 19 sur 37 et douze lectures justes sur vingt-deux passaient pour incomplètes.
+
+### Ce qu'on en a tiré pour l'attribution : rien, et c'est mesuré
+
+Compter ne sert à rien si personne n'écoute, et la suite logique était claire : une lecture connue
+incomplète ne peut pas être la piste entière, donc son appui devrait aller au nombre qui
+**contient** la lecture plutôt qu'à celui qui lui est égal — `appui` à l'envers.
+
+Sur des suites construites, cela se démontrait bien. « 19 » suivi d'un « 2 » tiré d'un repère
+portant 20 donnait `[1, 2]` — la suite abandonnait le 19 plutôt que de contredire le 2 — et rendait
+`[19, 20]` avec le drapeau. De même `[9, 1, 1]` passait de `[1, 1, 1]` à `[9, 10, 11]`. C'est
+exactement la signature des seize dérives de −1 du lot.
+
+Sur le lot, cela ne donne rien. Et comme la lecture était en cache, le balayage a pu être complet :
+seize couples de poids, de 0,45 à 1 pour la contenance et de 0,45 à 1 pour l'égalité.
+
+| Contenance | Premiers éléments | Pages |
+|---|---:|---:|
+| **0,45 — le témoin, c'est-à-dire la valeur qu'`appui` donne déjà** | **61 / 92** | **77 / 92** |
+| 0,6 | 60 / 92 | 76 / 92 |
+| 0,8 | 59 ou 60 / 92 | 76 / 92 |
+| 1,0 | 60 / 92 | 76 / 92 |
+
+Le poids de l'égalité, lui, ne change rien du tout. **Aucun couple ne fait mieux que le témoin**,
+et le témoin est l'état antérieur : le drapeau ne peut que dégrader.
+
+Pourquoi, alors que le raisonnement se tenait et que le comptage est juste 33 fois sur 37 ? Deux
+choses se conjuguent. D'abord l'appui partiel d'`appui` — ce 0,45 accordé à « 4 » pour la piste 14
+— faisait déjà le travail : là où les voisines encadrent la piste, la programmation dynamique
+retrouve 13 entre 12 et 14 sans qu'on lui dise rien. Ensuite, le signal se paie : deux lectures
+justes sur vingt-deux sont tenues pour incomplètes à tort, soit près d'une sur dix, et sur deux
+cent quatre-vingt-quatre repères cela fait plus de faux signaux que de vrais cas à redresser.
+
+Le drapeau est donc retiré, VERSION_LECTURE revenue à 5, et le 0,45 d'`appui` porte désormais le
+commentaire qui dit qu'il est un plafond éprouvé et non un réglage prudent.
+
+### Les modèles tirés du document : réfuté
+
+L'idée se tenait. Les repères à un seul chiffre se lisent 13 fois sur 13 ; chacun fournit donc un
+exemple sûr de son chiffre dans la fonte de ce document. Il n'y aurait qu'à découper le chiffre
+perdu et le rapprocher de ces exemples — rien d'écrit en dur, chaque document constituant ses
+propres modèles.
+
+Mesuré, cela ne marche pas. Les modèles viennent du document entier **moins** les treize clichés
+éprouvés, pour qu'il n'y ait aucune fuite : cent exemples sûrs. Quatre grilles de normalisation,
+trois distances, cinq seuils d'écart et trois seuils d'avance ont été balayés.
+
+| | gain | coût |
+|---|---:|---:|
+| Seuils serrés (écart ≤ 0,06, avance ≥ 0,04) | 0 | 0 |
+| Seuils moyens (écart ≤ 0,10, avance ≥ 0) | 3 | 5 |
+| Seuils lâches (écart ≤ 0,15, avance ≥ 0) | 3 | 11 |
+
+**Aucun couple de seuils ne rend plus de repères qu'il n'en abîme.** Et le détail compte : passer
+de dix-neuf exemples, tirés des seuls clichés éprouvés, à cent exemples tirés du document entier a
+*empiré* le résultat. Plus de modèles, c'est aussi plus de chances qu'une forme douteuse trouve un
+voisin proche : l'écart cesse alors de trier.
+
+La raison de fond est dans la composition du document, et elle condamne l'approche plutôt qu'un
+réglage. Les exemples sûrs viennent presque tous de pastilles à un chiffre et du chiffre des unités
+des autres : vingt-neuf « 2 », vingt-trois « 3 », vingt « 4 » — mais sept « 1 » et cinq « 0 », qui
+sont justement les chiffres des dizaines, ceux que l'OCR perd. Le document est riche là où on n'a
+besoin de rien et pauvre là où tout se joue.
+
+La reconnaissance est donc retirée de la bibliothèque et vit dans la mesure qui l'a réfutée,
+`outils/recettes/mesures/comptage-chiffres-f4.ts`, pour qu'on puisse refaire le calcul sans la
+porter à nouveau.
+
+### Ce qui reste de cette tentative
+
+Le comptage lui-même, `chiffresDuMorceau`, et le crochet qui dépose les repères découpés. Ni l'un
+ni l'autre ne décide de quoi que ce soit : ils ne tournent que si une mesure les demande, et une
+lecture de lot ne les paie pas. Ils sont là parce qu'ils rendent la réfutation rejouable — on peut
+éprouver une autre règle de comptage ou un autre comparateur sans relire trois cents clichés.
+
+Et le constat qui compte pour la suite : **les réglages locaux sont épuisés, cette fois pour de
+bon.** Nous savons maintenant dire quand une lecture est tronquée, nous ne savons pas dire ce qui
+lui manque, et le savoir ne suffit pas à l'attribution. F4 reste à 61 premiers éléments sur 92 et
+77 pages sur 92, pour un critère de 83 et 89.

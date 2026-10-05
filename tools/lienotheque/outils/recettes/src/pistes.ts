@@ -47,7 +47,16 @@ const PRIME_DERNIERE = 2;
  *
  *  Identiques, l'appui est entier. Sinon, un chiffre a pu être perdu — « 14 » lu « 4 » — ou
  *  ajouté — une bordure lue comme un « 1 ». On accorde alors un appui partiel, plus faible quand
- *  la lecture en dit plus que la piste : inventer un chiffre est plus suspect qu'en manquer un. */
+ *  la lecture en dit plus que la piste : inventer un chiffre est plus suspect qu'en manquer un.
+ *
+ *  Ce 0,45 a été éprouvé et il est un plafond, pas un réglage prudent. Compter les chiffres du
+ *  repère permet de savoir qu'une lecture est tronquée — dix fois sur dix sur les clichés de
+ *  référence — et on a donc essayé de renverser la préférence dans ce cas : soutenir la piste qui
+ *  contient la lecture plutôt que celle qui lui est égale. Balayé sur le lot entier, de 0,45 à 1
+ *  pour la contenance et de 0,45 à 1 pour l'égalité, **aucun couple ne fait mieux que 0,45** :
+ *  61 premiers éléments sur 92 au témoin, 59 ou 60 partout ailleurs. La suite des pistes faisait
+ *  déjà ce travail, et le signal de troncature n'apporte que ses faux positifs. Le détail est
+ *  dans `docs/decisions.md`. */
 export function appui(lu: number, piste: number): number {
   if (lu === piste) return 1;
   const texteLu = String(lu);

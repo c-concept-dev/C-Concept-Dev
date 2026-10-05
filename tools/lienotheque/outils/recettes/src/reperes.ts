@@ -17,6 +17,7 @@ import {
   type ImageGrise,
 } from "@lienotheque/images";
 import { lireParOcr } from "@lienotheque/lecteur-texte";
+import { chiffresDuMorceau } from "./chiffres.js";
 
 /** Lecteur de repères (OUT-07) : numéros de page, numéros d'élément, pastilles, séquence.
  *
@@ -36,6 +37,27 @@ export type OptionsReperes = {
   readonly dossier?: string;
   /** Côté du cliché dont la page est tirée : il dit où est la marge extérieure. */
   readonly cote?: CotePage;
+  /** Où déposer les chiffres découpés d'un repère. Les mesures s'en servent ; la lecture d'un lot
+   *  ne le fournit pas, et ne paie donc pas le comptage. */
+  readonly recueillir?: (depot: DepotDeChiffres) => void;
+};
+
+/** Ce qu'une lecture de repère dépose quand on le lui demande : ce que l'OCR a voté, et l'image du
+ *  repère avec les formes de la taille d'un chiffre qu'on y a comptées.
+ *
+ *  Personne ne le demande en production. Ce crochet sert aux mesures — il évite de refaire
+ *  ailleurs le choix de seuil et de recadrage que `lireBlocPiste` fait déjà, et c'est lui qui rend
+ *  rejouable la réfutation consignée dans `docs/decisions.md`.
+ *
+ *  L'image et non les formes découpées : une mesure doit pouvoir éprouver une autre règle de
+ *  comptage sans relire les clichés. L'image en question est un recadrage du repère, quelques
+ *  milliers de pixels, pas une page. */
+export type DepotDeChiffres = {
+  readonly numero: number;
+  readonly y: number;
+  readonly lu?: number | undefined;
+  readonly morceau: ImageGrise;
+  readonly chiffres: readonly Boite[];
 };
 
 /** Les trois passes : échelle et mode de segmentation. Trois lectures d'une même page valent
@@ -274,7 +296,14 @@ export function vote(valeurs: readonly number[]): { valeur: number; accord: numb
 
 /** Ce qu'une fenêtre de repère a donné. `boite` est celle de la forme retenue, dans le repère de
  *  l'image sondée : c'est elle que le Lecteur englobe dans la bande de l'élément. */
-export type BlocPiste = { readonly presence: number; readonly votes: readonly number[]; readonly boite?: Boite };
+export type BlocPiste = {
+  readonly presence: number;
+  readonly votes: readonly number[];
+  readonly boite?: Boite;
+  /** Le repère seuillé et les formes de la taille d'un chiffre qu'on y a comptées, de gauche à
+   *  droite, pris du seuillage qui en a isolé le plus. */
+  readonly decoupe?: { readonly morceau: ImageGrise; readonly chiffres: readonly Boite[] };
+};
 
 /** Seuils tentés sur le bloc, en part du ton clair local. Plusieurs seuils, plusieurs lectures :
  *  un chiffre clair sur fond sombre ne se détache pas au même endroit selon la lumière. */
@@ -370,6 +399,7 @@ export function lireBlocPiste(
   marge: number,
   etiquette: boolean,
   options: OptionsReperes = {},
+  recueille = false,
 ): BlocPiste {
   const fenetre = zonePastille(boite, position, marge);
   const zone = recadrer(image, fenetre);
@@ -391,6 +421,7 @@ export function lireBlocPiste(
 
   const losange = motif === "losange_sombre_chiffres_clairs";
   const votes: number[] = [];
+  let decoupe: { morceau: ImageGrise; chiffres: readonly Boite[] } | undefined;
 
   for (const forme of candidates) {
     if (forme.l < boite.h * 0.6) continue;
@@ -414,7 +445,16 @@ export function lireBlocPiste(
         ...SEUILS_PERCENTILE.map((part) => tonClair(morceau, part)),
       ];
       for (const ton of new Set(tons)) {
-        const net = border(agrandir(inverser(seuiller(morceau, Math.max(1, ton))), 5), 25);
+        const brut = inverser(seuiller(morceau, Math.max(1, ton)));
+
+        // Le comptage des chiffres, uniquement si quelqu'un l'a demandé : il ne sert plus qu'à
+        // la mesure, et une lecture de lot n'a pas à le payer.
+        if (recueille) {
+          const formes = chiffresDuMorceau(brut);
+          if (decoupe === undefined || formes.length > decoupe.chiffres.length) decoupe = { morceau: brut, chiffres: formes };
+        }
+
+        const net = border(agrandir(brut, 5), 25);
         for (const segmentation of [7, 8]) {
           const lu = premierEntier(
             ocr(net, segmentation, options, CHIFFRES)
@@ -426,7 +466,12 @@ export function lireBlocPiste(
       }
     }
   }
-  return { presence, votes, ...(repere === undefined ? {} : { boite: repere }) };
+  return {
+    presence,
+    votes,
+    ...(repere === undefined ? {} : { boite: repere }),
+    ...(decoupe === undefined || decoupe.chiffres.length === 0 ? {} : { decoupe }),
+  };
 }
 
 /** Toutes les lectures d'une page : plusieurs passes, aucune consolidation encore.
@@ -459,8 +504,11 @@ export function lecturesDePage(image: ImageGrise, recette: Recette, options: Opt
               6 * facteur,
               lecturePiste.etiquette_disque,
               options,
+              options.recueillir !== undefined,
             );
       const piste = bloc === undefined ? undefined : vote(bloc.votes);
+      if (options.recueillir !== undefined && bloc?.decoupe !== undefined)
+        options.recueillir({ numero, y, ...(piste === undefined ? {} : { lu: piste.valeur }), ...bloc.decoupe });
       const apres = mots
         .slice(rang + 1, rang + 4)
         .map((autre) => autre.texte.toLowerCase())
@@ -528,6 +576,10 @@ export function lecturesDePage(image: ImageGrise, recette: Recette, options: Opt
 }
 
 /** Ce que porte une lecture. À incrémenter dès qu'une lecture dit quelque chose de nouveau.
+ *
+ *  Une lecture a porté un temps le fait d'avoir laissé un chiffre de côté. C'était juste et cela
+ *  n'a rien donné : voir `appui` dans `pistes.ts` et `docs/decisions.md`. La version est donc
+ *  revenue à 5, et le contenu d'une lecture avec elle.
  *
  *  Le cache de lecture garde un lot lu pendant un quart d'heure d'OCR, et sa clef désignait le
  *  document et la recette — pas ce que le lecteur en tire. Ajouter la zone de chaque repère n'a
