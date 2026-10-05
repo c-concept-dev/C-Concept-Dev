@@ -1179,3 +1179,103 @@ les deux disques et ne leur est pas comparable.
 139 pavés pour le lot, 7 appels, 17 429 jetons d'entrée et 5 752 de sortie, **0,0428 €** pour un
 plafond de 0,20. Un rejeu complet ne dépense **rien** : les 139 réponses viennent du cache, et la
 mesure entière retombe à soixante secondes de rendu.
+
+## L'inventaire des médias présents comme indice (REC-05)
+
+Après la relecture ciblée, il restait 25 pistes de F4 hors du compte. Le diagnostic les a séparées :
+
+| Cause | Pistes |
+|---|---:|
+| L'élément attendu est mis sur le **second support** | **10** |
+| Piste juste, mais un autre élément la précède | 8 |
+| L'élément attendu n'est pas lu du tout | 4 |
+| Piste fausse sur le bon support | 3 |
+
+Et l'inventaire des médias tranche la première cause : **le support 1 compte 92 pistes, et aucun
+second support n'est présent.** Pourtant 327 lignes sur 982 étaient placées hors du support 1 — la
+chaîne inventait un support qui n'a aucun enregistrement.
+
+L'inventaire se tire des médias eux-mêmes : leur nombre, et le motif de nom que la recette déclare
+en « indice », disent quels supports sont là et jusqu'où ils vont. C'est un fait sur les médias et
+non sur leur nom (REC-05) ; le nom ne sert qu'à les ranger.
+
+### Deux règles, et seulement la seconde a payé
+
+**Un support absent ne reçoit rien.** Les éléments d'un support que l'inventaire ne connaît pas
+restent sans piste, et n'héritent pas non plus de la précédente : relier au hasard est pire que ne
+pas relier. C'est juste, et c'est ce que Vérifier doit montrer — mais mesuré seul, **cela ne change
+aucun chiffre** : les éléments concernés étaient déjà hors du support 1, et le critère ne compte que
+celui-là. La règle corrige ce que la chaîne affirme, pas ce qu'elle trouve.
+
+**Un support ne se termine pas avant sa dernière piste connue.** Celle-ci paie. L'inventaire dit 92
+pistes ; tant que les lectures n'y sont pas parvenues, un retour au début est plus probablement une
+suite de chiffres mal lus qu'un disque suivant. La coupure tombait après la piste 82, et les dix
+pistes restantes étaient perdues pour un support qui n'existe pas.
+
+| | Premiers éléments | Pages |
+|---|---:|---:|
+| Avant, sans relecture | 55 / 92 | 67 / 92 |
+| Avant, avec relecture | 67 / 92 | 74 / 92 |
+| **Avec l'inventaire, sans relecture** | 60 / 92 | 76 / 92 |
+| **Avec l'inventaire, avec relecture** | **73 / 92** | **83 / 92** |
+| Critère | 83 | 89 |
+
+**L'état de F4, pour mémoire : 73 premiers éléments sur 92 et 83 pages sur 92**, pour un critère de
+83 et 89. Il manque 10 éléments et 6 pages. Depuis le vrai point de départ — 55 et 67 — le gain
+cumulé de la relecture ciblée et de l'inventaire est de **+18 éléments et +16 pages**. F3 reste à
+95 / 95 : sa recette ne déclare aucun changement de support, et l'inventaire ne lui change rien.
+
+### Ce que l'inventaire ne décide jamais
+
+Un repère lu le contredit toujours. Si une pastille donne une piste au-delà de ce que l'inventaire
+connaît, c'est l'inventaire qui est incomplet, pas la page : la piste lue est attribuée. Un test le
+retient, parce que c'est la différence entre un indice et une vérité.
+
+## Les dix pistes qui commencent trop tôt : l'ordre est hors de cause
+
+Il restait, après l'inventaire, dix pistes justes dont le **premier** élément était faux. L'hypothèse
+à éprouver d'abord était un problème d'ordre de lecture — double page, bas de page gauche suivi du
+haut de page droite, colonnes.
+
+**Elle est réfutée.** Dans les dix cas, l'élément que la chaîne retient vient *avant* celui de
+l'oracle dans l'ordre de lecture normal : même page et hauteur plus faible, ou page antérieure.
+L'ordre est juste ; c'est la piste qui commence trop tôt. Les pages arrivent bien cliché par cliché,
+gauche puis droite, et les numéros d'élément sont tous dans la même colonne — il n'y a pas de
+deuxième colonne à mal ordonner.
+
+### La vraie cause
+
+Les éléments retenus à tort portent des lectures **partielles** que la suite résout correctement :
+él.335 lit « 3 », qui est bien un 38 tronqué, et l'attribution l'y place parce que ses voisines le
+permettent. Mais un élément plus loin — él.337 — porte la lecture franche « 38 », et c'est lui qui
+ouvre la piste.
+
+| Piste | La chaîne retient | L'oracle veut |
+|---|---|---|
+| 38 | él.335, lit « 3 » | él.337, lit « 38 » |
+| 44 | él.407, lit « 4 » | él.409, lit « 44 » |
+| 60 | él.527, lit « 1 » | él.533, lit « 60 » |
+| 70 | él.587, lit « 46 » | él.589, lit « 70 » |
+
+### La correction qui s'en déduisait, et pourquoi elle est écartée
+
+Un repère marque un début : un élément placé avant le repère de la piste N appartient à N−1. La
+règle est générique, et la recette dit déjà que plusieurs éléments peuvent partager une piste.
+
+Mesurée : **5 pistes redressées, 12 abîmées.** Les premiers éléments tombent de 73 à 66.
+
+Dans chaque cas abîmé, le bon premier élément portait une lecture partielle et un élément plus loin
+lisait la piste franchement — exactement la configuration qu'on voulait corriger, mais à l'envers.
+Le signal est donc faux aussi souvent qu'il est juste, parce que plusieurs éléments partagent une
+piste et que rien, dans la lecture seule, ne distingue un vrai repère d'une forme qui lui ressemble :
+la présence vaut 0,26 à 0,51 des deux côtés, et l'accord 1,00 des deux côtés aussi.
+
+Ce qui manquerait pour trancher est de savoir **lequel des deux porte vraiment le repère**. La
+relecture ciblée ne le dit pas non plus : elle lit un nombre dans un pavé, elle ne juge pas si ce
+pavé est un repère. Le raisonnement reste en commentaire dans `interprete.ts` pour qu'on ne le
+refasse pas sous cette forme.
+
+### L'état de F4
+
+**73 premiers éléments sur 92 et 83 pages sur 92**, pour un critère de 83 et 89. Il manque 10
+éléments et 6 pages, et aucune des causes restantes n'est un défaut de lecture de repère.

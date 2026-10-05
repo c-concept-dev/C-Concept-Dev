@@ -172,9 +172,32 @@ export const clefDeVision = (cliche: number, cote: string | undefined, numero: n
  *  Elle reste donc sous une pastille, tout en passant largement un seuil de recette. */
 const PLAFOND_VISION = 0.85;
 
+/** Combien de pistes chaque support **présent** compte, par numéro de support.
+ *
+ *  Tiré de l'inventaire des médias : leur nombre et le motif de nom que la recette déclare en
+ *  « indice » disent quels supports sont là et jusqu'où ils vont. C'est un fait sur les médias, pas
+ *  sur leur nom (REC-05) — le nom ne sert qu'à les ranger.
+ *
+ *  Et cela reste un indice : un repère lu le contredit toujours. Si une pastille donne une piste
+ *  au-delà de ce que l'inventaire connaît, c'est l'inventaire qui est incomplet, pas la page. */
+export type SupportsPresents = ReadonlyMap<number, number>;
+
+/** L'inventaire, à partir des médias rangés. */
+export function supportsPresents(medias: readonly { readonly piste: number; readonly disque?: number | undefined }[]): SupportsPresents {
+  const parSupport = new Map<number, number>();
+  for (const media of medias) {
+    const support = media.disque ?? 1;
+    parSupport.set(support, Math.max(parSupport.get(support) ?? 0, media.piste));
+  }
+  return parSupport;
+}
+
 export type OptionsSequence = {
   /** Combien de pistes le support compte, su du média et non de son nom (REC-05). */
   readonly nombreDePistes?: number;
+  /** Quels supports sont présents, et jusqu'où ils vont. Absent, rien ne change : on suppose un
+   *  support unique dont on ne sait pas la taille. */
+  readonly supports?: SupportsPresents;
   /** Ce qu'une relecture ciblée a lu, par clef d'élément. Absent, rien ne change. */
   readonly vision?: ReadonlyMap<string, LectureParVision>;
 };
@@ -225,16 +248,58 @@ export function sequencer(
   });
 
   const estimation = Math.max(1, lectures.length, ...lectures.map((lecture) => lecture.pisteLue ?? 0));
-  const regles = reglesDePistes(recette, options.nombreDePistes ?? estimation);
+  const base = reglesDePistes(recette, options.nombreDePistes ?? estimation);
+  // Jusqu'où va le premier support, si l'inventaire le sait : une coupure avant sa dernière piste
+  // connue est prématurée.
+  const pistesDuPremier = options.supports?.get(1);
+  const regles = pistesDuPremier === undefined ? base : { ...base, pistesDuSupport: pistesDuPremier };
 
   // Un support qui change renumérote ses pistes à partir de 1 : on attribue tranche par tranche.
   const coupure = changementDeSupport(lectures, regles);
   const tranches = coupure === undefined ? [lectures] : [lectures.slice(0, coupure), lectures.slice(coupure)];
-  const attributions: { piste: number; disque: number }[] = [];
-  tranches.forEach((tranche, support) => {
-    for (const piste of attribuerPistes(tranche, regles)) attributions.push({ piste, disque: support + 1 });
+
+  const attributions: ({ piste: number; disque: number } | undefined)[] = [];
+  tranches.forEach((tranche, rangDuSupport) => {
+    const support = rangDuSupport + 1;
+
+    // Un support que l'inventaire ne connaît pas n'a aucun média : ses éléments restent sans piste
+    // plutôt que d'être forcés dans le support précédent. Un livre qui couvre deux disques dont on
+    // n'a que le premier doit dire « pas d'enregistrement ici », et non relier au hasard.
+    if (options.supports !== undefined && !options.supports.has(support)) {
+      for (const _ of tranche) attributions.push(undefined);
+      return;
+    }
+
+    // Jusqu'où va ce support. L'inventaire le dit, mais une pastille lue le contredit : si elle
+    // donne une piste plus loin, c'est l'inventaire qui est incomplet.
+    const connues = options.supports?.get(support);
+    const lues = Math.max(0, ...tranche.map((lecture) => lecture.pisteLue ?? 0));
+    const combien = connues === undefined ? regles.nombreDePistes : Math.max(connues, lues);
+    const reglesDuSupport = combien === regles.nombreDePistes ? regles : { ...regles, nombreDePistes: combien };
+
+    for (const piste of attribuerPistes(tranche, reglesDuSupport)) attributions.push({ piste, disque: support });
   });
-  const parRang = new Map(porteurs.map((rang, position) => [rang, attributions[position]!]));
+
+  // **Une règle essayée et réfutée, pour qu'on ne la refasse pas.**
+  //
+  // L'attribution optimise sur toute la suite : un élément qui lit « 3 » soutient partiellement la
+  // piste 38, et si ses voisines le permettent elle l'y place — ce qui est juste, « 3 » est bien un
+  // 38 tronqué. Mais il arrive qu'un élément **plus loin** porte une lecture franche de 38, et on a
+  // donc essayé de faire de celui-là le début de la piste, en repoussant le précédent sur la piste
+  // d'avant. C'est le sens d'un repère : il marque un début.
+  //
+  // Mesuré sur F4 : **5 pistes redressées, 12 abîmées.** Dans chaque cas abîmé, le bon premier
+  // élément portait une lecture partielle et un élément plus loin lisait la piste franchement — le
+  // signal est faux aussi souvent qu'il est juste, parce que plusieurs éléments partagent une piste
+  // et que rien ne distingue, dans la lecture seule, un vrai repère d'une forme qui lui ressemble.
+  // 73 premiers éléments sont tombés à 66.
+  //
+  // Ce qui manquerait pour trancher : savoir lequel des deux porte vraiment le repère, ce que ni la
+  // présence (0,26 à 0,51 des deux côtés) ni l'accord ne disent.
+
+  const parRang = new Map(porteurs.map((rang, position) => [rang, attributions[position]]));
+  /** Les rangs qui relèvent d'un support absent : ils n'héritent de rien. */
+  const sansSupport = new Set(porteurs.filter((_, position) => attributions[position] === undefined));
 
   const pisteSuitElement = recette.regles.pistes?.egale_numero_element === true;
   const heritage = recette.regles.plusieurs_elements_par_piste;
@@ -247,6 +312,20 @@ export function sequencer(
     let piste: number | undefined;
     let disque = dernierDisque;
     let sourcePiste: SourcePiste | undefined;
+
+    // Un élément d'un support absent ne prend aucune piste, et n'en hérite pas non plus : il n'y
+    // a pas d'enregistrement à relier, et en inventer un serait pire que de n'en relier aucun.
+    if (sansSupport.has(rang)) {
+      lignes.push({
+        numero: element.numeroRetenu,
+        pageImprimee: element.pageImprimee,
+        disque: dernierDisque,
+        ...(element.zone === undefined ? {} : { zone: element.zone }),
+        ...(element.zoneRepere === undefined ? {} : { zoneRepere: element.zoneRepere }),
+        confiance: element.accordNumero,
+      });
+      return;
+    }
 
     if (element.suite && recette.regles.mention_suite !== undefined && dernierePiste > 0) {
       piste = dernierePiste;

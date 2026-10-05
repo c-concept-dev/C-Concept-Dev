@@ -25,6 +25,7 @@ import {
   preparerLot,
   type LectureParVision,
   type PageLue,
+  supportsPresents,
 } from "@lienotheque/recettes";
 import { cacheDansDossier, candidatsDePage, entreesGardees, jetonDacces, relire, transportVersWorker, type Candidat } from "../src/index.js";
 
@@ -113,6 +114,9 @@ console.log(`Rendu : ${Math.round((Date.now() - debutRendu) / 1000)} s — ${can
 
 const medias = await mediasDuDossier(join(RACINE, "fixtures/fichiers/F4"), RECETTE);
 const nombreDePistes = Math.max(1, medias.length, ...attendus.map((attendu) => attendu.piste));
+// L'inventaire des médias présents : il dit quels supports sont là et jusqu'où ils vont.
+const supports = supportsPresents(medias);
+console.log(`Supports présents : ${[...supports].map(([support, pistes]) => `${support} (${pistes} pistes)`).join(", ")}`);
 
 const gardeesAvant = entreesGardees(cacheVision);
 const debutRelecture = Date.now();
@@ -196,8 +200,8 @@ writeFileSync(
   ),
 );
 
-const resultat = interpreter(lues, RECETTE, { nombreDePistes });
-const avecVision = interpreter(lues, RECETTE, { nombreDePistes, vision });
+const resultat = interpreter(lues, RECETTE, { nombreDePistes, supports });
+const avecVision = interpreter(lues, RECETTE, { nombreDePistes, supports, vision });
 
 /** Le critère porte sur le premier support : l'oracle est celui de CD1, et une piste 50 du
  *  deuxième disque n'est pas la piste 50 de l'oracle.

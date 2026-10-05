@@ -8,7 +8,7 @@ import { noterLesQuatreSens, orientationDuLot, redresser, type OptionsRedresseme
 import { objetsPdf, octetsImage, pagesPdf } from "@lienotheque/formats";
 import { decoderJpeg, enGris, type ImageGrise } from "@lienotheque/images";
 import { associer, lireNomMedia, type Association, type Media } from "./associateur.js";
-import { interpreter, type PageLue } from "./interprete.js";
+import { interpreter, type PageLue, supportsPresents } from "./interprete.js";
 import { lireCoucheTexte } from "@lienotheque/lecteur-texte";
 import { texteDePage } from "@lienotheque/contrats";
 import { VERSION_LECTURE, consolider, lecturesDePage, lireNumeroPage, type OptionsReperes } from "./reperes.js";
@@ -264,8 +264,13 @@ export async function lireLot(pdf: string, recette: Recette, options: OptionsBan
 
 export async function rejouer(pdf: string, dossierMedias: string, recette: Recette, options: OptionsBanc = {}): Promise<Rejeu> {
   const medias = await mediasDuDossier(dossierMedias, recette);
-  // Combien de pistes le support compte est un fait sur le média, pas sur son nom (REC-05).
-  const resultat = interpreter(await lireLot(pdf, recette, options), recette, { nombreDePistes: medias.length });
+  // Combien de pistes le support compte est un fait sur le média, pas sur son nom (REC-05). Et
+  // quels supports sont là : un livre qui couvre deux disques dont on n'a que le premier ne doit
+  // pas voir ses derniers éléments forcés dans celui-là.
+  const resultat = interpreter(await lireLot(pdf, recette, options), recette, {
+    nombreDePistes: medias.length,
+    supports: supportsPresents(medias),
+  });
   return { resultat, association: associer(resultat.lignes, medias, recette) };
 }
 
