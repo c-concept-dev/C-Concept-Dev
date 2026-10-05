@@ -24,6 +24,13 @@ name = "lienotheque-api"
 main = "src/index.ts"
 compatibility_date = "2026-03-08"
 
+# Figé, pour qu'un déploiement n'annonce plus aucun écart avec ce qui est en ligne.
+# « workers_dev » garde l'adresse par laquelle l'application appelle ; « preview_urls » est
+# désactivé parce qu'une adresse de prévisualisation est une porte de plus sur la même route,
+# et celle-ci n'a pas à en avoir deux.
+workers_dev = true
+preview_urls = false
+
 # ── Les secrets ne sont pas ici, et n'y seront jamais ─────────────────────────
 #
 # « ANTHROPIC_API_KEY » et « JETON_ACCES » sont posés à la main sur le Worker,

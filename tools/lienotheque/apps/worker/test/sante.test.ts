@@ -113,6 +113,12 @@ describe("la configuration de déploiement, et ce qu'elle ne contient pas (SEC-0
     expect(toml).toMatch(/--config/);
   });
 
+  it("fige ce qui serait sinon annoncé comme un écart à chaque déploiement", () => {
+    expect(toml).toMatch(/^workers_dev = true$/m);
+    expect(toml).toMatch(/^preview_urls = false$/m);
+    expect(toml).toMatch(/^compatibility_date = "\d{4}-\d{2}-\d{2}"$/m);
+  });
+
   it("fixe la version de wrangler, sans caret : un déploiement se rejoue à l'identique", () => {
     const manifeste = JSON.parse(readFileSync(join(RACINE, "package.json"), "utf8")) as {
       devDependencies?: Record<string, string>;

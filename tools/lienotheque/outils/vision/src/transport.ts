@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { DemandeVision, ReponseVision } from "@lienotheque/contrats";
 import type { Transport } from "./relecture.js";
 
@@ -49,3 +50,36 @@ export const jetonDeLEnvironnement = (env: Record<string, string | undefined> = 
   const valeur = env.LIENOTHEQUE_JETON;
   return valeur === undefined || valeur.length === 0 ? undefined : valeur;
 };
+
+/** Service sous lequel le trousseau du système garde le jeton. */
+export const SERVICE_TROUSSEAU = "lienotheque-jeton";
+
+/** Le jeton depuis le trousseau du système, au moment de l'appel.
+ *
+ *  Il ne passe ni par un fichier, ni par une variable d'environnement, ni par un journal : il est
+ *  lu, gardé en mémoire le temps de l'appel, et c'est tout. La sortie d'erreur du programme est
+ *  jetée plutôt que rapportée — un message d'erreur de trousseau peut citer ce qu'il a trouvé.
+ *
+ *  Rendu `undefined` quand le trousseau ne le connaît pas, pour la même raison que ci-dessus :
+ *  l'absence de jeton n'est pas une panne. */
+export function jetonDuTrousseau(service = SERVICE_TROUSSEAU, lire = lireParSecurity): string | undefined {
+  try {
+    const valeur = lire(service).replace(/\n$/, "");
+    return valeur.length === 0 ? undefined : valeur;
+  } catch {
+    return undefined;
+  }
+}
+
+const lireParSecurity = (service: string): string =>
+  execFileSync("security", ["find-generic-password", "-s", service, "-w"], {
+    encoding: "utf8",
+    // La sortie d'erreur est jetée : on ne veut pas d'un message qui citerait quoi que ce soit.
+    stdio: ["ignore", "pipe", "ignore"],
+  });
+
+/** Le jeton, d'où qu'il vienne : l'environnement d'abord, le trousseau ensuite.
+ *
+ *  L'environnement passe devant parce qu'il permet de viser un autre jeton sans toucher au
+ *  trousseau — pour une mise au point locale, par exemple. */
+export const jetonDacces = (): string | undefined => jetonDeLEnvironnement() ?? jetonDuTrousseau();

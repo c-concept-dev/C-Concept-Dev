@@ -9,22 +9,23 @@
  *  information, mais peut changer ce que le modèle voit — et cela se paie. On mesure donc le prix
  *  de chaque échelle avant de choisir ; la justesse de chacune se mesurera à part, en dépensant.
  *
- *  Le jeton d'accès vient de l'environnement et n'est jamais affiché. La clé du modèle n'est pas
- *  ici : elle est dans le Worker, et c'est tout l'intérêt.
+ *  Le jeton d'accès est lu au moment de l'appel — environnement d'abord, trousseau du système
+ *  ensuite — gardé en mémoire seulement, et jamais affiché. La clé du modèle n'est pas ici : elle
+ *  est dans le Worker, et c'est tout l'intérêt.
  *
- *     LIENOTHEQUE_JETON=… pnpm --filter @lienotheque/vision exec tsx mesures/jetons-f4.ts [url]
+ *     pnpm --filter @lienotheque/vision exec tsx mesures/jetons-f4.ts <url>
  */
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { coin, ouvrirCache } from "@lienotheque/cache";
 import { DemandeVision, EstimationVision, ZONES_MAX_PAR_APPEL } from "@lienotheque/contrats";
 import { agrandir, type ImageGrise } from "@lienotheque/images";
-import { recadrerPour, type Candidat } from "../src/index.js";
+import { jetonDacces, recadrerPour, type Candidat } from "../src/index.js";
 
 const BASE = (process.argv[2] ?? "http://127.0.0.1:8787").replace(/\/$/, "");
-const JETON = process.env.LIENOTHEQUE_JETON;
-if (JETON === undefined || JETON.length === 0) {
-  console.log("Aucun jeton d'accès dans l'environnement : posez LIENOTHEQUE_JETON et relancez.");
+const JETON = jetonDacces();
+if (JETON === undefined) {
+  console.log("Aucun jeton : ni dans l'environnement, ni dans le trousseau. Rien n'a été appelé.");
   process.exit(0);
 }
 
@@ -76,7 +77,7 @@ const compter = async (demande: DemandeVision): Promise<EstimationVision> => {
 };
 
 console.log(`\nWorker interrogé : ${BASE}`);
-console.log(`\n${"échelle".padEnd(8)}${"côtés".padStart(12)}${"octets/pavé".padStart(13)}${"jetons/pavé".padStart(13)}${"lot de 204".padStart(12)}${"coût".padStart(11)}`);
+console.log(`\n${"échelle".padEnd(8)}${"côtés".padStart(12)}${"octets/pavé".padStart(13)}${"jetons/pavé".padStart(13)}${"lot de 184".padStart(12)}${"coût".padStart(11)}`);
 
 const releves: { echelle: number; parPave: number; cote: string; octets: number }[] = [];
 
@@ -106,7 +107,7 @@ for (const echelle of ECHELLES) {
   }
 
   const parPave = jetons / zones.length;
-  const lot = 204;
+  const lot = 184;
   const dollars = ((parPave * lot) / 1e6) * DOLLARS_PAR_MILLION_ENTREE + ((SORTIE_PAR_ZONE * lot) / 1e6) * DOLLARS_PAR_MILLION_SORTIE;
   releves.push({ echelle, parPave, cote: `${Math.min(...cotes)}–${Math.max(...cotes)}`, octets: Math.round(octets / zones.length) });
   console.log(
@@ -115,7 +116,19 @@ for (const echelle of ECHELLES) {
   );
 }
 
-console.log(`\nLecture : le lot entier compte environ 204 pavés (mesuré sur les treize clichés).`);
+// Le coût fixe d'un appel : la consigne et le schéma de l'outil sont les mêmes à chaque fois, et
+// c'est justement ce que la mise en cache des invites doit amortir. On le mesure en comparant un
+// appel d'une zone à un appel plein.
+if (paves.length > 1) {
+  const une = imageDe(paves[0]!);
+  const seule = await recadrerPour(une, candidatDe(une));
+  if (seule !== undefined) {
+    const unAppel = await compter(DemandeVision.parse({ alphabet: "chiffres", zones: [seule.zone] }));
+    console.log(`\nCoût fixe d'un appel : ${unAppel.jetonsEntree} jetons pour une seule zone de ${seule.zone.largeur}×${seule.zone.hauteur} px.`);
+  }
+}
+
+console.log(`\nLecture : le lot entier compte environ 184 pavés (mesuré sur les treize clichés).`);
 console.log(`Les coûts supposent ${SORTIE_PAR_ZONE} jetons de sortie par pavé et le tarif affiché de Haiku 4.5`);
 console.log(`(${DOLLARS_PAR_MILLION_ENTREE} $ et ${DOLLARS_PAR_MILLION_SORTIE} $ le million) ; la mise en cache de la consigne n'est pas comptée.`);
 if (releves.length > 1) {

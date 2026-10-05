@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { DemandeVision, ReponseVision } from "@lienotheque/contrats";
 import { describe, expect, it } from "vitest";
-import { jetonDeLEnvironnement, transportVersWorker } from "../src/index.js";
+import { jetonDeLEnvironnement, jetonDuTrousseau, SERVICE_TROUSSEAU, transportVersWorker } from "../src/index.js";
 
 const JETON = "jeton-de-test";
 const EMPREINTE = "a".repeat(32);
@@ -71,5 +71,40 @@ describe("le jeton vient de l'environnement (SEC-01)", () => {
   it("ne rend rien quand il manque ou qu'il est vide : ce n'est pas une panne", () => {
     expect(jetonDeLEnvironnement({})).toBeUndefined();
     expect(jetonDeLEnvironnement({ LIENOTHEQUE_JETON: "" })).toBeUndefined();
+  });
+});
+
+describe("le jeton depuis le trousseau du système (SEC-01)", () => {
+  it("le lit au moment de l'appel, et enlève la fin de ligne que le programme ajoute", () => {
+    expect(jetonDuTrousseau(SERVICE_TROUSSEAU, () => "un-jeton-de-soixante-quatre\n")).toBe("un-jeton-de-soixante-quatre");
+  });
+
+  it("demande bien le service convenu", () => {
+    let demande: string | undefined;
+    jetonDuTrousseau("autre-service", (service) => {
+      demande = service;
+      return "x";
+    });
+    expect(demande).toBe("autre-service");
+  });
+
+  it("ne rend rien quand le trousseau ne le connaît pas : ce n'est pas une panne", () => {
+    expect(
+      jetonDuTrousseau(SERVICE_TROUSSEAU, () => {
+        throw new Error("The specified item could not be found in the keychain.");
+      }),
+    ).toBeUndefined();
+  });
+
+  it("ne rend rien sur une valeur vide", () => {
+    expect(jetonDuTrousseau(SERVICE_TROUSSEAU, () => "\n")).toBeUndefined();
+  });
+
+  it("ne laisse pas une erreur de trousseau remonter : elle pourrait citer ce qu'elle a trouvé", () => {
+    expect(() =>
+      jetonDuTrousseau(SERVICE_TROUSSEAU, () => {
+        throw new Error("trouvé : un-secret-qui-ne-doit-pas-remonter");
+      }),
+    ).not.toThrow();
   });
 });
