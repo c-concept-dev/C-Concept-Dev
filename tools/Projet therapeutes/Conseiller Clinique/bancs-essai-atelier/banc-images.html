@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Banc — images réellement présentées</title>
+<style>
+:root{color-scheme:light dark}
+body{font:15px/1.5 -apple-system,system-ui,sans-serif;margin:0;padding:20px;max-width:1100px}
+h1{font-size:19px;margin:0 0 4px}
+h2{font-size:15px;margin:22px 0 6px}
+.note{color:#667;font-size:13px;margin:4px 0 10px}
+video{width:100%;max-width:960px;background:#000;border-radius:8px}
+button{font:inherit;padding:6px 11px;margin:3px 5px 3px 0;border:1px solid #888;border-radius:6px;background:#eee;cursor:pointer}
+button:disabled{opacity:.45;cursor:default}
+table{border-collapse:collapse;font-size:13px;margin-top:6px}
+td,th{border:1px solid #bbb;padding:3px 8px;text-align:left}
+th{background:#eee}
+#journal{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;white-space:pre-wrap;max-height:220px;overflow:auto;background:#f6f6f6;padding:8px;border-radius:6px}
+</style></head><body>
+
+<h1>Banc — quelles images sont RÉELLEMENT présentées</h1>
+<p class="note">Chaque image effectivement affichée est journalisée par <code>requestVideoFrameCallback</code> :
+son instant dans le média, le compteur d'images présentées par le navigateur, et les images écartées.
+Une image présente dans le fichier mais jamais présentée n'apparaît donc pas — c'est exactement ce que
+ce banc cherche à mesurer. Si <code>requestVideoFrameCallback</code> manque, la page le dit et ne
+fabrique aucun chiffre.</p>
+
+<p>
+  <label>Fichier : <select id="choix"></select></label>
+  <button id="btnLire">Lire et mesurer</button>
+  <button id="btnJson" disabled>Télécharger le relevé</button>
+</p>
+<video id="v" muted playsinline preload="auto"></video>
+
+<h2>Résultat</h2>
+<table id="tbl"><tbody></tbody></table>
+<h2>Journal des images présentées</h2>
+<div id="journal">—</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+// Le plan est recopié ici pour que la page reste autonome : elle doit fonctionner dans
+// controle-humain/ sans aucun module du dépôt.
+const PLAN = {
+  ips: 30, duree: 40, flashS: 0.150,
+  instantsFlash: [3, 6, 9, 12, 15, 18, 21, 24, 27],
+  fondus: [[13.3, 13.7], [25.3, 25.7]],
+};
+const FICHIERS = [
+  'V1-images-tenues-plage-pleine.mp4',
+  'V2-cadence-constante-30ips.mp4',
+  'V3-images-tenues-plus-une-par-seconde.mp4',
+  'V4-cadence-constante-plage-limitee-reetiquetee.mp4',
+  'V5-temoin-ffmpeg-libx264.mp4',
+];
+FICHIERS.forEach((f) => { const o = document.createElement('option'); o.value = f; o.textContent = f; $('choix').appendChild(o); });
+
+const ligne = (k, v) => {
+  const tr = document.createElement('tr');
+  const a = document.createElement('td'); a.textContent = k;
+  const b = document.createElement('td'); b.textContent = v;
+  tr.appendChild(a); tr.appendChild(b); $('tbl').querySelector('tbody').appendChild(tr);
+};
+const vider = () => { $('tbl').querySelector('tbody').innerHTML = ''; };
+
+let dernier = null;
+
+async function mesurer(fichier) {
+  const v = $('v');
+  const supporte = typeof v.requestVideoFrameCallback === 'function';
+  vider(); $('journal').textContent = '';
+  if (!supporte) {
+    ligne('requestVideoFrameCallback', 'ABSENT de ce navigateur — aucune mesure possible');
+    return { fichier, supporte: false };
+  }
+  v.src = './' + fichier;
+  await new Promise((ok, ko) => { v.onloadedmetadata = ok; v.onerror = () => ko(new Error('lecture impossible')); });
+  const images = [];
+  let fini = false;
+  const surImage = (now, meta) => {
+    images.push({ mediaTime: +meta.mediaTime.toFixed(5),
+                  presentedFrames: meta.presentedFrames,
+                  expectedDisplayTime: +meta.expectedDisplayTime.toFixed(2) });
+    if (!fini) v.requestVideoFrameCallback(surImage);
+  };
+  v.requestVideoFrameCallback(surImage);
+  const t0 = performance.now();
+  // Lecture à vitesse réelle : la question est ce que le navigateur PRÉSENTE, pas ce qu'il peut
+  // décoder au plus vite. Accélérer changerait la réponse.
+  await v.play();
+  await new Promise((ok) => { v.onended = ok; });
+  fini = true;
+  const mursMs = Math.round(performance.now() - t0);
+  const q = v.getVideoPlaybackQuality ? v.getVideoPlaybackQuality() : null;
+
+  // ── flashs présentés : une fenêtre de flash contenant au moins une image présentée ──
+  const flashs = PLAN.instantsFlash.map((tf) => {
+    const dedans = images.filter((im) => im.mediaTime >= tf - 1e-6 && im.mediaTime < tf + PLAN.flashS - 1e-6);
+    return { instant: tf, images_presentees: dedans.length };
+  });
+  const flashsVus = flashs.filter((f) => f.images_presentees > 0).length;
+
+  // ── images de transition par fondu, et durée apparente ──
+  const fondus = PLAN.fondus.map((f) => {
+    const dedans = images.filter((im) => im.mediaTime >= f[0] - 1e-6 && im.mediaTime < f[1] - 1e-6);
+    let apparente = null;
+    if (dedans.length >= 2) {
+      apparente = +(dedans[dedans.length - 1].expectedDisplayTime - dedans[0].expectedDisplayTime).toFixed(1);
+    }
+    return { debut: f[0], fin: f[1], images_presentees: dedans.length,
+             duree_apparente_ms: apparente };
+  });
+
+  const r = { fichier, supporte: true, images_presentees_total: images.length,
+              duree_lecture_ms: mursMs,
+              qualite: q ? { totalVideoFrames: q.totalVideoFrames, droppedVideoFrames: q.droppedVideoFrames } : null,
+              flashs, flashs_vus: flashsVus, flashs_total: PLAN.instantsFlash.length,
+              fondus, images: images };
+
+  ligne('fichier', fichier);
+  ligne('images présentées (total)', String(images.length));
+  ligne('flashs présentés', flashsVus + ' sur ' + PLAN.instantsFlash.length);
+  ligne('détail par flash', flashs.map((f) => f.instant + 's:' + f.images_presentees).join('  '));
+  fondus.forEach((f, i) => ligne('fondu ' + (i + 1) + ' (' + f.debut + '→' + f.fin + ' s)',
+    f.images_presentees + ' image(s) présentée(s) sur 12'
+      + (f.duree_apparente_ms !== null ? ', durée apparente ' + f.duree_apparente_ms + ' ms' : '')));
+  if (q) ligne('images décodées / écartées', q.totalVideoFrames + ' / ' + q.droppedVideoFrames);
+  ligne('durée de lecture (horloge)', (mursMs / 1000).toFixed(2) + ' s');
+  $('journal').textContent = images.map((im) => im.mediaTime.toFixed(4) + '  n=' + im.presentedFrames).join('\n');
+  dernier = r;
+  $('btnJson').disabled = false;
+  return r;
+}
+
+$('btnLire').onclick = async function () {
+  this.disabled = true;
+  try { await mesurer($('choix').value); }
+  catch (e) { vider(); ligne('ERREUR', String(e && e.message || e)); }
+  this.disabled = false;
+};
+$('btnJson').onclick = () => {
+  if (!dernier) return;
+  const b = new Blob([JSON.stringify(dernier, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(b); a.download = 'images-presentees.json'; a.click();
+};
+window.__bancApi = { mesurer, FICHIERS, PLAN };
+</script>
+</body></html>
