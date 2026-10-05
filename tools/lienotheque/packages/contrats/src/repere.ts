@@ -73,6 +73,26 @@ export const PageReperee = z
   });
 export type PageReperee = z.infer<typeof PageReperee>;
 
+/** Ce qu'une page a donné à lire, avant toute numérotation — et ce que le cache de lecture garde.
+ *
+ *  Un fichier de cache est une frontière comme une autre : il a été écrit par une autre
+ *  exécution, parfois par une autre version, parfois à moitié. `JSON.parse` dit seulement que
+ *  c'est du JSON ; ce contrat dit que ce sont des pages lues (CLAUDE.md, règle 2).
+ *
+ *  Distinct de `PageReperee` : celle-ci porte en plus le numéro imprimé et son statut, que
+ *  l'interprète établit ensuite en votant sur le lot. Ce qui sort de la lecture ne les a pas
+ *  encore. */
+export const PageLueBrute = z
+  .object({
+    index: z.number().int().nonnegative(),
+    rang: z.number().int().nonnegative().optional(),
+    cote: CotePage.optional(),
+    pageLue: z.number().int().positive().optional(),
+    elements: z.array(ElementRepere),
+  })
+  .strict();
+export type PageLueBrute = z.infer<typeof PageLueBrute>;
+
 /** Comment le numéro de piste a été obtenu. Jamais « d'après le nom du fichier » : un nom de
  *  fichier ne vaut qu'indice de recoupement (REC-05).
  *

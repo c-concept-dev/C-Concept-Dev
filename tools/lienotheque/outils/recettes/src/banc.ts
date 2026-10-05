@@ -1,8 +1,9 @@
-import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { z } from "zod";
+import { existsSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { readFile, readdir } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { basename, join } from "node:path";
-import { ReglagesRedressement, type CotePage, type Recette, type ResultatRecette, type Rotation } from "@lienotheque/contrats";
+import { PageLueBrute, ReglagesRedressement, type CotePage, type Recette, type ResultatRecette, type Rotation } from "@lienotheque/contrats";
 import { noterLesQuatreSens, orientationDuLot, redresser, type OptionsRedressement, type RotationTrouvee } from "@lienotheque/redresseur";
 import { objetsPdf, octetsImage, pagesPdf } from "@lienotheque/formats";
 import { decoderJpeg, enGris, type ImageGrise } from "@lienotheque/images";
@@ -199,25 +200,53 @@ export type Rejeu = { readonly resultat: ResultatRecette; readonly association: 
  *
  *  Le cache ne garde que des lectures : des numéros, des positions, des confiances. Aucun pixel,
  *  aucun extrait du document — ce qui est sous droits reste là où il est. */
+/** Ce qu'une entrée de cache contient, relu par son contrat.
+ *
+ *  Un fichier de cache est une frontière comme une autre : il a été écrit par une autre
+ *  exécution, parfois par une autre version. `JSON.parse` dit seulement que c'est du JSON — pas
+ *  que ce sont des pages lues. Rendre le résultat tel quel, c'était promettre un type qu'on
+ *  n'avait pas vérifié, et laisser une entrée tronquée se faire passer pour une lecture. */
+export function lireCache(fichier: string): PageLue[] | undefined {
+  if (!existsSync(fichier)) return undefined;
+  try {
+    return z.array(PageLueBrute).parse(JSON.parse(readFileSync(fichier, "utf8"))) as PageLue[];
+  } catch {
+    // Illisible, tronquée, ou d'une autre forme : on la retire plutôt que de buter dessus à
+    // chaque exécution, et on relit. Un cache n'est jamais une raison d'échouer.
+    rmSync(fichier, { force: true });
+    return undefined;
+  }
+}
+
+/** Écrit une entrée de cache sans jamais en laisser une à moitié.
+ *
+ *  Un fichier temporaire puis un renommage : sur un même système de fichiers, le renommage est
+ *  atomique. Une exécution interrompue — et il y en a, un lot de F4 se lit en cinquante minutes —
+ *  laisse alors le temporaire, jamais une entrée tronquée que la suivante relirait comme valide.
+ *  Le temporaire porte le numéro du processus : deux exécutions côte à côte ne s'écrasent pas. */
+export function ecrireCache(fichier: string, lues: readonly PageLue[]): void {
+  const temporaire = `${fichier}.${process.pid}.tmp`;
+  try {
+    writeFileSync(temporaire, JSON.stringify(lues));
+    renameSync(temporaire, fichier);
+  } catch {
+    // Cache non inscriptible : tant pis, on a la lecture.
+    rmSync(temporaire, { force: true });
+  }
+}
+
 export async function lireLot(pdf: string, recette: Recette, options: OptionsBanc = {}): Promise<PageLue[]> {
   const fichier = options.cache === undefined ? undefined : join(options.cache, `${clefDeLecture(pdf, recette, options.pages)}.json`);
 
-  if (fichier !== undefined && existsSync(fichier))
-    try {
-      return JSON.parse(readFileSync(fichier, "utf8")) as PageLue[];
-    } catch {
-      // Cache illisible : on relit. Un cache n'est jamais une raison d'échouer.
-    }
+  if (fichier !== undefined) {
+    const gardees = lireCache(fichier);
+    if (gardees !== undefined) return gardees;
+  }
 
   // Page par page : ce qui s'accumule, ce sont des numéros et des positions, pas des pixels.
   const lues: PageLue[] = [];
   for await (const page of preparerLot(pdf, recette, options)) lues.push(...reperer([page], recette, options));
-  if (fichier !== undefined)
-    try {
-      writeFileSync(fichier, JSON.stringify(lues));
-    } catch {
-      // Cache non inscriptible : tant pis, on a la lecture.
-    }
+  if (fichier !== undefined) ecrireCache(fichier, lues);
   return lues;
 }
 
