@@ -39,7 +39,7 @@ export function Lecteur({ vue, page, element, onPage, onElement }: Props): JSX.E
   const [note, setNote] = useState("");
 
   const cadre = useRef<HTMLDivElement>(null);
-  const zoneActive = useRef<HTMLButtonElement>(null);
+  const ancreActive = useRef<HTMLSpanElement>(null);
   const segmentActif = useRef<HTMLDivElement>(null);
 
   const pageCourante = vue.pages.find((p) => p.numero === page) ?? vue.pages[0];
@@ -67,6 +67,7 @@ export function Lecteur({ vue, page, element, onPage, onElement }: Props): JSX.E
     debutS: departS,
     ...(connu === undefined ? {} : { finS: connu.fin }),
     boucle,
+    tempo,
     ...(actif?.media?.duree === undefined ? {} : { dureeAnnonceeS: actif.media.duree }),
   });
 
@@ -169,7 +170,7 @@ export function Lecteur({ vue, page, element, onPage, onElement }: Props): JSX.E
 
         <div className="ln-lecteur__page">
           {pageCourante === undefined ? null : (
-            <PageZoomable ref={zoneActive} page={pageCourante} mots={vue.mots} actif={actif?.ancreId ?? ""} zoom={zoom} onElement={onElement} />
+            <PageZoomable ref={ancreActive} page={pageCourante} mots={vue.mots} actif={actif?.ancreId ?? ""} zoom={zoom} onElement={onElement} />
           )}
         </div>
 
@@ -231,7 +232,7 @@ export function Lecteur({ vue, page, element, onPage, onElement }: Props): JSX.E
           </section>
         </aside>
 
-        <FilVersSegment depuis={zoneActive} vers={segmentActif} dans={cadre} clef={actif?.ancreId ?? ""} />
+        <FilVersSegment depuis={ancreActive} vers={segmentActif} dans={cadre} clef={actif?.ancreId ?? ""} />
       </div>
 
       <div className="ln-lecteur__pied ln-panneau-titre">

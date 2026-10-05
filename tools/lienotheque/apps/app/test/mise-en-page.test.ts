@@ -221,21 +221,24 @@ describe("Hybride : un contrôle garde l'encre de sa surface", () => {
   });
 });
 
-/** Une zone d'élément est petite par nature : un numéro dans la marge fait moins d'un pour cent
- *  de la page. Le cadre dit où le numéro a été lu ; la cible, elle, doit rester attrapable. */
+/** Une zone est la bande de l'élément, du numéro lu jusqu'au suivant. Elle est donc large par
+ *  construction ; la hauteur minimale ne sert qu'à une page qui porterait des éléments serrés. */
 describe("Lecteur : la cible d'une zone tient les 24 px de WCAG 2.2 (UX-07)", () => {
-  const regles = reglesPour(FEUILLES.lecteur, ".ln-page__zone::before");
+  const regles = reglesPour(FEUILLES.lecteur, ".ln-page__zone");
 
-  it("étend la surface de clic autour du centre de la zone", () => {
+  it("garde une hauteur minimale, même sur une page chargée", () => {
     expect(regles.length, "la règle existe").toBeGreaterThan(0);
-    expect(regles.some((corps) => declaration(corps, "inset") === "50%")).toBe(true);
-    expect(regles.some((corps) => declaration(corps, "margin") === "-12px"), "24 px de côté").toBe(true);
+    expect(regles.some((corps) => declaration(corps, "min-height") === "24px")).toBe(true);
   });
 
-  it("ne touche pas au cadre lui-même : il dit où le numéro a été lu", () => {
-    for (const corps of reglesPour(FEUILLES.lecteur, ".ln-page__zone")) {
-      expect(declaration(corps, "min-width"), "aucune taille minimale sur le cadre").toBeUndefined();
-      expect(declaration(corps, "padding"), "aucun remplissage qui l'agrandirait").toBeUndefined();
-    }
+  it("reste discrète au repos : la page est le document, pas un formulaire", () => {
+    expect(regles.some((corps) => declaration(corps, "border")?.includes("transparent") === true)).toBe(true);
+    expect(regles.some((corps) => declaration(corps, "background") === "none")).toBe(true);
+  });
+
+  it("ne porte aucune marque de plus là où le fil s'accroche", () => {
+    const ancre = reglesPour(FEUILLES.lecteur, ".ln-page__zone-ancre");
+    expect(ancre.length, "l'ancre du fil existe").toBeGreaterThan(0);
+    expect(ancre.some((corps) => declaration(corps, "width") === "0" && declaration(corps, "height") === "0")).toBe(true);
   });
 });

@@ -7,10 +7,33 @@ import { useCallback, useEffect, useRef, useState } from "react";
  *  fin. Deux écrans qui liraient chacun à leur manière finiraient par ne pas dire la même chose
  *  du même lien.
  *
- *  Ce qui n'est pas ici : le tempo. Le ralenti à hauteur conservée demande un étirement temporel
- *  que « playbackRate » ne fait pas — il descend la hauteur avec la vitesse. Tant qu'il n'est pas
- *  fait, on ne touche pas à la vitesse : mieux vaut un réglage qui attend qu'un ralenti qui
- *  transpose la musique sans prévenir. */
+ *  Le tempo passe par « playbackRate », avec « preservesPitch » : les trois moteurs savent
+ *  aujourd'hui ralentir sans transposer, et c'est leur étirement temporel qui le fait, pas le
+ *  nôtre. Le réglage vaut 50 à 100 % (CDC, écran du Lecteur) ; au-delà de ces bornes, rien
+ *  d'utile pour reprendre un passage.
+ *
+ *  Le drapeau porte trois noms selon l'âge du moteur. On les pose tous les trois : celui qui
+ *  n'existe pas est ignoré, et celui qui existe empêche la hauteur de monter quand la vitesse
+ *  baisse. Sans lui, ralentir de moitié transpose d'une octave — et ce qu'on voulait ralentir
+ *  pour le travailler n'est plus ce qu'on écoute. */
+
+/** Bornes du réglage de tempo, reprises du CDC : 50 à 100 %. */
+export const TEMPO_MIN = 50;
+export const TEMPO_MAX = 100;
+
+/** Pose la vitesse et demande au moteur de garder la hauteur.
+ *
+ *  `preservesPitch` est le nom normalisé ; les deux autres sont les noms que des moteurs plus
+ *  anciens comprennent encore. Écrire sur une propriété que le moteur ignore ne coûte rien, et
+ *  l'oublier ferait transposer le ralenti là où elle aurait suffi. */
+export function appliquerTempo(element: HTMLAudioElement, tempo: number): void {
+  const vitesse = Math.min(TEMPO_MAX, Math.max(TEMPO_MIN, tempo)) / 100;
+  const avecNomsAnciens = element as HTMLAudioElement & { mozPreservesPitch?: boolean; webkitPreservesPitch?: boolean };
+  element.preservesPitch = true;
+  avecNomsAnciens.mozPreservesPitch = true;
+  avecNomsAnciens.webkitPreservesPitch = true;
+  element.playbackRate = vitesse;
+}
 
 export type Ecoute = {
   /** Une source existe. Faux : « média non disponible ici ». */
@@ -36,9 +59,11 @@ export type Reglages = {
   readonly boucle?: boolean;
   /** Durée annoncée par le dépôt, le temps que le navigateur lise la sienne. */
   readonly dureeAnnonceeS?: number | undefined;
+  /** Tempo en pourcentage de la vitesse d'origine. 100 par défaut. */
+  readonly tempo?: number;
 };
 
-export function useEcoute({ source, debutS = 0, finS, boucle = false, dureeAnnonceeS }: Reglages): Ecoute {
+export function useEcoute({ source, debutS = 0, finS, boucle = false, dureeAnnonceeS, tempo = 100 }: Reglages): Ecoute {
   const audio = useRef<HTMLAudioElement | null>(null);
   const [enLecture, setEnLecture] = useState(false);
   const [positionS, setPositionS] = useState(debutS);
@@ -47,8 +72,8 @@ export function useEcoute({ source, debutS = 0, finS, boucle = false, dureeAnnon
 
   // Les bornes vivent dans une référence : l'écouteur de position est posé une fois, et doit
   // voir les bornes du segment courant, pas celles d'il y a trois rendus.
-  const bornes = useRef({ debutS, finS, boucle });
-  bornes.current = { debutS, finS, boucle };
+  const bornes = useRef({ debutS, finS, boucle, tempo });
+  bornes.current = { debutS, finS, boucle, tempo };
 
   /** Change de source ou de segment : on repart de son début, et rien ne continue de jouer. */
   useEffect(() => {
@@ -64,6 +89,7 @@ export function useEcoute({ source, debutS = 0, finS, boucle = false, dureeAnnon
 
     const element = new Audio(source);
     element.preload = "metadata";
+    appliquerTempo(element, bornes.current.tempo);
     audio.current = element;
 
     const surTemps = (): void => {
@@ -99,6 +125,16 @@ export function useEcoute({ source, debutS = 0, finS, boucle = false, dureeAnnon
       audio.current = null;
     };
   }, [source, debutS]);
+
+  /** Le tempo suit son réglage, sur l'élément courant comme sur le suivant.
+   *
+   *  Posé dans son propre effet, et non à la lecture : changer le tempo pendant qu'on écoute doit
+   *  s'entendre tout de suite, sans redémarrer le passage. */
+  useEffect(() => {
+    const element = audio.current;
+    if (element === null) return;
+    appliquerTempo(element, tempo);
+  }, [tempo, source, debutS]);
 
   const arreter = useCallback(() => {
     audio.current?.pause();
