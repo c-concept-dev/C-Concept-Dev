@@ -950,3 +950,77 @@ bloc d'une pastille à deux chiffres** — un pavé sombre de quelques dizaines 
 clairs, parfois flanqué d'une étiquette. Il y en a environ dix-neuf pour quatorze clichés, soit de
 l'ordre de deux cents pour le lot : moins que les neuf cents zones du plan initial, et bien mieux
 ciblées.
+
+## Compter les chiffres d'un repère, et ce que les modèles du document ne savent pas faire
+
+Dernière tentative locale avant la vision ciblée, d'une autre nature que les réglages d'OCR : ne
+plus chercher à mieux lire, mais à savoir **quand on a mal lu**.
+
+### Le comptage : retenu
+
+Un moteur d'OCR rend un texte ou rien. Quand il rend « 4 » là où le repère porte 14, il ne signale
+aucune difficulté — sa réponse est complète de son point de vue. L'image dit le contraire : deux
+formes de la taille d'un chiffre, une seule lue.
+
+`chiffresDuMorceau` compte ces formes dans le pavé que le lecteur isole déjà, en prenant pour
+mesure la plus haute d'entre elles. Rien d'absolu : un repère de vingt pixels et un de deux cents
+se comptent pareil.
+
+| Sur les 37 repères des clichés de référence que l'oracle connaît | |
+|---|---:|
+| Comptage juste (formes comptées = chiffres de l'oracle) | **33 / 37** |
+| Lectures à un chiffre perdu, toutes signalées | **10 / 10** |
+| Lectures justes que le comptage croirait incomplètes | **2 / 22** |
+
+Ce qui a fait la différence vient de la mesure, pas d'une intuition : un **filtre d'étroitesse**.
+Les éclats du seuillage font un à trois pixels de large pour trente à quarante de haut ; le plus
+étroit des chiffres de cette fonte, un « 1 », en fait sept pour trente-cinq. Sans ce filtre, un
+éclat devenait la forme la plus haute du repère et faisait taire les vrais chiffres : le comptage
+tombait à 19 sur 37 et douze lectures justes sur vingt-deux passaient pour incomplètes.
+
+### La conséquence : une lecture tronquée ne vaut plus la vérité entière
+
+Compter ne sert à rien si personne n'écoute. `appuiTronque` est `appui` à l'envers : quand la
+lecture est connue incomplète, son soutien va au nombre qui **contient** la lecture plutôt qu'à
+celui qui lui est égal. L'égalité garde un reste, parce que le comptage se trompe deux fois sur
+vingt-deux et ne doit pas pouvoir écarter ce que la lecture dit.
+
+Là où cela change quelque chose : une lecture tronquée entraînait sa voisine vers le bas. « 19 »
+suivi d'un « 2 » tiré d'un repère portant 20 donnait `[1, 2]` — la suite abandonnait le 19 plutôt
+que de contredire le 2 ; elle rend `[19, 20]`. De même `[9, 1, 1]` donnait `[1, 1, 1]` et rend
+`[9, 10, 11]`. C'est la signature des seize dérives de −1 relevées sur le lot.
+
+Là où cela ne change rien, à dessein : encadrée par 12 et 14, la lecture « 1 » donnait déjà 13 —
+l'appui partiel d'une lecture ordinaire y suffisait. Le drapeau ne défait pas ce qui marchait.
+
+### Les modèles tirés du document : réfuté
+
+L'idée se tenait. Les repères à un seul chiffre se lisent 13 fois sur 13 ; chacun fournit donc un
+exemple sûr de son chiffre dans la fonte de ce document. Il n'y aurait qu'à découper le chiffre
+perdu et le rapprocher de ces exemples — rien d'écrit en dur, chaque document constituant ses
+propres modèles.
+
+Mesuré, cela ne marche pas. Les modèles viennent du document entier **moins** les treize clichés
+éprouvés, pour qu'il n'y ait aucune fuite : cent exemples sûrs. Quatre grilles de normalisation,
+trois distances, cinq seuils d'écart et trois seuils d'avance ont été balayés.
+
+| | gain | coût |
+|---|---:|---:|
+| Seuils serrés (écart ≤ 0,06, avance ≥ 0,04) | 0 | 0 |
+| Seuils moyens (écart ≤ 0,10, avance ≥ 0) | 3 | 5 |
+| Seuils lâches (écart ≤ 0,15, avance ≥ 0) | 3 | 11 |
+
+**Aucun couple de seuils ne rend plus de repères qu'il n'en abîme.** Et le détail compte : passer
+de dix-neuf exemples, tirés des seuls clichés éprouvés, à cent exemples tirés du document entier a
+*empiré* le résultat. Plus de modèles, c'est aussi plus de chances qu'une forme douteuse trouve un
+voisin proche : l'écart cesse alors de trier.
+
+La raison de fond est dans la composition du document, et elle condamne l'approche plutôt qu'un
+réglage. Les exemples sûrs viennent presque tous de pastilles à un chiffre et du chiffre des unités
+des autres : vingt-neuf « 2 », vingt-trois « 3 », vingt « 4 » — mais sept « 1 » et cinq « 0 », qui
+sont justement les chiffres des dizaines, ceux que l'OCR perd. Le document est riche là où on n'a
+besoin de rien et pauvre là où tout se joue.
+
+La reconnaissance est donc retirée de la bibliothèque et vit dans la mesure qui l'a réfutée,
+`outils/recettes/mesures/comptage-chiffres-f4.ts`, pour qu'on puisse refaire le calcul sans la
+porter à nouveau. Le comptage, lui, reste : il est utile sans elle.
