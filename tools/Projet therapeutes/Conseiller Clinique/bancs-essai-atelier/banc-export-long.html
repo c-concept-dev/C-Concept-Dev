@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Banc — export long en cadence constante</title>
+<style>
+:root{color-scheme:light dark}
+body{font:15px/1.5 -apple-system,system-ui,sans-serif;margin:0;padding:20px;max-width:1000px}
+h1{font-size:19px;margin:0 0 6px}
+.note{color:#667;font-size:13px}
+button{font:inherit;padding:6px 11px;margin:6px 6px 6px 0;border:1px solid #888;border-radius:6px;background:#eee;cursor:pointer}
+table{border-collapse:collapse;font-size:13px;margin-top:8px}
+td,th{border:1px solid #bbb;padding:3px 8px;text-align:left}
+#etat{font-family:ui-monospace,Menlo,monospace;font-size:12px;margin-top:8px}
+</style></head><body>
+<h1>Export long, cadence constante</h1>
+<p class="note">40 diapositives, fondus de 0,4 s, 30 images par seconde, 10 minutes :
+<strong>18 000 images écrites</strong>. Aucune extrapolation depuis un export court — c'est la
+durée, le poids et la mémoire réels qui sont mesurés ici.</p>
+<p><button id="btn">Lancer l'export de 10 minutes</button></p>
+<div id="etat">en attente</div>
+<table id="tbl"><tbody></tbody></table>
+<script>
+const $ = (id) => document.getElementById(id);
+const ligne = (k, v) => {
+  const tr = document.createElement('tr');
+  const a = document.createElement('td'); a.textContent = k;
+  const b = document.createElement('td'); b.textContent = v;
+  tr.appendChild(a); tr.appendChild(b); $('tbl').querySelector('tbody').appendChild(tr);
+};
+
+const PLAN = {
+  largeur: 1920, hauteur: 1080, ips: 30, duree: 600,
+  diapos: 40, fonduS: 0.4,
+};
+
+async function exporterLong(plan) {
+  const P = Object.assign({}, PLAN, plan || {});
+  const mod = await import('./vendeur/mediabunny.mjs');
+  const { Output, Mp4OutputFormat, BufferTarget, CanvasSource, AudioBufferSource,
+          QUALITY_HIGH } = mod;
+  const L = P.largeur, H = P.hauteur, SE = 48000;
+  const sortie = new Output({ format: new Mp4OutputFormat(), target: new BufferTarget() });
+  const canvas = document.createElement('canvas'); canvas.width = L; canvas.height = H;
+  const ctx = canvas.getContext('2d', { alpha: false });
+  const vs = new CanvasSource(canvas, { codec: 'avc', bitrate: QUALITY_HIGH });
+  sortie.addVideoTrack(vs, { frameRate: P.ips });
+
+  // Audio : un fond très faible sur toute la durée. Il tient la piste sans peser.
+  const ctxA = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: SE });
+  const n = Math.round(P.duree * SE);
+  const buf = ctxA.createBuffer(1, n, SE), d = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = 0.02 * Math.sin(2 * Math.PI * 160 * i / SE);
+  const as = new AudioBufferSource({ codec: 'aac', bitrate: 128000 });
+  sortie.addAudioTrack(as);
+  await sortie.start(); await as.add(buf); as.close();
+
+  // 40 diapositives réparties sur la durée, chacune suivie d'un fondu vers la suivante.
+  const parDiapo = P.duree / P.diapos;
+  const teintes = [];
+  for (let i = 0; i < P.diapos; i++) teintes.push('hsl(' + Math.round(i * 360 / P.diapos) + ' 42% 28%)');
+  function peindre(i, alpha) {
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = teintes[Math.min(i, P.diapos - 1)];
+    ctx.fillRect(0, 0, L, H);
+    ctx.fillStyle = '#f7f4ee';
+    ctx.font = '700 110px -apple-system, system-ui, sans-serif';
+    ctx.fillText('Diapositive ' + (i + 1), 140, 520);
+    ctx.font = '400 52px -apple-system, system-ui, sans-serif';
+    ctx.fillText('cadence constante, 30 images par seconde', 140, 620);
+    ctx.globalAlpha = 1;
+  }
+  function dessiner(t) {
+    const i = Math.min(P.diapos - 1, Math.floor(t / parDiapo));
+    const dansDiapo = t - i * parDiapo;
+    const debutFondu = parDiapo - P.fonduS;
+    ctx.globalAlpha = 1; ctx.fillStyle = '#000'; ctx.fillRect(0, 0, L, H);
+    if (i < P.diapos - 1 && dansDiapo >= debutFondu) {
+      const k = (dansDiapo - debutFondu) / P.fonduS;
+      peindre(i, 1); peindre(i + 1, k);
+    } else {
+      peindre(i, 1);
+    }
+  }
+
+  const total = Math.round(P.duree * P.ips);
+  const pas = 1 / P.ips;
+  const t0 = performance.now();
+  let picTas = 0;
+  for (let k = 0; k < total; k++) {
+    dessiner(k * pas);
+    await vs.add(k * pas, pas);
+    if ((k % 300) === 0) {
+      if (performance.memory && performance.memory.usedJSHeapSize > picTas) picTas = performance.memory.usedJSHeapSize;
+      $('etat').textContent = 'image ' + (k + 1) + ' sur ' + total
+        + '  —  ' + Math.round((performance.now() - t0) / 1000) + ' s écoulées';
+      await new Promise((r) => setTimeout(r, 0));   // laisse respirer l'interface
+    }
+  }
+  vs.close();
+  await sortie.finalize();
+  const ms = Math.round(performance.now() - t0);
+  const octets = sortie.target.buffer.byteLength;
+  if (performance.memory && performance.memory.usedJSHeapSize > picTas) picTas = performance.memory.usedJSHeapSize;
+  // On NE renvoie pas le tampon : seules les mesures remontent.
+  sortie.target.buffer = null;
+  return { images_ecrites: total, duree_encodage_ms: ms, octets: octets,
+           pic_tas_js_octets: picTas || null,
+           tas_js_disponible: !!performance.memory,
+           duree_video_s: P.duree, ips: P.ips, diapos: P.diapos, fondu_s: P.fonduS };
+}
+
+$('btn').onclick = async function () {
+  this.disabled = true;
+  $('tbl').querySelector('tbody').innerHTML = '';
+  $('etat').textContent = 'export en cours…';
+  try {
+    const r = await exporterLong();
+    $('etat').textContent = 'terminé';
+    ligne('images écrites', r.images_ecrites);
+    ligne('durée d\'encodage', (r.duree_encodage_ms / 1000).toFixed(1) + ' s');
+    ligne('poids', (r.octets / 1048576).toFixed(1) + ' Mo');
+    ligne('pic du tas JS', r.tas_js_disponible ? (r.pic_tas_js_octets / 1048576).toFixed(1) + ' Mo'
+      : 'performance.memory absent de ce navigateur');
+  } catch (e) {
+    $('etat').textContent = 'ÉCHEC : ' + (e && e.message || e);
+    ligne('ÉCHEC', String(e && e.message || e));
+  }
+  this.disabled = false;
+};
+window.__exportLongApi = { exporterLong, PLAN };
+</script>
+</body></html>
