@@ -113,3 +113,16 @@ export function reponseRepondA(demande: DemandeVision, reponse: ReponseVision): 
   for (const empreinte of rendues) if (!demandees.has(empreinte)) ecarts.push(`réponse sans zone : ${empreinte}`);
   return ecarts;
 }
+
+/** Ce qu'une estimation rend : les jetons qu'une demande coûterait, sans la payer.
+ *
+ *  Le pendant de REC-04 pour la relecture ciblée : on annonce avant de dépenser. Et on compte sur
+ *  de vrais recadrages, jamais sur une règle de trois — c'est ce qui permet d'écrire un plafond
+ *  dans une recette sans l'avoir supposé. */
+export const EstimationVision = z
+  .object({
+    zones: z.number().int().nonnegative(),
+    jetonsEntree: z.number().int().nonnegative(),
+  })
+  .strict();
+export type EstimationVision = z.infer<typeof EstimationVision>;

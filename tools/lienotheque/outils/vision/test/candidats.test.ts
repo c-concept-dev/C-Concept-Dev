@@ -1,183 +1,145 @@
 // @vitest-environment node
-import { describe, expect, it } from "vitest";
-import { Recette, type CotePage } from "@lienotheque/contrats";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { COTE_MAX_RECADRAGE, Recette, type ZoneRelative } from "@lienotheque/contrats";
 import type { ImageGrise } from "@lienotheque/images";
-import { bandesDeMarge, candidatsDePage, type DejaLu } from "../src/index.js";
+import { describe, expect, it } from "vitest";
+import { candidatsDePage, motifDeRelecture, recadrageDuRepere, type ElementAsonder, type PageAsonder } from "../src/index.js";
 
-/** Trouver l'encre que la lecture n'a pas rendue (OUT-08).
- *
- *  Rien ici ne touche au réseau ni à une fixture sous droits : on dessine des pages, on y pose
- *  des taches, et on regarde ce qui est retenu. Ce qui se mesure sur le lot réel est une autre
- *  affaire — c'est la mesure, pas le contrôle. */
+const RECETTES = join(import.meta.dirname, "../../../fixtures/recettes");
+const lire = (nom: string): Recette => Recette.parse(JSON.parse(readFileSync(join(RECETTES, nom), "utf8")));
+/** La recette qui déclare une relecture ciblée, et celle qui n'en déclare pas. */
+const AVEC = lire("methode-pastilles-cd.v5.json");
+const SANS = lire("methode-pastilles-cd.v4.json");
 
-const RECETTE = Recette.parse({
-  id: "essai",
-  version: 1,
-  derivee_de: null,
-  preparation: { redressement: "aucun", double_page: false },
-  lectures: [
-    {
-      ancre: "element",
-      zone: { type: "marges_exterieures", largeur_rel: 0.2 },
-      hauteur_rel: { min: 0.012, max: 0.032 },
-      alphabet: "chiffres",
-    },
-  ],
-  regles: { elements: { ordre: "strictement_croissant", saut_max: 12 }, plusieurs_elements_par_piste: false },
-  validation: { seuil_confiance: 0.6 },
+const page = (elements: readonly ElementAsonder[], largeur = 1786, hauteur = 2410): PageAsonder => ({
+  index: 7,
+  image: { largeur, hauteur, pixels: new Uint8Array(largeur * hauteur).fill(240) },
+  cote: "gauche",
+  elements,
 });
 
-const LARGEUR = 800;
-const HAUTEUR = 2000;
+/** Un repère de 100 × 60 px vers le milieu de la page : l'ordre de grandeur mesuré sur F4. */
+const repere = (y = 0.4): ZoneRelative => ({ x: 0.2, y, l: 100 / 1786, h: 60 / 2410 });
 
-/** Une page blanche, et de quoi y poser du noir. */
-function pageBlanche(): { image: ImageGrise; noircir: (x: number, y: number, l: number, h: number) => void } {
-  const pixels = new Uint8Array(LARGEUR * HAUTEUR).fill(250);
-  const noircir = (x: number, y: number, l: number, h: number): void => {
-    for (let dy = 0; dy < h; dy += 1)
-      for (let dx = 0; dx < l; dx += 1) pixels[(y + dy) * LARGEUR + (x + dx)] = 10;
-  };
-  return { image: { largeur: LARGEUR, hauteur: HAUTEUR, pixels }, noircir };
-}
+const element = (sur: Partial<ElementAsonder> = {}): ElementAsonder => ({
+  numero: 160,
+  y: 0.4,
+  zoneRepere: repere(),
+  pisteLue: 1,
+  chiffresComptes: 2,
+  ...sur,
+});
 
-const sonder = (image: ImageGrise, dejaLus: readonly DejaLu[] = [], cote?: CotePage) =>
-  candidatsDePage({ index: 0, image, dejaLus, ...(cote === undefined ? {} : { cote }) }, RECETTE);
-
-describe("la bande de marge suit la recette, pas une valeur devinée", () => {
-  const image: ImageGrise = { largeur: LARGEUR, hauteur: HAUTEUR, pixels: new Uint8Array(LARGEUR * HAUTEUR) };
-
-  it("sans côté connu, regarde les deux bords : on ne devine pas où était la reliure", () => {
-    const bandes = bandesDeMarge(image, 0.2);
-    expect(bandes).toHaveLength(2);
-    expect(bandes[0]?.x).toBe(0);
-    expect(bandes[1]?.x).toBe(LARGEUR - 160);
+describe("quels repères méritent une relecture (OUT-08)", () => {
+  it("part quand le repère montre plus de chiffres que la lecture n'en rend", () => {
+    expect(motifDeRelecture(element({ pisteLue: 1, chiffresComptes: 2 }))).toBe("lecture_incomplete");
   });
 
-  it("sur une page coupée, la même part de cliché occupe deux fois la page", () => {
-    // La correction consignée après Westwood : « marges_exterieures » vaut pour le cliché
-    // entier. L'oublier ici, c'est refaire la moitié du chemin.
-    expect(bandesDeMarge(image, 0.2, "gauche")[0]?.l).toBe(320);
-    expect(bandesDeMarge(image, 0.2, "droite")[0]?.x).toBe(LARGEUR - 320);
+  it("part quand rien n'a été lu alors qu'un repère est bien là", () => {
+    expect(motifDeRelecture(element({ pisteLue: undefined, chiffresComptes: 2 }))).toBe("sans_lecture");
+    // Même sans comptage : un repère vu et non lu est un repère à relire.
+    expect(motifDeRelecture(element({ pisteLue: undefined, chiffresComptes: undefined }))).toBe("sans_lecture");
   });
 
-  it("laisse la bande des numéros de page : ses chiffres n'en sont pas", () => {
-    expect(bandesDeMarge(image, 0.2)[0]?.y).toBe(Math.round(HAUTEUR * 0.06));
+  it("ne part pas quand le compte répond à la lecture", () => {
+    expect(motifDeRelecture(element({ pisteLue: 14, chiffresComptes: 2 }))).toBeUndefined();
+    expect(motifDeRelecture(element({ pisteLue: 4, chiffresComptes: 1 }))).toBeUndefined();
+  });
+
+  it("ne part pas sans repère localisé : il n'y aurait rien à recadrer", () => {
+    expect(motifDeRelecture(element({ zoneRepere: undefined, pisteLue: undefined }))).toBeUndefined();
+  });
+
+  it("ne devine pas l'incomplétude quand la lecture n'a pas compté", () => {
+    expect(motifDeRelecture(element({ pisteLue: 1, chiffresComptes: undefined }))).toBeUndefined();
+  });
+
+  it("ne part pas sur un compte plus petit que la lecture : ce serait l'inverse du défaut", () => {
+    expect(motifDeRelecture(element({ pisteLue: 14, chiffresComptes: 1 }))).toBeUndefined();
   });
 });
 
-describe("ce qui est retenu, et ce qui ne l'est pas", () => {
-  it("retient une tache de la taille d'un numéro, dans la marge", () => {
-    const { image, noircir } = pageBlanche();
-    noircir(40, 900, 30, 40); // 40 px de haut : dans les 0,012 à 0,032 de 2000
-    const candidats = sonder(image);
-    expect(candidats).toHaveLength(1);
-    expect(candidats[0]?.encre.y).toBe(900);
+describe("recadrage d'un repère (OUT-08)", () => {
+  const image: ImageGrise = { largeur: 1786, hauteur: 2410, pixels: new Uint8Array(1) };
+
+  it("garde le repère et une marge claire autour", () => {
+    const boite = recadrageDuRepere(repere(), image)!;
+    expect(boite.l).toBeGreaterThan(100);
+    expect(boite.h).toBeGreaterThan(60);
+    // La marge vaut 0,4 de la hauteur du repère, de chaque côté.
+    expect(boite.l).toBe(100 + 2 * Math.round(60 * 0.4));
+    expect(boite.h).toBe(60 + 2 * Math.round(60 * 0.4));
   });
 
-  it("ignore ce qui est trop petit ou trop grand pour être un numéro", () => {
-    const { image, noircir } = pageBlanche();
-    noircir(40, 400, 10, 8); // une bavure
-    noircir(40, 1200, 30, 300); // une barre
-    expect(sonder(image)).toHaveLength(0);
+  it("reste très loin du plafond du contrat : ce qui part est un repère, pas une page", () => {
+    const boite = recadrageDuRepere(repere(), image)!;
+    expect(Math.max(boite.l, boite.h)).toBeLessThanOrEqual(COTE_MAX_RECADRAGE);
+    expect(Math.max(boite.l, boite.h)).toBeLessThan(250);
   });
 
-  it("ignore un trait qui traverse la marge : un nombre n'est pas large à ce point", () => {
-    const { image, noircir } = pageBlanche();
-    noircir(5, 900, 150, 35);
-    expect(sonder(image)).toHaveLength(0);
+  it("ne sort pas de la page quand le repère touche un bord", () => {
+    for (const zone of [
+      { x: 0, y: 0, l: 0.05, h: 0.02 },
+      { x: 0.95, y: 0.98, l: 0.05, h: 0.02 },
+    ]) {
+      const boite = recadrageDuRepere(zone, image)!;
+      expect(boite.x).toBeGreaterThanOrEqual(0);
+      expect(boite.y).toBeGreaterThanOrEqual(0);
+      expect(boite.x + boite.l).toBeLessThanOrEqual(image.largeur);
+      expect(boite.y + boite.h).toBeLessThanOrEqual(image.hauteur);
+    }
   });
 
-  it("ignore ce qui est hors de la marge : le corps de la page n'est pas sondé", () => {
-    const { image, noircir } = pageBlanche();
-    noircir(400, 900, 30, 40);
-    expect(sonder(image)).toHaveLength(0);
+  it("rogne la marge plutôt que de dépasser ce que le contrat accepte", () => {
+    const grande: ImageGrise = { largeur: 4000, hauteur: 4000, pixels: new Uint8Array(1) };
+    const boite = recadrageDuRepere({ x: 0.1, y: 0.1, l: 1000 / 4000, h: 1000 / 4000 }, grande)!;
+    expect(Math.max(boite.l, boite.h)).toBeLessThanOrEqual(COTE_MAX_RECADRAGE);
   });
 
-  it("ignore la bande des numéros de page", () => {
-    const { image, noircir } = pageBlanche();
-    noircir(40, 40, 30, 40);
-    expect(sonder(image)).toHaveLength(0);
-  });
-});
-
-describe("les chiffres d'un même nombre font un seul candidat", () => {
-  it("réunit trois chiffres côte à côte", () => {
-    // « 189 » : trois formes séparées, un seul numéro. Sans réunion, on enverrait trois
-    // recadrages d'un chiffre chacun — et un chiffre seul ne se lit pas comme un numéro.
-    const { image, noircir } = pageBlanche();
-    noircir(30, 900, 16, 40);
-    noircir(52, 900, 16, 40);
-    noircir(74, 900, 16, 40);
-
-    const candidats = sonder(image);
-    expect(candidats).toHaveLength(1);
-    expect(candidats[0]?.encre.x).toBe(30);
-    expect(candidats[0]?.encre.l, "la boîte couvre les trois").toBe(60);
-  });
-
-  it("ne réunit pas deux numéros éloignés en hauteur", () => {
-    const { image, noircir } = pageBlanche();
-    noircir(30, 500, 30, 40);
-    noircir(30, 1400, 30, 40);
-    expect(sonder(image)).toHaveLength(2);
+  it("renonce quand le repère lui-même dépasse : on n'envoie pas une page", () => {
+    const grande: ImageGrise = { largeur: 4000, hauteur: 4000, pixels: new Uint8Array(1) };
+    expect(recadrageDuRepere({ x: 0, y: 0, l: 0.5, h: 0.5 }, grande)).toBeUndefined();
   });
 });
 
-describe("on ne redemande pas ce qui a déjà été lu", () => {
-  it("écarte une encre à la hauteur d'un élément connu", () => {
-    const { image, noircir } = pageBlanche();
-    noircir(40, 900, 30, 40);
-    const y = (900 + 20) / HAUTEUR;
-    expect(sonder(image, [{ y, numero: 42 }])).toHaveLength(0);
+describe("candidats d'une page (OUT-08, REC-04)", () => {
+  it("ne rend rien quand la recette ne déclare aucune relecture ciblée", () => {
+    expect(candidatsDePage(page([element()]), SANS)).toEqual([]);
   });
 
-  it("garde une encre qu'aucun élément connu ne couvre", () => {
-    const { image, noircir } = pageBlanche();
-    noircir(40, 900, 30, 40);
-    expect(sonder(image, [{ y: 0.2, numero: 41 }])).toHaveLength(1);
-  });
-});
-
-describe("le recadrage prend la bande, pas le chiffre seul", () => {
-  it("couvre toute la largeur de la bande et déborde en hauteur", () => {
-    const { image, noircir } = pageBlanche();
-    noircir(40, 900, 30, 40);
-    const [candidat] = sonder(image);
-    expect(candidat).toBeDefined();
-    expect(candidat!.recadrage.l, "toute la bande : le numéro est fer à droite dans sa marge").toBe(160);
-    expect(candidat!.recadrage.h, "une hauteur d'encre de marge de chaque côté").toBe(120);
-    expect(candidat!.recadrage.y).toBe(860);
+  it("rend le repère douteux, avec son motif et sa provenance", () => {
+    const [candidat, ...reste] = candidatsDePage(page([element()]), AVEC);
+    expect(reste).toEqual([]);
+    expect(candidat).toMatchObject({ page: 7, cote: "gauche", numero: 160, motif: "lecture_incomplete" });
+    expect(candidat!.repere.l).toBe(100);
+    expect(candidat!.recadrage.l).toBeGreaterThan(candidat!.repere.l);
   });
 
-  it("ne sort jamais de la page", () => {
-    const { image, noircir } = pageBlanche();
-    noircir(40, HAUTEUR - 45, 30, 40);
-    const [candidat] = sonder(image);
-    expect(candidat).toBeDefined();
-    expect(candidat!.recadrage.y).toBeGreaterThanOrEqual(0);
-    expect(candidat!.recadrage.y + candidat!.recadrage.h).toBeLessThanOrEqual(HAUTEUR);
-  });
-});
-
-describe("le plafond par page borne les dégâts", () => {
-  it("garde les encres les plus franches, dans l'ordre de la page", () => {
-    const { image, noircir } = pageBlanche();
-    for (const [rang, y] of [300, 700, 1100, 1500].entries()) noircir(40, y, 30, 25 + rang * 5);
-
-    const tous = candidatsDePage({ index: 0, image, dejaLus: [] }, RECETTE);
-    expect(tous).toHaveLength(4);
-
-    const bornes = candidatsDePage({ index: 0, image, dejaLus: [] }, RECETTE, { maxParPage: 2 });
-    expect(bornes).toHaveLength(2);
-    // Les deux plus hautes — 1100 et 1500 —, rendues dans l'ordre de la page.
-    expect(bornes.map((candidat) => candidat.encre.y)).toEqual([1100, 1500]);
+  it("laisse les repères sûrs tranquilles : un lot qui se lit ne coûte rien", () => {
+    const sages = [element({ numero: 1, pisteLue: 4, chiffresComptes: 1 }), element({ numero: 2, pisteLue: 14, chiffresComptes: 2 })];
+    expect(candidatsDePage(page(sages), AVEC)).toEqual([]);
   });
 
-  it("rejoué, rend exactement les mêmes candidats", () => {
-    const { image, noircir } = pageBlanche();
-    for (const y of [300, 700, 1100]) noircir(40, y, 30, 35);
-    const premier = JSON.stringify(candidatsDePage({ index: 0, image, dejaLus: [] }, RECETTE, { maxParPage: 2 }));
-    const second = JSON.stringify(candidatsDePage({ index: 0, image, dejaLus: [] }, RECETTE, { maxParPage: 2 }));
-    expect(premier).toBe(second);
+  it("rend les repères dans l'ordre de la page", () => {
+    const melanges = [
+      element({ numero: 3, y: 0.8, zoneRepere: repere(0.8), pisteLue: undefined }),
+      element({ numero: 1, y: 0.2, zoneRepere: repere(0.2), pisteLue: undefined }),
+      element({ numero: 2, y: 0.5, zoneRepere: repere(0.5), pisteLue: undefined }),
+    ];
+    expect(candidatsDePage(page(melanges), AVEC).map((c) => c.numero)).toEqual([1, 2, 3]);
+  });
+
+  it("s'arrête au plafond par page que la recette déclare", () => {
+    const beaucoup = Array.from({ length: 12 }, (_, rang) =>
+      element({ numero: rang + 1, y: rang / 12, zoneRepere: repere(rang / 12), pisteLue: undefined }),
+    );
+    expect(AVEC.vision?.zones_max_par_page).toBe(6);
+    expect(candidatsDePage(page(beaucoup), AVEC)).toHaveLength(6);
+  });
+
+  it("rend le même résultat à chaque exécution", () => {
+    const donnee = page([element({ numero: 2, y: 0.5, zoneRepere: repere(0.5) }), element({ numero: 1, y: 0.5, zoneRepere: repere(0.5) })]);
+    expect(candidatsDePage(donnee, AVEC)).toEqual(candidatsDePage(donnee, AVEC));
   });
 });

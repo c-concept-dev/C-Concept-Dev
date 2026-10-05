@@ -8,12 +8,13 @@ import type { Candidat } from "./candidats.js";
  *  À la résolution de l'original, jamais réduite : c'est tout le sens de « à bonne résolution ».
  *  Agrandir une image déjà dégradée n'ajoute rien ; la réduire enlève ce qu'on est venu chercher.
  *
- *  Et au plus juste : ce qui part est un rectangle de marge. Le contrat le garantit — plus de
- *  1024 px de côté est refusé —, et cette fonction s'arrête bien avant. */
+ *  Et au plus juste : ce qui part est le pavé d'un repère, une marge claire autour. Le contrat le
+ *  garantit — plus de 1024 px de côté est refusé —, et sur F4 cette fonction s'arrête à moins de
+ *  250, soit un quart du plafond. */
 
 /** Empreinte d'un recadrage : elle identifie l'image, pas son emplacement.
  *
- *  Deux pages qui portent le même numéro au même endroit donnent la même empreinte et ne se
+ *  Deux repères dont le recadrage donne les mêmes pixels donnent la même empreinte et ne se
  *  payent qu'une fois. Et c'est ce qui rend un rejeu identique : la réponse est gardée sous
  *  cette clef, et relire le lot ne rappelle personne. */
 export function empreinteDuRecadrage(octets: Uint8Array): string {

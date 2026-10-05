@@ -15,11 +15,13 @@ const page = (largeur: number, hauteur: number): ImageGrise => {
 
 const candidat = (recadrage: { x: number; y: number; l: number; h: number }): Candidat => ({
   page: 0,
-  encre: { x: recadrage.x, y: recadrage.y, l: 30, h: 40 },
+  numero: 160,
+  motif: "lecture_incomplete",
+  repere: { x: recadrage.x, y: recadrage.y, l: 30, h: 40 },
   recadrage,
 });
 
-describe("un recadrage est un bout de marge, et le contrat le garantit", () => {
+describe("un recadrage est le pavé d'un repère, et le contrat le garantit", () => {
   it("rend une zone conforme, à la taille demandée", async () => {
     const produit = await recadrerPour(page(800, 2000), candidat({ x: 0, y: 860, l: 160, h: 120 }));
     expect(produit).toBeDefined();

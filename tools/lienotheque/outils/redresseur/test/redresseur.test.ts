@@ -174,3 +174,37 @@ describe("redressement complet (OUT-03)", () => {
     expect(page.image.largeur).toBe(60);
   });
 });
+
+describe("garder la page en gris pour une relecture ciblée (OUT-03, OUT-08)", () => {
+  const reglages = ReglagesRedressement.parse({ rotation: "aucun", doublePage: false, effacerVerso: false, binarisation: "adaptative" });
+
+  /** Un dégradé : binarisé il ne reste que deux tons, en gris il en reste beaucoup. */
+  const degrade = (): ImageGrise => ({
+    largeur: 40,
+    hauteur: 40,
+    pixels: Uint8Array.from({ length: 1600 }, (_, rang) => (rang % 40) * 6),
+  });
+
+  it("rend le gris à la même géométrie que la page lue", () => {
+    const [page] = redresser(degrade(), 0, reglages, { garderGris: true });
+    expect(page!.grise).toBeDefined();
+    expect(page!.grise!.largeur).toBe(page!.image.largeur);
+    expect(page!.grise!.hauteur).toBe(page!.image.hauteur);
+  });
+
+  it("garde les nuances que la binarisation enlève", () => {
+    const [page] = redresser(degrade(), 0, reglages, { garderGris: true });
+    const tons = (image: ImageGrise) => new Set(image.pixels).size;
+    expect(tons(page!.image)).toBeLessThanOrEqual(2);
+    expect(tons(page!.grise!)).toBeGreaterThan(2);
+  });
+
+  it("ne garde rien quand personne ne l'a demandé", () => {
+    expect(redresser(degrade(), 0, reglages)[0]!.grise).toBeUndefined();
+  });
+
+  it("ne garde rien quand il n'y a pas de binarisation : la page lue est déjà ce gris", () => {
+    const sansSeuil = ReglagesRedressement.parse({ rotation: "aucun", doublePage: false, effacerVerso: false, binarisation: "aucune" });
+    expect(redresser(degrade(), 0, sansSeuil, { garderGris: true })[0]!.grise).toBeUndefined();
+  });
+});
