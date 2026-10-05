@@ -11,3 +11,5 @@ mesures/
 # PRÉVENTIVEMENT, avant tout dépôt de fichier réel : un export réel peut contenir
 # des extraits de la bibliothèque de livres de Christophe, et le dépôt est public.
 entrees/
+# Paquet de contrôle humain : fichiers produits (MP4, PNG, page autonome).
+controle-humain/
