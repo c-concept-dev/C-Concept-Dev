@@ -33,9 +33,26 @@ Tout se reproduit depuis les sources, dans cet ordre :
 ```bash
 cd "tools/Projet therapeutes/Conseiller Clinique/bancs-essai-atelier"
 npm install --cache ./cache-npm                 # bibliothèques dist déjà présentes dans vendeur/
+mkdir -p images mesures                         # dossiers de sortie, ignorés par git
 node outils/produire-exports.cjs                # forge entrees/ (4 fixtures)
 node outils/forger-page-nettete.cjs             # forge la page de netteté pour Safari
 node test-essai1.cjs && node test-essai2-reference.cjs && node test-essai2-candidats.cjs && node test-essai3.cjs
+```
+
+**L'ordre compte pour les bancs qui relisent une sortie d'un autre banc**, et chacun le dit en
+clair plutôt que d'échouer obscurément. Vérifié sur un arbre neuf : lancés seuls,
+`falsifier-contours.cjs` répond « Lance d'abord outils/mesure-nettete-1920.cjs » et
+`mesure-ffmpeg.cjs` répond « MP4 absent — relancer mesure-decalage-audio.cjs ». Les deux
+prérequis d'abord, donc :
+
+```bash
+node outils/mesure-nettete-1920.cjs             # produit images/n2-c-moteur-1920.png
+node outils/mesure-decalage-audio.cjs           # produit mesures/decalage-{48000,44100}.mp4
+node outils/falsifier-contours.cjs              # éprouve la métrique de netteté
+node outils/mesure-ffmpeg.cjs                   # décodage ffmpeg contre afconvert
+node outils/mesure-liste-edition.cjs            # effet de la liste d'édition sur les deux
+node outils/mesure-nettete-candidats.cjs        # les quatre chemins de capture
+node outils/paquet-controle-humain.cjs          # bâtit controle-humain/
 ```
 
 Les bancs qui emploient ffmpeg demandent en plus, dans un dossier jetable et ignoré :
