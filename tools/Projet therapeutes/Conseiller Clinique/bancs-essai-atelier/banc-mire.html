@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Banc — écart audio/vidéo</title>
+<style>
+:root{color-scheme:light dark}
+body{font:15px/1.5 -apple-system,system-ui,sans-serif;margin:0;padding:20px;max-width:1050px}
+h1{font-size:19px;margin:0 0 6px}
+.note{color:#667;font-size:13px}
+video{width:100%;max-width:860px;background:#000;border-radius:8px}
+button{font:inherit;padding:6px 11px;margin:6px 6px 6px 0;border:1px solid #888;border-radius:6px;background:#eee;cursor:pointer}
+table{border-collapse:collapse;font-size:13px;margin-top:8px}
+td,th{border:1px solid #bbb;padding:3px 8px;text-align:left}
+th{background:#eee}
+#etat{font-family:ui-monospace,Menlo,monospace;font-size:12px;margin-top:8px}
+</style></head><body>
+<h1>Écart audio/vidéo mesuré</h1>
+<p class="note">L'instant d'affichage de la première image du flash vient de
+<code>requestVideoFrameCallback</code> (<code>expectedDisplayTime</code>, horloge
+<code>performance</code>). L'attaque du bip vient d'un worklet audio, horodatée sur l'horloge du
+contexte audio, puis convertie dans la même horloge par <code>getOutputTimestamp()</code>. Un écart
+négatif veut dire que l'audio est <strong>en avance</strong>. Tolérance du CDC : jamais plus de
+20 ms en avance ni 60 ms en retard.</p>
+<p>
+  <label>Fichier : <select id="choix">
+    <option value="MIRE-CFR-mesure.mp4">MIRE-CFR-mesure.mp4 (décalages nuls)</option>
+    <option value="MIRE-CFR-echelle.mp4">MIRE-CFR-echelle.mp4 (échelle -160 à +160 ms)</option>
+  </select></label>
+  <button id="btn">Lire et mesurer</button>
+</p>
+<video id="v" playsinline preload="auto"></video>
+<div id="etat">en attente</div>
+<table id="tbl"><tbody></tbody></table>
+<script>
+const $ = (id) => document.getElementById(id);
+const PLAN = { flashS: 0.150, instants: [3, 6, 9, 12, 15, 18, 21, 24, 27],
+               echelle: [-160, -120, -80, -40, 0, 40, 80, 120, 160],
+               tolerance: { avance_ms: 20, retard_ms: 60 } };
+const ligne = (k, v) => {
+  const tr = document.createElement('tr');
+  const a = document.createElement('td'); a.textContent = k;
+  const b = document.createElement('td'); b.textContent = v;
+  tr.appendChild(a); tr.appendChild(b); $('tbl').querySelector('tbody').appendChild(tr);
+};
+
+async function mesurer(fichier) {
+  // UN ELEMENT NEUF A CHAQUE MESURE : createMediaElementSource ne peut etre appele qu'une seule
+  // fois par element media. Reutiliser le meme <video> faisait echouer la deuxieme mesure sur
+  // « Media element is already associated with an audio source node ». Mesure, puis corrige.
+  const ancien = $('v');
+  const v = document.createElement('video');
+  v.id = 'v'; v.playsInline = true; v.preload = 'auto';
+  ancien.replaceWith(v);
+  $('tbl').querySelector('tbody').innerHTML = '';
+  if (typeof v.requestVideoFrameCallback !== 'function') {
+    return { fichier, erreur: 'requestVideoFrameCallback absent de ce navigateur' };
+  }
+  v.src = './' + fichier;
+  await new Promise((ok, ko) => { v.onloadedmetadata = ok; v.onerror = () => ko(new Error('lecture impossible')); });
+
+  const ctxA = new (window.AudioContext || window.webkitAudioContext)();
+  if (ctxA.state === 'suspended') { try { await ctxA.resume(); } catch (e) {} }
+  // LATENCE DE SORTIE, et c'est decisif : le worklet voit les echantillons AVANT qu'ils ne
+  // sortent des haut-parleurs. L'ecart brut est donc biaise de cette latence, qui differe d'un
+  // navigateur a l'autre. Sans cette correction, un navigateur a forte latence parait « en
+  // avance » alors qu'il ne l'est pas pour l'auditeur.
+  const latenceBase = (typeof ctxA.baseLatency === 'number') ? ctxA.baseLatency : null;
+  const latenceSortie = (typeof ctxA.outputLatency === 'number') ? ctxA.outputLatency : null;
+  await ctxA.audioWorklet.addModule('./mire-worklet.js');
+  const src = ctxA.createMediaElementSource(v);
+  const det = new AudioWorkletNode(ctxA, 'detecteur-bip', { numberOfInputs: 1, numberOfOutputs: 0 });
+  src.connect(det);
+  src.connect(ctxA.destination);          // on garde la sortie, sinon le média peut être mis en pause
+  const bips = [];
+  det.port.onmessage = (e) => { if (e.data && e.data.type === 'attaque') bips.push(e.data.contextTime); };
+
+  // Pont entre les deux horloges, échantillonné pendant toute la lecture : contextTime ↔
+  // performanceTime. Un seul relevé suffirait si les horloges ne dérivaient pas ; elles dérivent.
+  const ponts = [];
+  const relever = () => {
+    if (typeof ctxA.getOutputTimestamp === 'function') {
+      const t = ctxA.getOutputTimestamp();
+      if (t && t.contextTime && t.performanceTime) ponts.push([t.contextTime, t.performanceTime]);
+    }
+  };
+  const minuteur = setInterval(relever, 250);
+  relever();
+
+  const images = [];
+  let fini = false;
+  const surImage = (now, meta) => {
+    images.push({ mediaTime: meta.mediaTime, affichage: meta.expectedDisplayTime });
+    if (!fini) v.requestVideoFrameCallback(surImage);
+  };
+  v.requestVideoFrameCallback(surImage);
+  $('etat').textContent = 'lecture en cours…';
+  await v.play();
+  await new Promise((ok) => { v.onended = ok; });
+  fini = true;
+  clearInterval(minuteur);
+  try { det.disconnect(); src.disconnect(); await ctxA.close(); } catch (e) {}
+
+  // Conversion contextTime → performanceTime par régression linéaire sur les ponts relevés.
+  let conv = null;
+  if (ponts.length >= 2) {
+    let sx = 0, sy = 0, sxx = 0, sxy = 0, n = ponts.length;
+    for (const [x, y] of ponts) { sx += x; sy += y; sxx += x * x; sxy += x * y; }
+    const a = (n * sxy - sx * sy) / (n * sxx - sx * sx);
+    const b = (sy - a * sx) / n;
+    conv = (t) => a * t + b;
+  }
+  if (!conv) return { fichier, erreur: 'getOutputTimestamp indisponible : aucun pont entre les horloges' };
+
+  // Pour chaque paire : instant d'affichage de la 1re image du flash, et attaque du bip la plus proche.
+  const paires = PLAN.instants.map((tf, k) => {
+    const img = images.find((x) => x.mediaTime >= tf - 1e-6 && x.mediaTime < tf + PLAN.flashS - 1e-6);
+    if (!img) return { paire: k + 1, instant: tf, ecart_ms: null, raison: 'aucune image du flash présentée' };
+    const cible = img.affichage;
+    let meilleur = null;
+    for (const bc of bips) {
+      const bp = conv(bc);
+      if (meilleur === null || Math.abs(bp - cible) < Math.abs(meilleur - cible)) meilleur = bp;
+    }
+    if (meilleur === null) return { paire: k + 1, instant: tf, ecart_ms: null, raison: 'aucune attaque de bip détectée' };
+    const ecart = +(meilleur - cible).toFixed(1);
+    return { paire: k + 1, instant: tf, ecart_ms: ecart,
+             attendu_ms: (PLAN.echelle && fichier.indexOf('echelle') >= 0) ? PLAN.echelle[k] : 0 };
+  });
+  const bons = paires.filter((p) => p.ecart_ms !== null);
+  const moy = bons.length ? +(bons.reduce((s, p) => s + p.ecart_ms, 0) / bons.length).toFixed(1) : null;
+  // L'ecart CORRIGE est celui qui concerne l'auditeur : le bip est entendu une latence de sortie
+  // plus tard que le worklet ne le voit.
+  // outputLatency EST INUTILISABLE ICI, et c'est mesure : WebKit et Safari ont renvoye
+  // 96 902 206 ms et 94 375 009 ms, soit plus de 26 heures — ce n'est pas une latence mais autre
+  // chose (un horodatage, probablement). Chrome sans fenetre renvoie 0. Une valeur hors de
+  // [0, 500] ms est donc refusee, et AUCUNE correction n'est appliquee : mieux vaut un ecart brut
+  // dont le biais est nomme qu'un ecart « corrige » par une valeur fausse.
+  const plausible = (latenceSortie !== null) && latenceSortie >= 0 && latenceSortie <= 0.5;
+  const corrMs = plausible ? latenceSortie * 1000 : null;
+  const latenceRefusee = (latenceSortie !== null && !plausible) ? +(latenceSortie * 1000).toFixed(0) : null;
+  const moyCorr = (moy === null || corrMs === null) ? null : +(moy + corrMs).toFixed(1);
+  const juge = (moyCorr !== null) ? moyCorr : moy;
+  const r = { fichier, paires, ecart_moyen_brut_ms: moy, ecart_moyen_ms: moy,
+              latence_base_ms: latenceBase === null ? null : +(latenceBase * 1000).toFixed(1),
+              latence_sortie_ms: corrMs === null ? null : +corrMs.toFixed(1),
+              ecart_moyen_corrige_ms: moyCorr,
+              ecart_juge_ms: juge,
+              latence_sortie_refusee_ms: latenceRefusee,
+              bips_detectes: bips.length,
+              images_presentees: images.length, ponts: ponts.length,
+              tolerance: PLAN.tolerance,
+              dans_la_tolerance: juge === null ? null : (juge >= -PLAN.tolerance.avance_ms && juge <= PLAN.tolerance.retard_ms) };
+  $('etat').textContent = 'terminé';
+  ligne('fichier', fichier);
+  ligne('bips détectés', bips.length + ' sur 9');
+  ligne('images présentées', String(images.length));
+  ligne('écart moyen brut', moy === null ? '—' : (moy >= 0 ? '+' : '') + moy + ' ms');
+  ligne('latence de sortie du contexte audio', r.latence_sortie_ms === null
+    ? (r.latence_sortie_refusee_ms !== null
+        ? 'REFUSÉE : ' + r.latence_sortie_refusee_ms + ' ms, valeur aberrante — aucune correction appliquée'
+        : 'outputLatency indisponible — écart brut non corrigeable ici')
+    : r.latence_sortie_ms + ' ms (base ' + (r.latence_base_ms === null ? '—' : r.latence_base_ms) + ' ms)');
+  ligne('écart corrigé, ce qu entend l auditeur', r.ecart_moyen_corrige_ms === null ? '—'
+    : (r.ecart_moyen_corrige_ms >= 0 ? '+' : '') + r.ecart_moyen_corrige_ms + ' ms');
+  ligne('dans la tolérance du CDC', r.dans_la_tolerance === null ? '—'
+    : (r.dans_la_tolerance ? 'OUI (−20 à +60 ms)' : 'NON'));
+  paires.forEach((p) => ligne('paire ' + p.paire + ' (t=' + p.instant + ' s)',
+    p.ecart_ms === null ? p.raison : (p.ecart_ms >= 0 ? '+' : '') + p.ecart_ms + ' ms'
+      + (p.attendu_ms ? '   (décalage inscrit : ' + (p.attendu_ms >= 0 ? '+' : '') + p.attendu_ms + ' ms)' : '')));
+  return r;
+}
+
+$('btn').onclick = async function () {
+  this.disabled = true;
+  try { await mesurer($('choix').value); }
+  catch (e) { $('etat').textContent = 'ÉCHEC : ' + (e && e.message || e); }
+  this.disabled = false;
+};
+window.__mireApi = { mesurer, PLAN };
+</script>
+</body></html>
