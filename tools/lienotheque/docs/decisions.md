@@ -1279,3 +1279,34 @@ refasse pas sous cette forme.
 
 **73 premiers éléments sur 92 et 83 pages sur 92**, pour un critère de 83 et 89. Il manque 10
 éléments et 6 pages, et aucune des causes restantes n'est un défaut de lecture de repère.
+
+## Où en est-on vraiment : le lot C est clos, F4 relève du lot D
+
+Une précision de statut, prise à la source. La feuille de route du CDC normatif v2.0 donne, lot par
+lot, un critère de passage :
+
+| Lot | Critère de passage |
+|---|---|
+| **C — Première bibliothèque** | fichier renommé reconnu ; arrêt et redémarrage sans perte ; correction conservée après recalcul ; **F3 ≥ 95/95 ; F1 exact** |
+| **D — Deuxième corpus** | **F4 ≥ 83/92 automatique** ; généralisation sans code spécifique ; nouvelle recette dérivée en moins d'un quart d'heure |
+
+Le critère du lot C est donc tenu, et **le lot C est clos**. F4 relève du lot D, commencé en avance
+— le CDC note d'ailleurs que la relecture ciblée (OUT-08), qui appartient au lot D, a été avancée
+au lot C pour F4.
+
+**Une nuance qui compte pour la suite.** Le critère normatif est le nombre de **premiers éléments**,
+83 sur 92. Les 89 pages sur 92 que nous suivons depuis le début sont une mesure que nous nous
+sommes donnée, utile mais non normative : c'est le premier chiffre qui décide du passage du lot.
+
+### État à l'ouverture du lot D
+
+| | |
+|---|---|
+| F4 | **73 / 92** premiers éléments (critère 83) et 83 / 92 pages |
+| F3 | **95 / 95**, vérifié à froid |
+| Relecture ciblée | en place, agrandissement ×2, 95 % de justesse sur les pavés jugeables |
+| Dépensé à ce jour | **0,061 €**, et un rejeu ne dépense rien |
+
+Il manque **10 premiers éléments**. Aucune des causes restantes n'est un défaut de lecture de
+repère : elles butent sur la distinction entre un vrai repère et une forme qui lui ressemble, et sur
+des éléments que la lecture ne voit pas du tout.
