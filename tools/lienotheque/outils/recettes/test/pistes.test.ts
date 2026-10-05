@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { appui, attribuerPistes, changementDeSupport, chargerRecette, reglesDePistes, type LecturePiste, type ReglesPistes } from "../src/index.js";
+import { appui, appuiTronque, attribuerPistes, changementDeSupport, chargerRecette, reglesDePistes, type LecturePiste, type ReglesPistes } from "../src/index.js";
 
 const RECETTES = join(import.meta.dirname, "../../../fixtures/recettes");
 const WESTWOOD = chargerRecette(JSON.parse(readFileSync(join(RECETTES, "methode-pastilles-cd.v4.json"), "utf8")));
@@ -158,5 +158,52 @@ describe("changement de support (A3)", () => {
   it("ignore les lectures peu sûres", () => {
     const lectures = [...Array.from({ length: 25 }, (_, rang) => lu(rang + 1)), lu(1, 0.2), lu(2, 0.2), lu(3, 0.2)];
     expect(changementDeSupport(lectures, avecChangement)).toBeUndefined();
+  });
+});
+
+describe("appui d'une lecture dont il manque un chiffre (OUT-07, REC-02)", () => {
+  it("soutient la piste qui contient la lecture, non celle qui lui est égale", () => {
+    expect(appuiTronque(4, 14)).toBe(1);
+    expect(appuiTronque(4, 4)).toBeLessThan(appuiTronque(4, 14));
+  });
+
+  it("laisse un reste à l'égalité : le comptage peut se tromper", () => {
+    expect(appuiTronque(4, 4)).toBeGreaterThan(0);
+  });
+
+  it("soutient aussi un chiffre perdu en queue", () => {
+    expect(appuiTronque(1, 13)).toBe(1);
+  });
+
+  it("ne soutient rien qui ne se recoupe pas", () => {
+    expect(appuiTronque(4, 23)).toBe(0);
+  });
+
+  it("empêche une lecture tronquée d'entraîner sa voisine vers le bas", () => {
+    // Sans le drapeau, le « 2 » tiré d'un repère portant 20 pèse assez pour que la suite abandonne
+    // le 19 qui le précède et reparte de 1 : c'est la dérive de −1 relevée sur le lot.
+    const tronquee: LecturePiste = { ...lu(2), pisteIncomplete: true };
+    expect(attribuerPistes([lu(19), lu(2)], regles())).toEqual([1, 2]);
+    expect(attribuerPistes([lu(19), tronquee], regles())).toEqual([19, 20]);
+  });
+
+  it("tient bon quand deux lectures tronquées se suivent", () => {
+    const tronquee = (valeur: number): LecturePiste => ({ ...lu(valeur), pisteIncomplete: true });
+    expect(attribuerPistes([lu(9), lu(1), lu(1)], regles())).toEqual([1, 1, 1]);
+    expect(attribuerPistes([lu(9), tronquee(1), tronquee(1)], regles())).toEqual([9, 10, 11]);
+  });
+
+  it("cherche un nombre qui contient la lecture quand elle est seule", () => {
+    expect(attribuerPistes([lu(2)], regles())).toEqual([2]);
+    const pistes = attribuerPistes([{ ...lu(2), pisteIncomplete: true }], regles());
+    expect(String(pistes[0]!)).toMatch(/2$/);
+    expect(pistes[0]!).toBeGreaterThan(9);
+  });
+
+  it("ne change rien quand la suite suffisait déjà", () => {
+    // Encadrée par 12 et 14, la lecture « 1 » donne 13 avec ou sans le drapeau : l'appui partiel
+    // d'une lecture ordinaire y suffisait, et le drapeau ne doit pas défaire ce qui marchait.
+    expect(attribuerPistes([lu(12), lu(1), lu(14)], regles())).toEqual([12, 13, 14]);
+    expect(attribuerPistes([lu(12), { ...lu(1), pisteIncomplete: true }, lu(14)], regles())).toEqual([12, 13, 14]);
   });
 });

@@ -14,6 +14,9 @@ export type LecturePiste = {
   readonly pisteLue?: number | undefined;
   readonly accordPiste: number;
   readonly presencePiste: number;
+  /** La lecture a-t-elle laissé un chiffre de côté ? Le repère en montrait plus qu'elle n'en a
+   *  rendu, et elle ne peut donc pas être la piste entière. */
+  readonly pisteIncomplete?: boolean | undefined;
   /** Numéro de l'élément. Il ne compte que si la recette déclare que piste et élément coïncident. */
   readonly numero?: number | undefined;
 };
@@ -57,8 +60,28 @@ export function appui(lu: number, piste: number): number {
   return 0;
 }
 
+/** Appui d'une lecture dont on sait qu'il lui manque un chiffre.
+ *
+ *  C'est `appui` à l'envers. Une lecture ordinaire soutient d'abord la piste qui lui est égale ;
+ *  une lecture tronquée, elle, ne peut pas être la piste entière — elle en est un bout. Son appui
+ *  va donc à la piste qui la contient, et l'égalité ne garde qu'un reste : le comptage peut se
+ *  tromper, et il ne doit pas pouvoir écarter ce que la lecture dit.
+ *
+ *  Mesuré sur les clichés de référence : sur dix lectures à un chiffre perdu, le comptage les
+ *  signale dix fois ; sur vingt-deux lectures justes, il en croit deux incomplètes à tort. C'est
+ *  ce rapport qui autorise à renverser la préférence, et le reste laissé à l'égalité qui en
+ *  limite le coût. */
+export function appuiTronque(lu: number, piste: number): number {
+  const texteLu = String(lu);
+  const textePiste = String(piste);
+  if (textePiste.length > texteLu.length && (textePiste.endsWith(texteLu) || textePiste.startsWith(texteLu))) return 1;
+  if (lu === piste) return 0.45;
+  return 0;
+}
+
 const score = (lecture: LecturePiste, piste: number, egaleNumeroElement: boolean): number => {
-  const repere = lecture.pisteLue === undefined ? 0 : lecture.accordPiste * appui(lecture.pisteLue, piste) * POIDS_LECTURE;
+  const soutien = lecture.pisteIncomplete === true ? appuiTronque : appui;
+  const repere = lecture.pisteLue === undefined ? 0 : lecture.accordPiste * soutien(lecture.pisteLue, piste) * POIDS_LECTURE;
   const element = egaleNumeroElement && lecture.numero !== undefined ? appui(lecture.numero, piste) * POIDS_ELEMENT : 0;
   return repere + element;
 };
