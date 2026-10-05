@@ -11,9 +11,10 @@
 // est `new AudioBufferSource(config, { startTimestamp })`. Poser startTimestamp = -2112/SE doit
 // donc produire media_time = 2112, soit exactement l'amorce.
 //
-// LE RISQUE EST LA DOUBLE COMPENSATION, et c'est lui qui décide : afconvert retire déjà l'amorce
-// du train AAC. S'il honore EN PLUS la liste d'édition, l'audio part 44 ms trop TÔT et l'on casse
-// le seul lecteur qui marchait. Les quatre combinaisons sont donc mesurées, et RIEN n'est
+// LE RISQUE EST LA DOUBLE COMPENSATION AU DÉCODAGE, et c'est lui qui décide : afconvert retire déjà l'amorce
+// du train AAC. S'il honore EN PLUS la liste d'édition, l'audio part 44 ms trop TÔT. Ce banc mesure
+// des DÉCODEURS, jamais QuickTime Player : rien ici ne vaut pour un lecteur Apple réel.
+// Les quatre combinaisons sont donc mesurées, et RIEN n'est
 // recommandé sans le résultat des deux décodeurs.
 
 const fs = require('node:fs'), path = require('node:path');
@@ -22,6 +23,7 @@ const pw = require('playwright');
 const { servir } = require('./serveur.cjs');
 const { lireWavQuelconque } = require('./lire-wav.cjs');
 const { attaque } = require('./attaque.cjs');
+const { produireMp4 } = require('./produire-mp4-essai.cjs');
 
 const RACINE = path.join(__dirname, '..');
 const MESURES = path.join(RACINE, 'mesures');
@@ -93,45 +95,10 @@ function ecarts(wav, se) {
       await page.goto('http://127.0.0.1:' + port + '/essai3-mp4.html');
       await page.waitForFunction(() => typeof window.__essai3Api === 'object');
 
-      const b64 = await page.evaluate(async (a) => {
-        const mod = await import('/vendeur/mediabunny.mjs');
-        const { Output, Mp4OutputFormat, BufferTarget, CanvasSource, AudioBufferSource,
-                QUALITY_HIGH } = mod;
-        const L = 1920, H = 1080, IPS = 30, SE = a.se, BIP_S = 0.05, BIP_HZ = 1000;
-        const sortie = new Output({ format: new Mp4OutputFormat(), target: new BufferTarget() });
-        const canvas = document.createElement('canvas'); canvas.width = L; canvas.height = H;
-        const ctx = canvas.getContext('2d', { alpha: false });
-        const vs = new CanvasSource(canvas, { codec: 'avc', bitrate: QUALITY_HIGH });
-        sortie.addVideoTrack(vs, { frameRate: IPS });
-        const ctxA = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: SE });
-        const n = Math.round(12 * SE);
-        const buf = ctxA.createBuffer(1, n, SE), d = buf.getChannelData(0);
-        for (let i = 0; i < n; i++) d[i] = 0.02 * Math.sin(2 * Math.PI * 160 * i / SE);
-        for (const t of a.instants) {
-          const d0 = Math.round(t * SE), d1 = Math.min(n, d0 + Math.round(BIP_S * SE));
-          for (let i = d0; i < d1; i++) {
-            const p = (i - d0) / (d1 - d0);
-            d[i] = 0.85 * Math.sin(2 * Math.PI * BIP_HZ * (i - d0) / SE) * Math.sin(Math.PI * p);
-          }
-        }
-        // LE SEUL CHANGEMENT entre les deux variantes : l'horodatage de départ de la piste audio.
-        const opts = a.decalage ? { startTimestamp: a.decalage } : {};
-        const as = new AudioBufferSource({ codec: 'aac', bitrate: 128000 }, opts);
-        sortie.addAudioTrack(as);
-        await sortie.start(); await as.add(buf); as.close();
-        let curseur = 0;
-        for (const t of a.instants) {
-          if (t > curseur) { ctx.fillStyle = '#1f5053'; ctx.fillRect(0, 0, L, H); await vs.add(curseur, t - curseur); }
-          ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, L, H);
-          await vs.add(t, 1 / IPS); curseur = t + 1 / IPS;
-        }
-        ctx.fillStyle = '#1f5053'; ctx.fillRect(0, 0, L, H);
-        await vs.add(curseur, 12 - curseur);
-        vs.close(); await sortie.finalize();
-        const u8 = new Uint8Array(sortie.target.buffer);
-        let s = ''; for (let i = 0; i < u8.length; i++) s += String.fromCharCode(u8[i]);
-        return btoa(s);
-      }, { se, instants: INSTANTS, decalage: variante === 'avec' ? -AMORCE_ECH / se : 0 });
+      // Production déléguée à outils/produire-mp4-essai.cjs : les MP4 remis à Christophe dans
+      // controle-humain/ sortent du MÊME code que ceux mesurés ici.
+      const b64 = await produireMp4(page, { se, instants: INSTANTS,
+        decalage: variante === 'avec' ? -AMORCE_ECH / se : 0, duree: 12 });
       await page.close();
 
       const mp4 = path.join(MESURES, 'elst-' + variante + '-' + se + '.mp4');
@@ -180,8 +147,8 @@ function ecarts(wav, se) {
       console.log('    → avec liste d\'édition : ffmpeg ' + (f >= 0 ? '+' : '') + f + ' ms, afconvert '
         + (a >= 0 ? '+' : '') + a + ' ms');
       console.log('    → ' + (Math.abs(f) <= 40 && Math.abs(a) <= 40
-        ? 'LES DEUX tiennent les 40 ms'
-        : (doubleComp ? 'DOUBLE COMPENSATION chez afconvert : la liste d\'édition CASSE le lecteur Apple'
+        ? 'LES DEUX DÉCODEURS tiennent les 40 ms (afconvert et ffmpeg, pas QuickTime)'
+        : (doubleComp ? 'DOUBLE COMPENSATION au décodage afconvert : la liste d\'édition le dégrade'
                       : 'au moins un décodeur reste hors critère')));
     }
     console.log('');
