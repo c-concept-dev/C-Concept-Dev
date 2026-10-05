@@ -28,6 +28,15 @@ export const LectureRepere = z
     pisteLue: z.number().int().positive().optional(),
     /** À quel point une pastille semble présente, qu'on ait su lire son chiffre ou non. Une
      *  pastille présente et illisible est une information : elle dit qu'une piste commence là. */
+    /** Combien de formes de la taille d'un chiffre le repère montrait.
+     *
+     *  C'est ce qui dit qu'une lecture est incomplète : plus de formes que de chiffres rendus, et
+     *  un chiffre a été perdu. Un moteur d'OCR ne le signale jamais — « 4 » est pour lui une
+     *  réponse complète, même quand le repère porte 14.
+     *
+     *  Absent quand personne ne l'a demandé : le comptage ne tourne que si la recette déclare une
+     *  relecture ciblée, et une lecture ordinaire ne le paie pas. */
+    chiffresComptes: z.number().int().nonnegative().optional(),
     presencePiste: Confiance.default(0),
     suite: z.boolean(),
   })
@@ -45,6 +54,8 @@ export const ElementRepere = z
     zoneRepere: ZoneRelative.optional(),
     numero: z.number().int().positive(),
     pisteLue: z.number().int().positive().optional(),
+    /** Voir `LectureRepere.chiffresComptes` : le compte le plus fin obtenu sur ce repère. */
+    chiffresComptes: z.number().int().nonnegative().optional(),
     presencePiste: Confiance.default(0),
     suite: z.boolean(),
     accordNumero: Confiance,

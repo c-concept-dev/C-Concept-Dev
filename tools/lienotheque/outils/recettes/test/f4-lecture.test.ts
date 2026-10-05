@@ -21,7 +21,7 @@ const LOT = { pages: 42, cache: CACHE } as const;
 
 const RACINE = join(import.meta.dirname, "../../..");
 const F4 = join(RACINE, "fixtures/fichiers/F4/Paul westwood.pdf");
-const RECETTE = chargerRecette(JSON.parse(readFileSync(join(RACINE, "fixtures/recettes/methode-pastilles-cd.v4.json"), "utf8")));
+const RECETTE = chargerRecette(JSON.parse(readFileSync(join(RACINE, "fixtures/recettes/methode-pastilles-cd.v5.json"), "utf8")));
 const siF4 = existsSync(F4) && tesseractDisponible() ? it : it.skip;
 
 describe("préparation du lot selon la recette (OUT-03, A2)", () => {

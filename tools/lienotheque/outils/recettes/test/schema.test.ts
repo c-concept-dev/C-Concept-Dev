@@ -8,7 +8,7 @@ const lire = (nom: string): unknown => JSON.parse(readFileSync(join(RECETTES, no
 
 describe("chargement d'une recette (REC-01)", () => {
   it("accepte les recettes prouvées du dépôt", () => {
-    for (const nom of ["methode-pastille-piste.v1.json", "methode-pastille-piste.v2.json", "methode-pastilles-cd.v4.json"])
+    for (const nom of ["methode-pastille-piste.v1.json", "methode-pastille-piste.v2.json", "methode-pastilles-cd.v4.json", "methode-pastilles-cd.v5.json"])
       expect(() => chargerRecette(lire(nom)), nom).not.toThrow();
   });
 
@@ -78,5 +78,41 @@ describe("filiation d'une recette (REC-03)", () => {
     const positionDe = (recette: typeof v1) => recette.lectures.find((l) => l.ancre === "piste")?.position;
     expect(positionDe(v1)).toBe("gauche");
     expect(positionDe(v2)).toBe("droite");
+  });
+});
+
+describe("relecture ciblée déclarée par la recette (REC-01, OUT-08)", () => {
+  const v5 = () => chargerRecette(lire("methode-pastilles-cd.v5.json"));
+
+  it("se déclare avec ses plafonds, et c'est ce qui change de la v4", () => {
+    expect(v5().vision).toEqual({ zones_max_par_lot: 300, zones_max_par_page: 6 });
+    expect(chargerRecette(lire("methode-pastilles-cd.v4.json")).vision).toBeUndefined();
+    expect(filiation(v5())).toBe("methode-pastilles-cd v5 (dérivée de methode-pastilles-cd v4)");
+  });
+
+  it("reste facultative : la plupart des recettes n'en auront jamais", () => {
+    expect(chargerRecette(lire("methode-pastille-piste.v2.json")).vision).toBeUndefined();
+  });
+
+  it("refuse un plafond absent : une recette qui envoie des images dit combien", () => {
+    const recette = lire("methode-pastilles-cd.v5.json") as Record<string, unknown>;
+    expect(() => chargerRecette({ ...recette, vision: { zones_max_par_page: 6 } })).toThrow(RecetteInvalide);
+    expect(() => chargerRecette({ ...recette, vision: { zones_max_par_lot: 300 } })).toThrow(RecetteInvalide);
+  });
+
+  it("refuse un plafond qui n'en est pas un", () => {
+    const recette = lire("methode-pastilles-cd.v5.json") as Record<string, unknown>;
+    for (const vision of [
+      { zones_max_par_lot: 0, zones_max_par_page: 6 },
+      { zones_max_par_lot: 300, zones_max_par_page: -1 },
+      { zones_max_par_lot: 300, zones_max_par_page: 6, cout_max_eur: 0 },
+    ])
+      expect(() => chargerRecette({ ...recette, vision }), JSON.stringify(vision)).toThrow(RecetteInvalide);
+  });
+
+  it("laisse le coût de côté tant qu'il n'est pas mesuré : on ne plafonne pas une estimation", () => {
+    const recette = lire("methode-pastilles-cd.v5.json") as Record<string, unknown>;
+    expect(v5().vision?.cout_max_eur).toBeUndefined();
+    expect(chargerRecette({ ...recette, vision: { zones_max_par_lot: 300, zones_max_par_page: 6, cout_max_eur: 0.5 } }).vision?.cout_max_eur).toBe(0.5);
   });
 });
