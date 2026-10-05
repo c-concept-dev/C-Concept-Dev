@@ -37,10 +37,20 @@ export function bandesDeLaPage(elements: readonly ElementAffiche[]): Bande[] {
     .filter((element): element is ElementAffiche & { zone: ZoneRelative } => element.zone !== undefined)
     .sort((a, b) => a.zone.y - b.zone.y);
 
+  /** Le haut d'une bande : au-dessus du numéro, et au-dessus de son repère quand il y en a un.
+   *
+   *  La coiffe seule coupait le repère en deux — celui de F3 se pose à côté du numéro et déborde
+   *  vers le haut. Quand on sait où il est, on l'englobe ; sinon la coiffe reste le repli. */
+  const hautDe = (element: ElementAffiche & { zone: ZoneRelative }): number => {
+    const coiffe = element.zone.y - element.zone.h * COIFFE;
+    const repere = element.zoneRepere === undefined ? coiffe : element.zoneRepere.y;
+    return Math.max(0, Math.min(coiffe, repere));
+  };
+
   return places.map((element, rang) => {
-    const haut = Math.max(0, element.zone.y - element.zone.h * COIFFE);
+    const haut = hautDe(element);
     const suivant = places[rang + 1];
-    const bas = suivant === undefined ? 1 : Math.max(haut, suivant.zone.y - suivant.zone.h * COIFFE);
+    const bas = suivant === undefined ? 1 : Math.max(haut, hautDe(suivant));
     return { element, zone: { x: 0, y: haut, l: 1, h: Math.max(Number.EPSILON, bas - haut) } };
   });
 }

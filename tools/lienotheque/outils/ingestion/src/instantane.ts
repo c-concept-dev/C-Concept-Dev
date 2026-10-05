@@ -129,8 +129,10 @@ export function construireVue(entree: Entree): VueBibliotheque {
       ancreId,
       numero: String(ligne.numero),
       page: ligne.pageImprimee,
-      // Où l'élément a été lu, quand la lecture l'a su : c'est le cadre cliquable du Lecteur.
+      // Où l'élément a été lu, quand la lecture l'a su : c'est de là que part le fil.
       ...(ligne.zone === undefined ? {} : { zone: ligne.zone }),
+      // Et où son repère a été trouvé : la bande cliquable contient les deux.
+      ...(ligne.zoneRepere === undefined ? {} : { zoneRepere: ligne.zoneRepere }),
       ...(media === undefined
         ? {}
         : {

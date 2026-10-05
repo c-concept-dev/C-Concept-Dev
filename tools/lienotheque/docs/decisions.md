@@ -815,3 +815,56 @@ candidats sont faits et mesurés — 59 recadrages sur 28 pages, 497 × 135 px, 
 l'image, de l'ordre de 0,16 USD pour le lot entier — mais rien n'est appelé : **l'outil reste en
 réserve**, sans Worker, sans clé, et sans plafond écrit dans une recette tant qu'il n'est pas
 mesuré par `count_tokens`.
+
+## La fenêtre de pastille ne déborde pas : l'hypothèse est écartée
+
+Le reliquat de F4 — vingt-sept erreurs d'attribution sur quarante, toutes à −1 piste — avait une
+explication plausible : la fenêtre où l'on cherche le repère, posée **sous** le numéro d'élément,
+pouvait déborder sur l'élément suivant et lui emprunter le sien. Mesuré sur les treize clichés de
+référence, c'est faux.
+
+| Mesure | Résultat |
+|---|---:|
+| Éléments lus | 122 |
+| Fenêtres recouvrant le numéro de l'élément suivant | **0** |
+| Fenêtres recouvrant la fenêtre de l'élément suivant | **0** |
+| Lectures de piste à +1 de l'oracle | **0** |
+
+Les images de diagnostic le montrent aussi bien que les chiffres : la fenêtre encadre exactement
+la pastille de son élément, et s'arrête bien avant le suivant.
+
+### Ce que les images montrent à la place
+
+**Les repères ne sont pas sur tous les éléments.** Sur ces treize clichés, 87 éléments lus sur 122
+ne portent aucune pastille lisible. Un même cliché montre cinq éléments dont trois seulement en
+ont une. La formule consignée plus haut — « chaque élément d'une piste porte son repère » — vaut
+pour les éléments d'une piste déjà ouverte, pas pour tous.
+
+**Et quand une pastille est mal lue, elle l'est franchement.** Sur les 32 éléments dont l'oracle
+connaît la piste, 21 sont lus juste et 11 sont faux — mais d'aucun pas régulier : 41 pour 1, 19
+pour 9, 1 pour 11, 43 pour 12, 4 pour 19. Jamais à un près.
+
+### D'où vient alors la dérive
+
+Une lecture farfelue ne soutient aucune piste : `appui` lui donne zéro. Là où elles s'accumulent,
+l'attribution n'a plus de quoi trancher, et son réglage par défaut prend le dessus — un pas de 1
+est gratuit, un pas de 0 coûte 0,3, donc la suite avance. Reproduit sur des lots construits :
+
+| Bruit | Justes sur 184 | Dérive |
+|---|---:|---|
+| une lecture farfelue sur quatre | 183 | — |
+| **une lecture farfelue sur trois** | **154** | **+1 sur 30 éléments** |
+
+Le taux mesuré sur les clichés de référence est de 11 sur 32, soit une sur trois. La signature
+concorde exactement.
+
+### Ce qu'il faut en retenir
+
+Le levier n'est ni la géométrie de la fenêtre, ni la règle d'attribution — les deux ont été
+éprouvées et tiennent. **C'est le rendement de lecture des pastilles.** Une pastille est un
+chiffre clair sur un bloc sombre, de quelques dizaines de pixels : c'est précisément le genre de
+zone difficile que la vision ciblée (OUT-08) sait traiter, et dont les contrats et la sélection
+des candidats sont déjà faits.
+
+La partie corrective a donc été arrêtée sans toucher à la fenêtre : corriger ce qui n'est pas
+cassé aurait coûté une régression pour rien.

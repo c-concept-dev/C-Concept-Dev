@@ -19,6 +19,11 @@ export const LectureRepere = z
      *  écrans montraient donc la vraie page sans ses zones. Facultatif parce qu'une passe peut
      *  travailler sur une image dont les dimensions ne sont pas celles de la page. */
     zone: ZoneRelative.optional(),
+    /** Où le repère lui-même a été trouvé, quand il l'a été (B1).
+     *
+     *  Distinct de `zone`, qui est celle du numéro : un repère se pose à côté, et la bande que le
+     *  Lecteur rend cliquable doit les contenir tous les deux — sans quoi elle le coupe en deux. */
+    zoneRepere: ZoneRelative.optional(),
     numero: z.number().int().positive(),
     pisteLue: z.number().int().positive().optional(),
     /** À quel point une pastille semble présente, qu'on ait su lire son chiffre ou non. Une
@@ -36,6 +41,8 @@ export const ElementRepere = z
     /** Zone retenue pour cet élément : celle de la lecture qui a emporté le vote. On ne moyenne
      *  pas deux rectangles — la moyenne de deux lectures qui se contredisent ne désigne rien. */
     zone: ZoneRelative.optional(),
+    /** Où son repère a été trouvé, quand il l'a été. */
+    zoneRepere: ZoneRelative.optional(),
     numero: z.number().int().positive(),
     pisteLue: z.number().int().positive().optional(),
     presencePiste: Confiance.default(0),
@@ -73,6 +80,26 @@ export const PageReperee = z
   });
 export type PageReperee = z.infer<typeof PageReperee>;
 
+/** Ce qu'une page a donné à lire, avant toute numérotation — et ce que le cache de lecture garde.
+ *
+ *  Un fichier de cache est une frontière comme une autre : il a été écrit par une autre
+ *  exécution, parfois par une autre version, parfois à moitié. `JSON.parse` dit seulement que
+ *  c'est du JSON ; ce contrat dit que ce sont des pages lues (CLAUDE.md, règle 2).
+ *
+ *  Distinct de `PageReperee` : celle-ci porte en plus le numéro imprimé et son statut, que
+ *  l'interprète établit ensuite en votant sur le lot. Ce qui sort de la lecture ne les a pas
+ *  encore. */
+export const PageLueBrute = z
+  .object({
+    index: z.number().int().nonnegative(),
+    rang: z.number().int().nonnegative().optional(),
+    cote: CotePage.optional(),
+    pageLue: z.number().int().positive().optional(),
+    elements: z.array(ElementRepere),
+  })
+  .strict();
+export type PageLueBrute = z.infer<typeof PageLueBrute>;
+
 /** Comment le numéro de piste a été obtenu. Jamais « d'après le nom du fichier » : un nom de
  *  fichier ne vaut qu'indice de recoupement (REC-05).
  *
@@ -94,6 +121,8 @@ export const LigneInterpretee = z
     sourcePiste: SourcePiste.optional(),
     /** Où l'élément se trouve sur sa page, quand la lecture l'a su (B1). */
     zone: ZoneRelative.optional(),
+    /** Où son repère a été trouvé : la bande du Lecteur les contient tous deux. */
+    zoneRepere: ZoneRelative.optional(),
     confiance: Confiance,
   })
   .strict()

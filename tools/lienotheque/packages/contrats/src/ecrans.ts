@@ -37,6 +37,9 @@ export const ElementAffiche = z
     titre: z.string().min(1).optional(),
     page: z.number().int().positive(),
     zone: ZoneRelative.optional(),
+    /** Où son repère a été trouvé, quand il l'a été. La bande que le Lecteur rend cliquable
+     *  contient les deux : un repère coupé en deux par le bord d'une zone se lit mal. */
+    zoneRepere: ZoneRelative.optional(),
     /** Le média relié, quand il y en a un. Beaucoup d'éléments n'en ont pas. */
     media: z
       .object({
