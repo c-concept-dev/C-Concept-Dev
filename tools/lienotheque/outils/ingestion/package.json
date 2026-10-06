@@ -17,10 +17,12 @@
     "@lienotheque/contrats": "workspace:*",
     "@lienotheque/formats": "workspace:*",
     "@lienotheque/images": "workspace:*",
+    "@lienotheque/lecteur-texte": "workspace:*",
     "@lienotheque/noyau": "workspace:*",
     "@lienotheque/optimiseur": "workspace:*",
     "@lienotheque/recettes": "workspace:*",
-    "@lienotheque/vision": "workspace:*"
+    "@lienotheque/vision": "workspace:*",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "tsx": "^4.20.0",

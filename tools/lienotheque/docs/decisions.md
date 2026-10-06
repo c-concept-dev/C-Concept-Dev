@@ -30,6 +30,7 @@
 | 2026-10-06 | **L'hôte est le seul écrivain du dépôt** : le processus reçoit un travail et rend un résultat, l'hôte le valide et l'active en une opération (JOB-06) | Lot D2, étape 0 |
 | 2026-10-06 | Portage Rust intégral de la chaîne **écarté** : il faudrait réécrire pdf.js et les codecs, et refaire la preuve des 84/92 et 95/95 | Lot D2, étape 0 |
 | 2026-10-06 | Allègement du moteur (Node sans ICU, binaire compilé) **reporté après la bêta**, et sans toucher la chaîne | Lot D2, étape 0 |
+| 2026-10-06 | **Les critères des corpus remontent à la porte de l'application** : F1, F3 et F4 se mesurent sur `executerTravail`, dans `outils/ingestion`, et nulle part ailleurs. Un seul test de critère par corpus | Lot D2, étape 1, section ci-dessous |
 
 
 
@@ -109,6 +110,66 @@ mesurés le jour où l'allègement sera à l'ordre du jour.
   d'entrée que l'application.
 - **La validation Apple d'un binaire Node annexe se mesure tôt**, sur un paquet d'essai : c'est le
   seul risque de cette décision qui ne se chiffre pas sans l'essayer, et il conditionne l'étape 6.
+
+
+## Lot D2, étape 1 — une seule porte, et les critères devant
+
+La chaîne avait trois entrées : le banc de mesure appelait `rejouer`, l'application appelait
+`instantaneDeLot`, la mesure F4 orchestrait elle-même. Trois portes pour un seul traitement, et
+donc trois choses mesurables là où il n'y en a qu'une à prouver.
+
+Il n'y en a plus qu'une : **`executerTravail`**, dans `outils/ingestion`. Une demande entre, un
+message en sort — un résultat, ou un échec qui dit sa cause. L'enveloppe est validée par le
+contrat d'échange, la charge par le contrat de cet outil, et un désaccord de version est refusé
+avant tout travail.
+
+### Pourquoi les critères ont dû déménager
+
+`ingestion` dépend de `recettes` et de `vision`. Le critère F3 vivait dans `outils/recettes`, la
+mesure F4 dans `outils/vision` : ni l'un ni l'autre ne pouvait appeler une porte située au-dessus
+de lui. Les laisser là, c'était les laisser mesurer une marche plus bas que celle que
+l'application franchit — donc prouver un script, et non le produit.
+
+Ils sont donc remontés dans `outils/ingestion/test/criteres.test.ts` et
+`outils/ingestion/mesures/f4-vision.ts`. **Un seul test de critère par corpus**, et aucune seconde
+mesure du même critère ailleurs : les contrôles d'outil restent où ils sont — le déterminisme
+(REC-02), les 99 médias, le cache de lecture — parce qu'ils éprouvent un outil, pas un corpus.
+
+**F1 fait exception, et la garde.** Son critère porte sur la couche texte d'un PDF natif, que la
+chaîne consomme mais ne note pas. Le faire passer par la porte aurait changé ce qu'il prouve, et
+la condition d'identité l'interdisait. Il a déménagé avec les autres, pour qu'ils soient au même
+endroit, sans que son assertion bouge d'un caractère.
+
+### La preuve d'identité
+
+Relevé avant le déplacement, puis après, sur la même machine et le même cache :
+
+| Critère | Avant | Après |
+|---|---|---|
+| **F1** — couche texte, page par page | exact | **exact** |
+| **F3** — éléments reliés à la bonne piste | 95 / 95 | **95 / 95** |
+| F3 — pages absentes ; médias orphelins | 30 et 31 ; 93 à 98 | **inchangé** |
+| **F4** — premiers éléments justes | 84 / 92 | **84 / 92** |
+| F4 — pages justes | 89 / 92 | **89 / 92** |
+| F4 — témoin, sans relecture | 66 / 92 et 77 / 92 | **inchangé** |
+| F4 — effet de la relecture | 146 appliquée, 19 non corroborée, 4 sans majorité | **inchangé** |
+| F4 — causes restantes | dispute 19 → 2, piste fausse 4 → 3, non lu 3 → 3 | **inchangé** |
+| F4 — coût d'un rejeu | 0,0000 € | **0,0000 €** |
+
+Les trois se sautent proprement sans les fichiers sous droits, comme avant. Les contrôles de la
+porte elle-même — refus d'un désaccord de version, refus d'une charge incomplète, avancement qui
+finit à cent pour cent — ne demandent aucun fichier et tournent partout.
+
+### Ce que la porte sait dire, et qu'on ne savait pas dire avant
+
+Le nombre de pages d'un document ne sortait pas de la lecture : pour annoncer un pourcentage, il
+aurait fallu reparser le document. Il est désormais dit une fois, au moment où la lecture le
+connaît déjà, et voyage avec chaque page préparée. La porte émet donc un avancement après chaque
+cliché lu — **après la lecture, pas après le décodage** : annoncer cent pour cent pendant que les
+dernières pages passent encore à l'OCR serait un mensonge poli.
+
+Le coût d'une passe de relecture part au journal, et de là à l'écran de traitement : une dépense
+qu'on ne voit pas est une dépense qu'on ne surveille pas.
 
 ## Prototype du socle local — mesures du 3 octobre 2026
 

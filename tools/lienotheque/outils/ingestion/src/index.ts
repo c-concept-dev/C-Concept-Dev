@@ -198,6 +198,7 @@ export async function ingerer(depot: Depot, lot: Lot): Promise<Bilan> {
   return { ancres, liens, cartes, sansPiste, segmentsInconnus };
 }
 
+export * from "./executant.js";
 export * from "./instantane.js";
 export * from "./lot.js";
 export * from "./pages-images.js";

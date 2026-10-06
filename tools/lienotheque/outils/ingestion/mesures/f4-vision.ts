@@ -1,30 +1,32 @@
-/** F4 mesuré par la chaîne réelle (OUT-08, A5).
+/** Critère F4, mesuré à la porte de l'application (OUT-08, lot D).
  *
- *  Ce banc n'orchestre plus rien : il appelle `rejouer`, la même fonction que l'application, avec
- *  la relecture ciblée branchée comme elle le sera. Un seul chemin de code, sans quoi le critère
- *  mesuré ne serait pas celui de l'application.
+ *  Ce banc n'orchestre rien : il franchit deux fois la même porte que l'application —
+ *  `executerTravail` —, une fois sans relecture pour le témoin, une fois avec. Un seul chemin de
+ *  code, sans quoi le critère mesuré ne serait pas celui de l'application.
  *
- *     pnpm --filter @lienotheque/vision exec tsx mesures/f4-vision.ts <url>
+ *     pnpm --filter @lienotheque/ingestion exec tsx mesures/f4-vision.ts <url>
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { coin, ouvrirCache } from "@lienotheque/cache";
-import { chargerRecette, rejouer, type LigneInterpretee } from "@lienotheque/recettes";
-import { jetonDacces, relectureCiblee, transportVersWorker } from "../src/index.js";
+import type { LigneInterpretee } from "@lienotheque/contrats";
+import { jetonDacces } from "@lienotheque/vision";
+import { chargeOuEchec, demandeDeTraitement, executerTravail, type ChargeTraitement } from "../src/index.js";
 
 const RACINE = join(import.meta.dirname, "../../..");
 const F4 = join(RACINE, "fixtures/fichiers/F4/Paul westwood.pdf");
 const MEDIAS = join(RACINE, "fixtures/fichiers/F4");
+const RECETTE = join(RACINE, "fixtures/recettes/methode-pastilles-cd.v5.json");
+const DESCRIPTION = join(RACINE, "fixtures/bibliotheques/F4.json");
 const ORACLE = join(RACINE, "docs/prototypes/Westwood_Vol1_CD1_pistes.csv");
-const RECETTE = chargerRecette(JSON.parse(readFileSync(join(RACINE, "fixtures/recettes/methode-pastilles-cd.v5.json"), "utf8")));
 
 const base = process.argv[2];
 if (base === undefined) {
-  console.log("Adresse du Worker attendue en premier argument.");
+  console.log("Adresse du service de relecture attendue en premier argument.");
   process.exit(1);
 }
-const jeton = jetonDacces();
-if (jeton === undefined) {
+if (jetonDacces() === undefined) {
   console.log("Aucun jeton : ni dans l'environnement, ni dans le trousseau. Rien n'a été appelé.");
   process.exit(1);
 }
@@ -42,7 +44,27 @@ for (const ligne of readFileSync(ORACLE, "utf8").split("\n").slice(1)) {
 console.log(`Oracle : ${attendus.length} pistes`);
 
 const cache = ouvrirCache({ avertir: (message) => console.warn(message) });
-const lectures = coin(cache, "lectures");
+
+const charge = (avecRelecture: boolean): ChargeTraitement => ({
+  document: F4,
+  medias: MEDIAS,
+  recette: RECETTE,
+  description: DESCRIPTION,
+  cache: cache.dossier,
+  ...(avecRelecture ? { relecture: base } : {}),
+});
+
+const franchir = async (avecRelecture: boolean, dire: boolean) => {
+  const debut = Date.now();
+  const message = await executerTravail(demandeDeTraitement(randomUUID(), randomUUID(), charge(avecRelecture)), {
+    emettre: (envoi) => {
+      if (dire && envoi.type === "journal" && envoi.texte.startsWith("Relecture")) console.log(`  ${envoi.texte}`);
+    },
+  });
+  const traite = chargeOuEchec(message);
+  console.log(`${avecRelecture ? "Chaîne complète" : "Témoin"} : ${Math.round((Date.now() - debut) / 1000)} s`);
+  return traite;
+};
 
 /** Le critère porte sur le premier support : l'oracle est celui du premier disque. */
 const score = (lignes: readonly LigneInterpretee[]) => {
@@ -86,29 +108,8 @@ const causeDe = (lignes: readonly LigneInterpretee[]): Map<number, string> => {
   return causes;
 };
 
-// --- Le témoin : la même chaîne, sans relecture branchée.
-const debutTemoin = Date.now();
-const temoin = await rejouer(F4, MEDIAS, RECETTE, { cache: lectures });
-console.log(`Témoin : ${temoin.resultat.lignes.length} lignes en ${Math.round((Date.now() - debutTemoin) / 1000)} s`);
-
-// --- Et la chaîne avec sa relecture, branchée comme l'application le fera.
-const bilans: { passe: string; zones: number; appels: number; cout: number; depuisLeCache: number }[] = [];
-const debut = Date.now();
-const avec = await rejouer(F4, MEDIAS, RECETTE, {
-  cache: lectures,
-  relecture: relectureCiblee(transportVersWorker(base, jeton), {
-    cacheDuLot: coin(cache, "vision-reponses"),
-    compter: (passe, bilan) => bilans.push({ passe, ...bilan }),
-  }),
-});
-console.log(`Chaîne complète : ${Math.round((Date.now() - debut) / 1000)} s`);
-for (const bilan of bilans)
-  console.log(
-    `  passe ${bilan.passe} : ${bilan.zones} zones, ${bilan.appels} appel(s), ` +
-      `${bilan.depuisLeCache} depuis le cache, ${bilan.cout.toFixed(4)} €`,
-  );
-const cout = bilans.reduce((somme, bilan) => somme + bilan.cout, 0);
-console.log(`Coût réel de ce passage : ${cout.toFixed(4)} € (plafond ${RECETTE.vision?.cout_max_eur ?? "aucun"})`);
+const temoin = await franchir(false, false);
+const avec = await franchir(true, true);
 
 const parRelecture = new Map<string, number>();
 for (const ligne of avec.resultat.lignes)
@@ -138,8 +139,6 @@ writeFileSync(
     {
       avant,
       apres,
-      cout,
-      bilans,
       relecture: [...parRelecture],
       orphelins: avec.association.orphelins.length,
       pagesAbsentes: avec.resultat.pagesAbsentes.length,

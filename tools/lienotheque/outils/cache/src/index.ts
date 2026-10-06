@@ -70,10 +70,18 @@ export function ouvrirCache(reglages: Reglages = {}): Cache {
 }
 
 /** Un coin du cache, pour un usage donné. */
-export function coin(cache: Cache, nom: string): string {
-  const chemin = join(cache.dossier, nom);
+/** Un coin du cache, désigné par le chemin de sa racine.
+ *
+ *  Le même geste que `coin`, pour les appelants qui n'ont qu'un chemin — un processus qui reçoit
+ *  sa racine d'un hôte, par exemple, et à qui l'on n'envoie pas un objet de cache par un tuyau. */
+export function sousDossier(racine: string, nom: string): string {
+  const chemin = join(racine, nom);
   mkdirSync(chemin, { recursive: true });
   return chemin;
+}
+
+export function coin(cache: Cache, nom: string): string {
+  return sousDossier(cache.dossier, nom);
 }
 
 export type Pesee = { readonly octets: number; readonly fichiers: number };

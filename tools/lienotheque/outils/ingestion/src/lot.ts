@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { exporterPages } from "./pages-images.js";
-import { MotsBibliotheque, SchemaBibliotheque, VueBibliotheque } from "@lienotheque/contrats";
-import { chargerRecette, rejouer, type Relecture } from "@lienotheque/recettes";
+import { MotsBibliotheque, type ResultatRecette, SchemaBibliotheque, VueBibliotheque } from "@lienotheque/contrats";
+import { chargerRecette, rejouer, type Association, type Media, type Relecture } from "@lienotheque/recettes";
 import { construireVue } from "./instantane.js";
 
 /** D'un lot réel à l'instantané que lisent les écrans (correction 8).
@@ -52,6 +52,8 @@ export type Lot = {
   /** De quoi relire les repères difficiles, quand la recette en déclare une. Passée telle quelle
    *  à la chaîne : l'instantané des écrans vient du même traitement que la mesure. */
   readonly relecture?: Relecture | undefined;
+  /** Appelé après chaque cliché lu, pour dire où en est le traitement (JOB-03). */
+  readonly avancement?: ((faits: number, total: number) => void) | undefined;
 };
 
 /** Quel numéro imprimé porte chaque rang du document, d'après l'interprète.
@@ -84,8 +86,20 @@ export function numerosImprimes(
   return parIndex;
 }
 
+/** Ce qu'un lot traité a produit : la vue que les écrans liront, et ce dont elle est tirée.
+ *
+ *  La vue ne suffit pas à tout : elle est faite pour être lue, et le banc note des lignes. Rendre
+ *  les deux n'est pas calculer deux fois le même fait — la vue est tirée du résultat, ici et une
+ *  seule fois. C'est l'appelant qui choisit ce dont il a besoin. */
+export type LotTraite = {
+  readonly vue: VueBibliotheque;
+  readonly resultat: ResultatRecette;
+  readonly association: Association;
+  readonly medias: readonly Media[];
+};
+
 /** Traite un lot et rend l'instantané que les écrans liront. */
-export async function instantaneDeLot(lot: Lot): Promise<VueBibliotheque> {
+export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
   const description = lireDescription(JSON.parse(await readFile(lot.description, "utf8")));
   const recette = chargerRecette(JSON.parse(await readFile(lot.recette, "utf8")));
 
@@ -96,6 +110,7 @@ export async function instantaneDeLot(lot: Lot): Promise<VueBibliotheque> {
   const { resultat, association, medias } = await rejouer(lot.pdf, lot.medias, recette, {
     ...(lot.cache === undefined ? {} : { cache: lot.cache }),
     ...(lot.relecture === undefined ? {} : { relecture: lot.relecture }),
+    ...(lot.avancement === undefined ? {} : { avancement: lot.avancement }),
   });
 
   // Les images, une par une, écrites au passage. Le numéro imprimé d'une page n'est pas son rang
@@ -115,7 +130,7 @@ export async function instantaneDeLot(lot: Lot): Promise<VueBibliotheque> {
       });
   }
 
-  return construireVue({
+  const vue = construireVue({
     id: description.id,
     nom: description.nom,
     schema: description.schema,
@@ -133,4 +148,6 @@ export async function instantaneDeLot(lot: Lot): Promise<VueBibliotheque> {
     sourceDuMedia: (media) =>
       lot.adresseMedias === undefined || media.nom === undefined ? undefined : `${lot.adresseMedias}/${encodeURIComponent(media.nom)}`,
   });
+
+  return { vue, resultat, association, medias };
 }
