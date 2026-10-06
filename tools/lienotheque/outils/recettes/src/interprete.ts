@@ -250,9 +250,20 @@ export function sequencer(
   const lectures = porteurs.map((rang) => {
     const element = numerotes[rang]!;
     const vision = relu(element);
-    // Quand les deux existent, la relecture l'emporte comme lecture : la locale était tronquée,
-    // c'est précisément pourquoi le pavé est parti. Et un verdict « present » renforce ce que
-    // l'élément pèse, sans inventer de valeur : on prend le meilleur des deux accords.
+
+    // La relecture l'emporte comme lecture, même quand elle contredit la locale. C'est contre
+    // l'intuition, et c'est mesuré.
+    //
+    // On a essayé de ne la laisser gagner que lorsqu'elle **complète** la locale — l'un des deux
+    // nombres contenant l'autre, au sens d'`appui` —, parce que trois pistes de F4 se perdaient
+    // sur une relecture fausse ayant effacé une lecture locale exacte : 8 contre 3, 24 contre 34,
+    // 69 contre 88. La règle coûte quatre premiers éléments de plus qu'elle n'en rend, 81 à 77.
+    //
+    // Confrontées à l'oracle sur les pavés qu'il connaît : quand l'un contient l'autre, la
+    // relecture a raison 56 fois et la locale 0 ; quand les deux se contredisent, la relecture a
+    // raison 11 fois et la locale 3. Elle l'emporte donc dans les deux cas, et la confiance ne
+    // sépare rien — à 0,90 et plus, 7 contre 2 ; en dessous, 4 contre 1. Les trois exceptions sont
+    // la queue d'un témoin juste quatre-vingt-quinze fois sur cent, pas un défaut de règle.
     const accord = vision === undefined ? element.accordPiste : Math.max(element.accordPiste, vision.confiance);
     return {
       ...element,

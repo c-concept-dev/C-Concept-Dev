@@ -1503,3 +1503,64 @@ Ce n'est pas la fin de l'idée : un détecteur de **décompte** — les quatre t
 exercice — serait une autre méthode, et probablement meilleure. Mais elle demande davantage qu'un
 seuillage d'énergie, et la machine n'a ni ffmpeg ni ffprobe. En l'état, l'audio ne peut pas servir
 d'indice à l'attribution.
+
+## Le troisième témoin tient le critère : F4 à 84/92, partie 1 du lot D close
+
+Deux témoins qui se contredisent ne se départagent pas. La lecture locale et une première relecture
+en font deux ; il en faut un troisième, et il doit **regarder autrement** — redemander la même image
+rendrait la même réponse, et la troisième voix n'en serait pas une.
+
+### La règle
+
+Quand la lecture locale et la relecture se contredisent — au sens strict : aucun des deux nombres ne
+contient l'autre, ce que dit déjà `appui` —, on redemande sur un **autre recadrage**, au double de
+l'agrandissement de la recette. Deux voix sur trois l'emportent. Sans majorité, rien n'est retenu et
+l'élément part se faire vérifier, plutôt que d'être appliqué au hasard.
+
+À égalité, on s'abstient. Préférer « la première » ou « la plus confiante » serait une préférence
+déguisée en règle, et la mesure a montré que la confiance ne sépare rien.
+
+### L'effet, isolé
+
+| | Avant | Après |
+|---|---:|---:|
+| Premiers éléments | 81 / 92 | **84 / 92** |
+| Pages | 86 / 92 | **89 / 92** |
+| Disputes d'ouverture | 5 | **2** |
+
+39 contradictions relevées ; **29 tranchées par deux voix sur trois**, 10 sans majorité portées à
+Vérifier. Coût du second passage : **0,0140 €**.
+
+### Ce qui avait échoué juste avant, et pourquoi c'était instructif
+
+On avait d'abord essayé de **préférer la lecture locale** quand la relecture la contredit, parce que
+trois pistes se perdaient ainsi. La règle coûte quatre éléments de plus qu'elle n'en rend — 81 à 77.
+Confrontées à l'oracle : quand l'un des nombres contient l'autre, la relecture a raison 56 fois
+contre 0 ; quand ils se contredisent, 11 fois contre 3. **La relecture l'emporte dans les deux cas**,
+et il ne fallait donc pas la démettre, mais lui opposer un témoin de plus.
+
+### Le critère du lot D, partie 1
+
+| | Mesure | Critère |
+|---|---:|---:|
+| **F4, premiers éléments** | **84 / 92** | **83** ✓ |
+| F4, pages | 89 / 92 | *(89, non normatif)* ✓ |
+| **F3** | **95 / 95** | 95 ✓ |
+
+Le critère normatif du lot D — « F4 ≥ 83/92 automatique » — est **tenu**. F3 est vérifié à froid,
+lecture réelle de 190 s, rejeu identique (REC-02).
+
+Un rejeu complet de F4 ne dépense **rien** : les deux passes de relecture sortent du cache et le
+résultat est identique, ce qui est la condition même du banc d'essai (OUT-15).
+
+### Le reliquat
+
+Huit écarts : 2 disputes d'ouverture, 3 pistes fausses, 3 éléments jamais lus. Aucun n'empêche le
+critère. Les trois éléments jamais lus restent hors de portée de la relecture — la sélection ne peut
+envoyer que ce que le lecteur a localisé.
+
+### Ce qui reste à faire passer en production
+
+L'enchaînement des deux passes vit aujourd'hui dans le banc de mesure ; la règle de majorité et la
+détection de contradiction, elles, sont dans la bibliothèque et testées. Porter l'enchaînement dans
+la chaîne de lecture est un travail d'intégration, pas de recherche.
