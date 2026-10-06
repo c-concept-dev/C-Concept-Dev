@@ -2,6 +2,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { BATTEMENT_VERROU_S, DELAI_ENTRE_TENTATIVES_S, EXPIRATION_VERROU_S, Travail } from "@lienotheque/contrats";
+import { DOSSIERS_BIBLIOTHEQUE } from "../src/index.js";
 import { describe, expect, it } from "vitest";
 import { annuler, avancer, battreSiDu, dejaEnFile, echouer, mettreEnPause, prendre, prochain, repriseA, reprenable, reprendre } from "../src/travaux.js";
 
@@ -158,6 +159,14 @@ describe("un seul endroit pour la cadence du bail", () => {
   // Ce contrôle comparait deux copies de la cadence, l'une en TypeScript, l'autre en Rust. Il n'y
   // a plus de copies à comparer : les deux côtés lisent `packages/contrats/limites.json`. Ce qui
   // se vérifie maintenant, c'est que l'hôte va bien la chercher là, et pas qu'il la redit juste.
+  it("l'hôte de bureau nomme le dossier de bibliothèque comme le noyau (ANC-05)", () => {
+    // Trois noms, deux langages : trop peu pour un fichier de données, assez pour qu'un
+    // renommage d'un seul côté rende une bibliothèque illisible par l'autre.
+    const rust = readFileSync(fileURLToPath(new URL("../../../apps/app/src-tauri/src/depot.rs", import.meta.url)), "utf8");
+    for (const [role, nom] of Object.entries(DOSSIERS_BIBLIOTHEQUE))
+      expect(rust, `le dossier « ${role} »`).toMatch(new RegExp(`pub const ${role.toUpperCase()}: &str = "${nom}";`));
+  });
+
   it("l'hôte de bureau lit la même donnée, au lieu de la redire", () => {
     const rust = readFileSync(fileURLToPath(new URL("../../../apps/app/src-tauri/src/travail.rs", import.meta.url)), "utf8");
     expect(rust, "le bail vient des limites, pas d'un littéral").toMatch(/LIMITES\.battement_verrou_s/);
