@@ -124,6 +124,9 @@ pub fn lire_message(ligne: &str) -> Result<Message, Refus> {
 pub struct Lancement {
     pub programme: PathBuf,
     pub arguments: Vec<String>,
+    /// Ce que le moteur doit savoir de son environnement. Rien de secret n'y passe : le jeton du
+    /// service de relecture est lu par le moteur lui-même, dans le trousseau.
+    pub environnement: Vec<(String, String)>,
 }
 
 impl Lancement {
@@ -132,12 +135,19 @@ impl Lancement {
     /// Le plafond n'est pas un budget : c'est un garde-fou contre une boucle qui s'emballerait, et
     /// il vaut mieux un travail arrêté net qu'une machine qui se fige.
     pub fn embarque(node: PathBuf, script: PathBuf) -> Self {
+        // Les codecs WebAssembly vivent à côté de la chaîne : un paquet n'a pas de `node_modules`
+        // où les chercher.
+        let codecs = script.parent().map(|d| d.join("codecs"));
         Self {
             programme: node,
             arguments: vec![
                 format!("--max-old-space-size={}", LIMITES.memoire_max_mo),
                 script.to_string_lossy().into_owned(),
             ],
+            environnement: codecs
+                .filter(|c| c.exists())
+                .map(|c| vec![("LIENOTHEQUE_CODECS".to_owned(), c.to_string_lossy().into_owned())])
+                .unwrap_or_default(),
         }
     }
 }
@@ -152,9 +162,13 @@ impl Session {
     pub fn ouvrir(lancement: &Lancement) -> io::Result<Self> {
         let mut enfant = Command::new(&lancement.programme)
             .args(&lancement.arguments)
+            .envs(lancement.environnement.iter().map(|(c, v)| (c.as_str(), v.as_str())))
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
+            // La sortie d'erreur passe à celle de l'hôte, elle n'est pas mise en tuyau : un tuyau
+            // que personne ne lit se remplit, et le moteur finit par se bloquer en écrivant
+            // dedans. C'est une panne silencieuse — le moteur paraît ne rien faire.
+            .stderr(Stdio::inherit())
             .spawn()?;
         let sortie = BufReader::new(enfant.stdout.take().expect("sortie demandée au lancement"));
         Ok(Self { enfant, sortie })
@@ -202,6 +216,15 @@ impl Session {
         Ok(false)
     }
 
+    /// Comment le moteur s'est terminé, s'il l'est. Dit à l'hôte pourquoi un dialogue s'est
+    /// arrêté sans résultat — « il s'est tu » n'explique rien, « il est mort avec le code 1 » si.
+    pub fn sortie(&mut self) -> Option<String> {
+        self.enfant.try_wait().ok().flatten().map(|etat| match etat.code() {
+            Some(code) => format!("terminé avec le code {code}"),
+            None => "arrêté par un signal".to_owned(),
+        })
+    }
+
     /// Tue le moteur sans rien demander : pour une annulation, où l'on ne veut pas de la suite.
     pub fn tuer(&mut self) -> io::Result<()> {
         self.enfant.kill()?;
@@ -221,7 +244,7 @@ mod tests {
             .map(|l| format!("printf '%s\\n' {}", shell_quote(l)))
             .collect::<Vec<_>>()
             .join("; ");
-        Lancement { programme: PathBuf::from("/bin/sh"), arguments: vec!["-c".to_owned(), script] }
+        Lancement { programme: PathBuf::from("/bin/sh"), arguments: vec!["-c".to_owned(), script], environnement: Vec::new() }
     }
 
     fn shell_quote(texte: &str) -> String {
@@ -310,7 +333,7 @@ mod tests {
     fn un_moteur_qui_ne_rend_pas_la_main_est_tue_apres_le_delai() {
         // Il salue, puis dort bien au-delà du délai d'arrêt propre.
         let script = format!("printf '%s\\n' '{}'; sleep 600", salutation());
-        let lancement = Lancement { programme: PathBuf::from("/bin/sh"), arguments: vec!["-c".to_owned(), script] };
+        let lancement = Lancement { programme: PathBuf::from("/bin/sh"), arguments: vec!["-c".to_owned(), script], environnement: Vec::new() };
         let mut session = Session::ouvrir(&lancement).expect("moteur lancé");
 
         let debut = Instant::now();

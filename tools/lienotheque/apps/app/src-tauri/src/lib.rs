@@ -15,6 +15,7 @@ pub mod mesures;
 pub mod ocr;
 pub mod pdf;
 pub mod plateforme;
+pub mod traitement;
 pub mod travail;
 
 use std::{

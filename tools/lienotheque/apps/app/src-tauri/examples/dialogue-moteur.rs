@@ -42,7 +42,7 @@ fn main() -> ExitCode {
         }
     };
 
-    let lancement = Lancement { programme: PathBuf::from(programme), arguments: args.to_vec() };
+    let lancement = Lancement { programme: PathBuf::from(programme), arguments: args.to_vec(), environnement: Vec::new() };
     let mut session = match Session::ouvrir(&lancement) {
         Ok(s) => s,
         Err(e) => {

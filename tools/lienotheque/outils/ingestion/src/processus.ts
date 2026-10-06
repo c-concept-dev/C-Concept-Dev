@@ -1,6 +1,7 @@
 import {
   Arret,
   Echec,
+  Identifiant,
   MessageVersProcessus,
   Salutation,
   VERSION_PROTOCOLE,
@@ -45,7 +46,11 @@ export function salutation(): Salutation {
 function travailDe(brut: unknown): string | undefined {
   if (typeof brut !== "object" || brut === null) return undefined;
   const id = (brut as { travailId?: unknown }).travailId;
-  return typeof id === "string" ? id : undefined;
+  // Validé, et pas seulement « c'est une chaîne » : l'échec qu'on s'apprête à écrire porte lui
+  // aussi un identifiant conforme, et le refuser au moment de l'écrire ferait mourir le processus
+  // dans le code même qui sert à ne pas mourir.
+  const lu = Identifiant.safeParse(id);
+  return lu.success ? lu.data : undefined;
 }
 
 export type OptionsBoucle = {

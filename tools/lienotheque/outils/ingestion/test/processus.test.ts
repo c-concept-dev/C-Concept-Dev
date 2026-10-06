@@ -68,6 +68,15 @@ describe("ce que la boucle refuse", () => {
     expect(dernier?.type === "echec" && dernier.travailId).toBe(travailId);
   });
 
+  it("ne meurt pas quand le travail nommé n'est pas un identifiant valide", async () => {
+    // Le piège : vouloir rattacher l'échec à « travail-73991 » fait refuser l'échec lui-même, et
+    // le processus meurt dans le code écrit pour ne pas mourir. Rencontré en vrai, sur le paquet.
+    const signaux: string[] = [];
+    const messages = await echanger([{ type: "demande", protocole: VERSION_PROTOCOLE, travailId: "travail-73991" }], signaux);
+    expect(messages.map((m) => m.type), "le processus a survécu").toEqual(["salutation"]);
+    expect(signaux).toHaveLength(1);
+  });
+
   it("se rabat sur la sortie d'erreur quand il n'y a personne à qui dire l'échec", async () => {
     const signaux: string[] = [];
     const messages = await echanger([{ type: "coucou" }], signaux);

@@ -17,7 +17,19 @@ export type ImageRvba = {
 
 const exige = createRequire(import.meta.url);
 
-const racine = (paquet: string): string => dirname(exige.resolve(`${paquet}/package.json`));
+/** Où trouver le WebAssembly d'un codec.
+ *
+ *  En développement et dans les tests, il vit dans `node_modules`, et c'est le résolveur de Node
+ *  qui le trouve. Dans un paquet livré, il n'y a pas de `node_modules` : la chaîne y est
+ *  rassemblée en un seul fichier, et les `.wasm` sont rangés à côté. L'hôte dit alors où par
+ *  `LIENOTHEQUE_CODECS`, et c'est la seule différence entre les deux situations.
+ *
+ *  Sans cela, un paquet lit parfaitement un lot déjà lu — le cache lui épargne tout décodage — et
+ *  échoue sur le premier document neuf. La panne attend le jour de la vraie utilisation. */
+const racine = (paquet: string): string => {
+  const range = process.env["LIENOTHEQUE_CODECS"];
+  return range === undefined || range === "" ? dirname(exige.resolve(`${paquet}/package.json`)) : join(range, paquet);
+};
 
 const compile = async (chemin: string): Promise<WebAssembly.Module> =>
   WebAssembly.compile(await readFile(chemin));
