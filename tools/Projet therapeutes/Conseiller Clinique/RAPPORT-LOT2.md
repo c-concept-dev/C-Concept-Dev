@@ -449,6 +449,114 @@ python3 -m http.server 8765 --directory "/Users/christophebonnet/Documents/GitHu
 
 ---
 
+## 10. Pourquoi la connexion échoue depuis le banc, et la voie sans secret
+
+**Aucun mot de passe n'a été demandé, saisi, ni utilisé pour établir ce qui suit.** Tout vient de
+la lecture du code de l'écran de connexion et de celui du Worker.
+
+### 10.1 Quel message pour quelle cause
+
+| Message affiché | Cause exacte |
+|---|---|
+| « Entrez votre mot de passe. » | champ vide — **aucune requête n'est envoyée** |
+| *l'écran disparaît* | HTTP **200** : la clé reçue est rangée dans `localStorage` |
+| « Trop de tentatives — réessayez dans quelques minutes. » | HTTP **429**, limiteur du Worker |
+| « Mot de passe incorrect. » | **tout autre statut HTTP** : 401 (mot de passe réellement faux), mais aussi 403, 404, 500… |
+| « Connexion impossible, réessayez. » | **l'appel `fetch` lui-même a échoué** : réseau, DNS, ou **refus CORS** |
+
+Christophe voit le **dernier**. Son mot de passe n'a donc **jamais été jugé** : la requête n'a pas
+abouti. Le message est trompeur — il invite à réessayer là où aucun essai ne peut réussir.
+
+### 10.2 Les origines autorisées
+
+Le Worker ne porte pas une liste : **une seule origine, écrite en dur**.
+
+```
+var ADOC_ALLOWED_ORIGIN = "https://c-concept-dev.github.io";
+```
+
+Toutes les réponses, y compris celle du préflight `OPTIONS`, ne portent que celle-là.
+**`http://127.0.0.1:8765` n'en fait pas partie**, et il n'existe aucun mécanisme pour l'y ajouter
+sans modifier le code du Worker et le redéployer.
+
+Conséquence précise : la requête de connexion porte `Content-Type: application/json`, donc le
+navigateur envoie d'abord un préflight `OPTIONS`. La réponse annonce une origine qui n'est pas
+celle de la page, le navigateur bloque, et **le POST n'est jamais envoyé**.
+
+### 10.3 Le compteur d'échecs, et le risque de verrouillage
+
+**Aucun risque de verrouillage dans son cas, et c'est démontrable par le code.**
+
+Le limiteur vit **à l'intérieur** de la branche `POST /login` : il n'est atteint que si la requête
+parvient au Worker. Or elle n'y parvient pas — seul le préflight `OPTIONS` arrive, et il retourne
+avant toute logique de route. **Ses tentatives n'ont donc rien incrémenté.**
+
+Pour mémoire, si elle y parvenait : clé `ratelimit:login:<IP>:<tranche>` dans KV, **10 tentatives
+par tranche de 15 minutes et par adresse IP**, durée de vie 30 minutes. **La remise à zéro est
+automatique** : la tranche est calculée à partir de l'horloge, elle change toute seule au bout de
+quinze minutes. Aucune action n'est requise, et rien n'est à débloquer.
+
+### 10.4 La voie sans secret — construite et éprouvée
+
+Trois entrées sur la page du banc, qui ne demandent ni mot de passe ni Worker :
+
+1. **« Charger un export HTML »** — lit `window.ADOC_EXPORT_DOC` dans un export autonome, par
+   appariement d'accolades respectant les chaînes, et reprend son dictionnaire d'images embarquées.
+2. **« Ouvrir dans l'espace de travail »** — installe le document comme artefact courant et ouvre
+   l'éditeur dessus. **Le champ Narration du lot 1a y apparaît.**
+3. **« Télécharger le document de travail »** — écrit un JSON sur le disque, **narration comprise**.
+   Rechargeable par « Charger un JSON ».
+
+**Mesuré de bout en bout** par `verify-banc-sans-connexion` (6/6) : un export réel est produit,
+rechargé, ouvert, une narration est écrite, téléchargée, rechargée, et **elle revient dans
+l'éditeur**. Sur tout le parcours, **aucun appel au Worker n'aboutit**, **`/login` n'est jamais
+appelé**, et aucune image n'est redemandée après la relecture de l'export.
+
+**UN POINT QUI DEMANDE UNE DÉCISION.** Votre demande disait : « la narration doit apparaître dans
+l'éditeur si le document en porte ». Or **un export autonome n'en porte jamais** — c'est la règle
+du lot 1a, et elle est vérifiée par trois tests. Les deux exigences sont inconciliables telles
+quelles. Ce qui est livré respecte la règle du lot 1a et contourne l'obstacle autrement : la
+narration voyage par le **fichier de travail**, pas par l'export. Le CDC prévoit d'ailleurs déjà
+cette séparation — la narration figure dans le **kit** (X2), jamais dans la vidéo ni dans l'export
+destiné à être regardé.
+
+**Ce qu'il faut savoir pour le passage du lot 1a dans cette configuration :**
+
+- **Écrire une narration** : possible, le champ est là.
+- **Enregistrer** : le bouton de l'application passe par le Worker et échouera. C'est
+  « Télécharger le document de travail » qui en tient lieu, et le fichier obtenu se recharge.
+- **Exporter** : l'export autonome fonctionne, mais **ses images seront des aplats de repli** si
+  l'export est fabriqué sans connexion — mesuré : la fabrication appelle `/fetch-image`, qui
+  échoue, et l'export embarque un aplat. Un export fait pendant une session connectée porte ses
+  vraies images et se relit ensuite hors ligne sans rien redemander.
+
+### 10.5 Ajouter `127.0.0.1:8765` aux origines : décrit, non fait
+
+**Je ne l'ai pas fait et je ne le ferai pas sans votre autorisation explicite** — cela suppose de
+modifier `Worker/` et de déployer, deux choses que vos consignes m'interdisent sans votre accord.
+
+**Le changement** : `ADOC_ALLOWED_ORIGIN` est une constante unique utilisée par un objet `CORS`
+partagé par toutes les réponses. Autoriser une seconde origine demande de transformer cette
+constante en liste et de choisir l'en-tête de réponse selon l'origine de la requête — l'en-tête
+`Access-Control-Allow-Origin` n'accepte qu'une seule valeur, jamais deux.
+
+**Ce que cela permettrait à un autre programme local.** Un port local n'est pas une identité :
+**n'importe quel programme de votre Mac** capable d'écouter sur 8765 — un dépôt téléchargé, un
+outil de développement, une page ouverte par mégarde — se présenterait au Worker avec la même
+origine autorisée. Il ne pourrait toujours rien faire sans le mot de passe ou la clé, mais il
+gagnerait le droit de **tenter** la connexion depuis votre navigateur, et de recevoir les réponses.
+La protection reposerait alors entièrement sur le limiteur de 10 tentatives par quart d'heure.
+
+**La variante la plus étroite**, si vous la vouliez quand même : ne pas toucher à la production.
+Une seconde origine lue depuis une **variable d'environnement** vide par défaut, renseignée
+uniquement sur un déploiement de prévisualisation séparé, jamais sur le Worker de production. Le
+code de production se comporterait exactement comme aujourd'hui.
+
+**Mon avis** : rien ne le justifie. La voie sans secret ci-dessus couvre vos deux passages, elle
+est mesurée, et elle ne touche ni au Worker ni à un déploiement.
+
+---
+
 ## 7. Ce que ce lot ne livre pas
 
 - **L'interface du chutier dans l'application** (V2 côté produit) : le brief demandait le moteur

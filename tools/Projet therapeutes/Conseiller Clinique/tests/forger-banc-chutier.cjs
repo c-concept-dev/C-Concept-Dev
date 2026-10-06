@@ -63,6 +63,10 @@ const PANNEAU = `
     <button id="bc-ouverte" style="font:inherit;padding:6px 12px;cursor:pointer;">Utiliser la présentation ouverte</button>
     <label style="font:inherit;padding:6px 12px;border:1px solid #888;border-radius:6px;cursor:pointer;">Charger un JSON
       <input type="file" id="bc-fichier" accept="application/json,.json" hidden></label>
+    <label style="font:inherit;padding:6px 12px;border:1px solid #888;border-radius:6px;cursor:pointer;">Charger un export HTML
+      <input type="file" id="bc-export" accept="text/html,.html,.htm" hidden></label>
+    <button id="bc-atelier" style="font:inherit;padding:6px 12px;cursor:pointer;" disabled>Ouvrir dans l’espace de travail</button>
+    <button id="bc-telecharger" style="font:inherit;padding:6px 12px;cursor:pointer;" disabled>Télécharger le document de travail</button>
     <button id="bc-reduire" style="font:inherit;padding:6px 12px;cursor:pointer;">Réduire le panneau</button>
   </div>
   <div id="bc-etat" style="font-family:ui-monospace,Menlo,monospace;font-size:12px;white-space:pre-wrap;min-height:3em;"></div>
@@ -170,6 +174,7 @@ const PANNEAU = `
     var o = document.createElement('option');
     o.value = String(PRESENTATIONS.length - 1); o.textContent = p.nom;
     sel.appendChild(o); sel.value = o.value;
+    $('bc-atelier').disabled = false;
   }
   // Le document VIVANT de l'espace de travail, lu en mémoire. Rien n'est écrit, rien n'est
   // envoyé : c'est le même objet que celui que l'éditeur manipule.
@@ -186,6 +191,62 @@ const PANNEAU = `
       + (doc.blocks || []).length + ' diapositives, ' + window.adocPresentStepList(doc).length + ' étapes. '
       + 'Rien n’a été copié ni enregistré.');
   };
+  // ── Lire le document embarqué dans un export autonome ──────────────────────────────────────
+  // Un export porte « window.ADOC_EXPORT_DOC = { … }; » et son dictionnaire d’images. On les
+  // extrait par appariement d’accolades, en respectant les chaînes : une recherche naïve de la
+  // dernière accolade couperait au premier « } » rencontré dans un texte de diapositive.
+  function extraireObjet(source, nom) {
+    var depart = source.indexOf(nom);
+    if (depart === -1) return null;
+    var i = source.indexOf('{', depart);
+    if (i === -1) return null;
+    var profondeur = 0, dansChaine = null, echap = String.fromCharCode(92);
+    for (var j = i; j < source.length; j++) {
+      var c = source[j];
+      if (dansChaine) {
+        if (c === echap) { j++; continue; }
+        if (c === dansChaine) dansChaine = null;
+        continue;
+      }
+      if (c === '"' || c === "'") { dansChaine = c; continue; }
+      if (c === '{') profondeur++;
+      else if (c === '}') { profondeur--; if (profondeur === 0) return source.slice(i, j + 1); }
+    }
+    return null;
+  }
+  $('bc-export').onchange = function (e) {
+    var f = e.target.files && e.target.files[0];
+    if (!f) return;
+    var fr = new FileReader();
+    fr.onload = function () {
+      try {
+        var texte = String(fr.result);
+        var brutDoc = extraireObjet(texte, 'window.ADOC_EXPORT_DOC');
+        if (!brutDoc) { dire('Ce fichier ne porte pas de document embarqué : ce n’est pas un export autonome de Présentation.'); return; }
+        var doc = JSON.parse(brutDoc);
+        if (doc.documentKind !== 'presentation') { dire('L’export embarque un « ' + doc.documentKind + ' », pas une Présentation.'); return; }
+        var brutImages = extraireObjet(texte, 'window.ADOC_EXPORT_IMAGES');
+        var nImages = 0;
+        if (brutImages) {
+          try {
+            var imgs = JSON.parse(brutImages);
+            window.ADOC_EXPORT_IMAGES = Object.assign({}, window.ADOC_EXPORT_IMAGES || {}, imgs);
+            nImages = Object.keys(imgs).length;
+          } catch (err) {}
+        }
+        ajouter({ cle: 'export', nom: 'EXPORT — ' + (doc.title || f.name), doc: doc });
+        var nNarration = (doc.narration || []).length;
+        dire('Export lu : ' + f.name
+          + '\\n  ' + (doc.blocks || []).length + ' diapositives, ' + window.adocPresentStepList(doc).length + ' étapes'
+          + '\\n  ' + nImages + ' images embarquées, reprises telles quelles — aucun appel au Worker'
+          + '\\n  narration : ' + (nNarration ? nNarration + ' étapes narrées'
+              : 'AUCUNE — un export n’en porte jamais, par construction (lot 1a). Pour une narration,'
+                + '\\n              passez par « Télécharger le document de travail » puis « Charger un JSON ».')
+          + '\\n  Aucune connexion, aucun mot de passe.');
+      } catch (err) { dire('Lecture impossible : ' + (err && err.message || err)); }
+    };
+    fr.readAsText(f);
+  };
   $('bc-fichier').onchange = function (e) {
     var f = e.target.files && e.target.files[0];
     if (!f) return;
@@ -200,6 +261,54 @@ const PANNEAU = `
       } catch (err) { dire('Lecture impossible : ' + (err && err.message || err)); }
     };
     fr.readAsText(f);
+  };
+  // ── Ouvrir le document chargé dans l’espace de travail ───────────────────────────────────
+  // C’est ce qui rend possible le passage humain du lot 1a sans aucune connexion : le document
+  // devient l’artefact courant, l’éditeur s’ouvre dessus, et le champ Narration apparaît sur
+  // chaque étape. Rien n’est envoyé nulle part. En revanche « Enregistrer » passerait par le
+  // Worker : c’est « Télécharger le document de travail » qui tient lieu d’enregistrement ici.
+  $('bc-atelier').onclick = async function () {
+    var p = PRESENTATIONS[Number(sel.value)];
+    if (!p) return;
+    this.disabled = true;
+    try {
+      window._adocArtifacts = window._adocArtifacts || {};
+      window._adocArtifacts['banc'] = {
+        name: p.doc.title || p.nom, _adocGenerationEngine: 'structured',
+        _adocCapabilities: { workspace: true, persist: false, blockEditing: true, export: true, qualityControlledExport: true },
+        _adocStructuredDoc: p.doc,
+        _adocStructuredSnapshot: { sourceSnapshotId: p.doc.sourceSnapshotId, entries: [] },
+      };
+      window._adocWsState = Object.assign({}, window._adocWsState, { storeKey: 'banc' });
+      var ouvert = await window.adocOpenWorkspace('banc');
+      $('bc-telecharger').disabled = false;
+      dire(ouvert
+        ? 'Ouvert dans l’espace de travail : « ' + (p.doc.title || p.nom) + ' ».'
+          + '\\n  Réduisez le panneau pour écrire les narrations, puis revenez les télécharger.'
+          + '\\n  Le bouton « Enregistrer » de l’application passerait par le Worker : utilisez'
+          + '\\n  « Télécharger le document de travail », qui écrit un JSON sur votre disque.'
+        : 'Le rendu a refusé ce document — rien n’a été ouvert.');
+    } catch (e) { dire('Ouverture impossible : ' + (e && e.message || e)); }
+    this.disabled = false;
+  };
+  // Le document de travail, narration comprise : c’est le fichier à recharger plus tard, et le
+  // seul qui porte les narrations — l’export autonome, lui, n’en porte jamais.
+  $('bc-telecharger').onclick = function () {
+    var cle = window._adocWsState && window._adocWsState.storeKey;
+    var art = cle && window._adocArtifacts && window._adocArtifacts[cle];
+    var doc = art && art._adocStructuredDoc;
+    if (!doc) { dire('Aucun document ouvert dans l’espace de travail.'); return; }
+    var retirees = window.AtelierImages && window.AtelierImages.nombreDecodees ? null : null;
+    if (typeof window.adocNarrationPurge === 'function') retirees = window.adocNarrationPurge(doc);
+    var blob = new Blob([JSON.stringify(doc, null, 1)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'document-de-travail-' + (doc.documentId || 'presentation') + '.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    dire('Téléchargé : ' + a.download
+      + '\\n  ' + ((doc.narration || []).length) + ' étapes narrées'
+      + (retirees && retirees.length ? '\\n  ' + retirees.length + ' narration(s) orpheline(s) purgée(s) : ' + retirees.join(', ') : '')
+      + '\\n  Rechargez-le plus tard avec « Charger un JSON ». Ce fichier reste sur votre disque.');
   };
   $('bc-reduire').onclick = function () {
     var panneau = $('banc-chutier');
