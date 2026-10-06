@@ -8,6 +8,7 @@
 pub mod file;
 pub mod limites;
 pub mod media;
+pub mod moteur;
 pub mod mesures;
 pub mod ocr;
 pub mod pdf;
