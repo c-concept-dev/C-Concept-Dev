@@ -8220,6 +8220,16 @@ ${recent}`;
   // Le SEUL point de sérialisation pour l'enregistrement, exposé pour que le test de
   // l'aller-retour éprouve ce que l'application persiste réellement, et non une copie forgée.
   window.adocBuildClinicalDocumentContent = function (art) { return adocBuildClinicalDocumentContent(art); };
+  // LOT 2 — surface étroite ouverte au module de l'atelier (atelier-images.js, fichier séparé de
+  // core.js comme le CDC v2 l'exige). Trois fonctions du lecteur et sa référence fixe, pas une de
+  // plus : le chutier visuel doit PILOTER le vrai lecteur, pas en réimplémenter la règle.
+  window.adocPresentResolveSlideHTML = function (card, index, total) { return adocPresentResolveSlideHTML(card, index, total); };
+  window.adocPresentApplyReveal = function (inner, card, fullyRevealed) { return adocPresentApplyReveal(inner, card, fullyRevealed); };
+  window.adocPresentRevealNext = function (innerEl) { return adocPresentRevealNext(innerEl); };
+  // La référence fixe est exposée AUPRÈS de ses constantes, plus bas dans ce fichier, et non ici :
+  // ADOC_PRESENT_REF_W est un `const` déclaré à la ligne ~17870 et une lecture à cet endroit-ci
+  // lève « Cannot access before initialization », qui interrompt tout le cœur. Constaté, pas
+  // supposé : le chargement de la page s'arrêtait net et plus aucune fonction n'existait.
   // ═══ COURS EN PUZZLE — ASSEMBLAGE DÉTERMINISTE ═══
   // Un cours long ne peut pas être produit en un seul appel : 3 h de contenu réclament ~120
   // diapositives, soit ~60 000 jetons de sortie, très au-delà de ce que le modèle rend en une fois
@@ -17736,6 +17746,17 @@ ${recent}`;
   // choix de simplicité assumé plutôt qu'une construction à moitié (cf. rapport). Dégrade
   // silencieusement (aucune animation, texte final affiché tel quel) dans tous les autres cas.
   function adocPresentAnimateNumberIfEligible(blockEl, blockData) {
+    // LOT 2, exigence V6 — MODE CAPTURE. Aucune animation : la valeur finale reste affichée telle
+    // que le rendu l'a écrite, puisque c'est l'animation qui la remplace ensuite par des valeurs
+    // intermédiaires. C'est l'alternative que l'exigence prévoit explicitement (« ou il passe en
+    // mode capture, qui affiche la valeur finale »), et la seule qui garantisse qu'aucune capture
+    // ne part sur un état intermédiaire — mesuré au lot 0 : une capture à 300 ms montrait 16 % au
+    // lieu de 37 %.
+    // Lu sur `window` et NON dans une constante de portée de module : cette fonction figure dans
+    // engineFnRefs, donc elle est sérialisée dans chaque export autonome. Une constante de module
+    // y lèverait « is not defined » (le piège de la régression #9, rencontré trois fois) ; une
+    // propriété de window y vaut simplement undefined, donc l'export anime comme avant.
+    if (window._adocPresentModeCapture) return;
     if (!blockData || (blockData.editor && blockData.editor.html && blockData.editor.html.text)) return;
     const text = (blockData.content && blockData.content.text) || '';
     const m = /^(\d+(?:[.,]\d+)?)([\s\S]*)$/.exec(text);
@@ -17763,11 +17784,16 @@ ${recent}`;
   // s'arrêter là), false si la diapositive est déjà entièrement montée/démontée (l'appelant passe
   // alors à la diapositive suivante/précédente, comportement du Lot 1 strictement inchangé pour
   // toute diapositive à 0 ou 1 bloc — jamais de régression sur les diapositives simples).
-  function adocPresentRevealNext() {
+  // `innerEl` est OPTIONNEL et n'existait pas avant le lot 2 : sans lui, comportement identique
+  // au précédent (la scène du lecteur réel, par son identifiant). Avec lui, la même règle de
+  // révélation s'applique à une scène hors écran — c'est ce qui permet au chutier visuel de
+  // réutiliser CETTE fonction au lieu d'en écrire une seconde (régression #6). adocPresentApplyReveal
+  // recevait déjà son `inner` en paramètre ; les trois sont désormais cohérentes.
+  function adocPresentRevealNext(innerEl) {
     const state = window._adocPresentState;
     if (!state || state.revealIndex == null || state.revealIndex >= state.revealTotal - 1) return false;
     state.revealIndex++;
-    const inner = document.getElementById('cc-ws-present-slide-inner');
+    const inner = innerEl || document.getElementById('cc-ws-present-slide-inner');
     const blockEls = inner ? inner.querySelectorAll('.adoc-sc-card > .adoc-sc-block') : [];
     const el = blockEls[state.revealIndex];
     if (el) {
@@ -17869,6 +17895,9 @@ ${recent}`;
   const ADOC_PRESENT_REPERE_MARGE = 2;
   const ADOC_PRESENT_REF_W = 1422;
   const ADOC_PRESENT_REF_H = 800;
+  // LOT 2 — la référence fixe, lisible par le module de l'atelier. Ici et pas plus haut : ces
+  // deux constantes ne sont initialisées qu'à cette ligne.
+  window.adocPresentReference = { largeur: ADOC_PRESENT_REF_W, hauteur: ADOC_PRESENT_REF_H };
 
   // Pur : le facteur seul, sans DOM. C'est lui que le test éprouve.
   function adocPresentCalculerEchelle(dispoW, dispoH) {
