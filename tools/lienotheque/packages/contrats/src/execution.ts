@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { Horodatage, Identifiant, RefOutil } from "./commun.js";
 import { PointReprise } from "./travail.js";
+import limites from "../limites.json" with { type: "json" };
 
 /** L'échange entre l'hôte et le processus qui exécute un travail (JOB-01 à JOB-09, PLT-02).
  *
@@ -13,13 +14,17 @@ import { PointReprise } from "./travail.js";
  *  n'y passe sans contrat. Ce fichier décrit l'enveloppe ; la charge d'un travail est validée par
  *  le contrat de l'outil qui l'interprète, là où on sait de quel outil il s'agit. */
 
-/** Version du protocole. Elle monte dès qu'un message change de forme.
+/** Les valeurs de ce fichier viennent toutes de `packages/contrats/limites.json`, lu aussi par
+ *  l'hôte Rust. Elles sont commentées ici, où l'on sait de quoi elles parlent, et écrites là-bas,
+ *  où les deux langages peuvent les lire sans que personne ne les recopie.
+ *
+ *  Version du protocole. Elle monte dès qu'un message change de forme.
  *
  *  Chaque message la porte, et pas seulement la salutation : un désaccord se voit alors au premier
  *  message venu, quel qu'il soit, plutôt qu'à la seule poignée de main. C'est la même raison qui
  *  fait porter sa version à une lecture — un interlocuteur qui a changé sans le dire est le genre
  *  de panne qu'on ne diagnostique pas. */
-export const VERSION_PROTOCOLE = 1;
+export const VERSION_PROTOCOLE = limites.protocole;
 
 /** Deux travaux lourds au plus à la fois.
  *
@@ -27,7 +32,7 @@ export const VERSION_PROTOCOLE = 1;
  *  processus porte son propre socle, mesuré à 93 à 106 Mo, et la marque haute du ramasse-miettes
  *  a été relevée à 1,1 Go sur F3. Deux tiennent sur une machine ordinaire, quatre ne tiendraient
  *  pas. */
-export const TRAVAUX_LOURDS_SIMULTANES = 2;
+export const TRAVAUX_LOURDS_SIMULTANES = limites.travauxLourdsSimultanes;
 
 /** Plafond de mémoire d'un processus, en mégaoctets.
  *
@@ -35,14 +40,14 @@ export const TRAVAUX_LOURDS_SIMULTANES = 2;
  *  vivante — environ 9 Mo, quel que soit le document —, et la marque haute observée est de 1,1 Go.
  *  Le double de cette marque laisse de l'air au ramasse-miettes et arrête net une boucle qui
  *  s'emballerait, au lieu de laisser la machine se figer. */
-export const MEMOIRE_MAX_MO = 2048;
+export const MEMOIRE_MAX_MO = limites.memoireMaxMo;
 
 /** Délai laissé à un processus pour s'arrêter de lui-même avant qu'on le tue.
  *
  *  Un arrêt propre écrit son dernier point de reprise ; un processus tué ne le fait pas, et le
  *  travail repart du point précédent. Rien n'est perdu dans les deux cas (JOB-03), mais le
  *  premier évite de refaire le travail déjà fait. */
-export const DELAI_ARRET_PROPRE_S = 5;
+export const DELAI_ARRET_PROPRE_S = limites.delaiArretPropreS;
 
 /** Pourquoi l'hôte demande l'arrêt. La raison voyage, parce qu'elle change ce que le processus
  *  fait de son dernier point de reprise — et ce que l'écran en dira. */

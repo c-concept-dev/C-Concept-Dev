@@ -152,9 +152,17 @@ describe("un seul endroit pour la cadence du bail", () => {
     expect(source.replace(/BATTEMENT_VERROU_S|EXPIRATION_VERROU_S/g, "")).not.toMatch(/\b(5|15)\s*\*\s*1000\b/);
   });
 
-  it("le prototype de bureau annonce la même cadence", () => {
+  // Ce contrôle comparait deux copies de la cadence, l'une en TypeScript, l'autre en Rust. Il n'y
+  // a plus de copies à comparer : les deux côtés lisent `packages/contrats/limites.json`. Ce qui
+  // se vérifie maintenant, c'est que l'hôte va bien la chercher là, et pas qu'il la redit juste.
+  it("l'hôte de bureau lit la même donnée, au lieu de la redire", () => {
     const rust = readFileSync(fileURLToPath(new URL("../../../apps/app/src-tauri/src/travail.rs", import.meta.url)), "utf8");
-    expect(rust).toMatch(new RegExp(`BATTEMENT_SECONDES: u64 = ${BATTEMENT_VERROU_S};`));
-    expect(rust).toMatch(new RegExp(`EXPIRATION_SECONDES: u64 = ${EXPIRATION_VERROU_S};`));
+    expect(rust, "le bail vient des limites, pas d'un littéral").toMatch(/LIMITES\.battement_verrou_s/);
+    expect(rust).toMatch(/LIMITES\.expiration_verrou_s/);
+
+    const limites = readFileSync(fileURLToPath(new URL("../../../apps/app/src-tauri/src/limites.rs", import.meta.url)), "utf8");
+    expect(limites, "et les limites viennent du fichier que le TypeScript lit aussi").toMatch(
+      /include_str!\("\.\.\/\.\.\/\.\.\/\.\.\/packages\/contrats\/limites\.json"\)/,
+    );
   });
 });

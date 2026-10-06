@@ -5,7 +5,7 @@
 //! temporaire puis renommage) : un arrêt forcé ne laisse jamais un état tronqué.
 //!
 //! Le bail remplace le verrou à durée fixe : un processus vivant bat toutes les
-//! [`BATTEMENT_SECONDES`], le bail expire [`EXPIRATION_SECONDES`] après le dernier battement.
+//! `battement_secondes`, le bail expire `expiration_secondes` après le dernier battement.
 //! Un processus tué cesse de battre, donc son bail finit par expirer de lui-même.
 
 use serde::{Deserialize, Serialize};
@@ -16,12 +16,16 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-/// Cadence du battement : le travail renouvelle son bail à ce rythme tant qu'il vit.
-pub const BATTEMENT_SECONDES: u64 = 5;
+/// Cadence du battement et durée du bail viennent de `packages/contrats/limites.json`, lu aussi
+/// par le TypeScript : elles étaient écrites des deux côtés, et deux descriptions d'un même fait
+/// finissent toujours par en donner deux.
+pub fn battement_secondes() -> u64 {
+    crate::limites::LIMITES.battement_verrou_s
+}
 
-/// Durée du bail à partir du dernier battement. Passé ce délai, le travail redevient reprenable :
-/// c'est ce qui permet de repartir après un arrêt forcé (JOB-02).
-pub const EXPIRATION_SECONDES: u64 = 15;
+pub fn expiration_secondes() -> u64 {
+    crate::limites::LIMITES.expiration_verrou_s
+}
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct Verrou {
@@ -155,32 +159,25 @@ mod tests {
         let mut t = Travail::neuf("t1", "transcripteur", 10);
         assert!(t.reprenable(1_000), "sans bail, rien ne retient le travail");
 
-        t.battre("appareil-a", 1_000, EXPIRATION_SECONDES);
-        assert!(!t.reprenable(1_000 + EXPIRATION_SECONDES - 1));
-        assert!(t.reprenable(1_000 + EXPIRATION_SECONDES));
+        t.battre("appareil-a", 1_000, expiration_secondes());
+        assert!(!t.reprenable(1_000 + expiration_secondes() - 1));
+        assert!(t.reprenable(1_000 + expiration_secondes()));
     }
 
     #[test]
     fn un_battement_repousse_l_expiration_d_autant() {
         let mut t = Travail::neuf("t1", "transcripteur", 10);
-        t.battre("appareil-a", 1_000, EXPIRATION_SECONDES);
+        t.battre("appareil-a", 1_000, expiration_secondes());
 
         // Battement dû au bout de cinq secondes, pas avant.
-        assert!(!t.battre_si_du("appareil-a", 1_004, BATTEMENT_SECONDES, EXPIRATION_SECONDES));
-        assert!(t.battre_si_du("appareil-a", 1_005, BATTEMENT_SECONDES, EXPIRATION_SECONDES));
+        assert!(!t.battre_si_du("appareil-a", 1_004, battement_secondes(), expiration_secondes()));
+        assert!(t.battre_si_du("appareil-a", 1_005, battement_secondes(), expiration_secondes()));
 
         let verrou = t.verrou.as_ref().expect("bail en cours");
         assert_eq!(verrou.battu_le, 1_005);
-        assert_eq!(verrou.expire_le, 1_005 + EXPIRATION_SECONDES);
+        assert_eq!(verrou.expire_le, 1_005 + expiration_secondes());
         assert!(!t.reprenable(1_019), "le bail court jusqu'à quinze secondes après le battement");
         assert!(t.reprenable(1_020));
-    }
-
-    #[test]
-    fn la_cadence_laisse_deux_battements_de_marge_avant_l_expiration() {
-        assert_eq!(BATTEMENT_SECONDES, 5);
-        assert_eq!(EXPIRATION_SECONDES, 15);
-        assert!(EXPIRATION_SECONDES > BATTEMENT_SECONDES * 2, "un battement manqué ne doit pas suffire");
     }
 
     #[test]

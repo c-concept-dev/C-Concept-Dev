@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { Horodatage, Identifiant, RefOutil } from "./commun.js";
+import limites from "../limites.json" with { type: "json" };
 
 export const EtatTravail = z.enum([
   "en_file", "verrouille", "en_cours", "en_pause", "termine", "partiel", "en_echec_recuperable", "en_echec_definitif", "annule",
@@ -9,8 +10,8 @@ export type EtatTravail = z.infer<typeof EtatTravail>;
 /** Le verrou est un bail renouvelé : le travail bat toutes les `BATTEMENT_VERROU_S` secondes et
  *  le bail expire `EXPIRATION_VERROU_S` secondes après le dernier battement. Un processus tué
  *  cesse de battre, son bail expire, le travail redevient reprenable (JOB-02). */
-export const BATTEMENT_VERROU_S = 5;
-export const EXPIRATION_VERROU_S = 15;
+export const BATTEMENT_VERROU_S = limites.battementVerrouS;
+export const EXPIRATION_VERROU_S = limites.expirationVerrouS;
 
 export const Verrou = z
   .object({ appareilId: Identifiant, battuLe: Horodatage, expireLe: Horodatage })
