@@ -26,7 +26,89 @@
 | 2026-10-03 | Version minimale de macOS **alignée sur 26.0 pendant la bêta**, pour que l'application refuse proprement un Mac où Tesseract ne pourrait pas se charger. Avant toute sortie publique : Tesseract et ses dépendances compilés avec `MACOSX_DEPLOYMENT_TARGET=13.0` dans le workflow Tauri, puis retour du minimum à 13.0 | Section ci-dessous |
 | 2026-10-03 | `tools/lienotheque/.gitignore` passe de 6 à 9 lignes : `target/`, `**/src-tauri/moteurs/`, `**/src-tauri/gen/`. Sans elles, la cible Rust et les binaires Tesseract entraient dans un dépôt public | Écart accepté |
 | 2026-10-03 | Les tests Rust du prototype restent hors de `pnpm check` et tournent dans `lienotheque-tauri.yml` (Mac et Windows) : l'intégration continue ordinaire n'a ni Rust ni Tesseract | Écart accepté |
+| 2026-10-06 | **La chaîne tourne dans un Node embarqué en binaire annexe**, lancé par l'hôte Rust, un processus par travail. La chaîne n'est pas modifiée. Paquet attendu ~128 Mo | Lot D2, étape 0, mesures ci-dessous |
+| 2026-10-06 | **L'hôte est le seul écrivain du dépôt** : le processus reçoit un travail et rend un résultat, l'hôte le valide et l'active en une opération (JOB-06) | Lot D2, étape 0 |
+| 2026-10-06 | Portage Rust intégral de la chaîne **écarté** : il faudrait réécrire pdf.js et les codecs, et refaire la preuve des 84/92 et 95/95 | Lot D2, étape 0 |
+| 2026-10-06 | Allègement du moteur (Node sans ICU, binaire compilé) **reporté après la bêta**, et sans toucher la chaîne | Lot D2, étape 0 |
 
+
+
+## Lot D2, étape 0 — où tourne la chaîne
+
+Le CDC avait déjà tranché la coquille : application locale en **Tauri 2 + hôte Rust + binaires
+annexes**, base locale en **SQLite et FTS5 *via l'hôte***, et trois implémentations pour le port de
+dépôt. Restait une question, et une seule : **où s'exécutent les 9 173 lignes de TypeScript de la
+chaîne**, aujourd'hui lancées en ligne de commande.
+
+### Ce que les mesures ont montré
+
+| Fait | Mesure | Statut |
+|---|---|---|
+| Paquet `.app` actuel | 24,38 Mio (moteurs 13,54 · binaire 10,08 · icône 0,64 · sidecar 0,09) | vérifié, lot 0 |
+| Application au lancement | 83 Mo résidents, stable | vérifié, lot 0 |
+| Binaire Node arm64 dépouillé | **104 Mo** (universel : 227 Mo) | vérifié le 6 octobre 2026 |
+| Démarrage Node et chargement de la chaîne | 94 à 139 ms pour les modules, 0,4 à 0,8 s au total via `tsx` ; 93 à 106 Mo résidents | vérifié le 6 octobre 2026 |
+| Plafond mémoire d'un moteur web | 2 Go alloués **et touchés** sans rupture, WebKit comme Chromium | vérifié le 6 octobre 2026, avec réserve |
+| Jeu de travail réel de la chaîne | une page vivante, ~9 Mo, quel que soit le document | vérifié, lot C |
+| Dépendances d'exécution | `pdfjs-dist`, `@jsquash/*` (WebAssembly), `zod` — **aucun module natif** | vérifié le 6 octobre 2026 |
+| Appels système | `node:fs` dans 15 fichiers ; `child_process` dans 4, tous « lancer un moteur » | vérifié le 6 octobre 2026 |
+
+Deux de ces chiffres ont déplacé la discussion. D'abord, **le pic de 1,1 Go relevé sur F3 n'est pas
+un besoin** : c'est la marque haute du ramasse-miettes, la chaîne lisant en flux, une page à la
+fois. Ensuite, **la chaîne n'a aucun module natif** — ce qui la fait tourner, pdf.js et les codecs
+`@jsquash`, sont des bibliothèques conçues pour le navigateur. Une option « tout dans le moteur
+web » était donc techniquement ouverte, et pas seulement sur le papier.
+
+Réserve sur le plafond mémoire : la mesure porte sur le WebKit de Playwright, qui n'est pas le
+WKWebView d'une application Tauri — modèle de processus et jetsam différents. C'est un indice, pas
+une preuve, et il n'a pas eu à devenir une preuve.
+
+### Les deux options
+
+| | A — Node en binaire annexe | B — la chaîne dans le moteur web |
+|---|---|---|
+| Poids | +104 Mo, paquet ~128 Mo | **+0 Mo** |
+| Démarrage | ~150 à 250 ms par travail | celui de l'application |
+| Mémoire | ~95 Mo de socle, **hors de l'interface** | 9 Mo de jeu de travail, dans l'interface |
+| Chaîne à modifier | **aucune ligne** | `node:fs` dans 15 fichiers, et les quatre appels de moteur |
+| Risques | poids ; validation Apple d'un moteur JS embarqué | deux jeux d'adaptateurs ; annulation coopérative |
+
+### Pourquoi A
+
+**Le banc et l'application exécutent le même code sur le même moteur.** C'est la règle « une seule
+chaîne de traitement », et c'est celle dont la violation a déjà coûté deux fois dans ce projet :
+`instantaneDeLot` réimplémentait la chaîne et avait divergé en silence, puis les pages absentes se
+calculaient une seconde fois — justes sur F3 par coïncidence, fausses vingt-trois fois sur F4.
+L'option B rétablissait exactement cette forme de risque, un cran plus bas : des adaptateurs
+d'entrée-sortie différents de chaque côté.
+
+**L'isolation de processus donne JOB-08 et JOB-09 sans rien écrire.** Mettre en pause ou annuler,
+c'est tuer un processus, non espérer qu'une boucle consulte un drapeau. Et la marque haute du
+ramasse-miettes reste hors du processus d'interface.
+
+**La chaîne tient le critère normatif du lot D.** A n'y touche pas une ligne ; B rouvrait quinze
+fichiers d'une chaîne qu'on venait de prouver.
+
+Le défaut de A est son poids, et c'est le moins contraignant pour une bêta personnelle. L'allègement
+— Node sans ICU, ou un binaire compilé — viendra plus tard, sans toucher la chaîne. Ni Bun ni Deno
+n'étant installés sur la machine de référence, **aucun chiffre n'est avancé pour eux** : ils seront
+mesurés le jour où l'allègement sera à l'ordre du jour.
+
+### Ce que la décision entraîne, et qui s'applique dès l'étape 1
+
+- **L'hôte est le seul écrivain du dépôt.** Deux écrivains sur un même fichier SQLite est un piège.
+  Le processus reçoit un travail, rend un résultat, et l'hôte le valide en une opération — ce qui
+  sert aussi JOB-06, « écrire dans la version cible, activer en une opération ».
+- **L'échange hôte ↔ processus passe par des messages validés par contrat et versionnés.** Un
+  désaccord de version est refusé explicitement, jamais toléré en silence.
+- **Un plantage du processus reprend au dernier point de reprise** (JOB-02, JOB-03) : jamais de
+  perte.
+- **Limites** : deux travaux lourds au plus en parallèle, mémoire plafonnée par processus, arrêt
+  propre à la fermeture.
+- **Même version de Node en développement et dans le paquet**, et le banc appelle le même point
+  d'entrée que l'application.
+- **La validation Apple d'un binaire Node annexe se mesure tôt**, sur un paquet d'essai : c'est le
+  seul risque de cette décision qui ne se chiffre pas sans l'essayer, et il conditionne l'étape 6.
 
 ## Prototype du socle local — mesures du 3 octobre 2026
 
