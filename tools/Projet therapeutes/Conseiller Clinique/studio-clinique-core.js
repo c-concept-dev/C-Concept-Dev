@@ -10044,6 +10044,15 @@ ${recent}`;
   // (adocEditorContext()/adocFindEditableBlock résolvent déjà un id imbriqué comme un id de
   // premier niveau, vérifié par lecture de ces deux fonctions).
   var ADOC_NESTED_POSITIONABLE_TYPES = ['heading', 'paragraph', 'callout', 'list', 'quote', 'image'];
+  // Périmètre EXACT des documentKind dont la RACINE n'accepte QUE des blocs `card`, vérifié par
+  // lecture directe de clinical-document.schema.json avant construction, jamais supposé : la
+  // branche allOf/if/then « documentKind ∈ ["carrousel","presentation"] » y oriente blocks[] vers
+  // block.schema.json#/$defs/cardOnlyBlock — une seule branche pour les deux types (LOT 1
+  // Présentation : une diapositive EST structurellement une carte de Carrousel).
+  // Déclaré ICI, en UN SEUL endroit, plutôt que recopié en littéral sur chaque site de test
+  // (régression #6) : un 7e documentKind à racine de cartes s'ajoutera à cette seule ligne, et
+  // non à n emplacements qu'il faudrait retrouver un par un.
+  var ADOC_CARD_ONLY_ROOT_KINDS = ['carrousel', 'presentation'];
   // Valeurs initiales à l'ouverture — même garde-fou que adocEditorRefreshImageControls (LOT E) :
   // jamais un champ vide écrasé par du texte tapé en cours (document.activeElement), pour ne pas
   // interrompre la frappe pendant que le glissement au clavier des flèches met à jour le style en
@@ -16642,16 +16651,29 @@ ${recent}`;
   };
 
   // Compatibilité type de bloc / conteneur cible (point 3 du CDC), vérifiée AVANT tout dépôt.
+  // Les DEUX périmètres viennent d'une constante unique, jamais d'un littéral recopié ici :
   // ADOC_NESTED_POSITIONABLE_TYPES (Item 75, déjà existante) délimite EXACTEMENT le périmètre
-  // nestedBlock du schéma (table et card exclus) — réutilisée telle quelle, jamais une seconde
-  // liste divergente.
+  // nestedBlock du schéma (table et card exclus) ; ADOC_CARD_ONLY_ROOT_KINDS délimite celui des
+  // documentKind dont la racine est en cardOnlyBlock — réutilisées telles quelles, jamais une
+  // seconde liste divergente.
   function adocFusionCanDropBlockType(targetDoc, targetSiblings, blockType) {
     if (targetSiblings === targetDoc.blocks) {
-      // Racine du document cible — un Carrousel n'y accepte QUE des cartes (cardOnlyBlock), jamais
-      // un bloc éditorial ; les autres documentKind (editorialBlock) acceptent tous les types
-      // copiables ici (jamais 'card', structurellement inatteignable en source : les cartes ne
-      // portent jamais .adoc-sc-block, donc jamais de bouton "Copier").
-      return targetDoc.documentKind !== 'carrousel';
+      // Racine du document cible — un Carrousel ET une Présentation n'y acceptent QUE des cartes
+      // (cardOnlyBlock — clinical-document.schema.json oriente les DEUX documentKind vers la MÊME
+      // branche allOf/if/then, jamais deux règles divergentes), jamais un bloc éditorial ; les
+      // autres documentKind (editorialBlock) acceptent tous les types copiables ici (jamais
+      // 'card', structurellement inatteignable en source : les cartes ne portent jamais
+      // .adoc-sc-block, donc jamais de bouton "Copier").
+      // PORTÉE RÉELLE DE CE CORRECTIF — la branche est aujourd'hui INATTEIGNABLE pour une
+      // Présentation : adocFusionShowDropTargets ne pose de points de dépôt que sur les
+      // .adoc-sc-block RENDUS, et dans une Présentation ils sont tous imbriqués dans des cartes,
+      // donc adocEditorBlockContainer résout vers card.content.blocks et jamais vers doc.blocks.
+      // Ce n'était donc pas un bug observable en production, mais une garde qui MENTAIT sur son
+      // intention : elle laissait passer ce que la validation de schéma refusait juste après.
+      // Corrigée pour dire la vérité de son intention, et rester juste si une Présentation portait
+      // un jour un bloc de premier niveau. Liste lue depuis ADOC_CARD_ONLY_ROOT_KINDS, jamais un
+      // littéral recopié ici (régression #6).
+      return ADOC_CARD_ONLY_ROOT_KINDS.indexOf(targetDoc.documentKind) === -1;
     }
     return ADOC_NESTED_POSITIONABLE_TYPES.indexOf(blockType) !== -1;
   }
@@ -16708,6 +16730,10 @@ ${recent}`;
     const anchorIdx = siblingsA.findIndex(function (b) { return b.id === anchorBlockId; });
     if (anchorIdx === -1) { adocFusionCancelPending(); return; }
     const insertIdx = position === 'after' ? anchorIdx + 1 : anchorIdx;
+    // Retour arrière de l'insertion — même patron EXACT qu'adocInsertStructuredBlock (régression
+    // #6 : le mécanisme d'annulation existant est réutilisé, jamais une seconde mécanique écrite à
+    // côté). La référence du bloc inséré est déclarée AVANT le try pour rester visible du catch.
+    let inserted = null;
     try {
       const clone = JSON.parse(JSON.stringify(pending.blockB));
       clone.id = adocNextBlockId(docA, clone.type);
@@ -16731,11 +16757,25 @@ ${recent}`;
         }).filter(function (link) { return !!link; });
       }
       siblingsA.splice(insertIdx, 0, clone);
+      inserted = clone;
       adocFusionClearDropTargets();
-      const opened = await window.adocOpenWorkspace(storeKeyA);
-      if (pending.btn) { pending.btn.classList.remove('cc-preview-copy-btn-picking'); pending.btn.textContent = opened ? 'Copié ✓' : 'Copier vers le document'; pending.btn.disabled = !!opened; }
+      // adocOpenWorkspace AVALE l'échec de rendu/validation : try/catch interne, alert, puis
+      // `return false` — il ne LÈVE donc rien quand le schéma refuse le document obtenu. Sans la
+      // conversion falsy→throw ci-dessous, le chemin d'échec LE PLUS PROBABLE (dépôt refusé par la
+      // validation) sortait NORMALEMENT de la fonction : le catch ne s'exécutait jamais et le bloc
+      // restait dans le document alors que le rendu venait de le refuser. Même conversion
+      // qu'adocInsertStructuredBlock, pour qu'UN SEUL catch couvre les deux modes d'échec (refus
+      // silencieux par valeur de retour ET exception réelle).
+      if (!await window.adocOpenWorkspace(storeKeyA)) throw new Error('Le rendu a refusé ce bloc à cet emplacement ; la copie a été annulée.');
+      if (pending.btn) { pending.btn.classList.remove('cc-preview-copy-btn-picking'); pending.btn.textContent = 'Copié ✓'; pending.btn.disabled = true; }
       window._adocFusionPendingCopy = null;
     } catch (e) {
+      // Retire le bloc par indexOf, jamais par insertIdx — l'index d'insertion aurait pu glisser
+      // entre-temps (même raisonnement, et même code, qu'adocInsertStructuredBlock).
+      if (inserted) {
+        const undoIdx = siblingsA.indexOf(inserted);
+        if (undoIdx >= 0) siblingsA.splice(undoIdx, 1);
+      }
       window._adocFusionPendingCopy = null;
       alert('Copie impossible : ' + (e && e.message || 'erreur inconnue') + '.');
       if (pending.btn) { pending.btn.classList.remove('cc-preview-copy-btn-picking'); pending.btn.disabled = false; pending.btn.textContent = 'Copier vers le document'; }
