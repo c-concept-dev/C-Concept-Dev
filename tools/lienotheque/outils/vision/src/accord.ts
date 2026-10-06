@@ -1,13 +1,13 @@
 /** Trancher entre des témoins qui ne disent pas la même chose (OUT-08, ANC-02).
  *
  *  Deux témoins qui se contredisent ne se départagent pas : il faut un troisième. La lecture locale
- *  et une première relecture donnent deux voix ; une seconde relecture, sur un **autre recadrage**
- *  de la même zone, en donne une troisième. Deux voix sur trois l'emportent ; sans majorité, rien
+ *  et une première relecture donnent deux voix ; une seconde relecture, sur une **autre image** de
+ *  la même zone, en donne une troisième. Deux voix sur trois l'emportent ; sans majorité, rien
  *  n'est retenu et l'élément part se faire vérifier.
  *
- *  Pourquoi un autre recadrage, et pas le même : redemander la même image rendrait la même réponse,
- *  ou une réponse dont rien ne dit qu'elle est plus fondée. Changer l'échelle ou le cadre change ce
- *  que le modèle voit, et c'est à cette condition que la troisième voix en est une.
+ *  Pourquoi une autre image, et pas la même : redemander la même rendrait la même réponse, ou une
+ *  réponse dont rien ne dit qu'elle est plus fondée. Le même pavé rééchantillonné au double change
+ *  ce que le modèle voit, et c'est à cette condition que la troisième voix en est une.
  *
  *  Deux nombres dont l'un contient l'autre ne se contredisent pas : « 4 » et « 14 » sont la même
  *  lecture, l'une tronquée. C'est `appui` qui le dit, et c'est pourquoi on ne convoque un troisième

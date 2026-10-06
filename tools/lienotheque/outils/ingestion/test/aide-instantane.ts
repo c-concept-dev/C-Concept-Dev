@@ -75,6 +75,7 @@ export const entreeMinimale = (sur: Partial<Entree> = {}): Entree => ({
   schema: SCHEMA,
   mots: MOTS,
   lignes: [ligne(1), ligne(2), ligne(3)],
+  pagesAbsentes: [],
   association: { appariements: [], orphelins: [], manquants: [] } satisfies Association,
   medias: [media(1), media(2), media(3)],
   seuil: 0.6,

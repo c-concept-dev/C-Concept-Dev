@@ -39,6 +39,10 @@ const FILTRES: readonly { readonly cle: "tous" | NatureDoute; readonly libelle: 
  *  lit, et on les marque vus. */
 const ETATS: Readonly<Record<EtatDoute, { readonly libelle: string; readonly icone: NomIcone }>> = {
   confiance: { libelle: "Confiance moyenne", icone: "info" },
+  // On a regardé la page, puis deux images différentes du même repère, sans que deux lectures
+  // s'accordent. Ce n'est pas « on n'est pas sûr » : c'est un désaccord constaté, et le dire
+  // change ce que l'œil cherche en ouvrant la fiche.
+  relecture_sans_majorite: { libelle: "Lectures en désaccord", icone: "info" },
   conflit_appareils: { libelle: "Conflit entre deux appareils", icone: "appareils" },
   a_rattacher: { libelle: "À rattacher après recalcul", icone: "horloge" },
   segment_inconnu: { libelle: "Segment inconnu", icone: "lien" },

@@ -162,6 +162,10 @@ export type LectureParVision = {
   /** « absent » : ce n'était pas un repère. « present » : c'en est un. « incertain » : le modèle
    *  a hésité, et le dire est une réponse. Absent du tout quand on n'a demandé qu'un nombre. */
   readonly repere?: "present" | "absent" | "incertain" | undefined;
+  /** Vrai quand trois témoins ont été consultés sans que deux s'accordent. Aucun nombre n'est
+   *  alors retenu, et l'élément part se faire vérifier : c'est le cas où un œil décide mieux
+   *  qu'une règle. */
+  readonly sansMajorite?: boolean | undefined;
   readonly outil: { readonly nom: string; readonly version: string };
 };
 
@@ -376,6 +380,16 @@ export function sequencer(
     // Sinon : aucun repère n'a encore été vu. L'élément n'a pas de piste, et on n'en invente pas.
 
     const vision = relu(element);
+    const relecture: LigneInterpretee["relecture"] =
+      vision === undefined
+        ? undefined
+        : vision.sansMajorite === true
+          ? "sans_majorite"
+          : sourcePiste === "vision"
+            ? "appliquee"
+            : vision.numero !== undefined
+              ? "non_corroboree"
+              : undefined;
     const brute =
       sourcePiste === "vision"
         ? Math.min(PLAFOND_VISION, vision!.confiance * element.accordNumero)
@@ -387,11 +401,14 @@ export function sequencer(
             : element.accordNumero;
     // Un numéro réparé est tenu, pas lu : la confiance le dit aussi.
     const tenue = element.repare === undefined ? brute : brute * 0.7;
-    // Et un numéro relu que la suite n'a pas confirmé passe sous le seuil de la recette, pour
-    // que Vérifier le montre. Ce n'est pas un artifice d'affichage : une relecture contredite
-    // par ses voisines est exactement un cas qu'un œil doit trancher (ANC-02, CLA-05).
+    // Et une relecture qui n'a pas abouti passe sous le seuil de la recette, pour que Vérifier la
+    // montre : un numéro que la suite contredit, ou trois témoins sans majorité. Ce n'est pas un
+    // artifice d'affichage — l'un comme l'autre sont exactement des cas qu'un œil doit trancher
+    // (ANC-02, CLA-05).
     const confiance =
-      vision?.numero !== undefined && sourcePiste !== "vision" ? Math.min(tenue, recette.validation.seuil_confiance * 0.9) : tenue;
+      relecture === "non_corroboree" || relecture === "sans_majorite"
+        ? Math.min(tenue, recette.validation.seuil_confiance * 0.9)
+        : tenue;
 
     lignes.push({
       numero: element.numeroRetenu,
@@ -399,6 +416,7 @@ export function sequencer(
       ...(piste === undefined ? {} : { piste }),
       disque,
       ...(sourcePiste === undefined ? {} : { sourcePiste }),
+      ...(relecture === undefined ? {} : { relecture }),
       // Où l'élément a été lu sur sa page. L'interprétation ne la touche pas : elle vient de la
       // lecture, et c'est elle que le Lecteur cadre. Un numéro réparé n'en a pas — il n'a été lu
       // nulle part, et cadrer un endroit où rien n'a été vu désignerait n'importe quoi.

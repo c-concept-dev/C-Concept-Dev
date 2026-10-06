@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { exporterPages } from "./pages-images.js";
 import { MotsBibliotheque, SchemaBibliotheque, VueBibliotheque } from "@lienotheque/contrats";
-import { chargerRecette, mediasDuDossier, lireLot, interpreter, associer } from "@lienotheque/recettes";
+import { chargerRecette, rejouer, type Relecture } from "@lienotheque/recettes";
 import { construireVue } from "./instantane.js";
 
 /** D'un lot réel à l'instantané que lisent les écrans (correction 8).
@@ -49,6 +49,9 @@ export type Lot = {
   /** Adresse à laquelle les médias seront servis. Absente, l'instantané n'en porte aucune, et
    *  les écrans disent « média non disponible ici » plutôt que de faire semblant (ANC-05). */
   readonly adresseMedias?: string | undefined;
+  /** De quoi relire les repères difficiles, quand la recette en déclare une. Passée telle quelle
+   *  à la chaîne : l'instantané des écrans vient du même traitement que la mesure. */
+  readonly relecture?: Relecture | undefined;
 };
 
 /** Quel numéro imprimé porte chaque rang du document, d'après l'interprète.
@@ -86,15 +89,18 @@ export async function instantaneDeLot(lot: Lot): Promise<VueBibliotheque> {
   const description = lireDescription(JSON.parse(await readFile(lot.description, "utf8")));
   const recette = chargerRecette(JSON.parse(await readFile(lot.recette, "utf8")));
 
-  const medias = await mediasDuDossier(lot.medias, recette);
-  // Combien de pistes le support compte est un fait sur le média, pas sur son nom (REC-05).
-  const lues = await lireLot(lot.pdf, recette, { ...(lot.cache === undefined ? {} : { cache: lot.cache }) });
-  const resultat = interpreter(lues, recette, { nombreDePistes: medias.length });
-  const association = associer(resultat.lignes, medias, recette);
+  // La chaîne, et rien d'autre. Elle réimplémentait ici lecture, interprétation et association —
+  // un second chemin de code qui avait déjà divergé : l'inventaire des supports présents, ajouté à
+  // la chaîne, n'arrivait jamais aux écrans. Un instantané doit venir du même traitement que la
+  // mesure, sans quoi ce qu'on mesure n'est pas ce qu'on montre.
+  const { resultat, association, medias } = await rejouer(lot.pdf, lot.medias, recette, {
+    ...(lot.cache === undefined ? {} : { cache: lot.cache }),
+    ...(lot.relecture === undefined ? {} : { relecture: lot.relecture }),
+  });
 
   // Les images, une par une, écrites au passage. Le numéro imprimé d'une page n'est pas son rang
   // dans le document : c'est le décalage lu qui fait le lien entre les deux.
-  const imprimes = numerosImprimes(lues, resultat.lignes);
+  const imprimes = numerosImprimes(resultat.pages, resultat.lignes);
   const parPageImprimee = new Map<number, { image: string; largeur: number; hauteur: number; vignette?: string }>();
   if (lot.images !== undefined) {
     const adresse = lot.adresseImages ?? "/donnees/pages";
@@ -115,6 +121,7 @@ export async function instantaneDeLot(lot: Lot): Promise<VueBibliotheque> {
     schema: description.schema,
     mots: description.mots,
     lignes: resultat.lignes,
+    pagesAbsentes: resultat.pagesAbsentes,
     association,
     medias,
     // Le seuil vient de la recette, qui l'a fixé en même temps que ses règles de lecture. Le
