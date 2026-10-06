@@ -7,6 +7,7 @@ import {
   reponseRepondA,
   type Recette,
   type ReponseVision,
+  type QuestionVision,
   type ZoneAlire,
   type ZoneLue,
 } from "@lienotheque/contrats";
@@ -74,7 +75,11 @@ export const coutProjete = (zones: number, tarif: Tarif = TARIF_PAR_DEFAUT): num
   );
 
 export type CacheVision = {
-  lire(empreinte: string): EntreeCacheVision | undefined;
+  /** `cherche` dit ce que la demande attend. Une entrée gardée avant qu'on demande le verdict de
+   *  présence reste valide en elle-même, mais ne répond plus à la question : elle est alors
+   *  refusée, donc redemandée une fois. Sans ce paramètre, le cache servirait le passé — et il
+   *  l'a fait, sur 141 pavés d'une première mesure qu'il a fallu refaire. */
+  lire(empreinte: string, cherche?: QuestionVision): EntreeCacheVision | undefined;
   ecrire(empreinte: string, entree: EntreeCacheVision): void;
 };
 
@@ -89,12 +94,17 @@ export function cacheDansDossier(dossier: string): CacheVision {
   const fichier = (empreinte: string): string => join(dossier, `${empreinte}.json`);
 
   return {
-    lire(empreinte) {
+    lire(empreinte, cherche) {
       const chemin = fichier(empreinte);
       if (!existsSync(chemin)) return undefined;
       try {
         const valide = EntreeCacheVision.safeParse(JSON.parse(readFileSync(chemin, "utf8")));
-        if (valide.success && valide.data.zone.empreinte === empreinte) return valide.data;
+        if (valide.success && valide.data.zone.empreinte === empreinte) {
+          // Une entrée sans verdict ne répond pas à une demande qui en attend un. On l'efface
+          // plutôt que de la servir : elle sera redemandée une fois, et la suivante répondra.
+          if (cherche === "repere" && valide.data.zone.repere === undefined) rmSync(chemin, { force: true });
+          else return valide.data;
+        }
       } catch {
         // Illisible : on tombe dans l'effacement ci-dessous.
       }
@@ -171,10 +181,20 @@ export async function relire(
 
   /** Ce qui attend un appel : le pavé recadré, et le candidat qui l'a produit. */
   const enAttente: { candidat: Candidat; zone: ZoneAlire }[] = [];
+  /** Les réponses obtenues dans ce passage, par empreinte. Deux candidats dont le recadrage donne
+   *  les mêmes pixels ont la même empreinte : ils ne se payent qu'une fois, et un contrat qui
+   *  refuse deux fois la même zone dans un appel n'est pas une gêne mais un garde-fou. */
+  const obtenues = new Map<string, { zone: ZoneLue; outil: { nom: string; version: string } }>();
+  /** Et ce qui attend déjà, pour ne pas mettre deux fois la même image dans le même lot. */
+  const dejaEnAttente = new Set<string>();
 
-  const vider = async (): Promise<void> => {
-    if (enAttente.length === 0) return;
-    const lot = enAttente.splice(0, enAttente.length);
+  /** Vide ce qui attend, par question : un appel ne pose qu'une seule question, et son formulaire
+   *  en dépend. Deux questions dans un même lot ne coûtent qu'un préfixe de plus. */
+  const vider = async (question?: string): Promise<void> => {
+    const pretes = question === undefined ? enAttente : enAttente.filter((entree) => entree.zone.cherche === question);
+    if (pretes.length === 0) return;
+    for (const entree of pretes) enAttente.splice(enAttente.indexOf(entree), 1);
+    const lot = pretes;
 
     // On s'arrête **avant** l'appel qui ferait dépasser, pas après : un plafond qu'on constate
     // après coup n'est pas un plafond. La projection est mesurée, et la dépense comptée sur les
@@ -199,13 +219,18 @@ export async function relire(
 
     const parEmpreinte = new Map(reponse.zones.map((zone) => [zone.empreinte, zone]));
     for (const { candidat, zone } of lot) {
+      dejaEnAttente.delete(zone.empreinte);
       const lue = parEmpreinte.get(zone.empreinte);
       if (lue === undefined) continue;
       const entree = EntreeCacheVision.parse({ zone: lue, outil: reponse.outil });
       options.cache?.ecrire(zone.empreinte, entree);
+      obtenues.set(zone.empreinte, entree);
       relues.push({ candidat, zone: lue, outil: entree.outil, depuisLeCache: false });
     }
   };
+
+  /** Les candidats qu'une empreinte déjà demandée dans ce passage attend encore. */
+  const enSuspens = new Map<string, Candidat[]>();
 
   for (const candidat of candidats) {
     const image = imageDeLaPage(candidat);
@@ -219,10 +244,22 @@ export async function relire(
       continue;
     }
 
-    const gardee = options.cache?.lire(produit.zone.empreinte);
+    const gardee = options.cache?.lire(produit.zone.empreinte, produit.zone.cherche);
     if (gardee !== undefined) {
       depuisLeCache += 1;
       relues.push({ candidat, zone: gardee.zone, outil: gardee.outil, depuisLeCache: true });
+      continue;
+    }
+
+    // Déjà obtenue dans ce passage : la même image ne se redemande pas.
+    const vue = obtenues.get(produit.zone.empreinte);
+    if (vue !== undefined) {
+      relues.push({ candidat, zone: vue.zone, outil: vue.outil, depuisLeCache: true });
+      continue;
+    }
+    // Déjà en attente : on la note, et elle sera servie quand la réponse arrivera.
+    if (dejaEnAttente.has(produit.zone.empreinte)) {
+      enSuspens.set(produit.zone.empreinte, [...(enSuspens.get(produit.zone.empreinte) ?? []), candidat]);
       continue;
     }
 
@@ -236,10 +273,20 @@ export async function relire(
       continue;
     }
     payees += 1;
+    dejaEnAttente.add(produit.zone.empreinte);
     enAttente.push({ candidat, zone: produit.zone });
-    if (enAttente.length >= ZONES_MAX_PAR_APPEL) await vider();
+    const question = produit.zone.cherche;
+    if (enAttente.filter((entree) => entree.zone.cherche === question).length >= ZONES_MAX_PAR_APPEL) await vider(question);
   }
-  await vider();
+  // Ce qui reste, question par question.
+  for (const question of new Set(enAttente.map((entree) => entree.zone.cherche))) await vider(question);
+
+  // Et les candidats qui attendaient la réponse d'une image déjà demandée.
+  for (const [empreinte, candidats] of enSuspens) {
+    const vue = obtenues.get(empreinte);
+    if (vue === undefined) continue;
+    for (const candidat of candidats) relues.push({ candidat, zone: vue.zone, outil: vue.outil, depuisLeCache: true });
+  }
 
   return { relues, nonRelus, jetons, cout, appels, depuisLeCache };
 }

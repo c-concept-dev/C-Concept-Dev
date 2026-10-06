@@ -34,7 +34,20 @@ export function transportVersWorker(base: string, jeton: string, appeler: typeof
       headers: { "content-type": "application/json", authorization: `Bearer ${jeton}` },
       body: JSON.stringify(DemandeVision.parse(demande)),
     });
-    if (!reponse.ok) throw new RelectureInjoignable(reponse.status, `La relecture a été refusée (statut ${reponse.status})`);
+    if (!reponse.ok) {
+      // Le message de notre propre route est à nous : il ne porte aucun secret — la route s'en
+      // assure — et sans lui un 502 ne dit pas s'il vient du modèle, du contrat ou du
+      // recoupement. Ne pas le relayer rendait la panne indiagnosticable.
+      let dit: string | undefined;
+      try {
+        const corps = (await reponse.json()) as { erreur?: unknown; ecarts?: unknown };
+        if (typeof corps.erreur === "string") dit = corps.erreur;
+        if (Array.isArray(corps.ecarts) && corps.ecarts.length > 0) dit = `${dit ?? "refus"} — ${corps.ecarts.slice(0, 3).join(" ; ")}`;
+      } catch {
+        // Un corps illisible ne doit pas masquer le statut, qui reste la seule chose sûre.
+      }
+      throw new RelectureInjoignable(reponse.status, `La relecture a été refusée (statut ${reponse.status})${dit === undefined ? "" : ` : ${dit}`}`);
+    }
 
     const valide = ReponseVision.safeParse(await reponse.json());
     if (!valide.success) throw new RelectureInjoignable(reponse.status, "La relecture a rendu une réponse non conforme");

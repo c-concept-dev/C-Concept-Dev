@@ -39,9 +39,9 @@ piste,mp3,style,exercices_detectes_sur_la_piste,premier_exercice_detecte,exercic
 38,1-38 Rock - 337 Pg.113.mp3,Rock,337 341,337,337,113,oui
 39,1-39 Rock - 342 Pg.113.mp3,Rock,342 345,342,342,113,oui
 40,1-40 Rock - 346 Pg.114.mp3,Rock,346,346,346,114,oui
-41,1-41 Latin Riffs - 400 Pg.127.mp3,Latin Riffs,348 400 401,348,400,127,non
+41,1-41 Latin Riffs - 400 Pg.127.mp3,Latin Riffs,348 400 401,400,400,127,oui
 42,1-42 Latin Riffs - 402 Pg.127.mp3,Latin Riffs,402 404 405,402,402,127,oui
-43,1-43 Latin Riffs - 405 Pg.128.mp3,Latin Riffs,407,407,405,128,non
+43,1-43 Latin Riffs - 405 Pg.128.mp3,Latin Riffs,407,405,405,128,oui
 44,1-44 Latin Riffs - 409 Pg.128.mp3,Latin Riffs,409 411,409,409,128,oui
 45,1-45 Latin Riffs - 416 Pg.130.mp3,Latin Riffs,416 418,416,416,130,oui
 46,1-46 Latin Riffs - 419 Pg.130.mp3,Latin Riffs,419 420,419,419,130,oui
@@ -55,7 +55,7 @@ piste,mp3,style,exercices_detectes_sur_la_piste,premier_exercice_detecte,exercic
 54,1-54 Cuban Mambo - 488 Pg.144.mp3,Cuban Mambo,488 489,488,488,144,oui
 55,1-55 Cuban Mambo - 491 Pg.145.mp3,Cuban Mambo,491 498,491,491,145,oui
 56,1-56 Cuban Mambo - 505 Pg.147.mp3,Cuban Mambo,505 508,505,505,147,oui
-57,1-57 Cuban Rock - 512 Pg.149.mp3,Cuban Rock,,,512,149,non
+57,1-57 Cuban Rock - 512 Pg.149.mp3,Cuban Rock,,512,512,149,oui
 58,1-58 Cuban Rock - 517 Pg.150.mp3,Cuban Rock,517 518,517,517,150,oui
 59,1-59 Cuban Rock - 520 Pg.150.mp3,Cuban Rock,520,520,520,150,oui
 60,1-60 Cuban Rock - 533 Pg.153.mp3,Cuban Rock,533 536,533,533,153,oui
@@ -72,8 +72,8 @@ piste,mp3,style,exercices_detectes_sur_la_piste,premier_exercice_detecte,exercic
 71,1-71 Jamaican Reggae - 591 Pg.167.mp3,Jamaican Reggae,591 592,591,591,167,oui
 72,1-72 Jamaican Reggae - 593 Pg.167.mp3,Jamaican Reggae,593 595,593,593,167,oui
 73,1-73 Jamaican Reggae - 596 Pg.168.mp3,Jamaican Reggae,596 597,596,596,168,oui
-74,1-74 Jamaican Reggae - 598 Pg.168.mp3,Jamaican Reggae,599,599,598,168,non
-75,1-75 Jamaican Reggae - 600 Pg.168.mp3,Jamaican Reggae,601,601,600,168,non
+74,1-74 Jamaican Reggae - 598 Pg.168.mp3,Jamaican Reggae,599,598,598,168,oui
+75,1-75 Jamaican Reggae - 600 Pg.168.mp3,Jamaican Reggae,601,600,600,168,oui
 76,1-76 Jamaican Reggae - 603 Pg.169.mp3,Jamaican Reggae,603 604,603,603,169,oui
 77,1-77 Brazilian Samba - 620 Pg.173.mp3,Brazilian Samba,620 622,620,620,173,oui
 78,1-78 Brazilian Samba - 624 Pg.174.mp3,Brazilian Samba,624 625,624,624,174,oui
@@ -87,7 +87,7 @@ piste,mp3,style,exercices_detectes_sur_la_piste,premier_exercice_detecte,exercic
 86,1-86 North Africa _ Middle East - 699 Pg.192.mp3,North Africa / Middle East,699 700,699,699,192,oui
 87,1-87 North Africa _ Middle East - 701 Pg.192.mp3,North Africa / Middle East,701 702,701,701,192,oui
 88,1-88 North Africa _ Middle East - 703 Pg.192.mp3,North Africa / Middle East,703,703,703,192,oui
-89,1-89 Somalia - 706 Pg.194.mp3,Somalia,704 706 707,704,706,194,non
+89,1-89 Somalia - 706 Pg.194.mp3,Somalia,704 706 707,706,706,194,oui
 90,1-90 Somalia - 709 Pg.195.mp3,Somalia,709,709,709,195,oui
-91,1-91 Somalia - 713 Pg.195.mp3,Somalia,712 713 714,712,713,195,non
+91,1-91 Somalia - 713 Pg.195.mp3,Somalia,712 713 714,713,713,195,oui
 92,1-92 Somalia - 715 Pg.196.mp3,Somalia,715 717 718 726 728,715,715,196,oui

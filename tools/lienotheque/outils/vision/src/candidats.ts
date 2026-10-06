@@ -1,6 +1,7 @@
-import type { CotePage, Recette, ZoneRelative } from "@lienotheque/contrats";
+import type { CotePage, QuestionVision, Recette, ZoneRelative } from "@lienotheque/contrats";
 import { COTE_MAX_RECADRAGE } from "@lienotheque/contrats";
 import type { Boite, ImageGrise } from "@lienotheque/images";
+import { LARGEUR_MINIMALE_REPERE } from "@lienotheque/recettes";
 
 /** Quels repères méritent une relecture ciblée, et quel rectangle en part (OUT-08).
  *
@@ -48,13 +49,16 @@ export type PageAsonder = {
 
 /** Pourquoi ce repère part. Deux motifs, et ils ne se valent pas : l'un dit qu'il manque tout,
  *  l'autre qu'il manque un chiffre. « Pourquoi ce lien » saura le dire en français. */
-export type MotifDeRelecture = "sans_lecture" | "lecture_incomplete";
+export type MotifDeRelecture = "sans_lecture" | "lecture_incomplete" | "en_dispute";
 
 export type Candidat = {
   readonly page: number;
   readonly cote?: CotePage | undefined;
   readonly numero: number;
   readonly motif: MotifDeRelecture;
+  /** Ce qu'on veut savoir de ce pavé. Par défaut son nombre ; « repere » quand la question est
+   *  d'abord de savoir s'il en est un. */
+  readonly cherche?: QuestionVision | undefined;
   /** Le repère lui-même, en pixels de la page. */
   readonly repere: Boite;
   /** Ce qui partira : le repère et une marge claire autour. */
@@ -68,18 +72,13 @@ export type Candidat = {
  *  bordure du pavé ne soit plus le bord de l'image, pas assez pour y faire entrer le voisin. */
 const MARGE_RELATIVE = 0.4;
 
-/** Largeur minimale d'un repère, en parts de sa hauteur.
+/** Largeur minimale d'un repère, en parts de sa hauteur — la même que celle du lecteur.
  *
- *  Un repère qui porte un ou deux chiffres est à peu près aussi large que haut. Mesuré sur les
- *  clichés de référence : les vrais pavés vont de 0,71 à 1,07, et les deux éclats que le lecteur
- *  avait pris pour des repères font 0,10 et 0,17 — trois pixels de large pour dix-huit de haut.
- *  Leur recadrage ne contenait rien de lisible, et l'envoyer aurait été payer pour rien.
- *
- *  Le lecteur, lui, les accepte : une forme pleine et étroite passe son test de présence, qui
- *  juge le remplissage et la hauteur mais pas la largeur. Le resserrer changerait les lectures,
- *  donc les mesures, donc cela se fera à part ; d'ici là la sélection se protège elle-même, et
- *  c'est de toute façon à elle de ne pas envoyer ce qui ne peut pas être lu. */
-const LARGEUR_MINIMALE = 0.35;
+ *  Elle y est définie et mesurée, et elle est importée plutôt que recopiée : le lecteur la
+ *  applique maintenant dans son propre jugement de présence, et deux copies d'un nombre mesuré
+ *  finissent par diverger. La sélection la garde tout de même, parce que c'est à elle de ne pas
+ *  envoyer ce qui ne peut pas être lu, quelle que soit l'indulgence de ce qui précède. */
+const LARGEUR_MINIMALE = LARGEUR_MINIMALE_REPERE;
 
 const chiffresDe = (valeur: number | undefined): number => (valeur === undefined ? 0 : String(valeur).length);
 
@@ -137,13 +136,21 @@ export function recadrageDuRepere(zone: ZoneRelative, image: ImageGrise): Boite 
  *  n'est pas une page dont on a mal lu deux repères, c'est une page qui ne se lit pas — et payer
  *  pour elle serait payer pour rien. On garde alors les premiers de la page, parce qu'un ordre
  *  arbitraire mais stable valait mieux qu'un classement qui prétendrait juger. */
-export function candidatsDePage(page: PageAsonder, recette: Recette): Candidat[] {
+export type OptionsCandidats = {
+  /** Éléments à inclure même si leur lecture paraissait franche : ceux dont un voisin se dispute
+   *  avec eux l'ouverture d'une piste. Une lecture seule ne dit pas lequel porte le repère, et
+   *  c'est précisément ce qu'on vient demander. */
+  readonly enDispute?: ReadonlySet<number> | undefined;
+};
+
+export function candidatsDePage(page: PageAsonder, recette: Recette, options: OptionsCandidats = {}): Candidat[] {
   if (recette.vision === undefined) return [];
 
   const proportions = { largeur: page.image.largeur, hauteur: page.image.hauteur };
   const trouves: Candidat[] = [];
   for (const element of [...page.elements].sort((a, b) => a.y - b.y || a.numero - b.numero)) {
-    const motif = motifDeRelecture(element, proportions);
+    const dispute = options.enDispute?.has(element.numero) === true && element.zoneRepere !== undefined;
+    const motif = motifDeRelecture(element, proportions) ?? (dispute ? "en_dispute" : undefined);
     if (motif === undefined) continue;
 
     const recadrage = recadrageDuRepere(element.zoneRepere!, page.image);
@@ -154,6 +161,9 @@ export function candidatsDePage(page: PageAsonder, recette: Recette): Candidat[]
       ...(page.cote === undefined ? {} : { cote: page.cote }),
       numero: element.numero,
       motif,
+      // D'un pavé on demande toujours le verdict en plus du nombre : savoir s'il **est** un repère
+      // est ce qui manquait, et cela ne coûte qu'un champ de plus dans la réponse.
+      cherche: "repere",
       repere: {
         x: Math.round(element.zoneRepere!.x * page.image.largeur),
         y: Math.round(element.zoneRepere!.y * page.image.hauteur),

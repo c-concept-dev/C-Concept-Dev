@@ -1279,3 +1279,227 @@ refasse pas sous cette forme.
 
 **73 premiers éléments sur 92 et 83 pages sur 92**, pour un critère de 83 et 89. Il manque 10
 éléments et 6 pages, et aucune des causes restantes n'est un défaut de lecture de repère.
+
+## Où en est-on vraiment : le lot C est clos, F4 relève du lot D
+
+Une précision de statut, prise à la source. La feuille de route du CDC normatif v2.0 donne, lot par
+lot, un critère de passage :
+
+| Lot | Critère de passage |
+|---|---|
+| **C — Première bibliothèque** | fichier renommé reconnu ; arrêt et redémarrage sans perte ; correction conservée après recalcul ; **F3 ≥ 95/95 ; F1 exact** |
+| **D — Deuxième corpus** | **F4 ≥ 83/92 automatique** ; généralisation sans code spécifique ; nouvelle recette dérivée en moins d'un quart d'heure |
+
+Le critère du lot C est donc tenu, et **le lot C est clos**. F4 relève du lot D, commencé en avance
+— le CDC note d'ailleurs que la relecture ciblée (OUT-08), qui appartient au lot D, a été avancée
+au lot C pour F4.
+
+**Une nuance qui compte pour la suite.** Le critère normatif est le nombre de **premiers éléments**,
+83 sur 92. Les 89 pages sur 92 que nous suivons depuis le début sont une mesure que nous nous
+sommes donnée, utile mais non normative : c'est le premier chiffre qui décide du passage du lot.
+
+### État à l'ouverture du lot D
+
+| | |
+|---|---|
+| F4 | **73 / 92** premiers éléments (critère 83) et 83 / 92 pages |
+| F3 | **95 / 95**, vérifié à froid |
+| Relecture ciblée | en place, agrandissement ×2, 95 % de justesse sur les pavés jugeables |
+| Dépensé à ce jour | **0,061 €**, et un rejeu ne dépense rien |
+
+Il manque **10 premiers éléments**. Aucune des causes restantes n'est un défaut de lecture de
+repère : elles butent sur la distinction entre un vrai repère et une forme qui lui ressemble, et sur
+des éléments que la lecture ne voit pas du tout.
+
+## La dette du test de présence : une correction, et une erreur de ma part
+
+Le lecteur acceptait encore des éclats du seuillage — trois pixels de large pour dix-huit de haut —
+parce que son test de présence jugeait le remplissage et la hauteur, jamais la largeur. La sélection
+des pavés s'en protégeait de son côté, ce qui soignait le symptôme.
+
+### La règle, et où elle appartient
+
+Elle est la même que celle du comptage des chiffres et de la sélection : une forme qui porte un
+chiffre est à peu près aussi large que haute. Mesurée sur les clichés de référence, les vrais pavés
+vont de 0,71 à 1,07, les éclats 0,10 et 0,17 ; le seuil se tient à **0,35**. Elle est maintenant
+définie une seule fois, dans le lecteur, et la sélection l'importe — trois copies d'un nombre mesuré
+finissent par diverger.
+
+**Mais la poser dans la présence seule ne suffisait pas, et dégradait.** Un éclat est plus plein
+qu'un pavé, dont les chiffres clairs font des trous : 1,0 contre 0,7. Il était donc proposé comme
+« la plus pleine des formes », et la présence ne jugeant que cette première forme, l'écarter faisait
+abandonner **tout le repère** alors que le pavé était là, à côté. Cinq premiers éléments perdus.
+
+La correction appartient au **choix de forme** : un éclat n'y est plus proposé, et le pavé redevient
+la première forme. Un test porte le cas réaliste — éclat plein à 1, pavé troué à 0,7 — parce qu'un
+premier essai avec deux formes également pleines ne reproduisait rien, la plus grande gagnant déjà.
+
+### Une erreur de cache, à consigner
+
+La première mesure de la correction a porté sur les **anciennes** lectures : changer le choix de
+forme modifie ce qu'une lecture rend, et je n'avais pas remonté `VERSION_LECTURE`. Le cache de la
+version 7 — celle qui avait le défaut — a donc été servi, et le chiffre lu était faux.
+
+C'est exactement ce que cette version existe pour éviter, et le dépôt le documentait déjà depuis le
+lot C. La version 8 porte la règle entière ; la 7 n'a jamais été mesurée pour elle-même.
+
+### L'effet, mesuré séparément
+
+| | Premiers éléments | Pages |
+|---|---:|---:|
+| Témoin, avant | 60 / 92 | 76 / 92 |
+| Témoin, après | **61 / 92** | **77 / 92** |
+| Avec relecture, avant | 73 / 92 | 83 / 92 |
+| Avec relecture, après | **74 / 92** | **84 / 92** |
+
+Sur les treize clichés de référence : **19 pavés retenus** au lieu de 18, dont 15 que l'oracle juge
+à relire, et l'angle mort reste **nul**. Les deux pavés supplémentaires ont coûté 0,0016 €.
+
+Un élément et une page. La dette était réelle — deux faux repères sur 141 — mais ce n'est pas elle
+qui tiendra le critère : il manque encore 9 premiers éléments.
+
+## La relecture dit aussi si un repère est là (lot D, étape 3)
+
+Le reste de F4 ne venait plus d'un défaut de lecture mais d'un défaut de **jugement** : une lecture
+seule ne dit pas si ce qu'elle a lu **est** un repère, et la détection locale tirait trois fois trop
+souvent — 288 repères localisés pour 92 pistes. La relecture rend donc, pour chaque pavé, un verdict
+de présence en plus du nombre.
+
+### Ce que cela donne
+
+| | Témoin | Avec verdicts | Critère |
+|---|---:|---:|---:|
+| Premiers éléments | 61 / 92 | **76 / 92** | **83** |
+| Pages | 77 / 92 | **86 / 92** | *(89, non normatif)* |
+
+| Cause d'écart | Avant | Après |
+|---|---:|---:|
+| Dispute d'ouverture | 19 | **7** |
+| Piste fausse | 8 | **5** |
+| Élément non lu | 4 | 4 |
+
+Verdicts sur 243 pavés : **200 présent, 31 absent, 12 incertain**. Les 31 « absent » sont le levier —
+autant de faux repères qui ne peuvent plus ouvrir une piste.
+
+Le gain est réel et plus petit qu'il n'y paraît : les disputes passent de 19 à 7, mais le total ne
+gagne que deux éléments sur l'étape 1. La relecture redresse 22 éléments et en abîme 7 — trancher
+une ouverture en déplace d'autres.
+
+### Les marges : troisième mesure, troisième fois rien
+
+On a sondé les marges là où la numérotation montre un trou, pour les éléments dont aucun numéro n'a
+été lu. Résultat : **zéro élément et zéro page gagnés**, 193 recadrages demandés dont 83 refusés par
+le contrat — une bande de marge dépasse 1024 px à l'agrandissement ×2 —, et 18 numéros faux sur 151
+jugeables, le modèle y lisant des numéros de page.
+
+La voie est éteinte, pas fermée : `--marges` la rallume pour qui la reprendra avec un recadrage plus
+étroit, et ces chiffres disent ce qu'il faudra battre.
+
+### Quatre défauts de ma conception, trouvés par la mesure
+
+**Le cache servait le passé.** 141 des 243 pavés revenaient sans verdict : la lecture du cache ne
+savait pas quelle question était posée, donc une entrée d'avant l'extension passait pour valide. Elle
+reçoit maintenant la question, et une entrée qui n'y répond plus est redemandée **une fois** — un
+test vérifie « une fois, pas à chaque passage ».
+
+**Le modèle recopiait mal l'empreinte.** Demandé « …ff786… », rendu « …ff746… » : un caractère sur
+trente-deux, et toute la réponse refusée pour une zone inconnue. Faire recopier trente-deux
+caractères hexadécimaux était une mauvaise idée ; le modèle rend un **rang** — « Image 1 » — et
+l'empreinte reste notre clef, de notre côté. Un rang hors de la demande est refusé.
+
+**Mon contrat refusait une réponse cohérente.** « Rien de lu ne se dit pas avec une confiance » était
+juste tant qu'une réponse ne portait qu'un nombre. Le verdict l'a rendue fausse : « le repère est là,
+ses chiffres sont illisibles, et j'en suis sûr » est cohérent, et la confiance y porte sur le
+verdict. La règle est relâchée **sur preuve** et ne s'applique plus qu'en l'absence de verdict.
+
+**Une panne ne se diagnostiquait pas.** Un 502 ne disait pas s'il venait du modèle, du contrat ou du
+recoupement. Le transport relaie désormais le message de **notre** route, et le refus de contrat
+nomme le chemin du champ fautif — jamais les valeurs reçues, qui viennent du modèle. C'est ce
+changement qui a permis de nommer les deux causes précédentes en une commande.
+
+### Le coût, versé au compte
+
+| Mesure | Jetons entrée | Jetons sortie | Coût |
+|---|---:|---:|---:|
+| Étape 1, deux pavés nouveaux | 1 179 | 117 | 0,0016 € |
+| Étape 3, première passe (invalide, cache sans verdict) | 56 413 | 9 750 | 0,0974 € |
+| Étape 3, passe valide | 8 363 | 1 881 | 0,0165 € |
+| **Cumul du lot D** | **65 955** | **11 748** | **0,1155 €** |
+
+La passe invalide est comptée : elle a été dépensée. Un rejeu complet coûte désormais **0 €** — les
+353 réponses sont en cache.
+
+## L'oracle de F4 était faux sur sept pistes, et la page l'a tranché
+
+Le CSV `Westwood_Vol1_CD1_pistes.csv` porte trois colonnes qu'il ne faut pas confondre :
+`premier_exercice_detecte` est une **détection du prototype**, `exercice_selon_nom_mp3` est ce que
+le **nom du fichier** annonce, et `accord` dit si les deux coïncident. Ce que nous appelions
+« l'oracle » depuis le début était donc une détection, pas une vérité — et elle était en désaccord
+avec le nom du MP3 sur neuf pistes sur quatre-vingt-douze.
+
+### Le seul témoin qui fait foi est la page
+
+Les trois témoins ont été confrontés à l'œil, sur les clichés, pour onze pistes.
+
+| Piste | Notre chaîne | Détection | Nom MP3 | Ce que la page montre | Qui a raison |
+|---|---|---|---|---|---|
+| 4 | 132 | **135** | 133 | 132 porte « Piste 3 », 135 porte « Piste 4 » | la détection |
+| 14 | **189** | **189** | 187 | 187 porte « Piste 13 », 189 porte « Piste 14 » | la chaîne et la détection |
+| 35 | 305 | **314** | 314 | 305 porte « Piste 34 » | la détection |
+| 41 | **400** | 348 | **400** | 348 porte « Piste 40 », 400 porte « Piste 41 » | la chaîne et le nom |
+| 43 | **405** | 407 | **405** | 405 porte « Piste 43 » | la chaîne et le nom |
+| 57 | **512** | *rien* | **512** | 512 porte « Piste 57 » | la chaîne et le nom |
+| 74 | **598** | 599 | **598** | **598 et 599 portent tous deux « Piste 74 »** | la chaîne |
+| 75 | **600** | 601 | **600** | 600 porte « Piste 75 » | la chaîne et le nom |
+| 87 | 700 | **701** | **701** | 700 porte « Piste 86 » | la détection et le nom |
+| 89 | 704 | 704 | **706** | 704 porte « Piste 88 », 706 porte « Piste 89 » | le nom seul |
+| 91 | **713** | 712 | **713** | 712 porte « Piste 90 », 713 porte « Piste 91 » | la chaîne et le nom |
+
+Le nom du MP3 se trompe (piste 14), la détection se trompe (sept fois), notre chaîne se trompe
+(pistes 4, 35, 87, 89). **La page, elle, n'a jamais menti.** C'est ce que la recette disait déjà du
+nom de fichier — un indice, pas une vérité (REC-05) — et il faut le dire aussi de la détection.
+
+### Un fait de structure que nous ignorions
+
+**Les éléments 598 et 599 portent tous deux « CD1 Piste 74 ».** Le livre imprime donc la pastille
+sur **chaque** élément d'une piste, pas seulement sur le premier. La détection de repère ne tirait
+pas trois fois trop souvent : elle voyait de vrais repères. Mon diagnostic de l'étape 2 — « la
+détection tire trois fois trop souvent » — était une mauvaise lecture d'un fait qui n'en est pas un
+défaut, et la règle « le premier élément à porter le repère ouvre la piste » est juste.
+
+### Les sept corrections, chacune avec sa preuve
+
+| Piste | Avant | Après | Preuve lue sur le cliché |
+|---|---|---|---|
+| 41 | 348 | **400** | 348 porte « CD1 Piste 40 » ; 400 porte « Piste 41 » |
+| 43 | 407 | **405** | 405 porte « CD1 Piste 43 » |
+| 57 | *rien* | **512** | 512 porte « CD1 Piste 57 » |
+| 74 | 599 | **598** | 598 et 599 portent « Piste 74 » ; 598 vient en premier |
+| 75 | 601 | **600** | 600 porte « CD1 Piste 75 » |
+| 89 | 704 | **706** | 704 porte « Piste 88 » ; 706 porte « Piste 89 » |
+| 91 | 712 | **713** | 712 porte « Piste 90 » ; 713 porte « Piste 91 » |
+
+Seule la colonne `premier_exercice_detecte` est corrigée, et la colonne `accord` recalculée : la
+liste des éléments détectés n'a pas été vérifiée élément par élément, et reste donc telle quelle.
+
+### Ce que cela change
+
+| | Avant correction | Après correction |
+|---|---:|---:|
+| Témoin | 61 / 92 | **66 / 92** |
+| Avec verdicts | 76 / 92 | **81 / 92** |
+| Pages | 86 / 92 | 86 / 92 |
+
+Il manque **2 premiers éléments** sur le critère normatif de 83. Les écarts restants : 5 disputes,
+3 pistes fausses, 3 éléments jamais lus.
+
+### L'audio n'est pas un témoin fiable, avec les moyens d'ici
+
+Compter les segments d'une piste par ses silences ne retrouve pas le nombre d'éléments : la piste 4
+(un élément) montre deux creux internes, la 91 (trois éléments) en montre deux, la 74 (deux
+éléments) en montre un à trois selon le seuil. Le compte dépend du seuil et pas du contenu.
+
+Ce n'est pas la fin de l'idée : un détecteur de **décompte** — les quatre temps qui ouvrent chaque
+exercice — serait une autre méthode, et probablement meilleure. Mais elle demande davantage qu'un
+seuillage d'énergie, et la machine n'a ni ffmpeg ni ffprobe. En l'état, l'audio ne peut pas servir
+d'indice à l'attribution.

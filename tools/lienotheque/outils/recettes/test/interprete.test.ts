@@ -290,3 +290,65 @@ describe("un support absent ne reçoit pas les éléments du précédent (REC-05
     expect([...supportsPresents([{ piste: 7 }])]).toEqual([[1, 7]]);
   });
 });
+
+describe("le verdict de la relecture décide de l'ouverture d'une piste (lot D, ANC-02)", () => {
+  const V5 = chargerRecette(
+    JSON.parse(readFileSync(join(import.meta.dirname, "../../../fixtures/recettes/methode-pastilles-cd.v5.json"), "utf8")),
+  );
+
+  /** Deux éléments voisins lisent tous deux « 7 », et un seul porte le repère. C'est le cas que la
+   *  lecture seule ne sait pas trancher : la présence vaut à peu près la même chose des deux côtés. */
+  const lot = (): PageNumerotee[] => [
+    { index: 1, rang: 2, cote: "gauche", pageImprimee: 60, statut: "lue", elements: [element(1, { pisteLue: 6, accordPiste: 1 })] },
+    { index: 2, rang: 4, cote: "gauche", pageImprimee: 61, statut: "lue", elements: [element(2, { pisteLue: 7, accordPiste: 1 })] },
+    { index: 3, rang: 6, cote: "gauche", pageImprimee: 62, statut: "lue", elements: [element(3, { pisteLue: 7, accordPiste: 1 })] },
+    { index: 4, rang: 8, cote: "gauche", pageImprimee: 63, statut: "lue", elements: [element(4, { pisteLue: 8, accordPiste: 1 })] },
+  ];
+
+  const verdict = (numero: number, repere: "present" | "absent" | "incertain", lu?: number): Map<string, LectureParVision> =>
+    new Map([
+      [
+        clefDeVision(numero, "gauche", numero),
+        { ...(lu === undefined ? {} : { numero: lu }), confiance: lu === undefined ? 0 : 0.9, repere, outil: { nom: "vision-ciblee", version: "0.1.0" } },
+      ],
+    ]);
+
+  const premierDe = (piste: number, vision?: Map<string, LectureParVision>) =>
+    sequencer(lot(), V5, { nombreDePistes: 92, ...(vision === undefined ? {} : { vision }) }).lignes.find(
+      (ligne) => ligne.piste === piste,
+    )?.numero;
+
+  it("sans verdict, c'est le premier des deux qui ouvre la piste", () => {
+    expect(premierDe(7)).toBe(2);
+  });
+
+  it("« absent » lui interdit de l'ouvrir, et c'est l'autre qui la prend", () => {
+    expect(premierDe(7, verdict(2, "absent"))).toBe(3);
+  });
+
+  it("« incertain » ne change rien", () => {
+    expect(premierDe(7, verdict(2, "incertain", 7))).toBe(2);
+  });
+
+  it("« present » ne lui retire rien non plus", () => {
+    expect(premierDe(7, verdict(2, "present", 7))).toBe(2);
+  });
+
+  it("un pavé déclaré absent n'ouvre aucune piste, même seul à la lire", () => {
+    const seul: PageNumerotee[] = [
+      { index: 1, rang: 2, cote: "gauche", pageImprimee: 60, statut: "lue", elements: [element(1, { pisteLue: 2, accordPiste: 1 })] },
+    ];
+    const sans = sequencer(seul, V5, { nombreDePistes: 92 }).lignes[0]!;
+    const avec = sequencer(seul, V5, { nombreDePistes: 92, vision: verdict(1, "absent") }).lignes[0]!;
+    // Ce qui compte est la provenance, pas le numéro : sur un élément seul, la pénalité de départ
+    // éloigné égalise les pistes, et le numéro retenu n'est donc pas la propriété à éprouver.
+    expect(sans.sourcePiste).toBe("pastille");
+    expect(avec.sourcePiste).not.toBe("pastille");
+  });
+
+  it("un verdict « present » sans nombre ne fait pas de l'élément un porteur à lui seul", () => {
+    // Le repère est là, mais illisible : la suite doit décider, pas le verdict.
+    const vision = verdict(2, "present");
+    expect(premierDe(7, vision)).toBe(2);
+  });
+});

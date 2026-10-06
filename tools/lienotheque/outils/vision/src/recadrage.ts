@@ -76,6 +76,7 @@ export async function recadrerPour(
       typeMime: "image/webp",
       largeur: vue.largeur,
       hauteur: vue.hauteur,
+      cherche: candidat.cherche ?? "numero",
       ...(attendu === undefined ? {} : { attendu }),
     },
   };

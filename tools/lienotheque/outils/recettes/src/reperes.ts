@@ -241,19 +241,38 @@ export function tonClair(image: ImageGrise, part = 0.9): number {
   return 255;
 }
 
+/** Largeur minimale d'un repère, en parts de sa propre hauteur.
+ *
+ *  Un repère qui porte un ou deux chiffres est à peu près aussi large que haut. Mesuré sur les
+ *  clichés de référence : les vrais pavés vont de 0,71 à 1,07, et les éclats du seuillage que le
+ *  lecteur prenait pour des repères font 0,10 et 0,17 — trois pixels de large pour dix-huit de
+ *  haut. Le seuil se tient au milieu, avec une marge large des deux côtés.
+ *
+ *  C'est la même règle que celle du comptage des chiffres et de la sélection des pavés, et c'est
+ *  pourquoi elle est ici : trois copies d'un nombre mesuré finissent par diverger. */
+export const LARGEUR_MINIMALE_REPERE = 0.35;
+
 /** À quel point une pastille semble présente sous le numéro, qu'on sache ou non lire son chiffre.
  *
  *  On ne mesure pas la fenêtre de recherche — sa taille est arbitraire et varie d'une recette à
- *  l'autre — mais **la forme sombre qu'on y trouve**. Deux choses la caractérisent : elle est
- *  pleine, et elle est à la taille du numéro qu'elle accompagne.
+ *  l'autre — mais **la forme sombre qu'on y trouve**. Trois choses la caractérisent : elle est
+ *  pleine, elle est à la taille du numéro qu'elle accompagne, et elle est à peu près aussi large
+ *  que haute.
  *
  *  Un losange est à demi plein de son cadre, un bloc presque entièrement ; des portées et des
  *  notes donnent au contraire une boîte très large et presque vide. C'est ce qui les sépare, et
- *  cela ne dépend pas de la largeur qu'on a bien voulu regarder. */
+ *  cela ne dépend pas de la largeur qu'on a bien voulu regarder.
+ *
+ *  La largeur a longtemps manqué à ce jugement, et un trait plein de trois pixels sur dix-huit
+ *  passait donc pour un repère : plein, à la bonne hauteur, et sans rien pour le démentir. La
+ *  sélection des pavés s'en protégeait de son côté, ce qui soignait le symptôme ; c'est ici que la
+ *  cause était. */
 export function presenceDeForme(zone: ImageGrise, forme: Boite | undefined, hauteurNumero: number): number {
   if (forme === undefined || forme.l === 0 || forme.h === 0) return 0;
   // Une forme démesurée par rapport au numéro n'est pas un repère, c'est le document.
   if (forme.h > hauteurNumero * 3.5 || forme.l > hauteurNumero * 7) return 0;
+  // Et une forme bien plus haute que large est un éclat du seuillage, pas un repère.
+  if (forme.l < forme.h * LARGEUR_MINIMALE_REPERE) return 0;
 
   const clair = Math.max(1, tonClair(zone));
   const sombre = clair * 0.55;
@@ -347,8 +366,8 @@ export const PRESENCE_MINIMALE = 0.25;
  *  — imprimée en sombre sur clair, et des portées qui traversent la fenêtre ; selon la page, le
  *  chiffre est une forme à part, ou collé à son voisinage. On propose donc, dans l'ordre :
  *
- *  1. la plus **pleine** des formes à la taille du numéro — un pavé occupe sa boîte, une lettre
- *     ou un trait non ;
+ *  1. la plus **pleine** des formes à la taille du numéro et assez large pour porter un chiffre —
+ *     un pavé occupe sa boîte, une lettre non, et un trait du seuillage l'occupe trop bien ;
  *  2. la plus **grande** d'un seul tenant ;
  *  3. la boîte de tout ce qui est sombre, en dernier ressort.
  *
@@ -369,6 +388,11 @@ export function formesCandidates(binaire: ImageGrise, hauteurNumero: number): Bo
     if (laPlusGrande === undefined || forme.pixels > laPlusGrande.pixels) laPlusGrande = forme;
     const { h, l } = forme.boite;
     if (h < hauteurNumero * 0.5 || h > hauteurNumero * 3 || l > hauteurNumero * 7) continue;
+    // Et pas un éclat du seuillage. Il faut l'écarter **ici**, et non plus loin : un trait plein
+    // est plus plein qu'un pavé — dont les chiffres clairs font des trous — et devenait donc « la
+    // plus pleine ». La présence, qui ne juge que cette première forme, abandonnait alors tout le
+    // repère, alors que le pavé était là, à côté. Mesuré : cinq premiers éléments perdus sur F4.
+    if (l < h * LARGEUR_MINIMALE_REPERE) continue;
     const plein = remplissage(forme);
     if (plein < REMPLISSAGE_MINIMAL) continue;
     if (
@@ -597,6 +621,14 @@ export function lecturesDePage(image: ImageGrise, recette: Recette, options: Opt
  *  et les zones n'arrivaient nulle part sans qu'une seule erreur ne le dise. Un cache qui ne
  *  connaît pas la forme de ce qu'il garde finit par servir le passé.
  *
+ *  8 : le choix de forme écarte les éclats du seuillage, et la présence d'un repère juge aussi sa
+ *  largeur. Un trait plein de trois pixels sur dix-huit ne passe plus pour un repère.
+ *
+ *  La version 7 ne portait que la seconde moitié de cette règle, et c'était un défaut : un éclat
+ *  est plus plein qu'un pavé — dont les chiffres clairs font des trous —, il était donc proposé en
+ *  première forme, et l'écarter là faisait abandonner tout le repère. Cinq premiers éléments
+ *  perdus sur F4. Elle n'a jamais été mesurée pour elle-même, et la 8 la remplace.
+ *
  *  5 : la relecture d'un repère tente deux familles de seuils et cinq parts du bloc, au lieu
  *  d'une famille et de trois parts.
  *
@@ -606,7 +638,7 @@ export function lecturesDePage(image: ImageGrise, recette: Recette, options: Opt
  *  3 : l'orientation du lot est désormais votée au lieu d'être crue sur parole. Ce n'est pas la
  *  forme d'une lecture qui change, c'est ce qu'elle lit — une page remise à l'endroit rend six
  *  éléments là où elle n'en rendait aucun. La version compte donc aussi pour cela. */
-export const VERSION_LECTURE = 6;
+export const VERSION_LECTURE = 8;
 
 /** Hauteur en deçà de laquelle deux lectures parlent du même élément. */
 const MEME_HAUTEUR = 0.03;

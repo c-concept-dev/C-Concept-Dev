@@ -295,3 +295,66 @@ describe("le plafond de dépense s'arrête avant l'appel qui le dépasserait (RE
     expect(rejeu.nonRelus).toEqual([]);
   });
 });
+
+describe("une entrée gardée qui ne répond plus à la question (lot D, REC-02)", () => {
+  const transportAvecVerdict = (): Transport & { appels: number } => {
+    const fonction = (async (demande: DemandeVision) => {
+      fonction.appels += 1;
+      return ReponseVision.parse({
+        zones: demande.zones.map((zone) => ({
+          empreinte: zone.empreinte,
+          numero: 14,
+          confiance: 0.9,
+          ...(zone.cherche === "repere" ? { repere: "present" as const } : {}),
+        })),
+        jetons: { entree: 100, sortie: 20 },
+        outil: { nom: "vision-ciblee", version: "0.1.0" },
+      });
+    }) as Transport & { appels: number };
+    fonction.appels = 0;
+    return fonction;
+  };
+
+  const surRepere = (numero: number): Candidat => ({ ...candidat(numero), cherche: "repere" });
+
+  it("est redemandée une fois quand le verdict manque", async () => {
+    const cache = cacheDansDossier(dossier);
+    // Première demande : un nombre seul. L'entrée gardée ne porte donc aucun verdict.
+    const avant = transportQuiRepond();
+    await relire([candidat(1)], (c) => page(c.numero), RECETTE, avant, { cache });
+    expect(entreesGardees(dossier)).toBe(1);
+
+    // Puis la même image, avec le verdict demandé : l'entrée ne répond plus, elle est refaite.
+    const apres = transportAvecVerdict();
+    const vue = await relire([surRepere(1)], (c) => page(c.numero), RECETTE, apres, { cache });
+    expect(apres.appels).toBe(1);
+    expect(vue.depuisLeCache).toBe(0);
+    expect(vue.relues[0]!.zone.repere).toBe("present");
+  });
+
+  it("et la fois suivante elle répond : redemandée une fois, pas à chaque passage", async () => {
+    const cache = cacheDansDossier(dossier);
+    const transport = transportAvecVerdict();
+    await relire([surRepere(1)], (c) => page(c.numero), RECETTE, transport, { cache });
+    const rejeu = await relire([surRepere(1)], (c) => page(c.numero), RECETTE, jamais, { cache });
+    expect(rejeu.depuisLeCache).toBe(1);
+    expect(rejeu.relues[0]!.zone.repere).toBe("present");
+  });
+
+  it("une entrée avec verdict sert aussi une demande qui n'en veut pas", async () => {
+    const cache = cacheDansDossier(dossier);
+    await relire([surRepere(1)], (c) => page(c.numero), RECETTE, transportAvecVerdict(), { cache });
+    const vue = await relire([candidat(1)], (c) => page(c.numero), RECETTE, jamais, { cache });
+    expect(vue.depuisLeCache).toBe(1);
+  });
+
+  it("deux candidats sur la même image ne la demandent qu'une fois", async () => {
+    const transport = transportAvecVerdict();
+    // Deux candidats dont le recadrage donne les mêmes pixels : même empreinte, un seul envoi.
+    const jumeaux = [surRepere(1), { ...surRepere(1), numero: 2 }];
+    const vue = await relire(jumeaux, () => page(1), RECETTE, transport, { cache: cacheDansDossier(dossier) });
+    expect(transport.appels).toBe(1);
+    expect(vue.relues).toHaveLength(2);
+    expect(vue.relues.map((relue) => relue.zone.repere)).toEqual(["present", "present"]);
+  });
+});

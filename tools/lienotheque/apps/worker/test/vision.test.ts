@@ -14,19 +14,20 @@ const JETON = "jeton-de-test";
 const liaisons = { ANTHROPIC_API_KEY: CLE, JETON_ACCES: JETON };
 
 /** Un recadrage minuscule mais conforme : un pixel encodé, ce qui suffit au contrat. */
-const zone = (empreinte: string): ZoneAlire => ({
+const zone = (empreinte: string, cherche: ZoneAlire["cherche"] = "numero"): ZoneAlire => ({
   empreinte,
   image: Buffer.from([0x89, 0x50, 0x4e, 0x47]).toString("base64"),
   typeMime: "image/webp",
   largeur: 160,
   hauteur: 110,
+  cherche,
   attendu: { min: 1, max: 92 },
 });
 
 const EMPREINTE = "a".repeat(32);
 const AUTRE = "b".repeat(32);
 const demande = (...empreintes: string[]): DemandeVision =>
-  DemandeVision.parse({ alphabet: "chiffres", zones: (empreintes.length === 0 ? [EMPREINTE] : empreintes).map(zone) });
+  DemandeVision.parse({ alphabet: "chiffres", zones: (empreintes.length === 0 ? [EMPREINTE] : empreintes).map((empreinte) => zone(empreinte)) });
 
 const reponse = (zones: { empreinte: string; numero: number | null; confiance: number }[]) => ({
   zones,
@@ -199,12 +200,15 @@ describe("l'appel au modèle (OUT-08)", () => {
     expect(corps).not.toContain(CLE);
   });
 
-  it("annonce chaque image par son empreinte, et borne ce qu'on attend", () => {
+  it("annonce chaque image par son rang, et borne ce qu'on attend", () => {
     const corps = corpsDAppel(demande(EMPREINTE, AUTRE)) as { messages: { content: { type: string; text?: string }[] }[] };
     const textes = corps.messages[0]!.content.filter((bloc) => bloc.type === "text").map((bloc) => bloc.text!);
-    expect(textes.some((texte) => texte.includes(EMPREINTE))).toBe(true);
-    expect(textes.some((texte) => texte.includes(AUTRE))).toBe(true);
+    expect(textes.some((texte) => texte.includes("Image 1"))).toBe(true);
+    expect(textes.some((texte) => texte.includes("Image 2"))).toBe(true);
     expect(textes.some((texte) => texte.includes("entre 1 et 92"))).toBe(true);
+    // Et surtout pas l'empreinte : trente-deux caractères hexadécimaux se recopient mal, et une
+    // seule faute faisait refuser toute la réponse.
+    expect(textes.some((texte) => texte.includes(EMPREINTE))).toBe(false);
   });
 
   it("marque la consigne pour la mise en cache : elle est identique d'un appel à l'autre", () => {
@@ -234,7 +238,7 @@ describe("l'appel au modèle (OUT-08)", () => {
     const fausse: typeof fetch = async () =>
       new Response(
         JSON.stringify({
-          content: [{ type: "tool_use", name: "rendre_les_nombres", input: { zones: [{ empreinte: EMPREINTE, numero: 14, confiance: 0.9 }] } }],
+          content: [{ type: "tool_use", name: "rendre_les_nombres", input: { zones: [{ image: 1, numero: 14, confiance: 0.9 }] } }],
           usage: { input_tokens: 137, output_tokens: 21 },
         }),
       );
@@ -260,5 +264,121 @@ describe("estimer avant de dépenser (REC-04)", () => {
     const app = creerApp();
     const vue = await app.request("/vision/jetons", { method: "POST", body: "{}" }, liaisons);
     expect(vue.status).toBe(401);
+  });
+});
+
+describe("une question, un formulaire (OUT-08)", () => {
+  const surRepere = (): DemandeVision =>
+    DemandeVision.parse({ alphabet: "chiffres", zones: [zone(EMPREINTE, "repere"), zone(AUTRE, "repere")] });
+
+  it("refuse deux questions dans le même appel", () => {
+    expect(DemandeVision.safeParse({ alphabet: "chiffres", zones: [zone(EMPREINTE, "repere"), zone(AUTRE, "numero")] }).success).toBe(false);
+  });
+
+  it("exige le verdict dans le formulaire quand on demande un repère", () => {
+    const corps = corpsDAppel(surRepere()) as { tools: { input_schema: { properties: { zones: { items: { required: string[]; properties: Record<string, unknown> } } } } }[] };
+    const item = corps.tools[0]!.input_schema.properties.zones.items;
+    expect(item.required).toContain("repere");
+    expect(item.properties.repere).toBeDefined();
+  });
+
+  it("ne le met pas dans le formulaire quand on demande un nombre", () => {
+    const corps = corpsDAppel(demande()) as { tools: { input_schema: { properties: { zones: { items: { required: string[]; properties: Record<string, unknown> } } } } }[] };
+    const item = corps.tools[0]!.input_schema.properties.zones.items;
+    expect(item.required).not.toContain("repere");
+    expect(item.properties.repere).toBeUndefined();
+  });
+
+  it("donne une consigne différente selon la question, et la marque pour la mise en cache", () => {
+    const texte = (demande: DemandeVision) =>
+      ((corpsDAppel(demande) as { messages: { content: { type: string; text?: string; cache_control?: unknown }[] }[] }).messages[0]!.content[0]!);
+    expect(texte(surRepere()).text).toMatch(/cartouche/);
+    expect(texte(surRepere()).text).toMatch(/incertain/);
+    expect(texte(demande()).text).not.toMatch(/cartouche/);
+    expect(texte(surRepere()).cache_control).toEqual({ type: "ephemeral" });
+  });
+
+  it("refuse une réponse sans verdict là où la question en demandait un", async () => {
+    const app = creerApp({
+      lecteur: () => async () =>
+        ReponseVision.parse({
+          zones: [
+            { empreinte: EMPREINTE, numero: 14, confiance: 0.9 },
+            { empreinte: AUTRE, numero: 15, confiance: 0.9 },
+          ],
+          jetons: { entree: 1, sortie: 1 },
+          outil: { nom: OUTIL.nom, version: OUTIL.version },
+        }),
+    });
+    const vue = await app.request(
+      "/vision",
+      { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${JETON}` }, body: JSON.stringify(surRepere()) },
+      liaisons,
+    );
+    expect(vue.status).toBe(502);
+  });
+
+  it("accepte « absent » avec un nombre nul, et refuse « absent » avec un nombre", async () => {
+    const avec = (zones: Record<string, unknown>[]) =>
+      creerApp({ lecteur: () => async () => ({ zones, jetons: { entree: 1, sortie: 1 }, outil: OUTIL }) as unknown as ReponseVision }).request(
+        "/vision",
+        { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${JETON}` }, body: JSON.stringify(surRepere()) },
+        liaisons,
+      );
+    expect(
+      (
+        await avec([
+          { empreinte: EMPREINTE, repere: "absent", numero: null, confiance: 0 },
+          { empreinte: AUTRE, repere: "present", numero: 15, confiance: 0.8 },
+        ])
+      ).status,
+    ).toBe(200);
+    expect((await avec([{ empreinte: EMPREINTE, repere: "absent", numero: 14, confiance: 0.9 }])).status).toBe(502);
+  });
+});
+
+describe("le rang plutôt que l'empreinte (lot D)", () => {
+  const reponseDuModele = (zones: Record<string, unknown>[]): typeof fetch => async () =>
+    new Response(JSON.stringify({ content: [{ type: "tool_use", name: "rendre_les_nombres", input: { zones } }], usage: { input_tokens: 1, output_tokens: 1 } }));
+
+  it("rend le rang à son empreinte, de notre côté", async () => {
+    const lue = await lireParModele(CLE, reponseDuModele([
+      { image: 2, numero: 15, confiance: 0.8 },
+      { image: 1, numero: 14, confiance: 0.9 },
+    ]))(demande(EMPREINTE, AUTRE));
+    expect(lue.zones.find((zone) => zone.empreinte === EMPREINTE)?.numero).toBe(14);
+    expect(lue.zones.find((zone) => zone.empreinte === AUTRE)?.numero).toBe(15);
+  });
+
+  it("refuse un rang qu'on n'a pas montré", async () => {
+    await expect(lireParModele(CLE, reponseDuModele([{ image: 7, numero: 14, confiance: 0.9 }]))(demande())).rejects.toThrow(/pas conforme/);
+  });
+
+  it("refuse un rang qui n'est pas un nombre", async () => {
+    await expect(lireParModele(CLE, reponseDuModele([{ image: "un", numero: 14, confiance: 0.9 }]))(demande())).rejects.toThrow(/pas conforme/);
+  });
+
+  it("demande un entier dans le formulaire, pas une chaîne", () => {
+    const corps = corpsDAppel(demande()) as { tools: { input_schema: { properties: { zones: { items: { properties: { image: { type: string } } } } } } }[] };
+    expect(corps.tools[0]!.input_schema.properties.zones.items.properties.image.type).toBe("integer");
+  });
+});
+
+describe("un refus de contrat dit quel champ, et rien de plus (lot D, SEC-01)", () => {
+  const reponseDuModele = (zones: Record<string, unknown>[]): typeof fetch => async () =>
+    new Response(JSON.stringify({ content: [{ type: "tool_use", name: "rendre_les_nombres", input: { zones } }], usage: { input_tokens: 1, output_tokens: 1 } }));
+
+  it("nomme le chemin du champ fautif", async () => {
+    await expect(
+      lireParModele(CLE, reponseDuModele([{ image: 1, numero: null, confiance: 0.7 }]))(demande()),
+    ).rejects.toThrow(/zones\.0\.confiance/);
+  });
+
+  it("ne relaie pas la valeur reçue : elle vient du modèle", async () => {
+    try {
+      await lireParModele(CLE, reponseDuModele([{ image: 1, numero: null, confiance: 0.7 }]))(demande());
+    } catch (leve) {
+      expect(String(leve)).not.toContain("0.7");
+    }
   });
 });

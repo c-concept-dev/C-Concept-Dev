@@ -131,11 +131,13 @@ describe("candidats d'une page (OUT-08, REC-04)", () => {
   });
 
   it("s'arrête au plafond par page que la recette déclare", () => {
-    const beaucoup = Array.from({ length: 12 }, (_, rang) =>
-      element({ numero: rang + 1, y: rang / 12, zoneRepere: repere(rang / 12), pisteLue: undefined }),
+    // On ne fixe pas la valeur : elle n'est plus un budget mais un garde-fou, et elle bouge. Ce
+    // qui doit tenir, c'est que le plafond s'applique.
+    const plafond = AVEC.vision!.zones_max_par_page;
+    const beaucoup = Array.from({ length: plafond + 6 }, (_, rang) =>
+      element({ numero: rang + 1, y: rang / (plafond + 6), zoneRepere: repere(rang / (plafond + 6)), pisteLue: undefined }),
     );
-    expect(AVEC.vision?.zones_max_par_page).toBe(6);
-    expect(candidatsDePage(page(beaucoup), AVEC)).toHaveLength(6);
+    expect(candidatsDePage(page(beaucoup), AVEC)).toHaveLength(plafond);
   });
 
   it("rend le même résultat à chaque exécution", () => {

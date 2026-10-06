@@ -151,10 +151,17 @@ export function numeroterPages(
 
 export type { Ecart };
 
-/** Ce qu'une relecture ciblée a lu sur un repère (OUT-08, ANC-02). */
+/** Ce qu'une relecture ciblée a vu sur un repère (OUT-08, ANC-02).
+ *
+ *  Deux choses, et la seconde est celle qui manquait : le nombre lu, et si un repère est là. Une
+ *  lecture seule ne dit pas si ce qu'elle a lu **en est** un, et sur le corpus de référence la
+ *  détection tire environ trois fois trop souvent. */
 export type LectureParVision = {
-  readonly numero: number;
+  readonly numero?: number | undefined;
   readonly confiance: number;
+  /** « absent » : ce n'était pas un repère. « present » : c'en est un. « incertain » : le modèle
+   *  a hésité, et le dire est une réponse. Absent du tout quand on n'a demandé qu'un nombre. */
+  readonly repere?: "present" | "absent" | "incertain" | undefined;
   readonly outil: { readonly nom: string; readonly version: string };
 };
 
@@ -233,17 +240,25 @@ export function sequencer(
 
   const porteurs: number[] = [];
   numerotes.forEach((element, rang) => {
-    if (element.pisteLue !== undefined || relu(element) !== undefined) porteurs.push(rang);
+    const vision = relu(element);
+    // Un pavé déclaré « absent » n'est pas un repère : il ne peut pas ouvrir une piste, et la
+    // lecture qu'on en avait tirée n'a plus de provenance. C'est le levier de ce lot — la
+    // détection locale tire trois fois trop souvent, et rien dans la lecture ne le disait.
+    if (vision?.repere === "absent") return;
+    if (element.pisteLue !== undefined || vision?.numero !== undefined) porteurs.push(rang);
   });
   const lectures = porteurs.map((rang) => {
     const element = numerotes[rang]!;
     const vision = relu(element);
     // Quand les deux existent, la relecture l'emporte comme lecture : la locale était tronquée,
-    // c'est précisément pourquoi le pavé est parti.
+    // c'est précisément pourquoi le pavé est parti. Et un verdict « present » renforce ce que
+    // l'élément pèse, sans inventer de valeur : on prend le meilleur des deux accords.
+    const accord = vision === undefined ? element.accordPiste : Math.max(element.accordPiste, vision.confiance);
     return {
       ...element,
       numero: element.numeroRetenu,
-      ...(vision === undefined ? {} : { pisteLue: vision.numero, accordPiste: vision.confiance }),
+      ...(vision?.numero === undefined ? {} : { pisteLue: vision.numero }),
+      ...(vision === undefined ? {} : { accordPiste: vision.repere === "present" ? accord : vision.confiance }),
     };
   });
 
@@ -339,7 +354,7 @@ export function sequencer(
       // lecture de plus, et si elle a tranché ailleurs c'est qu'elle la contredit — on ne
       // l'applique pas, et l'élément ira se faire vérifier.
       const vision = relu(element);
-      if (vision !== undefined) sourcePiste = vision.numero === piste ? "vision" : "sequence";
+      if (vision?.numero !== undefined) sourcePiste = vision.numero === piste ? "vision" : "sequence";
     } else if (pisteSuitElement) {
       piste = element.numeroRetenu;
       sourcePiste = "numero_element";
@@ -365,7 +380,7 @@ export function sequencer(
     // que Vérifier le montre. Ce n'est pas un artifice d'affichage : une relecture contredite
     // par ses voisines est exactement un cas qu'un œil doit trancher (ANC-02, CLA-05).
     const confiance =
-      vision !== undefined && sourcePiste !== "vision" ? Math.min(tenue, recette.validation.seuil_confiance * 0.9) : tenue;
+      vision?.numero !== undefined && sourcePiste !== "vision" ? Math.min(tenue, recette.validation.seuil_confiance * 0.9) : tenue;
 
     lignes.push({
       numero: element.numeroRetenu,
