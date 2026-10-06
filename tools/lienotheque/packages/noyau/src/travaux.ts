@@ -1,5 +1,6 @@
 import {
   BATTEMENT_VERROU_S,
+  TRAVAUX_LOURDS_SIMULTANES,
   EXPIRATION_VERROU_S,
   ETATS_TERMINAUX,
   type EtatTravail,
@@ -102,6 +103,14 @@ export function prochain(travaux: readonly Travail[], maintenant: Date): Travail
   return [...travaux]
     .filter((t) => reprenable(t, maintenant))
     .sort((a, b) => repriseA(b) - repriseA(a) || a.creeLe.localeCompare(b.creeLe))[0];
+}
+
+/** Combien de travaux lourds peuvent encore partir, sachant ceux qui tournent (PLT-02).
+ *
+ *  Jamais négatif : si plus de travaux tiennent un bail qu'il n'y a de places — ce qu'un
+ *  redémarrage mal tombé peut produire —, on n'en lance aucun de plus, on ne va pas en retirer. */
+export function placesLibres(enCours: number): number {
+  return Math.max(0, TRAVAUX_LOURDS_SIMULTANES - enCours);
 }
 
 /** Rejouer la même demande ne crée pas un second travail (JOB-04). */

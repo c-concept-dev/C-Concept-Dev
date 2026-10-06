@@ -1,0 +1,166 @@
+{
+  "_lisez_moi": "Les décisions de la file de travaux, écrites une fois et éprouvées des deux côtés. Le TypeScript du noyau et l'hôte Rust implémentent ces règles chacun dans son langage — c'est inévitable avec deux moteurs d'exécution — mais ils se mesurent à cette seule vérité. Une divergence devient un test rouge, jamais un écart silencieux. Les instants sont en secondes depuis l'époque.",
+
+  "reprenable": [
+    {
+      "nom": "un travail en file, que personne ne tient, part",
+      "exigence": "JOB-02",
+      "etat": "en_file",
+      "bailExpireLe": null,
+      "maintenant": 1000,
+      "attendu": true
+    },
+    {
+      "nom": "un travail tenu par un bail vivant ne se vole pas",
+      "exigence": "JOB-02",
+      "etat": "en_cours",
+      "bailExpireLe": 1015,
+      "maintenant": 1014,
+      "attendu": false
+    },
+    {
+      "nom": "à la seconde où le bail expire, le travail redevient libre",
+      "exigence": "JOB-02",
+      "etat": "en_cours",
+      "bailExpireLe": 1015,
+      "maintenant": 1015,
+      "attendu": true
+    },
+    {
+      "nom": "un processus tué cesse de battre, et son travail repart",
+      "exigence": "JOB-02",
+      "etat": "en_cours",
+      "bailExpireLe": 1015,
+      "maintenant": 9999,
+      "attendu": true
+    },
+    {
+      "nom": "un travail mis en pause attend une reprise explicite, pas l'expiration d'un bail",
+      "exigence": "JOB-08",
+      "etat": "en_pause",
+      "bailExpireLe": null,
+      "maintenant": 9999,
+      "attendu": false
+    },
+    {
+      "nom": "un travail terminé ne repart jamais",
+      "exigence": "JOB-04",
+      "etat": "termine",
+      "bailExpireLe": null,
+      "maintenant": 9999,
+      "attendu": false
+    },
+    {
+      "nom": "un travail annulé ne repart jamais",
+      "exigence": "JOB-08",
+      "etat": "annule",
+      "bailExpireLe": null,
+      "maintenant": 9999,
+      "attendu": false
+    },
+    {
+      "nom": "un échec définitif ne repart pas de lui-même",
+      "exigence": "JOB-05",
+      "etat": "en_echec_definitif",
+      "bailExpireLe": null,
+      "maintenant": 9999,
+      "attendu": false
+    },
+    {
+      "nom": "un échec récupérable, lui, repart",
+      "exigence": "JOB-05",
+      "etat": "en_echec_recuperable",
+      "bailExpireLe": null,
+      "maintenant": 9999,
+      "attendu": true
+    }
+  ],
+
+  "ordre": [
+    {
+      "nom": "ce qui était entamé passe avant ce qui n'a pas commencé",
+      "exigence": "JOB-03",
+      "maintenant": 1000,
+      "travaux": [
+        { "id": "recent", "etat": "en_file", "creeLe": 300, "reprise": 0, "bailExpireLe": null },
+        { "id": "ancien", "etat": "en_file", "creeLe": 100, "reprise": 0, "bailExpireLe": null },
+        { "id": "entame", "etat": "en_file", "creeLe": 500, "reprise": 7, "bailExpireLe": null }
+      ],
+      "attendu": "entame"
+    },
+    {
+      "nom": "à égalité d'avancement, le plus ancien passe d'abord",
+      "exigence": "JOB-01",
+      "maintenant": 1000,
+      "travaux": [
+        { "id": "recent", "etat": "en_file", "creeLe": 300, "reprise": 0, "bailExpireLe": null },
+        { "id": "ancien", "etat": "en_file", "creeLe": 100, "reprise": 0, "bailExpireLe": null }
+      ],
+      "attendu": "ancien"
+    },
+    {
+      "nom": "le plus avancé des entamés passe en premier",
+      "exigence": "JOB-03",
+      "maintenant": 1000,
+      "travaux": [
+        { "id": "peu", "etat": "en_file", "creeLe": 100, "reprise": 2, "bailExpireLe": null },
+        { "id": "beaucoup", "etat": "en_file", "creeLe": 500, "reprise": 40, "bailExpireLe": null }
+      ],
+      "attendu": "beaucoup"
+    },
+    {
+      "nom": "un travail tenu par un bail vivant n'est pas servi",
+      "exigence": "JOB-02",
+      "maintenant": 1000,
+      "travaux": [
+        { "id": "tenu", "etat": "en_cours", "creeLe": 100, "reprise": 9, "bailExpireLe": 1015 },
+        { "id": "libre", "etat": "en_file", "creeLe": 500, "reprise": 0, "bailExpireLe": null }
+      ],
+      "attendu": "libre"
+    },
+    {
+      "nom": "une file vide ne sert rien",
+      "exigence": "JOB-01",
+      "maintenant": 1000,
+      "travaux": [],
+      "attendu": null
+    },
+    {
+      "nom": "une file où plus rien n'est reprenable ne sert rien",
+      "exigence": "JOB-08",
+      "maintenant": 1000,
+      "travaux": [
+        { "id": "fini", "etat": "termine", "creeLe": 100, "reprise": 10, "bailExpireLe": null },
+        { "id": "suspendu", "etat": "en_pause", "creeLe": 200, "reprise": 3, "bailExpireLe": null }
+      ],
+      "attendu": null
+    }
+  ],
+
+  "places": [
+    {
+      "nom": "rien ne tourne : les deux places sont libres",
+      "exigence": "PLT-02",
+      "enCours": 0,
+      "attendu": 2
+    },
+    {
+      "nom": "un travail lourd tourne : il reste une place",
+      "exigence": "PLT-02",
+      "enCours": 1,
+      "attendu": 1
+    },
+    {
+      "nom": "deux travaux lourds tournent : on n'en lance pas un troisième",
+      "exigence": "PLT-02",
+      "enCours": 2,
+      "attendu": 0
+    },
+    {
+      "nom": "plus de travaux que de places ne rend jamais un compte négatif",
+      "exigence": "PLT-02",
+      "enCours": 5,
+      "attendu": 0
+    }
+  ]
+}

@@ -48,6 +48,12 @@ pub struct Travail {
     pub etat: String,
     pub tentative: u32,
     pub total: u32,
+    /// Quand le travail est entré en file (JOB-01). C'est lui qui départage deux travaux aussi
+    /// avancés l'un que l'autre : le plus ancien passe d'abord.
+    ///
+    /// Par défaut à l'absence, pour qu'une file écrite avant ce champ se relise sans se perdre.
+    #[serde(default)]
+    pub cree_le: u64,
     pub verrou: Option<Verrou>,
     pub point_reprise: Option<PointReprise>,
 }
@@ -60,6 +66,7 @@ impl Travail {
             etat: "en_file".to_owned(),
             tentative: 1,
             total,
+            cree_le: maintenant(),
             verrou: None,
             point_reprise: None,
         }
