@@ -35,13 +35,35 @@ const PANNEAU = `
     puis composée sur un canvas de 1920×1080 exactement. Le mode capture est actif par défaut :
     aucune animation de nombre, donc jamais de valeur intermédiaire à l'image.
   </p>
+  <p class="note" style="color:#667;font-size:13px;margin:0 0 10px;max-width:78ch;">
+    <strong>Pour mesurer sur une de vos vraies présentations</strong> : cette page EST l'application.
+    Réduisez le panneau, ouvrez votre présentation comme d'habitude, rouvrez le panneau, puis
+    cliquez « Utiliser la présentation ouverte ». Rien n'est exporté, rien n'est écrit sur le
+    disque, rien n'entre au dépôt — le document est lu en mémoire. Vous pouvez aussi charger un
+    fichier JSON déjà en votre possession.
+  </p>
   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
-    <select id="bc-presentation" style="font:inherit;padding:5px 8px;"></select>
+    <select id="bc-presentation" style="font:inherit;padding:5px 8px;max-width:30em;"></select>
     <label style="font-size:13px;"><input type="checkbox" id="bc-mode-capture" checked> mode capture</label>
+    <label style="font-size:13px;">scène
+      <select id="bc-scene" style="font:inherit;padding:4px 6px;">
+        <option value="">1422x800 (lecteur)</option>
+        <option value="960x540">960x540</option>
+      </select></label>
+    <label style="font-size:13px;">typo
+      <select id="bc-typo" style="font:inherit;padding:4px 6px;">
+        <option value="1">x1</option><option value="1.4">x1,4</option><option value="1.6">x1,6</option>
+      </select></label>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
     <button id="bc-rendre" style="font:inherit;padding:6px 12px;cursor:pointer;">Rendre les images</button>
     <button id="bc-tout" style="font:inherit;padding:6px 12px;cursor:pointer;">Rendre les trois</button>
     <button id="bc-jpeg" style="font:inherit;padding:6px 12px;cursor:pointer;" disabled>Télécharger en JPEG haute qualité</button>
     <button id="bc-perime" style="font:inherit;padding:6px 12px;cursor:pointer;" disabled>Modifier un texte et revérifier</button>
+    <button id="bc-ouverte" style="font:inherit;padding:6px 12px;cursor:pointer;">Utiliser la présentation ouverte</button>
+    <label style="font:inherit;padding:6px 12px;border:1px solid #888;border-radius:6px;cursor:pointer;">Charger un JSON
+      <input type="file" id="bc-fichier" accept="application/json,.json" hidden></label>
+    <button id="bc-reduire" style="font:inherit;padding:6px 12px;cursor:pointer;">Réduire le panneau</button>
   </div>
   <div id="bc-etat" style="font-family:ui-monospace,Menlo,monospace;font-size:12px;white-space:pre-wrap;min-height:3em;"></div>
   <table id="bc-recap" style="border-collapse:collapse;font-size:12px;margin:10px 0;"><tbody></tbody></table>
@@ -78,10 +100,9 @@ const PANNEAU = `
     $('bc-vignettes').innerHTML = '';
     var tasAvant = tas();
     var t0 = performance.now();
-    var res = await window.AtelierImages.rendreImages(p.doc, {
-      modeCapture: $('bc-mode-capture').checked,
+    var res = await window.AtelierImages.rendreImages(p.doc, Object.assign(reglages(), {
       surAvancement: function (a) { dire('rendu : image ' + a.fait + ' sur ' + a.total + '  (' + a.stepId + ')'); },
-    });
+    }));
     var murs = Math.round(performance.now() - t0);
     var tasApres = tas();
     dire('terminé — ' + res.images.length + ' images');
@@ -102,7 +123,10 @@ const PANNEAU = `
       : mo(tasAvant) + ' avant, ' + mo(tasApres) + ' après, écart ' + mo(tasApres - tasAvant)
         + '  —  valeur quantifiée par Chrome, souvent inchangée : à ne pas lire comme une mesure');
     ligne('SnapDOM', res.snapdom + ', copie locale épinglée');
-    ligne('scène puis sortie', res.scene.largeur + 'x' + res.scene.hauteur + '  puis  ' + res.sortie.largeur + 'x' + res.sortie.hauteur);
+    ligne('scène puis sortie', res.scene.largeur + 'x' + res.scene.hauteur
+      + (res.scene_par_defaut ? ' (celle du lecteur)' : ' (imposée)')
+      + '  puis  ' + res.sortie.largeur + 'x' + res.sortie.hauteur);
+    ligne('échelle typographique', res.echelle_typo === 1 ? 'aucune' : 'x' + String(res.echelle_typo).replace('.', ','));
     var debordants = res.images.filter(function (im) { return im.debordement; });
     ligne('débordements', debordants.length
       ? debordants.map(function (im) { return im.stepId + ' : scène ' + im.hauteurScene + 'px, image ' + im.largeur + 'x' + im.hauteur; }).join('  |  ')
@@ -132,6 +156,61 @@ const PANNEAU = `
     return res;
   }
 
+  function reglages() {
+    var sc = $('bc-scene').value;
+    var paire = sc ? sc.split('x') : null;
+    return {
+      modeCapture: $('bc-mode-capture').checked,
+      scene: paire ? { largeur: Number(paire[0]), hauteur: Number(paire[1]) } : null,
+      echelleTypo: Number($('bc-typo').value) || 1,
+    };
+  }
+  function ajouter(p) {
+    PRESENTATIONS.push(p);
+    var o = document.createElement('option');
+    o.value = String(PRESENTATIONS.length - 1); o.textContent = p.nom;
+    sel.appendChild(o); sel.value = o.value;
+  }
+  // Le document VIVANT de l'espace de travail, lu en mémoire. Rien n'est écrit, rien n'est
+  // envoyé : c'est le même objet que celui que l'éditeur manipule.
+  $('bc-ouverte').onclick = function () {
+    var cle = window._adocWsState && window._adocWsState.storeKey;
+    var art = cle && window._adocArtifacts && window._adocArtifacts[cle];
+    var doc = art && art._adocStructuredDoc;
+    if (!doc) { dire('Aucun document structuré ouvert. Réduisez le panneau, ouvrez une présentation, puis revenez.'); return; }
+    if (doc.documentKind !== 'presentation') {
+      dire('Le document ouvert est un « ' + doc.documentKind + ' » : le chutier ne rend que des Présentations.'); return;
+    }
+    ajouter({ cle: 'ouverte', nom: 'OUVERTE — ' + (doc.title || cle), doc: doc });
+    dire('Présentation « ' + (doc.title || cle) + ' » reprise de l’espace de travail : '
+      + (doc.blocks || []).length + ' diapositives, ' + window.adocPresentStepList(doc).length + ' étapes. '
+      + 'Rien n’a été copié ni enregistré.');
+  };
+  $('bc-fichier').onchange = function (e) {
+    var f = e.target.files && e.target.files[0];
+    if (!f) return;
+    var fr = new FileReader();
+    fr.onload = function () {
+      try {
+        var brut = JSON.parse(String(fr.result));
+        var doc = brut.clinicalDocument || brut;
+        if (!doc || doc.documentKind !== 'presentation') { dire('Ce fichier ne contient pas une Présentation.'); return; }
+        ajouter({ cle: 'fichier', nom: 'FICHIER — ' + (doc.title || f.name), doc: doc });
+        dire('Chargé : ' + f.name + ' — ' + window.adocPresentStepList(doc).length + ' étapes. Le fichier n’est pas copié.');
+      } catch (err) { dire('Lecture impossible : ' + (err && err.message || err)); }
+    };
+    fr.readAsText(f);
+  };
+  $('bc-reduire').onclick = function () {
+    var panneau = $('banc-chutier');
+    panneau.style.display = 'none';
+    var rouvrir = document.createElement('button');
+    rouvrir.textContent = 'Rouvrir le chutier';
+    rouvrir.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:99999;font:14px -apple-system,system-ui,sans-serif;'
+      + 'padding:8px 14px;border:1px solid #888;border-radius:8px;background:#fffdf9;cursor:pointer;';
+    rouvrir.onclick = function () { panneau.style.display = ''; rouvrir.remove(); };
+    document.body.appendChild(rouvrir);
+  };
   $('bc-rendre').onclick = async function () {
     this.disabled = true;
     try { await rendre(PRESENTATIONS[Number(sel.value)]); }
@@ -141,7 +220,7 @@ const PANNEAU = `
   $('bc-tout').onclick = async function () {
     this.disabled = true;
     var lignes = [];
-    for (var i = 0; i < PRESENTATIONS.length; i++) {
+    for (var i = 0; i < 3; i++) {
       try {
         var r = await rendre(PRESENTATIONS[i]);
         lignes.push(PRESENTATIONS[i].nom + ' : ' + r.images.length + ' images, ' + mo(r.octets_total) + ', ' + r.duree_ms + ' ms');

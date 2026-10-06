@@ -141,6 +141,112 @@ Pour l'arrêter : `kill %1`. Pour reforger la page :
 
 ---
 
+## 7. Suite du 6 octobre — ce que la capture retire, et quatre réglages de typographie
+
+### 7.1 Ce que la capture retire (approuvé par Christophe)
+
+Une couche de style qui ne s'applique qu'à la scène hors écran, par l'attribut
+`[data-atelier-capture]` que seule cette scène porte. **Mesuré sur chaque étape des trois
+présentations :**
+
+| | Avant | Après |
+|---|---|---|
+| Bordure de la carte | 1 px | **0 px** |
+| Rayon de la carte | 12 px | **0 px** |
+| Ombre | — | **aucune** |
+| Loupe d'agrandissement visible | 1 | **0** |
+| Éléments habillés en bouton | 17 | **0** |
+| Hauteur du questionnaire | 1 496 px | **1 125 px** (scène 833 au lieu de 1 108) |
+
+Les questions et les libellés de réponses restent — c'est vérifié positivement, pas seulement
+l'absence du reste. Seize éléments demeurent cliquables **dans le DOM** ; aucun ne ressemble plus
+à un bouton **à l'image**, et seule cette seconde propriété se voit sur une vidéo. Le contrôle
+exige aussi qu'au moins une étape porte une loupe dans son DOM : sans cela, « aucune visible »
+serait vrai faute de loupe, et ne prouverait rien.
+
+**Deux lectures que j'ai tranchées, et qui se renversent en une ligne.**
+
+1. **La grille des profils** du questionnaire (`.adoc-sc-questionnaire-scale`) est masquée. Vous
+   avez écrit « sans barèmes interactifs » ; cette grille est un barème. L'export PDF, lui, la
+   montre, pour permettre un calcul manuel — ce qu'une vidéo ne permet pas. Si vous la vouliez
+   visible, c'est une règle à retirer de `CSS_CAPTURE`.
+2. **Le quiz garde sa réponse cachée.** Vous n'avez parlé que du questionnaire. Le PDF dévoile la
+   réponse d'un quiz ; la dévoiler à l'image, au moment même où la question s'affiche, irait contre
+   l'intention d'un quiz. Seul l'habillage de bouton de ses options est retiré.
+
+**Rien ne fuit hors capture**, et c'est le point sur lequel vous avez été explicite. Le même
+document rendu dans l'espace de travail **avant** et **après** une capture à 960×540 avec échelle
+×1,6 donne exactement les mêmes valeurs : bordure 4 px, rayon 12 px, texte 15 px. Aucune marque de
+capture ne survit dans la page. Et **les dix règles de la couche sont toutes portées par
+`[data-atelier-capture]`** — vérifié en lisant les sélecteurs de la feuille, un par un.
+
+### 7.2 Quatre réglages, mesurés
+
+| Réglage | Texte (médiane) | Étendue | Déborde | Remplissage | Temps |
+|---|---|---|---|---|---|
+| **(a)** 1422×800, échelle 1 | 20,3 px — **1,88 %** | 20,3 à 30,4 px | 1 / 11 | 16,2 % | 260 ms |
+| **(b)** 960×540, échelle 1 | 30,0 px — **2,78 %** | 30 à 45 px | 1 / 11 | 24,9 % | 223 ms |
+| **(c)** 1422×800, typo ×1,6 | 32,4 px — **3,00 %** | 32,4 à 48,6 px | 1 / 11 | 26,1 % | 226 ms |
+| **(d)** 960×540, typo ×1,4 | 42,0 px — **3,89 %** | 42 à 63 px | **5 / 11** | 37,2 % | 230 ms |
+
+Pourcentages rapportés aux 1 080 px du cadre. Onze étapes, trois présentations d'essai.
+
+**Ce que les chiffres disent déjà.**
+
+- **(d) fait déborder cinq étapes sur onze** au lieu d'une. L'échelle typographique grossit le
+  texte dans des boîtes qui ne grandissent pas : au-delà d'un certain point, tout déborde.
+- **Le temps ne départage rien** : 223 à 260 ms par image, l'écart est dans le bruit.
+- **(b) est exactement en 16:9.** 960/540 vaut 1,7778, là où 1422/800 vaut 1,7775 : l'étirement de
+  0,17 px signalé plus haut disparaît.
+
+**Ce que les chiffres ne disent pas, et que je n'ai pas mesuré.** Les réglages (b) et (d)
+agrandissent la scène d'un facteur **2,0** au lieu de 1,35. Le lot 0 a mesuré la douceur du texte
+à 1,35 seulement — l'équivalent d'un flou d'environ 1 px. À 2,0, elle sera plus marquée, et **de
+combien n'est pas mesuré**. Je n'ai volontairement pas produit un indicateur de netteté comparant
+les quatre réglages : le lot 0 a établi qu'un gradient sur contours n'est pas comparable entre deux
+images dont le contenu n'est pas à la même échelle — c'est ainsi que le zoom CSS et le SVG avaient
+donné deux faux gains. **C'est donc la planche, à l'œil, qui tranche ce compromis.**
+
+### 7.3 La planche comparative
+
+`banc-chutier/planche-typo.html` — onze étapes, quatre réglages, côte à côte. Rien n'est centré
+verticalement : les quatre variantes d'une étape commencent à la même ligne. Les vignettes font
+440 px ; **pour juger la lisibilité réelle, ouvrez une image dans un onglet**, elle s'affichera à
+sa taille.
+
+```
+python3 -m http.server 8765 --directory "/Users/christophebonnet/Documents/GitHub/C-Concept-Dev-lot2-images-wt/tools/Projet therapeutes/Conseiller Clinique" & sleep 1 && open -a Safari "http://127.0.0.1:8765/banc-chutier/planche-typo.html"
+```
+
+Et le banc lui-même, qui porte maintenant les deux réglages :
+
+```
+python3 -m http.server 8765 --directory "/Users/christophebonnet/Documents/GitHub/C-Concept-Dev-lot2-images-wt/tools/Projet therapeutes/Conseiller Clinique" & sleep 1 && open -a Safari "http://127.0.0.1:8765/banc-chutier/chutier.html"
+```
+
+Pour arrêter le serveur : `kill %1`.
+
+### 7.4 Une de vos vraies présentations, sans qu'elle sorte de votre Mac
+
+Il n'existe aujourd'hui **aucun bouton pour exporter le JSON d'un document** — je l'ai cherché
+avant de proposer autre chose. Trois voies, de la plus simple à la moins :
+
+1. **La page du banc EST l'application.** Réduisez le panneau (bouton « Réduire le panneau »),
+   ouvrez votre présentation comme d'habitude, rouvrez le panneau, cliquez **« Utiliser la
+   présentation ouverte »**. Le document est lu **en mémoire**, dans l'objet que l'éditeur
+   manipule déjà. Rien n'est exporté, rien n'est écrit sur le disque, rien n'entre au dépôt.
+2. **Un fichier JSON que vous avez déjà** : le bouton « Charger un JSON » l'accepte, sous sa forme
+   nue ou sous l'enveloppe `{ clinicalDocument: … }`. Le fichier n'est pas copié.
+3. **Pour la mesure automatique des quatre réglages** : déposez le JSON dans
+   `banc-chutier/entrees/`. Ce dossier est ignoré par git — `git check-ignore` le confirme — et
+   l'outil le lit sans jamais le déplacer. La planche inclut alors vos étapes réelles.
+
+**La mesure du remplissage reste à refaire sur une présentation réelle.** Les 16 % à 37 % du
+tableau viennent de mes trois présentations d'essai, qui sont courtes. Je ne sais pas ce que
+donnent les vôtres, et je ne le devinerai pas.
+
+---
+
 ## 7. Ce que ce lot ne livre pas
 
 - **L'interface du chutier dans l'application** (V2 côté produit) : le brief demandait le moteur
