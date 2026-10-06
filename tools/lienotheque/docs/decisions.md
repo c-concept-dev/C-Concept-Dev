@@ -1513,8 +1513,9 @@ rendrait la même réponse, et la troisième voix n'en serait pas une.
 ### La règle
 
 Quand la lecture locale et la relecture se contredisent — au sens strict : aucun des deux nombres ne
-contient l'autre, ce que dit déjà `appui` —, on redemande sur un **autre recadrage**, au double de
-l'agrandissement de la recette. Deux voix sur trois l'emportent. Sans majorité, rien n'est retenu et
+contient l'autre, ce que dit déjà `appui` —, on redemande sur une **autre image du même repère**,
+au double de l'agrandissement de la recette : même pavé découpé, rééchantillonné autrement, donc
+d'autres pixels et une autre empreinte. Deux voix sur trois l'emportent. Sans majorité, rien n'est retenu et
 l'élément part se faire vérifier, plutôt que d'être appliqué au hasard.
 
 À égalité, on s'abstient. Préférer « la première » ou « la plus confiante » serait une préférence
@@ -1564,3 +1565,92 @@ envoyer que ce que le lecteur a localisé.
 L'enchaînement des deux passes vit aujourd'hui dans le banc de mesure ; la règle de majorité et la
 détection de contradiction, elles, sont dans la bibliothèque et testées. Porter l'enchaînement dans
 la chaîne de lecture est un travail d'intégration, pas de recherche.
+
+## La dette d'intégration levée : un seul chemin de code, du lot aux écrans
+
+L'enchaînement de la relecture ciblée vivait dans le banc de mesure. Le critère du lot D était donc
+tenu par un script, pas par le produit. Trois choses ont été portées, et une quatrième est apparue
+en chemin.
+
+### Un port, pas un appel
+
+`rejouer` accepte désormais une **relecture** — une fonction qu'on lui branche, qui reçoit les pages
+lues et rend ce qu'elle a relu. La relecture vit dans `outils/vision`, qui dépend des recettes ;
+c'est donc l'appelant qui la branche, jamais la chaîne qui va la chercher. Une chaîne sans relecture
+est exactement la même chaîne, elle ne relit simplement rien : l'application, le banc et le script
+de traitement passent par la même fonction, avec ou sans.
+
+`relectureCiblee` enchaîne ce que les mesures avaient établi : première passe au grossissement de la
+recette, verdict de présence compris ; seconde passe au double, sur une autre image du même pavé,
+pour les seules contradictions ; majorité de deux voix sur trois ; sans majorité, rien n'est appliqué et
+l'élément part à Vérifier. Budget, cache par empreinte et arrêt net sont dans `relire` : ils valent
+donc pour ce chemin comme pour le banc, puisque c'est le même.
+
+### L'instantané ne refait plus le travail de la chaîne
+
+`instantaneDeLot` réimplémentait lecture, interprétation et association. Ce second chemin avait déjà
+divergé en silence : l'inventaire des supports présents, ajouté à la chaîne pour départager les
+disques, n'arrivait jamais aux écrans. Il appelle maintenant `rejouer`, et rien d'autre.
+
+C'est la règle de fond, et elle a resservi deux fois dans ce lot : **ce qu'on montre doit sortir du
+traitement qu'on mesure.** Deux calculs pour un même fait finissent toujours par en donner deux.
+
+### Le banc appelle la chaîne, et plus l'inverse
+
+`mesures/f4-vision.ts` orchestrait 500 lignes de lecture, de sélection et d'appels. Il en fait 150 :
+deux `rejouer`, l'un sans relecture pour le témoin, l'autre avec, et la comparaison à l'oracle. Ce
+qu'il mesure est, par construction, ce que l'application fera.
+
+### Ce que l'écran a trouvé, et que personne n'avait vu
+
+La capture de Vérifier sur F4 montrait **vingt-trois cartes « manque au document »** pour des pages
+qui y sont — des pages de texte, sans aucun élément numéroté. L'instantané déduisait les pages
+absentes des numéros portés par les éléments : une page sans élément devenait une page manquante.
+Sur F3, où les deux seules pages sans élément étaient justement les deux pages sautées, la déduction
+tombait juste et personne ne pouvait voir qu'elle était fausse.
+
+L'interprète, lui, le sait vraiment : il suit le décalage entre le rang d'une page et son numéro
+imprimé, et quand ce décalage augmente durablement, il dit quelles pages le scan a sautées. Ce
+verdict traverse maintenant jusqu'à la vue, et l'aide `trous` qui servait à le redeviner a disparu
+avec son unique usage.
+
+| | Avant | Après |
+|---|---:|---:|
+| F4, pages dites manquantes | 23 | **0** *(aucune ne manque)* |
+| F3, pages dites manquantes | 2 | **2** *(30 et 31, inchangé)* |
+
+Troisième fois dans ce lot qu'un second calcul du même fait donne une fausse vérité. C'est la capture
+d'écran qui l'a révélé, pas un test : aucun des deux lots n'était assez différent de l'autre pour
+que la suite le voie.
+
+### La mesure, par la chaîne réelle
+
+Même oracle, même fixture, mais plus rien d'un script : les deux colonnes sortent de `rejouer`.
+
+| | Témoin | Chaîne | Critère |
+|---|---:|---:|---:|
+| **F4, premiers éléments** | 66 / 92 | **84 / 92** | **83** ✓ |
+| F4, pages | 77 / 92 | **89 / 92** | *(89, non normatif)* ✓ |
+| **F3** | — | **95 / 95** | 95 ✓ |
+
+Le témoin est plus bas qu'au relevé précédent (66 contre 81) parce qu'il est maintenant *vraiment*
+sans relecture : l'ancien banc lui laissait le bénéfice de la première passe. La colonne de droite
+est la seule qui compte, et elle est inchangée.
+
+Effet par cause : disputes d'ouverture 19 → 2, pistes fausses 4 → 3, éléments jamais lus 3 → 3.
+La relecture a été appliquée 146 fois, laissée sans corroboration 19 fois, restée sans majorité 4
+fois. **Rejeu à coût nul** : 243 zones à la première passe et 39 à la seconde, toutes servies par le
+cache, 0,0000 € et résultat identique (REC-02).
+
+F3 est vérifié à froid par la chaîne unifiée : 95 / 95, deux pages absentes, six médias orphelins,
+rejeu identique, pointe de mémoire 1,1 Go.
+
+### Ce que Vérifier montre sur F4
+
+65 cas : 60 liens sous le seuil, **4 relectures sans majorité**, 1 média qu'aucun élément ne réclame.
+Les quatre relectures sans majorité portent leur motif en clair — « repère relu deux fois sur des
+images différentes, sans que deux lectures s'accordent » — et la preuve « vision » (ANC-02). Aucune page
+manquante, parce qu'il n'en manque aucune.
+
+Le contrôle complet passe dans les conditions de l'intégration continue : fixtures privées écartées,
+`pnpm install --frozen-lockfile`, aucun cache de travail.

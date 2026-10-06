@@ -98,3 +98,38 @@ describe("instantané pour les écrans (B5)", () => {
     expect(JSON.stringify(construireVue(entree()))).toBe(JSON.stringify(construireVue(entree())));
   });
 });
+
+describe("une relecture restée sans majorité se montre dans Vérifier (lot D, ANC-02)", () => {
+  const vue = (sur: Partial<LigneInterpretee>) => construireVue(entree({ lignes: [ligne(1, sur)] }));
+
+  it("met l'élément en attente, en disant pourquoi plutôt qu'« on n'est pas sûr »", () => {
+    const douteux = vue({ relecture: "sans_majorite", confiance: 1 }).douteux;
+    expect(douteux).toHaveLength(1);
+    expect(douteux[0]!.etat).toBe("relecture_sans_majorite");
+  });
+
+  it("le dit en français, sans jargon", () => {
+    const phrase = phraseDuLien(ligne(1, { relecture: "sans_majorite" }), MOTS);
+    expect(phrase).toMatch(/deux fois/);
+    expect(phrase).toMatch(/sans que deux lectures s'accordent/);
+    expect(phrase).not.toMatch(/vision|modèle|IA\b|OCR|majorité/i);
+  });
+
+  it("distingue le numéro que la suite n'a pas confirmé", () => {
+    expect(phraseDuLien(ligne(1, { relecture: "non_corroboree" }), MOTS)).toMatch(/ne le confirme pas/);
+    expect(vue({ relecture: "non_corroboree", confiance: 0.1 }).douteux[0]!.etat).toBe("confiance");
+  });
+
+  it("porte la preuve « vision » dès qu'une relecture est intervenue", () => {
+    const preuveDe = (relecture: LigneInterpretee["relecture"]) =>
+      vue({ relecture, confiance: 1 }).pages.flatMap((page) => page.elements)[0]?.pourquoi?.preuve;
+    expect(preuveDe("sans_majorite")).toBe("vision");
+    expect(preuveDe("non_corroboree")).toBe("vision");
+    expect(preuveDe("appliquee")).toBe("vision");
+    expect(preuveDe(undefined)).toBe("lu");
+  });
+
+  it("ne met rien en attente quand la relecture a abouti et que la suite l'a confirmée", () => {
+    expect(vue({ relecture: "appliquee", sourcePiste: "vision", confiance: 0.85 }).douteux).toEqual([]);
+  });
+});

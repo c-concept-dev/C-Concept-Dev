@@ -106,11 +106,16 @@ export type NatureDoute = z.infer<typeof NatureDoute>;
 /** Pourquoi un cas est en attente. Un conflit entre deux appareils et un recalcul en cours ne se
  *  traitent pas comme une lecture incertaine.
  *
- *  Les deux derniers ne sont pas des décisions à prendre mais des faits à connaître : une page
- *  que la numérotation annonce et dont rien n'a été lu, un média qu'aucun élément ne réclame. Ils
+ *  « relecture_sans_majorite » dit qu'on a regardé deux fois sans trancher : la lecture de la page
+ *  et deux relectures d'images différentes n'ont pas donné deux voix concordantes. Il n'y a rien à
+ *  rattraper automatiquement — c'est exactement le cas où un œil décide mieux qu'une règle.
+ *
+ *  Les deux derniers ne sont pas des décisions à prendre mais des faits à connaître : une page que
+ *  la numérotation donne pour sautée, un média qu'aucun élément ne réclame. Ils
  *  n'attendent qu'un œil, pas un arbitrage — d'où « information » comme nature. */
 export const EtatDoute = z.enum([
   "confiance",
+  "relecture_sans_majorite",
   "conflit_appareils",
   "a_rattacher",
   "segment_inconnu",

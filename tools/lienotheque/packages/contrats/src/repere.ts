@@ -132,6 +132,15 @@ export const LigneInterpretee = z
      *  partir de 1 sur chaque support : la piste 3 du disque 2 n'est pas la piste 3 du disque 1. */
     disque: z.number().int().positive().default(1),
     sourcePiste: SourcePiste.optional(),
+    /** Ce qu'une relecture ciblée a changé pour cette ligne, quand il y en a eu une (OUT-08).
+     *
+     *  `appliquee` : son nombre a été retenu, la suite l'ayant corroboré. `non_corroboree` : elle
+     *  a rendu un nombre que la suite contredit, et il n'a pas été appliqué. `sans_majorite` : on
+     *  a regardé deux fois, sur deux images différentes, sans que deux voix concordent.
+     *
+     *  Les deux derniers mènent à Vérifier. Ils en disent la raison, que « la confiance est
+     *  basse » ne dirait pas. */
+    relecture: z.enum(["appliquee", "non_corroboree", "sans_majorite"]).optional(),
     /** Où l'élément se trouve sur sa page, quand la lecture l'a su (B1). */
     zone: ZoneRelative.optional(),
     /** Où son repère a été trouvé : la bande du Lecteur les contient tous deux. */

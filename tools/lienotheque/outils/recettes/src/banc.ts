@@ -8,7 +8,7 @@ import { noterLesQuatreSens, orientationDuLot, redresser, type OptionsRedresseme
 import { objetsPdf, octetsImage, pagesPdf } from "@lienotheque/formats";
 import { decoderJpeg, enGris, type ImageGrise } from "@lienotheque/images";
 import { associer, lireNomMedia, type Association, type Media } from "./associateur.js";
-import { interpreter, type PageLue, supportsPresents } from "./interprete.js";
+import { interpreter, type LectureParVision, type PageLue, type SupportsPresents, supportsPresents } from "./interprete.js";
 import { lireCoucheTexte } from "@lienotheque/lecteur-texte";
 import { texteDePage } from "@lienotheque/contrats";
 import { VERSION_LECTURE, consolider, lecturesDePage, lireNumeroPage, type OptionsReperes } from "./reperes.js";
@@ -41,7 +41,24 @@ export function clefDeLecture(chemin: string, recette: Recette, limite?: number)
     .slice(0, 32);
 }
 
+/** Une relecture ciblée branchée sur la chaîne (OUT-08).
+ *
+ *  Un port, pas un appel : la relecture vit dans un paquet qui dépend de celui-ci, et c'est donc
+ *  l'appelant qui la branche. Une chaîne sans relecture est la même chaîne — c'est tout l'intérêt
+ *  d'un port, et c'est ce qui permet à l'application et au banc d'essai de parcourir le même
+ *  chemin de code. */
+export type Relecture = (contexte: {
+  readonly chemin: string;
+  readonly recette: Recette;
+  readonly lues: readonly PageLue[];
+  readonly nombreDePistes: number;
+  readonly supports: SupportsPresents;
+  readonly options: OptionsBanc;
+}) => Promise<ReadonlyMap<string, LectureParVision>>;
+
 export type OptionsBanc = OptionsReperes & {
+  /** De quoi relire les repères difficiles. Absente, la chaîne ne relit rien et ne change pas. */
+  readonly relecture?: Relecture;
   /** Dossier où garder les lectures. Absent, rien n'est gardé. */
   readonly cache?: string | undefined;
   /** Rend les pages redressées et coupées, mais sans binarisation.
@@ -206,7 +223,13 @@ export async function mediasDuDossier(dossier: string, recette?: Recette, extens
   return medias.sort((a, b) => (a.disque ?? 1) - (b.disque ?? 1) || a.piste - b.piste || a.nom.localeCompare(b.nom, "fr"));
 }
 
-export type Rejeu = { readonly resultat: ResultatRecette; readonly association: Association };
+export type Rejeu = {
+  readonly resultat: ResultatRecette;
+  readonly association: Association;
+  /** Les médias rangés, rendus avec le reste : les empreindre coûte une lecture de chaque fichier,
+   *  et deux appelants qui les recalculent chacun de leur côté paient deux fois la même chose. */
+  readonly medias: readonly Media[];
+};
 
 /** Lit un lot, en passant par le cache quand il est offert.
  *
@@ -267,11 +290,22 @@ export async function rejouer(pdf: string, dossierMedias: string, recette: Recet
   // Combien de pistes le support compte est un fait sur le média, pas sur son nom (REC-05). Et
   // quels supports sont là : un livre qui couvre deux disques dont on n'a que le premier ne doit
   // pas voir ses derniers éléments forcés dans celui-là.
-  const resultat = interpreter(await lireLot(pdf, recette, options), recette, {
+  const supports = supportsPresents(medias);
+  const lues = await lireLot(pdf, recette, options);
+
+  // La relecture ciblée, quand une est branchée. Elle vient après la lecture et avant
+  // l'interprétation : elle ne lit pas à la place du lecteur, elle revient sur ce dont il doute.
+  const vision =
+    options.relecture === undefined
+      ? undefined
+      : await options.relecture({ chemin: pdf, recette, lues, nombreDePistes: medias.length, supports, options });
+
+  const resultat = interpreter(lues, recette, {
     nombreDePistes: medias.length,
-    supports: supportsPresents(medias),
+    supports,
+    ...(vision === undefined ? {} : { vision }),
   });
-  return { resultat, association: associer(resultat.lignes, medias, recette) };
+  return { resultat, association: associer(resultat.lignes, medias, recette), medias };
 }
 
 /** Ce qu'un rejeu vaut face à une référence : combien d'éléments tombent sur la bonne piste. */

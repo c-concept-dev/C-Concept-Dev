@@ -13,13 +13,14 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@lienotheque/contrats": "workspace:*",
-    "@lienotheque/noyau": "workspace:*",
-    "@lienotheque/recettes": "workspace:*",
     "@lienotheque/cache": "workspace:*",
-    "@lienotheque/images": "workspace:*",
+    "@lienotheque/contrats": "workspace:*",
     "@lienotheque/formats": "workspace:*",
-    "@lienotheque/optimiseur": "workspace:*"
+    "@lienotheque/images": "workspace:*",
+    "@lienotheque/noyau": "workspace:*",
+    "@lienotheque/optimiseur": "workspace:*",
+    "@lienotheque/recettes": "workspace:*",
+    "@lienotheque/vision": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.20.0",
