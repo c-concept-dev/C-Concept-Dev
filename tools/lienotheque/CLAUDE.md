@@ -57,8 +57,11 @@ retrouve documents, audio, vidéos et images, toujours sur la vraie page ou au v
   `Worker/**` redéploie automatiquement `clone-proxy` (workflow `deploy-worker.yml`).
 - Le workflow `deploy-pages.yml` publie tout le dépôt sur GitHub Pages à chaque push : `node_modules/`
   et `dist/` ne doivent jamais être commités.
-- Le workflow `generate-index.yml` indexe tous les fichiers `*.html` du dépôt ; les `index.html` de
-  Vite apparaîtront dans cet index tant qu'il n'exclut pas `tools/lienotheque/`.
+- Le workflow `generate-index.yml` indexe les `*.html` du dépôt, mais `generate-index.js` saute
+  `tools/lienotheque/` en entier : rien de ce projet n'entre dans l'index, ni les `index.html` de
+  Vite ni le catalogue du kit. Son déclencheur ignore en plus `docs/maquettes/**`, pour ne pas
+  lancer d'exécution inutile. Attention, ses motifs d'exclusion se comparent au **nom de fichier
+  seul**, jamais au chemin : un motif de chemin y serait du code mort.
 - Deux intégrations continues, toutes deux à la racine du dépôt et filtrées sur nos chemins :
 
 | Workflow | Déclenchement | Ce qu'il vérifie |
