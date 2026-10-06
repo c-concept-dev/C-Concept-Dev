@@ -335,7 +335,65 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       + Math.round((lent.duree_ms - rendus.questionnaire.meta.duree_ms) / lent.images) + ' ms de plus par image');
     pass('les deux voies de V6 donnent la valeur finale ; le coût de l\'attente est relevé ci-dessus.');
 
-    // ── 12. Aucune erreur de page pendant tout cela ───────────────────────────────────────────
+    // ── 12. QUARANTE IMAGES — la mesure que le CDC demande, et qui n'avait pas été faite ─────
+    // Le tableau des exigences non fonctionnelles dit « Mémoire images : une image 1920×1080
+    // décodée, environ 8,3 Mo ; décodage une à la fois — Mesure sur 40 images ». Onze images ne
+    // sont pas quarante. On construit donc une Présentation de 40 étapes et on la rend.
+    const quarante = await page.evaluate(async (modele) => {
+      const d = JSON.parse(JSON.stringify(modele));
+      d.documentId = 'chutier-40'; d.versionId = 'chutier-40-v1';
+      d.blocks = [];
+      // 10 diapositives de 4 blocs : 40 étapes, le rythme d'une présentation réelle.
+      for (let c = 1; c <= 10; c++) {
+        const blocs = [];
+        for (let b = 1; b <= 4; b++) {
+          blocs.push({ id: 'paragraph-' + c + '-' + b, type: 'paragraph',
+            content: { text: 'Diapositive ' + c + ', bloc ' + b + '. Une phrase de longueur ordinaire, '
+              + 'pour que la mise en page ressemble à celle d\'une presentation reelle.' },
+            citationIds: [], validation: {} });
+        }
+        d.blocks.push({ id: 'slide-' + String(c).padStart(2, '0'), type: 'card',
+          content: { title: 'Diapositive ' + c, imageRef: null, imageAlt: null, blocks: blocs },
+          citationIds: [], validation: {} });
+      }
+      const valide = window.adocValidateSchema('clinicalDocument', d);
+      const t0 = performance.now();
+      const res = await window.AtelierImages.rendreImages(d);
+      const duree = Math.round(performance.now() - t0);
+      // Décodage une à la fois sur les quarante : le compteur suit les bitmaps vivants.
+      let maxDecodees = 0;
+      for (const im of res.images) {
+        await window.AtelierImages.decoder(im);
+        maxDecodees = Math.max(maxDecodees, window.AtelierImages.nombreDecodees());
+      }
+      window.AtelierImages.libererDecodee();
+      return {
+        valide: !!valide.valid, etapes: window.adocPresentStepList(d).length,
+        images: res.images.length, duree_ms: duree, octets: res.octets_total,
+        maxDecodees, apres: window.AtelierImages.nombreDecodees(),
+        tailles: Array.from(new Set(res.images.map((im) => im.largeur + 'x' + im.hauteur))),
+        signaturesDistinctes: new Set(res.images.map((im) => im.signature)).size,
+      };
+    }, PRESENTATIONS[1].doc);
+    assert.equal(quarante.valide, true, 'la présentation de 40 étapes doit être valide');
+    assert.equal(quarante.etapes, 40, '40 étapes attendues, ' + quarante.etapes);
+    assert.equal(quarante.images, 40, '40 images attendues, ' + quarante.images);
+    assert.deepEqual(quarante.tailles, ['1920x1080'], 'toutes à 1920x1080 : ' + quarante.tailles.join(', '));
+    assert.equal(quarante.maxDecodees, 1, 'jamais plus d\'une image décodée sur 40 : ' + quarante.maxDecodees);
+    assert.equal(quarante.apres, 0, 'tout est libéré à la fin');
+    assert.equal(quarante.signaturesDistinctes, 40, '40 signatures distinctes attendues, '
+      + quarante.signaturesDistinctes + ' — deux étapes partageraient leur verdict de péremption');
+    console.log('      40 images : ' + quarante.duree_ms + ' ms ('
+      + Math.round(quarante.duree_ms / 40) + ' ms par image), '
+      + (quarante.octets / 1048576).toFixed(2) + ' Mo compressés ('
+      + Math.round(quarante.octets / 40 / 1024) + ' Ko par image), '
+      + 'jamais plus d\'une décodée.');
+    console.log('      À comparer : 40 images DÉCODÉES tiendraient '
+      + (40 * 1920 * 1080 * 4 / 1048576).toFixed(0) + ' Mo en mémoire — c\'est ce que le décodage '
+      + 'une à la fois évite.');
+    pass('quarante images rendues : taille, durée, poids compressé et décodage unique mesurés.');
+
+    // ── 13. Aucune erreur de page pendant tout cela ───────────────────────────────────────────
     assert.deepEqual(erreurs, [], 'la page ne doit lever aucune erreur : ' + erreurs.join(' | '));
     pass('aucune erreur de page sur l\'ensemble des rendus.');
 
