@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { BATTEMENT_VERROU_S, EXPIRATION_VERROU_S, Travail } from "@lienotheque/contrats";
+import { BATTEMENT_VERROU_S, DELAI_ENTRE_TENTATIVES_S, EXPIRATION_VERROU_S, Travail } from "@lienotheque/contrats";
 import { describe, expect, it } from "vitest";
 import { annuler, avancer, battreSiDu, dejaEnFile, echouer, mettreEnPause, prendre, prochain, repriseA, reprenable, reprendre } from "../src/travaux.js";
 
@@ -100,7 +100,10 @@ describe("erreurs enregistrées (JOB-05)", () => {
     expect(echoue.etat).toBe("en_echec_recuperable");
     expect(echoue.erreur?.cause).toBe("page illisible");
     expect(echoue.verrou, "un travail en échec libère son bail").toBeUndefined();
-    expect(reprenable(echoue, plus(2))).toBe(true);
+    // Il ne repart pas dans la seconde : sans délai, les trois tentatives se consommeraient avant
+    // que la cause ait eu le temps de disparaître (JOB-05).
+    expect(reprenable(echoue, plus(2))).toBe(false);
+    expect(reprenable(echoue, plus(1 + DELAI_ENTRE_TENTATIVES_S))).toBe(true);
 
     const definitif = echouer(neuf(), { cause: "format refusé", elements: [], reprisePossible: false }, plus(1));
     expect(definitif.etat).toBe("en_echec_definitif");

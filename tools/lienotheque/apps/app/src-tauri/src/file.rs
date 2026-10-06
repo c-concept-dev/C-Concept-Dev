@@ -26,7 +26,31 @@ pub fn reprenable(travail: &Travail, maintenant: u64) -> bool {
     if ETATS_TERMINAUX.contains(&travail.etat.as_str()) || travail.etat == "en_pause" {
         return false;
     }
+    // Un échec récupérable attend son délai : le relancer dans la seconde consommerait les trois
+    // tentatives avant que la cause — un volume démonté, un fichier encore en écriture — ait eu le
+    // temps de disparaître (JOB-05).
+    if travail.etat == "en_echec_recuperable" && !delai_ecoule(travail, maintenant) {
+        return false;
+    }
     travail.verrou.as_ref().is_none_or(|v| v.expire_le <= maintenant)
+}
+
+/// Le délai entre deux tentatives est-il passé depuis le dernier changement d'état ?
+pub fn delai_ecoule(travail: &Travail, maintenant: u64) -> bool {
+    maintenant.saturating_sub(travail.maj_le) >= LIMITES.delai_entre_tentatives_s
+}
+
+/// Une tentative de plus est-elle permise, ou l'échec devient-il définitif (JOB-05) ?
+pub fn tentative_restante(tentative: u32) -> bool {
+    tentative < LIMITES.tentatives_max
+}
+
+/// Un travail peut-il partir maintenant, sachant les places lourdes occupées (JOB-09) ?
+///
+/// Un travail léger ne prend aucune place : renommer un axe ou recalculer un compte n'a pas à
+/// attendre qu'une lecture de trois cents pages finisse.
+pub fn peut_partir(travail: &Travail, lourds_en_cours: usize) -> bool {
+    travail.poids == "leger" || places_libres(lourds_en_cours) > 0
 }
 
 /// Combien de travaux lourds peuvent encore partir (PLT-02).
@@ -49,6 +73,7 @@ pub fn prochain<'t>(travaux: &'t [Travail], maintenant: u64) -> Option<&'t Trava
             a.reprise_a()
                 .cmp(&b.reprise_a())
                 .then_with(|| b.cree_le.cmp(&a.cree_le))
+                .then_with(|| b.id.cmp(&a.id))
         })
 }
 
@@ -110,7 +135,12 @@ mod tests {
         nom: String,
         etat: String,
         bail_expire_le: Option<u64>,
+        #[serde(default)]
+        maj_le: u64,
+        #[serde(default)]
         maintenant: u64,
+        #[serde(default)]
+        maintenant_relatif: Option<String>,
         attendu: bool,
     }
 
@@ -137,8 +167,73 @@ mod tests {
     #[serde(rename_all = "camelCase")]
     struct CasPlaces {
         nom: String,
-        en_cours: usize,
-        attendu: usize,
+        en_cours: String,
+        attendu: String,
+    }
+
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct CasDepart {
+        nom: String,
+        poids: String,
+        en_cours: String,
+        attendu: bool,
+    }
+
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct CasTentative {
+        nom: String,
+        #[serde(default)]
+        tentative: Option<u32>,
+        #[serde(default)]
+        tentative_relative: Option<String>,
+        attendu: bool,
+    }
+
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct CasTransition {
+        nom: String,
+        depuis: String,
+        avec_bail: bool,
+        #[serde(default)]
+        tentative_avant_relative: Option<String>,
+        action: String,
+        vers: String,
+        bail_apres: bool,
+        #[serde(default)]
+        tentative_apres: Option<u32>,
+        #[serde(default)]
+        tentative_apres_relative: Option<String>,
+    }
+
+    /// Résout un compte que la table nomme au lieu de le recopier.
+    fn compte(nomme: &str) -> usize {
+        match nomme {
+            "aucun" => 0,
+            "un" => 1,
+            "limite" => LIMITES.travaux_lourds_simultanes,
+            "limitePlusTrois" => LIMITES.travaux_lourds_simultanes + 3,
+            autre => panic!("compte inconnu dans la table : {autre}"),
+        }
+    }
+
+    fn places_attendues(nomme: &str) -> usize {
+        match nomme {
+            "limite" => LIMITES.travaux_lourds_simultanes,
+            "limiteMoinsUn" => LIMITES.travaux_lourds_simultanes - 1,
+            "aucune" => 0,
+            autre => panic!("attendu inconnu dans la table : {autre}"),
+        }
+    }
+
+    fn tentative_nommee(nomme: &str) -> u32 {
+        match nomme {
+            "tentativesMax" => LIMITES.tentatives_max,
+            "tentativesMaxPlusUn" => LIMITES.tentatives_max + 1,
+            autre => panic!("tentative inconnue dans la table : {autre}"),
+        }
     }
 
     #[derive(Deserialize)]
@@ -146,6 +241,9 @@ mod tests {
         reprenable: Vec<CasReprenable>,
         ordre: Vec<CasOrdre>,
         places: Vec<CasPlaces>,
+        depart: Vec<CasDepart>,
+        tentatives: Vec<CasTentative>,
+        transitions: Vec<CasTransition>,
     }
 
     fn table() -> Table {
@@ -167,11 +265,54 @@ mod tests {
         t
     }
 
+    /// Les transitions que l'hôte applique à un travail. Elles vivent ici parce que l'hôte est
+    /// seul à les appliquer ; la table dit ce qu'elles doivent donner.
+    fn appliquer(travail: &Travail, action: &str, maintenant: u64) -> Travail {
+        let mut t = travail.clone();
+        t.maj_le = maintenant;
+        match action {
+            "pause" => {
+                t.etat = "en_pause".to_owned();
+                t.verrou = None;
+            }
+            "annuler" => {
+                t.etat = "annule".to_owned();
+                t.verrou = None;
+            }
+            "reprendre" => {
+                if t.etat == "en_echec_recuperable" {
+                    t.tentative += 1;
+                }
+                t.etat = "en_file".to_owned();
+                t.verrou = None;
+            }
+            "echouerRecuperable" => {
+                // Récupérable n'a de sens que s'il reste une tentative : au-delà, l'échec est
+                // définitif, et le dire franchement vaut mieux qu'une file qui cache la panne.
+                t.etat = if tentative_restante(t.tentative) { "en_echec_recuperable" } else { "en_echec_definitif" }.to_owned();
+                t.verrou = None;
+            }
+            "echouerDefinitif" => {
+                t.etat = "en_echec_definitif".to_owned();
+                t.verrou = None;
+            }
+            autre => panic!("action inconnue dans la table : {autre}"),
+        }
+        t
+    }
+
     #[test]
     fn ce_qui_est_reprenable_suit_la_table_partagee() {
         for cas in table().reprenable {
-            let t = monter("t", &cas.etat, 0, 0, cas.bail_expire_le);
-            assert_eq!(reprenable(&t, cas.maintenant), cas.attendu, "{}", cas.nom);
+            let mut t = monter("t", &cas.etat, 0, 0, cas.bail_expire_le);
+            t.maj_le = cas.maj_le;
+            let maintenant = match cas.maintenant_relatif.as_deref() {
+                Some("justeAvantLeDelai") => cas.maj_le + LIMITES.delai_entre_tentatives_s - 1,
+                Some("auDelai") => cas.maj_le + LIMITES.delai_entre_tentatives_s,
+                Some(autre) => panic!("instant inconnu dans la table : {autre}"),
+                None => cas.maintenant,
+            };
+            assert_eq!(reprenable(&t, maintenant), cas.attendu, "{}", cas.nom);
         }
     }
 
@@ -191,16 +332,60 @@ mod tests {
     #[test]
     fn les_places_suivent_la_table_partagee() {
         for cas in table().places {
-            assert_eq!(places_libres(cas.en_cours), cas.attendu, "{}", cas.nom);
+            assert_eq!(places_libres(compte(&cas.en_cours)), places_attendues(&cas.attendu), "{}", cas.nom);
+        }
+    }
+
+    #[test]
+    fn qui_peut_partir_suit_la_table_partagee() {
+        for cas in table().depart {
+            let mut t = monter("t", "en_file", 0, 0, None);
+            t.poids = cas.poids.clone();
+            assert_eq!(peut_partir(&t, compte(&cas.en_cours)), cas.attendu, "{}", cas.nom);
+        }
+    }
+
+    #[test]
+    fn les_tentatives_suivent_la_table_partagee() {
+        for cas in table().tentatives {
+            let tentative = cas
+                .tentative
+                .unwrap_or_else(|| tentative_nommee(cas.tentative_relative.as_deref().expect("tentative nommée")));
+            assert_eq!(tentative_restante(tentative), cas.attendu, "{}", cas.nom);
+        }
+    }
+
+    #[test]
+    fn les_transitions_suivent_la_table_partagee() {
+        for cas in table().transitions {
+            let mut avant = monter("t", &cas.depuis, 0, 0, if cas.avec_bail { Some(999_999) } else { None });
+            avant.tentative = cas
+                .tentative_avant_relative
+                .as_deref()
+                .map_or(1, tentative_nommee);
+            let version_avant = avant.total;
+
+            let apres = appliquer(&avant, &cas.action, 100_000);
+
+            assert_eq!(apres.etat, cas.vers, "{}", cas.nom);
+            assert_eq!(apres.verrou.is_some(), cas.bail_apres, "{} — le bail", cas.nom);
+            let attendue = cas
+                .tentative_apres
+                .unwrap_or_else(|| tentative_nommee(cas.tentative_apres_relative.as_deref().expect("tentative nommée")));
+            assert_eq!(apres.tentative, attendue, "{} — la tentative", cas.nom);
+            assert_eq!(apres.total, version_avant, "{} — rien d'autre n'a bougé", cas.nom);
         }
     }
 
     #[test]
     fn la_table_contraint_assez_de_cas_pour_servir_de_preuve() {
         let table = table();
-        assert!(table.reprenable.len() >= 8, "une table trop courte ne prouve rien");
-        assert!(table.ordre.len() >= 5);
+        assert!(table.reprenable.len() >= 10, "une table trop courte ne prouve rien");
+        assert!(table.ordre.len() >= 7);
         assert!(!table.places.is_empty());
+        assert!(!table.depart.is_empty());
+        assert!(!table.tentatives.is_empty());
+        assert!(table.transitions.len() >= 6);
     }
 
     #[test]
@@ -245,6 +430,11 @@ mod tests {
         ];
         assert_eq!(en_cours(&travaux, 1_000), 1);
         assert_eq!(places_libres(en_cours(&travaux, 1_000)), LIMITES.travaux_lourds_simultanes - 1);
+        // Et l'ordre où la file est présentée ne décide de rien : le départage est le même dans
+        // les deux sens (REC-02).
+        let a_l_endroit = prochain(&travaux, 1_000).map(|t| t.id.clone());
+        let a_l_envers: Vec<Travail> = travaux.iter().rev().cloned().collect();
+        assert_eq!(prochain(&a_l_envers, 1_000).map(|t| t.id.clone()), a_l_endroit);
         // Le bail expiré ne retient plus personne.
         assert_eq!(en_cours(&travaux, 1_015), 0);
     }

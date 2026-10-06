@@ -31,6 +31,10 @@ pub struct Limites {
     pub battement_verrou_s: u64,
     /// Durée du bail à partir du dernier battement (JOB-02).
     pub expiration_verrou_s: u64,
+    /// Combien de fois on réessaie un échec récupérable avant de le dire définitif (JOB-05).
+    pub tentatives_max: u32,
+    /// Le temps qu'on laisse passer avant de réessayer.
+    pub delai_entre_tentatives_s: u64,
 }
 
 pub static LIMITES: LazyLock<Limites> = LazyLock::new(|| {

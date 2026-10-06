@@ -5,6 +5,8 @@ import { z } from "zod";
 import {
   BATTEMENT_VERROU_S,
   DELAI_ARRET_PROPRE_S,
+  DELAI_ENTRE_TENTATIVES_S,
+  TENTATIVES_MAX,
   EXPIRATION_VERROU_S,
   MEMOIRE_MAX_MO,
   TRAVAUX_LOURDS_SIMULTANES,
@@ -29,6 +31,8 @@ const Limites = z
     delaiArretPropreS: z.number().int().positive(),
     battementVerrouS: z.number().int().positive(),
     expirationVerrouS: z.number().int().positive(),
+    tentativesMax: z.number().int().positive(),
+    delaiEntreTentativesS: z.number().int().positive(),
   })
   .strict();
 
@@ -47,11 +51,23 @@ describe("le fichier des limites", () => {
     expect(DELAI_ARRET_PROPRE_S).toBe(limites.delaiArretPropreS);
     expect(BATTEMENT_VERROU_S).toBe(limites.battementVerrouS);
     expect(EXPIRATION_VERROU_S).toBe(limites.expirationVerrouS);
+    expect(TENTATIVES_MAX).toBe(limites.tentativesMax);
+    expect(DELAI_ENTRE_TENTATIVES_S).toBe(limites.delaiEntreTentativesS);
   });
 
   it("laisse deux battements de marge avant qu'un bail n'expire (JOB-02)", () => {
     // Un battement manqué ne doit pas suffire à faire voler son verrou à un travail bien vivant.
     expect(EXPIRATION_VERROU_S).toBeGreaterThan(BATTEMENT_VERROU_S * 2);
+  });
+
+  it("laisse plus d'une tentative, sinon « récupérable » ne veut rien dire", () => {
+    expect(TENTATIVES_MAX).toBeGreaterThan(1);
+  });
+
+  it("laisse au délai le temps d'être utile : plus long qu'un battement de bail", () => {
+    // Un délai plus court que le bail ferait repartir le travail avant même que le processus
+    // précédent ait fini de mourir.
+    expect(DELAI_ENTRE_TENTATIVES_S).toBeGreaterThan(EXPIRATION_VERROU_S);
   });
 
   it("plafonne la mémoire au-dessus de la marque haute observée", () => {
@@ -96,7 +112,7 @@ describe("personne ne recopie une limite", () => {
       for (const ligne of texte.split("\n")) {
         // Une déclaration de constante qui porte un nombre : c'est la forme qu'aurait une recopie.
         const recopie =
-          /^\s*(?:pub\s+)?const\s+(BATTEMENT|EXPIRATION|MEMOIRE_MAX|DELAI_ARRET|TRAVAUX_LOURDS|VERSION_PROTOCOLE)[A-Z_]*\s*(?::[^=]+)?=\s*\d/.test(
+          /^\s*(?:pub\s+)?const\s+(BATTEMENT|EXPIRATION|MEMOIRE_MAX|DELAI_ARRET|DELAI_ENTRE|TENTATIVES_MAX|TRAVAUX_LOURDS|VERSION_PROTOCOLE)[A-Z_]*\s*(?::[^=]+)?=\s*\d/.test(
             ligne,
           );
         if (recopie) fautifs.push(`${fichier.slice(RACINE.length + 1)} : ${ligne.trim()}`);

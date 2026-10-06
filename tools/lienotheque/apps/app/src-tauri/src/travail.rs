@@ -46,6 +46,11 @@ pub struct Travail {
     pub id: String,
     pub outil: String,
     pub etat: String,
+    /// Ce que le travail coûte à la machine : « lourd » occupe une des places limitées, « leger »
+    /// n'en occupe aucune. Lourd par défaut, et à l'absence : se tromper dans ce sens fait
+    /// attendre, se tromper dans l'autre fait rendre la main à la machine.
+    #[serde(default = "lourd")]
+    pub poids: String,
     pub tentative: u32,
     pub total: u32,
     /// Quand le travail est entré en file (JOB-01). C'est lui qui départage deux travaux aussi
@@ -54,6 +59,9 @@ pub struct Travail {
     /// Par défaut à l'absence, pour qu'une file écrite avant ce champ se relise sans se perdre.
     #[serde(default)]
     pub cree_le: u64,
+    /// Dernier changement d'état. C'est de lui que court le délai entre deux tentatives (JOB-05).
+    #[serde(default)]
+    pub maj_le: u64,
     pub verrou: Option<Verrou>,
     pub point_reprise: Option<PointReprise>,
 }
@@ -64,9 +72,11 @@ impl Travail {
             id: id.to_owned(),
             outil: outil.to_owned(),
             etat: "en_file".to_owned(),
+            poids: lourd(),
             tentative: 1,
             total,
             cree_le: maintenant(),
+            maj_le: maintenant(),
             verrou: None,
             point_reprise: None,
         }
@@ -124,6 +134,10 @@ impl Travail {
             self.verrou = None;
         }
     }
+}
+
+fn lourd() -> String {
+    "lourd".to_owned()
 }
 
 pub fn maintenant() -> u64 {

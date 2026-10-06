@@ -1,6 +1,5 @@
 {
-  "_lisez_moi": "Les décisions de la file de travaux, écrites une fois et éprouvées des deux côtés. Le TypeScript du noyau et l'hôte Rust implémentent ces règles chacun dans son langage — c'est inévitable avec deux moteurs d'exécution — mais ils se mesurent à cette seule vérité. Une divergence devient un test rouge, jamais un écart silencieux. Les instants sont en secondes depuis l'époque.",
-
+  "_lisez_moi": "Les décisions de la file de travaux, écrites une fois et éprouvées des deux côtés. Le TypeScript du noyau et l'hôte Rust implémentent ces règles chacun dans son langage — c'est inévitable avec deux moteurs d'exécution — mais ils se mesurent à cette seule vérité. Une divergence devient un test rouge, jamais un écart silencieux. Les instants sont en secondes depuis l'époque. Les comptes et les attendus qui dépendent d'une limite la nomment au lieu de la recopier : « limite », « limiteMoinsUn », « aucune », « delai », « tentativesMax » — un changement dans limites.json ne doit pas rendre cette table fausse en silence.",
   "reprenable": [
     {
       "nom": "un travail en file, que personne ne tient, part",
@@ -32,6 +31,14 @@
       "etat": "en_cours",
       "bailExpireLe": 1015,
       "maintenant": 9999,
+      "attendu": true
+    },
+    {
+      "nom": "un travail dit en cours mais sans bail repart : personne ne le tient, et nul délai ne le protège",
+      "exigence": "JOB-02",
+      "etat": "en_cours",
+      "bailExpireLe": null,
+      "maintenant": 1000,
       "attendu": true
     },
     {
@@ -67,24 +74,51 @@
       "attendu": false
     },
     {
-      "nom": "un échec récupérable, lui, repart",
+      "nom": "un échec récupérable attend son délai avant de repartir",
       "exigence": "JOB-05",
       "etat": "en_echec_recuperable",
       "bailExpireLe": null,
-      "maintenant": 9999,
+      "majLe": 1000,
+      "maintenantRelatif": "justeAvantLeDelai",
+      "attendu": false
+    },
+    {
+      "nom": "le délai passé, l'échec récupérable repart",
+      "exigence": "JOB-05",
+      "etat": "en_echec_recuperable",
+      "bailExpireLe": null,
+      "majLe": 1000,
+      "maintenantRelatif": "auDelai",
       "attendu": true
     }
   ],
-
   "ordre": [
     {
       "nom": "ce qui était entamé passe avant ce qui n'a pas commencé",
       "exigence": "JOB-03",
       "maintenant": 1000,
       "travaux": [
-        { "id": "recent", "etat": "en_file", "creeLe": 300, "reprise": 0, "bailExpireLe": null },
-        { "id": "ancien", "etat": "en_file", "creeLe": 100, "reprise": 0, "bailExpireLe": null },
-        { "id": "entame", "etat": "en_file", "creeLe": 500, "reprise": 7, "bailExpireLe": null }
+        {
+          "id": "recent",
+          "etat": "en_file",
+          "creeLe": 300,
+          "reprise": 0,
+          "bailExpireLe": null
+        },
+        {
+          "id": "ancien",
+          "etat": "en_file",
+          "creeLe": 100,
+          "reprise": 0,
+          "bailExpireLe": null
+        },
+        {
+          "id": "entame",
+          "etat": "en_file",
+          "creeLe": 500,
+          "reprise": 7,
+          "bailExpireLe": null
+        }
       ],
       "attendu": "entame"
     },
@@ -93,8 +127,20 @@
       "exigence": "JOB-01",
       "maintenant": 1000,
       "travaux": [
-        { "id": "recent", "etat": "en_file", "creeLe": 300, "reprise": 0, "bailExpireLe": null },
-        { "id": "ancien", "etat": "en_file", "creeLe": 100, "reprise": 0, "bailExpireLe": null }
+        {
+          "id": "recent",
+          "etat": "en_file",
+          "creeLe": 300,
+          "reprise": 0,
+          "bailExpireLe": null
+        },
+        {
+          "id": "ancien",
+          "etat": "en_file",
+          "creeLe": 100,
+          "reprise": 0,
+          "bailExpireLe": null
+        }
       ],
       "attendu": "ancien"
     },
@@ -103,8 +149,20 @@
       "exigence": "JOB-03",
       "maintenant": 1000,
       "travaux": [
-        { "id": "peu", "etat": "en_file", "creeLe": 100, "reprise": 2, "bailExpireLe": null },
-        { "id": "beaucoup", "etat": "en_file", "creeLe": 500, "reprise": 40, "bailExpireLe": null }
+        {
+          "id": "peu",
+          "etat": "en_file",
+          "creeLe": 100,
+          "reprise": 2,
+          "bailExpireLe": null
+        },
+        {
+          "id": "beaucoup",
+          "etat": "en_file",
+          "creeLe": 500,
+          "reprise": 40,
+          "bailExpireLe": null
+        }
       ],
       "attendu": "beaucoup"
     },
@@ -113,10 +171,73 @@
       "exigence": "JOB-02",
       "maintenant": 1000,
       "travaux": [
-        { "id": "tenu", "etat": "en_cours", "creeLe": 100, "reprise": 9, "bailExpireLe": 1015 },
-        { "id": "libre", "etat": "en_file", "creeLe": 500, "reprise": 0, "bailExpireLe": null }
+        {
+          "id": "tenu",
+          "etat": "en_cours",
+          "creeLe": 100,
+          "reprise": 9,
+          "bailExpireLe": 1015
+        },
+        {
+          "id": "libre",
+          "etat": "en_file",
+          "creeLe": 500,
+          "reprise": 0,
+          "bailExpireLe": null
+        }
       ],
       "attendu": "libre"
+    },
+    {
+      "nom": "un travail dont le processus a planté passe avant un travail neuf : il était entamé",
+      "exigence": "JOB-02",
+      "maintenant": 2000,
+      "travaux": [
+        {
+          "id": "plante",
+          "etat": "en_cours",
+          "creeLe": 100,
+          "reprise": 120,
+          "bailExpireLe": 1015
+        },
+        {
+          "id": "neuf",
+          "etat": "en_file",
+          "creeLe": 1900,
+          "reprise": 0,
+          "bailExpireLe": null
+        }
+      ],
+      "attendu": "plante"
+    },
+    {
+      "nom": "égalité parfaite : même avancement, même instant — l'identifiant départage, et toujours dans le même sens",
+      "exigence": "REC-02",
+      "maintenant": 1000,
+      "travaux": [
+        {
+          "id": "bbb",
+          "etat": "en_file",
+          "creeLe": 100,
+          "reprise": 3,
+          "bailExpireLe": null
+        },
+        {
+          "id": "aaa",
+          "etat": "en_file",
+          "creeLe": 100,
+          "reprise": 3,
+          "bailExpireLe": null
+        },
+        {
+          "id": "ccc",
+          "etat": "en_file",
+          "creeLe": 100,
+          "reprise": 3,
+          "bailExpireLe": null
+        }
+      ],
+      "attendu": "aaa"
     },
     {
       "nom": "une file vide ne sert rien",
@@ -130,37 +251,171 @@
       "exigence": "JOB-08",
       "maintenant": 1000,
       "travaux": [
-        { "id": "fini", "etat": "termine", "creeLe": 100, "reprise": 10, "bailExpireLe": null },
-        { "id": "suspendu", "etat": "en_pause", "creeLe": 200, "reprise": 3, "bailExpireLe": null }
+        {
+          "id": "fini",
+          "etat": "termine",
+          "creeLe": 100,
+          "reprise": 10,
+          "bailExpireLe": null
+        },
+        {
+          "id": "suspendu",
+          "etat": "en_pause",
+          "creeLe": 200,
+          "reprise": 3,
+          "bailExpireLe": null
+        }
       ],
       "attendu": null
     }
   ],
-
   "places": [
     {
-      "nom": "rien ne tourne : les deux places sont libres",
-      "exigence": "PLT-02",
-      "enCours": 0,
-      "attendu": 2
+      "nom": "rien ne tourne : toutes les places sont libres",
+      "exigence": "limites d'exécution",
+      "enCours": "aucun",
+      "attendu": "limite"
     },
     {
-      "nom": "un travail lourd tourne : il reste une place",
-      "exigence": "PLT-02",
-      "enCours": 1,
-      "attendu": 1
+      "nom": "un travail lourd tourne : il en reste une de moins",
+      "exigence": "limites d'exécution",
+      "enCours": "un",
+      "attendu": "limiteMoinsUn"
     },
     {
-      "nom": "deux travaux lourds tournent : on n'en lance pas un troisième",
-      "exigence": "PLT-02",
-      "enCours": 2,
-      "attendu": 0
+      "nom": "toutes les places prises : on n'en lance pas une de plus",
+      "exigence": "limites d'exécution",
+      "enCours": "limite",
+      "attendu": "aucune"
     },
     {
       "nom": "plus de travaux que de places ne rend jamais un compte négatif",
-      "exigence": "PLT-02",
-      "enCours": 5,
-      "attendu": 0
+      "exigence": "limites d'exécution",
+      "enCours": "limitePlusTrois",
+      "attendu": "aucune"
+    }
+  ],
+  "depart": [
+    {
+      "nom": "un travail lourd part quand une place est libre",
+      "exigence": "limites d'exécution",
+      "poids": "lourd",
+      "enCours": "aucun",
+      "attendu": true
+    },
+    {
+      "nom": "un travail lourd attend quand toutes les places sont prises",
+      "exigence": "limites d'exécution",
+      "poids": "lourd",
+      "enCours": "limite",
+      "attendu": false
+    },
+    {
+      "nom": "un travail léger part même quand les places lourdes sont toutes prises : il n'en occupe aucune",
+      "exigence": "JOB-09",
+      "poids": "leger",
+      "enCours": "limite",
+      "attendu": true
+    },
+    {
+      "nom": "un travail léger ne se bloque pas davantage quand il y a plus de lourds que de places",
+      "exigence": "JOB-09",
+      "poids": "leger",
+      "enCours": "limitePlusTrois",
+      "attendu": true
+    }
+  ],
+  "tentatives": [
+    {
+      "nom": "au premier échec récupérable, il reste des tentatives",
+      "exigence": "JOB-05",
+      "tentative": 1,
+      "attendu": true
+    },
+    {
+      "nom": "à la dernière tentative permise, il n'en reste plus : l'échec devient définitif",
+      "exigence": "JOB-05",
+      "tentativeRelative": "tentativesMax",
+      "attendu": false
+    },
+    {
+      "nom": "au-delà du compte permis, il n'en reste pas davantage",
+      "exigence": "JOB-05",
+      "tentativeRelative": "tentativesMaxPlusUn",
+      "attendu": false
+    }
+  ],
+  "transitions": [
+    {
+      "nom": "un travail en cours mis en pause lâche son bail : la place qu'il tenait se libère",
+      "exigence": "JOB-08",
+      "depuis": "en_cours",
+      "avecBail": true,
+      "action": "pause",
+      "vers": "en_pause",
+      "bailApres": false,
+      "tentativeApres": 1
+    },
+    {
+      "nom": "une pause reprise retourne en file sans consommer de tentative : on n'a pas échoué, on a attendu",
+      "exigence": "JOB-08",
+      "depuis": "en_pause",
+      "avecBail": false,
+      "action": "reprendre",
+      "vers": "en_file",
+      "bailApres": false,
+      "tentativeApres": 1
+    },
+    {
+      "nom": "une annulation lâche le bail et arrête le travail, sans rien activer ni désactiver",
+      "exigence": "JOB-08",
+      "depuis": "en_cours",
+      "avecBail": true,
+      "action": "annuler",
+      "vers": "annule",
+      "bailApres": false,
+      "tentativeApres": 1
+    },
+    {
+      "nom": "un échec récupérable lâche le bail et garde sa tentative : c'est la reprise qui en consomme une",
+      "exigence": "JOB-05",
+      "depuis": "en_cours",
+      "avecBail": true,
+      "action": "echouerRecuperable",
+      "vers": "en_echec_recuperable",
+      "bailApres": false,
+      "tentativeApres": 1
+    },
+    {
+      "nom": "reprendre après un échec consomme une tentative",
+      "exigence": "JOB-05",
+      "depuis": "en_echec_recuperable",
+      "avecBail": false,
+      "action": "reprendre",
+      "vers": "en_file",
+      "bailApres": false,
+      "tentativeApres": 2
+    },
+    {
+      "nom": "un échec qui ne se rattrape pas est définitif tout de suite",
+      "exigence": "JOB-05",
+      "depuis": "en_cours",
+      "avecBail": true,
+      "action": "echouerDefinitif",
+      "vers": "en_echec_definitif",
+      "bailApres": false,
+      "tentativeApres": 1
+    },
+    {
+      "nom": "un échec récupérable demandé alors qu'il ne reste plus de tentative devient définitif : une file qui tourne en cachant la panne vaut moins qu'un échec dit franchement",
+      "exigence": "JOB-05",
+      "depuis": "en_cours",
+      "avecBail": true,
+      "tentativeAvantRelative": "tentativesMax",
+      "action": "echouerRecuperable",
+      "vers": "en_echec_definitif",
+      "bailApres": false,
+      "tentativeApresRelative": "tentativesMax"
     }
   ]
 }

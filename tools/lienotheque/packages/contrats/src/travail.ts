@@ -13,6 +13,19 @@ export type EtatTravail = z.infer<typeof EtatTravail>;
 export const BATTEMENT_VERROU_S = limites.battementVerrouS;
 export const EXPIRATION_VERROU_S = limites.expirationVerrouS;
 
+/** Combien de fois on réessaie un travail qui a échoué de façon récupérable (JOB-05).
+ *
+ *  Au-delà, l'échec devient définitif : réessayer sans fin une opération qui échoue toujours ne la
+ *  fait pas réussir, cela cache seulement la panne derrière une file qui a l'air de tourner. */
+export const TENTATIVES_MAX = limites.tentativesMax;
+
+/** Le temps qu'on laisse passer avant de réessayer.
+ *
+ *  Sans délai, trois tentatives se consomment en une seconde sur une panne passagère — un volume
+ *  démonté, un fichier encore en cours d'écriture — et l'échec devient définitif avant que la
+ *  cause ait eu le temps de disparaître. */
+export const DELAI_ENTRE_TENTATIVES_S = limites.delaiEntreTentativesS;
+
 export const Verrou = z
   .object({ appareilId: Identifiant, battuLe: Horodatage, expireLe: Horodatage })
   .strict()
@@ -21,6 +34,15 @@ export const Verrou = z
     path: ["expireLe"],
   });
 export type Verrou = z.infer<typeof Verrou>;
+
+/** Ce qu'un travail coûte à la machine.
+ *
+ *  « lourd » occupe une des places limitées : lire trois cents pages tient un processus entier et
+ *  son gigaoctet. « léger » n'en occupe aucune — renommer un axe ou recalculer un compte n'a pas
+ *  à attendre qu'une lecture finisse. Lourd par défaut : se tromper dans ce sens fait attendre,
+ *  se tromper dans l'autre fait rendre la main à la machine. */
+export const PoidsTravail = z.enum(["lourd", "leger"]);
+export type PoidsTravail = z.infer<typeof PoidsTravail>;
 
 /** Où le travail s'exécute (PLT-04). Le navigateur traite les petits ajouts ; au-delà d'un seuil,
  *  le travail attend l'application de bureau, qui le reprend à sa prochaine ouverture. */
@@ -48,6 +70,7 @@ export const Travail = z
     versionCible: Identifiant,
     etat: EtatTravail,
     lieu: LieuExecution.default("application"),
+    poids: PoidsTravail.default("lourd"),
     /** Empreinte de ce qui est demandé : rejouer le même travail retrouve celui-ci (JOB-04). */
     empreinteEntree: z.string().min(1).optional(),
     tentative: z.number().int().min(1),

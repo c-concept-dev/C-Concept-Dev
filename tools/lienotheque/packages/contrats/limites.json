@@ -5,5 +5,7 @@
   "memoireMaxMo": 2048,
   "delaiArretPropreS": 5,
   "battementVerrouS": 5,
-  "expirationVerrouS": 15
+  "expirationVerrouS": 15,
+  "tentativesMax": 3,
+  "delaiEntreTentativesS": 30
 }
