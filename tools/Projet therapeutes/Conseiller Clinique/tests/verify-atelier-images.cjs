@@ -393,7 +393,165 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       + 'une à la fois évite.');
     pass('quarante images rendues : taille, durée, poids compressé et décodage unique mesurés.');
 
-    // ── 13. Aucune erreur de page pendant tout cela ───────────────────────────────────────────
+    // ── 13. CE QUE LA CAPTURE RETIRE, et qu'elle doit retirer ────────────────────────────────
+    // Décision de Christophe du 6 octobre, après avoir vu les premières images. On mesure le
+    // RENDU, pas le balisage : les options restent des <button> dans le DOM, mais plus rien à
+    // l'image ne les désigne comme tels, et c'est cela seul qui se voit sur une vidéo.
+    const { INSPECTEUR } = require('./chutier-inspecteur.cjs');
+    const retire = await page.evaluate(async ({ docs, src }) => {
+      const inspecter = eval('(' + src + ')');
+      const sortie = {};
+      for (const d of docs) {
+        const res = await window.AtelierImages.rendreImages(d.doc, { inspecter });
+        sortie[d.cle] = res.images.map((im) => ({ stepId: im.stepId, hauteur: im.hauteur,
+          debordement: im.debordement, i: im.inspection }));
+      }
+      return sortie;
+    }, { docs: PRESENTATIONS.map((p) => ({ cle: p.cle, doc: p.doc })), src: INSPECTEUR.toString() });
+
+    const toutes = Object.values(retire).flat();
+    toutes.forEach((im) => {
+      assert.equal(im.i.carte.bordure, '0px', im.stepId + ' : la carte garde une bordure de ' + im.i.carte.bordure);
+      assert.equal(im.i.carte.rayon, '0px', im.stepId + ' : la carte garde un rayon de ' + im.i.carte.rayon);
+      assert.equal(im.i.carte.ombre, 'aucune', im.stepId + ' : la carte garde une ombre');
+      assert.equal(im.i.badges_loupe.visibles, 0, im.stepId + ' : une loupe d\'agrandissement est visible');
+      assert.deepEqual(im.i.habilles_en_bouton, [],
+        im.stepId + ' : des éléments ont encore l\'habillage d\'un bouton : '
+        + JSON.stringify(im.i.habilles_en_bouton));
+    });
+    // La couverture porte bien une loupe dans le DOM : sans cela, « aucune visible » ne prouverait
+    // rien — ce serait vrai parce qu'il n'y en a jamais eu.
+    const avecLoupe = toutes.filter((im) => im.i.badges_loupe.total > 0);
+    assert.ok(avecLoupe.length >= 1, 'au moins une étape doit porter une loupe dans son DOM, sinon le contrôle est vide');
+    // Le questionnaire : plus de barème, plus de « Voir mon résultat », et il raccourcit d'autant.
+    const quest = retire.questionnaire.find((im) => im.stepId === 'questionnaire-01');
+    const texteQuest = quest.i.textes_rendus.join(' ');
+    assert.equal(/\(\+[0-9]\)/.test(texteQuest), false, 'les barèmes (+0, +1…) ne doivent plus être rendus : ' + texteQuest.slice(0, 120));
+    assert.equal(/Voir mon r/.test(texteQuest), false, '« Voir mon résultat » ne doit plus être rendu');
+    assert.ok(/Jamais/.test(texteQuest) && /Vous evitez/.test(texteQuest),
+      'les questions et les libellés de réponses, eux, DOIVENT rester : ' + texteQuest.slice(0, 120));
+    assert.ok(quest.hauteur < 1496, 'le questionnaire doit raccourcir : ' + quest.hauteur + ' px contre 1496 avant');
+    assert.equal(quest.debordement, true, 'il déborde toujours, et c\'est normal');
+    console.log('      questionnaire : ' + quest.hauteur + ' px (contre 1496 avant le retrait), '
+      + quest.i.cliquables + ' éléments encore cliquables dans le DOM, 0 habillé en bouton');
+    pass('capture dépouillée : ni loupe, ni habillage de bouton, ni barème, ni « Voir mon résultat » ; questions et réponses intactes.');
+
+    // ── 14. L'ÉCHELLE TYPOGRAPHIQUE fait ce qu'elle annonce ──────────────────────────────────
+    const typo = await page.evaluate(async ({ d, src }) => {
+      const inspecter = eval('(' + src + ')');
+      const un = await window.AtelierImages.rendreImages(d, { inspecter });
+      const gros = await window.AtelierImages.rendreImages(d, { inspecter, echelleTypo: 1.6 });
+      const petit = await window.AtelierImages.rendreImages(d, { inspecter, scene: { largeur: 960, hauteur: 540 } });
+      const lire = (res) => res.images.map((im) => im.inspection.tailles.map((t) => t.sortie));
+      return { un: lire(un), gros: lire(gros), petit: lire(petit),
+               sceneUn: un.scene, scenePetit: petit.scene, defautUn: un.scene_par_defaut, defautPetit: petit.scene_par_defaut };
+    }, { d: PRESENTATIONS[1].doc, src: INSPECTEUR.toString() });
+    const premier = (x) => x[0][0];
+    // SUR TOUTES LES ÉTAPES, pas seulement la première. L'échelle est appliquée à chaque étape,
+    // sur les blocs qui viennent d'apparaître : si la garde « déjà mis à l'échelle » sautait, les
+    // étapes suivantes se verraient multipliées deux fois, et seule une vérification étape par
+    // étape le verrait.
+    let compares = 0;
+    for (let k = 0; k < typo.un.length; k++) {
+      for (let j = 0; j < typo.un[k].length; j++) {
+        const r = typo.gros[k][j] / typo.un[k][j];
+        assert.ok(Math.abs(r - 1.6) < 0.02,
+          'étape ' + (k + 1) + ', texte ' + (j + 1) + ' : rapport ' + r.toFixed(3) + ' au lieu de 1,6 ('
+          + typo.un[k][j] + ' → ' + typo.gros[k][j] + ')');
+        compares++;
+      }
+    }
+    assert.ok(compares >= 8, 'il faut comparer plusieurs étapes, pas une : ' + compares);
+    // Scène deux fois plus petite, agrandissement deux fois plus fort : la taille de SORTIE double,
+    // alors que la taille de SCÈNE n'a pas bougé. C'est l'autre levier, et il est bien distinct.
+    assert.ok(Math.abs(premier(typo.petit) / premier(typo.un) - (1422 / 960)) < 0.02,
+      'une scène de 960 doit agrandir le texte dans le rapport 1422/960 : ' + premier(typo.un) + ' → ' + premier(typo.petit));
+    assert.deepEqual(typo.scenePetit, { largeur: 960, hauteur: 540 });
+    assert.equal(typo.defautUn, true, 'sans option, la scène est celle du lecteur');
+    assert.equal(typo.defautPetit, false, 'avec option, le relevé doit le dire');
+    // L'interligne suit la taille SANS qu'on y touche, parce que tous les interlignes du lecteur
+    // sont sans unité. On le vérifie quand même : c'est l'hypothèse sur laquelle repose le fait
+    // de ne multiplier QUE la taille, et elle tomberait sans un mot si un interligne en pixels
+    // apparaissait un jour dans une diapositive.
+    const inter = await page.evaluate(async (d) => {
+      const lire = (inner) => {
+        const el = inner.querySelector('.adoc-sc-card > .adoc-sc-block p')
+          || inner.querySelector('.adoc-sc-card > .adoc-sc-block');
+        const s = getComputedStyle(el);
+        return { taille: parseFloat(s.fontSize), interligne: parseFloat(s.lineHeight),
+                 pose: !!el.style.lineHeight };
+      };
+      let un = null, gros = null;
+      await window.AtelierImages.rendreImages(d, { inspecter: (inner) => { if (!un) un = lire(inner); } });
+      await window.AtelierImages.rendreImages(d, { echelleTypo: 1.6, inspecter: (inner) => { if (!gros) gros = lire(inner); } });
+      return { un, gros };
+    }, PRESENTATIONS[1].doc);
+    const rapportInter = inter.gros.interligne / inter.un.interligne;
+    assert.ok(Math.abs(rapportInter - 1.6) < 0.03,
+      'l\'interligne doit suivre la taille : ' + inter.un.interligne + ' → ' + inter.gros.interligne
+      + ' (rapport ' + rapportInter.toFixed(3) + ')');
+    assert.equal(inter.gros.pose, false,
+      'et il doit la suivre SEUL : aucune valeur d\'interligne ne doit être posée en ligne');
+    console.log('      texte de sortie : ' + premier(typo.un) + ' px (défaut), '
+      + premier(typo.gros) + ' px (×1,6), ' + premier(typo.petit) + ' px (scène 960)'
+      + ' — interligne de scène ' + inter.un.interligne + ' → ' + inter.gros.interligne + ' px');
+    pass('les deux leviers sont distincts, appliqués à toutes les étapes (' + compares
+      + ' comparaisons), interligne compris.');
+
+    // ── 15. RIEN NE FUIT HORS CAPTURE ────────────────────────────────────────────────────────
+    // Le point sur lequel Christophe a été explicite : « ne change rien au lecteur hors capture ».
+    const fuite = await page.evaluate(async (d) => {
+      // Un document rendu dans l'espace de travail, AVANT toute capture.
+      const snap = { sourceSnapshotId: d.sourceSnapshotId, entries: [] };
+      const bac = document.createElement('div');
+      bac.id = 'temoin-hors-capture';
+      document.body.appendChild(bac);
+      const lire = async () => {
+        const r = await window.adocRenderClinicalDocument(d, snap, null);
+        bac.innerHTML = r.html;
+        const carte = bac.querySelector('.adoc-sc-card');
+        const texte = bac.querySelector('.adoc-sc-card p') || bac.querySelector('p');
+        const sc = getComputedStyle(carte);
+        return { bordure: sc.borderTopWidth, rayon: sc.borderTopLeftRadius, ombre: sc.boxShadow,
+                 taille: texte ? getComputedStyle(texte).fontSize : null,
+                 interligne: texte ? getComputedStyle(texte).lineHeight : null };
+      };
+      const avant = await lire();
+      await window.AtelierImages.rendreImages(d, { scene: { largeur: 960, hauteur: 540 }, echelleTypo: 1.6 });
+      const apres = await lire();
+      // Aucune marque de capture ne doit survivre nulle part dans le document.
+      const marques = {
+        scenes: document.querySelectorAll('[data-atelier-scene]').length,
+        captures: document.querySelectorAll('[data-atelier-capture]').length,
+        typo: document.querySelectorAll('[data-atelier-typo]').length,
+      };
+      // Et la feuille de capture ne doit porter QUE des règles portées par la marque.
+      const feuille = document.getElementById('atelier-capture-css');
+      const regles = feuille ? Array.from(feuille.sheet.cssRules).map((r) => r.selectorText || '') : null;
+      const horsMarque = (regles || []).filter((sel) =>
+        sel.split(',').map((x) => x.trim()).some((x) => x.indexOf('[data-atelier-capture]') !== 0));
+      bac.remove();
+      return { avant, apres, marques, nbRegles: regles ? regles.length : 0, horsMarque,
+               reference: window.adocPresentReference };
+    }, PRESENTATIONS[1].doc);
+    assert.deepEqual(fuite.apres, fuite.avant,
+      'le rendu hors capture doit être identique avant et après : ' + JSON.stringify(fuite));
+    // Pas de valeur codée en dur ici : j'avais écrit « 1px », et la carte d'une Présentation en
+    // porte 4 dans l'espace de travail. L'assertion utile n'est pas la valeur, c'est qu'elle ne
+    // soit PAS celle que la capture impose — autrement dit que les règles de capture n'aient pas
+    // débordé hors de leur marque.
+    assert.notEqual(fuite.avant.bordure, '0px', 'hors capture, la carte GARDE une bordure : ' + fuite.avant.bordure);
+    assert.notEqual(fuite.avant.rayon, '0px', 'hors capture, la carte GARDE un rayon : ' + fuite.avant.rayon);
+    assert.deepEqual(fuite.marques, { scenes: 0, captures: 0, typo: 0 }, 'aucune marque de capture ne survit');
+    assert.ok(fuite.nbRegles >= 8, 'la feuille de capture doit porter ses règles : ' + fuite.nbRegles);
+    assert.deepEqual(fuite.horsMarque, [],
+      'TOUTE règle de capture doit être portée par [data-atelier-capture] : ' + JSON.stringify(fuite.horsMarque));
+    assert.deepEqual(fuite.reference, { largeur: 1422, hauteur: 800 }, 'la référence du lecteur ne bouge pas');
+    console.log('      hors capture : bordure ' + fuite.avant.bordure + ', rayon ' + fuite.avant.rayon
+      + ', texte ' + fuite.avant.taille + ' — identiques avant et après une capture à 960×540 ×1,6');
+    pass('le lecteur hors capture est inchangé, et les ' + fuite.nbRegles + ' règles de capture sont toutes portées par la marque.');
+
+    // ── 16. Aucune erreur de page pendant tout cela ───────────────────────────────────────────
     assert.deepEqual(erreurs, [], 'la page ne doit lever aucune erreur : ' + erreurs.join(' | '));
     pass('aucune erreur de page sur l\'ensemble des rendus.');
 

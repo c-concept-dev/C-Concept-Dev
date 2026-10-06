@@ -38,6 +38,93 @@
   // Chemin du module SnapDOM, résolu par rapport à CE script et non au document : la page d'essai
   // vit dans un autre dossier que studio-clinique.html, et un chemin relatif au document s'y
   // casserait sans un mot.
+  // ══════════════════════════════════════════════════════════════════════════════════════════
+  // CE QUI CHANGE PENDANT LA CAPTURE, ET SEULEMENT PENDANT ELLE
+  // ══════════════════════════════════════════════════════════════════════════════════════════
+  // Toutes les règles sont portées par [data-atelier-capture], attribut que SEULE la scène hors
+  // écran de ce moteur reçoit. Le lecteur, l'espace de travail et les exports ne voient rien :
+  // aucun sélecteur ne peut les atteindre. C'est vérifié par un test, pas supposé.
+  //
+  // PAS DE !important. Le sélecteur d'attribut ajoute un niveau de spécificité, donc
+  // « [data-atelier-capture] .adoc-sc-card » (0,2,0) l'emporte déjà sur « .adoc-sc-card » (0,1,0).
+  // Au lot 0 j'avais accusé !important d'un défaut qu'il ne causait pas ; on mesure ce que la
+  // règle obtient (le crochet `inspecter` lit bordure et rayon réels) au lieu d'empiler des
+  // priorités par précaution.
+  //
+  // CE QUI EST RETIRÉ, et pourquoi — décision de Christophe du 6 octobre, après avoir vu les
+  // premières images :
+  //   · la porte d'agrandissement (.adoc-sc-image-zoom-badge) : une loupe sur une image de vidéo
+  //     annonce un geste qui n'existe pas. « Une vidéo n'a pas de clic », dit déjà le CDC.
+  //   · le questionnaire passe en version statique : questions et libellés de réponses, sans
+  //     l'habillage de bouton, sans les barèmes (+0, +1…), sans « Voir mon résultat », sans la
+  //     grille des profils et sans la bande des deux partenaires.
+  //   · la carte perd bordure, rayon et ombre, pour que son fond occupe le cadre entier.
+  //
+  // LE QUIZ N'EST PAS TOUCHÉ dans sa logique : son masque interactif garde la réponse cachée. Le
+  // PDF, lui, la montre. Christophe n'a pas tranché ce point-là, et dévoiler la réponse d'un quiz
+  // au moment même où la question s'affiche irait contre son intention manifeste. Seul l'habillage
+  // de bouton de ses options est retiré, pour la même raison que pour le questionnaire.
+  var CSS_CAPTURE =
+    '[data-atelier-capture] .adoc-sc-image-zoom-badge{display:none;}' +
+    '[data-atelier-capture] .adoc-sc-card{border:0;border-radius:0;box-shadow:none;}' +
+    '[data-atelier-capture] .adoc-sc-questionnaire{border:0;border-radius:0;padding-left:0;padding-right:0;}' +
+    '[data-atelier-capture] .adoc-sc-questionnaire-option-points{display:none;}' +
+    '[data-atelier-capture] .adoc-sc-questionnaire-submit{display:none;}' +
+    '[data-atelier-capture] .adoc-sc-questionnaire-partners{display:none;}' +
+    '[data-atelier-capture] .adoc-sc-questionnaire-scale{display:none;}' +
+    '[data-atelier-capture] .adoc-sc-questionnaire-result{display:none;}' +
+    '[data-atelier-capture] .adoc-sc-questionnaire-option,' +
+    '[data-atelier-capture] .adoc-sc-quiz-option{border:0;background:transparent;box-shadow:none;' +
+      'cursor:default;padding-top:2px;padding-bottom:2px;}' +
+    '[data-atelier-capture] .adoc-sc-quiz{border:0;border-radius:0;padding-left:0;padding-right:0;}';
+  var _cssPose = false;
+  function poserCssCapture() {
+    if (_cssPose || document.getElementById('atelier-capture-css')) { _cssPose = true; return; }
+    var el = document.createElement('style');
+    el.id = 'atelier-capture-css';
+    el.textContent = CSS_CAPTURE;
+    document.head.appendChild(el);
+    _cssPose = true;
+  }
+
+  // ÉCHELLE TYPOGRAPHIQUE. Les tailles du lecteur sont en pixels fixes, dispersées dans plusieurs
+  // feuilles ; il n'existe aucun jeton de taille à multiplier (vérifié : --adoc-sc-*size* n'existe
+  // pas, et le manifeste de rendu n'en porte pas). Poser une seule font-size sur la scène ne
+  // scalerait que ce qui hérite, et laisserait intactes les tailles écrites en px — une
+  // typographie à deux vitesses, pire que pas d'échelle du tout.
+  //
+  // On multiplie donc la taille CALCULÉE de chaque élément, en deux passes : tout lire d'abord,
+  // tout écrire ensuite. L'ordre n'est pas un détail — écrire au fil de la lecture changerait la
+  // valeur héritée par les descendants pas encore lus, et l'échelle se composerait en cascade.
+  //
+  // SEULE la taille est touchée, et c'est une conclusion de mesure, pas une économie. J'avais
+  // d'abord multiplié aussi l'interligne et l'espacement des lettres, en me disant qu'une taille
+  // sans son interligne donne un texte serré. Deux mesures ont montré que ces deux lignes ne
+  // corrigeaient rien ici : tous les interlignes du lecteur sont SANS UNITÉ (1, 1,25, 1,4, 1,5,
+  // 1,6, 1,65, 1,7, 1,75 — relevés un par un), donc ils suivent la taille d'eux-mêmes ; et aucun
+  // élément d'une scène capturée ne porte d'espacement de lettres (les .5px et .8px du dépôt sont
+  // sur des classes de la conversation, jamais dans une diapositive). La falsification l'a
+  // confirmé : retirer la mise à l'échelle de l'interligne ne changeait aucune image.
+  // Si un jour une diapositive portait un interligne ou un espacement EN PIXELS, il faudrait les
+  // remettre — ils ne suivraient pas.
+  function appliquerEchelleTypo(racine, facteur) {
+    if (!facteur || facteur === 1) return 0;
+    var elements = [racine].concat(Array.prototype.slice.call(racine.querySelectorAll('*')));
+    var aEcrire = [];
+    for (var i = 0; i < elements.length; i++) {
+      var el = elements[i];
+      if (el.hasAttribute && el.hasAttribute('data-atelier-typo')) continue;   // jamais deux fois
+      var taille = parseFloat(getComputedStyle(el).fontSize);
+      if (!taille) continue;
+      aEcrire.push({ el: el, taille: taille * facteur });
+    }
+    for (var j = 0; j < aEcrire.length; j++) {
+      aEcrire[j].el.style.fontSize = aEcrire[j].taille.toFixed(2) + 'px';
+      aEcrire[j].el.setAttribute('data-atelier-typo', '1');
+    }
+    return aEcrire.length;
+  }
+
   var _cheminSnapdom = (function () {
     try {
       var src = document.currentScript && document.currentScript.src;
@@ -102,15 +189,24 @@
   // réelles du lecteur sont reprises telles quelles : c'est d'elles que viennent width:1422px,
   // height:800px et flex:0 0 auto, et c'est le CSS du moteur de présentation, déjà injecté dans
   // la page par le cœur, qui les porte.
-  function creerScene() {
+  function creerScene(scene) {
+    poserCssCapture();
     var hote = document.createElement('div');
     hote.setAttribute('data-atelier-scene', '');
     hote.style.cssText = 'position:fixed;left:-20000px;top:0;z-index:-1;'
       + 'display:flex;align-items:center;justify-content:center;pointer-events:none;';
     var outer = document.createElement('div');
     outer.className = 'cc-ws-present-slide-outer';
+    // Taille imposée en ligne : les classes du lecteur portent 1422×800, et un autre réglage de
+    // scène doit pouvoir être éprouvé sans toucher à ces classes, donc sans rien changer pour le
+    // lecteur. `flex:0 0 auto` et les minimums rejouent la parade du lot 0 contre la compression
+    // par un conteneur flex.
+    outer.style.cssText = 'width:' + scene.largeur + 'px;height:' + scene.hauteur + 'px;'
+      + 'min-width:' + scene.largeur + 'px;min-height:' + scene.hauteur + 'px;flex:0 0 auto;';
     var inner = document.createElement('div');
     inner.className = 'cc-ws-present-slide-inner';
+    // La marque de capture : c'est elle, et elle seule, qui active CSS_CAPTURE.
+    inner.setAttribute('data-atelier-capture', '');
     // La transition de 260 ms de .cc-ws-present-slide-inner sert au glissement d'une diapositive
     // à l'autre dans le lecteur. Ici rien ne glisse : la scène est réécrite d'un coup. On la coupe
     // plutôt que de l'attendre pour rien.
@@ -126,11 +222,11 @@
   // Le piège du lot 0, en assertion : la scène doit MESURER 1422×800. Si elle ne le fait pas, on
   // refuse de capturer au lieu de livrer une image à la mauvaise échelle, qui serait indétectable
   // à l'œil sur une vignette.
-  function verifierScene(scene) {
-    var l = scene.outer.offsetWidth, h = scene.outer.offsetHeight;
-    if (l !== SCENE.largeur || h !== SCENE.hauteur) {
+  function verifierScene(sc, attendue) {
+    var l = sc.outer.offsetWidth, h = sc.outer.offsetHeight;
+    if (l !== attendue.largeur || h !== attendue.hauteur) {
       throw new Error('scène non conforme : ' + l + 'x' + h + ' au lieu de '
-        + SCENE.largeur + 'x' + SCENE.hauteur + ' — capture refusée. '
+        + attendue.largeur + 'x' + attendue.hauteur + ' — capture refusée. '
         + 'Cause déjà rencontrée au lot 0 : compression par un conteneur flex parent.');
     }
     return { largeur: l, hauteur: h };
@@ -168,10 +264,10 @@
   // scrollHeight donne la hauteur du contenu Y COMPRIS ce qui dépasse, même sous overflow:hidden.
   // C'est la mesure juste, et elle ne touche pas à la mise en page pour l'obtenir. Le dépliage,
   // lui, a lieu au moment de la capture (voir `capturer`), là où il sert à quelque chose.
-  function mesurerHauteurNecessaire(scene) {
-    var carte = scene.inner.querySelector('.adoc-sc-card');
-    var h = Math.max(scene.inner.scrollHeight, carte ? carte.scrollHeight : 0);
-    return Math.max(SCENE.hauteur, h);
+  function mesurerHauteurNecessaire(sc, attendue) {
+    var carte = sc.inner.querySelector('.adoc-sc-card');
+    var h = Math.max(sc.inner.scrollHeight, carte ? carte.scrollHeight : 0);
+    return Math.max(attendue.hauteur, h);
   }
 
   // ── Capture et composition ──────────────────────────────────────────────────────────────────
@@ -184,26 +280,26 @@
   // La scène 1422×800 a un rapport de 1,7775 là où 1920×1080 en a 1,7778 : la composition étire
   // donc le contenu de 0,17 px sur la hauteur. C'est dit, c'est mesurable, et c'est en dessous de
   // ce qui se voit — mais ce n'est pas zéro.
-  async function capturer(snap, scene, hauteurCapture) {
-    var echelle = SORTIE.largeur / SCENE.largeur;
-    var cibleH = (hauteurCapture === SCENE.hauteur)
+  async function capturer(snap, sc, hauteurCapture, attendue) {
+    var echelle = SORTIE.largeur / attendue.largeur;
+    var cibleH = (hauteurCapture === attendue.hauteur)
       ? SORTIE.hauteur
       : Math.round(hauteurCapture * echelle);
     var restaurer = null;
-    if (hauteurCapture !== SCENE.hauteur) {
-      var outerStyle = scene.outer.style.cssText, innerStyle = scene.inner.style.cssText;
-      scene.outer.style.height = hauteurCapture + 'px';
-      scene.outer.style.overflow = 'visible';
-      scene.inner.style.height = hauteurCapture + 'px';
-      scene.inner.style.overflow = 'visible';
-      restaurer = function () { scene.outer.style.cssText = outerStyle; scene.inner.style.cssText = innerStyle; };
+    if (hauteurCapture !== attendue.hauteur) {
+      var outerStyle = sc.outer.style.cssText, innerStyle = sc.inner.style.cssText;
+      sc.outer.style.height = hauteurCapture + 'px';
+      sc.outer.style.overflow = 'visible';
+      sc.inner.style.height = hauteurCapture + 'px';
+      sc.inner.style.overflow = 'visible';
+      restaurer = function () { sc.outer.style.cssText = outerStyle; sc.inner.style.cssText = innerStyle; };
     }
     try {
-      var source = await snap.toCanvas(scene.inner, { scale: echelle });
+      var source = await snap.toCanvas(sc.inner, { scale: echelle });
       var sortie = document.createElement('canvas');
       sortie.width = SORTIE.largeur; sortie.height = cibleH;
       var ctx = sortie.getContext('2d');
-      var fond = getComputedStyle(scene.inner).backgroundColor;
+      var fond = getComputedStyle(sc.inner).backgroundColor;
       var opaque = fond && fond !== 'transparent' && fond.indexOf('rgba(0, 0, 0, 0)') === -1;
       if (opaque) { ctx.fillStyle = fond; ctx.fillRect(0, 0, sortie.width, sortie.height); }
       ctx.drawImage(source, 0, 0, SORTIE.largeur, cibleH);
@@ -225,7 +321,10 @@
     // dans l'image. C'est le seul moyen d'observer ce que SnapDOM va rastériser sans ouvrir une
     // seconde scène ailleurs, qui mesurerait autre chose que celle-ci (régression #6).
     var o = Object.assign({ modeCapture: true, type: 'image/png', qualite: undefined,
-                            surAvancement: null, inspecter: null }, options || {});
+                            surAvancement: null, inspecter: null,
+                            scene: null, echelleTypo: 1 }, options || {});
+    // La scène de travail : celle du lecteur par défaut, une autre si on l'impose explicitement.
+    var scene = o.scene ? { largeur: o.scene.largeur, hauteur: o.scene.hauteur } : SCENE;
     if (!doc || doc.documentKind !== 'presentation') {
       throw new Error('le chutier visuel ne rend que des Présentations (documentKind reçu : ' + (doc && doc.documentKind) + ').');
     }
@@ -237,15 +336,18 @@
     }
     // La référence du lecteur fait foi sur la taille de scène : si le cœur la changeait un jour,
     // ce moteur doit s'arrêter, pas capturer à une taille qui n'est plus celle de l'écran.
+    // Le garde-fou ne porte que sur le DÉFAUT : si le cœur changeait sa référence, le moteur doit
+    // s'arrêter au lieu de capturer à une taille qui n'est plus celle de l'écran. Une scène
+    // imposée explicitement est un essai assumé, et elle est reportée dans le relevé.
     var ref = window.adocPresentReference;
-    if (!ref || ref.largeur !== SCENE.largeur || ref.hauteur !== SCENE.hauteur) {
+    if (!o.scene && (!ref || ref.largeur !== SCENE.largeur || ref.hauteur !== SCENE.hauteur)) {
       throw new Error('la référence du lecteur (' + (ref && ref.largeur) + 'x' + (ref && ref.hauteur)
         + ') ne correspond plus à la scène de ce moteur (' + SCENE.largeur + 'x' + SCENE.hauteur + ').');
     }
 
     var etapes = window.adocPresentStepList(doc);
     var snap = await chargerSnapdom();
-    var scene = creerScene();
+    var sc = creerScene(scene);
     var etatPrecedent = window._adocPresentState;
     var modePrecedent = window._adocPresentModeCapture;
     var t0 = performance.now();
@@ -257,27 +359,30 @@
         var carte = cartes[i];
         var deLaCarte = etapes.filter(function (e) { return e.cardId === carte.id; });
         if (!deLaCarte.length) continue;
-        scene.inner.innerHTML = await window.adocPresentResolveSlideHTML(carte, i, cartes.length);
-        verifierScene(scene);
+        sc.inner.innerHTML = await window.adocPresentResolveSlideHTML(carte, i, cartes.length);
+        verifierScene(sc, scene);
         // L'état du lecteur, le temps de la capture seulement. adocPresentRevealNext le lit et
         // l'avance ; on le restaure à la fin pour ne jamais laisser le vrai lecteur dérangé.
         window._adocPresentState = { doc: doc, index: i, revealIndex: null, revealTotal: 0 };
-        window.adocPresentApplyReveal(scene.inner, carte, false);
+        window.adocPresentApplyReveal(sc.inner, carte, false);
         for (var r = 0; r < deLaCarte.length; r++) {
           if (r > 0) {
-            var avance = window.adocPresentRevealNext(scene.inner);
+            var avance = window.adocPresentRevealNext(sc.inner);
             if (!avance) {
               throw new Error('le lecteur a refusé d\'avancer à l\'étape ' + (r + 1) + ' de la carte ' + carte.id
                 + ' : l\'énumération annonce ' + deLaCarte.length + ' étapes, la révélation n\'en connaît que '
                 + window._adocPresentState.revealTotal + '.');
             }
           }
-          await attendreStabilite(scene.inner, o.modeCapture);
+          // L'échelle typographique AVANT l'attente de stabilité : elle change la mise en page,
+          // et c'est la mise en page d'après qui doit se stabiliser.
+          appliquerEchelleTypo(sc.inner, o.echelleTypo);
+          await attendreStabilite(sc.inner, o.modeCapture);
           var inspection = null;
-          if (o.inspecter) { try { inspection = o.inspecter(scene.inner, deLaCarte[r], scene); } catch (e) { inspection = { erreur: String(e && e.message || e) }; } }
-          var hauteurNecessaire = mesurerHauteurNecessaire(scene);
-          var debordement = hauteurNecessaire > SCENE.hauteur;
-          var capture = await capturer(snap, scene, hauteurNecessaire);
+          if (o.inspecter) { try { inspection = o.inspecter(sc.inner, deLaCarte[r], scene); } catch (e) { inspection = { erreur: String(e && e.message || e) }; } }
+          var hauteurNecessaire = mesurerHauteurNecessaire(sc, scene);
+          var debordement = hauteurNecessaire > scene.hauteur;
+          var capture = await capturer(snap, sc, hauteurNecessaire, scene);
           var blob = await canvasVersBlob(capture.canvas, o.type, o.qualite);
           var etape = deLaCarte[r];
           images.push({
@@ -291,7 +396,7 @@
             // Ce que le DOM portait À L'INSTANT de la capture. C'est la seule preuve possible
             // qu'aucun nombre n'a été saisi en cours d'animation (V6) : un test peut l'exiger
             // égal au texte final, au lieu de faire confiance à un délai.
-            textes: Array.from(scene.inner.querySelectorAll('.adoc-sc-card > .adoc-sc-block.adoc-sc-reveal-shown, .adoc-sc-card > .adoc-sc-block:not(.adoc-sc-reveal)'))
+            textes: Array.from(sc.inner.querySelectorAll('.adoc-sc-card > .adoc-sc-block.adoc-sc-reveal-shown, .adoc-sc-card > .adoc-sc-block:not(.adoc-sc-reveal)'))
               .map(function (el) { return (el.textContent || '').trim().replace(/\s+/g, ' '); }),
           });
           // Le canvas est relâché tout de suite : seule la forme COMPRESSÉE est gardée (V5).
@@ -304,14 +409,15 @@
     } finally {
       window._adocPresentState = etatPrecedent;
       window._adocPresentModeCapture = modePrecedent;
-      scene.retirer();
+      sc.retirer();
     }
     return {
       images: images,
       etapes_annoncees: etapes.length,
       duree_ms: Math.round(performance.now() - t0),
       octets_total: images.reduce(function (a, im) { return a + im.octets; }, 0),
-      scene: SCENE, sortie: SORTIE,
+      scene: scene, sortie: SORTIE, echelle_typo: o.echelleTypo,
+      scene_par_defaut: !o.scene,
       mode_capture: !!o.modeCapture,
       attente_animations_ms: o.modeCapture ? 0 : ATTENTE_ANIMATIONS_MS,
       snapdom: SNAPDOM_VERSION, moteur: MOTEUR_VERSION,

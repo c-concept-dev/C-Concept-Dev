@@ -30,11 +30,17 @@ const ESSAIS = [
     vers: '',
     attendu: 'une capture part sur une valeur intermédiaire' },
 
-  { nom: 'la scène perd la classe du lecteur, donc sa taille',
+  // La scène porte sa taille en style EN LIGNE depuis que le réglage de scène existe : retirer
+  // la classe du lecteur ne la change plus, et cette mutation-là ne mesurait donc plus rien.
+  // Elle vise maintenant ce qui fixe réellement la taille.
+  // Réduire la seule `width` ne suffit pas : `min-width` l'emporte, et la scène garde sa taille.
+  // C'est une bonne propriété du montage, et c'est aussi ce qui rendait la mutation aveugle. Elle
+  // réduit donc les deux, comme le ferait une vraie erreur de calcul de scène.
+  { nom: 'la scène est montée dix pixels trop étroite',
     fichier: 'moteur',
-    de: "    outer.className = 'cc-ws-present-slide-outer';",
-    vers: "    outer.className = '';",
-    attendu: 'la scène ne mesure plus 1422x800 et la capture est refusée' },
+    de: "    outer.style.cssText = 'width:' + scene.largeur + 'px;height:' + scene.hauteur + 'px;'\n      + 'min-width:' + scene.largeur + 'px;min-height:' + scene.hauteur + 'px;flex:0 0 auto;';",
+    vers: "    outer.style.cssText = 'width:' + (scene.largeur - 10) + 'px;height:' + scene.hauteur + 'px;'\n      + 'min-width:' + (scene.largeur - 10) + 'px;min-height:' + scene.hauteur + 'px;flex:0 0 auto;';",
+    attendu: 'la scène ne mesure plus la taille demandée et la capture est refusée' },
 
   // MUTATION D'ABORD ESSAYÉE, PUIS ÉCARTÉE parce qu'elle est ÉQUIVALENTE : remplacer
   // `ctx.drawImage(source, 0, 0, SORTIE.largeur, cibleH)` par un dessin aux dimensions de la
@@ -69,9 +75,53 @@ const ESSAIS = [
 
   { nom: 'le débordement n\'est plus mesuré',
     fichier: 'moteur',
-    de: '    return Math.max(SCENE.hauteur, h);',
-    vers: '    return SCENE.hauteur;',
+    de: '    return Math.max(attendue.hauteur, h);',
+    vers: '    return attendue.hauteur;',
     attendu: 'le questionnaire n\'est plus capturé sur toute sa hauteur' },
+
+
+  // ── Lot 2, suite : ce que la capture retire, et l'étanchéité de la couche ────────────────
+  { nom: 'la loupe d\'agrandissement reste visible dans la capture',
+    fichier: 'moteur',
+    de: "    '[data-atelier-capture] .adoc-sc-image-zoom-badge{display:none;}' +\n",
+    vers: '',
+    attendu: 'une loupe apparaît sur une image de vidéo' },
+
+  { nom: 'la carte garde sa bordure et son rayon dans la capture',
+    fichier: 'moteur',
+    de: "    '[data-atelier-capture] .adoc-sc-card{border:0;border-radius:0;box-shadow:none;}' +\n",
+    vers: '',
+    attendu: 'un rectangle à coins arrondis au bord du cadre' },
+
+  { nom: '« Voir mon résultat » reste dans la capture',
+    fichier: 'moteur',
+    de: "    '[data-atelier-capture] .adoc-sc-questionnaire-submit{display:none;}' +\n",
+    vers: '',
+    attendu: 'un bouton qu\'on ne peut pas cliquer' },
+
+  { nom: 'les barèmes (+0, +1…) restent dans la capture',
+    fichier: 'moteur',
+    de: "    '[data-atelier-capture] .adoc-sc-questionnaire-option-points{display:none;}' +\n",
+    vers: '',
+    attendu: 'un barème interactif rastérisé' },
+
+  { nom: 'la couche de capture n\'est plus portée par sa marque',
+    fichier: 'moteur',
+    de: "  var CSS_CAPTURE =\n    '[data-atelier-capture] ",
+    vers: "  var CSS_CAPTURE =\n    '",
+    attendu: 'la première règle déborde sur le lecteur et sur tous les exports' },
+
+  { nom: 'l\'échelle typographique ne fait plus rien',
+    fichier: 'moteur',
+    de: '    if (!facteur || facteur === 1) return 0;',
+    vers: '    if (true) return 0;',
+    attendu: 'le réglage (c) rend exactement les mêmes images que (a)' },
+
+  { nom: 'l\'échelle typographique est appliquée plusieurs fois au même élément',
+    fichier: 'moteur',
+    de: "      if (el.hasAttribute && el.hasAttribute('data-atelier-typo')) continue;   // jamais deux fois",
+    vers: '      if (false) continue;',
+    attendu: 'les étapes suivantes voient leur texte multiplié deux fois' },
 
 ];
 
