@@ -8206,6 +8206,20 @@ ${recent}`;
     return 'Présentation condensée en ' + b.cible + ' diapositives ; pour un cours long, prévois plusieurs modules.';
   }
   window.adocPresentationBudgetNotice = adocPresentationBudgetNotice;
+  // LOT 1a — exposées pour les tests, comme adocRunGenerationPipeline l'est plus bas : c'est ce
+  // qui permet d'éprouver la règle d'étape et la purge sans aucun appel au modèle.
+  window.adocPresentStepList = adocPresentStepList;
+  window.adocNarrationRead = adocNarrationRead;
+  window.adocNarrationWrite = adocNarrationWrite;
+  window.adocNarrationApply = adocNarrationApply;
+  window.adocNarrationPurge = adocNarrationPurge;
+  window.adocNarrationCount = adocNarrationCount;
+  window.adocDocumentPourExport = adocDocumentPourExport;
+  window.adocEditorStepRef = adocEditorStepRef;
+  window.adocNarrationSuivreChangementEtapes = adocNarrationSuivreChangementEtapes;
+  // Le SEUL point de sérialisation pour l'enregistrement, exposé pour que le test de
+  // l'aller-retour éprouve ce que l'application persiste réellement, et non une copie forgée.
+  window.adocBuildClinicalDocumentContent = function (art) { return adocBuildClinicalDocumentContent(art); };
   // ═══ COURS EN PUZZLE — ASSEMBLAGE DÉTERMINISTE ═══
   // Un cours long ne peut pas être produit en un seul appel : 3 h de contenu réclament ~120
   // diapositives, soit ~60 000 jetons de sortie, très au-delà de ce que le modèle rend en une fois
@@ -8319,10 +8333,18 @@ ${recent}`;
     const idCarte = function () { seqCard++; return 'card-' + String(seqCard).padStart(2, '0'); };
     let seqBloc = 0;
     const idBloc = function (type) { seqBloc++; return type + '-' + String(seqBloc).padStart(2, '0'); };
+    // Lot 1a — l'assemblage réécrit TOUS les identifiants (idBloc pour les blocs, idCarte pour
+    // les cartes). Sans ce report, chaque narration d'un module deviendrait orpheline à
+    // l'assemblage, et adocNarrationPurge la supprimerait sans un mot au premier enregistrement.
+    // Table par MODULE : un identifiant de bloc n'est unique qu'à l'intérieur d'un document, deux
+    // modules peuvent parfaitement porter 'paragraph-03' chacun de leur côté.
+    const corresp = {};
+    const cleCorresp = function (moduleId, ancien) { return moduleId + '\u0000' + ancien; };
 
     const remapperBloc = function (bloc, moduleId) {
       const clone = JSON.parse(JSON.stringify(bloc));
       clone.id = idBloc(clone.type || 'block');
+      corresp[cleCorresp(moduleId, bloc.id)] = clone.id;   // Lot 1a — report de la narration
       const tc = traduireCitation[moduleId] || {};
       if (Array.isArray(clone.citationIds)) {
         clone.citationIds = clone.citationIds.map(function (c) { return tc[c]; }).filter(Boolean);
@@ -8361,6 +8383,10 @@ ${recent}`;
       (r.module.doc.blocks || []).forEach(function (card) {
         const clone = remapperBloc(card, r.plan.id);
         clone.id = idCarte(); // une carte de diapositive garde la numérotation des cartes
+        // Lot 1a — remapperBloc vient d'inscrire un identifiant de BLOC pour cette carte ; la
+        // ligne ci-dessus l'a remplacé par un identifiant de CARTE. La correspondance doit suivre,
+        // sinon la narration d'une carte sans bloc (diapositive de titre) serait perdue.
+        corresp[cleCorresp(r.plan.id, card.id)] = clone.id;
         cards.push(clone);
       });
     });
@@ -8429,6 +8455,17 @@ ${recent}`;
     };
     if (deepDives.length) doc.deepDives = deepDives;
     doc.modules = entetes;
+    // Lot 1a — narrations reportées dans l'ordre des modules retenus. Une entrée dont l'étape
+    // n'a pas survécu à l'assemblage (module omis, bloc rejeté par la conversion) est laissée de
+    // côté ici plutôt que reportée sur un identifiant qui n'existe pas.
+    const narration = [];
+    retenus.forEach(function (r) {
+      ((r.module.doc && r.module.doc.narration) || []).forEach(function (n) {
+        const nouvel = corresp[cleCorresp(r.plan.id, n.stepId)];
+        if (nouvel) narration.push({ stepId: nouvel, text: n.text });
+      });
+    });
+    if (narration.length) doc.narration = narration;
 
     return {
       doc: doc,
@@ -9641,6 +9678,15 @@ ${recent}`;
       '</div></details>' +
       '<div class="cc-editor-list-tools cc-editor-row">' + button('list-add','Ajouter un élément') + button('list-remove','Retirer l’élément') + button('indent','Augmenter le niveau') + button('outdent','Réduire le niveau') + button('bullets','Puces') + button('numbered','Numéros') + '</div>' +
       '<div class="cc-editor-table-tools"><strong>Tableau — cellule active</strong><div class="cc-editor-row">' + button('row-before','Ligne avant') + button('row-after','Ligne après') + button('row-delete','Supprimer la ligne') + button('col-before','Colonne avant') + button('col-after','Colonne après') + button('col-delete','Supprimer la colonne') + button('merge-right','Fusionner à droite') + button('merge-down','Fusionner en dessous') + button('split','Dissocier') + button('sort-asc','Trier A → Z') + button('sort-desc','Trier Z → A') + '</div><details><summary>Mise en forme conditionnelle de la colonne active</summary><div class="cc-editor-row"><select aria-label="Condition" data-rule-op><option value="gt">Supérieur à</option><option value="lt">Inférieur à</option><option value="eq">Égal à</option></select><input type="number" aria-label="Seuil" data-rule-value value="0"><input type="color" aria-label="Couleur conditionnelle" data-rule-color value="#fff1b8">' + button('rule-add','Appliquer la règle') + button('rule-clear','Retirer les règles') + '</div></details></div>' +
+      // LOT 1a — narration de l'étape sélectionnée. Masquée partout ailleurs, exactement comme
+      // .cc-editor-list-tools l'est hors d'une liste : un seul mécanisme de révélation, celui
+      // déjà en place dans adocEditorRefreshControls. Aucune règle CSS nouvelle — .adoc-textarea
+      // et .cc-editor-row existent déjà, et aucun pictogramme n'est ajouté ici.
+      '<div class="cc-editor-narration" hidden><strong>Narration</strong>' +
+        '<p class="cc-editor-narration-etape" role="status" aria-live="polite"></p>' +
+        '<div class="cc-editor-row"><textarea class="adoc-textarea cc-editor-narration-texte" data-editor-narration rows="4" aria-label="Narration de cette étape" placeholder="Ce que vous direz pendant cette étape."></textarea></div>' +
+        '<p class="cc-editor-narration-compte"></p>' +
+      '</div>' +
       '<div class="cc-editor-row">' + button('reset','Réinitialiser le style') + '</div><p class="cc-editor-message" role="status" aria-live="polite"></p></div>';
   }
   // Partie B (import charte) — id de la charte réellement appliquée à CE document précis, jamais
@@ -9663,6 +9709,44 @@ ${recent}`;
     const leaf = (node.nodeType === 1 ? node : node.parentElement).closest('[data-cc-editor-leaf][contenteditable="true"]');
     if (leaf && leaf.closest('#cc-ws-doc-card')) { _adocEditorRange = range.cloneRange(); _adocEditorLeaf = leaf; }
   }
+  // LOT 1a — de la SÉLECTION à l'ÉTAPE. Le panneau sélectionne un bloc ; une étape de
+  // Présentation est soit un bloc, soit la carte entière quand elle n'en a qu'un ou aucun.
+  // Sélectionner le titre d'une diapositive ('root:card-title:<cardId>', identifiant réservé déjà
+  // existant) désigne la PREMIÈRE étape de cette diapositive — jamais rien, ce qui laisserait une
+  // diapositive de titre sans moyen d'être narrée. Rend l'entrée d'étape entière, pas seulement
+  // son identifiant : le libellé a besoin du titre de carte et du rang.
+  function adocEditorStepRef(doc, blockId) {
+    if (!doc || !blockId) return null;
+    const id = blockId.indexOf('root:card-title:') === 0
+      ? blockId.slice('root:card-title:'.length) : blockId;
+    const etapes = adocPresentStepList(doc);
+    return etapes.find(function (e) { return e.stepId === id; })
+        || etapes.find(function (e) { return e.cardId === id; })
+        || null;
+  }
+  function adocEditorRefreshNarrationCount(boite, texte) {
+    const out = boite.querySelector('.cc-editor-narration-compte');
+    if (!out) return;
+    const c = adocNarrationCount(texte);
+    out.textContent = c.mots === 0
+      ? 'Aucun mot pour l\'instant.'
+      : c.mots + (c.mots > 1 ? ' mots' : ' mot') + ' — environ ' + c.secondes
+        + ' s à voix haute. Estimation indicative, sur une moyenne de '
+        + String(ADOC_NARRATION_MOTS_PAR_SECONDE).replace('.', ',') + ' mots par seconde.';
+  }
+  // Frappe dans le champ : écriture immédiate dans le document (jamais une copie parallèle à
+  // resynchroniser), document marqué modifié, compte rafraîchi. L'enregistrement reste explicite,
+  // comme pour toute autre édition de bloc.
+  function adocEditorNarrationInput(zone) {
+    const ctx = adocEditorContext();
+    if (!ctx || ctx.legacy || !ctx.art._adocStructuredDoc) return;
+    const stepId = zone.dataset.stepId;
+    if (!stepId) return;
+    if (adocNarrationWrite(ctx.art._adocStructuredDoc, stepId, zone.value)) adocEditorMarkDirty();
+    const boite = zone.closest('.cc-editor-narration');
+    if (boite) adocEditorRefreshNarrationCount(boite, zone.value);
+  }
+
   function adocEditorRefreshControls() {
     const ctx = adocEditorContext(); if (!ctx) return;
     const panel = ctx.st.panelEl, tools = panel && panel.querySelector('.cc-editor-tools'); if (!tools) return;
@@ -9689,6 +9773,26 @@ ${recent}`;
     // ajouter sinon) : même patron que data-image-add-text (adocEditorRefreshImageControls).
     const addImageBtn = panel.querySelector('[data-block-add-image]');
     if (addImageBtn) addImageBtn.hidden = !!(ctx.block && ctx.block.style && ctx.block.style.backgroundAssetId);
+    // LOT 1a — narration : visible UNIQUEMENT dans une Présentation du moteur structuré, et
+    // seulement quand la sélection désigne une étape. adocPresentStepList rend déjà [] pour tout
+    // autre documentKind, donc la condition de type de document n'est pas répétée ici.
+    const narrBoite = tools.querySelector('.cc-editor-narration');
+    if (narrBoite) {
+      const etape = ctx.legacy ? null : adocEditorStepRef(ctx.art._adocStructuredDoc, ctx.st.blockId);
+      narrBoite.hidden = !etape;
+      if (etape) {
+        const zone = narrBoite.querySelector('[data-editor-narration]');
+        const sur = etape.surRang > 1 ? ', étape ' + etape.rang + ' sur ' + etape.surRang : ', étape unique';
+        narrBoite.querySelector('.cc-editor-narration-etape').textContent =
+          'Diapositive « ' + (etape.cardTitle || 'sans titre') + ' »' + sur + '.';
+        // Jamais écrasé pendant la frappe — même garde que les champs de style ci-dessus.
+        if (document.activeElement !== zone) {
+          zone.value = adocNarrationRead(ctx.art._adocStructuredDoc, etape.stepId);
+        }
+        zone.dataset.stepId = etape.stepId;
+        adocEditorRefreshNarrationCount(narrBoite, zone.value);
+      }
+    }
     const families = new Set(_adocEditorLocalFonts);
     ADOC_LEGACY_FONT_PAIRS.forEach(function (p) { if (p.bodyFont) families.add(p.bodyFont); if(p.headingFont) families.add(p.headingFont); });
     // Partie B (import charte) — polices de la charte ACTIVE de CE document précis (défauts +
@@ -10609,7 +10713,8 @@ ${recent}`;
     // LOT E — 'input' (jamais 'change') pour un aperçu réellement continu pendant le
     // glissement : 'change' ne se déclenche qu'au relâchement d'un <input type=range>, trop
     // tard pour "aperçu en temps réel pendant le déplacement" (exigence explicite).
-    lr.addEventListener('input',function(e){if(e.target.matches('[data-editor-opacity]'))adocApplyBlockOpacity(e.target.dataset.editorOpacity,e.target.value,false);
+    lr.addEventListener('input',function(e){if(e.target.matches('[data-editor-narration]'))adocEditorNarrationInput(e.target);
+      if(e.target.matches('[data-editor-opacity]'))adocApplyBlockOpacity(e.target.dataset.editorOpacity,e.target.value,false);
       if(e.target.matches('[data-image-opacity]'))adocApplyImageOpacity(e.target.value,false);
       if(e.target.matches('[data-image-size]'))adocApplyImageWidth(e.target.value,false);
       if(e.target.matches('[data-image-rotation]'))adocApplyImageRotation(e.target.value,false);
@@ -17446,6 +17551,164 @@ ${recent}`;
   }
 
 
+  // ══════════════════════════════════════════════════════════════════════════════════════
+  // LOT 1a — NARRATION PAR ÉTAPE
+  // ══════════════════════════════════════════════════════════════════════════════════════
+  // EMPLACEMENT. La narration vit dans UNE table à la RACINE du document (`doc.narration`),
+  // indexée par identifiant d'étape — jamais sur la carte, jamais sur le bloc. Trois faits lus
+  // dans le code avant d'écrire une ligne, et non supposés :
+  //   1. Les identifiants de blocs sont uniques dans TOUT le document, par construction et non
+  //      par convention. adocNextBlockId parcourt doc.blocks ET content.blocks récursivement
+  //      avant d'émettre ; les deux générateurs de génération (convertBlock ~L15718, idBloc
+  //      d'adocAssembleCourse ~L8321) tiennent un compteur unique jamais remis à zéro d'une
+  //      carte à l'autre, et les identifiants de cartes ('card-NN'/'slide-NN') partagent le même
+  //      espace. Un identifiant d'étape suffit donc SEUL : jamais une paire (carte, bloc).
+  //   2. Réordonner ne réécrit aucun identifiant : le glisser-déposer fait deux splice sur le
+  //      MÊME tableau. Et déplacer un bloc d'une carte à une autre n'existe pas aujourd'hui —
+  //      le geste est restreint aux frères directs du même conteneur DOM (point 5 du CDC,
+  //      « jamais un bloc d'un autre conteneur »). Une table à la racine est insensible aux deux.
+  //   3. Une entrée orpheline — carte ou bloc disparu — serait invisible si elle était rangée
+  //      sur la carte. À la racine, une seule fonction les voit toutes : adocNarrationPurge,
+  //      appelée au seul point de sérialisation (adocBuildClinicalDocumentContent).
+  // Portée par cardContent, la même table aurait coûté le même nombre de correctifs de schéma,
+  // mais elle aurait suivi la CARTE et non le BLOC : le jour où déplacer un bloc d'une carte à
+  // une autre existera, la narration serait restée derrière lui.
+  //
+  // RÈGLE D'ÉTAPE — strictement celle d'adocPresentApplyReveal ci-dessous, jamais une seconde :
+  // 0 ou 1 bloc dans la carte → UNE étape ; au-delà → une étape par bloc. La différence de
+  // SOURCE est dite, et vérifiée plutôt que supposée : adocPresentApplyReveal compte les blocs
+  // RENDUS (.adoc-sc-card > .adoc-sc-block), celle-ci compte les blocs de DONNÉES, seuls
+  // disponibles hors du mode plein écran. verify-narration-etapes.cjs exige que les deux comptes
+  // concordent sur des cartes à 0, 1, 2 et 4 blocs.
+  //
+  // Les cartes à zéro bloc ne sont pas une hypothèse : adocAssembleCourse construit la
+  // diapositive de titre de chaque module avec `blocks: contexte`, et `contexte` est vide dès
+  // qu'un module n'a pas de notions clés. C'est le cas où le stepId est l'identifiant de la carte.
+  var ADOC_NARRATION_MOTS_PAR_SECONDE = 2.5;
+
+  function adocPresentStepList(doc) {
+    if (!doc || doc.documentKind !== 'presentation') return [];
+    const etapes = [];
+    (doc.blocks || []).forEach(function (card) {
+      if (!card || card.type !== 'card') return;
+      const titre = (card.content && card.content.title) || '';
+      const blocs = (card.content && card.content.blocks) || [];
+      if (blocs.length <= 1) {
+        const bloc = blocs[0] || null;
+        etapes.push({ cardId: card.id, cardTitle: titre, stepId: bloc ? bloc.id : card.id,
+                      blockId: bloc ? bloc.id : null, rang: 1, surRang: 1 });
+        return;
+      }
+      blocs.forEach(function (bloc, i) {
+        etapes.push({ cardId: card.id, cardTitle: titre, stepId: bloc.id,
+                      blockId: bloc.id, rang: i + 1, surRang: blocs.length });
+      });
+    });
+    return etapes;
+  }
+  function adocNarrationStepIds(doc) {
+    return new Set(adocPresentStepList(doc).map(function (e) { return e.stepId; }));
+  }
+  function adocNarrationRead(doc, stepId) {
+    const e = ((doc && doc.narration) || []).find(function (n) { return n.stepId === stepId; });
+    return e ? e.text : '';
+  }
+  // Écriture DIRECTE — le geste humain sur le champ visible, où la valeur en place est sous les
+  // yeux de celui qui la remplace. Un texte vide RETIRE l'entrée au lieu d'en stocker une vide :
+  // le schéma exige minLength 1, et une étape sans narration reste valide. Rend true seulement
+  // si quelque chose a changé, pour ne pas marquer le document modifié sans raison.
+  function adocNarrationWrite(doc, stepId, text) {
+    if (!doc || !stepId) return false;
+    const propre = String(text == null ? '' : text).trim();
+    const liste = doc.narration || [];
+    const i = liste.findIndex(function (n) { return n.stepId === stepId; });
+    if (!propre) {
+      if (i === -1) return false;
+      liste.splice(i, 1);
+      if (liste.length) doc.narration = liste; else delete doc.narration;
+      return true;
+    }
+    if (i === -1) liste.push({ stepId: stepId, text: propre });
+    else if (liste[i].text === propre) return false;
+    else liste[i].text = propre;
+    doc.narration = liste;
+    return true;
+  }
+  // Écriture EN LOT — pour le jour où des narrations seront produites autrement qu'à la main.
+  // Elle n'écrase JAMAIS une narration déjà écrite sans `remplacer: true`, et rend la liste des
+  // étapes refusées au lieu de les écraser en silence : « jamais écrasée sans confirmation » est
+  // ici une propriété de la fonction, pas une consigne d'usage.
+  function adocNarrationApply(doc, entrees, options) {
+    const remplacer = !!(options && options.remplacer);
+    const ecrites = [], refusees = [];
+    (entrees || []).forEach(function (e) {
+      if (!e || !e.stepId) return;
+      if (adocNarrationRead(doc, e.stepId) && !remplacer) { refusees.push(e.stepId); return; }
+      if (adocNarrationWrite(doc, e.stepId, e.text)) ecrites.push(e.stepId);
+    });
+    return { ecrites: ecrites, refusees: refusees };
+  }
+  // Purge des orphelines, au seul point de sérialisation. Rend les identifiants retirés et non un
+  // booléen : une narration perdue doit pouvoir être nommée.
+  function adocNarrationPurge(doc) {
+    if (!doc || !Array.isArray(doc.narration)) return [];
+    const vivants = adocNarrationStepIds(doc);
+    const retirees = doc.narration.filter(function (n) { return !vivants.has(n.stepId); })
+      .map(function (n) { return n.stepId; });
+    if (!retirees.length) return [];
+    const restantes = doc.narration.filter(function (n) { return vivants.has(n.stepId); });
+    if (restantes.length) doc.narration = restantes; else delete doc.narration;
+    return retirees;
+  }
+  // Report d'un identifiant d'étape qui change de nature. Le SEUL changement que la règle
+  // « 0 ou 1 bloc → une étape » puisse provoquer : une carte qui passe de ZÉRO à UN bloc. Son
+  // étape unique était désignée par l'identifiant de la CARTE, elle l'est désormais par celui du
+  // bloc. Sans ce report, insérer un premier bloc dans une diapositive de titre — geste qui, lui,
+  // existe bel et bien — perdrait sa narration dès l'enregistrement suivant, purgée comme
+  // orpheline. Trouvé en éprouvant les quatre tailles de carte, jamais supposé.
+  // Les autres transitions ne perdent rien, et c'est pourquoi elles ne sont pas traitées ici : de
+  // 1 à 2 blocs, l'identifiant du bloc déjà présent reste un identifiant d'étape ; de 2 à 1, celui
+  // du bloc restant aussi. Prend l'ÉTAT D'AVANT en argument : une fonction qui devinerait la
+  // transition après coup se tromperait sur une carte à un seul bloc depuis toujours.
+  function adocNarrationSuivreChangementEtapes(doc, avant) {
+    if (!doc || !Array.isArray(doc.narration) || !doc.narration.length) return [];
+    const parCarteAvant = {};
+    (avant || []).forEach(function (e) { (parCarteAvant[e.cardId] = parCarteAvant[e.cardId] || []).push(e.stepId); });
+    const apres = adocPresentStepList(doc);
+    const parCarteApres = {};
+    apres.forEach(function (e) { (parCarteApres[e.cardId] = parCarteApres[e.cardId] || []).push(e.stepId); });
+    const vivants = new Set(apres.map(function (e) { return e.stepId; }));
+    const reports = [];
+    Object.keys(parCarteAvant).forEach(function (cardId) {
+      const a = parCarteAvant[cardId], b = parCarteApres[cardId] || [];
+      if (a.length !== 1 || !b.length) return;
+      if (vivants.has(a[0])) return;                       // l'étape existe encore : rien à faire
+      const texte = adocNarrationRead(doc, a[0]);
+      if (!texte) return;
+      if (adocNarrationRead(doc, b[0])) return;            // jamais écraser une narration déjà là
+      adocNarrationWrite(doc, b[0], texte);
+      adocNarrationWrite(doc, a[0], '');
+      reports.push({ de: a[0], vers: b[0] });
+    });
+    return reports;
+  }
+  // Mots et durée INDICATIVE. 2,5 mots par seconde est une moyenne de lecture à voix haute : elle
+  // ne mesure rien de la diction réelle, et l'interface le dit au lieu de le laisser croire.
+  function adocNarrationCount(text) {
+    const mots = String(text || '').trim().split(/\s+/).filter(Boolean).length;
+    return { mots: mots, secondes: mots ? Math.round(mots / ADOC_NARRATION_MOTS_PAR_SECONDE) : 0 };
+  }
+  // Le document tel qu'il part dans un fichier exporté : la narration en est RETIRÉE. Un seul
+  // point de retrait parce qu'il y a un seul point d'embarquement du document entier
+  // (window.ADOC_EXPORT_DOC, adocBuildPresentationStandaloneHTML). Copie de surface : le reste du
+  // document part à l'identique, aucun autre champ n'est touché.
+  function adocDocumentPourExport(doc) {
+    if (!doc) return doc;
+    const copie = Object.assign({}, doc);
+    delete copie.narration;
+    return copie;
+  }
+
   function adocPresentApplyReveal(inner, card, fullyRevealed) {
     const state = window._adocPresentState;
     if (!state) return;
@@ -18559,7 +18822,10 @@ ${recent}`;
       // Sur window : adocPresentDemarrerExport est définie DANS le module puis sérialisée dans le
       // fichier ; elle ne capture donc pas une variable locale de la coquille. La lire sur window
       // est ce qui la rend accessible au clic.
-      'window.ADOC_EXPORT_DOC = ' + JSON.stringify(doc) + ';';
+      // Lot 1a — adocDocumentPourExport et non `doc` : la narration est une note de travail de
+      // Christophe, jamais un contenu du document. C'est le SEUL endroit où le document entier
+      // part dans un fichier produit, donc le seul retrait à faire.
+      'window.ADOC_EXPORT_DOC = ' + JSON.stringify(adocDocumentPourExport(doc)) + ';';
     // AUCUNE ouverture automatique : c'est tout l'objet de ce lot. Le fichier s'arrête sur son
     // écran de démarrage et attend le clic, seul moment où le navigateur accorde le plein écran.
     const bootText = 'adocPresentInstallKeydownHandler();';
@@ -19420,6 +19686,13 @@ ${recent}`;
     // après coup (le contrat du schéma structuré ne change pas, et n'est jamais utilisé ici).
     if (art._adocGenerationEngine === 'legacy-html') {
       return { html: art.html || '', sourceSnapshot: art._adocLegacySourceSnapshot || null };
+    }
+    // Lot 1a — purge des narrations orphelines ICI, au seul point de sérialisation : une étape
+    // disparue ne doit pas laisser derrière elle une entrée que rien ne montre plus. La fonction
+    // rend les identifiants retirés ; ils partent en console plutôt que de disparaître en silence.
+    const narrationRetiree = adocNarrationPurge(art._adocStructuredDoc);
+    if (narrationRetiree.length) {
+      console.warn('[narration] ' + narrationRetiree.length + ' narration(s) sans étape, retirée(s) à l\'enregistrement : ' + narrationRetiree.join(', '));
     }
     return {
       schemaVersion: (art._adocStructuredDoc && art._adocStructuredDoc.schemaVersion) || 1,
@@ -20609,7 +20882,11 @@ ${recent}`;
       const doc = art._adocStructuredDoc;
       target = adocResolveBlockInsertion(doc, st.blockId, direction);
       inserted = { id: adocNextBlockId(doc, type), type: type, content: content, citationIds: [], validation: {} };
+      // Lot 1a — l'état des étapes AVANT l'insertion, pour reporter la narration d'une carte qui
+      // passe de zéro à un bloc (cf. adocNarrationSuivreChangementEtapes).
+      const etapesAvant = adocPresentStepList(doc);
       target.siblings.splice(target.index, 0, inserted);
+      adocNarrationSuivreChangementEtapes(doc, etapesAvant);
       const storeKey = st.storeKey;
       adocWsClearBlockSelection();
       if (!await window.adocOpenWorkspace(storeKey)) throw new Error('Le rendu a refusé ce type de bloc à cet emplacement ; l’insertion a été annulée.');
