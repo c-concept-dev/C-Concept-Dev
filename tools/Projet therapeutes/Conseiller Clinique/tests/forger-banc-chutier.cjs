@@ -74,6 +74,13 @@ const PANNEAU = `
     <button id="bc-reduire" style="font:inherit;padding:6px 12px;cursor:pointer;">Réduire le panneau</button>
   </div>
   <div id="bc-etat" style="font-family:ui-monospace,Menlo,monospace;font-size:12px;white-space:pre-wrap;min-height:3em;"></div>
+  <div style="margin:10px 0;">
+    <strong style="font-size:13px;">Relevé à renvoyer</strong>
+    <button id="bc-copier" style="font:inherit;padding:4px 10px;margin-left:8px;cursor:pointer;" disabled>Copier</button>
+    <p style="color:#667;font-size:12px;margin:4px 0;">Tout ce qui se mesure est déjà rempli. Les trois
+      dernières lignes demandent votre œil : remplacez « ? » par oui ou non.</p>
+    <pre id="bc-releve" style="font-family:ui-monospace,Menlo,monospace;font-size:12px;background:#fffdf9;border:1px solid #c9c3b8;padding:10px;white-space:pre-wrap;margin:0;">—</pre>
+  </div>
   <table id="bc-recap" style="border-collapse:collapse;font-size:12px;margin:10px 0;"><tbody></tbody></table>
   <div id="bc-vignettes" style="display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;"></div>
 </div>
@@ -175,6 +182,32 @@ const PANNEAU = `
       cell.appendChild(img); cell.appendChild(cap);
       $('bc-vignettes').appendChild(cell);
     }
+    // Le relevé, dans la forme exacte que Christophe a demandée. Ce qui se mesure est rempli ;
+    // ce qui se juge reste un « ? » — remplir une appréciation à sa place serait inventer.
+    var deb = res.images.filter(function (im) { return im.debordement; });
+    var lignes = [
+      'Rendu en ' + $('bc-reglage').value + ' : étapes rendues ' + res.images.length + '/' + res.etapes_annoncees,
+      'étapes qui débordent ' + deb.length + (deb.length ? ' :' : ''),
+    ];
+    deb.forEach(function (im) {
+      lignes.push('  · diapositive ' + (im.cardIndex + 1) + ' (' + im.titre + '), étape '
+        + im.rang + '/' + im.surRang + ', rapport ' + im.debordement_rapport
+        + ', ' + im.debordement_verdict + ' — déborde de ' + im.debordement_px_sortie + ' px à l\u2019image');
+    });
+    lignes.push('temps ' + (murs / 1000).toFixed(1) + ' s (' + Math.round(murs / res.images.length) + ' ms par image)');
+    lignes.push('poids ' + mo(res.octets_total) + ' (' + Math.round(res.octets_total / res.images.length / 1024)
+      + ' Ko par image, ' + (res.images[0] ? res.images[0].type : '—') + ')');
+    lignes.push('texte lisible : ?');
+    lignes.push('');
+    lignes.push('JPEG 0,92 : gêne visible sur le texte : ?   ;   sur les photos : ?');
+    lignes.push('Citations et sources : masquer : ?');
+    lignes.push('');
+    lignes.push('— mesuré avec ' + res.scene.largeur + 'x' + res.scene.hauteur + ', typo x'
+      + String(res.echelle_typo).replace('.', ',') + ', citations '
+      + (res.citations_masquees ? 'masquées' : 'visibles')
+      + ', seuil de scission ' + res.seuil_scission);
+    $('bc-releve').textContent = lignes.join('\\n');
+    $('bc-copier').disabled = false;
     dernier = { p: p, res: res };
     $('bc-jpeg').disabled = false;
     $('bc-perime').disabled = false;
@@ -341,6 +374,13 @@ const PANNEAU = `
       + '\\n  ' + ((doc.narration || []).length) + ' étapes narrées'
       + (retirees && retirees.length ? '\\n  ' + retirees.length + ' narration(s) orpheline(s) purgée(s) : ' + retirees.join(', ') : '')
       + '\\n  Rechargez-le plus tard avec « Charger un JSON ». Ce fichier reste sur votre disque.');
+  };
+  $('bc-copier').onclick = function () {
+    var t = $('bc-releve').textContent;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(t).then(function () { dire('Relevé copié. Collez-le dans la conversation.'); },
+        function () { dire('Copie refusée par le navigateur — sélectionnez le texte à la main.'); });
+    } else { dire('Ce navigateur ne donne pas accès au presse-papiers — sélectionnez le texte à la main.'); }
   };
   $('bc-reduire').onclick = function () {
     var panneau = $('banc-chutier');
