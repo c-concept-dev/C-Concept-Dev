@@ -221,8 +221,11 @@
 
   // ── Le rendu complet ────────────────────────────────────────────────────────────────────────
   async function rendreImages(doc, options) {
+    // `inspecter` reçoit la scène VIVANTE juste avant la capture et ce qu'elle rend est rangé
+    // dans l'image. C'est le seul moyen d'observer ce que SnapDOM va rastériser sans ouvrir une
+    // seconde scène ailleurs, qui mesurerait autre chose que celle-ci (régression #6).
     var o = Object.assign({ modeCapture: true, type: 'image/png', qualite: undefined,
-                            surAvancement: null }, options || {});
+                            surAvancement: null, inspecter: null }, options || {});
     if (!doc || doc.documentKind !== 'presentation') {
       throw new Error('le chutier visuel ne rend que des Présentations (documentKind reçu : ' + (doc && doc.documentKind) + ').');
     }
@@ -270,6 +273,8 @@
             }
           }
           await attendreStabilite(scene.inner, o.modeCapture);
+          var inspection = null;
+          if (o.inspecter) { try { inspection = o.inspecter(scene.inner, deLaCarte[r], scene); } catch (e) { inspection = { erreur: String(e && e.message || e) }; } }
           var hauteurNecessaire = mesurerHauteurNecessaire(scene);
           var debordement = hauteurNecessaire > SCENE.hauteur;
           var capture = await capturer(snap, scene, hauteurNecessaire);
@@ -282,7 +287,7 @@
             debordement: debordement, hauteurScene: hauteurNecessaire,
             fond: capture.fond,
             signature: await signatureEtape(doc, etape),
-            type: o.type, octets: blob.size, blob: blob,
+            type: o.type, octets: blob.size, blob: blob, inspection: inspection,
             // Ce que le DOM portait À L'INSTANT de la capture. C'est la seule preuve possible
             // qu'aucun nombre n'a été saisi en cours d'animation (V6) : un test peut l'exiger
             // égal au texte final, au lieu de faire confiance à un délai.
