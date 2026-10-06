@@ -1428,3 +1428,78 @@ changement qui a permis de nommer les deux causes précédentes en une commande.
 
 La passe invalide est comptée : elle a été dépensée. Un rejeu complet coûte désormais **0 €** — les
 353 réponses sont en cache.
+
+## L'oracle de F4 était faux sur sept pistes, et la page l'a tranché
+
+Le CSV `Westwood_Vol1_CD1_pistes.csv` porte trois colonnes qu'il ne faut pas confondre :
+`premier_exercice_detecte` est une **détection du prototype**, `exercice_selon_nom_mp3` est ce que
+le **nom du fichier** annonce, et `accord` dit si les deux coïncident. Ce que nous appelions
+« l'oracle » depuis le début était donc une détection, pas une vérité — et elle était en désaccord
+avec le nom du MP3 sur neuf pistes sur quatre-vingt-douze.
+
+### Le seul témoin qui fait foi est la page
+
+Les trois témoins ont été confrontés à l'œil, sur les clichés, pour onze pistes.
+
+| Piste | Notre chaîne | Détection | Nom MP3 | Ce que la page montre | Qui a raison |
+|---|---|---|---|---|---|
+| 4 | 132 | **135** | 133 | 132 porte « Piste 3 », 135 porte « Piste 4 » | la détection |
+| 14 | **189** | **189** | 187 | 187 porte « Piste 13 », 189 porte « Piste 14 » | la chaîne et la détection |
+| 35 | 305 | **314** | 314 | 305 porte « Piste 34 » | la détection |
+| 41 | **400** | 348 | **400** | 348 porte « Piste 40 », 400 porte « Piste 41 » | la chaîne et le nom |
+| 43 | **405** | 407 | **405** | 405 porte « Piste 43 » | la chaîne et le nom |
+| 57 | **512** | *rien* | **512** | 512 porte « Piste 57 » | la chaîne et le nom |
+| 74 | **598** | 599 | **598** | **598 et 599 portent tous deux « Piste 74 »** | la chaîne |
+| 75 | **600** | 601 | **600** | 600 porte « Piste 75 » | la chaîne et le nom |
+| 87 | 700 | **701** | **701** | 700 porte « Piste 86 » | la détection et le nom |
+| 89 | 704 | 704 | **706** | 704 porte « Piste 88 », 706 porte « Piste 89 » | le nom seul |
+| 91 | **713** | 712 | **713** | 712 porte « Piste 90 », 713 porte « Piste 91 » | la chaîne et le nom |
+
+Le nom du MP3 se trompe (piste 14), la détection se trompe (sept fois), notre chaîne se trompe
+(pistes 4, 35, 87, 89). **La page, elle, n'a jamais menti.** C'est ce que la recette disait déjà du
+nom de fichier — un indice, pas une vérité (REC-05) — et il faut le dire aussi de la détection.
+
+### Un fait de structure que nous ignorions
+
+**Les éléments 598 et 599 portent tous deux « CD1 Piste 74 ».** Le livre imprime donc la pastille
+sur **chaque** élément d'une piste, pas seulement sur le premier. La détection de repère ne tirait
+pas trois fois trop souvent : elle voyait de vrais repères. Mon diagnostic de l'étape 2 — « la
+détection tire trois fois trop souvent » — était une mauvaise lecture d'un fait qui n'en est pas un
+défaut, et la règle « le premier élément à porter le repère ouvre la piste » est juste.
+
+### Les sept corrections, chacune avec sa preuve
+
+| Piste | Avant | Après | Preuve lue sur le cliché |
+|---|---|---|---|
+| 41 | 348 | **400** | 348 porte « CD1 Piste 40 » ; 400 porte « Piste 41 » |
+| 43 | 407 | **405** | 405 porte « CD1 Piste 43 » |
+| 57 | *rien* | **512** | 512 porte « CD1 Piste 57 » |
+| 74 | 599 | **598** | 598 et 599 portent « Piste 74 » ; 598 vient en premier |
+| 75 | 601 | **600** | 600 porte « CD1 Piste 75 » |
+| 89 | 704 | **706** | 704 porte « Piste 88 » ; 706 porte « Piste 89 » |
+| 91 | 712 | **713** | 712 porte « Piste 90 » ; 713 porte « Piste 91 » |
+
+Seule la colonne `premier_exercice_detecte` est corrigée, et la colonne `accord` recalculée : la
+liste des éléments détectés n'a pas été vérifiée élément par élément, et reste donc telle quelle.
+
+### Ce que cela change
+
+| | Avant correction | Après correction |
+|---|---:|---:|
+| Témoin | 61 / 92 | **66 / 92** |
+| Avec verdicts | 76 / 92 | **81 / 92** |
+| Pages | 86 / 92 | 86 / 92 |
+
+Il manque **2 premiers éléments** sur le critère normatif de 83. Les écarts restants : 5 disputes,
+3 pistes fausses, 3 éléments jamais lus.
+
+### L'audio n'est pas un témoin fiable, avec les moyens d'ici
+
+Compter les segments d'une piste par ses silences ne retrouve pas le nombre d'éléments : la piste 4
+(un élément) montre deux creux internes, la 91 (trois éléments) en montre deux, la 74 (deux
+éléments) en montre un à trois selon le seuil. Le compte dépend du seuil et pas du contenu.
+
+Ce n'est pas la fin de l'idée : un détecteur de **décompte** — les quatre temps qui ouvrent chaque
+exercice — serait une autre méthode, et probablement meilleure. Mais elle demande davantage qu'un
+seuillage d'énergie, et la machine n'a ni ffmpeg ni ffprobe. En l'état, l'audio ne peut pas servir
+d'indice à l'attribution.
