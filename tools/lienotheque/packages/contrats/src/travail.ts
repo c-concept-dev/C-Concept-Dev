@@ -29,6 +29,16 @@ export type LieuExecution = z.infer<typeof LieuExecution>;
 /** États depuis lesquels un travail ne repartira plus de lui-même. */
 export const ETATS_TERMINAUX: readonly z.infer<typeof EtatTravail>[] = ["termine", "annule", "en_echec_definitif"];
 
+/** Où un travail long en est : l'unité comptée et le rang atteint (JOB-03).
+ *
+ *  Décrit ici, et nulle part ailleurs : le travail persisté et les messages échangés avec le
+ *  processus qui l'exécute parlent du même point, et deux descriptions du même fait finissent
+ *  toujours par en donner deux. */
+export const PointReprise = z
+  .object({ unite: z.enum(["page", "lot", "fichier"]), valeur: z.number().int().nonnegative() })
+  .strict();
+export type PointReprise = z.infer<typeof PointReprise>;
+
 /** Travail persisté avant de commencer (JOB-01), bail renouvelé (JOB-02), point de reprise (JOB-03). */
 export const Travail = z
   .object({
@@ -41,7 +51,7 @@ export const Travail = z
     empreinteEntree: z.string().min(1).optional(),
     tentative: z.number().int().min(1),
     verrou: Verrou.optional(),
-    pointReprise: z.object({ unite: z.enum(["page", "lot", "fichier"]), valeur: z.number().int().nonnegative() }).strict().optional(),
+    pointReprise: PointReprise.optional(),
     progression: z.number().min(0).max(1),
     erreur: z
       .object({ cause: z.string().min(1), elements: z.array(z.string()), reprisePossible: z.boolean() })
