@@ -13,10 +13,14 @@ td,th{border:1px solid #bbb;padding:3px 8px;text-align:left}
 #etat{font-family:ui-monospace,Menlo,monospace;font-size:12px;margin-top:8px}
 </style></head><body>
 <h1>Export long, cadence constante</h1>
-<p class="note">40 diapositives, fondus de 0,4 s, 30 images par seconde, 10 minutes :
-<strong>18 000 images écrites</strong>. Aucune extrapolation depuis un export court — c'est la
-durée, le poids et la mémoire réels qui sont mesurés ici.</p>
-<p><button id="btn">Lancer l'export de 10 minutes</button></p>
+<p class="note">60 diapositives, fondus de 0,4 s, 30 images par seconde, <strong>15 minutes</strong> :
+<strong>27 000 images écrites</strong>. Quinze minutes est la limite de conception, donc le cas à
+mesurer. Le rythme est celui de la mesure à 10 minutes — une diapositive toutes les 15 s — pour que
+seule la durée change. Aucune extrapolation depuis un export court : c'est la durée, le poids et la
+mémoire réels qui sont mesurés ici.</p>
+<p class="note">La boucle d'écriture est explicitement sous contre-pression : la file de l'encodeur
+est lue à chaque image, bornée, et le temps passé à attendre est mesuré.</p>
+<p><button id="btn">Lancer l'export de 15 minutes</button></p>
 <div id="etat">en attente</div>
 <table id="tbl"><tbody></tbody></table>
 <script>
@@ -29,8 +33,10 @@ const ligne = (k, v) => {
 };
 
 const PLAN = {
-  largeur: 1920, hauteur: 1080, ips: 30, duree: 600,
-  diapos: 40, fonduS: 0.4,
+  largeur: 1920, hauteur: 1080, ips: 30, duree: 900,
+  diapos: 60, fonduS: 0.4,
+  plafondFile: 3,      // borne que NOUS imposons à la file de l'encodeur (voir plus bas)
+  repereMs: 30000,     // pas du journal interne, aligné sur l'échantillonnage extérieur
 };
 
 async function exporterLong(plan) {
@@ -54,7 +60,7 @@ async function exporterLong(plan) {
   sortie.addAudioTrack(as);
   await sortie.start(); await as.add(buf); as.close();
 
-  // 40 diapositives réparties sur la durée, chacune suivie d'un fondu vers la suivante.
+  // Diapositives réparties sur la durée, chacune suivie d'un fondu vers la suivante.
   const parDiapo = P.duree / P.diapos;
   const teintes = [];
   for (let i = 0; i < P.diapos; i++) teintes.push('hsl(' + Math.round(i * 360 / P.diapos) + ' 42% 28%)');
@@ -82,17 +88,72 @@ async function exporterLong(plan) {
     }
   }
 
+  // ── Contre-pression explicite ─────────────────────────────────────────────────────────────
+  // Mediabunny en applique déjà une en interne : après chaque encode() il attend l'événement
+  // « dequeue » tant que encodeQueueSize >= 4, et la promesse rendue par add() attend aussi le
+  // muxeur. Awaiter add() devrait donc suffire. On ne s'en contente pas : on LIT la file de
+  // l'encodeur, on la borne nous-mêmes à plafondFile, et on mesure l'attente. Si notre barrière
+  // ne se déclenche jamais, c'est que la barrière interne tient — et c'est une mesure, pas une
+  // hypothèse. Si la file n'est pas lisible, c'est dit, et rien n'est conclu à sa place.
+  //
+  // Le plafond est 3, pas 2 : la barrière interne rend la main quand la file retombe de 4 à 3,
+  // donc un plafond à 2 se déclencherait à presque chaque image et son attente entrerait dans la
+  // durée d'encodage, qui est l'une des grandeurs mesurées. À 3, la barrière est un garde-fou :
+  // elle ne doit pas se déclencher, et son décompte le dit. Son attente est comptée à part pour
+  // que la durée d'encodage reste lisible nette de notre propre instrumentation.
+  function fileEncodeur() {
+    try {
+      if (vs._encoder && typeof vs._encoder.getQueueSize === 'function') return vs._encoder.getQueueSize();
+    } catch (e) {}
+    return null;
+  }
+  const cp = {
+    file_lisible: fileEncodeur() !== null,
+    plafond: P.plafondFile,
+    file_max: 0,
+    attente_add_ms: 0, attente_add_max_ms: 0, adds_bloquants: 0,
+    barriere_declenchee: 0, attente_barriere_ms: 0, barriere_abandons: 0,
+  };
+
   const total = Math.round(P.duree * P.ips);
   const pas = 1 / P.ips;
   const t0 = performance.now();
   let picTas = 0;
+  const journal = [];
+  let prochain = P.repereMs;
   for (let k = 0; k < total; k++) {
     dessiner(k * pas);
+    const ta = performance.now();
     await vs.add(k * pas, pas);
+    const dt = performance.now() - ta;
+    cp.attente_add_ms += dt;
+    if (dt > 1) cp.adds_bloquants++;
+    if (dt > cp.attente_add_max_ms) cp.attente_add_max_ms = dt;
+    if (cp.file_lisible) {
+      const f = fileEncodeur();
+      if (f > cp.file_max) cp.file_max = f;
+      if (f > P.plafondFile) {
+        cp.barriere_declenchee++;
+        const tb = performance.now();
+        let tours = 0;
+        while (fileEncodeur() > P.plafondFile && tours < 3000) {
+          await new Promise((r) => setTimeout(r, 0)); tours++;
+        }
+        if (tours >= 3000) cp.barriere_abandons++;
+        cp.attente_barriere_ms += performance.now() - tb;
+      }
+    }
+    if (performance.memory && performance.memory.usedJSHeapSize > picTas) picTas = performance.memory.usedJSHeapSize;
+    const ecoule = performance.now() - t0;
+    if (ecoule >= prochain) {
+      journal.push({ t_s: Math.round(ecoule / 1000), images: k + 1,
+                     tas_js_octets: performance.memory ? performance.memory.usedJSHeapSize : null,
+                     file: cp.file_lisible ? fileEncodeur() : null });
+      prochain += P.repereMs;
+    }
     if ((k % 300) === 0) {
-      if (performance.memory && performance.memory.usedJSHeapSize > picTas) picTas = performance.memory.usedJSHeapSize;
       $('etat').textContent = 'image ' + (k + 1) + ' sur ' + total
-        + '  —  ' + Math.round((performance.now() - t0) / 1000) + ' s écoulées';
+        + '  —  ' + Math.round(ecoule / 1000) + ' s écoulées';
       await new Promise((r) => setTimeout(r, 0));   // laisse respirer l'interface
     }
   }
@@ -106,7 +167,8 @@ async function exporterLong(plan) {
   return { images_ecrites: total, duree_encodage_ms: ms, octets: octets,
            pic_tas_js_octets: picTas || null,
            tas_js_disponible: !!performance.memory,
-           duree_video_s: P.duree, ips: P.ips, diapos: P.diapos, fondu_s: P.fonduS };
+           duree_video_s: P.duree, ips: P.ips, diapos: P.diapos, fondu_s: P.fonduS,
+           contre_pression: cp, journal_30s: journal };
 }
 
 $('btn').onclick = async function () {
@@ -121,6 +183,13 @@ $('btn').onclick = async function () {
     ligne('poids', (r.octets / 1048576).toFixed(1) + ' Mo');
     ligne('pic du tas JS', r.tas_js_disponible ? (r.pic_tas_js_octets / 1048576).toFixed(1) + ' Mo'
       : 'performance.memory absent de ce navigateur');
+    const c = r.contre_pression;
+    ligne('file de l\'encodeur', c.file_lisible ? ('lisible, maximum observé ' + c.file_max
+      + ', plafond ' + c.plafond) : 'non lisible dans cette version');
+    ligne('attente dans add()', (c.attente_add_ms / 1000).toFixed(1) + ' s au total, '
+      + c.adds_bloquants + ' images bloquantes, maximum ' + c.attente_add_max_ms.toFixed(0) + ' ms');
+    ligne('barrière explicite', c.barriere_declenchee + ' déclenchements, '
+      + (c.attente_barriere_ms / 1000).toFixed(1) + ' s d\'attente, ' + c.barriere_abandons + ' abandons');
   } catch (e) {
     $('etat').textContent = 'ÉCHEC : ' + (e && e.message || e);
     ligne('ÉCHEC', String(e && e.message || e));

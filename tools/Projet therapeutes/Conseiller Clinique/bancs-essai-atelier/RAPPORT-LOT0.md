@@ -416,7 +416,8 @@ lecture.** Mon premier jet en annonçait deux ; le décodage par CoreAudio en a 
 | Écart flash / bip ≤ 40 ms, **décodage** AVFoundation | **+4,2 ms** sans liste d'édition | **TENU au décodage** | script + Swift/AVFoundation |
 | Même critère, avec liste d'édition | **+4,2 ms** chez ffmpeg et `afconvert`, mais **−39,8 ms** (48 kHz) et **−43,7 ms** (44,1 kHz) chez AVFoundation | **HORS critère à 44,1 kHz sur la pile Apple** : la correction dégrade ce qui marchait | script + 3 décodeurs |
 | Le bip tombe-t-il avec le flash **dans QuickTime Player, Safari, Chrome** ? | — | **NON MESURÉ** : aucun lecteur n'a été éprouvé, seulement trois décodeurs | **Christophe** (5 MP4 fournis) |
-| Export de 10 min sans plantage | **8,2 s** d'encodage, **17,5 Mo**, 508 images, aucun plantage | **tenu** | script (Chromium) |
+| Export de 10 min sans plantage | images **tenues** : **8,2 s**, **17,5 Mo**, 508 images. Refait en **cadence constante**, seule structure que Chrome présente entièrement : **110,5 s / 17,3 Mo** sur Chrome, **89,7 s / 14,5 Mo** sur Safari réel, 18 000 images, aucun plantage | **tenu** | script (Chrome, Safari réel) |
+| Export de **15 min**, la limite de conception | **165,5 s / 25,8 Mo** sur Chrome, **134,5 s / 21,5 Mo** sur Safari réel, 27 000 images, aucun plantage. Mémoire : **+342 Mo** rendus sur Chrome, **+975 Mo** dont 78 % encore détenus 60 s après sur Safari | **tenu en durée et en poids** ; mémoire mesurée, à juger | script (Chrome, Safari réel) |
 
 ### D'où vient le décalage — décomposition, et trois corrections à mon premier jet
 
@@ -656,8 +657,72 @@ court : c'est bien le même décalage constant, **et non un effet de la durée**
 par les décodeurs de Mediabunny : au vu du décodage CoreAudio ci-dessus, il s'agit donc du même
 artefact de mesure, et non d'un défaut du fichier. **Non revérifié par `afconvert` sur l'export
 de 10 minutes** — seul l'export court l'a été.
-La **mémoire** de Safari pendant cet encodage reste la seule mesure que ce banc ne peut pas
-prendre — aucune API ne la donne à une page.
+**Ces chiffres décrivent des images TENUES, et ils sont dépassés.** 508 images pour 600 s de
+vidéo, c'est le motif même qui fait perdre les flashs sur Chrome (complément 7). La cadence
+constante coûte 13 fois plus cher en encodage et écrit 35 fois plus d'images — les deux relevés
+qui suivent remplacent celui-ci.
+
+La **mémoire** de Safari pendant cet encodage n'est pas mesurable depuis la page — aucune API ne
+la donne. Elle l'est **depuis l'extérieur**, sur l'arbre de processus du navigateur : c'est ce que
+fait `outils/mesure-export-long.cjs`, et c'est la section suivante.
+
+### Export de 15 minutes — la limite de conception, mesurée
+
+**Pourquoi 15 et non 10.** Dix minutes était un palier commode ; la limite de conception est
+quinze. Les deux sont mesurées à rythme identique — une diapositive toutes les 15 s, soit 60
+diapositives sur 900 s au lieu de 40 sur 600 — pour que seule la durée change.
+
+| | Chrome installé | Safari 26.3 réel |
+|---|---|---|
+| images écrites | 27 000 | 27 000 |
+| durée d'encodage | 165,5 s | 134,5 s |
+| poids | 25,8 Mo | 21,5 Mo |
+| pic du tas JS | 201,3 Mo | `performance.memory` absent de Safari |
+| mémoire résidente, écart maximal | **+342 Mo** | **+975 Mo** |
+| pente pendant l'encodage | **−39 Mo/min** | **+22,9 Mo/min** |
+| écart encore détenu 60 s après | **−8 %** | **78 %** |
+
+**×1,5 sur la durée et sur le poids — mesuré, non extrapolé.** De 10 à 15 minutes, Chrome passe de
+110,5 à 165,5 s (×1,498) et de 17,3 à 25,8 Mo (×1,49) ; Safari de 89,7 à 134,5 s (×1,50) et de
+14,5 à 21,5 Mo (×1,48). Le coût est donc linéaire en durée pour ces deux grandeurs. C'est ce que
+l'extrapolation supposait — et c'est désormais vérifié au lieu d'être supposé.
+
+**La mémoire ne suit pas la durée, et les deux navigateurs se séparent.** Sur Chrome, l'écart
+maximal est le même qu'à 10 minutes (+342 contre +350 Mo) : il ne dépend pas de la durée. La
+grille de 30 s descend plutôt qu'elle ne monte (+58, +60, +73, +48, −33 Mo) et une minute après la
+fin la mémoire est **sous** son niveau de départ. C'est un pic, pas une accumulation. Sur Safari
+l'écart atteint +975 Mo, la pente reste positive pendant tout l'encodage (+22,9 Mo/min) et **78 %
+de l'écart maximal est encore détenu une minute après la fin** — il remonte même après l'export
+(+548 Mo à +15 s, +800 Mo à +30 s). Ce profil est celui d'une accumulation non rendue dans la
+minute. **Il n'est pas démontré que ce soit une fuite** : le relevé compte tous les onglets de
+Safari déjà ouverts, et soixante secondes ne suffisent pas à conclure sur un ramasse-miettes.
+
+**Le tas JS est dominé par l'audio, pas par la vidéo.** Le journal interne de la page montre le tas
+croître de 27 à 42 Mo sur tout l'encodage : c'est la taille du MP4 en construction. Le pic à
+201,3 Mo est ailleurs — le banc alloue **un seul** tampon audio de 900 s à 48 kHz en Float32, soit
+**172,8 Mo**, avant même la boucle d'images. Un export de 15 minutes avec narration réelle
+allouera du même ordre. C'est le premier poste à regarder si la mémoire devient contraignante,
+avant toute optimisation du côté image.
+
+**La contre-pression est réelle, et maintenant mesurée au lieu d'être supposée.** La page lit la
+file de l'encodeur à chaque image et la borne elle-même. **26 998 des 27 000** appels à `add()` ont
+bloqué sur Chrome, **164,1 s des 165,5 s** d'encodage étant passées à attendre l'encodeur ;
+**26 917 sur 27 000** sur Safari. La boucle est donc tenue par l'encodeur et jamais en avance sur
+lui : aucune file d'images en attente ne peut se constituer. La barrière explicite (plafond 3) ne
+s'est **pas déclenchée** sur Chrome, dont la file n'a jamais dépassé 3, et s'est déclenchée **2
+fois** sur Safari, dont la file a atteint 4 — pour moins de 0,1 s au total. Un plafond à 2 aurait
+doublé la barrière interne de Mediabunny, qui rend la main quand la file retombe de 4 à 3 : il se
+serait déclenché à presque chaque image et son attente serait entrée dans la durée mesurée.
+
+**Une pause de 5,5 s sur Chrome.** Le plus long `add()` a duré **5 472 ms** sur Chrome, contre
+28 ms sur Safari. Un arrêt unique de cet ordre n'altère pas le fichier produit — cadence constante,
+27 000 images écrites — mais il figerait un indicateur de progression pendant cinq secondes.
+**Cause non établie** : ni le ramasse-miettes ni une image-clé n'ont été instrumentés ici.
+
+**Ce qui reste à Christophe sur cette section** : la mémoire au Moniteur d'activité pendant un
+export de 15 minutes, et le ressenti d'une pause de cinq secondes. Le relevé extérieur mesure
+l'arbre de processus du navigateur ; seul le Moniteur dira si la machine commence à échanger sur
+disque.
 
 ---
 
