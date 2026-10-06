@@ -247,6 +247,129 @@ donnent les vôtres, et je ne le devinerai pas.
 
 ---
 
+## 8. Suite du 6 octobre — le mode vidéo est le défaut
+
+**Décision appliquée** : le réglage (d) — scène 960×540, échelle typographique ×1,4 — est le
+**défaut** de `rendreImages`. Le rendu fidèle au lecteur reste accessible par `mode: 'fidele'` ; il
+sert à la mesure de netteté, qui a besoin d'une référence.
+
+### 8.1 Politique de débordement
+
+**Ce que je n'ai PAS pu mesurer, et qu'il faut lire en premier.** Vous demandiez la mesure sur
+votre vraie présentation. **Elle n'a pas eu lieu** : rien n'a été déposé dans
+`banc-chutier/entrees/`, et je n'ai aucun accès au document ouvert dans votre navigateur. Les
+chiffres ci-dessous viennent des trois présentations d'essai, **qui sont courtes** : elles ne
+disent rien des vôtres. Trois façons de lancer la vraie mesure sont au point 8.4.
+
+**Un piège trouvé à la mesure.** En mode vidéo, cinq étapes sur onze dépassaient le cadre. Mais
+quatre d'entre elles le dépassaient de **six pixels de scène** — douze à l'image — soit un rapport
+de 1,01. C'est du bruit de mise en page, pas un débordement. Sans garde, l'atelier aurait fait
+défiler une diapositive de douze pixels.
+
+**La politique a donc trois étages**, et un seul vient d'une observation :
+
+| | Valeur | D'où elle vient |
+|---|---|---|
+| **Zone morte** | 1,02 (soit 2 %) | **Mesurée** : le bruit observé est à 1,01, le vrai débordement à 2,00. Rien entre les deux. |
+| **Seuil de scission** | 1,8 | **Calculée, pas observée.** À ce rapport, une étape commentée 15 s fait défiler 864 px de cadre, soit 58 px/s — environ 1,4 ligne par seconde à 42 px. C'est la vitesse de lecture. |
+| **Vitesse maximale** | 60 px/s de sortie | Employée **quand la durée est connue**, et elle l'emporte alors sur le rapport. |
+
+**La durée vient du lot 1a.** Une étape narrée porte sa durée estimée (mots ÷ 2,5). Quand elle est
+disponible, le verdict ne se prend plus sur un rapport mais sur la **vitesse de défilement réelle** :
+la même hauteur donne « défilement » sur une étape de 60 s (8,7 px/s) et « scission » sur une étape
+de 4 s (130 px/s). C'est mesuré, et c'est le lien concret entre les deux lots.
+
+**L'indicateur par étape**, sans aucune interface — une donnée que l'atelier lira :
+`debordement_px`, `debordement_px_sortie`, `debordement_rapport`, `debordement_verdict`
+(`aucun` / `defilement` / `scission`), `debordement_regle` (`tolerance` / `rapport` / `vitesse`),
+`debordement_sous_tolerance`, `debordement_vitesse_px_par_s`. Le relevé global compte les trois
+verdicts.
+
+**Une conséquence que la mesure a imposée** : sous la tolérance, la capture revient **au cadre**.
+Sinon une image de 1 092 px se serait déclarée « sans débordement », ce qui est incohérent — et
+toutes les images d'une vidéo doivent faire la même taille sauf quand une diapositive déborde
+vraiment.
+
+**Résultat sur les trois présentations d'essai, en mode vidéo** : **1 étape déborde sur 11** — le
+questionnaire, rapport 2,00, verdict **scission**, image de 1920×2164. En mode fidèle : 1 sur 11
+également, rapport 1,04, verdict défilement.
+
+### 8.2 Netteté : SnapDOM ne coûte rien, et c'est mesuré
+
+**Deux comparaisons, chacune à mise en page ET taille identiques.** Elles ne se comparent pas entre
+elles.
+
+| | Natif (navigateur) | SnapDOM | Corrélation | Pixels différents |
+|---|---|---|---|---|
+| **A.** Scène 1920×1080, échelle 1 | 85,9 | **85,9** | 1,000 | **0 sur 2 073 600** |
+| **B.** Scène 960×540 ×1,4, sortie 1920×1080 | 96,8 | **96,8** | 1,000 | **0 sur 2 096 640** |
+
+Gradient moyen sur contours, métrique du lot 0 (seuil 40, moitié médiane des lignes), sur quatre
+étapes chacune. Pour B, la référence native est la même scène sous `transform: scale(2)` — le
+navigateur y **redessine** le texte à la taille doublée, il ne grossit pas des pixels.
+
+**La mesure n'est pas aveugle**, et c'est vérifié : un témoin comparant deux étapes voisines trouve
+**24 151 pixels différents** (1,16 %). Un second témoin n'a pas pu s'exécuter (tailles différentes),
+et c'est dit.
+
+**Ce résultat est en tension avec le lot 0, et il faut le dire.** Le lot 0 annonçait 92,5 contre
+162,5, soit l'équivalent d'un flou d'environ 1 px — mais avec une corrélation des profils d'encre
+de **0,868**, c'est-à-dire deux images qui ne montraient pas exactement la même chose : une mise en
+page de 1422 agrandie, contre une mise en page native de 1920. Ici, les deux mises en page étant
+rendues strictement identiques, l'écart est **nul, au pixel près**. Le mécanisme est cohérent :
+SnapDOM sérialise le DOM en SVG et le fait rastériser par le navigateur **à la taille demandée** —
+son `scale` est une échelle de rendu, pas un agrandissement de bitmap.
+
+**Ce que cela change pour la décision** : l'objection principale au réglage (d) — « la scène deux
+fois plus petite rendra le texte plus doux » — **n'est pas confirmée**. Mesurée, elle vaut zéro.
+
+**Limite, et elle est entière** : tout ceci est mesuré dans **Chromium**. Le chemin
+`foreignObject` de SnapDOM peut se comporter autrement dans Safari, et le CDC nomme déjà ce risque.
+Rien ici ne l'écarte.
+
+### 8.3 Mémoire et temps
+
+**Mesuré** — en mode vidéo, sur les présentations d'essai : 240 à 275 ms par image. Sur quarante
+étapes : **10 991 ms** (275 ms par image), **5,61 Mo compressés** (144 Ko par image). À comparer aux
+3,34 Mo du mode fidèle : le texte étant plus grand, l'image compresse moins bien. Toujours **jamais
+plus d'une image décodée** ; quarante le seraient à 316 Mo.
+
+**Non mesuré** : la mémoire et le temps sur une présentation réelle. C'est l'objet du point suivant.
+
+### 8.4 Lancer la vraie mesure
+
+1. **Sans aucun fichier** — `banc-chutier/chutier.html`, bouton « Réduire le panneau », vous ouvrez
+   votre présentation, vous rouvrez le panneau, « Utiliser la présentation ouverte ». Le panneau
+   affiche le compte d'images, la durée, le poids et les débordements.
+2. **Depuis un JSON que vous avez** — bouton « Charger un JSON ».
+3. **Pour la mesure automatique en ligne de commande** — déposez le JSON dans
+   `banc-chutier/entrees/` (ignoré par git, un `LISEZ-MOI.txt` l'explique sur place), puis :
+
+```
+node "/Users/christophebonnet/Documents/GitHub/C-Concept-Dev-lot2-images-wt/tools/Projet therapeutes/Conseiller Clinique/tests/mesure-debordement.cjs"
+```
+
+**Les deux planches, dans Safari :**
+
+```
+python3 -m http.server 8765 --directory "/Users/christophebonnet/Documents/GitHub/C-Concept-Dev-lot2-images-wt/tools/Projet therapeutes/Conseiller Clinique" & sleep 1 && open -a Safari "http://127.0.0.1:8765/banc-chutier/planche-nettete.html"
+```
+
+Remplacez `planche-nettete.html` par `planche-typo.html` pour la comparaison des quatre réglages,
+ou par `chutier.html` pour le banc. Pour arrêter : `kill %1`.
+
+### 8.5 À juger par Christophe
+
+1. **La netteté dans VOTRE Safari.** Zéro pixel d'écart dans Chromium ne dit rien de Safari.
+2. **Le défilement d'une diapositive à 2,00.** Le questionnaire est à scission selon le seuil
+   proposé. Est-ce le bon arbitrage, ou préférez-vous le voir défiler ?
+3. **Le seuil de 1,8 lui-même**, qui n'est pas mesuré mais calculé. Un pan réel, regardé, le
+   confirmera ou non.
+4. **Le remplissage et les débordements réels** de vos présentations, que les miennes ne peuvent
+   pas annoncer.
+
+---
+
 ## 7. Ce que ce lot ne livre pas
 
 - **L'interface du chutier dans l'application** (V2 côté produit) : le brief demandait le moteur
