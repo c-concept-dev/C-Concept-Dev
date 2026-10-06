@@ -7,6 +7,7 @@
 
 pub mod depot;
 pub mod file;
+pub mod journal;
 pub mod limites;
 pub mod media;
 pub mod moteur;

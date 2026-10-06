@@ -45,6 +45,11 @@ retrouve documents, audio, vidéos et images, toujours sur la vraie page ou au v
   `tools/lienotheque`. Lancé depuis ce dossier, `git add -A` remonte à la racine du dépôt et happe
   le travail des autres sessions — c'est arrivé une fois, sur
   `tools/Atelier Prompts/.claude/`.
+- **Jamais de `git stash`** dans ce dépôt : les remises sont partagées entre toutes les sessions et
+  toutes les copies. Un `stash push` sur un fichier neuf ne met rien de côté — il n'est pas suivi —
+  et le `pop` qui suit dépile celle de quelqu'un d'autre. Les chemins explicites suffisent à
+  composer un commit.
+- **Jamais l'option `-q`** sur une commande git qui modifie l'état : on doit voir ce qu'elle a fait.
 - **Redéploiement du Worker autorisé sans demande** s'il reprend la configuration figée et les
   mêmes secrets ; toujours consigné dans le rapport. **Tout changement de configuration ou de
   secret est soumis avant.**
