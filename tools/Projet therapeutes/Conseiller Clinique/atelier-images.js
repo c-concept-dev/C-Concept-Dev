@@ -141,6 +141,10 @@
   // de bouton de ses options est retiré, pour la même raison que pour le questionnaire.
   var CSS_CAPTURE =
     '[data-atelier-capture] .adoc-sc-image-zoom-badge{display:none;}' +
+    // La puce « Approfondir » : même raison que la loupe. Elle annonce un geste qu'une vidéo ne
+    // permet pas, et le CDC exclut déjà les pages d'approfondissement du fil principal.
+    // Relevée par Christophe sur sa propre présentation, diapositive 1.
+    '[data-atelier-capture] .adoc-sc-deepdive-chip{display:none;}' +
     '[data-atelier-capture] .adoc-sc-card{border:0;border-radius:0;box-shadow:none;}' +
     '[data-atelier-capture] .adoc-sc-questionnaire{border:0;border-radius:0;padding-left:0;padding-right:0;}' +
     '[data-atelier-capture] .adoc-sc-questionnaire-option-points{display:none;}' +
@@ -151,7 +155,14 @@
     '[data-atelier-capture] .adoc-sc-questionnaire-option,' +
     '[data-atelier-capture] .adoc-sc-quiz-option{border:0;background:transparent;box-shadow:none;' +
       'cursor:default;padding-top:2px;padding-bottom:2px;}' +
-    '[data-atelier-capture] .adoc-sc-quiz{border:0;border-radius:0;padding-left:0;padding-right:0;}';
+    '[data-atelier-capture] .adoc-sc-quiz{border:0;border-radius:0;padding-left:0;padding-right:0;}' +
+    // ── Citations et lignes « Sources » : SUR OPTION, et désactivé par défaut ────────────────
+    // Christophe n'a pas tranché. Tant qu'il n'a pas décidé, l'image montre ce que montre le
+    // lecteur : les appels de citation et les lignes de sources restent. L'option existe pour
+    // qu'il puisse voir les deux versions côte à côte avant de choisir, et elle est portée par un
+    // SECOND attribut, pour que l'activer ne puisse rien changer d'autre.
+    '[data-atelier-capture][data-atelier-sans-citations] .adoc-sc-cite{display:none;}' +
+    '[data-atelier-capture][data-atelier-sans-citations] .adoc-sc-cite-note{display:none;}';
   var _cssPose = false;
   function poserCssCapture() {
     if (_cssPose || document.getElementById('atelier-capture-css')) { _cssPose = true; return; }
@@ -264,6 +275,49 @@
   // réelles du lecteur sont reprises telles quelles : c'est d'elles que viennent width:1422px,
   // height:800px et flex:0 0 auto, et c'est le CSS du moteur de présentation, déjà injecté dans
   // la page par le cœur, qui les porte.
+  // ── Les sources d'un document, étape par étape (préparation du kit X2) ─────────────────────
+  // Le CDC prévoit que le kit porte les sources, et une dernière image peut les afficher. Cette
+  // fonction les rassemble SANS rien décider de leur affichage : elle rend la liste des citations
+  // réellement référencées, leur libellé, et les étapes qui les appellent. Aucune interface.
+  // Une citation déclarée dans le document mais appelée par aucun bloc visible n'y figure pas :
+  // une liste de sources doit correspondre à ce qu'on a montré.
+  function sourcesParEtape(doc) {
+    var etapes = (typeof window.adocPresentStepList === 'function') ? window.adocPresentStepList(doc) : [];
+    var parCitation = {};
+    (doc && doc.citations || []).forEach(function (c) {
+      parCitation[c.citationId] = { citationId: c.citationId, displayLabel: c.displayLabel || c.citationId,
+                                    sourceSnapshotEntryId: c.sourceSnapshotEntryId || null, etapes: [] };
+    });
+    var parEtape = {};
+    var cartes = (doc && doc.blocks || []).filter(function (b) { return b && b.type === 'card'; });
+    etapes.forEach(function (e) {
+      var carte = cartes.find(function (c) { return c.id === e.cardId; });
+      var blocs = (carte && carte.content && carte.content.blocks) || [];
+      // Une étape montre les blocs jusqu'à son rang : ce sont leurs citations qui sont à l'image.
+      var visibles = blocs.slice(0, Math.max(1, e.rang));
+      var ids = [];
+      visibles.forEach(function (b) {
+        (b.citationIds || []).forEach(function (id) { if (ids.indexOf(id) === -1) ids.push(id); });
+        ((b.validation && b.validation.citationLinks) || []).forEach(function (l) {
+          if (l && l.citationId && ids.indexOf(l.citationId) === -1) ids.push(l.citationId);
+        });
+      });
+      parEtape[e.stepId] = ids;
+      ids.forEach(function (id) {
+        if (parCitation[id] && parCitation[id].etapes.indexOf(e.stepId) === -1) parCitation[id].etapes.push(e.stepId);
+      });
+    });
+    var utilisees = Object.keys(parCitation).map(function (k) { return parCitation[k]; })
+      .filter(function (c) { return c.etapes.length; });
+    return {
+      sources: utilisees,
+      par_etape: parEtape,
+      declarees: Object.keys(parCitation).length,
+      utilisees: utilisees.length,
+      jamais_appelees: Object.keys(parCitation).filter(function (k) { return !parCitation[k].etapes.length; }),
+    };
+  }
+
   function creerScene(scene) {
     poserCssCapture();
     var hote = document.createElement('div');
@@ -291,6 +345,7 @@
     inner.className = 'cc-ws-present-slide-inner';
     // La marque de capture : c'est elle, et elle seule, qui active CSS_CAPTURE.
     inner.setAttribute('data-atelier-capture', '');
+    if (scene.masquerCitations) inner.setAttribute('data-atelier-sans-citations', '');
     // La transition de 260 ms de .cc-ws-present-slide-inner sert au glissement d'une diapositive
     // à l'autre dans le lecteur. Ici rien ne glisse : la scène est réécrite d'un coup. On la coupe
     // plutôt que de l'attendre pour rien.
@@ -411,7 +466,7 @@
   async function ouvrirScene(doc, options) {
     var base = (options && options.mode === 'fidele') ? MODE_FIDELE : MODE_VIDEO;
     var o = Object.assign({ modeCapture: true, type: 'image/png', qualite: undefined, mode: 'video',
-                            seuilScission: SEUIL_SCISSION,
+                            seuilScission: SEUIL_SCISSION, masquerCitations: false,
                             toleranceDebordement: TOLERANCE_DEBORDEMENT, vitessePanMax: VITESSE_PAN_MAX,
                             scene: base.scene, echelleTypo: base.echelleTypo }, options || {});
     var sceneExplicite = !!(options && options.scene);
@@ -435,7 +490,7 @@
     var etapes = window.adocPresentStepList(doc);
     var cartes = (doc.blocks || []).filter(function (b) { return b && b.type === 'card'; });
     var snap = await chargerSnapdom();
-    var sc = creerScene(scene);
+    var sc = creerScene(Object.assign({ masquerCitations: !!o.masquerCitations }, scene));
     var etatPrecedent = window._adocPresentState;
     var modePrecedent = window._adocPresentModeCapture;
     window._adocPresentModeCapture = !!o.modeCapture;
@@ -551,6 +606,8 @@
       octets_total: images.reduce(function (a, im) { return a + im.octets; }, 0),
       scene: sc.scene, sortie: SORTIE, echelle_typo: sc.options.echelleTypo,
       mode: sc.options.mode, seuil_scission: sc.options.seuilScission,
+      citations_masquees: !!sc.options.masquerCitations,
+      sources: sourcesParEtape(doc),
       tolerance_debordement: sc.options.toleranceDebordement, vitesse_pan_max: sc.options.vitessePanMax,
       scene_par_defaut: !(options && options.scene),
       debordements: {
@@ -651,6 +708,7 @@
     MODE_VIDEO: MODE_VIDEO, MODE_FIDELE: MODE_FIDELE, SEUIL_SCISSION: SEUIL_SCISSION,
     TOLERANCE_DEBORDEMENT: TOLERANCE_DEBORDEMENT, VITESSE_PAN_MAX: VITESSE_PAN_MAX,
     verdictDebordement: verdictDebordement, dureeEtapeS: dureeEtapeS,
+    sourcesParEtape: sourcesParEtape,
     configurer: function (opts) { if (opts && opts.cheminSnapdom) { _cheminSnapdom = opts.cheminSnapdom; _snapdom = null; } },
     cheminSnapdom: function () { return _cheminSnapdom; },
     signatureEtape: signatureEtape,

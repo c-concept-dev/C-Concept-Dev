@@ -49,6 +49,16 @@ module.exports.INSPECTEUR = function (inner, etape, scene) {
     });
   });
 
+  // Trois familles d'éléments que Christophe a vues sur ses propres images, et qu'il faut pouvoir
+  // compter séparément : la puce « Approfondir », les appels de citation, et la ligne « Sources ».
+  var compter = function (sel) {
+    var tous = Array.prototype.slice.call(inner.querySelectorAll(sel));
+    return { total: tous.length, visibles: tous.filter(visible).length };
+  };
+  var puces = compter('.adoc-sc-deepdive-chip');
+  var appelsCitation = compter('.adoc-sc-cite');
+  var lignesSources = compter('.adoc-sc-cite-note');
+
   // La loupe d'agrandissement : visible ou non. C'est elle que l'œil voit, pas l'attribut.
   var badges = Array.prototype.slice.call(inner.querySelectorAll('.adoc-sc-image-zoom-badge'));
   var badgesVisibles = badges.filter(visible).length;
@@ -83,6 +93,7 @@ module.exports.INSPECTEUR = function (inner, etape, scene) {
     } : null,
     tailles: tailles,
     badges_loupe: { total: badges.length, visibles: badgesVisibles },
+    puces_approfondir: puces, appels_citation: appelsCitation, lignes_sources: lignesSources,
     cliquables: cliquables.length,
     habilles_en_bouton: habillesEnBouton,
     // 400 caractères et non 60 : un questionnaire porte ses quatre libellés de réponse bien

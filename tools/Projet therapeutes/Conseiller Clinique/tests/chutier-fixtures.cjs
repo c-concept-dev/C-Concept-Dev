@@ -200,11 +200,21 @@ const COUVERTURE = enveloppe('chutier-couverture', 'Respirer avant de parler', [
 ]);
 
 // ── 2. Texte dense ───────────────────────────────────────────────────────────────────────────
+// La présentation dense porte UNE citation et UNE puce d'approfondissement. Sans elles, les
+// contrôles sur les appels de citation, la ligne « Sources » et la puce « Approfondir » seraient
+// vides : ils vérifieraient une absence qui n'a jamais eu de présence. Christophe a vu les trois
+// sur sa propre présentation ; il faut donc qu'elles existent ici.
 const DENSE = enveloppe('chutier-dense', 'Le cercle de l evitement', [
   carte('slide-01', 'Le cercle de l evitement', [
     titre('heading-01', 'Quatre moments, toujours les memes'),
-    bloc('paragraph-01', 'Une situation anodine declenche une sensation physique : la gorge se serre, le souffle se raccourcit, les mains deviennent moites. Rien de dangereux ne se produit, et pourtant le corps repond comme si quelque chose arrivait.'),
-    bloc('paragraph-02', 'Vient alors la pensee qui interprete la sensation. Elle arrive si vite qu elle passe pour une evidence, et c est precisement ce qui la rend difficile a examiner : on ne discute pas ce qu on prend pour un fait.'),
+    Object.assign(bloc('paragraph-01', 'Une situation anodine declenche une sensation physique : la gorge se serre, le souffle se raccourcit, les mains deviennent moites. Rien de dangereux ne se produit, et pourtant le corps repond comme si quelque chose arrivait.'),
+      { deepDiveLinks: [{ text: 'sensation physique', targetId: 'deepdive-sensation' }] }),
+    Object.assign(bloc('paragraph-02', 'Vient alors la pensee qui interprete la sensation. Elle arrive si vite qu elle passe pour une evidence, et c est precisement ce qui la rend difficile a examiner : on ne discute pas ce qu on prend pour un fait.'),
+      // citationIds NE SUFFIT PAS : le rendu des appels de citation lit validation.citationLinks,
+      // pas citationIds. Mesuré — avec le seul citationIds, aucun appel n'apparaissait à l'image.
+      { citationIds: ['citation-1'],
+        validation: { citationLinks: [{ citationId: 'citation-1', claimSupport: 'pass',
+          claimText: 'Elle arrive si vite qu elle passe pour une evidence.' }] } }),
     bloc('paragraph-03', 'L evitement soulage immediatement, et ce soulagement est reel. C est pour cela qu il s installe : il tient sa promesse a court terme, et il la tient chaque fois, ce qui en fait un apprentissage tres solide.'),
   ]),
 ]);
@@ -246,6 +256,12 @@ const QUESTIONNAIRE = enveloppe('chutier-questionnaire', 'Ou en etes-vous', [
     bloc('paragraph-03', '12 semaines suffisent souvent pour que le cercle se desserre nettement.'),
   ]),
 ]);
+
+// Les deux objets de niveau racine qui donnent corps à ces deux renvois.
+DENSE.citations = [{ citationId: 'citation-1', sourceSnapshotEntryId: 'entree-1',
+                     displayLabel: 'Ouvrage de reference, chapitre 3' }];
+DENSE.deepDives = [{ id: 'deepdive-sensation', title: 'La sensation physique, de plus pres',
+                     paragraphs: ['Le corps anticipe, et cette anticipation est elle-meme une information.'] }];
 
 const PRESENTATIONS = [
   { cle: 'couverture', nom: 'Couverture avec photo', doc: COUVERTURE },

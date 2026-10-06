@@ -88,7 +88,16 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
     assert.match(trouve('durée par image'), /= [0-9]+ ms$/, 'durée par image : ' + trouve('durée par image'));
     assert.match(trouve('tas JS'), /Mo avant, .*Mo après/, 'mémoire : ' + trouve('tas JS'));
     assert.match(trouve('images décodées en mémoire'), /= 0 /, 'aucune image ne doit rester décodée : ' + trouve('images décodées en mémoire'));
-    assert.match(trouve('débordements'), /scène [0-9]+px/, 'le questionnaire doit déborder : ' + trouve('débordements'));
+    // La ligne « débordements » est désormais un récapitulatif par verdict, et le détail de chaque
+    // étape qui déborde vit sur sa propre ligne, avec son ampleur, son rapport et son verdict.
+    assert.match(trouve('débordements'), /[0-9]+ sans, [0-9]+ à faire défiler, [0-9]+ à scinder/,
+      'récapitulatif des débordements : ' + trouve('débordements'));
+    assert.match(trouve('débordements'), /[1-9][0-9]* à scinder/,
+      'le questionnaire doit déborder assez pour être proposé à la scission : ' + trouve('débordements'));
+    const detail = recap.find((l) => /déborde de [0-9]+ px de scène/.test(l));
+    assert.ok(detail, 'une ligne de détail doit nommer l\'étape qui déborde');
+    assert.match(detail, /rapport [0-9.]+/, 'avec son rapport : ' + detail);
+    assert.match(detail, /SCISSION|DEFILEMENT/, 'et son verdict : ' + detail);
     console.log('      ' + lignes.join('\n      '));
     console.log('      ' + trouve('tas JS'));
     console.log('      ' + trouve('débordements'));

@@ -557,6 +557,90 @@ est mesurée, et elle ne touche ni au Worker ni à un déploiement.
 
 ---
 
+## 11. Les relevés de Christophe sur sa présentation — réponses
+
+**Sa présentation n'est pas déposée dans `banc-chutier/entrees/` et je n'ai aucun accès à son
+navigateur : je n'ai donc rien pu mesurer sur SON document.** Les chiffres ci-dessous viennent des
+présentations d'essai, sauf là où une déduction est explicitement marquée comme telle.
+
+### 11.1 Pourquoi ses images étaient en mode fidèle — un défaut de ma part
+
+**La page employait le réglage (a), et c'est moi qui le lui faisais employer.** Le moteur avait
+bien (d) pour défaut. Mais la page du banc envoyait, à chaque rendu :
+
+```
+scene: null,          // « la scène du lecteur », explicitement
+echelleTypo: 1,       // « pas d'échelle », explicitement
+```
+
+Ces deux valeurs venaient des listes « scène » et « typo », dont les options de départ étaient
+restées celles d'avant la décision du 6 octobre. **Une option explicite écrase un défaut** : la
+page annonçait le mode vidéo et rendait le mode fidèle. Son corps de texte à 20 px est exactement
+ce que donne (a) : 15 px de scène × 1,35.
+
+**Je ne l'avais pas vu parce que je n'avais jamais vérifié ce que la PAGE obtient** — seulement ce
+que le moteur fait. Les deux tests qui couvraient le défaut interrogeaient le moteur directement.
+
+**Corrigé** : un seul sélecteur visible, quatre réglages (a) (b) (c) (d), **(d) choisi au départ**.
+Et surtout, **(d) n'envoie aucune option** : il laisse le moteur appliquer son propre défaut, donc
+la page ne peut plus en diverger. Un nouveau test, `verify-banc-reglage-defaut` (4/4), rend des
+images par le bouton réel et lit la scène et l'échelle employées — il échoue si la page retombe
+sur (a).
+
+### 11.2 La puce « Approfondir »
+
+**Masquée pendant la capture**, comme la loupe et l'habillage des boutons de questionnaire. Même
+raison : elle annonce un geste qu'une vidéo ne permet pas. Vérifié sur une présentation d'essai qui
+en porte une — sans quoi le contrôle vérifierait une absence sans présence.
+
+### 11.3 Citations et lignes « Sources » — en attente de votre décision
+
+**Rien n'est masqué par défaut** : l'image montre ce que montre le lecteur, tant que vous n'avez
+pas tranché. Une case à cocher « masquer citations et sources » existe sur la page, **décochée**,
+pour que vous puissiez voir les deux versions avant de choisir.
+
+**L'extraction des sources est prête** : `sourcesParEtape(doc)` rend, pour le kit (X2) comme pour
+une dernière image, la liste des citations **réellement appelées**, leur libellé, et les étapes qui
+les appellent — avec, à part, celles qui sont déclarées mais jamais appelées. Une liste de sources
+doit correspondre à ce qu'on a montré.
+
+### 11.4 PNG contre JPEG 0,92 — mesuré
+
+| Présentation | PNG | JPEG 0,92 | Gain | Temps PNG → JPEG |
+|---|---|---|---|---|
+| **couverture** (photo raster) | 186 Ko/image | **66 Ko** | **−65 %** | 270 → 192 ms |
+| **dense** (texte seul) | 167 Ko/image | **159 Ko** | **−5 %** | 287 → 266 ms |
+| **questionnaire** (texte dense) | 140 Ko/image | **108 Ko** | **−23 %** | 228 → 220 ms |
+
+**Le JPEG paie sur les photos, presque pas sur le texte.** C'est cohérent avec vos 1 035 Ko
+moyens et vos pointes à 1,9 Mo : ce sont les images à photo qui pèsent, et ce sont elles que le
+JPEG allège d'un facteur presque trois.
+
+**Ce que la compression change, mesuré pixel à pixel** : le JPEG 0,92 modifie presque tous les
+pixels, mais faiblement — **écart maximal de 22 à 35 niveaux sur 255**, écart moyen de **1,1 à 1,6**
+globalement et de **1,5 à 2,7 sur les seules lignes qui portent du texte**. L'écart est donc plus
+marqué sur le texte que sur le reste, d'un facteur deux environ, et il reste petit.
+
+**À juger par vous** : ces chiffres disent l'ampleur, pas la gêne. Le sélecteur de format est sur
+la page ; rendez les mêmes étapes dans les deux formats et regardez le texte à sa taille réelle.
+
+### 11.5 Le questionnaire à 1,95 fois le cadre
+
+**Verdict : scission**, et sans ambiguïté — le seuil est à 1,8. La table complète, évaluée sur
+l'indicateur lui-même :
+
+| Rapport | 1,04 | 1,5 | 1,8 | **1,95** | 2,0 | 2,5 |
+|---|---|---|---|---|---|---|
+| Verdict | défilement | défilement | défilement | **scission** | scission | scission |
+
+**En mode fidèle** : 1,95 → scission. **En mode vidéo** : le rapport ne peut qu'augmenter — la
+scène est deux fois moins haute et le texte 1,4 fois plus grand. Sur ma présentation d'essai, le
+même questionnaire passe de **1,04 en fidèle à 2,00 en vidéo**. Le vôtre, déjà à 1,95 en fidèle,
+sera **largement au-delà du seuil en (d)** : scission dans les deux modes. **C'est une déduction,
+pas une mesure** — seule sa mesure sur votre document donnera le rapport exact.
+
+---
+
 ## 7. Ce que ce lot ne livre pas
 
 - **L'interface du chutier dans l'application** (V2 côté produit) : le brief demandait le moteur

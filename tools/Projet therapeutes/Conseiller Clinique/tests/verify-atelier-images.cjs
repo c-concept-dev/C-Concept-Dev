@@ -474,7 +474,55 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       + quest.i.cliquables + ' éléments encore cliquables dans le DOM, 0 habillé en bouton');
     pass('capture dépouillée : ni loupe, ni habillage de bouton, ni barème, ni « Voir mon résultat » ; questions et réponses intactes.');
 
-    // ── 14. L'ÉCHELLE TYPOGRAPHIQUE fait ce qu'elle annonce ──────────────────────────────────
+    // ── 14. LA PUCE « APPROFONDIR », LES CITATIONS, LES SOURCES ──────────────────────────────
+    // Trois éléments relevés par Christophe sur sa présentation. La puce part toujours — une
+    // vidéo n'a pas de clic. Les citations et les lignes « Sources » restent par DÉFAUT, et ne
+    // partent que sur option : il n'a pas tranché, et l'image montre en attendant ce que le
+    // lecteur montre.
+    const marques = await page.evaluate(async ({ d, src }) => {
+      const inspecter = eval('(' + src + ')');
+      const avec = await window.AtelierImages.rendreImages(d, { inspecter });
+      const sans = await window.AtelierImages.rendreImages(d, { inspecter, masquerCitations: true });
+      const lire = (res) => res.images.map((im) => im.inspection);
+      return { avec: lire(avec), sans: lire(sans),
+               sourcesAvec: avec.sources, masqueAvec: avec.citations_masquees, masqueSans: sans.citations_masquees };
+    }, { d: PRESENTATIONS[1].doc, src: INSPECTEUR.toString() });
+
+    // La fixture DOIT porter ces éléments, sinon le contrôle vérifierait une absence sans présence.
+    const puceDansDom = marques.avec.reduce((a, i) => a + i.puces_approfondir.total, 0);
+    const citeDansDom = marques.avec.reduce((a, i) => a + i.appels_citation.total, 0);
+    const srcDansDom = marques.avec.reduce((a, i) => a + i.lignes_sources.total, 0);
+    assert.ok(puceDansDom >= 1, 'la présentation d\'essai doit porter une puce « Approfondir » : ' + puceDansDom);
+    assert.ok(citeDansDom >= 1, 'et un appel de citation : ' + citeDansDom);
+
+    marques.avec.forEach((i, k) => {
+      assert.equal(i.puces_approfondir.visibles, 0,
+        'étape ' + (k + 1) + ' : ' + i.puces_approfondir.visibles + ' puce(s) « Approfondir » encore visible(s)');
+    });
+    const citeVisiblesAvec = marques.avec.reduce((a, i) => a + i.appels_citation.visibles, 0);
+    const citeVisiblesSans = marques.sans.reduce((a, i) => a + i.appels_citation.visibles, 0);
+    const srcVisiblesSans = marques.sans.reduce((a, i) => a + i.lignes_sources.visibles, 0);
+    assert.ok(citeVisiblesAvec >= 1, 'par défaut, les appels de citation RESTENT visibles : ' + citeVisiblesAvec);
+    assert.equal(citeVisiblesSans, 0, 'avec l\'option, ils disparaissent : ' + citeVisiblesSans);
+    assert.equal(srcVisiblesSans, 0, 'et les lignes « Sources » aussi : ' + srcVisiblesSans);
+    assert.equal(marques.masqueAvec, false, 'le relevé doit dire que les citations sont visibles');
+    assert.equal(marques.masqueSans, true, 'et qu\'elles sont masquées quand elles le sont');
+
+    // Les sources, extraites pour le kit (X2) : la citation appelée y figure, avec ses étapes.
+    const S = marques.sourcesAvec;
+    assert.equal(S.declarees, 1, 'une citation déclarée');
+    assert.equal(S.utilisees, 1, 'et elle est appelée : ' + JSON.stringify(S));
+    assert.equal(S.sources[0].displayLabel, 'Ouvrage de reference, chapitre 3');
+    assert.ok(S.sources[0].etapes.length >= 1, 'elle doit nommer les étapes qui l\'appellent');
+    assert.deepEqual(S.jamais_appelees, [], 'aucune citation déclarée sans appel ici');
+    console.log('      puces « Approfondir » : ' + puceDansDom + ' dans le DOM, 0 visible  |  '
+      + 'citations : ' + citeDansDom + ' dans le DOM, ' + citeVisiblesAvec + ' visibles par défaut, '
+      + citeVisiblesSans + ' avec l\'option  |  lignes « Sources » : ' + srcDansDom + ' dans le DOM');
+    console.log('      sources extraites : « ' + S.sources[0].displayLabel + ' », appelée aux étapes '
+      + S.sources[0].etapes.join(', '));
+    pass('puce « Approfondir » toujours masquée ; citations et sources visibles par défaut, masquables sur option ; sources extraites pour le kit.');
+
+    // ── 15. L'ÉCHELLE TYPOGRAPHIQUE fait ce qu'elle annonce ──────────────────────────────────
     const typo = await page.evaluate(async ({ d, src }) => {
       const inspecter = eval('(' + src + ')');
       // Base : le mode FIDÈLE, pour que les deux leviers s'éprouvent chacun à partir de zéro.
@@ -537,7 +585,7 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
     pass('les deux leviers sont distincts, appliqués à toutes les étapes (' + compares
       + ' comparaisons), interligne compris.');
 
-    // ── 15. RIEN NE FUIT HORS CAPTURE ────────────────────────────────────────────────────────
+    // ── 16. RIEN NE FUIT HORS CAPTURE ────────────────────────────────────────────────────────
     // Le point sur lequel Christophe a été explicite : « ne change rien au lecteur hors capture ».
     const fuite = await page.evaluate(async (d) => {
       // Un document rendu dans l'espace de travail, AVANT toute capture.
@@ -590,7 +638,7 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       + ', texte ' + fuite.avant.taille + ' — identiques avant et après une capture à 960×540 ×1,6');
     pass('le lecteur hors capture est inchangé, et les ' + fuite.nbRegles + ' règles de capture sont toutes portées par la marque.');
 
-    // ── 16. LA POLITIQUE DE DÉBORDEMENT, règle par règle ──────────────────────────────────────
+    // ── 17. LA POLITIQUE DE DÉBORDEMENT, règle par règle ──────────────────────────────────────
     const politique = await page.evaluate(() => {
       const A = window.AtelierImages;
       const v = (contenu, cadre, opts) => A.verdictDebordement(contenu, cadre, opts);
@@ -629,7 +677,7 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       + politique.lentEtCourt.verdict + ' (' + politique.lentEtCourt.vitesse_px_par_s + ' px/s)');
     pass('politique de débordement : zone morte, seuil réglable, et la durée l\'emporte sur le rapport quand elle est connue.');
 
-    // ── 17. Aucune erreur de page pendant tout cela ───────────────────────────────────────────
+    // ── 18. Aucune erreur de page pendant tout cela ───────────────────────────────────────────
     assert.deepEqual(erreurs, [], 'la page ne doit lever aucune erreur : ' + erreurs.join(' | '));
     pass('aucune erreur de page sur l\'ensemble des rendus.');
 

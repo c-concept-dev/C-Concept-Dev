@@ -15,6 +15,9 @@ const RACINE = path.join(__dirname, '..');
 const FICHIERS = {
   moteur: path.join(RACINE, 'atelier-images.js'),
   cœur: path.join(RACINE, 'studio-clinique-core.js'),
+  // La page du banc est une source comme une autre : c'est elle qui portait le défaut que
+  // Christophe a trouvé — elle annonçait le mode vidéo et rendait le mode fidèle.
+  banc: path.join(RACINE, 'tests', 'forger-banc-chutier.cjs'),
 };
 const original = {};
 const empreinteAvant = {};
@@ -154,11 +157,31 @@ const ESSAIS = [
     de: "      var hauteurCapture = (deb.verdict === 'aucun') ? scene.hauteur : hauteurNecessaire;",
     vers: '      var hauteurCapture = hauteurNecessaire;',
     attendu: 'des images de 1092 px déclarées sans débordement' },
+
+  // ── Lot 2, suite du 7 octobre : relevés de Christophe sur sa présentation ────────────────
+  { nom: 'la puce « Approfondir » reste visible dans la capture',
+    fichier: 'moteur',
+    de: "    '[data-atelier-capture] .adoc-sc-deepdive-chip{display:none;}' +\n",
+    vers: '',
+    attendu: 'un bouton d\'approfondissement dans une image de vidéo' },
+
+  { nom: 'les citations sont masquées SANS qu\'on l\'ait demandé',
+    fichier: 'moteur',
+    de: "    '[data-atelier-capture][data-atelier-sans-citations] .adoc-sc-cite{display:none;}' +",
+    vers: "    '[data-atelier-capture] .adoc-sc-cite{display:none;}' +",
+    attendu: 'une décision prise à la place de Christophe, qui ne l\'a pas tranchée' },
+
+  { nom: 'la page du banc retombe sur le réglage fidèle',
+    fichier: 'banc',
+    test: 'verify-banc-reglage-defaut.cjs',
+    de: '<option value="d" selected>(d) MODE VIDÉO',
+    vers: '<option value="d">(d) MODE VIDÉO',
+    attendu: 'la page annonce (d) et rend (a) — le défaut même que Christophe a trouvé' },
 ];
 
-function lancer() {
+function lancer(test) {
   try {
-    execFileSync(process.execPath, [path.join(__dirname, 'verify-atelier-images.cjs')],
+    execFileSync(process.execPath, [path.join(__dirname, test || 'verify-atelier-images.cjs')],
       { stdio: 'pipe', encoding: 'utf8', env: process.env });
     return { echoue: false, sortie: '' };
   } catch (e) {
@@ -169,16 +192,21 @@ function lancer() {
 
 let tenus = 0, applicables = 0;
 try {
-  const temoin = lancer();
-  if (temoin.echoue) { console.error('ARRÊT — le test échoue AVANT toute mutation : ' + temoin.sortie); process.exit(1); }
-  console.log('témoin : le test passe sur les sources intactes.\n');
+  // Le témoin passe sur CHAQUE test qu'une mutation emploie : sinon un échec préexistant se
+  // ferait passer pour une détection.
+  const testsEmployes = Array.from(new Set(ESSAIS.map((e) => e.test || 'verify-atelier-images.cjs')));
+  for (const t of testsEmployes) {
+    const temoin = lancer(t);
+    if (temoin.echoue) { console.error('ARRÊT — ' + t + ' échoue AVANT toute mutation : ' + temoin.sortie); process.exit(1); }
+  }
+  console.log('témoin : ' + testsEmployes.length + ' test(s) passent sur les sources intactes.\n');
 
   for (const essai of ESSAIS) {
     const src = original[essai.fichier];
     const n = src.split(essai.de).length - 1;
     if (n !== 1) { console.error('ARRÊT — ancre trouvée ' + n + ' fois : ' + essai.nom); process.exit(1); }
     fs.writeFileSync(FICHIERS[essai.fichier], src.replace(essai.de, essai.vers), 'utf8');
-    const r = lancer();
+    const r = lancer(essai.test);
     fs.writeFileSync(FICHIERS[essai.fichier], src, 'utf8');
     applicables++;
     if (r.echoue) { tenus++; console.log('TENU   ' + essai.nom + '\n       → ' + r.sortie); }
@@ -186,6 +214,9 @@ try {
   }
 } finally {
   Object.keys(FICHIERS).forEach(function (k) { fs.writeFileSync(FICHIERS[k], original[k], 'utf8'); });
+  // La page du banc est reforgée depuis les sources restaurées : une mutation de la forge laisse
+  // sinon derrière elle une page produite à partir d'un code qui n'existe plus.
+  try { execFileSync(process.execPath, [path.join(__dirname, 'forger-banc-chutier.cjs')], { stdio: 'pipe' }); } catch (e) {}
 }
 
 let intact = true;

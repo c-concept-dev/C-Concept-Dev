@@ -45,15 +45,19 @@ const PANNEAU = `
   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
     <select id="bc-presentation" style="font:inherit;padding:5px 8px;max-width:30em;"></select>
     <label style="font-size:13px;"><input type="checkbox" id="bc-mode-capture" checked> mode capture</label>
-    <label style="font-size:13px;">scène
-      <select id="bc-scene" style="font:inherit;padding:4px 6px;">
-        <option value="">1422x800 (lecteur)</option>
-        <option value="960x540">960x540</option>
+    <label style="font-size:13px;"><strong>réglage</strong>
+      <select id="bc-reglage" style="font:inherit;padding:4px 6px;">
+        <option value="a">(a) fidèle — 1422x800, typo x1</option>
+        <option value="b">(b) 960x540, typo x1</option>
+        <option value="c">(c) 1422x800, typo x1,6</option>
+        <option value="d" selected>(d) MODE VIDÉO — 960x540, typo x1,4</option>
       </select></label>
-    <label style="font-size:13px;">typo
-      <select id="bc-typo" style="font:inherit;padding:4px 6px;">
-        <option value="1">x1</option><option value="1.4">x1,4</option><option value="1.6">x1,6</option>
+    <label style="font-size:13px;">format
+      <select id="bc-format" style="font:inherit;padding:4px 6px;">
+        <option value="image/png">PNG</option>
+        <option value="image/jpeg">JPEG 0,92</option>
       </select></label>
+    <label style="font-size:13px;"><input type="checkbox" id="bc-sans-citations"> masquer citations et sources</label>
   </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
     <button id="bc-rendre" style="font:inherit;padding:6px 12px;cursor:pointer;">Rendre les images</button>
@@ -127,14 +131,31 @@ const PANNEAU = `
       : mo(tasAvant) + ' avant, ' + mo(tasApres) + ' après, écart ' + mo(tasApres - tasAvant)
         + '  —  valeur quantifiée par Chrome, souvent inchangée : à ne pas lire comme une mesure');
     ligne('SnapDOM', res.snapdom + ', copie locale épinglée');
+    // « par défaut » ne veut pas dire « celle du lecteur » : le défaut EST le mode vidéo, dont la
+    // scène fait 960x540. L'ancien libellé annonçait « celle du lecteur » devant 960x540, ce qui
+    // était faux et aurait pu entretenir exactement la confusion qu'on vient de corriger.
+    var estLecteur = res.scene.largeur === window.AtelierImages.SCENE.largeur
+      && res.scene.hauteur === window.AtelierImages.SCENE.hauteur;
     ligne('scène puis sortie', res.scene.largeur + 'x' + res.scene.hauteur
-      + (res.scene_par_defaut ? ' (celle du lecteur)' : ' (imposée)')
+      + (estLecteur ? ' (celle du lecteur)' : ' (mode vidéo)')
+      + (res.scene_par_defaut ? ', par défaut' : ', imposée')
       + '  puis  ' + res.sortie.largeur + 'x' + res.sortie.hauteur);
     ligne('échelle typographique', res.echelle_typo === 1 ? 'aucune' : 'x' + String(res.echelle_typo).replace('.', ','));
+    ligne('réglage demandé', $('bc-reglage').options[$('bc-reglage').selectedIndex].textContent);
+    ligne('format', res.images.length ? res.images[0].type + (res.images[0].type === 'image/jpeg' ? ' qualité 0,92' : '') : '—');
+    ligne('citations et sources', res.citations_masquees ? 'MASQUÉES dans l’image' : 'visibles (défaut)');
+    ligne('sources référencées', res.sources.utilisees + ' sur ' + res.sources.declarees + ' déclarées'
+      + (res.sources.jamais_appelees.length ? '  —  ' + res.sources.jamais_appelees.length + ' jamais appelée(s)' : ''));
+    ligne('débordements', res.debordements.aucun + ' sans, ' + res.debordements.defilement
+      + ' à faire défiler, ' + res.debordements.scission + ' à scinder'
+      + '   (tolérance ' + res.tolerance_debordement + ', seuil de scission ' + res.seuil_scission + ')');
     var debordants = res.images.filter(function (im) { return im.debordement; });
-    ligne('débordements', debordants.length
-      ? debordants.map(function (im) { return im.stepId + ' : scène ' + im.hauteurScene + 'px, image ' + im.largeur + 'x' + im.hauteur; }).join('  |  ')
-      : 'aucun');
+    debordants.forEach(function (im) {
+      ligne('  ' + im.titre + ', étape ' + im.rang + '/' + im.surRang,
+        'déborde de ' + im.debordement_px + ' px de scène (' + im.debordement_px_sortie + ' px à l’image)'
+        + '  —  rapport ' + im.debordement_rapport + '  —  ' + im.debordement_verdict.toUpperCase()
+        + ' (règle : ' + im.debordement_regle + ')');
+    });
 
     for (var i = 0; i < res.images.length; i++) {
       var im = res.images[i];
@@ -160,14 +181,25 @@ const PANNEAU = `
     return res;
   }
 
+  // LE RÉGLAGE (d) NE RÉPÈTE RIEN : il n'envoie AUCUNE option de scène ni de typographie, et
+  // laisse donc le moteur appliquer son propre défaut. C'est précisément ce qui manquait : les
+  // deux listes précédentes envoyaient « scène du lecteur » et « typo x1 » de façon EXPLICITE,
+  // ce qui écrasait le mode vidéo du moteur sans que rien ne le dise. La page annonçait (d) et
+  // rendait (a). Un réglage qui redit le défaut finit toujours par en diverger.
+  var REGLAGES = {
+    a: { mode: 'fidele' },
+    b: { mode: 'fidele', scene: { largeur: 960, hauteur: 540 } },
+    c: { mode: 'fidele', echelleTypo: 1.6 },
+    d: {},
+  };
   function reglages() {
-    var sc = $('bc-scene').value;
-    var paire = sc ? sc.split('x') : null;
-    return {
+    var choisi = REGLAGES[$('bc-reglage').value] || REGLAGES.d;
+    return Object.assign({
       modeCapture: $('bc-mode-capture').checked,
-      scene: paire ? { largeur: Number(paire[0]), hauteur: Number(paire[1]) } : null,
-      echelleTypo: Number($('bc-typo').value) || 1,
-    };
+      masquerCitations: $('bc-sans-citations').checked,
+      type: $('bc-format').value,
+      qualite: $('bc-format').value === 'image/jpeg' ? 0.92 : undefined,
+    }, choisi);
   }
   function ajouter(p) {
     PRESENTATIONS.push(p);
