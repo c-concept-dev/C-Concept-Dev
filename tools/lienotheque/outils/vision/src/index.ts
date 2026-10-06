@@ -1,3 +1,4 @@
+export * from "./accord.js";
 export * from "./candidats.js";
 export * from "./marges.js";
 export * from "./recadrage.js";

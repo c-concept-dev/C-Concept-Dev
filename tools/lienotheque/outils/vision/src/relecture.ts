@@ -150,6 +150,10 @@ export type OptionsRelecture = {
   readonly tarif?: Tarif;
   /** Intervalle que la recette autorise : de 1 au nombre de pistes du support (REC-05). */
   readonly attendu?: { readonly min: number; readonly max: number };
+  /** Agrandissement du recadrage, quand il ne doit pas être celui de la recette. Une seconde
+   *  relecture d'une zone contestée se fait sur un **autre** recadrage : redemander la même image
+   *  rendrait la même réponse, et la troisième voix n'en serait pas une. */
+  readonly agrandissement?: number;
 };
 
 /** Relit les pavés douteux d'un lot.
@@ -238,7 +242,7 @@ export async function relire(
       nonRelus.push({ candidat, raison: "recadrage" });
       continue;
     }
-    const produit = await recadrerPour(image, candidat, options.attendu, recette.vision?.agrandissement ?? 1);
+    const produit = await recadrerPour(image, candidat, options.attendu, options.agrandissement ?? recette.vision?.agrandissement ?? 1);
     if (produit === undefined) {
       nonRelus.push({ candidat, raison: "recadrage" });
       continue;

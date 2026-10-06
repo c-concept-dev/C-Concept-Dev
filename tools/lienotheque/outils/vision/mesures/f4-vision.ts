@@ -16,6 +16,7 @@ import { join } from "node:path";
 import { coin, ouvrirCache } from "@lienotheque/cache";
 import type { ImageGrise } from "@lienotheque/images";
 import {
+  appui,
   chargerRecette,
   clefDeVision,
   comparer,
@@ -34,7 +35,9 @@ import {
   jetonDacces,
   margesSansLecture,
   relire,
+  seContredisent,
   transportVersWorker,
+  troisTemoins,
   type Candidat,
 } from "../src/index.js";
 import type { ElementRepere } from "@lienotheque/contrats";
@@ -260,6 +263,63 @@ for (const relue of relecture.relues) {
   });
 }
 console.log(`Pavés relus : ${vision.size} ; illisibles déclarés : ${nuls}`);
+
+// --- Troisième témoin : quand la lecture locale et la relecture se contredisent, on redemande sur
+// un autre recadrage. Deux voix sur trois l'emportent ; sans majorité, rien n'est retenu.
+const localeDe = new Map<number, number>();
+for (const page of lues) for (const e of page.elements) if (e.pisteLue !== undefined) localeDe.set(e.numero, e.pisteLue);
+
+const contestes = relecture.relues.filter(
+  (relue) =>
+    relue.candidat.cherche === "repere" &&
+    relue.zone.numero !== null &&
+    seContredisent(localeDe.get(relue.candidat.numero), relue.zone.numero, appui),
+);
+console.log(`\nContradictions entre lecture locale et relecture : ${contestes.length}`);
+
+const AUTRE_ECHELLE = (RECETTE.vision?.agrandissement ?? 1) * 2;
+let coutSecond = 0;
+if (contestes.length > 0 && !process.argv.includes("--sans-troisieme")) {
+  const seconde = await relire(
+    contestes.map((relue) => relue.candidat),
+    (candidat) => grises.get(`${candidat.page}/${candidat.cote ?? "—"}`),
+    RECETTE,
+    transportVersWorker(base, jeton),
+    {
+      cache: cacheDansDossier(coin(cache, `vision-reponses-x${AUTRE_ECHELLE}`)),
+      attendu: { min: 1, max: nombreDePistes },
+      agrandissement: AUTRE_ECHELLE,
+    },
+  );
+  coutSecond = seconde.cout;
+  console.log(
+    `Second avis à ×${AUTRE_ECHELLE} : ${seconde.relues.length} pavés, ${seconde.appels} appel(s), ` +
+      `${seconde.depuisLeCache} depuis le cache, ${seconde.cout.toFixed(4)} €`,
+  );
+
+  const second = new Map<number, number | null>();
+  for (const relue of seconde.relues) second.set(relue.candidat.numero, relue.zone.numero);
+
+  let tranchees = 0;
+  let sansMajorite = 0;
+  for (const relue of contestes) {
+    const numero = relue.candidat.numero;
+    const clef = clefDeVision(relue.candidat.page, relue.candidat.cote, numero);
+    const verdict = troisTemoins([localeDe.get(numero), relue.zone.numero ?? undefined, second.get(numero) ?? undefined]);
+    const avant = vision.get(clef);
+    if (avant === undefined) continue;
+    if (verdict.valeur === undefined) {
+      // Sans majorité, on ne retient aucune lecture : l'élément n'apporte rien, et c'est à
+      // Vérifier de le montrer.
+      sansMajorite += 1;
+      vision.set(clef, { confiance: avant.confiance, ...(avant.repere === undefined ? {} : { repere: avant.repere }), outil: avant.outil });
+      continue;
+    }
+    tranchees += 1;
+    vision.set(clef, { ...avant, numero: verdict.valeur });
+  }
+  console.log(`  tranchées par deux voix sur trois : ${tranchees} ; sans majorité, portées à Vérifier : ${sansMajorite}`);
+}
 console.log(`  verdicts : ${[...verdicts].sort().map(([verdict, nombre]) => `${nombre} ${verdict}`).join(", ") || "aucun"}`);
 console.log(`Numéros rendus par les marges : ${depuisLesMarges.length}`);
 
