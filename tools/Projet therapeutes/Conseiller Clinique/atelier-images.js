@@ -403,10 +403,102 @@
   // scrollHeight donne la hauteur du contenu Y COMPRIS ce qui dépasse, même sous overflow:hidden.
   // C'est la mesure juste, et elle ne touche pas à la mise en page pour l'obtenir. Le dépliage,
   // lui, a lieu au moment de la capture (voir `capturer`), là où il sert à quelque chose.
-  function mesurerHauteurNecessaire(sc, attendue) {
+  // LA HAUTEUR DU CONTENU, telle qu'elle est À CET INSTANT. Deux sources, et le maximum des deux :
+  // le défilement de la carte, et le bas du dernier bloc réellement visible. La seconde rattrape
+  // ce que scrollHeight laisse parfois de côté (marge basse du dernier enfant).
+  function hauteurContenu(sc) {
     var carte = sc.inner.querySelector('.adoc-sc-card');
     var h = Math.max(sc.inner.scrollHeight, carte ? carte.scrollHeight : 0);
-    return Math.max(attendue.hauteur, h);
+    if (carte) {
+      var haut = carte.getBoundingClientRect().top;
+      var blocs = Array.prototype.slice.call(sc.inner.querySelectorAll('.adoc-sc-card > .adoc-sc-block'));
+      for (var i = 0; i < blocs.length; i++) {
+        if (getComputedStyle(blocs[i]).visibility === 'hidden') continue;
+        var bas = blocs[i].getBoundingClientRect().bottom - haut;
+        if (bas > h) h = bas;
+      }
+    }
+    return Math.ceil(h);
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════════════════════
+  // LA HAUTEUR SE STABILISE : agrandir la scène CHANGE la hauteur du contenu
+  // ══════════════════════════════════════════════════════════════════════════════════════════
+  // LE DÉFAUT QUE CECI CORRIGE, et il était silencieux. Dans la scène, la carte est en
+  // `height:100%` et l'image de couverture en `max-height:45%` : agrandir la scène pour y faire
+  // tenir un débordement AGRANDIT l'image d'autant, qui repousse le texte vers le bas. La hauteur
+  // mesurée AVANT l'agrandissement est donc toujours trop courte, et le dernier bloc se trouve
+  // coupé — sans aucun avertissement, sur une image par ailleurs parfaitement crédible.
+  //
+  // Mesuré sur une carte à la forme de celles de Christophe : contenu à 766 px avant
+  // l'agrandissement, 868 px après, dernier bloc dont le bas tombe à 830 — soit 64 px coupés.
+  // SANS photo de couverture, rien ne bouge : 540 avant, 540 après. Le défaut ne touchait donc
+  // que les diapositives illustrées, ce qui explique qu'il ait échappé aux présentations d'essai.
+  //
+  // La suite converge : le contenu vaut (fixe + 0,45 × H), donc H tend vers fixe / 0,55. Huit
+  // tours sont très au-delà du nécessaire ; au-delà, on REFUSE plutôt que de livrer une hauteur
+  // qui n'a pas convergé.
+  // LE REFUS, en fonction nommée pour être éprouvable SEULE. Une image plus courte que son
+  // contenu n'est jamais livrée : elle serait crédible et fausse, ce qui est la pire espèce de
+  // défaut — celui qu'on ne cherche pas, parce que rien ne le signale. La tolérance est la même
+  // zone morte qu'ailleurs : quelques pixels de bruit de mise en page ne sont pas une troncature.
+  function refuserSiTropCourte(contenu, hauteurCapture, tolerance, stepId) {
+    if (contenu <= Math.ceil(hauteurCapture * (tolerance || TOLERANCE_DEBORDEMENT))) return false;
+    throw new Error('image plus courte que son contenu pour l\'étape ' + stepId
+      + ' : contenu ' + contenu + ' px, capture ' + hauteurCapture + ' px, soit '
+      + (contenu - hauteurCapture) + ' px coupés — capture refusée. '
+      + 'C\'est le défaut du 7 octobre : la carte est en height:100% et son image de couverture '
+      + 'en max-height:45%, donc agrandir la scène agrandit l\'image et repousse le texte.');
+  }
+
+  var TOURS_STABILISATION = 12;
+  async function stabiliserHauteur(sc, attendue) {
+    var outerStyle = sc.outer.style.cssText, innerStyle = sc.inner.style.cssText;
+    var poser = async function (h) {
+      sc.outer.style.height = h + 'px'; sc.outer.style.overflow = 'visible';
+      sc.inner.style.height = h + 'px'; sc.inner.style.overflow = 'visible';
+      await new Promise(function (r) { requestAnimationFrame(function () { requestAnimationFrame(r); }); });
+      return Math.max(attendue.hauteur, hauteurContenu(sc));
+    };
+    var avant = Math.max(attendue.hauteur, hauteurContenu(sc));
+    var h = avant, contenu = avant, tours = 0, methode = 'aucune';
+    try {
+      // ITÉRER SUFFIT MAIS CONVERGE LENTEMENT : chaque tour ne comble que 55 % du manque, et il en
+      // fallait neuf pour une carte illustrée en mode vidéo. Deux sondes donnent la pente, et le
+      // point fixe se calcule : contenu(H) = fixe + k·H, donc H* = fixe / (1 − k). Trois
+      // redimensionnements au lieu de neuf, et la vérification est la même.
+      var c0 = await poser(avant); tours++;
+      if (c0 <= avant) { contenu = c0; h = avant; methode = 'immediate'; }
+      else {
+        var h1 = c0;
+        var c1 = await poser(h1); tours++;
+        var k = (c1 - c0) / (h1 - avant);
+        if (k > 0 && k < 0.98) {
+          var fixe = c1 - k * h1;
+          h = Math.ceil(fixe / (1 - k));
+          contenu = await poser(h); tours++;
+          methode = 'point fixe';
+          // Un pixel d'arrondi peut subsister : on le rattrape, sans boucler indéfiniment.
+          var garde = 0;
+          while (contenu > h && garde < 4) { h = contenu; contenu = await poser(h); tours++; garde++; }
+        } else {
+          // La croissance n'est pas affine : on retombe sur l'itération bornée, qui reste juste.
+          methode = 'iteration';
+          h = c1; contenu = c1;
+          while (tours < TOURS_STABILISATION) {
+            contenu = await poser(h); tours++;
+            if (contenu <= h) break;
+            h = contenu;
+          }
+        }
+      }
+    } finally {
+      sc.outer.style.cssText = outerStyle;
+      sc.inner.style.cssText = innerStyle;
+      await new Promise(function (r) { requestAnimationFrame(function () { requestAnimationFrame(r); }); });
+    }
+    return { hauteur: h, contenu: contenu, tours: tours, methode: methode,
+             converge: contenu <= h, hauteur_avant_stabilisation: avant };
   }
 
   // ── Capture et composition ──────────────────────────────────────────────────────────────────
@@ -525,7 +617,7 @@
     }
 
     function mesurer() {
-      var hauteurNecessaire = mesurerHauteurNecessaire(sc, scene);
+      var hauteurNecessaire = Math.max(scene.hauteur, hauteurContenu(sc));
       return verdictDebordement(hauteurNecessaire, scene.hauteur, {
         tolerance: o.toleranceDebordement, seuil: o.seuilScission,
         echelleSortie: SORTIE.largeur / scene.largeur, vitesseMax: o.vitessePanMax,
@@ -534,13 +626,26 @@
 
     async function capturerEtape(n, infos) {
       var etape = infos.etape;
-      var hauteurNecessaire = mesurerHauteurNecessaire(sc, scene);
+      // LA HAUTEUR EST STABILISÉE JUSTE AVANT LA CAPTURE, et c'est elle qui fait foi partout :
+      // verdict, métadonnées, et taille d'image.
+      var stable = await stabiliserHauteur(sc, scene);
+      var hauteurNecessaire = stable.hauteur;
       var deb = verdictDebordement(hauteurNecessaire, scene.hauteur, {
         tolerance: o.toleranceDebordement, seuil: o.seuilScission,
         dureeS: dureeEtapeS(doc, etape.stepId),
         echelleSortie: SORTIE.largeur / scene.largeur, vitesseMax: o.vitessePanMax,
       });
       var hauteurCapture = (deb.verdict === 'aucun') ? scene.hauteur : hauteurNecessaire;
+      // LE REFUS. Une image plus courte que son contenu n'est jamais livrée : elle serait
+      // crédible et fausse, ce qui est la pire espèce de défaut. La tolérance est la même zone
+      // morte qu'ailleurs — quelques pixels de bruit de mise en page ne sont pas une troncature.
+      if (!stable.converge) {
+        throw new Error('hauteur non convergée après ' + stable.tours + ' tours pour l\'étape '
+          + etape.stepId + ' (contenu ' + stable.contenu + ' px, hauteur retenue ' + stable.hauteur
+          + ' px) — capture refusée.');
+      }
+      var tolContenu = o.toleranceDebordement || TOLERANCE_DEBORDEMENT;
+      refuserSiTropCourte(stable.contenu, hauteurCapture, o.toleranceDebordement, etape.stepId);
       var capture = await capturer(snap, sc, hauteurCapture, scene);
       var blob = await canvasVersBlob(capture.canvas, o.type, o.qualite);
       var image = {
@@ -548,6 +653,22 @@
         rang: etape.rang, surRang: etape.surRang, titre: etape.cardTitle,
         largeur: capture.largeur, hauteur: capture.hauteur,
         debordement: deb.verdict !== 'aucun', hauteurScene: hauteurNecessaire,
+        // Les trois hauteurs qui manquaient le 7 octobre : ce que mesure le contenu, ce que
+        // mesure l'image, et l'écart entre les deux. Le relevé les affiche, donc une troncature
+        // ne peut plus passer en silence : elle a désormais une ligne à son nom.
+        // DEUX NOMBRES, PAS UN. Le dépassement brut vaut quelques pixels sur presque toutes les
+        // cartes : c'est le bruit de la mise en page (546 px mesurés pour 540 px de cadre sur la
+        // présentation dense), et l'image ne montre aucune encre au bord. Appeler cela « coupé »
+        // ferait crier le relevé à tort sur des images saines — et un relevé qui crie à tort
+        // s'apprend à être ignoré, ce qui rouvre le défaut silencieux par l'autre bout.
+        // `coupe_px` ne compte donc que ce qui dépasse la zone morte, c'est-à-dire exactement
+        // ce que le refus rejette : au-delà de zéro, l'image n'est pas livrée.
+        hauteur_contenu: stable.contenu, hauteur_capture: hauteurCapture,
+        depassement_px: Math.max(0, stable.contenu - hauteurCapture),
+        zone_morte_px: Math.ceil(hauteurCapture * tolContenu) - hauteurCapture,
+        coupe_px: Math.max(0, stable.contenu - Math.ceil(hauteurCapture * tolContenu)),
+        hauteur_avant_stabilisation: stable.hauteur_avant_stabilisation,
+        tours_stabilisation: stable.tours,
         debordement_px: deb.px, debordement_rapport: deb.rapport, debordement_verdict: deb.verdict,
         debordement_px_sortie: Math.round(deb.px * (SORTIE.largeur / scene.largeur)),
         debordement_regle: deb.regle, debordement_sous_tolerance: deb.sous_tolerance,
@@ -708,6 +829,7 @@
     MODE_VIDEO: MODE_VIDEO, MODE_FIDELE: MODE_FIDELE, SEUIL_SCISSION: SEUIL_SCISSION,
     TOLERANCE_DEBORDEMENT: TOLERANCE_DEBORDEMENT, VITESSE_PAN_MAX: VITESSE_PAN_MAX,
     verdictDebordement: verdictDebordement, dureeEtapeS: dureeEtapeS,
+    refuserSiTropCourte: refuserSiTropCourte,
     sourcesParEtape: sourcesParEtape,
     configurer: function (opts) { if (opts && opts.cheminSnapdom) { _cheminSnapdom = opts.cheminSnapdom; _snapdom = null; } },
     cheminSnapdom: function () { return _cheminSnapdom; },

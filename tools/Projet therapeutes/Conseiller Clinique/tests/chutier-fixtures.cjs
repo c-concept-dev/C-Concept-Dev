@@ -269,4 +269,32 @@ const PRESENTATIONS = [
   { cle: 'questionnaire', nom: 'Questionnaire et chiffres', doc: QUESTIONNAIRE },
 ];
 
-module.exports = { PRESENTATIONS, IMAGES_EMBARQUEES, REQUETE_PHOTO, PHOTO_DATA_URI };
+// ── 4. Une diapositive À LA FORME DE CELLES DE CHRISTOPHE ────────────────────────────────────
+// Photo de couverture, du texte, et un ENCADRÉ en dernier bloc. Elle n'entre PAS dans
+// PRESENTATIONS — la page du banc en propose trois, et ses tests les nomment — mais elle est
+// exportée à part pour les contrôles.
+//
+// Elle existe parce que le 7 octobre, le dernier bloc de chaque diapositive illustrée se
+// retrouvait COUPÉ en bas de l'image, sans aucun avertissement. Aucune des trois présentations
+// d'essai ne le montrait : la seule qui porte une photo n'a qu'un bloc par carte, donc elle ne
+// débordait jamais, donc la scène n'était jamais agrandie, donc le défaut dormait.
+const phraseLongue = (n) => 'Phrase ' + n + ' de ce bloc, assez longue pour occuper une ligne entiere '
+  + 'et pousser le contenu vers le bas de la carte.';
+const ILLUSTREE = enveloppe('chutier-illustree', 'Diapositive illustree qui deborde', [
+  carte('slide-01', 'Diapositive illustree qui deborde', [
+    titre('heading-01', 'Un titre de section'),
+    bloc('paragraph-01', phraseLongue(1) + ' ' + phraseLongue(2)),
+    bloc('paragraph-02', phraseLongue(3) + ' ' + phraseLongue(4)),
+    { id: 'callout-01', type: 'callout',
+      content: { text: 'ENCADRE FINAL — ' + phraseLongue(5), visualRole: 'info' },
+      citationIds: [], validation: {} },
+  ], true),
+]);
+// La même, sans photo : c'est la comparaison qui montre que le défaut tenait à l'image.
+const SANS_PHOTO = JSON.parse(JSON.stringify(ILLUSTREE));
+SANS_PHOTO.documentId = 'chutier-sans-photo'; SANS_PHOTO.versionId = 'chutier-sans-photo-v1';
+SANS_PHOTO.blocks[0].content.imageRef = null;
+SANS_PHOTO.blocks[0].content.imageAlt = null;
+
+module.exports = { PRESENTATIONS, IMAGES_EMBARQUEES, REQUETE_PHOTO, PHOTO_DATA_URI,
+                   ILLUSTREE, SANS_PHOTO };

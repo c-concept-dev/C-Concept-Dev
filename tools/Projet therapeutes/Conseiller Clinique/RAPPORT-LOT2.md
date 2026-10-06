@@ -641,7 +641,146 @@ pas une mesure** — seule sa mesure sur votre document donnera le rapport exact
 
 ---
 
-## 7. Ce que ce lot ne livre pas
+## 12. La troncature du dernier bloc — cause, correction, et la leçon pour la gouvernance
+
+Christophe a trouvé, sur sa présentation réelle en mode (d), que le dernier bloc de chaque
+diapositive illustrée était coupé en bas de l'image : phrase tranchée en son milieu à la
+diapositive 1 étape 4, encadré final coupé aux diapositives 2 et 3, encadré final absent à la
+diapositive 5 étape 3 — dont l'image était identique à celle de l'étape 2, pixel pour pixel. Le
+relevé annonçait pourtant un débordement de 306, 460, 374 et 598 px. Aucun avertissement.
+
+### La cause, mesurée et non devinée
+
+Trois CSS se combinent, et aucune des trois n'est fautive isolément :
+
+| règle | fichier | effet |
+|---|---|---|
+| `.cc-ws-present-slide-inner .adoc-sc-card{height:100%;overflow:auto}` | lecteur | la carte prend la hauteur de la scène, et fait défiler ce qui dépasse |
+| `.adoc-sc-card-img{max-height:45%}` | lecteur | la photo de couverture occupe 45 % de la **hauteur de la carte** |
+| agrandissement de la scène pour contenir le débordement | moteur du chutier | enlever la hauteur fixe pour mesurer le contenu déplié |
+
+La conséquence est un cercle : agrandir la scène de 540 à 766 px agrandit la photo de 243 à
+345 px, qui repousse le texte de 102 px, qui augmente la hauteur du contenu — laquelle avait déjà
+été mesurée. La hauteur retenue était donc toujours celle d'**avant** l'agrandissement.
+
+Mesuré sur la présentation illustrée, en (d) : contenu **766 px** mesuré avant agrandissement,
+**952 px** réellement occupés après. Le bas du dernier bloc tombait à 830 px dans un cadre de
+766 px : **64 px de texte coupés** sur cette fixture, **186 px** d'écart total de hauteur. Sans
+photo, le même contenu mesure 540 px avant comme après : **rien ne bouge, ce qui établit la
+cause**. Et en (a), la scène de 1422×800 n'a jamais eu à être agrandie — donc jamais de
+troncature. La réponse aux trois questions du brief : la hauteur était mesurée **une fois par
+étape**, après la révélation du dernier bloc (ce point était correct) mais **avant** le
+redimensionnement de la scène, lequel a lieu dans `capturer()` juste avant la capture.
+
+### La correction
+
+1. `hauteurContenu(sc)` mesure le maximum de `inner.scrollHeight`, `carte.scrollHeight` et du bas
+   du bloc visible le plus bas — ce dernier terme parce que `.adoc-sc-reveal` masque par
+   `opacity` et `visibility`, qui **conservent** la mise en page.
+2. `stabiliserHauteur(sc, attendue)` résout le point fixe. Le contenu est affine en la hauteur
+   posée : `contenu(H) = fixe + k·H`, donc `H* = fixe / (1 − k)`. Deux sondes donnent `k`, la
+   troisième vérifie. **3 redimensionnements** au lieu des 9 de l'itération naïve ; repli sur
+   l'itération bornée si `k` sort de `(0 ; 0,98)`.
+3. `refuserSiTropCourte(contenu, hauteurCapture, tolérance, stepId)` **lève une erreur** : une
+   image plus courte que son contenu n'est jamais livrée. Même zone morte qu'ailleurs (×1,02),
+   parce que quelques pixels de bruit de mise en page ne sont pas une troncature.
+
+### Les quatre réglages, mesurés
+
+`tests/mesure-troncature.cjs`, sur les trois présentations d'essai, une présentation illustrée et
+le même document sans photo. « Aurait grandi » = étapes où l'ancien code coupait. « Encre au
+bord » = pixels d'encre collés au bord inférieur de l'image, lus **dans l'image**.
+
+| réglage | étapes concernées | px perdus au maximum | encre au bord après correction |
+|---|---|---|---|
+| (a) fidèle 1422×800 | **aucune** sur 19 | 0 | 0 |
+| (b) fidèle 960×540 | 4 sur 19 | 17 px | 0 |
+| (c) fidèle, typo ×1,6 | 4 sur 19 | 29 px | 0 |
+| (d) vidéo 960×540 ×1,4 | 4 sur 19 | **186 px** | 0 |
+
+**Le mode fidèle (a) n'était pas concerné** : sa scène de 1422×800 contenait les fixtures sans
+agrandissement, et une scène qu'on n'agrandit pas n'agrandit pas la photo. Les réglages (b) et (c)
+l'étaient, mais faiblement (17 et 29 px) ; (d) l'était massivement, parce qu'il cumule la petite
+scène et l'agrandissement typographique. C'est ce qui explique que le défaut soit apparu
+exactement quand Christophe est passé en (d) sur sa présentation réelle.
+
+### Le relevé de la page
+
+Il affiche désormais, par étape : la hauteur du **contenu**, la hauteur de l'**image** (en scène
+et en sortie), et l'écart. Trois endroits : le tableau détaillé, la légende de chaque vignette, et
+le relevé copiable. Exemple réel sur la présentation dense en (d) :
+
+```
+hauteurs : aucune image plus courte que son contenu (4 étapes)
+  dont 4 étape(s) qui dépassent de quelques pixels (jusqu'à 6 px) sans rien couper :
+  c'est la zone morte de la mise en page
+```
+
+Deux nombres et non un, et c'est un choix : le **dépassement brut** vaut 6 px sur presque toutes
+les cartes (546 px mesurés pour 540 px de cadre), sans aucune encre au bord. Appeler cela
+« coupé » ferait crier le relevé sur des images saines — et un relevé qui crie à tort s'apprend à
+être ignoré, ce qui rouvrirait le défaut silencieux par l'autre bout. `coupe_px` ne compte donc
+que ce qui dépasse la zone morte, c'est-à-dire exactement ce que le refus rejette.
+
+### Falsification
+
+| mutation | ce qu'elle remet en place | détectée par |
+|---|---|---|
+| `la hauteur est mesurée une seule fois, avant l'agrandissement` | le défaut du 7 octobre, à l'identique | contrôle 15 — **par les pixels** : « illustree/d étape 4 : 2001 pixels d'encre collés au bord inférieur » |
+| `le refus d'une image trop courte ne refuse plus rien` | le garde-fou retiré | contrôle 16 : « 60 px de trop doivent être refusés : accepté » |
+| `le débordement n'est plus mesuré` (ancre remise à jour) | aucune connaissance du débordement | contrôle sur le questionnaire capturé à toute sa hauteur |
+
+**Falsifieur : 24/24 mutations détectées**, sur trois fichiers source, empreintes restaurées.
+
+### La leçon pour la gouvernance : un défaut silencieux et crédible
+
+C'est le point important, et il vaut au-delà de ce lot.
+
+Mes contrôles 15 et 16, tels que je les avais d'abord écrits, lisaient les hauteurs **que le
+moteur déclare lui-même** dans ses métadonnées. Or sous la mutation qui remet le défaut en place,
+le moteur reste parfaitement cohérent avec lui-même : il annonce « contenu 766 px, capture 766 px »
+et son propre refus l'accepte sans broncher. Le contrôle passait. Il ne restait du défaut que
+l'image, où 2001 pixels de texte étaient tranchés net contre le bord.
+
+J'ai donc ajouté au contrôle 15 une mesure qui ne passe pas par le moteur : l'encre dans la
+dernière bande de 10 px de l'image livrée. Une capture complète y montre la marge intérieure de la
+carte ; une capture coupée y montre du texte. C'est cette assertion-là, et non la comptabilité
+interne, qui attrape la mutation.
+
+Trois règles que j'en tire, et que je propose d'inscrire dans la gouvernance :
+
+1. **Un contrôle ne doit pas demander à la chose contrôlée si elle a bien travaillé.** Vérifier un
+   artefact livré se fait sur l'artefact — ici les pixels de l'image — et non sur les nombres que
+   le producteur a inscrits à son propre sujet. Les deux coïncident tant que le producteur est
+   juste, et c'est précisément quand il cesse de l'être qu'ils divergent.
+2. **Une anomalie annoncée doit être annoncée dans l'unité de la livraison.** Le relevé disait
+   « déborde de 306 px » — vrai et inutile, parce qu'il parlait du contenu sans jamais dire ce que
+   l'image mesurait. Il manquait le second nombre, donc la comparaison, donc l'alerte.
+3. **La crédibilité d'une sortie est une propriété dangereuse.** Ces images étaient belles,
+   nettes, de la bonne taille, livrées sans erreur, avec un relevé qui parlait de débordement :
+   tout concourait à les croire. Le seul moyen de les contredire était de les **regarder**, ce que
+   Christophe a fait et que mes scripts ne faisaient pas. Un contrôle qui ne regarde pas le produit
+   fini ne protège de rien, quel que soit son nombre d'assertions.
+
+Cette passe a aussi corrigé un travers de méthode de mon côté : mes scripts de correctif
+écrivaient le fichier à la fin, si bien qu'une assertion tardive annulait en silence des
+remplacements déjà réussis tout en affichant « ok ». J'écris et je revérifie maintenant **après
+chaque remplacement** — c'est ce qui a fait apparaître, cette fois, qu'une ancre de mutation était
+devenue caduque plutôt que de la croire appliquée.
+
+### Mesuré par script / à juger par Christophe
+
+**Mesuré :** la cause (766 → 952 px, 64 px coupés sur la fixture, rien sans photo) ; les quatre
+réglages (tableau ci-dessus) ; 0 pixel d'encre au bord sur les 20 images × 4 réglages après
+correction ; 3 redimensionnements de stabilisation ; 20/20 contrôles, 24/24 mutations, 17 tests de
+régression verts ; empreinte du schéma d'outil `b1b0155cb8eba26c`, 6679 o, avant **et** après.
+
+**À juger par Christophe :** relancer le rendu de sa présentation réelle en (d) et vérifier que
+les quatre encadrés finaux sont entiers. Le relevé lui donnera, étape par étape, la hauteur du
+contenu et celle de l'image — et refusera de produire une image trop courte plutôt que de la lui
+livrer en silence.
+
+## 13. Ce que ce lot ne livre pas
 
 - **L'interface du chutier dans l'application** (V2 côté produit) : le brief demandait le moteur
   sans interface de banc, et c'est ce qui est livré. Les vignettes existent dans la page d'essai.

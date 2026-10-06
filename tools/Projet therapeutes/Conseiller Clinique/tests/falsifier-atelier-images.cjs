@@ -76,10 +76,15 @@ const ESSAIS = [
     vers: '  async function decoder(im) {',
     attendu: 'plus d\'une image décodée en même temps' },
 
+  // L'ancienne ancre (`return Math.max(attendue.hauteur, h)` dans `mesurerHauteurDepliee`) a
+  // disparu avec la correction de la troncature : la mesure de hauteur est devenue une fonction
+  // à part. La mutation vise donc cette fonction, qui est l'endroit où le débordement se mesure
+  // désormais. Ce n'est pas un assouplissement : neutraliser `hauteurContenu` prive le moteur de
+  // TOUTE connaissance du débordement, ce que l'ancienne mutation ne faisait qu'en partie.
   { nom: 'le débordement n\'est plus mesuré',
     fichier: 'moteur',
-    de: '    return Math.max(attendue.hauteur, h);',
-    vers: '    return attendue.hauteur;',
+    de: '    return Math.ceil(h);\n  }',
+    vers: '    return 0;\n  }',
     attendu: 'le questionnaire n\'est plus capturé sur toute sa hauteur' },
 
 
@@ -177,6 +182,24 @@ const ESSAIS = [
     de: '<option value="d" selected>(d) MODE VIDÉO',
     vers: '<option value="d">(d) MODE VIDÉO',
     attendu: 'la page annonce (d) et rend (a) — le défaut même que Christophe a trouvé' },
+
+  // LE DÉFAUT DU 7 OCTOBRE, remis en place tel qu'il était : une seule mesure, prise AVANT que
+  // la scène ne soit agrandie. Le contrôle 15 doit le voir, et le voir par les PIXELS — parce
+  // qu'avec cette mutation le moteur reste parfaitement cohérent avec lui-même : il annonce
+  // 766 px de contenu pour 766 px de capture, et son propre refus l'accepte. C'est précisément
+  // ce qui le rendait crédible.
+  { nom: 'la hauteur est mesurée une seule fois, avant l\'agrandissement de la scène',
+    fichier: 'moteur',
+    de: '      var stable = await stabiliserHauteur(sc, scene);',
+    vers: '      var stable = (function () { var c = hauteurContenu(sc); return { hauteur: Math.max(c, scene.hauteur),'
+      + ' contenu: c, tours: 1, methode: \'sonde unique\', converge: true, hauteur_avant_stabilisation: c }; })();',
+    attendu: 'le dernier bloc est coupé en bas de l\'image, et le moteur n\'en sait rien' },
+
+  { nom: 'le refus d\'une image trop courte ne refuse plus rien',
+    fichier: 'moteur',
+    de: '    if (contenu <= Math.ceil(hauteurCapture * (tolerance || TOLERANCE_DEBORDEMENT))) return false;',
+    vers: '    if (true) return false;',
+    attendu: 'une image plus courte que son contenu serait livrée en silence' },
 ];
 
 function lancer(test) {

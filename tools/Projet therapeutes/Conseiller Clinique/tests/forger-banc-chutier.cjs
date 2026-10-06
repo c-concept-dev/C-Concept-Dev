@@ -163,6 +163,30 @@ const PANNEAU = `
         + '  —  rapport ' + im.debordement_rapport + '  —  ' + im.debordement_verdict.toUpperCase()
         + ' (règle : ' + im.debordement_regle + ')');
     });
+    // HAUTEUR DU CONTENU CONTRE HAUTEUR D’IMAGE. C’est l’écart entre les deux qui a coupé le
+    // dernier bloc de chaque diapositive, sans un mot, le 7 octobre. Il a maintenant sa ligne.
+    var coupees = res.images.filter(function (im) { return im.coupe_px > 0; });
+    var grandies = res.images.filter(function (im) {
+      return im.hauteur_avant_stabilisation < im.hauteur_contenu; });
+    ligne('contenu et image', coupees.length
+      ? coupees.length + ' IMAGE(S) PLUS COURTE(S) QUE LEUR CONTENU — à signaler'
+      : 'aucune image plus courte que son contenu (' + res.images.length + ' étapes vérifiées)');
+    if (grandies.length) {
+      ligne('hauteurs stabilisées', grandies.length + ' étape(s) dont le contenu a grandi quand la'
+        + ' scène a été agrandie — par exemple ' + grandies[0].hauteur_avant_stabilisation + ' px'
+        + ' puis ' + grandies[0].hauteur_contenu + ' px en ' + grandies[0].tours_stabilisation
+        + ' redimensionnement(s). Sans la stabilisation, ces images seraient coupées.');
+    }
+    res.images.forEach(function (im) {
+      ligne('  ' + im.titre + ', étape ' + im.rang + '/' + im.surRang + ' — hauteurs',
+        'contenu ' + im.hauteur_contenu + ' px, image ' + im.hauteur_capture + ' px de scène ('
+        + im.hauteur + ' px de sortie)'
+        + (im.coupe_px > 0 ? '  —  ÉCART : ' + im.coupe_px + ' px COUPÉS'
+           : im.depassement_px > 0
+             ? '  —  ' + im.depassement_px + ' px de dépassement, dans la zone morte de '
+               + im.zone_morte_px + ' px : rien de coupé'
+             : '  —  rien de coupé'));
+    });
 
     for (var i = 0; i < res.images.length; i++) {
       var im = res.images[i];
@@ -176,6 +200,10 @@ const PANNEAU = `
       cap.style.cssText = 'font-size:11px;color:#667;margin-top:4px;';
       cap.textContent = 'diapositive ' + (im.cardIndex + 1) + ', étape ' + im.rang + ' sur ' + im.surRang
         + '  —  ' + im.largeur + 'x' + im.hauteur + (im.debordement ? ' (déborde)' : '')
+        + '  —  contenu ' + im.hauteur_contenu + ' px / image ' + im.hauteur_capture + ' px'
+        + (im.coupe_px > 0 ? '  —  ÉCART ' + im.coupe_px + ' px COUPÉS' : '')
+        + (im.coupe_px === 0 && im.depassement_px > 0
+            ? ' (' + im.depassement_px + ' px dans la zone morte)' : '')
         + '  —  ' + Math.round(im.octets / 1024) + ' Ko  —  ' + im.signature
         + '\\n' + im.titre;
       cap.style.whiteSpace = 'pre-line';
@@ -197,6 +225,26 @@ const PANNEAU = `
     lignes.push('temps ' + (murs / 1000).toFixed(1) + ' s (' + Math.round(murs / res.images.length) + ' ms par image)');
     lignes.push('poids ' + mo(res.octets_total) + ' (' + Math.round(res.octets_total / res.images.length / 1024)
       + ' Ko par image, ' + (res.images[0] ? res.images[0].type : '—') + ')');
+    var coupe = res.images.filter(function (im) { return im.coupe_px > 0; });
+    lignes.push('hauteurs : ' + (coupe.length
+      ? 'ÉCART sur ' + coupe.length + ' étape(s) — ' + coupe.map(function (im) {
+          return 'diapositive ' + (im.cardIndex + 1) + ' étape ' + im.rang + ' : contenu '
+            + im.hauteur_contenu + ' px, image ' + im.hauteur_capture + ' px, '
+            + im.coupe_px + ' px coupés'; }).join(' ; ')
+      : 'aucune image plus courte que son contenu (' + res.images.length + ' étapes)'));
+    var depasse = res.images.filter(function (im) { return im.coupe_px === 0 && im.depassement_px > 0; });
+    if (depasse.length) {
+      lignes.push('  dont ' + depasse.length + ' étape(s) qui dépassent de quelques pixels'
+        + ' (jusqu\u2019à ' + Math.max.apply(null, depasse.map(function (im) { return im.depassement_px; }))
+        + ' px) sans rien couper : c\u2019est la zone morte de la mise en page');
+    }
+    var grandi = res.images.filter(function (im) {
+      return im.hauteur_avant_stabilisation < im.hauteur_contenu; });
+    if (grandi.length) {
+      lignes.push('  dont ' + grandi.length + ' étape(s) stabilisée(s) après agrandissement de la'
+        + ' scène (ex. ' + grandi[0].hauteur_avant_stabilisation + ' px puis '
+        + grandi[0].hauteur_contenu + ' px)');
+    }
     lignes.push('texte lisible : ?');
     lignes.push('');
     lignes.push('JPEG 0,92 : gêne visible sur le texte : ?   ;   sur les photos : ?');

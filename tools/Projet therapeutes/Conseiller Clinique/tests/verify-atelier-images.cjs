@@ -522,7 +522,109 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       + S.sources[0].etapes.join(', '));
     pass('puce « Approfondir » toujours masquée ; citations et sources visibles par défaut, masquables sur option ; sources extraites pour le kit.');
 
-    // ── 15. L'ÉCHELLE TYPOGRAPHIQUE fait ce qu'elle annonce ──────────────────────────────────
+    // ── 15. AUCUNE IMAGE PLUS COURTE QUE SON CONTENU, dans les quatre réglages ───────────────
+    // LE DÉFAUT DU 7 OCTOBRE. Le dernier bloc de chaque diapositive illustrée se retrouvait coupé
+    // en bas de l'image, sans avertissement. Cause mesurée : dans la scène, la carte est en
+    // height:100% et son image de couverture en max-height:45%. Agrandir la scène pour y faire
+    // tenir un débordement agrandit l'image d'autant, qui repousse le texte — et la hauteur
+    // mesurée AVANT cet agrandissement est toujours trop courte.
+    const { ILLUSTREE, SANS_PHOTO } = require('./chutier-fixtures.cjs');
+    const REGLAGES = { a: { mode: 'fidele' }, b: { mode: 'fidele', scene: { largeur: 960, hauteur: 540 } },
+                       c: { mode: 'fidele', echelleTypo: 1.6 }, d: {} };
+    const troncature = await page.evaluate(async ({ docs, reglages }) => {
+      // MESURE INDÉPENDANTE DU MOTEUR : on regarde l'encre dans la dernière bande de l'IMAGE.
+      // Les hauteurs ci-dessous sont les chiffres du moteur ; s'y fier seuls reviendrait à lui
+      // demander s'il a bien travaillé. Une capture coupée a de l'encre jusqu'au bord inférieur,
+      // une capture complète a la marge intérieure de la carte. C'est vrai des pixels livrés,
+      // quoi que le moteur raconte.
+      const encreDuBas = async (blob) => {
+        const bmp = await createImageBitmap(blob);
+        const c = document.createElement('canvas');
+        c.width = bmp.width; c.height = bmp.height;
+        const g = c.getContext('2d'); g.drawImage(bmp, 0, 0);
+        const BANDE = 10, MARGE = 30;
+        const d = g.getImageData(MARGE, bmp.height - BANDE, bmp.width - 2 * MARGE, BANDE).data;
+        let n = 0;
+        for (let i = 0; i < d.length; i += 4) {
+          if (0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2] < 170) n++;
+        }
+        bmp.close();
+        return n;
+      };
+      const out = {};
+      for (const d of docs) {
+        out[d.cle] = {};
+        for (const cle of Object.keys(reglages)) {
+          const res = await window.AtelierImages.rendreImages(d.doc, reglages[cle]);
+          const images = [];
+          for (const im of res.images) {
+            images.push({
+              rang: im.rang, hauteur: im.hauteur, hauteurScene: im.hauteurScene,
+              contenu: im.hauteur_contenu, avant: im.hauteur_avant_stabilisation,
+              tours: im.tours_stabilisation, verdict: im.debordement_verdict,
+              encreBas: await encreDuBas(im.blob) });
+          }
+          out[d.cle][cle] = { scene: res.scene, images: images };
+        }
+      }
+      return out;
+    }, { docs: [{ cle: 'illustree', doc: ILLUSTREE }, { cle: 'sansPhoto', doc: SANS_PHOTO }],
+         reglages: REGLAGES });
+
+    let aurait = 0, verifies = 0;
+    ['illustree', 'sansPhoto'].forEach((cleDoc) => {
+      Object.keys(REGLAGES).forEach((cle) => {
+        const r = troncature[cleDoc][cle];
+        r.images.forEach((im) => {
+          const cadre = im.verdict === 'aucun' ? r.scene.hauteur : im.hauteurScene;
+          assert.ok(im.contenu <= Math.ceil(cadre * 1.02),
+            cleDoc + '/' + cle + ' étape ' + im.rang + ' : contenu ' + im.contenu
+            + ' px pour une capture de ' + cadre + ' px — image plus courte que son contenu');
+          assert.ok(im.tours >= 1 && im.tours <= 12, 'nombre de tours de stabilisation : ' + im.tours);
+          // Et la preuve qui ne passe pas par le moteur : pas d'encre contre le bord du bas.
+          assert.equal(im.encreBas, 0, cleDoc + '/' + cle + ' étape ' + im.rang + ' : '
+            + im.encreBas + ' pixels d\'encre collés au bord inférieur de l\'image — le texte y est '
+            + 'coupé net. (hauteurs annoncées : contenu ' + im.contenu + ' px, cadre ' + cadre + ' px)');
+          // Ce que l'ancien code aurait retenu, et donc coupé.
+          if (im.avant < im.contenu) aurait++;
+          verifies++;
+        });
+      });
+    });
+    // La fixture DOIT reproduire le défaut, sinon ce contrôle ne vérifie rien.
+    assert.ok(aurait >= 4, 'la présentation illustrée doit reproduire le cas où la hauteur grandit '
+      + 'après l\'agrandissement, sinon ce contrôle est vide : ' + aurait + ' cas sur ' + verifies);
+    // Et SANS photo, rien ne bouge : c'est ce qui établit la cause.
+    Object.keys(REGLAGES).forEach((cle) => {
+      troncature.sansPhoto[cle].images.forEach((im) => {
+        assert.equal(im.avant, im.contenu,
+          'sans photo, la hauteur ne doit pas changer après agrandissement : ' + im.avant + ' → ' + im.contenu);
+      });
+    });
+    const d4 = troncature.illustree.d.images[3];
+    console.log('      illustrée, réglage (d), dernière étape : ' + d4.avant + ' px avant stabilisation, '
+      + d4.contenu + ' px après — ' + (d4.contenu - d4.avant) + ' px qui auraient été coupés, en '
+      + d4.tours + ' redimensionnements');
+    console.log('      ' + aurait + ' cas sur ' + verifies + ' où la hauteur grandit ; sans photo, aucun');
+    pass('aucune image plus courte que son contenu, dans les quatre réglages, avec et sans photo.');
+
+    // Le REFUS lui-même, éprouvé seul : c'est le garde-fou qui doit tenir le jour où la
+    // stabilisation ne suffira plus.
+    const refusCourt = await page.evaluate(() => {
+      const A = window.AtelierImages, essai = (c, h, t) => {
+        try { A.refuserSiTropCourte(c, h, t, 'etape-x'); return 'accepté'; }
+        catch (e) { return String(e.message).slice(0, 60); }
+      };
+      return { pile: essai(540, 540, 1.02), sousTolerance: essai(550, 540, 1.02),
+               auDela: essai(600, 540, 1.02), strict: essai(545, 540, 1.0) };
+    });
+    assert.equal(refusCourt.pile, 'accepté', 'un contenu qui tient exactement est accepté');
+    assert.equal(refusCourt.sousTolerance, 'accepté', '10 px sur 540 restent dans la zone morte');
+    assert.match(refusCourt.auDela, /plus courte que son contenu/, '60 px de trop doivent être refusés : ' + refusCourt.auDela);
+    assert.match(refusCourt.strict, /plus courte que son contenu/, 'et la tolérance est réglable : ' + refusCourt.strict);
+    pass('le refusCourt d\'une image plus courte que son contenu, éprouvé seul : accepte la zone morte, refuse au-delà.');
+
+    // ── 17. L'ÉCHELLE TYPOGRAPHIQUE fait ce qu'elle annonce ──────────────────────────────────
     const typo = await page.evaluate(async ({ d, src }) => {
       const inspecter = eval('(' + src + ')');
       // Base : le mode FIDÈLE, pour que les deux leviers s'éprouvent chacun à partir de zéro.
@@ -585,7 +687,7 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
     pass('les deux leviers sont distincts, appliqués à toutes les étapes (' + compares
       + ' comparaisons), interligne compris.');
 
-    // ── 16. RIEN NE FUIT HORS CAPTURE ────────────────────────────────────────────────────────
+    // ── 18. RIEN NE FUIT HORS CAPTURE ────────────────────────────────────────────────────────
     // Le point sur lequel Christophe a été explicite : « ne change rien au lecteur hors capture ».
     const fuite = await page.evaluate(async (d) => {
       // Un document rendu dans l'espace de travail, AVANT toute capture.
@@ -638,7 +740,7 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       + ', texte ' + fuite.avant.taille + ' — identiques avant et après une capture à 960×540 ×1,6');
     pass('le lecteur hors capture est inchangé, et les ' + fuite.nbRegles + ' règles de capture sont toutes portées par la marque.');
 
-    // ── 17. LA POLITIQUE DE DÉBORDEMENT, règle par règle ──────────────────────────────────────
+    // ── 19. LA POLITIQUE DE DÉBORDEMENT, règle par règle ──────────────────────────────────────
     const politique = await page.evaluate(() => {
       const A = window.AtelierImages;
       const v = (contenu, cadre, opts) => A.verdictDebordement(contenu, cadre, opts);
@@ -677,7 +779,7 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       + politique.lentEtCourt.verdict + ' (' + politique.lentEtCourt.vitesse_px_par_s + ' px/s)');
     pass('politique de débordement : zone morte, seuil réglable, et la durée l\'emporte sur le rapport quand elle est connue.');
 
-    // ── 18. Aucune erreur de page pendant tout cela ───────────────────────────────────────────
+    // ── 20. Aucune erreur de page pendant tout cela ───────────────────────────────────────────
     assert.deepEqual(erreurs, [], 'la page ne doit lever aucune erreur : ' + erreurs.join(' | '));
     pass('aucune erreur de page sur l\'ensemble des rendus.');
 
