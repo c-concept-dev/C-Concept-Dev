@@ -23,8 +23,8 @@ const VERSION_API = "2023-06-01";
 const COMMUN = [
   "Chaque image est un petit rectangle découpé dans une page numérisée.",
   "Si aucun nombre n'est lisible, rends null : c'est une réponse juste et utile, et il ne faut pas deviner.",
-  "Rends ta confiance de 0 à 1 : 1 quand les chiffres sont nets et sans ambiguïté, moins dès qu'il y a un doute.",
-  "Reprends l'empreinte de chaque image telle qu'elle t'est donnée, pour qu'on sache à quoi tu réponds.",
+  "Rends ta confiance de 0 à 1 : elle porte sur l'ensemble de ta réponse pour cette image.",
+  "Rends une entrée par image, en reprenant son rang — « Image 1 », « Image 2 » — pour qu'on sache à quoi tu réponds.",
 ];
 
 /** La consigne, selon la question posée. Stable pour une question donnée : c'est ce qui permet de
@@ -60,9 +60,9 @@ const schemaOutil = (question: QuestionVision): Record<string, unknown> => ({
       items: {
         type: "object",
         properties: {
-          empreinte: { type: "string", description: "L'empreinte de l'image, reprise telle quelle" },
+          image: { type: "integer", description: "Le rang de l'image, tel qu'il est annoncé : 1 pour la première" },
           numero: { type: ["integer", "null"], description: "Le nombre lu, ou null si rien n'est lisible" },
-          confiance: { type: "number", description: "De 0 à 1. Exactement 0 quand numero vaut null" },
+          confiance: { type: "number", description: "De 0 à 1, sur l'ensemble de ta réponse pour cette image" },
           ...(question === "repere"
             ? {
                 repere: {
@@ -73,7 +73,7 @@ const schemaOutil = (question: QuestionVision): Record<string, unknown> => ({
               }
             : {}),
         },
-        required: question === "repere" ? ["empreinte", "repere", "numero", "confiance"] : ["empreinte", "numero", "confiance"],
+        required: question === "repere" ? ["image", "repere", "numero", "confiance"] : ["image", "numero", "confiance"],
         additionalProperties: false,
       },
     },
@@ -92,9 +92,13 @@ const NOM_OUTIL = "rendre_les_nombres";
 export function corpsDAppel(demande: DemandeVision): Record<string, unknown> {
   const question = demande.zones[0]!.cherche;
   const contenu: Record<string, unknown>[] = [{ type: "text", text: CONSIGNES[question], cache_control: { type: "ephemeral" } }];
-  for (const zone of demande.zones) {
+  // Le rang, et non l'empreinte. Faire recopier trente-deux caractères hexadécimaux était une
+  // mauvaise idée : sur deux cent quarante-trois pavés, le modèle en a changé un — « …ff786… »
+  // rendu « …ff746… » — et toute la réponse était refusée pour une zone inconnue. Un rang de un
+  // ou deux chiffres se recopie, et l'empreinte reste notre clef, de notre côté.
+  for (const [rang, zone] of demande.zones.entries()) {
     const borne = zone.attendu === undefined ? "" : ` Le nombre attendu est entre ${zone.attendu.min} et ${zone.attendu.max}.`;
-    contenu.push({ type: "text", text: `Image ${zone.empreinte}.${borne}` });
+    contenu.push({ type: "text", text: `Image ${rang + 1}.${borne}` });
     contenu.push({ type: "image", source: { type: "base64", media_type: zone.typeMime, data: zone.image } });
   }
   return {
@@ -140,14 +144,28 @@ export function lireParModele(cle: string, appeler: typeof fetch = fetch): Lecte
     if (bloc?.input === undefined) throw new VisionRefusee(502, "Le modèle n'a pas rempli le formulaire demandé");
 
     const lu = (bloc.input as { zones?: unknown }).zones;
+    // Le rang redevient l'empreinte, de notre côté. Un rang hors de la demande est refusé : le
+    // modèle a répondu d'une image qu'on ne lui a pas montrée.
+    const rendues = (Array.isArray(lu) ? lu : []).map((entree) => {
+      const { image, ...reste } = entree as { image?: unknown };
+      const rang = typeof image === "number" ? image : Number.NaN;
+      const zone = demande.zones[rang - 1];
+      return zone === undefined ? reste : { ...reste, empreinte: zone.empreinte };
+    });
     const candidate = {
-      zones: Array.isArray(lu) ? lu : [],
+      zones: rendues,
       jetons: { entree: corps.usage?.input_tokens ?? 0, sortie: corps.usage?.output_tokens ?? 0 },
       outil: { nom: OUTIL.nom, version: OUTIL.version },
     };
 
     const valide = ReponseVision.safeParse(candidate);
-    if (!valide.success) throw new VisionRefusee(502, "La réponse du modèle n'est pas conforme au contrat");
+    if (!valide.success) {
+      // Les chemins et messages de notre propre contrat, pas les valeurs reçues : ceux-là sont à
+      // nous et rendent la panne diagnosticable, celles-là viennent du modèle et pourraient citer
+      // la requête. Sans ce détail, « non conforme » ne dit pas quel champ a manqué.
+      const ou = valide.error.issues.slice(0, 3).map((souci) => `${souci.path.join(".")} : ${souci.message}`);
+      throw new VisionRefusee(502, `La réponse du modèle n'est pas conforme au contrat — ${ou.join(" ; ")}`);
+    }
 
     const ecarts = reponseRepondA(demande, valide.data);
     if (ecarts.length > 0) throw new VisionRefusee(502, `La réponse ne répond pas à la demande : ${ecarts.join(", ")}`);

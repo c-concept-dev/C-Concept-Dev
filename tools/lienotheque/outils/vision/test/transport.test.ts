@@ -108,3 +108,30 @@ describe("le jeton depuis le trousseau du système (SEC-01)", () => {
     ).not.toThrow();
   });
 });
+
+describe("une panne doit se diagnostiquer (lot D)", () => {
+  it("relaie le message de notre route, qui est à nous", async () => {
+    const faux: typeof fetch = async () => new Response(JSON.stringify({ erreur: "La réponse du modèle n'est pas conforme au contrat" }), { status: 502 });
+    await expect(transportVersWorker("https://exemple.invalide", JETON, faux)(demande())).rejects.toThrow(/pas conforme au contrat/);
+  });
+
+  it("reprend aussi les écarts nommés, sans les noyer", async () => {
+    const faux: typeof fetch = async () =>
+      new Response(JSON.stringify({ erreur: "Demande refusée", ecarts: ["zones.0.cherche : Un appel ne pose qu'une seule question"] }), { status: 400 });
+    await expect(transportVersWorker("https://exemple.invalide", JETON, faux)(demande())).rejects.toThrow(/une seule question/);
+  });
+
+  it("garde le statut quand le corps est illisible", async () => {
+    const faux: typeof fetch = async () => new Response("<html>pas du json", { status: 503 });
+    await expect(transportVersWorker("https://exemple.invalide", JETON, faux)(demande())).rejects.toThrow(/statut 503/);
+  });
+
+  it("et ne dit toujours pas le jeton", async () => {
+    const faux: typeof fetch = async () => new Response(JSON.stringify({ erreur: "Jeton refusé" }), { status: 401 });
+    try {
+      await transportVersWorker("https://exemple.invalide", JETON, faux)(demande());
+    } catch (leve) {
+      expect(String(leve)).not.toContain(JETON);
+    }
+  });
+});

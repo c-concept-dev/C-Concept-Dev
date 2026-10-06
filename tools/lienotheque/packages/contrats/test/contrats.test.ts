@@ -278,6 +278,19 @@ describe("ce qu'une relecture ciblée demande et ce qu'elle rend (OUT-08)", () =
     expect(ZoneLue.safeParse(lue({ repere: "present", numero: null, confiance: 0 })).success).toBe(true);
   });
 
+  it("et accepte d'en être sûr : la confiance porte alors sur le verdict", () => {
+    // « Le repère est là, ses chiffres sont illisibles, et j'en suis sûr » est une réponse
+    // cohérente. Le contrat l'interdisait, et c'est lui qui avait tort — le modèle l'a rendue
+    // telle quelle sur le corpus de référence.
+    expect(ZoneLue.safeParse(lue({ repere: "present", numero: null, confiance: 0.8 })).success).toBe(true);
+    expect(ZoneLue.safeParse(lue({ repere: "incertain", numero: null, confiance: 0.4 })).success).toBe(true);
+  });
+
+  it("mais sans verdict, rien de lu ne se dit toujours pas avec une confiance", () => {
+    expect(ZoneLue.safeParse(lue({ numero: null, confiance: 0.8 })).success).toBe(false);
+    expect(ZoneLue.safeParse(lue({ numero: null, confiance: 0 })).success).toBe(true);
+  });
+
   it("réclame le verdict quand la question le demandait", () => {
     const ecarts = reponseRepondA(demande({ cherche: "repere" }), reponse([lue()]));
     expect(ecarts).toEqual(["verdict de repère manquant : " + "a".repeat(32)]);

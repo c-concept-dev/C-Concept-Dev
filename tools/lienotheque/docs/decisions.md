@@ -1357,3 +1357,74 @@ Sur les treize clichés de référence : **19 pavés retenus** au lieu de 18, do
 
 Un élément et une page. La dette était réelle — deux faux repères sur 141 — mais ce n'est pas elle
 qui tiendra le critère : il manque encore 9 premiers éléments.
+
+## La relecture dit aussi si un repère est là (lot D, étape 3)
+
+Le reste de F4 ne venait plus d'un défaut de lecture mais d'un défaut de **jugement** : une lecture
+seule ne dit pas si ce qu'elle a lu **est** un repère, et la détection locale tirait trois fois trop
+souvent — 288 repères localisés pour 92 pistes. La relecture rend donc, pour chaque pavé, un verdict
+de présence en plus du nombre.
+
+### Ce que cela donne
+
+| | Témoin | Avec verdicts | Critère |
+|---|---:|---:|---:|
+| Premiers éléments | 61 / 92 | **76 / 92** | **83** |
+| Pages | 77 / 92 | **86 / 92** | *(89, non normatif)* |
+
+| Cause d'écart | Avant | Après |
+|---|---:|---:|
+| Dispute d'ouverture | 19 | **7** |
+| Piste fausse | 8 | **5** |
+| Élément non lu | 4 | 4 |
+
+Verdicts sur 243 pavés : **200 présent, 31 absent, 12 incertain**. Les 31 « absent » sont le levier —
+autant de faux repères qui ne peuvent plus ouvrir une piste.
+
+Le gain est réel et plus petit qu'il n'y paraît : les disputes passent de 19 à 7, mais le total ne
+gagne que deux éléments sur l'étape 1. La relecture redresse 22 éléments et en abîme 7 — trancher
+une ouverture en déplace d'autres.
+
+### Les marges : troisième mesure, troisième fois rien
+
+On a sondé les marges là où la numérotation montre un trou, pour les éléments dont aucun numéro n'a
+été lu. Résultat : **zéro élément et zéro page gagnés**, 193 recadrages demandés dont 83 refusés par
+le contrat — une bande de marge dépasse 1024 px à l'agrandissement ×2 —, et 18 numéros faux sur 151
+jugeables, le modèle y lisant des numéros de page.
+
+La voie est éteinte, pas fermée : `--marges` la rallume pour qui la reprendra avec un recadrage plus
+étroit, et ces chiffres disent ce qu'il faudra battre.
+
+### Quatre défauts de ma conception, trouvés par la mesure
+
+**Le cache servait le passé.** 141 des 243 pavés revenaient sans verdict : la lecture du cache ne
+savait pas quelle question était posée, donc une entrée d'avant l'extension passait pour valide. Elle
+reçoit maintenant la question, et une entrée qui n'y répond plus est redemandée **une fois** — un
+test vérifie « une fois, pas à chaque passage ».
+
+**Le modèle recopiait mal l'empreinte.** Demandé « …ff786… », rendu « …ff746… » : un caractère sur
+trente-deux, et toute la réponse refusée pour une zone inconnue. Faire recopier trente-deux
+caractères hexadécimaux était une mauvaise idée ; le modèle rend un **rang** — « Image 1 » — et
+l'empreinte reste notre clef, de notre côté. Un rang hors de la demande est refusé.
+
+**Mon contrat refusait une réponse cohérente.** « Rien de lu ne se dit pas avec une confiance » était
+juste tant qu'une réponse ne portait qu'un nombre. Le verdict l'a rendue fausse : « le repère est là,
+ses chiffres sont illisibles, et j'en suis sûr » est cohérent, et la confiance y porte sur le
+verdict. La règle est relâchée **sur preuve** et ne s'applique plus qu'en l'absence de verdict.
+
+**Une panne ne se diagnostiquait pas.** Un 502 ne disait pas s'il venait du modèle, du contrat ou du
+recoupement. Le transport relaie désormais le message de **notre** route, et le refus de contrat
+nomme le chemin du champ fautif — jamais les valeurs reçues, qui viennent du modèle. C'est ce
+changement qui a permis de nommer les deux causes précédentes en une commande.
+
+### Le coût, versé au compte
+
+| Mesure | Jetons entrée | Jetons sortie | Coût |
+|---|---:|---:|---:|
+| Étape 1, deux pavés nouveaux | 1 179 | 117 | 0,0016 € |
+| Étape 3, première passe (invalide, cache sans verdict) | 56 413 | 9 750 | 0,0974 € |
+| Étape 3, passe valide | 8 363 | 1 881 | 0,0165 € |
+| **Cumul du lot D** | **65 955** | **11 748** | **0,1155 €** |
+
+La passe invalide est comptée : elle a été dépensée. Un rejeu complet coûte désormais **0 €** — les
+353 réponses sont en cache.

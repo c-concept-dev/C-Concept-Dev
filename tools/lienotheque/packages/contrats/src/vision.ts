@@ -112,7 +112,13 @@ export const ZoneLue = z
   })
   .strict()
   .superRefine((zone, ctx) => {
-    if (zone.numero === null && zone.confiance !== 0)
+    // Rien de lu ne se dit pas avec une confiance — **quand il n'y a rien d'autre à dire**.
+    //
+    // Cette règle était juste tant qu'une réponse ne portait qu'un nombre. Le verdict l'a rendue
+    // fausse : « le repère est là, ses chiffres sont illisibles, et j'en suis sûr » est une réponse
+    // cohérente, et la confiance y porte sur le verdict. Le modèle l'a rendue telle quelle, et
+    // c'est le contrat qui avait tort — relâché sur preuve, pas par commodité.
+    if (zone.numero === null && zone.repere === undefined && zone.confiance !== 0)
       ctx.addIssue({ code: "custom", path: ["confiance"], message: "Rien de lu ne se dit pas avec une confiance" });
     // Un nombre venu d'un repère qu'on déclare absent n'a pas de provenance : la réponse se
     // contredit, et on la refuse plutôt que de choisir laquelle de ses deux moitiés croire.

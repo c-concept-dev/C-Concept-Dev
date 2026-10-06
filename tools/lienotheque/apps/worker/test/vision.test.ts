@@ -200,12 +200,15 @@ describe("l'appel au modèle (OUT-08)", () => {
     expect(corps).not.toContain(CLE);
   });
 
-  it("annonce chaque image par son empreinte, et borne ce qu'on attend", () => {
+  it("annonce chaque image par son rang, et borne ce qu'on attend", () => {
     const corps = corpsDAppel(demande(EMPREINTE, AUTRE)) as { messages: { content: { type: string; text?: string }[] }[] };
     const textes = corps.messages[0]!.content.filter((bloc) => bloc.type === "text").map((bloc) => bloc.text!);
-    expect(textes.some((texte) => texte.includes(EMPREINTE))).toBe(true);
-    expect(textes.some((texte) => texte.includes(AUTRE))).toBe(true);
+    expect(textes.some((texte) => texte.includes("Image 1"))).toBe(true);
+    expect(textes.some((texte) => texte.includes("Image 2"))).toBe(true);
     expect(textes.some((texte) => texte.includes("entre 1 et 92"))).toBe(true);
+    // Et surtout pas l'empreinte : trente-deux caractères hexadécimaux se recopient mal, et une
+    // seule faute faisait refuser toute la réponse.
+    expect(textes.some((texte) => texte.includes(EMPREINTE))).toBe(false);
   });
 
   it("marque la consigne pour la mise en cache : elle est identique d'un appel à l'autre", () => {
@@ -235,7 +238,7 @@ describe("l'appel au modèle (OUT-08)", () => {
     const fausse: typeof fetch = async () =>
       new Response(
         JSON.stringify({
-          content: [{ type: "tool_use", name: "rendre_les_nombres", input: { zones: [{ empreinte: EMPREINTE, numero: 14, confiance: 0.9 }] } }],
+          content: [{ type: "tool_use", name: "rendre_les_nombres", input: { zones: [{ image: 1, numero: 14, confiance: 0.9 }] } }],
           usage: { input_tokens: 137, output_tokens: 21 },
         }),
       );
@@ -331,5 +334,51 @@ describe("une question, un formulaire (OUT-08)", () => {
       ).status,
     ).toBe(200);
     expect((await avec([{ empreinte: EMPREINTE, repere: "absent", numero: 14, confiance: 0.9 }])).status).toBe(502);
+  });
+});
+
+describe("le rang plutôt que l'empreinte (lot D)", () => {
+  const reponseDuModele = (zones: Record<string, unknown>[]): typeof fetch => async () =>
+    new Response(JSON.stringify({ content: [{ type: "tool_use", name: "rendre_les_nombres", input: { zones } }], usage: { input_tokens: 1, output_tokens: 1 } }));
+
+  it("rend le rang à son empreinte, de notre côté", async () => {
+    const lue = await lireParModele(CLE, reponseDuModele([
+      { image: 2, numero: 15, confiance: 0.8 },
+      { image: 1, numero: 14, confiance: 0.9 },
+    ]))(demande(EMPREINTE, AUTRE));
+    expect(lue.zones.find((zone) => zone.empreinte === EMPREINTE)?.numero).toBe(14);
+    expect(lue.zones.find((zone) => zone.empreinte === AUTRE)?.numero).toBe(15);
+  });
+
+  it("refuse un rang qu'on n'a pas montré", async () => {
+    await expect(lireParModele(CLE, reponseDuModele([{ image: 7, numero: 14, confiance: 0.9 }]))(demande())).rejects.toThrow(/pas conforme/);
+  });
+
+  it("refuse un rang qui n'est pas un nombre", async () => {
+    await expect(lireParModele(CLE, reponseDuModele([{ image: "un", numero: 14, confiance: 0.9 }]))(demande())).rejects.toThrow(/pas conforme/);
+  });
+
+  it("demande un entier dans le formulaire, pas une chaîne", () => {
+    const corps = corpsDAppel(demande()) as { tools: { input_schema: { properties: { zones: { items: { properties: { image: { type: string } } } } } } }[] };
+    expect(corps.tools[0]!.input_schema.properties.zones.items.properties.image.type).toBe("integer");
+  });
+});
+
+describe("un refus de contrat dit quel champ, et rien de plus (lot D, SEC-01)", () => {
+  const reponseDuModele = (zones: Record<string, unknown>[]): typeof fetch => async () =>
+    new Response(JSON.stringify({ content: [{ type: "tool_use", name: "rendre_les_nombres", input: { zones } }], usage: { input_tokens: 1, output_tokens: 1 } }));
+
+  it("nomme le chemin du champ fautif", async () => {
+    await expect(
+      lireParModele(CLE, reponseDuModele([{ image: 1, numero: null, confiance: 0.7 }]))(demande()),
+    ).rejects.toThrow(/zones\.0\.confiance/);
+  });
+
+  it("ne relaie pas la valeur reçue : elle vient du modèle", async () => {
+    try {
+      await lireParModele(CLE, reponseDuModele([{ image: 1, numero: null, confiance: 0.7 }]))(demande());
+    } catch (leve) {
+      expect(String(leve)).not.toContain("0.7");
+    }
   });
 });
