@@ -40,6 +40,15 @@ retrouve documents, audio, vidéos et images, toujours sur la vraie page ou au v
    plutôt que recette, « élément » plutôt qu'ancre).
 9. Pas d'abstraction sans deux usages réels.
 
+## Gestes interdits et gestes autorisés
+- **Jamais `git add -A` ni `git add .`** : uniquement des chemins explicites sous
+  `tools/lienotheque`. Lancé depuis ce dossier, `git add -A` remonte à la racine du dépôt et happe
+  le travail des autres sessions — c'est arrivé une fois, sur
+  `tools/Atelier Prompts/.claude/`.
+- **Redéploiement du Worker autorisé sans demande** s'il reprend la configuration figée et les
+  mêmes secrets ; toujours consigné dans le rapport. **Tout changement de configuration ou de
+  secret est soumis avant.**
+
 ## Emplacement : dépôt C-Concept-Dev (public)
 - Le projet vit dans `tools/lienotheque/` du dépôt `C-Concept-Dev`. **Lancez Claude Code et pnpm depuis
   ce dossier**, jamais depuis la racine du dépôt.
