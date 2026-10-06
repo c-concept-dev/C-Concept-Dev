@@ -22,6 +22,24 @@ export type EmpreinteRecadrage = z.infer<typeof EmpreinteRecadrage>;
 export const AlphabetVision = z.enum(["chiffres"]);
 export type AlphabetVision = z.infer<typeof AlphabetVision>;
 
+/** Ce qu'on demande d'un rectangle. Deux questions, et elles n'attendent pas la même réponse.
+ *
+ *  `repere` : le rectangle montre-t-il un repère, et quel nombre porte-t-il ? La première moitié
+ *  de la question est celle qui manquait — une lecture seule ne dit pas si ce qu'elle a lu **est**
+ *  un repère, et sur le corpus de référence la détection tire trois fois trop souvent.
+ *
+ *  `numero` : quel nombre le rectangle porte-t-il, sans qu'on demande ce qu'il est. C'est la
+ *  question qu'on pose d'une marge où la lecture locale n'a rien rendu. */
+export const QuestionVision = z.enum(["repere", "numero"]);
+export type QuestionVision = z.infer<typeof QuestionVision>;
+
+/** Le verdict sur la présence d'un repère.
+ *
+ *  Trois réponses, et `incertain` en est une pleine : un modèle qui hésite doit pouvoir le dire
+ *  plutôt que de trancher, puisque c'est précisément l'hésitation qu'on est venu chercher. */
+export const PresenceRepere = z.enum(["present", "absent", "incertain"]);
+export type PresenceRepere = z.infer<typeof PresenceRepere>;
+
 /** Taille au-delà de laquelle un recadrage n'est plus un recadrage.
  *
  *  Mesuré sur F4 : le pavé d'un repère tient dans 200 × 150 px sur des clichés de 1786 × 2410,
@@ -40,6 +58,8 @@ export const ZoneAlire = z
     typeMime: z.enum(["image/png", "image/webp"]),
     largeur: z.number().int().positive().max(COTE_MAX_RECADRAGE),
     hauteur: z.number().int().positive().max(COTE_MAX_RECADRAGE),
+    /** Ce qu'on demande de ce rectangle. Par défaut la question d'origine : lire un nombre. */
+    cherche: QuestionVision.default("numero"),
     /** Ce que la recette autorise ici — de 1 au nombre de pistes du support, un fait tiré du
      *  média et non de son nom (REC-05). Le modèle ne décide pas de l'intervalle : il lit, et ce
      *  qui tombe hors de l'intervalle sera refusé par l'interprète, pas discuté. */
@@ -68,6 +88,11 @@ export const DemandeVision = z
       if (vues.has(zone.empreinte))
         ctx.addIssue({ code: "custom", path: ["zones", rang, "empreinte"], message: "Deux fois la même zone dans un appel" });
       vues.add(zone.empreinte);
+      // Une demande ne pose qu'une seule question. Deux questions dans le même appel voudraient un
+      // formulaire où le verdict est tantôt attendu tantôt interdit, et c'est l'ambiguïté qu'on
+      // évite : chaque appel a son formulaire, et deux appels ne coûtent qu'un préfixe de plus.
+      if (zone.cherche !== demande.zones[0]!.cherche)
+        ctx.addIssue({ code: "custom", path: ["zones", rang, "cherche"], message: "Un appel ne pose qu'une seule question" });
     }
   });
 export type DemandeVision = z.infer<typeof DemandeVision>;
@@ -81,11 +106,18 @@ export const ZoneLue = z
     empreinte: EmpreinteRecadrage,
     numero: z.number().int().positive().nullable(),
     confiance: Confiance,
+    /** Le verdict sur la présence d'un repère, quand c'est ce qu'on a demandé. Absent sinon : on
+     *  ne demande pas à une marge si elle est un repère. */
+    repere: PresenceRepere.optional(),
   })
   .strict()
   .superRefine((zone, ctx) => {
     if (zone.numero === null && zone.confiance !== 0)
       ctx.addIssue({ code: "custom", path: ["confiance"], message: "Rien de lu ne se dit pas avec une confiance" });
+    // Un nombre venu d'un repère qu'on déclare absent n'a pas de provenance : la réponse se
+    // contredit, et on la refuse plutôt que de choisir laquelle de ses deux moitiés croire.
+    if (zone.repere === "absent" && zone.numero !== null)
+      ctx.addIssue({ code: "custom", path: ["numero"], message: "Un repère absent ne porte aucun nombre" });
   });
 export type ZoneLue = z.infer<typeof ZoneLue>;
 
@@ -106,11 +138,20 @@ export type ReponseVision = z.infer<typeof ReponseVision>;
  *  Le contrat seul ne peut pas le dire : il ne voit qu'un des deux côtés à la fois. C'est
  *  l'appelant qui recoupe, et il doit le faire avant d'écrire quoi que ce soit. */
 export function reponseRepondA(demande: DemandeVision, reponse: ReponseVision): readonly string[] {
-  const demandees = new Set(demande.zones.map((zone) => zone.empreinte));
-  const rendues = new Set(reponse.zones.map((zone) => zone.empreinte));
+  const demandees = new Map(demande.zones.map((zone) => [zone.empreinte, zone]));
+  const rendues = new Map(reponse.zones.map((zone) => [zone.empreinte, zone]));
   const ecarts: string[] = [];
-  for (const empreinte of demandees) if (!rendues.has(empreinte)) ecarts.push(`zone sans réponse : ${empreinte}`);
-  for (const empreinte of rendues) if (!demandees.has(empreinte)) ecarts.push(`réponse sans zone : ${empreinte}`);
+  for (const empreinte of demandees.keys()) if (!rendues.has(empreinte)) ecarts.push(`zone sans réponse : ${empreinte}`);
+  for (const empreinte of rendues.keys()) if (!demandees.has(empreinte)) ecarts.push(`réponse sans zone : ${empreinte}`);
+
+  // Et chaque question reçoit la réponse qu'elle attendait. Le contrat seul ne peut pas le dire :
+  // il ne voit qu'un côté à la fois, et c'est tout l'objet de ce recoupement.
+  for (const [empreinte, zone] of demandees) {
+    const lue = rendues.get(empreinte);
+    if (lue === undefined) continue;
+    if (zone.cherche === "repere" && lue.repere === undefined) ecarts.push(`verdict de repère manquant : ${empreinte}`);
+    if (zone.cherche === "numero" && lue.repere !== undefined) ecarts.push(`verdict de repère non demandé : ${empreinte}`);
+  }
   return ecarts;
 }
 

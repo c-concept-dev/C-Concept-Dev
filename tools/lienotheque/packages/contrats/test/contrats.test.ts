@@ -1,11 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import {
-  Ancre, Axe, BATTEMENT_VERROU_S, CarteSynchro, Empreinte, EtatService, EXPIRATION_VERROU_S, Identifiant, Lien, Operation,
-  Recette, ResultatOutil, SchemaBibliotheque, Travail, ValeurReferentiel, ValeursAxe, Verrou, VersionDocument,
-  arbitrer, transitionVersionAutorisee, versFragment,
-} from "../src/index.js";
+import { Ancre, Axe, BATTEMENT_VERROU_S, CarteSynchro, DemandeVision, EXPIRATION_VERROU_S, Empreinte, EntreeCacheVision, EtatService, Identifiant, Lien, Operation, Recette, ReponseVision, ResultatOutil, SchemaBibliotheque, Travail, ValeurReferentiel, ValeursAxe, Verrou, VersionDocument, ZoneLue, arbitrer, reponseRepondA, transitionVersionAutorisee, versFragment } from "../src/index.js";
 
 const lire = (nom: string) =>
   JSON.parse(readFileSync(fileURLToPath(new URL(`../../../fixtures/recettes/${nom}`, import.meta.url)), "utf8"));
@@ -239,5 +235,68 @@ describe("classement universel (CLA-02, CLA-03)", () => {
     expect(SchemaBibliotheque.safeParse({ ...base, axes: [] }).success).toBe(false);
     expect(SchemaBibliotheque.safeParse({ ...base, axes: [axe(), axe()] }).success).toBe(false);
     expect(SchemaBibliotheque.safeParse({ ...base, axes: [axe()] }).success).toBe(true);
+  });
+});
+
+describe("ce qu'une relecture ciblée demande et ce qu'elle rend (OUT-08)", () => {
+  const zone = (sur: Record<string, unknown> = {}) => ({
+    empreinte: "a".repeat(32),
+    image: "AAAA",
+    typeMime: "image/webp" as const,
+    largeur: 160,
+    hauteur: 170,
+    ...sur,
+  });
+  const demande = (sur: Record<string, unknown> = {}) => DemandeVision.parse({ alphabet: "chiffres", zones: [zone(sur)] });
+  const lue = (sur: Record<string, unknown> = {}) => ({ empreinte: "a".repeat(32), numero: 14, confiance: 0.9, ...sur });
+  const reponse = (zones: Record<string, unknown>[]) =>
+    ReponseVision.parse({ zones, jetons: { entree: 1, sortie: 1 }, outil: { nom: "vision-ciblee", version: "0.1.0" } });
+
+  it("demande un nombre par défaut : la question d'origine n'a pas à être écrite", () => {
+    expect(demande().zones[0]!.cherche).toBe("numero");
+  });
+
+  it("accepte qu'on demande aussi si un repère est là", () => {
+    expect(demande({ cherche: "repere" }).zones[0]!.cherche).toBe("repere");
+  });
+
+  it("refuse une question qu'elle ne connaît pas", () => {
+    expect(DemandeVision.safeParse({ alphabet: "chiffres", zones: [zone({ cherche: "couleur" })] }).success).toBe(false);
+  });
+
+  it("accepte les trois verdicts, et pas un quatrième", () => {
+    for (const repere of ["present", "absent", "incertain"]) expect(ZoneLue.safeParse(lue({ repere, numero: null, confiance: 0 })).success).toBe(true);
+    expect(ZoneLue.safeParse(lue({ repere: "peut-être" })).success).toBe(false);
+  });
+
+  it("refuse un repère absent qui porterait tout de même un nombre", () => {
+    expect(ZoneLue.safeParse(lue({ repere: "absent", numero: 14 })).success).toBe(false);
+    expect(ZoneLue.safeParse(lue({ repere: "absent", numero: null, confiance: 0 })).success).toBe(true);
+  });
+
+  it("accepte un repère présent dont le nombre reste illisible", () => {
+    expect(ZoneLue.safeParse(lue({ repere: "present", numero: null, confiance: 0 })).success).toBe(true);
+  });
+
+  it("réclame le verdict quand la question le demandait", () => {
+    const ecarts = reponseRepondA(demande({ cherche: "repere" }), reponse([lue()]));
+    expect(ecarts).toEqual(["verdict de repère manquant : " + "a".repeat(32)]);
+  });
+
+  it("refuse un verdict qu'on n'avait pas demandé", () => {
+    const ecarts = reponseRepondA(demande(), reponse([lue({ repere: "present" })]));
+    expect(ecarts).toEqual(["verdict de repère non demandé : " + "a".repeat(32)]);
+  });
+
+  it("ne dit rien quand chaque question a sa réponse", () => {
+    expect(reponseRepondA(demande({ cherche: "repere" }), reponse([lue({ repere: "present" })]))).toEqual([]);
+    expect(reponseRepondA(demande(), reponse([lue()]))).toEqual([]);
+  });
+
+  it("une entrée de cache sans verdict n'est pas conforme quand on en attendait un", () => {
+    // C'est ce qui fait redemander les réponses gardées avant l'extension : elles restent valides
+    // en elles-mêmes, mais le recoupement avec la demande les refuse.
+    expect(EntreeCacheVision.safeParse({ zone: lue(), outil: { nom: "vision-ciblee", version: "0.1.0" } }).success).toBe(true);
+    expect(reponseRepondA(demande({ cherche: "repere" }), reponse([lue()])).length).toBeGreaterThan(0);
   });
 });

@@ -14,19 +14,20 @@ const JETON = "jeton-de-test";
 const liaisons = { ANTHROPIC_API_KEY: CLE, JETON_ACCES: JETON };
 
 /** Un recadrage minuscule mais conforme : un pixel encodé, ce qui suffit au contrat. */
-const zone = (empreinte: string): ZoneAlire => ({
+const zone = (empreinte: string, cherche: ZoneAlire["cherche"] = "numero"): ZoneAlire => ({
   empreinte,
   image: Buffer.from([0x89, 0x50, 0x4e, 0x47]).toString("base64"),
   typeMime: "image/webp",
   largeur: 160,
   hauteur: 110,
+  cherche,
   attendu: { min: 1, max: 92 },
 });
 
 const EMPREINTE = "a".repeat(32);
 const AUTRE = "b".repeat(32);
 const demande = (...empreintes: string[]): DemandeVision =>
-  DemandeVision.parse({ alphabet: "chiffres", zones: (empreintes.length === 0 ? [EMPREINTE] : empreintes).map(zone) });
+  DemandeVision.parse({ alphabet: "chiffres", zones: (empreintes.length === 0 ? [EMPREINTE] : empreintes).map((empreinte) => zone(empreinte)) });
 
 const reponse = (zones: { empreinte: string; numero: number | null; confiance: number }[]) => ({
   zones,
@@ -260,5 +261,75 @@ describe("estimer avant de dépenser (REC-04)", () => {
     const app = creerApp();
     const vue = await app.request("/vision/jetons", { method: "POST", body: "{}" }, liaisons);
     expect(vue.status).toBe(401);
+  });
+});
+
+describe("une question, un formulaire (OUT-08)", () => {
+  const surRepere = (): DemandeVision =>
+    DemandeVision.parse({ alphabet: "chiffres", zones: [zone(EMPREINTE, "repere"), zone(AUTRE, "repere")] });
+
+  it("refuse deux questions dans le même appel", () => {
+    expect(DemandeVision.safeParse({ alphabet: "chiffres", zones: [zone(EMPREINTE, "repere"), zone(AUTRE, "numero")] }).success).toBe(false);
+  });
+
+  it("exige le verdict dans le formulaire quand on demande un repère", () => {
+    const corps = corpsDAppel(surRepere()) as { tools: { input_schema: { properties: { zones: { items: { required: string[]; properties: Record<string, unknown> } } } } }[] };
+    const item = corps.tools[0]!.input_schema.properties.zones.items;
+    expect(item.required).toContain("repere");
+    expect(item.properties.repere).toBeDefined();
+  });
+
+  it("ne le met pas dans le formulaire quand on demande un nombre", () => {
+    const corps = corpsDAppel(demande()) as { tools: { input_schema: { properties: { zones: { items: { required: string[]; properties: Record<string, unknown> } } } } }[] };
+    const item = corps.tools[0]!.input_schema.properties.zones.items;
+    expect(item.required).not.toContain("repere");
+    expect(item.properties.repere).toBeUndefined();
+  });
+
+  it("donne une consigne différente selon la question, et la marque pour la mise en cache", () => {
+    const texte = (demande: DemandeVision) =>
+      ((corpsDAppel(demande) as { messages: { content: { type: string; text?: string; cache_control?: unknown }[] }[] }).messages[0]!.content[0]!);
+    expect(texte(surRepere()).text).toMatch(/cartouche/);
+    expect(texte(surRepere()).text).toMatch(/incertain/);
+    expect(texte(demande()).text).not.toMatch(/cartouche/);
+    expect(texte(surRepere()).cache_control).toEqual({ type: "ephemeral" });
+  });
+
+  it("refuse une réponse sans verdict là où la question en demandait un", async () => {
+    const app = creerApp({
+      lecteur: () => async () =>
+        ReponseVision.parse({
+          zones: [
+            { empreinte: EMPREINTE, numero: 14, confiance: 0.9 },
+            { empreinte: AUTRE, numero: 15, confiance: 0.9 },
+          ],
+          jetons: { entree: 1, sortie: 1 },
+          outil: { nom: OUTIL.nom, version: OUTIL.version },
+        }),
+    });
+    const vue = await app.request(
+      "/vision",
+      { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${JETON}` }, body: JSON.stringify(surRepere()) },
+      liaisons,
+    );
+    expect(vue.status).toBe(502);
+  });
+
+  it("accepte « absent » avec un nombre nul, et refuse « absent » avec un nombre", async () => {
+    const avec = (zones: Record<string, unknown>[]) =>
+      creerApp({ lecteur: () => async () => ({ zones, jetons: { entree: 1, sortie: 1 }, outil: OUTIL }) as unknown as ReponseVision }).request(
+        "/vision",
+        { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${JETON}` }, body: JSON.stringify(surRepere()) },
+        liaisons,
+      );
+    expect(
+      (
+        await avec([
+          { empreinte: EMPREINTE, repere: "absent", numero: null, confiance: 0 },
+          { empreinte: AUTRE, repere: "present", numero: 15, confiance: 0.8 },
+        ])
+      ).status,
+    ).toBe(200);
+    expect((await avec([{ empreinte: EMPREINTE, repere: "absent", numero: 14, confiance: 0.9 }])).status).toBe(502);
   });
 });

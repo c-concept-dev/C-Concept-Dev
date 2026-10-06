@@ -1,4 +1,4 @@
-import type { CotePage, Recette, ZoneRelative } from "@lienotheque/contrats";
+import type { CotePage, QuestionVision, Recette, ZoneRelative } from "@lienotheque/contrats";
 import { COTE_MAX_RECADRAGE } from "@lienotheque/contrats";
 import type { Boite, ImageGrise } from "@lienotheque/images";
 import { LARGEUR_MINIMALE_REPERE } from "@lienotheque/recettes";
@@ -49,13 +49,16 @@ export type PageAsonder = {
 
 /** Pourquoi ce repère part. Deux motifs, et ils ne se valent pas : l'un dit qu'il manque tout,
  *  l'autre qu'il manque un chiffre. « Pourquoi ce lien » saura le dire en français. */
-export type MotifDeRelecture = "sans_lecture" | "lecture_incomplete";
+export type MotifDeRelecture = "sans_lecture" | "lecture_incomplete" | "en_dispute";
 
 export type Candidat = {
   readonly page: number;
   readonly cote?: CotePage | undefined;
   readonly numero: number;
   readonly motif: MotifDeRelecture;
+  /** Ce qu'on veut savoir de ce pavé. Par défaut son nombre ; « repere » quand la question est
+   *  d'abord de savoir s'il en est un. */
+  readonly cherche?: QuestionVision | undefined;
   /** Le repère lui-même, en pixels de la page. */
   readonly repere: Boite;
   /** Ce qui partira : le repère et une marge claire autour. */
@@ -133,13 +136,21 @@ export function recadrageDuRepere(zone: ZoneRelative, image: ImageGrise): Boite 
  *  n'est pas une page dont on a mal lu deux repères, c'est une page qui ne se lit pas — et payer
  *  pour elle serait payer pour rien. On garde alors les premiers de la page, parce qu'un ordre
  *  arbitraire mais stable valait mieux qu'un classement qui prétendrait juger. */
-export function candidatsDePage(page: PageAsonder, recette: Recette): Candidat[] {
+export type OptionsCandidats = {
+  /** Éléments à inclure même si leur lecture paraissait franche : ceux dont un voisin se dispute
+   *  avec eux l'ouverture d'une piste. Une lecture seule ne dit pas lequel porte le repère, et
+   *  c'est précisément ce qu'on vient demander. */
+  readonly enDispute?: ReadonlySet<number> | undefined;
+};
+
+export function candidatsDePage(page: PageAsonder, recette: Recette, options: OptionsCandidats = {}): Candidat[] {
   if (recette.vision === undefined) return [];
 
   const proportions = { largeur: page.image.largeur, hauteur: page.image.hauteur };
   const trouves: Candidat[] = [];
   for (const element of [...page.elements].sort((a, b) => a.y - b.y || a.numero - b.numero)) {
-    const motif = motifDeRelecture(element, proportions);
+    const dispute = options.enDispute?.has(element.numero) === true && element.zoneRepere !== undefined;
+    const motif = motifDeRelecture(element, proportions) ?? (dispute ? "en_dispute" : undefined);
     if (motif === undefined) continue;
 
     const recadrage = recadrageDuRepere(element.zoneRepere!, page.image);
@@ -150,6 +161,9 @@ export function candidatsDePage(page: PageAsonder, recette: Recette): Candidat[]
       ...(page.cote === undefined ? {} : { cote: page.cote }),
       numero: element.numero,
       motif,
+      // D'un pavé on demande toujours le verdict en plus du nombre : savoir s'il **est** un repère
+      // est ce qui manquait, et cela ne coûte qu'un champ de plus dans la réponse.
+      cherche: "repere",
       repere: {
         x: Math.round(element.zoneRepere!.x * page.image.largeur),
         y: Math.round(element.zoneRepere!.y * page.image.hauteur),

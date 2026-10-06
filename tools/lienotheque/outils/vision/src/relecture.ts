@@ -172,9 +172,13 @@ export async function relire(
   /** Ce qui attend un appel : le pavé recadré, et le candidat qui l'a produit. */
   const enAttente: { candidat: Candidat; zone: ZoneAlire }[] = [];
 
-  const vider = async (): Promise<void> => {
-    if (enAttente.length === 0) return;
-    const lot = enAttente.splice(0, enAttente.length);
+  /** Vide ce qui attend, par question : un appel ne pose qu'une seule question, et son formulaire
+   *  en dépend. Deux questions dans un même lot ne coûtent qu'un préfixe de plus. */
+  const vider = async (question?: string): Promise<void> => {
+    const pretes = question === undefined ? enAttente : enAttente.filter((entree) => entree.zone.cherche === question);
+    if (pretes.length === 0) return;
+    for (const entree of pretes) enAttente.splice(enAttente.indexOf(entree), 1);
+    const lot = pretes;
 
     // On s'arrête **avant** l'appel qui ferait dépasser, pas après : un plafond qu'on constate
     // après coup n'est pas un plafond. La projection est mesurée, et la dépense comptée sur les
@@ -237,9 +241,11 @@ export async function relire(
     }
     payees += 1;
     enAttente.push({ candidat, zone: produit.zone });
-    if (enAttente.length >= ZONES_MAX_PAR_APPEL) await vider();
+    const question = produit.zone.cherche;
+    if (enAttente.filter((entree) => entree.zone.cherche === question).length >= ZONES_MAX_PAR_APPEL) await vider(question);
   }
-  await vider();
+  // Ce qui reste, question par question.
+  for (const question of new Set(enAttente.map((entree) => entree.zone.cherche))) await vider(question);
 
   return { relues, nonRelus, jetons, cout, appels, depuisLeCache };
 }
