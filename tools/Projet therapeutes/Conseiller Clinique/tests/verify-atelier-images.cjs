@@ -103,11 +103,17 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
           meta: {
             duree_ms: res.duree_ms, octets_total: res.octets_total, mode_capture: res.mode_capture,
             etapes_annoncees: res.etapes_annoncees, snapdom: res.snapdom,
+            scene: res.scene, mode: res.mode, echelle_typo: res.echelle_typo,
+            debordements: res.debordements, seuil: res.seuil_scission, tolerance: res.tolerance_debordement,
           },
           images: res.images.map((im) => ({
             stepId: im.stepId, cardId: im.cardId, cardIndex: im.cardIndex, rang: im.rang,
             surRang: im.surRang, largeur: im.largeur, hauteur: im.hauteur,
             debordement: im.debordement, hauteurScene: im.hauteurScene,
+            debordement_px: im.debordement_px, debordement_rapport: im.debordement_rapport,
+            debordement_verdict: im.debordement_verdict, debordement_regle: im.debordement_regle,
+            debordement_sous_tolerance: im.debordement_sous_tolerance,
+            debordement_px_sortie: im.debordement_px_sortie,
             signature: im.signature, octets: im.octets, type: im.type, textes: im.textes,
           })),
         };
@@ -116,20 +122,29 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       assert.equal(r.images.length, r.etapes,
         p.cle + ' : ' + r.images.length + ' images pour ' + r.etapes + ' étapes');
       assert.equal(r.etapes_annoncees === undefined ? r.meta.etapes_annoncees : r.etapes_annoncees, r.etapes);
+      // Plus aucune dimension de scène codée en dur : elles se lisent dans le relevé, parce que
+      // le mode vidéo a changé la scène et qu'un contrôle qui fige 1422×800 ne vérifierait plus
+      // le contrat mais une valeur d'hier.
+      const sc = r.meta.scene;
       r.images.forEach((im) => {
         assert.equal(im.largeur, 1920, p.cle + '/' + im.stepId + ' : largeur ' + im.largeur);
         if (!im.debordement) {
           assert.equal(im.hauteur, 1080, p.cle + '/' + im.stepId + ' : hauteur ' + im.hauteur + ' sans débordement');
-          assert.equal(im.hauteurScene, 800, p.cle + '/' + im.stepId + ' : hauteur de scène ' + im.hauteurScene);
+          assert.ok(im.hauteurScene <= sc.hauteur * r.meta.tolerance,
+            p.cle + '/' + im.stepId + ' : hauteur de scène ' + im.hauteurScene + ' pour une scène de ' + sc.hauteur);
         } else {
-          assert.ok(im.hauteurScene > 800, 'un débordement doit porter sa hauteur de scène');
-          assert.equal(im.hauteur, Math.round(im.hauteurScene * 1920 / 1422),
+          assert.ok(im.hauteurScene > sc.hauteur, 'un débordement doit porter sa hauteur de scène');
+          assert.equal(im.hauteur, Math.round(im.hauteurScene * 1920 / sc.largeur),
             p.cle + '/' + im.stepId + ' : hauteur de sortie incohérente avec la hauteur de scène');
         }
         assert.ok(im.octets > 2000, 'une image de ' + im.octets + ' octets est forcément vide');
       });
       assert.equal(r.etatRendu, true, 'l\'état du lecteur doit être rendu tel qu\'il était');
       assert.equal(r.scenesRestantes, 0, 'aucune scène hors écran ne doit subsister');
+      assert.deepEqual(r.meta.scene, { largeur: 960, hauteur: 540 },
+        'le DÉFAUT doit être le mode vidéo, décision du 6 octobre : ' + JSON.stringify(r.meta.scene));
+      assert.equal(r.meta.echelle_typo, 1.4, 'et son échelle typographique ×1,4');
+      assert.equal(r.meta.mode, 'video');
       console.log('      ' + p.cle.padEnd(14) + r.images.length + ' images, '
         + (r.meta.octets_total / 1048576).toFixed(2) + ' Mo, ' + r.meta.duree_ms + ' ms, '
         + Math.round(r.meta.duree_ms / r.images.length) + ' ms par image'
@@ -185,13 +200,29 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
     const debordants = Object.values(rendus).flatMap((r) => r.images).filter((im) => im.debordement);
     const debordantsQuestionnaire = rendus.questionnaire.images.filter((im) => im.debordement);
     assert.ok(debordantsQuestionnaire.length >= 1,
-      'le questionnaire DOIT déborder de la scène de 800 px et être capturé sur toute sa hauteur (V3) ; '
+      'le questionnaire DOIT déborder et être capturé sur toute sa hauteur (V3) ; '
       + 'aucun débordement détecté, hauteurs de scène : '
       + rendus.questionnaire.images.map((im) => im.hauteurScene).join(', '));
     debordantsQuestionnaire.forEach((im) => {
-      assert.ok(im.hauteurScene > 800, 'hauteur de scène ' + im.hauteurScene);
+      assert.ok(im.hauteurScene > rendus.questionnaire.meta.scene.hauteur, 'hauteur de scène ' + im.hauteurScene);
       assert.ok(im.hauteur > 1080, 'une image débordante doit être plus haute que 1080 : ' + im.hauteur);
+      assert.ok(im.debordement_px > 0, 'elle doit porter son ampleur : ' + im.debordement_px);
+      assert.ok(['defilement', 'scission'].indexOf(im.debordement_verdict) !== -1,
+        'et son verdict : ' + im.debordement_verdict);
     });
+    // LA ZONE MORTE. Quatre étapes dépassaient de six pixels de scène — du bruit de mise en page,
+    // pas un débordement. Sans tolérance, l'atelier ferait défiler une diapositive de douze pixels.
+    const sousTolerance = Object.values(rendus).flatMap((r) => r.images)
+      .filter((im) => im.debordement_sous_tolerance);
+    assert.ok(sousTolerance.length >= 1,
+      'au moins une étape doit tomber sous la tolérance, sinon ce contrôle ne vérifie rien');
+    sousTolerance.forEach((im) => {
+      assert.equal(im.debordement_verdict, 'aucun', im.stepId + ' : sous tolérance mais verdict ' + im.debordement_verdict);
+      assert.ok(im.debordement_px > 0 && im.debordement_px <= 540 * 0.02 + 1,
+        im.stepId + ' : ' + im.debordement_px + ' px, hors de la zone morte');
+    });
+    console.log('      sous tolérance (donc « aucun ») : '
+      + sousTolerance.map((im) => im.stepId + ' ' + im.debordement_px + 'px').join(', '));
     console.log('      débordements : ' + debordants.map((im) => im.stepId + ' → ' + im.hauteurScene
       + 'px de scène, image ' + im.largeur + 'x' + im.hauteur).join(' ; '));
     pass('le questionnaire déborde, est capturé sur toute sa hauteur, et la porte dans ses métadonnées (V3).');
@@ -401,14 +432,20 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
     const retire = await page.evaluate(async ({ docs, src }) => {
       const inspecter = eval('(' + src + ')');
       const sortie = {};
+      // EN MODE FIDÈLE : les chiffres d'avant la décision (1496 px pour le questionnaire) ont été
+      // mesurés sur la scène du lecteur, et c'est à eux qu'on compare. La couche de capture, elle,
+      // s'applique dans les deux modes — c'est précisément ce que ce contrôle vérifie.
       for (const d of docs) {
-        const res = await window.AtelierImages.rendreImages(d.doc, { inspecter });
+        const res = await window.AtelierImages.rendreImages(d.doc, { inspecter, mode: 'fidele' });
         sortie[d.cle] = res.images.map((im) => ({ stepId: im.stepId, hauteur: im.hauteur,
           debordement: im.debordement, i: im.inspection }));
       }
+      const v = await window.AtelierImages.rendreImages(docs[2].doc);
+      sortie._video = v.images.map((im) => ({ stepId: im.stepId, hauteur: im.hauteur }));
       return sortie;
     }, { docs: PRESENTATIONS.map((p) => ({ cle: p.cle, doc: p.doc })), src: INSPECTEUR.toString() });
 
+    const enVideo = retire._video; delete retire._video;
     const toutes = Object.values(retire).flat();
     toutes.forEach((im) => {
       assert.equal(im.i.carte.bordure, '0px', im.stepId + ' : la carte garde une bordure de ' + im.i.carte.bordure);
@@ -432,16 +469,18 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       'les questions et les libellés de réponses, eux, DOIVENT rester : ' + texteQuest.slice(0, 120));
     assert.ok(quest.hauteur < 1496, 'le questionnaire doit raccourcir : ' + quest.hauteur + ' px contre 1496 avant');
     assert.equal(quest.debordement, true, 'il déborde toujours, et c\'est normal');
-    console.log('      questionnaire : ' + quest.hauteur + ' px (contre 1496 avant le retrait), '
+    console.log('      questionnaire : ' + quest.hauteur + ' px en mode fidèle (contre 1496 avant le retrait), '
+      + enVideo.find((x) => x.stepId === 'questionnaire-01').hauteur + ' px en mode vidéo, '
       + quest.i.cliquables + ' éléments encore cliquables dans le DOM, 0 habillé en bouton');
     pass('capture dépouillée : ni loupe, ni habillage de bouton, ni barème, ni « Voir mon résultat » ; questions et réponses intactes.');
 
     // ── 14. L'ÉCHELLE TYPOGRAPHIQUE fait ce qu'elle annonce ──────────────────────────────────
     const typo = await page.evaluate(async ({ d, src }) => {
       const inspecter = eval('(' + src + ')');
-      const un = await window.AtelierImages.rendreImages(d, { inspecter });
-      const gros = await window.AtelierImages.rendreImages(d, { inspecter, echelleTypo: 1.6 });
-      const petit = await window.AtelierImages.rendreImages(d, { inspecter, scene: { largeur: 960, hauteur: 540 } });
+      // Base : le mode FIDÈLE, pour que les deux leviers s'éprouvent chacun à partir de zéro.
+      const un = await window.AtelierImages.rendreImages(d, { inspecter, mode: 'fidele' });
+      const gros = await window.AtelierImages.rendreImages(d, { inspecter, mode: 'fidele', echelleTypo: 1.6 });
+      const petit = await window.AtelierImages.rendreImages(d, { inspecter, mode: 'fidele', scene: { largeur: 960, hauteur: 540 } });
       const lire = (res) => res.images.map((im) => im.inspection.tailles.map((t) => t.sortie));
       return { un: lire(un), gros: lire(gros), petit: lire(petit),
                sceneUn: un.scene, scenePetit: petit.scene, defautUn: un.scene_par_defaut, defautPetit: petit.scene_par_defaut };
@@ -467,7 +506,7 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
     assert.ok(Math.abs(premier(typo.petit) / premier(typo.un) - (1422 / 960)) < 0.02,
       'une scène de 960 doit agrandir le texte dans le rapport 1422/960 : ' + premier(typo.un) + ' → ' + premier(typo.petit));
     assert.deepEqual(typo.scenePetit, { largeur: 960, hauteur: 540 });
-    assert.equal(typo.defautUn, true, 'sans option, la scène est celle du lecteur');
+    assert.equal(typo.defautUn, true, 'en mode fidèle, la scène est celle du lecteur');
     assert.equal(typo.defautPetit, false, 'avec option, le relevé doit le dire');
     // L'interligne suit la taille SANS qu'on y touche, parce que tous les interlignes du lecteur
     // sont sans unité. On le vérifie quand même : c'est l'hypothèse sur laquelle repose le fait
@@ -482,8 +521,8 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
                  pose: !!el.style.lineHeight };
       };
       let un = null, gros = null;
-      await window.AtelierImages.rendreImages(d, { inspecter: (inner) => { if (!un) un = lire(inner); } });
-      await window.AtelierImages.rendreImages(d, { echelleTypo: 1.6, inspecter: (inner) => { if (!gros) gros = lire(inner); } });
+      await window.AtelierImages.rendreImages(d, { mode: 'fidele', inspecter: (inner) => { if (!un) un = lire(inner); } });
+      await window.AtelierImages.rendreImages(d, { mode: 'fidele', echelleTypo: 1.6, inspecter: (inner) => { if (!gros) gros = lire(inner); } });
       return { un, gros };
     }, PRESENTATIONS[1].doc);
     const rapportInter = inter.gros.interligne / inter.un.interligne;
@@ -551,7 +590,46 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       + ', texte ' + fuite.avant.taille + ' — identiques avant et après une capture à 960×540 ×1,6');
     pass('le lecteur hors capture est inchangé, et les ' + fuite.nbRegles + ' règles de capture sont toutes portées par la marque.');
 
-    // ── 16. Aucune erreur de page pendant tout cela ───────────────────────────────────────────
+    // ── 16. LA POLITIQUE DE DÉBORDEMENT, règle par règle ──────────────────────────────────────
+    const politique = await page.evaluate(() => {
+      const A = window.AtelierImages;
+      const v = (contenu, cadre, opts) => A.verdictDebordement(contenu, cadre, opts);
+      return {
+        defauts: { tolerance: A.TOLERANCE_DEBORDEMENT, seuil: A.SEUIL_SCISSION, vitesse: A.VITESSE_PAN_MAX },
+        exact: v(540, 540),
+        bruit: v(546, 540),                       // +1,1 % : la zone morte
+        justeAuDessus: v(552, 540),               // +2,2 % : au-delà de la tolérance
+        modere: v(800, 540),                      // rapport 1,48
+        enorme: v(1082, 540),                     // rapport 2,00
+        seuilRegle: v(800, 540, { seuil: 1.2 }),  // seuil abaissé : le même contenu devient scission
+        toleranceReglee: v(546, 540, { tolerance: 1.001 }),
+        // Quand la durée est connue, c'est la VITESSE qui décide, pas le rapport.
+        lentEtLong: v(800, 540, { dureeS: 60, echelleSortie: 2 }),   // 520 px/60 s = 8,7 px/s
+        lentEtCourt: v(800, 540, { dureeS: 4, echelleSortie: 2 }),   // 520 px/4 s = 130 px/s
+      };
+    });
+    assert.deepEqual(politique.defauts, { tolerance: 1.02, seuil: 1.8, vitesse: 60 });
+    assert.equal(politique.exact.verdict, 'aucun');
+    assert.equal(politique.bruit.verdict, 'aucun', 'six pixels de scène ne sont pas un débordement');
+    assert.equal(politique.bruit.sous_tolerance, true, 'mais l\'ampleur est rapportée quand même');
+    assert.equal(politique.bruit.px, 6);
+    assert.equal(politique.justeAuDessus.verdict, 'defilement');
+    assert.equal(politique.modere.verdict, 'defilement', 'rapport 1,48 : ça défile');
+    assert.equal(politique.enorme.verdict, 'scission', 'rapport 2,00 : scission conseillée');
+    assert.equal(politique.seuilRegle.verdict, 'scission', 'le seuil doit être réglable');
+    assert.equal(politique.toleranceReglee.verdict, 'defilement', 'la tolérance aussi');
+    assert.equal(politique.lentEtLong.verdict, 'defilement', 'une étape longue laisse le temps de défiler');
+    assert.equal(politique.lentEtLong.regle, 'vitesse', 'et la règle employée est dite');
+    assert.equal(politique.lentEtCourt.verdict, 'scission',
+      'la MÊME hauteur sur une étape courte ne se défile pas : ' + JSON.stringify(politique.lentEtCourt));
+    assert.equal(politique.modere.regle, 'rapport', 'sans durée, c\'est le rapport qui tranche');
+    console.log('      tolérance ' + politique.defauts.tolerance + ', seuil ' + politique.defauts.seuil
+      + ', vitesse maximale ' + politique.defauts.vitesse + ' px/s — même hauteur, 60 s : '
+      + politique.lentEtLong.verdict + ' (' + politique.lentEtLong.vitesse_px_par_s + ' px/s) ; 4 s : '
+      + politique.lentEtCourt.verdict + ' (' + politique.lentEtCourt.vitesse_px_par_s + ' px/s)');
+    pass('politique de débordement : zone morte, seuil réglable, et la durée l\'emporte sur le rapport quand elle est connue.');
+
+    // ── 17. Aucune erreur de page pendant tout cela ───────────────────────────────────────────
     assert.deepEqual(erreurs, [], 'la page ne doit lever aucune erreur : ' + erreurs.join(' | '));
     pass('aucune erreur de page sur l\'ensemble des rendus.');
 

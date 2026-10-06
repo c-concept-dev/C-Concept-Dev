@@ -31,9 +31,84 @@
 
   var MOTEUR_VERSION = '2.0';          // entre dans la signature : un changement de moteur périme les images
   var SNAPDOM_VERSION = '3.3.0';
-  var SCENE = { largeur: 1422, hauteur: 800 };
+  var SCENE = { largeur: 1422, hauteur: 800 };          // la scène du lecteur, référence
   var SORTIE = { largeur: 1920, hauteur: 1080 };
   var ATTENTE_ANIMATIONS_MS = 800;     // V6 : transition de révélation (220 ms) + nombre (700 ms)
+
+  // ══════════════════════════════════════════════════════════════════════════════════════════
+  // LE MODE VIDÉO EST LE DÉFAUT — décision de Christophe du 6 octobre, sur planche comparative
+  // ══════════════════════════════════════════════════════════════════════════════════════════
+  // Réglage (d) : scène de 960×540, échelle typographique ×1,4. Mesuré sur onze étapes : le texte
+  // passe de 20,3 px à 42 px dans le cadre de 1080, soit de 1,88 % à 3,89 % de sa hauteur. Une
+  // vidéo se regarde parfois sur un téléphone, où 20 px de cadre deviennent quatre points.
+  //
+  // Ce n'est PAS « identique à l'écran » (V1), et c'est assumé : le lecteur dessine une carte dans
+  // une page, la vidéo en fait le cadre entier. Le mode fidèle reste accessible — il sert à la
+  // mesure de netteté, qui a besoin d'un rendu de référence.
+  //
+  // CE QUE CE RÉGLAGE COÛTE, mesuré : la scène étant deux fois plus petite, l'agrandissement passe
+  // de 1,35 à 2,0 ; et le texte grossissant dans des boîtes qui ne grandissent pas, cinq étapes
+  // sur onze débordent au lieu d'une. D'où la politique de débordement ci-dessous.
+  var MODE_VIDEO = { scene: { largeur: 960, hauteur: 540 }, echelleTypo: 1.4 };
+  var MODE_FIDELE = { scene: null, echelleTypo: 1 };
+
+  // ── Politique de débordement (V3) ────────────────────────────────────────────────────────
+  // Une diapositive plus haute que son cadre peut DÉFILER pendant son commentaire. Au-delà d'un
+  // certain point, elle ne le peut plus. Trois notions, et chacune vient d'une mesure.
+  //
+  // 1. UNE ZONE MORTE, parce que « plus haut que le cadre » n'est pas « déborde ». Mesuré sur les
+  //    présentations d'essai en mode vidéo : quatre étapes dépassaient de SIX pixels de scène —
+  //    douze à l'image — soit un rapport de 1,01. C'est du bruit de mise en page (sous-pixels,
+  //    marges), pas un débordement. Les traiter comme tels aurait fait défiler une diapositive de
+  //    douze pixels, ce qui n'a aucun sens. En dessous de la tolérance, le verdict est « aucun ».
+  //
+  // 2. UN SEUIL EN RAPPORT, et non en pixels : ce qui décide si une diapositive peut défiler
+  //    pendant son commentaire, c'est la distance à parcourir rapportée à ce qu'on voit.
+  //
+  // 3. LE SEUIL PAR DÉFAUT N'EST PAS MESURÉ, et il faut le dire. Les rapports observés sont
+  //    1,01 quatre fois puis 2,00 une fois : rien entre les deux, donc rien ne départage une
+  //    valeur de 1,5 d'une valeur de 1,9. 1,8 vient d'un calcul, pas d'une observation — à ce
+  //    rapport, une étape commentée quinze secondes fait défiler 864 px de cadre, soit 58 px par
+  //    seconde, environ 1,4 ligne de texte par seconde à 42 px. C'est la vitesse de lecture. Au
+  //    double, on ne lit plus. C'est une proposition raisonnée, pas une mesure.
+  //
+  // 4. QUAND LA DURÉE EST CONNUE, elle vaut mieux que le rapport, et le lot 1a l'a rendue
+  //    disponible : la narration d'une étape donne sa durée estimée. L'atelier, qui la connaîtra,
+  //    passe `dureeS` et le verdict se prend alors sur la VITESSE de défilement réelle, en
+  //    pixels de sortie par seconde. Le rapport n'est que le repli quand on ne sait pas encore
+  //    combien de temps l'étape dure.
+  var TOLERANCE_DEBORDEMENT = 1.02;      // jusqu'à 2 % de plus que le cadre : ce n'est pas un débordement
+  var SEUIL_SCISSION = 1.8;              // au-delà : scission conseillée plutôt que défilement
+  var VITESSE_PAN_MAX = 60;              // px de sortie par seconde, quand la durée est connue
+  function verdictDebordement(hauteurContenu, hauteurCadre, options) {
+    var o = options || {};
+    var tolerance = o.tolerance || TOLERANCE_DEBORDEMENT;
+    var seuil = o.seuil || SEUIL_SCISSION;
+    var rapport = hauteurContenu / hauteurCadre;
+    var px = Math.round(hauteurContenu - hauteurCadre);
+    if (rapport <= tolerance) {
+      return { verdict: 'aucun', px: px > 0 ? px : 0, rapport: +rapport.toFixed(3),
+               sous_tolerance: px > 0, vitesse_px_par_s: null, regle: 'tolerance' };
+    }
+    if (o.dureeS > 0 && o.echelleSortie > 0) {
+      var vitesse = (px * o.echelleSortie) / o.dureeS;
+      return { verdict: vitesse > (o.vitesseMax || VITESSE_PAN_MAX) ? 'scission' : 'defilement',
+               px: px, rapport: +rapport.toFixed(3), sous_tolerance: false,
+               vitesse_px_par_s: +vitesse.toFixed(1), regle: 'vitesse' };
+    }
+    return { verdict: rapport > seuil ? 'scission' : 'defilement', px: px,
+             rapport: +rapport.toFixed(3), sous_tolerance: false,
+             vitesse_px_par_s: null, regle: 'rapport' };
+  }
+  // La durée estimée d'une étape, d'après la narration du lot 1a. Rend null quand l'étape n'est
+  // pas narrée : le verdict retombe alors sur le rapport, et le dit.
+  function dureeEtapeS(doc, stepId) {
+    if (!doc || !Array.isArray(doc.narration)) return null;
+    var e = doc.narration.find(function (n) { return n.stepId === stepId; });
+    if (!e || !e.text) return null;
+    var mots = String(e.text).trim().split(/\s+/).filter(Boolean).length;
+    return mots ? mots / 2.5 : null;
+  }
 
   // Chemin du module SnapDOM, résolu par rapport à CE script et non au document : la page d'essai
   // vit dans un autre dossier que studio-clinique.html, et un chemin relatif au document s'y
@@ -320,10 +395,15 @@
     // `inspecter` reçoit la scène VIVANTE juste avant la capture et ce qu'elle rend est rangé
     // dans l'image. C'est le seul moyen d'observer ce que SnapDOM va rastériser sans ouvrir une
     // seconde scène ailleurs, qui mesurerait autre chose que celle-ci (régression #6).
+    // Le DÉFAUT est le mode vidéo. `mode: 'fidele'` rend ce que le lecteur affiche, et des
+    // options `scene`/`echelleTypo` explicites l'emportent sur l'un comme sur l'autre.
+    var base = (options && options.mode === 'fidele') ? MODE_FIDELE : MODE_VIDEO;
     var o = Object.assign({ modeCapture: true, type: 'image/png', qualite: undefined,
-                            surAvancement: null, inspecter: null,
-                            scene: null, echelleTypo: 1 }, options || {});
-    // La scène de travail : celle du lecteur par défaut, une autre si on l'impose explicitement.
+                            surAvancement: null, inspecter: null, mode: 'video',
+                            seuilScission: SEUIL_SCISSION,
+                            toleranceDebordement: TOLERANCE_DEBORDEMENT, vitessePanMax: VITESSE_PAN_MAX,
+                            scene: base.scene, echelleTypo: base.echelleTypo }, options || {});
+    var sceneExplicite = !!(options && options.scene);
     var scene = o.scene ? { largeur: o.scene.largeur, hauteur: o.scene.hauteur } : SCENE;
     if (!doc || doc.documentKind !== 'presentation') {
       throw new Error('le chutier visuel ne rend que des Présentations (documentKind reçu : ' + (doc && doc.documentKind) + ').');
@@ -339,8 +419,11 @@
     // Le garde-fou ne porte que sur le DÉFAUT : si le cœur changeait sa référence, le moteur doit
     // s'arrêter au lieu de capturer à une taille qui n'est plus celle de l'écran. Une scène
     // imposée explicitement est un essai assumé, et elle est reportée dans le relevé.
+    // Le garde-fou porte sur la RÉFÉRENCE DU LECTEUR, toujours — y compris en mode vidéo, dont
+    // la scène de 960×540 et l'échelle ×1,4 ont été choisies en regard de cette référence. Seule
+    // une scène imposée explicitement par l'appelant est un essai assumé, qui le désactive.
     var ref = window.adocPresentReference;
-    if (!o.scene && (!ref || ref.largeur !== SCENE.largeur || ref.hauteur !== SCENE.hauteur)) {
+    if (!sceneExplicite && (!ref || ref.largeur !== SCENE.largeur || ref.hauteur !== SCENE.hauteur)) {
       throw new Error('la référence du lecteur (' + (ref && ref.largeur) + 'x' + (ref && ref.hauteur)
         + ') ne correspond plus à la scène de ce moteur (' + SCENE.largeur + 'x' + SCENE.hauteur + ').');
     }
@@ -379,10 +462,22 @@
           appliquerEchelleTypo(sc.inner, o.echelleTypo);
           await attendreStabilite(sc.inner, o.modeCapture);
           var inspection = null;
-          if (o.inspecter) { try { inspection = o.inspecter(sc.inner, deLaCarte[r], scene); } catch (e) { inspection = { erreur: String(e && e.message || e) }; } }
+          // Le crochet est ATTENDU : la mesure de netteté a besoin d'y faire une capture native
+          // de la scène, ce qui passe par un aller-retour hors de la page.
+          if (o.inspecter) { try { inspection = await o.inspecter(sc.inner, deLaCarte[r], scene, sc); } catch (e) { inspection = { erreur: String(e && e.message || e) }; } }
           var hauteurNecessaire = mesurerHauteurNecessaire(sc, scene);
-          var debordement = hauteurNecessaire > scene.hauteur;
-          var capture = await capturer(snap, sc, hauteurNecessaire, scene);
+          var deb = verdictDebordement(hauteurNecessaire, scene.hauteur, {
+            tolerance: o.toleranceDebordement, seuil: o.seuilScission,
+            dureeS: dureeEtapeS(doc, deLaCarte[r].stepId),
+            echelleSortie: SORTIE.largeur / scene.largeur, vitesseMax: o.vitessePanMax,
+          });
+          var debordement = deb.verdict !== 'aucun';
+          // Sous la tolérance, on capture au CADRE et non à la hauteur nécessaire : six pixels de
+          // scène sont du bruit de mise en page, et une image de 1092 px déclarée « sans
+          // débordement » serait incohérente. Toutes les images d'une vidéo doivent faire la même
+          // taille sauf quand une diapositive déborde vraiment — et alors elle le dit.
+          var hauteurCapture = (deb.verdict === 'aucun') ? scene.hauteur : hauteurNecessaire;
+          var capture = await capturer(snap, sc, hauteurCapture, scene);
           var blob = await canvasVersBlob(capture.canvas, o.type, o.qualite);
           var etape = deLaCarte[r];
           images.push({
@@ -390,6 +485,12 @@
             surRang: etape.surRang, titre: etape.cardTitle,
             largeur: capture.largeur, hauteur: capture.hauteur,
             debordement: debordement, hauteurScene: hauteurNecessaire,
+            // L'indicateur par étape, destiné à l'atelier : de combien ça déborde, dans quel
+            // rapport, et ce qu'il faudra en faire. Aucune interface ici — une donnée, lisible.
+            debordement_px: deb.px, debordement_rapport: deb.rapport, debordement_verdict: deb.verdict,
+            debordement_px_sortie: Math.round(deb.px * (SORTIE.largeur / scene.largeur)),
+            debordement_regle: deb.regle, debordement_sous_tolerance: deb.sous_tolerance,
+            debordement_vitesse_px_par_s: deb.vitesse_px_par_s,
             fond: capture.fond,
             signature: await signatureEtape(doc, etape),
             type: o.type, octets: blob.size, blob: blob, inspection: inspection,
@@ -417,7 +518,14 @@
       duree_ms: Math.round(performance.now() - t0),
       octets_total: images.reduce(function (a, im) { return a + im.octets; }, 0),
       scene: scene, sortie: SORTIE, echelle_typo: o.echelleTypo,
+      mode: o.mode, seuil_scission: o.seuilScission,
+      tolerance_debordement: o.toleranceDebordement, vitesse_pan_max: o.vitessePanMax,
       scene_par_defaut: !o.scene,
+      debordements: {
+        aucun: images.filter(function (im) { return im.debordement_verdict === 'aucun'; }).length,
+        defilement: images.filter(function (im) { return im.debordement_verdict === 'defilement'; }).length,
+        scission: images.filter(function (im) { return im.debordement_verdict === 'scission'; }).length,
+      },
       mode_capture: !!o.modeCapture,
       attente_animations_ms: o.modeCapture ? 0 : ATTENTE_ANIMATIONS_MS,
       snapdom: SNAPDOM_VERSION, moteur: MOTEUR_VERSION,
@@ -508,6 +616,9 @@
   window.AtelierImages = {
     MOTEUR_VERSION: MOTEUR_VERSION, SNAPDOM_VERSION: SNAPDOM_VERSION,
     SCENE: SCENE, SORTIE: SORTIE, ATTENTE_ANIMATIONS_MS: ATTENTE_ANIMATIONS_MS,
+    MODE_VIDEO: MODE_VIDEO, MODE_FIDELE: MODE_FIDELE, SEUIL_SCISSION: SEUIL_SCISSION,
+    TOLERANCE_DEBORDEMENT: TOLERANCE_DEBORDEMENT, VITESSE_PAN_MAX: VITESSE_PAN_MAX,
+    verdictDebordement: verdictDebordement, dureeEtapeS: dureeEtapeS,
     configurer: function (opts) { if (opts && opts.cheminSnapdom) { _cheminSnapdom = opts.cheminSnapdom; _snapdom = null; } },
     cheminSnapdom: function () { return _cheminSnapdom; },
     signatureEtape: signatureEtape,

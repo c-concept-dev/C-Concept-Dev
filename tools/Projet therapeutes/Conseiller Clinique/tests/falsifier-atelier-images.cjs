@@ -123,6 +123,37 @@ const ESSAIS = [
     vers: '      if (false) continue;',
     attendu: 'les étapes suivantes voient leur texte multiplié deux fois' },
 
+
+  // ── Lot 2, suite du 6 octobre : mode vidéo par défaut et politique de débordement ────────
+  { nom: 'le défaut retombe sur la scène du lecteur',
+    fichier: 'moteur',
+    de: "    var base = (options && options.mode === 'fidele') ? MODE_FIDELE : MODE_VIDEO;",
+    vers: "    var base = MODE_FIDELE;",
+    attendu: 'le mode vidéo n\'est plus le défaut décidé le 6 octobre' },
+
+  { nom: 'la zone morte disparaît',
+    fichier: 'moteur',
+    de: '    if (rapport <= tolerance) {',
+    vers: '    if (hauteurContenu <= hauteurCadre) {',
+    attendu: 'six pixels de bruit de mise en page deviennent un débordement à faire défiler' },
+
+  { nom: 'le seuil de scission n\'est plus réglable',
+    fichier: 'moteur',
+    de: '    var seuil = o.seuil || SEUIL_SCISSION;',
+    vers: '    var seuil = SEUIL_SCISSION;',
+    attendu: 'un seuil passé en option est ignoré' },
+
+  { nom: 'la durée connue ne l\'emporte plus sur le rapport',
+    fichier: 'moteur',
+    de: '    if (o.dureeS > 0 && o.echelleSortie > 0) {',
+    vers: '    if (false) {',
+    attendu: 'une étape courte et une étape longue reçoivent le même verdict' },
+
+  { nom: 'une image sous tolérance est capturée à sa hauteur débordante',
+    fichier: 'moteur',
+    de: "          var hauteurCapture = (deb.verdict === 'aucun') ? scene.hauteur : hauteurNecessaire;",
+    vers: '          var hauteurCapture = hauteurNecessaire;',
+    attendu: 'des images de 1092 px déclarées sans débordement' },
 ];
 
 function lancer() {
