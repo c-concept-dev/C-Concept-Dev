@@ -370,6 +370,85 @@ ou par `chutier.html` pour le banc. Pour arrêter : `kill %1`.
 
 ---
 
+## 9. SnapDOM dans Safari réel et dans WebKit — la mesure refaite
+
+**L'objection était juste.** La planche du point 8.2 affichait, dans Safari, des PNG produits par
+Chromium : elle ne disait rien de SnapDOM dans Safari. Et le lot 0 avait mesuré dans WebKit un
+texte plus doux. Tout a été refait **dans chaque navigateur**, capture native par son propre
+pilote contre capture SnapDOM exécutée dans ce même navigateur, sur la même scène, au même instant.
+
+### 9.1 Les chiffres
+
+| Navigateur | Comparaison | Pixels différents | Écart maximal | Écart moyen | Témoin |
+|---|---|---|---|---|---|
+| **WebKit** (Playwright 26.5) | A — 1920×1080, échelle 1 | **0** / 2 073 600 | **1 à 2** / 255 | 1,0 | 23 427 ✓ |
+| **WebKit** | B — mode vidéo, sortie 1920×1080 | **0** / 2 073 600 | **2** / 255 | 1,0 | 23 427 ✓ |
+| **Safari 26.3 réel** | A — 1920×1080, échelle 1 | **0** / 2 073 600 | **15** / 255 | 1,1 à 1,3 | 23 276 ✓ |
+| **Safari 26.3 réel** | B — mode vidéo, sortie 1920×1080 | **0** / 2 073 600 | **15** / 255 | 1,1 à 1,3 | 23 276 ✓ |
+
+« Pixels différents » est le compte au seuil perceptuel de pixelmatch ; « écart maximal » est la
+plus grande différence sur un canal, en niveaux sur 255 ; « écart moyen » ne porte que sur les
+pixels qui ne sont pas strictement identiques. Le témoin compare deux étapes voisines rendues
+nativement : il doit différer, et il diffère.
+
+**SnapDOM n'est pas plus doux dans Safari.** Aucun pixel ne dépasse le seuil perceptuel, dans
+aucun des deux navigateurs, ni à l'échelle 1 ni sous l'agrandissement ×2 du mode vidéo. Safari est
+un peu moins exact que WebKit — quelques pixels isolés à 15 niveaux d'écart contre 2 — mais
+l'écart moyen reste à 1,1–1,3 niveau sur 255, c'est-à-dire du bruit d'arrondi d'anticrénelage.
+
+**Aucune voie de remède n'est donc proposée : il n'y a rien à corriger.** Le réglage (d) tient dans
+les deux moteurs.
+
+**Le chiffre du lot 0 reste expliqué par la même cause** : il comparait deux mises en page qui
+n'étaient pas la même (corrélation des profils d'encre à 0,868), pas deux rastérisations du même
+contenu.
+
+### 9.2 Trois défauts de ma propre mesure, trouvés par le garde-fou
+
+Le premier jet, sans contrôle de géométrie, annonçait **24 449 à 114 478 pixels différents** en
+mode vidéo sous WebKit. **Ce chiffre était entièrement faux**, et il aurait conclu à une douceur
+qui n'existe pas. Trois causes, trouvées l'une après l'autre parce que la scène posée est
+désormais MESURÉE avant chaque capture, et la capture refusée si elle ne correspond pas :
+
+1. **Safari ignore `transform: scale(2)` dans sa capture d'élément** : il rend la boîte non
+   transformée, 960×540 là où l'écran montre 1920×1080. Chromium et WebKit l'honorent. Les deux
+   pilotes photographient donc la fenêtre, et la découpe se fait côté Node, à l'identique.
+2. **En réécrivant le style de la scène, j'effaçais le `transition:none`** que le moteur y pose.
+   La classe du lecteur déclare une transition de 260 ms sur `transform` : poser `scale(2)` lançait
+   une animation, et deux images d'attente mesuraient au milieu du chemin — `matrix(1.147569)`.
+   J'ai d'abord cherché une règle d'échelle là où il n'y avait qu'une transition en cours.
+3. **L'enveloppe centre son contenu** (flex, centré). Avec une origine de transformation en haut à
+   gauche, la scène se posait en (480, 270) : taille juste, cadrage faux. Une découpe en (0,0)
+   comparait alors deux cadrages différents.
+
+Chacun de ces trois défauts, seul, aurait produit un faux « SnapDOM est plus doux dans Safari ».
+
+### 9.3 Un correctif au moteur, au passage
+
+La scène hors écran héritait de `--adoc-present-echelle`, la variable par laquelle le lecteur
+ajuste la diapositive à la taille de la fenêtre. Elle est désormais fixée à 1 sur l'hôte de la
+scène. Le moteur ne s'en trouvait probablement pas affecté — SnapDOM reconstruit le sous-arbre
+plutôt que de photographier l'écran — mais une scène dont la transformation dépend de la taille de
+la fenêtre n'est pas une scène déterministe, et elle devait cesser de l'être.
+
+### 9.4 Limites de cette mesure, et ce qui reste à juger
+
+**Mesuré** : quatre étapes de la présentation « texte dense », dans les deux navigateurs, avec la
+géométrie vérifiée à chaque capture et un témoin qui prouve que la comparaison n'est pas aveugle.
+
+**Non mesuré** : l'écran de Christophe rapporte un **rapport de pixels de 1** (affichage de
+2560 px de large). Sur un écran Retina, ce rapport vaut 2, et la comparaison demanderait d'en
+tenir compte — ces chiffres ne s'y transposent pas tels quels.
+
+**À juger par Christophe** : la planche, à l'œil, et surtout en vidéoprojection. Toutes ses images
+viennent maintenant du navigateur qui les titre.
+
+```
+python3 -m http.server 8765 --directory "/Users/christophebonnet/Documents/GitHub/C-Concept-Dev-lot2-images-wt/tools/Projet therapeutes/Conseiller Clinique" & sleep 1 && open -a Safari "http://127.0.0.1:8765/banc-chutier/planche-nettete-navigateurs.html"
+```
+
+---
+
 ## 7. Ce que ce lot ne livre pas
 
 - **L'interface du chutier dans l'application** (V2 côté produit) : le brief demandait le moteur

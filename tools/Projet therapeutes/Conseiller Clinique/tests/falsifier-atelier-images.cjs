@@ -151,8 +151,8 @@ const ESSAIS = [
 
   { nom: 'une image sous tolérance est capturée à sa hauteur débordante',
     fichier: 'moteur',
-    de: "          var hauteurCapture = (deb.verdict === 'aucun') ? scene.hauteur : hauteurNecessaire;",
-    vers: '          var hauteurCapture = hauteurNecessaire;',
+    de: "      var hauteurCapture = (deb.verdict === 'aucun') ? scene.hauteur : hauteurNecessaire;",
+    vers: '      var hauteurCapture = hauteurNecessaire;',
     attendu: 'des images de 1092 px déclarées sans débordement' },
 ];
 

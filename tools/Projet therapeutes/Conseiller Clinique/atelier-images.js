@@ -278,6 +278,15 @@
     // par un conteneur flex.
     outer.style.cssText = 'width:' + scene.largeur + 'px;height:' + scene.hauteur + 'px;'
       + 'min-width:' + scene.largeur + 'px;min-height:' + scene.hauteur + 'px;flex:0 0 auto;';
+    // LA MISE À L'ÉCHELLE DU LECTEUR NE DOIT PAS ATTEINDRE CETTE SCÈNE. Une règle du moteur de
+    // présentation applique « transform:scale(var(--adoc-present-echelle,1)) » avec origine au
+    // centre aux éléments qui portent ces classes, pour que la diapositive tienne dans la fenêtre.
+    // Elle a sa raison d'être à l'écran ; ici elle n'en a aucune, et elle a été prise en flagrant
+    // délit : la scène, posée à 1920×1080, se mesurait à 1102×620 décalée de (480, 270), avec une
+    // transformation de 1,147569 que personne n'avait demandée. La variable est donc fixée à 1 sur
+    // l'hôte, d'où elle hérite vers toute la scène.
+    hote.style.setProperty('--adoc-present-echelle', '1');
+    hote.style.setProperty('--adoc-present-echelle-agrandir', '1');
     var inner = document.createElement('div');
     inner.className = 'cc-ws-present-slide-inner';
     // La marque de capture : c'est elle, et elle seule, qui active CSS_CAPTURE.
@@ -390,21 +399,24 @@
     });
   }
 
-  // ── Le rendu complet ────────────────────────────────────────────────────────────────────────
-  async function rendreImages(doc, options) {
-    // `inspecter` reçoit la scène VIVANTE juste avant la capture et ce qu'elle rend est rangé
-    // dans l'image. C'est le seul moyen d'observer ce que SnapDOM va rastériser sans ouvrir une
-    // seconde scène ailleurs, qui mesurerait autre chose que celle-ci (régression #6).
-    // Le DÉFAUT est le mode vidéo. `mode: 'fidele'` rend ce que le lecteur affiche, et des
-    // options `scene`/`echelleTypo` explicites l'emportent sur l'un comme sur l'autre.
+  // ── La scène, pas à pas ─────────────────────────────────────────────────────────────────────
+  // `rendreImages` est une boucle sur cette fonction, et non l'inverse : il n'y a donc qu'UNE
+  // façon de monter une scène, de la positionner sur une étape et de la capturer.
+  //
+  // POURQUOI CETTE OUVERTURE EXISTE. Un pilote WebDriver — Safari réel — sérialise ses commandes :
+  // impossible de photographier la page pendant qu'un script y tourne. Mesurer SnapDOM contre la
+  // rastérisation native de Safari demande donc de pouvoir arrêter la scène sur une étape, rendre
+  // la main, puis reprendre. Une boucle monolithique ne le permet pas, et réécrire le montage de
+  // la scène dans l'outil de mesure aurait mesuré une autre scène que celle du produit.
+  async function ouvrirScene(doc, options) {
     var base = (options && options.mode === 'fidele') ? MODE_FIDELE : MODE_VIDEO;
-    var o = Object.assign({ modeCapture: true, type: 'image/png', qualite: undefined,
-                            surAvancement: null, inspecter: null, mode: 'video',
+    var o = Object.assign({ modeCapture: true, type: 'image/png', qualite: undefined, mode: 'video',
                             seuilScission: SEUIL_SCISSION,
                             toleranceDebordement: TOLERANCE_DEBORDEMENT, vitessePanMax: VITESSE_PAN_MAX,
                             scene: base.scene, echelleTypo: base.echelleTypo }, options || {});
     var sceneExplicite = !!(options && options.scene);
     var scene = o.scene ? { largeur: o.scene.largeur, hauteur: o.scene.hauteur } : SCENE;
+
     if (!doc || doc.documentKind !== 'presentation') {
       throw new Error('le chutier visuel ne rend que des Présentations (documentKind reçu : ' + (doc && doc.documentKind) + ').');
     }
@@ -414,14 +426,6 @@
       || typeof window.adocPresentRevealNext !== 'function') {
       throw new Error('le lecteur n\'est pas chargé : atelier-images.js doit venir APRÈS studio-clinique-core.js.');
     }
-    // La référence du lecteur fait foi sur la taille de scène : si le cœur la changeait un jour,
-    // ce moteur doit s'arrêter, pas capturer à une taille qui n'est plus celle de l'écran.
-    // Le garde-fou ne porte que sur le DÉFAUT : si le cœur changeait sa référence, le moteur doit
-    // s'arrêter au lieu de capturer à une taille qui n'est plus celle de l'écran. Une scène
-    // imposée explicitement est un essai assumé, et elle est reportée dans le relevé.
-    // Le garde-fou porte sur la RÉFÉRENCE DU LECTEUR, toujours — y compris en mode vidéo, dont
-    // la scène de 960×540 et l'échelle ×1,4 ont été choisies en regard de cette référence. Seule
-    // une scène imposée explicitement par l'appelant est un essai assumé, qui le désactive.
     var ref = window.adocPresentReference;
     if (!sceneExplicite && (!ref || ref.largeur !== SCENE.largeur || ref.hauteur !== SCENE.hauteur)) {
       throw new Error('la référence du lecteur (' + (ref && ref.largeur) + 'x' + (ref && ref.hauteur)
@@ -429,105 +433,133 @@
     }
 
     var etapes = window.adocPresentStepList(doc);
+    var cartes = (doc.blocks || []).filter(function (b) { return b && b.type === 'card'; });
     var snap = await chargerSnapdom();
     var sc = creerScene(scene);
     var etatPrecedent = window._adocPresentState;
     var modePrecedent = window._adocPresentModeCapture;
-    var t0 = performance.now();
-    var images = [];
-    var cartes = (doc.blocks || []).filter(function (b) { return b && b.type === 'card'; });
-    try {
-      window._adocPresentModeCapture = !!o.modeCapture;
-      for (var i = 0; i < cartes.length; i++) {
-        var carte = cartes[i];
-        var deLaCarte = etapes.filter(function (e) { return e.cardId === carte.id; });
-        if (!deLaCarte.length) continue;
-        sc.inner.innerHTML = await window.adocPresentResolveSlideHTML(carte, i, cartes.length);
+    window._adocPresentModeCapture = !!o.modeCapture;
+    var position = { carte: -1, rang: -1 };
+
+    async function allerA(n) {
+      var etape = etapes[n];
+      if (!etape) throw new Error('étape ' + n + ' inexistante (' + etapes.length + ' étapes).');
+      var iCarte = cartes.findIndex(function (c) { return c.id === etape.cardId; });
+      var carte = cartes[iCarte];
+      var deLaCarte = etapes.filter(function (e) { return e.cardId === etape.cardId; });
+      var rang = deLaCarte.indexOf(etape);
+      // La révélation ne sait qu'avancer : on remonte la carte dès qu'on recule ou qu'on change.
+      if (iCarte !== position.carte || rang < position.rang) {
+        sc.inner.innerHTML = await window.adocPresentResolveSlideHTML(carte, iCarte, cartes.length);
         verifierScene(sc, scene);
-        // L'état du lecteur, le temps de la capture seulement. adocPresentRevealNext le lit et
-        // l'avance ; on le restaure à la fin pour ne jamais laisser le vrai lecteur dérangé.
-        window._adocPresentState = { doc: doc, index: i, revealIndex: null, revealTotal: 0 };
+        window._adocPresentState = { doc: doc, index: iCarte, revealIndex: null, revealTotal: 0 };
         window.adocPresentApplyReveal(sc.inner, carte, false);
-        for (var r = 0; r < deLaCarte.length; r++) {
-          if (r > 0) {
-            var avance = window.adocPresentRevealNext(sc.inner);
-            if (!avance) {
-              throw new Error('le lecteur a refusé d\'avancer à l\'étape ' + (r + 1) + ' de la carte ' + carte.id
-                + ' : l\'énumération annonce ' + deLaCarte.length + ' étapes, la révélation n\'en connaît que '
-                + window._adocPresentState.revealTotal + '.');
-            }
-          }
-          // L'échelle typographique AVANT l'attente de stabilité : elle change la mise en page,
-          // et c'est la mise en page d'après qui doit se stabiliser.
-          appliquerEchelleTypo(sc.inner, o.echelleTypo);
-          await attendreStabilite(sc.inner, o.modeCapture);
-          var inspection = null;
-          // Le crochet est ATTENDU : la mesure de netteté a besoin d'y faire une capture native
-          // de la scène, ce qui passe par un aller-retour hors de la page.
-          if (o.inspecter) { try { inspection = await o.inspecter(sc.inner, deLaCarte[r], scene, sc); } catch (e) { inspection = { erreur: String(e && e.message || e) }; } }
-          var hauteurNecessaire = mesurerHauteurNecessaire(sc, scene);
-          var deb = verdictDebordement(hauteurNecessaire, scene.hauteur, {
-            tolerance: o.toleranceDebordement, seuil: o.seuilScission,
-            dureeS: dureeEtapeS(doc, deLaCarte[r].stepId),
-            echelleSortie: SORTIE.largeur / scene.largeur, vitesseMax: o.vitessePanMax,
-          });
-          var debordement = deb.verdict !== 'aucun';
-          // Sous la tolérance, on capture au CADRE et non à la hauteur nécessaire : six pixels de
-          // scène sont du bruit de mise en page, et une image de 1092 px déclarée « sans
-          // débordement » serait incohérente. Toutes les images d'une vidéo doivent faire la même
-          // taille sauf quand une diapositive déborde vraiment — et alors elle le dit.
-          var hauteurCapture = (deb.verdict === 'aucun') ? scene.hauteur : hauteurNecessaire;
-          var capture = await capturer(snap, sc, hauteurCapture, scene);
-          var blob = await canvasVersBlob(capture.canvas, o.type, o.qualite);
-          var etape = deLaCarte[r];
-          images.push({
-            stepId: etape.stepId, cardId: etape.cardId, cardIndex: i, rang: etape.rang,
-            surRang: etape.surRang, titre: etape.cardTitle,
-            largeur: capture.largeur, hauteur: capture.hauteur,
-            debordement: debordement, hauteurScene: hauteurNecessaire,
-            // L'indicateur par étape, destiné à l'atelier : de combien ça déborde, dans quel
-            // rapport, et ce qu'il faudra en faire. Aucune interface ici — une donnée, lisible.
-            debordement_px: deb.px, debordement_rapport: deb.rapport, debordement_verdict: deb.verdict,
-            debordement_px_sortie: Math.round(deb.px * (SORTIE.largeur / scene.largeur)),
-            debordement_regle: deb.regle, debordement_sous_tolerance: deb.sous_tolerance,
-            debordement_vitesse_px_par_s: deb.vitesse_px_par_s,
-            fond: capture.fond,
-            signature: await signatureEtape(doc, etape),
-            type: o.type, octets: blob.size, blob: blob, inspection: inspection,
-            // Ce que le DOM portait À L'INSTANT de la capture. C'est la seule preuve possible
-            // qu'aucun nombre n'a été saisi en cours d'animation (V6) : un test peut l'exiger
-            // égal au texte final, au lieu de faire confiance à un délai.
-            textes: Array.from(sc.inner.querySelectorAll('.adoc-sc-card > .adoc-sc-block.adoc-sc-reveal-shown, .adoc-sc-card > .adoc-sc-block:not(.adoc-sc-reveal)'))
-              .map(function (el) { return (el.textContent || '').trim().replace(/\s+/g, ' '); }),
-          });
-          // Le canvas est relâché tout de suite : seule la forme COMPRESSÉE est gardée (V5).
-          capture.canvas.width = 0; capture.canvas.height = 0;
-          if (o.surAvancement) {
-            try { o.surAvancement({ fait: images.length, total: etapes.length, stepId: etape.stepId }); } catch (e) {}
-          }
+        position = { carte: iCarte, rang: 0 };
+      }
+      while (position.rang < rang) {
+        if (!window.adocPresentRevealNext(sc.inner)) {
+          throw new Error('le lecteur a refusé d\'avancer à l\'étape ' + (rang + 1) + ' de la carte ' + carte.id
+            + ' : l\'énumération annonce ' + deLaCarte.length + ' étapes, la révélation n\'en connaît que '
+            + window._adocPresentState.revealTotal + '.');
+        }
+        position.rang++;
+      }
+      appliquerEchelleTypo(sc.inner, o.echelleTypo);
+      await attendreStabilite(sc.inner, o.modeCapture);
+      return { etape: etape, carteIndex: iCarte, rang: rang, surRang: deLaCarte.length };
+    }
+
+    function mesurer() {
+      var hauteurNecessaire = mesurerHauteurNecessaire(sc, scene);
+      return verdictDebordement(hauteurNecessaire, scene.hauteur, {
+        tolerance: o.toleranceDebordement, seuil: o.seuilScission,
+        echelleSortie: SORTIE.largeur / scene.largeur, vitesseMax: o.vitessePanMax,
+      });
+    }
+
+    async function capturerEtape(n, infos) {
+      var etape = infos.etape;
+      var hauteurNecessaire = mesurerHauteurNecessaire(sc, scene);
+      var deb = verdictDebordement(hauteurNecessaire, scene.hauteur, {
+        tolerance: o.toleranceDebordement, seuil: o.seuilScission,
+        dureeS: dureeEtapeS(doc, etape.stepId),
+        echelleSortie: SORTIE.largeur / scene.largeur, vitesseMax: o.vitessePanMax,
+      });
+      var hauteurCapture = (deb.verdict === 'aucun') ? scene.hauteur : hauteurNecessaire;
+      var capture = await capturer(snap, sc, hauteurCapture, scene);
+      var blob = await canvasVersBlob(capture.canvas, o.type, o.qualite);
+      var image = {
+        stepId: etape.stepId, cardId: etape.cardId, cardIndex: infos.carteIndex,
+        rang: etape.rang, surRang: etape.surRang, titre: etape.cardTitle,
+        largeur: capture.largeur, hauteur: capture.hauteur,
+        debordement: deb.verdict !== 'aucun', hauteurScene: hauteurNecessaire,
+        debordement_px: deb.px, debordement_rapport: deb.rapport, debordement_verdict: deb.verdict,
+        debordement_px_sortie: Math.round(deb.px * (SORTIE.largeur / scene.largeur)),
+        debordement_regle: deb.regle, debordement_sous_tolerance: deb.sous_tolerance,
+        debordement_vitesse_px_par_s: deb.vitesse_px_par_s,
+        fond: capture.fond,
+        signature: await signatureEtape(doc, etape),
+        type: o.type, octets: blob.size, blob: blob,
+        textes: Array.from(sc.inner.querySelectorAll('.adoc-sc-card > .adoc-sc-block.adoc-sc-reveal-shown, .adoc-sc-card > .adoc-sc-block:not(.adoc-sc-reveal)'))
+          .map(function (el) { return (el.textContent || '').trim().replace(/\s+/g, ' '); }),
+      };
+      capture.canvas.width = 0; capture.canvas.height = 0;
+      return image;
+    }
+
+    return {
+      etapes: etapes, scene: scene, sortie: SORTIE, options: o,
+      inner: sc.inner, outer: sc.outer, hote: sc.hote,
+      allerA: allerA, capturerEtape: capturerEtape, mesurer: mesurer,
+      fermer: function () {
+        window._adocPresentState = etatPrecedent;
+        window._adocPresentModeCapture = modePrecedent;
+        sc.retirer();
+      },
+    };
+  }
+
+  // ── Le rendu complet ────────────────────────────────────────────────────────────────────────
+  // Une boucle sur ouvrirScene, rien de plus.
+  async function rendreImages(doc, options) {
+    var o = options || {};
+    var t0 = performance.now();
+    var sc = await ouvrirScene(doc, o);
+    var images = [];
+    try {
+      for (var n = 0; n < sc.etapes.length; n++) {
+        var infos = await sc.allerA(n);
+        var inspection = null;
+        if (o.inspecter) {
+          try { inspection = await o.inspecter(sc.inner, sc.etapes[n], sc.scene, sc); }
+          catch (e) { inspection = { erreur: String(e && e.message || e) }; }
+        }
+        var image = await sc.capturerEtape(n, infos);
+        image.inspection = inspection;
+        images.push(image);
+        if (o.surAvancement) {
+          try { o.surAvancement({ fait: images.length, total: sc.etapes.length, stepId: image.stepId }); } catch (e) {}
         }
       }
     } finally {
-      window._adocPresentState = etatPrecedent;
-      window._adocPresentModeCapture = modePrecedent;
-      sc.retirer();
+      sc.fermer();
     }
     return {
       images: images,
-      etapes_annoncees: etapes.length,
+      etapes_annoncees: sc.etapes.length,
       duree_ms: Math.round(performance.now() - t0),
       octets_total: images.reduce(function (a, im) { return a + im.octets; }, 0),
-      scene: scene, sortie: SORTIE, echelle_typo: o.echelleTypo,
-      mode: o.mode, seuil_scission: o.seuilScission,
-      tolerance_debordement: o.toleranceDebordement, vitesse_pan_max: o.vitessePanMax,
-      scene_par_defaut: !o.scene,
+      scene: sc.scene, sortie: SORTIE, echelle_typo: sc.options.echelleTypo,
+      mode: sc.options.mode, seuil_scission: sc.options.seuilScission,
+      tolerance_debordement: sc.options.toleranceDebordement, vitesse_pan_max: sc.options.vitessePanMax,
+      scene_par_defaut: !(options && options.scene),
       debordements: {
         aucun: images.filter(function (im) { return im.debordement_verdict === 'aucun'; }).length,
         defilement: images.filter(function (im) { return im.debordement_verdict === 'defilement'; }).length,
         scission: images.filter(function (im) { return im.debordement_verdict === 'scission'; }).length,
       },
-      mode_capture: !!o.modeCapture,
-      attente_animations_ms: o.modeCapture ? 0 : ATTENTE_ANIMATIONS_MS,
+      mode_capture: !!sc.options.modeCapture,
+      attente_animations_ms: sc.options.modeCapture ? 0 : ATTENTE_ANIMATIONS_MS,
       snapdom: SNAPDOM_VERSION, moteur: MOTEUR_VERSION,
     };
   }
@@ -622,7 +654,7 @@
     configurer: function (opts) { if (opts && opts.cheminSnapdom) { _cheminSnapdom = opts.cheminSnapdom; _snapdom = null; } },
     cheminSnapdom: function () { return _cheminSnapdom; },
     signatureEtape: signatureEtape,
-    rendreImages: rendreImages,
+    rendreImages: rendreImages, ouvrirScene: ouvrirScene,
     comparerAuDocument: comparerAuDocument,
     decoder: decoder, libererDecodee: libererDecodee, nombreDecodees: nombreDecodees,
     versType: versType, nomFichier: nomFichier,
