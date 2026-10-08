@@ -8,7 +8,7 @@ import type {
   VueBibliotheque,
 } from "@lienotheque/contrats";
 import { EnTete } from "./EnTete.js";
-import { chargerBibliothequeDemonstration, chargerDonnees } from "./donnees/chargement.js";
+import { chargerBibliothequeDemonstration, chargerDonnees, rechercheDemandee } from "./donnees/chargement.js";
 import { chargerVue } from "./donnees/vue.js";
 import { ACCUEIL, ecrireRoute, lireRoute, type Route } from "./navigation.js";
 import { ACCUEIL_VIDE, type DonneesAccueil } from "./donnees/modele.js";
@@ -70,7 +70,8 @@ export function App(): JSX.Element {
   const [refuses, setRefuses] = useState<readonly { nom: string; raison: string }[]>([]);
   /** La recherche est un voile par-dessus l'écran courant, pas un écran de plus : on revient
    *  exactement là où l'on était en la fermant. */
-  const [cherche, setCherche] = useState(false);
+  const requeteDeLAdresse = useMemo(() => rechercheDemandee(globalThis.location?.search ?? ""), []);
+  const [cherche, setCherche] = useState(requeteDeLAdresse !== undefined);
 
   // ⌘K ouvre la recherche depuis n'importe quel écran (UX-02). Ctrl+K pour les claviers qui
   // n'ont pas de touche Commande.
@@ -343,6 +344,7 @@ export function App(): JSX.Element {
                   { cle: "verifier", titre: "Vérifier ce qui attend un œil", source: derniere.description.nom, aussi: ["doutes", "cas"] },
                 ]
           }
+          {...(requeteDeLAdresse === undefined ? {} : { requeteInitiale: requeteDeLAdresse })}
           onFermer={() => setCherche(false)}
           onOuvrir={(resultat) => {
             setCherche(false);

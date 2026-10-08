@@ -30,6 +30,7 @@
 | 2026-10-06 | **L'hôte est le seul écrivain du dépôt** : le processus reçoit un travail et rend un résultat, l'hôte le valide et l'active en une opération (JOB-06) | Lot D2, étape 0 |
 | 2026-10-06 | Portage Rust intégral de la chaîne **écarté** : il faudrait réécrire pdf.js et les codecs, et refaire la preuve des 84/92 et 95/95 | Lot D2, étape 0 |
 | 2026-10-06 | Allègement du moteur (Node sans ICU, binaire compilé) **reporté après la bêta**, et sans toucher la chaîne | Lot D2, étape 0 |
+| 2026-10-08 | **La recherche n'a pas d'index à elle** : elle lit la vue, et tout se passe sur la machine. Le surlignage porte sur le texte d'origine, pas sur sa forme repliée | Lot D2, étape 4, section ci-dessous |
 | 2026-10-08 | **Un travail par document, non par fichier** : le moteur lit un document et ses médias ensemble, et un travail qui ne porterait qu'une piste n'aurait rien à lire | Lot D2, étape 3, section ci-dessous |
 | 2026-10-08 | **Pas de temps restant à l'écran de traitement** : on ne sait pas à quelle vitesse la suite ira, et un chiffre inventé est pire qu'un chiffre absent. On écrit « 194 / 286 » | Lot D2, étape 3 |
 | 2026-10-08 | **Fusionner et retirer une valeur sont deux gestes**, pas un : le contrat a refusé qu'une clé vive à deux endroits, et il avait raison — ils ne montrent pas la même chose | Lot D2, étape 2, section ci-dessous |
@@ -353,6 +354,54 @@ binaire Node déjà signé laisse macOS avec une signature en cache qui ne corre
   donnera.
 - **Le compteur de l'en-tête de l'application** affiche encore une valeur de démonstration, qui ne
   s'accorde pas avec la file en dessous.
+
+
+## Lot D2, étape 4 — chercher sur la machine
+
+La recherche ⌘K. Ce qui a été tranché.
+
+### L'index, c'est la vue
+
+Il n'y a pas de second magasin à tenir à jour, donc pas de second magasin à voir diverger — la
+même raison qui avait fait appeler `rejouer` à l'instantané. Et tout se passe sur la machine : ce
+qu'on cherche dans sa propre bibliothèque ne regarde personne d'autre.
+
+### Deux choses font la qualité d'une recherche, et aucune n'est l'algorithme
+
+**Trouver malgré les accents et la casse** : « detachee » doit trouver « détachée ».
+
+**Montrer où ça correspond dans le texte original** : surligner « détachée », pas « detachee ».
+On replie donc le texte **caractère par caractère**, en gardant pour chaque caractère replié la
+position du caractère d'origine, puis on revient. Replier d'un coup ne marcherait pas :
+`"été".normalize("NFD")` ne fait pas la même longueur que `"été"`, et des positions prises sur la
+forme dépliée ne désignent plus rien dans l'originale.
+
+La marque porte un fond **et** un soulignement : le fond seul ne suffirait ni à l'impression ni à
+qui ne distingue pas les teintes.
+
+### Ce que le clavier fait, et pourquoi le pied le dit
+
+Les flèches parcourent la liste entière d'un groupe à l'autre et font le tour ; la tabulation
+saute au **groupe** suivant, pas à la ligne suivante ; entrée ouvre ; commande-entrée écoute la
+piste reliée quand il y en a une ; échap ferme. Une palette qu'on ne pourrait conduire qu'à la
+souris n'aurait aucune raison d'exister, et une palette dont on ignore les touches revient au
+même.
+
+La suite que les flèches parcourent est calculée par le noyau, pas par l'écran : la recalculer
+dans l'écran la ferait diverger de l'ordre affiché.
+
+### Ce qui vient d'où
+
+Les groupes portent les mots de la bibliothèque — « Repères », « Feuillets », « Plages » — et
+jamais les nôtres (CLA-01). La piste reliée se trouve aussi par ce qu'on cherche : c'est le même
+lien, vu de l'autre bout (ANC-02). Les **actions** viennent de l'écran, qui seul sait où elles
+mènent ; le noyau les filtre sur leurs mots, il ne les invente pas.
+
+### Ce que la charte a repris
+
+L'extrait portait le serif de marque, comme la maquette le suggérait. Le garde-fou typographique
+l'a refusé : il ne sert qu'au logo et au « Bonjour ». Les maquettes sont illustratives, jamais
+typographiques — et c'est un test qui l'a rappelé, pas une relecture.
 
 
 ## Prototype du socle local — mesures du 3 octobre 2026

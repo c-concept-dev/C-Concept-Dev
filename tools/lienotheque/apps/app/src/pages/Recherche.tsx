@@ -28,6 +28,8 @@ type Props = {
   /** Écouter la piste reliée, sans quitter la recherche. */
   readonly onEcouter: (resultat: Resultat) => void;
   readonly onAction: (cle: string) => void;
+  /** Ce qui est déjà tapé à l'ouverture. Sert aux captures, où personne ne tape. */
+  readonly requeteInitiale?: string | undefined;
 };
 
 /** Le texte, ses correspondances marquées. L'écran ne calcule rien : le noyau a déjà découpé. */
@@ -41,8 +43,8 @@ function Marque({ texte, surlignes }: { readonly texte: string; readonly surlign
   );
 }
 
-export function Recherche({ vue, actions, onFermer, onOuvrir, onEcouter, onAction }: Props): JSX.Element {
-  const [requete, setRequete] = useState("");
+export function Recherche({ vue, actions, onFermer, onOuvrir, onEcouter, onAction, requeteInitiale }: Props): JSX.Element {
+  const [requete, setRequete] = useState(requeteInitiale ?? "");
   const [choisi, setChoisi] = useState(0);
   const base = useId();
   const liste = useRef<HTMLDivElement>(null);

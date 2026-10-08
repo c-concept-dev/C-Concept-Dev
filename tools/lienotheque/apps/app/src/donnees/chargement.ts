@@ -37,3 +37,13 @@ export async function chargerBibliothequeDemonstration(recherche: string): Promi
   const { ACCOMPAGNEMENTS, BIBLIOTHEQUE, EXEMPLES_ORGANISATION, FILE } = await import("./demonstration.js");
   return { ...BIBLIOTHEQUE, exemples: EXEMPLES_ORGANISATION, file: FILE, accompagnements: ACCOMPAGNEMENTS };
 }
+
+/** Ce que l'adresse demande de chercher, pour montrer la recherche ouverte.
+ *
+ *  Même porte que le jeu de démonstration : développement seulement, et seulement si l'adresse
+ *  le demande. Elle sert aux captures, où personne ne peut taper au clavier. */
+export function rechercheDemandee(recherche: string): string | undefined {
+  if (!(import.meta.env.DEV && demonstrationDemandee(recherche))) return undefined;
+  const demandee = new URLSearchParams(recherche).get("chercher");
+  return demandee === null || demandee === "" ? undefined : demandee;
+}
