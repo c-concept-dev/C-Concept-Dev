@@ -5,6 +5,7 @@
 //! reprendre un travail après un arrêt forcé (JOB-02), lire un MP3 par plages — plus la taille
 //! d'installation moteurs compris. La décision reste à prendre (docs/decisions.md).
 
+pub mod arrivee;
 pub mod captures;
 pub mod depot;
 pub mod file;
@@ -83,6 +84,52 @@ fn creer_bibliotheque(racine: String, description: String) -> Result<String, Str
         .ecrire_description(&description)
         .map(|chemin| chemin.to_string_lossy().into_owned())
         .map_err(|e| format!("Description impossible à écrire : {e}"))
+}
+
+/// Dépose des fichiers dans une bibliothèque et met un travail en file par fichier (JOB-01).
+///
+/// Les originaux sont copiés, jamais déplacés ni modifiés. Un fichier déjà déposé retrouve son
+/// travail au lieu d'en créer un second (JOB-04), et un fichier qu'on ne sait pas lire est
+/// refusé avec sa raison — sans empêcher les autres d'entrer.
+#[tauri::command]
+fn deposer(racine: String, chemins: Vec<String>) -> Result<serde_json::Value, String> {
+    let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
+    let origines: Vec<PathBuf> = chemins.iter().map(PathBuf::from).collect();
+    let mut avertissements: Vec<String> = Vec::new();
+    let arrivee = arrivee::deposer(&depot, &depot.travaux(), &origines, &mut |texte| avertissements.push(texte))
+        .map_err(|e| format!("Dépôt impossible : {e}"))?;
+    Ok(serde_json::json!({
+        "travaux": arrivee.travaux.iter().map(travail::Travail::vu).collect::<Vec<_>>(),
+        "refuses": arrivee.refuses.iter().map(|(nom, raison)| serde_json::json!({ "nom": nom, "raison": raison })).collect::<Vec<_>>(),
+        "avertissements": avertissements,
+    }))
+}
+
+/// La file d'une bibliothèque, telle que l'écran de traitement la montre.
+#[tauri::command]
+fn travaux(racine: String) -> Result<Vec<serde_json::Value>, String> {
+    let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
+    let mut avertissements: Vec<String> = Vec::new();
+    let tous = file::charger_tout(&depot.travaux(), &mut |texte| avertissements.push(texte))
+        .map_err(|e| format!("File illisible : {e}"))?;
+    Ok(tous.iter().map(travail::Travail::vu).collect())
+}
+
+/// Met un travail en pause, le reprend, ou l'annule (JOB-08).
+///
+/// Une seule porte pour les trois : les transitions vivent dans `file::appliquer`, éprouvées
+/// contre la table partagée. Une commande qui les réécrirait les ferait diverger.
+#[tauri::command]
+fn agir_sur_travail(racine: String, id: String, action: String) -> Result<serde_json::Value, String> {
+    let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
+    let chemin = depot.travaux().join(format!("{id}.json"));
+    let vise = travail::charger(&chemin)
+        .map_err(|e| format!("Travail illisible : {e}"))?
+        .ok_or("Ce travail n’existe plus.")?;
+    let apres = file::appliquer(&vise, &action, travail::maintenant())
+        .ok_or_else(|| format!("Action inconnue : {action}"))?;
+    travail::enregistrer(&chemin, &apres).map_err(|e| format!("Travail impossible à écrire : {e}"))?;
+    Ok(apres.vu())
 }
 
 /// Ce que l'hôte retient d'une session à l'autre : cet appareil, et les bibliothèques ouvertes.
@@ -229,6 +276,9 @@ fn lancer(captures: bool) {
             reglages,
             retenir_bibliotheque,
             oublier_bibliotheque,
+            deposer,
+            travaux,
+            agir_sur_travail,
             ouvrir_pdf,
             lancer_ocr,
             servir_media,

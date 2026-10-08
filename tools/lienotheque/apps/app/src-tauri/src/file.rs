@@ -85,6 +85,46 @@ pub fn en_cours(travaux: &[Travail], maintenant: u64) -> usize {
         .count()
 }
 
+/// Les transitions que l'hôte applique à un travail (JOB-05, JOB-08).
+///
+/// L'hôte est seul à les appliquer, et il les applique ici : les commandes de l'interface
+/// passent par cette fonction, et le banc de `fixtures/travaux-cas.json` l'éprouve. Deux
+/// écritures de la même transition finissent toujours par en donner deux.
+pub fn appliquer(travail: &Travail, action: &str, maintenant: u64) -> Option<Travail> {
+    let mut t = travail.clone();
+    t.maj_le = maintenant;
+    match action {
+        "pause" => {
+            t.etat = "en_pause".to_owned();
+            t.verrou = None;
+        }
+        "annuler" => {
+            t.etat = "annule".to_owned();
+            t.verrou = None;
+        }
+        "reprendre" => {
+            // Une pause reprise ne consomme pas de tentative : on n'a pas échoué, on a attendu.
+            if t.etat == "en_echec_recuperable" {
+                t.tentative += 1;
+            }
+            t.etat = "en_file".to_owned();
+            t.verrou = None;
+        }
+        "echouerRecuperable" => {
+            // Récupérable n'a de sens que s'il reste une tentative : au-delà, l'échec est
+            // définitif, et le dire franchement vaut mieux qu'une file qui cache la panne.
+            t.etat = if tentative_restante(t.tentative) { "en_echec_recuperable" } else { "en_echec_definitif" }.to_owned();
+            t.verrou = None;
+        }
+        "echouerDefinitif" => {
+            t.etat = "en_echec_definitif".to_owned();
+            t.verrou = None;
+        }
+        _ => return None,
+    }
+    Some(t)
+}
+
 fn chemin_du(dossier: &Path, id: &str) -> PathBuf {
     dossier.join(format!("{id}.json"))
 }
@@ -265,42 +305,6 @@ mod tests {
         t
     }
 
-    /// Les transitions que l'hôte applique à un travail. Elles vivent ici parce que l'hôte est
-    /// seul à les appliquer ; la table dit ce qu'elles doivent donner.
-    fn appliquer(travail: &Travail, action: &str, maintenant: u64) -> Travail {
-        let mut t = travail.clone();
-        t.maj_le = maintenant;
-        match action {
-            "pause" => {
-                t.etat = "en_pause".to_owned();
-                t.verrou = None;
-            }
-            "annuler" => {
-                t.etat = "annule".to_owned();
-                t.verrou = None;
-            }
-            "reprendre" => {
-                if t.etat == "en_echec_recuperable" {
-                    t.tentative += 1;
-                }
-                t.etat = "en_file".to_owned();
-                t.verrou = None;
-            }
-            "echouerRecuperable" => {
-                // Récupérable n'a de sens que s'il reste une tentative : au-delà, l'échec est
-                // définitif, et le dire franchement vaut mieux qu'une file qui cache la panne.
-                t.etat = if tentative_restante(t.tentative) { "en_echec_recuperable" } else { "en_echec_definitif" }.to_owned();
-                t.verrou = None;
-            }
-            "echouerDefinitif" => {
-                t.etat = "en_echec_definitif".to_owned();
-                t.verrou = None;
-            }
-            autre => panic!("action inconnue dans la table : {autre}"),
-        }
-        t
-    }
-
     #[test]
     fn ce_qui_est_reprenable_suit_la_table_partagee() {
         for cas in table().reprenable {
@@ -365,7 +369,8 @@ mod tests {
                 .map_or(1, tentative_nommee);
             let version_avant = avant.total;
 
-            let apres = appliquer(&avant, &cas.action, 100_000);
+            let apres = appliquer(&avant, &cas.action, 100_000)
+                .unwrap_or_else(|| panic!("action inconnue dans la table : {}", cas.action));
 
             assert_eq!(apres.etat, cas.vers, "{}", cas.nom);
             assert_eq!(apres.verrou.is_some(), cas.bail_apres, "{} — le bail", cas.nom);

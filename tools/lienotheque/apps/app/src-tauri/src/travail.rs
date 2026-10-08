@@ -74,6 +74,10 @@ pub struct Travail {
     /// Absent pour un travail qui ne porte sur aucun fichier — un recalcul, une réindexation.
     #[serde(default)]
     pub sujet: Option<Sujet>,
+    /// Empreinte de ce qui est demandé : redéposer le même contenu retrouve ce travail au lieu
+    /// d'en créer un second (JOB-04). C'est le contenu qui décide, jamais le nom du fichier.
+    #[serde(default)]
+    pub empreinte: Option<String>,
     /// La version que ce travail écrira. Elle est fixée à l'entrée en file et ne change pas :
     /// une reprise écrit dans la même, sans quoi une reprise laisserait deux versions à demi
     /// faites (JOB-06).
@@ -102,6 +106,7 @@ impl Travail {
             tentative: 1,
             total,
             sujet: None,
+            empreinte: None,
             version_cible: String::new(),
             cree_le: maintenant(),
             maj_le: maintenant(),
@@ -208,6 +213,9 @@ impl Travail {
                 porte["total"] = serde_json::json!(self.total);
             }
             vu["sujet"] = porte;
+        }
+        if let Some(empreinte) = &self.empreinte {
+            vu["empreinteEntree"] = serde_json::json!(empreinte);
         }
         if let Some(point) = &self.point_reprise {
             vu["pointReprise"] = serde_json::json!({ "unite": point.unite, "valeur": point.valeur });

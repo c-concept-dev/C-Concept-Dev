@@ -42,6 +42,10 @@ const ACTIVE: &str = "active.json";
 /// Trois endroits le nomment — l'assistant, l'hôte, la chaîne — et le contrat le fixe. Un
 /// contrôle du noyau vérifie que l'hôte dit bien le même.
 const DESCRIPTION: &str = "bibliotheque.json";
+/// Les travaux de cette bibliothèque, un fichier par travail (JOB-01). Dans son dossier
+/// portable : une bibliothèque qu'on déplace emporte sa file, et ce qui était à moitié fait
+/// se reprend là où on la rouvre.
+const TRAVAUX: &str = "travaux";
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct Pointeur {
@@ -98,6 +102,11 @@ impl Depot {
     /// L'hôte ne la relit pas pour la juger — il ne connaît aucun domaine et n'a pas de contrat à
     /// lui opposer. C'est l'assistant qui la valide avant de l'envoyer, là où le contrat vit.
     /// L'hôte garantit ce qu'il sait garantir : qu'elle s'écrit entière ou pas du tout.
+    /// Le dossier de la file de cette bibliothèque.
+    pub fn travaux(&self) -> PathBuf {
+        self.racine.join(BASE).join(TRAVAUX)
+    }
+
     pub fn ecrire_description(&self, description: &str) -> io::Result<PathBuf> {
         let chemin = self.racine.join(BASE).join(DESCRIPTION);
         ecrire_atomique(&chemin, description.as_bytes())?;
