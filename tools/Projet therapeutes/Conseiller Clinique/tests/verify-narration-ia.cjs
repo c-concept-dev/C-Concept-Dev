@@ -245,6 +245,11 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       // ressemblait à une statistique et invitait à en produire.
       ['nombre en toutes lettres, neutre', /« douze semaines »,\s*\n?\s*« trois mois »/],
       ['aucun chiffre venu d\'ailleurs', /Jamais un chiffre qui ne figure pas dans le document/],
+      // La ligne qui ÉNUMÈRE ce qui est interdit a sa propre assertion : vérifier la phrase
+      // d'introduction laissait passer le retrait de la liste qui la suit. Troisième fois que
+      // ce piège se présente dans ce lot — une assertion par ligne, désormais.
+      ['ni proportion ni pourcentage ni durée ni effectif',
+       /ni proportion, ni pourcentage, ni durée, ni effectif inventés/],
       // Correction 4 : la continuité du discours.
       ['un seul discours', /UN SEUL DISCOURS, DU DÉBUT À LA FIN\./],
       ['reprend là où on s\'est arrêté', /reprend là où la précédente s.est arrêtée/],
