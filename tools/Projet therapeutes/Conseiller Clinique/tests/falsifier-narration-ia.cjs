@@ -56,6 +56,12 @@ const ESSAIS = [
     attendu: 'un nombre choisi au lieu d\'une règle appliquée' },
 
   // ── Le prompt système ─────────────────────────────────────────────────────────────────────
+  { nom: 'les rôles sont de nouveau attribués d\'office',
+    fichier: 'module',
+    de: "      '- N\\'attribuez jamais d\\'office un rôle à l\\'homme ou à la femme : ni celui qui se tait, ni',",
+    vers: "      '- Soyez concret sur qui fait quoi.',",
+    attendu: 'celui qui se tait est un homme, celle qui demande est une femme' },
+
   { nom: 'le discours cesse d\'être continu',
     fichier: 'module',
     de: "      'UN SEUL DISCOURS, DU DÉBUT À LA FIN.',",

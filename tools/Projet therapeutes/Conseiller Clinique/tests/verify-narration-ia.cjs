@@ -226,6 +226,10 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       ['pas « nous allons voir »', /Ne commencez pas par « Dans cette présentation, nous allons voir/],
       ['la dernière referme', /La DERNIÈRE étape referme/],
       ['sans récapituler', /ne récapitule pas mécaniquement/],
+      // Correction 5 : l'inclusivité.
+      ['aucun rôle attribué d\'office', /N.attribuez jamais d.office un rôle à l.homme ou à la femme/],
+      ['l\'un et l\'autre', /Dites « l.un » et « l.autre », ou « l.un des deux »/],
+      ['pas forcément un homme et une femme', /n.est pas forcément un homme et une femme/],
       ['pas de parenthèse', /Aucune parenthèse/],
       ['aucun diagnostic', /Aucun diagnostic/],
       ['aucune promesse', /promesse\s*\n?de résultat thérapeutique/],
