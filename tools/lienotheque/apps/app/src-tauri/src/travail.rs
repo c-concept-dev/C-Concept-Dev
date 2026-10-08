@@ -359,8 +359,12 @@ mod tests {
 
         let chemin = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../../fixtures/travaux-vus.json");
+        // Les fins de ligne ne font pas partie de ce qu'on compare : Windows rend le fichier en
+        // CRLF là où on l'écrit en LF, et la sentinelle crierait à chaque exécution sans qu'un
+        // seul champ ait bougé.
+        let sans_retours = |texte: &str| texte.replace("\r\n", "\n").trim().to_owned();
         let ancien = std::fs::read_to_string(&chemin).unwrap_or_default();
-        if ancien.trim() != texte.trim() {
+        if sans_retours(&ancien) != sans_retours(&texte) {
             std::fs::write(&chemin, format!("{texte}\n")).expect("écriture");
             panic!("fixtures/travaux-vus.json a changé : relancez le contrôle TypeScript, qui dira si la nouvelle forme tient le contrat.");
         }
