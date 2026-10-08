@@ -18,6 +18,8 @@ const FICHIERS = {
   // La page du banc est une source comme une autre : c'est elle qui portait le défaut que
   // Christophe a trouvé — elle annonçait le mode vidéo et rendait le mode fidèle.
   banc: path.join(RACINE, 'tests', 'forger-banc-chutier.cjs'),
+  // L'application elle-même : c'est elle qui porte la porte locale du 8 octobre.
+  appli: path.join(RACINE, 'studio-clinique.html'),
 };
 const original = {};
 const empreinteAvant = {};
@@ -218,6 +220,34 @@ const ESSAIS = [
     de: "      blocs[i].style.display = (i === rang) ? '' : 'none';",
     vers: "      blocs[i].style.visibility = (i === rang) ? '' : 'hidden';",
     attendu: 'la carte reste aussi haute, et l\'option ne raccourcit rien' },
+
+  // ── La porte locale ───────────────────────────────────────────────────────────────────────
+  // Ces trois mutations portent sur studio-clinique.html. Les contrôles 1 à 5 de
+  // verify-porte-locale s'exécutent sur CE fichier, donc elles les atteignent sans qu'il faille
+  // régénérer la page du banc ; le contrôle 7, lui, vérifie séparément que la copie est à jour.
+  { nom: 'la porte locale s\'ouvre sur N\'IMPORTE QUEL hôte',
+    fichier: 'appli',
+    test: 'verify-porte-locale.cjs',
+    de: "      local = (location.hostname === '127.0.0.1' || location.hostname === 'localhost')\n        && new URLSearchParams(location.search).has('atelier-local');",
+    vers: "      local = new URLSearchParams(location.search).has('atelier-local');",
+    attendu: 'le site publié s\'ouvrirait sans mot de passe à qui ajoute le paramètre' },
+
+  { nom: 'la porte locale s\'ouvre SANS paramètre',
+    fichier: 'appli',
+    test: 'verify-porte-locale.cjs',
+    de: "        && new URLSearchParams(location.search).has('atelier-local');",
+    vers: "        && true;",
+    attendu: 'toute ouverture locale contournerait l\'écran, y compris par accident' },
+
+  // Celle-ci est la plus grave : poser une clé serait déverrouiller POUR DE BON, et non cesser
+  // de masquer. Le contrôle 5 vérifie qu'aucune clé n'est en stock — cette mutation prouve que
+  // cette vérification n'est pas décorative.
+  { nom: 'la porte locale POSE une clé au lieu de masquer l\'écran',
+    fichier: 'appli',
+    test: 'verify-porte-locale.cjs',
+    de: "      document.documentElement.setAttribute('data-atelier-local', '');",
+    vers: "      document.documentElement.setAttribute('data-atelier-local', '');\n      try { localStorage.setItem('workerApiKey', 'porte-locale'); } catch (_) {}",
+    attendu: 'une clé inventée entrerait dans tous les appels au Worker' },
 
   { nom: 'le décodage des photos n\'est plus attendu',
     fichier: 'moteur',

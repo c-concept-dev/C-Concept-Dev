@@ -935,7 +935,128 @@ et une image cassée ne bloque pas). Empreinte du schéma d'outil inchangée.
 4. Si tu retiens « bloc courant seul », il faut décider ce que fait le fondu entre deux étapes de
    hauteurs différentes (3 paires sur 14).
 
-## 14. Ce que ce lot ne livre pas
+## 14. Pourquoi mon test 6/6 ne prouvait rien, et la porte locale
+
+Christophe ne pouvait pas faire le passage humain du lot 1a : après « Ouvrir dans l'espace de
+travail » puis « Réduire le panneau », il tombait sur l'écran de connexion, qui recouvrait tout.
+Mon test `verify-banc-sans-connexion` passait pourtant 6/6.
+
+### 1. Comment mon test atteignait l'éditeur — et pourquoi c'était creux
+
+Il ne l'atteignait pas. Il lisait le DOM **sous** l'écran de connexion. Trois choses précises :
+
+| ce que le test faisait | ce que cela prouve | ce que cela ne prouve pas |
+|---|---|---|
+| `assert.equal(boite.hidden, false)` | l'attribut HTML `hidden` du champ Narration n'est pas posé | rien sur ce qu'un œil voit : un élément peut être recouvert sans être `hidden` |
+| `el.click()` par script sur l'étape | le gestionnaire de clic s'exécute | rien sur l'atteignabilité : un clic par script traverse tous les recouvrements |
+| `zone.value = t` puis `dispatchEvent('input')` | la saisie entre dans le document | rien sur la frappe réelle au clavier |
+
+Et surtout : **le test ne cliquait jamais « Réduire le panneau ».** La séquence exacte de
+Christophe n'était pas éprouvée du tout — `grep -n "Réduire" tests/*.cjs` ne rendait rien.
+
+La cause est dans le balisage : l'écran de connexion est `position:fixed; inset:0; z-index:99999`,
+premier enfant de `<body>`, et il n'est masqué que si `localStorage.workerApiKey` existe. **Toute
+l'application existe dessous.** Un test qui interroge le DOM voit donc un éditeur complet et
+fonctionnel, pendant qu'un humain voit un champ de mot de passe. La page du banc est une copie de
+`studio-clinique.html` : elle porte le même écran. Tant que le panneau du chutier est ouvert, il le
+recouvre ; le réduire le découvre.
+
+### 2. Mesuré, dans un navigateur, sur le chemin exact de Christophe
+
+Chargement de son export par le vrai gestionnaire du champ de fichier, puis « Ouvrir dans l'espace
+de travail », puis « Réduire le panneau ». À chaque étape, la question posée au navigateur n'est
+pas « l'élément est-il dans le DOM ? » mais **« qui recevrait le clic ici ? »**
+(`document.elementFromPoint`).
+
+| | avant (sans paramètre) | après (`?atelier-local=1`) |
+|---|---|---|
+| écran de connexion | `display:flex`, 1600×1050, z-index 99999 | `display:none` |
+| élément au centre de la fenêtre | **`input#cc-login-password`** | `textarea.adoc-textarea` |
+| champ Narration, attribut `hidden` | `false` — *ce que mon test vérifiait* | `false` |
+| champ Narration, rectangle | 1032×100 en (330, **1401**) — hors écran | 1032×100 en (330, **509**) |
+| champ Narration, atteint par le pointeur | **non** | **oui** |
+| texte à l'écran | « Studio Clinique / Cet ordinateur n'est pas encore connu. / Mot de passe / Se connecter » | l'éditeur, « Narration », « Diapositive « L'argent : le grand tabou du couple », étape 1 sur 4. » |
+
+Captures (dossier ignoré par git) : `banc-chutier/captures/AVANT-panneau-reduit-ecran-de-connexion.jpg`
+et `banc-chutier/captures/APRES-panneau-reduit-editeur-et-narration.jpg`.
+
+**Une précision de méthode.** Christophe demandait Safari réel piloté par `safaridriver`. J'ai
+écrit le script (`tests/mesure-passage-humain-safari.cjs`) et il bute sur l'attente asynchrone de
+WebDriver : la session reste pendante après l'envoi du fichier, sans erreur. La mesure ci-dessus a
+donc été faite dans un navigateur que je pilote de bout en bout, **pas dans Safari**. Le mécanisme
+mesuré est du CSS — `position:fixed; inset:0; z-index:99999` — qui ne dépend d'aucun moteur, et le
+texte relevé est mot pour mot celui que Christophe décrit. Le script Safari reste dans le dépôt,
+inachevé et signalé comme tel ; je peux le terminer si cette vérification-là compte en soi.
+
+### 3. La porte locale
+
+Dans le script en ligne de `studio-clinique.html`, celui qui décidait déjà de masquer l'écran :
+
+```js
+local = (location.hostname === '127.0.0.1' || location.hostname === 'localhost')
+  && new URLSearchParams(location.search).has('atelier-local');
+```
+
+**Deux conditions, toutes deux nécessaires**, et rien d'autre. Ce que la porte fait : elle **cesse
+de masquer** l'espace de travail. Elle ne pose aucune clé, n'en lit aucune, n'en invente aucune —
+tout appel au Worker échoue ensuite exactement comme avant, avec le même refus. Le Worker n'est pas
+touché, aucun secret n'est manipulé, rien n'est contourné côté serveur.
+
+Il n'y a d'ailleurs rien à contourner : **l'écran de connexion est un rideau, pas une serrure.**
+Les deux lectures sont séparées dans le code — si `localStorage` lève (navigation privée, données
+de site bloquées), la porte locale doit continuer de fonctionner, sans quoi le seul moyen de
+travailler hors ligne dépendrait de ce qui vient d'échouer.
+
+Un bandeau en `pointer-events:none` dit à l'écran ce que ce mode ne permet pas, pour que le premier
+« Enregistrer » qui échoue ne passe pas pour une panne.
+
+### 4. Les contrôles — `verify-porte-locale`, 7/7
+
+Les hôtes sont éprouvés pour de vrai : les requêtes sont interceptées et servies depuis le disque
+sous n'importe quel nom d'hôte, y compris celui du site publié. Aucun réseau.
+
+| # | situation | attendu | mesuré |
+|---|---|---|---|
+| 1 | `c-concept-dev.github.io` **avec** le paramètre | écran affiché | affiché, 1400×950, clic sur `input#cc-login-password` |
+| 2 | `exemple-quelconque.test` **avec** le paramètre | écran affiché | affiché |
+| 3 | `127.0.0.1` **sans** paramètre | écran affiché | affiché |
+| 4 | `127.0.0.1` avec `?atelier=local` (voisin) | écran affiché | affiché |
+| 5 | `127.0.0.1` et `localhost` **avec** le paramètre | écran masqué, **aucune clé posée** | masqué, bandeau posé, `workerApiKey` absent |
+| 6 | panneau réduit, chemin humain complet | champ Narration **atteint par le pointeur**, frappe au clavier | atteint ; « Essai du passage humain. » entré par `keyboard.type` |
+| 7 | la page du banc est une copie à jour | même porte dans les deux fichiers | identique |
+
+Le contrôle 7 existe parce que la page du banc est **engendrée** depuis l'application : sans lui,
+les contrôles 1 à 5 porteraient sur une porte et le contrôle 6 sur une autre, chacun passerait, et
+l'ensemble ne prouverait rien. C'est l'erreur du 7 octobre, déplacée d'un cran.
+
+**Falsification — trois mutations, toutes détectées :**
+
+| mutation | contrôle qui tombe |
+|---|---|
+| la porte s'ouvre sur **n'importe quel hôte** | 1 — le site publié s'ouvrirait sans mot de passe |
+| la porte s'ouvre **sans paramètre** | 3 |
+| la porte **pose une clé** au lieu de masquer l'écran | 5 — prouve que « aucune clé en stock » n'est pas décoratif |
+
+### 5. Ce que ce réglage ne permet pas
+
+**Enregistrer**, **Enregistrer sous**, **Mes créations**, **générer / réécrire / développer /
+vérifier les sources**, et les **images Pexels** non déjà embarquées : tout cela passe par le
+Worker et **ne fonctionne pas**. Ce qui fonctionne : monter et éditer les blocs, écrire des
+narrations, **télécharger le document de travail** (le seul fichier qui porte les narrations),
+exporter, et le chutier visuel.
+
+Mode d'emploi complet : `MODE-EMPLOI-PASSAGE-LOT1A.md`.
+
+### 6. Mesuré / à juger par Christophe
+
+**Mesuré :** ce que montre chaque étape du chemin, par `elementFromPoint` et par capture d'écran,
+avant et après ; `verify-porte-locale` 7/7 ; les trois mutations de la porte ; empreinte du schéma
+d'outil inchangée.
+
+**À juger par toi :** si le bandeau de mode local est assez visible, ou s'il gêne ; si le nom du
+paramètre te convient ; et surtout, le passage lui-même — écrire, recharger, retrouver, exporter.
+
+## 15. Ce que ce lot ne livre pas
 
 - **L'interface du chutier dans l'application** (V2 côté produit) : le brief demandait le moteur
   sans interface de banc, et c'est ce qui est livré. Les vignettes existent dans la page d'essai.

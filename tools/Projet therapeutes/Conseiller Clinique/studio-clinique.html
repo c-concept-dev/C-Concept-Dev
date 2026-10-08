@@ -2695,9 +2695,50 @@
   </form>
 </div>
 <script>
-  try {
-    if (localStorage.getItem('workerApiKey')) document.getElementById('cc-login-screen').classList.add('cc-login-hidden');
-  } catch (_) {}
+  (function () {
+    // PORTE LOCALE — deux conditions, toutes deux nécessaires, et rien d'autre :
+    //   1. l'hôte est exactement 127.0.0.1 ou localhost — jamais le site publié ;
+    //   2. l'adresse porte explicitement le paramètre « atelier-local ».
+    //
+    // Ce que cette porte fait : elle ne MASQUE PAS l'espace de travail derrière l'écran de
+    // connexion. C'est tout. Elle ne pose aucune clé, n'en lit aucune, n'en invente aucune :
+    // tout appel au Worker échoue ensuite exactement comme avant, avec le même refus. Rien
+    // n'est contourné côté serveur, parce qu'il n'y a rien à contourner ici — l'écran de
+    // connexion est un rideau, pas une serrure. La serrure est la clé d'API du Worker et son
+    // contrôle d'origine, et ni l'une ni l'autre n'est touchée.
+    //
+    // Les deux lectures sont séparées : si localStorage lève (navigation privée, site data
+    // bloqué), la porte locale doit continuer de fonctionner — sans quoi le seul moyen de
+    // travailler hors ligne dépendrait de la même chose qui vient d'échouer.
+    var local = false;
+    try {
+      local = (location.hostname === '127.0.0.1' || location.hostname === 'localhost')
+        && new URLSearchParams(location.search).has('atelier-local');
+    } catch (_) {}
+    var cle = false;
+    try { cle = !!localStorage.getItem('workerApiKey'); } catch (_) {}
+    if (cle || local) {
+      var ecran = document.getElementById('cc-login-screen');
+      if (ecran) ecran.classList.add('cc-login-hidden');
+    }
+    if (local) {
+      document.documentElement.setAttribute('data-atelier-local', '');
+      // DIRE CE QUE CE MODE NE PERMET PAS, à l'écran et non dans un rapport : sans cela, le
+      // premier « Enregistrer » qui échoue passerait pour une panne. `pointer-events:none`
+      // pour que ce bandeau ne puisse jamais recouvrir un bouton — le défaut dont il sort.
+      document.addEventListener('DOMContentLoaded', function () {
+        var bandeau = document.createElement('div');
+        bandeau.id = 'cc-atelier-local-bandeau';
+        bandeau.textContent = 'Mode local sans connexion — montage et export de fichiers seulement. '
+          + 'Enregistrer, Mes créations et la génération ne fonctionnent pas.';
+        bandeau.style.cssText = 'position:fixed;left:12px;bottom:12px;z-index:99998;max-width:420px;'
+          + 'font:12px/1.45 -apple-system,system-ui,sans-serif;padding:8px 12px;border-radius:8px;'
+          + 'background:rgba(16,47,49,.92);color:#f3efe8;pointer-events:none;'
+          + 'box-shadow:0 2px 10px rgba(0,0,0,.18);';
+        document.body.appendChild(bandeau);
+      });
+    }
+  })();
 </script>
 <!-- ═══════════════════════════════════════════════════════════════ -->
 <!-- ÉCRAN D'ACCUEIL #cc-landing — reprise du fichier conseiller-clinique-accueil.html     -->

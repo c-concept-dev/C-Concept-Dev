@@ -12,6 +12,20 @@
 //   5. une narration écrite se retrouve dans le fichier de travail téléchargé ;
 //   6. rechargé, ce fichier rend la narration à l'éditeur.
 //
+// CE QUE CE TEST NE PROUVE PAS — lu à mes dépens le 8 octobre.
+//
+// Il interroge le DOM. Or l'écran de connexion de l'application est posé en
+// `position:fixed; inset:0; z-index:99999` : TOUT l'éditeur existe dessous, intact et
+// fonctionnel, pendant qu'un humain ne voit qu'un champ de mot de passe. Ce test passait donc
+// 6/6 alors que Christophe ne pouvait pas atteindre le champ Narration.
+//
+// Précisément : `boite.hidden === false` ne dit rien d'un recouvrement ; `el.click()` par script
+// traverse tous les recouvrements ; `zone.value = …` n'est pas une frappe au clavier. Et ce test
+// ne clique jamais « Réduire le panneau », qui est l'étape où Christophe butait.
+//
+// Ce qu'un HUMAIN atteint est éprouvé par tests/verify-porte-locale.cjs, qui demande au
+// navigateur quel élément recevrait le clic (elementFromPoint) et tape au clavier.
+//
 //   NODE_PATH=<playwright> node tests/verify-banc-sans-connexion.cjs
 const { chromium } = require('playwright');
 const assert = require('node:assert/strict');
