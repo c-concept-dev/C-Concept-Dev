@@ -1,0 +1,764 @@
+<!doctype html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="utf-8">
+<title>Liénothèque — maquettes administration</title>
+<link rel="stylesheet" href="../../packages/jetons/dist/lienotheque.css">
+<link rel="stylesheet" href="maquettes.css">
+</head>
+<body>
+
+<!-- Tracés repris tels quels de apps/app/src/composants/Icone.tsx (kit UI v1.1 + complément). -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="i-document" viewBox="0 0 24 24"><path d="M14 2H6v20h12V6zM14 2v4h4M9 11h6M9 15h6"/></symbol>
+<symbol id="i-livre" viewBox="0 0 24 24"><path d="M12 5v16M12 5C7 2 3 3 2 4v16c4-2 7-1 10 1 3-2 6-3 10-1V4c-3-2-7-2-10 1"/></symbol>
+<symbol id="i-audio" viewBox="0 0 24 24"><path d="M3 13v-2a9 9 0 0 1 18 0v2M3 12h4v9H3zM17 12h4v9h-4z"/></symbol>
+<symbol id="i-video" viewBox="0 0 24 24"><path d="M3 4h18v16H3zM10 8l6 4-6 4z"/></symbol>
+<symbol id="i-image" viewBox="0 0 24 24"><path d="M3 3h18v18H3zM3 17l6-6 5 5 3-3 4 4M7 7h.01"/></symbol>
+<symbol id="i-valide" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+<symbol id="i-depot" viewBox="0 0 24 24"><path d="M12 16V3M7 8l5-5 5 5M3 15v6h18v-6"/></symbol>
+<symbol id="i-recherche" viewBox="0 0 24 24"><path d="M21 21l-6-6M10 17a7 7 0 1 0 0-14 7 7 0 0 0 0 14"/></symbol>
+<symbol id="i-alerte" viewBox="0 0 24 24"><path d="M12 3 2 21h20zM12 9v5M12 17h.01"/></symbol>
+<symbol id="i-fermer" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+<symbol id="i-lecture" viewBox="0 0 24 24"><path d="M8 5l11 7-11 7z"/></symbol>
+<symbol id="i-pause" viewBox="0 0 24 24"><path d="M9 5v14M15 5v14"/></symbol>
+<symbol id="i-crayon" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16zM15 5l4 4"/></symbol>
+<symbol id="i-grille" viewBox="0 0 24 24"><path d="M3 3h8v8H3zM13 3h8v8h-8zM3 13h8v8H3zM13 13h8v8h-8z"/></symbol>
+<symbol id="i-liste" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></symbol>
+<symbol id="i-chevronGauche" viewBox="0 0 24 24"><path d="M15 18 9 12l6-6"/></symbol>
+<symbol id="i-chevronDroite" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+<symbol id="i-pleinEcran" viewBox="0 0 24 24"><path d="M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5"/></symbol>
+<symbol id="i-moins" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+<symbol id="i-info" viewBox="0 0 24 24"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20M12 8h.01M11 12h1v5h1"/></symbol>
+<symbol id="i-lien" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></symbol>
+<symbol id="i-horloge" viewBox="0 0 24 24"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20M12 6v6l4 2"/></symbol>
+<symbol id="i-nuage" viewBox="0 0 24 24"><path d="M7 18H5a4 4 0 0 1-1-8 7 7 0 0 1 13-2 5 5 0 0 1 2 10z"/></symbol>
+<symbol id="i-personnes" viewBox="0 0 24 24"><path d="M9 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8M2 21v-2a7 7 0 0 1 14 0v2M17 4a4 4 0 0 1 0 8M22 21v-3a6 6 0 0 0-4-5"/></symbol>
+<!-- Complément dessiné dans la même grille (24/24, trait 1,6, bouts arrondis). -->
+<symbol id="i-etiquette" viewBox="0 0 24 24"><path d="M3 3h8l10 10-8 8L3 11zM7.5 7.5h.01"/></symbol>
+<symbol id="i-dossier" viewBox="0 0 24 24"><path d="M3 6h6l2 3h10v11H3zM3 6v3"/></symbol>
+<symbol id="i-reglages" viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h12M20 18h0M16 4v4M8 10v4M14 16v4"/></symbol>
+<symbol id="i-cadre" viewBox="0 0 24 24"><path d="M3 7V3h4M17 3h4v4M21 17v4h-4M7 21H3v-4M8 8h8v8H8z"/></symbol>
+</svg>
+
+<!-- ======================= ÉCRAN 1 — CRÉER UNE BIBLIOTHÈQUE ======================= -->
+<section class="ecran" id="ecran-1">
+ <div class="fenetre">
+  <div class="barre-systeme">
+   <span class="pastille"></span><span class="pastille"></span><span class="pastille"></span>
+   <span class="barre-systeme__titre">Liénothèque — administration</span>
+  </div>
+
+  <div class="shell">
+   <div class="marque"><img src="../ui-kit/assets/logo-horizontal-light.svg" alt="Liénothèque"></div>
+   <div class="ariane"><span>Accueil</span><span class="courant">Nouvelle bibliothèque</span></div>
+   <div class="shell__droite"><span class="lien">Annuler</span></div>
+  </div>
+
+  <div class="corps">
+   <div style="display:flex;align-items:center;justify-content:space-between;gap:32px">
+    <div class="etapes">
+     <span class="etape etape--faite"><span class="etape__rond"><svg class="icone icone--petite"><use href="#i-valide"/></svg></span>Nom</span>
+     <span class="etapes__trait"></span>
+     <span class="etape etape--courante"><span class="etape__rond">2</span>Contenu</span>
+     <span class="etapes__trait"></span>
+     <span class="etape"><span class="etape__rond">3</span>Rangement</span>
+     <span class="etapes__trait"></span>
+     <span class="etape"><span class="etape__rond">4</span>Accès</span>
+    </div>
+    <p class="discret">Étape 2 sur 4</p>
+   </div>
+
+   <div class="deux-colonnes deux-colonnes--centre" style="margin-top:8px">
+    <div class="colonne">
+     <h1>Que contiendra cette bibliothèque&nbsp;?</h1>
+     <p class="discret" style="margin-bottom:8px">Vous pourrez ajouter d’autres types plus tard, sans rien refaire.</p>
+
+     <div class="tuiles">
+      <div class="tuile">
+       <svg class="icone icone--grande"><use href="#i-livre"/></svg>
+       <div><p class="tuile__nom">Documents et livres</p><p class="discret">PDF, numérisations, textes</p></div>
+      </div>
+      <div class="tuile">
+       <svg class="icone icone--grande"><use href="#i-audio"/></svg>
+       <div><p class="tuile__nom">Audio</p><p class="discret">Disques, prises de son, dictées</p></div>
+      </div>
+      <div class="tuile">
+       <svg class="icone icone--grande"><use href="#i-video"/></svg>
+       <div><p class="tuile__nom">Vidéos</p><p class="discret">Séances filmées, captations</p></div>
+      </div>
+      <div class="tuile">
+       <svg class="icone icone--grande"><use href="#i-image"/></svg>
+       <div><p class="tuile__nom">Images</p><p class="discret">Planches, photographies, plans</p></div>
+      </div>
+      <div class="tuile tuile--choisie" style="grid-column:span 2">
+       <span class="tuile__marque"><svg class="icone icone--petite"><use href="#i-valide"/></svg></span>
+       <svg class="icone icone--grande"><use href="#i-grille"/></svg>
+       <div><p class="tuile__nom">Un mélange</p><p class="discret">Plusieurs types dans une même bibliothèque, reliés entre eux</p></div>
+      </div>
+     </div>
+
+     <p class="discret" style="display:flex;align-items:center;gap:8px;margin-top:8px">
+      <svg class="icone icone--petite"><use href="#i-info"/></svg>
+      Liénothèque vous proposera une organisation adaptée.
+     </p>
+    </div>
+
+    <div class="colonne">
+     <p class="section">Aperçu</p>
+     <div class="panneau" style="display:flex;flex-direction:column;gap:14px">
+      <div class="apercu__dos"><svg class="icone icone--grande"><use href="#i-livre"/></svg></div>
+      <div>
+       <h2>Méthode d’instrument</h2>
+       <p class="discret">Créée aujourd’hui · vous seul pour l’instant</p>
+      </div>
+      <div>
+       <div class="apercu__ligne"><span>Documents et livres</span><span class="discret">attendu</span></div>
+       <div class="apercu__ligne"><span>Audio</span><span class="discret">attendu</span></div>
+       <div class="apercu__ligne"><span>Vidéos</span><span class="discret">attendu</span></div>
+       <div class="apercu__ligne"><span>Images</span><span class="discret">attendu</span></div>
+      </div>
+      <p class="discret">Les pages et les pistes seront reliées : un élément mènera au bon moment de sa piste.</p>
+     </div>
+    </div>
+   </div>
+
+   <div class="pied">
+    <p class="discret">Rien n’est encore créé. Vous pourrez revenir en arrière à chaque étape.</p>
+    <div class="actions">
+     <button class="btn"><svg class="icone"><use href="#i-chevronGauche"/></svg>Retour</button>
+     <button class="btn btn--principal">Continuer<svg class="icone"><use href="#i-chevronDroite"/></svg></button>
+    </div>
+   </div>
+  </div>
+ </div>
+</section>
+
+<!-- ======================= ÉCRAN 2 — ORGANISATION ======================= -->
+<section class="ecran" id="ecran-2">
+ <div class="fenetre">
+  <div class="barre-systeme">
+   <span class="pastille"></span><span class="pastille"></span><span class="pastille"></span>
+   <span class="barre-systeme__titre">Liénothèque — administration</span>
+  </div>
+
+  <div class="shell">
+   <div class="marque"><img src="../ui-kit/assets/logo-horizontal-light.svg" alt="Liénothèque"></div>
+   <div class="ariane"><span>Accueil</span><span>Méthode d’instrument</span><span class="courant">Organisation</span></div>
+   <div class="shell__droite"><span class="lien">Aide</span></div>
+  </div>
+
+  <div class="corps">
+   <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:32px">
+    <div>
+     <h1>Organisation de Méthode d’instrument</h1>
+     <p class="discret" style="margin-top:6px">Trois façons de ranger vos éléments. Chacune se modifie, se renomme ou se retire.</p>
+    </div>
+    <div class="bandeau">
+     <svg class="icone icone--petite"><use href="#i-info"/></svg>
+     Proposé d’après vos fichiers · modifiable à tout moment
+    </div>
+   </div>
+
+   <div class="axes" style="margin-top:8px">
+
+    <div class="axe">
+     <div class="champ"><svg class="icone"><use href="#i-etiquette"/></svg><strong style="flex:1">Style</strong><svg class="icone icone--petite" style="color:var(--ln-text-secondary)"><use href="#i-crayon"/></svg></div>
+     <div>
+      <p class="section" style="margin-bottom:6px">Combien de valeurs par élément</p>
+      <div class="bascule">
+       <span class="bascule__choix bascule__choix--choisi">Une valeur</span>
+       <span class="bascule__choix">Plusieurs</span>
+       <span class="bascule__choix">Principale et secondaires</span>
+      </div>
+     </div>
+     <div>
+      <p class="section" style="margin-bottom:8px">Valeurs trouvées · 6</p>
+      <div class="axe__etiquettes">
+       <span class="etiquette">Funk</span>
+       <span class="etiquette">Disco</span>
+       <span class="etiquette">Jazz</span>
+       <span class="etiquette">Blues</span>
+       <span class="etiquette">Latin</span>
+       <span class="etiquette">Rock</span>
+       <span class="etiquette etiquette--ajout"><svg class="icone icone--petite"><use href="#i-plus"/></svg>Ajouter</span>
+      </div>
+     </div>
+    </div>
+
+    <div class="axe">
+     <div class="champ"><svg class="icone"><use href="#i-etiquette"/></svg><strong style="flex:1">Niveau</strong><svg class="icone icone--petite" style="color:var(--ln-text-secondary)"><use href="#i-crayon"/></svg></div>
+     <div>
+      <p class="section" style="margin-bottom:6px">Combien de valeurs par élément</p>
+      <div class="bascule">
+       <span class="bascule__choix bascule__choix--choisi">Une valeur</span>
+       <span class="bascule__choix">Plusieurs</span>
+       <span class="bascule__choix">Principale et secondaires</span>
+      </div>
+     </div>
+     <div>
+      <p class="section" style="margin-bottom:8px">Valeurs trouvées · 3</p>
+      <div class="axe__etiquettes">
+       <span class="etiquette">Débutant</span>
+       <span class="etiquette">Intermédiaire</span>
+       <span class="etiquette">Avancé</span>
+       <span class="etiquette etiquette--ajout"><svg class="icone icone--petite"><use href="#i-plus"/></svg>Ajouter</span>
+      </div>
+     </div>
+     <p class="discret">Ordonné du plus simple au plus difficile.</p>
+    </div>
+
+    <div class="axe">
+     <div class="champ"><svg class="icone"><use href="#i-etiquette"/></svg><strong style="flex:1">Technique</strong><svg class="icone icone--petite" style="color:var(--ln-text-secondary)"><use href="#i-crayon"/></svg></div>
+     <div>
+      <p class="section" style="margin-bottom:6px">Combien de valeurs par élément</p>
+      <div class="bascule">
+       <span class="bascule__choix">Une valeur</span>
+       <span class="bascule__choix bascule__choix--choisi">Plusieurs</span>
+       <span class="bascule__choix">Principale et secondaires</span>
+      </div>
+     </div>
+     <div>
+      <p class="section" style="margin-bottom:8px">Valeurs trouvées · 7</p>
+      <div class="axe__etiquettes">
+       <span class="etiquette">Doigté</span>
+       <span class="etiquette">Articulation</span>
+       <span class="etiquette">Rythme</span>
+       <span class="etiquette">Lecture</span>
+       <span class="etiquette">Harmonie</span>
+       <span class="etiquette">Improvisation</span>
+       <span class="etiquette">Posture</span>
+       <span class="etiquette etiquette--ajout"><svg class="icone icone--petite"><use href="#i-plus"/></svg>Ajouter</span>
+      </div>
+     </div>
+    </div>
+   </div>
+
+   <div class="axes">
+    <div class="axe axe--ajout" style="grid-column:span 3;min-height:76px;flex-direction:row;gap:10px">
+     <svg class="icone"><use href="#i-plus"/></svg>
+     <span style="font-weight:500">Ajouter une façon de ranger</span>
+     <span class="discret" style="color:var(--ln-text-secondary)">— par exemple une date, un auteur ou un lieu</span>
+    </div>
+   </div>
+
+   <div>
+    <p class="section" style="margin-bottom:10px">Ce que cela donnera · trois éléments de votre bibliothèque</p>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+
+     <div class="panneau" style="display:flex;gap:14px;align-items:flex-start">
+      <svg class="icone icone--grande" style="margin-top:2px"><use href="#i-livre"/></svg>
+      <div style="min-width:0">
+       <p style="font-weight:600;margin:0">Élément 400</p>
+       <p class="discret" style="margin:2px 0 10px">Page 127 · relié à la piste 40</p>
+       <div class="axe__etiquettes">
+        <span class="etiquette">Funk</span><span class="etiquette">Débutant</span>
+        <span class="etiquette">Articulation</span><span class="etiquette">Rythme</span>
+       </div>
+      </div>
+     </div>
+
+     <div class="panneau" style="display:flex;gap:14px;align-items:flex-start">
+      <svg class="icone icone--grande" style="margin-top:2px"><use href="#i-livre"/></svg>
+      <div style="min-width:0">
+       <p style="font-weight:600;margin:0">Élément 512</p>
+       <p class="discret" style="margin:2px 0 10px">Page 158 · relié à la piste 52</p>
+       <div class="axe__etiquettes">
+        <span class="etiquette">Disco</span><span class="etiquette">Intermédiaire</span>
+        <span class="etiquette">Doigté</span>
+       </div>
+      </div>
+     </div>
+
+     <div class="panneau" style="display:flex;gap:14px;align-items:flex-start">
+      <svg class="icone icone--grande" style="margin-top:2px"><use href="#i-livre"/></svg>
+      <div style="min-width:0">
+       <p style="font-weight:600;margin:0">Élément 844</p>
+       <p class="discret" style="margin:2px 0 10px">Page 227 · aucune piste</p>
+       <div class="axe__etiquettes">
+        <span class="etiquette">Jazz</span><span class="etiquette">Avancé</span>
+        <span class="etiquette">Improvisation</span><span class="etiquette">Harmonie</span>
+       </div>
+      </div>
+     </div>
+
+    </div>
+   </div>
+
+   <div class="pied">
+    <p class="discret">Vos originaux ne sont jamais modifiés. L’organisation se change à tout moment, même après l’import.</p>
+    <div class="actions">
+     <span class="lien">Revenir aux propositions</span>
+     <button class="btn btn--principal"><svg class="icone"><use href="#i-valide"/></svg>Valider l’organisation</button>
+    </div>
+   </div>
+  </div>
+ </div>
+</section>
+
+<!-- ======================= ÉCRAN 3 — DÉPÔT ET TRAITEMENT ======================= -->
+<section class="ecran" id="ecran-3">
+ <div class="fenetre">
+  <div class="barre-systeme">
+   <span class="pastille"></span><span class="pastille"></span><span class="pastille"></span>
+   <span class="barre-systeme__titre">Liénothèque — administration</span>
+  </div>
+
+  <div class="shell">
+   <div class="marque"><img src="../ui-kit/assets/logo-horizontal-light.svg" alt="Liénothèque"></div>
+   <div class="ariane"><span>Accueil</span><span>Méthode d’instrument</span><span class="courant">Ajouter des fichiers</span></div>
+   <div class="shell__droite"><span class="badge"><svg class="icone icone--petite"><use href="#i-horloge"/></svg>3 en cours · 1 à vérifier</span></div>
+  </div>
+
+  <div class="corps">
+   <div class="depot">
+    <svg class="icone icone--grande"><use href="#i-depot"/></svg>
+    <p style="font-weight:600;margin:0">Déposez vos fichiers ici</p>
+    <p class="discret" style="color:var(--ln-text-secondary)">Documents, audio, vidéos et images — ensemble ou séparément</p>
+    <button class="btn btn--principal" style="margin-top:4px">Parcourir mes fichiers</button>
+   </div>
+
+   <div style="display:flex;align-items:baseline;justify-content:space-between">
+    <p class="section">En traitement · 6 fichiers</p>
+    <p class="discret">Vous pouvez fermer cette fenêtre : le traitement continue.</p>
+   </div>
+
+   <div class="file">
+
+    <div class="ligne-fichier">
+     <svg class="icone icone--grande"><use href="#i-livre"/></svg>
+     <div><p class="ligne-fichier__nom">Méthode d’instrument — volume 1.pdf</p><p class="discret">286 pages</p></div>
+     <span class="etat"><svg class="icone icone--petite"><use href="#i-document"/></svg>Lecture des pages</span>
+     <div class="ligne-fichier__fil">
+      <div class="fil"><div class="fil__trait" style="width:68%"></div></div>
+      <div class="ligne-fichier__chiffre"><span>68 %</span><span>4 min restantes</span></div>
+     </div>
+     <span class="discret" style="text-align:right">194 / 286</span>
+    </div>
+
+    <div class="ligne-fichier">
+     <svg class="icone icone--grande"><use href="#i-audio"/></svg>
+     <div><p class="ligne-fichier__nom">Disque 1 — 24 pistes</p><p class="discret">1 h 12 min</p></div>
+     <span class="etat"><svg class="icone icone--petite"><use href="#i-lien"/></svg>Liens avec les pistes</span>
+     <div class="ligne-fichier__fil">
+      <div class="fil"><div class="fil__trait" style="width:41%"></div></div>
+      <div class="ligne-fichier__chiffre"><span>41 %</span><span>2 min restantes</span></div>
+     </div>
+     <span class="discret" style="text-align:right">10 / 24</span>
+    </div>
+
+    <div class="ligne-fichier">
+     <svg class="icone icone--grande"><use href="#i-document"/></svg>
+     <div><p class="ligne-fichier__nom">Archives 1978-1984.pdf</p><p class="discret">412 pages</p></div>
+     <span class="etat"><svg class="icone icone--petite"><use href="#i-document"/></svg>Lecture des pages</span>
+     <div class="ligne-fichier__fil">
+      <div class="fil"><div class="fil__trait" style="width:12%"></div></div>
+      <div class="ligne-fichier__chiffre"><span>12 %</span><span>9 min restantes</span></div>
+     </div>
+     <span class="discret" style="text-align:right">49 / 412</span>
+    </div>
+
+    <div class="ligne-fichier">
+     <svg class="icone icone--grande" style="color:var(--ln-text-secondary)"><use href="#i-document"/></svg>
+     <div><p class="ligne-fichier__nom" style="color:var(--ln-text-secondary)">Recueil de planches.pdf</p><p class="discret">158 pages</p></div>
+     <span class="etat"><svg class="icone icone--petite"><use href="#i-pause"/></svg>En pause</span>
+     <div class="ligne-fichier__fil">
+      <div class="fil"><div class="fil__trait" style="width:55%;background:var(--ln-progress-track);outline-color:var(--ln-text-secondary)"></div></div>
+      <div class="ligne-fichier__chiffre"><span>55 %</span><span>arrêt demandé</span></div>
+     </div>
+     <button class="btn btn--compact" style="justify-self:end"><svg class="icone icone--petite"><use href="#i-lecture"/></svg>Reprendre</button>
+    </div>
+
+    <div class="ligne-fichier ligne-fichier--alerte">
+     <svg class="icone icone--grande"><use href="#i-alerte"/></svg>
+     <div><p class="ligne-fichier__nom">Livre d’exercices.pdf</p><p class="discret" style="color:var(--ln-warning-text)">Le reste du fichier est bien traité</p></div>
+     <span class="etat" style="color:var(--ln-warning-text);grid-column:span 2"><svg class="icone icone--petite"><use href="#i-alerte"/></svg>2 pages illisibles — à vérifier</span>
+     <span class="lien" style="text-align:right">Ouvrir</span>
+    </div>
+
+    <div class="ligne-fichier">
+     <svg class="icone icone--grande"><use href="#i-image"/></svg>
+     <div><p class="ligne-fichier__nom">Planches illustrées.zip</p><p class="discret">96 images</p></div>
+     <span class="etat"><svg class="icone icone--petite"><use href="#i-valide"/></svg>Prêt</span>
+     <div class="ligne-fichier__fil">
+      <div class="fil"><div class="fil__trait" style="width:100%"></div></div>
+      <div class="ligne-fichier__chiffre"><span>100 %</span><span>terminé il y a 2 min</span></div>
+     </div>
+     <span class="discret" style="text-align:right">96 / 96</span>
+    </div>
+
+   </div>
+
+   <p class="discret">Vos originaux ne sont jamais modifiés.</p>
+  </div>
+ </div>
+</section>
+
+<!-- ======================= ÉCRAN 4 — MANIÈRE DE LIRE ======================= -->
+<section class="ecran" id="ecran-4">
+ <div class="fenetre">
+  <div class="barre-systeme">
+   <span class="pastille"></span><span class="pastille"></span><span class="pastille"></span>
+   <span class="barre-systeme__titre">Liénothèque — administration</span>
+  </div>
+
+  <div class="shell">
+   <div class="marque"><img src="../ui-kit/assets/logo-horizontal-light.svg" alt="Liénothèque"></div>
+   <div class="ariane"><span>Accueil</span><span>Méthode d’instrument</span><span class="courant">Manière de lire</span></div>
+   <div class="shell__droite"><span class="discret">Page 127 sur 286</span><span class="lien">Changer de page</span></div>
+  </div>
+
+  <div class="corps" style="padding-bottom:24px">
+   <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:32px">
+    <div>
+     <h1>Montrez à Liénothèque où regarder</h1>
+     <p class="discret" style="margin-top:6px">Tracez une zone sur la page : elle sera cherchée au même endroit sur toutes les autres.</p>
+    </div>
+    <div class="zoom">
+     <button><svg class="icone"><use href="#i-moins"/></svg></button>
+     <span style="font-size:13px;min-width:48px;text-align:center">100 %</span>
+     <button><svg class="icone"><use href="#i-plus"/></svg></button>
+     <button><svg class="icone"><use href="#i-pleinEcran"/></svg></button>
+    </div>
+   </div>
+
+   <div class="deux-colonnes" style="grid-template-columns:1fr 440px">
+
+    <!-- La page numérisée, inventée, et la palette qui sert à la marquer -->
+    <div style="display:grid;grid-template-rows:1fr auto;gap:14px;min-height:0">
+     <div class="page-scan">
+     <svg viewBox="0 0 760 560" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" style="display:block">
+      <g fill="#62666B" font-family="Inter" font-size="11">
+       <text x="660" y="34" font-size="13" fill="#202327">127</text>
+       <text x="56" y="34">Méthode d’instrument · volume 1</text>
+      </g>
+      <g stroke="#D8D0C5" stroke-width="1"><line x1="56" y1="46" x2="704" y2="46"/></g>
+
+      <!-- trois éléments : numéro en marge, pastille à côté, contenu -->
+      <g font-family="Inter">
+       <text x="60" y="104" font-size="19" font-weight="700" fill="#202327">400</text>
+       <rect x="104" y="86" width="46" height="22" rx="3" fill="none" stroke="#202327" stroke-width="1.2"/>
+       <text x="110" y="102" font-size="12" fill="#202327">40</text>
+       <text x="172" y="103" font-size="12" fill="#62666B">Exercice d’articulation — tempo lent</text>
+      </g>
+      <g stroke="#202327" stroke-width="0.9" opacity="0.5">
+       <line x1="60" y1="126" x2="704" y2="126"/><line x1="60" y1="140" x2="704" y2="140"/>
+       <line x1="60" y1="154" x2="704" y2="154"/><line x1="60" y1="168" x2="704" y2="168"/>
+       <line x1="60" y1="182" x2="704" y2="182"/>
+      </g>
+      <g stroke="#202327" stroke-width="1.6" opacity="0.75">
+       <path d="M90 133h7M112 147h9M150 161h6M196 140h8M240 154h10M286 168h7M330 133h9M372 161h6M420 147h8M466 175h7M510 140h9M556 154h6M600 168h8M644 147h7"/>
+      </g>
+
+      <g font-family="Inter">
+       <text x="60" y="248" font-size="19" font-weight="700" fill="#202327">401</text>
+       <rect x="104" y="230" width="46" height="22" rx="3" fill="none" stroke="#202327" stroke-width="1.2"/>
+       <text x="110" y="246" font-size="12" fill="#202327">41</text>
+       <text x="172" y="247" font-size="12" fill="#62666B">Même exercice, main gauche seule</text>
+      </g>
+      <g stroke="#202327" stroke-width="0.9" opacity="0.5">
+       <line x1="60" y1="270" x2="704" y2="270"/><line x1="60" y1="284" x2="704" y2="284"/>
+       <line x1="60" y1="298" x2="704" y2="298"/><line x1="60" y1="312" x2="704" y2="312"/>
+       <line x1="60" y1="326" x2="704" y2="326"/>
+      </g>
+      <g stroke="#202327" stroke-width="1.6" opacity="0.75">
+       <path d="M96 291h7M134 305h9M178 277h6M224 319h8M268 291h10M312 305h7M356 277h9M398 319h6M446 291h8M492 305h7M536 277h9M580 319h6M626 291h8M668 305h7"/>
+      </g>
+
+      <g font-family="Inter">
+       <text x="60" y="392" font-size="19" font-weight="700" fill="#202327">402</text>
+       <rect x="104" y="374" width="46" height="22" rx="3" fill="none" stroke="#202327" stroke-width="1.2"/>
+       <text x="110" y="390" font-size="12" fill="#202327">42</text>
+       <text x="172" y="391" font-size="12" fill="#62666B">Variante rythmique</text>
+      </g>
+      <g stroke="#202327" stroke-width="0.9" opacity="0.5">
+       <line x1="60" y1="414" x2="704" y2="414"/><line x1="60" y1="428" x2="704" y2="428"/>
+       <line x1="60" y1="442" x2="704" y2="442"/><line x1="60" y1="456" x2="704" y2="456"/>
+       <line x1="60" y1="470" x2="704" y2="470"/>
+      </g>
+      <g stroke="#202327" stroke-width="1.6" opacity="0.75">
+       <path d="M92 435h7M130 449h9M174 421h6M220 463h8M264 435h10M308 449h7M352 421h9M394 463h6M442 435h8M488 449h7M532 421h9M576 463h6M622 435h8M664 449h7"/>
+      </g>
+
+      <g fill="#62666B" font-family="Inter" font-size="10">
+       <text x="356" y="528">127</text>
+      </g>
+     </svg>
+
+     <!-- Zone 1 : numéro de page -->
+     <div class="zone" style="top:2.9%;left:85.3%;width:6.9%;height:4.6%;border-color:var(--ln-action-background);background:color-mix(in srgb, var(--ln-action-background) 10%, transparent);color:var(--ln-action-background)">
+      <span class="zone__nom zone__nom--bas zone__nom--droite" style="background:var(--ln-action-background)">
+       <svg class="icone icone--petite" style="width:11px;height:11px"><use href="#i-document"/></svg>Numéro de page</span>
+      <span class="poignee poignee--no"></span><span class="poignee poignee--ne"></span>
+      <span class="poignee poignee--so"></span><span class="poignee poignee--se"></span>
+     </div>
+
+     <!-- Zone 2 : numéro d'élément, dans la marge -->
+     <div class="zone" style="top:13.9%;left:6.8%;width:6.3%;height:58.2%;border-color:var(--ln-text-primary);background:color-mix(in srgb, var(--ln-text-primary) 8%, transparent);color:var(--ln-text-primary)">
+      <span class="zone__nom" style="background:var(--ln-text-primary)">
+       <svg class="icone icone--petite" style="width:11px;height:11px"><use href="#i-liste"/></svg>Numéro d’élément</span>
+      <span class="poignee poignee--no"></span><span class="poignee poignee--ne"></span>
+      <span class="poignee poignee--so"></span><span class="poignee poignee--se"></span>
+     </div>
+
+     <!-- Zone 3 : repère de piste, à côté du numéro -->
+     <div class="zone" style="top:13.9%;left:13.4%;width:7.2%;height:58.2%;border-color:var(--ln-thread);background:color-mix(in srgb, var(--ln-thread) 16%, transparent);color:var(--ln-thread)">
+      <span class="zone__nom zone__nom--bas" style="background:var(--ln-thread);color:var(--ln-text-primary)">
+       <svg class="icone icone--petite" style="width:11px;height:11px"><use href="#i-audio"/></svg>Repère de piste</span>
+      <span class="poignee poignee--no"></span><span class="poignee poignee--ne"></span>
+      <span class="poignee poignee--so"></span><span class="poignee poignee--se"></span>
+     </div>
+     </div>
+
+     <!-- La palette. Les types proposés ne sont pas écrits dans l'application : ils viennent du
+          schéma de la bibliothèque, comme tout le vocabulaire du domaine. -->
+     <div class="palette">
+      <span class="section">Ajouter une zone</span>
+      <div class="palette__choix">
+       <span class="etiquette etiquette--ajout"><svg class="icone icone--petite"><use href="#i-plus"/></svg>Titre d’élément</span>
+       <span class="etiquette etiquette--ajout"><svg class="icone icone--petite"><use href="#i-plus"/></svg>Durée</span>
+       <span class="etiquette etiquette--ajout"><svg class="icone icone--petite"><use href="#i-plus"/></svg>Numéro de partie</span>
+       <span class="discret" style="margin-inline-start:4px">types proposés par le schéma de la bibliothèque</span>
+      </div>
+
+      <span class="section">Zones tracées</span>
+      <div class="palette__choix">
+       <span class="zone-tracee">
+        <span class="zone-tracee__pastille" style="background:var(--ln-action-background)"></span>Numéro de page
+        <button class="zone-tracee__action"><svg class="icone icone--petite"><use href="#i-crayon"/></svg></button>
+        <button class="zone-tracee__action"><svg class="icone icone--petite"><use href="#i-fermer"/></svg></button>
+       </span>
+       <span class="zone-tracee">
+        <span class="zone-tracee__pastille" style="background:var(--ln-text-primary)"></span>Numéro d’élément
+        <button class="zone-tracee__action"><svg class="icone icone--petite"><use href="#i-crayon"/></svg></button>
+        <button class="zone-tracee__action"><svg class="icone icone--petite"><use href="#i-fermer"/></svg></button>
+       </span>
+       <span class="zone-tracee">
+        <span class="zone-tracee__pastille" style="background:var(--ln-thread)"></span>Repère de piste
+        <button class="zone-tracee__action"><svg class="icone icone--petite"><use href="#i-crayon"/></svg></button>
+        <button class="zone-tracee__action"><svg class="icone icone--petite"><use href="#i-fermer"/></svg></button>
+       </span>
+      </div>
+     </div>
+    </div>
+
+    <!-- Panneau de droite -->
+    <div class="colonne">
+     <div>
+      <h2>Ce que Liénothèque va lire</h2>
+      <p class="discret" style="margin-top:4px">Mis à jour à chaque fois que vous déplacez une zone.</p>
+     </div>
+
+     <div class="vignette-page">
+      <div class="vignette-page__image">
+       <svg viewBox="0 0 62 80" width="100%" height="100%"><g stroke="#D8D0C5" stroke-width="1"><path d="M8 14h46M8 24h46M8 30h46M8 36h46M8 48h46M8 54h46M8 60h46"/></g><g fill="#202327" font-family="Inter" font-size="6"><text x="8" y="9">127</text></g><rect x="6" y="18" width="7" height="48" fill="#202327" opacity="0.1"/><rect x="14" y="18" width="7" height="48" fill="#B88B62" opacity="0.3"/></svg>
+      </div>
+      <div>
+       <p style="font-weight:600;margin:0">Page 127</p>
+       <p class="discret" style="margin-top:2px">Éléments 400, 401, 402</p>
+       <p class="discret">Pistes 40, 41, 42</p>
+       <span class="etat" style="color:var(--ln-action-background);margin-top:4px"><svg class="icone icone--petite"><use href="#i-valide"/></svg>Trois sur trois</span>
+      </div>
+     </div>
+
+     <div class="vignette-page">
+      <div class="vignette-page__image">
+       <svg viewBox="0 0 62 80" width="100%" height="100%"><g stroke="#D8D0C5" stroke-width="1"><path d="M8 14h46M8 24h46M8 30h46M8 36h46M8 48h46M8 54h46M8 60h46"/></g><g fill="#202327" font-family="Inter" font-size="6"><text x="8" y="9">128</text></g><rect x="6" y="18" width="7" height="48" fill="#202327" opacity="0.1"/><rect x="14" y="18" width="7" height="48" fill="#B88B62" opacity="0.3"/></svg>
+      </div>
+      <div>
+       <p style="font-weight:600;margin:0">Page 128</p>
+       <p class="discret" style="margin-top:2px">Éléments 403, 404</p>
+       <p class="discret">Pistes 43, 44</p>
+       <span class="etat" style="color:var(--ln-action-background);margin-top:4px"><svg class="icone icone--petite"><use href="#i-valide"/></svg>Deux sur deux</span>
+      </div>
+     </div>
+
+     <div class="vignette-page">
+      <div class="vignette-page__image">
+       <svg viewBox="0 0 62 80" width="100%" height="100%"><g stroke="#D8D0C5" stroke-width="1"><path d="M8 14h46M8 24h46M8 30h46M8 36h46M8 48h46M8 54h46M8 60h46"/></g><g fill="#202327" font-family="Inter" font-size="6"><text x="8" y="9">129</text></g><rect x="6" y="18" width="7" height="48" fill="#202327" opacity="0.1"/><rect x="14" y="18" width="7" height="48" fill="#B88B62" opacity="0.3"/></svg>
+      </div>
+      <div>
+       <p style="font-weight:600;margin:0">Page 129</p>
+       <p class="discret" style="margin-top:2px">Éléments 405, 406, 407</p>
+       <p class="discret">Pistes 45, 46 — un repère non lu</p>
+       <span class="etat" style="color:var(--ln-warning-text);margin-top:4px"><svg class="icone icone--petite"><use href="#i-alerte"/></svg>Un élément à vérifier</span>
+      </div>
+     </div>
+
+     <div class="bandeau">
+      <svg class="icone icone--petite"><use href="#i-info"/></svg>
+      Une zone peut rester vide sur certaines pages : rien ne sera inventé.
+     </div>
+    </div>
+   </div>
+
+   <div class="pied">
+    <p class="discret">Les autres pages suivront le même tracé</p>
+    <div class="actions">
+     <button class="btn">Enregistrer la manière de lire</button>
+     <button class="btn btn--principal"><svg class="icone"><use href="#i-lecture"/></svg>Essayer sur 10 pages</button>
+    </div>
+   </div>
+  </div>
+ </div>
+</section>
+
+<!-- ======================= ÉCRAN 5 — RECHERCHE ======================= -->
+<section class="ecran" id="ecran-5">
+ <div class="fenetre" style="position:relative">
+  <div class="barre-systeme">
+   <span class="pastille"></span><span class="pastille"></span><span class="pastille"></span>
+   <span class="barre-systeme__titre">Liénothèque — administration</span>
+  </div>
+
+  <div class="shell">
+   <div class="marque"><img src="../ui-kit/assets/logo-horizontal-light.svg" alt="Liénothèque"></div>
+   <div class="ariane"><span class="courant">Accueil</span></div>
+   <div class="shell__droite"><span class="badge"><svg class="icone icone--petite"><use href="#i-recherche"/></svg>Rechercher ⌘K</span></div>
+  </div>
+
+  <!-- L'accueil, estompé derrière -->
+  <div class="corps">
+   <p style="font:500 30px var(--ln-font-brand);margin:0">Bonjour</p>
+   <p class="section">Vos bibliothèques</p>
+   <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px">
+    <div class="carte-bibliotheque"><div class="carte-bibliotheque__dos" style="background:var(--ln-collection-method)">Méthode d’instrument</div><p class="discret">982 éléments · 831 reliés</p></div>
+    <div class="carte-bibliotheque"><div class="carte-bibliotheque__dos" style="background:var(--ln-collection-research)">Archives 1978-1984</div><p class="discret">412 pages · 96 reliées</p></div>
+    <div class="carte-bibliotheque"><div class="carte-bibliotheque__dos" style="background:var(--ln-collection-video)">Séances filmées</div><p class="discret">48 vidéos · 48 reliées</p></div>
+    <div class="carte-bibliotheque"><div class="carte-bibliotheque__dos" style="background:var(--ln-collection-photos)">Planches illustrées</div><p class="discret">96 images · 12 reliées</p></div>
+   </div>
+   <p class="section">Reprendre</p>
+   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px">
+    <div class="panneau"><p style="font-weight:600;margin:0">Élément 400</p><p class="discret">Méthode d’instrument · page 127</p></div>
+    <div class="panneau"><p style="font-weight:600;margin:0">Piste 12</p><p class="discret">Méthode d’instrument · 3 min 04</p></div>
+    <div class="panneau"><p style="font-weight:600;margin:0">Planche 44</p><p class="discret">Planches illustrées</p></div>
+   </div>
+   <p class="section">Ajouté cette semaine</p>
+   <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px">
+    <div class="panneau"><p style="font-weight:600;margin:0">Volume 2</p><p class="discret">Méthode d’instrument · 214 pages</p></div>
+    <div class="panneau"><p style="font-weight:600;margin:0">Disque 2</p><p class="discret">Méthode d’instrument · 18 pistes</p></div>
+    <div class="panneau"><p style="font-weight:600;margin:0">Dossier 1981</p><p class="discret">Archives 1978-1984 · 96 pages</p></div>
+    <div class="panneau"><p style="font-weight:600;margin:0">Séance 12</p><p class="discret">Séances filmées · 47 min</p></div>
+   </div>
+  </div>
+
+  <!-- La recherche -->
+  <div class="voile">
+   <div class="recherche">
+    <div class="recherche__champ">
+     <svg class="icone icone--grande" style="color:var(--ln-text-secondary)"><use href="#i-recherche"/></svg>
+     <span style="flex:1">articulation détachée<span style="display:inline-block;width:1.5px;height:21px;background:var(--ln-action-background);vertical-align:-4px;margin-left:2px"></span></span>
+     <span class="badge">Toutes les bibliothèques</span>
+     <svg class="icone" style="color:var(--ln-text-secondary)"><use href="#i-fermer"/></svg>
+    </div>
+
+    <div class="recherche__corps">
+     <div class="recherche__liste">
+
+      <p class="section" style="padding:4px 12px 6px">Éléments · 3</p>
+      <div class="resultat resultat--choisi">
+       <svg class="icone"><use href="#i-livre"/></svg>
+       <div>
+        <p class="resultat__titre">Élément 400 — exercice d’<mark>articulation</mark></p>
+        <p class="resultat__source">Méthode d’instrument · page 127</p>
+        <p class="resultat__extrait">« Travailler l’<mark>articulation détachée</mark> au métronome, tempo lent. »</p>
+       </div>
+       <span class="discret">page 127</span>
+      </div>
+      <div class="resultat">
+       <svg class="icone"><use href="#i-livre"/></svg>
+       <div>
+        <p class="resultat__titre">Élément 512 — reprise de l’<mark>articulation</mark></p>
+        <p class="resultat__source">Méthode d’instrument · page 158</p>
+        <p class="resultat__extrait">« L’<mark>articulation détachée</mark> se retrouve ici sur deux cordes. »</p>
+       </div>
+       <span class="discret">page 158</span>
+      </div>
+
+      <p class="section" style="padding:12px 12px 6px">Pages · 2</p>
+      <div class="resultat">
+       <svg class="icone"><use href="#i-document"/></svg>
+       <div>
+        <p class="resultat__titre">Introduction du chapitre 4</p>
+        <p class="resultat__source">Méthode d’instrument · page 124</p>
+        <p class="resultat__extrait">« …avant d’aborder l’<mark>articulation détachée</mark>, assurez-vous que… »</p>
+       </div>
+       <span class="discret">page 124</span>
+      </div>
+
+      <p class="section" style="padding:12px 12px 6px">Pistes · 2</p>
+      <div class="resultat">
+       <svg class="icone"><use href="#i-audio"/></svg>
+       <div>
+        <p class="resultat__titre">Piste 40 — démonstration</p>
+        <p class="resultat__source">Méthode d’instrument · disque 1</p>
+        <p class="resultat__extrait">« Voici l’<mark>articulation détachée</mark>, d’abord lentement. »</p>
+       </div>
+       <span class="discret">0 min 42</span>
+      </div>
+      <p class="section" style="padding:12px 12px 6px">Actions · 2</p>
+      <div class="resultat">
+       <svg class="icone"><use href="#i-etiquette"/></svg>
+       <div><p class="resultat__titre">Filtrer la méthode sur « Articulation »</p><p class="resultat__source">Technique · 46 éléments</p></div>
+       <span class="touche">↵</span>
+      </div>
+      <div class="resultat">
+       <svg class="icone"><use href="#i-reglages"/></svg>
+       <div><p class="resultat__titre">Revoir la manière de lire</p><p class="resultat__source">Méthode d’instrument</p></div>
+       <span class="touche">↵</span>
+      </div>
+
+     </div>
+
+     <div class="recherche__apercu">
+      <p class="section">Aperçu</p>
+      <div style="flex:1;border:1px solid var(--ln-border-decorative);border-radius:var(--ln-radius);background:var(--ln-print-background);overflow:hidden">
+       <svg viewBox="0 0 352 404" width="100%" height="100%">
+        <g fill="#62666B" font-family="Inter" font-size="7"><text x="310" y="20">127</text><text x="24" y="20">Méthode d’instrument</text></g>
+        <line x1="24" y1="27" x2="328" y2="27" stroke="#D8D0C5"/>
+        <g font-family="Inter"><text x="26" y="58" font-size="12" font-weight="700" fill="#202327">400</text>
+         <rect x="56" y="46" width="26" height="14" rx="2" fill="none" stroke="#202327" stroke-width="0.9"/>
+         <text x="60" y="57" font-size="8" fill="#202327">40</text></g>
+        <rect x="92" y="44" width="186" height="17" rx="3" fill="#F3E1C6" stroke="#875638" stroke-width="1.2"/>
+        <text x="98" y="56" font-family="Inter" font-size="8.5" fill="#202327">exercice d’articulation détachée</text>
+        <g stroke="#202327" stroke-width="0.7" opacity="0.45"><path d="M26 76h302M26 88h302M26 100h302M26 112h302M26 124h302"/></g>
+        <g stroke="#202327" stroke-width="1.2" opacity="0.7"><path d="M48 82h5M78 94h6M112 70h4M148 106h6M186 82h7M222 94h5M258 70h6M296 118h5"/></g>
+        <g font-family="Inter"><text x="26" y="166" font-size="12" font-weight="700" fill="#202327">401</text>
+         <rect x="56" y="154" width="26" height="14" rx="2" fill="none" stroke="#202327" stroke-width="0.9"/>
+         <text x="60" y="165" font-size="8" fill="#202327">41</text></g>
+        <g stroke="#202327" stroke-width="0.7" opacity="0.45"><path d="M26 184h302M26 196h302M26 208h302M26 220h302M26 232h302"/></g>
+        <g stroke="#202327" stroke-width="1.2" opacity="0.7"><path d="M54 190h5M88 202h6M124 214h4M162 190h6M198 226h7M236 202h5M272 214h6M306 190h5"/></g>
+        <g font-family="Inter"><text x="26" y="274" font-size="12" font-weight="700" fill="#202327">402</text>
+         <rect x="56" y="262" width="26" height="14" rx="2" fill="none" stroke="#202327" stroke-width="0.9"/>
+         <text x="60" y="273" font-size="8" fill="#202327">42</text></g>
+        <g stroke="#202327" stroke-width="0.7" opacity="0.45"><path d="M26 292h302M26 304h302M26 316h302M26 328h302M26 340h302"/></g>
+        <g stroke="#202327" stroke-width="1.2" opacity="0.7"><path d="M50 298h5M86 310h6M122 322h4M158 298h6M196 334h7M232 310h5M268 322h6M304 298h5"/></g>
+        <g fill="#62666B" font-family="Inter" font-size="7"><text x="170" y="384">127</text></g>
+       </svg>
+      </div>
+      <div>
+       <p style="font-weight:600;margin:0">Élément 400 · page 127</p>
+       <p class="discret" style="margin-top:2px">Relié à la piste 40, à partir de 0 min 42</p>
+      </div>
+      <div class="actions">
+       <button class="btn btn--compact"><svg class="icone icone--petite"><use href="#i-lecture"/></svg>Écouter</button>
+       <button class="btn btn--compact"><svg class="icone icone--petite"><use href="#i-cadre"/></svg>Ouvrir la page</button>
+      </div>
+     </div>
+    </div>
+
+    <div class="recherche__pied">
+     <span><span class="touche">↑</span> <span class="touche">↓</span> parcourir</span>
+     <span><span class="touche">↵</span> ouvrir</span>
+     <span><span class="touche">⌘</span><span class="touche">↵</span> écouter</span>
+     <span><span class="touche">⇥</span> changer de groupe</span>
+     <span style="margin-left:auto"><span class="touche">échap</span> fermer</span>
+    </div>
+   </div>
+  </div>
+ </div>
+</section>
+
+</body>
+</html>

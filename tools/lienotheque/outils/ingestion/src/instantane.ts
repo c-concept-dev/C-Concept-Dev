@@ -23,6 +23,10 @@ export type Entree = {
   readonly schema: SchemaBibliotheque;
   readonly mots: MotsBibliotheque;
   readonly lignes: readonly LigneInterpretee[];
+  /** Les numéros de page que la numérotation donne pour sautés, tels que l'interprète les a
+   *  relevés. Ils viennent de lui et de personne d'autre : une page sans élément n'est pas une
+   *  page absente, et les déduire ici une seconde fois, c'est se donner deux vérités. */
+  readonly pagesAbsentes: readonly number[];
   readonly association: Association;
   readonly medias: readonly MediaIngere[];
   readonly seuil: number;
@@ -38,9 +42,21 @@ export type Entree = {
 
 /** La phrase qui explique un lien, en français, construite une fois pour toutes (ANC-02). */
 export function phraseDuLien(ligne: LigneInterpretee, mots: MotsBibliotheque): string {
+  // Une relecture qui n'a pas abouti passe avant la provenance : c'est elle qu'il faut dire, et
+  // c'est la raison pour laquelle l'élément attend un œil.
+  if (ligne.relecture === "sans_majorite")
+    return `Repère relu deux fois sur des images différentes, sans que deux lectures s'accordent`;
+  if (ligne.relecture === "non_corroboree")
+    return `Repère relu sur l'image, mais la suite des repères alentour ne le confirme pas`;
+
   switch (ligne.sourcePiste) {
     case "pastille":
       return `Repère « ${mots.piste.un} ${ligne.piste} » lu à côté du numéro`;
+    case "vision":
+      // Sans jargon (règle 8) : on dit ce qui s'est passé, pas comment. Et on dit les deux temps,
+      // parce que ANC-02 demande que la corroboration se voie — le numéro ne vient pas d'un seul
+      // regard, il vient d'un regard que la suite a confirmé.
+      return `Repère relu sur l'image, et confirmé par la suite des repères alentour`;
     case "numero_element":
       return `${mots.piste.un[0]!.toUpperCase()}${mots.piste.un.slice(1)} et numéro coïncident dans ce document`;
     case "suite":
@@ -50,26 +66,11 @@ export function phraseDuLien(ligne: LigneInterpretee, mots: MotsBibliotheque): s
   }
 }
 
-/** Suites de nombres consécutifs manquants dans une liste triée.
- *
- *  Un lot sauté se lit mieux d'un bloc : « pages 30 et 31 » plutôt que deux fiches. Et sur un
- *  livre de cinq cents pages, un trou de quarante pages ne doit pas remplir la file de quarante
- *  cartes identiques. */
-export function trous(presents: readonly number[]): { readonly debut: number; readonly fin: number }[] {
-  const tries = [...new Set(presents)].sort((a, b) => a - b);
-  const sortie: { debut: number; fin: number }[] = [];
-  for (let rang = 1; rang < tries.length; rang += 1) {
-    const avant = tries[rang - 1]!;
-    const apres = tries[rang]!;
-    if (apres - avant > 1) sortie.push({ debut: avant + 1, fin: apres - 1 });
-  }
-  return sortie;
-}
-
 /** Suites de nombres consécutifs dans une liste.
  *
- *  L'envers de `trous`. Six médias à la suite que personne ne réclame, c'est un seul fait : les
- *  présenter en six fiches identiques, c'est six fois le même geste pour la même chose. */
+ *  Six médias à la suite que personne ne réclame, c'est un seul fait : les présenter en six fiches
+ *  identiques, c'est six fois le même geste pour la même chose. Et sur un livre de cinq cents
+ *  pages, un lot de quarante pages sauté ne doit pas remplir la file de quarante cartes. */
 export function suites(nombres: readonly number[]): { readonly debut: number; readonly fin: number }[] {
   const tries = [...new Set(nombres)].sort((a, b) => a - b);
   const sortie: { debut: number; fin: number }[] = [];
@@ -107,9 +108,15 @@ export function valeursDePage(
   return valeurs;
 }
 
-/** Ce qui met un cas en attente, quand il y a lieu. */
+/** Ce qui met un cas en attente, quand il y a lieu.
+ *
+ *  Une relecture restée sans majorité le dit elle-même, plutôt que de se cacher derrière une
+ *  confiance basse : on a regardé la page, puis deux images différentes du même repère, sans que
+ *  deux voix concordent. Il n'y a rien à rattraper automatiquement, et l'écran doit pouvoir le
+ *  dire autrement qu'« on n'est pas sûr ». */
 function doute(ligne: LigneInterpretee, seuil: number): CasDouteux["etat"] | undefined {
   if (ligne.piste === undefined) return undefined;
+  if (ligne.relecture === "sans_majorite") return "relecture_sans_majorite";
   if (ligne.confiance < seuil) return "confiance";
   return undefined;
 }
@@ -144,7 +151,20 @@ export function construireVue(entree: Entree): VueBibliotheque {
               ...(media.dureeS === undefined ? {} : { duree: media.dureeS }),
               ...(source === undefined ? {} : { source }),
             },
-            pourquoi: { preuve: ligne.sourcePiste === "pastille" ? "lu" : "sequence", confiance: ligne.confiance, phrase: phraseDuLien(ligne, entree.mots) },
+            pourquoi: {
+              // La preuve dit « vision » dès qu'une relecture est intervenue, même quand elle n'a
+              // rien tranché : c'est ce qui permet à l'écran de montrer d'où vient le doute.
+              preuve:
+                ligne.relecture !== undefined
+                  ? "vision"
+                  : ligne.sourcePiste === "pastille"
+                    ? "lu"
+                    : ligne.sourcePiste === "vision"
+                      ? "vision"
+                      : "sequence",
+              confiance: ligne.confiance,
+              phrase: phraseDuLien(ligne, entree.mots),
+            },
           }),
       aVerifier: etat !== undefined,
     };
@@ -167,10 +187,9 @@ export function construireVue(entree: Entree): VueBibliotheque {
   //
   // Elles ne demandent pas d'arbitrage — rien à confirmer, rien à corriger — mais elles ne
   // doivent pas disparaître pour autant. Un lot dont tous les liens passent le seuil affichait
-  // « Rien à vérifier », alors que deux pages n'avaient rien donné et que six médias n'étaient
+  // « Rien à vérifier », alors que deux pages manquaient au document et que six médias n'étaient
   // réclamés par personne. C'est précisément ce qu'on veut savoir après un import.
-  const numerosDePage = [...parPage.keys()];
-  for (const trou of trous(numerosDePage)) {
+  for (const trou of suites(entree.pagesAbsentes)) {
     const libelle = nommerSuite(entree.mots.page, trou.debut, trou.fin);
     douteux.push({
       id: identifiantDe(`${entree.id}/page-absente-${trou.debut}-${trou.fin}`),
@@ -181,8 +200,8 @@ export function construireVue(entree: Entree): VueBibliotheque {
       // genre, et « absentes » ne vaut que pour un mot féminin. Un verbe s'accorde en nombre,
       // qu'on connaît, et pas en genre, qu'on ne connaîtra jamais.
       proposition: `${libelle} ${trou.fin > trou.debut ? "manquent" : "manque"} au document`,
-      // Aucune cause avancée : une page peut manquer au document comme n'avoir rien donné à
-      // lire, et d'ici on ne sait pas laquelle des deux.
+      // Le constat, pas une cause : la numérotation saute, et savoir si c'est le scan ou le
+      // livre qui saute n'est pas de notre ressort.
       motif: `la numérotation passe de ${trou.debut - 1} à ${trou.fin + 1}`,
       // Un trou se lit d'un coup : il n'y a rien à déplier derrière.
       details: [],

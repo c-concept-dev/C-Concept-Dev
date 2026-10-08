@@ -40,6 +40,20 @@ retrouve documents, audio, vidéos et images, toujours sur la vraie page ou au v
    plutôt que recette, « élément » plutôt qu'ancre).
 9. Pas d'abstraction sans deux usages réels.
 
+## Gestes interdits et gestes autorisés
+- **Jamais `git add -A` ni `git add .`** : uniquement des chemins explicites sous
+  `tools/lienotheque`. Lancé depuis ce dossier, `git add -A` remonte à la racine du dépôt et happe
+  le travail des autres sessions — c'est arrivé une fois, sur
+  `tools/Atelier Prompts/.claude/`.
+- **Jamais de `git stash`** dans ce dépôt : les remises sont partagées entre toutes les sessions et
+  toutes les copies. Un `stash push` sur un fichier neuf ne met rien de côté — il n'est pas suivi —
+  et le `pop` qui suit dépile celle de quelqu'un d'autre. Les chemins explicites suffisent à
+  composer un commit.
+- **Jamais l'option `-q`** sur une commande git qui modifie l'état : on doit voir ce qu'elle a fait.
+- **Redéploiement du Worker autorisé sans demande** s'il reprend la configuration figée et les
+  mêmes secrets ; toujours consigné dans le rapport. **Tout changement de configuration ou de
+  secret est soumis avant.**
+
 ## Emplacement : dépôt C-Concept-Dev (public)
 - Le projet vit dans `tools/lienotheque/` du dépôt `C-Concept-Dev`. **Lancez Claude Code et pnpm depuis
   ce dossier**, jamais depuis la racine du dépôt.
@@ -48,8 +62,11 @@ retrouve documents, audio, vidéos et images, toujours sur la vraie page ou au v
   `Worker/**` redéploie automatiquement `clone-proxy` (workflow `deploy-worker.yml`).
 - Le workflow `deploy-pages.yml` publie tout le dépôt sur GitHub Pages à chaque push : `node_modules/`
   et `dist/` ne doivent jamais être commités.
-- Le workflow `generate-index.yml` indexe tous les fichiers `*.html` du dépôt ; les `index.html` de
-  Vite apparaîtront dans cet index tant qu'il n'exclut pas `tools/lienotheque/`.
+- Le workflow `generate-index.yml` indexe les `*.html` du dépôt, mais `generate-index.js` saute
+  `tools/lienotheque/` en entier : rien de ce projet n'entre dans l'index, ni les `index.html` de
+  Vite ni le catalogue du kit. Son déclencheur ignore en plus `docs/maquettes/**`, pour ne pas
+  lancer d'exécution inutile. Attention, ses motifs d'exclusion se comparent au **nom de fichier
+  seul**, jamais au chemin : un motif de chemin y serait du code mort.
 - Deux intégrations continues, toutes deux à la racine du dépôt et filtrées sur nos chemins :
 
 | Workflow | Déclenchement | Ce qu'il vérifie |

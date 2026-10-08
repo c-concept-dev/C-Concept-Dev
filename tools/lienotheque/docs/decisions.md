@@ -26,7 +26,150 @@
 | 2026-10-03 | Version minimale de macOS **alignée sur 26.0 pendant la bêta**, pour que l'application refuse proprement un Mac où Tesseract ne pourrait pas se charger. Avant toute sortie publique : Tesseract et ses dépendances compilés avec `MACOSX_DEPLOYMENT_TARGET=13.0` dans le workflow Tauri, puis retour du minimum à 13.0 | Section ci-dessous |
 | 2026-10-03 | `tools/lienotheque/.gitignore` passe de 6 à 9 lignes : `target/`, `**/src-tauri/moteurs/`, `**/src-tauri/gen/`. Sans elles, la cible Rust et les binaires Tesseract entraient dans un dépôt public | Écart accepté |
 | 2026-10-03 | Les tests Rust du prototype restent hors de `pnpm check` et tournent dans `lienotheque-tauri.yml` (Mac et Windows) : l'intégration continue ordinaire n'a ni Rust ni Tesseract | Écart accepté |
+| 2026-10-06 | **La chaîne tourne dans un Node embarqué en binaire annexe**, lancé par l'hôte Rust, un processus par travail. La chaîne n'est pas modifiée. Paquet attendu ~128 Mo | Lot D2, étape 0, mesures ci-dessous |
+| 2026-10-06 | **L'hôte est le seul écrivain du dépôt** : le processus reçoit un travail et rend un résultat, l'hôte le valide et l'active en une opération (JOB-06) | Lot D2, étape 0 |
+| 2026-10-06 | Portage Rust intégral de la chaîne **écarté** : il faudrait réécrire pdf.js et les codecs, et refaire la preuve des 84/92 et 95/95 | Lot D2, étape 0 |
+| 2026-10-06 | Allègement du moteur (Node sans ICU, binaire compilé) **reporté après la bêta**, et sans toucher la chaîne | Lot D2, étape 0 |
+| 2026-10-06 | **Les critères des corpus remontent à la porte de l'application** : F1, F3 et F4 se mesurent sur `executerTravail`, dans `outils/ingestion`, et nulle part ailleurs. Un seul test de critère par corpus | Lot D2, étape 1, section ci-dessous |
 
+
+
+## Lot D2, étape 0 — où tourne la chaîne
+
+Le CDC avait déjà tranché la coquille : application locale en **Tauri 2 + hôte Rust + binaires
+annexes**, base locale en **SQLite et FTS5 *via l'hôte***, et trois implémentations pour le port de
+dépôt. Restait une question, et une seule : **où s'exécutent les 9 173 lignes de TypeScript de la
+chaîne**, aujourd'hui lancées en ligne de commande.
+
+### Ce que les mesures ont montré
+
+| Fait | Mesure | Statut |
+|---|---|---|
+| Paquet `.app` actuel | 24,38 Mio (moteurs 13,54 · binaire 10,08 · icône 0,64 · sidecar 0,09) | vérifié, lot 0 |
+| Application au lancement | 83 Mo résidents, stable | vérifié, lot 0 |
+| Binaire Node arm64 dépouillé | **104 Mo** (universel : 227 Mo) | vérifié le 6 octobre 2026 |
+| Démarrage Node et chargement de la chaîne | 94 à 139 ms pour les modules, 0,4 à 0,8 s au total via `tsx` ; 93 à 106 Mo résidents | vérifié le 6 octobre 2026 |
+| Plafond mémoire d'un moteur web | 2 Go alloués **et touchés** sans rupture, WebKit comme Chromium | vérifié le 6 octobre 2026, avec réserve |
+| Jeu de travail réel de la chaîne | une page vivante, ~9 Mo, quel que soit le document | vérifié, lot C |
+| Dépendances d'exécution | `pdfjs-dist`, `@jsquash/*` (WebAssembly), `zod` — **aucun module natif** | vérifié le 6 octobre 2026 |
+| Appels système | `node:fs` dans 15 fichiers ; `child_process` dans 4, tous « lancer un moteur » | vérifié le 6 octobre 2026 |
+
+Deux de ces chiffres ont déplacé la discussion. D'abord, **le pic de 1,1 Go relevé sur F3 n'est pas
+un besoin** : c'est la marque haute du ramasse-miettes, la chaîne lisant en flux, une page à la
+fois. Ensuite, **la chaîne n'a aucun module natif** — ce qui la fait tourner, pdf.js et les codecs
+`@jsquash`, sont des bibliothèques conçues pour le navigateur. Une option « tout dans le moteur
+web » était donc techniquement ouverte, et pas seulement sur le papier.
+
+Réserve sur le plafond mémoire : la mesure porte sur le WebKit de Playwright, qui n'est pas le
+WKWebView d'une application Tauri — modèle de processus et jetsam différents. C'est un indice, pas
+une preuve, et il n'a pas eu à devenir une preuve.
+
+### Les deux options
+
+| | A — Node en binaire annexe | B — la chaîne dans le moteur web |
+|---|---|---|
+| Poids | +104 Mo, paquet ~128 Mo | **+0 Mo** |
+| Démarrage | ~150 à 250 ms par travail | celui de l'application |
+| Mémoire | ~95 Mo de socle, **hors de l'interface** | 9 Mo de jeu de travail, dans l'interface |
+| Chaîne à modifier | **aucune ligne** | `node:fs` dans 15 fichiers, et les quatre appels de moteur |
+| Risques | poids ; validation Apple d'un moteur JS embarqué | deux jeux d'adaptateurs ; annulation coopérative |
+
+### Pourquoi A
+
+**Le banc et l'application exécutent le même code sur le même moteur.** C'est la règle « une seule
+chaîne de traitement », et c'est celle dont la violation a déjà coûté deux fois dans ce projet :
+`instantaneDeLot` réimplémentait la chaîne et avait divergé en silence, puis les pages absentes se
+calculaient une seconde fois — justes sur F3 par coïncidence, fausses vingt-trois fois sur F4.
+L'option B rétablissait exactement cette forme de risque, un cran plus bas : des adaptateurs
+d'entrée-sortie différents de chaque côté.
+
+**L'isolation de processus donne JOB-08 et JOB-09 sans rien écrire.** Mettre en pause ou annuler,
+c'est tuer un processus, non espérer qu'une boucle consulte un drapeau. Et la marque haute du
+ramasse-miettes reste hors du processus d'interface.
+
+**La chaîne tient le critère normatif du lot D.** A n'y touche pas une ligne ; B rouvrait quinze
+fichiers d'une chaîne qu'on venait de prouver.
+
+Le défaut de A est son poids, et c'est le moins contraignant pour une bêta personnelle. L'allègement
+— Node sans ICU, ou un binaire compilé — viendra plus tard, sans toucher la chaîne. Ni Bun ni Deno
+n'étant installés sur la machine de référence, **aucun chiffre n'est avancé pour eux** : ils seront
+mesurés le jour où l'allègement sera à l'ordre du jour.
+
+### Ce que la décision entraîne, et qui s'applique dès l'étape 1
+
+- **L'hôte est le seul écrivain du dépôt.** Deux écrivains sur un même fichier SQLite est un piège.
+  Le processus reçoit un travail, rend un résultat, et l'hôte le valide en une opération — ce qui
+  sert aussi JOB-06, « écrire dans la version cible, activer en une opération ».
+- **L'échange hôte ↔ processus passe par des messages validés par contrat et versionnés.** Un
+  désaccord de version est refusé explicitement, jamais toléré en silence.
+- **Un plantage du processus reprend au dernier point de reprise** (JOB-02, JOB-03) : jamais de
+  perte.
+- **Limites** : deux travaux lourds au plus en parallèle, mémoire plafonnée par processus, arrêt
+  propre à la fermeture.
+- **Même version de Node en développement et dans le paquet**, et le banc appelle le même point
+  d'entrée que l'application.
+- **La validation Apple d'un binaire Node annexe se mesure tôt**, sur un paquet d'essai : c'est le
+  seul risque de cette décision qui ne se chiffre pas sans l'essayer, et il conditionne l'étape 6.
+
+
+## Lot D2, étape 1 — une seule porte, et les critères devant
+
+La chaîne avait trois entrées : le banc de mesure appelait `rejouer`, l'application appelait
+`instantaneDeLot`, la mesure F4 orchestrait elle-même. Trois portes pour un seul traitement, et
+donc trois choses mesurables là où il n'y en a qu'une à prouver.
+
+Il n'y en a plus qu'une : **`executerTravail`**, dans `outils/ingestion`. Une demande entre, un
+message en sort — un résultat, ou un échec qui dit sa cause. L'enveloppe est validée par le
+contrat d'échange, la charge par le contrat de cet outil, et un désaccord de version est refusé
+avant tout travail.
+
+### Pourquoi les critères ont dû déménager
+
+`ingestion` dépend de `recettes` et de `vision`. Le critère F3 vivait dans `outils/recettes`, la
+mesure F4 dans `outils/vision` : ni l'un ni l'autre ne pouvait appeler une porte située au-dessus
+de lui. Les laisser là, c'était les laisser mesurer une marche plus bas que celle que
+l'application franchit — donc prouver un script, et non le produit.
+
+Ils sont donc remontés dans `outils/ingestion/test/criteres.test.ts` et
+`outils/ingestion/mesures/f4-vision.ts`. **Un seul test de critère par corpus**, et aucune seconde
+mesure du même critère ailleurs : les contrôles d'outil restent où ils sont — le déterminisme
+(REC-02), les 99 médias, le cache de lecture — parce qu'ils éprouvent un outil, pas un corpus.
+
+**F1 fait exception, et la garde.** Son critère porte sur la couche texte d'un PDF natif, que la
+chaîne consomme mais ne note pas. Le faire passer par la porte aurait changé ce qu'il prouve, et
+la condition d'identité l'interdisait. Il a déménagé avec les autres, pour qu'ils soient au même
+endroit, sans que son assertion bouge d'un caractère.
+
+### La preuve d'identité
+
+Relevé avant le déplacement, puis après, sur la même machine et le même cache :
+
+| Critère | Avant | Après |
+|---|---|---|
+| **F1** — couche texte, page par page | exact | **exact** |
+| **F3** — éléments reliés à la bonne piste | 95 / 95 | **95 / 95** |
+| F3 — pages absentes ; médias orphelins | 30 et 31 ; 93 à 98 | **inchangé** |
+| **F4** — premiers éléments justes | 84 / 92 | **84 / 92** |
+| F4 — pages justes | 89 / 92 | **89 / 92** |
+| F4 — témoin, sans relecture | 66 / 92 et 77 / 92 | **inchangé** |
+| F4 — effet de la relecture | 146 appliquée, 19 non corroborée, 4 sans majorité | **inchangé** |
+| F4 — causes restantes | dispute 19 → 2, piste fausse 4 → 3, non lu 3 → 3 | **inchangé** |
+| F4 — coût d'un rejeu | 0,0000 € | **0,0000 €** |
+
+Les trois se sautent proprement sans les fichiers sous droits, comme avant. Les contrôles de la
+porte elle-même — refus d'un désaccord de version, refus d'une charge incomplète, avancement qui
+finit à cent pour cent — ne demandent aucun fichier et tournent partout.
+
+### Ce que la porte sait dire, et qu'on ne savait pas dire avant
+
+Le nombre de pages d'un document ne sortait pas de la lecture : pour annoncer un pourcentage, il
+aurait fallu reparser le document. Il est désormais dit une fois, au moment où la lecture le
+connaît déjà, et voyage avec chaque page préparée. La porte émet donc un avancement après chaque
+cliché lu — **après la lecture, pas après le décodage** : annoncer cent pour cent pendant que les
+dernières pages passent encore à l'OCR serait un mensonge poli.
+
+Le coût d'une passe de relecture part au journal, et de là à l'écran de traitement : une dépense
+qu'on ne voit pas est une dépense qu'on ne surveille pas.
 
 ## Prototype du socle local — mesures du 3 octobre 2026
 
@@ -1055,3 +1198,602 @@ Et le constat qui compte pour la suite : **les réglages locaux sont épuisés, 
 bon.** Nous savons maintenant dire quand une lecture est tronquée, nous ne savons pas dire ce qui
 lui manque, et le savoir ne suffit pas à l'attribution. F4 reste à 61 premiers éléments sur 92 et
 77 pages sur 92, pour un critère de 83 et 89.
+
+## La relecture ciblée : ce que la mesure a imposé contre le plan
+
+Le plan `docs/plan-vision-ciblee-f4.md` a été écrit avant d'avoir une seule image sous les yeux.
+Trois de ses affirmations étaient fausses, et elles l'étaient de façons instructives.
+
+### La taille des pavés : quatre fois plus petits que prévu
+
+Le plan annonçait des recadrages de 200 × 150 pixels. Mesurés sur les clichés de référence, les
+repères font **31 à 49 pixels de large sur 42 à 49 de haut**, et leur recadrage — marge claire
+comprise — **65 à 89 pixels de côté**, pour 2,3 Kio chacun. L'estimation du plan venait d'un
+raisonnement sur la hauteur d'un numéro d'élément, pas d'une mesure.
+
+### Agrandir : le plan l'interdisait, la mesure l'impose
+
+Le plan disait de ne jamais agrandir, au motif qu'agrandir n'ajoute aucune information. C'est vrai
+et c'est hors sujet. Un modèle découpe une image en tuiles de quelques dizaines de pixels : un
+repère de 80 pixels en occupe deux sur deux, et à cette taille il perd des chiffres.
+
+| Échelle | Justesse sur 18 pavés | Coût |
+|---|---:|---:|
+| ×1 | 15 / 18 — 1 illisible, 2 faux | 0,0052 € |
+| **×2** | **18 / 18** | **0,0055 €** |
+| ×4 | 18 / 18 | 0,0071 € |
+
+On retient ×2 : justesse parfaite, et à égalité la moins chère. L'agrandissement est une donnée de
+la recette et non une constante du code — un document photographié de plus près n'en aurait pas
+besoin.
+
+### Le coût : ce n'est pas la taille des images qui compte
+
+| Échelle | Jetons par pavé | Lot de 184 | Coût du lot |
+|---|---:|---:|---:|
+| ×1 | 93,4 | 17 200 | 0,045 $ |
+| ×2 | 118,3 | 21 800 | 0,049 $ |
+| ×4 | 212,6 | 39 100 | 0,067 $ |
+
+Le chiffre qui explique les autres : **1058 jetons de coût fixe par appel**, pour la consigne et le
+schéma de l'outil. Un pavé ne coûte qu'une trentaine de jetons de plus à l'échelle d'origine, une
+soixantaine au double. **Grouper vingt zones par appel compte donc davantage que la taille des
+images** — et c'est pourquoi doubler l'échelle ne coûte que 10 % de plus.
+
+### La sélection : angle mort nul, et 20 % de gaspillage assumé
+
+Sur les treize clichés, 122 éléments lus donnent **18 pavés retenus** — 13 pour lecture incomplète,
+5 sans lecture. L'oracle en juge 14 vraiment à relire et 4 déjà justes. **Aucune lecture fausse
+dont le repère est localisé n'échappe à la sélection.** Les quatre pavés inutiles sont le prix de
+cette couverture, et c'est le bon côté du marché. Extrapolé : environ 184 pavés pour le lot, pour
+un plafond déclaré de 300.
+
+### Deux défauts trouvés en chemin, qui valaient d'être trouvés
+
+**Les éclats pris pour des repères.** Deux pavés sur vingt mesuraient 3 × 18 pixels : des éclats du
+seuillage, dont le recadrage ne contient rien de lisible. Le lecteur les accepte parce que son test
+de présence juge le remplissage et la hauteur, pas la largeur. La sélection s'en protège — les
+vrais pavés vont de 0,71 à 1,07 en largeur sur hauteur, les éclats 0,10 et 0,17 — mais **le lecteur
+reste à resserrer**, ce qui changera les lectures donc les mesures, et se fera à part.
+
+**Une projection qui majorait à l'envers.** J'avais écrit la projection de sortie à 40 jetons par
+zone « majorée à dessein ». Mesurée, elle vaut 42,6 à 43,8. Une projection qui sous-estime laisse
+passer l'appel qu'on voulait refuser, c'est-à-dire exactement ce qu'on lui demande de ne pas faire.
+Corrigée à 50, avec une mesure derrière.
+
+### Ce que le budget garantit, et ce qu'il ne garantit pas
+
+L'arrêt se fait **avant** l'appel qui ferait dépasser : un plafond qu'on constate après coup n'en
+est pas un. D'où deux chiffres distincts — la projection décide, la dépense comptée sur les jetons
+rendus fait foi. Et l'arrêt est net, non poreux : dès qu'un appel est refusé, tout ce qui suit l'est
+aussi, sans quoi un appel plus petit passerait là où un plus grand a été refusé.
+
+Une entrée gardée ne consomme aucun plafond, sans quoi un rejeu coûterait plus cher que la première
+lecture. Et l'empreinte d'un recadrage dépend de l'agrandissement : en changer invalide le cache,
+ce qui est juste — une autre image n'est pas la même.
+
+### Le faux changement de disque, et un chiffre de F4 qu'il faut corriger
+
+La première mesure complète de F4 avec relecture a donné 67 premiers éléments et 74 pages, contre
+61 et 77 sans elle : un gain sur l'un, une perte sur l'autre. Le diagnostic a montré autre chose
+que ce que ces chiffres disaient.
+
+**Ce que le modèle lit.** Sur les 59 pavés dont l'oracle connaît la piste, **56 justes et 3 faux** —
+95 %. Il déclare 45 pavés illisibles, dont 41 portent sur des éléments que l'oracle ignore, c'est-
+à-dire le second disque. Décliner là est juste.
+
+**Ce qui abîmait.** Vingt et un éléments passaient de leur piste juste — 82 à 92 — à la piste 2 du
+disque 2. La cause est un faux changement de support, et le mécanisme mérite d'être écrit : la
+relecture établissait la numérotation à 81-82, puis les lectures locales qui suivaient étaient des
+chiffres perdus — « 2 » pour 82, « 3 » pour 83, « 4 » pour 84 — et trois petites lectures sûres de
+suite ressemblent exactement à un retour au début. Le premier support était coupé en deux.
+
+La correction est à l'endroit juste : **une lecture dont le repère montrait plus de chiffres qu'elle
+n'en rend ne fonde pas un changement de support.** C'est le seul endroit où compter les chiffres
+décide de quelque chose — l'essai sur l'attribution avait échoué, celui-ci était la bonne cible.
+Elle fait passer les dégâts de vingt et un éléments à deux.
+
+**Et le chiffre à corriger.** La notation du critère de F4 ignorait le disque : une piste 50 du
+deuxième support était comptée comme la piste 50 de l'oracle, qui ne couvre que CD1. Les chiffres
+de F4 dépendaient donc de l'endroit où la coupure tombait, sans que rien ne le dise. Le filtre
+manquait dans les deux bancs, il y est maintenant, et les mesures antérieures de F4 — dont le
+« 61 / 92 et 77 / 92 » rapporté plusieurs fois — confondaient les deux disques.
+
+Avec la notation ramenée au premier support :
+
+| | Premiers éléments | Pages | Éléments abîmés |
+|---|---:|---:|---:|
+| Sans la garde, sans relecture | 29 / 92 | 32 / 92 | — |
+| Sans la garde, avec relecture | 67 / 92 | 74 / 92 | 21 |
+| **Avec la garde, sans relecture** | 55 / 92 | 67 / 92 | — |
+| **Avec la garde, avec relecture** | **67 / 92** | **74 / 92** | **2** |
+
+La garde ne change rien au résultat avec relecture : elle redresse le témoin, et c'est bien le
+témoin qui était faux. Le critère — 83 et 89 — n'est pas tenu.
+
+**Le point de départ et le résultat, pour mémoire.** Avec la notation juste, F4 part de **55
+premiers éléments sur 92 et 67 pages sur 92**, et la relecture ciblée le porte à **67 et 74**, soit
+**+12 éléments et +7 pages**. Le critère reste à 83 et 89 : il manque 16 éléments et 15 pages. Ce
+sont ces quatre nombres qui font foi ; tout chiffre de F4 antérieur à cette correction confondait
+les deux disques et ne leur est pas comparable.
+
+### Ce que la relecture coûte, en vrai
+
+139 pavés pour le lot, 7 appels, 17 429 jetons d'entrée et 5 752 de sortie, **0,0428 €** pour un
+plafond de 0,20. Un rejeu complet ne dépense **rien** : les 139 réponses viennent du cache, et la
+mesure entière retombe à soixante secondes de rendu.
+
+## L'inventaire des médias présents comme indice (REC-05)
+
+Après la relecture ciblée, il restait 25 pistes de F4 hors du compte. Le diagnostic les a séparées :
+
+| Cause | Pistes |
+|---|---:|
+| L'élément attendu est mis sur le **second support** | **10** |
+| Piste juste, mais un autre élément la précède | 8 |
+| L'élément attendu n'est pas lu du tout | 4 |
+| Piste fausse sur le bon support | 3 |
+
+Et l'inventaire des médias tranche la première cause : **le support 1 compte 92 pistes, et aucun
+second support n'est présent.** Pourtant 327 lignes sur 982 étaient placées hors du support 1 — la
+chaîne inventait un support qui n'a aucun enregistrement.
+
+L'inventaire se tire des médias eux-mêmes : leur nombre, et le motif de nom que la recette déclare
+en « indice », disent quels supports sont là et jusqu'où ils vont. C'est un fait sur les médias et
+non sur leur nom (REC-05) ; le nom ne sert qu'à les ranger.
+
+### Deux règles, et seulement la seconde a payé
+
+**Un support absent ne reçoit rien.** Les éléments d'un support que l'inventaire ne connaît pas
+restent sans piste, et n'héritent pas non plus de la précédente : relier au hasard est pire que ne
+pas relier. C'est juste, et c'est ce que Vérifier doit montrer — mais mesuré seul, **cela ne change
+aucun chiffre** : les éléments concernés étaient déjà hors du support 1, et le critère ne compte que
+celui-là. La règle corrige ce que la chaîne affirme, pas ce qu'elle trouve.
+
+**Un support ne se termine pas avant sa dernière piste connue.** Celle-ci paie. L'inventaire dit 92
+pistes ; tant que les lectures n'y sont pas parvenues, un retour au début est plus probablement une
+suite de chiffres mal lus qu'un disque suivant. La coupure tombait après la piste 82, et les dix
+pistes restantes étaient perdues pour un support qui n'existe pas.
+
+| | Premiers éléments | Pages |
+|---|---:|---:|
+| Avant, sans relecture | 55 / 92 | 67 / 92 |
+| Avant, avec relecture | 67 / 92 | 74 / 92 |
+| **Avec l'inventaire, sans relecture** | 60 / 92 | 76 / 92 |
+| **Avec l'inventaire, avec relecture** | **73 / 92** | **83 / 92** |
+| Critère | 83 | 89 |
+
+**L'état de F4, pour mémoire : 73 premiers éléments sur 92 et 83 pages sur 92**, pour un critère de
+83 et 89. Il manque 10 éléments et 6 pages. Depuis le vrai point de départ — 55 et 67 — le gain
+cumulé de la relecture ciblée et de l'inventaire est de **+18 éléments et +16 pages**. F3 reste à
+95 / 95 : sa recette ne déclare aucun changement de support, et l'inventaire ne lui change rien.
+
+### Ce que l'inventaire ne décide jamais
+
+Un repère lu le contredit toujours. Si une pastille donne une piste au-delà de ce que l'inventaire
+connaît, c'est l'inventaire qui est incomplet, pas la page : la piste lue est attribuée. Un test le
+retient, parce que c'est la différence entre un indice et une vérité.
+
+## Les dix pistes qui commencent trop tôt : l'ordre est hors de cause
+
+Il restait, après l'inventaire, dix pistes justes dont le **premier** élément était faux. L'hypothèse
+à éprouver d'abord était un problème d'ordre de lecture — double page, bas de page gauche suivi du
+haut de page droite, colonnes.
+
+**Elle est réfutée.** Dans les dix cas, l'élément que la chaîne retient vient *avant* celui de
+l'oracle dans l'ordre de lecture normal : même page et hauteur plus faible, ou page antérieure.
+L'ordre est juste ; c'est la piste qui commence trop tôt. Les pages arrivent bien cliché par cliché,
+gauche puis droite, et les numéros d'élément sont tous dans la même colonne — il n'y a pas de
+deuxième colonne à mal ordonner.
+
+### La vraie cause
+
+Les éléments retenus à tort portent des lectures **partielles** que la suite résout correctement :
+él.335 lit « 3 », qui est bien un 38 tronqué, et l'attribution l'y place parce que ses voisines le
+permettent. Mais un élément plus loin — él.337 — porte la lecture franche « 38 », et c'est lui qui
+ouvre la piste.
+
+| Piste | La chaîne retient | L'oracle veut |
+|---|---|---|
+| 38 | él.335, lit « 3 » | él.337, lit « 38 » |
+| 44 | él.407, lit « 4 » | él.409, lit « 44 » |
+| 60 | él.527, lit « 1 » | él.533, lit « 60 » |
+| 70 | él.587, lit « 46 » | él.589, lit « 70 » |
+
+### La correction qui s'en déduisait, et pourquoi elle est écartée
+
+Un repère marque un début : un élément placé avant le repère de la piste N appartient à N−1. La
+règle est générique, et la recette dit déjà que plusieurs éléments peuvent partager une piste.
+
+Mesurée : **5 pistes redressées, 12 abîmées.** Les premiers éléments tombent de 73 à 66.
+
+Dans chaque cas abîmé, le bon premier élément portait une lecture partielle et un élément plus loin
+lisait la piste franchement — exactement la configuration qu'on voulait corriger, mais à l'envers.
+Le signal est donc faux aussi souvent qu'il est juste, parce que plusieurs éléments partagent une
+piste et que rien, dans la lecture seule, ne distingue un vrai repère d'une forme qui lui ressemble :
+la présence vaut 0,26 à 0,51 des deux côtés, et l'accord 1,00 des deux côtés aussi.
+
+Ce qui manquerait pour trancher est de savoir **lequel des deux porte vraiment le repère**. La
+relecture ciblée ne le dit pas non plus : elle lit un nombre dans un pavé, elle ne juge pas si ce
+pavé est un repère. Le raisonnement reste en commentaire dans `interprete.ts` pour qu'on ne le
+refasse pas sous cette forme.
+
+### L'état de F4
+
+**73 premiers éléments sur 92 et 83 pages sur 92**, pour un critère de 83 et 89. Il manque 10
+éléments et 6 pages, et aucune des causes restantes n'est un défaut de lecture de repère.
+
+## Où en est-on vraiment : le lot C est clos, F4 relève du lot D
+
+Une précision de statut, prise à la source. La feuille de route du CDC normatif v2.0 donne, lot par
+lot, un critère de passage :
+
+| Lot | Critère de passage |
+|---|---|
+| **C — Première bibliothèque** | fichier renommé reconnu ; arrêt et redémarrage sans perte ; correction conservée après recalcul ; **F3 ≥ 95/95 ; F1 exact** |
+| **D — Deuxième corpus** | **F4 ≥ 83/92 automatique** ; généralisation sans code spécifique ; nouvelle recette dérivée en moins d'un quart d'heure |
+
+Le critère du lot C est donc tenu, et **le lot C est clos**. F4 relève du lot D, commencé en avance
+— le CDC note d'ailleurs que la relecture ciblée (OUT-08), qui appartient au lot D, a été avancée
+au lot C pour F4.
+
+**Une nuance qui compte pour la suite.** Le critère normatif est le nombre de **premiers éléments**,
+83 sur 92. Les 89 pages sur 92 que nous suivons depuis le début sont une mesure que nous nous
+sommes donnée, utile mais non normative : c'est le premier chiffre qui décide du passage du lot.
+
+### État à l'ouverture du lot D
+
+| | |
+|---|---|
+| F4 | **73 / 92** premiers éléments (critère 83) et 83 / 92 pages |
+| F3 | **95 / 95**, vérifié à froid |
+| Relecture ciblée | en place, agrandissement ×2, 95 % de justesse sur les pavés jugeables |
+| Dépensé à ce jour | **0,061 €**, et un rejeu ne dépense rien |
+
+Il manque **10 premiers éléments**. Aucune des causes restantes n'est un défaut de lecture de
+repère : elles butent sur la distinction entre un vrai repère et une forme qui lui ressemble, et sur
+des éléments que la lecture ne voit pas du tout.
+
+## La dette du test de présence : une correction, et une erreur de ma part
+
+Le lecteur acceptait encore des éclats du seuillage — trois pixels de large pour dix-huit de haut —
+parce que son test de présence jugeait le remplissage et la hauteur, jamais la largeur. La sélection
+des pavés s'en protégeait de son côté, ce qui soignait le symptôme.
+
+### La règle, et où elle appartient
+
+Elle est la même que celle du comptage des chiffres et de la sélection : une forme qui porte un
+chiffre est à peu près aussi large que haute. Mesurée sur les clichés de référence, les vrais pavés
+vont de 0,71 à 1,07, les éclats 0,10 et 0,17 ; le seuil se tient à **0,35**. Elle est maintenant
+définie une seule fois, dans le lecteur, et la sélection l'importe — trois copies d'un nombre mesuré
+finissent par diverger.
+
+**Mais la poser dans la présence seule ne suffisait pas, et dégradait.** Un éclat est plus plein
+qu'un pavé, dont les chiffres clairs font des trous : 1,0 contre 0,7. Il était donc proposé comme
+« la plus pleine des formes », et la présence ne jugeant que cette première forme, l'écarter faisait
+abandonner **tout le repère** alors que le pavé était là, à côté. Cinq premiers éléments perdus.
+
+La correction appartient au **choix de forme** : un éclat n'y est plus proposé, et le pavé redevient
+la première forme. Un test porte le cas réaliste — éclat plein à 1, pavé troué à 0,7 — parce qu'un
+premier essai avec deux formes également pleines ne reproduisait rien, la plus grande gagnant déjà.
+
+### Une erreur de cache, à consigner
+
+La première mesure de la correction a porté sur les **anciennes** lectures : changer le choix de
+forme modifie ce qu'une lecture rend, et je n'avais pas remonté `VERSION_LECTURE`. Le cache de la
+version 7 — celle qui avait le défaut — a donc été servi, et le chiffre lu était faux.
+
+C'est exactement ce que cette version existe pour éviter, et le dépôt le documentait déjà depuis le
+lot C. La version 8 porte la règle entière ; la 7 n'a jamais été mesurée pour elle-même.
+
+### L'effet, mesuré séparément
+
+| | Premiers éléments | Pages |
+|---|---:|---:|
+| Témoin, avant | 60 / 92 | 76 / 92 |
+| Témoin, après | **61 / 92** | **77 / 92** |
+| Avec relecture, avant | 73 / 92 | 83 / 92 |
+| Avec relecture, après | **74 / 92** | **84 / 92** |
+
+Sur les treize clichés de référence : **19 pavés retenus** au lieu de 18, dont 15 que l'oracle juge
+à relire, et l'angle mort reste **nul**. Les deux pavés supplémentaires ont coûté 0,0016 €.
+
+Un élément et une page. La dette était réelle — deux faux repères sur 141 — mais ce n'est pas elle
+qui tiendra le critère : il manque encore 9 premiers éléments.
+
+## La relecture dit aussi si un repère est là (lot D, étape 3)
+
+Le reste de F4 ne venait plus d'un défaut de lecture mais d'un défaut de **jugement** : une lecture
+seule ne dit pas si ce qu'elle a lu **est** un repère, et la détection locale tirait trois fois trop
+souvent — 288 repères localisés pour 92 pistes. La relecture rend donc, pour chaque pavé, un verdict
+de présence en plus du nombre.
+
+### Ce que cela donne
+
+| | Témoin | Avec verdicts | Critère |
+|---|---:|---:|---:|
+| Premiers éléments | 61 / 92 | **76 / 92** | **83** |
+| Pages | 77 / 92 | **86 / 92** | *(89, non normatif)* |
+
+| Cause d'écart | Avant | Après |
+|---|---:|---:|
+| Dispute d'ouverture | 19 | **7** |
+| Piste fausse | 8 | **5** |
+| Élément non lu | 4 | 4 |
+
+Verdicts sur 243 pavés : **200 présent, 31 absent, 12 incertain**. Les 31 « absent » sont le levier —
+autant de faux repères qui ne peuvent plus ouvrir une piste.
+
+Le gain est réel et plus petit qu'il n'y paraît : les disputes passent de 19 à 7, mais le total ne
+gagne que deux éléments sur l'étape 1. La relecture redresse 22 éléments et en abîme 7 — trancher
+une ouverture en déplace d'autres.
+
+### Les marges : troisième mesure, troisième fois rien
+
+On a sondé les marges là où la numérotation montre un trou, pour les éléments dont aucun numéro n'a
+été lu. Résultat : **zéro élément et zéro page gagnés**, 193 recadrages demandés dont 83 refusés par
+le contrat — une bande de marge dépasse 1024 px à l'agrandissement ×2 —, et 18 numéros faux sur 151
+jugeables, le modèle y lisant des numéros de page.
+
+La voie est éteinte, pas fermée : `--marges` la rallume pour qui la reprendra avec un recadrage plus
+étroit, et ces chiffres disent ce qu'il faudra battre.
+
+### Quatre défauts de ma conception, trouvés par la mesure
+
+**Le cache servait le passé.** 141 des 243 pavés revenaient sans verdict : la lecture du cache ne
+savait pas quelle question était posée, donc une entrée d'avant l'extension passait pour valide. Elle
+reçoit maintenant la question, et une entrée qui n'y répond plus est redemandée **une fois** — un
+test vérifie « une fois, pas à chaque passage ».
+
+**Le modèle recopiait mal l'empreinte.** Demandé « …ff786… », rendu « …ff746… » : un caractère sur
+trente-deux, et toute la réponse refusée pour une zone inconnue. Faire recopier trente-deux
+caractères hexadécimaux était une mauvaise idée ; le modèle rend un **rang** — « Image 1 » — et
+l'empreinte reste notre clef, de notre côté. Un rang hors de la demande est refusé.
+
+**Mon contrat refusait une réponse cohérente.** « Rien de lu ne se dit pas avec une confiance » était
+juste tant qu'une réponse ne portait qu'un nombre. Le verdict l'a rendue fausse : « le repère est là,
+ses chiffres sont illisibles, et j'en suis sûr » est cohérent, et la confiance y porte sur le
+verdict. La règle est relâchée **sur preuve** et ne s'applique plus qu'en l'absence de verdict.
+
+**Une panne ne se diagnostiquait pas.** Un 502 ne disait pas s'il venait du modèle, du contrat ou du
+recoupement. Le transport relaie désormais le message de **notre** route, et le refus de contrat
+nomme le chemin du champ fautif — jamais les valeurs reçues, qui viennent du modèle. C'est ce
+changement qui a permis de nommer les deux causes précédentes en une commande.
+
+### Le coût, versé au compte
+
+| Mesure | Jetons entrée | Jetons sortie | Coût |
+|---|---:|---:|---:|
+| Étape 1, deux pavés nouveaux | 1 179 | 117 | 0,0016 € |
+| Étape 3, première passe (invalide, cache sans verdict) | 56 413 | 9 750 | 0,0974 € |
+| Étape 3, passe valide | 8 363 | 1 881 | 0,0165 € |
+| **Cumul du lot D** | **65 955** | **11 748** | **0,1155 €** |
+
+La passe invalide est comptée : elle a été dépensée. Un rejeu complet coûte désormais **0 €** — les
+353 réponses sont en cache.
+
+## L'oracle de F4 était faux sur sept pistes, et la page l'a tranché
+
+Le CSV `Westwood_Vol1_CD1_pistes.csv` porte trois colonnes qu'il ne faut pas confondre :
+`premier_exercice_detecte` est une **détection du prototype**, `exercice_selon_nom_mp3` est ce que
+le **nom du fichier** annonce, et `accord` dit si les deux coïncident. Ce que nous appelions
+« l'oracle » depuis le début était donc une détection, pas une vérité — et elle était en désaccord
+avec le nom du MP3 sur neuf pistes sur quatre-vingt-douze.
+
+### Le seul témoin qui fait foi est la page
+
+Les trois témoins ont été confrontés à l'œil, sur les clichés, pour onze pistes.
+
+| Piste | Notre chaîne | Détection | Nom MP3 | Ce que la page montre | Qui a raison |
+|---|---|---|---|---|---|
+| 4 | 132 | **135** | 133 | 132 porte « Piste 3 », 135 porte « Piste 4 » | la détection |
+| 14 | **189** | **189** | 187 | 187 porte « Piste 13 », 189 porte « Piste 14 » | la chaîne et la détection |
+| 35 | 305 | **314** | 314 | 305 porte « Piste 34 » | la détection |
+| 41 | **400** | 348 | **400** | 348 porte « Piste 40 », 400 porte « Piste 41 » | la chaîne et le nom |
+| 43 | **405** | 407 | **405** | 405 porte « Piste 43 » | la chaîne et le nom |
+| 57 | **512** | *rien* | **512** | 512 porte « Piste 57 » | la chaîne et le nom |
+| 74 | **598** | 599 | **598** | **598 et 599 portent tous deux « Piste 74 »** | la chaîne |
+| 75 | **600** | 601 | **600** | 600 porte « Piste 75 » | la chaîne et le nom |
+| 87 | 700 | **701** | **701** | 700 porte « Piste 86 » | la détection et le nom |
+| 89 | 704 | 704 | **706** | 704 porte « Piste 88 », 706 porte « Piste 89 » | le nom seul |
+| 91 | **713** | 712 | **713** | 712 porte « Piste 90 », 713 porte « Piste 91 » | la chaîne et le nom |
+
+Le nom du MP3 se trompe (piste 14), la détection se trompe (sept fois), notre chaîne se trompe
+(pistes 4, 35, 87, 89). **La page, elle, n'a jamais menti.** C'est ce que la recette disait déjà du
+nom de fichier — un indice, pas une vérité (REC-05) — et il faut le dire aussi de la détection.
+
+### Un fait de structure que nous ignorions
+
+**Les éléments 598 et 599 portent tous deux « CD1 Piste 74 ».** Le livre imprime donc la pastille
+sur **chaque** élément d'une piste, pas seulement sur le premier. La détection de repère ne tirait
+pas trois fois trop souvent : elle voyait de vrais repères. Mon diagnostic de l'étape 2 — « la
+détection tire trois fois trop souvent » — était une mauvaise lecture d'un fait qui n'en est pas un
+défaut, et la règle « le premier élément à porter le repère ouvre la piste » est juste.
+
+### Les sept corrections, chacune avec sa preuve
+
+| Piste | Avant | Après | Preuve lue sur le cliché |
+|---|---|---|---|
+| 41 | 348 | **400** | 348 porte « CD1 Piste 40 » ; 400 porte « Piste 41 » |
+| 43 | 407 | **405** | 405 porte « CD1 Piste 43 » |
+| 57 | *rien* | **512** | 512 porte « CD1 Piste 57 » |
+| 74 | 599 | **598** | 598 et 599 portent « Piste 74 » ; 598 vient en premier |
+| 75 | 601 | **600** | 600 porte « CD1 Piste 75 » |
+| 89 | 704 | **706** | 704 porte « Piste 88 » ; 706 porte « Piste 89 » |
+| 91 | 712 | **713** | 712 porte « Piste 90 » ; 713 porte « Piste 91 » |
+
+Seule la colonne `premier_exercice_detecte` est corrigée, et la colonne `accord` recalculée : la
+liste des éléments détectés n'a pas été vérifiée élément par élément, et reste donc telle quelle.
+
+### Ce que cela change
+
+| | Avant correction | Après correction |
+|---|---:|---:|
+| Témoin | 61 / 92 | **66 / 92** |
+| Avec verdicts | 76 / 92 | **81 / 92** |
+| Pages | 86 / 92 | 86 / 92 |
+
+Il manque **2 premiers éléments** sur le critère normatif de 83. Les écarts restants : 5 disputes,
+3 pistes fausses, 3 éléments jamais lus.
+
+### L'audio n'est pas un témoin fiable, avec les moyens d'ici
+
+Compter les segments d'une piste par ses silences ne retrouve pas le nombre d'éléments : la piste 4
+(un élément) montre deux creux internes, la 91 (trois éléments) en montre deux, la 74 (deux
+éléments) en montre un à trois selon le seuil. Le compte dépend du seuil et pas du contenu.
+
+Ce n'est pas la fin de l'idée : un détecteur de **décompte** — les quatre temps qui ouvrent chaque
+exercice — serait une autre méthode, et probablement meilleure. Mais elle demande davantage qu'un
+seuillage d'énergie, et la machine n'a ni ffmpeg ni ffprobe. En l'état, l'audio ne peut pas servir
+d'indice à l'attribution.
+
+## Le troisième témoin tient le critère : F4 à 84/92, partie 1 du lot D close
+
+Deux témoins qui se contredisent ne se départagent pas. La lecture locale et une première relecture
+en font deux ; il en faut un troisième, et il doit **regarder autrement** — redemander la même image
+rendrait la même réponse, et la troisième voix n'en serait pas une.
+
+### La règle
+
+Quand la lecture locale et la relecture se contredisent — au sens strict : aucun des deux nombres ne
+contient l'autre, ce que dit déjà `appui` —, on redemande sur une **autre image du même repère**,
+au double de l'agrandissement de la recette : même pavé découpé, rééchantillonné autrement, donc
+d'autres pixels et une autre empreinte. Deux voix sur trois l'emportent. Sans majorité, rien n'est retenu et
+l'élément part se faire vérifier, plutôt que d'être appliqué au hasard.
+
+À égalité, on s'abstient. Préférer « la première » ou « la plus confiante » serait une préférence
+déguisée en règle, et la mesure a montré que la confiance ne sépare rien.
+
+### L'effet, isolé
+
+| | Avant | Après |
+|---|---:|---:|
+| Premiers éléments | 81 / 92 | **84 / 92** |
+| Pages | 86 / 92 | **89 / 92** |
+| Disputes d'ouverture | 5 | **2** |
+
+39 contradictions relevées ; **29 tranchées par deux voix sur trois**, 10 sans majorité portées à
+Vérifier. Coût du second passage : **0,0140 €**.
+
+### Ce qui avait échoué juste avant, et pourquoi c'était instructif
+
+On avait d'abord essayé de **préférer la lecture locale** quand la relecture la contredit, parce que
+trois pistes se perdaient ainsi. La règle coûte quatre éléments de plus qu'elle n'en rend — 81 à 77.
+Confrontées à l'oracle : quand l'un des nombres contient l'autre, la relecture a raison 56 fois
+contre 0 ; quand ils se contredisent, 11 fois contre 3. **La relecture l'emporte dans les deux cas**,
+et il ne fallait donc pas la démettre, mais lui opposer un témoin de plus.
+
+### Le critère du lot D, partie 1
+
+| | Mesure | Critère |
+|---|---:|---:|
+| **F4, premiers éléments** | **84 / 92** | **83** ✓ |
+| F4, pages | 89 / 92 | *(89, non normatif)* ✓ |
+| **F3** | **95 / 95** | 95 ✓ |
+
+Le critère normatif du lot D — « F4 ≥ 83/92 automatique » — est **tenu**. F3 est vérifié à froid,
+lecture réelle de 190 s, rejeu identique (REC-02).
+
+Un rejeu complet de F4 ne dépense **rien** : les deux passes de relecture sortent du cache et le
+résultat est identique, ce qui est la condition même du banc d'essai (OUT-15).
+
+### Le reliquat
+
+Huit écarts : 2 disputes d'ouverture, 3 pistes fausses, 3 éléments jamais lus. Aucun n'empêche le
+critère. Les trois éléments jamais lus restent hors de portée de la relecture — la sélection ne peut
+envoyer que ce que le lecteur a localisé.
+
+### Ce qui reste à faire passer en production
+
+L'enchaînement des deux passes vit aujourd'hui dans le banc de mesure ; la règle de majorité et la
+détection de contradiction, elles, sont dans la bibliothèque et testées. Porter l'enchaînement dans
+la chaîne de lecture est un travail d'intégration, pas de recherche.
+
+## La dette d'intégration levée : un seul chemin de code, du lot aux écrans
+
+L'enchaînement de la relecture ciblée vivait dans le banc de mesure. Le critère du lot D était donc
+tenu par un script, pas par le produit. Trois choses ont été portées, et une quatrième est apparue
+en chemin.
+
+### Un port, pas un appel
+
+`rejouer` accepte désormais une **relecture** — une fonction qu'on lui branche, qui reçoit les pages
+lues et rend ce qu'elle a relu. La relecture vit dans `outils/vision`, qui dépend des recettes ;
+c'est donc l'appelant qui la branche, jamais la chaîne qui va la chercher. Une chaîne sans relecture
+est exactement la même chaîne, elle ne relit simplement rien : l'application, le banc et le script
+de traitement passent par la même fonction, avec ou sans.
+
+`relectureCiblee` enchaîne ce que les mesures avaient établi : première passe au grossissement de la
+recette, verdict de présence compris ; seconde passe au double, sur une autre image du même pavé,
+pour les seules contradictions ; majorité de deux voix sur trois ; sans majorité, rien n'est appliqué et
+l'élément part à Vérifier. Budget, cache par empreinte et arrêt net sont dans `relire` : ils valent
+donc pour ce chemin comme pour le banc, puisque c'est le même.
+
+### L'instantané ne refait plus le travail de la chaîne
+
+`instantaneDeLot` réimplémentait lecture, interprétation et association. Ce second chemin avait déjà
+divergé en silence : l'inventaire des supports présents, ajouté à la chaîne pour départager les
+disques, n'arrivait jamais aux écrans. Il appelle maintenant `rejouer`, et rien d'autre.
+
+C'est la règle de fond, et elle a resservi deux fois dans ce lot : **ce qu'on montre doit sortir du
+traitement qu'on mesure.** Deux calculs pour un même fait finissent toujours par en donner deux.
+
+### Le banc appelle la chaîne, et plus l'inverse
+
+`mesures/f4-vision.ts` orchestrait 500 lignes de lecture, de sélection et d'appels. Il en fait 150 :
+deux `rejouer`, l'un sans relecture pour le témoin, l'autre avec, et la comparaison à l'oracle. Ce
+qu'il mesure est, par construction, ce que l'application fera.
+
+### Ce que l'écran a trouvé, et que personne n'avait vu
+
+La capture de Vérifier sur F4 montrait **vingt-trois cartes « manque au document »** pour des pages
+qui y sont — des pages de texte, sans aucun élément numéroté. L'instantané déduisait les pages
+absentes des numéros portés par les éléments : une page sans élément devenait une page manquante.
+Sur F3, où les deux seules pages sans élément étaient justement les deux pages sautées, la déduction
+tombait juste et personne ne pouvait voir qu'elle était fausse.
+
+L'interprète, lui, le sait vraiment : il suit le décalage entre le rang d'une page et son numéro
+imprimé, et quand ce décalage augmente durablement, il dit quelles pages le scan a sautées. Ce
+verdict traverse maintenant jusqu'à la vue, et l'aide `trous` qui servait à le redeviner a disparu
+avec son unique usage.
+
+| | Avant | Après |
+|---|---:|---:|
+| F4, pages dites manquantes | 23 | **0** *(aucune ne manque)* |
+| F3, pages dites manquantes | 2 | **2** *(30 et 31, inchangé)* |
+
+Troisième fois dans ce lot qu'un second calcul du même fait donne une fausse vérité. C'est la capture
+d'écran qui l'a révélé, pas un test : aucun des deux lots n'était assez différent de l'autre pour
+que la suite le voie.
+
+### La mesure, par la chaîne réelle
+
+Même oracle, même fixture, mais plus rien d'un script : les deux colonnes sortent de `rejouer`.
+
+| | Témoin | Chaîne | Critère |
+|---|---:|---:|---:|
+| **F4, premiers éléments** | 66 / 92 | **84 / 92** | **83** ✓ |
+| F4, pages | 77 / 92 | **89 / 92** | *(89, non normatif)* ✓ |
+| **F3** | — | **95 / 95** | 95 ✓ |
+
+Le témoin est plus bas qu'au relevé précédent (66 contre 81) parce qu'il est maintenant *vraiment*
+sans relecture : l'ancien banc lui laissait le bénéfice de la première passe. La colonne de droite
+est la seule qui compte, et elle est inchangée.
+
+Effet par cause : disputes d'ouverture 19 → 2, pistes fausses 4 → 3, éléments jamais lus 3 → 3.
+La relecture a été appliquée 146 fois, laissée sans corroboration 19 fois, restée sans majorité 4
+fois. **Rejeu à coût nul** : 243 zones à la première passe et 39 à la seconde, toutes servies par le
+cache, 0,0000 € et résultat identique (REC-02).
+
+F3 est vérifié à froid par la chaîne unifiée : 95 / 95, deux pages absentes, six médias orphelins,
+rejeu identique, pointe de mémoire 1,1 Go.
+
+### Ce que Vérifier montre sur F4
+
+65 cas : 60 liens sous le seuil, **4 relectures sans majorité**, 1 média qu'aucun élément ne réclame.
+Les quatre relectures sans majorité portent leur motif en clair — « repère relu deux fois sur des
+images différentes, sans que deux lectures s'accordent » — et la preuve « vision » (ANC-02). Aucune page
+manquante, parce qu'il n'en manque aucune.
+
+Le contrôle complet passe dans les conditions de l'intégration continue : fixtures privées écartées,
+`pnpm install --frozen-lockfile`, aucun cache de travail.

@@ -10,3 +10,7 @@ target/
 test-results/
 playwright-report/
 .cache/
+
+# Secrets de mise au point locale de wrangler : jamais dans le dépôt.
+.dev.vars
+.dev.vars.*

@@ -10,6 +10,25 @@ describe("phrase d'un lien (ANC-02)", () => {
     expect(phraseDuLien(ligne(41, { sourcePiste: "suite" }), MOTS)).toMatch(/reprend la plage/i);
     expect(phraseDuLien(ligne(41, { sourcePiste: "numero_element" }), MOTS)).toMatch(/^Plage et numéro coïncident/);
   });
+
+  it("dit la relecture ciblée, et qu'elle a été confirmée (ANC-02, OUT-08)", () => {
+    const phrase = phraseDuLien(ligne(41, { sourcePiste: "vision" }), MOTS);
+    expect(phrase).toMatch(/relu sur l'image/i);
+    expect(phrase, "la corroboration doit se voir, pas seulement la relecture").toMatch(/confirmé/i);
+    // Règle 8 : aucun jargon visible. Ni « vision », ni « modèle », ni « IA ».
+    expect(phrase).not.toMatch(/vision|modèle|IA\b|OCR/i);
+  });
+});
+
+describe("la preuve d'un lien relu (ANC-02)", () => {
+  it("porte « vision » dans « Pourquoi ce lien », distincte de « lu » et de « sequence »", () => {
+    const preuveDe = (sourcePiste: LigneInterpretee["sourcePiste"]) =>
+      // La piste 1, parce qu'un média doit exister pour qu'il y ait un lien à expliquer.
+      construireVue(entree({ lignes: [ligne(1, { sourcePiste })] })).pages.flatMap((page) => page.elements)[0]?.pourquoi?.preuve;
+    expect(preuveDe("vision")).toBe("vision");
+    expect(preuveDe("pastille")).toBe("lu");
+    expect(preuveDe("sequence")).toBe("sequence");
+  });
 });
 
 describe("instantané pour les écrans (B5)", () => {
@@ -77,5 +96,40 @@ describe("instantané pour les écrans (B5)", () => {
 
   it("rejoué, rend exactement le même instantané", () => {
     expect(JSON.stringify(construireVue(entree()))).toBe(JSON.stringify(construireVue(entree())));
+  });
+});
+
+describe("une relecture restée sans majorité se montre dans Vérifier (lot D, ANC-02)", () => {
+  const vue = (sur: Partial<LigneInterpretee>) => construireVue(entree({ lignes: [ligne(1, sur)] }));
+
+  it("met l'élément en attente, en disant pourquoi plutôt qu'« on n'est pas sûr »", () => {
+    const douteux = vue({ relecture: "sans_majorite", confiance: 1 }).douteux;
+    expect(douteux).toHaveLength(1);
+    expect(douteux[0]!.etat).toBe("relecture_sans_majorite");
+  });
+
+  it("le dit en français, sans jargon", () => {
+    const phrase = phraseDuLien(ligne(1, { relecture: "sans_majorite" }), MOTS);
+    expect(phrase).toMatch(/deux fois/);
+    expect(phrase).toMatch(/sans que deux lectures s'accordent/);
+    expect(phrase).not.toMatch(/vision|modèle|IA\b|OCR|majorité/i);
+  });
+
+  it("distingue le numéro que la suite n'a pas confirmé", () => {
+    expect(phraseDuLien(ligne(1, { relecture: "non_corroboree" }), MOTS)).toMatch(/ne le confirme pas/);
+    expect(vue({ relecture: "non_corroboree", confiance: 0.1 }).douteux[0]!.etat).toBe("confiance");
+  });
+
+  it("porte la preuve « vision » dès qu'une relecture est intervenue", () => {
+    const preuveDe = (relecture: LigneInterpretee["relecture"]) =>
+      vue({ relecture, confiance: 1 }).pages.flatMap((page) => page.elements)[0]?.pourquoi?.preuve;
+    expect(preuveDe("sans_majorite")).toBe("vision");
+    expect(preuveDe("non_corroboree")).toBe("vision");
+    expect(preuveDe("appliquee")).toBe("vision");
+    expect(preuveDe(undefined)).toBe("lu");
+  });
+
+  it("ne met rien en attente quand la relecture a abouti et que la suite l'a confirmée", () => {
+    expect(vue({ relecture: "appliquee", sourcePiste: "vision", confiance: 0.85 }).douteux).toEqual([]);
   });
 });

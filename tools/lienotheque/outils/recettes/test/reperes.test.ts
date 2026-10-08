@@ -1,10 +1,13 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import type { LectureRepere, MotLu } from "@lienotheque/contrats";
+import type { ImageGrise } from "@lienotheque/images";
 import { tesseractDisponible } from "@lienotheque/lecteur-texte";
 import {
+  LARGEUR_MINIMALE_REPERE,
   PRESENCE_MINIMALE,
   amorceDeSuite,
+  lireBlocPiste,
   coinsDePage,
   consolider,
   dansLaZone,
@@ -279,5 +282,127 @@ describe("fichiers de travail (OUT-07)", () => {
     // images remplirait le disque.
     expect(readdirSync(dossier), "le dossier de travail est rendu vide").toEqual([]);
     rmSync(dossier, { recursive: true, force: true });
+  });
+});
+
+describe("le comptage des chiffres ne tourne que si on en a l'usage (OUT-07, OUT-08)", () => {
+  const siTesseract = tesseractDisponible() ? it : it.skip;
+
+  /** Une page claire portant un numéro sombre, et sous lui un pavé sombre à deux chiffres clairs.
+   *  Ce que l'OCR en lit importe peu ici : on éprouve le comptage, pas la lecture. */
+  const page = (): ImageGrise => {
+    const largeur = 220;
+    const hauteur = 160;
+    const pixels = new Uint8Array(largeur * hauteur).fill(245);
+    const encre = (x0: number, y0: number, l: number, h: number, ton: number): void => {
+      for (let y = y0; y < y0 + h; y += 1) for (let x = x0; x < x0 + l; x += 1) pixels[y * largeur + x] = ton;
+    };
+    encre(40, 20, 24, 30, 30); // le numéro de l'élément
+    encre(30, 70, 90, 50, 25); // le pavé
+    encre(50, 80, 12, 30, 250); // premier chiffre clair
+    encre(74, 80, 12, 30, 250); // second chiffre clair
+    return { largeur, hauteur, pixels };
+  };
+
+  const numero = { x: 40, y: 20, l: 24, h: 30 };
+
+  siTesseract("compte les deux chiffres du pavé quand on le lui demande", async () => {
+    const bloc = lireBlocPiste(page(), numero, "dessous", "bloc_sombre_chiffres_clairs", 6, false, {}, true);
+    expect(bloc.decoupe?.chiffres).toHaveLength(2);
+  });
+
+  siTesseract("ne compte rien quand personne n'en a l'usage : une lecture ordinaire ne le paie pas", async () => {
+    const bloc = lireBlocPiste(page(), numero, "dessous", "bloc_sombre_chiffres_clairs", 6, false, {}, false);
+    expect(bloc.decoupe).toBeUndefined();
+    // Et le reste de la lecture ne change pas pour autant : le repère est toujours vu.
+    expect(bloc.presence).toBeGreaterThan(PRESENCE_MINIMALE);
+  });
+});
+
+describe("un éclat du seuillage n'est pas un repère (OUT-07)", () => {
+  const zone = (encre: (x: number, y: number) => boolean) => ({
+    largeur: 60,
+    hauteur: 30,
+    pixels: Uint8Array.from({ length: 60 * 30 }, (_, rang) => (encre(rang % 60, Math.floor(rang / 60)) ? 20 : 240)),
+  });
+
+  it("écarte un trait plein bien plus haut que large", () => {
+    // Trois pixels de large pour dix-huit de haut : plein, à la bonne hauteur, et pourtant un
+    // éclat. C'est le cas relevé sur les clichés, que la présence laissait passer.
+    const image = zone((x, y) => x >= 20 && x < 23 && y >= 6 && y < 24);
+    expect(presenceDeForme(image, { x: 20, y: 6, l: 3, h: 18 }, 18)).toBe(0);
+  });
+
+  it("garde le plus étroit des vrais pavés mesurés", () => {
+    // 31 × 42 px ramenés à l'échelle de cette zone : 0,74 en largeur sur hauteur.
+    const image = zone((x, y) => x >= 15 && x < 32 && y >= 4 && y < 27);
+    expect(presenceDeForme(image, { x: 15, y: 4, l: 17, h: 23 }, 21)).toBeGreaterThan(PRESENCE_MINIMALE);
+  });
+
+  it("juge en parts de la forme, pas en pixels : deux échelles donnent le même verdict", () => {
+    const petit = zone((x, y) => x >= 20 && x < 23 && y >= 6 && y < 24);
+    const grand = {
+      largeur: 240,
+      hauteur: 120,
+      pixels: Uint8Array.from({ length: 240 * 120 }, (_, rang) => {
+        const x = rang % 240;
+        const y = Math.floor(rang / 240);
+        return x >= 80 && x < 92 && y >= 24 && y < 96 ? 20 : 240;
+      }),
+    };
+    expect(presenceDeForme(petit, { x: 20, y: 6, l: 3, h: 18 }, 18)).toBe(0);
+    expect(presenceDeForme(grand, { x: 80, y: 24, l: 12, h: 72 }, 72)).toBe(0);
+  });
+
+  it("la sélection et le lecteur partagent une seule valeur mesurée", () => {
+    expect(LARGEUR_MINIMALE_REPERE).toBe(0.35);
+  });
+});
+
+describe("un éclat ne doit pas écarter le repère qui l'accompagne (OUT-07)", () => {
+  /** Une fenêtre où un trait fin côtoie un vrai pavé : le cas qui a coûté cinq premiers éléments.
+   *
+   *  Le choix de forme proposait l'éclat en premier — il est le plus plein —, et la présence ne
+   *  jugeait alors que lui. L'écarter sans plus de façon faisait abandonner tout le repère, alors
+   *  que le pavé était là, à côté. */
+  const binaire = (encre: (x: number, y: number) => boolean) => ({
+    largeur: 60,
+    hauteur: 30,
+    pixels: Uint8Array.from({ length: 60 * 30 }, (_, rang) => (encre(rang % 60, Math.floor(rang / 60)) ? 0 : 255)),
+  });
+
+  /** Le pavé est **moins plein** que l'éclat : ses chiffres clairs le trouent. C'est précisément
+   *  ce qui fait que le choix de forme propose l'éclat d'abord — il est plein à 1, le pavé à 0,7. */
+  const avecEclatEtPave = binaire((x, y) => {
+    const eclat = x >= 2 && x < 4 && y >= 4 && y < 26;
+    const pave = x >= 20 && x < 44 && y >= 5 && y < 25;
+    const chiffres = (x >= 25 && x < 30 && y >= 9 && y < 21) || (x >= 34 && x < 39 && y >= 9 && y < 21);
+    return eclat || (pave && !chiffres);
+  });
+
+  it("propose le pavé, pas l'éclat, en première forme", () => {
+    const [premiere] = formesCandidates(avecEclatEtPave, 20);
+    expect(premiere).toBeDefined();
+    expect(premiere!.l).toBeGreaterThanOrEqual(premiere!.h * LARGEUR_MINIMALE_REPERE);
+    expect(premiere!.x).toBeGreaterThan(10);
+  });
+
+  it("et la présence voit donc bien un repère", () => {
+    const zone = {
+      largeur: 60,
+      hauteur: 30,
+      pixels: Uint8Array.from({ length: 60 * 30 }, (_, rang) => (avecEclatEtPave.pixels[rang] === 0 ? 20 : 240)),
+    };
+    expect(presenceDeForme(zone, formesCandidates(avecEclatEtPave, 20)[0], 20)).toBeGreaterThan(PRESENCE_MINIMALE);
+  });
+
+  it("ne propose rien quand il n'y a que l'éclat", () => {
+    const seul = binaire((x, y) => x >= 2 && x < 4 && y >= 4 && y < 26);
+    const zone = {
+      largeur: 60,
+      hauteur: 30,
+      pixels: Uint8Array.from({ length: 60 * 30 }, (_, rang) => (seul.pixels[rang] === 0 ? 20 : 240)),
+    };
+    expect(presenceDeForme(zone, formesCandidates(seul, 20)[0], 20)).toBe(0);
   });
 });

@@ -19,7 +19,7 @@ import { chargerRecette, preparerLot, reperer, zonePastille } from "../src/index
 const RACINE = join(import.meta.dirname, "../../..");
 const F4 = join(RACINE, "fixtures/fichiers/F4/Paul westwood.pdf");
 const ORACLE = join(RACINE, "docs/prototypes/Westwood_Vol1_exercices.csv");
-const RECETTE = chargerRecette(JSON.parse(readFileSync(join(RACINE, "fixtures/recettes/methode-pastilles-cd.v4.json"), "utf8")));
+const RECETTE = chargerRecette(JSON.parse(readFileSync(join(RACINE, "fixtures/recettes/methode-pastilles-cd.v5.json"), "utf8")));
 
 if (!existsSync(F4) || !existsSync(ORACLE)) {
   console.log("Clichés ou oracle absents : rien à mesurer ici.");

@@ -8,7 +8,7 @@ import { noterLesQuatreSens, orientationDuLot, redresser, type OptionsRedresseme
 import { objetsPdf, octetsImage, pagesPdf } from "@lienotheque/formats";
 import { decoderJpeg, enGris, type ImageGrise } from "@lienotheque/images";
 import { associer, lireNomMedia, type Association, type Media } from "./associateur.js";
-import { interpreter, type PageLue } from "./interprete.js";
+import { interpreter, type LectureParVision, type PageLue, type SupportsPresents, supportsPresents } from "./interprete.js";
 import { lireCoucheTexte } from "@lienotheque/lecteur-texte";
 import { texteDePage } from "@lienotheque/contrats";
 import { VERSION_LECTURE, consolider, lecturesDePage, lireNumeroPage, type OptionsReperes } from "./reperes.js";
@@ -41,7 +41,30 @@ export function clefDeLecture(chemin: string, recette: Recette, limite?: number)
     .slice(0, 32);
 }
 
+/** Une relecture ciblée branchée sur la chaîne (OUT-08).
+ *
+ *  Un port, pas un appel : la relecture vit dans un paquet qui dépend de celui-ci, et c'est donc
+ *  l'appelant qui la branche. Une chaîne sans relecture est la même chaîne — c'est tout l'intérêt
+ *  d'un port, et c'est ce qui permet à l'application et au banc d'essai de parcourir le même
+ *  chemin de code. */
+export type Relecture = (contexte: {
+  readonly chemin: string;
+  readonly recette: Recette;
+  readonly lues: readonly PageLue[];
+  readonly nombreDePistes: number;
+  readonly supports: SupportsPresents;
+  readonly options: OptionsBanc;
+}) => Promise<ReadonlyMap<string, LectureParVision>>;
+
 export type OptionsBanc = OptionsReperes & {
+  /** Appelé après chaque cliché lu, pour que l'appelant dise où il en est (JOB-03).
+   *
+   *  Après la lecture, pas après le décodage : c'est la lecture qui coûte, et annoncer cent pour
+   *  cent pendant que les dernières pages passent encore à l'OCR serait un mensonge poli. Un lot
+   *  servi par le cache ne passe pas par ici — il n'y a rien à suivre. */
+  readonly avancement?: (faits: number, total: number) => void;
+  /** De quoi relire les repères difficiles. Absente, la chaîne ne relit rien et ne change pas. */
+  readonly relecture?: Relecture;
   /** Dossier où garder les lectures. Absent, rien n'est gardé. */
   readonly cache?: string | undefined;
   /** Rend les pages redressées et coupées, mais sans binarisation.
@@ -109,17 +132,23 @@ export async function* preparerLot(chemin: string, recette: Recette, options: Op
   const rotationDuLot = reglages === undefined || reglages.rotation !== "auto" ? undefined : await voterOrientation(chemin, options);
 
   let index = 0;
-  for await (const image of pagesEnGris(chemin, options.pages)) {
-    if (reglages === undefined) yield { image, index };
+  let total = 0;
+  for await (const image of pagesEnGris(chemin, options.pages, (compte) => (total = compte))) {
+    if (reglages === undefined) yield { image, index, total };
     else
       for (const produite of redresser(image, index, reglages, {
         ...(options.redressement ?? {}),
         ...(rotationDuLot === undefined ? {} : { rotationImposee: rotationDuLot.rotation }),
+        // Le gris n'est gardé que si quelqu'un en a l'usage : une relecture ciblée déclarée par
+        // la recette. Sans cela, une page de plus en mémoire pour personne.
+        garderGris: recette.vision !== undefined,
       })) {
         const cote = produite.descripteur.cote;
         yield {
           image: produite.image,
+          ...(produite.grise === undefined ? {} : { grise: produite.grise }),
           index,
+          total,
           rang: preparation.double_page ? index * 2 + (cote === "droite" ? 1 : 0) : index,
           ...(cote === undefined ? {} : { cote }),
         };
@@ -132,10 +161,15 @@ export async function* preparerLot(chemin: string, recette: Recette, options: Op
  *
  *  Un flux, pas un tableau : le tableau gardait les trois cents pages décodées en mémoire en même
  *  temps — deux mégaoctets et demi la page, et la mémoire croissait avec le document. */
-export async function* pagesEnGris(chemin: string, limite?: number): AsyncGenerator<ImageGrise> {
+export async function* pagesEnGris(chemin: string, limite?: number, surTotal?: (total: number) => void): AsyncGenerator<ImageGrise> {
   const objets = objetsPdf(await readFile(chemin));
   const pages = pagesPdf(objets);
   const retenues = limite === undefined ? pages : pages.slice(0, limite);
+
+  // Combien de pages il y a, dit une fois, avant la première. C'est ici — et seulement ici —
+  // qu'on le sait sans reparser le document, et une file qui annonce un pourcentage et un temps
+  // restant ne peut pas s'en passer.
+  surTotal?.(retenues.length);
 
   for (const page of retenues) {
     const image = page.images[0];
@@ -148,11 +182,21 @@ export async function* pagesEnGris(chemin: string, limite?: number): AsyncGenera
 
 /** Lit les repères de chaque page, puis interprète selon la recette. */
 export function lireEtInterpreter(pages: readonly ImageGrise[], recette: Recette, options: OptionsBanc = {}): ResultatRecette {
-  return interpreter(reperer(pages.map((image, index) => ({ image, index })), recette, options), recette);
+  return interpreter(reperer(pages.map((image, index) => ({ image, index, total: pages.length })), recette, options), recette);
 }
 
 /** Une page à lire, avec ce que le redresseur en sait déjà. */
-export type PageAlire = { readonly image: ImageGrise; readonly index: number; readonly rang?: number; readonly cote?: CotePage };
+export type PageAlire = {
+  readonly image: ImageGrise;
+  /** Combien de pages le document en compte, connu dès la première. */
+  readonly total: number;
+  /** La même page en gris, quand la recette déclare une relecture ciblée : c'est de là que les
+   *  recadrages sont pris, et non de la page binarisée que l'OCR préfère. */
+  readonly grise?: ImageGrise;
+  readonly index: number;
+  readonly rang?: number;
+  readonly cote?: CotePage;
+};
 
 /** Lit les repères de chaque page. Le côté, quand il est connu, dit où est la marge extérieure. */
 export function reperer(pages: readonly PageAlire[], recette: Recette, options: OptionsBanc = {}): PageLue[] {
@@ -194,7 +238,13 @@ export async function mediasDuDossier(dossier: string, recette?: Recette, extens
   return medias.sort((a, b) => (a.disque ?? 1) - (b.disque ?? 1) || a.piste - b.piste || a.nom.localeCompare(b.nom, "fr"));
 }
 
-export type Rejeu = { readonly resultat: ResultatRecette; readonly association: Association };
+export type Rejeu = {
+  readonly resultat: ResultatRecette;
+  readonly association: Association;
+  /** Les médias rangés, rendus avec le reste : les empreindre coûte une lecture de chaque fichier,
+   *  et deux appelants qui les recalculent chacun de leur côté paient deux fois la même chose. */
+  readonly medias: readonly Media[];
+};
 
 /** Lit un lot, en passant par le cache quand il est offert.
  *
@@ -245,16 +295,37 @@ export async function lireLot(pdf: string, recette: Recette, options: OptionsBan
 
   // Page par page : ce qui s'accumule, ce sont des numéros et des positions, pas des pixels.
   const lues: PageLue[] = [];
-  for await (const page of preparerLot(pdf, recette, options)) lues.push(...reperer([page], recette, options));
+  let faits = 0;
+  for await (const page of preparerLot(pdf, recette, options)) {
+    lues.push(...reperer([page], recette, options));
+    faits += 1;
+    options.avancement?.(faits, page.total);
+  }
   if (fichier !== undefined) ecrireCache(fichier, lues);
   return lues;
 }
 
 export async function rejouer(pdf: string, dossierMedias: string, recette: Recette, options: OptionsBanc = {}): Promise<Rejeu> {
   const medias = await mediasDuDossier(dossierMedias, recette);
-  // Combien de pistes le support compte est un fait sur le média, pas sur son nom (REC-05).
-  const resultat = interpreter(await lireLot(pdf, recette, options), recette, { nombreDePistes: medias.length });
-  return { resultat, association: associer(resultat.lignes, medias, recette) };
+  // Combien de pistes le support compte est un fait sur le média, pas sur son nom (REC-05). Et
+  // quels supports sont là : un livre qui couvre deux disques dont on n'a que le premier ne doit
+  // pas voir ses derniers éléments forcés dans celui-là.
+  const supports = supportsPresents(medias);
+  const lues = await lireLot(pdf, recette, options);
+
+  // La relecture ciblée, quand une est branchée. Elle vient après la lecture et avant
+  // l'interprétation : elle ne lit pas à la place du lecteur, elle revient sur ce dont il doute.
+  const vision =
+    options.relecture === undefined
+      ? undefined
+      : await options.relecture({ chemin: pdf, recette, lues, nombreDePistes: medias.length, supports, options });
+
+  const resultat = interpreter(lues, recette, {
+    nombreDePistes: medias.length,
+    supports,
+    ...(vision === undefined ? {} : { vision }),
+  });
+  return { resultat, association: associer(resultat.lignes, medias, recette), medias };
 }
 
 /** Ce qu'un rejeu vaut face à une référence : combien d'éléments tombent sur la bonne piste. */

@@ -5,6 +5,8 @@ on:
     paths:
       - '**/*.html'
       - '!index.html'
+      # Maquettes de travail de Liénothèque : des sources, pas des pages du site.
+      - '!tools/lienotheque/docs/maquettes/**'
       - 'generate-index.js'
     branches:
       - main

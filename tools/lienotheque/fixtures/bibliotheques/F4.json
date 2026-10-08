@@ -1,0 +1,46 @@
+{
+  "description": "Description de la bibliothèque F4 pour les écrans. C'est une donnée, pas du code : les mots du domaine n'ont le droit d'être écrits que dans un fichier comme celui-ci (CLA-01). Le document et les médias eux-mêmes sont sous droits et restent hors du dépôt. Le seuil de confiance vient de la recette, qui le fixe avec ses règles de lecture.",
+  "id": "f4-bass-bible-vol-1",
+  "nom": "Bass Bible — volume 1",
+  "mots": {
+    "element": {
+      "un": "exercice",
+      "plusieurs": "exercices"
+    },
+    "piste": {
+      "un": "piste",
+      "plusieurs": "pistes"
+    },
+    "page": {
+      "un": "page",
+      "plusieurs": "pages"
+    }
+  },
+  "schema": {
+    "cle": "methode-instrument",
+    "nom": "Méthode d'instrument",
+    "langue": "fr",
+    "version": 1,
+    "axes": [
+      {
+        "cle": "etat-du-lien",
+        "nom": "Avec enregistrement",
+        "nature": "referentiel",
+        "cardinalite": "une",
+        "valeurs": [
+          {
+            "cle": "avec",
+            "nom": "Oui",
+            "roleValeur": "present"
+          },
+          {
+            "cle": "sans",
+            "nom": "Non",
+            "roleValeur": "absent"
+          }
+        ],
+        "roleCommun": "etat"
+      }
+    ]
+  }
+}

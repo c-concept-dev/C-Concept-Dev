@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { ElementRepere } from "@lienotheque/contrats";
-import { chargerRecette, interpreter, numeroterPages, sequencer, type PageLue } from "../src/index.js";
+import { chargerRecette, clefDeVision, interpreter, numeroterPages, sequencer, type LectureParVision, type PageLue, type PageNumerotee, supportsPresents } from "../src/index.js";
 
 const RECETTE = chargerRecette(
   JSON.parse(readFileSync(join(import.meta.dirname, "../../../fixtures/recettes/methode-pastille-piste.v2.json"), "utf8")),
@@ -159,5 +159,196 @@ describe("déterminisme (REC-02)", () => {
       JSON.parse(readFileSync(join(import.meta.dirname, "../../../fixtures/recettes/methode-pastille-piste.v1.json"), "utf8")),
     );
     expect(interpreter(lot, v1).recette.version).toBe(1);
+  });
+});
+
+describe("un numéro relu n'est appliqué que si la suite le confirme (ANC-02, OUT-08)", () => {
+  const V5 = chargerRecette(
+    JSON.parse(readFileSync(join(import.meta.dirname, "../../../fixtures/recettes/methode-pastilles-cd.v5.json"), "utf8")),
+  );
+
+  /** Trois éléments sur trois pages, celui du milieu ayant un repère illisible. */
+  const pages = (sur: Partial<ElementRepere> = {}): PageNumerotee[] => [
+    { index: 10, rang: 20, cote: "gauche", pageImprimee: 70, statut: "lue", elements: [element(1, { pisteLue: 11, accordPiste: 1 })] },
+    { index: 11, rang: 22, cote: "gauche", pageImprimee: 71, statut: "lue", elements: [element(2, sur)] },
+    { index: 12, rang: 24, cote: "gauche", pageImprimee: 72, statut: "lue", elements: [element(3, { pisteLue: 13, accordPiste: 1 })] },
+  ];
+
+  const relu = (numero: number, confiance = 0.9): Map<string, LectureParVision> =>
+    new Map([[clefDeVision(11, "gauche", 2), { numero, confiance, outil: { nom: "vision-ciblee", version: "0.1.0" } }]]);
+
+  const deuxieme = (sur: Partial<ElementRepere>, vision?: Map<string, LectureParVision>) =>
+    sequencer(pages(sur), V5, { nombreDePistes: 92, ...(vision === undefined ? {} : { vision }) }).lignes.find((ligne) => ligne.numero === 2)!;
+
+  it("l'applique et le dit quand la suite le confirme", () => {
+    const ligne = deuxieme({}, relu(12));
+    expect(ligne.piste).toBe(12);
+    expect(ligne.sourcePiste).toBe("vision");
+    expect(ligne.confiance).toBeGreaterThanOrEqual(V5.validation.seuil_confiance);
+  });
+
+  it("ne l'applique pas quand la suite tranche ailleurs, et le fait passer sous le seuil", () => {
+    // 47 ne tient pas entre 11 et 13 : la suite impose 12, et la relecture est donc contredite.
+    const ligne = deuxieme({}, relu(47));
+    expect(ligne.piste).not.toBe(47);
+    expect(ligne.sourcePiste).not.toBe("vision");
+    expect(ligne.confiance).toBeLessThan(V5.validation.seuil_confiance);
+  });
+
+  it("reste sous une pastille lue sur place : un seul témoin, pas deux", () => {
+    const parVision = deuxieme({}, relu(12, 1));
+    const surPlace = deuxieme({ pisteLue: 12, accordPiste: 1 });
+    expect(parVision.sourcePiste).toBe("vision");
+    expect(surPlace.sourcePiste).toBe("pastille");
+    expect(parVision.confiance).toBeLessThan(surPlace.confiance);
+  });
+
+  it("l'emporte sur une lecture locale tronquée : c'est pour cela que le pavé est parti", () => {
+    const ligne = deuxieme({ pisteLue: 2, accordPiste: 1 }, relu(12));
+    expect(ligne.piste).toBe(12);
+    expect(ligne.sourcePiste).toBe("vision");
+  });
+
+  it("devient porteur de repère alors que rien n'avait été lu sur la page", () => {
+    expect(deuxieme({}).sourcePiste).not.toBe("vision");
+    expect(deuxieme({}, relu(12)).sourcePiste).toBe("vision");
+  });
+
+  it("ne change rien quand aucune relecture n'est fournie", () => {
+    expect(sequencer(pages(), V5, { nombreDePistes: 92 })).toEqual(sequencer(pages(), V5, { nombreDePistes: 92, vision: new Map() }));
+  });
+
+  it("distingue les deux côtés d'un même cliché", () => {
+    expect(clefDeVision(11, "gauche", 2)).not.toBe(clefDeVision(11, "droite", 2));
+    expect(clefDeVision(11, undefined, 2)).not.toBe(clefDeVision(11, "gauche", 2));
+  });
+});
+
+describe("un support absent ne reçoit pas les éléments du précédent (REC-05, A5)", () => {
+  const V5 = chargerRecette(
+    JSON.parse(readFileSync(join(import.meta.dirname, "../../../fixtures/recettes/methode-pastilles-cd.v5.json"), "utf8")),
+  );
+
+  /** Une suite bien engagée sur le premier support, puis un retour franc au début : c'est ce que
+   *  la recette appelle un changement de disque. */
+  const lot = (): PageNumerotee[] =>
+    Array.from({ length: 28 }, (_, rang) => ({
+      index: rang,
+      rang,
+      cote: "gauche" as const,
+      pageImprimee: 60 + rang,
+      statut: "lue" as const,
+      elements: [element(rang + 1, { pisteLue: rang < 25 ? rang + 1 : rang - 24, accordPiste: 1, chiffresComptes: 1 })],
+    }));
+
+  it("sans inventaire, les derniers éléments vont sur un second support, comme avant", () => {
+    const { lignes } = sequencer(lot(), V5, { nombreDePistes: 25 });
+    expect(lignes.filter((ligne) => ligne.disque === 2)).toHaveLength(3);
+  });
+
+  it("avec un inventaire qui ne connaît qu'un support, ils restent sans piste", () => {
+    const { lignes } = sequencer(lot(), V5, { nombreDePistes: 25, supports: new Map([[1, 25]]) });
+    const derniers = lignes.slice(-3);
+    expect(derniers.every((ligne) => ligne.piste === undefined)).toBe(true);
+    expect(derniers.every((ligne) => ligne.sourcePiste === undefined)).toBe(true);
+  });
+
+  it("et ils n'héritent de rien : relier au hasard est pire que ne pas relier", () => {
+    const { lignes } = sequencer(lot(), V5, { nombreDePistes: 25, supports: new Map([[1, 25]]) });
+    expect(lignes.filter((ligne) => ligne.piste === 25)).toHaveLength(1);
+  });
+
+  it("le premier support garde les siens", () => {
+    const { lignes } = sequencer(lot(), V5, { nombreDePistes: 25, supports: new Map([[1, 25]]) });
+    const premiers = lignes.slice(0, 25);
+    expect(premiers.every((ligne) => ligne.disque === 1 && ligne.piste !== undefined)).toBe(true);
+    expect(premiers.map((ligne) => ligne.piste)).toEqual(Array.from({ length: 25 }, (_, rang) => rang + 1));
+  });
+
+  it("quand le second support est là, il reçoit bien ses éléments", () => {
+    const { lignes } = sequencer(lot(), V5, { nombreDePistes: 25, supports: new Map([[1, 25], [2, 10]]) });
+    expect(lignes.filter((ligne) => ligne.disque === 2 && ligne.piste !== undefined)).toHaveLength(3);
+  });
+
+  it("un repère lu contredit l'inventaire : c'est la page qui fait foi", () => {
+    // L'inventaire ne connaît que 20 pistes, mais une pastille en annonce 25 : c'est l'inventaire
+    // qui est incomplet, et la piste lue doit pouvoir être attribuée.
+    const { lignes } = sequencer(lot(), V5, { nombreDePistes: 25, supports: new Map([[1, 20]]) });
+    expect(lignes.some((ligne) => ligne.piste === 25)).toBe(true);
+  });
+
+  it("l'inventaire se tire des médias rangés, support par support", () => {
+    const inventaire = supportsPresents([
+      { piste: 1, disque: 1 },
+      { piste: 92, disque: 1 },
+      { piste: 3, disque: 2 },
+    ]);
+    expect([...inventaire]).toEqual([[1, 92], [2, 3]]);
+  });
+
+  it("un média sans support déclaré compte pour le premier", () => {
+    expect([...supportsPresents([{ piste: 7 }])]).toEqual([[1, 7]]);
+  });
+});
+
+describe("le verdict de la relecture décide de l'ouverture d'une piste (lot D, ANC-02)", () => {
+  const V5 = chargerRecette(
+    JSON.parse(readFileSync(join(import.meta.dirname, "../../../fixtures/recettes/methode-pastilles-cd.v5.json"), "utf8")),
+  );
+
+  /** Deux éléments voisins lisent tous deux « 7 », et un seul porte le repère. C'est le cas que la
+   *  lecture seule ne sait pas trancher : la présence vaut à peu près la même chose des deux côtés. */
+  const lot = (): PageNumerotee[] => [
+    { index: 1, rang: 2, cote: "gauche", pageImprimee: 60, statut: "lue", elements: [element(1, { pisteLue: 6, accordPiste: 1 })] },
+    { index: 2, rang: 4, cote: "gauche", pageImprimee: 61, statut: "lue", elements: [element(2, { pisteLue: 7, accordPiste: 1 })] },
+    { index: 3, rang: 6, cote: "gauche", pageImprimee: 62, statut: "lue", elements: [element(3, { pisteLue: 7, accordPiste: 1 })] },
+    { index: 4, rang: 8, cote: "gauche", pageImprimee: 63, statut: "lue", elements: [element(4, { pisteLue: 8, accordPiste: 1 })] },
+  ];
+
+  const verdict = (numero: number, repere: "present" | "absent" | "incertain", lu?: number): Map<string, LectureParVision> =>
+    new Map([
+      [
+        clefDeVision(numero, "gauche", numero),
+        { ...(lu === undefined ? {} : { numero: lu }), confiance: lu === undefined ? 0 : 0.9, repere, outil: { nom: "vision-ciblee", version: "0.1.0" } },
+      ],
+    ]);
+
+  const premierDe = (piste: number, vision?: Map<string, LectureParVision>) =>
+    sequencer(lot(), V5, { nombreDePistes: 92, ...(vision === undefined ? {} : { vision }) }).lignes.find(
+      (ligne) => ligne.piste === piste,
+    )?.numero;
+
+  it("sans verdict, c'est le premier des deux qui ouvre la piste", () => {
+    expect(premierDe(7)).toBe(2);
+  });
+
+  it("« absent » lui interdit de l'ouvrir, et c'est l'autre qui la prend", () => {
+    expect(premierDe(7, verdict(2, "absent"))).toBe(3);
+  });
+
+  it("« incertain » ne change rien", () => {
+    expect(premierDe(7, verdict(2, "incertain", 7))).toBe(2);
+  });
+
+  it("« present » ne lui retire rien non plus", () => {
+    expect(premierDe(7, verdict(2, "present", 7))).toBe(2);
+  });
+
+  it("un pavé déclaré absent n'ouvre aucune piste, même seul à la lire", () => {
+    const seul: PageNumerotee[] = [
+      { index: 1, rang: 2, cote: "gauche", pageImprimee: 60, statut: "lue", elements: [element(1, { pisteLue: 2, accordPiste: 1 })] },
+    ];
+    const sans = sequencer(seul, V5, { nombreDePistes: 92 }).lignes[0]!;
+    const avec = sequencer(seul, V5, { nombreDePistes: 92, vision: verdict(1, "absent") }).lignes[0]!;
+    // Ce qui compte est la provenance, pas le numéro : sur un élément seul, la pénalité de départ
+    // éloigné égalise les pistes, et le numéro retenu n'est donc pas la propriété à éprouver.
+    expect(sans.sourcePiste).toBe("pastille");
+    expect(avec.sourcePiste).not.toBe("pastille");
+  });
+
+  it("un verdict « present » sans nombre ne fait pas de l'élément un porteur à lui seul", () => {
+    // Le repère est là, mais illisible : la suite doit décider, pas le verdict.
+    const vision = verdict(2, "present");
+    expect(premierDe(7, vision)).toBe(2);
   });
 });

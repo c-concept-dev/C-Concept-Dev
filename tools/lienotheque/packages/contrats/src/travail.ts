@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { Horodatage, Identifiant, RefOutil } from "./commun.js";
+import limites from "../limites.json" with { type: "json" };
 
 export const EtatTravail = z.enum([
   "en_file", "verrouille", "en_cours", "en_pause", "termine", "partiel", "en_echec_recuperable", "en_echec_definitif", "annule",
@@ -9,8 +10,21 @@ export type EtatTravail = z.infer<typeof EtatTravail>;
 /** Le verrou est un bail renouvelé : le travail bat toutes les `BATTEMENT_VERROU_S` secondes et
  *  le bail expire `EXPIRATION_VERROU_S` secondes après le dernier battement. Un processus tué
  *  cesse de battre, son bail expire, le travail redevient reprenable (JOB-02). */
-export const BATTEMENT_VERROU_S = 5;
-export const EXPIRATION_VERROU_S = 15;
+export const BATTEMENT_VERROU_S = limites.battementVerrouS;
+export const EXPIRATION_VERROU_S = limites.expirationVerrouS;
+
+/** Combien de fois on réessaie un travail qui a échoué de façon récupérable (JOB-05).
+ *
+ *  Au-delà, l'échec devient définitif : réessayer sans fin une opération qui échoue toujours ne la
+ *  fait pas réussir, cela cache seulement la panne derrière une file qui a l'air de tourner. */
+export const TENTATIVES_MAX = limites.tentativesMax;
+
+/** Le temps qu'on laisse passer avant de réessayer.
+ *
+ *  Sans délai, trois tentatives se consomment en une seconde sur une panne passagère — un volume
+ *  démonté, un fichier encore en cours d'écriture — et l'échec devient définitif avant que la
+ *  cause ait eu le temps de disparaître. */
+export const DELAI_ENTRE_TENTATIVES_S = limites.delaiEntreTentativesS;
 
 export const Verrou = z
   .object({ appareilId: Identifiant, battuLe: Horodatage, expireLe: Horodatage })
@@ -21,6 +35,15 @@ export const Verrou = z
   });
 export type Verrou = z.infer<typeof Verrou>;
 
+/** Ce qu'un travail coûte à la machine.
+ *
+ *  « lourd » occupe une des places limitées : lire trois cents pages tient un processus entier et
+ *  son gigaoctet. « léger » n'en occupe aucune — renommer un axe ou recalculer un compte n'a pas
+ *  à attendre qu'une lecture finisse. Lourd par défaut : se tromper dans ce sens fait attendre,
+ *  se tromper dans l'autre fait rendre la main à la machine. */
+export const PoidsTravail = z.enum(["lourd", "leger"]);
+export type PoidsTravail = z.infer<typeof PoidsTravail>;
+
 /** Où le travail s'exécute (PLT-04). Le navigateur traite les petits ajouts ; au-delà d'un seuil,
  *  le travail attend l'application de bureau, qui le reprend à sa prochaine ouverture. */
 export const LieuExecution = z.enum(["application", "navigateur"]);
@@ -28,6 +51,16 @@ export type LieuExecution = z.infer<typeof LieuExecution>;
 
 /** États depuis lesquels un travail ne repartira plus de lui-même. */
 export const ETATS_TERMINAUX: readonly z.infer<typeof EtatTravail>[] = ["termine", "annule", "en_echec_definitif"];
+
+/** Où un travail long en est : l'unité comptée et le rang atteint (JOB-03).
+ *
+ *  Décrit ici, et nulle part ailleurs : le travail persisté et les messages échangés avec le
+ *  processus qui l'exécute parlent du même point, et deux descriptions du même fait finissent
+ *  toujours par en donner deux. */
+export const PointReprise = z
+  .object({ unite: z.enum(["page", "lot", "fichier"]), valeur: z.number().int().nonnegative() })
+  .strict();
+export type PointReprise = z.infer<typeof PointReprise>;
 
 /** Travail persisté avant de commencer (JOB-01), bail renouvelé (JOB-02), point de reprise (JOB-03). */
 export const Travail = z
@@ -37,11 +70,12 @@ export const Travail = z
     versionCible: Identifiant,
     etat: EtatTravail,
     lieu: LieuExecution.default("application"),
+    poids: PoidsTravail.default("lourd"),
     /** Empreinte de ce qui est demandé : rejouer le même travail retrouve celui-ci (JOB-04). */
     empreinteEntree: z.string().min(1).optional(),
     tentative: z.number().int().min(1),
     verrou: Verrou.optional(),
-    pointReprise: z.object({ unite: z.enum(["page", "lot", "fichier"]), valeur: z.number().int().nonnegative() }).strict().optional(),
+    pointReprise: PointReprise.optional(),
     progression: z.number().min(0).max(1),
     erreur: z
       .object({ cause: z.string().min(1), elements: z.array(z.string()), reprisePossible: z.boolean() })

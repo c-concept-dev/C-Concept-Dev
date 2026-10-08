@@ -9,12 +9,12 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { coin, ouvrirCache } from "@lienotheque/cache";
-import { chargerRecette, interpreter, lireLot } from "../src/index.js";
+import { chargerRecette, interpreter, lireLot, mediasDuDossier, supportsPresents } from "../src/index.js";
 
 const RACINE = join(import.meta.dirname, "../../..");
 const F4 = join(RACINE, "fixtures/fichiers/F4/Paul westwood.pdf");
 const ORACLE = join(RACINE, "docs/prototypes/Westwood_Vol1_CD1_pistes.csv");
-const RECETTE = chargerRecette(JSON.parse(readFileSync(join(RACINE, "fixtures/recettes/methode-pastilles-cd.v4.json"), "utf8")));
+const RECETTE = chargerRecette(JSON.parse(readFileSync(join(RACINE, "fixtures/recettes/methode-pastilles-cd.v5.json"), "utf8")));
 
 if (!existsSync(F4) || !existsSync(ORACLE)) {
   console.log("Clichés ou oracle absents : rien à mesurer ici.");
@@ -39,12 +39,24 @@ const debut = Date.now();
 const lues = await lireLot(F4, RECETTE, { cache });
 console.log(`Lecture : ${lues.length} pages en ${Math.round((Date.now() - debut) / 1000)} s`);
 
-const resultat = interpreter(lues, RECETTE, { nombreDePistes: attendus.length });
+// L'inventaire des médias présents : quels supports sont là, et jusqu'où ils vont. Sans lui, un
+// livre qui couvre deux disques dont on n'a que le premier voit ses derniers éléments forcés
+// dans celui-là.
+const medias = await mediasDuDossier(join(RACINE, "fixtures/fichiers/F4"), RECETTE);
+const supports = supportsPresents(medias);
+console.log(`Supports présents : ${[...supports].map(([support, pistes]) => `${support} (${pistes} pistes)`).join(", ") || "aucun"}`);
+
+const resultat = interpreter(lues, RECETTE, { nombreDePistes: attendus.length, supports });
 console.log(`Interprétation : ${resultat.lignes.length} lignes`);
 
 const parPiste = new Map<number, { premier: number; page: number }>();
 for (const ligne of resultat.lignes) {
   if (ligne.piste === undefined) continue;
+  // Le critère porte sur le premier support : l'oracle est celui de CD1, et une piste 50 du
+  // deuxième disque n'est pas la piste 50 de l'oracle. Ce filtre manquait, et son absence rendait
+  // les chiffres de F4 dépendants de l'endroit où la coupure de support tombait — les mesures
+  // antérieures confondaient donc les deux disques.
+  if (ligne.disque !== 1) continue;
   const vu = parPiste.get(ligne.piste);
   if (vu === undefined || ligne.numero < vu.premier) parPiste.set(ligne.piste, { premier: ligne.numero, page: ligne.pageImprimee });
 }

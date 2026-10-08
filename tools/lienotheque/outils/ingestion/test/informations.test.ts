@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CasDouteux, VueBibliotheque } from "@lienotheque/contrats";
-import { construireVue, suites, trous } from "../src/index.js";
+import { construireVue, suites } from "../src/index.js";
 import { entreeMinimale, ligne, media } from "./aide-instantane.js";
 
 /** Les informations de Vérifier (OUT-01, OUT-10, UX-03).
@@ -9,33 +9,9 @@ import { entreeMinimale, ligne, media } from "./aide-instantane.js";
  *  la numérotation saute des pages, ou qu'un média n'est réclamé par personne : ce sont des faits
  *  qu'on veut connaître après un import, même s'il n'y a rien à trancher. */
 
-describe("trous d'une numérotation", () => {
-  it("groupe les manquants consécutifs, pour ne pas remplir la file de cartes identiques", () => {
-    expect(trous([29, 32])).toEqual([{ debut: 30, fin: 31 }]);
-    expect(trous([3, 4, 5])).toEqual([]);
-    expect(trous([1, 3, 7])).toEqual([
-      { debut: 2, fin: 2 },
-      { debut: 4, fin: 6 },
-    ]);
-  });
-
-  it("ne suppose rien avant le premier ni après le dernier", () => {
-    // On ne sait pas où le document commence ni où il finit : seuls les trous intérieurs sont
-    // des faits.
-    expect(trous([10, 11])).toEqual([]);
-    expect(trous([])).toEqual([]);
-    expect(trous([5])).toEqual([]);
-  });
-
-  it("supporte le désordre et les doublons", () => {
-    expect(trous([32, 29, 29])).toEqual([{ debut: 30, fin: 31 }]);
-  });
-});
-
-describe("une page que la numérotation annonce et dont rien n'a été lu", () => {
-  /** Les lignes posent les pages 100 et 103 : 101 et 102 n'ont rien donné. */
-  const vue = (): VueBibliotheque =>
-    construireVue(entreeMinimale({ lignes: [ligne(1, { pageImprimee: 100 }), ligne(2, { pageImprimee: 103 })] }));
+describe("une page que la numérotation donne pour sautée", () => {
+  /** L'interprète a relevé que le document passe de 100 à 103 : 101 et 102 lui manquent. */
+  const vue = (): VueBibliotheque => construireVue(entreeMinimale({ pagesAbsentes: [101, 102] }));
 
   it("apparaît comme information, jamais comme doute sur un lien", () => {
     const cas = vue().douteux.filter((c) => c.etat === "page_absente");
@@ -52,18 +28,14 @@ describe("une page que la numérotation annonce et dont rien n'a été lu", () =
   });
 
   it("lit trois manquants et plus avec « à »", () => {
-    const trois = construireVue(
-      entreeMinimale({ lignes: [ligne(1, { pageImprimee: 100 }), ligne(2, { pageImprimee: 104 })] }),
-    );
+    const trois = construireVue(entreeMinimale({ pagesAbsentes: [101, 102, 103] }));
     const cas = trois.douteux.find((c) => c.etat === "page_absente");
     expect(cas?.libelle).toBe("Feuillets 101 à 103");
     expect(cas?.proposition).toBe("Feuillets 101 à 103 manquent au document");
   });
 
   it("se nomme au singulier quand il n'en manque qu'une, et accorde le verbe", () => {
-    const seule = construireVue(
-      entreeMinimale({ lignes: [ligne(1, { pageImprimee: 100 }), ligne(2, { pageImprimee: 102 })] }),
-    );
+    const seule = construireVue(entreeMinimale({ pagesAbsentes: [101] }));
     const cas = seule.douteux.find((c) => c.etat === "page_absente");
     expect(cas?.libelle).toBe("Feuillet 101");
     expect(cas?.proposition).toBe("Feuillet 101 manque au document");
@@ -71,6 +43,17 @@ describe("une page que la numérotation annonce et dont rien n'a été lu", () =
 
   it("ne dit plus « rien de lu » : on ne sait pas si la page manque au scan ou au livre", () => {
     for (const cas of vue().douteux) expect(`${cas.proposition} ${cas.motif}`).not.toMatch(/rien de lu/i);
+  });
+
+  // Le reproche que l'écran de F4 a rendu visible : vingt-trois cartes « manque au document »
+  // pour des pages bien présentes, qui ne portaient simplement aucun élément numéroté. Une page
+  // vide n'est pas une page absente, et c'est l'interprète — qui suit le décalage de la
+  // numérotation — qui sait laquelle est laquelle. L'instantané ne le redevine plus.
+  it("ne tient pas une page sans élément pour une page manquante (lot D)", () => {
+    const creuse = construireVue(
+      entreeMinimale({ lignes: [ligne(1, { pageImprimee: 100 }), ligne(2, { pageImprimee: 140 })], pagesAbsentes: [] }),
+    );
+    expect(creuse.douteux.filter((c) => c.etat === "page_absente")).toEqual([]);
   });
 });
 
@@ -138,7 +121,7 @@ describe("le compte de ce qui attend", () => {
   it("prend les informations avec les doutes : la file n'est pas vide", () => {
     const vue = construireVue(
       entreeMinimale({
-        lignes: [ligne(1, { pageImprimee: 100 }), ligne(2, { pageImprimee: 103 })],
+        pagesAbsentes: [101, 102],
         medias: [media(1), media(2), media(93)],
         association: { appariements: [], orphelins: [93], manquants: [] },
       }),
@@ -152,7 +135,7 @@ describe("le compte de ce qui attend", () => {
   it("suit le contrat de vue, informations comprises", () => {
     const vue = construireVue(
       entreeMinimale({
-        lignes: [ligne(1, { pageImprimee: 100 }), ligne(2, { pageImprimee: 103 })],
+        pagesAbsentes: [101, 102],
         association: { appariements: [], orphelins: [93], manquants: [] },
         medias: [media(1), media(2), media(93)],
       }),

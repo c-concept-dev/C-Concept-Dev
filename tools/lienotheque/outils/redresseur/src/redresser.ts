@@ -14,9 +14,22 @@ export type OptionsRedressement = OptionsRotation & {
   readonly binarisation?: OptionsBinarisation;
   /** Rotation imposée, qui court-circuite la détection. Pour rejouer un lot à l'identique. */
   readonly rotationImposee?: 0 | 90 | 180 | 270;
+  /** Garder aussi la page en gris, telle qu'elle était juste avant la binarisation.
+   *
+   *  Une relecture ciblée ne veut pas du noir et blanc : le seuil qui aide un moteur d'OCR mange
+   *  précisément le chiffre qu'on vient faire relire. Elle veut le gris, à la même géométrie, pour
+   *  que les zones trouvées sur la page lue désignent le même endroit. D'où ce second exemplaire,
+   *  rendu seulement quand on le demande — il double la mémoire tenue par page. */
+  readonly garderGris?: boolean;
 };
 
-export type PageProduite = { readonly image: ImageGrise; readonly descripteur: PageRedressee };
+export type PageProduite = {
+  readonly image: ImageGrise;
+  /** La même page en gris, quand `garderGris` l'a demandée et que la binarisation a eu lieu.
+   *  Absente sinon : `image` est alors déjà ce gris, et en garder deux copies ne dirait rien. */
+  readonly grise?: ImageGrise;
+  readonly descripteur: PageRedressee;
+};
 
 export function redresser(
   image: ImageGrise,
@@ -47,10 +60,15 @@ export function redresser(
   return morceaux.map((morceau) => {
     let page = morceau.image;
     if (reglages.effacerVerso) page = effacerVerso(page, options.verso);
+
+    // Le gris se prend ici : après l'effacement du verso, qui enlève ce qui traverse du dos, et
+    // avant la binarisation, qui enlève les nuances.
+    const grise = options.garderGris === true && reglages.binarisation === "adaptative" ? page : undefined;
     if (reglages.binarisation === "adaptative") page = binariserAdaptatif(page, options.binarisation);
 
     return {
       image: page,
+      ...(grise === undefined ? {} : { grise }),
       descripteur: PageRedressee.parse({
         source,
         rotation: trouvee.rotation,

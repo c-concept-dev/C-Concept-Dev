@@ -241,19 +241,38 @@ export function tonClair(image: ImageGrise, part = 0.9): number {
   return 255;
 }
 
+/** Largeur minimale d'un repère, en parts de sa propre hauteur.
+ *
+ *  Un repère qui porte un ou deux chiffres est à peu près aussi large que haut. Mesuré sur les
+ *  clichés de référence : les vrais pavés vont de 0,71 à 1,07, et les éclats du seuillage que le
+ *  lecteur prenait pour des repères font 0,10 et 0,17 — trois pixels de large pour dix-huit de
+ *  haut. Le seuil se tient au milieu, avec une marge large des deux côtés.
+ *
+ *  C'est la même règle que celle du comptage des chiffres et de la sélection des pavés, et c'est
+ *  pourquoi elle est ici : trois copies d'un nombre mesuré finissent par diverger. */
+export const LARGEUR_MINIMALE_REPERE = 0.35;
+
 /** À quel point une pastille semble présente sous le numéro, qu'on sache ou non lire son chiffre.
  *
  *  On ne mesure pas la fenêtre de recherche — sa taille est arbitraire et varie d'une recette à
- *  l'autre — mais **la forme sombre qu'on y trouve**. Deux choses la caractérisent : elle est
- *  pleine, et elle est à la taille du numéro qu'elle accompagne.
+ *  l'autre — mais **la forme sombre qu'on y trouve**. Trois choses la caractérisent : elle est
+ *  pleine, elle est à la taille du numéro qu'elle accompagne, et elle est à peu près aussi large
+ *  que haute.
  *
  *  Un losange est à demi plein de son cadre, un bloc presque entièrement ; des portées et des
  *  notes donnent au contraire une boîte très large et presque vide. C'est ce qui les sépare, et
- *  cela ne dépend pas de la largeur qu'on a bien voulu regarder. */
+ *  cela ne dépend pas de la largeur qu'on a bien voulu regarder.
+ *
+ *  La largeur a longtemps manqué à ce jugement, et un trait plein de trois pixels sur dix-huit
+ *  passait donc pour un repère : plein, à la bonne hauteur, et sans rien pour le démentir. La
+ *  sélection des pavés s'en protégeait de son côté, ce qui soignait le symptôme ; c'est ici que la
+ *  cause était. */
 export function presenceDeForme(zone: ImageGrise, forme: Boite | undefined, hauteurNumero: number): number {
   if (forme === undefined || forme.l === 0 || forme.h === 0) return 0;
   // Une forme démesurée par rapport au numéro n'est pas un repère, c'est le document.
   if (forme.h > hauteurNumero * 3.5 || forme.l > hauteurNumero * 7) return 0;
+  // Et une forme bien plus haute que large est un éclat du seuillage, pas un repère.
+  if (forme.l < forme.h * LARGEUR_MINIMALE_REPERE) return 0;
 
   const clair = Math.max(1, tonClair(zone));
   const sombre = clair * 0.55;
@@ -347,8 +366,8 @@ export const PRESENCE_MINIMALE = 0.25;
  *  — imprimée en sombre sur clair, et des portées qui traversent la fenêtre ; selon la page, le
  *  chiffre est une forme à part, ou collé à son voisinage. On propose donc, dans l'ordre :
  *
- *  1. la plus **pleine** des formes à la taille du numéro — un pavé occupe sa boîte, une lettre
- *     ou un trait non ;
+ *  1. la plus **pleine** des formes à la taille du numéro et assez large pour porter un chiffre —
+ *     un pavé occupe sa boîte, une lettre non, et un trait du seuillage l'occupe trop bien ;
  *  2. la plus **grande** d'un seul tenant ;
  *  3. la boîte de tout ce qui est sombre, en dernier ressort.
  *
@@ -369,6 +388,11 @@ export function formesCandidates(binaire: ImageGrise, hauteurNumero: number): Bo
     if (laPlusGrande === undefined || forme.pixels > laPlusGrande.pixels) laPlusGrande = forme;
     const { h, l } = forme.boite;
     if (h < hauteurNumero * 0.5 || h > hauteurNumero * 3 || l > hauteurNumero * 7) continue;
+    // Et pas un éclat du seuillage. Il faut l'écarter **ici**, et non plus loin : un trait plein
+    // est plus plein qu'un pavé — dont les chiffres clairs font des trous — et devenait donc « la
+    // plus pleine ». La présence, qui ne juge que cette première forme, abandonnait alors tout le
+    // repère, alors que le pavé était là, à côté. Mesuré : cinq premiers éléments perdus sur F4.
+    if (l < h * LARGEUR_MINIMALE_REPERE) continue;
     const plein = remplissage(forme);
     if (plein < REMPLISSAGE_MINIMAL) continue;
     if (
@@ -399,7 +423,7 @@ export function lireBlocPiste(
   marge: number,
   etiquette: boolean,
   options: OptionsReperes = {},
-  recueille = false,
+  compte = false,
 ): BlocPiste {
   const fenetre = zonePastille(boite, position, marge);
   const zone = recadrer(image, fenetre);
@@ -447,9 +471,10 @@ export function lireBlocPiste(
       for (const ton of new Set(tons)) {
         const brut = inverser(seuiller(morceau, Math.max(1, ton)));
 
-        // Le comptage des chiffres, uniquement si quelqu'un l'a demandé : il ne sert plus qu'à
-        // la mesure, et une lecture de lot n'a pas à le payer.
-        if (recueille) {
+        // Le comptage des chiffres, uniquement si quelqu'un en a besoin : la recette qui déclare
+        // une relecture ciblée, ou une mesure. Il coûte quelques pour cent de la lecture, et un
+        // lot qui s'en passe n'a pas à les payer.
+        if (compte) {
           const formes = chiffresDuMorceau(brut);
           if (decoupe === undefined || formes.length > decoupe.chiffres.length) decoupe = { morceau: brut, chiffres: formes };
         }
@@ -484,6 +509,10 @@ export function lecturesDePage(image: ImageGrise, recette: Recette, options: Opt
   const lecturePiste = recette.lectures.find((lecture) => lecture.ancre === "piste");
   if (lectureElement === undefined) return [];
 
+  // Compter les chiffres d'un repère sert à la relecture ciblée : c'est lui qui désigne les
+  // lectures incomplètes. Une recette qui ne la déclare pas n'en a pas l'usage.
+  const compte = recette.vision !== undefined || options.recueillir !== undefined;
+
   const motif = lectureElement.libelle === undefined ? undefined : motifLibelle(lectureElement.libelle);
   const amorce = recette.regles.mention_suite === undefined ? undefined : amorceDeSuite(recette.regles.mention_suite);
   const lectures: LectureRepere[] = [];
@@ -504,9 +533,10 @@ export function lecturesDePage(image: ImageGrise, recette: Recette, options: Opt
               6 * facteur,
               lecturePiste.etiquette_disque,
               options,
-              options.recueillir !== undefined,
+              compte,
             );
       const piste = bloc === undefined ? undefined : vote(bloc.votes);
+      const chiffresComptes = bloc?.decoupe?.chiffres.length;
       if (options.recueillir !== undefined && bloc?.decoupe !== undefined)
         options.recueillir({ numero, y, ...(piste === undefined ? {} : { lu: piste.valeur }), ...bloc.decoupe });
       const apres = mots
@@ -538,6 +568,7 @@ export function lecturesDePage(image: ImageGrise, recette: Recette, options: Opt
         },
         numero,
         ...(piste === undefined ? {} : { pisteLue: piste.valeur }),
+        ...(chiffresComptes === undefined ? {} : { chiffresComptes }),
         presencePiste: bloc?.presence ?? 0,
         suite: amorce !== undefined && apres.includes(amorce),
       });
@@ -577,15 +608,26 @@ export function lecturesDePage(image: ImageGrise, recette: Recette, options: Opt
 
 /** Ce que porte une lecture. À incrémenter dès qu'une lecture dit quelque chose de nouveau.
  *
- *  Une lecture a porté un temps le fait d'avoir laissé un chiffre de côté. C'était juste et cela
- *  n'a rien donné : voir `appui` dans `pistes.ts` et `docs/decisions.md`. La version est donc
- *  revenue à 5, et le contenu d'une lecture avec elle.
+ *  6 : une lecture rapporte combien de formes de la taille d'un chiffre son repère montrait, quand
+ *  la recette déclare une relecture ciblée. C'est ce compte qui désigne les repères à relire.
+ *
+ *  Une lecture a porté un temps le fait d'avoir laissé un chiffre de côté, et l'attribution s'en
+ *  servait. C'était juste et cela n'a rien donné : voir `appui` dans `pistes.ts` et
+ *  `docs/decisions.md`. Le compte est resté, son usage par l'attribution non.
  *
  *  Le cache de lecture garde un lot lu pendant un quart d'heure d'OCR, et sa clef désignait le
  *  document et la recette — pas ce que le lecteur en tire. Ajouter la zone de chaque repère n'a
  *  donc rien changé : les lectures gardées, qui n'en portaient pas, continuaient d'être servies,
  *  et les zones n'arrivaient nulle part sans qu'une seule erreur ne le dise. Un cache qui ne
  *  connaît pas la forme de ce qu'il garde finit par servir le passé.
+ *
+ *  8 : le choix de forme écarte les éclats du seuillage, et la présence d'un repère juge aussi sa
+ *  largeur. Un trait plein de trois pixels sur dix-huit ne passe plus pour un repère.
+ *
+ *  La version 7 ne portait que la seconde moitié de cette règle, et c'était un défaut : un éclat
+ *  est plus plein qu'un pavé — dont les chiffres clairs font des trous —, il était donc proposé en
+ *  première forme, et l'écarter là faisait abandonner tout le repère. Cinq premiers éléments
+ *  perdus sur F4. Elle n'a jamais été mesurée pour elle-même, et la 8 la remplace.
  *
  *  5 : la relecture d'un repère tente deux familles de seuils et cinq parts du bloc, au lieu
  *  d'une famille et de trois parts.
@@ -596,7 +638,7 @@ export function lecturesDePage(image: ImageGrise, recette: Recette, options: Opt
  *  3 : l'orientation du lot est désormais votée au lieu d'être crue sur parole. Ce n'est pas la
  *  forme d'une lecture qui change, c'est ce qu'elle lit — une page remise à l'endroit rend six
  *  éléments là où elle n'en rendait aucun. La version compte donc aussi pour cela. */
-export const VERSION_LECTURE = 5;
+export const VERSION_LECTURE = 8;
 
 /** Hauteur en deçà de laquelle deux lectures parlent du même élément. */
 const MEME_HAUTEUR = 0.03;
@@ -608,6 +650,7 @@ export function consolider(lectures: readonly LectureRepere[]): ElementRepere[] 
     y: number;
     numeros: number[];
     pistes: number[];
+    comptes: number[];
     presences: number[];
     suite: boolean;
     zones: { numero: number; zone: ZoneRelative }[];
@@ -617,12 +660,13 @@ export function consolider(lectures: readonly LectureRepere[]): ElementRepere[] 
   for (const lecture of [...lectures].sort((a, b) => a.y - b.y || a.numero - b.numero)) {
     const dernier = groupes[groupes.length - 1];
     if (dernier === undefined || Math.abs(dernier.y - lecture.y) >= MEME_HAUTEUR)
-      groupes.push({ y: lecture.y, numeros: [], pistes: [], presences: [], suite: false, zones: [], reperes: [] });
+      groupes.push({ y: lecture.y, numeros: [], pistes: [], comptes: [], presences: [], suite: false, zones: [], reperes: [] });
     const groupe = groupes[groupes.length - 1]!;
     groupe.numeros.push(lecture.numero);
     groupe.suite ||= lecture.suite;
     groupe.presences.push(lecture.presencePiste);
     if (lecture.pisteLue !== undefined) groupe.pistes.push(lecture.pisteLue);
+    if (lecture.chiffresComptes !== undefined) groupe.comptes.push(lecture.chiffresComptes);
     if (lecture.zone !== undefined) groupe.zones.push({ numero: lecture.numero, zone: lecture.zone });
     if (lecture.zoneRepere !== undefined) groupe.reperes.push({ numero: lecture.numero, zone: lecture.zoneRepere });
   }
@@ -635,6 +679,10 @@ export function consolider(lectures: readonly LectureRepere[]): ElementRepere[] 
     // La zone de la lecture qui a emporté le vote, pas la moyenne des zones : deux passes qui
     // ne lisent pas le même numéro ne désignent pas le même endroit, et leur milieu ne désigne
     // rien du tout.
+    // Le compte le plus fin obtenu, toutes passes confondues : c'est une propriété du repère, et
+    // sous-compter laisserait passer une lecture incomplète pour entière.
+    const chiffresComptes = groupe.comptes.length === 0 ? undefined : Math.max(...groupe.comptes);
+
     const zone = groupe.zones.find((candidate) => candidate.numero === numero.valeur)?.zone;
     const zoneRepere = groupe.reperes.find((candidate) => candidate.numero === numero.valeur)?.zone;
     return [
@@ -644,6 +692,7 @@ export function consolider(lectures: readonly LectureRepere[]): ElementRepere[] 
         ...(zoneRepere === undefined ? {} : { zoneRepere }),
         numero: numero.valeur,
         ...(piste === undefined ? {} : { pisteLue: piste.valeur }),
+        ...(chiffresComptes === undefined ? {} : { chiffresComptes }),
         presencePiste: Math.round(presence * 100) / 100,
         suite: groupe.suite,
         accordNumero: Math.round(numero.accord * 100) / 100,
