@@ -3,11 +3,6 @@ import { invoke } from "@tauri-apps/api/core";
 import { Bouton, Progression } from "../composants/index.js";
 import "./Prototype.css";
 
-/** Vrai seulement dans l'application de bureau : la page web n'affiche pas ce panneau. */
-export function estBureau(): boolean {
-  return typeof globalThis !== "undefined" && "__TAURI_INTERNALS__" in globalThis;
-}
-
 type Mesure = { readonly nom: string; readonly resultat: string };
 
 type MesurePdf = { pages: number; octets: number; ms_ouverture: number; ms_page: number };

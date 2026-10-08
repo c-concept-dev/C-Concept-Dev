@@ -1,0 +1,389 @@
+/* Créer une bibliothèque, en quatre temps (maquette 1).
+   Une colonne de questions, une colonne d'aperçu, un pied qui rappelle que rien n'est créé.
+   Aucune couleur ni aucun rayon écrits ici : uniquement les variables --ln-*. */
+
+.ln-creer {
+  display: grid;
+  gap: calc(var(--ln-grid) * 2);
+  padding: calc(var(--ln-grid) * 2) calc(var(--ln-grid) * 3);
+}
+
+.ln-creer__tete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--ln-grid) * 2);
+}
+
+.ln-creer__annuler {
+  border: none;
+  background: transparent;
+  padding: calc(var(--ln-grid) * 0.5);
+  color: var(--ln-link);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.ln-creer__annuler:hover {
+  text-decoration: underline;
+}
+
+.ln-creer__annuler:focus-visible {
+  outline: 2px solid var(--ln-focus);
+  outline-offset: 2px;
+  border-radius: var(--ln-radius);
+}
+
+/* Les quatre temps. Faits, courant, à venir : l'état se lit à la forme et au texte, jamais à la
+   seule couleur. */
+.ln-creer__barre {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--ln-grid) * 4);
+}
+
+.ln-creer__rang {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.ln-etapes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 1.5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ln-etape {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--ln-grid));
+  font-size: 14px;
+  color: var(--ln-text-secondary);
+}
+
+.ln-etape + .ln-etape::before {
+  content: "";
+  width: calc(var(--ln-grid) * 4);
+  height: 1px;
+  margin-inline-end: calc(var(--ln-grid) * 0.5);
+  background: var(--ln-border-decorative);
+}
+
+.ln-etape__rond {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--ln-grid) * 3.5);
+  height: calc(var(--ln-grid) * 3.5);
+  border: 1px solid var(--ln-control-border);
+  border-radius: 50%;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ln-etape--courante {
+  color: var(--ln-text-primary);
+  font-weight: 600;
+}
+
+.ln-etape--courante .ln-etape__rond {
+  border-color: var(--ln-action-background);
+  background: var(--ln-action-background);
+  color: var(--ln-action-text);
+}
+
+.ln-etape--faite {
+  color: var(--ln-text-primary);
+}
+
+.ln-etape--faite .ln-etape__rond {
+  border-color: var(--ln-action-background);
+  color: var(--ln-action-background);
+}
+
+.ln-creer__colonnes {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: calc(var(--ln-grid) * 4);
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .ln-creer__colonnes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.ln-creer__question {
+  display: grid;
+  gap: calc(var(--ln-grid) * 1.5);
+}
+
+.ln-creer__question h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.ln-creer__question > .ln-muted {
+  margin: 0;
+}
+
+.ln-creer__note {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--ln-grid));
+  margin: 0;
+  font-size: 14px;
+  color: var(--ln-text-secondary);
+}
+
+/* Les types de contenu. Des boutons, donc le clavier y arrive ; le choix se marque d'une coche
+   et d'un cadre, jamais d'une seule teinte. */
+.ln-tuiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: calc(var(--ln-grid) * 1.5);
+}
+
+.ln-tuile {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: calc(var(--ln-grid) * 1.5);
+  padding: calc(var(--ln-grid) * 2);
+  border: 1px solid var(--ln-border-decorative);
+  border-radius: var(--ln-radius);
+  background: var(--ln-surface);
+  color: var(--ln-text-primary);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.ln-tuile--large {
+  grid-column: span 2;
+}
+
+.ln-tuile:hover {
+  background: var(--ln-surface-hover);
+}
+
+.ln-tuile:focus-visible {
+  outline: 2px solid var(--ln-focus);
+  outline-offset: 2px;
+}
+
+.ln-tuile--choisie {
+  border-color: var(--ln-action-background);
+  box-shadow: inset 0 0 0 1px var(--ln-action-background);
+}
+
+.ln-tuile__corps {
+  display: grid;
+  gap: calc(var(--ln-grid) * 0.25);
+  min-width: 0;
+}
+
+.ln-tuile__nom {
+  font-weight: 600;
+}
+
+.ln-tuile__marque {
+  position: absolute;
+  inset-block-start: calc(var(--ln-grid));
+  inset-inline-end: calc(var(--ln-grid));
+  display: inline-flex;
+  color: var(--ln-action-background);
+}
+
+/* Les façons de ranger proposées : des modèles, qui sont des données. */
+.ln-rangements {
+  display: grid;
+  gap: calc(var(--ln-grid));
+}
+
+.ln-rangement {
+  display: flex;
+  align-items: flex-start;
+  gap: calc(var(--ln-grid) * 1.5);
+  padding: calc(var(--ln-grid) * 1.5) calc(var(--ln-grid) * 2);
+  border: 1px solid var(--ln-border-decorative);
+  border-radius: var(--ln-radius);
+  background: var(--ln-surface);
+  color: var(--ln-text-primary);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.ln-rangement--choisi {
+  border-color: var(--ln-action-background);
+  box-shadow: inset 0 0 0 1px var(--ln-action-background);
+}
+
+.ln-rangement:hover {
+  background: var(--ln-surface-hover);
+}
+
+.ln-rangement:focus-visible,
+.ln-rangement__choix:focus-visible {
+  outline: 2px solid var(--ln-focus);
+  outline-offset: 2px;
+}
+
+/* Le dernier choix porte son champ : il cesse d'être un bouton et redevient un bloc. */
+div.ln-rangement {
+  display: grid;
+  gap: calc(var(--ln-grid) * 1.5);
+  cursor: auto;
+}
+
+.ln-rangement__choix {
+  display: flex;
+  align-items: flex-start;
+  gap: calc(var(--ln-grid) * 1.5);
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.ln-rangement__corps {
+  display: grid;
+  gap: calc(var(--ln-grid) * 0.25);
+  min-width: 0;
+}
+
+/* Les mots de la bibliothèque : une question, un singulier, un pluriel. */
+.ln-mots {
+  display: grid;
+  gap: calc(var(--ln-grid) * 1.5);
+}
+
+.ln-mots__ligne {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 10rem) minmax(0, 10rem);
+  align-items: end;
+  gap: calc(var(--ln-grid) * 1.5);
+}
+
+@media (max-width: 900px) {
+  .ln-mots__ligne {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+}
+
+.ln-mots__question {
+  display: grid;
+  gap: calc(var(--ln-grid) * 0.25);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.ln-creer__dossier {
+  display: flex;
+  align-items: flex-end;
+  gap: calc(var(--ln-grid) * 1.5);
+}
+
+.ln-creer__dossier .ln-champ {
+  flex: 1;
+  min-width: 0;
+}
+
+.ln-creer__echec {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--ln-grid));
+  margin: 0;
+  color: var(--ln-error-text);
+  font-size: 14px;
+}
+
+/* L'aperçu : la bibliothèque telle qu'elle sera, qui suit la frappe. */
+.ln-creer__apercu {
+  display: grid;
+  gap: calc(var(--ln-grid));
+  position: sticky;
+  inset-block-start: calc(var(--ln-grid) * 2);
+}
+
+.ln-creer__carte {
+  display: grid;
+  gap: calc(var(--ln-grid) * 1.75);
+  padding: calc(var(--ln-grid) * 2);
+  border-radius: var(--ln-radius);
+}
+
+.ln-creer__dos {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: calc(var(--ln-grid) * 14);
+  border-radius: var(--ln-radius);
+  background: var(--ln-collection);
+  color: var(--ln-cover-text);
+}
+
+.ln-creer__nom {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.ln-creer__resume {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.ln-creer__ligne {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: calc(var(--ln-grid) * 1.5);
+  padding: calc(var(--ln-grid) * 0.5) 0;
+  font-size: 14px;
+  border-block-end: 1px solid var(--ln-border-decorative);
+}
+
+.ln-creer__ligne:last-child {
+  border-block-end: none;
+}
+
+.ln-creer__chemin {
+  overflow-wrap: anywhere;
+  text-align: end;
+}
+
+.ln-creer__pied {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--ln-grid) * 2);
+  padding-block-start: calc(var(--ln-grid) * 2);
+  border-block-start: 1px solid var(--ln-border-decorative);
+}
+
+.ln-creer__pied > .ln-muted {
+  margin: 0;
+}
+
+.ln-creer__actions {
+  display: flex;
+  gap: calc(var(--ln-grid) * 1.5);
+}

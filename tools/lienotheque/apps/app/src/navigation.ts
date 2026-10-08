@@ -10,6 +10,7 @@
 export type Route =
   | { readonly ecran: "accueil" }
   | { readonly ecran: "reglages" }
+  | { readonly ecran: "creer" }
   | { readonly ecran: "catalogue"; readonly page?: number }
   | { readonly ecran: "lecteur"; readonly page: number; readonly element?: string }
   | { readonly ecran: "verifier" };
@@ -42,6 +43,8 @@ export function lireRoute(fragment: string): Route {
   switch (ecran) {
     case "reglages":
       return { ecran: "reglages" };
+    case "creer":
+      return { ecran: "creer" };
     case "verifier":
       return { ecran: "verifier" };
     case "catalogue": {
@@ -66,6 +69,8 @@ export function ecrireRoute(route: Route): string {
       return "#";
     case "reglages":
       return "#reglages";
+    case "creer":
+      return "#creer";
     case "verifier":
       return "#verifier";
     case "catalogue":

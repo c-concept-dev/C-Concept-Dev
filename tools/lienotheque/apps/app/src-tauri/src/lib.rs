@@ -165,6 +165,7 @@ fn peser_installation(chemin: String) -> mesures::Poids {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(Etat::default())
         .invoke_handler(tauri::generate_handler![
             creer_bibliotheque,
