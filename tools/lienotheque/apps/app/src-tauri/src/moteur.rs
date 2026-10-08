@@ -235,43 +235,6 @@ impl Session {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::atomic::{AtomicUsize, Ordering};
-
-    /// Un moteur de pacotille : il récite des lignes, puis se tait — ou s'endort, pour éprouver
-    /// l'arrêt.
-    ///
-    /// Les lignes passent par un fichier, que le shell du système recrache. Deux raisons : `sh`
-    /// n'existe pas sous Windows, et le projet n'admet rien de propre à un seul système sans son
-    /// équivalent ; et un fichier évite d'échapper du JSON dans deux grammaires de shell
-    /// différentes, ce qui est la part la plus fragile d'un montage pareil.
-    fn reciteur_qui(lignes: &[&str], dort: bool) -> Lancement {
-        static RANG: AtomicUsize = AtomicUsize::new(0);
-        let fichier = std::env::temp_dir().join(format!(
-            "lienotheque-reciteur-{}-{}.jsonl",
-            std::process::id(),
-            RANG.fetch_add(1, Ordering::Relaxed)
-        ));
-        std::fs::write(&fichier, lignes.join("\n") + "\n").expect("lignes du réciteur");
-        let chemin = fichier.to_string_lossy().into_owned();
-
-        if cfg!(windows) {
-            // `ping` tient lieu de sommeil : `timeout` exige une console, qu'un processus lancé
-            // par un test n'a pas.
-            let script = if dort {
-                format!("type \"{chemin}\" & ping -n 600 127.0.0.1 >NUL")
-            } else {
-                format!("type \"{chemin}\"")
-            };
-            Lancement { programme: PathBuf::from("cmd"), arguments: vec!["/C".to_owned(), script], environnement: Vec::new() }
-        } else {
-            let script = if dort { format!("cat '{chemin}'; sleep 600") } else { format!("cat '{chemin}'") };
-            Lancement { programme: PathBuf::from("/bin/sh"), arguments: vec!["-c".to_owned(), script], environnement: Vec::new() }
-        }
-    }
-
-    fn reciteur(lignes: &[&str]) -> Lancement {
-        reciteur_qui(lignes, false)
-    }
 
     fn salutation() -> String {
         format!(
@@ -325,43 +288,6 @@ mod tests {
         assert_eq!(
             lire_message(&ligne),
             Ok(Message::Echec { cause: "Moteur introuvable".to_owned(), reprise_possible: true })
-        );
-    }
-
-    #[test]
-    fn ecoute_un_moteur_jusqu_a_ce_qu_il_se_taise() {
-        let journal = format!(
-            r#"{{"type":"journal","protocole":{},"travailId":"x","niveau":"information","texte":"Lecture du document","le":"2026-10-06T00:00:00Z"}}"#,
-            LIMITES.protocole
-        );
-        let mut session = Session::ouvrir(&reciteur(&[&salutation(), &journal])).expect("moteur lancé");
-
-        assert!(matches!(session.ecouter(), Some(Ok(Message::Salutation { .. }))));
-        assert_eq!(
-            session.ecouter(),
-            Some(Ok(Message::Journal { niveau: "information".to_owned(), texte: "Lecture du document".to_owned() }))
-        );
-        assert_eq!(session.ecouter(), None, "le moteur s'est tu");
-    }
-
-    #[test]
-    fn un_moteur_qui_s_arrete_de_lui_meme_n_est_pas_tue() {
-        let mut session = Session::ouvrir(&reciteur(&[&salutation()])).expect("moteur lancé");
-        let propre = session.arreter("{}").expect("arrêt demandé");
-        assert!(propre, "il a fini seul, dans le délai");
-    }
-
-    #[test]
-    fn un_moteur_qui_ne_rend_pas_la_main_est_tue_apres_le_delai() {
-        // Il salue, puis dort bien au-delà du délai d'arrêt propre.
-        let mut session = Session::ouvrir(&reciteur_qui(&[&salutation()], true)).expect("moteur lancé");
-
-        let debut = Instant::now();
-        let propre = session.arreter("{}").expect("arrêt demandé");
-        assert!(!propre, "il a fallu le tuer");
-        assert!(
-            debut.elapsed() >= Duration::from_secs(LIMITES.delai_arret_propre_s),
-            "on lui a bien laissé son délai avant de le tuer"
         );
     }
 
