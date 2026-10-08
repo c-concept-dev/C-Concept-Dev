@@ -61,6 +61,12 @@ if (typeof HTMLMediaElement !== "undefined") {
   });
 }
 
+/** jsdom ne fait défiler rien du tout : « scrollIntoView » n'y existe pas. Un écran qui garde
+ *  visible ce qu'on choisit au clavier l'appelle, et ce n'est pas lui qu'on éprouve ici. */
+if (typeof HTMLElement !== "undefined" && HTMLElement.prototype.scrollIntoView === undefined) {
+  HTMLElement.prototype.scrollIntoView = vi.fn();
+}
+
 afterEach(() => {
   cleanup();
   temps = new WeakMap();

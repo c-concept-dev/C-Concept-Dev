@@ -18,16 +18,21 @@ pub struct Pose {
     pub adresse: &'static str,
     pub theme: &'static str,
     pub nom: &'static str,
+    /// Ce que l'adresse demande en plus, quand l'écran ne s'atteint pas par son seul fragment —
+    /// la recherche, qu'il faut ouvrir et remplir, et que personne ne peut taper ici.
+    pub en_plus: &'static str,
 }
 
 /// Les écrans de l'étape 2, en clair et en hybride.
 pub const POSES: &[Pose] = &[
-    Pose { adresse: "#creer", theme: "light", nom: "1-creer-clair" },
-    Pose { adresse: "#creer", theme: "hybrid", nom: "1-creer-hybride" },
-    Pose { adresse: "#organisation", theme: "light", nom: "2-organisation-clair" },
-    Pose { adresse: "#organisation", theme: "hybrid", nom: "2-organisation-hybride" },
-    Pose { adresse: "#depot", theme: "light", nom: "3-depot-et-traitement-clair" },
-    Pose { adresse: "#depot", theme: "hybrid", nom: "3-depot-et-traitement-hybride" },
+    Pose { adresse: "#creer", theme: "light", nom: "1-creer-clair", en_plus: "" },
+    Pose { adresse: "#creer", theme: "hybrid", nom: "1-creer-hybride", en_plus: "" },
+    Pose { adresse: "#organisation", theme: "light", nom: "2-organisation-clair", en_plus: "" },
+    Pose { adresse: "#organisation", theme: "hybrid", nom: "2-organisation-hybride", en_plus: "" },
+    Pose { adresse: "#depot", theme: "light", nom: "3-depot-et-traitement-clair", en_plus: "" },
+    Pose { adresse: "#depot", theme: "hybrid", nom: "3-depot-et-traitement-hybride", en_plus: "" },
+    Pose { adresse: "", theme: "light", nom: "5-recherche-clair", en_plus: "&chercher=articulation" },
+    Pose { adresse: "", theme: "hybrid", nom: "5-recherche-hybride", en_plus: "&chercher=articulation" },
 ];
 
 /// Le temps laissé à la page pour se charger, poser ses polices et finir ses transitions.
@@ -40,8 +45,8 @@ fn poser(fenetre: &WebviewWindow, pose: &Pose, rang: usize) -> Result<(f64, f64,
     // Le rang rend chaque adresse différente de la précédente : deux poses du même écran ne
     // diffèrent que par le thème, et une adresse identique ne recharge rien.
     fenetre.eval(&format!(
-        "localStorage.setItem('lienotheque.theme', '{}'); location.href = '?demonstration&pose={rang}{}';",
-        pose.theme, pose.adresse
+        "localStorage.setItem('lienotheque.theme', '{}'); location.href = '?demonstration&pose={rang}{}{}';",
+        pose.theme, pose.en_plus, pose.adresse
     ))?;
     std::thread::sleep(REPOS);
 

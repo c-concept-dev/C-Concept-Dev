@@ -11,6 +11,12 @@ cd apps/app && python3 src-tauri/outils/capturer-ecrans.py
 
 L'application s'ouvre pour de vrai, à 1320 × 900 points, se place tour à tour sur chaque écran et
 chaque thème, dit où elle est, et attend d'avoir été photographiée avant de passer au suivant. La
+recherche ne s'atteint pas par son seul fragment d'adresse — il faut l'ouvrir et la remplir —, donc
+sa pose passe `&chercher=...`, une porte de développement comme `?demonstration`.
+
+**L'écran de la machine doit être allumé et déverrouillé.** Sur un écran en veille,
+`screencapture` répond « could not create image from rect » et le script s'arrête : il ne livre
+pas d'images noires. La
 prise d'image appartient au script et non à l'application : macOS accorde l'autorisation
 « Enregistrement de l'écran » au programme qu'on lance soi-même — ici le terminal — plutôt qu'à une
 application qui la réclamerait au passage. **La première exécution ouvre donc une demande
@@ -30,6 +36,8 @@ développement : **aucune œuvre, aucune donnée réelle** sur ces images.
 | `2-organisation-hybride.png` | Organisation | hybride photographique |
 | `3-depot-et-traitement-clair.png` | Dépôt et traitement | clair |
 | `3-depot-et-traitement-hybride.png` | Dépôt et traitement | hybride photographique |
+| `5-recherche-clair.png` | Recherche ⌘K | clair |
+| `5-recherche-hybride.png` | Recherche ⌘K | hybride photographique |
 
 Le thème hybride n'est pas une variante décorative : c'est lui qui montre les défauts de charte.
 Les deux écrans de l'étape 2 y ont été corrigés après une première série de captures, où le titre,

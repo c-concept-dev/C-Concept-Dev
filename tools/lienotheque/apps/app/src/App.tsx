@@ -8,7 +8,7 @@ import type {
   VueBibliotheque,
 } from "@lienotheque/contrats";
 import { EnTete } from "./EnTete.js";
-import { chargerBibliothequeDemonstration, chargerDonnees } from "./donnees/chargement.js";
+import { chargerBibliothequeDemonstration, chargerDonnees, rechercheDemandee } from "./donnees/chargement.js";
 import { chargerVue } from "./donnees/vue.js";
 import { ACCUEIL, ecrireRoute, lireRoute, type Route } from "./navigation.js";
 import { ACCUEIL_VIDE, type DonneesAccueil } from "./donnees/modele.js";
@@ -21,6 +21,7 @@ import { Verifier, type Decision } from "./pages/Verifier.js";
 import { Creer } from "./pages/Creer.js";
 import { Organisation } from "./pages/Organisation.js";
 import { Depot, type ActionTravail } from "./pages/Depot.js";
+import { Recherche } from "./pages/Recherche.js";
 import { Prototype } from "./pages/Prototype.js";
 import { chargerModeles } from "./donnees/modeles.js";
 import {
@@ -67,6 +68,23 @@ export function App(): JSX.Element {
   const [file, setFile] = useState<readonly Travail[]>([]);
   const [accompagnements, setAccompagnements] = useState<readonly { nom: string; contenu: TypeDeContenu }[]>([]);
   const [refuses, setRefuses] = useState<readonly { nom: string; raison: string }[]>([]);
+  /** La recherche est un voile par-dessus l'écran courant, pas un écran de plus : on revient
+   *  exactement là où l'on était en la fermant. */
+  const requeteDeLAdresse = useMemo(() => rechercheDemandee(globalThis.location?.search ?? ""), []);
+  const [cherche, setCherche] = useState(requeteDeLAdresse !== undefined);
+
+  // ⌘K ouvre la recherche depuis n'importe quel écran (UX-02). Ctrl+K pour les claviers qui
+  // n'ont pas de touche Commande.
+  useEffect(() => {
+    const auClavier = (evenement: KeyboardEvent): void => {
+      if ((evenement.metaKey || evenement.ctrlKey) && evenement.key.toLowerCase() === "k") {
+        evenement.preventDefault();
+        setCherche(true);
+      }
+    };
+    globalThis.addEventListener?.("keydown", auClavier);
+    return () => globalThis.removeEventListener?.("keydown", auClavier);
+  }, []);
 
   useEffect(() => {
     const suivre = (): void => setRoute(lireRoute(globalThis.location?.hash ?? ""));
@@ -310,12 +328,46 @@ export function App(): JSX.Element {
       <EnTete
         theme={theme}
         onThemeChange={changerTheme}
-        onRecherche={() => {
-          // Lot 0 : la recherche arrive avec le lot C (UX-02).
-        }}
+        onRecherche={() => setCherche(true)}
         donnees={donnees}
       />
       <div className="ln-application__vue">{ecran}</div>
+      {cherche && vue !== undefined ? (
+        <Recherche
+          vue={vue}
+          actions={
+            derniere === undefined
+              ? undefined
+              : [
+                  { cle: "organisation", titre: "Revoir l’organisation", source: derniere.description.nom, aussi: ["axes", "valeurs", "ranger"] },
+                  { cle: "depot", titre: "Ajouter des fichiers", source: derniere.description.nom, aussi: ["déposer", "traitement", "file"] },
+                  { cle: "verifier", titre: "Vérifier ce qui attend un œil", source: derniere.description.nom, aussi: ["doutes", "cas"] },
+                ]
+          }
+          {...(requeteDeLAdresse === undefined ? {} : { requeteInitiale: requeteDeLAdresse })}
+          onFermer={() => setCherche(false)}
+          onOuvrir={(resultat) => {
+            setCherche(false);
+            if (resultat.page !== undefined)
+              aller(
+                resultat.element === undefined
+                  ? { ecran: "lecteur", page: resultat.page }
+                  : { ecran: "lecteur", page: resultat.page, element: resultat.element },
+              );
+          }}
+          onEcouter={(resultat) => {
+            setCherche(false);
+            if (resultat.page !== undefined && resultat.element !== undefined)
+              aller({ ecran: "lecteur", page: resultat.page, element: resultat.element });
+          }}
+          onAction={(cle) => {
+            setCherche(false);
+            if (cle === "organisation") aller({ ecran: "organisation" });
+            else if (cle === "depot") aller({ ecran: "depot" });
+            else if (cle === "verifier") aller({ ecran: "verifier" });
+          }}
+        />
+      ) : null}
       {estBureau() ? (
         <div className="ln-layout">
           <Prototype />
