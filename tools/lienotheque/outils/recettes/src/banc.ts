@@ -57,6 +57,12 @@ export type Relecture = (contexte: {
 }) => Promise<ReadonlyMap<string, LectureParVision>>;
 
 export type OptionsBanc = OptionsReperes & {
+  /** Appelé après chaque cliché lu, pour que l'appelant dise où il en est (JOB-03).
+   *
+   *  Après la lecture, pas après le décodage : c'est la lecture qui coûte, et annoncer cent pour
+   *  cent pendant que les dernières pages passent encore à l'OCR serait un mensonge poli. Un lot
+   *  servi par le cache ne passe pas par ici — il n'y a rien à suivre. */
+  readonly avancement?: (faits: number, total: number) => void;
   /** De quoi relire les repères difficiles. Absente, la chaîne ne relit rien et ne change pas. */
   readonly relecture?: Relecture;
   /** Dossier où garder les lectures. Absent, rien n'est gardé. */
@@ -126,8 +132,9 @@ export async function* preparerLot(chemin: string, recette: Recette, options: Op
   const rotationDuLot = reglages === undefined || reglages.rotation !== "auto" ? undefined : await voterOrientation(chemin, options);
 
   let index = 0;
-  for await (const image of pagesEnGris(chemin, options.pages)) {
-    if (reglages === undefined) yield { image, index };
+  let total = 0;
+  for await (const image of pagesEnGris(chemin, options.pages, (compte) => (total = compte))) {
+    if (reglages === undefined) yield { image, index, total };
     else
       for (const produite of redresser(image, index, reglages, {
         ...(options.redressement ?? {}),
@@ -141,6 +148,7 @@ export async function* preparerLot(chemin: string, recette: Recette, options: Op
           image: produite.image,
           ...(produite.grise === undefined ? {} : { grise: produite.grise }),
           index,
+          total,
           rang: preparation.double_page ? index * 2 + (cote === "droite" ? 1 : 0) : index,
           ...(cote === undefined ? {} : { cote }),
         };
@@ -153,10 +161,15 @@ export async function* preparerLot(chemin: string, recette: Recette, options: Op
  *
  *  Un flux, pas un tableau : le tableau gardait les trois cents pages décodées en mémoire en même
  *  temps — deux mégaoctets et demi la page, et la mémoire croissait avec le document. */
-export async function* pagesEnGris(chemin: string, limite?: number): AsyncGenerator<ImageGrise> {
+export async function* pagesEnGris(chemin: string, limite?: number, surTotal?: (total: number) => void): AsyncGenerator<ImageGrise> {
   const objets = objetsPdf(await readFile(chemin));
   const pages = pagesPdf(objets);
   const retenues = limite === undefined ? pages : pages.slice(0, limite);
+
+  // Combien de pages il y a, dit une fois, avant la première. C'est ici — et seulement ici —
+  // qu'on le sait sans reparser le document, et une file qui annonce un pourcentage et un temps
+  // restant ne peut pas s'en passer.
+  surTotal?.(retenues.length);
 
   for (const page of retenues) {
     const image = page.images[0];
@@ -169,12 +182,14 @@ export async function* pagesEnGris(chemin: string, limite?: number): AsyncGenera
 
 /** Lit les repères de chaque page, puis interprète selon la recette. */
 export function lireEtInterpreter(pages: readonly ImageGrise[], recette: Recette, options: OptionsBanc = {}): ResultatRecette {
-  return interpreter(reperer(pages.map((image, index) => ({ image, index })), recette, options), recette);
+  return interpreter(reperer(pages.map((image, index) => ({ image, index, total: pages.length })), recette, options), recette);
 }
 
 /** Une page à lire, avec ce que le redresseur en sait déjà. */
 export type PageAlire = {
   readonly image: ImageGrise;
+  /** Combien de pages le document en compte, connu dès la première. */
+  readonly total: number;
   /** La même page en gris, quand la recette déclare une relecture ciblée : c'est de là que les
    *  recadrages sont pris, et non de la page binarisée que l'OCR préfère. */
   readonly grise?: ImageGrise;
@@ -280,7 +295,12 @@ export async function lireLot(pdf: string, recette: Recette, options: OptionsBan
 
   // Page par page : ce qui s'accumule, ce sont des numéros et des positions, pas des pixels.
   const lues: PageLue[] = [];
-  for await (const page of preparerLot(pdf, recette, options)) lues.push(...reperer([page], recette, options));
+  let faits = 0;
+  for await (const page of preparerLot(pdf, recette, options)) {
+    lues.push(...reperer([page], recette, options));
+    faits += 1;
+    options.avancement?.(faits, page.total);
+  }
   if (fichier !== undefined) ecrireCache(fichier, lues);
   return lues;
 }

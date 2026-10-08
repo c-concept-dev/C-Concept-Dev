@@ -41,6 +41,7 @@ export const TRAVAIL_EN_COURS = {
   versionCible: id(34),
   etat: "en_cours",
   lieu: "application",
+  poids: "lourd",
   tentative: 1,
   pointReprise: { unite: "lot", valeur: 6 },
   progression: 0.6,

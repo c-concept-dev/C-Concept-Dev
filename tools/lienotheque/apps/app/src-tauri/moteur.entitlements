@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Droits d'exécution du paquet, runtime renforcé (lot D2, étape 1, point 10).
+
+  Le runtime renforcé interdit par défaut trois choses dont un moteur JavaScript a besoin. Chacune
+  est accordée ici, et aucune autre : un droit de plus, c'est une protection de moins.
+
+  - allow-jit : V8 compile le JavaScript en code machine à l'exécution. Sans ce droit, le moteur
+    ne démarre pas du tout.
+  - allow-unsigned-executable-memory : les pages que V8 écrit puis exécute ne sont pas signées, et
+    ne peuvent pas l'être — elles n'existent qu'en mémoire.
+  - disable-library-validation : le paquet charge les quinze bibliothèques de Tesseract, qui ne
+    portent pas notre signature. Sans ce droit, le chargement est refusé.
+
+  Ce qui n'est PAS demandé, et qu'on ne demandera pas sans raison mesurée : l'accès au micro, à la
+  caméra, au carnet d'adresses, ni la désactivation de la protection de la mémoire.
+-->
+<plist version="1.0">
+<dict>
+	<key>com.apple.security.cs.allow-jit</key>
+	<true/>
+	<key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+	<true/>
+	<key>com.apple.security.cs.disable-library-validation</key>
+	<true/>
+</dict>
+</plist>

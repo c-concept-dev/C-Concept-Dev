@@ -164,6 +164,9 @@ importers:
       '@lienotheque/images':
         specifier: workspace:*
         version: link:../images
+      '@lienotheque/lecteur-texte':
+        specifier: workspace:*
+        version: link:../lecteur-texte
       '@lienotheque/noyau':
         specifier: workspace:*
         version: link:../../packages/noyau
@@ -176,6 +179,9 @@ importers:
       '@lienotheque/vision':
         specifier: workspace:*
         version: link:../vision
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
     devDependencies:
       '@lienotheque/depot-sqlite':
         specifier: workspace:*
@@ -183,6 +189,9 @@ importers:
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
+      esbuild:
+        specifier: ^0.28.2
+        version: 0.28.2
       tsx:
         specifier: ^4.20.0
         version: 4.23.15

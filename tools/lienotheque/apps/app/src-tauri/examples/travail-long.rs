@@ -10,7 +10,7 @@
 //! suivant au prochain lancement, sans retraiter ce qui est fait.
 
 use lienotheque_bureau::travail::{
-    charger, enregistrer, maintenant, Travail, BATTEMENT_SECONDES, EXPIRATION_SECONDES,
+    battement_secondes, charger, enregistrer, expiration_secondes, maintenant, Travail,
 };
 use std::{env, path::PathBuf, process, thread, time::Duration};
 
@@ -22,7 +22,7 @@ fn main() {
     };
     let total: u32 = arguments.get(2).and_then(|a| a.parse().ok()).unwrap_or(500);
     let pas_ms: u64 = arguments.get(3).and_then(|a| a.parse().ok()).unwrap_or(20);
-    let expiration_s: u64 = arguments.get(4).and_then(|a| a.parse().ok()).unwrap_or(EXPIRATION_SECONDES);
+    let expiration_s: u64 = arguments.get(4).and_then(|a| a.parse().ok()).unwrap_or(expiration_secondes());
 
     let mut travail = match charger(&chemin) {
         Ok(Some(existant)) => existant,
@@ -49,7 +49,7 @@ fn main() {
     for pas in (depart + 1)..=total {
         thread::sleep(Duration::from_millis(pas_ms));
         // Le bail est renouvelé quand le battement est dû ; au dernier pas, `avancer` le libère.
-        if travail.battre_si_du("prototype", maintenant(), BATTEMENT_SECONDES, expiration_s) {
+        if travail.battre_si_du("prototype", maintenant(), battement_secondes(), expiration_s) {
             println!("battement");
         }
         travail.avancer(pas, "lot");

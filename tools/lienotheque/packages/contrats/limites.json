@@ -1,0 +1,11 @@
+{
+  "_lisez_moi": "Les limites d'exécution, écrites une fois. Le TypeScript les lit par import, l'hôte Rust par include_str!. Personne ne les recopie : un fait se calcule à un seul endroit. Chaque valeur porte sa justification dans packages/contrats/src/execution.ts et src/travail.ts.",
+  "protocole": 1,
+  "travauxLourdsSimultanes": 2,
+  "memoireMaxMo": 2048,
+  "delaiArretPropreS": 5,
+  "battementVerrouS": 5,
+  "expirationVerrouS": 15,
+  "tentativesMax": 3,
+  "delaiEntreTentativesS": 30
+}

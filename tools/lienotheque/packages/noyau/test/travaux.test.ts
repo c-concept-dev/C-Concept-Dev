@@ -1,7 +1,8 @@
 // @vitest-environment node
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { BATTEMENT_VERROU_S, EXPIRATION_VERROU_S, Travail } from "@lienotheque/contrats";
+import { BATTEMENT_VERROU_S, DELAI_ENTRE_TENTATIVES_S, EXPIRATION_VERROU_S, Travail } from "@lienotheque/contrats";
+import { DOSSIERS_BIBLIOTHEQUE } from "../src/index.js";
 import { describe, expect, it } from "vitest";
 import { annuler, avancer, battreSiDu, dejaEnFile, echouer, mettreEnPause, prendre, prochain, repriseA, reprenable, reprendre } from "../src/travaux.js";
 
@@ -100,7 +101,10 @@ describe("erreurs enregistrées (JOB-05)", () => {
     expect(echoue.etat).toBe("en_echec_recuperable");
     expect(echoue.erreur?.cause).toBe("page illisible");
     expect(echoue.verrou, "un travail en échec libère son bail").toBeUndefined();
-    expect(reprenable(echoue, plus(2))).toBe(true);
+    // Il ne repart pas dans la seconde : sans délai, les trois tentatives se consommeraient avant
+    // que la cause ait eu le temps de disparaître (JOB-05).
+    expect(reprenable(echoue, plus(2))).toBe(false);
+    expect(reprenable(echoue, plus(1 + DELAI_ENTRE_TENTATIVES_S))).toBe(true);
 
     const definitif = echouer(neuf(), { cause: "format refusé", elements: [], reprisePossible: false }, plus(1));
     expect(definitif.etat).toBe("en_echec_definitif");
@@ -152,9 +156,25 @@ describe("un seul endroit pour la cadence du bail", () => {
     expect(source.replace(/BATTEMENT_VERROU_S|EXPIRATION_VERROU_S/g, "")).not.toMatch(/\b(5|15)\s*\*\s*1000\b/);
   });
 
-  it("le prototype de bureau annonce la même cadence", () => {
+  // Ce contrôle comparait deux copies de la cadence, l'une en TypeScript, l'autre en Rust. Il n'y
+  // a plus de copies à comparer : les deux côtés lisent `packages/contrats/limites.json`. Ce qui
+  // se vérifie maintenant, c'est que l'hôte va bien la chercher là, et pas qu'il la redit juste.
+  it("l'hôte de bureau nomme le dossier de bibliothèque comme le noyau (ANC-05)", () => {
+    // Trois noms, deux langages : trop peu pour un fichier de données, assez pour qu'un
+    // renommage d'un seul côté rende une bibliothèque illisible par l'autre.
+    const rust = readFileSync(fileURLToPath(new URL("../../../apps/app/src-tauri/src/depot.rs", import.meta.url)), "utf8");
+    for (const [role, nom] of Object.entries(DOSSIERS_BIBLIOTHEQUE))
+      expect(rust, `le dossier « ${role} »`).toMatch(new RegExp(`pub const ${role.toUpperCase()}: &str = "${nom}";`));
+  });
+
+  it("l'hôte de bureau lit la même donnée, au lieu de la redire", () => {
     const rust = readFileSync(fileURLToPath(new URL("../../../apps/app/src-tauri/src/travail.rs", import.meta.url)), "utf8");
-    expect(rust).toMatch(new RegExp(`BATTEMENT_SECONDES: u64 = ${BATTEMENT_VERROU_S};`));
-    expect(rust).toMatch(new RegExp(`EXPIRATION_SECONDES: u64 = ${EXPIRATION_VERROU_S};`));
+    expect(rust, "le bail vient des limites, pas d'un littéral").toMatch(/LIMITES\.battement_verrou_s/);
+    expect(rust).toMatch(/LIMITES\.expiration_verrou_s/);
+
+    const limites = readFileSync(fileURLToPath(new URL("../../../apps/app/src-tauri/src/limites.rs", import.meta.url)), "utf8");
+    expect(limites, "et les limites viennent du fichier que le TypeScript lit aussi").toMatch(
+      /include_str!\("\.\.\/\.\.\/\.\.\/\.\.\/packages\/contrats\/limites\.json"\)/,
+    );
   });
 });

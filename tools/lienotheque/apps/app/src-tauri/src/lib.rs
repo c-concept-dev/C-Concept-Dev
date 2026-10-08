@@ -5,11 +5,17 @@
 //! reprendre un travail après un arrêt forcé (JOB-02), lire un MP3 par plages — plus la taille
 //! d'installation moteurs compris. La décision reste à prendre (docs/decisions.md).
 
+pub mod depot;
+pub mod file;
+pub mod journal;
+pub mod limites;
 pub mod media;
+pub mod moteur;
 pub mod mesures;
 pub mod ocr;
 pub mod pdf;
 pub mod plateforme;
+pub mod traitement;
 pub mod travail;
 
 use std::{

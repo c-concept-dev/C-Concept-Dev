@@ -255,7 +255,7 @@ fn reprend_un_travail_apres_un_arret_force() {
     let limite = Instant::now();
     loop {
         if let Ok(Some(t)) = travail::charger(&etat) {
-            let battu = t.verrou.as_ref().is_some_and(|v| v.battu_le >= pris_le + travail::BATTEMENT_SECONDES);
+            let battu = t.verrou.as_ref().is_some_and(|v| v.battu_le >= pris_le + travail::battement_secondes());
             if battu && t.reprise_a() > 0 {
                 break;
             }
@@ -272,7 +272,7 @@ fn reprend_un_travail_apres_un_arret_force() {
     let bail = interrompu.verrou.clone().expect("le bail survit à l'arrêt : c'est lui qui expire");
     assert!(reprise > 0 && reprise < total, "arrêté en cours de route : {reprise}/{total}");
     assert!(bail.battu_le > pris_le, "le bail avait bien été renouvelé avant l'arrêt");
-    assert_eq!(bail.expire_le, bail.battu_le + travail::EXPIRATION_SECONDES);
+    assert_eq!(bail.expire_le, bail.battu_le + travail::expiration_secondes());
     assert!(!interrompu.reprenable(travail::maintenant()), "bail encore valide : pas de reprise immédiate");
 
     // Plus personne ne bat : le bail expire de lui-même.
@@ -302,8 +302,8 @@ fn reprend_un_travail_apres_un_arret_force() {
 
     println!(
         "Reprise : bail battu toutes les {} s, arrêt forcé au pas {reprise}/{total}, bail expiré {} s plus tard, reprise au pas suivant",
-        travail::BATTEMENT_SECONDES,
-        travail::EXPIRATION_SECONDES
+        travail::battement_secondes(),
+        travail::expiration_secondes()
     );
     let _ = std::fs::remove_dir_all(&dossier);
 }

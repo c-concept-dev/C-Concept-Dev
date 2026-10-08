@@ -15,6 +15,7 @@ export * from "./repere.js";
 export * from "./segment.js";
 export * from "./ecrans.js";
 export * from "./travail.js";
+export * from "./execution.js";
 export * from "./operation.js";
 export * from "./resultat-outil.js";
 export * from "./service.js";
