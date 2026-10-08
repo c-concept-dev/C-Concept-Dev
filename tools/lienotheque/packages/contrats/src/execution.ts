@@ -155,3 +155,18 @@ export function desaccordDeProtocole(recu: number, attendu: number = VERSION_PRO
     message: `Version d'échange ${recu} reçue, ${attendu} attendue : l'application et son moteur de traitement ne sont pas de la même version.`,
   };
 }
+
+/** Ce que l'hôte de bureau retient d'une session à l'autre (PLT-02, JOB-02).
+ *
+ *  Deux choses, et pas une de plus : qui est cet appareil — un bail doit dire qui le tient — et
+ *  quelles bibliothèques ont été ouvertes. Rien du contenu d'une bibliothèque n'entre ici : il
+ *  vit dans son dossier portable, qui se déplace et se sauvegarde seul. On peut perdre ces
+ *  réglages sans rien perdre. */
+export const ReglagesHote = z
+  .object({
+    appareil: Identifiant,
+    /** Les dossiers de bibliothèque ouverts, la plus récemment ouverte en tête. */
+    bibliotheques: z.array(z.string().min(1)).default([]),
+  })
+  .strict();
+export type ReglagesHote = z.infer<typeof ReglagesHote>;

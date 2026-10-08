@@ -16,6 +16,7 @@ pub mod mesures;
 pub mod ocr;
 pub mod pdf;
 pub mod plateforme;
+pub mod reglages;
 pub mod traitement;
 pub mod travail;
 
@@ -82,6 +83,47 @@ fn creer_bibliotheque(racine: String, description: String) -> Result<String, Str
         .ecrire_description(&description)
         .map(|chemin| chemin.to_string_lossy().into_owned())
         .map_err(|e| format!("Description impossible à écrire : {e}"))
+}
+
+/// Ce que l'hôte retient d'une session à l'autre : cet appareil, et les bibliothèques ouvertes.
+///
+/// L'application le demande au démarrage. Sans lui, il faudrait repointer l'application vers son
+/// dossier à chaque lancement, et aucun bail ne saurait dire qui le tient (JOB-02).
+#[tauri::command]
+fn reglages(app: tauri::AppHandle) -> Result<reglages::Reglages, String> {
+    let dossier = dossier_des_reglages(&app)?;
+    let lus = reglages::Reglages::lire(&dossier);
+    // L'identifiant d'appareil est fabriqué au premier lancement : on l'écrit tout de suite,
+    // sinon il changerait à chaque démarrage et un bail ne désignerait plus rien.
+    lus.ecrire(&dossier).map_err(|e| format!("Réglages impossibles à écrire : {e}"))?;
+    Ok(lus)
+}
+
+/// Met une bibliothèque en tête des récentes. Appelé après l'avoir créée ou ouverte.
+#[tauri::command]
+fn retenir_bibliotheque(app: tauri::AppHandle, racine: String) -> Result<reglages::Reglages, String> {
+    let dossier = dossier_des_reglages(&app)?;
+    let mut lus = reglages::Reglages::lire(&dossier);
+    lus.retenir(&racine);
+    lus.ecrire(&dossier).map_err(|e| format!("Réglages impossibles à écrire : {e}"))?;
+    Ok(lus)
+}
+
+/// Retire une bibliothèque de la liste des récentes. Le dossier n'est pas touché : oublier n'est
+/// pas supprimer, et rien de ce qui est à l'utilisateur ne disparaît d'un clic dans une liste.
+#[tauri::command]
+fn oublier_bibliotheque(app: tauri::AppHandle, racine: String) -> Result<reglages::Reglages, String> {
+    let dossier = dossier_des_reglages(&app)?;
+    let mut lus = reglages::Reglages::lire(&dossier);
+    lus.oublier(&racine);
+    lus.ecrire(&dossier).map_err(|e| format!("Réglages impossibles à écrire : {e}"))?;
+    Ok(lus)
+}
+
+fn dossier_des_reglages(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    app.path()
+        .app_config_dir()
+        .map_err(|e| format!("Dossier de réglages introuvable : {e}"))
 }
 
 /// Lit la description d'une bibliothèque, ou rien si le dossier n'en porte pas.
@@ -184,6 +226,9 @@ fn lancer(captures: bool) {
             creer_bibliotheque,
             lire_bibliotheque,
             ecrire_bibliotheque,
+            reglages,
+            retenir_bibliotheque,
+            oublier_bibliotheque,
             ouvrir_pdf,
             lancer_ocr,
             servir_media,

@@ -15,7 +15,15 @@ import { Creer } from "./pages/Creer.js";
 import { Organisation } from "./pages/Organisation.js";
 import { Prototype } from "./pages/Prototype.js";
 import { chargerModeles } from "./donnees/modeles.js";
-import { choisirDossier, creerBibliotheque, ecrireBibliotheque, estBureau } from "./pont/bureau.js";
+import {
+  bibliothequesRetenues,
+  choisirDossier,
+  creerBibliotheque,
+  ecrireBibliotheque,
+  estBureau,
+  lireBibliotheque,
+  retenirBibliotheque,
+} from "./pont/bureau.js";
 import { useTheme } from "./theme/useTheme.js";
 
 /** Les écrans qui tiennent dans la fenêtre au lieu de la faire défiler (correction 3). */
@@ -40,6 +48,8 @@ export function App(): JSX.Element {
    *  on ne montre pas ce qu'elle donnera en l'inventant. */
   const [exemples, setExemples] = useState<Parameters<typeof Organisation>[0]["exemples"]>(undefined);
   const modeles = useMemo(() => chargerModeles(), []);
+  /** Ce qui s'est passé à la dernière tentative d'ouverture, quand elle n'a mené à rien. */
+  const [echecOuverture, setEchecOuverture] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     const suivre = (): void => setRoute(lireRoute(globalThis.location?.hash ?? ""));
@@ -61,6 +71,12 @@ export function App(): JSX.Element {
     void chargerVue().then((chargee) => {
       if (vivant) setVue(chargee);
     });
+    // Les bibliothèques que l'hôte a retenues : sans elles, il faudrait repointer l'application
+    // vers son dossier à chaque lancement.
+    if (estBureau())
+      void bibliothequesRetenues().then((retenues) => {
+        if (vivant && retenues.length > 0) setCreees(retenues);
+      });
     void chargerBibliothequeDemonstration(globalThis.location?.search ?? "").then((bibliotheque) => {
       if (!vivant || bibliotheque === undefined) return;
       setCreees([{ racine: bibliotheque.racine, description: bibliotheque.description }]);
@@ -86,8 +102,29 @@ export function App(): JSX.Element {
     if (!estBureau())
       throw new Error("La création d’une bibliothèque demande l’application de bureau : elle seule écrit sur votre disque.");
     await creerBibliotheque(dossier, description);
+    await retenirBibliotheque(dossier);
     setCreees((anciennes) => [...anciennes, { racine: dossier, description }]);
     aller({ ecran: "organisation" });
+  };
+
+  /** Ouvre une bibliothèque qui existe déjà. L'hôte la retient, pour la retrouver au prochain
+   *  lancement ; un dossier qui n'en porte pas le dit, au lieu d'ouvrir un écran vide. */
+  const ouvrir = async (): Promise<void> => {
+    setEchecOuverture(undefined);
+    const racine = await choisirDossier("Quelle bibliothèque ouvrir ?");
+    if (racine === undefined) return;
+    try {
+      const description = await lireBibliotheque(racine);
+      if (description === undefined) {
+        setEchecOuverture("Ce dossier ne porte pas de bibliothèque. Choisissez celui que Liénothèque a créé.");
+        return;
+      }
+      await retenirBibliotheque(racine);
+      setCreees((anciennes) => [{ racine, description }, ...anciennes.filter((autre) => autre.racine !== racine)]);
+      aller({ ecran: "organisation" });
+    } catch (erreur) {
+      setEchecOuverture(erreur instanceof Error ? erreur.message : String(erreur));
+    }
   };
 
   /** La dernière bibliothèque créée : celle qu'on organise au sortir de l'assistant. */
@@ -105,7 +142,13 @@ export function App(): JSX.Element {
     if (route.ecran === "reglages") return <Reglages theme={theme} onThemeChange={changerTheme} />;
     if (route.ecran === "organisation")
       return derniere === undefined ? (
-        <PremierLancement theme={theme} onCreer={() => aller({ ecran: "creer" })} onFichiers={deposer} />
+        <PremierLancement
+          theme={theme}
+          onCreer={() => aller({ ecran: "creer" })}
+          onFichiers={deposer}
+          onOuvrir={estBureau() ? () => void ouvrir() : undefined}
+          echec={echecOuverture}
+        />
       ) : (
         <Organisation
           description={derniere.description}
@@ -126,7 +169,13 @@ export function App(): JSX.Element {
       );
     if (vue === undefined || restants === undefined) {
       return donnees.bibliotheques.length === 0 ? (
-        <PremierLancement theme={theme} onCreer={() => aller({ ecran: "creer" })} onFichiers={deposer} />
+        <PremierLancement
+          theme={theme}
+          onCreer={() => aller({ ecran: "creer" })}
+          onFichiers={deposer}
+          onOuvrir={estBureau() ? () => void ouvrir() : undefined}
+          echec={echecOuverture}
+        />
       ) : (
         <Accueil donnees={donnees} onFichiers={deposer} />
       );
@@ -161,7 +210,13 @@ export function App(): JSX.Element {
         />
       );
     return donnees.bibliotheques.length === 0 ? (
-      <PremierLancement theme={theme} onCreer={() => aller({ ecran: "creer" })} onFichiers={deposer} />
+      <PremierLancement
+          theme={theme}
+          onCreer={() => aller({ ecran: "creer" })}
+          onFichiers={deposer}
+          onOuvrir={estBureau() ? () => void ouvrir() : undefined}
+          echec={echecOuverture}
+        />
     ) : (
       <Accueil donnees={donnees} onFichiers={deposer} />
     );
