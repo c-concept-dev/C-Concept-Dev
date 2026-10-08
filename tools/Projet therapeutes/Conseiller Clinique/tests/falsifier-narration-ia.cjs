@@ -56,6 +56,12 @@ const ESSAIS = [
     attendu: 'un nombre choisi au lieu d\'une règle appliquée' },
 
   // ── Le prompt système ─────────────────────────────────────────────────────────────────────
+  { nom: 'le registre ne suit plus le public',
+    fichier: 'module',
+    de: "    if (/profession|clinicien|thérapeute|therapeute|praticien|soignant/.test(pub)) {",
+    vers: "    if (false) {",
+    attendu: 'un ton de vulgarisation servi à des cliniciens' },
+
   { nom: 'le sujet redevient « le couple » en dur',
     fichier: 'module',
     de: "      'haute, un acteur de doublage, pour une vidéo de psychoéducation.',",

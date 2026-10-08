@@ -200,6 +200,26 @@
     // couple » était faux cinq fois sur six, et un prompt qui se trompe de sujet oriente tout
     // le commentaire.
     var titre = (o.titre || '').trim();
+    // LE REGISTRE SUIT LE PUBLIC ANNONCÉ par le document. Le message transportait déjà
+    // « Public : … » sans qu'aucune consigne ne lui soit attachée : le modèle le lisait sans
+    // savoir qu'en faire. Trois familles, et un repli qui ne suppose rien.
+    var pub = String(o.public || '').toLowerCase();
+    var registre;
+    if (/profession|clinicien|thérapeute|therapeute|praticien|soignant/.test(pub)) {
+      registre = 'Des professionnels. Vous pouvez nommer un mécanisme par son nom, à condition '
+        + 'de l\'expliquer en une phrase. Pas de vulgarisation appuyée, pas de ton pédagogique '
+        + 'envers quelqu\'un qui connaît le sujet mieux que la vidéo.';
+    } else if (/patient|accompagn|consultant|couple en|personne suivie/.test(pub)) {
+      registre = 'Des personnes accompagnées, qui se reconnaîtront peut-être dans ce qui est dit. '
+        + 'Redoublez de précaution : aucune description qui ressemble à un jugement, aucune phrase '
+        + 'qui laisse entendre qu\'elles auraient dû savoir. Nommez ce qui se passe sans le qualifier.';
+    } else if (pub) {
+      registre = 'Un public large (« ' + o.public + ' »), sans formation. Partez de l\'expérience '
+        + 'ordinaire avant toute notion. Aucun terme technique sans une phrase qui l\'explique.';
+    } else {
+      registre = 'Le public n\'est pas précisé : écrivez pour quelqu\'un sans formation, qui écoute '
+        + 'par curiosité ou parce que le sujet le touche.';
+    }
     return [
       'Vous êtes auteur de scripts de doublage. Vous écrivez le commentaire que dira, à voix',
       'haute, un acteur de doublage, pour une vidéo de psychoéducation.',
@@ -240,6 +260,9 @@
       'Chaleureux, posé, jamais culpabilisant. Vous ne jugez personne. Vous ne vous adressez pas',
       'à « ceux qui ont un problème », mais à quelqu\'un qui écoute et se reconnaîtra peut-être.',
       adresse,
+      '',
+      'À QUI VOUS PARLEZ.',
+      registre,
       '',
       'CE QUE CE DOCUMENT EST.',
       'Une présentation clinique dont la relecture humaine est requise. Votre commentaire est un',

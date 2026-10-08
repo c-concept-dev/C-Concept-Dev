@@ -196,6 +196,10 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       sansTitre: window.NarrationIA.promptSysteme({ adresse: 'vous' }),
       autreSujet: window.NarrationIA.promptSysteme({ adresse: 'vous',
         titre: 'Comprendre les crises de panique', public: 'grand public' }),
+      pro: window.NarrationIA.promptSysteme({ adresse: 'vous', titre: 'T', public: 'clinicien' }),
+      accompagnees: window.NarrationIA.promptSysteme({ adresse: 'vous', titre: 'T', public: 'personnes accompagnées' }),
+      large: window.NarrationIA.promptSysteme({ adresse: 'vous', titre: 'T', public: 'grand public' }),
+      sansPublic: window.NarrationIA.promptSysteme({ adresse: 'vous', titre: 'T' }),
     }), DOC);
     const exigences = [
       ['doublage', /doublage/i], ['dit, pas lu', /SERA DIT, PAS LU/],
@@ -240,6 +244,17 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       'le sujet ne doit plus être « le couple » en dur — le dossier porte aussi l\'attachement et la panique');
     assert.match(prompt.sansTitre, /Le sujet est celui de la présentation fournie\. Tenez-vous-y/,
       'sans titre, la consigne reste tenable');
+    // Correction 3 : le registre suit le public, et les quatre cas sont distincts.
+    assert.match(prompt.pro, /Des professionnels\./, 'public professionnel');
+    assert.match(prompt.pro, /nommer un mécanisme par son nom/);
+    assert.match(prompt.accompagnees, /Des personnes accompagnées/, 'public accompagné');
+    assert.match(prompt.accompagnees, /aucune phrase qui laisse entendre qu.elles auraient dû savoir/);
+    assert.match(prompt.large, /Un public large/, 'grand public');
+    assert.match(prompt.large, /Aucun terme technique sans une phrase qui l.explique/);
+    assert.match(prompt.sansPublic, /Le public n.est pas précisé/, 'public absent');
+    const registres = [prompt.pro, prompt.accompagnees, prompt.large, prompt.sansPublic];
+    assert.equal(new Set(registres).size, 4, 'les quatre registres doivent être DISTINCTS');
+    assert.ok(registres.every((r) => /À QUI VOUS PARLEZ\./.test(r)), 'chacun a sa section');
     assert.match(prompt.vous, /en disant « vous ». Jamais « tu »/);
     assert.match(prompt.tu, /en disant « tu ». Jamais « vous »/);
     assert.ok(!/« tu ». Jamais « vous »/.test(prompt.vous), 'les deux adresses ne doivent pas coexister');
