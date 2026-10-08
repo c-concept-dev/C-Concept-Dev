@@ -58,16 +58,27 @@ pub fn empreinte_de(chemin: &Path) -> io::Result<String> {
     Ok(format!("{:x}", hacheur.finalize()))
 }
 
-/// Ce qu'un dépôt a donné : les travaux mis en file, et ce qui n'a pas pu entrer.
+/// Ce qu'un dépôt a donné.
 #[derive(Debug, Default)]
 pub struct Arrivee {
     /// Les travaux en file après ce dépôt — y compris ceux qui y étaient déjà (JOB-04).
     pub travaux: Vec<Travail>,
+    /// Ce qui est déposé mais ne se lit pas seul : les enregistrements, les vidéos, les images.
+    ///
+    /// Le moteur lit un document **et les médias qui l'accompagnent**, ensemble : c'est ainsi
+    /// qu'un élément de la page 127 se relie au bon moment de sa piste. Un travail par fichier
+    /// audio ne partirait donc jamais — il n'y aurait rien à lire. Ils sont copiés dans la
+    /// bibliothèque et attendent le document qui les nommera.
+    pub accompagnements: Vec<(String, String)>,
     /// Les fichiers refusés, et pourquoi. Jamais avalés : on dit lesquels, et ce qui cloche.
     pub refuses: Vec<(String, String)>,
 }
 
-/// Dépose des fichiers et met un travail en file par fichier (JOB-01, JOB-04).
+/// Dépose des fichiers et met un travail en file par document (JOB-01, JOB-04).
+///
+/// Un travail par **document**, et non par fichier : le moteur lit un document et les médias qui
+/// l'accompagnent ensemble, et un travail qui ne porterait qu'un fichier audio n'aurait rien à
+/// lire. Les médias sont copiés et attendent le document qui les nommera.
 ///
 /// Un fichier déjà déposé — même contenu, même bibliothèque — ne crée pas un second travail : le
 /// sien est rendu tel quel. Un fichier dont on ne sait pas lire le type est refusé avec sa raison,
@@ -112,6 +123,11 @@ pub fn deposer(
         // L'original n'est jamais déplacé ni modifié.
         if let Err(e) = depot.deposer_source(origine) {
             arrivee.refuses.push((nom, format!("Copie impossible : {e}")));
+            continue;
+        }
+
+        if contenu != "documents" {
+            arrivee.accompagnements.push((nom, contenu.to_owned()));
             continue;
         }
 
@@ -229,7 +245,7 @@ mod tests {
     }
 
     #[test]
-    fn deux_fichiers_differents_font_deux_travaux() {
+    fn un_media_est_copie_mais_ne_fait_pas_un_travail_a_lui_seul() {
         let racine = bac("deux");
         let source = bac("deux-source");
         let depot = Depot::ouvrir(racine.join("bibliotheque")).expect("dépôt");
@@ -239,13 +255,14 @@ mod tests {
         let autre = fichier(&source, "une-piste.mp3", b"autres octets");
         let arrivee = deposer(&depot, &dossier_file, &[un, autre], &mut |_| {}).expect("dépôt");
 
-        assert_eq!(arrivee.travaux.len(), 2);
-        let contenus: Vec<&str> = arrivee
-            .travaux
-            .iter()
-            .filter_map(|t| t.sujet.as_ref().map(|s| s.contenu.as_str()))
-            .collect();
-        assert!(contenus.contains(&"documents") && contenus.contains(&"audio"));
+        // Un travail par document : le moteur lit un document et ses médias ensemble, et un
+        // travail qui ne porterait qu'une piste n'aurait rien à lire.
+        assert_eq!(arrivee.travaux.len(), 1);
+        assert_eq!(arrivee.travaux[0].sujet.as_ref().map(|s| s.contenu.as_str()), Some("documents"));
+        assert_eq!(arrivee.accompagnements, vec![("une-piste.mp3".to_owned(), "audio".to_owned())]);
+
+        // Copiée tout de même : elle attend le document qui la nommera.
+        assert!(depot.racine().join(crate::depot::SOURCES).join("une-piste.mp3").exists());
 
         fs::remove_dir_all(&racine).ok();
         fs::remove_dir_all(&source).ok();

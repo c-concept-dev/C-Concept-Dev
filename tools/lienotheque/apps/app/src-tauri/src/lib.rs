@@ -18,6 +18,7 @@ pub mod ocr;
 pub mod pdf;
 pub mod plateforme;
 pub mod reglages;
+pub mod roulement;
 pub mod traitement;
 pub mod travail;
 
@@ -63,6 +64,9 @@ impl Moteurs {
 #[derive(Default)]
 pub struct Etat {
     pub serveur: Mutex<Option<media::Serveur>>,
+    /// Un roulement par bibliothèque ouverte : c'est lui qui fait tourner sa file. Il ne tient à
+    /// aucune fenêtre — la fenêtre peut se fermer, le traitement continue (JOB-09).
+    pub roulements: Mutex<std::collections::HashMap<String, std::sync::Arc<roulement::Roulement>>>,
 }
 
 /// Crée une bibliothèque dans un dossier, et y écrit sa description (CLA-01).
@@ -86,6 +90,41 @@ fn creer_bibliotheque(racine: String, description: String) -> Result<String, Str
         .map_err(|e| format!("Description impossible à écrire : {e}"))
 }
 
+/// Met la file d'une bibliothèque en route, et la laisse tourner.
+///
+/// Appelée dès qu'une bibliothèque est ouverte ou créée. Deux appels pour la même ne font qu'un
+/// roulement : la file se mènerait deux fois, et deux moteurs liraient le même document.
+#[tauri::command]
+fn faire_tourner(app: tauri::AppHandle, etat: State<Etat>, racine: String) -> Result<bool, String> {
+    let mut roulements = etat.roulements.lock().map_err(|_| "État inaccessible")?;
+    if roulements.contains_key(&racine) {
+        return Ok(false);
+    }
+
+    let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
+    let executable = std::env::current_exe().map_err(|e| format!("Exécutable introuvable : {e}"))?;
+    let emplacements = traitement::Emplacements::depuis_executable(&executable)
+        .ok_or("Moteur introuvable à côté de l’application : le paquet est incomplet.")?;
+    let appareil = reglages::Reglages::lire(&dossier_des_reglages(&app)?).appareil;
+    let cache = app
+        .path()
+        .app_cache_dir()
+        .map_err(|e| format!("Cache de travail introuvable : {e}"))?
+        .join("lectures");
+
+    roulements.insert(racine, roulement::Roulement::demarrer(depot, emplacements, appareil, cache));
+    Ok(true)
+}
+
+/// Arrête proprement tous les roulements. Ce qui a été lu reste lu, et la reprise repart de là.
+pub fn arreter_les_roulements(etat: &Etat) {
+    if let Ok(roulements) = etat.roulements.lock() {
+        for roulement in roulements.values() {
+            roulement.arreter();
+        }
+    }
+}
+
 /// Dépose des fichiers dans une bibliothèque et met un travail en file par fichier (JOB-01).
 ///
 /// Les originaux sont copiés, jamais déplacés ni modifiés. Un fichier déjà déposé retrouve son
@@ -100,6 +139,7 @@ fn deposer(racine: String, chemins: Vec<String>) -> Result<serde_json::Value, St
         .map_err(|e| format!("Dépôt impossible : {e}"))?;
     Ok(serde_json::json!({
         "travaux": arrivee.travaux.iter().map(travail::Travail::vu).collect::<Vec<_>>(),
+        "accompagnements": arrivee.accompagnements.iter().map(|(nom, contenu)| serde_json::json!({ "nom": nom, "contenu": contenu })).collect::<Vec<_>>(),
         "refuses": arrivee.refuses.iter().map(|(nom, raison)| serde_json::json!({ "nom": nom, "raison": raison })).collect::<Vec<_>>(),
         "avertissements": avertissements,
     }))
@@ -277,6 +317,7 @@ fn lancer(captures: bool) {
             retenir_bibliotheque,
             oublier_bibliotheque,
             deposer,
+            faire_tourner,
             travaux,
             agir_sur_travail,
             ouvrir_pdf,
@@ -287,6 +328,14 @@ fn lancer(captures: bool) {
             fixtures,
             peser_installation
         ])
-        .run(tauri::generate_context!())
-        .expect("démarrage de l'application impossible");
+        .build(tauri::generate_context!())
+        .expect("démarrage de l'application impossible")
+        .run(|app, evenement| {
+            // Fermer la fenêtre n'interrompt pas un traitement ; quitter l'application, si — et
+            // proprement : les moteurs s'arrêtent, les baux se lâchent, et ce qui a été lu se
+            // reprend au prochain lancement (JOB-02, JOB-03).
+            if matches!(evenement, tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit) {
+                arreter_les_roulements(&app.state::<Etat>());
+            }
+        });
 }

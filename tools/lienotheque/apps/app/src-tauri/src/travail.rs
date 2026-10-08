@@ -74,6 +74,12 @@ pub struct Travail {
     /// Absent pour un travail qui ne porte sur aucun fichier — un recalcul, une réindexation.
     #[serde(default)]
     pub sujet: Option<Sujet>,
+    /// Ce qui a échoué, et si une reprise a une chance. Un échec enregistre sa cause : aucune
+    /// erreur n'est avalée (JOB-05).
+    #[serde(default)]
+    pub cause: Option<String>,
+    #[serde(default)]
+    pub reprise_possible: bool,
     /// Empreinte de ce qui est demandé : redéposer le même contenu retrouve ce travail au lieu
     /// d'en créer un second (JOB-04). C'est le contenu qui décide, jamais le nom du fichier.
     #[serde(default)]
@@ -106,6 +112,8 @@ impl Travail {
             tentative: 1,
             total,
             sujet: None,
+            cause: None,
+            reprise_possible: false,
             empreinte: None,
             version_cible: String::new(),
             cree_le: maintenant(),
@@ -213,6 +221,13 @@ impl Travail {
                 porte["total"] = serde_json::json!(self.total);
             }
             vu["sujet"] = porte;
+        }
+        if let Some(cause) = &self.cause {
+            vu["erreur"] = serde_json::json!({
+                "cause": cause,
+                "elements": [],
+                "reprisePossible": self.reprise_possible,
+            });
         }
         if let Some(empreinte) = &self.empreinte {
             vu["empreinteEntree"] = serde_json::json!(empreinte);

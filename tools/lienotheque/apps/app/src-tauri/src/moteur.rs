@@ -24,7 +24,13 @@ use std::{
 #[derive(Debug, Clone, PartialEq)]
 pub enum Message {
     Salutation { protocole: u32, moteur: String, version: String },
-    Progression { progression: f32, pas: Option<u32> },
+    /// Où en est le travail. `point` porte l'unité comptée et le rang atteint ; `total` dit
+    /// combien d'unités en tout, et n'arrive qu'une fois le fichier ouvert (JOB-03).
+    Progression {
+        progression: f32,
+        point: Option<crate::travail::PointReprise>,
+        total: Option<u32>,
+    },
     Journal { niveau: String, texte: String },
     Resultat { charge: String },
     Echec { cause: String, reprise_possible: bool },
@@ -46,6 +52,8 @@ struct Enveloppe {
     #[serde(default)]
     texte: Option<String>,
     #[serde(default)]
+    total: Option<u32>,
+    #[serde(default)]
     charge: Option<serde_json::Value>,
     #[serde(default)]
     cause: Option<String>,
@@ -59,8 +67,15 @@ struct MoteurDit {
     version: String,
 }
 
+/// L'unité manquante vaut « page » : c'est la seule qu'un moteur plus ancien comptait.
+fn unite_par_defaut() -> String {
+    "page".to_owned()
+}
+
 #[derive(Deserialize)]
 struct PointDit {
+    #[serde(default = "unite_par_defaut")]
+    unite: String,
     valeur: u32,
 }
 
@@ -101,7 +116,10 @@ pub fn lire_message(ligne: &str) -> Result<Message, Refus> {
         }
         "progression" => Ok(Message::Progression {
             progression: enveloppe.progression.unwrap_or(0.0),
-            pas: enveloppe.point_reprise.map(|p| p.valeur),
+            point: enveloppe
+                .point_reprise
+                .map(|p| crate::travail::PointReprise { unite: p.unite, valeur: p.valeur }),
+            total: enveloppe.total,
         }),
         "journal" => Ok(Message::Journal {
             niveau: enveloppe.niveau.unwrap_or_else(|| "information".to_owned()),
@@ -276,7 +294,14 @@ mod tests {
             r#"{{"type":"progression","protocole":{},"travailId":"x","progression":0.5,"pointReprise":{{"unite":"page","valeur":120}}}}"#,
             LIMITES.protocole
         );
-        assert_eq!(lire_message(&ligne), Ok(Message::Progression { progression: 0.5, pas: Some(120) }));
+        assert_eq!(
+            lire_message(&ligne),
+            Ok(Message::Progression {
+                progression: 0.5,
+                point: Some(crate::travail::PointReprise { unite: "page".to_owned(), valeur: 120 }),
+                total: None,
+            })
+        );
     }
 
     #[test]
