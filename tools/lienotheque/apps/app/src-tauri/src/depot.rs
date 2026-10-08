@@ -37,6 +37,12 @@ pub const BASE: &str = "base";
 const VERSIONS: &str = "versions";
 const ACTIVE: &str = "active.json";
 
+/// Le nom du fichier de description, le même que celui du contrat.
+///
+/// Trois endroits le nomment — l'assistant, l'hôte, la chaîne — et le contrat le fixe. Un
+/// contrôle du noyau vérifie que l'hôte dit bien le même.
+const DESCRIPTION: &str = "bibliotheque.json";
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct Pointeur {
     /// La version que les lecteurs voient.
@@ -85,6 +91,34 @@ impl Depot {
         let destination = self.racine.join(SOURCES).join(nom);
         fs::copy(origine, &destination)?;
         Ok(destination)
+    }
+
+    /// Écrit la description de la bibliothèque : son identifiant, son nom, ses mots, son schéma.
+    ///
+    /// L'hôte ne la relit pas pour la juger — il ne connaît aucun domaine et n'a pas de contrat à
+    /// lui opposer. C'est l'assistant qui la valide avant de l'envoyer, là où le contrat vit.
+    /// L'hôte garantit ce qu'il sait garantir : qu'elle s'écrit entière ou pas du tout.
+    pub fn ecrire_description(&self, description: &str) -> io::Result<PathBuf> {
+        let chemin = self.racine.join(BASE).join(DESCRIPTION);
+        ecrire_atomique(&chemin, description.as_bytes())?;
+        Ok(chemin)
+    }
+
+    pub fn lire_description(&self) -> io::Result<Option<String>> {
+        match fs::read_to_string(self.racine.join(BASE).join(DESCRIPTION)) {
+            Ok(texte) => Ok(Some(texte)),
+            Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
+            Err(e) => Err(e),
+        }
+    }
+
+    /// Y a-t-il déjà une bibliothèque ici ?
+    ///
+    /// L'assistant le demande avant de créer : écraser la description d'une bibliothèque
+    /// existante lui ferait perdre son schéma, donc son classement, donc le sens de tout ce
+    /// qu'elle contient.
+    pub fn deja_une_bibliotheque(&self) -> bool {
+        self.racine.join(BASE).join(DESCRIPTION).exists()
     }
 
     /// Écrit le résultat d'une version, sans toucher à celle qui est active (JOB-06).
@@ -245,6 +279,33 @@ mod tests {
         depot.ecrire_version("v1", "{}").expect("écrite");
         depot.activer("v1", 1_000).expect("activée");
 
+        let restes: Vec<_> = fs::read_dir(racine.join(BASE))
+            .expect("base lisible")
+            .filter_map(Result::ok)
+            .filter(|e| e.path().extension().is_some_and(|x| x == "tmp"))
+            .collect();
+        assert!(restes.is_empty(), "un temporaire oublié finit par être pris pour une donnée");
+        fs::remove_dir_all(&racine).ok();
+    }
+
+    #[test]
+    fn une_description_ecrite_se_relit_telle_quelle() {
+        let (depot, racine) = depot_neuf("description");
+        assert!(!depot.deja_une_bibliotheque(), "un dossier neuf n'en porte aucune");
+        assert!(depot.lire_description().expect("lecture").is_none());
+
+        let texte = r#"{"id":"une-bibliotheque","nom":"Une bibliothèque"}"#;
+        depot.ecrire_description(texte).expect("description écrite");
+
+        assert!(depot.deja_une_bibliotheque());
+        assert_eq!(depot.lire_description().expect("lecture"), Some(texte.to_owned()));
+        fs::remove_dir_all(&racine).ok();
+    }
+
+    #[test]
+    fn une_description_ne_laisse_aucun_temporaire_derriere_elle() {
+        let (depot, racine) = depot_neuf("description-propre");
+        depot.ecrire_description("{}").expect("écrite");
         let restes: Vec<_> = fs::read_dir(racine.join(BASE))
             .expect("base lisible")
             .filter_map(Result::ok)

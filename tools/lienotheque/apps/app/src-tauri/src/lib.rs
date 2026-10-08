@@ -62,6 +62,46 @@ pub struct Etat {
     pub serveur: Mutex<Option<media::Serveur>>,
 }
 
+/// Crée une bibliothèque dans un dossier, et y écrit sa description (CLA-01).
+///
+/// Refuse d'écraser une bibliothèque existante : perdre son schéma lui ferait perdre son
+/// classement, donc le sens de tout ce qu'elle contient. L'assistant propose alors d'ouvrir
+/// celle qui est là, ou d'en choisir un autre dossier.
+///
+/// La description arrive validée par son contrat, côté interface, là où ce contrat vit. L'hôte
+/// n'a pas de contrat à lui opposer — il ne connaît aucun domaine — et garantit ce qu'il sait
+/// garantir : qu'elle s'écrit entière ou pas du tout.
+#[tauri::command]
+fn creer_bibliotheque(racine: String, description: String) -> Result<String, String> {
+    let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Dossier impossible à préparer : {e}"))?;
+    if depot.deja_une_bibliotheque() {
+        return Err("Une bibliothèque occupe déjà ce dossier. Ouvrez-la, ou choisissez-en un autre.".to_owned());
+    }
+    depot
+        .ecrire_description(&description)
+        .map(|chemin| chemin.to_string_lossy().into_owned())
+        .map_err(|e| format!("Description impossible à écrire : {e}"))
+}
+
+/// Lit la description d'une bibliothèque, ou rien si le dossier n'en porte pas.
+#[tauri::command]
+fn lire_bibliotheque(racine: String) -> Result<Option<String>, String> {
+    depot::Depot::ouvrir(&racine)
+        .and_then(|d| d.lire_description())
+        .map_err(|e| format!("Bibliothèque illisible : {e}"))
+}
+
+/// Remplace la description d'une bibliothèque — c'est par là que passe l'écran Organisation.
+///
+/// Remplace, et n'ajoute pas : le classement est un tout, et deux moitiés de schéma écrites à
+/// deux moments ne décrivent rien. L'écriture reste entière ou nulle.
+#[tauri::command]
+fn ecrire_bibliotheque(racine: String, description: String) -> Result<(), String> {
+    depot::Depot::ouvrir(&racine)
+        .and_then(|d| d.ecrire_description(&description).map(|_| ()))
+        .map_err(|e| format!("Description impossible à écrire : {e}"))
+}
+
 #[tauri::command]
 fn ouvrir_pdf(chemin: String) -> Result<pdf::MesurePdf, String> {
     pdf::ouvrir(Path::new(&chemin))
@@ -127,6 +167,9 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .manage(Etat::default())
         .invoke_handler(tauri::generate_handler![
+            creer_bibliotheque,
+            lire_bibliotheque,
+            ecrire_bibliotheque,
             ouvrir_pdf,
             lancer_ocr,
             servir_media,

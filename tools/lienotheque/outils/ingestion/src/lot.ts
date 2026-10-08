@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { exporterPages } from "./pages-images.js";
-import { MotsBibliotheque, type ResultatRecette, SchemaBibliotheque, VueBibliotheque } from "@lienotheque/contrats";
+import { DescriptionBibliotheque, type ResultatRecette, VueBibliotheque } from "@lienotheque/contrats";
 import { chargerRecette, rejouer, type Association, type Media, type Relecture } from "@lienotheque/recettes";
 import { construireVue } from "./instantane.js";
 
@@ -13,23 +13,13 @@ import { construireVue } from "./instantane.js";
  *  Rien de ce qui est produit ici n'entre au dépôt : l'instantané va au cache de travail, et le
  *  document comme les médias restent où ils sont. */
 
-/** Ce qu'une bibliothèque déclare d'elle-même. C'est une donnée — les mots du domaine viennent de
- *  là, jamais du code (CLA-01). */
-export type DescriptionBibliotheque = {
-  readonly id: string;
-  readonly nom: string;
-  readonly mots: MotsBibliotheque;
-  readonly schema: SchemaBibliotheque;
-};
-
+/** Lit la description d'une bibliothèque, validée par son contrat.
+ *
+ *  Elle était lue ici par un analyseur écrit à la main, qui prenait `String(...)` de ce qu'il
+ *  trouvait : un identifiant absent devenait « undefined », un nom vide passait. Le contrat
+ *  refuse les deux, et au bon endroit — à la lecture, pas trois écrans plus loin. */
 export function lireDescription(brut: unknown): DescriptionBibliotheque {
-  const objet = brut as Record<string, unknown>;
-  return {
-    id: String(objet["id"]),
-    nom: String(objet["nom"]),
-    mots: MotsBibliotheque.parse(objet["mots"]),
-    schema: SchemaBibliotheque.parse(objet["schema"]),
-  };
+  return DescriptionBibliotheque.parse(brut);
 }
 
 export type Lot = {

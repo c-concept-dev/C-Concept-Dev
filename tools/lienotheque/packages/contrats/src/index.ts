@@ -1,5 +1,6 @@
 export * from "./commun.js";
 export * from "./classement.js";
+export * from "./bibliotheque.js";
 export * from "./nomenclature.js";
 export * from "./fichier.js";
 export * from "./format.js";
