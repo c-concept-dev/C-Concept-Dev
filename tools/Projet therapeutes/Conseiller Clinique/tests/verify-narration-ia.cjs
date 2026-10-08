@@ -190,10 +190,13 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       + ' s et plafond ' + (budget.plafond / 1000) + ' s.');
 
     // ── 5. LE PROMPT SYSTÈME dit ce qu'il doit dire ──────────────────────────────────────────
-    const prompt = await page.evaluate(() => ({
-      vous: window.NarrationIA.promptSysteme({ adresse: 'vous' }),
-      tu: window.NarrationIA.promptSysteme({ adresse: 'tu' }),
-    }));
+    const prompt = await page.evaluate((d) => ({
+      vous: window.NarrationIA.promptSysteme({ adresse: 'vous', titre: d.title, public: d.audience }),
+      tu: window.NarrationIA.promptSysteme({ adresse: 'tu', titre: d.title, public: d.audience }),
+      sansTitre: window.NarrationIA.promptSysteme({ adresse: 'vous' }),
+      autreSujet: window.NarrationIA.promptSysteme({ adresse: 'vous',
+        titre: 'Comprendre les crises de panique', public: 'grand public' }),
+    }), DOC);
     const exigences = [
       ['doublage', /doublage/i], ['dit, pas lu', /SERA DIT, PAS LU/],
       ['phrases courtes', /phrases courtes/i], ['pas de Markdown', /Aucun Markdown/],
@@ -228,6 +231,15 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
     // Et ce qui ne doit PLUS y être : une proportion donnée en exemple.
     assert.equal(/un couple sur trois/.test(prompt.vous), false,
       'l\'ancien exemple « un couple sur trois » ressemblait à une statistique');
+    // Correction 2 : le sujet vient du TITRE, et le mot « couple » n'est plus en dur.
+    assert.ok(prompt.vous.indexOf('intitulée « ' + DOC.title + ' »') !== -1,
+      'le prompt doit nommer la présentation : ' + prompt.vous.slice(0, 220));
+    assert.ok(prompt.autreSujet.indexOf('Comprendre les crises de panique') !== -1,
+      'un autre document donne un autre sujet');
+    assert.equal(/psychoéducation sur le couple/.test(prompt.autreSujet), false,
+      'le sujet ne doit plus être « le couple » en dur — le dossier porte aussi l\'attachement et la panique');
+    assert.match(prompt.sansTitre, /Le sujet est celui de la présentation fournie\. Tenez-vous-y/,
+      'sans titre, la consigne reste tenable');
     assert.match(prompt.vous, /en disant « vous ». Jamais « tu »/);
     assert.match(prompt.tu, /en disant « tu ». Jamais « vous »/);
     assert.ok(!/« tu ». Jamais « vous »/.test(prompt.vous), 'les deux adresses ne doivent pas coexister');

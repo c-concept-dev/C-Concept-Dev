@@ -56,6 +56,12 @@ const ESSAIS = [
     attendu: 'un nombre choisi au lieu d\'une règle appliquée' },
 
   // ── Le prompt système ─────────────────────────────────────────────────────────────────────
+  { nom: 'le sujet redevient « le couple » en dur',
+    fichier: 'module',
+    de: "      'haute, un acteur de doublage, pour une vidéo de psychoéducation.',",
+    vers: "      'haute, un acteur de doublage, pour une vidéo de psychoéducation sur le couple.',",
+    attendu: 'un commentaire sur le couple pour une présentation sur la panique' },
+
   { nom: 'le prompt n\'interdit plus le diagnostic',
     fichier: 'module',
     de: "      '- Aucun diagnostic, aucun conseil adressé à une personne en particulier, aucune promesse',",

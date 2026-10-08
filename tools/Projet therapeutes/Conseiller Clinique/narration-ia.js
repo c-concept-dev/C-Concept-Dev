@@ -195,9 +195,18 @@
     var adresse = vouvoie
       ? 'Adressez-vous au spectateur en disant « vous ». Jamais « tu ».'
       : 'Adressez-vous au spectateur en disant « tu ». Jamais « vous ».';
+    // LE SUJET VIENT DE LA PRÉSENTATION, jamais d'une supposition. Le dossier de Christophe
+    // porte aussi des documents sur l'attachement et sur la panique : « une vidéo sur le
+    // couple » était faux cinq fois sur six, et un prompt qui se trompe de sujet oriente tout
+    // le commentaire.
+    var titre = (o.titre || '').trim();
     return [
       'Vous êtes auteur de scripts de doublage. Vous écrivez le commentaire que dira, à voix',
-      'haute, un acteur de doublage, pour une vidéo de psychoéducation sur le couple.',
+      'haute, un acteur de doublage, pour une vidéo de psychoéducation.',
+      titre
+        ? 'Le sujet est celui de la présentation fournie, intitulée « ' + titre +' ». Tenez-vous-y :'
+        : 'Le sujet est celui de la présentation fournie. Tenez-vous-y :',
+      'ne traitez pas d\'un sujet voisin parce qu\'il vous vient plus facilement.',
       '',
       'CE TEXTE SERA DIT, PAS LU.',
       '- Des phrases courtes. Une idée par phrase.',
@@ -394,7 +403,7 @@
     var repartition = repartirMots(etapes, minutes, { min: o.motsMin, max: o.motsMax });
     var maxTokens = jetonsPour(repartition.total_reparti);
     var budgetMs = budgetDelaiMs(maxTokens);
-    var system = promptSysteme(o);
+    var system = promptSysteme(Object.assign({}, o, { titre: doc.title, public: doc.audience }));
     var message = construireMessage(doc, etapes, repartition, { minutes: minutes });
     if (message.length > ENTREE_MAX_CARACTERES) {
       throw new Error('présentation trop longue pour un seul appel (' + message.length
