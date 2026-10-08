@@ -1,0 +1,102 @@
+/* Les pièces de formulaire communes aux écrans d'administration (kit UI v1.1).
+   Deux usages réels : l'assistant de création et l'écran d'organisation. Couleurs, rayons et
+   pas de grille uniquement par les variables --ln-*. */
+
+.ln-section {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ln-text-secondary);
+}
+
+/* Posé au-dessus de cartes, un intitulé de section tombe en hybride directement sur la
+   photographie. `.ln-sur-photo` lui rend son fond ; il lui manque juste de quoi respirer. */
+.ln-section.ln-sur-photo {
+  display: inline-block;
+  padding: calc(var(--ln-grid) * 0.5) calc(var(--ln-grid));
+}
+
+/* Un champ : son intitulé au-dessus, sa saisie dessous. Le label porte la saisie, donc un clic
+   sur l'intitulé y amène le curseur. */
+.ln-champ {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--ln-grid) * 0.75);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ln-text-primary);
+}
+
+.ln-champ--serre {
+  flex: 0 0 auto;
+  font-weight: 400;
+}
+
+.ln-champ .ln-muted {
+  font-weight: 400;
+}
+
+.ln-saisie {
+  min-height: calc(var(--ln-grid) * 5);
+  padding: calc(var(--ln-grid)) calc(var(--ln-grid) * 1.5);
+  border: 1px solid var(--ln-control-border);
+  border-radius: var(--ln-radius);
+  background: var(--ln-surface);
+  color: var(--ln-text-primary);
+  font-family: var(--ln-font-ui);
+  font-size: 15px;
+}
+
+.ln-saisie--texte {
+  min-height: auto;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.ln-saisie::placeholder {
+  color: var(--ln-text-secondary);
+}
+
+.ln-saisie:focus-visible {
+  outline: 2px solid var(--ln-focus);
+  outline-offset: 2px;
+}
+
+/* Une valeur d'axe, telle que les écrans la montrent : jamais seule porteuse de sens, toujours
+   accompagnée de son nom en clair. */
+.ln-etiquette {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 0.5);
+  padding: calc(var(--ln-grid) * 0.5) calc(var(--ln-grid) * 1.25);
+  border: 1px solid var(--ln-border-decorative);
+  border-radius: var(--ln-radius);
+  background: var(--ln-surface);
+  color: var(--ln-text-primary);
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.ln-etiquette--retiree {
+  color: var(--ln-text-secondary);
+  text-decoration: line-through;
+}
+
+.ln-etiquette--action {
+  border-style: dashed;
+  color: var(--ln-text-secondary);
+  cursor: pointer;
+}
+
+.ln-etiquette--action:hover {
+  background: var(--ln-surface-hover);
+  color: var(--ln-text-primary);
+}
+
+.ln-etiquette:focus-visible,
+.ln-etiquette--action:focus-visible {
+  outline: 2px solid var(--ln-focus);
+  outline-offset: 2px;
+}

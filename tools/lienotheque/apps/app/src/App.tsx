@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type JSX } from "react";
-import type { CasDouteux, VueBibliotheque } from "@lienotheque/contrats";
+import type { CasDouteux, DescriptionBibliotheque, SchemaBibliotheque, VueBibliotheque } from "@lienotheque/contrats";
 import { EnTete } from "./EnTete.js";
-import { chargerDonnees } from "./donnees/chargement.js";
+import { chargerBibliothequeDemonstration, chargerDonnees } from "./donnees/chargement.js";
 import { chargerVue } from "./donnees/vue.js";
 import { ACCUEIL, ecrireRoute, lireRoute, type Route } from "./navigation.js";
 import { ACCUEIL_VIDE, type DonneesAccueil } from "./donnees/modele.js";
@@ -11,7 +11,11 @@ import { Lecteur } from "./pages/Lecteur.js";
 import { PremierLancement } from "./pages/PremierLancement.js";
 import { Reglages } from "./pages/Reglages.js";
 import { Verifier, type Decision } from "./pages/Verifier.js";
-import { Prototype, estBureau } from "./pages/Prototype.js";
+import { Creer } from "./pages/Creer.js";
+import { Organisation } from "./pages/Organisation.js";
+import { Prototype } from "./pages/Prototype.js";
+import { chargerModeles } from "./donnees/modeles.js";
+import { choisirDossier, creerBibliotheque, ecrireBibliotheque, estBureau } from "./pont/bureau.js";
 import { useTheme } from "./theme/useTheme.js";
 
 /** Les écrans qui tiennent dans la fenêtre au lieu de la faire défiler (correction 3). */
@@ -30,6 +34,12 @@ export function App(): JSX.Element {
   const [, setDepots] = useState<readonly string[]>([]);
   const [route, setRoute] = useState<Route>(() => lireRoute(globalThis.location?.hash ?? ""));
   const [decisions, setDecisions] = useState<readonly { cas: CasDouteux; decision: Decision }[]>([]);
+  /** Les bibliothèques que cette session a créées, avec le dossier qui les porte. */
+  const [creees, setCreees] = useState<readonly { racine: string; description: DescriptionBibliotheque }[]>([]);
+  /** Trois éléments à montrer sous l'organisation. Vides tant que la bibliothèque n'a rien :
+   *  on ne montre pas ce qu'elle donnera en l'inventant. */
+  const [exemples, setExemples] = useState<Parameters<typeof Organisation>[0]["exemples"]>(undefined);
+  const modeles = useMemo(() => chargerModeles(), []);
 
   useEffect(() => {
     const suivre = (): void => setRoute(lireRoute(globalThis.location?.hash ?? ""));
@@ -51,6 +61,11 @@ export function App(): JSX.Element {
     void chargerVue().then((chargee) => {
       if (vivant) setVue(chargee);
     });
+    void chargerBibliothequeDemonstration(globalThis.location?.search ?? "").then((bibliotheque) => {
+      if (!vivant || bibliotheque === undefined) return;
+      setCreees([{ racine: bibliotheque.racine, description: bibliotheque.description }]);
+      setExemples(bibliotheque.exemples);
+    });
     return () => {
       vivant = false;
     };
@@ -65,11 +80,53 @@ export function App(): JSX.Element {
     return { ...vue, douteux: vue.douteux.filter((cas) => !decides.has(cas.id)) };
   }, [vue, decisions]);
 
+  /** Créer une bibliothèque : l'hôte écrit, jamais la page. Sans hôte — sur le web — on le dit
+   *  plutôt que de faire semblant d'avoir créé quelque chose. */
+  const creer = async (description: DescriptionBibliotheque, dossier: string): Promise<void> => {
+    if (!estBureau())
+      throw new Error("La création d’une bibliothèque demande l’application de bureau : elle seule écrit sur votre disque.");
+    await creerBibliotheque(dossier, description);
+    setCreees((anciennes) => [...anciennes, { racine: dossier, description }]);
+    aller({ ecran: "organisation" });
+  };
+
+  /** La dernière bibliothèque créée : celle qu'on organise au sortir de l'assistant. */
+  const derniere = creees[creees.length - 1];
+
+  /** Une version de plus du schéma. L'hôte réécrit la description : la page n'écrit jamais. */
+  const organiser = async (schema: SchemaBibliotheque): Promise<void> => {
+    if (derniere === undefined) return;
+    const description = { ...derniere.description, schema };
+    if (estBureau()) await ecrireBibliotheque(derniere.racine, description);
+    setCreees((anciennes) => anciennes.map((creee) => (creee === derniere ? { ...creee, description } : creee)));
+  };
+
   const ecran = ((): JSX.Element | null => {
     if (route.ecran === "reglages") return <Reglages theme={theme} onThemeChange={changerTheme} />;
+    if (route.ecran === "organisation")
+      return derniere === undefined ? (
+        <PremierLancement theme={theme} onCreer={() => aller({ ecran: "creer" })} onFichiers={deposer} />
+      ) : (
+        <Organisation
+          description={derniere.description}
+          onSchema={organiser}
+          onValider={() => aller(ACCUEIL)}
+          exemples={exemples}
+        />
+      );
+    if (route.ecran === "creer")
+      return (
+        <Creer
+          modeles={modeles}
+          prises={creees.map((creee) => creee.description.id)}
+          onCreer={creer}
+          onAnnuler={() => aller(ACCUEIL)}
+          onChoisirDossier={estBureau() ? () => choisirDossier("Où vivra cette bibliothèque ?") : undefined}
+        />
+      );
     if (vue === undefined || restants === undefined) {
       return donnees.bibliotheques.length === 0 ? (
-        <PremierLancement theme={theme} onCreer={() => aller(ACCUEIL)} onFichiers={deposer} />
+        <PremierLancement theme={theme} onCreer={() => aller({ ecran: "creer" })} onFichiers={deposer} />
       ) : (
         <Accueil donnees={donnees} onFichiers={deposer} />
       );
@@ -104,7 +161,7 @@ export function App(): JSX.Element {
         />
       );
     return donnees.bibliotheques.length === 0 ? (
-      <PremierLancement theme={theme} onCreer={() => aller({ ecran: "catalogue" })} onFichiers={deposer} />
+      <PremierLancement theme={theme} onCreer={() => aller({ ecran: "creer" })} onFichiers={deposer} />
     ) : (
       <Accueil donnees={donnees} onFichiers={deposer} />
     );

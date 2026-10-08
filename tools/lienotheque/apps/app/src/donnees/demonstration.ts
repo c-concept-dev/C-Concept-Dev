@@ -1,3 +1,4 @@
+import { DescriptionBibliotheque } from "@lienotheque/contrats";
 import type { Ancre, Document as DocumentLn, Travail } from "@lienotheque/contrats";
 import type { BibliothequeAffichee, DonneesAccueil, Reprise } from "./modele.js";
 
@@ -153,3 +154,79 @@ export const DEMONSTRATION: DonneesAccueil = {
   traitement: { ...TRAITEMENT, progression: TRAVAIL_EN_COURS.progression },
   compte: COMPTE,
 };
+
+/** Une bibliothèque de démonstration, pour l'écran d'organisation et pour les captures.
+ *
+ *  Elle est inventée de bout en bout : aucune œuvre, aucune donnée réelle. Trois façons de
+ *  ranger, dont une déjà fusionnée, pour que l'écran montre aussi ce cas. Le test « données »
+ *  la revalide par son contrat à l'exécution. */
+export const BIBLIOTHEQUE: { readonly racine: string; readonly description: DescriptionBibliotheque } = {
+  racine: "/Bibliothèques/Méthode d’instrument",
+  description: DescriptionBibliotheque.parse({
+    id: "methode-instrument",
+    nom: "Méthode d’instrument",
+    contenus: ["documents", "audio"],
+    mots: {
+      element: { un: "exercice", plusieurs: "exercices" },
+      piste: { un: "piste", plusieurs: "pistes" },
+      page: { un: "page", plusieurs: "pages" },
+    },
+    description: "Une méthode et ses enregistrements, reliés page à page.",
+    schema: {
+      cle: "methode-instrument",
+      nom: "Méthode d’instrument",
+      langue: "fr",
+      version: 3,
+      axes: [
+        {
+          cle: "style",
+          nom: "Style",
+          nature: "referentiel",
+          cardinalite: "une",
+          valeurs: [
+            { cle: "funk", nom: "Funk", alias: ["funky"] },
+            { cle: "disco", nom: "Disco" },
+            { cle: "jazz", nom: "Jazz" },
+            { cle: "blues", nom: "Blues" },
+            { cle: "latin", nom: "Latin" },
+            { cle: "rock", nom: "Rock" },
+          ],
+        },
+        {
+          cle: "niveau",
+          nom: "Niveau",
+          nature: "referentiel",
+          cardinalite: "une",
+          roleCommun: "niveau",
+          valeurs: [
+            { cle: "debutant", nom: "Débutant" },
+            { cle: "intermediaire", nom: "Intermédiaire" },
+            { cle: "avance", nom: "Avancé" },
+          ],
+        },
+        {
+          cle: "technique",
+          nom: "Technique",
+          nature: "liste_semi_ouverte",
+          cardinalite: "plusieurs",
+          valeurs: [
+            { cle: "doigte", nom: "Doigté" },
+            { cle: "articulation", nom: "Articulation" },
+            { cle: "rythme", nom: "Rythme" },
+            { cle: "lecture", nom: "Lecture" },
+            { cle: "harmonie", nom: "Harmonie" },
+            { cle: "improvisation", nom: "Improvisation" },
+            { cle: "posture", nom: "Posture", retiree: true, redirigeVers: "doigte" },
+          ],
+        },
+      ],
+    },
+  }),
+};
+
+/** Trois éléments, pour montrer ce que l'organisation donnera. Inventés eux aussi. */
+export const EXEMPLES_ORGANISATION = [
+  { titre: "Exercice 400", situation: "Page 127 · relié à la piste 40", valeurs: ["Funk", "Débutant", "Articulation", "Rythme"] },
+  { titre: "Exercice 512", situation: "Page 158 · relié à la piste 52", valeurs: ["Disco", "Intermédiaire", "Doigté"] },
+  { titre: "Exercice 844", situation: "Page 227 · aucune piste", valeurs: ["Jazz", "Avancé", "Improvisation", "Harmonie"] },
+] as const;

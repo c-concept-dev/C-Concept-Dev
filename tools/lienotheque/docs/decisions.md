@@ -30,6 +30,8 @@
 | 2026-10-06 | **L'hôte est le seul écrivain du dépôt** : le processus reçoit un travail et rend un résultat, l'hôte le valide et l'active en une opération (JOB-06) | Lot D2, étape 0 |
 | 2026-10-06 | Portage Rust intégral de la chaîne **écarté** : il faudrait réécrire pdf.js et les codecs, et refaire la preuve des 84/92 et 95/95 | Lot D2, étape 0 |
 | 2026-10-06 | Allègement du moteur (Node sans ICU, binaire compilé) **reporté après la bêta**, et sans toucher la chaîne | Lot D2, étape 0 |
+| 2026-10-08 | **Fusionner et retirer une valeur sont deux gestes**, pas un : le contrat a refusé qu'une clé vive à deux endroits, et il avait raison — ils ne montrent pas la même chose | Lot D2, étape 2, section ci-dessous |
+| 2026-10-08 | **Les écrans se photographient dans l'application de bureau**, en clair et en hybride : le thème hybride est ce qui montre les défauts de charte, qu'aucun test ne voit | Lot D2, étape 2 |
 | 2026-10-06 | **Les critères des corpus remontent à la porte de l'application** : F1, F3 et F4 se mesurent sur `executerTravail`, dans `outils/ingestion`, et nulle part ailleurs. Un seul test de critère par corpus | Lot D2, étape 1, section ci-dessous |
 
 
@@ -170,6 +172,86 @@ dernières pages passent encore à l'OCR serait un mensonge poli.
 
 Le coût d'une passe de relecture part au journal, et de là à l'écran de traitement : une dépense
 qu'on ne voit pas est une dépense qu'on ne surveille pas.
+
+## Lot D2, étape 2 — créer une bibliothèque, et l'organiser sans rien perdre
+
+Les deux premiers écrans de l'administrateur, portés des maquettes 1 et 2 : l'assistant en quatre
+temps et l'organisation. Ce qui a été tranché en chemin.
+
+### Une bibliothèque se décrit par contrat
+
+Sa description traverse trois frontières — l'assistant qui la crée, l'hôte qui l'écrit, la chaîne
+qui la lit — et était lue par un analyseur écrit à la main qui acceptait un identifiant absent en
+le transformant en « undefined ». Elle a maintenant son contrat, `DescriptionBibliotheque`, et
+c'est lui qui la lit partout. Le nom de son fichier est écrit à un seul endroit, et un test
+interdit au Rust de le redire de son côté.
+
+### La règle de l'organisation : une clé ne change jamais
+
+Quatre gestes, et un invariant au-dessus d'eux.
+
+| Geste | Ce qui change | Ce qu'on voit après |
+|---|---|---|
+| Renommer | le nom, et lui seul | la valeur, sous son nouveau nom |
+| Ajouter | une valeur de plus, clé tirée du nom | la valeur, au bout de la liste |
+| **Fusionner** | la valeur de départ quitte la liste, sa clé passe en alias de celle d'arrivée | un seul nom, celui d'arrivée |
+| **Retirer** | la valeur reste, marquée retirée, et redirige | les deux noms, le premier barré |
+
+`resoudre` démontre les quatre : une clé d'hier mène toujours à une valeur vivante.
+
+Un premier jet faisait de la fusion et du retrait un seul geste — la valeur de départ restait,
+retirée et redirigée, *et* sa clé passait en alias sur la cible. **Le contrat l'a refusé** : la
+clé vivait alors à deux endroits, et `Axe` interdit les doublons, alias compris. Il avait raison,
+et pour une raison qui n'est pas technique : ce sont deux gestes, parce qu'ils ne montrent pas la
+même chose. Fusionner dit « ces deux noms désignaient la même chose » et efface le doublon.
+Retirer dit « celle-ci a existé pour elle-même, et mène désormais à celle-là » et en garde la
+trace. Les tester ensemble aurait caché la différence ; le contrat l'a mise au jour avant l'écran.
+
+Chaque geste rend un schéma d'une version plus haute, validé par son contrat (REC-03) ; le schéma
+reçu n'est jamais retouché. **Retirer une façon de ranger est le seul geste qui perd quelque
+chose** : il se refuse tant que des éléments y sont rangés, et dit combien.
+
+### Les modèles restent des données
+
+Les façons de ranger proposées par l'assistant sont les modèles de `fixtures/modeles`, lus par un
+module virtuel au moment de la construction — le même procédé que la feuille de jetons. Un domaine
+s'ajoute en y déposant un fichier, et aucun nom de domaine n'entre dans `apps/app/src`. Les tests
+parcourent tous les modèles du dépôt sans une branche par domaine (CLA-12).
+
+`packages/noyau/src` entre à cette occasion dans les zones du garde-fou CLA-01 : il n'y était pas,
+et c'est désormais du code que l'assistant traverse.
+
+Qui ne reconnaît aucun modèle nomme sa propre façon de ranger et part d'étiquettes libres ; la
+première valeur qu'on y nomme la referme d'un cran, en liste qu'on peut encore étendre. Les mots
+de la bibliothèque — ce qu'on repère, ce qu'on écoute, ce qu'on lit — se saisissent au singulier
+et au pluriel dans le même temps, et l'aperçu les emploie aussitôt : c'est le seul endroit où le
+vocabulaire se décide.
+
+### Ce que les captures ont montré et que les tests taisaient
+
+Les écrans ont été photographiés **dans l'application de bureau elle-même**, à 1320 × 900 points,
+en clair et en hybride (`docs/captures/`). La première série a montré trois défauts qu'aucun test
+ne pouvait voir :
+
+1. **En hybride, le titre, le fil d'Ariane, les quatre temps et les pieds tombaient directement
+   sur la photographie**, illisibles. La charte l'interdit, et rien ne le vérifiait. Tout bloc de
+   texte porte désormais son panneau graphite.
+2. Une rangée de trois boutons rouges nommés du seul nom de l'axe ne disait pas ce qu'elle
+   retirait. Le retrait vit maintenant au pied de la carte qu'il vise, discret.
+3. L'intitulé de la carte d'ajout se brisait mot à mot.
+
+Le thème hybride n'est pas une variante décorative : c'est lui qui montre les défauts de charte.
+La prise d'image appartient au script et non à l'application, parce que macOS accorde
+l'autorisation d'enregistrement d'écran au programme qu'on lance soi-même.
+
+### Ce qui reste ouvert
+
+- **Rouvrir une bibliothèque fermée.** L'application retient les bibliothèques créées pendant la
+  session, pas au-delà. Il faudra que l'hôte se souvienne du dossier ouvert, et que l'accueil
+  propose d'en ouvrir un. Nécessaire pour la bêta, pas pour l'étape 2.
+- **Les exemples sous l'organisation** ne s'affichent que si la bibliothèque a de quoi les nourrir.
+  Tant qu'elle n'a rien, l'écran ne montre rien plutôt que d'inventer.
+
 
 ## Prototype du socle local — mesures du 3 octobre 2026
 

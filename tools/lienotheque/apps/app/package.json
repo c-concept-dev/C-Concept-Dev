@@ -17,7 +17,9 @@
     "@lienotheque/cache": "workspace:*",
     "@lienotheque/contrats": "workspace:*",
     "@lienotheque/jetons": "workspace:*",
+    "@lienotheque/noyau": "workspace:*",
     "@tauri-apps/api": "^2.12.1",
+    "@tauri-apps/plugin-dialog": "^2.8.1",
     "@tauri-apps/plugin-shell": "^2.4.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
