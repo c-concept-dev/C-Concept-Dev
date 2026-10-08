@@ -1,0 +1,243 @@
+/* Organisation d'une bibliothèque (maquette 2).
+   Une carte par façon de ranger, les valeurs en étiquettes, et un pied qui rappelle que les
+   originaux ne sont jamais modifiés. Couleurs et pas de grille uniquement par les --ln-*. */
+
+.ln-organisation {
+  display: grid;
+  gap: calc(var(--ln-grid) * 2);
+  padding: calc(var(--ln-grid) * 2) calc(var(--ln-grid) * 3);
+}
+
+.ln-organisation__tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: calc(var(--ln-grid) * 4);
+}
+
+.ln-organisation__titre {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.ln-organisation__tete .ln-muted {
+  margin: calc(var(--ln-grid) * 0.75) 0 0 0;
+}
+
+/* Le bandeau d'information : une icône et une phrase, jamais une teinte seule. */
+.ln-organisation__bandeau {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--ln-grid));
+  margin: 0;
+  padding: calc(var(--ln-grid)) calc(var(--ln-grid) * 1.5);
+  border: 1px solid var(--ln-border-decorative);
+  border-radius: var(--ln-radius);
+  background: var(--ln-surface);
+  color: var(--ln-text-secondary);
+  font-size: 13px;
+}
+
+.ln-organisation__echec {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--ln-grid));
+  margin: 0;
+  padding: calc(var(--ln-grid)) calc(var(--ln-grid) * 1.5);
+  border-radius: var(--ln-radius);
+  background: var(--ln-warning-background);
+  color: var(--ln-warning-text);
+  font-size: 14px;
+}
+
+.ln-axes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+  gap: calc(var(--ln-grid) * 2);
+  align-items: start;
+}
+
+.ln-axe {
+  display: grid;
+  gap: calc(var(--ln-grid) * 1.75);
+  padding: calc(var(--ln-grid) * 2);
+  border: 1px solid var(--ln-border-decorative);
+  border-radius: var(--ln-radius);
+  background: var(--ln-surface);
+  color: var(--ln-text-primary);
+  text-align: start;
+}
+
+.ln-axe--ajout {
+  align-content: center;
+  border-style: dashed;
+  font: inherit;
+  cursor: pointer;
+}
+
+button.ln-axe--ajout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--ln-grid));
+  min-height: calc(var(--ln-grid) * 10);
+}
+
+button.ln-axe--ajout:hover {
+  background: var(--ln-surface-hover);
+}
+
+button.ln-axe--ajout:focus-visible,
+.ln-axe__crayon:focus-visible {
+  outline: 2px solid var(--ln-focus);
+  outline-offset: 2px;
+}
+
+form.ln-axe--ajout {
+  cursor: auto;
+}
+
+.ln-axe__tete {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--ln-grid));
+  padding-block-end: calc(var(--ln-grid) * 1.25);
+  border-block-end: 1px solid var(--ln-border-decorative);
+}
+
+.ln-axe__nom {
+  flex: 1;
+  min-width: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.ln-axe__crayon {
+  display: inline-flex;
+  padding: calc(var(--ln-grid) * 0.5);
+  border: none;
+  border-radius: var(--ln-radius);
+  background: transparent;
+  color: var(--ln-text-secondary);
+  cursor: pointer;
+}
+
+.ln-axe__crayon:hover {
+  background: var(--ln-surface-hover);
+  color: var(--ln-text-primary);
+}
+
+.ln-axe__renommage,
+.ln-axe__ajout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--ln-grid));
+  flex: 1;
+  min-width: 0;
+}
+
+.ln-axe__renommage .ln-saisie,
+.ln-axe__ajout .ln-saisie {
+  flex: 1;
+  min-width: 8rem;
+}
+
+.ln-axe__valeurs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--ln-grid) * 0.75);
+  margin-block-start: calc(var(--ln-grid));
+}
+
+/* Une valeur ouverte : renommer, fusionner, retirer. Les deux derniers demandent vers quoi. */
+.ln-valeur-ouverte {
+  display: grid;
+  gap: calc(var(--ln-grid) * 1.25);
+  margin-block-start: calc(var(--ln-grid) * 1.5);
+  padding: calc(var(--ln-grid) * 1.5);
+  border: 1px solid var(--ln-control-border);
+  border-radius: var(--ln-radius);
+  background: var(--ln-background);
+  justify-items: start;
+}
+
+.ln-valeur-ouverte__ligne {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: calc(var(--ln-grid));
+  width: 100%;
+}
+
+.ln-valeur-ouverte__ligne .ln-champ {
+  flex: 1;
+  min-width: 9rem;
+}
+
+.ln-organisation__retraits {
+  display: grid;
+  gap: calc(var(--ln-grid) * 0.75);
+  justify-items: start;
+}
+
+.ln-organisation__retraits .ln-muted {
+  margin: 0;
+  max-width: 60ch;
+}
+
+.ln-organisation__boutons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--ln-grid));
+  margin-block-start: calc(var(--ln-grid) * 0.5);
+}
+
+.ln-organisation__exemples {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: calc(var(--ln-grid) * 2);
+  margin-block-start: calc(var(--ln-grid) * 1.25);
+}
+
+.ln-organisation__exemple {
+  display: flex;
+  align-items: flex-start;
+  gap: calc(var(--ln-grid) * 1.75);
+  padding: calc(var(--ln-grid) * 2);
+  border-radius: var(--ln-radius);
+}
+
+.ln-organisation__exemple-nom {
+  margin: 0;
+  font-weight: 600;
+}
+
+.ln-organisation__exemple .ln-muted {
+  margin: calc(var(--ln-grid) * 0.25) 0 0 0;
+}
+
+.ln-organisation__pied {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--ln-grid) * 2);
+  padding-block-start: calc(var(--ln-grid) * 2);
+  border-block-start: 1px solid var(--ln-border-decorative);
+}
+
+.ln-organisation__pied > .ln-muted {
+  margin: 0;
+  max-width: 70ch;
+}
+
+.ln-organisation__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 1.5);
+}

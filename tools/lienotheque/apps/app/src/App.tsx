@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type JSX } from "react";
-import type { CasDouteux, DescriptionBibliotheque, VueBibliotheque } from "@lienotheque/contrats";
+import type { CasDouteux, DescriptionBibliotheque, SchemaBibliotheque, VueBibliotheque } from "@lienotheque/contrats";
 import { EnTete } from "./EnTete.js";
 import { chargerDonnees } from "./donnees/chargement.js";
 import { chargerVue } from "./donnees/vue.js";
@@ -12,9 +12,10 @@ import { PremierLancement } from "./pages/PremierLancement.js";
 import { Reglages } from "./pages/Reglages.js";
 import { Verifier, type Decision } from "./pages/Verifier.js";
 import { Creer } from "./pages/Creer.js";
+import { Organisation } from "./pages/Organisation.js";
 import { Prototype } from "./pages/Prototype.js";
 import { chargerModeles } from "./donnees/modeles.js";
-import { choisirDossier, creerBibliotheque, estBureau } from "./pont/bureau.js";
+import { choisirDossier, creerBibliotheque, ecrireBibliotheque, estBureau } from "./pont/bureau.js";
 import { useTheme } from "./theme/useTheme.js";
 
 /** Les écrans qui tiennent dans la fenêtre au lieu de la faire défiler (correction 3). */
@@ -78,11 +79,32 @@ export function App(): JSX.Element {
       throw new Error("La création d’une bibliothèque demande l’application de bureau : elle seule écrit sur votre disque.");
     await creerBibliotheque(dossier, description);
     setCreees((anciennes) => [...anciennes, { racine: dossier, description }]);
-    aller(ACCUEIL);
+    aller({ ecran: "organisation" });
+  };
+
+  /** La dernière bibliothèque créée : celle qu'on organise au sortir de l'assistant. */
+  const derniere = creees[creees.length - 1];
+
+  /** Une version de plus du schéma. L'hôte réécrit la description : la page n'écrit jamais. */
+  const organiser = async (schema: SchemaBibliotheque): Promise<void> => {
+    if (derniere === undefined) return;
+    const description = { ...derniere.description, schema };
+    if (estBureau()) await ecrireBibliotheque(derniere.racine, description);
+    setCreees((anciennes) => anciennes.map((creee) => (creee === derniere ? { ...creee, description } : creee)));
   };
 
   const ecran = ((): JSX.Element | null => {
     if (route.ecran === "reglages") return <Reglages theme={theme} onThemeChange={changerTheme} />;
+    if (route.ecran === "organisation")
+      return derniere === undefined ? (
+        <PremierLancement theme={theme} onCreer={() => aller({ ecran: "creer" })} onFichiers={deposer} />
+      ) : (
+        <Organisation
+          description={derniere.description}
+          onSchema={organiser}
+          onValider={() => aller(ACCUEIL)}
+        />
+      );
     if (route.ecran === "creer")
       return (
         <Creer
