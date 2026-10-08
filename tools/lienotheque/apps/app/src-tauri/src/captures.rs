@@ -26,6 +26,8 @@ pub const POSES: &[Pose] = &[
     Pose { adresse: "#creer", theme: "hybrid", nom: "1-creer-hybride" },
     Pose { adresse: "#organisation", theme: "light", nom: "2-organisation-clair" },
     Pose { adresse: "#organisation", theme: "hybrid", nom: "2-organisation-hybride" },
+    Pose { adresse: "#depot", theme: "light", nom: "3-depot-et-traitement-clair" },
+    Pose { adresse: "#depot", theme: "hybrid", nom: "3-depot-et-traitement-hybride" },
 ];
 
 /// Le temps laissé à la page pour se charger, poser ses polices et finir ses transitions.

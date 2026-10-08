@@ -1,4 +1,4 @@
-import type { DescriptionBibliotheque } from "@lienotheque/contrats";
+import type { DescriptionBibliotheque, Travail, TypeDeContenu } from "@lienotheque/contrats";
 import { ACCUEIL_VIDE, type DonneesAccueil } from "./modele.js";
 
 /** Paramètre d'adresse qui réclame le jeu de démonstration : `?demonstration`. */
@@ -28,10 +28,12 @@ export async function chargerBibliothequeDemonstration(recherche: string): Promi
       readonly racine: string;
       readonly description: DescriptionBibliotheque;
       readonly exemples: readonly { readonly titre: string; readonly situation: string; readonly valeurs: readonly string[] }[];
+      readonly file: readonly Travail[];
+      readonly accompagnements: readonly { readonly nom: string; readonly contenu: TypeDeContenu }[];
     }
   | undefined
 > {
   if (!(import.meta.env.DEV && demonstrationDemandee(recherche))) return undefined;
-  const { BIBLIOTHEQUE, EXEMPLES_ORGANISATION } = await import("./demonstration.js");
-  return { ...BIBLIOTHEQUE, exemples: EXEMPLES_ORGANISATION };
+  const { ACCOMPAGNEMENTS, BIBLIOTHEQUE, EXEMPLES_ORGANISATION, FILE } = await import("./demonstration.js");
+  return { ...BIBLIOTHEQUE, exemples: EXEMPLES_ORGANISATION, file: FILE, accompagnements: ACCOMPAGNEMENTS };
 }

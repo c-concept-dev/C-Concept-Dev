@@ -75,7 +75,7 @@
 
 .ln-ligne {
   display: grid;
-  grid-template-columns: auto minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1.4fr) auto;
+  grid-template-columns: auto minmax(0, 2fr) minmax(0, 1fr) minmax(8rem, 1.2fr) max-content;
   align-items: center;
   gap: calc(var(--ln-grid) * 2);
   padding: calc(var(--ln-grid) * 1.5) calc(var(--ln-grid) * 2);
@@ -141,6 +141,12 @@
   align-items: center;
   gap: calc(var(--ln-grid));
   justify-self: end;
+  /* Une colonne qui ne rétrécit pas : un bouton à moitié coupé n'est pas un bouton. */
+  min-width: max-content;
+}
+
+.ln-ligne__panne .ln-lien-action {
+  font-size: inherit;
 }
 
 .ln-traitement__accompagnements {

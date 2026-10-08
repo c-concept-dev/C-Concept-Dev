@@ -149,6 +149,14 @@ export function Depot({
                       (travail.sujet?.total === undefined
                         ? "Taille encore inconnue"
                         : `${travail.sujet.total} ${description.mots.page.plusieurs}`)}
+                    {enPanne ? (
+                      <>
+                        {" "}
+                        <button type="button" className="ln-lien-action" onClick={onVerifier}>
+                          Ouvrir
+                        </button>
+                      </>
+                    ) : null}
                   </p>
                 </div>
 
@@ -166,14 +174,8 @@ export function Depot({
                 </div>
 
                 <div className="ln-ligne__faire">
-                  {enPanne ? (
-                    <button type="button" className="ln-lien-action" onClick={onVerifier}>
-                      Ouvrir
-                    </button>
-                  ) : null}
                   {travail.etat === "en_cours" || travail.etat === "verrouille" || travail.etat === "en_file" ? (
                     <Bouton
-                      compact
                       icone={<Icone nom="pause" />}
                       aria-label={`Mettre en pause ${travail.sujet?.nom ?? travail.id}`}
                       onClick={() => onAction(travail.id, "pause")}
@@ -185,7 +187,6 @@ export function Depot({
                   travail.etat === "en_echec_recuperable" ||
                   travail.etat === "en_echec_definitif" ? (
                     <Bouton
-                      compact
                       icone={<Icone nom="lecture" />}
                       aria-label={`Reprendre ${travail.sujet?.nom ?? travail.id}`}
                       onClick={() => onAction(travail.id, "reprendre")}

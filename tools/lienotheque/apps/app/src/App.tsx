@@ -98,6 +98,8 @@ export function App(): JSX.Element {
       if (!vivant || bibliotheque === undefined) return;
       setCreees([{ racine: bibliotheque.racine, description: bibliotheque.description }]);
       setExemples(bibliotheque.exemples);
+      setFile(bibliotheque.file);
+      setAccompagnements(bibliotheque.accompagnements);
     });
     return () => {
       vivant = false;
