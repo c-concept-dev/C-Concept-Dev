@@ -56,6 +56,18 @@ const ESSAIS = [
     attendu: 'un nombre choisi au lieu d\'une règle appliquée' },
 
   // ── Le prompt système ─────────────────────────────────────────────────────────────────────
+  { nom: 'le type du bloc ne pèse plus rien',
+    fichier: 'module',
+    de: "    var type = POIDS_TYPE[e.type] != null ? POIDS_TYPE[e.type] : 1.0;",
+    vers: "    var type = 1.0;",
+    attendu: 'un titre reçoit autant de commentaire qu\'un paragraphe' },
+
+  { nom: 'la longueur pèse proportionnellement, sans amortissement',
+    fichier: 'module',
+    de: "    return type * Math.max(1, Math.sqrt(compterMots(e.texte)));",
+    vers: "    return type * Math.max(1, compterMots(e.texte));",
+    attendu: 'un long paragraphe affame toutes les autres étapes' },
+
   { nom: 'un guillemet droit non apparié passe quand même',
     fichier: 'module',
     de: "      if (droits % 2 !== 0) {",

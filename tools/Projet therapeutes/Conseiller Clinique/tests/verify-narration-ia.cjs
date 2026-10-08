@@ -162,6 +162,33 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       + rep.serre.cibles.map((c) => c.mots).join(','));
     assert.equal(rep.serre.limite, 'plancher', 'et la limite atteinte doit être nommée');
     assert.equal(rep.serre.atteignable, false, 'et la durée annoncée inatteignable');
+    // Correction 7 : UN TITRE REÇOIT MOINS QU'UN PARAGRAPHE, et c'est vérifié sur le document,
+    // pas sur la table des poids — c'est le résultat qui compte.
+    const parType = {};
+    rep.tenable.cibles.forEach((c) => { (parType[c.type] = parType[c.type] || []).push(c.mots); });
+    assert.ok(parType.heading && parType.paragraph, 'la fixture doit porter les deux types : '
+      + Object.keys(parType).join(','));
+    const moy = (xs) => xs.reduce((a, x) => a + x, 0) / xs.length;
+    assert.ok(moy(parType.heading) < moy(parType.paragraph),
+      'un titre doit recevoir MOINS qu\'un paragraphe : titres ' + moy(parType.heading).toFixed(0)
+      + ' mots, paragraphes ' + moy(parType.paragraph).toFixed(0));
+    // Et la racine amortit : deux paragraphes dont l'un fait trois fois l'autre ne doivent pas
+    // recevoir trois fois plus. On le mesure sur le poids lui-même.
+    const poids = await page.evaluate(() => {
+      const A = window.NarrationIA;
+      const p = (mots, type) => A.poidsEtape({ type: type, texte: 'mot '.repeat(mots) });
+      return { court: p(9, 'paragraph'), long: p(100, 'paragraph'),
+               titre: p(9, 'heading'), liste: p(9, 'list'), vide: p(0, 'image') };
+    });
+    const rapport = poids.long / poids.court;
+    assert.ok(rapport > 3 && rapport < 4,
+      'cent mots contre neuf doivent peser environ 3,3 fois, pas 11 : ' + rapport.toFixed(2));
+    assert.ok(poids.titre < poids.court, 'à longueur égale, un titre pèse moins qu\'un paragraphe');
+    assert.ok(poids.liste > poids.court, 'et une liste pèse plus');
+    assert.ok(poids.vide > 0, 'une étape sans texte garde un poids : elle a besoin d\'un commentaire');
+    console.log('      poids : titre 9 mots ' + poids.titre.toFixed(2) + ', paragraphe 9 mots '
+      + poids.court.toFixed(2) + ', paragraphe 100 mots ' + poids.long.toFixed(2)
+      + ' (rapport ' + rapport.toFixed(2) + '), liste 9 mots ' + poids.liste.toFixed(2));
     assert.ok(rep.large.cibles.every((c) => c.mots === rep.max),
       '60 minutes doit tomber au plafond : ' + rep.large.cibles.map((c) => c.mots).join(','));
     assert.ok(rep.serre.bornees > 0 && rep.large.bornees > 0, 'les bornes doivent être signalées');

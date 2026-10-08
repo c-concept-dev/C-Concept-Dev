@@ -33,6 +33,34 @@
   var MOTS_MIN_ETAPE = 15;
   var MOTS_MAX_ETAPE = 120;
 
+  // LE POIDS D'UNE ÉTAPE, en deux facteurs — parce qu'un seul ne suffisait pas.
+  //
+  // 1. LE TYPE du bloc. Un titre n'appelle pas le même commentaire qu'un paragraphe : il
+  //    annonce, et le commentaire l'introduit sans le développer. Une liste porte plusieurs
+  //    éléments à illustrer. Un questionnaire doit être expliqué, d'autant que le spectateur
+  //    d'une vidéo ne peut pas y répondre.
+  // 2. LA LONGUEUR, mais par sa RACINE, jamais proportionnellement. Le commentaire ajoute une
+  //    couche, il ne relit pas : un paragraphe de cent mots demande plus qu'un de neuf, mais pas
+  //    onze fois plus. La racine donne 10 contre 3, soit un rapport de 3,3 — défendable à
+  //    l'oreille. Le rapport linéaire donnait 11 contre 1, ce qui affamait les titres.
+  var POIDS_TYPE = {
+    heading: 0.6,         // annonce : le commentaire ouvre, il ne développe pas
+    paragraph: 1.0,       // la référence
+    callout: 1.0,         // une idée clé, qui mérite son commentaire
+    quote: 1.0,           // une citation se laisse respirer, puis se commente
+    list: 1.2,            // plusieurs éléments à illustrer
+    table: 1.1,           // un tableau se lit mal à l'oral : il faut guider
+    questionnaire: 1.3,   // à expliquer, et le spectateur ne peut pas y répondre
+    quiz: 1.3,
+    image: 0.8,           // pas de texte à commenter, mais une image à faire parler
+    video: 0.8,
+    card: 0.8,            // une carte sans bloc : le titre seul
+  };
+  function poidsEtape(e) {
+    var type = POIDS_TYPE[e.type] != null ? POIDS_TYPE[e.type] : 1.0;
+    return type * Math.max(1, Math.sqrt(compterMots(e.texte)));
+  }
+
   // TOLÉRANCE DE LONGUEUR : ±20 %, avec un plancher de 5 mots. 20 % de 60 mots font 12 mots,
   // soit environ 5 secondes — inaudible comme défaut de rythme. Le plancher évite qu'une cible
   // de 15 mots soit refusée pour 3 mots d'écart, ce qu'aucun modèle ne sait éviter.
@@ -136,7 +164,7 @@
     var min = typeof b.min === 'number' ? b.min : MOTS_MIN_ETAPE;
     var max = typeof b.max === 'number' ? b.max : MOTS_MAX_ETAPE;
     var total = Math.round(minutes * 60 * motsParSeconde());
-    var poids = etapes.map(function (e) { return Math.max(1, compterMots(e.texte)); });
+    var poids = etapes.map(poidsEtape);
     var sommePoids = poids.reduce(function (a, x) { return a + x; }, 0);
 
     var cibles = poids.map(function (p) {
@@ -173,7 +201,10 @@
       atteignable: Math.abs(ecart) <= etapes.length,     // l'arrondi par étape, rien de plus
       duree_visee_s: Math.round(total / motsParSeconde()),
       duree_estimee_s: Math.round(atteint / motsParSeconde()),
-      cibles: etapes.map(function (e, i) { return { stepId: e.stepId, mots: cibles[i] }; }),
+      cibles: etapes.map(function (e, i) {
+        return { stepId: e.stepId, mots: cibles[i], type: e.type,
+                 mots_du_bloc: compterMots(e.texte), poids: +poids[i].toFixed(2) };
+      }),
     };
   }
 
@@ -523,6 +554,7 @@
     // Constantes, exposées pour que les contrôles mesurent les vraies valeurs et non des copies.
     DUREE_DEFAUT_MIN: DUREE_DEFAUT_MIN, DUREE_MIN: DUREE_MIN, DUREE_MAX: DUREE_MAX,
     MOTS_MIN_ETAPE: MOTS_MIN_ETAPE, MOTS_MAX_ETAPE: MOTS_MAX_ETAPE,
+    POIDS_TYPE: POIDS_TYPE, poidsEtape: poidsEtape,
     TOLERANCE: TOLERANCE, TOLERANCE_PLANCHER: TOLERANCE_PLANCHER,
     BUDGET_MS_POUR_8000_JETONS: BUDGET_MS_POUR_8000_JETONS,
     BUDGET_PLANCHER_MS: BUDGET_PLANCHER_MS, BUDGET_PLAFOND_MS: BUDGET_PLAFOND_MS,
