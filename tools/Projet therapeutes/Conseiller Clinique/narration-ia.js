@@ -235,6 +235,8 @@
       '- Aucune parenthèse, aucun tiret d\'incise, aucune énumération à puces, aucune tournure',
       '  qui ne se dit pas (« cf. », « c.-à-d. », « etc. », « voir ci-dessous »).',
       '- Aucun Markdown : ni astérisque, ni dièse, ni tiret de liste, ni guillemet de code.',
+      '- Si vous citez, employez les guillemets français : « comme ceci ». N\'employez JAMAIS le',
+      '  guillemet droit " : il casserait le fichier. L\'apostrophe s\'écrit ’, jamais \'.',
       '- Écrivez les nombres en toutes lettres quand ils se disent ainsi : « douze semaines »,',
       '  « trois mois ». Jamais un chiffre qui ne figure pas dans le document fourni, même pour',
       '  illustrer : ni proportion, ni pourcentage, ni durée, ni effectif inventés.',
@@ -351,6 +353,41 @@
 
   var MARKDOWN_RE = /(^|\s)([*_]{1,2})\S|\*\*|^#{1,6}\s|^\s*[-*+]\s|\[[^\]]*\]\([^)]*\)|`/m;
 
+  // ── TYPOGRAPHIE : normaliser quand c'est sans ambiguïté, refuser quand ça ne l'est pas ─────
+  // Le guillemet droit est le vrai danger : c'est le délimiteur du JSON. L'apostrophe droite
+  // n'est qu'une faute de typographie française. On ne traite donc pas les deux pareil :
+  //   · l'apostrophe droite est REMPLACÉE, toujours — refuser pour cela gâcherait un tour de
+  //     correction sur un détail que personne ne verrait à l'oreille ;
+  //   · les guillemets droits sont APPARIÉS en « … » quand leur nombre est pair, ce qui est le
+  //     cas ordinaire d'une citation ; un nombre IMPAIR est ambigu (ouvre-t-il ou ferme-t-il ?)
+  //     et c'est le seul cas refusé.
+  // Rien n'est silencieux : chaque normalisation est rendue dans la liste `normalisations`.
+  function normaliserTypographie(texte) {
+    var notes = [];
+    var t = String(texte || '');
+    var apostrophes = (t.match(/'/g) || []).length;
+    if (apostrophes) {
+      t = t.replace(/'/g, '\u2019');
+      notes.push(apostrophes + ' apostrophe(s) droite(s) remplacée(s)');
+    }
+    var droits = (t.match(/"/g) || []).length;
+    if (droits) {
+      if (droits % 2 !== 0) {
+        return { texte: t, notes: notes, refus: 'guillemet droit non apparié (' + droits + ')' };
+      }
+      var ouvre = true;
+      t = t.replace(/\s*"\s*/g, function (m) {
+        var avant = /^\s/.test(m) ? ' ' : '';
+        var apres = /\s$/.test(m) ? ' ' : '';
+        var r = ouvre ? (avant + '\u00ab\u00a0') : ('\u00a0\u00bb' + apres);
+        ouvre = !ouvre;
+        return r;
+      });
+      notes.push((droits / 2) + ' citation(s) passée(s) en guillemets français');
+    }
+    return { texte: t, notes: notes, refus: null };
+  }
+
   function validerReponse(brut, etapesDemandees, repartition, options) {
     var o = options || {};
     var tolerance = typeof o.tolerance === 'number' ? o.tolerance : TOLERANCE;
@@ -364,7 +401,7 @@
     var cibles = {};
     repartition.cibles.forEach(function (c) { cibles[c.stepId] = c.mots; });
 
-    var vus = [], entrees = [];
+    var vus = [], entrees = [], normalisations = [];
     tableau.forEach(function (el, i) {
       if (!el || typeof el !== 'object') { violations.push('élément ' + (i + 1) + ' : pas un objet'); return; }
       var id = el.stepId, texte = el.text;
@@ -374,6 +411,10 @@
       if (vus.indexOf(id) !== -1) { violations.push(id + ' : en double'); return; }
       vus.push(id);
       if (MARKDOWN_RE.test(texte)) violations.push(id + ' : le texte contient du Markdown');
+      var typo = normaliserTypographie(texte);
+      if (typo.refus) { violations.push(id + ' : ' + typo.refus); return; }
+      if (typo.notes.length) normalisations.push(id + ' : ' + typo.notes.join(', '));
+      texte = typo.texte;
       var n = compterMots(texte), cible = cibles[id] || 0;
       var marge = Math.max(plancher, Math.round(cible * tolerance));
       if (n < cible - marge) violations.push(id + ' : trop court (' + n + ' mots pour ' + cible + ' ± ' + marge + ')');
@@ -383,7 +424,8 @@
     attendus.forEach(function (id) {
       if (vus.indexOf(id) === -1) violations.push(id + ' : étape manquante');
     });
-    return { ok: violations.length === 0, entrees: entrees, violations: violations };
+    return { ok: violations.length === 0, entrees: entrees, violations: violations,
+             normalisations: normalisations };
   }
 
   // ── L'appel, avec UN seul tour de correction ───────────────────────────────────────────────
@@ -457,6 +499,7 @@
       journal.push({ tour: tour + 1, violations: v.violations.slice(0, 12) });
       if (v.ok) {
         return { entrees: v.entrees, repartition: repartition, tours: tour + 1, journal: journal,
+                 normalisations: v.normalisations,
                  maxTokens: maxTokens, budgetMs: budgetMs, etapesDemandees: etapes.length };
       }
       if (tour === 1) break;
@@ -489,6 +532,7 @@
     jetonsPour: jetonsPour, budgetDelaiMs: budgetDelaiMs,
     promptSysteme: promptSysteme, construireMessage: construireMessage,
     extraireJSON: extraireJSON, validerReponse: validerReponse,
+    normaliserTypographie: normaliserTypographie,
     rediger: rediger,
   };
 })();

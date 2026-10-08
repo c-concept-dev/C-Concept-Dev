@@ -230,6 +230,10 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       ['aucun rôle attribué d\'office', /N.attribuez jamais d.office un rôle à l.homme ou à la femme/],
       ['l\'un et l\'autre', /Dites « l.un » et « l.autre », ou « l.un des deux »/],
       ['pas forcément un homme et une femme', /n.est pas forcément un homme et une femme/],
+      // Correction 6 : la typographie.
+      ['guillemets français', /employez les guillemets français : « comme ceci »/],
+      ['jamais le guillemet droit', /N.employez JAMAIS le\s*\n?\s*guillemet droit/],
+      ['apostrophe typographique', /L.apostrophe s.écrit ’, jamais '/],
       ['pas de parenthèse', /Aucune parenthèse/],
       ['aucun diagnostic', /Aucun diagnostic/],
       ['aucune promesse', /promesse\s*\n?de résultat thérapeutique/],
@@ -336,6 +340,54 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
     console.log('      ' + Object.keys(c).length + ' fixtures : '
       + Object.entries(c).map(([k, v]) => k + '=' + (v.ok ? 'ok' : 'refusé')).join(', '));
     pass('contrat de réponse : les 9 fixtures produisent chacune le comportement prévu.');
+
+    // ── 8b. TYPOGRAPHIE : normalisée quand c'est sans ambiguïté, refusée quand ça ne l'est pas ─
+    const typo = await page.evaluate(async (d) => {
+      const A = window.NarrationIA;
+      const n = (t) => A.normaliserTypographie(t);
+      const etapes = A.contenuParEtape(d);
+      const r = A.repartirMots(etapes, 4);
+      const cible = {}; r.cibles.forEach((c) => { cible[c.stepId] = c.mots; });
+      const remplir = (t, c) => (t + ' ' + 'phrase '.repeat(Math.max(0, c - A.compterMots(t)))).trim();
+      // Une réponse entière qui porte des guillemets droits APPARIÉS : doit être acceptée et
+      // normalisée, pas refusée.
+      const appariee = JSON.stringify(etapes.map((e) => ({ stepId: e.stepId,
+        text: remplir('Il dit "je ne sais pas" et c\'est tout.', cible[e.stepId]) })));
+      // Et une qui en porte un seul : ambigu, donc refusé.
+      const impaire = JSON.stringify(etapes.map((e, i) => ({ stepId: e.stepId,
+        text: remplir(i === 0 ? 'Il dit "je ne sais pas et c\'est tout.' : 'Rien de special ici.', cible[e.stepId]) })));
+      return {
+        apostrophe: n("C'est l'argent qui parle."),
+        citation: n('Il dit "je ne sais pas" et il se tait.'),
+        impair: n('Il dit "je ne sais pas et il se tait.'),
+        rien: n('Rien à normaliser ici.'),
+        vApp: (() => { const v = A.validerReponse(appariee, etapes, r);
+          return { ok: v.ok, notes: v.normalisations.length, premier: v.entrees[0] && v.entrees[0].text,
+                   violations: v.violations.slice(0, 2) }; })(),
+        vImp: (() => { const v = A.validerReponse(impaire, etapes, r);
+          return { ok: v.ok, violations: v.violations.slice(0, 2) }; })(),
+      };
+    }, DOC);
+    // L'apostrophe droite est TOUJOURS remplacée — jamais un tour de correction gâché pour cela.
+    assert.equal(typo.apostrophe.texte, 'C\u2019est l\u2019argent qui parle.');
+    assert.equal(typo.apostrophe.refus, null);
+    assert.match(typo.apostrophe.notes[0], /2 apostrophe\(s\) droite\(s\) remplacée/);
+    // Une citation appariée devient « … », avec les espaces insécables.
+    assert.equal(typo.citation.texte, 'Il dit \u00ab\u00a0je ne sais pas\u00a0\u00bb et il se tait.');
+    assert.equal(typo.citation.refus, null);
+    // Un guillemet droit SEUL est ambigu : refusé, jamais deviné.
+    assert.ok(typo.impair.refus, 'un guillemet droit non apparié doit être refusé');
+    assert.match(typo.impair.refus, /non apparié/);
+    assert.deepEqual(typo.rien.notes, [], 'un texte propre ne doit rien déclencher');
+    // Et au niveau de la réponse entière :
+    assert.equal(typo.vApp.ok, true, 'des guillemets appariés sont acceptés : ' + typo.vApp.violations.join(' | '));
+    assert.equal(typo.vApp.notes > 0, true, 'et la normalisation est DITE, pas silencieuse');
+    assert.equal(typo.vApp.premier.indexOf('"'), -1, 'plus aucun guillemet droit dans le texte retenu');
+    assert.ok(typo.vApp.premier.indexOf('\u00ab') !== -1, 'remplacé par des guillemets français');
+    assert.equal(typo.vImp.ok, false, 'un guillemet non apparié fait échouer la réponse');
+    assert.ok(typo.vImp.violations.some((v) => /non apparié/.test(v)), typo.vImp.violations.join(' | '));
+    console.log('      « ' + typo.citation.texte + ' »  |  impair → ' + typo.impair.refus);
+    pass('typographie : apostrophe droite remplacée, citation appariée passée en « », guillemet seul refusé.');
 
     // ── 8. UN SEUL TOUR DE CORRECTION, puis une erreur claire ────────────────────────────────
     const correction = await page.evaluate(async (d) => {

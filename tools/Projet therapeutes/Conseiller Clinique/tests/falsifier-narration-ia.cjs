@@ -56,6 +56,18 @@ const ESSAIS = [
     attendu: 'un nombre choisi au lieu d\'une règle appliquée' },
 
   // ── Le prompt système ─────────────────────────────────────────────────────────────────────
+  { nom: 'un guillemet droit non apparié passe quand même',
+    fichier: 'module',
+    de: "      if (droits % 2 !== 0) {",
+    vers: "      if (false) {",
+    attendu: 'un guillemet deviné au hasard dans une citation' },
+
+  { nom: 'la normalisation typographique est silencieuse',
+    fichier: 'module',
+    de: "      if (typo.notes.length) normalisations.push(id + ' : ' + typo.notes.join(', '));",
+    vers: "      if (false) normalisations.push(id);",
+    attendu: 'un texte modifié sans que personne le sache' },
+
   { nom: 'les rôles sont de nouveau attribués d\'office',
     fichier: 'module',
     de: "      '- N\\'attribuez jamais d\\'office un rôle à l\\'homme ou à la femme : ni celui qui se tait, ni',",
