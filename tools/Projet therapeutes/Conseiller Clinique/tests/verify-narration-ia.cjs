@@ -207,6 +207,10 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       ['pas de source inventée', /aucune source, aucun nom d\u2019auteur|aucune source, aucun nom d'auteur/],
       ['cas jamais présenté comme réel', /Jamais un cas présenté comme réel/],
       ['pas de jargon', /Aucun jargon/],
+      // Correction 1 du 8 octobre : l'exemple de nombre ne doit plus être une proportion, qui
+      // ressemblait à une statistique et invitait à en produire.
+      ['nombre en toutes lettres, neutre', /« douze semaines »,\s*\n?\s*« trois mois »/],
+      ['aucun chiffre venu d\'ailleurs', /Jamais un chiffre qui ne figure pas dans le document/],
       ['pas de parenthèse', /Aucune parenthèse/],
       ['aucun diagnostic', /Aucun diagnostic/],
       ['aucune promesse', /promesse\s*\n?de résultat thérapeutique/],
@@ -221,6 +225,9 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
     exigences.forEach(([nom, re]) => {
       assert.ok(re.test(prompt.vous), 'le prompt doit porter : ' + nom);
     });
+    // Et ce qui ne doit PLUS y être : une proportion donnée en exemple.
+    assert.equal(/un couple sur trois/.test(prompt.vous), false,
+      'l\'ancien exemple « un couple sur trois » ressemblait à une statistique');
     assert.match(prompt.vous, /en disant « vous ». Jamais « tu »/);
     assert.match(prompt.tu, /en disant « tu ». Jamais « vous »/);
     assert.ok(!/« tu ». Jamais « vous »/.test(prompt.vous), 'les deux adresses ne doivent pas coexister');

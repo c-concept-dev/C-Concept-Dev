@@ -62,6 +62,12 @@ const ESSAIS = [
     vers: "      '- Soyez précis.',",
     attendu: 'un commentaire peut poser un diagnostic' },
 
+  { nom: 'le prompt reprend un chiffre venu d\'ailleurs',
+    fichier: 'module',
+    de: "      '  illustrer : ni proportion, ni pourcentage, ni durée, ni effectif inventés.',",
+    vers: "      '  illustrer, sauf si cela aide la démonstration.',",
+    attendu: 'un chiffre inventé glissé dans un commentaire clinique' },
+
   { nom: 'le prompt laisse inventer des chiffres',
     fichier: 'module',
     de: "      '- Aucune statistique, aucun pourcentage, aucune étude, aucune source, aucun nom d\\'auteur',",
