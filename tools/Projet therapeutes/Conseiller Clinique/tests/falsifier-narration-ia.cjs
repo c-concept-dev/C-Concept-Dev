@@ -56,6 +56,12 @@ const ESSAIS = [
     attendu: 'un nombre choisi au lieu d\'une règle appliquée' },
 
   // ── Le prompt système ─────────────────────────────────────────────────────────────────────
+  { nom: 'le discours cesse d\'être continu',
+    fichier: 'module',
+    de: "      'UN SEUL DISCOURS, DU DÉBUT À LA FIN.',",
+    vers: "      'CHAQUE ÉTAPE EST INDÉPENDANTE.',",
+    attendu: 'dix-neuf petits textes sans lien, et le même exemple trois fois' },
+
   { nom: 'le registre ne suit plus le public',
     fichier: 'module',
     de: "    if (/profession|clinicien|thérapeute|therapeute|praticien|soignant/.test(pub)) {",

@@ -218,6 +218,14 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       // ressemblait à une statistique et invitait à en produire.
       ['nombre en toutes lettres, neutre', /« douze semaines »,\s*\n?\s*« trois mois »/],
       ['aucun chiffre venu d\'ailleurs', /Jamais un chiffre qui ne figure pas dans le document/],
+      // Correction 4 : la continuité du discours.
+      ['un seul discours', /UN SEUL DISCOURS, DU DÉBUT À LA FIN\./],
+      ['reprend là où on s\'est arrêté', /reprend là où la précédente s.est arrêtée/],
+      ['pas deux fois le même exemple', /Ne réutilisez jamais un exemple, une image ou une comparaison/],
+      ['la première ouvre', /La PREMIÈRE étape ouvre la vidéo/],
+      ['pas « nous allons voir »', /Ne commencez pas par « Dans cette présentation, nous allons voir/],
+      ['la dernière referme', /La DERNIÈRE étape referme/],
+      ['sans récapituler', /ne récapitule pas mécaniquement/],
       ['pas de parenthèse', /Aucune parenthèse/],
       ['aucun diagnostic', /Aucun diagnostic/],
       ['aucune promesse', /promesse\s*\n?de résultat thérapeutique/],
