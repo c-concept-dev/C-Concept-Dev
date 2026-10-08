@@ -1,0 +1,238 @@
+/* Recherche ⌘K (maquette 5).
+   Un voile, un champ, une liste groupée, un aperçu. Couleurs, rayons et pas de grille uniquement
+   par les variables --ln-*. */
+
+.ln-voile {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: calc(var(--ln-grid) * 8) calc(var(--ln-grid) * 3);
+  background: var(--ln-modal-overlay);
+}
+
+.ln-recherche {
+  display: flex;
+  flex-direction: column;
+  width: min(72rem, 100%);
+  max-height: 100%;
+  overflow: hidden;
+  border: 1px solid var(--ln-border-decorative);
+  border-radius: var(--ln-radius);
+  background: var(--ln-surface);
+  color: var(--ln-text-primary);
+  box-shadow: 0 24px 64px var(--ln-shadow-color);
+}
+
+.ln-recherche__champ {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 1.5);
+  padding: calc(var(--ln-grid) * 1.5) calc(var(--ln-grid) * 2);
+  border-block-end: 1px solid var(--ln-border-decorative);
+}
+
+.ln-recherche__saisie {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--ln-text-primary);
+  font-family: var(--ln-font-ui);
+  font-size: 18px;
+}
+
+.ln-recherche__saisie:focus-visible {
+  outline: none;
+}
+
+.ln-recherche__saisie::placeholder {
+  color: var(--ln-text-secondary);
+}
+
+.ln-recherche__portee {
+  padding: calc(var(--ln-grid) * 0.5) calc(var(--ln-grid) * 1.25);
+  border: 1px solid var(--ln-border-decorative);
+  border-radius: var(--ln-radius);
+  color: var(--ln-text-secondary);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.ln-recherche__corps {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+  min-height: 0;
+  flex: 1;
+}
+
+@media (max-width: 900px) {
+  .ln-recherche__corps {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ln-recherche__apercu {
+    display: none;
+  }
+}
+
+.ln-recherche__liste {
+  overflow-y: auto;
+  padding: calc(var(--ln-grid));
+}
+
+.ln-recherche__vide {
+  margin: 0;
+  padding: calc(var(--ln-grid) * 3) calc(var(--ln-grid) * 2);
+  color: var(--ln-text-secondary);
+  font-size: 14px;
+}
+
+.ln-recherche__intitule {
+  padding: calc(var(--ln-grid) * 1.5) calc(var(--ln-grid) * 1.5) calc(var(--ln-grid) * 0.75);
+}
+
+.ln-resultat {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: calc(var(--ln-grid) * 1.5);
+  padding: calc(var(--ln-grid) * 1.25) calc(var(--ln-grid) * 1.5);
+  border-radius: var(--ln-radius);
+  cursor: pointer;
+}
+
+/* Le résultat choisi se lit à son fond et à son liseré, jamais à sa seule teinte. */
+.ln-resultat--choisi {
+  background: var(--ln-surface-hover);
+  box-shadow: inset 0 0 0 1px var(--ln-action-background);
+}
+
+.ln-resultat__corps {
+  min-width: 0;
+}
+
+.ln-resultat__titre {
+  margin: 0;
+  font-weight: 600;
+}
+
+.ln-resultat__corps .ln-muted {
+  margin: calc(var(--ln-grid) * 0.25) 0 0 0;
+  font-size: 13px;
+}
+
+/* Inter, comme partout ailleurs : le serif de marque ne sert qu'au logo et au « Bonjour »
+   (charte v3). La maquette le suggérait ; les maquettes sont illustratives, jamais
+   typographiques. */
+.ln-resultat__extrait {
+  margin: calc(var(--ln-grid) * 0.5) 0 0 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--ln-text-secondary);
+}
+
+/* La correspondance : un fond et un soulignement. Le fond seul ne suffirait pas à l'impression
+   ni à qui ne distingue pas les teintes. */
+.ln-resultat mark,
+.ln-resultat__extrait mark {
+  background: var(--ln-selection-background);
+  color: var(--ln-selection-text);
+  border-radius: 2px;
+  padding: 0 1px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.ln-resultat__cote {
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.ln-touche {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: calc(var(--ln-grid) * 2.5);
+  padding: 1px calc(var(--ln-grid) * 0.5);
+  border: 1px solid var(--ln-control-border);
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--ln-text-secondary);
+}
+
+.ln-recherche__apercu {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--ln-grid) * 1.5);
+  padding: calc(var(--ln-grid) * 2);
+  border-inline-start: 1px solid var(--ln-border-decorative);
+  background: var(--ln-background);
+  overflow-y: auto;
+}
+
+.ln-recherche__sans-apercu {
+  margin: 0;
+  font-size: 14px;
+}
+
+.ln-recherche__page {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(var(--ln-grid) * 24);
+  padding: calc(var(--ln-grid) * 1.5);
+  border: 1px solid var(--ln-border-decorative);
+  border-radius: var(--ln-radius);
+  background: var(--ln-print-background);
+  overflow: hidden;
+}
+
+.ln-recherche__page img {
+  max-width: 100%;
+  max-height: calc(var(--ln-grid) * 40);
+  object-fit: contain;
+}
+
+.ln-recherche__page .ln-muted {
+  margin: 0;
+  color: var(--ln-print-secondary);
+  font-size: 13px;
+  text-align: center;
+}
+
+.ln-recherche__quoi {
+  margin: 0;
+  font-weight: 600;
+}
+
+.ln-recherche__apercu .ln-muted {
+  margin: calc(var(--ln-grid) * 0.25) 0 0 0;
+  font-size: 13px;
+}
+
+.ln-recherche__faire {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--ln-grid));
+}
+
+.ln-recherche__pied {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 2);
+  margin: 0;
+  padding: calc(var(--ln-grid)) calc(var(--ln-grid) * 2);
+  border-block-start: 1px solid var(--ln-border-decorative);
+  color: var(--ln-text-secondary);
+  font-size: 12px;
+}
+
+.ln-recherche__fin {
+  margin-inline-start: auto;
+}
