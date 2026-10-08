@@ -117,6 +117,19 @@
         }
       }
     },
+    "narration": {
+      "$comment": "Lot 1a — narration par ÉTAPE de Présentation, à la RACINE du document : jamais sur une carte, jamais sur un bloc. Une étape est désignée par son `stepId` — l'identifiant du bloc révélé, ou celui de la carte pour une carte sans bloc, exactement la règle d'étape d'adocPresentApplyReveal. Un `stepId` suffit SEUL parce que les identifiants de blocs sont uniques dans tout le document par construction : adocNextBlockId parcourt doc.blocks ET content.blocks avant d'émettre, et les deux générateurs de génération (convertBlock, idBloc) tiennent un compteur jamais remis à zéro d'une carte à l'autre. Réordonner ne réécrit aucun identifiant ; l'assemblage de cours, qui les réécrit tous, reporte la narration (adocAssembleCourse). Les entrées devenues orphelines sont purgées à l'enregistrement (adocNarrationPurge). Champ OPTIONNEL au niveau racine, sur le patron exact de `deepDives` et de `modules` ci-dessus : un document qui n'en porte pas reste valide et se rend STRICTEMENT comme avant. Jamais ajouté à `required`, jamais présent à vide. JAMAIS exporté : adocDocumentPourExport le retire avant l'embarquement du document dans un fichier autonome — la narration est une note de travail, pas un contenu du document.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["stepId", "text"],
+        "additionalProperties": false,
+        "properties": {
+          "stepId": { "type": "string", "minLength": 1 },
+          "text": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
     "validation": { "$ref": "#/$defs/validation" }
   },
   "allOf": [
