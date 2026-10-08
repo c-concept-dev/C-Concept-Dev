@@ -235,20 +235,42 @@ impl Session {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
-    /// Un moteur de pacotille : il récite des lignes, puis se tait. C'est tout ce qu'il faut pour
-    /// éprouver le dialogue.
-    fn reciteur(lignes: &[&str]) -> Lancement {
-        let script = lignes
-            .iter()
-            .map(|l| format!("printf '%s\\n' {}", shell_quote(l)))
-            .collect::<Vec<_>>()
-            .join("; ");
-        Lancement { programme: PathBuf::from("/bin/sh"), arguments: vec!["-c".to_owned(), script], environnement: Vec::new() }
+    /// Un moteur de pacotille : il récite des lignes, puis se tait — ou s'endort, pour éprouver
+    /// l'arrêt.
+    ///
+    /// Les lignes passent par un fichier, que le shell du système recrache. Deux raisons : `sh`
+    /// n'existe pas sous Windows, et le projet n'admet rien de propre à un seul système sans son
+    /// équivalent ; et un fichier évite d'échapper du JSON dans deux grammaires de shell
+    /// différentes, ce qui est la part la plus fragile d'un montage pareil.
+    fn reciteur_qui(lignes: &[&str], dort: bool) -> Lancement {
+        static RANG: AtomicUsize = AtomicUsize::new(0);
+        let fichier = std::env::temp_dir().join(format!(
+            "lienotheque-reciteur-{}-{}.jsonl",
+            std::process::id(),
+            RANG.fetch_add(1, Ordering::Relaxed)
+        ));
+        std::fs::write(&fichier, lignes.join("\n") + "\n").expect("lignes du réciteur");
+        let chemin = fichier.to_string_lossy().into_owned();
+
+        if cfg!(windows) {
+            // `ping` tient lieu de sommeil : `timeout` exige une console, qu'un processus lancé
+            // par un test n'a pas.
+            let script = if dort {
+                format!("type \"{chemin}\" & ping -n 600 127.0.0.1 >NUL")
+            } else {
+                format!("type \"{chemin}\"")
+            };
+            Lancement { programme: PathBuf::from("cmd"), arguments: vec!["/C".to_owned(), script], environnement: Vec::new() }
+        } else {
+            let script = if dort { format!("cat '{chemin}'; sleep 600") } else { format!("cat '{chemin}'") };
+            Lancement { programme: PathBuf::from("/bin/sh"), arguments: vec!["-c".to_owned(), script], environnement: Vec::new() }
+        }
     }
 
-    fn shell_quote(texte: &str) -> String {
-        format!("'{}'", texte.replace('\'', "'\\''"))
+    fn reciteur(lignes: &[&str]) -> Lancement {
+        reciteur_qui(lignes, false)
     }
 
     fn salutation() -> String {
@@ -332,9 +354,7 @@ mod tests {
     #[test]
     fn un_moteur_qui_ne_rend_pas_la_main_est_tue_apres_le_delai() {
         // Il salue, puis dort bien au-delà du délai d'arrêt propre.
-        let script = format!("printf '%s\\n' '{}'; sleep 600", salutation());
-        let lancement = Lancement { programme: PathBuf::from("/bin/sh"), arguments: vec!["-c".to_owned(), script], environnement: Vec::new() };
-        let mut session = Session::ouvrir(&lancement).expect("moteur lancé");
+        let mut session = Session::ouvrir(&reciteur_qui(&[&salutation()], true)).expect("moteur lancé");
 
         let debut = Instant::now();
         let propre = session.arreter("{}").expect("arrêt demandé");
