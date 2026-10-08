@@ -5,6 +5,7 @@
 //! reprendre un travail après un arrêt forcé (JOB-02), lire un MP3 par plages — plus la taille
 //! d'installation moteurs compris. La décision reste à prendre (docs/decisions.md).
 
+pub mod arrivee;
 pub mod captures;
 pub mod depot;
 pub mod file;
@@ -16,6 +17,8 @@ pub mod mesures;
 pub mod ocr;
 pub mod pdf;
 pub mod plateforme;
+pub mod reglages;
+pub mod roulement;
 pub mod traitement;
 pub mod travail;
 
@@ -61,6 +64,9 @@ impl Moteurs {
 #[derive(Default)]
 pub struct Etat {
     pub serveur: Mutex<Option<media::Serveur>>,
+    /// Un roulement par bibliothèque ouverte : c'est lui qui fait tourner sa file. Il ne tient à
+    /// aucune fenêtre — la fenêtre peut se fermer, le traitement continue (JOB-09).
+    pub roulements: Mutex<std::collections::HashMap<String, std::sync::Arc<roulement::Roulement>>>,
 }
 
 /// Crée une bibliothèque dans un dossier, et y écrit sa description (CLA-01).
@@ -82,6 +88,129 @@ fn creer_bibliotheque(racine: String, description: String) -> Result<String, Str
         .ecrire_description(&description)
         .map(|chemin| chemin.to_string_lossy().into_owned())
         .map_err(|e| format!("Description impossible à écrire : {e}"))
+}
+
+/// Met la file d'une bibliothèque en route, et la laisse tourner.
+///
+/// Appelée dès qu'une bibliothèque est ouverte ou créée. Deux appels pour la même ne font qu'un
+/// roulement : la file se mènerait deux fois, et deux moteurs liraient le même document.
+#[tauri::command]
+fn faire_tourner(app: tauri::AppHandle, etat: State<Etat>, racine: String) -> Result<bool, String> {
+    let mut roulements = etat.roulements.lock().map_err(|_| "État inaccessible")?;
+    if roulements.contains_key(&racine) {
+        return Ok(false);
+    }
+
+    let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
+    let executable = std::env::current_exe().map_err(|e| format!("Exécutable introuvable : {e}"))?;
+    let emplacements = traitement::Emplacements::depuis_executable(&executable)
+        .ok_or("Moteur introuvable à côté de l’application : le paquet est incomplet.")?;
+    let appareil = reglages::Reglages::lire(&dossier_des_reglages(&app)?).appareil;
+    let cache = app
+        .path()
+        .app_cache_dir()
+        .map_err(|e| format!("Cache de travail introuvable : {e}"))?
+        .join("lectures");
+
+    roulements.insert(racine, roulement::Roulement::demarrer(depot, emplacements, appareil, cache));
+    Ok(true)
+}
+
+/// Arrête proprement tous les roulements. Ce qui a été lu reste lu, et la reprise repart de là.
+pub fn arreter_les_roulements(etat: &Etat) {
+    if let Ok(roulements) = etat.roulements.lock() {
+        for roulement in roulements.values() {
+            roulement.arreter();
+        }
+    }
+}
+
+/// Dépose des fichiers dans une bibliothèque et met un travail en file par fichier (JOB-01).
+///
+/// Les originaux sont copiés, jamais déplacés ni modifiés. Un fichier déjà déposé retrouve son
+/// travail au lieu d'en créer un second (JOB-04), et un fichier qu'on ne sait pas lire est
+/// refusé avec sa raison — sans empêcher les autres d'entrer.
+#[tauri::command]
+fn deposer(racine: String, chemins: Vec<String>) -> Result<serde_json::Value, String> {
+    let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
+    let origines: Vec<PathBuf> = chemins.iter().map(PathBuf::from).collect();
+    let mut avertissements: Vec<String> = Vec::new();
+    let arrivee = arrivee::deposer(&depot, &depot.travaux(), &origines, &mut |texte| avertissements.push(texte))
+        .map_err(|e| format!("Dépôt impossible : {e}"))?;
+    Ok(serde_json::json!({
+        "travaux": arrivee.travaux.iter().map(travail::Travail::vu).collect::<Vec<_>>(),
+        "accompagnements": arrivee.accompagnements.iter().map(|(nom, contenu)| serde_json::json!({ "nom": nom, "contenu": contenu })).collect::<Vec<_>>(),
+        "refuses": arrivee.refuses.iter().map(|(nom, raison)| serde_json::json!({ "nom": nom, "raison": raison })).collect::<Vec<_>>(),
+        "avertissements": avertissements,
+    }))
+}
+
+/// La file d'une bibliothèque, telle que l'écran de traitement la montre.
+#[tauri::command]
+fn travaux(racine: String) -> Result<Vec<serde_json::Value>, String> {
+    let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
+    let mut avertissements: Vec<String> = Vec::new();
+    let tous = file::charger_tout(&depot.travaux(), &mut |texte| avertissements.push(texte))
+        .map_err(|e| format!("File illisible : {e}"))?;
+    Ok(tous.iter().map(travail::Travail::vu).collect())
+}
+
+/// Met un travail en pause, le reprend, ou l'annule (JOB-08).
+///
+/// Une seule porte pour les trois : les transitions vivent dans `file::appliquer`, éprouvées
+/// contre la table partagée. Une commande qui les réécrirait les ferait diverger.
+#[tauri::command]
+fn agir_sur_travail(racine: String, id: String, action: String) -> Result<serde_json::Value, String> {
+    let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
+    let chemin = depot.travaux().join(format!("{id}.json"));
+    let vise = travail::charger(&chemin)
+        .map_err(|e| format!("Travail illisible : {e}"))?
+        .ok_or("Ce travail n’existe plus.")?;
+    let apres = file::appliquer(&vise, &action, travail::maintenant())
+        .ok_or_else(|| format!("Action inconnue : {action}"))?;
+    travail::enregistrer(&chemin, &apres).map_err(|e| format!("Travail impossible à écrire : {e}"))?;
+    Ok(apres.vu())
+}
+
+/// Ce que l'hôte retient d'une session à l'autre : cet appareil, et les bibliothèques ouvertes.
+///
+/// L'application le demande au démarrage. Sans lui, il faudrait repointer l'application vers son
+/// dossier à chaque lancement, et aucun bail ne saurait dire qui le tient (JOB-02).
+#[tauri::command]
+fn reglages(app: tauri::AppHandle) -> Result<reglages::Reglages, String> {
+    let dossier = dossier_des_reglages(&app)?;
+    let lus = reglages::Reglages::lire(&dossier);
+    // L'identifiant d'appareil est fabriqué au premier lancement : on l'écrit tout de suite,
+    // sinon il changerait à chaque démarrage et un bail ne désignerait plus rien.
+    lus.ecrire(&dossier).map_err(|e| format!("Réglages impossibles à écrire : {e}"))?;
+    Ok(lus)
+}
+
+/// Met une bibliothèque en tête des récentes. Appelé après l'avoir créée ou ouverte.
+#[tauri::command]
+fn retenir_bibliotheque(app: tauri::AppHandle, racine: String) -> Result<reglages::Reglages, String> {
+    let dossier = dossier_des_reglages(&app)?;
+    let mut lus = reglages::Reglages::lire(&dossier);
+    lus.retenir(&racine);
+    lus.ecrire(&dossier).map_err(|e| format!("Réglages impossibles à écrire : {e}"))?;
+    Ok(lus)
+}
+
+/// Retire une bibliothèque de la liste des récentes. Le dossier n'est pas touché : oublier n'est
+/// pas supprimer, et rien de ce qui est à l'utilisateur ne disparaît d'un clic dans une liste.
+#[tauri::command]
+fn oublier_bibliotheque(app: tauri::AppHandle, racine: String) -> Result<reglages::Reglages, String> {
+    let dossier = dossier_des_reglages(&app)?;
+    let mut lus = reglages::Reglages::lire(&dossier);
+    lus.oublier(&racine);
+    lus.ecrire(&dossier).map_err(|e| format!("Réglages impossibles à écrire : {e}"))?;
+    Ok(lus)
+}
+
+fn dossier_des_reglages(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    app.path()
+        .app_config_dir()
+        .map_err(|e| format!("Dossier de réglages introuvable : {e}"))
 }
 
 /// Lit la description d'une bibliothèque, ou rien si le dossier n'en porte pas.
@@ -184,6 +313,13 @@ fn lancer(captures: bool) {
             creer_bibliotheque,
             lire_bibliotheque,
             ecrire_bibliotheque,
+            reglages,
+            retenir_bibliotheque,
+            oublier_bibliotheque,
+            deposer,
+            faire_tourner,
+            travaux,
+            agir_sur_travail,
             ouvrir_pdf,
             lancer_ocr,
             servir_media,
@@ -192,6 +328,14 @@ fn lancer(captures: bool) {
             fixtures,
             peser_installation
         ])
-        .run(tauri::generate_context!())
-        .expect("démarrage de l'application impossible");
+        .build(tauri::generate_context!())
+        .expect("démarrage de l'application impossible")
+        .run(|app, evenement| {
+            // Fermer la fenêtre n'interrompt pas un traitement ; quitter l'application, si — et
+            // proprement : les moteurs s'arrêtent, les baux se lâchent, et ce qui a été lu se
+            // reprend au prochain lancement (JOB-02, JOB-03).
+            if matches!(evenement, tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit) {
+                arreter_les_roulements(&app.state::<Etat>());
+            }
+        });
 }

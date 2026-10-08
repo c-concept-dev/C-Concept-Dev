@@ -119,6 +119,7 @@ export async function executerTravail(brut: unknown, options: { readonly emettre
           travailId: demande.travailId,
           progression: total === 0 ? 0 : faits / total,
           pointReprise: { unite: "page", valeur: faits },
+          ...(total === 0 ? {} : { total }),
         }),
     });
 

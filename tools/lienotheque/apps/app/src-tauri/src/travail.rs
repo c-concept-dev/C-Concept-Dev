@@ -27,12 +27,28 @@ pub fn expiration_secondes() -> u64 {
     crate::limites::LIMITES.expiration_verrou_s
 }
 
+/// Qui tient le bail, et jusqu'à quand (JOB-02).
+///
+/// `appareil` est l'identifiant de la machine, et c'est un UUID : le contrat l'exige, parce que
+/// deux installations qui s'appelleraient toutes deux « cet ordinateur » ne se distingueraient
+/// plus le jour où elles partagent une bibliothèque.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct Verrou {
     pub appareil: String,
     /// Dernier battement : c'est lui qui repousse l'expiration.
     pub battu_le: u64,
     pub expire_le: u64,
+}
+
+/// De quoi un travail s'occupe, tel que l'écran le nomme (JOB-03, UX-03).
+///
+/// Une file qui n'affiche que des identifiants ne se surveille pas : on y voit que quelque chose
+/// tourne, jamais quoi. Le nom du fichier déposé et ce qu'il contient, rien de plus : ce que le
+/// fichier *représente* vient du schéma de la bibliothèque, jamais d'ici (CLA-01).
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct Sujet {
+    pub nom: String,
+    pub contenu: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
@@ -52,7 +68,27 @@ pub struct Travail {
     #[serde(default = "lourd")]
     pub poids: String,
     pub tentative: u32,
+    /// Combien d'unités en tout. Zéro tant qu'on ne le sait pas : il faut avoir ouvert le fichier
+    /// pour le savoir, et c'est la première progression qui le dit.
     pub total: u32,
+    /// Absent pour un travail qui ne porte sur aucun fichier — un recalcul, une réindexation.
+    #[serde(default)]
+    pub sujet: Option<Sujet>,
+    /// Ce qui a échoué, et si une reprise a une chance. Un échec enregistre sa cause : aucune
+    /// erreur n'est avalée (JOB-05).
+    #[serde(default)]
+    pub cause: Option<String>,
+    #[serde(default)]
+    pub reprise_possible: bool,
+    /// Empreinte de ce qui est demandé : redéposer le même contenu retrouve ce travail au lieu
+    /// d'en créer un second (JOB-04). C'est le contenu qui décide, jamais le nom du fichier.
+    #[serde(default)]
+    pub empreinte: Option<String>,
+    /// La version que ce travail écrira. Elle est fixée à l'entrée en file et ne change pas :
+    /// une reprise écrit dans la même, sans quoi une reprise laisserait deux versions à demi
+    /// faites (JOB-06).
+    #[serde(default)]
+    pub version_cible: String,
     /// Quand le travail est entré en file (JOB-01). C'est lui qui départage deux travaux aussi
     /// avancés l'un que l'autre : le plus ancien passe d'abord.
     ///
@@ -75,6 +111,11 @@ impl Travail {
             poids: lourd(),
             tentative: 1,
             total,
+            sujet: None,
+            cause: None,
+            reprise_possible: false,
+            empreinte: None,
+            version_cible: String::new(),
             cree_le: maintenant(),
             maj_le: maintenant(),
             verrou: None,
@@ -83,10 +124,16 @@ impl Travail {
     }
 
     /// Avancement entre 0 et 1, comme le champ `progression` du contrat Travail.
+    ///
+    /// Un total inconnu vaut zéro et non cent : tant qu'on n'a pas ouvert le fichier, on ne sait
+    /// pas combien il compte, et un travail qui n'a rien fait ne s'affiche pas comme fait. Seul
+    /// l'état terminé vaut un, et le contrat l'exige dans ce sens-là aussi.
     pub fn progression(&self) -> f32 {
+        if self.etat == "termine" {
+            return 1.0;
+        }
         match (&self.point_reprise, self.total) {
-            (_, 0) => 1.0,
-            (None, _) => 0.0,
+            (None, _) | (_, 0) => 0.0,
             (Some(p), total) => f32::min(1.0, p.valeur as f32 / total as f32),
         }
     }
@@ -129,11 +176,88 @@ impl Travail {
             unite: unite.to_owned(),
             valeur,
         });
-        if valeur >= self.total {
+        if self.total > 0 && valeur >= self.total {
             self.etat = "termine".to_owned();
             self.verrou = None;
         }
     }
+}
+
+/// Le travail tel que le contrat `Travail` le décrit, pour que la page le lise (PLT-02).
+///
+/// L'hôte tient sa file dans sa propre forme — des secondes, des chaînes courtes, ce qui se relit
+/// vite au démarrage. La page, elle, lit un contrat. La traduction vit ici et nulle part ailleurs,
+/// et `fixtures/travaux-vus.json`, écrit par le test de ce module et validé par le contrat côté
+/// TypeScript, interdit aux deux formes de diverger en silence.
+impl Travail {
+    pub fn vu(&self) -> serde_json::Value {
+        let horodatage = |secondes: u64| {
+            // Un horodatage ISO en temps universel, que le contrat sait lire.
+            let jours = secondes / 86_400;
+            let reste = secondes % 86_400;
+            let (annee, mois, jour) = civil(jours as i64);
+            format!(
+                "{annee:04}-{mois:02}-{jour:02}T{:02}:{:02}:{:02}Z",
+                reste / 3600,
+                (reste % 3600) / 60,
+                reste % 60
+            )
+        };
+        let mut vu = serde_json::json!({
+            "id": self.id,
+            "outil": { "nom": self.outil, "version": "1.0.0" },
+            "versionCible": self.version_cible,
+            "etat": self.etat,
+            "lieu": "application",
+            "poids": self.poids,
+            "tentative": self.tentative,
+            "progression": self.progression(),
+            "creeLe": horodatage(self.cree_le),
+            "majLe": horodatage(self.maj_le),
+        });
+        if let Some(sujet) = &self.sujet {
+            let mut porte = serde_json::json!({ "nom": sujet.nom, "contenu": sujet.contenu });
+            if self.total > 0 {
+                porte["total"] = serde_json::json!(self.total);
+            }
+            vu["sujet"] = porte;
+        }
+        if let Some(cause) = &self.cause {
+            vu["erreur"] = serde_json::json!({
+                "cause": cause,
+                "elements": [],
+                "reprisePossible": self.reprise_possible,
+            });
+        }
+        if let Some(empreinte) = &self.empreinte {
+            vu["empreinteEntree"] = serde_json::json!(empreinte);
+        }
+        if let Some(point) = &self.point_reprise {
+            vu["pointReprise"] = serde_json::json!({ "unite": point.unite, "valeur": point.valeur });
+        }
+        if let Some(verrou) = &self.verrou {
+            vu["verrou"] = serde_json::json!({
+                "appareilId": verrou.appareil,
+                "battuLe": horodatage(verrou.battu_le),
+                "expireLe": horodatage(verrou.expire_le),
+            });
+        }
+        vu
+    }
+}
+
+/// Jour julien vers année, mois, jour (algorithme de Howard Hinnant, domaine public).
+fn civil(jours: i64) -> (i64, u32, u32) {
+    let z = jours + 719_468;
+    let ere = if z >= 0 { z } else { z - 146_096 } / 146_097;
+    let doe = (z - ere * 146_097) as u64;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let y = yoe as i64 + ere * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = (doy - (153 * mp + 2) / 5 + 1) as u32;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 } as u32;
+    (if m <= 2 { y + 1 } else { y }, m, d)
 }
 
 fn lourd() -> String {
@@ -173,6 +297,79 @@ pub fn enregistrer(chemin: &Path, travail: &Travail) -> io::Result<()> {
 
 #[cfg(test)]
 mod tests {
+    /// Écrit `fixtures/travaux-vus.json` depuis la forme de l'hôte, pour que le contrat
+    /// TypeScript le valide de son côté (`packages/contrats/test/travaux-vus.test.ts`).
+    ///
+    /// L'hôte tient sa file dans sa propre forme et la page lit un contrat : sans ce fichier,
+    /// les deux dérivent en silence, et l'écran de traitement n'affiche plus rien sans qu'aucun
+    /// test ne s'en plaigne. Le fichier est versionné ; le test échoue quand il a changé, et
+    /// c'est alors au contrôle TypeScript de dire si la nouvelle forme tient.
+    #[test]
+    fn ecrit_les_travaux_vus_pour_le_contrat() {
+        use super::*;
+
+        let cas: Vec<Travail> = vec![
+            {
+                // En file, rien encore ouvert : ni total, ni point de reprise.
+                let mut t = Travail::neuf("0190f0a0-0000-7000-8000-000000000001", "traitement-de-lot", 0);
+                t.version_cible = "0190f0a0-0000-7000-8000-0000000000a1".to_owned();
+                t.cree_le = 1_760_000_000;
+                t.maj_le = 1_760_000_000;
+                t.sujet = Some(Sujet { nom: "un-document.pdf".to_owned(), contenu: "documents".to_owned() });
+                t
+            },
+            {
+                // En cours, le total connu et le bail tenu.
+                let mut t = Travail::neuf("0190f0a0-0000-7000-8000-000000000002", "traitement-de-lot", 286);
+                t.version_cible = "0190f0a0-0000-7000-8000-0000000000a2".to_owned();
+                t.cree_le = 1_760_000_100;
+                t.sujet = Some(Sujet { nom: "un-document.pdf".to_owned(), contenu: "documents".to_owned() });
+                t.avancer(194, "page");
+                t.battre("0190f0a0-0000-7000-8000-00000000ff01", 1_760_000_500, expiration_secondes());
+                t.maj_le = 1_760_000_500;
+                t
+            },
+            {
+                // Des pistes, et un travail terminé : la progression vaut exactement 1.
+                let mut t = Travail::neuf("0190f0a0-0000-7000-8000-000000000003", "traitement-de-lot", 24);
+                t.version_cible = "0190f0a0-0000-7000-8000-0000000000a3".to_owned();
+                t.cree_le = 1_760_000_200;
+                t.maj_le = 1_760_000_900;
+                t.sujet = Some(Sujet { nom: "un-disque.zip".to_owned(), contenu: "audio".to_owned() });
+                t.avancer(24, "piste");
+                t
+            },
+            {
+                // Sans sujet : un recalcul ne porte sur aucun fichier.
+                let mut t = Travail::neuf("0190f0a0-0000-7000-8000-000000000004", "recompte", 0);
+                t.version_cible = "0190f0a0-0000-7000-8000-0000000000a4".to_owned();
+                t.poids = "leger".to_owned();
+                t.cree_le = 1_760_000_300;
+                t.maj_le = 1_760_000_300;
+                t
+            },
+        ];
+
+        let vus: Vec<serde_json::Value> = cas.iter().map(Travail::vu).collect();
+        let texte = serde_json::to_string_pretty(&serde_json::json!({
+            "_lisez_moi": "Écrit par le test « ecrit_les_travaux_vus_pour_le_contrat » de apps/app/src-tauri/src/travail.rs, et validé par le contrat Travail côté TypeScript. Ne pas modifier à la main : c'est la preuve que la file de l'hôte et le contrat que lit la page décrivent le même travail.",
+            "travaux": vus,
+        }))
+        .expect("sérialisation");
+
+        let chemin = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../fixtures/travaux-vus.json");
+        // Les fins de ligne ne font pas partie de ce qu'on compare : Windows rend le fichier en
+        // CRLF là où on l'écrit en LF, et la sentinelle crierait à chaque exécution sans qu'un
+        // seul champ ait bougé.
+        let sans_retours = |texte: &str| texte.replace("\r\n", "\n").trim().to_owned();
+        let ancien = std::fs::read_to_string(&chemin).unwrap_or_default();
+        if sans_retours(&ancien) != sans_retours(&texte) {
+            std::fs::write(&chemin, format!("{texte}\n")).expect("écriture");
+            panic!("fixtures/travaux-vus.json a changé : relancez le contrôle TypeScript, qui dira si la nouvelle forme tient le contrat.");
+        }
+    }
+
     use super::*;
 
     #[test]

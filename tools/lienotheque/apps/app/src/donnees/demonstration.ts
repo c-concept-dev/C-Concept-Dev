@@ -1,5 +1,5 @@
-import { DescriptionBibliotheque } from "@lienotheque/contrats";
-import type { Ancre, Document as DocumentLn, Travail } from "@lienotheque/contrats";
+import { DescriptionBibliotheque, Travail } from "@lienotheque/contrats";
+import type { Ancre, Document as DocumentLn } from "@lienotheque/contrats";
 import type { BibliothequeAffichee, DonneesAccueil, Reprise } from "./modele.js";
 
 /** Jeu de démonstration. Il ne sert qu'au développement : `?demonstration` dans l'adresse,
@@ -229,4 +229,89 @@ export const EXEMPLES_ORGANISATION = [
   { titre: "Exercice 400", situation: "Page 127 · relié à la piste 40", valeurs: ["Funk", "Débutant", "Articulation", "Rythme"] },
   { titre: "Exercice 512", situation: "Page 158 · relié à la piste 52", valeurs: ["Disco", "Intermédiaire", "Doigté"] },
   { titre: "Exercice 844", situation: "Page 227 · aucune piste", valeurs: ["Jazz", "Avancé", "Improvisation", "Harmonie"] },
+] as const;
+
+/** Une file en train de tourner, pour l'écran de traitement et pour les captures.
+ *
+ *  Les six cas que l'écran doit savoir montrer : en cours avec son total, en cours sans total
+ *  encore connu, en attente, en pause, en panne, et terminé. Inventés eux aussi. */
+export const FILE = [
+  {
+    id: id(51),
+    outil: { nom: "traitement-de-lot", version: "1.0.0" },
+    versionCible: id(151),
+    etat: "en_cours",
+    tentative: 1,
+    progression: 0.68,
+    sujet: { nom: "Méthode d’instrument — volume 1.pdf", contenu: "documents", total: 286 },
+    pointReprise: { unite: "page", valeur: 194 },
+    creeLe: LE,
+    majLe: LE,
+  },
+  {
+    id: id(52),
+    outil: { nom: "traitement-de-lot", version: "1.0.0" },
+    versionCible: id(152),
+    etat: "en_cours",
+    tentative: 1,
+    progression: 0.12,
+    sujet: { nom: "Archives 1978-1984.pdf", contenu: "documents", total: 412 },
+    pointReprise: { unite: "page", valeur: 49 },
+    creeLe: LE,
+    majLe: LE,
+  },
+  {
+    id: id(53),
+    outil: { nom: "traitement-de-lot", version: "1.0.0" },
+    versionCible: id(153),
+    etat: "en_file",
+    tentative: 1,
+    progression: 0,
+    sujet: { nom: "Recueil de planches.pdf", contenu: "documents" },
+    creeLe: LE,
+    majLe: LE,
+  },
+  {
+    id: id(54),
+    outil: { nom: "traitement-de-lot", version: "1.0.0" },
+    versionCible: id(154),
+    etat: "en_pause",
+    tentative: 1,
+    progression: 0.55,
+    sujet: { nom: "Cahier d’accompagnement.pdf", contenu: "documents", total: 158 },
+    pointReprise: { unite: "page", valeur: 87 },
+    creeLe: LE,
+    majLe: LE,
+  },
+  {
+    id: id(55),
+    outil: { nom: "traitement-de-lot", version: "1.0.0" },
+    versionCible: id(155),
+    etat: "en_echec_recuperable",
+    tentative: 1,
+    progression: 0.94,
+    sujet: { nom: "Livre d’exercices.pdf", contenu: "documents", total: 204 },
+    pointReprise: { unite: "page", valeur: 192 },
+    erreur: { cause: "2 pages illisibles — le reste du fichier est bien traité", elements: [], reprisePossible: true },
+    creeLe: LE,
+    majLe: LE,
+  },
+  {
+    id: id(56),
+    outil: { nom: "traitement-de-lot", version: "1.0.0" },
+    versionCible: id(156),
+    etat: "termine",
+    tentative: 1,
+    progression: 1,
+    sujet: { nom: "Planches illustrées.pdf", contenu: "documents", total: 96 },
+    pointReprise: { unite: "page", valeur: 96 },
+    creeLe: LE,
+    majLe: LE,
+  },
+].map((brut) => Travail.parse(brut)) satisfies readonly Travail[];
+
+/** Ce qui est déposé mais ne se lit pas seul : il attend le document qui le nommera. */
+export const ACCOMPAGNEMENTS = [
+  { nom: "Disque 1 — 24 pistes.zip", contenu: "audio" },
+  { nom: "Disque 2 — 18 pistes.zip", contenu: "audio" },
 ] as const;
