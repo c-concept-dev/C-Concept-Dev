@@ -30,6 +30,8 @@
 | 2026-10-06 | **L'hôte est le seul écrivain du dépôt** : le processus reçoit un travail et rend un résultat, l'hôte le valide et l'active en une opération (JOB-06) | Lot D2, étape 0 |
 | 2026-10-06 | Portage Rust intégral de la chaîne **écarté** : il faudrait réécrire pdf.js et les codecs, et refaire la preuve des 84/92 et 95/95 | Lot D2, étape 0 |
 | 2026-10-06 | Allègement du moteur (Node sans ICU, binaire compilé) **reporté après la bêta**, et sans toucher la chaîne | Lot D2, étape 0 |
+| 2026-10-08 | **Un travail par document, non par fichier** : le moteur lit un document et ses médias ensemble, et un travail qui ne porterait qu'une piste n'aurait rien à lire | Lot D2, étape 3, section ci-dessous |
+| 2026-10-08 | **Pas de temps restant à l'écran de traitement** : on ne sait pas à quelle vitesse la suite ira, et un chiffre inventé est pire qu'un chiffre absent. On écrit « 194 / 286 » | Lot D2, étape 3 |
 | 2026-10-08 | **Fusionner et retirer une valeur sont deux gestes**, pas un : le contrat a refusé qu'une clé vive à deux endroits, et il avait raison — ils ne montrent pas la même chose | Lot D2, étape 2, section ci-dessous |
 | 2026-10-08 | **Les écrans se photographient dans l'application de bureau**, en clair et en hybride : le thème hybride est ce qui montre les défauts de charte, qu'aucun test ne voit | Lot D2, étape 2 |
 | 2026-10-06 | **Les critères des corpus remontent à la porte de l'application** : F1, F3 et F4 se mesurent sur `executerTravail`, dans `outils/ingestion`, et nulle part ailleurs. Un seul test de critère par corpus | Lot D2, étape 1, section ci-dessous |
@@ -251,6 +253,106 @@ l'autorisation d'enregistrement d'écran au programme qu'on lance soi-même.
   propose d'en ouvrir un. Nécessaire pour la bêta, pas pour l'étape 2.
 - **Les exemples sous l'organisation** ne s'affichent que si la bibliothèque a de quoi les nourrir.
   Tant qu'elle n'a rien, l'écran ne montre rien plutôt que d'inventer.
+
+
+## Lot D2, étape 3 — déposer, et regarder la file tourner
+
+L'écran de dépôt et de traitement, branché sur la file durable et le moteur embarqué. Ce qui a
+été tranché en chemin.
+
+### Un travail par document, et non par fichier
+
+Le moteur lit un document **et les médias qui l'accompagnent**, ensemble : c'est ainsi qu'un
+élément de la page 127 se relie au bon moment de sa piste. Un travail qui ne porterait qu'un
+fichier audio n'aurait donc rien à lire, et ne partirait jamais. Les médias sont copiés dans la
+bibliothèque et attendent le document qui les nommera ; l'écran les montre à part, en disant
+pourquoi.
+
+Le premier jet en faisait des travaux. Il avait tort, et c'est en branchant le moteur que cela
+s'est vu — pas en écrivant la file.
+
+### Déposer, c'est trois choses dans cet ordre
+
+Copier l'original — jamais le déplacer, jamais le modifier —, prendre son empreinte, écrire le
+travail avant que rien ne commence (JOB-01). L'ordre compte : un travail écrit avant la copie
+désignerait un fichier absent, et une copie sans travail laisserait un fichier que personne ne
+viendra lire. Redéposer le même contenu retrouve son travail (JOB-04) : c'est le contenu qui
+décide, pas le nom.
+
+### La preuve croisée de la file
+
+L'hôte tient sa file dans sa propre forme — des secondes, des chaînes courtes, ce qui se relit
+vite au démarrage — et la page lit un contrat. Sans preuve, les deux dérivent en silence et
+l'écran cesse d'afficher quoi que ce soit sans qu'un test s'en plaigne.
+
+`fixtures/travaux-vus.json` est écrit par un test Rust et validé par le contrat TypeScript. Il a
+trouvé deux défauts avant même d'exister vraiment :
+
+1. Un travail en file, dont on ne connaît pas encore le total, s'affichait **à cent pour cent** —
+   le total inconnu valait zéro, et zéro sur zéro valait un.
+2. L'hôte nommait son appareil en clair là où le contrat veut un UUID. Deux installations qui
+   s'appelleraient « cet ordinateur » ne se distingueraient plus le jour où elles partagent une
+   bibliothèque.
+
+### Ce que l'écran ne montre pas
+
+**Pas de temps restant.** La maquette en portait un ; on ne sait pas à quelle vitesse la suite
+ira, et un chiffre qu'on invente est pire qu'un chiffre absent. L'écran écrit ce qu'il sait :
+tant de pages sur tant, et le pourcentage qui va avec. Tant que le total est inconnu, il le dit.
+
+**Pas de pourcentage seul non plus.** « 68 % » ne se vérifie pas ; « 194 / 286 » se vérifie.
+
+La phrase d'état suit l'unité que le moteur compte vraiment — « Lecture des pages » ou « Lecture
+des pistes » — et les mots viennent de la bibliothèque (CLA-01).
+
+### La fenêtre peut se fermer
+
+Le roulement ne tient à aucune fenêtre : il vit tant que l'application vit. Quitter l'application
+arrête les moteurs proprement, lâche les baux, et ce qui a été lu se reprend au prochain
+lancement. Une pause, elle, est une décision et non une panne : elle s'écrit dans le fichier du
+travail, le fil qui le mène la voit au message suivant, et aucun délai ne la lève (JOB-08).
+
+### La preuve : F3 traité par la file, et non par un appel direct
+
+Les contrôles éprouvent les règles — ce qui part, ce qui attend, ce qu'une pause fait. Ils ne
+prouvent pas que la file mène un vrai document de bout en bout. D'où un exemple lancé à la main,
+`apps/app/src-tauri/examples/file-sur-corpus.rs`, qui dépose un corpus et regarde la file comme
+l'écran la regarde : en la relisant.
+
+Relevé du 8 octobre 2026, sur le volume externe — le disque système n'avait plus que 14 Gio :
+
+| | |
+|---|---:|
+| Dépôt (1 document, 99 médias copiés) | 2,8 s |
+| Durée du traitement, à froid | **197 s** |
+| Progression | 29 / 29 pages, par points de reprise successifs |
+| Version | écrite puis activée, 179 276 octets |
+| **Éléments reliés** | **95 / 95** |
+| Appariements / manquants / orphelins | 95 / 0 / 6 |
+| À vérifier | 2 |
+
+C'est le critère de F3, obtenu par le chemin complet : dépôt, file durable, moteur embarqué,
+version activée. L'étape 1 l'avait prouvé par un appel direct ; il l'est maintenant par la file.
+
+**Deux défauts trouvés en le faisant, et aucun dans le dépôt.** La première passe affichait
+« total 0 » d'un bout à l'autre : la chaîne embarquée de ce poste datait de l'étape 1 et n'émettait
+pas encore le total. `moteurs/` est ignoré par git et l'intégration continue la reconstruit à
+chaque exécution, donc rien n'était faux dans le dépôt — seulement sur ce poste. Mais
+`preparer-moteur-node.py` **ne se rejouait pas** sur un poste déjà préparé : écrire par-dessus un
+binaire Node déjà signé laisse macOS avec une signature en cache qui ne correspond plus, et `lipo`
+échoue sans dire pourquoi. Le script efface désormais avant de copier.
+
+### Ce qui reste ouvert
+
+- **Le glisser-déposer sur le bureau.** Un fichier lâché dans la page n'a pas de chemin, et l'hôte
+  ne peut rien copier d'un fichier dont il ne sait pas où il est. Le bouton « Parcourir » ouvre le
+  sélecteur du système et donne de vrais chemins ; le glisser-déposer natif de Tauri reste à
+  brancher.
+- **La manière de lire.** Une bibliothèque sans recette le dit tout de suite — « Apprenez-en une,
+  puis reprenez ce travail » — au lieu d'échouer trois minutes plus tard. C'est l'étape 5 qui la
+  donnera.
+- **Le compteur de l'en-tête de l'application** affiche encore une valeur de démonstration, qui ne
+  s'accorde pas avec la file en dessous.
 
 
 ## Prototype du socle local — mesures du 3 octobre 2026
