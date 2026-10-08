@@ -5,6 +5,7 @@
 //! reprendre un travail après un arrêt forcé (JOB-02), lire un MP3 par plages — plus la taille
 //! d'installation moteurs compris. La décision reste à prendre (docs/decisions.md).
 
+pub mod captures;
 pub mod depot;
 pub mod file;
 pub mod journal;
@@ -163,7 +164,19 @@ fn peser_installation(chemin: String) -> mesures::Poids {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    lancer(false);
+}
+
+/// L'application, posée tour à tour sur chaque écran pour qu'on la photographie (captures.rs).
+///
+/// Même assemblage, mêmes commandes : on montre l'application, pas une maquette d'elle.
+pub fn run_captures() {
+    lancer(true);
+}
+
+fn lancer(captures: bool) {
     tauri::Builder::default()
+        .setup(move |app| if captures { captures::brancher(app) } else { Ok(()) })
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(Etat::default())

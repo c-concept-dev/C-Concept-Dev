@@ -23,6 +23,13 @@ fn main() -> ExitCode {
         return traiter_sans_fenetre(bibliotheque, charge);
     }
 
+    // `--capturer` ouvre l'application, la pose sur chaque écran et chaque thème, et attend
+    // qu'on l'ait photographiée. Voir `outils/capturer-ecrans.py`.
+    if arguments.iter().any(|a| a == "--capturer") {
+        lienotheque_bureau::run_captures();
+        return ExitCode::SUCCESS;
+    }
+
     lienotheque_bureau::run();
     ExitCode::SUCCESS
 }

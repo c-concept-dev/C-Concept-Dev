@@ -82,12 +82,11 @@ export function Organisation({ description, onSchema, onValider, classes, exempl
 
   return (
     <main id="contenu" className="ln-layout ln-organisation" tabIndex={-1}>
-      <FilAriane
-        chemin={[{ libelle: "Accueil", href: "#" }, { libelle: description.nom }, { libelle: "Organisation" }]}
-      />
-
-      <div className="ln-organisation__tete">
-        <div>
+      <div className="ln-organisation__tete ln-panneau-titre">
+        <FilAriane
+          chemin={[{ libelle: "Accueil", href: "#" }, { libelle: description.nom }, { libelle: "Organisation" }]}
+        />
+        <div className="ln-organisation__dit">
           <h1 className="ln-organisation__titre">Organisation de {description.nom}</h1>
           <p className="ln-muted">
             {schema.axes.length} façon{schema.axes.length > 1 ? "s" : ""} de ranger vos{" "}
@@ -251,6 +250,20 @@ export function Organisation({ description, onSchema, onValider, classes, exempl
                 ) : null}
               </div>
             )}
+
+            {schema.axes.length > 1 ? (
+              <p className="ln-axe__retrait">
+                <button
+                  type="button"
+                  className="ln-lien-action ln-axe__retirer"
+                  aria-label={`Retirer ${axe.nom}`}
+                  onClick={() => appliquer(() => retirerAxe(schema, axe.cle, classes?.[axe.cle] ?? 0))}
+                >
+                  <Icone nom="corbeille" />
+                  Retirer cette façon de ranger
+                </button>
+              </p>
+            ) : null}
           </section>
         ))}
 
@@ -296,31 +309,9 @@ export function Organisation({ description, onSchema, onValider, classes, exempl
         )}
       </div>
 
-      {schema.axes.length > 1 ? (
-        <div className="ln-organisation__retraits">
-          <p className="ln-section">Retirer une façon de ranger</p>
-          <p className="ln-muted">
-            C’est le seul geste qui perd quelque chose&nbsp;: ce qui était rangé dessus s’en va avec
-            elle. Il se refuse tant que des {description.mots.element.plusieurs} y sont rangés.
-          </p>
-          <div className="ln-organisation__boutons">
-            {schema.axes.map((axe) => (
-              <Bouton
-                key={axe.cle}
-                variante="danger"
-                icone={<Icone nom="corbeille" />}
-                onClick={() => appliquer(() => retirerAxe(schema, axe.cle, classes?.[axe.cle] ?? 0))}
-              >
-                Retirer {axe.nom}
-              </Bouton>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
       {exemples === undefined || exemples.length === 0 ? null : (
         <div>
-          <p className="ln-section">
+          <p className="ln-section ln-sur-photo">
             Ce que cela donnera · {exemples.length} {description.mots.element.plusieurs} de votre bibliothèque
           </p>
           <div className="ln-organisation__exemples">
@@ -344,10 +335,11 @@ export function Organisation({ description, onSchema, onValider, classes, exempl
         </div>
       )}
 
-      <div className="ln-organisation__pied">
+      <div className="ln-organisation__pied ln-panneau-titre">
         <p className="ln-muted">
           Vos originaux ne sont jamais modifiés. L’organisation se change à tout moment, même après
-          l’import.
+          l’import. Retirer une façon de ranger est le seul geste qui perd quelque chose&nbsp;: il
+          se refuse tant que des {description.mots.element.plusieurs} y sont rangés.
         </p>
         <div className="ln-organisation__actions">
           <button

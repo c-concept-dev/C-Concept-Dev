@@ -8,12 +8,33 @@
   padding: calc(var(--ln-grid) * 2) calc(var(--ln-grid) * 3);
 }
 
+/* Le fil, puis le titre à gauche et le bandeau à droite : trois éléments dans une même boîte,
+   et chacun à sa place plutôt qu'écartés aux deux bords. */
 .ln-organisation__tete {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: calc(var(--ln-grid) * 4);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "ariane ariane"
+    "dit bandeau";
+  align-items: end;
+  gap: calc(var(--ln-grid) * 1.5) calc(var(--ln-grid) * 4);
+}
+
+.ln-organisation__tete .ln-ariane {
+  grid-area: ariane;
+}
+
+.ln-organisation__dit {
+  grid-area: dit;
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .ln-organisation__tete {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "ariane" "dit" "bandeau";
+    align-items: start;
+  }
 }
 
 .ln-organisation__titre {
@@ -29,6 +50,7 @@
 
 /* Le bandeau d'information : une icône et une phrase, jamais une teinte seule. */
 .ln-organisation__bandeau {
+  grid-area: bandeau;
   display: flex;
   align-items: center;
   gap: calc(var(--ln-grid));
@@ -39,6 +61,12 @@
   background: var(--ln-surface);
   color: var(--ln-text-secondary);
   font-size: 13px;
+}
+
+/* Sur le panneau de titre, le bandeau n'a pas à peindre son propre fond : deux gris l'un sur
+   l'autre se lisent moins bien qu'un trait sur le graphite. */
+.ln-panneau-titre .ln-organisation__bandeau {
+  background: transparent;
 }
 
 .ln-organisation__echec {
@@ -79,11 +107,19 @@
 }
 
 button.ln-axe--ajout {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: calc(var(--ln-grid));
+  gap: calc(var(--ln-grid) * 0.5) calc(var(--ln-grid));
   min-height: calc(var(--ln-grid) * 10);
+}
+
+button.ln-axe--ajout .ln-axe__nom {
+  white-space: nowrap;
+}
+
+button.ln-axe--ajout .ln-muted {
+  grid-column: 2;
 }
 
 button.ln-axe--ajout:hover {
@@ -178,23 +214,27 @@ form.ln-axe--ajout {
   min-width: 9rem;
 }
 
-.ln-organisation__retraits {
-  display: grid;
-  gap: calc(var(--ln-grid) * 0.75);
-  justify-items: start;
-}
-
-.ln-organisation__retraits .ln-muted {
+/* Le retrait vit au pied de la carte qu'il vise : un bouton nommé du seul nom de l'axe, rangé
+   ailleurs, ne dit pas ce qu'il retire. Discret, parce que c'est le seul geste qui perd. */
+.ln-axe__retrait {
   margin: 0;
-  max-width: 60ch;
+  padding-block-start: calc(var(--ln-grid) * 1.25);
+  border-block-start: 1px solid var(--ln-border-decorative);
 }
 
-.ln-organisation__boutons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: calc(var(--ln-grid));
-  margin-block-start: calc(var(--ln-grid) * 0.5);
+.ln-axe__retirer {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 0.5);
+  font-size: 13px;
+  color: var(--ln-text-secondary);
 }
+
+.ln-axe__retirer:hover {
+  color: var(--ln-error-text);
+}
+
+
 
 .ln-organisation__exemples {
   display: grid;

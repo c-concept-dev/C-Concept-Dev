@@ -88,14 +88,14 @@ export function Creer({ modeles, prises, onCreer, onAnnuler, onChoisirDossier }:
 
   return (
     <main id="contenu" className="ln-layout ln-creer" tabIndex={-1}>
-      <div className="ln-creer__tete">
+      <div className="ln-creer__tete ln-panneau-titre">
         <FilAriane chemin={[{ libelle: "Accueil", href: "#" }, { libelle: "Nouvelle bibliothèque" }]} />
         <button type="button" className="ln-creer__annuler" onClick={onAnnuler}>
           Annuler
         </button>
       </div>
 
-      <div className="ln-creer__barre">
+      <div className="ln-creer__barre ln-panneau-titre">
         <ol className="ln-etapes" aria-label="Avancement de la création">
           {TEMPS.map((etape, index) => {
             const etat = index + 1 < rang ? "faite" : etape === temps ? "courante" : "a-venir";
@@ -115,7 +115,7 @@ export function Creer({ modeles, prises, onCreer, onAnnuler, onChoisirDossier }:
       </div>
 
       <div className="ln-creer__colonnes">
-        <section className="ln-creer__question" aria-labelledby={`${base}-titre`}>
+        <section className="ln-creer__question ln-panneau-titre" aria-labelledby={`${base}-titre`}>
           {temps === "nom" ? (
             <>
               <h1 id={`${base}-titre`}>Comment s’appellera cette bibliothèque&nbsp;?</h1>
@@ -131,7 +131,9 @@ export function Creer({ modeles, prises, onCreer, onAnnuler, onChoisirDossier }:
                 />
               </label>
               <label className="ln-champ" htmlFor={`${base}-description`}>
-                En un mot, ce qu’elle réunit <span className="ln-muted">— facultatif</span>
+                <span>
+                  En un mot, ce qu’elle réunit <span className="ln-muted">— facultatif</span>
+                </span>
                 <textarea
                   id={`${base}-description`}
                   className="ln-saisie ln-saisie--texte"
@@ -365,8 +367,8 @@ export function Creer({ modeles, prises, onCreer, onAnnuler, onChoisirDossier }:
         </section>
 
         <aside className="ln-creer__apercu" aria-label="Aperçu">
-          <p className="ln-section">Aperçu</p>
           <div className="ln-panneau ln-creer__carte">
+            <p className="ln-section">Aperçu</p>
             <div className="ln-creer__dos" aria-hidden="true">
               <Icone nom={CONTENUS.find((contenu) => reponses.contenus.includes(contenu.cle))?.icone ?? "livre"} />
             </div>
@@ -409,7 +411,7 @@ export function Creer({ modeles, prises, onCreer, onAnnuler, onChoisirDossier }:
         </aside>
       </div>
 
-      <div className="ln-creer__pied">
+      <div className="ln-creer__pied ln-panneau-titre">
         <p className="ln-muted">
           {raison ?? "Rien n’est encore créé. Vous pourrez revenir en arrière à chaque étape."}
         </p>

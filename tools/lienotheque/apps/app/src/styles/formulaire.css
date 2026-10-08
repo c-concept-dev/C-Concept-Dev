@@ -11,6 +11,13 @@
   color: var(--ln-text-secondary);
 }
 
+/* Posé au-dessus de cartes, un intitulé de section tombe en hybride directement sur la
+   photographie. `.ln-sur-photo` lui rend son fond ; il lui manque juste de quoi respirer. */
+.ln-section.ln-sur-photo {
+  display: inline-block;
+  padding: calc(var(--ln-grid) * 0.5) calc(var(--ln-grid));
+}
+
 /* Un champ : son intitulé au-dessus, sa saisie dessous. Le label porte la saisie, donc un clic
    sur l'intitulé y amène le curseur. */
 .ln-champ {

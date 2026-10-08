@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type JSX } from "react";
 import type { CasDouteux, DescriptionBibliotheque, SchemaBibliotheque, VueBibliotheque } from "@lienotheque/contrats";
 import { EnTete } from "./EnTete.js";
-import { chargerDonnees } from "./donnees/chargement.js";
+import { chargerBibliothequeDemonstration, chargerDonnees } from "./donnees/chargement.js";
 import { chargerVue } from "./donnees/vue.js";
 import { ACCUEIL, ecrireRoute, lireRoute, type Route } from "./navigation.js";
 import { ACCUEIL_VIDE, type DonneesAccueil } from "./donnees/modele.js";
@@ -36,6 +36,9 @@ export function App(): JSX.Element {
   const [decisions, setDecisions] = useState<readonly { cas: CasDouteux; decision: Decision }[]>([]);
   /** Les bibliothèques que cette session a créées, avec le dossier qui les porte. */
   const [creees, setCreees] = useState<readonly { racine: string; description: DescriptionBibliotheque }[]>([]);
+  /** Trois éléments à montrer sous l'organisation. Vides tant que la bibliothèque n'a rien :
+   *  on ne montre pas ce qu'elle donnera en l'inventant. */
+  const [exemples, setExemples] = useState<Parameters<typeof Organisation>[0]["exemples"]>(undefined);
   const modeles = useMemo(() => chargerModeles(), []);
 
   useEffect(() => {
@@ -57,6 +60,11 @@ export function App(): JSX.Element {
     });
     void chargerVue().then((chargee) => {
       if (vivant) setVue(chargee);
+    });
+    void chargerBibliothequeDemonstration(globalThis.location?.search ?? "").then((bibliotheque) => {
+      if (!vivant || bibliotheque === undefined) return;
+      setCreees([{ racine: bibliotheque.racine, description: bibliotheque.description }]);
+      setExemples(bibliotheque.exemples);
     });
     return () => {
       vivant = false;
@@ -103,6 +111,7 @@ export function App(): JSX.Element {
           description={derniere.description}
           onSchema={organiser}
           onValider={() => aller(ACCUEIL)}
+          exemples={exemples}
         />
       );
     if (route.ecran === "creer")
