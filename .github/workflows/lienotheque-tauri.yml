@@ -104,6 +104,14 @@ jobs:
         shell: bash
         run: python apps/app/src-tauri/outils/preparer-moteurs.py
 
+      # Le moteur de traitement — Node réduit à l'architecture du runner, la chaîne rassemblée en
+      # un fichier, et les codecs — est déclaré en binaire annexe dans tauri.conf.json. Sans cette
+      # étape, la construction s'arrête avant de compiler, sur « resource path
+      # moteurs/bin/node-… doesn't exist ». C'est arrivé, et la PR l'a montré.
+      - name: Embarquer le moteur de traitement
+        shell: bash
+        run: python apps/app/src-tauri/outils/preparer-moteur-node.py
+
       # Les bouteilles Homebrew visent le macOS du runner, pas celui de la machine de
       # développement : le paquet construit ici doit déclarer ce que SES moteurs exigent.
       # Modification locale au runner, jamais commitée. Voir docs/decisions.md.

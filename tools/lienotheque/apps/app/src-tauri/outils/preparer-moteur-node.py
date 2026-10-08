@@ -71,8 +71,13 @@ def rassembler_chaine(cible: pathlib.Path) -> str:
     """Rassemble la chaîne en un seul fichier JavaScript, que Node exécute sans rien chercher."""
     cible.mkdir(parents=True, exist_ok=True)
     sortie = cible / "moteur.js"
+    # Résolu par son chemin : sous Windows, `pnpm` est un `.cmd`, que Python ne sait pas lancer
+    # en le nommant seulement.
+    pnpm = shutil.which("pnpm")
+    if pnpm is None:
+        raise SystemExit("pnpm absent du chemin.")
     executer(
-        "pnpm",
+        pnpm,
         "--filter",
         "@lienotheque/ingestion",
         "exec",
@@ -127,12 +132,14 @@ def main() -> int:
     bin_ = MOTEURS / "bin"
     bin_.mkdir(parents=True, exist_ok=True)
 
-    cible = bin_ / "node"
+    # Sous Windows, un exécutable porte son extension, et Tauri le cherche sous ce nom-là.
+    suffixe = ".exe" if sys.platform == "win32" else ""
+    cible = bin_ / f"node{suffixe}"
     dit = embarquer_node(cible)
 
     # Tauri cherche un binaire annexe suffixé par la cible de compilation.
     triplet = executer("rustc", "-vV").split("host: ")[1].split("\n")[0].strip()
-    sidecar = cible.with_name(f"node-{triplet}")
+    sidecar = cible.with_name(f"node-{triplet}{suffixe}")
     shutil.copy(cible, sidecar)
     sidecar.chmod(0o755)
     if sys.platform == "darwin":

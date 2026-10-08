@@ -30,7 +30,7 @@ impl Emplacements {
     pub fn depuis_executable(executable: &Path) -> Option<Self> {
         let macos = executable.parent()?;
         let empaquete = Self {
-            node: macos.join("node"),
+            node: macos.join(format!("node{}", std::env::consts::EXE_SUFFIX)),
             chaine: macos.parent()?.join("Resources").join("moteurs").join("chaine").join("moteur.js"),
         };
         if empaquete.node.exists() && empaquete.chaine.exists() {
@@ -40,7 +40,7 @@ impl Emplacements {
         // Hors paquet : les moteurs préparés dans le dossier du projet.
         let moteurs = racine_du_projet(executable)?.join("moteurs");
         let brut = Self {
-            node: moteurs.join("bin").join("node"),
+            node: moteurs.join("bin").join(format!("node{}", std::env::consts::EXE_SUFFIX)),
             chaine: moteurs.join("chaine").join("moteur.js"),
         };
         (brut.node.exists() && brut.chaine.exists()).then_some(brut)
@@ -168,11 +168,11 @@ mod tests {
         let ressources = dossier.join("Contents").join("Resources").join("moteurs").join("chaine");
         std::fs::create_dir_all(&macos).expect("MacOS");
         std::fs::create_dir_all(&ressources).expect("Resources");
-        std::fs::write(macos.join("node"), b"").expect("node");
+        std::fs::write(macos.join(format!("node{}", std::env::consts::EXE_SUFFIX)), b"").expect("node");
         std::fs::write(ressources.join("moteur.js"), b"").expect("chaîne");
 
         let trouves = Emplacements::depuis_executable(&macos.join("Lienotheque")).expect("moteurs trouvés");
-        assert_eq!(trouves.node, macos.join("node"));
+        assert_eq!(trouves.node, macos.join(format!("node{}", std::env::consts::EXE_SUFFIX)));
         assert!(trouves.chaine.ends_with("moteurs/chaine/moteur.js"));
         std::fs::remove_dir_all(&dossier).ok();
     }
