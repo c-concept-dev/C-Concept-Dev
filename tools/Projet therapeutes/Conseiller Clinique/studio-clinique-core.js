@@ -8214,9 +8214,13 @@ ${recent}`;
   window.adocNarrationApply = adocNarrationApply;
   window.adocNarrationPurge = adocNarrationPurge;
   window.adocNarrationCount = adocNarrationCount;
+  window.ADOC_NARRATION_PAUSE_MOTIF = ADOC_NARRATION_PAUSE_MOTIF;
   window.adocDocumentPourExport = adocDocumentPourExport;
   window.adocEditorStepRef = adocEditorStepRef;
   window.adocNarrationSuivreChangementEtapes = adocNarrationSuivreChangementEtapes;
+  // LOT 1b — le module de rédaction rafraîchit le champ du lot 1a par CE point d'entrée, jamais
+  // en écrivant dans le textarea : une seule source de vérité pour ce qu'affiche l'éditeur.
+  window.adocEditorRefreshControls = function () { return adocEditorRefreshControls(); };
   // Le SEUL point de sérialisation pour l'enregistrement, exposé pour que le test de
   // l'aller-retour éprouve ce que l'application persiste réellement, et non une copie forgée.
   window.adocBuildClinicalDocumentContent = function (art) { return adocBuildClinicalDocumentContent(art); };
@@ -9780,6 +9784,12 @@ ${recent}`;
     if (narrBoite) {
       const etape = ctx.legacy ? null : adocEditorStepRef(ctx.art._adocStructuredDoc, ctx.st.blockId);
       narrBoite.hidden = !etape;
+      // LOT 1b — le bouton « Rédiger la narration » est posé par le module narration-ia.js,
+      // chargé après ce fichier. Deux lignes ici, rien de plus : si le module est absent, la
+      // boîte du lot 1a fonctionne exactement comme avant.
+      if (etape && window.NarrationIA && typeof window.NarrationIA.brancher === 'function') {
+        try { window.NarrationIA.brancher(narrBoite); } catch (e) { console.warn('[narration-ia] ' + (e && e.message)); }
+      }
       if (etape) {
         const zone = narrBoite.querySelector('[data-editor-narration]');
         const sur = etape.surRang > 1 ? ', étape ' + etape.rang + ' sur ' + etape.surRang : ', étape unique';
@@ -17585,6 +17595,11 @@ ${recent}`;
   // diapositive de titre de chaque module avec `blocks: contexte`, et `contexte` est vide dès
   // qu'un module n'a pas de notions clés. C'est le cas où le stepId est l'identifiant de la carte.
   var ADOC_NARRATION_MOTS_PAR_SECONDE = 2.5;
+  // LOT 1b — les marques de pause ne sont PAS prononcées (CDC R8). Déclarée ICI, auprès de sa
+  // sœur et AVANT le bloc d'exposition sur window : une `const` déclarée plus bas aurait sa zone
+  // morte temporelle, et l'exposer avant sa déclaration arrête tout le fichier. Déjà rencontré
+  // au lot 2 avec adocPresentReference — même famille, même correction.
+  var ADOC_NARRATION_PAUSE_MOTIF = '\\[pause(?:\\s+\\d+(?:[.,]\\d+)?\\s*s)?\\]';
 
   function adocPresentStepList(doc) {
     if (!doc || doc.documentKind !== 'presentation') return [];
@@ -17694,8 +17709,15 @@ ${recent}`;
   }
   // Mots et durée INDICATIVE. 2,5 mots par seconde est une moyenne de lecture à voix haute : elle
   // ne mesure rien de la diction réelle, et l'interface le dit au lieu de le laisser croire.
+  // LOT 1b — les marques de pause ne sont PAS prononcées (CDC R8 : « une marque de pause ajoute
+  // un silence réglable et n'est pas lue »). Les compter comme des mots gonflerait la durée
+  // annoncée et, pire, ferait diverger le compte de l'éditeur de celui du module de rédaction.
+  // Une seule définition, ici, lue par les deux.
+  function adocNarrationSansPauses(text) {
+    return String(text || '').replace(new RegExp(ADOC_NARRATION_PAUSE_MOTIF, 'gi'), ' ');
+  }
   function adocNarrationCount(text) {
-    const mots = String(text || '').trim().split(/\s+/).filter(Boolean).length;
+    const mots = adocNarrationSansPauses(text).trim().split(/\s+/).filter(Boolean).length;
     return { mots: mots, secondes: mots ? Math.round(mots / ADOC_NARRATION_MOTS_PAR_SECONDE) : 0 };
   }
   // Le document tel qu'il part dans un fichier exporté : la narration en est RETIRÉE. Un seul
