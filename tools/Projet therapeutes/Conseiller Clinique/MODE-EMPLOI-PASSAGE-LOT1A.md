@@ -6,16 +6,19 @@ Dix minutes, sans mot de passe, sans réseau. Tout reste sur votre disque.
 
 ## Avant de commencer
 
-Vous avez besoin d'un export autonome de votre Présentation (le fichier
-`…-interactive.html` que produit « Exporter → présentation interactive »). Le vôtre est déjà en
-place :
+**Utilisez la présentation d'essai `presentation-essai-sans-citation.html`**, déjà en place dans
+le dossier ci-dessous. Elle a trois diapositives, du texte, une photo et huit blocs, et surtout
+**aucune citation** — ce qui compte, parce que l'export d'une présentation à citations est bloqué
+en mode local (voir la dernière section, « Ce que le mode local ne peut pas vérifier »).
+
+Le dossier :
 
 ```
 /Users/christophebonnet/Documents/GitHub/C-Concept-Dev-lot2-images-wt/tools/Projet therapeutes/Conseiller Clinique/banc-chutier/entrees/
 ```
 
-Vous pouvez en déposer d'autres dans ce dossier — il est ignoré par git, donc rien de ce qui s'y
-trouve n'entre jamais dans le dépôt.
+Vos propres exports y sont aussi (`…-interactive.html`, produits par « Exporter → présentation
+interactive »). Le dossier est ignoré par git : rien de ce qui s'y trouve n'entre dans le dépôt.
 
 ---
 
@@ -59,15 +62,15 @@ conséquence ici. Aucune clé n'est nécessaire pour ce qui suit.
 
 ## Étape 3 — charger votre export
 
-Dans le panneau, cliquez **« Charger un export HTML »** et choisissez votre fichier
-`…-interactive.html` dans `banc-chutier/entrees/`.
+Dans le panneau, cliquez **« Charger un export HTML »** et choisissez
+**`presentation-essai-sans-citation.html`** dans `banc-chutier/entrees/`.
 
 **Ce que vous devez voir**, dans la zone de texte du panneau :
 
 ```
-Export lu : …-interactive.html
-  5 diapositives, 19 étapes
-  5 images embarquées, reprises telles quelles — aucun appel au Worker
+Export lu : presentation-essai-sans-citation.html
+  3 diapositives, 8 étapes
+  1 images embarquées, reprises telles quelles — aucun appel au Worker
   narration : AUCUNE — un export n'en porte jamais, par construction (lot 1a).
 ```
 
@@ -96,8 +99,8 @@ lot 1a, et c'est ce que vous allez créer maintenant.
 2. Le panneau d'édition s'ouvre. Faites-le défiler jusqu'à **« Narration »**.
 
 **Vous devez voir :**
-- le libellé de l'étape, par exemple *Diapositive « L'argent : le grand tabou du couple »,
-  étape 1 sur 4.* ;
+- le libellé de l'étape — avec la présentation d'essai : *Diapositive « Ouvrir l'entretien »,
+  étape 1 sur 3.* ;
 - une zone de texte avec l'invite *Ce que vous diriez pendant cette étape.* ;
 - sous la zone, *Aucun mot pour l'instant.*
 
@@ -132,7 +135,25 @@ tient de bout en bout : écrire → enregistrer → recharger → retrouver.
 
 4. Dernier point : **exportez** (« Exporter → présentation interactive ») et vérifiez que la
    narration n'y est **pas**. C'est voulu : un export est pour le public, la narration est pour
-   vous.
+   vous. Pour le vérifier sans ouvrir le fichier, écrivez un mot reconnaissable dans la
+   narration — par exemple `NARRATION-TEST-42` — puis, dans le Terminal :
+
+```
+grep -c "NARRATION-TEST-42" ~/Downloads/*-interactive.html
+```
+
+   Il doit répondre **0**. Et sur le document de travail, qui lui doit la porter :
+
+```
+grep -c "NARRATION-TEST-42" ~/Downloads/document-de-travail-*.json
+```
+
+   Il doit répondre **1**.
+
+> **Une limite du mode local, mesurée :** sans Worker, les photos ne se réembarquent pas à
+> l'export (0 image téléchargée, 1 échec). Le fichier produit est complet pour le texte et pour
+> la narration — c'est ce que ce passage vérifie — mais ses photos manquent. Un export destiné à
+> être montré se fait depuis le site, connecté.
 
 ---
 
@@ -156,6 +177,31 @@ le Worker échoue exactement comme avant** :
 
 Les images de votre présentation s'affichent parce qu'un export autonome **porte ses images en
 clair** : elles viennent du fichier, pas du réseau.
+
+---
+
+## Ce que le mode local ne peut pas vérifier
+
+**L'export d'une présentation qui porte des citations.** Si vous chargez « L'argent dans le
+couple » et cliquez « Exporter », l'application refuse :
+
+```
+Export bloqué — problème(s) de qualité à corriger avant export :
+Citation invalide : passage introuvable pour 8 référence(s) (citation-1 à citation-8).
+```
+
+**Ce refus est juste, et il ne faut pas le contourner.** Le contrôle qualité vérifie chaque
+citation contre le passage exact de votre bibliothèque. Or un export HTML autonome ne porte
+**pas** ces passages : il porte les identifiants et les libellés, jamais le texte source
+(mesuré : ni `exactText`, ni `contentChecksum`, ni snapshot). Un document rouvert depuis un
+export arrive donc sans aucun passage à comparer, et le contrôle dit à juste titre qu'il ne
+peut rien vérifier. Les passages ne vivent que dans la base, atteinte par le Worker.
+
+Conséquence pratique : **une présentation à citations s'exporte depuis le site, connectée** —
+jamais en mode local. C'est pour cela que la présentation d'essai n'en porte aucune.
+
+Trois autres choses que le mode local ne vérifie pas : l'enregistrement dans « Mes créations »,
+le réembarquement des photos à l'export, et tout ce qui demande une génération.
 
 ---
 
