@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useMemo, useState, type JSX } from "react";
-import type { CasDouteux, DescriptionBibliotheque, SchemaBibliotheque, VueBibliotheque } from "@lienotheque/contrats";
+import type {
+  CasDouteux,
+  DescriptionBibliotheque,
+  SchemaBibliotheque,
+  Travail,
+  TypeDeContenu,
+  VueBibliotheque,
+} from "@lienotheque/contrats";
 import { EnTete } from "./EnTete.js";
 import { chargerBibliothequeDemonstration, chargerDonnees } from "./donnees/chargement.js";
 import { chargerVue } from "./donnees/vue.js";
@@ -13,6 +20,7 @@ import { Reglages } from "./pages/Reglages.js";
 import { Verifier, type Decision } from "./pages/Verifier.js";
 import { Creer } from "./pages/Creer.js";
 import { Organisation } from "./pages/Organisation.js";
+import { Depot, type ActionTravail } from "./pages/Depot.js";
 import { Prototype } from "./pages/Prototype.js";
 import { chargerModeles } from "./donnees/modeles.js";
 import {
@@ -23,6 +31,11 @@ import {
   estBureau,
   lireBibliotheque,
   retenirBibliotheque,
+  agirSurTravail,
+  choisirFichiers,
+  deposer as deposerChezLHote,
+  faireTourner,
+  travauxDe,
 } from "./pont/bureau.js";
 import { useTheme } from "./theme/useTheme.js";
 
@@ -50,6 +63,10 @@ export function App(): JSX.Element {
   const modeles = useMemo(() => chargerModeles(), []);
   /** Ce qui s'est passé à la dernière tentative d'ouverture, quand elle n'a mené à rien. */
   const [echecOuverture, setEchecOuverture] = useState<string | undefined>(undefined);
+  /** La file de la bibliothèque ouverte, relue régulièrement : c'est l'hôte qui la tient. */
+  const [file, setFile] = useState<readonly Travail[]>([]);
+  const [accompagnements, setAccompagnements] = useState<readonly { nom: string; contenu: TypeDeContenu }[]>([]);
+  const [refuses, setRefuses] = useState<readonly { nom: string; raison: string }[]>([]);
 
   useEffect(() => {
     const suivre = (): void => setRoute(lireRoute(globalThis.location?.hash ?? ""));
@@ -107,6 +124,30 @@ export function App(): JSX.Element {
     aller({ ecran: "organisation" });
   };
 
+  /** La bibliothèque ouverte. C'est elle dont on montre la file. */
+  const courante = creees[creees.length - 1];
+
+  // La file est à l'hôte : on la relit, on ne la devine pas. Toutes les deux secondes suffisent —
+  // un traitement se compte en minutes, et un écran qui se redessine sans cesse fatigue.
+  useEffect(() => {
+    if (courante === undefined || !estBureau()) return undefined;
+    let vivant = true;
+    void faireTourner(courante.racine).catch((erreur: unknown) => {
+      setEchecOuverture(erreur instanceof Error ? erreur.message : String(erreur));
+    });
+    const relire = (): void => {
+      void travauxDe(courante.racine).then((travaux) => {
+        if (vivant) setFile(travaux);
+      });
+    };
+    relire();
+    const battement = globalThis.setInterval(relire, 2000);
+    return () => {
+      vivant = false;
+      globalThis.clearInterval(battement);
+    };
+  }, [courante]);
+
   /** Ouvre une bibliothèque qui existe déjà. L'hôte la retient, pour la retrouver au prochain
    *  lancement ; un dossier qui n'en porte pas le dit, au lieu d'ouvrir un écran vide. */
   const ouvrir = async (): Promise<void> => {
@@ -128,7 +169,23 @@ export function App(): JSX.Element {
   };
 
   /** La dernière bibliothèque créée : celle qu'on organise au sortir de l'assistant. */
-  const derniere = creees[creees.length - 1];
+  const derniere = courante;
+
+  /** Dépose des fichiers : l'hôte copie les originaux et met la file à jour. */
+  const deposerDesFichiers = async (racine: string): Promise<void> => {
+    const chemins = await choisirFichiers("Quels fichiers ajouter ?");
+    if (chemins.length === 0) return;
+    const arrivee = await deposerChezLHote(racine, chemins);
+    setFile(arrivee.travaux);
+    setAccompagnements((anciens) => [...anciens, ...arrivee.accompagnements]);
+    setRefuses(arrivee.refuses);
+  };
+
+  /** Met un travail en pause, le reprend, ou l'annule. L'hôte décide, l'écran demande. */
+  const agir = async (racine: string, id: string, action: ActionTravail): Promise<void> => {
+    const apres = await agirSurTravail(racine, id, action);
+    setFile((anciens) => anciens.map((travail) => (travail.id === apres.id ? apres : travail)));
+  };
 
   /** Une version de plus du schéma. L'hôte réécrit la description : la page n'écrit jamais. */
   const organiser = async (schema: SchemaBibliotheque): Promise<void> => {
@@ -140,6 +197,27 @@ export function App(): JSX.Element {
 
   const ecran = ((): JSX.Element | null => {
     if (route.ecran === "reglages") return <Reglages theme={theme} onThemeChange={changerTheme} />;
+    if (route.ecran === "depot")
+      return derniere === undefined ? (
+        <PremierLancement
+          theme={theme}
+          onCreer={() => aller({ ecran: "creer" })}
+          onFichiers={deposer}
+          onOuvrir={estBureau() ? () => void ouvrir() : undefined}
+          echec={echecOuverture}
+        />
+      ) : (
+        <Depot
+          description={derniere.description}
+          travaux={file}
+          accompagnements={accompagnements}
+          refuses={refuses}
+          onParcourir={estBureau() ? () => void deposerDesFichiers(derniere.racine) : undefined}
+          onFichiers={deposer}
+          onAction={(id, action) => void agir(derniere.racine, id, action)}
+          onVerifier={() => aller({ ecran: "verifier" })}
+        />
+      );
     if (route.ecran === "organisation")
       return derniere === undefined ? (
         <PremierLancement
@@ -153,7 +231,7 @@ export function App(): JSX.Element {
         <Organisation
           description={derniere.description}
           onSchema={organiser}
-          onValider={() => aller(ACCUEIL)}
+          onValider={() => aller({ ecran: "depot" })}
           exemples={exemples}
         />
       );

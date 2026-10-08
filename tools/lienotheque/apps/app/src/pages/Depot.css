@@ -1,0 +1,163 @@
+/* Dépôt et traitement (maquette 3).
+   Une zone de dépôt, la file, et deux phrases qui comptent : la fenêtre peut se fermer, les
+   originaux ne sont jamais modifiés. Couleurs et pas de grille uniquement par les --ln-*. */
+
+.ln-traitement {
+  display: grid;
+  gap: calc(var(--ln-grid) * 2);
+  padding: calc(var(--ln-grid) * 2) calc(var(--ln-grid) * 3);
+}
+
+.ln-traitement__tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--ln-grid) * 2);
+}
+
+.ln-traitement__compteur {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 0.75);
+  margin: 0;
+  padding: calc(var(--ln-grid) * 0.5) calc(var(--ln-grid) * 1.25);
+  border: 1px solid var(--ln-border-decorative);
+  border-radius: var(--ln-radius);
+  font-size: 13px;
+}
+
+.ln-traitement__barre {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: calc(var(--ln-grid) * 2);
+}
+
+.ln-traitement__barre .ln-muted {
+  margin: 0;
+}
+
+.ln-traitement__vide,
+.ln-traitement__pied {
+  margin: 0;
+  color: var(--ln-text-secondary);
+  font-size: 14px;
+}
+
+.ln-traitement__refuses {
+  display: grid;
+  gap: calc(var(--ln-grid) * 0.5);
+  margin: 0;
+  padding: calc(var(--ln-grid) * 1.5) calc(var(--ln-grid) * 2);
+  border-radius: var(--ln-radius);
+  background: var(--ln-warning-background);
+  color: var(--ln-warning-text);
+  font-size: 14px;
+  list-style: none;
+}
+
+.ln-traitement__refuses li {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 0.75);
+}
+
+/* La file. Une ligne par fichier : ce qu'elle est, où elle en est, ce qu'on peut en faire. */
+.ln-file {
+  display: grid;
+  gap: calc(var(--ln-grid));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ln-ligne {
+  display: grid;
+  grid-template-columns: auto minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1.4fr) auto;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 2);
+  padding: calc(var(--ln-grid) * 1.5) calc(var(--ln-grid) * 2);
+  border: 1px solid var(--ln-border-decorative);
+  border-radius: var(--ln-radius);
+  background: var(--ln-surface);
+  color: var(--ln-text-primary);
+}
+
+@media (max-width: 1000px) {
+  .ln-ligne {
+    grid-template-columns: auto minmax(0, 1fr);
+    row-gap: calc(var(--ln-grid));
+  }
+
+  .ln-ligne__etat,
+  .ln-ligne__fil,
+  .ln-ligne__faire {
+    grid-column: 2;
+  }
+}
+
+/* Une ligne en alerte se lit à son icône et à son texte, jamais à sa seule teinte. */
+.ln-ligne--alerte {
+  border-color: var(--ln-warning-text);
+}
+
+.ln-ligne__quoi {
+  min-width: 0;
+}
+
+.ln-ligne__nom {
+  margin: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.ln-ligne__quoi .ln-muted,
+.ln-ligne__panne {
+  margin: calc(var(--ln-grid) * 0.25) 0 0 0;
+  font-size: 13px;
+}
+
+.ln-ligne__panne {
+  color: var(--ln-warning-text);
+}
+
+.ln-ligne__etat {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 0.75);
+  margin: 0;
+  font-size: 14px;
+  color: var(--ln-text-secondary);
+}
+
+.ln-ligne__fil {
+  min-width: 0;
+}
+
+.ln-ligne__faire {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--ln-grid));
+  justify-self: end;
+}
+
+.ln-traitement__accompagnements {
+  display: grid;
+  gap: calc(var(--ln-grid) * 0.75);
+}
+
+.ln-traitement__accompagnements .ln-muted {
+  margin: 0;
+  max-width: 70ch;
+}
+
+.ln-traitement__liste {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--ln-grid) * 0.75);
+  margin: calc(var(--ln-grid) * 0.5) 0 0 0;
+  padding: 0;
+  list-style: none;
+}

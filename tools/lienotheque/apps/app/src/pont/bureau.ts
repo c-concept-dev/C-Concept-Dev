@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { DescriptionBibliotheque, ReglagesHote } from "@lienotheque/contrats";
+import { ArriveeDeFichiers, DescriptionBibliotheque, ReglagesHote, Travail } from "@lienotheque/contrats";
 
 /** Le pont vers l'hôte de bureau (PLT-02).
  *
@@ -71,4 +71,33 @@ export async function bibliothequesRetenues(): Promise<readonly { racine: string
     }),
   );
   return lues.filter((lue) => lue !== undefined);
+}
+
+/** Ouvre le sélecteur de fichiers du système et rend les chemins choisis.
+ *
+ *  Des chemins, et non des fichiers : l'hôte copie depuis le disque, et un fichier choisi dans la
+ *  page n'a pas de chemin qu'il puisse suivre. */
+export async function choisirFichiers(titre: string): Promise<readonly string[]> {
+  const choisis = await open({ directory: false, multiple: true, title: titre });
+  return Array.isArray(choisis) ? choisis : typeof choisis === "string" ? [choisis] : [];
+}
+
+/** Dépose des fichiers dans une bibliothèque. L'hôte copie les originaux et met la file à jour. */
+export async function deposer(racine: string, chemins: readonly string[]): Promise<ArriveeDeFichiers> {
+  return ArriveeDeFichiers.parse(await invoke("deposer", { racine, chemins: [...chemins] }));
+}
+
+/** Met la file d'une bibliothèque en route. Deux appels pour la même ne font qu'un roulement. */
+export async function faireTourner(racine: string): Promise<boolean> {
+  return invoke<boolean>("faire_tourner", { racine });
+}
+
+/** La file d'une bibliothèque, telle que l'écran de traitement la montre. */
+export async function travauxDe(racine: string): Promise<readonly Travail[]> {
+  return Travail.array().parse(await invoke("travaux", { racine }));
+}
+
+/** Met un travail en pause, le reprend, ou l'annule (JOB-08). */
+export async function agirSurTravail(racine: string, id: string, action: "pause" | "reprendre" | "annuler"): Promise<Travail> {
+  return Travail.parse(await invoke("agir_sur_travail", { racine, id, action }));
 }

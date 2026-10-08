@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { Horodatage, Identifiant, RefOutil } from "./commun.js";
-import { PointReprise } from "./travail.js";
+import { PointReprise, Travail } from "./travail.js";
+import { TypeDeContenu } from "./bibliotheque.js";
 import limites from "../limites.json" with { type: "json" };
 
 /** L'échange entre l'hôte et le processus qui exécute un travail (JOB-01 à JOB-09, PLT-02).
@@ -170,3 +171,21 @@ export const ReglagesHote = z
   })
   .strict();
 export type ReglagesHote = z.infer<typeof ReglagesHote>;
+
+/** Ce qu'un dépôt de fichiers a donné (JOB-01, JOB-04).
+ *
+ *  Trois listes, parce que trois choses différentes arrivent : des travaux qui vont partir, des
+ *  médias qui attendent le document qui les nommera, et des fichiers qu'on n'a pas su lire. Les
+ *  confondre ferait croire qu'un enregistrement déposé seul va être traité, ou qu'un fichier
+ *  refusé l'a été. */
+export const ArriveeDeFichiers = z
+  .object({
+    travaux: z.array(Travail),
+    /** Déposés et copiés, mais qui ne se lisent pas seuls : ils seront lus avec leur document. */
+    accompagnements: z.array(z.object({ nom: z.string().min(1), contenu: TypeDeContenu }).strict()),
+    /** Refusés, et pourquoi. Jamais avalés : on dit lesquels, et ce qui cloche. */
+    refuses: z.array(z.object({ nom: z.string().min(1), raison: z.string().min(1) }).strict()),
+    avertissements: z.array(z.string()).default([]),
+  })
+  .strict();
+export type ArriveeDeFichiers = z.infer<typeof ArriveeDeFichiers>;
