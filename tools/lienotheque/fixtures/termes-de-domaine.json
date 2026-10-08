@@ -3,6 +3,7 @@
   "zones": [
     { "chemin": "packages/contrats/src" },
     { "chemin": "packages/jetons/src" },
+    { "chemin": "packages/noyau/src" },
     { "chemin": "apps/worker/src" },
     { "chemin": "apps/app/src", "sauf": ["apps/app/src/donnees"] }
   ],
