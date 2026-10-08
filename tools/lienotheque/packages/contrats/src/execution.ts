@@ -92,8 +92,20 @@ export const Salutation = z
   .strict();
 export type Salutation = z.infer<typeof Salutation>;
 
+/** Où en est un travail long (JOB-03).
+ *
+ *  `total` dit combien d'unités en tout, quand le processus le sait — il ne le sait qu'après avoir
+ *  ouvert le document. Sans lui, l'écran ne peut afficher qu'un pourcentage ; avec lui, il écrit
+ *  « 194 / 286 », qui se lit et se vérifie. Il vient du processus et de nulle part ailleurs :
+ *  déduire le total du rapport entre le rang et le pourcentage donnerait un nombre qui tremble. */
 export const Progression = z
-  .object({ type: z.literal("progression"), ...enveloppe, progression: z.number().min(0).max(1), pointReprise: PointReprise.optional() })
+  .object({
+    type: z.literal("progression"),
+    ...enveloppe,
+    progression: z.number().min(0).max(1),
+    pointReprise: PointReprise.optional(),
+    total: z.number().int().positive().optional(),
+  })
   .strict();
 export type Progression = z.infer<typeof Progression>;
 
