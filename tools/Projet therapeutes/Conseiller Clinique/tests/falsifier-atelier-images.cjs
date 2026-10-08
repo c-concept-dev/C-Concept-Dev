@@ -200,6 +200,30 @@ const ESSAIS = [
     de: '    if (contenu <= Math.ceil(hauteurCapture * (tolerance || TOLERANCE_DEBORDEMENT))) return false;',
     vers: '    if (true) return false;',
     attendu: 'une image plus courte que son contenu serait livrée en silence' },
+
+  // ── Les trois comportements ajoutés le 8 octobre ──────────────────────────────────────────
+  // Le plafond du bandeau photo reste un POURCENTAGE : il grandit donc avec la carte, et ne
+  // plafonne rien du tout. C'est l'erreur qu'il aurait été le plus naturel de commettre.
+  { nom: 'le plafond du bandeau photo est posé en pourcentage, pas en pixels',
+    fichier: 'moteur',
+    de: "    '[data-atelier-capture][data-atelier-plafond-photo] .adoc-sc-card-img{max-height:var(--atelier-plafond-photo);}';",
+    vers: "    '[data-atelier-capture][data-atelier-plafond-photo] .adoc-sc-card-img{max-height:25%;}';",
+    attendu: 'le plafond suit la carte agrandie et ne plafonne rien' },
+
+  // « Bloc courant seul » masque avec la classe du lecteur, qui CONSERVE la mise en page : la
+  // carte reste aussi haute qu'un empilement complet et l'option ne sert à rien. C'est la même
+  // méprise que celle qui avait rendu `mesurerHauteurDepliee` fausse.
+  { nom: 'bloc courant seul masque sans retirer de la mise en page',
+    fichier: 'moteur',
+    de: "      blocs[i].style.display = (i === rang) ? '' : 'none';",
+    vers: "      blocs[i].style.visibility = (i === rang) ? '' : 'hidden';",
+    attendu: 'la carte reste aussi haute, et l\'option ne raccourcit rien' },
+
+  { nom: 'le décodage des photos n\'est plus attendu',
+    fichier: 'moteur',
+    de: '  async function attendreImages(inner) {\n    var imgs = Array.prototype.slice.call(inner.querySelectorAll(\'img\'));',
+    vers: '  async function attendreImages(inner) {\n    if (true) return { attendues: 0, pretes: 0 };\n    var imgs = Array.prototype.slice.call(inner.querySelectorAll(\'img\'));',
+    attendu: 'une photo non décodée occupe 0 px et le bandeau se mesure à zéro' },
 ];
 
 function lancer(test) {

@@ -780,7 +780,162 @@ les quatre encadrés finaux sont entiers. Le relevé lui donnera, étape par ét
 contenu et celle de l'image — et refusera de produire une image trop courte plutôt que de la lui
 livrer en silence.
 
-## 13. Ce que ce lot ne livre pas
+## 13. Le bandeau photo et l'empilement des blocs — mesures du 8 octobre
+
+Christophe a vérifié le correctif de troncature sur sa vraie présentation en (d) : dernier bloc
+entier, plus de doublons, relevé juste. Il a relevé que les hauteurs réelles vont de 1,52 à 4,39
+fois le cadre — donc que **(d) ne convient pas à ce contenu** — et nommé la cause restante : « la
+photo plafonnée à 45 % de la hauteur de la carte grandit avec le contenu ».
+
+Son export est dans `banc-chutier/entrees/` (dossier ignoré par git ; rien de ce document n'entre
+dans le dépôt). Tout ce qui suit est mesuré sur ses 5 diapositives et 19 étapes, sans connexion ni
+appel réseau : `tests/mesure-photo-et-blocs.cjs`.
+
+### Un préalable qu'il a fallu corriger avant de mesurer quoi que ce soit
+
+Le moteur n'attendait pas le décodage des photos. Un `<img>` non décodé occupe **0 px de haut** :
+la hauteur du contenu se mesure trop courte, le bandeau photo se mesure à zéro, et la capture
+montre un trou là où la photo devait être. Avec des data-URI cela passait presque toujours ; avec
+une photo servie par le réseau, non. C'est le même genre de défaut que la troncature — un nombre
+crédible et faux — et il aurait faussé précisément la mesure demandée ici. Corrigé
+(`attendreImages`, borné à 3 s pour qu'une photo cassée ne suspende pas un rendu de dix-neuf
+étapes), éprouvé sur une image que le serveur de test retarde de 300 ms, et falsifié.
+
+### Passe A — les quatre réglages tels quels, par diapositive
+
+Hauteurs en pixels de **sortie** (cadre de référence 1920×1080), comme les relevés de Christophe.
+Le rapport est la hauteur divisée par 1080. Le texte est le corps de texte en % de la hauteur du
+cadre. La photo est mesurée **au moment de la capture**, scène déjà agrandie — mesurée avant, elle
+serait donnée plus petite qu'à l'image.
+
+| réglage | diapo | image | rapport | verdict | photo | % cadre | % image | texte |
+|---|---|---|---|---|---|---|---|---|
+| **(a) fidèle 1422×800** | 1 | 1920×1080 | 1,00 | aucun | 344 px | 43 % | 43 % | 1,88 % |
+| | 2 | 1920×1080 | 1,00 | aucun | 344 px | 43 % | 43 % | 1,88 % |
+| | 3 | 1920×1080 | 1,00 | aucun | 344 px | 43 % | 43 % | 1,88 % |
+| | **4** | 1920×3008 | **2,79** | scission | **924 px** | **116 %** | 42 % | 1,88 % |
+| | 5 | 1920×1080 | 1,00 | aucun | 344 px | 43 % | 43 % | 1,88 % |
+| **(b) fidèle 960×540** | 1 | 1920×1080 | 1,00 | aucun | 227 px | 42 % | 42 % | 2,78 % |
+| | 2 | 1920×1364 | 1,26 | défilement | 291 px | 54 % | 43 % | 2,78 % |
+| | 3 | 1920×1244 | 1,15 | défilement | 264 px | 49 % | 42 % | 2,78 % |
+| | **4** | 1920×3766 | **3,49** | scission | 616 px | **114 %** | 33 % | 2,78 % |
+| | 5 | 1920×1154 | 1,07 | défilement | 243 px | 45 % | 42 % | 2,78 % |
+| **(c) fidèle, typo ×1,6** | 1 | 1920×1161 | 1,07 | défilement | 371 px | 46 % | 43 % | 3,00 % |
+| | 2 | 1920×1387 | 1,28 | défilement | 446 px | 56 % | 43 % | 3,00 % |
+| | 3 | 1920×1258 | 1,17 | défilement | 403 px | 50 % | 43 % | 3,00 % |
+| | **4** | 1920×3837 | **3,55** | scission | **924 px** | **116 %** | 33 % | 3,00 % |
+| | 5 | 1920×1202 | 1,11 | défilement | 384 px | 48 % | 43 % | 3,00 % |
+| **(d) vidéo 960×540 ×1,4** | 1 | 1920×1654 | 1,53 | défilement | 356 px | 66 % | 43 % | 3,89 % |
+| | 2 | 1920×1940 | 1,80 | défilement | 420 px | 78 % | 43 % | 3,89 % |
+| | 3 | 1920×1780 | 1,65 | défilement | 384 px | 71 % | 43 % | 3,89 % |
+| | **4** | 1920×4792 | **4,44** | scission | 616 px | **114 %** | 26 % | 3,89 % |
+| | 5 | 1920×2196 | 2,03 | scission | 478 px | 89 % | 44 % | 3,89 % |
+
+Temps et poids : (a) 364 ms/image, 22,9 Mo ; (b) 377 ms, 25,4 Mo ; (c) 391 ms, 26,9 Mo ;
+(d) 401 ms, 35,7 Mo.
+
+**Trois choses que ce tableau établit.**
+
+1. La photo occupe **43 % du cadre quand rien ne déborde**, et jusqu'à **116 % quand la scène est
+   agrandie** : une photo plus haute que le cadre qu'elle illustre. C'est exactement le mécanisme
+   nommé par Christophe, mesuré. La colonne « % image » reste à 42-44 % partout : la photo garde
+   sa part de la *carte*, ce qui est précisément le problème — c'est la carte qui grandit.
+2. La diapositive 4 (le questionnaire) déborde dans **les quatre réglages**, de 2,79 à 4,44 fois le
+   cadre. Aucun réglage de scène ou de typographie ne la fera tenir : son contenu est trop long,
+   point.
+3. (a) est le seul réglage où quatre diapositives sur cinq tiennent exactement dans le cadre — au
+   prix d'un corps de texte à **1,88 %** de la hauteur, contre 3,89 % en (d), soit un peu plus du
+   double. C'est l'arbitrage que (d) avait tranché en octobre, et il tient toujours : (d) est
+   lisible, mais il déborde.
+
+**Écart avec tes propres relevés.** Tu avais noté 1636, 1762, 1916, 4746, 2170 ; je mesure 1654,
+1940, 1780, 4792, 2196. Trois des cinq tombent à 1-2 % près ; les diapositives 2 et 3 s'écartent de
++10 % et −7 %. **Je n'ai pas établi la cause de cet écart** — il joue dans les deux sens, ce qu'une
+simple différence de décodage de photo n'expliquerait pas. Il ne change aucune conclusion (les
+cinq rapports restent entre 1,5 et 4,4), mais je ne le mets pas sur le compte du hasard : si tu
+veux, je le cherche avant la suite.
+
+### Passe B — option 1 : un plafond ABSOLU du bandeau photo, à 25 % du cadre
+
+La différence avec `max-height:45%` n'est pas la valeur, c'est l'unité. Un plafond en pourcentage
+suit la carte ; un plafond en **pixels**, calculé une fois sur la hauteur du cadre, ne la suit pas.
+**Option mesurée, pas appliquée : désactivée par défaut.**
+
+| réglage | plafond | photo avant → après | diapositive la plus haute | étapes qui débordent | rapport maximal |
+|---|---|---|---|---|---|
+| (a) fidèle | 200 px | 344-924 → 200 | 3008 → **1947** px (−1061) | 4 → 4 /19 | 2,79 → **1,80** |
+| (b) 960×540 | 135 px | 227-616 → 135 | 3766 → **2802** px (−964) | **15 → 4** /19 | 3,49 → **2,59** |
+| (c) typo ×1,6 | 200 px | 371-924 → 200 | 3837 → **2858** px (−979) | **19 → 4** /19 | 3,55 → **2,65** |
+| (d) vidéo | 135 px | 356-616 → 135 | 4792 → **3830** px (−962) | 19 → 19 /19 | 4,44 → **3,55** |
+
+Les diapositives 1 à 3 et 5 regagnent le plus : en (b) et (c), elles retombent **exactement dans
+le cadre** (1080 px), ce qui fait passer les étapes débordantes de 15 et 19 à 4 — les quatre du
+questionnaire. En (d), elles raccourcissent de 444 à 686 px mais restent au-dessus de 1080 : le
+plafond photo seul ne suffit pas à faire tenir (d).
+
+### Passe C — option 2 : « bloc courant seul » en mode vidéo (avec le plafond photo)
+
+Chaque étape n'affiche que son bloc, plus le titre de la diapositive et le bandeau photo plafonné.
+Les blocs précédents sont retirés de la **mise en page** (`display:none`, et non la classe du
+lecteur, qui masque en conservant la place). **Option mesurée, pas appliquée : désactivée par
+défaut.**
+
+| | (d) empilé | (d) + plafond + bloc seul |
+|---|---|---|
+| étapes qui débordent | **19 / 19** | **2 / 19** |
+| rapport maximal | 4,44 | **2,84** |
+| hauteurs par diapositive | 1654, 1940, 1780, 4792, 2196 | 1080, 1080, 1080, 1080-3066, 1080-1162 |
+| poids total | 35,7 Mo | **12,5 Mo** |
+| temps par image | 400 ms | **162 ms** |
+
+Les deux étapes qui débordent encore : la diapositive 4 étape 4 — **le questionnaire seul fait
+2,84 fois le cadre** — et la diapositive 5 étape 3 (1,08, dans le bruit). Tout le reste tient
+exactement dans 1920×1080. Le corps de texte reste à 3,89 % : l'option ne touche pas à la
+typographie.
+
+### Passe D — ce que cela change pour le fondu entre étapes (CDC Ef1)
+
+Ef1 suppose un empilement cumulatif. Mesure : part des pixels qui changent d'une étape à la
+suivante, dans la même diapositive.
+
+| | empilé | bloc courant seul |
+|---|---|---|
+| moyenne sur 14 paires | **3,0 %** | **7,1 %** |
+| étendue | 0,4 % → 10,5 % | 1,8 % → 16,4 % |
+| paires de hauteurs différentes | 0 sur 14 | **3 sur 14** |
+
+Deux constats, et une limite.
+
+- Le bloc seul change **un peu plus du double** de pixels, pas dix fois plus : le bandeau photo
+  plafonné et le titre de la diapositive restent en place et occupent l'essentiel du cadre. Un
+  fondu croisé n'y devient donc pas un changement de diapositive ; il reste un remplacement de la
+  zone de texte. **Ef1 est affaibli, pas cassé.**
+- Mais **3 paires sur 14 ont des hauteurs différentes** en bloc seul, et un fondu croisé entre
+  deux images de hauteurs différentes n'est pas défini. C'est un point à trancher avant d'adopter
+  l'option : soit on normalise la hauteur par diapositive, soit le fondu doit savoir quoi faire.
+- Limite : « 7 % de pixels changés » ne dit pas comment cela se voit. C'est la planche qui le dit,
+  et c'est toi qui juges.
+
+### Mesuré par script / à juger par Christophe
+
+**Mesuré :** tout ce qui précède, sur ta présentation réelle ; 23/23 contrôles, dont trois
+nouveaux (le plafond absolu mord et il est absent par défaut ; « bloc courant seul » ne montre
+qu'un bloc, garde le titre, et raccourcit réellement la carte ; le décodage des photos est attendu,
+et une image cassée ne bloque pas). Empreinte du schéma d'outil inchangée.
+
+**À juger par toi, sur la planche :**
+
+1. Le bandeau photo à 25 % du cadre : est-ce encore une illustration, ou une vignette ? Si 25 %
+   est trop bas, la valeur est un réglage — je peux mesurer 30 ou 35 %.
+2. « Bloc courant seul » : un bloc à la fois, est-ce la bonne lecture pour une vidéo, ou perd-on
+   le fil du raisonnement en ne voyant plus ce qui précède ?
+3. La diapositive 4 : aucune option ne la fait tenir (2,84 fois le cadre même en bloc seul, parce
+   que le questionnaire est un seul bloc). Elle relève de la scission, donc du lot 7 — ou d'une
+   coupe dans le contenu, qui est ta décision, pas la mienne.
+4. Si tu retiens « bloc courant seul », il faut décider ce que fait le fondu entre deux étapes de
+   hauteurs différentes (3 paires sur 14).
+
+## 14. Ce que ce lot ne livre pas
 
 - **L'interface du chutier dans l'application** (V2 côté produit) : le brief demandait le moteur
   sans interface de banc, et c'est ce qui est livré. Les vignettes existent dans la page d'essai.

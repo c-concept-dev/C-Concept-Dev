@@ -28,9 +28,23 @@ const SNAPDOM_SHA256 = '0932f35f12bc0137f9857cc965949d69afb986333fd5884c0ffeaf92
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
                 '.mjs': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8',
                 '.css': 'text/css; charset=utf-8' };
+// Un PNG de 40x40, opaque, en dur : le contrôle 22 a besoin d'une image que le serveur retarde
+// volontairement, pour éprouver que le moteur attend bien le décodage. `__inexistante__` répond
+// 404, pour éprouver qu'une image cassée ne suspend pas un rendu.
+const PNG_40 = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAYAAACM/rhtAAAAJklEQVRo3u3NMQEAAAgDoK0//6'
+  + '9BOEBu7QEAAAAAAAAAAAAAAPAbHwkAASZbLbIAAAAASUVORK5CYII=', 'base64');
 function servir() {
   return new Promise((ok) => {
     const s = http.createServer((q, r) => {
+      const chemin = decodeURIComponent(q.url.split('?')[0]);
+      if (chemin === '/tests/__lente__.png') {
+        return setTimeout(() => {
+          r.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'no-store' });
+          r.end(PNG_40);
+        }, 300);
+      }
+      if (chemin === '/tests/__inexistante__.png') { r.writeHead(404); return r.end(); }
       const p = path.join(RACINE, decodeURIComponent(q.url.split('?')[0]));
       if (!p.startsWith(RACINE) || !fs.existsSync(p) || fs.statSync(p).isDirectory()) { r.writeHead(404); return r.end(); }
       r.writeHead(200, { 'content-type': TYPES[path.extname(p)] || 'application/octet-stream',
@@ -779,7 +793,187 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       + politique.lentEtCourt.verdict + ' (' + politique.lentEtCourt.vitesse_px_par_s + ' px/s)');
     pass('politique de débordement : zone morte, seuil réglable, et la durée l\'emporte sur le rapport quand elle est connue.');
 
-    // ── 20. Aucune erreur de page pendant tout cela ───────────────────────────────────────────
+    // ── 20. LE PLAFOND ABSOLU DU BANDEAU PHOTO — sur option, et à l'arrêt par défaut ─────────
+    // Christophe a nommé la cause restante le 8 octobre : « la photo plafonnée à 45 % de la
+    // hauteur de la carte grandit avec le contenu ». Un plafond en POURCENTAGE suit la carte ;
+    // un plafond en PIXELS ne la suit pas. Le contrôle éprouve les deux affirmations.
+    const plafond = await page.evaluate(async (d) => {
+      const A = window.AtelierImages;
+      const sans = await A.rendreImages(d, {});
+      const avec = await A.rendreImages(d, { plafondPhoto: 0.25 });
+      // Le témoin : le MÊME document dans une scène qui le contient sans agrandissement. La
+      // photo y occupe sa part nominale, 45 % du cadre. C'est la comparaison des deux qui
+      // établit « la photo grandit avec le contenu », et non un seuil choisi au hasard.
+      const tient = await A.rendreImages(d, { mode: 'fidele' });
+      const haut = (r) => Math.max.apply(null, r.images.map((im) => im.hauteur));
+      return {
+        sansDefaut: sans.plafond_photo, sansPx: sans.plafond_photo_px,
+        avecDefaut: avec.plafond_photo, avecPx: avec.plafond_photo_px,
+        calculeSans: sans.images.map((im) => im.photo_plafond_calcule),
+        calculeAvec: avec.images.map((im) => im.photo_plafond_calcule),
+        photoSans: sans.images.map((im) => im.photo_px),
+        photoAvec: avec.images.map((im) => im.photo_px),
+        pcCadreSans: sans.images.map((im) => im.photo_pc_cadre),
+        pcCadreTient: tient.images.map((im) => im.photo_pc_cadre),
+        verdictsTient: tient.images.map((im) => im.debordement_verdict),
+        hautSans: haut(sans), hautAvec: haut(avec), scene: sans.scene,
+      };
+    }, ILLUSTREE);
+    assert.equal(plafond.sansDefaut, null, 'le plafond doit être ABSENT par défaut');
+    assert.equal(plafond.sansPx, 0, 'et sa valeur en pixels nulle');
+    assert.ok(plafond.calculeSans.every((x) => x === '45%'),
+      'sans option, le lecteur garde son max-height en POURCENTAGE : ' + plafond.calculeSans.join(','));
+    assert.equal(plafond.avecPx, Math.round(0.25 * plafond.scene.hauteur),
+      'avec option, le plafond vaut 25 % de la hauteur du CADRE en pixels');
+    assert.ok(plafond.calculeAvec.every((x) => x === plafond.avecPx + 'px'),
+      'et la règle appliquée est en pixels : ' + plafond.calculeAvec.join(','));
+    // LA DÉMONSTRATION DU DÉFAUT NOMMÉ PAR CHRISTOPHE, en deux points. Dans une scène qui
+    // contient le document, la photo occupe sa part nominale de 45 % du cadre. Dans une scène
+    // qu'il faut agrandir, elle dépasse cette part — puisque 45 % s'appliquent à une carte
+    // devenue plus haute que le cadre. Sur sa vraie présentation, diapositive 4, elle atteint
+    // 116 % de la hauteur du cadre : une photo plus haute que l'image qu'elle illustre.
+    assert.ok(plafond.verdictsTient.every((v) => v === 'aucun'),
+      'le témoin doit être une scène où RIEN ne déborde, sinon il ne vaut rien : '
+      + plafond.verdictsTient.join(','));
+    plafond.pcCadreTient.forEach((x) => {
+      assert.ok(Math.abs(x - 45) <= 3, 'sans agrandissement, la photo occupe 45 % du cadre, '
+        + 'comme la règle du lecteur l\'annonce : ' + x + ' %');
+    });
+    assert.ok(Math.max.apply(null, plafond.pcCadreSans) > 50,
+      'avec agrandissement, elle doit dépasser nettement ces 45 %, sinon ce contrôle ne démontre '
+      + 'rien : ' + plafond.pcCadreSans.join(','));
+    assert.ok(Math.max.apply(null, plafond.photoAvec) <= plafond.avecPx,
+      'avec plafond, aucune photo ne doit dépasser ' + plafond.avecPx + ' px : ' + plafond.photoAvec.join(','));
+    assert.ok(plafond.hautAvec < plafond.hautSans,
+      'plafonner la photo doit raccourcir l\'image : ' + plafond.hautSans + ' → ' + plafond.hautAvec);
+    console.log('      photo : ' + plafond.pcCadreTient[0] + ' % du cadre dans une scène qui contient le '
+      + 'document, jusqu\'à ' + Math.max.apply(null, plafond.pcCadreSans) + ' % dans une scène agrandie ('
+      + Math.max.apply(null, plafond.photoSans) + ' px) ; plafonnée : ' + plafond.avecPx + ' px — image '
+      + plafond.hautSans + ' → ' + plafond.hautAvec + ' px');
+    pass('plafond absolu du bandeau photo : absent par défaut, en pixels sur option, et il mord.');
+
+    // ── 21. « BLOC COURANT SEUL » — sur option, et à l'arrêt par défaut ───────────────────────
+    const blocSeul = await page.evaluate(async (d) => {
+      const A = window.AtelierImages;
+      const compter = async (opts) => {
+        const sc = await A.ouvrirScene(d, opts);
+        const out = [];
+        try {
+          for (let i = 0; i < sc.etapes.length; i++) {
+            await sc.allerA(i);
+            const blocs = Array.from(sc.inner.querySelectorAll('.adoc-sc-card > .adoc-sc-block'));
+            const vus = blocs.filter((el) => {
+              const s = getComputedStyle(el);
+              return s.display !== 'none' && s.visibility !== 'hidden';
+            });
+            const titre = sc.inner.querySelector('.adoc-sc-card-title');
+            out.push({ rang: sc.etapes[i].rang, vus: vus.length, total: blocs.length,
+              titreVisible: !!titre && getComputedStyle(titre).display !== 'none'
+                && titre.getBoundingClientRect().height > 0,
+              horsPage: blocs.filter((el) => getComputedStyle(el).display === 'none').length });
+          }
+        } finally { sc.fermer(); }
+        return out;
+      };
+      const empile = await compter({});
+      const seul = await compter({ blocCourantSeul: true });
+      const rEmpile = await A.rendreImages(d, {});
+      const rSeul = await A.rendreImages(d, { blocCourantSeul: true });
+      return { empile, seul,
+        defautEmpile: rEmpile.bloc_courant_seul, defautSeul: rSeul.bloc_courant_seul,
+        hEmpile: rEmpile.images.map((im) => im.hauteur_contenu),
+        hSeul: rSeul.images.map((im) => im.hauteur_contenu),
+        textesEmpile: rEmpile.images.map((im) => im.textes.length),
+        textesSeul: rSeul.images.map((im) => im.textes.length) };
+    }, ILLUSTREE);
+    assert.equal(blocSeul.defautEmpile, false, 'l\'option doit être ABSENTE par défaut');
+    assert.equal(blocSeul.defautSeul, true, 'et le relevé doit la dire quand elle est active');
+    // L'empilement du lecteur : à l'étape k, k blocs sont à l'écran. C'est le témoin.
+    blocSeul.empile.forEach((e) => {
+      assert.equal(e.vus, e.rang, 'empilé, l\'étape ' + e.rang + ' doit montrer ' + e.rang
+        + ' bloc(s), pas ' + e.vus);
+      assert.equal(e.horsPage, 0, 'et l\'empilement ne retire RIEN de la mise en page');
+    });
+    blocSeul.seul.forEach((e) => {
+      assert.equal(e.vus, 1, 'bloc courant seul : l\'étape ' + e.rang + ' doit montrer 1 bloc, pas ' + e.vus);
+      assert.equal(e.titreVisible, true, 'le titre de la diapositive doit RESTER visible');
+      assert.equal(e.horsPage, e.total - 1, 'les autres blocs doivent sortir de la mise en page '
+        + '(display:none), sinon la carte reste aussi haute : ' + e.horsPage + '/' + (e.total - 1));
+    });
+    // Et la conséquence mesurable : la carte raccourcit, et les métadonnées ne décrivent plus
+    // que ce qui est à l'image.
+    const derEmpile = blocSeul.hEmpile[blocSeul.hEmpile.length - 1];
+    const derSeul = blocSeul.hSeul[blocSeul.hSeul.length - 1];
+    assert.ok(derSeul < derEmpile, 'la dernière étape doit raccourcir : ' + derEmpile + ' → ' + derSeul);
+    assert.ok(blocSeul.textesSeul.every((x) => x === 1),
+      'les métadonnées ne doivent lister qu\'un texte par étape : ' + blocSeul.textesSeul.join(','));
+    assert.ok(Math.max.apply(null, blocSeul.textesEmpile) > 1,
+      'alors qu\'empilé elles en listent plusieurs : ' + blocSeul.textesEmpile.join(','));
+    console.log('      empilé : ' + blocSeul.empile.map((e) => e.vus).join(',') + ' blocs par étape, hauteur '
+      + derEmpile + ' px  |  bloc seul : ' + blocSeul.seul.map((e) => e.vus).join(',') + ', hauteur ' + derSeul + ' px');
+    pass('« bloc courant seul » : absent par défaut, un seul bloc sur option, titre conservé, carte raccourcie.');
+
+    // ── 22. LE DÉCODAGE DES PHOTOS EST ATTENDU ────────────────────────────────────────────────
+    // Un <img> non décodé occupe 0 px de haut. Mesurer la hauteur du contenu ou du bandeau photo
+    // avant le décodage donne un nombre juste en apparence et faux en fait — et la capture montre
+    // un trou. Éprouvé sur une image que le serveur retarde volontairement.
+    const decodagePhotos = await page.evaluate(async () => {
+      const A = window.AtelierImages;
+      const hote = document.createElement('div');
+      hote.style.cssText = 'position:fixed;left:-20000px;top:0;width:400px;';
+      const img = document.createElement('img');
+      img.style.cssText = 'width:200px;height:auto;display:block;';
+      img.src = '/tests/__lente__.png?t=' + Date.now();
+      hote.appendChild(img);
+      document.body.appendChild(hote);
+      const avant = { complete: img.complete, h: Math.round(img.getBoundingClientRect().height) };
+      const etat = await A.attendreImages(hote);
+      const apres = { complete: img.complete, h: Math.round(img.getBoundingClientRect().height) };
+      // Une image cassée ne doit pas suspendre le rendu : le délai est borné.
+      const casse = document.createElement('div');
+      const img2 = document.createElement('img');
+      img2.src = '/tests/__inexistante__.png';
+      casse.appendChild(img2);
+      document.body.appendChild(casse);
+      const t0 = performance.now();
+      await A.attendreImages(casse);
+      const msCasse = performance.now() - t0;
+      hote.remove(); casse.remove();
+      return { avant, apres, etat, msCasse, borne: A.ATTENTE_IMAGES_MS };
+    });
+    assert.equal(decodagePhotos.avant.h, 0, 'une image non décodée doit bien occuper 0 px — sinon ce '
+      + 'contrôle ne démontre rien : ' + JSON.stringify(decodagePhotos.avant));
+    assert.equal(decodagePhotos.apres.complete, true, 'après l\'attente, l\'image doit être décodée');
+    assert.ok(decodagePhotos.apres.h > 0, 'et occuper une hauteur réelle : ' + decodagePhotos.apres.h + ' px');
+    assert.equal(decodagePhotos.etat.pretes, 1, 'l\'attente doit rendre le compte des images prêtes');
+    assert.ok(decodagePhotos.msCasse < decodagePhotos.borne + 500,
+      'une image cassée ne doit pas suspendre le rendu au-delà de la borne : '
+      + Math.round(decodagePhotos.msCasse) + ' ms pour une borne de ' + decodagePhotos.borne + ' ms');
+    // ET LE CALL SITE, car une fonction juste qui n'est pas appelée ne protège de rien. Une
+    // présentation dont la photo de couverture vient d'une adresse que le serveur retarde de
+    // 300 ms : sans l'attente, la première étape capture une carte sans photo, et le bandeau se
+    // mesure à zéro. Le dictionnaire d'images embarquées accepte une adresse comme une data-URI,
+    // ce qui permet de l'éprouver sans toucher au moteur.
+    const decodageRendu = await page.evaluate(async (d) => {
+      const cle = 'photo volontairement lente, controle 22';
+      window.ADOC_EXPORT_IMAGES = Object.assign({}, window.ADOC_EXPORT_IMAGES || {},
+        { [cle]: '/tests/__lente__.png?lente=' + Date.now() });
+      const doc = JSON.parse(JSON.stringify(d));
+      doc.blocks[0].content.imageRef = cle;
+      delete doc.blocks[0].content.imageAssetId;
+      const r = await window.AtelierImages.rendreImages(doc, {});
+      return r.images.map((im) => im.photo_px);
+    }, ILLUSTREE);
+    assert.ok(decodageRendu.every((x) => x > 0),
+      'chaque étape doit capturer une photo d\'une hauteur réelle, même servie avec 300 ms de '
+      + 'retard : ' + decodageRendu.join(','));
+    console.log('      photo servie avec 300 ms de retard : ' + decodageRendu.join(', ') + ' px par étape');
+    console.log('      image retardée : 0 px avant l\'attente, ' + decodagePhotos.apres.h
+      + ' px après  |  image cassée : rendue en ' + Math.round(decodagePhotos.msCasse)
+      + ' ms (borne ' + decodagePhotos.borne + ' ms)');
+    pass('le décodage des photos est attendu avant toute mesure, et une image cassée ne bloque pas.');
+
+    // ── 23. Aucune erreur de page pendant tout cela ───────────────────────────────────────────
     assert.deepEqual(erreurs, [], 'la page ne doit lever aucune erreur : ' + erreurs.join(' | '));
     pass('aucune erreur de page sur l\'ensemble des rendus.');
 

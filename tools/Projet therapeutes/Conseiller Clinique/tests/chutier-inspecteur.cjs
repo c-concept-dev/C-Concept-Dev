@@ -82,7 +82,22 @@ module.exports.INSPECTEUR = function (inner, etape, scene) {
              bordure: s.borderTopWidth, fond: s.backgroundColor };
   });
 
+  // LE BANDEAU PHOTO. Christophe a montré le 8 octobre que `max-height:45%` est un pourcentage
+  // de la hauteur de la CARTE, donc que la photo grandit avec le contenu. On mesure ici sa
+  // hauteur RENDUE, en pixels, en pourcentage du CADRE et en pourcentage de la carte : les trois
+  // ensemble disent si un plafond mord, et de combien.
+  var photoEl = inner.querySelector('.adoc-sc-card-img');
+  var photo = null;
+  if (photoEl && visible(photoEl)) {
+    var rp = photoEl.getBoundingClientRect();
+    photo = { h: Math.round(rp.height), l: Math.round(rp.width),
+              pc_cadre: +((rp.height / H) * 100).toFixed(1),
+              pc_carte: rc && rc.height ? +((rp.height / rc.height) * 100).toFixed(1) : null,
+              plafond_calcule: getComputedStyle(photoEl).maxHeight };
+  }
+
   return {
+    photo: photo,
     carte: rc ? { l: Math.round(rc.width), h: Math.round(rc.height), bordure: sc.borderTopWidth,
                   rayon: sc.borderTopLeftRadius, ombre: sc.boxShadow === 'none' ? 'aucune' : sc.boxShadow,
                   fond: sc.backgroundColor } : null,

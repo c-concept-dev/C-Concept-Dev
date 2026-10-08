@@ -162,7 +162,16 @@
     // qu'il puisse voir les deux versions côte à côte avant de choisir, et elle est portée par un
     // SECOND attribut, pour que l'activer ne puisse rien changer d'autre.
     '[data-atelier-capture][data-atelier-sans-citations] .adoc-sc-cite{display:none;}' +
-    '[data-atelier-capture][data-atelier-sans-citations] .adoc-sc-cite-note{display:none;}';
+    '[data-atelier-capture][data-atelier-sans-citations] .adoc-sc-cite-note{display:none;}' +
+    // ── Plafond ABSOLU du bandeau photo : SUR OPTION, désactivé par défaut ──────────────────
+    // Le lecteur pose `.adoc-sc-card-img{max-height:45%}`, un pourcentage de la hauteur de la
+    // CARTE. Quand la carte grandit pour contenir un débordement, la photo grandit avec elle :
+    // c'est le cercle qui a produit la troncature du 7 octobre, et c'est ce que Christophe a
+    // observé le 8 (« la photo plafonnée à 45 % grandit avec le contenu »). Un plafond en
+    // PIXELS, calculé une fois sur la hauteur du CADRE, ne grandit pas. La valeur est passée en
+    // propriété personnalisée pour que la règle reste statique et mesurable.
+    // QUATRIÈME attribut : l'activer ne peut rien changer d'autre.
+    '[data-atelier-capture][data-atelier-plafond-photo] .adoc-sc-card-img{max-height:var(--atelier-plafond-photo);}';
   var _cssPose = false;
   function poserCssCapture() {
     if (_cssPose || document.getElementById('atelier-capture-css')) { _cssPose = true; return; }
@@ -346,6 +355,13 @@
     // La marque de capture : c'est elle, et elle seule, qui active CSS_CAPTURE.
     inner.setAttribute('data-atelier-capture', '');
     if (scene.masquerCitations) inner.setAttribute('data-atelier-sans-citations', '');
+    // Le plafond est une HAUTEUR EN PIXELS, pas une fraction : c'est tout l'intérêt. Il vaut
+    // `fraction x hauteur du cadre`, calculé une fois, et il ne bouge plus quand la scène est
+    // agrandie pour contenir un débordement.
+    if (scene.plafondPhotoPx > 0) {
+      inner.setAttribute('data-atelier-plafond-photo', '');
+      hote.style.setProperty('--atelier-plafond-photo', Math.round(scene.plafondPhotoPx) + 'px');
+    }
     // La transition de 260 ms de .cc-ws-present-slide-inner sert au glissement d'une diapositive
     // à l'autre dans le lecteur. Ici rien ne glisse : la scène est réécrite d'un coup. On la coupe
     // plutôt que de l'attendre pour rien.
@@ -374,8 +390,34 @@
   // ── Attente des animations (V6) ─────────────────────────────────────────────────────────────
   function image() { return new Promise(function (r) { requestAnimationFrame(function () { r(); }); }); }
   function attendre(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  // LES PHOTOS DOIVENT ÊTRE DÉCODÉES AVANT TOUTE MESURE. Un <img> non décodé occupe 0 px de
+  // haut : la hauteur du contenu se mesure trop courte, le bandeau photo se mesure à zéro, et la
+  // capture montre un trou là où la photo aurait dû être. Rien dans la chaîne ne l'aurait dit —
+  // encore un défaut crédible, de la même famille que la troncature du 7 octobre. Le délai est
+  // borné : une photo cassée ne doit pas suspendre un rendu de dix-neuf étapes.
+  var ATTENTE_IMAGES_MS = 3000;
+  async function attendreImages(inner) {
+    var imgs = Array.prototype.slice.call(inner.querySelectorAll('img'));
+    if (!imgs.length) return { attendues: 0, pretes: 0 };
+    var attentes = imgs.map(function (im) {
+      if (im.complete && im.naturalWidth > 0) return Promise.resolve();
+      if (im.decode) return im.decode().catch(function () {});
+      return new Promise(function (r) {
+        im.addEventListener('load', r, { once: true });
+        im.addEventListener('error', r, { once: true });
+      });
+    });
+    await Promise.race([
+      Promise.all(attentes),
+      new Promise(function (r) { setTimeout(r, ATTENTE_IMAGES_MS); }),
+    ]);
+    return { attendues: imgs.length,
+             pretes: imgs.filter(function (im) { return im.complete && im.naturalWidth > 0; }).length };
+  }
+
   async function attendreStabilite(inner, modeCapture) {
     try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch (e) {}
+    await attendreImages(inner);
     await image(); await image();
     // Les transitions CSS (la révélation d'un bloc, 220 ms) sont attendues par l'API d'animations
     // quand elle existe : c'est plus juste qu'un délai deviné, et cela couvre toute transition
@@ -413,7 +455,8 @@
       var haut = carte.getBoundingClientRect().top;
       var blocs = Array.prototype.slice.call(sc.inner.querySelectorAll('.adoc-sc-card > .adoc-sc-block'));
       for (var i = 0; i < blocs.length; i++) {
-        if (getComputedStyle(blocs[i]).visibility === 'hidden') continue;
+        var sb = getComputedStyle(blocs[i]);
+        if (sb.visibility === 'hidden' || sb.display === 'none') continue;
         var bas = blocs[i].getBoundingClientRect().bottom - haut;
         if (bas > h) h = bas;
       }
@@ -501,6 +544,25 @@
              converge: contenu <= h, hauteur_avant_stabilisation: avant };
   }
 
+  // ── Option « bloc courant seul » ────────────────────────────────────────────────────────────
+  // Le lecteur empile : à l'étape 4, les blocs 1 à 3 restent à l'écran. Cette option ne montre
+  // que le bloc de l'étape, avec le titre de la diapositive (qui est un <h2 class="adoc-sc-card-
+  // title">, hors de .adoc-sc-block, donc conservé sans rien faire) et le bandeau photo.
+  //
+  // Le masquage se fait en `display:none` et NON par la classe du lecteur : `.adoc-sc-reveal`
+  // masque en `opacity:0;visibility:hidden`, qui CONSERVENT la mise en page — la carte resterait
+  // aussi haute qu'un empilement complet, et l'option ne servirait à rien.
+  //
+  // DÉSACTIVÉE PAR DÉFAUT : elle change ce que le spectateur voit, pas seulement la mesure, et
+  // le CDC (Ef1) suppose un empilement cumulatif pour le fondu entre étapes.
+  function appliquerBlocCourantSeul(inner, rang) {
+    var blocs = inner.querySelectorAll('.adoc-sc-card > .adoc-sc-block');
+    for (var i = 0; i < blocs.length; i++) {
+      blocs[i].style.display = (i === rang) ? '' : 'none';
+    }
+    return blocs.length;
+  }
+
   // ── Capture et composition ──────────────────────────────────────────────────────────────────
   // SnapDOM rastérise à l'échelle demandée, puis on COMPOSE sur un canvas aux dimensions exactes :
   // 1920×1080 pour une diapositive qui tient dans la scène. L'échelle 1920/1422 vaut 1,350210… et
@@ -526,6 +588,16 @@
       restaurer = function () { sc.outer.style.cssText = outerStyle; sc.inner.style.cssText = innerStyle; };
     }
     try {
+      // LE BANDEAU PHOTO SE MESURE ICI, et nulle part ailleurs : la scène vient d'être portée à
+      // la hauteur de capture, et `max-height:45%` est un pourcentage de la hauteur de la CARTE.
+      // Mesuré avant l'agrandissement, le bandeau serait donné plus petit qu'à l'image — c'est
+      // le même piège que la troncature, déplacé d'un cran.
+      var photoEl = sc.inner.querySelector('.adoc-sc-card-img');
+      var photoH = 0, photoPlafond = null;
+      if (photoEl) {
+        photoH = Math.round(photoEl.getBoundingClientRect().height);
+        photoPlafond = getComputedStyle(photoEl).maxHeight;
+      }
       var source = await snap.toCanvas(sc.inner, { scale: echelle });
       var sortie = document.createElement('canvas');
       sortie.width = SORTIE.largeur; sortie.height = cibleH;
@@ -535,6 +607,7 @@
       if (opaque) { ctx.fillStyle = fond; ctx.fillRect(0, 0, sortie.width, sortie.height); }
       ctx.drawImage(source, 0, 0, SORTIE.largeur, cibleH);
       return { canvas: sortie, largeur: sortie.width, hauteur: sortie.height,
+               photo_px: photoH, photo_plafond_calcule: photoPlafond,
                source: { largeur: source.width, hauteur: source.height }, fond: opaque ? fond : null };
     } finally {
       if (restaurer) restaurer();
@@ -560,6 +633,8 @@
     var o = Object.assign({ modeCapture: true, type: 'image/png', qualite: undefined, mode: 'video',
                             seuilScission: SEUIL_SCISSION, masquerCitations: false,
                             toleranceDebordement: TOLERANCE_DEBORDEMENT, vitessePanMax: VITESSE_PAN_MAX,
+                            // Les deux options du 8 octobre, À L'ARRÊT : mesurées, pas appliquées.
+                            plafondPhoto: null, blocCourantSeul: false,
                             scene: base.scene, echelleTypo: base.echelleTypo }, options || {});
     var sceneExplicite = !!(options && options.scene);
     var scene = o.scene ? { largeur: o.scene.largeur, hauteur: o.scene.hauteur } : SCENE;
@@ -582,7 +657,9 @@
     var etapes = window.adocPresentStepList(doc);
     var cartes = (doc.blocks || []).filter(function (b) { return b && b.type === 'card'; });
     var snap = await chargerSnapdom();
-    var sc = creerScene(Object.assign({ masquerCitations: !!o.masquerCitations }, scene));
+    var plafondPhotoPx = (o.plafondPhoto > 0) ? Math.round(o.plafondPhoto * scene.hauteur) : 0;
+    var sc = creerScene(Object.assign({ masquerCitations: !!o.masquerCitations,
+                                        plafondPhotoPx: plafondPhotoPx }, scene));
     var etatPrecedent = window._adocPresentState;
     var modePrecedent = window._adocPresentModeCapture;
     window._adocPresentModeCapture = !!o.modeCapture;
@@ -611,6 +688,7 @@
         }
         position.rang++;
       }
+      if (o.blocCourantSeul) appliquerBlocCourantSeul(sc.inner, rang);
       appliquerEchelleTypo(sc.inner, o.echelleTypo);
       await attendreStabilite(sc.inner, o.modeCapture);
       return { etape: etape, carteIndex: iCarte, rang: rang, surRang: deLaCarte.length };
@@ -674,9 +752,21 @@
         debordement_regle: deb.regle, debordement_sous_tolerance: deb.sous_tolerance,
         debordement_vitesse_px_par_s: deb.vitesse_px_par_s,
         fond: capture.fond,
+        // Hauteur du bandeau photo telle qu'elle est À L'IMAGE : en pixels de scène, et en
+        // pourcentage du cadre comme de l'image livrée. Les deux diffèrent dès qu'il y a
+        // débordement, et c'est justement la question posée le 8 octobre.
+        photo_px: capture.photo_px,
+        photo_pc_cadre: capture.photo_px ? +((capture.photo_px / scene.hauteur) * 100).toFixed(1) : 0,
+        photo_pc_image: capture.photo_px ? +((capture.photo_px / hauteurCapture) * 100).toFixed(1) : 0,
+        photo_plafond_calcule: capture.photo_plafond_calcule,
         signature: await signatureEtape(doc, etape),
         type: o.type, octets: blob.size, blob: blob,
+        // `display:none` est filtré ici : avec « bloc courant seul », les blocs précédents
+        // portent encore la classe « révélé » du lecteur alors qu'ils ne sont plus à l'image.
+        // Des métadonnées qui décrivent autre chose que l'image sont exactement le défaut
+        // crédible du 7 octobre, sous une autre forme.
         textes: Array.from(sc.inner.querySelectorAll('.adoc-sc-card > .adoc-sc-block.adoc-sc-reveal-shown, .adoc-sc-card > .adoc-sc-block:not(.adoc-sc-reveal)'))
+          .filter(function (el) { return getComputedStyle(el).display !== 'none'; })
           .map(function (el) { return (el.textContent || '').trim().replace(/\s+/g, ' '); }),
       };
       capture.canvas.width = 0; capture.canvas.height = 0;
@@ -685,6 +775,7 @@
 
     return {
       etapes: etapes, scene: scene, sortie: SORTIE, options: o,
+      plafondPhotoPx: plafondPhotoPx,
       inner: sc.inner, outer: sc.outer, hote: sc.hote,
       allerA: allerA, capturerEtape: capturerEtape, mesurer: mesurer,
       fermer: function () {
@@ -730,6 +821,11 @@
       citations_masquees: !!sc.options.masquerCitations,
       sources: sourcesParEtape(doc),
       tolerance_debordement: sc.options.toleranceDebordement, vitesse_pan_max: sc.options.vitessePanMax,
+      // Les deux options du 8 octobre, dites dans le relevé : une mesure dont on ne sait pas
+      // sous quel réglage elle a été prise ne vaut rien — la page du banc l'a déjà prouvé le 7.
+      plafond_photo: sc.options.plafondPhoto || null,
+      plafond_photo_px: sc.plafondPhotoPx || 0,
+      bloc_courant_seul: !!sc.options.blocCourantSeul,
       scene_par_defaut: !(options && options.scene),
       debordements: {
         aucun: images.filter(function (im) { return im.debordement_verdict === 'aucun'; }).length,
@@ -830,6 +926,7 @@
     TOLERANCE_DEBORDEMENT: TOLERANCE_DEBORDEMENT, VITESSE_PAN_MAX: VITESSE_PAN_MAX,
     verdictDebordement: verdictDebordement, dureeEtapeS: dureeEtapeS,
     refuserSiTropCourte: refuserSiTropCourte,
+    attendreImages: attendreImages, ATTENTE_IMAGES_MS: ATTENTE_IMAGES_MS,
     sourcesParEtape: sourcesParEtape,
     configurer: function (opts) { if (opts && opts.cheminSnapdom) { _cheminSnapdom = opts.cheminSnapdom; _snapdom = null; } },
     cheminSnapdom: function () { return _cheminSnapdom; },
