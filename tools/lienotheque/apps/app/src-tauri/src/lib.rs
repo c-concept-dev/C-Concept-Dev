@@ -172,6 +172,39 @@ fn agir_sur_travail(racine: String, id: String, action: String) -> Result<serde_
     Ok(apres.vu())
 }
 
+/// Les emplacements du moteur embarqué, pour les commandes qui l'interrogent directement.
+fn moteur_embarque() -> Result<traitement::Emplacements, String> {
+    let executable = std::env::current_exe().map_err(|e| format!("Exécutable introuvable : {e}"))?;
+    traitement::Emplacements::depuis_executable(&executable)
+        .ok_or_else(|| "Moteur introuvable à côté de l’application : le paquet est incomplet.".to_owned())
+}
+
+/// Exporte quelques pages d'un document déposé, pour les montrer dans l'éditeur.
+///
+/// On ne peut pas montrer où regarder sur une page qu'on ne voit pas : c'est la première chose
+/// dont l'éditeur de manière de lire a besoin, et elle vient avant toute recette.
+#[tauri::command]
+fn apercu_de_pages(racine: String, nom: String, depuis: u32, combien: u32) -> Result<serde_json::Value, String> {
+    let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
+    let document = depot.racine().join(depot::SOURCES).join(&nom);
+    if !document.exists() {
+        return Err(format!("Le fichier « {nom} » n’est plus dans la bibliothèque."));
+    }
+    let images = depot.racine().join(depot::DERIVES).join("apercu");
+
+    let demande = serde_json::json!({
+        "type": "demande",
+        "protocole": limites::LIMITES.protocole,
+        "travailId": uuid::Uuid::new_v4().to_string(),
+        "outil": { "nom": "apercu-de-pages", "version": "1.0.0" },
+        "versionCible": uuid::Uuid::new_v4().to_string(),
+        "charge": { "document": document, "images": images, "depuis": depuis, "combien": combien },
+    });
+
+    let rendu = traitement::demander(&moteur_embarque()?, &demande)?;
+    serde_json::from_str(&rendu).map_err(|e| format!("Aperçu illisible : {e}"))
+}
+
 /// Ce que l'hôte retient d'une session à l'autre : cet appareil, et les bibliothèques ouvertes.
 ///
 /// L'application le demande au démarrage. Sans lui, il faudrait repointer l'application vers son
@@ -317,6 +350,7 @@ fn lancer(captures: bool) {
             retenir_bibliotheque,
             oublier_bibliotheque,
             deposer,
+            apercu_de_pages,
             faire_tourner,
             travaux,
             agir_sur_travail,

@@ -33,6 +33,9 @@ export type OptionsExport = {
   readonly largeur?: number;
   /** Ne traiter que les premières pages : pour un essai rapide. */
   readonly pages?: number;
+  /** Rang de la première page exportée, à partir de zéro. Avec `pages`, cela fait une tranche —
+   *  ce qu'il faut pour montrer une page précise sans exporter tout ce qui la précède. */
+  readonly depuis?: number;
   readonly qualite?: number;
   /** Produire la vignette de chaque page. Vrai par défaut. */
   readonly vignettes?: boolean;
@@ -52,14 +55,18 @@ export async function exporterPages(pdf: string, dossier: string, options: Optio
 
   const objets = objetsPdf(await readFile(pdf));
   const pages = pagesPdf(objets);
-  const retenues = options.pages === undefined ? pages : pages.slice(0, options.pages);
+  const depuis = options.depuis ?? 0;
+  const retenues = pages.slice(depuis, options.pages === undefined ? undefined : depuis + options.pages);
 
   // L'empreinte de la source, une fois : c'est elle qu'un dérivé déclare (OUT-04). La calculer
   // par page ferait relire le document à chaque tour.
   const source = avecVignettes ? await empreinteDe(pdf) : undefined;
 
   const exportees: PageExportee[] = [];
-  for (const [index, page] of retenues.entries()) {
+  for (const [rangDansLaTranche, page] of retenues.entries()) {
+    // Le rang dans le document, et non dans la tranche : une page exportée seule doit porter le
+    // même numéro que si tout le document l'avait été, sans quoi deux tranches se recouvrent.
+    const index = depuis + rangDansLaTranche;
     const image = page.images[0];
     if (image === undefined) continue;
     const octets = octetsImage(objets, image.numero);
