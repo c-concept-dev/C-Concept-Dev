@@ -28,6 +28,97 @@ normaliser quand c'est sans ambiguïté, refuser quand ça ne l'est pas.
 
 ---
 
+## 0. LE DÉFAUT DU 9 OCTOBRE — un faux transport ne prouve rien sur le câblage réel
+
+Christophe a cliqué « Rédiger » sur son site, connecté, et a reçu :
+
+> Rédaction impossible : adresse du Worker non configurée.
+
+**Aucun appel n'est parti.** Mes 18 contrôles passaient tous.
+
+### La cause, confirmée dans le cœur publié
+
+`adocGetWorkerUrl` (ligne 359) et `adocGetApiKey` (ligne 399) sont déclarées **dans l'IIFE qui
+commence ligne 31**, sans aucune affectation sur `window`. Le module ne pouvait pas les voir.
+Mesuré dans la page, pas seulement lu : `typeof window.adocGetWorkerUrl` → `undefined`.
+
+### Pourquoi mes contrôles ne l'ont pas vu
+
+**Ils employaient tous un transport simulé.** Le transport injecté sautait précisément les deux
+lignes qui cherchaient ces fonctions. J'avais éprouvé la répartition des mots, le contrat de
+réponse, l'aperçu, la confirmation, l'annulation — tout sauf **le seul chemin qui mène au
+serveur**. C'est la même famille que le 7 octobre : un contrôle qui interroge ce que le code
+déclare, au lieu de ce que la page fait.
+
+### Deux défauts de plus, trouvés en vérifiant les sept autres noms
+
+Christophe demandait de vérifier **tout** ce que le module prend sur `window`. Le balayage en a
+trouvé deux autres, silencieux :
+
+| nom | état avant | conséquence |
+|---|---|---|
+| `ADOC_NARRATION_MOTS_PAR_SECONDE` | jamais exposé | le module retombait sur sa copie en dur — **deux vérités**, alors que mon commentaire affirmait le contraire |
+| `ADOC_NARRATION_PAUSE_MOTIF` | exposé **avant** sa ligne d'affectation | une `var` est hissée mais **vide** : `window.X = undefined`, sans la moindre erreur. Le module retombait sur sa copie |
+
+Le second est instructif : une `const` exposée trop tôt **plante bruyamment** (c'est ce qui m'est
+arrivé le 8 octobre) ; une `var` **ment tranquillement**. Les deux constantes sont désormais
+exposées juste après leur déclaration.
+
+### La correction : injection, sans jamais poser la clé sur `window`
+
+Le cœur passe deux fonctions au module quand il le branche :
+
+```js
+window.NarrationIA.brancher(narrBoite, {
+  urlWorker: function () { return adocGetWorkerUrl(); },
+  cleApi:    function () { return adocGetApiKey(); },
+});
+```
+
+Le module les garde **dans sa portée**, jamais sur `window`, et ne conserve pas la clé : il
+appelle `cleApi()` au moment de l'envoi. Un `sansCle()` retire la clé de tout message d'erreur
+avant qu'il soit levé — un message d'erreur est une chose qui se copie-colle.
+
+### Le contrôle qui manquait
+
+Le **vrai** `transportReel`, dans la **vraie** page, déclenché par le **vrai** bouton, avec
+`fetch` seul simulé. Et le témoin de l'URL ne vient pas du module : c'est l'hôte que
+l'application appelle **d'elle-même** au démarrage, relevé sur son trafic.
+
+```
+POST https://clone-proxy.11drumboy11.workers.dev
+  payload.model claude-sonnet-4-6, max_tokens 1700, X-API-Key présent
+  401 → « le serveur a refusé l'appel (401 — Unauthorized) » — sans la clé
+```
+
+Un second contrôle **balaye la source du module** à la recherche de `window.<nom>` et vérifie
+chacun dans la page. Il n'est pas écrit à la main : un nom ajouté demain sera vérifié sans que
+personne y pense. **9 noms, tous atteignables.**
+
+### Le budget de délai : plancher porté de 45 à 90 s
+
+Les 45 s venaient du délai de **transport** de l'appel 2, qui se réarme à chaque octet reçu :
+c'est un seuil de **silence**, pas une durée totale. Ce transport-ci n'écoute pas un flux, il
+attend une réponse entière — environ 3 000 jetons pour 1 200 mots, qui dépassent couramment
+45 s. Le précédent qui convient est l'autre minuterie du même appel, la **sémantique**, portée à
+120 s après mesure. 90 s se place entre les deux et coïncide avec la règle maison à 8 000 jetons.
+
+### La leçon, pour la gouvernance
+
+**Un faux transport ne prouve rien sur le câblage réel.** Un test qui injecte sa propre porte de
+sortie mesure tout sauf la porte. Trois règles :
+
+1. **Tout point d'injection doit avoir un contrôle qui ne l'emprunte pas.** Si une dépendance est
+   injectable pour les tests, il faut au moins un contrôle qui exécute la vraie, en ne simulant
+   que la couche la plus basse — ici `fetch`, pas le transport.
+2. **Un module séparé ne voit que ce qui est sur `window`.** Ce que le cœur déclare dans son IIFE
+   lui est invisible. La liste de ce qu'il y prend se **balaye**, elle ne s'écrit pas à la main.
+3. **Une `var` exposée avant sa ligne d'affectation pose `undefined` sans erreur.** Exposer une
+   valeur se fait après sa déclaration, et se vérifie en lisant la valeur, pas en comptant les
+   lignes d'affectation dans la source.
+
+---
+
 ## 0ter. Les trois vérifications du 9 octobre
 
 ### 1. Quel registre pour quelle audience — mesuré, pas supposé
@@ -377,9 +468,9 @@ un malgré la consigne) — la consigne, elle, l'interdit.
 
 | | |
 |---|---|
-| `verify-narration-ia` | **18/18** — moteur et interface, transport simulé, aucun appel réel |
+| `verify-narration-ia` | **20/20** — moteur et interface, transport simulé, aucun appel réel |
 | `verify-worker-garde-narration` | **6/6** — garde du Worker exécutée hors ligne |
-| `falsifier-narration-ia` | **27/27** mutations détectées |
+| `falsifier-narration-ia` | **33/33** mutations détectées |
 | régression ciblée | **15 tests verts**, dont les 4 du lot 1a |
 | empreinte du schéma d'outil | `b1b0155cb8eba26c`, 6679 o, **inchangée** |
 

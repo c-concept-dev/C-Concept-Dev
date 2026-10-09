@@ -56,6 +56,31 @@ const ESSAIS = [
     attendu: 'un nombre choisi au lieu d\'une règle appliquée' },
 
   // ── Le prompt système ─────────────────────────────────────────────────────────────────────
+  // ── Le câblage réel, trouvé cassé par Christophe le 9 octobre ─────────────────────────────
+  { nom: 'le transport reprend les fonctions sur window (le défaut du 9 octobre)',
+    fichier: 'module',
+    de: "    var workerUrl = s.urlWorker();",
+    vers: "    var workerUrl = window.adocGetWorkerUrl && window.adocGetWorkerUrl();",
+    attendu: '« adresse du Worker non configurée » au premier clic réel' },
+
+  { nom: 'le cœur ne passe plus ses services au module',
+    fichier: 'coeur',
+    de: "            urlWorker: function () { return adocGetWorkerUrl(); },",
+    vers: "            urlWorker: undefined,",
+    attendu: 'le module n\'a jamais l\'adresse, quoi qu\'il fasse' },
+
+  { nom: 'la clé repart dans le message d\'erreur',
+    fichier: 'module',
+    de: "        throw new Error(sansCle('le serveur a refusé l\u2019appel (' + r.status",
+    vers: "        throw new Error(('le serveur a refusé l\u2019appel (' + (s.cleApi()) + ' ' + r.status",
+    attendu: 'la clé copiée-collée dans une conversation avec un message d\'erreur' },
+
+  { nom: 'les constantes sont exposées AVANT leur affectation (var hissée)',
+    fichier: 'coeur',
+    de: "  window.ADOC_NARRATION_MOTS_PAR_SECONDE = ADOC_NARRATION_MOTS_PAR_SECONDE;\n  window.ADOC_NARRATION_PAUSE_MOTIF = ADOC_NARRATION_PAUSE_MOTIF;",
+    vers: "  window.ADOC_NARRATION_MOTS_PAR_SECONDE = undefined;\n  window.ADOC_NARRATION_PAUSE_MOTIF = undefined;",
+    attendu: 'le module retombe en silence sur ses propres copies : deux vérités' },
+
   { nom: 'l\'objectif ne part plus avec le message',
     fichier: 'module',
     de: "    if (doc.purpose) lignes.push('Objectif : ' + doc.purpose);",

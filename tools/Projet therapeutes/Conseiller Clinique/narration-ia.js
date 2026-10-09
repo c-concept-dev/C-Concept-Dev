@@ -71,7 +71,13 @@
   // est le délai de transport de l'appel 2 existant (45 s) : descendre en dessous contredirait
   // un précédent déjà mesuré dans ce dépôt.
   var BUDGET_MS_POUR_8000_JETONS = 90000;
-  var BUDGET_PLANCHER_MS = 45000;
+  // PLANCHER PORTÉ DE 45 À 90 s le 9 octobre. Les 45 s venaient du délai de TRANSPORT de
+  // l'appel 2 (ADOC_CALL2_TRANSPORT_TIMEOUT_MS), qui se réarme à chaque octet reçu : c'est un
+  // seuil de SILENCE, pas une durée totale. Ce transport-ci ne lit pas un flux, il attend une
+  // réponse entière — environ 3 000 jetons pour 1 200 mots, qui dépassent couramment 45 s. Le
+  // précédent qui convient est l'autre minuterie du même appel, la sémantique, portée à 120 s
+  // après mesure. 90 s se place entre les deux et coïncide avec la règle maison à 8 000 jetons.
+  var BUDGET_PLANCHER_MS = 90000;
   var BUDGET_PLAFOND_MS = 300000;
 
   // Conversion mots → jetons pour le français : ~1,6 jeton par mot (un mot français fait en
@@ -102,6 +108,26 @@
   // Borne d'entrée : au-delà, on refuse AVANT d'appeler, plutôt que de laisser le fournisseur
   // ou le Worker trancher par un message obscur.
   var ENTREE_MAX_CARACTERES = 60000;
+
+  // ── LES SERVICES DU CŒUR, injectés ─────────────────────────────────────────────────────────
+  // adocGetWorkerUrl et adocGetApiKey sont déclarées DANS l'IIFE du cœur, sans affectation sur
+  // window : le module ne peut pas les voir. Le cœur les lui passe donc à `brancher`. Elles sont
+  // gardées ici, dans la portée du module — la clé n'est jamais posée sur window, et le module
+  // ne la conserve pas : il appelle `cleApi()` au moment de l'envoi, pas avant.
+  var _services = null;
+  function services() { return _services; }
+
+  // Un message d'erreur ne doit JAMAIS contenir la clé. Le serveur n'a aucune raison de la
+  // renvoyer, mais un message d'erreur est une chose qui se copie-colle dans une conversation :
+  // on la retire avant de lever, plutôt que d'espérer qu'elle n'y soit pas.
+  function sansCle(message) {
+    var m = String(message == null ? '' : message);
+    try {
+      var cle = _services && _services.cleApi && _services.cleApi();
+      if (cle && String(cle).length >= 8) m = m.split(String(cle)).join('[clé masquée]');
+    } catch (e) {}
+    return m;
+  }
 
   // ── Compter les mots comme ils seront DITS ─────────────────────────────────────────────────
   // UNE SEULE IMPLÉMENTATION, celle du lot 1a. Un second compteur, même « meilleur », ferait
@@ -474,14 +500,21 @@
   // Le transport est injectable : c'est ce qui permet d'éprouver toute la chaîne sans un seul
   // appel réel, et c'est le même procédé que adocResolveImagesForExport (opts.fetchPhoto).
   async function transportReel(requete) {
-    var workerUrl = window.adocGetWorkerUrl && window.adocGetWorkerUrl();
+    var s = (requete && requete.services) || services();
+    if (!s || typeof s.urlWorker !== 'function' || typeof s.cleApi !== 'function') {
+      throw new Error('le module n\u2019a pas reçu les services du cœur : « Rédiger la narration » '
+        + 'doit être branché par studio-clinique-core.js, qui seul connaît l\u2019adresse du Worker.');
+    }
+    var workerUrl = s.urlWorker();
     if (!workerUrl) throw new Error('adresse du Worker non configurée.');
+    var cle = s.cleApi();
+    if (!cle) throw new Error('aucune clé d\u2019accès en mémoire : connectez-vous d\u2019abord.');
     var ctrl = new AbortController();
     var tid = setTimeout(function () { ctrl.abort(); }, requete.budgetMs);
     try {
       var r = await fetch(workerUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': window.adocGetApiKey() },
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': cle },
         body: JSON.stringify({ payload: {
           model: MODELE, max_tokens: requete.maxTokens, temperature: 1,
           system: requete.system,
@@ -492,7 +525,8 @@
       if (!r.ok) {
         var detail = '';
         try { detail = (await r.json()).error || ''; } catch (e) {}
-        throw new Error('le serveur a refusé l’appel (' + r.status + (detail ? ' — ' + detail : '') + ').');
+        throw new Error(sansCle('le serveur a refusé l’appel (' + r.status
+          + (detail ? ' — ' + detail : '') + ').'));
       }
       var data = await r.json();
       var bloc = (data.content || []).filter(function (c) { return c.type === 'text'; })[0];
@@ -501,6 +535,7 @@
       if (e && e.name === 'AbortError') {
         throw new Error('pas de réponse en ' + Math.round(requete.budgetMs / 1000) + ' s — appel abandonné.');
       }
+      e.message = sansCle(e.message);
       throw e;
     } finally { clearTimeout(tid); }
   }
@@ -575,6 +610,11 @@
     jetonsPour: jetonsPour, budgetDelaiMs: budgetDelaiMs,
     promptSysteme: promptSysteme, construireMessage: construireMessage,
     extraireJSON: extraireJSON, validerReponse: validerReponse,
+    // Le cœur pose ses services par ici. La clé n'est pas gardée : seule la FONCTION qui la
+    // lit l'est, et elle n'est appelée qu'au moment de l'envoi.
+    _poserServices: function (s) { _services = s; },
+    _aLesServices: function () { return !!(_services && _services.urlWorker && _services.cleApi); },
+    transportReel: transportReel, sansCle: sansCle,
     normaliserTypographie: normaliserTypographie,
     rediger: rediger,
   };
@@ -669,7 +709,14 @@
     });
   }
 
-  function brancher(boite) {
+  function brancher(boite, servicesDuCoeur) {
+    // Les services sont enregistrés MÊME si le bouton est déjà posé : `brancher` est rappelé à
+    // chaque rafraîchissement de l'éditeur, et sortir tôt sans les prendre laisserait le module
+    // sans adresse après un simple changement de sélection.
+    if (servicesDuCoeur && typeof servicesDuCoeur.urlWorker === 'function'
+      && typeof servicesDuCoeur.cleApi === 'function') {
+      IA._poserServices(servicesDuCoeur);
+    }
     if (!boite || boite.querySelector('.nia-bouton')) return;
     poserCss();
     var bouton = document.createElement('button');

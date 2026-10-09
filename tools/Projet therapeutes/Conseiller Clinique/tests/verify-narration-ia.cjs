@@ -44,10 +44,15 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
     // notée. L'application en fait trois au démarrage (polices, CDN, Worker) : ce n'est PAS ce
     // qu'on mesure ici. Ce qu'on mesure, c'est qu'AUCUNE sortie n'est causée par la rédaction.
     const sorties = [];
+    // `hotesAppeles` est le TÉMOIN du contrôle 18 : les hôtes que l'application appelle
+    // d'elle-même, relevés sur le trafic réel. Comparer l'URL du transport à une valeur que le
+    // module déclare ne prouverait rien — c'est la leçon du 7 octobre.
+    const hotesAppeles = [];
     await page.route('**/*', (route) => {
       const u = new URL(route.request().url());
       if (u.hostname === '127.0.0.1' && u.port === String(port)) return route.continue();
       sorties.push(u.hostname);
+      hotesAppeles.push(u.hostname);
       return route.abort();
     });
     // L'ÉCRAN DE CONNEXION couvre toute la page tant qu'aucune clé n'est en mémoire locale, et
@@ -201,18 +206,31 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       const A = window.NarrationIA;
       return {
         regle: A.BUDGET_MS_POUR_8000_JETONS, plancher: A.BUDGET_PLANCHER_MS, plafond: A.BUDGET_PLAFOND_MS,
-        a8000: A.budgetDelaiMs(8000), a16000: A.budgetDelaiMs(16000), a4000: A.budgetDelaiMs(4000),
-        a1000: A.budgetDelaiMs(1000), a100000: A.budgetDelaiMs(100000),
+        a8000: A.budgetDelaiMs(8000), a16000: A.budgetDelaiMs(16000), a12000: A.budgetDelaiMs(12000),
+        a4000: A.budgetDelaiMs(4000), a1000: A.budgetDelaiMs(1000), a100000: A.budgetDelaiMs(100000),
+        // Ce que le vrai cas demande : 1 200 mots, soit environ 3 000 jetons.
+        pour1200mots: A.budgetDelaiMs(A.jetonsPour(1200)),
         jetons1500: A.jetonsPour(1500), jetons0: A.jetonsPour(0),
       };
     });
     assert.equal(budget.a8000, 90000, '8 000 jetons → 90 s, la règle maison');
     assert.equal(budget.a16000, 180000, 'proportionnel : 16 000 → 180 s');
-    assert.equal(budget.a4000, 45000, 'proportionnel : 4 000 → 45 s');
-    assert.equal(budget.a1000, budget.plancher, 'sous le plancher, on prend le plancher (45 s, le délai de transport de l\'appel 2)');
+    assert.equal(budget.a12000, 135000, 'proportionnel : 12 000 → 135 s');
+    // PLANCHER PORTÉ À 90 s le 9 octobre. Les 45 s venaient du délai de TRANSPORT de l'appel 2,
+    // qui se réarme à chaque octet : c'est un seuil de silence, pas une durée totale. Ce
+    // transport-ci attend une réponse entière d'environ 3 000 jetons, qui dépasse couramment
+    // 45 s. Le précédent qui convient est la minuterie SÉMANTIQUE du même appel, portée à 120 s
+    // après mesure ; 90 s se place entre les deux et coïncide avec la règle à 8 000 jetons.
+    assert.equal(budget.plancher, 90000, 'le plancher doit être à 90 s');
+    assert.equal(budget.a4000, budget.plancher, '4 000 jetons donneraient 45 s : le plancher s\'applique');
+    assert.equal(budget.a1000, budget.plancher, 'et a fortiori 1 000');
+    assert.equal(budget.pour1200mots, budget.plancher,
+      'le cas réel — 1 200 mots — tombe sous le plancher, donc 90 s : ' + budget.pour1200mots);
     assert.equal(budget.a100000, budget.plafond, 'et le plafond au-dessus');
     assert.ok(budget.jetons1500 > 1500 && budget.jetons1500 < 8000,
       '1 500 mots → ' + budget.jetons1500 + ' jetons');
+    console.log('      1 200 mots → ' + budget.jetons1500 + ' jetons environ, budget '
+      + (budget.pour1200mots / 1000) + ' s (plancher)');
     pass('budget de délai : 8 000 jetons → 90 s, proportionnel, plancher ' + (budget.plancher / 1000)
       + ' s et plafond ' + (budget.plafond / 1000) + ' s.');
 
@@ -761,7 +779,127 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
     assert.equal(annule.annuler, true, 'le bouton se désactive après usage');
     pass('annulation d\'un geste : la narration revient exactement à son état d\'avant.');
 
-    // ── 17. AUCUN APPEL RÉSEAU causé par la rédaction ────────────────────────────────────────
+    // ── 17. TOUT CE QUE LE MODULE PREND SUR `window` EST ATTEIGNABLE ─────────────────────────
+    // LE CONTRÔLE QUI MANQUAIT. Le 9 octobre, Christophe a cliqué « Rédiger » sur son site et
+    // a reçu « adresse du Worker non configurée » : adocGetWorkerUrl et adocGetApiKey sont
+    // déclarées DANS l'IIFE du cœur, sans affectation sur window. Mes contrôles ne l'avaient pas
+    // vu parce qu'ils employaient tous un transport simulé — qui ne touche jamais à ces deux
+    // fonctions. Un faux transport ne prouve rien sur le câblage réel.
+    //
+    // La liste n'est pas écrite à la main : elle est BALAYÉE dans la source du module. Un
+    // `window.quelqueChose` ajouté demain sera donc vérifié sans que personne y pense.
+    const SOURCE_MODULE = fs.readFileSync(path.join(RACINE, 'narration-ia.js'), 'utf8');
+    // Ce que le navigateur fournit lui-même, et ce que le module pose lui-même : hors sujet ici.
+    const FOURNIS_PAR_LE_NAVIGATEUR = new Set(['NarrationIA', 'fetch', 'confirm', 'document',
+      'setTimeout', 'clearTimeout', 'AbortController', 'localStorage', 'performance', 'Event',
+      'File', 'DataTransfer', 'FileReader', 'URL', 'Blob', 'requestAnimationFrame', 'console',
+      'innerWidth', 'innerHeight', 'getComputedStyle', 'createImageBitmap', 'alert']);
+    const prisSurWindow = Array.from(new Set(
+      (SOURCE_MODULE.match(/window\.([A-Za-z_$][\w$]*)/g) || []).map((x) => x.slice(7))))
+      .filter((n) => !FOURNIS_PAR_LE_NAVIGATEUR.has(n)).sort();
+    assert.ok(prisSurWindow.length >= 6,
+      'le balayage doit trouver les noms pris sur window : ' + prisSurWindow.join(','));
+    // Mesuré DANS LA PAGE, document ouvert — c'est l'état où le bouton existe.
+    const atteignables = await page.evaluate((noms) => noms.map((n) => ({
+      nom: n, type: typeof window[n], present: n in window })), prisSurWindow);
+    console.log('\n      ── CE QUE LE MODULE PREND SUR `window`, MESURÉ DANS LA PAGE ──');
+    const manquants = [];
+    atteignables.forEach((x) => {
+      const ok = x.type !== 'undefined';
+      if (!ok) manquants.push(x.nom);
+      console.log('      ' + (ok ? 'ok    ' : 'MANQUE') + '  ' + x.nom.padEnd(34) + 'typeof ' + x.type);
+    });
+    assert.deepEqual(manquants, [],
+      'ces noms sont pris sur window par le module mais n\'y sont pas : ' + manquants.join(', '));
+    // Et les deux constantes portent leur VALEUR, pas `undefined` : une `var` exposée avant sa
+    // ligne d'affectation est hissée mais vide — elle ment sans erreur.
+    const valeurs = await page.evaluate(() => ({
+      motsParSeconde: window.ADOC_NARRATION_MOTS_PAR_SECONDE,
+      motifPause: window.ADOC_NARRATION_PAUSE_MOTIF,
+    }));
+    assert.equal(valeurs.motsParSeconde, 2.5, 'la constante doit porter sa valeur');
+    assert.match(String(valeurs.motifPause), /pause/, 'le motif aussi : ' + valeurs.motifPause);
+    console.log('');
+    pass(prisSurWindow.length + ' noms pris sur `window` par le module, tous atteignables dans la page.');
+
+    // ── 18. LE VRAI TRANSPORT, dans la vraie page, avec `fetch` seul simulé ──────────────────
+    // On ne remplace PAS le transport : c'est lui qu'on éprouve. Seul `fetch` est simulé, et
+    // l'appel part du vrai bouton, donc par le vrai branchement du cœur.
+    const hoteDuWorker = new Set(hotesAppeles.filter((h) => /workers\.dev|clone-proxy/.test(h)));
+    assert.ok(hoteDuWorker.size === 1,
+      'l\'application doit avoir appelé SON Worker au démarrage, pour servir de témoin : '
+      + Array.from(hoteDuWorker).join(','));
+    const temoin = Array.from(hoteDuWorker)[0];
+
+    const reel = await page.evaluate(async ({ temoin }) => {
+      const A = window.NarrationIA;
+      const doc = window._adocArtifacts['essai1b']._adocStructuredDoc;
+      const vrai = window.fetch;
+      const journaux = [];
+      const vraiWarn = console.warn, vraiLog = console.log, vraiErr = console.error;
+      ['warn', 'log', 'error'].forEach((k) => {
+        console[k] = function () { journaux.push(Array.from(arguments).join(' ')); };
+      });
+      let vu = null;
+      window.fetch = async (url, opts) => {
+        vu = { url: String(url), methode: opts && opts.method,
+               entetes: Object.assign({}, opts && opts.headers),
+               corps: opts && opts.body ? JSON.parse(opts.body) : null,
+               aUnSignal: !!(opts && opts.signal) };
+        const etapes = A.contenuArEtape ? null : null;
+        const ids = (vu.corps.payload.messages[0].content.match(/stepId: (\S+)/g) || []).map((x) => x.slice(8));
+        const cibles = (vu.corps.payload.messages[0].content.match(/cible: (\d+) mots/g) || []).map((x) => parseInt(x.slice(7), 10));
+        const texte = JSON.stringify(ids.map((id, i) => ({ stepId: id,
+          text: ('Imaginez un couple. ' + 'phrase '.repeat(Math.max(0, cibles[i] - 3))).trim() })));
+        return { ok: true, status: 200, json: async () => ({ content: [{ type: 'text', text: texte }] }) };
+      };
+      let res = null, erreur = null;
+      // AUCUN `transport` passé : c'est transportReel qui doit s'exécuter.
+      try { res = await A.rediger(doc, { minutes: 4, seulementVides: false }); }
+      catch (e) { erreur = e.message; }
+      // Et le cas d'erreur : le serveur refuse, la clé ne doit apparaître nulle part.
+      window.fetch = async () => ({ ok: false, status: 401,
+        json: async () => ({ error: 'Unauthorized' }) });
+      let erreur401 = null;
+      try { await A.rediger(doc, { minutes: 4, seulementVides: false }); }
+      catch (e) { erreur401 = e.message; }
+      window.fetch = vrai;
+      console.warn = vraiWarn; console.log = vraiLog; console.error = vraiErr;
+      const cle = (() => { try { return localStorage.getItem('workerApiKey'); } catch (e) { return null; } })();
+      return { vu, res: res && { entrees: res.entrees.length }, erreur, erreur401, journaux, cle,
+               cleSurWindow: Object.keys(window).filter((k) => /cleApi|apiKey|ApiKey/.test(k)) };
+    }, { temoin });
+
+    assert.equal(reel.erreur, null, 'le vrai transport doit aboutir : ' + reel.erreur);
+    assert.ok(reel.vu, 'fetch doit avoir été appelé');
+    // L'URL : LE MÊME HÔTE que les appels que l'application fait d'elle-même. Le témoin vient
+    // du trafic réel de la page, jamais d'une valeur que le module déclarerait.
+    assert.equal(new URL(reel.vu.url).hostname, temoin,
+      'le transport doit appeler le MÊME Worker que l\'application : ' + reel.vu.url);
+    assert.equal(reel.vu.methode, 'POST');
+    assert.equal(reel.vu.entetes['Content-Type'], 'application/json');
+    assert.equal(reel.vu.entetes['X-API-Key'], reel.cle, 'la clé envoyée est celle du cœur');
+    assert.ok(reel.vu.aUnSignal, 'l\'appel doit porter un signal d\'abandon (budget de délai)');
+    // Le corps : la forme exacte qu'attend le proxy du Worker.
+    assert.ok(reel.vu.corps.payload, 'le corps doit porter « payload »');
+    assert.equal(reel.vu.corps.payload.model, 'claude-sonnet-4-6');
+    assert.ok(reel.vu.corps.payload.system.indexOf('doublage') !== -1, 'le prompt système doit y être');
+    assert.equal(reel.vu.corps.payload.messages.length, 1);
+    assert.ok(reel.vu.corps.payload.max_tokens > 0);
+    assert.equal(reel.res.entrees, 8, 'les huit étapes doivent revenir');
+    // LA CLÉ N'APPARAÎT NULLE PART : ni dans l'erreur 401, ni dans un journal.
+    assert.match(reel.erreur401, /le serveur a refusé l\u2019appel \(401/, 'erreur 401 : ' + reel.erreur401);
+    assert.equal(reel.erreur401.indexOf(reel.cle), -1, 'la clé ne doit pas être dans l\'erreur');
+    reel.journaux.forEach((j) => {
+      assert.equal(j.indexOf(reel.cle), -1, 'la clé ne doit pas être dans un journal : ' + j.slice(0, 80));
+    });
+    assert.deepEqual(reel.cleSurWindow, [], 'aucune clé posée sur window : ' + reel.cleSurWindow.join(','));
+    console.log('      ' + reel.vu.methode + ' ' + new URL(reel.vu.url).origin + '  —  payload.model '
+      + reel.vu.corps.payload.model + ', max_tokens ' + reel.vu.corps.payload.max_tokens
+      + ', X-API-Key présent  |  401 → « ' + reel.erreur401.slice(0, 48) + '… » sans la clé');
+    pass('le VRAI transport, dans la vraie page : même Worker que l\'application, clé du cœur, jamais dans une erreur ni un journal.');
+
+    // ── 19. AUCUN APPEL RÉSEAU causé par la rédaction ────────────────────────────────────────
     // L'application appelle le Worker et des CDN au DÉMARRAGE — c'est son comportement, pas
     // celui de ce lot. Ce qui doit être vrai : entre l'ouverture du panneau et l'annulation du
     // geste, rien n'est sorti. Le transport est simulé, donc aucun appel réel n'a lieu.

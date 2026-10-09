@@ -8214,7 +8214,6 @@ ${recent}`;
   window.adocNarrationApply = adocNarrationApply;
   window.adocNarrationPurge = adocNarrationPurge;
   window.adocNarrationCount = adocNarrationCount;
-  window.ADOC_NARRATION_PAUSE_MOTIF = ADOC_NARRATION_PAUSE_MOTIF;
   window.adocDocumentPourExport = adocDocumentPourExport;
   window.adocEditorStepRef = adocEditorStepRef;
   window.adocNarrationSuivreChangementEtapes = adocNarrationSuivreChangementEtapes;
@@ -9788,7 +9787,17 @@ ${recent}`;
       // chargé après ce fichier. Deux lignes ici, rien de plus : si le module est absent, la
       // boîte du lot 1a fonctionne exactement comme avant.
       if (etape && window.NarrationIA && typeof window.NarrationIA.brancher === 'function') {
-        try { window.NarrationIA.brancher(narrBoite); } catch (e) { console.warn('[narration-ia] ' + (e && e.message)); }
+        // LOT 1b, correctif du 9 octobre — adocGetWorkerUrl et adocGetApiKey sont déclarées DANS
+        // cette IIFE et ne sont sur window ni l'une ni l'autre : le module ne pouvait pas les
+        // voir, et tout appel réel échouait sur « adresse du Worker non configurée ». Elles lui
+        // sont passées ici, par injection. La CLÉ N'EST JAMAIS POSÉE SUR window : seule cette
+        // fonction la connaît, et le module ne la garde pas — il l'appelle au moment de l'envoi.
+        try {
+          window.NarrationIA.brancher(narrBoite, {
+            urlWorker: function () { return adocGetWorkerUrl(); },
+            cleApi: function () { return adocGetApiKey(); },
+          });
+        } catch (e) { console.warn('[narration-ia] ' + (e && e.message)); }
       }
       if (etape) {
         const zone = narrBoite.querySelector('[data-editor-narration]');
@@ -17600,6 +17609,14 @@ ${recent}`;
   // morte temporelle, et l'exposer avant sa déclaration arrête tout le fichier. Déjà rencontré
   // au lot 2 avec adocPresentReference — même famille, même correction.
   var ADOC_NARRATION_PAUSE_MOTIF = '\\[pause(?:\\s+\\d+(?:[.,]\\d+)?\\s*s)?\\]';
+  // EXPOSÉES ICI, et pas dans le bloc d'exposition plus haut. Une `var` est hissée mais son
+  // AFFECTATION reste à sa ligne : exposer la constante avant cette ligne posait `undefined` sur
+  // window, sans la moindre erreur — et le module retombait en silence sur sa propre copie.
+  // C'est la même famille que la zone morte temporelle du 8 octobre, en plus discret : une
+  // `const` plante bruyamment, une `var` ment tranquillement. Les fonctions, elles, sont hissées
+  // avec leur corps : c'est pourquoi le bloc d'exposition plus haut fonctionne pour elles.
+  window.ADOC_NARRATION_MOTS_PAR_SECONDE = ADOC_NARRATION_MOTS_PAR_SECONDE;
+  window.ADOC_NARRATION_PAUSE_MOTIF = ADOC_NARRATION_PAUSE_MOTIF;
 
   function adocPresentStepList(doc) {
     if (!doc || doc.documentKind !== 'presentation') return [];
