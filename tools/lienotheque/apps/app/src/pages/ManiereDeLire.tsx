@@ -251,7 +251,11 @@ export function ManiereDeLire({
                 tabIndex={0}
                 aria-label={`${motDuRole(zone.role)}, zone tracée`}
                 aria-pressed={zone.cle === choisie}
-                className={`ln-zone ln-zone--${zone.role}${zone.cle === choisie ? " ln-zone--choisie" : ""}`}
+                className={`ln-zone ln-zone--${zone.role}${zone.cle === choisie ? " ln-zone--choisie" : ""}${
+                  // Près du bord droit, l'étiquette se range à droite : sinon elle sort de la
+                  // page et se fait couper.
+                  zone.rectangle.x + zone.rectangle.l > 0.7 ? " ln-zone--au-bord" : ""
+                }`}
                 style={{
                   left: `${zone.rectangle.x * 100}%`,
                   top: `${zone.rectangle.y * 100}%`,

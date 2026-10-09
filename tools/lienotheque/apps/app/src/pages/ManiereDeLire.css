@@ -82,12 +82,15 @@
 
 /* La page qu'on annote. Le tracé se fait dessus, donc elle est positionnée : les zones sont
    placées en part de sa largeur et de sa hauteur, jamais en pixels. */
+/* La planche épouse exactement l'image : les zones sont placées en part de ses dimensions, et
+   une boîte plus grande que l'image les décalerait toutes. Elle est bornée en hauteur pour que
+   la palette et le pied restent à l'écran — une page entière les repousserait dehors. */
 .ln-maniere__planche {
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: calc(var(--ln-grid) * 40);
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin-inline: auto;
   border: 1px solid var(--ln-border-decorative);
   border-radius: var(--ln-radius);
   background: var(--ln-print-background);
@@ -98,13 +101,15 @@
 
 .ln-maniere__planche img {
   display: block;
-  width: 100%;
-  height: auto;
+  width: auto;
+  max-width: 100%;
+  max-height: calc(var(--ln-grid) * 56);
   user-select: none;
 }
 
 .ln-maniere__planche-vide {
   margin: 0;
+  min-width: calc(var(--ln-grid) * 40);
   padding: calc(var(--ln-grid) * 4);
   color: var(--ln-print-secondary);
   text-align: center;
@@ -149,6 +154,11 @@
   color: var(--ln-action-text);
   font-size: 11px;
   white-space: nowrap;
+}
+
+.ln-zone--au-bord .ln-zone__nom {
+  inset-inline-start: auto;
+  inset-inline-end: -2px;
 }
 
 .ln-zone--element .ln-zone__nom {

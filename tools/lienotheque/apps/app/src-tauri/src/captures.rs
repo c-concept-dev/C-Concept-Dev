@@ -31,6 +31,8 @@ pub const POSES: &[Pose] = &[
     Pose { adresse: "#organisation", theme: "hybrid", nom: "2-organisation-hybride", en_plus: "" },
     Pose { adresse: "#depot", theme: "light", nom: "3-depot-et-traitement-clair", en_plus: "" },
     Pose { adresse: "#depot", theme: "hybrid", nom: "3-depot-et-traitement-hybride", en_plus: "" },
+    Pose { adresse: "#maniere", theme: "light", nom: "4-maniere-de-lire-clair", en_plus: "" },
+    Pose { adresse: "#maniere", theme: "hybrid", nom: "4-maniere-de-lire-hybride", en_plus: "" },
     Pose { adresse: "", theme: "light", nom: "5-recherche-clair", en_plus: "&chercher=articulation" },
     Pose { adresse: "", theme: "hybrid", nom: "5-recherche-hybride", en_plus: "&chercher=articulation" },
 ];

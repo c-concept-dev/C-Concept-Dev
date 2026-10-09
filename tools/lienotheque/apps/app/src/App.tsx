@@ -133,6 +133,12 @@ export function App(): JSX.Element {
       setExemples(bibliotheque.exemples);
       setFile(bibliotheque.file);
       setAccompagnements(bibliotheque.accompagnements);
+      setManiere((avant) => ({
+        ...avant,
+        document: "Funk Fusion Bass.pdf",
+        pages: bibliotheque.pagesATracer,
+        brouillon: { ...avant.brouillon, zones: bibliotheque.zonesTracees, exempleDeNumero: "2.1" },
+      }));
     });
     return () => {
       vivant = false;

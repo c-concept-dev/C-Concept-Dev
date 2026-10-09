@@ -315,3 +315,52 @@ export const ACCOMPAGNEMENTS = [
   { nom: "Disque 1 — 24 pistes.zip", contenu: "audio" },
   { nom: "Disque 2 — 18 pistes.zip", contenu: "audio" },
 ] as const;
+
+/** Une page à annoter et deux zones déjà tracées, pour l'écran de manière de lire.
+ *
+ *  L'image est un dessin, pas une œuvre : des portées et un numéro encadré, de quoi montrer où
+ *  l'on trace. Rien de ce document n'existe.
+ *
+ *  Ses couleurs viennent des jetons, lus sur le document au moment où on la dessine — une page
+ *  imprimée suit la charte comme le reste, et elle suit donc aussi le thème. */
+function jeton(nom: string, secours: string): string {
+  const lu = globalThis.getComputedStyle?.(globalThis.document.documentElement).getPropertyValue(nom).trim();
+  return lu === undefined || lu === "" ? secours : lu;
+}
+
+function pageDessinee(): string {
+  const papier = jeton("--ln-print-background", "Canvas");
+  const encre = jeton("--ln-print-text", "CanvasText");
+  const portees = [0, 1, 2, 3, 4, 5]
+    .map((rang) => {
+      const y = 110 + rang * 118;
+      const lignes = [0, 1, 2, 3, 4]
+        .map((n) => `<line x1="38" y1="${y + n * 9}" x2="582" y2="${y + n * 9}" stroke="${encre}" stroke-opacity="0.55"/>`)
+        .join("");
+      const notes = [0, 1, 2, 3, 4, 5, 6, 7]
+        .map((n) => `<ellipse cx="${72 + n * 64}" cy="${y + 9 + (n % 4) * 9}" rx="5" ry="3.6" fill="${encre}"/>`)
+        .join("");
+      return lignes + notes;
+    })
+    .join("");
+
+  return `data:image/svg+xml;utf8,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 840" width="620" height="840">
+       <rect width="620" height="840" fill="${papier}"/>
+       <rect x="38" y="34" width="46" height="24" fill="none" stroke="${encre}" stroke-width="2"/>
+       <text x="46" y="52" font-family="Inter, sans-serif" font-size="16" fill="${encre}">2.1</text>
+       ${portees}
+       <text x="566" y="812" font-family="Inter, sans-serif" font-size="14" fill="${encre}">15</text>
+     </svg>`,
+  )}`;
+}
+
+export const PAGES_A_TRACER = [
+  { rang: 14, image: pageDessinee() },
+  { rang: 15, image: pageDessinee() },
+] as const;
+
+export const ZONES_TRACEES = [
+  { cle: "zone-element", role: "element" as const, rectangle: { x: 0.055, y: 0.035, l: 0.09, h: 0.035 } },
+  { cle: "zone-page", role: "page_imprimee" as const, rectangle: { x: 0.88, y: 0.945, l: 0.09, h: 0.035 } },
+];
