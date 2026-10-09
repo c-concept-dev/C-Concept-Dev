@@ -31,6 +31,7 @@
 | 2026-10-06 | Portage Rust intégral de la chaîne **écarté** : il faudrait réécrire pdf.js et les codecs, et refaire la preuve des 84/92 et 95/95 | Lot D2, étape 0 |
 | 2026-10-06 | Allègement du moteur (Node sans ICU, binaire compilé) **reporté après la bêta**, et sans toucher la chaîne | Lot D2, étape 0 |
 | 2026-10-08 | **La recherche n'a pas d'index à elle** : elle lit la vue, et tout se passe sur la machine. Le surlignage porte sur le texte d'origine, pas sur sa forme repliée | Lot D2, étape 4, section ci-dessous |
+| 2026-10-09 | **Lot D2 clos.** Quatre questions restées ouvertes sont tranchées : agencement d'un paquet Windows **reporté à la phase Windows** ; critère F4 à 84 / 92 **non revérifié**, le témoin gratuit en tient lieu et on ne remesurera que si cette zone du code est retouchée ; **pages invisibles de F5 laissées en l'état**, sujet d'un lot futur ; **allègement du moteur confirmé après la bêta** | Lot D2, clôture, section ci-dessous |
 | 2026-10-09 | **Les écrans lisent la version active du dépôt**, relue après chaque traitement, et les images de page arrivent une par une dans la réponse de l'hôte | Lot D2, étape 6, section ci-dessous |
 | 2026-10-09 | **Le parcours entier passe sans ligne de commande** : créer, organiser, déposer, apprendre à lire, traiter, lire — 234 s sur F3, 95/95 | Lot D2, étape 7, section ci-dessous |
 | 2026-10-09 | **La forme d'un numéro d'élément se donne par l'exemple**, jamais par une syntaxe : « ici, un numéro ressemble à 2.46 ». Quatre hypothèses du lecteur deviennent des données | Lot D2, étape 5, section ci-dessous |
@@ -2191,3 +2192,26 @@ manquante, parce qu'il n'en manque aucune.
 
 Le contrôle complet passe dans les conditions de l'intégration continue : fixtures privées écartées,
 `pnpm install --frozen-lockfile`, aucun cache de travail.
+
+## Lot D2 — clôture
+
+Quatre questions attendaient une décision à la fin du lot. Aucune n'appelle de code ; toutes
+appellent d'être écrites, faute de quoi elles se reposeront.
+
+**L'agencement d'un paquet Windows installé** reste à trancher, et ce sera à la phase Windows. La
+réserve ouverte au lot 0 ne bloque pas la bêta macOS : l'intégration continue construit le paquet
+Windows et en publie la taille, c'est tout ce qu'on lui demande d'ici là.
+
+**Le critère F4, 84 / 92, ne sera pas revérifié.** Il demande la relecture ciblée, donc le service
+payant, et le témoin gratuit répond à la seule question qui se pose en pratique : la lecture
+a-t-elle bougé ? Elle n'a pas bougé — 66 / 92 et 77 / 92, identiques au relevé de référence. On
+repassera la mesure complète **si cette zone du code est retouchée**, pas avant. La règle est
+écrite en tête de `outils/ingestion/mesures/f4-temoin.ts`, là où elle sera lue.
+
+**Les 81 pages de F5 que le moteur ne voit pas** restent en l'état : leurs images ne sont pas des
+JPEG que le lecteur de format sait extraire. F5 reste donc une fixture partielle, utile telle
+quelle — elle a servi à l'épreuve REC-07 et elle se lit —, et l'extraction manquante est le sujet
+d'un lot futur, pas une dette de celui-ci.
+
+**L'allègement du moteur** reste après la bêta, sans toucher la chaîne : la décision du 6 octobre
+est confirmée telle quelle.
