@@ -37,7 +37,7 @@ choisit **réellement** pour la phrase exacte du document, pas ce qu'on espère.
 
 | audience | registre choisi |
 |---|---|
-| **« Grand public — adultes en couple ou ayant vécu en couple, sans prérequis clinique ou financier. »** | **public large** |
+| **la phrase exacte du document de Christophe** (« Grand public — … sans prérequis clinique ou financier. ») | **public large** |
 | « clinicien » | professionnels |
 | « personnes accompagnées » | personnes accompagnées |
 | « patients » | personnes accompagnées |
@@ -45,7 +45,7 @@ choisit **réellement** pour la phrase exacte du document, pas ce qu'on espère.
 | « thérapeutes de couple » | professionnels |
 | « couples en difficulté » | personnes accompagnées |
 
-La phrase de Christophe contient « sans prérequis **clinique** », qui passe à un cheveu du motif
+Sa phrase contient « sans prérequis **clinique** », qui passe à un cheveu du motif
 des professionnels (« clinicien ») — c'est précisément le genre de coïncidence qui se vérifie au
 lieu de se supposer. Elle tombe bien sur **public large**.
 
@@ -141,14 +141,15 @@ coïncident aujourd'hui divergent demain (régression #8).
 
 ## 1. Le prompt système, tel qu'il part
 
-Rendu depuis le navigateur **pour la présentation réelle de Christophe** — titre, public et
-objectif pris dans le document, adresse « vous ». **83 lignes, 5 136 caractères** (56 avant la
-relecture du 8 octobre, 79 après ses sept corrections, 83 avec l'objectif du 9 octobre).
+Rendu depuis le navigateur sur la **présentation d'essai** du lot — 83 lignes, titre, public et
+objectif pris dans le document. (Le prompt rendu pour la présentation réelle de Christophe a été
+vérifié de la même façon ; il n'est pas reproduit ici, parce que ce dépôt est public et que son
+document ne lui appartient pas — règle 11 de la gouvernance.)
 
 ```
 Vous êtes auteur de scripts de doublage. Vous écrivez le commentaire que dira, à voix
 haute, un acteur de doublage, pour une vidéo de psychoéducation.
-Le sujet est celui de la présentation fournie, intitulée « L'argent dans le couple : bien plus qu'une question de budget ». Tenez-vous-y :
+Le sujet est celui de la présentation fournie, intitulée « Quand le silence s’installe ». Tenez-vous-y :
 ne traitez pas d'un sujet voisin parce qu'il vous vient plus facilement.
 
 CE TEXTE SERA DIT, PAS LU.
@@ -205,7 +206,7 @@ Chaleureux, posé, jamais culpabilisant. Vous ne jugez personne. Vous ne vous ad
 Adressez-vous au spectateur en disant « vous ». Jamais « tu ».
 
 À QUI VOUS PARLEZ.
-Un public large (« Grand public — adultes en couple ou ayant vécu en couple, sans prérequis clinique ou financier. »), sans formation. Partez de l'expérience ordinaire avant toute notion. Aucun terme technique sans une phrase qui l'explique.
+Un public large (« Grand public — adultes, sans prérequis clinique »), sans formation. Partez de l'expérience ordinaire avant toute notion. Aucun terme technique sans une phrase qui l'explique.
 
 CE QUE CE DOCUMENT EST.
 Une présentation clinique dont la relecture humaine est requise. Votre commentaire est un
@@ -231,17 +232,57 @@ exacts. Aucun identifiant inventé, aucun oublié. Le champ "text" est du texte 
 en français.
 ```
 
-**Le message utilisateur**, pour la même présentation : 102 lignes, 8 521 caractères. Il porte le
-titre, le public, **l'objectif**, la durée visée, puis par étape l'identifiant, la cible en mots,
-ce qui est déjà à l'écran et le contenu de l'étape. Son en-tête :
+**Le message utilisateur**, pour la même présentation. Il porte le titre, le public,
+**l'objectif**, la durée visée, puis par étape l'identifiant, la cible en mots, ce qui est déjà à
+l'écran et le contenu de l'étape :
 
 ```
-Titre de la présentation : L'argent dans le couple : bien plus qu'une question de budget
-Public : Grand public — adultes en couple ou ayant vécu en couple, sans prérequis clinique ou financier.
-Objectif : Sensibiliser le grand public aux enjeux relationnels, émotionnels et de pouvoir que l'argent introduit dans la vie de couple — et ouvrir des pistes concrètes pour en parler autrement.
-Durée visée pour l'ensemble : 8 minutes, soit environ 1197 mots.
+Titre de la présentation : Quand le silence s’installe
+Public : Grand public — adultes, sans prérequis clinique
+Objectif : Donner au spectateur de quoi nommer un silence installé dans son couple, et une phrase pour l ouvrir.
+Durée visée pour l'ensemble : 4 minutes, soit environ 600 mots.
 
 Les étapes, dans l'ordre. Écrivez un commentaire pour CHACUNE :
+
+── Diapositive : Ce qui ne se dit pas
+  stepId: heading-01
+  cible: 33 mots
+  contenu de cette étape : Le silence n’est pas toujours une absence
+
+  stepId: paragraph-01
+  cible: 120 mots
+  déjà à l'écran : Le silence n’est pas toujours une absence
+  contenu de cette étape : Dans beaucoup de couples, il existe un sujet dont on ne parle pas. Ce n’est pas qu’on l’a oublié : on le contourne, chacun de son côté, et ce contournement finit par organiser toute la relation.
+
+  stepId: callout-01
+  cible: 81 mots
+  déjà à l'écran : Le silence n’est pas toujours une absence | Dans beaucoup de couples, il existe un sujet dont on ne parle pas. Ce n’est pas qu’on l’a oublié : on le contourne, chacun de son côté, et ce contournement finit par organiser toute la relation.
+  contenu de cette étape : Le silence protège quelque chose. Tant qu’on ignore quoi, il est difficile de le lever.
+
+── Diapositive : Trois formes de silence
+  stepId: heading-02
+  cible: 27 mots
+  contenu de cette étape : Elles ne se ressemblent pas
+
+  stepId: list-01
+  cible: 120 mots
+  déjà à l'écran : Elles ne se ressemblent pas
+  contenu de cette étape : Le silence de protection : parler ferait mal, alors on se tait. — Le silence d’habitude : on a cessé d’essayer, sans décision consciente. — Le silence de représailles : se taire est devenu une manière de répondre.
+
+  stepId: paragraph-02
+  cible: 102 mots
+  déjà à l'écran : Elles ne se ressemblent pas | Le silence de protection : parler ferait mal, alors on se tait. — Le silence d’habitude : on a cessé d’essayer, sans décision consciente. — Le silence de représailles : se taire est devenu une manière de répondre.
+  contenu de cette étape : Les reconnaître change la conversation : on ne s’adresse pas de la même façon à quelqu’un qui se protège et à quelqu’un qui riposte.
+
+── Diapositive : Par où commencer
+  stepId: heading-03
+  cible: 24 mots
+  contenu de cette étape : Une seule phrase suffit
+
+  stepId: quote-01
+  cible: 93 mots
+  déjà à l'écran : Une seule phrase suffit
+  contenu de cette étape : Il y a quelque chose dont on ne parle jamais. Je ne sais pas par où commencer, mais j’aimerais essayer.
 ```
 
 Vérifié : le message ne porte ni `sourceSnapshotId`, ni `citationLinks`, ni `renderManifestId`,
@@ -271,54 +312,38 @@ plafonnées à 120 mots ne peuvent pas porter dix minutes — 960 mots, soit 6,4
 
 ---
 
-## 2bis. La répartition, mesurée sur « L'argent dans le couple »
+## 2bis. La répartition des mots
 
-19 étapes, 8 minutes, **aucun appel au modèle** — le calcul est entièrement local
-(`tests/mesure-repartition-reelle.cjs`).
+Le calcul est entièrement local : **aucun appel au modèle**
+(`tests/mesure-repartition-reelle.cjs`). Sur la présentation d'essai, 8 étapes, 4 minutes :
 
 ```
-════════════════════════════════════════════════════════════════════════════════════════════════════
-« L'argent dans le couple : bien plus qu'une question de budget »
-5 diapositives, 19 étapes  —  durée visée 8 min, soit 1200 mots
+  étape        type          mots du bloc   poids   CIBLE   durée
+    étape 1/3   heading                7      1.59      33 mots   13 s
+    étape 2/3   paragraph             36         6     120 mots   48 s
+    étape 3/3   callout               15      3.87      81 mots   32 s
+    étape 1/3   heading                5      1.34      27 mots   11 s
+    étape 2/3   list                  38       7.4     120 mots   48 s
+    étape 3/3   paragraph             24       4.9     102 mots   41 s
+    étape 1/2   heading                4       1.2      24 mots   10 s
+    étape 2/2   quote                 20      4.47      93 mots   37 s
 
-  diapositive / étape          type           mots du bloc   poids   CIBLE   durée   contenu
-  ── L'argent : le grand tabou du couple
-    étape 1/4   heading                7      1.59      21 mots    8 s   On parle de tout… sauf de ça.
-    étape 2/4   paragraph             23       4.8      64 mots   26 s   Les couples discutent de leur futur, de leur
-    étape 3/4   callout               26       5.1      68 mots   27 s   L'argent dans le couple est « une zone souve
-    étape 4/4   paragraph             25         5      67 mots   27 s   Pourquoi ce silence ? Parce que l'argent ne 
-  ── Ce que l'argent dit vraiment de nous
-    étape 1/4   heading                6      1.47      20 mots    8 s   Chaque euro dépensé raconte une histoire.
-    étape 2/4   paragraph             24       4.9      65 mots   26 s   Nos comportements financiers viennent de loi
-    étape 3/4   list                  44      7.96     107 mots   43 s   L'un épargne par peur du manque — l'autre dé
-    étape 4/4   callout               19      4.36      58 mots   23 s   Ce n'est pas l'argent qui crée le conflit. C
-  ── Argent, pouvoir et équilibre dans le couple
-    étape 1/4   heading                6      1.47      20 mots    8 s   Qui paie décide — vraiment ?
-    étape 2/4   paragraph             25         5      67 mots   27 s   Les inégalités de revenus au sein du couple 
-    étape 3/4   paragraph             28      5.29      70 mots   28 s   La recherche ethnographique révèle que les p
-    étape 4/4   callout               22      4.69      63 mots   25 s   L'idéal d'égalité affiché par les couples ca
-  ── Parler d'argent autrement — et le faire vraiment
-    étape 1/4   heading               13      2.16      29 mots   12 s   Ce n'est pas une question de budget. C'est u
-    étape 2/4   paragraph             28      5.29      70 mots   28 s   Parler d'argent peut devenir une source de c
-    étape 3/4   list                  30      6.57      88 mots   35 s   Nommer ses valeurs financières avant de négo
-    étape 4/4   questionnaire         72     11.03     120 mots   48 s   Quand vous pensez à l'argent dans votre coup
-  ── Ce qu'on retient — 4 idées pour transformer votre regard
-    étape 1/3   heading                4       1.2      16 mots    6 s   L'argent, révélateur du couple.
-    étape 2/3   list                  73     10.25     120 mots   48 s   L'argent est une zone émotionnelle autant qu
-    étape 3/3   quote                 23       4.8      64 mots   26 s   Ce ne sont pas vos revenus qui déterminent l
-
-  total réparti : 1197 mots pour 1200 visés  —  8 min
-  atteignable : OUI
-  bornes : 15 à 120 mots par étape
+  total réparti : 600 mots pour 600 visés — atteignable : OUI
 ```
+
+**Mesuré aussi sur la présentation réelle de Christophe** — 19 étapes, 8 minutes. Les chiffres,
+sans son contenu : **1 197 mots répartis pour 1 200 visés, atteignable**, titres de **16 à 29
+mots** (6 à 12 s), paragraphes de **64 à 70**, listes de **88 à 107**, questionnaire à **120**
+(plafond). Le détail étape par étape lui a été montré dans la conversation ; il n'entre pas dans
+ce dépôt public.
 
 **Le cas atteignable et le cas qui ne l'est pas**, tous deux mesurés :
 
 | document | étapes | durée visée | réparti | verdict |
 |---|---|---|---|---|
-| L'argent dans le couple | 19 | 8 min | 1 197 mots pour 1 200 | **atteignable** |
-| Essai du passage humain | 8 | 8 min | 960 mots, 6,4 min | **NON** — plafond, 8 étapes bornées |
-| Essai du passage humain | 8 | 4 min | 600 mots pour 600 | **atteignable** |
+| présentation réelle | 19 | 8 min | 1 197 mots pour 1 200 | **atteignable** |
+| présentation d'essai | 8 | 8 min | 960 mots, 6,4 min | **NON** — plafond, 8 étapes bornées |
+| présentation d'essai | 8 | 4 min | 600 mots pour 600 | **atteignable** |
 
 **Les poids, et pourquoi.** Le poids d'une étape a deux facteurs :
 
@@ -407,7 +432,7 @@ déclenchera pas. La mise en ligne est celle d'un lot d'application, comme le lo
    servi, et son empreinte est celle de la fusion.
 6. Retour en arrière : `git revert -m 1 <SHA de la fusion>` puis `git push origin main`.
 
-**Ce que tu testes ensuite sur ton site**, avec une **copie** de « L'argent dans le couple »
+**Ce que tu testes ensuite sur ton site**, avec une **copie** de ta présentation réelle
 (« Enregistrer sous », jamais l'original) :
 
 1. Ouvre la copie, clique un bloc, descends jusqu'à **Narration**.
