@@ -333,6 +333,24 @@ export function ManiereDeLire({
                 ))}
               </ul>
             )}
+            <label className="ln-champ" htmlFor={`${base}-exemple`}>
+              À quoi ressemble un numéro
+              <input
+                id={`${base}-exemple`}
+                className="ln-saisie"
+                value={brouillon.exempleDeNumero ?? ""}
+                placeholder="par exemple 400, ou 2.46"
+                onChange={(evenement) =>
+                  onBrouillon({ ...brouillon, exempleDeNumero: evenement.target.value })
+                }
+              />
+            </label>
+            <p className="ln-muted ln-palette__note">
+              <Icone nom="info" />
+              Écrivez-en un, tel qu’il est imprimé. Chaque groupe de chiffres vaudra un à trois
+              chiffres, et le reste sera repris tel quel. Laissé vide, un numéro est un nombre.
+            </p>
+
             <p className="ln-muted ln-palette__note">
               <Icone nom="info" />
               Les types viennent de ce que la bibliothèque sait relier. Une zone peut rester vide

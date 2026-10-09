@@ -55,6 +55,9 @@ export type Brouillon = {
   readonly sautMax: number;
   readonly plusieursElementsParPiste: boolean;
   readonly seuil: number;
+  /** À quoi ressemble un numéro, donné par l'exemple. Vide, c'est un nombre de un à trois
+   *  chiffres — ce qui a toujours été lu, et ce qui ne change donc rien aux documents déjà vus. */
+  readonly exempleDeNumero?: string;
 };
 
 /** Ce qu'on propose avant que l'administrateur n'ait rien dit.
@@ -94,6 +97,8 @@ export function manqueALaManiere(brouillon: Brouillon, mots: MotsPourLaPhrase = 
     return "La plus grande hauteur doit dépasser la plus petite.";
   for (const zone of brouillon.zones)
     if (zone.rectangle.l <= 0 || zone.rectangle.h <= 0) return "Une zone sans surface ne cherche nulle part.";
+  if (brouillon.exempleDeNumero !== undefined && brouillon.exempleDeNumero.trim() !== "" && !/\d/.test(brouillon.exempleDeNumero))
+    return "Votre exemple de numéro ne contient aucun chiffre.";
   return undefined;
 }
 
@@ -124,6 +129,9 @@ export function enRecette(brouillon: Brouillon): RecetteLue {
         zone: zoneDe(zone),
         hauteur_rel: { min: brouillon.hauteurElement.min, max: brouillon.hauteurElement.max },
         alphabet: "chiffres",
+        ...(brouillon.exempleDeNumero === undefined || brouillon.exempleDeNumero.trim() === ""
+          ? {}
+          : { numero: { exemple: brouillon.exempleDeNumero.trim() } }),
         ...(zone.libelle === undefined || zone.libelle.trim() === "" ? {} : { libelle: zone.libelle.trim() }),
       });
 
@@ -161,13 +169,17 @@ export function depuisRecette(recette: RecetteLue): Brouillon {
   const zones: ZoneTracee[] = [];
   let piste: RepereDePiste | undefined;
   let hauteurElement = BROUILLON_NEUF.hauteurElement;
+  let exempleDeNumero: string | undefined;
 
   for (const [rang, lecture] of recette.lectures.entries()) {
     if (lecture.ancre === "piste") {
       piste = { position: lecture.position, motif: lecture.motif, etiquetteDisque: lecture.etiquette_disque };
       continue;
     }
-    if (lecture.ancre === "element") hauteurElement = lecture.hauteur_rel;
+    if (lecture.ancre === "element") {
+      hauteurElement = lecture.hauteur_rel;
+      if (lecture.numero !== undefined) exempleDeNumero = lecture.numero.exemple;
+    }
     zones.push({
       cle: `zone-${rang}`,
       role: lecture.ancre,
@@ -183,6 +195,7 @@ export function depuisRecette(recette: RecetteLue): Brouillon {
     zones,
     ...(piste === undefined ? {} : { piste }),
     hauteurElement,
+    ...(exempleDeNumero === undefined ? {} : { exempleDeNumero }),
     pageDouble: recette.preparation.double_page,
     redressement: recette.preparation.redressement,
     ordreElements: recette.regles.elements.ordre,

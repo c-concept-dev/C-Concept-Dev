@@ -211,10 +211,15 @@ export type PageAlire = {
 
 /** Lit les repères de chaque page. Le côté, quand il est connu, dit où est la marge extérieure. */
 export function reperer(pages: readonly PageAlire[], recette: Recette, options: OptionsBanc = {}): PageLue[] {
-  const bord = recette.lectures.find((lecture) => lecture.ancre === "page_imprimee")?.zone;
+  // Où la recette dit de lire le numéro de page. Une zone tracée vaut comme un bord : c'est la
+  // recette qui décide d'où il se lit, et non le lecteur qui suppose les coins.
+  const ouLirePage = recette.lectures.find((lecture) => lecture.ancre === "page_imprimee")?.zone;
   return pages.map((page) => {
     const avecCote = { ...options, ...(page.cote === undefined ? {} : { cote: page.cote }) };
-    const pageLue = bord !== undefined && bord.type === "coins" ? lireNumeroPage(page.image, bord.bord, avecCote) : undefined;
+    const pageLue =
+      ouLirePage === undefined || ouLirePage.type === "marges_exterieures"
+        ? undefined
+        : lireNumeroPage(page.image, ouLirePage, avecCote);
     return {
       index: page.index,
       ...(page.rang === undefined ? {} : { rang: page.rang }),

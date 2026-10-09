@@ -193,3 +193,27 @@ describe("ce qu'un essai a donné se lit page par page (REC-07)", () => {
     expect(bilanDEssai(VUE).pages.map((page) => page.aVerifier)).toEqual([1, 0, 0]);
   });
 });
+
+describe("la forme d'un numéro se donne par l'exemple (REC-01, REC-07)", () => {
+  it("part absente : un numéro est un nombre, et rien ne change pour ce qui était déjà lu", () => {
+    expect(enRecette(COMPLET).lectures.find((l) => l.ancre === "element")?.numero).toBeUndefined();
+  });
+
+  it("l'exemple voyage jusqu'à la recette, débarrassé de ses espaces", () => {
+    const avec = enRecette({ ...COMPLET, exempleDeNumero: "  2.46 " });
+    expect(avec.lectures.find((l) => l.ancre === "element")?.numero).toEqual({ exemple: "2.46" });
+  });
+
+  it("revient tel quel quand on rouvre la recette", () => {
+    const avec = { ...COMPLET, exempleDeNumero: "2.46" };
+    expect(depuisRecette(enRecette(avec)).exempleDeNumero).toBe("2.46");
+  });
+
+  it("un exemple sans chiffre n'en est pas un, et on le dit", () => {
+    expect(manqueALaManiere({ ...COMPLET, exempleDeNumero: "abc" })).toMatch(/aucun chiffre/);
+  });
+
+  it("un exemple vide vaut l'absence : on ne force personne à en écrire un", () => {
+    expect(manqueALaManiere({ ...COMPLET, exempleDeNumero: "   " })).toBeUndefined();
+  });
+});
