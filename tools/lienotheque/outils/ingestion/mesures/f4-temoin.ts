@@ -9,6 +9,10 @@
  *  Relevé de référence, à comparer : **66 / 92 premiers éléments, 77 / 92 pages**. Un écart
  *  signifie que quelque chose a changé dans la lecture, et il faut alors savoir quoi avant de
  *  relancer la mesure complète.
+ *
+ *  **La règle, arrêtée le 9 octobre 2026 :** ce témoin tient lieu de vérification de F4. On ne
+ *  repasse pas par la mesure payante pour le plaisir d'un chiffre ; on la repasse **seulement si
+ *  cette zone du code est retouchée**, et alors on la repasse pour de bon.
  */
 import { existsSync, readFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";

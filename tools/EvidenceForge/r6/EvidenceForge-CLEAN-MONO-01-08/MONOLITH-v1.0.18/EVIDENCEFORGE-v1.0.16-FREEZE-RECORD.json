@@ -1,0 +1,206 @@
+{
+  "schema": "EvidenceForge.FreezeRecord",
+  "version": "MONOLITH-v1.0.16",
+  "name": "PB-B7 SECONDARY REUSE IDENTITY FIX",
+  "frozenAt": "2026-09-23T21:13:47Z",
+  "frozenBy": "owner",
+  "frozenByDecision": "OWNER DECISION — GEL MONOLITH v1.0.16 (D1–D11)",
+  "status": "FROZEN_WITH_RESERVATIONS",
+  "READY_FOR_ACTIVATION": false,
+  "smokeExecuted": false,
+  "activeVersionChanged": false,
+  "activationBlocked": true,
+  "activationBlockedReason": "micro-smoke PB-B7 requis puis OWNER GATE (D10, D11)",
+  "parent": {
+    "version": "MONOLITH-v1.0.15",
+    "status": "FROZEN_WITH_RESERVATIONS (ACTIVATION_BLOCKED_BY_PB_B7)",
+    "contentHash": "1e2196504aa217fbb5bb654e4e8529bee6f732a74a7b15daec732d509f356ea4",
+    "files": 169
+  },
+  "scope": "fermeture de PB-B7 : le magasin generique llm-reuse-store ne reutilise une reponse EF-03B que si cible + documentAuthoritySha256 + contrat + sceau de l entree == appel courant (option A) ; entree EF-03B sans cible ou sans empreinte = NON_REUSABLE_FOR_EF03B_V3 ; aucune migration ; changements runtime limites a lib/llm.js et lib/ef03b-resilience.js",
+  "runtimeManifest": {
+    "files": 180,
+    "contentHash": "54266d0db6a0ce73bb88309a3bb8d53fcaa378c2af3b3e34dadf479f12ada490",
+    "MANIFEST.json": "babd86b6afe0fb86f11d3e152466f1db91c9b3e18aa859f729001d2b47f3e89a",
+    "SHA256SUMS.txt": "b619e1fb2fc50855d9d2370f1f108e212586d34bcfc7e03a92e6d6408abf36da"
+  },
+  "frozenLot": {
+    "MONO-11": "v0.4",
+    "contractVersion": "MONO-11-v3",
+    "runtimeSealSha256": "110db4de24709926d4a5fb6d0e951530f0afc2c1c807a09127852a92aa182c3d",
+    "runCodeHash": "27610c84502104b3dc9643a9cc0289aef4ae40ae65ee34e4fe82f31a73e381ad",
+    "canonicalZipSha256": "79c16d08a0a52bc1b9ae3c6884cc22f6161145bed18158d6c9b6a44df1a7c474"
+  },
+  "implementationAudit": {
+    "EVIDENCEFORGE-v1.0.16-PB-B7-SECONDARY-REUSE-FIX-AUDIT.md": "6b86a66255a8e90d887a5c5c0dffd1ca3a74371e76f13169ed74d19cf6013249",
+    "EVIDENCEFORGE-v1.0.16-PB-B7-SECONDARY-REUSE-FIX-AUDIT.json": "7e692e81a0bd6e1567da3dae3587acce40556fca4d614e8121a80500429ee177",
+    "proposed": "GELABLE / PB_B7_CLOSED_CANDIDATE"
+  },
+  "independentAudit": {
+    "EVIDENCEFORGE-v1.0.16-INDEPENDENT-FREEZE-AUDIT.md": "92a8667adf3bf0f661a6965a1e0e3e507146479dd58d426a107d6ee726773fe1",
+    "EVIDENCEFORGE-v1.0.16-INDEPENDENT-FREEZE-AUDIT.json": "93f52c428dcf71e03e8592d38830aa80bc9fc3ef4c9a26b147961607206c1fa8",
+    "auditor": "agent independant (session sans contexte de construction)",
+    "verdict": "V1_0_16_FREEZE_AUDIT_PASS_WITH_RESERVATIONS",
+    "blockers": [],
+    "verdicts": {
+      "T3b_PB7_04": "PB7_T3B_CLOSED",
+      "adaptedTests": {
+        "T-STREAM-05": "ADAPTATION_VALID_NO_WEAKENING",
+        "T-STREAM-22": "ADAPTATION_VALID_NO_WEAKENING",
+        "RUN-SAFETY-12": "TEST_WEAKENED",
+        "RUN-SAFETY-13": "ADAPTATION_VALID_NO_WEAKENING",
+        "V3": "ADAPTATION_VALID_NO_WEAKENING"
+      },
+      "RUN_SAFETY_21": "INVERSION_CONTRACTUALLY_CORRECT",
+      "legacyResumeImpact": "EXPECTED_FAIL_CLOSED_RECOMPUTATION",
+      "PB_B7": "PB_B7_CLOSED",
+      "global": "V1_0_16_FREEZE_AUDIT_PASS_WITH_RESERVATIONS",
+      "recommendation": "GELER (owner decision after acknowledging R1-R3); DO NOT ACTIVATE",
+      "frozenDeclaredByThisAudit": false
+    },
+    "suites": {
+      "testMonolith_v1016": "345/345",
+      "testMonolith_v1015_reference": "332/332",
+      "chunking": "21/21",
+      "secretScan": 0,
+      "antiHardcoding": 0,
+      "manifestVerify": {
+        "files": 180,
+        "ok": true,
+        "contentHash": "54266d0db6a0ce73bb88309a3bb8d53fcaa378c2af3b3e34dadf479f12ada490"
+      },
+      "verifyFrozenLots": "0 divergence",
+      "mono11_v04": {
+        "sha": "55/55",
+        "tests": "83/83"
+      }
+    }
+  },
+  "statuses": {
+    "PB_B7": "CLOSED",
+    "T3b": "PB7_T3B_CLOSED",
+    "legacy": "NON_REUSABLE_FOR_EF03B_V3 (aucune migration automatique)",
+    "legacyResumeImpact": "EXPECTED_FAIL_CLOSED_RECOMPUTATION — appels et cout supplementaires possibles, aucune perte de preuve",
+    "adaptedTests": {
+      "T-STREAM-05": "ADAPTATION_VALID_NO_WEAKENING",
+      "T-STREAM-22": "ADAPTATION_VALID_NO_WEAKENING",
+      "RUN-SAFETY-12": "TEST_WEAKENED",
+      "RUN-SAFETY-13": "ADAPTATION_VALID_NO_WEAKENING",
+      "V3": "ADAPTATION_VALID_NO_WEAKENING"
+    },
+    "RUN_SAFETY_21": "INVERSION_CONTRACTUALLY_CORRECT",
+    "survivingMutants": [
+      "M11 (R1)",
+      "M12 (R5)"
+    ]
+  },
+  "reservationsTransported": [
+    {
+      "id": "R1",
+      "severity": "MEDIUM",
+      "text": "Mutant M11 (identity guard restricted to base purpose 'EF-03B review') survives 345/345: non-base passes (informed-retry, completion, literalization) are protected by code (harness C9e refused) but not by any test.",
+      "disposition": "ACCEPT_RESERVATION",
+      "dispositionNote": "TEST_COVERAGE_GAP_NON_BASE_PASSES — code protege (verifie au harnais par l audit), aucun test direct ; pas de v1.0.17 avant micro-smoke ; amelioration de couverture autorisee apres activation/pilote (D3)"
+    },
+    {
+      "id": "R2",
+      "severity": "MEDIUM",
+      "category": "GOVERNANCE",
+      "text": "MONOLITH-v1.0.16 (184 files) is already committed in 766db22a ('studio', 2026-09-23 22:03 +0200) and present on origin/main, contrary to the declared status 'NON COMMITEE'.",
+      "disposition": "DOCUMENTED",
+      "dispositionNote": "v1.0.16 deja presente sur origin/main via 766db22a « studio » ; aucun reset / rebase / amend / reecriture d historique (D7)"
+    },
+    {
+      "id": "R3",
+      "severity": "MEDIUM",
+      "text": "Not smoked: targeted PB-B7 micro-smoke required before activation.",
+      "disposition": "OPEN_UNTIL_MICRO_SMOKE",
+      "dispositionNote": "micro-smoke PB-B7 cible requis avant toute activation ; planification autorisee, execution sous OWNER GATE separe (D10)"
+    },
+    {
+      "id": "R4",
+      "severity": "LOW",
+      "text": "RUN-SAFETY-12 weakened: with pass:1 the resume reuse is served by the EF-03B registry, no longer by the store cache; mutant W1 (store reuse disabled) was killed by RUN-SAFETY-12 in v1.0.15 and is not in v1.0.16 (still killed by 19 other tests).",
+      "disposition": "ACCEPT_RESERVATION",
+      "dispositionNote": "RUN-SAFETY-12 = TEST_WEAKENED ; non bloquant : 19 autres tests tuent encore la regression W1 (D5)"
+    },
+    {
+      "id": "R5",
+      "severity": "LOW",
+      "text": "Mutant M12 survives; transport trusts caller-declared identity (C9c). No production effect: only the adapter calls EF-03B; frozen MONO-11 v0.4 never sets documentAuthoritySha256.",
+      "disposition": "ACCEPT_RESERVATION_CURRENTLY_NON_RUNTIME",
+      "dispositionNote": "CALLER_IDENTITY_OVERRIDE_POSSIBLE ; IF_NEW_RUNTIME_CALLER_CAN_SUPPLY_EF03B_IDENTITY -> R5 MUST BE REOPENED BEFORE THAT CALLER IS AUTHORIZED (D4)"
+    },
+    {
+      "id": "R6",
+      "severity": "LOW",
+      "text": "M3, M4, M4c killed only by refusal-code assertions (historical reuseContextCheck keeps final safety); M4b killed by code on first assertion while no-seal behavior regresses.",
+      "disposition": "ACCEPT_RESERVATION",
+      "dispositionNote": "defense en profondeur : controles EF-03B de contrat / sceau doubles par reuseContextCheck historique"
+    },
+    {
+      "id": "R7",
+      "severity": "LOW",
+      "text": "Frozen policy proposes only the most recent VALID entry; divergent identity => refusal even if an older matching entry exists (C9f): extra cost, fail-closed.",
+      "disposition": "ACCEPT_RESERVATION",
+      "dispositionNote": "fail-closed ; surcout possible"
+    },
+    {
+      "id": "R8",
+      "severity": "INFO",
+      "text": "markValidation propagates by responseSha256 to all entries sharing the hash regardless of identity (C9g); requires byte-identical responses incl. provider id: theoretical, pre-existing.",
+      "disposition": "ACCEPT_RESERVATION",
+      "dispositionNote": "pre-existant, theorique"
+    },
+    {
+      "id": "R9",
+      "severity": "INFO",
+      "text": "RUN-SAFETY-21 old-contract sub-assertion now shadowed by identity guard (contract refusal covered by V12-12, PB7-05).",
+      "disposition": "ACCEPT_RESERVATION",
+      "dispositionNote": "couverture du refus de contrat par V12-12 et PB7-05"
+    },
+    {
+      "id": "R10",
+      "severity": "INFO",
+      "text": "Cross-purpose collisions now refused (stricter than v1.0.15); legacy EF-03B store entries no longer reusable.",
+      "disposition": "ACCEPT_RESERVATION",
+      "dispositionNote": "EXPECTED_FAIL_CLOSED_RECOMPUTATION (D6)"
+    }
+  ],
+  "reservationsCount": 10,
+  "ownerDecisions": {
+    "D1": "FREEZE_WITH_RESERVATIONS",
+    "D2": "PB_B7 = CLOSED",
+    "D3": "R1 ACCEPT_RESERVATION",
+    "D4": "R5 ACCEPT_RESERVATION_CURRENTLY_NON_RUNTIME + clause de reouverture",
+    "D5": "tests adaptes acceptes ; RUN-SAFETY-12 TEST_WEAKENED transporte ; RUN-SAFETY-21 INVERSION_CONTRACTUALLY_CORRECT",
+    "D6": "EXPECTED_FAIL_CLOSED_RECOMPUTATION",
+    "D7": "commit preexistant 766db22a documente, historique non reecrit",
+    "D8": "freeze record",
+    "D9": "commit de gouvernance limite a 5 fichiers sous MONOLITH-v1.0.16/",
+    "D10": "AUTHORIZE_MICRO_SMOKE_PLANNING (execution sous OWNER GATE separe)",
+    "D11": "DO_NOT_ACTIVATE"
+  },
+  "r5ReopenClause": "IF_NEW_RUNTIME_CALLER_CAN_SUPPLY_EF03B_IDENTITY -> R5 MUST BE REOPENED BEFORE THAT CALLER IS AUTHORIZED",
+  "activeVersion": "MONOLITH-v1.0.10",
+  "commit": {
+    "preexistingCodeCommit": "766db22a",
+    "preexistingCodeCommitMessage": "studio",
+    "preexistingCodeCommitAt": "2026-09-23T22:03:32+02:00",
+    "preexistingCodeCommitOnOriginMain": true,
+    "preexistingCodeCommitContains": "184 fichiers de MONOLITH-v1.0.16 (manifeste 180 + MANIFEST.json + SHA256SUMS.txt + rapport de correctif .md/.json), byte-identiques a l etat audite",
+    "historyRewritten": false,
+    "governanceCommit": "freeze(evidenceforge): v1.0.16 PB-B7 reuse identity fix — audit independant .md/.json + freeze record .md/.json + GOVERNANCE.SHA256SUMS.txt"
+  },
+  "governanceSums": "EVIDENCEFORGE-v1.0.16-GOVERNANCE.SHA256SUMS.txt",
+  "nextPhase": [
+    "micro-smoke PB-B7 cible (plan seulement ; racine neuve et isolee ; execution sous OWNER GATE separe)",
+    "OWNER GATE activation"
+  ],
+  "prohibitions": [
+    "ne pas activer",
+    "ne pas ouvrir v1.0.17 sauf defaut revele par le micro-smoke ou une nouvelle preuve factuelle",
+    "ne pas reecrire l historique git",
+    "ne pas modifier MONO-11, D103, runs historiques"
+  ]
+}

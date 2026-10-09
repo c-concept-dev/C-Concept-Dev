@@ -1,0 +1,17 @@
+{
+  "schema": "EvidenceForge.LlmPricing",
+  "version": "2026-09-17-r1",
+  "currency": "USD",
+  "source": "Tarifs publics Anthropic (API directe) tels que relus le 2026-09-17 dans la reference API embarquee (cache 2026-06-24) ; cache : ecriture 5 min = 1,25 x entree, ecriture 1 h = 2 x entree, lecture = 0,1 x entree.",
+  "verifiedAt": "2026-09-17",
+  "$comment": "AUTORITE UNIQUE de tarification. Aucun tarif ailleurs dans le paquet (test COST-04/H4). Modifiable sans toucher aux contrats scientifiques ; chaque run persiste le snapshot (pricingVersion + pricingSnapshotHash) au premier appel, donc un cout historique se recalcule exactement. Un modele absent => cout null (jamais invente) et, si un budget est pose, refus fail-closed (PRICING_UNKNOWN_FOR_MODEL). Les prix sont par MILLION de tokens.",
+  "models": [
+    { "model": "claude-opus-4-8",   "effectiveFrom": "2026-06-24", "inputPerMillion": 5,  "outputPerMillion": 25, "cacheWrite5mPerMillion": 6.25, "cacheWrite1hPerMillion": 10, "cacheReadPerMillion": 0.5 },
+    { "model": "claude-opus-4-7",   "effectiveFrom": "2026-06-24", "inputPerMillion": 5,  "outputPerMillion": 25, "cacheWrite5mPerMillion": 6.25, "cacheWrite1hPerMillion": 10, "cacheReadPerMillion": 0.5 },
+    { "model": "claude-opus-4-6",   "effectiveFrom": "2026-06-24", "inputPerMillion": 5,  "outputPerMillion": 25, "cacheWrite5mPerMillion": 6.25, "cacheWrite1hPerMillion": 10, "cacheReadPerMillion": 0.5 },
+    { "model": "claude-opus-5",     "effectiveFrom": "2026-06-24", "inputPerMillion": 5,  "outputPerMillion": 25, "cacheWrite5mPerMillion": 6.25, "cacheWrite1hPerMillion": 10, "cacheReadPerMillion": 0.5 },
+    { "model": "claude-sonnet-4-6", "effectiveFrom": "2026-06-24", "inputPerMillion": 3,  "outputPerMillion": 15, "cacheWrite5mPerMillion": 3.75, "cacheWrite1hPerMillion": 6,  "cacheReadPerMillion": 0.3 },
+    { "model": "claude-sonnet-5",   "effectiveFrom": "2026-06-24", "inputPerMillion": 2,  "outputPerMillion": 10, "cacheWrite5mPerMillion": 2.5,  "cacheWrite1hPerMillion": 4,  "cacheReadPerMillion": 0.2 },
+    { "model": "claude-haiku-4-5",  "effectiveFrom": "2026-06-24", "inputPerMillion": 1,  "outputPerMillion": 5,  "cacheWrite5mPerMillion": 1.25, "cacheWrite1hPerMillion": 2,  "cacheReadPerMillion": 0.1 }
+  ]
+}
