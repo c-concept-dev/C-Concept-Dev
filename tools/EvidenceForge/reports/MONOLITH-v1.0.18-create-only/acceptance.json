@@ -1,0 +1,122 @@
+[
+  {
+    "id": "V1018-CO-01",
+    "description": "HTTP 201 sans fournisseur",
+    "status": "PASS",
+    "proof": "test/test-v1018-create-only.js + test/results-v1018-create-only.json"
+  },
+  {
+    "id": "V1018-CO-02",
+    "description": "runId moteur",
+    "status": "PASS",
+    "proof": "test/test-v1018-create-only.js + test/results-v1018-create-only.json"
+  },
+  {
+    "id": "V1018-CO-03",
+    "description": "store disque",
+    "status": "PASS",
+    "proof": "test/test-v1018-create-only.js + test/results-v1018-create-only.json"
+  },
+  {
+    "id": "V1018-CO-04",
+    "description": "GET liste",
+    "status": "PASS",
+    "proof": "test/test-v1018-create-only.js + test/results-v1018-create-only.json"
+  },
+  {
+    "id": "V1018-CO-05",
+    "description": "GET état exact",
+    "status": "PASS",
+    "proof": "test/test-v1018-create-only.js + test/results-v1018-create-only.json"
+  },
+  {
+    "id": "V1018-CO-06",
+    "description": "aucun preflight",
+    "status": "PASS",
+    "proof": "test/test-v1018-create-only.js + test/results-v1018-create-only.json"
+  },
+  {
+    "id": "V1018-CO-07",
+    "description": "aucune reformulation",
+    "status": "PASS",
+    "proof": "test/test-v1018-create-only.js + test/results-v1018-create-only.json"
+  },
+  {
+    "id": "V1018-CO-08",
+    "description": "aucun advance",
+    "status": "PASS",
+    "proof": "test/test-v1018-create-only.js + test/results-v1018-create-only.json"
+  },
+  {
+    "id": "V1018-CO-09",
+    "description": "aucun appel fournisseur réel",
+    "status": "PASS",
+    "proof": "test/test-v1018-create-only.js + test/results-v1018-create-only.json"
+  },
+  {
+    "id": "V1018-CO-10",
+    "description": "aucun coût fournisseur réel",
+    "status": "PASS",
+    "proof": "test/test-v1018-create-only.js + test/results-v1018-create-only.json"
+  },
+  {
+    "id": "V1018-CO-11",
+    "description": "politique rejets",
+    "status": "PASS",
+    "proof": "test/test-v1018-create-only.js + test/results-v1018-create-only.json"
+  },
+  {
+    "id": "V1018-CO-12",
+    "description": "validation budget",
+    "status": "PASS",
+    "proof": "test/test-v1018-create-only.js + test/results-v1018-create-only.json"
+  },
+  {
+    "id": "V1018-CO-13",
+    "description": "question invalide",
+    "status": "PASS",
+    "proof": "test/test-v1018-create-only.js + test/results-v1018-create-only.json"
+  },
+  {
+    "id": "V1018-CO-14",
+    "description": "persistance redémarrage processus",
+    "status": "PASS",
+    "proof": "test/results-v1018-process.json"
+  },
+  {
+    "id": "V1018-CO-15",
+    "description": "compatibilité historique",
+    "status": "PASS",
+    "proof": "test/test-v1018-create-only.js + test/results-v1018-create-only.json"
+  },
+  {
+    "id": "V1018-CO-16",
+    "description": "garde fournisseur historique",
+    "status": "PASS",
+    "proof": "test/test-v1018-create-only.js + test/results-v1018-create-only.json"
+  },
+  {
+    "id": "V1018-CO-17",
+    "description": "advance historique",
+    "status": "PASS",
+    "proof": "test/test-v1018-create-only.js + test/results-v1018-create-only.json"
+  },
+  {
+    "id": "V1018-CO-18",
+    "description": "lots inchangés",
+    "status": "PASS",
+    "proof": "protected-verify.json"
+  },
+  {
+    "id": "V1018-CO-19",
+    "description": "aucune logique client/cas ajoutée",
+    "status": "PASS",
+    "proof": "test/test-v1018-create-only.js + test/results-v1018-create-only.json"
+  },
+  {
+    "id": "V1018-CO-20",
+    "description": "intégrité manifeste",
+    "status": "PASS",
+    "proof": "manifest-verify.json"
+  }
+]

@@ -1,0 +1,457 @@
+{
+  "schema": "EvidenceForge.StreamReplay",
+  "schemaVersion": "MONOLITH-v1.0.8",
+  "generatedAt": "2026-09-18T19:30:16.784Z",
+  "runId": "efm-20260918-a64167c0",
+  "offline": true,
+  "providerCallsDuringReplay": 0,
+  "run": {
+    "status": "STOPPED",
+    "stage": "TWINS_REVIEWS",
+    "attempts": 6,
+    "errorCode": "PROVIDER_UNAVAILABLE",
+    "errorAt": "2026-09-18T18:21:35.397Z",
+    "resumable": true,
+    "counters": {
+      "llmReal": 186,
+      "llmReused": 112,
+      "openAlexCalls": 510,
+      "kitRealCalls": 2,
+      "reuseRefused": 0
+    },
+    "budget": {
+      "mode": "LIMITED",
+      "costBudgetUsd": 25,
+      "warningThresholdUsd": 22
+    },
+    "totals": {
+      "realCalls": 196,
+      "reuses": 112,
+      "usd": 11.6049
+    },
+    "checkpoints": [
+      "selection",
+      "professionals"
+    ]
+  },
+  "fanout": {
+    "reviewTargetMode": "MISSION_DOSSIER",
+    "sourceDocumentCount": 9,
+    "targets": 1,
+    "targetCharacters": 132682,
+    "expectedTwins": 19,
+    "expectedReviews": 19,
+    "twinsBuiltPerAttempt": [
+      {
+        "attemptId": 4,
+        "built": 17
+      },
+      {
+        "attemptId": 5,
+        "built": 17
+      },
+      {
+        "attemptId": 6,
+        "built": 18
+      }
+    ]
+  },
+  "attempts": [
+    {
+      "attemptId": 1,
+      "resumedAt": "2026-09-18T14:35:41.508Z",
+      "resumedAtStage": "MISSION",
+      "endedAt": null,
+      "endState": null,
+      "endCode": null,
+      "durationMin": null,
+      "realCalls": 4,
+      "reuses": 0,
+      "usd": 0.2893,
+      "byPurpose": {
+        "preflight": {
+          "calls": 1,
+          "usd": 0.0001
+        },
+        "mission reformulation": {
+          "calls": 1,
+          "usd": 0.1626
+        },
+        "EF-01B resolver": {
+          "calls": 1,
+          "usd": 0.0538
+        },
+        "EF-01C1 planner": {
+          "calls": 1,
+          "usd": 0.0728
+        }
+      },
+      "twinsBuilt": null,
+      "transportFailures": []
+    },
+    {
+      "attemptId": 2,
+      "resumedAt": "2026-09-18T14:41:02.316Z",
+      "resumedAtStage": "RETRIEVAL",
+      "endedAt": null,
+      "endState": null,
+      "endCode": null,
+      "durationMin": null,
+      "realCalls": 20,
+      "reuses": 0,
+      "usd": 0.5896,
+      "byPurpose": {
+        "preflight": {
+          "calls": 1,
+          "usd": 0.0001
+        },
+        "screening": {
+          "calls": 13,
+          "usd": 0.3921
+        },
+        "screening informed-retry": {
+          "calls": 1,
+          "usd": 0.0167
+        },
+        "portfolio review": {
+          "calls": 4,
+          "usd": 0.1629
+        },
+        "portfolio review informed-retry": {
+          "calls": 1,
+          "usd": 0.0179
+        }
+      },
+      "twinsBuilt": null,
+      "transportFailures": []
+    },
+    {
+      "attemptId": 3,
+      "resumedAt": "2026-09-18T15:14:45.610Z",
+      "resumedAtStage": "CORPUS",
+      "endedAt": "2026-09-18T16:36:01.171Z",
+      "endState": "STOPPED",
+      "endCode": "PROVIDER_UNAVAILABLE",
+      "durationMin": 81.3,
+      "realCalls": 94,
+      "reuses": 0,
+      "usd": 5.8943,
+      "byPurpose": {
+        "preflight": {
+          "calls": 1,
+          "usd": 0.0001
+        },
+        "probe": {
+          "calls": 1,
+          "usd": 0.0003
+        },
+        "EF-02D2 relevance": {
+          "calls": 92,
+          "usd": 5.8937
+        }
+      },
+      "twinsBuilt": null,
+      "transportFailures": [
+        {
+          "at": "2026-09-18T16:36:01.114Z",
+          "code": "PROVIDER_UNAVAILABLE",
+          "where": "corpus fetch <ref>"
+        }
+      ]
+    },
+    {
+      "attemptId": 4,
+      "resumedAt": "2026-09-18T16:47:05.223Z",
+      "resumedAtStage": "PROFESSIONALS",
+      "endedAt": "2026-09-18T17:27:38.145Z",
+      "endState": "STOPPED",
+      "endCode": "PROVIDER_UNAVAILABLE",
+      "durationMin": 40.5,
+      "realCalls": 49,
+      "reuses": 85,
+      "usd": 3.1454,
+      "byPurpose": {
+        "preflight": {
+          "calls": 1,
+          "usd": 0.0001
+        },
+        "probe": {
+          "calls": 2,
+          "usd": 0.0006
+        },
+        "EF-02D2 relevance": {
+          "calls": 17,
+          "usd": 1.1005
+        },
+        "EF-02D3 coverage": {
+          "calls": 19,
+          "usd": 1.4013
+        },
+        "EF-02D3 coverage informed-retry": {
+          "calls": 10,
+          "usd": 0.6432
+        }
+      },
+      "twinsBuilt": 17,
+      "transportFailures": [
+        {
+          "at": "2026-09-18T17:27:38.130Z",
+          "code": "PROVIDER_UNAVAILABLE",
+          "where": "EF-03B review"
+        }
+      ]
+    },
+    {
+      "attemptId": 5,
+      "resumedAt": "2026-09-18T17:55:18.409Z",
+      "resumedAtStage": "TWINS_REVIEWS",
+      "endedAt": "2026-09-18T18:06:59.371Z",
+      "endState": "STOPPED",
+      "endCode": "PROVIDER_UNAVAILABLE",
+      "durationMin": 11.7,
+      "realCalls": 15,
+      "reuses": 13,
+      "usd": 0.8827,
+      "byPurpose": {
+        "preflight": {
+          "calls": 1,
+          "usd": 0.0001
+        },
+        "probe": {
+          "calls": 1,
+          "usd": 0.0003
+        },
+        "EF-02D3 coverage": {
+          "calls": 6,
+          "usd": 0.4327
+        },
+        "EF-02D3 coverage informed-retry": {
+          "calls": 7,
+          "usd": 0.4496
+        }
+      },
+      "twinsBuilt": 17,
+      "transportFailures": [
+        {
+          "at": "2026-09-18T18:06:59.355Z",
+          "code": "PROVIDER_UNAVAILABLE",
+          "where": "EF-03B review"
+        }
+      ]
+    },
+    {
+      "attemptId": 6,
+      "resumedAt": "2026-09-18T18:10:27.633Z",
+      "resumedAtStage": "TWINS_REVIEWS",
+      "endedAt": "2026-09-18T18:21:35.414Z",
+      "endState": "STOPPED",
+      "endCode": "PROVIDER_UNAVAILABLE",
+      "durationMin": 11.1,
+      "realCalls": 14,
+      "reuses": 14,
+      "usd": 0.8036,
+      "byPurpose": {
+        "preflight": {
+          "calls": 1,
+          "usd": 0.0001
+        },
+        "probe": {
+          "calls": 1,
+          "usd": 0.0003
+        },
+        "EF-02D3 coverage": {
+          "calls": 5,
+          "usd": 0.3782
+        },
+        "EF-02D3 coverage informed-retry": {
+          "calls": 7,
+          "usd": 0.425
+        }
+      },
+      "twinsBuilt": 18,
+      "transportFailures": [
+        {
+          "at": "2026-09-18T18:21:35.396Z",
+          "code": "PROVIDER_UNAVAILABLE",
+          "where": "EF-03B review"
+        }
+      ]
+    }
+  ],
+  "failures": [
+    {
+      "attemptId": 4,
+      "stage": "TWINS_REVIEWS",
+      "purpose": "EF-03B review",
+      "pass": 1,
+      "startedAt": "2026-09-18T17:25:33.052Z",
+      "completedAt": "2026-09-18T17:27:38.121Z",
+      "durationSec": 125.1,
+      "httpStatus": 524,
+      "outcome": "HTTP_524",
+      "providerRequestId": null,
+      "localRequestId": "efm-7365bd69129c",
+      "promptSha256Prefix": "f293ca8a8a1fd5ad",
+      "promptChars": 164331,
+      "estimatedPromptTokens": 41083,
+      "twinId": null,
+      "targetId": null,
+      "identityNote": "twinId / targetId non journalises par cette version (ajoutes en v1.0.8)",
+      "usage": null,
+      "costUsd": 0,
+      "classifiedAs": "PROVIDER_UNAVAILABLE",
+      "resumable": true,
+      "transport": "JSON (non streaming)"
+    },
+    {
+      "attemptId": 5,
+      "stage": "TWINS_REVIEWS",
+      "purpose": "EF-03B review",
+      "pass": 1,
+      "startedAt": "2026-09-18T18:04:54.207Z",
+      "completedAt": "2026-09-18T18:06:59.339Z",
+      "durationSec": 125.1,
+      "httpStatus": 524,
+      "outcome": "HTTP_524",
+      "providerRequestId": null,
+      "localRequestId": "efm-da3800d42b40",
+      "promptSha256Prefix": "2a3c6de360358d48",
+      "promptChars": 163873,
+      "estimatedPromptTokens": 40968,
+      "twinId": null,
+      "targetId": null,
+      "identityNote": "twinId / targetId non journalises par cette version (ajoutes en v1.0.8)",
+      "usage": null,
+      "costUsd": 0,
+      "classifiedAs": "PROVIDER_UNAVAILABLE",
+      "resumable": true,
+      "transport": "JSON (non streaming)"
+    },
+    {
+      "attemptId": 6,
+      "stage": "TWINS_REVIEWS",
+      "purpose": "EF-03B review",
+      "pass": 1,
+      "startedAt": "2026-09-18T18:19:30.282Z",
+      "completedAt": "2026-09-18T18:21:35.384Z",
+      "durationSec": 125.1,
+      "httpStatus": 524,
+      "outcome": "HTTP_524",
+      "providerRequestId": null,
+      "localRequestId": "efm-f81e85328607",
+      "promptSha256Prefix": "8e178fbf5a568de7",
+      "promptChars": 163565,
+      "estimatedPromptTokens": 40891,
+      "twinId": null,
+      "targetId": null,
+      "identityNote": "twinId / targetId non journalises par cette version (ajoutes en v1.0.8)",
+      "usage": null,
+      "costUsd": 0,
+      "classifiedAs": "PROVIDER_UNAVAILABLE",
+      "resumable": true,
+      "transport": "JSON (non streaming)"
+    }
+  ],
+  "http524": 3,
+  "successfulCallDurations": {
+    "mission reformulation": {
+      "calls": 1,
+      "maxSec": 39,
+      "maxInputTokens": 45050,
+      "avgSec": 39
+    },
+    "screening": {
+      "calls": 13,
+      "maxSec": 22.6,
+      "maxInputTokens": 6613,
+      "avgSec": 14
+    },
+    "screening informed-retry": {
+      "calls": 1,
+      "maxSec": 2.8,
+      "maxInputTokens": 4993,
+      "avgSec": 2.8
+    },
+    "portfolio review": {
+      "calls": 4,
+      "maxSec": 23.5,
+      "maxInputTokens": 8392,
+      "avgSec": 18.2
+    },
+    "portfolio review informed-retry": {
+      "calls": 1,
+      "maxSec": 3.1,
+      "maxInputTokens": 5266,
+      "avgSec": 3.1
+    },
+    "EF-02D2 relevance": {
+      "calls": 109,
+      "maxSec": 74.6,
+      "maxInputTokens": 6997,
+      "avgSec": 51.2
+    },
+    "EF-02D3 coverage": {
+      "calls": 30,
+      "maxSec": 74.7,
+      "maxInputTokens": 12250,
+      "avgSec": 51.2
+    },
+    "EF-02D3 coverage informed-retry": {
+      "calls": 24,
+      "maxSec": 58.1,
+      "maxInputTokens": 9469,
+      "avgSec": 40.4
+    }
+  },
+  "reviews": {
+    "expected": 19,
+    "attempted": 3,
+    "validated": 0,
+    "reused": 0,
+    "recomputedAfterFailure": 2,
+    "note": "aucune revue n'a jamais abouti : chaque tentative echoue sur la premiere revue"
+  },
+  "progressLost": {
+    "resumes": 3,
+    "coverageRespentPerResume": [
+      {
+        "attemptId": 5,
+        "coverage": {
+          "pass1": 6,
+          "informedRetry": 7,
+          "usd": 0.8823
+        },
+        "note": "passes de couverture rejouees apres une reprise (passes invalides jamais reutilisables : contrat MONO-11 VALID uniquement)"
+      },
+      {
+        "attemptId": 6,
+        "coverage": {
+          "pass1": 5,
+          "informedRetry": 7,
+          "usd": 0.8032
+        },
+        "note": "passes de couverture rejouees apres une reprise (passes invalides jamais reutilisables : contrat MONO-11 VALID uniquement)"
+      }
+    ],
+    "coverageByAttempt": {
+      "4": {
+        "pass1": 19,
+        "informedRetry": 10,
+        "usd": 2.0445
+      },
+      "5": {
+        "pass1": 6,
+        "informedRetry": 7,
+        "usd": 0.8823
+      },
+      "6": {
+        "pass1": 5,
+        "informedRetry": 7,
+        "usd": 0.8032
+      }
+    },
+    "reviewsLost": 3,
+    "costOfFailedReviewsUsd": 0,
+    "costNote": "les appels en echec HTTP n'ont ni usage ni cout (aucun cout invente) ; le cout perdu est celui des passes de couverture rejouees a chaque reprise"
+  }
+}

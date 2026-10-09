@@ -1,0 +1,12 @@
+{
+  "name": "evidenceforge-llm-proxy",
+  "version": "0.8.0",
+  "private": true,
+  "description": "Worker Cloudflare dedie EvidenceForge MONO-08 v0.6 (mode delegated) — v0.7 MONOLITH-v1.0.8 : relais SSE streaming non bufferise (correctif 524) ; v0.8 MONOLITH-v1.0.9 : HEADER_TIMEOUT_MS separe (defaut 60 s, lecture stricte des vars), correctif 504 a 8 s. Relais minimal client -> Worker -> Anthropic. ANTHROPIC_API_KEY reste exclusivement cote Cloudflare. NON DEPLOYE par ce lot (voir README.md).",
+  "type": "module",
+  "main": "src/worker.js",
+  "scripts": {
+    "test": "node test/worker.test.js",
+    "validate": "wrangler deploy --dry-run"
+  }
+}

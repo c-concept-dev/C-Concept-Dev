@@ -1,0 +1,16 @@
+{
+  "identical": true,
+  "divergences": 0,
+  "groups": {
+    "MONOLITH-v1.0.17": 199,
+    "MONO-01": 107,
+    "MONO-04": 226,
+    "MONO-05": 264,
+    "MONO-07": 31,
+    "MONO-08": 113,
+    "MONO-09": 21,
+    "MONO-10": 1194,
+    "MONO-11": 230
+  },
+  "activeVersion": "MONOLITH-v1.0.16"
+}

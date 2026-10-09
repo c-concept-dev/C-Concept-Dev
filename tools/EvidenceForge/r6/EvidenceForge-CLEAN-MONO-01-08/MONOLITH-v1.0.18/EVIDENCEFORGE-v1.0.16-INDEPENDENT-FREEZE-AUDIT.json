@@ -1,0 +1,1589 @@
+{
+ "schema": "EvidenceForge.IndependentFreezeAudit",
+ "version": "MONOLITH-v1.0.16",
+ "auditDate": "2026-09-23",
+ "auditor": "independent (did not author the code)",
+ "mode": "READ_ONLY; executions in scratch copy; provider calls 0; smoke 0",
+ "verdicts": {
+  "T3b_PB7_04": "PB7_T3B_CLOSED",
+  "adaptedTests": {
+   "T-STREAM-05": "ADAPTATION_VALID_NO_WEAKENING",
+   "T-STREAM-22": "ADAPTATION_VALID_NO_WEAKENING",
+   "RUN-SAFETY-12": "TEST_WEAKENED",
+   "RUN-SAFETY-13": "ADAPTATION_VALID_NO_WEAKENING",
+   "V3": "ADAPTATION_VALID_NO_WEAKENING"
+  },
+  "RUN_SAFETY_21": "INVERSION_CONTRACTUALLY_CORRECT",
+  "legacyResumeImpact": "EXPECTED_FAIL_CLOSED_RECOMPUTATION",
+  "PB_B7": "PB_B7_CLOSED",
+  "global": "V1_0_16_FREEZE_AUDIT_PASS_WITH_RESERVATIONS",
+  "recommendation": "GELER (owner decision after acknowledging R1-R3); DO NOT ACTIVATE",
+  "frozenDeclaredByThisAudit": false
+ },
+ "blockers": [],
+ "reservations": [
+  {
+   "id": "R1",
+   "severity": "MEDIUM",
+   "text": "Mutant M11 (identity guard restricted to base purpose 'EF-03B review') survives 345/345: non-base passes (informed-retry, completion, literalization) are protected by code (harness C9e refused) but not by any test."
+  },
+  {
+   "id": "R2",
+   "severity": "MEDIUM",
+   "category": "GOVERNANCE",
+   "text": "MONOLITH-v1.0.16 (184 files) is already committed in 766db22a ('studio', 2026-09-23 22:03 +0200) and present on origin/main, contrary to the declared status 'NON COMMITEE'."
+  },
+  {
+   "id": "R3",
+   "severity": "MEDIUM",
+   "text": "Not smoked: targeted PB-B7 micro-smoke required before activation."
+  },
+  {
+   "id": "R4",
+   "severity": "LOW",
+   "text": "RUN-SAFETY-12 weakened: with pass:1 the resume reuse is served by the EF-03B registry, no longer by the store cache; mutant W1 (store reuse disabled) was killed by RUN-SAFETY-12 in v1.0.15 and is not in v1.0.16 (still killed by 19 other tests)."
+  },
+  {
+   "id": "R5",
+   "severity": "LOW",
+   "text": "Mutant M12 survives; transport trusts caller-declared identity (C9c). No production effect: only the adapter calls EF-03B; frozen MONO-11 v0.4 never sets documentAuthoritySha256."
+  },
+  {
+   "id": "R6",
+   "severity": "LOW",
+   "text": "M3, M4, M4c killed only by refusal-code assertions (historical reuseContextCheck keeps final safety); M4b killed by code on first assertion while no-seal behavior regresses."
+  },
+  {
+   "id": "R7",
+   "severity": "LOW",
+   "text": "Frozen policy proposes only the most recent VALID entry; divergent identity => refusal even if an older matching entry exists (C9f): extra cost, fail-closed."
+  },
+  {
+   "id": "R8",
+   "severity": "INFO",
+   "text": "markValidation propagates by responseSha256 to all entries sharing the hash regardless of identity (C9g); requires byte-identical responses incl. provider id: theoretical, pre-existing."
+  },
+  {
+   "id": "R9",
+   "severity": "INFO",
+   "text": "RUN-SAFETY-21 old-contract sub-assertion now shadowed by identity guard (contract refusal covered by V12-12, PB7-05)."
+  },
+  {
+   "id": "R10",
+   "severity": "INFO",
+   "text": "Cross-purpose collisions now refused (stricter than v1.0.15); legacy EF-03B store entries no longer reusable."
+  }
+ ],
+ "diff": {
+  "runtimeBehavioral": [
+   "lib/llm.js",
+   "lib/ef03b-resilience.js"
+  ],
+  "versionStringsOnly": [
+   "lib/pipeline.js",
+   "config/monolith.config.json",
+   "tools/ef03b-autopsy.js",
+   "tools/package.sh",
+   "tools/build-manifest.js (string literals + descriptive key secondaryReuseStore)"
+  ],
+  "tests": [
+   "test/test-stream.js",
+   "test/test-run-safety.js",
+   "test/test-ef03b.js",
+   "test/test-v1012-lineage-parity.js",
+   "test/test-monolith.js",
+   "test/test-v1016-pb7-secondary-reuse.js (new)",
+   "test/fixtures/pb7-phaseB-ef03b-store-entries.json (new)",
+   "test/results.json",
+   "test/results-chunking.json"
+  ],
+  "docs": [
+   "README.md",
+   "MANIFEST.json",
+   "SHA256SUMS.txt",
+   "EVIDENCEFORGE-v1.0.16-PB-B7-SECONDARY-REUSE-FIX-AUDIT.{md,json}"
+  ],
+  "otherRuntimeChanges": "NONE",
+  "mono11v04": "INTACT (55/55 SHA, verifyFrozenLots 0)",
+  "promptsValidatorsScienceAggregation": "UNCHANGED"
+ },
+ "reproductionV1015": {
+  "defect": "PB_B7_SECONDARY_REUSE_GAP REPRODUCED",
+  "registry": "REFUSED A for B",
+  "store": "SERVED A (0 fetch)",
+  "lotValidationOnB": "ok",
+  "onValidation": "A response recorded under authority B",
+  "cases": [
+   "C3 legacy entry",
+   "C4 enriched entry"
+  ],
+  "candidatePB7_04_on_v1015_lib": "FAIL (store served)"
+ },
+ "productionPathOrder": [
+  "authority guards (requireAuthority)",
+  "registry lookup",
+  "registry decision",
+  "generic store lookup (policy.decide)",
+  "checkEf03bReuseIdentity",
+  "reuseContextCheck",
+  "MONO-11 validation",
+  "onValidation (markValidation)",
+  "registry write"
+ ],
+ "registryRefusalBypassable": "NO",
+ "harnessV1016": {
+  "C0_ORDER_REGISTRY_FIRST": {
+   "outcome": "SERVED_FROM_STORE_OR_REGISTRY(REVIEW_REGISTRY_REUSE)",
+   "refusals": []
+  },
+  "C1_NOMINAL_LEGACY_ENTRY": {
+   "outcome": "RECOMPUTE_REQUESTED(fetch=1)",
+   "refusals": [
+    "NON_REUSABLE_FOR_EF03B_V3"
+   ]
+  },
+  "C2_NOMINAL_ENRICHED_ENTRY": {
+   "outcome": "SERVED_FROM_STORE_OR_REGISTRY(REUSE_OF_VALID_REAL_RESPONSE)",
+   "refusals": []
+  },
+  "C3_T3B_LEGACY_ENTRY__fetch_fail": {
+   "outcome": "RECOMPUTE_REQUESTED(fetch=1)",
+   "refusals": [
+    "NON_REUSABLE_FOR_EF03B_V3"
+   ],
+   "A_RESPONSE_RECORDED_UNDER_B": false
+  },
+  "C3_T3B_LEGACY_ENTRY__fetch_ok": {
+   "outcome": "RECOMPUTE_REQUESTED(fetch=1)",
+   "refusals": [
+    "NON_REUSABLE_FOR_EF03B_V3"
+   ],
+   "A_RESPONSE_RECORDED_UNDER_B": false
+  },
+  "C4_T3B_ENRICHED_ENTRY_A__fetch_fail": {
+   "outcome": "RECOMPUTE_REQUESTED(fetch=1)",
+   "refusals": [
+    "EF03B_REUSE_AUTHORITY_MISMATCH"
+   ],
+   "A_RESPONSE_RECORDED_UNDER_B": false
+  },
+  "C4_T3B_ENRICHED_ENTRY_A__fetch_ok": {
+   "outcome": "RECOMPUTE_REQUESTED(fetch=1)",
+   "refusals": [
+    "EF03B_REUSE_AUTHORITY_MISMATCH"
+   ],
+   "A_RESPONSE_RECORDED_UNDER_B": false
+  },
+  "C5a_ENTRY_TARGET02_VIA_ADAPTER_TARGET01": {
+   "outcome": "RECOMPUTE_REQUESTED(fetch=1)",
+   "refusals": [
+    "EF03B_REUSE_TARGET_MISMATCH"
+   ]
+  },
+  "C5b_ENTRY_TARGET02_SAME_AUTH_VIA_ADAPTER_TARGET01": {
+   "outcome": "RECOMPUTE_REQUESTED(fetch=1)",
+   "refusals": [
+    "EF03B_REUSE_TARGET_MISMATCH"
+   ]
+  },
+  "C5c_TRANSPORT_ENTRY_T01_CALLED_T02": {
+   "outcome": "RECOMPUTE_REQUESTED(fetch=1)",
+   "refusals": [
+    "EF03B_REUSE_TARGET_MISMATCH"
+   ]
+  },
+  "C5d_TRANSPORT_ENTRY_T01_CALLED_T02_WITH_AUTH_A": {
+   "outcome": "RECOMPUTE_REQUESTED(fetch=1)",
+   "refusals": [
+    "EF03B_REUSE_TARGET_MISMATCH"
+   ]
+  },
+  "C6_TRANSPORT_WRONG_AUTHORITY": {
+   "outcome": "RECOMPUTE_REQUESTED(fetch=1)",
+   "refusals": [
+    "EF03B_REUSE_AUTHORITY_MISMATCH"
+   ]
+  },
+  "C7a_CONTRACT_V2": {
+   "outcome": "RECOMPUTE_REQUESTED(fetch=1)",
+   "refusals": [
+    "EF03B_REUSE_CONTRACT_MISMATCH"
+   ]
+  },
+  "C7b_CONTRACT_ABSENT": {
+   "outcome": "RECOMPUTE_REQUESTED(fetch=1)",
+   "refusals": [
+    "EF03B_REUSE_CONTRACT_MISMATCH"
+   ]
+  },
+  "C7c_SEAL_OTHER": {
+   "outcome": "RECOMPUTE_REQUESTED(fetch=1)",
+   "refusals": [
+    "EF03B_REUSE_SEAL_MISMATCH"
+   ]
+  },
+  "C7d_SEAL_ABSENT": {
+   "outcome": "RECOMPUTE_REQUESTED(fetch=1)",
+   "refusals": [
+    "EF03B_REUSE_SEAL_MISMATCH"
+   ]
+  },
+  "C7e_MODEL_OTHER": {
+   "outcome": "RECOMPUTE_REQUESTED(fetch=1)",
+   "refusals": [
+    "modele different (claude-opus-4-1 vs claude-sonnet-4-6)"
+   ]
+  },
+  "C7f_PROVIDER_OTHER": {
+   "outcome": "RECOMPUTE_REQUESTED(fetch=1)",
+   "refusals": [
+    "fournisseur different (openai)"
+   ]
+  },
+  "C7g_STATUS_INVALID": {
+   "outcome": "RECOMPUTE_REQUESTED(fetch=1)",
+   "refusals": []
+  },
+  "C7h_STATUS_UNKNOWN": {
+   "outcome": "RECOMPUTE_REQUESTED(fetch=1)",
+   "refusals": []
+  },
+  "C7i_HTTP_500": {
+   "outcome": "RECOMPUTE_REQUESTED(fetch=1)",
+   "refusals": []
+  },
+  "C7j_BODY_ALTERED": {
+   "outcome": "RECOMPUTE_REQUESTED(fetch=1)",
+   "refusals": [
+    "corps en cache altere (hash different de responseSha256)"
+   ]
+  },
+  "C7k_TRANSPORT_WITHOUT_SEAL_ENTRY_OTHER_SEAL": {
+   "outcome": "RECOMPUTE_REQUESTED(fetch=1)",
+   "refusals": [
+    "EF03B_REUSE_SEAL_REQUIRED"
+   ]
+  },
+  "C8a_LEGACY_NO_TARGET": {
+   "outcome": "RECOMPUTE_REQUESTED(fetch=1)",
+   "refusals": [
+    "NON_REUSABLE_FOR_EF03B_V3"
+   ]
+  },
+  "C8b_LEGACY_NO_AUTHORITY": {
+   "outcome": "RECOMPUTE_REQUESTED(fetch=1)",
+   "refusals": [
+    "NON_REUSABLE_FOR_EF03B_V3"
+   ]
+  },
+  "C8c_LEGACY_NO_BOTH": {
+   "outcome": "RECOMPUTE_REQUESTED(fetch=1)",
+   "refusals": [
+    "NON_REUSABLE_FOR_EF03B_V3"
+   ]
+  },
+  "C8d_LEGACY_EMPTY_TARGET": {
+   "outcome": "RECOMPUTE_REQUESTED(fetch=1)",
+   "refusals": [
+    "NON_REUSABLE_FOR_EF03B_V3"
+   ]
+  },
+  "C8e_AUTHORITY_UPPERCASE_NOT_SHA_FORMAT": {
+   "outcome": "RECOMPUTE_REQUESTED(fetch=1)",
+   "refusals": [
+    "NON_REUSABLE_FOR_EF03B_V3"
+   ]
+  },
+  "C9a_ENTRY_NON_EF03B_SAME_PROMPT_CALLED_EF03B": {
+   "outcome": "RECOMPUTE_REQUESTED(fetch=1)",
+   "refusals": [
+    "EF03B_REUSE_PURPOSE_MISMATCH"
+   ]
+  },
+  "C9b_EF03B_ENTRY_CALLED_AS_WORKER": {
+   "outcome": "RECOMPUTE_REQUESTED(fetch=1)",
+   "refusals": [
+    "EF03B_REUSE_IDENTITY_MISSING"
+   ]
+  },
+  "C9c_DIRECT_TRANSPORT_CALLER_DECLARES_IDENTITY_A": {
+   "outcome": "SERVED_FROM_STORE_OR_REGISTRY(REUSE_OF_VALID_REAL_RESPONSE)",
+   "refusals": []
+  },
+  "C9d_ADAPTER_CALLER_FORGES_META_AUTHORITY_A_UNDER_B": {
+   "outcome": "RECOMPUTE_REQUESTED(fetch=1)",
+   "refusals": [
+    "EF03B_REUSE_AUTHORITY_MISMATCH"
+   ]
+  },
+  "C9e_INFORMED-RETRY_AUTH_B": {
+   "outcome": "RECOMPUTE_REQUESTED(fetch=1)",
+   "refusals": [
+    "EF03B_REUSE_AUTHORITY_MISMATCH"
+   ]
+  },
+  "C9e_INFORMED-RETRY_AUTH_A": {
+   "outcome": "SERVED_FROM_STORE_OR_REGISTRY(REUSE_OF_VALID_REAL_RESPONSE)",
+   "refusals": []
+  },
+  "C9e_COMPLETION_AUTH_B": {
+   "outcome": "RECOMPUTE_REQUESTED(fetch=1)",
+   "refusals": [
+    "EF03B_REUSE_AUTHORITY_MISMATCH"
+   ]
+  },
+  "C9e_COMPLETION_AUTH_A": {
+   "outcome": "SERVED_FROM_STORE_OR_REGISTRY(REUSE_OF_VALID_REAL_RESPONSE)",
+   "refusals": []
+  },
+  "C9e_LITERALIZATION_AUTH_B": {
+   "outcome": "RECOMPUTE_REQUESTED(fetch=1)",
+   "refusals": [
+    "EF03B_REUSE_AUTHORITY_MISMATCH"
+   ]
+  },
+  "C9e_LITERALIZATION_AUTH_A": {
+   "outcome": "SERVED_FROM_STORE_OR_REGISTRY(REUSE_OF_VALID_REAL_RESPONSE)",
+   "refusals": []
+  },
+  "C9f_TWO_ENTRIES_NEWEST_B_CALLED_A": {
+   "outcome": "RECOMPUTE_REQUESTED(fetch=1)",
+   "refusals": [
+    "EF03B_REUSE_AUTHORITY_MISMATCH"
+   ]
+  },
+  "C9f_TWO_ENTRIES_NEWEST_B_CALLED_B": {
+   "outcome": "SERVED_FROM_STORE_OR_REGISTRY(REUSE_OF_VALID_REAL_RESPONSE)",
+   "refusals": []
+  },
+  "C9g_MARKVALIDATION_BY_RESPONSESHA_PROPAGATES_ACROSS_IDENTITIES": {
+   "outcome": "NOT_SERVED",
+   "refusals": []
+  }
+ },
+ "harnessV1015": {
+  "C0_ORDER_REGISTRY_FIRST": {
+   "outcome": "SERVED_FROM_STORE_OR_REGISTRY(REVIEW_REGISTRY_REUSE)",
+   "refusals": []
+  },
+  "C1_NOMINAL_LEGACY_ENTRY": {
+   "outcome": "SERVED_FROM_STORE_OR_REGISTRY(REUSE_OF_VALID_REAL_RESPONSE)",
+   "refusals": []
+  },
+  "C2_NOMINAL_ENRICHED_ENTRY": {
+   "outcome": "SERVED_FROM_STORE_OR_REGISTRY(REUSE_OF_VALID_REAL_RESPONSE)",
+   "refusals": []
+  },
+  "C3_T3B_LEGACY_ENTRY__fetch_fail": {
+   "outcome": "SERVED_FROM_STORE_OR_REGISTRY(REUSE_OF_VALID_REAL_RESPONSE)",
+   "refusals": [],
+   "A_RESPONSE_RECORDED_UNDER_B": true
+  },
+  "C3_T3B_LEGACY_ENTRY__fetch_ok": {
+   "outcome": "SERVED_FROM_STORE_OR_REGISTRY(REUSE_OF_VALID_REAL_RESPONSE)",
+   "refusals": [],
+   "A_RESPONSE_RECORDED_UNDER_B": true
+  },
+  "C4_T3B_ENRICHED_ENTRY_A__fetch_fail": {
+   "outcome": "SERVED_FROM_STORE_OR_REGISTRY(REUSE_OF_VALID_REAL_RESPONSE)",
+   "refusals": [],
+   "A_RESPONSE_RECORDED_UNDER_B": true
+  },
+  "C4_T3B_ENRICHED_ENTRY_A__fetch_ok": {
+   "outcome": "SERVED_FROM_STORE_OR_REGISTRY(REUSE_OF_VALID_REAL_RESPONSE)",
+   "refusals": [],
+   "A_RESPONSE_RECORDED_UNDER_B": true
+  },
+  "C5a_ENTRY_TARGET02_VIA_ADAPTER_TARGET01": {
+   "outcome": "SERVED_FROM_STORE_OR_REGISTRY(REUSE_OF_VALID_REAL_RESPONSE)",
+   "refusals": []
+  },
+  "C5b_ENTRY_TARGET02_SAME_AUTH_VIA_ADAPTER_TARGET01": {
+   "outcome": "SERVED_FROM_STORE_OR_REGISTRY(REUSE_OF_VALID_REAL_RESPONSE)",
+   "refusals": []
+  },
+  "C5c_TRANSPORT_ENTRY_T01_CALLED_T02": {
+   "outcome": "SERVED_FROM_STORE_OR_REGISTRY(REUSE_OF_VALID_REAL_RESPONSE)",
+   "refusals": []
+  },
+  "C5d_TRANSPORT_ENTRY_T01_CALLED_T02_WITH_AUTH_A": {
+   "outcome": "SERVED_FROM_STORE_OR_REGISTRY(REUSE_OF_VALID_REAL_RESPONSE)",
+   "refusals": []
+  },
+  "C6_TRANSPORT_WRONG_AUTHORITY": {
+   "outcome": "SERVED_FROM_STORE_OR_REGISTRY(REUSE_OF_VALID_REAL_RESPONSE)",
+   "refusals": []
+  },
+  "C7a_CONTRACT_V2": {
+   "outcome": "RECOMPUTE_REQUESTED(fetch=1)",
+   "refusals": [
+    "contrat de validation different (MONO-11-v2)"
+   ]
+  },
+  "C7b_CONTRACT_ABSENT": {
+   "outcome": "RECOMPUTE_REQUESTED(fetch=1)",
+   "refusals": [
+    "contrat de validation different (absent)"
+   ]
+  },
+  "C7c_SEAL_OTHER": {
+   "outcome": "RECOMPUTE_REQUESTED(fetch=1)",
+   "refusals": [
+    "sceau different (ca2c188590817aa9ab11ca8f454dc1d15f68a131a35f37f4801019d08393a61b)"
+   ]
+  },
+  "C7d_SEAL_ABSENT": {
+   "outcome": "RECOMPUTE_REQUESTED(fetch=1)",
+   "refusals": [
+    "sceau different (absent)"
+   ]
+  },
+  "C7e_MODEL_OTHER": {
+   "outcome": "RECOMPUTE_REQUESTED(fetch=1)",
+   "refusals": [
+    "modele different (claude-opus-4-1 vs claude-sonnet-4-6)"
+   ]
+  },
+  "C7f_PROVIDER_OTHER": {
+   "outcome": "RECOMPUTE_REQUESTED(fetch=1)",
+   "refusals": [
+    "fournisseur different (openai)"
+   ]
+  },
+  "C7g_STATUS_INVALID": {
+   "outcome": "RECOMPUTE_REQUESTED(fetch=1)",
+   "refusals": []
+  },
+  "C7h_STATUS_UNKNOWN": {
+   "outcome": "RECOMPUTE_REQUESTED(fetch=1)",
+   "refusals": []
+  },
+  "C7i_HTTP_500": {
+   "outcome": "RECOMPUTE_REQUESTED(fetch=1)",
+   "refusals": []
+  },
+  "C7j_BODY_ALTERED": {
+   "outcome": "RECOMPUTE_REQUESTED(fetch=1)",
+   "refusals": [
+    "corps en cache altere (hash different de responseSha256)"
+   ]
+  },
+  "C7k_TRANSPORT_WITHOUT_SEAL_ENTRY_OTHER_SEAL": {
+   "outcome": "SERVED_FROM_STORE_OR_REGISTRY(REUSE_OF_VALID_REAL_RESPONSE)",
+   "refusals": []
+  },
+  "C8a_LEGACY_NO_TARGET": {
+   "outcome": "SERVED_FROM_STORE_OR_REGISTRY(REUSE_OF_VALID_REAL_RESPONSE)",
+   "refusals": []
+  },
+  "C8b_LEGACY_NO_AUTHORITY": {
+   "outcome": "SERVED_FROM_STORE_OR_REGISTRY(REUSE_OF_VALID_REAL_RESPONSE)",
+   "refusals": []
+  },
+  "C8c_LEGACY_NO_BOTH": {
+   "outcome": "SERVED_FROM_STORE_OR_REGISTRY(REUSE_OF_VALID_REAL_RESPONSE)",
+   "refusals": []
+  },
+  "C8d_LEGACY_EMPTY_TARGET": {
+   "outcome": "SERVED_FROM_STORE_OR_REGISTRY(REUSE_OF_VALID_REAL_RESPONSE)",
+   "refusals": []
+  },
+  "C8e_AUTHORITY_UPPERCASE_NOT_SHA_FORMAT": {
+   "outcome": "SERVED_FROM_STORE_OR_REGISTRY(REUSE_OF_VALID_REAL_RESPONSE)",
+   "refusals": []
+  },
+  "C9a_ENTRY_NON_EF03B_SAME_PROMPT_CALLED_EF03B": {
+   "outcome": "SERVED_FROM_STORE_OR_REGISTRY(REUSE_OF_VALID_REAL_RESPONSE)",
+   "refusals": []
+  },
+  "C9b_EF03B_ENTRY_CALLED_AS_WORKER": {
+   "outcome": "SERVED_FROM_STORE_OR_REGISTRY(REUSE_OF_VALID_REAL_RESPONSE)",
+   "refusals": []
+  },
+  "C9c_DIRECT_TRANSPORT_CALLER_DECLARES_IDENTITY_A": {
+   "outcome": "SERVED_FROM_STORE_OR_REGISTRY(REUSE_OF_VALID_REAL_RESPONSE)",
+   "refusals": []
+  },
+  "C9d_ADAPTER_CALLER_FORGES_META_AUTHORITY_A_UNDER_B": {
+   "outcome": "SERVED_FROM_STORE_OR_REGISTRY(REUSE_OF_VALID_REAL_RESPONSE)",
+   "refusals": []
+  },
+  "C9e_INFORMED-RETRY_AUTH_B": {
+   "outcome": "SERVED_FROM_STORE_OR_REGISTRY(REUSE_OF_VALID_REAL_RESPONSE)",
+   "refusals": []
+  },
+  "C9e_INFORMED-RETRY_AUTH_A": {
+   "outcome": "SERVED_FROM_STORE_OR_REGISTRY(REUSE_OF_VALID_REAL_RESPONSE)",
+   "refusals": []
+  },
+  "C9e_COMPLETION_AUTH_B": {
+   "outcome": "SERVED_FROM_STORE_OR_REGISTRY(REUSE_OF_VALID_REAL_RESPONSE)",
+   "refusals": []
+  },
+  "C9e_COMPLETION_AUTH_A": {
+   "outcome": "SERVED_FROM_STORE_OR_REGISTRY(REUSE_OF_VALID_REAL_RESPONSE)",
+   "refusals": []
+  },
+  "C9e_LITERALIZATION_AUTH_B": {
+   "outcome": "SERVED_FROM_STORE_OR_REGISTRY(REUSE_OF_VALID_REAL_RESPONSE)",
+   "refusals": []
+  },
+  "C9e_LITERALIZATION_AUTH_A": {
+   "outcome": "SERVED_FROM_STORE_OR_REGISTRY(REUSE_OF_VALID_REAL_RESPONSE)",
+   "refusals": []
+  },
+  "C9f_TWO_ENTRIES_NEWEST_B_CALLED_A": {
+   "outcome": "SERVED_FROM_STORE_OR_REGISTRY(REUSE_OF_VALID_REAL_RESPONSE)",
+   "refusals": []
+  },
+  "C9f_TWO_ENTRIES_NEWEST_B_CALLED_B": {
+   "outcome": "SERVED_FROM_STORE_OR_REGISTRY(REUSE_OF_VALID_REAL_RESPONSE)",
+   "refusals": []
+  },
+  "C9g_MARKVALIDATION_BY_RESPONSESHA_PROPAGATES_ACROSS_IDENTITIES": {
+   "outcome": "NOT_SERVED",
+   "refusals": []
+  }
+ },
+ "genericNonEf03b": "IDENTICAL v1.0.15 vs v1.0.16 on 5 purposes (EF-02D2 relevance, EF-02D3 coverage, worker, downstream, none)",
+ "pb7_13_realArtifacts": {
+  "fixtureMatchesRealStore": "20/20",
+  "measuredIdentityReproduced": "20/20",
+  "transportLevel": {
+   "asIs": {
+    "served": 0,
+    "refused": 20,
+    "codes": {
+     "NON_REUSABLE_FOR_EF03B_V3": 20
+    }
+   },
+   "enrichedOwn": {
+    "served": 20,
+    "refused": 0,
+    "codes": {}
+   },
+   "enrichedPermutedTarget": {
+    "served": 0,
+    "refused": 40,
+    "codes": {
+     "EF03B_REUSE_TARGET_MISMATCH": 40
+    }
+   },
+   "enrichedPermutedTarget01_02": [
+    {
+     "from": "target-01",
+     "to": "target-02",
+     "served": false,
+     "codes": [
+      "EF03B_REUSE_TARGET_MISMATCH"
+     ]
+    },
+    {
+     "from": "target-01",
+     "to": "target-02",
+     "served": false,
+     "codes": [
+      "EF03B_REUSE_TARGET_MISMATCH"
+     ]
+    },
+    {
+     "from": "target-01",
+     "to": "target-02",
+     "served": false,
+     "codes": [
+      "EF03B_REUSE_TARGET_MISMATCH"
+     ]
+    },
+    {
+     "from": "target-01",
+     "to": "target-02",
+     "served": false,
+     "codes": [
+      "EF03B_REUSE_TARGET_MISMATCH"
+     ]
+    },
+    {
+     "from": "target-01",
+     "to": "target-02",
+     "served": false,
+     "codes": [
+      "EF03B_REUSE_TARGET_MISMATCH"
+     ]
+    },
+    {
+     "from": "target-01",
+     "to": "target-02",
+     "served": false,
+     "codes": [
+      "EF03B_REUSE_TARGET_MISMATCH"
+     ]
+    },
+    {
+     "from": "target-01",
+     "to": "target-02",
+     "served": false,
+     "codes": [
+      "EF03B_REUSE_TARGET_MISMATCH"
+     ]
+    },
+    {
+     "from": "target-02",
+     "to": "target-01",
+     "served": false,
+     "codes": [
+      "EF03B_REUSE_TARGET_MISMATCH"
+     ]
+    },
+    {
+     "from": "target-02",
+     "to": "target-01",
+     "served": false,
+     "codes": [
+      "EF03B_REUSE_TARGET_MISMATCH"
+     ]
+    },
+    {
+     "from": "target-02",
+     "to": "target-01",
+     "served": false,
+     "codes": [
+      "EF03B_REUSE_TARGET_MISMATCH"
+     ]
+    },
+    {
+     "from": "target-02",
+     "to": "target-01",
+     "served": false,
+     "codes": [
+      "EF03B_REUSE_TARGET_MISMATCH"
+     ]
+    },
+    {
+     "from": "target-02",
+     "to": "target-01",
+     "served": false,
+     "codes": [
+      "EF03B_REUSE_TARGET_MISMATCH"
+     ]
+    },
+    {
+     "from": "target-02",
+     "to": "target-01",
+     "served": false,
+     "codes": [
+      "EF03B_REUSE_TARGET_MISMATCH"
+     ]
+    },
+    {
+     "from": "target-02",
+     "to": "target-01",
+     "served": false,
+     "codes": [
+      "EF03B_REUSE_TARGET_MISMATCH"
+     ]
+    }
+   ]
+  }
+ },
+ "legacyImpact": {
+  "ef03bStoreEntries": 20,
+  "registryEntries": 20,
+  "registryEntriesWithTargetAndAuthority": 20,
+  "storeEntriesCoveredByRegistryOfSameRun": 20,
+  "storePurposes": {
+   "mission reformulation": 1,
+   "screening": 12,
+   "screening informed-retry": 1,
+   "portfolio review": 5,
+   "portfolio review informed-retry": 1,
+   "EF-02D2 relevance": 122,
+   "EF-02D3 coverage": 8,
+   "EF-02D3 coverage informed-retry": 6,
+   "EF-03B review": 20
+  },
+  "rows": [
+   {
+    "responseSha256": "e3a3cc07906e",
+    "targetId": "target-01",
+    "preambleFound": true,
+    "registryCovers": true,
+    "acceptedPass": 1
+   },
+   {
+    "responseSha256": "49451eba4c75",
+    "targetId": "target-01",
+    "preambleFound": true,
+    "registryCovers": true,
+    "acceptedPass": 1
+   },
+   {
+    "responseSha256": "a6947696121a",
+    "targetId": "target-01",
+    "preambleFound": true,
+    "registryCovers": true,
+    "acceptedPass": 1
+   },
+   {
+    "responseSha256": "98d568e442a7",
+    "targetId": "target-01",
+    "preambleFound": true,
+    "registryCovers": true,
+    "acceptedPass": 1
+   },
+   {
+    "responseSha256": "b275008460d3",
+    "targetId": "target-01",
+    "preambleFound": true,
+    "registryCovers": true,
+    "acceptedPass": 1
+   },
+   {
+    "responseSha256": "0deaab02ed7e",
+    "targetId": "target-01",
+    "preambleFound": true,
+    "registryCovers": true,
+    "acceptedPass": 1
+   },
+   {
+    "responseSha256": "aabc6ece1fd4",
+    "targetId": "target-01",
+    "preambleFound": true,
+    "registryCovers": true,
+    "acceptedPass": 1
+   },
+   {
+    "responseSha256": "865f04d4c207",
+    "targetId": "target-02",
+    "preambleFound": true,
+    "registryCovers": true,
+    "acceptedPass": 1
+   },
+   {
+    "responseSha256": "b63fc82e0f37",
+    "targetId": "target-02",
+    "preambleFound": true,
+    "registryCovers": true,
+    "acceptedPass": 1
+   },
+   {
+    "responseSha256": "815740d70051",
+    "targetId": "target-02",
+    "preambleFound": true,
+    "registryCovers": true,
+    "acceptedPass": 1
+   },
+   {
+    "responseSha256": "388557fe5654",
+    "targetId": "target-02",
+    "preambleFound": true,
+    "registryCovers": true,
+    "acceptedPass": 1
+   },
+   {
+    "responseSha256": "94118a5b5384",
+    "targetId": "target-02",
+    "preambleFound": true,
+    "registryCovers": true,
+    "acceptedPass": 1
+   },
+   {
+    "responseSha256": "5b1677d059f7",
+    "targetId": "target-02",
+    "preambleFound": true,
+    "registryCovers": true,
+    "acceptedPass": 1
+   },
+   {
+    "responseSha256": "e582764cb1ec",
+    "targetId": "target-02",
+    "preambleFound": true,
+    "registryCovers": true,
+    "acceptedPass": 1
+   },
+   {
+    "responseSha256": "80f92994bd65",
+    "targetId": "target-03",
+    "preambleFound": true,
+    "registryCovers": true,
+    "acceptedPass": 1
+   },
+   {
+    "responseSha256": "f48e2bc92c88",
+    "targetId": "target-03",
+    "preambleFound": true,
+    "registryCovers": true,
+    "acceptedPass": 1
+   },
+   {
+    "responseSha256": "5641a6b14c9a",
+    "targetId": "target-03",
+    "preambleFound": true,
+    "registryCovers": true,
+    "acceptedPass": 1
+   },
+   {
+    "responseSha256": "26c53938baf3",
+    "targetId": "target-03",
+    "preambleFound": true,
+    "registryCovers": true,
+    "acceptedPass": 1
+   },
+   {
+    "responseSha256": "1e781ab7c2d9",
+    "targetId": "target-03",
+    "preambleFound": true,
+    "registryCovers": true,
+    "acceptedPass": 1
+   },
+   {
+    "responseSha256": "61591c3e0767",
+    "targetId": "target-03",
+    "preambleFound": true,
+    "registryCovers": true,
+    "acceptedPass": 1
+   }
+  ]
+ },
+ "mutationMatrix": {
+  "M0_CONTROL": {
+   "suite": "345/345 tests OK",
+   "killedBy": [],
+   "killKind": "CONTROL",
+   "harness": {
+    "C2_NOMINAL_ENRICHED_ENTRY": "SERVED",
+    "C1_NOMINAL_LEGACY_ENTRY": "REFUSED:NON_REUSABLE_FOR_EF03B_V3",
+    "C4_T3B_ENRICHED_ENTRY_A__fetch_ok": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C3_T3B_LEGACY_ENTRY__fetch_ok": "REFUSED:NON_REUSABLE_FOR_EF03B_V3",
+    "C5a_ENTRY_TARGET02_VIA_ADAPTER_TARGET01": "REFUSED:EF03B_REUSE_TARGET_MISMATCH",
+    "C6_TRANSPORT_WRONG_AUTHORITY": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C7a_CONTRACT_V2": "REFUSED:EF03B_REUSE_CONTRACT_MISMATCH",
+    "C7c_SEAL_OTHER": "REFUSED:EF03B_REUSE_SEAL_MISMATCH",
+    "C7k_TRANSPORT_WITHOUT_SEAL_ENTRY_OTHER_SEAL": "REFUSED:EF03B_REUSE_SEAL_REQUIRED",
+    "C8c_LEGACY_NO_BOTH": "REFUSED:NON_REUSABLE_FOR_EF03B_V3",
+    "C9b_EF03B_ENTRY_CALLED_AS_WORKER": "REFUSED:EF03B_REUSE_IDENTITY_MISSING",
+    "C9d_ADAPTER_CALLER_FORGES_META_AUTHORITY_A_UNDER_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C9e_COMPLETION_AUTH_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C9e_LITERALIZATION_AUTH_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C9e_INFORMED-RETRY_AUTH_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "_pb7_13_transport": {
+     "asIs": 0,
+     "own": 20,
+     "perm": 0
+    }
+   }
+  },
+  "M1_NO_TARGET_CHECK": {
+   "suite": "342/345 tests OK",
+   "killedBy": [
+    "PB7-02",
+    "PB7-10",
+    "PB7-13"
+   ],
+   "killKind": "BEHAVIORAL",
+   "harness": {
+    "C2_NOMINAL_ENRICHED_ENTRY": "SERVED",
+    "C1_NOMINAL_LEGACY_ENTRY": "REFUSED:NON_REUSABLE_FOR_EF03B_V3",
+    "C4_T3B_ENRICHED_ENTRY_A__fetch_ok": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C3_T3B_LEGACY_ENTRY__fetch_ok": "REFUSED:NON_REUSABLE_FOR_EF03B_V3",
+    "C5a_ENTRY_TARGET02_VIA_ADAPTER_TARGET01": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C6_TRANSPORT_WRONG_AUTHORITY": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C7a_CONTRACT_V2": "REFUSED:EF03B_REUSE_CONTRACT_MISMATCH",
+    "C7c_SEAL_OTHER": "REFUSED:EF03B_REUSE_SEAL_MISMATCH",
+    "C7k_TRANSPORT_WITHOUT_SEAL_ENTRY_OTHER_SEAL": "REFUSED:EF03B_REUSE_SEAL_REQUIRED",
+    "C8c_LEGACY_NO_BOTH": "REFUSED:NON_REUSABLE_FOR_EF03B_V3",
+    "C9b_EF03B_ENTRY_CALLED_AS_WORKER": "REFUSED:EF03B_REUSE_IDENTITY_MISSING",
+    "C9d_ADAPTER_CALLER_FORGES_META_AUTHORITY_A_UNDER_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C9e_COMPLETION_AUTH_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C9e_LITERALIZATION_AUTH_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C9e_INFORMED-RETRY_AUTH_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "_pb7_13_transport": {
+     "asIs": 0,
+     "own": 20,
+     "perm": 0
+    }
+   }
+  },
+  "M2_NO_AUTHORITY_CHECK": {
+   "suite": "341/345 tests OK",
+   "killedBy": [
+    "PB7-03",
+    "PB7-04",
+    "PB7-09",
+    "PB7-13"
+   ],
+   "killKind": "BEHAVIORAL",
+   "harness": {
+    "C2_NOMINAL_ENRICHED_ENTRY": "SERVED",
+    "C1_NOMINAL_LEGACY_ENTRY": "REFUSED:NON_REUSABLE_FOR_EF03B_V3",
+    "C4_T3B_ENRICHED_ENTRY_A__fetch_ok": "SERVED A_UNDER_B",
+    "C3_T3B_LEGACY_ENTRY__fetch_ok": "REFUSED:NON_REUSABLE_FOR_EF03B_V3",
+    "C5a_ENTRY_TARGET02_VIA_ADAPTER_TARGET01": "REFUSED:EF03B_REUSE_TARGET_MISMATCH",
+    "C6_TRANSPORT_WRONG_AUTHORITY": "SERVED",
+    "C7a_CONTRACT_V2": "REFUSED:EF03B_REUSE_CONTRACT_MISMATCH",
+    "C7c_SEAL_OTHER": "REFUSED:EF03B_REUSE_SEAL_MISMATCH",
+    "C7k_TRANSPORT_WITHOUT_SEAL_ENTRY_OTHER_SEAL": "REFUSED:EF03B_REUSE_SEAL_REQUIRED",
+    "C8c_LEGACY_NO_BOTH": "REFUSED:NON_REUSABLE_FOR_EF03B_V3",
+    "C9b_EF03B_ENTRY_CALLED_AS_WORKER": "REFUSED:EF03B_REUSE_IDENTITY_MISSING",
+    "C9d_ADAPTER_CALLER_FORGES_META_AUTHORITY_A_UNDER_B": "SERVED",
+    "C9e_COMPLETION_AUTH_B": "SERVED",
+    "C9e_LITERALIZATION_AUTH_B": "SERVED",
+    "C9e_INFORMED-RETRY_AUTH_B": "SERVED",
+    "_pb7_13_transport": {
+     "asIs": 0,
+     "own": 20,
+     "perm": 0
+    }
+   }
+  },
+  "M3_NO_EF03B_CONTRACT_CHECK": {
+   "suite": "344/345 tests OK",
+   "killedBy": [
+    "PB7-05"
+   ],
+   "killKind": "CODE_ONLY (final safety kept by reuseContextCheck contract)",
+   "harness": {
+    "C2_NOMINAL_ENRICHED_ENTRY": "SERVED",
+    "C1_NOMINAL_LEGACY_ENTRY": "REFUSED:NON_REUSABLE_FOR_EF03B_V3",
+    "C4_T3B_ENRICHED_ENTRY_A__fetch_ok": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C3_T3B_LEGACY_ENTRY__fetch_ok": "REFUSED:NON_REUSABLE_FOR_EF03B_V3",
+    "C5a_ENTRY_TARGET02_VIA_ADAPTER_TARGET01": "REFUSED:EF03B_REUSE_TARGET_MISMATCH",
+    "C6_TRANSPORT_WRONG_AUTHORITY": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C7a_CONTRACT_V2": "REFUSED:contrat de validation different (MONO-11-v2)",
+    "C7c_SEAL_OTHER": "REFUSED:EF03B_REUSE_SEAL_MISMATCH",
+    "C7k_TRANSPORT_WITHOUT_SEAL_ENTRY_OTHER_SEAL": "REFUSED:EF03B_REUSE_SEAL_REQUIRED",
+    "C8c_LEGACY_NO_BOTH": "REFUSED:NON_REUSABLE_FOR_EF03B_V3",
+    "C9b_EF03B_ENTRY_CALLED_AS_WORKER": "REFUSED:EF03B_REUSE_IDENTITY_MISSING",
+    "C9d_ADAPTER_CALLER_FORGES_META_AUTHORITY_A_UNDER_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C9e_COMPLETION_AUTH_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C9e_LITERALIZATION_AUTH_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C9e_INFORMED-RETRY_AUTH_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "_pb7_13_transport": {
+     "asIs": 0,
+     "own": 20,
+     "perm": 0
+    }
+   }
+  },
+  "M3b_NO_CONTRACT_CHECK_ANYWHERE": {
+   "suite": "343/345 tests OK",
+   "killedBy": [
+    "V12-12",
+    "PB7-05"
+   ],
+   "killKind": "BEHAVIORAL",
+   "harness": {
+    "C2_NOMINAL_ENRICHED_ENTRY": "SERVED",
+    "C1_NOMINAL_LEGACY_ENTRY": "REFUSED:NON_REUSABLE_FOR_EF03B_V3",
+    "C4_T3B_ENRICHED_ENTRY_A__fetch_ok": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C3_T3B_LEGACY_ENTRY__fetch_ok": "REFUSED:NON_REUSABLE_FOR_EF03B_V3",
+    "C5a_ENTRY_TARGET02_VIA_ADAPTER_TARGET01": "REFUSED:EF03B_REUSE_TARGET_MISMATCH",
+    "C6_TRANSPORT_WRONG_AUTHORITY": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C7a_CONTRACT_V2": "SERVED",
+    "C7c_SEAL_OTHER": "REFUSED:EF03B_REUSE_SEAL_MISMATCH",
+    "C7k_TRANSPORT_WITHOUT_SEAL_ENTRY_OTHER_SEAL": "REFUSED:EF03B_REUSE_SEAL_REQUIRED",
+    "C8c_LEGACY_NO_BOTH": "REFUSED:NON_REUSABLE_FOR_EF03B_V3",
+    "C9b_EF03B_ENTRY_CALLED_AS_WORKER": "REFUSED:EF03B_REUSE_IDENTITY_MISSING",
+    "C9d_ADAPTER_CALLER_FORGES_META_AUTHORITY_A_UNDER_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C9e_COMPLETION_AUTH_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C9e_LITERALIZATION_AUTH_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C9e_INFORMED-RETRY_AUTH_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "_pb7_13_transport": {
+     "asIs": 0,
+     "own": 20,
+     "perm": 0
+    }
+   }
+  },
+  "M4_NO_EF03B_SEAL_EQUALITY": {
+   "suite": "344/345 tests OK",
+   "killedBy": [
+    "PB7-06"
+   ],
+   "killKind": "CODE_ONLY (final safety kept by reuseContextCheck seal)",
+   "harness": {
+    "C2_NOMINAL_ENRICHED_ENTRY": "SERVED",
+    "C1_NOMINAL_LEGACY_ENTRY": "REFUSED:NON_REUSABLE_FOR_EF03B_V3",
+    "C4_T3B_ENRICHED_ENTRY_A__fetch_ok": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C3_T3B_LEGACY_ENTRY__fetch_ok": "REFUSED:NON_REUSABLE_FOR_EF03B_V3",
+    "C5a_ENTRY_TARGET02_VIA_ADAPTER_TARGET01": "REFUSED:EF03B_REUSE_TARGET_MISMATCH",
+    "C6_TRANSPORT_WRONG_AUTHORITY": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C7a_CONTRACT_V2": "REFUSED:EF03B_REUSE_CONTRACT_MISMATCH",
+    "C7c_SEAL_OTHER": "REFUSED:sceau different (ca2c188590817aa9ab11ca8f454dc1d15f68a131a35",
+    "C7k_TRANSPORT_WITHOUT_SEAL_ENTRY_OTHER_SEAL": "REFUSED:EF03B_REUSE_SEAL_REQUIRED",
+    "C8c_LEGACY_NO_BOTH": "REFUSED:NON_REUSABLE_FOR_EF03B_V3",
+    "C9b_EF03B_ENTRY_CALLED_AS_WORKER": "REFUSED:EF03B_REUSE_IDENTITY_MISSING",
+    "C9d_ADAPTER_CALLER_FORGES_META_AUTHORITY_A_UNDER_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C9e_COMPLETION_AUTH_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C9e_LITERALIZATION_AUTH_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C9e_INFORMED-RETRY_AUTH_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "_pb7_13_transport": {
+     "asIs": 0,
+     "own": 20,
+     "perm": 0
+    }
+   }
+  },
+  "M4b_NO_EF03B_SEAL_AT_ALL": {
+   "suite": "344/345 tests OK",
+   "killedBy": [
+    "PB7-06"
+   ],
+   "killKind": "CODE_ONLY_FIRST_ASSERTION (no-seal behavior regresses: harness C7k served)",
+   "harness": {
+    "C2_NOMINAL_ENRICHED_ENTRY": "SERVED",
+    "C1_NOMINAL_LEGACY_ENTRY": "REFUSED:NON_REUSABLE_FOR_EF03B_V3",
+    "C4_T3B_ENRICHED_ENTRY_A__fetch_ok": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C3_T3B_LEGACY_ENTRY__fetch_ok": "REFUSED:NON_REUSABLE_FOR_EF03B_V3",
+    "C5a_ENTRY_TARGET02_VIA_ADAPTER_TARGET01": "REFUSED:EF03B_REUSE_TARGET_MISMATCH",
+    "C6_TRANSPORT_WRONG_AUTHORITY": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C7a_CONTRACT_V2": "REFUSED:EF03B_REUSE_CONTRACT_MISMATCH",
+    "C7c_SEAL_OTHER": "REFUSED:sceau different (ca2c188590817aa9ab11ca8f454dc1d15f68a131a35",
+    "C7k_TRANSPORT_WITHOUT_SEAL_ENTRY_OTHER_SEAL": "SERVED",
+    "C8c_LEGACY_NO_BOTH": "REFUSED:NON_REUSABLE_FOR_EF03B_V3",
+    "C9b_EF03B_ENTRY_CALLED_AS_WORKER": "REFUSED:EF03B_REUSE_IDENTITY_MISSING",
+    "C9d_ADAPTER_CALLER_FORGES_META_AUTHORITY_A_UNDER_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C9e_COMPLETION_AUTH_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C9e_LITERALIZATION_AUTH_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C9e_INFORMED-RETRY_AUTH_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "_pb7_13_transport": {
+     "asIs": 0,
+     "own": 20,
+     "perm": 0
+    }
+   }
+  },
+  "M4c_SEAL_REQUIRED_REMOVED_ONLY": {
+   "suite": "344/345 tests OK",
+   "killedBy": [
+    "PB7-06"
+   ],
+   "killKind": "CODE_ONLY (final safety kept by seal equality)",
+   "harness": {
+    "C2_NOMINAL_ENRICHED_ENTRY": "SERVED",
+    "C1_NOMINAL_LEGACY_ENTRY": "REFUSED:NON_REUSABLE_FOR_EF03B_V3",
+    "C4_T3B_ENRICHED_ENTRY_A__fetch_ok": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C3_T3B_LEGACY_ENTRY__fetch_ok": "REFUSED:NON_REUSABLE_FOR_EF03B_V3",
+    "C5a_ENTRY_TARGET02_VIA_ADAPTER_TARGET01": "REFUSED:EF03B_REUSE_TARGET_MISMATCH",
+    "C6_TRANSPORT_WRONG_AUTHORITY": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C7a_CONTRACT_V2": "REFUSED:EF03B_REUSE_CONTRACT_MISMATCH",
+    "C7c_SEAL_OTHER": "REFUSED:EF03B_REUSE_SEAL_MISMATCH",
+    "C7k_TRANSPORT_WITHOUT_SEAL_ENTRY_OTHER_SEAL": "REFUSED:EF03B_REUSE_SEAL_MISMATCH",
+    "C8c_LEGACY_NO_BOTH": "REFUSED:NON_REUSABLE_FOR_EF03B_V3",
+    "C9b_EF03B_ENTRY_CALLED_AS_WORKER": "REFUSED:EF03B_REUSE_IDENTITY_MISSING",
+    "C9d_ADAPTER_CALLER_FORGES_META_AUTHORITY_A_UNDER_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C9e_COMPLETION_AUTH_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C9e_LITERALIZATION_AUTH_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C9e_INFORMED-RETRY_AUTH_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "_pb7_13_transport": {
+     "asIs": 0,
+     "own": 20,
+     "perm": 0
+    }
+   }
+  },
+  "M5_STORE_IGNORES_IDENTITY_REGISTRY_BYPASS": {
+   "suite": "333/345 tests OK",
+   "killedBy": [
+    "RUN-SAFETY-21",
+    "T-STREAM-05",
+    "PB7-02",
+    "PB7-03",
+    "PB7-04",
+    "PB7-05",
+    "PB7-06",
+    "PB7-07",
+    "PB7-08",
+    "PB7-09",
+    "PB7-10",
+    "PB7-12"
+   ],
+   "killKind": "BEHAVIORAL",
+   "harness": {
+    "C2_NOMINAL_ENRICHED_ENTRY": "SERVED",
+    "C1_NOMINAL_LEGACY_ENTRY": "SERVED",
+    "C4_T3B_ENRICHED_ENTRY_A__fetch_ok": "SERVED A_UNDER_B",
+    "C3_T3B_LEGACY_ENTRY__fetch_ok": "SERVED A_UNDER_B",
+    "C5a_ENTRY_TARGET02_VIA_ADAPTER_TARGET01": "SERVED",
+    "C6_TRANSPORT_WRONG_AUTHORITY": "SERVED",
+    "C7a_CONTRACT_V2": "REFUSED:contrat de validation different (MONO-11-v2)",
+    "C7c_SEAL_OTHER": "REFUSED:sceau different (ca2c188590817aa9ab11ca8f454dc1d15f68a131a35",
+    "C7k_TRANSPORT_WITHOUT_SEAL_ENTRY_OTHER_SEAL": "SERVED",
+    "C8c_LEGACY_NO_BOTH": "SERVED",
+    "C9b_EF03B_ENTRY_CALLED_AS_WORKER": "SERVED",
+    "C9d_ADAPTER_CALLER_FORGES_META_AUTHORITY_A_UNDER_B": "SERVED",
+    "C9e_COMPLETION_AUTH_B": "SERVED",
+    "C9e_LITERALIZATION_AUTH_B": "SERVED",
+    "C9e_INFORMED-RETRY_AUTH_B": "SERVED",
+    "_pb7_13_transport": {
+     "asIs": 20,
+     "own": 20,
+     "perm": 40
+    }
+   }
+  },
+  "M6a_LEGACY_LINES_REMOVED": {
+   "suite": "341/345 tests OK",
+   "killedBy": [
+    "RUN-SAFETY-21",
+    "PB7-07",
+    "PB7-08",
+    "PB7-13"
+   ],
+   "killKind": "CODE_ONLY (target guard still refuses)",
+   "harness": {
+    "C2_NOMINAL_ENRICHED_ENTRY": "SERVED",
+    "C1_NOMINAL_LEGACY_ENTRY": "REFUSED:EF03B_REUSE_TARGET_MISMATCH",
+    "C4_T3B_ENRICHED_ENTRY_A__fetch_ok": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C3_T3B_LEGACY_ENTRY__fetch_ok": "REFUSED:EF03B_REUSE_TARGET_MISMATCH",
+    "C5a_ENTRY_TARGET02_VIA_ADAPTER_TARGET01": "REFUSED:EF03B_REUSE_TARGET_MISMATCH",
+    "C6_TRANSPORT_WRONG_AUTHORITY": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C7a_CONTRACT_V2": "REFUSED:EF03B_REUSE_CONTRACT_MISMATCH",
+    "C7c_SEAL_OTHER": "REFUSED:EF03B_REUSE_SEAL_MISMATCH",
+    "C7k_TRANSPORT_WITHOUT_SEAL_ENTRY_OTHER_SEAL": "REFUSED:EF03B_REUSE_SEAL_REQUIRED",
+    "C8c_LEGACY_NO_BOTH": "REFUSED:EF03B_REUSE_TARGET_MISMATCH",
+    "C9b_EF03B_ENTRY_CALLED_AS_WORKER": "REFUSED:EF03B_REUSE_IDENTITY_MISSING",
+    "C9d_ADAPTER_CALLER_FORGES_META_AUTHORITY_A_UNDER_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C9e_COMPLETION_AUTH_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C9e_LITERALIZATION_AUTH_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C9e_INFORMED-RETRY_AUTH_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "_pb7_13_transport": {
+     "asIs": 0,
+     "own": 20,
+     "perm": 0
+    }
+   }
+  },
+  "M6b_LEGACY_ACCEPTED_AS_OK": {
+   "suite": "341/345 tests OK",
+   "killedBy": [
+    "RUN-SAFETY-21",
+    "PB7-07",
+    "PB7-08",
+    "PB7-13"
+   ],
+   "killKind": "BEHAVIORAL",
+   "harness": {
+    "C2_NOMINAL_ENRICHED_ENTRY": "SERVED",
+    "C1_NOMINAL_LEGACY_ENTRY": "SERVED",
+    "C4_T3B_ENRICHED_ENTRY_A__fetch_ok": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C3_T3B_LEGACY_ENTRY__fetch_ok": "SERVED A_UNDER_B",
+    "C5a_ENTRY_TARGET02_VIA_ADAPTER_TARGET01": "REFUSED:EF03B_REUSE_TARGET_MISMATCH",
+    "C6_TRANSPORT_WRONG_AUTHORITY": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C7a_CONTRACT_V2": "REFUSED:EF03B_REUSE_CONTRACT_MISMATCH",
+    "C7c_SEAL_OTHER": "REFUSED:EF03B_REUSE_SEAL_MISMATCH",
+    "C7k_TRANSPORT_WITHOUT_SEAL_ENTRY_OTHER_SEAL": "REFUSED:EF03B_REUSE_SEAL_REQUIRED",
+    "C8c_LEGACY_NO_BOTH": "SERVED",
+    "C9b_EF03B_ENTRY_CALLED_AS_WORKER": "REFUSED:EF03B_REUSE_IDENTITY_MISSING",
+    "C9d_ADAPTER_CALLER_FORGES_META_AUTHORITY_A_UNDER_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C9e_COMPLETION_AUTH_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C9e_LITERALIZATION_AUTH_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C9e_INFORMED-RETRY_AUTH_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "_pb7_13_transport": {
+     "asIs": 20,
+     "own": 20,
+     "perm": 0
+    }
+   }
+  },
+  "M7_ADAPTER_NO_IDENTITY": {
+   "suite": "336/345 tests OK",
+   "killedBy": [
+    "PB7-01",
+    "PB7-02",
+    "PB7-03",
+    "PB7-04",
+    "PB7-05",
+    "PB7-06",
+    "PB7-09",
+    "PB7-10",
+    "PB7-11"
+   ],
+   "killKind": "BEHAVIORAL (reuse lost, fail-closed)",
+   "harness": {
+    "C2_NOMINAL_ENRICHED_ENTRY": "REFUSED:EF03B_REUSE_IDENTITY_MISSING",
+    "C1_NOMINAL_LEGACY_ENTRY": "REFUSED:EF03B_REUSE_IDENTITY_MISSING",
+    "C4_T3B_ENRICHED_ENTRY_A__fetch_ok": "REFUSED:EF03B_REUSE_IDENTITY_MISSING",
+    "C3_T3B_LEGACY_ENTRY__fetch_ok": "REFUSED:EF03B_REUSE_IDENTITY_MISSING",
+    "C5a_ENTRY_TARGET02_VIA_ADAPTER_TARGET01": "REFUSED:EF03B_REUSE_IDENTITY_MISSING",
+    "C6_TRANSPORT_WRONG_AUTHORITY": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C7a_CONTRACT_V2": "REFUSED:EF03B_REUSE_IDENTITY_MISSING",
+    "C7c_SEAL_OTHER": "REFUSED:EF03B_REUSE_IDENTITY_MISSING",
+    "C7k_TRANSPORT_WITHOUT_SEAL_ENTRY_OTHER_SEAL": "REFUSED:EF03B_REUSE_SEAL_REQUIRED",
+    "C8c_LEGACY_NO_BOTH": "REFUSED:EF03B_REUSE_IDENTITY_MISSING",
+    "C9b_EF03B_ENTRY_CALLED_AS_WORKER": "REFUSED:EF03B_REUSE_IDENTITY_MISSING",
+    "C9d_ADAPTER_CALLER_FORGES_META_AUTHORITY_A_UNDER_B": "SERVED",
+    "C9e_COMPLETION_AUTH_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C9e_LITERALIZATION_AUTH_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C9e_INFORMED-RETRY_AUTH_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "_pb7_13_transport": {
+     "asIs": 0,
+     "own": 20,
+     "perm": 0
+    }
+   }
+  },
+  "M8_ADAPTER_PROMPT_DERIVED_AUTHORITY": {
+   "suite": "343/345 tests OK",
+   "killedBy": [
+    "PB7-04",
+    "PB7-09"
+   ],
+   "killKind": "BEHAVIORAL",
+   "harness": {
+    "C2_NOMINAL_ENRICHED_ENTRY": "SERVED",
+    "C1_NOMINAL_LEGACY_ENTRY": "REFUSED:NON_REUSABLE_FOR_EF03B_V3",
+    "C4_T3B_ENRICHED_ENTRY_A__fetch_ok": "SERVED A_UNDER_B",
+    "C3_T3B_LEGACY_ENTRY__fetch_ok": "REFUSED:NON_REUSABLE_FOR_EF03B_V3",
+    "C5a_ENTRY_TARGET02_VIA_ADAPTER_TARGET01": "REFUSED:EF03B_REUSE_TARGET_MISMATCH",
+    "C6_TRANSPORT_WRONG_AUTHORITY": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C7a_CONTRACT_V2": "REFUSED:EF03B_REUSE_CONTRACT_MISMATCH",
+    "C7c_SEAL_OTHER": "REFUSED:EF03B_REUSE_SEAL_MISMATCH",
+    "C7k_TRANSPORT_WITHOUT_SEAL_ENTRY_OTHER_SEAL": "REFUSED:EF03B_REUSE_SEAL_REQUIRED",
+    "C8c_LEGACY_NO_BOTH": "REFUSED:NON_REUSABLE_FOR_EF03B_V3",
+    "C9b_EF03B_ENTRY_CALLED_AS_WORKER": "REFUSED:EF03B_REUSE_IDENTITY_MISSING",
+    "C9d_ADAPTER_CALLER_FORGES_META_AUTHORITY_A_UNDER_B": "SERVED",
+    "C9e_COMPLETION_AUTH_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C9e_LITERALIZATION_AUTH_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C9e_INFORMED-RETRY_AUTH_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "_pb7_13_transport": {
+     "asIs": 0,
+     "own": 20,
+     "perm": 0
+    }
+   }
+  },
+  "M9_RECORDREAL_WITHOUT_IDENTITY": {
+   "suite": "332/345 tests OK",
+   "killedBy": [
+    "V3",
+    "RUN-SAFETY-13",
+    "T-STREAM-05",
+    "T-STREAM-22",
+    "PB7-01",
+    "PB7-02",
+    "PB7-03",
+    "PB7-04",
+    "PB7-05",
+    "PB7-06",
+    "PB7-09",
+    "PB7-10",
+    "PB7-11"
+   ],
+   "killKind": "BEHAVIORAL (reuse lost, fail-closed)",
+   "harness": {
+    "C2_NOMINAL_ENRICHED_ENTRY": "SERVED",
+    "C1_NOMINAL_LEGACY_ENTRY": "REFUSED:NON_REUSABLE_FOR_EF03B_V3",
+    "C4_T3B_ENRICHED_ENTRY_A__fetch_ok": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C3_T3B_LEGACY_ENTRY__fetch_ok": "REFUSED:NON_REUSABLE_FOR_EF03B_V3",
+    "C5a_ENTRY_TARGET02_VIA_ADAPTER_TARGET01": "REFUSED:EF03B_REUSE_TARGET_MISMATCH",
+    "C6_TRANSPORT_WRONG_AUTHORITY": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C7a_CONTRACT_V2": "REFUSED:EF03B_REUSE_CONTRACT_MISMATCH",
+    "C7c_SEAL_OTHER": "REFUSED:EF03B_REUSE_SEAL_MISMATCH",
+    "C7k_TRANSPORT_WITHOUT_SEAL_ENTRY_OTHER_SEAL": "REFUSED:EF03B_REUSE_SEAL_REQUIRED",
+    "C8c_LEGACY_NO_BOTH": "REFUSED:NON_REUSABLE_FOR_EF03B_V3",
+    "C9b_EF03B_ENTRY_CALLED_AS_WORKER": "REFUSED:EF03B_REUSE_IDENTITY_MISSING",
+    "C9d_ADAPTER_CALLER_FORGES_META_AUTHORITY_A_UNDER_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C9e_COMPLETION_AUTH_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C9e_LITERALIZATION_AUTH_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C9e_INFORMED-RETRY_AUTH_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "_pb7_13_transport": {
+     "asIs": 0,
+     "own": 20,
+     "perm": 0
+    }
+   }
+  },
+  "M10_ENTRY_PURPOSE_NOT_CONSIDERED": {
+   "suite": "344/345 tests OK",
+   "killedBy": [
+    "PB7-12"
+   ],
+   "killKind": "BEHAVIORAL",
+   "harness": {
+    "C2_NOMINAL_ENRICHED_ENTRY": "SERVED",
+    "C1_NOMINAL_LEGACY_ENTRY": "REFUSED:NON_REUSABLE_FOR_EF03B_V3",
+    "C4_T3B_ENRICHED_ENTRY_A__fetch_ok": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C3_T3B_LEGACY_ENTRY__fetch_ok": "REFUSED:NON_REUSABLE_FOR_EF03B_V3",
+    "C5a_ENTRY_TARGET02_VIA_ADAPTER_TARGET01": "REFUSED:EF03B_REUSE_TARGET_MISMATCH",
+    "C6_TRANSPORT_WRONG_AUTHORITY": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C7a_CONTRACT_V2": "REFUSED:EF03B_REUSE_CONTRACT_MISMATCH",
+    "C7c_SEAL_OTHER": "REFUSED:EF03B_REUSE_SEAL_MISMATCH",
+    "C7k_TRANSPORT_WITHOUT_SEAL_ENTRY_OTHER_SEAL": "REFUSED:EF03B_REUSE_SEAL_REQUIRED",
+    "C8c_LEGACY_NO_BOTH": "REFUSED:NON_REUSABLE_FOR_EF03B_V3",
+    "C9b_EF03B_ENTRY_CALLED_AS_WORKER": "SERVED",
+    "C9d_ADAPTER_CALLER_FORGES_META_AUTHORITY_A_UNDER_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C9e_COMPLETION_AUTH_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C9e_LITERALIZATION_AUTH_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C9e_INFORMED-RETRY_AUTH_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "_pb7_13_transport": {
+     "asIs": 0,
+     "own": 20,
+     "perm": 0
+    }
+   }
+  },
+  "M11_ONLY_BASE_PURPOSE_CHECKED": {
+   "suite": "345/345 tests OK",
+   "killedBy": [],
+   "killKind": "SURVIVED",
+   "harness": {
+    "C2_NOMINAL_ENRICHED_ENTRY": "SERVED",
+    "C1_NOMINAL_LEGACY_ENTRY": "REFUSED:NON_REUSABLE_FOR_EF03B_V3",
+    "C4_T3B_ENRICHED_ENTRY_A__fetch_ok": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C3_T3B_LEGACY_ENTRY__fetch_ok": "REFUSED:NON_REUSABLE_FOR_EF03B_V3",
+    "C5a_ENTRY_TARGET02_VIA_ADAPTER_TARGET01": "REFUSED:EF03B_REUSE_TARGET_MISMATCH",
+    "C6_TRANSPORT_WRONG_AUTHORITY": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C7a_CONTRACT_V2": "REFUSED:EF03B_REUSE_CONTRACT_MISMATCH",
+    "C7c_SEAL_OTHER": "REFUSED:EF03B_REUSE_SEAL_MISMATCH",
+    "C7k_TRANSPORT_WITHOUT_SEAL_ENTRY_OTHER_SEAL": "REFUSED:EF03B_REUSE_SEAL_REQUIRED",
+    "C8c_LEGACY_NO_BOTH": "REFUSED:NON_REUSABLE_FOR_EF03B_V3",
+    "C9b_EF03B_ENTRY_CALLED_AS_WORKER": "REFUSED:EF03B_REUSE_IDENTITY_MISSING",
+    "C9d_ADAPTER_CALLER_FORGES_META_AUTHORITY_A_UNDER_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C9e_COMPLETION_AUTH_B": "SERVED",
+    "C9e_LITERALIZATION_AUTH_B": "SERVED",
+    "C9e_INFORMED-RETRY_AUTH_B": "SERVED",
+    "_pb7_13_transport": {
+     "asIs": 0,
+     "own": 20,
+     "perm": 0
+    }
+   }
+  },
+  "M12_CALLER_META_OVERRIDES_IDENTITY": {
+   "suite": "345/345 tests OK",
+   "killedBy": [],
+   "killKind": "SURVIVED",
+   "harness": {
+    "C2_NOMINAL_ENRICHED_ENTRY": "SERVED",
+    "C1_NOMINAL_LEGACY_ENTRY": "REFUSED:NON_REUSABLE_FOR_EF03B_V3",
+    "C4_T3B_ENRICHED_ENTRY_A__fetch_ok": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C3_T3B_LEGACY_ENTRY__fetch_ok": "REFUSED:NON_REUSABLE_FOR_EF03B_V3",
+    "C5a_ENTRY_TARGET02_VIA_ADAPTER_TARGET01": "REFUSED:EF03B_REUSE_TARGET_MISMATCH",
+    "C6_TRANSPORT_WRONG_AUTHORITY": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C7a_CONTRACT_V2": "REFUSED:EF03B_REUSE_CONTRACT_MISMATCH",
+    "C7c_SEAL_OTHER": "REFUSED:EF03B_REUSE_SEAL_MISMATCH",
+    "C7k_TRANSPORT_WITHOUT_SEAL_ENTRY_OTHER_SEAL": "REFUSED:EF03B_REUSE_SEAL_REQUIRED",
+    "C8c_LEGACY_NO_BOTH": "REFUSED:NON_REUSABLE_FOR_EF03B_V3",
+    "C9b_EF03B_ENTRY_CALLED_AS_WORKER": "REFUSED:EF03B_REUSE_IDENTITY_MISSING",
+    "C9d_ADAPTER_CALLER_FORGES_META_AUTHORITY_A_UNDER_B": "SERVED",
+    "C9e_COMPLETION_AUTH_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C9e_LITERALIZATION_AUTH_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "C9e_INFORMED-RETRY_AUTH_B": "REFUSED:EF03B_REUSE_AUTHORITY_MISMATCH",
+    "_pb7_13_transport": {
+     "asIs": 0,
+     "own": 20,
+     "perm": 0
+    }
+   }
+  },
+  "M13_IDENTITY_CHECK_AFTER_GENERIC_ONLY_IF_GENERIC_FAILS": {
+   "suite": "334/345 tests OK",
+   "killedBy": [
+    "RUN-SAFETY-21",
+    "T-STREAM-05",
+    "PB7-02",
+    "PB7-03",
+    "PB7-04",
+    "PB7-06",
+    "PB7-07",
+    "PB7-08",
+    "PB7-09",
+    "PB7-10",
+    "PB7-12"
+   ],
+   "killKind": "BEHAVIORAL",
+   "harness": {
+    "C2_NOMINAL_ENRICHED_ENTRY": "SERVED",
+    "C1_NOMINAL_LEGACY_ENTRY": "SERVED",
+    "C4_T3B_ENRICHED_ENTRY_A__fetch_ok": "SERVED A_UNDER_B",
+    "C3_T3B_LEGACY_ENTRY__fetch_ok": "SERVED A_UNDER_B",
+    "C5a_ENTRY_TARGET02_VIA_ADAPTER_TARGET01": "SERVED",
+    "C6_TRANSPORT_WRONG_AUTHORITY": "SERVED",
+    "C7a_CONTRACT_V2": "REFUSED:EF03B_REUSE_CONTRACT_MISMATCH",
+    "C7c_SEAL_OTHER": "REFUSED:EF03B_REUSE_SEAL_MISMATCH",
+    "C7k_TRANSPORT_WITHOUT_SEAL_ENTRY_OTHER_SEAL": "SERVED",
+    "C8c_LEGACY_NO_BOTH": "SERVED",
+    "C9b_EF03B_ENTRY_CALLED_AS_WORKER": "SERVED",
+    "C9d_ADAPTER_CALLER_FORGES_META_AUTHORITY_A_UNDER_B": "SERVED",
+    "C9e_COMPLETION_AUTH_B": "SERVED",
+    "C9e_LITERALIZATION_AUTH_B": "SERVED",
+    "C9e_INFORMED-RETRY_AUTH_B": "SERVED",
+    "_pb7_13_transport": {
+     "asIs": 20,
+     "own": 20,
+     "perm": 40
+    }
+   }
+  },
+  "R0_REVERT_TO_V1015_LIB": {
+   "suite": "330/345 tests OK",
+   "killedBy": [
+    "RUN-SAFETY-21",
+    "T-STREAM-05",
+    "PB7-01",
+    "PB7-02",
+    "PB7-03",
+    "PB7-04",
+    "PB7-05",
+    "PB7-06",
+    "PB7-07",
+    "PB7-08",
+    "PB7-09",
+    "PB7-10",
+    "PB7-11",
+    "PB7-12",
+    "PB7-13"
+   ],
+   "killKind": "BEHAVIORAL",
+   "harness": {
+    "C2_NOMINAL_ENRICHED_ENTRY": "SERVED",
+    "C1_NOMINAL_LEGACY_ENTRY": "SERVED",
+    "C4_T3B_ENRICHED_ENTRY_A__fetch_ok": "SERVED A_UNDER_B",
+    "C3_T3B_LEGACY_ENTRY__fetch_ok": "SERVED A_UNDER_B",
+    "C5a_ENTRY_TARGET02_VIA_ADAPTER_TARGET01": "SERVED",
+    "C6_TRANSPORT_WRONG_AUTHORITY": "SERVED",
+    "C7a_CONTRACT_V2": "REFUSED:contrat de validation different (MONO-11-v2)",
+    "C7c_SEAL_OTHER": "REFUSED:sceau different (ca2c188590817aa9ab11ca8f454dc1d15f68a131a35",
+    "C7k_TRANSPORT_WITHOUT_SEAL_ENTRY_OTHER_SEAL": "SERVED",
+    "C8c_LEGACY_NO_BOTH": "SERVED",
+    "C9b_EF03B_ENTRY_CALLED_AS_WORKER": "SERVED",
+    "C9d_ADAPTER_CALLER_FORGES_META_AUTHORITY_A_UNDER_B": "SERVED",
+    "C9e_COMPLETION_AUTH_B": "SERVED",
+    "C9e_LITERALIZATION_AUTH_B": "SERVED",
+    "C9e_INFORMED-RETRY_AUTH_B": "SERVED",
+    "_pb7_13_transport": {
+     "asIs": 20,
+     "own": 20,
+     "perm": 40
+    }
+   }
+  }
+ },
+ "weakeningProbes": {
+  "v1015": {
+   "W1_REUSE_DISABLED": {
+    "suite": "323/332 tests OK",
+    "killedBy": [
+     "L5",
+     "X7",
+     "V3",
+     "COST-02",
+     "RUN-SAFETY-12",
+     "RUN-SAFETY-13",
+     "RUN-SAFETY-21",
+     "T-STREAM-05",
+     "T-STREAM-22"
+    ]
+   },
+   "W2_SERVE_UNVALIDATED": {
+    "suite": "326/332 tests OK",
+    "killedBy": [
+     "L5",
+     "V3",
+     "COST-06",
+     "COST-07",
+     "RUN-SAFETY-07",
+     "T-STREAM-05"
+    ]
+   }
+  },
+  "v1016": {
+   "W1_REUSE_DISABLED": {
+    "suite": "325/345 tests OK",
+    "killedBy": [
+     "L5",
+     "X7",
+     "V3",
+     "COST-02",
+     "RUN-SAFETY-13",
+     "RUN-SAFETY-21",
+     "T-STREAM-05",
+     "T-STREAM-22",
+     "PB7-01",
+     "PB7-02",
+     "PB7-03",
+     "PB7-04",
+     "PB7-05",
+     "PB7-06",
+     "PB7-07",
+     "PB7-08",
+     "PB7-09",
+     "PB7-10",
+     "PB7-11",
+     "PB7-12"
+    ]
+   },
+   "W2_SERVE_UNVALIDATED": {
+    "suite": "339/345 tests OK",
+    "killedBy": [
+     "L5",
+     "V3",
+     "COST-06",
+     "COST-07",
+     "RUN-SAFETY-07",
+     "T-STREAM-05"
+    ]
+   }
+  }
+ },
+ "suites": {
+  "testMonolith_v1016": "345/345",
+  "testMonolith_v1015_reference": "332/332",
+  "chunking": "21/21",
+  "secretScan": 0,
+  "antiHardcoding": 0,
+  "manifestVerify": {
+   "files": 180,
+   "ok": true,
+   "contentHash": "54266d0db6a0ce73bb88309a3bb8d53fcaa378c2af3b3e34dadf479f12ada490"
+  },
+  "verifyFrozenLots": "0 divergence",
+  "mono11_v04": {
+   "sha": "55/55",
+   "tests": "83/83"
+  }
+ },
+ "activeVersion": "MONOLITH-v1.0.10",
+ "nextSteps": [
+  "owner freeze v1.0.16",
+  "targeted PB-B7 micro-smoke",
+  "OWNER GATE activation"
+ ],
+ "candidateFileSha256": {
+  "lib/llm.js": "9012d8884db08cf523e62bfe355bc1171b5b339b2e6dc620591189ccee2fecb5",
+  "lib/ef03b-resilience.js": "0ec0a08a836b9f0e24a787e3aa1900476d055138a0d937d17b16a294f1f5a0ae",
+  "MANIFEST.json": "babd86b6afe0fb86f11d3e152466f1db91c9b3e18aa859f729001d2b47f3e89a",
+  "test/test-v1016-pb7-secondary-reuse.js": "82c9e9e733a86d01c6f91b191468162a9fd7252bc263c5644b589314fc2fb85b",
+  "test/fixtures/pb7-phaseB-ef03b-store-entries.json": "37841668f1a19bb2f6327cf0592a6a49a327971c9b2261ff43aa57fd0ae0bd46"
+ },
+ "evidence": {
+  "scratchRoot": "/private/tmp/claude-501/-Users-christophebonnet/5110422b-0d8e-41bc-a21d-67561ff81ea0/scratchpad/indep-audit",
+  "files": {
+   "harness/indep-pbb7.js": "4a729c57bc9f34f11e63535001a377b60709b998894253541a0c2b58110136e4",
+   "harness/indep-mutants.js": "5218cbc5174dcd078f8614e12be73494b1f682676f817704907ecaca433060d8",
+   "harness/indep-legacy-impact.js": "69eb6713c45141c6892048a5ecb4698a6eef276de4551e287e6135a667f8728d",
+   "out/harness-MONOLITH-v1.0.15.json": "7b8780b2b9f05bd8a6e14245878dba1e5fd6d5af9752124cda0db671e714c8d3",
+   "out/harness-MONOLITH-v1.0.16.json": "6891bc7459a161063e9de9c84c8368869bfc56b9592186f90c953ca9af14b4ef",
+   "out/mutation-matrix.json": "84535766eb1a650d5e66300a28d1e1690a5f3a8b2e9ce3f334d29efb3393c18d",
+   "out/weakening-v1015.json": "de845f0c16070d04474a17340fc01f7fbf89479b94773f43c97f0a1dc30eab63",
+   "out/weakening-v1016.json": "ef1e087b20f3be0c01b4d194525d7c9c7f8b90015c86ceedadb93e055592ba07",
+   "out/legacy-impact.json": "255db4f244eb851347262d866d40bf61715fad2e0a486f2e47b630054fe409d3",
+   "out/v1016-test-monolith.log": "116729ae0c4a95e95cddcfdaf8721fdb9607f28beea115d949e34d8b58c3953f",
+   "out/v1015-test-monolith.log": "b646ba1d2a7fab0625b618cc2c556ad09971e99c4c71507eb486c12a4e037684",
+   "out/v1016-test-chunking.log": "4631dfb36bb48199707b47f1e548059d2a585d62bdba46d89def85cc4d3bbb2e",
+   "out/mono11-v04-tests.log": "a08f1140a3c246d641f65b0368add22a28a80856e550dee512e28a2bf9cd9815",
+   "out/DIFF-FULL-v1015-v1016.patch": "9d00a8d36bd094d273d4de8ab6c5c6fe7d7a7fe7bf4dfe5a6125115eedae7847",
+   "out/smoke-phaseB-before.sha256": "1ed0cd79951fe85b3527fd2283b489cbcb6a2325b44890b0d550ba67f1a063d3",
+   "out/smoke-phaseB-after.sha256": "1ed0cd79951fe85b3527fd2283b489cbcb6a2325b44890b0d550ba67f1a063d3",
+   "out/h1-v105-before.sha256": "97d2118213e1e30e78afe202a5344e111f99d5738c81af188d668ccb4ec0135a",
+   "out/h1-v105-after.sha256": "97d2118213e1e30e78afe202a5344e111f99d5738c81af188d668ccb4ec0135a"
+  }
+ },
+ "readOnlyProof": {
+  "manifestVerify": "180 files OK",
+  "gitStatusEvidenceForge": "only the 2 untracked deliverables; git diff HEAD empty",
+  "smokePhaseBUnchanged": true,
+  "h1v105Unchanged": true,
+  "commit766db22aNote": "v1.0.16 was already tracked before this audit"
+ }
+}

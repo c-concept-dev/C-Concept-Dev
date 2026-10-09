@@ -1,0 +1,2083 @@
+{
+  "provenance": "Anonymized topology and categorical assessments of the observed incident; no bibliographic text retained. Synthetic evidence strings only test mechanics, not scientific relevance.",
+  "dimensions": [
+    {
+      "id": "angle-1"
+    },
+    {
+      "id": "angle-2"
+    },
+    {
+      "id": "angle-3"
+    },
+    {
+      "id": "angle-4"
+    },
+    {
+      "id": "angle-5"
+    },
+    {
+      "id": "angle-6"
+    },
+    {
+      "id": "angle-7"
+    }
+  ],
+  "sources": [
+    {
+      "sourceId": "candidate-1",
+      "titre": "Document candidate-1",
+      "resume": "Extract candidate-1",
+      "discipline": "angle-1",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-2",
+      "titre": "Document candidate-2",
+      "resume": "Extract candidate-2",
+      "discipline": "angle-1",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-3",
+      "titre": "Document candidate-3",
+      "resume": "Extract candidate-3",
+      "discipline": "angle-1",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-4",
+      "titre": "Document candidate-4",
+      "resume": "Extract candidate-4",
+      "discipline": "angle-1",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-5",
+      "titre": "Document candidate-5",
+      "resume": "Extract candidate-5",
+      "discipline": "angle-1",
+      "type": "reference-entry"
+    },
+    {
+      "sourceId": "candidate-6",
+      "titre": "Document candidate-6",
+      "resume": "Extract candidate-6",
+      "discipline": "angle-1",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-7",
+      "titre": "Document candidate-7",
+      "resume": "Extract candidate-7",
+      "discipline": "angle-1",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-8",
+      "titre": "Document candidate-8",
+      "resume": "Extract candidate-8",
+      "discipline": "angle-1",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-9",
+      "titre": "Document candidate-9",
+      "resume": "Extract candidate-9",
+      "discipline": "angle-1",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-10",
+      "titre": "Document candidate-10",
+      "resume": "Extract candidate-10",
+      "discipline": "angle-1",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-11",
+      "titre": "Document candidate-11",
+      "resume": "Extract candidate-11",
+      "discipline": "angle-1",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-12",
+      "titre": "Document candidate-12",
+      "resume": "Extract candidate-12",
+      "discipline": "angle-1",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-13",
+      "titre": "Document candidate-13",
+      "resume": "Extract candidate-13",
+      "discipline": "angle-1",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-14",
+      "titre": "Document candidate-14",
+      "resume": "Extract candidate-14",
+      "discipline": "angle-1",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-15",
+      "titre": "Document candidate-15",
+      "resume": "Extract candidate-15",
+      "discipline": "angle-1",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-16",
+      "titre": "Document candidate-16",
+      "resume": "Extract candidate-16",
+      "discipline": "angle-2",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-17",
+      "titre": "Document candidate-17",
+      "resume": "Extract candidate-17",
+      "discipline": "angle-2",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-18",
+      "titre": "Document candidate-18",
+      "resume": "Extract candidate-18",
+      "discipline": "angle-2",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-19",
+      "titre": "Document candidate-19",
+      "resume": "Extract candidate-19",
+      "discipline": "angle-2",
+      "type": "review"
+    },
+    {
+      "sourceId": "candidate-20",
+      "titre": "Document candidate-20",
+      "resume": "Extract candidate-20",
+      "discipline": "angle-2",
+      "type": "review"
+    },
+    {
+      "sourceId": "candidate-21",
+      "titre": "Document candidate-21",
+      "resume": "Extract candidate-21",
+      "discipline": "angle-2",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-22",
+      "titre": "Document candidate-22",
+      "resume": "Extract candidate-22",
+      "discipline": "angle-2",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-23",
+      "titre": "Document candidate-23",
+      "resume": "Extract candidate-23",
+      "discipline": "angle-2",
+      "type": "review"
+    },
+    {
+      "sourceId": "candidate-24",
+      "titre": "Document candidate-24",
+      "resume": "Extract candidate-24",
+      "discipline": "angle-2",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-25",
+      "titre": "Document candidate-25",
+      "resume": "Extract candidate-25",
+      "discipline": "angle-2",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-26",
+      "titre": "Document candidate-26",
+      "resume": "Extract candidate-26",
+      "discipline": "angle-2",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-27",
+      "titre": "Document candidate-27",
+      "resume": "Extract candidate-27",
+      "discipline": "angle-2",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-28",
+      "titre": "Document candidate-28",
+      "resume": "Extract candidate-28",
+      "discipline": "angle-2",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-29",
+      "titre": "Document candidate-29",
+      "resume": "Extract candidate-29",
+      "discipline": "angle-2",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-30",
+      "titre": "Document candidate-30",
+      "resume": "Extract candidate-30",
+      "discipline": "angle-2",
+      "type": "review"
+    },
+    {
+      "sourceId": "candidate-31",
+      "titre": "Document candidate-31",
+      "resume": "Extract candidate-31",
+      "discipline": "angle-3",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-32",
+      "titre": "Document candidate-32",
+      "resume": "Extract candidate-32",
+      "discipline": "angle-3",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-33",
+      "titre": "Document candidate-33",
+      "resume": "Extract candidate-33",
+      "discipline": "angle-3",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-34",
+      "titre": "Document candidate-34",
+      "resume": "Extract candidate-34",
+      "discipline": "angle-3",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-35",
+      "titre": "Document candidate-35",
+      "resume": "Extract candidate-35",
+      "discipline": "angle-3",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-36",
+      "titre": "Document candidate-36",
+      "resume": "Extract candidate-36",
+      "discipline": "angle-3",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-37",
+      "titre": "Document candidate-37",
+      "resume": "Extract candidate-37",
+      "discipline": "angle-3",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-38",
+      "titre": "Document candidate-38",
+      "resume": "Extract candidate-38",
+      "discipline": "angle-3",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-39",
+      "titre": "Document candidate-39",
+      "resume": "Extract candidate-39",
+      "discipline": "angle-3",
+      "type": "review"
+    },
+    {
+      "sourceId": "candidate-40",
+      "titre": "Document candidate-40",
+      "resume": "Extract candidate-40",
+      "discipline": "angle-3",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-41",
+      "titre": "Document candidate-41",
+      "resume": "Extract candidate-41",
+      "discipline": "angle-3",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-42",
+      "titre": "Document candidate-42",
+      "resume": "Extract candidate-42",
+      "discipline": "angle-3",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-43",
+      "titre": "Document candidate-43",
+      "resume": "Extract candidate-43",
+      "discipline": "angle-3",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-44",
+      "titre": "Document candidate-44",
+      "resume": "Extract candidate-44",
+      "discipline": "angle-3",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-45",
+      "titre": "Document candidate-45",
+      "resume": "Extract candidate-45",
+      "discipline": "angle-4",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-46",
+      "titre": "Document candidate-46",
+      "resume": "Extract candidate-46",
+      "discipline": "angle-4",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-47",
+      "titre": "Document candidate-47",
+      "resume": "Extract candidate-47",
+      "discipline": "angle-4",
+      "type": "review"
+    },
+    {
+      "sourceId": "candidate-48",
+      "titre": "Document candidate-48",
+      "resume": "Extract candidate-48",
+      "discipline": "angle-4",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-49",
+      "titre": "Document candidate-49",
+      "resume": "Extract candidate-49",
+      "discipline": "angle-4",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-50",
+      "titre": "Document candidate-50",
+      "resume": "Extract candidate-50",
+      "discipline": "angle-4",
+      "type": "review"
+    },
+    {
+      "sourceId": "candidate-51",
+      "titre": "Document candidate-51",
+      "resume": "Extract candidate-51",
+      "discipline": "angle-4",
+      "type": "review"
+    },
+    {
+      "sourceId": "candidate-52",
+      "titre": "Document candidate-52",
+      "resume": "Extract candidate-52",
+      "discipline": "angle-4",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-53",
+      "titre": "Document candidate-53",
+      "resume": "Extract candidate-53",
+      "discipline": "angle-4",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-54",
+      "titre": "Document candidate-54",
+      "resume": "Extract candidate-54",
+      "discipline": "angle-4",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-55",
+      "titre": "Document candidate-55",
+      "resume": "Extract candidate-55",
+      "discipline": "angle-4",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-56",
+      "titre": "Document candidate-56",
+      "resume": "Extract candidate-56",
+      "discipline": "angle-4",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-57",
+      "titre": "Document candidate-57",
+      "resume": "Extract candidate-57",
+      "discipline": "angle-4",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-58",
+      "titre": "Document candidate-58",
+      "resume": "Extract candidate-58",
+      "discipline": "angle-4",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-59",
+      "titre": "Document candidate-59",
+      "resume": "Extract candidate-59",
+      "discipline": "angle-5",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-60",
+      "titre": "Document candidate-60",
+      "resume": "Extract candidate-60",
+      "discipline": "angle-5",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-61",
+      "titre": "Document candidate-61",
+      "resume": "Extract candidate-61",
+      "discipline": "angle-5",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-62",
+      "titre": "Document candidate-62",
+      "resume": "Extract candidate-62",
+      "discipline": "angle-5",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-63",
+      "titre": "Document candidate-63",
+      "resume": "Extract candidate-63",
+      "discipline": "angle-5",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-64",
+      "titre": "Document candidate-64",
+      "resume": "Extract candidate-64",
+      "discipline": "angle-5",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-65",
+      "titre": "Document candidate-65",
+      "resume": "Extract candidate-65",
+      "discipline": "angle-5",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-66",
+      "titre": "Document candidate-66",
+      "resume": "Extract candidate-66",
+      "discipline": "angle-5",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-67",
+      "titre": "Document candidate-67",
+      "resume": "Extract candidate-67",
+      "discipline": "angle-5",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-68",
+      "titre": "Document candidate-68",
+      "resume": "Extract candidate-68",
+      "discipline": "angle-5",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-69",
+      "titre": "Document candidate-69",
+      "resume": "Extract candidate-69",
+      "discipline": "angle-5",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-70",
+      "titre": "Document candidate-70",
+      "resume": "Extract candidate-70",
+      "discipline": "angle-5",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-71",
+      "titre": "Document candidate-71",
+      "resume": "Extract candidate-71",
+      "discipline": "angle-5",
+      "type": "review"
+    },
+    {
+      "sourceId": "candidate-72",
+      "titre": "Document candidate-72",
+      "resume": "Extract candidate-72",
+      "discipline": "angle-5",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-73",
+      "titre": "Document candidate-73",
+      "resume": "Extract candidate-73",
+      "discipline": "angle-6",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-74",
+      "titre": "Document candidate-74",
+      "resume": "Extract candidate-74",
+      "discipline": "angle-6",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-75",
+      "titre": "Document candidate-75",
+      "resume": "Extract candidate-75",
+      "discipline": "angle-6",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-76",
+      "titre": "Document candidate-76",
+      "resume": "Extract candidate-76",
+      "discipline": "angle-6",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-77",
+      "titre": "Document candidate-77",
+      "resume": "Extract candidate-77",
+      "discipline": "angle-6",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-78",
+      "titre": "Document candidate-78",
+      "resume": "Extract candidate-78",
+      "discipline": "angle-6",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-79",
+      "titre": "Document candidate-79",
+      "resume": "Extract candidate-79",
+      "discipline": "angle-6",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-80",
+      "titre": "Document candidate-80",
+      "resume": "Extract candidate-80",
+      "discipline": "angle-6",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-81",
+      "titre": "Document candidate-81",
+      "resume": "Extract candidate-81",
+      "discipline": "angle-6",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-82",
+      "titre": "Document candidate-82",
+      "resume": "Extract candidate-82",
+      "discipline": "angle-6",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-83",
+      "titre": "Document candidate-83",
+      "resume": "Extract candidate-83",
+      "discipline": "angle-6",
+      "type": "review"
+    },
+    {
+      "sourceId": "candidate-84",
+      "titre": "Document candidate-84",
+      "resume": "Extract candidate-84",
+      "discipline": "angle-6",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-85",
+      "titre": "Document candidate-85",
+      "resume": "Extract candidate-85",
+      "discipline": "angle-6",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-86",
+      "titre": "Document candidate-86",
+      "resume": "Extract candidate-86",
+      "discipline": "angle-6",
+      "type": "review"
+    },
+    {
+      "sourceId": "candidate-87",
+      "titre": "Document candidate-87",
+      "resume": "Extract candidate-87",
+      "discipline": "angle-7",
+      "type": "review"
+    },
+    {
+      "sourceId": "candidate-88",
+      "titre": "Document candidate-88",
+      "resume": "Extract candidate-88",
+      "discipline": "angle-7",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-89",
+      "titre": "Document candidate-89",
+      "resume": "Extract candidate-89",
+      "discipline": "angle-7",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-90",
+      "titre": "Document candidate-90",
+      "resume": "Extract candidate-90",
+      "discipline": "angle-7",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-91",
+      "titre": "Document candidate-91",
+      "resume": "Extract candidate-91",
+      "discipline": "angle-7",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-92",
+      "titre": "Document candidate-92",
+      "resume": "Extract candidate-92",
+      "discipline": "angle-7",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-93",
+      "titre": "Document candidate-93",
+      "resume": "Extract candidate-93",
+      "discipline": "angle-7",
+      "type": "review"
+    },
+    {
+      "sourceId": "candidate-94",
+      "titre": "Document candidate-94",
+      "resume": "Extract candidate-94",
+      "discipline": "angle-7",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-95",
+      "titre": "Document candidate-95",
+      "resume": "Extract candidate-95",
+      "discipline": "angle-7",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-96",
+      "titre": "Document candidate-96",
+      "resume": "Extract candidate-96",
+      "discipline": "angle-7",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-97",
+      "titre": "Document candidate-97",
+      "resume": "Extract candidate-97",
+      "discipline": "angle-7",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-98",
+      "titre": "Document candidate-98",
+      "resume": "Extract candidate-98",
+      "discipline": "angle-7",
+      "type": "review"
+    },
+    {
+      "sourceId": "candidate-99",
+      "titre": "Document candidate-99",
+      "resume": "Extract candidate-99",
+      "discipline": "angle-7",
+      "type": "article"
+    },
+    {
+      "sourceId": "candidate-100",
+      "titre": "Document candidate-100",
+      "resume": "Extract candidate-100",
+      "discipline": "angle-7",
+      "type": "article"
+    }
+  ],
+  "evidence": {
+    "proposals": [
+      {
+        "sourceId": "candidate-1",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-2",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-3",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-4",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-6",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-7",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-8",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-9",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-10",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-11",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "moyenne"
+      },
+      {
+        "sourceId": "candidate-13",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-14",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-15",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-16",
+        "proposed": "inclus",
+        "justification": "Primary classification retained",
+        "evidence": [
+          "Extract candidate-16"
+        ],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-17",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-18",
+        "proposed": "inclus",
+        "justification": "Primary classification retained",
+        "evidence": [
+          "Extract candidate-18"
+        ],
+        "confiance": "moyenne"
+      },
+      {
+        "sourceId": "candidate-19",
+        "proposed": "inclus",
+        "justification": "Primary classification retained",
+        "evidence": [
+          "Extract candidate-19"
+        ],
+        "confiance": "moyenne"
+      },
+      {
+        "sourceId": "candidate-20",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-21",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-22",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-23",
+        "proposed": "inclus",
+        "justification": "Primary classification retained",
+        "evidence": [
+          "Extract candidate-23"
+        ],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-24",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-25",
+        "proposed": "inclus",
+        "justification": "Primary classification retained",
+        "evidence": [
+          "Extract candidate-25"
+        ],
+        "confiance": "moyenne"
+      },
+      {
+        "sourceId": "candidate-26",
+        "proposed": "inclus",
+        "justification": "Primary classification retained",
+        "evidence": [
+          "Extract candidate-26"
+        ],
+        "confiance": "moyenne"
+      },
+      {
+        "sourceId": "candidate-27",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-28",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-29",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-30",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "moyenne"
+      },
+      {
+        "sourceId": "candidate-31",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-32",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "moyenne"
+      },
+      {
+        "sourceId": "candidate-33",
+        "proposed": "inclus",
+        "justification": "Primary classification retained",
+        "evidence": [
+          "Extract candidate-33"
+        ],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-34",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-35",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-36",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-37",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-38",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-39",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-40",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-41",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "moyenne"
+      },
+      {
+        "sourceId": "candidate-42",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-43",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-44",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-45",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "moyenne"
+      },
+      {
+        "sourceId": "candidate-46",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-47",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [
+          "Extract candidate-47"
+        ],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-48",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "moyenne"
+      },
+      {
+        "sourceId": "candidate-49",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-50",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [
+          "Extract candidate-50"
+        ],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-51",
+        "proposed": "inclus",
+        "justification": "Primary classification retained",
+        "evidence": [
+          "Extract candidate-51"
+        ],
+        "confiance": "moyenne"
+      },
+      {
+        "sourceId": "candidate-52",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-53",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-54",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-55",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-56",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-57",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "moyenne"
+      },
+      {
+        "sourceId": "candidate-58",
+        "proposed": "inclus",
+        "justification": "Primary classification retained",
+        "evidence": [
+          "Extract candidate-58"
+        ],
+        "confiance": "moyenne"
+      },
+      {
+        "sourceId": "candidate-67",
+        "proposed": "inclus",
+        "justification": "Primary classification retained",
+        "evidence": [
+          "Extract candidate-67"
+        ],
+        "confiance": "moyenne"
+      },
+      {
+        "sourceId": "candidate-68",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-69",
+        "proposed": "inclus",
+        "justification": "Primary classification retained",
+        "evidence": [
+          "Extract candidate-69"
+        ],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-70",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-71",
+        "proposed": "inclus",
+        "justification": "Primary classification retained",
+        "evidence": [
+          "Extract candidate-71"
+        ],
+        "confiance": "moyenne"
+      },
+      {
+        "sourceId": "candidate-72",
+        "proposed": "inclus",
+        "justification": "Primary classification retained",
+        "evidence": [
+          "Extract candidate-72"
+        ],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-73",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "moyenne"
+      },
+      {
+        "sourceId": "candidate-74",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-75",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-76",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-77",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-78",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-79",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-80",
+        "proposed": "inclus",
+        "justification": "Primary classification retained",
+        "evidence": [
+          "Extract candidate-80"
+        ],
+        "confiance": "moyenne"
+      },
+      {
+        "sourceId": "candidate-81",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-82",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-83",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-84",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-85",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-86",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-87",
+        "proposed": "inclus",
+        "justification": "Primary classification retained",
+        "evidence": [
+          "Extract candidate-87"
+        ],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-88",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "moyenne"
+      },
+      {
+        "sourceId": "candidate-89",
+        "proposed": "inclus",
+        "justification": "Primary classification retained",
+        "evidence": [
+          "Extract candidate-89"
+        ],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-90",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-91",
+        "proposed": "inclus",
+        "justification": "Primary classification retained",
+        "evidence": [
+          "Extract candidate-91"
+        ],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-92",
+        "proposed": "inclus",
+        "justification": "Primary classification retained",
+        "evidence": [
+          "Extract candidate-92"
+        ],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-93",
+        "proposed": "inclus",
+        "justification": "Primary classification retained",
+        "evidence": [
+          "Extract candidate-93"
+        ],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-94",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-95",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-96",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-97",
+        "proposed": "inclus",
+        "justification": "Primary classification retained",
+        "evidence": [
+          "Extract candidate-97"
+        ],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-98",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-99",
+        "proposed": "exclu",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-100",
+        "proposed": "inclus",
+        "justification": "Primary classification retained",
+        "evidence": [
+          "Extract candidate-100"
+        ],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-5",
+        "proposed": "doublon",
+        "duplicateOf": "candidate-1",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      },
+      {
+        "sourceId": "candidate-12",
+        "proposed": "doublon",
+        "duplicateOf": "candidate-6",
+        "justification": "Primary classification retained",
+        "evidence": [],
+        "confiance": "haute"
+      }
+    ],
+    "sourcesCount": 100,
+    "judged": 90,
+    "duplicates": 2,
+    "failedSourceIds": [
+      "candidate-59",
+      "candidate-60",
+      "candidate-61",
+      "candidate-62",
+      "candidate-63",
+      "candidate-64",
+      "candidate-65",
+      "candidate-66"
+    ]
+  },
+  "review": {
+    "domainVsMethod": [
+      {
+        "sourceId": "candidate-1",
+        "domainRelevance": "moyenne",
+        "methodologicalRelevance": "moyenne",
+        "methodologicalInterest": "Transferable procedure",
+        "anglesConcernes": [
+          "angle-1",
+          "angle-6"
+        ],
+        "evidence": [
+          "Extract candidate-1"
+        ]
+      },
+      {
+        "sourceId": "candidate-2",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "basse",
+        "methodologicalInterest": "",
+        "anglesConcernes": [],
+        "evidence": [
+          "Extract candidate-2"
+        ]
+      },
+      {
+        "sourceId": "candidate-3",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "moyenne",
+        "methodologicalInterest": "Transferable procedure",
+        "anglesConcernes": [
+          "angle-1"
+        ],
+        "evidence": [
+          "Extract candidate-3"
+        ]
+      },
+      {
+        "sourceId": "candidate-4",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "basse",
+        "methodologicalInterest": "",
+        "anglesConcernes": [],
+        "evidence": [
+          "Extract candidate-4"
+        ]
+      },
+      {
+        "sourceId": "candidate-6",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "basse",
+        "methodologicalInterest": "",
+        "anglesConcernes": [],
+        "evidence": [
+          "Extract candidate-6"
+        ]
+      },
+      {
+        "sourceId": "candidate-7",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "basse",
+        "methodologicalInterest": "",
+        "anglesConcernes": [],
+        "evidence": [
+          "Extract candidate-7"
+        ]
+      },
+      {
+        "sourceId": "candidate-8",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "moyenne",
+        "methodologicalInterest": "Transferable procedure",
+        "anglesConcernes": [
+          "angle-6"
+        ],
+        "evidence": [
+          "Extract candidate-8"
+        ]
+      },
+      {
+        "sourceId": "candidate-9",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "basse",
+        "methodologicalInterest": "",
+        "anglesConcernes": [],
+        "evidence": [
+          "Extract candidate-9"
+        ]
+      },
+      {
+        "sourceId": "candidate-10",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "basse",
+        "methodologicalInterest": "",
+        "anglesConcernes": [],
+        "evidence": [
+          "Extract candidate-10"
+        ]
+      },
+      {
+        "sourceId": "candidate-11",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "moyenne",
+        "methodologicalInterest": "Transferable procedure",
+        "anglesConcernes": [
+          "angle-1",
+          "angle-6"
+        ],
+        "evidence": [
+          "Extract candidate-11"
+        ]
+      },
+      {
+        "sourceId": "candidate-13",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "basse",
+        "methodologicalInterest": "",
+        "anglesConcernes": [],
+        "evidence": [
+          "Extract candidate-13"
+        ]
+      },
+      {
+        "sourceId": "candidate-14",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "moyenne",
+        "methodologicalInterest": "Transferable procedure",
+        "anglesConcernes": [
+          "angle-1",
+          "angle-2"
+        ],
+        "evidence": [
+          "Extract candidate-14"
+        ]
+      },
+      {
+        "sourceId": "candidate-15",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "basse",
+        "methodologicalInterest": "",
+        "anglesConcernes": [],
+        "evidence": [
+          "Extract candidate-15"
+        ]
+      },
+      {
+        "sourceId": "candidate-17",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "moyenne",
+        "methodologicalInterest": "Transferable procedure",
+        "anglesConcernes": [
+          "angle-6"
+        ],
+        "evidence": [
+          "Extract candidate-17"
+        ]
+      },
+      {
+        "sourceId": "candidate-20",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "moyenne",
+        "methodologicalInterest": "Transferable procedure",
+        "anglesConcernes": [
+          "angle-2"
+        ],
+        "evidence": [
+          "Extract candidate-20"
+        ]
+      },
+      {
+        "sourceId": "candidate-21",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "moyenne",
+        "methodologicalInterest": "Transferable procedure",
+        "anglesConcernes": [
+          "angle-2"
+        ],
+        "evidence": [
+          "Extract candidate-21"
+        ]
+      },
+      {
+        "sourceId": "candidate-22",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "basse",
+        "methodologicalInterest": "",
+        "anglesConcernes": [],
+        "evidence": [
+          "Extract candidate-22"
+        ]
+      },
+      {
+        "sourceId": "candidate-24",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "basse",
+        "methodologicalInterest": "",
+        "anglesConcernes": [],
+        "evidence": [
+          "Extract candidate-24"
+        ]
+      },
+      {
+        "sourceId": "candidate-27",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "moyenne",
+        "methodologicalInterest": "Transferable procedure",
+        "anglesConcernes": [
+          "angle-2"
+        ],
+        "evidence": [
+          "Extract candidate-27"
+        ]
+      },
+      {
+        "sourceId": "candidate-28",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "basse",
+        "methodologicalInterest": "",
+        "anglesConcernes": [],
+        "evidence": [
+          "Extract candidate-28"
+        ]
+      },
+      {
+        "sourceId": "candidate-29",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "basse",
+        "methodologicalInterest": "",
+        "anglesConcernes": [],
+        "evidence": [
+          "Extract candidate-29"
+        ]
+      },
+      {
+        "sourceId": "candidate-30",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "moyenne",
+        "methodologicalInterest": "Transferable procedure",
+        "anglesConcernes": [
+          "angle-2"
+        ],
+        "evidence": [
+          "Extract candidate-30"
+        ]
+      },
+      {
+        "sourceId": "candidate-31",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "basse",
+        "methodologicalInterest": "",
+        "anglesConcernes": [],
+        "evidence": [
+          "Extract candidate-31"
+        ]
+      },
+      {
+        "sourceId": "candidate-32",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "haute",
+        "methodologicalInterest": "Transferable procedure",
+        "anglesConcernes": [
+          "angle-4",
+          "angle-3"
+        ],
+        "evidence": [
+          "Extract candidate-32"
+        ]
+      },
+      {
+        "sourceId": "candidate-34",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "moyenne",
+        "methodologicalInterest": "Transferable procedure",
+        "anglesConcernes": [
+          "angle-3"
+        ],
+        "evidence": [
+          "Extract candidate-34"
+        ]
+      },
+      {
+        "sourceId": "candidate-35",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "basse",
+        "methodologicalInterest": "",
+        "anglesConcernes": [],
+        "evidence": []
+      },
+      {
+        "sourceId": "candidate-36",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "haute",
+        "methodologicalInterest": "Transferable procedure",
+        "anglesConcernes": [
+          "angle-3",
+          "angle-7"
+        ],
+        "evidence": [
+          "Extract candidate-36"
+        ]
+      },
+      {
+        "sourceId": "candidate-37",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "basse",
+        "methodologicalInterest": "",
+        "anglesConcernes": [],
+        "evidence": []
+      },
+      {
+        "sourceId": "candidate-38",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "moyenne",
+        "methodologicalInterest": "Transferable procedure",
+        "anglesConcernes": [
+          "angle-2"
+        ],
+        "evidence": [
+          "Extract candidate-38"
+        ]
+      },
+      {
+        "sourceId": "candidate-39",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "moyenne",
+        "methodologicalInterest": "Transferable procedure",
+        "anglesConcernes": [
+          "angle-3",
+          "angle-7"
+        ],
+        "evidence": [
+          "Extract candidate-39"
+        ]
+      },
+      {
+        "sourceId": "candidate-42",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "haute",
+        "methodologicalInterest": "Transferable procedure",
+        "anglesConcernes": [
+          "angle-3",
+          "angle-4",
+          "angle-7"
+        ],
+        "evidence": [
+          "Extract candidate-42"
+        ]
+      },
+      {
+        "sourceId": "candidate-43",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "haute",
+        "methodologicalInterest": "Transferable procedure",
+        "anglesConcernes": [
+          "angle-3",
+          "angle-7"
+        ],
+        "evidence": [
+          "Extract candidate-43"
+        ]
+      },
+      {
+        "sourceId": "candidate-46",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "moyenne",
+        "methodologicalInterest": "Transferable procedure",
+        "anglesConcernes": [
+          "angle-4"
+        ],
+        "evidence": [
+          "Extract candidate-46"
+        ]
+      },
+      {
+        "sourceId": "candidate-47",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "basse",
+        "methodologicalInterest": "",
+        "anglesConcernes": [],
+        "evidence": []
+      },
+      {
+        "sourceId": "candidate-48",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "haute",
+        "methodologicalInterest": "Transferable procedure",
+        "anglesConcernes": [
+          "angle-4",
+          "angle-5"
+        ],
+        "evidence": [
+          "Extract candidate-48"
+        ]
+      },
+      {
+        "sourceId": "candidate-50",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "basse",
+        "methodologicalInterest": "",
+        "anglesConcernes": [],
+        "evidence": []
+      },
+      {
+        "sourceId": "candidate-54",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "moyenne",
+        "methodologicalInterest": "Transferable procedure",
+        "anglesConcernes": [
+          "angle-4"
+        ],
+        "evidence": [
+          "Extract candidate-54"
+        ]
+      },
+      {
+        "sourceId": "candidate-55",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "moyenne",
+        "methodologicalInterest": "Transferable procedure",
+        "anglesConcernes": [
+          "angle-4"
+        ],
+        "evidence": [
+          "Extract candidate-55"
+        ]
+      },
+      {
+        "sourceId": "candidate-56",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "moyenne",
+        "methodologicalInterest": "Transferable procedure",
+        "anglesConcernes": [
+          "angle-4"
+        ],
+        "evidence": [
+          "Extract candidate-56"
+        ]
+      },
+      {
+        "sourceId": "candidate-57",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "haute",
+        "methodologicalInterest": "Transferable procedure",
+        "anglesConcernes": [
+          "angle-4"
+        ],
+        "evidence": [
+          "Extract candidate-57"
+        ]
+      },
+      {
+        "sourceId": "candidate-68",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "haute",
+        "methodologicalInterest": "Transferable procedure",
+        "anglesConcernes": [
+          "angle-5"
+        ],
+        "evidence": [
+          "Extract candidate-68"
+        ]
+      },
+      {
+        "sourceId": "candidate-70",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "haute",
+        "methodologicalInterest": "Transferable procedure",
+        "anglesConcernes": [
+          "angle-5"
+        ],
+        "evidence": [
+          "Extract candidate-70"
+        ]
+      },
+      {
+        "sourceId": "candidate-73",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "basse",
+        "methodologicalInterest": "",
+        "anglesConcernes": [],
+        "evidence": []
+      },
+      {
+        "sourceId": "candidate-74",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "basse",
+        "methodologicalInterest": "",
+        "anglesConcernes": [],
+        "evidence": []
+      },
+      {
+        "sourceId": "candidate-75",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "basse",
+        "methodologicalInterest": "",
+        "anglesConcernes": [],
+        "evidence": []
+      },
+      {
+        "sourceId": "candidate-76",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "basse",
+        "methodologicalInterest": "",
+        "anglesConcernes": [],
+        "evidence": []
+      },
+      {
+        "sourceId": "candidate-77",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "moyenne",
+        "methodologicalInterest": "Transferable procedure",
+        "anglesConcernes": [
+          "angle-2"
+        ],
+        "evidence": [
+          "Extract candidate-77"
+        ]
+      },
+      {
+        "sourceId": "candidate-78",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "moyenne",
+        "methodologicalInterest": "Transferable procedure",
+        "anglesConcernes": [
+          "angle-2",
+          "angle-6"
+        ],
+        "evidence": [
+          "Extract candidate-78"
+        ]
+      },
+      {
+        "sourceId": "candidate-81",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "moyenne",
+        "methodologicalInterest": "Transferable procedure",
+        "anglesConcernes": [
+          "angle-6"
+        ],
+        "evidence": [
+          "Extract candidate-81"
+        ]
+      },
+      {
+        "sourceId": "candidate-82",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "basse",
+        "methodologicalInterest": "",
+        "anglesConcernes": [],
+        "evidence": []
+      },
+      {
+        "sourceId": "candidate-83",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "moyenne",
+        "methodologicalInterest": "Transferable procedure",
+        "anglesConcernes": [
+          "angle-2"
+        ],
+        "evidence": [
+          "Extract candidate-83"
+        ]
+      },
+      {
+        "sourceId": "candidate-84",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "basse",
+        "methodologicalInterest": "",
+        "anglesConcernes": [],
+        "evidence": []
+      },
+      {
+        "sourceId": "candidate-85",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "basse",
+        "methodologicalInterest": "",
+        "anglesConcernes": [],
+        "evidence": []
+      },
+      {
+        "sourceId": "candidate-88",
+        "domainRelevance": "moyenne",
+        "methodologicalRelevance": "haute",
+        "methodologicalInterest": "Transferable procedure",
+        "anglesConcernes": [
+          "angle-4",
+          "angle-7"
+        ],
+        "evidence": [
+          "Extract candidate-88"
+        ]
+      },
+      {
+        "sourceId": "candidate-90",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "moyenne",
+        "methodologicalInterest": "Transferable procedure",
+        "anglesConcernes": [
+          "angle-7"
+        ],
+        "evidence": [
+          "Extract candidate-90"
+        ]
+      },
+      {
+        "sourceId": "candidate-94",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "haute",
+        "methodologicalInterest": "Transferable procedure",
+        "anglesConcernes": [
+          "angle-7"
+        ],
+        "evidence": [
+          "Extract candidate-94"
+        ]
+      },
+      {
+        "sourceId": "candidate-98",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "basse",
+        "methodologicalInterest": "",
+        "anglesConcernes": [],
+        "evidence": []
+      },
+      {
+        "sourceId": "candidate-99",
+        "domainRelevance": "basse",
+        "methodologicalRelevance": "moyenne",
+        "methodologicalInterest": "Transferable procedure",
+        "anglesConcernes": [
+          "angle-5"
+        ],
+        "evidence": [
+          "Extract candidate-99"
+        ]
+      }
+    ],
+    "counts": {
+      "sources": 100,
+      "proposedIncluded": 21,
+      "proposedExcluded": 69,
+      "judgedByLlm": 58,
+      "judgeable": 58
+    },
+    "warnings": []
+  }
+}

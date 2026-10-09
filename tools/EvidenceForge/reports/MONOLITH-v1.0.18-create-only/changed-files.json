@@ -1,0 +1,110 @@
+[
+  {
+    "path": "MANIFEST.json",
+    "status": "MODIFIED",
+    "beforeSha256": "b1ac4eb1dbd04efbf45cbb1a3d68f450ab6eda551dce33930257012c564a7bef",
+    "afterSha256": "21d7db91d043b2ad5b1d9795442c47827aa2ef7ea95418596913f1b2255b2811"
+  },
+  {
+    "path": "README.md",
+    "status": "MODIFIED",
+    "beforeSha256": "bf4cae7275231208bffc56e22c2ac1cc769a7aa718390c275445af670a03c1af",
+    "afterSha256": "48876e8d56db8cb896fd198c406dca6e347051308cf2e37f72be3d7a03c5c2e0"
+  },
+  {
+    "path": "SHA256SUMS.txt",
+    "status": "MODIFIED",
+    "beforeSha256": "0dd54eea90bced63c7b41a0076cf09e8bfa5cd5892dddc58080d79d930f68e98",
+    "afterSha256": "b5844d29ce7a3928cb3b252ab5e77cdcb3de6b6b8a0f4182fef4035263545d13"
+  },
+  {
+    "path": "config/monolith.config.json",
+    "status": "MODIFIED",
+    "beforeSha256": "ad9377b05766a6fa1be58c3361f7844c7c4bcf0144494bc9e005b415c0c75433",
+    "afterSha256": "09290f45324ec028fc5a36eb425a08ae79f1a7857bdc0518d281dd0182e6dc02"
+  },
+  {
+    "path": "docs/V1018-CREATE-ONLY-AUTOPSY.md",
+    "status": "ADDED",
+    "beforeSha256": null,
+    "afterSha256": "5a115159fe03bbc1ac8cd6a11bf578b74bdc64441a832ad5f86bb3a9067f8fe3"
+  },
+  {
+    "path": "docs/V1018-CREATE-ONLY-REPORT.md",
+    "status": "ADDED",
+    "beforeSha256": null,
+    "afterSha256": "c03b259a704ed039a7ea841a5c7743e3d417ca202fb49b544c3f12b1c576d1cc"
+  },
+  {
+    "path": "docs/V1018-CREATE-ONLY-TRANSITION-MAP.md",
+    "status": "ADDED",
+    "beforeSha256": null,
+    "afterSha256": "be9479265f36ce24d87b22b4efa9da7535f444f16f61097cc3282b923dee2b7e"
+  },
+  {
+    "path": "lib/pipeline.js",
+    "status": "MODIFIED",
+    "beforeSha256": "f95edfcbecedb83ff38c02a561ef25aa4ad86da905dfc687a382aa88df52534a",
+    "afterSha256": "19586a3259779aca03fec2dfa35b92f95ea965b1cff38b58dd79a13c15a34b93"
+  },
+  {
+    "path": "server.js",
+    "status": "MODIFIED",
+    "beforeSha256": "dba8a07889e77505db29b9fdd172d7cb29e907cb88113d2e36319151ea437cc6",
+    "afterSha256": "7883559e7820ad0f1540114914475e8f2faabe9ef523c5a3e1dda801db0ce93f"
+  },
+  {
+    "path": "test/results-v1018-create-only.json",
+    "status": "ADDED",
+    "beforeSha256": null,
+    "afterSha256": "e9ebfeb46f9873027350693c295177833ffd9ed61121683a6ca51551ede2544a"
+  },
+  {
+    "path": "test/results-v1018-process.json",
+    "status": "ADDED",
+    "beforeSha256": null,
+    "afterSha256": "0d336e329800482a751b58c6075b602bdb7feb0657f5386af21c2913221aba20"
+  },
+  {
+    "path": "test/results.json",
+    "status": "MODIFIED",
+    "beforeSha256": "e6a5533019b0618ce066e0ca629c7d75de9c3cc845f7283e22f22637426cc1f1",
+    "afterSha256": "af4f70efb7cff767d72e84fb61c48047db51713e45bd0553672499079819d17b"
+  },
+  {
+    "path": "test/test-stream.js",
+    "status": "MODIFIED",
+    "beforeSha256": "a64a9762d68ea2bcd916d48586aa679b52ff55b276acdf33527362e77753aabb",
+    "afterSha256": "7a82a086da6dc2c312ee4561f1bb33d5b48b593827b85fda0821e22ba1e7fac8"
+  },
+  {
+    "path": "test/test-v1012-lineage-parity.js",
+    "status": "MODIFIED",
+    "beforeSha256": "1f44e6f0e7a7db9890808b2be74858063c7186b5374eaac6240e52665429ca0f",
+    "afterSha256": "31fadfdf6c9eb3d12cc24d09b8f99080a9901e347cd7b822fd26daaa90b79332"
+  },
+  {
+    "path": "test/test-v1018-create-only.js",
+    "status": "ADDED",
+    "beforeSha256": null,
+    "afterSha256": "b79cf55bc70f496e2e3eb8c5a3bd6cc3382d601c48440c26c986b966b57d7547"
+  },
+  {
+    "path": "test/test-v1018-process.js",
+    "status": "ADDED",
+    "beforeSha256": null,
+    "afterSha256": "8cb0b0206cfdd602effb9c6231217841b5734f99fd86cf0a915982067f7f194f"
+  },
+  {
+    "path": "test/v1018-network-guard.cjs",
+    "status": "ADDED",
+    "beforeSha256": null,
+    "afterSha256": "99bafb27dc290b3cb86fb38128d6348b52e0c28e61b42cd230d5e7c7b9ed027a"
+  },
+  {
+    "path": "tools/build-manifest.js",
+    "status": "MODIFIED",
+    "beforeSha256": "fb8e8cd069cac7660b068a6492dffc37dc2da13848d56c2dd1d17d9161d66246",
+    "afterSha256": "4f2b03da4a795c927eeb956fc89fc44193128175cce3ef98c997d5017bb35763"
+  }
+]
