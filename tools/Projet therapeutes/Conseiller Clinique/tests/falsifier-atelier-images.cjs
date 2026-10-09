@@ -28,6 +28,118 @@ Object.keys(FICHIERS).forEach(function (k) {
   empreinteAvant[k] = crypto.createHash('sha256').update(original[k]).digest('hex');
 });
 
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// LES SOURCES SONT RESTAURÉES MÊME SI CE SCRIPT EST TUÉ
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// LE DÉFAUT QUE CECI CORRIGE, et il m'est arrivé deux fois le 9 octobre. Un `finally` ne protège
+// que des erreurs : interrompu par un signal, le processus meurt AVANT lui, et la mutation en
+// cours reste dans le fichier. La première fois, une règle de capture est restée retirée du
+// moteur ; la seconde, c'est la borne de vitesse du travelling qui est restée désarmée. Dans les
+// deux cas le dépôt portait un défaut que personne n'avait écrit, et seul le contrôle des ancres
+// l'a vu.
+//
+// POURQUOI `process.on('exit')` NE SUFFIT PAS : il ne se déclenche pas sur SIGTERM ni sur SIGINT
+// (Node tue le processus sans passer par là, sauf si un gestionnaire est posé). Les deux sont donc
+// nécessaires : les signaux pour la mort demandée, `exit` pour toute sortie restante, et
+// `uncaughtException` pour celle qu'on n'a pas vue venir. Chacun passe par `restaurer()`, qui est
+// idempotent et SYNCHRONE — un `exit` n'attend aucune promesse.
+//
+// Le délai, lui, est là pour la machine qui ne répond plus : au-delà, le script se restaure et
+// s'arrête de lui-même plutôt que de tenir les sources en otage.
+const DELAI_MAX_MS = Number(process.env.FALSIFIER_DELAI_MS || 3 * 60 * 60 * 1000);
+
+// LE JOURNAL DE REPRISE, et c'est LUI la garantie — pas les gestionnaires de signaux.
+//
+// Mesuré : un gestionnaire de signal ne peut pas s'exécuter pendant que `execFileSync` bloque la
+// boucle d'événements, c'est-à-dire pendant toute la durée du test qu'une mutation éprouve —
+// une cinquantaine de secondes. Un SIGTERM envoyé à ce moment-là n'est honoré qu'à la fin du
+// test en cours, et un SIGKILL ne l'est JAMAIS : aucun code ne s'exécute après lui.
+//
+// Les sources sont donc recopiées dans un journal AVANT la première mutation, et tout
+// démarrage ultérieur commence par remettre en état ce qu'il y trouve. Cela couvre le signal,
+// le plantage, la coupure de courant et la fenêtre fermée. Le journal vit dans banc-chutier/,
+// ignoré par git : il contient du code source, il n'a rien à faire dans un dépôt public.
+const JOURNAL = path.join(RACINE, 'banc-chutier', '.falsifieur-en-cours.json');
+function ecrireJournal() {
+  try {
+    fs.mkdirSync(path.dirname(JOURNAL), { recursive: true });
+    fs.writeFileSync(JOURNAL, JSON.stringify({ quand: new Date().toISOString(),
+      fichiers: FICHIERS, contenus: original }), 'utf8');
+  } catch (e) { console.error('ATTENTION — journal de reprise non écrit : ' + e.message); }
+}
+function effacerJournal() { try { fs.unlinkSync(JOURNAL); } catch (e) {} }
+function reprendreJournal(bavard) {
+  if (!fs.existsSync(JOURNAL)) return 0;
+  let remises = 0;
+  try {
+    const j = JSON.parse(fs.readFileSync(JOURNAL, 'utf8'));
+    Object.keys(j.fichiers || {}).forEach(function (k) {
+      const chemin = j.fichiers[k];
+      const attendu = (j.contenus || {})[k];
+      if (typeof attendu !== 'string') return;
+      if (fs.readFileSync(chemin, 'utf8') !== attendu) {
+        fs.writeFileSync(chemin, attendu, 'utf8');
+        remises++;
+        if (bavard) console.log('REPRISE — ' + k + ' remis dans l\'état du ' + j.quand);
+      }
+    });
+  } catch (e) { console.error('ATTENTION — journal de reprise illisible : ' + e.message); }
+  effacerJournal();
+  return remises;
+}
+
+// REPRISE AU DÉMARRAGE, avant même de lire les sources : une exécution précédente a pu mourir
+// une mutation en place, et l'empreinte « avant » serait alors celle du code muté.
+const reprises = reprendreJournal(true);
+if (reprises) {
+  console.log('REPRISE — ' + reprises + ' fichier(s) remis en état après une exécution interrompue.\n');
+  Object.keys(FICHIERS).forEach(function (k) {
+    original[k] = fs.readFileSync(FICHIERS[k], 'utf8');
+    empreinteAvant[k] = crypto.createHash('sha256').update(original[k]).digest('hex');
+  });
+}
+// `--reprise-seule` ne fait que cela, et s'arrête : c'est ce qu'un contrôle appelle après avoir
+// tué le falsifieur pour vérifier que le dépôt se retrouve intact.
+if (process.argv.indexOf('--reprise-seule') !== -1) {
+  console.log('reprise seule : ' + reprises + ' fichier(s) remis en état.');
+  process.exit(0);
+}
+
+let restaure = false;
+function restaurer(motif) {
+  if (restaure) return;
+  restaure = true;
+  effacerJournal();
+  let remises = 0;
+  Object.keys(FICHIERS).forEach(function (k) {
+    try {
+      if (fs.readFileSync(FICHIERS[k], 'utf8') !== original[k]) {
+        fs.writeFileSync(FICHIERS[k], original[k], 'utf8');
+        remises++;
+      }
+    } catch (e) { /* un fichier illisible ne doit pas empêcher de restaurer les autres */ }
+  });
+  if (motif) {
+    process.stderr.write('\nINTERROMPU (' + motif + ') — sources restaurées'
+      + (remises ? ' : ' + remises + ' fichier(s) remis en état.' : ' (rien n\'était muté).') + '\n');
+  }
+}
+['SIGINT', 'SIGTERM', 'SIGHUP', 'SIGQUIT'].forEach(function (sig) {
+  process.on(sig, function () { restaurer(sig); process.exit(130); });
+});
+process.on('uncaughtException', function (e) {
+  restaurer('exception : ' + (e && e.message)); process.exit(1);
+});
+process.on('unhandledRejection', function (e) {
+  restaurer('promesse rejetée : ' + (e && e.message)); process.exit(1);
+});
+process.on('exit', function () { restaurer(null); });
+const minuteur = setTimeout(function () {
+  restaurer('délai de ' + Math.round(DELAI_MAX_MS / 60000) + ' min dépassé');
+  process.exit(1);
+}, DELAI_MAX_MS);
+minuteur.unref();
+
 const ESSAIS = [
   { nom: 'le mode capture n\'arrête plus l\'animation de nombre',
     fichier: 'cœur',
@@ -135,6 +247,64 @@ const ESSAIS = [
 
 
   // ── Lot 2, suite du 6 octobre : mode vidéo par défaut et politique de débordement ────────
+  // ── La scène par diapositive, décision du 9 octobre ───────────────────────────────────────
+  { nom: 'la scène redevient unique pour tout le document',
+    fichier: 'moteur',
+    de: "        if (o.sceneParDiapositive && iCarte !== choixCarte) {",
+    vers: "        if (false) {",
+    attendu: 'la même scène pour une couverture et un questionnaire' },
+
+  { nom: 'le plancher de lisibilité ne borne plus la recherche',
+    fichier: 'moteur',
+    de: "    var hautBorne = Math.min(SCENE.largeur, largeurMaxLisible(taille, plancher));",
+    vers: "    var hautBorne = SCENE.largeur;",
+    attendu: 'un texte sous le plancher pour faire tenir une diapositive dense' },
+
+  { nom: 'la recherche prend la plus GRANDE scène au lieu de la plus petite',
+    fichier: 'moteur',
+    de: "      if (r.tient) { meilleure = r; haut = milieu; } else { bas = milieu; }",
+    vers: "      if (r.tient) { bas = milieu; } else { haut = milieu; }",
+    attendu: 'le texte le plus petit possible au lieu du plus grand lisible' },
+
+  { nom: 'la scène retenue n\'est pas reposée après la recherche',
+    fichier: 'moteur',
+    de: "    await redimensionnerScene(sc, meilleure.scene);\n    return { scene: meilleure.scene, taille_px: taille,",
+    vers: "    return { scene: meilleure.scene, taille_px: taille,",
+    attendu: 'le DOM et la valeur retenue divergent, et la capture est refusée' },
+
+  // MUTATION ÉQUIVALENTE, CONSIGNÉE. Retirer `iCarte !== choixCarte` ne change RIEN d'observable,
+  // et il faut le dire plutôt que de retirer la mutation de la liste :
+  //   · le bloc est déjà sous `if (iCarte !== position.carte || rang < position.rang)`, qui n'est
+  //     vrai qu'en entrant dans une carte — le rendu complet n'avance jamais autrement ;
+  //   · et sur le seul autre chemin, un retour en arrière dans la même carte, le choix refait
+  //     rend LA MÊME scène, parce que la révélation masque en `visibility:hidden` : les blocs
+  //     pas encore révélés occupent déjà leur place et la carte a une seule hauteur (contrôle 24).
+  // Ce garde est donc une ceinture, pas la garantie. La garantie est la prémisse, et c'est elle
+  // que le contrôle 24 mesure ; la mutation ci-dessous, qui la casse, est celle qui mord.
+  { nom: 'la scène change d\'une étape à l\'autre de la même diapositive',
+    fichier: 'moteur',
+    equivalente: 'le garde est redondant avec `iCarte !== position.carte` et avec la prémisse du '
+      + 'contrôle 24 (une carte, une seule hauteur) : aucun chemin ne les sépare',
+    de: "        if (o.sceneParDiapositive && iCarte !== choixCarte) {\n          await attendreStabilite(sc.inner, o.modeCapture);",
+    vers: "        if (o.sceneParDiapositive) {\n          await attendreStabilite(sc.inner, o.modeCapture);",
+    attendu: 'une diapositive dont les étapes n\'ont pas le même cadre' },
+
+  // LA PRÉMISSE, elle, se falsifie : une hauteur de contenu qui ne compterait que les blocs
+  // VISIBLES ferait de chaque étape une hauteur différente. La scène choisie sur l'étape 1
+  // serait alors trop petite pour l'étape 4, et le dernier bloc se retrouverait coupé — le
+  // défaut du 7 octobre, revenu par la porte d'à côté.
+  { nom: 'la hauteur de contenu ne compte que les blocs déjà révélés',
+    fichier: 'moteur',
+    de: "    var h = Math.max(sc.inner.scrollHeight, carte ? carte.scrollHeight : 0);",
+    vers: '    var h = 0;',
+    attendu: 'une carte dont chaque étape a sa propre hauteur, donc sa propre scène' },
+
+  { nom: 'le plafond de photo se combine en silence à la scène par diapositive',
+    fichier: 'moteur',
+    de: "    if (o.sceneParDiapositive && (o.plafondPhoto > 0 || o.blocCourantSeul)) {",
+    vers: "    if (false) {",
+    attendu: 'un plafond calculé sur une scène qui n\'est plus celle de la diapositive' },
+
   { nom: 'le défaut retombe sur la scène du lecteur',
     fichier: 'moteur',
     de: "    var base = (options && options.mode === 'fidele') ? MODE_FIDELE : MODE_VIDEO;",
@@ -178,12 +348,152 @@ const ESSAIS = [
     vers: "    '[data-atelier-capture] .adoc-sc-cite{display:none;}' +",
     attendu: 'une décision prise à la place de Christophe, qui ne l\'a pas tranchée' },
 
-  { nom: 'la page du banc retombe sur le réglage fidèle',
+  // ── LE TRAVELLING (9 octobre) ───────────────────────────────────────────────────────────────
+  { nom: 'la pose des deux bouts disparaît du calcul',
+    fichier: 'moteur',
+    de: "    var pose = (typeof o.poseS === 'number') ? o.poseS : POSE_TRAVELLING_S;",
+    vers: '    var pose = 0;',
+    attendu: 'un travelling qui part au premier mot et s\'arrête au dernier' },
+
+  { nom: 'le travelling ne borne plus sa vitesse',
+    fichier: 'moteur',
+    de: '             tenable: vitesse <= vitesseMax,',
+    vers: '             tenable: true,',
+    attendu: 'une diapositive qui défile trop vite pour être lue, déclarée tenable' },
+
+  { nom: 'la borne de vitesse devient stricte',
+    fichier: 'moteur',
+    de: '    var vitesse = course / utile;',
+    vers: '    var vitesse = course / utile + 0.01;',
+    attendu: 'un travelling pile à la borne refusé par un centième de pixel' },
+
+  { nom: 'la course du travelling est prise sur la scène, pas sur l\'image',
+    fichier: 'moteur',
+    de: "        travelling: planTravelling(Math.min(capture.hauteur, visibleSortie) - SORTIE.hauteur,",
+    vers: "        travelling: planTravelling(stable.contenu - scene.hauteur,",
+    attendu: 'un plan qui ne décrit pas l\'image livrée' },
+
+  { nom: 'un commentaire plus court que les poses défile quand même',
+    fichier: 'moteur',
+    de: '    if (utile <= 0) {',
+    vers: '    if (false) {',
+    attendu: 'une vitesse négative, donc « sous la borne », donc tenable' },
+
+  { nom: 'une vitesse est inventée quand la durée est inconnue',
+    fichier: 'moteur',
+    de: '    if (!(dureeS > 0)) {',
+    vers: '    if (false) {',
+    attendu: 'un plan qui se prononce sur une durée qu\'il ne connaît pas' },
+
+  { nom: 'le verdict ne suit plus le plan de travelling',
+    fichier: 'moteur',
+    de: "      return { verdict: plan.tenable ? 'defilement' : 'scission',",
+    vers: "      return { verdict: 'defilement',",
+    attendu: 'un verdict et un plan qui se contredisent' },
+
+  // LA CONTRADICTION MESURÉE SUR LA VRAIE PRÉSENTATION, remise en place telle qu'elle était :
+  // le résumé lisait « à scinder » sur le seul plan, qui se taisait faute de durée, pendant que
+  // la ligne des débordements tranchait sur le rapport. Quatre étapes d'un côté, zéro de l'autre.
+  { nom: 'le résumé des travellings ne compte plus les scissions dites par le verdict',
+    fichier: 'moteur',
+    de: "          a_scinder: ims.filter(function (im) { return im.scission_conseillee; })",
+    vers: "          a_scinder: avec.filter(function (im) { return im.travelling.tenable === false; })",
+    attendu: 'un relevé qui dit « 4 à scinder » et « 0 à scinder » dans deux lignes voisines' },
+
+  { nom: 'le conseil de scission ne suit plus le verdict',
+    fichier: 'moteur',
+    de: "        scission_conseillee: deb.verdict === 'scission',",
+    vers: '        scission_conseillee: false,',
+    attendu: 'une diapositive à scinder que rien ne signale' },
+
+  // ── LE CORPS DE TEXTE ET L'ENCRE VISIBLE (9 octobre, après les trois questions) ──────────────
+  { nom: 'la taille du texte inclut de nouveau les titres',
+    fichier: 'moteur',
+    de: "      if (!avecTitres && el.closest('.adoc-sc-heading')) return;",
+    vers: '      if (false) return;',
+    attendu: 'le titre mesuré à la place du corps, soit 1,5 fois trop' },
+
+  { nom: 'l\'appareil de citation compte comme du texte à lire',
+    fichier: 'moteur',
+    de: "  var HORS_LECTURE = '.adoc-sc-card-title, .adoc-sc-cite, .adoc-sc-cite-flagged,'",
+    vers: "  var HORS_LECTURE = '.rien-du-tout, .adoc-sc-card-title-absent,'",
+    attendu: 'un appel de citation de 7,7 px traité comme du corps de texte' },
+
+  { nom: 'les éléments masqués en display:none comptent dans la taille du texte',
+    fichier: 'moteur',
+    equivalente: 'tout ce que la capture masque en display:none est DÉJÀ nommé dans HORS_LECTURE '
+      + '(barèmes, barème des profils, bouton de résultat, bande des deux partenaires) : le garde '
+      + 'est aujourd\'hui redondant avec cette liste. Il reste parce qu\'une liste de noms ne '
+      + 'restera pas exhaustive, et que la règle juste est « absent de l\'image, absent de la '
+      + 'mesure » — pas « absent de la liste »',
+    de: "      if (st.display === 'none') return;\n      var t = parseFloat(st.fontSize);",
+    vers: '      var t = parseFloat(st.fontSize);',
+    attendu: 'les barèmes de questionnaire, absents de l\'image, mesurés comme du texte' },
+
+  { nom: 'un conteneur compte pour le texte de ses enfants',
+    fichier: 'moteur',
+    equivalente: 'dans ce lecteur, un conteneur et le span qui porte son texte ont la MÊME taille '
+      + 'calculée (le span hérite). Compter les deux ne fait que dupliquer des valeurs identiques, '
+      + 'ce qui ne déplace pas la médiane. Le garde reste parce qu\'il cesserait d\'être vrai dès '
+      + 'qu\'un conteneur porterait une taille propre, et parce que la médiane suivrait alors la '
+      + 'profondeur du balisage au lieu du texte',
+    de: "      if (!propre) return;",
+    vers: '      if (false) return;',
+    attendu: 'une médiane qui suit la profondeur du balisage, pas le texte' },
+
+  // L'ANCRE A DÛ ÊTRE REPRISE : elle ne portait que sur `visible`, alors que la course se calcule
+  // sur `visibleSortie`. La mutation ne mutait donc rien d'observable et le falsifieur l'a
+  // signalée MANQUÉE — à juste titre : ce n'était pas un trou dans les contrôles, c'était une
+  // mutation mal écrite. Les deux lignes y passent maintenant.
+  { nom: 'le bas de l\'encre est mesuré AVANT l\'agrandissement de la capture',
+    fichier: 'moteur',
+    de: '      var visible = capture.visible_scene;\n      var visibleSortie = capture.visible_sortie;',
+    vers: '      var visible = hauteurVisible(sc);\n'
+      + '      var visibleSortie = Math.round(visible * (SORTIE.largeur / scene.largeur));',
+    attendu: 'un travelling qui s\'arrête avant l\'encadré final — 350 000 pixels oubliés' },
+
+  { nom: 'le bas de l\'encre inclut les blocs pas encore révélés',
+    fichier: 'moteur',
+    de: "      if (st.display === 'none' || st.visibility === 'hidden') return;",
+    vers: "      if (st.display === 'none') return;",
+    attendu: 'un travelling qui parcourt du vide dès la première étape' },
+
+  { nom: 'le résumé ne compte plus les étapes qui débordent sans rien à faire défiler',
+    fichier: 'moteur',
+    de: "          sans_course: ims.filter(function (im) { return im.debordement && !im.travelling; }).length,",
+    vers: '          sans_course: 0,',
+    attendu: 'un relevé qui annonce 4 débordements et 1 travelling sans expliquer l\'écart' },
+
+  { nom: 'la page du banc ne nomme plus la taille du corps de texte',
     fichier: 'banc',
     test: 'verify-banc-reglage-defaut.cjs',
-    de: '<option value="d" selected>(d) MODE VIDÉO',
-    vers: '<option value="d">(d) MODE VIDÉO',
-    attendu: 'la page annonce (d) et rend (a) — le défaut même que Christophe a trouvé' },
+    de: "          + '  —  corps ' + x.taille_px + ' px, soit ' + x.texte_pc + ' % de la hauteur du cadre'",
+    vers: "          + '  —  texte ' + x.texte_pc + ' %'",
+    attendu: 'une colonne qui ne dit pas de quelle taille son pourcentage découle' },
+
+  { nom: 'la page du banc ne dit plus les travellings',
+    fichier: 'banc',
+    test: 'verify-banc-reglage-defaut.cjs',
+    de: "    ligne('travellings', trav.nombre === 0 ? 'aucun — toutes les images tiennent dans le cadre'",
+    vers: "    if (false) ligne('travellings', trav.nombre === 0 ? 'aucun'",
+    attendu: 'un travelling calculé que rien n\'affiche' },
+
+  // LE DÉFAUT DU 7 OCTOBRE, remis en place sous sa forme actuelle : la page annonce un réglage
+  // et en envoie un autre par-dessus. Elle dirait « SCÈNE PAR DIAPOSITIVE » et rendrait une
+  // scène fixe — exactement ce que Christophe avait trouvé en mesurant ses propres images.
+  { nom: 'la page du banc envoie son propre réglage par-dessus le défaut du moteur',
+    fichier: 'banc',
+    test: 'verify-banc-reglage-defaut.cjs',
+    de: '    auto: {},',
+    vers: "    auto: { mode: 'fidele' },",
+    attendu: 'la page annonce la scène par diapositive et rend une scène fixe' },
+
+  { nom: 'la page du banc n\'affiche plus le plancher de lisibilité',
+    fichier: 'banc',
+    test: 'verify-banc-reglage-defaut.cjs',
+    de: "      ligne('plancher de lisibilité', res.plancher_lisibilite_pc + ' % de la hauteur du cadre');",
+    vers: "      if (false) ligne('plancher', '');",
+    attendu: 'un plancher appliqué que rien n\'affiche' },
 
   // LE DÉFAUT DU 7 OCTOBRE, remis en place tel qu'il était : une seule mesure, prise AVANT que
   // la scène ne soit agrandie. Le contrôle 15 doit le voir, et le voir par les PIXELS — parce
@@ -267,30 +577,54 @@ function lancer(test) {
   }
 }
 
-let tenus = 0, applicables = 0;
+// `--seulement <fragment>` n'éprouve que les mutations dont le nom contient ce fragment. Cela
+// sert à reprendre une mutation qu'on vient d'écrire sans rejouer les cinquante-six — jamais à
+// conclure : le relevé final dit alors explicitement qu'il est PARTIEL.
+const iSeulement = process.argv.indexOf('--seulement');
+const FILTRE = iSeulement !== -1 ? String(process.argv[iSeulement + 1] || '') : null;
+const CHOISIS = FILTRE ? ESSAIS.filter((e) => e.nom.indexOf(FILTRE) !== -1) : ESSAIS;
+if (FILTRE) {
+  if (!CHOISIS.length) { console.error('ARRÊT — aucune mutation ne contient « ' + FILTRE + ' »'); process.exit(1); }
+  console.log('RELEVÉ PARTIEL — ' + CHOISIS.length + ' mutation(s) sur ' + ESSAIS.length
+    + ' contenant « ' + FILTRE + ' ». Ne vaut pas pour l\'ensemble.\n');
+}
+
+let tenus = 0, applicables = 0, equivalentes = 0, surprises = 0;
 try {
   // Le témoin passe sur CHAQUE test qu'une mutation emploie : sinon un échec préexistant se
   // ferait passer pour une détection.
-  const testsEmployes = Array.from(new Set(ESSAIS.map((e) => e.test || 'verify-atelier-images.cjs')));
+  const testsEmployes = Array.from(new Set(CHOISIS.map((e) => e.test || 'verify-atelier-images.cjs')));
   for (const t of testsEmployes) {
     const temoin = lancer(t);
     if (temoin.echoue) { console.error('ARRÊT — ' + t + ' échoue AVANT toute mutation : ' + temoin.sortie); process.exit(1); }
   }
   console.log('témoin : ' + testsEmployes.length + ' test(s) passent sur les sources intactes.\n');
+  // LE JOURNAL EST ÉCRIT ICI, juste avant la première mutation : avant cette ligne, aucune
+  // source n'a été touchée et il n'y aurait rien à reprendre.
+  ecrireJournal();
 
-  for (const essai of ESSAIS) {
+  for (const essai of CHOISIS) {
     const src = original[essai.fichier];
     const n = src.split(essai.de).length - 1;
     if (n !== 1) { console.error('ARRÊT — ancre trouvée ' + n + ' fois : ' + essai.nom); process.exit(1); }
     fs.writeFileSync(FICHIERS[essai.fichier], src.replace(essai.de, essai.vers), 'utf8');
     const r = lancer(essai.test);
     fs.writeFileSync(FICHIERS[essai.fichier], src, 'utf8');
+    // UNE MUTATION ÉQUIVALENTE SE CONSIGNE, ELLE NE SE TAIT PAS. On l'applique quand même, et on
+    // attend l'inverse : que les tests PASSENT. Le jour où elle se met à les faire échouer, elle
+    // n'est plus équivalente et c'est l'inventaire qui est faux — on le dit alors aussi fort.
+    if (essai.equivalente) {
+      equivalentes++;
+      if (r.echoue) { surprises++; console.log('SURPRISE ' + essai.nom + ' — annoncée équivalente, elle est détectée : ' + r.sortie); }
+      else console.log('ÉQUIV  ' + essai.nom + '\n       → ' + essai.equivalente);
+      continue;
+    }
     applicables++;
     if (r.echoue) { tenus++; console.log('TENU   ' + essai.nom + '\n       → ' + r.sortie); }
     else console.log('MANQUÉ ' + essai.nom + ' — le test est passé malgré la mutation (' + essai.attendu + ')');
   }
 } finally {
-  Object.keys(FICHIERS).forEach(function (k) { fs.writeFileSync(FICHIERS[k], original[k], 'utf8'); });
+  restaurer(null);
   // La page du banc est reforgée depuis les sources restaurées : une mutation de la forge laisse
   // sinon derrière elle une page produite à partir d'un code qui n'existe plus.
   try { execFileSync(process.execPath, [path.join(__dirname, 'forger-banc-chutier.cjs')], { stdio: 'pipe' }); } catch (e) {}
@@ -302,7 +636,10 @@ Object.keys(FICHIERS).forEach(function (k) {
   if (apres !== empreinteAvant[k]) { intact = false; console.log('ÉCART sur ' + k + ' : ' + apres); }
 });
 console.log('\nsources restaurées : ' + (intact ? 'empreintes identiques' : 'ÉCART'));
-console.log(tenus === applicables && intact
-  ? 'PASS falsifier-atelier-images — ' + tenus + '/' + applicables + ' mutations détectées.'
-  : 'FAIL falsifier-atelier-images — ' + tenus + '/' + applicables);
-process.exit(tenus === applicables && intact ? 0 : 1);
+const suffixe = (equivalentes ? ', ' + equivalentes + ' équivalente(s) consignée(s)' : '')
+  + (FILTRE ? '  — RELEVÉ PARTIEL (« ' + FILTRE + ' »), ne vaut pas pour l\'ensemble' : '');
+console.log(tenus === applicables && intact && !surprises
+  ? 'PASS falsifier-atelier-images — ' + tenus + '/' + applicables + ' mutations détectées' + suffixe + '.'
+  : 'FAIL falsifier-atelier-images — ' + tenus + '/' + applicables + suffixe
+    + (surprises ? ', ' + surprises + ' annoncée(s) équivalente(s) à tort' : ''));
+process.exit(tenus === applicables && intact && !surprises ? 0 : 1);
