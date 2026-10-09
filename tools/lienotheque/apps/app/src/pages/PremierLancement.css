@@ -53,3 +53,22 @@
     padding-top: calc(var(--ln-grid) * 4);
   }
 }
+
+/* Ouvrir une bibliothèque qui existe déjà : une action secondaire sous l'action unique, parce
+   qu'un seul bouton principal par écran (UX-09) — et que la première fois, on crée. */
+.ln-premier__ouvrir {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 0.75);
+  margin-block-start: calc(var(--ln-grid));
+  font-size: 14px;
+}
+
+.ln-premier__echec {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--ln-grid));
+  margin: calc(var(--ln-grid)) 0 0 0;
+  color: var(--ln-error-text);
+  font-size: 14px;
+}

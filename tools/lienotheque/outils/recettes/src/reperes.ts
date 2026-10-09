@@ -18,6 +18,7 @@ import {
 } from "@lienotheque/images";
 import { lireParOcr } from "@lienotheque/lecteur-texte";
 import { chiffresDuMorceau } from "./chiffres.js";
+import { FORME_PAR_DEFAUT, caracteresAcceptes, formeDepuisExemple, rangDuNumero } from "./numeros.js";
 
 /** Lecteur de repères (OUT-07) : numéros de page, numéros d'élément, pastilles, séquence.
  *
@@ -154,8 +155,24 @@ export function coinsDePage(image: ImageGrise, bord: "haut" | "bas"): readonly B
  *  presque jamais en lecture éparse. Quand cela ne donne rien — un bord de livre sombre dans le
  *  coin suffit à faire échouer la ligne unique —, on reprend en lecture éparse et on retient le
  *  plus grand chiffre : un numéro de page est imprimé plus gros que ce qui l'entoure. */
-export function lireNumeroPage(image: ImageGrise, bord: "haut" | "bas", options: OptionsReperes = {}): number | undefined {
-  const coins = coinsDePage(image, bord).map((coin) => recadrer(image, coin));
+export function lireNumeroPage(
+  image: ImageGrise,
+  zone: { readonly type: "coins"; readonly bord: "haut" | "bas" } | { readonly type: "rectangle_rel"; readonly x: number; readonly y: number; readonly l: number; readonly h: number },
+  options: OptionsReperes = {},
+): number | undefined {
+  // Les coins quand la recette parle d'un bord ; la zone tracée quand elle en trace une. Dans
+  // les deux cas c'est la recette qui dit où, et non le lecteur qui suppose.
+  const coins =
+    zone.type === "coins"
+      ? coinsDePage(image, zone.bord).map((coin) => recadrer(image, coin))
+      : [
+          recadrer(image, {
+            x: Math.round(image.largeur * zone.x),
+            y: Math.round(image.hauteur * zone.y),
+            l: Math.max(1, Math.round(image.largeur * zone.l)),
+            h: Math.max(1, Math.round(image.hauteur * zone.h)),
+          }),
+        ];
 
   for (const crop of coins) {
     const numero = premierEntier(
@@ -507,6 +524,20 @@ export function lireBlocPiste(
 export function lecturesDePage(image: ImageGrise, recette: Recette, options: OptionsReperes = {}): LectureRepere[] {
   const lectureElement = recette.lectures.find((lecture) => lecture.ancre === "element");
   const lecturePiste = recette.lectures.find((lecture) => lecture.ancre === "piste");
+  // Ce qu'un numéro doit être, et ce que le lecteur doit accepter pour le lire. Sans exemple,
+  // exactement ce qui a toujours été lu.
+  const forme =
+    lectureElement?.numero === undefined ? FORME_PAR_DEFAUT : formeDepuisExemple(lectureElement.numero.exemple);
+  const acceptes =
+    lectureElement === undefined ? CHIFFRES : (caracteresAcceptes(lectureElement.alphabet, forme) ?? undefined);
+  // La bande du haut reste interdite aux éléments — c'est là que vivent les en-têtes et les
+  // numéros de page, et leurs chiffres ne sont pas des numéros d'élément. Sauf si la recette y
+  // a **tracé** sa zone d'éléments : on ne trace pas une zone par accident, et celui qui l'a
+  // posée là sait ce qu'il y cherche.
+  //
+  // Formulé ainsi, rien ne change pour les recettes qui décrivent leur zone par une marge ou un
+  // bord : elles gardent exactement la lecture qu'elles avaient.
+  const hautInterdit = !(lectureElement?.zone.type === "rectangle_rel" && lectureElement.zone.y < BANDE_NUMERO);
   if (lectureElement === undefined) return [];
 
   // Compter les chiffres d'un repère sert à la relecture ciblée : c'est lui qui désigne les
@@ -521,7 +552,7 @@ export function lecturesDePage(image: ImageGrise, recette: Recette, options: Opt
     const agrandie = agrandir(image, facteur);
     const mots = ocr(agrandie, segmentation, options);
 
-    const retenir = (rang: number, numero: number, boite: Boite, y: number): void => {
+    const retenir = (rang: number, numero: number, lu: string, boite: Boite, y: number): void => {
       const bloc =
         lecturePiste === undefined
           ? undefined
@@ -567,6 +598,9 @@ export function lecturesDePage(image: ImageGrise, recette: Recette, options: Opt
           h: Math.min(1, Math.max(Number.EPSILON, boite.h / agrandie.hauteur)),
         },
         numero,
+        // Le numéro tel qu'il est imprimé, quand il ne s'écrit pas comme un nombre : « 2.46 »
+        // se compare par son rang, mais s'affiche tel qu'il est lu.
+        ...(lu === String(numero) ? {} : { numeroLu: lu }),
         ...(piste === undefined ? {} : { pisteLue: piste.valeur }),
         ...(chiffresComptes === undefined ? {} : { chiffresComptes }),
         presencePiste: bloc?.presence ?? 0,
@@ -582,7 +616,7 @@ export function lecturesDePage(image: ImageGrise, recette: Recette, options: Opt
         const suivant = mots[rang + 1]!;
         const numero = premierEntier(suivant.texte);
         if (numero === undefined || numero <= 0) continue;
-        retenir(rang + 1, numero, { x: suivant.x, y: suivant.y, l: suivant.l, h: suivant.h }, mot.y / agrandie.hauteur);
+        retenir(rang + 1, numero, suivant.texte.trim(), { x: suivant.x, y: suivant.y, l: suivant.l, h: suivant.h }, mot.y / agrandie.hauteur);
       }
       continue;
     }
@@ -593,14 +627,17 @@ export function lecturesDePage(image: ImageGrise, recette: Recette, options: Opt
     for (let rang = 0; rang < mots.length; rang += 1) {
       const mot = mots[rang]!;
       const texte = mot.texte.trim();
-      // « 0 » n'est le numéro d'aucun élément : c'est un chiffre du document ou une bavure.
-      if (!/^\d{1,3}$/.test(texte) || Number(texte) <= 0) continue;
+      // Ce qu'un numéro doit être vient de la recette ; sans exemple, c'est ce qui a toujours
+      // été lu — un nombre de un à trois chiffres. « 0 » n'est le numéro d'aucun élément.
+      const valeur = rangDuNumero(texte, forme);
+      if (valeur === undefined) continue;
       if ((mot.confiance ?? 1) < CONFIANCE_MINIMALE) continue;
       if (mot.h < hauteurMin || mot.h > hauteurMax) continue;
-      // La bande des numéros de page n'est pas une marge d'éléments.
-      if (mot.y < agrandie.hauteur * BANDE_NUMERO) continue;
+      // La bande où la recette lit les numéros de page n'est pas une marge d'éléments. Quand
+      // elle les lit ailleurs, cette bande redevient disponible : c'est elle qui décide.
+      if (hautInterdit && mot.y < agrandie.hauteur * BANDE_NUMERO) continue;
       if (!dansLaZone(mot, lectureElement.zone, agrandie, options.cote)) continue;
-      retenir(rang, Number(texte), { x: mot.x, y: mot.y, l: mot.l, h: mot.h }, mot.y / agrandie.hauteur);
+      retenir(rang, valeur, texte, { x: mot.x, y: mot.y, l: mot.l, h: mot.h }, mot.y / agrandie.hauteur);
     }
   }
   return lectures;
@@ -638,7 +675,10 @@ export function lecturesDePage(image: ImageGrise, recette: Recette, options: Opt
  *  3 : l'orientation du lot est désormais votée au lieu d'être crue sur parole. Ce n'est pas la
  *  forme d'une lecture qui change, c'est ce qu'elle lit — une page remise à l'endroit rend six
  *  éléments là où elle n'en rendait aucun. La version compte donc aussi pour cela. */
-export const VERSION_LECTURE = 8;
+/** 9 : une lecture porte le numéro **tel qu'il est imprimé** quand il ne s'écrit pas comme un
+ *  nombre, et la forme attendue vient de la recette au lieu d'être écrite ici. Les caches
+ *  d'avant ne le portent pas. */
+export const VERSION_LECTURE = 9;
 
 /** Hauteur en deçà de laquelle deux lectures parlent du même élément. */
 const MEME_HAUTEUR = 0.03;
@@ -654,19 +694,21 @@ export function consolider(lectures: readonly LectureRepere[]): ElementRepere[] 
     presences: number[];
     suite: boolean;
     zones: { numero: number; zone: ZoneRelative }[];
+    lus: { numero: number; lu: string }[];
     reperes: { numero: number; zone: ZoneRelative }[];
   }[] = [];
 
   for (const lecture of [...lectures].sort((a, b) => a.y - b.y || a.numero - b.numero)) {
     const dernier = groupes[groupes.length - 1];
     if (dernier === undefined || Math.abs(dernier.y - lecture.y) >= MEME_HAUTEUR)
-      groupes.push({ y: lecture.y, numeros: [], pistes: [], comptes: [], presences: [], suite: false, zones: [], reperes: [] });
+      groupes.push({ y: lecture.y, numeros: [], pistes: [], comptes: [], presences: [], suite: false, zones: [], lus: [], reperes: [] });
     const groupe = groupes[groupes.length - 1]!;
     groupe.numeros.push(lecture.numero);
     groupe.suite ||= lecture.suite;
     groupe.presences.push(lecture.presencePiste);
     if (lecture.pisteLue !== undefined) groupe.pistes.push(lecture.pisteLue);
     if (lecture.chiffresComptes !== undefined) groupe.comptes.push(lecture.chiffresComptes);
+    if (lecture.numeroLu !== undefined) groupe.lus.push({ numero: lecture.numero, lu: lecture.numeroLu });
     if (lecture.zone !== undefined) groupe.zones.push({ numero: lecture.numero, zone: lecture.zone });
     if (lecture.zoneRepere !== undefined) groupe.reperes.push({ numero: lecture.numero, zone: lecture.zoneRepere });
   }
@@ -691,6 +733,10 @@ export function consolider(lectures: readonly LectureRepere[]): ElementRepere[] 
         ...(zone === undefined ? {} : { zone }),
         ...(zoneRepere === undefined ? {} : { zoneRepere }),
         numero: numero.valeur,
+        // Le numéro imprimé de la lecture qui a emporté le vote : c'est celui-là qu'on montre.
+        ...((lu) => (lu === undefined ? {} : { numeroLu: lu }))(
+          groupe.lus.find((candidate) => candidate.numero === numero.valeur)?.lu,
+        ),
         ...(piste === undefined ? {} : { pisteLue: piste.valeur }),
         ...(chiffresComptes === undefined ? {} : { chiffresComptes }),
         presencePiste: Math.round(presence * 100) / 100,

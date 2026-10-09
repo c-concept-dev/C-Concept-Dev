@@ -77,10 +77,12 @@ fn main() -> ExitCode {
                 println!("salutation  : {moteur} {version}, protocole {protocole}");
             }
             Ok(Message::Journal { niveau, texte }) => println!("journal     : [{niveau}] {texte}"),
-            Ok(Message::Progression { progression, pas }) => {
+            Ok(Message::Progression { progression, point, total }) => {
                 avancements += 1;
                 if avancements <= 3 || progression >= 1.0 {
-                    println!("avancement  : {:.0} % ({:?})", progression * 100.0, pas);
+                    let rang = point.map_or_else(|| "—".to_owned(), |p| format!("{} {}", p.valeur, p.unite));
+                    let sur = total.map_or_else(|| "total inconnu".to_owned(), |t| format!("sur {t}"));
+                    println!("avancement  : {:.0} % ({rang} {sur})", progression * 100.0);
                 }
             }
             Ok(Message::Resultat { charge }) => {

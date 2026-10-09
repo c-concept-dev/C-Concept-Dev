@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { basename, extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { emplacementInstantane } from "./emplacement-instantane.js";
@@ -7,7 +7,7 @@ import { feuilleCss } from "@lienotheque/jetons";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Plugin } from "vite";
 import { defineConfig } from "vitest/config";
-import { ID_JETONS } from "./src/jetons-virtuels.js";
+import { ID_JETONS, ID_MODELES } from "./src/jetons-virtuels.js";
 
 /** Dossier du kit UI v1.1 : polices WOFF2, emblèmes et fond photographique. */
 const KIT = fileURLToPath(new URL("../../docs/ui-kit", import.meta.url));
@@ -20,6 +20,32 @@ function jetonsCss(): Plugin {
     name: "lienotheque:jetons-css",
     resolveId: (id) => (id === ID_JETONS ? resolu : undefined),
     load: (id) => (id === resolu ? feuilleCss() : undefined),
+  };
+}
+
+/** Dossier des modèles de bibliothèque. Un domaine s'ajoute en y déposant un fichier (CLA-09). */
+const MODELES = fileURLToPath(new URL("../../fixtures/modeles", import.meta.url));
+
+/** Le catalogue des modèles, lu au moment de la construction.
+ *
+ *  Les modèles sont des données : ils ne sont pas recopiés dans le code, et personne n'écrit un
+ *  nom de domaine dans `src`. Ils sont embarqués plutôt que servis parce que l'application de
+ *  bureau charge sa page construite, sans serveur derrière — et que l'assistant de création doit
+ *  pouvoir proposer un rangement dès le premier lancement, hors ligne. */
+function modelesEmbarques(): Plugin {
+  const resolu = `\0${ID_MODELES}`;
+  return {
+    name: "lienotheque:modeles",
+    resolveId: (id) => (id === ID_MODELES ? resolu : undefined),
+    load: (id) => {
+      if (id !== resolu) return undefined;
+      const catalogue = readdirSync(MODELES)
+        .filter((fichier) => fichier.endsWith(".json"))
+        .sort()
+        .map((fichier) => JSON.parse(readFileSync(join(MODELES, fichier), "utf8")) as { modele: unknown })
+        .map((lu) => lu.modele);
+      return `export default ${JSON.stringify(catalogue)};`;
+    },
   };
 }
 
@@ -117,7 +143,7 @@ function instantaneServi(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [react(), jetonsCss(), instantaneServi()],
+  plugins: [react(), jetonsCss(), modelesEmbarques(), instantaneServi()],
   resolve: { alias: { "@kit": KIT } },
   test: {
     environment: "jsdom",

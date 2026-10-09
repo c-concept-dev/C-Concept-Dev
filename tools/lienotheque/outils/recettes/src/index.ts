@@ -6,3 +6,4 @@ export * from "./pistes.js";
 export * from "./reperes.js";
 export * from "./schema.js";
 export * from "./sequence.js";
+export * from "./numeros.js";

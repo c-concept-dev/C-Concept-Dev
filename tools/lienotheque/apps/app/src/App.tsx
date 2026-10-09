@@ -1,17 +1,53 @@
 import { useCallback, useEffect, useMemo, useState, type JSX } from "react";
-import type { CasDouteux, VueBibliotheque } from "@lienotheque/contrats";
+import type {
+  CasDouteux,
+  DescriptionBibliotheque,
+  SchemaBibliotheque,
+  Travail,
+  TypeDeContenu,
+  VueBibliotheque,
+} from "@lienotheque/contrats";
+import { BROUILLON_NEUF, bilanDEssai, depuisRecette, enRecette, type Brouillon } from "@lienotheque/noyau";
 import { EnTete } from "./EnTete.js";
-import { chargerDonnees } from "./donnees/chargement.js";
+import { chargerBibliothequeDemonstration, chargerDonnees, rechercheDemandee } from "./donnees/chargement.js";
 import { chargerVue } from "./donnees/vue.js";
 import { ACCUEIL, ecrireRoute, lireRoute, type Route } from "./navigation.js";
 import { ACCUEIL_VIDE, type DonneesAccueil } from "./donnees/modele.js";
+import { pourLAccueil } from "./donnees/accueil.js";
 import { Accueil } from "./pages/Accueil.js";
 import { Catalogue } from "./pages/Catalogue.js";
 import { Lecteur } from "./pages/Lecteur.js";
 import { PremierLancement } from "./pages/PremierLancement.js";
 import { Reglages } from "./pages/Reglages.js";
 import { Verifier, type Decision } from "./pages/Verifier.js";
-import { Prototype, estBureau } from "./pages/Prototype.js";
+import { Creer } from "./pages/Creer.js";
+import { Organisation } from "./pages/Organisation.js";
+import { Depot, type ActionTravail } from "./pages/Depot.js";
+import { Recherche } from "./pages/Recherche.js";
+import { ManiereDeLire, type Essai } from "./pages/ManiereDeLire.js";
+import { Prototype } from "./pages/Prototype.js";
+import { chargerModeles } from "./donnees/modeles.js";
+import {
+  bibliothequesRetenues,
+  choisirDossier,
+  creerBibliotheque,
+  ecrireBibliotheque,
+  estBureau,
+  lireBibliotheque,
+  retenirBibliotheque,
+  agirSurTravail,
+  apercuDePages,
+  enregistrerManiere,
+  essayerManiere,
+  lireManiere,
+  imageDePage,
+  versionActive,
+  vueDeBibliotheque,
+  choisirFichiers,
+  deposer as deposerChezLHote,
+  faireTourner,
+  travauxDe,
+} from "./pont/bureau.js";
 import { useTheme } from "./theme/useTheme.js";
 
 /** Les écrans qui tiennent dans la fenêtre au lieu de la faire défiler (correction 3). */
@@ -30,6 +66,44 @@ export function App(): JSX.Element {
   const [, setDepots] = useState<readonly string[]>([]);
   const [route, setRoute] = useState<Route>(() => lireRoute(globalThis.location?.hash ?? ""));
   const [decisions, setDecisions] = useState<readonly { cas: CasDouteux; decision: Decision }[]>([]);
+  /** Les bibliothèques que cette session a créées, avec le dossier qui les porte. */
+  const [creees, setCreees] = useState<readonly { racine: string; description: DescriptionBibliotheque }[]>([]);
+  /** Trois éléments à montrer sous l'organisation. Vides tant que la bibliothèque n'a rien :
+   *  on ne montre pas ce qu'elle donnera en l'inventant. */
+  const [exemples, setExemples] = useState<Parameters<typeof Organisation>[0]["exemples"]>(undefined);
+  const modeles = useMemo(() => chargerModeles(), []);
+  /** Ce qui s'est passé à la dernière tentative d'ouverture, quand elle n'a mené à rien. */
+  const [echecOuverture, setEchecOuverture] = useState<string | undefined>(undefined);
+  /** La file de la bibliothèque ouverte, relue régulièrement : c'est l'hôte qui la tient. */
+  const [file, setFile] = useState<readonly Travail[]>([]);
+  const [accompagnements, setAccompagnements] = useState<readonly { nom: string; contenu: TypeDeContenu }[]>([]);
+  const [refuses, setRefuses] = useState<readonly { nom: string; raison: string }[]>([]);
+  /** La recherche est un voile par-dessus l'écran courant, pas un écran de plus : on revient
+   *  exactement là où l'on était en la fermant. */
+  const requeteDeLAdresse = useMemo(() => rechercheDemandee(globalThis.location?.search ?? ""), []);
+  const [cherche, setCherche] = useState(requeteDeLAdresse !== undefined);
+  /** L'éditeur de manière de lire : le document regardé, ses pages, le brouillon, l'essai. */
+  const [maniere, setManiere] = useState<{
+    document: string;
+    pages: readonly { rang: number; image: string }[];
+    brouillon: Brouillon;
+    essai?: Essai | undefined;
+    occupe?: boolean | undefined;
+    echec?: string | undefined;
+  }>({ document: "", pages: [], brouillon: BROUILLON_NEUF });
+
+  // ⌘K ouvre la recherche depuis n'importe quel écran (UX-02). Ctrl+K pour les claviers qui
+  // n'ont pas de touche Commande.
+  useEffect(() => {
+    const auClavier = (evenement: KeyboardEvent): void => {
+      if ((evenement.metaKey || evenement.ctrlKey) && evenement.key.toLowerCase() === "k") {
+        evenement.preventDefault();
+        setCherche(true);
+      }
+    };
+    globalThis.addEventListener?.("keydown", auClavier);
+    return () => globalThis.removeEventListener?.("keydown", auClavier);
+  }, []);
 
   useEffect(() => {
     const suivre = (): void => setRoute(lireRoute(globalThis.location?.hash ?? ""));
@@ -51,6 +125,25 @@ export function App(): JSX.Element {
     void chargerVue().then((chargee) => {
       if (vivant) setVue(chargee);
     });
+    // Les bibliothèques que l'hôte a retenues : sans elles, il faudrait repointer l'application
+    // vers son dossier à chaque lancement.
+    if (estBureau())
+      void bibliothequesRetenues().then((retenues) => {
+        if (vivant && retenues.length > 0) setCreees(retenues);
+      });
+    void chargerBibliothequeDemonstration(globalThis.location?.search ?? "").then((bibliotheque) => {
+      if (!vivant || bibliotheque === undefined) return;
+      setCreees([{ racine: bibliotheque.racine, description: bibliotheque.description }]);
+      setExemples(bibliotheque.exemples);
+      setFile(bibliotheque.file);
+      setAccompagnements(bibliotheque.accompagnements);
+      setManiere((avant) => ({
+        ...avant,
+        document: "Funk Fusion Bass.pdf",
+        pages: bibliotheque.pagesATracer,
+        brouillon: { ...avant.brouillon, zones: bibliotheque.zonesTracees, exempleDeNumero: "2.1" },
+      }));
+    });
     return () => {
       vivant = false;
     };
@@ -65,13 +158,294 @@ export function App(): JSX.Element {
     return { ...vue, douteux: vue.douteux.filter((cas) => !decides.has(cas.id)) };
   }, [vue, decisions]);
 
+  /** Créer une bibliothèque : l'hôte écrit, jamais la page. Sans hôte — sur le web — on le dit
+   *  plutôt que de faire semblant d'avoir créé quelque chose. */
+  const creer = async (description: DescriptionBibliotheque, dossier: string): Promise<void> => {
+    if (!estBureau())
+      throw new Error("La création d’une bibliothèque demande l’application de bureau : elle seule écrit sur votre disque.");
+    await creerBibliotheque(dossier, description);
+    await retenirBibliotheque(dossier);
+    setCreees((anciennes) => [...anciennes, { racine: dossier, description }]);
+    aller({ ecran: "organisation" });
+  };
+
+  /** La bibliothèque ouverte. C'est elle dont on montre la file, et dont les écrans lisent. */
+  const courante = creees[creees.length - 1];
+
+  // L'image de la page qu'on regarde, prise à la demande. Une par une : un livre de trois cents
+  // pages pèse des centaines de mégaoctets, et le Lecteur n'en montre qu'une. Elle remplace
+  // l'adresse que la vue porte, qui ne désigne rien sur le bureau.
+  useEffect(() => {
+    if (courante === undefined || !estBureau() || route.ecran !== "lecteur" || vue === undefined) return undefined;
+    const page = vue.pages.find((candidate) => candidate.numero === route.page);
+    if (page?.image === undefined || page.image.startsWith("data:")) return undefined;
+    const fichier = page.image.split("/").pop();
+    if (fichier === undefined) return undefined;
+
+    let vivant = true;
+    void versionActive(courante.racine)
+      .then(async (version) => (version === undefined ? undefined : imageDePage(courante.racine, version, fichier)))
+      .then((image) => {
+        if (!vivant || image === undefined) return;
+        setVue((avant) =>
+          avant === undefined
+            ? avant
+            : { ...avant, pages: avant.pages.map((autre) => (autre.numero === page.numero ? { ...autre, image } : autre)) },
+        );
+      })
+      .catch(() => {
+        // Une image qui manque n'empêche pas de lire : l'écran le dit déjà à sa façon.
+      });
+    return () => {
+      vivant = false;
+    };
+  }, [courante, route, vue]);
+
+  // Ce que les écrans lisent vient de la bibliothèque ouverte, et non d'un instantané de
+  // développement : sur le bureau, c'est le dépôt qui fait foi. On la relit après chaque
+  // traitement, puisque c'est lui qui pose une nouvelle version active (JOB-06).
+  useEffect(() => {
+    if (courante === undefined || !estBureau()) return undefined;
+    let vivant = true;
+    void vueDeBibliotheque(courante.racine).then((lue) => {
+      if (vivant && lue !== undefined) setVue(lue);
+    });
+    return () => {
+      vivant = false;
+    };
+  }, [courante, file]);
+
+  // La file est à l'hôte : on la relit, on ne la devine pas. Toutes les deux secondes suffisent —
+  // un traitement se compte en minutes, et un écran qui se redessine sans cesse fatigue.
+  useEffect(() => {
+    if (courante === undefined || !estBureau()) return undefined;
+    let vivant = true;
+    void faireTourner(courante.racine).catch((erreur: unknown) => {
+      setEchecOuverture(erreur instanceof Error ? erreur.message : String(erreur));
+    });
+    const relire = (): void => {
+      void travauxDe(courante.racine).then((travaux) => {
+        if (vivant) setFile(travaux);
+      });
+    };
+    relire();
+    const battement = globalThis.setInterval(relire, 2000);
+    return () => {
+      vivant = false;
+      globalThis.clearInterval(battement);
+    };
+  }, [courante]);
+
+  /** Ouvre une bibliothèque qui existe déjà. L'hôte la retient, pour la retrouver au prochain
+   *  lancement ; un dossier qui n'en porte pas le dit, au lieu d'ouvrir un écran vide. */
+  const ouvrir = async (): Promise<void> => {
+    setEchecOuverture(undefined);
+    const racine = await choisirDossier("Quelle bibliothèque ouvrir ?");
+    if (racine === undefined) return;
+    try {
+      const description = await lireBibliotheque(racine);
+      if (description === undefined) {
+        setEchecOuverture("Ce dossier ne porte pas de bibliothèque. Choisissez celui que Liénothèque a créé.");
+        return;
+      }
+      await retenirBibliotheque(racine);
+      setCreees((anciennes) => [{ racine, description }, ...anciennes.filter((autre) => autre.racine !== racine)]);
+      aller({ ecran: "organisation" });
+    } catch (erreur) {
+      setEchecOuverture(erreur instanceof Error ? erreur.message : String(erreur));
+    }
+  };
+
+  /** La dernière bibliothèque créée : celle qu'on organise au sortir de l'assistant. */
+  const derniere = courante;
+
+  /** Dépose des fichiers : l'hôte copie les originaux et met la file à jour. */
+  const deposerDesFichiers = async (racine: string): Promise<void> => {
+    const chemins = await choisirFichiers("Quels fichiers ajouter ?");
+    if (chemins.length === 0) return;
+    const arrivee = await deposerChezLHote(racine, chemins);
+    setFile(arrivee.travaux);
+    setAccompagnements((anciens) => [...anciens, ...arrivee.accompagnements]);
+    setRefuses(arrivee.refuses);
+  };
+
+  /** Met un travail en pause, le reprend, ou l'annule. L'hôte décide, l'écran demande. */
+  const agir = async (racine: string, id: string, action: ActionTravail): Promise<void> => {
+    const apres = await agirSurTravail(racine, id, action);
+    setFile((anciens) => anciens.map((travail) => (travail.id === apres.id ? apres : travail)));
+  };
+
+  /** Montre quelques pages d'un document : c'est la première chose dont l'éditeur a besoin. */
+  const montrerLesPages = async (racine: string, nom: string, depuis: number): Promise<void> => {
+    setManiere((avant) => ({ ...avant, document: nom, occupe: true, echec: undefined }));
+    try {
+      const pages = await apercuDePages(racine, nom, depuis, 8);
+      const connue = await lireManiere(racine);
+      setManiere((avant) => ({
+        ...avant,
+        document: nom,
+        pages,
+        // Une manière de lire déjà enregistrée se rouvre telle quelle : on la corrige, on ne la
+        // retape pas (REC-06).
+        brouillon: connue === undefined ? avant.brouillon : depuisRecette(connue),
+        occupe: false,
+      }));
+    } catch (erreur) {
+      setManiere((avant) => ({ ...avant, occupe: false, echec: erreur instanceof Error ? erreur.message : String(erreur) }));
+    }
+  };
+
+  /** Essaie la manière de lire sur dix pages, sans rien enregistrer (REC-07). */
+  const essayer = async (racine: string): Promise<void> => {
+    setManiere((avant) => ({ ...avant, occupe: true, echec: undefined }));
+    try {
+      // On essaie là où l'on regarde : les dix premières pages d'un document n'ont souvent rien
+      // à lire, et un essai qui ne lit rien ne dit rien.
+      const vue = await essayerManiere(
+        racine,
+        maniere.document,
+        enRecette(maniere.brouillon),
+        maniere.pages[0]?.rang ?? 0,
+        10,
+      );
+      const bilan = bilanDEssai(vue);
+      setManiere((avant) => ({
+        ...avant,
+        occupe: false,
+        essai: { pages: bilan.pages, lus: bilan.lus, attendus: bilan.pages.length },
+      }));
+    } catch (erreur) {
+      setManiere((avant) => ({ ...avant, occupe: false, echec: erreur instanceof Error ? erreur.message : String(erreur) }));
+    }
+  };
+
+  /** Enregistre la manière de lire. C'est elle que les traitements emploieront ensuite. */
+  const enregistrer = async (racine: string, brouillon: Brouillon): Promise<void> => {
+    setManiere((avant) => ({ ...avant, occupe: true, echec: undefined }));
+    try {
+      await enregistrerManiere(racine, enRecette(brouillon));
+      setManiere((avant) => ({ ...avant, brouillon, occupe: false }));
+      // On revient au traitement : c'est de là qu'on venait, et c'est là qu'on reprend les
+      // travaux que l'absence de manière de lire avait arrêtés.
+      aller({ ecran: "depot" });
+    } catch (erreur) {
+      setManiere((avant) => ({ ...avant, occupe: false, echec: erreur instanceof Error ? erreur.message : String(erreur) }));
+    }
+  };
+
+  /** Une version de plus du schéma. L'hôte réécrit la description : la page n'écrit jamais. */
+  const organiser = async (schema: SchemaBibliotheque): Promise<void> => {
+    if (derniere === undefined) return;
+    const description = { ...derniere.description, schema };
+    if (estBureau()) await ecrireBibliotheque(derniere.racine, description);
+    setCreees((anciennes) => anciennes.map((creee) => (creee === derniere ? { ...creee, description } : creee)));
+  };
+
+  // L'accueil montre les bibliothèques ouvertes. Sans cela, l'administrateur qui vient d'en
+  // créer une retombe sur le premier lancement, comme s'il n'avait rien fait.
+  const aLAccueil: DonneesAccueil =
+    creees.length === 0
+      ? donnees
+      : {
+          ...donnees,
+          bibliotheques: creees.map((creee) =>
+            pourLAccueil(creee.description, creee === courante ? vue : undefined, "Sur cet ordinateur"),
+          ),
+        };
+
   const ecran = ((): JSX.Element | null => {
     if (route.ecran === "reglages") return <Reglages theme={theme} onThemeChange={changerTheme} />;
-    if (vue === undefined || restants === undefined) {
-      return donnees.bibliotheques.length === 0 ? (
-        <PremierLancement theme={theme} onCreer={() => aller(ACCUEIL)} onFichiers={deposer} />
+    if (route.ecran === "maniere")
+      return derniere === undefined ? (
+        <PremierLancement
+          theme={theme}
+          onCreer={() => aller({ ecran: "creer" })}
+          onFichiers={deposer}
+          onOuvrir={estBureau() ? () => void ouvrir() : undefined}
+          echec={echecOuverture}
+        />
       ) : (
-        <Accueil donnees={donnees} onFichiers={deposer} />
+        <ManiereDeLire
+          description={derniere.description}
+          document={maniere.document}
+          pages={maniere.pages}
+          brouillon={maniere.brouillon}
+          onBrouillon={(brouillon) => setManiere((avant) => ({ ...avant, brouillon }))}
+          onEssayer={() => void essayer(derniere.racine)}
+          onEnregistrer={(brouillon) => void enregistrer(derniere.racine, brouillon)}
+          onAutresPages={(depuis) => void montrerLesPages(derniere.racine, maniere.document, depuis)}
+          {...(maniere.essai === undefined ? {} : { essai: maniere.essai })}
+          {...(maniere.occupe === undefined ? {} : { occupe: maniere.occupe })}
+          {...(maniere.echec === undefined ? {} : { echec: maniere.echec })}
+        />
+      );
+    if (route.ecran === "depot")
+      return derniere === undefined ? (
+        <PremierLancement
+          theme={theme}
+          onCreer={() => aller({ ecran: "creer" })}
+          onFichiers={deposer}
+          onOuvrir={estBureau() ? () => void ouvrir() : undefined}
+          echec={echecOuverture}
+        />
+      ) : (
+        <Depot
+          description={derniere.description}
+          travaux={file}
+          accompagnements={accompagnements}
+          refuses={refuses}
+          onParcourir={estBureau() ? () => void deposerDesFichiers(derniere.racine) : undefined}
+          onFichiers={deposer}
+          onAction={(id, action) => void agir(derniere.racine, id, action)}
+          onVerifier={() => aller({ ecran: "verifier" })}
+          onManiere={
+            estBureau()
+              ? (nom) => {
+                  aller({ ecran: "maniere" });
+                  void montrerLesPages(derniere.racine, nom, 0);
+                }
+              : undefined
+          }
+        />
+      );
+    if (route.ecran === "organisation")
+      return derniere === undefined ? (
+        <PremierLancement
+          theme={theme}
+          onCreer={() => aller({ ecran: "creer" })}
+          onFichiers={deposer}
+          onOuvrir={estBureau() ? () => void ouvrir() : undefined}
+          echec={echecOuverture}
+        />
+      ) : (
+        <Organisation
+          description={derniere.description}
+          onSchema={organiser}
+          onValider={() => aller({ ecran: "depot" })}
+          exemples={exemples}
+        />
+      );
+    if (route.ecran === "creer")
+      return (
+        <Creer
+          modeles={modeles}
+          prises={creees.map((creee) => creee.description.id)}
+          onCreer={creer}
+          onAnnuler={() => aller(ACCUEIL)}
+          onChoisirDossier={estBureau() ? () => choisirDossier("Où vivra cette bibliothèque ?") : undefined}
+        />
+      );
+    if (vue === undefined || restants === undefined) {
+      return aLAccueil.bibliotheques.length === 0 ? (
+        <PremierLancement
+          theme={theme}
+          onCreer={() => aller({ ecran: "creer" })}
+          onFichiers={deposer}
+          onOuvrir={estBureau() ? () => void ouvrir() : undefined}
+          echec={echecOuverture}
+        />
+      ) : (
+        <Accueil donnees={aLAccueil} onFichiers={deposer} />
       );
     }
     if (route.ecran === "verifier")
@@ -103,10 +477,16 @@ export function App(): JSX.Element {
           onAjouter={() => aller(ACCUEIL)}
         />
       );
-    return donnees.bibliotheques.length === 0 ? (
-      <PremierLancement theme={theme} onCreer={() => aller({ ecran: "catalogue" })} onFichiers={deposer} />
+    return aLAccueil.bibliotheques.length === 0 ? (
+      <PremierLancement
+          theme={theme}
+          onCreer={() => aller({ ecran: "creer" })}
+          onFichiers={deposer}
+          onOuvrir={estBureau() ? () => void ouvrir() : undefined}
+          echec={echecOuverture}
+        />
     ) : (
-      <Accueil donnees={donnees} onFichiers={deposer} />
+      <Accueil donnees={aLAccueil} onFichiers={deposer} />
     );
   })();
 
@@ -118,12 +498,49 @@ export function App(): JSX.Element {
       <EnTete
         theme={theme}
         onThemeChange={changerTheme}
-        onRecherche={() => {
-          // Lot 0 : la recherche arrive avec le lot C (UX-02).
-        }}
-        donnees={donnees}
+        onRecherche={() => setCherche(true)}
+        donnees={aLAccueil}
+        enTraitement={file.filter((travail) => travail.etat === "en_cours" || travail.etat === "verrouille").length}
       />
       <div className="ln-application__vue">{ecran}</div>
+      {cherche && vue !== undefined ? (
+        <Recherche
+          vue={vue}
+          actions={
+            derniere === undefined
+              ? undefined
+              : [
+                  { cle: "organisation", titre: "Revoir l’organisation", source: derniere.description.nom, aussi: ["axes", "valeurs", "ranger"] },
+                  { cle: "depot", titre: "Ajouter des fichiers", source: derniere.description.nom, aussi: ["déposer", "traitement", "file"] },
+                  { cle: "verifier", titre: "Vérifier ce qui attend un œil", source: derniere.description.nom, aussi: ["doutes", "cas"] },
+                  { cle: "maniere", titre: "Revoir la manière de lire", source: derniere.description.nom, aussi: ["recette", "zones", "lecture"] },
+                ]
+          }
+          {...(requeteDeLAdresse === undefined ? {} : { requeteInitiale: requeteDeLAdresse })}
+          onFermer={() => setCherche(false)}
+          onOuvrir={(resultat) => {
+            setCherche(false);
+            if (resultat.page !== undefined)
+              aller(
+                resultat.element === undefined
+                  ? { ecran: "lecteur", page: resultat.page }
+                  : { ecran: "lecteur", page: resultat.page, element: resultat.element },
+              );
+          }}
+          onEcouter={(resultat) => {
+            setCherche(false);
+            if (resultat.page !== undefined && resultat.element !== undefined)
+              aller({ ecran: "lecteur", page: resultat.page, element: resultat.element });
+          }}
+          onAction={(cle) => {
+            setCherche(false);
+            if (cle === "organisation") aller({ ecran: "organisation" });
+            else if (cle === "depot") aller({ ecran: "depot" });
+            else if (cle === "verifier") aller({ ecran: "verifier" });
+            else if (cle === "maniere") aller({ ecran: "maniere" });
+          }}
+        />
+      ) : null}
       {estBureau() ? (
         <div className="ln-layout">
           <Prototype />

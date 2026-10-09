@@ -66,6 +66,49 @@ pub struct Bilan {
     pub active: bool,
 }
 
+/// Pose une demande au moteur et attend sa réponse, sans file ni version.
+///
+/// Pour ce qui est court et dont on attend le résultat tout de suite : montrer des pages,
+/// essayer une manière de lire sur dix pages. Un travail long passe par la file — c'est elle qui
+/// tient le bail, le point de reprise et la reprise après fermeture (JOB-01 à JOB-03).
+///
+/// Rien n'est écrit dans le dépôt : l'hôte rend ce que le moteur a dit, et l'appelant en fait ce
+/// qu'il veut.
+pub fn demander(emplacements: &Emplacements, demande: &serde_json::Value) -> Result<String, String> {
+    let lancement = Lancement::embarque(emplacements.node.clone(), emplacements.chaine.clone());
+    let mut session = Session::ouvrir(&lancement).map_err(|e| format!("Le moteur n’a pas démarré : {e}"))?;
+    session
+        .dire(&demande.to_string())
+        .map_err(|e| format!("Le moteur n’a pas reçu la demande : {e}"))?;
+
+    let arret = serde_json::json!({
+        "type": "arret",
+        "protocole": LIMITES.protocole,
+        "travailId": demande["travailId"],
+        "raison": "fermeture",
+    })
+    .to_string();
+
+    while let Some(message) = session.ecouter() {
+        match message {
+            Ok(Message::Resultat { charge }) => {
+                let _ = session.arreter(&arret);
+                return Ok(charge);
+            }
+            Ok(Message::Echec { cause, .. }) => {
+                let _ = session.arreter(&arret);
+                return Err(cause);
+            }
+            Ok(_) => {}
+            Err(refus) => return Err(refus.message()),
+        }
+    }
+    Err(format!(
+        "Aucune réponse du moteur — {}.",
+        session.sortie().unwrap_or_else(|| "encore en vie".to_owned())
+    ))
+}
+
 /// Traite un lot et active le résultat.
 ///
 /// `charge` est la charge du travail, telle que le contrat de l'outil la décrit — l'hôte ne la lit

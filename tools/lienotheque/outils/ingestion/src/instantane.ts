@@ -134,7 +134,9 @@ export function construireVue(entree: Entree): VueBibliotheque {
 
     const element: ElementAffiche = {
       ancreId,
-      numero: String(ligne.numero),
+      // Le numéro tel qu'il est imprimé quand il ne s'écrit pas comme un nombre : « 2.46 » se
+      // compare par son rang, mais c'est « 2.46 » qui est écrit sur la page.
+      numero: ligne.numeroLu ?? String(ligne.numero),
       page: ligne.pageImprimee,
       // Où l'élément a été lu, quand la lecture l'a su : c'est de là que part le fil.
       ...(ligne.zone === undefined ? {} : { zone: ligne.zone }),

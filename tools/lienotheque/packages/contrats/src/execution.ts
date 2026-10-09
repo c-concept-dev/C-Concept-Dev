@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { Horodatage, Identifiant, RefOutil } from "./commun.js";
-import { PointReprise } from "./travail.js";
+import { PointReprise, Travail } from "./travail.js";
+import { TypeDeContenu } from "./bibliotheque.js";
 import limites from "../limites.json" with { type: "json" };
 
 /** L'échange entre l'hôte et le processus qui exécute un travail (JOB-01 à JOB-09, PLT-02).
@@ -92,8 +93,20 @@ export const Salutation = z
   .strict();
 export type Salutation = z.infer<typeof Salutation>;
 
+/** Où en est un travail long (JOB-03).
+ *
+ *  `total` dit combien d'unités en tout, quand le processus le sait — il ne le sait qu'après avoir
+ *  ouvert le document. Sans lui, l'écran ne peut afficher qu'un pourcentage ; avec lui, il écrit
+ *  « 194 / 286 », qui se lit et se vérifie. Il vient du processus et de nulle part ailleurs :
+ *  déduire le total du rapport entre le rang et le pourcentage donnerait un nombre qui tremble. */
 export const Progression = z
-  .object({ type: z.literal("progression"), ...enveloppe, progression: z.number().min(0).max(1), pointReprise: PointReprise.optional() })
+  .object({
+    type: z.literal("progression"),
+    ...enveloppe,
+    progression: z.number().min(0).max(1),
+    pointReprise: PointReprise.optional(),
+    total: z.number().int().positive().optional(),
+  })
   .strict();
 export type Progression = z.infer<typeof Progression>;
 
@@ -143,3 +156,36 @@ export function desaccordDeProtocole(recu: number, attendu: number = VERSION_PRO
     message: `Version d'échange ${recu} reçue, ${attendu} attendue : l'application et son moteur de traitement ne sont pas de la même version.`,
   };
 }
+
+/** Ce que l'hôte de bureau retient d'une session à l'autre (PLT-02, JOB-02).
+ *
+ *  Deux choses, et pas une de plus : qui est cet appareil — un bail doit dire qui le tient — et
+ *  quelles bibliothèques ont été ouvertes. Rien du contenu d'une bibliothèque n'entre ici : il
+ *  vit dans son dossier portable, qui se déplace et se sauvegarde seul. On peut perdre ces
+ *  réglages sans rien perdre. */
+export const ReglagesHote = z
+  .object({
+    appareil: Identifiant,
+    /** Les dossiers de bibliothèque ouverts, la plus récemment ouverte en tête. */
+    bibliotheques: z.array(z.string().min(1)).default([]),
+  })
+  .strict();
+export type ReglagesHote = z.infer<typeof ReglagesHote>;
+
+/** Ce qu'un dépôt de fichiers a donné (JOB-01, JOB-04).
+ *
+ *  Trois listes, parce que trois choses différentes arrivent : des travaux qui vont partir, des
+ *  médias qui attendent le document qui les nommera, et des fichiers qu'on n'a pas su lire. Les
+ *  confondre ferait croire qu'un enregistrement déposé seul va être traité, ou qu'un fichier
+ *  refusé l'a été. */
+export const ArriveeDeFichiers = z
+  .object({
+    travaux: z.array(Travail),
+    /** Déposés et copiés, mais qui ne se lisent pas seuls : ils seront lus avec leur document. */
+    accompagnements: z.array(z.object({ nom: z.string().min(1), contenu: TypeDeContenu }).strict()),
+    /** Refusés, et pourquoi. Jamais avalés : on dit lesquels, et ce qui cloche. */
+    refuses: z.array(z.object({ nom: z.string().min(1), raison: z.string().min(1) }).strict()),
+    avertissements: z.array(z.string()).default([]),
+  })
+  .strict();
+export type ArriveeDeFichiers = z.infer<typeof ArriveeDeFichiers>;

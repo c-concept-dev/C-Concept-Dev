@@ -47,6 +47,11 @@ def embarquer_node(cible: pathlib.Path) -> str:
     source = shutil.which("node")
     if source is None:
         raise SystemExit("node absent du chemin : installez Node 24 ou plus.")
+    # Effacer avant de copier : écrire par-dessus un binaire déjà signé laisse macOS avec une
+    # signature en cache qui ne correspond plus au contenu, et les outils qui suivent — `lipo`
+    # le premier — échouent sans dire pourquoi. Le script doit se rejouer sur un poste déjà
+    # préparé, sinon il ne sert qu'une fois.
+    cible.unlink(missing_ok=True)
     shutil.copy(source, cible)
 
     avant = poids(cible)

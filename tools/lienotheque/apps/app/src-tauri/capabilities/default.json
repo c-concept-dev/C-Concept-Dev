@@ -1,7 +1,13 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Permissions du prototype : fenêtre principale seulement, aucun accès réseau sortant.",
-  "windows": ["main"],
-  "permissions": ["core:default", "shell:default"]
+  "description": "Permissions de l'application : fenêtre principale seulement, aucun accès réseau sortant. Le sélecteur de dossier est autorisé en ouverture seule — l'hôte écrit, jamais la page.",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    "shell:default",
+    "dialog:allow-open"
+  ]
 }

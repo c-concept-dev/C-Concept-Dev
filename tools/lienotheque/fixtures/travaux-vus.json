@@ -1,0 +1,92 @@
+{
+  "_lisez_moi": "Écrit par le test « ecrit_les_travaux_vus_pour_le_contrat » de apps/app/src-tauri/src/travail.rs, et validé par le contrat Travail côté TypeScript. Ne pas modifier à la main : c'est la preuve que la file de l'hôte et le contrat que lit la page décrivent le même travail.",
+  "travaux": [
+    {
+      "creeLe": "2025-10-09T08:53:20Z",
+      "etat": "en_file",
+      "id": "0190f0a0-0000-7000-8000-000000000001",
+      "lieu": "application",
+      "majLe": "2025-10-09T08:53:20Z",
+      "outil": {
+        "nom": "traitement-de-lot",
+        "version": "1.0.0"
+      },
+      "poids": "lourd",
+      "progression": 0.0,
+      "sujet": {
+        "contenu": "documents",
+        "nom": "un-document.pdf"
+      },
+      "tentative": 1,
+      "versionCible": "0190f0a0-0000-7000-8000-0000000000a1"
+    },
+    {
+      "creeLe": "2025-10-09T08:55:00Z",
+      "etat": "en_cours",
+      "id": "0190f0a0-0000-7000-8000-000000000002",
+      "lieu": "application",
+      "majLe": "2025-10-09T09:01:40Z",
+      "outil": {
+        "nom": "traitement-de-lot",
+        "version": "1.0.0"
+      },
+      "poids": "lourd",
+      "pointReprise": {
+        "unite": "page",
+        "valeur": 194
+      },
+      "progression": 0.6783216595649719,
+      "sujet": {
+        "contenu": "documents",
+        "nom": "un-document.pdf",
+        "total": 286
+      },
+      "tentative": 1,
+      "verrou": {
+        "appareilId": "0190f0a0-0000-7000-8000-00000000ff01",
+        "battuLe": "2025-10-09T09:01:40Z",
+        "expireLe": "2025-10-09T09:01:55Z"
+      },
+      "versionCible": "0190f0a0-0000-7000-8000-0000000000a2"
+    },
+    {
+      "creeLe": "2025-10-09T08:56:40Z",
+      "etat": "termine",
+      "id": "0190f0a0-0000-7000-8000-000000000003",
+      "lieu": "application",
+      "majLe": "2025-10-09T09:08:20Z",
+      "outil": {
+        "nom": "traitement-de-lot",
+        "version": "1.0.0"
+      },
+      "poids": "lourd",
+      "pointReprise": {
+        "unite": "piste",
+        "valeur": 24
+      },
+      "progression": 1.0,
+      "sujet": {
+        "contenu": "audio",
+        "nom": "un-disque.zip",
+        "total": 24
+      },
+      "tentative": 1,
+      "versionCible": "0190f0a0-0000-7000-8000-0000000000a3"
+    },
+    {
+      "creeLe": "2025-10-09T08:58:20Z",
+      "etat": "en_file",
+      "id": "0190f0a0-0000-7000-8000-000000000004",
+      "lieu": "application",
+      "majLe": "2025-10-09T08:58:20Z",
+      "outil": {
+        "nom": "recompte",
+        "version": "1.0.0"
+      },
+      "poids": "leger",
+      "progression": 0.0,
+      "tentative": 1,
+      "versionCible": "0190f0a0-0000-7000-8000-0000000000a4"
+    }
+  ]
+}

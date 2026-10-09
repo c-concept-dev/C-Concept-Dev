@@ -9,6 +9,11 @@ type Props = {
   /** Choisir un dossier entier plutôt que des fichiers (premier lancement). */
   readonly dossier?: boolean | undefined;
   readonly onFichiers: (fichiers: readonly File[]) => void;
+  /** Ouvre le sélecteur du système au lieu du champ de fichiers de la page.
+   *
+   *  L'application de bureau en a besoin : un fichier choisi dans la page n'a pas de chemin, et
+   *  l'hôte ne peut rien copier d'un fichier dont il ne sait pas où il est. */
+  readonly onParcourir?: (() => void) | undefined;
 };
 
 /** `webkitdirectory` n'est pas dans les types React : c'est un attribut de la plateforme. */
@@ -16,7 +21,7 @@ const CHOIX_DOSSIER = { webkitdirectory: "", directory: "" } as Record<string, s
 
 /** Dépôt universel (HER-01) avec son alternative clavier obligatoire (UX-06) :
  *  le champ de fichiers natif reste focalisable, la zone montre son focus. */
-export function ZoneDepot({ titre, aide, libelleBouton, dossier = false, onFichiers }: Props): JSX.Element {
+export function ZoneDepot({ titre, aide, libelleBouton, dossier = false, onFichiers, onParcourir }: Props): JSX.Element {
   const id = useId();
   const [compte, setCompte] = useState<number | null>(null);
 
@@ -36,7 +41,12 @@ export function ZoneDepot({ titre, aide, libelleBouton, dossier = false, onFichi
       <Icone nom="depot" />
       <p className="ln-depot__titre">{titre}</p>
       <p className="ln-muted">{aide}</p>
-      <label className="ln-btn ln-btn--secondaire" htmlFor={id}>
+      {onParcourir === undefined ? null : (
+        <button type="button" className="ln-btn ln-btn--secondaire" onClick={onParcourir}>
+          {libelleBouton}
+        </button>
+      )}
+      <label className={`ln-btn ln-btn--secondaire${onParcourir === undefined ? "" : " ln-sr-only"}`} htmlFor={id}>
         {libelleBouton}
       </label>
       <input

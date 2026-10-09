@@ -30,6 +30,13 @@
 | 2026-10-06 | **L'hôte est le seul écrivain du dépôt** : le processus reçoit un travail et rend un résultat, l'hôte le valide et l'active en une opération (JOB-06) | Lot D2, étape 0 |
 | 2026-10-06 | Portage Rust intégral de la chaîne **écarté** : il faudrait réécrire pdf.js et les codecs, et refaire la preuve des 84/92 et 95/95 | Lot D2, étape 0 |
 | 2026-10-06 | Allègement du moteur (Node sans ICU, binaire compilé) **reporté après la bêta**, et sans toucher la chaîne | Lot D2, étape 0 |
+| 2026-10-08 | **La recherche n'a pas d'index à elle** : elle lit la vue, et tout se passe sur la machine. Le surlignage porte sur le texte d'origine, pas sur sa forme repliée | Lot D2, étape 4, section ci-dessous |
+| 2026-10-09 | **La forme d'un numéro d'élément se donne par l'exemple**, jamais par une syntaxe : « ici, un numéro ressemble à 2.46 ». Quatre hypothèses du lecteur deviennent des données | Lot D2, étape 5, section ci-dessous |
+| 2026-10-09 | **REC-07 sur F5 : 7 min 05 s puis 2 min 35 s**, sous le critère. Le vocabulaire des recettes l'exprime désormais ; l'OCR perd encore le point de « 2.1 » | Lot D2, étape 5 |
+| 2026-10-08 | **Un travail par document, non par fichier** : le moteur lit un document et ses médias ensemble, et un travail qui ne porterait qu'une piste n'aurait rien à lire | Lot D2, étape 3, section ci-dessous |
+| 2026-10-08 | **Pas de temps restant à l'écran de traitement** : on ne sait pas à quelle vitesse la suite ira, et un chiffre inventé est pire qu'un chiffre absent. On écrit « 194 / 286 » | Lot D2, étape 3 |
+| 2026-10-08 | **Fusionner et retirer une valeur sont deux gestes**, pas un : le contrat a refusé qu'une clé vive à deux endroits, et il avait raison — ils ne montrent pas la même chose | Lot D2, étape 2, section ci-dessous |
+| 2026-10-08 | **Les écrans se photographient dans l'application de bureau**, en clair et en hybride : le thème hybride est ce qui montre les défauts de charte, qu'aucun test ne voit | Lot D2, étape 2 |
 | 2026-10-06 | **Les critères des corpus remontent à la porte de l'application** : F1, F3 et F4 se mesurent sur `executerTravail`, dans `outils/ingestion`, et nulle part ailleurs. Un seul test de critère par corpus | Lot D2, étape 1, section ci-dessous |
 
 
@@ -170,6 +177,309 @@ dernières pages passent encore à l'OCR serait un mensonge poli.
 
 Le coût d'une passe de relecture part au journal, et de là à l'écran de traitement : une dépense
 qu'on ne voit pas est une dépense qu'on ne surveille pas.
+
+## Lot D2, étape 2 — créer une bibliothèque, et l'organiser sans rien perdre
+
+Les deux premiers écrans de l'administrateur, portés des maquettes 1 et 2 : l'assistant en quatre
+temps et l'organisation. Ce qui a été tranché en chemin.
+
+### Une bibliothèque se décrit par contrat
+
+Sa description traverse trois frontières — l'assistant qui la crée, l'hôte qui l'écrit, la chaîne
+qui la lit — et était lue par un analyseur écrit à la main qui acceptait un identifiant absent en
+le transformant en « undefined ». Elle a maintenant son contrat, `DescriptionBibliotheque`, et
+c'est lui qui la lit partout. Le nom de son fichier est écrit à un seul endroit, et un test
+interdit au Rust de le redire de son côté.
+
+### La règle de l'organisation : une clé ne change jamais
+
+Quatre gestes, et un invariant au-dessus d'eux.
+
+| Geste | Ce qui change | Ce qu'on voit après |
+|---|---|---|
+| Renommer | le nom, et lui seul | la valeur, sous son nouveau nom |
+| Ajouter | une valeur de plus, clé tirée du nom | la valeur, au bout de la liste |
+| **Fusionner** | la valeur de départ quitte la liste, sa clé passe en alias de celle d'arrivée | un seul nom, celui d'arrivée |
+| **Retirer** | la valeur reste, marquée retirée, et redirige | les deux noms, le premier barré |
+
+`resoudre` démontre les quatre : une clé d'hier mène toujours à une valeur vivante.
+
+Un premier jet faisait de la fusion et du retrait un seul geste — la valeur de départ restait,
+retirée et redirigée, *et* sa clé passait en alias sur la cible. **Le contrat l'a refusé** : la
+clé vivait alors à deux endroits, et `Axe` interdit les doublons, alias compris. Il avait raison,
+et pour une raison qui n'est pas technique : ce sont deux gestes, parce qu'ils ne montrent pas la
+même chose. Fusionner dit « ces deux noms désignaient la même chose » et efface le doublon.
+Retirer dit « celle-ci a existé pour elle-même, et mène désormais à celle-là » et en garde la
+trace. Les tester ensemble aurait caché la différence ; le contrat l'a mise au jour avant l'écran.
+
+Chaque geste rend un schéma d'une version plus haute, validé par son contrat (REC-03) ; le schéma
+reçu n'est jamais retouché. **Retirer une façon de ranger est le seul geste qui perd quelque
+chose** : il se refuse tant que des éléments y sont rangés, et dit combien.
+
+### Les modèles restent des données
+
+Les façons de ranger proposées par l'assistant sont les modèles de `fixtures/modeles`, lus par un
+module virtuel au moment de la construction — le même procédé que la feuille de jetons. Un domaine
+s'ajoute en y déposant un fichier, et aucun nom de domaine n'entre dans `apps/app/src`. Les tests
+parcourent tous les modèles du dépôt sans une branche par domaine (CLA-12).
+
+`packages/noyau/src` entre à cette occasion dans les zones du garde-fou CLA-01 : il n'y était pas,
+et c'est désormais du code que l'assistant traverse.
+
+Qui ne reconnaît aucun modèle nomme sa propre façon de ranger et part d'étiquettes libres ; la
+première valeur qu'on y nomme la referme d'un cran, en liste qu'on peut encore étendre. Les mots
+de la bibliothèque — ce qu'on repère, ce qu'on écoute, ce qu'on lit — se saisissent au singulier
+et au pluriel dans le même temps, et l'aperçu les emploie aussitôt : c'est le seul endroit où le
+vocabulaire se décide.
+
+### Ce que les captures ont montré et que les tests taisaient
+
+Les écrans ont été photographiés **dans l'application de bureau elle-même**, à 1320 × 900 points,
+en clair et en hybride (`docs/captures/`). La première série a montré trois défauts qu'aucun test
+ne pouvait voir :
+
+1. **En hybride, le titre, le fil d'Ariane, les quatre temps et les pieds tombaient directement
+   sur la photographie**, illisibles. La charte l'interdit, et rien ne le vérifiait. Tout bloc de
+   texte porte désormais son panneau graphite.
+2. Une rangée de trois boutons rouges nommés du seul nom de l'axe ne disait pas ce qu'elle
+   retirait. Le retrait vit maintenant au pied de la carte qu'il vise, discret.
+3. L'intitulé de la carte d'ajout se brisait mot à mot.
+
+Le thème hybride n'est pas une variante décorative : c'est lui qui montre les défauts de charte.
+La prise d'image appartient au script et non à l'application, parce que macOS accorde
+l'autorisation d'enregistrement d'écran au programme qu'on lance soi-même.
+
+### Ce qui reste ouvert
+
+- **Rouvrir une bibliothèque fermée.** L'application retient les bibliothèques créées pendant la
+  session, pas au-delà. Il faudra que l'hôte se souvienne du dossier ouvert, et que l'accueil
+  propose d'en ouvrir un. Nécessaire pour la bêta, pas pour l'étape 2.
+- **Les exemples sous l'organisation** ne s'affichent que si la bibliothèque a de quoi les nourrir.
+  Tant qu'elle n'a rien, l'écran ne montre rien plutôt que d'inventer.
+
+
+## Lot D2, étape 3 — déposer, et regarder la file tourner
+
+L'écran de dépôt et de traitement, branché sur la file durable et le moteur embarqué. Ce qui a
+été tranché en chemin.
+
+### Un travail par document, et non par fichier
+
+Le moteur lit un document **et les médias qui l'accompagnent**, ensemble : c'est ainsi qu'un
+élément de la page 127 se relie au bon moment de sa piste. Un travail qui ne porterait qu'un
+fichier audio n'aurait donc rien à lire, et ne partirait jamais. Les médias sont copiés dans la
+bibliothèque et attendent le document qui les nommera ; l'écran les montre à part, en disant
+pourquoi.
+
+Le premier jet en faisait des travaux. Il avait tort, et c'est en branchant le moteur que cela
+s'est vu — pas en écrivant la file.
+
+### Déposer, c'est trois choses dans cet ordre
+
+Copier l'original — jamais le déplacer, jamais le modifier —, prendre son empreinte, écrire le
+travail avant que rien ne commence (JOB-01). L'ordre compte : un travail écrit avant la copie
+désignerait un fichier absent, et une copie sans travail laisserait un fichier que personne ne
+viendra lire. Redéposer le même contenu retrouve son travail (JOB-04) : c'est le contenu qui
+décide, pas le nom.
+
+### La preuve croisée de la file
+
+L'hôte tient sa file dans sa propre forme — des secondes, des chaînes courtes, ce qui se relit
+vite au démarrage — et la page lit un contrat. Sans preuve, les deux dérivent en silence et
+l'écran cesse d'afficher quoi que ce soit sans qu'un test s'en plaigne.
+
+`fixtures/travaux-vus.json` est écrit par un test Rust et validé par le contrat TypeScript. Il a
+trouvé deux défauts avant même d'exister vraiment :
+
+1. Un travail en file, dont on ne connaît pas encore le total, s'affichait **à cent pour cent** —
+   le total inconnu valait zéro, et zéro sur zéro valait un.
+2. L'hôte nommait son appareil en clair là où le contrat veut un UUID. Deux installations qui
+   s'appelleraient « cet ordinateur » ne se distingueraient plus le jour où elles partagent une
+   bibliothèque.
+
+### Ce que l'écran ne montre pas
+
+**Pas de temps restant.** La maquette en portait un ; on ne sait pas à quelle vitesse la suite
+ira, et un chiffre qu'on invente est pire qu'un chiffre absent. L'écran écrit ce qu'il sait :
+tant de pages sur tant, et le pourcentage qui va avec. Tant que le total est inconnu, il le dit.
+
+**Pas de pourcentage seul non plus.** « 68 % » ne se vérifie pas ; « 194 / 286 » se vérifie.
+
+La phrase d'état suit l'unité que le moteur compte vraiment — « Lecture des pages » ou « Lecture
+des pistes » — et les mots viennent de la bibliothèque (CLA-01).
+
+### La fenêtre peut se fermer
+
+Le roulement ne tient à aucune fenêtre : il vit tant que l'application vit. Quitter l'application
+arrête les moteurs proprement, lâche les baux, et ce qui a été lu se reprend au prochain
+lancement. Une pause, elle, est une décision et non une panne : elle s'écrit dans le fichier du
+travail, le fil qui le mène la voit au message suivant, et aucun délai ne la lève (JOB-08).
+
+### La preuve : F3 traité par la file, et non par un appel direct
+
+Les contrôles éprouvent les règles — ce qui part, ce qui attend, ce qu'une pause fait. Ils ne
+prouvent pas que la file mène un vrai document de bout en bout. D'où un exemple lancé à la main,
+`apps/app/src-tauri/examples/file-sur-corpus.rs`, qui dépose un corpus et regarde la file comme
+l'écran la regarde : en la relisant.
+
+Relevé du 8 octobre 2026, sur le volume externe — le disque système n'avait plus que 14 Gio :
+
+| | |
+|---|---:|
+| Dépôt (1 document, 99 médias copiés) | 2,8 s |
+| Durée du traitement, à froid | **197 s** |
+| Progression | 29 / 29 pages, par points de reprise successifs |
+| Version | écrite puis activée, 179 276 octets |
+| **Éléments reliés** | **95 / 95** |
+| Appariements / manquants / orphelins | 95 / 0 / 6 |
+| À vérifier | 2 |
+
+C'est le critère de F3, obtenu par le chemin complet : dépôt, file durable, moteur embarqué,
+version activée. L'étape 1 l'avait prouvé par un appel direct ; il l'est maintenant par la file.
+
+**Deux défauts trouvés en le faisant, et aucun dans le dépôt.** La première passe affichait
+« total 0 » d'un bout à l'autre : la chaîne embarquée de ce poste datait de l'étape 1 et n'émettait
+pas encore le total. `moteurs/` est ignoré par git et l'intégration continue la reconstruit à
+chaque exécution, donc rien n'était faux dans le dépôt — seulement sur ce poste. Mais
+`preparer-moteur-node.py` **ne se rejouait pas** sur un poste déjà préparé : écrire par-dessus un
+binaire Node déjà signé laisse macOS avec une signature en cache qui ne correspond plus, et `lipo`
+échoue sans dire pourquoi. Le script efface désormais avant de copier.
+
+### Ce qui reste ouvert
+
+- **Le glisser-déposer sur le bureau.** Un fichier lâché dans la page n'a pas de chemin, et l'hôte
+  ne peut rien copier d'un fichier dont il ne sait pas où il est. Le bouton « Parcourir » ouvre le
+  sélecteur du système et donne de vrais chemins ; le glisser-déposer natif de Tauri reste à
+  brancher.
+- **La manière de lire.** Une bibliothèque sans recette le dit tout de suite — « Apprenez-en une,
+  puis reprenez ce travail » — au lieu d'échouer trois minutes plus tard. C'est l'étape 5 qui la
+  donnera.
+- **Le compteur de l'en-tête de l'application** affiche encore une valeur de démonstration, qui ne
+  s'accorde pas avec la file en dessous.
+
+
+## Lot D2, étape 4 — chercher sur la machine
+
+La recherche ⌘K. Ce qui a été tranché.
+
+### L'index, c'est la vue
+
+Il n'y a pas de second magasin à tenir à jour, donc pas de second magasin à voir diverger — la
+même raison qui avait fait appeler `rejouer` à l'instantané. Et tout se passe sur la machine : ce
+qu'on cherche dans sa propre bibliothèque ne regarde personne d'autre.
+
+### Deux choses font la qualité d'une recherche, et aucune n'est l'algorithme
+
+**Trouver malgré les accents et la casse** : « detachee » doit trouver « détachée ».
+
+**Montrer où ça correspond dans le texte original** : surligner « détachée », pas « detachee ».
+On replie donc le texte **caractère par caractère**, en gardant pour chaque caractère replié la
+position du caractère d'origine, puis on revient. Replier d'un coup ne marcherait pas :
+`"été".normalize("NFD")` ne fait pas la même longueur que `"été"`, et des positions prises sur la
+forme dépliée ne désignent plus rien dans l'originale.
+
+La marque porte un fond **et** un soulignement : le fond seul ne suffirait ni à l'impression ni à
+qui ne distingue pas les teintes.
+
+### Ce que le clavier fait, et pourquoi le pied le dit
+
+Les flèches parcourent la liste entière d'un groupe à l'autre et font le tour ; la tabulation
+saute au **groupe** suivant, pas à la ligne suivante ; entrée ouvre ; commande-entrée écoute la
+piste reliée quand il y en a une ; échap ferme. Une palette qu'on ne pourrait conduire qu'à la
+souris n'aurait aucune raison d'exister, et une palette dont on ignore les touches revient au
+même.
+
+La suite que les flèches parcourent est calculée par le noyau, pas par l'écran : la recalculer
+dans l'écran la ferait diverger de l'ordre affiché.
+
+### Ce qui vient d'où
+
+Les groupes portent les mots de la bibliothèque — « Repères », « Feuillets », « Plages » — et
+jamais les nôtres (CLA-01). La piste reliée se trouve aussi par ce qu'on cherche : c'est le même
+lien, vu de l'autre bout (ANC-02). Les **actions** viennent de l'écran, qui seul sait où elles
+mènent ; le noyau les filtre sur leurs mots, il ne les invente pas.
+
+### Ce que la charte a repris
+
+L'extrait portait le serif de marque, comme la maquette le suggérait. Le garde-fou typographique
+l'a refusé : il ne sert qu'au logo et au « Bonjour ». Les maquettes sont illustratives, jamais
+typographiques — et c'est un test qui l'a rappelé, pas une relecture.
+
+
+## Lot D2, étape 5 — montrer où regarder, et l'épreuve REC-07 sur F5
+
+L'éditeur visuel de manière de lire, puis l'épreuve : apprendre à lire un document que
+l'application n'a jamais vu, en direct, sans recette écrite à l'avance.
+
+### Les deux temps mesurés
+
+| | |
+|---|---:|
+| **Découverte brute** — du premier coup d'œil à la cause identifiée | **7 min 05 s** |
+| **Découverte complète** — reprise après correction, jusqu'à la conclusion | **2 min 35 s** |
+| Total sur le document | **9 min 40 s**, sous les quinze minutes du critère |
+
+Le temps n'a jamais été le problème. Le vocabulaire des recettes l'était, et l'OCR l'est encore.
+
+### Ce que F5 a appris au produit
+
+F5 numérote ses exercices « chapitre.exercice » — 2.1, 2.46 — dans un **cadre en haut à gauche**,
+et ne porte aucune pastille de piste. Quatre hypothèses, écrites dans le lecteur, l'ont arrêté :
+
+1. **La bande du haut était interdite aux éléments**, sans appel. Les numéros de F5 y sont.
+2. **Un numéro devait répondre à un à trois chiffres.** « 2.46 » n'y répond pas.
+3. **La liste de caractères était écrite en dur**, et le champ `alphabet` de la recette n'était
+   jamais lu.
+4. **Le numéro de page ne se lisait que dans les coins** : une zone tracée pour lui était
+   ignorée, et l'éditeur laissait donc dessiner quelque chose qui ne servait à rien.
+
+Les quatre deviennent des données. La forme d'un numéro se donne **par l'exemple** — « ici, un
+numéro ressemble à 2.46 » — et non par une syntaxe : l'administrateur n'a pas à écrire une
+expression régulière, et nous n'avons pas à lui en montrer une. Deux règles la lisent : chaque
+groupe de chiffres vaut un à trois chiffres, tout le reste est repris tel quel. L'ordre suit,
+groupe par groupe, chacun comptant pour mille.
+
+La bande du haut reste interdite **sauf si la recette y a tracé sa zone d'éléments**. Une
+première version la libérait dès que les numéros de page se lisaient ailleurs ; F3 le supportait,
+mais F4 ne peut pas être éprouvé sans solliciter le service de relecture payant, et une règle
+qu'on ne peut pas vérifier ne doit pas changer le comportement des recettes existantes.
+
+### Ce qui bloque encore, et qui n'est plus le contrat
+
+Avec ces ajouts, la manière de lire de F5 **s'exprime**. Elle ne se lit toujours pas : à la
+résolution de ce document, Tesseract rend « 21 » pour « 2.1 ». **Le point disparaît**, même
+déclaré dans la liste de caractères. Éprouvé à la main sur un recadrage serré, agrandi huit fois
+et bordé de blanc — le même traitement que le lecteur applique :
+
+| Segmentation | Sans liste | Avec `0123456789.` |
+|---|---|---|
+| 7 | `eA (il` | *(rien)* |
+| 8 | `21)` | `21` |
+| 13 | `21)` | `21` |
+
+Le séparateur n'est pas récupérable ainsi. Ce n'est plus un manque de vocabulaire : c'est une
+capacité de lecture qui manque. Deux pistes, toutes deux à décider :
+
+- **Lire les groupes séparément** et les recomposer par l'écart horizontal, en s'appuyant sur le
+  découpage de chiffres qui existe déjà pour les pastilles.
+- **Déclarer que le numéro est encadré**, et se servir du cadre pour borner la lecture.
+
+### Ce qui a été vérifié intact
+
+`VERSION_LECTURE` passe à 9 — une lecture porte désormais le numéro tel qu'il est imprimé — ce
+qui invalide les caches. **F3 relu entièrement à froid : 95 / 95**, deux pages absentes, six
+médias orphelins, en 195 s. F1 exact. F4 n'a pas été relancé : sa mesure appelle le service de
+relecture payant, et rien dans ce lot n'autorisait cette dépense — c'est pourquoi la règle de la
+bande a été écrite pour ne rien changer aux recettes décrites par une marge ou un bord, ce qui est
+le cas de F4.
+
+### Ce que les captures ont montré
+
+La page occupait toute la hauteur et repoussait la palette hors de l'écran ; l'étiquette d'une
+zone proche du bord droit se faisait couper. Les deux sont corrigés. La page montrée par
+l'éditeur est dessinée et prend ses couleurs des jetons : elle suit le thème, et le garde-fou des
+couleurs en dur n'a pas eu à être desserré pour elle.
+
 
 ## Prototype du socle local — mesures du 3 octobre 2026
 

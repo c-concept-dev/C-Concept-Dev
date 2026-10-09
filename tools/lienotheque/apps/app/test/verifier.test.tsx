@@ -83,7 +83,7 @@ describe("Vérifier : la planche (UX-03)", () => {
     expect(screen.getByText(/à rattacher après recalcul/i)).toBeInTheDocument();
     // Sur l'étiquette de la planche, pas dans la note d'écoute du cas ouvert, qui dit la même
     // chose en plus long.
-    expect(screen.getByText("Segment inconnu", { selector: ".ln-etiquette" })).toBeInTheDocument();
+    expect(screen.getByText("Segment inconnu", { selector: ".ln-verifier__etiquette" })).toBeInTheDocument();
   });
 
   it("filtre par nature", async () => {

@@ -7,12 +7,37 @@ const Rel = z.number().gt(0).lt(1);
 const Zone = z.discriminatedUnion("type", [
   z.object({ type: z.literal("coins"), bord: z.enum(["haut", "bas"]) }).strict(),
   z.object({ type: z.literal("marges_exterieures"), largeur_rel: Rel }).strict(),
-  z.object({ type: z.literal("rectangle_rel"), x: z.number().min(0).max(1), y: z.number().min(0).max(1), l: Rel, h: Rel }).strict(),
+  // Une zone tracée peut couvrir toute la largeur ou toute la hauteur — une bande en pied de
+  // page, par exemple. `Rel` l'interdit, et à juste titre là où il sert : une marge ne peut pas
+  // être la page entière, ni un chiffre la hauteur entière. Ici, si.
+  z
+    .object({
+      type: z.literal("rectangle_rel"),
+      x: z.number().min(0).max(1),
+      y: z.number().min(0).max(1),
+      l: z.number().gt(0).max(1),
+      h: z.number().gt(0).max(1),
+    })
+    .strict(),
 ]);
 
 const Alphabet = z.enum(["chiffres", "latin", "tous"]);
 
 const LecturePage = z.object({ ancre: z.literal("page_imprimee"), zone: Zone, alphabet: Alphabet }).strict();
+
+/** À quoi ressemble un numéro d'élément, donné par l'exemple et non par une syntaxe.
+ *
+ *  Un administrateur sait dire « ici, un numéro ressemble à 2.46 ». Il n'a pas à savoir écrire
+ *  une expression régulière, et nous n'avons pas à lui en demander une — ni à l'afficher.
+ *
+ *  Ce que l'exemple décide, et rien d'autre : **chaque groupe de chiffres vaut un à trois
+ *  chiffres**, et **tout le reste est repris tel quel**. « 2.46 » accepte donc « 3.3 » et
+ *  « 12.108 », et exige le point. Absent, c'est un nombre de un à trois chiffres — ce qui a
+ *  toujours été le cas, et ce qui ne change donc rien aux documents déjà lus.
+ *
+ *  L'ordre se tient aussi : un numéro à plusieurs groupes se compare groupe par groupe, chacun
+ *  comptant pour trois chiffres. « 2.46 » passe avant « 3.3 ». */
+const FormeNumero = z.object({ exemple: z.string().regex(/^\d/, "Un exemple commence par un chiffre").min(1) }).strict();
 
 const LectureElement = z
   .object({
@@ -21,6 +46,7 @@ const LectureElement = z
     hauteur_rel: z.object({ min: Rel, max: Rel }).strict().refine((h) => h.max > h.min, "max doit dépasser min"),
     alphabet: Alphabet,
     libelle: z.string().min(1).optional(),
+    numero: FormeNumero.optional(),
   })
   .strict();
 

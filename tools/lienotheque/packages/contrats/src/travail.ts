@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TypeDeContenu } from "./bibliotheque.js";
 import { Horodatage, Identifiant, RefOutil } from "./commun.js";
 import limites from "../limites.json" with { type: "json" };
 
@@ -58,9 +59,27 @@ export const ETATS_TERMINAUX: readonly z.infer<typeof EtatTravail>[] = ["termine
  *  processus qui l'exécute parlent du même point, et deux descriptions du même fait finissent
  *  toujours par en donner deux. */
 export const PointReprise = z
-  .object({ unite: z.enum(["page", "lot", "fichier"]), valeur: z.number().int().nonnegative() })
+  .object({ unite: z.enum(["page", "piste", "image", "lot", "fichier"]), valeur: z.number().int().nonnegative() })
   .strict();
 export type PointReprise = z.infer<typeof PointReprise>;
+
+/** De quoi ce travail s'occupe, tel que l'écran le nomme (JOB-03, UX-03).
+ *
+ *  Une file qui n'affiche que des identifiants ne se surveille pas : on y voit que quelque chose
+ *  tourne, jamais quoi. Le sujet porte donc le nom du fichier déposé, ce qu'il contient, et
+ *  combien d'unités il compte — ce dernier d'abord inconnu, puisqu'il faut avoir ouvert le
+ *  fichier pour le savoir. Il est rempli par l'hôte à la première progression qui le dit.
+ *
+ *  Le nom du fichier et rien de plus : ce que le fichier *représente* vient du schéma de la
+ *  bibliothèque, jamais d'ici (CLA-01). */
+export const SujetTravail = z
+  .object({
+    nom: z.string().min(1),
+    contenu: TypeDeContenu,
+    total: z.number().int().positive().optional(),
+  })
+  .strict();
+export type SujetTravail = z.infer<typeof SujetTravail>;
 
 /** Travail persisté avant de commencer (JOB-01), bail renouvelé (JOB-02), point de reprise (JOB-03). */
 export const Travail = z
@@ -71,6 +90,8 @@ export const Travail = z
     etat: EtatTravail,
     lieu: LieuExecution.default("application"),
     poids: PoidsTravail.default("lourd"),
+    /** Absent pour un travail qui ne porte sur aucun fichier — un recalcul, une réindexation. */
+    sujet: SujetTravail.optional(),
     /** Empreinte de ce qui est demandé : rejouer le même travail retrouve celui-ci (JOB-04). */
     empreinteEntree: z.string().min(1).optional(),
     tentative: z.number().int().min(1),

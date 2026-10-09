@@ -42,6 +42,10 @@ export const ChargeTraitement = z
     adresseMedias: z.string().min(1).optional(),
     /** Adresse du service de relecture ciblée. Absente, la chaîne est la même, elle ne relit rien. */
     relecture: z.url().optional(),
+    /** N'en lire que quelques pages, pour essayer une manière de lire sans tout relire. */
+    pages: z.number().int().positive().optional(),
+    /** Rang de la première page lue : les dix premières d'un document n'ont souvent rien à lire. */
+    depuis: z.number().int().nonnegative().optional(),
   })
   .strict();
 export type ChargeTraitement = z.infer<typeof ChargeTraitement>;
@@ -49,6 +53,28 @@ export type ChargeTraitement = z.infer<typeof ChargeTraitement>;
 /** Ce que le travail rend. L'hôte en est le seul écrivain : c'est une proposition, jamais une
  *  écriture (JOB-06). */
 export type ChargeResultat = LotTraite;
+
+/** Ce qu'un aperçu demande : des images de pages, sans rien lire.
+ *
+ *  L'éditeur de manière de lire en a besoin **avant** qu'une recette existe — on ne peut pas
+ *  montrer où regarder sur une page qu'on ne voit pas. C'est donc un outil à part, avec sa charge
+ *  à lui : lui faire emprunter la charge du traitement l'obligerait à inventer une recette. */
+export const ChargeApercu = z
+  .object({
+    document: z.string().min(1),
+    images: z.string().min(1),
+    /** Rang de la première page, à partir de zéro. */
+    depuis: z.number().int().nonnegative().default(0),
+    /** Combien de pages. Borné : un aperçu de trois cents pages n'est plus un aperçu, et le
+     *  temps qu'il prendrait ferait croire l'éditeur bloqué. */
+    combien: z.number().int().positive().max(40).default(8),
+    adresseImages: z.string().min(1).optional(),
+  })
+  .strict();
+export type ChargeApercu = z.infer<typeof ChargeApercu>;
+
+/** Les outils que cette porte sait servir, et le nom par lequel on les demande. */
+export const OUTILS = { traitement: "traitement-de-lot", apercu: "apercu-de-pages" } as const;
 
 export type Emission = (message: MessageVersHote) => void;
 
@@ -66,6 +92,10 @@ export async function executerTravail(brut: unknown, options: { readonly emettre
 
   const ecart = desaccordDeProtocole(demande.protocole);
   if (ecart !== undefined) return echec(demande.travailId, ecart.message, false);
+
+  if (demande.outil.nom === OUTILS.apercu) return apercuDePages(demande, options.emettre);
+  if (demande.outil.nom !== OUTILS.traitement)
+    return echec(demande.travailId, `Aucun outil ne répond à ce nom : « ${demande.outil.nom} ».`, false);
 
   const lue = ChargeTraitement.safeParse(demande.charge);
   if (!lue.success) {
@@ -96,6 +126,8 @@ export async function executerTravail(brut: unknown, options: { readonly emettre
       ...(charge.images === undefined ? {} : { images: charge.images }),
       ...(charge.adresseImages === undefined ? {} : { adresseImages: charge.adresseImages }),
       ...(charge.adresseMedias === undefined ? {} : { adresseMedias: charge.adresseMedias }),
+      ...(charge.pages === undefined ? {} : { pages: charge.pages }),
+      ...(charge.depuis === undefined ? {} : { depuis: charge.depuis }),
       ...(charge.relecture === undefined || jeton === undefined
         ? {}
         : {
@@ -119,6 +151,7 @@ export async function executerTravail(brut: unknown, options: { readonly emettre
           travailId: demande.travailId,
           progression: total === 0 ? 0 : faits / total,
           pointReprise: { unite: "page", valeur: faits },
+          ...(total === 0 ? {} : { total }),
         }),
     });
 
@@ -134,6 +167,49 @@ export async function executerTravail(brut: unknown, options: { readonly emettre
   }
 }
 
+/** Exporte quelques pages en images, et rien de plus : aucune lecture, aucune recette.
+ *
+ *  Le même contrat d'échange que le traitement, la même porte, les mêmes refus. Ce qui change est
+ *  la charge, et c'est tout ce qui doit changer. */
+async function apercuDePages(demande: Demande, emettre?: Emission): Promise<MessageVersHote> {
+  const lue = ChargeApercu.safeParse(demande.charge);
+  if (!lue.success) {
+    const champ = lue.error.issues[0]?.path.join(".") ?? "charge";
+    return echec(demande.travailId, `La demande d’aperçu est incomplète : « ${champ} » est en cause.`, false);
+  }
+  const charge = lue.data;
+
+  try {
+    const { exporterPages } = await import("./pages-images.js");
+    const pages = await exporterPages(charge.document, charge.images, {
+      depuis: charge.depuis,
+      pages: charge.combien,
+      // Pas de vignettes : l'éditeur montre une page en grand, et produire trois cents vignettes
+      // pour en montrer huit coûterait plus que l'aperçu lui-même.
+      vignettes: false,
+    });
+    const adresse = charge.adresseImages ?? "/donnees/pages";
+    emettre?.({ type: "progression", protocole: VERSION_PROTOCOLE, travailId: demande.travailId, progression: 1 });
+    return Resultat.parse({
+      type: "resultat",
+      protocole: VERSION_PROTOCOLE,
+      travailId: demande.travailId,
+      charge: {
+        pages: pages.map((page) => ({
+          rang: page.index,
+          image: `${adresse}/${page.fichier}`,
+          fichier: page.fichier,
+          largeur: page.largeur,
+          hauteur: page.hauteur,
+        })),
+      },
+    });
+  } catch (cause) {
+    const texte = cause instanceof Error ? cause.message : String(cause);
+    return echec(demande.travailId, texte, true);
+  }
+}
+
 /** Monte une demande à partir d'une charge, pour les appelants qui n'en reçoivent pas d'un hôte —
  *  le banc de mesure et le script de traitement. Ils franchissent la même porte que l'application,
  *  avec la même enveloppe. */
@@ -142,7 +218,19 @@ export function demandeDeTraitement(travailId: string, versionCible: string, cha
     type: "demande",
     protocole: VERSION_PROTOCOLE,
     travailId,
-    outil: { nom: "traitement-de-lot", version: "1.0.0" },
+    outil: { nom: OUTILS.traitement, version: "1.0.0" },
+    versionCible,
+    charge,
+  });
+}
+
+/** Monte une demande d'aperçu. Même enveloppe, même porte : seule la charge diffère. */
+export function demandeDApercu(travailId: string, versionCible: string, charge: ChargeApercu): Demande {
+  return Demande.parse({
+    type: "demande",
+    protocole: VERSION_PROTOCOLE,
+    travailId,
+    outil: { nom: OUTILS.apercu, version: "1.0.0" },
     versionCible,
     charge,
   });

@@ -61,6 +61,10 @@ export const CHEMINS_APPLICATION = {
   lien: "M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1",
   horloge: "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20M12 6v6l4 2",
   appareils: "M2 4h12v9H2zM16 8h6v11h-6zM6 17h4M8 13v4",
+  etiquette: "M3 3h8l10 10-8 8L3 11zM7.5 7.5h.01",
+  dossier: "M3 6h6l2 3h10v11H3zM3 6v3",
+  corbeille: "M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3",
+  fusion: "M6 3v6a4 4 0 0 0 4 4h8M18 9l3 4-3 4",
 } as const;
 
 /** Tous les tracés, du kit et de l'application. */

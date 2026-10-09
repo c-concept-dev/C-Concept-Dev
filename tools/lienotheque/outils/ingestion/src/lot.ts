@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { exporterPages } from "./pages-images.js";
-import { MotsBibliotheque, type ResultatRecette, SchemaBibliotheque, VueBibliotheque } from "@lienotheque/contrats";
+import { DescriptionBibliotheque, type ResultatRecette, VueBibliotheque } from "@lienotheque/contrats";
 import { chargerRecette, rejouer, type Association, type Media, type Relecture } from "@lienotheque/recettes";
 import { construireVue } from "./instantane.js";
 
@@ -13,23 +13,13 @@ import { construireVue } from "./instantane.js";
  *  Rien de ce qui est produit ici n'entre au dépôt : l'instantané va au cache de travail, et le
  *  document comme les médias restent où ils sont. */
 
-/** Ce qu'une bibliothèque déclare d'elle-même. C'est une donnée — les mots du domaine viennent de
- *  là, jamais du code (CLA-01). */
-export type DescriptionBibliotheque = {
-  readonly id: string;
-  readonly nom: string;
-  readonly mots: MotsBibliotheque;
-  readonly schema: SchemaBibliotheque;
-};
-
+/** Lit la description d'une bibliothèque, validée par son contrat.
+ *
+ *  Elle était lue ici par un analyseur écrit à la main, qui prenait `String(...)` de ce qu'il
+ *  trouvait : un identifiant absent devenait « undefined », un nom vide passait. Le contrat
+ *  refuse les deux, et au bon endroit — à la lecture, pas trois écrans plus loin. */
 export function lireDescription(brut: unknown): DescriptionBibliotheque {
-  const objet = brut as Record<string, unknown>;
-  return {
-    id: String(objet["id"]),
-    nom: String(objet["nom"]),
-    mots: MotsBibliotheque.parse(objet["mots"]),
-    schema: SchemaBibliotheque.parse(objet["schema"]),
-  };
+  return DescriptionBibliotheque.parse(brut);
 }
 
 export type Lot = {
@@ -54,6 +44,12 @@ export type Lot = {
   readonly relecture?: Relecture | undefined;
   /** Appelé après chaque cliché lu, pour dire où en est le traitement (JOB-03). */
   readonly avancement?: ((faits: number, total: number) => void) | undefined;
+  /** N'en lire que les premières pages. C'est ce que demande l'essai d'une manière de lire :
+   *  dix pages suffisent pour voir si elle tient, et trois cents feraient attendre pour rien. */
+  readonly pages?: number | undefined;
+  /** Rang de la première page lue. Essayer une manière de lire sur dix pages du milieu demande
+   *  de dire lesquelles : les dix premières d'un document n'ont souvent rien à lire. */
+  readonly depuis?: number | undefined;
 };
 
 /** Quel numéro imprimé porte chaque rang du document, d'après l'interprète.
@@ -111,6 +107,8 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
     ...(lot.cache === undefined ? {} : { cache: lot.cache }),
     ...(lot.relecture === undefined ? {} : { relecture: lot.relecture }),
     ...(lot.avancement === undefined ? {} : { avancement: lot.avancement }),
+    ...(lot.pages === undefined ? {} : { pages: lot.pages }),
+    ...(lot.depuis === undefined ? {} : { depuis: lot.depuis }),
   });
 
   // Les images, une par une, écrites au passage. Le numéro imprimé d'une page n'est pas son rang

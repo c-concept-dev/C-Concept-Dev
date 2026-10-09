@@ -5,7 +5,8 @@ import { describe, expect, it } from "vitest";
 import { coin, ouvrirCache } from "@lienotheque/cache";
 import { comparer, releverCoucheTexte } from "@lienotheque/recettes";
 import { tesseractDisponible } from "@lienotheque/lecteur-texte";
-import { chargeOuEchec, demandeDeTraitement, executerTravail } from "../src/index.js";
+import { VERSION_PROTOCOLE } from "@lienotheque/contrats";
+import { chargeOuEchec, demandeDApercu, demandeDeTraitement, executerTravail } from "../src/index.js";
 
 /** Les critères des corpus, mesurés à la porte de l'application (OUT-15, REC-06).
  *
@@ -163,5 +164,38 @@ describe("la porte refuse ce qu'elle ne comprend pas", () => {
 
   it("lève sur une demande qu'on ne sait pas lire : aucun travail auquel rattacher l'échec", async () => {
     await expect(executerTravail({ type: "demande", protocole: 1 })).rejects.toThrow();
+  });
+});
+
+describe("la porte sert plusieurs outils, et refuse ceux qu'elle ne connaît pas (PLT-02)", () => {
+  const ID = "01890a5d-ac96-774b-bcce-b302099a8057";
+  const VERSION = "01890a5d-ac96-774b-bcce-b302099a8058";
+
+  it("refuse un outil dont elle n'a jamais entendu parler, en le nommant", async () => {
+    const demande = {
+      type: "demande",
+      protocole: VERSION_PROTOCOLE,
+      travailId: ID,
+      outil: { nom: "outil-inconnu", version: "1.0.0" },
+      versionCible: VERSION,
+      charge: {},
+    };
+    const message = await executerTravail(demande);
+    expect(message.type).toBe("echec");
+    expect(message.type === "echec" && message.cause).toContain("outil-inconnu");
+  });
+
+  it("refuse une demande d'aperçu incomplète en disant quel champ est en cause", async () => {
+    const message = await executerTravail(demandeDApercu(ID, VERSION, { document: "un.pdf" } as never));
+    expect(message.type).toBe("echec");
+    expect(message.type === "echec" && message.cause).toMatch(/aperçu est incomplète/);
+  });
+
+  it("un aperçu qui ne trouve pas son document échoue, et la reprise reste possible", async () => {
+    const message = await executerTravail(
+      demandeDApercu(ID, VERSION, { document: "nulle-part.pdf", images: "/tmp/nulle-part", depuis: 0, combien: 2 }),
+    );
+    expect(message.type).toBe("echec");
+    expect(message.type === "echec" && message.reprisePossible).toBe(true);
   });
 });
