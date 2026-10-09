@@ -56,6 +56,18 @@ const ESSAIS = [
     attendu: 'un nombre choisi au lieu d\'une règle appliquée' },
 
   // ── Le prompt système ─────────────────────────────────────────────────────────────────────
+  { nom: 'l\'objectif ne part plus avec le message',
+    fichier: 'module',
+    de: "    if (doc.purpose) lignes.push('Objectif : ' + doc.purpose);",
+    vers: "    if (false) lignes.push('Objectif : ' + doc.purpose);",
+    attendu: 'la première et la dernière étape devinent au lieu de savoir' },
+
+  { nom: 'l\'objectif ne sert plus à ouvrir ni à refermer',
+    fichier: 'module',
+    de: "      '- Le message vous donne l\\'OBJECTIF de la présentation. C\\'est lui qui décide de ces deux',",
+    vers: "      '- Soignez la première et la dernière étape.',",
+    attendu: 'un objectif transporté que rien n\'invite à employer' },
+
   { nom: 'le type du bloc ne pèse plus rien',
     fichier: 'module',
     de: "    var type = POIDS_TYPE[e.type] != null ? POIDS_TYPE[e.type] : 1.0;",

@@ -28,6 +28,66 @@ normaliser quand c'est sans ambiguïté, refuser quand ça ne l'est pas.
 
 ---
 
+## 0ter. Les trois vérifications du 9 octobre
+
+### 1. Quel registre pour quelle audience — mesuré, pas supposé
+
+Le registre est choisi par reconnaissance de motifs. Il fallait donc montrer ce que le code
+choisit **réellement** pour la phrase exacte du document, pas ce qu'on espère.
+
+| audience | registre choisi |
+|---|---|
+| **« Grand public — adultes en couple ou ayant vécu en couple, sans prérequis clinique ou financier. »** | **public large** |
+| « clinicien » | professionnels |
+| « personnes accompagnées » | personnes accompagnées |
+| « patients » | personnes accompagnées |
+| *(chaîne vide)* | repli |
+| « thérapeutes de couple » | professionnels |
+| « couples en difficulté » | personnes accompagnées |
+
+La phrase de Christophe contient « sans prérequis **clinique** », qui passe à un cheveu du motif
+des professionnels (« clinicien ») — c'est précisément le genre de coïncidence qui se vérifie au
+lieu de se supposer. Elle tombe bien sur **public large**.
+
+**Un trou trouvé en faisant cette vérification** : le motif `couple en` ne reconnaissait pas
+« coupl**es** en difficulté ». Corrigé — le motif est devenu explicite sur ce qu'il vise
+(`couples? en (difficulté|crise|souffrance|thérapie)`) plutôt que large et approximatif.
+
+Les quatre textes, en entier :
+
+```
+[professionnels]
+Des professionnels. Vous pouvez nommer un mécanisme par son nom, à condition de l'expliquer
+en une phrase. Pas de vulgarisation appuyée, pas de ton pédagogique envers quelqu'un qui
+connaît le sujet mieux que la vidéo.
+
+[personnes accompagnées]
+Des personnes accompagnées, qui se reconnaîtront peut-être dans ce qui est dit. Redoublez de
+précaution : aucune description qui ressemble à un jugement, aucune phrase qui laisse entendre
+qu'elles auraient dû savoir. Nommez ce qui se passe sans le qualifier.
+
+[public large]
+Un public large (« … »), sans formation. Partez de l'expérience ordinaire avant toute notion.
+Aucun terme technique sans une phrase qui l'explique.
+
+[repli, public absent]
+Le public n'est pas précisé : écrivez pour quelqu'un sans formation, qui écoute par curiosité
+ou parce que le sujet le touche.
+```
+
+### 2. L'objectif de la présentation
+
+Le message transporte désormais `Objectif : …`, et le prompt dit quoi en faire : **la première
+étape doit faire naître le besoin auquel l'objectif répond, la dernière doit laisser le
+spectateur en mesure de faire ce que l'objectif annonce** — sans jamais le réciter. Un document
+sans `purpose` ne porte aucune ligne vide. Deux mutations l'éprouvent.
+
+### 3. La fouille avant fusion
+
+Résultats au §8.
+
+---
+
 ## 0bis. Trois choses à dire avant le reste
 
 ### a) Ce lot ne touche PAS au Worker — mesuré, pas supposé
@@ -81,15 +141,14 @@ coïncident aujourd'hui divergent demain (régression #8).
 
 ## 1. Le prompt système, tel qu'il part
 
-Rendu depuis le navigateur, adresse « vous », pour la présentation d'essai — **79 lignes,
-4 738 caractères** (56 lignes avant la relecture du 8 octobre). Avec l'option « tu », seule la
-ligne « Adressez-vous au spectateur… » change ; avec un autre public ou un autre titre, les
-sections « À QUI VOUS PARLEZ » et la phrase de sujet changent aussi.
+Rendu depuis le navigateur **pour la présentation réelle de Christophe** — titre, public et
+objectif pris dans le document, adresse « vous ». **83 lignes, 5 136 caractères** (56 avant la
+relecture du 8 octobre, 79 après ses sept corrections, 83 avec l'objectif du 9 octobre).
 
 ```
 Vous êtes auteur de scripts de doublage. Vous écrivez le commentaire que dira, à voix
 haute, un acteur de doublage, pour une vidéo de psychoéducation.
-Le sujet est celui de la présentation fournie, intitulée « Quand le silence s’installe ». Tenez-vous-y :
+Le sujet est celui de la présentation fournie, intitulée « L'argent dans le couple : bien plus qu'une question de budget ». Tenez-vous-y :
 ne traitez pas d'un sujet voisin parce qu'il vous vient plus facilement.
 
 CE TEXTE SERA DIT, PAS LU.
@@ -120,6 +179,10 @@ Vous n'écrivez pas des commentaires séparés : vous écrivez UN texte continu,
   Ne commencez pas par « Dans cette présentation, nous allons voir… ».
 - La DERNIÈRE étape referme. Elle ne récapitule pas mécaniquement ce qui a été dit : elle
   laisse le spectateur avec une chose à emporter, ou une question à se poser.
+- Le message vous donne l'OBJECTIF de la présentation. C'est lui qui décide de ces deux
+  étapes : la première doit faire naître le besoin auquel l'objectif répond, la dernière
+  doit laisser le spectateur en mesure de faire ce que l'objectif annonce. Ne récitez
+  jamais l'objectif : il se voit dans ce que vous écrivez, il ne se dit pas.
 
 CE QUI EST INTERDIT.
 - Aucune statistique, aucun pourcentage, aucune étude, aucune source, aucun nom d'auteur
@@ -142,7 +205,7 @@ Chaleureux, posé, jamais culpabilisant. Vous ne jugez personne. Vous ne vous ad
 Adressez-vous au spectateur en disant « vous ». Jamais « tu ».
 
 À QUI VOUS PARLEZ.
-Des professionnels. Vous pouvez nommer un mécanisme par son nom, à condition de l'expliquer en une phrase. Pas de vulgarisation appuyée, pas de ton pédagogique envers quelqu'un qui connaît le sujet mieux que la vidéo.
+Un public large (« Grand public — adultes en couple ou ayant vécu en couple, sans prérequis clinique ou financier. »), sans formation. Partez de l'expérience ordinaire avant toute notion. Aucun terme technique sans une phrase qui l'explique.
 
 CE QUE CE DOCUMENT EST.
 Une présentation clinique dont la relecture humaine est requise. Votre commentaire est un
@@ -168,56 +231,17 @@ exacts. Aucun identifiant inventé, aucun oublié. Le champ "text" est du texte 
 en français.
 ```
 
-**Ce que le message utilisateur transporte**, et rien d'autre — titre, public, durée visée, puis
-par étape : l'identifiant, la cible en mots, ce qui est déjà à l'écran, et le contenu de l'étape.
-Exemple réel (46 lignes, 2 346 caractères) :
+**Le message utilisateur**, pour la même présentation : 102 lignes, 8 521 caractères. Il porte le
+titre, le public, **l'objectif**, la durée visée, puis par étape l'identifiant, la cible en mots,
+ce qui est déjà à l'écran et le contenu de l'étape. Son en-tête :
 
 ```
-Titre de la présentation : Quand le silence s’installe
-Public : clinicien
-Durée visée pour l'ensemble : 4 minutes, soit environ 600 mots.
+Titre de la présentation : L'argent dans le couple : bien plus qu'une question de budget
+Public : Grand public — adultes en couple ou ayant vécu en couple, sans prérequis clinique ou financier.
+Objectif : Sensibiliser le grand public aux enjeux relationnels, émotionnels et de pouvoir que l'argent introduit dans la vie de couple — et ouvrir des pistes concrètes pour en parler autrement.
+Durée visée pour l'ensemble : 8 minutes, soit environ 1197 mots.
 
 Les étapes, dans l'ordre. Écrivez un commentaire pour CHACUNE :
-
-── Diapositive : Ce qui ne se dit pas
-  stepId: heading-01
-  cible: 33 mots
-  contenu de cette étape : Le silence n’est pas toujours une absence
-
-  stepId: paragraph-01
-  cible: 120 mots
-  déjà à l'écran : Le silence n’est pas toujours une absence
-  contenu de cette étape : Dans beaucoup de couples, il existe un sujet dont on ne parle pas. Ce n’est pas qu’on l’a oublié : on le contourne, chacun de son côté, et ce contournement finit par organiser toute la relation.
-
-  stepId: callout-01
-  cible: 81 mots
-  déjà à l'écran : Le silence n’est pas toujours une absence | Dans beaucoup de couples, il existe un sujet dont on ne parle pas. Ce n’est pas qu’on l’a oublié : on le contourne, chacun de son côté, et ce contournement finit par organiser toute la relation.
-  contenu de cette étape : Le silence protège quelque chose. Tant qu’on ignore quoi, il est difficile de le lever.
-
-── Diapositive : Trois formes de silence
-  stepId: heading-02
-  cible: 27 mots
-  contenu de cette étape : Elles ne se ressemblent pas
-
-  stepId: list-01
-  cible: 120 mots
-  déjà à l'écran : Elles ne se ressemblent pas
-  contenu de cette étape : Le silence de protection : parler ferait mal, alors on se tait. — Le silence d’habitude : on a cessé d’essayer, sans décision consciente. — Le silence de représailles : se taire est devenu une manière de répondre.
-
-  stepId: paragraph-02
-  cible: 102 mots
-  déjà à l'écran : Elles ne se ressemblent pas | Le silence de protection : parler ferait mal, alors on se tait. — Le silence d’habitude : on a cessé d’essayer, sans décision consciente. — Le silence de représailles : se taire est devenu une manière de répondre.
-  contenu de cette étape : Les reconnaître change la conversation : on ne s’adresse pas de la même façon à quelqu’un qui se protège et à quelqu’un qui riposte.
-
-── Diapositive : Par où commencer
-  stepId: heading-03
-  cible: 24 mots
-  contenu de cette étape : Une seule phrase suffit
-
-  stepId: quote-01
-  cible: 93 mots
-  déjà à l'écran : Une seule phrase suffit
-  contenu de cette étape : Il y a quelque chose dont on ne parle jamais. Je ne sais pas par où commencer, mais j’aimerais essayer.
 ```
 
 Vérifié : le message ne porte ni `sourceSnapshotId`, ni `citationLinks`, ni `renderManifestId`,

@@ -258,6 +258,11 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       ['pas « nous allons voir »', /Ne commencez pas par « Dans cette présentation, nous allons voir/],
       ['la dernière referme', /La DERNIÈRE étape referme/],
       ['sans récapituler', /ne récapitule pas mécaniquement/],
+      // Vérification 2 du 9 octobre : l'objectif sert à ouvrir et à refermer.
+      ['l\'objectif décide des deux bouts', /Le message vous donne l.OBJECTIF de la présentation/],
+      ['la première fait naître le besoin', /faire naître le besoin auquel l.objectif répond/],
+      ['la dernière rend capable', /en mesure de faire ce que l.objectif annonce/],
+      ['ne jamais réciter l\'objectif', /Ne récitez\s*\n?\s*jamais l.objectif/],
       // Correction 5 : l'inclusivité.
       ['aucun rôle attribué d\'office', /N.attribuez jamais d.office un rôle à l.homme ou à la femme/],
       ['l\'un et l\'autre', /Dites « l.un » et « l.autre », ou « l.un des deux »/],
@@ -303,6 +308,47 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
     const registres = [prompt.pro, prompt.accompagnees, prompt.large, prompt.sansPublic];
     assert.equal(new Set(registres).size, 4, 'les quatre registres doivent être DISTINCTS');
     assert.ok(registres.every((r) => /À QUI VOUS PARLEZ\./.test(r)), 'chacun a sa section');
+
+    // LA PHRASE EXACTE DU DOCUMENT DE CHRISTOPHE, et quatre autres formulations. Le registre
+    // est choisi par reconnaissance de motifs : il faut montrer ce qu'il choisit RÉELLEMENT,
+    // pas ce qu'on espère. « sans prérequis clinique » passe à un cheveu du motif des
+    // professionnels (« clinicien ») — c'est exactement le genre de coïncidence qui se vérifie
+    // au lieu de se supposer.
+    const AUDIENCES = [
+      ['Grand public — adultes en couple ou ayant vécu en couple, sans prérequis clinique ou financier.', 'large'],
+      ['clinicien', 'pro'],
+      ['personnes accompagnées', 'accompagnees'],
+      ['patients', 'accompagnees'],
+      ['', 'repli'],
+      ['thérapeutes de couple', 'pro'],
+      ['couples en difficulté', 'accompagnees'],
+    ];
+    const choix = await page.evaluate((liste) => liste.map(([a]) => {
+      const t = window.NarrationIA.promptSysteme({ adresse: 'vous', titre: 'T', public: a });
+      const i = t.indexOf('À QUI VOUS PARLEZ.');
+      const bloc = t.slice(i + 19, t.indexOf('\n\n', i));
+      let famille = 'repli';
+      if (/^Des professionnels\./.test(bloc)) famille = 'pro';
+      else if (/^Des personnes accompagnées/.test(bloc)) famille = 'accompagnees';
+      else if (/^Un public large/.test(bloc)) famille = 'large';
+      return { famille: famille, bloc: bloc };
+    }), AUDIENCES);
+    console.log('\n      ── QUEL REGISTRE POUR QUELLE AUDIENCE ──');
+    AUDIENCES.forEach(([a, attendu], i) => {
+      const obtenu = choix[i].famille;
+      console.log('      ' + (obtenu === attendu ? 'ok ' : 'NON') + '  « '
+        + (a || '(chaîne vide)').slice(0, 62) + (a.length > 62 ? '…' : '') + ' »  →  ' + obtenu);
+      assert.equal(obtenu, attendu, 'audience « ' + a + ' » : registre ' + obtenu
+        + ' au lieu de ' + attendu);
+    });
+    console.log('\n      ── LES TROIS REGISTRES ET LE REPLI, EN ENTIER ──');
+    [['professionnels', prompt.pro], ['personnes accompagnées', prompt.accompagnees],
+     ['public large', prompt.large], ['repli, public absent', prompt.sansPublic]].forEach(([nom, t]) => {
+      const i = t.indexOf('À QUI VOUS PARLEZ.');
+      console.log('\n      [' + nom + ']');
+      t.slice(i + 19, t.indexOf('\n\n', i)).split('\n').forEach((l) => console.log('        ' + l));
+    });
+    console.log('');
     assert.match(prompt.vous, /en disant « vous ». Jamais « tu »/);
     assert.match(prompt.tu, /en disant « tu ». Jamais « vous »/);
     assert.ok(!/« tu ». Jamais « vous »/.test(prompt.vous), 'les deux adresses ne doivent pas coexister');
@@ -313,11 +359,24 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       const A = window.NarrationIA;
       const etapes = A.contenuParEtape(d);
       const r = A.repartirMots(etapes, 8);
+      const sans = JSON.parse(JSON.stringify(d));
+      delete sans.purpose;
       return { texte: A.construireMessage(d, etapes, r, { minutes: 8 }), etapes: etapes.length,
+               sansObjectif: A.construireMessage(sans, A.contenuParEtape(sans), r, { minutes: 8 }),
                doc: JSON.stringify(d) };
     }, DOC);
     assert.ok(msg.texte.indexOf('stepId:') !== -1, 'les identifiants d\'étape doivent y être');
     assert.ok(msg.texte.indexOf('cible:') !== -1, 'les cibles de mots aussi');
+    // Vérification 2 : le titre, le public ET l'objectif sont transportés, nommément.
+    assert.ok(msg.texte.indexOf('Titre de la présentation : ' + DOC.title) !== -1,
+      'le titre doit être dans le message');
+    assert.ok(msg.texte.indexOf('Public : ' + DOC.audience) !== -1,
+      'le public doit être dans le message');
+    assert.ok(msg.texte.indexOf('Objectif : ' + DOC.purpose) !== -1,
+      'l\'objectif doit être dans le message : ' + msg.texte.slice(0, 200));
+    // Et un document sans objectif ne doit pas porter une ligne vide.
+    assert.equal(msg.sansObjectif.indexOf('Objectif :'), -1,
+      'sans purpose, aucune ligne « Objectif » : ' + msg.sansObjectif.slice(0, 160));
     // Ce qui ne doit PAS y être : le document brut, les citations, le snapshot, les manifestes.
     ['sourceSnapshotId', 'citationLinks', 'renderManifestId', 'contentChecksum', 'documentId',
      'versionId', 'requestId'].forEach((champ) => {

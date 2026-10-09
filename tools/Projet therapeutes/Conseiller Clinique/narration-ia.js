@@ -240,7 +240,10 @@
       registre = 'Des professionnels. Vous pouvez nommer un mécanisme par son nom, à condition '
         + 'de l\'expliquer en une phrase. Pas de vulgarisation appuyée, pas de ton pédagogique '
         + 'envers quelqu\'un qui connaît le sujet mieux que la vidéo.';
-    } else if (/patient|accompagn|consultant|couple en|personne suivie/.test(pub)) {
+    // « couple en » ne reconnaissait pas « couples en difficulté » — trouvé en éprouvant la
+    // phrase réelle du document de Christophe à côté de six autres. Le motif est désormais
+    // explicite sur ce qu'il vise, plutôt que large et approximatif.
+    } else if (/patient|accompagn|consultant|personnes? suivies?|couples? en (difficult|crise|souffrance|th[ée]rapie)/.test(pub)) {
       registre = 'Des personnes accompagnées, qui se reconnaîtront peut-être dans ce qui est dit. '
         + 'Redoublez de précaution : aucune description qui ressemble à un jugement, aucune phrase '
         + 'qui laisse entendre qu\'elles auraient dû savoir. Nommez ce qui se passe sans le qualifier.';
@@ -287,6 +290,10 @@
       '  Ne commencez pas par « Dans cette présentation, nous allons voir… ».',
       '- La DERNIÈRE étape referme. Elle ne récapitule pas mécaniquement ce qui a été dit : elle',
       '  laisse le spectateur avec une chose à emporter, ou une question à se poser.',
+      '- Le message vous donne l\'OBJECTIF de la présentation. C\'est lui qui décide de ces deux',
+      '  étapes : la première doit faire naître le besoin auquel l\'objectif répond, la dernière',
+      '  doit laisser le spectateur en mesure de faire ce que l\'objectif annonce. Ne récitez',
+      '  jamais l\'objectif : il se voit dans ce que vous écrivez, il ne se dit pas.',
       '',
       'CE QUI EST INTERDIT.',
       '- Aucune statistique, aucun pourcentage, aucune étude, aucune source, aucun nom d\'auteur',
@@ -346,6 +353,10 @@
     var lignes = [];
     lignes.push('Titre de la présentation : ' + (doc.title || 'sans titre'));
     if (doc.audience) lignes.push('Public : ' + doc.audience);
+    // L'OBJECTIF du document. Il dit ce que la présentation cherche à produire chez le
+    // spectateur — c'est la seule chose qui permette d'ouvrir et de refermer juste. Sans lui,
+    // la première et la dernière étape ne pouvaient que deviner.
+    if (doc.purpose) lignes.push('Objectif : ' + doc.purpose);
     lignes.push('Durée visée pour l\'ensemble : ' + o.minutes + ' minutes, soit environ '
       + repartition.total_reparti + ' mots.');
     lignes.push('');
