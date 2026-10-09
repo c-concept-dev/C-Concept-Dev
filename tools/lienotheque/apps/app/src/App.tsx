@@ -330,6 +330,7 @@ export function App(): JSX.Element {
         onThemeChange={changerTheme}
         onRecherche={() => setCherche(true)}
         donnees={donnees}
+        enTraitement={file.filter((travail) => travail.etat === "en_cours" || travail.etat === "verrouille").length}
       />
       <div className="ln-application__vue">{ecran}</div>
       {cherche && vue !== undefined ? (

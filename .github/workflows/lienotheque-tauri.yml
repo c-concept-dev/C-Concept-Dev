@@ -80,7 +80,24 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          choco install tesseract --no-progress -y
+          # Le dépôt chocolatey répond parfois 504 : une panne de son côté, pas de la nôtre, et
+          # elle fait sauter toutes les étapes suivantes. Deux tentatives, une pause entre les
+          # deux. Pas davantage : au-delà, c'est une vraie panne, et une file de réessais ne la
+          # ferait pas disparaître — elle la rendrait seulement plus lente à voir.
+          # Un code de sortie non nul doit revenir à la boucle, pas interrompre le script :
+          # selon la version de PowerShell, « stop » transforme l'un en l'autre, et le réessai ne
+          # servirait alors jamais. On le dit plutôt que de s'en remettre à la version installée.
+          $PSNativeCommandUseErrorActionPreference = $false
+          $tentatives = 2
+          for ($essai = 1; $essai -le $tentatives; $essai++) {
+            choco install tesseract --no-progress -y
+            if ($LASTEXITCODE -eq 0) { break }
+            if ($essai -eq $tentatives) {
+              throw "chocolatey n'a pas installé Tesseract après $tentatives tentatives (code $LASTEXITCODE)."
+            }
+            Write-Host "chocolatey a échoué (code $LASTEXITCODE) : nouvelle tentative dans 30 s."
+            Start-Sleep -Seconds 30
+          }
           # L'installateur ne livre que l'anglais : on ajoute le modèle français officiel.
           $tessdata = "C:\Program Files\Tesseract-OCR\tessdata"
           $fra = Join-Path $tessdata "fra.traineddata"
