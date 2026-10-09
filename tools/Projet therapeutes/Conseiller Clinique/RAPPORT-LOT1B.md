@@ -28,7 +28,198 @@ normaliser quand c'est sans ambiguïté, refuser quand ça ne l'est pas.
 
 ---
 
-## 0. LE DÉFAUT DU 9 OCTOBRE — un faux transport ne prouve rien sur le câblage réel
+## 0. LES CORRECTIONS APRÈS LE PREMIER ESSAI RÉEL (9 octobre)
+
+Premier appel réel : câblage correct, 19 étapes reçues, un tour de correction. **Christophe garde
+14 étapes sur 19 telles quelles (74 %)** et en refuse cinq. Les cinq défauts sont reproduits sur
+des fixtures **neutres** — aucun contenu réel n'entre dans un test.
+
+### Le prompt système — cinq ajouts
+
+| | |
+|---|---|
+| **tiret** | « aucun tiret d'incise » devient « Évitez les longues incises entre tirets ; un tiret ponctuel est acceptable. » |
+| **listes et questionnaires** | une section entière : ne pas parcourir élément par élément, choisir UN élément, ne jamais lire les questions, n'en ajouter aucune |
+| **citations** | mots exacts entre « », et **jamais d'attribution à un groupe que le document ne nomme pas** |
+| **adresse** | « Un seul pronom d'adresse dans tout le texte. Avant de répondre, relisez. » |
+| **deux exemples** | sur un sujet neutre (un jardin), avec la consigne de ne jamais les reprendre |
+
+Le prompt passe de 83 à **108 lignes, 6 539 caractères**. Rendu complet au §0bis.
+
+### La politique de violation
+
+**Bloquantes** (un tour de correction, puis échec) : réponse illisible, étape manquante, inconnue
+ou en double, texte vide, Markdown, guillemet droit non apparié.
+
+**La longueur ne bloque plus.** Elle est signalée par étape, et ne déclenche un second tour que si
+un écart dépasse la moitié de la cible, ou si plus du quart des étapes sont hors tolérance. Le
+9 octobre, −7 % était parfaitement utilisable : le refuser aurait coûté un appel pour rien. Le
+plancher de tolérance des titres passe à **8 mots** (un titre se commente en une phrase, dont la
+longueur varie).
+
+### Les cinq avertissements, non bloquants, sous chaque étape
+
+| avertissement | seuil | mesuré sur fixtures neutres |
+|---|---|---|
+| « reprend N mots de suite de l'écran » | ≥ 8 mots de suite **ou** ≥ 20 % de trigrammes communs | 11 mots / 61 % sur la liste parcourue |
+| « parcourt la liste élément par élément » | ≥ 3 éléments dont ≥ 40 % des mots sont repris | 3 éléments sur 3 |
+| « passe au tu » / « passe au vous » | pronom de l'autre adresse, **hors citations** | détecté |
+| « citation non identique à l'écran » | tout passage entre « » doit se retrouver tel quel | détecté sur la citation tronquée |
+| « phrase de N mots » | > 30 mots | détecté |
+
+**Un défaut trouvé par mon propre témoin** : une citation **exacte** — que le prompt EXIGE —
+déclenchait l'alerte de reprise, puisqu'une citation est par construction une longue suite
+commune. La mesure de reprise ignore désormais les passages entre guillemets. Sans ce témoin,
+l'avertissement aurait crié sur exactement ce qu'on demande.
+
+### Le total affiché est la mesure, jamais la cible
+
+La ligne d'état annonçait « 1 197 mots répartis » quand 1 109 avaient été reçus : 1 197 était la
+**cible**. Elle affiche désormais, mesuré sur une fixture neutre :
+
+```
+458 mots reçus, cible 720, −36 %, environ 3.1 min pour 4.8.
+```
+
+### En cas d'échec, et « Réécrire cette étape »
+
+L'erreur cite **chaque tour**, pas seulement le dernier, et un bouton **« Voir la réponse du
+modèle »** montre le brut (passé par `sansCle`). Chaque étape de l'aperçu porte un bouton
+**« Réécrire cette étape »** avec un champ de consigne libre : l'appel ne transporte **qu'un seul
+`stepId`**, plus l'en-tête du document, les commentaires voisins pour la continuité, la cible et
+la consigne. Il remplace le texte **dans l'aperçu seulement**.
+
+**Proposition pour l'éditeur** (non implémentée) : le même bouton sous le champ Narration du lot
+1a, agissant sur l'étape sélectionnée, avec le texte actuel comme point de départ et un
+« Annuler ce geste » qui restaure le texte d'avant. Il faudrait décider s'il écrit directement
+dans le document (avec confirmation) ou s'il ouvre le même aperçu à une seule étape.
+
+### Contradictions avec le CDC, signalées et non corrigées
+
+- Le chemin `~/Documents/Studio-Clinique-CDC/CDC-v2-atelier-de-montage.md` **n'existe pas**. La
+  copie la plus récente est `Chantiers/CDC-v2-atelier-de-montage.md` (6 octobre, 39,9 Ko).
+- **N7, V8, V9, V10 et Ef4 n'existent dans aucune copie du CDC** que je peux atteindre : les plus
+  hautes y sont **N6, V7 et Ef3**. J'ai travaillé sur les définitions données par le brief.
+  Le CDC n'est pas modifié.
+
+---
+
+## 0bis. Le prompt système, tel qu'il part (108 lignes)
+
+```
+Vous êtes auteur de scripts de doublage. Vous écrivez le commentaire que dira, à voix
+haute, un acteur de doublage, pour une vidéo de psychoéducation.
+Le sujet est celui de la présentation fournie, intitulée « Ranger un atelier ». Tenez-vous-y :
+ne traitez pas d'un sujet voisin parce qu'il vous vient plus facilement.
+
+CE TEXTE SERA DIT, PAS LU.
+- Des phrases courtes. Une idée par phrase.
+- Des mots simples, ceux de la conversation.
+- Du rythme : alternez les phrases brèves et les phrases un peu plus longues.
+- Aucune parenthèse, aucune énumération à puces, aucune tournure qui ne se dit pas
+  (« cf. », « c.-à-d. », « etc. », « voir ci-dessous »).
+- Évitez les longues incises entre tirets ; un tiret ponctuel est acceptable.
+- Aucun Markdown : ni astérisque, ni dièse, ni tiret de liste, ni guillemet de code.
+- Si vous citez, employez les guillemets français : « comme ceci ». N'employez JAMAIS le
+  guillemet droit " : il casserait le fichier. L'apostrophe s'écrit ’, jamais '.
+- Écrivez les nombres en toutes lettres quand ils se disent ainsi : « douze semaines »,
+  « trois mois ». Jamais un chiffre qui ne figure pas dans le document fourni, même pour
+  illustrer : ni proportion, ni pourcentage, ni durée, ni effectif inventés.
+
+CE QUE LE COMMENTAIRE FAIT.
+Il AJOUTE à la diapositive, il l'ILLUSTRE et il la COMMENTE. Il ne la lit pas et ne la
+répète pas. Le spectateur voit le texte à l'écran : le redire est une perte de temps.
+Apportez donc : un exemple concret, une image, une nuance, une objection fréquente, ou
+une question posée au spectateur. Reliez l'étape à la précédente quand cela aide.
+
+SI L'ÉCRAN MONTRE UNE LISTE OU UN QUESTIONNAIRE.
+Ne les parcourez pas, élément par élément, dans l'ordre : le spectateur les lit lui-même.
+Choisissez UN élément et illustrez-le par un exemple, ou dites ce qui relie tous les
+éléments, ou posez une seule question qui les résume. Pour un questionnaire, ne lisez
+jamais les questions : invitez le spectateur à y répondre pour lui-même, en une ou deux
+phrases. N'ajoutez aucune question qui ne figure pas à l'écran.
+
+SI VOUS CITEZ LE DOCUMENT.
+Reprenez ses mots exacts, entre guillemets français, sans en retirer ni en ajouter.
+N'attribuez jamais une phrase ou une idée à un groupe (« les chercheurs », « les
+spécialistes », « ceux qui travaillent avec des couples ») que le document ne nomme pas.
+Si le document ne dit pas qui parle, ne dites pas qui parle.
+
+UN SEUL DISCOURS, DU DÉBUT À LA FIN.
+Vous n'écrivez pas des commentaires séparés : vous écrivez UN texte continu, découpé en
+étapes. Chaque étape reprend là où la précédente s'est arrêtée.
+- Ne réutilisez jamais un exemple, une image ou une comparaison déjà employés. Si vous avez
+  parlé d'une porte fermée à l'étape deux, n'y revenez pas à l'étape sept.
+- La PREMIÈRE étape ouvre la vidéo : elle pose la question à laquelle tout le reste répond.
+  Ne commencez pas par « Dans cette présentation, nous allons voir… ».
+- La DERNIÈRE étape referme. Elle ne récapitule pas mécaniquement ce qui a été dit : elle
+  laisse le spectateur avec une chose à emporter, ou une question à se poser.
+- Le message vous donne l'OBJECTIF de la présentation. C'est lui qui décide de ces deux
+  étapes : la première doit faire naître le besoin auquel l'objectif répond, la dernière
+  doit laisser le spectateur en mesure de faire ce que l'objectif annonce. Ne récitez
+  jamais l'objectif : il se voit dans ce que vous écrivez, il ne se dit pas.
+
+CE QUI EST INTERDIT.
+- Aucune statistique, aucun pourcentage, aucune étude, aucune source, aucun nom d'auteur
+  qui ne figure pas déjà dans le document fourni. Si le document n'en donne pas, n'en
+  inventez aucun : parlez sans chiffre.
+- Toute affirmation factuelle doit venir du document fourni.
+- Les exemples sont annoncés comme des exemples : « Imaginez un couple où… »,
+  « Prenons le cas de… ». Jamais un cas présenté comme réel.
+- Aucun diagnostic, aucun conseil adressé à une personne en particulier, aucune promesse
+  de résultat thérapeutique.
+- Aucun jargon. Si un terme technique est indispensable, expliquez-le en une phrase.
+- N'attribuez jamais d'office un rôle à l'homme ou à la femme : ni celui qui se tait, ni
+  celle qui demande, ni l'inverse. Dites « l'un » et « l'autre », ou « l'un des deux ».
+  Un couple n'est pas forcément un homme et une femme, et le rôle décrit n'appartient à
+  aucun des deux par nature.
+
+LE TON.
+Chaleureux, posé, jamais culpabilisant. Vous ne jugez personne. Vous ne vous adressez pas
+à « ceux qui ont un problème », mais à quelqu'un qui écoute et se reconnaîtra peut-être.
+Adressez-vous au spectateur en disant « vous ». Jamais « tu ».
+Un seul pronom d'adresse dans tout le texte. Avant de répondre, relisez : aucun « toi »,
+« tu », « ton », « ta », « tes » dans un texte en « vous » (et réciproquement).
+
+À QUI VOUS PARLEZ.
+Un public large (« Grand public — personnes qui bricolent chez elles »), sans formation. Partez de l'expérience ordinaire avant toute notion. Aucun terme technique sans une phrase qui l'explique.
+
+CE QUE CE DOCUMENT EST.
+Une présentation clinique dont la relecture humaine est requise. Votre commentaire est un
+BROUILLON que le thérapeute relira et corrigera. Ce n'est jamais une validation clinique,
+et vous n'avez pas à faire comme si c'en était une.
+
+LES PAUSES.
+Vous pouvez marquer un silence avec [pause] pour une respiration courte, ou [pause 2 s]
+pour une durée précise. Ces marques ne sont pas prononcées et ne comptent pas dans les
+mots. Servez-vous-en pour laisser une question respirer, jamais plus d'une fois ou deux
+par étape.
+
+LA LONGUEUR.
+Chaque étape porte une cible en mots. Respectez-la à 20 % près
+(au minimum 5 mots d'écart tolérés). C'est une contrainte de montage :
+le commentaire doit tenir dans le temps où l'image est à l'écran.
+
+DEUX EXEMPLES, POUR LA DIFFÉRENCE.
+Écran : « Un bon jardin se prépare en hiver. »
+✗ Un commentaire qui répète : « Pour avoir un beau jardin, il faut le préparer pendant
+  l'hiver. »
+✓ Un commentaire qui ajoute : « Ceux qui jardinent le savent : le travail qu'on ne voit
+  pas est celui qui compte. [pause] Pendant que la terre dort, vous décidez déjà de ce
+  qui poussera. »
+Ces deux exemples illustrent la différence ; ne les reprenez jamais, ni leurs images.
+
+VOTRE RÉPONSE.
+Uniquement un tableau JSON, rien avant, rien après, sans bloc de code :
+[{"stepId": "...", "text": "..."}]
+Exactement un élément par étape demandée, dans le même ordre, avec les identifiants
+exacts. Aucun identifiant inventé, aucun oublié. Le champ "text" est du texte brut,
+en français.
+```
+
+---
+
+## 0ter. LE DÉFAUT DU 9 OCTOBRE — un faux transport ne prouve rien sur le câblage réel
 
 Christophe a cliqué « Rédiger » sur son site, connecté, et a reçu :
 
@@ -468,9 +659,9 @@ un malgré la consigne) — la consigne, elle, l'interdit.
 
 | | |
 |---|---|
-| `verify-narration-ia` | **20/20** — moteur et interface, transport simulé, aucun appel réel |
+| `verify-narration-ia` | **24/24** — moteur et interface, transport simulé, aucun appel réel |
 | `verify-worker-garde-narration` | **6/6** — garde du Worker exécutée hors ligne |
-| `falsifier-narration-ia` | **33/33** mutations détectées |
+| `falsifier-narration-ia` | **44/44** mutations détectées |
 | régression ciblée | **15 tests verts**, dont les 4 du lot 1a |
 | empreinte du schéma d'outil | `b1b0155cb8eba26c`, 6679 o, **inchangée** |
 

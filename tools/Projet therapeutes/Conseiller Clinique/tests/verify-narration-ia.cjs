@@ -421,6 +421,9 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
         markdown: JSON.stringify(etapes.map((e, i) => ({ stepId: e.stepId, text: (i === 0 ? '**Imaginez** un couple. ' : 'Imaginez un couple. ') + mot.repeat(Math.max(0, cible[e.stepId] - 3)) }))),
         tropLong: JSON.stringify(etapes.map((e) => ({ stepId: e.stepId, text: texteDe(cible[e.stepId] * 3) }))),
         tropCourt: JSON.stringify(etapes.map((e) => ({ stepId: e.stepId, text: 'Trop court.' }))),
+        // Un écart modéré : −8 % sur chaque étape, comme le 9 octobre.
+        unPeuCourt: JSON.stringify(etapes.map((e) => ({ stepId: e.stepId,
+          text: texteDe(Math.round(cible[e.stepId] * 0.92)) }))),
         jsonInvalide: '[{"stepId": "x", "text": "manque une accolade"',
         vide: '',
         enBlocDeCode: '```json\n' + bonne + '\n```',
@@ -428,7 +431,10 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       const out = {};
       for (const [nom, rep] of Object.entries(fixtures)) {
         const v = A.validerReponse(rep, etapes, r);
-        out[nom] = { ok: v.ok, n: v.entrees.length, violations: v.violations.slice(0, 3) };
+        out[nom] = { ok: v.ok, n: v.entrees.length, violations: v.violations.slice(0, 3),
+                     longueurs: v.longueurs.map((l) => l.texte).slice(0, 3),
+                     longueurGrave: v.longueurGrave, raison: v.raisonLongueur,
+                     motsRecus: v.mots_recus };
       }
       return { out, etapes: etapes.length };
     }, DOC);
@@ -436,9 +442,11 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
     assert.equal(c.valide.ok, true, 'la réponse valide doit passer : ' + c.valide.violations.join(' | '));
     assert.equal(c.valide.n, cas.etapes, 'une entrée par étape');
     assert.equal(c.enBlocDeCode.ok, true, 'un bloc de code est toléré à la LECTURE : ' + c.enBlocDeCode.violations.join(' | '));
+    // LES BLOQUANTES — décision du 9 octobre : réponse illisible, étape manquante, inconnue ou
+    // en double, texte vide, Markdown, guillemet droit non apparié. Et RIEN D'AUTRE.
     const doitEchouer = {
       etapeManquante: /étape manquante/, identifiantInconnu: /identifiant inconnu/,
-      markdown: /Markdown/, tropLong: /trop long/, tropCourt: /trop court/,
+      markdown: /Markdown/,
       jsonInvalide: /pas un tableau JSON lisible/, vide: /pas un tableau JSON lisible/,
     };
     Object.entries(doitEchouer).forEach(([nom, re]) => {
@@ -446,6 +454,22 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       assert.ok(c[nom].violations.some((v) => re.test(v)),
         nom + ' : motif attendu ' + re + ', obtenu ' + JSON.stringify(c[nom].violations));
     });
+    // LA LONGUEUR N'EST PLUS BLOQUANTE. Elle est signalée, et elle seule décide d'un second
+    // tour quand elle est grave. Le 9 octobre, une réponse à −7 % a été parfaitement utilisable :
+    // la refuser aurait coûté un appel pour rien.
+    ['tropLong', 'tropCourt'].forEach((nom) => {
+      assert.equal(c[nom].ok, true, nom + ' ne doit PAS être bloquant : ' + c[nom].violations.join(' | '));
+      assert.deepEqual(c[nom].violations, [], nom + ' : aucune violation bloquante');
+      assert.ok(c[nom].longueurs.length > 0, nom + ' doit être SIGNALÉ : ' + JSON.stringify(c[nom].longueurs));
+      assert.equal(c[nom].longueurGrave, true, nom + ' est un écart grave, donc un tour de correction');
+      assert.ok(c[nom].raison, 'la raison doit être dite : ' + c[nom].raison);
+    });
+    assert.ok(/trop long/.test(c.tropLong.longueurs.join(' ')), c.tropLong.longueurs.join(' | '));
+    assert.ok(/trop court/.test(c.tropCourt.longueurs.join(' ')), c.tropCourt.longueurs.join(' | '));
+    // Un écart MODÉRÉ ne déclenche rien du tout.
+    assert.equal(c.unPeuCourt.ok, true);
+    assert.equal(c.unPeuCourt.longueurGrave, false,
+      'un écart de quelques pour cent ne doit pas provoquer de second appel : ' + c.unPeuCourt.raison);
     console.log('      ' + Object.keys(c).length + ' fixtures : '
       + Object.entries(c).map(([k, v]) => k + '=' + (v.ok ? 'ok' : 'refusé')).join(', '));
     pass('contrat de réponse : les 9 fixtures produisent chacune le comportement prévu.');
@@ -506,7 +530,10 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       const cible = {}; r.cibles.forEach((x) => { cible[x.stepId] = x.mots; });
       const bonne = JSON.stringify(etapes.map((e) => ({ stepId: e.stepId,
         text: ('Imaginez un couple. ' + 'phrase '.repeat(Math.max(0, cible[e.stepId] - 3))).trim() })));
-      const mauvaise = JSON.stringify(etapes.map((e) => ({ stepId: e.stepId, text: 'Trop court.' })));
+      // Une violation BLOQUANTE — une étape manquante — et non plus un écart de longueur : la
+      // longueur ne bloque plus, elle ne pourrait donc plus faire échouer deux tours.
+      const mauvaise = JSON.stringify(etapes.slice(1).map((e) => ({ stepId: e.stepId,
+        text: ('Imaginez un couple. ' + 'phrase '.repeat(Math.max(0, cible[e.stepId] - 3))).trim() })));
 
       // a) mauvaise puis bonne → réussit au 2e tour, et le 2e message dit ce qui n'allait pas
       let vus = [], secondTour = null;
@@ -528,7 +555,7 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       let r2 = null, err = null, appels = 0;
       try { r2 = await A.rediger(d, { minutes: 8, seulementVides: false,
         transport: async () => { appels++; return mauvaise; } }); }
-      catch (e) { err = { message: e.message, journal: e.journal }; }
+      catch (e) { err = { message: e.message, journal: e.journal, brut: e.brut }; }
       // c) le transport reçoit bien le budget et les jetons dérivés
       let vu = null;
       await A.rediger(d, { minutes: 8, seulementVides: false,
@@ -546,12 +573,18 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       'le 2e tour doit renvoyer au modèle SA PROPRE réponse fautive, pas une chaîne vide');
     assert.match(correction.secondTour.consigne, /ne respecte pas le contrat sur les points suivants/,
       'et la consigne doit lister les violations : ' + String(correction.secondTour.consigne).slice(0, 80));
-    assert.match(correction.secondTour.consigne, /trop court/,
+    assert.match(correction.secondTour.consigne, /étape manquante/,
       'nommément : ' + String(correction.secondTour.consigne).slice(0, 120));
     assert.equal(correction.resultatPartiel, null, 'JAMAIS de résultat partiel');
     assert.ok(correction.erreur, 'deux échecs doivent lever une erreur');
     assert.match(correction.erreur.message, /n’a pas respecté le contrat après un tour de correction/);
-    assert.match(correction.erreur.message, /trop court/, 'l\'erreur doit DIRE ce qui n\'allait pas');
+    assert.match(correction.erreur.message, /étape manquante/, 'l\'erreur doit DIRE ce qui n\'allait pas');
+    // L'ERREUR CITE CHAQUE TOUR, pas seulement le dernier : savoir que le second a échoué sans
+    // savoir ce que le premier reprochait ne permet pas de comprendre ce qui s'est passé.
+    assert.match(correction.erreur.message, /tour 1 :/, 'le tour 1 doit être cité : ' + correction.erreur.message);
+    assert.match(correction.erreur.message, /tour 2 :/, 'le tour 2 aussi');
+    assert.ok(correction.erreur.brut && correction.erreur.brut.length > 10,
+      'la réponse brute doit être gardée pour « Voir la réponse du modèle »');
     assert.equal(correction.erreur.journal.length, 2, 'le journal doit porter les deux tours');
     assert.equal(correction.appelsQuandToutEchoue, 2,
       'UN SEUL tour de correction : deux appels au total, jamais plus — ' 
@@ -905,6 +938,277 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       + reel.vu.corps.payload.model + ', max_tokens ' + reel.vu.corps.payload.max_tokens
       + ', X-API-Key présent  |  401 → « ' + reel.erreur401.slice(0, 48) + '… » sans la clé');
     pass('le VRAI transport, dans la vraie page : même Worker que l\'application, clé du cœur, jamais dans une erreur ni un journal.');
+
+    // ── 20. LES CINQ AVERTISSEMENTS, sur des fixtures NEUTRES ────────────────────────────────
+    // Les cinq défauts que Christophe a refusés le 9 octobre, reproduits sur une présentation
+    // sans aucun rapport avec son travail. Mesurés sur le MOTEUR ici (contrôle 20), puis sur
+    // CE QUE LA PAGE AFFICHE (contrôle 21) : les deux, parce que l'un sans l'autre ment.
+    const { PRESENTATION_LISTES } = require('./narration-ia-fixtures.cjs');
+    const cinq = await page.evaluate(async (d) => {
+      const A = window.NarrationIA;
+      const etapes = A.contenuParEtape(d);
+      const parId = {}; etapes.forEach((e) => { parId[e.stepId] = e; });
+      const r = A.repartirMots(etapes, 4);
+      const texteDocument = A.normaliserMots(etapes.map((e) =>
+        (e.cardTitle || '') + ' ' + (e.texte || '')).join(' '));
+      const juger = (stepId, texte, adresse) => A.avertissementsEtape(texte, parId[stepId],
+        { adresse: adresse || 'vous', texteDocument: texteDocument });
+      return {
+        // (a) citation modifiée ET attribuée à un groupe que le document ne nomme pas
+        a: juger('citation-01', 'Ceux qui bricolent le disent souvent : « un atelier rangé fait '
+          + 'gagner du temps ». On les croit volontiers.'),
+        // (b) un « toi » dans un texte en « vous »
+        b: juger('heading-01', 'Vous rangez votre atelier quand vous partez. Et toi, tu le fais ?'),
+        // (c) une liste de trois éléments parcourue dans l'ordre
+        c: juger('liste-trois', 'La première chose est de remettre chaque outil à sa place avant '
+          + 'de quitter la pièce. La deuxième est de vider les chutes dans un seul bac, jamais '
+          + 'sur l\u2019établi. La troisième est de noter sur une feuille ce qui manque pour la '
+          + 'prochaine fois.'),
+        // (d) un questionnaire lu à voix haute, avec une question ajoutée
+        d: juger('questionnaire-01', 'Combien d\u2019outils traînent sur votre établi en ce '
+          + 'moment ? Quand avez-vous vidé les chutes pour la dernière fois ? Savez-vous ce qui '
+          + 'vous manque pour votre prochain chantier ? Combien de temps perdez-vous à chercher '
+          + 'un outil ? Et combien de fois avez-vous racheté un outil que vous aviez déjà ?'),
+        // (e) une liste de quatre idées parcourue élément par élément
+        e: juger('liste-quatre', 'Ranger en partant coûte deux minutes et en fait gagner vingt. '
+          + 'Un seul bac pour les chutes évite de trier deux fois. Une liste de manques évite un '
+          + 'aller-retour au magasin. Et un établi vide est une invitation à recommencer, ce qui '
+          + 'est peut-être le plus important de tout, parce que c\u2019est ce qui donne envie de '
+          + 'revenir le lendemain.'),
+        // Le TÉMOIN : un commentaire qui ajoute au lieu de redire. Il ne doit RIEN déclencher.
+        temoin: juger('liste-trois', 'Imaginez la scène. Vous fermez la porte, et demain matin '
+          + 'tout sera exactement là où votre main le cherchera. [pause] C\u2019est ce que coûte '
+          + 'une minute de plus, le soir.'),
+        temoinCitation: juger('citation-01', 'Une phrase de l\u2019écran le dit mieux que moi : '
+          + '« Un atelier bien rangé fait gagner plus de temps qu\u2019il n\u2019en coûte. »'),
+        // REPRISE SEULE : douze mots de l'écran repris sans guillemets, sur un bloc qui n'est
+        // ni une liste ni un questionnaire. Sans elle, retirer l'avertissement de reprise
+        // passait inaperçu — les autres cas le masquaient derrière « parcours ».
+        repriseSeule: juger('citation-01', 'Un atelier bien rangé fait gagner plus de temps '
+          + 'qu\u2019il n\u2019en coûte, et c\u2019est vrai aussi d\u2019une cuisine.'),
+        // Une phrase trop longue
+        phrase: juger('heading-01', 'Il y a une chose que personne ne vous dira jamais au moment '
+          + 'où vous achetez votre premier établi et que pourtant tout le monde finit par '
+          + 'apprendre à ses dépens au bout de quelques mois de pratique quotidienne et de '
+          + 'désordre accumulé sans que rien ne soit jamais remis en place.'),
+        seuils: { suite: A.SEUIL_SUITE_MOTS, tri: A.SEUIL_TRIGRAMMES, phrase: A.SEUIL_PHRASE_LONGUE },
+      };
+    }, PRESENTATION_LISTES);
+
+    const typesDe = (liste) => liste.map((x) => x.type).sort();
+    assert.ok(typesDe(cinq.a).includes('citation'),
+      '(a) la citation modifiée doit être signalée : ' + JSON.stringify(cinq.a));
+    assert.ok(typesDe(cinq.b).includes('adresse'),
+      '(b) le « toi » dans un texte en « vous » doit être signalé : ' + JSON.stringify(cinq.b));
+    assert.ok(typesDe(cinq.c).includes('parcours'),
+      '(c) la liste de trois parcourue doit être signalée : ' + JSON.stringify(cinq.c));
+    assert.ok(typesDe(cinq.d).includes('parcours'),
+      '(d) le questionnaire lu doit être signalé : ' + JSON.stringify(cinq.d));
+    assert.ok(typesDe(cinq.e).includes('parcours') || typesDe(cinq.e).includes('reprise'),
+      '(e) la liste de quatre parcourue doit être signalée : ' + JSON.stringify(cinq.e));
+    assert.deepEqual(typesDe(cinq.repriseSeule), ['reprise'],
+      'une reprise littérale SANS guillemets doit être signalée, et elle seule : '
+      + JSON.stringify(cinq.repriseSeule));
+    assert.ok(cinq.repriseSeule[0].suite >= cinq.seuils.suite,
+      'la plus longue suite doit atteindre le seuil : ' + cinq.repriseSeule[0].suite);
+    assert.ok(cinq.phrase.some((x) => x.type === 'phrase' && x.mots > cinq.seuils.phrase),
+      'une phrase de plus de ' + cinq.seuils.phrase + ' mots doit être signalée : ' + JSON.stringify(cinq.phrase));
+    // LE TÉMOIN : sans lui, un détecteur qui signale TOUT passerait les six assertions ci-dessus.
+    assert.deepEqual(cinq.temoin, [],
+      'un commentaire qui ajoute ne doit RIEN déclencher : ' + JSON.stringify(cinq.temoin));
+    assert.deepEqual(cinq.temoinCitation, [],
+      'une citation EXACTE ne doit rien déclencher : ' + JSON.stringify(cinq.temoinCitation));
+    console.log('      (a) ' + typesDe(cinq.a).join(',') + '  (b) ' + typesDe(cinq.b).join(',')
+      + '  (c) ' + typesDe(cinq.c).join(',') + '  (d) ' + typesDe(cinq.d).join(',')
+      + '  (e) ' + typesDe(cinq.e).join(',') + '  |  témoins : rien');
+    pass('les cinq défauts du 9 octobre signalés sur fixtures neutres ; deux témoins ne déclenchent rien.');
+
+    // (f) UN TITRE UN MOT SOUS LA TOLÉRANCE. Avec le plancher de 8 mots décidé le 9 octobre, il
+    // passe ; avec l'ancien plancher de 5, il serait signalé. C'est exactement la différence que
+    // le plancher doit faire, et elle se mesure.
+    const titreLimite = await page.evaluate(async (d) => {
+      const A = window.NarrationIA;
+      const etapes = A.contenuParEtape(d).filter((e) => e.type === 'heading').slice(0, 1);
+      const cible = 20;
+      const r = { cibles: [{ stepId: etapes[0].stepId, mots: cible }] };
+      const mots = (n) => 'mot '.repeat(n).trim() + '.';
+      // marge = max(plancher, 20 % de 20 = 4). Avec 8 → 12..28 ; avec 5 → 15..25.
+      const treize = JSON.stringify([{ stepId: etapes[0].stepId, text: mots(13) }]);
+      const v = A.validerReponse(treize, etapes, r, {});
+      return { plancherTitre: A.TOLERANCE_PLANCHER_TITRE, plancher: A.TOLERANCE_PLANCHER,
+               type: etapes[0].type, marge: v.entrees[0] && v.entrees[0].marge,
+               horsTolerance: v.entrees[0] && v.entrees[0].horsTolerance,
+               longueurs: v.longueurs.length, mots: v.entrees[0] && v.entrees[0].mots };
+    }, PRESENTATION_LISTES);
+    assert.equal(titreLimite.plancherTitre, 8, 'le plancher des titres est de 8 mots');
+    assert.equal(titreLimite.marge, 8, 'la marge appliquée à un titre de cible 20 doit être 8 : '
+      + titreLimite.marge);
+    assert.equal(titreLimite.horsTolerance, false,
+      'treize mots pour une cible de vingt tiennent dans la marge d\'un titre');
+    assert.equal(titreLimite.longueurs, 0, 'et rien n\'est signalé');
+    assert.ok(titreLimite.marge > titreLimite.plancher,
+      'le plancher des titres doit être PLUS LARGE que le plancher général ('
+      + titreLimite.plancher + ')');
+    console.log('      titre, cible 20, reçu ' + titreLimite.mots + ' mots : marge '
+      + titreLimite.marge + ' (plancher titre ' + titreLimite.plancherTitre
+      + ', général ' + titreLimite.plancher + ') → dans la tolérance');
+    pass('un titre un mot sous l\'ancienne tolérance passe avec le plancher de 8 mots.');
+
+    // ── 21. CE QUE LA PAGE AFFICHE : avertissements, total honnête, bouton de réécriture ─────
+    // Tout ce qui précède interroge le MODULE. Ce contrôle-ci lit le DOM et clique : c'est la
+    // seule façon de savoir ce que Christophe verra.
+    await page.evaluate((d) => {
+      window._adocArtifacts['listes'] = {
+        name: d.title, _adocGenerationEngine: 'structured',
+        _adocCapabilities: { workspace: true, persist: false, blockEditing: true, export: true, qualityControlledExport: true },
+        _adocStructuredDoc: JSON.parse(JSON.stringify(d)),
+        _adocStructuredSnapshot: { sourceSnapshotId: d.sourceSnapshotId, entries: [] },
+      };
+      window._adocWsState = Object.assign({}, window._adocWsState, { storeKey: 'listes' });
+      return window.adocOpenWorkspace('listes');
+    }, PRESENTATION_LISTES);
+    await page.waitForTimeout(600);
+    // Un transport qui produit EXACTEMENT les défauts du 9 octobre, sur la fixture neutre.
+    await page.evaluate(() => {
+      const DEFAUTS = {
+        'liste-trois': 'La première chose est de remettre chaque outil à sa place avant de quitter '
+          + 'la pièce. La deuxième est de vider les chutes dans un seul bac, jamais sur l\u2019établi. '
+          + 'La troisième est de noter sur une feuille ce qui manque pour la prochaine fois.',
+        'citation-01': 'Ceux qui bricolent le disent souvent : « un atelier rangé fait gagner du '
+          + 'temps ». On les croit volontiers, et on range quand même rarement.',
+        'heading-01': 'Vous rangez votre atelier quand vous partez. Et toi, tu le fais vraiment, '
+          + 'chaque soir, ou seulement quand la pile devient trop haute pour être ignorée ?',
+      };
+      window.NarrationIA._transportDEssai = async (req) => {
+        const bloc = req.messages[0].content;
+        const ids = (bloc.match(/stepId: (\S+)/g) || []).map((x) => x.slice(8));
+        const cibles = (bloc.match(/cible: (\d+) mots/g) || []).map((x) => parseInt(x.slice(7), 10));
+        return JSON.stringify(ids.map((id, i) => ({ stepId: id,
+          text: DEFAUTS[id] || ('Imaginez la scène. ' + 'mot '.repeat(Math.max(0, cibles[i] - 3))).trim() })));
+      };
+    });
+    const ouvrirPanneau = await page.evaluate(async () => {
+      const d = window._adocArtifacts['listes']._adocStructuredDoc;
+      const e = window.adocPresentStepList(d)[0];
+      const el = document.getElementById(e.stepId) || document.getElementById('root:card-title:' + e.cardId);
+      if (el) el.click();
+      await new Promise((r) => setTimeout(r, 400));
+      return !!document.querySelector('.nia-bouton');
+    });
+    assert.equal(ouvrirPanneau, true, 'le bouton doit être posé sur ce document aussi');
+    await page.evaluate(() => {
+      const p = document.querySelector('.nia-panneau');
+      if (p.hidden) document.querySelector('.nia-bouton').click();
+      p.querySelector('.nia-vides').checked = false;
+    });
+    await page.click('.nia-generer');
+    await page.waitForFunction(() => /étape\(s\) rédigée\(s\)/.test(document.querySelector('.nia-etat').textContent),
+      { timeout: 20000 });
+
+    const vuDansLaPage = await page.evaluate(() => {
+      const p = document.querySelector('.nia-panneau');
+      const etapes = Array.from(p.querySelectorAll('.nia-etape')).map((el) => ({
+        stepId: el.dataset.stepId,
+        meta: el.querySelector('.nia-meta').textContent,
+        texte: el.querySelector('.nia-texte').textContent,
+        avertis: Array.from(el.querySelectorAll('.nia-avertis li')).map((li) => li.textContent),
+        aUnBoutonReecrire: !!el.querySelector('.nia-reecrire'),
+      }));
+      // Le bouton de réécriture de la première étape est-il ATTEINT par le pointeur ?
+      const btn = p.querySelector('.nia-etape .nia-reecrire');
+      btn.scrollIntoView({ block: 'center' });
+      const r = btn.getBoundingClientRect();
+      const dessus = document.elementFromPoint(Math.round(r.left + r.width / 2),
+                                               Math.round(r.top + r.height / 2));
+      const d = window._adocArtifacts['listes']._adocStructuredDoc;
+      return { etat: p.querySelector('.nia-etat').textContent, etapes: etapes,
+               boutonAtteint: dessus === btn || (dessus && btn.contains(dessus)),
+               narrationDansLeDoc: (d.narration || []).length,
+               sommeAffichee: (p.querySelector('.nia-etat').textContent.match(/(\d+) mots reçus/) || [])[1],
+               sommeReelle: etapes.reduce((a, e) => a + (e.texte.trim()
+                 ? window.adocNarrationCount(e.texte).mots : 0), 0) };
+    });
+
+    // LE TOTAL AFFICHÉ EST LA SOMME RÉELLE, jamais la cible.
+    assert.ok(/mots reçus, cible/.test(vuDansLaPage.etat),
+      'la ligne d\'état doit dire « mots reçus, cible … » : ' + vuDansLaPage.etat);
+    assert.equal(Number(vuDansLaPage.sommeAffichee), vuDansLaPage.sommeReelle,
+      'le nombre affiché doit être la SOMME des textes affichés : ' + vuDansLaPage.sommeAffichee
+      + ' affiché pour ' + vuDansLaPage.sommeReelle + ' réels');
+    assert.ok(/%, environ .* min pour/.test(vuDansLaPage.etat),
+      'l\'écart et les deux durées doivent être dits : ' + vuDansLaPage.etat);
+    // LES AVERTISSEMENTS SONT LUS DANS LE DOM, sous leur étape.
+    const parStep = {};
+    vuDansLaPage.etapes.forEach((e) => { parStep[e.stepId] = e.avertis.join(' | '); });
+    assert.match(parStep['liste-trois'] || '', /parcourt la liste élément par élément/,
+      'la liste parcourue, affichée : ' + parStep['liste-trois']);
+    assert.match(parStep['citation-01'] || '', /citation non identique/,
+      'la citation modifiée, affichée : ' + parStep['citation-01']);
+    assert.match(parStep['heading-01'] || '', /passe au tu/,
+      'le passage au tu, affiché : ' + parStep['heading-01']);
+    assert.ok(vuDansLaPage.etapes.every((e) => e.aUnBoutonReecrire),
+      'chaque étape doit porter son bouton « Réécrire cette étape »');
+    assert.equal(vuDansLaPage.boutonAtteint, true,
+      'et ce bouton doit être ATTEINT par le pointeur, pas seulement présent');
+    assert.equal(vuDansLaPage.narrationDansLeDoc, 0, 'rien n\'est écrit avant « Appliquer »');
+    console.log('      état : ' + vuDansLaPage.etat.split('\n')[1]);
+    vuDansLaPage.etapes.filter((e) => e.avertis.length).forEach((e) => {
+      console.log('      ' + e.stepId.padEnd(16) + e.avertis.join(' / '));
+    });
+    pass('la page AFFICHE les avertissements sous chaque étape, et le total est la somme reçue.');
+
+    // ── 22. « RÉÉCRIRE CETTE ÉTAPE » ne touche que l'aperçu ──────────────────────────────────
+    const avantReecriture = await page.evaluate(() =>
+      document.querySelector('.nia-etape[data-step-id="liste-trois"] .nia-texte').textContent);
+    await page.evaluate(() => {
+      window.NarrationIA._transportDEssai = async (req) => {
+        const bloc = req.messages[0].content;
+        const id = (bloc.match(/stepId: (\S+)/) || [])[1];
+        const cible = parseInt((bloc.match(/cible: (\d+) mots/) || [])[1], 10);
+        window.__consigneVue = (bloc.match(/Consigne de l\u2019auteur : (.*)$/m) || [])[1];
+        window.__messageVu = bloc;
+        // Des PHRASES, pas un seul bloc de mots : sans ponctuation, le texte compterait comme
+        // une phrase unique et déclencherait à juste titre « phrase de N mots ». La fixture
+        // doit ressembler à ce qu'un modèle écrit, sinon elle éprouve autre chose.
+        const phrases = [];
+        let restants = Math.max(0, cible - 5);
+        while (restants > 0) {
+          const n = Math.min(10, restants);
+          phrases.push('mot '.repeat(n).trim() + '.');
+          restants -= n;
+        }
+        return JSON.stringify([{ stepId: id,
+          text: ('Imaginez la porte qui se referme. ' + phrases.join(' ')).trim() }]);
+      };
+      const el = document.querySelector('.nia-etape[data-step-id="liste-trois"]');
+      el.querySelector('.nia-consigne').value = 'plus court, un autre exemple';
+      el.querySelector('.nia-reecrire').click();
+    });
+    await page.waitForFunction(() => /réécrite dans l\u2019aperçu/.test(document.querySelector('.nia-etat').textContent),
+      { timeout: 20000 });
+    const apresReecriture = await page.evaluate(() => ({
+      texte: document.querySelector('.nia-etape[data-step-id="liste-trois"] .nia-texte').textContent,
+      avertis: Array.from(document.querySelectorAll('.nia-etape[data-step-id="liste-trois"] .nia-avertis li')).map((li) => li.textContent),
+      consigne: window.__consigneVue,
+      message: window.__messageVu,
+      narrationDansLeDoc: (window._adocArtifacts['listes']._adocStructuredDoc.narration || []).length,
+      nEtapes: document.querySelectorAll('.nia-etape').length,
+    }));
+    assert.notEqual(apresReecriture.texte, avantReecriture, 'le texte de l\'aperçu doit changer');
+    assert.equal(apresReecriture.narrationDansLeDoc, 0,
+      'la réécriture ne doit RIEN écrire dans le document');
+    assert.equal(apresReecriture.consigne, 'plus court, un autre exemple',
+      'la consigne libre doit partir avec l\'appel : ' + apresReecriture.consigne);
+    assert.deepEqual(apresReecriture.avertis, [],
+      'le texte réécrit ne parcourt plus la liste : ' + apresReecriture.avertis.join(' | '));
+    // L'APPEL NE PORTE QUE CETTE ÉTAPE : les identifiants des autres n'y sont pas.
+    const autresIds = (apresReecriture.message.match(/stepId: (\S+)/g) || []);
+    assert.equal(autresIds.length, 1, 'un seul stepId dans le message : ' + autresIds.join(','));
+    assert.ok(/Commentaire de l\u2019étape (PRÉCÉDENTE|SUIVANTE)/.test(apresReecriture.message),
+      'mais la continuité est donnée (étape précédente et/ou suivante)');
+    assert.equal(apresReecriture.nEtapes, vuDansLaPage.etapes.length, 'l\'aperçu garde ses étapes');
+    console.log('      consigne transmise : « ' + apresReecriture.consigne + ' »  |  un seul stepId dans l\'appel');
+    pass('« Réécrire cette étape » : un seul stepId, la consigne transmise, l\'aperçu change, le document non.');
 
     // ── 19. AUCUN APPEL RÉSEAU causé par la rédaction ────────────────────────────────────────
     // L'application appelle le Worker et des CDN au DÉMARRAGE — c'est son comportement, pas
