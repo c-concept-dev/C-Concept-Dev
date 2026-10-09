@@ -14,7 +14,7 @@ en mode local (voir la dernière section, « Ce que le mode local ne peut pas v�
 Le dossier :
 
 ```
-/Users/christophebonnet/Documents/GitHub/C-Concept-Dev-lot2-images-wt/tools/Projet therapeutes/Conseiller Clinique/banc-chutier/entrees/
+<racine du projet>/banc-chutier/entrees/
 ```
 
 Vos propres exports y sont aussi (`…-interactive.html`, produits par « Exporter → présentation
@@ -27,7 +27,7 @@ interactive »). Le dossier est ignoré par git : rien de ce qui s'y trouve n'en
 Ouvrez le Terminal et collez cette ligne **entière** :
 
 ```
-cd "/Users/christophebonnet/Documents/GitHub/C-Concept-Dev-lot2-images-wt/tools/Projet therapeutes/Conseiller Clinique" && python3 -m http.server 8765 --bind 127.0.0.1
+cd "<racine du projet>" && python3 -m http.server 8765 --bind 127.0.0.1
 ```
 
 **Ce que vous devez voir :** `Serving HTTP on 127.0.0.1 port 8765 …`
@@ -182,8 +182,8 @@ clair** : elles viennent du fichier, pas du réseau.
 
 ## Ce que le mode local ne peut pas vérifier
 
-**L'export d'une présentation qui porte des citations.** Si vous chargez « L'argent dans le
-couple » et cliquez « Exporter », l'application refuse :
+**L'export d'une présentation qui porte des citations.** Si vous chargez une présentation qui porte des
+citations et cliquez « Exporter », l'application refuse :
 
 ```
 Export bloqué — problème(s) de qualité à corriger avant export :

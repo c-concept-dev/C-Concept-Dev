@@ -42,13 +42,26 @@ référence fixe.
 
 ## 3. Vérifié par script
 
+*(État au 9 octobre au soir ; les lignes du 6 octobre sont conservées plus bas dans leur section.)*
+
 | | Résultat |
 |---|---|
-| `verify-atelier-images` | **13/13** |
+| `verify-atelier-images` | **27/27** |
+| `verify-banc-reglage-defaut` | **4/4** — le réglage que la page OBTIENT, lu dans son relevé |
 | `verify-banc-chutier` | **6/6** — page forgée, servie, boutons cliqués, fichiers relus |
-| `falsifier-atelier-images` | **7/7 mutations détectées**, sources restaurées à empreintes identiques |
-| Régression ciblée | **21 tests, 0 échec**, dont les six de l'export autonome |
+| `verify-falsifier-restaure` | **4/4** — falsifieur tué par SIGKILL, les quatre sources rendues à l'octet |
+| `falsifier-atelier-images` | **56 mutations**, dont 1 consignée équivalente |
 | Empreinte du schéma d'outil | `b1b0155cb8eba26c`, 6679 o — **avant et après**, inchangée |
+
+**Les trois contrôles ajoutés le 9 octobre au soir**, chacun après une question de Christophe :
+
+- **23** — le pourcentage annoncé découle de la taille annoncée **et** cette taille est confrontée
+  à un témoin relevé dans la page par un autre chemin : c'est ce qui aurait évité d'appeler
+  « texte » la police du titre ;
+- **24** — une carte a la même hauteur de contenu à toutes ses étapes : la prémisse sur laquelle
+  repose le choix d'une scène par diapositive, jamais écrite avant ce jour ;
+- **26** — le travelling n'oublie aucune encre, **vérifié pixel à pixel** sur l'image livrée :
+  80 640 pixels examinés sous la fin du parcours, aucun à plus de 8 niveaux du fond.
 
 **Les chiffres mesurés.**
 
@@ -133,11 +146,11 @@ processus se relève dans le Moniteur d'activité, qu'aucune page ne peut interr
 `file://` : il faut un serveur, sans quoi SnapDOM ne se charge pas et rien ne se capture.
 
 ```
-python3 -m http.server 8765 --directory "/Users/christophebonnet/Documents/GitHub/C-Concept-Dev-lot2-images-wt/tools/Projet therapeutes/Conseiller Clinique" & sleep 1 && open "http://127.0.0.1:8765/banc-chutier/chutier.html"
+python3 -m http.server 8765 --directory "<racine du projet>" & sleep 1 && open "http://127.0.0.1:8765/banc-chutier/chutier.html"
 ```
 
 Pour l'arrêter : `kill %1`. Pour reforger la page :
-`node "/Users/christophebonnet/Documents/GitHub/C-Concept-Dev-lot2-images-wt/tools/Projet therapeutes/Conseiller Clinique/tests/forger-banc-chutier.cjs"`
+`node "<racine du projet>/tests/forger-banc-chutier.cjs"`
 
 ---
 
@@ -215,13 +228,13 @@ verticalement : les quatre variantes d'une étape commencent à la même ligne. 
 sa taille.
 
 ```
-python3 -m http.server 8765 --directory "/Users/christophebonnet/Documents/GitHub/C-Concept-Dev-lot2-images-wt/tools/Projet therapeutes/Conseiller Clinique" & sleep 1 && open -a Safari "http://127.0.0.1:8765/banc-chutier/planche-typo.html"
+python3 -m http.server 8765 --directory "<racine du projet>" & sleep 1 && open -a Safari "http://127.0.0.1:8765/banc-chutier/planche-typo.html"
 ```
 
 Et le banc lui-même, qui porte maintenant les deux réglages :
 
 ```
-python3 -m http.server 8765 --directory "/Users/christophebonnet/Documents/GitHub/C-Concept-Dev-lot2-images-wt/tools/Projet therapeutes/Conseiller Clinique" & sleep 1 && open -a Safari "http://127.0.0.1:8765/banc-chutier/chutier.html"
+python3 -m http.server 8765 --directory "<racine du projet>" & sleep 1 && open -a Safari "http://127.0.0.1:8765/banc-chutier/chutier.html"
 ```
 
 Pour arrêter le serveur : `kill %1`.
@@ -346,13 +359,13 @@ plus d'une image décodée** ; quarante le seraient à 316 Mo.
    `banc-chutier/entrees/` (ignoré par git, un `LISEZ-MOI.txt` l'explique sur place), puis :
 
 ```
-node "/Users/christophebonnet/Documents/GitHub/C-Concept-Dev-lot2-images-wt/tools/Projet therapeutes/Conseiller Clinique/tests/mesure-debordement.cjs"
+node "<racine du projet>/tests/mesure-debordement.cjs"
 ```
 
 **Les deux planches, dans Safari :**
 
 ```
-python3 -m http.server 8765 --directory "/Users/christophebonnet/Documents/GitHub/C-Concept-Dev-lot2-images-wt/tools/Projet therapeutes/Conseiller Clinique" & sleep 1 && open -a Safari "http://127.0.0.1:8765/banc-chutier/planche-nettete.html"
+python3 -m http.server 8765 --directory "<racine du projet>" & sleep 1 && open -a Safari "http://127.0.0.1:8765/banc-chutier/planche-nettete.html"
 ```
 
 Remplacez `planche-nettete.html` par `planche-typo.html` pour la comparaison des quatre réglages,
@@ -444,7 +457,7 @@ tenir compte — ces chiffres ne s'y transposent pas tels quels.
 viennent maintenant du navigateur qui les titre.
 
 ```
-python3 -m http.server 8765 --directory "/Users/christophebonnet/Documents/GitHub/C-Concept-Dev-lot2-images-wt/tools/Projet therapeutes/Conseiller Clinique" & sleep 1 && open -a Safari "http://127.0.0.1:8765/banc-chutier/planche-nettete-navigateurs.html"
+python3 -m http.server 8765 --directory "<racine du projet>" & sleep 1 && open -a Safari "http://127.0.0.1:8765/banc-chutier/planche-nettete-navigateurs.html"
 ```
 
 ---
@@ -975,7 +988,7 @@ pas « l'élément est-il dans le DOM ? » mais **« qui recevrait le clic ici ?
 | champ Narration, attribut `hidden` | `false` — *ce que mon test vérifiait* | `false` |
 | champ Narration, rectangle | 1032×100 en (330, **1401**) — hors écran | 1032×100 en (330, **509**) |
 | champ Narration, atteint par le pointeur | **non** | **oui** |
-| texte à l'écran | « Studio Clinique / Cet ordinateur n'est pas encore connu. / Mot de passe / Se connecter » | l'éditeur, « Narration », « Diapositive « L'argent : le grand tabou du couple », étape 1 sur 4. » |
+| texte à l'écran | « Studio Clinique / Cet ordinateur n'est pas encore connu. / Mot de passe / Se connecter » | l'éditeur, « Narration », et l'annonce vocale de la diapositive et de l'étape (« … étape 1 sur 4 ») |
 
 Captures (dossier ignoré par git) : `banc-chutier/captures/AVANT-panneau-reduit-ecran-de-connexion.jpg`
 et `banc-chutier/captures/APRES-panneau-reduit-editeur-et-narration.jpg`.
@@ -1056,9 +1069,319 @@ d'outil inchangée.
 **À juger par toi :** si le bandeau de mode local est assez visible, ou s'il gêne ; si le nom du
 paramètre te convient ; et surtout, le passage lui-même — écrire, recharger, retrouver, exporter.
 
-## 15. Ce que ce lot ne livre pas
+## 15. Une scène par diapositive, et le travelling — 9 octobre
+
+### 15.1 Le changement de principe
+
+Jusqu'ici, une scène unique servait toutes les diapositives : 960×800 ou 1422×800, avec une
+échelle typographique pour grossir le texte. Deux inconvénients, l'un mesuré et l'autre décidé :
+
+- une échelle typographique **recompose** la mise en page, donc elle déplace ce que Christophe a
+  vu à l'écran ;
+- une scène unique ne peut pas convenir à la fois à une couverture d'un seul titre et à un
+  questionnaire de quatre questions.
+
+Le principe retenu le 9 octobre renverse le levier : **le texte reste tel quel, et c'est la
+scène qui s'adapte, une par diapositive.** Une scène plus petite, agrandie vers 1920×1080, donne
+un texte plus grand à l'image sans qu'une seule règle de mise en page ait changé.
+
+Le mécanisme, en trois lignes :
+
+- le texte à l'image vaut `taille du corps × 1920 / largeur de scène`, rapporté aux 1080 px du
+  cadre : une scène deux fois plus étroite donne un texte deux fois plus grand ;
+- une scène plus étroite donne des lignes plus courtes, donc plus de lignes, donc un contenu
+  plus **haut** — alors que la scène, elle, est plus **basse**. Les deux jouent dans le même
+  sens, et il existe donc une plus petite scène où la diapositive tient encore ;
+- le moteur la cherche par dichotomie (au plus huit sondes, grain de 8 px) et retient celle-là.
+
+Deux bornes l'encadrent : **640 px** de large au minimum (en dessous, la mise en page du lecteur
+se disloque) et le **plancher de lisibilité**, à **2,0 % par défaut** — décision de Christophe.
+Le plancher borne la recherche par le **haut** : au-delà d'une certaine largeur, le texte
+passerait sous le plancher. Quand la diapositive ne tient pas même à cette largeur, **on ne
+descend pas sous le plancher** : la lisibilité l'emporte, la diapositive déborde, et le
+travelling prend le relais.
+
+### 15.2 Mesuré sur les présentations d'essai
+
+| présentation / carte | scène retenue | corps de texte | sondes |
+|---|---|---|---|
+| couverture / 1 | 647×364 | 22,5 px → 6,18 % *(aucun texte courant : mesuré sur les titres)* | 8 |
+| couverture / 2 | 646×363 | 15 px → 4,13 % | 8 |
+| dense / 1 | 706×397 | 15 px → 3,78 % | 8 |
+| questionnaire / 1 | 1333×750 | 15 px → 2,00 % | 1 — **déborde même au plancher** |
+| questionnaire / 2 | 646×363 | 15 px → 4,13 % | 8 |
+
+Pour comparaison, les mesures des 6 et 7 octobre : 1,9 % de hauteur pour le texte courant dans
+la scène du lecteur, 2,8 % à 960×540. Le plancher de 2,0 % n'est donc pas une cible, c'est un
+plafond de largeur : les diapositives qui tiennent obtiennent **deux fois mieux**.
+
+### 15.3 Mesuré sur la vraie présentation de Christophe
+
+**Cinq diapositives, dix-neuf étapes, 24,5 Mo de PNG, 6,6 s de rendu.** Aucun contenu de ce
+document n'entre ici : seules les géométries sont rapportées, sans titre ni extrait. Rien n'est
+écrit ni commité — l'export vit dans `banc-chutier/entrees/`, ignoré par git, et le document de
+travail dans le dossier des téléchargements de Christophe.
+
+**Deux sources, et il faut dire laquelle.** Le tableau ci-dessous vient du **document de
+travail** (le JSON du 8 octobre), parce que lui seul porte le champ `narration` dont le
+travelling a besoin ; les photos sont reprises de l'**export**, qui les embarque. L'export seul
+donne les mêmes géométries à deux pixels près (941, 1129, 1031, 1333, 1025 px de scène) : les
+deux documents s'accordent, ce qui est en soi une vérification.
+
+| diapositive | scène retenue | corps de texte | plus petit texte | verdict |
+|---|---|---|---|---|
+| 1 | 939×528 | 15 px → **2,84 %** | 14 px → 2,65 % | tient |
+| 2 | 1128×634 | 15 px → **2,36 %** | 14 px → 2,21 % | tient |
+| 3 | 1031×580 | 15 px → **2,59 %** | 14 px → 2,41 % | tient |
+| 4 | 1333×750 | 15 px → **2,00 %** | — | **déborde** (rapport 2,97 à la capture) |
+| 5 | 1026×577 | 15 px → **2,60 %** | — | tient |
+
+**Quinze étapes sur dix-neuf tiennent maintenant dans leur cadre, sans aucune coupe** (`coupe_px`
+vaut 0 partout). Le corps du texte y occupe **2,36 % à 2,84 %** de la hauteur de l'image, contre
+1,9 % dans la scène du lecteur — un gain réel, mais **modeste**, et c'est à Christophe de dire
+s'il suffit. Les quatre étapes de la diapositive 4 sont livrées entières, sur **3208 px de haut**.
+
+### 15.3 bis — La colonne « texte » était fausse, et c'est Christophe qui l'a vu
+
+Mon premier relevé annonçait 4,25 / 3,54 / 3,88 / 2,00 / 3,90 %. Christophe a refait le calcul :
+un corps de 15 px dans une scène de 941 px donne 2,83 %, pas 4,25 %. Le rapport est exactement
+**1,5** — celui du titre de bloc (22,5 px) au corps (15 px). **La colonne mesurait le titre et
+l'appelait « texte ».**
+
+Deux causes, l'une et l'autre relevées dans le DOM réel du lecteur, pas devinées :
+
+- **le texte d'un bloc vit dans un `span.adoc-sc-block-text`**, et non dans un `<p>`. Mon
+  sélecteur cherchait `.adoc-sc-block p` — qui ne matchait rien — et son troisième terme
+  `.adoc-sc-block` prenait les conteneurs de blocs, dont la taille vaut 22,5 px pour un bloc de
+  titre et 15 px pour un paragraphe ;
+- **le filtre `innerText` ne voit pas un bloc en `visibility:hidden`.** Or la scène se choisit à
+  la PREMIÈRE étape, où tous les blocs suivants sont encore masqués : le seul élément mesuré
+  était donc le premier bloc, c'est-à-dire presque toujours le titre.
+
+**Ce que cela cassait vraiment** n'est pas l'affichage, c'est le plancher :
+`largeurMaxLisible` recevait 22,5 au lieu de 15, donc autorisait une scène **1,5 fois plus
+large**, donc un corps à 1,88 % là où la page annonçait 2,0 %. Un plancher annoncé et non tenu.
+Sur les cinq diapositives de Christophe, aucune n'était dans ce cas — toutes tiennent bien en
+dessous de la largeur du plancher — mais le défaut était là, et il aurait mordu sur une
+diapositive un peu plus dense.
+
+**Ce qui est mesuré maintenant** : la **médiane** des tailles de police des éléments qui portent
+du texte en propre dans la carte entière, `display:none` exclu (absent de l'image),
+`visibility:hidden` inclus (présent dans l'image, révélé plus tard), titres exclus, et
+**l'appareil de citation exclu par son nom** — un appel de citation descend à 7,7 px, une puce
+d'approfondissement à 11,9, un barème de questionnaire à 12,8 : ce sont des marques, pas de la
+lecture, et protéger 7,7 px par un plancher de 2 % imposerait une scène de 683 px qui ferait
+déborder toutes les diapositives.
+
+**Le plus petit texte de lecture est désormais rapporté à côté du corps** (14 px sur ses
+diapositives 1 à 3 : un encadré). Le plancher s'applique au corps ; si le plus petit passe sous
+le plancher, le relevé l'écrit **SOUS LE PLANCHER** au lieu de se taire. C'est un choix, et il
+est à juger : l'autre lecture — faire porter le plancher sur le plus petit texte — donnerait des
+scènes plus étroites et plus de débordements.
+
+**Le contrôle qui le rend impossible** (contrôle 23) fait deux choses : il vérifie l'identité
+arithmétique (le pourcentage annoncé découle bien de la taille annoncée et de la scène retenue),
+puis il compare la taille annoncée à un **témoin relevé dans la page par un chemin entièrement
+différent** — la police du premier bloc qui n'est pas un titre — et il refuse que la valeur
+mesurée soit celle du titre.
+
+### 15.4 Le travelling : un plan, pas une intention
+
+Une image plus haute que le cadre est livrée entière depuis le 7 octobre. Ce qui manquait, c'est
+le **plan** que le montage exécutera. Chaque image en porte un désormais (`travelling`), en
+pixels de l'image livrée :
+
+- **course** : hauteur de l'image moins 1080, exactement ce qui défilera ;
+- **deux poses de 0,8 s**, en haut et en bas : sans elles, le premier et le dernier bloc
+  défileraient pendant qu'on les découvre. La durée **utile** est donc la durée du commentaire
+  moins 1,6 s ;
+- **vitesse** = course ÷ durée utile, bornée à **60 px/s** ;
+- **début_y / fin_y**, pour n'avoir rien à recalculer.
+
+La durée vient de la **narration** (mots ÷ 2,5), c'est-à-dire du lot 1a. Trois états, et ils se
+distinguent :
+
+| état | ce que dit le plan |
+|---|---|
+| durée connue, vitesse sous la borne | `tenable: true` — il défile, avec sa vitesse |
+| durée connue, vitesse au-dessus | `tenable: false` — **scission conseillée**, avec la vitesse qu'il aurait fallu tenir |
+| durée inconnue | `tenable: null` — aucune vitesse n'est inventée ; le verdict retombe sur le rapport, et le dit |
+
+**Le verdict et le plan sont le même calcul.** `verdictDebordement` appelle `planTravelling`
+quand la durée est connue : deux formules auraient fini par diverger, et un plan qui contredit
+son propre verdict est exactement le défaut crédible que ce lot passe son temps à traquer.
+
+### 15.4 bis — La course suit ce qui est RÉVÉLÉ, pas la carte entière
+
+Deuxième question de Christophe, et elle portait juste. Une diapositive haute garde la **même
+taille d'image à toutes ses étapes** — il le faut, sans quoi le fondu enchaîné de l'Ef1 n'aurait
+pas deux images comparables. Mais aux premières étapes, seul le haut porte de l'encre : faire
+défiler jusqu'en bas montrerait une page blanche pendant la moitié du commentaire.
+
+La course se calcule donc sur le **bas de ce qui porte de l'encre à cette étape**, bornée par la
+hauteur de l'image. Mesuré sur sa diapositive 4, quatre étapes, image de 3208 px :
+
+| étape | image | bas de l'encre | course |
+|---|---|---|---|
+| 1 / 4 | 3208 px | 655 px | **0** |
+| 2 / 4 | 3208 px | 706 px | **0** |
+| 3 / 4 | 3208 px | 882 px | **0** |
+| 4 / 4 | 3208 px | 2230 px | **1150 px** |
+
+Trois étapes sur quatre n'ont donc rien à faire défiler. Le relevé le dit maintenant d'une
+ligne — `sans_course` — parce que sans elle il annonçait « 4 étapes à faire défiler » et
+« 1 travelling » sans expliquer l'écart : la même contradiction que celle du § 15.5, sous un
+autre nom.
+
+**Et un défaut de plus, trouvé en lisant les PIXELS.** J'avais d'abord mesuré ce bas d'encre
+AVANT la capture. Or la capture agrandit la scène pour y faire tenir le contenu, ce qui agrandit
+le bandeau photo (45 % de la hauteur de la carte), ce qui repousse tout le texte vers le bas :
+une mesure prise avant l'agrandissement est toujours trop haute. Sur la carte illustrée d'essai,
+le travelling s'arrêtait à 1611 px d'une image de 2127, et la zone qu'il ne parcourait pas
+contenait **l'encadré final et son texte** — 350 095 pixels de fond d'encadré et 34 227 pixels
+d'encre, comptés un par un.
+
+C'est la troncature du 7 octobre, déplacée d'un cran de plus. Aucune métadonnée ne la montrait :
+le moteur était parfaitement cohérent avec lui-même. Le contrôle 26 décode désormais l'image
+livrée et vérifie que **chaque pixel sous la fin du travelling s'écarte de moins de 8 niveaux du
+fond** — 80 640 pixels examinés, zéro écart. La mesure est maintenant prise **dans** la capture,
+à la hauteur où l'image est vraiment composée, au même endroit et pour la même raison que la
+hauteur du bandeau photo.
+
+### 15.4 ter — Le verdict avec une vraie narration
+
+Troisième question. Un **export** ne porte jamais de narration ; j'ai donc chargé le **document
+de travail** (le JSON téléchargé le 8 octobre), qui porte le champ `narration`, avec les photos
+reprises de l'export — sans elles, une photo non décodée occupe 0 px et la scène choisie serait
+trop petite. Sa narration réelle compte **une entrée d'un mot** : le verdict retombe sur le
+rapport, et les quatre étapes de la diapositive 4 sont **à scinder**.
+
+Avec un commentaire de **48 s** sur chacune de ces étapes (120 mots à 2,5 mots/s — un texte
+neutre que j'ai écrit pour la mesure ; seule sa longueur compte) :
+
+| | sans narration | 48 s par étape |
+|---|---|---|
+| verdicts | **4 scissions** | **4 défilements** |
+| règle employée | rapport | vitesse |
+| vitesse du travelling | — | **24,8 px/s** en 46,4 s utiles |
+| course | 1150 px | 1150 px |
+
+**48 s suffisent largement** : 24,8 px/s pour une borne à 60. Le point de basculement est à
+1150 ÷ 60 + 1,6 = **20,8 s de commentaire** sur l'étape finale. En dessous, la scission reste le
+bon conseil.
+
+### 15.5 Un défaut trouvé par la mesure, et non par la lecture
+
+Sur sa vraie présentation, le relevé disait deux choses contradictoires dans deux lignes
+voisines : « 4 à scinder » dans la ligne des débordements, « 0 à scinder » dans celle des
+travellings. Les deux étaient vraies sous leur propre règle — **un export ne porte jamais de
+narration** (le schéma le dit : elle est retirée avant l'embarquement), donc le plan n'avait pas
+de durée pendant que le verdict tranchait sur le rapport. Ensemble, elles étaient fausses.
+
+Le résumé lit maintenant les scissions sur le **verdict**, et nomme la règle employée ainsi que
+le fait que la durée manque encore. La mutation qui remet la version contradictoire est dans le
+falsifieur, et le contrôle 25 la rattrape sur une présentation qui déborde **sans** narration —
+cas qui n'existait dans aucune présentation d'essai avant ce jour.
+
+**La leçon :** aucun de mes contrôles n'avait vu cette contradiction, parce que mes trois
+présentations d'essai ne réunissaient jamais les deux conditions. C'est la vraie présentation qui
+l'a montrée, en une seule exécution.
+
+### 15.6 Ce que la scène par diapositive interdit
+
+Le **plafond de photo** et **« bloc courant seul »**, mesurés le 8 octobre et écartés par
+Christophe le 9, calculent leur plafond sur une hauteur de scène — et il n'y en a plus une seule.
+Les combiner à la scène par diapositive **lève une erreur nommée** plutôt que de calculer sur la
+mauvaise hauteur. Ils restent atteignables avec une scène imposée, pour mesurer.
+
+### 15.7 La prémisse, enfin dite
+
+Tout ceci repose sur un fait du lecteur, et sur lui seul : la révélation masque en
+`opacity:0; visibility:hidden`, qui **conservent la mise en page**. Les blocs pas encore révélés
+occupent déjà leur place, donc **une carte a la même hauteur de contenu à toutes ses étapes** —
+mesuré : 401 px aux quatre étapes de la présentation dense dans une scène de 640×360. C'est ce
+qui autorise à choisir la scène une fois, sur la première étape.
+
+Rien ne disait cette prémisse avant le 9 octobre. Le contrôle 24 la mesure désormais, et une
+mutation qui ne compterait que les blocs visibles la fait tomber.
+
+**Une mutation équivalente, consignée.** Retirer le garde `iCarte !== choixCarte` ne change rien
+d'observable : le bloc est déjà sous une condition qui n'est vraie qu'en entrant dans une carte,
+et sur le seul autre chemin — un retour en arrière dans la même carte — le choix refait rend la
+même scène, par la prémisse ci-dessus. Ce garde est une ceinture, pas la garantie. Le falsifieur
+l'applique quand même et vérifie que les contrôles **passent** : le jour où elle les fera
+échouer, elle ne sera plus équivalente, et c'est l'inventaire qui sera faux.
+
+### 15.8 La page du banc
+
+- le sélecteur de réglage a **cinq** entrées : « SCÈNE PAR DIAPOSITIVE — texte tel quel » au
+  départ, puis les quatre scènes fixes, qui **disent** qu'elles sont fixes ;
+- un champ **plancher de lisibilité**, à 2,0 %, actif en « auto » seulement ;
+- le relevé détaille, par diapositive : scène retenue, texte en %, nombre de sondes, raison ; et
+  par étape qui déborde : course, vitesse, durée utile, ou la raison du refus.
+
+**Un défaut corrigé au passage** : le plancher **remplaçait** le réglage choisi au lieu de s'y
+ajouter. Comme « auto » est vide, cela ne se voyait pas — mais le tableau de la page cessait
+d'être ce qu'elle envoyait dès que le plancher était rempli, et c'est la forme exacte du défaut
+du 7 octobre. Il masquait aussi une mutation du falsifieur, qui passait inaperçue pour cette
+seule raison.
+
+### 15.9 Deux points de vocabulaire, à corriger si je me trompe
+
+- **V7 du CDC écrit « 1422×800 »**, la scène du lecteur. La scène par diapositive s'en écarte
+  délibérément : c'est la décision du 9 octobre. Ce que V7 exige et qui reste tenu, c'est que la
+  capture porte sur la **mise en page réelle** et soit composée sur **exactement 1920×1080** —
+  les deux sont vérifiés. Si le texte du CDC doit être mis à jour, c'est à Christophe de le dire.
+- **« V8 » et « V9 »** du mandat ne figurent pas dans le CDC, qui s'arrête à V7 ; **« Ef4 »** non
+  plus, le CDC s'arrêtant à Ef3. Je les ai lus comme : les polices et les photos doivent être
+  prêtes **avant** la mesure de la scène (une photo non décodée occupe 0 px, et la scène choisie
+  serait trop petite), et le relevé doit dire le réglage **réellement appliqué**. Les deux sont
+  faits et vérifiés. Si ces numéros désignaient autre chose, il reste à le faire.
+
+### 15.10 Le falsifieur rend ses sources, même tué
+
+Deux fois le 9 octobre, j'ai arrêté le falsifieur en cours pour modifier le moteur, et deux fois
+il a laissé une mutation dans le dépôt : une règle de capture retirée, puis la borne de vitesse
+du travelling désarmée. Un `finally` ne protège que des erreurs.
+
+J'ai d'abord posé des gestionnaires de signaux — et **mesuré qu'ils ne suffisent pas** : le
+falsifieur passe l'essentiel de son temps bloqué dans `execFileSync`, où aucun gestionnaire ne
+peut s'exécuter ; un SIGTERM n'y est honoré qu'à la fin du test en cours, et un SIGKILL ne l'est
+jamais.
+
+La garantie est donc ailleurs : les sources sont recopiées dans un **journal de reprise** avant
+la première mutation, et tout démarrage ultérieur commence par remettre en état ce qu'il y
+trouve. Cela couvre le signal, le plantage, la coupure de courant et la fenêtre fermée. Le
+journal vit dans `banc-chutier/`, ignoré par git — il contient du code source.
+
+`tests/verify-falsifier-restaure.cjs` (**4/4**) ne simule rien : il lance le vrai falsifieur,
+attend qu'une mutation soit réellement en place, le tue par **SIGKILL**, vérifie que la mutation
+y est encore (sinon le test n'éprouverait pas la reprise), puis lance une reprise et compare les
+**quatre** sources à l'octet. Un délai de trois heures, réglable, arrête de lui-même une
+exécution qui ne répondrait plus.
+
+### 15.11 À juger par Christophe
+
+- **le plancher de 2,0 %** : il borne la largeur de scène, donc la taille du texte. Le corps
+  obtient **2,36 % à 2,84 %** sur sa présentation, contre 1,9 % avant. Est-ce assez grand sur un
+  téléphone ? Si non, le plancher monte — à 2,5 %, les scènes se resserrent et certaines
+  diapositives qui tiennent aujourd'hui déborderont.
+- **le plus petit texte sous le plancher** : le plancher porte sur le corps, et le relevé nomme
+  le plus petit texte de lecture (14 px, un encadré) sans l'empêcher de descendre sous le
+  plancher. L'autre lecture — faire porter le plancher sur le plus petit — est à un réglage près.
+- **les deux poses de 0,8 s** : raisonnées, pas mesurées. À voir sur une vidéo réelle.
+- **la borne de 60 px/s** : idem. Elle décide seule du partage entre défilement et scission.
+- **la diapositive 4** : **20,8 s de commentaire** sur son étape finale suffisent à la faire
+  défiler sous la borne. Moins que cela, ou la scinder en deux ?
+
+## 16. Ce que ce lot ne livre pas
 
 - **L'interface du chutier dans l'application** (V2 côté produit) : le brief demandait le moteur
   sans interface de banc, et c'est ce qui est livré. Les vignettes existent dans la page d'essai.
-- **Le défilement d'une diapositive qui déborde** (V3, seconde moitié) : le lot 7 selon le CDC.
+- **L'exécution du travelling** : le moteur en livre le PLAN (course, poses, durée utile,
+  vitesse, début et fin), pas le mouvement. Composer les images animées appartient au montage,
+  lot 7 selon le CDC. Ce qui est livré ici, c'est que le montage n'ait rien à recalculer.
+- **La scission automatique** : le moteur la CONSEILLE et dit pourquoi ; il ne découpe aucune
+  diapositive. Découper change le document de Christophe, et ce n'est pas au moteur d'images de
+  le faire.
 - **Aucun déploiement, aucune écriture D1, aucun secret.** Rien n'a été poussé sur `main`.
