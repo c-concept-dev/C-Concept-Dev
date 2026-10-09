@@ -92,8 +92,15 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
     // étape qui déborde vit sur sa propre ligne, avec son ampleur, son rapport et son verdict.
     assert.match(trouve('débordements'), /[0-9]+ sans, [0-9]+ à faire défiler, [0-9]+ à scinder/,
       'récapitulatif des débordements : ' + trouve('débordements'));
-    assert.match(trouve('débordements'), /[1-9][0-9]* à scinder/,
-      'le questionnaire doit déborder assez pour être proposé à la scission : ' + trouve('débordements'));
+    // CETTE ATTENTE A CHANGÉ LE 9 OCTOBRE, et c'est le résultat qu'on cherchait. Le
+    // questionnaire était proposé à la SCISSION parce qu'une scène unique de 960×540 le faisait
+    // déborder du double. Avec une scène par diapositive, il reçoit 1333×750 et ne dépasse plus
+    // que de 11 % : le verdict devient « défilement », et le travelling suffit. Exiger encore
+    // « à scinder » serait exiger que le correctif ne marche pas.
+    //
+    // CE QUI RESTE EXIGÉ, et qui est l'objet de V3 : il DÉBORDE, et son débordement est nommé.
+    assert.match(trouve('débordements'), /[1-9][0-9]* à faire défiler|[1-9][0-9]* à scinder/,
+      'le questionnaire doit déborder, et le relevé doit le dire : ' + trouve('débordements'));
     const detail = recap.find((l) => /déborde de [0-9]+ px de scène/.test(l));
     assert.ok(detail, 'une ligne de détail doit nommer l\'étape qui déborde');
     assert.match(detail, /rapport [0-9.]+/, 'avec son rapport : ' + detail);
