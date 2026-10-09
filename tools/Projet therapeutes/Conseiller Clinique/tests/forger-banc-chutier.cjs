@@ -47,11 +47,15 @@ const PANNEAU = `
     <label style="font-size:13px;"><input type="checkbox" id="bc-mode-capture" checked> mode capture</label>
     <label style="font-size:13px;"><strong>réglage</strong>
       <select id="bc-reglage" style="font:inherit;padding:4px 6px;">
-        <option value="a">(a) fidèle — 1422x800, typo x1</option>
-        <option value="b">(b) 960x540, typo x1</option>
-        <option value="c">(c) 1422x800, typo x1,6</option>
-        <option value="d" selected>(d) MODE VIDÉO — 960x540, typo x1,4</option>
+        <option value="auto" selected>SCÈNE PAR DIAPOSITIVE — texte tel quel</option>
+        <option value="a">scène fixe 1422x800, typo x1</option>
+        <option value="b">scène fixe 960x540, typo x1</option>
+        <option value="c">scène fixe 1422x800, typo x1,6</option>
+        <option value="d">scène fixe 960x540, typo x1,4 (ancien mode vidéo)</option>
       </select></label>
+    <label style="font-size:13px;" id="bc-plancher-label">plancher de lisibilité
+      <input type="number" id="bc-plancher" min="1" max="6" step="0.1" value="2"
+             style="font:inherit;width:4.5em;padding:4px 6px;"> % de la hauteur</label>
     <label style="font-size:13px;">format
       <select id="bc-format" style="font:inherit;padding:4px 6px;">
         <option value="image/png">PNG</option>
@@ -141,12 +145,35 @@ const PANNEAU = `
     // « par défaut » ne veut pas dire « celle du lecteur » : le défaut EST le mode vidéo, dont la
     // scène fait 960x540. L'ancien libellé annonçait « celle du lecteur » devant 960x540, ce qui
     // était faux et aurait pu entretenir exactement la confusion qu'on vient de corriger.
-    var estLecteur = res.scene.largeur === window.AtelierImages.SCENE.largeur
-      && res.scene.hauteur === window.AtelierImages.SCENE.hauteur;
-    ligne('scène puis sortie', res.scene.largeur + 'x' + res.scene.hauteur
-      + (estLecteur ? ' (celle du lecteur)' : ' (mode vidéo)')
-      + (res.scene_par_defaut ? ', par défaut' : ', imposée')
-      + '  puis  ' + res.sortie.largeur + 'x' + res.sortie.hauteur);
+    if (res.scene_par_diapositive) {
+      var sc = Object.keys(res.scenes_par_carte).map(function (k) {
+        return res.scenes_par_carte[k]; });
+      ligne('scène', 'UNE PAR DIAPOSITIVE — ' + sc.length + ' choisie(s), de '
+        + Math.min.apply(null, sc.map(function (x) { return x.scene.largeur; })) + ' à '
+        + Math.max.apply(null, sc.map(function (x) { return x.scene.largeur; }))
+        + ' px de large  puis  ' + res.sortie.largeur + 'x' + res.sortie.hauteur);
+      ligne('plancher de lisibilité', res.plancher_lisibilite_pc + ' % de la hauteur du cadre');
+      sc.forEach(function (x, i) {
+        // « CORPS DE TEXTE », et non « texte » : la colonne a dit « texte » pour une valeur qui
+        // mesurait le TITRE du bloc, soit 1,5 fois trop. Elle nomme maintenant la taille en
+        // pixels dont le pourcentage découle, et le plus petit texte de lecture quand il est
+        // plus petit que le corps — un encadré descend à 14 px.
+        ligne('  diapositive ' + (i + 1), x.scene.largeur + 'x' + x.scene.hauteur
+          + '  —  corps ' + x.taille_px + ' px, soit ' + x.texte_pc + ' % de la hauteur du cadre'
+          + (x.plus_petit_px && x.plus_petit_px < x.taille_px
+             ? '  (plus petit texte ' + x.plus_petit_px + ' px, soit ' + x.plus_petit_pc + ' %'
+               + (x.plus_petit_pc < x.plancher_pc ? ' — SOUS LE PLANCHER' : '') + ')' : '')
+          + (x.sans_texte_courant ? '  (aucun texte courant : mesuré sur les titres)' : '')
+          + '  —  ' + x.essais.length + ' essai(s)  —  '
+          + (x.deborde ? 'DÉBORDE : ' : '') + x.raison);
+      });
+    } else {
+      var estLecteur = res.scene.largeur === window.AtelierImages.SCENE.largeur
+        && res.scene.hauteur === window.AtelierImages.SCENE.hauteur;
+      ligne('scène puis sortie', res.scene.largeur + 'x' + res.scene.hauteur
+        + (estLecteur ? ' (celle du lecteur)' : ' (fixe)')
+        + ', IMPOSÉE  puis  ' + res.sortie.largeur + 'x' + res.sortie.hauteur);
+    }
     ligne('échelle typographique', res.echelle_typo === 1 ? 'aucune' : 'x' + String(res.echelle_typo).replace('.', ','));
     ligne('réglage demandé', $('bc-reglage').options[$('bc-reglage').selectedIndex].textContent);
     ligne('format', res.images.length ? res.images[0].type + (res.images[0].type === 'image/jpeg' ? ' qualité 0,92' : '') : '—');
@@ -162,6 +189,27 @@ const PANNEAU = `
         'déborde de ' + im.debordement_px + ' px de scène (' + im.debordement_px_sortie + ' px à l’image)'
         + '  —  rapport ' + im.debordement_rapport + '  —  ' + im.debordement_verdict.toUpperCase()
         + ' (règle : ' + im.debordement_regle + ')');
+    });
+    // LE TRAVELLING, AVEC SES NOMBRES. Une diapositive qui déborde est livrée entière ; ce qui
+    // décide si elle peut défiler, c'est la durée de son commentaire, et cette durée vient de la
+    // narration. Sans narration, la page le DIT au lieu d'inventer une vitesse.
+    var trav = res.travellings || { nombre: 0 };
+    ligne('travellings', trav.nombre === 0 ? 'aucun — toutes les images tiennent dans le cadre'
+      : trav.nombre + ' image(s) à faire défiler : ' + trav.tenables + ' tenable(s), '
+        + trav.a_scinder.length + ' à scinder, ' + trav.sans_duree + ' sans durée connue'
+        + (trav.sans_course ? '   —   ' + trav.sans_course + ' étape(s) débordent sans rien avoir '
+           + 'à faire défiler : elles ne montrent que le haut de leur diapositive' : '')
+        + '   (pose ' + String(res.pose_travelling_s).replace('.', ',') + ' s aux deux bouts, '
+        + 'borne ' + res.vitesse_pan_max + ' px/s)');
+    res.images.filter(function (im) { return im.travelling; }).forEach(function (im) {
+      ligne('  ' + im.titre + ', étape ' + im.rang + '/' + im.surRang,
+        im.travelling.course_px + ' px de course sur une image de ' + im.hauteur + ' px  —  '
+        + (im.travelling.tenable === null ? 'DURÉE INCONNUE'
+           : im.travelling.tenable ? im.travelling.vitesse_px_par_s + ' px/s en '
+             + String(im.travelling.duree_utile_s).replace('.', ',') + ' s utiles sur '
+             + String(im.travelling.duree_s).replace('.', ',') + ' s de commentaire'
+           : 'À SCINDER')
+        + '  —  ' + im.travelling.raison);
     });
     // HAUTEUR DU CONTENU CONTRE HAUTEUR D’IMAGE. C’est l’écart entre les deux qui a coupé le
     // dernier bloc de chaque diapositive, sans un mot, le 7 octobre. Il a maintenant sa ligne.
@@ -267,14 +315,29 @@ const PANNEAU = `
   // deux listes précédentes envoyaient « scène du lecteur » et « typo x1 » de façon EXPLICITE,
   // ce qui écrasait le mode vidéo du moteur sans que rien ne le dise. La page annonçait (d) et
   // rendait (a). Un réglage qui redit le défaut finit toujours par en diverger.
+  // LES RÉGLAGES DE LA PAGE SONT CEUX DU MOTEUR, pas une liste parallèle. « auto » est le
+  // défaut du moteur : scène par diapositive, texte tel quel. Les quatre scènes fixes restent
+  // atteignables pour comparer, et elles disent qu'elles sont fixes — le 7 octobre, la page
+  // annonçait (d) et rendait (a) parce qu'elle envoyait ses propres valeurs par-dessus.
   var REGLAGES = {
+    auto: {},
     a: { mode: 'fidele' },
     b: { mode: 'fidele', scene: { largeur: 960, hauteur: 540 } },
     c: { mode: 'fidele', echelleTypo: 1.6 },
-    d: {},
+    d: { mode: 'fidele', scene: { largeur: 960, hauteur: 540 }, echelleTypo: 1.4 },
   };
   function reglages() {
-    var choisi = REGLAGES[$('bc-reglage').value] || REGLAGES.d;
+    var cle = $('bc-reglage').value;
+    var choisi = REGLAGES[cle] || REGLAGES.auto;
+    var plancher = Number($('bc-plancher').value);
+    // Le plancher n'a de sens qu'en « auto » : sur une scène fixe, il n'y a rien à choisir.
+    $('bc-plancher-label').style.opacity = (cle === 'auto') ? '1' : '.4';
+    // LE PLANCHER S'AJOUTE AU RÉGLAGE, IL NE LE REMPLACE PAS. Il le remplaçait, et comme
+    // « auto » est vide cela ne se voyait pas : le tableau ci-dessus cessait d'être ce que la
+    // page envoie dès que le plancher est rempli. C'est la forme exacte du défaut du 7 octobre
+    // — la page annonce un réglage et en envoie un autre — et c'est pour cette seule raison
+    // qu'une mutation de REGLAGES.auto passait inaperçue.
+    if (cle === 'auto' && plancher > 0) choisi = Object.assign({}, choisi, { plancherLisibilitePc: plancher });
     return Object.assign({
       modeCapture: $('bc-mode-capture').checked,
       masquerCitations: $('bc-sans-citations').checked,

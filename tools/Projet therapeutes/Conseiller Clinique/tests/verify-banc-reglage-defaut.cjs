@@ -56,29 +56,55 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       return { existe: !!s, valeur: s && s.value,
                options: s ? Array.from(s.options).map((o) => o.value) : [],
                libelle: s ? s.options[s.selectedIndex].textContent : null,
+               plancher: (document.getElementById('bc-plancher') || {}).value,
                anciens: !!document.getElementById('bc-scene') || !!document.getElementById('bc-typo') };
     });
     assert.equal(sel.existe, true, 'la page doit porter un sélecteur de réglage');
-    assert.deepEqual(sel.options, ['a', 'b', 'c', 'd'], 'les quatre réglages de la planche');
-    assert.equal(sel.valeur, 'd', 'et (d) doit être choisi au départ : ' + sel.valeur);
-    assert.match(sel.libelle, /MODE VIDÉO/, 'libellé : ' + sel.libelle);
+    // DÉCISION DU 9 OCTOBRE : le défaut est la scène par diapositive. Les quatre scènes fixes
+    // restent atteignables pour comparer, et elles DISENT qu'elles sont fixes.
+    assert.deepEqual(sel.options, ['auto', 'a', 'b', 'c', 'd'],
+      'le défaut « auto » plus les quatre scènes fixes : ' + sel.options.join(','));
+    assert.equal(sel.valeur, 'auto', '« auto » doit être choisi au départ : ' + sel.valeur);
+    assert.match(sel.libelle, /SCÈNE PAR DIAPOSITIVE/, 'libellé : ' + sel.libelle);
     assert.equal(sel.anciens, false, 'les deux anciennes listes, qui écrasaient le défaut, doivent avoir disparu');
-    pass('un seul sélecteur, (d) choisi au départ — ' + sel.libelle.trim());
+    assert.equal(sel.plancher, '2', 'le plancher de lisibilité par défaut est 2,0 % : ' + sel.plancher);
+    pass('un seul sélecteur, « auto » au départ, plancher à ' + sel.plancher + ' % — ' + sel.libelle.trim());
 
     // ── 2. CE QUE LA PAGE OBTIENT, en rendant vraiment ────────────────────────────────────────
     await page.click('#bc-rendre');
     await page.waitForFunction(() => /terminé/.test(document.getElementById('bc-etat').textContent), { timeout: 120000 });
     const recap = await page.$$eval('#bc-recap tr', (r) => r.map((x) => x.cells[0].textContent + ' = ' + x.cells[1].textContent));
     const trouve = (c) => recap.find((l) => l.indexOf(c) === 0) || '';
-    assert.match(trouve('scène puis sortie'), /960x540/,
-      'la page doit rendre à la scène du mode vidéo : ' + trouve('scène puis sortie'));
-    assert.match(trouve('échelle typographique'), /x1,4/,
-      'et à son échelle typographique : ' + trouve('échelle typographique'));
+    // CE QUE LA PAGE OBTIENT doit être ce qu'elle annonce. Le 7 octobre, elle annonçait (d) et
+    // rendait (a) : c'est ce contrôle qui l'aurait vu, et c'est pourquoi il lit le RELEVÉ.
+    assert.match(trouve('scène'), /UNE PAR DIAPOSITIVE/,
+      'la page doit rendre avec une scène par diapositive : ' + trouve('scène'));
+    assert.match(trouve('plancher de lisibilité'), /2 %/,
+      'et au plancher annoncé : ' + trouve('plancher de lisibilité'));
+    assert.match(trouve('échelle typographique'), /aucune/,
+      'le texte reste tel quel : ' + trouve('échelle typographique'));
+    assert.ok(recap.some((l) => /^ {2}diapositive 1/.test(l)),
+      'le relevé doit détailler la scène de chaque diapositive : '
+      + recap.filter((l) => /diapositive/.test(l)).join(' | '));
+    // LA COLONNE NOMME CE QU'ELLE MESURE : « corps NN px, soit X % », et non « texte X % » pour
+    // une valeur qui mesurait le titre. La taille en pixels est dans la ligne, donc le lecteur
+    // peut refaire le calcul — c'est ainsi que Christophe a trouvé l'erreur.
+    const lignesDiapo = recap.filter((l) => /^ {2}diapositive /.test(l));
+    lignesDiapo.forEach((l) => {
+      assert.match(l, /corps \d+(\.\d+)? px, soit \d+(\.\d+)? % de la hauteur du cadre/,
+        'la ligne doit nommer la taille du corps et son pourcentage : ' + l);
+    });
+    // LE TRAVELLING A SA LIGNE, lui aussi. La présentation du départ tient dans son cadre à
+    // chaque étape — c'est tout l'objet de la scène par diapositive — donc la page doit
+    // DIRE qu'il n'y a rien à faire défiler, et non taire la question.
+    assert.match(trouve('travellings'), /aucun/,
+      'la page doit dire ce qu\'il y a à faire défiler : ' + trouve('travellings'));
     assert.match(trouve('format'), /image\/png/, 'PNG par défaut : ' + trouve('format'));
     assert.match(trouve('citations et sources'), /visibles/, 'citations visibles par défaut (décision en attente)');
-    console.log('      ' + trouve('scène puis sortie'));
-    console.log('      ' + trouve('échelle typographique') + '   |   ' + trouve('citations et sources'));
-    pass('la page REND bien en mode vidéo, scène et échelle lues dans le relevé.');
+    console.log('      ' + trouve('scène'));
+    console.log('      ' + trouve('plancher de lisibilité') + '   |   ' + trouve('échelle typographique'));
+    recap.filter((l) => /^ {2}diapositive/.test(l)).forEach((l) => console.log('      ' + l));
+    pass('la page REND bien avec une scène par diapositive, lue dans le relevé.');
 
     // ── 3. Le réglage (a) reste atteignable, et donne l'ancien rendu ──────────────────────────
     await page.selectOption('#bc-reglage', 'a');

@@ -14,7 +14,7 @@ const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
-const { PRESENTATIONS, IMAGES_EMBARQUEES } = require('./chutier-fixtures.cjs');
+const { PRESENTATIONS, IMAGES_EMBARQUEES, ILLUSTREE } = require('./chutier-fixtures.cjs');
 
 const http = require('node:http');
 
@@ -118,12 +118,23 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
             duree_ms: res.duree_ms, octets_total: res.octets_total, mode_capture: res.mode_capture,
             etapes_annoncees: res.etapes_annoncees, snapdom: res.snapdom,
             scene: res.scene, mode: res.mode, echelle_typo: res.echelle_typo,
+            scene_par_diapositive: res.scene_par_diapositive,
+            plancher_lisibilite_pc: res.plancher_lisibilite_pc,
+            scenes_par_carte: Object.keys(res.scenes_par_carte || {}).map((k) => ({
+              carte: k, largeur: res.scenes_par_carte[k].scene.largeur,
+              hauteur: res.scenes_par_carte[k].scene.hauteur,
+              texte_pc: res.scenes_par_carte[k].texte_pc,
+              deborde: res.scenes_par_carte[k].deborde,
+              essais: res.scenes_par_carte[k].essais.length,
+              raison: res.scenes_par_carte[k].raison })),
             debordements: res.debordements, seuil: res.seuil_scission, tolerance: res.tolerance_debordement,
           },
           images: res.images.map((im) => ({
             stepId: im.stepId, cardId: im.cardId, cardIndex: im.cardIndex, rang: im.rang,
             surRang: im.surRang, largeur: im.largeur, hauteur: im.hauteur,
             debordement: im.debordement, hauteurScene: im.hauteurScene,
+            scene_largeur: im.scene_largeur, scene_hauteur: im.scene_hauteur,
+            scene_raison: im.scene_raison, texte_pc: im.texte_pc, plancher_pc: im.plancher_pc,
             debordement_px: im.debordement_px, debordement_rapport: im.debordement_rapport,
             debordement_verdict: im.debordement_verdict, debordement_regle: im.debordement_regle,
             debordement_sous_tolerance: im.debordement_sous_tolerance,
@@ -144,21 +155,27 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
         assert.equal(im.largeur, 1920, p.cle + '/' + im.stepId + ' : largeur ' + im.largeur);
         if (!im.debordement) {
           assert.equal(im.hauteur, 1080, p.cle + '/' + im.stepId + ' : hauteur ' + im.hauteur + ' sans débordement');
-          assert.ok(im.hauteurScene <= sc.hauteur * r.meta.tolerance,
-            p.cle + '/' + im.stepId + ' : hauteur de scène ' + im.hauteurScene + ' pour une scène de ' + sc.hauteur);
+          assert.ok(im.hauteurScene <= im.scene_hauteur * r.meta.tolerance,
+            p.cle + '/' + im.stepId + ' : hauteur de scène ' + im.hauteurScene
+            + ' pour une scène de ' + im.scene_hauteur);
         } else {
-          assert.ok(im.hauteurScene > sc.hauteur, 'un débordement doit porter sa hauteur de scène');
-          assert.equal(im.hauteur, Math.round(im.hauteurScene * 1920 / sc.largeur),
+          assert.ok(im.hauteurScene > im.scene_hauteur, 'un débordement doit porter sa hauteur de scène');
+          assert.equal(im.hauteur, Math.round(im.hauteurScene * 1920 / im.scene_largeur),
             p.cle + '/' + im.stepId + ' : hauteur de sortie incohérente avec la hauteur de scène');
         }
         assert.ok(im.octets > 2000, 'une image de ' + im.octets + ' octets est forcément vide');
       });
       assert.equal(r.etatRendu, true, 'l\'état du lecteur doit être rendu tel qu\'il était');
       assert.equal(r.scenesRestantes, 0, 'aucune scène hors écran ne doit subsister');
-      assert.deepEqual(r.meta.scene, { largeur: 960, hauteur: 540 },
-        'le DÉFAUT doit être le mode vidéo, décision du 6 octobre : ' + JSON.stringify(r.meta.scene));
-      assert.equal(r.meta.echelle_typo, 1.4, 'et son échelle typographique ×1,4');
+      // DÉCISION DU 9 OCTOBRE : plus de scène unique ni d'échelle typographique. La scène se
+      // choisit par diapositive, et le texte reste tel quel à l'écran.
+      assert.equal(r.meta.scene_par_diapositive, true,
+        'le DÉFAUT est la scène par diapositive, décision du 9 octobre');
+      assert.equal(r.meta.echelle_typo, 1,
+        'le texte reste tel quel : aucune échelle typographique (' + r.meta.echelle_typo + ')');
       assert.equal(r.meta.mode, 'video');
+      assert.equal(r.meta.plancher_lisibilite_pc, 2,
+        'plancher de lisibilité à 2,0 %, décidé par Christophe');
       console.log('      ' + p.cle.padEnd(14) + r.images.length + ' images, '
         + (r.meta.octets_total / 1048576).toFixed(2) + ' Mo, ' + r.meta.duree_ms + ' ms, '
         + Math.round(r.meta.duree_ms / r.images.length) + ' ms par image'
@@ -226,14 +243,53 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
     });
     // LA ZONE MORTE. Quatre étapes dépassaient de six pixels de scène — du bruit de mise en page,
     // pas un débordement. Sans tolérance, l'atelier ferait défiler une diapositive de douze pixels.
-    const sousTolerance = Object.values(rendus).flatMap((r) => r.images)
-      .filter((im) => im.debordement_sous_tolerance);
+    //
+    // Elle s'éprouve sur une SCÈNE FIXE. Depuis le 9 octobre, la scène se choisit par
+    // diapositive pour que le contenu tienne : en mode par défaut, plus rien ne tombe dans la
+    // zone morte, par construction. Ce n'est pas que la zone morte a disparu — c'est qu'elle ne
+    // sert plus dans ce mode. Elle sert encore dès qu'une scène est imposée.
+    const surSceneFixe = await page.evaluate(async (docs) => {
+      const out = [];
+      for (const d of docs) {
+        // La scène de 960×540 : c'est elle qui produisait les six pixels de bruit relevés le
+        // 7 octobre. Sur 1422×800, le même contenu tombe à zéro ou franchement au-dessus —
+        // la zone morte ne s'y exerce pas.
+        // Les conditions EXACTES où les six pixels de bruit ont été relevés le 7 octobre :
+        // scène 960×540 ET échelle typographique ×1,4 — l'ancien mode vidéo. Ce réglage n'est
+        // plus le défaut depuis le 9 octobre, mais il reste atteignable, et la zone morte doit
+        // continuer d'y faire son travail. Sans échelle, le contenu tombe pile ou franchement
+        // au-dessus : la zone morte ne s'exerce pas, et le contrôle serait vide.
+        const r = await window.AtelierImages.rendreImages(d.doc,
+          { mode: 'fidele', scene: { largeur: 960, hauteur: 540 }, echelleTypo: 1.4 });
+        r.images.forEach((im) => out.push({ stepId: im.stepId,
+          sous: im.debordement_sous_tolerance, px: im.debordement_px,
+          verdict: im.debordement_verdict, sceneH: im.scene_hauteur,
+          capture: im.hauteur_capture, h: im.hauteur, l: im.largeur }));
+      }
+      return out;
+    }, PRESENTATIONS);
+    const sousTolerance = surSceneFixe.filter((im) => im.sous);
     assert.ok(sousTolerance.length >= 1,
-      'au moins une étape doit tomber sous la tolérance, sinon ce contrôle ne vérifie rien');
+      'au moins une étape doit tomber sous la tolérance SUR SCÈNE FIXE, sinon ce contrôle ne '
+      + 'vérifie rien : ' + JSON.stringify(surSceneFixe.map((x) => x.px)));
     sousTolerance.forEach((im) => {
-      assert.equal(im.debordement_verdict, 'aucun', im.stepId + ' : sous tolérance mais verdict ' + im.debordement_verdict);
-      assert.ok(im.debordement_px > 0 && im.debordement_px <= 540 * 0.02 + 1,
-        im.stepId + ' : ' + im.debordement_px + ' px, hors de la zone morte');
+      assert.equal(im.verdict, 'aucun', im.stepId + ' : sous tolérance mais verdict ' + im.verdict);
+      assert.ok(im.px > 0 && im.px <= im.sceneH * 0.02 + 1,
+        im.stepId + ' : ' + im.px + ' px pour une scène de ' + im.sceneH + ', hors de la zone morte');
+    });
+    // ET L'IMAGE RESTE LE CADRE. La zone morte est le SEUL endroit où la hauteur de capture et
+    // la hauteur nécessaire diffèrent : le dépassement n'est pas un débordement, donc on capture
+    // le cadre et on abandonne ces quelques pixels. Une capture qui suivrait son contenu sortirait
+    // du 16:9 — 1092 px de haut au lieu de 1080 — tout en se déclarant sans débordement. Les
+    // métadonnées, elles, resteraient irréprochables : c'est exactement le défaut crédible du
+    // 7 octobre, et seule la TAILLE DE L'IMAGE le dit.
+    surSceneFixe.filter((im) => im.verdict === 'aucun').forEach((im) => {
+      assert.equal(im.capture, im.sceneH,
+        im.stepId + ' : déclarée sans débordement mais capturée sur ' + im.capture
+        + ' px au lieu du cadre (' + im.sceneH + ' px)');
+      assert.equal(im.l, 1920, im.stepId + ' : largeur ' + im.l);
+      assert.equal(im.h, 1080,
+        im.stepId + ' : déclarée sans débordement et pourtant haute de ' + im.h + ' px');
     });
     console.log('      sous tolérance (donc « aucun ») : '
       + sousTolerance.map((im) => im.stepId + ' ' + im.debordement_px + 'px').join(', '));
@@ -542,7 +598,7 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
     // height:100% et son image de couverture en max-height:45%. Agrandir la scène pour y faire
     // tenir un débordement agrandit l'image d'autant, qui repousse le texte — et la hauteur
     // mesurée AVANT cet agrandissement est toujours trop courte.
-    const { ILLUSTREE, SANS_PHOTO } = require('./chutier-fixtures.cjs');
+    const { SANS_PHOTO } = require('./chutier-fixtures.cjs');
     const REGLAGES = { a: { mode: 'fidele' }, b: { mode: 'fidele', scene: { largeur: 960, hauteur: 540 } },
                        c: { mode: 'fidele', echelleTypo: 1.6 }, d: {} };
     const troncature = await page.evaluate(async ({ docs, reglages }) => {
@@ -768,8 +824,9 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
         seuilRegle: v(800, 540, { seuil: 1.2 }),  // seuil abaissé : le même contenu devient scission
         toleranceReglee: v(546, 540, { tolerance: 1.001 }),
         // Quand la durée est connue, c'est la VITESSE qui décide, pas le rapport.
-        lentEtLong: v(800, 540, { dureeS: 60, echelleSortie: 2 }),   // 520 px/60 s = 8,7 px/s
-        lentEtCourt: v(800, 540, { dureeS: 4, echelleSortie: 2 }),   // 520 px/4 s = 130 px/s
+        // 520 px de sortie, et la durée utile retire les DEUX poses de 0,8 s :
+        lentEtLong: v(800, 540, { dureeS: 60, echelleSortie: 2 }),   // 520 px/58,4 s = 8,9 px/s
+        lentEtCourt: v(800, 540, { dureeS: 4, echelleSortie: 2 }),   // 520 px/2,4 s = 216,7 px/s
       };
     });
     assert.deepEqual(politique.defauts, { tolerance: 1.02, seuil: 1.8, vitesse: 60 });
@@ -787,6 +844,16 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
     assert.equal(politique.lentEtCourt.verdict, 'scission',
       'la MÊME hauteur sur une étape courte ne se défile pas : ' + JSON.stringify(politique.lentEtCourt));
     assert.equal(politique.modere.regle, 'rapport', 'sans durée, c\'est le rapport qui tranche');
+    // LE VERDICT ET LE PLAN SONT LE MÊME CALCUL. Deux formules se seraient séparées un jour, et
+    // un plan de travelling qui contredit son propre verdict est un défaut crédible de plus.
+    assert.equal(politique.lentEtLong.plan.tenable, true, 'le plan doit dire tenable');
+    assert.equal(politique.lentEtLong.plan.pose_s, 0.8, 'avec sa pose : ' + politique.lentEtLong.plan.pose_s);
+    assert.equal(politique.lentEtLong.plan.duree_utile_s, 58.4,
+      'la durée utile retire les deux poses : ' + politique.lentEtLong.plan.duree_utile_s);
+    assert.equal(politique.lentEtLong.plan.vitesse_px_par_s, politique.lentEtLong.vitesse_px_par_s,
+      'la vitesse du verdict est celle du plan');
+    assert.equal(politique.lentEtCourt.plan.tenable, false, 'et l\'étape courte n\'est pas tenable');
+    assert.equal(politique.modere.plan, undefined, 'sans durée, aucun plan n\'est promis');
     console.log('      tolérance ' + politique.defauts.tolerance + ', seuil ' + politique.defauts.seuil
       + ', vitesse maximale ' + politique.defauts.vitesse + ' px/s — même hauteur, 60 s : '
       + politique.lentEtLong.verdict + ' (' + politique.lentEtLong.vitesse_px_par_s + ' px/s) ; 4 s : '
@@ -799,12 +866,19 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
     // un plafond en PIXELS ne la suit pas. Le contrôle éprouve les deux affirmations.
     const plafond = await page.evaluate(async (d) => {
       const A = window.AtelierImages;
-      const sans = await A.rendreImages(d, {});
-      const avec = await A.rendreImages(d, { plafondPhoto: 0.25 });
+      // Scène FIXE : le plafond suppose une scène unique, et la scène par diapositive le
+      // refuse désormais explicitement (décision du 9 octobre).
+      const FIXE = { mode: 'fidele', scene: { largeur: 960, hauteur: 540 }, echelleTypo: 1.4 };
+      const sans = await A.rendreImages(d, FIXE);
+      const avec = await A.rendreImages(d, Object.assign({ plafondPhoto: 0.25 }, FIXE));
       // Le témoin : le MÊME document dans une scène qui le contient sans agrandissement. La
       // photo y occupe sa part nominale, 45 % du cadre. C'est la comparaison des deux qui
       // établit « la photo grandit avec le contenu », et non un seuil choisi au hasard.
       const tient = await A.rendreImages(d, { mode: 'fidele' });
+      // Et le refus de la combinaison, nommé.
+      let refus = null;
+      try { await A.rendreImages(d, { plafondPhoto: 0.25 }); }
+      catch (e) { refus = e.message; }
       const haut = (r) => Math.max.apply(null, r.images.map((im) => im.hauteur));
       return {
         sansDefaut: sans.plafond_photo, sansPx: sans.plafond_photo_px,
@@ -816,13 +890,15 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
         pcCadreSans: sans.images.map((im) => im.photo_pc_cadre),
         pcCadreTient: tient.images.map((im) => im.photo_pc_cadre),
         verdictsTient: tient.images.map((im) => im.debordement_verdict),
-        hautSans: haut(sans), hautAvec: haut(avec), scene: sans.scene,
+        hautSans: haut(sans), hautAvec: haut(avec), scene: sans.scene, refus: refus,
       };
     }, ILLUSTREE);
     assert.equal(plafond.sansDefaut, null, 'le plafond doit être ABSENT par défaut');
     assert.equal(plafond.sansPx, 0, 'et sa valeur en pixels nulle');
     assert.ok(plafond.calculeSans.every((x) => x === '45%'),
       'sans option, le lecteur garde son max-height en POURCENTAGE : ' + plafond.calculeSans.join(','));
+    assert.ok(plafond.refus && /scène unique/.test(plafond.refus),
+      'combiner le plafond et la scène par diapositive doit être REFUSÉ, nommément : ' + plafond.refus);
     assert.equal(plafond.avecPx, Math.round(0.25 * plafond.scene.hauteur),
       'avec option, le plafond vaut 25 % de la hauteur du CADRE en pixels');
     assert.ok(plafond.calculeAvec.every((x) => x === plafond.avecPx + 'px'),
@@ -875,10 +951,15 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
         } finally { sc.fermer(); }
         return out;
       };
-      const empile = await compter({});
-      const seul = await compter({ blocCourantSeul: true });
-      const rEmpile = await A.rendreImages(d, {});
-      const rSeul = await A.rendreImages(d, { blocCourantSeul: true });
+      // Scène FIXE, pour la même raison qu'au contrôle 20 : « bloc courant seul » suppose
+      // une scène unique, et la scène par diapositive refuse la combinaison.
+      // 960×540 ×1,4 : sur 1422×800 cette fixture TIENT, et « bloc courant seul » n'aurait
+      // rien à raccourcir — le contrôle serait vide.
+      const FIXE = { mode: 'fidele', scene: { largeur: 960, hauteur: 540 }, echelleTypo: 1.4 };
+      const empile = await compter(FIXE);
+      const seul = await compter(Object.assign({ blocCourantSeul: true }, FIXE));
+      const rEmpile = await A.rendreImages(d, FIXE);
+      const rSeul = await A.rendreImages(d, Object.assign({ blocCourantSeul: true }, FIXE));
       return { empile, seul,
         defautEmpile: rEmpile.bloc_courant_seul, defautSeul: rSeul.bloc_courant_seul,
         hEmpile: rEmpile.images.map((im) => im.hauteur_contenu),
@@ -973,7 +1054,556 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       + ' ms (borne ' + decodagePhotos.borne + ' ms)');
     pass('le décodage des photos est attendu avant toute mesure, et une image cassée ne bloque pas.');
 
-    // ── 23. Aucune erreur de page pendant tout cela ───────────────────────────────────────────
+    // ── 23. UNE SCÈNE PAR DIAPOSITIVE — décision du 9 octobre ────────────────────────────────
+    // Le texte reste tel quel, tout le visuel reste présent, et c'est la SCÈNE qui s'adapte :
+    // la plus petite où la diapositive tient en entier, sans descendre sous le plancher de
+    // lisibilité. Deux diapositives de densités différentes doivent donc recevoir deux scènes
+    // différentes — sans quoi le mécanisme ne fait rien.
+    // UNE CARTE D'UN TITRE ET D'UN SEUL PARAGRAPHE. Elle existe pour une raison précise : sur
+    // toutes les autres, la médiane tombe sur 15 px même si l'on recompte les titres, parce que
+    // les paragraphes y sont plus nombreux. Avec DEUX tailles et une seule valeur de chacune, la
+    // médiane d'un ensemble de deux éléments est la PLUS GRANDE — donc le titre. C'est le seul
+    // cas où la mutation « inclure les titres » se voit, et le falsifieur l'a dit en la signalant
+    // non détectée sur mes trois présentations.
+    const DEUX_TAILLES = JSON.parse(JSON.stringify(PRESENTATIONS[1].doc));
+    DEUX_TAILLES.documentId = 'chutier-deux-tailles';
+    DEUX_TAILLES.versionId = 'chutier-deux-tailles-v1';
+    DEUX_TAILLES.citations = [];
+    delete DEUX_TAILLES.deepDives;
+    DEUX_TAILLES.blocks = [{ id: 'slide-01', type: 'card', citationIds: [], validation: {},
+      content: { title: 'Un titre et un paragraphe', imageRef: null, imageAlt: null, blocks: [
+        { id: 'heading-01', type: 'heading', content: { text: 'Un seul titre', level: 2 },
+          citationIds: [], validation: {} },
+        { id: 'paragraph-01', type: 'paragraph', citationIds: [], validation: {},
+          content: { text: 'Un seul paragraphe, qui porte le corps du texte de cette carte.' } },
+      ] } }];
+
+    const parDiapo = await page.evaluate(async (docs) => {
+      const A = window.AtelierImages;
+      const out = {};
+      for (const d of docs) {
+        // LE TÉMOIN VIENT DE LA PAGE, PAS DU MODULE. On relève, à chaque étape, la taille de
+        // police du PREMIER bloc qui n'est pas un titre — par un chemin entièrement différent de
+        // celui que `mesureTexte` emploie. C'est ce témoin qui dit si le moteur a mesuré le
+        // corps du texte ou le titre, et c'est la question que Christophe a posée par le calcul.
+        const temoins = {};
+        const r = await A.rendreImages(d.doc, {
+          inspecter: function (inner, etape) {
+            const carte = inner.querySelector('.adoc-sc-card');
+            if (!carte || temoins[etape.cardId]) return null;
+            const blocs = Array.prototype.slice.call(
+              carte.querySelectorAll(':scope > .adoc-sc-block'));
+            const corps = blocs.filter(function (b) {
+              return !b.classList.contains('adoc-sc-heading')
+                && getComputedStyle(b).display !== 'none'; })[0];
+            const titre = blocs.filter(function (b) {
+              return b.classList.contains('adoc-sc-heading'); })[0];
+            // L'APPAREIL DE CITATION, relevé lui aussi : appels, notes et puce
+            // d'approfondissement descendent à 7,7 px. Ce ne sont pas des textes à lire, et la
+            // taille mesurée par le moteur doit rester AU-DESSUS d'eux.
+            const apparat = Array.prototype.slice.call(carte.querySelectorAll(
+              '.adoc-sc-cite, .adoc-sc-cite-flagged, .adoc-sc-cite-note, .adoc-sc-deepdive-chip'))
+              .filter(function (el) { return getComputedStyle(el).display !== 'none'
+                && (el.textContent || '').trim(); })
+              .map(function (el) { return parseFloat(getComputedStyle(el).fontSize); })
+              .filter(function (t) { return t; });
+            temoins[etape.cardId] = {
+              corps: corps ? parseFloat(getComputedStyle(corps).fontSize) : null,
+              titre: titre ? parseFloat(getComputedStyle(titre).fontSize) : null,
+              apparatMin: apparat.length ? Math.min.apply(null, apparat) : null,
+              nbBlocs: blocs.length,
+            };
+            return null;
+          },
+        });
+        const parCarte = {};
+        r.images.forEach((im) => {
+          (parCarte[im.cardId] = parCarte[im.cardId] || []).push({
+            stepId: im.stepId, l: im.scene_largeur, h: im.scene_hauteur,
+            texte_pc: im.texte_pc, raison: im.scene_raison,
+            corps_px: im.corps_px, petit_px: im.plus_petit_texte_px,
+            petit_pc: im.plus_petit_texte_pc,
+            contenu: im.hauteur_contenu, verdict: im.debordement_verdict });
+        });
+        out[d.cle] = { parCarte: parCarte, plancher: r.plancher_lisibilite_pc,
+                       choisie: r.scene_par_diapositive, typo: r.echelle_typo,
+                       scenes: r.scenes_par_carte, temoins: temoins,
+                       sortie: r.sortie };
+      }
+      out.__bornes = { largeurMin: A.SCENE_LARGEUR_MIN };
+      // Témoin : une scène imposée doit DÉSACTIVER le choix.
+      const impose = await A.rendreImages(docs[0].doc, { scene: { largeur: 1000, hauteur: 563 } });
+      out.__impose = { choisie: impose.scene_par_diapositive,
+                       l: impose.images[0].scene_largeur, raison: impose.images[0].scene_raison };
+      return out;
+    }, PRESENTATIONS.concat([{ cle: 'deuxTailles', doc: DEUX_TAILLES }]));
+
+    const toutesScenes = [];
+    ['couverture', 'dense', 'questionnaire', 'deuxTailles'].forEach((cle) => {
+      const d = parDiapo[cle];
+      assert.equal(d.choisie, true, cle + ' : la scène doit être choisie par diapositive');
+      assert.equal(d.typo, 1, cle + ' : aucune échelle typographique');
+      Object.entries(d.parCarte).forEach(([carte, etapes]) => {
+        // LA SCÈNE EST CONSTANTE SUR LES ÉTAPES D'UNE MÊME DIAPOSITIVE.
+        const largeurs = Array.from(new Set(etapes.map((e) => e.l)));
+        assert.equal(largeurs.length, 1,
+          cle + '/' + carte + ' : la scène doit être la MÊME sur toutes les étapes : ' + largeurs.join(','));
+        const e = etapes[0];
+        toutesScenes.push(e.l);
+        // LE PLANCHER DE LISIBILITÉ est respecté, toujours.
+        assert.ok(e.texte_pc >= d.plancher - 0.01,
+          cle + '/' + carte + ' : texte à ' + e.texte_pc + ' % sous le plancher de ' + d.plancher + ' %');
+        // ── CE QUE LA COLONNE MESURE, et c'est le corps du texte ────────────────────────────
+        // L'IDENTITÉ D'ABORD : le pourcentage annoncé est bien celui de la taille annoncée dans
+        // la scène retenue. Une colonne juste sur une mauvaise taille resterait fausse, mais une
+        // colonne qui ne découle même pas de sa propre taille serait fausse deux fois.
+        const attendu = e.corps_px * d.sortie.largeur / e.l / d.sortie.hauteur * 100;
+        assert.ok(Math.abs(e.texte_pc - attendu) <= 0.02,
+          cle + '/' + carte + ' : ' + e.texte_pc + ' % annoncé pour ' + e.corps_px
+          + ' px dans une scène de ' + e.l + ' px, qui en donne ' + attendu.toFixed(2) + ' %');
+        // PUIS LE TÉMOIN, relevé dans la page : la taille mesurée est celle du corps, et non
+        // celle du titre. Le défaut valait exactement 1,5 — 22,5 px au lieu de 15.
+        const t = d.temoins[carte] || {};
+        if (t.corps) {
+          assert.equal(e.corps_px, t.corps,
+            cle + '/' + carte + ' : le moteur annonce ' + e.corps_px + ' px là où le premier bloc '
+            + 'de texte de la page en fait ' + t.corps + ' px');
+          if (t.titre) {
+            assert.ok(e.corps_px < t.titre,
+              cle + '/' + carte + ' : la taille mesurée (' + e.corps_px + ' px) est celle du '
+              + 'titre (' + t.titre + ' px), pas celle du corps');
+          }
+        }
+        // ET LE PLUS PETIT TEXTE DE LECTURE EST DIT, qu'il tienne le plancher ou non.
+        assert.ok(e.petit_px === null || e.petit_px <= e.corps_px,
+          cle + '/' + carte + ' : le plus petit texte (' + e.petit_px + ') ne peut pas dépasser '
+          + 'le corps (' + e.corps_px + ')');
+        // L'APPAREIL DE CITATION N'EST PAS DU TEXTE À LIRE. Un appel de 7,7 px protégé par un
+        // plancher de 2 % imposerait une scène de 683 px et ferait déborder toute la
+        // présentation : la mesure doit rester strictement au-dessus de lui.
+        if (t.apparatMin) {
+          assert.ok(e.petit_px > t.apparatMin,
+            cle + '/' + carte + ' : le plus petit texte mesuré (' + e.petit_px + ' px) descend à '
+            + 'la taille de l\'appareil de citation (' + t.apparatMin + ' px) — ce sont des '
+            + 'marques, pas de la lecture');
+        }
+        // ET LA DIAPOSITIVE TIENT, sauf si le choix a dit qu'elle débordait.
+        const deborde = /dépasse/.test(e.raison || '');
+        // LA SCÈNE RETENUE EST LA PLUS PETITE OÙ LA DIAPOSITIVE TIENT, et non une autre qui
+        // « tiendrait aussi ». Sans ce contrôle, une recherche qui retiendrait la PLUS GRANDE
+        // scène lisible passerait tout ce qui précède : le contenu y tient, le plancher y est
+        // respecté, et le texte serait simplement au plus petit possible — exactement ce que
+        // la scène par diapositive est censée éviter. Mesuré en inversant la dichotomie :
+        // 1422 px retenus au lieu de 647, soit 2,08 % de texte au lieu de 6,18 %.
+        //
+        // Le grain est celui de la recherche : elle s'arrête quand l'intervalle descend à 8 px.
+        // Deux cas, et deux seulement :
+        //   · aucune sonde n'a échoué → la plus petite scène possible est la borne basse, et la
+        //     retenue doit y être collée ;
+        //   · une sonde a échoué → la retenue est juste au-dessus de la plus large qui a échoué.
+        const GRAIN = 8;
+        const essais = (d.scenes[carte] || {}).essais || [];
+        assert.ok(essais.length >= 1, cle + '/' + carte + ' : le choix doit relever ses sondes');
+        if (!deborde) {
+          const basBorne = Math.min(essais[0].largeur, parDiapo.__bornes.largeurMin);
+          const echecs = essais.filter((x) => !x.tient).map((x) => x.largeur);
+          if (!echecs.length) {
+            assert.ok(e.l <= basBorne + GRAIN,
+              cle + '/' + carte + ' : tout tient jusqu\'à la borne basse (' + basBorne
+              + ' px) et la scène retenue est pourtant de ' + e.l + ' px — la recherche ne rend '
+              + 'pas la plus petite scène, donc pas le plus grand texte lisible');
+          } else {
+            const plusLargeEchec = Math.max.apply(null, echecs);
+            assert.ok(e.l > plusLargeEchec && e.l - plusLargeEchec <= GRAIN,
+              cle + '/' + carte + ' : la scène retenue (' + e.l + ' px) doit être à ' + GRAIN
+              + ' px au plus au-dessus de la plus large qui ne tient pas (' + plusLargeEchec
+              + ' px) ; sondes : ' + essais.map((x) => x.largeur + (x.tient ? '+' : '-')).join(' '));
+          }
+        }
+        if (!deborde) {
+          assert.ok(e.contenu <= e.h * 1.02,
+            cle + '/' + carte + ' : contenu ' + e.contenu + ' px pour une scène de ' + e.h);
+          assert.equal(e.verdict, 'aucun', cle + '/' + carte + ' : verdict ' + e.verdict);
+        } else {
+          assert.notEqual(e.verdict, 'aucun',
+            cle + '/' + carte + ' : annoncé débordant mais verdict « aucun »');
+        }
+      });
+    });
+    // DEUX DENSITÉS, DEUX SCÈNES : sans cela, le mécanisme pourrait rendre la même scène partout.
+    assert.ok(new Set(toutesScenes).size >= 2,
+      'des diapositives de densités différentes doivent recevoir des scènes différentes : '
+      + Array.from(new Set(toutesScenes)).join(', '));
+    // LE TÉMOIN : une scène imposée désactive le choix.
+    assert.equal(parDiapo.__impose.choisie, false, 'une scène imposée désactive le choix');
+    assert.equal(parDiapo.__impose.l, 1000, 'et c\'est bien elle qui sert : ' + parDiapo.__impose.l);
+    assert.equal(parDiapo.__impose.raison, null, 'aucune raison de choix à annoncer');
+    console.log('      scènes retenues : ' + Array.from(new Set(toutesScenes)).sort((a, b) => a - b).join(', ')
+      + ' px de large  |  plancher ' + parDiapo.couverture.plancher + ' %');
+    // LA CARTE À DEUX TAILLES : son corps DOIT être le paragraphe, pas le titre.
+    const dt = Object.values(parDiapo.deuxTailles.scenes)[0];
+    const tdt = parDiapo.deuxTailles.temoins['slide-01'] || {};
+    assert.equal(dt.taille_px, tdt.corps,
+      'carte d\'un titre et d\'un paragraphe : corps mesuré ' + dt.taille_px + ' px pour un '
+      + 'paragraphe à ' + tdt.corps + ' px (titre à ' + tdt.titre + ' px)');
+    assert.ok(dt.taille_px < tdt.titre,
+      'et il doit être strictement plus petit que le titre : ' + dt.taille_px + ' vs ' + tdt.titre);
+    console.log('      carte d\'un titre (' + tdt.titre + ' px) et d\'un paragraphe ('
+      + tdt.corps + ' px) : corps retenu ' + dt.taille_px + ' px → ' + dt.texte_pc + ' %');
+
+    ['couverture', 'dense', 'questionnaire', 'deuxTailles'].forEach((cle) => {
+      Object.entries(parDiapo[cle].scenes).forEach(([carte, s]) => {
+        console.log('      ' + (cle + '/' + carte).padEnd(28) + s.scene.largeur + 'x' + s.scene.hauteur
+          + '  corps ' + s.taille_px + ' px → ' + s.texte_pc + ' %'
+          + (s.plus_petit_px && s.plus_petit_px < s.taille_px
+             ? '  (plus petit ' + s.plus_petit_px + ' px → ' + s.plus_petit_pc + ' %)' : '')
+          + '  ' + s.essais.length + ' essai(s)  '
+          + (s.deborde ? 'DÉBORDE — ' : '') + s.raison);
+      });
+    });
+    pass('une scène par diapositive : constante sur ses étapes, au-dessus du plancher, et elle varie avec la densité.');
+
+    // ── 24. LA PRÉMISSE DE LA SCÈNE PAR DIAPOSITIVE : UNE CARTE, UNE SEULE HAUTEUR ───────────
+    // Toute la scène par diapositive repose sur un fait du lecteur, et sur lui seul : la
+    // révélation masque en `opacity:0; visibility:hidden`, qui CONSERVENT la mise en page. Les
+    // blocs pas encore révélés occupent donc déjà leur place, et une carte a la MÊME hauteur de
+    // contenu à toutes ses étapes. C'est ce qui autorise à choisir la scène une fois, sur la
+    // première étape, et à s'y tenir pour les suivantes.
+    //
+    // Si cette prémisse tombait — une révélation en `display:none`, une hauteur mesurée sur les
+    // seuls blocs visibles — la scène choisie sur l'étape 1 serait trop petite pour l'étape 4,
+    // et le dernier bloc serait coupé : le défaut du 7 octobre, revenu par la porte d'à côté.
+    // Rien d'autre dans ces contrôles ne dit cette prémisse ; elle se mesure donc ici.
+    //
+    // La scène est volontairement petite (640×360) : il faut que la carte DÉBORDE, sans quoi la
+    // hauteur mesurée serait celle de la scène à chaque étape et le contrôle serait vide.
+    const premisse = await page.evaluate(async (doc) => {
+      const A = window.AtelierImages;
+      const sc = await A.ouvrirScene(doc, { scene: { largeur: 640, hauteur: 360 } });
+      try {
+        const etapes = [];
+        for (let i = 0; i < sc.etapes.length; i++) {
+          await sc.allerA(i);
+          const m = sc.mesurer();
+          etapes.push({ step: sc.etapes[i].stepId, carte: sc.etapes[i].cardId,
+                        contenu: 360 + m.px, px: m.px });
+        }
+        return { etapes: etapes, scene: sc.scene };
+      } finally { sc.fermer(); }
+    }, PRESENTATIONS[1].doc);
+    const cartesPremisse = {};
+    premisse.etapes.forEach((e) => { (cartesPremisse[e.carte] = cartesPremisse[e.carte] || []).push(e); });
+    let etapesComparees = 0;
+    Object.entries(cartesPremisse).forEach(([carte, etapes]) => {
+      assert.ok(etapes.length >= 2,
+        carte + ' : il faut au moins deux étapes pour comparer (' + etapes.length + ')');
+      // ELLE DOIT DÉBORDER, sinon la hauteur mesurée est celle de la scène et ne dit rien.
+      etapes.forEach((e) => assert.ok(e.px > 0,
+        carte + '/' + e.step + ' : la carte doit déborder de cette petite scène pour que la '
+        + 'comparaison porte sur une vraie hauteur de contenu (' + e.contenu + ' px)'));
+      const hauteurs = Array.from(new Set(etapes.map((e) => e.contenu)));
+      assert.equal(hauteurs.length, 1,
+        carte + ' : la hauteur de contenu doit être la MÊME à toutes les étapes — '
+        + etapes.map((e) => e.step + ' ' + e.contenu + ' px').join(', ')
+        + ' — sinon la scène choisie sur la première étape ne vaut pas pour les suivantes');
+      etapesComparees += etapes.length;
+    });
+    console.log('      prémisse : ' + etapesComparees + ' étapes d\'une même carte, toutes à '
+      + premisse.etapes[0].contenu + ' px de contenu dans une scène de 640x360 (les blocs non '
+      + 'révélés occupent déjà leur place).');
+    pass('une carte a la même hauteur de contenu à toutes ses étapes : la scène peut se choisir une fois.');
+
+    // ── 25. LE TRAVELLING : UN PLAN, CALCULÉ SUR LA DURÉE DU COMMENTAIRE ─────────────────────
+    // Une diapositive qui déborde est livrée sur TOUTE sa hauteur — c'est acquis depuis le
+    // 7 octobre. Ce qui manquait, c'est le plan : de combien, pendant combien de temps, à quelle
+    // vitesse, et avec quel temps de pose aux deux bouts. Sans lui, le montage aurait à refaire
+    // le calcul, donc à le refaire AUTREMENT.
+    //
+    // La durée vient de la narration du lot 1a (mots ÷ 2,5). Les trois présentations d'essai n'en
+    // portent pas : on en écrit une ici, validée contre le schéma réel, en deux versions qui ne
+    // diffèrent que par la LONGUEUR du commentaire — assez long pour défiler, trop court pour
+    // défiler. C'est la comparaison des deux qui montre que la durée décide.
+    const NARRE = JSON.parse(JSON.stringify(PRESENTATIONS[2].doc));
+    NARRE.documentId = 'chutier-narre'; NARRE.versionId = 'chutier-narre-v1';
+    const motsLongs = 'Prenez le temps de lire chaque question avant de repondre, sans chercher '
+      + 'la bonne reponse : il n y en a pas, et c est le mouvement qui compte ici plus que le '
+      + 'resultat lui meme, quel qu il soit au bout du compte.';   // 40 mots → 16 s
+    NARRE.narration = [{ stepId: 'questionnaire-01', text: motsLongs }];
+    const PRESSE = JSON.parse(JSON.stringify(NARRE));
+    PRESSE.documentId = 'chutier-presse'; PRESSE.versionId = 'chutier-presse-v1';
+    PRESSE.narration = [{ stepId: 'questionnaire-01', text: 'Repondez vite.' }];   // 2 mots → 0,8 s
+
+    // ET UNE TROISIÈME VERSION, SANS NARRATION DU TOUT, qui déborde au-delà du seuil de
+    // scission. C'est le cas de la vraie présentation de Christophe : un export ne porte jamais
+    // de narration, donc le plan n'a pas de durée et le verdict retombe sur le rapport. Les deux
+    // lignes du relevé doivent quand même dire la même chose. Le paragraphe est fabriqué ici,
+    // assez long pour dépasser le seuil même à la scène la plus large que le plancher autorise.
+    const MUETTE = JSON.parse(JSON.stringify(PRESENTATIONS[1].doc));
+    MUETTE.documentId = 'chutier-muette'; MUETTE.versionId = 'chutier-muette-v1';
+    const phrase = (i) => 'Phrase numero ' + i + ' d un paragraphe volontairement long, ecrite '
+      + 'pour occuper plusieurs lignes et pousser la carte bien au-dela de son cadre, sans rien '
+      + 'dire de particulier.';
+    MUETTE.blocks = [{ id: 'slide-01', type: 'card', citationIds: [], validation: {},
+      content: { title: 'Carte tres longue', imageRef: null, imageAlt: null, blocks: [
+        { id: 'heading-01', type: 'heading', content: { text: 'Un titre', level: 2 },
+          citationIds: [], validation: {} },
+        { id: 'paragraph-01', type: 'paragraph', citationIds: [], validation: {},
+          content: { text: Array.from({ length: 90 }, (_, i) => phrase(i + 1)).join(' ') } },
+      ] } }];
+    // `citations` est obligatoire dans le schéma : on la vide, on ne la retire pas. Mesuré —
+    // AJV refusait le document, et le contrôle a d'abord échoué là.
+    MUETTE.citations = []; delete MUETTE.narration; delete MUETTE.deepDives;
+
+    const trav = await page.evaluate(async (docs) => {
+      const A = window.AtelierImages;
+      const P = A.planTravelling;
+      // L'UNITÉ, AUX BORNES. 600 px en 11,6 s : la durée utile fait 10 s, donc 60 px/s pile —
+      // la borne est tenable, et un pixel de plus ne l'est plus. C'est là que se joue la règle,
+      // et nulle part ailleurs.
+      const unite = {
+        rien: P(0, 30), negatif: P(-40, 30), sansDuree: P(400, null),
+        // 1,6 s : les deux poses, pile — il reste zéro seconde pour défiler. 1,0 s : il en
+        // manque. Les deux doivent être refusés, et le second compte autant que le premier :
+        // une durée utile NÉGATIVE donnerait une vitesse négative, donc « sous la borne ».
+        poseTropGrande: P(400, 1.6), poseTropGrandeStricte: P(400, 1.0),
+        pile: P(600, 11.6), unPeuTrop: P(601, 11.6),
+      };
+      const sorties = {};
+      for (const d of docs) {
+        const v = window.adocValidateSchema('clinicalDocument', d.doc);
+        const r = await A.rendreImages(d.doc, {});
+        sorties[d.cle] = {
+          valide: !!v.valid, ignore: !!v.skipped,
+          erreurs: (v.errors || []).slice(0, 2).map(String),
+          pose: r.pose_travelling_s, resume: r.travellings,
+          images: r.images.map((im) => ({ step: im.stepId, rang: im.rang, h: im.hauteur,
+            verdict: im.debordement_verdict, scission: im.scission_conseillee,
+            regle: im.debordement_regle, t: im.travelling,
+            visible: im.hauteur_visible, visibleSortie: im.hauteur_visible_sortie })),
+        };
+      }
+      return { unite: unite, sorties: sorties, poseDefaut: A.POSE_TRAVELLING_S };
+    }, [{ cle: 'narre', doc: NARRE }, { cle: 'presse', doc: PRESSE }, { cle: 'muette', doc: MUETTE }]);
+
+    assert.equal(trav.unite.rien, null, 'rien à faire défiler : aucun plan');
+    assert.equal(trav.unite.negatif, null, 'une course négative n\'est pas un travelling');
+    assert.equal(trav.unite.sansDuree.tenable, null, 'sans durée, « tenable » ne se prononce pas');
+    assert.equal(trav.unite.sansDuree.vitesse_px_par_s, null, 'et aucune vitesse n\'est inventée');
+    assert.equal(trav.unite.sansDuree.fin_y, 400, 'la course, elle, est connue');
+    assert.equal(trav.unite.poseTropGrande.tenable, false,
+      'un commentaire qui ne dépasse pas les deux poses ne laisse aucun temps pour défiler');
+    assert.equal(trav.unite.poseTropGrande.duree_utile_s, 0, 'et la durée utile est nulle');
+    assert.equal(trav.unite.poseTropGrandeStricte.tenable, false,
+      'un commentaire plus court que les deux poses ne défile pas non plus : '
+      + JSON.stringify(trav.unite.poseTropGrandeStricte));
+    assert.equal(trav.unite.poseTropGrandeStricte.vitesse_px_par_s, null,
+      'et aucune vitesse négative n\'est rendue');
+    assert.equal(trav.unite.pile.vitesse_px_par_s, 60, 'la borne, pile : ' + trav.unite.pile.vitesse_px_par_s);
+    assert.equal(trav.unite.pile.tenable, true, 'à 60 px/s exactement, c\'est tenable');
+    assert.equal(trav.unite.unPeuTrop.tenable, false,
+      'un pixel de plus ne l\'est plus : ' + trav.unite.unPeuTrop.vitesse_px_par_s + ' px/s');
+    assert.equal(trav.poseDefaut, 0.8, 'la pose par défaut');
+
+    ['narre', 'presse', 'muette'].forEach((cle) => {
+      const d = trav.sorties[cle];
+      assert.equal(d.ignore, false, cle + ' : AJV doit être actif');
+      assert.equal(d.valide, true, cle + ' : document invalide — ' + d.erreurs.join(' | '));
+      assert.equal(d.pose, 0.8, cle + ' : la pose doit être dite dans le relevé');
+      // ET L'ÉCART ENTRE « ça déborde » ET « il y a une course » EST COMPTÉ, au lieu d'être
+      // laissé à l'interprétation : une étape qui ne montre que le haut de sa diapositive
+      // déborde sans avoir quoi que ce soit à faire défiler.
+      assert.equal(d.resume.sans_course,
+        d.images.filter((im) => im.verdict !== 'aucun' && !im.t).length,
+        cle + ' : ' + d.resume.sans_course + ' annoncée(s) sans course pour '
+        + d.images.filter((im) => im.verdict !== 'aucun' && !im.t).length + ' observée(s)');
+      // LES DEUX LIGNES DU RELEVÉ DISENT LA MÊME CHOSE. Mesuré sur la vraie présentation de
+      // Christophe : quatre étapes « scission » d'un côté, « 0 à scinder » de l'autre, parce que
+      // l'export ne porte pas de narration et que les deux lignes ne suivaient pas la même règle.
+      assert.equal(d.resume.a_scinder.length, d.images.filter((im) => im.scission).length,
+        cle + ' : ' + d.images.filter((im) => im.scission).length + ' étape(s) à scinder et '
+        + d.resume.a_scinder.length + ' dans le résumé');
+      d.images.forEach((im) => {
+        // AUCUN PLAN QUAND L'IMAGE TIENT DANS LE CADRE, et un plan dès qu'elle en sort.
+        if (im.h <= 1080) {
+          assert.equal(im.t, null, cle + '/' + im.step + ' : image de ' + im.h + ' px, aucun plan attendu');
+          return;
+        }
+        if (im.visibleSortie <= 1080) {
+          // L'IMAGE EST HAUTE, MAIS CETTE ÉTAPE NE MONTRE QUE LE HAUT : rien à faire défiler.
+          assert.equal(im.t, null, cle + '/' + im.step + ' : ' + im.visibleSortie
+            + ' px de visible dans un cadre de 1080, aucun travelling ne doit être proposé');
+          return;
+        }
+        assert.ok(im.t, cle + '/' + im.step + ' : image de ' + im.h + ' px sans plan de travelling');
+        // LA COURSE EST CELLE DU VISIBLE À CETTE ÉTAPE, bornée par la hauteur de l'image : on ne
+        // fait pas défiler du vide. Les blocs pas encore révélés occupent leur place dans
+        // l'image — c'est ce qui permet le fondu de l'Ef1 — mais ils ne portent pas d'encre.
+        assert.equal(im.t.course_px, Math.min(im.h, im.visibleSortie) - 1080,
+          cle + '/' + im.step + ' : course ' + im.t.course_px + ' px pour ' + im.visibleSortie
+          + ' px de visible dans une image de ' + im.h);
+        assert.equal(im.t.debut_y, 0, 'le travelling part du haut');
+        assert.equal(im.t.fin_y, im.t.course_px, 'et finit au bas de ce qui est révélé');
+        // LE VERDICT ET LE PLAN DISENT LA MÊME CHOSE — chacun sous sa règle, et les deux
+        // nommées. Sans durée, le verdict retombe sur le rapport et le plan ne se prononce pas :
+        // c'est cohérent, à condition que les deux le DISENT.
+        if (im.t.tenable === null) {
+          assert.equal(im.regle, 'rapport',
+            cle + '/' + im.step + ' : sans durée, la règle doit être le rapport (' + im.regle + ')');
+          assert.equal(im.t.vitesse_px_par_s, null, cle + '/' + im.step + ' : aucune vitesse inventée');
+        } else {
+          assert.equal(im.regle, 'vitesse', cle + '/' + im.step + ' : règle ' + im.regle);
+          assert.equal(im.verdict, im.t.tenable ? 'defilement' : 'scission',
+            cle + '/' + im.step + ' : verdict ' + im.verdict + ' et plan tenable=' + im.t.tenable);
+        }
+        assert.equal(im.scission, im.verdict === 'scission', cle + '/' + im.step + ' : conseil incohérent');
+      });
+    });
+    // LES DEUX VERSIONS DOIVENT SE SÉPARER : même image, même course, et deux verdicts. Sans
+    // cela, ce contrôle ne montrerait pas que la durée du commentaire décide.
+    const dNarre = trav.sorties.narre.images.find((im) => im.h > 1080);
+    const dPresse = trav.sorties.presse.images.find((im) => im.h > 1080);
+    assert.ok(dNarre && dPresse, 'il faut une étape qui déborde dans les deux versions');
+    assert.equal(dNarre.t.course_px, dPresse.t.course_px, 'la même course dans les deux versions');
+    assert.equal(dNarre.t.tenable, true, 'commenté 16 s, il défile : ' + dNarre.t.raison);
+    assert.equal(dPresse.t.tenable, false, 'commenté 0,8 s, il ne défile pas : ' + dPresse.t.raison);
+    assert.equal(trav.sorties.narre.resume.tenables, 1, 'le relevé compte un travelling tenable');
+    assert.deepEqual(trav.sorties.presse.resume.a_scinder.map((x) => x.stepId), [dPresse.step],
+      'et l\'autre version nomme l\'étape à scinder');
+    assert.equal(trav.sorties.narre.resume.course_max_px, dNarre.t.course_px, 'la course maximale est relevée');
+    // LA TROISIÈME VERSION : elle déborde au-delà du seuil, sans aucune narration. C'est le cas
+    // réel, et c'est celui où les deux lignes du relevé se contredisaient.
+    // ── LA COURSE ÉTAPE PAR ÉTAPE, sur une carte haute à plusieurs étapes ───────────────────
+    // La question de Christophe : le plan suit-il le contenu VISIBLE ou la carte entière ? La
+    // carte « muette » porte un titre puis un très long paragraphe : à la première étape, seul
+    // le titre a de l'encre, et l'image fait déjà toute sa hauteur. Si la course suivait la
+    // carte, le travelling parcourrait une page blanche pendant tout le commentaire.
+    const parEtape = trav.sorties.muette.images.map((im) => im.t ? im.t.course_px : 0);
+    assert.equal(parEtape[0], 0,
+      'première étape : rien de révélé en bas, donc aucune course — ' + parEtape.join(', '));
+    assert.ok(parEtape[parEtape.length - 1] > 0,
+      'dernière étape : tout est révélé, donc une course — ' + parEtape.join(', '));
+    for (let i = 1; i < parEtape.length; i++) {
+      assert.ok(parEtape[i] >= parEtape[i - 1],
+        'la course ne peut que croître au fil des étapes : ' + parEtape.join(', '));
+    }
+    assert.equal(trav.sorties.muette.resume.sans_course, 1,
+      'la première étape de la carte haute déborde sans avoir de course : '
+      + trav.sorties.muette.resume.sans_course);
+    console.log('      course par étape (carte haute) : ' + trav.sorties.muette.images
+      .map((im) => 'étape ' + im.rang + ' → ' + im.visibleSortie + ' px visibles, course '
+        + (im.t ? im.t.course_px : 0) + ' px').join('  |  '));
+
+    const dMuette = trav.sorties.muette.images.filter((im) => im.t && im.t.course_px > 0).pop();
+    assert.ok(dMuette, 'la carte très longue doit déborder : '
+      + trav.sorties.muette.images.map((im) => im.h).join(', '));
+    assert.ok(dMuette.h / 1080 > 1.8,
+      'et dépasser le seuil de scission, sinon ce cas ne se distingue pas : rapport '
+      + (dMuette.h / 1080).toFixed(2));
+    assert.equal(trav.sorties.muette.resume.sans_duree, trav.sorties.muette.resume.nombre,
+      'aucune de ses étapes n\'a de durée connue');
+    assert.equal(dMuette.verdict, 'scission', 'son verdict : ' + dMuette.verdict);
+    // TOUTES ses étapes, et non la dernière : la carte a une seule hauteur, donc elle déborde
+    // dès sa première étape (contrôle 24).
+    // TOUTES ses étapes : le conseil porte sur la diapositive, et la carte a une seule hauteur
+    // (contrôle 24), donc elle déborde dès sa première étape — même si cette étape n'a encore
+    // rien à faire défiler.
+    assert.equal(trav.sorties.muette.resume.a_scinder.length, trav.sorties.muette.images.length,
+      'chaque étape de la diapositive à scinder doit être nommée : '
+      + JSON.stringify(trav.sorties.muette.resume.a_scinder.map((x) => x.stepId)));
+    trav.sorties.muette.resume.a_scinder.forEach((x) => {
+      assert.equal(x.regle, 'rapport', x.stepId + ' : règle ' + x.regle);
+      assert.match(x.raison, /durée du commentaire n'est pas encore connue/,
+        x.stepId + ' : le résumé doit dire que la durée manque — ' + x.raison);
+    });
+    console.log('      sans narration : image de ' + dMuette.h + ' px (rapport '
+      + (dMuette.h / 1080).toFixed(2) + '), ' + trav.sorties.muette.resume.a_scinder[0].raison);
+    console.log('      travelling : ' + dNarre.t.course_px + ' px de course sur une image de '
+      + dNarre.h + ' px  |  commenté ' + dNarre.t.duree_s + ' s → ' + dNarre.t.vitesse_px_par_s
+      + ' px/s en ' + dNarre.t.duree_utile_s + ' s utiles (borne 60)');
+    console.log('      le même, commenté ' + dPresse.t.duree_s + ' s → ' + dPresse.t.raison);
+    pass('le travelling a un plan : course, poses, durée utile, vitesse, et le verdict en découle.');
+
+    // ── 26. LE TRAVELLING N'OUBLIE AUCUNE ENCRE — vérifié sur les PIXELS ─────────────────────
+    // La course s'arrête au bas de ce qui est RÉVÉLÉ, et non au bas de l'image. Mesuré sur la
+    // vraie présentation de Christophe : à la dernière étape de sa diapositive à questionnaire,
+    // l'image fait 3208 px et le visible s'arrête à 2230 — près de mille pixels d'image que le
+    // travelling ne parcourt pas. Deux lectures possibles, et une seule est acceptable : soit
+    // cette zone est vide (la scène a été agrandie, le bandeau photo a grandi avec elle et a
+    // laissé du blanc en bas), soit elle porte du texte, et alors le travelling le manquerait.
+    //
+    // La question ne se tranche pas en lisant le code : elle se tranche en LISANT LES PIXELS. On
+    // décode l'image livrée et on compare chaque pixel sous la fin du travelling au fond de la
+    // carte. La carte illustrée d'essai est faite pour ce cas : photo de couverture, du texte, un
+    // encadré en dernier bloc — c'est elle qui a révélé la troncature du 7 octobre.
+    const encre = await page.evaluate(async (doc) => {
+      const A = window.AtelierImages;
+      // SCÈNE IMPOSÉE, et c'est voulu : en scène par diapositive, cette carte TIENT — c'est
+      // tout l'objet du 9 octobre. Pour éprouver la zone que le travelling ne parcourt pas, il
+      // faut une diapositive qui déborde, donc une scène qu'il faut agrandir : c'est
+      // l'agrandissement qui fait grandir le bandeau photo et laisse du blanc en bas, exactement
+      // le mécanisme observé sur la vraie présentation (image 3208 px, visible 2230 px).
+      // 640x360 : mesuré, c'est la scène où cette carte laisse le plus grand écart entre
+      // l'image (2127 px) et le visible (1611 px à la dernière étape), soit 516 px que le
+      // travelling ne parcourt pas. C'est la zone à examiner.
+      const r = await A.rendreImages(doc, { mode: 'fidele', scene: { largeur: 640, hauteur: 360 } });
+      const im = r.images.filter((x) => x.travelling && x.travelling.course_px > 0).pop()
+        || r.images[r.images.length - 1];
+      const bmp = await createImageBitmap(im.blob);
+      const c = document.createElement('canvas');
+      c.width = bmp.width; c.height = bmp.height;
+      const ctx = c.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(bmp, 0, 0);
+      const fin = im.travelling ? im.travelling.fin_y : 0;
+      const y0 = Math.min(bmp.height, fin + r.sortie.hauteur);
+      // LA RÉFÉRENCE EST PRISE DANS L'IMAGE, et non déclarée : `im.fond` vaut null ici, parce que
+      // c'est la CARTE qui porte la couleur de fond, pas la scène. Le coin bas-gauche de l'image
+      // est du fond dans toute mise en page ; si jamais il portait de l'encre, ce contrôle
+      // échouerait bruyamment, ce qui est le bon sens de l'erreur.
+      const coin = ctx.getImageData(4, bmp.height - 4, 1, 1).data;
+      const fond = [coin[0], coin[1], coin[2]];
+      let examines = 0, differents = 0, pire = 0, premiereLigne = null;
+      if (y0 < bmp.height) {
+        const d = ctx.getImageData(0, y0, bmp.width, bmp.height - y0).data;
+        for (let i = 0; i < d.length; i += 4) {
+          examines++;
+          const ecart = Math.max(Math.abs(d[i] - fond[0]), Math.abs(d[i + 1] - fond[1]),
+                                 Math.abs(d[i + 2] - fond[2]));
+          if (ecart > 8) {
+            differents++;
+            if (ecart > pire) pire = ecart;
+            if (premiereLigne === null) premiereLigne = y0 + Math.floor((i / 4) / bmp.width);
+          }
+        }
+      }
+      // LA HAUTEUR SE LIT AVANT `close()` : après, elle vaut 0, et le contrôle croyait n'avoir
+      // rien à examiner. Mesuré — c'est ce qu'il a d'abord annoncé.
+      const hauteur = bmp.height;
+      c.width = 0; c.height = 0; bmp.close();
+      return { step: im.stepId, h: hauteur, fin: fin, y0: y0,
+               fond: 'rgb(' + fond.join(', ') + ') lu dans l\'image',
+               visible: im.hauteur_visible_sortie, examines, differents, pire, premiereLigne,
+               course: im.travelling ? im.travelling.course_px : 0 };
+    }, ILLUSTREE);
+
+    assert.ok(encre.course > 0,
+      'la carte illustrée doit déborder pour que ce contrôle porte : course ' + encre.course);
+    assert.ok(encre.y0 < encre.h,
+      'il doit rester de l\'image sous la fin du travelling, sinon rien n\'est examiné : '
+      + encre.y0 + ' / ' + encre.h);
+    assert.ok(encre.examines > 0, 'aucun pixel examiné : ' + JSON.stringify(encre));
+    // AUCUNE ENCRE SOUS LA FIN DU TRAVELLING. Tolérance de 8 niveaux sur 255 : l'antialiasing du
+    // fond et la composition sur le canvas ne donnent pas deux fois le même octet.
+    assert.equal(encre.differents, 0,
+      'le travelling s\'arrête à ' + encre.y0 + ' px et il reste de l\'encre en dessous : '
+      + encre.differents + ' pixel(s) sur ' + encre.examines + ', premier à la ligne '
+      + encre.premiereLigne + ', écart maximal ' + encre.pire + ' niveaux — le travelling '
+      + 'manquerait du contenu');
+    console.log('      pixels sous la fin du travelling : ' + encre.examines + ' examinés entre '
+      + encre.y0 + ' et ' + encre.h + ' px, aucun ne s\'écarte du fond ' + encre.fond
+      + ' de plus de 8 niveaux (course ' + encre.course + ' px, visible ' + encre.visible + ' px).');
+    pass('le travelling n\'oublie aucune encre : la zone qu\'il ne parcourt pas est vide, vérifié pixel à pixel.');
+
+    // ── 27. Aucune erreur de page pendant tout cela ───────────────────────────────────────────
     assert.deepEqual(erreurs, [], 'la page ne doit lever aucune erreur : ' + erreurs.join(' | '));
     pass('aucune erreur de page sur l\'ensemble des rendus.');
 

@@ -49,8 +49,12 @@
   // CE QUE CE RÉGLAGE COÛTE, mesuré : la scène étant deux fois plus petite, l'agrandissement passe
   // de 1,35 à 2,0 ; et le texte grossissant dans des boîtes qui ne grandissent pas, cinq étapes
   // sur onze débordent au lieu d'une. D'où la politique de débordement ci-dessous.
-  var MODE_VIDEO = { scene: { largeur: 960, hauteur: 540 }, echelleTypo: 1.4 };
-  var MODE_FIDELE = { scene: null, echelleTypo: 1 };
+  // DÉCISION DU 9 OCTOBRE : le texte reste tel quel à l'écran, et tout le visuel reste présent.
+  // Le mode vidéo ne grossit donc plus la typographie et n'impose plus une scène unique : c'est
+  // la SCÈNE PAR DIAPOSITIVE qui tient ce rôle, et elle le tient mieux — elle s'adapte au
+  // contenu de chaque diapositive au lieu d'appliquer le même réglage à toutes.
+  var MODE_VIDEO = { scene: null, echelleTypo: 1, sceneParDiapositive: true };
+  var MODE_FIDELE = { scene: null, echelleTypo: 1, sceneParDiapositive: false };
 
   // ── Politique de débordement (V3) ────────────────────────────────────────────────────────
   // Une diapositive plus haute que son cadre peut DÉFILER pendant son commentaire. Au-delà d'un
@@ -77,9 +81,58 @@
   //    passe `dureeS` et le verdict se prend alors sur la VITESSE de défilement réelle, en
   //    pixels de sortie par seconde. Le rapport n'est que le repli quand on ne sait pas encore
   //    combien de temps l'étape dure.
+  // 5. LE TRAVELLING NE PART PAS AU PREMIER MOT et ne s'arrête pas au dernier. Il faut un temps
+  //    de pose aux deux bouts : le spectateur doit pouvoir lire le haut de la diapositive avant
+  //    que l'image ne bouge, et le bas après qu'elle s'est arrêtée. Sans pose, le premier et le
+  //    dernier bloc défilent pendant qu'on les découvre. 0,8 s de chaque côté : c'est le temps
+  //    de lire une ligne. C'est une proposition raisonnée, pas une mesure.
+  //
+  //    LA POSE ENTRE DANS LE CALCUL DE LA VITESSE, et donc dans le verdict : la diapositive ne
+  //    dispose pas de sa durée entière pour défiler, et la vitesse réelle est donc plus grande
+  //    que « course ÷ durée ». Le verdict et le plan partagent UNE SEULE formule, celle de
+  //    `planTravelling`. Deux formules auraient fini par diverger, et un plan qui contredit son
+  //    propre verdict est exactement le défaut crédible que ce lot passe son temps à traquer.
   var TOLERANCE_DEBORDEMENT = 1.02;      // jusqu'à 2 % de plus que le cadre : ce n'est pas un débordement
   var SEUIL_SCISSION = 1.8;              // au-delà : scission conseillée plutôt que défilement
   var VITESSE_PAN_MAX = 60;              // px de sortie par seconde, quand la durée est connue
+  var POSE_TRAVELLING_S = 0.8;           // de pose en haut ET en bas, avant et après le mouvement
+
+  // LE PLAN DE TRAVELLING, en pixels de SORTIE : c'est ce que le montage exécutera, et il n'a
+  // pas à le recalculer. Rend null quand il n'y a rien à faire défiler.
+  //
+  // `tenable` dit si la vitesse reste sous la borne : vrai, faux, ou null quand la durée du
+  // commentaire n'est pas encore connue. Un plan intenable est rendu QUAND MÊME, avec la vitesse
+  // qu'il aurait fallu tenir — un refus muet n'apprend rien à qui doit décider de découper la
+  // diapositive en deux.
+  function planTravelling(coursePx, dureeS, options) {
+    var o = options || {};
+    var course = Math.round(coursePx);
+    if (!(course > 0)) return null;
+    var pose = (typeof o.poseS === 'number') ? o.poseS : POSE_TRAVELLING_S;
+    var vitesseMax = o.vitesseMax || VITESSE_PAN_MAX;
+    if (!(dureeS > 0)) {
+      return { course_px: course, pose_s: pose, duree_s: null, duree_utile_s: null,
+               vitesse_px_par_s: null, debut_y: 0, fin_y: course, tenable: null,
+               raison: 'durée du commentaire inconnue : la vitesse ne peut pas être calculée' };
+    }
+    var utile = +(dureeS - 2 * pose).toFixed(3);
+    if (utile <= 0) {
+      return { course_px: course, pose_s: pose, duree_s: +dureeS.toFixed(2), duree_utile_s: 0,
+               vitesse_px_par_s: null, debut_y: 0, fin_y: course, tenable: false,
+               raison: 'le commentaire (' + dureeS.toFixed(1) + ' s) ne dépasse pas les deux poses ('
+                 + (2 * pose).toFixed(1) + ' s) : il ne reste aucun temps pour défiler' };
+    }
+    var vitesse = course / utile;
+    return { course_px: course, pose_s: pose, duree_s: +dureeS.toFixed(2), duree_utile_s: utile,
+             vitesse_px_par_s: +vitesse.toFixed(1), debut_y: 0, fin_y: course,
+             tenable: vitesse <= vitesseMax,
+             raison: vitesse <= vitesseMax
+               ? 'défilement de ' + course + ' px en ' + utile.toFixed(1) + ' s, deux poses de '
+                 + pose + ' s comprises'
+               : 'il faudrait ' + vitesse.toFixed(1) + ' px/s pour parcourir ' + course + ' px en '
+                 + utile.toFixed(1) + ' s, au-delà de la borne de ' + vitesseMax + ' px/s' };
+  }
+
   function verdictDebordement(hauteurContenu, hauteurCadre, options) {
     var o = options || {};
     var tolerance = o.tolerance || TOLERANCE_DEBORDEMENT;
@@ -91,10 +144,11 @@
                sous_tolerance: px > 0, vitesse_px_par_s: null, regle: 'tolerance' };
     }
     if (o.dureeS > 0 && o.echelleSortie > 0) {
-      var vitesse = (px * o.echelleSortie) / o.dureeS;
-      return { verdict: vitesse > (o.vitesseMax || VITESSE_PAN_MAX) ? 'scission' : 'defilement',
+      var plan = planTravelling(px * o.echelleSortie, o.dureeS,
+                                { vitesseMax: o.vitesseMax, poseS: o.poseS });
+      return { verdict: plan.tenable ? 'defilement' : 'scission',
                px: px, rapport: +rapport.toFixed(3), sous_tolerance: false,
-               vitesse_px_par_s: +vitesse.toFixed(1), regle: 'vitesse' };
+               vitesse_px_par_s: plan.vitesse_px_par_s, regle: 'vitesse', plan: plan };
     }
     return { verdict: rapport > seuil ? 'scission' : 'defilement', px: px,
              rapport: +rapport.toFixed(3), sous_tolerance: false,
@@ -464,6 +518,35 @@
     return Math.ceil(h);
   }
 
+  // LA HAUTEUR DE CE QUI EST VISIBLE À CETTE ÉTAPE, et non de la carte entière.
+  //
+  // POURQUOI LES DEUX SONT NÉCESSAIRES, et c'est Christophe qui a posé la question. La carte a la
+  // même hauteur à toutes ses étapes, parce que la révélation masque en `visibility:hidden` : les
+  // blocs à venir occupent déjà leur place. C'est ce qui permet de choisir une scène par
+  // diapositive, et c'est aussi ce qui fait que l'IMAGE doit garder la même taille à toutes les
+  // étapes — sans quoi le fondu enchaîné de l'Ef1 n'aurait pas deux images comparables.
+  //
+  // Mais le TRAVELLING, lui, ne doit pas parcourir du vide. À la première étape d'une
+  // diapositive haute, seul le haut porte de l'encre : faire défiler jusqu'en bas montrerait
+  // une page blanche pendant la moitié du commentaire. La course se calcule donc sur le bas de
+  // ce qui est RÉVÉLÉ, et elle vaut souvent zéro aux premières étapes.
+  function hauteurVisible(sc) {
+    var carte = sc.inner.querySelector('.adoc-sc-card');
+    if (!carte) return 0;
+    var haut = carte.getBoundingClientRect().top;
+    var bas = 0;
+    Array.prototype.slice.call(carte.querySelectorAll('*')).forEach(function (el) {
+      var st = getComputedStyle(el);
+      if (st.display === 'none' || st.visibility === 'hidden') return;
+      var b = el.getBoundingClientRect().bottom - haut;
+      if (b > bas) bas = b;
+    });
+    // La marge basse de la carte : le lecteur la laisse après son dernier bloc, et l'image la
+    // montre. S'arrêter pile sur la dernière ligne la collerait au bord du cadre.
+    bas += parseFloat(getComputedStyle(carte).paddingBottom) || 0;
+    return Math.ceil(bas);
+  }
+
   // ══════════════════════════════════════════════════════════════════════════════════════════
   // LA HAUTEUR SE STABILISE : agrandir la scène CHANGE la hauteur du contenu
   // ══════════════════════════════════════════════════════════════════════════════════════════
@@ -544,6 +627,182 @@
              converge: contenu <= h, hauteur_avant_stabilisation: avant };
   }
 
+  // ── UNE SCÈNE PAR DIAPOSITIVE ──────────────────────────────────────────────────────────────
+  // Décision de Christophe du 9 octobre : le texte reste tel quel à l'écran, TOUT le visuel
+  // reste présent — donc ni plafond de photo, ni bloc courant seul. À la place, la scène est
+  // choisie DIAPOSITIVE PAR DIAPOSITIVE pour que la diapositive entière tienne dans 1920×1080,
+  // et elle reste constante sur toutes les étapes de cette diapositive.
+  //
+  // Deux forces opposées, et c'est tout le problème :
+  //   · une scène PLUS PETITE agrandit le texte à l'image (la sortie fait toujours 1920 de
+  //     large, donc le rapport d'agrandissement est 1920 / largeur de scène) ;
+  //   · une scène plus petite donne des lignes plus courtes, donc plus de lignes, donc un
+  //     contenu plus HAUT — alors que la scène, elle, est plus basse.
+  // On cherche donc la PLUS PETITE scène où le contenu tient encore : c'est celle qui donne le
+  // plus grand texte lisible sans rien couper.
+  //
+  // Le plancher de lisibilité borne la recherche par le haut : au-delà d'une certaine largeur
+  // de scène, le texte passerait sous le plancher. Mesuré au lot 2 : 1422 donne 1,88 %, jugé
+  // petit pour un téléphone. Le plancher par défaut est 2,0 %, décidé par Christophe.
+  var PLANCHER_LISIBILITE_PC = 2.0;
+  var SCENE_LARGEUR_MIN = 640;      // en deçà, la mise en page du lecteur se disloque
+  var SCENE_RAPPORT = SORTIE.hauteur / SORTIE.largeur;   // 16:9, celui de la sortie
+
+  function sceneDeLargeur(largeur) {
+    var l = Math.round(largeur);
+    return { largeur: l, hauteur: Math.round(l * SCENE_RAPPORT) };
+  }
+
+  // ── LA TAILLE DU CORPS DE TEXTE, mesurée sur ce que le lecteur rend vraiment ────────────────
+  //
+  // LE DÉFAUT QUE CECI CORRIGE, et c'est Christophe qui l'a vu par le calcul : le relevé
+  // annonçait 4,25 % de hauteur pour la diapositive 1 de sa présentation, là où un corps de
+  // 15 px dans une scène de 941 px en donne 2,83 %. Le rapport exact est 1,5 — celui du titre de
+  // bloc (22,5 px) au corps (15 px). La colonne mesurait donc le TITRE en l'appelant « texte ».
+  //
+  // Deux causes, et toutes deux relevées dans le DOM réel du lecteur :
+  //   · le texte d'un bloc vit dans un `span.adoc-sc-block-text`, et NON dans un <p> : l'ancien
+  //     sélecteur `.adoc-sc-block p` ne matchait rien, et son troisième terme `.adoc-sc-block`
+  //     prenait les conteneurs, dont la taille vaut 22,5 px pour un bloc de titre ;
+  //   · le filtre `innerText` ne voit pas un bloc en `visibility:hidden`. Or la scène se choisit
+  //     à la PREMIÈRE étape, où tous les blocs suivants sont encore masqués : le seul élément
+  //     mesuré était donc le premier bloc, c'est-à-dire presque toujours le titre.
+  //
+  // Conséquence sur le plancher, et c'est elle qui compte : `largeurMaxLisible` recevait 22,5
+  // au lieu de 15, donc autorisait une scène 1,5 fois plus large, donc un corps à 1,88 % là où
+  // la page annonçait 2,0 %. Un plancher annoncé et non tenu, exactement la famille de défaut
+  // que ce lot traque.
+  //
+  // CE QUI N'EST PAS DE LA LECTURE. L'appareil de citation (appels, notes) descend à 7,7 px, la
+  // puce d'approfondissement à 11,9, les barèmes de questionnaire à 12,8. Ce sont des marques,
+  // pas du texte à lire : protéger 7,7 px par un plancher de 2 % imposerait une scène de 683 px
+  // et ferait déborder toutes les diapositives. Les titres, eux, sont de la lecture, mais plus
+  // GRANDS : ils ne peuvent jamais être la contrainte, et ils faussent la médiane du corps.
+  var HORS_LECTURE = '.adoc-sc-card-title, .adoc-sc-cite, .adoc-sc-cite-flagged,'
+    + ' .adoc-sc-cite-note, .adoc-sc-deepdive-chip, .adoc-sc-questionnaire-option-points,'
+    + ' .adoc-sc-questionnaire-scale, .adoc-sc-questionnaire-result,'
+    + ' .adoc-sc-questionnaire-partners, .adoc-sc-questionnaire-submit';
+
+  function taillesTexte(inner, avecTitres) {
+    var carte = inner.querySelector('.adoc-sc-card');
+    if (!carte) return [];
+    var tailles = [];
+    Array.prototype.slice.call(carte.querySelectorAll('*')).forEach(function (el) {
+      // L'ÉLÉMENT DOIT PORTER DU TEXTE EN PROPRE. Sans cela, chaque conteneur compterait pour le
+      // texte de ses enfants, et la médiane suivrait la profondeur du balisage au lieu du texte.
+      var propre = Array.prototype.slice.call(el.childNodes).some(function (n) {
+        return n.nodeType === 3 && (n.textContent || '').trim(); });
+      if (!propre) return;
+      if (el.closest(HORS_LECTURE)) return;
+      if (!avecTitres && el.closest('.adoc-sc-heading')) return;
+      // `display:none` est ABSENT de l'image : il ne compte pas. `visibility:hidden` y occupe sa
+      // place et sera révélé à une étape suivante : il compte, et c'est tout l'intérêt — la
+      // scène se choisit à la première étape pour toutes les autres.
+      var st = getComputedStyle(el);
+      if (st.display === 'none') return;
+      var t = parseFloat(st.fontSize);
+      if (t) tailles.push(t);
+    });
+    tailles.sort(function (a, b) { return a - b; });
+    return tailles;
+  }
+
+  // La taille du CORPS de texte dans la scène, en pixels : la médiane du texte courant, titres
+  // exclus. Elle ne dépend pas de la largeur de la scène (les règles du lecteur sont en pixels
+  // fixes) : on la mesure une fois par diapositive.
+  //
+  // Rend aussi le plus petit texte de lecture, qui n'est pas forcément le corps — un encadré
+  // descend à 14 px. Le plancher s'applique au CORPS ; le plus petit est RAPPORTÉ, pour qu'un
+  // texte sous le plancher se voie au lieu de se taire.
+  function mesureTexte(inner) {
+    var corpsSeul = taillesTexte(inner, false);
+    var tout = taillesTexte(inner, true);
+    var base = corpsSeul.length ? corpsSeul : tout;
+    return {
+      corps_px: base.length ? base[Math.floor(base.length / 2)] : 15,
+      plus_petit_px: tout.length ? tout[0] : null,
+      sans_texte_courant: !corpsSeul.length,
+      tailles: tout,
+    };
+  }
+  function tailleCorpsPx(inner) { return mesureTexte(inner).corps_px; }
+
+  // Le texte à l'image, en % de la hauteur du cadre de sortie.
+  function partTexte(taillePx, largeurScene) {
+    return (taillePx * (SORTIE.largeur / largeurScene) / SORTIE.hauteur) * 100;
+  }
+
+  // La plus grande scène qui respecte le plancher de lisibilité.
+  function largeurMaxLisible(taillePx, plancherPc) {
+    return Math.floor(taillePx * SORTIE.largeur / (SORTIE.hauteur * (plancherPc / 100)));
+  }
+
+  async function choisirScenePourCarte(sc, options) {
+    var o = options || {};
+    var plancher = (typeof o.plancherLisibilitePc === 'number')
+      ? o.plancherLisibilitePc : PLANCHER_LISIBILITE_PC;
+    var mt = mesureTexte(sc.inner);
+    var taille = mt.corps_px;
+    var hautBorne = Math.min(SCENE.largeur, largeurMaxLisible(taille, plancher));
+    var basBorne = Math.min(hautBorne, SCENE_LARGEUR_MIN);
+    var essais = [];
+
+    // `tient(l)` repose la scène à cette largeur et regarde si le contenu y tient.
+    async function tient(l) {
+      var s = sceneDeLargeur(l);
+      await redimensionnerScene(sc, s);
+      var contenu = hauteurContenu(sc);
+      essais.push({ largeur: s.largeur, hauteur: s.hauteur, contenu: contenu,
+                    tient: contenu <= s.hauteur });
+      return { scene: s, contenu: contenu, tient: contenu <= s.hauteur };
+    }
+
+    // Si même la plus grande scène lisible ne suffit pas, la diapositive déborde : on la garde
+    // et le travelling prendra le relais. On ne descend PAS sous le plancher pour la faire
+    // tenir — la lisibilité l'emporte, c'est la décision de Christophe.
+    var auPlusGrand = await tient(hautBorne);
+    if (!auPlusGrand.tient) {
+      return { scene: auPlusGrand.scene, taille_px: taille,
+               texte_pc: +partTexte(taille, hautBorne).toFixed(2),
+               plus_petit_px: mt.plus_petit_px,
+               plus_petit_pc: mt.plus_petit_px ? +partTexte(mt.plus_petit_px, hautBorne).toFixed(2) : null,
+               sans_texte_courant: mt.sans_texte_courant,
+               contenu_px: auPlusGrand.contenu, deborde: true,
+               raison: 'même au plancher de lisibilité (' + plancher + ' %), le contenu dépasse',
+               essais: essais, plancher_pc: plancher };
+    }
+
+    // Recherche dichotomique de la PLUS PETITE largeur où le contenu tient encore.
+    var bas = basBorne, haut = hautBorne, meilleure = auPlusGrand;
+    for (var tour = 0; tour < 7 && haut - bas > 8; tour++) {
+      var milieu = Math.round((bas + haut) / 2);
+      var r = await tient(milieu);
+      if (r.tient) { meilleure = r; haut = milieu; } else { bas = milieu; }
+    }
+    // LA SCÈNE EST REPOSÉE SUR CELLE QU'ON RETIENT. La dichotomie laisse la scène sur sa
+    // DERNIÈRE sonde, qui n'est pas forcément la meilleure : sans cette ligne, le DOM et la
+    // valeur retenue divergent, et verifierScene refuse la capture — ce qu'il a fait.
+    await redimensionnerScene(sc, meilleure.scene);
+    return { scene: meilleure.scene, taille_px: taille,
+             texte_pc: +partTexte(taille, meilleure.scene.largeur).toFixed(2),
+             plus_petit_px: mt.plus_petit_px,
+             plus_petit_pc: mt.plus_petit_px
+               ? +partTexte(mt.plus_petit_px, meilleure.scene.largeur).toFixed(2) : null,
+             sans_texte_courant: mt.sans_texte_courant,
+             contenu_px: meilleure.contenu, deborde: false,
+             raison: 'plus petite scène où la diapositive tient en entier',
+             essais: essais, plancher_pc: plancher };
+  }
+
+  // Reposer la scène à une autre taille, et attendre que la mise en page ait suivi.
+  async function redimensionnerScene(sc, scene) {
+    sc.outer.style.width = scene.largeur + 'px';
+    sc.outer.style.height = scene.hauteur + 'px';
+    sc.outer.style.minWidth = scene.largeur + 'px';
+    sc.outer.style.minHeight = scene.hauteur + 'px';
+    await new Promise(function (r) { requestAnimationFrame(function () { requestAnimationFrame(r); }); });
+  }
+
   // ── Option « bloc courant seul » ────────────────────────────────────────────────────────────
   // Le lecteur empile : à l'étape 4, les blocs 1 à 3 restent à l'écran. Cette option ne montre
   // que le bloc de l'étape, avec le titre de la diapositive (qui est un <h2 class="adoc-sc-card-
@@ -598,6 +857,14 @@
         photoH = Math.round(photoEl.getBoundingClientRect().height);
         photoPlafond = getComputedStyle(photoEl).maxHeight;
       }
+      // LE BAS DE CE QUI PORTE DE L'ENCRE SE MESURE ICI AUSSI, et pour la même raison. Je l'avais
+      // d'abord mesuré AVANT l'agrandissement : le contrôle des pixels a montré que la zone que
+      // le travelling ne parcourait pas contenait l'encadré final et son texte — 350 000 pixels
+      // de fond d'encadré et 34 000 pixels de texte. Agrandir la scène fait grandir le bandeau
+      // photo (45 % de la carte), qui repousse tout le texte vers le bas : une mesure prise avant
+      // l'agrandissement est toujours trop haute. C'est la troncature du 7 octobre, déplacée
+      // d'un cran de plus — et cette fois ce sont les pixels qui l'ont dit, pas le code.
+      var visibleScene = hauteurVisible(sc);
       var source = await snap.toCanvas(sc.inner, { scale: echelle });
       var sortie = document.createElement('canvas');
       sortie.width = SORTIE.largeur; sortie.height = cibleH;
@@ -608,6 +875,7 @@
       ctx.drawImage(source, 0, 0, SORTIE.largeur, cibleH);
       return { canvas: sortie, largeur: sortie.width, hauteur: sortie.height,
                photo_px: photoH, photo_plafond_calcule: photoPlafond,
+               visible_scene: visibleScene, visible_sortie: Math.round(visibleScene * echelle),
                source: { largeur: source.width, hauteur: source.height }, fond: opaque ? fond : null };
     } finally {
       if (restaurer) restaurer();
@@ -635,7 +903,23 @@
                             toleranceDebordement: TOLERANCE_DEBORDEMENT, vitessePanMax: VITESSE_PAN_MAX,
                             // Les deux options du 8 octobre, À L'ARRÊT : mesurées, pas appliquées.
                             plafondPhoto: null, blocCourantSeul: false,
+                            poseTravellingS: POSE_TRAVELLING_S,
+                            plancherLisibilitePc: PLANCHER_LISIBILITE_PC,
+                            sceneParDiapositive: base.sceneParDiapositive,
                             scene: base.scene, echelleTypo: base.echelleTypo }, options || {});
+    // Une scène imposée explicitement l'emporte : on ne peut pas à la fois fixer la scène et
+    // la laisser se choisir. Le relevé le dira.
+    if (options && options.scene) o.sceneParDiapositive = false;
+    // DEUX OPTIONS ÉCARTÉES PAR CHRISTOPHE le 9 octobre — tout le visuel reste présent. Elles
+    // restent dans le moteur (mesurées le 8 octobre, elles peuvent redevenir utiles), mais
+    // elles sont INCOMPATIBLES avec la scène par diapositive : leur plafond se calcule sur une
+    // hauteur de scène, et il n'y en a plus une seule. Refuser est plus honnête que calculer
+    // sur la mauvaise.
+    if (o.sceneParDiapositive && (o.plafondPhoto > 0 || o.blocCourantSeul)) {
+      throw new Error('le plafond de photo et « bloc courant seul » supposent une scène unique : '
+        + 'ils ne peuvent pas se combiner à la scène par diapositive. Passez mode « fidele » ou '
+        + 'une scène explicite si vous voulez les éprouver.');
+    }
     var sceneExplicite = !!(options && options.scene);
     var scene = o.scene ? { largeur: o.scene.largeur, hauteur: o.scene.hauteur } : SCENE;
 
@@ -664,6 +948,7 @@
     var modePrecedent = window._adocPresentModeCapture;
     window._adocPresentModeCapture = !!o.modeCapture;
     var position = { carte: -1, rang: -1 };
+    var choixCarte = -1, choixParCarte = {};
 
     async function allerA(n) {
       var etape = etapes[n];
@@ -675,10 +960,20 @@
       // La révélation ne sait qu'avancer : on remonte la carte dès qu'on recule ou qu'on change.
       if (iCarte !== position.carte || rang < position.rang) {
         sc.inner.innerHTML = await window.adocPresentResolveSlideHTML(carte, iCarte, cartes.length);
-        verifierScene(sc, scene);
         window._adocPresentState = { doc: doc, index: iCarte, revealIndex: null, revealTotal: 0 };
         window.adocPresentApplyReveal(sc.inner, carte, false);
         position = { carte: iCarte, rang: 0 };
+        // LA SCÈNE SE CHOISIT ICI, une fois par diapositive, et reste la même sur toutes ses
+        // étapes. Les polices et les photos doivent être prêtes AVANT la mesure : une image
+        // non décodée occupe 0 px, et la scène choisie serait trop petite (V9).
+        if (o.sceneParDiapositive && iCarte !== choixCarte) {
+          await attendreStabilite(sc.inner, o.modeCapture);
+          var choix = await choisirScenePourCarte(sc, o);
+          scene = choix.scene;
+          choixParCarte[carte.id] = choix;
+          choixCarte = iCarte;
+        }
+        verifierScene(sc, scene);
       }
       while (position.rang < rang) {
         if (!window.adocPresentRevealNext(sc.inner)) {
@@ -725,6 +1020,10 @@
       var tolContenu = o.toleranceDebordement || TOLERANCE_DEBORDEMENT;
       refuserSiTropCourte(stable.contenu, hauteurCapture, o.toleranceDebordement, etape.stepId);
       var capture = await capturer(snap, sc, hauteurCapture, scene);
+      // CE QUI PORTE DE L'ENCRE À CETTE ÉTAPE, mesuré DANS la capture, à la hauteur où l'image
+      // est vraiment composée. Voir le commentaire de `capturer`.
+      var visible = capture.visible_scene;
+      var visibleSortie = capture.visible_sortie;
       var blob = await canvasVersBlob(capture.canvas, o.type, o.qualite);
       var image = {
         stepId: etape.stepId, cardId: etape.cardId, cardIndex: infos.carteIndex,
@@ -751,6 +1050,19 @@
         debordement_px_sortie: Math.round(deb.px * (SORTIE.largeur / scene.largeur)),
         debordement_regle: deb.regle, debordement_sous_tolerance: deb.sous_tolerance,
         debordement_vitesse_px_par_s: deb.vitesse_px_par_s,
+        // LE PLAN DE TRAVELLING, en pixels de l'IMAGE LIVRÉE et non de la scène : il est calculé
+        // sur la hauteur de l'image telle qu'elle sort, donc sur ce qui défilera vraiment.
+        //
+        // null quand l'image tient dans le cadre : il n'y a alors rien à faire défiler. Quand il
+        // existe mais que `tenable` est faux, l'image est livrée ET la scission est conseillée —
+        // le plan dit alors pourquoi, avec la vitesse qu'il aurait fallu tenir.
+        // LA COURSE EST CELLE DU VISIBLE, bornée par la hauteur de l'image : on ne fait pas
+        // défiler du vide, et on ne défile jamais plus loin que ce qui existe.
+        hauteur_visible: visible, hauteur_visible_sortie: visibleSortie,
+        travelling: planTravelling(Math.min(capture.hauteur, visibleSortie) - SORTIE.hauteur,
+                                   dureeEtapeS(doc, etape.stepId),
+                                   { vitesseMax: o.vitessePanMax, poseS: o.poseTravellingS }),
+        scission_conseillee: deb.verdict === 'scission',
         fond: capture.fond,
         // Hauteur du bandeau photo telle qu'elle est À L'IMAGE : en pixels de scène, et en
         // pourcentage du cadre comme de l'image livrée. Les deux diffèrent dès qu'il y a
@@ -759,6 +1071,20 @@
         photo_pc_cadre: capture.photo_px ? +((capture.photo_px / scene.hauteur) * 100).toFixed(1) : 0,
         photo_pc_image: capture.photo_px ? +((capture.photo_px / hauteurCapture) * 100).toFixed(1) : 0,
         photo_plafond_calcule: capture.photo_plafond_calcule,
+        // LA SCÈNE RETENUE POUR CETTE DIAPOSITIVE, et pourquoi. Un réglage qu'on ne peut pas
+        // lire est un réglage qu'on finit par croire sur parole — déjà vu le 7 octobre.
+        scene_largeur: scene.largeur, scene_hauteur: scene.hauteur,
+        scene_choisie: !!o.sceneParDiapositive,
+        scene_raison: (choixParCarte[etape.cardId] || {}).raison || null,
+        // `texte_pc` est le CORPS de texte en % de la hauteur du cadre — pas le titre. Le nom
+        // précédent disait « texte » pour une valeur qui mesurait le titre : la colonne du
+        // relevé en était fausse d'un facteur 1,5.
+        corps_px: (choixParCarte[etape.cardId] || {}).taille_px || null,
+        texte_pc: (choixParCarte[etape.cardId] || {}).texte_pc || null,
+        plus_petit_texte_px: (choixParCarte[etape.cardId] || {}).plus_petit_px || null,
+        plus_petit_texte_pc: (choixParCarte[etape.cardId] || {}).plus_petit_pc || null,
+        plancher_pc: (choixParCarte[etape.cardId] || {}).plancher_pc || null,
+        scene_essais: ((choixParCarte[etape.cardId] || {}).essais || []).length,
         signature: await signatureEtape(doc, etape),
         type: o.type, octets: blob.size, blob: blob,
         // `display:none` est filtré ici : avec « bloc courant seul », les blocs précédents
@@ -774,7 +1100,9 @@
     }
 
     return {
-      etapes: etapes, scene: scene, sortie: SORTIE, options: o,
+      etapes: etapes, sortie: SORTIE, options: o,
+      get scene() { return scene; },
+      choixParCarte: choixParCarte,
       plafondPhotoPx: plafondPhotoPx,
       inner: sc.inner, outer: sc.outer, hote: sc.hote,
       allerA: allerA, capturerEtape: capturerEtape, mesurer: mesurer,
@@ -821,8 +1149,53 @@
       citations_masquees: !!sc.options.masquerCitations,
       sources: sourcesParEtape(doc),
       tolerance_debordement: sc.options.toleranceDebordement, vitesse_pan_max: sc.options.vitessePanMax,
+      pose_travelling_s: sc.options.poseTravellingS,
+      // LES TRAVELLINGS, RÉSUMÉS : combien d'étapes défilent, celles qui ne peuvent pas et
+      // attendent une scission, celles dont la durée manque encore, et la course la plus longue.
+      travellings: (function (ims) {
+        var avec = ims.filter(function (im) { return im.travelling; });
+        var tenables = avec.filter(function (im) { return im.travelling.tenable === true; });
+        var vitesses = tenables.map(function (im) { return im.travelling.vitesse_px_par_s; });
+        return {
+          nombre: avec.length, tenables: tenables.length,
+          // LES ÉTAPES QUI DÉBORDENT SANS AVOIR RIEN À FAIRE DÉFILER. Mesuré sur la vraie
+          // présentation : la diapositive à questionnaire déborde à ses quatre étapes, et une
+          // seule porte une course — les trois premières ne montrent que le haut. Sans ce
+          // nombre, le relevé dirait « 4 à faire défiler » et « 1 travelling » sans expliquer
+          // l'écart, ce qui est la même contradiction que celle du 9 octobre sous un autre nom.
+          sans_course: ims.filter(function (im) { return im.debordement && !im.travelling; }).length,
+          sans_duree: avec.filter(function (im) { return im.travelling.tenable === null; }).length,
+          // CE QUI EST À SCINDER SE LIT SUR LE VERDICT, ET NON SUR LE SEUL PLAN. Mesuré sur la
+          // vraie présentation de Christophe : quatre étapes y étaient « scission » dans la
+          // ligne des débordements et « 0 à scinder » dans celle des travellings. Les deux
+          // phrases étaient vraies sous leur propre règle, et ensemble elles étaient fausses —
+          // l'export ne porte aucune narration, donc le plan n'avait pas de durée tandis que le
+          // verdict tranchait sur le rapport. Un relevé qui se contredit ne s'interprète pas.
+          // À SCINDER SE COMPTE SUR TOUTES LES ÉTAPES, et non sur les seules qui portent un
+          // plan. Le conseil porte sur la DIAPOSITIVE : elle dépasse le seuil, donc elle est à
+          // découper. Ses premières étapes n'ont rien à faire défiler — elles ne montrent que le
+          // haut — mais elles appartiennent à la même diapositive, et les taire ferait dire au
+          // résumé « 1 à scinder » là où la ligne des débordements en compte 2.
+          a_scinder: ims.filter(function (im) { return im.scission_conseillee; })
+            .map(function (im) {
+              return { stepId: im.stepId, regle: im.debordement_regle,
+                       raison: (im.travelling && im.travelling.tenable === false)
+                         ? im.travelling.raison
+                         : 'rapport ' + im.debordement_rapport + ' au-delà du seuil de '
+                           + sc.options.seuilScission
+                           + (im.debordement_regle === 'rapport'
+                              ? ', et la durée du commentaire n\'est pas encore connue : la '
+                                + 'narration pourrait en décider autrement' : '') };
+            }),
+          course_max_px: avec.reduce(function (a, im) { return Math.max(a, im.travelling.course_px); }, 0),
+          vitesse_max_px_par_s: vitesses.length ? Math.max.apply(null, vitesses) : null,
+        };
+      })(images),
       // Les deux options du 8 octobre, dites dans le relevé : une mesure dont on ne sait pas
       // sous quel réglage elle a été prise ne vaut rien — la page du banc l'a déjà prouvé le 7.
+      scene_par_diapositive: !!sc.options.sceneParDiapositive,
+      plancher_lisibilite_pc: sc.options.plancherLisibilitePc,
+      scenes_par_carte: sc.choixParCarte || {},
       plafond_photo: sc.options.plafondPhoto || null,
       plafond_photo_px: sc.plafondPhotoPx || 0,
       bloc_courant_seul: !!sc.options.blocCourantSeul,
@@ -926,6 +1299,11 @@
     TOLERANCE_DEBORDEMENT: TOLERANCE_DEBORDEMENT, VITESSE_PAN_MAX: VITESSE_PAN_MAX,
     verdictDebordement: verdictDebordement, dureeEtapeS: dureeEtapeS,
     refuserSiTropCourte: refuserSiTropCourte,
+    POSE_TRAVELLING_S: POSE_TRAVELLING_S, planTravelling: planTravelling,
+    mesureTexte: mesureTexte, taillesTexte: taillesTexte, hauteurVisible: hauteurVisible,
+    PLANCHER_LISIBILITE_PC: PLANCHER_LISIBILITE_PC, SCENE_LARGEUR_MIN: SCENE_LARGEUR_MIN,
+    sceneDeLargeur: sceneDeLargeur, partTexte: partTexte, largeurMaxLisible: largeurMaxLisible,
+    tailleCorpsPx: tailleCorpsPx, choisirScenePourCarte: choisirScenePourCarte,
     attendreImages: attendreImages, ATTENTE_IMAGES_MS: ATTENTE_IMAGES_MS,
     sourcesParEtape: sourcesParEtape,
     configurer: function (opts) { if (opts && opts.cheminSnapdom) { _cheminSnapdom = opts.cheminSnapdom; _snapdom = null; } },
