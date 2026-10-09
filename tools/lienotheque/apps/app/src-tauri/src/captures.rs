@@ -23,7 +23,7 @@ pub struct Pose {
     pub en_plus: &'static str,
 }
 
-/// Les écrans de l'étape 2, en clair et en hybride.
+/// Les écrans du bureau, chacun en clair et en hybride.
 pub const POSES: &[Pose] = &[
     Pose { adresse: "#creer", theme: "light", nom: "1-creer-clair", en_plus: "" },
     Pose { adresse: "#creer", theme: "hybrid", nom: "1-creer-hybride", en_plus: "" },
@@ -35,6 +35,9 @@ pub const POSES: &[Pose] = &[
     Pose { adresse: "#maniere", theme: "hybrid", nom: "4-maniere-de-lire-hybride", en_plus: "" },
     Pose { adresse: "", theme: "light", nom: "5-recherche-clair", en_plus: "&chercher=articulation" },
     Pose { adresse: "", theme: "hybrid", nom: "5-recherche-hybride", en_plus: "&chercher=articulation" },
+    // L'accueil nu, sans recherche ouverte : l'écran où le parcours aboutit, la bibliothèque lue.
+    Pose { adresse: "", theme: "light", nom: "6-accueil-clair", en_plus: "" },
+    Pose { adresse: "", theme: "hybrid", nom: "6-accueil-hybride", en_plus: "" },
 ];
 
 /// Le temps laissé à la page pour se charger, poser ses polices et finir ses transitions.

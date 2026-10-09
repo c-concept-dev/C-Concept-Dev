@@ -42,6 +42,8 @@ le thème comme le reste.
 | `4-maniere-de-lire-hybride.png` | Manière de lire | hybride photographique |
 | `5-recherche-clair.png` | Recherche ⌘K | clair |
 | `5-recherche-hybride.png` | Recherche ⌘K | hybride photographique |
+| `6-accueil-clair.png` | Accueil, la bibliothèque lue | clair |
+| `6-accueil-hybride.png` | Accueil, la bibliothèque lue | hybride photographique |
 
 Le thème hybride n'est pas une variante décorative : c'est lui qui montre les défauts de charte.
 Les deux écrans de l'étape 2 y ont été corrigés après une première série de captures, où le titre,
@@ -51,6 +53,10 @@ Tout bloc de texte porte désormais son panneau graphite.
 L'écran de traitement a été corrigé de la même façon : sa première capture montrait une colonne
 d'actions trop étroite, un bouton « Pause » coupé par le bord et un lien « Ouvrir » qui chevauchait
 « Reprendre ». Un bouton à moitié coupé n'est pas un bouton, et aucun test ne le dit.
+
+L'accueil ferme la série parce qu'il ferme le parcours : c'est l'écran où l'on revient une fois
+le traitement passé, avec la reprise de lecture, le compte des éléments à vérifier et les
+bibliothèques. Les cinq premiers montrent ce qu'on fait ; celui-ci montre ce qu'on obtient.
 
 La fenêtre fait 1320 × 900 points : les écrans y défilent, là où les maquettes de
 `docs/maquettes/` tiennent d'un seul tenant en 1600 × 1000. Les maquettes sont illustratives ;
