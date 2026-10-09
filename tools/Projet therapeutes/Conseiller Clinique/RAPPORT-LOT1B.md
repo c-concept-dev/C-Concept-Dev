@@ -28,7 +28,105 @@ normaliser quand c'est sans ambiguïté, refuser quand ça ne l'est pas.
 
 ---
 
-## 0. LES CORRECTIONS APRÈS LE PREMIER ESSAI RÉEL (9 octobre)
+## 0. LE SECOND RETOUR DU 9 OCTOBRE
+
+### La ligne « * » sous chaque étape — trouvée et expliquée
+
+Elle venait de la règle de détection du Markdown. `^\s*[-*+]\s` exige une **espace après** la
+puce : une puce en toute fin de texte, sans rien derrière, passait. Mesuré sur les trois
+caractères :
+
+| texte | ancienne règle | nouvelle |
+|---|---|---|
+| `…texte.\n*` | **passe** | refusé |
+| `…texte.\n-` | **passe** | refusé |
+| `…texte.\n+` | **passe** | refusé |
+| `…texte.\n*\nSuite.` | refusé | refusé |
+| `Un texte — ordinaire — ici.` | passe | **passe** (le tiret cadratin reste légitime) |
+
+Deux corrections : la détection (`PUCE_ORPHELINE_RE`, une ligne qui ne contient qu'une puce), et
+l'affichage — l'aperçu ne rend plus jamais une puce sans texte, et masque la liste
+d'avertissements quand elle est vide.
+
+### « Appliquer cette étape », une case par étape
+
+Cochée par défaut. Le bouton dit combien il écrira : **« Appliquer (6) » → « Appliquer (5 sur
+6) »** quand on en décoche une. Seules les cochées sont écrites, la confirmation d'écrasement ne
+compte que celles-là, l'étape écartée est grisée, et **son état survit à un nouveau rendu** —
+réécrire une étape ne recoche pas celles qu'on avait écartées. « Annuler ce geste » restaure
+tout, écartées comprises.
+
+### La règle des paragraphes — le texte exact, à valider avant publication
+
+C'est le point que Christophe doit lire avant que cela parte en ligne :
+
+```
+SI L'ÉCRAN MONTRE UN PARAGRAPHE.
+Ne le reformulez pas. Le spectateur vient de le lire : redire la même idée avec d'autres
+mots lui prend son temps, même si votre formulation est meilleure. Dites ce que la phrase
+affichée NE DIT PAS. Trois façons, choisissez-en une :
+- la conséquence vécue : ce que cela change concrètement pour quelqu'un ;
+- un exemple qui donne un visage à l'idée, annoncé comme exemple ;
+- une question posée au spectateur, à laquelle l'écran ne répond pas.
+Si le paragraphe énumère plusieurs éléments, ne reprenez pas son énumération : choisissez-en
+un seul et montrez-le.
+Test avant de rendre votre texte : si on retirait la diapositive, votre commentaire
+garderait-il quelque chose à dire ? S'il ne reste rien, c'est que vous avez reformulé.
+```
+
+Aucun exemple n'y est tiré d'un document réel. Le prompt passe de 108 à **121 lignes**.
+
+### Le champ « apport » — évalué, pas imposé
+
+**Coût mesuré** (19 étapes, 1 200 mots visés) : `max_tokens` ne change pas, puisqu'il se calcule
+sur la cible en mots. La sortie réelle passe d'environ 2 400 à **2 628 jetons, soit +9,5 %**. Le
+budget de délai reste à **90 s** — le cas réel est sous le plancher.
+
+**Mais** : la marge restante dans `max_tokens` tombe de 272 à **44 jetons pour une présentation de
+2 400 mots**. Au-delà, la réponse serait tronquée. Le champ exigerait donc de relever
+`JETONS_PLANCHER` (500 → 900) avant d'être activé.
+
+**Forme proposée** : champ **facultatif**, jamais bloquant s'il manque — sinon il coûterait un
+tour de correction pour une ligne d'information. Valeurs : `exemple`, `question`,
+`conséquence`, `nuance`, `reformule`. Jamais stocké dans la narration, jamais exporté.
+
+**Affichage** : sous le texte, comme les autres avertissements. Un `reformule` déclaré devient
+« le modèle déclare reformuler » (non bloquant). Et surtout, **la contradiction** : si le modèle
+déclare `exemple` alors que la mesure de reprise se déclenche, l'aperçu dit « déclare un exemple,
+mais reprend N mots de l'écran » — c'est le croisement qui a de la valeur, pas la déclaration
+seule.
+
+**Test sans appel réel** : le transport simulé rend le champ ; une fixture par valeur ; une
+fixture qui déclare `exemple` sur un texte recopié mot pour mot, pour éprouver la contradiction ;
+une fixture sans le champ, pour vérifier qu'il ne bloque pas.
+
+**Ma recommandation** : attendre. Les cinq avertissements mesurent déjà ce qui se mesure, et une
+déclaration du modèle sur son propre travail est exactement le genre de chiffre que j'ai appris à
+ne pas croire cette semaine. Le croisement déclaration/mesure est la seule partie qui apporterait
+quelque chose — et il ne vaut d'être construit que si tu constates que la mesure seule te laisse
+passer à côté d'étapes.
+
+### Mesurer proprement la part d'étapes gardées — un seul tirage ne tranche rien
+
+Le modèle varie. Protocole proposé, **sans aucun appel dans les tests** :
+
+1. **Trois tirages** sur la même présentation, mêmes réglages, sans rien changer entre les deux.
+2. Pour chaque tirage, Christophe note par étape : **gardée telle quelle / retouchée / refaite**.
+3. La mesure est la part de **gardées telles quelles**, donnée avec son étendue sur les trois
+   tirages (« 68 %, 74 %, 79 % »), jamais une moyenne seule : c'est l'étendue qui dit si une
+   différence entre deux versions du prompt est réelle.
+4. **Règle de décision** : une modification du prompt n'est retenue que si la plus mauvaise des
+   trois après est meilleure que la meilleure des trois avant. En dessous, c'est du bruit.
+5. Le relevé se fait dans un fichier de `banc-chutier/` (ignoré par git), et seuls les **nombres**
+   entrent dans un rapport — jamais le texte des commentaires.
+
+Avec 19 étapes, un écart d'une étape vaut 5 points : il faut donc au moins **4 étapes d'écart**
+(≈ 21 points) pour qu'une différence sorte du bruit sur trois tirages. C'est la limite honnête de
+cette mesure, et elle est à connaître avant de l'employer.
+
+---
+
+## 0pre. LES CORRECTIONS APRÈS LE PREMIER ESSAI RÉEL (9 octobre)
 
 Premier appel réel : câblage correct, 19 étapes reçues, un tour de correction. **Christophe garde
 14 étapes sur 19 telles quelles (74 %)** et en refuse cinq. Les cinq défauts sont reproduits sur
@@ -659,9 +757,9 @@ un malgré la consigne) — la consigne, elle, l'interdit.
 
 | | |
 |---|---|
-| `verify-narration-ia` | **24/24** — moteur et interface, transport simulé, aucun appel réel |
+| `verify-narration-ia` | **27/27** — moteur et interface, transport simulé, aucun appel réel |
 | `verify-worker-garde-narration` | **6/6** — garde du Worker exécutée hors ligne |
-| `falsifier-narration-ia` | **44/44** mutations détectées |
+| `falsifier-narration-ia` | **51/51** mutations détectées |
 | régression ciblée | **15 tests verts**, dont les 4 du lot 1a |
 | empreinte du schéma d'outil | `b1b0155cb8eba26c`, 6679 o, **inchangée** |
 

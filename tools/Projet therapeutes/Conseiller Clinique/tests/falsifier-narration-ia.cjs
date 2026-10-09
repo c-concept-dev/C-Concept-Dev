@@ -56,6 +56,49 @@ const ESSAIS = [
     attendu: 'un nombre choisi au lieu d\'une règle appliquée' },
 
   // ── Le prompt système ─────────────────────────────────────────────────────────────────────
+  // ── Le second retour du 9 octobre : puce orpheline, case par étape, règle des paragraphes ─
+  { nom: 'la puce orpheline repasse (ancienne règle Markdown seule)',
+    fichier: 'module',
+    de: "    return MARKDOWN_RE.test(texte) || PUCE_ORPHELINE_RE.test(texte);",
+    vers: "    return MARKDOWN_RE.test(texte);",
+    attendu: 'une ligne « * » isolée sous chaque étape, comme Christophe l\'a vue' },
+
+  { nom: 'l\'aperçu affiche de nouveau les puces vides',
+    fichier: 'module',
+    de: "      (en.avertissements || []).filter(function (a) {\n        return a && typeof a.texte === 'string' && a.texte.trim();\n      }).forEach(function (a) {",
+    vers: "      (en.avertissements || []).forEach(function (a) {",
+    attendu: 'un point isolé sous une étape, sans rien à côté' },
+
+  { nom: 'la liste d\'avertissements vide reste affichée',
+    fichier: 'module',
+    de: "      ul.hidden = !ul.children.length;",
+    vers: "      ul.hidden = false;",
+    attendu: 'une liste vide qui occupe la place et intrigue' },
+
+  { nom: '« Appliquer » écrit TOUTES les étapes',
+    fichier: 'module',
+    de: "      var aEcrire = dernierResultat.entrees.filter(function (en) { return en.appliquer !== false; });",
+    vers: "      var aEcrire = dernierResultat.entrees;",
+    attendu: 'les treize étapes validées écrasées en refaisant la quatorzième' },
+
+  { nom: 'le bouton « Appliquer » ne dit plus combien',
+    fichier: 'module',
+    de: "    btn.textContent = n === res.entrees.length\n      ? 'Appliquer (' + n + ')'\n      : 'Appliquer (' + n + ' sur ' + res.entrees.length + ')';",
+    vers: "    btn.textContent = 'Appliquer';",
+    attendu: 'un bouton qu\'on clique en espérant' },
+
+  { nom: 'la case décochée se recoche au rendu suivant',
+    fichier: 'module',
+    de: "      case_.checked = (en.appliquer !== false);",
+    vers: "      case_.checked = true;",
+    attendu: 'réécrire une étape recoche celles qu\'on avait écartées' },
+
+  { nom: 'la règle des paragraphes disparaît',
+    fichier: 'module',
+    de: "      'Ne le reformulez pas. Le spectateur vient de le lire : redire la même idée avec d\\'autres',",
+    vers: "      'Soyez clair.',",
+    attendu: 'le commentaire reformule l\'écran, comme à l\'étape 2 du premier essai' },
+
   // ── La relecture du 9 octobre : politique de violation, avertissements, total honnête ─────
   { nom: 'la longueur redevient bloquante',
     fichier: 'module',
@@ -258,7 +301,7 @@ const ESSAIS = [
 
   { nom: 'le Markdown n\'est plus refusé',
     fichier: 'module',
-    de: "      if (MARKDOWN_RE.test(texte)) violations.push(id + ' : le texte contient du Markdown');",
+    de: "      if (contientMarkdown(texte)) violations.push(id + ' : le texte contient du Markdown');",
     vers: "      if (false) violations.push(id);",
     attendu: 'des astérisques prononcés à voix haute' },
 
@@ -308,8 +351,8 @@ const ESSAIS = [
   // ── L'aperçu ──────────────────────────────────────────────────────────────────────────────
   { nom: 'la rédaction écrit sans passer par l\'aperçu',
     fichier: 'module',
-    de: '        dernierResultat = res;\n        rendreApercu(panneau, res, doc);',
-    vers: '        dernierResultat = res;\n        res.entrees.forEach(function (en) { window.adocNarrationWrite(doc, en.stepId, en.text); });\n        rendreApercu(panneau, res, doc);',
+    de: '        window.__dernierRes = res; window.__dernierDoc = doc;\n        rendreApercu(panneau, res, doc);',
+    vers: '        window.__dernierRes = res; window.__dernierDoc = doc;\n        res.entrees.forEach(function (en) { window.adocNarrationWrite(doc, en.stepId, en.text); });\n        rendreApercu(panneau, res, doc);',
     attendu: 'le document modifié avant que Christophe ait rien vu' },
 ];
 
