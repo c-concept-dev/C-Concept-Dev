@@ -150,7 +150,12 @@ export const MIGRATIONS: readonly Migration[] = [
   },
 ];
 
-/** Registre des bibliothèques connues de cet ordinateur. */
+/** Registre des bibliothèques connues de cet ordinateur.
+ *
+ *  À ne pas confondre avec `MIGRATIONS_REGISTRE_EN_LIGNE` ci-dessous : celui-ci dit où une
+ *  bibliothèque se trouve **sur cette machine**, celui-là dit où elle est **publiée**. Les deux
+ *  portent le mot « registre » parce qu'ils répondent à la même question — où est quoi ? — mais
+ *  ils ne se recouvrent pas et ne vivent pas dans la même base. */
 export const MIGRATIONS_REGISTRE: readonly Migration[] = [
   {
     version: 1,
@@ -162,6 +167,57 @@ export const MIGRATIONS_REGISTRE: readonly Migration[] = [
         dossier  TEXT NOT NULL,
         cree_le  TEXT NOT NULL
       );
+    `,
+  },
+];
+
+/** Registre des bibliothèques publiées (lot E1).
+ *
+ *  Une base à part, sur D1, qui ne contient **aucun contenu de bibliothèque** : seulement de quoi
+ *  savoir laquelle existe, où elle est servie et dans quel état. Les bases des bibliothèques
+ *  elles-mêmes restent une par bibliothèque — c'est ce qui rend leur isolation structurelle et
+ *  non conditionnelle : aucune requête ne peut en atteindre deux.
+ *
+ *  Pourquoi une `liaison` et pas l'identifiant de la base : une liaison D1 se déclare dans la
+ *  configuration au déploiement. Plutôt que de donner au Worker un jeton de compte capable de
+ *  créer et de supprimer des bases — ce que SEC-08 interdit —, on déclare une réserve de places
+ *  nommées et le registre dit laquelle est occupée par qui. */
+export const MIGRATIONS_REGISTRE_EN_LIGNE: readonly Migration[] = [
+  {
+    version: 1,
+    nom: "registre-en-ligne",
+    sql: `
+      CREATE TABLE bibliotheque_publiee (
+        cle            TEXT PRIMARY KEY,
+        nom            TEXT NOT NULL,
+        -- locale, mixte ou publiee. L'état commande ce que l'interface a le droit d'annoncer
+        -- avant confirmation (HEB-01), et il se lit ici plutôt que de se deviner.
+        etat           TEXT NOT NULL,
+        -- La place prise dans la réserve de liaisons, nulle tant que la bibliothèque n'est pas
+        -- servie. Une place ne porte qu'une bibliothèque : la contrainte vit dans la base.
+        liaison        TEXT,
+        prefixe        TEXT NOT NULL UNIQUE,
+        -- Choisie explicitement à la création, jamais implicite (HEB-05).
+        region         TEXT NOT NULL,
+        schema_version INTEGER NOT NULL,
+        publiee_le     TEXT,
+        maj_le         TEXT NOT NULL
+      );
+      CREATE UNIQUE INDEX idx_registre_liaison ON bibliotheque_publiee(liaison) WHERE liaison IS NOT NULL;
+      CREATE INDEX idx_registre_etat ON bibliotheque_publiee(etat);
+
+      -- Journal des opérations sensibles (SEC-07) : publication, dépublication, changement
+      -- d'hébergement, révocation. Chaque ligne dit qui, quoi, quand — et rien ne l'efface.
+      CREATE TABLE journal_audit (
+        id        TEXT PRIMARY KEY,
+        objet     TEXT NOT NULL,
+        operation TEXT NOT NULL,
+        auteur    TEXT NOT NULL,
+        detail    TEXT,
+        fait_le   TEXT NOT NULL
+      );
+      CREATE INDEX idx_audit_objet ON journal_audit(objet);
+      CREATE INDEX idx_audit_date ON journal_audit(fait_le);
     `,
   },
 ];

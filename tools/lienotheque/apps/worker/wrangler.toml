@@ -45,3 +45,25 @@ preview_urls = false
 # Aucune section [vars] : une variable déclarée ici serait en clair dans le
 # dépôt public. Les deux secrets sont lus par le code depuis les liaisons de
 # l'hébergeur, et la route refuse d'ouvrir si l'un manque.
+
+# ── Le registre des bibliothèques publiées (lot E1, étape 1) ──────────────────
+#
+# Une base à part, qui ne contient aucun contenu de bibliothèque : seulement de
+# quoi savoir laquelle existe, où elle est servie et dans quel état.
+#
+# Les bibliothèques elles-mêmes auront chacune leur base, déclarée ici sur une
+# place nommée de la réserve (BIB_1…BIB_4) — c'est ce qui évite de donner au
+# Worker un jeton de compte capable de créer ou de supprimer une base, ce que
+# SEC-08 interdit. La réserve s'ajoutera quand la première base existera.
+#
+# Les migrations ne s'écrivent pas à la main : elles sont engendrées depuis
+# packages/depot-sqlite/src/migrations.ts par « pnpm build », et un test échoue
+# si le disque a dérivé du tableau. Pour les appliquer :
+#
+#     npx wrangler d1 migrations apply lienotheque-registre --config wrangler.toml --remote
+#
+[[d1_databases]]
+binding = "REGISTRE"
+database_name = "lienotheque-registre"
+database_id = "a4a21d00-c8a0-459a-a279-7b083ffa1794"
+migrations_dir = "migrations/registre"

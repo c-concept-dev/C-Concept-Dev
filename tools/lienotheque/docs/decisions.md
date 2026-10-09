@@ -31,6 +31,7 @@
 | 2026-10-06 | Portage Rust intégral de la chaîne **écarté** : il faudrait réécrire pdf.js et les codecs, et refaire la preuve des 84/92 et 95/95 | Lot D2, étape 0 |
 | 2026-10-06 | Allègement du moteur (Node sans ICU, binaire compilé) **reporté après la bêta**, et sans toucher la chaîne | Lot D2, étape 0 |
 | 2026-10-08 | **La recherche n'a pas d'index à elle** : elle lit la vue, et tout se passe sur la machine. Le surlignage porte sur le texte d'origine, pas sur sa forme repliée | Lot D2, étape 4, section ci-dessous |
+| 2026-10-09 | **Lot E1, étape 1 faite** : registre `lienotheque-registre` créé en Europe de l'Ouest, schéma appliqué. Les migrations D1 sont **engendrées** depuis `packages/depot-sqlite/src/migrations.ts`, et un test échoue si le disque dérive du tableau | Lot E1, section ci-dessous |
 | 2026-10-09 | **Lot D2 clos.** Quatre questions restées ouvertes sont tranchées : agencement d'un paquet Windows **reporté à la phase Windows** ; critère F4 à 84 / 92 **non revérifié**, le témoin gratuit en tient lieu et on ne remesurera que si cette zone du code est retouchée ; **pages invisibles de F5 laissées en l'état**, sujet d'un lot futur ; **allègement du moteur confirmé après la bêta** | Lot D2, clôture, section ci-dessous |
 | 2026-10-09 | **Les écrans lisent la version active du dépôt**, relue après chaque traitement, et les images de page arrivent une par une dans la réponse de l'hôte | Lot D2, étape 6, section ci-dessous |
 | 2026-10-09 | **Le parcours entier passe sans ligne de commande** : créer, organiser, déposer, apprendre à lire, traiter, lire — 234 s sur F3, 95/95 | Lot D2, étape 7, section ci-dessous |
@@ -2215,3 +2216,34 @@ d'un lot futur, pas une dette de celui-ci.
 
 **L'allègement du moteur** reste après la bêta, sans toucher la chaîne : la décision du 6 octobre
 est confirmée telle quelle.
+
+## Lot E1 — journal de construction
+
+Le plan approuvé est `docs/lot-e-proposition.md`. Ce journal dit ce qui existe réellement, étape
+par étape. Chaque étape vérifie, et consigne, que **rien de réel n'a bougé** : l'ancienne base de
+Studio Clinique doit porter 22 022 passages et peser 168 738 816 octets, comme au 9 octobre 2026.
+
+### Étape 1 — le registre (faite le 9 octobre 2026)
+
+| | |
+|---|---|
+| Base | `lienotheque-registre`, D1, **région WEUR** choisie explicitement (HEB-05) |
+| Schéma | `bibliotheque_publiee` et `journal_audit` — aucune colonne binaire (HEB-02) |
+| Migrations | engendrées depuis `MIGRATIONS_REGISTRE_EN_LIGNE`, appliquées à distance |
+| Contrôle | `therapeute-library` : 22 022 passages, 168 738 816 octets, **0 écriture** |
+
+**Les migrations D1 ne s'écrivent pas à la main.** Elles sont engendrées depuis les tableaux de
+`packages/depot-sqlite/src/migrations.ts` par `pnpm build`, et un test compare les fichiers du
+disque à ce que le générateur rendrait. Sans lui, le schéma local et le schéma en ligne divergent
+le jour où quelqu'un corrige un seul des deux — et la divergence ne se voit qu'au moment où elle
+coûte cher. Chaque fichier engendré porte en tête d'où il vient, parce qu'un fichier engendré qu'on
+prend pour une source se fait corriger à la main une fois, et une seule.
+
+**Une place nommée plutôt qu'un identifiant.** Le registre ne retient pas l'identifiant de la base
+d'une bibliothèque mais la **place** qu'elle occupe dans une réserve de liaisons déclarées
+(`BIB_1`…`BIB_4`). C'est ce qui permet au Worker de n'avoir aucun jeton de compte : il ne crée ni
+ne supprime de base, il lit celle qu'on lui a reliée. SEC-08 est tenue par construction, pas par
+discipline. Le prix est assumé : publier une bibliothèque de plus est un déploiement, pas un clic.
+
+Le registre porte aussi le **journal d'audit** (SEC-07) dès cette étape, plutôt qu'après coup : une
+opération sensible qui n'est pas journalisée au moment où on l'écrit ne le sera jamais.
