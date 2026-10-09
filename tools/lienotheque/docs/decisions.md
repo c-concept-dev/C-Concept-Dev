@@ -31,6 +31,7 @@
 | 2026-10-06 | Portage Rust intégral de la chaîne **écarté** : il faudrait réécrire pdf.js et les codecs, et refaire la preuve des 84/92 et 95/95 | Lot D2, étape 0 |
 | 2026-10-06 | Allègement du moteur (Node sans ICU, binaire compilé) **reporté après la bêta**, et sans toucher la chaîne | Lot D2, étape 0 |
 | 2026-10-08 | **La recherche n'a pas d'index à elle** : elle lit la vue, et tout se passe sur la machine. Le surlignage porte sur le texte d'origine, pas sur sa forme repliée | Lot D2, étape 4, section ci-dessous |
+| 2026-10-09 | **Le parcours entier passe sans ligne de commande** : créer, organiser, déposer, apprendre à lire, traiter, lire — 234 s sur F3, 95/95 | Lot D2, étape 7, section ci-dessous |
 | 2026-10-09 | **La forme d'un numéro d'élément se donne par l'exemple**, jamais par une syntaxe : « ici, un numéro ressemble à 2.46 ». Quatre hypothèses du lecteur deviennent des données | Lot D2, étape 5, section ci-dessous |
 | 2026-10-09 | **REC-07 sur F5 : 13 min 25 s en trois passes, sous le critère — et F5 se lit.** Ce n'était pas l'OCR : le redressement automatique tournait la page sous le tracé. On trace désormais sur la page telle qu'elle est montrée | Lot D2, étape 5 |
 | 2026-10-08 | **Un travail par document, non par fichier** : le moteur lit un document et ses médias ensemble, et un travail qui ne porterait qu'une piste n'aurait rien à lire | Lot D2, étape 3, section ci-dessous |
@@ -503,6 +504,30 @@ La page occupait toute la hauteur et repoussait la palette hors de l'écran ; l'
 zone proche du bord droit se faisait couper. Les deux sont corrigés. La page montrée par
 l'éditeur est dessinée et prend ses couleurs des jetons : elle suit le thème, et le garde-fou des
 couleurs en dur n'a pas eu à être desserré pour elle.
+
+
+## Lot D2, étape 7 — le parcours entier, sans ligne de commande
+
+De la création à la lecture, sur F3, chaque pas étant exactement ce qu'une commande de l'hôte
+fait quand un écran l'appelle. Aucun chemin propre à l'essai :
+`apps/app/src-tauri/examples/parcours-complet.rs`.
+
+| Pas | Durée | Ce qu'il a donné |
+|---|---:|---|
+| Créer la bibliothèque | 0,0 s | elle existe, sa description est écrite |
+| Écrire son organisation | 0,0 s | le schéma est enregistré |
+| Déposer | 3,1 s | 1 travail, 99 médias, 0 refusé |
+| Montrer une page à l'éditeur | 2,7 s | 3 pages exportées |
+| Enregistrer la manière de lire | 0,0 s | — |
+| Traiter | 228,3 s | version écrite **puis** activée (JOB-06) |
+| Relire la bibliothèque | 0,0 s | 28 pages, **95 / 95 éléments reliés**, 2 à vérifier |
+| Montrer une page au Lecteur | 0,0 s | image disponible |
+| **Total** | **234 s** | du premier geste à la lecture |
+
+**Ce que cet essai ne fait pas : cliquer.** Les dix captures de `docs/captures/` montrent les
+écrans ; cet essai montre que ce qu'ils demandent répond, dans l'ordre, sur un vrai corpus. Les
+deux ensemble couvrent le parcours ; ni l'un ni l'autre ne le couvre seul, et il faut le dire
+plutôt que de laisser croire qu'une main a tenu la souris.
 
 
 ## Prototype du socle local — mesures du 3 octobre 2026
