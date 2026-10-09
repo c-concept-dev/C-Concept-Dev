@@ -649,6 +649,25 @@ bibliothèque d'essai montée à partir de F3, qui nous appartient.
 ressource existante, et aucune n'engage de dépense. Je demanderai néanmoins votre accord avant la
 première commande qui crée quoi que ce soit, conformément à la règle 7 de CLAUDE.md.
 
+### Deux mesures à faire pendant E2, inscrites ici pour ne pas se perdre
+
+**1. La qualité de la couche texte existante**, sur un échantillon relu à la main, avant tout
+réimport massif. Elle existe sur toutes les pages de l'échantillon ; reste à savoir si l'on peut
+s'y fier ou s'il faut réocériser.
+
+**2. Le taux de compression par type de page, mesuré séparément.** Le relevé de l'étape 0 donne un
+rapport global (×0,35) et ne distingue pas le texte pur d'une partition ou d'une tablature. Ce
+n'est pas bloquant — le coût R2 est quasi nul dans tous les cas —, mais la mesure doit se faire
+**sur les vraies pages réellement traitées**, au fil du réimport, et non sur un nouvel échantillon
+prélevé à part : les pages qui passent sont la population, un échantillon n'en serait qu'une image.
+
+La question à laquelle cette mesure doit répondre : **un réglage de qualité différencié par contenu
+(OPT-04) ferait-il mieux sans perte de lisibilité ?** Le corpus thérapeutique est presque
+entièrement du texte, et un texte noir sur blanc supporte une compression qu'une portée ou une
+grille d'accords ne supporterait pas. S'il y a un gain à prendre, il est là ; s'il n'y en a pas, le
+rapport le dira et on n'y reviendra plus. Dans les deux cas, OPT-04 reste la borne : **aucune image
+n'est re-rendue en dessous de sa résolution d'origine**, quel que soit le réglage de qualité.
+
 ### Ce pour quoi je redemanderai un accord, séparément
 
 **E2** (réimport réel), **E4** (bascule) et **E6** (suppression de l'ancienne), comme BAS-02,
