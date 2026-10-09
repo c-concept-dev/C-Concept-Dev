@@ -287,6 +287,24 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       ['pas forcément un homme et une femme', /n.est pas forcément un homme et une femme/],
       // Correction 6 : la typographie.
       ['guillemets français', /employez les guillemets français : « comme ceci »/],
+      // Correction du 9 octobre, second retour : la règle des paragraphes.
+      ['section paragraphe', /SI L.ÉCRAN MONTRE UN PARAGRAPHE\./],
+      ['ne pas reformuler', /Ne le reformulez pas\./],
+      ['dire ce qui n\'est pas dit', /Dites ce que la phrase\s*\n?affichée NE DIT PAS/],
+      ['la conséquence vécue', /la conséquence vécue : ce que cela change concrètement/],
+      ['un exemple annoncé', /un exemple qui donne un visage à l.idée, annoncé comme exemple/],
+      ['une question sans réponse à l\'écran', /une question posée au spectateur, à laquelle l.écran ne répond pas/],
+      ['ne pas reprendre l\'énumération', /ne reprenez pas son énumération/],
+      // Les trois changements du 9 octobre, UNE ASSERTION PAR LIGNE.
+      // Le test précédent était à l'envers : un commentaire qui reformule garderait tout son
+      // sens sans la diapositive. Christophe l'a retourné — on barre ce que l'écran dit déjà.
+      ['barrer ce que l\'écran dit déjà', /barrez mentalement tout ce que la diapositive dit déjà\./],
+      ['s\'il ne reste rien', /S.il ne reste rien, vous avez reformulé\./],
+      ['aucun fait ni chiffre ajouté', /sans introduire de fait, de chiffre ni d.étude qui ne soient dans le/],
+      ['sans contredire le document', /document, et sans le contredire\./],
+      ['la conséquence est une possibilité', /Formulez-la comme\s*\n?\s*une possibilité/],
+      ['les deux tournures données', /« cela peut vouloir dire que… », « il arrive que… »/],
+      ['jamais une règle ni une généralité', /jamais comme une\s*\n?\s*règle ni comme une généralité sur les gens/],
       ['jamais le guillemet droit', /N.employez JAMAIS le\s*\n?\s*guillemet droit/],
       ['apostrophe typographique', /L.apostrophe s.écrit ’, jamais '/],
       ['pas de parenthèse', /Aucune parenthèse/],
@@ -304,6 +322,10 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       assert.ok(re.test(prompt.vous), 'le prompt doit porter : ' + nom);
     });
     // Et ce qui ne doit PLUS y être : une proportion donnée en exemple.
+    // L'ANCIEN TEST NE DOIT PLUS Y ÊTRE : il était à l'envers, le garder à côté du nouveau
+    // donnerait au modèle deux consignes contradictoires.
+    assert.equal(/si on retirait la diapositive/.test(prompt.vous), false,
+      'l\'ancien test, à l\'envers, doit avoir disparu du prompt');
     assert.equal(/un couple sur trois/.test(prompt.vous), false,
       'l\'ancien exemple « un couple sur trois » ressemblait à une statistique');
     // Correction 2 : le sujet vient du TITRE, et le mot « couple » n'est plus en dur.
@@ -1209,6 +1231,178 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
     assert.equal(apresReecriture.nEtapes, vuDansLaPage.etapes.length, 'l\'aperçu garde ses étapes');
     console.log('      consigne transmise : « ' + apresReecriture.consigne + ' »  |  un seul stepId dans l\'appel');
     pass('« Réécrire cette étape » : un seul stepId, la consigne transmise, l\'aperçu change, le document non.');
+
+    // ── 24. LA PUCE ORPHELINE, et jamais de puce vide à l'écran ──────────────────────────────
+    // Christophe voit « une ligne * isolée sous chaque étape ». Mesuré : la règle Markdown
+    // exigeait une espace APRÈS la puce, donc une puce en toute fin de texte passait.
+    const puce = await page.evaluate(async (d) => {
+      const A = window.NarrationIA;
+      const etapes = A.contenuParEtape(d);
+      const r = A.repartirMots(etapes, 4);
+      const cible = {}; r.cibles.forEach((c) => { cible[c.stepId] = c.mots; });
+      const corps = (n) => {
+        const ph = [];
+        let reste = Math.max(0, n - 3);
+        while (reste > 0) { const k = Math.min(10, reste); ph.push('mot '.repeat(k).trim() + '.'); reste -= k; }
+        return 'Imaginez la scène. ' + ph.join(' ');
+      };
+      const avec = (suffixe) => JSON.stringify(etapes.map((e) => ({ stepId: e.stepId,
+        text: corps(cible[e.stepId]) + suffixe })));
+      const juger = (suffixe) => {
+        const v = A.validerReponse(avec(suffixe), etapes, r, {});
+        return { ok: v.ok, violations: v.violations.slice(0, 2) };
+      };
+      return {
+        asterisqueFin: juger('\n*'),
+        tiretFin: juger('\n-'),
+        plusFin: juger('\n+'),
+        asterisqueMilieu: juger('\n*\nSuite.'),
+        propre: juger(''),
+        cadratin: juger(' Un dernier mot — et voilà.'),
+        // Et la fonction seule, pour que l'échec dise laquelle des deux règles a parlé.
+        detecte: {
+          fin: A.contientMarkdown('Un texte.\n*'),
+          tiretFin: A.contientMarkdown('Un texte.\n-'),
+          propre: A.contientMarkdown('Imaginez la scène. Et vous ?'),
+          cadratin: A.contientMarkdown('Un texte — ordinaire — ici.'),
+          gras: A.contientMarkdown('Un **mot** en gras.'),
+        },
+      };
+    }, PRESENTATION);
+    ['asterisqueFin', 'tiretFin', 'plusFin', 'asterisqueMilieu'].forEach((nom) => {
+      assert.equal(puce[nom].ok, false, nom + ' : une puce orpheline doit être refusée');
+      assert.ok(puce[nom].violations.some((v) => /Markdown/.test(v)),
+        nom + ' : ' + JSON.stringify(puce[nom].violations));
+    });
+    // LES TÉMOINS : un texte propre et un tiret cadratin légitime ne déclenchent rien.
+    assert.equal(puce.propre.ok, true, 'un texte propre passe : ' + puce.propre.violations.join(' | '));
+    assert.equal(puce.cadratin.ok, true,
+      'un tiret cadratin est légitime depuis le 9 octobre : ' + puce.cadratin.violations.join(' | '));
+    assert.equal(puce.detecte.cadratin, false, 'le tiret cadratin n\'est pas une puce');
+    assert.equal(puce.detecte.propre, false);
+    assert.equal(puce.detecte.gras, true, 'le gras Markdown reste refusé');
+    console.log('      puce orpheline : * - + en fin de texte → refusés ; tiret cadratin → accepté');
+    pass('la puce orpheline est refusée (* - + seuls), le tiret cadratin reste accepté.');
+
+    // Et À L'ÉCRAN : aucune puce vide sous une étape sans avertissement.
+    // On force un avertissement SANS TEXTE dans l'aperçu : aucun des cinq n'en produit, mais
+    // le filtre doit tenir le jour où l'un d'eux le ferait.
+    await page.evaluate(() => {
+      const doc = window._adocArtifacts['listes']._adocStructuredDoc;
+      const e = window.adocPresentStepList(doc)[0];
+      window.NarrationIA._rendreApercu(document.querySelector('.nia-panneau'), {
+        entrees: [
+          { stepId: e.stepId, text: 'Un texte.', mots: 2, cible: 20,
+            avertissements: [{ type: 'vide', texte: '' },
+                             { type: 'vide2', texte: '   ' },
+                             { type: 'vrai', texte: 'un vrai avertissement' }] },
+          // Une étape SANS aucun avertissement : sa liste doit être masquée, pas vide-et-visible.
+          { stepId: e.stepId + '-bis', text: 'Un autre texte.', mots: 3, cible: 20,
+            avertissements: [] },
+        ],
+        repartition: { total_reparti: 20, duree_estimee_s: 8 },
+      }, doc);
+    });
+    const pucesVides = await page.evaluate(() => {
+      const lis = Array.from(document.querySelectorAll('.nia-etape .nia-avertis li'));
+      const uls = Array.from(document.querySelectorAll('.nia-etape .nia-avertis'));
+      return {
+        liVides: lis.filter((li) => !li.textContent.trim()).length,
+        ulsVisiblesEtVides: uls.filter((ul) => !ul.hidden && !ul.children.length).length,
+        total: uls.length,
+        liAffichees: lis.map((li) => li.textContent),
+      };
+    });
+    assert.deepEqual(pucesVides.liAffichees, ['un vrai avertissement'],
+      'seul l\'avertissement qui porte un texte doit être affiché : '
+      + JSON.stringify(pucesVides.liAffichees));
+    assert.equal(pucesVides.liVides, 0, 'aucune puce sans texte à l\'écran');
+    assert.equal(pucesVides.ulsVisiblesEtVides, 0,
+      'une liste d\'avertissements vide doit être masquée : ' + pucesVides.ulsVisiblesEtVides
+      + ' sur ' + pucesVides.total);
+    pass('à l\'écran, aucune puce vide et aucune liste d\'avertissements vide affichée.');
+    // On remet l'aperçu réel : le contrôle ci-dessus l'a remplacé par un rendu à une seule
+    // étape, et le contrôle suivant travaille sur la liste complète.
+    await page.evaluate(() => {
+      window.NarrationIA._rendreApercu(document.querySelector('.nia-panneau'),
+        window.__dernierRes, window.__dernierDoc);
+    });
+    await page.waitForTimeout(150);
+
+    // ── 25. « APPLIQUER CETTE ÉTAPE » : n'écrire que les étapes cochées ──────────────────────
+    const parEtape = await page.evaluate(async () => {
+      const p = document.querySelector('.nia-panneau');
+      const etapes = Array.from(p.querySelectorAll('.nia-etape'));
+      const cases = etapes.map((el) => el.querySelector('.nia-garder-case'));
+      const avantDecoche = { toutesCochees: cases.every((c) => c.checked),
+                             libelle: p.querySelector('.nia-appliquer').textContent };
+      // On décoche la deuxième étape, comme Christophe écarterait une étape à refaire.
+      cases[1].checked = false;
+      cases[1].dispatchEvent(new Event('change', { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 150));
+      const apresDecoche = { libelle: p.querySelector('.nia-appliquer').textContent,
+                             grisee: etapes[1].dataset.ecartee };
+      // La case est-elle ATTEINTE par le pointeur ?
+      cases[1].scrollIntoView({ block: 'center' });
+      await new Promise((r) => setTimeout(r, 150));
+      const r0 = cases[1].getBoundingClientRect();
+      const dessus = document.elementFromPoint(Math.round(r0.left + r0.width / 2),
+                                               Math.round(r0.top + r0.height / 2));
+      return { avantDecoche, apresDecoche, nEtapes: etapes.length,
+               caseAtteinte: dessus === cases[1],
+               stepIdEcartee: etapes[1].dataset.stepId,
+               stepIds: etapes.map((el) => el.dataset.stepId) };
+    });
+    assert.equal(parEtape.avantDecoche.toutesCochees, true, 'toutes les cases cochées par défaut');
+    assert.match(parEtape.avantDecoche.libelle, /^Appliquer \(\d+\)$/,
+      'le bouton dit combien : ' + parEtape.avantDecoche.libelle);
+    assert.match(parEtape.apresDecoche.libelle, /sur \d+\)$/,
+      'et le dit encore quand on décoche : ' + parEtape.apresDecoche.libelle);
+    assert.equal(parEtape.apresDecoche.grisee, '1', 'l\'étape écartée est marquée à l\'écran');
+    assert.equal(parEtape.caseAtteinte, true, 'la case doit être ATTEINTE par le pointeur');
+
+    // On applique, et SEULES les étapes cochées doivent être écrites.
+    await page.evaluate(() => { window.confirm = () => true; });
+    await page.click('.nia-appliquer');
+    await page.waitForTimeout(400);
+    const ecrit = await page.evaluate(() => {
+      const d = window._adocArtifacts['listes']._adocStructuredDoc;
+      return { n: (d.narration || []).length,
+               ids: (d.narration || []).map((x) => x.stepId),
+               etat: document.querySelector('.nia-etat').textContent };
+    });
+    assert.equal(ecrit.n, parEtape.nEtapes - 1,
+      'une étape décochée ne doit PAS être écrite : ' + ecrit.n + ' pour ' + (parEtape.nEtapes - 1));
+    assert.equal(ecrit.ids.indexOf(parEtape.stepIdEcartee), -1,
+      'et c\'est bien celle-là qui manque : ' + ecrit.ids.join(','));
+    assert.match(ecrit.etat, /étape\(s\) écartée\(s\)/, 'le nombre d\'écartées est dit : ' + ecrit.etat);
+    // « Annuler ce geste » restaure l'état d'avant, comme toujours.
+    await page.click('.nia-annuler');
+    await page.waitForTimeout(300);
+    const apresAnnulation = await page.evaluate(() =>
+      (window._adocArtifacts['listes']._adocStructuredDoc.narration || []).length);
+    assert.equal(apresAnnulation, 0, 'l\'annulation restaure l\'état d\'avant, écartées comprises');
+    // ET ELLE SURVIT À UN NOUVEAU RENDU : réécrire une étape ne doit pas recocher les écartées.
+    const apresRendu = await page.evaluate(async () => {
+      const p = document.querySelector('.nia-panneau');
+      const etapes = Array.from(p.querySelectorAll('.nia-etape'));
+      etapes[1].querySelector('.nia-garder-case').checked = false;
+      etapes[1].querySelector('.nia-garder-case').dispatchEvent(new Event('change', { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 120));
+      // Un nouveau rendu de l'aperçu, exactement ce que fait une réécriture.
+      window.NarrationIA._rendreApercu(p, window.__dernierRes, window.__dernierDoc);
+      await new Promise((r) => setTimeout(r, 120));
+      const apres = Array.from(p.querySelectorAll('.nia-etape'));
+      return { cochee: apres[1].querySelector('.nia-garder-case').checked,
+               marquee: apres[1].dataset.ecartee,
+               libelle: p.querySelector('.nia-appliquer').textContent };
+    });
+    assert.equal(apresRendu.cochee, false,
+      'une étape écartée doit le RESTER après un nouveau rendu de l\'aperçu');
+    assert.equal(apresRendu.marquee, '1', 'et rester marquée à l\'écran');
+    console.log('      ' + parEtape.avantDecoche.libelle + ' → ' + parEtape.apresDecoche.libelle
+      + '  |  ' + ecrit.n + ' écrites sur ' + parEtape.nEtapes + ', annulation → 0');
+    pass('« appliquer cette étape » : cochée par défaut, le bouton dit combien, seules les cochées sont écrites.');
 
     // ── 19. AUCUN APPEL RÉSEAU causé par la rédaction ────────────────────────────────────────
     // L'application appelle le Worker et des CDN au DÉMARRAGE — c'est son comportement, pas

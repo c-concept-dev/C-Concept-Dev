@@ -311,6 +311,21 @@
       'Apportez donc : un exemple concret, une image, une nuance, une objection fréquente, ou',
       'une question posée au spectateur. Reliez l\'étape à la précédente quand cela aide.',
       '',
+      'SI L\'ÉCRAN MONTRE UN PARAGRAPHE.',
+      'Ne le reformulez pas. Le spectateur vient de le lire : redire la même idée avec d\'autres',
+      'mots lui prend son temps, même si votre formulation est meilleure. Dites ce que la phrase',
+      'affichée NE DIT PAS, sans introduire de fait, de chiffre ni d\'étude qui ne soient dans le',
+      'document, et sans le contredire. Trois façons, choisissez-en une :',
+      '- la conséquence vécue : ce que cela change concrètement pour quelqu\'un. Formulez-la comme',
+      '  une possibilité — « cela peut vouloir dire que… », « il arrive que… » — jamais comme une',
+      '  règle ni comme une généralité sur les gens ;',
+      '- un exemple qui donne un visage à l\'idée, annoncé comme exemple ;',
+      '- une question posée au spectateur, à laquelle l\'écran ne répond pas.',
+      'Si le paragraphe énumère plusieurs éléments, ne reprenez pas son énumération : choisissez-en',
+      'un seul et montrez-le.',
+      'Avant de rendre votre texte, barrez mentalement tout ce que la diapositive dit déjà.',
+      'S\'il ne reste rien, vous avez reformulé.',
+      '',
       'SI L\'ÉCRAN MONTRE UNE LISTE OU UN QUESTIONNAIRE.',
       'Ne les parcourez pas, élément par élément, dans l\'ordre : le spectateur les lit lui-même.',
       'Choisissez UN élément et illustrez-le par un exemple, ou dites ce qui relie tous les',
@@ -447,7 +462,17 @@
     try { return JSON.parse(t.slice(i, j + 1)); } catch (e) { return null; }
   }
 
+  // Une PUCE ORPHELINE : une ligne qui ne contient qu'un « * », un « - » ou un « + ». La règle
+  // précédente exigeait une espace APRÈS la puce (`^\s*[-*+]\s`), ce qui laissait passer une
+  // puce en toute fin de texte, sans retour à la ligne derrière — et l'aperçu affichait alors
+  // une ligne isolée sous chaque étape. Relevé par Christophe le 9 octobre ; vérifié : les trois
+  // caractères en fin de texte passaient tous les trois.
+  // Le tiret CADRATIN (—) n'est pas visé : il est légitime, et ce n'est pas le même caractère.
+  var PUCE_ORPHELINE_RE = /(^|\n)[ \t]*[-*+][ \t]*(\n|$)/;
   var MARKDOWN_RE = /(^|\s)([*_]{1,2})\S|\*\*|^#{1,6}\s|^\s*[-*+]\s|\[[^\]]*\]\([^)]*\)|`/m;
+  function contientMarkdown(texte) {
+    return MARKDOWN_RE.test(texte) || PUCE_ORPHELINE_RE.test(texte);
+  }
 
   // ── MESURER LE RECOUVREMENT AVEC L'ÉCRAN ───────────────────────────────────────────────────
   // Le 9 octobre, cinq étapes sur dix-neuf ont été refusées par Christophe. Trois des cinq
@@ -686,7 +711,7 @@
       if (attendus.indexOf(id) === -1) { violations.push(id + ' : identifiant inconnu'); return; }
       if (vus.indexOf(id) !== -1) { violations.push(id + ' : en double'); return; }
       vus.push(id);
-      if (MARKDOWN_RE.test(texte)) violations.push(id + ' : le texte contient du Markdown');
+      if (contientMarkdown(texte)) violations.push(id + ' : le texte contient du Markdown');
       var typo = normaliserTypographie(texte);
       if (typo.refus) { violations.push(id + ' : ' + typo.refus); return; }
       if (typo.notes.length) normalisations.push(id + ' : ' + typo.notes.join(', '));
@@ -944,6 +969,7 @@
     SEUIL_PHRASE_LONGUE: SEUIL_PHRASE_LONGUE, TOLERANCE_PLANCHER_TITRE: TOLERANCE_PLANCHER_TITRE,
     PART_ETAPES_HORS_TOLERANCE: PART_ETAPES_HORS_TOLERANCE,
     extraireJSON: extraireJSON, validerReponse: validerReponse,
+    contientMarkdown: contientMarkdown,
     // Le cœur pose ses services par ici. La clé n'est pas gardée : seule la FONCTION qui la
     // lit l'est, et elle n'est appelée qu'au moment de l'envoi.
     _poserServices: function (s) { _services = s; },
@@ -971,6 +997,9 @@
     + 'margin-top:8px;padding-top:8px;}'
     + '.nia-etape{margin-bottom:10px;}'
     + '.nia-etape h5{margin:0 0 2px;font-size:12px;font-weight:600;}'
+    + '.nia-garder{display:flex;gap:5px;align-items:center;font-size:11px;color:var(--muted,#667);'
+    + 'margin-bottom:2px;cursor:pointer;}'
+    + '.nia-etape[data-ecartee="1"] .nia-texte{opacity:.45;}'
     + '.nia-etape .nia-meta{color:var(--muted,#667);font-size:11px;margin:0 0 3px;}'
     + '.nia-etape p.nia-texte{margin:0;white-space:pre-wrap;line-height:1.45;}'
     + '.nia-avertis{margin:4px 0 0;padding-left:16px;}'
@@ -1037,7 +1066,10 @@
         + e.rang + ' sur ' + e.surRang;
     });
     zone.innerHTML = res.entrees.map(function () {
-      return '<div class="nia-etape"><h5></h5><p class="nia-meta"></p>'
+      return '<div class="nia-etape">'
+        + '<label class="nia-garder"><input type="checkbox" class="nia-garder-case" checked>'
+        + ' appliquer cette étape</label>'
+        + '<h5></h5><p class="nia-meta"></p>'
         + '<p class="nia-texte"></p><ul class="nia-avertis"></ul>'
         + '<div class="nia-ligne nia-reecrire-ligne">'
         + '<input type="text" class="nia-consigne" placeholder="plus court, un autre exemple…">'
@@ -1056,12 +1088,27 @@
       // regarder. Christophe ne doit pas relire dix-neuf étapes pour trouver les trois qui
       // redisent l'écran.
       var ul = el.querySelector('.nia-avertis');
-      (en.avertissements || []).forEach(function (a) {
+      // Jamais de puce vide : un avertissement sans texte afficherait un point isolé sous
+      // l'étape, exactement le genre de chose qu'on passe dix minutes à chercher.
+      (en.avertissements || []).filter(function (a) {
+        return a && typeof a.texte === 'string' && a.texte.trim();
+      }).forEach(function (a) {
         var li = document.createElement('li');
         li.className = 'nia-avertis-' + a.type;
         li.textContent = a.texte;
         ul.appendChild(li);
       });
+      ul.hidden = !ul.children.length;
+      var case_ = el.querySelector('.nia-garder-case');
+      // L'état de la case SURVIT à un nouveau rendu de l'aperçu : réécrire une étape ne doit
+      // pas recocher celles que Christophe avait écartées.
+      case_.checked = (en.appliquer !== false);
+      el.dataset.ecartee = case_.checked ? '0' : '1';
+      case_.onchange = function () {
+        en.appliquer = case_.checked;
+        el.dataset.ecartee = case_.checked ? '0' : '1';
+        majCompteAppliquer(panneau, res);
+      };
       el.querySelector('.nia-reecrire').onclick = function () {
         reecrire(panneau, el, en.stepId, res, doc);
       };
@@ -1090,12 +1137,25 @@
       res.entrees[i] = Object.assign({}, r.entree,
         { avertissements: (r.avertissements[0] && r.avertissements[0].liste) || [] });
       rendreApercu(panneau, res, doc);
+      majCompteAppliquer(panneau, res);
       dire(panneau, 'Étape réécrite dans l\u2019aperçu seulement. Rien n\u2019est écrit tant que '
         + 'vous n\u2019avez pas cliqué « Appliquer ».');
     } catch (e) {
       etat.textContent = '';
       dire(panneau, 'Réécriture impossible : ' + (e && e.message || e), true);
     } finally { btn.disabled = false; }
+  }
+
+  // Le libellé du bouton « Appliquer » dit COMBIEN d'étapes il écrira. Un bouton qui ne dit pas
+  // ce qu'il va faire est un bouton qu'on clique en espérant.
+  function majCompteAppliquer(panneau, res) {
+    var btn = panneau.querySelector('.nia-appliquer');
+    if (!btn || !res) return;
+    var n = res.entrees.filter(function (e) { return e.appliquer !== false; }).length;
+    btn.textContent = n === res.entrees.length
+      ? 'Appliquer (' + n + ')'
+      : 'Appliquer (' + n + ' sur ' + res.entrees.length + ')';
+    btn.disabled = n === 0;
   }
 
   function brancher(boite, servicesDuCoeur) {
@@ -1137,8 +1197,12 @@
           transport: window.NarrationIA._transportDEssai || undefined,
         });
         dernierResultat = res;
+        // Gardés pour que les contrôles puissent redemander un rendu identique — c'est ce que
+        // fait une réécriture, et c'est là que l'état des cases doit survivre.
+        window.__dernierRes = res; window.__dernierDoc = doc;
         rendreApercu(panneau, res, doc);
         panneau.querySelector('.nia-appliquer').disabled = false;
+        majCompteAppliquer(panneau, res);
         var r = res.repartition;
         // Une durée inatteignable est DITE, pas tue. Sans cette phrase, l'aperçu annoncerait
         // 6,4 min pour une demande de 10 min sans que rien ne l'explique.
@@ -1201,7 +1265,12 @@
       if (!doc || !dernierResultat) return;
       // N4 — JAMAIS d'écrasement sans confirmation. On compte ce qui serait remplacé, et on le
       // dit avec le nombre exact : « des narrations existent » ne permet pas de décider.
-      var existantes = dernierResultat.entrees.filter(function (en) {
+      // SEULES LES ÉTAPES COCHÉES sont écrites. Christophe en garde environ quatorze sur
+      // dix-neuf et refait les autres : refaire une étape ne doit pas écraser les treize
+      // qu'il avait validées.
+      var aEcrire = dernierResultat.entrees.filter(function (en) { return en.appliquer !== false; });
+      if (!aEcrire.length) { dire(panneau, 'Aucune étape cochée : rien à écrire.'); return; }
+      var existantes = aEcrire.filter(function (en) {
         var t = window.adocNarrationRead(doc, en.stepId);
         return t && t.trim();
       });
@@ -1212,11 +1281,13 @@
       }
       // L'état d'AVANT, en entier : c'est lui que « Annuler ce geste » restaure.
       dernierGeste = { doc: doc, avant: JSON.parse(JSON.stringify(doc.narration || [])) };
-      dernierResultat.entrees.forEach(function (en) {
+      aEcrire.forEach(function (en) {
         window.adocNarrationWrite(doc, en.stepId, en.text);
       });
       panneau.querySelector('.nia-annuler').disabled = false;
-      dire(panneau, dernierResultat.entrees.length + ' narration(s) écrite(s) dans le document.'
+      dire(panneau, aEcrire.length + ' narration(s) écrite(s) dans le document'
+        + (aEcrire.length < dernierResultat.entrees.length
+            ? ' (' + (dernierResultat.entrees.length - aEcrire.length) + ' étape(s) écartée(s)).' : '.')
         + (existantes.length ? '\n' + existantes.length + ' remplacée(s), après confirmation.' : '')
         + '\nRien n’est enregistré tant que vous n’avez pas enregistré le document.');
       rafraichirChamp();
@@ -1250,5 +1321,10 @@
   }
 
   window.NarrationIA.brancher = brancher;
+  // Exposé POUR ÊTRE ÉPROUVÉ : le filtre contre les puces vides défend contre un avertissement
+  // sans texte, qu'aucun des cinq ne produit aujourd'hui. Sans ce point d'entrée, la défense
+  // serait intestable — et une défense intestable finit par disparaître sans que personne
+  // le voie.
+  window.NarrationIA._rendreApercu = rendreApercu;
   window.NarrationIA._dernierGeste = function () { return dernierGeste; };
 })();
