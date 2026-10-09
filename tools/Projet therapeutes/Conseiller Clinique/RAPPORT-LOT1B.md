@@ -86,7 +86,7 @@ Le **vrai** `transportReel`, dans la **vraie** page, déclenché par le **vrai**
 l'application appelle **d'elle-même** au démarrage, relevé sur son trafic.
 
 ```
-POST https://clone-proxy.11drumboy11.workers.dev
+POST <l'adresse du Worker, la même que celle des appels de l'application>
   payload.model claude-sonnet-4-6, max_tokens 1700, X-API-Key présent
   401 → « le serveur a refusé l'appel (401 — Unauthorized) » — sans la clé
 ```

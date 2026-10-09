@@ -825,7 +825,11 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
     // ── 18. LE VRAI TRANSPORT, dans la vraie page, avec `fetch` seul simulé ──────────────────
     // On ne remplace PAS le transport : c'est lui qu'on éprouve. Seul `fetch` est simulé, et
     // l'appel part du vrai bouton, donc par le vrai branchement du cœur.
-    const hoteDuWorker = new Set(hotesAppeles.filter((h) => /workers\.dev|clone-proxy/.test(h)));
+    // LE TÉMOIN SE DÉDUIT DU TRAFIC, il ne se nomme pas : écrire l'adresse du Worker ici la
+    // ferait entrer dans un dépôt public (« aucun identifiant d'infrastructure »). On retire
+    // donc les hôtes de ressources tierces, et ce qui reste est le serveur de l'application.
+    const HOTES_TIERS = /fonts\.googleapis\.com|fonts\.gstatic\.com|cdnjs\.cloudflare\.com|unpkg\.com|jsdelivr/;
+    const hoteDuWorker = new Set(hotesAppeles.filter((h) => !HOTES_TIERS.test(h)));
     assert.ok(hoteDuWorker.size === 1,
       'l\'application doit avoir appelé SON Worker au démarrage, pour servir de témoin : '
       + Array.from(hoteDuWorker).join(','));
@@ -894,7 +898,10 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       assert.equal(j.indexOf(reel.cle), -1, 'la clé ne doit pas être dans un journal : ' + j.slice(0, 80));
     });
     assert.deepEqual(reel.cleSurWindow, [], 'aucune clé posée sur window : ' + reel.cleSurWindow.join(','));
-    console.log('      ' + reel.vu.methode + ' ' + new URL(reel.vu.url).origin + '  —  payload.model '
+    // L'adresse n'est pas imprimée : un relevé se colle dans une conversation. Ce qui compte
+    // est qu'elle soit la MÊME que celle de l'application, et c'est l'assertion au-dessus qui
+    // l'établit, pas cette ligne.
+    console.log('      ' + reel.vu.methode + ' <même Worker que l\'application>  —  payload.model '
       + reel.vu.corps.payload.model + ', max_tokens ' + reel.vu.corps.payload.max_tokens
       + ', X-API-Key présent  |  401 → « ' + reel.erreur401.slice(0, 48) + '… » sans la clé');
     pass('le VRAI transport, dans la vraie page : même Worker que l\'application, clé du cœur, jamais dans une erreur ni un journal.');
@@ -907,7 +914,8 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
     assert.deepEqual(sortiesPendantRedaction, [],
       'la rédaction ne doit causer AUCUNE sortie réseau : ' + sortiesPendantRedaction.join(', '));
     console.log('      ' + sortiesAvantRedaction + ' sortie(s) au démarrage de l\'application ('
-      + Array.from(new Set(sorties.slice(0, sortiesAvantRedaction))).join(', ')
+      + Array.from(new Set(sorties.slice(0, sortiesAvantRedaction)))
+          .map((h) => HOTES_TIERS.test(h) ? h : '<le Worker>').join(', ')
       + '), 0 pendant la rédaction.');
     assert.deepEqual(erreurs, [], 'erreurs de page : ' + erreurs.join(' | '));
     pass('aucune sortie réseau causée par la rédaction, aucune erreur de page sur la séance.');
