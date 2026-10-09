@@ -26,6 +26,7 @@ use std::{
     path::{Path, PathBuf},
     sync::Mutex,
 };
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use tauri::{Manager, State};
 
 /// Emplacement des moteurs embarqués : dans le paquet installé, à côté de l'exécutable ;
@@ -170,6 +171,126 @@ fn agir_sur_travail(racine: String, id: String, action: String) -> Result<serde_
         .ok_or_else(|| format!("Action inconnue : {action}"))?;
     travail::enregistrer(&chemin, &apres).map_err(|e| format!("Travail impossible à écrire : {e}"))?;
     Ok(apres.vu())
+}
+
+/// Les emplacements du moteur embarqué, pour les commandes qui l'interrogent directement.
+fn moteur_embarque() -> Result<traitement::Emplacements, String> {
+    let executable = std::env::current_exe().map_err(|e| format!("Exécutable introuvable : {e}"))?;
+    traitement::Emplacements::depuis_executable(&executable)
+        .ok_or_else(|| "Moteur introuvable à côté de l’application : le paquet est incomplet.".to_owned())
+}
+
+/// Exporte quelques pages d'un document déposé, pour les montrer dans l'éditeur.
+///
+/// On ne peut pas montrer où regarder sur une page qu'on ne voit pas : c'est la première chose
+/// dont l'éditeur de manière de lire a besoin, et elle vient avant toute recette.
+#[tauri::command]
+fn apercu_de_pages(racine: String, nom: String, depuis: u32, combien: u32) -> Result<serde_json::Value, String> {
+    let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
+    let document = depot.racine().join(depot::SOURCES).join(&nom);
+    if !document.exists() {
+        return Err(format!("Le fichier « {nom} » n’est plus dans la bibliothèque."));
+    }
+    let images = depot.racine().join(depot::DERIVES).join("apercu");
+
+    let demande = serde_json::json!({
+        "type": "demande",
+        "protocole": limites::LIMITES.protocole,
+        "travailId": uuid::Uuid::new_v4().to_string(),
+        "outil": { "nom": "apercu-de-pages", "version": "1.0.0" },
+        "versionCible": uuid::Uuid::new_v4().to_string(),
+        "charge": { "document": document, "images": images, "depuis": depuis, "combien": combien },
+    });
+
+    let rendu = traitement::demander(&moteur_embarque()?, &demande)?;
+    let lu: serde_json::Value = serde_json::from_str(&rendu).map_err(|e| format!("Aperçu illisible : {e}"))?;
+
+    // Les images reviennent dans la réponse, et non par un chemin que la page irait lire : ouvrir
+    // l'accès au disque depuis la page pour montrer huit vignettes serait payer très cher une
+    // commodité. Huit pages pèsent moins d'un mégaoctet.
+    let vides = Vec::new();
+    let pages = lu["pages"].as_array().unwrap_or(&vides);
+    let mut rendues = Vec::with_capacity(pages.len());
+    for page in pages {
+        let Some(fichier) = page["fichier"].as_str() else { continue };
+        let octets = std::fs::read(images.join(fichier))
+            .map_err(|e| format!("Image de page illisible : {e}"))?;
+        rendues.push(serde_json::json!({
+            "rang": page["rang"],
+            "largeur": page["largeur"],
+            "hauteur": page["hauteur"],
+            "image": format!("data:image/webp;base64,{}", BASE64.encode(&octets)),
+        }));
+    }
+    Ok(serde_json::json!({ "pages": rendues }))
+}
+
+/// Essaie une manière de lire sur quelques pages, sans rien enregistrer (REC-07).
+///
+/// Le brouillon est écrit à côté de la bibliothèque, dans un fichier qui porte ce nom : on
+/// l'essaie, on le corrige, on l'essaie encore. Il ne devient la manière de lire de la
+/// bibliothèque qu'au moment où on l'enregistre, et c'est un autre geste.
+///
+/// Rien n'est activé : l'essai rend ce qui a été lu, et l'écran le montre. Une version du dépôt
+/// ne s'écrit que pour un vrai traitement (JOB-06).
+#[tauri::command]
+fn essayer_maniere(racine: String, nom: String, recette: String, depuis: u32, pages: u32) -> Result<serde_json::Value, String> {
+    let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
+    let document = depot.racine().join(depot::SOURCES).join(&nom);
+    if !document.exists() {
+        return Err(format!("Le fichier « {nom} » n’est plus dans la bibliothèque."));
+    }
+    let base = depot.racine().join("base");
+    let description = base.join("bibliotheque.json");
+    if !description.exists() {
+        return Err("Cette bibliothèque n’a pas de description.".to_owned());
+    }
+
+    // Le brouillon s'écrit avant d'être essayé : le moteur lit des fichiers, pas des messages.
+    let brouillon = base.join("brouillon-recette.json");
+    std::fs::create_dir_all(&base).map_err(|e| format!("Dossier impossible à préparer : {e}"))?;
+    std::fs::write(&brouillon, recette).map_err(|e| format!("Brouillon impossible à écrire : {e}"))?;
+
+    let demande = serde_json::json!({
+        "type": "demande",
+        "protocole": limites::LIMITES.protocole,
+        "travailId": uuid::Uuid::new_v4().to_string(),
+        "outil": { "nom": "traitement-de-lot", "version": "1.0.0" },
+        "versionCible": uuid::Uuid::new_v4().to_string(),
+        "charge": {
+            "document": document,
+            "medias": depot.racine().join(depot::SOURCES),
+            "recette": brouillon,
+            "description": description,
+            "depuis": depuis,
+            "pages": pages,
+        },
+    });
+
+    let rendu = traitement::demander(&moteur_embarque()?, &demande)?;
+    serde_json::from_str(&rendu).map_err(|e| format!("Résultat de l’essai illisible : {e}"))
+}
+
+/// Enregistre la manière de lire d'une bibliothèque. C'est elle que les traitements emploieront.
+#[tauri::command]
+fn enregistrer_maniere(racine: String, recette: String) -> Result<String, String> {
+    let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
+    let base = depot.racine().join("base");
+    std::fs::create_dir_all(&base).map_err(|e| format!("Dossier impossible à préparer : {e}"))?;
+    let chemin = base.join(roulement::RECETTE);
+    std::fs::write(&chemin, recette).map_err(|e| format!("Manière de lire impossible à écrire : {e}"))?;
+    Ok(chemin.to_string_lossy().into_owned())
+}
+
+/// La manière de lire d'une bibliothèque, ou rien si elle n'en a pas encore.
+#[tauri::command]
+fn lire_maniere(racine: String) -> Result<Option<String>, String> {
+    let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
+    match std::fs::read_to_string(depot.racine().join("base").join(roulement::RECETTE)) {
+        Ok(texte) => Ok(Some(texte)),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(format!("Manière de lire illisible : {e}")),
+    }
 }
 
 /// Ce que l'hôte retient d'une session à l'autre : cet appareil, et les bibliothèques ouvertes.
@@ -317,6 +438,10 @@ fn lancer(captures: bool) {
             retenir_bibliotheque,
             oublier_bibliotheque,
             deposer,
+            apercu_de_pages,
+            essayer_maniere,
+            enregistrer_maniere,
+            lire_maniere,
             faire_tourner,
             travaux,
             agir_sur_travail,

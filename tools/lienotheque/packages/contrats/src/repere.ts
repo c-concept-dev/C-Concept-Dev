@@ -25,6 +25,12 @@ export const LectureRepere = z
      *  Lecteur rend cliquable doit les contenir tous les deux — sans quoi elle le coupe en deux. */
     zoneRepere: ZoneRelative.optional(),
     numero: z.number().int().positive(),
+    /** Le numéro tel qu'il est imprimé, quand il ne s'écrit pas comme un nombre.
+     *
+     *  « 2.46 » se compare par son rang — `numero` —, mais s'affiche tel qu'il est lu. Sans lui,
+     *  l'écran montrerait 2046, qui n'est écrit nulle part dans le document. Absent quand le
+     *  numéro est un nombre : il n'y a alors rien à distinguer. */
+    numeroLu: z.string().min(1).optional(),
     pisteLue: z.number().int().positive().optional(),
     /** À quel point une pastille semble présente, qu'on ait su lire son chiffre ou non. Une
      *  pastille présente et illisible est une information : elle dit qu'une piste commence là. */
@@ -53,6 +59,12 @@ export const ElementRepere = z
     /** Où son repère a été trouvé, quand il l'a été. */
     zoneRepere: ZoneRelative.optional(),
     numero: z.number().int().positive(),
+    /** Le numéro tel qu'il est imprimé, quand il ne s'écrit pas comme un nombre.
+     *
+     *  « 2.46 » se compare par son rang — `numero` —, mais s'affiche tel qu'il est lu. Sans lui,
+     *  l'écran montrerait 2046, qui n'est écrit nulle part dans le document. Absent quand le
+     *  numéro est un nombre : il n'y a alors rien à distinguer. */
+    numeroLu: z.string().min(1).optional(),
     pisteLue: z.number().int().positive().optional(),
     /** Voir `LectureRepere.chiffresComptes` : le compte le plus fin obtenu sur ce repère. */
     chiffresComptes: z.number().int().nonnegative().optional(),
@@ -123,6 +135,9 @@ export type SourcePiste = z.infer<typeof SourcePiste>;
 export const LigneInterpretee = z
   .object({
     numero: z.number().int().positive(),
+    /** Le numéro tel qu'il est imprimé, quand il ne s'écrit pas comme un nombre. Voir
+     *  `LectureRepere.numeroLu` : « 2.46 » se compare par son rang et s'affiche tel qu'il est lu. */
+    numeroLu: z.string().min(1).optional(),
     pageImprimee: z.number().int().positive(),
     /** Piste du média, quand l'élément en a une. Tout un livre peut n'avoir aucun enregistrement,
      *  et dans un livre qui en a, les pages antérieures au premier repère n'en ont pas non plus :

@@ -276,7 +276,7 @@ describe("fichiers de travail (OUT-07)", () => {
 
     // Une page blanche : l'OCR ne trouvera rien, mais il aura écrit puis effacé ses images.
     const blanche = { largeur: 200, hauteur: 60, pixels: new Uint8Array(200 * 60).fill(255) };
-    lireNumeroPage(blanche, "bas", { dossier });
+    lireNumeroPage(blanche, { type: "coins", bord: "bas" }, { dossier });
 
     // Un lot de trois cents pages demande des dizaines de milliers de lectures : en garder les
     // images remplirait le disque.

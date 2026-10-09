@@ -24,7 +24,9 @@ d'autorisation : il faut l'accepter, puis relancer.** Une image que le système 
 pèse presque rien, et le script le dit plutôt que de livrer un dossier d'images vides.
 
 Les écrans tirent leurs données du jeu de démonstration (`?demonstration`), qui n'existe qu'en
-développement : **aucune œuvre, aucune donnée réelle** sur ces images.
+développement : **aucune œuvre, aucune donnée réelle** sur ces images. La page que montre
+l'éditeur de manière de lire est dessinée, et ses couleurs viennent des jetons — elle suit donc
+le thème comme le reste.
 
 ## Ce qu'on y voit
 
@@ -36,6 +38,8 @@ développement : **aucune œuvre, aucune donnée réelle** sur ces images.
 | `2-organisation-hybride.png` | Organisation | hybride photographique |
 | `3-depot-et-traitement-clair.png` | Dépôt et traitement | clair |
 | `3-depot-et-traitement-hybride.png` | Dépôt et traitement | hybride photographique |
+| `4-maniere-de-lire-clair.png` | Manière de lire | clair |
+| `4-maniere-de-lire-hybride.png` | Manière de lire | hybride photographique |
 | `5-recherche-clair.png` | Recherche ⌘K | clair |
 | `5-recherche-hybride.png` | Recherche ⌘K | hybride photographique |
 

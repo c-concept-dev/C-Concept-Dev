@@ -1,0 +1,308 @@
+/* Manière de lire (maquette 4).
+   Une page qu'on annote à gauche, ce qui en est lu à droite. Couleurs, rayons et pas de grille
+   uniquement par les variables --ln-*. */
+
+.ln-maniere {
+  display: grid;
+  gap: calc(var(--ln-grid) * 2);
+  padding: calc(var(--ln-grid) * 2) calc(var(--ln-grid) * 3);
+}
+
+.ln-maniere__tete {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "ariane ariane"
+    "dit page";
+  align-items: end;
+  gap: calc(var(--ln-grid) * 1.5) calc(var(--ln-grid) * 4);
+}
+
+.ln-maniere__tete .ln-ariane {
+  grid-area: ariane;
+}
+
+.ln-maniere__dit {
+  grid-area: dit;
+  min-width: 0;
+}
+
+.ln-maniere__titre {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.ln-maniere__dit .ln-muted {
+  margin: calc(var(--ln-grid) * 0.75) 0 0 0;
+}
+
+.ln-maniere__page {
+  grid-area: page;
+  display: flex;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 1.5);
+  margin: 0;
+  font-size: 14px;
+  color: var(--ln-text-secondary);
+  white-space: nowrap;
+}
+
+.ln-maniere__echec {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--ln-grid));
+  margin: 0;
+  padding: calc(var(--ln-grid)) calc(var(--ln-grid) * 1.5);
+  border-radius: var(--ln-radius);
+  background: var(--ln-warning-background);
+  color: var(--ln-warning-text);
+  font-size: 14px;
+}
+
+.ln-maniere__colonnes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 26rem);
+  gap: calc(var(--ln-grid) * 3);
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .ln-maniere__colonnes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.ln-maniere__gauche {
+  display: grid;
+  gap: calc(var(--ln-grid) * 2);
+  min-width: 0;
+}
+
+/* La page qu'on annote. Le tracé se fait dessus, donc elle est positionnée : les zones sont
+   placées en part de sa largeur et de sa hauteur, jamais en pixels. */
+/* La planche épouse exactement l'image : les zones sont placées en part de ses dimensions, et
+   une boîte plus grande que l'image les décalerait toutes. Elle est bornée en hauteur pour que
+   la palette et le pied restent à l'écran — une page entière les repousserait dehors. */
+.ln-maniere__planche {
+  position: relative;
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin-inline: auto;
+  border: 1px solid var(--ln-border-decorative);
+  border-radius: var(--ln-radius);
+  background: var(--ln-print-background);
+  overflow: hidden;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.ln-maniere__planche img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  max-height: calc(var(--ln-grid) * 56);
+  user-select: none;
+}
+
+.ln-maniere__planche-vide {
+  margin: 0;
+  min-width: calc(var(--ln-grid) * 40);
+  padding: calc(var(--ln-grid) * 4);
+  color: var(--ln-print-secondary);
+  text-align: center;
+}
+
+/* Une zone tracée. Elle se distingue par sa teinte **et** par son nom : la teinte seule ne dit
+   rien à qui ne la voit pas. */
+.ln-zone {
+  position: absolute;
+  border: 2px solid var(--ln-action-background);
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--ln-action-background) 10%, transparent);
+  cursor: move;
+}
+
+.ln-zone--element {
+  border-color: var(--ln-text-primary);
+  background: color-mix(in srgb, var(--ln-text-primary) 8%, transparent);
+}
+
+.ln-zone--trace {
+  border-style: dashed;
+  pointer-events: none;
+}
+
+.ln-zone--choisie {
+  box-shadow: 0 0 0 2px var(--ln-focus);
+}
+
+.ln-zone:focus-visible {
+  outline: 2px solid var(--ln-focus);
+  outline-offset: 2px;
+}
+
+.ln-zone__nom {
+  position: absolute;
+  inset-block-end: 100%;
+  inset-inline-start: -2px;
+  padding: 1px calc(var(--ln-grid) * 0.75);
+  border-radius: 3px 3px 0 0;
+  background: var(--ln-action-background);
+  color: var(--ln-action-text);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.ln-zone--au-bord .ln-zone__nom {
+  inset-inline-start: auto;
+  inset-inline-end: -2px;
+}
+
+.ln-zone--element .ln-zone__nom {
+  background: var(--ln-text-primary);
+  color: var(--ln-background);
+}
+
+.ln-poignee {
+  position: absolute;
+  width: calc(var(--ln-grid) * 1.5);
+  height: calc(var(--ln-grid) * 1.5);
+  border: 1px solid var(--ln-action-background);
+  border-radius: 2px;
+  background: var(--ln-surface);
+  touch-action: none;
+}
+
+.ln-poignee--no { inset-block-start: calc(var(--ln-grid) * -0.75); inset-inline-start: calc(var(--ln-grid) * -0.75); cursor: nwse-resize; }
+.ln-poignee--ne { inset-block-start: calc(var(--ln-grid) * -0.75); inset-inline-end: calc(var(--ln-grid) * -0.75); cursor: nesw-resize; }
+.ln-poignee--so { inset-block-end: calc(var(--ln-grid) * -0.75); inset-inline-start: calc(var(--ln-grid) * -0.75); cursor: nesw-resize; }
+.ln-poignee--se { inset-block-end: calc(var(--ln-grid) * -0.75); inset-inline-end: calc(var(--ln-grid) * -0.75); cursor: nwse-resize; }
+
+.ln-palette {
+  display: grid;
+  gap: calc(var(--ln-grid));
+  padding: calc(var(--ln-grid) * 2);
+  border: 1px solid var(--ln-border-decorative);
+  border-radius: var(--ln-radius);
+  background: var(--ln-surface);
+}
+
+.ln-palette .ln-muted {
+  margin: 0;
+}
+
+.ln-palette__liste {
+  display: grid;
+  gap: calc(var(--ln-grid));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ln-palette__note {
+  display: flex;
+  align-items: flex-start;
+  gap: calc(var(--ln-grid) * 0.75);
+  font-size: 13px;
+}
+
+.ln-zone-tracee {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--ln-grid));
+}
+
+.ln-zone-tracee__pastille {
+  width: calc(var(--ln-grid) * 1.5);
+  height: calc(var(--ln-grid) * 1.5);
+  border-radius: 3px;
+  background: var(--ln-action-background);
+}
+
+.ln-zone-tracee__pastille--element {
+  background: var(--ln-text-primary);
+}
+
+.ln-zone-tracee__type {
+  flex: 1;
+  min-width: 0;
+}
+
+.ln-maniere__droite {
+  display: grid;
+  gap: calc(var(--ln-grid) * 1.5);
+  align-content: start;
+  padding: calc(var(--ln-grid) * 2);
+  border: 1px solid var(--ln-border-decorative);
+  border-radius: var(--ln-radius);
+  background: var(--ln-surface);
+}
+
+.ln-maniere__sous-titre {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.ln-maniere__droite .ln-muted {
+  margin: calc(var(--ln-grid) * 0.25) 0 0 0;
+  font-size: 14px;
+}
+
+.ln-maniere__bilan {
+  margin: 0;
+  font-weight: 600;
+}
+
+.ln-maniere__essai {
+  display: grid;
+  gap: calc(var(--ln-grid));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: calc(var(--ln-grid) * 48);
+  overflow-y: auto;
+}
+
+.ln-maniere__lue {
+  padding: calc(var(--ln-grid) * 1.25) calc(var(--ln-grid) * 1.5);
+  border-radius: var(--ln-radius);
+}
+
+.ln-maniere__numero {
+  margin: 0;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.ln-maniere__doute {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 0.5);
+  margin: calc(var(--ln-grid) * 0.5) 0 0 0;
+  color: var(--ln-warning-text);
+  font-size: 13px;
+}
+
+.ln-maniere__pied {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--ln-grid) * 2);
+  padding-block-start: calc(var(--ln-grid) * 2);
+  border-block-start: 1px solid var(--ln-border-decorative);
+}
+
+.ln-maniere__pied > .ln-muted {
+  margin: 0;
+}
+
+.ln-maniere__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--ln-grid) * 1.5);
+}

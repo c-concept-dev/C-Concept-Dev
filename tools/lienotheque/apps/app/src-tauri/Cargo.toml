@@ -23,6 +23,7 @@ tiny_http = "0.12"
 uuid = { version = "1.20.0", features = ["v4"] }
 tauri-plugin-dialog = "2"
 sha2 = "0.10.9"
+base64 = "0.23.1"
 
 [profile.release]
 strip = true

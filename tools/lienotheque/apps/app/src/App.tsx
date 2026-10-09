@@ -7,6 +7,7 @@ import type {
   TypeDeContenu,
   VueBibliotheque,
 } from "@lienotheque/contrats";
+import { BROUILLON_NEUF, bilanDEssai, depuisRecette, enRecette, type Brouillon } from "@lienotheque/noyau";
 import { EnTete } from "./EnTete.js";
 import { chargerBibliothequeDemonstration, chargerDonnees, rechercheDemandee } from "./donnees/chargement.js";
 import { chargerVue } from "./donnees/vue.js";
@@ -22,6 +23,7 @@ import { Creer } from "./pages/Creer.js";
 import { Organisation } from "./pages/Organisation.js";
 import { Depot, type ActionTravail } from "./pages/Depot.js";
 import { Recherche } from "./pages/Recherche.js";
+import { ManiereDeLire, type Essai } from "./pages/ManiereDeLire.js";
 import { Prototype } from "./pages/Prototype.js";
 import { chargerModeles } from "./donnees/modeles.js";
 import {
@@ -33,6 +35,10 @@ import {
   lireBibliotheque,
   retenirBibliotheque,
   agirSurTravail,
+  apercuDePages,
+  enregistrerManiere,
+  essayerManiere,
+  lireManiere,
   choisirFichiers,
   deposer as deposerChezLHote,
   faireTourner,
@@ -72,6 +78,15 @@ export function App(): JSX.Element {
    *  exactement là où l'on était en la fermant. */
   const requeteDeLAdresse = useMemo(() => rechercheDemandee(globalThis.location?.search ?? ""), []);
   const [cherche, setCherche] = useState(requeteDeLAdresse !== undefined);
+  /** L'éditeur de manière de lire : le document regardé, ses pages, le brouillon, l'essai. */
+  const [maniere, setManiere] = useState<{
+    document: string;
+    pages: readonly { rang: number; image: string }[];
+    brouillon: Brouillon;
+    essai?: Essai | undefined;
+    occupe?: boolean | undefined;
+    echec?: string | undefined;
+  }>({ document: "", pages: [], brouillon: BROUILLON_NEUF });
 
   // ⌘K ouvre la recherche depuis n'importe quel écran (UX-02). Ctrl+K pour les claviers qui
   // n'ont pas de touche Commande.
@@ -118,6 +133,12 @@ export function App(): JSX.Element {
       setExemples(bibliotheque.exemples);
       setFile(bibliotheque.file);
       setAccompagnements(bibliotheque.accompagnements);
+      setManiere((avant) => ({
+        ...avant,
+        document: "Funk Fusion Bass.pdf",
+        pages: bibliotheque.pagesATracer,
+        brouillon: { ...avant.brouillon, zones: bibliotheque.zonesTracees, exempleDeNumero: "2.1" },
+      }));
     });
     return () => {
       vivant = false;
@@ -207,6 +228,61 @@ export function App(): JSX.Element {
     setFile((anciens) => anciens.map((travail) => (travail.id === apres.id ? apres : travail)));
   };
 
+  /** Montre quelques pages d'un document : c'est la première chose dont l'éditeur a besoin. */
+  const montrerLesPages = async (racine: string, nom: string, depuis: number): Promise<void> => {
+    setManiere((avant) => ({ ...avant, document: nom, occupe: true, echec: undefined }));
+    try {
+      const pages = await apercuDePages(racine, nom, depuis, 8);
+      const connue = await lireManiere(racine);
+      setManiere((avant) => ({
+        ...avant,
+        document: nom,
+        pages,
+        // Une manière de lire déjà enregistrée se rouvre telle quelle : on la corrige, on ne la
+        // retape pas (REC-06).
+        brouillon: connue === undefined ? avant.brouillon : depuisRecette(connue),
+        occupe: false,
+      }));
+    } catch (erreur) {
+      setManiere((avant) => ({ ...avant, occupe: false, echec: erreur instanceof Error ? erreur.message : String(erreur) }));
+    }
+  };
+
+  /** Essaie la manière de lire sur dix pages, sans rien enregistrer (REC-07). */
+  const essayer = async (racine: string): Promise<void> => {
+    setManiere((avant) => ({ ...avant, occupe: true, echec: undefined }));
+    try {
+      // On essaie là où l'on regarde : les dix premières pages d'un document n'ont souvent rien
+      // à lire, et un essai qui ne lit rien ne dit rien.
+      const vue = await essayerManiere(
+        racine,
+        maniere.document,
+        enRecette(maniere.brouillon),
+        maniere.pages[0]?.rang ?? 0,
+        10,
+      );
+      const bilan = bilanDEssai(vue);
+      setManiere((avant) => ({
+        ...avant,
+        occupe: false,
+        essai: { pages: bilan.pages, lus: bilan.lus, attendus: bilan.pages.length },
+      }));
+    } catch (erreur) {
+      setManiere((avant) => ({ ...avant, occupe: false, echec: erreur instanceof Error ? erreur.message : String(erreur) }));
+    }
+  };
+
+  /** Enregistre la manière de lire. C'est elle que les traitements emploieront ensuite. */
+  const enregistrer = async (racine: string, brouillon: Brouillon): Promise<void> => {
+    setManiere((avant) => ({ ...avant, occupe: true, echec: undefined }));
+    try {
+      await enregistrerManiere(racine, enRecette(brouillon));
+      setManiere((avant) => ({ ...avant, brouillon, occupe: false }));
+    } catch (erreur) {
+      setManiere((avant) => ({ ...avant, occupe: false, echec: erreur instanceof Error ? erreur.message : String(erreur) }));
+    }
+  };
+
   /** Une version de plus du schéma. L'hôte réécrit la description : la page n'écrit jamais. */
   const organiser = async (schema: SchemaBibliotheque): Promise<void> => {
     if (derniere === undefined) return;
@@ -217,6 +293,30 @@ export function App(): JSX.Element {
 
   const ecran = ((): JSX.Element | null => {
     if (route.ecran === "reglages") return <Reglages theme={theme} onThemeChange={changerTheme} />;
+    if (route.ecran === "maniere")
+      return derniere === undefined ? (
+        <PremierLancement
+          theme={theme}
+          onCreer={() => aller({ ecran: "creer" })}
+          onFichiers={deposer}
+          onOuvrir={estBureau() ? () => void ouvrir() : undefined}
+          echec={echecOuverture}
+        />
+      ) : (
+        <ManiereDeLire
+          description={derniere.description}
+          document={maniere.document}
+          pages={maniere.pages}
+          brouillon={maniere.brouillon}
+          onBrouillon={(brouillon) => setManiere((avant) => ({ ...avant, brouillon }))}
+          onEssayer={() => void essayer(derniere.racine)}
+          onEnregistrer={(brouillon) => void enregistrer(derniere.racine, brouillon)}
+          onAutresPages={(depuis) => void montrerLesPages(derniere.racine, maniere.document, depuis)}
+          {...(maniere.essai === undefined ? {} : { essai: maniere.essai })}
+          {...(maniere.occupe === undefined ? {} : { occupe: maniere.occupe })}
+          {...(maniere.echec === undefined ? {} : { echec: maniere.echec })}
+        />
+      );
     if (route.ecran === "depot")
       return derniere === undefined ? (
         <PremierLancement
@@ -236,6 +336,14 @@ export function App(): JSX.Element {
           onFichiers={deposer}
           onAction={(id, action) => void agir(derniere.racine, id, action)}
           onVerifier={() => aller({ ecran: "verifier" })}
+          onManiere={
+            estBureau()
+              ? (nom) => {
+                  aller({ ecran: "maniere" });
+                  void montrerLesPages(derniere.racine, nom, 0);
+                }
+              : undefined
+          }
         />
       );
     if (route.ecran === "organisation")
@@ -343,6 +451,7 @@ export function App(): JSX.Element {
                   { cle: "organisation", titre: "Revoir l’organisation", source: derniere.description.nom, aussi: ["axes", "valeurs", "ranger"] },
                   { cle: "depot", titre: "Ajouter des fichiers", source: derniere.description.nom, aussi: ["déposer", "traitement", "file"] },
                   { cle: "verifier", titre: "Vérifier ce qui attend un œil", source: derniere.description.nom, aussi: ["doutes", "cas"] },
+                  { cle: "maniere", titre: "Revoir la manière de lire", source: derniere.description.nom, aussi: ["recette", "zones", "lecture"] },
                 ]
           }
           {...(requeteDeLAdresse === undefined ? {} : { requeteInitiale: requeteDeLAdresse })}
@@ -366,6 +475,7 @@ export function App(): JSX.Element {
             if (cle === "organisation") aller({ ecran: "organisation" });
             else if (cle === "depot") aller({ ecran: "depot" });
             else if (cle === "verifier") aller({ ecran: "verifier" });
+            else if (cle === "maniere") aller({ ecran: "maniere" });
           }}
         />
       ) : null}

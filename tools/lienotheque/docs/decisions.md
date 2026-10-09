@@ -31,6 +31,8 @@
 | 2026-10-06 | Portage Rust intégral de la chaîne **écarté** : il faudrait réécrire pdf.js et les codecs, et refaire la preuve des 84/92 et 95/95 | Lot D2, étape 0 |
 | 2026-10-06 | Allègement du moteur (Node sans ICU, binaire compilé) **reporté après la bêta**, et sans toucher la chaîne | Lot D2, étape 0 |
 | 2026-10-08 | **La recherche n'a pas d'index à elle** : elle lit la vue, et tout se passe sur la machine. Le surlignage porte sur le texte d'origine, pas sur sa forme repliée | Lot D2, étape 4, section ci-dessous |
+| 2026-10-09 | **La forme d'un numéro d'élément se donne par l'exemple**, jamais par une syntaxe : « ici, un numéro ressemble à 2.46 ». Quatre hypothèses du lecteur deviennent des données | Lot D2, étape 5, section ci-dessous |
+| 2026-10-09 | **REC-07 sur F5 : 7 min 05 s puis 2 min 35 s**, sous le critère. Le vocabulaire des recettes l'exprime désormais ; l'OCR perd encore le point de « 2.1 » | Lot D2, étape 5 |
 | 2026-10-08 | **Un travail par document, non par fichier** : le moteur lit un document et ses médias ensemble, et un travail qui ne porterait qu'une piste n'aurait rien à lire | Lot D2, étape 3, section ci-dessous |
 | 2026-10-08 | **Pas de temps restant à l'écran de traitement** : on ne sait pas à quelle vitesse la suite ira, et un chiffre inventé est pire qu'un chiffre absent. On écrit « 194 / 286 » | Lot D2, étape 3 |
 | 2026-10-08 | **Fusionner et retirer une valeur sont deux gestes**, pas un : le contrat a refusé qu'une clé vive à deux endroits, et il avait raison — ils ne montrent pas la même chose | Lot D2, étape 2, section ci-dessous |
@@ -402,6 +404,81 @@ mènent ; le noyau les filtre sur leurs mots, il ne les invente pas.
 L'extrait portait le serif de marque, comme la maquette le suggérait. Le garde-fou typographique
 l'a refusé : il ne sert qu'au logo et au « Bonjour ». Les maquettes sont illustratives, jamais
 typographiques — et c'est un test qui l'a rappelé, pas une relecture.
+
+
+## Lot D2, étape 5 — montrer où regarder, et l'épreuve REC-07 sur F5
+
+L'éditeur visuel de manière de lire, puis l'épreuve : apprendre à lire un document que
+l'application n'a jamais vu, en direct, sans recette écrite à l'avance.
+
+### Les deux temps mesurés
+
+| | |
+|---|---:|
+| **Découverte brute** — du premier coup d'œil à la cause identifiée | **7 min 05 s** |
+| **Découverte complète** — reprise après correction, jusqu'à la conclusion | **2 min 35 s** |
+| Total sur le document | **9 min 40 s**, sous les quinze minutes du critère |
+
+Le temps n'a jamais été le problème. Le vocabulaire des recettes l'était, et l'OCR l'est encore.
+
+### Ce que F5 a appris au produit
+
+F5 numérote ses exercices « chapitre.exercice » — 2.1, 2.46 — dans un **cadre en haut à gauche**,
+et ne porte aucune pastille de piste. Quatre hypothèses, écrites dans le lecteur, l'ont arrêté :
+
+1. **La bande du haut était interdite aux éléments**, sans appel. Les numéros de F5 y sont.
+2. **Un numéro devait répondre à un à trois chiffres.** « 2.46 » n'y répond pas.
+3. **La liste de caractères était écrite en dur**, et le champ `alphabet` de la recette n'était
+   jamais lu.
+4. **Le numéro de page ne se lisait que dans les coins** : une zone tracée pour lui était
+   ignorée, et l'éditeur laissait donc dessiner quelque chose qui ne servait à rien.
+
+Les quatre deviennent des données. La forme d'un numéro se donne **par l'exemple** — « ici, un
+numéro ressemble à 2.46 » — et non par une syntaxe : l'administrateur n'a pas à écrire une
+expression régulière, et nous n'avons pas à lui en montrer une. Deux règles la lisent : chaque
+groupe de chiffres vaut un à trois chiffres, tout le reste est repris tel quel. L'ordre suit,
+groupe par groupe, chacun comptant pour mille.
+
+La bande du haut reste interdite **sauf si la recette y a tracé sa zone d'éléments**. Une
+première version la libérait dès que les numéros de page se lisaient ailleurs ; F3 le supportait,
+mais F4 ne peut pas être éprouvé sans solliciter le service de relecture payant, et une règle
+qu'on ne peut pas vérifier ne doit pas changer le comportement des recettes existantes.
+
+### Ce qui bloque encore, et qui n'est plus le contrat
+
+Avec ces ajouts, la manière de lire de F5 **s'exprime**. Elle ne se lit toujours pas : à la
+résolution de ce document, Tesseract rend « 21 » pour « 2.1 ». **Le point disparaît**, même
+déclaré dans la liste de caractères. Éprouvé à la main sur un recadrage serré, agrandi huit fois
+et bordé de blanc — le même traitement que le lecteur applique :
+
+| Segmentation | Sans liste | Avec `0123456789.` |
+|---|---|---|
+| 7 | `eA (il` | *(rien)* |
+| 8 | `21)` | `21` |
+| 13 | `21)` | `21` |
+
+Le séparateur n'est pas récupérable ainsi. Ce n'est plus un manque de vocabulaire : c'est une
+capacité de lecture qui manque. Deux pistes, toutes deux à décider :
+
+- **Lire les groupes séparément** et les recomposer par l'écart horizontal, en s'appuyant sur le
+  découpage de chiffres qui existe déjà pour les pastilles.
+- **Déclarer que le numéro est encadré**, et se servir du cadre pour borner la lecture.
+
+### Ce qui a été vérifié intact
+
+`VERSION_LECTURE` passe à 9 — une lecture porte désormais le numéro tel qu'il est imprimé — ce
+qui invalide les caches. **F3 relu entièrement à froid : 95 / 95**, deux pages absentes, six
+médias orphelins, en 195 s. F1 exact. F4 n'a pas été relancé : sa mesure appelle le service de
+relecture payant, et rien dans ce lot n'autorisait cette dépense — c'est pourquoi la règle de la
+bande a été écrite pour ne rien changer aux recettes décrites par une marge ou un bord, ce qui est
+le cas de F4.
+
+### Ce que les captures ont montré
+
+La page occupait toute la hauteur et repoussait la palette hors de l'écran ; l'étiquette d'une
+zone proche du bord droit se faisait couper. Les deux sont corrigés. La page montrée par
+l'éditeur est dessinée et prend ses couleurs des jetons : elle suit le thème, et le garde-fou des
+couleurs en dur n'a pas eu à être desserré pour elle.
 
 
 ## Prototype du socle local — mesures du 3 octobre 2026

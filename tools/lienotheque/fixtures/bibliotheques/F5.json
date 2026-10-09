@@ -1,0 +1,50 @@
+{
+  "description": "Description de la bibliothèque F5 pour l'épreuve REC-07. C'est une donnée, pas du code : les mots du domaine n'ont le droit d'être écrits que dans un fichier comme celui-ci (CLA-01). Le document et les médias eux-mêmes sont sous droits et restent hors du dépôt.",
+  "id": "f5-funk-fusion-bass",
+  "nom": "Funk Fusion Bass",
+  "contenus": [
+    "documents",
+    "audio"
+  ],
+  "mots": {
+    "element": {
+      "un": "exercice",
+      "plusieurs": "exercices"
+    },
+    "piste": {
+      "un": "piste",
+      "plusieurs": "pistes"
+    },
+    "page": {
+      "un": "page",
+      "plusieurs": "pages"
+    }
+  },
+  "schema": {
+    "cle": "methode-instrument",
+    "nom": "Méthode d'instrument",
+    "langue": "fr",
+    "version": 1,
+    "axes": [
+      {
+        "cle": "etat-du-lien",
+        "nom": "Avec enregistrement",
+        "nature": "referentiel",
+        "cardinalite": "une",
+        "roleCommun": "etat",
+        "valeurs": [
+          {
+            "cle": "avec",
+            "nom": "Avec enregistrement",
+            "roleValeur": "present"
+          },
+          {
+            "cle": "sans",
+            "nom": "Sans enregistrement",
+            "roleValeur": "absent"
+          }
+        ]
+      }
+    ]
+  }
+}
