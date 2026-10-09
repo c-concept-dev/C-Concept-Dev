@@ -7,7 +7,18 @@ const Rel = z.number().gt(0).lt(1);
 const Zone = z.discriminatedUnion("type", [
   z.object({ type: z.literal("coins"), bord: z.enum(["haut", "bas"]) }).strict(),
   z.object({ type: z.literal("marges_exterieures"), largeur_rel: Rel }).strict(),
-  z.object({ type: z.literal("rectangle_rel"), x: z.number().min(0).max(1), y: z.number().min(0).max(1), l: Rel, h: Rel }).strict(),
+  // Une zone tracée peut couvrir toute la largeur ou toute la hauteur — une bande en pied de
+  // page, par exemple. `Rel` l'interdit, et à juste titre là où il sert : une marge ne peut pas
+  // être la page entière, ni un chiffre la hauteur entière. Ici, si.
+  z
+    .object({
+      type: z.literal("rectangle_rel"),
+      x: z.number().min(0).max(1),
+      y: z.number().min(0).max(1),
+      l: z.number().gt(0).max(1),
+      h: z.number().gt(0).max(1),
+    })
+    .strict(),
 ]);
 
 const Alphabet = z.enum(["chiffres", "latin", "tous"]);
