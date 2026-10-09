@@ -70,7 +70,11 @@ export const BROUILLON_NEUF: Brouillon = {
   zones: [],
   hauteurElement: { min: 0.012, max: 0.04 },
   pageDouble: false,
-  redressement: "auto",
+  // Aucun redressement par défaut, et c'est l'éditeur qui l'impose : on trace les zones sur la
+  // page **telle qu'elle est montrée**. Redresser la tourne sous le tracé, et la zone ne
+  // désigne plus rien — on cherche alors au bon endroit d'une page qui a bougé. L'épreuve F5
+  // s'y est arrêtée une heure durant : la zone était juste, la page ne l'était plus.
+  redressement: "aucun",
   ordreElements: "strictement_croissant",
   sautMax: 6,
   plusieursElementsParPiste: true,

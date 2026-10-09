@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { FORME_PAR_DEFAUT, caracteresAcceptes, formeDepuisExemple, rangDuNumero } from "../src/numeros.js";
+import {
+  FORME_PAR_DEFAUT,
+  caracteresAcceptes,
+  formeDepuisExemple,
+  grouperParEcart,
+  rangDuNumero,
+  recomposer,
+} from "../src/numeros.js";
 
 /** La forme d'un numéro, donnée par l'exemple (REC-01, REC-07). */
 
@@ -80,5 +87,50 @@ describe("les caractères que le lecteur doit accepter", () => {
 
   it("« tous » n'impose aucune liste : le lecteur prend ce qu'il trouve", () => {
     expect(caracteresAcceptes("tous", FORME_PAR_DEFAUT)).toBeUndefined();
+  });
+});
+
+describe("les groupes se retrouvent par l'écart, quand le séparateur ne survit pas", () => {
+  /** Des boîtes de chiffres : « 2 . 1 » laisse un écart large au milieu. */
+  const chiffre = (x: number, l = 10) => ({ x, l });
+
+  it("coupe aux écarts les plus larges, et rend le nombre de groupes attendu", () => {
+    const groupes = grouperParEcart([chiffre(0), chiffre(11), chiffre(40), chiffre(51)], 2);
+    expect(groupes?.map((g) => g.length)).toEqual([2, 2]);
+  });
+
+  it("un seul groupe attendu rend tout d'un bloc", () => {
+    expect(grouperParEcart([chiffre(0), chiffre(11)], 1)?.[0]).toHaveLength(2);
+  });
+
+  it("refuse quand la coupure n'est pas franche : un numéro inventé vaut moins qu'un absent", () => {
+    // Des chiffres régulièrement espacés : rien ne désigne une séparation.
+    expect(grouperParEcart([chiffre(0), chiffre(12), chiffre(24), chiffre(36)], 2)).toBeUndefined();
+  });
+
+  it("refuse quand il y a moins de chiffres que de groupes", () => {
+    expect(grouperParEcart([chiffre(0)], 2)).toBeUndefined();
+  });
+
+  it("ne dépend pas de l'ordre où les chiffres arrivent", () => {
+    const melange = [chiffre(51), chiffre(0), chiffre(40), chiffre(11)];
+    expect(grouperParEcart(melange, 2)?.map((g) => g.map((c) => c.x))).toEqual([[0, 11], [40, 51]]);
+  });
+});
+
+describe("recomposer le texte d'un numéro", () => {
+  const FORME = formeDepuisExemple("2.46");
+
+  it("intercale les séparateurs de l'exemple", () => {
+    expect(recomposer(["2", "46"], FORME)).toBe("2.46");
+  });
+
+  it("refuse un nombre de groupes qui ne correspond pas à l'exemple", () => {
+    expect(recomposer(["2"], FORME)).toBeUndefined();
+    expect(recomposer(["2", "4", "6"], FORME)).toBeUndefined();
+  });
+
+  it("refuse un groupe qui n'est pas fait de chiffres", () => {
+    expect(recomposer(["2", "A6"], FORME)).toBeUndefined();
   });
 });

@@ -217,3 +217,15 @@ describe("la forme d'un numéro se donne par l'exemple (REC-01, REC-07)", () => 
     expect(manqueALaManiere({ ...COMPLET, exempleDeNumero: "   " })).toBeUndefined();
   });
 });
+
+describe("on trace sur la page telle qu'elle est montrée", () => {
+  it("une manière de lire neuve ne redresse pas : redresser tournerait la page sous le tracé", () => {
+    expect(BROUILLON_NEUF.redressement).toBe("aucun");
+    expect(enRecette({ ...COMPLET, redressement: BROUILLON_NEUF.redressement }).preparation.redressement).toBe("aucun");
+  });
+
+  it("une recette qui redresse se rouvre telle quelle : on ne la corrige pas dans son dos", () => {
+    const avec = enRecette({ ...COMPLET, redressement: "auto" });
+    expect(depuisRecette(avec).redressement).toBe("auto");
+  });
+});
