@@ -31,6 +31,7 @@
 | 2026-10-06 | Portage Rust intégral de la chaîne **écarté** : il faudrait réécrire pdf.js et les codecs, et refaire la preuve des 84/92 et 95/95 | Lot D2, étape 0 |
 | 2026-10-06 | Allègement du moteur (Node sans ICU, binaire compilé) **reporté après la bêta**, et sans toucher la chaîne | Lot D2, étape 0 |
 | 2026-10-08 | **La recherche n'a pas d'index à elle** : elle lit la vue, et tout se passe sur la machine. Le surlignage porte sur le texte d'origine, pas sur sa forme repliée | Lot D2, étape 4, section ci-dessous |
+| 2026-10-09 | **Les écrans lisent la version active du dépôt**, relue après chaque traitement, et les images de page arrivent une par une dans la réponse de l'hôte | Lot D2, étape 6, section ci-dessous |
 | 2026-10-09 | **Le parcours entier passe sans ligne de commande** : créer, organiser, déposer, apprendre à lire, traiter, lire — 234 s sur F3, 95/95 | Lot D2, étape 7, section ci-dessous |
 | 2026-10-09 | **La forme d'un numéro d'élément se donne par l'exemple**, jamais par une syntaxe : « ici, un numéro ressemble à 2.46 ». Quatre hypothèses du lecteur deviennent des données | Lot D2, étape 5, section ci-dessous |
 | 2026-10-09 | **REC-07 sur F5 : 13 min 25 s en trois passes, sous le critère — et F5 se lit.** Ce n'était pas l'OCR : le redressement automatique tournait la page sous le tracé. On trace désormais sur la page telle qu'elle est montrée | Lot D2, étape 5 |
@@ -511,6 +512,28 @@ l'éditeur est dessinée et prend ses couleurs des jetons : elle suit le thème,
 couleurs en dur n'a pas eu à être desserré pour elle.
 
 
+## Lot D2, étape 6 — les écrans lisent la bibliothèque, et non un instantané
+
+Cette étape devait être un allègement et des finitions. Elle a surtout servi à trouver trois trous
+qu'aucun test ne montrait, **parce que chaque écran, pris seul, fonctionnait**. C'est le parcours
+complet qui les aurait rencontrés, et c'est pour cela qu'il a été fait ensuite.
+
+**Les écrans ne savaient lire qu'un instantané servi par le serveur de développement.** Sur le
+bureau il n'y en a pas : après un traitement, Vérifier et le Lecteur n'avaient rien à montrer
+alors que le dépôt avait tout. Ils lisent maintenant la version active de la bibliothèque
+ouverte, relue après chaque traitement — c'est lui qui en pose une nouvelle (JOB-06).
+
+**Les images de page n'étaient nulle part.** Elles arrivent à la demande, une par une : un
+document de trois cents pages pèse des centaines de mégaoctets et le Lecteur n'en montre qu'une.
+Elles reviennent dans la réponse de l'hôte, jamais par un chemin que la page irait lire elle-même.
+
+**Une bibliothèque créée n'apparaissait pas à l'accueil** : on retombait sur l'écran du premier
+lancement alors qu'on venait de la créer. Elle s'y montre désormais, traitée ou non — « rien de
+traité pour l'instant » vaut mieux que l'absence.
+
+Quant à l'allègement lui-même, il reste où la décision du 6 octobre l'a mis : **après la bêta**,
+et sans toucher la chaîne. Rien dans cette étape n'a donné de raison de l'avancer.
+
 ## Lot D2, étape 7 — le parcours entier, sans ligne de commande
 
 De la création à la lecture, sur F3, chaque pas étant exactement ce qu'une commande de l'hôte
@@ -529,7 +552,14 @@ fait quand un écran l'appelle. Aucun chemin propre à l'essai :
 | Montrer une page au Lecteur | 0,0 s | image disponible |
 | **Total** | **234 s** | du premier geste à la lecture |
 
-**Ce que cet essai ne fait pas : cliquer.** Les dix captures de `docs/captures/` montrent les
+Le parcours a été rejoué sous `/usr/bin/time -l` pour en connaître le coût en mémoire : **224 s**,
+mêmes 95 / 95, et **643 Mio de pointe** pour le plus lourd des processus de la chaîne, hôte et
+moteur confondus. C'est le tiers du plafond de 2 Go qu'un moteur doit pouvoir toucher sans rompre,
+et c'est le chiffre qui compte ici : le traitement tourne dans un processus annexe, un par travail,
+et c'est lui qui porte la charge. Les deux temps, 234 s et 224 s, mesurent la même chose sur la
+même machine à dix secondes près — un parcours de cet ordre ne se mesure pas plus finement.
+
+**Ce que cet essai ne fait pas : cliquer.** Les douze captures de `docs/captures/` montrent les
 écrans ; cet essai montre que ce qu'ils demandent répond, dans l'ordre, sur un vrai corpus. Les
 deux ensemble couvrent le parcours ; ni l'un ni l'autre ne le couvre seul, et il faut le dire
 plutôt que de laisser croire qu'une main a tenu la souris.
